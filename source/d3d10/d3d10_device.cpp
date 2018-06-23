@@ -274,7 +274,6 @@ void STDMETHODCALLTYPE D3D10Device::OMSetRenderTargets(UINT NumViews, ID3D10Rend
 #if RESHADE_DX10_CAPTURE_DEPTH_BUFFERS
 	track_active_rendertargets(NumViews, ppRenderTargetViews, pDepthStencilView);
 #endif
-
 	_orig->OMSetRenderTargets(NumViews, ppRenderTargetViews, pDepthStencilView);
 }
 void STDMETHODCALLTYPE D3D10Device::OMSetBlendState(ID3D10BlendState *pBlendState, const FLOAT BlendFactor[4], UINT SampleMask)
@@ -291,8 +290,8 @@ void STDMETHODCALLTYPE D3D10Device::SOSetTargets(UINT NumBuffers, ID3D10Buffer *
 }
 void STDMETHODCALLTYPE D3D10Device::DrawAuto()
 {
-	_draw_call_tracker.on_draw(this, 0);
 	_orig->DrawAuto();
+	_draw_call_tracker.on_draw(this, 0);
 }
 void STDMETHODCALLTYPE D3D10Device::RSSetState(ID3D10RasterizerState *pRasterizerState)
 {
@@ -332,7 +331,6 @@ void STDMETHODCALLTYPE D3D10Device::ClearDepthStencilView(ID3D10DepthStencilView
 #if RESHADE_DX10_CAPTURE_DEPTH_BUFFERS
 	track_cleared_depthstencil(pDepthStencilView);
 #endif
-
 	_orig->ClearDepthStencilView(pDepthStencilView, ClearFlags, Depth, Stencil);
 }
 void STDMETHODCALLTYPE D3D10Device::GenerateMips(ID3D10ShaderResourceView *pShaderResourceView)
