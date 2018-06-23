@@ -16,35 +16,35 @@ void DXGISwapChain::perform_present(UINT PresentFlags)
 	{
 		switch (_direct3d_version)
 		{
-			case 10:
-				assert(_runtime != nullptr);
-				std::static_pointer_cast<reshade::d3d10::d3d10_runtime>(_runtime)->on_present(static_cast<D3D10Device *>(_direct3d_device)->_draw_call_tracker);
-				clear_drawcall_stats();
-				break;
-			case 11:
-				assert(_runtime != nullptr);
-				std::static_pointer_cast<reshade::d3d11::d3d11_runtime>(_runtime)->on_present(static_cast<D3D11Device *>(_direct3d_device)->_immediate_context->_draw_call_tracker);
-				clear_drawcall_stats();
-				break;
+		case 10:
+			assert(_runtime != nullptr);
+			std::static_pointer_cast<reshade::d3d10::d3d10_runtime>(_runtime)->on_present(static_cast<D3D10Device *>(_direct3d_device)->_draw_call_tracker);
+			clear_drawcall_stats();
+			break;
+		case 11:
+			assert(_runtime != nullptr);
+			std::static_pointer_cast<reshade::d3d11::d3d11_runtime>(_runtime)->on_present(static_cast<D3D11Device *>(_direct3d_device)->_immediate_context->_draw_call_tracker);
+			clear_drawcall_stats();
+			break;
 		}
 	}
 }
 
 void DXGISwapChain::clear_drawcall_stats()
-{	
+{
 	const auto device_d3d10_proxy = static_cast<D3D10Device *>(_direct3d_device);
 	const auto device_d3d11_proxy = static_cast<D3D11Device *>(_direct3d_device);
 
 	switch (_direct3d_version)
 	{
-		case 10:			
-			device_d3d10_proxy->clear_drawcall_stats();
-			break;
-		case 11:			
-			const auto immediate_context_proxy = device_d3d11_proxy->_immediate_context;
-			immediate_context_proxy->clear_drawcall_stats();
-			device_d3d11_proxy->clear_drawcall_stats();
-			break;
+	case 10:			
+		device_d3d10_proxy->clear_drawcall_stats();
+		break;
+	case 11:			
+		const auto immediate_context_proxy = device_d3d11_proxy->_immediate_context;
+		immediate_context_proxy->clear_drawcall_stats();
+		device_d3d11_proxy->clear_drawcall_stats();
+		break;
 	}
 }
 

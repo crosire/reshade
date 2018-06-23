@@ -629,6 +629,7 @@ namespace reshade::d3d10
 			}
 		}
 	}
+
 	void d3d10_runtime::capture_frame(uint8_t *buffer) const
 	{
 		if (_backbuffer_format != DXGI_FORMAT_R8G8B8A8_UNORM &&

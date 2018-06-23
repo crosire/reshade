@@ -355,17 +355,15 @@ void STDMETHODCALLTYPE D3D11DeviceContext::GSSetSamplers(UINT StartSlot, UINT Nu
 void STDMETHODCALLTYPE D3D11DeviceContext::OMSetRenderTargets(UINT NumViews, ID3D11RenderTargetView *const *ppRenderTargetViews, ID3D11DepthStencilView *pDepthStencilView)
 {
 #if RESHADE_DX11_CAPTURE_DEPTH_BUFFERS
-		track_active_rendertargets(NumViews, ppRenderTargetViews, pDepthStencilView);
+	track_active_rendertargets(NumViews, ppRenderTargetViews, pDepthStencilView);
 #endif
-
 	_orig->OMSetRenderTargets(NumViews, ppRenderTargetViews, pDepthStencilView);
 }
 void STDMETHODCALLTYPE D3D11DeviceContext::OMSetRenderTargetsAndUnorderedAccessViews(UINT NumRTVs, ID3D11RenderTargetView *const *ppRenderTargetViews, ID3D11DepthStencilView *pDepthStencilView, UINT UAVStartSlot, UINT NumUAVs, ID3D11UnorderedAccessView *const *ppUnorderedAccessViews, const UINT *pUAVInitialCounts)
 {
 #if RESHADE_DX11_CAPTURE_DEPTH_BUFFERS
-		track_active_rendertargets(NumRTVs, ppRenderTargetViews, pDepthStencilView);
+	track_active_rendertargets(NumRTVs, ppRenderTargetViews, pDepthStencilView);
 #endif
-
 	_orig->OMSetRenderTargetsAndUnorderedAccessViews(NumRTVs, ppRenderTargetViews, pDepthStencilView, UAVStartSlot, NumUAVs, ppUnorderedAccessViews, pUAVInitialCounts);
 }
 void STDMETHODCALLTYPE D3D11DeviceContext::OMSetBlendState(ID3D11BlendState *pBlendState, const FLOAT BlendFactor[4], UINT SampleMask)
@@ -446,9 +444,8 @@ void STDMETHODCALLTYPE D3D11DeviceContext::ClearUnorderedAccessViewFloat(ID3D11U
 void STDMETHODCALLTYPE D3D11DeviceContext::ClearDepthStencilView(ID3D11DepthStencilView *pDepthStencilView, UINT ClearFlags, FLOAT Depth, UINT8 Stencil)
 {
 #if RESHADE_DX11_CAPTURE_DEPTH_BUFFERS
-		track_cleared_depthstencil(pDepthStencilView);
+	track_cleared_depthstencil(pDepthStencilView);
 #endif
-
 	_orig->ClearDepthStencilView(pDepthStencilView, ClearFlags, Depth, Stencil);
 }
 void STDMETHODCALLTYPE D3D11DeviceContext::GenerateMips(ID3D11ShaderResourceView *pShaderResourceView)
