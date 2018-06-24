@@ -57,6 +57,10 @@ namespace reshade::d3d11
 		void render_technique(const technique &technique) override;
 		void render_imgui_draw_data(ImDrawData *data) override;
 
+#if RESHADE_DX11_CAPTURE_DEPTH_BUFFERS
+		com_ptr<ID3D11Texture2D> select_depth_texture_save(D3D11_TEXTURE2D_DESC &texture_desc);
+#endif
+
 		com_ptr<ID3D11Device> _device;
 		com_ptr<ID3D11DeviceContext> _immediate_context;
 		com_ptr<IDXGISwapChain> _swapchain;
@@ -70,13 +74,12 @@ namespace reshade::d3d11
 		std::vector<com_ptr<ID3D11ShaderResourceView>> _effect_shader_resources;
 		std::vector<com_ptr<ID3D11Buffer>> _constant_buffers;
 
-		bool depth_buffer_before_clear() { return _depth_buffer_before_clear; }
+		bool depth_buffer_before_clear = false;
+		bool extended_depth_buffer_detection = false;
+		unsigned int cleared_depth_buffer_index = 0;
+		int depth_buffer_texture_format = 0; // No depth buffer texture format filter by default
 
 	private:
-		int _depth_buffer_texture_format = 0; // No depth buffer texture format filter by default
-		bool _depth_buffer_debug = false;
-		bool _depth_buffer_before_clear = false;
-
 		bool init_backbuffer_texture();
 		bool init_default_depth_stencil();
 		bool init_fx_resources();
@@ -89,6 +92,17 @@ namespace reshade::d3d11
 		void detect_depth_source(draw_call_tracker& tracker);
 		bool create_depthstencil_replacement(ID3D11DepthStencilView *depthstencil, ID3D11Texture2D *texture);
 #endif
+
+		struct depth_texture_save_info
+		{
+			com_ptr<ID3D11Texture2D> src_texture;
+			D3D11_TEXTURE2D_DESC src_texture_desc;
+			com_ptr<ID3D11Texture2D> dest_texture;
+			bool cleared = false;
+		};
+
+		std::map<UINT, depth_texture_save_info> _displayed_depth_textures;
+		std::unordered_map<UINT, com_ptr<ID3D11Texture2D>> _depth_texture_saves;
 
 		bool _is_multisampling_enabled = false;
 		DXGI_FORMAT _backbuffer_format = DXGI_FORMAT_UNKNOWN;

@@ -7,6 +7,110 @@
 #include "d3d10_device.hpp"
 #include "../dxgi/dxgi_device.hpp"
 
+void D3D10Device::clear_drawcall_stats()
+{
+	_draw_call_tracker.reset();
+	_active_depthstencil.reset();
+	_clear_DSV_iter = 1;
+}
+
+#if RESHADE_DX10_CAPTURE_DEPTH_BUFFERS
+
+bool D3D10Device::save_depth_texture(ID3D10DepthStencilView *pDepthStencilView, bool cleared)
+{
+	if (this->_runtimes.empty())
+		return false;
+
+	const auto runtime = this->_runtimes.front();
+
+	if (!runtime->depth_buffer_before_clear)
+		return false;
+	if (!cleared && !runtime->extended_depth_buffer_detection)
+		return false;
+
+	assert(pDepthStencilView != nullptr);
+
+	// Retrieve texture from depth stencil
+	com_ptr<ID3D10Resource> resource;
+	pDepthStencilView->GetResource(&resource);
+
+	com_ptr<ID3D10Texture2D> texture;
+	if (FAILED(resource->QueryInterface(&texture)))
+	{
+		return false;
+	}
+
+	D3D10_TEXTURE2D_DESC desc;
+	texture->GetDesc(&desc);
+
+	// Check if aspect ratio is similar to the back buffer one
+	const float screen_aspect_ratio = float(runtime->frame_width()) / float(runtime->frame_height());
+	const float texture_aspect_ratio = float(desc.Width) / float(desc.Height);
+
+	if (fabs(texture_aspect_ratio - screen_aspect_ratio) > 0.1f)
+	{
+		return false;
+	}
+
+	if (desc.Width > runtime->frame_width())
+	{
+		return false;
+	}
+
+	// In case the depth texture is retrieved, we make a copy of it and store it in an ordered map to use it later in the final rendering stage.
+	if ((runtime->cleared_depth_buffer_index == 0 && cleared) || (this->_clear_DSV_iter <= runtime->cleared_depth_buffer_index))
+	{
+		// Select an appropriate destination texture
+		com_ptr<ID3D10Texture2D> depth_texture_save = runtime->select_depth_texture_save(desc);
+
+		if (depth_texture_save == nullptr)
+		{
+			return false;
+		}
+
+		// Copy the depth texture. This is necessary because the content of the depth texture is cleared.
+		// This way, we can retrieve this content in the final rendering stage
+		this->CopyResource(depth_texture_save.get(), texture.get());
+
+		// Store the saved texture in the ordered map.
+		_draw_call_tracker.track_depth_texture(runtime->depth_buffer_texture_format, this->_clear_DSV_iter, texture.get(), pDepthStencilView, depth_texture_save, cleared);
+	}
+	else
+	{
+		// Store a null depth texture in the ordered map in order to display it even if the user chose a previous cleared texture.
+		// This way the texture will still be visible in the depth buffer selection window and the user can choose it.
+		_draw_call_tracker.track_depth_texture(runtime->depth_buffer_texture_format, this->_clear_DSV_iter, texture.get(), pDepthStencilView, nullptr, cleared);
+	}
+
+	// TODO: This is unsafe if multiple device contexts are used on multiple threads
+	this->_clear_DSV_iter++;
+
+	return true;
+}
+
+void D3D10Device::track_active_rendertargets(UINT NumViews, ID3D10RenderTargetView *const *ppRenderTargetViews, ID3D10DepthStencilView *pDepthStencilView)
+{
+	if (this->_runtimes.empty())
+		return;
+
+	const auto runtime = this->_runtimes.front();
+
+	if (pDepthStencilView == nullptr)
+		return;
+
+	_draw_call_tracker.track_rendertargets(runtime->depth_buffer_texture_format, pDepthStencilView, NumViews, ppRenderTargetViews);
+
+	save_depth_texture(pDepthStencilView, false);
+}
+void D3D10Device::track_cleared_depthstencil(ID3D10DepthStencilView *pDepthStencilView)
+{
+	if (pDepthStencilView == nullptr)
+		return;
+
+	save_depth_texture(pDepthStencilView, true);
+}
+#endif
+
 // ID3D10Device
 HRESULT STDMETHODCALLTYPE D3D10Device::QueryInterface(REFIID riid, void **ppvObj)
 {
@@ -99,21 +203,13 @@ void STDMETHODCALLTYPE D3D10Device::VSSetShader(ID3D10VertexShader *pVertexShade
 }
 void STDMETHODCALLTYPE D3D10Device::DrawIndexed(UINT IndexCount, UINT StartIndexLocation, INT BaseVertexLocation)
 {
-	for (auto runtime : _runtimes)
-	{
-		runtime->on_draw_call(IndexCount);
-	}
-
 	_orig->DrawIndexed(IndexCount, StartIndexLocation, BaseVertexLocation);
+	_draw_call_tracker.on_draw(this, IndexCount);
 }
 void STDMETHODCALLTYPE D3D10Device::Draw(UINT VertexCount, UINT StartVertexLocation)
 {
-	for (auto runtime : _runtimes)
-	{
-		runtime->on_draw_call(VertexCount);
-	}
-
 	_orig->Draw(VertexCount, StartVertexLocation);
+	_draw_call_tracker.on_draw(this, VertexCount);
 }
 void STDMETHODCALLTYPE D3D10Device::PSSetConstantBuffers(UINT StartSlot, UINT NumBuffers, ID3D10Buffer *const *ppConstantBuffers)
 {
@@ -133,21 +229,13 @@ void STDMETHODCALLTYPE D3D10Device::IASetIndexBuffer(ID3D10Buffer *pIndexBuffer,
 }
 void STDMETHODCALLTYPE D3D10Device::DrawIndexedInstanced(UINT IndexCountPerInstance, UINT InstanceCount, UINT StartIndexLocation, INT BaseVertexLocation, UINT StartInstanceLocation)
 {
-	for (auto runtime : _runtimes)
-	{
-		runtime->on_draw_call(IndexCountPerInstance * InstanceCount);
-	}
-
 	_orig->DrawIndexedInstanced(IndexCountPerInstance, InstanceCount, StartIndexLocation, BaseVertexLocation, StartInstanceLocation);
+	_draw_call_tracker.on_draw(this, IndexCountPerInstance * InstanceCount);
 }
 void STDMETHODCALLTYPE D3D10Device::DrawInstanced(UINT VertexCountPerInstance, UINT InstanceCount, UINT StartVertexLocation, UINT StartInstanceLocation)
 {
-	for (auto runtime : _runtimes)
-	{
-		runtime->on_draw_call(VertexCountPerInstance * InstanceCount);
-	}
-
 	_orig->DrawInstanced(VertexCountPerInstance, InstanceCount, StartVertexLocation, StartInstanceLocation);
+	_draw_call_tracker.on_draw(this, VertexCountPerInstance * InstanceCount);
 }
 void STDMETHODCALLTYPE D3D10Device::GSSetConstantBuffers(UINT StartSlot, UINT NumBuffers, ID3D10Buffer *const *ppConstantBuffers)
 {
@@ -183,14 +271,9 @@ void STDMETHODCALLTYPE D3D10Device::GSSetSamplers(UINT StartSlot, UINT NumSample
 }
 void STDMETHODCALLTYPE D3D10Device::OMSetRenderTargets(UINT NumViews, ID3D10RenderTargetView *const *ppRenderTargetViews, ID3D10DepthStencilView *pDepthStencilView)
 {
-	if (pDepthStencilView != nullptr)
-	{
-		for (auto runtime : _runtimes)
-		{
-			runtime->on_set_depthstencil_view(pDepthStencilView);
-		}
-	}
-
+#if RESHADE_DX10_CAPTURE_DEPTH_BUFFERS
+	track_active_rendertargets(NumViews, ppRenderTargetViews, pDepthStencilView);
+#endif
 	_orig->OMSetRenderTargets(NumViews, ppRenderTargetViews, pDepthStencilView);
 }
 void STDMETHODCALLTYPE D3D10Device::OMSetBlendState(ID3D10BlendState *pBlendState, const FLOAT BlendFactor[4], UINT SampleMask)
@@ -208,6 +291,7 @@ void STDMETHODCALLTYPE D3D10Device::SOSetTargets(UINT NumBuffers, ID3D10Buffer *
 void STDMETHODCALLTYPE D3D10Device::DrawAuto()
 {
 	_orig->DrawAuto();
+	_draw_call_tracker.on_draw(this, 0);
 }
 void STDMETHODCALLTYPE D3D10Device::RSSetState(ID3D10RasterizerState *pRasterizerState)
 {
@@ -244,11 +328,9 @@ void STDMETHODCALLTYPE D3D10Device::ClearRenderTargetView(ID3D10RenderTargetView
 }
 void STDMETHODCALLTYPE D3D10Device::ClearDepthStencilView(ID3D10DepthStencilView *pDepthStencilView, UINT ClearFlags, FLOAT Depth, UINT8 Stencil)
 {
-	for (auto runtime : _runtimes)
-	{
-		runtime->on_clear_depthstencil_view(pDepthStencilView);
-	}
-
+#if RESHADE_DX10_CAPTURE_DEPTH_BUFFERS
+	track_cleared_depthstencil(pDepthStencilView);
+#endif
 	_orig->ClearDepthStencilView(pDepthStencilView, ClearFlags, Depth, Stencil);
 }
 void STDMETHODCALLTYPE D3D10Device::GenerateMips(ID3D10ShaderResourceView *pShaderResourceView)
@@ -330,14 +412,6 @@ void STDMETHODCALLTYPE D3D10Device::GSGetSamplers(UINT StartSlot, UINT NumSample
 void STDMETHODCALLTYPE D3D10Device::OMGetRenderTargets(UINT NumViews, ID3D10RenderTargetView **ppRenderTargetViews, ID3D10DepthStencilView **ppDepthStencilView)
 {
 	_orig->OMGetRenderTargets(NumViews, ppRenderTargetViews, ppDepthStencilView);
-
-	if (ppDepthStencilView != nullptr)
-	{
-		for (auto runtime : _runtimes)
-		{
-			runtime->on_get_depthstencil_view(*ppDepthStencilView);
-		}
-	}
 }
 void STDMETHODCALLTYPE D3D10Device::OMGetBlendState(ID3D10BlendState **ppBlendState, FLOAT BlendFactor[4], UINT *pSampleMask)
 {

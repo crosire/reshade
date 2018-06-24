@@ -156,6 +156,9 @@
     <ClCompile Include="source\update_check.cpp">
       <Filter>core\utility</Filter>
     </ClCompile>
+    <ClCompile Include="source\d3d10\draw_call_tracker.cpp">
+      <Filter>hooks\d3d10</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="source\hook.hpp">
@@ -277,6 +280,9 @@
     </ClInclude>
     <ClInclude Include="source\d3d11\draw_call_tracker.hpp">
       <Filter>hooks\d3d11</Filter>
+    </ClInclude>
+    <ClInclude Include="source\d3d10\draw_call_tracker.hpp">
+      <Filter>hooks\d3d10</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

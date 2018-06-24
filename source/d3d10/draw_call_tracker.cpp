@@ -2,14 +2,14 @@
 #include "log.hpp"
 #include <math.h>
 
-namespace reshade::d3d11
+namespace reshade::d3d10
 {
 	void draw_call_tracker::merge(const draw_call_tracker& source)
 	{
 		_global_counter.vertices += source.total_vertices();
 		_global_counter.drawcalls += source.total_drawcalls();
 
-#if RESHADE_DX11_CAPTURE_DEPTH_BUFFERS
+#if RESHADE_DX10_CAPTURE_DEPTH_BUFFERS
 		for (const auto &[depthstencil, snapshot] : source._counters_per_used_depthstencil)
 		{
 			_counters_per_used_depthstencil[depthstencil].stats.vertices += snapshot.stats.vertices;
@@ -26,7 +26,7 @@ namespace reshade::d3d11
 			}
 		}
 #endif
-#if RESHADE_DX11_CAPTURE_CONSTANT_BUFFERS
+#if RESHADE_DX10_CAPTURE_CONSTANT_BUFFERS
 		for (const auto &[buffer, snapshot] : source._counters_per_constant_buffer)
 		{
 			_counters_per_constant_buffer[buffer].vertices += snapshot.vertices;
@@ -41,42 +41,42 @@ namespace reshade::d3d11
 	{
 		_global_counter.vertices = 0;
 		_global_counter.drawcalls = 0;
-#if RESHADE_DX11_CAPTURE_DEPTH_BUFFERS
+#if RESHADE_DX10_CAPTURE_DEPTH_BUFFERS
 		_counters_per_used_depthstencil.clear();
 		_cleared_depth_textures.clear();
 #endif
-#if RESHADE_DX11_CAPTURE_CONSTANT_BUFFERS
+#if RESHADE_DX10_CAPTURE_CONSTANT_BUFFERS
 		_counters_per_constant_buffer.clear();
 #endif
 	}
 
-	void draw_call_tracker::on_map(ID3D11Resource *resource)
+	void draw_call_tracker::on_map(ID3D10Resource *resource)
 	{
 		UNREFERENCED_PARAMETER(resource);
 
-#if RESHADE_DX11_CAPTURE_CONSTANT_BUFFERS
-		D3D11_RESOURCE_DIMENSION dim;
+#if RESHADE_DX10_CAPTURE_CONSTANT_BUFFERS
+		d3d10_RESOURCE_DIMENSION dim;
 		resource->GetType(&dim);
 
-		if (dim == D3D11_RESOURCE_DIMENSION_BUFFER)
+		if (dim == d3d10_RESOURCE_DIMENSION_BUFFER)
 		{
-			_counters_per_constant_buffer[static_cast<ID3D11Buffer *>(resource)].mapped += 1;
+			_counters_per_constant_buffer[static_cast<ID3D10Buffer *>(resource)].mapped += 1;
 		}
 #endif
 	}
 
-	void draw_call_tracker::on_draw(ID3D11DeviceContext *context, UINT vertices)
+	void draw_call_tracker::on_draw(ID3D10Device *device, UINT vertices)
 	{
-		UNREFERENCED_PARAMETER(context);
+		UNREFERENCED_PARAMETER(device);
 
 		_global_counter.vertices += vertices;
 		_global_counter.drawcalls += 1;
 
-#if RESHADE_DX11_CAPTURE_DEPTH_BUFFERS
-		com_ptr<ID3D11RenderTargetView> targets[D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT];
-		com_ptr<ID3D11DepthStencilView> depthstencil;
+#if RESHADE_DX10_CAPTURE_DEPTH_BUFFERS
+		com_ptr<ID3D10RenderTargetView> targets[D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT];
+		com_ptr<ID3D10DepthStencilView> depthstencil;
 
-		context->OMGetRenderTargets(D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT, reinterpret_cast<ID3D11RenderTargetView **>(targets), &depthstencil);
+		device->OMGetRenderTargets(D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT, reinterpret_cast<ID3D10RenderTargetView **>(targets), &depthstencil);
 
 		if (depthstencil == nullptr)
 			// This is a draw call with no depth stencil
@@ -88,7 +88,7 @@ namespace reshade::d3d11
 			intermediate_snapshot->second.stats.drawcalls += 1;
 
 			// Find the render targets, if they exist, and update their counts
-			for (UINT i = 0; i < D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT; i++)
+			for (UINT i = 0; i < D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT; i++)
 			{
 				// Ignore empty slots
 				if (targets[i] == nullptr)
@@ -107,10 +107,10 @@ namespace reshade::d3d11
 			}
 		}
 #endif
-#if RESHADE_DX11_CAPTURE_CONSTANT_BUFFERS
+#if RESHADE_DX10_CAPTURE_CONSTANT_BUFFERS
 		// Capture constant buffers that are used when depth stencils are drawn
-		com_ptr<ID3D11Buffer> vscbuffers[D3D11_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT];
-		context->VSGetConstantBuffers(0, ARRAYSIZE(vscbuffers), reinterpret_cast<ID3D11Buffer **>(vscbuffers));
+		com_ptr<ID3D10Buffer> vscbuffers[d3d10_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT];
+		context->VSGetConstantBuffers(0, ARRAYSIZE(vscbuffers), reinterpret_cast<ID3D10Buffer **>(vscbuffers));
 
 		for (UINT i = 0; i < ARRAYSIZE(vscbuffers); i++)
 		{
@@ -121,8 +121,8 @@ namespace reshade::d3d11
 			}
 		}
 
-		com_ptr<ID3D11Buffer> pscbuffers[D3D11_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT];
-		context->PSGetConstantBuffers(0, ARRAYSIZE(pscbuffers), reinterpret_cast<ID3D11Buffer **>(pscbuffers));
+		com_ptr<ID3D10Buffer> pscbuffers[d3d10_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT];
+		context->PSGetConstantBuffers(0, ARRAYSIZE(pscbuffers), reinterpret_cast<ID3D10Buffer **>(pscbuffers));
 
 		for (UINT i = 0; i < ARRAYSIZE(pscbuffers); i++)
 		{
@@ -135,26 +135,26 @@ namespace reshade::d3d11
 #endif
 	}
 
-#if RESHADE_DX11_CAPTURE_DEPTH_BUFFERS
+#if RESHADE_DX10_CAPTURE_DEPTH_BUFFERS
 
-	bool draw_call_tracker::check_depth_texture_format(int depth_buffer_texture_format, ID3D11DepthStencilView *pDepthStencilView)
+	bool draw_call_tracker::check_depth_texture_format(int depth_buffer_texture_format, ID3D10DepthStencilView *pDepthStencilView)
 	{
 		if (pDepthStencilView == nullptr)
 		{
 			return false;
-		}		
+		}
 
 		// Retrieve texture from depth stencil
-		com_ptr<ID3D11Resource> resource;
+		com_ptr<ID3D10Resource> resource;
 		pDepthStencilView->GetResource(&resource);
 
-		com_ptr<ID3D11Texture2D> texture;
+		com_ptr<ID3D10Texture2D> texture;
 		if (FAILED(resource->QueryInterface(&texture)))
 		{
 			return false;
 		}
 
-		D3D11_TEXTURE2D_DESC desc;
+		D3D10_TEXTURE2D_DESC desc;
 		texture->GetDesc(&desc); DXGI_FORMAT depth_texture_format = desc.Format;
 
 		switch (depth_texture_format)
@@ -195,12 +195,12 @@ namespace reshade::d3d11
 
 		return true;
 	}
-	bool draw_call_tracker::check_depthstencil(ID3D11DepthStencilView *depthstencil) const
+	bool draw_call_tracker::check_depthstencil(ID3D10DepthStencilView *depthstencil) const
 	{
 		return _counters_per_used_depthstencil.find(depthstencil) != _counters_per_used_depthstencil.end();
 	}
 
-	void draw_call_tracker::track_rendertargets(int depth_buffer_texture_format, ID3D11DepthStencilView *depthstencil, UINT num_views, ID3D11RenderTargetView *const *views)
+	void draw_call_tracker::track_rendertargets(int depth_buffer_texture_format, ID3D10DepthStencilView *depthstencil, UINT num_views, ID3D10RenderTargetView *const *views)
 	{
 		assert(depthstencil != nullptr);
 
@@ -218,7 +218,7 @@ namespace reshade::d3d11
 			_counters_per_used_depthstencil[depthstencil].additional_views[views[i]].drawcalls += 1;
 		}
 	}
-	void draw_call_tracker::track_depth_texture(int depth_buffer_texture_format, UINT index, com_ptr<ID3D11Texture2D> src_texture, com_ptr<ID3D11DepthStencilView> src_depthstencil, com_ptr<ID3D11Texture2D> dest_texture, bool cleared)
+	void draw_call_tracker::track_depth_texture(int depth_buffer_texture_format, UINT index, com_ptr<ID3D10Texture2D> src_texture, com_ptr<ID3D10DepthStencilView> src_depthstencil, com_ptr<ID3D10Texture2D> dest_texture, bool cleared)
 	{
 		// Function that keeps track of a cleared depth texture in an ordered map in order to retrieve it at the final rendering stage
 		assert(src_texture != nullptr);
@@ -229,20 +229,20 @@ namespace reshade::d3d11
 		}
 
 		// Gather some extra info for later display
-		D3D11_TEXTURE2D_DESC src_texture_desc;
+		D3D10_TEXTURE2D_DESC src_texture_desc;
 		src_texture->GetDesc(&src_texture_desc);
 
 		// check if it is really a depth texture
-		assert((src_texture_desc.BindFlags & D3D11_BIND_DEPTH_STENCIL) != 0);
+		assert((src_texture_desc.BindFlags & D3D10_BIND_DEPTH_STENCIL) != 0);
 
 		// fill the ordered map with the saved depth texture
 		if (const auto it = _cleared_depth_textures.find(index); it == _cleared_depth_textures.end())
 		{
-			_cleared_depth_textures.emplace(index, depth_texture_save_info { src_texture, src_depthstencil, src_texture_desc, dest_texture, cleared });
+			_cleared_depth_textures.emplace(index, depth_texture_save_info{ src_texture, src_depthstencil, src_texture_desc, dest_texture, cleared });
 		}
 		else
 		{
-			it->second = depth_texture_save_info { src_texture, src_depthstencil, src_texture_desc, dest_texture, cleared };
+			it->second = depth_texture_save_info{ src_texture, src_depthstencil, src_texture_desc, dest_texture, cleared };
 		}
 	}
 
@@ -261,7 +261,7 @@ namespace reshade::d3d11
 
 			if (snapshot.texture == nullptr)
 			{
-				com_ptr<ID3D11Resource> resource;
+				com_ptr<ID3D10Resource> resource;
 				depthstencil->GetResource(&resource);
 
 				if (FAILED(resource->QueryInterface(&snapshot.texture)))
@@ -270,10 +270,10 @@ namespace reshade::d3d11
 				}
 			}
 
-			D3D11_TEXTURE2D_DESC desc;
+			D3D10_TEXTURE2D_DESC desc;
 			snapshot.texture->GetDesc(&desc);
 
-			assert((desc.BindFlags & D3D11_BIND_DEPTH_STENCIL) != 0);
+			assert((desc.BindFlags & D3D10_BIND_DEPTH_STENCIL) != 0);
 
 			// Check aspect ratio
 			const float width_factor = desc.Width != width ? float(width) / desc.Width : 1.0f;
@@ -312,10 +312,10 @@ namespace reshade::d3d11
 		}
 	}
 
-	ID3D11Texture2D *draw_call_tracker::find_best_cleared_depth_buffer_texture(UINT depth_buffer_clearing_number)
+	ID3D10Texture2D *draw_call_tracker::find_best_cleared_depth_buffer_texture(UINT depth_buffer_clearing_number)
 	{
 		// Function that selects the best cleared depth texture according to the clearing number defined in the configuration settings
-		ID3D11Texture2D *best_match = nullptr;
+		ID3D10Texture2D *best_match = nullptr;
 
 		// Ensure to work only on the depth textures retrieved before the last depth stencil clearance
 		keep_cleared_depth_textures();
@@ -325,7 +325,7 @@ namespace reshade::d3d11
 			UINT i = it.first;
 			auto &texture_counter_info = it.second;
 
-			com_ptr<ID3D11Texture2D> texture;
+			com_ptr<ID3D10Texture2D> texture;
 
 			if (texture_counter_info.dest_texture == nullptr)
 			{
@@ -334,7 +334,7 @@ namespace reshade::d3d11
 
 			texture = texture_counter_info.dest_texture;
 
-			D3D11_TEXTURE2D_DESC desc;
+			D3D10_TEXTURE2D_DESC desc;
 			texture->GetDesc(&desc);
 
 			if (depth_buffer_clearing_number != 0 && i > depth_buffer_clearing_number)
