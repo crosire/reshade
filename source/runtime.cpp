@@ -39,7 +39,7 @@ namespace reshade
 		_screenshot_key_data(),
 		_effects_key_data(),
 		_screenshot_path(s_target_executable_path.parent_path()),
-		_variable_editor_height(300)
+		_variable_editor_height(500)
 	{
 		_menu_key_data[0] = 0x71; // VK_F2
 		_menu_key_data[2] = true; // VK_SHIFT
@@ -1251,8 +1251,8 @@ namespace reshade
 				}
 				else
 				{
-					ImGui::SetNextWindowPos(ImVec2(_width * 0.5f, _height * 0.5f), ImGuiCond_FirstUseEver, ImVec2(0.5f, 0.5f));
-					ImGui::SetNextWindowSize(ImVec2(730, 650), ImGuiCond_FirstUseEver);
+					ImGui::SetNextWindowPos(ImVec2(20, 20), ImGuiCond_FirstUseEver);
+					ImGui::SetNextWindowSize(ImVec2(std::min(730.0f, _width / 3.0f), _height - 40.0f), ImGuiCond_FirstUseEver);
 					ImGui::Begin("ReShade " VERSION_STRING_FILE " by crosire###Main", &_show_menu,
 						ImGuiWindowFlags_MenuBar |
 						ImGuiWindowFlags_NoCollapse);
@@ -2119,24 +2119,14 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 			{
 				case uniform_datatype::boolean:
 				{
-					bool data[1] = { };
-					get_uniform_value(variable, data, 1);
+					bool data = false;
+					get_uniform_value(variable, &data, 1);
 
-					int index = data[0] ? 0 : 1;
-
-					if (ImGui::Combo(ui_label.c_str(), &index, "On\0Off\0"))
+					if (ImGui::Checkbox(ui_label.c_str(), &data))
 					{
-						data[0] = index == 0;
 						modified = true;
 
-						set_uniform_value(variable, data, 1);
-					}
-					else if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(0))
-					{
-						data[0] = !data[0];
-						modified = true;
-
-						set_uniform_value(variable, data, 1);
+						set_uniform_value(variable, &data, 1);
 					}
 					break;
 				}
@@ -2296,7 +2286,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 				hovered_technique_index = id;
 			}
 
-			if (ImGui::IsItemClicked(0) && ImGui::IsMouseDoubleClicked(0))
+			if (ImGui::IsItemClicked(0))
 			{
 				_focus_effect = technique.effect_filename;
 			}
