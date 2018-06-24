@@ -495,7 +495,7 @@ namespace ReShade.Setup
 
 			if (!pathExists && newPath.StartsWith(basePath))
 			{
-				searchPaths.Add('.' + newPath.Remove(0, basePath.Length));
+				searchPaths.Add(newPath);
 			}
 		}
 
