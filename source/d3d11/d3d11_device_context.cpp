@@ -137,8 +137,9 @@ HRESULT STDMETHODCALLTYPE D3D11DeviceContext::QueryInterface(REFIID riid, void *
 
 			_orig->Release();
 
-			LOG(INFO) << "Upgraded 'ID3D11DeviceContext' object " << this << " to 'ID3D11DeviceContext1'.";
-
+#if RESHADE_VERBOSE_LOG
+			LOG(DEBUG) << "Upgraded 'ID3D11DeviceContext' object " << this << " to 'ID3D11DeviceContext1'.";
+#endif
 			_orig = devicecontext1;
 			_interface_version = 1;
 		}
@@ -155,8 +156,9 @@ HRESULT STDMETHODCALLTYPE D3D11DeviceContext::QueryInterface(REFIID riid, void *
 
 			_orig->Release();
 
-			LOG(INFO) << "Upgraded 'ID3D11DeviceContext" << (_interface_version > 0 ? std::to_string(_interface_version) : "") << "' object " << this << " to 'ID3D11DeviceContext2'.";
-
+#if RESHADE_VERBOSE_LOG
+			LOG(DEBUG) << "Upgraded 'ID3D11DeviceContext" << (_interface_version > 0 ? std::to_string(_interface_version) : "") << "' object " << this << " to 'ID3D11DeviceContext2'.";
+#endif
 			_orig = devicecontext2;
 			_interface_version = 2;
 		}
@@ -173,8 +175,9 @@ HRESULT STDMETHODCALLTYPE D3D11DeviceContext::QueryInterface(REFIID riid, void *
 
 			_orig->Release();
 
-			LOG(INFO) << "Upgraded 'ID3D11DeviceContext" << (_interface_version > 0 ? std::to_string(_interface_version) : "") << "' object " << this << " to 'ID3D11DeviceContext3'.";
-
+#if RESHADE_VERBOSE_LOG
+			LOG(DEBUG) << "Upgraded 'ID3D11DeviceContext" << (_interface_version > 0 ? std::to_string(_interface_version) : "") << "' object " << this << " to 'ID3D11DeviceContext3'.";
+#endif
 			_orig = devicecontext3;
 			_interface_version = 3;
 		}
@@ -210,8 +213,9 @@ ULONG STDMETHODCALLTYPE D3D11DeviceContext::Release()
 	{
 		assert(_ref <= 0);
 
-		LOG(INFO) << "Destroyed 'ID3D11DeviceContext" << (_interface_version > 0 ? std::to_string(_interface_version) : "") << "' object " << this << ".";
-
+#if RESHADE_VERBOSE_LOG
+		LOG(DEBUG) << "Destroyed 'ID3D11DeviceContext" << (_interface_version > 0 ? std::to_string(_interface_version) : "") << "' object " << this << ".";
+#endif
 		delete this;
 	}
 

@@ -142,7 +142,9 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory_CreateSwapChain(IDXGIFactory *pFactory, I
 		LOG(WARNING) << "> Skipping swap chain because it was created without a (hooked) Direct3D device.";
 	}
 
-	LOG(INFO) << "Returning 'IDXGISwapChain' object " << *ppSwapChain;
+#if RESHADE_VERBOSE_LOG
+	LOG(DEBUG) << "Returning 'IDXGISwapChain' object " << *ppSwapChain;
+#endif
 
 	return S_OK;
 }
@@ -228,7 +230,9 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForHwnd(IDXGIFactory2 *pF
 		LOG(WARNING) << "> Skipping swap chain because it was created without a (hooked) Direct3D device.";
 	}
 
-	LOG(INFO) << "Returning 'IDXGISwapChain1' object " << *ppSwapChain;
+#if RESHADE_VERBOSE_LOG
+	LOG(DEBUG) << "Returning 'IDXGISwapChain1' object " << *ppSwapChain;
+#endif
 
 	return S_OK;
 }
@@ -312,7 +316,9 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForCoreWindow(IDXGIFactor
 		LOG(WARNING) << "> Skipping swap chain because it was created without a (hooked) Direct3D device.";
 	}
 
-	LOG(INFO) << "Returning 'IDXGISwapChain1' object " << *ppSwapChain;
+#if RESHADE_VERBOSE_LOG
+	LOG(DEBUG) << "Returning 'IDXGISwapChain1' object " << *ppSwapChain;
+#endif
 
 	return S_OK;
 }
@@ -396,7 +402,9 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForComposition(IDXGIFacto
 		LOG(WARNING) << "> Skipping swap chain because it was created without a (hooked) Direct3D device.";
 	}
 
-	LOG(INFO) << "Returning 'IDXGISwapChain1' object " << *ppSwapChain;
+#if RESHADE_VERBOSE_LOG
+	LOG(DEBUG) << "Returning 'IDXGISwapChain1' object " << *ppSwapChain;
+#endif
 
 	return S_OK;
 }
@@ -472,7 +480,9 @@ HOOK_EXPORT HRESULT WINAPI CreateDXGIFactory1(REFIID riid, void **ppFactory)
 		factory2->Release();
 	}
 
-	LOG(INFO) << "Returning 'IDXGIFactory1' object " << *ppFactory;
+#if RESHADE_VERBOSE_LOG
+	LOG(DEBUG) << "Returning 'IDXGIFactory1' object " << *ppFactory;
+#endif
 
 	return S_OK;
 }
@@ -523,7 +533,9 @@ HOOK_EXPORT HRESULT WINAPI CreateDXGIFactory2(UINT flags, REFIID riid, void **pp
 		factory2->Release();
 	}
 
-	LOG(INFO) << "Returning 'IDXGIFactory2' object " << *ppFactory;
+#if RESHADE_VERBOSE_LOG
+	LOG(DEBUG) << "Returning 'IDXGIFactory2' object " << *ppFactory;
+#endif
 
 	return S_OK;
 }

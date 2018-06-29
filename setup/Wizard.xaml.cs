@@ -479,7 +479,8 @@ namespace ReShade.Setup
 
 		private void AddSearchPath(List<string> searchPaths, string newPath)
 		{
-			Directory.SetCurrentDirectory(Path.GetDirectoryName(_targetPath));
+			string basePath = Path.GetDirectoryName(_targetPath);
+			Directory.SetCurrentDirectory(basePath);
 
 			bool pathExists = false;
 
@@ -492,7 +493,7 @@ namespace ReShade.Setup
 				}
 			}
 
-			if (!pathExists)
+			if (!pathExists && newPath.StartsWith(basePath))
 			{
 				searchPaths.Add(newPath);
 			}

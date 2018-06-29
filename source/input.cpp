@@ -43,7 +43,9 @@ namespace reshade
 
 		if (insert.second || insert.first->second.expired())
 		{
-			LOG(INFO) << "Starting input capture for window " << window << " ...";
+#if RESHADE_VERBOSE_LOG
+			LOG(DEBUG) << "Starting input capture for window " << window << " ...";
+#endif
 
 			const auto instance = std::make_shared<input>(window);
 
@@ -494,21 +496,25 @@ HOOK_EXPORT BOOL WINAPI HookPeekMessageW(LPMSG lpMsg, HWND hWnd, UINT wMsgFilter
 
 HOOK_EXPORT BOOL WINAPI HookRegisterRawInputDevices(PCRAWINPUTDEVICE pRawInputDevices, UINT uiNumDevices, UINT cbSize)
 {
-	LOG(INFO) << "Redirecting '" << "RegisterRawInputDevices" << "(" << pRawInputDevices << ", " << uiNumDevices << ", " << cbSize << ")' ...";
+#if RESHADE_VERBOSE_LOG
+	LOG(DEBUG) << "Redirecting '" << "RegisterRawInputDevices" << "(" << pRawInputDevices << ", " << uiNumDevices << ", " << cbSize << ")' ...";
+#endif
 
 	for (UINT i = 0; i < uiNumDevices; ++i)
 	{
 		const auto &device = pRawInputDevices[i];
 
-		LOG(INFO) << "> Dumping device registration at index " << i << ":";
-		LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
-		LOG(INFO) << "  | Parameter                               | Value                                   |";
-		LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
-		LOG(INFO) << "  | UsagePage                               | " << std::setw(39) << std::hex << device.usUsagePage << std::dec << " |";
-		LOG(INFO) << "  | Usage                                   | " << std::setw(39) << std::hex << device.usUsage << std::dec << " |";
-		LOG(INFO) << "  | Flags                                   | " << std::setw(39) << std::hex << device.dwFlags << std::dec << " |";
-		LOG(INFO) << "  | TargetWindow                            | " << std::setw(39) << device.hwndTarget << " |";
-		LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
+#if RESHADE_VERBOSE_LOG
+		LOG(DEBUG) << "> Dumping device registration at index " << i << ":";
+		LOG(DEBUG) << "  +-----------------------------------------+-----------------------------------------+";
+		LOG(DEBUG) << "  | Parameter                               | Value                                   |";
+		LOG(DEBUG) << "  +-----------------------------------------+-----------------------------------------+";
+		LOG(DEBUG) << "  | UsagePage                               | " << std::setw(39) << std::hex << device.usUsagePage << std::dec << " |";
+		LOG(DEBUG) << "  | Usage                                   | " << std::setw(39) << std::hex << device.usUsage << std::dec << " |";
+		LOG(DEBUG) << "  | Flags                                   | " << std::setw(39) << std::hex << device.dwFlags << std::dec << " |";
+		LOG(DEBUG) << "  | TargetWindow                            | " << std::setw(39) << device.hwndTarget << " |";
+		LOG(DEBUG) << "  +-----------------------------------------+-----------------------------------------+";
+#endif
 
 		if (device.usUsagePage != 1 || device.hwndTarget == nullptr)
 		{
@@ -520,7 +526,7 @@ HOOK_EXPORT BOOL WINAPI HookRegisterRawInputDevices(PCRAWINPUTDEVICE pRawInputDe
 
 	if (!reshade::hooks::call(&HookRegisterRawInputDevices)(pRawInputDevices, uiNumDevices, cbSize))
 	{
-		LOG(WARNING) << "> 'RegisterRawInputDevices' failed with error code " << GetLastError() << "!";
+		LOG(WARNING) << "'RegisterRawInputDevices' failed with error code " << GetLastError() << "!";
 
 		return FALSE;
 	}

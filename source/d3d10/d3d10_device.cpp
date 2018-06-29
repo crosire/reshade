@@ -174,8 +174,9 @@ ULONG STDMETHODCALLTYPE D3D10Device::Release()
 	{
 		assert(_ref <= 0);
 
-		LOG(INFO) << "Destroyed 'ID3D10Device1' object " << this << ".";
-
+#if RESHADE_VERBOSE_LOG
+		LOG(DEBUG) << "Destroyed 'ID3D10Device1' object " << this << ".";
+#endif
 		delete this;
 	}
 

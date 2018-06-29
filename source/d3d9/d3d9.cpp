@@ -128,7 +128,9 @@ HRESULT STDMETHODCALLTYPE IDirect3D9_CreateDevice(IDirect3D9 *pD3D, UINT Adapter
 		device_proxy->QueryInterface(IID_PPV_ARGS(&deviceex));
 	}
 
-	LOG(INFO) << "Returning 'IDirect3DDevice9' object " << *ppReturnedDeviceInterface;
+#if RESHADE_VERBOSE_LOG
+	LOG(DEBUG) << "Returning 'IDirect3DDevice9' object " << *ppReturnedDeviceInterface;
+#endif
 
 	return D3D_OK;
 }
@@ -216,7 +218,9 @@ HRESULT STDMETHODCALLTYPE IDirect3D9Ex_CreateDeviceEx(IDirect3D9Ex *pD3D, UINT A
 		}
 	}
 
-	LOG(INFO) << "Returning 'IDirect3DDevice9Ex' object " << *ppReturnedDeviceInterface;
+#if RESHADE_VERBOSE_LOG
+	LOG(DEBUG) << "Returning 'IDirect3DDevice9Ex' object " << *ppReturnedDeviceInterface;
+#endif
 
 	return D3D_OK;
 }
@@ -276,7 +280,9 @@ HOOK_EXPORT IDirect3D9 *WINAPI Direct3DCreate9(UINT SDKVersion)
 
 	reshade::hooks::install("IDirect3D9::CreateDevice", vtable_from_instance(res), 16, reinterpret_cast<reshade::hook::address>(&IDirect3D9_CreateDevice));
 
-	LOG(INFO) << "Returning 'IDirect3D9' object " << res;
+#if RESHADE_VERBOSE_LOG
+	LOG(DEBUG) << "Returning 'IDirect3D9' object " << res;
+#endif
 
 	return res;
 }
@@ -296,7 +302,9 @@ HOOK_EXPORT HRESULT WINAPI Direct3DCreate9Ex(UINT SDKVersion, IDirect3D9Ex **ppD
 	reshade::hooks::install("IDirect3D9::CreateDevice", vtable_from_instance(*ppD3D), 16, reinterpret_cast<reshade::hook::address>(&IDirect3D9_CreateDevice));
 	reshade::hooks::install("IDirect3D9Ex::CreateDeviceEx", vtable_from_instance(*ppD3D), 20, reinterpret_cast<reshade::hook::address>(&IDirect3D9Ex_CreateDeviceEx));
 
-	LOG(INFO) << "Returning 'IDirect3D9Ex' object " << *ppD3D;
+#if RESHADE_VERBOSE_LOG
+	LOG(DEBUG) << "Returning 'IDirect3D9Ex' object " << *ppD3D;
+#endif
 
 	return D3D_OK;
 }

@@ -84,7 +84,9 @@ namespace
 
 	bool install_internal(const char *name, reshade::hook &hook, hook_method method)
 	{
-		LOG(INFO) << "Installing hook for '" << name << "' at 0x" << hook.target << " with 0x" << hook.replacement << " using method " << static_cast<int>(method) << " ...";
+#if RESHADE_VERBOSE_LOG
+		LOG(DEBUG) << "Installing hook for '" << name << "' at 0x" << hook.target << " with 0x" << hook.replacement << " using method " << static_cast<int>(method) << " ...";
+#endif
 
 		auto status = reshade::hook::status::unknown;
 
@@ -128,7 +130,9 @@ namespace
 			return false;
 		}
 
-		LOG(INFO) << "> Succeeded.";
+#if RESHADE_VERBOSE_LOG
+		LOG(DEBUG) << "> Succeeded.";
+#endif
 
 		{ const std::lock_guard<std::mutex> lock(s_mutex_hooks);
 			s_hooks.push_back(std::make_tuple(name, hook, method));
@@ -156,10 +160,12 @@ namespace
 		std::vector<std::tuple<const char *, reshade::hook::address, reshade::hook::address>> matches;
 		matches.reserve(replacement_exports.size());
 
-		LOG(INFO) << "> Dumping matches in export table:";
-		LOG(INFO) << "  +--------------------+---------+----------------------------------------------------+";
-		LOG(INFO) << "  | Address            | Ordinal | Name                                               |";
-		LOG(INFO) << "  +--------------------+---------+----------------------------------------------------+";
+#if RESHADE_VERBOSE_LOG
+		LOG(DEBUG) << "> Dumping matches in export table:";
+		LOG(DEBUG) << "  +--------------------+---------+----------------------------------------------------+";
+		LOG(DEBUG) << "  | Address            | Ordinal | Name                                               |";
+		LOG(DEBUG) << "  +--------------------+---------+----------------------------------------------------+";
+#endif
 
 		// Analyze export table
 		for (const auto &symbol : target_exports)
@@ -180,13 +186,17 @@ namespace
 				std::strcmp(symbol.name, "DXGIReportAdapterConfiguration") != 0 &&
 				std::strcmp(symbol.name, "DXGIDumpJournal") != 0)
 			{
-				LOG(INFO) << "  | 0x" << std::setw(16) << symbol.address << " | " << std::setw(7) << symbol.ordinal << " | " << std::setw(50) << symbol.name << " |";
+#if RESHADE_VERBOSE_LOG
+				LOG(DEBUG) << "  | 0x" << std::setw(16) << symbol.address << " | " << std::setw(7) << symbol.ordinal << " | " << std::setw(50) << symbol.name << " |";
+#endif
 
 				matches.push_back(std::make_tuple(symbol.name, symbol.address, it->address));
 			}
 		}
 
-		LOG(INFO) << "  +--------------------+---------+----------------------------------------------------+";
+#if RESHADE_VERBOSE_LOG
+		LOG(DEBUG) << "  +--------------------+---------+----------------------------------------------------+";
+#endif
 		LOG(INFO) << "> Found " << matches.size() << " match(es). Installing ...";
 
 		// Hook matching exports
@@ -207,11 +217,13 @@ namespace
 	}
 	bool uninstall_internal(const char *name, reshade::hook &hook, hook_method method)
 	{
-		LOG(INFO) << "Uninstalling hook for '" << name << "' ...";
+#if RESHADE_VERBOSE_LOG
+		LOG(DEBUG) << "Uninstalling hook for '" << name << "' ...";
+#endif
 
 		if (hook.uninstalled())
 		{
-			LOG(WARNING) << "> Already uninstalled.";
+			LOG(WARNING) << "Hook for '" << name << "' was already uninstalled.";
 
 			return true;
 		}
@@ -222,7 +234,9 @@ namespace
 		{
 			case hook_method::export_hook:
 			{
-				LOG(INFO) << "> Skipped.";
+#if RESHADE_VERBOSE_LOG
+				LOG(DEBUG) << "> Skipped.";
+#endif
 
 				return true;
 			}
@@ -260,7 +274,9 @@ namespace
 			return false;
 		}
 
-		LOG(INFO) << "> Succeeded.";
+#if RESHADE_VERBOSE_LOG
+		LOG(DEBUG) << "> Succeeded.";
+#endif
 
 		hook.trampoline = nullptr;
 

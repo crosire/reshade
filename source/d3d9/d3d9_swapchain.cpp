@@ -32,8 +32,9 @@ HRESULT STDMETHODCALLTYPE Direct3DSwapChain9::QueryInterface(REFIID riid, void *
 
 			_orig->Release();
 
-			LOG(INFO) << "Upgraded 'IDirect3DSwapChain9' object " << this << " to 'IDirect3DSwapChain9Ex'.";
-
+#if RESHADE_VERBOSE_LOG
+			LOG(DEBUG) << "Upgraded 'IDirect3DSwapChain9' object " << this << " to 'IDirect3DSwapChain9Ex'.";
+#endif
 			_orig = swapchainex;
 			_extended_interface = true;
 		}
@@ -87,8 +88,9 @@ ULONG STDMETHODCALLTYPE Direct3DSwapChain9::Release()
 	{
 		assert(_ref <= 0);
 
-		LOG(INFO) << "Destroyed 'IDirect3DSwapChain9" << (_extended_interface ? "Ex" : "") << "' object " << this << ".";
-
+#if RESHADE_VERBOSE_LOG
+		LOG(DEBUG) << "Destroyed 'IDirect3DSwapChain9" << (_extended_interface ? "Ex" : "") << "' object " << this << ".";
+#endif
 		delete this;
 	}
 

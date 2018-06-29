@@ -36,8 +36,9 @@ HRESULT STDMETHODCALLTYPE DXGIDevice::QueryInterface(REFIID riid, void **ppvObj)
 
 			_orig->Release();
 
-			LOG(INFO) << "Upgraded 'IDXGIDevice" << (_interface_version > 0 ? std::to_string(_interface_version) : "") << "' object " << this << " to 'IDXGIDevice2'.";
-
+#if RESHADE_VERBOSE_LOG
+			LOG(DEBUG) << "Upgraded 'IDXGIDevice" << (_interface_version > 0 ? std::to_string(_interface_version) : "") << "' object " << this << " to 'IDXGIDevice2'.";
+#endif
 			_orig = device2;
 			_interface_version = 2;
 		}
@@ -54,8 +55,9 @@ HRESULT STDMETHODCALLTYPE DXGIDevice::QueryInterface(REFIID riid, void **ppvObj)
 
 			_orig->Release();
 
-			LOG(INFO) << "Upgraded 'IDXGIDevice" << (_interface_version > 0 ? std::to_string(_interface_version) : "") << "' object " << this << " to 'IDXGIDevice3'.";
-
+#if RESHADE_VERBOSE_LOG
+			LOG(DEBUG) << "Upgraded 'IDXGIDevice" << (_interface_version > 0 ? std::to_string(_interface_version) : "") << "' object " << this << " to 'IDXGIDevice3'.";
+#endif
 			_orig = device3;
 			_interface_version = 3;
 		}
@@ -72,8 +74,9 @@ HRESULT STDMETHODCALLTYPE DXGIDevice::QueryInterface(REFIID riid, void **ppvObj)
 
 			_orig->Release();
 
-			LOG(INFO) << "Upgraded 'IDXGIDevice" << (_interface_version > 0 ? std::to_string(_interface_version) : "") << "' object " << this << " to 'IDXGIDevice4'.";
-
+#if RESHADE_VERBOSE_LOG
+			LOG(DEBUG) << "Upgraded 'IDXGIDevice" << (_interface_version > 0 ? std::to_string(_interface_version) : "") << "' object " << this << " to 'IDXGIDevice4'.";
+#endif
 			_orig = device4;
 			_interface_version = 4;
 		}
@@ -109,8 +112,9 @@ ULONG STDMETHODCALLTYPE DXGIDevice::Release()
 	{
 		assert(_ref <= 0);
 
-		LOG(INFO) << "Destroyed 'IDXGIDevice" << (_interface_version > 0 ? std::to_string(_interface_version) : "") << "' object " << this << ".";
-
+#if RESHADE_VERBOSE_LOG
+		LOG(DEBUG) << "Destroyed 'IDXGIDevice" << (_interface_version > 0 ? std::to_string(_interface_version) : "") << "' object " << this << ".";
+#endif
 		delete this;
 	}
 

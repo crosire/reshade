@@ -78,8 +78,9 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::QueryInterface(REFIID riid, void **ppvO
 
 			_orig->Release();
 
-			LOG(INFO) << "Upgraded 'IDXGISwapChain' object " << this << " to 'IDXGISwapChain1'.";
-
+#if RESHADE_VERBOSE_LOG
+			LOG(DEBUG) << "Upgraded 'IDXGISwapChain' object " << this << " to 'IDXGISwapChain1'.";
+#endif
 			_orig = swapchain1;
 			_interface_version = 1;
 		}
@@ -96,8 +97,9 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::QueryInterface(REFIID riid, void **ppvO
 
 			_orig->Release();
 
-			LOG(INFO) << "Upgraded 'IDXGISwapChain" << (_interface_version > 0 ? std::to_string(_interface_version) : "") << "' object " << this << " to 'IDXGISwapChain2'.";
-
+#if RESHADE_VERBOSE_LOG
+			LOG(DEBUG) << "Upgraded 'IDXGISwapChain" << (_interface_version > 0 ? std::to_string(_interface_version) : "") << "' object " << this << " to 'IDXGISwapChain2'.";
+#endif
 			_orig = swapchain2;
 			_interface_version = 2;
 		}
@@ -114,8 +116,9 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::QueryInterface(REFIID riid, void **ppvO
 
 			_orig->Release();
 
-			LOG(INFO) << "Upgraded 'IDXGISwapChain" << (_interface_version > 0 ? std::to_string(_interface_version) : "") << "' object " << this << " to 'IDXGISwapChain3'.";
-
+#if RESHADE_VERBOSE_LOG
+			LOG(DEBUG) << "Upgraded 'IDXGISwapChain" << (_interface_version > 0 ? std::to_string(_interface_version) : "") << "' object " << this << " to 'IDXGISwapChain3'.";
+#endif
 			_orig = swapchain3;
 			_interface_version = 3;
 		}
@@ -132,8 +135,9 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::QueryInterface(REFIID riid, void **ppvO
 
 			_orig->Release();
 
-			LOG(INFO) << "Upgraded 'IDXGISwapChain" << (_interface_version > 0 ? std::to_string(_interface_version) : "") << "' object " << this << " to 'IDXGISwapChain4'.";
-
+#if RESHADE_VERBOSE_LOG
+			LOG(DEBUG) << "Upgraded 'IDXGISwapChain" << (_interface_version > 0 ? std::to_string(_interface_version) : "") << "' object " << this << " to 'IDXGISwapChain4'.";
+#endif
 			_orig = swapchain4;
 			_interface_version = 4;
 		}
@@ -204,8 +208,9 @@ ULONG STDMETHODCALLTYPE DXGISwapChain::Release()
 	{
 		assert(_ref <= 0);
 
-		LOG(INFO) << "Destroyed 'IDXGISwapChain" << (_interface_version > 0 ? std::to_string(_interface_version) : "") << "' object " << this << ".";
-
+#if RESHADE_VERBOSE_LOG
+		LOG(DEBUG) << "Destroyed 'IDXGISwapChain" << (_interface_version > 0 ? std::to_string(_interface_version) : "") << "' object " << this << ".";
+#endif
 		delete this;
 	}
 
