@@ -1808,7 +1808,7 @@ namespace reshade::d3d9
 		source <<
 			"#pragma warning(disable: 3571)\n"
 			"struct __sampler2D { sampler2D s; float2 pixelsize; };\n"
-			"float4 __tex2Dfetch(__sampler2D s, int4 c) { return tex2Dlod(s.s, float4(c.xy * (c.w + 1) * s.pixelsize, 0, 0)); }\n"
+			"float4 __tex2Dfetch(__sampler2D s, int4 c) { return tex2Dlod(s.s, float4((c.xy * exp2(c.w) + 0.5 /* half pixel offset */) * s.pixelsize, 0, c.w)); }\n"
 			"float4 __tex2Dlodoffset(__sampler2D s, float4 c, int2 offset) { return tex2Dlod(s.s, c + float4(offset * s.pixelsize, 0, 0)); }\n"
 			"float4 __tex2Doffset(__sampler2D s, float2 c, int2 offset) { return tex2D(s.s, c + offset * s.pixelsize); }\n"
 			"int2 __tex2Dsize(__sampler2D s, int lod) { return int2(1 / s.pixelsize) / exp2(lod); }\n"
