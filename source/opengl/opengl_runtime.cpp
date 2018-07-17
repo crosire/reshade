@@ -331,6 +331,14 @@ namespace reshade::opengl
 		// Clear errors
 		glGetError();
 
+		// Clear pixel storage modes to defaults
+		glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
+		glPixelStorei(GL_UNPACK_SWAP_BYTES, GL_FALSE);
+		glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
+		glPixelStorei(GL_UNPACK_IMAGE_HEIGHT, 0);
+		glPixelStorei(GL_UNPACK_SKIP_ROWS, 0);
+		glPixelStorei(GL_UNPACK_SKIP_PIXELS, 0);
+
 		if (!init_backbuffer_texture() ||
 			!init_default_depth_stencil() ||
 			!init_fx_resources() ||
