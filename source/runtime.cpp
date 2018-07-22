@@ -37,6 +37,7 @@ namespace reshade
 			"RESHADE_DEPTH_INPUT_IS_LOGARITHMIC=0" }),
 		_menu_key_data(),
 		_screenshot_key_data(),
+		_reload_key_data(),
 		_effects_key_data(),
 		_screenshot_path(s_target_executable_path.parent_path()),
 		_variable_editor_height(500)
@@ -177,9 +178,14 @@ namespace reshade
 		_last_frame_duration = std::chrono::high_resolution_clock::now() - _last_present_time;
 		_last_present_time += _last_frame_duration;
 
+		if (_input->is_key_pressed(_reload_key_data[0], _reload_key_data[1] != 0, _reload_key_data[2] != 0, _reload_key_data[3] != 0))
+		{
+			reload();
+		}
+
 		// Create and save screenshot if associated shortcut is down
 		if (!_screenshot_key_setting_active &&
-			_input->is_key_pressed(_screenshot_key_data[0], _screenshot_key_data[1] != 0, _screenshot_key_data[2] != 0, false))
+			_input->is_key_pressed(_screenshot_key_data[0], _screenshot_key_data[1] != 0, _screenshot_key_data[2] != 0, _screenshot_key_data[3] != 0))
 		{
 			save_screenshot();
 		}
@@ -737,6 +743,7 @@ namespace reshade
 
 		config.get("INPUT", "KeyMenu", _menu_key_data);
 		config.get("INPUT", "KeyScreenshot", _screenshot_key_data);
+		config.get("INPUT", "KeyReload", _reload_key_data);
 		config.get("INPUT", "KeyEffects", _effects_key_data);
 		config.get("INPUT", "InputProcessing", _input_processing_mode);
 
@@ -851,6 +858,7 @@ namespace reshade
 
 		config.set("INPUT", "KeyMenu", _menu_key_data);
 		config.set("INPUT", "KeyScreenshot", _screenshot_key_data);
+		config.set("INPUT", "KeyReload", _reload_key_data);
 		config.set("INPUT", "KeyEffects", _effects_key_data);
 		config.set("INPUT", "InputProcessing", _input_processing_mode);
 
@@ -1642,11 +1650,26 @@ namespace reshade
 				ImGui::SetTooltip("Click in the field and press any key to change the shortcut to that key.");
 			}
 
+			assert(_reload_key_data[0] < 256);
+
+			copy_key_shortcut_to_edit_buffer(_reload_key_data);
+
+			ImGui::InputText("Effect Reload Key", edit_buffer, sizeof(edit_buffer), ImGuiInputTextFlags_ReadOnly);
+
+			if (ImGui::IsItemActive())
+			{
+				update_key_data(_reload_key_data);
+			}
+			else if (ImGui::IsItemHovered())
+			{
+				ImGui::SetTooltip("Click in the field and press any key to change the shortcut to that key.");
+			}
+
 			assert(_effects_key_data[0] < 256);
 
 			copy_key_shortcut_to_edit_buffer(_effects_key_data);
 
-			ImGui::InputText("Effects Toggle Key", edit_buffer, sizeof(edit_buffer), ImGuiInputTextFlags_ReadOnly);
+			ImGui::InputText("Effect Toggle Key", edit_buffer, sizeof(edit_buffer), ImGuiInputTextFlags_ReadOnly);
 
 			_toggle_key_setting_active = false;
 

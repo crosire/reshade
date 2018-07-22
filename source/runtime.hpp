@@ -275,6 +275,7 @@ namespace reshade
 		int _input_processing_mode = 2;
 		unsigned int _menu_key_data[4];
 		unsigned int _screenshot_key_data[4];
+		unsigned int _reload_key_data[4];
 		unsigned int _effects_key_data[4];
 		filesystem::path _configuration_path;
 		filesystem::path _screenshot_path;
