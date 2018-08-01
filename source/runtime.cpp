@@ -1200,6 +1200,18 @@ namespace reshade
 					keyboard_keys[_menu_key_data[0]]);
 			}
 
+			if (const auto it = std::find_if(reshade::log::lines.rbegin(), reshade::log::lines.rend(), [](const std::string &line) {
+					return line.find("error") != std::string::npos;
+				}); it != reshade::log::lines.rend())
+			{
+				ImGui::SetWindowSize(ImVec2(_width - 20.0f, ImGui::GetFrameHeightWithSpacing() * 4));
+
+				ImGui::Spacing();
+				ImGui::TextColored(ImVec4(1, 0, 0, 1),
+					"There were errors compiling some shaders. "
+					"Open the configuration menu and switch to the 'Log' tab for more details.");
+			}
+
 			ImGui::End();
 		}
 
