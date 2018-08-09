@@ -1469,7 +1469,7 @@ namespace reshade
 			ImGui::Separator();
 			ImGui::Spacing();
 
-			ImGui::PushItemWidth(-130);
+			ImGui::PushItemWidth(-260);
 
 			if (ImGui::InputText("##filter", _effect_filter_buffer, sizeof(_effect_filter_buffer), ImGuiInputTextFlags_AutoSelectAll))
 			{
@@ -1481,6 +1481,26 @@ namespace reshade
 			}
 
 			ImGui::PopItemWidth();
+
+			ImGui::SameLine();
+
+			if (ImGui::Button("Active to Top", ImVec2(130 - ImGui::GetStyle().ItemSpacing.x, 0)))
+			{
+				for (size_t i = 0; i < _techniques.size(); ++i)
+				{
+					if (!_techniques[i].enabled)
+					{
+						for (size_t k = i + 1; k < _techniques.size(); ++k)
+						{
+							if (_techniques[k].enabled)
+							{
+								std::swap(_techniques[i], _techniques[k]);
+								break;
+							}
+						}
+					}
+				}
+			}
 
 			ImGui::SameLine();
 
