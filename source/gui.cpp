@@ -209,10 +209,19 @@ namespace reshade
 				else
 				{
 					ImGui::SetNextWindowPos(ImVec2(20, 20), ImGuiCond_FirstUseEver);
-					ImGui::SetNextWindowSize(ImVec2(std::min(730.0f, _width / 3.0f), _height - 40.0f), ImGuiCond_FirstUseEver);
+					ImGui::SetNextWindowSize(ImVec2(730.0f, _height - 40.0f), ImGuiCond_FirstUseEver);
 					ImGui::Begin("ReShade " VERSION_STRING_FILE " by crosire###Main", &_show_menu,
 						ImGuiWindowFlags_MenuBar |
 						ImGuiWindowFlags_NoCollapse);
+
+					// Double click the window title bar to reset position and size
+					const ImRect titlebar_rect = ImGui::GetCurrentWindow()->TitleBarRect();
+
+					if (ImGui::IsMouseDoubleClicked(0) && ImGui::IsMouseHoveringRect(titlebar_rect.Min, titlebar_rect.Max, false))
+					{
+						ImGui::SetWindowPos(ImVec2(20, 20));
+						ImGui::SetWindowSize(ImVec2(730.0f, _height - 40.0f));
+					}
 
 					draw_overlay_menu();
 
