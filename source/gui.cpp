@@ -72,15 +72,15 @@ namespace reshade
 		for (unsigned int i = 0; i < 256; i++)
 		{
 			imgui_io.KeysDown[i] = _input->is_key_down(i);
-
-			if (_input->is_key_pressed(i))
-			{
-				imgui_io.AddInputCharacter(_input->key_to_text(i));
-			}
 		}
 		for (unsigned int i = 0; i < 5; i++)
 		{
 			imgui_io.MouseDown[i] = _input->is_mouse_button_down(i);
+		}
+
+		for (wchar_t c : _input->text_input())
+		{
+			imgui_io.AddInputCharacter(c);
 		}
 
 		if (imgui_io.KeyCtrl && !_no_font_scaling)

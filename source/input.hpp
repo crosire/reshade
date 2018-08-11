@@ -6,6 +6,7 @@
 #pragma once
 
 #include <memory>
+#include <string>
 
 namespace reshade
 {
@@ -41,8 +42,7 @@ namespace reshade
 		int mouse_movement_delta_y() const { return _mouse_position[1] - _last_mouse_position[1]; }
 		unsigned int mouse_position_x() const { return _mouse_position[0]; }
 		unsigned int mouse_position_y() const { return _mouse_position[1]; }
-
-		unsigned short key_to_text(unsigned int keycode) const;
+		const std::wstring &text_input() const { return _text_input; }
 
 		void block_mouse_input(bool enable);
 		void block_keyboard_input(bool enable);
@@ -62,5 +62,6 @@ namespace reshade
 		unsigned int _mouse_position[2] = { };
 		unsigned int _last_mouse_position[2] = { };
 		uint64_t _frame_count = 0;
+		std::wstring _text_input;
 	};
 }

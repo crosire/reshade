@@ -177,6 +177,9 @@ namespace reshade
 						break;
 				}
 				break;
+			case WM_CHAR:
+				input._text_input += static_cast<wchar_t>(details.wParam);
+				break;
 			case WM_KEYDOWN:
 			case WM_SYSKEYDOWN:
 				input._keys[details.wParam] = 0x88;
@@ -344,12 +347,6 @@ namespace reshade
 		return false;
 	}
 
-	unsigned short input::key_to_text(unsigned int keycode) const
-	{
-		WORD ch = 0;
-		return ToAscii(keycode, MapVirtualKey(keycode, MAPVK_VK_TO_VSC), _keys, &ch, 0) ? ch : 0;
-	}
-
 	void input::block_mouse_input(bool enable)
 	{
 		_block_mouse = enable;
@@ -394,6 +391,7 @@ namespace reshade
 			state &= ~0x8;
 		}
 
+		_text_input.clear();
 		_mouse_wheel_delta = 0;
 		_last_mouse_position[0] = _mouse_position[0];
 		_last_mouse_position[1] = _mouse_position[1];
@@ -430,6 +428,9 @@ HOOK_EXPORT BOOL WINAPI HookGetMessageA(LPMSG lpMsg, HWND hWnd, UINT wMsgFilterM
 
 	if (lpMsg->hwnd != nullptr && reshade::input::handle_window_message(lpMsg))
 	{
+		// We still want 'WM_CHAR' messages, so translate message
+		TranslateMessage(lpMsg);
+
 		// Change message so it is ignored by the recipient window
 		lpMsg->message = WM_NULL;
 	}
@@ -449,6 +450,9 @@ HOOK_EXPORT BOOL WINAPI HookGetMessageW(LPMSG lpMsg, HWND hWnd, UINT wMsgFilterM
 
 	if (lpMsg->hwnd != nullptr && reshade::input::handle_window_message(lpMsg))
 	{
+		// We still want 'WM_CHAR' messages, so translate message
+		TranslateMessage(lpMsg);
+
 		// Change message so it is ignored by the recipient window
 		lpMsg->message = WM_NULL;
 	}
@@ -468,6 +472,9 @@ HOOK_EXPORT BOOL WINAPI HookPeekMessageA(LPMSG lpMsg, HWND hWnd, UINT wMsgFilter
 
 	if (lpMsg->hwnd != nullptr && (wRemoveMsg & PM_REMOVE) != 0 && reshade::input::handle_window_message(lpMsg))
 	{
+		// We still want 'WM_CHAR' messages, so translate message
+		TranslateMessage(lpMsg);
+
 		// Change message so it is ignored by the recipient window
 		lpMsg->message = WM_NULL;
 	}
@@ -487,6 +494,9 @@ HOOK_EXPORT BOOL WINAPI HookPeekMessageW(LPMSG lpMsg, HWND hWnd, UINT wMsgFilter
 
 	if (lpMsg->hwnd != nullptr && (wRemoveMsg & PM_REMOVE) != 0 && reshade::input::handle_window_message(lpMsg))
 	{
+		// We still want 'WM_CHAR' messages, so translate message
+		TranslateMessage(lpMsg);
+
 		// Change message so it is ignored by the recipient window
 		lpMsg->message = WM_NULL;
 	}
