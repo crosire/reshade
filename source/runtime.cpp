@@ -174,7 +174,10 @@ namespace reshade
 
 		// Advance various statistics
 		g_network_traffic = 0;
-		_framecount++;
+		if (0 == _framecount++)
+		{
+			_last_present_time = std::chrono::high_resolution_clock::now();
+		}
 		_last_frame_duration = std::chrono::high_resolution_clock::now() - _last_present_time;
 		_last_present_time += _last_frame_duration;
 
