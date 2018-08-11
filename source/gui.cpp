@@ -245,6 +245,8 @@ namespace reshade
 				if (ImGui::Selectable(label.c_str(), _menu_index == i, 0, ImVec2(ImGui::CalcTextSize(label.c_str()).x, 0)))
 				{
 					_menu_index = i;
+					// Keep this 'true' for two frame to workaround 'ImGui::SetScrollHere()' not working properly the first frame
+					_switched_menu = 2;
 				}
 
 				ImGui::SameLine();
@@ -259,6 +261,9 @@ namespace reshade
 		_menu_callables[_menu_index].second();
 
 		ImGui::PopID();
+
+		if (_switched_menu > 0)
+			--_switched_menu;
 	}
 	void runtime::draw_overlay_menu_home()
 	{
@@ -966,6 +971,10 @@ namespace reshade
 		}
 
 		clipper.End();
+
+		// Scroll to the bottom if the log tab was just opened
+		if (_switched_menu)
+			ImGui::SetScrollHere();
 
 		ImGui::EndChild();
 	}
