@@ -173,7 +173,11 @@ namespace reshade
 		_date[3] = tm.tm_hour * 3600 + tm.tm_min * 60 + tm.tm_sec;
 
 		// Advance various statistics
-		_framecount++;
+		if (0 == _framecount++)
+		{
+			_last_present_time = std::chrono::high_resolution_clock::now();
+		}
+
 		_last_frame_duration = std::chrono::high_resolution_clock::now() - _last_present_time;
 		_last_present_time += _last_frame_duration;
 
