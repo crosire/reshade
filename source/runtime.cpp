@@ -478,6 +478,9 @@ namespace reshade
 
 		_effect_files.clear();
 
+		// Clear log on reload so that errors disappear from the splash screen
+		reshade::log::lines.clear();
+
 		std::vector<std::string> fastloading_filenames;
 
 		if (_current_preset >= 0 && _performance_mode && !_show_menu)
