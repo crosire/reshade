@@ -275,6 +275,7 @@ namespace reshade
 		int _input_processing_mode = 2;
 		unsigned int _menu_key_data[4];
 		unsigned int _screenshot_key_data[4];
+		unsigned int _reload_key_data[4];
 		unsigned int _effects_key_data[4];
 		filesystem::path _configuration_path;
 		filesystem::path _screenshot_path;
@@ -294,6 +295,7 @@ namespace reshade
 		bool _screenshot_key_setting_active = false;
 		bool _toggle_key_setting_active = false;
 		bool _log_wordwrap = false;
+		unsigned char _switched_menu = 0;
 		float _imgui_col_background[3] = { 0.275f, 0.275f, 0.275f };
 		float _imgui_col_item_background[3] = { 0.447f, 0.447f, 0.447f };
 		float _imgui_col_active[3] = { 0.2f, 0.2f, 1.0f };

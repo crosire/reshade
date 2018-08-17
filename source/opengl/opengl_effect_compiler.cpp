@@ -283,7 +283,9 @@ namespace reshade::opengl
 	{
 		std::pair<std::string, std::string> code;
 
-		if (from.basetype != to.basetype && !(from.is_matrix() && to.is_matrix()))
+		const bool is_integral_vectorization = (from.is_integral() && to.is_integral());
+
+		if ((from.basetype != to.basetype && !(from.is_matrix() && to.is_matrix())) || is_integral_vectorization)
 		{
 			const type_node type = { to.basetype, 0, from.rows, from.cols, 0, to.definition };
 
@@ -331,6 +333,11 @@ namespace reshade::opengl
 
 			code.first += '(';
 			code.second += ')';
+		}
+
+		if (is_integral_vectorization)
+		{
+			return code;
 		}
 
 		if (from.rows > 0 && from.rows < to.rows)

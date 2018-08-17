@@ -48,6 +48,9 @@
     <ClCompile Include="source\hook_manager.cpp">
       <Filter>core\hook</Filter>
     </ClCompile>
+    <ClCompile Include="source\gui.cpp">
+      <Filter>core\runtime</Filter>
+    </ClCompile>
     <ClCompile Include="source\input.cpp">
       <Filter>core\runtime</Filter>
     </ClCompile>

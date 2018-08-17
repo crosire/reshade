@@ -1655,7 +1655,7 @@ namespace reshade::d3d9
 		pass.render_targets[0] = _runtime->_backbuffer_resolved.get();
 		pass.clear_render_targets = node->clear_render_targets;
 
-		std::string samplers;
+		std::string samplers[2];
 		const char shader_types[2][3] = { "vs", "ps" };
 		const function_declaration_node *shader_functions[2] = { node->vertex_shader, node->pixel_shader };
 
@@ -1671,24 +1671,24 @@ namespace reshade::d3d9
 				pass.samplers[pass.sampler_count] = _samplers.at(sampler->name);
 				const auto *const texture = sampler->properties.texture;
 
-				samplers += "sampler2D __Sampler";
-				samplers += sampler->unique_name;
-				samplers += " : register(s" + std::to_string(pass.sampler_count++) + ");\n";
-				samplers += "static const __sampler2D ";
-				samplers += sampler->unique_name;
-				samplers += " = { __Sampler";
-				samplers += sampler->unique_name;
+				samplers[i] += "sampler2D __Sampler";
+				samplers[i] += sampler->unique_name;
+				samplers[i] += " : register(s" + std::to_string(pass.sampler_count++) + ");\n";
+				samplers[i] += "static const __sampler2D ";
+				samplers[i] += sampler->unique_name;
+				samplers[i] += " = { __Sampler";
+				samplers[i] += sampler->unique_name;
 
 				if (texture->semantic == "COLOR" || texture->semantic == "SV_TARGET" || texture->semantic == "DEPTH" || texture->semantic == "SV_DEPTH")
 				{
-					samplers += ", float2(" + std::to_string(1.0f / _runtime->frame_width()) + ", " + std::to_string(1.0f / _runtime->frame_height()) + ")";
+					samplers[i] += ", float2(" + std::to_string(1.0f / _runtime->frame_width()) + ", " + std::to_string(1.0f / _runtime->frame_height()) + ")";
 				}
 				else
 				{
-					samplers += ", float2(" + std::to_string(1.0f / texture->properties.width) + ", " + std::to_string(1.0f / texture->properties.height) + ")";
+					samplers[i] += ", float2(" + std::to_string(1.0f / texture->properties.width) + ", " + std::to_string(1.0f / texture->properties.height) + ")";
 				}
 
-				samplers += " };\n";
+				samplers[i] += " };\n";
 
 				if (pass.sampler_count == 16)
 				{
@@ -1702,7 +1702,7 @@ namespace reshade::d3d9
 		{
 			if (shader_functions[i] != nullptr)
 			{
-				visit_pass_shader(shader_functions[i], shader_types[i], samplers, pass);
+				visit_pass_shader(shader_functions[i], shader_types[i], samplers[i], pass);
 			}
 		}
 
