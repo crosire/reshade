@@ -296,11 +296,11 @@ namespace reshade
 		bool _toggle_key_setting_active = false;
 		bool _log_wordwrap = false;
 		unsigned char _switched_menu = 0;
-		float _imgui_col_background[3] = { 0.275f, 0.275f, 0.275f };
-		float _imgui_col_item_background[3] = { 0.447f, 0.447f, 0.447f };
-		float _imgui_col_active[3] = { 0.2f, 0.2f, 1.0f };
-		float _imgui_col_text[3] = { 0.8f, 0.9f, 0.9f };
-		float _imgui_col_text_fps[3] = { 1.0f, 1.0f, 0.0f };
+		float _imgui_col_background[3] = { 0.117647f, 0.117647f, 0.117647f };
+		float _imgui_col_item_background[3] = { 0.156863f, 0.156863f, 0.156863f };
+		float _imgui_col_active[3] = { 0.392157f, 0.588235f, 0.941176f };
+		float _imgui_col_text[3] = { 0.862745f, 0.862745f, 0.862745f };
+		float _imgui_col_text_fps[3] = { 1.0f, 1.0f, 0.784314f };
 		float _variable_editor_height = 0.0f;
 		unsigned int _tutorial_index = 0;
 		unsigned int _effects_expanded_state = 2;
