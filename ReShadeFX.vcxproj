@@ -49,6 +49,7 @@
   <ImportGroup Label="PropertySheets">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
     <Import Project="Common.props" />
+    <Import Project="deps\SPIR-V.props" />
   </ImportGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -149,6 +150,9 @@
     <ClInclude Include="source\effect_syntax_tree.hpp" />
     <ClInclude Include="source\effect_syntax_tree_nodes.hpp" />
     <ClInclude Include="source\source_location.hpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="source\effect_intrinsics.inl" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
 </Project>

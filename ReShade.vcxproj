@@ -68,6 +68,7 @@
     <Import Project="deps\stb.props" />
     <Import Project="deps\ImGui.props" />
     <Import Project="deps\utfcpp.props" />
+    <Import Project="deps\SPIR-V.props" />
   </ImportGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>

@@ -13,3 +13,6 @@
 [submodule "utfcpp"]
 	path = deps/utfcpp
 	url = https://github.com/nemtrif/utfcpp
+[submodule "spirv"]
+	path = deps/spirv
+	url = https://github.com/KhronosGroup/SPIRV-Headers

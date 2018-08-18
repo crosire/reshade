@@ -83,7 +83,8 @@ namespace reshadefx
 		}
 	}
 
-	expression_node *fold_constant_expression(syntax_tree &ast, expression_node *expression)
+#if 0
+	spv::Id fold_constant_expression(syntax_tree &ast, spv::Id expression)
 	{
 #define DOFOLDING1(op) \
 	{ \
@@ -453,4 +454,5 @@ namespace reshadefx
 
 		return expression;
 	}
+#endif
 }

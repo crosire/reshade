@@ -16,4 +16,7 @@
     <ClInclude Include="source\effect_symbol_table.hpp" />
     <ClInclude Include="source\source_location.hpp" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="source\effect_intrinsics.inl" />
+  </ItemGroup>
 </Project>

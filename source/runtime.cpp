@@ -8,6 +8,7 @@
 #include "runtime.hpp"
 #include "effect_parser.hpp"
 #include "effect_preprocessor.hpp"
+#include "effect_syntax_tree.hpp"
 #include "input.hpp"
 #include "ini_file.hpp"
 #include <assert.h>
@@ -586,7 +587,7 @@ namespace reshade
 		}
 
 		reshadefx::syntax_tree ast;
-		reshadefx::parser parser(ast);
+		reshadefx::parser parser;
 
 		if (!parser.run(pp.current_output()))
 		{
