@@ -236,16 +236,16 @@ namespace reshadefx
 		void backup();
 		void restore();
 
-		bool peek(tokenid tokid) const;
 		bool peek(char tok) const { return peek(static_cast<tokenid>(tok)); }
+		bool peek(tokenid tokid) const;
 		bool peek_multary_op(spv::Op &op, unsigned int &precedence) const;
 		void consume();
-		void consume_until(tokenid tokid);
 		void consume_until(char tok) { return consume_until(static_cast<tokenid>(tok)); }
-		bool accept(tokenid tokid);
+		void consume_until(tokenid tokid);
 		bool accept(char tok) { return accept(static_cast<tokenid>(tok)); }
-		bool expect(tokenid tokid);
+		bool accept(tokenid tokid);
 		bool expect(char tok) { return expect(static_cast<tokenid>(tok)); }
+		bool expect(tokenid tokid);
 
 		bool accept_type_class(type_info &type);
 		bool accept_type_qualifiers(type_info &type);
@@ -258,10 +258,63 @@ namespace reshadefx
 		bool parse_namespace();
 		bool parse_type(type_info &type);
 
-		bool parse_expression(spv_section &section, spv::Id &node, type_info &type);
-		bool parse_expression_unary(spv_section &section, spv::Id &node, type_info &type);
-		bool parse_expression_multary(spv_section &section, spv::Id &node, type_info &type, unsigned int precedence = 0);
-		bool parse_expression_assignment(spv_section &section, spv::Id &node, type_info &type);
+		struct access_chain
+		{
+			spv::Id base;
+			std::vector<spv::Id> indices;
+			signed char swizzle[4];
+			type_info type;
+			type_info base_type;
+			location location;
+			bool is_lvalue = false;
+
+			void reset_to_lvalue(spv::Id base, const type_info &type, const struct location &loc)
+			{
+				assert(type.is_pointer);
+
+				this->base = base;
+				this->type = base_type = type;
+				this->location = loc;
+				indices.clear();
+				swizzle[0] = -1;
+				swizzle[1] = -1;
+				swizzle[2] = -1;
+				swizzle[3] = -1;
+				is_lvalue = true;
+			}
+			void reset_to_rvalue(spv::Id base, const type_info &type, const struct location &loc)
+			{
+				this->base = base;
+				this->type = base_type = type;
+				this->type.qualifiers |= qualifier_const;
+				this->location = loc;
+				indices.clear();
+				swizzle[0] = -1;
+				swizzle[1] = -1;
+				swizzle[2] = -1;
+				swizzle[3] = -1;
+				is_lvalue = false;
+			}
+
+			void push_index(spv::Id index_expression)
+			{
+				type.is_pointer = false;
+				indices.push_back(index_expression);
+			}
+			void push_swizzle(signed char swizzle2[4])
+			{
+				type.is_pointer = false;
+				for (size_t i = 0; i < 4 && swizzle[i] >= 0; ++i)
+					swizzle2[i] = swizzle[swizzle2[i]];
+				for (size_t i = 0; i < 4; ++i)
+					swizzle[i] = swizzle2[i];
+			}
+		};
+
+		bool parse_expression(spv_section &section, access_chain &expression);
+		bool parse_expression_unary(spv_section &section, access_chain &expression);
+		bool parse_expression_multary(spv_section &section, access_chain &expression, unsigned int precedence = 0);
+		bool parse_expression_assignment(spv_section &section, access_chain &expression);
 
 		bool parse_statement(spv_section &section, bool scoped = true);
 		bool parse_statement_block(spv_section &section, spv::Id &label, bool scoped = true);
@@ -272,15 +325,16 @@ namespace reshadefx
 		bool parse_struct(spv::Id &structure);
 		bool parse_function_declaration(type_info &type, std::string name, spv::Id &function);
 		bool parse_variable_declaration(spv_section &section, type_info &type, std::string name, spv::Id &variable, bool global = false);
-		bool parse_variable_assignment(spv_section &section, spv::Id &node, type_info &type);
+		bool parse_variable_assignment(spv_section &section, access_chain &expression);
 		bool parse_variable_properties(variable_info &props);
-		bool parse_variable_properties_expression(spv::Id &expression, type_info &type);
+		bool parse_variable_properties_expression(access_chain &expression);
 		bool parse_technique(technique_properties &technique);
 		bool parse_technique_pass(pass_properties &pass);
-		bool parse_technique_pass_expression(spv::Id &expression, type_info &type);
+		bool parse_technique_pass_expression(access_chain &expression);
 
 		spv_section _entries;
 		spv_section _strings;
+		spv_section _debug;
 		spv_section _annotations;
 		spv_section _variables;
 		spv_section _function_section;
@@ -293,6 +347,80 @@ namespace reshadefx
 		std::vector<std::pair<spv_section *, size_t>> _id_lookup;
 		std::vector<std::pair<type_info, spv::Id>> _type_lookup;
 		std::unordered_map<spv::Op, std::vector<type_info>> _type_lookup2;
+
+
+		spv::Id access_chain_load(spv_section &section, const access_chain &chain)
+		{
+			spv::Id result = chain.base;
+
+			if (chain.is_lvalue)
+			{
+				type_info base_type = chain.base_type;
+				base_type.is_pointer = false;
+				result = add_node(section, chain.location, spv::OpLoad, convert_type(base_type));
+				lookup_id(result)
+					.add(chain.base);
+			}
+
+			if (chain.swizzle[0] >= 0)
+			{
+				spv::Id result2 = add_node(section, chain.location, spv::OpVectorShuffle, convert_type(chain.type));
+				lookup_id(result2)
+					.add(result) // Vector 1
+					.add(result); // Vector 2
+
+				for (unsigned int i = 0; i < 4 && chain.swizzle[i] >= 0; ++i)
+					lookup_id(result2).add(chain.swizzle[i]);
+
+				result = result2;
+			}
+
+			return result;
+		}
+		void access_chain_store(spv_section &section, const access_chain &chain, spv::Id value, const type_info &value_type)
+		{
+			if (chain.swizzle[0] >= 0)
+			{
+				type_info base_type = chain.base_type;
+				base_type.is_pointer = false;
+				spv::Id result = add_node(section, chain.location, spv::OpLoad, convert_type(base_type));
+				lookup_id(result)
+					.add(chain.base);
+
+				if (base_type.is_vector() && value_type.is_vector())
+				{
+					spv::Id result2 = add_node(section, chain.location, spv::OpVectorShuffle, convert_type(base_type));
+					lookup_id(result2)
+						.add(result) // Vector 1
+						.add(value); // Vector 2
+
+					unsigned int shuffle[4] = { 0, 1, 2, 3 };
+					for (unsigned int i = 0; i < base_type.rows; ++i)
+						if (chain.swizzle[i] >= 0)
+							shuffle[chain.swizzle[i]] = base_type.rows + i;
+					for (unsigned int i = 0; i < base_type.rows; ++i)
+						lookup_id(result2).add(shuffle[i]);
+
+					value = result2;
+				}
+				else if (value_type.is_scalar())
+				{
+					assert(chain.swizzle[1] < 0); // TODO
+
+					spv::Id result2 = add_node(section, chain.location, spv::OpCompositeInsert, convert_type(base_type));
+					lookup_id(result2)
+						.add(value) // Object
+						.add(result) // Copmosite
+						.add(chain.swizzle[0]); // Index
+
+					value = result2;
+				}
+			}
+
+			add_node_without_result(section, lookup_id(value).location, spv::OpStore)
+				.add(chain.base)
+				.add(value);
+		}
 
 
 		spv::Id _next_id = 100;
@@ -315,6 +443,13 @@ namespace reshadefx
 			instruction.location = loc;
 
 			return instruction;
+		}
+
+		void add_name(spv::Id id, const char *name)
+		{
+			add_node_without_result(_debug, {}, spv::OpName)
+				.add(id)
+				.add_string(name);
 		}
 
 		spv::Id add_cast_node(spv_section &section, location loc, const type_info &from, const type_info &to, spv::Id input)
