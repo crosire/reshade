@@ -132,7 +132,7 @@ reshadefx::symbol_table::symbol_table()
 	_current_scope.namespace_level = 0;
 }
 
-void reshadefx::symbol_table::enter_scope(spv::Id parent)
+void reshadefx::symbol_table::enter_scope(void *parent)
 {
 	if (parent || _parent_stack.empty())
 	{

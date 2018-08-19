@@ -343,8 +343,13 @@ namespace reshadefx
 			write(s, node);
 
 		// All function definitions
-		for (const auto &node : _function_section.instructions)
-			write(s, node);
+		for (const auto &function : _functions)
+		{
+			for (const auto &node : function->variables.instructions)
+				write(s, node);
+			for (const auto &node : function->code.instructions)
+				write(s, node);
+		}
 
 		return true;
 	}
@@ -595,10 +600,10 @@ namespace reshadefx
 			type.base = spv::OpString;
 			break;
 		case tokenid::texture:
-			type.base = spv::OpImage;
+			type.base = spv::OpTypeImage;
 			break;
 		case tokenid::sampler:
-			type.base = spv::OpSampledImage;
+			type.base = spv::OpTypeSampledImage;
 			break;
 		default:
 			return false;
@@ -824,10 +829,6 @@ namespace reshadefx
 				// Load the right hand side value if it was not yet resolved at this point
 				const spv::Id value = access_chain_load(section, exp);
 
-				spv::Id result = add_node(section, location, op, convert_type(exp.type));
-				lookup_id(result)
-					.add(value);
-
 				// Special handling for the "++" and "--" operators
 				if (op == spv::OpFAdd || op == spv::OpFSub ||
 					op == spv::OpIAdd || op == spv::OpISub)
@@ -837,7 +838,10 @@ namespace reshadefx
 
 					// Create a constant one in the type of the expression
 					const spv::Id constant = convert_constant(exp.type, 1u);
+
+					spv::Id result = add_node(section, location, op, convert_type(exp.type));
 					lookup_id(result)
+						.add(value)
 						.add(constant);
 
 					// The "++" and "--" operands modify the source variable, so store result back into it
@@ -845,6 +849,10 @@ namespace reshadefx
 				}
 				else // All other prefix operators return a new r-value
 				{
+					spv::Id result = add_node(section, location, op, convert_type(exp.type));
+					lookup_id(result)
+						.add(value);
+
 					exp.reset_to_rvalue(result, exp.type, location);
 				}
 			}
@@ -867,33 +875,21 @@ namespace reshadefx
 					if (!parse_expression_unary(section, exp))
 						return false;
 
+					// Check if the types already match, in which case there is nothing to do
 					if (exp.type.base == cast_type.base && (exp.type.rows == cast_type.rows && exp.type.cols == cast_type.cols) && !(exp.type.is_array() || cast_type.is_array()))
-					{
-						// The type already matches, so there is nothing to do
 						return true;
-					}
-					else if (exp.type.is_numeric() && cast_type.is_numeric()) // Can only cast between numeric types
+
+					// Can only cast between numeric types
+					if (exp.type.is_numeric() && cast_type.is_numeric())
 					{
-						if ((exp.type.rows < cast_type.rows || exp.type.cols < cast_type.cols) && !exp.type.is_scalar())
-						{
+						if (exp.type.components() < cast_type.components() && !exp.type.is_scalar())
 							return error(location, 3017, "cannot convert these vector types"), false;
-						}
-						else if (exp.type.rows > cast_type.rows || exp.type.cols > cast_type.cols)
-						{
-							warning(location, 3206, "implicit truncation of vector type");
 
-							// TODO: Matrix?
-							signed char swizzle[4] = { -1, -1, -1, -1 };
-							for (unsigned int i = 0; i < cast_type.rows; ++i)
-								swizzle[i] = i;
-							exp.push_swizzle(swizzle);
-						}
+						// Load value and perform explicit type conversion
+						const spv::Id result = add_cast_node(section, location, exp.type, cast_type,
+							access_chain_load(section, exp), false);
 
-						// Load right hand side value
-						const spv::Id value = access_chain_load(section, exp);
-
-						// Add the base type cast node
-						exp.reset_to_rvalue(add_cast_node(section, location, exp.type, cast_type, value), cast_type, location);
+						exp.reset_to_rvalue(result, cast_type, location);
 
 						return true;
 					}
@@ -1004,17 +1000,13 @@ namespace reshadefx
 				if (!argument.type.is_numeric())
 					return error(argument.location, 3017, "cannot convert non-numeric types"), false;
 
-				spv::Id value = access_chain_load(section, argument);
+				// Load values and perform implicit type conversions for all arguments
+				type_info target_type = type;
+				target_type.rows = argument.type.rows;
+				target_type.cols = argument.type.cols;
 
-				// Perform an implicit conversion when base types do not match
-				if (argument.type.base != type.base)
-				{
-					type_info target_type = type;
-					target_type.rows = argument.type.rows;
-					target_type.cols = argument.type.cols;
-
-					value = add_cast_node(section, argument.location, argument.type, target_type, value);
-				}
+				const spv::Id value = add_cast_node(section, argument.location, argument.type, target_type,
+					access_chain_load(section, argument), true);
 
 				arguments.push_back(std::move(value));
 
@@ -1038,6 +1030,8 @@ namespace reshadefx
 			}
 			else // A constructor call with a single argument is identical to a cast
 			{
+				assert(!arguments.empty());
+
 				exp.reset_to_rvalue(arguments[0], type, location); // Casting already happened in the loop above
 			}
 		}
@@ -1085,7 +1079,8 @@ namespace reshadefx
 					return error(location, 3005, "identifier '" + identifier + "' represents a variable, not a function"), false;
 
 				// Parse entire argument expression list
-				std::vector<spv::Id> arguments;
+				std::vector<access_chain> arguments;
+				std::vector<spv::Id> argument_ids;
 				std::vector<type_info> argument_types;
 
 				while (!peek(')'))
@@ -1095,14 +1090,10 @@ namespace reshadefx
 						return false;
 
 					// Parse the argument expression
-					access_chain argument;
-					if (!parse_expression_assignment(section, argument))
+					if (!parse_expression_assignment(section, arguments.emplace_back()))
 						return false;
 
-					spv::Id value = access_chain_load(section, argument);
-
-					arguments.push_back(std::move(value));
-					argument_types.push_back(argument.type);
+					argument_types.push_back(arguments.back().type);
 				}
 
 				// The list should be terminated with a parenthesis
@@ -1110,7 +1101,7 @@ namespace reshadefx
 					return false;
 
 				// Try to resolve the call by searching through both function symbols and intrinsics
-				bool undeclared = !!symbol.id, ambiguous = false;
+				bool undeclared = !symbol.id, ambiguous = false;
 
 				if (!_symbol_table->resolve_call(identifier, argument_types, scope, ambiguous, symbol))
 				{
@@ -1123,18 +1114,16 @@ namespace reshadefx
 					return false;
 				}
 
-				// Perform implicit type conversions for all arguments
-				for (size_t i = 0; i < argument_types.size(); ++i)
+				// Load values and perform implicit type conversions for all arguments
+				argument_ids.resize(arguments.size());
+
+				for (size_t i = 0; i < arguments.size(); ++i)
 				{
-					const auto &arg_type = argument_types[i];
-					const auto &param_type = static_cast<const function_info *>(symbol.info)->parameter_list[i];
+					const type_info &arg_type = argument_types[i];
+					const type_info &param_type = static_cast<const function_info *>(symbol.info)->parameter_list[i];
 
-					if (arg_type.rows > param_type.rows || arg_type.cols > param_type.cols)
-					{
-						warning(lookup_id(arguments[i]).location, 3206, "implicit truncation of vector type");
-
-						// TODO
-					}
+					argument_ids[i] = add_cast_node(section, arguments[i].location, arg_type, param_type,
+						access_chain_load(section, arguments[i]), true);
 				}
 
 				// Check if the call resolving found an intrinsic or function
@@ -1150,12 +1139,12 @@ namespace reshadefx
 					}
 
 					for (size_t i = 0; i < arguments.size(); ++i)
-						lookup_id(exp.base).add(arguments[i]);
+						lookup_id(exp.base).add(argument_ids[i]);
 				}
 				else
 				{
 					// It is not allowed to do recursive calls
-					if (_symbol_table->current_parent() == symbol.id)
+					if (_symbol_table->current_parent() == symbol.info)
 						return error(location, 3500, "recursive function calls are not allowed"), false;
 
 					// This is a function symbol, so add a call to it
@@ -1164,7 +1153,7 @@ namespace reshadefx
 						.add(symbol.id);
 
 					for (size_t i = 0; i < arguments.size(); ++i)
-						lookup_id(exp.base).add(arguments[i]);
+						lookup_id(exp.base).add(argument_ids[i]);
 				}
 			}
 			else
@@ -1457,6 +1446,8 @@ namespace reshadefx
 				if (!parse_expression_multary(section, rhs, right_precedence))
 					return false;
 
+				bool boolean_result = false;
+
 				// Deduce the result base type based on implicit conversion rules
 				type_info type = { std::max(lhs.type.base, rhs.type.base), std::max(lhs.type.size, rhs.type.size), 1, 1, lhs.type.is_signed }; // This works because 'OpTypeFloat' is higher than 'OpTypeInt'
 
@@ -1478,7 +1469,7 @@ namespace reshadefx
 					}
 
 					// Equality checks return a boolean value
-					type.base = spv::OpTypeBool;
+					boolean_result = true;
 
 					// Cannot check equality between incompatible types
 					if (lhs.type.is_array() || rhs.type.is_array() || lhs.type.definition != rhs.type.definition)
@@ -1494,6 +1485,12 @@ namespace reshadefx
 				}
 				else
 				{
+					// Logical operations return a boolean value
+					if (op == spv::OpLogicalAnd || op == spv::OpLogicalOr ||
+						op == spv::OpFOrdLessThan || op == spv::OpFOrdGreaterThan ||
+						op == spv::OpFOrdLessThanEqual || op == spv::OpFOrdGreaterThanEqual)
+						boolean_result = true;
+
 					// Select operator matching the argument types
 					if (type.is_integral())
 					{
@@ -1529,12 +1526,6 @@ namespace reshadefx
 						}
 					}
 
-					// Logical operations return a boolean value
-					if (op == spv::OpLogicalAnd || op == spv::OpLogicalOr ||
-						op == spv::OpFOrdLessThan || op == spv::OpFOrdGreaterThan ||
-						op == spv::OpFOrdLessThanEqual || op == spv::OpFOrdGreaterThanEqual)
-						type.base = spv::OpTypeBool;
-
 					// Cannot perform arithmetic operations on non-basic types
 					if (!lhs.type.is_scalar() && !lhs.type.is_vector() && !lhs.type.is_matrix())
 						return error(lhs.location, 3022, "scalar, vector, or matrix expected"), false;
@@ -1542,77 +1533,27 @@ namespace reshadefx
 						return error(rhs.location, 3022, "scalar, vector, or matrix expected"), false;
 				}
 
-				spv::Id lhs_value, rhs_value;
-
 				// If one side of the expression is scalar, it needs to be promoted to the same dimension as the other side
 				if ((lhs.type.rows == 1 && lhs.type.cols == 1) || (rhs.type.rows == 1 && rhs.type.cols == 1))
 				{
 					type.rows = std::max(lhs.type.rows, rhs.type.rows);
 					type.cols = std::max(lhs.type.cols, rhs.type.cols);
-
-					// Load values
-					lhs_value = access_chain_load(section, lhs);
-					rhs_value = access_chain_load(section, rhs);
-
-					// Check if the left hand side needs to be promoted
-					if (rhs.type.rows > 1 || rhs.type.cols > 1)
-					{
-						auto composide_type = type;
-						composide_type.base = lhs.type.base;
-						spv::Id composite_node = add_node(section, lhs.location, spv::OpCompositeConstruct, convert_type(composide_type));
-						for (unsigned int i = 0; i < type.rows * type.cols; ++i)
-							lookup_id(composite_node).add(lhs_value);
-						lhs_value = composite_node;
-					}
-					// Check if the right hand side needs to be promoted
-					else if (lhs.type.rows > 1 || lhs.type.cols > 1)
-					{
-						auto composide_type = type;
-						composide_type.base = rhs.type.base;
-						spv::Id composite_node = add_node(section, rhs.location, spv::OpCompositeConstruct, convert_type(composide_type));
-						for (unsigned int i = 0; i < type.rows * type.cols; ++i)
-							lookup_id(composite_node).add(rhs_value);
-						rhs_value = composite_node;
-					}
 				}
 				else // Otherwise dimensions match or one side is truncated to match the other one
 				{
 					type.rows = std::min(lhs.type.rows, rhs.type.rows);
 					type.cols = std::min(lhs.type.cols, rhs.type.cols);
-
-					// Check if the left hand side needs to be truncated
-					if (lhs.type.rows > rhs.type.rows || lhs.type.cols > rhs.type.cols)
-					{
-						warning(lhs.location, 3206, "implicit truncation of vector type");
-
-						// TODO: Matrix?
-						signed char swizzle[4] = { -1, -1, -1, -1 };
-						for (unsigned int i = 0; i < rhs.type.rows; ++i)
-							swizzle[i] = i;
-						lhs.push_swizzle(swizzle);
-					}
-					// Check if the right hand side needs to be truncated
-					else if (rhs.type.rows > lhs.type.rows || rhs.type.cols > lhs.type.cols)
-					{
-						warning(rhs.location, 3206, "implicit truncation of vector type");
-
-						// TODO: Matrix?
-						signed char swizzle[4] = { -1, -1, -1, -1 };
-						for (unsigned int i = 0; i < lhs.type.rows; ++i)
-							swizzle[i] = i;
-						rhs.push_swizzle(swizzle);
-					}
-
-					// Load values
-					lhs_value = access_chain_load(section, lhs);
-					rhs_value = access_chain_load(section, rhs);
 				}
 
-				// Now that the dimensions match, convert to result base type if there is a mismatch
-				if (type.base != lhs.type.base)
-					lhs_value = add_cast_node(section, lhs.location, lhs.type, type, lhs_value);
-				if (type.base != rhs.type.base)
-					rhs_value = add_cast_node(section, rhs.location, rhs.type, type, rhs_value);
+				// Load values and perform implicit type conversions
+				const spv::Id lhs_value = add_cast_node(section, lhs.location, lhs.type, type,
+					access_chain_load(section, lhs), true);
+				const spv::Id rhs_value = add_cast_node(section, rhs.location, rhs.type, type,
+					access_chain_load(section, rhs), true);
+
+				// Certain operations return a boolean type instead of the type of the input expressions
+				if (boolean_result)
+					type.base = spv::OpTypeBool;
 
 				spv::Id result = add_node(section, lhs.location, op, convert_type(type));
 				lookup_id(result)
@@ -1626,16 +1567,6 @@ namespace reshadefx
 				// A conditional expression needs a scalar or vector type condition
 				if (!lhs.type.is_scalar() && !lhs.type.is_vector())
 					return error(lhs.location, 3022, "boolean or vector expression expected"), false;
-
-				spv::Id condition_value = access_chain_load(section, lhs);
-
-				// Convert condition expression to boolean type
-				if (!lhs.type.is_boolean())
-				{
-					const type_info boolean_type = { spv::OpTypeBool, 32, lhs.type.rows, 1 };
-
-					condition_value = add_cast_node(section, lhs.location, lhs.type, boolean_type, condition_value);
-				}
 
 				// Parse the first part of the right hand side of the ternary operation
 				access_chain true_exp;
@@ -1661,84 +1592,25 @@ namespace reshadefx
 				// Deduce the result base type based on implicit conversion rules
 				type_info type = { std::max(true_exp.type.base, false_exp.type.base), std::max(true_exp.type.size, false_exp.type.size), 1, 1, true_exp.type.is_signed && false_exp.type.is_signed }; // This works because 'OpTypeFloat' is higher than 'OpTypeInt'
 
-				// Load values
-				spv::Id true_value = access_chain_load(section, true_exp);
-				spv::Id false_value = access_chain_load(section, false_exp);
-
 				// If one side of the expression is scalar need to promote it to the same dimension as the other side
 				if ((true_exp.type.rows == 1 && true_exp.type.cols == 1) || (false_exp.type.rows == 1 && false_exp.type.cols == 1))
 				{
 					type.rows = std::max(true_exp.type.rows, false_exp.type.rows);
 					type.cols = std::max(true_exp.type.cols, false_exp.type.cols);
-#if 0
-					// Check if the left hand side needs to be promoted
-					if (false_exp.type.rows > 1 || false_exp.type.cols > 1)
-					{
-						auto composite_type = type;
-						composite_type.base = true_exp.type.base;
-						spv::Id composite_node = add_node(section, true_exp.location, spv::OpCompositeConstruct, convert_type(composite_type));
-						for (unsigned int i = 0; i < type.rows * type.cols; ++i)
-							lookup_id(composite_node).add(left_id);
-						left_id = composite_node;
-					}
-					// Check if the right hand side needs to be promoted
-					else if (true_exp.type.rows > 1 || true_exp.type.cols > 1)
-					{
-						auto composite_type = type;
-						composite_type.base = false_exp.type.base;
-						spv::Id composite_node = add_node(section, false_exp.location, spv::OpCompositeConstruct, convert_type(composite_type));
-						for (unsigned int i = 0; i < type.rows * type.cols; ++i)
-							lookup_id(composite_node).add(right_id);
-						right_id = composite_node;
-					}
-#endif
 				}
 				else // Otherwise dimensions match or one side is truncated to match the other one
 				{
 					type.rows = std::min(true_exp.type.rows, false_exp.type.rows);
 					type.cols = std::min(true_exp.type.cols, false_exp.type.cols);
-#if 0
-					// Check if the left hand side needs to be truncated
-					if (true_exp.type.rows > false_exp.type.rows || true_exp.type.cols > false_exp.type.cols)
-					{
-						warning(true_exp.location, 3206, "implicit truncation of vector type");
-
-						// TODO: Matrix?
-						auto trunction_type = type;
-						trunction_type.base = true_exp.type.base;
-						spv::Id trunction_node = add_node(section, true_exp.location, spv::OpVectorShuffle, convert_type(trunction_type));
-						lookup_id(trunction_node)
-							.add(left_id) // Vector 1
-							.add(left_id); // Vector 2
-						for (unsigned int i = 0; i < type.rows; ++i)
-							lookup_id(trunction_node).add(i);
-						left_id = trunction_node;
-					}
-					// Check if the right hand side needs to be truncated
-					else if (false_exp.type.rows > true_exp.type.rows || false_exp.type.cols > true_exp.type.cols)
-					{
-						warning(false_exp.location, 3206, "implicit truncation of vector type");
-
-						// TODO: Matrix?
-						auto trunction_type = type;
-						trunction_type.base = false_exp.type.base;
-						spv::Id trunction_node = add_node(section, false_exp.location, spv::OpVectorShuffle, convert_type(trunction_type));
-						lookup_id(trunction_node)
-							.add(right_id) // Vector 1
-							.add(right_id); // Vector 2
-						for (unsigned int i = 0; i < type.rows; ++i)
-							lookup_id(trunction_node)
-							.add(i);
-						right_id = trunction_node;
-					}
-#endif
 				}
 
-				// Now that the dimensions match, convert to result base type if there is a mismatch
-				if (type.base != true_exp.type.base)
-					true_value = add_cast_node(section, true_exp.location, true_exp.type, type, true_value);
-				if (type.base != false_exp.type.base)
-					false_value = add_cast_node(section, false_exp.location, false_exp.type, type, false_value);
+				// Load values and perform implicit type conversions
+				const spv::Id condition_value = add_cast_node(section, lhs.location, lhs.type, { spv::OpTypeBool, 32, lhs.type.rows, 1 },
+					access_chain_load(section, lhs), true);
+				const spv::Id true_value = add_cast_node(section, true_exp.location, true_exp.type, type,
+					access_chain_load(section, true_exp), true);
+				const spv::Id false_value = add_cast_node(section, false_exp.location, false_exp.type, type,
+					access_chain_load(section, false_exp), true);
 
 				spv::Id result = add_node(section, lhs.location, spv::OpSelect, convert_type(type));
 				lookup_id(result)
@@ -1776,40 +1648,9 @@ namespace reshadefx
 			if (lhs.type.is_array() || rhs.type.is_array() || !type_info::rank(lhs.type, rhs.type))
 				return error(rhs.location, 3020, "cannot convert these types"), false;
 
-			// Need to truncate type if the right hand side is a larger composite
-			if (rhs.type.rows > lhs.type.rows || rhs.type.cols > lhs.type.cols)
-			{
-				warning(rhs.location, 3206, "implicit truncation of vector type");
-
-				// TODO: Matrix? Update Type!
-				signed char swizzle[4] = { -1, -1, -1, -1 };
-				for (unsigned int i = 0; i < lhs.type.rows; ++i)
-					swizzle[i] = i;
-				rhs.push_swizzle(swizzle);
-			}
-
-			// Figure out result type
-			type_info result_type = lhs.type;
-			result_type.is_pointer = false;
-
-			// Load value of right hand side
-			spv::Id rhs_value = access_chain_load(section, rhs);
-
-			// Need to convert type if the left hand side is a larger composite
-			if (lhs.type.rows > rhs.type.rows || lhs.type.cols > rhs.type.cols)
-			{
-				auto composite_type = rhs.type;
-				composite_type.rows = lhs.type.rows;
-				composite_type.cols = lhs.type.cols;
-				spv::Id composite_node = add_node(section, rhs.location, spv::OpCompositeConstruct, convert_type(composite_type));
-				for (unsigned int i = 0; i < lhs.type.rows * lhs.type.cols; ++i)
-					lookup_id(composite_node).add(rhs_value);
-				rhs_value = composite_node;
-			}
-
-			// Now that the dimensions match, convert to result base type if there is a mismatch
-			if (rhs.type.base != lhs.type.base)
-				rhs_value = add_cast_node(section, rhs.location, rhs.type, result_type, rhs_value);
+			// Load value of right hand side and perform implicit type conversion
+			spv::Id rhs_value = add_cast_node(section, rhs.location, rhs.type, lhs.type,
+				access_chain_load(section, rhs), true);
 
 			// Check if this is an assignment with an additional arithmetic instruction
 			if (op != spv::OpNop)
@@ -1841,7 +1682,7 @@ namespace reshadefx
 				spv::Id lhs_value = access_chain_load(section, lhs);
 
 				// Handle arithmetic assignment operation
-				spv::Id result = add_node(section, lhs.location, op, convert_type(result_type));
+				spv::Id result = add_node(section, lhs.location, op, convert_type(lhs.type));
 				lookup_id(result)
 					.add(lhs_value)
 					.add(rhs_value);
@@ -1851,10 +1692,10 @@ namespace reshadefx
 			}
 
 			// Write result back to variable
-			access_chain_store(section, lhs, rhs_value, result_type);
+			access_chain_store(section, lhs, rhs_value, lhs.type);
 
 			// Return the result value since you can write assignments within expressions
-			lhs.reset_to_rvalue(rhs_value, result_type, lhs.location);
+			lhs.reset_to_rvalue(rhs_value, lhs.type, lhs.location);
 		}
 
 		return true;
@@ -1866,7 +1707,7 @@ namespace reshadefx
 		unsigned int loop_control = spv::LoopControlMaskNone;
 		unsigned int selection_control = spv::SelectionControlMaskNone;
 
-		// Attributes
+		// Read any loop and branch control attributes first
 		while (accept('['))
 		{
 			if (expect(tokenid::identifier))
@@ -1876,17 +1717,15 @@ namespace reshadefx
 				if (expect(']'))
 				{
 					if (attribute == "unroll")
-					{
 						loop_control |= spv::LoopControlUnrollMask;
-					}
+					else if (attribute == "loop")
+						loop_control |= spv::LoopControlDontUnrollMask;
+					else if (attribute == "branch")
+						selection_control |= spv::SelectionControlDontFlattenMask;
 					else if (attribute == "flatten")
-					{
 						selection_control |= spv::SelectionControlFlattenMask;
-					}
 					else
-					{
 						warning(_token.location, 0, "unknown attribute");
-					}
 				}
 			}
 			else
@@ -1895,232 +1734,296 @@ namespace reshadefx
 			}
 		}
 
+		// Parse statement block
 		if (peek('{'))
-		{
-			spv::Id label = 0;
+			return parse_statement_block(section, scoped);
 
-			return parse_statement_block(section, label, scoped);
-		}
-
+		// Ignore empty statements
 		if (accept(';'))
-		{
 			return true;
-		}
 
 		#pragma region If
 		if (accept(tokenid::if_))
 		{
-			auto &merge = add_node_without_result(section, _token.location, spv::OpSelectionMerge);
-			merge.add(selection_control);
-			size_t merge_index = merge.index;
-
-			add_node_without_result(section, _token.location, spv::OpBranchConditional);
+			const spv::Id true_label = make_id();
+			const spv::Id false_label = make_id();
+			const spv::Id merge_label = make_id();
 
 			access_chain condition;
 
 			if (!(expect('(') && parse_expression(section, condition) && expect(')')))
-			{
 				return false;
-			}
 
 			if (!condition.type.is_scalar())
-			{
-				error(condition.location, 3019, "if statement conditional expressions must evaluate to a scalar");
-				return false;
-			}
+				return error(condition.location, 3019, "if statement conditional expressions must evaluate to a scalar"), false;
 
-			section.instructions[merge_index].add(access_chain_load(section, condition)); // Condition
+			const spv::Id condition_value = access_chain_load(section, condition);
 
-			spv::Id true_label = add_node(section, _token.location, spv::OpLabel);
+			add_node_without_result(section, _token.location, spv::OpSelectionMerge)
+				.add(merge_label)
+				.add(selection_control);
 
-			section.instructions[merge_index].add(true_label); // True Label
+			switch_block_conditional(section, condition_value, true_label, false_label);
+
+			add_label(section, true_label);
 
 			if (!parse_statement(section))
-			{
 				return false;
-			}
 
-			spv::Id false_label = add_node(section, _token.location, spv::OpLabel);
+			switch_block(section, merge_label);
 
-			section.instructions[merge_index].add(false_label); // False Label
+			add_label(section, false_label);
 
-			if (accept(tokenid::else_))
-			{
-				if (!parse_statement(section))
-				{
-					return false;
-				}
-			}
+			if (accept(tokenid::else_) && !parse_statement(section))
+				return false;
 
-			size_t final_branch_index = add_node_without_result(section, _token.location, spv::OpBranch).index;
+			switch_block(section, merge_label);
 
-			spv::Id continue_label = add_node(section, _token.location, spv::OpLabel);
-
-			section.instructions[final_branch_index].add(continue_label); // Target Label
+			add_label(section, merge_label);
 
 			return true;
 		}
 		#pragma endregion
 
 		#pragma region Switch
-#if 0
 		if (accept(tokenid::switch_))
 		{
-			auto &merge = create_node(spv::OpSelectionMerge, _token.location);
-			merge.operands[0] = selection_control;
+			const auto location = _token.location;
 
-			auto &branch = create_node_without_result(spv::OpSwitch, _token.location);
+			const spv::Id merge_label = make_id();
+			spv::Id default_label = merge_label;
+			std::vector<spv::Id> case_literal_and_labels;
 
-			spv::Id selector = 0;
+			access_chain selector;
 
-			if (!(expect('(') && parse_expression(selector) && expect(')')))
-			{
+			if (!expect('(') || !parse_expression(section, selector) || !expect(')'))
 				return false;
-			}
 
-			if (!lookup_node(selector).type.is_scalar())
-			{
-				error(lookup_node(selector).location, 3019, "switch statement expression must evaluate to a scalar");
+			if (!selector.type.is_scalar())
+				return error(selector.location, 3019, "switch statement expression must evaluate to a scalar"), false;
 
-				return false;
-			}
+			// Load selector value and convert to 'OpTypeInt' as required by 'OpSwitch'
+			const spv::Id selector_value = add_cast_node(section, selector.location, selector.type, { spv::OpTypeInt, 32, 1, 1 },
+				access_chain_load(section, selector), true);
+
+			add_node_without_result(section, location, spv::OpSelectionMerge)
+				.add(merge_label)
+				.add(selection_control);
+
+			size_t switch_index = add_node_without_result(section, _token.location, spv::OpSwitch)
+				.add(selector_value).index;
 
 			if (!expect('{'))
-			{
 				return false;
-			}
+
+			_loop_break_target_stack.push_back(merge_label);
+
+			spv::Id current_block = 0;
+			unsigned int num_case_labels = 0;
 
 			while (!peek('}') && !peek(tokenid::end_of_file))
 			{
-				const auto casenode = _ast.make_node<case_statement_node>(_token_next.location);
+				if (peek(tokenid::case_) || peek(tokenid::default_))
+				{
+					current_block = make_id();
+
+					// Handle fall-through case
+					if (num_case_labels != 0)
+						switch_block(section, current_block);
+
+					add_label(section, current_block);
+				}
 
 				while (accept(tokenid::case_) || accept(tokenid::default_))
 				{
-					expression_node *label = nullptr;
-
 					if (_token.id == tokenid::case_)
 					{
-						if (!parse_expression(label))
+						access_chain case_label;
+
+						if (!parse_expression(_temporary, case_label))
 						{
+							_loop_break_target_stack.pop_back();
 							return false;
 						}
 
-						if (label->id != nodeid::literal_expression || !label->type.is_numeric())
+						if (!case_label.type.is_numeric())
 						{
-							error(label->location, 3020, "non-numeric case expression");
+							error(case_label.location, 3020, "non-numeric case expression");
 
+							_loop_break_target_stack.pop_back();
 							return false;
 						}
+
+						unsigned int literal_value = 0; // TODO
+
+						case_literal_and_labels.push_back(literal_value);
+						case_literal_and_labels.push_back(current_block);
+					}
+					else
+					{
+						default_label = current_block;
 					}
 
 					if (!expect(':'))
 					{
+						_loop_break_target_stack.pop_back();
 						return false;
 					}
 
-					casenode->labels.push_back(static_cast<literal_expression_node *>(label));
+					num_case_labels++;
 				}
 
-				if (casenode->labels.empty())
+				if (!parse_statement(section))
 				{
-					error(casenode->location, 3000, "a case body can only contain a single statement");
-
+					_loop_break_target_stack.pop_back();
 					return false;
 				}
-
-				if (!parse_statement(casenode->statement_list))
-				{
-					return false;
-				}
-
-				newstatement->case_list.push_back(casenode);
 			}
 
-			//if (newstatement->case_list.empty())
-			//{
-			//	warning(newstatement->location, 5002, "switch statement contains no 'case' or 'default' labels");
+			if (num_case_labels == 0)
+				warning(location, 5002, "switch statement contains no 'case' or 'default' labels");
 
-			//	statement = nullptr;
-			//}
-			//else
-			//{
-			//	statement = newstatement;
-			//}
+			// Add all case labels to the switch instruction
+			section.instructions[switch_index].add(default_label);
+			for (spv::Id operand : case_literal_and_labels)
+				section.instructions[switch_index].add(operand);
+
+			add_label(section, merge_label);
+
+			_loop_break_target_stack.pop_back();
 
 			return expect('}');
 		}
-#endif
 		#pragma endregion
 
-#if 0
 		#pragma region For
 		if (accept(tokenid::for_))
 		{
-			const auto newstatement = _ast.make_node<for_statement_node>(_token.location);
-			newstatement->attributes = attributes;
+			const auto location = _token.location;
 
 			if (!expect('('))
-			{
 				return false;
-			}
 
 			_symbol_table->enter_scope();
 
-			if (!parse_statement_declarator_list(newstatement->init_statement))
+			// Parse initializer first
+			if (type_info type; parse_type(type))
 			{
-				expression_node *expression = nullptr;
+				unsigned int count = 0;
 
-				if (parse_expression(expression))
+				do // There may be multiple declarations behind a type, so loop through them
 				{
-					const auto initialization = _ast.make_node<expression_statement_node>(expression->location);
-					initialization->expression = expression;
+					if (count++ > 0 && !expect(','))
+						return false;
 
-					newstatement->init_statement = initialization;
+					if (!expect(tokenid::identifier))
+						return false;
+
+					spv::Id variable_id = 0;
+					if (!parse_variable_declaration(section, type, _token.literal_as_string, variable_id))
+						return false;
+				} while (!peek(';'));
+			}
+			// Initializer can also contain an expression if not a variable declaration list
+			else if (access_chain expression; parse_expression(section, expression))
+			{
+			}
+
+			if (!expect(';'))
+			{
+				_symbol_table->leave_scope();
+				return false;
+			}
+
+			const spv::Id header_label = make_id(); // Pointer to the loop merge instruction
+			const spv::Id loop_label = make_id(); // Pointer to the main loop body block
+			const spv::Id merge_label = make_id(); // Pointer to the end of the loop
+			const spv::Id continue_label = make_id(); // Pointer to the continue block
+			const spv::Id condition_label = make_id(); // Pointer to the condition check
+
+			switch_block(section, header_label);
+
+			add_label(section, header_label);
+
+			add_node_without_result(section, location, spv::OpLoopMerge)
+				.add(merge_label) // Merge Block
+				.add(continue_label) // Continue Target
+				.add(loop_control); // Loop Control
+
+			switch_block(section, condition_label);
+
+			// Parse condition block
+			add_label(section, condition_label);
+
+			access_chain condition;
+
+			parse_expression(section, condition);
+
+			if (!expect(';'))
+			{
+				_symbol_table->leave_scope();
+				return false;
+			}
+
+			// Cannot have a non-scalar loop condition
+			if (!condition.type.is_scalar())
+			{
+				error(condition.location, 3019, "scalar value expected");
+
+				_symbol_table->leave_scope();
+				return false;
+			}
+
+			// Evaluate condition and branch to the right target
+			const spv::Id condition_value = access_chain_load(section, condition);
+
+			switch_block_conditional(section, condition_value, loop_label, merge_label);
+
+			// Parse loop continue block into separate section so it can be appended to the end later
+			spv_section continue_section;
+			{
+				add_label(continue_section, continue_label);
+
+				access_chain continue_exp;
+				parse_expression(continue_section, continue_exp);
+
+				if (!expect(')'))
+				{
+					_symbol_table->leave_scope();
+					return false;
 				}
+
+				// Branch back to the loop header at the end of the continue block
+				switch_block(continue_section, header_label);
 			}
 
-			if (!expect(';'))
+			// Parse loop body block
+			add_label(section, loop_label);
+
+			_loop_break_target_stack.push_back(merge_label);
+			_loop_continue_target_stack.push_back(continue_label);
+
+			if (!parse_statement(section, false))
 			{
 				_symbol_table->leave_scope();
-
+				_loop_break_target_stack.pop_back();
+				_loop_continue_target_stack.pop_back();
 				return false;
 			}
 
-			parse_expression(newstatement->condition);
+			_loop_break_target_stack.pop_back();
+			_loop_continue_target_stack.pop_back();
 
-			if (!expect(';'))
-			{
-				_symbol_table->leave_scope();
+			switch_block(section, continue_label);
 
-				return false;
-			}
+			// Append continue section after the main block
+			section.instructions.insert(section.instructions.end(),
+				continue_section.instructions.begin(), continue_section.instructions.end());
 
-			parse_expression(newstatement->increment_expression);
-
-			if (!expect(')'))
-			{
-				_symbol_table->leave_scope();
-
-				return false;
-			}
-
-			if (!newstatement->condition->type.is_scalar())
-			{
-				error(newstatement->condition->location, 3019, "scalar value expected");
-
-				return false;
-			}
-
-			if (!parse_statement(newstatement->statement_list, false))
-			{
-				_symbol_table->leave_scope();
-
-				return false;
-			}
+			// Add merge block label to the end of the loop
+			add_label(section, merge_label);
 
 			_symbol_table->leave_scope();
-
-			statement = newstatement;
 
 			return true;
 		}
@@ -2129,38 +2032,79 @@ namespace reshadefx
 		#pragma region While
 		if (accept(tokenid::while_))
 		{
-			const auto newstatement = _ast.make_node<while_statement_node>(_token.location);
-			newstatement->attributes = attributes;
-			newstatement->is_do_while = false;
-
 			_symbol_table->enter_scope();
 
-			if (!(expect('(') && parse_expression(newstatement->condition) && expect(')')))
+			const spv::Id header_label = make_id();
+			const spv::Id loop_label = make_id();
+			const spv::Id merge_label = make_id();
+			const spv::Id continue_label = make_id();
+			const spv::Id condition_label = make_id();
+
+			// End current block by branching to the next label
+			switch_block(section, header_label);
+
+			// Begin loop block
+			add_label(section, header_label);
+
+			add_node_without_result(section, _token.location, spv::OpLoopMerge)
+				.add(merge_label) // Merge Block
+				.add(continue_label) // Continue Target
+				.add(loop_control); // Loop Control
+
+			switch_block(section, condition_label);
+
+			// Parse condition block
+			add_label(section, condition_label);
+
+			access_chain condition;
+
+			if (!(expect('(') && parse_expression(section, condition) && expect(')')))
 			{
 				_symbol_table->leave_scope();
-
 				return false;
 			}
 
-			if (!newstatement->condition->type.is_scalar())
+			if (!condition.type.is_scalar())
 			{
-				error(newstatement->condition->location, 3019, "scalar value expected");
+				error(condition.location, 3019, "scalar value expected");
 
 				_symbol_table->leave_scope();
-
 				return false;
 			}
 
-			if (!parse_statement(newstatement->statement_list, false))
+			// Evaluate condition and branch to the right target
+			const spv::Id condition_value = access_chain_load(section, condition);
+
+			switch_block_conditional(section, condition_value, loop_label, merge_label);
+
+			// Parse loop body block
+			add_label(section, loop_label);
+
+			_loop_break_target_stack.push_back(merge_label);
+			_loop_continue_target_stack.push_back(continue_label);
+
+			if (!parse_statement(section, false))
 			{
 				_symbol_table->leave_scope();
-
+				_loop_break_target_stack.pop_back();
+				_loop_continue_target_stack.pop_back();
 				return false;
 			}
+
+			_loop_break_target_stack.pop_back();
+			_loop_continue_target_stack.pop_back();
+
+			switch_block(section, continue_label);
+
+			// Branch back to the loop header in empty continue block
+			add_label(section, continue_label);
+
+			switch_block(section, header_label);
+
+			// Add merge block label to the end of the loop
+			add_label(section, merge_label);
 
 			_symbol_table->leave_scope();
-
-			statement = newstatement;
 
 			return true;
 		}
@@ -2169,23 +2113,58 @@ namespace reshadefx
 		#pragma region DoWhile
 		if (accept(tokenid::do_))
 		{
-			const auto newstatement = _ast.make_node<while_statement_node>(_token.location);
-			newstatement->attributes = attributes;
-			newstatement->is_do_while = true;
+			const spv::Id header_label = make_id();
+			const spv::Id loop_label = make_id();
+			const spv::Id merge_label = make_id();
+			const spv::Id continue_label = make_id();
 
-			if (!(parse_statement(newstatement->statement_list) && expect(tokenid::while_) && expect('(') && parse_expression(newstatement->condition) && expect(')') && expect(';')))
+			// End current block by branching to the next label
+			switch_block(section, header_label);
+
+			// Begin loop block
+			add_label(section, header_label);
+
+			add_node_without_result(section, _token.location, spv::OpLoopMerge)
+				.add(merge_label) // Merge Block
+				.add(continue_label) // Continue Target
+				.add(loop_control); // Loop Control
+
+			switch_block(section, loop_label);
+
+			// Parse loop body block
+			add_label(section, loop_label);
+
+			_loop_break_target_stack.push_back(merge_label);
+			_loop_continue_target_stack.push_back(continue_label);
+
+			if (!parse_statement(section))
 			{
+				_loop_break_target_stack.pop_back();
+				_loop_continue_target_stack.pop_back();
 				return false;
 			}
 
-			if (!newstatement->condition->type.is_scalar())
-			{
-				error(newstatement->condition->location, 3019, "scalar value expected");
+			_loop_break_target_stack.pop_back();
+			_loop_continue_target_stack.pop_back();
 
+			// Continue block does the condition evaluation
+			add_label(section, continue_label);
+
+			access_chain condition;
+
+			if (!expect(tokenid::while_) || !expect('(') || !parse_expression(section, condition) || !expect(')') || !expect(';'))
 				return false;
-			}
 
-			statement = newstatement;
+			if (!condition.type.is_scalar())
+				return error(condition.location, 3019, "scalar value expected"), false;
+
+			const spv::Id condition_value = access_chain_load(section, condition);
+
+			switch_block_conditional(section, condition_value, header_label, merge_label);
+
+			// Add merge block label to the end of the loop
+			add_label(section, merge_label);
+
 
 			return true;
 		}
@@ -2194,11 +2173,11 @@ namespace reshadefx
 		#pragma region Break
 		if (accept(tokenid::break_))
 		{
-			const auto newstatement = _ast.make_node<jump_statement_node>(_token.location);
-			newstatement->attributes = attributes;
-			newstatement->is_break = true;
+			if (_loop_break_target_stack.empty())
+				return error(_token.location, 3518, "break must be inside loop"), false;
 
-			statement = newstatement;
+			// Branch to the break target of the inner most loop on the stack
+			switch_block(section, _loop_break_target_stack.back());
 
 			return expect(';');
 		}
@@ -2207,69 +2186,59 @@ namespace reshadefx
 		#pragma region Continue
 		if (accept(tokenid::continue_))
 		{
-			const auto newstatement = _ast.make_node<jump_statement_node>(_token.location);
-			newstatement->attributes = attributes;
-			newstatement->is_continue = true;
+			if (_loop_continue_target_stack.empty())
+				return error(_token.location, 3519, "continue must be inside loop"), false;
 
-			statement = newstatement;
+			// Branch to the continue target of the inner most loop on the stack
+			switch_block(section, _loop_continue_target_stack.back());
 
 			return expect(';');
 		}
 		#pragma endregion
-#endif
 
 		#pragma region Return
 		if (accept(tokenid::return_))
 		{
-			const auto parent = _symbol_table->current_parent();
+			const auto parent = static_cast<const function_info *>(_symbol_table->current_parent());
 			const auto location = _token.location;
+
+			assert(parent != nullptr);
 
 			if (!peek(';'))
 			{
 				access_chain return_exp;
 				if (!parse_expression(section, return_exp))
-				{
 					return false;
-				}
 
-#if 0
 				if (parent->return_type.is_void())
 				{
 					error(location, 3079, "void functions cannot return a value");
 
+					// Consume the semicolon that follows the return expression so that parsing may continue
 					accept(';');
 
 					return false;
 				}
 
-				if (!type_node::rank(lookup_id(return_value).type, parent->return_type))
-				{
-					error(location, 3017, "expression does not match function return type");
+				if (!type_info::rank(return_exp.type, parent->return_type))
+					return error(location, 3017, "expression does not match function return type"), false;
 
-					return false;
-				}
-
-				if (lookup_id(return_value).type.rows > parent->return_type.rows || lookup_id(return_value).type.cols > parent->return_type.cols)
-				{
-					warning(location, 3206, "implicit truncation of vector type");
-				}
-#endif
-				const spv::Id return_value = access_chain_load(section, return_exp);
-				// TODO: Cast to return type
+				const spv::Id return_value = add_cast_node(section, return_exp.location, return_exp.type, parent->return_type,
+					access_chain_load(section, return_exp), true);
 
 				add_node_without_result(section, location, spv::OpReturnValue)
 					.add(return_value);
 			}
-#if 0
 			else if (!parent->return_type.is_void())
 			{
+				// No return value was found, but the function expects one
 				error(location, 3080, "function must return a value");
 
+				// Consume the semicolon that follows the return expression so that parsing may continue
 				accept(';');
 
 				return false;
 			}
-#endif
 			else
 			{
 				add_node_without_result(section, location, spv::OpReturn);
@@ -2291,59 +2260,47 @@ namespace reshadefx
 		#pragma region Declaration
 		const auto location = _token_next.location;
 
+		// Handle variable declarations
 		if (type_info type; parse_type(type))
 		{
 			unsigned int count = 0;
 
-			do
+			do // There may be multiple declarations behind a type, so loop through them
 			{
 				if (count++ > 0 && !expect(','))
-				{
 					return false;
-				}
 
 				if (!expect(tokenid::identifier))
-				{
 					return false;
-				}
 
 				spv::Id variable_id = 0;
-
 				if (!parse_variable_declaration(section, type, _token.literal_as_string, variable_id))
-				{
 					return false;
-				}
-			}
-			while (!peek(';'));
+			} while (!peek(';'));
 
 			return expect(';');
 		}
 		#pragma endregion
 
-		#pragma region Expression
-		if (access_chain exp; parse_expression(section, exp))
+		// Handle expression statements
+		if (access_chain expression; parse_expression(section, expression))
 			return expect(';');
-		#pragma endregion
 
+		// No token should come through here, since all statements and expressions should have been handled above, so this is an error in the syntax
 		error(_token_next.location, 3000, "syntax error: unexpected '" + get_token_name(_token_next.id) + "'");
 
+		// Gracefully consume any remaining characters until the statement would usually end, so that parsing may continue despite the error
 		consume_until(';');
 
 		return false;
 	}
-	bool parser::parse_statement_block(spv_section &section, spv::Id &label, bool scoped)
+	bool parser::parse_statement_block(spv_section &section, bool scoped)
 	{
 		if (!expect('{'))
-		{
 			return false;
-		}
 
 		if (scoped)
-		{
 			_symbol_table->enter_scope();
-		}
-
-		label = add_node(section, _token.location, spv::OpLabel);
 
 		while (!peek('}') && !peek(tokenid::end_of_file))
 		{
@@ -2463,22 +2420,13 @@ namespace reshadefx
 	}
 	bool parser::parse_namespace()
 	{
-		if (!accept(tokenid::namespace_))
-		{
+		if (!accept(tokenid::namespace_) || !expect(tokenid::identifier))
 			return false;
-		}
-
-		if (!expect(tokenid::identifier))
-		{
-			return false;
-		}
 
 		const auto name = _token.literal_as_string;
 
 		if (!expect('{'))
-		{
 			return false;
-		}
 
 		_symbol_table->enter_namespace(name);
 
@@ -2541,32 +2489,24 @@ namespace reshadefx
 	bool parser::parse_annotations(std::unordered_map<std::string, reshade::variant> &annotations)
 	{
 		if (!accept('<'))
-		{
 			return true;
-		}
 
 		while (!peek('>'))
 		{
 			type_info type;
 
 			if (accept_type_class(type))
-			{
 				warning(_token.location, 4717, "type prefixes for annotations are deprecated");
-			}
 
 			if (!expect(tokenid::identifier))
-			{
 				return false;
-			}
 
 			const auto name = _token.literal_as_string;
 
 			access_chain exp;
 
 			if (!(expect('=') && parse_expression_unary(_temporary, exp) && expect(';')))
-			{
 				return false;
-			}
 
 			const auto &expression = lookup_id(exp.base);
 
@@ -2754,11 +2694,11 @@ namespace reshadefx
 
 		type.qualifiers = qualifier_const;
 
-		node_id = add_node(_function_section, location, spv::OpFunction, convert_type(type)); // TODO
+		function_info &function = *_functions.emplace_back(new function_info());
+
+		node_id = add_node(function.variables, location, spv::OpFunction, convert_type(type)); // TODO
 		lookup_id(node_id)
 			.add(spv::FunctionControlInlineMask); // Function Control
-
-		function_info &function = *_functions.emplace_back(new function_info());
 
 		function.name = name;
 		function.unique_name = 'F' + _symbol_table->current_scope().name + name;
@@ -2772,7 +2712,7 @@ namespace reshadefx
 
 		_symbol_table->insert(name, { spv::OpTypeFunction, node_id, {}, &function }, true);
 
-		_symbol_table->enter_scope(node_id);
+		_symbol_table->enter_scope(&function);
 
 		unsigned int num_params = 0;
 
@@ -2863,7 +2803,7 @@ namespace reshadefx
 
 			param_type.is_pointer = true;
 
-			spv::Id param = add_node(_function_section, _token.location, spv::OpFunctionParameter, convert_type(param_type));
+			spv::Id param = add_node(function.variables, _token.location, spv::OpFunctionParameter, convert_type(param_type));
 
 			if (!_symbol_table->insert(param_name, { spv::OpVariable, param, param_type }))
 			{
@@ -2920,9 +2860,10 @@ namespace reshadefx
 
 		lookup_id(node_id).add(convert_type(function)); // Function Type
 
-		spv::Id definition = 0;
+		// A function has to start with a label
+		add_label(function.variables, make_id());
 
-		if (!parse_statement_block(_function_section, definition, false))
+		if (!parse_statement_block(function.code, false))
 		{
 			_symbol_table->leave_scope();
 
@@ -2934,10 +2875,10 @@ namespace reshadefx
 		// Add implicit return statement to the end of void functions
 		if (function.return_type.is_void())
 		{
-			add_node_without_result(_function_section, location, spv::OpReturn);
+			add_node_without_result(function.code, location, spv::OpReturn);
 		}
 
-		add_node_without_result(_function_section, location, spv::OpFunctionEnd);
+		add_node_without_result(function.code, location, spv::OpFunctionEnd);
 
 		return true;
 	}
@@ -3046,15 +2987,13 @@ namespace reshadefx
 
 		if (accept('='))
 		{
-			location = _token.location;
-
 			if (!parse_variable_assignment(section, initializer))
 			{
 				return false;
 			}
 
 			if (!parent && lookup_id(initializer.base).op != spv::OpConstant)
-				return error(location, 3011, "initial value must be a literal expression"), false;
+				return error(initializer.location, 3011, "initial value must be a literal expression"), false;
 
 #if 0 // TODO
 			if (variable->initializer_expression->id == nodeid::initializer_list && type.is_numeric())
@@ -3075,12 +3014,12 @@ namespace reshadefx
 #endif
 
 			if (!type_info::rank(initializer.type, type))
-				return error(location, 3017, "initial value does not match variable type"), false;
+				return error(initializer.location, 3017, "initial value does not match variable type"), false;
 			if ((initializer.type.rows < type.rows || initializer.type.cols < type.cols) && !initializer.type.is_scalar())
-				return error(location, 3017, "cannot implicitly convert these vector types"), false;
+				return error(initializer.location, 3017, "cannot implicitly convert these vector types"), false;
 
 			if (initializer.type.rows > type.rows || initializer.type.cols > type.cols)
-				warning(location, 3206, "implicit truncation of vector type");
+				warning(initializer.location, 3206, "implicit truncation of vector type");
 		}
 		else if (type.is_numeric())
 		{
@@ -3100,11 +3039,21 @@ namespace reshadefx
 
 		type.is_pointer = true;
 
-		node_id = add_node(global ? _variables : section, location, spv::OpVariable, convert_type(type)); // TODO
+		spv::Id initializer_value = initializer.base ? access_chain_load(section, initializer) : 0;
+
+		node_id = add_node(global ? _variables : static_cast<function_info *>(_symbol_table->current_parent())->variables, location, spv::OpVariable, convert_type(type)); // TODO
 		lookup_id(node_id)
 			.add(storage);
-		if (initializer.base)
-			lookup_id(node_id).add(access_chain_load(section, initializer));
+
+		if (initializer_value)
+		{
+			//lookup_id(node_id).add(initializer_value);
+			access_chain variable;
+			variable.reset_to_lvalue(node_id, type, location);
+			type.is_pointer = false;
+			access_chain_store(section, variable, initializer_value, type);
+			type.is_pointer = true;
+		}
 
 		add_name(node_id, name.c_str());
 

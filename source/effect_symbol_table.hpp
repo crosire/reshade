@@ -45,12 +45,12 @@ namespace reshadefx
 	public:
 		symbol_table();
 
-		void enter_scope(spv::Id parent = 0);
+		void enter_scope(void *parent = nullptr);
 		void enter_namespace(const std::string &name);
 		void leave_scope();
 		void leave_namespace();
 
-		spv::Id current_parent() const { return _parent_stack.empty() ? 0 : _parent_stack.top(); }
+		void *current_parent() const { return _parent_stack.empty() ? 0 : _parent_stack.top(); }
 		const scope &current_scope() const { return _current_scope; }
 
 		bool insert(const std::string &name, const symbol &symbol, bool global = false);
@@ -62,7 +62,7 @@ namespace reshadefx
 
 	private:
 		scope _current_scope;
-		std::stack<spv::Id> _parent_stack;
+		std::stack<void *> _parent_stack;
 		std::unordered_map<std::string, std::vector<symbol_data>> _symbol_stack;
 	};
 }
