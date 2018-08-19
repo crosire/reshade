@@ -331,6 +331,9 @@ namespace ReShade.Setup
 
 			_tempDownloadPath = Path.GetTempFileName();
 
+			ServicePointManager.Expect100Continue = true;
+			ServicePointManager.SecurityProtocol = SecurityProtocolType.Ssl3 | SecurityProtocolType.Tls12;
+
 			var client = new WebClient();
 
 			client.DownloadFileCompleted += (object sender, System.ComponentModel.AsyncCompletedEventArgs e) => {
