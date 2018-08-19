@@ -196,19 +196,51 @@ namespace reshadefx
 		/// <summary>
 		/// Construct a new lexical analyzer for an input string.
 		/// </summary>
-		/// <param name="source">The string to analyze.</param>
+		/// <param name="input">The string to analyze.</param>
 		explicit lexer(
 			const std::string &input,
 			bool ignore_whitespace = true,
 			bool ignore_pp_directives = true,
 			bool ignore_keywords = false,
-			bool escape_string_literals = true);
+			bool escape_string_literals = true) :
+			_input(input),
+			_ignore_whitespace(ignore_whitespace),
+			_ignore_pp_directives(ignore_pp_directives),
+			_ignore_keywords(ignore_keywords),
+			_escape_string_literals(escape_string_literals)
+		{
+			_cur = _input.data();
+			_end = _cur + _input.size();
+		}
+
 		/// <summary>
 		/// Construct a copy of an existing instance.
 		/// </summary>
 		/// <param name="lexer">The instance to copy.</param>
-		lexer(const lexer &lexer);
-		lexer &operator=(const lexer &);
+		lexer(const lexer &lexer) :
+			_input(lexer._input),
+			_cur_location(lexer._cur_location),
+			_ignore_whitespace(lexer._ignore_whitespace),
+			_ignore_pp_directives(lexer._ignore_pp_directives),
+			_ignore_keywords(lexer._ignore_keywords),
+			_escape_string_literals(lexer._escape_string_literals)
+		{
+			_cur = _input.data() + (lexer._cur - lexer._input.data());
+			_end = _input.data() + _input.size();
+		}
+		lexer &operator=(const lexer &lexer)
+		{
+			_input = lexer._input;
+			_cur_location = lexer._cur_location;
+			_cur = _input.data() + (lexer._cur - lexer._input.data());
+			_end = _input.data() + _input.size();
+			_ignore_whitespace = lexer._ignore_whitespace;
+			_ignore_pp_directives = lexer._ignore_pp_directives;
+			_ignore_keywords = lexer._ignore_keywords;
+			_escape_string_literals = lexer._escape_string_literals;
+
+			return *this;
+		}
 
 		/// <summary>
 		/// Get the input string this lexical analyzer works on.
@@ -233,7 +265,7 @@ namespace reshadefx
 
 	private:
 		/// <summary>
-		/// Skips an arbitary amount of characters in the input string.
+		/// Skips an arbitrary amount of characters in the input string.
 		/// </summary>
 		/// <param name="length">The number of input characters to skip.</param>
 		void skip(size_t length);
