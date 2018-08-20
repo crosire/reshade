@@ -21,12 +21,11 @@ namespace ReShade.Setup
 	{
 		bool _isHeadless = false;
 		bool _isElevated = false;
+		string _configPath = null;
 		string _targetPath = null;
 		string _targetModulePath = null;
 		PEInfo _targetPEInfo = null;
 		string _tempDownloadPath = null;
-
-		private string ConfigFilePath => Path.ChangeExtension(_targetModulePath, ".ini");
 
 		public WizardWindow()
 		{
@@ -263,6 +262,13 @@ namespace ReShade.Setup
 
 			string pathModule = _targetModulePath = Path.Combine(Path.GetDirectoryName(_targetPath), nameModule);
 
+			_configPath = Path.ChangeExtension(_targetModulePath, ".ini");
+
+			if (!File.Exists(_configPath))
+			{
+				_configPath = Path.Combine(Path.GetDirectoryName(_targetPath), "ReShade.ini");
+			}
+
 			if (File.Exists(pathModule) && !_isHeadless &&
 				MessageBox.Show(this, "Do you want to overwrite the existing installation?", string.Empty, MessageBoxButton.YesNo) != MessageBoxResult.Yes)
 			{
@@ -307,14 +313,11 @@ namespace ReShade.Setup
 			}
 			else
 			{
-				string configFilePath = ConfigFilePath;
-
-				if (!File.Exists(configFilePath))
+				if (!File.Exists(_configPath))
 				{
 					string targetDirectory = Path.GetDirectoryName(_targetPath);
 
-					IniFile.WriteValue(configFilePath, "GENERAL", "EffectSearchPaths", targetDirectory);
-					IniFile.WriteValue(configFilePath, "GENERAL", "TextureSearchPaths", targetDirectory);
+					WriteSearchPaths(targetDirectory, targetDirectory);
 				}
 
 				EnableSettingsWindow();
@@ -327,6 +330,9 @@ namespace ReShade.Setup
 			Glass.HideSystemMenu(this);
 
 			_tempDownloadPath = Path.GetTempFileName();
+
+			ServicePointManager.Expect100Continue = true;
+			ServicePointManager.SecurityProtocol = SecurityProtocolType.Ssl3 | SecurityProtocolType.Tls12;
 
 			var client = new WebClient();
 
@@ -444,14 +450,7 @@ namespace ReShade.Setup
 				}
 			}
 
-			var effectSearchPaths = IniFile.ReadValue(ConfigFilePath, "GENERAL", "EffectSearchPaths").Split(',').Where(x => x.Length != 0).ToList();
-			var textureSearchPaths = IniFile.ReadValue(ConfigFilePath, "GENERAL", "TextureSearchPaths").Split(',').Where(x => x.Length != 0).ToList();
-
-			AddSearchPath(effectSearchPaths, targetPathShaders);
-			AddSearchPath(textureSearchPaths, targetPathTextures);
-
-			IniFile.WriteValue(ConfigFilePath, "GENERAL", "EffectSearchPaths", string.Join(",", effectSearchPaths));
-			IniFile.WriteValue(ConfigFilePath, "GENERAL", "TextureSearchPaths", string.Join(",", textureSearchPaths));
+			WriteSearchPaths(targetPathShaders, targetPathTextures);
 
 			Title += " Succeeded!";
 			Glass.HideSystemMenu(this, false);
@@ -498,13 +497,24 @@ namespace ReShade.Setup
 				searchPaths.Add(newPath);
 			}
 		}
+		private void WriteSearchPaths(string targetPathShaders, string targetPathTextures)
+		{
+			var effectSearchPaths = IniFile.ReadValue(_configPath, "GENERAL", "EffectSearchPaths").Split(',').Where(x => x.Length != 0).ToList();
+			var textureSearchPaths = IniFile.ReadValue(_configPath, "GENERAL", "TextureSearchPaths").Split(',').Where(x => x.Length != 0).ToList();
+
+			AddSearchPath(effectSearchPaths, targetPathShaders);
+			AddSearchPath(textureSearchPaths, targetPathTextures);
+
+			IniFile.WriteValue(_configPath, "GENERAL", "EffectSearchPaths", string.Join(",", effectSearchPaths));
+			IniFile.WriteValue(_configPath, "GENERAL", "TextureSearchPaths", string.Join(",", textureSearchPaths));
+		}
 
 		private void EnableSettingsWindow()
 		{
 			Message.Text = "Edit ReShade settings";
 			SetupButton.IsEnabled = true;
 			SetupButton.Click -= OnSetupButtonClick;
-			SetupButton.Click += (object s, RoutedEventArgs e) => new SettingsWindow(ConfigFilePath) { Owner = this }.ShowDialog();
+			SetupButton.Click += (object s, RoutedEventArgs e) => new SettingsWindow(_configPath) { Owner = this }.ShowDialog();
 		}
 	}
 }
