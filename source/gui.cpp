@@ -308,8 +308,8 @@ namespace reshade
 					"Make sure a valid file is selected here before starting to tweak any values later, or else your changes won't be saved!\n\n"
 					"Add a new preset by clicking on the '+' button to continue the tutorial.";
 
-				ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(0.941176, 0.392157, 0.392190, 1.0));
-				ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.941176, 0.392157, 0.392190, 1.0));
+				ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(0.941176f, 0.392157f, 0.392190f, 1.0f));
+				ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.941176f, 0.392157f, 0.392190f, 1.0f));
 			}
 
 			const auto get_preset_file = [](void *data, int i, const char **out) {
@@ -467,7 +467,7 @@ namespace reshade
 					"Enter text in the box at the top to filter it and search for specific techniques.\n\n"
 					"Click on a technique to enable or disable it or drag it to a new location in the list to change the order in which the effects are applied.";
 
-				ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.941176, 0.392157, 0.392190, 1.0));
+				ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.941176f, 0.392157f, 0.392190f, 1.0f));
 			}
 
 			ImGui::Spacing();
@@ -510,7 +510,7 @@ namespace reshade
 					"Once you have finished tweaking your preset, be sure to go to the 'Settings' tab and change the 'Usage Mode' to 'Performance Mode'. "
 					"This will recompile all shaders into a more optimal representation that gives a significant performance boost, but will disable variable tweaking and this list.";
 
-				ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.941176, 0.392157, 0.392190, 1.0));
+				ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.941176f, 0.392157f, 0.392190f, 1.0f));
 			}
 
 			const float bottom_height = ImGui::GetFrameHeightWithSpacing() + ImGui::GetStyle().ItemSpacing.y + (_tutorial_index == 3 ? 125 : 0);
