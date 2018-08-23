@@ -279,7 +279,7 @@ namespace reshadefx
 					DOFOLDING2(*);
 					break;
 				case binary_expression_node::divide:
-					if (right->value_uint[0] == 0)
+					if (right->value_uint[0] == 0 || right->value_float[0] == 0)
 					{
 						return expression;
 					}
