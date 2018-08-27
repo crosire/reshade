@@ -315,7 +315,7 @@ next_token:
 					skip_to_next_line();
 					goto next_token;
 				}
-			}
+			} // These braces are important so the 'else' is matched to the right 'if' statement
 			else
 				tok.id = tokenid::hash;
 			break;

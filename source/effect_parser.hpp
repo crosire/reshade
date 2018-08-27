@@ -95,8 +95,8 @@ namespace reshadefx
 		bool is_integral() const { return base == spv::OpTypeInt; }
 		bool is_floating_point() const { return base == spv::OpTypeFloat; }
 		bool is_struct() const { return base == spv::OpTypeStruct; }
-		bool is_image() const { return base == spv::OpTypeImage; }
-		bool is_sampled_image() const { return base == spv::OpTypeSampledImage; }
+		bool is_texture() const { return base == spv::OpTypeImage; }
+		bool is_sampler() const { return base == spv::OpTypeSampledImage; }
 
 		unsigned int components() const { return rows * cols; }
 
@@ -109,7 +109,7 @@ namespace reshadefx
 		unsigned int qualifiers = 0;
 		int array_length = 0;
 		spv::Id definition = 0;
-		spv::Id array_lenghth_expression = 0;
+		spv::Id array_length_expression = 0;
 	};
 
 	inline bool operator==(const type_info &lhs, const type_info &rhs)
@@ -255,22 +255,40 @@ namespace reshadefx
 		bool accept_type_qualifiers(type_info &type);
 
 		bool accept_unary_op(spv::Op &op);
-		bool accept_postfix_op(spv::Op &op);
-		bool accept_assignment_op(spv::Op &op);
+		bool accept_postfix_op(const type_info &type, spv::Op &op);
+		bool accept_assignment_op(const type_info &type, spv::Op &op);
 
 		bool parse_top_level();
 		bool parse_namespace();
 		bool parse_type(type_info &type);
 
+		struct constant
+		{
+			union
+			{
+				float as_float[16];
+				uint32_t as_uint[16];
+			};
+			std::string as_string;
+		};
+
 		struct access_chain
 		{
-			spv::Id base;
-			std::vector<spv::Id> indices;
+			struct operation
+			{
+				type_info from, to;
+				bool implicit;
+				spv::Id index;
+			};
+			spv::Id base = 0;
+			std::vector<operation> ops;
 			signed char swizzle[4];
 			type_info type;
 			type_info base_type;
 			location location;
+			constant constant;
 			bool is_lvalue = false;
+			bool is_constant = false;
 
 			void reset_to_lvalue(spv::Id in_base, const type_info &in_type, const struct location &loc)
 			{
@@ -280,39 +298,151 @@ namespace reshadefx
 				this->type = base_type = in_type;
 				this->type.is_pointer = false;
 				this->location = loc;
-				indices.clear();
+				ops.clear();
 				swizzle[0] = -1;
 				swizzle[1] = -1;
 				swizzle[2] = -1;
 				swizzle[3] = -1;
 				is_lvalue = true;
 			}
+			//void reset_to_lvalue_constant() {}
 			void reset_to_rvalue(spv::Id in_base, const type_info &in_type, const struct location &loc)
 			{
 				this->base = in_base;
 				this->type = base_type = in_type;
 				this->type.qualifiers |= qualifier_const;
 				this->location = loc;
-				indices.clear();
+				ops.clear();
 				swizzle[0] = -1;
 				swizzle[1] = -1;
 				swizzle[2] = -1;
 				swizzle[3] = -1;
 				is_lvalue = false;
 			}
-
-			void push_index(spv::Id index_expression)
+			void reset_to_rvalue_constant(const type_info &in_type, const struct location &loc, uint32_t data)
 			{
-				type.is_pointer = false;
-				indices.push_back(index_expression);
+				this->type = base_type = in_type;
+				this->type.qualifiers |= qualifier_const;
+				this->location = loc;
+				ops.clear();
+				swizzle[0] = -1;
+				swizzle[1] = -1;
+				swizzle[2] = -1;
+				swizzle[3] = -1;
+				is_lvalue = false;
+				is_constant = true;
+				constant = {};
+				constant.as_uint[0] = data;
 			}
-			void push_swizzle(signed char swizzle2[4])
+			void reset_to_rvalue_constant(const type_info &in_type, const struct location &loc, std::string &&data)
 			{
+				this->type = base_type = in_type;
+				this->type.qualifiers |= qualifier_const;
+				this->location = loc;
+				ops.clear();
+				swizzle[0] = -1;
+				swizzle[1] = -1;
+				swizzle[2] = -1;
+				swizzle[3] = -1;
+				is_lvalue = false;
+				is_constant = true;
+				constant = {};
+				constant.as_string = data;
+			}
+			void reset_to_rvalue_constant(const type_info &in_type, const struct location &loc, const struct constant &data)
+			{
+				this->type = base_type = in_type;
+				this->type.qualifiers |= qualifier_const;
+				this->location = loc;
+				ops.clear();
+				swizzle[0] = -1;
+				swizzle[1] = -1;
+				swizzle[2] = -1;
+				swizzle[3] = -1;
+				is_lvalue = false;
+				is_constant = true;
+				constant = data;
+			}
+
+			void push_cast(const type_info &in_type, bool implicit)
+			{
+				if (type == in_type)
+					return;
+				if (is_constant)
+				{
+					if (in_type.is_integral())
+					{
+						assert(!type.is_integral());
+						for (unsigned int i = 0; i < 16; ++i)
+							constant.as_uint[i] = static_cast<int>(constant.as_float[i]);
+					}
+					else
+					{
+						assert(type.is_integral());
+						for (unsigned int i = 0; i < 16; ++i)
+							constant.as_float[i] = static_cast<float>(static_cast<int>(constant.as_uint[i]));
+					}
+				}
+				else
+				{
+					ops.push_back({ type, in_type, implicit });
+				}
+
+				type = in_type;
+				is_lvalue = false;
+			}
+			void push_static_index(size_t index, parser &p)
+			{
+				if (!is_constant)
+				{
+					constant.as_uint[0] = index;
+					return push_dynamic_index(p.convert_constant({ spv::OpTypeInt, 32, 1, 1, false }, constant));
+				}
+
+				assert(type.is_vector() || type.is_matrix());
+				constant.as_uint[0] = constant.as_uint[index];
+
+				if (type.is_array()) // Only single-level arrays are supported right now, so indexing into an array always returns an object that is not an array
+					type.array_length = 0;
+				else if (type.is_matrix()) // Indexing into a matrix returns a row of it as a vector
+					type.rows = type.cols,
+					type.cols = 1;
+				else if (type.is_vector()) // Indexing into a vector returns the element as a scalar
+					type.rows = 1;
+			}
+			void push_dynamic_index(spv::Id index_expression)
+			{
+				type_info target_type = type;
+				if (type.is_array())
+					target_type.array_length = 0;
+				else if (type.is_matrix())
+					target_type.rows = type.cols,
+					target_type.cols = 1;
+				else if (type.is_vector())
+					target_type.rows = 1;
+
+				ops.push_back({ type, target_type, false, index_expression });
+
+				is_constant = false;
+				type = target_type;
 				type.is_pointer = false;
-				for (size_t i = 0; i < 4 && swizzle[i] >= 0; ++i)
+			}
+			void push_swizzle(signed char swizzle2[4], size_t length)
+			{
+				if (is_constant)
+				{
+					assert(false);
+				}
+
+				type.rows = static_cast<unsigned int>(length);
+				type.cols = 1;
+				type.is_pointer = false;
+				for (size_t i = 0; i < length && swizzle[i] >= 0; ++i)
 					swizzle2[i] = swizzle[swizzle2[i]];
-				for (size_t i = 0; i < 4; ++i)
+				for (size_t i = 0; i < length; ++i)
 					swizzle[i] = swizzle2[i];
+				for (size_t i = length; i < 4; ++i)
+					swizzle[i] = -1;
 			}
 		};
 
@@ -350,6 +480,7 @@ namespace reshadefx
 
 		std::vector<std::pair<spv_section *, size_t>> _id_lookup;
 		std::vector<std::pair<type_info, spv::Id>> _type_lookup;
+		std::vector<std::pair<constant, spv::Id>> _constant_lookup;
 		std::unordered_map<spv::Op, std::vector<type_info>> _type_lookup2;
 
 		std::vector<spv::Id> _loop_break_target_stack;
@@ -358,39 +489,59 @@ namespace reshadefx
 
 		spv::Id access_chain_load(spv_section &section, const access_chain &chain)
 		{
+			if (chain.is_constant)
+			{
+				return convert_constant(chain.type, chain.constant);
+			}
+
 			spv::Id result = chain.base;
 
 			if (chain.is_lvalue)
 			{
 				type_info base_type = chain.base_type;
 				base_type.is_pointer = false;
-				result = add_node(section, chain.location, spv::OpLoad, convert_type(base_type));
-				lookup_id(result)
-					.add(chain.base);
+				result = add_node(section, chain.location, spv::OpLoad, convert_type(base_type))
+					.add(chain.base) // Pointer
+					.result; // Result ID
+			}
+
+			for (auto &op : chain.ops)
+			{
+				if (op.index != 0)
+				{
+					spv_node &node = add_node(section, chain.location, spv::OpAccessChain, convert_type(op.to))
+						.add(result)
+						.add(op.index);
+
+					result = node.result;
+				}
+				else
+				{
+					result = add_cast_node(section, chain.location, op.from, op.to, result, op.implicit, chain.is_constant);
+				}
 			}
 
 			if (chain.swizzle[0] >= 0)
 			{
 				if (chain.type.is_vector())
 				{
-					spv::Id result2 = add_node(section, chain.location, spv::OpVectorShuffle, convert_type(chain.type));
-					lookup_id(result2)
+					spv_node &node = add_node(section, chain.location, spv::OpVectorShuffle, convert_type(chain.type))
 						.add(result) // Vector 1
 						.add(result); // Vector 2
 
 					for (unsigned int i = 0; i < 4 && chain.swizzle[i] >= 0; ++i)
-						lookup_id(result2).add(chain.swizzle[i]);
+						node.add(chain.swizzle[i]);
 
-					result = result2;
+					result = node.result;
 				}
 				else if (chain.type.is_scalar())
 				{
 					assert(chain.swizzle[1] < 0);
 
-					spv::Id result2 = add_node(section, chain.location, spv::OpCompositeExtract, convert_type(chain.type));
-					lookup_id(result2)
-						.add(result) // Copmosite
-						.add(chain.swizzle[0]); // Index
+					spv::Id result2 = add_node(section, chain.location, spv::OpCompositeExtract, convert_type(chain.type))
+						.add(result) // Composite
+						.add(chain.swizzle[0]) // Index
+						.result; // Result ID
 
 					result = result2;
 				}
@@ -404,24 +555,25 @@ namespace reshadefx
 		}
 		void access_chain_store(spv_section &section, const access_chain &chain, spv::Id value, const type_info &value_type)
 		{
+			assert(chain.is_lvalue && !chain.is_constant);
 			assert(!value_type.is_pointer);
 
-			// Cannot store values outside blocks
-			if (!_current_block)
-				return;
+			for (auto &op : chain.ops)
+			{
+				assert(false);
+			}
 
 			if (chain.swizzle[0] >= 0)
 			{
 				type_info base_type = chain.base_type;
 				base_type.is_pointer = false;
-				spv::Id result = add_node(section, chain.location, spv::OpLoad, convert_type(base_type));
-				lookup_id(result)
-					.add(chain.base);
+				spv::Id result = add_node(section, chain.location, spv::OpLoad, convert_type(base_type))
+					.add(chain.base) // Pointer
+					.result; // Result ID
 
 				if (base_type.is_vector() && value_type.is_vector())
 				{
-					spv::Id result2 = add_node(section, chain.location, spv::OpVectorShuffle, convert_type(base_type));
-					lookup_id(result2)
+					spv_node &node = add_node(section, chain.location, spv::OpVectorShuffle, convert_type(base_type))
 						.add(result) // Vector 1
 						.add(value); // Vector 2
 
@@ -430,19 +582,19 @@ namespace reshadefx
 						if (chain.swizzle[i] >= 0)
 							shuffle[chain.swizzle[i]] = base_type.rows + i;
 					for (unsigned int i = 0; i < base_type.rows; ++i)
-						lookup_id(result2).add(shuffle[i]);
+						node.add(shuffle[i]);
 
-					value = result2;
+					value = node.result;
 				}
 				else if (value_type.is_scalar())
 				{
 					assert(chain.swizzle[1] < 0); // TODO
 
-					spv::Id result2 = add_node(section, chain.location, spv::OpCompositeInsert, convert_type(base_type));
-					lookup_id(result2)
+					spv::Id result2 = add_node(section, chain.location, spv::OpCompositeInsert, convert_type(base_type))
 						.add(value) // Object
-						.add(result) // Copmosite
-						.add(chain.swizzle[0]); // Index
+						.add(result) // Composite
+						.add(chain.swizzle[0]) // Index
+						.result; // Result ID
 
 					value = result2;
 				}
@@ -452,7 +604,7 @@ namespace reshadefx
 				}
 			}
 
-			add_node_without_result(section, lookup_id(value).location, spv::OpStore)
+			add_node_without_result(section, chain.location, spv::OpStore)
 				.add(chain.base)
 				.add(value);
 		}
@@ -466,7 +618,7 @@ namespace reshadefx
 			return _next_id++;
 		}
 
-		spv::Id add_node(spv_section &section, location loc, spv::Op op, spv::Id type = 0)
+		spv_node &add_node(spv_section &section, location loc, spv::Op op, spv::Id type = 0)
 		{
 			spv_node &instruction = add_node_without_result(section, loc, op);
 			instruction.result = _next_id++;
@@ -474,8 +626,21 @@ namespace reshadefx
 
 			_id_lookup.push_back({ &section, instruction.index });
 
-			return instruction.result;
+			return instruction;
 		}
+		spv_node &add_node(spv_section &section, location loc, spv::Op op, spv::Id type, std::initializer_list<spv::Id> operands)
+		{
+			spv_node &instruction = add_node_without_result(section, loc, op);
+			instruction.result = _next_id++;
+			instruction.result_type = type;
+			for (size_t i = 0; i < operands.size(); ++i)
+				instruction.operands.push_back(operands.begin()[i]);
+
+			_id_lookup.push_back({ &section, instruction.index });
+
+			return instruction;
+		}
+
 		spv_node &add_node_without_result(spv_section &section, location loc, spv::Op op)
 		{
 			switch (op)
@@ -491,7 +656,24 @@ namespace reshadefx
 			case spv::OpLoopMerge:
 			case spv::OpLoad:
 			case spv::OpStore:
-				assert(_current_block);
+			case spv::OpConvertFToS:
+			case spv::OpConvertFToU:
+			case spv::OpConvertSToF:
+			case spv::OpConvertUToF:
+			case spv::OpCompositeConstruct:
+			case spv::OpFMul:
+			case spv::OpFDiv:
+			case spv::OpFMod:
+			case spv::OpFAdd:
+			case spv::OpFSub:
+				//assert(_current_block);
+				static spv_node trash;
+				trash = spv_node {};
+				trash.index = -1;
+				if (!_current_block)
+				{
+					return trash;
+				}
 				break;
 			}
 
@@ -509,7 +691,15 @@ namespace reshadefx
 				.add(id)
 				.add_string(name);
 		}
-		void add_label(spv_section &section, spv::Id id)
+		void add_member_name(spv::Id id, uint32_t member, const char *name)
+		{
+			add_node_without_result(_debug, {}, spv::OpMemberName)
+				.add(id)
+				.add(member)
+				.add_string(name);
+		}
+
+		void enter_block(spv_section &section, spv::Id id)
 		{
 			spv_node &instruction = section.instructions.emplace_back();
 			instruction.op = spv::OpLabel;
@@ -517,8 +707,7 @@ namespace reshadefx
 			instruction.result = id;
 			_current_block = id;
 		}
-
-		void switch_block(spv_section &section, spv::Id target)
+		void leave_block_and_branch(spv_section &section, spv::Id target)
 		{
 			if (_current_block == 0)
 				return;
@@ -530,7 +719,7 @@ namespace reshadefx
 				.add(target);
 			_current_block = 0;
 		}
-		void switch_block_conditional(spv_section &section, spv::Id condition, spv::Id true_target, spv::Id false_target)
+		void leave_block_and_branch_conditional(spv_section &section, spv::Id condition, spv::Id true_target, spv::Id false_target)
 		{
 			if (_current_block == 0)
 				return;
@@ -545,18 +734,18 @@ namespace reshadefx
 
 		spv::Id _current_block = 0;
 
-		spv::Id add_cast_node(spv_section &section, location loc, const type_info &from, const type_info &to, spv::Id input, bool implicit)
+		spv::Id add_cast_node(spv_section &section, location loc, const type_info &from, const type_info &to, spv::Id input, bool implicit, bool constant)
 		{
 			assert(!to.is_pointer);
 
 			if (to.components() > from.components())
 			{
-				auto composide_type = to;
-				composide_type.base = from.base;
-				spv::Id composite_node = add_node(section, loc, spv::OpCompositeConstruct, convert_type(composide_type));
-				for (unsigned int i = 0; i < composide_type.components(); ++i)
-					lookup_id(composite_node).add(input);
-				input = composite_node;
+				auto composite_type = to;
+				composite_type.base = from.base;
+				spv_node &composite_node = add_node(section, loc, constant ? spv::OpConstantComposite : spv::OpCompositeConstruct, convert_type(composite_type));
+				for (unsigned int i = 0; i < composite_type.components(); ++i)
+					composite_node.add(input);
+				input = composite_node.result;
 			}
 			if (from.components() > to.components())
 			{
@@ -577,31 +766,38 @@ namespace reshadefx
 
 			if (from.is_boolean())
 			{
-				result = add_node(section, loc, spv::OpSelect, convert_type(to));
-				lookup_id(result)
+				struct constant true_c = {};
+				true_c.as_uint[0] = to.is_floating_point() ? 0x3f800000 : 1;
+				const spv::Id true_constant = convert_constant(to, true_c);
+				const spv::Id false_constant = convert_constant(to, {});
+
+				result = add_node(section, loc, spv::OpSelect, convert_type(to))
 					.add(input) // Condition
-					.add(convert_constant(to, to.is_floating_point() ? 0x3f800000 : 1))
-					.add(convert_constant(to, 0));
+					.add(true_constant)
+					.add(false_constant)
+					.result;
 			}
 			else
 			{
 				switch (to.base)
 				{
 				case spv::OpTypeBool:
-					result = add_node(section, loc, from.is_floating_point() ? spv::OpFOrdNotEqual : spv::OpINotEqual, convert_type(to));
-					lookup_id(result)
+					result = add_node(section, loc, from.is_floating_point() ? spv::OpFOrdNotEqual : spv::OpINotEqual, convert_type(to))
 						.add(input)
-						.add(convert_constant(from, 0));
+						.add(convert_constant(from, {}))
+						.result;
 					break;
 				case spv::OpTypeInt:
 					assert(from.is_floating_point());
-					result = add_node(section, loc, to.is_signed ? spv::OpConvertFToS : spv::OpConvertFToU, convert_type(to));
-					lookup_id(result).add(input);
+					result = add_node(section, loc, to.is_signed ? spv::OpConvertFToS : spv::OpConvertFToU, convert_type(to))
+						.add(input)
+						.result;
 					break;
 				case spv::OpTypeFloat:
 					assert(from.is_integral());
-					result = add_node(section, loc, from.is_signed ? spv::OpConvertSToF : spv::OpConvertUToF, convert_type(to));
-					lookup_id(result).add(input);
+					result = add_node(section, loc, from.is_signed ? spv::OpConvertSToF : spv::OpConvertUToF, convert_type(to))
+						.add(input)
+						.result;
 					break;
 				}
 			}
@@ -616,95 +812,112 @@ namespace reshadefx
 
 			spv::Id type;
 
+			type_info eleminfo = info;
+
 			if (info.is_array())
 			{
-				spv::Id elemtype = convert_type(type_info { info.base, info.size, info.rows, info.cols, info.is_signed });
+				eleminfo.array_length = 0;
+				eleminfo.array_length_expression = 0;
+
+				spv::Id elemtype = convert_type(eleminfo);
 
 				// TODO: Array stride
 				if (info.array_length > 0) // Sized array
 				{
 					//assert(info.array_lenghth_expression);
 
-					type = add_node(_variables, {}, spv::OpTypeArray);
-					lookup_id(type)
+					type = add_node(_variables, {}, spv::OpTypeArray)
 						.add(elemtype)
-						.add(info.array_lenghth_expression);
+						.add(info.array_length_expression)
+						.result;
 				}
 				else // Dynamic array
 				{
-					type = add_node(_variables, {}, spv::OpTypeRuntimeArray);
-					lookup_id(type)
-						.add(elemtype);
+					type = add_node(_variables, {}, spv::OpTypeRuntimeArray)
+						.add(elemtype)
+						.result;
 				}
 			}
 			else if (info.is_pointer)
 			{
-				spv::Id elemtype = convert_type(type_info { info.base, info.size, info.rows, info.cols, info.is_signed });
+				eleminfo.is_pointer = false;
 
-				type = add_node(_variables, {}, spv::OpTypePointer);
-				lookup_id(type)
+				spv::Id elemtype = convert_type(eleminfo);
+
+				type = add_node(_variables, {}, spv::OpTypePointer)
 					.add(spv::StorageClassFunction)
-					.add(elemtype);
+					.add(elemtype)
+					.result;
 			}
 			else
 			{
 				if (info.is_vector())
 				{
-					const spv::Id elemtype = convert_type(type_info { info.base, info.size, 1, 1, info.is_signed });
+					eleminfo.rows = 1;
+					eleminfo.cols = 1;
 
-					type = add_node(_variables, {}, spv::OpTypeVector);
-					lookup_id(type)
+					const spv::Id elemtype = convert_type(eleminfo);
+
+					type = add_node(_variables, {}, spv::OpTypeVector)
 						.add(elemtype)
-						.add(info.rows);
+						.add(info.rows)
+						.result;
 				}
 				else if (info.is_matrix())
 				{
-					const spv::Id elemtype = convert_type(type_info { info.base, info.size, info.rows, 1, info.is_signed });
+					eleminfo.cols = 1;
 
-					type = add_node(_variables, {}, spv::OpTypeMatrix);
-					lookup_id(type)
+					const spv::Id elemtype = convert_type(eleminfo);
+
+					type = add_node(_variables, {}, spv::OpTypeMatrix)
 						.add(elemtype)
-						.add(info.cols);
+						.add(info.cols)
+						.result;
 				}
 				else
 				{
 					switch (info.base)
 					{
 					case spv::OpTypeVoid:
-						type = add_node(_variables, {}, spv::OpTypeVoid);
+						type = add_node(_variables, {}, spv::OpTypeVoid).result;
 						break;
 					case spv::OpTypeBool:
-						type = add_node(_variables, {}, spv::OpTypeBool);
+						type = add_node(_variables, {}, spv::OpTypeBool).result;
 						break;
 					case spv::OpTypeFloat:
-						type = add_node(_variables, {}, spv::OpTypeFloat);
-						lookup_id(type)
-							.add(info.size);
+						type = add_node(_variables, {}, spv::OpTypeFloat)
+							.add(info.size)
+							.result;
 						break;
 					case spv::OpTypeInt:
-						type = add_node(_variables, {}, spv::OpTypeInt);
-						lookup_id(type)
+						type = add_node(_variables, {}, spv::OpTypeInt)
 							.add(info.size)
-							.add(info.is_signed ? 1 : 0);
+							.add(info.is_signed ? 1 : 0)
+							.result;
 						break;
 					case spv::OpTypeStruct:
+						assert(info.definition);
 						type = info.definition;
 						break;
-					case spv::OpTypeImage:
-						type = add_node(_variables, {}, spv::OpTypeImage);
-						lookup_id(type)
-							.add(info.definition) // Sampled Type
+					case spv::OpTypeImage: {
+						spv::Id sampled_type = convert_type(type_info { spv::OpTypeFloat, 32, 4, 1, true });
+						//assert(info.definition);
+						type = add_node(_variables, {}, spv::OpTypeImage)
+							.add(sampled_type) // Sampled Type
 							.add(spv::Dim2D)
 							.add(0) // Not a depth image
 							.add(0) // Not an array
 							.add(0) // Not multi-sampled
 							.add(1) // Will be used with a sampler
-							.add(spv::ImageFormatRgba8);
+							.add(spv::ImageFormatRgba8)
+							.result;
 						break;
+					}
 					case spv::OpTypeSampledImage:
-						type = add_node(_variables, {}, spv::OpTypeSampledImage);
-						lookup_id(type)
-							.add(info.definition);
+						assert(info.definition);
+						type = add_node(_variables, {}, spv::OpTypeSampledImage)
+							.add(info.definition)
+							.result;
 						break;
 					default:
 						return 0;
@@ -723,32 +936,91 @@ namespace reshadefx
 			for (const auto &param : info.parameter_list)
 				param_types.push_back(convert_type(param));
 
-			spv::Id type = add_node(_variables, {}, spv::OpTypeFunction);
-			lookup_id(type).add(return_type);
+			spv_node &node = add_node(_variables, {}, spv::OpTypeFunction);
+			node.add(return_type);
 			for (auto param_type : param_types)
-				lookup_id(type).add(param_type);
-			return type;
+				node.add(param_type);
+			return node.result;
 		}
 
-		spv::Id convert_constant(const type_info &type, uint32_t value)
+		spv::Id convert_constant(const type_info &type, const constant &data)
 		{
+			if (auto it = std::find_if(_constant_lookup.begin(), _constant_lookup.end(), [&type, &data](auto &x) { return std::memcmp(&x.first.as_uint[0], &data.as_uint[0], sizeof(uint32_t) * 16) == 0; }); it != _constant_lookup.end())
+				return it->second; // TODO check type match
+
 			assert(!type.is_pointer);
-			if (value == 0)
+
+			spv::Id result = 0;
+
+			if (type.is_matrix())
 			{
-				return add_node(_variables, {}, spv::OpConstantNull, convert_type(type));
+				spv::Id columns[4] = {};
+
+				for (unsigned int i = 0; i < type.cols; ++i)
+				{
+					constant column = {};
+					for (unsigned int k = 0; k < type.rows; ++k)
+						column.as_uint[k] = data.as_uint[i * type.rows + k];
+					type_info column_type = type;
+					column_type.cols = 1;
+					columns[i] = convert_constant(column_type, column);
+				}
+
+				spv_node &node = add_node(_variables, {}, spv::OpConstantComposite, convert_type(type));
+
+				for (unsigned int i = 0; i < type.cols; ++i)
+					node.add(columns[i]);
+
+				result = node.result;
 			}
+			else if (type.is_vector())
+			{
+				spv::Id rows[4] = {};
+
+				for (unsigned int i = 0; i < type.rows; ++i)
+				{
+					constant scalar = {};
+					scalar.as_uint[0] = data.as_uint[i];
+					type_info value_type = type;
+					value_type.rows = 1;
+					rows[i] = convert_constant(value_type, scalar);
+				}
+
+				spv_node &node = add_node(_variables, {}, spv::OpConstantComposite, convert_type(type));
+
+				for (unsigned int i = 0; i < type.rows; ++i)
+					node.add(rows[i]);
+
+				result = node.result;
+			}
+			else if (type.is_boolean())
+			{
+				result = add_node(_variables, {}, data.as_uint[0] ? spv::OpConstantTrue : spv::OpConstantFalse, convert_type(type)).result;
+			}
+			//else if (data.as_uint[0] == 0)
+			//{
+			//	result =  add_node(_variables, {}, spv::OpConstantNull, convert_type(type)).result;
+			//}
 			else
 			{
-				auto id = add_node(_variables, {}, spv::OpConstant, convert_type(type));
-				lookup_id(id)
-					.add(value);
-				return id;
+				assert(type.is_scalar());
+				result = add_node(_variables, {}, spv::OpConstant, convert_type(type)).add(data.as_uint[0]).result;
 			}
+
+			_constant_lookup.push_back({ data, result });
+
+			return result;
 		}
 
 		spv_node &lookup_id(spv::Id id)
 		{
-			return _id_lookup[id - 102].first->instructions[_id_lookup[id - 102].second];
+			assert(id != 0);
+			size_t index = _id_lookup[id - 102].second;
+			static spv_node trash;
+			trash = spv_node {};
+			if (index == -1)
+				return trash;
+			return _id_lookup[id - 102].first->instructions[index];
 		}
 
 		std::string _errors;
