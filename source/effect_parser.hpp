@@ -107,6 +107,7 @@ namespace reshadefx
 		bool is_struct() const { return base == spv::OpTypeStruct; }
 		bool is_texture() const { return base == spv::OpTypeImage; }
 		bool is_sampler() const { return base == spv::OpTypeSampledImage; }
+		bool is_function() const { return base == spv::OpTypeFunction; }
 
 		unsigned int components() const { return rows * cols; }
 
@@ -236,9 +237,6 @@ namespace reshadefx
 	class parser
 	{
 	public:
-		/// <summary>
-		/// Construct a new parser instance.
-		/// </summary>
 		parser();
 		parser(const parser &) = delete;
 		~parser();
@@ -288,15 +286,22 @@ namespace reshadefx
 
 		struct access_chain
 		{
+			enum op_type
+			{
+				cast,
+				index,
+				swizzle
+			};
 			struct operation
 			{
+				op_type type;
 				type_info from, to;
 				bool implicit;
 				spv::Id index;
+				signed char swizzle[4];
 			};
 			spv::Id base = 0;
 			std::vector<operation> ops;
-			signed char swizzle[4];
 			type_info type;
 			type_info base_type;
 			location location;
@@ -314,10 +319,6 @@ namespace reshadefx
 				this->type.is_pointer = false;
 				this->location = loc;
 				ops.clear();
-				swizzle[0] = -1;
-				swizzle[1] = -1;
-				swizzle[2] = -1;
-				swizzle[3] = -1;
 				is_lvalue = true;
 			}
 			void reset_to_rvalue(spv::Id in_base, const type_info &in_type, const struct location &loc)
@@ -327,10 +328,6 @@ namespace reshadefx
 				this->type.qualifiers |= qualifier_const;
 				this->location = loc;
 				ops.clear();
-				swizzle[0] = -1;
-				swizzle[1] = -1;
-				swizzle[2] = -1;
-				swizzle[3] = -1;
 				is_lvalue = false;
 			}
 			void reset_to_rvalue_constant(const type_info &in_type, const struct location &loc, uint32_t data)
@@ -339,10 +336,6 @@ namespace reshadefx
 				this->type.qualifiers |= qualifier_const;
 				this->location = loc;
 				ops.clear();
-				swizzle[0] = -1;
-				swizzle[1] = -1;
-				swizzle[2] = -1;
-				swizzle[3] = -1;
 				is_lvalue = false;
 				is_constant = true;
 				constant = {};
@@ -354,10 +347,6 @@ namespace reshadefx
 				this->type.qualifiers |= qualifier_const;
 				this->location = loc;
 				ops.clear();
-				swizzle[0] = -1;
-				swizzle[1] = -1;
-				swizzle[2] = -1;
-				swizzle[3] = -1;
 				is_lvalue = false;
 				is_constant = true;
 				constant = {};
@@ -369,10 +358,6 @@ namespace reshadefx
 				this->type.qualifiers |= qualifier_const;
 				this->location = loc;
 				ops.clear();
-				swizzle[0] = -1;
-				swizzle[1] = -1;
-				swizzle[2] = -1;
-				swizzle[3] = -1;
 				is_lvalue = false;
 				is_constant = true;
 				constant = data;
@@ -399,7 +384,7 @@ namespace reshadefx
 				}
 				else
 				{
-					ops.push_back({ type, in_type, implicit });
+					ops.push_back({ cast, type, in_type, implicit });
 				}
 
 				type = in_type;
@@ -436,7 +421,7 @@ namespace reshadefx
 					target_type.rows = 1;
 				target_type.is_pointer = true; // OpAccessChain returns a pointer
 
-				ops.push_back({ type, target_type, false, index_expression });
+				ops.push_back({ index, type, target_type, false, index_expression });
 
 				is_constant = false;
 				type = target_type;
@@ -449,15 +434,14 @@ namespace reshadefx
 					assert(false);
 				}
 
-				type.rows = static_cast<unsigned int>(length);
-				type.cols = 1;
+				type_info target_type = type;
+				target_type.rows = static_cast<unsigned int>(length);
+				target_type.cols = 1;
+
+				ops.push_back({ swizzle, type, target_type, false, 0, { swizzle2[0], swizzle2[1], swizzle2[2], swizzle2[3] } });
+
+				type = target_type;
 				type.is_pointer = false;
-				for (size_t i = 0; i < length && swizzle[i] >= 0; ++i)
-					swizzle2[i] = swizzle[swizzle2[i]];
-				for (size_t i = 0; i < length; ++i)
-					swizzle[i] = swizzle2[i];
-				for (size_t i = length; i < 4; ++i)
-					swizzle[i] = -1;
 			}
 		};
 
@@ -500,138 +484,15 @@ namespace reshadefx
 
 		std::vector<std::pair<spv_section *, size_t>> _id_lookup;
 		std::vector<std::pair<type_info, spv::Id>> _type_lookup;
-		std::vector<std::pair<constant, spv::Id>> _constant_lookup;
+		std::vector<std::tuple<type_info, constant, spv::Id>> _constant_lookup;
 		std::unordered_map<spv::Op, std::vector<type_info>> _type_lookup2;
 
 		std::vector<spv::Id> _loop_break_target_stack;
 		std::vector<spv::Id> _loop_continue_target_stack;
 
 
-		spv::Id access_chain_load(spv_section &section, const access_chain &chain)
-		{
-			if (chain.is_constant)
-			{
-				return convert_constant(chain.type, chain.constant);
-			}
-
-			spv::Id result = chain.base;
-
-			for (auto &op : chain.ops)
-			{
-				if (op.index != 0)
-				{
-					spv_node &node = add_node(section, chain.location, spv::OpAccessChain, convert_type(op.to))
-						.add(result)
-						.add(op.index);
-
-					result = node.result;
-				}
-			}
-
-			if (chain.is_lvalue)
-			{
-				type_info base_type = chain.base_type;
-				base_type.is_pointer = false;
-				result = add_node(section, chain.location, spv::OpLoad, convert_type(base_type))
-					.add(result) // Pointer
-					.result; // Result ID
-			}
-
-			for (auto &op : chain.ops)
-			{
-				if (op.index == 0)
-				{
-					result = add_cast_node(section, chain.location, op.from, op.to, result, op.implicit, chain.is_constant);
-				}
-			}
-
-			if (chain.swizzle[0] >= 0)
-			{
-				if (chain.type.is_vector())
-				{
-					spv_node &node = add_node(section, chain.location, spv::OpVectorShuffle, convert_type(chain.type))
-						.add(result) // Vector 1
-						.add(result); // Vector 2
-
-					for (unsigned int i = 0; i < 4 && chain.swizzle[i] >= 0; ++i)
-						node.add(chain.swizzle[i]);
-
-					result = node.result;
-				}
-				else if (chain.type.is_scalar())
-				{
-					assert(chain.swizzle[1] < 0);
-
-					spv::Id result2 = add_node(section, chain.location, spv::OpCompositeExtract, convert_type(chain.type))
-						.add(result) // Composite
-						.add(chain.swizzle[0]) // Index
-						.result; // Result ID
-
-					result = result2;
-				}
-				else
-				{
-					assert(false);
-				}
-			}
-
-			return result;
-		}
-		void access_chain_store(spv_section &section, const access_chain &chain, spv::Id value, const type_info &value_type)
-		{
-			assert(chain.is_lvalue && !chain.is_constant);
-			assert(!value_type.is_pointer);
-
-			for (auto &op : chain.ops)
-			{
-				assert(false);
-			}
-
-			if (chain.swizzle[0] >= 0)
-			{
-				type_info base_type = chain.base_type;
-				base_type.is_pointer = false;
-				spv::Id result = add_node(section, chain.location, spv::OpLoad, convert_type(base_type))
-					.add(chain.base) // Pointer
-					.result; // Result ID
-
-				if (base_type.is_vector() && value_type.is_vector())
-				{
-					spv_node &node = add_node(section, chain.location, spv::OpVectorShuffle, convert_type(base_type))
-						.add(result) // Vector 1
-						.add(value); // Vector 2
-
-					unsigned int shuffle[4] = { 0, 1, 2, 3 };
-					for (unsigned int i = 0; i < base_type.rows; ++i)
-						if (chain.swizzle[i] >= 0)
-							shuffle[chain.swizzle[i]] = base_type.rows + i;
-					for (unsigned int i = 0; i < base_type.rows; ++i)
-						node.add(shuffle[i]);
-
-					value = node.result;
-				}
-				else if (value_type.is_scalar())
-				{
-					assert(chain.swizzle[1] < 0); // TODO
-
-					spv::Id result2 = add_node(section, chain.location, spv::OpCompositeInsert, convert_type(base_type))
-						.add(value) // Object
-						.add(result) // Composite
-						.add(chain.swizzle[0]) // Index
-						.result; // Result ID
-
-					value = result2;
-				}
-				else
-				{
-					assert(false);
-				}
-			}
-
-			add_node_without_result(section, chain.location, spv::OpStore)
-				.add(chain.base)
-				.add(value);
-		}
+		spv::Id access_chain_load(spv_section &section, const access_chain &chain);
+		void access_chain_store(spv_section &section, const access_chain &chain, spv::Id value, const type_info &value_type);
 
 
 		spv::Id _next_id = 102;
@@ -667,40 +528,6 @@ namespace reshadefx
 
 		spv_node &add_node_without_result(spv_section &section, location loc, spv::Op op)
 		{
-			switch (op)
-			{
-			case spv::OpBranch:
-			case spv::OpBranchConditional:
-			case spv::OpSwitch:
-			case spv::OpKill:
-			case spv::OpReturn:
-			case spv::OpReturnValue:
-			case spv::OpUnreachable:
-			case spv::OpSelectionMerge:
-			case spv::OpLoopMerge:
-			case spv::OpLoad:
-			case spv::OpStore:
-			case spv::OpConvertFToS:
-			case spv::OpConvertFToU:
-			case spv::OpConvertSToF:
-			case spv::OpConvertUToF:
-			case spv::OpCompositeConstruct:
-			case spv::OpFMul:
-			case spv::OpFDiv:
-			case spv::OpFMod:
-			case spv::OpFAdd:
-			case spv::OpFSub:
-				//assert(_current_block);
-				static spv_node trash;
-				trash = spv_node {};
-				trash.index = -1;
-				if (!_current_block)
-				{
-					return trash;
-				}
-				break;
-			}
-
 			spv_node &instruction = section.instructions.emplace_back();
 			instruction.op = op;
 			instruction.index = section.instructions.size() - 1;
@@ -1015,8 +842,10 @@ namespace reshadefx
 
 		spv::Id convert_constant(const type_info &type, const constant &data)
 		{
-			if (auto it = std::find_if(_constant_lookup.begin(), _constant_lookup.end(), [&type, &data](auto &x) { return std::memcmp(&x.first.as_uint[0], &data.as_uint[0], sizeof(uint32_t) * 16) == 0; }); it != _constant_lookup.end())
-				return it->second; // TODO check type match
+			if (auto it = std::find_if(_constant_lookup.begin(), _constant_lookup.end(), [&type, &data](auto &x) {
+				return std::get<0>(x) == type && std::memcmp(&std::get<1>(x).as_uint[0], &data.as_uint[0], sizeof(uint32_t) * 16) == 0;
+			}); it != _constant_lookup.end())
+				return std::get<2>(*it); // TODO check type match
 
 			assert(!type.is_pointer);
 
@@ -1081,7 +910,7 @@ namespace reshadefx
 				result = add_node(_constants, {}, spv::OpConstant, convert_type(type)).add(data.as_uint[0]).result;
 			}
 
-			_constant_lookup.push_back({ data, result });
+			_constant_lookup.push_back({ type, data, result });
 
 			return result;
 		}

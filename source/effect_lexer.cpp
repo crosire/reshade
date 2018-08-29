@@ -32,7 +32,133 @@ static const unsigned type_lookup[256] = {
 	IDENT, IDENT, IDENT,   '{',   '|',   '}',   '~',  0x00,  0x00,  0x00,
 };
 
-// Lookup tables which translate a given string literal to a token
+// Lookup tables which translate a given string literal to a token and backwards
+static const std::unordered_map<tokenid, std::string> token_lookup = {
+	{ tokenid::end_of_file, "end of file" },
+	{ tokenid::exclaim, "!" },
+	{ tokenid::hash, "#" },
+	{ tokenid::dollar, "$" },
+	{ tokenid::percent, "%" },
+	{ tokenid::ampersand, "&" },
+	{ tokenid::parenthesis_open, "(" },
+	{ tokenid::parenthesis_close, ")" },
+	{ tokenid::star, "*" },
+	{ tokenid::plus, "+" },
+	{ tokenid::comma, "," },
+	{ tokenid::minus, "-" },
+	{ tokenid::dot, "." },
+	{ tokenid::slash, "/" },
+	{ tokenid::colon, ":" },
+	{ tokenid::semicolon, ";" },
+	{ tokenid::less, "<" },
+	{ tokenid::equal, "=" },
+	{ tokenid::greater, ">" },
+	{ tokenid::question, "?" },
+	{ tokenid::at, "@" },
+	{ tokenid::bracket_open, "[" },
+	{ tokenid::backslash, "\\" },
+	{ tokenid::bracket_close, "]" },
+	{ tokenid::caret, "^" },
+	{ tokenid::brace_open, "{" },
+	{ tokenid::pipe, "|" },
+	{ tokenid::brace_close, "}" },
+	{ tokenid::tilde, "~" },
+	{ tokenid::exclaim_equal, "!=" },
+	{ tokenid::percent_equal, "%=" },
+	{ tokenid::ampersand_ampersand, "&&" },
+	{ tokenid::ampersand_equal, "&=" },
+	{ tokenid::star_equal, "*=" },
+	{ tokenid::plus_plus, "++" },
+	{ tokenid::plus_equal, "+=" },
+	{ tokenid::minus_minus, "--" },
+	{ tokenid::minus_equal, "-=" },
+	{ tokenid::arrow, "->" },
+	{ tokenid::ellipsis, "..." },
+	{ tokenid::slash_equal, "|=" },
+	{ tokenid::colon_colon, "::" },
+	{ tokenid::less_less_equal, "<<=" },
+	{ tokenid::less_less, "<<" },
+	{ tokenid::less_equal, "<=" },
+	{ tokenid::equal_equal, "==" },
+	{ tokenid::greater_greater_equal, ">>=" },
+	{ tokenid::greater_greater, ">>" },
+	{ tokenid::greater_equal, ">=" },
+	{ tokenid::caret_equal, "^=" },
+	{ tokenid::pipe_equal, "|=" },
+	{ tokenid::pipe_pipe, "||" },
+	{ tokenid::identifier, "identifier" },
+	{ tokenid::reserved, "reserved word" },
+	{ tokenid::true_literal, "true" },
+	{ tokenid::false_literal, "false" },
+	{ tokenid::int_literal, "integral literal" },
+	{ tokenid::uint_literal, "integral literal" },
+	{ tokenid::float_literal, "floating point literal" },
+	{ tokenid::double_literal, "floating point literal" },
+	{ tokenid::string_literal, "string literal" },
+	{ tokenid::namespace_, "namespace" },
+	{ tokenid::struct_, "struct" },
+	{ tokenid::technique, "technique" },
+	{ tokenid::pass, "pass" },
+	{ tokenid::for_, "for" },
+	{ tokenid::while_, "while" },
+	{ tokenid::do_, "do" },
+	{ tokenid::if_, "if" },
+	{ tokenid::else_, "else" },
+	{ tokenid::switch_, "switch" },
+	{ tokenid::case_, "case" },
+	{ tokenid::default_, "default" },
+	{ tokenid::break_, "break" },
+	{ tokenid::continue_, "continue" },
+	{ tokenid::return_, "return" },
+	{ tokenid::discard_, "discard" },
+	{ tokenid::extern_, "extern" },
+	{ tokenid::static_, "static" },
+	{ tokenid::uniform_, "uniform" },
+	{ tokenid::volatile_, "volatile" },
+	{ tokenid::precise, "precise" },
+	{ tokenid::in, "in" },
+	{ tokenid::out, "out" },
+	{ tokenid::inout, "inout" },
+	{ tokenid::const_, "const" },
+	{ tokenid::linear, "linear" },
+	{ tokenid::noperspective, "noperspective" },
+	{ tokenid::centroid, "centroid" },
+	{ tokenid::nointerpolation, "nointerpolation" },
+	{ tokenid::void_, "void" },
+	{ tokenid::bool_, "bool" },
+	{ tokenid::bool2, "bool2" },
+	{ tokenid::bool3, "bool3" },
+	{ tokenid::bool4, "bool4" },
+	{ tokenid::bool2x2, "bool2x2" },
+	{ tokenid::bool3x3, "bool3x3" },
+	{ tokenid::bool4x4, "bool4x4" },
+	{ tokenid::int_, "int" },
+	{ tokenid::int2, "int2" },
+	{ tokenid::int3, "int3" },
+	{ tokenid::int4, "int4" },
+	{ tokenid::int2x2, "int2x2" },
+	{ tokenid::int3x3, "int3x3" },
+	{ tokenid::int4x4, "int4x4" },
+	{ tokenid::uint_, "uint" },
+	{ tokenid::uint2, "uint2" },
+	{ tokenid::uint3, "uint3" },
+	{ tokenid::uint4, "uint4" },
+	{ tokenid::uint2x2, "uint2x2" },
+	{ tokenid::uint3x3, "uint3x3" },
+	{ tokenid::uint4x4, "uint4x4" },
+	{ tokenid::float_, "float" },
+	{ tokenid::float2, "float2" },
+	{ tokenid::float3, "float3" },
+	{ tokenid::float4, "float4" },
+	{ tokenid::float2x2, "float2x2" },
+	{ tokenid::float3x3, "float3x3" },
+	{ tokenid::float4x4, "float4x4" },
+	{ tokenid::vector, "vector" },
+	{ tokenid::matrix, "matrix" },
+	{ tokenid::string_, "string" },
+	{ tokenid::texture, "texture" },
+	{ tokenid::sampler, "sampler" },
+};
 static const std::unordered_map<std::string, tokenid> keyword_lookup = {
 	{ "asm", tokenid::reserved },
 	{ "asm_fragment", tokenid::reserved },
@@ -258,6 +384,13 @@ inline long long octal_to_decimal(long long n)
 	return n;
 }
 
+std::string token::id_to_name(tokenid id)
+{
+	const auto it = token_lookup.find(id);
+
+	return it != token_lookup.end() ? it->second : "unknown";
+}
+
 token lexer::lex()
 {
 	bool is_at_line_begin = _cur_location.column <= 1;
@@ -273,239 +406,239 @@ next_token:
 	// Do a character type lookup for the current character
 	switch (type_lookup[*_cur])
 	{
-		case 0xFF: // EOF
-			tok.id = tokenid::end_of_file;
-			return tok;
-		case SPACE:
-			skip_space();
-			if (_ignore_whitespace || is_at_line_begin || *_cur == '\n')
-				goto next_token;
-			tok.id = tokenid::space;
-			return tok;
-		case '\n':
-			_cur++;
-			_cur_location.line++;
-			_cur_location.column = 1;
-			is_at_line_begin = true;
-			if (_ignore_whitespace)
-				goto next_token;
-			tok.id = tokenid::end_of_line;
-			return tok;
-		case DIGIT:
-			parse_numeric_literal(tok);
-			break;
-		case IDENT:
-			parse_identifier(tok);
-			break;
-		case '!':
-			if (_cur[1] == '=')
-				tok.id = tokenid::exclaim_equal,
-				tok.length = 2;
-			else
-				tok.id = tokenid::exclaim;
-			break;
-		case '"':
-			parse_string_literal(tok, _escape_string_literals);
-			break;
-		case '#':
-			if (is_at_line_begin)
-			{
-				if (!parse_pp_directive(tok) || _ignore_pp_directives)
-				{
-					skip_to_next_line();
-					goto next_token;
-				}
-			} // These braces are important so the 'else' is matched to the right 'if' statement
-			else
-				tok.id = tokenid::hash;
-			break;
-		case '$':
-			tok.id = tokenid::dollar;
-			break;
-		case '%':
-			if (_cur[1] == '=')
-				tok.id = tokenid::percent_equal,
-				tok.length = 2;
-			else
-				tok.id = tokenid::percent;
-			break;
-		case '&':
-			if (_cur[1] == '&')
-				tok.id = tokenid::ampersand_ampersand,
-				tok.length = 2;
-			else if (_cur[1] == '=')
-				tok.id = tokenid::ampersand_equal,
-				tok.length = 2;
-			else
-				tok.id = tokenid::ampersand;
-			break;
-		case '(':
-			tok.id = tokenid::parenthesis_open;
-			break;
-		case ')':
-			tok.id = tokenid::parenthesis_close;
-			break;
-		case '*':
-			if (_cur[1] == '=')
-				tok.id = tokenid::star_equal,
-				tok.length = 2;
-			else
-				tok.id = tokenid::star;
-			break;
-		case '+':
-			if (_cur[1] == '+')
-				tok.id = tokenid::plus_plus,
-				tok.length = 2;
-			else if (_cur[1] == '=')
-				tok.id = tokenid::plus_equal,
-				tok.length = 2;
-			else
-				tok.id = tokenid::plus;
-			break;
-		case ',':
-			tok.id = tokenid::comma;
-			break;
-		case '-':
-			if (_cur[1] == '-')
-				tok.id = tokenid::minus_minus,
-				tok.length = 2;
-			else if (_cur[1] == '=')
-				tok.id = tokenid::minus_equal,
-				tok.length = 2;
-			else if (_cur[1] == '>')
-				tok.id = tokenid::arrow,
-				tok.length = 2;
-			else
-				tok.id = tokenid::minus;
-			break;
-		case '.':
-			if (type_lookup[_cur[1]] == DIGIT)
-				parse_numeric_literal(tok);
-			else if (_cur[1] == '.' && _cur[2] == '.')
-				tok.id = tokenid::ellipsis,
-				tok.length = 3;
-			else
-				tok.id = tokenid::dot;
-			break;
-		case '/':
-			if (_cur[1] == '/')
+	case 0xFF: // EOF
+		tok.id = tokenid::end_of_file;
+		return tok;
+	case SPACE:
+		skip_space();
+		if (_ignore_whitespace || is_at_line_begin || *_cur == '\n')
+			goto next_token;
+		tok.id = tokenid::space;
+		return tok;
+	case '\n':
+		_cur++;
+		_cur_location.line++;
+		_cur_location.column = 1;
+		is_at_line_begin = true;
+		if (_ignore_whitespace)
+			goto next_token;
+		tok.id = tokenid::end_of_line;
+		return tok;
+	case DIGIT:
+		parse_numeric_literal(tok);
+		break;
+	case IDENT:
+		parse_identifier(tok);
+		break;
+	case '!':
+		if (_cur[1] == '=')
+			tok.id = tokenid::exclaim_equal,
+			tok.length = 2;
+		else
+			tok.id = tokenid::exclaim;
+		break;
+	case '"':
+		parse_string_literal(tok, _escape_string_literals);
+		break;
+	case '#':
+		if (is_at_line_begin)
+		{
+			if (!parse_pp_directive(tok) || _ignore_pp_directives)
 			{
 				skip_to_next_line();
 				goto next_token;
 			}
-			else if (_cur[1] == '*')
+		} // These braces are important so the 'else' is matched to the right 'if' statement
+		else
+		tok.id = tokenid::hash;
+		break;
+	case '$':
+		tok.id = tokenid::dollar;
+		break;
+	case '%':
+		if (_cur[1] == '=')
+			tok.id = tokenid::percent_equal,
+			tok.length = 2;
+		else
+			tok.id = tokenid::percent;
+		break;
+	case '&':
+		if (_cur[1] == '&')
+			tok.id = tokenid::ampersand_ampersand,
+			tok.length = 2;
+		else if (_cur[1] == '=')
+			tok.id = tokenid::ampersand_equal,
+			tok.length = 2;
+		else
+			tok.id = tokenid::ampersand;
+		break;
+	case '(':
+		tok.id = tokenid::parenthesis_open;
+		break;
+	case ')':
+		tok.id = tokenid::parenthesis_close;
+		break;
+	case '*':
+		if (_cur[1] == '=')
+			tok.id = tokenid::star_equal,
+			tok.length = 2;
+		else
+			tok.id = tokenid::star;
+		break;
+	case '+':
+		if (_cur[1] == '+')
+			tok.id = tokenid::plus_plus,
+			tok.length = 2;
+		else if (_cur[1] == '=')
+			tok.id = tokenid::plus_equal,
+			tok.length = 2;
+		else
+			tok.id = tokenid::plus;
+		break;
+	case ',':
+		tok.id = tokenid::comma;
+		break;
+	case '-':
+		if (_cur[1] == '-')
+			tok.id = tokenid::minus_minus,
+			tok.length = 2;
+		else if (_cur[1] == '=')
+			tok.id = tokenid::minus_equal,
+			tok.length = 2;
+		else if (_cur[1] == '>')
+			tok.id = tokenid::arrow,
+			tok.length = 2;
+		else
+			tok.id = tokenid::minus;
+		break;
+	case '.':
+		if (type_lookup[_cur[1]] == DIGIT)
+			parse_numeric_literal(tok);
+		else if (_cur[1] == '.' && _cur[2] == '.')
+			tok.id = tokenid::ellipsis,
+			tok.length = 3;
+		else
+			tok.id = tokenid::dot;
+		break;
+	case '/':
+		if (_cur[1] == '/')
+		{
+			skip_to_next_line();
+			goto next_token;
+		}
+		else if (_cur[1] == '*')
+		{
+			while (_cur < _end)
 			{
-				while (_cur < _end)
+				if (*_cur == '\n')
 				{
-					if (*_cur == '\n')
-					{
-						_cur_location.line++;
-						_cur_location.column = 1;
-					}
-					else if (_cur[0] == '*' && _cur[1] == '/')
-					{
-						skip(2);
-						break;
-					}
-					skip(1);
+					_cur_location.line++;
+					_cur_location.column = 1;
 				}
-				goto next_token;
+				else if (_cur[0] == '*' && _cur[1] == '/')
+				{
+					skip(2);
+					break;
+				}
+				skip(1);
 			}
-			else if (_cur[1] == '=')
-				tok.id = tokenid::slash_equal,
-				tok.length = 2;
+			goto next_token;
+		}
+		else if (_cur[1] == '=')
+			tok.id = tokenid::slash_equal,
+			tok.length = 2;
+		else
+			tok.id = tokenid::slash;
+		break;
+	case ':':
+		if (_cur[1] == ':')
+			tok.id = tokenid::colon_colon,
+			tok.length = 2;
+		else
+			tok.id = tokenid::colon;
+		break;
+	case ';':
+		tok.id = tokenid::semicolon;
+		break;
+	case '<':
+		if (_cur[1] == '<')
+			if (_cur[2] == '=')
+				tok.id = tokenid::less_less_equal,
+				tok.length = 3;
 			else
-				tok.id = tokenid::slash;
-			break;
-		case ':':
-			if (_cur[1] == ':')
-				tok.id = tokenid::colon_colon,
+				tok.id = tokenid::less_less,
 				tok.length = 2;
+		else if (_cur[1] == '=')
+			tok.id = tokenid::less_equal,
+			tok.length = 2;
+		else
+			tok.id = tokenid::less;
+		break;
+	case '=':
+		if (_cur[1] == '=')
+			tok.id = tokenid::equal_equal,
+			tok.length = 2;
+		else
+			tok.id = tokenid::equal;
+		break;
+	case '>':
+		if (_cur[1] == '>')
+			if (_cur[2] == '=')
+				tok.id = tokenid::greater_greater_equal,
+				tok.length = 3;
 			else
-				tok.id = tokenid::colon;
-			break;
-		case ';':
-			tok.id = tokenid::semicolon;
-			break;
-		case '<':
-			if (_cur[1] == '<')
-				if (_cur[2] == '=')
-					tok.id = tokenid::less_less_equal,
-					tok.length = 3;
-				else
-					tok.id = tokenid::less_less,
-					tok.length = 2;
-			else if (_cur[1] == '=')
-				tok.id = tokenid::less_equal,
+				tok.id = tokenid::greater_greater,
 				tok.length = 2;
-			else
-				tok.id = tokenid::less;
-			break;
-		case '=':
-			if (_cur[1] == '=')
-				tok.id = tokenid::equal_equal,
-				tok.length = 2;
-			else
-				tok.id = tokenid::equal;
-			break;
-		case '>':
-			if (_cur[1] == '>')
-				if (_cur[2] == '=')
-					tok.id = tokenid::greater_greater_equal,
-					tok.length = 3;
-				else
-					tok.id = tokenid::greater_greater,
-					tok.length = 2;
-			else if (_cur[1] == '=')
-				tok.id = tokenid::greater_equal,
-				tok.length = 2;
-			else
-				tok.id = tokenid::greater;
-			break;
-		case '?':
-			tok.id = tokenid::question;
-			break;
-		case '@':
-			tok.id = tokenid::at;
-			break;
-		case '[':
-			tok.id = tokenid::bracket_open;
-			break;
-		case '\\':
-			tok.id = tokenid::backslash;
-			break;
-		case ']':
-			tok.id = tokenid::bracket_close;
-			break;
-		case '^':
-			if (_cur[1] == '=')
-				tok.id = tokenid::caret_equal,
-				tok.length = 2;
-			else
-				tok.id = tokenid::caret;
-			break;
-		case '{':
-			tok.id = tokenid::brace_open;
-			break;
-		case '|':
-			if (_cur[1] == '=')
-				tok.id = tokenid::pipe_equal,
-				tok.length = 2;
-			else if (_cur[1] == '|')
-				tok.id = tokenid::pipe_pipe,
-				tok.length = 2;
-			else
-				tok.id = tokenid::pipe;
-			break;
-		case '}':
-			tok.id = tokenid::brace_close;
-			break;
-		case '~':
-			tok.id = tokenid::tilde;
-			break;
-		default:
-			tok.id = tokenid::unknown;
-			break;
+		else if (_cur[1] == '=')
+			tok.id = tokenid::greater_equal,
+			tok.length = 2;
+		else
+			tok.id = tokenid::greater;
+		break;
+	case '?':
+		tok.id = tokenid::question;
+		break;
+	case '@':
+		tok.id = tokenid::at;
+		break;
+	case '[':
+		tok.id = tokenid::bracket_open;
+		break;
+	case '\\':
+		tok.id = tokenid::backslash;
+		break;
+	case ']':
+		tok.id = tokenid::bracket_close;
+		break;
+	case '^':
+		if (_cur[1] == '=')
+			tok.id = tokenid::caret_equal,
+			tok.length = 2;
+		else
+			tok.id = tokenid::caret;
+		break;
+	case '{':
+		tok.id = tokenid::brace_open;
+		break;
+	case '|':
+		if (_cur[1] == '=')
+			tok.id = tokenid::pipe_equal,
+			tok.length = 2;
+		else if (_cur[1] == '|')
+			tok.id = tokenid::pipe_pipe,
+			tok.length = 2;
+		else
+			tok.id = tokenid::pipe;
+		break;
+	case '}':
+		tok.id = tokenid::brace_close;
+		break;
+	case '~':
+		tok.id = tokenid::tilde;
+		break;
+	default:
+		tok.id = tokenid::unknown;
+		break;
 	}
 
 	skip(tok.length);
@@ -626,60 +759,60 @@ void lexer::parse_string_literal(token &tok, bool escape) const
 			// Any character following the '\' is not parsed as usual, so increment pointer here (this makes sure '\"' does not abort the outer loop as well)
 			switch (c = *++end)
 			{
-				case '0':
-				case '1':
-				case '2':
-				case '3':
-				case '4':
-				case '5':
-				case '6':
-				case '7':
-					for (unsigned int i = 0; i < 3 && is_octal_digit(*end) && end < _end; i++)
+			case '0':
+			case '1':
+			case '2':
+			case '3':
+			case '4':
+			case '5':
+			case '6':
+			case '7':
+				for (unsigned int i = 0; i < 3 && is_octal_digit(*end) && end < _end; i++)
+				{
+					c = *end++;
+					n = (n << 3) | (c - '0');
+				}
+				// For simplicity the number is limited to what fits in a single character
+				c = n & 0xFF;
+				// The octal parsing loop above incremented one pass the escape sequence, so step back
+				end--;
+				break;
+			case 'a':
+				c = '\a';
+				break;
+			case 'b':
+				c = '\b';
+				break;
+			case 'f':
+				c = '\f';
+				break;
+			case 'n':
+				c = '\n';
+				break;
+			case 'r':
+				c = '\r';
+				break;
+			case 't':
+				c = '\t';
+				break;
+			case 'v':
+				c = '\v';
+				break;
+			case 'x':
+				if (is_hexadecimal_digit(*++end))
+				{
+					while (is_hexadecimal_digit(*end) && end < _end)
 					{
 						c = *end++;
-						n = (n << 3) | (c - '0');
+						n = (n << 4) | (is_decimal_digit(c) ? c - '0' : c - 55 - 32 * (c & 0x20));
 					}
+
 					// For simplicity the number is limited to what fits in a single character
 					c = n & 0xFF;
-					// The octal parsing loop above incremented one pass the escape sequence, so step back
-					end--;
-					break;
-				case 'a':
-					c = '\a';
-					break;
-				case 'b':
-					c = '\b';
-					break;
-				case 'f':
-					c = '\f';
-					break;
-				case 'n':
-					c = '\n';
-					break;
-				case 'r':
-					c = '\r';
-					break;
-				case 't':
-					c = '\t';
-					break;
-				case 'v':
-					c = '\v';
-					break;
-				case 'x':
-					if (is_hexadecimal_digit(*++end))
-					{
-						while (is_hexadecimal_digit(*end) && end < _end)
-						{
-							c = *end++;
-							n = (n << 4) | (is_decimal_digit(c) ? c - '0' : c - 55 - 32 * (c & 0x20));
-						}
-
-						// For simplicity the number is limited to what fits in a single character
-						c = n & 0xFF;
-					}
-					// The hexadecimal parsing loop and check above incremented one pass the escape sequence, so step back
-					end--;
-					break;
+				}
+				// The hexadecimal parsing loop and check above incremented one pass the escape sequence, so step back
+				end--;
+				break;
 			}
 		}
 
@@ -786,12 +919,10 @@ void lexer::parse_numeric_literal(token &tok) const
 
 			tok.id = tokenid::float_literal;
 
-			do
-			{
+			do {
 				exponent *= 10;
 				exponent += *end++ - '0';
-			}
-			while (is_decimal_digit(*end));
+			} while (is_decimal_digit(*end));
 
 			if (negative)
 				exponent = -exponent;

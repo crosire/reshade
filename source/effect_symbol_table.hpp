@@ -29,7 +29,7 @@ namespace reshadefx
 		spv::Op op;
 		spv::Id id;
 		type_info type;
-		const void *info;
+		const function_info *info;
 		constant constant;
 	};
 
@@ -46,12 +46,12 @@ namespace reshadefx
 	public:
 		symbol_table();
 
-		void enter_scope(void *parent = nullptr);
+		void enter_scope(function_info *parent = nullptr);
 		void enter_namespace(const std::string &name);
 		void leave_scope();
 		void leave_namespace();
 
-		void *current_parent() const { return _parent_stack.empty() ? 0 : _parent_stack.top(); }
+		function_info *current_parent() const { return _parent_stack.empty() ? 0 : _parent_stack.top(); }
 		const scope &current_scope() const { return _current_scope; }
 
 		bool insert(const std::string &name, const symbol &symbol, bool global = false);
@@ -63,7 +63,7 @@ namespace reshadefx
 
 	private:
 		scope _current_scope;
-		std::stack<void *> _parent_stack;
+		std::stack<function_info *> _parent_stack;
 		std::unordered_map<std::string, std::vector<symbol_data>> _symbol_stack;
 	};
 }

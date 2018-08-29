@@ -185,18 +185,16 @@ namespace reshadefx
 		std::string literal_as_string;
 
 		inline operator tokenid() const { return id; }
+
+		static std::string id_to_name(tokenid id);
 	};
 
 	/// <summary>
-	/// A lexical analyzer implementation.
+	/// A lexical analyzer for C-like languages.
 	/// </summary>
 	class lexer
 	{
 	public:
-		/// <summary>
-		/// Construct a new lexical analyzer for an input string.
-		/// </summary>
-		/// <param name="input">The string to analyze.</param>
 		explicit lexer(
 			const std::string &input,
 			bool ignore_whitespace = true,
@@ -213,10 +211,6 @@ namespace reshadefx
 			_end = _cur + _input.size();
 		}
 
-		/// <summary>
-		/// Construct a copy of an existing instance.
-		/// </summary>
-		/// <param name="lexer">The instance to copy.</param>
 		lexer(const lexer &lexer) :
 			_input(lexer._input),
 			_cur_location(lexer._cur_location),
