@@ -35,7 +35,7 @@ static int compare_functions(const std::vector<reshadefx::type_info> &arguments,
 
 	for (size_t i = 0; i < count; ++i)
 	{
-		function1_ranks[i] = reshadefx::type_info::rank(arguments[i], function1->parameter_list[i]);
+		function1_ranks[i] = reshadefx::type_info::rank(arguments[i], function1->parameter_list[i].type);
 
 		if (function1_ranks[i] == 0)
 		{
@@ -45,7 +45,7 @@ static int compare_functions(const std::vector<reshadefx::type_info> &arguments,
 	}
 	for (size_t i = 0; i < count; ++i)
 	{
-		function2_ranks[i] = reshadefx::type_info::rank(arguments[i], function2->parameter_list[i]);
+		function2_ranks[i] = reshadefx::type_info::rank(arguments[i], function2->parameter_list[i].type);
 
 		if (function2_ranks[i] == 0)
 		{

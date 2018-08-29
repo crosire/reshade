@@ -30,6 +30,7 @@ namespace reshadefx
 		spv::Id id;
 		type_info type;
 		const void *info;
+		constant constant;
 	};
 
 	/// <summary>

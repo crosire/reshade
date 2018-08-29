@@ -30,31 +30,31 @@ struct intrinsic
 	{
 		function.name = name;
 		function.return_type = ret_type;
-		function.parameter_list.push_back(arg0_type);
+		function.parameter_list.push_back({ arg0_type });
 	}
 	intrinsic(const char *name, spv::Op op, spv::GLSLstd450 x, const reshadefx::type_info &ret_type, const reshadefx::type_info &arg0_type, const reshadefx::type_info &arg1_type) : op(op), glsl(x)
 	{
 		function.name = name;
 		function.return_type = ret_type;
-		function.parameter_list.push_back(arg0_type);
-		function.parameter_list.push_back(arg1_type);
+		function.parameter_list.push_back({ arg0_type });
+		function.parameter_list.push_back({ arg1_type });
 	}
 	intrinsic(const char *name, spv::Op op, spv::GLSLstd450 x, const reshadefx::type_info &ret_type, const reshadefx::type_info &arg0_type, const reshadefx::type_info &arg1_type, const reshadefx::type_info &arg2_type) : op(op), glsl(x)
 	{
 		function.name = name;
 		function.return_type = ret_type;
-		function.parameter_list.push_back(arg0_type);
-		function.parameter_list.push_back(arg1_type);
-		function.parameter_list.push_back(arg2_type);
+		function.parameter_list.push_back({ arg0_type });
+		function.parameter_list.push_back({ arg1_type });
+		function.parameter_list.push_back({ arg2_type });
 	}
 	intrinsic(const char *name, spv::Op op, spv::GLSLstd450 x, const reshadefx::type_info &ret_type, const reshadefx::type_info &arg0_type, const reshadefx::type_info &arg1_type, const reshadefx::type_info &arg2_type, const reshadefx::type_info &arg3_type) : op(op), glsl(x)
 	{
 		function.name = name;
 		function.return_type = ret_type;
-		function.parameter_list.push_back(arg0_type);
-		function.parameter_list.push_back(arg1_type);
-		function.parameter_list.push_back(arg2_type);
-		function.parameter_list.push_back(arg3_type);
+		function.parameter_list.push_back({ arg0_type });
+		function.parameter_list.push_back({ arg1_type });
+		function.parameter_list.push_back({ arg2_type });
+		function.parameter_list.push_back({ arg3_type });
 	}
 
 	spv::Op op;
