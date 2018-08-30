@@ -1,45 +1,45 @@
-#define type_bool { spv::OpTypeBool, 32, 1, 1 }
-#define type_bool2 { spv::OpTypeBool, 32, 2, 1 }
-#define type_bool3 { spv::OpTypeBool, 32, 3, 1 }
-#define type_bool4 { spv::OpTypeBool, 32, 4, 1 }
-#define type_int { spv::OpTypeInt, 32, 1, 1, true }
-#define type_int2 { spv::OpTypeInt, 32, 2, 1, true }
-#define type_int3 { spv::OpTypeInt, 32, 3, 1, true }
-#define type_int4 { spv::OpTypeInt, 32, 4, 1, true }
-#define type_uint { spv::OpTypeInt, 32, 1, 1, false }
-#define type_uint2 { spv::OpTypeInt, 32, 2, 1, false }
-#define type_uint3 { spv::OpTypeInt, 32, 3, 1, false }
-#define type_uint4 { spv::OpTypeInt, 32, 4, 1, false }
-#define type_float { spv::OpTypeFloat, 32, 1, 1, true }
-#define type_float2 { spv::OpTypeFloat, 32, 2, 1, true }
-#define type_float3 { spv::OpTypeFloat, 32, 3, 1, true }
-#define type_float4 { spv::OpTypeFloat, 32, 4, 1, true }
-#define type_float2x2 { spv::OpTypeFloat, 32, 2, 2, true }
-#define type_float3x3 { spv::OpTypeFloat, 32, 3, 3, true }
-#define type_float4x4 { spv::OpTypeFloat, 32, 4, 4, true }
-#define type_sampled_texture { spv::OpTypeSampledImage }
+#define type_bool  { spv_type::datatype_bool, 1, 1 }
+#define type_bool2 { spv_type::datatype_bool, 2, 1 }
+#define type_bool3 { spv_type::datatype_bool, 3, 1 }
+#define type_bool4 { spv_type::datatype_bool, 4, 1 }
+#define type_int  { spv_type::datatype_int, 1, 1 }
+#define type_int2 { spv_type::datatype_int, 2, 1 }
+#define type_int3 { spv_type::datatype_int, 3, 1 }
+#define type_int4 { spv_type::datatype_int, 4, 1 }
+#define type_uint  { spv_type::datatype_uint, 1, 1 }
+#define type_uint2 { spv_type::datatype_uint, 2, 1 }
+#define type_uint3 { spv_type::datatype_uint, 3, 1 }
+#define type_uint4 { spv_type::datatype_uint, 4, 1 }
+#define type_float  { spv_type::datatype_float, 1, 1 }
+#define type_float2 { spv_type::datatype_float, 2, 1 }
+#define type_float3 { spv_type::datatype_float, 3, 1 }
+#define type_float4 { spv_type::datatype_float, 4, 1 }
+#define type_float2x2 { spv_type::datatype_float, 2, 2 }
+#define type_float3x3 { spv_type::datatype_float, 3, 3 }
+#define type_float4x4 { spv_type::datatype_float, 4, 4 }
+#define type_sampled_texture { spv_type::datatype_sampler }
 
 struct intrinsic
 {
-	intrinsic(const char *name, spv::Op op, spv::GLSLstd450 x, const reshadefx::type_info &ret_type) : op(op), glsl(x)
+	intrinsic(const char *name, spv::Op op, spv::GLSLstd450 x, const reshadefx::spv_type &ret_type) : op(op), glsl(x)
 	{
 		function.name = name;
 		function.return_type = ret_type;
 	}
-	intrinsic(const char *name, spv::Op op, spv::GLSLstd450 x, const reshadefx::type_info &ret_type, const reshadefx::type_info &arg0_type) : op(op), glsl(x)
+	intrinsic(const char *name, spv::Op op, spv::GLSLstd450 x, const reshadefx::spv_type &ret_type, const reshadefx::spv_type &arg0_type) : op(op), glsl(x)
 	{
 		function.name = name;
 		function.return_type = ret_type;
 		function.parameter_list.push_back({ arg0_type });
 	}
-	intrinsic(const char *name, spv::Op op, spv::GLSLstd450 x, const reshadefx::type_info &ret_type, const reshadefx::type_info &arg0_type, const reshadefx::type_info &arg1_type) : op(op), glsl(x)
+	intrinsic(const char *name, spv::Op op, spv::GLSLstd450 x, const reshadefx::spv_type &ret_type, const reshadefx::spv_type &arg0_type, const reshadefx::spv_type &arg1_type) : op(op), glsl(x)
 	{
 		function.name = name;
 		function.return_type = ret_type;
 		function.parameter_list.push_back({ arg0_type });
 		function.parameter_list.push_back({ arg1_type });
 	}
-	intrinsic(const char *name, spv::Op op, spv::GLSLstd450 x, const reshadefx::type_info &ret_type, const reshadefx::type_info &arg0_type, const reshadefx::type_info &arg1_type, const reshadefx::type_info &arg2_type) : op(op), glsl(x)
+	intrinsic(const char *name, spv::Op op, spv::GLSLstd450 x, const reshadefx::spv_type &ret_type, const reshadefx::spv_type &arg0_type, const reshadefx::spv_type &arg1_type, const reshadefx::spv_type &arg2_type) : op(op), glsl(x)
 	{
 		function.name = name;
 		function.return_type = ret_type;
@@ -47,7 +47,7 @@ struct intrinsic
 		function.parameter_list.push_back({ arg1_type });
 		function.parameter_list.push_back({ arg2_type });
 	}
-	intrinsic(const char *name, spv::Op op, spv::GLSLstd450 x, const reshadefx::type_info &ret_type, const reshadefx::type_info &arg0_type, const reshadefx::type_info &arg1_type, const reshadefx::type_info &arg2_type, const reshadefx::type_info &arg3_type) : op(op), glsl(x)
+	intrinsic(const char *name, spv::Op op, spv::GLSLstd450 x, const reshadefx::spv_type &ret_type, const reshadefx::spv_type &arg0_type, const reshadefx::spv_type &arg1_type, const reshadefx::spv_type &arg2_type, const reshadefx::spv_type &arg3_type) : op(op), glsl(x)
 	{
 		function.name = name;
 		function.return_type = ret_type;
@@ -59,7 +59,7 @@ struct intrinsic
 
 	spv::Op op;
 	spv::GLSLstd450 glsl;
-	function_info function;
+	spv_function_info function;
 };
 
 static const intrinsic s_intrinsics[] = {

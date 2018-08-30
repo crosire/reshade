@@ -5,10 +5,7 @@
 
 #pragma once
 
-#include <stack>
-#include <unordered_map>
-#include <string>
-#include "effect_parser.hpp"
+#include "spirv_helpers.hpp"
 
 namespace reshadefx
 {
@@ -28,9 +25,9 @@ namespace reshadefx
 	{
 		spv::Op op;
 		spv::Id id;
-		type_info type;
-		const function_info *info;
-		constant constant;
+		spv_type type;
+		const spv_function_info *function;
+		spv_constant constant;
 	};
 
 	/// <summary>
@@ -38,32 +35,30 @@ namespace reshadefx
 	/// </summary>
 	class symbol_table
 	{
-		struct symbol_data : symbol
-		{
-			scope scope;
-		};
-
 	public:
 		symbol_table();
 
-		void enter_scope(function_info *parent = nullptr);
+		void enter_scope();
 		void enter_namespace(const std::string &name);
 		void leave_scope();
 		void leave_namespace();
 
-		function_info *current_parent() const { return _parent_stack.empty() ? 0 : _parent_stack.top(); }
 		const scope &current_scope() const { return _current_scope; }
 
-		bool insert(const std::string &name, const symbol &symbol, bool global = false);
+		bool insert_symbol(const std::string &name, const symbol &symbol, bool global = false);
 
-		symbol find(const std::string &name) const;
-		symbol find(const std::string &name, const scope &scope, bool exclusive) const;
+		symbol find_symbol(const std::string &name) const;
+		symbol find_symbol(const std::string &name, const scope &scope, bool exclusive) const;
 
-		bool resolve_call(const std::string &name, const std::vector<type_info> &args, const scope &scope, bool &ambiguous, symbol &out_data) const;
+		bool resolve_function_call(const std::string &name, const std::vector<spv_expression> &args, const scope &scope, bool &ambiguous, symbol &out_data) const;
 
 	private:
+		struct scoped_symbol : symbol {
+			scope scope; // Store scope with symbol data
+		};
+
 		scope _current_scope;
-		std::stack<function_info *> _parent_stack;
-		std::unordered_map<std::string, std::vector<symbol_data>> _symbol_stack;
+		std::unordered_map<std::string, // Lookup table from name to matching symbols
+			std::vector<scoped_symbol>> _symbol_stack;
 	};
 }

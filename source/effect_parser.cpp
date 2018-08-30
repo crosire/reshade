@@ -4,9 +4,8 @@
  */
 
 #include "effect_parser.hpp"
-#include "effect_symbol_table.hpp"
-#include <algorithm>
 #include <assert.h>
+#include <algorithm>
 #include <fstream>
 #include <functional>
 
@@ -18,29 +17,6 @@ struct on_scope_exit
 	~on_scope_exit() { leave(); }
 	std::function<void()> leave;
 };
-
-static inline void write(std::ofstream &s, uint32_t word)
-{
-	s.write((char *)&word, 4);;
-}
-static inline void write(std::ofstream &s, const reshadefx::spv_node &ins)
-{
-	// First word of an instruction:
-	// The 16 low-order bits are the opcode enumerant
-	// The 16 high-order bits are the word count of the instruction
-	const uint32_t num_words = 1 + (ins.result_type != 0) + (ins.result != 0) + ins.operands.size();
-	write(s, (num_words << 16) | ins.op);
-
-	// Optional instruction type ID
-	if (ins.result_type != 0) write(s, ins.result_type);
-
-	// Optional instruction result ID
-	if (ins.result != 0) write(s, ins.result);
-
-	// Write out the operands
-	for (size_t i = 0; i < ins.operands.size(); ++i)
-		write(s, ins.operands[i]);
-}
 
 spv::BuiltIn semantic_to_builtin(std::string &semantic)
 {
@@ -59,14 +35,6 @@ spv::BuiltIn semantic_to_builtin(std::string &semantic)
 	return spv::BuiltInMax;
 }
 
-reshadefx::parser::parser() :
-	_symbol_table(new symbol_table())
-{
-}
-reshadefx::parser::~parser()
-{
-}
-
 bool reshadefx::parser::run(const std::string &input)
 {
 	_lexer.reset(new lexer(input));
@@ -74,86 +42,20 @@ bool reshadefx::parser::run(const std::string &input)
 
 	consume();
 
+	bool success = true;
+
 	while (!peek(tokenid::end_of_file))
-	{
 		if (!parse_top_level())
-		{
-			return false;
-		}
-	}
+			success = false;
 
 	std::ofstream s("test.spv", std::ios::binary | std::ios::out);
-	// Write SPIRV header info
-	write(s, spv::MagicNumber);
-	write(s, spv::Version);
-	write(s, 0u); // Generator magic number, see https://www.khronos.org/registry/spir-v/api/spir-v.xml
-	write(s, 1000u); // Maximum ID
-	write(s, 0u); // Reserved for instruction schema
+	write_module(s);
 
-	// All capabilities
-		
-	write(s, spv_node(spv::OpCapability)
-		.add(spv::CapabilityShader));
-
-	// Optional extension instructions
-	const uint32_t glsl_ext = 1;
-
-	write(s, spv_node(spv::OpExtInstImport, glsl_ext)
-		.add_string("GLSL.std.450")); // Import GLSL extension
-
-	// Single required memory model instruction
-	write(s, spv_node(spv::OpMemoryModel)
-		.add(spv::AddressingModelLogical)
-		.add(spv::MemoryModelGLSL450));
-
-	// All entry point declarations
-	for (const auto &node : _entries.instructions)
-		write(s, node);
-
-	// All execution mode declarations
-	//_out_stream << spv_node(spv::OpExecutionMode, 0 /* function id */,
-
-	// All debug instructions
-	const char *filename = "test.fx";
-	const uint32_t filename_id = 2;
-
-	write(s, spv_node(spv::OpString, filename_id)
-		.add_string(filename));
-	write(s, spv_node(spv::OpSource)
-		.add(spv::SourceLanguageUnknown)
-		.add(0) // Version
-		.add(filename_id)); // Filename string ID
-
-	for (const auto &node : _debug_a.instructions)
-		write(s, node);
-	for (const auto &node : _debug_b.instructions)
-		write(s, node);
-
-	// All annotation instructions
-	for (const auto &node : _annotations.instructions)
-		write(s, node);
-
-	// All type declarations
-	for (const auto &node : _types.instructions)
-		write(s, node);
-	for (const auto &node : _constants.instructions)
-		write(s, node);
-	for (const auto &node : _variables.instructions)
-		write(s, node);
-
-	// All function definitions
-	for (const auto &function : _functions)
-	{
-		for (const auto &node : function->variables.instructions)
-			write(s, node);
-		for (const auto &node : function->code.instructions)
-			write(s, node);
-	}
-
-	return true;
+	return success;
 }
 
-// Error handling
+// -- Error Handling -- //
+
 void reshadefx::parser::error(const location &location, unsigned int code, const std::string &message)
 {
 	_errors += location.source + '(' + std::to_string(location.line) + ", " + std::to_string(location.column) + ')' + ": ";
@@ -185,7 +87,8 @@ void reshadefx::parser::warning(const location &location, unsigned int code, con
 	_errors += message + '\n';
 }
 
-// Input management
+// -- Token Management -- //
+
 void reshadefx::parser::backup()
 {
 	_lexer.swap(_lexer_backup);
@@ -219,7 +122,6 @@ bool reshadefx::parser::accept(tokenid tokid)
 	if (peek(tokid))
 	{
 		consume();
-
 		return true;
 	}
 
@@ -230,30 +132,29 @@ bool reshadefx::parser::expect(tokenid tokid)
 	if (!accept(tokid))
 	{
 		error(_token_next.location, 3000, "syntax error: unexpected '" + token::id_to_name(_token_next.id) + "', expected '" + token::id_to_name(tokid) + "'");
-
 		return false;
 	}
 
 	return true;
 }
 
-// Types
-bool reshadefx::parser::accept_type_class(type_info &type)
+// -- Type Parsing -- //
+
+bool reshadefx::parser::accept_type_class(spv_type &type)
 {
-	type.size = type.rows = type.cols = 0;
+	type.rows = type.cols = 0;
 
 	if (peek(tokenid::identifier))
 	{
-		type.base = spv::OpTypeStruct;
+		type.base = spv_type::datatype_struct;
 
-		const symbol symbol = _symbol_table->find(_token_next.literal_as_string);
+		const symbol symbol = find_symbol(_token_next.literal_as_string);
 
 		if (symbol.id && symbol.op == spv::OpTypeStruct)
 		{
 			type.definition = symbol.id;
 
 			consume();
-
 			return true;
 		}
 
@@ -261,9 +162,8 @@ bool reshadefx::parser::accept_type_class(type_info &type)
 	}
 	else if (accept(tokenid::vector))
 	{
-		type.base = spv::OpTypeFloat, type.size = 32;
+		type.base = spv_type::datatype_float;
 		type.rows = 4, type.cols = 1;
-		type.is_signed = true;;
 
 		if (accept('<'))
 		{
@@ -287,9 +187,8 @@ bool reshadefx::parser::accept_type_class(type_info &type)
 	}
 	else if (accept(tokenid::matrix))
 	{
-		type.base = spv::OpTypeFloat, type.size = 32;
+		type.base = spv_type::datatype_float;
 		type.rows = 4, type.cols = 4;
-		type.is_signed = true;;
 
 		if (accept('<'))
 		{
@@ -322,20 +221,20 @@ bool reshadefx::parser::accept_type_class(type_info &type)
 	switch (_token_next.id)
 	{
 	case tokenid::void_:
-		type.base = spv::OpTypeVoid;
+		type.base = spv_type::datatype_void;
 		break;
 	case tokenid::bool_:
 	case tokenid::bool2:
 	case tokenid::bool3:
 	case tokenid::bool4:
-		type.base = spv::OpTypeBool, type.size = 32;
+		type.base = spv_type::datatype_bool;
 		type.rows = 1 + uint32_t(_token_next.id) - uint32_t(tokenid::bool_);
 		type.cols = 1;
 		break;
 	case tokenid::bool2x2:
 	case tokenid::bool3x3:
 	case tokenid::bool4x4:
-		type.base = spv::OpTypeBool, type.size = 32;
+		type.base = spv_type::datatype_bool;
 		type.rows = 2 + uint32_t(_token_next.id) - uint32_t(tokenid::bool2x2);
 		type.cols = type.rows;
 		break;
@@ -343,61 +242,55 @@ bool reshadefx::parser::accept_type_class(type_info &type)
 	case tokenid::int2:
 	case tokenid::int3:
 	case tokenid::int4:
-		type.base = spv::OpTypeInt, type.size = 32;
+		type.base = spv_type::datatype_int;
 		type.rows = 1 + uint32_t(_token_next.id) - uint32_t(tokenid::int_);
 		type.cols = 1;
-		type.is_signed = true;
 		break;
 	case tokenid::int2x2:
 	case tokenid::int3x3:
 	case tokenid::int4x4:
-		type.base = spv::OpTypeInt, type.size = 32;
+		type.base = spv_type::datatype_int;
 		type.rows = 2 + uint32_t(_token_next.id) - uint32_t(tokenid::int2x2);
 		type.cols = type.rows;
-		type.is_signed = true;
 		break;
 	case tokenid::uint_:
 	case tokenid::uint2:
 	case tokenid::uint3:
 	case tokenid::uint4:
-		type.base = spv::OpTypeInt, type.size = 32;
+		type.base = spv_type::datatype_uint;
 		type.rows = 1 + uint32_t(_token_next.id) - uint32_t(tokenid::uint_);
 		type.cols = 1;
-		type.is_signed = false;
 		break;
 	case tokenid::uint2x2:
 	case tokenid::uint3x3:
 	case tokenid::uint4x4:
-		type.base = spv::OpTypeInt, type.size = 32;
+		type.base = spv_type::datatype_uint;
 		type.rows = 2 + uint32_t(_token_next.id) - uint32_t(tokenid::uint2x2);
 		type.cols = type.rows;
-		type.is_signed = false;
 		break;
 	case tokenid::float_:
 	case tokenid::float2:
 	case tokenid::float3:
 	case tokenid::float4:
-		type.base = spv::OpTypeFloat, type.size = 32;
+		type.base = spv_type::datatype_float;
 		type.rows = 1 + uint32_t(_token_next.id) - uint32_t(tokenid::float_);
 		type.cols = 1;
-		type.is_signed = true;
 		break;
 	case tokenid::float2x2:
 	case tokenid::float3x3:
 	case tokenid::float4x4:
-		type.base = spv::OpTypeFloat, type.size = 32;
+		type.base = spv_type::datatype_float;
 		type.rows = 2 + uint32_t(_token_next.id) - uint32_t(tokenid::float2x2);
 		type.cols = type.rows;
-		type.is_signed = true;
 		break;
 	case tokenid::string_:
-		type.base = spv::OpString;
+		type.base = spv_type::datatype_string;
 		break;
 	case tokenid::texture:
-		type.base = spv::OpTypeImage;
+		type.base = spv_type::datatype_texture;
 		break;
 	case tokenid::sampler:
-		type.base = spv::OpTypeSampledImage;
+		type.base = spv_type::datatype_sampler;
 		break;
 	default:
 		return false;
@@ -407,42 +300,42 @@ bool reshadefx::parser::accept_type_class(type_info &type)
 
 	return true;
 }
-bool reshadefx::parser::accept_type_qualifiers(type_info &type)
+bool reshadefx::parser::accept_type_qualifiers(spv_type &type)
 {
 	unsigned int qualifiers = 0;
 
 	// Storage
 	if (accept(tokenid::extern_))
-		qualifiers |= qualifier_extern;
+		qualifiers |= spv_type::qualifier_extern;
 	if (accept(tokenid::static_))
-		qualifiers |= qualifier_static;
+		qualifiers |= spv_type::qualifier_static;
 	if (accept(tokenid::uniform_))
-		qualifiers |= qualifier_uniform;
+		qualifiers |= spv_type::qualifier_uniform;
 	if (accept(tokenid::volatile_))
-		qualifiers |= qualifier_volatile;
+		qualifiers |= spv_type::qualifier_volatile;
 	if (accept(tokenid::precise))
-		qualifiers |= qualifier_precise;
+		qualifiers |= spv_type::qualifier_precise;
 
 	if (accept(tokenid::in))
-		qualifiers |= qualifier_in;
+		qualifiers |= spv_type::qualifier_in;
 	if (accept(tokenid::out))
-		qualifiers |= qualifier_out;
+		qualifiers |= spv_type::qualifier_out;
 	if (accept(tokenid::inout))
-		qualifiers |= qualifier_inout;
+		qualifiers |= spv_type::qualifier_inout;
 
 	// Modifiers
 	if (accept(tokenid::const_))
-		qualifiers |= qualifier_const;
+		qualifiers |= spv_type::qualifier_const;
 
 	// Interpolation
 	if (accept(tokenid::linear))
-		qualifiers |= qualifier_linear;
+		qualifiers |= spv_type::qualifier_linear;
 	if (accept(tokenid::noperspective))
-		qualifiers |= qualifier_noperspective;
+		qualifiers |= spv_type::qualifier_noperspective;
 	if (accept(tokenid::centroid))
-		qualifiers |= qualifier_centroid;
+		qualifiers |= spv_type::qualifier_centroid;
 	if (accept(tokenid::nointerpolation))
-		qualifiers |= qualifier_nointerpolation;
+		qualifiers |= spv_type::qualifier_nointerpolation;
 
 	if (qualifiers == 0)
 		return false;
@@ -457,7 +350,7 @@ bool reshadefx::parser::accept_type_qualifiers(type_info &type)
 	return true;
 }
 
-bool reshadefx::parser::parse_type(type_info &type)
+bool reshadefx::parser::parse_type(spv_type &type)
 {
 	type.qualifiers = 0;
 
@@ -468,15 +361,46 @@ bool reshadefx::parser::parse_type(type_info &type)
 	if (!accept_type_class(type))
 		return false;
 
-	if (type.is_integral() && (type.has(qualifier_centroid) || type.has(qualifier_noperspective)))
+	if (type.is_integral() && (type.has(spv_type::qualifier_centroid) || type.has(spv_type::qualifier_noperspective)))
 		return error(location, 4576, "signature specifies invalid interpolation mode for integer component type"), false;
-	else if (type.has(qualifier_centroid) && !type.has(qualifier_noperspective))
-		type.qualifiers |= qualifier_linear;
+	else if (type.has(spv_type::qualifier_centroid) && !type.has(spv_type::qualifier_noperspective))
+		type.qualifiers |= spv_type::qualifier_linear;
+
+	return true;
+}
+bool reshadefx::parser::parse_array_size(spv_type &type)
+{
+	type.array_length = 0;
+
+	spv_basic_block temp_section;
+
+	if (accept('['))
+	{
+		if (accept(']'))
+		{
+			type.array_length = -1;
+		}
+		else if (spv_expression expression; parse_expression(temp_section, expression) && expect(']'))
+		{
+			if (!expression.is_constant || !(expression.type.is_scalar() && expression.type.is_integral()))
+				return error(expression.location, 3058, "array dimensions must be literal scalar expressions"), false;
+
+			type.array_length = expression.constant.as_uint[0];
+
+			if (type.array_length < 1 || type.array_length > 65536)
+				return error(expression.location, 3059, "array dimension must be between 1 and 65536"), false;
+		}
+		else
+		{
+			return false;
+		}
+	}
 
 	return true;
 }
 
-// Expressions
+// -- Expression Parsing -- //
+
 bool reshadefx::parser::accept_unary_op(spv::Op &op)
 {
 	switch (_token_next.id)
@@ -495,7 +419,7 @@ bool reshadefx::parser::accept_unary_op(spv::Op &op)
 
 	return true;
 }
-bool reshadefx::parser::accept_postfix_op(const type_info &type, spv::Op &op)
+bool reshadefx::parser::accept_postfix_op(const spv_type &type, spv::Op &op)
 {
 	switch (_token_next.id)
 	{
@@ -542,14 +466,14 @@ bool reshadefx::parser::peek_multary_op(spv::Op &op, unsigned int &precedence) c
 	// Do not consume token yet since the expression may be skipped due to precedence
 	return true;
 }
-bool reshadefx::parser::accept_assignment_op(const type_info &type, spv::Op &op)
+bool reshadefx::parser::accept_assignment_op(const spv_type &type, spv::Op &op)
 {
 	switch (_token_next.id)
 	{
 	case tokenid::equal:
 		op = spv::OpNop; break; // Assignment without an additional operation
 	case tokenid::percent_equal:
-		op = type.is_integral() ? type.is_signed ? spv::OpSMod : spv::OpUMod : spv::OpFMod; break;
+		op = type.is_integral() ? type.is_signed() ? spv::OpSMod : spv::OpUMod : spv::OpFMod; break;
 	case tokenid::ampersand_equal:
 		op = spv::OpBitwiseAnd; break;
 	case tokenid::star_equal:
@@ -559,7 +483,7 @@ bool reshadefx::parser::accept_assignment_op(const type_info &type, spv::Op &op)
 	case tokenid::minus_equal:
 		op = type.is_integral() ? spv::OpISub : spv::OpFSub; break;
 	case tokenid::slash_equal:
-		op = type.is_integral() ? type.is_signed ? spv::OpSDiv : spv::OpUDiv : spv::OpFDiv; break;
+		op = type.is_integral() ? type.is_signed() ? spv::OpSDiv : spv::OpUDiv : spv::OpFDiv; break;
 	case tokenid::less_less_equal:
 		op = spv::OpShiftLeftLogical; break;
 	case tokenid::greater_greater_equal:
@@ -577,7 +501,7 @@ bool reshadefx::parser::accept_assignment_op(const type_info &type, spv::Op &op)
 	return true;
 }
 
-bool reshadefx::parser::parse_expression(spv_section &section, access_chain &exp)
+bool reshadefx::parser::parse_expression(spv_basic_block &section, spv_expression &exp)
 {
 	// Parse first expression
 	if (!parse_expression_assignment(section, exp))
@@ -591,7 +515,7 @@ bool reshadefx::parser::parse_expression(spv_section &section, access_chain &exp
 
 	return true;
 }
-bool reshadefx::parser::parse_expression_unary(spv_section &section, access_chain &exp)
+bool reshadefx::parser::parse_expression_unary(spv_basic_block &section, spv_expression &exp)
 {
 	auto location = _token_next.location;
 
@@ -620,9 +544,15 @@ bool reshadefx::parser::parse_expression_unary(spv_section &section, access_chai
 			{
 				switch (op)
 				{
-				case spv::OpFNegate: op = exp.type.is_signed ? spv::OpSNegate : spv::OpBitReverse; break;
-				case spv::OpFAdd: op = spv::OpIAdd; break;
-				case spv::OpFSub: op = spv::OpISub; break;
+				case spv::OpFNegate:
+					op = exp.type.is_signed() ? spv::OpSNegate : spv::OpBitReverse;
+					break;
+				case spv::OpFAdd:
+					op = spv::OpIAdd;
+					break;
+				case spv::OpFSub:
+					op = spv::OpISub;
+					break;
 				}
 			}
 
@@ -632,11 +562,11 @@ bool reshadefx::parser::parse_expression_unary(spv_section &section, access_chai
 			// Special handling for the "++" and "--" operators
 			if (op == spv::OpFAdd || op == spv::OpFSub || op == spv::OpIAdd || op == spv::OpISub)
 			{
-				if (exp.type.has(qualifier_const) || exp.type.has(qualifier_uniform) || !exp.is_lvalue)
+				if (exp.type.has(spv_type::qualifier_const) || exp.type.has(spv_type::qualifier_uniform) || !exp.is_lvalue)
 					return error(location, 3025, "l-value specifies const object"), false;
 
 				// Create a constant one in the type of the expression
-				constant one = {};
+				spv_constant one = {};
 				one.as_uint[0] = exp.type.is_floating_point() ? 0x3f800000u : 1u;
 				const spv::Id constant = convert_constant(exp.type, one);
 
@@ -652,10 +582,7 @@ bool reshadefx::parser::parse_expression_unary(spv_section &section, access_chai
 			{
 				// The 'OpLogicalNot' operator expects a boolean type as input, so perform cast if necessary
 				if (op == spv::OpLogicalNot && !exp.type.is_boolean())
-				{
-					exp.type.base = spv::OpTypeBool; // The result type will be boolean as well
-					exp.push_cast(exp.type, true);
-				}
+					add_cast_operation(exp, { spv_type::datatype_bool, exp.type.rows, exp.type.cols }); // The result type will be boolean as well
 
 				spv::Id result = add_node(section, location, op, convert_type(exp.type))
 					.add(value) // Operand
@@ -670,7 +597,7 @@ bool reshadefx::parser::parse_expression_unary(spv_section &section, access_chai
 		backup();
 
 		// Check if this is a C-style cast expression
-		if (type_info cast_type; accept_type_class(cast_type))
+		if (spv_type cast_type; accept_type_class(cast_type))
 		{
 			if (peek('('))
 			{
@@ -693,7 +620,7 @@ bool reshadefx::parser::parse_expression_unary(spv_section &section, access_chai
 					if (exp.type.components() < cast_type.components() && !exp.type.is_scalar())
 						return error(location, 3017, "cannot convert these vector types"), false;
 
-					exp.push_cast(cast_type, false);
+					add_cast_operation(exp, cast_type);
 					return true;
 				}
 				else
@@ -715,27 +642,27 @@ bool reshadefx::parser::parse_expression_unary(spv_section &section, access_chai
 	}
 	else if (accept(tokenid::true_literal))
 	{
-		const type_info literal_type = { spv::OpTypeBool, 32, 1, 1, false, false, qualifier_const };
+		const spv_type literal_type = { spv_type::datatype_bool, 1, 1, spv_type::qualifier_const };
 		exp.reset_to_rvalue_constant(literal_type, location, true);
 	}
 	else if (accept(tokenid::false_literal))
 	{
-		const type_info literal_type = { spv::OpTypeBool, 32, 1, 1, false, false, qualifier_const };
+		const spv_type literal_type = { spv_type::datatype_bool, 1, 1, spv_type::qualifier_const };
 		exp.reset_to_rvalue_constant(literal_type, location, false);
 	}
 	else if (accept(tokenid::int_literal))
 	{
-		const type_info literal_type = { spv::OpTypeInt, 32, 1, 1, true, false, qualifier_const };
+		const spv_type literal_type = { spv_type::datatype_int,  1, 1, spv_type::qualifier_const };
 		exp.reset_to_rvalue_constant(literal_type, location, _token.literal_as_int);
 	}
 	else if (accept(tokenid::uint_literal))
 	{
-		const type_info literal_type = { spv::OpTypeInt, 32, 1, 1, false, false, qualifier_const };
+		const spv_type literal_type = { spv_type::datatype_uint, 1, 1, spv_type::qualifier_const };
 		exp.reset_to_rvalue_constant(literal_type, location, _token.literal_as_uint);
 	}
 	else if (accept(tokenid::float_literal))
 	{
-		const type_info literal_type = { spv::OpTypeFloat, 32, 1, 1, true, false, qualifier_const };
+		const spv_type literal_type = { spv_type::datatype_float, 1, 1, spv_type::qualifier_const };
 		exp.reset_to_rvalue_constant(literal_type, location, *reinterpret_cast<const uint32_t *>(&_token.literal_as_float)); // Interpret float bit pattern as int
 	}
 	else if (accept(tokenid::double_literal))
@@ -744,7 +671,7 @@ bool reshadefx::parser::parse_expression_unary(spv_section &section, access_chai
 		warning(location, 5000, "double literal truncated to float literal");
 		const float value = static_cast<float>(_token.literal_as_double);
 
-		const type_info literal_type = { spv::OpTypeFloat, 32, 1, 1, true, false, qualifier_const };
+		const spv_type literal_type = { spv_type::datatype_float, 1, 1, spv_type::qualifier_const };
 		exp.reset_to_rvalue_constant(literal_type, location, *reinterpret_cast<const uint32_t *>(&value)); // Interpret float bit pattern as int
 	}
 	else if (accept(tokenid::string_literal))
@@ -755,10 +682,10 @@ bool reshadefx::parser::parse_expression_unary(spv_section &section, access_chai
 		while (accept(tokenid::string_literal))
 			value += _token.literal_as_string;
 
-		const type_info literal_type = { spv::OpString, 0, 0, 0, false, false, qualifier_const };
+		const spv_type literal_type = { spv_type::datatype_string, 0, 0, spv_type::qualifier_const };
 		exp.reset_to_rvalue_constant(literal_type, location, std::move(value));
 	}
-	else if (type_info type; accept_type_class(type)) // Check if this is a constructor call expression
+	else if (spv_type type; accept_type_class(type)) // Check if this is a constructor call expression
 	{
 		if (!expect('('))
 			return false;
@@ -772,7 +699,7 @@ bool reshadefx::parser::parse_expression_unary(spv_section &section, access_chai
 		// Parse entire argument expression list
 		bool constant = true;
 		unsigned int num_components = 0;
-		std::vector<access_chain> arguments;
+		std::vector<spv_expression> arguments;
 
 		while (!peek(')'))
 		{
@@ -784,7 +711,7 @@ bool reshadefx::parser::parse_expression_unary(spv_section &section, access_chai
 			if (!parse_expression_assignment(section, arguments.emplace_back()))
 				return false;
 
-			access_chain &argument = arguments.back();
+			spv_expression &argument = arguments.back();
 
 			// Constructors are only defined for numeric base types
 			if (!argument.type.is_numeric())
@@ -806,14 +733,14 @@ bool reshadefx::parser::parse_expression_unary(spv_section &section, access_chai
 
 		if (constant) // Constants can be converted at compile time
 		{
-			struct constant data = {};
+			spv_constant data = {};
 
 			unsigned int i = 0;
 			for (auto &argument : arguments)
 			{
-				type_info target_type = argument.type;
+				spv_type target_type = argument.type;
 				target_type.base = type.base;
-				argument.push_cast(target_type, true);
+				add_cast_operation(argument, target_type);
 				for (unsigned int k = 0; k < argument.type.components(); ++k)
 					data.as_uint[i++] = argument.constant.as_uint[k];
 			}
@@ -833,8 +760,8 @@ bool reshadefx::parser::parse_expression_unary(spv_section &section, access_chai
 				{
 					for (unsigned int index = 0; index < argument.type.components(); ++index)
 					{
-						access_chain scalar = argument;
-						scalar.push_static_index(index, *this);
+						spv_expression scalar = argument;
+						add_static_index_access(scalar, index);
 						ids.push_back(access_chain_load(section, scalar));
 					}
 				}
@@ -844,7 +771,7 @@ bool reshadefx::parser::parse_expression_unary(spv_section &section, access_chai
 				assert(false);
 
 				// Finally, construct a matrix from those column vectors
-				spv_node &node = add_node(section, location, spv::OpCompositeConstruct, convert_type(type));
+				spv_instruction &node = add_node(section, location, spv::OpCompositeConstruct, convert_type(type));
 
 				for (size_t i = 0; i < ids.size(); ++i)
 					node.add(ids[i]);
@@ -859,14 +786,14 @@ bool reshadefx::parser::parse_expression_unary(spv_section &section, access_chai
 				std::vector<spv::Id> ids;
 				for (auto &argument : arguments)
 				{
-					type_info target_type = argument.type;
+					spv_type target_type = argument.type;
 					target_type.base = type.base;
-					argument.push_cast(target_type, true);
+					add_cast_operation(argument, target_type);
 					assert(argument.type.is_scalar() || argument.type.is_vector());
 					ids.push_back(access_chain_load(section, argument));
 				}
 
-				spv_node &node = add_node(section, location, spv::OpCompositeConstruct, convert_type(type));
+				spv_instruction &node = add_node(section, location, spv::OpCompositeConstruct, convert_type(type));
 
 				for (size_t i = 0; i < ids.size(); ++i)
 					node.add(ids[i]);
@@ -878,25 +805,27 @@ bool reshadefx::parser::parse_expression_unary(spv_section &section, access_chai
 		{
 			assert(!arguments.empty());
 
-			// Reset expression to only argument
-			exp = std::move(arguments[0]);
-
-			// Add cast to expression access chain
-			exp.push_cast(type, false);
+			// Reset expression to only argument and add cast to expression access chain
+			exp = std::move(arguments[0]), add_cast_operation(exp, type);
 		}
 	}
 	else // At this point only identifiers are left to check and resolve
 	{
 		scope scope;
 		std::string identifier;
+		bool exclusive;
 
 		// Starting an identifier with '::' restricts the symbol search to the global namespace level
-		const bool exclusive = accept(tokenid::colon_colon);
-
-		if (exclusive)
-			scope = { "::", 0, 0 };
+		if (accept(tokenid::colon_colon))
+		{
+			scope.namespace_level = scope.level = 0;
+			exclusive = true;
+		}
 		else
-			scope = _symbol_table->current_scope();
+		{
+			scope = current_scope();
+			exclusive = false;
+		}
 
 		if (exclusive ? expect(tokenid::identifier) : accept(tokenid::identifier))
 			identifier = _token.literal_as_string;
@@ -913,7 +842,7 @@ bool reshadefx::parser::parse_expression_unary(spv_section &section, access_chai
 		}
 
 		// Lookup name in the symbol table
-		symbol symbol = _symbol_table->find(identifier, scope, exclusive);
+		symbol symbol = find_symbol(identifier, scope, exclusive);
 
 		// Check if this is a function call or variable reference
 		if (accept('('))
@@ -923,8 +852,7 @@ bool reshadefx::parser::parse_expression_unary(spv_section &section, access_chai
 				return error(location, 3005, "identifier '" + identifier + "' represents a variable, not a function"), false;
 
 			// Parse entire argument expression list
-			std::vector<access_chain> arguments;
-			std::vector<type_info> argument_types;
+			std::vector<spv_expression> arguments;
 
 			while (!peek(')'))
 			{
@@ -935,8 +863,6 @@ bool reshadefx::parser::parse_expression_unary(spv_section &section, access_chai
 				// Parse the argument expression
 				if (!parse_expression_assignment(section, arguments.emplace_back()))
 					return false;
-
-				argument_types.push_back(arguments.back().type);
 			}
 
 			// The list should be terminated with a parenthesis
@@ -946,7 +872,7 @@ bool reshadefx::parser::parse_expression_unary(spv_section &section, access_chai
 			// Try to resolve the call by searching through both function symbols and intrinsics
 			bool undeclared = !symbol.id, ambiguous = false;
 
-			if (!_symbol_table->resolve_call(identifier, argument_types, scope, ambiguous, symbol))
+			if (!resolve_function_call(identifier, arguments, scope, ambiguous, symbol))
 			{
 				if (undeclared && symbol.op == spv::OpFunctionCall)
 					error(location, 3004, "undeclared identifier '" + identifier + "'");
@@ -957,47 +883,44 @@ bool reshadefx::parser::parse_expression_unary(spv_section &section, access_chai
 				return false;
 			}
 
-			const auto parent = _symbol_table->current_parent();
+			assert(symbol.function != nullptr);
 
-			assert(parent != nullptr);
-
-			std::vector<access_chain> parameters(arguments.size());
+			std::vector<spv_expression> parameters(arguments.size());
 
 			// We need to allocate some temporary variables to pass in and load results from pointer parameters
 			for (size_t i = 0; i < arguments.size(); ++i)
 			{
-				type_info param_type = symbol.info->parameter_list[i].type;
+				spv_type param_type = symbol.function->parameter_list[i].type;
 
 				if (param_type.is_pointer)
 				{
 					parameters[i].reset_to_lvalue(
-						add_node(parent->variables, arguments[i].location, spv::OpVariable, convert_type(param_type))
-							.add(spv::StorageClassFunction)
-							.result,
-						param_type,
-						arguments[i].location);
+						define_variable(arguments[i].location, param_type, spv::StorageClassFunction),
+						param_type, arguments[i].location);
 				}
 				else
 				{
-					arguments[i].push_cast(param_type, true);
+					if (arguments[i].type.components() > param_type.components())
+						warning(arguments[i].location, 3206, "implicit truncation of vector type");
+
+					add_cast_operation(arguments[i], param_type);
 
 					parameters[i].reset_to_rvalue(
 						access_chain_load(section, arguments[i]),
-						param_type,
-						arguments[i].location);
+						param_type, arguments[i].location);
 				}
 			}
 
 			// Copy in parameters from the argument access chains to parameter variables
 			for (size_t i = 0; i < arguments.size(); ++i)
-				if (parameters[i].is_lvalue && parameters[i].type.has(qualifier_in)) // Only do this for pointer parameters as discovered above
+				if (parameters[i].is_lvalue && parameters[i].type.has(spv_type::qualifier_in)) // Only do this for pointer parameters as discovered above
 					access_chain_store(section, parameters[i], access_chain_load(section, arguments[i]), arguments[i].type);
 
 			// Check if the call resolving found an intrinsic or function
 			if (symbol.op != spv::OpFunctionCall)
 			{
 				// This is an intrinsic, so add the appropriate operators
-				spv_node &node = add_node(section, location, symbol.op, convert_type(symbol.type));
+				spv_instruction &node = add_node(section, location, symbol.op, convert_type(symbol.type));
 
 				if (symbol.op == spv::OpExtInst)
 				{
@@ -1033,11 +956,11 @@ bool reshadefx::parser::parse_expression_unary(spv_section &section, access_chai
 			else
 			{
 				// It is not allowed to do recursive calls
-				if (parent == symbol.info)
+				if (_current_function != std::numeric_limits<size_t>::max() && _functions[_current_function].get() == symbol.function)
 					return error(location, 3500, "recursive function calls are not allowed"), false;
 
 				// This is a function symbol, so add a call to it
-				spv_node &node = add_node(section, location, spv::OpFunctionCall, convert_type(symbol.type));
+				spv_instruction &node = add_node(section, location, spv::OpFunctionCall, convert_type(symbol.type));
 				node.add(symbol.id); // Function
 				for (size_t i = 0; i < parameters.size(); ++i)
 					node.add(parameters[i].base); // Arguments
@@ -1047,7 +970,7 @@ bool reshadefx::parser::parse_expression_unary(spv_section &section, access_chai
 
 			// Copy out parameters from parameter variables back to the argument access chains
 			for (size_t i = 0; i < arguments.size(); ++i)
-				if (parameters[i].is_lvalue && parameters[i].type.has(qualifier_out)) // Only do this for pointer parameters as discovered above
+				if (parameters[i].is_lvalue && parameters[i].type.has(spv_type::qualifier_out)) // Only do this for pointer parameters as discovered above
 					access_chain_store(section, arguments[i], access_chain_load(section, parameters[i]), arguments[i].type);
 		}
 		else
@@ -1078,14 +1001,14 @@ bool reshadefx::parser::parse_expression_unary(spv_section &section, access_chai
 			// Unary operators are only valid on basic types
 			if (!exp.type.is_scalar() && !exp.type.is_vector() && !exp.type.is_matrix())
 				return error(exp.location, 3022, "scalar, vector, or matrix expected"), false;
-			else if (exp.type.has(qualifier_const) || exp.type.has(qualifier_uniform) || !exp.is_lvalue)
+			else if (exp.type.has(spv_type::qualifier_const) || exp.type.has(spv_type::qualifier_uniform) || !exp.is_lvalue)
 				return error(exp.location, 3025, "l-value specifies const object"), false;
 
 			// Load current value from expression
 			const spv::Id value = access_chain_load(section, exp);
 
 			// Create a constant one in the type of the expression
-			constant one = {};
+			spv_constant one = {};
 			one.as_uint[0] = exp.type.is_floating_point() ? 0x3f800000u : 1u;
 			const spv::Id constant = convert_constant(exp.type, one);
 
@@ -1165,13 +1088,10 @@ bool reshadefx::parser::parse_expression_unary(spv_section &section, access_chai
 				}
 
 				// Add swizzle to current access chain
-				if (length == 1)
-					exp.push_static_index(offsets[0], *this); // Indexing logic is simpler, so use that when possible
-				else
-					exp.push_swizzle(offsets, length);
+				add_swizzle_access(exp, offsets, length);
 
-				if (constant || exp.type.has(qualifier_uniform))
-					exp.type.qualifiers = (exp.type.qualifiers | qualifier_const) & ~qualifier_uniform;
+				if (constant || exp.type.has(spv_type::qualifier_uniform))
+					exp.type.qualifiers = (exp.type.qualifiers | spv_type::qualifier_const) & ~spv_type::qualifier_uniform;
 			}
 			else if (exp.type.is_matrix())
 			{
@@ -1208,17 +1128,16 @@ bool reshadefx::parser::parse_expression_unary(spv_section &section, access_chai
 				}
 
 				// Add swizzle to current access chain
-				exp.push_swizzle(offsets, length / (3 + set));
+				add_swizzle_access(exp, offsets, length / (3 + set));
 
-				if (constant || exp.type.has(qualifier_uniform))
-					exp.type.qualifiers = (exp.type.qualifiers | qualifier_const) & ~qualifier_uniform;
+				if (constant || exp.type.has(spv_type::qualifier_uniform))
+					exp.type.qualifiers = (exp.type.qualifiers | spv_type::qualifier_const) & ~spv_type::qualifier_uniform;
 			}
 			else if (exp.type.is_struct())
 			{
 				// Find member with matching name is structure definition
 				size_t member_index = 0;
-				for (const struct_member_info &member : _structs[exp.type.definition].member_list)
-				{
+				for (const spv_struct_member_info &member : _structs[exp.type.definition].member_list) {
 					if (member.name == subscript)
 						break;
 					++member_index;
@@ -1228,12 +1147,12 @@ bool reshadefx::parser::parse_expression_unary(spv_section &section, access_chai
 					return error(location, 3018, "invalid subscript '" + subscript + "'"), false;
 
 				// Add field index to current access chain
-				exp.push_static_index(member_index, *this);
+				add_static_index_access(exp, member_index);
 
 				exp.type = _structs[exp.type.definition].member_list[member_index].type;
 
-				if (exp.type.has(qualifier_uniform)) // Member access to uniform structure is not modifiable
-					exp.type.qualifiers = (exp.type.qualifiers | qualifier_const) & ~qualifier_uniform;
+				if (exp.type.has(spv_type::qualifier_uniform)) // Member access to uniform structure is not modifiable
+					exp.type.qualifiers = (exp.type.qualifiers | spv_type::qualifier_const) & ~spv_type::qualifier_uniform;
 			}
 			else if (exp.type.is_scalar())
 			{
@@ -1246,10 +1165,10 @@ bool reshadefx::parser::parse_expression_unary(spv_section &section, access_chai
 						return error(location, 3018, "invalid subscript '" + subscript + "'"), false;
 
 				// Promote scalar to vector type using cast
-				type_info target_type = exp.type;
+				spv_type target_type = exp.type;
 				target_type.rows = static_cast<unsigned int>(length);
 
-				exp.push_cast(target_type, false);
+				add_cast_operation(exp, target_type);
 			}
 			else
 			{
@@ -1263,7 +1182,7 @@ bool reshadefx::parser::parse_expression_unary(spv_section &section, access_chai
 				return error(_token.location, 3121, "array, matrix, vector, or indexable object type expected in index expression"), false;
 
 			// Parse index expression
-			access_chain index;
+			spv_expression index;
 			if (!parse_expression(section, index) || !expect(']'))
 				return false;
 			else if (!index.type.is_scalar() || !index.type.is_integral())
@@ -1271,9 +1190,9 @@ bool reshadefx::parser::parse_expression_unary(spv_section &section, access_chai
 
 			// Add index expression to current access chain
 			if (index.is_constant)
-				exp.push_static_index(index.constant.as_uint[0], *this);
+				add_static_index_access(exp, index.constant.as_uint[0]);
 			else
-				exp.push_dynamic_index(access_chain_load(section, index));
+				add_dynamic_index_access(exp, access_chain_load(section, index));
 		}
 		else
 		{
@@ -1284,7 +1203,7 @@ bool reshadefx::parser::parse_expression_unary(spv_section &section, access_chai
 
 	return true;
 }
-bool reshadefx::parser::parse_expression_multary(spv_section &section, access_chain &lhs, unsigned int left_precedence)
+bool reshadefx::parser::parse_expression_multary(spv_basic_block &section, spv_expression &lhs, unsigned int left_precedence)
 {
 	// Parse left hand side of the expression
 	if (!parse_expression_unary(section, lhs))
@@ -1307,14 +1226,14 @@ bool reshadefx::parser::parse_expression_multary(spv_section &section, access_ch
 		if (op != spv::OpSelect)
 		{
 			// Parse the right hand side of the binary operation
-			access_chain rhs;
+			spv_expression rhs;
 			if (!parse_expression_multary(section, rhs, right_precedence))
 				return false;
 
 			bool boolean_result = false;
 
 			// Deduce the result base type based on implicit conversion rules
-			type_info type = { std::max(lhs.type.base, rhs.type.base), std::max(lhs.type.size, rhs.type.size), 1, 1, lhs.type.is_signed }; // This works because 'OpTypeFloat' is higher than 'OpTypeInt'
+			spv_type type = { std::max(lhs.type.base, rhs.type.base), 1, 1 };
 
 			// Do some error checking depending on the operator
 			if (op == spv::OpFOrdEqual || op == spv::OpFOrdNotEqual)
@@ -1364,7 +1283,7 @@ bool reshadefx::parser::parse_expression_multary(spv_section &section, access_ch
 					switch (op)
 					{
 					case spv::OpFMod:
-						op = type.is_signed ? spv::OpSMod : spv::OpUMod;
+						op = type.is_signed() ? spv::OpSMod : spv::OpUMod;
 						break;
 					case spv::OpFMul:
 						op = spv::OpIMul;
@@ -1376,19 +1295,19 @@ bool reshadefx::parser::parse_expression_multary(spv_section &section, access_ch
 						op = spv::OpISub;
 						break;
 					case spv::OpFDiv:
-						op = type.is_signed ? spv::OpSDiv : spv::OpUDiv;
+						op = type.is_signed() ? spv::OpSDiv : spv::OpUDiv;
 						break;
 					case spv::OpFOrdLessThan:
-						op = type.is_signed ? spv::OpSLessThan : spv::OpULessThan;
+						op = type.is_signed() ? spv::OpSLessThan : spv::OpULessThan;
 						break;
 					case spv::OpFOrdGreaterThan:
-						op = type.is_signed ? spv::OpSGreaterThan : spv::OpUGreaterThan;
+						op = type.is_signed() ? spv::OpSGreaterThan : spv::OpUGreaterThan;
 						break;
 					case spv::OpFOrdLessThanEqual:
-						op = type.is_signed ? spv::OpSLessThanEqual : spv::OpULessThanEqual;
+						op = type.is_signed() ? spv::OpSLessThanEqual : spv::OpULessThanEqual;
 						break;
 					case spv::OpFOrdGreaterThanEqual:
-						op = type.is_signed ? spv::OpSGreaterThanEqual : spv::OpUGreaterThanEqual;
+						op = type.is_signed() ? spv::OpSGreaterThanEqual : spv::OpUGreaterThanEqual;
 						break;
 					}
 				}
@@ -1410,17 +1329,22 @@ bool reshadefx::parser::parse_expression_multary(spv_section &section, access_ch
 			{
 				type.rows = std::min(lhs.type.rows, rhs.type.rows);
 				type.cols = std::min(lhs.type.cols, rhs.type.cols);
+
+				if (lhs.type.components() > type.components())
+					warning(lhs.location, 3206, "implicit truncation of vector type");
+				if (rhs.type.components() > type.components())
+					warning(rhs.location, 3206, "implicit truncation of vector type");
 			}
 
 			// Load values and perform implicit type conversions
-			lhs.push_cast(type, true);
+			add_cast_operation(lhs, type);
 			const spv::Id lhs_value = access_chain_load(section, lhs);
-			rhs.push_cast(type, true);
+			add_cast_operation(rhs, type);
 			const spv::Id rhs_value = access_chain_load(section, rhs);
 
 			// Certain operations return a boolean type instead of the type of the input expressions
 			if (boolean_result)
-				type.base = spv::OpTypeBool;
+				type = { spv_type::datatype_bool, type.rows, type.cols };
 
 			spv::Id result = add_node(section, lhs.location, op, convert_type(type))
 				.add(lhs_value) /* Operand 1 */
@@ -1436,7 +1360,7 @@ bool reshadefx::parser::parse_expression_multary(spv_section &section, access_ch
 				return error(lhs.location, 3022, "boolean or vector expression expected"), false;
 
 			// Parse the first part of the right hand side of the ternary operation
-			access_chain true_exp;
+			spv_expression true_exp;
 			if (!parse_expression(section, true_exp))
 				return false;
 
@@ -1444,7 +1368,7 @@ bool reshadefx::parser::parse_expression_multary(spv_section &section, access_ch
 				return false;
 
 			// Parse the second part of the right hand side of the ternary operation
-			access_chain false_exp;
+			spv_expression false_exp;
 			if (!parse_expression_assignment(section, false_exp))
 				return false;
 
@@ -1457,7 +1381,7 @@ bool reshadefx::parser::parse_expression_multary(spv_section &section, access_ch
 				return error(false_exp.location, 3020, "type mismatch between conditional values"), false;
 
 			// Deduce the result base type based on implicit conversion rules
-			type_info type = { std::max(true_exp.type.base, false_exp.type.base), std::max(true_exp.type.size, false_exp.type.size), 1, 1, true_exp.type.is_signed && false_exp.type.is_signed }; // This works because 'OpTypeFloat' is higher than 'OpTypeInt'
+			spv_type type = { std::max(true_exp.type.base, false_exp.type.base), 1, 1 };
 
 			// If one side of the expression is scalar need to promote it to the same dimension as the other side
 			if ((true_exp.type.rows == 1 && true_exp.type.cols == 1) || (false_exp.type.rows == 1 && false_exp.type.cols == 1))
@@ -1469,14 +1393,19 @@ bool reshadefx::parser::parse_expression_multary(spv_section &section, access_ch
 			{
 				type.rows = std::min(true_exp.type.rows, false_exp.type.rows);
 				type.cols = std::min(true_exp.type.cols, false_exp.type.cols);
+
+				if (true_exp.type.components() > type.components())
+					warning(true_exp.location, 3206, "implicit truncation of vector type");
+				if (false_exp.type.components() > type.components())
+					warning(false_exp.location, 3206, "implicit truncation of vector type");
 			}
 
 			// Load values and perform implicit type conversions
-			lhs.push_cast({ spv::OpTypeBool, 32, lhs.type.rows, 1 }, true);
+			add_cast_operation(lhs, { spv_type::datatype_bool, lhs.type.rows, 1 });
 			const spv::Id condition_value = access_chain_load(section, lhs);
-			true_exp.push_cast(type, true);
+			add_cast_operation(true_exp, type);
 			const spv::Id true_value = access_chain_load(section, true_exp);
-			false_exp.push_cast(type, true);
+			add_cast_operation(false_exp, type);
 			const spv::Id false_value = access_chain_load(section, false_exp);
 
 			spv::Id result = add_node(section, lhs.location, spv::OpSelect, convert_type(type))
@@ -1491,7 +1420,7 @@ bool reshadefx::parser::parse_expression_multary(spv_section &section, access_ch
 
 	return true;
 }
-bool reshadefx::parser::parse_expression_assignment(spv_section &section, access_chain &lhs)
+bool reshadefx::parser::parse_expression_assignment(spv_basic_block &section, spv_expression &lhs)
 {
 	// Parse left hand side of the expression
 	if (!parse_expression_multary(section, lhs))
@@ -1502,20 +1431,23 @@ bool reshadefx::parser::parse_expression_assignment(spv_section &section, access
 	if (accept_assignment_op(lhs.type, op))
 	{
 		// Parse right hand side of the assignment expression
-		access_chain rhs;
+		spv_expression rhs;
 		if (!parse_expression_multary(section, rhs))
 			return false;
 
 		// Cannot assign to constants and uniform variables
-		if (lhs.type.has(qualifier_const) || lhs.type.has(qualifier_uniform) || !lhs.is_lvalue)
+		if (lhs.type.has(spv_type::qualifier_const) || lhs.type.has(spv_type::qualifier_uniform) || !lhs.is_lvalue)
 			return error(lhs.location, 3025, "l-value specifies const object"), false;
 
 		// Cannot assign between arrays and incompatible types
-		if (lhs.type.is_array() || rhs.type.is_array() || !type_info::rank(lhs.type, rhs.type))
+		if (lhs.type.is_array() || rhs.type.is_array() || !spv_type::rank(lhs.type, rhs.type))
 			return error(rhs.location, 3020, "cannot convert these types"), false;
 
+		if (rhs.type.components() > lhs.type.components())
+			warning(rhs.location, 3206, "implicit truncation of vector type");
+
 		// Load value of right hand side and perform implicit type conversion
-		rhs.push_cast(lhs.type, true);
+		add_cast_operation(rhs, lhs.type);
 		spv::Id rhs_value = access_chain_load(section, rhs);
 
 		// Check if this is an assignment with an additional arithmetic instruction
@@ -1543,1128 +1475,7 @@ bool reshadefx::parser::parse_expression_assignment(spv_section &section, access
 
 	return true;
 }
-
-// Statements
-bool reshadefx::parser::parse_statement(spv_section &section, bool scoped)
-{
-	unsigned int loop_control = spv::LoopControlMaskNone;
-	unsigned int selection_control = spv::SelectionControlMaskNone;
-
-	// Read any loop and branch control attributes first
-	while (accept('['))
-	{
-		const auto attribute = _token_next.literal_as_string;
-
-		if (!expect(tokenid::identifier) || !expect(']'))
-			return false;
-
-		if (attribute == "unroll")
-			loop_control |= spv::LoopControlUnrollMask;
-		else if (attribute == "loop")
-			loop_control |= spv::LoopControlDontUnrollMask;
-		else if (attribute == "branch")
-			selection_control |= spv::SelectionControlDontFlattenMask;
-		else if (attribute == "flatten")
-			selection_control |= spv::SelectionControlFlattenMask;
-		else
-			warning(_token.location, 0, "unknown attribute");
-	}
-
-	// Parse statement block
-	if (peek('{'))
-		return parse_statement_block(section, scoped);
-
-	// Ignore empty statements
-	if (accept(';'))
-		return true;
-
-	#pragma region If
-	if (accept(tokenid::if_))
-	{
-		const spv::Id true_label = make_id();
-		const spv::Id false_label = make_id();
-		const spv::Id merge_label = make_id();
-
-		access_chain condition;
-		if (!expect('(') || !parse_expression(section, condition) || !expect(')'))
-			return false;
-		else if (!condition.type.is_scalar())
-			return error(condition.location, 3019, "if statement conditional expressions must evaluate to a scalar"), false;
-
-		// Load condition value and convert to 'OpTypeBool' as required by 'OpBranchConditional'
-		condition.push_cast({ spv::OpTypeBool, 32, 1, 1 }, true);
-		const spv::Id condition_value = access_chain_load(section, condition);
-
-		add_node_without_result(section, _token.location, spv::OpSelectionMerge)
-			.add(merge_label) // Merge Block
-			.add(selection_control); // Selection Control
-
-		leave_block_and_branch_conditional(section, condition_value, true_label, false_label);
-
-		{ // Then block of the if statement
-			enter_block(section, true_label);
-
-			if (!parse_statement(section))
-				return false;
-
-			leave_block_and_branch(section, merge_label);
-		}
-		{ // Else block of the if statement
-			enter_block(section, false_label);
-
-			if (accept(tokenid::else_) && !parse_statement(section))
-				return false;
-
-			leave_block_and_branch(section, merge_label);
-		}
-
-		enter_block(section, merge_label);
-
-		return true;
-	}
-	#pragma endregion
-
-	#pragma region Switch
-	if (accept(tokenid::switch_))
-	{
-		const auto location = _token.location;
-
-		const spv::Id merge_label = make_id();
-		spv::Id default_label = merge_label;
-		std::vector<spv::Id> case_literal_and_labels;
-
-		access_chain selector;
-		if (!expect('(') || !parse_expression(section, selector) || !expect(')'))
-			return false;
-		else if (!selector.type.is_scalar())
-			return error(selector.location, 3019, "switch statement expression must evaluate to a scalar"), false;
-
-		// Load selector value and convert to 'OpTypeInt' as required by 'OpSwitch'
-		selector.push_cast({ spv::OpTypeInt, 32, 1, 1 }, true);
-		const spv::Id selector_value = access_chain_load(section, selector);
-
-		add_node_without_result(section, location, spv::OpSelectionMerge)
-			.add(merge_label) // Merge Block
-			.add(selection_control); // Selection Control
-
-		size_t switch_index = add_node_without_result(section, _token.location, spv::OpSwitch)
-			.add(selector_value).index;
-
-		if (!expect('{'))
-			return false;
-
-		_loop_break_target_stack.push_back(merge_label);
-
-		spv::Id current_block = 0;
-		unsigned int num_case_labels = 0;
-
-		while (!peek('}') && !peek(tokenid::end_of_file))
-		{
-			if (peek(tokenid::case_) || peek(tokenid::default_))
-			{
-				current_block = make_id();
-
-				// Handle fall-through case
-				if (num_case_labels != 0)
-					leave_block_and_branch(section, current_block);
-
-				enter_block(section, current_block);
-			}
-
-			while (accept(tokenid::case_) || accept(tokenid::default_))
-			{
-				if (_token.id == tokenid::case_)
-				{
-					access_chain case_label;
-					if (!parse_expression(_temporary, case_label))
-					{
-						_loop_break_target_stack.pop_back();
-						return false;
-					}
-
-					if (!case_label.type.is_scalar() || !case_label.is_constant)
-					{
-						error(case_label.location, 3020, "non-numeric case expression");
-
-						_loop_break_target_stack.pop_back();
-						return false;
-					}
-
-					case_literal_and_labels.push_back(case_label.constant.as_uint[0]);
-					case_literal_and_labels.push_back(current_block);
-				}
-				else
-				{
-					default_label = current_block;
-				}
-
-				if (!expect(':'))
-				{
-					_loop_break_target_stack.pop_back();
-					return false;
-				}
-
-				num_case_labels++;
-			}
-
-			if (!parse_statement(section))
-			{
-				_loop_break_target_stack.pop_back();
-				return false;
-			}
-		}
-
-		if (num_case_labels == 0)
-			warning(location, 5002, "switch statement contains no 'case' or 'default' labels");
-
-		// Add all case labels to the switch instruction
-		section.instructions[switch_index].add(default_label);
-		for (spv::Id operand : case_literal_and_labels)
-			section.instructions[switch_index].add(operand);
-
-		enter_block(section, merge_label);
-
-		_loop_break_target_stack.pop_back();
-
-		return expect('}');
-	}
-	#pragma endregion
-
-	#pragma region For
-	if (accept(tokenid::for_))
-	{
-		const auto location = _token.location;
-
-		if (!expect('('))
-			return false;
-
-		_symbol_table->enter_scope();
-		on_scope_exit _([this]() { _symbol_table->leave_scope(); });
-
-		// Parse initializer first
-		if (type_info type; parse_type(type))
-		{
-			unsigned int count = 0;
-			do { // There may be multiple declarations behind a type, so loop through them
-				if (count++ > 0 && !expect(','))
-					return false;
-				if (!expect(tokenid::identifier) || !parse_variable_declaration(type, _token.literal_as_string, section))
-					return false;
-			} while (!peek(';'));
-		}
-		else // Initializer can also contain an expression if not a variable declaration list
-		{
-			access_chain expression;
-			parse_expression(section, expression);
-		}
-
-		if (!expect(';'))
-			return false;
-
-		const spv::Id header_label = make_id(); // Pointer to the loop merge instruction
-		const spv::Id loop_label = make_id(); // Pointer to the main loop body block
-		const spv::Id merge_label = make_id(); // Pointer to the end of the loop
-		const spv::Id continue_label = make_id(); // Pointer to the continue block
-		const spv::Id condition_label = make_id(); // Pointer to the condition check
-
-		leave_block_and_branch(section, header_label);
-
-		{ // Begin loop block
-			enter_block(section, header_label);
-
-			add_node_without_result(section, location, spv::OpLoopMerge)
-				.add(merge_label) // Merge Block
-				.add(continue_label) // Continue Target
-				.add(loop_control); // Loop Control
-
-			leave_block_and_branch(section, condition_label);
-		}
-
-		{ // Parse condition block
-			enter_block(section, condition_label);
-
-			access_chain condition;
-			parse_expression(section, condition); // It is valid for there to be no condition expression, so ignore result
-
-			if (!expect(';'))
-				return false;
-			else if (!condition.type.is_scalar())
-				return error(condition.location, 3019, "scalar value expected"), false;
-
-			// Evaluate condition and branch to the right target
-			const spv::Id condition_value = access_chain_load(section, condition);
-
-			leave_block_and_branch_conditional(section, condition_value, loop_label, merge_label);
-		}
-
-		spv_section continue_section;
-		{ // Parse loop continue block into separate section so it can be appended to the end down the line
-			enter_block(continue_section, continue_label);
-
-			access_chain continue_exp;
-			parse_expression(continue_section, continue_exp); // It is valid for there to be no continue expression, so ignore result
-
-			if (!expect(')'))
-				return false;
-
-			// Branch back to the loop header at the end of the continue block
-			leave_block_and_branch(continue_section, header_label);
-		}
-
-		{ // Parse loop body block
-			enter_block(section, loop_label);
-
-			_loop_break_target_stack.push_back(merge_label);
-			_loop_continue_target_stack.push_back(continue_label);
-
-			if (!parse_statement(section, false))
-			{
-				_loop_break_target_stack.pop_back();
-				_loop_continue_target_stack.pop_back();
-				return false;
-			}
-
-			_loop_break_target_stack.pop_back();
-			_loop_continue_target_stack.pop_back();
-
-			leave_block_and_branch(section, continue_label);
-		}
-
-		// Append continue section after the main block
-		section.instructions.insert(section.instructions.end(),
-			continue_section.instructions.begin(), continue_section.instructions.end());
-
-		// Add merge block label to the end of the loop
-		enter_block(section, merge_label);
-
-		return true;
-	}
-	#pragma endregion
-
-	#pragma region While
-	if (accept(tokenid::while_))
-	{
-		_symbol_table->enter_scope();
-		on_scope_exit _([this]() { _symbol_table->leave_scope(); });
-
-		const spv::Id header_label = make_id();
-		const spv::Id loop_label = make_id();
-		const spv::Id merge_label = make_id();
-		const spv::Id continue_label = make_id();
-		const spv::Id condition_label = make_id();
-
-		// End current block by branching to the next label
-		leave_block_and_branch(section, header_label);
-
-		{ // Begin loop block
-			enter_block(section, header_label);
-
-			add_node_without_result(section, _token.location, spv::OpLoopMerge)
-				.add(merge_label) // Merge Block
-				.add(continue_label) // Continue Target
-				.add(loop_control); // Loop Control
-
-			leave_block_and_branch(section, condition_label);
-		}
-
-		{ // Parse condition block
-			enter_block(section, condition_label);
-
-			access_chain condition;
-			if (!expect('(') || !parse_expression(section, condition) || !expect(')'))
-				return false;
-			else if (!condition.type.is_scalar())
-				return error(condition.location, 3019, "scalar value expected"), false;
-
-			// Evaluate condition and branch to the right target
-			const spv::Id condition_value = access_chain_load(section, condition);
-
-			leave_block_and_branch_conditional(section, condition_value, loop_label, merge_label);
-		}
-
-		{ // Parse loop body block
-			enter_block(section, loop_label);
-
-			_loop_break_target_stack.push_back(merge_label);
-			_loop_continue_target_stack.push_back(continue_label);
-
-			if (!parse_statement(section, false))
-			{
-				_symbol_table->leave_scope();
-				_loop_break_target_stack.pop_back();
-				_loop_continue_target_stack.pop_back();
-				return false;
-			}
-
-			_loop_break_target_stack.pop_back();
-			_loop_continue_target_stack.pop_back();
-
-			leave_block_and_branch(section, continue_label);
-		}
-
-		{ // Branch back to the loop header in empty continue block
-			enter_block(section, continue_label);
-
-			leave_block_and_branch(section, header_label);
-		}
-
-		// Add merge block label to the end of the loop
-		enter_block(section, merge_label);
-
-		return true;
-	}
-	#pragma endregion
-
-	#pragma region DoWhile
-	if (accept(tokenid::do_))
-	{
-		const spv::Id header_label = make_id();
-		const spv::Id loop_label = make_id();
-		const spv::Id merge_label = make_id();
-		const spv::Id continue_label = make_id();
-
-		// End current block by branching to the next label
-		leave_block_and_branch(section, header_label);
-
-		{ // Begin loop block
-			enter_block(section, header_label);
-
-			add_node_without_result(section, _token.location, spv::OpLoopMerge)
-				.add(merge_label) // Merge Block
-				.add(continue_label) // Continue Target
-				.add(loop_control); // Loop Control
-
-			leave_block_and_branch(section, loop_label);
-		}
-
-		{ // Parse loop body block
-			enter_block(section, loop_label);
-
-			_loop_break_target_stack.push_back(merge_label);
-			_loop_continue_target_stack.push_back(continue_label);
-
-			if (!parse_statement(section))
-			{
-				_loop_break_target_stack.pop_back();
-				_loop_continue_target_stack.pop_back();
-				return false;
-			}
-
-			_loop_break_target_stack.pop_back();
-			_loop_continue_target_stack.pop_back();
-
-			leave_block_and_branch(section, continue_label);
-		}
-
-		{ // Continue block does the condition evaluation
-			enter_block(section, continue_label);
-
-			access_chain condition;
-			if (!expect(tokenid::while_) || !expect('(') || !parse_expression(section, condition) || !expect(')') || !expect(';'))
-				return false;
-			else if (!condition.type.is_scalar())
-				return error(condition.location, 3019, "scalar value expected"), false;
-
-			const spv::Id condition_value = access_chain_load(section, condition);
-
-			leave_block_and_branch_conditional(section, condition_value, header_label, merge_label);
-		}
-
-		// Add merge block label to the end of the loop
-		enter_block(section, merge_label);
-
-		return true;
-	}
-	#pragma endregion
-
-	#pragma region Break
-	if (accept(tokenid::break_))
-	{
-		if (_loop_break_target_stack.empty())
-			return error(_token.location, 3518, "break must be inside loop"), false;
-
-		// Branch to the break target of the inner most loop on the stack
-		leave_block_and_branch(section, _loop_break_target_stack.back());
-
-		return expect(';');
-	}
-	#pragma endregion
-
-	#pragma region Continue
-	if (accept(tokenid::continue_))
-	{
-		if (_loop_continue_target_stack.empty())
-			return error(_token.location, 3519, "continue must be inside loop"), false;
-
-		// Branch to the continue target of the inner most loop on the stack
-		leave_block_and_branch(section, _loop_continue_target_stack.back());
-
-		return expect(';');
-	}
-	#pragma endregion
-
-	#pragma region Return
-	if (accept(tokenid::return_))
-	{
-		const auto parent = _symbol_table->current_parent();
-		const auto location = _token.location;
-
-		assert(parent != nullptr);
-
-		if (!peek(';'))
-		{
-			access_chain return_exp;
-			if (!parse_expression(section, return_exp))
-				return false;
-
-			if (parent->return_type.is_void())
-				// Consume the semicolon that follows the return expression so that parsing may continue
-				return error(location, 3079, "void functions cannot return a value"), accept(';'), false;
-			if (!type_info::rank(return_exp.type, parent->return_type))
-				return error(location, 3017, "expression does not match function return type"), accept(';'), false;
-
-			// Load return value and perform implicit cast to function return type
-			return_exp.push_cast(parent->return_type, true);
-			const spv::Id return_value = access_chain_load(section, return_exp);
-
-			leave_block_and_return(section, return_value);
-		}
-		else if (!parent->return_type.is_void())
-		{
-			// No return value was found, but the function expects one
-			error(location, 3080, "function must return a value");
-
-			// Consume the semicolon that follows the return expression so that parsing may continue
-			accept(';');
-
-			return false;
-		}
-		else
-		{
-			leave_block_and_return(section);
-		}
-
-		return expect(';');
-	}
-	#pragma endregion
-
-	#pragma region Discard
-	if (accept(tokenid::discard_))
-	{
-		// Leave the current function block
-		leave_block_and_kill(section);
-
-		return expect(';');
-	}
-	#pragma endregion
-
-	#pragma region Declaration
-	const auto location = _token_next.location;
-
-	// Handle variable declarations
-	if (type_info type; parse_type(type))
-	{
-		unsigned int count = 0;
-		do { // There may be multiple declarations behind a type, so loop through them
-			if (count++ > 0 && !expect(','))
-				return false;
-			if (!expect(tokenid::identifier) || !parse_variable_declaration(type, _token.literal_as_string, section))
-				return false;
-		} while (!peek(';'));
-
-		return expect(';');
-	}
-	#pragma endregion
-
-	// Handle expression statements
-	if (access_chain expression; parse_expression(section, expression))
-		return expect(';');
-
-	// No token should come through here, since all statements and expressions should have been handled above, so this is an error in the syntax
-	error(_token_next.location, 3000, "syntax error: unexpected '" + token::id_to_name(_token_next.id) + "'");
-
-	// Gracefully consume any remaining characters until the statement would usually end, so that parsing may continue despite the error
-	consume_until(';');
-
-	return false;
-}
-bool reshadefx::parser::parse_statement_block(spv_section &section, bool scoped)
-{
-	if (!expect('{'))
-		return false;
-
-	if (scoped)
-		_symbol_table->enter_scope();
-
-	// Parse statements until the end of the block is reached
-	while (!peek('}') && !peek(tokenid::end_of_file))
-	{
-		if (!parse_statement(section))
-		{
-			if (scoped)
-				_symbol_table->leave_scope();
-
-			// Ignore the rest of this block
-			unsigned level = 0;
-
-			while (!peek(tokenid::end_of_file))
-			{
-				if (accept('{'))
-				{
-					++level;
-				}
-				else if (accept('}'))
-				{
-					if (level-- == 0)
-						break;
-				} // These braces are necessary to match the 'else' to the correct 'if' statement
-				else
-				{
-					consume();
-				}
-			}
-
-			return false;
-		}
-	}
-
-	if (scoped)
-		_symbol_table->leave_scope();
-
-	return expect('}');
-}
-
-// Declarations
-bool reshadefx::parser::parse_top_level()
-{
-	if (accept(tokenid::namespace_))
-	{
-		// Anonymous namespaces are not supported right now
-		if (!expect(tokenid::identifier))
-			return false;
-
-		const auto name = _token.literal_as_string;
-
-		if (!expect('{'))
-			return false;
-
-		_symbol_table->enter_namespace(name);
-
-		bool success = true;
-
-		// Recursively parse top level statements until the namespace is closed again
-		while (!peek('}')) // Empty namespaces are valid, so use 'while' instead of 'do' loop
-		{
-			if (!parse_top_level())
-			{
-				success = false;
-				break;
-			}
-		}
-
-		_symbol_table->leave_namespace();
-
-		return success && expect('}');
-	}
-	else if (peek(tokenid::struct_))
-	{
-		if (!parse_struct() || !expect(';'))
-			return false;
-	}
-	else if (peek(tokenid::technique))
-	{
-		if (technique_properties technique; parse_technique(technique))
-			techniques.push_back(std::move(technique));
-		else
-			return false;
-	}
-	else if (type_info type; parse_type(type))
-	{
-		if (!expect(tokenid::identifier))
-			return false;
-
-		if (peek('('))
-		{
-			if (!parse_function_declaration(type, _token.literal_as_string))
-				return false;
-		}
-		else
-		{
-			unsigned int count = 0;
-
-			do
-			{
-				if (count++ > 0 && !(expect(',') && expect(tokenid::identifier)))
-					return false;
-
-				if (!parse_variable_declaration(type, _token.literal_as_string, _variables, true))
-				{
-					consume_until(';');
-					return false;
-				}
-			} while (!peek(';'));
-
-			if (!expect(';'))
-				return false;
-		}
-	}
-	else if (!accept(';')) // Ignore single semicolons in the source
-	{
-		consume();
-
-		error(_token.location, 3000, "syntax error: unexpected '" + token::id_to_name(_token.id) + "'");
-		return false;
-	}
-
-	return true;
-}
-
-bool reshadefx::parser::parse_array(type_info &type)
-{
-	type.array_length = 0;
-
-	if (accept('['))
-	{
-		if (accept(']'))
-		{
-			type.array_length = -1;
-		}
-		else if (access_chain expression; parse_expression(_temporary, expression) && expect(']'))
-		{
-			if (!expression.is_constant || !(expression.type.is_scalar() && expression.type.is_integral()))
-				return error(expression.location, 3058, "array dimensions must be literal scalar expressions"), false;
-
-			type.array_length = expression.constant.as_uint[0];
-
-			if (type.array_length < 1 || type.array_length > 65536)
-				return error(expression.location, 3059, "array dimension must be between 1 and 65536"), false;
-		}
-		else
-		{
-			return false;
-		}
-	}
-
-	return true;
-}
-bool reshadefx::parser::parse_annotations(std::unordered_map<std::string, reshade::variant> &annotations)
-{
-	if (!accept('<'))
-		return true;
-
-	bool success = true;
-
-	while (!peek('>'))
-	{
-		type_info type;
-
-		if (accept_type_class(type))
-			warning(_token.location, 4717, "type prefixes for annotations are deprecated");
-
-		if (!expect(tokenid::identifier))
-			return false;
-
-		const auto name = _token.literal_as_string;
-
-		access_chain expression;
-		if (!expect('=') || !parse_expression_unary(_temporary, expression) || !expect(';'))
-			return false;
-
-		if (!expression.is_constant)
-		{
-			error(expression.location, 3011, "value must be a literal expression");
-			success = false; // Continue parsing annotations despite the error, since the syntax is still correct
-			continue;
-		}
-
-		switch (expression.type.base)
-		{
-		case spv::OpTypeInt:
-		case spv::OpTypeBool:
-			annotations[name] = expression.constant.as_uint[0];
-			break;
-		case spv::OpTypeFloat:
-			annotations[name] = expression.constant.as_float[0];
-			break;
-		case spv::OpString:
-			annotations[name] = expression.constant.as_string;
-			break;
-		}
-	}
-
-	return expect('>') && success;
-}
-
-bool reshadefx::parser::parse_struct()
-{
-	const auto location = _token_next.location;
-
-	if (!accept(tokenid::struct_))
-		return false;
-
-	struct_info info;
-	info.name = accept(tokenid::identifier) ? _token.literal_as_string : "__anonymous_struct_" + std::to_string(location.line) + '_' + std::to_string(location.column);
-	info.unique_name = 'S' + _symbol_table->current_scope().name + info.name;
-	std::replace(info.unique_name.begin(), info.unique_name.end(), ':', '_');
-
-	if (!expect('{'))
-		return false;
-
-	std::vector<spv::Id> member_types;
-
-	while (!peek('}'))
-	{
-		type_info type;
-		if (!parse_type(type))
-			return error(_token_next.location, 3000, "syntax error: unexpected '" + token::id_to_name(_token_next.id) + "', expected struct member type"), consume_until('}'), false;
-
-		if (type.is_void())
-			return error(_token_next.location, 3038, "struct members cannot be void"), consume_until('}'), false;
-		if (type.has(qualifier_in) || type.has(qualifier_out))
-			return error(_token_next.location, 3055, "struct members cannot be declared 'in' or 'out'"), consume_until('}'), false;
-
-		unsigned int count = 0;
-		do {
-			if (count++ > 0 && !expect(','))
-				return consume_until('}'), false;
-
-			if (!expect(tokenid::identifier))
-				return consume_until('}'), false;
-
-			struct_member_info member_info;
-			member_info.name = _token.literal_as_string;
-			member_info.type = type;
-
-			if (!parse_array(member_info.type))
-				return false;
-
-			if (accept(':'))
-			{
-				if (!expect(tokenid::identifier))
-					return consume_until('}'), false;
-
-				member_info.builtin = semantic_to_builtin(_token.literal_as_string);
-			}
-
-			// Add member type to list
-			member_types.push_back(convert_type(member_info.type));
-
-			// Save member name and type for book keeping
-			info.member_list.push_back(std::move(member_info));
-		} while (!peek(';'));
-
-		if (!expect(';'))
-			return consume_until('}'), false;
-	}
-
-	if (member_types.empty())
-		warning(location, 5001, "struct has no members");
-
-	spv_node &node = add_node(_types, _token.location, spv::OpTypeStruct);
-	for (spv::Id type : member_types)
-		node.add(type); // Member type
-
-	info.definition = node.result;
-
-	add_name(info.definition, info.name.c_str());
-
-	for (uint32_t i = 0; i < info.member_list.size(); ++i)
-	{
-		const struct_member_info &member_info = info.member_list[i];
-
-		add_member_name(info.definition, i, member_info.name.c_str());
-
-		if (member_info.builtin != spv::BuiltInMax)
-			add_member_builtin(info.definition, i, member_info.builtin);
-
-		if (member_info.type.has(qualifier_noperspective))
-			add_member_decoration(info.definition, i, spv::DecorationNoPerspective);
-		if (member_info.type.has(qualifier_centroid))
-			add_member_decoration(info.definition, i, spv::DecorationCentroid);
-		if (member_info.type.has(qualifier_nointerpolation))
-			add_member_decoration(info.definition, i, spv::DecorationFlat);
-	}
-
-	const symbol symbol = { spv::OpTypeStruct, info.definition };
-
-	if (!_symbol_table->insert(info.name, symbol, true))
-		return error(_token.location, 3003, "redefinition of '" + info.name + "'"), false;
-
-	return expect('}');
-}
-
-bool reshadefx::parser::parse_function_declaration(type_info &type, std::string name)
-{
-	const auto location = _token.location;
-
-	if (!expect('('))
-		return false;
-	if (type.qualifiers != 0)
-		return error(location, 3047, "function return type cannot have any qualifiers"), false;
-
-	type.qualifiers = qualifier_const; // Function return type is not assignable
-
-	function_info &info = *_functions.emplace_back(new function_info());
-	info.name = name;
-	info.unique_name = 'F' + _symbol_table->current_scope().name + name;
-	std::replace(info.unique_name.begin(), info.unique_name.end(), ':', '_');
-	info.return_type = type;
-
-	info.definition = add_node(info.variables, location, spv::OpFunction, convert_type(type)) // TODO
-		.add(spv::FunctionControlMaskNone) // Function Control
-		.result;
-
-	add_name(info.definition, name.c_str());
-
-	_symbol_table->insert(name, { spv::OpFunction, info.definition, { spv::OpTypeFunction }, &info }, true);
-
-	_symbol_table->enter_scope(&info);
-	on_scope_exit _([this]() { _symbol_table->leave_scope(); });
-
-	while (!peek(')'))
-	{
-		if (!info.parameter_list.empty() && !expect(','))
-			return false;
-
-		struct_member_info param;
-
-		if (!parse_type(param.type))
-			return error(_token_next.location, 3000, "syntax error: unexpected '" + token::id_to_name(_token_next.id) + "', expected parameter type"), false;
-
-		if (!expect(tokenid::identifier))
-			return false;
-
-		param.name = _token.literal_as_string;
-		const auto param_location = _token.location;
-
-		if (param.type.is_void())
-			return error(param_location, 3038, "function parameters cannot be void"), false;
-		if (param.type.has(qualifier_extern))
-			return error(param_location, 3006, "function parameters cannot be declared 'extern'"), false;
-		if (param.type.has(qualifier_static))
-			return error(param_location, 3007, "function parameters cannot be declared 'static'"), false;
-		if (param.type.has(qualifier_uniform))
-			return error(param_location, 3047, "function parameters cannot be declared 'uniform', consider placing in global scope instead"), false;
-
-		if (param.type.has(qualifier_out) && param.type.has(qualifier_const))
-			return error(param_location, 3046, "output parameters cannot be declared 'const'"), false;
-		else if (!param.type.has(qualifier_out))
-			param.type.qualifiers |= qualifier_in;
-
-		if (!parse_array(param.type))
-			return false;
-
-		// Handle parameter type semantic
-		if (accept(':'))
-		{
-			if (!expect(tokenid::identifier))
-				return false;
-
-			param.builtin = semantic_to_builtin(_token.literal_as_string);
-		}
-
-		param.type.is_pointer = true;
-
-		const spv::Id definition = add_node(info.variables, param_location, spv::OpFunctionParameter, convert_type(param.type)).result;
-
-		add_name(definition, param.name.c_str());
-
-		if (!_symbol_table->insert(param.name, { spv::OpVariable, definition, param.type }))
-			return error(param_location, 3003, "redefinition of '" + param.name + "'"), false;
-
-		info.parameter_list.push_back(std::move(param));
-	}
-
-	if (!expect(')'))
-		return false;
-
-	// Handle return type semantic
-	if (accept(':'))
-	{
-		if (!expect(tokenid::identifier))
-			return false;
-		if (type.is_void())
-			return error(_token.location, 3076, "void function cannot have a semantic"), false;
-
-		info.return_builtin = semantic_to_builtin(_token.literal_as_string);
-	}
-
-	lookup_id(info.definition).add(convert_type(info)); // Function Type
-
-	// A function has to start with a new block
-	enter_block(info.variables, make_id());
-
-	if (!parse_statement_block(info.code, false))
-		return false;
-
-	// Add implicit return statement to the end of functions
-	leave_block_and_return(info.code, type.is_void() ? 0 : convert_constant(type, {}));
-
-	add_node_without_result(info.code, location, spv::OpFunctionEnd);
-
-	return true;
-}
-
-bool reshadefx::parser::parse_variable_declaration(type_info &type, std::string name, spv_section &section, bool global)
-{
-	auto location = _token.location;
-
-	if (type.is_void())
-		return error(location, 3038, "variables cannot be void"), false;
-	if (type.has(qualifier_in) || type.has(qualifier_out))
-		return error(location, 3055, "variables cannot be declared 'in' or 'out'"), false;
-
-	// Check that qualifier combinations are valid
-	if (global && type.has(qualifier_static))
-	{
-		if (type.has(qualifier_uniform))
-			return error(location, 3007, "uniform global variables cannot be declared 'static'"), false;
-	}
-	else if (global)
-	{
-		if (!type.has(qualifier_uniform) && !(type.is_texture() || type.is_sampler()))
-			warning(location, 5000, "global variables are considered 'uniform' by default");
-		if (type.has(qualifier_const))
-			return error(location, 3035, "variables which are 'uniform' cannot be declared 'const'"), false;
-
-		// Global variables that are not 'static' are always 'extern' and 'uniform'
-		type.qualifiers |= qualifier_extern | qualifier_uniform;
-	}
-	else
-	{
-		if (type.has(qualifier_extern))
-			return error(location, 3006, "local variables cannot be declared 'extern'"), false;
-		if (type.has(qualifier_uniform))
-			return error(location, 3047, "local variables cannot be declared 'uniform'"), false;
-
-		if (type.is_texture() || type.is_sampler())
-			return error(location, 3038, "local variables cannot be textures or samplers"), false;
-	}
-
-	if (!parse_array(type))
-		return false;
-
-	variable_info info;
-	info.name = name;
-
-	access_chain initializer = {};
-
-	if (accept(':'))
-	{
-		if (!expect(tokenid::identifier))
-			return false;
-		else if (!global) // Only global variables can have a semantic
-			return error(_token.location, 3043, "local variables cannot have semantics"), false;
-
-		info.builtin = semantic_to_builtin(_token.literal_as_string);
-	}
-	else
-	{
-		if (global && !parse_annotations(info.annotation_list))
-			return false;
-
-		if (accept('='))
-		{
-			if (!parse_variable_assignment(section, initializer))
-				return false;
-
-			if (global && !initializer.is_constant)
-				return error(initializer.location, 3011, "initial value must be a literal expression"), false;
-
-			if (!type_info::rank(initializer.type, type))
-				return error(initializer.location, 3017, "initial value does not match variable type"), false;
-			if ((initializer.type.rows < type.rows || initializer.type.cols < type.cols) && !initializer.type.is_scalar())
-				return error(initializer.location, 3017, "cannot implicitly convert these vector types"), false;
-
-			// Perform implicit cast to variable type
-			initializer.push_cast(type, true);
-		}
-		else if (type.is_numeric())
-		{
-			if (type.has(qualifier_const))
-				return error(location, 3012, "missing initial value for '" + name + "'"), false;
-			else if (!type.has(qualifier_uniform) && !type.is_array()) // Zero initialize global variables
-				initializer.reset_to_rvalue(convert_constant(type, {}), type, location);
-		}
-		else if (peek('{')) // Non-numeric variables can have a property block
-		{
-			if (!parse_variable_properties(info))
-				return false;
-		}
-	}
-
-	if (type.is_sampler())
-	{
-		if (!info.texture)
-			return error(location, 3012, "missing 'Texture' property for '" + name + "'"), false;
-
-		//auto image_ptr = lookup_id(info.texture).result_type;
-		//type.definition = lookup_id(image_ptr).operands[1];
-		assert(false); // TODO
-	}
-
-	symbol symbol;
-
-	// Variables with a constant initializer and constant type are actually named constants
-	if (type.is_numeric() && type.has(qualifier_const) && initializer.is_constant)
-	{
-		symbol = { spv::OpConstant, 0, type, nullptr, initializer.constant };
-	}
-	else if (type.is_numeric() && type.has(qualifier_uniform)) // Uniform variables are put into a global uniform buffer structure
-	{
-		// TODO
-		assert(false);
-
-		struct_member_info member;
-		member.name = name;
-		member.type = type;
-		member.builtin = info.builtin;
-
-		_uniforms.member_list.push_back(std::move(member));
-
-		symbol = { spv::OpVariable, 0, type };
-	}
-	else // All other variables are separate entities
-	{
-		const spv::Id initializer_value = access_chain_load(section, initializer);
-
-		spv_section &declaration_section = global ? _variables : _symbol_table->current_parent()->variables;
-
-		type.is_pointer = true;
-
-		spv_node &node = add_node(declaration_section, location, spv::OpVariable, convert_type(type)) // TODO
-			.add(global ? spv::StorageClassPrivate : spv::StorageClassFunction);
-
-		info.definition = node.result;
-
-		if (initializer.is_constant)
-		{
-			node.add(initializer_value); // Optional initializer must be a constant instruction or global variable instruction
-		}
-		else // Non-constant initializers are explicitly stored in the variable at the definition location
-		{
-			assert(!global); // Global variables cannot have a dynamic initializer
-
-			access_chain variable;
-			variable.reset_to_lvalue(info.definition, type, location);
-
-			type.is_pointer = false;
-			access_chain_store(section, variable, initializer_value, type);
-			type.is_pointer = true;
-		}
-
-		add_name(info.definition, name.c_str());
-
-		symbol = { spv::OpVariable, info.definition, type };
-	}
-
-	if (!_symbol_table->insert(name, symbol, global))
-		return error(location, 3003, "redefinition of '" + name + "'"), false;
-
-	return true;
-}
-
-bool reshadefx::parser::parse_variable_assignment(spv_section &section, access_chain &exp)
+bool reshadefx::parser::parse_expression_initializer(spv_basic_block &section, spv_expression &exp)
 {
 #if 0 // TODO
 	if (accept('{'))
@@ -2683,7 +1494,7 @@ bool reshadefx::parser::parse_variable_assignment(spv_section &section, access_c
 				break;
 			}
 
-			if (!parse_variable_assignment(expression))
+			if (!parse_expression_initializer(expression))
 			{
 				consume_until('}');
 
@@ -2713,7 +1524,1077 @@ bool reshadefx::parser::parse_variable_assignment(spv_section &section, access_c
 	return parse_expression_assignment(section, exp);
 }
 
-bool reshadefx::parser::parse_variable_properties(variable_info &props)
+bool reshadefx::parser::parse_annotations(std::unordered_map<std::string, spv_constant> &annotations)
+{
+	if (!accept('<'))
+		return true;
+
+	bool success = true;
+
+	while (!peek('>'))
+	{
+		if (spv_type type; accept_type_class(type))
+			warning(_token.location, 4717, "type prefixes for annotations are deprecated and ignored");
+
+		if (!expect(tokenid::identifier))
+			return false;
+
+		const auto name = _token.literal_as_string;
+
+		spv_basic_block temp_section;
+
+		spv_expression expression;
+		if (!expect('=') || !parse_expression_unary(temp_section, expression) || !expect(';'))
+			return false;
+
+		if (!expression.is_constant)
+		{
+			error(expression.location, 3011, "value must be a literal expression");
+			success = false; // Continue parsing annotations despite the error, since the syntax is still correct
+			continue;
+		}
+
+		annotations[name] = expression.constant;
+	}
+
+	return expect('>') && success;
+}
+
+// -- Statement & Declaration Parsing -- //
+
+bool reshadefx::parser::parse_top_level()
+{
+	if (accept(tokenid::namespace_))
+	{
+		// Anonymous namespaces are not supported right now
+		if (!expect(tokenid::identifier))
+			return false;
+
+		const auto name = _token.literal_as_string;
+
+		if (!expect('{'))
+			return false;
+
+		enter_namespace(name);
+
+		bool success = true;
+		// Recursively parse top level statements until the namespace is closed again
+		while (!peek('}')) // Empty namespaces are valid, so use 'while' instead of 'do' loop
+			if (!parse_top_level())
+				success = false; // Continue parsing even after encountering an error
+
+		leave_namespace();
+
+		return expect('}') && success;
+	}
+	else if (accept(tokenid::struct_)) // Structure keyword found, parse the structure definition
+	{
+		if (!parse_struct() || !expect(';'))
+			return false;
+	}
+	else if (accept(tokenid::technique)) // Technique keyword found, parse the technique definition
+	{
+		if (spv_technique_info technique; parse_technique(technique))
+			techniques.push_back(std::move(technique));
+		else
+			return false;
+	}
+	else if (spv_type type; parse_type(type)) // Type found, this can be both a variable or a function declaration
+	{
+		if (!expect(tokenid::identifier))
+			return false;
+
+		if (peek('('))
+		{
+			// This is definitely a function declaration, so parse it
+			if (!parse_function_declaration(type, _token.literal_as_string))
+				return false;
+		}
+		else
+		{
+			// There may be multiple variable names after the type, handle them all
+			unsigned int count = 0;
+			do {
+				if (count++ > 0 && !(expect(',') && expect(tokenid::identifier)))
+					return false;
+				spv_basic_block temp_section; // Global variables can't have non-constant initializers, so don't need a valid section as input
+				if (!parse_variable_declaration(type, _token.literal_as_string, temp_section, true))
+					return consume_until(';'), false; // Skip the rest of the statement in case of an error
+			} while (!peek(';'));
+
+			if (!expect(';')) // Variable declarations are finished with a semicolon
+				return false;
+		}
+	}
+	else if (!accept(';')) // Ignore single semicolons in the source
+	{
+		consume(); // Unexpected token in source stream, consume and report an error about it
+		error(_token.location, 3000, "syntax error: unexpected '" + token::id_to_name(_token.id) + "'");
+		return false;
+	}
+
+	return true;
+}
+
+bool reshadefx::parser::parse_statement(spv_basic_block &section, bool scoped)
+{
+	unsigned int loop_control = spv::LoopControlMaskNone;
+	unsigned int selection_control = spv::SelectionControlMaskNone;
+
+	// Read any loop and branch control attributes first
+	while (accept('['))
+	{
+		const auto attribute = _token_next.literal_as_string;
+
+		if (!expect(tokenid::identifier) || !expect(']'))
+			return false;
+
+		if (attribute == "unroll")
+			loop_control |= spv::LoopControlUnrollMask;
+		else if (attribute == "loop")
+			loop_control |= spv::LoopControlDontUnrollMask;
+		else if (attribute == "branch")
+			selection_control |= spv::SelectionControlDontFlattenMask;
+		else if (attribute == "flatten")
+			selection_control |= spv::SelectionControlFlattenMask;
+		else
+			warning(_token.location, 0, "unknown attribute");
+	}
+
+	// Parse statement block
+	if (peek('{'))
+		return parse_statement_block(section, scoped);
+	// Ignore empty statements
+	else if (accept(';'))
+		return true;
+
+	// Most statements with the exception of declarations are only valid inside functions
+	if (_current_function != std::numeric_limits<size_t>::max())
+	{
+		#pragma region If
+		if (accept(tokenid::if_))
+		{
+			const spv::Id true_label = make_id();
+			const spv::Id false_label = make_id();
+			const spv::Id merge_label = make_id();
+
+			spv_expression condition;
+			if (!expect('(') || !parse_expression(section, condition) || !expect(')'))
+				return false;
+			else if (!condition.type.is_scalar())
+				return error(condition.location, 3019, "if statement conditional expressions must evaluate to a scalar"), false;
+
+			// Load condition and convert to boolean value as required by 'OpBranchConditional'
+			add_cast_operation(condition, { spv_type::datatype_bool, 1, 1 });
+			const spv::Id condition_value = access_chain_load(section, condition);
+
+			add_node_without_result(section, _token.location, spv::OpSelectionMerge)
+				.add(merge_label) // Merge Block
+				.add(selection_control); // Selection Control
+
+			leave_block_and_branch_conditional(section, condition_value, true_label, false_label);
+
+			{ // Then block of the if statement
+				enter_block(section, true_label);
+
+				if (!parse_statement(section, true))
+					return false;
+
+				leave_block_and_branch(section, merge_label);
+			}
+			{ // Else block of the if statement
+				enter_block(section, false_label);
+
+				if (accept(tokenid::else_) && !parse_statement(section, true))
+					return false;
+
+				leave_block_and_branch(section, merge_label);
+			}
+
+			enter_block(section, merge_label);
+
+			return true;
+		}
+		#pragma endregion
+
+		#pragma region Switch
+		if (accept(tokenid::switch_))
+		{
+			const auto location = _token.location;
+
+			const spv::Id merge_label = make_id();
+			spv::Id default_label = merge_label;
+			std::vector<spv::Id> case_literal_and_labels;
+
+			spv_expression selector;
+			if (!expect('(') || !parse_expression(section, selector) || !expect(')'))
+				return false;
+			else if (!selector.type.is_scalar())
+				return error(selector.location, 3019, "switch statement expression must evaluate to a scalar"), false;
+
+			// Load selector and convert to integral value as required by 'OpSwitch'
+			add_cast_operation(selector, { spv_type::datatype_int, 1, 1 });
+			const spv::Id selector_value = access_chain_load(section, selector);
+
+			add_node_without_result(section, location, spv::OpSelectionMerge)
+				.add(merge_label) // Merge Block
+				.add(selection_control); // Selection Control
+
+			_current_block = 0; // A switch statement leaves the current control flow block
+			spv_instruction &switch_node = add_node_without_result(section, _token.location, spv::OpSwitch)
+				.add(selector_value);
+
+			if (!expect('{'))
+				return false;
+
+			_loop_break_target_stack.push_back(merge_label);
+			on_scope_exit _([this]() { _loop_break_target_stack.pop_back(); });
+
+			spv::Id current_block = 0;
+			unsigned int num_case_labels = 0;
+
+			spv_basic_block switch_body_block;
+
+			while (!peek('}') && !peek(tokenid::end_of_file))
+			{
+				if (peek(tokenid::case_) || peek(tokenid::default_))
+				{
+					current_block = make_id();
+
+					// Handle fall-through case
+					if (num_case_labels != 0)
+						leave_block_and_branch(switch_body_block, current_block);
+
+					enter_block(switch_body_block, current_block);
+				}
+
+				while (accept(tokenid::case_) || accept(tokenid::default_))
+				{
+					if (_token.id == tokenid::case_)
+					{
+						spv_expression case_label;
+						if (!parse_expression(switch_body_block, case_label))
+							return false;
+						else if (!case_label.type.is_scalar() || !case_label.is_constant)
+							return error(case_label.location, 3020, "non-numeric case expression"), false;
+
+						case_literal_and_labels.push_back(case_label.constant.as_uint[0]); // This can be floating point too, which are casted here via the constant union
+						case_literal_and_labels.push_back(current_block);
+					}
+					else
+					{
+						default_label = current_block;
+					}
+
+					if (!expect(':'))
+						return false;
+
+					num_case_labels++;
+				}
+
+				if (!parse_statement(switch_body_block, true))
+					return false;
+			}
+
+			if (num_case_labels == 0)
+				warning(location, 5002, "switch statement contains no 'case' or 'default' labels");
+
+			// Add all case labels to the switch instruction
+			switch_node.add(default_label);
+			for (spv::Id operand : case_literal_and_labels)
+				switch_node.add(operand);
+
+			section.instructions.insert(section.instructions.end(), switch_body_block.instructions.begin(), switch_body_block.instructions.end());
+
+			enter_block(section, merge_label);
+
+			return expect('}');
+		}
+		#pragma endregion
+
+		#pragma region For
+		if (accept(tokenid::for_))
+		{
+			const auto location = _token.location;
+
+			if (!expect('('))
+				return false;
+
+			enter_scope();
+			on_scope_exit _([this]() { leave_scope(); });
+
+			// Parse initializer first
+			if (spv_type type; parse_type(type))
+			{
+				unsigned int count = 0;
+				do { // There may be multiple declarations behind a type, so loop through them
+					if (count++ > 0 && !expect(','))
+						return false;
+					if (!expect(tokenid::identifier) || !parse_variable_declaration(type, _token.literal_as_string, section))
+						return false;
+				} while (!peek(';'));
+			}
+			else // Initializer can also contain an expression if not a variable declaration list
+			{
+				spv_expression expression;
+				parse_expression(section, expression);
+			}
+
+			if (!expect(';'))
+				return false;
+
+			const spv::Id header_label = make_id(); // Pointer to the loop merge instruction
+			const spv::Id loop_label = make_id(); // Pointer to the main loop body block
+			const spv::Id merge_label = make_id(); // Pointer to the end of the loop
+			const spv::Id continue_label = make_id(); // Pointer to the continue block
+			const spv::Id condition_label = make_id(); // Pointer to the condition check
+
+			leave_block_and_branch(section, header_label);
+
+			{ // Begin loop block
+				enter_block(section, header_label);
+
+				add_node_without_result(section, location, spv::OpLoopMerge)
+					.add(merge_label) // Merge Block
+					.add(continue_label) // Continue Target
+					.add(loop_control); // Loop Control
+
+				leave_block_and_branch(section, condition_label);
+			}
+
+			{ // Parse condition block
+				enter_block(section, condition_label);
+
+				spv_expression condition;
+				if (parse_expression(section, condition))
+				{
+					if (!condition.type.is_scalar())
+						return error(condition.location, 3019, "scalar value expected"), false;
+
+					// Evaluate condition and branch to the right target
+					add_cast_operation(condition, { spv_type::datatype_bool, 1, 1 });
+					const spv::Id condition_value = access_chain_load(section, condition);
+
+					leave_block_and_branch_conditional(section, condition_value, loop_label, merge_label);
+				}
+				else // It is valid for there to be no condition expression
+				{
+					leave_block_and_branch(section, loop_label);
+				}
+
+				if (!expect(';'))
+					return false;
+			}
+
+			spv_basic_block continue_block;
+			{ // Parse loop continue block into separate section so it can be appended to the end down the line
+				enter_block(continue_block, continue_label);
+
+				spv_expression continue_exp;
+				parse_expression(continue_block, continue_exp); // It is valid for there to be no continue expression, so ignore result
+
+				if (!expect(')'))
+					return false;
+
+				// Branch back to the loop header at the end of the continue block
+				leave_block_and_branch(continue_block, header_label);
+			}
+
+			{ // Parse loop body block
+				enter_block(section, loop_label);
+
+				_loop_break_target_stack.push_back(merge_label);
+				_loop_continue_target_stack.push_back(continue_label);
+
+				if (!parse_statement(section, false))
+				{
+					_loop_break_target_stack.pop_back();
+					_loop_continue_target_stack.pop_back();
+					return false;
+				}
+
+				_loop_break_target_stack.pop_back();
+				_loop_continue_target_stack.pop_back();
+
+				leave_block_and_branch(section, continue_label);
+			}
+
+			// Append continue section after the main block
+			section.instructions.insert(section.instructions.end(), continue_block.instructions.begin(), continue_block.instructions.end());
+
+			// Add merge block label to the end of the loop
+			enter_block(section, merge_label);
+
+			return true;
+		}
+		#pragma endregion
+
+		#pragma region While
+		if (accept(tokenid::while_))
+		{
+			enter_scope();
+			on_scope_exit _([this]() { leave_scope(); });
+
+			const spv::Id header_label = make_id();
+			const spv::Id loop_label = make_id();
+			const spv::Id merge_label = make_id();
+			const spv::Id continue_label = make_id();
+			const spv::Id condition_label = make_id();
+
+			// End current block by branching to the next label
+			leave_block_and_branch(section, header_label);
+
+			{ // Begin loop block
+				enter_block(section, header_label);
+
+				add_node_without_result(section, _token.location, spv::OpLoopMerge)
+					.add(merge_label) // Merge Block
+					.add(continue_label) // Continue Target
+					.add(loop_control); // Loop Control
+
+				leave_block_and_branch(section, condition_label);
+			}
+
+			{ // Parse condition block
+				enter_block(section, condition_label);
+
+				spv_expression condition;
+				if (!expect('(') || !parse_expression(section, condition) || !expect(')'))
+					return false;
+				else if (!condition.type.is_scalar())
+					return error(condition.location, 3019, "scalar value expected"), false;
+
+				// Evaluate condition and branch to the right target
+				add_cast_operation(condition, { spv_type::datatype_bool, 1, 1 });
+				const spv::Id condition_value = access_chain_load(section, condition);
+
+				leave_block_and_branch_conditional(section, condition_value, loop_label, merge_label);
+			}
+
+			{ // Parse loop body block
+				enter_block(section, loop_label);
+
+				_loop_break_target_stack.push_back(merge_label);
+				_loop_continue_target_stack.push_back(continue_label);
+
+				if (!parse_statement(section, false))
+				{
+					_loop_break_target_stack.pop_back();
+					_loop_continue_target_stack.pop_back();
+					return false;
+				}
+
+				_loop_break_target_stack.pop_back();
+				_loop_continue_target_stack.pop_back();
+
+				leave_block_and_branch(section, continue_label);
+			}
+
+			{ // Branch back to the loop header in empty continue block
+				enter_block(section, continue_label);
+
+				leave_block_and_branch(section, header_label);
+			}
+
+			// Add merge block label to the end of the loop
+			enter_block(section, merge_label);
+
+			return true;
+		}
+		#pragma endregion
+
+		#pragma region DoWhile
+		if (accept(tokenid::do_))
+		{
+			const spv::Id header_label = make_id();
+			const spv::Id loop_label = make_id();
+			const spv::Id merge_label = make_id();
+			const spv::Id continue_label = make_id();
+
+			// End current block by branching to the next label
+			leave_block_and_branch(section, header_label);
+
+			{ // Begin loop block
+				enter_block(section, header_label);
+
+				add_node_without_result(section, _token.location, spv::OpLoopMerge)
+					.add(merge_label) // Merge Block
+					.add(continue_label) // Continue Target
+					.add(loop_control); // Loop Control
+
+				leave_block_and_branch(section, loop_label);
+			}
+
+			{ // Parse loop body block
+				enter_block(section, loop_label);
+
+				_loop_break_target_stack.push_back(merge_label);
+				_loop_continue_target_stack.push_back(continue_label);
+
+				if (!parse_statement(section, true))
+				{
+					_loop_break_target_stack.pop_back();
+					_loop_continue_target_stack.pop_back();
+					return false;
+				}
+
+				_loop_break_target_stack.pop_back();
+				_loop_continue_target_stack.pop_back();
+
+				leave_block_and_branch(section, continue_label);
+			}
+
+			{ // Continue block does the condition evaluation
+				enter_block(section, continue_label);
+
+				spv_expression condition;
+				if (!expect(tokenid::while_) || !expect('(') || !parse_expression(section, condition) || !expect(')') || !expect(';'))
+					return false;
+				else if (!condition.type.is_scalar())
+					return error(condition.location, 3019, "scalar value expected"), false;
+
+				// Evaluate condition and branch to the right target
+				add_cast_operation(condition, { spv_type::datatype_bool, 1, 1 });
+				const spv::Id condition_value = access_chain_load(section, condition);
+
+				leave_block_and_branch_conditional(section, condition_value, header_label, merge_label);
+			}
+
+			// Add merge block label to the end of the loop
+			enter_block(section, merge_label);
+
+			return true;
+		}
+		#pragma endregion
+
+		#pragma region Break
+		if (accept(tokenid::break_))
+		{
+			if (_loop_break_target_stack.empty())
+				return error(_token.location, 3518, "break must be inside loop"), false;
+
+			// Branch to the break target of the inner most loop on the stack
+			leave_block_and_branch(section, _loop_break_target_stack.back());
+
+			return expect(';');
+		}
+		#pragma endregion
+
+		#pragma region Continue
+		if (accept(tokenid::continue_))
+		{
+			if (_loop_continue_target_stack.empty())
+				return error(_token.location, 3519, "continue must be inside loop"), false;
+
+			// Branch to the continue target of the inner most loop on the stack
+			leave_block_and_branch(section, _loop_continue_target_stack.back());
+
+			return expect(';');
+		}
+		#pragma endregion
+
+		#pragma region Return
+		if (accept(tokenid::return_))
+		{
+			const auto parent = _functions[_current_function].get();
+			const auto location = _token.location;
+
+			if (!peek(';'))
+			{
+				spv_expression return_exp;
+				if (!parse_expression(section, return_exp))
+					return false;
+
+				if (parent->return_type.is_void())
+					// Consume the semicolon that follows the return expression so that parsing may continue
+					return error(location, 3079, "void functions cannot return a value"), accept(';'), false;
+				if (!spv_type::rank(return_exp.type, parent->return_type))
+					return error(location, 3017, "expression does not match function return type"), accept(';'), false;
+
+				if (return_exp.type.components() > parent->return_type.components())
+					warning(return_exp.location, 3206, "implicit truncation of vector type");
+
+				// Load return value and perform implicit cast to function return type
+				add_cast_operation(return_exp, parent->return_type);
+				const spv::Id return_value = access_chain_load(section, return_exp);
+
+				leave_block_and_return(section, return_value);
+			}
+			else if (!parent->return_type.is_void())
+			{
+				// No return value was found, but the function expects one
+				error(location, 3080, "function must return a value");
+
+				// Consume the semicolon that follows the return expression so that parsing may continue
+				accept(';');
+
+				return false;
+			}
+			else
+			{
+				leave_block_and_return(section, 0);
+			}
+
+			return expect(';');
+		}
+		#pragma endregion
+
+		#pragma region Discard
+		if (accept(tokenid::discard_))
+		{
+			// Leave the current function block
+			leave_block_and_kill(section);
+
+			return expect(';');
+		}
+		#pragma endregion
+	}
+
+	#pragma region Declaration
+	const auto location = _token_next.location;
+
+	// Handle variable declarations
+	if (spv_type type; parse_type(type))
+	{
+		unsigned int count = 0;
+		do { // There may be multiple declarations behind a type, so loop through them
+			if (count++ > 0 && !expect(','))
+				return false;
+			if (!expect(tokenid::identifier) || !parse_variable_declaration(type, _token.literal_as_string, section))
+				return false;
+		} while (!peek(';'));
+
+		return expect(';');
+	}
+	#pragma endregion
+
+	// Handle expression statements
+	if (spv_expression expression; parse_expression(section, expression))
+		return expect(';');
+
+	// No token should come through here, since all statements and expressions should have been handled above, so this is an error in the syntax
+	error(_token_next.location, 3000, "syntax error: unexpected '" + token::id_to_name(_token_next.id) + "'");
+
+	// Gracefully consume any remaining characters until the statement would usually end, so that parsing may continue despite the error
+	consume_until(';');
+
+	return false;
+}
+bool reshadefx::parser::parse_statement_block(spv_basic_block &section, bool scoped)
+{
+	if (!expect('{'))
+		return false;
+
+	if (scoped)
+		enter_scope();
+
+	// Parse statements until the end of the block is reached
+	while (!peek('}') && !peek(tokenid::end_of_file))
+	{
+		if (!parse_statement(section, true))
+		{
+			if (scoped)
+				leave_scope();
+
+			// Ignore the rest of this block
+			unsigned level = 0;
+
+			while (!peek(tokenid::end_of_file))
+			{
+				if (accept('{'))
+				{
+					++level;
+				}
+				else if (accept('}'))
+				{
+					if (level-- == 0)
+						break;
+				} // These braces are necessary to match the 'else' to the correct 'if' statement
+				else
+				{
+					consume();
+				}
+			}
+
+			return false;
+		}
+	}
+
+	if (scoped)
+		leave_scope();
+
+	return expect('}');
+}
+
+bool reshadefx::parser::parse_struct()
+{
+	const auto location = _token.location;
+
+	spv_struct_info info;
+
+	if (accept(tokenid::identifier))
+		info.name = _token.literal_as_string;
+	else
+		info.name = "__anonymous_struct_" + std::to_string(location.line) + '_' + std::to_string(location.column);
+
+	info.unique_name = 'S' + current_scope().name + info.name;
+	std::replace(info.unique_name.begin(), info.unique_name.end(), ':', '_');
+
+	if (!expect('{'))
+		return false;
+
+	std::vector<spv::Id> member_types;
+
+	while (!peek('}'))
+	{
+		spv_type type;
+		if (!parse_type(type))
+			return error(_token_next.location, 3000, "syntax error: unexpected '" + token::id_to_name(_token_next.id) + "', expected struct member type"), consume_until('}'), false;
+
+		if (type.is_void())
+			return error(_token_next.location, 3038, "struct members cannot be void"), consume_until('}'), false;
+		if (type.has(spv_type::qualifier_in) || type.has(spv_type::qualifier_out))
+			return error(_token_next.location, 3055, "struct members cannot be declared 'in' or 'out'"), consume_until('}'), false;
+
+		unsigned int count = 0;
+		do {
+			if (count++ > 0 && !expect(','))
+				return consume_until('}'), false;
+			if (!expect(tokenid::identifier))
+				return consume_until('}'), false;
+
+			spv_struct_member_info member_info;
+			member_info.name = _token.literal_as_string;
+			member_info.type = type;
+
+			if (!parse_array_size(member_info.type))
+				return false;
+
+			if (accept(':'))
+			{
+				if (!expect(tokenid::identifier))
+					return consume_until('}'), false;
+
+				member_info.builtin = semantic_to_builtin(_token.literal_as_string);
+			}
+
+			// Add member type to list
+			member_types.push_back(convert_type(member_info.type));
+
+			// Save member name and type for book keeping
+			info.member_list.push_back(std::move(member_info));
+		} while (!peek(';'));
+
+		if (!expect(';'))
+			return consume_until('}'), false;
+	}
+
+	if (member_types.empty())
+		warning(location, 5001, "struct has no members");
+
+	info.definition = define_struct(location, member_types);
+
+	_structs[info.definition] = info;
+
+	add_name(info.definition, info.name.c_str());
+
+	for (uint32_t i = 0; i < info.member_list.size(); ++i)
+	{
+		const spv_struct_member_info &member_info = info.member_list[i];
+
+		add_member_name(info.definition, i, member_info.name.c_str());
+
+		if (member_info.builtin != spv::BuiltInMax)
+			add_member_builtin(info.definition, i, member_info.builtin);
+
+		//if (member_info.type.is_matrix())
+		//	add_member_decoration(info.definition, i, spv::DecorationRowMajor);
+
+		if (member_info.type.has(spv_type::qualifier_noperspective))
+			add_member_decoration(info.definition, i, spv::DecorationNoPerspective);
+		if (member_info.type.has(spv_type::qualifier_centroid))
+			add_member_decoration(info.definition, i, spv::DecorationCentroid);
+		if (member_info.type.has(spv_type::qualifier_nointerpolation))
+			add_member_decoration(info.definition, i, spv::DecorationFlat);
+	}
+
+	const symbol symbol = { spv::OpTypeStruct, info.definition };
+
+	if (!insert_symbol(info.name, symbol, true))
+		return error(_token.location, 3003, "redefinition of '" + info.name + "'"), false;
+
+	return expect('}');
+}
+
+bool reshadefx::parser::parse_function_declaration(spv_type &type, std::string name)
+{
+	const auto location = _token.location;
+
+	if (!expect('(')) // Functions always have a parameter list
+		return false;
+	if (type.qualifiers != 0)
+		return error(location, 3047, "function return type cannot have any qualifiers"), false;
+
+	type.qualifiers = spv_type::qualifier_const; // Function return type is not assignable
+
+	spv_function_info &info = *_functions.emplace_back(new spv_function_info());
+	info.name = name;
+	info.unique_name = 'F' + current_scope().name + name;
+	std::replace(info.unique_name.begin(), info.unique_name.end(), ':', '_');
+	info.return_type = type;
+
+	// Add function instruction and insert the symbol into the symbol table
+	info.definition = define_function(location, type);
+
+	add_name(info.definition, name.c_str());
+
+	const symbol symbol = { spv::OpFunction, info.definition, { spv_type::datatype_function }, &info };
+	insert_symbol(name, symbol, true);
+
+	// Enter function scope
+	enter_scope(); on_scope_exit _([this]() { leave_scope(); leave_function(); });
+
+	while (!peek(')'))
+	{
+		if (!info.parameter_list.empty() && !expect(','))
+			return false;
+
+		spv_struct_member_info param;
+
+		if (!parse_type(param.type))
+			return error(_token_next.location, 3000, "syntax error: unexpected '" + token::id_to_name(_token_next.id) + "', expected parameter type"), false;
+
+		if (!expect(tokenid::identifier))
+			return false;
+
+		param.name = _token.literal_as_string;
+		const auto param_location = _token.location;
+
+		if (param.type.is_void())
+			return error(param_location, 3038, "function parameters cannot be void"), false;
+		if (param.type.has(spv_type::qualifier_extern))
+			return error(param_location, 3006, "function parameters cannot be declared 'extern'"), false;
+		if (param.type.has(spv_type::qualifier_static))
+			return error(param_location, 3007, "function parameters cannot be declared 'static'"), false;
+		if (param.type.has(spv_type::qualifier_uniform))
+			return error(param_location, 3047, "function parameters cannot be declared 'uniform', consider placing in global scope instead"), false;
+
+		if (param.type.has(spv_type::qualifier_out) && param.type.has(spv_type::qualifier_const))
+			return error(param_location, 3046, "output parameters cannot be declared 'const'"), false;
+		else if (!param.type.has(spv_type::qualifier_out))
+			param.type.qualifiers |= spv_type::qualifier_in;
+
+		if (!parse_array_size(param.type))
+			return false;
+
+		// Handle parameter type semantic
+		if (accept(':'))
+		{
+			if (!expect(tokenid::identifier))
+				return false;
+
+			param.builtin = semantic_to_builtin(_token.literal_as_string);
+		}
+
+		param.type.is_pointer = true;
+
+		const spv::Id definition = define_parameter(param_location, param.type);
+
+		add_name(definition, param.name.c_str());
+
+		if (!insert_symbol(param.name, { spv::OpVariable, definition, param.type }))
+			return error(param_location, 3003, "redefinition of '" + param.name + "'"), false;
+
+		info.parameter_list.push_back(std::move(param));
+	}
+
+	if (!expect(')'))
+		return false;
+
+	// Handle return type semantic
+	if (accept(':'))
+	{
+		if (!expect(tokenid::identifier))
+			return false;
+		if (type.is_void())
+			return error(_token.location, 3076, "void function cannot have a semantic"), false;
+
+		info.return_builtin = semantic_to_builtin(_token.literal_as_string);
+	}
+
+	// A function has to start with a new block
+	enter_block(_functions2[_current_function].variables, make_id());
+
+	if (!parse_statement_block(_functions2[_current_function].definition, false))
+		return false;
+
+	// Add implicit return statement to the end of functions
+	if (_current_block != 0)
+		leave_block_and_return(_functions2[_current_function].definition, type.is_void() ? 0 : convert_constant(type, {}));
+
+	return true;
+}
+
+bool reshadefx::parser::parse_variable_declaration(spv_type &type, std::string name, spv_basic_block &section, bool global)
+{
+	auto location = _token.location;
+
+	if (type.is_void())
+		return error(location, 3038, "variables cannot be void"), false;
+	if (type.has(spv_type::qualifier_in) || type.has(spv_type::qualifier_out))
+		return error(location, 3055, "variables cannot be declared 'in' or 'out'"), false;
+
+	// Check that qualifier combinations are valid
+	if (global && type.has(spv_type::qualifier_static))
+	{
+		if (type.has(spv_type::qualifier_uniform))
+			return error(location, 3007, "uniform global variables cannot be declared 'static'"), false;
+	}
+	else if (global)
+	{
+		if (!type.has(spv_type::qualifier_uniform) && !(type.is_texture() || type.is_sampler()))
+			warning(location, 5000, "global variables are considered 'uniform' by default");
+		if (type.has(spv_type::qualifier_const))
+			return error(location, 3035, "variables which are 'uniform' cannot be declared 'const'"), false;
+
+		// Global variables that are not 'static' are always 'extern' and 'uniform'
+		type.qualifiers |= spv_type::qualifier_extern | spv_type::qualifier_uniform;
+	}
+	else
+	{
+		if (type.has(spv_type::qualifier_extern))
+			return error(location, 3006, "local variables cannot be declared 'extern'"), false;
+		if (type.has(spv_type::qualifier_uniform))
+			return error(location, 3047, "local variables cannot be declared 'uniform'"), false;
+
+		if (type.is_texture() || type.is_sampler())
+			return error(location, 3038, "local variables cannot be textures or samplers"), false;
+	}
+
+	if (!parse_array_size(type))
+		return false;
+
+	spv_variable_info info;
+	info.name = name;
+
+	spv_expression initializer;
+
+	if (accept(':'))
+	{
+		if (!expect(tokenid::identifier))
+			return false;
+		else if (!global) // Only global variables can have a semantic
+			return error(_token.location, 3043, "local variables cannot have semantics"), false;
+
+		info.builtin = semantic_to_builtin(_token.literal_as_string);
+	}
+	else
+	{
+		if (global && !parse_annotations(info.annotation_list))
+			return false;
+
+		if (accept('='))
+		{
+			if (!parse_expression_initializer(section, initializer))
+				return false;
+
+			if (global && !initializer.is_constant)
+				return error(initializer.location, 3011, "initial value must be a literal expression"), false;
+
+			if (!spv_type::rank(initializer.type, type))
+				return error(initializer.location, 3017, "initial value does not match variable type"), false;
+			if ((initializer.type.rows < type.rows || initializer.type.cols < type.cols) && !initializer.type.is_scalar())
+				return error(initializer.location, 3017, "cannot implicitly convert these vector types"), false;
+
+			if (initializer.type.components() > type.components())
+				warning(initializer.location, 3206, "implicit truncation of vector type");
+
+			// Perform implicit cast to variable type
+			add_cast_operation(initializer, type);
+		}
+		else if (type.is_numeric())
+		{
+			if (type.has(spv_type::qualifier_const))
+				return error(location, 3012, "missing initial value for '" + name + "'"), false;
+			else if (!type.has(spv_type::qualifier_uniform) && !type.is_array()) // Zero initialize global variables
+				initializer.reset_to_rvalue(convert_constant(type, {}), type, location);
+		}
+		else if (peek('{')) // Non-numeric variables can have a property block
+		{
+			if (!parse_variable_properties(info))
+				return false;
+		}
+	}
+
+	if (type.is_sampler())
+	{
+		if (!info.texture)
+			return error(location, 3012, "missing 'Texture' property for '" + name + "'"), false;
+
+		//auto image_ptr = lookup_id(info.texture).result_type;
+		//type.definition = lookup_id(image_ptr).operands[1];
+		assert(false); // TODO
+	}
+
+	symbol symbol;
+
+	// Variables with a constant initializer and constant type are actually named constants
+	if (type.is_numeric() && type.has(spv_type::qualifier_const) && initializer.is_constant)
+	{
+		symbol = { spv::OpConstant, 0, type, 0, initializer.constant };
+	}
+	else if (type.is_numeric() && type.has(spv_type::qualifier_uniform)) // Uniform variables are put into a global uniform buffer structure
+	{
+		// TODO
+		assert(false);
+
+		spv_struct_member_info member;
+		member.name = name;
+		member.type = type;
+		member.builtin = info.builtin;
+
+		_uniforms.member_list.push_back(std::move(member));
+
+		symbol = { spv::OpVariable, 0, type };
+	}
+	else // All other variables are separate entities
+	{
+		const spv::Id initializer_value = access_chain_load(section, initializer);
+
+		type.is_pointer = true;
+
+		// Variable initializer must be a constant or global variable instruction
+		if (initializer.is_constant)
+		{
+			info.definition = define_variable(location, type, global ? spv::StorageClassPrivate : spv::StorageClassFunction, initializer_value);
+		}
+		else // Non-constant initializers are explicitly stored in the variable at the definition location instead
+		{
+			assert(!global); // Global variables cannot have a dynamic initializer
+
+			info.definition = define_variable(location, type, spv::StorageClassFunction);
+
+			spv_expression variable;
+			variable.reset_to_lvalue(info.definition, type, location);
+
+			type.is_pointer = false;
+			access_chain_store(section, variable, initializer_value, type);
+			type.is_pointer =  true;
+		}
+
+		add_name(info.definition, name.c_str());
+
+		symbol = { spv::OpVariable, info.definition, type };
+	}
+
+	// Insert the symbol into the symbol table
+	if (!insert_symbol(name, symbol, global))
+		return error(location, 3003, "redefinition of '" + name + "'"), false;
+
+	return true;
+}
+
+bool reshadefx::parser::parse_variable_properties(spv_variable_info &props)
 {
 	if (!expect('{'))
 		return false;
@@ -2726,7 +2607,7 @@ bool reshadefx::parser::parse_variable_properties(variable_info &props)
 		const auto name = _token.literal_as_string;
 		const auto location = _token.location;
 
-		access_chain value_exp;
+		spv_expression value_exp;
 
 		if (!expect('=') || !parse_variable_properties_expression(value_exp) || !expect(';'))
 			return false;
@@ -2770,9 +2651,9 @@ bool reshadefx::parser::parse_variable_properties(variable_info &props)
 			}
 			else if (name == "Format")
 			{
-				unsigned int format = value_literal;
+				//unsigned int format = value_literal;
 				//scalar_literal_cast(value_literal, 0, format);
-				props.format = static_cast<reshade::texture_format>(format);
+				//props.format = static_cast<reshade::texture_format>(format);
 			}
 			else if (name == "SRGBTexture" || name == "SRGBReadEnable")
 			{
@@ -2780,45 +2661,45 @@ bool reshadefx::parser::parse_variable_properties(variable_info &props)
 			}
 			else if (name == "AddressU")
 			{
-				unsigned address_mode = value_literal;
+				//unsigned address_mode = value_literal;
 				//scalar_literal_cast(value_literal, 0, address_mode);
-				props.address_u = static_cast<reshade::texture_address_mode>(address_mode);
+				//props.address_u = static_cast<reshade::texture_address_mode>(address_mode);
 			}
 			else if (name == "AddressV")
 			{
-				unsigned address_mode = value_literal;
+				//unsigned address_mode = value_literal;
 				//scalar_literal_cast(value_literal, 0, address_mode);
-				props.address_v = static_cast<reshade::texture_address_mode>(address_mode);
+				//props.address_v = static_cast<reshade::texture_address_mode>(address_mode);
 			}
 			else if (name == "AddressW")
 			{
-				unsigned address_mode = value_literal;
+				//unsigned address_mode = value_literal;
 				//scalar_literal_cast(value_literal, 0, address_mode);
-				props.address_w = static_cast<reshade::texture_address_mode>(address_mode);
+				//props.address_w = static_cast<reshade::texture_address_mode>(address_mode);
 			}
 			else if (name == "MinFilter")
 			{
-				unsigned int a = static_cast<unsigned int>(props.filter), b = value_literal;
+				//unsigned int a = static_cast<unsigned int>(props.filter), b = value_literal;
 				//scalar_literal_cast(value_literal, 0, b);
 
-				b = (a & 0x0F) | ((b << 4) & 0x30);
-				props.filter = static_cast<reshade::texture_filter>(b);
+				//b = (a & 0x0F) | ((b << 4) & 0x30);
+				//props.filter = static_cast<reshade::texture_filter>(b);
 			}
 			else if (name == "MagFilter")
 			{
-				unsigned int a = static_cast<unsigned int>(props.filter), b = value_literal;
+				//unsigned int a = static_cast<unsigned int>(props.filter), b = value_literal;
 				//scalar_literal_cast(value_literal, 0, b);
 
-				b = (a & 0x33) | ((b << 2) & 0x0C);
-				props.filter = static_cast<reshade::texture_filter>(b);
+				//b = (a & 0x33) | ((b << 2) & 0x0C);
+				//props.filter = static_cast<reshade::texture_filter>(b);
 			}
 			else if (name == "MipFilter")
 			{
-				unsigned int a = static_cast<unsigned int>(props.filter), b = value_literal;
+				//unsigned int a = static_cast<unsigned int>(props.filter), b = value_literal;
 				//scalar_literal_cast(value_literal, 0, b);
 
-				b = (a & 0x3C) | (b & 0x03);
-				props.filter = static_cast<reshade::texture_filter>(b);
+				//b = (a & 0x3C) | (b & 0x03);
+				//props.filter = static_cast<reshade::texture_filter>(b);
 			}
 			else if (name == "MinLOD" || name == "MaxMipLevel")
 			{
@@ -2849,18 +2730,15 @@ bool reshadefx::parser::parse_variable_properties(variable_info &props)
 	return true;
 }
 
-bool reshadefx::parser::parse_technique(technique_properties &technique)
+bool reshadefx::parser::parse_technique(spv_technique_info &technique)
 {
-	if (!accept(tokenid::technique))
-		return false;
-
 	technique.location = _token.location;
 
 	if (!expect(tokenid::identifier))
 		return false;
 
 	technique.name = _token.literal_as_string;
-	technique.unique_name = 'T' + _symbol_table->current_scope().name + technique.name;
+	technique.unique_name = 'T' + current_scope().name + technique.name;
 	std::replace(technique.unique_name.begin(), technique.unique_name.end(), ':', '_');
 
 	if (!parse_annotations(technique.annotation_list) || !expect('{'))
@@ -2868,7 +2746,7 @@ bool reshadefx::parser::parse_technique(technique_properties &technique)
 
 	while (!peek('}'))
 	{
-		if (pass_properties pass; parse_technique_pass(pass))
+		if (spv_pass_info pass; parse_technique_pass(pass))
 			technique.pass_list.push_back(std::move(pass));
 		else
 			return false;
@@ -2876,7 +2754,8 @@ bool reshadefx::parser::parse_technique(technique_properties &technique)
 
 	return expect('}');
 }
-bool reshadefx::parser::parse_technique_pass(pass_properties &pass)
+
+bool reshadefx::parser::parse_technique_pass(spv_pass_info &pass)
 {
 	if (!expect(tokenid::pass))
 		return false;
@@ -2897,7 +2776,7 @@ bool reshadefx::parser::parse_technique_pass(pass_properties &pass)
 		const auto state = _token.literal_as_string;
 		const auto location = _token.location;
 
-		access_chain value_exp;
+		spv_expression value_exp;
 		if (!(expect('=') && parse_technique_pass_expression(value_exp) && expect(';')))
 			return false;
 
@@ -2906,7 +2785,7 @@ bool reshadefx::parser::parse_technique_pass(pass_properties &pass)
 			if (!value_exp.type.is_function())
 				return error(location, 3020, "type mismatch, expected function name"), false;
 
-			function_info *info = nullptr;
+			spv_function_info *info = nullptr;
 			for (auto &f : _functions)
 			{
 				if (f->definition == value_exp.base)
@@ -2921,35 +2800,31 @@ bool reshadefx::parser::parse_technique_pass(pass_properties &pass)
 			std::vector<spv::Id> inputs_and_outputs;
 
 			// Generate glue entry point function which references the actual one
-			function_info &entry = *_functions.emplace_back(std::make_unique<function_info>());
-			entry.return_type = { spv::OpTypeVoid };
-			entry.definition = add_node(entry.variables, location, spv::OpFunction, convert_type(entry.return_type)) // TODO
-				.add(spv::FunctionControlMaskNone) // Function Control
-				.add(convert_type(entry))
-				.result;
-			enter_block(entry.code, make_id());
-			//spv_node &call = add_node(entry.code, location, spv::OpFunctionCall, convert_type(info->return_type));
+			const spv::Id entry_point = define_function(location, { spv_type::datatype_void });
+
+			enter_block(_functions2[_current_function].variables, make_id());
+
+			spv_basic_block &section = _functions2[_current_function].definition;
+
+			add_node(section, location, spv::OpFunctionCall, convert_type(info->return_type))
+				.add(info->definition);
 			// TODO
 
 			// Handle input parameters
-			for (const struct_member_info &param : info->parameter_list)
+			for (const spv_struct_member_info &param : info->parameter_list)
 			{
-				if (param.type.has(qualifier_in))
+				if (param.type.has(spv_type::qualifier_in))
 				{
-					type_info ptr_type = param.type; ptr_type.is_pointer = true;
-					spv::Id result = add_node(_variables, location, spv::OpVariable, convert_type(ptr_type))
-						.add(spv::StorageClassInput)
-						.result;
+					spv_type ptr_type = param.type; ptr_type.is_pointer = true;
+					spv::Id result = define_variable(location, ptr_type, spv::StorageClassInput);
 					if (param.builtin != spv::BuiltInMax)
 						add_builtin(result, param.builtin);
 					inputs_and_outputs.push_back(result);
 				}
-				if (param.type.has(qualifier_out))
+				if (param.type.has(spv_type::qualifier_out))
 				{
-					type_info ptr_type = param.type; ptr_type.is_pointer = true;
-					spv::Id result = add_node(_variables, location, spv::OpVariable, convert_type(ptr_type))
-						.add(spv::StorageClassOutput)
-						.result;
+					spv_type ptr_type = param.type; ptr_type.is_pointer = true;
+					spv::Id result = define_variable(location, ptr_type, spv::StorageClassOutput);
 					if (param.builtin != spv::BuiltInMax)
 						add_builtin(result, param.builtin);
 					inputs_and_outputs.push_back(result);
@@ -2958,37 +2833,23 @@ bool reshadefx::parser::parse_technique_pass(pass_properties &pass)
 
 			if (!info->return_type.is_void())
 			{
-				type_info ptr_type = info->return_type; ptr_type.is_pointer = true;
-				spv::Id result = add_node(_variables, location, spv::OpVariable, convert_type(ptr_type))
-					.add(spv::StorageClassOutput)
-					.result;
+				spv_type ptr_type = info->return_type; ptr_type.is_pointer = true;
+				spv::Id result = define_variable(location, ptr_type, spv::StorageClassOutput);
 				if (info->return_builtin != spv::BuiltInMax)
 					add_builtin(result, info->return_builtin);
 				inputs_and_outputs.push_back(result);
 			}
 
-			leave_block_and_return(entry.code);
-			add_node_without_result(entry.code, location, spv::OpFunctionEnd);
+			leave_block_and_return(section, 0);
+			leave_function();
 
 			// Add entry point
-			spv_node &node = add_node_without_result(_entries, location, spv::OpEntryPoint);
+			add_entry_point(info->name.c_str(), entry_point, state[0] == 'V' ? spv::ExecutionModelVertex : spv::ExecutionModelFragment, inputs_and_outputs);
 
 			if (state[0] == 'V')
-			{
-				node.add(spv::ExecutionModelVertex);
 				pass.vertex_shader = value_exp.base;
-			}
 			else
-			{
-				node.add(spv::ExecutionModelFragment);
 				pass.pixel_shader = value_exp.base;
-			}
-
-			node.add(entry.definition);
-			node.add_string(info->name.c_str());
-
-			for (auto interface : inputs_and_outputs)
-				node.add(interface);
 		}
 		else if (state.compare(0, 12, "RenderTarget") == 0 && (state == "RenderTarget" || (state[12] >= '0' && state[12] < '8')))
 		{
@@ -3102,7 +2963,7 @@ bool reshadefx::parser::parse_technique_pass(pass_properties &pass)
 	return expect('}');
 }
 
-bool reshadefx::parser::parse_variable_properties_expression(access_chain &exp)
+bool reshadefx::parser::parse_variable_properties_expression(spv_expression &exp)
 {
 	backup();
 
@@ -3113,35 +2974,35 @@ bool reshadefx::parser::parse_variable_properties_expression(access_chain &exp)
 			{ "POINT", 0 },
 			{ "LINEAR", 1 },
 			{ "ANISOTROPIC", 3 },
-			{ "CLAMP", static_cast<unsigned int>(reshade::texture_address_mode::clamp) },
-			{ "WRAP", static_cast<unsigned int>(reshade::texture_address_mode::wrap) },
-			{ "REPEAT", static_cast<unsigned int>(reshade::texture_address_mode::wrap) },
-			{ "MIRROR", static_cast<unsigned int>(reshade::texture_address_mode::mirror) },
-			{ "BORDER", static_cast<unsigned int>(reshade::texture_address_mode::border) },
-			{ "R8", static_cast<unsigned int>(reshade::texture_format::r8) },
-			{ "R16F", static_cast<unsigned int>(reshade::texture_format::r16f) },
-			{ "R32F", static_cast<unsigned int>(reshade::texture_format::r32f) },
-			{ "RG8", static_cast<unsigned int>(reshade::texture_format::rg8) },
-			{ "R8G8", static_cast<unsigned int>(reshade::texture_format::rg8) },
-			{ "RG16", static_cast<unsigned int>(reshade::texture_format::rg16) },
-			{ "R16G16", static_cast<unsigned int>(reshade::texture_format::rg16) },
-			{ "RG16F", static_cast<unsigned int>(reshade::texture_format::rg16f) },
-			{ "R16G16F", static_cast<unsigned int>(reshade::texture_format::rg16f) },
-			{ "RG32F", static_cast<unsigned int>(reshade::texture_format::rg32f) },
-			{ "R32G32F", static_cast<unsigned int>(reshade::texture_format::rg32f) },
-			{ "RGBA8", static_cast<unsigned int>(reshade::texture_format::rgba8) },
-			{ "R8G8B8A8", static_cast<unsigned int>(reshade::texture_format::rgba8) },
-			{ "RGBA16", static_cast<unsigned int>(reshade::texture_format::rgba16) },
-			{ "R16G16B16A16", static_cast<unsigned int>(reshade::texture_format::rgba16) },
-			{ "RGBA16F", static_cast<unsigned int>(reshade::texture_format::rgba16f) },
-			{ "R16G16B16A16F", static_cast<unsigned int>(reshade::texture_format::rgba16f) },
-			{ "RGBA32F", static_cast<unsigned int>(reshade::texture_format::rgba32f) },
-			{ "R32G32B32A32F", static_cast<unsigned int>(reshade::texture_format::rgba32f) },
-			{ "DXT1", static_cast<unsigned int>(reshade::texture_format::dxt1) },
-			{ "DXT3", static_cast<unsigned int>(reshade::texture_format::dxt3) },
-			{ "DXT4", static_cast<unsigned int>(reshade::texture_format::dxt5) },
-			{ "LATC1", static_cast<unsigned int>(reshade::texture_format::latc1) },
-			{ "LATC2", static_cast<unsigned int>(reshade::texture_format::latc2) },
+			//{ "CLAMP", static_cast<unsigned int>(reshade::texture_address_mode::clamp) },
+			//{ "WRAP", static_cast<unsigned int>(reshade::texture_address_mode::wrap) },
+			//{ "REPEAT", static_cast<unsigned int>(reshade::texture_address_mode::wrap) },
+			//{ "MIRROR", static_cast<unsigned int>(reshade::texture_address_mode::mirror) },
+			//{ "BORDER", static_cast<unsigned int>(reshade::texture_address_mode::border) },
+			//{ "R8", static_cast<unsigned int>(reshade::texture_format::r8) },
+			//{ "R16F", static_cast<unsigned int>(reshade::texture_format::r16f) },
+			//{ "R32F", static_cast<unsigned int>(reshade::texture_format::r32f) },
+			//{ "RG8", static_cast<unsigned int>(reshade::texture_format::rg8) },
+			//{ "R8G8", static_cast<unsigned int>(reshade::texture_format::rg8) },
+			//{ "RG16", static_cast<unsigned int>(reshade::texture_format::rg16) },
+			//{ "R16G16", static_cast<unsigned int>(reshade::texture_format::rg16) },
+			//{ "RG16F", static_cast<unsigned int>(reshade::texture_format::rg16f) },
+			//{ "R16G16F", static_cast<unsigned int>(reshade::texture_format::rg16f) },
+			//{ "RG32F", static_cast<unsigned int>(reshade::texture_format::rg32f) },
+			//{ "R32G32F", static_cast<unsigned int>(reshade::texture_format::rg32f) },
+			//{ "RGBA8", static_cast<unsigned int>(reshade::texture_format::rgba8) },
+			//{ "R8G8B8A8", static_cast<unsigned int>(reshade::texture_format::rgba8) },
+			//{ "RGBA16", static_cast<unsigned int>(reshade::texture_format::rgba16) },
+			//{ "R16G16B16A16", static_cast<unsigned int>(reshade::texture_format::rgba16) },
+			//{ "RGBA16F", static_cast<unsigned int>(reshade::texture_format::rgba16f) },
+			//{ "R16G16B16A16F", static_cast<unsigned int>(reshade::texture_format::rgba16f) },
+			//{ "RGBA32F", static_cast<unsigned int>(reshade::texture_format::rgba32f) },
+			//{ "R32G32B32A32F", static_cast<unsigned int>(reshade::texture_format::rgba32f) },
+			//{ "DXT1", static_cast<unsigned int>(reshade::texture_format::dxt1) },
+			//{ "DXT3", static_cast<unsigned int>(reshade::texture_format::dxt3) },
+			//{ "DXT4", static_cast<unsigned int>(reshade::texture_format::dxt5) },
+			//{ "LATC1", static_cast<unsigned int>(reshade::texture_format::latc1) },
+			//{ "LATC2", static_cast<unsigned int>(reshade::texture_format::latc2) },
 		};
 
 		const auto location = _token.location;
@@ -3151,7 +3012,7 @@ bool reshadefx::parser::parse_variable_properties_expression(access_chain &exp)
 		{
 			if (value.first == _token.literal_as_string)
 			{
-				const type_info literal_type = { spv::OpTypeInt, 32, 1, 1, false };
+				const spv_type literal_type = { spv_type::datatype_uint, 1, 1 };
 
 				exp.reset_to_rvalue_constant(literal_type, location, value.second);
 
@@ -3162,9 +3023,10 @@ bool reshadefx::parser::parse_variable_properties_expression(access_chain &exp)
 		restore();
 	}
 
-	return parse_expression_multary(_temporary, exp);
+	spv_basic_block temp_section;
+	return parse_expression_multary(temp_section, exp);
 }
-bool reshadefx::parser::parse_technique_pass_expression(access_chain &exp)
+bool reshadefx::parser::parse_technique_pass_expression(spv_expression &exp)
 {
 	scope scope;
 	bool exclusive;
@@ -3176,47 +3038,47 @@ bool reshadefx::parser::parse_technique_pass_expression(access_chain &exp)
 	}
 	else
 	{
-		scope = _symbol_table->current_scope();
+		scope = current_scope();
 		exclusive = false;
 	}
 
 	if (exclusive ? expect(tokenid::identifier) : accept(tokenid::identifier))
 	{
 		const std::pair<const char *, unsigned int> s_enums[] = {
-			{ "NONE", pass_properties::NONE },
-			{ "ZERO", pass_properties::ZERO },
-			{ "ONE", pass_properties::ONE },
-			{ "SRCCOLOR", pass_properties::SRCCOLOR },
-			{ "SRCALPHA", pass_properties::SRCALPHA },
-			{ "INVSRCCOLOR", pass_properties::INVSRCCOLOR },
-			{ "INVSRCALPHA", pass_properties::INVSRCALPHA },
-			{ "DESTCOLOR", pass_properties::DESTCOLOR },
-			{ "DESTALPHA", pass_properties::DESTALPHA },
-			{ "INVDESTCOLOR", pass_properties::INVDESTCOLOR },
-			{ "INVDESTALPHA", pass_properties::INVDESTALPHA },
-			{ "ADD", pass_properties::ADD },
-			{ "SUBTRACT", pass_properties::SUBTRACT },
-			{ "REVSUBTRACT", pass_properties::REVSUBTRACT },
-			{ "MIN", pass_properties::MIN },
-			{ "MAX", pass_properties::MAX },
-			{ "KEEP", pass_properties::KEEP },
-			{ "REPLACE", pass_properties::REPLACE },
-			{ "INVERT", pass_properties::INVERT },
-			{ "INCR", pass_properties::INCR },
-			{ "INCRSAT", pass_properties::INCRSAT },
-			{ "DECR", pass_properties::DECR },
-			{ "DECRSAT", pass_properties::DECRSAT },
-			{ "NEVER", pass_properties::NEVER },
-			{ "ALWAYS", pass_properties::ALWAYS },
-			{ "LESS", pass_properties::LESS },
-			{ "GREATER", pass_properties::GREATER },
-			{ "LEQUAL", pass_properties::LESSEQUAL },
-			{ "LESSEQUAL", pass_properties::LESSEQUAL },
-			{ "GEQUAL", pass_properties::GREATEREQUAL },
-			{ "GREATEREQUAL", pass_properties::GREATEREQUAL },
-			{ "EQUAL", pass_properties::EQUAL },
-			{ "NEQUAL", pass_properties::NOTEQUAL },
-			{ "NOTEQUAL", pass_properties::NOTEQUAL },
+			{ "NONE", 0 },
+			{ "ZERO", 0 },
+			{ "ONE", 1 },
+			{ "SRCCOLOR", 2 },
+			{ "SRCALPHA", 3 },
+			{ "INVSRCCOLOR", 4 },
+			{ "INVSRCALPHA", 5 },
+			{ "DESTCOLOR", 8 },
+			{ "DESTALPHA", 6 },
+			{ "INVDESTCOLOR", 9 },
+			{ "INVDESTALPHA", 7 },
+			{ "ADD", 1 },
+			{ "SUBTRACT", 2 },
+			{ "REVSUBTRACT", 3 },
+			{ "MIN", 4 },
+			{ "MAX", 5 },
+			{ "KEEP", 1 },
+			{ "REPLACE", 3 },
+			{ "INVERT", 6 },
+			{ "INCR", 7 },
+			{ "INCRSAT", 4 },
+			{ "DECR", 8 },
+			{ "DECRSAT", 5 },
+			{ "NEVER", 1 },
+			{ "ALWAYS", 8 },
+			{ "LESS", 2 },
+			{ "GREATER", 5 },
+			{ "LEQUAL", 4 },
+			{ "LESSEQUAL", 4 },
+			{ "GEQUAL", 7 },
+			{ "GREATEREQUAL", 7 },
+			{ "EQUAL", 3 },
+			{ "NEQUAL", 6 },
+			{ "NOTEQUAL", 6 },
 		};
 
 		auto identifier = _token.literal_as_string;
@@ -3227,7 +3089,7 @@ bool reshadefx::parser::parse_technique_pass_expression(access_chain &exp)
 		{
 			if (value.first == _token.literal_as_string)
 			{
-				const type_info literal_type = { spv::OpTypeInt, 32, 1, 1, false };
+				const spv_type literal_type = { spv_type::datatype_uint, 1, 1 };
 
 				exp.reset_to_rvalue_constant(literal_type, location, value.second);
 
@@ -3238,7 +3100,7 @@ bool reshadefx::parser::parse_technique_pass_expression(access_chain &exp)
 		while (accept(tokenid::colon_colon) && expect(tokenid::identifier))
 			identifier += "::" + _token.literal_as_string;
 
-		const auto symbol = _symbol_table->find(identifier, scope, exclusive);
+		const auto symbol = find_symbol(identifier, scope, exclusive);
 
 		if (!symbol.id)
 			return error(location, 3004, "undeclared identifier '" + identifier + "'"), false;
@@ -3248,177 +3110,6 @@ bool reshadefx::parser::parse_technique_pass_expression(access_chain &exp)
 		return true;
 	}
 
-	return parse_expression_multary(_temporary, exp);
-}
-
-
-spv::Id reshadefx::parser::access_chain_load(spv_section &section, const access_chain &chain)
-{
-	if (chain.is_constant) // Constant expressions do not have a complex access chain
-		return convert_constant(chain.type, chain.constant);
-
-	spv::Id result = chain.base;
-
-	size_t op_index = 0;
-
-	// If a variable is referenced, load the value first
-	if (chain.is_lvalue)
-	{
-		type_info base_type = chain.type;
-		if (!chain.ops.empty())
-			base_type = chain.ops[0].from;
-
-		// Any indexing expressions can be resolved during load with an 'OpAccessChain' already
-		if (!chain.ops.empty() && chain.ops[0].type == access_chain::index)
-		{
-			assert(chain.ops[0].to.is_pointer);
-			spv_node &node = add_node(section, chain.location, spv::OpAccessChain, convert_type(chain.ops[0].to))
-				.add(result); // Base
-			do {
-				assert(chain.ops[op_index].to.is_pointer);
-				base_type = chain.ops[op_index].to;
-				node.add(chain.ops[op_index++].index); // Indexes
-			} while (op_index < chain.ops.size() && chain.ops[op_index].type == access_chain::index);
-			result = node.result; // Result ID
-		}
-
-		base_type.is_pointer = false;
-
-		result = add_node(section, chain.location, spv::OpLoad, convert_type(base_type))
-			.add(result) // Pointer
-			.result; // Result ID
-	}
-
-	// Work through all remaining operations in the access chain and apply them to the value
-	for (; op_index < chain.ops.size(); ++op_index)
-	{
-		const auto &op = chain.ops[op_index];
-
-		switch (op.type)
-		{
-		case access_chain::cast:
-			result = add_cast_node(section, chain.location, op.from, op.to, result, op.implicit, chain.is_constant);
-			break;
-		case access_chain::index:
-			assert(false);
-			break;
-		case access_chain::swizzle:
-			if (op.to.is_vector())
-			{
-				spv_node &node = add_node(section, chain.location, spv::OpVectorShuffle, convert_type(chain.type))
-					.add(result) // Vector 1
-					.add(result); // Vector 2
-
-				for (unsigned int i = 0; i < 4 && op.swizzle[i] >= 0; ++i)
-					node.add(op.swizzle[i]);
-
-				result = node.result;
-			}
-			else if (op.to.is_scalar())
-			{
-				assert(op.swizzle[1] < 0);
-
-				result = add_node(section, chain.location, spv::OpCompositeExtract, convert_type(chain.type))
-					.add(result) // Composite
-					.add(op.swizzle[0]) // Index
-					.result; // Result ID
-			}
-			else
-			{
-				assert(false);
-			}
-			break;
-		}
-	}
-
-	return result;
-}
-void reshadefx::parser::access_chain_store(spv_section &section, const access_chain &chain, spv::Id value, const type_info &value_type)
-{
-	assert(chain.is_lvalue && !chain.is_constant);
-	assert(!value_type.is_pointer);
-
-	spv::Id target = chain.base;
-
-	size_t op_index = 0;
-
-	type_info base_type = chain.type;
-	if (!chain.ops.empty())
-		base_type = chain.ops[0].from;
-
-	// Any indexing expressions can be resolved with an 'OpAccessChain' already
-	if (!chain.ops.empty() && chain.ops[0].type == access_chain::index)
-	{
-		assert(chain.ops[0].to.is_pointer);
-		spv_node &node = add_node(section, chain.location, spv::OpAccessChain, convert_type(chain.ops[0].to))
-			.add(target); // Base
-		do {
-			assert(chain.ops[op_index].to.is_pointer);
-			base_type = chain.ops[op_index].to;
-			node.add(chain.ops[op_index++].index); // Indexes
-		} while (op_index < chain.ops.size() && chain.ops[op_index].type == access_chain::index);
-		target = node.result; // Result ID
-	}
-
-	// TODO: Complex access chains like float4x4[0].m00m10[0] = 0;
-	// Work through all remaining operations in the access chain and apply them to the value
-	for (; op_index < chain.ops.size(); ++op_index)
-	{
-		const auto &op = chain.ops[op_index];
-
-		switch (op.type)
-		{
-		case access_chain::cast:
-			assert(false); // This cannot happen
-			break;
-		case access_chain::index:
-			assert(false);
-			break;
-		case access_chain::swizzle:
-		{
-			base_type.is_pointer = false;
-
-			spv::Id result = add_node(section, chain.location, spv::OpLoad, convert_type(base_type))
-				.add(target) // Pointer
-				.result; // Result ID
-
-			if (base_type.is_vector() && value_type.is_vector())
-			{
-				spv_node &node = add_node(section, chain.location, spv::OpVectorShuffle, convert_type(base_type))
-					.add(result) // Vector 1
-					.add(value); // Vector 2
-
-				unsigned int shuffle[4] = { 0, 1, 2, 3 };
-				for (unsigned int i = 0; i < base_type.rows; ++i)
-					if (op.swizzle[i] >= 0)
-						shuffle[op.swizzle[i]] = base_type.rows + i;
-				for (unsigned int i = 0; i < base_type.rows; ++i)
-					node.add(shuffle[i]);
-
-				value = node.result;
-			}
-			else if (op.to.is_scalar())
-			{
-				assert(op.swizzle[1] < 0); // TODO
-
-				spv::Id result2 = add_node(section, chain.location, spv::OpCompositeInsert, convert_type(base_type))
-					.add(value) // Object
-					.add(result) // Composite
-					.add(op.swizzle[0]) // Index
-					.result; // Result ID
-
-				value = result2;
-			}
-			else
-			{
-				assert(false);
-			}
-			break;
-		}
-		}
-	}
-
-	add_node_without_result(section, chain.location, spv::OpStore)
-		.add(target)
-		.add(value);
+	spv_basic_block temp_section;
+	return parse_expression_multary(temp_section, exp);
 }

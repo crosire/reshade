@@ -6,6 +6,7 @@
     <ClCompile Include="source\effect_parser.cpp" />
     <ClCompile Include="source\effect_preprocessor.cpp" />
     <ClCompile Include="source\effect_symbol_table.cpp" />
+    <ClCompile Include="source\spirv_module.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="source\effect_lexer.hpp" />
@@ -15,6 +16,9 @@
     <ClInclude Include="source\effect_syntax_tree_nodes.hpp" />
     <ClInclude Include="source\effect_symbol_table.hpp" />
     <ClInclude Include="source\source_location.hpp" />
+    <ClInclude Include="source\spirv_module.hpp" />
+    <ClInclude Include="source\spirv_instruction.hpp" />
+    <ClInclude Include="source\spirv_helpers.hpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="source\effect_intrinsics.inl" />
