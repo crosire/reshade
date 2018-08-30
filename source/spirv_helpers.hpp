@@ -74,6 +74,7 @@ namespace reshadefx
 		unsigned int cols : 4;
 		unsigned int qualifiers = 0;
 		bool is_pointer = false;
+		bool has_semantic = false;
 		int array_length = 0;
 		spv::Id definition = 0;
 	};
@@ -123,6 +124,7 @@ namespace reshadefx
 			location = loc;
 			ops.clear();
 			is_lvalue = true;
+			is_constant = false;
 		}
 		void reset_to_rvalue(spv::Id in_base, const spv_type &in_type, const struct location &loc)
 		{
@@ -132,6 +134,7 @@ namespace reshadefx
 			location = loc;
 			ops.clear();
 			is_lvalue = false;
+			is_constant = false;
 		}
 		void reset_to_rvalue_constant(const spv_type &in_type, const struct location &loc, uint32_t data)
 		{
@@ -203,12 +206,12 @@ namespace reshadefx
 		spv::Id texture;
 		unsigned int width = 1, height = 1, depth = 1, levels = 1;
 		bool srgb_texture;
-		//reshade::texture_format format = reshade::texture_format::rgba8;
-		//reshade::texture_filter filter = reshade::texture_filter::min_mag_mip_linear;
-		//reshade::texture_address_mode address_u = reshade::texture_address_mode::clamp;
-		//reshade::texture_address_mode address_v = reshade::texture_address_mode::clamp;
-		//reshade::texture_address_mode address_w = reshade::texture_address_mode::clamp;
-		//float min_lod, max_lod = FLT_MAX, lod_bias;
+		unsigned int format = 0;
+		unsigned int filter = 0;
+		unsigned int address_u = 0;
+		unsigned int address_v = 0;
+		unsigned int address_w = 0;
+		float min_lod, max_lod = FLT_MAX, lod_bias;
 	};
 
 	struct spv_pass_info
@@ -216,7 +219,7 @@ namespace reshadefx
 		location location;
 		std::string name;
 		spv::Id render_targets[8] = {};
-		spv::Id vertex_shader = 0, pixel_shader = 0;
+		std::string vs_entry_point, ps_entry_point;
 		bool clear_render_targets = true, srgb_write_enable, blend_enable, stencil_enable;
 		unsigned char color_write_mask = 0xF, stencil_read_mask = 0xFF, stencil_write_mask = 0xFF;
 		unsigned int blend_op = 1, blend_op_alpha = 1, src_blend = 1, dest_blend = 0, src_blend_alpha = 1, dest_blend_alpha = 0;

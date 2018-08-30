@@ -58,27 +58,26 @@ namespace reshadefx
 		bool parse_type(spv_type &type);
 		bool parse_array_size(spv_type &type);
 
-		bool parse_top_level();
-
-		bool parse_statement(spv_basic_block &section, bool scoped);
-		bool parse_statement_block(spv_basic_block &section, bool scoped);
-
 		bool parse_expression(spv_basic_block &section, struct spv_expression &expression);
 		bool parse_expression_unary(spv_basic_block &section, struct spv_expression &expression);
 		bool parse_expression_multary(spv_basic_block &section, struct spv_expression &expression, unsigned int precedence = 0);
 		bool parse_expression_assignment(spv_basic_block &section, struct spv_expression &expression);
 		bool parse_expression_initializer(spv_basic_block &section, struct spv_expression &expression);
 
+		bool parse_top_level();
+
+		bool parse_statement(spv_basic_block &section, bool scoped);
+		bool parse_statement_block(spv_basic_block &section, bool scoped);
+
 		bool parse_struct();
-		bool parse_function_declaration(spv_type &type, std::string name);
-		bool parse_variable_declaration(spv_type &type, std::string name, spv_basic_block &section, bool global = false);
+		bool parse_function(spv_type type, std::string name);
+		bool parse_variable(spv_type type, std::string name, spv_basic_block &section, bool global = false);
 
 		bool parse_variable_properties(spv_variable_info &props);
 		bool parse_variable_properties_expression(struct spv_expression &expression);
 
-		bool parse_technique(spv_technique_info &technique);
-		bool parse_technique_pass(spv_pass_info &pass);
-		bool parse_technique_pass_expression(struct spv_expression &expression);
+		bool parse_technique(spv_technique_info &info);
+		bool parse_technique_pass(spv_pass_info &info);
 
 		bool parse_annotations(std::unordered_map<std::string, spv_constant> &annotations);
 

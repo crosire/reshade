@@ -21,12 +21,11 @@ namespace reshadefx
 		spv_instruction &add_node(spv_basic_block &section, const location &loc, spv::Op op, spv::Id type = 0);
 		spv_instruction &add_node_without_result(spv_basic_block &section, const location &loc, spv::Op op);
 
-		spv::Id define_struct(const location &loc, const std::vector<spv::Id> &members);
-		spv::Id define_variable(const location &loc, const spv_type &type, spv::StorageClass storage, spv::Id initializer = 0);
-		spv::Id define_parameter(const location &loc, const spv_type &type);
-		spv::Id define_function(const location &loc, const spv_type &return_type);
+		spv::Id define_struct(const char *name, const location &loc, const std::vector<spv::Id> &members);
+		spv::Id define_function(const char *name, const location &loc, const spv_type &return_type);
+		spv::Id define_variable(const char *name, const location &loc, const spv_type &type, spv::StorageClass storage, spv::Id initializer = 0);
+		spv::Id define_parameter(const char *name, const location &loc, const spv_type &type);
 
-		void add_name(spv::Id object, const char *name);
 		void add_builtin(spv::Id object, spv::BuiltIn builtin);
 		void add_decoration(spv::Id object, spv::Decoration decoration);
 		void add_member_name(spv::Id object, uint32_t member_index, const char *name);
@@ -35,6 +34,7 @@ namespace reshadefx
 		void add_entry_point(const char *name, spv::Id function, spv::ExecutionModel model, const std::vector<spv::Id> &io);
 
 		void add_cast_operation(spv_expression &chain, const spv_type &in_type);
+		void add_member_access(spv_expression &chain, size_t index, const spv_type &in_type);
 		void add_static_index_access(spv_expression &chain, size_t index);
 		void add_dynamic_index_access(spv_expression &chain, spv::Id index_expression);
 		void add_swizzle_access(spv_expression &chain, signed char in_swizzle[4], size_t length);
