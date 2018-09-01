@@ -1251,27 +1251,27 @@ bool reshadefx::parser::parse_expression_multary(spv_basic_block &section, spv_e
 		{
 			// Parse the right hand side of the binary operation
 			spv_expression rhs;
-			if (!parse_expression_multary(section, rhs, right_precedence))
+			spv_basic_block rhs_block;
+			if (!parse_expression_multary(rhs_block, rhs, right_precedence))
 				return false;
-
-			bool boolean_result = false;
 
 			// Deduce the result base type based on implicit conversion rules
 			spv_type type = { std::max(lhs.type.base, rhs.type.base), 1, 1 };
+			bool boolean_result = false;
 
 			// Do some error checking depending on the operator
-			if (op == spv::OpFOrdEqual || op == spv::OpFOrdNotEqual)
+			if (op == spv::OpLogicalEqual || op == spv::OpLogicalNotEqual)
 			{
 				// Select operator matching the argument types
-				if (type.is_integral())
+				if (type.is_integral() || type.is_floating_point())
 				{
 					switch (op)
 					{
-					case spv::OpFOrdEqual:
-						op = spv::OpIEqual;
+					case spv::OpLogicalEqual:
+						op = type.is_integral() ? spv::OpIEqual : spv::OpFOrdEqual;
 						break;
-					case spv::OpFOrdNotEqual:
-						op = spv::OpINotEqual;
+					case spv::OpLogicalNotEqual:
+						op = type.is_integral() ? spv::OpINotEqual : spv::OpFOrdNotEqual;
 						break;
 					}
 				}
@@ -1293,11 +1293,11 @@ bool reshadefx::parser::parse_expression_multary(spv_basic_block &section, spv_e
 			}
 			else
 			{
-				// TODO: Short circuit for && and || operators
+				if (op == spv::OpLogicalAnd || op == spv::OpLogicalOr)
+					type.base = spv_type::datatype_bool;
 
 				// Logical operations return a boolean value
-				if (op == spv::OpLogicalAnd || op == spv::OpLogicalOr ||
-					op == spv::OpFOrdLessThan || op == spv::OpFOrdGreaterThan ||
+				if (op == spv::OpFOrdLessThan || op == spv::OpFOrdGreaterThan ||
 					op == spv::OpFOrdLessThanEqual || op == spv::OpFOrdGreaterThanEqual)
 					boolean_result = true;
 
@@ -1363,19 +1363,59 @@ bool reshadefx::parser::parse_expression_multary(spv_basic_block &section, spv_e
 			// Load values and perform implicit type conversions
 			add_cast_operation(lhs, type);
 			const spv::Id lhs_value = access_chain_load(section, lhs);
-			add_cast_operation(rhs, type);
-			const spv::Id rhs_value = access_chain_load(section, rhs);
 
-			// Certain operations return a boolean type instead of the type of the input expressions
-			if (boolean_result)
-				type = { spv_type::datatype_bool, type.rows, type.cols };
+			// Short circuit for logical && and || operators
+			if (op == spv::OpLogicalAnd || op == spv::OpLogicalOr)
+			{
+				const spv::Id parent0 = _current_block;
+				const spv::Id parent1 = make_id();
+				const spv::Id merge_target = make_id();
 
-			spv::Id result = add_node(section, lhs.location, op, convert_type(type))
-				.add(lhs_value) /* Operand 1 */
-				.add(rhs_value) /* Operand 2 */
-				.result; // Result ID
+				if (op == spv::OpLogicalAnd)
+					// && => Emit "if ( lhs) result = rhs"
+					leave_block_and_branch_conditional(section, lhs_value, parent1, merge_target);
+				else
+					// || => Emit "if (!lhs) result = rhs"
+					leave_block_and_branch_conditional(section, lhs_value, merge_target, parent1);
 
-			lhs.reset_to_rvalue(result, type, lhs.location);
+				enter_block(section, parent1);
+
+				section.instructions.insert(section.instructions.end(), rhs_block.instructions.begin(), rhs_block.instructions.end());
+
+				add_cast_operation(rhs, type);
+				const spv::Id rhs_value = access_chain_load(section, rhs);
+
+				leave_block_and_branch(section, merge_target);
+
+				enter_block(section, merge_target);
+
+				spv::Id result = add_node(section, lhs.location, spv::OpPhi, convert_type(type))
+					.add(lhs_value) // Variable 0
+					.add(parent0) // Parent 0
+					.add(rhs_value) // Variable 1
+					.add(parent1) // Parent 1
+					.result;
+
+				lhs.reset_to_rvalue(result, type, lhs.location);
+			}
+			else
+			{
+				section.instructions.insert(section.instructions.end(), rhs_block.instructions.begin(), rhs_block.instructions.end());
+
+				add_cast_operation(rhs, type);
+				const spv::Id rhs_value = access_chain_load(section, rhs);
+
+				// Certain operations return a boolean type instead of the type of the input expressions
+				if (boolean_result)
+					type = { spv_type::datatype_bool, type.rows, type.cols };
+
+				spv::Id result = add_node(section, lhs.location, op, convert_type(type))
+					.add(lhs_value) /* Operand 1 */
+					.add(rhs_value) /* Operand 2 */
+					.result; // Result ID
+
+				lhs.reset_to_rvalue(result, type, lhs.location);
+			}
 		}
 		else
 		{
