@@ -18,7 +18,7 @@ struct on_scope_exit
 	std::function<void()> leave;
 };
 
-spv::BuiltIn semantic_to_builtin(std::string &semantic)
+spv::BuiltIn semantic_to_builtin(std::string &semantic, unsigned int &index)
 {
 	std::transform(semantic.begin(), semantic.end(), semantic.begin(), ::toupper);
 
@@ -31,8 +31,15 @@ spv::BuiltIn semantic_to_builtin(std::string &semantic)
 		return spv::BuiltInFragDepth;
 	if (semantic == "VERTEXID" || semantic == "SV_VERTEXID")
 		return spv::BuiltInVertexId;
+	if (semantic.substr(0, 9) == "SV_TARGET" && semantic.size() > 9)
+		index = std::stol(semantic.substr(9));
 		//return spv::BuiltInVertexIndex;
 	return spv::BuiltInMax;
+}
+
+static inline uintptr_t align(uintptr_t address, size_t alignment)
+{
+	return (address % alignment != 0) ? address + alignment - address % alignment : address;
 }
 
 bool reshadefx::parser::run(const std::string &input)
@@ -47,6 +54,23 @@ bool reshadefx::parser::run(const std::string &input)
 	while (!peek(tokenid::end_of_file))
 		if (!parse_top_level())
 			success = false;
+
+	// Create global uniform buffer object
+	if (_global_ubo_type != 0)
+	{
+		std::vector<spv::Id> member_types;
+		for (auto &member : _uniforms.member_list)
+		{
+			assert(member.type.has(spv_type::qualifier_uniform));
+			member_types.push_back(convert_type(member.type));
+		}
+
+		define_struct(_global_ubo_type, "$Global", {}, member_types);
+		add_decoration(_global_ubo_type, spv::DecorationBlock);
+		add_decoration(_global_ubo_type, spv::DecorationDescriptorSet, { 0 });
+
+		define_variable(_global_ubo_variable, "", {}, { spv_type::datatype_struct, 0, 0, spv_type::qualifier_uniform, true, false, 0, _global_ubo_type }, spv::StorageClassUniform);
+	}
 
 	std::ofstream s("test.spv", std::ios::binary | std::ios::out);
 	write_module(s);
@@ -561,6 +585,7 @@ bool reshadefx::parser::parse_expression_unary(spv_basic_block &section, spv_exp
 
 			// Load the right hand side value if it was not yet resolved at this point
 			const spv::Id value = access_chain_load(section, exp);
+			assert(value != 0);
 
 			// Special handling for the "++" and "--" operators
 			if (op == spv::OpFAdd || op == spv::OpFSub || op == spv::OpIAdd || op == spv::OpISub)
@@ -570,7 +595,8 @@ bool reshadefx::parser::parse_expression_unary(spv_basic_block &section, spv_exp
 
 				// Create a constant one in the type of the expression
 				spv_constant one = {};
-				one.as_uint[0] = exp.type.is_floating_point() ? 0x3f800000u : 1u;
+				for (unsigned int i = 0; i < exp.type.components(); ++i)
+					one.as_uint[i] = exp.type.is_floating_point() ? 0x3f800000u : 1u;
 				const spv::Id constant = convert_constant(exp.type, one);
 
 				spv::Id result = add_node(section, location, op, convert_type(exp.type))
@@ -643,39 +669,107 @@ bool reshadefx::parser::parse_expression_unary(spv_basic_block &section, spv_exp
 		if (!parse_expression(section, exp) || !expect(')'))
 			return false;
 	}
+	else if (accept('{'))
+	{
+		std::vector<spv_expression> elements;
+
+		bool constant = true;
+		spv_type composite_type = { spv_type::datatype_void, 1, 1 };
+
+		while (!peek('}'))
+		{
+			// There should be a comma between arguments
+			if (!elements.empty() && !expect(','))
+				return consume_until('}'), false;
+
+			// Initializer lists might contain a comma at the end, so break out of the loop if nothing follows afterwards
+			if (peek('}'))
+				break;
+
+			// Parse the argument expression
+			if (!parse_expression_assignment(section, elements.emplace_back()))
+				return consume_until('}'), false;
+
+			spv_expression &element = elements.back();
+
+			constant &= element.is_constant; // Result is only constant if all arguments are constant
+			composite_type.base = std::max(element.type.base, composite_type.base);
+
+			if ((composite_type.rows == 1 && composite_type.cols == 1) || (element.type.rows == 1 && element.type.cols == 1))
+			{
+				composite_type.rows = std::max(composite_type.rows, element.type.rows);
+				composite_type.cols = std::max(composite_type.cols, element.type.cols);
+			}
+			else // Otherwise dimensions match or one side is truncated to match the other one
+			{
+				composite_type.rows = std::min(composite_type.rows, element.type.rows);
+				composite_type.cols = std::min(composite_type.cols, element.type.cols);
+			}
+		}
+
+		if (constant)
+		{
+			spv_constant constant_data = {};
+
+			for (auto &elem : elements)
+			{
+				add_cast_operation(elem, composite_type);
+				constant_data.as_array.push_back(elem.constant);
+			}
+
+			composite_type.array_length = elements.size();
+
+			exp.reset_to_rvalue_constant(composite_type, location, constant_data);
+		}
+		else
+		{
+			std::vector<spv::Id> ids;
+			for (auto &elem : elements)
+			{
+				add_cast_operation(elem, composite_type);
+				ids.push_back(access_chain_load(section, elem));
+				assert(ids.back() != 0);
+			}
+
+			composite_type.array_length = elements.size();
+
+			spv_instruction &node = add_node(section, location, spv::OpCompositeConstruct, convert_type(composite_type));
+			for (auto &elem : ids)
+				node.add(elem);
+
+			exp.reset_to_rvalue(node.result, composite_type, node.location);
+		}
+
+		return expect('}');
+	}
 	else if (accept(tokenid::true_literal))
 	{
-		const spv_type literal_type = { spv_type::datatype_bool, 1, 1, spv_type::qualifier_const };
-		exp.reset_to_rvalue_constant(literal_type, location, true);
+		exp.reset_to_rvalue_constant({ spv_type::datatype_bool, 1, 1, spv_type::qualifier_const }, location, true);
 	}
 	else if (accept(tokenid::false_literal))
 	{
-		const spv_type literal_type = { spv_type::datatype_bool, 1, 1, spv_type::qualifier_const };
-		exp.reset_to_rvalue_constant(literal_type, location, false);
+		exp.reset_to_rvalue_constant({ spv_type::datatype_bool, 1, 1, spv_type::qualifier_const }, location, false);
 	}
 	else if (accept(tokenid::int_literal))
 	{
-		const spv_type literal_type = { spv_type::datatype_int,  1, 1, spv_type::qualifier_const };
-		exp.reset_to_rvalue_constant(literal_type, location, _token.literal_as_int);
+		exp.reset_to_rvalue_constant({ spv_type::datatype_int,  1, 1, spv_type::qualifier_const }, location, _token.literal_as_int);
 	}
 	else if (accept(tokenid::uint_literal))
 	{
-		const spv_type literal_type = { spv_type::datatype_uint, 1, 1, spv_type::qualifier_const };
-		exp.reset_to_rvalue_constant(literal_type, location, _token.literal_as_uint);
+		exp.reset_to_rvalue_constant({ spv_type::datatype_uint, 1, 1, spv_type::qualifier_const }, location, _token.literal_as_uint);
 	}
 	else if (accept(tokenid::float_literal))
 	{
-		const spv_type literal_type = { spv_type::datatype_float, 1, 1, spv_type::qualifier_const };
-		exp.reset_to_rvalue_constant(literal_type, location, *reinterpret_cast<const uint32_t *>(&_token.literal_as_float)); // Interpret float bit pattern as int
+		exp.reset_to_rvalue_constant({ spv_type::datatype_float, 1, 1, spv_type::qualifier_const }, location, *reinterpret_cast<const uint32_t *>(&_token.literal_as_float)); // Interpret float bit pattern as int
 	}
 	else if (accept(tokenid::double_literal))
 	{
 		// Convert double literal to float literal for now
-		warning(location, 5000, "double literal truncated to float literal");
 		const float value = static_cast<float>(_token.literal_as_double);
 
-		const spv_type literal_type = { spv_type::datatype_float, 1, 1, spv_type::qualifier_const };
-		exp.reset_to_rvalue_constant(literal_type, location, *reinterpret_cast<const uint32_t *>(&value)); // Interpret float bit pattern as int
+		warning(location, 5000, "double literal truncated to float literal");
+
+		exp.reset_to_rvalue_constant({ spv_type::datatype_float, 1, 1, spv_type::qualifier_const }, location, *reinterpret_cast<const uint32_t *>(&value)); // Interpret float bit pattern as int
 	}
 	else if (accept(tokenid::string_literal))
 	{
@@ -685,8 +779,7 @@ bool reshadefx::parser::parse_expression_unary(spv_basic_block &section, spv_exp
 		while (accept(tokenid::string_literal))
 			value += _token.literal_as_string;
 
-		const spv_type literal_type = { spv_type::datatype_string, 0, 0, spv_type::qualifier_const };
-		exp.reset_to_rvalue_constant(literal_type, location, std::move(value));
+		exp.reset_to_rvalue_constant({ spv_type::datatype_string, 0, 0, spv_type::qualifier_const }, location, std::move(value));
 	}
 	else if (spv_type type; accept_type_class(type)) // Check if this is a constructor call expression
 	{
@@ -773,6 +866,7 @@ bool reshadefx::parser::parse_expression_unary(spv_basic_block &section, spv_exp
 							scalar_type.base = type.base;
 							add_cast_operation(scalar, scalar_type);
 							ids.push_back(access_chain_load(section, scalar));
+							assert(ids.back() != 0);
 						}
 					}
 					else
@@ -781,6 +875,7 @@ bool reshadefx::parser::parse_expression_unary(spv_basic_block &section, spv_exp
 						scalar_type.base = type.base;
 						add_cast_operation(argument, scalar_type);
 						ids.push_back(access_chain_load(section, argument));
+						assert(ids.back() != 0);
 					}
 				}
 
@@ -821,6 +916,7 @@ bool reshadefx::parser::parse_expression_unary(spv_basic_block &section, spv_exp
 					add_cast_operation(argument, target_type);
 					assert(argument.type.is_scalar() || argument.type.is_vector());
 					ids.push_back(access_chain_load(section, argument));
+					assert(ids.back() != 0);
 				}
 
 				spv_instruction &node = add_node(section, location, spv::OpCompositeConstruct, convert_type(type));
@@ -939,15 +1035,73 @@ bool reshadefx::parser::parse_expression_unary(spv_basic_block &section, spv_exp
 				if (parameters[i].is_lvalue && parameters[i].type.has(spv_type::qualifier_in)) // Only do this for pointer parameters as discovered above
 					access_chain_store(section, parameters[i], access_chain_load(section, arguments[i]), arguments[i].type);
 
+			if (symbol.id == 0x10000001) // rcp
+			{
+				spv_constant one = {};
+				for (unsigned int i = 0; i < parameters[0].type.components(); ++i)
+					one.as_uint[i] = parameters[0].type.is_floating_point() ? 0x3f800000u : 1u;
+				const spv::Id constant = convert_constant(parameters[0].type, one);
+
+				spv::Id result = add_node(section, location, parameters[0].type.is_integral() ? parameters[0].type.is_signed() ? spv::OpSDiv : spv::OpUDiv : spv::OpFDiv, convert_type(parameters[0].type))
+					.add(constant)
+					.add(parameters[0].base)
+					.result;
+
+				exp.reset_to_rvalue(result, symbol.type, location);
+			}
+			else if (symbol.id == 0x10000002) // saturate
+			{
+				spv_constant one = {};
+				spv_constant zero = {};
+				for (unsigned int i = 0; i < parameters[0].type.components(); ++i)
+					one.as_uint[i] = parameters[0].type.is_floating_point() ? 0x3f800000u : 1u;
+				const spv::Id constant_one = convert_constant(parameters[0].type, one);
+				const spv::Id constant_zero = convert_constant(parameters[0].type, zero);
+
+				//GLSLstd450FClamp = 43
+				//GLSLstd450UClamp = 44
+				//GLSLstd450SClamp = 45
+				spv::Id result = add_node(section, location, spv::OpExtInst, convert_type(parameters[0].type))
+					.add(glsl_ext)
+					.add(parameters[0].type.is_integral() ? parameters[0].type.is_signed() ? 45 : 44 : 43)
+					.add(parameters[0].base)
+					.add(constant_zero)
+					.add(constant_one)
+					.result;
+
+				exp.reset_to_rvalue(result, symbol.type, location);
+			}
+			else if (symbol.id == 0x10000003) // sincos
+			{
+				spv::Id sin_result = add_node(section, location, spv::OpExtInst, convert_type(parameters[0].type))
+					.add(glsl_ext)
+					.add(13) // GLSLstd450Sin
+					.add(parameters[0].base)
+					.result;
+				spv::Id cos_result = add_node(section, location, spv::OpExtInst, convert_type(parameters[0].type))
+					.add(glsl_ext)
+					.add(14) // GLSLstd450Cos
+					.add(parameters[0].base)
+					.result;
+
+				add_node_without_result(section, location, spv::OpStore)
+					.add(parameters[1].base)
+					.add(sin_result);
+				add_node_without_result(section, location, spv::OpStore)
+					.add(parameters[2].base)
+					.add(cos_result);
+
+				exp.reset_to_rvalue(0, { spv_type::datatype_void }, location);
+			}
 			// Check if the call resolving found an intrinsic or function
-			if (symbol.op != spv::OpFunctionCall)
+			else if (symbol.op != spv::OpFunctionCall)
 			{
 				// This is an intrinsic, so add the appropriate operators
 				spv_instruction &node = add_node(section, location, symbol.op, convert_type(symbol.type));
 
 				if (symbol.op == spv::OpExtInst)
 				{
-					node.add(1) // GLSL extended instruction set
+					node.add(glsl_ext) // GLSL extended instruction set
 						.add(symbol.id);
 				}
 
@@ -1005,8 +1159,18 @@ bool reshadefx::parser::parse_expression_unary(spv_basic_block &section, spv_exp
 			if (!symbol.op) // Note: 'symbol.id' is zero for constants, so have to check 'symbol.op', which cannot be zero
 				return error(location, 3004, "undeclared identifier '" + identifier + "'"), false;
 			else if (symbol.op == spv::OpVariable)
-				// Simply return the pointer to the variable, dereferencing is done on site where necessary
-				exp.reset_to_lvalue(symbol.id, symbol.type, location);
+			{
+				if (symbol.member_index != std::numeric_limits<size_t>::max())
+				{
+					exp.reset_to_lvalue(symbol.id, { spv_type::datatype_struct, 0, 0, 0, false, false, 0, symbol.id }, location);
+					add_member_access(exp, symbol.member_index, symbol.type);
+				}
+				else
+				{
+					// Simply return the pointer to the variable, dereferencing is done on site where necessary
+					exp.reset_to_lvalue(symbol.id, symbol.type, location);
+				}
+			}
 			else if (symbol.op == spv::OpConstant)
 				// Constants are loaded into the access chain
 				exp.reset_to_rvalue_constant(symbol.type, location, symbol.constant);
@@ -1032,10 +1196,12 @@ bool reshadefx::parser::parse_expression_unary(spv_basic_block &section, spv_exp
 
 			// Load current value from expression
 			const spv::Id value = access_chain_load(section, exp);
+			assert(value != 0);
 
 			// Create a constant one in the type of the expression
 			spv_constant one = {};
-			one.as_uint[0] = exp.type.is_floating_point() ? 0x3f800000u : 1u;
+			for (unsigned int i = 0; i < exp.type.components(); ++i)
+				one.as_uint[i] = exp.type.is_floating_point() ? 0x3f800000u : 1u;
 			const spv::Id constant = convert_constant(exp.type, one);
 
 			spv::Id result = add_node(section, location, op, convert_type(exp.type))
@@ -1360,65 +1526,222 @@ bool reshadefx::parser::parse_expression_multary(spv_basic_block &section, spv_e
 					warning(rhs.location, 3206, "implicit truncation of vector type");
 			}
 
-			// Load values and perform implicit type conversions
-			add_cast_operation(lhs, type);
-			const spv::Id lhs_value = access_chain_load(section, lhs);
-
-			// Short circuit for logical && and || operators
-			if (op == spv::OpLogicalAnd || op == spv::OpLogicalOr)
+			if (lhs.is_constant && rhs.is_constant)
 			{
-				const spv::Id parent0 = _current_block;
-				const spv::Id parent1 = make_id();
-				const spv::Id merge_target = make_id();
-
-				if (op == spv::OpLogicalAnd)
-					// && => Emit "if ( lhs) result = rhs"
-					leave_block_and_branch_conditional(section, lhs_value, parent1, merge_target);
-				else
-					// || => Emit "if (!lhs) result = rhs"
-					leave_block_and_branch_conditional(section, lhs_value, merge_target, parent1);
-
-				enter_block(section, parent1);
-
-				section.instructions.insert(section.instructions.end(), rhs_block.instructions.begin(), rhs_block.instructions.end());
-
+				add_cast_operation(lhs, type);
 				add_cast_operation(rhs, type);
-				const spv::Id rhs_value = access_chain_load(section, rhs);
 
-				leave_block_and_branch(section, merge_target);
+				spv_constant constant_data = lhs.constant;
 
-				enter_block(section, merge_target);
+				switch (op)
+				{
+				case spv::OpFMod:
+					for (unsigned int i = 0; i < type.components(); ++i)
+						constant_data.as_float[i] = fmodf(lhs.constant.as_float[i], rhs.constant.as_float[i]);
+					break;
+				case spv::OpUMod:
+					for (unsigned int i = 0; i < type.components(); ++i)
+						constant_data.as_uint[i] %= rhs.constant.as_uint[i];
+					break;
+				case spv::OpFMul:
+					for (unsigned int i = 0; i < type.components(); ++i)
+						constant_data.as_float[i] *= rhs.constant.as_float[i];
+					break;
+				case spv::OpIMul:
+					for (unsigned int i = 0; i < type.components(); ++i)
+						constant_data.as_uint[i] *= rhs.constant.as_uint[i];
+					break;
+				case spv::OpFAdd:
+					for (unsigned int i = 0; i < type.components(); ++i)
+						constant_data.as_float[i] += rhs.constant.as_float[i];
+					break;
+				case spv::OpIAdd:
+					for (unsigned int i = 0; i < type.components(); ++i)
+						constant_data.as_uint[i] += rhs.constant.as_uint[i];
+					break;
+				case spv::OpFSub:
+					for (unsigned int i = 0; i < type.components(); ++i)
+						constant_data.as_float[i] -= rhs.constant.as_float[i];
+					break;
+				case spv::OpISub:
+					for (unsigned int i = 0; i < type.components(); ++i)
+						constant_data.as_uint[i] -= rhs.constant.as_uint[i];
+					break;
+				case spv::OpFDiv:
+					for (unsigned int i = 0; i < type.components(); ++i)
+						constant_data.as_float[i] /= rhs.constant.as_float[i];
+					break;
+				case spv::OpSDiv:
+					for (unsigned int i = 0; i < type.components(); ++i)
+						constant_data.as_int[i] /= rhs.constant.as_int[i];
+					break;
+				case spv::OpUDiv:
+					for (unsigned int i = 0; i < type.components(); ++i)
+						constant_data.as_uint[i] /= rhs.constant.as_uint[i];
+					break;
+				case spv::OpLogicalAnd:
+				case spv::OpBitwiseAnd:
+					for (unsigned int i = 0; i < type.components(); ++i)
+						constant_data.as_uint[i] &= rhs.constant.as_uint[i];
+					break;
+				case spv::OpLogicalOr:
+				case spv::OpBitwiseOr:
+					for (unsigned int i = 0; i < type.components(); ++i)
+						constant_data.as_uint[i] |= rhs.constant.as_uint[i];
+					break;
+				case spv::OpBitwiseXor:
+					for (unsigned int i = 0; i < type.components(); ++i)
+						constant_data.as_uint[i] ^= rhs.constant.as_uint[i];
+					break;
+				case spv::OpFOrdLessThan:
+					for (unsigned int i = 0; i < type.components(); ++i)
+						constant_data.as_uint[i] = lhs.constant.as_float[i] < rhs.constant.as_float[i];
+					break;
+				case spv::OpSLessThan:
+					for (unsigned int i = 0; i < type.components(); ++i)
+						constant_data.as_uint[i] = lhs.constant.as_int[i] < rhs.constant.as_int[i];
+					break;
+				case spv::OpULessThan:
+					for (unsigned int i = 0; i < type.components(); ++i)
+						constant_data.as_uint[i] = lhs.constant.as_uint[i] < rhs.constant.as_uint[i];
+					break;
+				case spv::OpFOrdLessThanEqual:
+					for (unsigned int i = 0; i < type.components(); ++i)
+						constant_data.as_uint[i] = lhs.constant.as_float[i] <= rhs.constant.as_float[i];
+					break;
+				case spv::OpSLessThanEqual:
+					for (unsigned int i = 0; i < type.components(); ++i)
+						constant_data.as_uint[i] = lhs.constant.as_int[i] <= rhs.constant.as_int[i];
+					break;
+				case spv::OpULessThanEqual:
+					for (unsigned int i = 0; i < type.components(); ++i)
+						constant_data.as_uint[i] = lhs.constant.as_uint[i] <= rhs.constant.as_uint[i];
+					break;
+				case spv::OpFOrdGreaterThan:
+					for (unsigned int i = 0; i < type.components(); ++i)
+						constant_data.as_uint[i] = lhs.constant.as_float[i] > rhs.constant.as_float[i];
+					break;
+				case spv::OpSGreaterThan:
+					for (unsigned int i = 0; i < type.components(); ++i)
+						constant_data.as_uint[i] = lhs.constant.as_int[i] > rhs.constant.as_int[i];
+					break;
+				case spv::OpUGreaterThan:
+					for (unsigned int i = 0; i < type.components(); ++i)
+						constant_data.as_uint[i] = lhs.constant.as_uint[i] > rhs.constant.as_uint[i];
+					break;
+				case spv::OpFOrdGreaterThanEqual:
+					for (unsigned int i = 0; i < type.components(); ++i)
+						constant_data.as_uint[i] = lhs.constant.as_float[i] >= rhs.constant.as_float[i];
+					break;
+				case spv::OpSGreaterThanEqual:
+					for (unsigned int i = 0; i < type.components(); ++i)
+						constant_data.as_uint[i] = lhs.constant.as_int[i] >= rhs.constant.as_int[i];
+					break;
+				case spv::OpUGreaterThanEqual:
+					for (unsigned int i = 0; i < type.components(); ++i)
+						constant_data.as_uint[i] = lhs.constant.as_uint[i] >= rhs.constant.as_uint[i];
+					break;
+				case spv::OpFOrdEqual:
+					for (unsigned int i = 0; i < type.components(); ++i)
+						constant_data.as_uint[i] = lhs.constant.as_float[i] == rhs.constant.as_float[i];
+				case spv::OpIEqual:
+				case spv::OpLogicalEqual:
+					for (unsigned int i = 0; i < type.components(); ++i)
+						constant_data.as_uint[i] = lhs.constant.as_uint[i] == rhs.constant.as_uint[i];
+					break;
+				case spv::OpFOrdNotEqual:
+					for (unsigned int i = 0; i < type.components(); ++i)
+						constant_data.as_uint[i] = lhs.constant.as_float[i] != rhs.constant.as_float[i];
+				case spv::OpINotEqual:
+				case spv::OpLogicalNotEqual:
+					for (unsigned int i = 0; i < type.components(); ++i)
+						constant_data.as_uint[i] = lhs.constant.as_uint[i] != rhs.constant.as_uint[i];
+					break;
+				case spv::OpShiftLeftLogical:
+					for (unsigned int i = 0; i < type.components(); ++i)
+						constant_data.as_uint[i] <<= rhs.constant.as_uint[i];
+					break;
+				case spv::OpShiftRightLogical:
+					for (unsigned int i = 0; i < type.components(); ++i)
+						constant_data.as_uint[i] >>= rhs.constant.as_uint[i];
+					break;
+				}
 
-				spv::Id result = add_node(section, lhs.location, spv::OpPhi, convert_type(type))
-					.add(lhs_value) // Variable 0
-					.add(parent0) // Parent 0
-					.add(rhs_value) // Variable 1
-					.add(parent1) // Parent 1
-					.result;
-
-				lhs.reset_to_rvalue(result, type, lhs.location);
+				lhs.reset_to_rvalue_constant(type, lhs.location, constant_data);
 			}
 			else
 			{
-				section.instructions.insert(section.instructions.end(), rhs_block.instructions.begin(), rhs_block.instructions.end());
+				// Load values and perform implicit type conversions
+				add_cast_operation(lhs, type);
+				const spv::Id lhs_value = access_chain_load(section, lhs);
+				assert(lhs_value != 0);
 
-				add_cast_operation(rhs, type);
-				const spv::Id rhs_value = access_chain_load(section, rhs);
+				// Short circuit for logical && and || operators
+				if (op == spv::OpLogicalAnd || op == spv::OpLogicalOr)
+				{
+					const spv::Id parent0 = _current_block;
+					const spv::Id parent1 = make_id();
+					const spv::Id merge_target = make_id();
 
-				// Certain operations return a boolean type instead of the type of the input expressions
-				if (boolean_result)
-					type = { spv_type::datatype_bool, type.rows, type.cols };
+					if (op == spv::OpLogicalAnd)
+					{
+						// && => Emit "if ( lhs) result = rhs"
+						leave_block_and_branch_conditional(section, lhs_value, parent1, merge_target);
+					}
+					else
+					{
+						const spv::Id cond = add_node(section, lhs.location, spv::OpLogicalNot, convert_type(type))
+							.add(lhs_value)
+							.result;
+						// || => Emit "if (!lhs) result = rhs"
+						leave_block_and_branch_conditional(section, cond, parent1, merge_target);
+					}
 
-				spv::Id result = add_node(section, lhs.location, op, convert_type(type))
-					.add(lhs_value) /* Operand 1 */
-					.add(rhs_value) /* Operand 2 */
-					.result; // Result ID
+					enter_block(section, parent1);
 
-				lhs.reset_to_rvalue(result, type, lhs.location);
+					section.instructions.insert(section.instructions.end(), rhs_block.instructions.begin(), rhs_block.instructions.end());
+
+					add_cast_operation(rhs, type);
+					const spv::Id rhs_value = access_chain_load(section, rhs);
+					assert(rhs_value != 0);
+
+					leave_block_and_branch(section, merge_target);
+
+					enter_block(section, merge_target);
+
+					spv::Id result = add_node(section, lhs.location, spv::OpPhi, convert_type(type))
+						.add(lhs_value) // Variable 0
+						.add(parent0) // Parent 0
+						.add(rhs_value) // Variable 1
+						.add(parent1) // Parent 1
+						.result;
+
+					lhs.reset_to_rvalue(result, type, lhs.location);
+				}
+				else
+				{
+					section.instructions.insert(section.instructions.end(), rhs_block.instructions.begin(), rhs_block.instructions.end());
+
+					add_cast_operation(rhs, type);
+					const spv::Id rhs_value = access_chain_load(section, rhs);
+					assert(rhs_value != 0);
+
+					// Certain operations return a boolean type instead of the type of the input expressions
+					if (boolean_result)
+						type = { spv_type::datatype_bool, type.rows, type.cols };
+
+					spv::Id result = add_node(section, lhs.location, op, convert_type(type))
+						.add(lhs_value) /* Operand 1 */
+						.add(rhs_value) /* Operand 2 */
+						.result; // Result ID
+
+					lhs.reset_to_rvalue(result, type, lhs.location);
+				}
 			}
 		}
 		else
 		{
+			// TODO: Short circuit?
 			// A conditional expression needs a scalar or vector type condition
 			if (!lhs.type.is_scalar() && !lhs.type.is_vector())
 				return error(lhs.location, 3022, "boolean or vector expression expected"), false;
@@ -1467,10 +1790,13 @@ bool reshadefx::parser::parse_expression_multary(spv_basic_block &section, spv_e
 			// Load values and perform implicit type conversions
 			add_cast_operation(lhs, { spv_type::datatype_bool, lhs.type.rows, 1 });
 			const spv::Id condition_value = access_chain_load(section, lhs);
+			assert(condition_value != 0);
 			add_cast_operation(true_exp, type);
 			const spv::Id true_value = access_chain_load(section, true_exp);
+			assert(true_value != 0);
 			add_cast_operation(false_exp, type);
 			const spv::Id false_value = access_chain_load(section, false_exp);
+			assert(false_value != 0);
 
 			spv::Id result = add_node(section, lhs.location, spv::OpSelect, convert_type(type))
 				.add(condition_value) // Condition
@@ -1513,12 +1839,14 @@ bool reshadefx::parser::parse_expression_assignment(spv_basic_block &section, sp
 		// Load value of right hand side and perform implicit type conversion
 		add_cast_operation(rhs, lhs.type);
 		spv::Id rhs_value = access_chain_load(section, rhs);
+		assert(rhs_value != 0);
 
 		// Check if this is an assignment with an additional arithmetic instruction
 		if (op != spv::OpNop)
 		{
 			// Load value from left hand side as well to use in the operation
 			spv::Id lhs_value = access_chain_load(section, lhs);
+			assert(lhs_value != 0);
 
 			// Handle arithmetic assignment operation
 			const spv::Id result = add_node(section, lhs.location, op, convert_type(lhs.type))
@@ -1538,43 +1866,6 @@ bool reshadefx::parser::parse_expression_assignment(spv_basic_block &section, sp
 	}
 
 	return true;
-}
-bool reshadefx::parser::parse_expression_initializer(spv_basic_block &section, spv_expression &exp)
-{
-	// TODO
-	if (accept('{'))
-	{
-		const auto location = _token.location;
-
-		std::vector<spv::Id> elements;
-
-		while (!peek('}'))
-		{
-			if (!elements.empty() && !expect(','))
-				return false;
-
-			// Initializer lists might contain a comma at the end, so break out of the loop if nothing follows afterwards
-			if (peek('}'))
-				break;
-
-			if (parse_expression_initializer(section, exp))
-				elements.push_back(access_chain_load(section, exp));
-			else
-				return consume_until('}'), false;
-		}
-
-		exp.type.array_length = elements.size();
-
-		spv_instruction &node = add_node(section, location, spv::OpCompositeConstruct, convert_type(exp.type));
-		for (auto elem : elements)
-			node.add(elem);
-
-		exp.reset_to_rvalue(node.result, exp.type, node.location);
-
-		return expect('}');
-	}
-
-	return parse_expression_assignment(section, exp);
 }
 
 bool reshadefx::parser::parse_annotations(std::unordered_map<std::string, spv_constant> &annotations)
@@ -1744,6 +2035,7 @@ bool reshadefx::parser::parse_statement(spv_basic_block &section, bool scoped)
 			// Load condition and convert to boolean value as required by 'OpBranchConditional'
 			add_cast_operation(condition, { spv_type::datatype_bool, 1, 1 });
 			const spv::Id condition_value = access_chain_load(section, condition);
+			assert(condition_value != 0);
 
 			add_node_without_result(section, _token.location, spv::OpSelectionMerge)
 				.add(merge_label) // Merge Block
@@ -1792,6 +2084,7 @@ bool reshadefx::parser::parse_statement(spv_basic_block &section, bool scoped)
 			// Load selector and convert to integral value as required by 'OpSwitch'
 			add_cast_operation(selector, { spv_type::datatype_int, 1, 1 });
 			const spv::Id selector_value = access_chain_load(section, selector);
+			assert(selector_value != 0);
 
 			add_node_without_result(section, location, spv::OpSelectionMerge)
 				.add(merge_label) // Merge Block
@@ -1931,6 +2224,7 @@ bool reshadefx::parser::parse_statement(spv_basic_block &section, bool scoped)
 					// Evaluate condition and branch to the right target
 					add_cast_operation(condition, { spv_type::datatype_bool, 1, 1 });
 					const spv::Id condition_value = access_chain_load(section, condition);
+					assert(condition_value != 0);
 
 					leave_block_and_branch_conditional(section, condition_value, loop_label, merge_label);
 				}
@@ -2024,6 +2318,7 @@ bool reshadefx::parser::parse_statement(spv_basic_block &section, bool scoped)
 				// Evaluate condition and branch to the right target
 				add_cast_operation(condition, { spv_type::datatype_bool, 1, 1 });
 				const spv::Id condition_value = access_chain_load(section, condition);
+				assert(condition_value != 0);
 
 				leave_block_and_branch_conditional(section, condition_value, loop_label, merge_label);
 			}
@@ -2113,6 +2408,7 @@ bool reshadefx::parser::parse_statement(spv_basic_block &section, bool scoped)
 				// Evaluate condition and branch to the right target
 				add_cast_operation(condition, { spv_type::datatype_bool, 1, 1 });
 				const spv::Id condition_value = access_chain_load(section, condition);
+				assert(condition_value != 0);
 
 				leave_block_and_branch_conditional(section, condition_value, header_label, merge_label);
 			}
@@ -2174,6 +2470,7 @@ bool reshadefx::parser::parse_statement(spv_basic_block &section, bool scoped)
 				// Load return value and perform implicit cast to function return type
 				add_cast_operation(return_exp, parent->return_type);
 				const spv::Id return_value = access_chain_load(section, return_exp);
+				assert(return_value != 0);
 
 				leave_block_and_return(section, return_value);
 			}
@@ -2332,7 +2629,7 @@ bool reshadefx::parser::parse_struct()
 				if (!expect(tokenid::identifier))
 					return consume_until('}'), false;
 
-				member_info.builtin = semantic_to_builtin(_token.literal_as_string);
+				member_info.builtin = semantic_to_builtin(_token.literal_as_string, member_info.semantic_index);
 				member_info.type.has_semantic = true;
 			}
 
@@ -2360,8 +2657,8 @@ bool reshadefx::parser::parse_struct()
 
 		add_member_name(info.definition, i, member_info.name.c_str());
 
-		if (member_info.builtin != spv::BuiltInMax)
-			add_member_builtin(info.definition, i, member_info.builtin);
+		//if (member_info.builtin != spv::BuiltInMax)
+		//	add_member_builtin(info.definition, i, member_info.builtin); // TODO
 
 		//if (member_info.type.is_matrix())
 		//	add_member_decoration(info.definition, i, spv::DecorationRowMajor);
@@ -2381,7 +2678,6 @@ bool reshadefx::parser::parse_struct()
 
 	return expect('}');
 }
-
 bool reshadefx::parser::parse_function(spv_type type, std::string name)
 {
 	const auto location = _token.location;
@@ -2448,7 +2744,7 @@ bool reshadefx::parser::parse_function(spv_type type, std::string name)
 				return false;
 
 			param.type.has_semantic = true;
-			param.builtin = semantic_to_builtin(_token.literal_as_string);
+			param.builtin = semantic_to_builtin(_token.literal_as_string, param.semantic_index);
 		}
 
 		param.type.is_pointer = true;
@@ -2474,7 +2770,7 @@ bool reshadefx::parser::parse_function(spv_type type, std::string name)
 
 		info.return_type.qualifiers |= spv_type::qualifier_out; // Add out qualifier so the right storage class is appended to the pointer type
 		info.return_type.has_semantic = true;
-		info.return_builtin = semantic_to_builtin(_token.literal_as_string);
+		info.return_builtin = semantic_to_builtin(_token.literal_as_string, info.return_semantic_index);
 	}
 
 	// A function has to start with a new block
@@ -2484,11 +2780,10 @@ bool reshadefx::parser::parse_function(spv_type type, std::string name)
 
 	// Add implicit return statement to the end of functions
 	if (_current_block != 0)
-		leave_block_and_return(_functions2[_current_function].definition, type.is_void() ? 0 : convert_constant(type, {}));
+		leave_block_and_return(_functions2[_current_function].definition, 0);
 
 	return success;
 }
-
 bool reshadefx::parser::parse_variable(spv_type type, std::string name, spv_basic_block &section, bool global)
 {
 	const auto location = _token.location;
@@ -2550,7 +2845,7 @@ bool reshadefx::parser::parse_variable(spv_type type, std::string name, spv_basi
 		else if (!global) // Only global variables can have a semantic
 			return error(_token.location, 3043, "local variables cannot have semantics"), false;
 
-		info.builtin = semantic_to_builtin(_token.literal_as_string);
+		info.builtin = semantic_to_builtin(_token.literal_as_string, info.semantic_index);
 		type.has_semantic = true;
 	}
 	else
@@ -2560,7 +2855,7 @@ bool reshadefx::parser::parse_variable(spv_type type, std::string name, spv_basi
 
 		if (accept('='))
 		{
-			if (!parse_expression_initializer(section, initializer))
+			if (!parse_expression_assignment(section, initializer))
 				return error(_token_next.location, 3000, "syntax error: unexpected '" + token::id_to_name(_token_next.id) + "', expected initializer expression"), false;
 
 			if (global && !initializer.is_constant)
@@ -2597,7 +2892,7 @@ bool reshadefx::parser::parse_variable(spv_type type, std::string name, spv_basi
 			return error(location, 3012, "missing 'Texture' property for '" + name + "'"), false;
 
 		//auto image_ptr = lookup_id(info.texture).result_type;
-		type.definition = info.texture; // lookup_id(image_ptr).operands[1];
+		//type.definition = info.texture; // lookup_id(image_ptr).operands[1];
 		//assert(false); // TODO
 	}
 
@@ -2610,8 +2905,10 @@ bool reshadefx::parser::parse_variable(spv_type type, std::string name, spv_basi
 	}
 	else if (type.has(spv_type::qualifier_uniform) && !(type.is_texture() || type.is_sampler())) // Uniform variables are put into a global uniform buffer structure
 	{
-		// TODO
-		//assert(false);
+		if (_global_ubo_type == 0)
+			_global_ubo_type = make_id();
+		if (_global_ubo_variable == 0)
+			_global_ubo_variable = make_id();
 
 		spv_struct_member_info member;
 		member.name = name;
@@ -2620,7 +2917,21 @@ bool reshadefx::parser::parse_variable(spv_type type, std::string name, spv_basi
 
 		_uniforms.member_list.push_back(std::move(member));
 
-		symbol = { spv::OpVariable, 0, type };
+		symbol = { spv::OpVariable, _global_ubo_variable, type };
+
+		symbol.member_index = _uniforms.member_list.size() - 1;
+
+		add_member_name(_global_ubo_variable, symbol.member_index, name.c_str());
+
+		// GLSL specification on std140 layout:
+		// 1. If the member is a scalar consuming N basic machine units, the base alignment is N.
+		// 2. If the member is a two- or four-component vector with components consuming N basic machine units, the base alignment is 2N or 4N, respectively.
+		// 3. If the member is a three-component vector with components consuming N basic machine units, the base alignment is 4N.
+		size_t size = 4 * (type.rows == 3 ? 4 : type.rows) * type.cols * std::max(1, type.array_length);
+		size_t alignment = size;
+		_global_ubo_offset = align(_global_ubo_offset, alignment);
+		add_member_decoration(_global_ubo_type, symbol.member_index, spv::DecorationOffset, { _global_ubo_offset });
+		_global_ubo_offset += size;
 	}
 	else // All other variables are separate entities
 	{
@@ -2659,7 +2970,6 @@ bool reshadefx::parser::parse_variable(spv_type type, std::string name, spv_basi
 
 	return true;
 }
-
 bool reshadefx::parser::parse_variable_properties(spv_variable_info &props)
 {
 	if (!expect('{'))
@@ -2778,8 +3088,6 @@ bool reshadefx::parser::parse_technique(spv_technique_info &info)
 	if (!parse_annotations(info.annotation_list) || !expect('{'))
 		return false;
 
-	bool success = true;
-
 	while (!peek('}'))
 	{
 		if (spv_pass_info pass; parse_technique_pass(pass))
@@ -2790,7 +3098,6 @@ bool reshadefx::parser::parse_technique(spv_technique_info &info)
 
 	return expect('}');
 }
-
 bool reshadefx::parser::parse_technique_pass(spv_pass_info &info)
 {
 	if (!expect(tokenid::pass))
@@ -2890,6 +3197,8 @@ bool reshadefx::parser::parse_technique_pass(spv_pass_info &info)
 
 						if (param.builtin != spv::BuiltInMax)
 							add_builtin(result, param.builtin);
+						else
+							add_decoration(result, spv::DecorationLocation, { param.semantic_index });
 
 						inputs_and_outputs.push_back(result);
 					}
@@ -2903,6 +3212,8 @@ bool reshadefx::parser::parse_technique_pass(spv_pass_info &info)
 							add_builtin(result, spv::BuiltInFragCoord);
 						else if (param.builtin != spv::BuiltInMax)
 							add_builtin(result, param.builtin);
+						else
+							add_decoration(result, spv::DecorationLocation, { param.semantic_index });
 
 						inputs_and_outputs.push_back(result);
 					}
@@ -2918,6 +3229,8 @@ bool reshadefx::parser::parse_technique_pass(spv_pass_info &info)
 
 					if (function_info->return_builtin != spv::BuiltInMax)
 						add_builtin(result, function_info->return_builtin);
+					else
+						add_decoration(result, spv::DecorationLocation, { function_info->return_semantic_index });
 
 					inputs_and_outputs.push_back(result);
 

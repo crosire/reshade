@@ -13,6 +13,15 @@ namespace reshadefx
 	class spirv_module
 	{
 	public:
+		struct function_info2
+		{
+			spv_instruction declaration;
+			spv_basic_block variables;
+			spv_basic_block definition;
+			spv_type return_type;
+			std::vector<spv_type> param_types;
+		};
+
 		void write_module(std::ostream &stream);
 
 	protected:
@@ -21,16 +30,18 @@ namespace reshadefx
 		spv_instruction &add_node(spv_basic_block &section, const location &loc, spv::Op op, spv::Id type = 0);
 		spv_instruction &add_node_without_result(spv_basic_block &section, const location &loc, spv::Op op);
 
+		void define_struct(spv::Id id, const char *name, const location &loc, const std::vector<spv::Id> &members);
 		spv::Id define_struct(const char *name, const location &loc, const std::vector<spv::Id> &members);
 		spv::Id define_function(const char *name, const location &loc, const spv_type &return_type);
+		void define_variable(spv::Id id, const char *name, const location &loc, const spv_type &type, spv::StorageClass storage, spv::Id initializer = 0);
 		spv::Id define_variable(const char *name, const location &loc, const spv_type &type, spv::StorageClass storage, spv::Id initializer = 0);
 		spv::Id define_parameter(const char *name, const location &loc, const spv_type &type);
 
 		void add_builtin(spv::Id object, spv::BuiltIn builtin);
-		void add_decoration(spv::Id object, spv::Decoration decoration);
+		void add_decoration(spv::Id object, spv::Decoration decoration, std::initializer_list<uint32_t> values = {});
 		void add_member_name(spv::Id object, uint32_t member_index, const char *name);
 		void add_member_builtin(spv::Id object, uint32_t member_index, spv::BuiltIn builtin);
-		void add_member_decoration(spv::Id object, uint32_t member_index, spv::Decoration decoration);
+		void add_member_decoration(spv::Id object, uint32_t member_index, spv::Decoration decoration, std::initializer_list<uint32_t> values = {});
 		void add_entry_point(const char *name, spv::Id function, spv::ExecutionModel model, const std::vector<spv::Id> &io);
 
 		void add_cast_operation(spv_expression &chain, const spv_type &in_type);
@@ -47,7 +58,7 @@ namespace reshadefx
 		void leave_function();
 
 		spv::Id convert_type(const spv_type &info);
-		spv::Id convert_type(const spv_type &return_info, const std::vector<spv_type> &param_types);
+		spv::Id convert_type(const function_info2 &info);
 
 		spv::Id convert_constant(const spv_type &type, const spv_constant &data);
 
@@ -55,15 +66,6 @@ namespace reshadefx
 		void    access_chain_store(spv_basic_block &section, const spv_expression &chain, spv::Id value, const spv_type &value_type);
 
 		const uint32_t glsl_ext = 1;
-
-		struct function_info2
-		{
-			spv_instruction declaration;
-			spv_basic_block variables;
-			spv_basic_block definition;
-			spv_type return_type;
-			std::vector<spv_type> param_types;
-		};
 
 		std::vector<function_info2> _functions2;
 
@@ -77,11 +79,11 @@ namespace reshadefx
 		spv_basic_block _debug_a;
 		spv_basic_block _debug_b;
 		spv_basic_block _annotations;
-		spv_basic_block _types;
-		spv_basic_block _constants;
+		spv_basic_block _types_and_constants;
 		spv_basic_block _variables;
 
 		std::vector<std::pair<spv_type, spv::Id>> _type_lookup;
+		std::vector<std::pair<function_info2, spv::Id>> _function_type_lookup;
 		std::vector<std::tuple<spv_type, spv_constant, spv::Id>> _constant_lookup;
 	};
 }

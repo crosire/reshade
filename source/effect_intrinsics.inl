@@ -1,3 +1,4 @@
+#define type_void  { spv_type::datatype_void }
 #define type_bool  { spv_type::datatype_bool, 1, 1 }
 #define type_bool2 { spv_type::datatype_bool, 2, 1 }
 #define type_bool3 { spv_type::datatype_bool, 3, 1 }
@@ -262,10 +263,10 @@ static const intrinsic s_intrinsics[] = {
 { "radians", spv::OpExtInst, spv::GLSLstd450Radians, type_float2, type_float2 },
 { "radians", spv::OpExtInst, spv::GLSLstd450Radians, type_float3, type_float3 },
 { "radians", spv::OpExtInst, spv::GLSLstd450Radians, type_float4, type_float4 },
-//{ "rcp", intrinsic_expression_node::rcp, type_float, type_float },
-//{ "rcp", intrinsic_expression_node::rcp, type_float2, type_float2 },
-//{ "rcp", intrinsic_expression_node::rcp, type_float3, type_float3 },
-//{ "rcp", intrinsic_expression_node::rcp, type_float4, type_float4 },
+{ "rcp", spv::OpExtInst, (spv::GLSLstd450)0x10000001, type_float, type_float }, // TODO
+{ "rcp", spv::OpExtInst, (spv::GLSLstd450)0x10000001, type_float2, type_float2 },
+{ "rcp", spv::OpExtInst, (spv::GLSLstd450)0x10000001, type_float3, type_float3 },
+{ "rcp", spv::OpExtInst, (spv::GLSLstd450)0x10000001, type_float4, type_float4 },
 { "reflect", spv::OpExtInst, spv::GLSLstd450Reflect, type_float, type_float, type_float },
 { "reflect", spv::OpExtInst, spv::GLSLstd450Reflect, type_float2, type_float2, type_float2 },
 { "reflect", spv::OpExtInst, spv::GLSLstd450Reflect, type_float3, type_float3, type_float3 },
@@ -282,10 +283,10 @@ static const intrinsic s_intrinsics[] = {
 { "rsqrt", spv::OpExtInst, spv::GLSLstd450InverseSqrt, type_float2, type_float2 },
 { "rsqrt", spv::OpExtInst, spv::GLSLstd450InverseSqrt, type_float3, type_float3 },
 { "rsqrt", spv::OpExtInst, spv::GLSLstd450InverseSqrt, type_float4, type_float4 },
-//{ "saturate", intrinsic_expression_node::saturate, type_float, type_float },
-//{ "saturate", intrinsic_expression_node::saturate, type_float2, type_float2 },
-//{ "saturate", intrinsic_expression_node::saturate, type_float3, type_float3 },
-//{ "saturate", intrinsic_expression_node::saturate, type_float4, type_float4 },
+{ "saturate", spv::OpExtInst, (spv::GLSLstd450)0x10000002, type_float, type_float }, // TODO
+{ "saturate", spv::OpExtInst, (spv::GLSLstd450)0x10000002, type_float2, type_float2 },
+{ "saturate", spv::OpExtInst, (spv::GLSLstd450)0x10000002, type_float3, type_float3 },
+{ "saturate", spv::OpExtInst, (spv::GLSLstd450)0x10000002, type_float4, type_float4 },
 { "sign", spv::OpExtInst, spv::GLSLstd450FSign, type_int, type_float },
 { "sign", spv::OpExtInst, spv::GLSLstd450FSign, type_int2, type_float2 },
 { "sign", spv::OpExtInst, spv::GLSLstd450FSign, type_int3, type_float3 },
@@ -298,10 +299,10 @@ static const intrinsic s_intrinsics[] = {
 { "sin", spv::OpExtInst, spv::GLSLstd450Sin, type_float2, type_float2 },
 { "sin", spv::OpExtInst, spv::GLSLstd450Sin, type_float3, type_float3 },
 { "sin", spv::OpExtInst, spv::GLSLstd450Sin, type_float4, type_float4 },
-//{ "sincos", intrinsic_expression_node::sincos, type_void, type_float, type_float, type_float },
-//{ "sincos", intrinsic_expression_node::sincos, type_void, type_float2, type_float2, type_float2 },
-//{ "sincos", intrinsic_expression_node::sincos, type_void, type_float3, type_float3, type_float3 },
-//{ "sincos", intrinsic_expression_node::sincos, type_void, type_float4, type_float4, type_float4 },
+{ "sincos", spv::OpExtInst, (spv::GLSLstd450)0x10000003, type_void, type_float,  { spv_type::datatype_float, 1, 1, spv_type::qualifier_out }, { spv_type::datatype_float, 1, 1, spv_type::qualifier_out } }, // TODO
+{ "sincos", spv::OpExtInst, (spv::GLSLstd450)0x10000003, type_void, type_float2, { spv_type::datatype_float, 2, 1, spv_type::qualifier_out }, { spv_type::datatype_float, 2, 1, spv_type::qualifier_out } },
+{ "sincos", spv::OpExtInst, (spv::GLSLstd450)0x10000003, type_void, type_float3, { spv_type::datatype_float, 3, 1, spv_type::qualifier_out }, { spv_type::datatype_float, 3, 1, spv_type::qualifier_out } },
+{ "sincos", spv::OpExtInst, (spv::GLSLstd450)0x10000003, type_void, type_float4, { spv_type::datatype_float, 4, 1, spv_type::qualifier_out }, { spv_type::datatype_float, 4, 1, spv_type::qualifier_out } },
 { "sinh", spv::OpExtInst, spv::GLSLstd450Sinh, type_float, type_float },
 { "sinh", spv::OpExtInst, spv::GLSLstd450Sinh, type_float2, type_float2 },
 { "sinh", spv::OpExtInst, spv::GLSLstd450Sinh, type_float3, type_float3 },

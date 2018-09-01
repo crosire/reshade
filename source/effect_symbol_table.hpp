@@ -26,8 +26,9 @@ namespace reshadefx
 		spv::Op op;
 		spv::Id id;
 		spv_type type;
-		const spv_function_info *function;
-		spv_constant constant;
+		const spv_function_info *function = nullptr;
+		spv_constant constant = {};
+		size_t member_index = std::numeric_limits<size_t>::max();
 	};
 
 	/// <summary>

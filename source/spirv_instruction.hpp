@@ -32,17 +32,12 @@ namespace reshadefx
 		{
 			uint32_t word = 0;
 
-			while (*string || word & 0xFF000000)
-			{
+			do {
 				word = 0;
-
 				for (uint32_t i = 0; i < 4 && *string; ++i)
-				{
 					reinterpret_cast<uint8_t *>(&word)[i] = *string++;
-				}
-
 				add(word);
-			}
+			} while (*string || word & 0xFF000000);
 
 			return *this;
 		}

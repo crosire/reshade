@@ -15,7 +15,16 @@ inline bool operator==(const reshadefx::spv_type &lhs, const reshadefx::spv_type
 {
 	//return lhs.base == rhs.base && lhs.rows == rhs.rows && lhs.cols == rhs.cols && lhs.array_length == rhs.array_length && lhs.definition == rhs.definition && lhs.is_pointer == rhs.is_pointer;
 	//return std::memcmp(&lhs, &rhs, sizeof(lhs)) == 0;
-	return lhs.base == rhs.base && lhs.rows == rhs.rows && lhs.cols == rhs.cols && lhs.array_length == rhs.array_length && lhs.definition == rhs.definition && lhs.is_pointer == rhs.is_pointer && (!lhs.is_pointer || lhs.qualifiers == rhs.qualifiers);
+	return lhs.base == rhs.base && lhs.rows == rhs.rows && lhs.cols == rhs.cols && lhs.array_length == rhs.array_length && lhs.definition == rhs.definition && lhs.is_pointer == rhs.is_pointer && (!lhs.is_pointer || (!lhs.has_semantic && !rhs.has_semantic) || lhs.qualifiers == rhs.qualifiers);
+}
+inline bool operator==(const reshadefx::spirv_module::function_info2 &lhs, const reshadefx::spirv_module::function_info2 &rhs)
+{
+	if (lhs.param_types.size() != rhs.param_types.size())
+		return false;
+	for (size_t i = 0; i < lhs.param_types.size(); ++i)
+		if (!(lhs.param_types[i] == rhs.param_types[i]))
+			return false;
+	return lhs.return_type == rhs.return_type;
 }
 
 static inline void write(std::ostream &s, uint32_t word)
@@ -46,8 +55,8 @@ void spirv_module::write_module(std::ostream &s)
 	// Write SPIRV header info
 	write(s, spv::MagicNumber);
 	write(s, spv::Version);
-	write(s, 0u); // Generator magic number, see https://www.khronos.org/registry/spir-v/api/spir-v.xml
-	write(s, 1000u); // Maximum ID
+	write(s, 20u); // Generator magic number, see https://www.khronos.org/registry/spir-v/api/spir-v.xml
+	write(s, _next_id); // Maximum ID
 	write(s, 0u); // Reserved for instruction schema
 
 	// All capabilities
@@ -80,9 +89,7 @@ void spirv_module::write_module(std::ostream &s)
 		write(s, node);
 
 	// All type declarations
-	for (const auto &node : _types.instructions)
-		write(s, node);
-	for (const auto &node : _constants.instructions)
+	for (const auto &node : _types_and_constants.instructions)
 		write(s, node);
 	for (const auto &node : _variables.instructions)
 		write(s, node);
@@ -113,9 +120,21 @@ spv_instruction &spirv_module::add_node_without_result(spv_basic_block &section,
 	return instruction;
 }
 
+void spirv_module::define_struct(spv::Id id, const char *name, const location &loc, const std::vector<spv::Id> &members)
+{
+	spv_instruction &node = add_node_without_result(_types_and_constants, loc, spv::OpTypeStruct);
+	node.result = id;
+	for (spv::Id type : members)
+		node.add(type);
+
+	if (name)
+		add_node_without_result(_debug_b, {}, spv::OpName)
+		.add(node.result)
+		.add_string(name);
+}
 spv::Id spirv_module::define_struct(const char *name, const location &loc, const std::vector<spv::Id> &members)
 {
-	spv_instruction &node = add_node(_types, loc, spv::OpTypeStruct);
+	spv_instruction &node = add_node(_types_and_constants, loc, spv::OpTypeStruct);
 	for (spv::Id type : members)
 		node.add(type);
 
@@ -145,6 +164,19 @@ spv::Id spirv_module::define_function(const char *name, const location &loc, con
 			.add_string(name);
 
 	return instruction.result;
+}
+void spirv_module::define_variable(spv::Id id, const char *name, const location &loc, const reshadefx::spv_type &type, spv::StorageClass storage, spv::Id initializer)
+{
+	spv_instruction &node = add_node_without_result(storage != spv::StorageClassFunction ? _variables : _functions2[_current_function].variables, loc, spv::OpVariable)
+		.add(storage);
+	node.type = convert_type(type);
+	node.result = id;
+	if (initializer)
+		node.add(initializer);
+	if (name)
+		add_node_without_result(_debug_b, {}, spv::OpName)
+		.add(node.result)
+		.add_string(name);
 }
 spv::Id spirv_module::define_variable(const char *name, const location &loc, const reshadefx::spv_type &type, spv::StorageClass storage, spv::Id initializer)
 {
@@ -177,11 +209,14 @@ void spirv_module::add_builtin(spv::Id id, spv::BuiltIn builtin)
 		.add(spv::DecorationBuiltIn)
 		.add(builtin);
 }
-void spirv_module::add_decoration(spv::Id id, spv::Decoration decoration)
+void spirv_module::add_decoration(spv::Id id, spv::Decoration decoration, std::initializer_list<uint32_t> values)
 {
-	add_node_without_result(_annotations, {}, spv::OpDecorate)
+	spv_instruction &node = add_node_without_result(_annotations, {}, spv::OpDecorate)
 		.add(id)
 		.add(decoration);
+
+	for (uint32_t value : values)
+		node.add(value);
 }
 void spirv_module::add_member_name(spv::Id id, uint32_t member_index, const char *name)
 {
@@ -198,12 +233,15 @@ void spirv_module::add_member_builtin(spv::Id id, uint32_t member_index, spv::Bu
 		.add(spv::DecorationBuiltIn)
 		.add(builtin);
 }
-void spirv_module::add_member_decoration(spv::Id id, uint32_t member_index, spv::Decoration decoration)
+void spirv_module::add_member_decoration(spv::Id id, uint32_t member_index, spv::Decoration decoration, std::initializer_list<uint32_t> values)
 {
-	add_node_without_result(_annotations, {}, spv::OpMemberDecorate)
+	spv_instruction &node = add_node_without_result(_annotations, {}, spv::OpMemberDecorate)
 		.add(id)
 		.add(member_index)
 		.add(decoration);
+
+	for (uint32_t value : values)
+		node.add(value);
 }
 void spirv_module::add_entry_point(const char *name, spv::Id function, spv::ExecutionModel model, const std::vector<spv::Id> &io)
 {
@@ -229,19 +267,33 @@ void spirv_module::add_cast_operation(spv_expression &chain, const reshadefx::sp
 				for (unsigned int i = 0; i < 16; ++i)
 					chain.constant.as_uint[i] = static_cast<int>(chain.constant.as_float[i]);
 			}
+			else
+			{
+				// int 2 uint
+			}
 		}
 		else
 		{
 			if (!chain.type.is_integral())
 			{
+				// Scalar to vector promotion
 				assert(chain.type.is_floating_point() && chain.type.is_scalar() && in_type.is_vector());
-				for (unsigned int i = 1; i < in_type.rows; ++i)
+				for (unsigned int i = 1; i < in_type.components(); ++i)
 					chain.constant.as_float[i] = chain.constant.as_float[0];
 			}
 			else
 			{
-				for (unsigned int i = 0; i < 16; ++i)
-					chain.constant.as_float[i] = static_cast<float>(static_cast<int>(chain.constant.as_uint[i]));
+				if (chain.type.is_scalar())
+				{
+					const float value = static_cast<float>(static_cast<int>(chain.constant.as_uint[0]));
+					for (unsigned int i = 0; i < 16; ++i)
+						chain.constant.as_float[i] = value;
+				}
+				else
+				{
+					for (unsigned int i = 0; i < 16; ++i)
+						chain.constant.as_float[i] = static_cast<float>(static_cast<int>(chain.constant.as_uint[i]));
+				}
 			}
 		}
 	}
@@ -271,10 +323,16 @@ void spirv_module::add_static_index_access(spv_expression &chain, size_t index)
 	{
 		chain.constant.as_uint[0] = index;
 		memset(&chain.constant.as_uint[1], 0, sizeof(uint32_t) * 15); // Clear the reset of the constant
-		return add_dynamic_index_access(chain, convert_constant({ spv_type::datatype_uint, 32, 1, 1 }, chain.constant));
+		return add_dynamic_index_access(chain, convert_constant({ spv_type::datatype_uint, 1, 1 }, chain.constant));
 	}
 
-	if (chain.type.is_matrix()) // Indexing into a matrix returns a row of it as a vector
+	if (chain.type.is_array())
+	{
+		chain.type.array_length = 0;
+
+		chain.constant = chain.constant.as_array[index];
+	}
+	else if (chain.type.is_matrix()) // Indexing into a matrix returns a row of it as a vector
 	{
 		chain.type.rows = chain.type.cols,
 		chain.type.cols = 1;
@@ -364,11 +422,20 @@ void spirv_module::leave_block_and_return(spv_basic_block &section, spv::Id valu
 	assert(_current_function != std::numeric_limits<size_t>::max());
 	if (_current_block == 0) // Might already have left
 		return;
-	if (value != 0)
+	if (_functions2[_current_function].return_type.is_void())
+	{
+		add_node_without_result(section, {}, spv::OpReturn);
+	}
+	else
+	{
+		if (value == 0)
+		{
+			value = add_node(_types_and_constants, {}, spv::OpUndef, convert_type(_functions2[_current_function].return_type)).result;
+		}
+
 		add_node_without_result(section, {}, spv::OpReturnValue)
 			.add(value);
-	else
-		add_node_without_result(section, {}, spv::OpReturn);
+	}
 	_current_block = 0;
 }
 void spirv_module::leave_block_and_branch(spv_basic_block &section, spv::Id target)
@@ -398,7 +465,7 @@ void spirv_module::leave_function()
 
 	add_node_without_result(function.definition, {}, spv::OpFunctionEnd);
 
-	function.declaration.add(convert_type(function.return_type, function.param_types)); // Function Type
+	function.declaration.add(convert_type(function)); // Function Type
 
 	_current_function = std::numeric_limits<size_t>::max();
 }
@@ -412,30 +479,7 @@ spv::Id spirv_module::convert_type(const reshadefx::spv_type &info)
 
 	spv_type eleminfo = info;
 
-	if (info.is_array())
-	{
-		eleminfo.array_length = 0;
-
-		spv::Id elemtype = convert_type(eleminfo);
-
-		// TODO: Array stride
-		if (info.array_length > 0) // Sized array
-		{
-			spv_constant array_length = {};
-			array_length.as_uint[0] = info.array_length;
-			type = add_node(_types, {}, spv::OpTypeArray)
-				.add(elemtype)
-				.add(convert_constant({ spv_type::datatype_uint, 32, 1, 1 }, array_length))
-				.result;
-		}
-		else // Dynamic array
-		{
-			type = add_node(_types, {}, spv::OpTypeRuntimeArray)
-				.add(elemtype)
-				.result;
-		}
-	}
-	else if (info.is_pointer)
+	if (info.is_pointer)
 	{
 		eleminfo.is_pointer = false;
 
@@ -451,109 +495,147 @@ spv::Id spirv_module::convert_type(const reshadefx::spv_type &info)
 		if (info.has(spv_type::qualifier_uniform))
 			storage = spv::StorageClassUniform;
 
-		type = add_node(_types, {}, spv::OpTypePointer)
+		type = add_node(_types_and_constants, {}, spv::OpTypePointer)
 			.add(storage)
 			.add(elemtype)
 			.result;
 	}
+	else if (info.is_array())
+	{
+		assert(!info.is_pointer);
+		eleminfo.array_length = 0;
+
+		spv::Id elemtype = convert_type(eleminfo);
+
+		// TODO: Array stride
+		if (info.array_length > 0) // Sized array
+		{
+			spv_constant array_length = {};
+			array_length.as_uint[0] = info.array_length;
+			spv::Id array_length_id = convert_constant({ spv_type::datatype_uint, 1, 1 }, array_length);
+			type = add_node(_types_and_constants, {}, spv::OpTypeArray)
+				.add(elemtype)
+				.add(array_length_id)
+				.result;
+		}
+		else // Dynamic array
+		{
+			type = add_node(_types_and_constants, {}, spv::OpTypeRuntimeArray)
+				.add(elemtype)
+				.result;
+		}
+	}
+	else if (info.is_vector())
+	{
+		eleminfo.rows = 1;
+		eleminfo.cols = 1;
+
+		const spv::Id elemtype = convert_type(eleminfo);
+
+		type = add_node(_types_and_constants, {}, spv::OpTypeVector)
+			.add(elemtype)
+			.add(info.rows)
+			.result;
+	}
+	else if (info.is_matrix())
+	{
+		eleminfo.cols = 1;
+
+		const spv::Id elemtype = convert_type(eleminfo);
+
+		type = add_node(_types_and_constants, {}, spv::OpTypeMatrix)
+			.add(elemtype)
+			.add(info.cols)
+			.result;
+	}
 	else
 	{
-		if (info.is_vector())
+		switch (info.base)
 		{
-			eleminfo.rows = 1;
-			eleminfo.cols = 1;
-
-			const spv::Id elemtype = convert_type(eleminfo);
-
-			type = add_node(_types, {}, spv::OpTypeVector)
-				.add(elemtype)
-				.add(info.rows)
+		case spv_type::datatype_void:
+			assert(info.rows == 0 && info.cols == 0);
+			type = add_node(_types_and_constants, {}, spv::OpTypeVoid).result;
+			break;
+		case spv_type::datatype_bool:
+			assert(info.rows == 1 && info.cols == 1);
+			type = add_node(_types_and_constants, {}, spv::OpTypeBool).result;
+			break;
+		case spv_type::datatype_float:
+			assert(info.rows == 1 && info.cols == 1);
+			type = add_node(_types_and_constants, {}, spv::OpTypeFloat)
+				.add(32)
 				.result;
-		}
-		else if (info.is_matrix())
-		{
-			eleminfo.cols = 1;
-
-			const spv::Id elemtype = convert_type(eleminfo);
-
-			type = add_node(_types, {}, spv::OpTypeMatrix)
-				.add(elemtype)
-				.add(info.cols)
+			break;
+		case spv_type::datatype_int:
+			assert(info.rows == 1 && info.cols == 1);
+			type = add_node(_types_and_constants, {}, spv::OpTypeInt)
+				.add(32)
+				.add(1)
 				.result;
+			break;
+		case spv_type::datatype_uint:
+			assert(info.rows == 1 && info.cols == 1);
+			type = add_node(_types_and_constants, {}, spv::OpTypeInt)
+				.add(32)
+				.add(0)
+				.result;
+			break;
+		case spv_type::datatype_struct:
+			assert(info.definition != 0 && info.rows == 0 && info.cols == 0);
+			type = info.definition;
+			break;
+		case spv_type::datatype_texture: {
+			assert(info.rows == 0 && info.cols == 0);
+			spv::Id sampled_type = convert_type({ spv_type::datatype_float, 1, 1 });
+			type = add_node(_types_and_constants, {}, spv::OpTypeImage)
+				.add(sampled_type) // Sampled Type
+				.add(spv::Dim2D)
+				.add(0) // Not a depth image
+				.add(0) // Not an array
+				.add(0) // Not multi-sampled
+				.add(1) // Will be used with a sampler
+				.add(spv::ImageFormatRgba8)
+				.result;
+			break;
 		}
-		else
-		{
-			switch (info.base)
-			{
-			case spv_type::datatype_void:
-				type = add_node(_types, {}, spv::OpTypeVoid).result;
-				break;
-			case spv_type::datatype_bool:
-				type = add_node(_types, {}, spv::OpTypeBool).result;
-				break;
-			case spv_type::datatype_float:
-				type = add_node(_types, {}, spv::OpTypeFloat)
-					.add(32)
-					.result;
-				break;
-			case spv_type::datatype_int:
-				type = add_node(_types, {}, spv::OpTypeInt)
-					.add(32)
-					.add(1)
-					.result;
-				break;
-			case spv_type::datatype_uint:
-				type = add_node(_types, {}, spv::OpTypeInt)
-					.add(32)
-					.add(0)
-					.result;
-				break;
-			case spv_type::datatype_struct:
-				assert(info.definition);
-				type = info.definition;
-				break;
-			case spv_type::datatype_texture: {
-				spv::Id sampled_type = convert_type({ spv_type::datatype_float, 4, 1 });
-				//assert(info.definition);
-				type = add_node(_types, {}, spv::OpTypeImage)
-					.add(sampled_type) // Sampled Type
-					.add(spv::Dim2D)
-					.add(0) // Not a depth image
-					.add(0) // Not an array
-					.add(0) // Not multi-sampled
-					.add(1) // Will be used with a sampler
-					.add(spv::ImageFormatRgba8)
-					.result;
-				break;
-			}
-			case spv_type::datatype_sampler:
-				//assert(info.definition); // TODO
-				type = add_node(_types, {}, spv::OpTypeSampledImage)
-					.add(info.definition)
-					.result;
-				break;
-			default:
-				return 0;
-			}
+		case spv_type::datatype_sampler: {
+			assert(info.rows == 0 && info.cols == 0);
+			spv::Id image_type = convert_type({ spv_type::datatype_texture });
+			type = add_node(_types_and_constants, {}, spv::OpTypeSampledImage)
+				.add(image_type)
+				.result;
+			break;
+		}
+		default:
+			assert(false);
+			return 0;
 		}
 	}
 
-	_type_lookup.push_back({ info, type });;
+	spv_type type2 = info;
+	type2.has_semantic = false;
+	_type_lookup.push_back({ type2, type });;
 
 	return type;
 }
-spv::Id spirv_module::convert_type(const reshadefx::spv_type &return_info, const std::vector<reshadefx::spv_type> &param_types)
+spv::Id spirv_module::convert_type(const function_info2 &info)
 {
-	spv::Id return_type = convert_type(return_info);
+	if (auto it = std::find_if(_function_type_lookup.begin(), _function_type_lookup.end(), [&info](auto &x) { return x.first == info; }); it != _function_type_lookup.end())
+		return it->second;
+
+	spv::Id return_type = convert_type(info.return_type);
 	assert(return_type != 0);
 	std::vector<spv::Id> param_type_ids;
-	for (auto param : param_types)
+	for (auto param : info.param_types)
 		param_type_ids.push_back(convert_type(param));
 
-	spv_instruction &node = add_node(_types, {}, spv::OpTypeFunction);
+	spv_instruction &node = add_node(_types_and_constants, {}, spv::OpTypeFunction);
 	node.add(return_type);
 	for (auto param_type : param_type_ids)
 		node.add(param_type);
+
+	_function_type_lookup.push_back({ info, node.result });;
+
 	return node.result;
 }
 
@@ -564,13 +646,32 @@ spv::Id spirv_module::convert_constant(const reshadefx::spv_type &type, const sp
 	if (auto it = std::find_if(_constant_lookup.begin(), _constant_lookup.end(), [&type, &data](auto &x) {
 		return std::get<0>(x) == type && std::memcmp(&std::get<1>(x).as_uint[0], &data.as_uint[0], sizeof(uint32_t) * 16) == 0;
 	}); it != _constant_lookup.end())
-		return std::get<2>(*it); // TODO check type match
+		return std::get<2>(*it);
 
 	spv::Id result = 0;
 
-	if (type.is_struct())
+	if (type.is_array())
 	{
-		result = add_node(_constants, {}, spv::OpConstantNull, convert_type(type)).result;
+		std::vector<spv::Id> elements;
+
+		spv_type elem_type = type;
+		elem_type.array_length = 0;
+
+		for (const spv_constant &elem : data.as_array)
+		{
+			elements.push_back(convert_constant(elem_type, elem));
+		}
+
+		spv_instruction &node = add_node(_types_and_constants, {}, spv::OpConstantComposite, convert_type(type));
+
+		for (spv::Id elem : elements)
+			node.add(elem);
+
+		result = node.result;
+	}
+	else if (type.is_struct())
+	{
+		result = add_node(_types_and_constants, {}, spv::OpConstantNull, convert_type(type)).result;
 	}
 	else if (type.is_matrix())
 	{
@@ -586,7 +687,7 @@ spv::Id spirv_module::convert_constant(const reshadefx::spv_type &type, const sp
 			columns[i] = convert_constant(column_type, column);
 		}
 
-		spv_instruction &node = add_node(_constants, {}, spv::OpConstantComposite, convert_type(type));
+		spv_instruction &node = add_node(_types_and_constants, {}, spv::OpConstantComposite, convert_type(type));
 
 		for (unsigned int i = 0; i < type.cols; ++i)
 			node.add(columns[i]);
@@ -606,7 +707,7 @@ spv::Id spirv_module::convert_constant(const reshadefx::spv_type &type, const sp
 			rows[i] = convert_constant(value_type, scalar);
 		}
 
-		spv_instruction &node = add_node(_constants, {}, spv::OpConstantComposite, convert_type(type));
+		spv_instruction &node = add_node(_types_and_constants, {}, spv::OpConstantComposite, convert_type(type));
 
 		for (unsigned int i = 0; i < type.rows; ++i)
 			node.add(rows[i]);
@@ -615,12 +716,12 @@ spv::Id spirv_module::convert_constant(const reshadefx::spv_type &type, const sp
 	}
 	else if (type.is_boolean())
 	{
-		result = add_node(_constants, {}, data.as_uint[0] ? spv::OpConstantTrue : spv::OpConstantFalse, convert_type(type)).result;
+		result = add_node(_types_and_constants, {}, data.as_uint[0] ? spv::OpConstantTrue : spv::OpConstantFalse, convert_type(type)).result;
 	}
 	else
 	{
 		assert(type.is_scalar());
-		result = add_node(_constants, {}, spv::OpConstant, convert_type(type)).add(data.as_uint[0]).result;
+		result = add_node(_types_and_constants, {}, spv::OpConstant, convert_type(type)).add(data.as_uint[0]).result;
 	}
 
 	_constant_lookup.push_back({ type, data, result });
@@ -648,13 +749,14 @@ spv::Id spirv_module::access_chain_load(spv_basic_block &section, const spv_expr
 		if (!chain.ops.empty() && chain.ops[0].type == spv_expression::index)
 		{
 			assert(chain.ops[0].to.is_pointer);
-			spv_instruction &node = add_node(section, chain.location, spv::OpAccessChain, convert_type(chain.ops[0].to))
+			spv_instruction &node = add_node(section, chain.location, spv::OpAccessChain)
 				.add(result); // Base
 			do {
 				assert(chain.ops[op_index].to.is_pointer);
 				base_type = chain.ops[op_index].to;
 				node.add(chain.ops[op_index++].index); // Indexes
 			} while (op_index < chain.ops.size() && chain.ops[op_index].type == spv_expression::index);
+			node.type = convert_type(chain.ops[op_index - 1].to); // Last type is the result
 			result = node.result; // Result ID
 		}
 
@@ -675,34 +777,20 @@ spv::Id spirv_module::access_chain_load(spv_basic_block &section, const spv_expr
 		case spv_expression::cast:
 			assert(!op.to.is_pointer);
 
-			if (op.to.components() > op.from.components())
-			{
-				auto composite_type = op.to;
-				composite_type.base = op.from.base;
-				spv_instruction &composite_node = add_node(section, chain.location, chain.is_constant ? spv::OpConstantComposite : spv::OpCompositeConstruct, convert_type(composite_type));
-				for (unsigned int i = 0; i < composite_type.components(); ++i)
-					composite_node.add(result);
-				result = composite_node.result;
-			}
-			if (op.from.components() > op.to.components())
-			{
-				//signed char swizzle[4] = { -1, -1, -1, -1 };
-				//for (unsigned int i = 0; i < rhs.type.rows; ++i)
-				//	swizzle[i] = i;
-				//from.push_swizzle(swizzle);
-				assert(false); // TODO
-			}
-
 			if (op.from.base != op.to.base)
 			{
+				spv_type from_with_to_base = op.from;
+				from_with_to_base.base = op.to.base;
+
 				if (op.from.is_boolean())
 				{
 					spv_constant true_c = {};
-					true_c.as_uint[0] = op.to.is_floating_point() ? 0x3f800000 : 1;
-					const spv::Id true_constant = convert_constant(op.to, true_c);
-					const spv::Id false_constant = convert_constant(op.to, {});
+					for (unsigned int i = 0; i < op.to.components(); ++i)
+						true_c.as_uint[i] = op.to.is_floating_point() ? 0x3f800000 : 1;
+					const spv::Id true_constant = convert_constant(from_with_to_base, true_c);
+					const spv::Id false_constant = convert_constant(from_with_to_base, {});
 
-					result = add_node(section, chain.location, spv::OpSelect, convert_type(op.to))
+					result = add_node(section, chain.location, spv::OpSelect, convert_type(from_with_to_base))
 						.add(result) // Condition
 						.add(true_constant)
 						.add(false_constant)
@@ -713,31 +801,47 @@ spv::Id spirv_module::access_chain_load(spv_basic_block &section, const spv_expr
 					switch (op.to.base)
 					{
 					case spv_type::datatype_bool:
-						result = add_node(section, chain.location, op.from.is_floating_point() ? spv::OpFOrdNotEqual : spv::OpINotEqual, convert_type(op.to))
+						result = add_node(section, chain.location, op.from.is_floating_point() ? spv::OpFOrdNotEqual : spv::OpINotEqual, convert_type(from_with_to_base))
 							.add(result)
 							.add(convert_constant(op.from, {}))
 							.result;
 						break;
 					case spv_type::datatype_int:
 						assert(op.from.is_floating_point());
-						result = add_node(section, chain.location, spv::OpConvertFToS, convert_type(op.to))
+						result = add_node(section, chain.location, spv::OpConvertFToS, convert_type(from_with_to_base))
 							.add(result)
 							.result;
 						break;
 					case spv_type::datatype_uint:
 						assert(op.from.is_floating_point());
-						result = add_node(section, chain.location, spv::OpConvertFToU, convert_type(op.to))
+						result = add_node(section, chain.location, spv::OpConvertFToU, convert_type(from_with_to_base))
 							.add(result)
 							.result;
 						break;
 					case spv_type::datatype_float:
 						assert(op.from.is_integral());
-						result = add_node(section, chain.location, op.from.base == spv_type::datatype_int ? spv::OpConvertSToF : spv::OpConvertUToF, convert_type(op.to))
+						result = add_node(section, chain.location, op.from.base == spv_type::datatype_int ? spv::OpConvertSToF : spv::OpConvertUToF, convert_type(from_with_to_base))
 							.add(result)
 							.result;
 						break;
 					}
 				}
+			}
+
+			if (op.to.components() > op.from.components())
+			{
+				spv_instruction &composite_node = add_node(section, chain.location, chain.is_constant ? spv::OpConstantComposite : spv::OpCompositeConstruct, convert_type(op.to));
+				for (unsigned int i = 0; i < op.to.components(); ++i)
+					composite_node.add(result);
+				result = composite_node.result;
+			}
+			if (op.from.components() > op.to.components())
+			{
+				//signed char swizzle[4] = { -1, -1, -1, -1 };
+				//for (unsigned int i = 0; i < rhs.type.rows; ++i)
+				//	swizzle[i] = i;
+				//from.push_swizzle(swizzle);
+				assert(false); // TODO
 			}
 			break;
 		case spv_expression::index:
@@ -817,13 +921,14 @@ void    spirv_module::access_chain_store(spv_basic_block &section, const spv_exp
 	if (!chain.ops.empty() && chain.ops[0].type == spv_expression::index)
 	{
 		assert(chain.ops[0].to.is_pointer);
-		spv_instruction &node = add_node(section, chain.location, spv::OpAccessChain, convert_type(chain.ops[0].to))
+		spv_instruction &node = add_node(section, chain.location, spv::OpAccessChain)
 			.add(target); // Base
 		do {
 			assert(chain.ops[op_index].to.is_pointer);
 			base_type = chain.ops[op_index].to;
 			node.add(chain.ops[op_index++].index); // Indexes
 		} while (op_index < chain.ops.size() && chain.ops[op_index].type == spv_expression::index);
+		node.type = convert_type(chain.ops[op_index - 1].to); // Last type is the result
 		target = node.result; // Result ID
 	}
 

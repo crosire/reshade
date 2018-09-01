@@ -84,9 +84,11 @@ namespace reshadefx
 		union
 		{
 			float as_float[16];
+			int32_t as_int[16];
 			uint32_t as_uint[16];
 		};
 		std::string as_string;
+		std::vector<spv_constant> as_array;
 	};
 
 	struct spv_expression
@@ -175,6 +177,7 @@ namespace reshadefx
 		spv_type type;
 		std::string name;
 		spv::BuiltIn builtin = spv::BuiltInMax;
+		unsigned int semantic_index = 0;
 		std::vector<spv::Decoration> decorations;
 	};
 
@@ -193,6 +196,7 @@ namespace reshadefx
 		std::string unique_name;
 		spv_type return_type;
 		spv::BuiltIn return_builtin;
+		unsigned int return_semantic_index = 0;
 		std::vector<spv_struct_member_info> parameter_list;
 	};
 
@@ -202,6 +206,7 @@ namespace reshadefx
 		std::string name;
 		std::string unique_name;
 		spv::BuiltIn builtin = spv::BuiltInMax;
+		unsigned int semantic_index = 0;
 		std::unordered_map<std::string, spv_constant> annotation_list;
 		spv::Id texture;
 		unsigned int width = 1, height = 1, depth = 1, levels = 1;

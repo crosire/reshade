@@ -62,7 +62,6 @@ namespace reshadefx
 		bool parse_expression_unary(spv_basic_block &section, struct spv_expression &expression);
 		bool parse_expression_multary(spv_basic_block &section, struct spv_expression &expression, unsigned int precedence = 0);
 		bool parse_expression_assignment(spv_basic_block &section, struct spv_expression &expression);
-		bool parse_expression_initializer(spv_basic_block &section, struct spv_expression &expression);
 
 		bool parse_top_level();
 
@@ -92,5 +91,9 @@ namespace reshadefx
 
 		std::vector<spv::Id> _loop_break_target_stack;
 		std::vector<spv::Id> _loop_continue_target_stack;
+
+		spv::Id _global_ubo_type = 0;
+		spv::Id _global_ubo_variable = 0;
+		uint32_t _global_ubo_offset = 0;
 	};
 }
