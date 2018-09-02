@@ -1811,11 +1811,10 @@ bool reshadefx::parser::parse_expression_assignment(spv_basic_block &section, sp
 		if (lhs.type.has(spv_type::qualifier_const) || lhs.type.has(spv_type::qualifier_uniform) || !lhs.is_lvalue)
 			return error(lhs.location, 3025, "l-value specifies const object"), false;
 
-		// Cannot assign between arrays and incompatible types
-		if (lhs.type.is_array() || rhs.type.is_array() || !spv_type::rank(lhs.type, rhs.type))
+		// Cannot assign between incompatible types
+		if (lhs.type.array_length != rhs.type.array_length || !spv_type::rank(lhs.type, rhs.type))
 			return error(rhs.location, 3020, "cannot convert these types"), false;
-
-		if (rhs.type.components() > lhs.type.components())
+		else if (rhs.type.components() > lhs.type.components())
 			warning(rhs.location, 3206, "implicit truncation of vector type");
 
 		// Load value of right hand side and perform implicit type conversion
@@ -1867,14 +1866,11 @@ bool reshadefx::parser::parse_annotations(std::unordered_map<std::string, spv_co
 
 		const auto name = _token.literal_as_string;
 
-		spv_basic_block temp_section;
-
 		spv_expression expression;
-		if (!expect('=') || !parse_expression_unary(temp_section, expression) || !expect(';'))
+		if (spv_basic_block temp_section; !expect('=') || !parse_expression_unary(temp_section, expression) || !expect(';'))
 			return false;
 
-		if (!expression.is_constant)
-		{
+		if (!expression.is_constant) {
 			error(expression.location, 3011, "value must be a literal expression");
 			success = false; // Continue parsing annotations despite the error, since the syntax is still correct
 			continue;
@@ -1915,7 +1911,7 @@ bool reshadefx::parser::parse_top_level()
 	}
 	else if (accept(tokenid::struct_)) // Structure keyword found, parse the structure definition
 	{
-		if (!parse_struct() || !expect(';'))
+		if (!parse_struct() || !expect(';')) // Structure definitions are terminated with a semicolon
 			return false;
 	}
 	else if (accept(tokenid::technique)) // Technique keyword found, parse the technique definition
@@ -1925,7 +1921,7 @@ bool reshadefx::parser::parse_top_level()
 		else
 			return false;
 	}
-	else if (spv_type type; parse_type(type)) // Type found, this can be both a variable or a function declaration
+	else if (spv_type type; parse_type(type)) // Type found, this can be either a variable or a function declaration
 	{
 		if (!expect(tokenid::identifier))
 			return false;
@@ -1933,18 +1929,23 @@ bool reshadefx::parser::parse_top_level()
 		if (peek('('))
 		{
 			// This is definitely a function declaration, so parse it
-			if (!parse_function(type, _token.literal_as_string))
+			const auto name = std::move(_token.literal_as_string);
+			if (!parse_function(type, name)) {
+				// Insert dummy function into symbol table, so later references can be resolved despite the error
+				insert_symbol(name, { spv::OpFunction, 0xFFFFFFFF, { spv_type::datatype_function } }, true);
 				return false;
+			}
 		}
 		else
 		{
 			// There may be multiple variable names after the type, handle them all
 			unsigned int count = 0;
+			// Global variables can't have non-constant initializers, so don't need a valid block as input
+			spv_basic_block temp_section;
 			do {
 				if (count++ > 0 && !(expect(',') && expect(tokenid::identifier)))
 					return false;
-				const auto name = _token.literal_as_string;
-				spv_basic_block temp_section; // Global variables can't have non-constant initializers, so don't need a valid section as input
+				const auto name = std::move(_token.literal_as_string);
 				if (!parse_variable(type, name, temp_section, true)) {
 					// Insert dummy variable into symbol table, so later references can be resolved despite the error
 					insert_symbol(name, { spv::OpVariable, 0xFFFFFFFF, type }, true);
@@ -2001,6 +2002,8 @@ bool reshadefx::parser::parse_statement(spv_basic_block &section, bool scoped)
 	// Most statements with the exception of declarations are only valid inside functions
 	if (_current_function != std::numeric_limits<size_t>::max())
 	{
+		const auto location = _token_next.location;
+
 		#pragma region If
 		if (accept(tokenid::if_))
 		{
@@ -2019,7 +2022,7 @@ bool reshadefx::parser::parse_statement(spv_basic_block &section, bool scoped)
 			const spv::Id condition_value = access_chain_load(section, condition);
 			assert(condition_value != 0);
 
-			add_node_without_result(section, _token.location, spv::OpSelectionMerge)
+			add_node_without_result(section, location, spv::OpSelectionMerge)
 				.add(merge_label) // Merge Block
 				.add(selection_control); // Selection Control
 
@@ -2051,11 +2054,8 @@ bool reshadefx::parser::parse_statement(spv_basic_block &section, bool scoped)
 		#pragma region Switch
 		if (accept(tokenid::switch_))
 		{
-			const auto location = _token.location;
-
 			const spv::Id merge_label = make_id();
-			spv::Id default_label = merge_label;
-			std::vector<spv::Id> case_literal_and_labels;
+			spv::Id default_label = merge_label; // The default case jumps to the end of the switch statement if not overwritten
 
 			spv_expression selector;
 			if (!expect('(') || !parse_expression(section, selector) || !expect(')'))
@@ -2068,12 +2068,14 @@ bool reshadefx::parser::parse_statement(spv_basic_block &section, bool scoped)
 			const spv::Id selector_value = access_chain_load(section, selector);
 			assert(selector_value != 0);
 
+			// A switch statement leaves the current control flow block
+			_current_block = 0;
+
 			add_node_without_result(section, location, spv::OpSelectionMerge)
 				.add(merge_label) // Merge Block
 				.add(selection_control); // Selection Control
 
-			_current_block = 0; // A switch statement leaves the current control flow block
-			spv_instruction &switch_node = add_node_without_result(section, _token.location, spv::OpSwitch)
+			spv_instruction &switch_node = add_node_without_result(section, location, spv::OpSwitch)
 				.add(selector_value);
 
 			if (!expect('{'))
@@ -2084,6 +2086,7 @@ bool reshadefx::parser::parse_statement(spv_basic_block &section, bool scoped)
 
 			spv::Id current_block = 0;
 			unsigned int num_case_labels = 0;
+			std::vector<spv::Id> case_literal_and_labels;
 
 			spv_basic_block switch_body_block;
 
@@ -2131,10 +2134,9 @@ bool reshadefx::parser::parse_statement(spv_basic_block &section, bool scoped)
 			if (num_case_labels == 0)
 				warning(location, 5002, "switch statement contains no 'case' or 'default' labels");
 
-			// Add all case labels to the switch instruction
+			// Add all case labels to the switch instruction (reference is still valid because all other instructions were written to the intermediate 'switch_body_block' in the mean time)
 			switch_node.add(default_label);
-			for (spv::Id operand : case_literal_and_labels)
-				switch_node.add(operand);
+			switch_node.add(case_literal_and_labels.begin(), case_literal_and_labels.end());
 
 			section.instructions.insert(section.instructions.end(), switch_body_block.instructions.begin(), switch_body_block.instructions.end());
 
@@ -2147,8 +2149,6 @@ bool reshadefx::parser::parse_statement(spv_basic_block &section, bool scoped)
 		#pragma region For
 		if (accept(tokenid::for_))
 		{
-			const auto location = _token.location;
-
 			if (!expect('('))
 				return false;
 
@@ -2169,7 +2169,7 @@ bool reshadefx::parser::parse_statement(spv_basic_block &section, bool scoped)
 			else // Initializer can also contain an expression if not a variable declaration list
 			{
 				spv_expression expression;
-				parse_expression(section, expression);
+				parse_expression(section, expression); // It is valid for there to be no initializer expression, so ignore result
 			}
 
 			if (!expect(';'))
@@ -2280,7 +2280,7 @@ bool reshadefx::parser::parse_statement(spv_basic_block &section, bool scoped)
 			{ // Begin loop block
 				enter_block(section, header_label);
 
-				add_node_without_result(section, _token.location, spv::OpLoopMerge)
+				add_node_without_result(section, location, spv::OpLoopMerge)
 					.add(merge_label) // Merge Block
 					.add(continue_label) // Continue Target
 					.add(loop_control); // Loop Control
@@ -2351,7 +2351,7 @@ bool reshadefx::parser::parse_statement(spv_basic_block &section, bool scoped)
 			{ // Begin loop block
 				enter_block(section, header_label);
 
-				add_node_without_result(section, _token.location, spv::OpLoopMerge)
+				add_node_without_result(section, location, spv::OpLoopMerge)
 					.add(merge_label) // Merge Block
 					.add(continue_label) // Continue Target
 					.add(loop_control); // Loop Control
@@ -2406,7 +2406,7 @@ bool reshadefx::parser::parse_statement(spv_basic_block &section, bool scoped)
 		if (accept(tokenid::break_))
 		{
 			if (_loop_break_target_stack.empty())
-				return error(_token.location, 3518, "break must be inside loop"), false;
+				return error(location, 3518, "break must be inside loop"), false;
 
 			// Branch to the break target of the inner most loop on the stack
 			leave_block_and_branch(section, _loop_break_target_stack.back());
@@ -2419,7 +2419,7 @@ bool reshadefx::parser::parse_statement(spv_basic_block &section, bool scoped)
 		if (accept(tokenid::continue_))
 		{
 			if (_loop_continue_target_stack.empty())
-				return error(_token.location, 3519, "continue must be inside loop"), false;
+				return error(location, 3519, "continue must be inside loop"), false;
 
 			// Branch to the continue target of the inner most loop on the stack
 			leave_block_and_branch(section, _loop_continue_target_stack.back());
@@ -2432,7 +2432,6 @@ bool reshadefx::parser::parse_statement(spv_basic_block &section, bool scoped)
 		if (accept(tokenid::return_))
 		{
 			const auto parent = _functions[_current_function].get();
-			const auto location = _token.location;
 
 			if (!peek(';'))
 			{
@@ -2443,7 +2442,8 @@ bool reshadefx::parser::parse_statement(spv_basic_block &section, bool scoped)
 				if (parent->return_type.is_void())
 					// Consume the semicolon that follows the return expression so that parsing may continue
 					return error(location, 3079, "void functions cannot return a value"), accept(';'), false;
-				if (!spv_type::rank(return_exp.type, parent->return_type))
+
+				if (return_exp.type.is_array() || !spv_type::rank(return_exp.type, parent->return_type))
 					return error(location, 3017, "expression does not match function return type"), accept(';'), false;
 
 				if (return_exp.type.components() > parent->return_type.components())
@@ -2487,8 +2487,6 @@ bool reshadefx::parser::parse_statement(spv_basic_block &section, bool scoped)
 	}
 
 	#pragma region Declaration
-	const auto location = _token_next.location;
-
 	// Handle variable declarations
 	if (spv_type type; parse_type(type))
 	{
@@ -2496,7 +2494,7 @@ bool reshadefx::parser::parse_statement(spv_basic_block &section, bool scoped)
 		do { // There may be multiple declarations behind a type, so loop through them
 			if (count++ > 0 && !expect(','))
 				return false;
-			if (!expect(tokenid::identifier) || !parse_variable(type, _token.literal_as_string, section))
+			if (!expect(tokenid::identifier) || !parse_variable(type, std::move(_token.literal_as_string), section))
 				return false;
 		} while (!peek(';'));
 
@@ -2637,18 +2635,14 @@ bool reshadefx::parser::parse_struct()
 
 	for (uint32_t i = 0; i < info.member_list.size(); ++i)
 	{
-		const spv_struct_member_info &member_info = info.member_list[i];
-
-		add_member_name(info.definition, i, member_info.name.c_str());
-
-		//if (member_info.type.is_matrix())
-		//	add_member_decoration(info.definition, i, spv::DecorationRowMajor);
+		add_member_name(info.definition, i, info.member_list[i].name.c_str());
 	}
 
+	// Insert the symbol into the symbol table
 	const symbol symbol = { spv::OpTypeStruct, info.definition };
 
 	if (!insert_symbol(info.name, symbol, true))
-		return error(_token.location, 3003, "redefinition of '" + info.name + "'"), false;
+		return error(location, 3003, "redefinition of '" + info.name + "'"), false;
 
 	return expect('}');
 }
@@ -2661,8 +2655,6 @@ bool reshadefx::parser::parse_function(spv_type type, std::string name)
 	if (type.qualifiers != 0)
 		return error(location, 3047, "function return type cannot have any qualifiers"), false;
 
-	type.qualifiers = spv_type::qualifier_const; // Function return type is not assignable
-
 	spv_function_info &info = *_functions.emplace_back(new spv_function_info());
 	info.name = name;
 	info.unique_name = 'F' + current_scope().name + name;
@@ -2671,9 +2663,6 @@ bool reshadefx::parser::parse_function(spv_type type, std::string name)
 
 	// Add function instruction and insert the symbol into the symbol table
 	info.definition = define_function(info.unique_name.c_str(), location, type);
-
-	const symbol symbol = { spv::OpFunction, info.definition, { spv_type::datatype_function }, &info };
-	insert_symbol(name, symbol, true);
 
 	// Enter function scope
 	enter_scope(); on_scope_exit _([this]() { leave_scope(); leave_function(); });
@@ -2753,6 +2742,12 @@ bool reshadefx::parser::parse_function(spv_type type, std::string name)
 	if (_current_block != 0)
 		leave_block_and_return(_functions2[_current_function].definition, 0);
 
+	// Insert the symbol into the symbol table
+	const symbol symbol = { spv::OpFunction, info.definition, { spv_type::datatype_function }, &info };
+
+	if (!insert_symbol(name, symbol, true))
+		return error(location, 3003, "redefinition of '" + name + "'"), false;
+
 	return success;
 }
 bool reshadefx::parser::parse_variable(spv_type type, std::string name, spv_basic_block &section, bool global)
@@ -2774,6 +2769,7 @@ bool reshadefx::parser::parse_variable(spv_type type, std::string name, spv_basi
 	{
 		if (!type.has(spv_type::qualifier_uniform) && !(type.is_texture() || type.is_sampler()))
 			warning(location, 5000, "global variables are considered 'uniform' by default");
+
 		if (type.has(spv_type::qualifier_const))
 			return error(location, 3035, "variables which are 'uniform' cannot be declared 'const'"), false;
 
@@ -2791,21 +2787,14 @@ bool reshadefx::parser::parse_variable(spv_type type, std::string name, spv_basi
 			return error(location, 3038, "local variables cannot be textures or samplers"), false;
 	}
 
+	// The variable name may be followed by an optional array size expression
 	if (!parse_array_size(type))
 		return false;
 
 	spv_variable_info info;
 	info.name = name;
-
-	if (global)
-	{
-		info.unique_name = (type.has(spv_type::qualifier_uniform) ? 'U' : 'V') + current_scope().name + info.name;
-		std::replace(info.unique_name.begin(), info.unique_name.end(), ':', '_');
-	}
-	else
-	{
-		info.unique_name = name;
-	}
+	info.unique_name = global ? (type.has(spv_type::qualifier_uniform) ? 'U' : 'V') + current_scope().name + name : name;
+	std::replace(info.unique_name.begin(), info.unique_name.end(), ':', '_');
 
 	spv_expression initializer;
 
@@ -2825,30 +2814,35 @@ bool reshadefx::parser::parse_variable(spv_type type, std::string name, spv_basi
 		if (global && !parse_annotations(info.annotation_list))
 			return false;
 
+		// Variables without a semantic may have an optional initializer
 		if (accept('='))
 		{
 			if (!parse_expression_assignment(section, initializer))
-				return error(_token_next.location, 3000, "syntax error: unexpected '" + token::id_to_name(_token_next.id) + "', expected initializer expression"), false;
+				return false;
 
-			if (global && !initializer.is_constant)
+			if (global && !initializer.is_constant) // TODO: This could be resolved by initializing these at the beginning of the entry point
 				return error(initializer.location, 3011, "initial value must be a literal expression"), false;
 
-			if (!spv_type::rank(initializer.type, type))
+			if ((type.array_length >= 0 && initializer.type.array_length != type.array_length) || !spv_type::rank(initializer.type, type))
 				return error(initializer.location, 3017, "initial value does not match variable type"), false;
+
 			if ((initializer.type.rows < type.rows || initializer.type.cols < type.cols) && !initializer.type.is_scalar())
 				return error(initializer.location, 3017, "cannot implicitly convert these vector types"), false;
-
-			if (initializer.type.components() > type.components())
+			else if (initializer.type.components() > type.components())
 				warning(initializer.location, 3206, "implicit truncation of vector type");
+
+			// Deduce array size from initializer type
+			if (initializer.type.is_array())
+				type.array_length = initializer.type.array_length;
 
 			// Perform implicit cast to variable type
 			add_cast_operation(initializer, type);
 		}
-		else if (type.is_numeric())
+		else if (type.is_numeric()) // Numeric variables without an initializer need special handling
 		{
-			if (type.has(spv_type::qualifier_const))
+			if (type.has(spv_type::qualifier_const)) // Constants have to have an initial value
 				return error(location, 3012, "missing initial value for '" + name + "'"), false;
-			else if (!type.has(spv_type::qualifier_uniform) && !type.is_array()) // Zero initialize global variables
+			else if (!type.has(spv_type::qualifier_uniform)) // Zero initialize all global variables
 				initializer.reset_to_rvalue_constant(type, location, {});
 		}
 		else if (peek('{')) // Non-numeric variables can have a property block
@@ -2856,16 +2850,9 @@ bool reshadefx::parser::parse_variable(spv_type type, std::string name, spv_basi
 			if (!parse_variable_properties(info))
 				return false;
 		}
-	}
 
-	if (type.is_sampler())
-	{
-		if (!info.texture)
+		if (type.is_sampler() && info.texture == 0)
 			return error(location, 3012, "missing 'Texture' property for '" + name + "'"), false;
-
-		//auto image_ptr = lookup_id(info.texture).result_type;
-		//type.definition = info.texture; // lookup_id(image_ptr).operands[1];
-		//assert(false); // TODO
 	}
 
 	symbol symbol;
@@ -2907,31 +2894,28 @@ bool reshadefx::parser::parse_variable(spv_type type, std::string name, spv_basi
 	}
 	else // All other variables are separate entities
 	{
-		const spv::Id initializer_value = access_chain_load(section, initializer);
-
 		type.is_pointer = true;
 
-		// Variable initializer must be a constant or global variable instruction
+		// The initializer expression for 'OpVariable' must be a constant
 		if (initializer.is_constant)
 		{
 			assert(!(type.is_texture() || type.is_sampler()));
 
-			info.definition = define_variable(info.unique_name.c_str(), location, type, global ? spv::StorageClassPrivate : spv::StorageClassFunction, initializer_value);
+			info.definition = define_variable(info.unique_name.c_str(), location, type, global ? spv::StorageClassPrivate : spv::StorageClassFunction, convert_constant(initializer.type, initializer.constant));
 		}
 		else // Non-constant initializers are explicitly stored in the variable at the definition location instead
 		{
+			const spv::Id initializer_value = access_chain_load(section, initializer);
+
 			info.definition = define_variable(info.unique_name.c_str(), location, type, global ? (type.is_texture() || type.is_sampler()) ? spv::StorageClassUniformConstant : spv::StorageClassPrivate : spv::StorageClassFunction);
 
 			if (initializer_value != 0)
 			{
 				assert(!global); // Global variables cannot have a dynamic initializer
 
-				spv_expression variable;
-				variable.reset_to_lvalue(info.definition, type, location);
+				spv_expression variable; variable.reset_to_lvalue(info.definition, type, location);
 
-				type.is_pointer = false;
-				access_chain_store(section, variable, initializer_value, type);
-				type.is_pointer = true;
+				access_chain_store(section, variable, initializer_value, initializer.type);
 			}
 		}
 
@@ -3050,8 +3034,6 @@ bool reshadefx::parser::parse_variable_properties(spv_variable_info &props)
 
 bool reshadefx::parser::parse_technique(spv_technique_info &info)
 {
-	info.location = _token.location;
-
 	if (!expect(tokenid::identifier))
 		return false;
 
@@ -3077,10 +3059,8 @@ bool reshadefx::parser::parse_technique_pass(spv_pass_info &info)
 	if (!expect(tokenid::pass))
 		return false;
 
-	info.location = _token.location;
-
-	if (accept(tokenid::identifier))
-		info.name = _token.literal_as_string;
+	// Passes can have an optional name, so consume that if it exists
+	accept(tokenid::identifier);
 
 	if (!expect('{'))
 		return false;
@@ -3138,6 +3118,10 @@ bool reshadefx::parser::parse_technique_pass(spv_pass_info &info)
 				else if (!symbol.type.is_function())
 					return error(location, 3020, "type mismatch, expected function name"), consume_until('}'), false;
 
+				// Ignore invalid functions that were added during error recovery
+				if (symbol.id == 0xFFFFFFFF)
+					return consume_until('}'), false;
+
 				const bool is_vs = state[0] == 'V';
 				const bool is_ps = state[0] == 'P';
 
@@ -3145,11 +3129,12 @@ bool reshadefx::parser::parse_technique_pass(spv_pass_info &info)
 				spv_function_info *const function_info = std::find_if(_functions.begin(), _functions.end(),
 					[&symbol](const auto &it) { return it->definition == symbol.id; })->get();
 
+				// We need to generate a special entry point function which translates between function parameters and input/output variables
 				if (function_info->entry_point == 0)
 				{
 					std::vector<spv::Id> inputs_and_outputs, call_params;
 
-					// Generate glue entry point function which references the actual one
+					// Generate the glue entry point function
 					function_info->entry_point = define_function(nullptr, location, { spv_type::datatype_void });
 
 					enter_block(_functions2[_current_function].variables, make_id());

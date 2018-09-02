@@ -28,6 +28,13 @@ namespace reshadefx
 			operands.push_back(operand);
 			return *this;
 		}
+		template <typename It>
+		spv_instruction &add(It begin, It end)
+		{
+			operands.insert(operands.end(), begin, end);
+			return *this;
+		}
+
 		spv_instruction &add_string(const char *string)
 		{
 			uint32_t word = 0;

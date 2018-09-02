@@ -224,8 +224,6 @@ namespace reshadefx
 
 	struct spv_pass_info
 	{
-		location location;
-		std::string name;
 		spv::Id render_targets[8] = {};
 		std::string vs_entry_point, ps_entry_point;
 		bool clear_render_targets = true, srgb_write_enable, blend_enable, stencil_enable;
@@ -236,7 +234,6 @@ namespace reshadefx
 
 	struct spv_technique_info
 	{
-		location location;
 		std::string name, unique_name;
 		std::unordered_map<std::string, spv_constant> annotation_list;
 		std::vector<spv_pass_info> pass_list;

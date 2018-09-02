@@ -247,42 +247,51 @@ void spirv_module::add_cast_operation(spv_expression &chain, const reshadefx::sp
 
 	if (chain.is_constant)
 	{
-		if (in_type.is_integral())
-		{
-			if (!chain.type.is_integral())
+		const auto cast_constant = [](spv_constant &constant, const spv_type &from, const spv_type &to) {
+			if (to.is_integral())
 			{
-				for (unsigned int i = 0; i < 16; ++i)
-					chain.constant.as_uint[i] = static_cast<int>(chain.constant.as_float[i]);
-			}
-			else
-			{
-				// int 2 uint
-			}
-		}
-		else
-		{
-			if (!chain.type.is_integral())
-			{
-				// Scalar to vector promotion
-				assert(chain.type.is_floating_point() && chain.type.is_scalar() && in_type.is_vector());
-				for (unsigned int i = 1; i < in_type.components(); ++i)
-					chain.constant.as_float[i] = chain.constant.as_float[0];
-			}
-			else
-			{
-				if (chain.type.is_scalar())
+				if (!from.is_integral())
 				{
-					const float value = static_cast<float>(static_cast<int>(chain.constant.as_uint[0]));
 					for (unsigned int i = 0; i < 16; ++i)
-						chain.constant.as_float[i] = value;
+						constant.as_uint[i] = static_cast<int>(constant.as_float[i]);
 				}
 				else
 				{
-					for (unsigned int i = 0; i < 16; ++i)
-						chain.constant.as_float[i] = static_cast<float>(static_cast<int>(chain.constant.as_uint[i]));
+					// int 2 uint
 				}
 			}
+			else
+			{
+				if (!from.is_integral())
+				{
+					// Scalar to vector promotion
+					assert(from.is_floating_point() && from.is_scalar() && to.is_vector());
+					for (unsigned int i = 1; i < to.components(); ++i)
+						constant.as_float[i] = constant.as_float[0];
+				}
+				else
+				{
+					if (from.is_scalar())
+					{
+						const float value = static_cast<float>(static_cast<int>(constant.as_uint[0]));
+						for (unsigned int i = 0; i < 16; ++i)
+							constant.as_float[i] = value;
+					}
+					else
+					{
+						for (unsigned int i = 0; i < 16; ++i)
+							constant.as_float[i] = static_cast<float>(static_cast<int>(constant.as_uint[i]));
+					}
+				}
+			}
+		};
+
+		for (size_t i = 0; i < chain.constant.as_array.size(); ++i)
+		{
+			cast_constant(chain.constant.as_array[i], chain.type, in_type);
 		}
+
+		cast_constant(chain.constant, chain.type, in_type);
 	}
 	else
 	{
@@ -659,7 +668,12 @@ spv::Id spirv_module::convert_constant(const reshadefx::spv_type &type, const sp
 	assert(!type.is_pointer);
 
 	if (auto it = std::find_if(_constant_lookup.begin(), _constant_lookup.end(), [&type, &data](auto &x) {
-		return std::get<0>(x) == type && std::memcmp(&std::get<1>(x).as_uint[0], &data.as_uint[0], sizeof(uint32_t) * 16) == 0;
+		if (!(std::get<0>(x) == type && std::memcmp(&std::get<1>(x).as_uint[0], &data.as_uint[0], sizeof(uint32_t) * 16) == 0 && std::get<1>(x).as_array.size() == data.as_array.size()))
+			return false;
+		for (size_t i = 0; i < data.as_array.size(); ++i)
+			if (std::memcmp(&std::get<1>(x).as_array[i].as_uint[0], &data.as_array[i].as_uint[0], sizeof(uint32_t) * 16) != 0)
+				return false;
+		return true;
 	}); it != _constant_lookup.end())
 		return std::get<2>(*it);
 
@@ -673,9 +687,9 @@ spv::Id spirv_module::convert_constant(const reshadefx::spv_type &type, const sp
 		elem_type.array_length = 0;
 
 		for (const spv_constant &elem : data.as_array)
-		{
 			elements.push_back(convert_constant(elem_type, elem));
-		}
+		for (size_t i = elements.size(); i < type.array_length; ++i)
+			elements.push_back(convert_constant(elem_type, {}));
 
 		spv_instruction &node = add_node(_types_and_constants, {}, spv::OpConstantComposite, convert_type(type));
 
