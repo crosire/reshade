@@ -572,7 +572,7 @@ bool reshadefx::parser::parse_expression_unary(spv_basic_block &section, spv_exp
 				switch (op)
 				{
 				case spv::OpFNegate:
-					op = exp.type.is_signed() ? spv::OpSNegate : spv::OpBitReverse;
+					op = spv::OpSNegate;
 					break;
 				case spv::OpFAdd:
 					op = spv::OpIAdd;
@@ -613,11 +613,38 @@ bool reshadefx::parser::parse_expression_unary(spv_basic_block &section, spv_exp
 				if (op == spv::OpLogicalNot && !exp.type.is_boolean())
 					add_cast_operation(exp, { spv_type::datatype_bool, exp.type.rows, exp.type.cols }); // The result type will be boolean as well
 
-				spv::Id result = add_node(section, location, op, convert_type(exp.type))
-					.add(value) // Operand
-					.result; // Result ID
+				if (exp.is_constant)
+				{
+					switch (op)
+					{
+					case spv::OpLogicalNot:
+						for (unsigned int i = 0; i < exp.type.components(); ++i)
+							exp.constant.as_uint[i] = !exp.constant.as_uint[i];
+						break;
+					case spv::OpFNegate:
+						for (unsigned int i = 0; i < exp.type.components(); ++i)
+							exp.constant.as_float[i] = -exp.constant.as_float[i];
+						break;
+					case spv::OpSNegate:
+						for (unsigned int i = 0; i < exp.type.components(); ++i)
+							exp.constant.as_int[i] = -exp.constant.as_int[i];
+						break;
+					case spv::OpNot:
+						for (unsigned int i = 0; i < exp.type.components(); ++i)
+							exp.constant.as_uint[i] = ~exp.constant.as_uint[i];
+						break;
+					}
 
-				exp.reset_to_rvalue(result, exp.type, location);
+					exp.reset_to_rvalue_constant(exp.type, location, exp.constant);
+				}
+				else
+				{
+					spv::Id result = add_node(section, location, op, convert_type(exp.type))
+						.add(value) // Operand
+						.result; // Result ID
+
+					exp.reset_to_rvalue(result, exp.type, location);
+				}
 			}
 		}
 	}
@@ -1133,10 +1160,7 @@ bool reshadefx::parser::parse_expression_unary(spv_basic_block &section, spv_exp
 				spv_instruction &node = add_node(section, location, spv::OpFunctionCall, convert_type(symbol.type));
 				node.add(symbol.id); // Function
 				for (size_t i = 0; i < parameters.size(); ++i)
-				{
-					//assert(parameters[i].type.is_pointer);
 					node.add(parameters[i].base); // Arguments
-				}
 
 				exp.reset_to_rvalue(node.result, symbol.type, location);
 			}
@@ -1812,7 +1836,7 @@ bool reshadefx::parser::parse_expression_multary(spv_basic_block &section, spv_e
 			section.instructions.insert(section.instructions.end(), false_block.instructions.begin(), false_block.instructions.end());
 
 			// Load values and perform implicit type conversions
-			add_cast_operation(lhs, { spv_type::datatype_bool, lhs.type.rows, 1 });
+			add_cast_operation(lhs, { spv_type::datatype_bool, type.rows, 1 });
 			const spv::Id condition_value = access_chain_load(section, lhs);
 			assert(condition_value != 0);
 			add_cast_operation(true_exp, type);
@@ -2914,6 +2938,10 @@ bool reshadefx::parser::parse_variable(spv_type type, std::string name, spv_basi
 		if (_global_ubo_variable == 0)
 			_global_ubo_variable = make_id();
 
+		// Convert boolean uniform variables to integer type so that they have a defined size
+		if (type.is_boolean())
+			type.base = spv_type::datatype_uint;
+
 		spv_struct_member_info member;
 		member.name = name;
 		member.type = type;
@@ -3040,8 +3068,6 @@ bool reshadefx::parser::parse_variable_properties(spv_variable_info &props)
 				props.width = value > 0 ? value : 1;
 			else if (name == "Height")
 				props.height = value > 0 ? value : 1;
-			else if (name == "Depth")
-				props.depth = value > 0 ? value : 1;
 			else if (name == "MipLevels")
 				props.levels = value > 0 ? value : 1;
 			else if (name == "Format")
@@ -3485,7 +3511,7 @@ bool reshadefx::parser::parse_technique_pass(spv_pass_info &info)
 				info.src_blend_alpha = value;
 			else if (state == "DestBlend")
 				info.dest_blend = value;
-			else if (state == "DestBlend")
+			else if (state == "DestBlendAlpha")
 				info.dest_blend_alpha = value;
 			else if (state == "StencilFunc")
 				info.stencil_comparison_func = value;

@@ -212,7 +212,7 @@ namespace reshadefx
 		unsigned int semantic_index = 0;
 		std::unordered_map<std::string, spv_constant> annotation_list;
 		spv::Id texture;
-		unsigned int width = 1, height = 1, depth = 1, levels = 1;
+		unsigned int width = 1, height = 1, levels = 1;
 		bool srgb_texture;
 		unsigned int format = 0;
 		unsigned int filter = 0;
