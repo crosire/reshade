@@ -471,7 +471,7 @@ bool reshadefx::parser::peek_multary_op(spv::Op &op, unsigned int &precedence) c
 	// Precedence values taken from https://cppreference.com/w/cpp/language/operator_precedence
 	switch (_token_next.id)
 	{
-	case tokenid::percent: op = spv::OpFMod; precedence = 11; break;
+	case tokenid::percent: op = spv::OpFRem; precedence = 11; break;
 	case tokenid::ampersand: op = spv::OpBitwiseAnd; precedence = 6; break;
 	case tokenid::star: op = spv::OpFMul; precedence = 11; break;
 	case tokenid::plus: op = spv::OpFAdd; precedence = 10; break;
@@ -504,7 +504,7 @@ bool reshadefx::parser::accept_assignment_op(const spv_type &type, spv::Op &op)
 	case tokenid::equal:
 		op = spv::OpNop; break; // Assignment without an additional operation
 	case tokenid::percent_equal:
-		op = type.is_integral() ? type.is_signed() ? spv::OpSMod : spv::OpUMod : spv::OpFMod; break;
+		op = type.is_integral() ? type.is_signed() ? spv::OpSRem : spv::OpUMod : spv::OpFRem; break;
 	case tokenid::ampersand_equal:
 		op = spv::OpBitwiseAnd; break;
 	case tokenid::star_equal:
@@ -1476,8 +1476,8 @@ bool reshadefx::parser::parse_expression_multary(spv_basic_block &section, spv_e
 				{
 					switch (op)
 					{
-					case spv::OpFMod:
-						op = type.is_signed() ? spv::OpSMod : spv::OpUMod;
+					case spv::OpFRem:
+						op = type.is_signed() ? spv::OpSRem : spv::OpUMod;
 						break;
 					case spv::OpFMul:
 						op = spv::OpIMul;
@@ -1539,9 +1539,13 @@ bool reshadefx::parser::parse_expression_multary(spv_basic_block &section, spv_e
 
 				switch (op)
 				{
-				case spv::OpFMod:
+				case spv::OpFRem:
 					for (unsigned int i = 0; i < type.components(); ++i)
 						constant_data.as_float[i] = fmodf(lhs.constant.as_float[i], rhs.constant.as_float[i]);
+					break;
+				case spv::OpSRem:
+					for (unsigned int i = 0; i < type.components(); ++i)
+						constant_data.as_int[i] %= rhs.constant.as_int[i];
 					break;
 				case spv::OpUMod:
 					for (unsigned int i = 0; i < type.components(); ++i)
@@ -2754,6 +2758,13 @@ bool reshadefx::parser::parse_function(spv_type type, std::string name)
 		param.type.is_pointer = true;
 
 		const spv::Id definition = define_parameter(param.name.c_str(), param_location, param.type);
+
+		if (param.type.has(spv_type::qualifier_noperspective))
+			add_decoration(info.definition, spv::DecorationNoPerspective);
+		if (param.type.has(spv_type::qualifier_centroid))
+			add_decoration(info.definition, spv::DecorationCentroid);
+		if (param.type.has(spv_type::qualifier_nointerpolation))
+			add_decoration(info.definition, spv::DecorationFlat);
 
 		if (!insert_symbol(param.name, { spv::OpVariable, definition, param.type }))
 			return error(param_location, 3003, "redefinition of '" + param.name + "'"), false;

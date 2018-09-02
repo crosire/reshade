@@ -596,7 +596,7 @@ spv::Id spirv_module::convert_type(const reshadefx::spv_type &info)
 				.add(0) // Not an array
 				.add(0) // Not multi-sampled
 				.add(1) // Will be used with a sampler
-				.add(spv::ImageFormatRgba8)
+				.add(spv::ImageFormatUnknown)
 				.result;
 			break;
 		}
