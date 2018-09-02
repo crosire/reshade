@@ -24,16 +24,16 @@ spv::BuiltIn semantic_to_builtin(std::string &semantic, unsigned int &index)
 
 	if (semantic == "SV_POSITION")
 		return spv::BuiltInPosition;
-		//return spv::BuiltInFragCoord;
 	if (semantic == "SV_POINTSIZE")
 		return spv::BuiltInPointSize;
 	if (semantic == "SV_DEPTH")
 		return spv::BuiltInFragDepth;
 	if (semantic == "VERTEXID" || semantic == "SV_VERTEXID")
 		return spv::BuiltInVertexId;
-	if (semantic.substr(0, 9) == "SV_TARGET" && semantic.size() > 9)
+	if (semantic.size() > 9 && semantic.compare(0, 9, "SV_TARGET") == 0)
 		index = std::stol(semantic.substr(9));
-		//return spv::BuiltInVertexIndex;
+	if (semantic.size() > 8 && semantic.compare(0, 8, "TEXCOORD") == 0)
+		index = std::stol(semantic.substr(8));
 	return spv::BuiltInMax;
 }
 
@@ -69,7 +69,7 @@ bool reshadefx::parser::run(const std::string &input)
 		add_decoration(_global_ubo_type, spv::DecorationBlock);
 		add_decoration(_global_ubo_type, spv::DecorationDescriptorSet, { 0 });
 
-		define_variable(_global_ubo_variable, "$Globals", {}, { spv_type::datatype_struct, 0, 0, spv_type::qualifier_uniform, true, false, 0, _global_ubo_type }, spv::StorageClassUniform);
+		define_variable(_global_ubo_variable, "$Globals", {}, { spv_type::datatype_struct, 0, 0, spv_type::qualifier_uniform, true, false, false, 0, _global_ubo_type }, spv::StorageClassUniform);
 	}
 
 	std::ofstream s("test.spv", std::ios::binary | std::ios::out);
@@ -693,18 +693,7 @@ bool reshadefx::parser::parse_expression_unary(spv_basic_block &section, spv_exp
 			spv_expression &element = elements.back();
 
 			constant &= element.is_constant; // Result is only constant if all arguments are constant
-			composite_type.base = std::max(element.type.base, composite_type.base);
-
-			if ((composite_type.rows == 1 && composite_type.cols == 1) || (element.type.rows == 1 && element.type.cols == 1))
-			{
-				composite_type.rows = std::max(composite_type.rows, element.type.rows);
-				composite_type.cols = std::max(composite_type.cols, element.type.cols);
-			}
-			else // Otherwise dimensions match or one side is truncated to match the other one
-			{
-				composite_type.rows = std::min(composite_type.rows, element.type.rows);
-				composite_type.cols = std::min(composite_type.cols, element.type.cols);
-			}
+			composite_type = spv_type::merge(composite_type, element.type);
 		}
 
 		if (constant)
@@ -1166,7 +1155,7 @@ bool reshadefx::parser::parse_expression_unary(spv_basic_block &section, spv_exp
 			{
 				if (symbol.member_index != std::numeric_limits<size_t>::max())
 				{
-					exp.reset_to_lvalue(symbol.id, { spv_type::datatype_struct, 0, 0, 0, false, false, 0, symbol.id }, location);
+					exp.reset_to_lvalue(symbol.id, { spv_type::datatype_struct, 0, 0, 0, false, false, false, 0, symbol.id }, location);
 					add_member_access(exp, symbol.member_index, symbol.type);
 				}
 				else
@@ -1426,7 +1415,7 @@ bool reshadefx::parser::parse_expression_multary(spv_basic_block &section, spv_e
 				return false;
 
 			// Deduce the result base type based on implicit conversion rules
-			spv_type type = { std::max(lhs.type.base, rhs.type.base), 1, 1 };
+			spv_type type = spv_type::merge(lhs.type, rhs.type);
 			bool boolean_result = false;
 
 			// Do some error checking depending on the operator
@@ -1516,22 +1505,10 @@ bool reshadefx::parser::parse_expression_multary(spv_basic_block &section, spv_e
 					return error(rhs.location, 3022, "scalar, vector, or matrix expected"), false;
 			}
 
-			// If one side of the expression is scalar, it needs to be promoted to the same dimension as the other side
-			if ((lhs.type.rows == 1 && lhs.type.cols == 1) || (rhs.type.rows == 1 && rhs.type.cols == 1))
-			{
-				type.rows = std::max(lhs.type.rows, rhs.type.rows);
-				type.cols = std::max(lhs.type.cols, rhs.type.cols);
-			}
-			else // Otherwise dimensions match or one side is truncated to match the other one
-			{
-				type.rows = std::min(lhs.type.rows, rhs.type.rows);
-				type.cols = std::min(lhs.type.cols, rhs.type.cols);
-
-				if (lhs.type.components() > type.components())
-					warning(lhs.location, 3206, "implicit truncation of vector type");
-				if (rhs.type.components() > type.components())
-					warning(rhs.location, 3206, "implicit truncation of vector type");
-			}
+			if (lhs.type.components() > type.components())
+				warning(lhs.location, 3206, "implicit truncation of vector type");
+			if (rhs.type.components() > type.components())
+				warning(rhs.location, 3206, "implicit truncation of vector type");
 
 			if (lhs.is_constant && rhs.is_constant)
 			{
@@ -1785,24 +1762,12 @@ bool reshadefx::parser::parse_expression_multary(spv_basic_block &section, spv_e
 				return error(false_exp.location, 3020, "type mismatch between conditional values"), false;
 
 			// Deduce the result base type based on implicit conversion rules
-			spv_type type = { std::max(true_exp.type.base, false_exp.type.base), 1, 1 };
+			const spv_type type = spv_type::merge(true_exp.type, false_exp.type);
 
-			// If one side of the expression is scalar need to promote it to the same dimension as the other side
-			if ((true_exp.type.rows == 1 && true_exp.type.cols == 1) || (false_exp.type.rows == 1 && false_exp.type.cols == 1))
-			{
-				type.rows = std::max(true_exp.type.rows, false_exp.type.rows);
-				type.cols = std::max(true_exp.type.cols, false_exp.type.cols);
-			}
-			else // Otherwise dimensions match or one side is truncated to match the other one
-			{
-				type.rows = std::min(true_exp.type.rows, false_exp.type.rows);
-				type.cols = std::min(true_exp.type.cols, false_exp.type.cols);
-
-				if (true_exp.type.components() > type.components())
-					warning(true_exp.location, 3206, "implicit truncation of vector type");
-				if (false_exp.type.components() > type.components())
-					warning(false_exp.location, 3206, "implicit truncation of vector type");
-			}
+			if (true_exp.type.components() > type.components())
+				warning(true_exp.location, 3206, "implicit truncation of vector type");
+			if (false_exp.type.components() > type.components())
+				warning(false_exp.location, 3206, "implicit truncation of vector type");
 
 			// Load values and perform implicit type conversions
 			add_cast_operation(lhs, { spv_type::datatype_bool, lhs.type.rows, 1 });
@@ -2627,6 +2592,9 @@ bool reshadefx::parser::parse_struct()
 		if (type.has(spv_type::qualifier_in) || type.has(spv_type::qualifier_out))
 			return error(_token_next.location, 3055, "struct members cannot be declared 'in' or 'out'"), consume_until('}'), false;
 
+		if (type.is_struct())
+			return error(_token_next.location, 3090, "nested struct members are not supported"), consume_until('}'), false;
+
 		unsigned int count = 0;
 		do {
 			if (count++ > 0 && !expect(','))
@@ -2647,7 +2615,6 @@ bool reshadefx::parser::parse_struct()
 					return consume_until('}'), false;
 
 				member_info.builtin = semantic_to_builtin(_token.literal_as_string, member_info.semantic_index);
-				member_info.type.has_semantic = true;
 			}
 
 			// Add member type to list
@@ -2674,18 +2641,8 @@ bool reshadefx::parser::parse_struct()
 
 		add_member_name(info.definition, i, member_info.name.c_str());
 
-		//if (member_info.builtin != spv::BuiltInMax)
-		//	add_member_builtin(info.definition, i, member_info.builtin); // TODO
-
 		//if (member_info.type.is_matrix())
 		//	add_member_decoration(info.definition, i, spv::DecorationRowMajor);
-
-		if (member_info.type.has(spv_type::qualifier_noperspective))
-			add_member_decoration(info.definition, i, spv::DecorationNoPerspective);
-		if (member_info.type.has(spv_type::qualifier_centroid))
-			add_member_decoration(info.definition, i, spv::DecorationCentroid);
-		if (member_info.type.has(spv_type::qualifier_nointerpolation))
-			add_member_decoration(info.definition, i, spv::DecorationFlat);
 	}
 
 	const symbol symbol = { spv::OpTypeStruct, info.definition };
@@ -2760,20 +2717,12 @@ bool reshadefx::parser::parse_function(spv_type type, std::string name)
 			if (!expect(tokenid::identifier))
 				return false;
 
-			param.type.has_semantic = true;
 			param.builtin = semantic_to_builtin(_token.literal_as_string, param.semantic_index);
 		}
 
 		param.type.is_pointer = true;
 
 		const spv::Id definition = define_parameter(param.name.c_str(), param_location, param.type);
-
-		if (param.type.has(spv_type::qualifier_noperspective))
-			add_decoration(info.definition, spv::DecorationNoPerspective);
-		if (param.type.has(spv_type::qualifier_centroid))
-			add_decoration(info.definition, spv::DecorationCentroid);
-		if (param.type.has(spv_type::qualifier_nointerpolation))
-			add_decoration(info.definition, spv::DecorationFlat);
 
 		if (!insert_symbol(param.name, { spv::OpVariable, definition, param.type }))
 			return error(param_location, 3003, "redefinition of '" + param.name + "'"), false;
@@ -2792,8 +2741,6 @@ bool reshadefx::parser::parse_function(spv_type type, std::string name)
 		if (type.is_void())
 			return error(_token.location, 3076, "void function cannot have a semantic"), false;
 
-		info.return_type.qualifiers |= spv_type::qualifier_out; // Add out qualifier so the right storage class is appended to the pointer type
-		info.return_type.has_semantic = true;
 		info.return_builtin = semantic_to_builtin(_token.literal_as_string, info.return_semantic_index);
 	}
 
@@ -2868,9 +2815,10 @@ bool reshadefx::parser::parse_variable(spv_type type, std::string name, spv_basi
 			return false;
 		else if (!global) // Only global variables can have a semantic
 			return error(_token.location, 3043, "local variables cannot have semantics"), false;
+		else if (!type.is_numeric() && !type.is_texture())
+			return error(_token.location, 3043, "semantics are valid only on numeric types and textures"), false;
 
 		info.builtin = semantic_to_builtin(_token.literal_as_string, info.semantic_index);
-		type.has_semantic = true;
 	}
 	else
 	{
@@ -3199,7 +3147,7 @@ bool reshadefx::parser::parse_technique_pass(spv_pass_info &info)
 
 				if (function_info->entry_point == 0)
 				{
-					std::vector<spv::Id> inputs_and_outputs;
+					std::vector<spv::Id> inputs_and_outputs, call_params;
 
 					// Generate glue entry point function which references the actual one
 					function_info->entry_point = define_function(nullptr, location, { spv_type::datatype_void });
@@ -3208,51 +3156,204 @@ bool reshadefx::parser::parse_technique_pass(spv_pass_info &info)
 
 					spv_basic_block &section = _functions2[_current_function].definition;
 
-					spv_instruction &call = add_node(section, location, spv::OpFunctionCall, convert_type(function_info->return_type))
-						.add(function_info->definition);
+					const auto create_input_param = [this, &section, &call_params](const spv_struct_member_info &param) {
+						const spv::Id function_variable = define_variable(nullptr, {}, param.type, spv::StorageClassFunction);
+						call_params.push_back(function_variable);
+						return function_variable;
+					};
+					const auto create_input_variable = [this, &inputs_and_outputs, is_ps](const spv_struct_member_info &param) {
+						spv_type input_type = param.type;
+						input_type.is_input = true;
+						input_type.is_pointer = true;
 
-					const spv::Id call_result = call.result;
+						const spv::Id input_variable = define_variable(nullptr, {}, input_type, spv::StorageClassInput);
+
+						if (is_ps && param.builtin == spv::BuiltInPosition)
+							add_builtin(input_variable, spv::BuiltInFragCoord);
+						else if (param.builtin != spv::BuiltInMax)
+							add_builtin(input_variable, param.builtin);
+						else
+							add_decoration(input_variable, spv::DecorationLocation, { param.semantic_index });
+
+						if (param.type.has(spv_type::qualifier_noperspective))
+							add_decoration(input_variable, spv::DecorationNoPerspective);
+						if (param.type.has(spv_type::qualifier_centroid))
+							add_decoration(input_variable, spv::DecorationCentroid);
+						if (param.type.has(spv_type::qualifier_nointerpolation))
+							add_decoration(input_variable, spv::DecorationFlat);
+
+						inputs_and_outputs.push_back(input_variable);
+						return input_variable;
+					};
+					const auto create_output_param = [this, &section, &call_params](const spv_struct_member_info &param) {
+						const spv::Id function_variable = define_variable(nullptr, {}, param.type, spv::StorageClassFunction);
+						call_params.push_back(function_variable);
+						return function_variable;
+					};
+					const auto create_output_variable = [this, &inputs_and_outputs](const spv_struct_member_info &param) {
+						spv_type output_type = param.type;
+						output_type.is_output = true;
+						output_type.is_pointer = true;
+
+						const spv::Id output_variable = define_variable(nullptr, {}, output_type, spv::StorageClassOutput);
+
+						if (param.builtin != spv::BuiltInMax)
+							add_builtin(output_variable, param.builtin);
+						else
+							add_decoration(output_variable, spv::DecorationLocation, { param.semantic_index });
+
+						if (param.type.has(spv_type::qualifier_noperspective))
+							add_decoration(output_variable, spv::DecorationNoPerspective);
+						if (param.type.has(spv_type::qualifier_centroid))
+							add_decoration(output_variable, spv::DecorationCentroid);
+						if (param.type.has(spv_type::qualifier_nointerpolation))
+							add_decoration(output_variable, spv::DecorationFlat);
+
+						inputs_and_outputs.push_back(output_variable);
+						return output_variable;
+					};
 
 					// Handle input parameters
 					for (const spv_struct_member_info &param : function_info->parameter_list)
 					{
-						spv::Id result = 0;
-
 						if (param.type.has(spv_type::qualifier_out))
 						{
-							spv_type ptr_type = param.type; ptr_type.is_pointer = true;
-							result = define_variable(nullptr, location, ptr_type, spv::StorageClassOutput);
+							create_output_param(param);
 
-							if (param.builtin != spv::BuiltInMax)
-								add_builtin(result, param.builtin);
+							// Flatten structure parameters
+							if (param.type.is_struct())
+							{
+								for (const auto &member : _structs[param.type.definition].member_list)
+								{
+									create_output_variable(member);
+								}
+							}
 							else
-								add_decoration(result, spv::DecorationLocation, { param.semantic_index });
-
-							inputs_and_outputs.push_back(result);
+							{
+								create_output_variable(param);
+							}
 						}
 						else
 						{
-							spv_type ptr_type = param.type; ptr_type.is_pointer = true;
+							const spv::Id param_variable = create_input_param(param);
 
-							result = define_variable(nullptr, location, ptr_type, spv::StorageClassInput);
+							// Flatten structure parameters
+							if (param.type.is_struct())
+							{
+								std::vector<spv::Id> elements;
 
-							if (is_ps && param.builtin == spv::BuiltInPosition)
-								add_builtin(result, spv::BuiltInFragCoord);
-							else if (param.builtin != spv::BuiltInMax)
-								add_builtin(result, param.builtin);
+								for (const auto &member : _structs[param.type.definition].member_list)
+								{
+									const spv::Id input_variable = create_input_variable(member);
+
+									spv_type value_type = member.type;
+									value_type.is_pointer = false;
+
+									const spv::Id value = add_node(section, {}, spv::OpLoad, convert_type(value_type))
+										.add(input_variable)
+										.result;
+									elements.push_back(value);
+								}
+
+								spv_type composite_type = param.type;
+								composite_type.is_pointer = false;
+								spv_instruction &construct = add_node(section, {}, spv::OpCompositeConstruct, convert_type(composite_type));
+								for (auto elem : elements)
+									construct.add(elem);
+								const spv::Id composite_value = construct.result;
+
+								add_node_without_result(section, {}, spv::OpStore)
+									.add(param_variable)
+									.add(composite_value);
+							}
 							else
-								add_decoration(result, spv::DecorationLocation, { param.semantic_index });
+							{
+								const spv::Id input_variable = create_input_variable(param);
 
-							inputs_and_outputs.push_back(result);
+								spv_type value_type = param.type;
+								value_type.is_pointer = false;
+
+								const spv::Id value = add_node(section, {}, spv::OpLoad, convert_type(value_type))
+									.add(input_variable)
+									.result;
+								add_node_without_result(section, {}, spv::OpStore)
+									.add(param_variable)
+									.add(value);
+							}
 						}
-
-						call.add(result);
 					}
 
-					if (function_info->return_type.has_semantic)
-					{
-						spv_type ptr_type = function_info->return_type; ptr_type.is_pointer = true;
+					spv_instruction &call = add_node(section, location, spv::OpFunctionCall, convert_type(function_info->return_type))
+						.add(function_info->definition);
+					for (auto elem : call_params)
+						call.add(elem);
+					const spv::Id call_result = call.result;
 
+					size_t param_index = 0;
+					size_t inputs_and_outputs_index = 0;
+					for (const spv_struct_member_info &param : function_info->parameter_list)
+					{
+						if (param.type.has(spv_type::qualifier_out))
+						{
+							spv_type value_type = param.type;
+							value_type.is_pointer = false;
+
+							const spv::Id value = add_node(section, {}, spv::OpLoad, convert_type(value_type))
+								.add(call_params[param_index++])
+								.result;
+
+							if (param.type.is_struct())
+							{
+								size_t member_index = 0;
+								for (const auto &member : _structs[param.type.definition].member_list)
+								{
+									const spv::Id member_value = add_node(section, {}, spv::OpCompositeExtract, convert_type(member.type))
+										.add(value)
+										.add(member_index++)
+										.result;
+									add_node_without_result(section, {}, spv::OpStore)
+										.add(inputs_and_outputs[inputs_and_outputs_index++])
+										.add(member_value);
+								}
+							}
+							else
+							{
+								add_node_without_result(section, {}, spv::OpStore)
+									.add(inputs_and_outputs[inputs_and_outputs_index++])
+									.add(value);
+							}
+						}
+						else
+						{
+							param_index++;
+							inputs_and_outputs_index += param.type.is_struct() ? _structs[param.type.definition].member_list.size() : 1;
+						}
+					}
+
+					if (function_info->return_type.is_struct())
+					{
+						size_t member_index = 0;
+						for (const auto &member : _structs[function_info->return_type.definition].member_list)
+						{
+							spv::Id result = create_output_variable(member);
+
+							spv::Id member_result = add_node(section, {}, spv::OpCompositeExtract, convert_type(member.type))
+								.add(call_result)
+								.add(member_index)
+								.result;
+
+							add_node_without_result(section, {}, spv::OpStore)
+								.add(result)
+								.add(member_result);
+
+							member_index++;
+						}
+					}
+					else if (!function_info->return_type.is_void())
+					{
+						spv_type ptr_type = function_info->return_type;
+						ptr_type.is_output = true;
+						ptr_type.is_pointer = true;
 						spv::Id result = define_variable(nullptr, location, ptr_type, spv::StorageClassOutput);
 
 						if (function_info->return_builtin != spv::BuiltInMax)

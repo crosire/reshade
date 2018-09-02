@@ -15,7 +15,7 @@ inline bool operator==(const reshadefx::spv_type &lhs, const reshadefx::spv_type
 {
 	//return lhs.base == rhs.base && lhs.rows == rhs.rows && lhs.cols == rhs.cols && lhs.array_length == rhs.array_length && lhs.definition == rhs.definition && lhs.is_pointer == rhs.is_pointer;
 	//return std::memcmp(&lhs, &rhs, sizeof(lhs)) == 0;
-	return lhs.base == rhs.base && lhs.rows == rhs.rows && lhs.cols == rhs.cols && lhs.array_length == rhs.array_length && lhs.definition == rhs.definition && lhs.is_pointer == rhs.is_pointer && (!lhs.is_pointer || (lhs.qualifiers & (spv_type::qualifier_inout | spv_type::qualifier_static | spv_type::qualifier_uniform)) == (rhs.qualifiers & (spv_type::qualifier_inout | spv_type::qualifier_static | spv_type::qualifier_uniform)));
+	return lhs.base == rhs.base && lhs.rows == rhs.rows && lhs.cols == rhs.cols && lhs.array_length == rhs.array_length && lhs.definition == rhs.definition && lhs.is_pointer == rhs.is_pointer && lhs.is_input == rhs.is_input && lhs.is_output == rhs.is_output;
 }
 inline bool operator==(const reshadefx::spirv_module::function_info2 &lhs, const reshadefx::spirv_module::function_info2 &rhs)
 {
@@ -470,7 +470,8 @@ void spirv_module::leave_function()
 
 spv::Id spirv_module::convert_type(const reshadefx::spv_type &info)
 {
-	if (auto it = std::find_if(_type_lookup.begin(), _type_lookup.end(), [&info](auto &x) { return x.first == info; }); it != _type_lookup.end())
+	if (auto it = std::find_if(_type_lookup.begin(), _type_lookup.end(),
+		[&info](auto &x) { return x.first == info && (!info.is_pointer || (x.first.qualifiers & (spv_type::qualifier_static | spv_type::qualifier_uniform)) == (info.qualifiers & (spv_type::qualifier_static | spv_type::qualifier_uniform))); }); it != _type_lookup.end())
 		return it->second;
 
 	spv::Id type;
@@ -478,14 +479,16 @@ spv::Id spirv_module::convert_type(const reshadefx::spv_type &info)
 	if (info.is_pointer)
 	{
 		spv_type eleminfo = info;
+		eleminfo.is_input = false;
+		eleminfo.is_output = false;
 		eleminfo.is_pointer = false;
 
 		const spv::Id elemtype = convert_type(eleminfo);
 
 		spv::StorageClass storage = spv::StorageClassFunction;
-		if (info.has(spv_type::qualifier_in) && info.has_semantic)
+		if (info.is_input)
 			storage = spv::StorageClassInput;
-		if (info.has(spv_type::qualifier_out) && info.has_semantic)
+		if (info.is_output)
 			storage = spv::StorageClassOutput;
 		if (info.has(spv_type::qualifier_static))
 			storage = spv::StorageClassPrivate;
@@ -562,6 +565,8 @@ spv::Id spirv_module::convert_type(const reshadefx::spv_type &info)
 	}
 	else
 	{
+		assert(!info.is_input && !info.is_output);
+
 		switch (info.base)
 		{
 		case spv_type::datatype_void:
@@ -612,7 +617,7 @@ spv::Id spirv_module::convert_type(const reshadefx::spv_type &info)
 		}
 		case spv_type::datatype_sampler: {
 			assert(info.rows == 0 && info.cols == 0);
-			spv::Id image_type = convert_type({ spv_type::datatype_texture });
+			spv::Id image_type = convert_type({ spv_type::datatype_texture, 0, 0, spv_type::qualifier_uniform });
 			type = add_node(_types_and_constants, {}, spv::OpTypeSampledImage)
 				.add(image_type)
 				.result;
@@ -624,9 +629,7 @@ spv::Id spirv_module::convert_type(const reshadefx::spv_type &info)
 		}
 	}
 
-	spv_type type2 = info;
-	type2.has_semantic = false;
-	_type_lookup.push_back({ type2, type });;
+	_type_lookup.push_back({ info, type });;
 
 	return type;
 }

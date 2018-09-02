@@ -49,6 +49,7 @@ namespace reshadefx
 			qualifier_nointerpolation = 1 << 13,
 		};
 
+		static spv_type merge(const spv_type &lhs, const spv_type &rhs);
 		static unsigned int rank(const spv_type &src, const spv_type &dst);
 
 		bool has(qualifier qualifier) const { return (qualifiers & qualifier) == qualifier; }
@@ -74,7 +75,8 @@ namespace reshadefx
 		unsigned int cols : 4;
 		unsigned int qualifiers = 0;
 		bool is_pointer = false;
-		bool has_semantic = false;
+		bool is_input = false;
+		bool is_output = false;
 		int array_length = 0;
 		spv::Id definition = 0;
 	};

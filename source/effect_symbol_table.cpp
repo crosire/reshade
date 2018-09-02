@@ -66,6 +66,25 @@ static int compare_functions(const std::vector<spv_expression> &arguments, const
 	return 0;
 }
 
+spv_type spv_type::merge(const spv_type &lhs, const spv_type &rhs)
+{
+	spv_type result = {};
+	result.base = std::max(lhs.base, rhs.base);
+
+	// If one side of the expression is scalar, it needs to be promoted to the same dimension as the other side
+	if ((lhs.rows == 1 && lhs.cols == 1) || (rhs.rows == 1 && rhs.cols == 1))
+	{
+		result.rows = std::max(lhs.rows, rhs.rows);
+		result.cols = std::max(lhs.cols, rhs.cols);
+	}
+	else // Otherwise dimensions match or one side is truncated to match the other one
+	{
+		result.rows = std::min(lhs.rows, rhs.rows);
+		result.cols = std::min(lhs.cols, rhs.cols);
+	}
+
+	return result;
+}
 unsigned int reshadefx::spv_type::rank(const reshadefx::spv_type &src, const reshadefx::spv_type &dst)
 {
 	if (src.is_array() != dst.is_array() || (src.array_length != dst.array_length && src.array_length > 0 && dst.array_length > 0))
