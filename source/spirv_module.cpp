@@ -15,7 +15,7 @@ inline bool operator==(const reshadefx::spv_type &lhs, const reshadefx::spv_type
 {
 	//return lhs.base == rhs.base && lhs.rows == rhs.rows && lhs.cols == rhs.cols && lhs.array_length == rhs.array_length && lhs.definition == rhs.definition && lhs.is_pointer == rhs.is_pointer;
 	//return std::memcmp(&lhs, &rhs, sizeof(lhs)) == 0;
-	return lhs.base == rhs.base && lhs.rows == rhs.rows && lhs.cols == rhs.cols && lhs.array_length == rhs.array_length && lhs.definition == rhs.definition && lhs.is_pointer == rhs.is_pointer && (!lhs.is_pointer || (!lhs.has_semantic && !rhs.has_semantic) || lhs.qualifiers == rhs.qualifiers);
+	return lhs.base == rhs.base && lhs.rows == rhs.rows && lhs.cols == rhs.cols && lhs.array_length == rhs.array_length && lhs.definition == rhs.definition && lhs.is_pointer == rhs.is_pointer && (!lhs.is_pointer || (lhs.qualifiers & (spv_type::qualifier_inout | spv_type::qualifier_static | spv_type::qualifier_uniform)) == (rhs.qualifiers & (spv_type::qualifier_inout | spv_type::qualifier_static | spv_type::qualifier_uniform)));
 }
 inline bool operator==(const reshadefx::spirv_module::function_info2 &lhs, const reshadefx::spirv_module::function_info2 &rhs)
 {
@@ -525,6 +525,19 @@ spv::Id spirv_module::convert_type(const reshadefx::spv_type &info)
 				.result;
 		}
 	}
+	else if (info.is_matrix())
+	{
+		// Convert MxN matrix to a SPIR-V matrix with M vectors with N elements
+		eleminfo.rows = info.cols;
+		eleminfo.cols = 1;
+
+		const spv::Id elemtype = convert_type(eleminfo);
+
+		type = add_node(_types_and_constants, {}, spv::OpTypeMatrix)
+			.add(elemtype)
+			.add(info.rows)
+			.result;
+	}
 	else if (info.is_vector())
 	{
 		eleminfo.rows = 1;
@@ -535,17 +548,6 @@ spv::Id spirv_module::convert_type(const reshadefx::spv_type &info)
 		type = add_node(_types_and_constants, {}, spv::OpTypeVector)
 			.add(elemtype)
 			.add(info.rows)
-			.result;
-	}
-	else if (info.is_matrix())
-	{
-		eleminfo.cols = 1;
-
-		const spv::Id elemtype = convert_type(eleminfo);
-
-		type = add_node(_types_and_constants, {}, spv::OpTypeMatrix)
-			.add(elemtype)
-			.add(info.cols)
 			.result;
 	}
 	else
@@ -675,22 +677,24 @@ spv::Id spirv_module::convert_constant(const reshadefx::spv_type &type, const sp
 	}
 	else if (type.is_matrix())
 	{
-		spv::Id columns[4] = {};
+		spv::Id rows[4] = {};
 
-		for (unsigned int i = 0; i < type.cols; ++i)
+		for (unsigned int i = 0; i < type.rows; ++i)
 		{
-			spv_constant column = {};
-			for (unsigned int k = 0; k < type.rows; ++k)
-				column.as_uint[k] = data.as_uint[i * type.rows + k];
-			spv_type column_type = type;
-			column_type.cols = 1;
-			columns[i] = convert_constant(column_type, column);
+			spv_type row_type = type;
+			row_type.rows = type.cols;
+			row_type.cols = 1;
+			spv_constant row_data = {};
+			for (unsigned int k = 0; k < type.cols; ++k)
+				row_data.as_uint[k] = data.as_uint[i * type.cols + k];
+
+			rows[i] = convert_constant(row_type, row_data);
 		}
 
 		spv_instruction &node = add_node(_types_and_constants, {}, spv::OpConstantComposite, convert_type(type));
 
-		for (unsigned int i = 0; i < type.cols; ++i)
-			node.add(columns[i]);
+		for (unsigned int i = 0; i < type.rows; ++i)
+			node.add(rows[i]);
 
 		result = node.result;
 	}
@@ -700,11 +704,12 @@ spv::Id spirv_module::convert_constant(const reshadefx::spv_type &type, const sp
 
 		for (unsigned int i = 0; i < type.rows; ++i)
 		{
-			spv_constant scalar = {};
-			scalar.as_uint[0] = data.as_uint[i];
-			spv_type value_type = type;
-			value_type.rows = 1;
-			rows[i] = convert_constant(value_type, scalar);
+			spv_type scalar_type = type;
+			scalar_type.rows = 1;
+			spv_constant scalar_data = {};
+			scalar_data.as_uint[0] = data.as_uint[i];
+
+			rows[i] = convert_constant(scalar_type, scalar_data);
 		}
 
 		spv_instruction &node = add_node(_types_and_constants, {}, spv::OpConstantComposite, convert_type(type));
@@ -861,8 +866,40 @@ spv::Id spirv_module::access_chain_load(spv_basic_block &section, const spv_expr
 		case spv_expression::swizzle:
 			if (op.to.is_vector())
 			{
-				if (op.from.is_vector())
+				if (op.from.is_matrix())
 				{
+					spv::Id components[4];
+
+					for (unsigned int i = 0; i < 4 && op.swizzle[i] >= 0; ++i)
+					{
+						const unsigned int row = op.swizzle[i] / 4;
+						const unsigned int column = op.swizzle[i] - row * 4;
+
+						spv_type scalar_type = op.to;
+						scalar_type.rows = 1;
+						scalar_type.cols = 1;
+
+						components[i] = add_node(section, chain.location, spv::OpCompositeExtract, convert_type(scalar_type))
+							.add(result)
+							.add(row)
+							.add(column)
+							.result;
+					}
+
+					spv_instruction &node = add_node(section, chain.location, spv::OpCompositeConstruct, convert_type(op.to));
+
+					for (unsigned int i = 0; i < 4 && op.swizzle[i] >= 0; ++i)
+					{
+						node.add(components[i]);
+					}
+
+					result = node.result;
+					break;
+				}
+				else
+				{
+					assert(op.from.is_vector());
+
 					spv_instruction &node = add_node(section, chain.location, spv::OpVectorShuffle, convert_type(chain.type))
 						.add(result) // Vector 1
 						.add(result); // Vector 2

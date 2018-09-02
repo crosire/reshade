@@ -237,6 +237,10 @@ bool reshadefx::parser::accept_type_class(spv_type &type)
 
 			if (!expect('>'))
 				return false;
+
+			// Convert matrix types with a single row into a vector type
+			if (type.rows == 1)
+				type.rows = type.cols, type.cols = 1;
 		}
 
 		return true;
@@ -2877,7 +2881,7 @@ bool reshadefx::parser::parse_variable(spv_type type, std::string name, spv_basi
 			if (type.has(spv_type::qualifier_const))
 				return error(location, 3012, "missing initial value for '" + name + "'"), false;
 			else if (!type.has(spv_type::qualifier_uniform) && !type.is_array()) // Zero initialize global variables
-				initializer.reset_to_rvalue(convert_constant(type, {}), type, location);
+				initializer.reset_to_rvalue_constant(type, location, {});
 		}
 		else if (peek('{')) // Non-numeric variables can have a property block
 		{
