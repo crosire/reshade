@@ -65,11 +65,11 @@ bool reshadefx::parser::run(const std::string &input)
 			member_types.push_back(convert_type(member.type));
 		}
 
-		define_struct(_global_ubo_type, "$Global", {}, member_types);
+		define_struct(_global_ubo_type, "$Globals", {}, member_types);
 		add_decoration(_global_ubo_type, spv::DecorationBlock);
 		add_decoration(_global_ubo_type, spv::DecorationDescriptorSet, { 0 });
 
-		define_variable(_global_ubo_variable, "", {}, { spv_type::datatype_struct, 0, 0, spv_type::qualifier_uniform, true, false, 0, _global_ubo_type }, spv::StorageClassUniform);
+		define_variable(_global_ubo_variable, "$Globals", {}, { spv_type::datatype_struct, 0, 0, spv_type::qualifier_uniform, true, false, 0, _global_ubo_type }, spv::StorageClassUniform);
 	}
 
 	std::ofstream s("test.spv", std::ios::binary | std::ios::out);
@@ -2966,11 +2966,13 @@ bool reshadefx::parser::parse_variable(spv_type type, std::string name, spv_basi
 		// Variable initializer must be a constant or global variable instruction
 		if (initializer.is_constant)
 		{
+			assert(!(type.is_texture() || type.is_sampler()));
+
 			info.definition = define_variable(info.unique_name.c_str(), location, type, global ? spv::StorageClassPrivate : spv::StorageClassFunction, initializer_value);
 		}
 		else // Non-constant initializers are explicitly stored in the variable at the definition location instead
 		{
-			info.definition = define_variable(info.unique_name.c_str(), location, type, global ? spv::StorageClassPrivate : spv::StorageClassFunction);
+			info.definition = define_variable(info.unique_name.c_str(), location, type, global ? (type.is_texture() || type.is_sampler()) ? spv::StorageClassUniformConstant : spv::StorageClassPrivate : spv::StorageClassFunction);
 
 			if (initializer_value != 0)
 			{

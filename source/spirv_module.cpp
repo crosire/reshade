@@ -503,7 +503,7 @@ spv::Id spirv_module::convert_type(const reshadefx::spv_type &info)
 		if (info.has(spv_type::qualifier_static))
 			storage = spv::StorageClassPrivate;
 		if (info.has(spv_type::qualifier_uniform))
-			storage = spv::StorageClassUniform;
+			storage = (info.is_texture() || info.is_sampler()) ? spv::StorageClassUniformConstant : spv::StorageClassUniform;
 
 		type = add_node(_types_and_constants, {}, spv::OpTypePointer)
 			.add(storage)
