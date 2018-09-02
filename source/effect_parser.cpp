@@ -1668,29 +1668,29 @@ bool reshadefx::parser::parse_expression_multary(spv_basic_block &section, spv_e
 				const spv::Id lhs_value = access_chain_load(section, lhs);
 				assert(lhs_value != 0);
 
-#if 0 // Optional short circuit logic
+#if RESHADEFX_SHORT_CIRCUIT
 				// Short circuit for logical && and || operators
 				if (op == spv::OpLogicalAnd || op == spv::OpLogicalOr)
 				{
-					const spv::Id parent0 = _current_block;
-					const spv::Id parent1 = make_id();
-					const spv::Id merge_target = make_id();
+					const spv::Id merge_label = make_id();
+					const spv::Id parent0_label = _current_block;
+					const spv::Id parent1_label = make_id();
 
 					if (op == spv::OpLogicalAnd)
 					{
-						// && => Emit "if ( lhs) result = rhs"
-						leave_block_and_branch_conditional(section, lhs_value, parent1, merge_target);
+						// Emit "if ( lhs) result = rhs"
+						leave_block_and_branch_conditional(section, lhs_value, parent1_label, merge_label);
 					}
 					else
 					{
+						// Emit "if (!lhs) result = rhs"
 						const spv::Id cond = add_node(section, lhs.location, spv::OpLogicalNot, convert_type(type))
 							.add(lhs_value)
 							.result;
-						// || => Emit "if (!lhs) result = rhs"
-						leave_block_and_branch_conditional(section, cond, parent1, merge_target);
+						leave_block_and_branch_conditional(section, cond, parent1_label, merge_label);
 					}
 
-					enter_block(section, parent1);
+					enter_block(section, parent1_label);
 
 					section.instructions.insert(section.instructions.end(), rhs_block.instructions.begin(), rhs_block.instructions.end());
 
@@ -1698,15 +1698,15 @@ bool reshadefx::parser::parse_expression_multary(spv_basic_block &section, spv_e
 					const spv::Id rhs_value = access_chain_load(section, rhs);
 					assert(rhs_value != 0);
 
-					leave_block_and_branch(section, merge_target);
+					leave_block_and_branch(section, merge_label);
 
-					enter_block(section, merge_target);
+					enter_block(section, merge_label);
 
 					spv::Id result = add_node(section, lhs.location, spv::OpPhi, convert_type(type))
 						.add(lhs_value) // Variable 0
-						.add(parent0) // Parent 0
+						.add(parent0_label) // Parent 0
 						.add(rhs_value) // Variable 1
-						.add(parent1) // Parent 1
+						.add(parent1_label) // Parent 1
 						.result;
 
 					lhs.reset_to_rvalue(result, type, lhs.location);
@@ -1735,14 +1735,14 @@ bool reshadefx::parser::parse_expression_multary(spv_basic_block &section, spv_e
 		}
 		else
 		{
-			// TODO: Short circuit?
 			// A conditional expression needs a scalar or vector type condition
 			if (!lhs.type.is_scalar() && !lhs.type.is_vector())
 				return error(lhs.location, 3022, "boolean or vector expression expected"), false;
 
 			// Parse the first part of the right hand side of the ternary operation
 			spv_expression true_exp;
-			if (!parse_expression(section, true_exp))
+			spv_basic_block true_block;
+			if (!parse_expression(true_block, true_exp))
 				return false;
 
 			if (!expect(':'))
@@ -1750,7 +1750,8 @@ bool reshadefx::parser::parse_expression_multary(spv_basic_block &section, spv_e
 
 			// Parse the second part of the right hand side of the ternary operation
 			spv_expression false_exp;
-			if (!parse_expression_assignment(section, false_exp))
+			spv_basic_block false_block;
+			if (!parse_expression_assignment(false_block, false_exp))
 				return false;
 
 			// Check that the condition dimension matches that of at least one side
@@ -1758,7 +1759,7 @@ bool reshadefx::parser::parse_expression_multary(spv_basic_block &section, spv_e
 				return error(lhs.location, 3020, "dimension of conditional does not match value"), false;
 
 			// Check that the two value expressions can be converted between each other
-			if (true_exp.type.is_array() || false_exp.type.is_array() || true_exp.type.definition != false_exp.type.definition)
+			if (true_exp.type.array_length != false_exp.type.array_length || true_exp.type.definition != false_exp.type.definition)
 				return error(false_exp.location, 3020, "type mismatch between conditional values"), false;
 
 			// Deduce the result base type based on implicit conversion rules
@@ -1768,6 +1769,47 @@ bool reshadefx::parser::parse_expression_multary(spv_basic_block &section, spv_e
 				warning(true_exp.location, 3206, "implicit truncation of vector type");
 			if (false_exp.type.components() > type.components())
 				warning(false_exp.location, 3206, "implicit truncation of vector type");
+
+#if RESHADEFX_SHORT_CIRCUIT
+			const spv::Id true_label = make_id();
+			const spv::Id false_label = make_id();
+			const spv::Id merge_label = make_id();
+
+			add_cast_operation(lhs, { spv_type::datatype_bool, lhs.type.rows, 1 });
+			const spv::Id condition_value = access_chain_load(section, lhs);
+			assert(condition_value != 0);
+
+			add_node_without_result(section, lhs.location, spv::OpSelectionMerge)
+				.add(merge_label) // Merge Block
+				.add(spv::SelectionControlMaskNone); // Selection Control
+
+			leave_block_and_branch_conditional(section, condition_value, true_label, false_label);
+
+			enter_block(section, true_label);
+			section.instructions.insert(section.instructions.end(), true_block.instructions.begin(), true_block.instructions.end());
+			add_cast_operation(true_exp, type);
+			const spv::Id true_value = access_chain_load(section, true_exp);
+			assert(true_value != 0);
+			leave_block_and_branch(section, merge_label);
+
+			enter_block(section, false_label);
+			section.instructions.insert(section.instructions.end(), false_block.instructions.begin(), false_block.instructions.end());
+			add_cast_operation(false_exp, type);
+			const spv::Id false_value = access_chain_load(section, false_exp);
+			assert(false_value != 0);
+			leave_block_and_branch(section, merge_label);
+
+			enter_block(section, merge_label);
+
+			spv::Id result = add_node(section, lhs.location, spv::OpPhi, convert_type(type))
+				.add(true_value) // Variable 0
+				.add(true_label) // Parent 0
+				.add(false_value) // Variable 1
+				.add(false_label) // Parent 1
+				.result;
+#else
+			section.instructions.insert(section.instructions.end(), true_block.instructions.begin(), true_block.instructions.end());
+			section.instructions.insert(section.instructions.end(), false_block.instructions.begin(), false_block.instructions.end());
 
 			// Load values and perform implicit type conversions
 			add_cast_operation(lhs, { spv_type::datatype_bool, lhs.type.rows, 1 });
@@ -1785,7 +1827,7 @@ bool reshadefx::parser::parse_expression_multary(spv_basic_block &section, spv_e
 				.add(true_value) // Object 1
 				.add(false_value) // Object 2
 				.result; // Result ID
-
+#endif
 			lhs.reset_to_rvalue(result, type, lhs.location);
 		}
 	}
