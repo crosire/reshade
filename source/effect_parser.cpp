@@ -1864,7 +1864,7 @@ bool reshadefx::parser::parse_annotations(std::unordered_map<std::string, spv_co
 		if (!expect(tokenid::identifier))
 			return false;
 
-		const auto name = _token.literal_as_string;
+		const auto name = std::move(_token.literal_as_string);
 
 		spv_expression expression;
 		if (spv_basic_block temp_section; !expect('=') || !parse_expression_unary(temp_section, expression) || !expect(';'))
@@ -1969,6 +1969,9 @@ bool reshadefx::parser::parse_top_level()
 
 bool reshadefx::parser::parse_statement(spv_basic_block &section, bool scoped)
 {
+	if (_current_block == 0)
+		return error(_token_next.location, 3000, "statements are valid only inside a code block"), false;
+
 	unsigned int loop_control = spv::LoopControlMaskNone;
 	unsigned int selection_control = spv::SelectionControlMaskNone;
 
@@ -2109,9 +2112,9 @@ bool reshadefx::parser::parse_statement(spv_basic_block &section, bool scoped)
 					{
 						spv_expression case_label;
 						if (!parse_expression(switch_body_block, case_label))
-							return false;
+							return consume_until('}'), false;
 						else if (!case_label.type.is_scalar() || !case_label.is_constant)
-							return error(case_label.location, 3020, "non-numeric case expression"), false;
+							return error(case_label.location, 3020, "non-numeric case expression"), consume_until('}'), false;
 
 						case_literal_and_labels.push_back(case_label.constant.as_uint[0]); // This can be floating point too, which are casted here via the constant union
 						case_literal_and_labels.push_back(current_block);
@@ -2122,13 +2125,13 @@ bool reshadefx::parser::parse_statement(spv_basic_block &section, bool scoped)
 					}
 
 					if (!expect(':'))
-						return false;
+						return consume_until('}'), false;
 
 					num_case_labels++;
 				}
 
 				if (!parse_statement(switch_body_block, true))
-					return false;
+					return consume_until('}'), false;
 			}
 
 			if (num_case_labels == 0)
@@ -2437,7 +2440,7 @@ bool reshadefx::parser::parse_statement(spv_basic_block &section, bool scoped)
 			{
 				spv_expression return_exp;
 				if (!parse_expression(section, return_exp))
-					return false;
+					return consume_until(';'), false;
 
 				if (parent->return_type.is_void())
 					// Consume the semicolon that follows the return expression so that parsing may continue
@@ -2493,9 +2496,9 @@ bool reshadefx::parser::parse_statement(spv_basic_block &section, bool scoped)
 		unsigned int count = 0;
 		do { // There may be multiple declarations behind a type, so loop through them
 			if (count++ > 0 && !expect(','))
-				return false;
+				return consume_until(';'), false;
 			if (!expect(tokenid::identifier) || !parse_variable(type, std::move(_token.literal_as_string), section))
-				return false;
+				return consume_until(';'), false;
 		} while (!peek(';'));
 
 		return expect(';');
