@@ -37,6 +37,7 @@ namespace reshadefx
 		spv::Id define_variable(const char *name, const location &loc, const spv_type &type, spv::StorageClass storage, spv::Id initializer = 0);
 		spv::Id define_parameter(const char *name, const location &loc, const spv_type &type);
 
+		void add_name(spv::Id object, const char *name);
 		void add_builtin(spv::Id object, spv::BuiltIn builtin);
 		void add_decoration(spv::Id object, spv::Decoration decoration, std::initializer_list<uint32_t> values = {});
 		void add_member_name(spv::Id object, uint32_t member_index, const char *name);

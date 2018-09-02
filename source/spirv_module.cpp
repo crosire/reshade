@@ -126,44 +126,32 @@ void spirv_module::define_struct(spv::Id id, const char *name, const location &l
 	node.result = id;
 	for (spv::Id type : members)
 		node.add(type);
-
 	if (name)
-		add_node_without_result(_debug_b, {}, spv::OpName)
-		.add(node.result)
-		.add_string(name);
+		add_name(node.result, name);
 }
 spv::Id spirv_module::define_struct(const char *name, const location &loc, const std::vector<spv::Id> &members)
 {
 	spv_instruction &node = add_node(_types_and_constants, loc, spv::OpTypeStruct);
 	for (spv::Id type : members)
 		node.add(type);
-
 	if (name)
-		add_node_without_result(_debug_b, {}, spv::OpName)
-			.add(node.result)
-			.add_string(name);
-
+		add_name(node.result, name);
 	return node.result;
 }
 spv::Id spirv_module::define_function(const char *name, const location &loc, const reshadefx::spv_type &return_type)
 {
 	auto &function = _functions2.emplace_back();
 	function.return_type = return_type;
-	spv_instruction &instruction = function.declaration;
-	instruction.op = spv::OpFunction;
-	instruction.type = convert_type(return_type);
-	instruction.result = make_id();
-	instruction.location = loc;
-	instruction.add(spv::FunctionControlMaskNone);
-
+	spv_instruction &node = function.declaration;
+	node.op = spv::OpFunction;
+	node.type = convert_type(return_type);
+	node.result = make_id();
+	node.location = loc;
+	node.add(spv::FunctionControlMaskNone);
 	_current_function = _functions2.size() - 1;
-
 	if (name)
-		add_node_without_result(_debug_b, {}, spv::OpName)
-			.add(instruction.result)
-			.add_string(name);
-
-	return instruction.result;
+		add_name(node.result, name);
+	return node.result;
 }
 void spirv_module::define_variable(spv::Id id, const char *name, const location &loc, const reshadefx::spv_type &type, spv::StorageClass storage, spv::Id initializer)
 {
@@ -174,9 +162,7 @@ void spirv_module::define_variable(spv::Id id, const char *name, const location 
 	if (initializer)
 		node.add(initializer);
 	if (name)
-		add_node_without_result(_debug_b, {}, spv::OpName)
-		.add(node.result)
-		.add_string(name);
+		add_name(node.result, name);
 }
 spv::Id spirv_module::define_variable(const char *name, const location &loc, const reshadefx::spv_type &type, spv::StorageClass storage, spv::Id initializer)
 {
@@ -185,23 +171,24 @@ spv::Id spirv_module::define_variable(const char *name, const location &loc, con
 	if (initializer)
 		node.add(initializer);
 	if (name)
-		add_node_without_result(_debug_b, {}, spv::OpName)
-			.add(node.result)
-			.add_string(name);
+		add_name(node.result, name);
 	return node.result;
 }
 spv::Id spirv_module::define_parameter(const char *name, const location &loc, const reshadefx::spv_type &type)
 {
 	_functions2[_current_function].param_types.push_back(type);
 	spv_instruction &node = add_node(_functions2[_current_function].variables, loc, spv::OpFunctionParameter, convert_type(type));
-
-	add_node_without_result(_debug_b, {}, spv::OpName)
-		.add(node.result)
-		.add_string(name);
-
+	if (name)
+		add_name(node.result, name);
 	return node.result;
 }
 
+void spirv_module::add_name(spv::Id id, const char *name)
+{
+	add_node_without_result(_debug_b, {}, spv::OpName)
+		.add(id)
+		.add_string(name);
+}
 void spirv_module::add_builtin(spv::Id id, spv::BuiltIn builtin)
 {
 	add_node_without_result(_annotations, {}, spv::OpDecorate)
