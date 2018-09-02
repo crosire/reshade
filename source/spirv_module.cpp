@@ -378,6 +378,17 @@ void spirv_module::add_swizzle_access(spv_expression &chain, signed char in_swiz
 	if (length == 1 && chain.type.is_vector())
 		return add_static_index_access(chain, in_swizzle[0]);
 
+	// Check for redundant swizzle and ignore them
+	if (chain.type.is_vector() && length == chain.type.rows)
+	{
+		bool ignore = true;
+		for (unsigned int i = 0; i < length; ++i)
+			if (in_swizzle[i] != i)
+				ignore = false;
+		if (ignore)
+			return;
+	}
+
 	spv_type target_type = chain.type;
 	target_type.rows = static_cast<unsigned int>(length);
 	target_type.cols = 1;
@@ -477,13 +488,12 @@ spv::Id spirv_module::convert_type(const reshadefx::spv_type &info)
 
 	spv::Id type;
 
-	spv_type eleminfo = info;
-
 	if (info.is_pointer)
 	{
+		spv_type eleminfo = info;
 		eleminfo.is_pointer = false;
 
-		spv::Id elemtype = convert_type(eleminfo);
+		const spv::Id elemtype = convert_type(eleminfo);
 
 		spv::StorageClass storage = spv::StorageClassFunction;
 		if (info.has(spv_type::qualifier_in) && info.has_semantic)
@@ -503,19 +513,22 @@ spv::Id spirv_module::convert_type(const reshadefx::spv_type &info)
 	else if (info.is_array())
 	{
 		assert(!info.is_pointer);
+
+		spv_type eleminfo = info;
 		eleminfo.array_length = 0;
 
-		spv::Id elemtype = convert_type(eleminfo);
+		const spv::Id elemtype = convert_type(eleminfo);
 
-		// TODO: Array stride
 		if (info.array_length > 0) // Sized array
 		{
-			spv_constant array_length = {};
-			array_length.as_uint[0] = info.array_length;
-			spv::Id array_length_id = convert_constant({ spv_type::datatype_uint, 1, 1 }, array_length);
+			spv_constant length_data = {};
+			length_data.as_uint[0] = info.array_length;
+
+			const spv::Id length_constant = convert_constant({ spv_type::datatype_uint, 1, 1 }, length_data);
+
 			type = add_node(_types_and_constants, {}, spv::OpTypeArray)
 				.add(elemtype)
-				.add(array_length_id)
+				.add(length_constant)
 				.result;
 		}
 		else // Dynamic array
@@ -528,18 +541,28 @@ spv::Id spirv_module::convert_type(const reshadefx::spv_type &info)
 	else if (info.is_matrix())
 	{
 		// Convert MxN matrix to a SPIR-V matrix with M vectors with N elements
+		spv_type eleminfo = info;
 		eleminfo.rows = info.cols;
 		eleminfo.cols = 1;
 
 		const spv::Id elemtype = convert_type(eleminfo);
 
-		type = add_node(_types_and_constants, {}, spv::OpTypeMatrix)
-			.add(elemtype)
-			.add(info.rows)
-			.result;
+		// Matrix types with just one row are interpreted as if they were a vector type
+		if (info.rows == 1)
+		{
+			type = elemtype;
+		}
+		else
+		{
+			type = add_node(_types_and_constants, {}, spv::OpTypeMatrix)
+				.add(elemtype)
+				.add(info.rows)
+				.result;
+		}
 	}
 	else if (info.is_vector())
 	{
+		spv_type eleminfo = info;
 		eleminfo.rows = 1;
 		eleminfo.cols = 1;
 
@@ -583,7 +606,7 @@ spv::Id spirv_module::convert_type(const reshadefx::spv_type &info)
 				.result;
 			break;
 		case spv_type::datatype_struct:
-			assert(info.definition != 0 && info.rows == 0 && info.cols == 0);
+			assert(info.rows == 0 && info.cols == 0 && info.definition != 0);
 			type = info.definition;
 			break;
 		case spv_type::datatype_texture: {
@@ -691,12 +714,19 @@ spv::Id spirv_module::convert_constant(const reshadefx::spv_type &type, const sp
 			rows[i] = convert_constant(row_type, row_data);
 		}
 
-		spv_instruction &node = add_node(_types_and_constants, {}, spv::OpConstantComposite, convert_type(type));
+		if (type.rows == 1)
+		{
+			result = rows[0];
+		}
+		else
+		{
+			spv_instruction &node = add_node(_types_and_constants, {}, spv::OpConstantComposite, convert_type(type));
 
-		for (unsigned int i = 0; i < type.rows; ++i)
-			node.add(rows[i]);
+			for (unsigned int i = 0; i < type.rows; ++i)
+				node.add(rows[i]);
 
-		result = node.result;
+			result = node.result;
+		}
 	}
 	else if (type.is_vector())
 	{
@@ -756,6 +786,11 @@ spv::Id spirv_module::access_chain_load(spv_basic_block &section, const spv_expr
 			assert(chain.ops[0].to.is_pointer);
 			spv_instruction &node = add_node(section, chain.location, spv::OpAccessChain)
 				.add(result); // Base
+
+			// Ignore first index into 1xN matrices, since they were translated to a vector type in SPIR-V
+			if (chain.ops[0].from.rows == 1 && chain.ops[0].from.cols > 1)
+				op_index = 1;
+
 			do {
 				assert(chain.ops[op_index].to.is_pointer);
 				base_type = chain.ops[op_index].to;
@@ -789,11 +824,12 @@ spv::Id spirv_module::access_chain_load(spv_basic_block &section, const spv_expr
 
 				if (op.from.is_boolean())
 				{
-					spv_constant true_c = {};
+					spv_constant true_value = {};
+					spv_constant false_value = {};
 					for (unsigned int i = 0; i < op.to.components(); ++i)
-						true_c.as_uint[i] = op.to.is_floating_point() ? 0x3f800000 : 1;
-					const spv::Id true_constant = convert_constant(from_with_to_base, true_c);
-					const spv::Id false_constant = convert_constant(from_with_to_base, {});
+						true_value.as_uint[i] = op.to.is_floating_point() ? 0x3f800000 : 1;
+					const spv::Id true_constant = convert_constant(from_with_to_base, true_value);
+					const spv::Id false_constant = convert_constant(from_with_to_base, false_value);
 
 					result = add_node(section, chain.location, spv::OpSelect, convert_type(from_with_to_base))
 						.add(result) // Condition
@@ -812,20 +848,18 @@ spv::Id spirv_module::access_chain_load(spv_basic_block &section, const spv_expr
 							.result;
 						break;
 					case spv_type::datatype_int:
-						assert(op.from.is_floating_point());
-						result = add_node(section, chain.location, spv::OpConvertFToS, convert_type(from_with_to_base))
+						result = add_node(section, chain.location, op.from.is_floating_point() ? spv::OpConvertFToS : spv::OpBitcast, convert_type(from_with_to_base))
 							.add(result)
 							.result;
 						break;
 					case spv_type::datatype_uint:
-						assert(op.from.is_floating_point());
-						result = add_node(section, chain.location, spv::OpConvertFToU, convert_type(from_with_to_base))
+						result = add_node(section, chain.location, op.from.is_floating_point() ? spv::OpConvertFToU : spv::OpBitcast, convert_type(from_with_to_base))
 							.add(result)
 							.result;
 						break;
 					case spv_type::datatype_float:
 						assert(op.from.is_integral());
-						result = add_node(section, chain.location, op.from.base == spv_type::datatype_int ? spv::OpConvertSToF : spv::OpConvertUToF, convert_type(from_with_to_base))
+						result = add_node(section, chain.location, op.from.is_signed() ? spv::OpConvertSToF : spv::OpConvertUToF, convert_type(from_with_to_base))
 							.add(result)
 							.result;
 						break;
@@ -879,11 +913,15 @@ spv::Id spirv_module::access_chain_load(spv_basic_block &section, const spv_expr
 						scalar_type.rows = 1;
 						scalar_type.cols = 1;
 
-						components[i] = add_node(section, chain.location, spv::OpCompositeExtract, convert_type(scalar_type))
-							.add(result)
-							.add(row)
-							.add(column)
-							.result;
+						spv_instruction &node = add_node(section, chain.location, spv::OpCompositeExtract, convert_type(scalar_type))
+							.add(result);
+
+						if (op.from.rows > 1) // Matrix types with a single row are actually vectors, so they don't need the extra index
+							node.add(row);
+
+						node.add(column);
+
+						components[i] = node.result;
 					}
 
 					spv_instruction &node = add_node(section, chain.location, spv::OpCompositeConstruct, convert_type(op.to));
@@ -918,7 +956,7 @@ spv::Id spirv_module::access_chain_load(spv_basic_block &section, const spv_expr
 				spv_instruction &node = add_node(section, chain.location, spv::OpCompositeExtract, convert_type(op.to))
 					.add(result); // Composite
 
-				if (op.from.is_matrix())
+				if (op.from.is_matrix() && op.from.rows > 1)
 				{
 					const unsigned int row = op.swizzle[0] / 4;
 					const unsigned int column = op.swizzle[0] - row * 4;
@@ -927,7 +965,6 @@ spv::Id spirv_module::access_chain_load(spv_basic_block &section, const spv_expr
 				}
 				else
 				{
-					assert(op.from.is_vector());
 					node.add(op.swizzle[0]);
 				}
 
@@ -960,6 +997,11 @@ void    spirv_module::access_chain_store(spv_basic_block &section, const spv_exp
 		assert(chain.ops[0].to.is_pointer);
 		spv_instruction &node = add_node(section, chain.location, spv::OpAccessChain)
 			.add(target); // Base
+
+		// Ignore first index into 1xN matrices, since they were translated to a vector type in SPIR-V
+		if (chain.ops[0].from.rows == 1 && chain.ops[0].from.cols > 1)
+			op_index = 1;
+
 		do {
 			assert(chain.ops[op_index].to.is_pointer);
 			base_type = chain.ops[op_index].to;

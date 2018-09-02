@@ -237,10 +237,6 @@ bool reshadefx::parser::accept_type_class(spv_type &type)
 
 			if (!expect('>'))
 				return false;
-
-			// Convert matrix types with a single row into a vector type
-			if (type.rows == 1)
-				type.rows = type.cols, type.cols = 1;
 		}
 
 		return true;
@@ -518,7 +514,7 @@ bool reshadefx::parser::accept_assignment_op(const spv_type &type, spv::Op &op)
 	case tokenid::less_less_equal:
 		op = spv::OpShiftLeftLogical; break;
 	case tokenid::greater_greater_equal:
-		op = spv::OpShiftRightLogical; break;
+		op = type.is_signed() ? spv::OpShiftRightArithmetic : spv::OpShiftRightLogical; break;
 	case tokenid::caret_equal:
 		op = spv::OpBitwiseXor; break;
 	case tokenid::pipe_equal:
@@ -1015,6 +1011,13 @@ bool reshadefx::parser::parse_expression_unary(spv_basic_block &section, spv_exp
 			{
 				const spv_type &param_type = symbol.function->parameter_list[i].type;
 
+				if (arguments[i].type.components() > param_type.components())
+					warning(arguments[i].location, 3206, "implicit truncation of vector type");
+
+				spv_type target_type = param_type;
+				target_type.is_pointer = false;
+				add_cast_operation(arguments[i], target_type);
+
 				if (param_type.is_pointer)
 				{
 					parameters[i].reset_to_lvalue(
@@ -1023,11 +1026,6 @@ bool reshadefx::parser::parse_expression_unary(spv_basic_block &section, spv_exp
 				}
 				else
 				{
-					if (arguments[i].type.components() > param_type.components())
-						warning(arguments[i].location, 3206, "implicit truncation of vector type");
-
-					add_cast_operation(arguments[i], param_type);
-
 					parameters[i].reset_to_rvalue(
 						access_chain_load(section, arguments[i]),
 						param_type, arguments[i].location);
@@ -1077,12 +1075,14 @@ bool reshadefx::parser::parse_expression_unary(spv_basic_block &section, spv_exp
 			}
 			else if (symbol.id == 0x10000003) // sincos
 			{
-				spv::Id sin_result = add_node(section, location, spv::OpExtInst, convert_type(parameters[0].type))
+				assert(parameters.size() == 3);
+
+				const spv::Id sin_result = add_node(section, location, spv::OpExtInst, convert_type(parameters[0].type))
 					.add(glsl_ext)
 					.add(13) // GLSLstd450Sin
 					.add(parameters[0].base)
 					.result;
-				spv::Id cos_result = add_node(section, location, spv::OpExtInst, convert_type(parameters[0].type))
+				const spv::Id cos_result = add_node(section, location, spv::OpExtInst, convert_type(parameters[0].type))
 					.add(glsl_ext)
 					.add(14) // GLSLstd450Cos
 					.add(parameters[0].base)
@@ -1503,6 +1503,9 @@ bool reshadefx::parser::parse_expression_multary(spv_basic_block &section, spv_e
 					case spv::OpFOrdGreaterThanEqual:
 						op = type.is_signed() ? spv::OpSGreaterThanEqual : spv::OpUGreaterThanEqual;
 						break;
+					case spv::OpShiftRightLogical:
+						op = type.is_signed() ? spv::OpShiftRightArithmetic : spv::OpShiftRightLogical;
+						break;
 					}
 				}
 
@@ -1669,6 +1672,10 @@ bool reshadefx::parser::parse_expression_multary(spv_basic_block &section, spv_e
 					for (unsigned int i = 0; i < type.components(); ++i)
 						constant_data.as_uint[i] <<= rhs.constant.as_uint[i];
 					break;
+				case spv::OpShiftRightArithmetic:
+					for (unsigned int i = 0; i < type.components(); ++i)
+						constant_data.as_int[i] >>= rhs.constant.as_int[i];
+					break;
 				case spv::OpShiftRightLogical:
 					for (unsigned int i = 0; i < type.components(); ++i)
 						constant_data.as_uint[i] >>= rhs.constant.as_uint[i];
@@ -1684,6 +1691,7 @@ bool reshadefx::parser::parse_expression_multary(spv_basic_block &section, spv_e
 				const spv::Id lhs_value = access_chain_load(section, lhs);
 				assert(lhs_value != 0);
 
+#if 0 // Optional short circuit logic
 				// Short circuit for logical && and || operators
 				if (op == spv::OpLogicalAnd || op == spv::OpLogicalOr)
 				{
@@ -1727,6 +1735,7 @@ bool reshadefx::parser::parse_expression_multary(spv_basic_block &section, spv_e
 					lhs.reset_to_rvalue(result, type, lhs.location);
 				}
 				else
+#endif
 				{
 					section.instructions.insert(section.instructions.end(), rhs_block.instructions.begin(), rhs_block.instructions.end());
 
@@ -2936,7 +2945,7 @@ bool reshadefx::parser::parse_variable(spv_type type, std::string name, spv_basi
 
 		symbol.member_index = _uniforms.member_list.size() - 1;
 
-		add_member_name(_global_ubo_variable, symbol.member_index, name.c_str());
+		add_member_name(_global_ubo_type, symbol.member_index, name.c_str());
 
 		// GLSL specification on std140 layout:
 		// 1. If the member is a scalar consuming N basic machine units, the base alignment is N.
@@ -3183,82 +3192,85 @@ bool reshadefx::parser::parse_technique_pass(spv_pass_info &info)
 				const bool is_ps = state[0] == 'P';
 
 				// Look up the matching function info for this function definition
-				const spv_function_info *const function_info = std::find_if(_functions.begin(), _functions.end(),
+				spv_function_info *const function_info = std::find_if(_functions.begin(), _functions.end(),
 					[&symbol](const auto &it) { return it->definition == symbol.id; })->get();
 
-				std::vector<spv::Id> inputs_and_outputs;
-
-				// Generate glue entry point function which references the actual one
-				const spv::Id entry_point = define_function(nullptr, location, { spv_type::datatype_void });
-
-				enter_block(_functions2[_current_function].variables, make_id());
-
-				spv_basic_block &section = _functions2[_current_function].definition;
-
-				spv_instruction &call = add_node(section, location, spv::OpFunctionCall, convert_type(function_info->return_type))
-					.add(function_info->definition);
-
-				const spv::Id call_result = call.result;
-
-				// Handle input parameters
-				for (const spv_struct_member_info &param : function_info->parameter_list)
+				if (function_info->entry_point == 0)
 				{
-					spv::Id result = 0;
+					std::vector<spv::Id> inputs_and_outputs;
 
-					if (param.type.has(spv_type::qualifier_out))
+					// Generate glue entry point function which references the actual one
+					function_info->entry_point = define_function(nullptr, location, { spv_type::datatype_void });
+
+					enter_block(_functions2[_current_function].variables, make_id());
+
+					spv_basic_block &section = _functions2[_current_function].definition;
+
+					spv_instruction &call = add_node(section, location, spv::OpFunctionCall, convert_type(function_info->return_type))
+						.add(function_info->definition);
+
+					const spv::Id call_result = call.result;
+
+					// Handle input parameters
+					for (const spv_struct_member_info &param : function_info->parameter_list)
 					{
-						spv_type ptr_type = param.type; ptr_type.is_pointer = true;
-						result = define_variable(nullptr, location, ptr_type, spv::StorageClassOutput);
+						spv::Id result = 0;
 
-						if (param.builtin != spv::BuiltInMax)
-							add_builtin(result, param.builtin);
+						if (param.type.has(spv_type::qualifier_out))
+						{
+							spv_type ptr_type = param.type; ptr_type.is_pointer = true;
+							result = define_variable(nullptr, location, ptr_type, spv::StorageClassOutput);
+
+							if (param.builtin != spv::BuiltInMax)
+								add_builtin(result, param.builtin);
+							else
+								add_decoration(result, spv::DecorationLocation, { param.semantic_index });
+
+							inputs_and_outputs.push_back(result);
+						}
 						else
-							add_decoration(result, spv::DecorationLocation, { param.semantic_index });
+						{
+							spv_type ptr_type = param.type; ptr_type.is_pointer = true;
+
+							result = define_variable(nullptr, location, ptr_type, spv::StorageClassInput);
+
+							if (is_ps && param.builtin == spv::BuiltInPosition)
+								add_builtin(result, spv::BuiltInFragCoord);
+							else if (param.builtin != spv::BuiltInMax)
+								add_builtin(result, param.builtin);
+							else
+								add_decoration(result, spv::DecorationLocation, { param.semantic_index });
+
+							inputs_and_outputs.push_back(result);
+						}
+
+						call.add(result);
+					}
+
+					if (function_info->return_type.has_semantic)
+					{
+						spv_type ptr_type = function_info->return_type; ptr_type.is_pointer = true;
+
+						spv::Id result = define_variable(nullptr, location, ptr_type, spv::StorageClassOutput);
+
+						if (function_info->return_builtin != spv::BuiltInMax)
+							add_builtin(result, function_info->return_builtin);
+						else
+							add_decoration(result, spv::DecorationLocation, { function_info->return_semantic_index });
 
 						inputs_and_outputs.push_back(result);
-					}
-					else
-					{
-						spv_type ptr_type = param.type; ptr_type.is_pointer = true;
 
-						result = define_variable(nullptr, location, ptr_type, spv::StorageClassInput);
-
-						if (is_ps && param.builtin == spv::BuiltInPosition)
-							add_builtin(result, spv::BuiltInFragCoord);
-						else if (param.builtin != spv::BuiltInMax)
-							add_builtin(result, param.builtin);
-						else
-							add_decoration(result, spv::DecorationLocation, { param.semantic_index });
-
-						inputs_and_outputs.push_back(result);
+						add_node_without_result(section, {}, spv::OpStore)
+							.add(result)
+							.add(call_result);
 					}
 
-					call.add(result);
+					leave_block_and_return(section, 0);
+					leave_function();
+
+					// Add entry point
+					add_entry_point(function_info->name.c_str(), function_info->entry_point, is_vs ? spv::ExecutionModelVertex : spv::ExecutionModelFragment, inputs_and_outputs);
 				}
-
-				if (function_info->return_type.has_semantic)
-				{
-					spv_type ptr_type = function_info->return_type; ptr_type.is_pointer = true;
-
-					spv::Id result = define_variable(nullptr, location, ptr_type, spv::StorageClassOutput);
-
-					if (function_info->return_builtin != spv::BuiltInMax)
-						add_builtin(result, function_info->return_builtin);
-					else
-						add_decoration(result, spv::DecorationLocation, { function_info->return_semantic_index });
-
-					inputs_and_outputs.push_back(result);
-
-					add_node_without_result(section, {}, spv::OpStore)
-						.add(result)
-						.add(call_result);
-				}
-
-				leave_block_and_return(section, 0);
-				leave_function();
-
-				// Add entry point
-				add_entry_point(function_info->name.c_str(), entry_point, is_vs ? spv::ExecutionModelVertex : spv::ExecutionModelFragment, inputs_and_outputs);
 
 				if (is_vs)
 					info.vs_entry_point = function_info->name;

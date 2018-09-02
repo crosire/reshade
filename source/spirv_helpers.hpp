@@ -55,7 +55,7 @@ namespace reshadefx
 		bool is_array() const { return array_length != 0; }
 		bool is_scalar() const { return !is_array() && !is_matrix() && !is_vector() && is_numeric(); }
 		bool is_vector() const { return rows > 1 && cols == 1; }
-		bool is_matrix() const { return rows > 1 && cols >  1; }
+		bool is_matrix() const { return rows >= 1 && cols > 1; }
 		bool is_signed() const { return base == datatype_int || base == datatype_float; }
 		bool is_numeric() const { return is_boolean() || is_integral() || is_floating_point(); }
 		bool is_void() const { return base == datatype_void; }
@@ -198,6 +198,7 @@ namespace reshadefx
 		spv::BuiltIn return_builtin;
 		unsigned int return_semantic_index = 0;
 		std::vector<spv_struct_member_info> parameter_list;
+		spv::Id entry_point = 0;
 	};
 
 	struct spv_variable_info
