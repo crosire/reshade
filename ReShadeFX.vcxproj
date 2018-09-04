@@ -136,11 +136,11 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="source\constant_folding.cpp" />
     <ClCompile Include="source\effect_lexer.cpp" />
     <ClCompile Include="source\effect_parser.cpp" />
     <ClCompile Include="source\effect_preprocessor.cpp" />
     <ClCompile Include="source\effect_symbol_table.cpp" />
+    <ClCompile Include="source\effect_symbol_table_intrinsics.inl" />
     <ClCompile Include="source\spirv_module.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -148,15 +148,10 @@
     <ClInclude Include="source\effect_parser.hpp" />
     <ClInclude Include="source\effect_preprocessor.hpp" />
     <ClInclude Include="source\effect_symbol_table.hpp" />
-    <ClInclude Include="source\effect_syntax_tree.hpp" />
-    <ClInclude Include="source\effect_syntax_tree_nodes.hpp" />
     <ClInclude Include="source\source_location.hpp" />
     <ClInclude Include="source\spirv_helpers.hpp" />
     <ClInclude Include="source\spirv_instruction.hpp" />
     <ClInclude Include="source\spirv_module.hpp" />
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="source\effect_intrinsics.inl" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
 </Project>

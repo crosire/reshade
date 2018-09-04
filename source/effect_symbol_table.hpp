@@ -23,12 +23,15 @@ namespace reshadefx
 	/// </summary>
 	struct symbol
 	{
+		using callback = spv::Id(*)(class spirv_module &, struct spv_basic_block &, const std::vector<spv_expression> &);
+
 		spv::Op op;
 		spv::Id id;
 		spv_type type;
 		const spv_function_info *function = nullptr;
 		spv_constant constant = {};
 		size_t member_index = std::numeric_limits<size_t>::max();
+		callback intrinsic = nullptr;
 	};
 
 	/// <summary>

@@ -384,14 +384,14 @@ inline long long octal_to_decimal(long long n)
 	return n;
 }
 
-std::string token::id_to_name(tokenid id)
+std::string reshadefx::token::id_to_name(tokenid id)
 {
 	const auto it = token_lookup.find(id);
 
 	return it != token_lookup.end() ? it->second : "unknown";
 }
 
-token lexer::lex()
+reshadefx::token reshadefx::lexer::lex()
 {
 	bool is_at_line_begin = _cur_location.column <= 1;
 
@@ -646,25 +646,25 @@ next_token:
 	return tok;
 }
 
-void lexer::skip(size_t length)
+void reshadefx::lexer::skip(size_t length)
 {
 	_cur += length;
 	_cur_location.column += static_cast<unsigned int>(length);
 }
-void lexer::skip_space()
+void reshadefx::lexer::skip_space()
 {
 	// Skip each character until a space is found
 	while (type_lookup[*_cur] == SPACE && _cur < _end)
 		skip(1);
 }
-void lexer::skip_to_next_line()
+void reshadefx::lexer::skip_to_next_line()
 {
 	// Skip each character until a new line feed is found
 	while (*_cur != '\n' && _cur < _end)
 		skip(1);
 }
 
-void lexer::parse_identifier(token &tok) const
+void reshadefx::lexer::parse_identifier(token &tok) const
 {
 	auto *const begin = _cur, *end = begin;
 
@@ -686,7 +686,7 @@ void lexer::parse_identifier(token &tok) const
 		tok.id = it->second;
 	}
 }
-bool lexer::parse_pp_directive(token &tok)
+bool reshadefx::lexer::parse_pp_directive(token &tok)
 {
 	skip(1); // Skip the '#'
 	skip_space(); // Skip any space between the '#' and directive
@@ -732,7 +732,7 @@ bool lexer::parse_pp_directive(token &tok)
 
 	return true;
 }
-void lexer::parse_string_literal(token &tok, bool escape) const
+void reshadefx::lexer::parse_string_literal(token &tok, bool escape) const
 {
 	auto *const begin = _cur, *end = begin + 1;
 
@@ -822,7 +822,7 @@ void lexer::parse_string_literal(token &tok, bool escape) const
 	tok.id = tokenid::string_literal;
 	tok.length = end - begin + 1;
 }
-void lexer::parse_numeric_literal(token &tok) const
+void reshadefx::lexer::parse_numeric_literal(token &tok) const
 {
 	// This routine handles both integer and floating point numbers
 	auto *const begin = _cur, *end = _cur;

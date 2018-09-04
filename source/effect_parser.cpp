@@ -1010,7 +1010,7 @@ bool reshadefx::parser::parse_expression_unary(spv_basic_block &section, spv_exp
 			if (!resolve_function_call(identifier, arguments, scope, ambiguous, symbol))
 			{
 				if (undeclared && symbol.op == spv::OpFunctionCall)
-					error(location, 3004, "undeclared identifier '" + identifier + "'");
+					error(location, 3004, "undeclared identifier '" + identifier + "'"); // This catches no matching intrinsic overloads as well
 				else if (ambiguous)
 					error(location, 3067, "ambiguous function call to '" + identifier + "'");
 				else
@@ -1035,17 +1035,13 @@ bool reshadefx::parser::parse_expression_unary(spv_basic_block &section, spv_exp
 				add_cast_operation(arguments[i], target_type);
 
 				if (param_type.is_pointer)
-				{
 					parameters[i].reset_to_lvalue(
 						define_variable(nullptr, arguments[i].location, param_type, spv::StorageClassFunction),
 						param_type, arguments[i].location);
-				}
 				else
-				{
 					parameters[i].reset_to_rvalue(
 						access_chain_load(section, arguments[i]),
 						param_type, arguments[i].location);
-				}
 			}
 
 			// Copy in parameters from the argument access chains to parameter variables
@@ -1053,109 +1049,16 @@ bool reshadefx::parser::parse_expression_unary(spv_basic_block &section, spv_exp
 				if (parameters[i].is_lvalue && parameters[i].type.has(spv_type::qualifier_in)) // Only do this for pointer parameters as discovered above
 					access_chain_store(section, parameters[i], access_chain_load(section, arguments[i]), arguments[i].type);
 
-			if (symbol.id == 0x10000001) // rcp
-			{
-				spv_constant one = {};
-				for (unsigned int i = 0; i < parameters[0].type.components(); ++i)
-					one.as_uint[i] = parameters[0].type.is_floating_point() ? 0x3f800000u : 1u;
-				const spv::Id constant = convert_constant(parameters[0].type, one);
-
-				spv::Id result = add_node(section, location, parameters[0].type.is_integral() ? parameters[0].type.is_signed() ? spv::OpSDiv : spv::OpUDiv : spv::OpFDiv, convert_type(parameters[0].type))
-					.add(constant)
-					.add(parameters[0].base)
-					.result;
-
-				exp.reset_to_rvalue(result, symbol.type, location);
-			}
-			else if (symbol.id == 0x10000002) // saturate
-			{
-				spv_constant one = {};
-				spv_constant zero = {};
-				for (unsigned int i = 0; i < parameters[0].type.components(); ++i)
-					one.as_uint[i] = parameters[0].type.is_floating_point() ? 0x3f800000u : 1u;
-				const spv::Id constant_one = convert_constant(parameters[0].type, one);
-				const spv::Id constant_zero = convert_constant(parameters[0].type, zero);
-
-				//GLSLstd450FClamp = 43
-				//GLSLstd450UClamp = 44
-				//GLSLstd450SClamp = 45
-				spv::Id result = add_node(section, location, spv::OpExtInst, convert_type(parameters[0].type))
-					.add(glsl_ext)
-					.add(parameters[0].type.is_integral() ? parameters[0].type.is_signed() ? 45 : 44 : 43)
-					.add(parameters[0].base)
-					.add(constant_zero)
-					.add(constant_one)
-					.result;
-
-				exp.reset_to_rvalue(result, symbol.type, location);
-			}
-			else if (symbol.id == 0x10000003) // sincos
-			{
-				assert(parameters.size() == 3);
-
-				const spv::Id sin_result = add_node(section, location, spv::OpExtInst, convert_type(parameters[0].type))
-					.add(glsl_ext)
-					.add(13) // GLSLstd450Sin
-					.add(parameters[0].base)
-					.result;
-				const spv::Id cos_result = add_node(section, location, spv::OpExtInst, convert_type(parameters[0].type))
-					.add(glsl_ext)
-					.add(14) // GLSLstd450Cos
-					.add(parameters[0].base)
-					.result;
-
-				add_node_without_result(section, location, spv::OpStore)
-					.add(parameters[1].base)
-					.add(sin_result);
-				add_node_without_result(section, location, spv::OpStore)
-					.add(parameters[2].base)
-					.add(cos_result);
-
-				exp.reset_to_rvalue(0, { spv_type::datatype_void }, location);
-			}
 			// Check if the call resolving found an intrinsic or function
-			else if (symbol.op != spv::OpFunctionCall)
+			if (symbol.intrinsic)
 			{
-				// This is an intrinsic, so add the appropriate operators
-				spv_instruction &node = add_node(section, location, symbol.op, convert_type(symbol.type));
+				// This is an intrinsic, so invoke it
+				const spv::Id result = symbol.intrinsic(*this, section, parameters);
 
-				if (symbol.op == spv::OpExtInst)
-				{
-					node.add(glsl_ext) // GLSL extended instruction set
-						.add(symbol.id);
-				}
-
-				// Some operators need special handling because the arguments from the intrinsic definitions do not match those of the SPIR-V operators
-				if (symbol.op == spv::OpImageSampleImplicitLod)
-				{
-					assert(arguments.size() == 2);
-
-					node.add(parameters[0].base) // Sampled Image
-						.add(parameters[1].base) // Coordinate
-						.add(spv::ImageOperandsMaskNone); // Image Operands
-				}
-				else if (symbol.op == spv::OpImageSampleExplicitLod)
-				{
-					assert(arguments.size() == 2);
-
-					node.add(parameters[0].base) // Sampled Image
-						.add(parameters[1].base) // Coordinate
-						.add(spv::ImageOperandsMaskNone); // Image Operands
-				}
-				else
-				{
-					for (size_t i = 0; i < arguments.size(); ++i)
-						node.add(parameters[i].base);
-				}
-
-				exp.reset_to_rvalue(node.result, symbol.type, location);
+				exp.reset_to_rvalue(result, symbol.type, location);
 			}
 			else
 			{
-				// It is not allowed to do recursive calls
-				if (_current_function != std::numeric_limits<size_t>::max() && _functions[_current_function].get() == symbol.function)
-					return error(location, 3500, "recursive function calls are not allowed"), false;
-
 				// This is a function symbol, so add a call to it
 				spv_instruction &node = add_node(section, location, spv::OpFunctionCall, convert_type(symbol.type));
 				node.add(symbol.id); // Function

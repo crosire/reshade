@@ -7,6 +7,7 @@
 
 #include "spirv_helpers.hpp"
 #include "spirv_instruction.hpp"
+#include <unordered_set>
 
 namespace reshadefx
 {
@@ -24,11 +25,20 @@ namespace reshadefx
 
 		void write_module(std::ostream &stream);
 
-	protected:
-		spv::Id make_id() { return _next_id++; }
-
 		spv_instruction &add_node(spv_basic_block &section, const location &loc, spv::Op op, spv::Id type = 0);
 		spv_instruction &add_node_without_result(spv_basic_block &section, const location &loc, spv::Op op);
+
+		spv::Id convert_type(const spv_type &info);
+		spv::Id convert_type(const function_info2 &info);
+
+		spv::Id convert_constant(const spv_type &type, const spv_constant &data);
+
+		void add_capability(spv::Capability capability);
+
+		const uint32_t glsl_ext = 1;
+
+	protected:
+		spv::Id make_id() { return _next_id++; }
 
 		void define_struct(spv::Id id, const char *name, const location &loc, const std::vector<spv::Id> &members);
 		spv::Id define_struct(const char *name, const location &loc, const std::vector<spv::Id> &members);
@@ -60,15 +70,8 @@ namespace reshadefx
 		void leave_block_and_branch_conditional(spv_basic_block &section, spv::Id condition, spv::Id true_target, spv::Id false_target);
 		void leave_function();
 
-		spv::Id convert_type(const spv_type &info);
-		spv::Id convert_type(const function_info2 &info);
-
-		spv::Id convert_constant(const spv_type &type, const spv_constant &data);
-
 		spv::Id access_chain_load(spv_basic_block &section, const spv_expression &chain);
 		void    access_chain_store(spv_basic_block &section, const spv_expression &chain, spv::Id value, const spv_type &value_type);
-
-		const uint32_t glsl_ext = 1;
 
 		std::vector<function_info2> _functions2;
 
@@ -85,6 +88,7 @@ namespace reshadefx
 		spv_basic_block _types_and_constants;
 		spv_basic_block _variables;
 
+		std::unordered_set<spv::Capability> _capabilities;
 		std::vector<std::pair<spv_type, spv::Id>> _type_lookup;
 		std::vector<std::pair<function_info2, spv::Id>> _function_type_lookup;
 		std::vector<std::tuple<spv_type, spv_constant, spv::Id>> _constant_lookup;

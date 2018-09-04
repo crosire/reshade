@@ -65,6 +65,10 @@ void spirv_module::write_module(std::ostream &s)
 	write(s, spv_instruction(spv::OpCapability)
 		.add(spv::CapabilityShader));
 
+	for (spv::Capability capability : _capabilities)
+		write(s, spv_instruction(spv::OpCapability)
+			.add(capability));
+
 	write(s, spv_instruction(spv::OpExtension)
 		.add_string("SPV_GOOGLE_hlsl_functionality1"));
 
@@ -184,6 +188,11 @@ spv::Id spirv_module::define_parameter(const char *name, const location &loc, co
 	if (name)
 		add_name(node.result, name);
 	return node.result;
+}
+
+void spirv_module::add_capability(spv::Capability capability)
+{
+	_capabilities.insert(capability);
 }
 
 void spirv_module::add_name(spv::Id id, const char *name)

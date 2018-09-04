@@ -3,24 +3,78 @@
  * License: https://github.com/crosire/reshade#license
  */
 
+#include "spirv_module.hpp"
 #include "effect_symbol_table.hpp"
 #include <assert.h>
 #include <algorithm>
 #include <functional>
-#include <spirv.hpp>
+
 namespace spv {
 #include <GLSL.std.450.h>
 }
 
 using namespace reshadefx;
 
-#include "effect_intrinsics.inl"
+struct intrinsic
+{
+	intrinsic(const char *name, symbol::callback cb, const reshadefx::spv_type &ret_type) : cb(cb)
+	{
+		function.name = name;
+		function.return_type = ret_type;
+	}
+	intrinsic(const char *name, symbol::callback cb, const reshadefx::spv_type &ret_type, const reshadefx::spv_type &arg0_type) : cb(cb)
+	{
+		function.name = name;
+		function.return_type = ret_type;
+		function.parameter_list.push_back({ arg0_type });
+	}
+	intrinsic(const char *name, symbol::callback cb, const reshadefx::spv_type &ret_type, const reshadefx::spv_type &arg0_type, const reshadefx::spv_type &arg1_type) : cb(cb)
+	{
+		function.name = name;
+		function.return_type = ret_type;
+		function.parameter_list.push_back({ arg0_type });
+		function.parameter_list.push_back({ arg1_type });
+	}
+	intrinsic(const char *name, symbol::callback cb, const reshadefx::spv_type &ret_type, const reshadefx::spv_type &arg0_type, const reshadefx::spv_type &arg1_type, const reshadefx::spv_type &arg2_type) : cb(cb)
+	{
+		function.name = name;
+		function.return_type = ret_type;
+		function.parameter_list.push_back({ arg0_type });
+		function.parameter_list.push_back({ arg1_type });
+		function.parameter_list.push_back({ arg2_type });
+	}
+	intrinsic(const char *name, symbol::callback cb, const reshadefx::spv_type &ret_type, const reshadefx::spv_type &arg0_type, const reshadefx::spv_type &arg1_type, const reshadefx::spv_type &arg2_type, const reshadefx::spv_type &arg3_type) : cb(cb)
+	{
+		function.name = name;
+		function.return_type = ret_type;
+		function.parameter_list.push_back({ arg0_type });
+		function.parameter_list.push_back({ arg1_type });
+		function.parameter_list.push_back({ arg2_type });
+		function.parameter_list.push_back({ arg3_type });
+	}
+
+	symbol::callback cb;
+	spv_function_info function;
+};
+
+// Import intrinsic callback functions
+#define DEFINE_INTRINSIC(name, i, ret_type, ...)
+#define IMPLEMENT_INTRINSIC(name, i, code) static spv::Id intrinsic_##name##_##i(spirv_module &m, spv_basic_block &block, const std::vector<spv_expression> &args) code
+#include "effect_symbol_table_intrinsics.inl"
+#undef DEFINE_INTRINSIC
+#undef IMPLEMENT_INTRINSIC
+
+// Import intrinsic function definitions
+#define DEFINE_INTRINSIC(name, i, ret_type, ...) intrinsic(#name, &intrinsic_##name##_##i, ret_type, __VA_ARGS__),
+#define IMPLEMENT_INTRINSIC(name, i, code)
+static intrinsic s_intrinsics[] = {
+#include "effect_symbol_table_intrinsics.inl"
+};
+#undef DEFINE_INTRINSIC
+#undef IMPLEMENT_INTRINSIC
 
 static int compare_functions(const std::vector<spv_expression> &arguments, const spv_function_info *function1, const spv_function_info *function2)
 {
-	if (function2 == nullptr)
-		return -1;
-
 	const size_t count = arguments.size();
 
 	bool function1_viable = true;
@@ -38,6 +92,10 @@ static int compare_functions(const std::vector<spv_expression> &arguments, const
 			break;
 		}
 	}
+
+	if (!function2)
+		return function1_viable ? -1 : 1;
+
 	for (size_t i = 0; i < count; ++i)
 	{
 		function2_ranks[i] = reshadefx::spv_type::rank(arguments[i].type, function2->parameter_list[i].type);
@@ -49,7 +107,7 @@ static int compare_functions(const std::vector<spv_expression> &arguments, const
 		}
 	}
 
-	if (!(function1_viable && function2_viable))
+	if (!function1_viable || !function2_viable)
 		return function2_viable - function1_viable;
 
 	std::sort(function1_ranks, function1_ranks + count, std::greater<unsigned int>());
@@ -310,17 +368,15 @@ bool reshadefx::symbol_table::resolve_function_call(const std::string &name, con
 	{
 		for (auto &intrinsic : s_intrinsics)
 		{
-			if (intrinsic.function.name != name)
+			if (intrinsic.function.name != name || intrinsic.function.parameter_list.size() != arguments.size())
 				continue;
-			else if (intrinsic.function.parameter_list.size() != arguments.size())
-				break; // Intrinsics have a fixed parameter count, so no need to continue searching if it doesn't match
 
 			const int comparison = compare_functions(arguments, &intrinsic.function, overload_function);
 
 			if (comparison < 0)
 			{
-				out_data.op = intrinsic.op;
-				out_data.id = intrinsic.glsl;
+				out_data.op = spv::OpNop;
+				out_data.intrinsic = intrinsic.cb;
 				out_data.type = intrinsic.function.return_type;
 				out_data.function = overload_function = &intrinsic.function;
 				overload_count = 1;
