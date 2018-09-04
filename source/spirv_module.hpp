@@ -39,9 +39,11 @@ namespace reshadefx
 
 		void add_name(spv::Id object, const char *name);
 		void add_builtin(spv::Id object, spv::BuiltIn builtin);
+		void add_decoration(spv::Id object, spv::Decoration decoration, const char *string);
 		void add_decoration(spv::Id object, spv::Decoration decoration, std::initializer_list<uint32_t> values = {});
 		void add_member_name(spv::Id object, uint32_t member_index, const char *name);
 		void add_member_builtin(spv::Id object, uint32_t member_index, spv::BuiltIn builtin);
+		void add_member_decoration(spv::Id object, uint32_t member_index, spv::Decoration decoration, const char *string);
 		void add_member_decoration(spv::Id object, uint32_t member_index, spv::Decoration decoration, std::initializer_list<uint32_t> values = {});
 		void add_entry_point(const char *name, spv::Id function, spv::ExecutionModel model, const std::vector<spv::Id> &io);
 

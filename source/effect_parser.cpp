@@ -1982,9 +1982,7 @@ bool reshadefx::parser::parse_top_level()
 	}
 	else if (accept(tokenid::technique)) // Technique keyword found, parse the technique definition
 	{
-		if (spv_technique_info technique; parse_technique(technique))
-			techniques.push_back(std::move(technique));
-		else
+		if (!parse_technique())
 			return false;
 	}
 	else if (spv_type type; parse_type(type)) // Type found, this can be either a variable or a function declaration
@@ -2829,21 +2827,24 @@ bool reshadefx::parser::parse_variable(spv_type type, std::string name, spv_basi
 		return error(location, 3055, "variables cannot be declared 'in' or 'out'"), false;
 
 	// Check that qualifier combinations are valid
-	if (global && type.has(spv_type::qualifier_static))
+	if (global)
 	{
-		if (type.has(spv_type::qualifier_uniform))
-			return error(location, 3007, "uniform global variables cannot be declared 'static'"), false;
-	}
-	else if (global)
-	{
-		if (!type.has(spv_type::qualifier_uniform) && !(type.is_texture() || type.is_sampler()))
-			warning(location, 5000, "global variables are considered 'uniform' by default");
+		if (type.has(spv_type::qualifier_static))
+		{
+			if (type.has(spv_type::qualifier_uniform))
+				return error(location, 3007, "uniform global variables cannot be declared 'static'"), false;
+		}
+		else
+		{
+			if (!type.has(spv_type::qualifier_uniform) && !(type.is_texture() || type.is_sampler()))
+				warning(location, 5000, "global variables are considered 'uniform' by default");
 
-		if (type.has(spv_type::qualifier_const))
-			return error(location, 3035, "variables which are 'uniform' cannot be declared 'const'"), false;
+			if (type.has(spv_type::qualifier_const))
+				return error(location, 3035, "variables which are 'uniform' cannot be declared 'const'"), false;
 
-		// Global variables that are not 'static' are always 'extern' and 'uniform'
-		type.qualifiers |= spv_type::qualifier_extern | spv_type::qualifier_uniform;
+			// Global variables that are not 'static' are always 'extern' and 'uniform'
+			type.qualifiers |= spv_type::qualifier_extern | spv_type::qualifier_uniform;
+		}
 	}
 	else
 	{
@@ -2873,13 +2874,13 @@ bool reshadefx::parser::parse_variable(spv_type type, std::string name, spv_basi
 			return false;
 		else if (!global) // Only global variables can have a semantic
 			return error(_token.location, 3043, "local variables cannot have semantics"), false;
-		else if (!type.is_numeric() && !type.is_texture())
-			return error(_token.location, 3043, "semantics are valid only on numeric types and textures"), false;
 
 		info.builtin = semantic_to_builtin(_token.literal_as_string, info.semantic_index);
+		info.semantic = _token.literal_as_string;
 	}
 	else
 	{
+		// Global variables can have optional annotations
 		if (global && !parse_annotations(info.annotation_list))
 			return false;
 
@@ -2892,19 +2893,19 @@ bool reshadefx::parser::parse_variable(spv_type type, std::string name, spv_basi
 			if (global && !initializer.is_constant) // TODO: This could be resolved by initializing these at the beginning of the entry point
 				return error(initializer.location, 3011, "initial value must be a literal expression"), false;
 
+			// Check type compatibility
 			if ((type.array_length >= 0 && initializer.type.array_length != type.array_length) || !spv_type::rank(initializer.type, type))
 				return error(initializer.location, 3017, "initial value does not match variable type"), false;
-
 			if ((initializer.type.rows < type.rows || initializer.type.cols < type.cols) && !initializer.type.is_scalar())
 				return error(initializer.location, 3017, "cannot implicitly convert these vector types"), false;
 			else if (initializer.type.components() > type.components())
 				warning(initializer.location, 3206, "implicit truncation of vector type");
 
-			// Deduce array size from initializer type
+			// Deduce array size from the initializer expression
 			if (initializer.type.is_array())
 				type.array_length = initializer.type.array_length;
 
-			// Perform implicit cast to variable type
+			// Perform implicit cast from initializer expression to variable type
 			add_cast_operation(initializer, type);
 		}
 		else if (type.is_numeric()) // Numeric variables without an initializer need special handling
@@ -2919,19 +2920,37 @@ bool reshadefx::parser::parse_variable(spv_type type, std::string name, spv_basi
 			if (!parse_variable_properties(info))
 				return false;
 		}
-
-		if (type.is_sampler() && info.texture == 0)
-			return error(location, 3012, "missing 'Texture' property for '" + name + "'"), false;
 	}
 
 	symbol symbol;
 
-	// Variables with a constant initializer and constant type are actually named constants
-	if (type.is_numeric() && type.has(spv_type::qualifier_const) && initializer.is_constant)
+	if (type.is_numeric() && type.has(spv_type::qualifier_const) && initializer.is_constant) // Variables with a constant initializer and constant type are named constants
 	{
 		symbol = { spv::OpConstant, 0, type, 0, initializer.constant };
 	}
-	else if (type.has(spv_type::qualifier_uniform) && !(type.is_texture() || type.is_sampler())) // Uniform variables are put into a global uniform buffer structure
+	else if (type.is_texture()) // Textures are not written to the output
+	{
+		symbol = { spv::OpVariable, make_id(), type };
+
+		_texture_semantics[symbol.id] = info.semantic;
+	}
+	else if (type.is_sampler()) // Samplers are actually combined image samplers
+	{
+		if (info.texture == 0)
+			return error(location, 3012, "missing 'Texture' property for '" + name + "'"), false;
+
+		info.semantic = _texture_semantics[info.texture];
+
+		type.is_pointer = true;
+
+		info.definition = define_variable(info.unique_name.c_str(), location, type, global ? spv::StorageClassUniformConstant : spv::StorageClassFunction);
+
+		if (!info.semantic.empty())
+			add_decoration(info.definition, spv::DecorationHlslSemanticGOOGLE, info.semantic.c_str());
+
+		symbol = { spv::OpVariable, info.definition, type };
+	}
+	else if (type.has(spv_type::qualifier_uniform)) // Uniform variables are put into a global uniform buffer structure
 	{
 		if (_global_ubo_type == 0)
 			_global_ubo_type = make_id();
@@ -2969,18 +2988,15 @@ bool reshadefx::parser::parse_variable(spv_type type, std::string name, spv_basi
 	{
 		type.is_pointer = true;
 
-		// The initializer expression for 'OpVariable' must be a constant
-		if (initializer.is_constant)
+		if (initializer.is_constant) // The initializer expression for 'OpVariable' must be a constant
 		{
-			assert(!(type.is_texture() || type.is_sampler()));
-
 			info.definition = define_variable(info.unique_name.c_str(), location, type, global ? spv::StorageClassPrivate : spv::StorageClassFunction, convert_constant(initializer.type, initializer.constant));
 		}
 		else // Non-constant initializers are explicitly stored in the variable at the definition location instead
 		{
 			const spv::Id initializer_value = access_chain_load(section, initializer);
 
-			info.definition = define_variable(info.unique_name.c_str(), location, type, global ? (type.is_texture() || type.is_sampler()) ? spv::StorageClassUniformConstant : spv::StorageClassPrivate : spv::StorageClassFunction);
+			info.definition = define_variable(info.unique_name.c_str(), location, type, global ? spv::StorageClassPrivate : spv::StorageClassFunction);
 
 			if (initializer_value != 0)
 			{
@@ -3103,11 +3119,12 @@ bool reshadefx::parser::parse_variable_properties(spv_variable_info &props)
 	return expect('}');
 }
 
-bool reshadefx::parser::parse_technique(spv_technique_info &info)
+bool reshadefx::parser::parse_technique()
 {
 	if (!expect(tokenid::identifier))
 		return false;
 
+	spv_technique_info info;
 	info.name = _token.literal_as_string;
 	info.unique_name = 'T' + current_scope().name + info.name;
 	std::replace(info.unique_name.begin(), info.unique_name.end(), ':', '_');

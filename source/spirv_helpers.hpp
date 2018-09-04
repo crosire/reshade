@@ -208,6 +208,7 @@ namespace reshadefx
 		spv::Id definition;
 		std::string name;
 		std::string unique_name;
+		std::string semantic;
 		spv::BuiltIn builtin = spv::BuiltInMax;
 		unsigned int semantic_index = 0;
 		std::unordered_map<std::string, spv_constant> annotation_list;

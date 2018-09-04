@@ -65,6 +65,9 @@ void spirv_module::write_module(std::ostream &s)
 	write(s, spv_instruction(spv::OpCapability)
 		.add(spv::CapabilityShader));
 
+	write(s, spv_instruction(spv::OpExtension)
+		.add_string("SPV_GOOGLE_hlsl_functionality1"));
+
 	// Optional extension instructions
 	write(s, spv_instruction(spv::OpExtInstImport, glsl_ext)
 		.add_string("GLSL.std.450")); // Import GLSL extension
@@ -196,6 +199,13 @@ void spirv_module::add_builtin(spv::Id id, spv::BuiltIn builtin)
 		.add(spv::DecorationBuiltIn)
 		.add(builtin);
 }
+void spirv_module::add_decoration(spv::Id id, spv::Decoration decoration, const char *string)
+{
+	add_node_without_result(_annotations, {}, spv::OpDecorateStringGOOGLE)
+		.add(id)
+		.add(decoration)
+		.add_string(string);
+}
 void spirv_module::add_decoration(spv::Id id, spv::Decoration decoration, std::initializer_list<uint32_t> values)
 {
 	spv_instruction &node = add_node_without_result(_annotations, {}, spv::OpDecorate)
@@ -219,6 +229,14 @@ void spirv_module::add_member_builtin(spv::Id id, uint32_t member_index, spv::Bu
 		.add(member_index)
 		.add(spv::DecorationBuiltIn)
 		.add(builtin);
+}
+void spirv_module::add_member_decoration(spv::Id id, uint32_t member_index, spv::Decoration decoration, const char *string)
+{
+	add_node_without_result(_annotations, {}, spv::OpMemberDecorateStringGOOGLE)
+		.add(id)
+		.add(member_index)
+		.add(decoration)
+		.add_string(string);
 }
 void spirv_module::add_member_decoration(spv::Id id, uint32_t member_index, spv::Decoration decoration, std::initializer_list<uint32_t> values)
 {
