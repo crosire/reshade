@@ -13,7 +13,25 @@
 
 namespace reshadefx
 {
-	void scalar_literal_cast(const nodes::literal_expression_node *from, size_t i, float &to);
+	void scalar_literal_cast(const nodes::literal_expression_node *from, size_t i, float &to)
+	{
+		switch (from->type.basetype)
+		{
+		case nodes::type_node::datatype_bool:
+		case nodes::type_node::datatype_int:
+			to = static_cast<float>(from->value_int[i]);
+			break;
+		case nodes::type_node::datatype_uint:
+			to = static_cast<float>(from->value_uint[i]);
+			break;
+		case nodes::type_node::datatype_float:
+			to = from->value_float[i];
+			break;
+		default:
+			to = 0;
+			break;
+		}
+	}
 }
 
 namespace reshade::d3d9
