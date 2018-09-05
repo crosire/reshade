@@ -15,20 +15,20 @@ namespace reshadefx
 	/// <summary>
 	/// A parser for the ReShade FX language.
 	/// </summary>
-	class parser : symbol_table, spirv_module
+	class parser : symbol_table, public spirv_module
 	{
 	public:
-		/// <summary>
-		/// Gets the list of error messages.
-		/// </summary>
-		const std::string &errors() const { return _errors; }
-
 		/// <summary>
 		/// Parse the provided input string.
 		/// </summary>
 		/// <param name="source">The string to analyze.</param>
 		/// <returns>A boolean value indicating whether parsing was successful or not.</returns>
-		bool run(const std::string &source);
+		bool parse(const std::string &source);
+
+		/// <summary>
+		/// Gets the list of error messages.
+		/// </summary>
+		const std::string &errors() const { return _errors; }
 
 	private:
 		void error(const location &location, unsigned int code, const std::string &message);
@@ -48,52 +48,50 @@ namespace reshadefx
 		bool expect(char tok) { return expect(static_cast<tokenid>(tok)); }
 		bool expect(tokenid tokid);
 
-		bool accept_type_class(spv_type &type);
-		bool accept_type_qualifiers(spv_type &type);
+		bool accept_type_class(spirv_type &type);
+		bool accept_type_qualifiers(spirv_type &type);
 
 		bool accept_unary_op(spv::Op &op);
-		bool accept_postfix_op(const spv_type &type, spv::Op &op);
-		bool accept_assignment_op(const spv_type &type, spv::Op &op);
+		bool accept_postfix_op(const spirv_type &type, spv::Op &op);
+		bool accept_assignment_op(const spirv_type &type, spv::Op &op);
 
-		bool parse_type(spv_type &type);
-		bool parse_array_size(spv_type &type);
+		bool parse_type(spirv_type &type);
+		bool parse_array_size(spirv_type &type);
 
-		bool parse_expression(spv_basic_block &section, struct spv_expression &expression);
-		bool parse_expression_unary(spv_basic_block &section, struct spv_expression &expression);
-		bool parse_expression_multary(spv_basic_block &section, struct spv_expression &expression, unsigned int precedence = 0);
-		bool parse_expression_assignment(spv_basic_block &section, struct spv_expression &expression);
+		bool parse_statement(spirv_basic_block &section, bool scoped);
+		bool parse_statement_block(spirv_basic_block &section, bool scoped);
 
-		bool parse_annotations(std::unordered_map<std::string, spv_constant> &annotations);
+		bool parse_expression(spirv_basic_block &section, spirv_expression &expression);
+		bool parse_expression_unary(spirv_basic_block &section, spirv_expression &expression);
+		bool parse_expression_multary(spirv_basic_block &section, spirv_expression &expression, unsigned int precedence = 0);
+		bool parse_expression_assignment(spirv_basic_block &section, spirv_expression &expression);
 
-		bool parse_top_level();
+		bool parse_annotations(std::unordered_map<std::string, spirv_constant> &annotations);
 
-		bool parse_statement(spv_basic_block &section, bool scoped);
-		bool parse_statement_block(spv_basic_block &section, bool scoped);
+		bool parse_top();
 
 		bool parse_struct();
-		bool parse_function(spv_type type, std::string name);
-		bool parse_variable(spv_type type, std::string name, spv_basic_block &section, bool global = false);
-		bool parse_variable_properties(spv_variable_info &props);
+		bool parse_function(spirv_type type, std::string name);
+		bool parse_variable(spirv_type type, std::string name, spirv_basic_block &section, bool global = false);
+		bool parse_variable_properties(spirv_variable_info &props);
 
 		bool parse_technique();
-		bool parse_technique_pass(spv_pass_info &info);
+		bool parse_technique_pass(spirv_pass_info &info);
 
 		std::string _errors;
 		std::unique_ptr<lexer> _lexer, _lexer_backup;
 		token _token, _token_next, _token_backup;
 
-		spv_struct_info _uniforms;
-		std::vector<std::unique_ptr<spv_function_info>> _functions;
-		std::vector<spv_technique_info> techniques;
-		std::unordered_map<spv::Id, spv_struct_info> _structs;
-
-		std::unordered_map<spv::Id, std::string> _texture_semantics;
-
 		std::vector<spv::Id> _loop_break_target_stack;
 		std::vector<spv::Id> _loop_continue_target_stack;
+
+		std::unordered_map<spv::Id, std::string> _texture_semantics;
+		std::unordered_map<spv::Id, spirv_struct_info> _structs;
+		std::vector<std::unique_ptr<spirv_function_info>> _functions;
 
 		spv::Id _global_ubo_type = 0;
 		spv::Id _global_ubo_variable = 0;
 		uint32_t _global_ubo_offset = 0;
+		spirv_struct_info _uniforms;
 	};
 }

@@ -6,8 +6,8 @@
 #pragma once
 
 #include "variant.hpp"
-#include "source_location.hpp"
 #include "runtime_objects.hpp"
+#include "spirv_helpers.hpp"
 
 namespace reshadefx
 {

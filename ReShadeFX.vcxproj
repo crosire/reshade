@@ -148,7 +148,6 @@
     <ClInclude Include="source\effect_parser.hpp" />
     <ClInclude Include="source\effect_preprocessor.hpp" />
     <ClInclude Include="source\effect_symbol_table.hpp" />
-    <ClInclude Include="source\source_location.hpp" />
     <ClInclude Include="source\spirv_helpers.hpp" />
     <ClInclude Include="source\spirv_instruction.hpp" />
     <ClInclude Include="source\spirv_module.hpp" />

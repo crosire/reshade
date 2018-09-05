@@ -9,6 +9,8 @@
 #include <algorithm>
 #include <functional>
 
+#pragma region Import intrinsic functions
+
 namespace spv {
 #include <GLSL.std.450.h>
 }
@@ -17,133 +19,38 @@ using namespace reshadefx;
 
 struct intrinsic
 {
-	intrinsic(const char *name, symbol::callback cb, const reshadefx::spv_type &ret_type) : cb(cb)
+	intrinsic(const char *name, intrinsic_callback cb, const spirv_type &ret_type, std::initializer_list<spirv_type> arg_types) : cb(cb)
 	{
 		function.name = name;
 		function.return_type = ret_type;
-	}
-	intrinsic(const char *name, symbol::callback cb, const reshadefx::spv_type &ret_type, const reshadefx::spv_type &arg0_type) : cb(cb)
-	{
-		function.name = name;
-		function.return_type = ret_type;
-		function.parameter_list.push_back({ arg0_type });
-	}
-	intrinsic(const char *name, symbol::callback cb, const reshadefx::spv_type &ret_type, const reshadefx::spv_type &arg0_type, const reshadefx::spv_type &arg1_type) : cb(cb)
-	{
-		function.name = name;
-		function.return_type = ret_type;
-		function.parameter_list.push_back({ arg0_type });
-		function.parameter_list.push_back({ arg1_type });
-	}
-	intrinsic(const char *name, symbol::callback cb, const reshadefx::spv_type &ret_type, const reshadefx::spv_type &arg0_type, const reshadefx::spv_type &arg1_type, const reshadefx::spv_type &arg2_type) : cb(cb)
-	{
-		function.name = name;
-		function.return_type = ret_type;
-		function.parameter_list.push_back({ arg0_type });
-		function.parameter_list.push_back({ arg1_type });
-		function.parameter_list.push_back({ arg2_type });
-	}
-	intrinsic(const char *name, symbol::callback cb, const reshadefx::spv_type &ret_type, const reshadefx::spv_type &arg0_type, const reshadefx::spv_type &arg1_type, const reshadefx::spv_type &arg2_type, const reshadefx::spv_type &arg3_type) : cb(cb)
-	{
-		function.name = name;
-		function.return_type = ret_type;
-		function.parameter_list.push_back({ arg0_type });
-		function.parameter_list.push_back({ arg1_type });
-		function.parameter_list.push_back({ arg2_type });
-		function.parameter_list.push_back({ arg3_type });
+		function.parameter_list.reserve(arg_types.size());
+		for (const spirv_type &arg_type : arg_types)
+			function.parameter_list.push_back({ arg_type });
 	}
 
-	symbol::callback cb;
-	spv_function_info function;
+	intrinsic_callback cb;
+	spirv_function_info function;
 };
 
 // Import intrinsic callback functions
 #define DEFINE_INTRINSIC(name, i, ret_type, ...)
-#define IMPLEMENT_INTRINSIC(name, i, code) static spv::Id intrinsic_##name##_##i(spirv_module &m, spv_basic_block &block, const std::vector<spv_expression> &args) code
+#define IMPLEMENT_INTRINSIC(name, i, code) static spv::Id intrinsic_##name##_##i(spirv_module &m, spirv_basic_block &block, const std::vector<spirv_expression> &args) code
 #include "effect_symbol_table_intrinsics.inl"
 #undef DEFINE_INTRINSIC
 #undef IMPLEMENT_INTRINSIC
 
 // Import intrinsic function definitions
-#define DEFINE_INTRINSIC(name, i, ret_type, ...) intrinsic(#name, &intrinsic_##name##_##i, ret_type, __VA_ARGS__),
+#define DEFINE_INTRINSIC(name, i, ret_type, ...) intrinsic(#name, &intrinsic_##name##_##i, ret_type, { __VA_ARGS__ }),
 #define IMPLEMENT_INTRINSIC(name, i, code)
-static intrinsic s_intrinsics[] = {
+static const intrinsic s_intrinsics[] = {
 #include "effect_symbol_table_intrinsics.inl"
 };
 #undef DEFINE_INTRINSIC
 #undef IMPLEMENT_INTRINSIC
 
-static int compare_functions(const std::vector<spv_expression> &arguments, const spv_function_info *function1, const spv_function_info *function2)
-{
-	const size_t count = arguments.size();
+#pragma endregion
 
-	bool function1_viable = true;
-	bool function2_viable = true;
-	const auto function1_ranks = static_cast<unsigned int *>(alloca(count * sizeof(unsigned int)));
-	const auto function2_ranks = static_cast<unsigned int *>(alloca(count * sizeof(unsigned int)));
-
-	for (size_t i = 0; i < count; ++i)
-	{
-		function1_ranks[i] = reshadefx::spv_type::rank(arguments[i].type, function1->parameter_list[i].type);
-
-		if (function1_ranks[i] == 0)
-		{
-			function1_viable = false;
-			break;
-		}
-	}
-
-	if (!function2)
-		return function1_viable ? -1 : 1;
-
-	for (size_t i = 0; i < count; ++i)
-	{
-		function2_ranks[i] = reshadefx::spv_type::rank(arguments[i].type, function2->parameter_list[i].type);
-
-		if (function2_ranks[i] == 0)
-		{
-			function2_viable = false;
-			break;
-		}
-	}
-
-	if (!function1_viable || !function2_viable)
-		return function2_viable - function1_viable;
-
-	std::sort(function1_ranks, function1_ranks + count, std::greater<unsigned int>());
-	std::sort(function2_ranks, function2_ranks + count, std::greater<unsigned int>());
-
-	for (size_t i = 0; i < count; ++i)
-	{
-		if (function1_ranks[i] < function2_ranks[i])
-			return -1;
-		else if (function2_ranks[i] < function1_ranks[i])
-			return +1;
-	}
-
-	return 0;
-}
-
-spv_type spv_type::merge(const spv_type &lhs, const spv_type &rhs)
-{
-	spv_type result = {};
-	result.base = std::max(lhs.base, rhs.base);
-
-	// If one side of the expression is scalar, it needs to be promoted to the same dimension as the other side
-	if ((lhs.rows == 1 && lhs.cols == 1) || (rhs.rows == 1 && rhs.cols == 1))
-	{
-		result.rows = std::max(lhs.rows, rhs.rows);
-		result.cols = std::max(lhs.cols, rhs.cols);
-	}
-	else // Otherwise dimensions match or one side is truncated to match the other one
-	{
-		result.rows = std::min(lhs.rows, rhs.rows);
-		result.cols = std::min(lhs.cols, rhs.cols);
-	}
-
-	return result;
-}
-unsigned int reshadefx::spv_type::rank(const reshadefx::spv_type &src, const reshadefx::spv_type &dst)
+unsigned int reshadefx::spirv_type::rank(const spirv_type &src, const spirv_type &dst)
 {
 	if (src.is_array() != dst.is_array() || (src.array_length != dst.array_length && src.array_length > 0 && dst.array_length > 0))
 		return 0;
@@ -176,6 +83,25 @@ unsigned int reshadefx::spv_type::rank(const reshadefx::spv_type &src, const res
 	return rank;
 }
 
+reshadefx::spirv_type reshadefx::spirv_type::merge(const spirv_type &lhs, const spirv_type &rhs)
+{
+	spirv_type result = { std::max(lhs.base, rhs.base) };
+
+	// If one side of the expression is scalar, it needs to be promoted to the same dimension as the other side
+	if ((lhs.rows == 1 && lhs.cols == 1) || (rhs.rows == 1 && rhs.cols == 1))
+	{
+		result.rows = std::max(lhs.rows, rhs.rows);
+		result.cols = std::max(lhs.cols, rhs.cols);
+	}
+	else // Otherwise dimensions match or one side is truncated to match the other one
+	{
+		result.rows = std::min(lhs.rows, rhs.rows);
+		result.cols = std::min(lhs.cols, rhs.cols);
+	}
+
+	return result;
+}
+
 reshadefx::symbol_table::symbol_table()
 {
 	_current_scope.name = "::";
@@ -199,7 +125,7 @@ void reshadefx::symbol_table::leave_scope()
 
 	for (auto &symbol : _symbol_stack)
 	{
-		auto &scope_list = symbol.second;
+		std::vector<scoped_symbol> &scope_list = symbol.second;
 
 		for (auto scope_it = scope_list.begin(); scope_it != scope_list.end();)
 		{
@@ -296,23 +222,69 @@ reshadefx::symbol reshadefx::symbol_table::find_symbol(const std::string &name, 
 		if (exclusive && it->scope.level < scope.level)
 			continue;
 
-		if (it->op == spv::OpVariable || it->op == spv::OpTypeStruct)
-			return *it;
+		if (it->op == spv::OpConstant || it->op == spv::OpVariable || it->op == spv::OpTypeStruct)
+			return *it; // Variables and structures have the highest priority and are always picked immediately
 		else if (result.id == 0)
-			result = *it;
+			result = *it; // Function names have a lower priority, so continue searching in case a variable with the same name exists
 	}
 
 	return result;
 }
 
-bool reshadefx::symbol_table::resolve_function_call(const std::string &name, const std::vector<spv_expression> &arguments, const scope &scope, bool &is_ambiguous, symbol &out_data) const
+static int compare_functions(const std::vector<reshadefx::spirv_expression> &arguments, const reshadefx::spirv_function_info *function1, const reshadefx::spirv_function_info *function2)
+{
+	const size_t num_arguments = arguments.size();
+
+	// Check if the first function matches the argument types
+	bool function1_viable = true;
+	const auto function1_ranks = static_cast<unsigned int *>(alloca(num_arguments * sizeof(unsigned int)));
+	for (size_t i = 0; i < num_arguments; ++i)
+		if ((function1_ranks[i] = reshadefx::spirv_type::rank(arguments[i].type, function1->parameter_list[i].type)) == 0)
+		{
+			function1_viable = false;
+			break;
+		}
+
+	// Catch case where the second function does not exist
+	if (function2 == nullptr)
+		return function1_viable ? -1 : 1; // If the first function is not viable, this compare fails
+
+	// Check if the second function matches the argument types
+	bool function2_viable = true;
+	const auto function2_ranks = static_cast<unsigned int *>(alloca(num_arguments * sizeof(unsigned int)));
+	for (size_t i = 0; i < num_arguments; ++i)
+		if ((function2_ranks[i] = reshadefx::spirv_type::rank(arguments[i].type, function2->parameter_list[i].type)) == 0)
+		{
+			function2_viable = false;
+			break;
+		}
+
+	// If one of the functions is not viable, then the other one automatically wins
+	if (!function1_viable || !function2_viable)
+		return function2_viable - function1_viable;
+
+	// Both functions are possible, so find the one with the higher ranking
+	std::sort(function1_ranks, function1_ranks + num_arguments, std::greater<unsigned int>());
+	std::sort(function2_ranks, function2_ranks + num_arguments, std::greater<unsigned int>());
+
+	for (size_t i = 0; i < num_arguments; ++i)
+		if (function1_ranks[i] < function2_ranks[i])
+			return -1; // Left function wins
+		else if (function2_ranks[i] < function1_ranks[i])
+			return +1; // Right function wins
+
+	return 0; // Both functions are equally viable
+}
+
+bool reshadefx::symbol_table::resolve_function_call(const std::string &name, const std::vector<spirv_expression> &arguments, const scope &scope, symbol &out_data, bool &is_ambiguous) const
 {
 	out_data.op = spv::OpFunctionCall;
 
-	const spv_function_info *overload_function = nullptr;
-	unsigned int overload_count = 0;
+	const spirv_function_info *result = nullptr;
+	unsigned int num_overloads = 0;
 	unsigned int overload_namespace = scope.namespace_level;
 
+	// Look up function name in the symbol stack and loop through the associated symbols
 	const auto stack_it = _symbol_stack.find(name);
 
 	if (stack_it != _symbol_stack.end() && !stack_it->second.empty())
@@ -324,7 +296,10 @@ bool reshadefx::symbol_table::resolve_function_call(const std::string &name, con
 				it->op != spv::OpFunction)
 				continue;
 
-			const spv_function_info *const function = it->function;
+			const spirv_function_info *const function = it->function;
+
+			if (function == nullptr)
+				continue;
 
 			if (function->parameter_list.empty())
 			{
@@ -332,8 +307,8 @@ bool reshadefx::symbol_table::resolve_function_call(const std::string &name, con
 				{
 					out_data.id = it->id;
 					out_data.type = function->return_type;
-					out_data.function = overload_function = function;
-					overload_count = 1;
+					out_data.function = result = function;
+					num_overloads = 1;
 					break;
 				}
 				else
@@ -346,49 +321,51 @@ bool reshadefx::symbol_table::resolve_function_call(const std::string &name, con
 				continue;
 			}
 
-			const int comparison = compare_functions(arguments, function, overload_function);
+			// A new possibly-matching function was found, compare it against the current result
+			const int comparison = compare_functions(arguments, function, result);
 
-			if (comparison < 0)
+			if (comparison < 0) // The new function is a better match
 			{
 				out_data.id = it->id;
 				out_data.type = function->return_type;
-				out_data.function = overload_function = function;
-				overload_count = 1;
+				out_data.function = result = function;
+				num_overloads = 1;
 				overload_namespace = it->scope.namespace_level;
 			}
-			else if (comparison == 0 && overload_namespace == it->scope.namespace_level)
+			else if (comparison == 0 && overload_namespace == it->scope.namespace_level) // Both functions are equally viable, so the call is ambiguous
 			{
-				++overload_count;
+				++num_overloads;
 			}
 		}
 	}
 
 	// Try matching against intrinsic functions if no matching user-defined function was found up to this point
-	if (overload_count == 0)
+	if (num_overloads == 0)
 	{
-		for (auto &intrinsic : s_intrinsics)
+		for (const intrinsic &intrinsic : s_intrinsics)
 		{
 			if (intrinsic.function.name != name || intrinsic.function.parameter_list.size() != arguments.size())
 				continue;
 
-			const int comparison = compare_functions(arguments, &intrinsic.function, overload_function);
+			// A new possibly-matching intrinsic function was found, compare it against the current result
+			const int comparison = compare_functions(arguments, &intrinsic.function, result);
 
-			if (comparison < 0)
+			if (comparison < 0) // The new function is a better match
 			{
 				out_data.op = spv::OpNop;
 				out_data.intrinsic = intrinsic.cb;
 				out_data.type = intrinsic.function.return_type;
-				out_data.function = overload_function = &intrinsic.function;
-				overload_count = 1;
+				out_data.function = result = &intrinsic.function;
+				num_overloads = 1;
 			}
-			else if (comparison == 0 && overload_namespace == 0)
+			else if (comparison == 0 && overload_namespace == 0) // Both functions are equally viable, so the call is ambiguous (intrinsics are always in the global namespace)
 			{
-				++overload_count;
+				++num_overloads;
 			}
 		}
 	}
 
-	is_ambiguous = overload_count > 1;
+	is_ambiguous = num_overloads > 1;
 
-	return overload_count == 1;
+	return num_overloads == 1;
 }

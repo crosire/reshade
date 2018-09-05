@@ -5,83 +5,101 @@
 
 #pragma once
 
-#include "source_location.hpp"
+#include <string>
 #include <vector>
-#include <unordered_map>
-#include <spirv.hpp>
 
 namespace reshadefx
 {
-	struct spv_type
+	/// <summary>
+	/// Structure which keeps track of a code location
+	/// </summary>
+	struct location
 	{
-		enum datatype : unsigned int
+		location() : line(1), column(1) { }
+		explicit location(unsigned int line, unsigned int column = 1) : line(line), column(column) { }
+		explicit location(const std::string &source, unsigned int line, unsigned int column = 1) : source(source), line(line), column(column) { }
+
+		std::string source;
+		unsigned int line, column;
+	};
+
+	/// <summary>
+	/// Structure which encapsulates a parsed type instance
+	/// </summary>
+	struct spirv_type
+	{
+		enum datatype : uint8_t
 		{
-			datatype_void,
-			datatype_bool,
-			datatype_int,
-			datatype_uint,
-			datatype_float,
-			datatype_string,
-			datatype_struct,
-			datatype_sampler,
-			datatype_texture,
-			datatype_function,
+			t_void,
+			t_bool,
+			t_int,
+			t_uint,
+			t_float,
+			t_string,
+			t_struct,
+			t_sampler,
+			t_texture,
+			t_function,
 		};
-		enum qualifier : unsigned int
+		enum qualifier : uint32_t
 		{
-			// Storage
-			qualifier_extern = 1 << 0,
-			qualifier_static = 1 << 1,
-			qualifier_uniform = 1 << 2,
-			qualifier_volatile = 1 << 3,
-			qualifier_precise = 1 << 4,
-			qualifier_in = 1 << 5,
-			qualifier_out = 1 << 6,
-			qualifier_inout = qualifier_in | qualifier_out,
-
-			// Modifier
-			qualifier_const = 1 << 8,
-
-			// Interpolation
-			qualifier_linear = 1 << 10,
-			qualifier_noperspective = 1 << 11,
-			qualifier_centroid = 1 << 12,
-			qualifier_nointerpolation = 1 << 13,
+			q_extern = 1 << 0,
+			q_static = 1 << 1,
+			q_uniform = 1 << 2,
+			q_volatile = 1 << 3,
+			q_in = 1 << 5,
+			q_out = 1 << 6,
+			q_inout = q_in | q_out,
+			q_const = 1 << 8,
+			q_linear = 1 << 10,
+			q_noperspective = 1 << 11,
+			q_centroid = 1 << 12,
+			q_nointerpolation = 1 << 13,
 		};
 
-		static spv_type merge(const spv_type &lhs, const spv_type &rhs);
-		static unsigned int rank(const spv_type &src, const spv_type &dst);
+		/// <summary>
+		/// Get the result type of an operation involving the two input types.
+		/// </summary>
+		static spirv_type merge(const spirv_type &lhs, const spirv_type &rhs);
 
-		bool has(qualifier qualifier) const { return (qualifiers & qualifier) == qualifier; }
+		/// <summary>
+		/// Calculate the ranking between two types which can be used to select the best matching function overload. The higher the rank, the better the match.
+		/// </summary>
+		static unsigned int rank(const spirv_type &src, const spirv_type &dst);
+
+		bool has(qualifier x) const { return (qualifiers & x) == x; }
 		bool is_array() const { return array_length != 0; }
 		bool is_scalar() const { return !is_array() && !is_matrix() && !is_vector() && is_numeric(); }
 		bool is_vector() const { return rows > 1 && cols == 1; }
 		bool is_matrix() const { return rows >= 1 && cols > 1; }
-		bool is_signed() const { return base == datatype_int || base == datatype_float; }
+		bool is_signed() const { return base == t_int || base == t_float; }
 		bool is_numeric() const { return is_boolean() || is_integral() || is_floating_point(); }
-		bool is_void() const { return base == datatype_void; }
-		bool is_boolean() const { return base == datatype_bool; }
-		bool is_integral() const { return base == datatype_int || base == datatype_uint; }
-		bool is_floating_point() const { return base == datatype_float; }
-		bool is_struct() const { return base == datatype_struct; }
-		bool is_texture() const { return base == datatype_texture; }
-		bool is_sampler() const { return base == datatype_sampler; }
-		bool is_function() const { return base == datatype_function; }
+		bool is_void() const { return base == t_void; }
+		bool is_boolean() const { return base == t_bool; }
+		bool is_integral() const { return base == t_int || base == t_uint; }
+		bool is_floating_point() const { return base == t_float; }
+		bool is_struct() const { return base == t_struct; }
+		bool is_texture() const { return base == t_texture; }
+		bool is_sampler() const { return base == t_sampler; }
+		bool is_function() const { return base == t_function; }
 
 		unsigned int components() const { return rows * cols; }
 
-		datatype base = datatype_void;
+		datatype base; // These are initialized in the type parsing routine
 		unsigned int rows : 4;
 		unsigned int cols : 4;
-		unsigned int qualifiers = 0;
-		bool is_pointer = false;
+		unsigned int qualifiers : 24;
+		bool is_ptr = false;
 		bool is_input = false;
 		bool is_output = false;
 		int array_length = 0;
-		spv::Id definition = 0;
+		unsigned int definition = 0;
 	};
 
-	struct spv_constant
+	/// <summary>
+	/// Structure which encapsulates a parsed constant value
+	/// </summary>
+	struct spirv_constant
 	{
 		union
 		{
@@ -89,154 +107,109 @@ namespace reshadefx
 			int32_t as_int[16];
 			uint32_t as_uint[16];
 		};
-		std::string as_string;
-		std::vector<spv_constant> as_array;
+
+		// Optional string associated with this constant
+		std::string string_data;
+		// Optional additional elements if this is an array constant
+		std::vector<spirv_constant> array_data;
 	};
 
-	struct spv_expression
+	/// <summary>
+	/// Structures which keeps track of the access chain of an expression
+	/// </summary>
+	struct spirv_expression
 	{
-		enum op_type
-		{
-			cast,
-			index,
-			swizzle
-		};
 		struct operation
 		{
-			op_type type;
-			spv_type from, to;
-			spv::Id index;
+			unsigned int type;
+			spirv_type from, to;
+			uint32_t index;
 			signed char swizzle[4];
 		};
 
-		spv::Id base = 0;
-		std::vector<operation> ops;
-		spv_type type;
-		location location;
-		spv_constant constant;
+		spirv_type type = {};
+		unsigned int base = 0;
+		spirv_constant constant = {};
 		bool is_lvalue = false;
 		bool is_constant = false;
+		location location;
+		std::vector<operation> ops;
 
-		void reset_to_lvalue(spv::Id in_base, const spv_type &in_type, const struct location &loc)
+		void reset_to_lvalue(const struct location &loc, unsigned int in_base, const spirv_type &in_type)
 		{
-			//assert(in_base != 0);
-			//assert(in_type.is_pointer);
-
-			base = in_base;
 			type = in_type;
-			type.is_pointer = false;
+			type.is_ptr = false;
+			base = in_base;
 			location = loc;
-			ops.clear();
 			is_lvalue = true;
 			is_constant = false;
-		}
-		void reset_to_rvalue(spv::Id in_base, const spv_type &in_type, const struct location &loc)
-		{
-			base = in_base;
-			type = in_type;
-			type.qualifiers |= spv_type::qualifier_const;
-			location = loc;
 			ops.clear();
+		}
+		void reset_to_rvalue(const struct location &loc, unsigned int in_base, const spirv_type &in_type)
+		{
+			type = in_type;
+			type.qualifiers |= spirv_type::q_const;
+			base = in_base;
+			location = loc;
 			is_lvalue = false;
 			is_constant = false;
-		}
-		void reset_to_rvalue_constant(const spv_type &in_type, const struct location &loc, uint32_t data)
-		{
-			type = in_type;
-			type.qualifiers |= spv_type::qualifier_const;
-			location = loc;
 			ops.clear();
+		}
+
+		void reset_to_rvalue_constant(const struct location &loc, bool data)
+		{
+			type = { spirv_type::t_bool, 1, 1, spirv_type::q_const };
+			base = 0; constant = {}; constant.as_uint[0] = data;
+			location = loc;
 			is_lvalue = false;
 			is_constant = true;
-			constant = {};
-			constant.as_uint[0] = data;
-		}
-		void reset_to_rvalue_constant(const spv_type &in_type, const struct location &loc, std::string &&data)
-		{
-			type = in_type;
-			type.qualifiers |= spv_type::qualifier_const;
-			location = loc;
 			ops.clear();
+		}
+		void reset_to_rvalue_constant(const struct location &loc, float data)
+		{
+			type = { spirv_type::t_float, 1, 1, spirv_type::q_const };
+			base = 0; constant = {}; constant.as_float[0] = data;
+			location = loc;
 			is_lvalue = false;
 			is_constant = true;
-			constant = {};
-			constant.as_string = data;
-		}
-		void reset_to_rvalue_constant(const spv_type &in_type, const struct location &loc, const spv_constant &data)
-		{
-			type = in_type;
-			type.qualifiers |= spv_type::qualifier_const;
-			location = loc;
 			ops.clear();
+		}
+		void reset_to_rvalue_constant(const struct location &loc, int32_t data)
+		{
+			type = { spirv_type::t_int,  1, 1, spirv_type::q_const };
+			base = 0; constant = {}; constant.as_int[0] = data;
+			location = loc;
 			is_lvalue = false;
 			is_constant = true;
-			constant = data;
+			ops.clear();
 		}
-	};
-
-	struct spv_struct_member_info
-	{
-		spv_type type;
-		std::string name;
-		spv::BuiltIn builtin = spv::BuiltInMax;
-		unsigned int semantic_index = 0;
-		std::vector<spv::Decoration> decorations;
-	};
-
-	struct spv_struct_info
-	{
-		spv::Id definition;
-		std::string name;
-		std::string unique_name;
-		std::vector<spv_struct_member_info> member_list;
-	};
-
-	struct spv_function_info
-	{
-		spv::Id definition;
-		std::string name;
-		std::string unique_name;
-		spv_type return_type;
-		spv::BuiltIn return_builtin;
-		unsigned int return_semantic_index = 0;
-		std::vector<spv_struct_member_info> parameter_list;
-		spv::Id entry_point = 0;
-	};
-
-	struct spv_variable_info
-	{
-		spv::Id definition;
-		std::string name;
-		std::string unique_name;
-		std::string semantic;
-		spv::BuiltIn builtin = spv::BuiltInMax;
-		unsigned int semantic_index = 0;
-		std::unordered_map<std::string, spv_constant> annotation_list;
-		spv::Id texture;
-		unsigned int width = 1, height = 1, levels = 1;
-		bool srgb_texture;
-		unsigned int format = 0;
-		unsigned int filter = 0;
-		unsigned int address_u = 0;
-		unsigned int address_v = 0;
-		unsigned int address_w = 0;
-		float min_lod, max_lod = FLT_MAX, lod_bias;
-	};
-
-	struct spv_pass_info
-	{
-		spv::Id render_targets[8] = {};
-		std::string vs_entry_point, ps_entry_point;
-		bool clear_render_targets = true, srgb_write_enable, blend_enable, stencil_enable;
-		unsigned char color_write_mask = 0xF, stencil_read_mask = 0xFF, stencil_write_mask = 0xFF;
-		unsigned int blend_op = 1, blend_op_alpha = 1, src_blend = 1, dest_blend = 0, src_blend_alpha = 1, dest_blend_alpha = 0;
-		unsigned int stencil_comparison_func = 1, stencil_reference_value, stencil_op_pass = 1, stencil_op_fail = 1, stencil_op_depth_fail = 1;
-	};
-
-	struct spv_technique_info
-	{
-		std::string name, unique_name;
-		std::unordered_map<std::string, spv_constant> annotation_list;
-		std::vector<spv_pass_info> pass_list;
+		void reset_to_rvalue_constant(const struct location &loc, uint32_t data)
+		{
+			type = { spirv_type::t_uint, 1, 1, spirv_type::q_const };
+			base = 0; constant = {}; constant.as_uint[0] = data;
+			location = loc;
+			is_lvalue = false;
+			is_constant = true;
+			ops.clear();
+		}
+		void reset_to_rvalue_constant(const struct location &loc, std::string data)
+		{
+			type = { spirv_type::t_string, 0, 0, spirv_type::q_const };
+			base = 0; constant = {}; constant.string_data = std::move(data);
+			location = loc;
+			is_lvalue = false;
+			is_constant = true;
+			ops.clear();
+		}
+		void reset_to_rvalue_constant(const struct location &loc, spirv_constant data, const spirv_type &in_type)
+		{
+			type = in_type;
+			type.qualifiers |= spirv_type::q_const;
+			base = 0; constant = std::move(data);
+			location = loc;
+			is_lvalue = false;
+			is_constant = true;
+			ops.clear();
+		}
 	};
 }

@@ -589,11 +589,13 @@ namespace reshade
 		reshadefx::syntax_tree ast;
 		reshadefx::parser parser;
 
-		if (!parser.run(pp.current_output()))
+		if (!parser.parse(pp.current_output()))
 		{
 			LOG(ERROR) << "Failed to compile " << path << ":\n" << parser.errors();
 			return;
 		}
+
+		parser.write_module(std::ofstream("test.spv", std::ios::binary | std::ios::out));
 
 		if (_performance_mode && _current_preset >= 0)
 		{
