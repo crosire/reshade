@@ -17,25 +17,6 @@ struct on_scope_exit
 	std::function<void()> leave;
 };
 
-spv::BuiltIn semantic_to_builtin(std::string &semantic, unsigned int &index)
-{
-	std::transform(semantic.begin(), semantic.end(), semantic.begin(), ::toupper);
-
-	if (semantic == "SV_POSITION")
-		return spv::BuiltInPosition;
-	if (semantic == "SV_POINTSIZE")
-		return spv::BuiltInPointSize;
-	if (semantic == "SV_DEPTH")
-		return spv::BuiltInFragDepth;
-	if (semantic == "VERTEXID" || semantic == "SV_VERTEXID")
-		return spv::BuiltInVertexId;
-	if (semantic.size() > 9 && semantic.compare(0, 9, "SV_TARGET") == 0)
-		index = std::stol(semantic.substr(9));
-	if (semantic.size() > 8 && semantic.compare(0, 8, "TEXCOORD") == 0)
-		index = std::stol(semantic.substr(8));
-	return spv::BuiltInMax;
-}
-
 static inline uintptr_t align(uintptr_t address, size_t alignment)
 {
 	return (address % alignment != 0) ? address + alignment - address % alignment : address;
@@ -249,9 +230,6 @@ bool reshadefx::parser::parse(const std::string &input)
 
 		define_variable(_global_ubo_variable, "$Globals", {}, { spirv_type::t_struct, 0, 0, spirv_type::q_uniform, true, false, false, 0, _global_ubo_type }, spv::StorageClassUniform);
 	}
-
-	//std::ofstream s("test.spv", std::ios::binary | std::ios::out);
-	//write_module(s);
 
 	return success;
 }
@@ -2510,7 +2488,9 @@ bool reshadefx::parser::parse_struct()
 				if (!expect(tokenid::identifier))
 					return consume_until('}'), false;
 
-				member_info.builtin = semantic_to_builtin(_token.literal_as_string, member_info.semantic_index);
+				member_info.semantic = std::move(_token.literal_as_string);
+				// Make semantic upper case to simplify comparison later on
+				std::transform(member_info.semantic.begin(), member_info.semantic.end(), member_info.semantic.begin(), ::toupper);
 			}
 
 			// Add member type to list
@@ -2607,7 +2587,9 @@ bool reshadefx::parser::parse_function(spirv_type type, std::string name)
 			if (!expect(tokenid::identifier))
 				return false;
 
-			param.builtin = semantic_to_builtin(_token.literal_as_string, param.semantic_index);
+			param.semantic = std::move(_token.literal_as_string);
+			// Make semantic upper case to simplify comparison later on
+			std::transform(param.semantic.begin(), param.semantic.end(), param.semantic.begin(), ::toupper);
 		}
 
 		param.type.is_ptr = true;
@@ -2632,7 +2614,9 @@ bool reshadefx::parser::parse_function(spirv_type type, std::string name)
 		if (type.is_void())
 			return error(_token.location, 3076, "void function cannot have a semantic"), false;
 
-		info.return_builtin = semantic_to_builtin(_token.literal_as_string, info.return_semantic_index);
+		info.return_semantic = std::move(_token.literal_as_string);
+		// Make semantic upper case to simplify comparison later on
+		std::transform(info.return_semantic.begin(), info.return_semantic.end(), info.return_semantic.begin(), ::toupper);
 	}
 
 	// A function has to start with a new block
@@ -2713,8 +2697,9 @@ bool reshadefx::parser::parse_variable(spirv_type type, std::string name, spirv_
 		else if (!global) // Only global variables can have a semantic
 			return error(_token.location, 3043, "local variables cannot have semantics"), false;
 
-		info.builtin = semantic_to_builtin(_token.literal_as_string, info.semantic_index);
 		info.semantic = std::move(_token.literal_as_string);
+		// Make semantic upper case to simplify comparison later on
+		std::transform(info.semantic.begin(), info.semantic.end(), info.semantic.begin(), ::toupper);
 	}
 	else
 	{
@@ -2803,7 +2788,7 @@ bool reshadefx::parser::parse_variable(spirv_type type, std::string name, spirv_
 		spirv_struct_member_info member;
 		member.name = name;
 		member.type = type;
-		member.builtin = info.builtin;
+		member.semantic = info.semantic;
 
 		const size_t member_index = _uniforms.member_list.size();
 
@@ -3081,13 +3066,26 @@ bool reshadefx::parser::parse_technique_pass(spirv_pass_info &info)
 
 					spirv_basic_block &section = _functions2[_current_function].definition;
 
+					const auto semantic_to_builtin = [is_ps](const std::string &semantic, spv::BuiltIn &builtin) {
+						builtin = spv::BuiltInMax;
+						if (semantic == "SV_POSITION")
+							builtin = is_ps ? spv::BuiltInFragCoord : spv::BuiltInPosition;
+						if (semantic == "SV_POINTSIZE")
+							builtin = spv::BuiltInPointSize;
+						if (semantic == "SV_DEPTH")
+							builtin = spv::BuiltInFragDepth;
+						if (semantic == "VERTEXID" || semantic == "SV_VERTEXID")
+							builtin = spv::BuiltInVertexId;
+						return builtin != spv::BuiltInMax;
+					};
+
 					const auto create_input_param = [this, &section, &call_params](const spirv_struct_member_info &param) {
 						const spv::Id function_variable = make_id();
 						define_variable(function_variable, nullptr, {}, param.type, spv::StorageClassFunction);
 						call_params.push_back(function_variable);
 						return function_variable;
 					};
-					const auto create_input_variable = [this, &inputs_and_outputs, is_ps](const spirv_struct_member_info &param) {
+					const auto create_input_variable = [this, &inputs_and_outputs, &semantic_to_builtin](const spirv_struct_member_info &param) {
 						spirv_type input_type = param.type;
 						input_type.is_input = true;
 						input_type.is_ptr = true;
@@ -3095,12 +3093,22 @@ bool reshadefx::parser::parse_technique_pass(spirv_pass_info &info)
 						const spv::Id input_variable = make_id();
 						define_variable(input_variable, nullptr, {}, input_type, spv::StorageClassInput);
 
-						if (is_ps && param.builtin == spv::BuiltInPosition)
-							add_builtin(input_variable, spv::BuiltInFragCoord);
-						else if (param.builtin != spv::BuiltInMax)
-							add_builtin(input_variable, param.builtin);
+						if (spv::BuiltIn builtin; semantic_to_builtin(param.semantic, builtin))
+							add_builtin(input_variable, builtin);
 						else
-							add_decoration(input_variable, spv::DecorationLocation, { param.semantic_index });
+						{
+							uint32_t location = 0;
+							if (param.semantic.size() >= 5 && param.semantic.compare(0, 5, "COLOR") == 0)
+								location = std::strtol(param.semantic.substr(5).c_str(), nullptr, 10);
+							else if (param.semantic.size() >= 9 && param.semantic.compare(0, 9, "SV_TARGET") == 0)
+								location = std::strtol(param.semantic.substr(9).c_str(), nullptr, 10);
+							else if (const auto it = _semantic_to_location.find(param.semantic); it != _semantic_to_location.end())
+								location = it->second;
+							else
+								_semantic_to_location[param.semantic] = location = _current_semantic_location++;
+
+							add_decoration(input_variable, spv::DecorationLocation, { location });
+						}
 
 						if (param.type.has(spirv_type::q_noperspective))
 							add_decoration(input_variable, spv::DecorationNoPerspective);
@@ -3118,7 +3126,7 @@ bool reshadefx::parser::parse_technique_pass(spirv_pass_info &info)
 						call_params.push_back(function_variable);
 						return function_variable;
 					};
-					const auto create_output_variable = [this, &inputs_and_outputs](const spirv_struct_member_info &param) {
+					const auto create_output_variable = [this, &inputs_and_outputs, &semantic_to_builtin](const spirv_struct_member_info &param) {
 						spirv_type output_type = param.type;
 						output_type.is_output = true;
 						output_type.is_ptr = true;
@@ -3126,10 +3134,22 @@ bool reshadefx::parser::parse_technique_pass(spirv_pass_info &info)
 						const spv::Id output_variable = make_id();
 						define_variable(output_variable, nullptr, {}, output_type, spv::StorageClassOutput);
 
-						if (param.builtin != spv::BuiltInMax)
-							add_builtin(output_variable, param.builtin);
+						if (spv::BuiltIn builtin; semantic_to_builtin(param.semantic, builtin))
+							add_builtin(output_variable, builtin);
 						else
-							add_decoration(output_variable, spv::DecorationLocation, { param.semantic_index });
+						{
+							uint32_t location = 0;
+							if (param.semantic.size() >= 5 && param.semantic.compare(0, 5, "COLOR") == 0)
+								location = std::strtol(param.semantic.substr(5).c_str(), nullptr, 10);
+							else if (param.semantic.size() >= 9 && param.semantic.compare(0, 9, "SV_TARGET") == 0)
+								location = std::strtol(param.semantic.substr(9).c_str(), nullptr, 10);
+							else if (const auto it = _semantic_to_location.find(param.semantic); it != _semantic_to_location.end())
+								location = it->second;
+							else
+								_semantic_to_location[param.semantic] = location = _current_semantic_location++;
+
+							add_decoration(output_variable, spv::DecorationLocation, { location });
+						}
 
 						if (param.type.has(spirv_type::q_noperspective))
 							add_decoration(output_variable, spv::DecorationNoPerspective);
@@ -3287,10 +3307,22 @@ bool reshadefx::parser::parse_technique_pass(spirv_pass_info &info)
 						const spv::Id result = make_id();
 						define_variable(result, nullptr, location, ptr_type, spv::StorageClassOutput);
 
-						if (function_info->return_builtin != spv::BuiltInMax)
-							add_builtin(result, function_info->return_builtin);
+						if (spv::BuiltIn builtin; semantic_to_builtin(function_info->return_semantic, builtin))
+							add_builtin(result, builtin);
 						else
-							add_decoration(result, spv::DecorationLocation, { function_info->return_semantic_index });
+						{
+							uint32_t location = 0;
+							if (function_info->return_semantic.size() >= 5 && function_info->return_semantic.compare(0, 5, "COLOR") == 0)
+								location = std::strtol(function_info->return_semantic.substr(5).c_str(), nullptr, 10);
+							else if (function_info->return_semantic.size() >= 9 && function_info->return_semantic.compare(0, 9, "SV_TARGET") == 0)
+								location = std::strtol(function_info->return_semantic.substr(9).c_str(), nullptr, 10);
+							else if (const auto it = _semantic_to_location.find(function_info->return_semantic); it != _semantic_to_location.end())
+								location = it->second;
+							else
+								_semantic_to_location[function_info->return_semantic] = location = _current_semantic_location++;
+
+							add_decoration(result, spv::DecorationLocation, { location });
+						}
 
 						inputs_and_outputs.push_back(result);
 

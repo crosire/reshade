@@ -15,8 +15,7 @@ namespace reshadefx
 	{
 		spirv_type type;
 		std::string name;
-		spv::BuiltIn builtin = spv::BuiltInMax;
-		unsigned int semantic_index = 0;
+		std::string semantic;
 		std::vector<spv::Decoration> decorations;
 	};
 
@@ -34,8 +33,7 @@ namespace reshadefx
 		std::string name;
 		std::string unique_name;
 		spirv_type return_type;
-		spv::BuiltIn return_builtin = spv::BuiltInMax;
-		unsigned int return_semantic_index = 0;
+		std::string return_semantic;
 		std::vector<spirv_struct_member_info> parameter_list;
 		spv::Id entry_point = 0;
 	};
@@ -46,8 +44,6 @@ namespace reshadefx
 		std::string name;
 		std::string unique_name;
 		std::string semantic;
-		spv::BuiltIn builtin = spv::BuiltInMax;
-		unsigned int semantic_index = 0;
 		spv::Id texture;
 		unsigned int width = 1, height = 1, levels = 1;
 		bool srgb_texture;

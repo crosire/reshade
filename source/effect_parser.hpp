@@ -88,7 +88,8 @@ namespace reshadefx
 		std::unordered_map<spv::Id, std::string> _texture_semantics;
 		std::unordered_map<spv::Id, spirv_struct_info> _structs;
 		std::vector<std::unique_ptr<spirv_function_info>> _functions;
-
+		std::unordered_map<std::string, uint32_t> _semantic_to_location;
+		uint32_t _current_semantic_location = 0;
 		spv::Id _global_ubo_type = 0;
 		spv::Id _global_ubo_variable = 0;
 		uint32_t _global_ubo_offset = 0;
