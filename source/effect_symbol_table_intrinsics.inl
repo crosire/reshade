@@ -1001,14 +1001,20 @@ IMPLEMENT_INTRINSIC(tex2D, 0, {
 // ret tex2Dlod(s, coords)
 DEFINE_INTRINSIC(tex2Dlod, 0, T_FLOAT4, T_SAMPLER, T_FLOAT4)
 IMPLEMENT_INTRINSIC(tex2Dlod, 0, {
+	const spv::Id xy = m.add_instruction(block, {}, spv::OpVectorShuffle, m.convert_type(T_FLOAT2))
+		.add(args[1].base)
+		.add(args[1].base)
+		.add(0) // .x
+		.add(1) // .y
+		.result;
 	const spv::Id lod = m.add_instruction(block, {}, spv::OpCompositeExtract, m.convert_type(T_FLOAT1))
 		.add(args[1].base)
-		.add(3)
+		.add(3) // .w
 		.result;
 
 	return m.add_instruction(block, {}, spv::OpImageSampleExplicitLod, m.convert_type(T_FLOAT4))
 		.add(args[0].base)
-		.add(args[1].base)
+		.add(xy)
 		.add(spv::ImageOperandsLodMask)
 		.add(lod)
 		.result;
@@ -1045,14 +1051,24 @@ IMPLEMENT_INTRINSIC(tex2Dsize, 1, {
 // ret tex2Dfetch(s, coords)
 DEFINE_INTRINSIC(tex2Dfetch, 0, T_FLOAT4, T_SAMPLER, T_INT4)
 IMPLEMENT_INTRINSIC(tex2Dfetch, 0, {
+	const spv::Id xy = m.add_instruction(block, {}, spv::OpVectorShuffle, m.convert_type(T_INT2))
+		.add(args[1].base)
+		.add(args[1].base)
+		.add(0) // .x
+		.add(1) // .y
+		.result;
 	const spv::Id lod = m.add_instruction(block, {}, spv::OpCompositeExtract, m.convert_type(T_INT1))
 		.add(args[1].base)
-		.add(3)
+		.add(3) // .w
 		.result;
 
-	return m.add_instruction(block, {}, spv::OpImageSampleImplicitLod, m.convert_type(T_FLOAT4))
+	const spv::Id image = m.add_instruction(block, {}, spv::OpImage, m.convert_type({ spirv_type::t_texture }))
 		.add(args[0].base)
-		.add(args[1].base)
+		.result;
+
+	return m.add_instruction(block, {}, spv::OpImageFetch, m.convert_type(T_FLOAT4))
+		.add(image)
+		.add(xy)
 		.add(spv::ImageOperandsLodMask)
 		.add(lod)
 		.result;

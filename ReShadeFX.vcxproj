@@ -140,7 +140,6 @@
     <ClCompile Include="source\effect_parser.cpp" />
     <ClCompile Include="source\effect_preprocessor.cpp" />
     <ClCompile Include="source\effect_symbol_table.cpp" />
-    <ClCompile Include="source\effect_symbol_table_intrinsics.inl" />
     <ClCompile Include="source\spirv_module.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -151,6 +150,9 @@
     <ClInclude Include="source\spirv_helpers.hpp" />
     <ClInclude Include="source\spirv_instruction.hpp" />
     <ClInclude Include="source\spirv_module.hpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="source\effect_symbol_table_intrinsics.inl" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
 </Project>
