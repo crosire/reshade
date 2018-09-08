@@ -34,11 +34,12 @@ inline bool operator==(const reshadefx::spirv_module::function_info2 &lhs, const
 	return lhs.return_type == rhs.return_type;
 }
 
-static inline void write(std::ostream &s, uint32_t word)
+static inline void write(std::vector<uint32_t> &s, uint32_t word)
 {
-	s.write(reinterpret_cast<const char *>(&word), 4);;
+	//s.write(reinterpret_cast<const char *>(&word), 4);;
+	s.push_back(word);
 }
-static void write(std::ostream &s, const spirv_instruction &ins)
+static void write(std::vector<uint32_t> &s, const spirv_instruction &ins)
 {
 	// First word of an instruction:
 	// The 16 low-order bits are the opcode
@@ -57,12 +58,12 @@ static void write(std::ostream &s, const spirv_instruction &ins)
 		write(s, ins.operands[i]);
 }
 
-void spirv_module::write_module(std::ostream &s)
+void spirv_module::write_module(std::vector<uint32_t> &s) const
 {
 	// Write SPIRV header info
 	write(s, spv::MagicNumber);
 	write(s, spv::Version);
-	write(s, 20u); // Generator magic number, see https://www.khronos.org/registry/spir-v/api/spir-v.xml
+	write(s, 0u); // Generator magic number, see https://www.khronos.org/registry/spir-v/api/spir-v.xml
 	write(s, _next_id); // Maximum ID
 	write(s, 0u); // Reserved for instruction schema
 

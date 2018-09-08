@@ -8,7 +8,6 @@
 #include "runtime.hpp"
 #include "effect_parser.hpp"
 #include "effect_preprocessor.hpp"
-#include "effect_syntax_tree.hpp"
 #include "input.hpp"
 #include "ini_file.hpp"
 #include <assert.h>
@@ -586,7 +585,6 @@ namespace reshade
 			return;
 		}
 
-		reshadefx::syntax_tree ast;
 		reshadefx::parser parser;
 
 		if (!parser.parse(pp.current_output()))
@@ -595,46 +593,11 @@ namespace reshade
 			return;
 		}
 
-		parser.write_module(std::ofstream("test.spv", std::ios::binary | std::ios::out));
-
-		if (_performance_mode && _current_preset >= 0)
-		{
-			ini_file preset(_preset_files[_current_preset]);
-
-			for (auto variable : ast.variables)
-			{
-				if (!variable->type.has_qualifier(reshadefx::nodes::type_node::qualifier_uniform) ||
-					variable->initializer_expression == nullptr ||
-					variable->initializer_expression->id != reshadefx::nodeid::literal_expression ||
-					variable->annotation_list.count("source"))
-				{
-					continue;
-				}
-
-				const auto initializer = static_cast<reshadefx::nodes::literal_expression_node *>(variable->initializer_expression);
-
-				switch (initializer->type.basetype)
-				{
-				case reshadefx::nodes::type_node::datatype_int:
-					preset.get(path.filename().string(), variable->name, initializer->value_int);
-					break;
-				case reshadefx::nodes::type_node::datatype_bool:
-				case reshadefx::nodes::type_node::datatype_uint:
-					preset.get(path.filename().string(), variable->name, initializer->value_uint);
-					break;
-				case reshadefx::nodes::type_node::datatype_float:
-					preset.get(path.filename().string(), variable->name, initializer->value_float);
-					break;
-				}
-
-				variable->type.qualifiers ^= reshadefx::nodes::type_node::qualifier_uniform;
-				variable->type.qualifiers |= reshadefx::nodes::type_node::qualifier_static | reshadefx::nodes::type_node::qualifier_const;
-			}
-		}
+		// TODO: Performance mode?
 
 		std::string errors = parser.errors();
 
-		if (!load_effect(ast, errors))
+		if (!load_effect(parser, errors))
 		{
 			LOG(ERROR) << "Failed to compile " << path << ":\n" << errors;
 			_textures.erase(_textures.begin() + _texture_count, _textures.end());

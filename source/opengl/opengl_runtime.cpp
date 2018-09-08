@@ -393,12 +393,12 @@ namespace reshade::opengl
 	{
 		runtime::on_reset_effect();
 
-		for (auto &sampler : _effect_samplers)
+		for (const auto &it : _effect_sampler_states)
 		{
-			glDeleteSamplers(1, &sampler.id);
+			glDeleteSamplers(1, &it.second);
 		}
 
-		_effect_samplers.clear();
+		_effect_sampler_states.clear();
 
 		for (auto &uniform_buffer : _effect_ubos)
 		{
@@ -461,14 +461,6 @@ namespace reshade::opengl
 		{
 			// Setup vertex input
 			glBindVertexArray(_default_vao);
-
-			// Setup shader resources
-			for (GLsizei i = 0; i < static_cast<GLsizei>(_effect_samplers.size()); i++)
-			{
-				glActiveTexture(GL_TEXTURE0 + i);
-				glBindTexture(GL_TEXTURE_2D, _effect_samplers[i].texture->id[_effect_samplers[i].is_srgb]);
-				glBindSampler(i, _effect_samplers[i].id);
-			}
 
 			// Setup global states
 			glDisable(GL_CULL_FACE);
@@ -620,9 +612,9 @@ namespace reshade::opengl
 			}
 		}
 	}
-	bool opengl_runtime::load_effect(const reshadefx::syntax_tree &ast, std::string &errors)
+	bool opengl_runtime::load_effect(const reshadefx::spirv_module &module, std::string &errors)
 	{
-		return opengl_effect_compiler(this, ast, errors).run();
+		return opengl_effect_compiler(this, module, errors).run();
 	}
 	bool opengl_runtime::update_texture(texture &texture, const uint8_t *data)
 	{
@@ -733,6 +725,14 @@ namespace reshade::opengl
 			glBufferSubData(GL_UNIFORM_BUFFER, 0, _effect_ubos[technique.uniform_storage_index].second, get_uniform_value_storage().data() + technique.uniform_storage_offset);
 		}
 
+		// Setup shader resources
+		for (GLsizei i = 0; i < static_cast<GLsizei>(technique_data.samplers.size()); i++)
+		{
+			glActiveTexture(GL_TEXTURE0 + i);
+			glBindTexture(GL_TEXTURE_2D, technique_data.samplers[i].texture->id[technique_data.samplers[i].is_srgb]);
+			glBindSampler(i, technique_data.samplers[i].id);
+		}
+
 		for (const auto &pass_object : technique.passes)
 		{
 			const opengl_pass_data &pass = *pass_object->as<opengl_pass_data>();
@@ -809,11 +809,11 @@ namespace reshade::opengl
 			// Update shader resources
 			for (GLuint texture_id : pass.draw_textures)
 			{
-				for (GLsizei i = 0; i < static_cast<GLsizei>(_effect_samplers.size()); i++)
+				for (GLsizei i = 0; i < static_cast<GLsizei>(technique_data.samplers.size()); i++)
 				{
-					const auto texture = _effect_samplers[i].texture;
+					const auto texture = technique_data.samplers[i].texture;
 
-					if (_effect_samplers[i].has_mipmaps && (texture->id[0] == texture_id || texture->id[1] == texture_id))
+					if (technique_data.samplers[i].has_mipmaps && (texture->id[0] == texture_id || texture->id[1] == texture_id))
 					{
 						glActiveTexture(GL_TEXTURE0 + i);
 						glGenerateMipmap(GL_TEXTURE_2D);

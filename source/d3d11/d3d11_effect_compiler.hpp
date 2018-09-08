@@ -5,9 +5,10 @@
 
 #pragma once
 
-#include "effect_syntax_tree.hpp"
+#include "spirv_module.hpp"
 #include <sstream>
 #include <unordered_set>
+#include <spirv_hlsl.hpp>
 
 namespace reshade::d3d11
 {
@@ -19,62 +20,30 @@ namespace reshade::d3d11
 	class d3d11_effect_compiler
 	{
 	public:
-		d3d11_effect_compiler(d3d11_runtime *runtime, const reshadefx::syntax_tree &ast, std::string &errors, bool skipoptimization = false);
+		d3d11_effect_compiler(d3d11_runtime *runtime, const reshadefx::spirv_module &module, std::string &errors, bool skipoptimization = false);
 
 		bool run();
 
 	private:
-		void error(const reshadefx::location &location, const std::string &message);
-		void warning(const reshadefx::location &location, const std::string &message);
+		void error(const std::string &message);
+		void warning(const std::string &message);
 
-		void visit(std::stringstream &output, const reshadefx::nodes::statement_node *node);
-		void visit(std::stringstream &output, const reshadefx::nodes::expression_node *node);
-		void visit(std::stringstream &output, const reshadefx::nodes::type_node &type, bool with_qualifiers = true);
-		void visit(std::stringstream &output, const reshadefx::nodes::lvalue_expression_node *node);
-		void visit(std::stringstream &output, const reshadefx::nodes::literal_expression_node *node);
-		void visit(std::stringstream &output, const reshadefx::nodes::expression_sequence_node *node);
-		void visit(std::stringstream &output, const reshadefx::nodes::unary_expression_node *node);
-		void visit(std::stringstream &output, const reshadefx::nodes::binary_expression_node *node);
-		void visit(std::stringstream &output, const reshadefx::nodes::intrinsic_expression_node *node);
-		void visit(std::stringstream &output, const reshadefx::nodes::conditional_expression_node *node);
-		void visit(std::stringstream &output, const reshadefx::nodes::swizzle_expression_node *node);
-		void visit(std::stringstream &output, const reshadefx::nodes::field_expression_node *node);
-		void visit(std::stringstream &output, const reshadefx::nodes::assignment_expression_node *node);
-		void visit(std::stringstream &output, const reshadefx::nodes::call_expression_node *node);
-		void visit(std::stringstream &output, const reshadefx::nodes::constructor_expression_node *node);
-		void visit(std::stringstream &output, const reshadefx::nodes::initializer_list_node *node);
-		void visit(std::stringstream &output, const reshadefx::nodes::compound_statement_node *node);
-		void visit(std::stringstream &output, const reshadefx::nodes::declarator_list_node *node, bool single_statement);
-		void visit(std::stringstream &output, const reshadefx::nodes::expression_statement_node *node);
-		void visit(std::stringstream &output, const reshadefx::nodes::if_statement_node *node);
-		void visit(std::stringstream &output, const reshadefx::nodes::switch_statement_node *node);
-		void visit(std::stringstream &output, const reshadefx::nodes::case_statement_node *node);
-		void visit(std::stringstream &output, const reshadefx::nodes::for_statement_node *node);
-		void visit(std::stringstream &output, const reshadefx::nodes::while_statement_node *node);
-		void visit(std::stringstream &output, const reshadefx::nodes::return_statement_node *node);
-		void visit(std::stringstream &output, const reshadefx::nodes::jump_statement_node *node);
-		void visit(std::stringstream &output, const reshadefx::nodes::struct_declaration_node *node);
-		void visit(std::stringstream &output, const reshadefx::nodes::variable_declaration_node *node, bool with_type = true);
-		void visit(std::stringstream &output, const reshadefx::nodes::function_declaration_node *node);
+		void visit_texture(const reshadefx::spirv_texture_info &texture_info);
+		void visit_sampler(const reshadefx::spirv_sampler_info &sampler_info);
+		void visit_uniform(const spirv_cross::CompilerHLSL &cross, const reshadefx::spirv_uniform_info &uniform_info);
+		void visit_technique(const reshadefx::spirv_technique_info &technique_info);
 
-		void visit_texture(const reshadefx::nodes::variable_declaration_node *node);
-		void visit_sampler(const reshadefx::nodes::variable_declaration_node *node);
-		void visit_uniform(const reshadefx::nodes::variable_declaration_node *node);
-		void visit_technique(const reshadefx::nodes::technique_declaration_node *node);
-		void visit_pass(const reshadefx::nodes::pass_declaration_node *node, d3d11_pass_data &pass);
-		void visit_pass_shader(const reshadefx::nodes::function_declaration_node *node, const std::string &shadertype, d3d11_pass_data &pass);
+		void compile_entry_point(spirv_cross::CompilerHLSL &cross, const spirv_cross::EntryPoint &entry, unsigned int shader_model_version);
 
 		d3d11_runtime *_runtime;
+		const reshadefx::spirv_module *_module;
 		bool _success = true;
-		const reshadefx::syntax_tree &_ast;
 		std::string &_errors;
-		std::stringstream _global_code, _global_uniforms;
-		bool _skip_shader_optimization, _is_in_parameter_block = false, _is_in_function_block = false;
-		size_t _uniform_storage_offset = 0, _constant_buffer_size = 0;
 		HMODULE _d3dcompiler_module = nullptr;
-#if RESHADE_DUMP_NATIVE_SHADERS
-		filesystem::path _dump_filename;
-		std::unordered_set<std::string> _dumped_shaders;
-#endif
+		size_t _uniform_storage_offset = 0, _constant_buffer_size = 0;
+		std::unordered_map<std::string, com_ptr<ID3D11VertexShader>> vs_entry_points;
+		std::unordered_map<std::string, com_ptr< ID3D11PixelShader>> ps_entry_points;
+		std::vector<com_ptr<ID3D11SamplerState>> _sampler_bindings;
+		std::vector<com_ptr<ID3D11ShaderResourceView>> _texture_bindings;
 	};
 }

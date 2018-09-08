@@ -509,14 +509,8 @@ namespace reshade::d3d11
 	{
 		runtime::on_reset_effect();
 
-		_effect_sampler_descs.clear();
 		_effect_sampler_states.clear();
 		_constant_buffers.clear();
-
-		_effect_shader_resources.resize(3);
-		_effect_shader_resources[0] = _backbuffer_texture_srv[0];
-		_effect_shader_resources[1] = _backbuffer_texture_srv[1];
-		_effect_shader_resources[2] = _depthstencil_texture_srv;
 	}
 	void d3d11_runtime::on_present(draw_call_tracker &tracker)
 	{
@@ -581,10 +575,6 @@ namespace reshade::d3d11
 			_immediate_context->IASetVertexBuffers(0, 1, reinterpret_cast<ID3D11Buffer *const *>(&null), reinterpret_cast<const UINT *>(&null), reinterpret_cast<const UINT *>(&null));
 
 			_immediate_context->RSSetState(_effect_rasterizer_state.get());
-
-			// Setup samplers
-			_immediate_context->VSSetSamplers(0, static_cast<UINT>(_effect_sampler_states.size()), reinterpret_cast<ID3D11SamplerState *const *>(_effect_sampler_states.data()));
-			_immediate_context->PSSetSamplers(0, static_cast<UINT>(_effect_sampler_states.size()), reinterpret_cast<ID3D11SamplerState *const *>(_effect_sampler_states.data()));
 
 			on_present_effect();
 		}
@@ -686,9 +676,9 @@ namespace reshade::d3d11
 
 		_immediate_context->Unmap(texture_staging.get(), 0);
 	}
-	bool d3d11_runtime::load_effect(const reshadefx::syntax_tree &ast, std::string &errors)
+	bool d3d11_runtime::load_effect(const reshadefx::spirv_module &module, std::string &errors)
 	{
-		return d3d11_effect_compiler(this, ast, errors, false).run();
+		return d3d11_effect_compiler(this, module, errors, false).run();
 	}
 	bool d3d11_runtime::update_texture(texture &texture, const uint8_t *data)
 	{
@@ -747,6 +737,10 @@ namespace reshade::d3d11
 		}
 
 		bool is_default_depthstencil_cleared = false;
+
+		// Setup samplers
+		_immediate_context->VSSetSamplers(0, static_cast<UINT>(technique_data.sampler_states.size()), reinterpret_cast<ID3D11SamplerState *const *>(technique_data.sampler_states.data()));
+		_immediate_context->PSSetSamplers(0, static_cast<UINT>(technique_data.sampler_states.size()), reinterpret_cast<ID3D11SamplerState *const *>(technique_data.sampler_states.data()));
 
 		// Setup shader constants
 		if (technique.uniform_storage_index >= 0)
@@ -1199,6 +1193,8 @@ namespace reshade::d3d11
 
 	bool d3d11_runtime::create_depthstencil_replacement(ID3D11DepthStencilView *depthstencil, ID3D11Texture2D *texture)
 	{
+		const ID3D11ShaderResourceView *const prev = _depthstencil_texture_srv.get();
+
 		_depthstencil.reset();
 		_depthstencil_replacement.reset();
 		_depthstencil_texture.reset();
@@ -1327,10 +1323,10 @@ namespace reshade::d3d11
 		}
 
 		// Update effect textures
-		_effect_shader_resources[2] = _depthstencil_texture_srv;
 		for (const auto &technique : _techniques)
 			for (const auto &pass : technique.passes)
-				pass->as<d3d11_pass_data>()->shader_resources[2] = _depthstencil_texture_srv;
+				for (auto &srv : pass->as<d3d11_pass_data>()->shader_resources)
+					if (srv.get() == prev) srv = _depthstencil_texture_srv;
 
 		return true;
 	}

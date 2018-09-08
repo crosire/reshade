@@ -37,6 +37,7 @@ namespace reshade::d3d10
 		com_ptr<ID3D10Query> timestamp_disjoint;
 		com_ptr<ID3D10Query> timestamp_query_beg;
 		com_ptr<ID3D10Query> timestamp_query_end;
+		std::vector<com_ptr<ID3D10SamplerState>> sampler_states;
 	};
 
 	class d3d10_runtime : public runtime
@@ -51,7 +52,7 @@ namespace reshade::d3d10
 		void on_copy_resource(ID3D10Resource *&dest, ID3D10Resource *&source);
 
 		void capture_frame(uint8_t *buffer) const override;
-		bool load_effect(const reshadefx::syntax_tree &ast, std::string &errors) override;
+		bool load_effect(const reshadefx::spirv_module &module, std::string &errors) override;
 		bool update_texture(texture &texture, const uint8_t *data) override;
 
 		void render_technique(const technique &technique) override;
@@ -67,9 +68,7 @@ namespace reshade::d3d10
 		com_ptr<ID3D10Texture2D> _backbuffer_texture;
 		com_ptr<ID3D10RenderTargetView> _backbuffer_rtv[3];
 		com_ptr<ID3D10ShaderResourceView> _backbuffer_texture_srv[2], _depthstencil_texture_srv;
-		std::vector<com_ptr<ID3D10SamplerState>> _effect_sampler_states;
-		std::unordered_map<size_t, size_t> _effect_sampler_descs;
-		std::vector<com_ptr<ID3D10ShaderResourceView>> _effect_shader_resources;
+		std::unordered_map<size_t, com_ptr<ID3D10SamplerState>> _effect_sampler_states;
 		std::vector<com_ptr<ID3D10Buffer>> _constant_buffers;
 
 		bool depth_buffer_before_clear = false;

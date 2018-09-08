@@ -525,9 +525,9 @@ namespace reshade::d3d9
 
 		screenshot_surface->UnlockRect();
 	}
-	bool d3d9_runtime::load_effect(const reshadefx::syntax_tree &ast, std::string &errors)
+	bool d3d9_runtime::load_effect(const reshadefx::spirv_module &module, std::string &errors)
 	{
-		return d3d9_effect_compiler(this, ast, errors, false).run();
+		return d3d9_effect_compiler(this, module, errors, false).run();
 	}
 	bool d3d9_runtime::update_texture(texture &texture, const uint8_t *data)
 	{
@@ -684,7 +684,7 @@ namespace reshade::d3d9
 			// Setup shader resources
 			for (DWORD sampler = 0; sampler < pass.sampler_count; sampler++)
 			{
-				_device->SetTexture(sampler, pass.samplers[sampler].texture->texture.get());
+				_device->SetTexture(sampler, pass.samplers[sampler].texture ? pass.samplers[sampler].texture->texture.get() : nullptr);
 
 				for (DWORD state = D3DSAMP_ADDRESSU; state <= D3DSAMP_SRGBTEXTURE; state++)
 				{
@@ -701,8 +701,8 @@ namespace reshade::d3d9
 			D3DVIEWPORT9 viewport;
 			_device->GetViewport(&viewport);
 
-			const float texelsize[4] = { -1.0f / viewport.Width, 1.0f / viewport.Height };
-			_device->SetVertexShaderConstantF(255, texelsize, 1);
+			//const float texelsize[4] = { -1.0f / viewport.Width, 1.0f / viewport.Height };
+			//_device->SetVertexShaderConstantF(255, texelsize, 1);
 
 			const bool is_viewport_sized = viewport.Width == _width && viewport.Height == _height;
 

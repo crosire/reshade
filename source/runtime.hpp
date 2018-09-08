@@ -22,7 +22,7 @@ namespace reshade
 }
 namespace reshadefx
 {
-	class syntax_tree;
+	class spirv_module;
 }
 
 extern volatile long g_network_traffic;
@@ -183,10 +183,9 @@ namespace reshade
 		/// <summary>
 		/// Compile effect from the specified abstract syntax tree and initialize textures, constants and techniques.
 		/// </summary>
-		/// <param name="ast">The abstract syntax tree of the effect to compile.</param>
-		/// <param name="pragmas">A list of additional commands to the compiler.</param>
+		/// <param name="module">The effect module to compile.</param>
 		/// <param name="errors">A reference to a buffer to store errors which occur during compilation.</param>
-		virtual bool load_effect(const reshadefx::syntax_tree &ast, std::string &errors) = 0;
+		virtual bool load_effect(const reshadefx::spirv_module &module, std::string &errors) = 0;
 
 		/// <summary>
 		/// Loads image files and updates all textures with image data.

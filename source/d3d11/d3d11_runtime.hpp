@@ -38,6 +38,7 @@ namespace reshade::d3d11
 		com_ptr<ID3D11Query> timestamp_disjoint;
 		com_ptr<ID3D11Query> timestamp_query_beg;
 		com_ptr<ID3D11Query> timestamp_query_end;
+		std::vector<com_ptr<ID3D11SamplerState>> sampler_states;
 	};
 
 	class d3d11_runtime : public runtime
@@ -51,7 +52,7 @@ namespace reshade::d3d11
 		void on_present(draw_call_tracker& tracker);
 
 		void capture_frame(uint8_t *buffer) const override;
-		bool load_effect(const reshadefx::syntax_tree &ast, std::string &errors) override;
+		bool load_effect(const reshadefx::spirv_module &module, std::string &errors) override;
 		bool update_texture(texture &texture, const uint8_t *data) override;
 
 		void render_technique(const technique &technique) override;
@@ -69,9 +70,7 @@ namespace reshade::d3d11
 		com_ptr<ID3D11ShaderResourceView> _backbuffer_texture_srv[2];
 		com_ptr<ID3D11RenderTargetView> _backbuffer_rtv[3];
 		com_ptr<ID3D11ShaderResourceView> _depthstencil_texture_srv;
-		std::vector<com_ptr<ID3D11SamplerState>> _effect_sampler_states;
-		std::unordered_map<size_t, size_t> _effect_sampler_descs;
-		std::vector<com_ptr<ID3D11ShaderResourceView>> _effect_shader_resources;
+		std::unordered_map<size_t, com_ptr<ID3D11SamplerState>> _effect_sampler_states;
 		std::vector<com_ptr<ID3D11Buffer>> _constant_buffers;
 
 		bool depth_buffer_before_clear = false;

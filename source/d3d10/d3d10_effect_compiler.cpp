@@ -14,123 +14,103 @@
 namespace reshade::d3d10
 {
 	using namespace reshadefx;
-	using namespace reshadefx::nodes;
 
 	static inline size_t roundto16(size_t size)
 	{
 		return (size + 15) & ~15;
 	}
+
 	static D3D10_BLEND literal_to_blend_func(unsigned int value)
 	{
 		switch (value)
 		{
-			case pass_declaration_node::ZERO:
-				return D3D10_BLEND_ZERO;
-			default:
-			case pass_declaration_node::ONE:
-				return D3D10_BLEND_ONE;
-			case pass_declaration_node::SRCCOLOR:
-				return D3D10_BLEND_SRC_COLOR;
-			case pass_declaration_node::INVSRCCOLOR:
-				return D3D10_BLEND_INV_SRC_COLOR;
-			case pass_declaration_node::SRCALPHA:
-				return D3D10_BLEND_SRC_ALPHA;
-			case pass_declaration_node::INVSRCALPHA:
-				return D3D10_BLEND_INV_SRC_ALPHA;
-			case pass_declaration_node::DESTALPHA:
-				return D3D10_BLEND_DEST_ALPHA;
-			case pass_declaration_node::INVDESTALPHA:
-				return D3D10_BLEND_INV_DEST_ALPHA;
-			case pass_declaration_node::DESTCOLOR:
-				return D3D10_BLEND_DEST_COLOR;
-			case pass_declaration_node::INVDESTCOLOR:
-				return D3D10_BLEND_INV_DEST_COLOR;
+		case 0:
+			return D3D10_BLEND_ZERO;
+		default:
+		case 1:
+			return D3D10_BLEND_ONE;
+		case 2:
+			return D3D10_BLEND_SRC_COLOR;
+		case 4:
+			return D3D10_BLEND_INV_SRC_COLOR;
+		case 3:
+			return D3D10_BLEND_SRC_ALPHA;
+		case 5:
+			return D3D10_BLEND_INV_SRC_ALPHA;
+		case 6:
+			return D3D10_BLEND_DEST_ALPHA;
+		case 7:
+			return D3D10_BLEND_INV_DEST_ALPHA;
+		case 8:
+			return D3D10_BLEND_DEST_COLOR;
+		case 9:
+			return D3D10_BLEND_INV_DEST_COLOR;
 		}
 	}
 	static D3D10_STENCIL_OP literal_to_stencil_op(unsigned int value)
 	{
 		switch (value)
 		{
-			default:
-			case pass_declaration_node::KEEP:
-				return D3D10_STENCIL_OP_KEEP;
-			case pass_declaration_node::ZERO:
-				return D3D10_STENCIL_OP_ZERO;
-			case pass_declaration_node::REPLACE:
-				return D3D10_STENCIL_OP_REPLACE;
-			case pass_declaration_node::INCRSAT:
-				return D3D10_STENCIL_OP_INCR_SAT;
-			case pass_declaration_node::DECRSAT:
-				return D3D10_STENCIL_OP_DECR_SAT;
-			case pass_declaration_node::INVERT:
-				return D3D10_STENCIL_OP_INVERT;
-			case pass_declaration_node::INCR:
-				return D3D10_STENCIL_OP_INCR;
-			case pass_declaration_node::DECR:
-				return D3D10_STENCIL_OP_DECR;
+		default:
+		case 1:
+			return D3D10_STENCIL_OP_KEEP;
+		case 0:
+			return D3D10_STENCIL_OP_ZERO;
+		case 3:
+			return D3D10_STENCIL_OP_REPLACE;
+		case 4:
+			return D3D10_STENCIL_OP_INCR_SAT;
+		case 5:
+			return D3D10_STENCIL_OP_DECR_SAT;
+		case 6:
+			return D3D10_STENCIL_OP_INVERT;
+		case 7:
+			return D3D10_STENCIL_OP_INCR;
+		case 8:
+			return D3D10_STENCIL_OP_DECR;
 		}
 	}
 	static DXGI_FORMAT literal_to_format(texture_format value)
 	{
 		switch (value)
 		{
-			case texture_format::r8:
-				return DXGI_FORMAT_R8_UNORM;
-			case texture_format::r16f:
-				return DXGI_FORMAT_R16_FLOAT;
-			case texture_format::r32f:
-				return DXGI_FORMAT_R32_FLOAT;
-			case texture_format::rg8:
-				return DXGI_FORMAT_R8G8_UNORM;
-			case texture_format::rg16:
-				return DXGI_FORMAT_R16G16_UNORM;
-			case texture_format::rg16f:
-				return DXGI_FORMAT_R16G16_FLOAT;
-			case texture_format::rg32f:
-				return DXGI_FORMAT_R32G32_FLOAT;
-			case texture_format::rgba8:
-				return DXGI_FORMAT_R8G8B8A8_TYPELESS;
-			case texture_format::rgba16:
-				return DXGI_FORMAT_R16G16B16A16_UNORM;
-			case texture_format::rgba16f:
-				return DXGI_FORMAT_R16G16B16A16_FLOAT;
-			case texture_format::rgba32f:
-				return DXGI_FORMAT_R32G32B32A32_FLOAT;
-			case texture_format::dxt1:
-				return DXGI_FORMAT_BC1_TYPELESS;
-			case texture_format::dxt3:
-				return DXGI_FORMAT_BC2_TYPELESS;
-			case texture_format::dxt5:
-				return DXGI_FORMAT_BC3_TYPELESS;
-			case texture_format::latc1:
-				return DXGI_FORMAT_BC4_UNORM;
-			case texture_format::latc2:
-				return DXGI_FORMAT_BC5_UNORM;
+		case texture_format::r8:
+			return DXGI_FORMAT_R8_UNORM;
+		case texture_format::r16f:
+			return DXGI_FORMAT_R16_FLOAT;
+		case texture_format::r32f:
+			return DXGI_FORMAT_R32_FLOAT;
+		case texture_format::rg8:
+			return DXGI_FORMAT_R8G8_UNORM;
+		case texture_format::rg16:
+			return DXGI_FORMAT_R16G16_UNORM;
+		case texture_format::rg16f:
+			return DXGI_FORMAT_R16G16_FLOAT;
+		case texture_format::rg32f:
+			return DXGI_FORMAT_R32G32_FLOAT;
+		case texture_format::rgba8:
+			return DXGI_FORMAT_R8G8B8A8_TYPELESS;
+		case texture_format::rgba16:
+			return DXGI_FORMAT_R16G16B16A16_UNORM;
+		case texture_format::rgba16f:
+			return DXGI_FORMAT_R16G16B16A16_FLOAT;
+		case texture_format::rgba32f:
+			return DXGI_FORMAT_R32G32B32A32_FLOAT;
+		case texture_format::dxt1:
+			return DXGI_FORMAT_BC1_TYPELESS;
+		case texture_format::dxt3:
+			return DXGI_FORMAT_BC2_TYPELESS;
+		case texture_format::dxt5:
+			return DXGI_FORMAT_BC3_TYPELESS;
+		case texture_format::latc1:
+			return DXGI_FORMAT_BC4_UNORM;
+		case texture_format::latc2:
+			return DXGI_FORMAT_BC5_UNORM;
 		}
 
 		return DXGI_FORMAT_UNKNOWN;
 	}
-	static std::string convert_semantic(const std::string &semantic)
-	{
-		if (semantic == "VERTEXID")
-		{
-			return "SV_VERTEXID";
-		}
-		else if (semantic == "POSITION" || semantic == "VPOS")
-		{
-			return "SV_POSITION";
-		}
-		else if (semantic.compare(0, 5, "COLOR") == 0)
-		{
-			return "SV_TARGET" + semantic.substr(5);
-		}
-		else if (semantic == "DEPTH")
-		{
-			return "SV_DEPTH";
-		}
 
-		return semantic;
-	}
 	DXGI_FORMAT make_format_srgb(DXGI_FORMAT format)
 	{
 		switch (format)
@@ -192,20 +172,12 @@ namespace reshade::d3d10
 		}
 	}
 
-	d3d10_effect_compiler::d3d10_effect_compiler(d3d10_runtime *runtime, const syntax_tree &ast, std::string &errors, bool skipoptimization) :
+	d3d10_effect_compiler::d3d10_effect_compiler(d3d10_runtime *runtime, const spirv_module &module, std::string &errors, bool skipoptimization) :
 		_runtime(runtime),
-		_ast(ast),
+		_module(&module),
 		_errors(errors),
 		_skip_shader_optimization(skipoptimization)
 	{
-#if RESHADE_DUMP_NATIVE_SHADERS
-		if (_ast.techniques.size() == 0)
-			return;
-		_dump_filename = _ast.techniques[0]->location.source;
-		_dump_filename = "ReShade-ShaderDump-" + _dump_filename.filename_without_extension().string() + ".hlsl";
-
-		std::ofstream(_dump_filename.string(), std::ios::trunc);
-#endif
 	}
 
 	bool d3d10_effect_compiler::run()
@@ -222,38 +194,50 @@ namespace reshade::d3d10
 			return false;
 		}
 
+		std::vector<uint32_t> spirv_bin;
+		_module->write_module(spirv_bin);
+
+		// TODO try catch
+		spirv_cross::CompilerHLSL cross(std::move(spirv_bin));
+
+		const auto resources = cross.get_shader_resources();
+
+		// Parse uniform variables
 		_uniform_storage_offset = _runtime->get_uniform_value_storage().size();
 
-		for (auto node : _ast.structs)
-		{
-			visit(_global_code, node);
-		}
-		for (auto uniform : _ast.variables)
-		{
-			if (uniform->type.is_texture())
-			{
-				visit_texture(uniform);
-			}
-			else if (uniform->type.is_sampler())
-			{
-				visit_sampler(uniform);
-			}
-			else if (uniform->type.has_qualifier(type_node::qualifier_uniform))
-			{
-				visit_uniform(uniform);
-			}
-			else
-			{
-				visit(_global_code, uniform);
+		//for (const spirv_cross::Resource &ubo : resources.uniform_buffers)
+		//{
+		//	const auto &struct_type = cross.get_type(ubo.base_type_id);
 
-				_global_code << ";\n";
-			}
-		}
-		for (auto function : _ast.functions)
+		//	_constant_buffer_size += cross.get_declared_struct_size(struct_type);
+
+		//	for (uint32_t i = 0; i < struct_type.member_types.size(); ++i)
+		//	{
+		//		visit_uniform(cross, ubo.base_type_id, i);
+		//	}
+		//}
+
+		for (const auto &texture : _module->_textures)
 		{
-			visit(_global_code, function);
+			visit_texture(texture);
 		}
-		for (auto technique : _ast.techniques)
+		for (const auto &sampler : _module->_samplers)
+		{
+			visit_sampler(sampler);
+		}
+		for (const auto &uniform : _module->_uniforms)
+		{
+			visit_uniform(cross, uniform);
+		}
+
+		// Compile all entry points to DX byte code
+		for (const spirv_cross::EntryPoint &entry : cross.get_entry_points_and_stages())
+		{
+			compile_entry_point(cross, entry, 50);
+		}
+
+		// Parse technique information
+		for (const auto &technique : _module->_techniques)
 		{
 			visit_technique(technique);
 		}
@@ -277,1398 +261,150 @@ namespace reshade::d3d10
 		return _success;
 	}
 
-	void d3d10_effect_compiler::error(const location &location, const std::string &message)
+	void d3d10_effect_compiler::error(const std::string &message)
 	{
 		_success = false;
 
-		_errors += location.source + "(" + std::to_string(location.line) + ", " + std::to_string(location.column) + "): error: " + message + '\n';
+		_errors += "error: " + message + '\n';
 	}
-	void d3d10_effect_compiler::warning(const location &location, const std::string &message)
+	void d3d10_effect_compiler::warning( const std::string &message)
 	{
-		_errors += location.source + "(" + std::to_string(location.line) + ", " + std::to_string(location.column) + "): warning: " + message + '\n';
-	}
-
-	void d3d10_effect_compiler::visit(std::stringstream &output, const statement_node *node)
-	{
-		if (node == nullptr)
-		{
-			return;
-		}
-
-		switch (node->id)
-		{
-			case nodeid::compound_statement:
-				visit(output, static_cast<const compound_statement_node *>(node));
-				break;
-			case nodeid::declarator_list:
-				visit(output, static_cast<const declarator_list_node *>(node), false);
-				break;
-			case nodeid::expression_statement:
-				visit(output, static_cast<const expression_statement_node *>(node));
-				break;
-			case nodeid::if_statement:
-				visit(output, static_cast<const if_statement_node *>(node));
-				break;
-			case nodeid::switch_statement:
-				visit(output, static_cast<const switch_statement_node *>(node));
-				break;
-			case nodeid::for_statement:
-				visit(output, static_cast<const for_statement_node *>(node));
-				break;
-			case nodeid::while_statement:
-				visit(output, static_cast<const while_statement_node *>(node));
-				break;
-			case nodeid::return_statement:
-				visit(output, static_cast<const return_statement_node *>(node));
-				break;
-			case nodeid::jump_statement:
-				visit(output, static_cast<const jump_statement_node *>(node));
-				break;
-			default:
-				assert(false);
-		}
-	}
-	void d3d10_effect_compiler::visit(std::stringstream &output, const expression_node *node)
-	{
-		assert(node != nullptr);
-
-		switch (node->id)
-		{
-			case nodeid::lvalue_expression:
-				visit(output, static_cast<const lvalue_expression_node *>(node));
-				break;
-			case nodeid::literal_expression:
-				visit(output, static_cast<const literal_expression_node *>(node));
-				break;
-			case nodeid::expression_sequence:
-				visit(output, static_cast<const expression_sequence_node *>(node));
-				break;
-			case nodeid::unary_expression:
-				visit(output, static_cast<const unary_expression_node *>(node));
-				break;
-			case nodeid::binary_expression:
-				visit(output, static_cast<const binary_expression_node *>(node));
-				break;
-			case nodeid::intrinsic_expression:
-				visit(output, static_cast<const intrinsic_expression_node *>(node));
-				break;
-			case nodeid::conditional_expression:
-				visit(output, static_cast<const conditional_expression_node *>(node));
-				break;
-			case nodeid::swizzle_expression:
-				visit(output, static_cast<const swizzle_expression_node *>(node));
-				break;
-			case nodeid::field_expression:
-				visit(output, static_cast<const field_expression_node *>(node));
-				break;
-			case nodeid::initializer_list:
-				visit(output, static_cast<const initializer_list_node *>(node));
-				break;
-			case nodeid::assignment_expression:
-				visit(output, static_cast<const assignment_expression_node *>(node));
-				break;
-			case nodeid::call_expression:
-				visit(output, static_cast<const call_expression_node *>(node));
-				break;
-			case nodeid::constructor_expression:
-				visit(output, static_cast<const constructor_expression_node *>(node));
-				break;
-			default:
-				assert(false);
-		}
+		_errors += "warning: " + message + '\n';
 	}
 
-	void d3d10_effect_compiler::visit(std::stringstream &output, const type_node &type, bool with_qualifiers)
+	void d3d10_effect_compiler::visit_texture(const spirv_texture_info &texture_info)
 	{
-		if (with_qualifiers)
-		{
-			if (type.has_qualifier(type_node::qualifier_static))
-				output << "static ";
-			if (type.has_qualifier(type_node::qualifier_const))
-				output << "const ";
-			if (type.has_qualifier(type_node::qualifier_volatile))
-				output << "volatile ";
-			if (type.has_qualifier(type_node::qualifier_precise))
-				output << "precise ";
-			if (type.has_qualifier(type_node::qualifier_linear))
-				output << "linear ";
-			if (type.has_qualifier(type_node::qualifier_noperspective))
-				output << "noperspective ";
-			if (type.has_qualifier(type_node::qualifier_centroid))
-				output << "centroid ";
-			if (type.has_qualifier(type_node::qualifier_nointerpolation))
-				output << "nointerpolation ";
-			if (type.has_qualifier(type_node::qualifier_inout))
-				output << "inout ";
-			else if (type.has_qualifier(type_node::qualifier_in))
-				output << "in ";
-			else if (type.has_qualifier(type_node::qualifier_out))
-				output << "out ";
-			else if (type.has_qualifier(type_node::qualifier_uniform))
-				output << "uniform ";
-		}
-
-		switch (type.basetype)
-		{
-			case type_node::datatype_void:
-				output << "void";
-				break;
-			case type_node::datatype_bool:
-				output << "bool";
-				break;
-			case type_node::datatype_int:
-				output << "int";
-				break;
-			case type_node::datatype_uint:
-				output << "uint";
-				break;
-			case type_node::datatype_float:
-				output << "float";
-				break;
-			case type_node::datatype_sampler:
-				output << "__sampler2D";
-				break;
-			case type_node::datatype_struct:
-				output << type.definition->unique_name;
-				break;
-		}
-
-		if (type.is_matrix())
-		{
-			output << type.rows << 'x' << type.cols;
-		}
-		else if (type.is_vector())
-		{
-			output << type.rows;
-		}
-	}
-	void d3d10_effect_compiler::visit(std::stringstream &output, const lvalue_expression_node *node)
-	{
-		output << node->reference->unique_name;
-	}
-	void d3d10_effect_compiler::visit(std::stringstream &output, const literal_expression_node *node)
-	{
-		if (!node->type.is_scalar())
-		{
-			visit(output, node->type, false);
-
-			output << '(';
-		}
-
-		for (size_t i = 0, count = node->type.rows * node->type.cols; i < count; i++)
-		{
-			switch (node->type.basetype)
-			{
-				case type_node::datatype_bool:
-					output << (node->value_int[i] ? "true" : "false");
-					break;
-				case type_node::datatype_int:
-					output << node->value_int[i];
-					break;
-				case type_node::datatype_uint:
-					output << node->value_uint[i];
-					break;
-				case type_node::datatype_float:
-					output << std::setprecision(8) << std::fixed << node->value_float[i];
-					break;
-			}
-
-			if (i < count - 1)
-			{
-				output << ", ";
-			}
-		}
-
-		if (!node->type.is_scalar())
-		{
-			output << ')';
-		}
-	}
-	void d3d10_effect_compiler::visit(std::stringstream &output, const expression_sequence_node *node)
-	{
-		output << '(';
-
-		for (size_t i = 0, count = node->expression_list.size(); i < count; i++)
-		{
-			visit(output, node->expression_list[i]);
-
-			if (i < count - 1)
-			{
-				output << ", ";
-			}
-		}
-
-		output << ')';
-	}
-	void d3d10_effect_compiler::visit(std::stringstream &output, const unary_expression_node *node)
-	{
-		switch (node->op)
-		{
-			case unary_expression_node::negate:
-				output << '-';
-				break;
-			case unary_expression_node::bitwise_not:
-				output << "~";
-				break;
-			case unary_expression_node::logical_not:
-				output << '!';
-				break;
-			case unary_expression_node::pre_increase:
-				output << "++";
-				break;
-			case unary_expression_node::pre_decrease:
-				output << "--";
-				break;
-			case unary_expression_node::cast:
-				visit(output, node->type, false);
-				output << '(';
-				break;
-		}
-
-		visit(output, node->operand);
-
-		switch (node->op)
-		{
-			case unary_expression_node::post_increase:
-				output << "++";
-				break;
-			case unary_expression_node::post_decrease:
-				output << "--";
-				break;
-			case unary_expression_node::cast:
-				output << ')';
-				break;
-		}
-	}
-	void d3d10_effect_compiler::visit(std::stringstream &output, const binary_expression_node *node)
-	{
-		std::string part1, part2, part3;
-
-		switch (node->op)
-		{
-			case binary_expression_node::add:
-				part1 = '(';
-				part2 = " + ";
-				part3 = ')';
-				break;
-			case binary_expression_node::subtract:
-				part1 = '(';
-				part2 = " - ";
-				part3 = ')';
-				break;
-			case binary_expression_node::multiply:
-				part1 = '(';
-				part2 = " * ";
-				part3 = ')';
-				break;
-			case binary_expression_node::divide:
-				part1 = '(';
-				part2 = " / ";
-				part3 = ')';
-				break;
-			case binary_expression_node::modulo:
-				part1 = '(';
-				part2 = " % ";
-				part3 = ')';
-				break;
-			case binary_expression_node::less:
-				part1 = '(';
-				part2 = " < ";
-				part3 = ')';
-				break;
-			case binary_expression_node::greater:
-				part1 = '(';
-				part2 = " > ";
-				part3 = ')';
-				break;
-			case binary_expression_node::less_equal:
-				part1 = '(';
-				part2 = " <= ";
-				part3 = ')';
-				break;
-			case binary_expression_node::greater_equal:
-				part1 = '(';
-				part2 = " >= ";
-				part3 = ')';
-				break;
-			case binary_expression_node::equal:
-				part1 = '(';
-				part2 = " == ";
-				part3 = ')';
-				break;
-			case binary_expression_node::not_equal:
-				part1 = '(';
-				part2 = " != ";
-				part3 = ')';
-				break;
-			case binary_expression_node::left_shift:
-				part1 = "(";
-				part2 = " << ";
-				part3 = ")";
-				break;
-			case binary_expression_node::right_shift:
-				part1 = "(";
-				part2 = " >> ";
-				part3 = ")";
-				break;
-			case binary_expression_node::bitwise_and:
-				part1 = "(";
-				part2 = " & ";
-				part3 = ")";
-				break;
-			case binary_expression_node::bitwise_or:
-				part1 = "(";
-				part2 = " | ";
-				part3 = ")";
-				break;
-			case binary_expression_node::bitwise_xor:
-				part1 = "(";
-				part2 = " ^ ";
-				part3 = ")";
-				break;
-			case binary_expression_node::logical_and:
-				part1 = '(';
-				part2 = " && ";
-				part3 = ')';
-				break;
-			case binary_expression_node::logical_or:
-				part1 = '(';
-				part2 = " || ";
-				part3 = ')';
-				break;
-			case binary_expression_node::element_extract:
-				part2 = '[';
-				part3 = ']';
-				break;
-		}
-
-		output << part1;
-		visit(output, node->operands[0]);
-		output << part2;
-		visit(output, node->operands[1]);
-		output << part3;
-	}
-	void d3d10_effect_compiler::visit(std::stringstream &output, const intrinsic_expression_node *node)
-	{
-		std::string part1, part2, part3, part4, part5;
-
-		switch (node->op)
-		{
-			case intrinsic_expression_node::abs:
-				part1 = "abs(";
-				part2 = ")";
-				break;
-			case intrinsic_expression_node::acos:
-				part1 = "acos(";
-				part2 = ")";
-				break;
-			case intrinsic_expression_node::all:
-				part1 = "all(";
-				part2 = ")";
-				break;
-			case intrinsic_expression_node::any:
-				part1 = "any(";
-				part2 = ")";
-				break;
-			case intrinsic_expression_node::bitcast_int2float:
-				part1 = "asfloat(";
-				part2 = ")";
-				break;
-			case intrinsic_expression_node::bitcast_uint2float:
-				part1 = "asfloat(";
-				part2 = ")";
-				break;
-			case intrinsic_expression_node::asin:
-				part1 = "asin(";
-				part2 = ")";
-				break;
-			case intrinsic_expression_node::bitcast_float2int:
-				part1 = "asint(";
-				part2 = ")";
-				break;
-			case intrinsic_expression_node::bitcast_float2uint:
-				part1 = "asuint(";
-				part2 = ")";
-				break;
-			case intrinsic_expression_node::atan:
-				part1 = "atan(";
-				part2 = ")";
-				break;
-			case intrinsic_expression_node::atan2:
-				part1 = "atan2(";
-				part2 = ", ";
-				part3 = ")";
-				break;
-			case intrinsic_expression_node::ceil:
-				part1 = "ceil(";
-				part2 = ")";
-				break;
-			case intrinsic_expression_node::clamp:
-				part1 = "clamp(";
-				part2 = ", ";
-				part3 = ", ";
-				part4 = ")";
-				break;
-			case intrinsic_expression_node::cos:
-				part1 = "cos(";
-				part2 = ")";
-				break;
-			case intrinsic_expression_node::cosh:
-				part1 = "cosh(";
-				part2 = ")";
-				break;
-			case intrinsic_expression_node::cross:
-				part1 = "cross(";
-				part2 = ", ";
-				part3 = ")";
-				break;
-			case intrinsic_expression_node::ddx:
-				part1 = "ddx(";
-				part2 = ")";
-				break;
-			case intrinsic_expression_node::ddy:
-				part1 = "ddy(";
-				part2 = ")";
-				break;
-			case intrinsic_expression_node::degrees:
-				part1 = "degrees(";
-				part2 = ")";
-				break;
-			case intrinsic_expression_node::determinant:
-				part1 = "determinant(";
-				part2 = ")";
-				break;
-			case intrinsic_expression_node::distance:
-				part1 = "distance(";
-				part2 = ", ";
-				part3 = ")";
-				break;
-			case intrinsic_expression_node::dot:
-				part1 = "dot(";
-				part2 = ", ";
-				part3 = ")";
-				break;
-			case intrinsic_expression_node::exp:
-				part1 = "exp(";
-				part2 = ")";
-				break;
-			case intrinsic_expression_node::exp2:
-				part1 = "exp2(";
-				part2 = ")";
-				break;
-			case intrinsic_expression_node::faceforward:
-				part1 = "faceforward(";
-				part2 = ", ";
-				part3 = ", ";
-				part4 = ")";
-				break;
-			case intrinsic_expression_node::floor:
-				part1 = "floor(";
-				part2 = ")";
-				break;
-			case intrinsic_expression_node::frac:
-				part1 = "frac(";
-				part2 = ")";
-				break;
-			case intrinsic_expression_node::frexp:
-				part1 = "frexp(";
-				part2 = ", ";
-				part3 = ")";
-				break;
-			case intrinsic_expression_node::fwidth:
-				part1 = "fwidth(";
-				part2 = ")";
-				break;
-			case intrinsic_expression_node::isinf:
-				part1 = "isinf(";
-				part2 = ")";
-				break;
-			case intrinsic_expression_node::isnan:
-				part1 = "isnan(";
-				part2 = ")";
-				break;
-			case intrinsic_expression_node::ldexp:
-				part1 = "ldexp(";
-				part2 = ", ";
-				part3 = ")";
-				break;
-			case intrinsic_expression_node::length:
-				part1 = "length(";
-				part2 = ")";
-				break;
-			case intrinsic_expression_node::lerp:
-				part1 = "lerp(";
-				part2 = ", ";
-				part3 = ", ";
-				part4 = ")";
-				break;
-			case intrinsic_expression_node::log:
-				part1 = "log(";
-				part2 = ")";
-				break;
-			case intrinsic_expression_node::log10:
-				part1 = "log10(";
-				part2 = ")";
-				break;
-			case intrinsic_expression_node::log2:
-				part1 = "log2(";
-				part2 = ")";
-				break;
-			case intrinsic_expression_node::mad:
-				part1 = "((";
-				part2 = ") * (";
-				part3 = ") + (";
-				part4 = "))";
-				break;
-			case intrinsic_expression_node::max:
-				part1 = "max(";
-				part2 = ", ";
-				part3 = ")";
-				break;
-			case intrinsic_expression_node::min:
-				part1 = "min(";
-				part2 = ", ";
-				part3 = ")";
-				break;
-			case intrinsic_expression_node::modf:
-				part1 = "modf(";
-				part2 = ", ";
-				part3 = ")";
-				break;
-			case intrinsic_expression_node::mul:
-				part1 = "mul(";
-				part2 = ", ";
-				part3 = ")";
-				break;
-			case intrinsic_expression_node::normalize:
-				part1 = "normalize(";
-				part2 = ")";
-				break;
-			case intrinsic_expression_node::pow:
-				part1 = "pow(";
-				part2 = ", ";
-				part3 = ")";
-				break;
-			case intrinsic_expression_node::radians:
-				part1 = "radians(";
-				part2 = ")";
-				break;
-			case intrinsic_expression_node::rcp:
-				part1 = "(1.0f / ";
-				part2 = ")";
-				break;
-			case intrinsic_expression_node::reflect:
-				part1 = "reflect(";
-				part2 = ", ";
-				part3 = ")";
-				break;
-			case intrinsic_expression_node::refract:
-				part1 = "refract(";
-				part2 = ", ";
-				part3 = ", ";
-				part4 = ")";
-				break;
-			case intrinsic_expression_node::round:
-				part1 = "round(";
-				part2 = ")";
-				break;
-			case intrinsic_expression_node::rsqrt:
-				part1 = "rsqrt(";
-				part2 = ")";
-				break;
-			case intrinsic_expression_node::saturate:
-				part1 = "saturate(";
-				part2 = ")";
-				break;
-			case intrinsic_expression_node::sign:
-				part1 = "sign(";
-				part2 = ")";
-				break;
-			case intrinsic_expression_node::sin:
-				part1 = "sin(";
-				part2 = ")";
-				break;
-			case intrinsic_expression_node::sincos:
-				part1 = "sincos(";
-				part2 = ", ";
-				part3 = ", ";
-				part4 = ")";
-				break;
-			case intrinsic_expression_node::sinh:
-				part1 = "sinh(";
-				part2 = ")";
-				break;
-			case intrinsic_expression_node::smoothstep:
-				part1 = "smoothstep(";
-				part2 = ", ";
-				part3 = ", ";
-				part4 = ")";
-				break;
-			case intrinsic_expression_node::sqrt:
-				part1 = "sqrt(";
-				part2 = ")";
-				break;
-			case intrinsic_expression_node::step:
-				part1 = "step(";
-				part2 = ", ";
-				part3 = ")";
-				break;
-			case intrinsic_expression_node::tan:
-				part1 = "tan(";
-				part2 = ")";
-				break;
-			case intrinsic_expression_node::tanh:
-				part1 = "tanh(";
-				part2 = ")";
-				break;
-			case intrinsic_expression_node::texture:
-				part1 = "__tex2D(";
-				part2 = ", ";
-				part3 = ")";
-				break;
-			case intrinsic_expression_node::texture_fetch:
-				part1 = "__tex2Dfetch(";
-				part2 = ", ";
-				part3 = ")";
-				break;
-			case intrinsic_expression_node::texture_gather:
-				if (node->arguments[2]->id == nodeid::literal_expression && node->arguments[2]->type.is_integral())
-				{
-					const int component = static_cast<const literal_expression_node *>(node->arguments[2])->value_int[0];
-
-					output << "__tex2Dgather" << component << '(';
-					visit(output, node->arguments[0]);
-					output << ", ";
-					visit(output, node->arguments[1]);
-					output << ')';
-				}
-				else
-				{
-					error(node->location, "texture gather component argument has to be constant");
-				}
-				return;
-			case intrinsic_expression_node::texture_gather_offset:
-				if (node->arguments[3]->id == nodeid::literal_expression && node->arguments[3]->type.is_integral())
-				{
-					const int component = static_cast<const literal_expression_node *>(node->arguments[3])->value_int[0];
-
-					output << "__tex2Dgather" << component << "offset(";
-					visit(output, node->arguments[0]);
-					output << ", ";
-					visit(output, node->arguments[1]);
-					output << ", ";
-					visit(output, node->arguments[2]);
-					output << ')';
-				}
-				else
-				{
-					error(node->location, "texture gather component argument has to be constant");
-				}
-				return;
-			case intrinsic_expression_node::texture_gradient:
-				part1 = "__tex2Dgrad(";
-				part2 = ", ";
-				part3 = ", ";
-				part4 = ", ";
-				part5 = ")";
-				break;
-			case intrinsic_expression_node::texture_level:
-				part1 = "__tex2Dlod(";
-				part2 = ", ";
-				part3 = ")";
-				break;
-			case intrinsic_expression_node::texture_level_offset:
-				part1 = "__tex2Dlodoffset(";
-				part2 = ", ";
-				part3 = ", ";
-				part4 = ")";
-				break;
-			case intrinsic_expression_node::texture_offset:
-				part1 = "__tex2Doffset(";
-				part2 = ", ";
-				part3 = ", ";
-				part4 = ")";
-				break;
-			case intrinsic_expression_node::texture_projection:
-				part1 = "__tex2Dproj(";
-				part2 = ", ";
-				part3 = ")";
-				break;
-			case intrinsic_expression_node::texture_size:
-				part1 = "__tex2Dsize(";
-				part2 = ", ";
-				part3 = ")";
-				break;
-			case intrinsic_expression_node::transpose:
-				part1 = "transpose(";
-				part2 = ")";
-				break;
-			case intrinsic_expression_node::trunc:
-				part1 = "trunc(";
-				part2 = ")";
-				break;
-		}
-
-		output << part1;
-
-		if (node->arguments[0] != nullptr)
-		{
-			visit(output, node->arguments[0]);
-		}
-
-		output << part2;
-
-		if (node->arguments[1] != nullptr)
-		{
-			visit(output, node->arguments[1]);
-		}
-
-		output << part3;
-
-		if (node->arguments[2] != nullptr)
-		{
-			visit(output, node->arguments[2]);
-		}
-
-		output << part4;
-
-		if (node->arguments[3] != nullptr)
-		{
-			visit(output, node->arguments[3]);
-		}
-
-		output << part5;
-	}
-	void d3d10_effect_compiler::visit(std::stringstream &output, const conditional_expression_node *node)
-	{
-		output << '(';
-		visit(output, node->condition);
-		output << " ? ";
-		visit(output, node->expression_when_true);
-		output << " : ";
-		visit(output, node->expression_when_false);
-		output << ')';
-	}
-	void d3d10_effect_compiler::visit(std::stringstream &output, const swizzle_expression_node *node)
-	{
-		visit(output, node->operand);
-
-		output << '.';
-
-		if (node->operand->type.is_matrix())
-		{
-			const char swizzle[16][5] = {
-				"_m00", "_m01", "_m02", "_m03",
-				"_m10", "_m11", "_m12", "_m13",
-				"_m20", "_m21", "_m22", "_m23",
-				"_m30", "_m31", "_m32", "_m33"
-			};
-
-			for (unsigned int i = 0; i < 4 && node->mask[i] >= 0; i++)
-			{
-				output << swizzle[node->mask[i]];
-			}
-		}
-		else
-		{
-			const char swizzle[4] = {
-				'x', 'y', 'z', 'w'
-			};
-
-			for (unsigned int i = 0; i < 4 && node->mask[i] >= 0; i++)
-			{
-				output << swizzle[node->mask[i]];
-			}
-		}
-	}
-	void d3d10_effect_compiler::visit(std::stringstream &output, const field_expression_node *node)
-	{
-		output << '(';
-
-		visit(output, node->operand);
-
-		output << '.' << node->field_reference->unique_name << ')';
-	}
-	void d3d10_effect_compiler::visit(std::stringstream &output, const assignment_expression_node *node)
-	{
-		output << '(';
-		visit(output, node->left);
-		output << ' ';
-
-		switch (node->op)
-		{
-			case assignment_expression_node::none:
-				output << '=';
-				break;
-			case assignment_expression_node::add:
-				output << "+=";
-				break;
-			case assignment_expression_node::subtract:
-				output << "-=";
-				break;
-			case assignment_expression_node::multiply:
-				output << "*=";
-				break;
-			case assignment_expression_node::divide:
-				output << "/=";
-				break;
-			case assignment_expression_node::modulo:
-				output << "%=";
-				break;
-			case assignment_expression_node::left_shift:
-				output << "<<=";
-				break;
-			case assignment_expression_node::right_shift:
-				output << ">>=";
-				break;
-			case assignment_expression_node::bitwise_and:
-				output << "&=";
-				break;
-			case assignment_expression_node::bitwise_or:
-				output << "|=";
-				break;
-			case assignment_expression_node::bitwise_xor:
-				output << "^=";
-				break;
-		}
-
-		output << ' ';
-		visit(output, node->right);
-		output << ')';
-	}
-	void d3d10_effect_compiler::visit(std::stringstream &output, const call_expression_node *node)
-	{
-		output << node->callee->unique_name << '(';
-
-		for (size_t i = 0, count = node->arguments.size(); i < count; i++)
-		{
-			visit(output, node->arguments[i]);
-
-			if (i < count - 1)
-			{
-				output << ", ";
-			}
-		}
-
-		output << ')';
-	}
-	void d3d10_effect_compiler::visit(std::stringstream &output, const constructor_expression_node *node)
-	{
-		visit(output, node->type, false);
-
-		output << '(';
-
-		for (size_t i = 0, count = node->arguments.size(); i < count; i++)
-		{
-			visit(output, node->arguments[i]);
-
-			if (i < count - 1)
-			{
-				output << ", ";
-			}
-		}
-
-		output << ')';
-	}
-	void d3d10_effect_compiler::visit(std::stringstream &output, const initializer_list_node *node)
-	{
-		output << "{ ";
-
-		for (size_t i = 0, count = node->values.size(); i < count; i++)
-		{
-			visit(output, node->values[i]);
-
-			if (i < count - 1)
-			{
-				output << ", ";
-			}
-		}
-
-		output << " }";
-	}
-	void d3d10_effect_compiler::visit(std::stringstream &output, const compound_statement_node *node)
-	{
-		output << "{\n";
-
-		for (auto statement : node->statement_list)
-		{
-			visit(output, statement);
-		}
-
-		output << "}\n";
-	}
-	void d3d10_effect_compiler::visit(std::stringstream &output, const declarator_list_node *node, bool single_statement)
-	{
-		bool with_type = true;
-
-		for (size_t i = 0, count = node->declarator_list.size(); i < count; i++)
-		{
-			visit(output, node->declarator_list[i], with_type);
-
-			if (i < count - 1)
-			{
-				output << (single_statement ? ", " : ";\n");
-			}
-			if (single_statement)
-			{
-				with_type = false;
-			}
-		}
-
-		output << ";\n";
-	}
-	void d3d10_effect_compiler::visit(std::stringstream &output, const expression_statement_node *node)
-	{
-		visit(output, node->expression);
-
-		output << ";\n";
-	}
-	void d3d10_effect_compiler::visit(std::stringstream &output, const if_statement_node *node)
-	{
-		for (const auto &attribute : node->attributes)
-		{
-			output << '[' << attribute << ']';
-		}
-
-		output << "if (";
-		visit(output, node->condition);
-		output << ")\n";
-
-		if (node->statement_when_true != nullptr)
-		{
-			visit(output, node->statement_when_true);
-		}
-		else
-		{
-			output << "\t;";
-		}
-
-		if (node->statement_when_false != nullptr)
-		{
-			output << "else\n";
-
-			visit(output, node->statement_when_false);
-		}
-	}
-	void d3d10_effect_compiler::visit(std::stringstream &output, const switch_statement_node *node)
-	{
-		for (const auto &attribute : node->attributes)
-		{
-			output << '[' << attribute << ']';
-		}
-
-		output << "switch (";
-		visit(output, node->test_expression);
-		output << ")\n{\n";
-
-		for (auto cases : node->case_list)
-		{
-			visit(output, cases);
-		}
-
-		output << "}\n";
-	}
-	void d3d10_effect_compiler::visit(std::stringstream &output, const case_statement_node *node)
-	{
-		for (auto label : node->labels)
-		{
-			if (label == nullptr)
-			{
-				output << "default";
-			}
-			else
-			{
-				output << "case ";
-
-				visit(output, label);
-			}
-
-			output << ":\n";
-		}
-
-		visit(output, node->statement_list);
-	}
-	void d3d10_effect_compiler::visit(std::stringstream &output, const for_statement_node *node)
-	{
-		for (const auto &attribute : node->attributes)
-		{
-			output << '[' << attribute << ']';
-		}
-
-		output << "for (";
-
-		if (node->init_statement != nullptr)
-		{
-			if (node->init_statement->id == nodeid::declarator_list)
-			{
-				visit(output, static_cast<declarator_list_node *>(node->init_statement), true);
-
-				output.seekp(-2, std::ios_base::end);
-			}
-			else
-			{
-				visit(output, static_cast<expression_statement_node *>(node->init_statement)->expression);
-			}
-		}
-
-		output << "; ";
-
-		if (node->condition != nullptr)
-		{
-			visit(output, node->condition);
-		}
-
-		output << "; ";
-
-		if (node->increment_expression != nullptr)
-		{
-			visit(output, node->increment_expression);
-		}
-
-		output << ")\n";
-
-		if (node->statement_list != nullptr)
-		{
-			visit(output, node->statement_list);
-		}
-		else
-		{
-			output << "\t;";
-		}
-	}
-	void d3d10_effect_compiler::visit(std::stringstream &output, const while_statement_node *node)
-	{
-		for (const auto &attribute : node->attributes)
-		{
-			output << '[' << attribute << ']';
-		}
-
-		if (node->is_do_while)
-		{
-			output << "do\n{\n";
-
-			if (node->statement_list != nullptr)
-			{
-				visit(output, node->statement_list);
-			}
-
-			output << "}\nwhile (";
-			visit(output, node->condition);
-			output << ");\n";
-		}
-		else
-		{
-			output << "while (";
-			visit(output, node->condition);
-			output << ")\n";
-
-			if (node->statement_list != nullptr)
-			{
-				visit(output, node->statement_list);
-			}
-			else
-			{
-				output << "\t;";
-			}
-		}
-	}
-	void d3d10_effect_compiler::visit(std::stringstream &output, const return_statement_node *node)
-	{
-		if (node->is_discard)
-		{
-			output << "discard";
-		}
-		else
-		{
-			output << "return";
-
-			if (node->return_value != nullptr)
-			{
-				output << ' ';
-
-				visit(output, node->return_value);
-			}
-		}
-
-		output << ";\n";
-	}
-	void d3d10_effect_compiler::visit(std::stringstream &output, const jump_statement_node *node)
-	{
-		if (node->is_break)
-		{
-			output << "break;\n";
-		}
-		else if (node->is_continue)
-		{
-			output << "continue;\n";
-		}
-	}
-	void d3d10_effect_compiler::visit(std::stringstream &output, const struct_declaration_node *node)
-	{
-		output << "struct " << node->unique_name << "\n{\n";
-
-		if (!node->field_list.empty())
-		{
-			for (auto field : node->field_list)
-			{
-				visit(output, field);
-			}
-		}
-		else
-		{
-			output << "float _dummy;\n";
-		}
-
-		output << "};\n";
-	}
-	void d3d10_effect_compiler::visit(std::stringstream &output, const variable_declaration_node *node, bool with_type)
-	{
-		if (with_type)
-		{
-			visit(output, node->type);
-
-			output << ' ';
-		}
-
-		if (!node->name.empty())
-		{
-			output << node->unique_name;
-		}
-
-		if (node->type.is_array())
-		{
-			output << '[';
-
-			if (node->type.array_length > 0)
-			{
-				output << node->type.array_length;
-			}
-
-			output << ']';
-		}
-
-		if (!node->semantic.empty())
-		{
-			output << " : " << convert_semantic(node->semantic);
-		}
-
-		if (node->initializer_expression != nullptr)
-		{
-			output << " = ";
-
-			visit(output, node->initializer_expression);
-		}
-
-		if (!(_is_in_parameter_block || _is_in_function_block))
-		{
-			output << ";\n";
-		}
-	}
-	void d3d10_effect_compiler::visit(std::stringstream &output, const function_declaration_node *node)
-	{
-		visit(output, node->return_type, false);
-
-		output << ' ' << node->unique_name << '(';
-
-		_is_in_parameter_block = true;
-
-		for (size_t i = 0, count = node->parameter_list.size(); i < count; i++)
-		{
-			visit(output, node->parameter_list[i]);
-
-			if (i < count - 1)
-			{
-				output << ", ";
-			}
-		}
-
-		_is_in_parameter_block = false;
-
-		output << ')';
-
-		if (!node->return_semantic.empty())
-		{
-			output << " : " << convert_semantic(node->return_semantic);
-		}
-
-		output << '\n';
-
-		_is_in_function_block = true;
-
-		visit(output, node->definition);
-
-		_is_in_function_block = false;
-	}
-
-	void d3d10_effect_compiler::visit_texture(const variable_declaration_node *node)
-	{
-		size_t texture_register_index, texture_register_index_srgb;
-
-		const auto existing_texture = _runtime->find_texture(node->unique_name);
+		const auto existing_texture = _runtime->find_texture(texture_info.unique_name);
 
 		if (existing_texture != nullptr)
 		{
-			if (node->semantic == "COLOR" || node->semantic == "SV_TARGET")
-			{
-				texture_register_index = 0;
-				texture_register_index_srgb = 1;
-			}
-			else if (node->semantic == "DEPTH" || node->semantic == "SV_DEPTH")
-			{
-				texture_register_index = 2;
-				texture_register_index_srgb = 2;
-			}
-			else if (!node->semantic.empty())
-			{
-				error(node->location, "invalid semantic");
-				return;
-			}
-			else
-			{
-				if (existing_texture->width != node->properties.width ||
-					existing_texture->height != node->properties.height ||
-					existing_texture->levels != node->properties.levels ||
-					existing_texture->format != node->properties.format)
-				{
-					error(node->location, existing_texture->effect_filename + " already created a texture with the same name but different dimensions; textures are shared across all effects, so either rename the variable or adjust the dimensions so they match");
-					return;
-				}
+			if (texture_info.semantic.empty() && (
+				existing_texture->width != texture_info.width ||
+				existing_texture->height != texture_info.height ||
+				existing_texture->levels != texture_info.levels ||
+				existing_texture->format != static_cast<texture_format>(texture_info.format)))
+					error(existing_texture->effect_filename + " already created a texture with the same name but different dimensions; textures are shared across all effects, so either rename the variable or adjust the dimensions so they match");
+			return;
+		}
 
-				const auto obj_data = existing_texture->impl->as<d3d10_tex_data>();
+		texture obj;
+		obj.unique_name = texture_info.unique_name;
 
-				texture_register_index = std::distance(_runtime->_effect_shader_resources.begin(), std::find(_runtime->_effect_shader_resources.begin(), _runtime->_effect_shader_resources.end(), obj_data->srv[0]));
+		for (const auto &annotation : texture_info.annotations)
+			obj.annotations.insert({ annotation.first, variant(annotation.second) });
 
-				if (obj_data->srv[1] != nullptr)
-				{
-					texture_register_index_srgb = std::distance(_runtime->_effect_shader_resources.begin(), std::find(_runtime->_effect_shader_resources.begin(), _runtime->_effect_shader_resources.end(), obj_data->srv[1]));
-				}
-				else
-				{
-					texture_register_index_srgb = texture_register_index;
-				}
-			}
+		obj.width = texture_info.width;
+		obj.height = texture_info.height;
+		obj.levels = texture_info.levels;
+		obj.format = static_cast<texture_format>(texture_info.format);
+
+		D3D10_TEXTURE2D_DESC texdesc = {};
+		texdesc.Width = obj.width;
+		texdesc.Height = obj.height;
+		texdesc.MipLevels = obj.levels;
+		texdesc.ArraySize = 1;
+		texdesc.Format = literal_to_format(obj.format);
+		texdesc.SampleDesc.Count = 1;
+		texdesc.SampleDesc.Quality = 0;
+		texdesc.Usage = D3D10_USAGE_DEFAULT;
+		texdesc.BindFlags = D3D10_BIND_SHADER_RESOURCE | D3D10_BIND_RENDER_TARGET;
+		texdesc.MiscFlags = D3D10_RESOURCE_MISC_GENERATE_MIPS;
+
+		obj.impl = std::make_unique<d3d10_tex_data>();
+		const auto obj_data = obj.impl->as<d3d10_tex_data>();
+
+		if (texture_info.semantic == "COLOR")
+		{
+			obj.width = _runtime->frame_width();
+			obj.height = _runtime->frame_height();
+			obj.impl_reference = texture_reference::back_buffer;
+
+			obj_data->srv[0] = _runtime->_backbuffer_texture_srv[0];
+			obj_data->srv[1] = _runtime->_backbuffer_texture_srv[1];
+		}
+		else if (texture_info.semantic == "DEPTH")
+		{
+			obj.width = _runtime->frame_width();
+			obj.height = _runtime->frame_height();
+			obj.impl_reference = texture_reference::depth_buffer;
+
+			obj_data->srv[0] = _runtime->_depthstencil_texture_srv;
+			obj_data->srv[1] = _runtime->_depthstencil_texture_srv;
+		}
+		else if (!texture_info.semantic.empty())
+		{
+			error("invalid semantic");
+			return;
 		}
 		else
 		{
-			texture obj;
-			D3D10_TEXTURE2D_DESC texdesc = { };
-			obj.name = node->name;
-			obj.unique_name = node->unique_name;
-			obj.annotations = node->annotation_list;
-			texdesc.Width = obj.width = node->properties.width;
-			texdesc.Height = obj.height = node->properties.height;
-			texdesc.MipLevels = obj.levels = node->properties.levels;
-			texdesc.ArraySize = 1;
-			texdesc.Format = literal_to_format(obj.format = node->properties.format);
-			texdesc.SampleDesc.Count = 1;
-			texdesc.SampleDesc.Quality = 0;
-			texdesc.Usage = D3D10_USAGE_DEFAULT;
-			texdesc.BindFlags = D3D10_BIND_SHADER_RESOURCE | D3D10_BIND_RENDER_TARGET;
-			texdesc.MiscFlags = D3D10_RESOURCE_MISC_GENERATE_MIPS;
+			HRESULT hr = _runtime->_device->CreateTexture2D(&texdesc, nullptr, &obj_data->texture);
 
-			if (node->semantic == "COLOR" || node->semantic == "SV_TARGET")
+			if (FAILED(hr))
 			{
-				obj.width = _runtime->frame_width();
-				obj.height = _runtime->frame_height();
-				obj.impl_reference = texture_reference::back_buffer;
-
-				texture_register_index = 0;
-				texture_register_index_srgb = 1;
+				error("'ID3D10Device::CreateTexture2D' failed with error code " + std::to_string(static_cast<unsigned long>(hr)) + "!");
+				return;
 			}
-			else if (node->semantic == "DEPTH" || node->semantic == "SV_DEPTH")
-			{
-				obj.width = _runtime->frame_width();
-				obj.height = _runtime->frame_height();
-				obj.impl_reference = texture_reference::depth_buffer;
 
-				texture_register_index = 2;
-				texture_register_index_srgb = 2;
+			D3D10_SHADER_RESOURCE_VIEW_DESC srvdesc = { };
+			srvdesc.ViewDimension = D3D10_SRV_DIMENSION_TEXTURE2D;
+			srvdesc.Texture2D.MipLevels = texdesc.MipLevels;
+			srvdesc.Format = make_format_normal(texdesc.Format);
+
+			hr = _runtime->_device->CreateShaderResourceView(obj_data->texture.get(), &srvdesc, &obj_data->srv[0]);
+
+			if (FAILED(hr))
+			{
+				error("'ID3D10Device::CreateShaderResourceView' failed with error code " + std::to_string(static_cast<unsigned long>(hr)) + "!");
+				return;
+			}
+
+			srvdesc.Format = make_format_srgb(texdesc.Format);
+
+			if (srvdesc.Format != texdesc.Format)
+			{
+				hr = _runtime->_device->CreateShaderResourceView(obj_data->texture.get(), &srvdesc, &obj_data->srv[1]);
+
+				if (FAILED(hr))
+				{
+					error("'ID3D10Device::CreateShaderResourceView' failed with error code " + std::to_string(static_cast<unsigned long>(hr)) + "!");
+					return;
+				}
 			}
 			else
 			{
-				obj.impl = std::make_unique<d3d10_tex_data>();
-				const auto obj_data = obj.impl->as<d3d10_tex_data>();
-
-				HRESULT hr = _runtime->_device->CreateTexture2D(&texdesc, nullptr, &obj_data->texture);
-
-				if (FAILED(hr))
-				{
-					error(node->location, "'ID3D10Device::CreateTexture2D' failed with error code " + std::to_string(static_cast<unsigned long>(hr)) + "!");
-					return;
-				}
-
-				D3D10_SHADER_RESOURCE_VIEW_DESC srvdesc = { };
-				srvdesc.ViewDimension = D3D10_SRV_DIMENSION_TEXTURE2D;
-				srvdesc.Texture2D.MipLevels = texdesc.MipLevels;
-				srvdesc.Format = make_format_normal(texdesc.Format);
-
-				hr = _runtime->_device->CreateShaderResourceView(obj_data->texture.get(), &srvdesc, &obj_data->srv[0]);
-
-				if (FAILED(hr))
-				{
-					error(node->location, "'ID3D10Device::CreateShaderResourceView' failed with error code " + std::to_string(static_cast<unsigned long>(hr)) + "!");
-					return;
-				}
-
-				srvdesc.Format = make_format_srgb(texdesc.Format);
-
-				texture_register_index = _runtime->_effect_shader_resources.size();
-				_runtime->_effect_shader_resources.push_back(obj_data->srv[0]);
-
-				if (srvdesc.Format != texdesc.Format)
-				{
-					hr = _runtime->_device->CreateShaderResourceView(obj_data->texture.get(), &srvdesc, &obj_data->srv[1]);
-
-					if (FAILED(hr))
-					{
-						error(node->location, "'ID3D10Device::CreateShaderResourceView' failed with error code " + std::to_string(static_cast<unsigned long>(hr)) + "!");
-						return;
-					}
-
-					texture_register_index_srgb = _runtime->_effect_shader_resources.size();
-					_runtime->_effect_shader_resources.push_back(obj_data->srv[1]);
-				}
-				else
-				{
-					texture_register_index_srgb = texture_register_index;
-				}
+				obj_data->srv[1] = obj_data->srv[0];
 			}
-
-			_runtime->add_texture(std::move(obj));
 		}
 
-		_global_code << "Texture2D " <<
-			node->unique_name << " : register(t" << texture_register_index << "), __" <<
-			node->unique_name << "SRGB : register(t" << texture_register_index_srgb << ");\n";
+		_runtime->add_texture(std::move(obj));
 	}
-	void d3d10_effect_compiler::visit_sampler(const variable_declaration_node *node)
+
+	void d3d10_effect_compiler::visit_sampler(const spirv_sampler_info &sampler_info)
 	{
-		D3D10_SAMPLER_DESC desc = { };
-		desc.Filter = static_cast<D3D10_FILTER>(node->properties.filter);
-		desc.AddressU = static_cast<D3D10_TEXTURE_ADDRESS_MODE>(node->properties.address_u);
-		desc.AddressV = static_cast<D3D10_TEXTURE_ADDRESS_MODE>(node->properties.address_v);
-		desc.AddressW = static_cast<D3D10_TEXTURE_ADDRESS_MODE>(node->properties.address_w);
-		desc.MipLODBias = node->properties.lod_bias;
+		const auto existing_texture = _runtime->find_texture(sampler_info.texture_name);
+
+		if (!existing_texture)
+			return;
+
+		D3D10_SAMPLER_DESC desc = {};
+		desc.Filter = static_cast<D3D10_FILTER>(sampler_info.filter);
+		desc.AddressU = static_cast<D3D10_TEXTURE_ADDRESS_MODE>(sampler_info.address_u);
+		desc.AddressV = static_cast<D3D10_TEXTURE_ADDRESS_MODE>(sampler_info.address_v);
+		desc.AddressW = static_cast<D3D10_TEXTURE_ADDRESS_MODE>(sampler_info.address_w);
+		desc.MipLODBias = sampler_info.lod_bias;
 		desc.MaxAnisotropy = 1;
 		desc.ComparisonFunc = D3D10_COMPARISON_NEVER;
-		desc.MinLOD = node->properties.min_lod;
-		desc.MaxLOD = node->properties.max_lod;
-
-		const auto texture = _runtime->find_texture(node->properties.texture->unique_name);
-
-		if (texture == nullptr)
-		{
-			error(node->location, "texture '" + node->properties.texture->name + "' for sampler '" + node->name + "' is missing due to previous error");
-			return;
-		}
+		desc.MinLOD = sampler_info.min_lod;
+		desc.MaxLOD = sampler_info.max_lod;
 
 		size_t desc_hash = 2166136261;
 		for (size_t i = 0; i < sizeof(desc); ++i)
 			desc_hash = (desc_hash * 16777619) ^ reinterpret_cast<const uint8_t *>(&desc)[i];
 
-		auto it = _runtime->_effect_sampler_descs.find(desc_hash);
+		auto it = _runtime->_effect_sampler_states.find(desc_hash);
 
-		if (it == _runtime->_effect_sampler_descs.end())
+		if (it == _runtime->_effect_sampler_states.end())
 		{
 			com_ptr<ID3D10SamplerState> sampler;
 
@@ -1676,88 +412,83 @@ namespace reshade::d3d10
 
 			if (FAILED(hr))
 			{
-				error(node->location, "'ID3D10Device::CreateSamplerState' failed with error code " + std::to_string(static_cast<unsigned long>(hr)) + "!");
+				error("'ID3D10Device::CreateSamplerState' failed with error code " + std::to_string(static_cast<unsigned long>(hr)) + "!");
 				return;
 			}
 
-			_runtime->_effect_sampler_states.push_back(std::move(sampler));
-			it = _runtime->_effect_sampler_descs.emplace(desc_hash, _runtime->_effect_sampler_states.size() - 1).first;
+			it = _runtime->_effect_sampler_states.emplace(desc_hash, std::move(sampler)).first;
 		}
 
-		_global_code << "static const __sampler2D " << node->unique_name << " = { ";
+		_sampler_bindings.resize(std::max(_sampler_bindings.size(), sampler_info.binding + 1));
+		_texture_bindings.resize(std::max(_texture_bindings.size(), sampler_info.binding + 1));
 
-		if (node->properties.srgb_texture)
-		{
-			_global_code << "__" << node->properties.texture->unique_name << "SRGB";
-		}
-		else
-		{
-			_global_code << node->properties.texture->unique_name;
-		}
-
-		_global_code << ", __SamplerState" << it->second << " };\n";
+		_texture_bindings[sampler_info.binding] = existing_texture->impl->as<d3d10_tex_data>()->srv[sampler_info.srgb ? 1 : 0];
+		_sampler_bindings[sampler_info.binding] = it->second;
 	}
-	void d3d10_effect_compiler::visit_uniform(const variable_declaration_node *node)
+
+	void d3d10_effect_compiler::visit_uniform(const spirv_cross::CompilerHLSL &cross, const spirv_uniform_info &uniform_info)
 	{
-		visit(_global_uniforms, node->type);
-
-		_global_uniforms << ' ' << node->unique_name;
-
-		if (node->type.is_array())
-		{
-			_global_uniforms << '[';
-
-			if (node->type.array_length > 0)
-			{
-				_global_uniforms << node->type.array_length;
-			}
-
-			_global_uniforms << ']';
-		}
-
-		_global_uniforms << ";\n";
+		const auto &member_type = cross.get_type(uniform_info.type_id);
+		const auto &struct_type = cross.get_type(uniform_info.struct_type_id);
 
 		uniform obj;
-		obj.name = node->name;
-		obj.unique_name = node->unique_name;
-		obj.basetype = obj.displaytype = static_cast<uniform_datatype>(node->type.basetype - 1);
-		obj.rows = node->type.rows;
-		obj.columns = node->type.cols;
-		obj.elements = node->type.array_length;
-		obj.storage_size = node->type.rows * node->type.cols * std::max(1u, obj.elements) * 4;
-		obj.annotations = node->annotation_list;
+		obj.name = uniform_info.name;
+		obj.rows = member_type.vecsize;
+		obj.columns = member_type.columns;
+		obj.elements = !member_type.array.empty() && member_type.array_size_literal[0] ? member_type.array[0] : 1;
+		obj.storage_size = cross.get_declared_struct_member_size(struct_type, uniform_info.member_index);
+		obj.storage_offset = _uniform_storage_offset + cross.type_struct_member_offset(struct_type, uniform_info.member_index);
 
-		const UINT alignment = 16 - (_constant_buffer_size % 16);
-		_constant_buffer_size += static_cast<UINT>((obj.storage_size > alignment && (alignment != 16 || obj.storage_size <= 16)) ? obj.storage_size + alignment : obj.storage_size);
-		obj.storage_offset = _uniform_storage_offset + _constant_buffer_size - obj.storage_size;
+		for (const auto &annotation : uniform_info.annotations)
+			obj.annotations.insert({ annotation.first, variant(annotation.second) });
+
+		switch (member_type.basetype)
+		{
+		case spirv_cross::SPIRType::Int:
+			obj.displaytype = obj.basetype = uniform_datatype::signed_integer;
+			break;
+		case spirv_cross::SPIRType::UInt:
+			obj.displaytype = obj.basetype = uniform_datatype::unsigned_integer;
+			break;
+		case spirv_cross::SPIRType::Float:
+			obj.displaytype = obj.basetype = uniform_datatype::floating_point;
+			break;
+		}
+
+		_constant_buffer_size += obj.storage_size;
 
 		auto &uniform_storage = _runtime->get_uniform_value_storage();
 
-		if (_uniform_storage_offset + _constant_buffer_size >= uniform_storage.size())
+		if (obj.storage_offset + obj.storage_size >= uniform_storage.size())
 		{
 			uniform_storage.resize(uniform_storage.size() + 128);
 		}
 
-		if (node->initializer_expression != nullptr && node->initializer_expression->id == nodeid::literal_expression)
-		{
-			CopyMemory(uniform_storage.data() + obj.storage_offset, &static_cast<const literal_expression_node *>(node->initializer_expression)->value_float, obj.storage_size);
-		}
-		else
-		{
-			ZeroMemory(uniform_storage.data() + obj.storage_offset, obj.storage_size);
-		}
+		// TODO
+		//if (node->initializer_expression != nullptr && node->initializer_expression->id == nodeid::literal_expression)
+		//{
+		//	CopyMemory(uniform_storage.data() + obj.storage_offset, &static_cast<const literal_expression_node *>(node->initializer_expression)->value_float, obj.storage_size);
+		//}
+		//else
+		//{
+		//	ZeroMemory(uniform_storage.data() + obj.storage_offset, obj.storage_size);
+		//}
 
 		_runtime->add_uniform(std::move(obj));
 	}
-	void d3d10_effect_compiler::visit_technique(const technique_declaration_node *node)
+
+	void d3d10_effect_compiler::visit_technique(const spirv_technique_info &technique_info)
 	{
 		technique obj;
 		obj.impl = std::make_unique<d3d10_technique_data>();
-		obj.name = node->name;
-		obj.annotations = node->annotation_list;
+		obj.name = technique_info.name;
+
+		for (const auto &annotation : technique_info.annotations)
+			obj.annotations.insert({ annotation.first, variant(annotation.second) });
 
 		auto obj_data = obj.impl->as<d3d10_technique_data>();
-		D3D10_QUERY_DESC query_desc = { };
+
+		D3D10_QUERY_DESC query_desc = {};
 		query_desc.Query = D3D10_QUERY_TIMESTAMP;
 		_runtime->_device->CreateQuery(&query_desc, &obj_data->timestamp_query_beg);
 		_runtime->_device->CreateQuery(&query_desc, &obj_data->timestamp_query_end);
@@ -1770,285 +501,220 @@ namespace reshade::d3d10
 			obj.uniform_storage_offset = _uniform_storage_offset;
 		}
 
-		for (auto pass : node->pass_list)
+		obj_data->sampler_states = _sampler_bindings;
+
+		for (const auto &pass_info : technique_info.passes)
 		{
-			obj.passes.emplace_back(std::make_unique<d3d10_pass_data>());
-			visit_pass(pass, *static_cast<d3d10_pass_data *>(obj.passes.back().get()));
-		}
+			auto &pass = static_cast<d3d10_pass_data &>(*obj.passes.emplace_back(std::make_unique<d3d10_pass_data>()));
 
-		_runtime->add_technique(std::move(obj));
-	}
-	void d3d10_effect_compiler::visit_pass(const pass_declaration_node *node, d3d10_pass_data &pass)
-	{
-		pass.stencil_reference = 0;
-		pass.viewport.TopLeftX = pass.viewport.TopLeftY = pass.viewport.Width = pass.viewport.Height = 0;
-		pass.viewport.MinDepth = 0.0f;
-		pass.viewport.MaxDepth = 1.0f;
-		pass.clear_render_targets = node->clear_render_targets;
-		ZeroMemory(pass.render_targets, sizeof(pass.render_targets));
-		ZeroMemory(pass.render_target_resources, sizeof(pass.render_target_resources));
-		pass.shader_resources = _runtime->_effect_shader_resources;
+			pass.stencil_reference = 0;
+			pass.viewport.TopLeftX = pass.viewport.TopLeftY = pass.viewport.Width = pass.viewport.Height = 0;
+			pass.viewport.MinDepth = 0.0f;
+			pass.viewport.MaxDepth = 1.0f;
+			pass.clear_render_targets = pass_info.clear_render_targets;
+			ZeroMemory(pass.render_targets, sizeof(pass.render_targets));
+			ZeroMemory(pass.render_target_resources, sizeof(pass.render_target_resources));
+			pass.shader_resources = _texture_bindings;
 
-		if (node->vertex_shader != nullptr)
-		{
-			visit_pass_shader(node->vertex_shader, "vs", pass);
-		}
-		if (node->pixel_shader != nullptr)
-		{
-			visit_pass_shader(node->pixel_shader, "ps", pass);
-		}
+			pass.vertex_shader = vs_entry_points[pass_info.vs_entry_point];
+			pass.pixel_shader = ps_entry_points[pass_info.ps_entry_point];
 
-		const int target_index = node->srgb_write_enable ? 1 : 0;
-		pass.render_targets[0] = _runtime->_backbuffer_rtv[target_index];
-		pass.render_target_resources[0] = _runtime->_backbuffer_texture_srv[target_index];
+			const int target_index = pass_info.srgb_write_enable ? 1 : 0;
+			pass.render_targets[0] = _runtime->_backbuffer_rtv[target_index];
+			pass.render_target_resources[0] = _runtime->_backbuffer_texture_srv[target_index];
 
-		for (unsigned int i = 0; i < 8; i++)
-		{
-			if (node->render_targets[i] == nullptr)
+			for (unsigned int i = 0; i < 8; i++)
 			{
-				continue;
-			}
+				const std::string &render_target = pass_info.render_target_names[i];
 
-			const auto texture = _runtime->find_texture(node->render_targets[i]->unique_name);
+				if (render_target.empty())
+					continue;
 
-			if (texture == nullptr)
-			{
-				error(node->location, "texture not found");
-				return;
-			}
+				const auto texture = _runtime->find_texture(render_target);
 
-			const auto texture_impl = texture->impl->as<d3d10_tex_data>();
-
-			D3D10_TEXTURE2D_DESC texture_desc;
-			texture_impl->texture->GetDesc(&texture_desc);
-
-			if (pass.viewport.Width != 0 && pass.viewport.Height != 0 && (texture_desc.Width != static_cast<unsigned int>(pass.viewport.Width) || texture_desc.Height != static_cast<unsigned int>(pass.viewport.Height)))
-			{
-				error(node->location, "cannot use multiple rendertargets with different sized textures");
-				return;
-			}
-			else
-			{
-				pass.viewport.Width = texture_desc.Width;
-				pass.viewport.Height = texture_desc.Height;
-			}
-
-			D3D10_RENDER_TARGET_VIEW_DESC rtvdesc = { };
-			rtvdesc.Format = node->srgb_write_enable ? make_format_srgb(texture_desc.Format) : make_format_normal(texture_desc.Format);
-			rtvdesc.ViewDimension = texture_desc.SampleDesc.Count > 1 ? D3D10_RTV_DIMENSION_TEXTURE2DMS : D3D10_RTV_DIMENSION_TEXTURE2D;
-
-			if (texture_impl->rtv[target_index] == nullptr)
-			{
-				const HRESULT hr = _runtime->_device->CreateRenderTargetView(texture_impl->texture.get(), &rtvdesc, &texture_impl->rtv[target_index]);
-
-				if (FAILED(hr))
+				if (texture == nullptr)
 				{
-					warning(node->location, "'CreateRenderTargetView' failed with error code " + std::to_string(static_cast<unsigned long>(hr)) + "!");
+					error("texture not found");
+					return;
 				}
+
+				const auto texture_impl = texture->impl->as<d3d10_tex_data>();
+
+				D3D10_TEXTURE2D_DESC texture_desc;
+				texture_impl->texture->GetDesc(&texture_desc);
+
+				if (pass.viewport.Width != 0 && pass.viewport.Height != 0 && (texture_desc.Width != static_cast<unsigned int>(pass.viewport.Width) || texture_desc.Height != static_cast<unsigned int>(pass.viewport.Height)))
+				{
+					error("cannot use multiple rendertargets with different sized textures");
+					return;
+				}
+				else
+				{
+					pass.viewport.Width = texture_desc.Width;
+					pass.viewport.Height = texture_desc.Height;
+				}
+
+				D3D10_RENDER_TARGET_VIEW_DESC rtvdesc = { };
+				rtvdesc.Format = pass_info.srgb_write_enable ? make_format_srgb(texture_desc.Format) : make_format_normal(texture_desc.Format);
+				rtvdesc.ViewDimension = texture_desc.SampleDesc.Count > 1 ? D3D10_RTV_DIMENSION_TEXTURE2DMS : D3D10_RTV_DIMENSION_TEXTURE2D;
+
+				if (texture_impl->rtv[target_index] == nullptr)
+				{
+					const HRESULT hr = _runtime->_device->CreateRenderTargetView(texture_impl->texture.get(), &rtvdesc, &texture_impl->rtv[target_index]);
+
+					if (FAILED(hr))
+					{
+						warning("'CreateRenderTargetView' failed with error code " + std::to_string(static_cast<unsigned long>(hr)) + "!");
+					}
+				}
+
+				pass.render_targets[i] = texture_impl->rtv[target_index];
+				pass.render_target_resources[i] = texture_impl->srv[target_index];
 			}
 
-			pass.render_targets[i] = texture_impl->rtv[target_index];
-			pass.render_target_resources[i] = texture_impl->srv[target_index];
-		}
-
-		if (pass.viewport.Width == 0 && pass.viewport.Height == 0)
-		{
-			pass.viewport.Width = _runtime->frame_width();
-			pass.viewport.Height = _runtime->frame_height();
-		}
-
-		D3D10_DEPTH_STENCIL_DESC ddesc = { };
-		ddesc.DepthEnable = FALSE;
-		ddesc.DepthWriteMask = D3D10_DEPTH_WRITE_MASK_ZERO;
-		ddesc.DepthFunc = D3D10_COMPARISON_ALWAYS;
-		ddesc.StencilEnable = node->stencil_enable;
-		ddesc.StencilReadMask = node->stencil_read_mask;
-		ddesc.StencilWriteMask = node->stencil_write_mask;
-		ddesc.FrontFace.StencilFunc = ddesc.BackFace.StencilFunc = static_cast<D3D10_COMPARISON_FUNC>(node->stencil_comparison_func);
-		ddesc.FrontFace.StencilPassOp = ddesc.BackFace.StencilPassOp = literal_to_stencil_op(node->stencil_op_pass);
-		ddesc.FrontFace.StencilFailOp = ddesc.BackFace.StencilFailOp = literal_to_stencil_op(node->stencil_op_fail);
-		ddesc.FrontFace.StencilDepthFailOp = ddesc.BackFace.StencilDepthFailOp = literal_to_stencil_op(node->stencil_op_depth_fail);
-		pass.stencil_reference = node->stencil_reference_value;
-
-		HRESULT hr = _runtime->_device->CreateDepthStencilState(&ddesc, &pass.depth_stencil_state);
-
-		if (FAILED(hr))
-		{
-			warning(node->location, "'ID3D10Device::CreateDepthStencilState' failed with error code " + std::to_string(static_cast<unsigned long>(hr)) + "!");
-		}
-
-		D3D10_BLEND_DESC bdesc = { };
-		bdesc.AlphaToCoverageEnable = FALSE;
-		bdesc.RenderTargetWriteMask[0] = node->color_write_mask;
-		bdesc.BlendEnable[0] = node->blend_enable;
-		bdesc.BlendOp = static_cast<D3D10_BLEND_OP>(node->blend_op);
-		bdesc.BlendOpAlpha = static_cast<D3D10_BLEND_OP>(node->blend_op_alpha);
-		bdesc.SrcBlend = literal_to_blend_func(node->src_blend);
-		bdesc.DestBlend = literal_to_blend_func(node->dest_blend);
-		bdesc.SrcBlendAlpha = literal_to_blend_func(node->src_blend_alpha);
-		bdesc.DestBlendAlpha = literal_to_blend_func(node->dest_blend_alpha);
-
-		for (UINT i = 1; i < 8; i++)
-		{
-			bdesc.RenderTargetWriteMask[i] = bdesc.RenderTargetWriteMask[0];
-			bdesc.BlendEnable[i] = bdesc.BlendEnable[0];
-		}
-
-		hr = _runtime->_device->CreateBlendState(&bdesc, &pass.blend_state);
-
-		if (FAILED(hr))
-		{
-			warning(node->location, "'ID3D10Device::CreateBlendState' failed with error code " + std::to_string(static_cast<unsigned long>(hr)) + "!");
-		}
-
-		for (auto &srv : pass.shader_resources)
-		{
-			if (srv == nullptr)
+			if (pass.viewport.Width == 0 && pass.viewport.Height == 0)
 			{
-				continue;
+				pass.viewport.Width = _runtime->frame_width();
+				pass.viewport.Height = _runtime->frame_height();
 			}
 
-			com_ptr<ID3D10Resource> res1;
-			srv->GetResource(&res1);
+			D3D10_DEPTH_STENCIL_DESC ddesc = { };
+			ddesc.DepthEnable = FALSE;
+			ddesc.DepthWriteMask = D3D10_DEPTH_WRITE_MASK_ZERO;
+			ddesc.DepthFunc = D3D10_COMPARISON_ALWAYS;
+			ddesc.StencilEnable = pass_info.stencil_enable;
+			ddesc.StencilReadMask = pass_info.stencil_read_mask;
+			ddesc.StencilWriteMask = pass_info.stencil_write_mask;
+			ddesc.FrontFace.StencilFunc = ddesc.BackFace.StencilFunc = static_cast<D3D10_COMPARISON_FUNC>(pass_info.stencil_comparison_func);
+			ddesc.FrontFace.StencilPassOp = ddesc.BackFace.StencilPassOp = literal_to_stencil_op(pass_info.stencil_op_pass);
+			ddesc.FrontFace.StencilFailOp = ddesc.BackFace.StencilFailOp = literal_to_stencil_op(pass_info.stencil_op_fail);
+			ddesc.FrontFace.StencilDepthFailOp = ddesc.BackFace.StencilDepthFailOp = literal_to_stencil_op(pass_info.stencil_op_depth_fail);
+			pass.stencil_reference = pass_info.stencil_reference_value;
 
-			for (const auto &rtv : pass.render_targets)
+			HRESULT hr = _runtime->_device->CreateDepthStencilState(&ddesc, &pass.depth_stencil_state);
+
+			if (FAILED(hr))
 			{
-				if (rtv == nullptr)
+				warning("'ID3D10Device::CreateDepthStencilState' failed with error code " + std::to_string(static_cast<unsigned long>(hr)) + "!");
+			}
+
+			D3D10_BLEND_DESC bdesc = { };
+			bdesc.AlphaToCoverageEnable = FALSE;
+			bdesc.RenderTargetWriteMask[0] = pass_info.color_write_mask;
+			bdesc.BlendEnable[0] = pass_info.blend_enable;
+			bdesc.BlendOp = static_cast<D3D10_BLEND_OP>(pass_info.blend_op);
+			bdesc.BlendOpAlpha = static_cast<D3D10_BLEND_OP>(pass_info.blend_op_alpha);
+			bdesc.SrcBlend = literal_to_blend_func(pass_info.src_blend);
+			bdesc.DestBlend = literal_to_blend_func(pass_info.dest_blend);
+			bdesc.SrcBlendAlpha = literal_to_blend_func(pass_info.src_blend_alpha);
+			bdesc.DestBlendAlpha = literal_to_blend_func(pass_info.dest_blend_alpha);
+
+			for (UINT i = 1; i < 8; i++)
+			{
+				bdesc.RenderTargetWriteMask[i] = bdesc.RenderTargetWriteMask[0];
+				bdesc.BlendEnable[i] = bdesc.BlendEnable[0];
+			}
+
+			hr = _runtime->_device->CreateBlendState(&bdesc, &pass.blend_state);
+
+			if (FAILED(hr))
+			{
+				warning("'ID3D10Device::CreateBlendState' failed with error code " + std::to_string(static_cast<unsigned long>(hr)) + "!");
+			}
+
+			for (auto &srv : pass.shader_resources)
+			{
+				if (srv == nullptr)
 				{
 					continue;
 				}
 
-				com_ptr<ID3D10Resource> res2;
-				rtv->GetResource(&res2);
+				com_ptr<ID3D10Resource> res1;
+				srv->GetResource(&res1);
 
-				if (res1 == res2)
+				for (const auto &rtv : pass.render_targets)
 				{
-					srv.reset();
-					break;
+					if (rtv == nullptr)
+					{
+						continue;
+					}
+
+					com_ptr<ID3D10Resource> res2;
+					rtv->GetResource(&res2);
+
+					if (res1 == res2)
+					{
+						srv.reset();
+						break;
+					}
 				}
 			}
 		}
+
+		_runtime->add_technique(std::move(obj));
 	}
-	void d3d10_effect_compiler::visit_pass_shader(const function_declaration_node *node, const std::string &shadertype, d3d10_pass_data &pass)
+
+	void d3d10_effect_compiler::compile_entry_point(spirv_cross::CompilerHLSL &cross, const spirv_cross::EntryPoint &entry, unsigned int shader_model_version)
 	{
-		com_ptr<ID3D10Device1> device1;
-		D3D10_FEATURE_LEVEL1 featurelevel = D3D10_FEATURE_LEVEL_10_0;
+		std::string hlsl, target;
 
-		if (SUCCEEDED(_runtime->_device->QueryInterface(&device1)))
+		// Set shader model version
+		cross.set_hlsl_options({ shader_model_version });
+
+		// Cross compile entry point to HLSL source code
+		cross.set_entry_point(entry.name, entry.execution_model);
+
+		try
 		{
-			featurelevel = device1->GetFeatureLevel();
+			hlsl = cross.compile();
 		}
-
-		std::string profile = shadertype;
-
-		switch (featurelevel)
+		catch (const spirv_cross::CompilerError &e)
 		{
-			case D3D10_FEATURE_LEVEL_10_1:
-				profile += "_4_1";
-				break;
-			default:
-			case D3D10_FEATURE_LEVEL_10_0:
-				profile += "_4_0";
-				break;
-			case D3D10_FEATURE_LEVEL_9_1:
-			case D3D10_FEATURE_LEVEL_9_2:
-				profile += "_4_0_level_9_1";
-				break;
-			case D3D10_FEATURE_LEVEL_9_3:
-				profile += "_4_0_level_9_3";
-				break;
-		}
-
-		std::string source =
-			"#pragma warning(disable: 3571)\n"
-			"struct __sampler2D { Texture2D t; SamplerState s; };\n"
-			"inline float4 __tex2D(__sampler2D s, float2 c) { return s.t.Sample(s.s, c); }\n"
-			"inline float4 __tex2Dfetch(__sampler2D s, int4 c) { return s.t.Load(c.xyw); }\n"
-			"inline float4 __tex2Dgrad(__sampler2D s, float2 c, float2 ddx, float2 ddy) { return s.t.SampleGrad(s.s, c, ddx, ddy); }\n"
-			"inline float4 __tex2Dlod(__sampler2D s, float4 c) { return s.t.SampleLevel(s.s, c.xy, c.w); }\n"
-			"inline float4 __tex2Dlodoffset(__sampler2D s, float4 c, int2 offset) { return s.t.SampleLevel(s.s, c.xy, c.w, offset); }\n"
-			"inline float4 __tex2Doffset(__sampler2D s, float2 c, int2 offset) { return s.t.Sample(s.s, c, offset); }\n"
-			"inline float4 __tex2Dproj(__sampler2D s, float4 c) { return s.t.Sample(s.s, c.xy / c.w); }\n"
-			"inline int2 __tex2Dsize(__sampler2D s, int lod) { uint w, h, l; s.t.GetDimensions(lod, w, h, l); return int2(w, h); }\n";
-
-		if (featurelevel >= D3D10_FEATURE_LEVEL_10_1)
-		{
-			source +=
-				"inline float4 __tex2Dgather0(__sampler2D s, float2 c) { return s.t.Gather(s.s, c); }\n"
-				"inline float4 __tex2Dgather0offset(__sampler2D s, float2 c, int2 offset) { return s.t.Gather(s.s, c, offset); }\n";
-		}
-		else
-		{
-			source +=
-				"inline float4 __tex2Dgather0(__sampler2D s, float2 c) { return float4( s.t.SampleLevel(s.s, c, 0, int2(0, 1)).r, s.t.SampleLevel(s.s, c, 0, int2(1, 1)).r, s.t.SampleLevel(s.s, c, 0, int2(1, 0)).r, s.t.SampleLevel(s.s, c, 0).r); }\n"
-				"inline float4 __tex2Dgather0offset(__sampler2D s, float2 c, int2 offset) { return float4( s.t.SampleLevel(s.s, c, 0, offset + int2(0, 1)).r, s.t.SampleLevel(s.s, c, 0, offset + int2(1, 1)).r, s.t.SampleLevel(s.s, c, 0, offset + int2(1, 0)).r, s.t.SampleLevel(s.s, c, 0, offset).r); }\n";
-		}
-
-		source +=
-			"inline float4 __tex2Dgather1(__sampler2D s, float2 c) { return float4( s.t.SampleLevel(s.s, c, 0, int2(0, 1)).g, s.t.SampleLevel(s.s, c, 0, int2(1, 1)).g, s.t.SampleLevel(s.s, c, 0, int2(1, 0)).g, s.t.SampleLevel(s.s, c, 0).g); }\n"
-			"inline float4 __tex2Dgather1offset(__sampler2D s, float2 c, int2 offset) { return float4( s.t.SampleLevel(s.s, c, 0, offset + int2(0, 1)).g, s.t.SampleLevel(s.s, c, 0, offset + int2(1, 1)).g, s.t.SampleLevel(s.s, c, 0, offset + int2(1, 0)).g, s.t.SampleLevel(s.s, c, 0, offset).g); }\n"
-			"inline float4 __tex2Dgather2(__sampler2D s, float2 c) { return float4( s.t.SampleLevel(s.s, c, 0, int2(0, 1)).b, s.t.SampleLevel(s.s, c, 0, int2(1, 1)).b, s.t.SampleLevel(s.s, c, 0, int2(1, 0)).b, s.t.SampleLevel(s.s, c, 0).b); }\n"
-			"inline float4 __tex2Dgather2offset(__sampler2D s, float2 c, int2 offset) { return float4( s.t.SampleLevel(s.s, c, 0, offset + int2(0, 1)).b, s.t.SampleLevel(s.s, c, 0, offset + int2(1, 1)).b, s.t.SampleLevel(s.s, c, 0, offset + int2(1, 0)).b, s.t.SampleLevel(s.s, c, 0, offset).b); }\n"
-			"inline float4 __tex2Dgather3(__sampler2D s, float2 c) { return float4( s.t.SampleLevel(s.s, c, 0, int2(0, 1)).a, s.t.SampleLevel(s.s, c, 0, int2(1, 1)).a, s.t.SampleLevel(s.s, c, 0, int2(1, 0)).a, s.t.SampleLevel(s.s, c, 0).a); }\n"
-			"inline float4 __tex2Dgather3offset(__sampler2D s, float2 c, int2 offset) { return float4( s.t.SampleLevel(s.s, c, 0, offset + int2(0, 1)).a, s.t.SampleLevel(s.s, c, 0, offset + int2(1, 1)).a, s.t.SampleLevel(s.s, c, 0, offset + int2(1, 0)).a, s.t.SampleLevel(s.s, c, 0, offset).a); }\n";
-
-		source += "cbuffer __GLOBAL__ : register(b0)\n{\n" + _global_uniforms.str() + "};\n";
-
-		for (const auto &samplerdesc : _runtime->_effect_sampler_descs)
-		{
-			source += "SamplerState __SamplerState" + std::to_string(samplerdesc.second) + " : register(s" + std::to_string(samplerdesc.second) + ");\n";
-		}
-
-		source += _global_code.str();
-
-#if RESHADE_DUMP_NATIVE_SHADERS
-		if (!_dumped_shaders.count(node->unique_name))
-		{
-			std::ofstream dumpfile(_dump_filename.string(), std::ios::app);
-
-			if (dumpfile.is_open())
-			{
-				dumpfile << "#ifdef RESHADE_SHADER_" << shadertype << "_" << node->unique_name << std::endl << source << "#endif" << std::endl << std::endl;
-
-				_dumped_shaders.insert(node->unique_name);
-			}
-		}
-#endif
-
-		UINT flags = D3DCOMPILE_ENABLE_STRICTNESS;
-		com_ptr<ID3DBlob> compiled, errors;
-
-		if (_skip_shader_optimization)
-		{
-			flags |= D3DCOMPILE_SKIP_OPTIMIZATION;
-		}
-
-		const auto D3DCompile = reinterpret_cast<pD3DCompile>(GetProcAddress(_d3dcompiler_module, "D3DCompile"));
-		HRESULT hr = D3DCompile(source.c_str(), source.length(), nullptr, nullptr, nullptr, node->unique_name.c_str(), profile.c_str(), flags, 0, &compiled, &errors);
-
-		if (errors != nullptr)
-		{
-			_errors.append(static_cast<const char *>(errors->GetBufferPointer()), errors->GetBufferSize() - 1);
-		}
-
-		if (FAILED(hr))
-		{
-			error(node->location, "internal shader compilation failed");
+			error(e.what());
 			return;
 		}
 
-		if (shadertype == "vs")
+		// Figure out the target profile name
+		switch (entry.execution_model)
 		{
-			hr = _runtime->_device->CreateVertexShader(compiled->GetBufferPointer(), compiled->GetBufferSize(), &pass.vertex_shader);
+		case spv::ExecutionModelVertex:
+			target = "vs_" + std::to_string(shader_model_version / 10) + '_' + std::to_string(shader_model_version % 10);
+			break;
+		case spv::ExecutionModelFragment:
+			target = "ps_" + std::to_string(shader_model_version / 10) + '_' + std::to_string(shader_model_version % 10);
+			break;
 		}
-		else if (shadertype == "ps")
+
+		// Compile the generated HLSL source code to DX byte code
+		com_ptr<ID3DBlob> compiled, errors;
+
+		const auto D3DCompile = reinterpret_cast<pD3DCompile>(GetProcAddress(_d3dcompiler_module, "D3DCompile"));
+
+		HRESULT hr = D3DCompile(hlsl.c_str(), hlsl.size(), nullptr, nullptr, nullptr, "main", target.c_str(), D3DCOMPILE_ENABLE_STRICTNESS, 0, &compiled, &errors);
+
+		if (errors != nullptr)
+			_errors.append(static_cast<const char *>(errors->GetBufferPointer()), errors->GetBufferSize() - 1); // Subtracting one to not append the null-terminator as well
+
+		if (FAILED(hr))
 		{
-			hr = _runtime->_device->CreatePixelShader(compiled->GetBufferPointer(), compiled->GetBufferSize(), &pass.pixel_shader);
+			error("internal shader compilation failed");
+			return;
+		}
+
+		// Create runtime shader objects from the compiled DX byte code
+		switch (entry.execution_model)
+		{
+		case spv::ExecutionModelVertex:
+			hr = _runtime->_device->CreateVertexShader(compiled->GetBufferPointer(), compiled->GetBufferSize(), &vs_entry_points[entry.name]);
+			break;
+		case spv::ExecutionModelFragment:
+			hr = _runtime->_device->CreatePixelShader(compiled->GetBufferPointer(), compiled->GetBufferSize(), &ps_entry_points[entry.name]);
+			break;
 		}
 
 		if (FAILED(hr))
 		{
-			error(node->location, "'CreateShader' failed with error code " + std::to_string(static_cast<unsigned long>(hr)) + "!");
+			error("'CreateShader' failed with error code " + std::to_string(static_cast<unsigned long>(hr)) + "!");
 			return;
 		}
 	}

@@ -7,6 +7,7 @@
 
 #include "spirv_helpers.hpp"
 #include "spirv_instruction.hpp"
+#include <unordered_map>
 #include <unordered_set>
 
 namespace reshadefx
@@ -38,23 +39,39 @@ namespace reshadefx
 		spv::Id entry_point = 0;
 	};
 
+	struct spirv_uniform_info
+	{
+		std::string name;
+		spv::Id type_id = 0;
+		spv::Id struct_type_id = 0;
+		uint32_t member_index = 0;
+		std::unordered_map<std::string, std::string> annotations;
+	};
+
 	struct spirv_texture_info
 	{
+		spv::Id id = 0;
+		std::string semantic;
 		std::string unique_name;
+		std::unordered_map<std::string, std::string> annotations;
 		uint32_t width = 1;
 		uint32_t height = 1;
 		uint32_t levels = 1;
-		uint32_t format = 0;
+		uint32_t format = 8; // RGBA8
 	};
 
 	struct spirv_sampler_info
 	{
+		spv::Id id = 0;
+		uint32_t set = 0;
+		uint32_t binding = 0;
 		std::string unique_name;
-		uint32_t texture = ~0u;
-		uint32_t filter = 0;
-		uint32_t address_u = 0;
-		uint32_t address_v = 0;
-		uint32_t address_w = 0;
+		std::string texture_name;
+		std::unordered_map<std::string, std::string> annotations;
+		uint32_t filter = 0x1; // LINEAR
+		uint32_t address_u = 3; // CLAMP
+		uint32_t address_v = 3;
+		uint32_t address_w = 3;
 		float min_lod = -FLT_MAX;
 		float max_lod = +FLT_MAX;
 		float lod_bias = 0.0f;
@@ -63,7 +80,7 @@ namespace reshadefx
 
 	struct spirv_pass_info
 	{
-		spv::Id render_targets[8] = {};
+		std::string render_target_names[8] = {};
 		std::string vs_entry_point;
 		std::string ps_entry_point;
 		//char vs_entry_point[64];
@@ -75,23 +92,24 @@ namespace reshadefx
 		uint8_t color_write_mask = 0xF;
 		uint8_t stencil_read_mask = 0xFF;
 		uint8_t stencil_write_mask = 0xFF;
-		uint32_t blend_op = 1;
-		uint32_t blend_op_alpha = 1;
-		uint32_t src_blend = 1;
-		uint32_t dest_blend = 0;
-		uint32_t src_blend_alpha = 1;
-		uint32_t dest_blend_alpha = 0;
-		uint32_t stencil_comparison_func = 1;
+		uint32_t blend_op = 1; // ADD
+		uint32_t blend_op_alpha = 1; // ADD
+		uint32_t src_blend = 1; // ONE
+		uint32_t dest_blend = 0; // ZERO
+		uint32_t src_blend_alpha = 1; // ONE
+		uint32_t dest_blend_alpha = 0; // ZERO
+		uint32_t stencil_comparison_func = 8; // ALWAYS
 		uint32_t stencil_reference_value = 0;
-		uint32_t stencil_op_pass = 1;
-		uint32_t stencil_op_fail = 1;
-		uint32_t stencil_op_depth_fail = 1;
+		uint32_t stencil_op_pass = 1; // KEEP
+		uint32_t stencil_op_fail = 1; // KEEP
+		uint32_t stencil_op_depth_fail = 1; // KEEP
 	};
 
 	struct spirv_technique_info
 	{
 		std::string name;
 		std::vector<spirv_pass_info> passes;
+		std::unordered_map<std::string, std::string> annotations;
 	};
 
 	class spirv_module
@@ -108,7 +126,7 @@ namespace reshadefx
 			std::vector<spirv_type> param_types;
 		};
 
-		void write_module(std::ostream &stream);
+		void write_module(std::vector<uint32_t> &stream) const;
 
 		spirv_instruction &add_instruction(spirv_basic_block &section, const location &loc, spv::Op op, spv::Id type = 0);
 		spirv_instruction &add_instruction_without_result(spirv_basic_block &section, const location &loc, spv::Op op);
@@ -119,6 +137,11 @@ namespace reshadefx
 		spv::Id convert_constant(const spirv_type &type, const spirv_constant &data);
 
 		void add_capability(spv::Capability capability);
+
+		std::vector<spirv_texture_info> _textures;
+		std::vector<spirv_sampler_info> _samplers;
+		std::vector<spirv_uniform_info> _uniforms;
+		std::vector<spirv_technique_info> _techniques;
 
 	protected:
 		spv::Id make_id() { return _next_id++; }
@@ -160,10 +183,6 @@ namespace reshadefx
 
 		spv::Id _current_block = 0;
 		size_t  _current_function = std::numeric_limits<size_t>::max();
-
-		std::vector<spirv_texture_info> _textures;
-		std::vector<spirv_sampler_info> _samplers;
-		std::vector<spirv_technique_info> _techniques;
 
 	private:
 		spv::Id _next_id = 10;

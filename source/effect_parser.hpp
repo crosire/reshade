@@ -63,7 +63,7 @@ namespace reshadefx
 		bool parse_expression_multary(spirv_basic_block &block, spirv_expression &expression, unsigned int precedence = 0);
 		bool parse_expression_assignment(spirv_basic_block &block, spirv_expression &expression);
 
-		bool parse_annotations(std::unordered_map<std::string, spirv_constant> &annotations);
+		bool parse_annotations(std::unordered_map<std::string, std::string> &annotations);
 
 		bool parse_statement(spirv_basic_block &block, bool scoped);
 		bool parse_statement_block(spirv_basic_block &block, bool scoped);
@@ -82,7 +82,6 @@ namespace reshadefx
 		std::vector<spv::Id> _loop_break_target_stack;
 		std::vector<spv::Id> _loop_continue_target_stack;
 
-		std::unordered_map<spv::Id, std::string> _texture_semantics;
 		std::unordered_map<spv::Id, spirv_struct_info> _structs;
 		std::vector<std::unique_ptr<spirv_function_info>> _functions;
 		std::unordered_map<std::string, uint32_t> _semantic_to_location;
@@ -91,6 +90,5 @@ namespace reshadefx
 		spv::Id _global_ubo_type = 0;
 		spv::Id _global_ubo_variable = 0;
 		uint32_t _global_ubo_offset = 0;
-		spirv_struct_info _uniforms;
 	};
 }

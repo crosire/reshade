@@ -23,6 +23,15 @@ namespace reshade::opengl
 		bool should_delete = false;
 		GLuint id[2] = { };
 	};
+
+	struct opengl_sampler_data
+	{
+		GLuint id;
+		opengl_tex_data *texture;
+		bool is_srgb;
+		bool has_mipmaps;
+	};
+
 	struct opengl_pass_data : base_object
 	{
 		~opengl_pass_data()
@@ -43,6 +52,7 @@ namespace reshade::opengl
 		GLboolean color_mask[4] = { };
 		bool srgb = false, blend = false, stencil_test = false, clear_render_targets = true;
 	};
+
 	struct opengl_technique_data : base_object
 	{
 		~opengl_technique_data()
@@ -52,14 +62,7 @@ namespace reshade::opengl
 
 		GLuint query = 0;
 		bool query_in_flight = false;
-	};
-
-	struct opengl_sampler
-	{
-		GLuint id;
-		opengl_tex_data *texture;
-		bool is_srgb;
-		bool has_mipmaps;
+		std::vector<opengl_sampler_data> samplers;
 	};
 
 	class opengl_runtime : public runtime
@@ -75,7 +78,7 @@ namespace reshade::opengl
 		void on_fbo_attachment(GLenum target, GLenum attachment, GLenum objecttarget, GLuint object, GLint level);
 
 		void capture_frame(uint8_t *buffer) const override;
-		bool load_effect(const reshadefx::syntax_tree &ast, std::string &errors) override;
+		bool load_effect(const reshadefx::spirv_module &module, std::string &errors) override;
 		bool update_texture(texture &texture, const uint8_t *data) override;
 		bool update_texture_reference(texture &texture, texture_reference id);
 
@@ -87,9 +90,9 @@ namespace reshade::opengl
 		GLuint _reference_count = 1, _current_vertex_count = 0;
 		GLuint _default_backbuffer_fbo = 0, _default_backbuffer_rbo[2] = { }, _backbuffer_texture[2] = { };
 		GLuint _depth_source_fbo = 0, _depth_source = 0, _depth_texture = 0, _blit_fbo = 0;
-		std::vector<struct opengl_sampler> _effect_samplers;
 		GLuint _default_vao = 0;
 		std::vector<std::pair<GLuint, GLsizeiptr>> _effect_ubos;
+		std::unordered_map<size_t, GLuint> _effect_sampler_states;
 
 	private:
 		struct depth_source_info

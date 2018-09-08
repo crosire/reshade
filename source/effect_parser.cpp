@@ -218,11 +218,8 @@ bool reshadefx::parser::parse(const std::string &input)
 	if (_global_ubo_type != 0)
 	{
 		std::vector<spv::Id> member_types;
-		for (auto &member : _uniforms.member_list)
-		{
-			assert(member.type.has(spirv_type::q_uniform));
-			member_types.push_back(convert_type(member.type));
-		}
+		for (const auto &uniform : _uniforms)
+			member_types.push_back(uniform.type_id);
 
 		define_struct(_global_ubo_type, "$Globals", {}, member_types);
 		add_decoration(_global_ubo_type, spv::DecorationBlock);
@@ -1718,7 +1715,7 @@ bool reshadefx::parser::parse_expression_assignment(spirv_basic_block &block, sp
 	return true;
 }
 
-bool reshadefx::parser::parse_annotations(std::unordered_map<std::string, spirv_constant> &annotations)
+bool reshadefx::parser::parse_annotations(std::unordered_map<std::string, std::string> &annotations)
 {
 	// Check if annotations exist and return early if none do
 	if (!accept('<'))
@@ -1748,7 +1745,21 @@ bool reshadefx::parser::parse_annotations(std::unordered_map<std::string, spirv_
 			continue;
 		}
 
-		annotations[name] = expression.constant;
+		switch (expression.type.base)
+		{
+		case spirv_type::t_int:
+			annotations[name] = std::to_string(expression.constant.as_int[0]);
+			break;
+		case spirv_type::t_uint:
+			annotations[name] = std::to_string(expression.constant.as_uint[0]);
+			break;
+		case spirv_type::t_float:
+			annotations[name] = std::to_string(expression.constant.as_float[0]);
+			break;
+		case spirv_type::t_string:
+			annotations[name] = expression.constant.string_data;
+			break;
+		}
 	}
 
 	return expect('>') && success;
@@ -2692,7 +2703,6 @@ bool reshadefx::parser::parse_variable(spirv_type type, std::string name, spirv_
 	spirv_expression initializer;
 	spirv_texture_info texture_info;
 	spirv_sampler_info sampler_info;
-	std::unordered_map<std::string, spirv_constant> annotation_list;
 
 	if (accept(':'))
 	{
@@ -2708,7 +2718,7 @@ bool reshadefx::parser::parse_variable(spirv_type type, std::string name, spirv_
 	else
 	{
 		// Global variables can have optional annotations
-		if (global && !parse_annotations(annotation_list))
+		if (global && !parse_annotations(texture_info.annotations))
 			return false;
 
 		// Variables without a semantic may have an optional initializer
@@ -2791,7 +2801,8 @@ bool reshadefx::parser::parse_variable(spirv_type type, std::string name, spirv_
 					if (!expression.type.is_texture())
 						return error(expression.location, 3020, "type mismatch, expected texture name"), consume_until('}'), false;
 
-					sampler_info.texture = expression.base;
+					sampler_info.texture_name = std::find_if(_textures.begin(), _textures.end(),
+						[&expression](const auto &it) { return it.id == expression.base; })->unique_name;
 				}
 				else
 				{
@@ -2850,19 +2861,18 @@ bool reshadefx::parser::parse_variable(spirv_type type, std::string name, spirv_
 		// Named constants are special symbols
 		symbol = { spv::OpConstant, 0, type, initializer.constant };
 	}
-	else if (type.is_texture()) // Textures are not written to the module
+	else if (type.is_texture())
 	{
 		assert(global);
 
-		// They are however symbols that can be resolved to form a combined image sampler
 		symbol = { spv::OpVariable, make_id(), type };
-
-		// Keep track of the texture semantic so it can be applied to any samplers referencing it
-		_texture_semantics[symbol.id] = semantic;
 
 		// Add namespace scope to avoid name clashes
 		texture_info.unique_name = 'V' + current_scope().name + name;
 		std::replace(texture_info.unique_name.begin(), texture_info.unique_name.end(), ':', '_');
+
+		texture_info.id = symbol.id;
+		texture_info.semantic = std::move(semantic);
 
 		_textures.push_back(texture_info);
 	}
@@ -2870,7 +2880,7 @@ bool reshadefx::parser::parse_variable(spirv_type type, std::string name, spirv_
 	{
 		assert(global);
 
-		if (sampler_info.texture == 0)
+		if (sampler_info.texture_name.empty())
 			return error(location, 3012, "missing 'Texture' property for '" + name + "'"), false;
 
 		type.is_ptr = true; // Variables are always pointers
@@ -2881,14 +2891,14 @@ bool reshadefx::parser::parse_variable(spirv_type type, std::string name, spirv_
 		sampler_info.unique_name = 'V' + current_scope().name + name;
 		std::replace(sampler_info.unique_name.begin(), sampler_info.unique_name.end(), ':', '_');
 
+		sampler_info.id = symbol.id;
+		sampler_info.set = 1;
+		sampler_info.binding = _current_sampler_binding;
+		sampler_info.annotations = std::move(texture_info.annotations);
+
 		_samplers.push_back(sampler_info);
 
-		semantic = _texture_semantics[sampler_info.texture];
-
 		define_variable(symbol.id, sampler_info.unique_name.c_str(), location, type, spv::StorageClassUniformConstant);
-
-		if (!semantic.empty())
-			add_decoration(symbol.id, spv::DecorationHlslSemanticGOOGLE, semantic.c_str());
 
 		add_decoration(symbol.id, spv::DecorationBinding, { _current_sampler_binding++ });
 		add_decoration(symbol.id, spv::DecorationDescriptorSet, { 1 });
@@ -2912,14 +2922,16 @@ bool reshadefx::parser::parse_variable(spirv_type type, std::string name, spirv_
 		std::string unique_name = 'U' + current_scope().name + name;
 		std::replace(unique_name.begin(), unique_name.end(), ':', '_');
 
-		spirv_struct_member_info member;
-		member.name = unique_name;
-		member.type = type;
-		member.semantic = semantic;
+		spirv_uniform_info uniform_info;
+		uniform_info.name = name;
+		uniform_info.type_id = convert_type(type);
+		uniform_info.struct_type_id = _global_ubo_type;
 
-		const size_t member_index = _uniforms.member_list.size();
+		uniform_info.annotations = std::move(texture_info.annotations);
 
-		_uniforms.member_list.push_back(std::move(member));
+		const size_t member_index = uniform_info.member_index = _uniforms.size();
+
+		_uniforms.push_back(std::move(uniform_info));
 
 		symbol.function = reinterpret_cast<const spirv_function_info *>(member_index);
 
@@ -2983,7 +2995,7 @@ bool reshadefx::parser::parse_technique()
 
 	std::unordered_map<std::string, spirv_constant> annotation_list;
 
-	if (!parse_annotations(annotation_list) || !expect('{'))
+	if (!parse_annotations(info.annotations) || !expect('{'))
 		return false;
 
 	while (!peek('}'))
@@ -3377,7 +3389,8 @@ bool reshadefx::parser::parse_technique_pass(spirv_pass_info &info)
 
 				const size_t target_index = state.size() > 12 ? (state[12] - '0') : 0;
 
-				info.render_targets[target_index] = symbol.id;
+				info.render_target_names[target_index] = std::find_if(_textures.begin(), _textures.end(),
+					[&symbol](const auto &it) { return it.id == symbol.id; })->unique_name;
 			}
 		}
 		else // Handle the rest of the pass states
