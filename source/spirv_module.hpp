@@ -38,31 +38,60 @@ namespace reshadefx
 		spv::Id entry_point = 0;
 	};
 
-	struct spirv_variable_info
+	struct spirv_texture_info
 	{
-		spv::Id definition;
-		std::string name;
 		std::string unique_name;
-		std::string semantic;
-		spv::Id texture;
-		unsigned int width = 1, height = 1, levels = 1;
-		bool srgb_texture;
-		unsigned int format = 0;
-		unsigned int filter = 0;
-		unsigned int address_u = 0;
-		unsigned int address_v = 0;
-		unsigned int address_w = 0;
-		float min_lod, max_lod = FLT_MAX, lod_bias;
+		uint32_t width = 1;
+		uint32_t height = 1;
+		uint32_t levels = 1;
+		uint32_t format = 0;
+	};
+
+	struct spirv_sampler_info
+	{
+		std::string unique_name;
+		uint32_t texture = ~0u;
+		uint32_t filter = 0;
+		uint32_t address_u = 0;
+		uint32_t address_v = 0;
+		uint32_t address_w = 0;
+		float min_lod = -FLT_MAX;
+		float max_lod = +FLT_MAX;
+		float lod_bias = 0.0f;
+		uint8_t srgb = false;
 	};
 
 	struct spirv_pass_info
 	{
 		spv::Id render_targets[8] = {};
-		std::string vs_entry_point, ps_entry_point;
-		bool clear_render_targets = true, srgb_write_enable, blend_enable, stencil_enable;
-		unsigned char color_write_mask = 0xF, stencil_read_mask = 0xFF, stencil_write_mask = 0xFF;
-		unsigned int blend_op = 1, blend_op_alpha = 1, src_blend = 1, dest_blend = 0, src_blend_alpha = 1, dest_blend_alpha = 0;
-		unsigned int stencil_comparison_func = 1, stencil_reference_value, stencil_op_pass = 1, stencil_op_fail = 1, stencil_op_depth_fail = 1;
+		std::string vs_entry_point;
+		std::string ps_entry_point;
+		//char vs_entry_point[64];
+		//char ps_entry_point[64];
+		uint8_t clear_render_targets = true;
+		uint8_t srgb_write_enable = false;
+		uint8_t blend_enable = false;
+		uint8_t stencil_enable = false;
+		uint8_t color_write_mask = 0xF;
+		uint8_t stencil_read_mask = 0xFF;
+		uint8_t stencil_write_mask = 0xFF;
+		uint32_t blend_op = 1;
+		uint32_t blend_op_alpha = 1;
+		uint32_t src_blend = 1;
+		uint32_t dest_blend = 0;
+		uint32_t src_blend_alpha = 1;
+		uint32_t dest_blend_alpha = 0;
+		uint32_t stencil_comparison_func = 1;
+		uint32_t stencil_reference_value = 0;
+		uint32_t stencil_op_pass = 1;
+		uint32_t stencil_op_fail = 1;
+		uint32_t stencil_op_depth_fail = 1;
+	};
+
+	struct spirv_technique_info
+	{
+		std::string name;
+		std::vector<spirv_pass_info> passes;
 	};
 
 	class spirv_module
@@ -81,7 +110,7 @@ namespace reshadefx
 
 		void write_module(std::ostream &stream);
 
-		spirv_instruction &add_intruction(spirv_basic_block &section, const location &loc, spv::Op op, spv::Id type = 0);
+		spirv_instruction &add_instruction(spirv_basic_block &section, const location &loc, spv::Op op, spv::Id type = 0);
 		spirv_instruction &add_instruction_without_result(spirv_basic_block &section, const location &loc, spv::Op op);
 
 		spv::Id convert_type(const spirv_type &info);
@@ -109,11 +138,11 @@ namespace reshadefx
 		void add_member_decoration(spv::Id object, uint32_t member_index, spv::Decoration decoration, std::initializer_list<uint32_t> values = {});
 		void add_entry_point(const char *name, spv::Id function, spv::ExecutionModel model, const std::vector<spv::Id> &io);
 
-		void add_cast_operation(spirv_expression &chain, const spirv_type &in_type);
-		void add_member_access(spirv_expression &chain, size_t index, const spirv_type &in_type);
+		void add_cast_operation(spirv_expression &chain, const spirv_type &type);
+		void add_member_access(spirv_expression &chain, size_t index, const spirv_type &type);
 		void add_static_index_access(spirv_expression &chain, size_t index);
 		void add_dynamic_index_access(spirv_expression &chain, spv::Id index_expression);
-		void add_swizzle_access(spirv_expression &chain, signed char in_swizzle[4], size_t length);
+		void add_swizzle_access(spirv_expression &chain, signed char swizzle[4], size_t length);
 
 		void enter_block(spirv_basic_block &section, spv::Id id);
 		void leave_block_and_kill(spirv_basic_block &section);
@@ -132,7 +161,9 @@ namespace reshadefx
 		spv::Id _current_block = 0;
 		size_t  _current_function = std::numeric_limits<size_t>::max();
 
-		std::string _encoded_data;
+		std::vector<spirv_texture_info> _textures;
+		std::vector<spirv_sampler_info> _samplers;
+		std::vector<spirv_technique_info> _techniques;
 
 	private:
 		spv::Id _next_id = 10;

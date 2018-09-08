@@ -95,9 +95,7 @@ void spirv_module::write_module(std::ostream &s)
 	// All debug instructions
 	write(s, spirv_instruction(spv::OpSource)
 		.add(spv::SourceLanguageHLSL)
-		.add(300)); // Version
-	write(s, spirv_instruction(spv::OpSourceExtension)
-		.add_string(_encoded_data.c_str()));
+		.add(300)); // ReShade FX is similar to HLSL SM 3
 
 	for (const auto &node : _debug_a.instructions)
 		write(s, node);
@@ -126,12 +124,12 @@ void spirv_module::write_module(std::ostream &s)
 	}
 }
 
-spirv_instruction &spirv_module::add_intruction(spirv_basic_block &section, const location &loc, spv::Op op, spv::Id type)
+spirv_instruction &spirv_module::add_instruction(spirv_basic_block &section, const location &loc, spv::Op op, spv::Id type)
 {
-	spirv_instruction &inst = add_instruction_without_result(section, loc, op);
-	inst.type = type;
-	inst.result = make_id();
-	return inst;
+	spirv_instruction &instruction = add_instruction_without_result(section, loc, op);
+	instruction.type = type;
+	instruction.result = make_id();
+	return instruction;
 }
 spirv_instruction &spirv_module::add_instruction_without_result(spirv_basic_block &section, const location &loc, spv::Op op)
 {
@@ -140,47 +138,51 @@ spirv_instruction &spirv_module::add_instruction_without_result(spirv_basic_bloc
 
 void spirv_module::define_struct(spv::Id id, const char *name, const location &loc, const std::vector<spv::Id> &members)
 {
-	spirv_instruction &inst = add_instruction_without_result(_types_and_constants, loc, spv::OpTypeStruct);
-	inst.result = id;
-	inst.add(members.begin(), members.end());
+	add_instruction_without_result(_types_and_constants, loc, spv::OpTypeStruct)
+		.add(members.begin(), members.end())
+		.result = id;
 
-	if (name) add_name(inst.result, name);
+	if (name != nullptr)
+		add_name(id, name);
 }
 void spirv_module::define_function(spv::Id id, const char *name, const location &loc, const reshadefx::spirv_type &ret_type)
 {
 	auto &function = _functions2.emplace_back();
 	function.return_type = ret_type;
 
-	spirv_instruction &inst = function.declaration;
-	inst.op = spv::OpFunction;
-	inst.type = convert_type(ret_type);
-	inst.result = id;
-	inst.add(spv::FunctionControlMaskNone);
+	spirv_instruction &instruction = function.declaration;
+	instruction.op = spv::OpFunction;
+	instruction.type = convert_type(ret_type);
+	instruction.result = id;
+	instruction.add(spv::FunctionControlMaskNone);
 
 	_current_function = _functions2.size() - 1;
 
-	if (name) add_name(inst.result, name);
+	if (name != nullptr)
+		add_name(id, name);
 }
 void spirv_module::define_function_param(spv::Id id, const char *name, const location &loc, const reshadefx::spirv_type &type)
 {
 	_functions2[_current_function].param_types.push_back(type);
 
-	spirv_instruction &inst = add_instruction_without_result(_functions2[_current_function].variables, loc, spv::OpFunctionParameter);
-	inst.type = convert_type(type);
-	inst.result = id;
+	spirv_instruction &instruction = add_instruction_without_result(_functions2[_current_function].variables, loc, spv::OpFunctionParameter);
+	instruction.type = convert_type(type);
+	instruction.result = id;
 
-	if (name) add_name(inst.result, name);
+	if (name != nullptr)
+		add_name(id, name);
 }
 void spirv_module::define_variable(spv::Id id, const char *name, const location &loc, const reshadefx::spirv_type &type, spv::StorageClass storage, spv::Id initializer)
 {
-	spirv_instruction &node = add_instruction_without_result(storage != spv::StorageClassFunction ? _variables : _functions2[_current_function].variables, loc, spv::OpVariable)
-		.add(storage);
-	node.type = convert_type(type);
-	node.result = id;
-	if (initializer)
-		node.add(initializer);
-	if (name)
-		add_name(node.result, name);
+	spirv_instruction &instruction = add_instruction_without_result(storage != spv::StorageClassFunction ? _variables : _functions2[_current_function].variables, loc, spv::OpVariable);
+	instruction.type = convert_type(type);
+	instruction.result = id;
+	instruction.add(storage);
+	if (initializer != 0)
+		instruction.add(initializer);
+
+	if (name != nullptr)
+		add_name(id, name);
 }
 
 void spirv_module::add_capability(spv::Capability capability)
@@ -190,6 +192,7 @@ void spirv_module::add_capability(spv::Capability capability)
 
 void spirv_module::add_name(spv::Id id, const char *name)
 {
+	assert(name != nullptr);
 	add_instruction_without_result(_debug_b, {}, spv::OpName)
 		.add(id)
 		.add_string(name);
@@ -203,6 +206,7 @@ void spirv_module::add_builtin(spv::Id id, spv::BuiltIn builtin)
 }
 void spirv_module::add_decoration(spv::Id id, spv::Decoration decoration, const char *string)
 {
+	assert(string != nullptr);
 	add_instruction_without_result(_annotations, {}, spv::OpDecorateStringGOOGLE)
 		.add(id)
 		.add(decoration)
@@ -210,15 +214,14 @@ void spirv_module::add_decoration(spv::Id id, spv::Decoration decoration, const 
 }
 void spirv_module::add_decoration(spv::Id id, spv::Decoration decoration, std::initializer_list<uint32_t> values)
 {
-	spirv_instruction &node = add_instruction_without_result(_annotations, {}, spv::OpDecorate)
+	add_instruction_without_result(_annotations, {}, spv::OpDecorate)
 		.add(id)
-		.add(decoration);
-
-	for (uint32_t value : values)
-		node.add(value);
+		.add(decoration)
+		.add(values.begin(), values.end());
 }
 void spirv_module::add_member_name(spv::Id id, uint32_t member_index, const char *name)
 {
+	assert(name != nullptr);
 	add_instruction_without_result(_debug_b, {}, spv::OpMemberName)
 		.add(id)
 		.add(member_index)
@@ -234,6 +237,7 @@ void spirv_module::add_member_builtin(spv::Id id, uint32_t member_index, spv::Bu
 }
 void spirv_module::add_member_decoration(spv::Id id, uint32_t member_index, spv::Decoration decoration, const char *string)
 {
+	assert(string != nullptr);
 	add_instruction_without_result(_annotations, {}, spv::OpMemberDecorateStringGOOGLE)
 		.add(id)
 		.add(member_index)
@@ -242,22 +246,20 @@ void spirv_module::add_member_decoration(spv::Id id, uint32_t member_index, spv:
 }
 void spirv_module::add_member_decoration(spv::Id id, uint32_t member_index, spv::Decoration decoration, std::initializer_list<uint32_t> values)
 {
-	spirv_instruction &node = add_instruction_without_result(_annotations, {}, spv::OpMemberDecorate)
+	add_instruction_without_result(_annotations, {}, spv::OpMemberDecorate)
 		.add(id)
 		.add(member_index)
-		.add(decoration);
-
-	for (uint32_t value : values)
-		node.add(value);
+		.add(decoration)
+		.add(values.begin(), values.end());
 }
 void spirv_module::add_entry_point(const char *name, spv::Id function, spv::ExecutionModel model, const std::vector<spv::Id> &io)
 {
-	spirv_instruction &node = add_instruction_without_result(_entries, {}, spv::OpEntryPoint);
-	node.add(model);
-	node.add(function);
-	node.add_string(name);
-	for (auto interface : io)
-		node.add(interface);
+	assert(name != nullptr);
+	add_instruction_without_result(_entries, {}, spv::OpEntryPoint)
+		.add(model)
+		.add(function)
+		.add_string(name)
+		.add(io.begin(), io.end());
 }
 
 void spirv_module::add_cast_operation(spirv_expression &chain, const reshadefx::spirv_type &in_type)
@@ -428,27 +430,32 @@ void spirv_module::add_swizzle_access(spirv_expression &chain, signed char in_sw
 
 void spirv_module::enter_block(spirv_basic_block &section, spv::Id id)
 {
-	assert(_current_block == 0);
-	assert(_current_function != std::numeric_limits<size_t>::max());
+	assert(_current_block == 0); // Should never be in another basic block if creating a new one
+	assert(_current_function != std::numeric_limits<size_t>::max()); // Can only use labels inside functions
 
-	_current_block = id;
+	add_instruction_without_result(section, {}, spv::OpLabel)
+		.result = id;
 
-	spirv_instruction &instruction = add_instruction_without_result(section, {}, spv::OpLabel);
-	instruction.result = id;
+	_current_block = id; // All instructions following a label are inside that basic block
 }
 void spirv_module::leave_block_and_kill(spirv_basic_block &section)
 {
-	assert(_current_function != std::numeric_limits<size_t>::max());
-	if (_current_block == 0) // Might already have left
+	assert(_current_function != std::numeric_limits<size_t>::max()); // Can only discard inside functions
+
+	if (_current_block == 0)
 		return;
+
 	add_instruction_without_result(section, {}, spv::OpKill);
-	_current_block = 0;
+
+	_current_block = 0; // A discard leaves the current basic block
 }
 void spirv_module::leave_block_and_return(spirv_basic_block &section, spv::Id value)
 {
-	assert(_current_function != std::numeric_limits<size_t>::max());
-	if (_current_block == 0) // Might already have left
+	assert(_current_function != std::numeric_limits<size_t>::max()); // Can only return from inside functions
+
+	if (_current_block == 0) // Might already have left the last block in which case this has to be ignored
 		return;
+
 	if (_functions2[_current_function].return_type.is_void())
 	{
 		add_instruction_without_result(section, {}, spv::OpReturn);
@@ -457,41 +464,51 @@ void spirv_module::leave_block_and_return(spirv_basic_block &section, spv::Id va
 	{
 		if (value == 0)
 		{
-			value = add_intruction(_types_and_constants, {}, spv::OpUndef, convert_type(_functions2[_current_function].return_type)).result;
+			value = add_instruction(_types_and_constants, {}, spv::OpUndef, convert_type(_functions2[_current_function].return_type)).result;
 		}
 
 		add_instruction_without_result(section, {}, spv::OpReturnValue)
 			.add(value);
 	}
-	_current_block = 0;
+
+	_current_block = 0; // A return leaves the current basic block
 }
 void spirv_module::leave_block_and_branch(spirv_basic_block &section, spv::Id target)
 {
-	assert(_current_function != std::numeric_limits<size_t>::max());
+	assert(_current_function != std::numeric_limits<size_t>::max()); // Can only branch inside functions
+
 	if (_current_block == 0)
 		return;
+
 	add_instruction_without_result(section, {}, spv::OpBranch)
 		.add(target);
-	_current_block = 0;
+
+	_current_block = 0; // A branch leaves the current basic block
 }
 void spirv_module::leave_block_and_branch_conditional(spirv_basic_block &section, spv::Id condition, spv::Id true_target, spv::Id false_target)
 {
-	assert(_current_function != std::numeric_limits<size_t>::max());
+	assert(_current_function != std::numeric_limits<size_t>::max()); // Can only branch inside functions
+
 	if (_current_block == 0)
 		return;
+
 	add_instruction_without_result(section, {}, spv::OpBranchConditional)
 		.add(condition)
 		.add(true_target)
 		.add(false_target);
-	_current_block = 0;
+
+	_current_block = 0; // A branch leaves the current basic block
 }
 void spirv_module::leave_function()
 {
-	assert(_current_function != std::numeric_limits<size_t>::max());
+	assert(_current_function != std::numeric_limits<size_t>::max()); // Can only leave if there was a function to begin with
+
 	auto &function = _functions2[_current_function];
 
+	// Append function end instruction
 	add_instruction_without_result(function.definition, {}, spv::OpFunctionEnd);
 
+	// Now that all parameters are known, the full function type can be added to the function
 	function.declaration.add(convert_type(function)); // Function Type
 
 	_current_function = std::numeric_limits<size_t>::max();
@@ -524,7 +541,7 @@ spv::Id spirv_module::convert_type(const reshadefx::spirv_type &info)
 		if (info.has(spirv_type::q_uniform))
 			storage = (info.is_texture() || info.is_sampler()) ? spv::StorageClassUniformConstant : spv::StorageClassUniform;
 
-		type = add_intruction(_types_and_constants, {}, spv::OpTypePointer)
+		type = add_instruction(_types_and_constants, {}, spv::OpTypePointer)
 			.add(storage)
 			.add(elemtype)
 			.result;
@@ -545,14 +562,14 @@ spv::Id spirv_module::convert_type(const reshadefx::spirv_type &info)
 
 			const spv::Id length_constant = convert_constant({ spirv_type::t_uint, 1, 1 }, length_data);
 
-			type = add_intruction(_types_and_constants, {}, spv::OpTypeArray)
+			type = add_instruction(_types_and_constants, {}, spv::OpTypeArray)
 				.add(elemtype)
 				.add(length_constant)
 				.result;
 		}
 		else // Dynamic array
 		{
-			type = add_intruction(_types_and_constants, {}, spv::OpTypeRuntimeArray)
+			type = add_instruction(_types_and_constants, {}, spv::OpTypeRuntimeArray)
 				.add(elemtype)
 				.result;
 		}
@@ -573,7 +590,7 @@ spv::Id spirv_module::convert_type(const reshadefx::spirv_type &info)
 		}
 		else
 		{
-			type = add_intruction(_types_and_constants, {}, spv::OpTypeMatrix)
+			type = add_instruction(_types_and_constants, {}, spv::OpTypeMatrix)
 				.add(elemtype)
 				.add(info.rows)
 				.result;
@@ -587,7 +604,7 @@ spv::Id spirv_module::convert_type(const reshadefx::spirv_type &info)
 
 		const spv::Id elemtype = convert_type(eleminfo);
 
-		type = add_intruction(_types_and_constants, {}, spv::OpTypeVector)
+		type = add_instruction(_types_and_constants, {}, spv::OpTypeVector)
 			.add(elemtype)
 			.add(info.rows)
 			.result;
@@ -600,28 +617,28 @@ spv::Id spirv_module::convert_type(const reshadefx::spirv_type &info)
 		{
 		case spirv_type::t_void:
 			assert(info.rows == 0 && info.cols == 0);
-			type = add_intruction(_types_and_constants, {}, spv::OpTypeVoid).result;
+			type = add_instruction(_types_and_constants, {}, spv::OpTypeVoid).result;
 			break;
 		case spirv_type::t_bool:
 			assert(info.rows == 1 && info.cols == 1);
-			type = add_intruction(_types_and_constants, {}, spv::OpTypeBool).result;
+			type = add_instruction(_types_and_constants, {}, spv::OpTypeBool).result;
 			break;
 		case spirv_type::t_float:
 			assert(info.rows == 1 && info.cols == 1);
-			type = add_intruction(_types_and_constants, {}, spv::OpTypeFloat)
+			type = add_instruction(_types_and_constants, {}, spv::OpTypeFloat)
 				.add(32)
 				.result;
 			break;
 		case spirv_type::t_int:
 			assert(info.rows == 1 && info.cols == 1);
-			type = add_intruction(_types_and_constants, {}, spv::OpTypeInt)
+			type = add_instruction(_types_and_constants, {}, spv::OpTypeInt)
 				.add(32)
 				.add(1)
 				.result;
 			break;
 		case spirv_type::t_uint:
 			assert(info.rows == 1 && info.cols == 1);
-			type = add_intruction(_types_and_constants, {}, spv::OpTypeInt)
+			type = add_instruction(_types_and_constants, {}, spv::OpTypeInt)
 				.add(32)
 				.add(0)
 				.result;
@@ -633,7 +650,7 @@ spv::Id spirv_module::convert_type(const reshadefx::spirv_type &info)
 		case spirv_type::t_texture: {
 			assert(info.rows == 0 && info.cols == 0);
 			spv::Id sampled_type = convert_type({ spirv_type::t_float, 1, 1 });
-			type = add_intruction(_types_and_constants, {}, spv::OpTypeImage)
+			type = add_instruction(_types_and_constants, {}, spv::OpTypeImage)
 				.add(sampled_type) // Sampled Type
 				.add(spv::Dim2D)
 				.add(0) // Not a depth image
@@ -647,7 +664,7 @@ spv::Id spirv_module::convert_type(const reshadefx::spirv_type &info)
 		case spirv_type::t_sampler: {
 			assert(info.rows == 0 && info.cols == 0);
 			spv::Id image_type = convert_type({ spirv_type::t_texture, 0, 0, spirv_type::q_uniform });
-			type = add_intruction(_types_and_constants, {}, spv::OpTypeSampledImage)
+			type = add_instruction(_types_and_constants, {}, spv::OpTypeSampledImage)
 				.add(image_type)
 				.result;
 			break;
@@ -673,7 +690,7 @@ spv::Id spirv_module::convert_type(const function_info2 &info)
 	for (auto param : info.param_types)
 		param_type_ids.push_back(convert_type(param));
 
-	spirv_instruction &node = add_intruction(_types_and_constants, {}, spv::OpTypeFunction);
+	spirv_instruction &node = add_instruction(_types_and_constants, {}, spv::OpTypeFunction);
 	node.add(return_type);
 	for (auto param_type : param_type_ids)
 		node.add(param_type);
@@ -713,7 +730,7 @@ spv::Id spirv_module::convert_constant(const reshadefx::spirv_type &type, const 
 		for (size_t i = elements.size(); i < static_cast<size_t>(type.array_length); ++i)
 			elements.push_back(convert_constant(elem_type, {}));
 
-		spirv_instruction &node = add_intruction(_types_and_constants, {}, spv::OpConstantComposite, convert_type(type));
+		spirv_instruction &node = add_instruction(_types_and_constants, {}, spv::OpConstantComposite, convert_type(type));
 
 		for (spv::Id elem : elements)
 			node.add(elem);
@@ -722,7 +739,7 @@ spv::Id spirv_module::convert_constant(const reshadefx::spirv_type &type, const 
 	}
 	else if (type.is_struct())
 	{
-		result = add_intruction(_types_and_constants, {}, spv::OpConstantNull, convert_type(type)).result;
+		result = add_instruction(_types_and_constants, {}, spv::OpConstantNull, convert_type(type)).result;
 	}
 	else if (type.is_matrix())
 	{
@@ -746,7 +763,7 @@ spv::Id spirv_module::convert_constant(const reshadefx::spirv_type &type, const 
 		}
 		else
 		{
-			spirv_instruction &node = add_intruction(_types_and_constants, {}, spv::OpConstantComposite, convert_type(type));
+			spirv_instruction &node = add_instruction(_types_and_constants, {}, spv::OpConstantComposite, convert_type(type));
 
 			for (unsigned int i = 0; i < type.rows; ++i)
 				node.add(rows[i]);
@@ -768,7 +785,7 @@ spv::Id spirv_module::convert_constant(const reshadefx::spirv_type &type, const 
 			rows[i] = convert_constant(scalar_type, scalar_data);
 		}
 
-		spirv_instruction &node = add_intruction(_types_and_constants, {}, spv::OpConstantComposite, convert_type(type));
+		spirv_instruction &node = add_instruction(_types_and_constants, {}, spv::OpConstantComposite, convert_type(type));
 
 		for (unsigned int i = 0; i < type.rows; ++i)
 			node.add(rows[i]);
@@ -777,12 +794,12 @@ spv::Id spirv_module::convert_constant(const reshadefx::spirv_type &type, const 
 	}
 	else if (type.is_boolean())
 	{
-		result = add_intruction(_types_and_constants, {}, data.as_uint[0] ? spv::OpConstantTrue : spv::OpConstantFalse, convert_type(type)).result;
+		result = add_instruction(_types_and_constants, {}, data.as_uint[0] ? spv::OpConstantTrue : spv::OpConstantFalse, convert_type(type)).result;
 	}
 	else
 	{
 		assert(type.is_scalar());
-		result = add_intruction(_types_and_constants, {}, spv::OpConstant, convert_type(type)).add(data.as_uint[0]).result;
+		result = add_instruction(_types_and_constants, {}, spv::OpConstant, convert_type(type)).add(data.as_uint[0]).result;
 	}
 
 	_constant_lookup.push_back({ type, data, result });
@@ -831,7 +848,7 @@ spv::Id spirv_module::construct_type(spirv_basic_block &section, const spirv_typ
 			spirv_type vector_type = type;
 			vector_type.cols = 1;
 
-			spirv_instruction &node = add_intruction(section, {}, spv::OpCompositeConstruct, convert_type(vector_type));
+			spirv_instruction &node = add_instruction(section, {}, spv::OpCompositeConstruct, convert_type(vector_type));
 			for (unsigned int k = 0; k < type.rows; ++k)
 				node.add(ids[i + k]);
 
@@ -841,7 +858,7 @@ spv::Id spirv_module::construct_type(spirv_basic_block &section, const spirv_typ
 		ids.erase(ids.begin() + type.cols, ids.end());
 
 		// Finally, construct a matrix from those column vectors
-		spirv_instruction &node = add_intruction(section, {}, spv::OpCompositeConstruct, convert_type(type));
+		spirv_instruction &node = add_instruction(section, {}, spv::OpCompositeConstruct, convert_type(type));
 
 		for (size_t i = 0; i < ids.size(); i += type.rows)
 		{
@@ -866,7 +883,7 @@ spv::Id spirv_module::construct_type(spirv_basic_block &section, const spirv_typ
 		}
 	}
 
-	return add_intruction(section, {}, spv::OpCompositeConstruct, convert_type(type))
+	return add_instruction(section, {}, spv::OpCompositeConstruct, convert_type(type))
 		.add(ids.begin(), ids.end())
 		.result;
 }
@@ -891,7 +908,7 @@ spv::Id spirv_module::access_chain_load(spirv_basic_block &section, const spirv_
 		if (!chain.ops.empty() && chain.ops[0].type == op_index)
 		{
 			assert(chain.ops[0].to.is_ptr);
-			spirv_instruction &node = add_intruction(section, chain.location, spv::OpAccessChain)
+			spirv_instruction &node = add_instruction(section, chain.location, spv::OpAccessChain)
 				.add(result); // Base
 
 			// Ignore first index into 1xN matrices, since they were translated to a vector type in SPIR-V
@@ -909,7 +926,7 @@ spv::Id spirv_module::access_chain_load(spirv_basic_block &section, const spirv_
 
 		base_type.is_ptr = false;
 
-		result = add_intruction(section, chain.location, spv::OpLoad, convert_type(base_type))
+		result = add_instruction(section, chain.location, spv::OpLoad, convert_type(base_type))
 			.add(result) // Pointer
 			.result; // Result ID
 	}
@@ -938,7 +955,7 @@ spv::Id spirv_module::access_chain_load(spirv_basic_block &section, const spirv_
 					const spv::Id true_constant = convert_constant(from_with_to_base, true_value);
 					const spv::Id false_constant = convert_constant(from_with_to_base, false_value);
 
-					result = add_intruction(section, chain.location, spv::OpSelect, convert_type(from_with_to_base))
+					result = add_instruction(section, chain.location, spv::OpSelect, convert_type(from_with_to_base))
 						.add(result) // Condition
 						.add(true_constant)
 						.add(false_constant)
@@ -949,24 +966,24 @@ spv::Id spirv_module::access_chain_load(spirv_basic_block &section, const spirv_
 					switch (op.to.base)
 					{
 					case spirv_type::t_bool:
-						result = add_intruction(section, chain.location, op.from.is_floating_point() ? spv::OpFOrdNotEqual : spv::OpINotEqual, convert_type(from_with_to_base))
+						result = add_instruction(section, chain.location, op.from.is_floating_point() ? spv::OpFOrdNotEqual : spv::OpINotEqual, convert_type(from_with_to_base))
 							.add(result)
 							.add(convert_constant(op.from, {}))
 							.result;
 						break;
 					case spirv_type::t_int:
-						result = add_intruction(section, chain.location, op.from.is_floating_point() ? spv::OpConvertFToS : spv::OpBitcast, convert_type(from_with_to_base))
+						result = add_instruction(section, chain.location, op.from.is_floating_point() ? spv::OpConvertFToS : spv::OpBitcast, convert_type(from_with_to_base))
 							.add(result)
 							.result;
 						break;
 					case spirv_type::t_uint:
-						result = add_intruction(section, chain.location, op.from.is_floating_point() ? spv::OpConvertFToU : spv::OpBitcast, convert_type(from_with_to_base))
+						result = add_instruction(section, chain.location, op.from.is_floating_point() ? spv::OpConvertFToU : spv::OpBitcast, convert_type(from_with_to_base))
 							.add(result)
 							.result;
 						break;
 					case spirv_type::t_float:
 						assert(op.from.is_integral());
-						result = add_intruction(section, chain.location, op.from.is_signed() ? spv::OpConvertSToF : spv::OpConvertUToF, convert_type(from_with_to_base))
+						result = add_instruction(section, chain.location, op.from.is_signed() ? spv::OpConvertSToF : spv::OpConvertUToF, convert_type(from_with_to_base))
 							.add(result)
 							.result;
 						break;
@@ -976,7 +993,7 @@ spv::Id spirv_module::access_chain_load(spirv_basic_block &section, const spirv_
 
 			if (op.to.components() > op.from.components())
 			{
-				spirv_instruction &composite_node = add_intruction(section, chain.location, chain.is_constant ? spv::OpConstantComposite : spv::OpCompositeConstruct, convert_type(op.to));
+				spirv_instruction &composite_node = add_instruction(section, chain.location, chain.is_constant ? spv::OpConstantComposite : spv::OpCompositeConstruct, convert_type(op.to));
 				for (unsigned int i = 0; i < op.to.components(); ++i)
 					composite_node.add(result);
 				result = composite_node.result;
@@ -995,7 +1012,7 @@ spv::Id spirv_module::access_chain_load(spirv_basic_block &section, const spirv_
 			{
 				spirv_type target_type = op.to;
 				target_type.is_ptr = false;
-				spirv_instruction &node = add_intruction(section, chain.location, spv::OpVectorExtractDynamic, convert_type(target_type))
+				spirv_instruction &node = add_instruction(section, chain.location, spv::OpVectorExtractDynamic, convert_type(target_type))
 					.add(result) // Vector
 					.add(op.index); // Index
 
@@ -1020,7 +1037,7 @@ spv::Id spirv_module::access_chain_load(spirv_basic_block &section, const spirv_
 						scalar_type.rows = 1;
 						scalar_type.cols = 1;
 
-						spirv_instruction &node = add_intruction(section, chain.location, spv::OpCompositeExtract, convert_type(scalar_type))
+						spirv_instruction &node = add_instruction(section, chain.location, spv::OpCompositeExtract, convert_type(scalar_type))
 							.add(result);
 
 						if (op.from.rows > 1) // Matrix types with a single row are actually vectors, so they don't need the extra index
@@ -1031,7 +1048,7 @@ spv::Id spirv_module::access_chain_load(spirv_basic_block &section, const spirv_
 						components[i] = node.result;
 					}
 
-					spirv_instruction &node = add_intruction(section, chain.location, spv::OpCompositeConstruct, convert_type(op.to));
+					spirv_instruction &node = add_instruction(section, chain.location, spv::OpCompositeConstruct, convert_type(op.to));
 
 					for (unsigned int i = 0; i < 4 && op.swizzle[i] >= 0; ++i)
 					{
@@ -1045,7 +1062,7 @@ spv::Id spirv_module::access_chain_load(spirv_basic_block &section, const spirv_
 				{
 					assert(op.from.is_vector());
 
-					spirv_instruction &node = add_intruction(section, chain.location, spv::OpVectorShuffle, convert_type(chain.type))
+					spirv_instruction &node = add_instruction(section, chain.location, spv::OpVectorShuffle, convert_type(chain.type))
 						.add(result) // Vector 1
 						.add(result); // Vector 2
 
@@ -1060,7 +1077,7 @@ spv::Id spirv_module::access_chain_load(spirv_basic_block &section, const spirv_
 			{
 				assert(op.swizzle[1] < 0);
 
-				spirv_instruction &node = add_intruction(section, chain.location, spv::OpCompositeExtract, convert_type(op.to))
+				spirv_instruction &node = add_instruction(section, chain.location, spv::OpCompositeExtract, convert_type(op.to))
 					.add(result); // Composite
 
 				if (op.from.is_matrix() && op.from.rows > 1)
@@ -1102,7 +1119,7 @@ void    spirv_module::access_chain_store(spirv_basic_block &section, const spirv
 	if (!chain.ops.empty() && chain.ops[0].type == op_index)
 	{
 		assert(chain.ops[0].to.is_ptr);
-		spirv_instruction &node = add_intruction(section, chain.location, spv::OpAccessChain)
+		spirv_instruction &node = add_instruction(section, chain.location, spv::OpAccessChain)
 			.add(target); // Base
 
 		// Ignore first index into 1xN matrices, since they were translated to a vector type in SPIR-V
@@ -1136,13 +1153,13 @@ void    spirv_module::access_chain_store(spirv_basic_block &section, const spirv
 		{
 			base_type.is_ptr = false;
 
-			spv::Id result = add_intruction(section, chain.location, spv::OpLoad, convert_type(base_type))
+			spv::Id result = add_instruction(section, chain.location, spv::OpLoad, convert_type(base_type))
 				.add(target) // Pointer
 				.result; // Result ID
 
 			if (base_type.is_vector() && value_type.is_vector())
 			{
-				spirv_instruction &node = add_intruction(section, chain.location, spv::OpVectorShuffle, convert_type(base_type))
+				spirv_instruction &node = add_instruction(section, chain.location, spv::OpVectorShuffle, convert_type(base_type))
 					.add(result) // Vector 1
 					.add(value); // Vector 2
 
@@ -1159,7 +1176,7 @@ void    spirv_module::access_chain_store(spirv_basic_block &section, const spirv
 			{
 				assert(op.swizzle[1] < 0); // TODO
 
-				spv::Id result2 = add_intruction(section, chain.location, spv::OpCompositeInsert, convert_type(base_type))
+				spv::Id result2 = add_instruction(section, chain.location, spv::OpCompositeInsert, convert_type(base_type))
 					.add(value) // Object
 					.add(result) // Composite
 					.add(op.swizzle[0]) // Index

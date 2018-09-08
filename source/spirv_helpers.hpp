@@ -85,15 +85,16 @@ namespace reshadefx
 
 		unsigned int components() const { return rows * cols; }
 
-		datatype base; // These are initialized in the type parsing routine
-		unsigned int rows : 4;
-		unsigned int cols : 4;
-		unsigned int qualifiers : 24;
-		bool is_ptr = false;
-		bool is_input = false;
-		bool is_output = false;
-		int array_length = 0;
-		unsigned int definition = 0;
+		// These are initialized in the type parsing routine
+		datatype base; // Underlying base type ('OpTypeInt', 'OpTypeFloat', ...)
+		unsigned int rows : 4; // Number of rows if this is an 'OpTypeVector' type
+		unsigned int cols : 4; // Number of columns if this is an 'OpTypeMatrix' type
+		unsigned int qualifiers : 24; // Bit mask of all the qualifiers decorating the type
+		bool is_ptr = false; // Is an 'OpTypePointer' to the type
+		bool is_input = false; // Has the 'Input' storage class
+		bool is_output = false; // Has the 'Output' storage class
+		int array_length = 0; // Negative if an unsized array, otherwise the number of elements if this is an 'OpTypeArray' type
+		unsigned int definition = 0; // Type ID of the structure type
 	};
 
 	/// <summary>

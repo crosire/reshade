@@ -13,7 +13,7 @@
 namespace reshadefx
 {
 	/// <summary>
-	/// A parser for the ReShade FX language.
+	/// A parser for the ReShade FX shader language.
 	/// </summary>
 	class parser : symbol_table, public spirv_module
 	{
@@ -39,7 +39,6 @@ namespace reshadefx
 
 		bool peek(char tok) const { return peek(static_cast<tokenid>(tok)); }
 		bool peek(tokenid tokid) const;
-		bool peek_multary_op(spv::Op &op, unsigned int &precedence) const;
 		void consume();
 		void consume_until(char tok) { return consume_until(static_cast<tokenid>(tok)); }
 		void consume_until(tokenid tokid);
@@ -51,30 +50,28 @@ namespace reshadefx
 		bool accept_type_class(spirv_type &type);
 		bool accept_type_qualifiers(spirv_type &type);
 
-		bool accept_unary_op(spv::Op &op);
-		bool accept_postfix_op(const spirv_type &type, spv::Op &op);
-		bool accept_assignment_op(const spirv_type &type, spv::Op &op);
-
 		bool parse_type(spirv_type &type);
 		bool parse_array_size(spirv_type &type);
 
-		bool parse_statement(spirv_basic_block &section, bool scoped);
-		bool parse_statement_block(spirv_basic_block &section, bool scoped);
+		bool accept_unary_op(spv::Op &op);
+		bool accept_postfix_op(const spirv_type &type, spv::Op &op);
+		bool peek_multary_op(spv::Op &op, unsigned int &precedence) const;
+		bool accept_assignment_op(const spirv_type &type, spv::Op &op);
 
-		bool parse_expression(spirv_basic_block &section, spirv_expression &expression);
-		bool parse_expression_unary(spirv_basic_block &section, spirv_expression &expression);
-		bool parse_expression_multary(spirv_basic_block &section, spirv_expression &expression, unsigned int precedence = 0);
-		bool parse_expression_assignment(spirv_basic_block &section, spirv_expression &expression);
+		bool parse_expression(spirv_basic_block &block, spirv_expression &expression);
+		bool parse_expression_unary(spirv_basic_block &block, spirv_expression &expression);
+		bool parse_expression_multary(spirv_basic_block &block, spirv_expression &expression, unsigned int precedence = 0);
+		bool parse_expression_assignment(spirv_basic_block &block, spirv_expression &expression);
 
 		bool parse_annotations(std::unordered_map<std::string, spirv_constant> &annotations);
 
-		bool parse_top();
+		bool parse_statement(spirv_basic_block &block, bool scoped);
+		bool parse_statement_block(spirv_basic_block &block, bool scoped);
 
+		bool parse_top();
 		bool parse_struct();
 		bool parse_function(spirv_type type, std::string name);
-		bool parse_variable(spirv_type type, std::string name, spirv_basic_block &section, bool global = false);
-		bool parse_variable_properties(spirv_variable_info &props);
-
+		bool parse_variable(spirv_type type, std::string name, spirv_basic_block &block, bool global = false);
 		bool parse_technique();
 		bool parse_technique_pass(spirv_pass_info &info);
 
@@ -89,6 +86,7 @@ namespace reshadefx
 		std::unordered_map<spv::Id, spirv_struct_info> _structs;
 		std::vector<std::unique_ptr<spirv_function_info>> _functions;
 		std::unordered_map<std::string, uint32_t> _semantic_to_location;
+		uint32_t _current_sampler_binding = 0;
 		uint32_t _current_semantic_location = 0;
 		spv::Id _global_ubo_type = 0;
 		spv::Id _global_ubo_variable = 0;

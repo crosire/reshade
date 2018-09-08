@@ -226,6 +226,7 @@ bool reshadefx::parser::parse(const std::string &input)
 
 		define_struct(_global_ubo_type, "$Globals", {}, member_types);
 		add_decoration(_global_ubo_type, spv::DecorationBlock);
+		add_decoration(_global_ubo_type, spv::DecorationBinding, { 0 });
 		add_decoration(_global_ubo_type, spv::DecorationDescriptorSet, { 0 });
 
 		define_variable(_global_ubo_variable, "$Globals", {}, { spirv_type::t_struct, 0, 0, spirv_type::q_uniform, true, false, false, 0, _global_ubo_type }, spv::StorageClassUniform);
@@ -751,7 +752,7 @@ bool reshadefx::parser::parse_expression_unary(spirv_basic_block &block, spirv_e
 					if (exp.type.is_floating_point()) one.as_float[i] = 1.0f; else one.as_uint[i] =  1u;
 				const spv::Id constant = convert_constant(exp.type, one);
 
-				spv::Id result = add_intruction(block, location, op, convert_type(exp.type))
+				spv::Id result = add_instruction(block, location, op, convert_type(exp.type))
 					.add(value) // Operand 1
 					.add(constant) // Operand 2
 					.result; // Result ID
@@ -771,7 +772,7 @@ bool reshadefx::parser::parse_expression_unary(spirv_basic_block &block, spirv_e
 				}
 				else
 				{
-					spv::Id result = add_intruction(block, location, op, convert_type(exp.type))
+					spv::Id result = add_instruction(block, location, op, convert_type(exp.type))
 						.add(value) // Operand
 						.result; // Result ID
 
@@ -880,7 +881,7 @@ bool reshadefx::parser::parse_expression_unary(spirv_basic_block &block, spirv_e
 
 			composite_type.array_length = elements.size();
 
-			const spv::Id result = add_intruction(block, location, spv::OpCompositeConstruct, convert_type(composite_type))
+			const spv::Id result = add_instruction(block, location, spv::OpCompositeConstruct, convert_type(composite_type))
 				.add(ids.begin(), ids.end())
 				.result;
 
@@ -1110,7 +1111,7 @@ bool reshadefx::parser::parse_expression_unary(spirv_basic_block &block, spirv_e
 			else
 			{
 				// This is a function symbol, so add a call to it
-				spirv_instruction &call = add_intruction(block, location, spv::OpFunctionCall, convert_type(symbol.type))
+				spirv_instruction &call = add_instruction(block, location, spv::OpFunctionCall, convert_type(symbol.type))
 					.add(symbol.id); // Function
 				for (size_t i = 0; i < parameters.size(); ++i)
 					call.add(parameters[i].base); // Arguments
@@ -1169,7 +1170,7 @@ bool reshadefx::parser::parse_expression_unary(spirv_basic_block &block, spirv_e
 				if (exp.type.is_floating_point()) one.as_float[i] = 1.0f; else one.as_uint[i] = 1u;
 			const spv::Id constant = convert_constant(exp.type, one);
 
-			spv::Id result = add_intruction(block, location, op, convert_type(exp.type))
+			spv::Id result = add_instruction(block, location, op, convert_type(exp.type))
 				.add(value) // Operand 1
 				.add(constant) // Operand 2
 				.result; // Result ID
@@ -1512,7 +1513,7 @@ bool reshadefx::parser::parse_expression_multary(spirv_basic_block &block, spirv
 					else
 					{
 						// Emit "if (!lhs) result = rhs"
-						const spv::Id cond = add_intruction(block, lhs.location, spv::OpLogicalNot, convert_type(type))
+						const spv::Id cond = add_instruction(block, lhs.location, spv::OpLogicalNot, convert_type(type))
 							.add(lhs_value)
 							.result;
 						leave_block_and_branch_conditional(block, cond, parent1_label, merge_label);
@@ -1530,7 +1531,7 @@ bool reshadefx::parser::parse_expression_multary(spirv_basic_block &block, spirv
 
 					enter_block(block, merge_label);
 
-					spv::Id result = add_intruction(block, lhs.location, spv::OpPhi, convert_type(type))
+					spv::Id result = add_instruction(block, lhs.location, spv::OpPhi, convert_type(type))
 						.add(lhs_value) // Variable 0
 						.add(parent0_label) // Parent 0
 						.add(rhs_value) // Variable 1
@@ -1552,7 +1553,7 @@ bool reshadefx::parser::parse_expression_multary(spirv_basic_block &block, spirv
 					if (boolean_result)
 						type = { spirv_type::t_bool, type.rows, type.cols };
 
-					spv::Id result = add_intruction(block, lhs.location, op, convert_type(type))
+					spv::Id result = add_instruction(block, lhs.location, op, convert_type(type))
 						.add(lhs_value) // Operand 1
 						.add(rhs_value) // Operand 2
 						.result; // Result ID
@@ -1627,7 +1628,7 @@ bool reshadefx::parser::parse_expression_multary(spirv_basic_block &block, spirv
 
 			enter_block(block, merge_label);
 
-			spv::Id result = add_intruction(block, lhs.location, spv::OpPhi, convert_type(type))
+			spv::Id result = add_instruction(block, lhs.location, spv::OpPhi, convert_type(type))
 				.add(true_value) // Variable 0
 				.add(true_label) // Parent 0
 				.add(false_value) // Variable 1
@@ -1648,7 +1649,7 @@ bool reshadefx::parser::parse_expression_multary(spirv_basic_block &block, spirv
 			const spv::Id false_value = access_chain_load(block, false_exp);
 			assert(false_value != 0);
 
-			spv::Id result = add_intruction(block, lhs.location, spv::OpSelect, convert_type(type))
+			spv::Id result = add_instruction(block, lhs.location, spv::OpSelect, convert_type(type))
 				.add(condition_value) // Condition
 				.add(true_value) // Object 1
 				.add(false_value) // Object 2
@@ -1698,7 +1699,7 @@ bool reshadefx::parser::parse_expression_assignment(spirv_basic_block &block, sp
 			assert(lhs_value != 0);
 
 			// Handle arithmetic assignment operation
-			spv::Id result = add_intruction(block, lhs.location, op, convert_type(lhs.type))
+			spv::Id result = add_instruction(block, lhs.location, op, convert_type(lhs.type))
 				.add(lhs_value) // Operand 1
 				.add(rhs_value) // Operand 2
 				.result; // Result ID
@@ -1754,87 +1755,6 @@ bool reshadefx::parser::parse_annotations(std::unordered_map<std::string, spirv_
 }
 
 // -- Statement & Declaration Parsing -- //
-
-bool reshadefx::parser::parse_top()
-{
-	if (accept(tokenid::namespace_))
-	{
-		// Anonymous namespaces are not supported right now, so an identifier is a must
-		if (!expect(tokenid::identifier))
-			return false;
-
-		const auto name = std::move(_token.literal_as_string);
-
-		if (!expect('{'))
-			return false;
-
-		enter_namespace(name);
-
-		bool success = true;
-		// Recursively parse top level statements until the namespace is closed again
-		while (!peek('}')) // Empty namespaces are valid
-			if (!parse_top())
-				success = false; // Continue parsing even after encountering an error
-
-		leave_namespace();
-
-		return expect('}') && success;
-	}
-	else if (accept(tokenid::struct_)) // Structure keyword found, parse the structure definition
-	{
-		if (!parse_struct() || !expect(';')) // Structure definitions are terminated with a semicolon
-			return false;
-	}
-	else if (accept(tokenid::technique)) // Technique keyword found, parse the technique definition
-	{
-		if (!parse_technique())
-			return false;
-	}
-	else if (spirv_type type; parse_type(type)) // Type found, this can be either a variable or a function declaration
-	{
-		if (!expect(tokenid::identifier))
-			return false;
-
-		if (peek('('))
-		{
-			const auto name = std::move(_token.literal_as_string);
-			// This is definitely a function declaration, so parse it
-			if (!parse_function(type, name)) {
-				// Insert dummy function into symbol table, so later references can be resolved despite the error
-				insert_symbol(name, { spv::OpFunction, std::numeric_limits<spv::Id>::max(), { spirv_type::t_function } }, true);
-				return false;
-			}
-		}
-		else
-		{
-			// There may be multiple variable names after the type, handle them all
-			unsigned int count = 0;
-			// Global variables can't have non-constant initializers, so pass in a throwaway basic block
-			spirv_basic_block block;
-			do {
-				if (count++ > 0 && !(expect(',') && expect(tokenid::identifier)))
-					return false;
-				const auto name = std::move(_token.literal_as_string);
-				if (!parse_variable(type, name, block, true)) {
-					// Insert dummy variable into symbol table, so later references can be resolved despite the error
-					insert_symbol(name, { spv::OpVariable, std::numeric_limits<spv::Id>::max(), type }, true);
-					return consume_until(';'), false; // Skip the rest of the statement in case of an error
-				}
-			} while (!peek(';'));
-
-			if (!expect(';')) // Variable declarations are terminated with a semicolon
-				return false;
-		}
-	}
-	else if (!accept(';')) // Ignore single semicolons in the source
-	{
-		consume(); // Unexpected token in source stream, consume and report an error about it
-		error(_token.location, 3000, "syntax error: unexpected '" + token::id_to_name(_token.id) + "'");
-		return false;
-	}
-
-	return true;
-}
 
 bool reshadefx::parser::parse_statement(spirv_basic_block &block, bool scoped)
 {
@@ -2432,6 +2352,87 @@ bool reshadefx::parser::parse_statement_block(spirv_basic_block &block, bool sco
 	return expect('}');
 }
 
+bool reshadefx::parser::parse_top()
+{
+	if (accept(tokenid::namespace_))
+	{
+		// Anonymous namespaces are not supported right now, so an identifier is a must
+		if (!expect(tokenid::identifier))
+			return false;
+
+		const auto name = std::move(_token.literal_as_string);
+
+		if (!expect('{'))
+			return false;
+
+		enter_namespace(name);
+
+		bool success = true;
+		// Recursively parse top level statements until the namespace is closed again
+		while (!peek('}')) // Empty namespaces are valid
+			if (!parse_top())
+				success = false; // Continue parsing even after encountering an error
+
+		leave_namespace();
+
+		return expect('}') && success;
+	}
+	else if (accept(tokenid::struct_)) // Structure keyword found, parse the structure definition
+	{
+		if (!parse_struct() || !expect(';')) // Structure definitions are terminated with a semicolon
+			return false;
+	}
+	else if (accept(tokenid::technique)) // Technique keyword found, parse the technique definition
+	{
+		if (!parse_technique())
+			return false;
+	}
+	else if (spirv_type type; parse_type(type)) // Type found, this can be either a variable or a function declaration
+	{
+		if (!expect(tokenid::identifier))
+			return false;
+
+		if (peek('('))
+		{
+			const auto name = std::move(_token.literal_as_string);
+			// This is definitely a function declaration, so parse it
+			if (!parse_function(type, name)) {
+				// Insert dummy function into symbol table, so later references can be resolved despite the error
+				insert_symbol(name, { spv::OpFunction, std::numeric_limits<spv::Id>::max(), { spirv_type::t_function } }, true);
+				return false;
+			}
+		}
+		else
+		{
+			// There may be multiple variable names after the type, handle them all
+			unsigned int count = 0;
+			// Global variables can't have non-constant initializers, so pass in a throwaway basic block
+			spirv_basic_block block;
+			do {
+				if (count++ > 0 && !(expect(',') && expect(tokenid::identifier)))
+					return false;
+				const auto name = std::move(_token.literal_as_string);
+				if (!parse_variable(type, name, block, true)) {
+					// Insert dummy variable into symbol table, so later references can be resolved despite the error
+					insert_symbol(name, { spv::OpVariable, std::numeric_limits<spv::Id>::max(), type }, true);
+					return consume_until(';'), false; // Skip the rest of the statement in case of an error
+				}
+			} while (!peek(';'));
+
+			if (!expect(';')) // Variable declarations are terminated with a semicolon
+				return false;
+		}
+	}
+	else if (!accept(';')) // Ignore single semicolons in the source
+	{
+		consume(); // Unexpected token in source stream, consume and report an error about it
+		error(_token.location, 3000, "syntax error: unexpected '" + token::id_to_name(_token.id) + "'");
+		return false;
+	}
+
+	return true;
+}
+
 bool reshadefx::parser::parse_struct()
 {
 	const auto location = std::move(_token.location);
@@ -2527,6 +2528,7 @@ bool reshadefx::parser::parse_struct()
 
 	return expect('}');
 }
+
 bool reshadefx::parser::parse_function(spirv_type type, std::string name)
 {
 	const auto location = std::move(_token.location);
@@ -2637,30 +2639,33 @@ bool reshadefx::parser::parse_function(spirv_type type, std::string name)
 
 	return success;
 }
+
 bool reshadefx::parser::parse_variable(spirv_type type, std::string name, spirv_basic_block &block, bool global)
 {
 	const auto location = std::move(_token.location);
-
-	spirv_variable_info info;
 
 	if (type.is_void())
 		return error(location, 3038, "variables cannot be void"), false;
 	if (type.has(spirv_type::q_in) || type.has(spirv_type::q_out))
 		return error(location, 3055, "variables cannot be declared 'in' or 'out'"), false;
 
-	// Check that qualifier combinations are valid
+	// Local and global variables have different requirements
 	if (global)
 	{
+		// Check that type qualifier combinations are valid
 		if (type.has(spirv_type::q_static))
 		{
+			// Global variables that are 'static' cannot be of another storage class
 			if (type.has(spirv_type::q_uniform))
 				return error(location, 3007, "uniform global variables cannot be declared 'static'"), false;
 		}
 		else
 		{
+			// Make all global variables 'uniform' by default, since they should be externally visible without the 'static' keyword
 			if (!type.has(spirv_type::q_uniform) && !(type.is_texture() || type.is_sampler()))
 				warning(location, 5000, "global variables are considered 'uniform' by default");
 
+			// It is invalid to make 'uniform' variables constant, since they can be modified externally
 			if (type.has(spirv_type::q_const))
 				return error(location, 3035, "variables which are 'uniform' cannot be declared 'const'"), false;
 
@@ -2683,11 +2688,10 @@ bool reshadefx::parser::parse_variable(spirv_type type, std::string name, spirv_
 	if (!parse_array_size(type))
 		return false;
 
-	info.name = name;
-	info.unique_name = global ? (type.has(spirv_type::q_uniform) ? 'U' : 'V') + current_scope().name + name : name;
-	std::replace(info.unique_name.begin(), info.unique_name.end(), ':', '_');
-
+	std::string semantic;
 	spirv_expression initializer;
+	spirv_texture_info texture_info;
+	spirv_sampler_info sampler_info;
 	std::unordered_map<std::string, spirv_constant> annotation_list;
 
 	if (accept(':'))
@@ -2697,9 +2701,9 @@ bool reshadefx::parser::parse_variable(spirv_type type, std::string name, spirv_
 		else if (!global) // Only global variables can have a semantic
 			return error(_token.location, 3043, "local variables cannot have semantics"), false;
 
-		info.semantic = std::move(_token.literal_as_string);
+		semantic = std::move(_token.literal_as_string);
 		// Make semantic upper case to simplify comparison later on
-		std::transform(info.semantic.begin(), info.semantic.end(), info.semantic.begin(), ::toupper);
+		std::transform(semantic.begin(), semantic.end(), semantic.begin(), ::toupper);
 	}
 	else
 	{
@@ -2738,9 +2742,103 @@ bool reshadefx::parser::parse_variable(spirv_type type, std::string name, spirv_
 			else if (!type.has(spirv_type::q_uniform)) // Zero initialize all global variables
 				initializer.reset_to_rvalue_constant(location, {}, type);
 		}
-		else if (peek('{')) // Non-numeric variables can have a property block
+		else if (global && accept('{')) // Textures and samplers can have a property block attached to their declaration
 		{
-			if (!parse_variable_properties(info))
+			while (!peek('}'))
+			{
+				if (!expect(tokenid::identifier))
+					return consume_until('}'), false;
+
+				const auto property_name = std::move(_token.literal_as_string);
+				const auto property_location = std::move(_token.location);
+
+				if (!expect('='))
+					return consume_until('}'), false;
+
+				backup();
+
+				spirv_expression expression;
+
+				if (accept(tokenid::identifier)) // Handle special enumeration names for property values
+				{
+					// Transform identifier to uppercase to do case-insensitive comparison
+					std::transform(_token.literal_as_string.begin(), _token.literal_as_string.end(), _token.literal_as_string.begin(), ::toupper);
+
+					static const std::pair<const char *, uint32_t> s_values[] = {
+						{ "NONE", 0 }, { "POINT", 0 }, { "LINEAR", 1 }, { "ANISOTROPIC", 3 },
+						{ "WRAP", 1 }, { "REPEAT", 1 }, { "MIRROR", 2 }, { "CLAMP", 3 }, { "BORDER", 4 },
+						{ "R8", 1 }, { "R16F", 2 }, { "R32F", 3 }, { "RG8", 4 }, { "R8G8", 4 }, { "RG16", 5 }, { "R16G16", 5 }, { "RG16F", 6 }, { "R16G16F", 6 }, { "RG32F", 7 }, { "R32G32F", 7 },
+						{ "RGBA8", 8 }, { "R8G8B8A8", 8 }, { "RGBA16", 9 }, { "R16G16B16A16", 9 }, { "RGBA16F", 10 }, { "R16G16B16A16F", 10 }, { "RGBA32F", 11 }, { "R32G32B32A32F", 11 },
+						{ "DXT1", 12 }, { "DXT3", 13 }, { "DXT4", 14 }, { "LATC1", 15 }, { "LATC2", 16 },
+					};
+
+					// Look up identifier in list of possible enumeration names
+					const auto it = std::find_if(std::begin(s_values), std::end(s_values),
+						[this](const auto &it) { return it.first == _token.literal_as_string; });
+
+					if (it != std::end(s_values))
+						expression.reset_to_rvalue_constant(_token.location, it->second);
+					else // No match found, so rewind to parser state before the identifier was consumed and try parsing it as a normal expression
+						restore();
+				}
+
+				// Parse right hand side as normal expression if no special enumeration name was matched already
+				if (spirv_basic_block temp_block; !expression.is_constant && !parse_expression_multary(temp_block, expression))
+					return error(_token_next.location, 3000, "syntax error: unexpected '" + token::id_to_name(_token_next.id) + "', expected expression"), consume_until('}'), false;
+
+				if (property_name == "Texture")
+				{
+					if (!expression.type.is_texture())
+						return error(expression.location, 3020, "type mismatch, expected texture name"), consume_until('}'), false;
+
+					sampler_info.texture = expression.base;
+				}
+				else
+				{
+					if (!expression.is_constant || !expression.type.is_scalar())
+						return error(expression.location, 3011, "value must be a literal scalar expression"), consume_until('}'), false;
+
+					// All states below expect the value to be of an unsigned integer type
+					add_cast_operation(expression, { spirv_type::t_uint, 1, 1 });
+					const unsigned int value = expression.constant.as_uint[0];
+
+					if (property_name == "Width")
+						texture_info.width = value > 0 ? value : 1;
+					else if (property_name == "Height")
+						texture_info.height = value > 0 ? value : 1;
+					else if (property_name == "MipLevels")
+						texture_info.levels = value > 0 ? value : 1;
+					else if (property_name == "Format")
+						texture_info.format = value;
+					else if (property_name == "SRGBTexture" || property_name == "SRGBReadEnable")
+						sampler_info.srgb = value != 0;
+					else if (property_name == "AddressU")
+						sampler_info.address_u = value;
+					else if (property_name == "AddressV")
+						sampler_info.address_v = value;
+					else if (property_name == "AddressW")
+						sampler_info.address_w = value;
+					else if (property_name == "MinFilter")
+						sampler_info.filter = (sampler_info.filter & 0x0F) | ((value << 4) & 0x30);
+					else if (property_name == "MagFilter")
+						sampler_info.filter = (sampler_info.filter & 0x33) | ((value << 2) & 0x0C);
+					else if (property_name == "MipFilter")
+						sampler_info.filter = (sampler_info.filter & 0x3C) | (value & 0x03);
+					else if (property_name == "MinLOD" || property_name == "MaxMipLevel")
+						sampler_info.min_lod = static_cast<float>(value);
+					else if (property_name == "MaxLOD")
+						sampler_info.max_lod = static_cast<float>(value);
+					else if (property_name == "MipLODBias" || property_name == "MipMapLodBias")
+						sampler_info.lod_bias = static_cast<float>(value);
+					else
+						return error(property_location, 3004, "unrecognized property '" + property_name + "'"), consume_until('}'), false;
+				}
+
+				if (!expect(';'))
+					return consume_until('}'), false;
+			}
+
+			if (!expect('}'))
 				return false;
 		}
 	}
@@ -2749,33 +2847,56 @@ bool reshadefx::parser::parse_variable(spirv_type type, std::string name, spirv_
 
 	if (type.is_numeric() && type.has(spirv_type::q_const) && initializer.is_constant) // Variables with a constant initializer and constant type are named constants
 	{
+		// Named constants are special symbols
 		symbol = { spv::OpConstant, 0, type, initializer.constant };
 	}
-	else if (type.is_texture()) // Textures are not written to the output
+	else if (type.is_texture()) // Textures are not written to the module
 	{
+		assert(global);
+
+		// They are however symbols that can be resolved to form a combined image sampler
 		symbol = { spv::OpVariable, make_id(), type };
 
-		_texture_semantics[symbol.id] = info.semantic;
+		// Keep track of the texture semantic so it can be applied to any samplers referencing it
+		_texture_semantics[symbol.id] = semantic;
+
+		// Add namespace scope to avoid name clashes
+		texture_info.unique_name = 'V' + current_scope().name + name;
+		std::replace(texture_info.unique_name.begin(), texture_info.unique_name.end(), ':', '_');
+
+		_textures.push_back(texture_info);
 	}
 	else if (type.is_sampler()) // Samplers are actually combined image samplers
 	{
-		if (info.texture == 0)
+		assert(global);
+
+		if (sampler_info.texture == 0)
 			return error(location, 3012, "missing 'Texture' property for '" + name + "'"), false;
 
-		info.semantic = _texture_semantics[info.texture];
+		type.is_ptr = true; // Variables are always pointers
 
-		type.is_ptr = true;
+		symbol = { spv::OpVariable, make_id(), type };
 
-		info.definition = make_id();
-		define_variable(info.definition, info.unique_name.c_str(), location, type, global ? spv::StorageClassUniformConstant : spv::StorageClassFunction);
+		// Add namespace scope to avoid name clashes
+		sampler_info.unique_name = 'V' + current_scope().name + name;
+		std::replace(sampler_info.unique_name.begin(), sampler_info.unique_name.end(), ':', '_');
 
-		if (!info.semantic.empty())
-			add_decoration(info.definition, spv::DecorationHlslSemanticGOOGLE, info.semantic.c_str());
+		_samplers.push_back(sampler_info);
 
-		symbol = { spv::OpVariable, info.definition, type };
+		semantic = _texture_semantics[sampler_info.texture];
+
+		define_variable(symbol.id, sampler_info.unique_name.c_str(), location, type, spv::StorageClassUniformConstant);
+
+		if (!semantic.empty())
+			add_decoration(symbol.id, spv::DecorationHlslSemanticGOOGLE, semantic.c_str());
+
+		add_decoration(symbol.id, spv::DecorationBinding, { _current_sampler_binding++ });
+		add_decoration(symbol.id, spv::DecorationDescriptorSet, { 1 });
 	}
 	else if (type.has(spirv_type::q_uniform)) // Uniform variables are put into a global uniform buffer structure
 	{
+		assert(global);
+
 		if (_global_ubo_type == 0)
 			_global_ubo_type = make_id();
 		if (_global_ubo_variable == 0)
@@ -2785,20 +2906,24 @@ bool reshadefx::parser::parse_variable(spirv_type type, std::string name, spirv_
 		if (type.is_boolean())
 			type.base = spirv_type::t_uint;
 
+		symbol = { spv::OpAccessChain, _global_ubo_variable, type };
+
+		// Add namespace scope to avoid name clashes
+		std::string unique_name = 'U' + current_scope().name + name;
+		std::replace(unique_name.begin(), unique_name.end(), ':', '_');
+
 		spirv_struct_member_info member;
-		member.name = name;
+		member.name = unique_name;
 		member.type = type;
-		member.semantic = info.semantic;
+		member.semantic = semantic;
 
 		const size_t member_index = _uniforms.member_list.size();
 
 		_uniforms.member_list.push_back(std::move(member));
 
-		symbol = { spv::OpAccessChain, _global_ubo_variable, type };
-
 		symbol.function = reinterpret_cast<const spirv_function_info *>(member_index);
 
-		add_member_name(_global_ubo_type, member_index, name.c_str());
+		add_member_name(_global_ubo_type, member_index, unique_name.c_str());
 
 		// GLSL specification on std140 layout:
 		// 1. If the member is a scalar consuming N basic machine units, the base alignment is N.
@@ -2812,31 +2937,33 @@ bool reshadefx::parser::parse_variable(spirv_type type, std::string name, spirv_
 	}
 	else // All other variables are separate entities
 	{
-		type.is_ptr = true;
+		type.is_ptr = true; // Variables are always pointers
 
-		info.definition = make_id();
+		symbol = { spv::OpVariable, make_id(), type };
+
+		// Update global variable names to contain the namespace scope to avoid name clashes
+		std::string unique_name = global ? 'V' + current_scope().name + name : name;
+		std::replace(unique_name.begin(), unique_name.end(), ':', '_');
 
 		if (initializer.is_constant) // The initializer expression for 'OpVariable' must be a constant
 		{
-			define_variable(info.definition, info.unique_name.c_str(), location, type, global ? spv::StorageClassPrivate : spv::StorageClassFunction, convert_constant(initializer.type, initializer.constant));
+			define_variable(symbol.id, unique_name.c_str(), location, type, global ? spv::StorageClassPrivate : spv::StorageClassFunction, convert_constant(initializer.type, initializer.constant));
 		}
 		else // Non-constant initializers are explicitly stored in the variable at the definition location instead
 		{
 			const spv::Id initializer_value = access_chain_load(block, initializer);
 
-			define_variable(info.definition, info.unique_name.c_str(), location, type, global ? spv::StorageClassPrivate : spv::StorageClassFunction);
+			define_variable(symbol.id, unique_name.c_str(), location, type, global ? spv::StorageClassPrivate : spv::StorageClassFunction);
 
 			if (initializer_value != 0)
 			{
 				assert(!global); // Global variables cannot have a dynamic initializer
 
-				spirv_expression variable; variable.reset_to_lvalue(location, info.definition, type);
+				spirv_expression variable; variable.reset_to_lvalue(location, symbol.id, type);
 
 				access_chain_store(block, variable, initializer_value, initializer.type);
 			}
 		}
-
-		symbol = { spv::OpVariable, info.definition, type };
 	}
 
 	// Insert the symbol into the symbol table
@@ -2845,115 +2972,15 @@ bool reshadefx::parser::parse_variable(spirv_type type, std::string name, spirv_
 
 	return true;
 }
-bool reshadefx::parser::parse_variable_properties(spirv_variable_info &props)
-{
-	if (!expect('{'))
-		return false;
-
-	while (!peek('}'))
-	{
-		if (!expect(tokenid::identifier))
-			return consume_until('}'), false;
-
-		const auto name = std::move(_token.literal_as_string);
-		const auto location = std::move(_token.location);
-
-		if (!expect('='))
-			return consume_until('}'), false;
-
-		backup();
-
-		spirv_expression expression;
-
-		if (accept(tokenid::identifier)) // Handle special enumeration names for property values
-		{
-			// Transform identifier to uppercase to do case-insensitive comparison
-			std::transform(_token.literal_as_string.begin(), _token.literal_as_string.end(), _token.literal_as_string.begin(), ::toupper);
-
-			static const std::pair<const char *, uint32_t> s_values[] = {
-				{ "NONE", 0 }, { "POINT", 0 }, { "LINEAR", 1 }, { "ANISOTROPIC", 3 },
-				{ "WRAP", 1 }, { "REPEAT", 1 }, { "MIRROR", 2 }, { "CLAMP", 3 }, { "BORDER", 4 },
-				{ "R8", 1 }, { "R16F", 2 }, { "R32F", 3 }, { "RG8", 4 }, { "R8G8", 4 }, { "RG16", 5 }, { "R16G16", 5 }, { "RG16F", 6 }, { "R16G16F", 6 }, { "RG32F", 7 }, { "R32G32F", 7 },
-				{ "RGBA8", 8 }, { "R8G8B8A8", 8 }, { "RGBA16", 9 }, { "R16G16B16A16", 9 }, { "RGBA16F", 10 }, { "R16G16B16A16F", 10 }, { "RGBA32F", 11 }, { "R32G32B32A32F", 11 },
-				{ "DXT1", 12 }, { "DXT3", 13 }, { "DXT4", 14 }, { "LATC1", 15 }, { "LATC2", 16 },
-			};
-
-			// Look up identifier in list of possible enumeration names
-			const auto it = std::find_if(std::begin(s_values), std::end(s_values),
-				[this](const auto &it) { return it.first == _token.literal_as_string; });
-
-			if (it != std::end(s_values))
-				expression.reset_to_rvalue_constant(_token.location, it->second);
-			else // No match found, so rewind to parser state before the identifier was consumed and try parsing it as a normal expression
-				restore();
-		}
-
-		// Parse right hand side as normal expression if no special enumeration name was matched already
-		if (spirv_basic_block block; !expression.is_constant && !parse_expression_multary(block, expression))
-			return error(_token_next.location, 3000, "syntax error: unexpected '" + token::id_to_name(_token_next.id) + "', expected expression"), consume_until('}'), false;
-
-		if (name == "Texture")
-		{
-			if (!expression.type.is_texture())
-				return error(location, 3020, "type mismatch, expected texture name"), consume_until('}'), false;
-
-			props.texture = expression.base;
-		}
-		else
-		{
-			if (!expression.is_constant || !expression.type.is_scalar())
-				return error(expression.location, 3011, "value must be a literal scalar expression"), consume_until('}'), false;
-
-			// All states below expect the value to be of an unsigned integer type
-			add_cast_operation(expression, { spirv_type::t_uint, 1, 1 });
-			const unsigned int value = expression.constant.as_uint[0];
-
-			if (name == "Width")
-				props.width = value > 0 ? value : 1;
-			else if (name == "Height")
-				props.height = value > 0 ? value : 1;
-			else if (name == "MipLevels")
-				props.levels = value > 0 ? value : 1;
-			else if (name == "Format")
-				props.format = value;
-			else if (name == "SRGBTexture" || name == "SRGBReadEnable")
-				props.srgb_texture = value != 0;
-			else if (name == "AddressU")
-				props.address_u = value;
-			else if (name == "AddressV")
-				props.address_v = value;
-			else if (name == "AddressW")
-				props.address_w = value;
-			else if (name == "MinFilter")
-				props.filter = (props.filter & 0x0F) | ((value << 4) & 0x30);
-			else if (name == "MagFilter")
-				props.filter = (props.filter & 0x33) | ((value << 2) & 0x0C);
-			else if (name == "MipFilter")
-				props.filter = (props.filter & 0x3C) | (value & 0x03);
-			else if (name == "MinLOD" || name == "MaxMipLevel")
-				props.min_lod = static_cast<float>(value);
-			else if (name == "MaxLOD")
-				props.max_lod = static_cast<float>(value);
-			else if (name == "MipLODBias" || name == "MipMapLodBias")
-				props.lod_bias = static_cast<float>(value);
-			else
-				return error(location, 3004, "unrecognized property '" + name + "'"), consume_until('}'), false;
-		}
-
-		if (!expect(';'))
-			return consume_until('}'), false;
-	}
-
-	return expect('}');
-}
 
 bool reshadefx::parser::parse_technique()
 {
 	if (!expect(tokenid::identifier))
 		return false;
 
-	const auto name = std::move(_token.literal_as_string);
-	std::vector<spirv_pass_info> pass_list;
+	spirv_technique_info info;
+	info.name = std::move(_token.literal_as_string);
+
 	std::unordered_map<std::string, spirv_constant> annotation_list;
 
 	if (!parse_annotations(annotation_list) || !expect('{'))
@@ -2962,22 +2989,16 @@ bool reshadefx::parser::parse_technique()
 	while (!peek('}'))
 	{
 		if (spirv_pass_info pass; parse_technique_pass(pass))
-			pass_list.push_back(std::move(pass));
+			info.passes.push_back(std::move(pass));
 		else if (!peek(tokenid::pass)) // If there is another pass definition following, try to parse that despite the error
 			return consume_until('}'), false;
 	}
 
-	_encoded_data += 'T' + name + ':' + std::to_string(pass_list.size()) + ':';
-
-	for (const auto &pass : pass_list)
-	{
-		_encoded_data += pass.vs_entry_point + '|' + pass.ps_entry_point + '|';
-	}
-
-	_encoded_data.pop_back();
+	_techniques.push_back(info);
 
 	return expect('}');
 }
+
 bool reshadefx::parser::parse_technique_pass(spirv_pass_info &info)
 {
 	if (!expect(tokenid::pass))
@@ -3198,7 +3219,7 @@ bool reshadefx::parser::parse_technique_pass(spirv_pass_info &info)
 									spirv_type value_type = member.type;
 									value_type.is_ptr = false;
 
-									const spv::Id value = add_intruction(section, {}, spv::OpLoad, convert_type(value_type))
+									const spv::Id value = add_instruction(section, {}, spv::OpLoad, convert_type(value_type))
 										.add(input_variable)
 										.result;
 									elements.push_back(value);
@@ -3206,7 +3227,7 @@ bool reshadefx::parser::parse_technique_pass(spirv_pass_info &info)
 
 								spirv_type composite_type = param.type;
 								composite_type.is_ptr = false;
-								spirv_instruction &construct = add_intruction(section, {}, spv::OpCompositeConstruct, convert_type(composite_type));
+								spirv_instruction &construct = add_instruction(section, {}, spv::OpCompositeConstruct, convert_type(composite_type));
 								for (auto elem : elements)
 									construct.add(elem);
 								const spv::Id composite_value = construct.result;
@@ -3222,7 +3243,7 @@ bool reshadefx::parser::parse_technique_pass(spirv_pass_info &info)
 								spirv_type value_type = param.type;
 								value_type.is_ptr = false;
 
-								const spv::Id value = add_intruction(section, {}, spv::OpLoad, convert_type(value_type))
+								const spv::Id value = add_instruction(section, {}, spv::OpLoad, convert_type(value_type))
 									.add(input_variable)
 									.result;
 								add_instruction_without_result(section, {}, spv::OpStore)
@@ -3232,7 +3253,7 @@ bool reshadefx::parser::parse_technique_pass(spirv_pass_info &info)
 						}
 					}
 
-					spirv_instruction &call = add_intruction(section, location, spv::OpFunctionCall, convert_type(function_info->return_type))
+					spirv_instruction &call = add_instruction(section, location, spv::OpFunctionCall, convert_type(function_info->return_type))
 						.add(function_info->definition);
 					for (auto elem : call_params)
 						call.add(elem);
@@ -3247,7 +3268,7 @@ bool reshadefx::parser::parse_technique_pass(spirv_pass_info &info)
 							spirv_type value_type = param.type;
 							value_type.is_ptr = false;
 
-							const spv::Id value = add_intruction(section, {}, spv::OpLoad, convert_type(value_type))
+							const spv::Id value = add_instruction(section, {}, spv::OpLoad, convert_type(value_type))
 								.add(call_params[param_index++])
 								.result;
 
@@ -3256,7 +3277,7 @@ bool reshadefx::parser::parse_technique_pass(spirv_pass_info &info)
 								size_t member_index = 0;
 								for (const auto &member : _structs[param.type.definition].member_list)
 								{
-									const spv::Id member_value = add_intruction(section, {}, spv::OpCompositeExtract, convert_type(member.type))
+									const spv::Id member_value = add_instruction(section, {}, spv::OpCompositeExtract, convert_type(member.type))
 										.add(value)
 										.add(member_index++)
 										.result;
@@ -3286,7 +3307,7 @@ bool reshadefx::parser::parse_technique_pass(spirv_pass_info &info)
 						{
 							spv::Id result = create_output_variable(member);
 
-							spv::Id member_result = add_intruction(section, {}, spv::OpCompositeExtract, convert_type(member.type))
+							spv::Id member_result = add_instruction(section, {}, spv::OpCompositeExtract, convert_type(member.type))
 								.add(call_result)
 								.add(member_index)
 								.result;
@@ -3340,11 +3361,15 @@ bool reshadefx::parser::parse_technique_pass(spirv_pass_info &info)
 
 				if (is_vs)
 					info.vs_entry_point = function_info->name;
+					//std::copy_n(function_info->name.c_str(), std::min(function_info->name.size() + 1, sizeof(info.vs_entry_point)), info.vs_entry_point);
 				if (is_ps)
 					info.ps_entry_point = function_info->name;
+					//std::copy_n(function_info->name.c_str(), std::min(function_info->name.size() + 1, sizeof(info.ps_entry_point)), info.ps_entry_point);
 			}
 			else
 			{
+				assert(is_texture_state);
+
 				if (!symbol.id)
 					return error(location, 3004, "undeclared identifier '" + identifier + "', expected texture name"), consume_until('}'), false;
 				else if (!symbol.type.is_texture())
@@ -3385,7 +3410,7 @@ bool reshadefx::parser::parse_technique_pass(spirv_pass_info &info)
 			}
 
 			// Parse right hand side as normal expression if no special enumeration name was matched already
-			if (spirv_basic_block block; !expression.is_constant && !parse_expression_multary(block, expression))
+			if (spirv_basic_block temp_block; !expression.is_constant && !parse_expression_multary(temp_block, expression))
 				return error(_token_next.location, 3000, "syntax error: unexpected '" + token::id_to_name(_token_next.id) + "', expected expression"), consume_until('}'), false;
 			else if (!expression.is_constant || !expression.type.is_scalar())
 				return error(expression.location, 3011, "pass state value must be a literal scalar expression"), consume_until('}'), false;

@@ -54,10 +54,8 @@ namespace reshadefx
 		}
 
 		/// <summary>
-		/// Add a null-terminated literal string to the instruction.
+		/// Add a null-terminated literal UTF-8 string to the instruction.
 		/// </summary>
-		/// <param name="string"></param>
-		/// <returns></returns>
 		spirv_instruction &add_string(const char *string)
 		{
 			uint32_t word;
