@@ -1386,6 +1386,10 @@ bool reshadefx::parser::parse_expression_unary(spirv_basic_block &block, spirv_e
 			else if (!index.type.is_scalar() || !index.type.is_integral())
 				return error(index.location, 3120, "invalid type for index - index must be an integer scalar"), false;
 
+			// Check array bounds
+			if (index.is_constant && exp.type.array_length > 0 && index.constant.as_uint[0] >= exp.type.array_length)
+				return error(index.location, 3504, "array index out of bounds"), false;
+
 			// Add index expression to current access chain
 			if (index.is_constant)
 				add_static_index_access(exp, index.constant.as_uint[0]);
@@ -1778,7 +1782,7 @@ bool reshadefx::parser::parse_annotations(std::unordered_map<std::string, std::s
 bool reshadefx::parser::parse_statement(spirv_basic_block &block, bool scoped)
 {
 	if (_current_block == 0)
-		return error(_token_next.location, 3000, "unreachable code"), false;
+		return error(_token_next.location, 0, "unreachable code"), false;
 
 	unsigned int loop_control = spv::LoopControlMaskNone;
 	unsigned int selection_control = spv::SelectionControlMaskNone;
@@ -1795,12 +1799,17 @@ bool reshadefx::parser::parse_statement(spirv_basic_block &block, bool scoped)
 			loop_control |= spv::LoopControlUnrollMask;
 		else if (attribute == "loop")
 			loop_control |= spv::LoopControlDontUnrollMask;
-		else if (attribute == "branch")
-			selection_control |= spv::SelectionControlDontFlattenMask;
 		else if (attribute == "flatten")
 			selection_control |= spv::SelectionControlFlattenMask;
+		else if (attribute == "branch")
+			selection_control |= spv::SelectionControlDontFlattenMask;
 		else
 			warning(_token.location, 0, "unknown attribute");
+
+		if ((loop_control & (spv::LoopControlUnrollMask | spv::LoopControlDontUnrollMask)) == (spv::LoopControlUnrollMask | spv::LoopControlDontUnrollMask))
+			return error(_token.location, 3524, "can't use loop and unroll attributes together"), false;
+		if ((selection_control & (spv::SelectionControlFlattenMask | spv::SelectionControlDontFlattenMask)) == (spv::SelectionControlFlattenMask | spv::SelectionControlDontFlattenMask))
+			return error(_token.location, 3524, "can't use branch and flatten attributes together"), false;
 	}
 
 	if (peek('{')) // Parse statement block
@@ -2666,6 +2675,10 @@ bool reshadefx::parser::parse_function(spirv_type type, std::string name)
 		std::transform(info.return_semantic.begin(), info.return_semantic.end(), info.return_semantic.begin(), ::toupper);
 	}
 
+	// Check if this is a function declaration without a body
+	if (accept(';'))
+		return error(location, 3510, "function is missing an implementation"), false;
+
 	// A function has to start with a new block
 	enter_block(_functions2[_current_function].variables, make_id());
 
@@ -2703,6 +2716,9 @@ bool reshadefx::parser::parse_variable(spirv_type type, std::string name, spirv_
 			// Global variables that are 'static' cannot be of another storage class
 			if (type.has(spirv_type::q_uniform))
 				return error(location, 3007, "uniform global variables cannot be declared 'static'"), false;
+			// The 'volatile qualifier is only valid memory object declarations that are storage images or uniform blocks
+			if (type.has(spirv_type::q_volatile))
+				return error(location, 3008, "global variables cannot be declared 'volatile'"), false;
 		}
 		else
 		{
@@ -2710,12 +2726,12 @@ bool reshadefx::parser::parse_variable(spirv_type type, std::string name, spirv_
 			if (!type.has(spirv_type::q_uniform) && !(type.is_texture() || type.is_sampler()))
 				warning(location, 5000, "global variables are considered 'uniform' by default");
 
+			// Global variables that are not 'static' are always 'extern' and 'uniform'
+			type.qualifiers |= spirv_type::q_extern | spirv_type::q_uniform;
+
 			// It is invalid to make 'uniform' variables constant, since they can be modified externally
 			if (type.has(spirv_type::q_const))
 				return error(location, 3035, "variables which are 'uniform' cannot be declared 'const'"), false;
-
-			// Global variables that are not 'static' are always 'extern' and 'uniform'
-			type.qualifiers |= spirv_type::q_extern | spirv_type::q_uniform;
 		}
 	}
 	else
@@ -2841,7 +2857,7 @@ bool reshadefx::parser::parse_variable(spirv_type type, std::string name, spirv_
 				else
 				{
 					if (!expression.is_constant || !expression.type.is_scalar())
-						return error(expression.location, 3011, "value must be a literal scalar expression"), consume_until('}'), false;
+						return error(expression.location, 3538, "value must be a literal scalar expression"), consume_until('}'), false;
 
 					// All states below expect the value to be of an unsigned integer type
 					add_cast_operation(expression, { spirv_type::t_uint, 1, 1 });
@@ -3105,7 +3121,7 @@ bool reshadefx::parser::parse_technique_pass(spirv_pass_info &info)
 			if (is_shader_state)
 			{
 				if (!symbol.id)
-					return error(location, 3004, "undeclared identifier '" + identifier + "', expected function name"), consume_until('}'), false;
+					return error(location, 3501, "undeclared identifier '" + identifier + "', expected function name"), consume_until('}'), false;
 				else if (!symbol.type.is_function())
 					return error(location, 3020, "type mismatch, expected function name"), consume_until('}'), false;
 
