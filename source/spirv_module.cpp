@@ -1063,7 +1063,7 @@ spv::Id spirv_module::access_chain_load(spirv_basic_block &section, const spirv_
 				{
 					assert(op.from.is_vector());
 
-					spirv_instruction &node = add_instruction(section, chain.location, spv::OpVectorShuffle, convert_type(chain.type))
+					spirv_instruction &node = add_instruction(section, chain.location, spv::OpVectorShuffle, convert_type(op.to))
 						.add(result) // Vector 1
 						.add(result); // Vector 2
 
