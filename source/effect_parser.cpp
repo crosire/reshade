@@ -1384,7 +1384,7 @@ bool reshadefx::parser::parse_expression_unary(spirv_basic_block &block, spirv_e
 			if (!parse_expression(block, index) || !expect(']'))
 				return false;
 			else if (!index.type.is_scalar() || !index.type.is_integral())
-				return error(index.location, 3120, "invalid type for index - index must be a scalar"), false;
+				return error(index.location, 3120, "invalid type for index - index must be an integer scalar"), false;
 
 			// Add index expression to current access chain
 			if (index.is_constant)
@@ -1778,7 +1778,7 @@ bool reshadefx::parser::parse_annotations(std::unordered_map<std::string, std::s
 bool reshadefx::parser::parse_statement(spirv_basic_block &block, bool scoped)
 {
 	if (_current_block == 0)
-		return error(_token_next.location, 3000, "statements are valid only inside a code block"), false;
+		return error(_token_next.location, 3000, "unreachable code"), false;
 
 	unsigned int loop_control = spv::LoopControlMaskNone;
 	unsigned int selection_control = spv::SelectionControlMaskNone;
@@ -1893,6 +1893,7 @@ bool reshadefx::parser::parse_statement(spirv_basic_block &block, bool scoped)
 			_loop_break_target_stack.push_back(merge_label);
 			on_scope_exit _([this]() { _loop_break_target_stack.pop_back(); });
 
+			bool success = true;
 			spv::Id current_block = 0;
 			unsigned int num_case_labels = 0;
 			std::vector<spv::Id> case_literal_and_labels;
@@ -1919,14 +1920,32 @@ bool reshadefx::parser::parse_statement(spirv_basic_block &block, bool scoped)
 						spirv_expression case_label;
 						if (!parse_expression(switch_body_block, case_label))
 							return consume_until('}'), false;
-						else if (!case_label.type.is_scalar() || !case_label.is_constant)
-							return error(case_label.location, 3020, "non-numeric case expression"), consume_until('}'), false;
+						else if (!case_label.type.is_scalar() || !case_label.type.is_integral() || !case_label.is_constant)
+							return error(case_label.location, 3020, "invalid type for case expression - value must be an integer scalar"), consume_until('}'), false;
 
-						case_literal_and_labels.push_back(case_label.constant.as_uint[0]); // This can be floating point too, which are casted here via the constant union
+						// Check for duplicate case values
+						for (size_t i = 0; i < case_literal_and_labels.size(); i += 2)
+						{
+							if (case_literal_and_labels[i] == case_label.constant.as_uint[0])
+							{
+								error(case_label.location, 3532, "duplicate case " + std::to_string(case_label.constant.as_uint[0]));
+								success = false;
+								break;
+							}
+						}
+
+						case_literal_and_labels.push_back(case_label.constant.as_uint[0]);
 						case_literal_and_labels.push_back(current_block);
 					}
 					else
 					{
+						// Check if the default label was already changed by a previous 'default' statement
+						if (default_label != merge_label)
+						{
+							error(_token.location, 3532, "duplicate default in switch statement");
+							success = false;
+						}
+
 						default_label = current_block;
 					}
 
@@ -1936,9 +1955,16 @@ bool reshadefx::parser::parse_statement(spirv_basic_block &block, bool scoped)
 					num_case_labels++;
 				}
 
+				// It is valid for no statement to follow if this is the last label in the switch body
+				if (accept('}'))
+					break;
+
 				if (!parse_statement(switch_body_block, true))
 					return consume_until('}'), false;
 			}
+
+			// May have left the switch body without an explicit 'break' at the end, so handle that case now
+			leave_block_and_branch(switch_body_block, merge_label);
 
 			if (num_case_labels == 0)
 				warning(location, 5002, "switch statement contains no 'case' or 'default' labels");
@@ -1951,7 +1977,7 @@ bool reshadefx::parser::parse_statement(spirv_basic_block &block, bool scoped)
 
 			enter_block(block, merge_label);
 
-			return expect('}');
+			return expect('}') && success;
 		}
 		#pragma endregion
 
