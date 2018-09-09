@@ -419,8 +419,8 @@ namespace reshade::d3d11
 			it = _runtime->_effect_sampler_states.emplace(desc_hash, std::move(sampler)).first;
 		}
 
-		_sampler_bindings.resize(std::max(_sampler_bindings.size(), sampler_info.binding + 1));
-		_texture_bindings.resize(std::max(_texture_bindings.size(), sampler_info.binding + 1));
+		_sampler_bindings.resize(std::max(_sampler_bindings.size(), size_t(sampler_info.binding + 1)));
+		_texture_bindings.resize(std::max(_texture_bindings.size(), size_t(sampler_info.binding + 1)));
 
 		_texture_bindings[sampler_info.binding] = existing_texture->impl->as<d3d11_tex_data>()->srv[sampler_info.srgb ? 1 : 0];
 		_sampler_bindings[sampler_info.binding] = it->second;

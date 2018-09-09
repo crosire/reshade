@@ -472,7 +472,7 @@ namespace reshade::opengl
 		sampler.is_srgb = sampler_info.srgb;
 		sampler.has_mipmaps = existing_texture->levels > 1;
 
-		_sampler_bindings.resize(std::max(_sampler_bindings.size(), sampler_info.binding + 1));
+		_sampler_bindings.resize(std::max(_sampler_bindings.size(), size_t(sampler_info.binding + 1)));
 
 		_sampler_bindings[sampler_info.binding] = std::move(sampler);
 	}

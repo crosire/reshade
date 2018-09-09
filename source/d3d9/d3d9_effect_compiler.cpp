@@ -330,7 +330,7 @@ namespace reshade::d3d9
 		sampler.states[D3DSAMP_MAXANISOTROPY] = 1;
 		sampler.states[D3DSAMP_SRGBTEXTURE] = sampler_info.srgb;
 
-		_sampler_bindings.resize(std::max(_sampler_bindings.size(), sampler_info.binding + 1));
+		_sampler_bindings.resize(std::max(_sampler_bindings.size(), size_t(sampler_info.binding + 1)));
 
 		_sampler_bindings[sampler_info.binding] = std::move(sampler);
 	}
@@ -416,7 +416,7 @@ namespace reshade::d3d9
 			pass.vertex_shader = vs_entry_points[pass_info.vs_entry_point];
 			pass.pixel_shader = ps_entry_points[pass_info.ps_entry_point];
 
-			pass.sampler_count = std::min(16u, _sampler_bindings.size());
+			pass.sampler_count = std::min(size_t(16), _sampler_bindings.size());
 			for (size_t i = 0; i < pass.sampler_count; ++i)
 				pass.samplers[i] = _sampler_bindings[i];
 
