@@ -22,6 +22,62 @@ static inline uintptr_t align(uintptr_t address, size_t alignment)
 	return (address % alignment != 0) ? address + alignment - address % alignment : address;
 }
 
+static void fix_op_type(spv::Op &op, const reshadefx::spirv_type &type)
+{
+	if (type.is_integral() || type.is_floating_point())
+	{
+		switch (op)
+		{
+		case spv::OpLogicalEqual:
+			op = type.is_integral() ? spv::OpIEqual : spv::OpFOrdEqual;
+			break;
+		case spv::OpLogicalNotEqual:
+			op = type.is_integral() ? spv::OpINotEqual : spv::OpFOrdNotEqual;
+			break;
+		}
+	}
+
+	if (type.is_integral())
+	{
+		switch (op)
+		{
+		case spv::OpFNegate:
+			op = spv::OpSNegate;
+			break;
+		case spv::OpFRem:
+			op = type.is_signed() ? spv::OpSRem : spv::OpUMod;
+			break;
+		case spv::OpFMul:
+			op = spv::OpIMul;
+			break;
+		case spv::OpFAdd:
+			op = spv::OpIAdd;
+			break;
+		case spv::OpFSub:
+			op = spv::OpISub;
+			break;
+		case spv::OpFDiv:
+			op = type.is_signed() ? spv::OpSDiv : spv::OpUDiv;
+			break;
+		case spv::OpFOrdLessThan:
+			op = type.is_signed() ? spv::OpSLessThan : spv::OpULessThan;
+			break;
+		case spv::OpFOrdGreaterThan:
+			op = type.is_signed() ? spv::OpSGreaterThan : spv::OpUGreaterThan;
+			break;
+		case spv::OpFOrdLessThanEqual:
+			op = type.is_signed() ? spv::OpSLessThanEqual : spv::OpULessThanEqual;
+			break;
+		case spv::OpFOrdGreaterThanEqual:
+			op = type.is_signed() ? spv::OpSGreaterThanEqual : spv::OpUGreaterThanEqual;
+			break;
+		case spv::OpShiftRightLogical:
+			op = type.is_signed() ? spv::OpShiftRightArithmetic : spv::OpShiftRightLogical;
+			break;
+		}
+	}
+}
+
 static reshadefx::spirv_constant evaluate_constant_expression(spv::Op op, const reshadefx::spirv_expression &exp)
 {
 	assert(exp.is_constant);
@@ -491,6 +547,8 @@ bool reshadefx::parser::accept_type_qualifiers(spirv_type &type)
 		qualifiers |= spirv_type::q_uniform;
 	if (accept(tokenid::volatile_))
 		qualifiers |= spirv_type::q_volatile;
+	if (accept(tokenid::precise))
+		qualifiers |= spirv_type::q_precise;
 
 	if (accept(tokenid::in))
 		qualifiers |= spirv_type::q_in;
@@ -717,28 +775,15 @@ bool reshadefx::parser::parse_expression_unary(spirv_basic_block &block, spirv_e
 				return error(exp.location, 3082, "int or unsigned int type required"), false;
 
 			// Choose correct operator depending on the input expression type
-			if (exp.type.is_integral())
-			{
-				switch (op)
-				{
-				case spv::OpFNegate:
-					op = spv::OpSNegate;
-					break;
-				case spv::OpFAdd:
-					op = spv::OpIAdd;
-					break;
-				case spv::OpFSub:
-					op = spv::OpISub;
-					break;
-				}
-			}
+			fix_op_type(op, exp.type);
 
 			// Load the right hand side value if it was not yet resolved at this point
 			const spv::Id value = access_chain_load(block, exp);
 			assert(value != 0);
 
 			// Special handling for the "++" and "--" operators
-			if (op == spv::OpFAdd || op == spv::OpFSub || op == spv::OpIAdd || op == spv::OpISub)
+			if (op == spv::OpIAdd || op == spv::OpISub ||
+				op == spv::OpFAdd || op == spv::OpFSub)
 			{
 				if (exp.type.has(spirv_type::q_const) || exp.type.has(spirv_type::q_uniform) || !exp.is_lvalue)
 					return error(location, 3025, "l-value specifies const object"), false;
@@ -1388,23 +1433,14 @@ bool reshadefx::parser::parse_expression_multary(spirv_basic_block &block, spirv
 			spirv_type type = spirv_type::merge(lhs.type, rhs.type);
 			bool boolean_result = false;
 
-			// Do some error checking depending on the operator
-			if (op == spv::OpLogicalEqual || op == spv::OpLogicalNotEqual)
-			{
-				// Select operator matching the argument types
-				if (type.is_integral() || type.is_floating_point())
-				{
-					switch (op)
-					{
-					case spv::OpLogicalEqual:
-						op = type.is_integral() ? spv::OpIEqual : spv::OpFOrdEqual;
-						break;
-					case spv::OpLogicalNotEqual:
-						op = type.is_integral() ? spv::OpINotEqual : spv::OpFOrdNotEqual;
-						break;
-					}
-				}
+			// Select operator matching the argument types
+			fix_op_type(op, type);
 
+			// Do some error checking depending on the operator
+			if (op == spv::OpIEqual || op == spv::OpINotEqual ||
+				op == spv::OpFOrdEqual || op == spv::OpFOrdNotEqual ||
+				op == spv::OpLogicalEqual || op == spv::OpLogicalNotEqual)
+			{
 				// Equality checks return a boolean value
 				boolean_result = true;
 
@@ -1426,47 +1462,13 @@ bool reshadefx::parser::parse_expression_multary(spirv_basic_block &block, spirv
 					type.base = spirv_type::t_bool;
 
 				// Logical operations return a boolean value
-				if (op == spv::OpFOrdLessThan || op == spv::OpFOrdGreaterThan ||
+				if (op == spv::OpSLessThan || op == spv::OpSGreaterThan ||
+					op == spv::OpSLessThanEqual || op == spv::OpSGreaterThanEqual ||
+					op == spv::OpULessThan || op == spv::OpUGreaterThan ||
+					op == spv::OpULessThanEqual || op == spv::OpUGreaterThanEqual ||
+					op == spv::OpFOrdLessThan || op == spv::OpFOrdGreaterThan ||
 					op == spv::OpFOrdLessThanEqual || op == spv::OpFOrdGreaterThanEqual)
 					boolean_result = true;
-
-				// Select operator matching the argument types
-				if (type.is_integral())
-				{
-					switch (op)
-					{
-					case spv::OpFRem:
-						op = type.is_signed() ? spv::OpSRem : spv::OpUMod;
-						break;
-					case spv::OpFMul:
-						op = spv::OpIMul;
-						break;
-					case spv::OpFAdd:
-						op = spv::OpIAdd;
-						break;
-					case spv::OpFSub:
-						op = spv::OpISub;
-						break;
-					case spv::OpFDiv:
-						op = type.is_signed() ? spv::OpSDiv : spv::OpUDiv;
-						break;
-					case spv::OpFOrdLessThan:
-						op = type.is_signed() ? spv::OpSLessThan : spv::OpULessThan;
-						break;
-					case spv::OpFOrdGreaterThan:
-						op = type.is_signed() ? spv::OpSGreaterThan : spv::OpUGreaterThan;
-						break;
-					case spv::OpFOrdLessThanEqual:
-						op = type.is_signed() ? spv::OpSLessThanEqual : spv::OpULessThanEqual;
-						break;
-					case spv::OpFOrdGreaterThanEqual:
-						op = type.is_signed() ? spv::OpSGreaterThanEqual : spv::OpUGreaterThanEqual;
-						break;
-					case spv::OpShiftRightLogical:
-						op = type.is_signed() ? spv::OpShiftRightArithmetic : spv::OpShiftRightLogical;
-						break;
-					}
-				}
 
 				// Cannot perform arithmetic operations on non-basic types
 				if (!lhs.type.is_scalar() && !lhs.type.is_vector() && !lhs.type.is_matrix())
@@ -1554,6 +1556,9 @@ bool reshadefx::parser::parse_expression_multary(spirv_basic_block &block, spirv
 						.add(lhs_value) // Operand 1
 						.add(rhs_value) // Operand 2
 						.result; // Result ID
+
+					if (type.has(spirv_type::q_precise))
+						add_decoration(result, spv::DecorationNoContraction);
 
 					lhs.reset_to_rvalue(lhs.location, result, type);
 				}
@@ -1700,6 +1705,9 @@ bool reshadefx::parser::parse_expression_assignment(spirv_basic_block &block, sp
 				.add(lhs_value) // Operand 1
 				.add(rhs_value) // Operand 2
 				.result; // Result ID
+
+			if (lhs.type.has(spirv_type::q_precise))
+				add_decoration(result, spv::DecorationNoContraction);
 
 			// The result of the operation should now be stored in the variable
 			rhs_value = result;

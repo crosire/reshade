@@ -99,6 +99,9 @@ reshadefx::spirv_type reshadefx::spirv_type::merge(const spirv_type &lhs, const 
 		result.cols = std::min(lhs.cols, rhs.cols);
 	}
 
+	// Some qualifiers propagate to the result
+	result.qualifiers = (lhs.qualifiers & spirv_type::q_precise) | (rhs.qualifiers & spirv_type::q_precise);
+
 	return result;
 }
 
