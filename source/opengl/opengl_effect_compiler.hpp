@@ -33,7 +33,7 @@ namespace reshade::opengl
 		void visit_uniform(const spirv_cross::CompilerGLSL &cross, const reshadefx::spirv_uniform_info &uniform_info);
 		void visit_technique(const reshadefx::spirv_technique_info &technique_info);
 
-		void compile_entry_point(spirv_cross::CompilerGLSL &cross, const spirv_cross::EntryPoint &entry);
+		void compile_entry_point(spirv_cross::CompilerGLSL &cross, const std::vector<uint32_t> &spirv_bin, const spirv_cross::EntryPoint &entry);
 
 		opengl_runtime *_runtime;
 		const reshadefx::spirv_module *_module;

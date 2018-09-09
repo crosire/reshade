@@ -275,7 +275,7 @@ namespace reshade::opengl
 		_module->write_module(spirv_bin);
 
 		// TODO try catch
-		spirv_cross::CompilerGLSL cross(std::move(spirv_bin));
+		spirv_cross::CompilerGLSL cross(spirv_bin);
 
 		const auto resources = cross.get_shader_resources();
 
@@ -311,7 +311,7 @@ namespace reshade::opengl
 		// Compile all entry points
 		for (const spirv_cross::EntryPoint &entry : cross.get_entry_points_and_stages())
 		{
-			compile_entry_point(cross, entry);
+			compile_entry_point(cross, spirv_bin, entry);
 		}
 
 		// Parse technique information
@@ -692,8 +692,27 @@ namespace reshade::opengl
 		_runtime->add_technique(std::move(obj));
 	}
 
-	void opengl_effect_compiler::compile_entry_point(spirv_cross::CompilerGLSL &cross, const spirv_cross::EntryPoint &entry)
+	void opengl_effect_compiler::compile_entry_point(spirv_cross::CompilerGLSL &cross, const std::vector<uint32_t> &spirv_bin, const spirv_cross::EntryPoint &entry)
 	{
+		GLenum shader_type = GL_NONE;
+
+		// Figure out the shader type
+		switch (entry.execution_model)
+		{
+		case spv::ExecutionModelVertex:
+			shader_type = GL_VERTEX_SHADER;
+			break;
+		case spv::ExecutionModelFragment:
+			shader_type = GL_FRAGMENT_SHADER;
+			break;
+		}
+
+#if 0
+		GLuint shader_id = glCreateShader(shader_type);
+
+		glShaderBinary(1, &shader_id, GL_SHADER_BINARY_FORMAT_SPIR_V, spirv_bin.data(), spirv_bin.size() * sizeof(uint32_t));
+		glSpecializeShader(shader_id, entry.name.c_str(), 0, nullptr, nullptr);
+#else
 		std::string glsl;
 
 		spirv_cross::CompilerGLSL::Options options = {};
@@ -715,19 +734,6 @@ namespace reshade::opengl
 			return;
 		}
 
-		GLenum shader_type = GL_NONE;
-
-		// Figure out the shader type
-		switch (entry.execution_model)
-		{
-		case spv::ExecutionModelVertex:
-			shader_type = GL_VERTEX_SHADER;
-			break;
-		case spv::ExecutionModelFragment:
-			shader_type = GL_FRAGMENT_SHADER;
-			break;
-		}
-
 		GLuint shader_id = glCreateShader(shader_type);
 
 		const GLchar *src = glsl.c_str();
@@ -735,6 +741,7 @@ namespace reshade::opengl
 
 		glShaderSource(shader_id, 1, &src, &len);
 		glCompileShader(shader_id);
+#endif
 
 		GLint status = GL_FALSE;
 
