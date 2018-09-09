@@ -404,7 +404,7 @@ next_token:
 	tok.literal_as_double = 0;
 
 	// Do a character type lookup for the current character
-	switch (type_lookup[*_cur])
+	switch (type_lookup[static_cast<uint8_t>(*_cur)])
 	{
 	case 0xFF: // EOF
 		tok.id = tokenid::end_of_file;
