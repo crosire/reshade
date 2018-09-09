@@ -3185,6 +3185,8 @@ bool reshadefx::parser::parse_technique_pass(spirv_pass_info &info)
 								location = std::strtol(param.semantic.substr(5).c_str(), nullptr, 10);
 							else if (param.semantic.size() >= 9 && param.semantic.compare(0, 9, "SV_TARGET") == 0)
 								location = std::strtol(param.semantic.substr(9).c_str(), nullptr, 10);
+							else if (param.semantic.size() >= 8 && param.semantic.compare(0, 8, "TEXCOORD") == 0)
+								location = std::strtol(param.semantic.substr(8).c_str(), nullptr, 10);
 							else if (const auto it = _semantic_to_location.find(param.semantic); it != _semantic_to_location.end())
 								location = it->second;
 							else
@@ -3226,6 +3228,8 @@ bool reshadefx::parser::parse_technique_pass(spirv_pass_info &info)
 								location = std::strtol(param.semantic.substr(5).c_str(), nullptr, 10);
 							else if (param.semantic.size() >= 9 && param.semantic.compare(0, 9, "SV_TARGET") == 0)
 								location = std::strtol(param.semantic.substr(9).c_str(), nullptr, 10);
+							else if (param.semantic.size() >= 8 && param.semantic.compare(0, 8, "TEXCOORD") == 0)
+								location = std::strtol(param.semantic.substr(8).c_str(), nullptr, 10);
 							else if (const auto it = _semantic_to_location.find(param.semantic); it != _semantic_to_location.end())
 								location = it->second;
 							else
@@ -3399,6 +3403,8 @@ bool reshadefx::parser::parse_technique_pass(spirv_pass_info &info)
 								location = std::strtol(function_info->return_semantic.substr(5).c_str(), nullptr, 10);
 							else if (function_info->return_semantic.size() >= 9 && function_info->return_semantic.compare(0, 9, "SV_TARGET") == 0)
 								location = std::strtol(function_info->return_semantic.substr(9).c_str(), nullptr, 10);
+							else if (function_info->return_semantic.size() >= 8 && function_info->return_semantic.compare(0, 8, "TEXCOORD") == 0)
+								location = std::strtol(function_info->return_semantic.substr(8).c_str(), nullptr, 10);
 							else if (const auto it = _semantic_to_location.find(function_info->return_semantic); it != _semantic_to_location.end())
 								location = it->second;
 							else
