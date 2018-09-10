@@ -3,31 +3,31 @@
  * License: https://github.com/crosire/reshade#license
  */
 
-#define T_VOID  { spirv_type::t_void }
-#define T_BOOL1 { spirv_type::t_bool, 1, 1 }
-#define T_BOOL2 { spirv_type::t_bool, 2, 1 }
-#define T_BOOL3 { spirv_type::t_bool, 3, 1 }
-#define T_BOOL4 { spirv_type::t_bool, 4, 1 }
-#define T_INT1 { spirv_type::t_int, 1, 1 }
-#define T_INT2 { spirv_type::t_int, 2, 1 }
-#define T_INT3 { spirv_type::t_int, 3, 1 }
-#define T_INT4 { spirv_type::t_int, 4, 1 }
-#define T_UINT1 { spirv_type::t_uint, 1, 1 }
-#define T_UINT2 { spirv_type::t_uint, 2, 1 }
-#define T_UINT3 { spirv_type::t_uint, 3, 1 }
-#define T_UINT4 { spirv_type::t_uint, 4, 1 }
-#define T_FLOAT1 { spirv_type::t_float, 1, 1 }
-#define T_FLOAT2 { spirv_type::t_float, 2, 1 }
-#define T_FLOAT3 { spirv_type::t_float, 3, 1 }
-#define T_FLOAT4 { spirv_type::t_float, 4, 1 }
-#define T_FLOAT1_OUT { spirv_type::t_float, 1, 1, spirv_type::q_out, true }
-#define T_FLOAT2_OUT { spirv_type::t_float, 2, 1, spirv_type::q_out, true }
-#define T_FLOAT3_OUT { spirv_type::t_float, 3, 1, spirv_type::q_out, true }
-#define T_FLOAT4_OUT { spirv_type::t_float, 4, 1, spirv_type::q_out, true }
-#define T_FLOAT2X2 { spirv_type::t_float, 2, 2 }
-#define T_FLOAT3X3 { spirv_type::t_float, 3, 3 }
-#define T_FLOAT4X4 { spirv_type::t_float, 4, 4 }
-#define T_SAMPLER { spirv_type::t_sampler }
+#define T_VOID  { reshadefx::type::t_void }
+#define T_BOOL1 { reshadefx::type::t_bool, 1, 1 }
+#define T_BOOL2 { reshadefx::type::t_bool, 2, 1 }
+#define T_BOOL3 { reshadefx::type::t_bool, 3, 1 }
+#define T_BOOL4 { reshadefx::type::t_bool, 4, 1 }
+#define T_INT1 { reshadefx::type::t_int, 1, 1 }
+#define T_INT2 { reshadefx::type::t_int, 2, 1 }
+#define T_INT3 { reshadefx::type::t_int, 3, 1 }
+#define T_INT4 { reshadefx::type::t_int, 4, 1 }
+#define T_UINT1 { reshadefx::type::t_uint, 1, 1 }
+#define T_UINT2 { reshadefx::type::t_uint, 2, 1 }
+#define T_UINT3 { reshadefx::type::t_uint, 3, 1 }
+#define T_UINT4 { reshadefx::type::t_uint, 4, 1 }
+#define T_FLOAT1 { reshadefx::type::t_float, 1, 1 }
+#define T_FLOAT2 { reshadefx::type::t_float, 2, 1 }
+#define T_FLOAT3 { reshadefx::type::t_float, 3, 1 }
+#define T_FLOAT4 { reshadefx::type::t_float, 4, 1 }
+#define T_FLOAT1_OUT { reshadefx::type::t_float, 1, 1, reshadefx::type::q_out, true }
+#define T_FLOAT2_OUT { reshadefx::type::t_float, 2, 1, reshadefx::type::q_out, true }
+#define T_FLOAT3_OUT { reshadefx::type::t_float, 3, 1, reshadefx::type::q_out, true }
+#define T_FLOAT4_OUT { reshadefx::type::t_float, 4, 1, reshadefx::type::q_out, true }
+#define T_FLOAT2X2 { reshadefx::type::t_float, 2, 2 }
+#define T_FLOAT3X3 { reshadefx::type::t_float, 3, 3 }
+#define T_FLOAT4X4 { reshadefx::type::t_float, 4, 4 }
+#define T_SAMPLER { reshadefx::type::t_sampler }
 
 #ifndef DEFINE_INTRINSIC
 #define DEFINE_INTRINSIC(name, i, ret_type, ...)
@@ -252,7 +252,7 @@ DEFINE_INTRINSIC(asint, 0, T_INT2, T_FLOAT2)
 DEFINE_INTRINSIC(asint, 0, T_INT3, T_FLOAT3)
 DEFINE_INTRINSIC(asint, 0, T_INT4, T_FLOAT4)
 IMPLEMENT_INTRINSIC(asint, 0, {
-	return m.add_instruction(block, {}, spv::OpBitcast, m.convert_type({ spirv_type::t_int, args[0].type.rows, 1 }))
+	return m.add_instruction(block, {}, spv::OpBitcast, m.convert_type({ reshadefx::type::t_int, args[0].type.rows, 1 }))
 		.add(args[0].base)
 		.result;
 	})
@@ -263,7 +263,7 @@ DEFINE_INTRINSIC(asuint, 0, T_UINT2, T_FLOAT2)
 DEFINE_INTRINSIC(asuint, 0, T_UINT3, T_FLOAT3)
 DEFINE_INTRINSIC(asuint, 0, T_UINT4, T_FLOAT4)
 IMPLEMENT_INTRINSIC(asuint, 0, {
-	return m.add_instruction(block, {}, spv::OpBitcast, m.convert_type({ spirv_type::t_uint, args[0].type.rows, 1 }))
+	return m.add_instruction(block, {}, spv::OpBitcast, m.convert_type({ reshadefx::type::t_uint, args[0].type.rows, 1 }))
 		.add(args[0].base)
 		.result;
 	})
@@ -278,12 +278,12 @@ DEFINE_INTRINSIC(asfloat, 1, T_FLOAT2, T_UINT2)
 DEFINE_INTRINSIC(asfloat, 1, T_FLOAT3, T_UINT3)
 DEFINE_INTRINSIC(asfloat, 1, T_FLOAT4, T_UINT4)
 IMPLEMENT_INTRINSIC(asfloat, 0, {
-	return m.add_instruction(block, {}, spv::OpBitcast, m.convert_type({ spirv_type::t_float, args[0].type.rows, 1 }))
+	return m.add_instruction(block, {}, spv::OpBitcast, m.convert_type({ reshadefx::type::t_float, args[0].type.rows, 1 }))
 		.add(args[0].base)
 		.result;
 	})
 IMPLEMENT_INTRINSIC(asfloat, 1, {
-	return m.add_instruction(block, {}, spv::OpBitcast, m.convert_type({ spirv_type::t_float, args[0].type.rows, 1 }))
+	return m.add_instruction(block, {}, spv::OpBitcast, m.convert_type({ reshadefx::type::t_float, args[0].type.rows, 1 }))
 		.add(args[0].base)
 		.result;
 	})
@@ -972,7 +972,7 @@ DEFINE_INTRINSIC(isinf, 0, T_BOOL2, T_FLOAT2)
 DEFINE_INTRINSIC(isinf, 0, T_BOOL3, T_FLOAT3)
 DEFINE_INTRINSIC(isinf, 0, T_BOOL4, T_FLOAT4)
 IMPLEMENT_INTRINSIC(isinf, 0, {
-	return m.add_instruction(block, {}, spv::OpIsInf, m.convert_type({ spirv_type::t_bool, args[0].type.rows, 1 }))
+	return m.add_instruction(block, {}, spv::OpIsInf, m.convert_type({ reshadefx::type::t_bool, args[0].type.rows, 1 }))
 		.add(args[0].base)
 		.result;
 	})
@@ -983,7 +983,7 @@ DEFINE_INTRINSIC(isnan, 0, T_BOOL2, T_FLOAT2)
 DEFINE_INTRINSIC(isnan, 0, T_BOOL3, T_FLOAT3)
 DEFINE_INTRINSIC(isnan, 0, T_BOOL4, T_FLOAT4)
 IMPLEMENT_INTRINSIC(isnan, 0, {
-	return m.add_instruction(block, {}, spv::OpIsNan, m.convert_type({ spirv_type::t_bool, args[0].type.rows, 1 }))
+	return m.add_instruction(block, {}, spv::OpIsNan, m.convert_type({ reshadefx::type::t_bool, args[0].type.rows, 1 }))
 		.add(args[0].base)
 		.result;
 	})
@@ -1027,7 +1027,7 @@ DEFINE_INTRINSIC(tex2Dsize, 1, T_INT2, T_SAMPLER, T_INT1)
 IMPLEMENT_INTRINSIC(tex2Dsize, 0, {
 	m.add_capability(spv::CapabilityImageQuery);
 
-	const spv::Id image = m.add_instruction(block, {}, spv::OpImage, m.convert_type({ spirv_type::t_texture }))
+	const spv::Id image = m.add_instruction(block, {}, spv::OpImage, m.convert_type({ reshadefx::type::t_texture }))
 		.add(args[0].base)
 		.result;
 
@@ -1038,7 +1038,7 @@ IMPLEMENT_INTRINSIC(tex2Dsize, 0, {
 IMPLEMENT_INTRINSIC(tex2Dsize, 1, {
 	m.add_capability(spv::CapabilityImageQuery);
 
-	const spv::Id image = m.add_instruction(block, {}, spv::OpImage, m.convert_type({ spirv_type::t_texture }))
+	const spv::Id image = m.add_instruction(block, {}, spv::OpImage, m.convert_type({ reshadefx::type::t_texture }))
 		.add(args[0].base)
 		.result;
 
@@ -1062,7 +1062,7 @@ IMPLEMENT_INTRINSIC(tex2Dfetch, 0, {
 		.add(3) // .w
 		.result;
 
-	const spv::Id image = m.add_instruction(block, {}, spv::OpImage, m.convert_type({ spirv_type::t_texture }))
+	const spv::Id image = m.add_instruction(block, {}, spv::OpImage, m.convert_type({ reshadefx::type::t_texture }))
 		.add(args[0].base)
 		.result;
 

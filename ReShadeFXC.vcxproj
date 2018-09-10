@@ -156,6 +156,9 @@
     <ClCompile Include="tools\fxc.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="res\version.h" />
+  </ItemGroup>
+  <ItemGroup>
     <ResourceCompile Include="res\fxc.rc" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

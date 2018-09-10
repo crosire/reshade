@@ -18,7 +18,7 @@ enum op_type
 	op_swizzle
 };
 
-inline bool operator==(const reshadefx::spirv_type &lhs, const reshadefx::spirv_type &rhs)
+inline bool operator==(const reshadefx::type &lhs, const reshadefx::type &rhs)
 {
 	//return lhs.base == rhs.base && lhs.rows == rhs.rows && lhs.cols == rhs.cols && lhs.array_length == rhs.array_length && lhs.definition == rhs.definition && lhs.is_pointer == rhs.is_pointer;
 	//return std::memcmp(&lhs, &rhs, sizeof(lhs)) == 0;
@@ -45,7 +45,7 @@ static void write(std::vector<uint32_t> &s, const spirv_instruction &ins)
 	// The 16 low-order bits are the opcode
 	// The 16 high-order bits are the word count of the instruction
 	const uint32_t num_words = 1 + (ins.type != 0) + (ins.result != 0) + ins.operands.size();
-	write(s, (num_words << 16) | ins.op);
+	write(s, (num_words << spv::WordCountShift) | ins.op);
 
 	// Optional instruction type ID
 	if (ins.type != 0) write(s, ins.type);
@@ -94,10 +94,6 @@ void spirv_module::write_module(std::vector<uint32_t> &s) const
 		write(s, node);
 
 	// All debug instructions
-	write(s, spirv_instruction(spv::OpSource)
-		.add(spv::SourceLanguageHLSL)
-		.add(300)); // ReShade FX is similar to HLSL SM 3
-
 	for (const auto &node : _debug_a.instructions)
 		write(s, node);
 	for (const auto &node : _debug_b.instructions)
@@ -146,7 +142,7 @@ void spirv_module::define_struct(spv::Id id, const char *name, const location &l
 	if (name != nullptr)
 		add_name(id, name);
 }
-void spirv_module::define_function(spv::Id id, const char *name, const location &loc, const reshadefx::spirv_type &ret_type)
+void spirv_module::define_function(spv::Id id, const char *name, const location &loc, const reshadefx::type &ret_type)
 {
 	auto &function = _functions2.emplace_back();
 	function.return_type = ret_type;
@@ -162,7 +158,7 @@ void spirv_module::define_function(spv::Id id, const char *name, const location 
 	if (name != nullptr)
 		add_name(id, name);
 }
-void spirv_module::define_function_param(spv::Id id, const char *name, const location &loc, const reshadefx::spirv_type &type)
+void spirv_module::define_function_param(spv::Id id, const char *name, const location &loc, const reshadefx::type &type)
 {
 	_functions2[_current_function].param_types.push_back(type);
 
@@ -173,7 +169,7 @@ void spirv_module::define_function_param(spv::Id id, const char *name, const loc
 	if (name != nullptr)
 		add_name(id, name);
 }
-void spirv_module::define_variable(spv::Id id, const char *name, const location &loc, const reshadefx::spirv_type &type, spv::StorageClass storage, spv::Id initializer)
+void spirv_module::define_variable(spv::Id id, const char *name, const location &loc, const reshadefx::type &type, spv::StorageClass storage, spv::Id initializer)
 {
 	spirv_instruction &instruction = add_instruction_without_result(storage != spv::StorageClassFunction ? _variables : _functions2[_current_function].variables, loc, spv::OpVariable);
 	instruction.type = convert_type(type);
@@ -263,14 +259,14 @@ void spirv_module::add_entry_point(const char *name, spv::Id function, spv::Exec
 		.add(io.begin(), io.end());
 }
 
-void spirv_module::add_cast_operation(spirv_expression &chain, const reshadefx::spirv_type &in_type)
+void spirv_module::add_cast_operation(expression &chain, const reshadefx::type &in_type)
 {
 	if (chain.type == in_type)
 		return; // There is nothing to do if the expression is already of the target type
 
 	if (chain.is_constant)
 	{
-		const auto cast_constant = [](spirv_constant &constant, const spirv_type &from, const spirv_type &to) {
+		const auto cast_constant = [](constant &constant, const type &from, const type &to) {
 			if (to.is_integral())
 			{
 				if (!from.is_integral())
@@ -324,25 +320,25 @@ void spirv_module::add_cast_operation(spirv_expression &chain, const reshadefx::
 	chain.type = in_type;
 	//chain.is_lvalue = false; // Can't do this because of 'if (chain.is_lvalue)' check in 'access_chain_load'
 }
-void spirv_module::add_member_access(spirv_expression &chain, size_t index, const spirv_type &in_type)
+void spirv_module::add_member_access(expression &chain, size_t index, const type &in_type)
 {
-	spirv_type target_type = in_type;
+	type target_type = in_type;
 	target_type.is_ptr = true;
 
-	spirv_constant index_c = {};
+	constant index_c = {};
 	index_c.as_uint[0] = index;
-	chain.ops.push_back({ op_index, chain.type, target_type, convert_constant({ spirv_type::t_uint, 1, 1 }, index_c) });
+	chain.ops.push_back({ op_index, chain.type, target_type, convert_constant({ type::t_uint, 1, 1 }, index_c) });
 
 	chain.is_constant = false;
 	chain.type = in_type;
 }
-void spirv_module::add_static_index_access(spirv_expression &chain, size_t index)
+void spirv_module::add_static_index_access(expression &chain, size_t index)
 {
 	if (!chain.is_constant)
 	{
 		chain.constant.as_uint[0] = index;
 		memset(&chain.constant.as_uint[1], 0, sizeof(uint32_t) * 15); // Clear the reset of the constant
-		return add_dynamic_index_access(chain, convert_constant({ spirv_type::t_uint, 1, 1 }, chain.constant));
+		return add_dynamic_index_access(chain, convert_constant({ type::t_uint, 1, 1 }, chain.constant));
 	}
 
 	if (chain.type.is_array())
@@ -372,9 +368,9 @@ void spirv_module::add_static_index_access(spirv_expression &chain, size_t index
 		assert(false);
 	}
 }
-void spirv_module::add_dynamic_index_access(spirv_expression &chain, spv::Id index_expression)
+void spirv_module::add_dynamic_index_access(expression &chain, spv::Id index_expression)
 {
-	spirv_type target_type = chain.type;
+	type target_type = chain.type;
 	if (target_type.is_array())
 		target_type.array_length = 0;
 	else if (target_type.is_matrix())
@@ -391,7 +387,7 @@ void spirv_module::add_dynamic_index_access(spirv_expression &chain, spv::Id ind
 	chain.type = target_type;
 	chain.type.is_ptr = false;
 }
-void spirv_module::add_swizzle_access(spirv_expression &chain, signed char in_swizzle[4], size_t length)
+void spirv_module::add_swizzle_access(expression &chain, signed char in_swizzle[4], size_t length)
 {
 	// Indexing logic is simpler, so use that when possible
 	if (length == 1 && chain.type.is_vector())
@@ -408,7 +404,7 @@ void spirv_module::add_swizzle_access(spirv_expression &chain, signed char in_sw
 	//		return;
 	//}
 
-	spirv_type target_type = chain.type;
+	type target_type = chain.type;
 	target_type.rows = static_cast<unsigned int>(length);
 	target_type.cols = 1;
 
@@ -427,6 +423,88 @@ void spirv_module::add_swizzle_access(spirv_expression &chain, signed char in_sw
 
 	chain.type = target_type;
 	chain.type.is_ptr = false;
+}
+
+spv::Id spirv_module::add_unary_operation(spirv_basic_block &block, const location &loc, tokenid op, const type &type, spv::Id val)
+{
+	spv::Op spvop = spv::OpNop;
+
+	switch (op)
+	{
+	case tokenid::exclaim: spvop = spv::OpLogicalNot; break;
+	case tokenid::minus: spvop = type.is_floating_point() ? spv::OpFNegate : spv::OpSNegate; break;
+	case tokenid::tilde: spvop = spv::OpNot; break;
+	case tokenid::plus_plus: spvop = type.is_floating_point() ? spv::OpFAdd : spv::OpIAdd; break;
+	case tokenid::minus_minus: spvop = type.is_floating_point() ? spv::OpFSub : spv::OpISub; break;
+	default:
+		return 0;
+	}
+
+	return add_instruction(block, loc, spvop, convert_type(type))
+		.add(val) // Operand
+		.result; // Result ID
+}
+spv::Id spirv_module::add_binary_operation(spirv_basic_block &block, const location &loc, tokenid op, const type &res_type, const type &type, spv::Id lhs, spv::Id rhs)
+{
+	spv::Op spvop = spv::OpNop;
+
+	switch (op)
+	{
+	case tokenid::percent:
+	case tokenid::percent_equal: spvop = type.is_floating_point() ? spv::OpFRem : type.is_signed() ? spv::OpSRem : spv::OpUMod; break;
+	case tokenid::ampersand:
+	case tokenid::ampersand_equal: spvop = spv::OpBitwiseAnd; break;
+	case tokenid::star:
+	case tokenid::star_equal: spvop = type.is_floating_point() ? spv::OpFMul : spv::OpIMul; break;
+	case tokenid::plus:
+	case tokenid::plus_equal: spvop = type.is_floating_point() ? spv::OpFAdd : spv::OpIAdd; break;
+	case tokenid::minus:
+	case tokenid::minus_equal: spvop = type.is_floating_point() ? spv::OpFSub : spv::OpISub; break;
+	case tokenid::slash:
+	case tokenid::slash_equal: spvop = type.is_floating_point() ? spv::OpFDiv : type.is_signed() ? spv::OpSDiv : spv::OpUDiv; break;
+	case tokenid::less: spvop = type.is_floating_point() ? spv::OpFOrdLessThan : type.is_signed() ? spv::OpSLessThan : spv::OpULessThan; break;
+	case tokenid::greater: spvop = type.is_floating_point() ? spv::OpFOrdGreaterThan : type.is_signed() ? spv::OpSGreaterThan : spv::OpUGreaterThan; break;
+	case tokenid::question: spvop = spv::OpSelect; break;
+	case tokenid::caret:
+	case tokenid::caret_equal: spvop = spv::OpBitwiseXor; break;
+	case tokenid::pipe:
+	case tokenid::pipe_equal: spvop = spv::OpBitwiseOr; break;
+	case tokenid::exclaim_equal: spvop = type.is_integral() ? spv::OpINotEqual : type.is_floating_point() ? spv::OpFOrdNotEqual : spv::OpLogicalNotEqual; break;
+	case tokenid::ampersand_ampersand: spvop = spv::OpLogicalAnd;  break;
+	case tokenid::less_less:
+	case tokenid::less_less_equal: spvop = spv::OpShiftLeftLogical; break;
+	case tokenid::less_equal: spvop = type.is_floating_point() ? spv::OpFOrdLessThanEqual : type.is_signed() ? spv::OpSLessThanEqual : spv::OpULessThanEqual; break;
+	case tokenid::equal_equal: spvop = type.is_floating_point() ? spv::OpFOrdEqual : type.is_integral() ? spv::OpIEqual : spv::OpLogicalEqual; break;
+	case tokenid::greater_greater:
+	case tokenid::greater_greater_equal: spvop = type.is_signed() ? spv::OpShiftRightArithmetic : spv::OpShiftRightLogical; break;
+	case tokenid::greater_equal: spvop = type.is_floating_point() ? spv::OpFOrdGreaterThanEqual : type.is_signed() ? spv::OpSGreaterThanEqual : spv::OpUGreaterThanEqual; break;
+	case tokenid::pipe_pipe: spvop = spv::OpLogicalOr; break;
+	default:
+		return 0;
+	}
+
+	return add_instruction(block, loc, spvop, convert_type(res_type))
+		.add(lhs) // Operand 1
+		.add(rhs) // Operand 2
+		.result; // Result ID
+}
+spv::Id spirv_module::add_ternary_operation(spirv_basic_block &block, const location &loc, tokenid op, const type &type, spv::Id condition, spv::Id true_value, spv::Id false_value)
+{
+	assert(op == tokenid::question);
+	return add_instruction(block, loc, spv::OpSelect, convert_type(type))
+		.add(condition) // Condition
+		.add(true_value) // Object 1
+		.add(false_value) // Object 2
+		.result; // Result ID
+}
+spv::Id spirv_module::add_phi_operation(spirv_basic_block &block, const type &type, spv::Id value0, spv::Id parent0, spv::Id value1, spv::Id parent1)
+{
+	return add_instruction(block, {}, spv::OpPhi, convert_type(type))
+		.add(value0) // Variable 0
+		.add(parent0) // Parent 0
+		.add(value1) // Variable 1
+		.add(parent1) // Parent 1
+		.result;
 }
 
 void spirv_module::enter_block(spirv_basic_block &section, spv::Id id)
@@ -515,17 +593,17 @@ void spirv_module::leave_function()
 	_current_function = std::numeric_limits<size_t>::max();
 }
 
-spv::Id spirv_module::convert_type(const reshadefx::spirv_type &info)
+spv::Id spirv_module::convert_type(const reshadefx::type &info)
 {
 	if (auto it = std::find_if(_type_lookup.begin(), _type_lookup.end(),
-		[&info](auto &x) { return x.first == info && (!info.is_ptr || (x.first.qualifiers & (spirv_type::q_static | spirv_type::q_uniform)) == (info.qualifiers & (spirv_type::q_static | spirv_type::q_uniform))); }); it != _type_lookup.end())
+		[&info](auto &x) { return x.first == info && (!info.is_ptr || (x.first.qualifiers & (type::q_static | type::q_uniform)) == (info.qualifiers & (type::q_static | type::q_uniform))); }); it != _type_lookup.end())
 		return it->second;
 
 	spv::Id type;
 
 	if (info.is_ptr)
 	{
-		spirv_type eleminfo = info;
+		auto eleminfo = info;
 		eleminfo.is_input = false;
 		eleminfo.is_output = false;
 		eleminfo.is_ptr = false;
@@ -537,9 +615,9 @@ spv::Id spirv_module::convert_type(const reshadefx::spirv_type &info)
 			storage = spv::StorageClassInput;
 		if (info.is_output)
 			storage = spv::StorageClassOutput;
-		if (info.has(spirv_type::q_static))
+		if (info.has(type::q_static))
 			storage = spv::StorageClassPrivate;
-		if (info.has(spirv_type::q_uniform))
+		if (info.has(type::q_uniform))
 			storage = (info.is_texture() || info.is_sampler()) ? spv::StorageClassUniformConstant : spv::StorageClassUniform;
 
 		type = add_instruction(_types_and_constants, {}, spv::OpTypePointer)
@@ -551,17 +629,17 @@ spv::Id spirv_module::convert_type(const reshadefx::spirv_type &info)
 	{
 		assert(!info.is_ptr);
 
-		spirv_type eleminfo = info;
+		auto eleminfo = info;
 		eleminfo.array_length = 0;
 
 		const spv::Id elemtype = convert_type(eleminfo);
 
 		if (info.array_length > 0) // Sized array
 		{
-			spirv_constant length_data = {};
+			constant length_data = {};
 			length_data.as_uint[0] = info.array_length;
 
-			const spv::Id length_constant = convert_constant({ spirv_type::t_uint, 1, 1 }, length_data);
+			const spv::Id length_constant = convert_constant({ type::t_uint, 1, 1 }, length_data);
 
 			type = add_instruction(_types_and_constants, {}, spv::OpTypeArray)
 				.add(elemtype)
@@ -578,7 +656,7 @@ spv::Id spirv_module::convert_type(const reshadefx::spirv_type &info)
 	else if (info.is_matrix())
 	{
 		// Convert MxN matrix to a SPIR-V matrix with M vectors with N elements
-		spirv_type eleminfo = info;
+		auto eleminfo = info;
 		eleminfo.rows = info.cols;
 		eleminfo.cols = 1;
 
@@ -599,7 +677,7 @@ spv::Id spirv_module::convert_type(const reshadefx::spirv_type &info)
 	}
 	else if (info.is_vector())
 	{
-		spirv_type eleminfo = info;
+		auto eleminfo = info;
 		eleminfo.rows = 1;
 		eleminfo.cols = 1;
 
@@ -616,41 +694,41 @@ spv::Id spirv_module::convert_type(const reshadefx::spirv_type &info)
 
 		switch (info.base)
 		{
-		case spirv_type::t_void:
+		case type::t_void:
 			assert(info.rows == 0 && info.cols == 0);
 			type = add_instruction(_types_and_constants, {}, spv::OpTypeVoid).result;
 			break;
-		case spirv_type::t_bool:
+		case type::t_bool:
 			assert(info.rows == 1 && info.cols == 1);
 			type = add_instruction(_types_and_constants, {}, spv::OpTypeBool).result;
 			break;
-		case spirv_type::t_float:
+		case type::t_float:
 			assert(info.rows == 1 && info.cols == 1);
 			type = add_instruction(_types_and_constants, {}, spv::OpTypeFloat)
 				.add(32)
 				.result;
 			break;
-		case spirv_type::t_int:
+		case type::t_int:
 			assert(info.rows == 1 && info.cols == 1);
 			type = add_instruction(_types_and_constants, {}, spv::OpTypeInt)
 				.add(32)
 				.add(1)
 				.result;
 			break;
-		case spirv_type::t_uint:
+		case type::t_uint:
 			assert(info.rows == 1 && info.cols == 1);
 			type = add_instruction(_types_and_constants, {}, spv::OpTypeInt)
 				.add(32)
 				.add(0)
 				.result;
 			break;
-		case spirv_type::t_struct:
+		case type::t_struct:
 			assert(info.rows == 0 && info.cols == 0 && info.definition != 0);
 			type = info.definition;
 			break;
-		case spirv_type::t_texture: {
+		case type::t_texture: {
 			assert(info.rows == 0 && info.cols == 0);
-			spv::Id sampled_type = convert_type({ spirv_type::t_float, 1, 1 });
+			spv::Id sampled_type = convert_type({ type::t_float, 1, 1 });
 			type = add_instruction(_types_and_constants, {}, spv::OpTypeImage)
 				.add(sampled_type) // Sampled Type
 				.add(spv::Dim2D)
@@ -662,9 +740,9 @@ spv::Id spirv_module::convert_type(const reshadefx::spirv_type &info)
 				.result;
 			break;
 		}
-		case spirv_type::t_sampler: {
+		case type::t_sampler: {
 			assert(info.rows == 0 && info.cols == 0);
-			spv::Id image_type = convert_type({ spirv_type::t_texture, 0, 0, spirv_type::q_uniform });
+			spv::Id image_type = convert_type({ type::t_texture, 0, 0, type::q_uniform });
 			type = add_instruction(_types_and_constants, {}, spv::OpTypeSampledImage)
 				.add(image_type)
 				.result;
@@ -701,7 +779,7 @@ spv::Id spirv_module::convert_type(const function_info2 &info)
 	return node.result;
 }
 
-spv::Id spirv_module::convert_constant(const reshadefx::spirv_type &type, const spirv_constant &data)
+spv::Id spirv_module::convert_constant(const reshadefx::type &type, const constant &data)
 {
 	assert(!type.is_ptr);
 
@@ -723,10 +801,10 @@ spv::Id spirv_module::convert_constant(const reshadefx::spirv_type &type, const 
 
 		std::vector<spv::Id> elements;
 
-		spirv_type elem_type = type;
+		auto elem_type = type;
 		elem_type.array_length = 0;
 
-		for (const spirv_constant &elem : data.array_data)
+		for (const constant &elem : data.array_data)
 			elements.push_back(convert_constant(elem_type, elem));
 		for (size_t i = elements.size(); i < static_cast<size_t>(type.array_length); ++i)
 			elements.push_back(convert_constant(elem_type, {}));
@@ -748,10 +826,10 @@ spv::Id spirv_module::convert_constant(const reshadefx::spirv_type &type, const 
 
 		for (unsigned int i = 0; i < type.rows; ++i)
 		{
-			spirv_type row_type = type;
+			auto row_type = type;
 			row_type.rows = type.cols;
 			row_type.cols = 1;
-			spirv_constant row_data = {};
+			constant row_data = {};
 			for (unsigned int k = 0; k < type.cols; ++k)
 				row_data.as_uint[k] = data.as_uint[i * type.cols + k];
 
@@ -778,9 +856,9 @@ spv::Id spirv_module::convert_constant(const reshadefx::spirv_type &type, const 
 
 		for (unsigned int i = 0; i < type.rows; ++i)
 		{
-			spirv_type scalar_type = type;
+			auto scalar_type = type;
 			scalar_type.rows = 1;
-			spirv_constant scalar_data = {};
+			constant scalar_data = {};
 			scalar_data.as_uint[0] = data.as_uint[i];
 
 			rows[i] = convert_constant(scalar_type, scalar_data);
@@ -808,7 +886,7 @@ spv::Id spirv_module::convert_constant(const reshadefx::spirv_type &type, const 
 	return result;
 }
 
-spv::Id spirv_module::construct_type(spirv_basic_block &section, const spirv_type &type, std::vector<spirv_expression> &arguments)
+spv::Id spirv_module::construct_type(spirv_basic_block &section, const type &type, std::vector<expression> &arguments)
 {
 	std::vector<spv::Id> ids;
 
@@ -824,9 +902,9 @@ spv::Id spirv_module::construct_type(spirv_basic_block &section, const spirv_typ
 			{
 				for (unsigned int index = 0; index < argument.type.components(); ++index)
 				{
-					spirv_expression scalar = argument;
+					expression scalar = argument;
 					add_static_index_access(scalar, index);
-					spirv_type scalar_type = scalar.type;
+					auto scalar_type = scalar.type;
 					scalar_type.base = type.base;
 					add_cast_operation(scalar, scalar_type);
 					ids.push_back(access_chain_load(section, scalar));
@@ -835,7 +913,7 @@ spv::Id spirv_module::construct_type(spirv_basic_block &section, const spirv_typ
 			}
 			else
 			{
-				spirv_type scalar_type = argument.type;
+				auto scalar_type = argument.type;
 				scalar_type.base = type.base;
 				add_cast_operation(argument, scalar_type);
 				ids.push_back(access_chain_load(section, argument));
@@ -846,7 +924,7 @@ spv::Id spirv_module::construct_type(spirv_basic_block &section, const spirv_typ
 		// Second, turn that list of scalars into a list of column vectors
 		for (size_t i = 0, j = 0; i < ids.size(); i += type.rows, ++j)
 		{
-			spirv_type vector_type = type;
+			auto vector_type = type;
 			vector_type.cols = 1;
 
 			spirv_instruction &node = add_instruction(section, {}, spv::OpCompositeConstruct, convert_type(vector_type));
@@ -870,11 +948,11 @@ spv::Id spirv_module::construct_type(spirv_basic_block &section, const spirv_typ
 	// The exception is that for constructing a vector, a contiguous subset of the scalars consumed can be represented by a vector operand instead
 	else
 	{
-		assert(type.is_vector());
+		assert(type.is_vector() || type.is_array());
 
-		for (spirv_expression &argument : arguments)
+		for (expression &argument : arguments)
 		{
-			spirv_type target_type = argument.type;
+			auto target_type = argument.type;
 			target_type.base = type.base;
 			add_cast_operation(argument, target_type);
 			assert(argument.type.is_scalar() || argument.type.is_vector());
@@ -889,7 +967,7 @@ spv::Id spirv_module::construct_type(spirv_basic_block &section, const spirv_typ
 		.result;
 }
 
-spv::Id spirv_module::access_chain_load(spirv_basic_block &section, const spirv_expression &chain)
+spv::Id spirv_module::access_chain_load(spirv_basic_block &section, const expression &chain)
 {
 	if (chain.is_constant) // Constant expressions do not have a complex access chain
 		return convert_constant(chain.type, chain.constant);
@@ -944,13 +1022,13 @@ spv::Id spirv_module::access_chain_load(spirv_basic_block &section, const spirv_
 
 			if (op.from.base != op.to.base)
 			{
-				spirv_type from_with_to_base = op.from;
+				type from_with_to_base = op.from;
 				from_with_to_base.base = op.to.base;
 
 				if (op.from.is_boolean())
 				{
-					spirv_constant true_value = {};
-					spirv_constant false_value = {};
+					constant true_value = {};
+					constant false_value = {};
 					for (unsigned int i = 0; i < op.to.components(); ++i)
 						true_value.as_uint[i] = op.to.is_floating_point() ? 0x3f800000 : 1;
 					const spv::Id true_constant = convert_constant(from_with_to_base, true_value);
@@ -966,23 +1044,23 @@ spv::Id spirv_module::access_chain_load(spirv_basic_block &section, const spirv_
 				{
 					switch (op.to.base)
 					{
-					case spirv_type::t_bool:
+					case type::t_bool:
 						result = add_instruction(section, chain.location, op.from.is_floating_point() ? spv::OpFOrdNotEqual : spv::OpINotEqual, convert_type(from_with_to_base))
 							.add(result)
 							.add(convert_constant(op.from, {}))
 							.result;
 						break;
-					case spirv_type::t_int:
+					case type::t_int:
 						result = add_instruction(section, chain.location, op.from.is_floating_point() ? spv::OpConvertFToS : spv::OpBitcast, convert_type(from_with_to_base))
 							.add(result)
 							.result;
 						break;
-					case spirv_type::t_uint:
+					case type::t_uint:
 						result = add_instruction(section, chain.location, op.from.is_floating_point() ? spv::OpConvertFToU : spv::OpBitcast, convert_type(from_with_to_base))
 							.add(result)
 							.result;
 						break;
-					case spirv_type::t_float:
+					case type::t_float:
 						assert(op.from.is_integral());
 						result = add_instruction(section, chain.location, op.from.is_signed() ? spv::OpConvertSToF : spv::OpConvertUToF, convert_type(from_with_to_base))
 							.add(result)
@@ -1011,7 +1089,7 @@ spv::Id spirv_module::access_chain_load(spirv_basic_block &section, const spirv_
 		case op_index:
 			if (op.from.is_vector() && op.to.is_scalar())
 			{
-				spirv_type target_type = op.to;
+				type target_type = op.to;
 				target_type.is_ptr = false;
 				spirv_instruction &node = add_instruction(section, chain.location, spv::OpVectorExtractDynamic, convert_type(target_type))
 					.add(result) // Vector
@@ -1034,7 +1112,7 @@ spv::Id spirv_module::access_chain_load(spirv_basic_block &section, const spirv_
 						const unsigned int row = op.swizzle[i] / 4;
 						const unsigned int column = op.swizzle[i] - row * 4;
 
-						spirv_type scalar_type = op.to;
+						type scalar_type = op.to;
 						scalar_type.rows = 1;
 						scalar_type.cols = 1;
 
@@ -1103,8 +1181,9 @@ spv::Id spirv_module::access_chain_load(spirv_basic_block &section, const spirv_
 
 	return result;
 }
-void    spirv_module::access_chain_store(spirv_basic_block &section, const spirv_expression &chain, spv::Id value, const reshadefx::spirv_type &value_type)
+void    spirv_module::access_chain_store(spirv_basic_block &section, const expression &chain, spv::Id value, const reshadefx::type &value_type)
 {
+	assert(value != 0);
 	assert(chain.is_lvalue && !chain.is_constant);
 	assert(!value_type.is_ptr);
 

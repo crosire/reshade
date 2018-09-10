@@ -19,12 +19,12 @@ using namespace reshadefx;
 
 struct intrinsic
 {
-	intrinsic(const char *name, intrinsic_callback cb, const spirv_type &ret_type, std::initializer_list<spirv_type> arg_types) : cb(cb)
+	intrinsic(const char *name, intrinsic_callback cb, const type &ret_type, std::initializer_list<type> arg_types) : cb(cb)
 	{
 		function.name = name;
 		function.return_type = ret_type;
 		function.parameter_list.reserve(arg_types.size());
-		for (const spirv_type &arg_type : arg_types)
+		for (const type &arg_type : arg_types)
 			function.parameter_list.push_back({ arg_type });
 	}
 
@@ -34,7 +34,7 @@ struct intrinsic
 
 // Import intrinsic callback functions
 #define DEFINE_INTRINSIC(name, i, ret_type, ...)
-#define IMPLEMENT_INTRINSIC(name, i, code) static spv::Id intrinsic_##name##_##i(spirv_module &m, spirv_basic_block &block, const std::vector<spirv_expression> &args) code
+#define IMPLEMENT_INTRINSIC(name, i, code) static spv::Id intrinsic_##name##_##i(spirv_module &m, spirv_basic_block &block, const std::vector<expression> &args) code
 #include "effect_symbol_table_intrinsics.inl"
 #undef DEFINE_INTRINSIC
 #undef IMPLEMENT_INTRINSIC
@@ -50,7 +50,7 @@ static const intrinsic s_intrinsics[] = {
 
 #pragma endregion
 
-unsigned int reshadefx::spirv_type::rank(const spirv_type &src, const spirv_type &dst)
+unsigned int reshadefx::type::rank(const type &src, const type &dst)
 {
 	if (src.is_array() != dst.is_array() || (src.array_length != dst.array_length && src.array_length > 0 && dst.array_length > 0))
 		return 0;
@@ -83,9 +83,9 @@ unsigned int reshadefx::spirv_type::rank(const spirv_type &src, const spirv_type
 	return rank;
 }
 
-reshadefx::spirv_type reshadefx::spirv_type::merge(const spirv_type &lhs, const spirv_type &rhs)
+reshadefx::type reshadefx::type::merge(const type &lhs, const type &rhs)
 {
-	spirv_type result = { std::max(lhs.base, rhs.base) };
+	type result = { std::max(lhs.base, rhs.base) };
 
 	// If one side of the expression is scalar, it needs to be promoted to the same dimension as the other side
 	if ((lhs.rows == 1 && lhs.cols == 1) || (rhs.rows == 1 && rhs.cols == 1))
@@ -100,7 +100,7 @@ reshadefx::spirv_type reshadefx::spirv_type::merge(const spirv_type &lhs, const 
 	}
 
 	// Some qualifiers propagate to the result
-	result.qualifiers = (lhs.qualifiers & spirv_type::q_precise) | (rhs.qualifiers & spirv_type::q_precise);
+	result.qualifiers = (lhs.qualifiers & type::q_precise) | (rhs.qualifiers & type::q_precise);
 
 	return result;
 }
@@ -234,7 +234,7 @@ reshadefx::symbol reshadefx::symbol_table::find_symbol(const std::string &name, 
 	return result;
 }
 
-static int compare_functions(const std::vector<reshadefx::spirv_expression> &arguments, const reshadefx::spirv_function_info *function1, const reshadefx::spirv_function_info *function2)
+static int compare_functions(const std::vector<reshadefx::expression> &arguments, const reshadefx::spirv_function_info *function1, const reshadefx::spirv_function_info *function2)
 {
 	const size_t num_arguments = arguments.size();
 
@@ -242,7 +242,7 @@ static int compare_functions(const std::vector<reshadefx::spirv_expression> &arg
 	bool function1_viable = true;
 	const auto function1_ranks = static_cast<unsigned int *>(alloca(num_arguments * sizeof(unsigned int)));
 	for (size_t i = 0; i < num_arguments; ++i)
-		if ((function1_ranks[i] = reshadefx::spirv_type::rank(arguments[i].type, function1->parameter_list[i].type)) == 0)
+		if ((function1_ranks[i] = reshadefx::type::rank(arguments[i].type, function1->parameter_list[i].type)) == 0)
 		{
 			function1_viable = false;
 			break;
@@ -256,7 +256,7 @@ static int compare_functions(const std::vector<reshadefx::spirv_expression> &arg
 	bool function2_viable = true;
 	const auto function2_ranks = static_cast<unsigned int *>(alloca(num_arguments * sizeof(unsigned int)));
 	for (size_t i = 0; i < num_arguments; ++i)
-		if ((function2_ranks[i] = reshadefx::spirv_type::rank(arguments[i].type, function2->parameter_list[i].type)) == 0)
+		if ((function2_ranks[i] = reshadefx::type::rank(arguments[i].type, function2->parameter_list[i].type)) == 0)
 		{
 			function2_viable = false;
 			break;
@@ -279,7 +279,7 @@ static int compare_functions(const std::vector<reshadefx::spirv_expression> &arg
 	return 0; // Both functions are equally viable
 }
 
-bool reshadefx::symbol_table::resolve_function_call(const std::string &name, const std::vector<spirv_expression> &arguments, const scope &scope, symbol &out_data, bool &is_ambiguous) const
+bool reshadefx::symbol_table::resolve_function_call(const std::string &name, const std::vector<expression> &arguments, const scope &scope, symbol &out_data, bool &is_ambiguous) const
 {
 	out_data.op = spv::OpFunctionCall;
 

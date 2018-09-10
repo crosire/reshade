@@ -5,7 +5,7 @@
 
 #pragma once
 
-#include "spirv_helpers.hpp"
+#include "effect_lexer.hpp"
 #include "spirv_instruction.hpp"
 #include <unordered_map>
 #include <unordered_set>
@@ -14,7 +14,7 @@ namespace reshadefx
 {
 	struct spirv_struct_member_info
 	{
-		spirv_type type;
+		type type;
 		std::string name;
 		std::string semantic;
 		std::vector<spv::Decoration> decorations;
@@ -33,7 +33,7 @@ namespace reshadefx
 		spv::Id definition;
 		std::string name;
 		std::string unique_name;
-		spirv_type return_type;
+		type return_type;
 		std::string return_semantic;
 		std::vector<spirv_struct_member_info> parameter_list;
 		spv::Id entry_point = 0;
@@ -122,8 +122,8 @@ namespace reshadefx
 			spirv_instruction declaration;
 			spirv_basic_block variables;
 			spirv_basic_block definition;
-			spirv_type return_type;
-			std::vector<spirv_type> param_types;
+			type return_type;
+			std::vector<type> param_types;
 		};
 
 		void write_module(std::vector<uint32_t> &stream) const;
@@ -131,10 +131,10 @@ namespace reshadefx
 		spirv_instruction &add_instruction(spirv_basic_block &section, const location &loc, spv::Op op, spv::Id type = 0);
 		spirv_instruction &add_instruction_without_result(spirv_basic_block &section, const location &loc, spv::Op op);
 
-		spv::Id convert_type(const spirv_type &info);
+		spv::Id convert_type(const type &info);
 		spv::Id convert_type(const function_info2 &info);
 
-		spv::Id convert_constant(const spirv_type &type, const spirv_constant &data);
+		spv::Id convert_constant(const type &type, const constant &data);
 
 		void add_capability(spv::Capability capability);
 
@@ -147,9 +147,9 @@ namespace reshadefx
 		spv::Id make_id() { return _next_id++; }
 
 		void define_struct(spv::Id id, const char *name, const location &loc, const std::vector<spv::Id> &members);
-		void define_function(spv::Id id, const char *name, const location &loc, const spirv_type &ret_type);
-		void define_function_param(spv::Id id, const char *name, const location &loc, const spirv_type &type);
-		void define_variable(spv::Id id, const char *name, const location &loc, const spirv_type &type, spv::StorageClass storage, spv::Id initializer = 0);
+		void define_function(spv::Id id, const char *name, const location &loc, const type &ret_type);
+		void define_function_param(spv::Id id, const char *name, const location &loc, const type &type);
+		void define_variable(spv::Id id, const char *name, const location &loc, const type &type, spv::StorageClass storage, spv::Id initializer = 0);
 
 		void add_name(spv::Id object, const char *name);
 		void add_builtin(spv::Id object, spv::BuiltIn builtin);
@@ -161,11 +161,17 @@ namespace reshadefx
 		void add_member_decoration(spv::Id object, uint32_t member_index, spv::Decoration decoration, std::initializer_list<uint32_t> values = {});
 		void add_entry_point(const char *name, spv::Id function, spv::ExecutionModel model, const std::vector<spv::Id> &io);
 
-		void add_cast_operation(spirv_expression &chain, const spirv_type &type);
-		void add_member_access(spirv_expression &chain, size_t index, const spirv_type &type);
-		void add_static_index_access(spirv_expression &chain, size_t index);
-		void add_dynamic_index_access(spirv_expression &chain, spv::Id index_expression);
-		void add_swizzle_access(spirv_expression &chain, signed char swizzle[4], size_t length);
+		void add_cast_operation(expression &chain, const type &type);
+		void add_member_access(expression &chain, size_t index, const type &type);
+		void add_static_index_access(expression &chain, size_t index);
+		void add_dynamic_index_access(expression &chain, spv::Id index_expression);
+		void add_swizzle_access(expression &chain, signed char swizzle[4], size_t length);
+
+		spv::Id add_unary_operation(spirv_basic_block &block, const location &loc, tokenid op, const type &type, spv::Id val);
+		spv::Id add_binary_operation(spirv_basic_block &block, const location &loc, tokenid op, const type &type, spv::Id lhs, spv::Id rhs) { return add_binary_operation(block, loc, op, type, type, lhs, rhs); }
+		spv::Id add_binary_operation(spirv_basic_block &block, const location &loc, tokenid op, const type &res_type, const type &type, spv::Id lhs, spv::Id rhs);
+		spv::Id add_ternary_operation(spirv_basic_block &block, const location &loc, tokenid op, const type &type, spv::Id condition, spv::Id true_value, spv::Id false_value);
+		spv::Id add_phi_operation(spirv_basic_block &block, const type &type, spv::Id value0, spv::Id parent0, spv::Id value1, spv::Id parent1);
 
 		void enter_block(spirv_basic_block &section, spv::Id id);
 		void leave_block_and_kill(spirv_basic_block &section);
@@ -174,10 +180,10 @@ namespace reshadefx
 		void leave_block_and_branch_conditional(spirv_basic_block &section, spv::Id condition, spv::Id true_target, spv::Id false_target);
 		void leave_function();
 
-		spv::Id construct_type(spirv_basic_block &section, const spirv_type &type, std::vector<spirv_expression> &arguments);
+		spv::Id construct_type(spirv_basic_block &section, const type &type, std::vector<expression> &arguments);
 
-		spv::Id access_chain_load(spirv_basic_block &section, const spirv_expression &chain);
-		void    access_chain_store(spirv_basic_block &section, const spirv_expression &chain, spv::Id value, const spirv_type &value_type);
+		spv::Id access_chain_load(spirv_basic_block &section, const expression &chain);
+		void    access_chain_store(spirv_basic_block &section, const expression &chain, spv::Id value, const type &value_type);
 
 		std::vector<function_info2> _functions2;
 
@@ -195,8 +201,8 @@ namespace reshadefx
 		spirv_basic_block _variables;
 
 		std::unordered_set<spv::Capability> _capabilities;
-		std::vector<std::pair<spirv_type, spv::Id>> _type_lookup;
+		std::vector<std::pair<type, spv::Id>> _type_lookup;
 		std::vector<std::pair<function_info2, spv::Id>> _function_type_lookup;
-		std::vector<std::tuple<spirv_type, spirv_constant, spv::Id>> _constant_lookup;
+		std::vector<std::tuple<type, constant, spv::Id>> _constant_lookup;
 	};
 }

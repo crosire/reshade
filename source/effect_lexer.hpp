@@ -5,7 +5,7 @@
 
 #pragma once
 
-#include "spirv_helpers.hpp"
+#include "effect_types.hpp"
 
 namespace reshadefx
 {

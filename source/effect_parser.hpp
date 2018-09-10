@@ -47,21 +47,21 @@ namespace reshadefx
 		bool expect(char tok) { return expect(static_cast<tokenid>(tok)); }
 		bool expect(tokenid tokid);
 
-		bool accept_type_class(spirv_type &type);
-		bool accept_type_qualifiers(spirv_type &type);
+		bool accept_type_class(type &type);
+		bool accept_type_qualifiers(type &type);
 
-		bool parse_type(spirv_type &type);
-		bool parse_array_size(spirv_type &type);
+		bool parse_type(type &type);
+		bool parse_array_size(type &type);
 
-		bool accept_unary_op(spv::Op &op);
-		bool accept_postfix_op(const spirv_type &type, spv::Op &op);
-		bool peek_multary_op(spv::Op &op, unsigned int &precedence) const;
-		bool accept_assignment_op(const spirv_type &type, spv::Op &op);
+		bool accept_unary_op();
+		bool accept_postfix_op();
+		bool peek_multary_op(unsigned int &precedence) const;
+		bool accept_assignment_op();
 
-		bool parse_expression(spirv_basic_block &block, spirv_expression &expression);
-		bool parse_expression_unary(spirv_basic_block &block, spirv_expression &expression);
-		bool parse_expression_multary(spirv_basic_block &block, spirv_expression &expression, unsigned int precedence = 0);
-		bool parse_expression_assignment(spirv_basic_block &block, spirv_expression &expression);
+		bool parse_expression(spirv_basic_block &block, expression &expression);
+		bool parse_expression_unary(spirv_basic_block &block, expression &expression);
+		bool parse_expression_multary(spirv_basic_block &block, expression &expression, unsigned int precedence = 0);
+		bool parse_expression_assignment(spirv_basic_block &block, expression &expression);
 
 		bool parse_annotations(std::unordered_map<std::string, std::string> &annotations);
 
@@ -70,8 +70,8 @@ namespace reshadefx
 
 		bool parse_top();
 		bool parse_struct();
-		bool parse_function(spirv_type type, std::string name);
-		bool parse_variable(spirv_type type, std::string name, spirv_basic_block &block, bool global = false);
+		bool parse_function(type type, std::string name);
+		bool parse_variable(type type, std::string name, spirv_basic_block &block, bool global = false);
 		bool parse_technique();
 		bool parse_technique_pass(spirv_pass_info &info);
 

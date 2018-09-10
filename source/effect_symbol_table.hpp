@@ -5,7 +5,7 @@
 
 #pragma once
 
-#include "spirv_helpers.hpp"
+#include "effect_types.hpp"
 #include <unordered_map>
 
 namespace reshadefx
@@ -13,7 +13,7 @@ namespace reshadefx
 	/// <summary>
 	/// Callback function to invoke an intrinsic function definition
 	/// </summary>
-	using intrinsic_callback = unsigned int(*)(class spirv_module &m, struct spirv_basic_block &block, const std::vector<spirv_expression> &args);
+	using intrinsic_callback = unsigned int(*)(class spirv_module &m, struct spirv_basic_block &block, const std::vector<expression> &args);
 
 	/// <summary>
 	/// A scope encapsulating symbols
@@ -31,8 +31,8 @@ namespace reshadefx
 	{
 		unsigned int op;
 		unsigned int id;
-		spirv_type type = {};
-		spirv_constant constant = {};
+		type type = {};
+		constant constant = {};
 		intrinsic_callback intrinsic = nullptr;
 		const struct spirv_function_info *function = nullptr;
 	};
@@ -82,7 +82,7 @@ namespace reshadefx
 		/// <summary>
 		/// Search for the best function or intrinsic overload matching the argument list.
 		/// </summary>
-		bool resolve_function_call(const std::string &name, const std::vector<spirv_expression> &args, const scope &scope, symbol &data, bool &ambiguous) const;
+		bool resolve_function_call(const std::string &name, const std::vector<expression> &args, const scope &scope, symbol &data, bool &ambiguous) const;
 
 	private:
 		struct scoped_symbol : symbol {

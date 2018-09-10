@@ -26,7 +26,7 @@ namespace reshadefx
 	/// <summary>
 	/// Structure which encapsulates a parsed type instance
 	/// </summary>
-	struct spirv_type
+	struct type
 	{
 		enum datatype : uint8_t
 		{
@@ -61,12 +61,12 @@ namespace reshadefx
 		/// <summary>
 		/// Get the result type of an operation involving the two input types.
 		/// </summary>
-		static spirv_type merge(const spirv_type &lhs, const spirv_type &rhs);
+		static type merge(const type &lhs, const type &rhs);
 
 		/// <summary>
 		/// Calculate the ranking between two types which can be used to select the best matching function overload. The higher the rank, the better the match.
 		/// </summary>
-		static unsigned int rank(const spirv_type &src, const spirv_type &dst);
+		static unsigned int rank(const type &src, const type &dst);
 
 		bool has(qualifier x) const { return (qualifiers & x) == x; }
 		bool is_array() const { return array_length != 0; }
@@ -101,7 +101,7 @@ namespace reshadefx
 	/// <summary>
 	/// Structure which encapsulates a parsed constant value
 	/// </summary>
-	struct spirv_constant
+	struct constant
 	{
 		union
 		{
@@ -113,31 +113,31 @@ namespace reshadefx
 		// Optional string associated with this constant
 		std::string string_data;
 		// Optional additional elements if this is an array constant
-		std::vector<spirv_constant> array_data;
+		std::vector<constant> array_data;
 	};
 
 	/// <summary>
 	/// Structures which keeps track of the access chain of an expression
 	/// </summary>
-	struct spirv_expression
+	struct expression
 	{
 		struct operation
 		{
 			unsigned int type;
-			spirv_type from, to;
+			struct type from, to;
 			uint32_t index;
 			signed char swizzle[4];
 		};
 
-		spirv_type type = {};
+		struct type type = {};
 		unsigned int base = 0;
-		spirv_constant constant = {};
+		constant constant = {};
 		bool is_lvalue = false;
 		bool is_constant = false;
 		location location;
 		std::vector<operation> ops;
 
-		void reset_to_lvalue(const struct location &loc, unsigned int in_base, const spirv_type &in_type)
+		void reset_to_lvalue(const struct location &loc, unsigned int in_base, const struct type &in_type)
 		{
 			type = in_type;
 			type.is_ptr = false;
@@ -147,10 +147,10 @@ namespace reshadefx
 			is_constant = false;
 			ops.clear();
 		}
-		void reset_to_rvalue(const struct location &loc, unsigned int in_base, const spirv_type &in_type)
+		void reset_to_rvalue(const struct location &loc, unsigned int in_base, const struct type &in_type)
 		{
 			type = in_type;
-			type.qualifiers |= spirv_type::q_const;
+			type.qualifiers |= type::q_const;
 			base = in_base;
 			location = loc;
 			is_lvalue = false;
@@ -160,7 +160,7 @@ namespace reshadefx
 
 		void reset_to_rvalue_constant(const struct location &loc, bool data)
 		{
-			type = { spirv_type::t_bool, 1, 1, spirv_type::q_const };
+			type = { type::t_bool, 1, 1, type::q_const };
 			base = 0; constant = {}; constant.as_uint[0] = data;
 			location = loc;
 			is_lvalue = false;
@@ -169,7 +169,7 @@ namespace reshadefx
 		}
 		void reset_to_rvalue_constant(const struct location &loc, float data)
 		{
-			type = { spirv_type::t_float, 1, 1, spirv_type::q_const };
+			type = { type::t_float, 1, 1, type::q_const };
 			base = 0; constant = {}; constant.as_float[0] = data;
 			location = loc;
 			is_lvalue = false;
@@ -178,7 +178,7 @@ namespace reshadefx
 		}
 		void reset_to_rvalue_constant(const struct location &loc, int32_t data)
 		{
-			type = { spirv_type::t_int,  1, 1, spirv_type::q_const };
+			type = { type::t_int,  1, 1, type::q_const };
 			base = 0; constant = {}; constant.as_int[0] = data;
 			location = loc;
 			is_lvalue = false;
@@ -187,7 +187,7 @@ namespace reshadefx
 		}
 		void reset_to_rvalue_constant(const struct location &loc, uint32_t data)
 		{
-			type = { spirv_type::t_uint, 1, 1, spirv_type::q_const };
+			type = { type::t_uint, 1, 1, type::q_const };
 			base = 0; constant = {}; constant.as_uint[0] = data;
 			location = loc;
 			is_lvalue = false;
@@ -196,17 +196,17 @@ namespace reshadefx
 		}
 		void reset_to_rvalue_constant(const struct location &loc, std::string data)
 		{
-			type = { spirv_type::t_string, 0, 0, spirv_type::q_const };
+			type = { type::t_string, 0, 0, type::q_const };
 			base = 0; constant = {}; constant.string_data = std::move(data);
 			location = loc;
 			is_lvalue = false;
 			is_constant = true;
 			ops.clear();
 		}
-		void reset_to_rvalue_constant(const struct location &loc, spirv_constant data, const spirv_type &in_type)
+		void reset_to_rvalue_constant(const struct location &loc, struct constant data, const struct type &in_type)
 		{
 			type = in_type;
-			type.qualifiers |= spirv_type::q_const;
+			type.qualifiers |= type::q_const;
 			base = 0; constant = std::move(data);
 			location = loc;
 			is_lvalue = false;

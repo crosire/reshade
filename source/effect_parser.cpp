@@ -22,240 +22,180 @@ static inline uintptr_t align(uintptr_t address, size_t alignment)
 	return (address % alignment != 0) ? address + alignment - address % alignment : address;
 }
 
-static void fix_op_type(spv::Op &op, const reshadefx::spirv_type &type)
+static reshadefx::constant evaluate_constant_expression(reshadefx::tokenid op, const reshadefx::type &type, const reshadefx::constant &lhs)
 {
-	if (type.is_integral() || type.is_floating_point())
-	{
-		switch (op)
-		{
-		case spv::OpLogicalEqual:
-			op = type.is_integral() ? spv::OpIEqual : spv::OpFOrdEqual;
-			break;
-		case spv::OpLogicalNotEqual:
-			op = type.is_integral() ? spv::OpINotEqual : spv::OpFOrdNotEqual;
-			break;
-		}
-	}
+	using namespace reshadefx;
 
-	if (type.is_integral())
-	{
-		switch (op)
-		{
-		case spv::OpFNegate:
-			op = spv::OpSNegate;
-			break;
-		case spv::OpFRem:
-			op = type.is_signed() ? spv::OpSRem : spv::OpUMod;
-			break;
-		case spv::OpFMul:
-			op = spv::OpIMul;
-			break;
-		case spv::OpFAdd:
-			op = spv::OpIAdd;
-			break;
-		case spv::OpFSub:
-			op = spv::OpISub;
-			break;
-		case spv::OpFDiv:
-			op = type.is_signed() ? spv::OpSDiv : spv::OpUDiv;
-			break;
-		case spv::OpFOrdLessThan:
-			op = type.is_signed() ? spv::OpSLessThan : spv::OpULessThan;
-			break;
-		case spv::OpFOrdGreaterThan:
-			op = type.is_signed() ? spv::OpSGreaterThan : spv::OpUGreaterThan;
-			break;
-		case spv::OpFOrdLessThanEqual:
-			op = type.is_signed() ? spv::OpSLessThanEqual : spv::OpULessThanEqual;
-			break;
-		case spv::OpFOrdGreaterThanEqual:
-			op = type.is_signed() ? spv::OpSGreaterThanEqual : spv::OpUGreaterThanEqual;
-			break;
-		case spv::OpShiftRightLogical:
-			op = type.is_signed() ? spv::OpShiftRightArithmetic : spv::OpShiftRightLogical;
-			break;
-		}
-	}
-}
-
-static reshadefx::spirv_constant evaluate_constant_expression(spv::Op op, const reshadefx::spirv_expression &exp)
-{
-	assert(exp.is_constant);
-
-	reshadefx::spirv_constant constant_data = {};
+	reshadefx::constant res = {};
 
 	switch (op)
 	{
-	case spv::OpLogicalNot:
-		for (unsigned int i = 0; i < exp.type.components(); ++i)
-			constant_data.as_uint[i] = !exp.constant.as_uint[i];
+	case tokenid::exclaim:
+		for (unsigned int i = 0; i < type.components(); ++i)
+			res.as_uint[i] = !lhs.as_uint[i];
 		break;
-	case spv::OpFNegate:
-		for (unsigned int i = 0; i < exp.type.components(); ++i)
-			constant_data.as_float[i] = -exp.constant.as_float[i];
+	case tokenid::minus:
+		if (type.is_floating_point())
+			for (unsigned int i = 0; i < type.components(); ++i)
+				res.as_float[i] = -lhs.as_float[i];
+		else
+			for (unsigned int i = 0; i < type.components(); ++i)
+				res.as_int[i] = -lhs.as_int[i];
 		break;
-	case spv::OpSNegate:
-		for (unsigned int i = 0; i < exp.type.components(); ++i)
-			constant_data.as_int[i] = -exp.constant.as_int[i];
-		break;
-	case spv::OpNot:
-		for (unsigned int i = 0; i < exp.type.components(); ++i)
-			constant_data.as_uint[i] = ~exp.constant.as_uint[i];
+	case tokenid::tilde:
+		for (unsigned int i = 0; i < type.components(); ++i)
+			res.as_uint[i] = ~lhs.as_uint[i];
 		break;
 	}
 
-	return constant_data;
+	return res;
 }
-static reshadefx::spirv_constant evaluate_constant_expression(spv::Op op, const reshadefx::spirv_expression &lhs, const reshadefx::spirv_expression &rhs)
+static reshadefx::constant evaluate_constant_expression(reshadefx::tokenid op, const reshadefx::type &type, const reshadefx::constant &lhs, const reshadefx::constant &rhs)
 {
-	assert(lhs.is_constant && rhs.is_constant);
+	using namespace reshadefx;
 
-	reshadefx::spirv_constant constant_data = lhs.constant;
+	reshadefx::constant res = lhs;
 
 	switch (op)
 	{
-	case spv::OpFRem:
-		for (unsigned int i = 0; i < lhs.type.components(); ++i)
-			constant_data.as_float[i] = fmodf(lhs.constant.as_float[i], rhs.constant.as_float[i]);
+	case tokenid::percent:
+		if (type.is_floating_point())
+			for (unsigned int i = 0; i < type.components(); ++i)
+				res.as_float[i] = fmodf(lhs.as_float[i], rhs.as_float[i]);
+		else if (type.is_signed())
+			for (unsigned int i = 0; i < type.components(); ++i)
+				res.as_int[i] %= rhs.as_int[i];
+		else
+			for (unsigned int i = 0; i < type.components(); ++i)
+				res.as_uint[i] %= rhs.as_uint[i];
 		break;
-	case spv::OpSRem:
-		for (unsigned int i = 0; i < lhs.type.components(); ++i)
-			constant_data.as_int[i] %= rhs.constant.as_int[i];
+	case tokenid::star:
+		if (type.is_floating_point())
+			for (unsigned int i = 0; i < type.components(); ++i)
+				res.as_float[i] *= rhs.as_float[i];
+		else
+			for (unsigned int i = 0; i < type.components(); ++i)
+				res.as_uint[i] *= rhs.as_uint[i];
 		break;
-	case spv::OpUMod:
-		for (unsigned int i = 0; i < lhs.type.components(); ++i)
-			constant_data.as_uint[i] %= rhs.constant.as_uint[i];
+	case tokenid::plus:
+		if (type.is_floating_point())
+			for (unsigned int i = 0; i < type.components(); ++i)
+				res.as_float[i] += rhs.as_float[i];
+		else
+			for (unsigned int i = 0; i < type.components(); ++i)
+				res.as_uint[i] += rhs.as_uint[i];
 		break;
-	case spv::OpFMul:
-		for (unsigned int i = 0; i < lhs.type.components(); ++i)
-			constant_data.as_float[i] *= rhs.constant.as_float[i];
+	case tokenid::minus:
+		if (type.is_floating_point())
+			for (unsigned int i = 0; i < type.components(); ++i)
+				res.as_float[i] -= rhs.as_float[i];
+		else
+			for (unsigned int i = 0; i < type.components(); ++i)
+				res.as_uint[i] -= rhs.as_uint[i];
 		break;
-	case spv::OpIMul:
-		for (unsigned int i = 0; i < lhs.type.components(); ++i)
-			constant_data.as_uint[i] *= rhs.constant.as_uint[i];
+	case tokenid::slash:
+		if (type.is_floating_point())
+			for (unsigned int i = 0; i < type.components(); ++i)
+				res.as_float[i] /= rhs.as_float[i];
+		else if (type.is_signed())
+			for (unsigned int i = 0; i < type.components(); ++i)
+				res.as_int[i] /= rhs.as_int[i];
+		else
+			for (unsigned int i = 0; i < type.components(); ++i)
+				res.as_uint[i] /= rhs.as_uint[i];
 		break;
-	case spv::OpFAdd:
-		for (unsigned int i = 0; i < lhs.type.components(); ++i)
-			constant_data.as_float[i] += rhs.constant.as_float[i];
+	case tokenid::ampersand:
+	case tokenid::ampersand_ampersand:
+		for (unsigned int i = 0; i < type.components(); ++i)
+			res.as_uint[i] &= rhs.as_uint[i];
 		break;
-	case spv::OpIAdd:
-		for (unsigned int i = 0; i < lhs.type.components(); ++i)
-			constant_data.as_uint[i] += rhs.constant.as_uint[i];
+	case tokenid::pipe:
+	case tokenid::pipe_pipe:
+		for (unsigned int i = 0; i < type.components(); ++i)
+			res.as_uint[i] |= rhs.as_uint[i];
 		break;
-	case spv::OpFSub:
-		for (unsigned int i = 0; i < lhs.type.components(); ++i)
-			constant_data.as_float[i] -= rhs.constant.as_float[i];
+	case tokenid::caret:
+		for (unsigned int i = 0; i < type.components(); ++i)
+			res.as_uint[i] ^= rhs.as_uint[i];
 		break;
-	case spv::OpISub:
-		for (unsigned int i = 0; i < lhs.type.components(); ++i)
-			constant_data.as_uint[i] -= rhs.constant.as_uint[i];
+	case tokenid::less:
+		if (type.is_floating_point())
+			for (unsigned int i = 0; i < type.components(); ++i)
+				res.as_uint[i] = lhs.as_float[i] < rhs.as_float[i];
+		else if (type.is_signed())
+			for (unsigned int i = 0; i < type.components(); ++i)
+				res.as_uint[i] = lhs.as_int[i] < rhs.as_int[i];
+		else
+			for (unsigned int i = 0; i < type.components(); ++i)
+				res.as_uint[i] = lhs.as_uint[i] < rhs.as_uint[i];
 		break;
-	case spv::OpFDiv:
-		for (unsigned int i = 0; i < lhs.type.components(); ++i)
-			constant_data.as_float[i] /= rhs.constant.as_float[i];
+	case tokenid::less_equal:
+		if (type.is_floating_point())
+			for (unsigned int i = 0; i < type.components(); ++i)
+				res.as_uint[i] = lhs.as_float[i] <= rhs.as_float[i];
+		else if (type.is_signed())
+			for (unsigned int i = 0; i < type.components(); ++i)
+				res.as_uint[i] = lhs.as_int[i] <= rhs.as_int[i];
+		else
+			for (unsigned int i = 0; i < type.components(); ++i)
+				res.as_uint[i] = lhs.as_uint[i] <= rhs.as_uint[i];
 		break;
-	case spv::OpSDiv:
-		for (unsigned int i = 0; i < lhs.type.components(); ++i)
-			constant_data.as_int[i] /= rhs.constant.as_int[i];
+	case tokenid::greater:
+		if (type.is_floating_point())
+			for (unsigned int i = 0; i < type.components(); ++i)
+				res.as_uint[i] = lhs.as_float[i] > rhs.as_float[i];
+		else if (type.is_signed())
+			for (unsigned int i = 0; i < type.components(); ++i)
+				res.as_uint[i] = lhs.as_int[i] > rhs.as_int[i];
+		else
+			for (unsigned int i = 0; i < type.components(); ++i)
+				res.as_uint[i] = lhs.as_uint[i] > rhs.as_uint[i];
 		break;
-	case spv::OpUDiv:
-		for (unsigned int i = 0; i < lhs.type.components(); ++i)
-			constant_data.as_uint[i] /= rhs.constant.as_uint[i];
+	case tokenid::greater_equal:
+		if (type.is_floating_point())
+			for (unsigned int i = 0; i < type.components(); ++i)
+				res.as_uint[i] = lhs.as_float[i] >= rhs.as_float[i];
+		else if (type.is_signed())
+			for (unsigned int i = 0; i < type.components(); ++i)
+				res.as_uint[i] = lhs.as_int[i] >= rhs.as_int[i];
+		else
+			for (unsigned int i = 0; i < type.components(); ++i)
+				res.as_uint[i] = lhs.as_uint[i] >= rhs.as_uint[i];
 		break;
-	case spv::OpLogicalAnd:
-	case spv::OpBitwiseAnd:
-		for (unsigned int i = 0; i < lhs.type.components(); ++i)
-			constant_data.as_uint[i] &= rhs.constant.as_uint[i];
+	case tokenid::equal_equal:
+		if (type.is_floating_point())
+			for (unsigned int i = 0; i < type.components(); ++i)
+				res.as_uint[i] = lhs.as_float[i] == rhs.as_float[i];
+		else
+			for (unsigned int i = 0; i < type.components(); ++i)
+				res.as_uint[i] = lhs.as_uint[i] == rhs.as_uint[i];
 		break;
-	case spv::OpLogicalOr:
-	case spv::OpBitwiseOr:
-		for (unsigned int i = 0; i < lhs.type.components(); ++i)
-			constant_data.as_uint[i] |= rhs.constant.as_uint[i];
+	case tokenid::exclaim_equal:
+		if (type.is_floating_point())
+			for (unsigned int i = 0; i < type.components(); ++i)
+				res.as_uint[i] = lhs.as_float[i] != rhs.as_float[i];
+		else
+			for (unsigned int i = 0; i < type.components(); ++i)
+				res.as_uint[i] = lhs.as_uint[i] != rhs.as_uint[i];
 		break;
-	case spv::OpBitwiseXor:
-		for (unsigned int i = 0; i < lhs.type.components(); ++i)
-			constant_data.as_uint[i] ^= rhs.constant.as_uint[i];
+	case tokenid::less_less:
+		for (unsigned int i = 0; i < type.components(); ++i)
+			res.as_uint[i] <<= rhs.as_uint[i];
 		break;
-	case spv::OpFOrdLessThan:
-		for (unsigned int i = 0; i < lhs.type.components(); ++i)
-			constant_data.as_uint[i] = lhs.constant.as_float[i] < rhs.constant.as_float[i];
-		break;
-	case spv::OpSLessThan:
-		for (unsigned int i = 0; i < lhs.type.components(); ++i)
-			constant_data.as_uint[i] = lhs.constant.as_int[i] < rhs.constant.as_int[i];
-		break;
-	case spv::OpULessThan:
-		for (unsigned int i = 0; i < lhs.type.components(); ++i)
-			constant_data.as_uint[i] = lhs.constant.as_uint[i] < rhs.constant.as_uint[i];
-		break;
-	case spv::OpFOrdLessThanEqual:
-		for (unsigned int i = 0; i < lhs.type.components(); ++i)
-			constant_data.as_uint[i] = lhs.constant.as_float[i] <= rhs.constant.as_float[i];
-		break;
-	case spv::OpSLessThanEqual:
-		for (unsigned int i = 0; i < lhs.type.components(); ++i)
-			constant_data.as_uint[i] = lhs.constant.as_int[i] <= rhs.constant.as_int[i];
-		break;
-	case spv::OpULessThanEqual:
-		for (unsigned int i = 0; i < lhs.type.components(); ++i)
-			constant_data.as_uint[i] = lhs.constant.as_uint[i] <= rhs.constant.as_uint[i];
-		break;
-	case spv::OpFOrdGreaterThan:
-		for (unsigned int i = 0; i < lhs.type.components(); ++i)
-			constant_data.as_uint[i] = lhs.constant.as_float[i] > rhs.constant.as_float[i];
-		break;
-	case spv::OpSGreaterThan:
-		for (unsigned int i = 0; i < lhs.type.components(); ++i)
-			constant_data.as_uint[i] = lhs.constant.as_int[i] > rhs.constant.as_int[i];
-		break;
-	case spv::OpUGreaterThan:
-		for (unsigned int i = 0; i < lhs.type.components(); ++i)
-			constant_data.as_uint[i] = lhs.constant.as_uint[i] > rhs.constant.as_uint[i];
-		break;
-	case spv::OpFOrdGreaterThanEqual:
-		for (unsigned int i = 0; i < lhs.type.components(); ++i)
-			constant_data.as_uint[i] = lhs.constant.as_float[i] >= rhs.constant.as_float[i];
-		break;
-	case spv::OpSGreaterThanEqual:
-		for (unsigned int i = 0; i < lhs.type.components(); ++i)
-			constant_data.as_uint[i] = lhs.constant.as_int[i] >= rhs.constant.as_int[i];
-		break;
-	case spv::OpUGreaterThanEqual:
-		for (unsigned int i = 0; i < lhs.type.components(); ++i)
-			constant_data.as_uint[i] = lhs.constant.as_uint[i] >= rhs.constant.as_uint[i];
-		break;
-	case spv::OpFOrdEqual:
-		for (unsigned int i = 0; i < lhs.type.components(); ++i)
-			constant_data.as_uint[i] = lhs.constant.as_float[i] == rhs.constant.as_float[i];
-	case spv::OpIEqual:
-	case spv::OpLogicalEqual:
-		for (unsigned int i = 0; i < lhs.type.components(); ++i)
-			constant_data.as_uint[i] = lhs.constant.as_uint[i] == rhs.constant.as_uint[i];
-		break;
-	case spv::OpFOrdNotEqual:
-		for (unsigned int i = 0; i < lhs.type.components(); ++i)
-			constant_data.as_uint[i] = lhs.constant.as_float[i] != rhs.constant.as_float[i];
-	case spv::OpINotEqual:
-	case spv::OpLogicalNotEqual:
-		for (unsigned int i = 0; i < lhs.type.components(); ++i)
-			constant_data.as_uint[i] = lhs.constant.as_uint[i] != rhs.constant.as_uint[i];
-		break;
-	case spv::OpShiftLeftLogical:
-		for (unsigned int i = 0; i < lhs.type.components(); ++i)
-			constant_data.as_uint[i] <<= rhs.constant.as_uint[i];
-		break;
-	case spv::OpShiftRightArithmetic:
-		for (unsigned int i = 0; i < lhs.type.components(); ++i)
-			constant_data.as_int[i] >>= rhs.constant.as_int[i];
-		break;
-	case spv::OpShiftRightLogical:
-		for (unsigned int i = 0; i < lhs.type.components(); ++i)
-			constant_data.as_uint[i] >>= rhs.constant.as_uint[i];
+	case tokenid::greater_greater:
+		if (type.is_signed())
+			for (unsigned int i = 0; i < type.components(); ++i)
+				res.as_int[i] >>= rhs.as_int[i];
+		else
+			for (unsigned int i = 0; i < type.components(); ++i)
+				res.as_uint[i] >>= rhs.as_uint[i];
 		break;
 	}
 
-	return constant_data;
+	return res;
 }
+
+// -- Parsing -- //
 
 bool reshadefx::parser::parse(const std::string &input)
 {
@@ -282,7 +222,7 @@ bool reshadefx::parser::parse(const std::string &input)
 		add_decoration(_global_ubo_type, spv::DecorationBinding, { 0 });
 		add_decoration(_global_ubo_type, spv::DecorationDescriptorSet, { 0 });
 
-		define_variable(_global_ubo_variable, "$Globals", {}, { spirv_type::t_struct, 0, 0, spirv_type::q_uniform, true, false, false, 0, _global_ubo_type }, spv::StorageClassUniform);
+		define_variable(_global_ubo_variable, "$Globals", {}, { type::t_struct, 0, 0, type::q_uniform, true, false, false, 0, _global_ubo_type }, spv::StorageClassUniform);
 	}
 
 	return success;
@@ -374,13 +314,13 @@ bool reshadefx::parser::expect(tokenid tokid)
 
 // -- Type Parsing -- //
 
-bool reshadefx::parser::accept_type_class(spirv_type &type)
+bool reshadefx::parser::accept_type_class(type &type)
 {
 	type.rows = type.cols = 0;
 
 	if (peek(tokenid::identifier))
 	{
-		type.base = spirv_type::t_struct;
+		type.base = type::t_struct;
 
 		const symbol symbol = find_symbol(_token_next.literal_as_string);
 
@@ -396,7 +336,7 @@ bool reshadefx::parser::accept_type_class(spirv_type &type)
 	}
 	else if (accept(tokenid::vector))
 	{
-		type.base = spirv_type::t_float;
+		type.base = type::t_float;
 		type.rows = 4, type.cols = 1;
 
 		if (accept('<'))
@@ -421,7 +361,7 @@ bool reshadefx::parser::accept_type_class(spirv_type &type)
 	}
 	else if (accept(tokenid::matrix))
 	{
-		type.base = spirv_type::t_float;
+		type.base = type::t_float;
 		type.rows = 4, type.cols = 4;
 
 		if (accept('<'))
@@ -455,20 +395,20 @@ bool reshadefx::parser::accept_type_class(spirv_type &type)
 	switch (_token_next.id)
 	{
 	case tokenid::void_:
-		type.base = spirv_type::t_void;
+		type.base = type::t_void;
 		break;
 	case tokenid::bool_:
 	case tokenid::bool2:
 	case tokenid::bool3:
 	case tokenid::bool4:
-		type.base = spirv_type::t_bool;
+		type.base = type::t_bool;
 		type.rows = 1 + uint32_t(_token_next.id) - uint32_t(tokenid::bool_);
 		type.cols = 1;
 		break;
 	case tokenid::bool2x2:
 	case tokenid::bool3x3:
 	case tokenid::bool4x4:
-		type.base = spirv_type::t_bool;
+		type.base = type::t_bool;
 		type.rows = 2 + uint32_t(_token_next.id) - uint32_t(tokenid::bool2x2);
 		type.cols = type.rows;
 		break;
@@ -476,14 +416,14 @@ bool reshadefx::parser::accept_type_class(spirv_type &type)
 	case tokenid::int2:
 	case tokenid::int3:
 	case tokenid::int4:
-		type.base = spirv_type::t_int;
+		type.base = type::t_int;
 		type.rows = 1 + uint32_t(_token_next.id) - uint32_t(tokenid::int_);
 		type.cols = 1;
 		break;
 	case tokenid::int2x2:
 	case tokenid::int3x3:
 	case tokenid::int4x4:
-		type.base = spirv_type::t_int;
+		type.base = type::t_int;
 		type.rows = 2 + uint32_t(_token_next.id) - uint32_t(tokenid::int2x2);
 		type.cols = type.rows;
 		break;
@@ -491,14 +431,14 @@ bool reshadefx::parser::accept_type_class(spirv_type &type)
 	case tokenid::uint2:
 	case tokenid::uint3:
 	case tokenid::uint4:
-		type.base = spirv_type::t_uint;
+		type.base = type::t_uint;
 		type.rows = 1 + uint32_t(_token_next.id) - uint32_t(tokenid::uint_);
 		type.cols = 1;
 		break;
 	case tokenid::uint2x2:
 	case tokenid::uint3x3:
 	case tokenid::uint4x4:
-		type.base = spirv_type::t_uint;
+		type.base = type::t_uint;
 		type.rows = 2 + uint32_t(_token_next.id) - uint32_t(tokenid::uint2x2);
 		type.cols = type.rows;
 		break;
@@ -506,25 +446,25 @@ bool reshadefx::parser::accept_type_class(spirv_type &type)
 	case tokenid::float2:
 	case tokenid::float3:
 	case tokenid::float4:
-		type.base = spirv_type::t_float;
+		type.base = type::t_float;
 		type.rows = 1 + uint32_t(_token_next.id) - uint32_t(tokenid::float_);
 		type.cols = 1;
 		break;
 	case tokenid::float2x2:
 	case tokenid::float3x3:
 	case tokenid::float4x4:
-		type.base = spirv_type::t_float;
+		type.base = type::t_float;
 		type.rows = 2 + uint32_t(_token_next.id) - uint32_t(tokenid::float2x2);
 		type.cols = type.rows;
 		break;
 	case tokenid::string_:
-		type.base = spirv_type::t_string;
+		type.base = type::t_string;
 		break;
 	case tokenid::texture:
-		type.base = spirv_type::t_texture;
+		type.base = type::t_texture;
 		break;
 	case tokenid::sampler:
-		type.base = spirv_type::t_sampler;
+		type.base = type::t_sampler;
 		break;
 	default:
 		return false;
@@ -534,42 +474,42 @@ bool reshadefx::parser::accept_type_class(spirv_type &type)
 
 	return true;
 }
-bool reshadefx::parser::accept_type_qualifiers(spirv_type &type)
+bool reshadefx::parser::accept_type_qualifiers(type &type)
 {
 	unsigned int qualifiers = 0;
 
 	// Storage
 	if (accept(tokenid::extern_))
-		qualifiers |= spirv_type::q_extern;
+		qualifiers |= type::q_extern;
 	if (accept(tokenid::static_))
-		qualifiers |= spirv_type::q_static;
+		qualifiers |= type::q_static;
 	if (accept(tokenid::uniform_))
-		qualifiers |= spirv_type::q_uniform;
+		qualifiers |= type::q_uniform;
 	if (accept(tokenid::volatile_))
-		qualifiers |= spirv_type::q_volatile;
+		qualifiers |= type::q_volatile;
 	if (accept(tokenid::precise))
-		qualifiers |= spirv_type::q_precise;
+		qualifiers |= type::q_precise;
 
 	if (accept(tokenid::in))
-		qualifiers |= spirv_type::q_in;
+		qualifiers |= type::q_in;
 	if (accept(tokenid::out))
-		qualifiers |= spirv_type::q_out;
+		qualifiers |= type::q_out;
 	if (accept(tokenid::inout))
-		qualifiers |= spirv_type::q_inout;
+		qualifiers |= type::q_inout;
 
 	// Modifiers
 	if (accept(tokenid::const_))
-		qualifiers |= spirv_type::q_const;
+		qualifiers |= type::q_const;
 
 	// Interpolation
 	if (accept(tokenid::linear))
-		qualifiers |= spirv_type::q_linear;
+		qualifiers |= type::q_linear;
 	if (accept(tokenid::noperspective))
-		qualifiers |= spirv_type::q_noperspective;
+		qualifiers |= type::q_noperspective;
 	if (accept(tokenid::centroid))
-		qualifiers |= spirv_type::q_centroid;
+		qualifiers |= type::q_centroid;
 	if (accept(tokenid::nointerpolation))
-		qualifiers |= spirv_type::q_nointerpolation;
+		qualifiers |= type::q_nointerpolation;
 
 	if (qualifiers == 0)
 		return false;
@@ -584,7 +524,7 @@ bool reshadefx::parser::accept_type_qualifiers(spirv_type &type)
 	return true;
 }
 
-bool reshadefx::parser::parse_type(spirv_type &type)
+bool reshadefx::parser::parse_type(type &type)
 {
 	type.qualifiers = 0;
 
@@ -593,14 +533,14 @@ bool reshadefx::parser::parse_type(spirv_type &type)
 	if (!accept_type_class(type))
 		return false;
 
-	if (type.is_integral() && (type.has(spirv_type::q_centroid) || type.has(spirv_type::q_noperspective)))
+	if (type.is_integral() && (type.has(type::q_centroid) || type.has(type::q_noperspective)))
 		return error(_token.location, 4576, "signature specifies invalid interpolation mode for integer component type"), false;
-	else if (type.has(spirv_type::q_centroid) && !type.has(spirv_type::q_noperspective))
-		type.qualifiers |= spirv_type::q_linear;
+	else if (type.has(type::q_centroid) && !type.has(type::q_noperspective))
+		type.qualifiers |= type::q_linear;
 
 	return true;
 }
-bool reshadefx::parser::parse_array_size(spirv_type &type)
+bool reshadefx::parser::parse_array_size(type &type)
 {
 	// Reset array length to zero before checking if one exists
 	type.array_length = 0;
@@ -615,7 +555,7 @@ bool reshadefx::parser::parse_array_size(spirv_type &type)
 			// No length expression, so this is an unsized array
 			type.array_length = -1;
 		}
-		else if (spirv_expression expression; parse_expression(block, expression) && expect(']'))
+		else if (expression expression; parse_expression(block, expression) && expect(']'))
 		{
 			if (!expression.is_constant || !(expression.type.is_scalar() && expression.type.is_integral()))
 				return error(expression.location, 3058, "array dimensions must be literal scalar expressions"), false;
@@ -636,16 +576,17 @@ bool reshadefx::parser::parse_array_size(spirv_type &type)
 
 // -- Expression Parsing -- //
 
-bool reshadefx::parser::accept_unary_op(spv::Op &op)
+bool reshadefx::parser::accept_unary_op()
 {
 	switch (_token_next.id)
 	{
-	case tokenid::exclaim: op = spv::OpLogicalNot; break;
-	case tokenid::plus: op = spv::OpNop; break;
-	case tokenid::minus: op = spv::OpFNegate; break;
-	case tokenid::tilde: op = spv::OpNot; break;
-	case tokenid::plus_plus: op = spv::OpFAdd; break;
-	case tokenid::minus_minus: op = spv::OpFSub; break;
+	case tokenid::exclaim: // !x (logical not)
+	case tokenid::plus: // +x
+	case tokenid::minus: // -x (negate)
+	case tokenid::tilde: // ~x (bitwise not)
+	case tokenid::plus_plus: // ++x
+	case tokenid::minus_minus: // --x
+		break;
 	default:
 		return false;
 	}
@@ -654,14 +595,13 @@ bool reshadefx::parser::accept_unary_op(spv::Op &op)
 
 	return true;
 }
-bool reshadefx::parser::accept_postfix_op(const spirv_type &type, spv::Op &op)
+bool reshadefx::parser::accept_postfix_op()
 {
 	switch (_token_next.id)
 	{
-	case tokenid::plus_plus:
-		op = type.is_integral() ? spv::OpIAdd : spv::OpFAdd; break;
-	case tokenid::minus_minus:
-		op = type.is_integral() ? spv::OpISub : spv::OpFSub; break;
+	case tokenid::plus_plus: // ++x
+	case tokenid::minus_minus: // --x
+		break;
 	default:
 		return false;
 	}
@@ -670,30 +610,30 @@ bool reshadefx::parser::accept_postfix_op(const spirv_type &type, spv::Op &op)
 
 	return true;
 }
-bool reshadefx::parser::peek_multary_op(spv::Op &op, unsigned int &precedence) const
+bool reshadefx::parser::peek_multary_op(unsigned int &precedence) const
 {
 	// Precedence values taken from https://cppreference.com/w/cpp/language/operator_precedence
 	switch (_token_next.id)
 	{
-	case tokenid::percent: op = spv::OpFRem; precedence = 11; break;
-	case tokenid::ampersand: op = spv::OpBitwiseAnd; precedence = 6; break;
-	case tokenid::star: op = spv::OpFMul; precedence = 11; break;
-	case tokenid::plus: op = spv::OpFAdd; precedence = 10; break;
-	case tokenid::minus: op = spv::OpFSub; precedence = 10; break;
-	case tokenid::slash: op = spv::OpFDiv; precedence = 11; break;
-	case tokenid::less: op = spv::OpFOrdLessThan; precedence = 8; break;
-	case tokenid::greater: op = spv::OpFOrdGreaterThan; precedence = 8; break;
-	case tokenid::question: op = spv::OpSelect; precedence = 1; break;
-	case tokenid::caret: op = spv::OpBitwiseXor; precedence = 5; break;
-	case tokenid::pipe: op = spv::OpBitwiseOr; precedence = 4; break;
-	case tokenid::exclaim_equal: op = spv::OpLogicalNotEqual; precedence = 7; break;
-	case tokenid::ampersand_ampersand: op = spv::OpLogicalAnd; precedence = 3; break;
-	case tokenid::less_less: op = spv::OpShiftLeftLogical; precedence = 9; break;
-	case tokenid::less_equal: op = spv::OpFOrdLessThanEqual; precedence = 8; break;
-	case tokenid::equal_equal: op = spv::OpLogicalEqual; precedence = 7; break;
-	case tokenid::greater_greater: op = spv::OpShiftRightLogical; precedence = 9; break;
-	case tokenid::greater_equal: op = spv::OpFOrdGreaterThanEqual; precedence = 8; break;
-	case tokenid::pipe_pipe: op = spv::OpLogicalOr; precedence = 2; break;
+	case tokenid::question: precedence = 1; break; // x ? a : b
+	case tokenid::pipe_pipe: precedence = 2; break; // a || b (logical or)
+	case tokenid::ampersand_ampersand: precedence = 3; break; // a && b (logical and)
+	case tokenid::pipe: precedence = 4; break; // a | b (bitwise or)
+	case tokenid::caret: precedence = 5; break; // a ^ b (bitwise xor)
+	case tokenid::ampersand: precedence = 6; break; // a & b (bitwise and)
+	case tokenid::equal_equal: precedence = 7; break; // a == b (equal)
+	case tokenid::exclaim_equal: precedence = 7; break; // a != b (not equal)
+	case tokenid::less: precedence = 8; break; // a < b
+	case tokenid::greater: precedence = 8; break; // a > b
+	case tokenid::less_equal: precedence = 8; break; // a <= b
+	case tokenid::greater_equal: precedence = 8; break; // a >= b
+	case tokenid::less_less: precedence = 9; break; // a << b (left shift)
+	case tokenid::greater_greater: precedence = 9; break; // a >> b (right shift)
+	case tokenid::plus: precedence = 10; break; // a + b (add)
+	case tokenid::minus: precedence = 10; break; // a - b (subtract)
+	case tokenid::star: precedence = 11; break; // a * b (multiply)
+	case tokenid::slash: precedence = 11; break; // a / b (divide)
+	case tokenid::percent: precedence = 11; break; // a % b (modulo)
 	default:
 		return false;
 	}
@@ -701,32 +641,22 @@ bool reshadefx::parser::peek_multary_op(spv::Op &op, unsigned int &precedence) c
 	// Do not consume token yet since the expression may be skipped due to precedence
 	return true;
 }
-bool reshadefx::parser::accept_assignment_op(const spirv_type &type, spv::Op &op)
+bool reshadefx::parser::accept_assignment_op()
 {
 	switch (_token_next.id)
 	{
-	case tokenid::equal:
-		op = spv::OpNop; break; // Assignment without an additional operation
-	case tokenid::percent_equal:
-		op = type.is_integral() ? type.is_signed() ? spv::OpSRem : spv::OpUMod : spv::OpFRem; break;
-	case tokenid::ampersand_equal:
-		op = spv::OpBitwiseAnd; break;
-	case tokenid::star_equal:
-		op = type.is_integral() ? spv::OpIMul : spv::OpFMul; break;
-	case tokenid::plus_equal:
-		op = type.is_integral() ? spv::OpIAdd : spv::OpFAdd; break;
-	case tokenid::minus_equal:
-		op = type.is_integral() ? spv::OpISub : spv::OpFSub; break;
-	case tokenid::slash_equal:
-		op = type.is_integral() ? type.is_signed() ? spv::OpSDiv : spv::OpUDiv : spv::OpFDiv; break;
-	case tokenid::less_less_equal:
-		op = spv::OpShiftLeftLogical; break;
-	case tokenid::greater_greater_equal:
-		op = type.is_signed() ? spv::OpShiftRightArithmetic : spv::OpShiftRightLogical; break;
-	case tokenid::caret_equal:
-		op = spv::OpBitwiseXor; break;
-	case tokenid::pipe_equal:
-		op = spv::OpBitwiseOr; break;
+	case tokenid::equal: // a = b
+	case tokenid::percent_equal: // a %= b
+	case tokenid::ampersand_equal: // a &= b
+	case tokenid::star_equal: // a *= b
+	case tokenid::plus_equal: // a += b
+	case tokenid::minus_equal: // a -= b
+	case tokenid::slash_equal: // a /= b
+	case tokenid::less_less_equal: // a <<= b
+	case tokenid::greater_greater_equal: // a >>= b
+	case tokenid::caret_equal: // a ^= b
+	case tokenid::pipe_equal: // a |= b
+		break;
 	default:
 		return false;
 	}
@@ -736,29 +666,31 @@ bool reshadefx::parser::accept_assignment_op(const spirv_type &type, spv::Op &op
 	return true;
 }
 
-bool reshadefx::parser::parse_expression(spirv_basic_block &block, spirv_expression &exp)
+bool reshadefx::parser::parse_expression(spirv_basic_block &block, expression &exp)
 {
 	// Parse first expression
 	if (!parse_expression_assignment(block, exp))
 		return false;
 
-	// Continue parsing if an expression sequence is next
+	// Continue parsing if an expression sequence is next (in the form "a, b, c, ...")
 	while (accept(','))
-		// Overwrite since the last expression in the sequence is the result
+		// Overwrite 'exp' since conveniently the last expression in the sequence is the result
 		if (!parse_expression_assignment(block, exp))
 			return false;
 
 	return true;
 }
-bool reshadefx::parser::parse_expression_unary(spirv_basic_block &block, spirv_expression &exp)
+bool reshadefx::parser::parse_expression_unary(spirv_basic_block &block, expression &exp)
 {
 	auto location = _token_next.location;
 
-	#pragma region Prefix
+	#pragma region Prefix Expression
 	// Check if a prefix operator exists
-	spv::Op op;
-	if (accept_unary_op(op))
+	if (accept_unary_op())
 	{
+		// Remember the operator token before parsing the expression that follows it
+		const tokenid op = _token.id;
+
 		// Parse the actual expression
 		if (!parse_expression_unary(block, exp))
 			return false;
@@ -767,59 +699,40 @@ bool reshadefx::parser::parse_expression_unary(spirv_basic_block &block, spirv_e
 		if (!exp.type.is_scalar() && !exp.type.is_vector() && !exp.type.is_matrix())
 			return error(exp.location, 3022, "scalar, vector, or matrix expected"), false;
 
-		// Ignore "+" operator since it does not actually do anything
-		if (op != spv::OpNop)
+		// Special handling for the "++" and "--" operators
+		if (op == tokenid::plus_plus || op == tokenid::minus_minus)
+		{
+			if (exp.type.has(type::q_const) || exp.type.has(type::q_uniform) || !exp.is_lvalue)
+				return error(location, 3025, "l-value specifies const object"), false;
+
+			// Create a constant one in the type of the expression
+			constant one = {};
+			for (unsigned int i = 0; i < exp.type.components(); ++i)
+				if (exp.type.is_floating_point()) one.as_float[i] = 1.0f; else one.as_uint[i] = 1u;
+
+			const auto result = add_binary_operation(block, location, op, exp.type, access_chain_load(block, exp), convert_constant(exp.type, one));
+
+			// The "++" and "--" operands modify the source variable, so store result back into it
+			access_chain_store(block, exp, result, exp.type);
+		}
+		else if (op != tokenid::plus) // Ignore "+" operator since it does not actually do anything
 		{
 			// The "~" bitwise operator is only valid on integral types
-			if (op == spv::OpNot && !exp.type.is_integral())
+			if (op == tokenid::tilde && !exp.type.is_integral())
 				return error(exp.location, 3082, "int or unsigned int type required"), false;
+			// The logical not operator expects a boolean type as input, so perform cast if necessary
+			if (op == tokenid::exclaim && !exp.type.is_boolean())
+				add_cast_operation(exp, { type::t_bool, exp.type.rows, exp.type.cols }); // The result type will be boolean as well
 
-			// Choose correct operator depending on the input expression type
-			fix_op_type(op, exp.type);
-
-			// Load the right hand side value if it was not yet resolved at this point
-			const spv::Id value = access_chain_load(block, exp);
-			assert(value != 0);
-
-			// Special handling for the "++" and "--" operators
-			if (op == spv::OpIAdd || op == spv::OpISub ||
-				op == spv::OpFAdd || op == spv::OpFSub)
+			if (exp.is_constant) // Constant expressions can be evaluated at compile time
 			{
-				if (exp.type.has(spirv_type::q_const) || exp.type.has(spirv_type::q_uniform) || !exp.is_lvalue)
-					return error(location, 3025, "l-value specifies const object"), false;
-
-				// Create a constant one in the type of the expression
-				spirv_constant one = {};
-				for (unsigned int i = 0; i < exp.type.components(); ++i)
-					if (exp.type.is_floating_point()) one.as_float[i] = 1.0f; else one.as_uint[i] =  1u;
-				const spv::Id constant = convert_constant(exp.type, one);
-
-				spv::Id result = add_instruction(block, location, op, convert_type(exp.type))
-					.add(value) // Operand 1
-					.add(constant) // Operand 2
-					.result; // Result ID
-
-				// The "++" and "--" operands modify the source variable, so store result back into it
-				access_chain_store(block, exp, result, exp.type);
+				exp.constant = evaluate_constant_expression(op, exp.type, exp.constant);
 			}
-			else // All other prefix operators return a new r-value
+			else
 			{
-				// The 'OpLogicalNot' operator expects a boolean type as input, so perform cast if necessary
-				if (op == spv::OpLogicalNot && !exp.type.is_boolean())
-					add_cast_operation(exp, { spirv_type::t_bool, exp.type.rows, exp.type.cols }); // The result type will be boolean as well
+				const auto result = add_unary_operation(block, location, op, exp.type, access_chain_load(block, exp));
 
-				if (exp.is_constant)
-				{
-					exp.reset_to_rvalue_constant(location, evaluate_constant_expression(op, exp), exp.type);
-				}
-				else
-				{
-					spv::Id result = add_instruction(block, location, op, convert_type(exp.type))
-						.add(value) // Operand
-						.result; // Result ID
-
-					exp.reset_to_rvalue(location, result, exp.type);
-				}
+				exp.reset_to_rvalue(location, result, exp.type);
 			}
 		}
 	}
@@ -828,7 +741,7 @@ bool reshadefx::parser::parse_expression_unary(spirv_basic_block &block, spirv_e
 		backup();
 
 		// Check if this is a C-style cast expression
-		if (spirv_type cast_type; accept_type_class(cast_type))
+		if (type cast_type; accept_type_class(cast_type))
 		{
 			if (peek('('))
 			{
@@ -845,20 +758,14 @@ bool reshadefx::parser::parse_expression_unary(spirv_basic_block &block, spirv_e
 				if (exp.type.base == cast_type.base && (exp.type.rows == cast_type.rows && exp.type.cols == cast_type.cols) && !(exp.type.is_array() || cast_type.is_array()))
 					return true;
 
-				// Can only cast between numeric types
-				if (exp.type.is_numeric() && cast_type.is_numeric())
-				{
-					if (exp.type.components() < cast_type.components() && !exp.type.is_scalar())
-						return error(location, 3017, "cannot convert these vector types"), false;
+				// Check if a cast between the types is valid
+				if (!exp.type.is_numeric() || !cast_type.is_numeric())
+					return error(location, 3017, "cannot convert non-numeric types"), false;
+				else if (exp.type.components() < cast_type.components() && !exp.type.is_scalar())
+					return error(location, 3017, "cannot convert these vector types"), false;
 
-					add_cast_operation(exp, cast_type);
-					return true;
-				}
-				else
-				{
-					error(location, 3017, "cannot convert non-numeric types");
-					return false;
-				}
+				add_cast_operation(exp, cast_type);
+				return true;
 			}
 			else
 			{
@@ -873,10 +780,10 @@ bool reshadefx::parser::parse_expression_unary(spirv_basic_block &block, spirv_e
 	}
 	else if (accept('{'))
 	{
-		std::vector<spirv_expression> elements;
+		std::vector<expression> elements;
 
-		bool constant = true;
-		spirv_type composite_type = { spirv_type::t_bool, 1, 1 };
+		bool is_constant = true;
+		type composite_type = { type::t_bool, 1, 1 };
 
 		while (!peek('}'))
 		{
@@ -892,40 +799,31 @@ bool reshadefx::parser::parse_expression_unary(spirv_basic_block &block, spirv_e
 			if (!parse_expression_assignment(block, elements.emplace_back()))
 				return consume_until('}'), false;
 
-			spirv_expression &element = elements.back();
+			expression &element = elements.back();
 
-			constant &= element.is_constant; // Result is only constant if all arguments are constant
-			composite_type = spirv_type::merge(composite_type, element.type);
+			is_constant &= element.is_constant; // Result is only constant if all arguments are constant
+			composite_type = type::merge(composite_type, element.type);
 		}
 
-		if (constant)
+		// Constant arrays can be constructed at compile time
+		if (is_constant)
 		{
-			spirv_constant constant_data = {};
-			for (spirv_expression &element : elements)
+			constant res = {};
+			for (expression &element : elements)
 			{
 				add_cast_operation(element, composite_type);
-				constant_data.array_data.push_back(element.constant);
+				res.array_data.push_back(element.constant);
 			}
 
 			composite_type.array_length = elements.size();
 
-			exp.reset_to_rvalue_constant(location, std::move(constant_data), composite_type);
+			exp.reset_to_rvalue_constant(location, std::move(res), composite_type);
 		}
 		else
 		{
-			std::vector<spv::Id> ids;
-			for (spirv_expression &element : elements)
-			{
-				add_cast_operation(element, composite_type);
-				ids.push_back(access_chain_load(block, element));
-				assert(ids.back() != 0);
-			}
-
 			composite_type.array_length = elements.size();
 
-			const spv::Id result = add_instruction(block, location, spv::OpCompositeConstruct, convert_type(composite_type))
-				.add(ids.begin(), ids.end())
-				.result;
+			const auto result = construct_type(block, composite_type, elements);
 
 			exp.reset_to_rvalue(location, result, composite_type);
 		}
@@ -969,7 +867,7 @@ bool reshadefx::parser::parse_expression_unary(spirv_basic_block &block, spirv_e
 
 		exp.reset_to_rvalue_constant(location, std::move(value));
 	}
-	else if (spirv_type type; accept_type_class(type)) // Check if this is a constructor call expression
+	else if (type type; accept_type_class(type)) // Check if this is a constructor call expression
 	{
 		if (!expect('('))
 			return false;
@@ -981,9 +879,9 @@ bool reshadefx::parser::parse_expression_unary(spirv_basic_block &block, spirv_e
 			return error(location, 3014, "incorrect number of arguments to numeric-type constructor"), false;
 
 		// Parse entire argument expression list
-		bool constant = true;
+		bool is_constant = true;
 		unsigned int num_components = 0;
-		std::vector<spirv_expression> arguments;
+		std::vector<expression> arguments;
 
 		while (!peek(')'))
 		{
@@ -995,13 +893,13 @@ bool reshadefx::parser::parse_expression_unary(spirv_basic_block &block, spirv_e
 			if (!parse_expression_assignment(block, arguments.emplace_back()))
 				return false;
 
-			spirv_expression &argument = arguments.back();
+			expression &argument = arguments.back();
 
 			// Constructors are only defined for numeric base types
 			if (!argument.type.is_numeric())
 				return error(argument.location, 3017, "cannot convert non-numeric types"), false;
 
-			constant &= argument.is_constant; // Result is only constant if all arguments are constant
+			is_constant &= argument.is_constant; // Result is only constant if all arguments are constant
 			num_components += argument.type.components();
 		}
 
@@ -1015,23 +913,22 @@ bool reshadefx::parser::parse_expression_unary(spirv_basic_block &block, spirv_e
 
 		assert(num_components > 0 && num_components <= 16 && !type.is_array());
 
-		if (constant) // Constants can be converted at compile time
+		if (is_constant) // Constants can be converted at compile time
 		{
-			spirv_constant constant_data = {};
-
+			constant res = {};
 			unsigned int i = 0;
-			for (spirv_expression &argument : arguments)
+			for (expression &argument : arguments)
 			{
 				add_cast_operation(argument, { type.base, argument.type.rows, argument.type.cols });
 				for (unsigned int k = 0; k < argument.type.components(); ++k)
-					constant_data.as_uint[i++] = argument.constant.as_uint[k];
+					res.as_uint[i++] = argument.constant.as_uint[k];
 			}
 
-			exp.reset_to_rvalue_constant(location, std::move(constant_data), type);
+			exp.reset_to_rvalue_constant(location, std::move(res), type);
 		}
 		else if (arguments.size() > 1)
 		{
-			const spv::Id result = construct_type(block, type, arguments);
+			const auto result = construct_type(block, type, arguments);
 
 			exp.reset_to_rvalue(location, result, type);
 		}
@@ -1078,7 +975,7 @@ bool reshadefx::parser::parse_expression_unary(spirv_basic_block &block, spirv_e
 				return error(location, 3005, "identifier '" + identifier + "' represents a variable, not a function"), false;
 
 			// Parse entire argument expression list
-			std::vector<spirv_expression> arguments;
+			std::vector<expression> arguments;
 
 			while (!peek(')'))
 			{
@@ -1111,23 +1008,23 @@ bool reshadefx::parser::parse_expression_unary(spirv_basic_block &block, spirv_e
 
 			assert(symbol.function != nullptr);
 
-			std::vector<spirv_expression> parameters(arguments.size());
+			std::vector<expression> parameters(arguments.size());
 
 			// We need to allocate some temporary variables to pass in and load results from pointer parameters
 			for (size_t i = 0; i < arguments.size(); ++i)
 			{
-				const spirv_type &param_type = symbol.function->parameter_list[i].type;
+				const auto &param_type = symbol.function->parameter_list[i].type;
 
 				if (arguments[i].type.components() > param_type.components())
 					warning(arguments[i].location, 3206, "implicit truncation of vector type");
 
-				spirv_type target_type = param_type;
+				auto target_type = param_type;
 				target_type.is_ptr = false;
 				add_cast_operation(arguments[i], target_type);
 
 				if (param_type.is_ptr)
 				{
-					const spv::Id variable = make_id();
+					const auto variable = make_id();
 					define_variable(variable, nullptr, arguments[i].location, param_type, spv::StorageClassFunction);
 					parameters[i].reset_to_lvalue(arguments[i].location, variable, param_type);
 				}
@@ -1139,14 +1036,14 @@ bool reshadefx::parser::parse_expression_unary(spirv_basic_block &block, spirv_e
 
 			// Copy in parameters from the argument access chains to parameter variables
 			for (size_t i = 0; i < arguments.size(); ++i)
-				if (parameters[i].is_lvalue && parameters[i].type.has(spirv_type::q_in)) // Only do this for pointer parameters as discovered above
+				if (parameters[i].is_lvalue && parameters[i].type.has(type::q_in)) // Only do this for pointer parameters as discovered above
 					access_chain_store(block, parameters[i], access_chain_load(block, arguments[i]), arguments[i].type);
 
 			// Check if the call resolving found an intrinsic or function
 			if (symbol.intrinsic)
 			{
 				// This is an intrinsic, so invoke it
-				const spv::Id result = symbol.intrinsic(*this, block, parameters);
+				const auto result = symbol.intrinsic(*this, block, parameters);
 
 				exp.reset_to_rvalue(location, result, symbol.type);
 			}
@@ -1163,7 +1060,7 @@ bool reshadefx::parser::parse_expression_unary(spirv_basic_block &block, spirv_e
 
 			// Copy out parameters from parameter variables back to the argument access chains
 			for (size_t i = 0; i < arguments.size(); ++i)
-				if (parameters[i].is_lvalue && parameters[i].type.has(spirv_type::q_out)) // Only do this for pointer parameters as discovered above
+				if (parameters[i].is_lvalue && parameters[i].type.has(type::q_out)) // Only do this for pointer parameters as discovered above
 					access_chain_store(block, arguments[i], access_chain_load(block, parameters[i]), arguments[i].type);
 		}
 		else
@@ -1179,7 +1076,7 @@ bool reshadefx::parser::parse_expression_unary(spirv_basic_block &block, spirv_e
 				exp.reset_to_rvalue_constant(location, symbol.constant, symbol.type);
 			else if (symbol.op == spv::OpAccessChain) {
 				// Uniform variables need to be dereferenced
-				exp.reset_to_lvalue(location, symbol.id, { spirv_type::t_struct, 0, 0, 0, false, false, false, 0, symbol.id });
+				exp.reset_to_lvalue(location, symbol.id, { type::t_struct, 0, 0, 0, false, false, false, 0, symbol.id });
 				add_member_access(exp, reinterpret_cast<uintptr_t>(symbol.function), symbol.type); // The member index was stored in the 'function' field
 			}
 			else // Can only reference variables and constants by name, functions need to be called
@@ -1188,39 +1085,31 @@ bool reshadefx::parser::parse_expression_unary(spirv_basic_block &block, spirv_e
 	}
 	#pragma endregion
 
-	#pragma region Postfix
+	#pragma region Postfix Expression
 	while (!peek(tokenid::end_of_file))
 	{
 		location = _token_next.location;
 
 		// Check if a postfix operator exists
-		if (accept_postfix_op(exp.type, op))
+		if (accept_postfix_op())
 		{
 			// Unary operators are only valid on basic types
 			if (!exp.type.is_scalar() && !exp.type.is_vector() && !exp.type.is_matrix())
 				return error(exp.location, 3022, "scalar, vector, or matrix expected"), false;
-			else if (exp.type.has(spirv_type::q_const) || exp.type.has(spirv_type::q_uniform) || !exp.is_lvalue)
+			if (exp.type.has(type::q_const) || exp.type.has(type::q_uniform) || !exp.is_lvalue)
 				return error(exp.location, 3025, "l-value specifies const object"), false;
 
-			// Load current value from expression
-			const spv::Id value = access_chain_load(block, exp);
-			assert(value != 0);
-
 			// Create a constant one in the type of the expression
-			spirv_constant one = {};
+			constant one = {};
 			for (unsigned int i = 0; i < exp.type.components(); ++i)
 				if (exp.type.is_floating_point()) one.as_float[i] = 1.0f; else one.as_uint[i] = 1u;
-			const spv::Id constant = convert_constant(exp.type, one);
 
-			spv::Id result = add_instruction(block, location, op, convert_type(exp.type))
-				.add(value) // Operand 1
-				.add(constant) // Operand 2
-				.result; // Result ID
+			const auto result = add_binary_operation(block, location, _token.id, exp.type, access_chain_load(block, exp), convert_constant(exp.type, one));
 
 			// The "++" and "--" operands modify the source variable, so store result back into it
 			access_chain_store(block, exp, result, exp.type);
 
-			// All postfix operators return a r-value
+			// All postfix operators return a r-value rather than a l-value to the variable
 			exp.reset_to_rvalue(location, result, exp.type);
 		}
 		else if (accept('.'))
@@ -1250,7 +1139,7 @@ bool reshadefx::parser::parse_expression_unary(spirv_basic_block &block, spirv_e
 				if (length > 4)
 					return error(location, 3018, "invalid subscript '" + subscript + "', swizzle too long"), false;
 
-				bool constant = false;
+				bool is_const = false;
 				signed char offsets[4] = { -1, -1, -1, -1 };
 				enum { xyzw, rgba, stpq } set[4];
 
@@ -1282,7 +1171,7 @@ bool reshadefx::parser::parse_expression_unary(spirv_basic_block &block, spirv_e
 					// The result is not modifiable if a swizzle appears multiple times
 					for (size_t k = 0; k < i; ++k)
 						if (offsets[k] == offsets[i]) {
-							constant = true;
+							is_const = true;
 							break;
 						}
 				}
@@ -1290,8 +1179,8 @@ bool reshadefx::parser::parse_expression_unary(spirv_basic_block &block, spirv_e
 				// Add swizzle to current access chain
 				add_swizzle_access(exp, offsets, length);
 
-				if (constant || exp.type.has(spirv_type::q_uniform))
-					exp.type.qualifiers = (exp.type.qualifiers | spirv_type::q_const) & ~spirv_type::q_uniform;
+				if (is_const || exp.type.has(type::q_uniform))
+					exp.type.qualifiers = (exp.type.qualifiers | type::q_const) & ~type::q_uniform;
 			}
 			else if (exp.type.is_matrix())
 			{
@@ -1299,7 +1188,7 @@ bool reshadefx::parser::parse_expression_unary(spirv_basic_block &block, spirv_e
 				if (length < 3)
 					return error(location, 3018, "invalid subscript '" + subscript + "'"), false;
 
-				bool constant = false;
+				bool is_const = false;
 				signed char offsets[4] = { -1, -1, -1, -1 };
 				const unsigned int set = subscript[1] == 'm';
 				const int coefficient = !set;
@@ -1322,7 +1211,7 @@ bool reshadefx::parser::parse_expression_unary(spirv_basic_block &block, spirv_e
 					// The result is not modifiable if a swizzle appears multiple times
 					for (size_t k = 0; k < j; ++k)
 						if (offsets[k] == offsets[j]) {
-							constant = true;
+							is_const = true;
 							break;
 						}
 				}
@@ -1330,8 +1219,8 @@ bool reshadefx::parser::parse_expression_unary(spirv_basic_block &block, spirv_e
 				// Add swizzle to current access chain
 				add_swizzle_access(exp, offsets, length / (3 + set));
 
-				if (constant || exp.type.has(spirv_type::q_uniform))
-					exp.type.qualifiers = (exp.type.qualifiers | spirv_type::q_const) & ~spirv_type::q_uniform;
+				if (is_const || exp.type.has(type::q_uniform))
+					exp.type.qualifiers = (exp.type.qualifiers | type::q_const) & ~type::q_uniform;
 			}
 			else if (exp.type.is_struct())
 			{
@@ -1349,8 +1238,8 @@ bool reshadefx::parser::parse_expression_unary(spirv_basic_block &block, spirv_e
 				// Add field index to current access chain
 				add_member_access(exp, member_index, _structs[exp.type.definition].member_list[member_index].type);
 
-				if (exp.type.has(spirv_type::q_uniform)) // Member access to uniform structure is not modifiable
-					exp.type.qualifiers = (exp.type.qualifiers | spirv_type::q_const) & ~spirv_type::q_uniform;
+				if (exp.type.has(type::q_uniform)) // Member access to uniform structure is not modifiable
+					exp.type.qualifiers = (exp.type.qualifiers | type::q_const) & ~type::q_uniform;
 			}
 			else if (exp.type.is_scalar())
 			{
@@ -1363,7 +1252,7 @@ bool reshadefx::parser::parse_expression_unary(spirv_basic_block &block, spirv_e
 						return error(location, 3018, "invalid subscript '" + subscript + "'"), false;
 
 				// Promote scalar to vector type using cast
-				spirv_type target_type = exp.type;
+				auto target_type = exp.type;
 				target_type.rows = static_cast<unsigned int>(length);
 
 				add_cast_operation(exp, target_type);
@@ -1380,14 +1269,14 @@ bool reshadefx::parser::parse_expression_unary(spirv_basic_block &block, spirv_e
 				return error(_token.location, 3121, "array, matrix, vector, or indexable object type expected in index expression"), false;
 
 			// Parse index expression
-			spirv_expression index;
+			expression index;
 			if (!parse_expression(block, index) || !expect(']'))
 				return false;
 			else if (!index.type.is_scalar() || !index.type.is_integral())
 				return error(index.location, 3120, "invalid type for index - index must be an integer scalar"), false;
 
-			// Check array bounds
-			if (index.is_constant && exp.type.array_length > 0 && index.constant.as_uint[0] >= exp.type.array_length)
+			// Check array bounds if known
+			if (index.is_constant && exp.type.array_length > 0 && index.constant.as_uint[0] >= static_cast<unsigned int>(exp.type.array_length))
 				return error(index.location, 3504, "array index out of bounds"), false;
 
 			// Add index expression to current access chain
@@ -1405,17 +1294,16 @@ bool reshadefx::parser::parse_expression_unary(spirv_basic_block &block, spirv_e
 
 	return true;
 }
-bool reshadefx::parser::parse_expression_multary(spirv_basic_block &block, spirv_expression &lhs, unsigned int left_precedence)
+bool reshadefx::parser::parse_expression_multary(spirv_basic_block &block, expression &lhs, unsigned int left_precedence)
 {
 	// Parse left hand side of the expression
 	if (!parse_expression_unary(block, lhs))
 		return false;
 
 	// Check if an operator exists so that this is a binary or ternary expression
-	spv::Op op;
 	unsigned int right_precedence;
 
-	while (peek_multary_op(op, right_precedence))
+	while (peek_multary_op(right_precedence))
 	{
 		// Only process this operator if it has a lower precedence than the current operation, otherwise leave it for later and abort
 		if (right_precedence <= left_precedence)
@@ -1424,35 +1312,32 @@ bool reshadefx::parser::parse_expression_multary(spirv_basic_block &block, spirv
 		// Finally consume the operator token
 		consume();
 
+		const tokenid op = _token.id;
+
 		// Check if this is a binary or ternary operation
-		if (op != spv::OpSelect)
+		if (op != tokenid::question)
 		{
+			#pragma region Binary Expression
 			// Parse the right hand side of the binary operation
-			spirv_expression rhs;
-			spirv_basic_block rhs_block;
+			expression rhs; spirv_basic_block rhs_block;
 			if (!parse_expression_multary(rhs_block, rhs, right_precedence))
 				return false;
 
 			// Deduce the result base type based on implicit conversion rules
-			spirv_type type = spirv_type::merge(lhs.type, rhs.type);
-			bool boolean_result = false;
-
-			// Select operator matching the argument types
-			fix_op_type(op, type);
+			type type = type::merge(lhs.type, rhs.type);
+			bool is_bool_result = false;
 
 			// Do some error checking depending on the operator
-			if (op == spv::OpIEqual || op == spv::OpINotEqual ||
-				op == spv::OpFOrdEqual || op == spv::OpFOrdNotEqual ||
-				op == spv::OpLogicalEqual || op == spv::OpLogicalNotEqual)
+			if (op == tokenid::equal_equal || op == tokenid::exclaim_equal)
 			{
 				// Equality checks return a boolean value
-				boolean_result = true;
+				is_bool_result = true;
 
 				// Cannot check equality between incompatible types
 				if (lhs.type.is_array() || rhs.type.is_array() || lhs.type.definition != rhs.type.definition)
 					return error(rhs.location, 3020, "type mismatch"), false;
 			}
-			else if (op == spv::OpBitwiseAnd || op == spv::OpBitwiseOr || op == spv::OpBitwiseXor)
+			else if (op == tokenid::ampersand || op == tokenid::pipe || op == tokenid::caret)
 			{
 				// Cannot perform bitwise operations on non-integral types
 				if (!lhs.type.is_integral())
@@ -1462,17 +1347,12 @@ bool reshadefx::parser::parse_expression_multary(spirv_basic_block &block, spirv
 			}
 			else
 			{
-				if (op == spv::OpLogicalAnd || op == spv::OpLogicalOr)
-					type.base = spirv_type::t_bool;
+				if (op == tokenid::ampersand_ampersand || op == tokenid::pipe_pipe)
+					type.base = type::t_bool;
 
 				// Logical operations return a boolean value
-				if (op == spv::OpSLessThan || op == spv::OpSGreaterThan ||
-					op == spv::OpSLessThanEqual || op == spv::OpSGreaterThanEqual ||
-					op == spv::OpULessThan || op == spv::OpUGreaterThan ||
-					op == spv::OpULessThanEqual || op == spv::OpUGreaterThanEqual ||
-					op == spv::OpFOrdLessThan || op == spv::OpFOrdGreaterThan ||
-					op == spv::OpFOrdLessThanEqual || op == spv::OpFOrdGreaterThanEqual)
-					boolean_result = true;
+				if (op == tokenid::less || op == tokenid::less_equal || op == tokenid::greater || op == tokenid::greater_equal)
+					is_bool_result = true;
 
 				// Cannot perform arithmetic operations on non-basic types
 				if (!lhs.type.is_scalar() && !lhs.type.is_vector() && !lhs.type.is_matrix())
@@ -1481,101 +1361,83 @@ bool reshadefx::parser::parse_expression_multary(spirv_basic_block &block, spirv
 					return error(rhs.location, 3022, "scalar, vector, or matrix expected"), false;
 			}
 
+			// Perform implicit type conversion
 			if (lhs.type.components() > type.components())
 				warning(lhs.location, 3206, "implicit truncation of vector type");
 			if (rhs.type.components() > type.components())
 				warning(rhs.location, 3206, "implicit truncation of vector type");
 
+			add_cast_operation(lhs, type);
+			add_cast_operation(rhs, type);
+
+			// Constant expressions can be evaluated at compile time
 			if (lhs.is_constant && rhs.is_constant)
 			{
-				add_cast_operation(lhs, type);
-				add_cast_operation(rhs, type);
-
-				lhs.reset_to_rvalue_constant(lhs.location, evaluate_constant_expression(op, lhs, rhs), type);
+				lhs.reset_to_rvalue_constant(lhs.location, evaluate_constant_expression(op, type, lhs.constant, rhs.constant), type);
+				continue;
 			}
-			else
-			{
-				// Load values and perform implicit type conversions
-				add_cast_operation(lhs, type);
-				const spv::Id lhs_value = access_chain_load(block, lhs);
-				assert(lhs_value != 0);
+
+			const auto lhs_value = access_chain_load(block, lhs);
 
 #if RESHADEFX_SHORT_CIRCUIT
-				// Short circuit for logical && and || operators
-				if (op == spv::OpLogicalAnd || op == spv::OpLogicalOr)
+			// Short circuit for logical && and || operators
+			if (op == tokenid::ampersand_ampersand || op == tokenid::pipe_pipe)
+			{
+				const auto merge_label = make_id();
+				const auto lhs_block_label = _current_block;
+				const auto rhs_block_label = make_id();
+
+				if (op == tokenid::ampersand_ampersand)
 				{
-					const spv::Id merge_label = make_id();
-					const spv::Id parent0_label = _current_block;
-					const spv::Id parent1_label = make_id();
-
-					if (op == spv::OpLogicalAnd)
-					{
-						// Emit "if ( lhs) result = rhs"
-						leave_block_and_branch_conditional(block, lhs_value, parent1_label, merge_label);
-					}
-					else
-					{
-						// Emit "if (!lhs) result = rhs"
-						const spv::Id cond = add_instruction(block, lhs.location, spv::OpLogicalNot, convert_type(type))
-							.add(lhs_value)
-							.result;
-						leave_block_and_branch_conditional(block, cond, parent1_label, merge_label);
-					}
-
-					enter_block(block, parent1_label);
-
-					block.append(std::move(rhs_block));
-
-					add_cast_operation(rhs, type);
-					const spv::Id rhs_value = access_chain_load(block, rhs);
-					assert(rhs_value != 0);
-
-					leave_block_and_branch(block, merge_label);
-
-					enter_block(block, merge_label);
-
-					spv::Id result = add_instruction(block, lhs.location, spv::OpPhi, convert_type(type))
-						.add(lhs_value) // Variable 0
-						.add(parent0_label) // Parent 0
-						.add(rhs_value) // Variable 1
-						.add(parent1_label) // Parent 1
-						.result;
-
-					lhs.reset_to_rvalue(result, type, lhs.location);
+					// Emit "if ( lhs) result = rhs" for && expression
+					leave_block_and_branch_conditional(block, lhs_value, rhs_block_label, merge_label);
 				}
 				else
-#endif
 				{
-					block.append(std::move(rhs_block));
-
-					add_cast_operation(rhs, type);
-					const spv::Id rhs_value = access_chain_load(block, rhs);
-					assert(rhs_value != 0);
-
-					// Certain operations return a boolean type instead of the type of the input expressions
-					if (boolean_result)
-						type = { spirv_type::t_bool, type.rows, type.cols };
-
-					spv::Id result = add_instruction(block, lhs.location, op, convert_type(type))
-						.add(lhs_value) // Operand 1
-						.add(rhs_value) // Operand 2
-						.result; // Result ID
-
-					if (type.has(spirv_type::q_precise))
-						add_decoration(result, spv::DecorationNoContraction);
-
-					lhs.reset_to_rvalue(lhs.location, result, type);
+					// Emit "if (!lhs) result = rhs" for || expression
+					const auto not_lhs_value = add_unary_operation(block, lhs.location, tokenid::exclaim, type, lhs_value);
+					leave_block_and_branch_conditional(block, not_lhs_value, rhs_block_label, merge_label);
 				}
+
+				enter_block(block, rhs_block_label);
+				block.append(std::move(rhs_block));
+				// Only load value of right hand side expression after entering the second block
+				const auto rhs_value = access_chain_load(block, rhs);
+				leave_block_and_branch(block, merge_label);
+
+				enter_block(block, merge_label);
+
+				const auto result_value = add_phi_operation(block, type, lhs_value, lhs_block_label, rhs_value, rhs_block_label);
+
+				lhs.reset_to_rvalue(lhs.location, result_value, type);
+				continue;
 			}
+#endif
+			block.append(std::move(rhs_block));
+
+			const auto rhs_value = access_chain_load(block, rhs);
+
+			// Certain operations return a boolean type instead of the type of the input expressions
+			if (is_bool_result)
+				type = { type::t_bool, type.rows, type.cols };
+
+			const auto result_value = add_binary_operation(block, lhs.location, op, type, lhs.type, lhs_value, rhs_value);
+
+			if (type.has(type::q_precise))
+				add_decoration(result_value, spv::DecorationNoContraction);
+
+			lhs.reset_to_rvalue(lhs.location, result_value, type);
+			#pragma endregion
 		}
 		else
 		{
+			#pragma region Ternary Expression
 			// A conditional expression needs a scalar or vector type condition
 			if (!lhs.type.is_scalar() && !lhs.type.is_vector())
 				return error(lhs.location, 3022, "boolean or vector expression expected"), false;
 
 			// Parse the first part of the right hand side of the ternary operation
-			spirv_expression true_exp; spirv_basic_block true_block;
+			expression true_exp; spirv_basic_block true_block;
 			if (!parse_expression(true_block, true_exp))
 				return false;
 
@@ -1583,7 +1445,7 @@ bool reshadefx::parser::parse_expression_multary(spirv_basic_block &block, spirv
 				return false;
 
 			// Parse the second part of the right hand side of the ternary operation
-			spirv_expression false_exp; spirv_basic_block false_block;
+			expression false_exp; spirv_basic_block false_block;
 			if (!parse_expression_assignment(false_block, false_exp))
 				return false;
 
@@ -1596,132 +1458,111 @@ bool reshadefx::parser::parse_expression_multary(spirv_basic_block &block, spirv
 				return error(false_exp.location, 3020, "type mismatch between conditional values"), false;
 
 			// Deduce the result base type based on implicit conversion rules
-			const spirv_type type = spirv_type::merge(true_exp.type, false_exp.type);
+			const type type = type::merge(true_exp.type, false_exp.type);
 
 			if (true_exp.type.components() > type.components())
 				warning(true_exp.location, 3206, "implicit truncation of vector type");
 			if (false_exp.type.components() > type.components())
 				warning(false_exp.location, 3206, "implicit truncation of vector type");
 
-#if RESHADEFX_SHORT_CIRCUIT
-			const spv::Id true_label = make_id();
-			const spv::Id false_label = make_id();
-			const spv::Id merge_label = make_id();
+			add_cast_operation(lhs, { type::t_bool, type.rows, 1 });
+			add_cast_operation(true_exp, type);
+			add_cast_operation(false_exp, type);
 
-			add_cast_operation(lhs, { spirv_type::t_bool, lhs.type.rows, 1 });
-			const spv::Id condition_value = access_chain_load(block, lhs);
-			assert(condition_value != 0);
+			// Load condition value from expression
+			const auto condition_value = access_chain_load(block, lhs);
+
+#if RESHADEFX_SHORT_CIRCUIT
+			const auto merge_label = make_id();
+			const auto true_block_label = make_id();
+			const auto false_block_label = make_id();
 
 			add_instruction_without_result(block, lhs.location, spv::OpSelectionMerge)
 				.add(merge_label) // Merge Block
 				.add(spv::SelectionControlMaskNone); // Selection Control
 
-			leave_block_and_branch_conditional(block, condition_value, true_label, false_label);
+			leave_block_and_branch_conditional(block, condition_value, true_block_label, false_block_label);
 
-			enter_block(block, true_label);
+			enter_block(block, true_block_label);
 			block.append(std::move(true_block));
-			add_cast_operation(true_exp, type);
-			const spv::Id true_value = access_chain_load(block, true_exp);
-			assert(true_value != 0);
+			// Only load true expression value after entering the first block
+			const auto true_value = access_chain_load(block, true_exp);
 			leave_block_and_branch(block, merge_label);
 
-			enter_block(block, false_label);
+			enter_block(block, false_block_label);
 			block.append(std::move(false_block));
-			add_cast_operation(false_exp, type);
-			const spv::Id false_value = access_chain_load(block, false_exp);
-			assert(false_value != 0);
+			// Only load false expression value after entering the second block
+			const auto false_value = access_chain_load(block, false_exp);
 			leave_block_and_branch(block, merge_label);
 
 			enter_block(block, merge_label);
 
-			spv::Id result = add_instruction(block, lhs.location, spv::OpPhi, convert_type(type))
-				.add(true_value) // Variable 0
-				.add(true_label) // Parent 0
-				.add(false_value) // Variable 1
-				.add(false_label) // Parent 1
-				.result;
+			const auto result_value = add_phi_operation(block, type, true_value, true_block_label, false_value, false_block_label);
 #else
 			block.append(std::move(true_block));
 			block.append(std::move(false_block));
 
-			// Load values and perform implicit type conversions
-			add_cast_operation(lhs, { spirv_type::t_bool, type.rows, 1 });
-			const spv::Id condition_value = access_chain_load(block, lhs);
-			assert(condition_value != 0);
-			add_cast_operation(true_exp, type);
-			const spv::Id true_value = access_chain_load(block, true_exp);
-			assert(true_value != 0);
-			add_cast_operation(false_exp, type);
-			const spv::Id false_value = access_chain_load(block, false_exp);
-			assert(false_value != 0);
+			const auto true_value = access_chain_load(block, true_exp);
+			const auto false_value = access_chain_load(block, false_exp);
 
-			spv::Id result = add_instruction(block, lhs.location, spv::OpSelect, convert_type(type))
-				.add(condition_value) // Condition
-				.add(true_value) // Object 1
-				.add(false_value) // Object 2
-				.result; // Result ID
+			const auto result_value = add_ternary_operation(block, lhs.location, op, type, condition_value, true_value, false_value);
 #endif
-			lhs.reset_to_rvalue(lhs.location, result, type);
+			lhs.reset_to_rvalue(lhs.location, result_value, type);
+			#pragma endregion
 		}
 	}
 
 	return true;
 }
-bool reshadefx::parser::parse_expression_assignment(spirv_basic_block &block, spirv_expression &lhs)
+bool reshadefx::parser::parse_expression_assignment(spirv_basic_block &block, expression &lhs)
 {
 	// Parse left hand side of the expression
 	if (!parse_expression_multary(block, lhs))
 		return false;
 
 	// Check if an operator exists so that this is an assignment
-	spv::Op op;
-	if (accept_assignment_op(lhs.type, op))
+	if (accept_assignment_op())
 	{
+		// Remember the operator token before parsing the expression that follows it
+		const tokenid op = _token.id;
+
 		// Parse right hand side of the assignment expression
-		spirv_expression rhs;
+		expression rhs;
 		if (!parse_expression_multary(block, rhs))
 			return false;
 
-		// Cannot assign to constants and uniform variables
-		if (lhs.type.has(spirv_type::q_const) || lhs.type.has(spirv_type::q_uniform) || !lhs.is_lvalue)
+		// Check if the assignment is valid
+		if (lhs.type.has(type::q_const) || lhs.type.has(type::q_uniform) || !lhs.is_lvalue)
 			return error(lhs.location, 3025, "l-value specifies const object"), false;
-
-		// Cannot assign between incompatible types
-		if (lhs.type.array_length != rhs.type.array_length || !spirv_type::rank(lhs.type, rhs.type))
+		if (lhs.type.array_length != rhs.type.array_length || !type::rank(lhs.type, rhs.type))
 			return error(rhs.location, 3020, "cannot convert these types"), false;
-		else if (rhs.type.components() > lhs.type.components())
+		// Cannot perform bitwise operations on non-integral types
+		if (!lhs.type.is_integral() && (op == tokenid::ampersand_equal || op == tokenid::pipe_equal || op == tokenid::caret_equal))
+			return error(lhs.location, 3082, "int or unsigned int type required"), false;
+
+		// Perform implicit type conversion of right hand side value
+		if (rhs.type.components() > lhs.type.components())
 			warning(rhs.location, 3206, "implicit truncation of vector type");
 
-		// Load value of right hand side and perform implicit type conversion
 		add_cast_operation(rhs, lhs.type);
-		spv::Id rhs_value = access_chain_load(block, rhs);
-		assert(rhs_value != 0);
+
+		auto result = access_chain_load(block, rhs);
 
 		// Check if this is an assignment with an additional arithmetic instruction
-		if (op != spv::OpNop)
+		if (op != tokenid::equal)
 		{
-			// Load value from left hand side as well to use in the operation
-			const spv::Id lhs_value = access_chain_load(block, lhs);
-			assert(lhs_value != 0);
-
 			// Handle arithmetic assignment operation
-			spv::Id result = add_instruction(block, lhs.location, op, convert_type(lhs.type))
-				.add(lhs_value) // Operand 1
-				.add(rhs_value) // Operand 2
-				.result; // Result ID
+			result = add_binary_operation(block, lhs.location, op, lhs.type, access_chain_load(block, lhs), result);
 
-			if (lhs.type.has(spirv_type::q_precise))
+			if (lhs.type.has(type::q_precise))
 				add_decoration(result, spv::DecorationNoContraction);
-
-			// The result of the operation should now be stored in the variable
-			rhs_value = result;
 		}
 
 		// Write result back to variable
-		access_chain_store(block, lhs, rhs_value, lhs.type);
+		access_chain_store(block, lhs, result, lhs.type);
 
 		// Return the result value since you can write assignments within expressions
-		lhs.reset_to_rvalue(lhs.location, rhs_value, lhs.type);
+		lhs.reset_to_rvalue(lhs.location, result, lhs.type);
 	}
 
 	return true;
@@ -1737,7 +1578,7 @@ bool reshadefx::parser::parse_annotations(std::unordered_map<std::string, std::s
 
 	while (!peek('>'))
 	{
-		if (spirv_type type; accept_type_class(type))
+		if (type type; accept_type_class(type))
 			warning(_token.location, 4717, "type prefixes for annotations are deprecated and ignored");
 
 		if (!expect(tokenid::identifier))
@@ -1745,7 +1586,7 @@ bool reshadefx::parser::parse_annotations(std::unordered_map<std::string, std::s
 
 		const auto name = std::move(_token.literal_as_string);
 
-		spirv_expression expression;
+		expression expression;
 
 		// Pass in temporary basic block, the expression should be constant
 		if (spirv_basic_block block; !expect('=') || !parse_expression_unary(block, expression) || !expect(';'))
@@ -1759,16 +1600,16 @@ bool reshadefx::parser::parse_annotations(std::unordered_map<std::string, std::s
 
 		switch (expression.type.base)
 		{
-		case spirv_type::t_int:
+		case type::t_int:
 			annotations[name] = std::to_string(expression.constant.as_int[0]);
 			break;
-		case spirv_type::t_uint:
+		case type::t_uint:
 			annotations[name] = std::to_string(expression.constant.as_uint[0]);
 			break;
-		case spirv_type::t_float:
+		case type::t_float:
 			annotations[name] = std::to_string(expression.constant.as_float[0]);
 			break;
-		case spirv_type::t_string:
+		case type::t_string:
 			annotations[name] = expression.constant.string_data;
 			break;
 		}
@@ -1784,8 +1625,8 @@ bool reshadefx::parser::parse_statement(spirv_basic_block &block, bool scoped)
 	if (_current_block == 0)
 		return error(_token_next.location, 0, "unreachable code"), false;
 
-	unsigned int loop_control = spv::LoopControlMaskNone;
-	unsigned int selection_control = spv::SelectionControlMaskNone;
+	int loop_control = spv::LoopControlMaskNone;
+	int selection_control = spv::SelectionControlMaskNone;
 
 	// Read any loop and branch control attributes first
 	while (accept('['))
@@ -1825,29 +1666,29 @@ bool reshadefx::parser::parse_statement(spirv_basic_block &block, bool scoped)
 		#pragma region If
 		if (accept(tokenid::if_))
 		{
-			const spv::Id true_label = make_id();
-			const spv::Id false_label = make_id();
-			const spv::Id merge_label = make_id();
+			const auto merge_label = make_id();
+			const auto true_block_label = make_id();
+			const auto false_block_label = make_id();
 
-			spirv_expression condition;
+			expression condition;
 			if (!expect('(') || !parse_expression(block, condition) || !expect(')'))
 				return false;
 			else if (!condition.type.is_scalar())
 				return error(condition.location, 3019, "if statement conditional expressions must evaluate to a scalar"), false;
 
 			// Load condition and convert to boolean value as required by 'OpBranchConditional'
-			add_cast_operation(condition, { spirv_type::t_bool, 1, 1 });
-			const spv::Id condition_value = access_chain_load(block, condition);
-			assert(condition_value != 0);
+			add_cast_operation(condition, { type::t_bool, 1, 1 });
+
+			const auto condition_value = access_chain_load(block, condition);
 
 			add_instruction_without_result(block, location, spv::OpSelectionMerge)
 				.add(merge_label) // Merge Block
 				.add(selection_control); // Selection Control
 
-			leave_block_and_branch_conditional(block, condition_value, true_label, false_label);
+			leave_block_and_branch_conditional(block, condition_value, true_block_label, false_block_label);
 
 			{ // Then block of the if statement
-				enter_block(block, true_label);
+				enter_block(block, true_block_label);
 
 				if (!parse_statement(block, true))
 					return false;
@@ -1855,7 +1696,7 @@ bool reshadefx::parser::parse_statement(spirv_basic_block &block, bool scoped)
 				leave_block_and_branch(block, merge_label);
 			}
 			{ // Else block of the if statement
-				enter_block(block, false_label);
+				enter_block(block, false_block_label);
 
 				if (accept(tokenid::else_) && !parse_statement(block, true))
 					return false;
@@ -1872,19 +1713,19 @@ bool reshadefx::parser::parse_statement(spirv_basic_block &block, bool scoped)
 		#pragma region Switch
 		if (accept(tokenid::switch_))
 		{
-			const spv::Id merge_label = make_id();
-			spv::Id default_label = merge_label; // The default case jumps to the end of the switch statement if not overwritten
+			const auto merge_label = make_id();
+			auto default_label = merge_label; // The default case jumps to the end of the switch statement if not overwritten
 
-			spirv_expression selector;
+			expression selector;
 			if (!expect('(') || !parse_expression(block, selector) || !expect(')'))
 				return false;
 			else if (!selector.type.is_scalar())
 				return error(selector.location, 3019, "switch statement expression must evaluate to a scalar"), false;
 
 			// Load selector and convert to integral value as required by 'OpSwitch'
-			add_cast_operation(selector, { spirv_type::t_int, 1, 1 });
-			const spv::Id selector_value = access_chain_load(block, selector);
-			assert(selector_value != 0);
+			add_cast_operation(selector, { type::t_int, 1, 1 });
+
+			const auto selector_value = access_chain_load(block, selector);
 
 			// A switch statement leaves the current control flow block
 			_current_block = 0;
@@ -1926,7 +1767,7 @@ bool reshadefx::parser::parse_statement(spirv_basic_block &block, bool scoped)
 				{
 					if (_token.id == tokenid::case_)
 					{
-						spirv_expression case_label;
+						expression case_label;
 						if (!parse_expression(switch_body_block, case_label))
 							return consume_until('}'), false;
 						else if (!case_label.type.is_scalar() || !case_label.type.is_integral() || !case_label.is_constant)
@@ -2000,7 +1841,7 @@ bool reshadefx::parser::parse_statement(spirv_basic_block &block, bool scoped)
 			on_scope_exit _([this]() { leave_scope(); });
 
 			// Parse initializer first
-			if (spirv_type type; parse_type(type))
+			if (type type; parse_type(type))
 			{
 				unsigned int count = 0;
 				do { // There may be multiple declarations behind a type, so loop through them
@@ -2012,18 +1853,18 @@ bool reshadefx::parser::parse_statement(spirv_basic_block &block, bool scoped)
 			}
 			else // Initializer can also contain an expression if not a variable declaration list
 			{
-				spirv_expression expression;
+				expression expression;
 				parse_expression(block, expression); // It is valid for there to be no initializer expression, so ignore result
 			}
 
 			if (!expect(';'))
 				return false;
 
-			const spv::Id header_label = make_id(); // Pointer to the loop merge instruction
-			const spv::Id loop_label = make_id(); // Pointer to the main loop body block
-			const spv::Id merge_label = make_id(); // Pointer to the end of the loop
-			const spv::Id continue_label = make_id(); // Pointer to the continue block
-			const spv::Id condition_label = make_id(); // Pointer to the condition check
+			const auto header_label = make_id(); // Pointer to the loop merge instruction
+			const auto loop_label = make_id(); // Pointer to the main loop body block
+			const auto merge_label = make_id(); // Pointer to the end of the loop
+			const auto continue_label = make_id(); // Pointer to the continue block
+			const auto condition_label = make_id(); // Pointer to the condition check
 
 			leave_block_and_branch(block, header_label);
 
@@ -2041,16 +1882,16 @@ bool reshadefx::parser::parse_statement(spirv_basic_block &block, bool scoped)
 			{ // Parse condition block
 				enter_block(block, condition_label);
 
-				spirv_expression condition;
+				expression condition;
 				if (parse_expression(block, condition))
 				{
 					if (!condition.type.is_scalar())
 						return error(condition.location, 3019, "scalar value expected"), false;
 
 					// Evaluate condition and branch to the right target
-					add_cast_operation(condition, { spirv_type::t_bool, 1, 1 });
-					const spv::Id condition_value = access_chain_load(block, condition);
-					assert(condition_value != 0);
+					add_cast_operation(condition, { type::t_bool, 1, 1 });
+
+					const auto condition_value = access_chain_load(block, condition);
 
 					leave_block_and_branch_conditional(block, condition_value, loop_label, merge_label);
 				}
@@ -2067,7 +1908,7 @@ bool reshadefx::parser::parse_statement(spirv_basic_block &block, bool scoped)
 			{ // Parse loop continue block into separate block so it can be appended to the end down the line
 				enter_block(continue_block, continue_label);
 
-				spirv_expression continue_exp;
+				expression continue_exp;
 				parse_expression(continue_block, continue_exp); // It is valid for there to be no continue expression, so ignore result
 
 				if (!expect(')'))
@@ -2112,11 +1953,11 @@ bool reshadefx::parser::parse_statement(spirv_basic_block &block, bool scoped)
 			enter_scope();
 			on_scope_exit _([this]() { leave_scope(); });
 
-			const spv::Id header_label = make_id();
-			const spv::Id loop_label = make_id();
-			const spv::Id merge_label = make_id();
-			const spv::Id continue_label = make_id();
-			const spv::Id condition_label = make_id();
+			const auto header_label = make_id();
+			const auto loop_label = make_id();
+			const auto merge_label = make_id();
+			const auto continue_label = make_id();
+			const auto condition_label = make_id();
 
 			// End current block by branching to the next label
 			leave_block_and_branch(block, header_label);
@@ -2135,16 +1976,16 @@ bool reshadefx::parser::parse_statement(spirv_basic_block &block, bool scoped)
 			{ // Parse condition block
 				enter_block(block, condition_label);
 
-				spirv_expression condition;
+				expression condition;
 				if (!expect('(') || !parse_expression(block, condition) || !expect(')'))
 					return false;
 				else if (!condition.type.is_scalar())
 					return error(condition.location, 3019, "scalar value expected"), false;
 
 				// Evaluate condition and branch to the right target
-				add_cast_operation(condition, { spirv_type::t_bool, 1, 1 });
-				const spv::Id condition_value = access_chain_load(block, condition);
-				assert(condition_value != 0);
+				add_cast_operation(condition, { type::t_bool, 1, 1 });
+
+				const auto condition_value = access_chain_load(block, condition);
 
 				leave_block_and_branch_conditional(block, condition_value, loop_label, merge_label);
 			}
@@ -2184,10 +2025,10 @@ bool reshadefx::parser::parse_statement(spirv_basic_block &block, bool scoped)
 		#pragma region DoWhile
 		if (accept(tokenid::do_))
 		{
-			const spv::Id header_label = make_id();
-			const spv::Id loop_label = make_id();
-			const spv::Id merge_label = make_id();
-			const spv::Id continue_label = make_id();
+			const auto header_label = make_id();
+			const auto loop_label = make_id();
+			const auto merge_label = make_id();
+			const auto continue_label = make_id();
 
 			// End current block by branching to the next label
 			leave_block_and_branch(block, header_label);
@@ -2225,16 +2066,16 @@ bool reshadefx::parser::parse_statement(spirv_basic_block &block, bool scoped)
 			{ // Continue block does the condition evaluation
 				enter_block(block, continue_label);
 
-				spirv_expression condition;
+				expression condition;
 				if (!expect(tokenid::while_) || !expect('(') || !parse_expression(block, condition) || !expect(')') || !expect(';'))
 					return false;
 				else if (!condition.type.is_scalar())
 					return error(condition.location, 3019, "scalar value expected"), false;
 
 				// Evaluate condition and branch to the right target
-				add_cast_operation(condition, { spirv_type::t_bool, 1, 1 });
-				const spv::Id condition_value = access_chain_load(block, condition);
-				assert(condition_value != 0);
+				add_cast_operation(condition, { type::t_bool, 1, 1 });
+
+				const auto condition_value = access_chain_load(block, condition);
 
 				leave_block_and_branch_conditional(block, condition_value, header_label, merge_label);
 			}
@@ -2279,7 +2120,7 @@ bool reshadefx::parser::parse_statement(spirv_basic_block &block, bool scoped)
 
 			if (!peek(';'))
 			{
-				spirv_expression expression;
+				expression expression;
 				if (!parse_expression(block, expression))
 					return consume_until(';'), false;
 
@@ -2289,15 +2130,16 @@ bool reshadefx::parser::parse_statement(spirv_basic_block &block, bool scoped)
 					return error(location, 3079, "void functions cannot return a value"), accept(';'), false;
 
 				// Cannot return arrays from a function
-				if (expression.type.is_array() || !spirv_type::rank(expression.type, parent->return_type))
+				if (expression.type.is_array() || !type::rank(expression.type, parent->return_type))
 					return error(location, 3017, "expression does not match function return type"), accept(';'), false;
-				else if (expression.type.components() > parent->return_type.components())
-					warning(expression.location, 3206, "implicit truncation of vector type");
 
 				// Load return value and perform implicit cast to function return type
+				if (expression.type.components() > parent->return_type.components())
+					warning(expression.location, 3206, "implicit truncation of vector type");
+
 				add_cast_operation(expression, parent->return_type);
-				const spv::Id return_value = access_chain_load(block, expression);
-				assert(return_value != 0);
+
+				const auto return_value = access_chain_load(block, expression);
 
 				leave_block_and_return(block, return_value);
 			}
@@ -2333,7 +2175,7 @@ bool reshadefx::parser::parse_statement(spirv_basic_block &block, bool scoped)
 
 	#pragma region Declaration
 	// Handle variable declarations
-	if (spirv_type type; parse_type(type))
+	if (type type; parse_type(type))
 	{
 		unsigned int count = 0;
 		do { // There may be multiple declarations behind a type, so loop through them
@@ -2349,7 +2191,7 @@ bool reshadefx::parser::parse_statement(spirv_basic_block &block, bool scoped)
 	#pragma endregion
 
 	// Handle expression statements
-	if (spirv_expression expression; parse_expression(block, expression))
+	if (expression expression; parse_expression(block, expression))
 		return expect(';'); // A statement has to be terminated with a semicolon
 
 	// No token should come through here, since all statements and expressions should have been handled above, so this is an error in the syntax
@@ -2441,7 +2283,7 @@ bool reshadefx::parser::parse_top()
 		if (!parse_technique())
 			return false;
 	}
-	else if (spirv_type type; parse_type(type)) // Type found, this can be either a variable or a function declaration
+	else if (type type; parse_type(type)) // Type found, this can be either a variable or a function declaration
 	{
 		if (!expect(tokenid::identifier))
 			return false;
@@ -2452,7 +2294,7 @@ bool reshadefx::parser::parse_top()
 			// This is definitely a function declaration, so parse it
 			if (!parse_function(type, name)) {
 				// Insert dummy function into symbol table, so later references can be resolved despite the error
-				insert_symbol(name, { spv::OpFunction, std::numeric_limits<spv::Id>::max(), { spirv_type::t_function } }, true);
+				insert_symbol(name, { spv::OpFunction, std::numeric_limits<spv::Id>::max(), { type::t_function } }, true);
 				return false;
 			}
 		}
@@ -2510,13 +2352,13 @@ bool reshadefx::parser::parse_struct()
 	while (!peek('}')) // Empty structures are possible
 	{
 		// Parse structure members
-		spirv_type member_type;
+		type member_type;
 		if (!parse_type(member_type))
 			return error(_token_next.location, 3000, "syntax error: unexpected '" + token::id_to_name(_token_next.id) + "', expected struct member type"), consume_until('}'), false;
 
 		if (member_type.is_void())
 			return error(_token_next.location, 3038, "struct members cannot be void"), consume_until('}'), false;
-		if (member_type.has(spirv_type::q_in) || member_type.has(spirv_type::q_out))
+		if (member_type.has(type::q_in) || member_type.has(type::q_out))
 			return error(_token_next.location, 3055, "struct members cannot be declared 'in' or 'out'"), consume_until('}'), false;
 
 		if (member_type.is_struct()) // Nesting structures would make input/output argument flattening more complicated, so prevent it for now
@@ -2545,7 +2387,7 @@ bool reshadefx::parser::parse_struct()
 
 				member_info.semantic = std::move(_token.literal_as_string);
 				// Make semantic upper case to simplify comparison later on
-				std::transform(member_info.semantic.begin(), member_info.semantic.end(), member_info.semantic.begin(), ::toupper);
+				std::transform(member_info.semantic.begin(), member_info.semantic.end(), member_info.semantic.begin(), [](char c) { return static_cast<char>(toupper(c)); });
 			}
 
 			// Add member type to list
@@ -2583,7 +2425,7 @@ bool reshadefx::parser::parse_struct()
 	return expect('}');
 }
 
-bool reshadefx::parser::parse_function(spirv_type type, std::string name)
+bool reshadefx::parser::parse_function(type type, std::string name)
 {
 	const auto location = std::move(_token.location);
 
@@ -2622,17 +2464,17 @@ bool reshadefx::parser::parse_function(spirv_type type, std::string name)
 
 		if (param.type.is_void())
 			return error(param_location, 3038, "function parameters cannot be void"), false;
-		if (param.type.has(spirv_type::q_extern))
+		if (param.type.has(type::q_extern))
 			return error(param_location, 3006, "function parameters cannot be declared 'extern'"), false;
-		if (param.type.has(spirv_type::q_static))
+		if (param.type.has(type::q_static))
 			return error(param_location, 3007, "function parameters cannot be declared 'static'"), false;
-		if (param.type.has(spirv_type::q_uniform))
+		if (param.type.has(type::q_uniform))
 			return error(param_location, 3047, "function parameters cannot be declared 'uniform', consider placing in global scope instead"), false;
 
-		if (param.type.has(spirv_type::q_out) && param.type.has(spirv_type::q_const))
+		if (param.type.has(type::q_out) && param.type.has(type::q_const))
 			return error(param_location, 3046, "output parameters cannot be declared 'const'"), false;
-		else if (!param.type.has(spirv_type::q_out))
-			param.type.qualifiers |= spirv_type::q_in; // Function parameters are implicitly 'in' if not explicitly defined as 'out'
+		else if (!param.type.has(type::q_out))
+			param.type.qualifiers |= type::q_in; // Function parameters are implicitly 'in' if not explicitly defined as 'out'
 
 		if (!parse_array_size(param.type))
 			return false;
@@ -2645,12 +2487,12 @@ bool reshadefx::parser::parse_function(spirv_type type, std::string name)
 
 			param.semantic = std::move(_token.literal_as_string);
 			// Make semantic upper case to simplify comparison later on
-			std::transform(param.semantic.begin(), param.semantic.end(), param.semantic.begin(), ::toupper);
+			std::transform(param.semantic.begin(), param.semantic.end(), param.semantic.begin(), [](char c) { return static_cast<char>(toupper(c)); });
 		}
 
 		param.type.is_ptr = true;
 
-		const spv::Id definition = make_id();
+		const auto definition = make_id();
 		define_function_param(definition, param.name.c_str(), param_location, param.type);
 
 		if (!insert_symbol(param.name, { spv::OpVariable, definition, param.type }))
@@ -2672,7 +2514,7 @@ bool reshadefx::parser::parse_function(spirv_type type, std::string name)
 
 		info.return_semantic = std::move(_token.literal_as_string);
 		// Make semantic upper case to simplify comparison later on
-		std::transform(info.return_semantic.begin(), info.return_semantic.end(), info.return_semantic.begin(), ::toupper);
+		std::transform(info.return_semantic.begin(), info.return_semantic.end(), info.return_semantic.begin(), [](char c) { return static_cast<char>(toupper(c)); });
 	}
 
 	// Check if this is a function declaration without a body
@@ -2689,7 +2531,7 @@ bool reshadefx::parser::parse_function(spirv_type type, std::string name)
 		leave_block_and_return(_functions2[_current_function].definition, 0);
 
 	// Insert the symbol into the symbol table
-	symbol symbol = { spv::OpFunction, info.definition, { spirv_type::t_function } };
+	symbol symbol = { spv::OpFunction, info.definition, { type::t_function } };
 	symbol.function = &info;
 
 	if (!insert_symbol(name, symbol, true))
@@ -2698,47 +2540,47 @@ bool reshadefx::parser::parse_function(spirv_type type, std::string name)
 	return success;
 }
 
-bool reshadefx::parser::parse_variable(spirv_type type, std::string name, spirv_basic_block &block, bool global)
+bool reshadefx::parser::parse_variable(type type, std::string name, spirv_basic_block &block, bool global)
 {
 	const auto location = std::move(_token.location);
 
 	if (type.is_void())
 		return error(location, 3038, "variables cannot be void"), false;
-	if (type.has(spirv_type::q_in) || type.has(spirv_type::q_out))
+	if (type.has(type::q_in) || type.has(type::q_out))
 		return error(location, 3055, "variables cannot be declared 'in' or 'out'"), false;
 
 	// Local and global variables have different requirements
 	if (global)
 	{
 		// Check that type qualifier combinations are valid
-		if (type.has(spirv_type::q_static))
+		if (type.has(type::q_static))
 		{
 			// Global variables that are 'static' cannot be of another storage class
-			if (type.has(spirv_type::q_uniform))
+			if (type.has(type::q_uniform))
 				return error(location, 3007, "uniform global variables cannot be declared 'static'"), false;
 			// The 'volatile qualifier is only valid memory object declarations that are storage images or uniform blocks
-			if (type.has(spirv_type::q_volatile))
+			if (type.has(type::q_volatile))
 				return error(location, 3008, "global variables cannot be declared 'volatile'"), false;
 		}
 		else
 		{
 			// Make all global variables 'uniform' by default, since they should be externally visible without the 'static' keyword
-			if (!type.has(spirv_type::q_uniform) && !(type.is_texture() || type.is_sampler()))
+			if (!type.has(type::q_uniform) && !(type.is_texture() || type.is_sampler()))
 				warning(location, 5000, "global variables are considered 'uniform' by default");
 
 			// Global variables that are not 'static' are always 'extern' and 'uniform'
-			type.qualifiers |= spirv_type::q_extern | spirv_type::q_uniform;
+			type.qualifiers |= type::q_extern | type::q_uniform;
 
 			// It is invalid to make 'uniform' variables constant, since they can be modified externally
-			if (type.has(spirv_type::q_const))
+			if (type.has(type::q_const))
 				return error(location, 3035, "variables which are 'uniform' cannot be declared 'const'"), false;
 		}
 	}
 	else
 	{
-		if (type.has(spirv_type::q_extern))
+		if (type.has(type::q_extern))
 			return error(location, 3006, "local variables cannot be declared 'extern'"), false;
-		if (type.has(spirv_type::q_uniform))
+		if (type.has(type::q_uniform))
 			return error(location, 3047, "local variables cannot be declared 'uniform'"), false;
 
 		if (type.is_texture() || type.is_sampler())
@@ -2750,7 +2592,7 @@ bool reshadefx::parser::parse_variable(spirv_type type, std::string name, spirv_
 		return false;
 
 	std::string semantic;
-	spirv_expression initializer;
+	expression initializer;
 	spirv_texture_info texture_info;
 	spirv_sampler_info sampler_info;
 
@@ -2763,7 +2605,7 @@ bool reshadefx::parser::parse_variable(spirv_type type, std::string name, spirv_
 
 		semantic = std::move(_token.literal_as_string);
 		// Make semantic upper case to simplify comparison later on
-		std::transform(semantic.begin(), semantic.end(), semantic.begin(), ::toupper);
+		std::transform(semantic.begin(), semantic.end(), semantic.begin(), [](char c) { return static_cast<char>(toupper(c)); });
 	}
 	else
 	{
@@ -2781,25 +2623,26 @@ bool reshadefx::parser::parse_variable(spirv_type type, std::string name, spirv_
 				return error(initializer.location, 3011, "initial value must be a literal expression"), false;
 
 			// Check type compatibility
-			if ((type.array_length >= 0 && initializer.type.array_length != type.array_length) || !spirv_type::rank(initializer.type, type))
+			if ((type.array_length >= 0 && initializer.type.array_length != type.array_length) || !type::rank(initializer.type, type))
 				return error(initializer.location, 3017, "initial value does not match variable type"), false;
 			if ((initializer.type.rows < type.rows || initializer.type.cols < type.cols) && !initializer.type.is_scalar())
 				return error(initializer.location, 3017, "cannot implicitly convert these vector types"), false;
-			else if (initializer.type.components() > type.components())
-				warning(initializer.location, 3206, "implicit truncation of vector type");
 
 			// Deduce array size from the initializer expression
 			if (initializer.type.is_array())
 				type.array_length = initializer.type.array_length;
 
 			// Perform implicit cast from initializer expression to variable type
+			if (initializer.type.components() > type.components())
+				warning(initializer.location, 3206, "implicit truncation of vector type");
+
 			add_cast_operation(initializer, type);
 		}
 		else if (type.is_numeric()) // Numeric variables without an initializer need special handling
 		{
-			if (type.has(spirv_type::q_const)) // Constants have to have an initial value
+			if (type.has(type::q_const)) // Constants have to have an initial value
 				return error(location, 3012, "missing initial value for '" + name + "'"), false;
-			else if (!type.has(spirv_type::q_uniform)) // Zero initialize all global variables
+			else if (!type.has(type::q_uniform)) // Zero initialize all global variables
 				initializer.reset_to_rvalue_constant(location, {}, type);
 		}
 		else if (global && accept('{')) // Textures and samplers can have a property block attached to their declaration
@@ -2817,12 +2660,12 @@ bool reshadefx::parser::parse_variable(spirv_type type, std::string name, spirv_
 
 				backup();
 
-				spirv_expression expression;
+				expression expression;
 
 				if (accept(tokenid::identifier)) // Handle special enumeration names for property values
 				{
 					// Transform identifier to uppercase to do case-insensitive comparison
-					std::transform(_token.literal_as_string.begin(), _token.literal_as_string.end(), _token.literal_as_string.begin(), ::toupper);
+					std::transform(_token.literal_as_string.begin(), _token.literal_as_string.end(), _token.literal_as_string.begin(), [](char c) { return static_cast<char>(toupper(c)); });
 
 					static const std::pair<const char *, uint32_t> s_values[] = {
 						{ "NONE", 0 }, { "POINT", 0 }, { "LINEAR", 1 }, { "ANISOTROPIC", 3 },
@@ -2860,7 +2703,7 @@ bool reshadefx::parser::parse_variable(spirv_type type, std::string name, spirv_
 						return error(expression.location, 3538, "value must be a literal scalar expression"), consume_until('}'), false;
 
 					// All states below expect the value to be of an unsigned integer type
-					add_cast_operation(expression, { spirv_type::t_uint, 1, 1 });
+					add_cast_operation(expression, { type::t_uint, 1, 1 });
 					const unsigned int value = expression.constant.as_uint[0];
 
 					if (property_name == "Width")
@@ -2880,7 +2723,7 @@ bool reshadefx::parser::parse_variable(spirv_type type, std::string name, spirv_
 					else if (property_name == "AddressW")
 						sampler_info.address_w = value;
 					else if (property_name == "MinFilter")
-						sampler_info.filter = (sampler_info.filter & 0x0F) | ((value << 4) & 0x30);
+						sampler_info.filter = (sampler_info.filter & 0x0F) | ((value << 4) & 0x30); // Combine sampler filter components into a single filter enumeration value
 					else if (property_name == "MagFilter")
 						sampler_info.filter = (sampler_info.filter & 0x33) | ((value << 2) & 0x0C);
 					else if (property_name == "MipFilter")
@@ -2906,7 +2749,7 @@ bool reshadefx::parser::parse_variable(spirv_type type, std::string name, spirv_
 
 	symbol symbol;
 
-	if (type.is_numeric() && type.has(spirv_type::q_const) && initializer.is_constant) // Variables with a constant initializer and constant type are named constants
+	if (type.is_numeric() && type.has(type::q_const) && initializer.is_constant) // Variables with a constant initializer and constant type are named constants
 	{
 		// Named constants are special symbols
 		symbol = { spv::OpConstant, 0, type, initializer.constant };
@@ -2953,7 +2796,7 @@ bool reshadefx::parser::parse_variable(spirv_type type, std::string name, spirv_
 		add_decoration(symbol.id, spv::DecorationBinding, { _current_sampler_binding++ });
 		add_decoration(symbol.id, spv::DecorationDescriptorSet, { 1 });
 	}
-	else if (type.has(spirv_type::q_uniform)) // Uniform variables are put into a global uniform buffer structure
+	else if (type.has(type::q_uniform)) // Uniform variables are put into a global uniform buffer structure
 	{
 		assert(global);
 
@@ -2964,7 +2807,7 @@ bool reshadefx::parser::parse_variable(spirv_type type, std::string name, spirv_
 
 		// Convert boolean uniform variables to integer type so that they have a defined size
 		if (type.is_boolean())
-			type.base = spirv_type::t_uint;
+			type.base = type::t_uint;
 
 		symbol = { spv::OpAccessChain, _global_ubo_variable, type };
 
@@ -3013,7 +2856,7 @@ bool reshadefx::parser::parse_variable(spirv_type type, std::string name, spirv_
 		}
 		else // Non-constant initializers are explicitly stored in the variable at the definition location instead
 		{
-			const spv::Id initializer_value = access_chain_load(block, initializer);
+			const auto initializer_value = access_chain_load(block, initializer);
 
 			define_variable(symbol.id, unique_name.c_str(), location, type, global ? spv::StorageClassPrivate : spv::StorageClassFunction);
 
@@ -3021,7 +2864,7 @@ bool reshadefx::parser::parse_variable(spirv_type type, std::string name, spirv_
 			{
 				assert(!global); // Global variables cannot have a dynamic initializer
 
-				spirv_expression variable; variable.reset_to_lvalue(location, symbol.id, type);
+				expression variable; variable.reset_to_lvalue(location, symbol.id, type);
 
 				access_chain_store(block, variable, initializer_value, initializer.type);
 			}
@@ -3043,8 +2886,6 @@ bool reshadefx::parser::parse_technique()
 	spirv_technique_info info;
 	info.name = std::move(_token.literal_as_string);
 
-	std::unordered_map<std::string, spirv_constant> annotation_list;
-
 	if (!parse_annotations(info.annotations) || !expect('{'))
 		return false;
 
@@ -3056,7 +2897,7 @@ bool reshadefx::parser::parse_technique()
 			return consume_until('}'), false;
 	}
 
-	_techniques.push_back(info);
+	_techniques.push_back(std::move(info));
 
 	return expect('}');
 }
@@ -3143,7 +2984,7 @@ bool reshadefx::parser::parse_technique_pass(spirv_pass_info &info)
 
 					// Generate the glue entry point function
 					function_info->entry_point = make_id();
-					define_function(function_info->entry_point, nullptr, location, { spirv_type::t_void });
+					define_function(function_info->entry_point, nullptr, location, { type::t_void });
 
 					enter_block(_functions2[_current_function].variables, make_id());
 
@@ -3169,7 +3010,7 @@ bool reshadefx::parser::parse_technique_pass(spirv_pass_info &info)
 						return function_variable;
 					};
 					const auto create_input_variable = [this, &inputs_and_outputs, &semantic_to_builtin](const spirv_struct_member_info &param) {
-						spirv_type input_type = param.type;
+						type input_type = param.type;
 						input_type.is_input = true;
 						input_type.is_ptr = true;
 
@@ -3195,11 +3036,11 @@ bool reshadefx::parser::parse_technique_pass(spirv_pass_info &info)
 							add_decoration(input_variable, spv::DecorationLocation, { location });
 						}
 
-						if (param.type.has(spirv_type::q_noperspective))
+						if (param.type.has(type::q_noperspective))
 							add_decoration(input_variable, spv::DecorationNoPerspective);
-						if (param.type.has(spirv_type::q_centroid))
+						if (param.type.has(type::q_centroid))
 							add_decoration(input_variable, spv::DecorationCentroid);
-						if (param.type.has(spirv_type::q_nointerpolation))
+						if (param.type.has(type::q_nointerpolation))
 							add_decoration(input_variable, spv::DecorationFlat);
 
 						inputs_and_outputs.push_back(input_variable);
@@ -3212,7 +3053,7 @@ bool reshadefx::parser::parse_technique_pass(spirv_pass_info &info)
 						return function_variable;
 					};
 					const auto create_output_variable = [this, &inputs_and_outputs, &semantic_to_builtin](const spirv_struct_member_info &param) {
-						spirv_type output_type = param.type;
+						type output_type = param.type;
 						output_type.is_output = true;
 						output_type.is_ptr = true;
 
@@ -3238,11 +3079,11 @@ bool reshadefx::parser::parse_technique_pass(spirv_pass_info &info)
 							add_decoration(output_variable, spv::DecorationLocation, { location });
 						}
 
-						if (param.type.has(spirv_type::q_noperspective))
+						if (param.type.has(type::q_noperspective))
 							add_decoration(output_variable, spv::DecorationNoPerspective);
-						if (param.type.has(spirv_type::q_centroid))
+						if (param.type.has(type::q_centroid))
 							add_decoration(output_variable, spv::DecorationCentroid);
-						if (param.type.has(spirv_type::q_nointerpolation))
+						if (param.type.has(type::q_nointerpolation))
 							add_decoration(output_variable, spv::DecorationFlat);
 
 						inputs_and_outputs.push_back(output_variable);
@@ -3252,7 +3093,7 @@ bool reshadefx::parser::parse_technique_pass(spirv_pass_info &info)
 					// Handle input parameters
 					for (const spirv_struct_member_info &param : function_info->parameter_list)
 					{
-						if (param.type.has(spirv_type::q_out))
+						if (param.type.has(type::q_out))
 						{
 							create_output_param(param);
 
@@ -3282,7 +3123,7 @@ bool reshadefx::parser::parse_technique_pass(spirv_pass_info &info)
 								{
 									const spv::Id input_variable = create_input_variable(member);
 
-									spirv_type value_type = member.type;
+									type value_type = member.type;
 									value_type.is_ptr = false;
 
 									const spv::Id value = add_instruction(section, {}, spv::OpLoad, convert_type(value_type))
@@ -3291,7 +3132,7 @@ bool reshadefx::parser::parse_technique_pass(spirv_pass_info &info)
 									elements.push_back(value);
 								}
 
-								spirv_type composite_type = param.type;
+								type composite_type = param.type;
 								composite_type.is_ptr = false;
 								spirv_instruction &construct = add_instruction(section, {}, spv::OpCompositeConstruct, convert_type(composite_type));
 								for (auto elem : elements)
@@ -3306,7 +3147,7 @@ bool reshadefx::parser::parse_technique_pass(spirv_pass_info &info)
 							{
 								const spv::Id input_variable = create_input_variable(param);
 
-								spirv_type value_type = param.type;
+								type value_type = param.type;
 								value_type.is_ptr = false;
 
 								const spv::Id value = add_instruction(section, {}, spv::OpLoad, convert_type(value_type))
@@ -3329,9 +3170,9 @@ bool reshadefx::parser::parse_technique_pass(spirv_pass_info &info)
 					size_t inputs_and_outputs_index = 0;
 					for (const spirv_struct_member_info &param : function_info->parameter_list)
 					{
-						if (param.type.has(spirv_type::q_out))
+						if (param.type.has(type::q_out))
 						{
-							spirv_type value_type = param.type;
+							type value_type = param.type;
 							value_type.is_ptr = false;
 
 							const spv::Id value = add_instruction(section, {}, spv::OpLoad, convert_type(value_type))
@@ -3387,7 +3228,7 @@ bool reshadefx::parser::parse_technique_pass(spirv_pass_info &info)
 					}
 					else if (!function_info->return_type.is_void())
 					{
-						spirv_type ptr_type = function_info->return_type;
+						type ptr_type = function_info->return_type;
 						ptr_type.is_output = true;
 						ptr_type.is_ptr = true;
 
@@ -3398,19 +3239,19 @@ bool reshadefx::parser::parse_technique_pass(spirv_pass_info &info)
 							add_builtin(result, builtin);
 						else
 						{
-							uint32_t location = 0;
+							uint32_t semantic_location = 0;
 							if (function_info->return_semantic.size() >= 5 && function_info->return_semantic.compare(0, 5, "COLOR") == 0)
-								location = std::strtol(function_info->return_semantic.substr(5).c_str(), nullptr, 10);
+								semantic_location = std::strtol(function_info->return_semantic.substr(5).c_str(), nullptr, 10);
 							else if (function_info->return_semantic.size() >= 9 && function_info->return_semantic.compare(0, 9, "SV_TARGET") == 0)
-								location = std::strtol(function_info->return_semantic.substr(9).c_str(), nullptr, 10);
+								semantic_location = std::strtol(function_info->return_semantic.substr(9).c_str(), nullptr, 10);
 							else if (function_info->return_semantic.size() >= 8 && function_info->return_semantic.compare(0, 8, "TEXCOORD") == 0)
-								location = std::strtol(function_info->return_semantic.substr(8).c_str(), nullptr, 10);
+								semantic_location = std::strtol(function_info->return_semantic.substr(8).c_str(), nullptr, 10);
 							else if (const auto it = _semantic_to_location.find(function_info->return_semantic); it != _semantic_to_location.end())
-								location = it->second;
+								semantic_location = it->second;
 							else
-								_semantic_to_location[function_info->return_semantic] = location = _current_semantic_location++;
+								_semantic_to_location[function_info->return_semantic] = semantic_location = _current_semantic_location++;
 
-							add_decoration(result, spv::DecorationLocation, { location });
+							add_decoration(result, spv::DecorationLocation, { semantic_location });
 						}
 
 						inputs_and_outputs.push_back(result);
@@ -3453,12 +3294,12 @@ bool reshadefx::parser::parse_technique_pass(spirv_pass_info &info)
 		{
 			backup();
 
-			spirv_expression expression;
+			expression expression;
 
 			if (accept(tokenid::identifier)) // Handle special enumeration names for pass states
 			{
 				// Transform identifier to uppercase to do case-insensitive comparison
-				std::transform(_token.literal_as_string.begin(), _token.literal_as_string.end(), _token.literal_as_string.begin(), ::toupper);
+				std::transform(_token.literal_as_string.begin(), _token.literal_as_string.end(), _token.literal_as_string.begin(), [](char c) { return static_cast<char>(toupper(c)); });
 
 				static const std::pair<const char *, uint32_t> s_enum_values[] = {
 					{ "NONE", 0 }, { "ZERO", 0 }, { "ONE", 1 },
@@ -3485,7 +3326,7 @@ bool reshadefx::parser::parse_technique_pass(spirv_pass_info &info)
 				return error(expression.location, 3011, "pass state value must be a literal scalar expression"), consume_until('}'), false;
 
 			// All states below expect the value to be of an unsigned integer type
-			add_cast_operation(expression, { spirv_type::t_uint, 1, 1 });
+			add_cast_operation(expression, { type::t_uint, 1, 1 });
 			const unsigned int value = expression.constant.as_uint[0];
 
 			if (state == "SRGBWriteEnable")
