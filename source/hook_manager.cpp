@@ -140,7 +140,7 @@ namespace
 
 		return true;
 	}
-	bool install_internal(const HMODULE target_module, const HMODULE replacement_module, hook_method method)
+	bool install_internal(HMODULE target_module, HMODULE replacement_module, hook_method method)
 	{
 		assert(target_module != nullptr);
 		assert(replacement_module != nullptr);
@@ -283,6 +283,31 @@ namespace
 		return true;
 	}
 
+	void install_delayed_hooks(const reshade::filesystem::path &loaded_path)
+	{
+		// Ignore this call if unable to acquire the mutex to avoid possible deadlock
+		if (std::unique_lock<std::mutex> lock(s_mutex_delayed_hook_paths, std::try_to_lock); lock.owns_lock())
+		{
+			const auto remove = std::remove_if(s_delayed_hook_paths.begin(), s_delayed_hook_paths.end(),
+				[&loaded_path](const auto &path) {
+				HMODULE delayed_handle = nullptr;
+
+				if (!is_module_loaded(path, delayed_handle))
+					return false;
+
+				LOG(INFO) << "Installing delayed hooks for " << path << " (Just loaded via 'LoadLibrary(\"" << loaded_path << "\")') ...";
+
+				return install_internal(delayed_handle, g_module_handle, hook_method::function_hook) && reshade::hook::apply_queued_actions();
+			});
+
+			s_delayed_hook_paths.erase(remove, s_delayed_hook_paths.end());
+		}
+		else
+		{
+			LOG(WARNING) << "Ignoring 'LoadLibrary(\"" << loaded_path << "\")' call to avoid possible deadlock.";
+		}
+	}
+
 	reshade::hook find_internal(reshade::hook::address replacement)
 	{ const std::lock_guard<std::mutex> lock(s_mutex_hooks);
 		const auto it = std::find_if(s_hooks.cbegin(), s_hooks.cend(),
@@ -304,47 +329,21 @@ namespace
 
 		const HMODULE handle = trampoline(lpFileName);
 
-		if (handle == nullptr || handle == g_module_handle)
-		{
-			return handle;
-		}
-
-		// Ignore this call if unable to acquire the mutex to avoid possible deadlock
-		if (std::unique_lock<std::mutex> lock(s_mutex_delayed_hook_paths, std::try_to_lock); lock.owns_lock())
-		{
-			const auto remove = std::remove_if(s_delayed_hook_paths.begin(), s_delayed_hook_paths.end(),
-				[lpFileName](const auto &path) {
-				HMODULE delayed_handle = nullptr;
-
-				if (!is_module_loaded(path, delayed_handle))
-				{
-					return false;
-				}
-
-				LOG(INFO) << "Installing delayed hooks for " << path << " (Just loaded via 'LoadLibraryA(\"" << lpFileName << "\")') ...";
-
-				return install_internal(delayed_handle, g_module_handle, hook_method::function_hook) && reshade::hook::apply_queued_actions();
-			});
-
-			s_delayed_hook_paths.erase(remove, s_delayed_hook_paths.end());
-		}
-		else
-		{
-			LOG(WARNING) << "Ignoring 'LoadLibraryA(\"" << lpFileName << "\")' call to avoid possible deadlock.";
-		}
+		if (handle != nullptr && handle != g_module_handle)
+			install_delayed_hooks(lpFileName);
 
 		return handle;
 	}
 	HMODULE WINAPI HookLoadLibraryExA(LPCSTR lpFileName, HANDLE hFile, DWORD dwFlags)
 	{
-		if (dwFlags == 0)
-		{
-			return HookLoadLibraryA(lpFileName);
-		}
-
 		static const auto trampoline = call_unchecked(&HookLoadLibraryExA);
 
-		return trampoline(lpFileName, hFile, dwFlags);
+		const HMODULE handle = trampoline(lpFileName, hFile, dwFlags);
+
+		if (dwFlags == 0 && handle != nullptr && handle != g_module_handle)
+			install_delayed_hooks(lpFileName);
+
+		return handle;
 	}
 	HMODULE WINAPI HookLoadLibraryW(LPCWSTR lpFileName)
 	{
@@ -352,47 +351,21 @@ namespace
 
 		const HMODULE handle = trampoline(lpFileName);
 
-		if (handle == nullptr || handle == g_module_handle)
-		{
-			return handle;
-		}
-
-		// Ignore this call if unable to acquire the mutex to avoid possible deadlock
-		if (std::unique_lock<std::mutex> lock(s_mutex_delayed_hook_paths, std::try_to_lock); lock.owns_lock())
-		{
-			const auto remove = std::remove_if(s_delayed_hook_paths.begin(), s_delayed_hook_paths.end(),
-				[lpFileName](const auto &path) {
-				HMODULE delayed_handle = nullptr;
-
-				if (!is_module_loaded(path, delayed_handle))
-				{
-					return false;
-				}
-
-				LOG(INFO) << "Installing delayed hooks for " << path << " (Just loaded via 'LoadLibraryW(\"" << lpFileName << "\")') ...";
-
-				return install_internal(delayed_handle, g_module_handle, hook_method::function_hook) && reshade::hook::apply_queued_actions();
-			});
-
-			s_delayed_hook_paths.erase(remove, s_delayed_hook_paths.end());
-		}
-		else
-		{
-			LOG(WARNING) << "Ignoring 'LoadLibraryA(\"" << lpFileName << "\")' call to avoid possible deadlock.";
-		}
+		if (handle != nullptr && handle != g_module_handle)
+			install_delayed_hooks(lpFileName);
 
 		return handle;
 	}
 	HMODULE WINAPI HookLoadLibraryExW(LPCWSTR lpFileName, HANDLE hFile, DWORD dwFlags)
 	{
-		if (dwFlags == 0)
-		{
-			return HookLoadLibraryW(lpFileName);
-		}
-
 		static const auto trampoline = call_unchecked(&HookLoadLibraryExW);
 
-		return trampoline(lpFileName, hFile, dwFlags);
+
+		const HMODULE handle = trampoline(lpFileName, hFile, dwFlags);
+		if (dwFlags == 0 && handle != nullptr && handle != g_module_handle)
+			install_delayed_hooks(lpFileName);
+
+		return handle;
 	}
 }
 
