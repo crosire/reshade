@@ -281,7 +281,7 @@ void spirv_module::add_cast_operation(expression &chain, const reshadefx::type &
 			}
 			else
 			{
-				if (!from.is_integral())
+				if (!from.is_integral() && !from.is_boolean())
 				{
 					// Scalar to vector promotion
 					assert(from.is_floating_point() && from.is_scalar() && to.is_vector());
@@ -314,7 +314,14 @@ void spirv_module::add_cast_operation(expression &chain, const reshadefx::type &
 	}
 	else
 	{
-		chain.ops.push_back({ op_cast, chain.type, in_type });
+		if (chain.type.is_vector() && in_type.is_scalar())
+		{
+			chain.ops.push_back({ op_swizzle, chain.type, in_type, 0, { 0, -1, -1, -1 } });
+		}
+		else
+		{
+			chain.ops.push_back({ op_cast, chain.type, in_type });
+		}
 	}
 
 	chain.type = in_type;
@@ -457,8 +464,10 @@ spv::Id spirv_module::add_binary_operation(spirv_basic_block &block, const locat
 	case tokenid::star:
 	case tokenid::star_equal: spvop = type.is_floating_point() ? spv::OpFMul : spv::OpIMul; break;
 	case tokenid::plus:
+	case tokenid::plus_plus:
 	case tokenid::plus_equal: spvop = type.is_floating_point() ? spv::OpFAdd : spv::OpIAdd; break;
 	case tokenid::minus:
+	case tokenid::minus_minus:
 	case tokenid::minus_equal: spvop = type.is_floating_point() ? spv::OpFSub : spv::OpISub; break;
 	case tokenid::slash:
 	case tokenid::slash_equal: spvop = type.is_floating_point() ? spv::OpFDiv : type.is_signed() ? spv::OpSDiv : spv::OpUDiv; break;
@@ -480,7 +489,7 @@ spv::Id spirv_module::add_binary_operation(spirv_basic_block &block, const locat
 	case tokenid::greater_equal: spvop = type.is_floating_point() ? spv::OpFOrdGreaterThanEqual : type.is_signed() ? spv::OpSGreaterThanEqual : spv::OpUGreaterThanEqual; break;
 	case tokenid::pipe_pipe: spvop = spv::OpLogicalOr; break;
 	default:
-		return 0;
+		return assert(false), 0;
 	}
 
 	return add_instruction(block, loc, spvop, convert_type(res_type))
@@ -1087,15 +1096,23 @@ spv::Id spirv_module::access_chain_load(spirv_basic_block &section, const expres
 			}
 			break;
 		case op_index:
-			if (op.from.is_vector() && op.to.is_scalar())
+			if (op.from.is_array())
+			{
+				result = add_instruction(section, chain.location, spv::OpCompositeExtract, convert_type(op.to))
+					.add(result)
+					.add(op.index)
+					.result;
+				break;
+			}
+			else if (op.from.is_vector() && op.to.is_scalar())
 			{
 				type target_type = op.to;
 				target_type.is_ptr = false;
-				spirv_instruction &node = add_instruction(section, chain.location, spv::OpVectorExtractDynamic, convert_type(target_type))
-					.add(result) // Vector
-					.add(op.index); // Index
 
-				result = node.result; // Result ID
+				result = add_instruction(section, chain.location, spv::OpVectorExtractDynamic, convert_type(target_type))
+					.add(result) // Vector
+					.add(op.index) // Index
+					.result; // Result ID
 				break;
 			}
 			assert(false);

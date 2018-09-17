@@ -17,7 +17,8 @@ struct on_scope_exit
 	std::function<void()> leave;
 };
 
-static inline uintptr_t align(uintptr_t address, size_t alignment)
+template <typename T>
+static inline T align(T address, T alignment)
 {
 	return (address % alignment != 0) ? address + alignment - address % alignment : address;
 }
@@ -815,13 +816,13 @@ bool reshadefx::parser::parse_expression_unary(spirv_basic_block &block, express
 				res.array_data.push_back(element.constant);
 			}
 
-			composite_type.array_length = elements.size();
+			composite_type.array_length = static_cast<int>(elements.size());
 
 			exp.reset_to_rvalue_constant(location, std::move(res), composite_type);
 		}
 		else
 		{
-			composite_type.array_length = elements.size();
+			composite_type.array_length = static_cast<int>(elements.size());
 
 			const auto result = construct_type(block, composite_type, elements);
 
@@ -2691,6 +2692,10 @@ bool reshadefx::parser::parse_variable(type type, std::string name, spirv_basic_
 
 				if (property_name == "Texture")
 				{
+					// Ignore invalid symbols that were added during error recovery
+					if (expression.base == 0xFFFFFFFF)
+						return consume_until('}'), false;
+
 					if (!expression.type.is_texture())
 						return error(expression.location, 3020, "type mismatch, expected texture name"), consume_until('}'), false;
 
@@ -2822,11 +2827,11 @@ bool reshadefx::parser::parse_variable(type type, std::string name, spirv_basic_
 
 		uniform_info.annotations = std::move(texture_info.annotations);
 
-		const size_t member_index = uniform_info.member_index = _uniforms.size();
+		const unsigned int member_index = uniform_info.member_index = _uniforms.size();
 
 		_uniforms.push_back(std::move(uniform_info));
 
-		symbol.function = reinterpret_cast<const spirv_function_info *>(member_index);
+		symbol.function = reinterpret_cast<const spirv_function_info *>(static_cast<uintptr_t>(member_index));
 
 		add_member_name(_global_ubo_type, member_index, unique_name.c_str());
 
@@ -2834,8 +2839,8 @@ bool reshadefx::parser::parse_variable(type type, std::string name, spirv_basic_
 		// 1. If the member is a scalar consuming N basic machine units, the base alignment is N.
 		// 2. If the member is a two- or four-component vector with components consuming N basic machine units, the base alignment is 2N or 4N, respectively.
 		// 3. If the member is a three-component vector with components consuming N basic machine units, the base alignment is 4N.
-		size_t size = 4 * (type.rows == 3 ? 4 : type.rows) * type.cols * std::max(1, type.array_length);
-		size_t alignment = size;
+		unsigned int size = 4 * (type.rows == 3 ? 4 : type.rows) * type.cols * std::max(1, type.array_length);
+		unsigned int alignment = size;
 		_global_ubo_offset = align(_global_ubo_offset, alignment);
 		add_member_decoration(_global_ubo_type, member_index, spv::DecorationOffset, { _global_ubo_offset });
 		_global_ubo_offset += size;
@@ -2959,16 +2964,16 @@ bool reshadefx::parser::parse_technique_pass(spirv_pass_info &info)
 			// Lookup name in the symbol table
 			const symbol symbol = find_symbol(identifier, scope, exclusive);
 
+			// Ignore invalid symbols that were added during error recovery
+			if (symbol.id == 0xFFFFFFFF)
+				return consume_until('}'), false;
+
 			if (is_shader_state)
 			{
 				if (!symbol.id)
 					return error(location, 3501, "undeclared identifier '" + identifier + "', expected function name"), consume_until('}'), false;
 				else if (!symbol.type.is_function())
 					return error(location, 3020, "type mismatch, expected function name"), consume_until('}'), false;
-
-				// Ignore invalid functions that were added during error recovery
-				if (symbol.id == 0xFFFFFFFF)
-					return consume_until('}'), false;
 
 				const bool is_vs = state[0] == 'V';
 				const bool is_ps = state[0] == 'P';
@@ -3181,7 +3186,7 @@ bool reshadefx::parser::parse_technique_pass(spirv_pass_info &info)
 
 							if (param.type.is_struct())
 							{
-								size_t member_index = 0;
+								unsigned int member_index = 0;
 								for (const auto &member : _structs[param.type.definition].member_list)
 								{
 									const spv::Id member_value = add_instruction(section, {}, spv::OpCompositeExtract, convert_type(member.type))
@@ -3209,7 +3214,7 @@ bool reshadefx::parser::parse_technique_pass(spirv_pass_info &info)
 
 					if (function_info->return_type.is_struct())
 					{
-						size_t member_index = 0;
+						unsigned int member_index = 0;
 						for (const auto &member : _structs[function_info->return_type.definition].member_list)
 						{
 							spv::Id result = create_output_variable(member);

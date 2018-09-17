@@ -506,18 +506,7 @@ namespace reshade::opengl
 			break;
 		}
 
-		// GLSL specification on std140 layout:
-		// 1. If the member is a scalar consuming N basic machine units, the base alignment is N.
-		// 2. If the member is a two- or four-component vector with components consuming N basic machine units, the base alignment is 2N or 4N, respectively.
-		// 3. If the member is a three-component vector with components consuming N basic machine units, the base alignment is 4N.
-		size_t alignment = obj.storage_size;
-		if (obj.rows == 3)
-		{
-			alignment = alignment * 4 / 3;
-		}
-		_uniform_buffer_size = align(_uniform_buffer_size, alignment);
-		obj.storage_offset = _uniform_storage_offset + _uniform_buffer_size;
-		_uniform_buffer_size += obj.storage_size;
+		_uniform_buffer_size = std::max<GLintptr>(_uniform_buffer_size, obj.storage_offset + obj.storage_size);
 
 		auto &uniform_storage = _runtime->get_uniform_value_storage();
 
