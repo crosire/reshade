@@ -1639,7 +1639,7 @@ bool reshadefx::parser::parse_statement(spirv_basic_block &block, bool scoped)
 
 		if (attribute == "unroll")
 			loop_control |= spv::LoopControlUnrollMask;
-		else if (attribute == "loop")
+		else if (attribute == "loop" || attribute == "fastopt")
 			loop_control |= spv::LoopControlDontUnrollMask;
 		else if (attribute == "flatten")
 			selection_control |= spv::SelectionControlFlattenMask;
