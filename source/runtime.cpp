@@ -763,6 +763,8 @@ namespace reshade
 		config.get("GENERAL", "TutorialProgress", _tutorial_index);
 		config.get("GENERAL", "ScreenshotPath", _screenshot_path);
 		config.get("GENERAL", "ScreenshotFormat", _screenshot_format);
+		config.get("GENERAL", "ScreenshotIncludePreset", _screenshot_include_preset);
+		config.get("GENERAL", "ScreenshotIncludeConfiguration", _screenshot_include_configuration);
 		config.get("GENERAL", "ShowClock", _show_clock);
 		config.get("GENERAL", "ShowFPS", _show_framerate);
 		config.get("GENERAL", "FontGlobalScale", _imgui_context->IO.FontGlobalScale);
@@ -861,7 +863,11 @@ namespace reshade
 	}
 	void runtime::save_config() const
 	{
-		ini_file config(_configuration_path);
+		save_config(_configuration_path);
+	}
+	void runtime::save_config(const filesystem::path &save_path) const
+	{
+		ini_file config(_configuration_path,save_path);
 
 		config.set("INPUT", "KeyMenu", _menu_key_data);
 		config.set("INPUT", "KeyScreenshot", _screenshot_key_data);
@@ -878,6 +884,8 @@ namespace reshade
 		config.set("GENERAL", "TutorialProgress", _tutorial_index);
 		config.set("GENERAL", "ScreenshotPath", _screenshot_path);
 		config.set("GENERAL", "ScreenshotFormat", _screenshot_format);
+		config.set("GENERAL", "ScreenshotIncludePreset", _screenshot_include_preset);
+		config.set("GENERAL", "ScreenshotIncludeConfiguration", _screenshot_include_configuration);
 		config.set("GENERAL", "ShowClock", _show_clock);
 		config.set("GENERAL", "ShowFPS", _show_framerate);
 		config.set("GENERAL", "FontGlobalScale", _imgui_context->IO.FontGlobalScale);
@@ -960,7 +968,11 @@ namespace reshade
 	}
 	void runtime::save_preset(const filesystem::path &path) const
 	{
-		ini_file preset(path);
+		save_preset(path, path);
+	}
+	void runtime::save_preset(const filesystem::path &path, const filesystem::path &save_path) const
+	{
+		ini_file preset(path, save_path);
 
 		std::unordered_set<std::string> active_effect_filenames;
 		for (const auto &technique : _techniques)
@@ -1051,8 +1063,8 @@ namespace reshade
 		const int second = _date[3] - hour * 3600 - minute * 60;
 
 		char filename[25];
-		ImFormatString(filename, sizeof(filename), " %.4d-%.2d-%.2d %.2d-%.2d-%.2d%s", _date[0], _date[1], _date[2], hour, minute, second, _screenshot_format == 0 ? ".bmp" : ".png");
-		const auto path = _screenshot_path / (s_target_executable_path.filename_without_extension() + filename);
+		ImFormatString(filename, sizeof(filename), " %.4d-%.2d-%.2d %.2d-%.2d-%.2d", _date[0], _date[1], _date[2], hour, minute, second);
+		const auto path = _screenshot_path / (s_target_executable_path.filename_without_extension() + filename + (_screenshot_format == 0 ? ".bmp" : ".png"));
 
 		LOG(INFO) << "Saving screenshot to " << path << " ...";
 
@@ -1081,6 +1093,23 @@ namespace reshade
 		if (!success)
 		{
 			LOG(ERROR) << "Failed to write screenshot to " << path << "!";
+			return;
+		}
+
+		if (_screenshot_include_preset)
+		{
+			if (_current_preset >= 0)
+			{
+				const auto preset_file = _preset_files[_current_preset];
+				const auto save_preset_path = _screenshot_path / (s_target_executable_path.filename_without_extension() + filename + "." + preset_file.filename_without_extension() + ".ini");
+				save_preset(preset_file, save_preset_path);
+
+				if (_screenshot_include_configuration)
+				{
+					const auto save_configuration_path = _screenshot_path / (s_target_executable_path.filename_without_extension() + filename + ".ini");
+					save_config(save_configuration_path);
+				}
+			}
 		}
 	}
 }

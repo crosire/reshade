@@ -747,6 +747,23 @@ namespace reshade
 			{
 				save_config();
 			}
+
+			if (ImGui::Checkbox("Include Preset (*.ini)",&_screenshot_include_preset))
+			{
+				_screenshot_include_configuration = false;
+
+				save_config();
+			}
+
+			if (_screenshot_include_preset)
+			{
+				ImGui::SameLine();
+
+				if (ImGui::Checkbox("Include Configuration (*.ini)", &_screenshot_include_configuration))
+				{
+					save_config();
+				}
+			}
 		}
 
 		if (ImGui::CollapsingHeader("User Interface", ImGuiTreeNodeFlags_DefaultOpen))
