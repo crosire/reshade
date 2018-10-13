@@ -1096,19 +1096,16 @@ namespace reshade
 			return;
 		}
 
-		if (_screenshot_include_preset)
+		if (_screenshot_include_preset && _current_preset >= 0)
 		{
-			if (_current_preset >= 0)
-			{
-				const auto preset_file = _preset_files[_current_preset];
-				const auto save_preset_path = _screenshot_path / (s_target_executable_path.filename_without_extension() + filename + " " + preset_file.filename_without_extension() + ".ini");
-				save_preset(preset_file, save_preset_path);
+			const auto preset_file = _preset_files[_current_preset];
+			const auto save_preset_path = _screenshot_path / (s_target_executable_path.filename_without_extension() + filename + " " + preset_file.filename_without_extension() + ".ini");
+			save_preset(preset_file, save_preset_path);
 
-				if (_screenshot_include_configuration)
-				{
-					const auto save_configuration_path = _screenshot_path / (s_target_executable_path.filename_without_extension() + filename + ".ini");
-					save_config(save_configuration_path);
-				}
+			if (_screenshot_include_configuration)
+			{
+				const auto save_configuration_path = _screenshot_path / (s_target_executable_path.filename_without_extension() + filename + ".ini");
+				save_config(save_configuration_path);
 			}
 		}
 	}
