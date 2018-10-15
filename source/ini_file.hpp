@@ -15,6 +15,7 @@ namespace reshade
 	{
 	public:
 		explicit ini_file(const filesystem::path &path);
+		explicit ini_file(const filesystem::path &path, const filesystem::path &save_path);
 		~ini_file();
 
 		template <typename T>
@@ -107,6 +108,7 @@ namespace reshade
 
 		bool _modified = false;
 		filesystem::path _path;
+		filesystem::path _save_path;
 		using section = std::unordered_map<std::string, variant>;
 		std::unordered_map<std::string, section> _sections;
 	};

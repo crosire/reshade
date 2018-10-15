@@ -207,6 +207,11 @@ namespace reshade
 		/// Save user configuration to disk.
 		/// </summary>
 		void save_config() const;
+		/// <summary>
+		/// Save user configuration to disk.
+		/// </summary>
+		/// <param name="path">Output configuration path.</param>
+		void save_config(const filesystem::path &path) const;
 
 		/// <summary>
 		/// Render all passes in a technique.
@@ -237,6 +242,7 @@ namespace reshade
 		void load_preset(const filesystem::path &path);
 		void load_current_preset();
 		void save_preset(const filesystem::path &path) const;
+		void save_preset(const filesystem::path &path, const filesystem::path &save_path) const;
 		void save_current_preset() const;
 		void save_screenshot() const;
 
@@ -287,6 +293,8 @@ namespace reshade
 		bool _show_framerate = false;
 		bool _effects_enabled = true;
 		bool _is_fast_loading = false;
+		bool _screenshot_include_preset = false;
+		bool _screenshot_include_configuration = false;
 		bool _no_font_scaling = false;
 		bool _no_reload_on_init = false;
 		bool _performance_mode = false;
