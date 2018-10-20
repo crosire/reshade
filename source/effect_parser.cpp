@@ -2860,9 +2860,9 @@ bool reshadefx::parser::parse_variable(type type, std::string name, spirv_basic_
 		std::string unique_name = global ? 'V' + current_scope().name + name : name;
 		std::replace(unique_name.begin(), unique_name.end(), ':', '_');
 
-		if (initializer.is_constant) // The initializer expression for 'OpVariable' must be a constant
+		if (global && initializer.is_constant) // The initializer expression for 'OpVariable' must be a constant (only do this for global variables, since local variables for e.g. "for" statements need to be assigned in their respective scope and not their declaration)
 		{
-			define_variable(symbol.id, unique_name.c_str(), location, type, global ? spv::StorageClassPrivate : spv::StorageClassFunction, convert_constant(initializer.type, initializer.constant));
+			define_variable(symbol.id, unique_name.c_str(), location, type, spv::StorageClassPrivate, convert_constant(initializer.type, initializer.constant));
 		}
 		else // Non-constant initializers are explicitly stored in the variable at the definition location instead
 		{
