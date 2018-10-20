@@ -585,7 +585,7 @@ namespace reshade
 			return;
 		}
 
-		reshadefx::parser parser;
+		reshadefx::parser parser(reshadefx::codegen_backend::spirv);
 
 		if (!parser.parse(pp.current_output()))
 		{
@@ -595,9 +595,14 @@ namespace reshade
 
 		// TODO: Performance mode?
 
+		reshadefx::module module;
+		parser.write_result(module);
+
+		std::ofstream("test.spv", std::ios::binary).write((char*)module.spirv.data(), module.spirv.size() * 4);
+
 		std::string errors = parser.errors();
 
-		if (!load_effect(parser, errors))
+		if (!load_effect(std::move(module), errors))
 		{
 			LOG(ERROR) << "Failed to compile " << path << ":\n" << errors;
 			_textures.erase(_textures.begin() + _texture_count, _textures.end());

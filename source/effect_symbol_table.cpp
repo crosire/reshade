@@ -3,7 +3,7 @@
  * License: https://github.com/crosire/reshade#license
  */
 
-#include "spirv_module.hpp"
+#include "effect_parser.hpp"
 #include "effect_symbol_table.hpp"
 #include <assert.h>
 #include <algorithm>
@@ -11,15 +11,11 @@
 
 #pragma region Import intrinsic functions
 
-namespace spv {
-#include <GLSL.std.450.h>
-}
-
 using namespace reshadefx;
 
 struct intrinsic
 {
-	intrinsic(const char *name, intrinsic_callback cb, const type &ret_type, std::initializer_list<type> arg_types) : cb(cb)
+	intrinsic(const char *name, unsigned int id, const type &ret_type, std::initializer_list<type> arg_types) : id(id)
 	{
 		function.name = name;
 		function.return_type = ret_type;
@@ -28,25 +24,21 @@ struct intrinsic
 			function.parameter_list.push_back({ arg_type });
 	}
 
-	intrinsic_callback cb;
-	spirv_function_info function;
+	unsigned int id;
+	function_info function;
 };
 
 // Import intrinsic callback functions
-#define DEFINE_INTRINSIC(name, i, ret_type, ...)
-#define IMPLEMENT_INTRINSIC(name, i, code) static spv::Id intrinsic_##name##_##i(spirv_module &m, spirv_basic_block &block, const std::vector<expression> &args) code
+#define IMPLEMENT_INTRINSIC_SPIRV(name, i, code) name##i,
+enum {
 #include "effect_symbol_table_intrinsics.inl"
-#undef DEFINE_INTRINSIC
-#undef IMPLEMENT_INTRINSIC
+};
 
 // Import intrinsic function definitions
-#define DEFINE_INTRINSIC(name, i, ret_type, ...) intrinsic(#name, &intrinsic_##name##_##i, ret_type, { __VA_ARGS__ }),
-#define IMPLEMENT_INTRINSIC(name, i, code)
+#define DEFINE_INTRINSIC(name, i, ret_type, ...) intrinsic(#name, name##i, ret_type, { __VA_ARGS__ }),
 static const intrinsic s_intrinsics[] = {
 #include "effect_symbol_table_intrinsics.inl"
 };
-#undef DEFINE_INTRINSIC
-#undef IMPLEMENT_INTRINSIC
 
 #pragma endregion
 
@@ -158,10 +150,10 @@ void reshadefx::symbol_table::leave_namespace()
 
 bool reshadefx::symbol_table::insert_symbol(const std::string &name, const symbol &symbol, bool global)
 {
-	assert(symbol.id != 0 || spv::OpConstant);
+	assert(symbol.id != 0 || symbol.op == symbol_type::constant);
 
 	// Make sure the symbol does not exist yet
-	if (symbol.op != spv::OpFunction && find_symbol(name, _current_scope, true).id != 0)
+	if (symbol.op != symbol_type::function && find_symbol(name, _current_scope, true).id != 0)
 		return false;
 
 	// Insertion routine which keeps the symbol stack sorted by namespace level
@@ -225,7 +217,7 @@ reshadefx::symbol reshadefx::symbol_table::find_symbol(const std::string &name, 
 		if (exclusive && it->scope.level < scope.level)
 			continue;
 
-		if (it->op == spv::OpConstant || it->op == spv::OpVariable || it->op == spv::OpTypeStruct)
+		if (it->op == symbol_type::constant || it->op == symbol_type::variable || it->op == symbol_type::structure)
 			return *it; // Variables and structures have the highest priority and are always picked immediately
 		else if (result.id == 0)
 			result = *it; // Function names have a lower priority, so continue searching in case a variable with the same name exists
@@ -234,7 +226,7 @@ reshadefx::symbol reshadefx::symbol_table::find_symbol(const std::string &name, 
 	return result;
 }
 
-static int compare_functions(const std::vector<reshadefx::expression> &arguments, const reshadefx::spirv_function_info *function1, const reshadefx::spirv_function_info *function2)
+static int compare_functions(const std::vector<reshadefx::expression> &arguments, const reshadefx::function_info *function1, const reshadefx::function_info *function2)
 {
 	const size_t num_arguments = arguments.size();
 
@@ -281,9 +273,9 @@ static int compare_functions(const std::vector<reshadefx::expression> &arguments
 
 bool reshadefx::symbol_table::resolve_function_call(const std::string &name, const std::vector<expression> &arguments, const scope &scope, symbol &out_data, bool &is_ambiguous) const
 {
-	out_data.op = spv::OpFunctionCall;
+	out_data.op = symbol_type::function;
 
-	const spirv_function_info *result = nullptr;
+	const function_info *result = nullptr;
 	unsigned int num_overloads = 0;
 	unsigned int overload_namespace = scope.namespace_level;
 
@@ -296,10 +288,10 @@ bool reshadefx::symbol_table::resolve_function_call(const std::string &name, con
 		{
 			if (it->scope.level > scope.level ||
 				it->scope.namespace_level > scope.namespace_level ||
-				it->op != spv::OpFunction)
+				it->op != symbol_type::function)
 				continue;
 
-			const spirv_function_info *const function = it->function;
+			const function_info *const function = it->function;
 
 			if (function == nullptr)
 				continue;
@@ -355,8 +347,8 @@ bool reshadefx::symbol_table::resolve_function_call(const std::string &name, con
 
 			if (comparison < 0) // The new function is a better match
 			{
-				out_data.op = spv::OpNop;
-				out_data.intrinsic = intrinsic.cb;
+				out_data.op = symbol_type::intrinsic;
+				out_data.id = intrinsic.id;
 				out_data.type = intrinsic.function.return_type;
 				out_data.function = result = &intrinsic.function;
 				num_overloads = 1;

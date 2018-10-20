@@ -52,7 +52,7 @@ namespace reshade::d3d11
 		void on_present(draw_call_tracker& tracker);
 
 		void capture_frame(uint8_t *buffer) const override;
-		bool load_effect(const reshadefx::spirv_module &module, std::string &errors) override;
+		bool load_effect(const reshadefx::module &module, std::string &errors) override;
 		bool update_texture(texture &texture, const uint8_t *data) override;
 
 		void render_technique(const technique &technique) override;

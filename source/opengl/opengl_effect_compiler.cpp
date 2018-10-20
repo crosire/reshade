@@ -261,7 +261,7 @@ namespace reshade::opengl
 		return address;
 	}
 
-	opengl_effect_compiler::opengl_effect_compiler(opengl_runtime *runtime, const spirv_module &module, std::string &errors) :
+	opengl_effect_compiler::opengl_effect_compiler(opengl_runtime *runtime, const module &module, std::string &errors) :
 		_runtime(runtime),
 		_success(true),
 		_module(&module),
@@ -271,11 +271,8 @@ namespace reshade::opengl
 
 	bool opengl_effect_compiler::run()
 	{
-		std::vector<uint32_t> spirv_bin;
-		_module->write_module(spirv_bin);
-
 		// TODO try catch
-		spirv_cross::CompilerGLSL cross(spirv_bin);
+		spirv_cross::CompilerGLSL cross(_module->spirv);
 
 		const auto resources = cross.get_shader_resources();
 
@@ -295,15 +292,15 @@ namespace reshade::opengl
 			}
 		}
 
-		for (const auto &texture : _module->_textures)
+		for (const auto &texture : _module->textures)
 		{
 			visit_texture(texture);
 		}
-		for (const auto &sampler : _module->_samplers)
+		for (const auto &sampler : _module->samplers)
 		{
 			visit_sampler(sampler);
 		}
-		for (const auto &uniform : _module->_uniforms)
+		for (const auto &uniform : _module->uniforms)
 		{
 			visit_uniform(cross, uniform);
 		}
@@ -311,11 +308,11 @@ namespace reshade::opengl
 		// Compile all entry points
 		for (const spirv_cross::EntryPoint &entry : cross.get_entry_points_and_stages())
 		{
-			compile_entry_point(cross, spirv_bin, entry);
+			compile_entry_point(cross, _module->spirv, entry);
 		}
 
 		// Parse technique information
-		for (const auto &technique : _module->_techniques)
+		for (const auto &technique : _module->techniques)
 		{
 			visit_technique(technique);
 		}
@@ -357,7 +354,7 @@ namespace reshade::opengl
 		_errors += "warning: " + message + '\n';
 	}
 
-	void opengl_effect_compiler::visit_texture(const spirv_texture_info &texture_info)
+	void opengl_effect_compiler::visit_texture(const texture_info &texture_info)
 	{
 		const auto existing_texture = _runtime->find_texture(texture_info.unique_name);
 
@@ -429,7 +426,7 @@ namespace reshade::opengl
 		_runtime->add_texture(std::move(obj));
 	}
 
-	void opengl_effect_compiler::visit_sampler(const spirv_sampler_info &sampler_info)
+	void opengl_effect_compiler::visit_sampler(const sampler_info &sampler_info)
 	{
 		const auto existing_texture = _runtime->find_texture(sampler_info.texture_name);
 
@@ -477,31 +474,30 @@ namespace reshade::opengl
 		_sampler_bindings[sampler_info.binding] = std::move(sampler);
 	}
 
-	void opengl_effect_compiler::visit_uniform(const spirv_cross::CompilerGLSL &cross, const spirv_uniform_info &uniform_info)
+	void opengl_effect_compiler::visit_uniform(const spirv_cross::CompilerGLSL &cross, const uniform_info &uniform_info)
 	{
-		const auto &member_type = cross.get_type(uniform_info.type_id);
 		const auto &struct_type = cross.get_type(uniform_info.struct_type_id);
 
 		uniform obj;
 		obj.name = uniform_info.name;
-		obj.rows = member_type.vecsize;
-		obj.columns = member_type.columns;
-		obj.elements = !member_type.array.empty() && member_type.array_size_literal[0] ? member_type.array[0] : 1;
+		obj.rows = uniform_info.type.rows;
+		obj.columns = uniform_info.type.cols;
+		obj.elements = std::max(1, uniform_info.type.array_length);
 		obj.storage_size = cross.get_declared_struct_member_size(struct_type, uniform_info.member_index);
 		obj.storage_offset = _uniform_storage_offset + cross.type_struct_member_offset(struct_type, uniform_info.member_index);
 
 		for (const auto &annotation : uniform_info.annotations)
 			obj.annotations.insert({ annotation.first, variant(annotation.second) });
 
-		switch (member_type.basetype)
+		switch (uniform_info.type.base)
 		{
-		case spirv_cross::SPIRType::Int:
+		case type::t_int:
 			obj.displaytype = obj.basetype = uniform_datatype::signed_integer;
 			break;
-		case spirv_cross::SPIRType::UInt:
+		case type::t_uint:
 			obj.displaytype = obj.basetype = uniform_datatype::unsigned_integer;
 			break;
-		case spirv_cross::SPIRType::Float:
+		case type::t_float:
 			obj.displaytype = obj.basetype = uniform_datatype::floating_point;
 			break;
 		}
@@ -527,7 +523,7 @@ namespace reshade::opengl
 		_runtime->add_uniform(std::move(obj));
 	}
 
-	void opengl_effect_compiler::visit_technique(const spirv_technique_info &technique_info)
+	void opengl_effect_compiler::visit_technique(const technique_info &technique_info)
 	{
 		technique obj;
 		obj.impl = std::make_unique<opengl_technique_data>();

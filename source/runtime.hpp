@@ -22,7 +22,7 @@ namespace reshade
 }
 namespace reshadefx
 {
-	class spirv_module;
+	struct module;
 }
 
 extern volatile long g_network_traffic;
@@ -185,7 +185,7 @@ namespace reshade
 		/// </summary>
 		/// <param name="module">The effect module to compile.</param>
 		/// <param name="errors">A reference to a buffer to store errors which occur during compilation.</param>
-		virtual bool load_effect(const reshadefx::spirv_module &module, std::string &errors) = 0;
+		virtual bool load_effect(const reshadefx::module &module, std::string &errors) = 0;
 
 		/// <summary>
 		/// Loads image files and updates all textures with image data.

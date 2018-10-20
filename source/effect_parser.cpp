@@ -17,12 +17,6 @@ struct on_scope_exit
 	std::function<void()> leave;
 };
 
-template <typename T>
-static inline T align(T address, T alignment)
-{
-	return (address % alignment != 0) ? address + alignment - address % alignment : address;
-}
-
 static reshadefx::constant evaluate_constant_expression(reshadefx::tokenid op, const reshadefx::type &type, const reshadefx::constant &lhs)
 {
 	using namespace reshadefx;
@@ -196,7 +190,203 @@ static reshadefx::constant evaluate_constant_expression(reshadefx::tokenid op, c
 	return res;
 }
 
+void reshadefx::expression::add_cast_operation(const reshadefx::type &in_type)
+{
+	if (type == in_type)
+		return; // There is nothing to do if the expression is already of the target type
+
+	if (is_constant)
+	{
+		const auto cast_constant = [](reshadefx::constant &constant, const reshadefx::type &from, const reshadefx::type &to) {
+			if (to.is_integral() || to.is_boolean())
+			{
+				if (!from.is_integral())
+				{
+					for (unsigned int i = 0; i < 16; ++i)
+						constant.as_uint[i] = static_cast<int>(constant.as_float[i]);
+				}
+				else
+				{
+					// int 2 uint
+				}
+			}
+			else
+			{
+				if (!from.is_integral() && !from.is_boolean())
+				{
+					// Scalar to vector promotion
+					assert(from.is_floating_point() && from.is_scalar() && to.is_vector());
+					for (unsigned int i = 1; i < to.components(); ++i)
+						constant.as_float[i] = constant.as_float[0];
+				}
+				else
+				{
+					if (from.is_scalar())
+					{
+						const float value = static_cast<float>(static_cast<int>(constant.as_uint[0]));
+						for (unsigned int i = 0; i < 16; ++i)
+							constant.as_float[i] = value;
+					}
+					else
+					{
+						for (unsigned int i = 0; i < 16; ++i)
+							constant.as_float[i] = static_cast<float>(static_cast<int>(constant.as_uint[i]));
+					}
+				}
+			}
+		};
+
+		for (size_t i = 0; i < constant.array_data.size(); ++i)
+		{
+			cast_constant(constant.array_data[i], type, in_type);
+		}
+
+		cast_constant(constant, type, in_type);
+	}
+	else
+	{
+		if (type.is_vector() && in_type.is_scalar())
+		{
+			ops.push_back({ operation::op_swizzle, type, in_type, 0, { 0, -1, -1, -1 } });
+		}
+		else
+		{
+			ops.push_back({ operation::op_cast, type, in_type });
+		}
+	}
+
+	type = in_type;
+	//is_lvalue = false; // Can't do this because of 'if (chain.is_lvalue)' check in 'add_load_operation'
+}
+void reshadefx::expression::add_member_access(reshadefx::codegen *codegen, size_t index, const reshadefx::type &in_type)
+{
+	reshadefx::type target_type = in_type;
+	target_type.is_ptr = true;
+
+	reshadefx::constant index_c = {};
+	index_c.as_uint[0] = index;
+	ops.push_back({ operation::op_index, type, target_type, codegen->emit_constant({ type::t_uint, 1, 1 }, index_c) });
+
+	type = in_type;
+	is_constant = false;
+}
+void reshadefx::expression::add_static_index_access(reshadefx::codegen *codegen, size_t index)
+{
+	if (!is_constant)
+	{
+		constant.as_uint[0] = index;
+		memset(&constant.as_uint[1], 0, sizeof(uint32_t) * 15); // Clear the reset of the constant
+		return add_dynamic_index_access(codegen, codegen->emit_constant({ type::t_uint, 1, 1 }, constant));
+	}
+
+	if (type.is_array())
+	{
+		type.array_length = 0;
+
+		constant = constant.array_data[index];
+	}
+	else if (type.is_matrix()) // Indexing into a matrix returns a row of it as a vector
+	{
+		type.rows = type.cols, type.cols = 1;
+
+		for (unsigned int i = 0; i < 4; ++i)
+			constant.as_uint[i] = constant.as_uint[index * 4 + i];
+		memset(&constant.as_uint[4], 0, sizeof(uint32_t) * 12); // Clear the reset of the constant
+	}
+	else if (type.is_vector()) // Indexing into a vector returns the element as a scalar
+	{
+		type.rows = 1;
+
+		constant.as_uint[0] = constant.as_uint[index];
+		memset(&constant.as_uint[1], 0, sizeof(uint32_t) * 15); // Clear the reset of the constant
+	}
+	else
+	{
+		assert(false);
+	}
+}
+void reshadefx::expression::add_dynamic_index_access(reshadefx::codegen *codegen, reshadefx::codegen::id index_expression)
+{
+	reshadefx::type target_type = type;
+	if (target_type.is_array())
+		target_type.array_length = 0;
+	else if (target_type.is_matrix())
+		target_type.rows = target_type.cols,
+		target_type.cols = 1;
+	else if (target_type.is_vector())
+		target_type.rows = 1;
+
+	target_type.is_ptr = true; // OpAccessChain returns a pointer
+
+	if (is_constant)
+	{
+		auto index_constant = codegen->emit_constant(type, constant);
+		type.is_ptr = true;
+		base = codegen->define_variable(location, type, nullptr, false, index_constant);
+		type.is_ptr = false;
+		is_lvalue = true;
+	}
+
+	ops.push_back({ operation::op_index, type, target_type, index_expression });
+
+	type = target_type;
+	type.is_ptr = false;
+	is_constant = false;
+}
+void reshadefx::expression::add_swizzle_access(reshadefx::codegen *codegen, signed char in_swizzle[4], size_t length)
+{
+	// Indexing logic is simpler, so use that when possible
+	if (length == 1 && type.is_vector())
+		return add_static_index_access(codegen, in_swizzle[0]);
+
+	// Check for redundant swizzle and ignore them
+	//if (type.is_vector() && length == type.rows)
+	//{
+	//	bool ignore = true;
+	//	for (unsigned int i = 0; i < length; ++i)
+	//		if (in_swizzle[i] != i)
+	//			ignore = false;
+	//	if (ignore)
+	//		return;
+	//}
+
+	reshadefx::type target_type = type;
+	target_type.rows = static_cast<unsigned int>(length);
+	target_type.cols = 1;
+
+	if (is_constant)
+	{
+		uint32_t data[16];
+		memcpy(data, &constant.as_uint[0], sizeof(data));
+		for (size_t i = 0; i < length; ++i)
+			constant.as_uint[i] = data[in_swizzle[i]];
+		memset(&constant.as_uint[length], 0, sizeof(uint32_t) * (16 - length)); // Clear the reset of the constant
+	}
+	else
+	{
+		ops.push_back({ operation::op_swizzle, type, target_type, 0, { in_swizzle[0], in_swizzle[1], in_swizzle[2], in_swizzle[3] } });
+	}
+
+	type = target_type;
+	type.is_ptr = false;
+}
+
 // -- Parsing -- //
+
+reshadefx::parser::parser(codegen_backend backend)
+{
+	switch (backend)
+	{
+	case codegen_backend::hlsl:
+		extern reshadefx::codegen *create_codegen_hlsl();
+		_codegen.reset(create_codegen_hlsl());
+		break;
+	case codegen_backend::spirv:
+		extern reshadefx::codegen *create_codegen_spirv();
+		_codegen.reset(create_codegen_spirv());
+		break;
+	}
+}
 
 bool reshadefx::parser::parse(const std::string &input)
 {
@@ -206,25 +396,9 @@ bool reshadefx::parser::parse(const std::string &input)
 	consume();
 
 	bool success = true;
-
 	while (!peek(tokenid::end_of_file))
 		if (!parse_top())
 			success = false;
-
-	// Create global uniform buffer object
-	if (_global_ubo_type != 0)
-	{
-		std::vector<spv::Id> member_types;
-		for (const auto &uniform : _uniforms)
-			member_types.push_back(uniform.type_id);
-
-		define_struct(_global_ubo_type, "$Globals", {}, member_types);
-		add_decoration(_global_ubo_type, spv::DecorationBlock);
-		add_decoration(_global_ubo_type, spv::DecorationBinding, { 0 });
-		add_decoration(_global_ubo_type, spv::DecorationDescriptorSet, { 0 });
-
-		define_variable(_global_ubo_variable, "$Globals", {}, { type::t_struct, 0, 0, type::q_uniform, true, false, false, 0, _global_ubo_type }, spv::StorageClassUniform);
-	}
 
 	return success;
 }
@@ -325,7 +499,7 @@ bool reshadefx::parser::accept_type_class(type &type)
 
 		const symbol symbol = find_symbol(_token_next.literal_as_string);
 
-		if (symbol.id && symbol.op == spv::OpTypeStruct)
+		if (symbol.id && symbol.op == symbol_type::structure)
 		{
 			type.definition = symbol.id;
 
@@ -548,15 +722,12 @@ bool reshadefx::parser::parse_array_size(type &type)
 
 	if (accept('['))
 	{
-		// Length expression should be literal, so no instructions to store anywhere
-		spirv_basic_block block;
-
 		if (accept(']'))
 		{
 			// No length expression, so this is an unsized array
 			type.array_length = -1;
 		}
-		else if (expression expression; parse_expression(block, expression) && expect(']'))
+		else if (expression expression; parse_expression(expression) && expect(']'))
 		{
 			if (!expression.is_constant || !(expression.type.is_scalar() && expression.type.is_integral()))
 				return error(expression.location, 3058, "array dimensions must be literal scalar expressions"), false;
@@ -666,22 +837,22 @@ bool reshadefx::parser::accept_assignment_op()
 
 	return true;
 }
-
-bool reshadefx::parser::parse_expression(spirv_basic_block &block, expression &exp)
+#define RESHADEFX_SHORT_CIRCUIT 0
+bool reshadefx::parser::parse_expression(expression &exp)
 {
 	// Parse first expression
-	if (!parse_expression_assignment(block, exp))
+	if (!parse_expression_assignment(exp))
 		return false;
 
 	// Continue parsing if an expression sequence is next (in the form "a, b, c, ...")
 	while (accept(','))
 		// Overwrite 'exp' since conveniently the last expression in the sequence is the result
-		if (!parse_expression_assignment(block, exp))
+		if (!parse_expression_assignment(exp))
 			return false;
 
 	return true;
 }
-bool reshadefx::parser::parse_expression_unary(spirv_basic_block &block, expression &exp)
+bool reshadefx::parser::parse_expression_unary(expression &exp)
 {
 	auto location = _token_next.location;
 
@@ -693,7 +864,7 @@ bool reshadefx::parser::parse_expression_unary(spirv_basic_block &block, express
 		const tokenid op = _token.id;
 
 		// Parse the actual expression
-		if (!parse_expression_unary(block, exp))
+		if (!parse_expression_unary(exp))
 			return false;
 
 		// Unary operators are only valid on basic types
@@ -711,10 +882,11 @@ bool reshadefx::parser::parse_expression_unary(spirv_basic_block &block, express
 			for (unsigned int i = 0; i < exp.type.components(); ++i)
 				if (exp.type.is_floating_point()) one.as_float[i] = 1.0f; else one.as_uint[i] = 1u;
 
-			const auto result = add_binary_operation(block, location, op, exp.type, access_chain_load(block, exp), convert_constant(exp.type, one));
+			const auto value = _codegen->emit_load(exp);
+			const auto result = _codegen->emit_binary_op(location, op, exp.type, value, _codegen->emit_constant(exp.type, one));
 
 			// The "++" and "--" operands modify the source variable, so store result back into it
-			access_chain_store(block, exp, result, exp.type);
+			_codegen->emit_store(exp, result, exp.type);
 		}
 		else if (op != tokenid::plus) // Ignore "+" operator since it does not actually do anything
 		{
@@ -723,15 +895,17 @@ bool reshadefx::parser::parse_expression_unary(spirv_basic_block &block, express
 				return error(exp.location, 3082, "int or unsigned int type required"), false;
 			// The logical not operator expects a boolean type as input, so perform cast if necessary
 			if (op == tokenid::exclaim && !exp.type.is_boolean())
-				add_cast_operation(exp, { type::t_bool, exp.type.rows, exp.type.cols }); // The result type will be boolean as well
+				exp.add_cast_operation({ type::t_bool, exp.type.rows, exp.type.cols }); // The result type will be boolean as well
 
-			if (exp.is_constant) // Constant expressions can be evaluated at compile time
+			if (exp.is_constant)
 			{
+				// Constant expressions can be evaluated at compile time
 				exp.constant = evaluate_constant_expression(op, exp.type, exp.constant);
 			}
 			else
 			{
-				const auto result = add_unary_operation(block, location, op, exp.type, access_chain_load(block, exp));
+				const auto value = _codegen->emit_load(exp);
+				const auto result = _codegen->emit_unary_op(location, op, exp.type, value);
 
 				exp.reset_to_rvalue(location, result, exp.type);
 			}
@@ -752,7 +926,7 @@ bool reshadefx::parser::parse_expression_unary(spirv_basic_block &block, express
 			else if (expect(')'))
 			{
 				// Parse expression behind cast operator
-				if (!parse_expression_unary(block, exp))
+				if (!parse_expression_unary(exp))
 					return false;
 
 				// Check if the types already match, in which case there is nothing to do
@@ -765,7 +939,7 @@ bool reshadefx::parser::parse_expression_unary(spirv_basic_block &block, express
 				else if (exp.type.components() < cast_type.components() && !exp.type.is_scalar())
 					return error(location, 3017, "cannot convert these vector types"), false;
 
-				add_cast_operation(exp, cast_type);
+				exp.add_cast_operation(cast_type);
 				return true;
 			}
 			else
@@ -776,7 +950,7 @@ bool reshadefx::parser::parse_expression_unary(spirv_basic_block &block, express
 		}
 
 		// Parse expression between the parentheses
-		if (!parse_expression(block, exp) || !expect(')'))
+		if (!parse_expression(exp) || !expect(')'))
 			return false;
 	}
 	else if (accept('{'))
@@ -797,7 +971,7 @@ bool reshadefx::parser::parse_expression_unary(spirv_basic_block &block, express
 				break;
 
 			// Parse the argument expression
-			if (!parse_expression_assignment(block, elements.emplace_back()))
+			if (!parse_expression_assignment(elements.emplace_back()))
 				return consume_until('}'), false;
 
 			expression &element = elements.back();
@@ -812,7 +986,7 @@ bool reshadefx::parser::parse_expression_unary(spirv_basic_block &block, express
 			constant res = {};
 			for (expression &element : elements)
 			{
-				add_cast_operation(element, composite_type);
+				element.add_cast_operation(composite_type);
 				res.array_data.push_back(element.constant);
 			}
 
@@ -824,7 +998,7 @@ bool reshadefx::parser::parse_expression_unary(spirv_basic_block &block, express
 		{
 			composite_type.array_length = static_cast<int>(elements.size());
 
-			const auto result = construct_type(block, composite_type, elements);
+			const auto result = _codegen->emit_construct(composite_type, elements);
 
 			exp.reset_to_rvalue(location, result, composite_type);
 		}
@@ -891,7 +1065,7 @@ bool reshadefx::parser::parse_expression_unary(spirv_basic_block &block, express
 				return false;
 
 			// Parse the argument expression
-			if (!parse_expression_assignment(block, arguments.emplace_back()))
+			if (!parse_expression_assignment(arguments.emplace_back()))
 				return false;
 
 			expression &argument = arguments.back();
@@ -920,7 +1094,7 @@ bool reshadefx::parser::parse_expression_unary(spirv_basic_block &block, express
 			unsigned int i = 0;
 			for (expression &argument : arguments)
 			{
-				add_cast_operation(argument, { type.base, argument.type.rows, argument.type.cols });
+				argument.add_cast_operation({ type.base, argument.type.rows, argument.type.cols });
 				for (unsigned int k = 0; k < argument.type.components(); ++k)
 					res.as_uint[i++] = argument.constant.as_uint[k];
 			}
@@ -929,7 +1103,7 @@ bool reshadefx::parser::parse_expression_unary(spirv_basic_block &block, express
 		}
 		else if (arguments.size() > 1)
 		{
-			const auto result = construct_type(block, type, arguments);
+			const auto result = _codegen->emit_construct(type, arguments);
 
 			exp.reset_to_rvalue(location, result, type);
 		}
@@ -938,7 +1112,7 @@ bool reshadefx::parser::parse_expression_unary(spirv_basic_block &block, express
 			assert(!arguments.empty());
 
 			// Reset expression to only argument and add cast to expression access chain
-			exp = std::move(arguments[0]), add_cast_operation(exp, type);
+			exp = std::move(arguments[0]); exp.add_cast_operation(type);
 		}
 	}
 	else // At this point only identifiers are left to check and resolve
@@ -972,7 +1146,7 @@ bool reshadefx::parser::parse_expression_unary(spirv_basic_block &block, express
 		if (accept('('))
 		{
 			// Can only call symbols that are functions, but do not abort yet if no symbol was found since the identifier may reference an intrinsic
-			if (symbol.id && symbol.op != spv::OpFunction)
+			if (symbol.id && symbol.op != symbol_type::function)
 				return error(location, 3005, "identifier '" + identifier + "' represents a variable, not a function"), false;
 
 			// Parse entire argument expression list
@@ -985,7 +1159,7 @@ bool reshadefx::parser::parse_expression_unary(spirv_basic_block &block, express
 					return false;
 
 				// Parse the argument expression
-				if (!parse_expression_assignment(block, arguments.emplace_back()))
+				if (!parse_expression_assignment(arguments.emplace_back()))
 					return false;
 			}
 
@@ -998,8 +1172,8 @@ bool reshadefx::parser::parse_expression_unary(spirv_basic_block &block, express
 
 			if (!resolve_function_call(identifier, arguments, scope, symbol, ambiguous))
 			{
-				if (undeclared && symbol.op == spv::OpFunctionCall)
-					error(location, 3004, "undeclared identifier '" + identifier + "'"); // This catches no matching intrinsic overloads as well
+				if (undeclared)
+					error(location, 3004, "undeclared identifier '" + identifier + "'");
 				else if (ambiguous)
 					error(location, 3067, "ambiguous function call to '" + identifier + "'");
 				else
@@ -1021,69 +1195,63 @@ bool reshadefx::parser::parse_expression_unary(spirv_basic_block &block, express
 
 				auto target_type = param_type;
 				target_type.is_ptr = false;
-				add_cast_operation(arguments[i], target_type);
+				arguments[i].add_cast_operation(target_type);
 
 				if (param_type.is_ptr)
 				{
-					const auto variable = make_id();
-					define_variable(variable, nullptr, arguments[i].location, param_type, spv::StorageClassFunction);
+					const auto variable = _codegen->define_variable(arguments[i].location, param_type, nullptr, false, 0);
 					parameters[i].reset_to_lvalue(arguments[i].location, variable, param_type);
 				}
 				else
 				{
-					parameters[i].reset_to_rvalue(arguments[i].location, access_chain_load(block, arguments[i]), param_type);
+					parameters[i].reset_to_rvalue(arguments[i].location, _codegen->emit_load(arguments[i]), param_type);
 				}
 			}
 
 			// Copy in parameters from the argument access chains to parameter variables
 			for (size_t i = 0; i < arguments.size(); ++i)
 				if (parameters[i].is_lvalue && parameters[i].type.has(type::q_in)) // Only do this for pointer parameters as discovered above
-					access_chain_store(block, parameters[i], access_chain_load(block, arguments[i]), arguments[i].type);
+					_codegen->emit_store(parameters[i], _codegen->emit_load(arguments[i]), arguments[i].type);
 
-			// Check if the call resolving found an intrinsic or function
-			if (symbol.intrinsic)
-			{
-				// This is an intrinsic, so invoke it
-				const auto result = symbol.intrinsic(*this, block, parameters);
+			// Check if the call resolving found an intrinsic or function and invoke the corresponding code
+			const auto result = symbol.op == symbol_type::function ?
+				_codegen->emit_call(location, symbol.id, symbol.type, parameters) :
+				_codegen->emit_call_intrinsic(location, symbol.id, symbol.type, parameters);
 
-				exp.reset_to_rvalue(location, result, symbol.type);
-			}
-			else
-			{
-				// This is a function symbol, so add a call to it
-				spirv_instruction &call = add_instruction(block, location, spv::OpFunctionCall, convert_type(symbol.type))
-					.add(symbol.id); // Function
-				for (size_t i = 0; i < parameters.size(); ++i)
-					call.add(parameters[i].base); // Arguments
-
-				exp.reset_to_rvalue(location, call.result, symbol.type);
-			}
+			exp.reset_to_rvalue(location, result, symbol.type);
 
 			// Copy out parameters from parameter variables back to the argument access chains
 			for (size_t i = 0; i < arguments.size(); ++i)
 				if (parameters[i].is_lvalue && parameters[i].type.has(type::q_out)) // Only do this for pointer parameters as discovered above
-					access_chain_store(block, arguments[i], access_chain_load(block, parameters[i]), arguments[i].type);
+					_codegen->emit_store(arguments[i], _codegen->emit_load(parameters[i]), arguments[i].type);
+		}
+		else if (symbol.op == symbol_type::invalid)
+		{
+			// Show error if no symbol matching the identifier was found
+			return error(location, 3004, "undeclared identifier '" + identifier + "'"), false;
+		}
+		else if (symbol.op == symbol_type::uniform)
+		{
+			assert(symbol.id != 0);
+			// Uniform variables need to be dereferenced
+			exp.reset_to_lvalue(location, symbol.id, { type::t_struct, 0, 0, 0, false, false, false, 0, symbol.id });
+			exp.add_member_access(_codegen.get(), reinterpret_cast<uintptr_t>(symbol.function), symbol.type); // The member index was stored in the 'function' field
+		}
+		else if (symbol.op == symbol_type::variable)
+		{
+			assert(symbol.id != 0);
+			// Simply return the pointer to the variable, dereferencing is done on site where necessary
+			exp.reset_to_lvalue(location, symbol.id, symbol.type);
+		}
+		else if (symbol.op == symbol_type::constant)
+		{
+			// Constants are loaded into the access chain
+			exp.reset_to_rvalue_constant(location, symbol.constant, symbol.type);
 		}
 		else
 		{
-			// Show error if no symbol matching the identifier was found
-			if (!symbol.op) // Note: 'symbol.id' is zero for constants, so have to check 'symbol.op', which cannot be zero
-				return error(location, 3004, "undeclared identifier '" + identifier + "'"), false;
-			else if (symbol.op == spv::OpVariable) {
-				assert(symbol.id != 0);
-				// Simply return the pointer to the variable, dereferencing is done on site where necessary
-				exp.reset_to_lvalue(location, symbol.id, symbol.type);
-			}
-			else if (symbol.op == spv::OpConstant)
-				// Constants are loaded into the access chain
-				exp.reset_to_rvalue_constant(location, symbol.constant, symbol.type);
-			else if (symbol.op == spv::OpAccessChain) {
-				// Uniform variables need to be dereferenced
-				exp.reset_to_lvalue(location, symbol.id, { type::t_struct, 0, 0, 0, false, false, false, 0, symbol.id });
-				add_member_access(exp, reinterpret_cast<uintptr_t>(symbol.function), symbol.type); // The member index was stored in the 'function' field
-			}
-			else // Can only reference variables and constants by name, functions need to be called
-				return error(location, 3005, "identifier '" + identifier + "' represents a function, not a variable"), false;
+			// Can only reference variables and constants by name, functions need to be called
+			return error(location, 3005, "identifier '" + identifier + "' represents a function, not a variable"), false;
 		}
 	}
 	#pragma endregion
@@ -1107,10 +1275,11 @@ bool reshadefx::parser::parse_expression_unary(spirv_basic_block &block, express
 			for (unsigned int i = 0; i < exp.type.components(); ++i)
 				if (exp.type.is_floating_point()) one.as_float[i] = 1.0f; else one.as_uint[i] = 1u;
 
-			const auto result = add_binary_operation(block, location, _token.id, exp.type, access_chain_load(block, exp), convert_constant(exp.type, one));
+			const auto value = _codegen->emit_load(exp);
+			const auto result = _codegen->emit_binary_op(location, _token.id, exp.type, value, _codegen->emit_constant(exp.type, one));
 
 			// The "++" and "--" operands modify the source variable, so store result back into it
-			access_chain_store(block, exp, result, exp.type);
+			_codegen->emit_store(exp, result, exp.type);
 
 			// All postfix operators return a r-value rather than a l-value to the variable
 			exp.reset_to_rvalue(location, result, exp.type);
@@ -1180,7 +1349,7 @@ bool reshadefx::parser::parse_expression_unary(spirv_basic_block &block, express
 				}
 
 				// Add swizzle to current access chain
-				add_swizzle_access(exp, offsets, length);
+				exp.add_swizzle_access(_codegen.get(), offsets, length);
 
 				if (is_const || exp.type.has(type::q_uniform))
 					exp.type.qualifiers = (exp.type.qualifiers | type::q_const) & ~type::q_uniform;
@@ -1220,26 +1389,28 @@ bool reshadefx::parser::parse_expression_unary(spirv_basic_block &block, express
 				}
 
 				// Add swizzle to current access chain
-				add_swizzle_access(exp, offsets, length / (3 + set));
+				exp.add_swizzle_access(_codegen.get(), offsets, length / (3 + set));
 
 				if (is_const || exp.type.has(type::q_uniform))
 					exp.type.qualifiers = (exp.type.qualifiers | type::q_const) & ~type::q_uniform;
 			}
 			else if (exp.type.is_struct())
 			{
+				const auto &member_list = _codegen->find_struct(exp.type.definition).member_list;
+
 				// Find member with matching name is structure definition
 				size_t member_index = 0;
-				for (const spirv_struct_member_info &member : _structs[exp.type.definition].member_list) {
+				for (const struct_member_info &member : member_list) {
 					if (member.name == subscript)
 						break;
 					++member_index;
 				}
 
-				if (member_index >= _structs[exp.type.definition].member_list.size())
+				if (member_index >= member_list.size())
 					return error(location, 3018, "invalid subscript '" + subscript + "'"), false;
 
 				// Add field index to current access chain
-				add_member_access(exp, member_index, _structs[exp.type.definition].member_list[member_index].type);
+				exp.add_member_access(_codegen.get(), member_index, member_list[member_index].type);
 
 				if (exp.type.has(type::q_uniform)) // Member access to uniform structure is not modifiable
 					exp.type.qualifiers = (exp.type.qualifiers | type::q_const) & ~type::q_uniform;
@@ -1258,7 +1429,7 @@ bool reshadefx::parser::parse_expression_unary(spirv_basic_block &block, express
 				auto target_type = exp.type;
 				target_type.rows = static_cast<unsigned int>(length);
 
-				add_cast_operation(exp, target_type);
+				exp.add_cast_operation(target_type);
 			}
 			else
 			{
@@ -1273,7 +1444,7 @@ bool reshadefx::parser::parse_expression_unary(spirv_basic_block &block, express
 
 			// Parse index expression
 			expression index;
-			if (!parse_expression(block, index) || !expect(']'))
+			if (!parse_expression(index) || !expect(']'))
 				return false;
 			else if (!index.type.is_scalar() || !index.type.is_integral())
 				return error(index.location, 3120, "invalid type for index - index must be an integer scalar"), false;
@@ -1284,9 +1455,9 @@ bool reshadefx::parser::parse_expression_unary(spirv_basic_block &block, express
 
 			// Add index expression to current access chain
 			if (index.is_constant)
-				add_static_index_access(exp, index.constant.as_uint[0]);
+				exp.add_static_index_access(_codegen.get(), index.constant.as_uint[0]);
 			else
-				add_dynamic_index_access(exp, access_chain_load(block, index));
+				exp.add_dynamic_index_access(_codegen.get(), _codegen->emit_load(index));
 		}
 		else
 		{
@@ -1297,10 +1468,10 @@ bool reshadefx::parser::parse_expression_unary(spirv_basic_block &block, express
 
 	return true;
 }
-bool reshadefx::parser::parse_expression_multary(spirv_basic_block &block, expression &lhs, unsigned int left_precedence)
+bool reshadefx::parser::parse_expression_multary(expression &lhs, unsigned int left_precedence)
 {
 	// Parse left hand side of the expression
-	if (!parse_expression_unary(block, lhs))
+	if (!parse_expression_unary(lhs))
 		return false;
 
 	// Check if an operator exists so that this is a binary or ternary expression
@@ -1321,10 +1492,25 @@ bool reshadefx::parser::parse_expression_multary(spirv_basic_block &block, expre
 		if (op != tokenid::question)
 		{
 			#pragma region Binary Expression
+#if RESHADEFX_SHORT_CIRCUIT
+			const auto merge_label = _codegen->make_id();
+			const auto lhs_block_label = _codegen->current_block();
+			const auto rhs_block_label = _codegen->make_id();
+
+			if (op == tokenid::ampersand_ampersand || op == tokenid::pipe_pipe)
+			{
+				_codegen->enter_block(rhs_block_label);
+			}
+#endif
+
 			// Parse the right hand side of the binary operation
-			expression rhs; spirv_basic_block rhs_block;
-			if (!parse_expression_multary(rhs_block, rhs, right_precedence))
+			expression rhs;
+			if (!parse_expression_multary(rhs, right_precedence))
 				return false;
+
+#if RESHADEFX_SHORT_CIRCUIT
+			_codegen->set_block(lhs_block_label);
+#endif
 
 			// Deduce the result base type based on implicit conversion rules
 			type type = type::merge(lhs.type, rhs.type);
@@ -1370,8 +1556,8 @@ bool reshadefx::parser::parse_expression_multary(spirv_basic_block &block, expre
 			if (rhs.type.components() > type.components())
 				warning(rhs.location, 3206, "implicit truncation of vector type");
 
-			add_cast_operation(lhs, type);
-			add_cast_operation(rhs, type);
+			lhs.add_cast_operation(type);
+			rhs.add_cast_operation(type);
 
 			// Constant expressions can be evaluated at compile time
 			if (lhs.is_constant && rhs.is_constant)
@@ -1380,54 +1566,44 @@ bool reshadefx::parser::parse_expression_multary(spirv_basic_block &block, expre
 				continue;
 			}
 
-			const auto lhs_value = access_chain_load(block, lhs);
+			const auto lhs_value = _codegen->emit_load(lhs);
 
 #if RESHADEFX_SHORT_CIRCUIT
 			// Short circuit for logical && and || operators
 			if (op == tokenid::ampersand_ampersand || op == tokenid::pipe_pipe)
 			{
-				const auto merge_label = make_id();
-				const auto lhs_block_label = _current_block;
-				const auto rhs_block_label = make_id();
-
 				if (op == tokenid::ampersand_ampersand)
 				{
 					// Emit "if ( lhs) result = rhs" for && expression
-					leave_block_and_branch_conditional(block, lhs_value, rhs_block_label, merge_label);
+					_codegen->leave_block_and_branch_conditional(lhs_value, rhs_block_label, merge_label);
 				}
 				else
 				{
 					// Emit "if (!lhs) result = rhs" for || expression
-					const auto not_lhs_value = add_unary_operation(block, lhs.location, tokenid::exclaim, type, lhs_value);
-					leave_block_and_branch_conditional(block, not_lhs_value, rhs_block_label, merge_label);
+					const auto not_lhs_value = _codegen->emit_unary_op(lhs.location, tokenid::exclaim, type, lhs_value);
+					_codegen->leave_block_and_branch_conditional(not_lhs_value, rhs_block_label, merge_label);
 				}
 
-				enter_block(block, rhs_block_label);
-				block.append(std::move(rhs_block));
+				_codegen->set_block(rhs_block_label);
 				// Only load value of right hand side expression after entering the second block
-				const auto rhs_value = access_chain_load(block, rhs);
-				leave_block_and_branch(block, merge_label);
+				const auto rhs_value = _codegen->emit_load(rhs);
+				_codegen->leave_block_and_branch(merge_label);
 
-				enter_block(block, merge_label);
+				_codegen->enter_block(merge_label);
 
-				const auto result_value = add_phi_operation(block, type, lhs_value, lhs_block_label, rhs_value, rhs_block_label);
+				const auto result_value = _codegen->emit_phi(type, lhs_value, lhs_block_label, rhs_value, rhs_block_label);
 
 				lhs.reset_to_rvalue(lhs.location, result_value, type);
 				continue;
 			}
 #endif
-			block.append(std::move(rhs_block));
-
-			const auto rhs_value = access_chain_load(block, rhs);
+			const auto rhs_value = _codegen->emit_load(rhs);
 
 			// Certain operations return a boolean type instead of the type of the input expressions
 			if (is_bool_result)
 				type = { type::t_bool, type.rows, type.cols };
 
-			const auto result_value = add_binary_operation(block, lhs.location, op, type, lhs.type, lhs_value, rhs_value);
-
-			if (type.has(type::q_precise))
-				add_decoration(result_value, spv::DecorationNoContraction);
+			const auto result_value = _codegen->emit_binary_op(lhs.location, op, type, lhs.type, lhs_value, rhs_value);
 
 			lhs.reset_to_rvalue(lhs.location, result_value, type);
 			#pragma endregion
@@ -1439,18 +1615,32 @@ bool reshadefx::parser::parse_expression_multary(spirv_basic_block &block, expre
 			if (!lhs.type.is_scalar() && !lhs.type.is_vector())
 				return error(lhs.location, 3022, "boolean or vector expression expected"), false;
 
+#if RESHADEFX_SHORT_CIRCUIT
+			const auto prev_label = _codegen->current_block();
+			const auto merge_label = _codegen->make_id();
+			const auto true_block_label = _codegen->make_id();
+			const auto false_block_label = _codegen->make_id();
+
+			_codegen->enter_block(true_block_label);
+#endif
 			// Parse the first part of the right hand side of the ternary operation
-			expression true_exp; spirv_basic_block true_block;
-			if (!parse_expression(true_block, true_exp))
+			expression true_exp;
+			if (!parse_expression(true_exp))
 				return false;
 
 			if (!expect(':'))
 				return false;
 
+#if RESHADEFX_SHORT_CIRCUIT
+			_codegen->enter_block(false_block_label);
+#endif
 			// Parse the second part of the right hand side of the ternary operation
-			expression false_exp; spirv_basic_block false_block;
-			if (!parse_expression_assignment(false_block, false_exp))
+			expression false_exp;
+			if (!parse_expression_assignment(false_exp))
 				return false;
+#if RESHADEFX_SHORT_CIRCUIT
+			_codegen->set_block(prev_label);
+#endif
 
 			// Check that the condition dimension matches that of at least one side
 			if (lhs.type.is_vector() && lhs.type.rows != true_exp.type.rows && lhs.type.cols != true_exp.type.cols)
@@ -1468,47 +1658,36 @@ bool reshadefx::parser::parse_expression_multary(spirv_basic_block &block, expre
 			if (false_exp.type.components() > type.components())
 				warning(false_exp.location, 3206, "implicit truncation of vector type");
 
-			add_cast_operation(lhs, { type::t_bool, type.rows, 1 });
-			add_cast_operation(true_exp, type);
-			add_cast_operation(false_exp, type);
+			lhs.add_cast_operation({ type::t_bool, type.rows, 1 });
+			true_exp.add_cast_operation(type);
+			false_exp.add_cast_operation(type);
 
 			// Load condition value from expression
-			const auto condition_value = access_chain_load(block, lhs);
+			const auto condition_value = _codegen->emit_load(lhs);
 
 #if RESHADEFX_SHORT_CIRCUIT
-			const auto merge_label = make_id();
-			const auto true_block_label = make_id();
-			const auto false_block_label = make_id();
+			_codegen->leave_block_and_branch_conditional(condition_value, true_block_label, false_block_label);
 
-			add_instruction_without_result(block, lhs.location, spv::OpSelectionMerge)
-				.add(merge_label) // Merge Block
-				.add(spv::SelectionControlMaskNone); // Selection Control
-
-			leave_block_and_branch_conditional(block, condition_value, true_block_label, false_block_label);
-
-			enter_block(block, true_block_label);
-			block.append(std::move(true_block));
+			_codegen->set_block(true_block_label);
 			// Only load true expression value after entering the first block
-			const auto true_value = access_chain_load(block, true_exp);
-			leave_block_and_branch(block, merge_label);
+			const auto true_value = _codegen->emit_load(true_exp);
+			_codegen->leave_block_and_branch(merge_label);
 
-			enter_block(block, false_block_label);
-			block.append(std::move(false_block));
+			_codegen->set_block(false_block_label);
 			// Only load false expression value after entering the second block
-			const auto false_value = access_chain_load(block, false_exp);
-			leave_block_and_branch(block, merge_label);
+			const auto false_value = _codegen->emit_load(false_exp);
+			_codegen->leave_block_and_branch(merge_label);
 
-			enter_block(block, merge_label);
+			_codegen->emit_if(lhs.location, prev_label, true_block_label, false_block_label, merge_label, 0);
 
-			const auto result_value = add_phi_operation(block, type, true_value, true_block_label, false_value, false_block_label);
+			_codegen->enter_block(merge_label);
+
+			const auto result_value = _codegen->emit_phi(type, true_value, true_block_label, false_value, false_block_label);
 #else
-			block.append(std::move(true_block));
-			block.append(std::move(false_block));
+			const auto true_value = _codegen->emit_load(true_exp);
+			const auto false_value = _codegen->emit_load(false_exp);
 
-			const auto true_value = access_chain_load(block, true_exp);
-			const auto false_value = access_chain_load(block, false_exp);
-
-			const auto result_value = add_ternary_operation(block, lhs.location, op, type, condition_value, true_value, false_value);
+			const auto result_value = _codegen->emit_ternary_op(lhs.location, op, type, condition_value, true_value, false_value);
 #endif
 			lhs.reset_to_rvalue(lhs.location, result_value, type);
 			#pragma endregion
@@ -1517,10 +1696,10 @@ bool reshadefx::parser::parse_expression_multary(spirv_basic_block &block, expre
 
 	return true;
 }
-bool reshadefx::parser::parse_expression_assignment(spirv_basic_block &block, expression &lhs)
+bool reshadefx::parser::parse_expression_assignment(expression &lhs)
 {
 	// Parse left hand side of the expression
-	if (!parse_expression_multary(block, lhs))
+	if (!parse_expression_multary(lhs))
 		return false;
 
 	// Check if an operator exists so that this is an assignment
@@ -1531,7 +1710,7 @@ bool reshadefx::parser::parse_expression_assignment(spirv_basic_block &block, ex
 
 		// Parse right hand side of the assignment expression
 		expression rhs;
-		if (!parse_expression_multary(block, rhs))
+		if (!parse_expression_multary(rhs))
 			return false;
 
 		// Check if the assignment is valid
@@ -1547,22 +1726,22 @@ bool reshadefx::parser::parse_expression_assignment(spirv_basic_block &block, ex
 		if (rhs.type.components() > lhs.type.components())
 			warning(rhs.location, 3206, "implicit truncation of vector type");
 
-		add_cast_operation(rhs, lhs.type);
+		rhs.add_cast_operation(lhs.type);
 
-		auto result = access_chain_load(block, rhs);
+		auto result = _codegen->emit_load(rhs);
 
 		// Check if this is an assignment with an additional arithmetic instruction
 		if (op != tokenid::equal)
 		{
-			// Handle arithmetic assignment operation
-			result = add_binary_operation(block, lhs.location, op, lhs.type, access_chain_load(block, lhs), result);
+			// Load value for modification
+			const auto value = _codegen->emit_load(lhs);
 
-			if (lhs.type.has(type::q_precise))
-				add_decoration(result, spv::DecorationNoContraction);
+			// Handle arithmetic assignment operation
+			result = _codegen->emit_binary_op(lhs.location, op, lhs.type, value, result);
 		}
 
 		// Write result back to variable
-		access_chain_store(block, lhs, result, lhs.type);
+		_codegen->emit_store(lhs, result, lhs.type);
 
 		// Return the result value since you can write assignments within expressions
 		lhs.reset_to_rvalue(lhs.location, result, lhs.type);
@@ -1577,7 +1756,7 @@ bool reshadefx::parser::parse_annotations(std::unordered_map<std::string, std::s
 	if (!accept('<'))
 		return true;
 
-	bool success = true;
+	bool parse_success = true;
 
 	while (!peek('>'))
 	{
@@ -1591,13 +1770,11 @@ bool reshadefx::parser::parse_annotations(std::unordered_map<std::string, std::s
 
 		expression expression;
 
-		// Pass in temporary basic block, the expression should be constant
-		if (spirv_basic_block block; !expect('=') || !parse_expression_unary(block, expression) || !expect(';'))
-			return false;
-
-		if (!expression.is_constant) {
+		if (!expect('=') || !parse_expression_unary(expression) || !expect(';'))
+			return false; // Probably a syntax error, so abort parsing
+		else if (!expression.is_constant) {
 			error(expression.location, 3011, "value must be a literal expression");
-			success = false; // Continue parsing annotations despite the error, since the syntax is still correct
+			parse_success = false; // Continue parsing annotations despite the error, since the syntax is still correct
 			continue;
 		}
 
@@ -1618,18 +1795,18 @@ bool reshadefx::parser::parse_annotations(std::unordered_map<std::string, std::s
 		}
 	}
 
-	return expect('>') && success;
+	return expect('>') && parse_success;
 }
 
 // -- Statement & Declaration Parsing -- //
 
-bool reshadefx::parser::parse_statement(spirv_basic_block &block, bool scoped)
+bool reshadefx::parser::parse_statement(bool scoped)
 {
-	if (_current_block == 0)
+	if (!_codegen->is_in_block())
 		return error(_token_next.location, 0, "unreachable code"), false;
 
-	int loop_control = spv::LoopControlMaskNone;
-	int selection_control = spv::SelectionControlMaskNone;
+	unsigned int loop_control = 0;
+	unsigned int selection_control = 0;
 
 	// Read any loop and branch control attributes first
 	while (accept('['))
@@ -1640,74 +1817,75 @@ bool reshadefx::parser::parse_statement(spirv_basic_block &block, bool scoped)
 			return false;
 
 		if (attribute == "unroll")
-			loop_control |= spv::LoopControlUnrollMask;
+			loop_control |= unroll;
 		else if (attribute == "loop" || attribute == "fastopt")
-			loop_control |= spv::LoopControlDontUnrollMask;
+			loop_control |= dont_unroll;
 		else if (attribute == "flatten")
-			selection_control |= spv::SelectionControlFlattenMask;
+			selection_control |= flatten;
 		else if (attribute == "branch")
-			selection_control |= spv::SelectionControlDontFlattenMask;
+			selection_control |= dont_flatten;
 		else
 			warning(_token.location, 0, "unknown attribute");
 
-		if ((loop_control & (spv::LoopControlUnrollMask | spv::LoopControlDontUnrollMask)) == (spv::LoopControlUnrollMask | spv::LoopControlDontUnrollMask))
+		if ((loop_control & (unroll | dont_unroll)) == (unroll | dont_unroll))
 			return error(_token.location, 3524, "can't use loop and unroll attributes together"), false;
-		if ((selection_control & (spv::SelectionControlFlattenMask | spv::SelectionControlDontFlattenMask)) == (spv::SelectionControlFlattenMask | spv::SelectionControlDontFlattenMask))
+		if ((selection_control & (flatten | dont_flatten)) == (flatten | dont_flatten))
 			return error(_token.location, 3524, "can't use branch and flatten attributes together"), false;
 	}
 
 	if (peek('{')) // Parse statement block
-		return parse_statement_block(block, scoped);
+		return parse_statement_block(scoped);
 	else if (accept(';')) // Ignore empty statements
 		return true;
 
 	// Most statements with the exception of declarations are only valid inside functions
-	if (_current_function != std::numeric_limits<size_t>::max())
+	if (_codegen->is_in_function())
 	{
 		const auto location = _token_next.location;
 
 		#pragma region If
 		if (accept(tokenid::if_))
 		{
-			const auto merge_label = make_id();
-			const auto true_block_label = make_id();
-			const auto false_block_label = make_id();
+			const auto prev_label = _codegen->current_block();
+			const auto merge_label = _codegen->make_id();
+			const auto true_block_label = _codegen->make_id();
+			const auto false_block_label = _codegen->make_id();
 
 			expression condition;
-			if (!expect('(') || !parse_expression(block, condition) || !expect(')'))
+			if (!expect('(') || !parse_expression(condition) || !expect(')'))
 				return false;
 			else if (!condition.type.is_scalar())
 				return error(condition.location, 3019, "if statement conditional expressions must evaluate to a scalar"), false;
 
 			// Load condition and convert to boolean value as required by 'OpBranchConditional'
-			add_cast_operation(condition, { type::t_bool, 1, 1 });
+			condition.add_cast_operation({ type::t_bool, 1, 1 });
 
-			const auto condition_value = access_chain_load(block, condition);
+			const auto condition_value = _codegen->emit_load(condition);
 
-			add_instruction_without_result(block, location, spv::OpSelectionMerge)
-				.add(merge_label) // Merge Block
-				.add(selection_control); // Selection Control
+			_codegen->emit_if(location, condition_value, prev_label, true_block_label, false_block_label, merge_label, selection_control);
 
-			leave_block_and_branch_conditional(block, condition_value, true_block_label, false_block_label);
+			_codegen->leave_block_and_branch_conditional(condition_value, true_block_label, false_block_label);
 
 			{ // Then block of the if statement
-				enter_block(block, true_block_label);
+				_codegen->enter_block(true_block_label);
 
-				if (!parse_statement(block, true))
+				if (!parse_statement(true))
 					return false;
 
-				leave_block_and_branch(block, merge_label);
+				_codegen->leave_block_and_branch(merge_label);
 			}
 			{ // Else block of the if statement
-				enter_block(block, false_block_label);
+				_codegen->enter_block(false_block_label);
 
-				if (accept(tokenid::else_) && !parse_statement(block, true))
+				if (accept(tokenid::else_) && !parse_statement(true))
 					return false;
 
-				leave_block_and_branch(block, merge_label);
+				_codegen->leave_block_and_branch(merge_label);
 			}
 
-			enter_block(block, merge_label);
+			//_codegen->emit_if(location, condition_value, prev_label, true_block_label, false_block_label, merge_label, selection_control);
+
+			_codegen->enter_block(merge_label);
 
 			return true;
 		}
@@ -1716,29 +1894,22 @@ bool reshadefx::parser::parse_statement(spirv_basic_block &block, bool scoped)
 		#pragma region Switch
 		if (accept(tokenid::switch_))
 		{
-			const auto merge_label = make_id();
+			const auto prev_label = _codegen->current_block();
+			const auto merge_label = _codegen->make_id();
 			auto default_label = merge_label; // The default case jumps to the end of the switch statement if not overwritten
 
-			expression selector;
-			if (!expect('(') || !parse_expression(block, selector) || !expect(')'))
+			expression selector_exp;
+			if (!expect('(') || !parse_expression(selector_exp) || !expect(')'))
 				return false;
-			else if (!selector.type.is_scalar())
-				return error(selector.location, 3019, "switch statement expression must evaluate to a scalar"), false;
+			else if (!selector_exp.type.is_scalar())
+				return error(selector_exp.location, 3019, "switch statement expression must evaluate to a scalar"), false;
 
 			// Load selector and convert to integral value as required by 'OpSwitch'
-			add_cast_operation(selector, { type::t_int, 1, 1 });
+			selector_exp.add_cast_operation({ type::t_int, 1, 1 });
 
-			const auto selector_value = access_chain_load(block, selector);
+			const auto selector_value = _codegen->emit_load(selector_exp);
 
-			// A switch statement leaves the current control flow block
-			_current_block = 0;
-
-			add_instruction_without_result(block, location, spv::OpSelectionMerge)
-				.add(merge_label) // Merge Block
-				.add(selection_control); // Selection Control
-
-			spirv_instruction &switch_instruction = add_instruction_without_result(block, location, spv::OpSwitch)
-				.add(selector_value);
+			_codegen->leave_block_and_switch(selector_value);
 
 			if (!expect('{'))
 				return false;
@@ -1747,23 +1918,21 @@ bool reshadefx::parser::parse_statement(spirv_basic_block &block, bool scoped)
 			on_scope_exit _([this]() { _loop_break_target_stack.pop_back(); });
 
 			bool success = true;
-			spv::Id current_block = 0;
+			unsigned int current_block = 0;
 			unsigned int num_case_labels = 0;
-			std::vector<spv::Id> case_literal_and_labels;
-
-			spirv_basic_block switch_body_block;
+			std::vector<unsigned int> case_literal_and_labels;
 
 			while (!peek('}') && !peek(tokenid::end_of_file))
 			{
 				if (peek(tokenid::case_) || peek(tokenid::default_))
 				{
-					current_block = make_id();
+					current_block = _codegen->make_id();
 
 					// Handle fall-through case
 					if (num_case_labels != 0)
-						leave_block_and_branch(switch_body_block, current_block);
+						_codegen->leave_block_and_branch(current_block);
 
-					enter_block(switch_body_block, current_block);
+					_codegen->enter_block(current_block);
 				}
 
 				while (accept(tokenid::case_) || accept(tokenid::default_))
@@ -1771,7 +1940,7 @@ bool reshadefx::parser::parse_statement(spirv_basic_block &block, bool scoped)
 					if (_token.id == tokenid::case_)
 					{
 						expression case_label;
-						if (!parse_expression(switch_body_block, case_label))
+						if (!parse_expression(case_label))
 							return consume_until('}'), false;
 						else if (!case_label.type.is_scalar() || !case_label.type.is_integral() || !case_label.is_constant)
 							return error(case_label.location, 3020, "invalid type for case expression - value must be an integer scalar"), consume_until('}'), false;
@@ -1812,23 +1981,19 @@ bool reshadefx::parser::parse_statement(spirv_basic_block &block, bool scoped)
 				if (accept('}'))
 					break;
 
-				if (!parse_statement(switch_body_block, true))
+				if (!parse_statement(true))
 					return consume_until('}'), false;
 			}
 
 			// May have left the switch body without an explicit 'break' at the end, so handle that case now
-			leave_block_and_branch(switch_body_block, merge_label);
+			_codegen->leave_block_and_branch(merge_label);
 
 			if (num_case_labels == 0)
 				warning(location, 5002, "switch statement contains no 'case' or 'default' labels");
 
-			// Add all case labels to the switch instruction (reference is still valid because all other instructions were written to the intermediate 'switch_body_block' in the mean time)
-			switch_instruction.add(default_label);
-			switch_instruction.add(case_literal_and_labels.begin(), case_literal_and_labels.end());
+			_codegen->emit_switch(location, selector_value, prev_label, default_label, case_literal_and_labels, merge_label, selection_control);
 
-			block.append(std::move(switch_body_block));
-
-			enter_block(block, merge_label);
+			_codegen->enter_block(merge_label);
 
 			return expect('}') && success;
 		}
@@ -1850,101 +2015,97 @@ bool reshadefx::parser::parse_statement(spirv_basic_block &block, bool scoped)
 				do { // There may be multiple declarations behind a type, so loop through them
 					if (count++ > 0 && !expect(','))
 						return false;
-					if (!expect(tokenid::identifier) || !parse_variable(type, std::move(_token.literal_as_string), block))
+					if (!expect(tokenid::identifier) || !parse_variable(type, std::move(_token.literal_as_string)))
 						return false;
 				} while (!peek(';'));
 			}
 			else // Initializer can also contain an expression if not a variable declaration list
 			{
 				expression expression;
-				parse_expression(block, expression); // It is valid for there to be no initializer expression, so ignore result
+				parse_expression(expression); // It is valid for there to be no initializer expression, so ignore result
 			}
 
 			if (!expect(';'))
 				return false;
 
-			const auto header_label = make_id(); // Pointer to the loop merge instruction
-			const auto loop_label = make_id(); // Pointer to the main loop body block
-			const auto merge_label = make_id(); // Pointer to the end of the loop
-			const auto continue_label = make_id(); // Pointer to the continue block
-			const auto condition_label = make_id(); // Pointer to the condition check
+			const auto prev_label = _codegen->current_block();
+			const auto header_label = _codegen->make_id(); // Pointer to the loop merge instruction
+			const auto loop_label = _codegen->make_id(); // Pointer to the main loop body block
+			const auto merge_label = _codegen->make_id(); // Pointer to the end of the loop
+			const auto continue_label = _codegen->make_id(); // Pointer to the continue block
+			const auto condition_label = _codegen->make_id(); // Pointer to the condition check
 
-			leave_block_and_branch(block, header_label);
+			codegen::id condition_value = 0;
+
+			// End current block by branching to the next label
+			_codegen->leave_block_and_branch(header_label);
 
 			{ // Begin loop block
-				enter_block(block, header_label);
+				_codegen->enter_block(header_label);
 
-				add_instruction_without_result(block, location, spv::OpLoopMerge)
-					.add(merge_label) // Merge Block
-					.add(continue_label) // Continue Target
-					.add(loop_control); // Loop Control
+				_codegen->emit_loop(location, condition_value, prev_label, header_label, condition_label, loop_label, continue_label, merge_label, loop_control);
 
-				leave_block_and_branch(block, condition_label);
+				_codegen->leave_block_and_branch(condition_label);
 			}
 
 			{ // Parse condition block
-				enter_block(block, condition_label);
+				_codegen->enter_block(condition_label);
 
-				expression condition;
-				if (parse_expression(block, condition))
+				if (expression condition; parse_expression(condition))
 				{
 					if (!condition.type.is_scalar())
 						return error(condition.location, 3019, "scalar value expected"), false;
 
 					// Evaluate condition and branch to the right target
-					add_cast_operation(condition, { type::t_bool, 1, 1 });
+					condition.add_cast_operation({ type::t_bool, 1, 1 });
 
-					const auto condition_value = access_chain_load(block, condition);
+					condition_value = _codegen->emit_load(condition);
 
-					leave_block_and_branch_conditional(block, condition_value, loop_label, merge_label);
+					_codegen->leave_block_and_branch_conditional(condition_value, loop_label, merge_label);
 				}
 				else // It is valid for there to be no condition expression
 				{
-					leave_block_and_branch(block, loop_label);
+					_codegen->leave_block_and_branch(loop_label);
 				}
 
 				if (!expect(';'))
 					return false;
 			}
 
-			spirv_basic_block continue_block;
 			{ // Parse loop continue block into separate block so it can be appended to the end down the line
-				enter_block(continue_block, continue_label);
+				_codegen->enter_block(continue_label);
 
 				expression continue_exp;
-				parse_expression(continue_block, continue_exp); // It is valid for there to be no continue expression, so ignore result
+				parse_expression(continue_exp); // It is valid for there to be no continue expression, so ignore result
 
 				if (!expect(')'))
 					return false;
 
 				// Branch back to the loop header at the end of the continue block
-				leave_block_and_branch(continue_block, header_label);
+				_codegen->leave_block_and_branch(header_label);
 			}
 
 			{ // Parse loop body block
-				enter_block(block, loop_label);
+				_codegen->enter_block(loop_label);
 
 				_loop_break_target_stack.push_back(merge_label);
 				_loop_continue_target_stack.push_back(continue_label);
 
-				if (!parse_statement(block, false))
-				{
-					_loop_break_target_stack.pop_back();
-					_loop_continue_target_stack.pop_back();
-					return false;
-				}
+				const bool parse_success = parse_statement(false);
 
 				_loop_break_target_stack.pop_back();
 				_loop_continue_target_stack.pop_back();
 
-				leave_block_and_branch(block, continue_label);
+				if (!parse_success)
+					return false;
+
+				_codegen->leave_block_and_branch(continue_label);
 			}
 
-			// Append continue block after the main block
-			block.append(std::move(continue_block));
+			//_codegen->emit_loop(location, condition_value, prev_label, header_label, condition_label, loop_label, continue_label, merge_label, loop_control);
 
 			// Add merge block label to the end of the loop
-			enter_block(block, merge_label);
+			_codegen->enter_block(merge_label);
 
 			return true;
 		}
@@ -1956,70 +2117,68 @@ bool reshadefx::parser::parse_statement(spirv_basic_block &block, bool scoped)
 			enter_scope();
 			on_scope_exit _([this]() { leave_scope(); });
 
-			const auto header_label = make_id();
-			const auto loop_label = make_id();
-			const auto merge_label = make_id();
-			const auto continue_label = make_id();
-			const auto condition_label = make_id();
+			const auto prev_label = _codegen->current_block();
+			const auto header_label = _codegen->make_id();
+			const auto loop_label = _codegen->make_id();
+			const auto merge_label = _codegen->make_id();
+			const auto continue_label = _codegen->make_id();
+			const auto condition_label = _codegen->make_id();
+
+			codegen::id condition_value = 0;
 
 			// End current block by branching to the next label
-			leave_block_and_branch(block, header_label);
+			_codegen->leave_block_and_branch(header_label);
 
 			{ // Begin loop block
-				enter_block(block, header_label);
+				_codegen->enter_block(header_label);
 
-				add_instruction_without_result(block, location, spv::OpLoopMerge)
-					.add(merge_label) // Merge Block
-					.add(continue_label) // Continue Target
-					.add(loop_control); // Loop Control
-
-				leave_block_and_branch(block, condition_label);
+				_codegen->leave_block_and_branch(loop_label);
 			}
 
 			{ // Parse condition block
-				enter_block(block, condition_label);
+				_codegen->enter_block(condition_label);
 
 				expression condition;
-				if (!expect('(') || !parse_expression(block, condition) || !expect(')'))
+				if (!expect('(') || !parse_expression(condition) || !expect(')'))
 					return false;
 				else if (!condition.type.is_scalar())
 					return error(condition.location, 3019, "scalar value expected"), false;
 
 				// Evaluate condition and branch to the right target
-				add_cast_operation(condition, { type::t_bool, 1, 1 });
+				condition.add_cast_operation({ type::t_bool, 1, 1 });
 
-				const auto condition_value = access_chain_load(block, condition);
+				condition_value = _codegen->emit_load(condition);
 
-				leave_block_and_branch_conditional(block, condition_value, loop_label, merge_label);
+				_codegen->leave_block_and_branch_conditional(condition_value, loop_label, merge_label);
 			}
 
 			{ // Parse loop body block
-				enter_block(block, loop_label);
+				_codegen->enter_block(loop_label);
 
 				_loop_break_target_stack.push_back(merge_label);
 				_loop_continue_target_stack.push_back(continue_label);
 
-				if (!parse_statement(block, false))
-				{
-					_loop_break_target_stack.pop_back();
-					_loop_continue_target_stack.pop_back();
-					return false;
-				}
+				const bool parse_success = parse_statement(false);
 
 				_loop_break_target_stack.pop_back();
 				_loop_continue_target_stack.pop_back();
 
-				leave_block_and_branch(block, continue_label);
+				if (!parse_success)
+					return false;
+
+				_codegen->leave_block_and_branch(continue_label);
 			}
 
 			{ // Branch back to the loop header in empty continue block
-				enter_block(block, continue_label);
+				_codegen->enter_block(continue_label);
 
-				leave_block_and_branch(block, header_label);
+				_codegen->leave_block_and_branch(header_label);
 			}
 
+			_codegen->emit_loop(location, condition_value, prev_label, header_label, condition_label, loop_label, continue_label, merge_label, loop_control);
+
 			// Add merge block label to the end of the loop
-			enter_block(block, merge_label);
+			_codegen->enter_block(merge_label);
 
 			return true;
 		}
@@ -2028,63 +2187,61 @@ bool reshadefx::parser::parse_statement(spirv_basic_block &block, bool scoped)
 		#pragma region DoWhile
 		if (accept(tokenid::do_))
 		{
-			const auto header_label = make_id();
-			const auto loop_label = make_id();
-			const auto merge_label = make_id();
-			const auto continue_label = make_id();
+			const auto prev_label = _codegen->current_block();
+			const auto header_label = _codegen->make_id();
+			const auto loop_label = _codegen->make_id();
+			const auto merge_label = _codegen->make_id();
+			const auto continue_label = _codegen->make_id();
+
+			codegen::id condition_value = 0;
 
 			// End current block by branching to the next label
-			leave_block_and_branch(block, header_label);
+			_codegen->leave_block_and_branch(header_label);
 
 			{ // Begin loop block
-				enter_block(block, header_label);
+				_codegen->enter_block(header_label);
 
-				add_instruction_without_result(block, location, spv::OpLoopMerge)
-					.add(merge_label) // Merge Block
-					.add(continue_label) // Continue Target
-					.add(loop_control); // Loop Control
-
-				leave_block_and_branch(block, loop_label);
+				_codegen->leave_block_and_branch(loop_label);
 			}
 
 			{ // Parse loop body block
-				enter_block(block, loop_label);
+				_codegen->enter_block(loop_label);
 
 				_loop_break_target_stack.push_back(merge_label);
 				_loop_continue_target_stack.push_back(continue_label);
 
-				if (!parse_statement(block, true))
-				{
-					_loop_break_target_stack.pop_back();
-					_loop_continue_target_stack.pop_back();
-					return false;
-				}
+				const bool parse_success = parse_statement(true);
 
 				_loop_break_target_stack.pop_back();
 				_loop_continue_target_stack.pop_back();
 
-				leave_block_and_branch(block, continue_label);
+				if (!parse_success)
+					return false;
+
+				_codegen->leave_block_and_branch(continue_label);
 			}
 
 			{ // Continue block does the condition evaluation
-				enter_block(block, continue_label);
+				_codegen->enter_block(continue_label);
 
 				expression condition;
-				if (!expect(tokenid::while_) || !expect('(') || !parse_expression(block, condition) || !expect(')') || !expect(';'))
+				if (!expect(tokenid::while_) || !expect('(') || !parse_expression(condition) || !expect(')') || !expect(';'))
 					return false;
 				else if (!condition.type.is_scalar())
 					return error(condition.location, 3019, "scalar value expected"), false;
 
 				// Evaluate condition and branch to the right target
-				add_cast_operation(condition, { type::t_bool, 1, 1 });
+				condition.add_cast_operation({ type::t_bool, 1, 1 });
 
-				const auto condition_value = access_chain_load(block, condition);
+				condition_value = _codegen->emit_load(condition);
 
-				leave_block_and_branch_conditional(block, condition_value, header_label, merge_label);
+				_codegen->leave_block_and_branch_conditional(condition_value, header_label, merge_label);
 			}
 
+			_codegen->emit_loop(location, condition_value, prev_label, header_label, 0, loop_label, continue_label, merge_label, loop_control);
+
 			// Add merge block label to the end of the loop
-			enter_block(block, merge_label);
+			_codegen->enter_block(merge_label);
 
 			return true;
 		}
@@ -2097,7 +2254,7 @@ bool reshadefx::parser::parse_statement(spirv_basic_block &block, bool scoped)
 				return error(location, 3518, "break must be inside loop"), false;
 
 			// Branch to the break target of the inner most loop on the stack
-			leave_block_and_branch(block, _loop_break_target_stack.back());
+			_codegen->leave_block_and_branch(_loop_break_target_stack.back());
 
 			return expect(';');
 		}
@@ -2110,7 +2267,7 @@ bool reshadefx::parser::parse_statement(spirv_basic_block &block, bool scoped)
 				return error(location, 3519, "continue must be inside loop"), false;
 
 			// Branch to the continue target of the inner most loop on the stack
-			leave_block_and_branch(block, _loop_continue_target_stack.back());
+			_codegen->leave_block_and_branch(_loop_continue_target_stack.back());
 
 			return expect(';');
 		}
@@ -2119,34 +2276,34 @@ bool reshadefx::parser::parse_statement(spirv_basic_block &block, bool scoped)
 		#pragma region Return
 		if (accept(tokenid::return_))
 		{
-			const auto parent = _functions[_current_function].get();
+			const type &ret_type = _codegen->current_function().return_type;
 
 			if (!peek(';'))
 			{
 				expression expression;
-				if (!parse_expression(block, expression))
+				if (!parse_expression(expression))
 					return consume_until(';'), false;
 
 				// Cannot return to void
-				if (parent->return_type.is_void())
+				if (ret_type.is_void())
 					// Consume the semicolon that follows the return expression so that parsing may continue
 					return error(location, 3079, "void functions cannot return a value"), accept(';'), false;
 
 				// Cannot return arrays from a function
-				if (expression.type.is_array() || !type::rank(expression.type, parent->return_type))
+				if (expression.type.is_array() || !type::rank(expression.type, ret_type))
 					return error(location, 3017, "expression does not match function return type"), accept(';'), false;
 
 				// Load return value and perform implicit cast to function return type
-				if (expression.type.components() > parent->return_type.components())
+				if (expression.type.components() > ret_type.components())
 					warning(expression.location, 3206, "implicit truncation of vector type");
 
-				add_cast_operation(expression, parent->return_type);
+				expression.add_cast_operation(ret_type);
 
-				const auto return_value = access_chain_load(block, expression);
+				const auto return_value = _codegen->emit_load(expression);
 
-				leave_block_and_return(block, return_value);
+				_codegen->leave_block_and_return(return_value);
 			}
-			else if (!parent->return_type.is_void())
+			else if (!ret_type.is_void())
 			{
 				// No return value was found, but the function expects one
 				error(location, 3080, "function must return a value");
@@ -2158,7 +2315,7 @@ bool reshadefx::parser::parse_statement(spirv_basic_block &block, bool scoped)
 			}
 			else
 			{
-				leave_block_and_return(block, 0);
+				_codegen->leave_block_and_return(0);
 			}
 
 			return expect(';');
@@ -2169,7 +2326,7 @@ bool reshadefx::parser::parse_statement(spirv_basic_block &block, bool scoped)
 		if (accept(tokenid::discard_))
 		{
 			// Leave the current function block
-			leave_block_and_kill(block);
+			_codegen->leave_block_and_kill();
 
 			return expect(';');
 		}
@@ -2185,7 +2342,7 @@ bool reshadefx::parser::parse_statement(spirv_basic_block &block, bool scoped)
 			if (count++ > 0 && !expect(','))
 				// Try to consume the rest of the declaration so that parsing may continue despite the error
 				return consume_until(';'), false;
-			if (!expect(tokenid::identifier) || !parse_variable(type, std::move(_token.literal_as_string), block))
+			if (!expect(tokenid::identifier) || !parse_variable(type, std::move(_token.literal_as_string)))
 				return consume_until(';'), false;
 		} while (!peek(';'));
 
@@ -2194,7 +2351,7 @@ bool reshadefx::parser::parse_statement(spirv_basic_block &block, bool scoped)
 	#pragma endregion
 
 	// Handle expression statements
-	if (expression expression; parse_expression(block, expression))
+	if (expression expression; parse_expression(expression))
 		return expect(';'); // A statement has to be terminated with a semicolon
 
 	// No token should come through here, since all statements and expressions should have been handled above, so this is an error in the syntax
@@ -2205,7 +2362,7 @@ bool reshadefx::parser::parse_statement(spirv_basic_block &block, bool scoped)
 
 	return false;
 }
-bool reshadefx::parser::parse_statement_block(spirv_basic_block &block, bool scoped)
+bool reshadefx::parser::parse_statement_block(bool scoped)
 {
 	if (!expect('{'))
 		return false;
@@ -2216,7 +2373,7 @@ bool reshadefx::parser::parse_statement_block(spirv_basic_block &block, bool sco
 	// Parse statements until the end of the block is reached
 	while (!peek('}') && !peek(tokenid::end_of_file))
 	{
-		if (!parse_statement(block, true))
+		if (!parse_statement(true))
 		{
 			if (scoped)
 				leave_scope();
@@ -2297,7 +2454,7 @@ bool reshadefx::parser::parse_top()
 			// This is definitely a function declaration, so parse it
 			if (!parse_function(type, name)) {
 				// Insert dummy function into symbol table, so later references can be resolved despite the error
-				insert_symbol(name, { spv::OpFunction, std::numeric_limits<spv::Id>::max(), { type::t_function } }, true);
+				insert_symbol(name, { symbol_type::function, ~0u, { type::t_function } }, true);
 				return false;
 			}
 		}
@@ -2305,15 +2462,13 @@ bool reshadefx::parser::parse_top()
 		{
 			// There may be multiple variable names after the type, handle them all
 			unsigned int count = 0;
-			// Global variables can't have non-constant initializers, so pass in a throwaway basic block
-			spirv_basic_block block;
 			do {
 				if (count++ > 0 && !(expect(',') && expect(tokenid::identifier)))
 					return false;
 				const auto name = std::move(_token.literal_as_string);
-				if (!parse_variable(type, name, block, true)) {
+				if (!parse_variable(type, name, true)) {
 					// Insert dummy variable into symbol table, so later references can be resolved despite the error
-					insert_symbol(name, { spv::OpVariable, std::numeric_limits<spv::Id>::max(), type }, true);
+					insert_symbol(name, { symbol_type::variable, ~0u, type }, true);
 					return consume_until(';'), false; // Skip the rest of the statement in case of an error
 				}
 			} while (!peek(';'));
@@ -2336,7 +2491,8 @@ bool reshadefx::parser::parse_struct()
 {
 	const auto location = std::move(_token.location);
 
-	spirv_struct_info info;
+	struct_info info;
+	info.definition = _codegen->make_id();
 
 	// The structure name is optional
 	if (accept(tokenid::identifier))
@@ -2349,8 +2505,6 @@ bool reshadefx::parser::parse_struct()
 
 	if (!expect('{'))
 		return false;
-
-	std::vector<spv::Id> member_types;
 
 	while (!peek('}')) // Empty structures are possible
 	{
@@ -2374,7 +2528,7 @@ bool reshadefx::parser::parse_struct()
 			if (!expect(tokenid::identifier))
 				return consume_until('}'), false;
 
-			spirv_struct_member_info member_info;
+			struct_member_info member_info;
 			member_info.name = std::move(_token.literal_as_string);
 			member_info.type = member_type;
 
@@ -2393,9 +2547,6 @@ bool reshadefx::parser::parse_struct()
 				std::transform(member_info.semantic.begin(), member_info.semantic.end(), member_info.semantic.begin(), [](char c) { return static_cast<char>(toupper(c)); });
 			}
 
-			// Add member type to list
-			member_types.push_back(convert_type(member_info.type));
-
 			// Save member name and type for book keeping
 			info.member_list.push_back(std::move(member_info));
 		} while (!peek(';'));
@@ -2405,22 +2556,14 @@ bool reshadefx::parser::parse_struct()
 	}
 
 	// Empty structures are valid, but not usually intended, so emit a warning
-	if (member_types.empty())
+	if (info.member_list.empty())
 		warning(location, 5001, "struct has no members");
 
 	// Define the structure now that information about all the member types was gathered
-	info.definition = make_id();
-	define_struct(info.definition, info.unique_name.c_str(), location, member_types);
-
-	_structs[info.definition] = info;
-
-	for (uint32_t i = 0; i < info.member_list.size(); ++i)
-	{
-		add_member_name(info.definition, i, info.member_list[i].name.c_str());
-	}
+	_codegen->define_struct(location, info);
 
 	// Insert the symbol into the symbol table
-	const symbol symbol = { spv::OpTypeStruct, info.definition };
+	const symbol symbol = { symbol_type::structure, info.definition };
 
 	if (!insert_symbol(info.name, symbol, true))
 		return error(location, 3003, "redefinition of '" + info.name + "'"), false;
@@ -2437,24 +2580,26 @@ bool reshadefx::parser::parse_function(type type, std::string name)
 	if (type.qualifiers != 0)
 		return error(location, 3047, "function return type cannot have any qualifiers"), false;
 
-	spirv_function_info &info = *_functions.emplace_back(new spirv_function_info());
+	function_info info;
+	info.definition = _codegen->make_id();
+	info.entry_block = _codegen->make_id();
+
 	info.name = name;
 	info.unique_name = 'F' + current_scope().name + name;
 	std::replace(info.unique_name.begin(), info.unique_name.end(), ':', '_');
+
 	info.return_type = type;
 
-	// Add function instruction and insert the symbol into the symbol table
-	define_function(info.definition = make_id(), info.unique_name.c_str(), location, type);
-
 	// Enter function scope
-	enter_scope(); on_scope_exit _([this]() { leave_scope(); leave_function(); });
+	_codegen->enter_function(info.definition, type); enter_scope();
+	on_scope_exit _([this]() { leave_scope(); _codegen->leave_function(); });
 
 	while (!peek(')'))
 	{
 		if (!info.parameter_list.empty() && !expect(','))
 			return false;
 
-		spirv_struct_member_info param;
+		struct_member_info param;
 
 		if (!parse_type(param.type))
 			return error(_token_next.location, 3000, "syntax error: unexpected '" + token::id_to_name(_token_next.id) + "', expected parameter type"), false;
@@ -2495,10 +2640,9 @@ bool reshadefx::parser::parse_function(type type, std::string name)
 
 		param.type.is_ptr = true;
 
-		const auto definition = make_id();
-		define_function_param(definition, param.name.c_str(), param_location, param.type);
+		const auto definition = _codegen->define_parameter(param_location, param);
 
-		if (!insert_symbol(param.name, { spv::OpVariable, definition, param.type }))
+		if (!insert_symbol(param.name, { symbol_type::variable, definition, param.type }))
 			return error(param_location, 3003, "redefinition of '" + param.name + "'"), false;
 
 		info.parameter_list.push_back(std::move(param));
@@ -2524,26 +2668,29 @@ bool reshadefx::parser::parse_function(type type, std::string name)
 	if (accept(';'))
 		return error(location, 3510, "function is missing an implementation"), false;
 
-	// A function has to start with a new block
-	enter_block(_functions2[_current_function].variables, make_id());
+	// Define the function now that information about the declaration was gathered
+	_codegen->define_function(location, info);
 
-	const bool success = parse_statement_block(_functions2[_current_function].definition, false);
+	// A function has to start with a new block
+	_codegen->enter_block(info.entry_block);
+
+	const bool parse_success = parse_statement_block(false);
 
 	// Add implicit return statement to the end of functions
-	if (_current_block != 0)
-		leave_block_and_return(_functions2[_current_function].definition, 0);
+	if (_codegen->is_in_block())
+		_codegen->leave_block_and_return(0);
 
 	// Insert the symbol into the symbol table
-	symbol symbol = { spv::OpFunction, info.definition, { type::t_function } };
-	symbol.function = &info;
+	symbol symbol = { symbol_type::function, info.definition, { type::t_function } };
+	symbol.function = &_codegen->find_function(info.definition);
 
 	if (!insert_symbol(name, symbol, true))
 		return error(location, 3003, "redefinition of '" + name + "'"), false;
 
-	return success;
+	return parse_success;
 }
 
-bool reshadefx::parser::parse_variable(type type, std::string name, spirv_basic_block &block, bool global)
+bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 {
 	const auto location = std::move(_token.location);
 
@@ -2596,8 +2743,8 @@ bool reshadefx::parser::parse_variable(type type, std::string name, spirv_basic_
 
 	std::string semantic;
 	expression initializer;
-	spirv_texture_info texture_info;
-	spirv_sampler_info sampler_info;
+	texture_info texture_info;
+	sampler_info sampler_info;
 
 	if (accept(':'))
 	{
@@ -2619,7 +2766,7 @@ bool reshadefx::parser::parse_variable(type type, std::string name, spirv_basic_
 		// Variables without a semantic may have an optional initializer
 		if (accept('='))
 		{
-			if (!parse_expression_assignment(block, initializer))
+			if (!parse_expression_assignment(initializer))
 				return false;
 
 			if (global && !initializer.is_constant) // TODO: This could be resolved by initializing these at the beginning of the entry point
@@ -2639,7 +2786,7 @@ bool reshadefx::parser::parse_variable(type type, std::string name, spirv_basic_
 			if (initializer.type.components() > type.components())
 				warning(initializer.location, 3206, "implicit truncation of vector type");
 
-			add_cast_operation(initializer, type);
+			initializer.add_cast_operation(type);
 		}
 		else if (type.is_numeric()) // Numeric variables without an initializer need special handling
 		{
@@ -2689,7 +2836,7 @@ bool reshadefx::parser::parse_variable(type type, std::string name, spirv_basic_
 				}
 
 				// Parse right hand side as normal expression if no special enumeration name was matched already
-				if (spirv_basic_block temp_block; !expression.is_constant && !parse_expression_multary(temp_block, expression))
+				if (!expression.is_constant && !parse_expression_multary(expression))
 					return error(_token_next.location, 3000, "syntax error: unexpected '" + token::id_to_name(_token_next.id) + "', expected expression"), consume_until('}'), false;
 
 				if (property_name == "Texture")
@@ -2701,8 +2848,7 @@ bool reshadefx::parser::parse_variable(type type, std::string name, spirv_basic_
 					if (!expression.type.is_texture())
 						return error(expression.location, 3020, "type mismatch, expected texture name"), consume_until('}'), false;
 
-					sampler_info.texture_name = std::find_if(_textures.begin(), _textures.end(),
-						[&expression](const auto &it) { return it.id == expression.base; })->unique_name;
+					sampler_info.texture_name = _codegen->find_texture(expression.base).unique_name;
 				}
 				else
 				{
@@ -2710,7 +2856,7 @@ bool reshadefx::parser::parse_variable(type type, std::string name, spirv_basic_
 						return error(expression.location, 3538, "value must be a literal scalar expression"), consume_until('}'), false;
 
 					// All states below expect the value to be of an unsigned integer type
-					add_cast_operation(expression, { type::t_uint, 1, 1 });
+					expression.add_cast_operation({ type::t_uint, 1, 1 });
 					const unsigned int value = expression.constant.as_uint[0];
 
 					if (property_name == "Width")
@@ -2759,22 +2905,24 @@ bool reshadefx::parser::parse_variable(type type, std::string name, spirv_basic_
 	if (type.is_numeric() && type.has(type::q_const) && initializer.is_constant) // Variables with a constant initializer and constant type are named constants
 	{
 		// Named constants are special symbols
-		symbol = { spv::OpConstant, 0, type, initializer.constant };
+		symbol = { symbol_type::constant, 0, type, initializer.constant };
 	}
 	else if (type.is_texture())
 	{
 		assert(global);
 
-		symbol = { spv::OpVariable, make_id(), type };
+		type.is_ptr = true; // Variables are always pointers
+
+		texture_info.id = _codegen->make_id();
 
 		// Add namespace scope to avoid name clashes
 		texture_info.unique_name = 'V' + current_scope().name + name;
 		std::replace(texture_info.unique_name.begin(), texture_info.unique_name.end(), ':', '_');
 
-		texture_info.id = symbol.id;
 		texture_info.semantic = std::move(semantic);
 
-		_textures.push_back(texture_info);
+		symbol = { symbol_type::variable, 0, type };
+		symbol.id = _codegen->define_texture(location, texture_info);
 	}
 	else if (type.is_sampler()) // Samplers are actually combined image samplers
 	{
@@ -2785,90 +2933,61 @@ bool reshadefx::parser::parse_variable(type type, std::string name, spirv_basic_
 
 		type.is_ptr = true; // Variables are always pointers
 
-		symbol = { spv::OpVariable, make_id(), type };
+		sampler_info.id = _codegen->make_id();
 
 		// Add namespace scope to avoid name clashes
 		sampler_info.unique_name = 'V' + current_scope().name + name;
 		std::replace(sampler_info.unique_name.begin(), sampler_info.unique_name.end(), ':', '_');
 
-		sampler_info.id = symbol.id;
-		sampler_info.set = 1;
-		sampler_info.binding = _current_sampler_binding;
 		sampler_info.annotations = std::move(texture_info.annotations);
 
-		_samplers.push_back(sampler_info);
-
-		define_variable(symbol.id, sampler_info.unique_name.c_str(), location, type, spv::StorageClassUniformConstant);
-
-		add_decoration(symbol.id, spv::DecorationBinding, { _current_sampler_binding++ });
-		add_decoration(symbol.id, spv::DecorationDescriptorSet, { 1 });
+		symbol = { symbol_type::variable, 0, type };
+		symbol.id = _codegen->define_sampler(location, sampler_info);
 	}
 	else if (type.has(type::q_uniform)) // Uniform variables are put into a global uniform buffer structure
 	{
 		assert(global);
 
-		if (_global_ubo_type == 0)
-			_global_ubo_type = make_id();
-		if (_global_ubo_variable == 0)
-			_global_ubo_variable = make_id();
-
 		// Convert boolean uniform variables to integer type so that they have a defined size
 		if (type.is_boolean())
 			type.base = type::t_uint;
 
-		symbol = { spv::OpAccessChain, _global_ubo_variable, type };
-
-		// Add namespace scope to avoid name clashes
-		std::string unique_name = 'U' + current_scope().name + name;
-		std::replace(unique_name.begin(), unique_name.end(), ':', '_');
-
-		spirv_uniform_info uniform_info;
+		uniform_info uniform_info;
 		uniform_info.name = name;
-		uniform_info.type_id = convert_type(type);
-		uniform_info.struct_type_id = _global_ubo_type;
+		uniform_info.type = type;
 
 		uniform_info.annotations = std::move(texture_info.annotations);
 
 		uniform_info.initializer_value = std::move(initializer.constant);
 		uniform_info.has_initializer_value = initializer.is_constant;
 
-		const unsigned int member_index = uniform_info.member_index = _uniforms.size();
+		symbol = { symbol_type::uniform, 0, type };
+		symbol.id = _codegen->define_uniform(location, uniform_info);
 
-		_uniforms.push_back(std::move(uniform_info));
-
-		symbol.function = reinterpret_cast<const spirv_function_info *>(static_cast<uintptr_t>(member_index));
-
-		add_member_name(_global_ubo_type, member_index, unique_name.c_str());
-
-		// GLSL specification on std140 layout:
-		// 1. If the member is a scalar consuming N basic machine units, the base alignment is N.
-		// 2. If the member is a two- or four-component vector with components consuming N basic machine units, the base alignment is 2N or 4N, respectively.
-		// 3. If the member is a three-component vector with components consuming N basic machine units, the base alignment is 4N.
-		unsigned int size = 4 * (type.rows == 3 ? 4 : type.rows) * type.cols * std::max(1, type.array_length);
-		unsigned int alignment = size;
-		_global_ubo_offset = align(_global_ubo_offset, alignment);
-		add_member_decoration(_global_ubo_type, member_index, spv::DecorationOffset, { _global_ubo_offset });
-		_global_ubo_offset += size;
+		// Encode member index into symbol
+		symbol.function = reinterpret_cast<const function_info *>(static_cast<uintptr_t>(uniform_info.member_index));
 	}
 	else // All other variables are separate entities
 	{
 		type.is_ptr = true; // Variables are always pointers
 
-		symbol = { spv::OpVariable, make_id(), type };
+		symbol = { symbol_type::variable, 0, type };
 
 		// Update global variable names to contain the namespace scope to avoid name clashes
 		std::string unique_name = global ? 'V' + current_scope().name + name : name;
 		std::replace(unique_name.begin(), unique_name.end(), ':', '_');
 
-		if (global && initializer.is_constant) // The initializer expression for 'OpVariable' must be a constant (only do this for global variables, since local variables for e.g. "for" statements need to be assigned in their respective scope and not their declaration)
+		// The initializer expression for variables must be a constant
+		// Also, only use the variable initializer on global variables, since local variables for e.g. "for" statements need to be assigned in their respective scope and not their declaration
+		if (global && initializer.is_constant)
 		{
-			define_variable(symbol.id, unique_name.c_str(), location, type, spv::StorageClassPrivate, convert_constant(initializer.type, initializer.constant));
+			symbol.id = _codegen->define_variable(location, type, unique_name.c_str(), global, _codegen->emit_constant(initializer.type, initializer.constant));
 		}
 		else // Non-constant initializers are explicitly stored in the variable at the definition location instead
 		{
-			const auto initializer_value = access_chain_load(block, initializer);
+			const auto initializer_value = _codegen->emit_load(initializer);
 
-			define_variable(symbol.id, unique_name.c_str(), location, type, global ? spv::StorageClassPrivate : spv::StorageClassFunction);
+			symbol.id = _codegen->define_variable(location, type, unique_name.c_str(), global, 0);
 
 			if (initializer_value != 0)
 			{
@@ -2876,7 +2995,7 @@ bool reshadefx::parser::parse_variable(type type, std::string name, spirv_basic_
 
 				expression variable; variable.reset_to_lvalue(location, symbol.id, type);
 
-				access_chain_store(block, variable, initializer_value, initializer.type);
+				_codegen->emit_store(variable, initializer_value, initializer.type);
 			}
 		}
 	}
@@ -2893,7 +3012,9 @@ bool reshadefx::parser::parse_technique()
 	if (!expect(tokenid::identifier))
 		return false;
 
-	spirv_technique_info info;
+	const auto location = std::move(_token.location);
+
+	technique_info info;
 	info.name = std::move(_token.literal_as_string);
 
 	if (!parse_annotations(info.annotations) || !expect('{'))
@@ -2901,18 +3022,18 @@ bool reshadefx::parser::parse_technique()
 
 	while (!peek('}'))
 	{
-		if (spirv_pass_info pass; parse_technique_pass(pass))
+		if (pass_info pass; parse_technique_pass(pass))
 			info.passes.push_back(std::move(pass));
 		else if (!peek(tokenid::pass)) // If there is another pass definition following, try to parse that despite the error
 			return consume_until('}'), false;
 	}
 
-	_techniques.push_back(std::move(info));
+	_codegen->define_technique(location, info);
 
 	return expect('}');
 }
 
-bool reshadefx::parser::parse_technique_pass(spirv_pass_info &info)
+bool reshadefx::parser::parse_technique_pass(pass_info &info)
 {
 	if (!expect(tokenid::pass))
 		return false;
@@ -2984,307 +3105,16 @@ bool reshadefx::parser::parse_technique_pass(spirv_pass_info &info)
 				const bool is_ps = state[0] == 'P';
 
 				// Look up the matching function info for this function definition
-				spirv_function_info *const function_info = std::find_if(_functions.begin(), _functions.end(),
-					[&symbol](const auto &it) { return it->definition == symbol.id; })->get();
+				function_info &function_info = _codegen->find_function(symbol.id);
 
-				// We need to generate a special entry point function which translates between function parameters and input/output variables
-				if (function_info->entry_point == 0)
-				{
-					std::vector<spv::Id> inputs_and_outputs, call_params;
-
-					// Generate the glue entry point function
-					function_info->entry_point = make_id();
-					define_function(function_info->entry_point, nullptr, location, { type::t_void });
-
-					enter_block(_functions2[_current_function].variables, make_id());
-
-					spirv_basic_block &section = _functions2[_current_function].definition;
-
-					const auto semantic_to_builtin = [is_ps](const std::string &semantic, spv::BuiltIn &builtin) {
-						builtin = spv::BuiltInMax;
-						if (semantic == "SV_POSITION")
-							builtin = is_ps ? spv::BuiltInFragCoord : spv::BuiltInPosition;
-						if (semantic == "SV_POINTSIZE")
-							builtin = spv::BuiltInPointSize;
-						if (semantic == "SV_DEPTH")
-							builtin = spv::BuiltInFragDepth;
-						if (semantic == "VERTEXID" || semantic == "SV_VERTEXID")
-							builtin = spv::BuiltInVertexId;
-						return builtin != spv::BuiltInMax;
-					};
-
-					const auto create_input_param = [this, &section, &call_params](const spirv_struct_member_info &param) {
-						const spv::Id function_variable = make_id();
-						define_variable(function_variable, nullptr, {}, param.type, spv::StorageClassFunction);
-						call_params.push_back(function_variable);
-						return function_variable;
-					};
-					const auto create_input_variable = [this, &inputs_and_outputs, &semantic_to_builtin](const spirv_struct_member_info &param) {
-						type input_type = param.type;
-						input_type.is_input = true;
-						input_type.is_ptr = true;
-
-						const spv::Id input_variable = make_id();
-						define_variable(input_variable, nullptr, {}, input_type, spv::StorageClassInput);
-
-						if (spv::BuiltIn builtin; semantic_to_builtin(param.semantic, builtin))
-							add_builtin(input_variable, builtin);
-						else
-						{
-							uint32_t location = 0;
-							if (param.semantic.size() >= 5 && param.semantic.compare(0, 5, "COLOR") == 0)
-								location = std::strtol(param.semantic.substr(5).c_str(), nullptr, 10);
-							else if (param.semantic.size() >= 9 && param.semantic.compare(0, 9, "SV_TARGET") == 0)
-								location = std::strtol(param.semantic.substr(9).c_str(), nullptr, 10);
-							else if (param.semantic.size() >= 8 && param.semantic.compare(0, 8, "TEXCOORD") == 0)
-								location = std::strtol(param.semantic.substr(8).c_str(), nullptr, 10);
-							else if (const auto it = _semantic_to_location.find(param.semantic); it != _semantic_to_location.end())
-								location = it->second;
-							else
-								_semantic_to_location[param.semantic] = location = _current_semantic_location++;
-
-							add_decoration(input_variable, spv::DecorationLocation, { location });
-						}
-
-						if (param.type.has(type::q_noperspective))
-							add_decoration(input_variable, spv::DecorationNoPerspective);
-						if (param.type.has(type::q_centroid))
-							add_decoration(input_variable, spv::DecorationCentroid);
-						if (param.type.has(type::q_nointerpolation))
-							add_decoration(input_variable, spv::DecorationFlat);
-
-						inputs_and_outputs.push_back(input_variable);
-						return input_variable;
-					};
-					const auto create_output_param = [this, &section, &call_params](const spirv_struct_member_info &param) {
-						const spv::Id function_variable = make_id();
-						define_variable(function_variable, nullptr, {}, param.type, spv::StorageClassFunction);
-						call_params.push_back(function_variable);
-						return function_variable;
-					};
-					const auto create_output_variable = [this, &inputs_and_outputs, &semantic_to_builtin](const spirv_struct_member_info &param) {
-						type output_type = param.type;
-						output_type.is_output = true;
-						output_type.is_ptr = true;
-
-						const spv::Id output_variable = make_id();
-						define_variable(output_variable, nullptr, {}, output_type, spv::StorageClassOutput);
-
-						if (spv::BuiltIn builtin; semantic_to_builtin(param.semantic, builtin))
-							add_builtin(output_variable, builtin);
-						else
-						{
-							uint32_t location = 0;
-							if (param.semantic.size() >= 5 && param.semantic.compare(0, 5, "COLOR") == 0)
-								location = std::strtol(param.semantic.substr(5).c_str(), nullptr, 10);
-							else if (param.semantic.size() >= 9 && param.semantic.compare(0, 9, "SV_TARGET") == 0)
-								location = std::strtol(param.semantic.substr(9).c_str(), nullptr, 10);
-							else if (param.semantic.size() >= 8 && param.semantic.compare(0, 8, "TEXCOORD") == 0)
-								location = std::strtol(param.semantic.substr(8).c_str(), nullptr, 10);
-							else if (const auto it = _semantic_to_location.find(param.semantic); it != _semantic_to_location.end())
-								location = it->second;
-							else
-								_semantic_to_location[param.semantic] = location = _current_semantic_location++;
-
-							add_decoration(output_variable, spv::DecorationLocation, { location });
-						}
-
-						if (param.type.has(type::q_noperspective))
-							add_decoration(output_variable, spv::DecorationNoPerspective);
-						if (param.type.has(type::q_centroid))
-							add_decoration(output_variable, spv::DecorationCentroid);
-						if (param.type.has(type::q_nointerpolation))
-							add_decoration(output_variable, spv::DecorationFlat);
-
-						inputs_and_outputs.push_back(output_variable);
-						return output_variable;
-					};
-
-					// Handle input parameters
-					for (const spirv_struct_member_info &param : function_info->parameter_list)
-					{
-						if (param.type.has(type::q_out))
-						{
-							create_output_param(param);
-
-							// Flatten structure parameters
-							if (param.type.is_struct())
-							{
-								for (const auto &member : _structs[param.type.definition].member_list)
-								{
-									create_output_variable(member);
-								}
-							}
-							else
-							{
-								create_output_variable(param);
-							}
-						}
-						else
-						{
-							const spv::Id param_variable = create_input_param(param);
-
-							// Flatten structure parameters
-							if (param.type.is_struct())
-							{
-								std::vector<spv::Id> elements;
-
-								for (const auto &member : _structs[param.type.definition].member_list)
-								{
-									const spv::Id input_variable = create_input_variable(member);
-
-									type value_type = member.type;
-									value_type.is_ptr = false;
-
-									const spv::Id value = add_instruction(section, {}, spv::OpLoad, convert_type(value_type))
-										.add(input_variable)
-										.result;
-									elements.push_back(value);
-								}
-
-								type composite_type = param.type;
-								composite_type.is_ptr = false;
-								spirv_instruction &construct = add_instruction(section, {}, spv::OpCompositeConstruct, convert_type(composite_type));
-								for (auto elem : elements)
-									construct.add(elem);
-								const spv::Id composite_value = construct.result;
-
-								add_instruction_without_result(section, {}, spv::OpStore)
-									.add(param_variable)
-									.add(composite_value);
-							}
-							else
-							{
-								const spv::Id input_variable = create_input_variable(param);
-
-								type value_type = param.type;
-								value_type.is_ptr = false;
-
-								const spv::Id value = add_instruction(section, {}, spv::OpLoad, convert_type(value_type))
-									.add(input_variable)
-									.result;
-								add_instruction_without_result(section, {}, spv::OpStore)
-									.add(param_variable)
-									.add(value);
-							}
-						}
-					}
-
-					spirv_instruction &call = add_instruction(section, location, spv::OpFunctionCall, convert_type(function_info->return_type))
-						.add(function_info->definition);
-					for (auto elem : call_params)
-						call.add(elem);
-					const spv::Id call_result = call.result;
-					assert(call_result != 0);
-
-					size_t param_index = 0;
-					size_t inputs_and_outputs_index = 0;
-					for (const spirv_struct_member_info &param : function_info->parameter_list)
-					{
-						if (param.type.has(type::q_out))
-						{
-							type value_type = param.type;
-							value_type.is_ptr = false;
-
-							const spv::Id value = add_instruction(section, {}, spv::OpLoad, convert_type(value_type))
-								.add(call_params[param_index++])
-								.result;
-
-							if (param.type.is_struct())
-							{
-								unsigned int member_index = 0;
-								for (const auto &member : _structs[param.type.definition].member_list)
-								{
-									const spv::Id member_value = add_instruction(section, {}, spv::OpCompositeExtract, convert_type(member.type))
-										.add(value)
-										.add(member_index++)
-										.result;
-									add_instruction_without_result(section, {}, spv::OpStore)
-										.add(inputs_and_outputs[inputs_and_outputs_index++])
-										.add(member_value);
-								}
-							}
-							else
-							{
-								add_instruction_without_result(section, {}, spv::OpStore)
-									.add(inputs_and_outputs[inputs_and_outputs_index++])
-									.add(value);
-							}
-						}
-						else
-						{
-							param_index++;
-							inputs_and_outputs_index += param.type.is_struct() ? _structs[param.type.definition].member_list.size() : 1;
-						}
-					}
-
-					if (function_info->return_type.is_struct())
-					{
-						unsigned int member_index = 0;
-						for (const auto &member : _structs[function_info->return_type.definition].member_list)
-						{
-							spv::Id result = create_output_variable(member);
-
-							spv::Id member_result = add_instruction(section, {}, spv::OpCompositeExtract, convert_type(member.type))
-								.add(call_result)
-								.add(member_index)
-								.result;
-
-							add_instruction_without_result(section, {}, spv::OpStore)
-								.add(result)
-								.add(member_result);
-
-							member_index++;
-						}
-					}
-					else if (!function_info->return_type.is_void())
-					{
-						type ptr_type = function_info->return_type;
-						ptr_type.is_output = true;
-						ptr_type.is_ptr = true;
-
-						const spv::Id result = make_id();
-						define_variable(result, nullptr, location, ptr_type, spv::StorageClassOutput);
-
-						if (spv::BuiltIn builtin; semantic_to_builtin(function_info->return_semantic, builtin))
-							add_builtin(result, builtin);
-						else
-						{
-							uint32_t semantic_location = 0;
-							if (function_info->return_semantic.size() >= 5 && function_info->return_semantic.compare(0, 5, "COLOR") == 0)
-								semantic_location = std::strtol(function_info->return_semantic.substr(5).c_str(), nullptr, 10);
-							else if (function_info->return_semantic.size() >= 9 && function_info->return_semantic.compare(0, 9, "SV_TARGET") == 0)
-								semantic_location = std::strtol(function_info->return_semantic.substr(9).c_str(), nullptr, 10);
-							else if (function_info->return_semantic.size() >= 8 && function_info->return_semantic.compare(0, 8, "TEXCOORD") == 0)
-								semantic_location = std::strtol(function_info->return_semantic.substr(8).c_str(), nullptr, 10);
-							else if (const auto it = _semantic_to_location.find(function_info->return_semantic); it != _semantic_to_location.end())
-								semantic_location = it->second;
-							else
-								_semantic_to_location[function_info->return_semantic] = semantic_location = _current_semantic_location++;
-
-							add_decoration(result, spv::DecorationLocation, { semantic_location });
-						}
-
-						inputs_and_outputs.push_back(result);
-
-						add_instruction_without_result(section, {}, spv::OpStore)
-							.add(result)
-							.add(call_result);
-					}
-
-					leave_block_and_return(section, 0);
-					leave_function();
-
-					// Add entry point
-					add_entry_point(function_info->name.c_str(), function_info->entry_point, is_vs ? spv::ExecutionModelVertex : spv::ExecutionModelFragment, inputs_and_outputs);
-				}
+				// We potentially need to generate a special entry point function which translates between function parameters and input/output variables
+				if (function_info.entry_point == 0)
+					function_info.entry_point = _codegen->create_entry_point(function_info, is_ps);
 
 				if (is_vs)
-					info.vs_entry_point = function_info->name;
-					//std::copy_n(function_info->name.c_str(), std::min(function_info->name.size() + 1, sizeof(info.vs_entry_point)), info.vs_entry_point);
+					info.vs_entry_point = function_info.name;
 				if (is_ps)
-					info.ps_entry_point = function_info->name;
-					//std::copy_n(function_info->name.c_str(), std::min(function_info->name.size() + 1, sizeof(info.ps_entry_point)), info.ps_entry_point);
+					info.ps_entry_point = function_info.name;
 			}
 			else
 			{
@@ -3297,8 +3127,7 @@ bool reshadefx::parser::parse_technique_pass(spirv_pass_info &info)
 
 				const size_t target_index = state.size() > 12 ? (state[12] - '0') : 0;
 
-				info.render_target_names[target_index] = std::find_if(_textures.begin(), _textures.end(),
-					[&symbol](const auto &it) { return it.id == symbol.id; })->unique_name;
+				info.render_target_names[target_index] = _codegen->find_texture(symbol.id).unique_name;
 			}
 		}
 		else // Handle the rest of the pass states
@@ -3331,13 +3160,13 @@ bool reshadefx::parser::parse_technique_pass(spirv_pass_info &info)
 			}
 
 			// Parse right hand side as normal expression if no special enumeration name was matched already
-			if (spirv_basic_block temp_block; !expression.is_constant && !parse_expression_multary(temp_block, expression))
+			if (!expression.is_constant && !parse_expression_multary(expression))
 				return error(_token_next.location, 3000, "syntax error: unexpected '" + token::id_to_name(_token_next.id) + "', expected expression"), consume_until('}'), false;
 			else if (!expression.is_constant || !expression.type.is_scalar())
 				return error(expression.location, 3011, "pass state value must be a literal scalar expression"), consume_until('}'), false;
 
 			// All states below expect the value to be of an unsigned integer type
-			add_cast_operation(expression, { type::t_uint, 1, 1 });
+			expression.add_cast_operation({ type::t_uint, 1, 1 });
 			const unsigned int value = expression.constant.as_uint[0];
 
 			if (state == "SRGBWriteEnable")

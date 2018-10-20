@@ -6,8 +6,8 @@
 #pragma once
 
 #include "effect_lexer.hpp"
+#include "effect_codegen.hpp"
 #include "effect_symbol_table.hpp"
-#include "spirv_module.hpp"
 #include <memory>
 
 namespace reshadefx
@@ -15,9 +15,16 @@ namespace reshadefx
 	/// <summary>
 	/// A parser for the ReShade FX shader language.
 	/// </summary>
-	class parser : symbol_table, public spirv_module
+	class parser : symbol_table
 	{
 	public:
+		parser(codegen_backend backend);
+
+		void write_result(module &stream)
+		{
+			_codegen->write_result(stream);
+		}
+
 		/// <summary>
 		/// Parse the provided input string.
 		/// </summary>
@@ -58,37 +65,29 @@ namespace reshadefx
 		bool peek_multary_op(unsigned int &precedence) const;
 		bool accept_assignment_op();
 
-		bool parse_expression(spirv_basic_block &block, expression &expression);
-		bool parse_expression_unary(spirv_basic_block &block, expression &expression);
-		bool parse_expression_multary(spirv_basic_block &block, expression &expression, unsigned int precedence = 0);
-		bool parse_expression_assignment(spirv_basic_block &block, expression &expression);
+		bool parse_expression(expression &expression);
+		bool parse_expression_unary(expression &expression);
+		bool parse_expression_multary(expression &expression, unsigned int precedence = 0);
+		bool parse_expression_assignment(expression &expression);
 
 		bool parse_annotations(std::unordered_map<std::string, std::string> &annotations);
 
-		bool parse_statement(spirv_basic_block &block, bool scoped);
-		bool parse_statement_block(spirv_basic_block &block, bool scoped);
+		bool parse_statement(bool scoped);
+		bool parse_statement_block(bool scoped);
 
 		bool parse_top();
 		bool parse_struct();
 		bool parse_function(type type, std::string name);
-		bool parse_variable(type type, std::string name, spirv_basic_block &block, bool global = false);
+		bool parse_variable(type type, std::string name, bool global = false);
 		bool parse_technique();
-		bool parse_technique_pass(spirv_pass_info &info);
+		bool parse_technique_pass(pass_info &info);
 
 		std::string _errors;
 		std::unique_ptr<lexer> _lexer, _lexer_backup;
+		std::unique_ptr<codegen> _codegen;
 		token _token, _token_next, _token_backup;
 
-		std::vector<spv::Id> _loop_break_target_stack;
-		std::vector<spv::Id> _loop_continue_target_stack;
-
-		std::unordered_map<spv::Id, spirv_struct_info> _structs;
-		std::vector<std::unique_ptr<spirv_function_info>> _functions;
-		std::unordered_map<std::string, uint32_t> _semantic_to_location;
-		uint32_t _current_sampler_binding = 0;
-		uint32_t _current_semantic_location = 10;
-		spv::Id _global_ubo_type = 0;
-		spv::Id _global_ubo_variable = 0;
-		uint32_t _global_ubo_offset = 0;
+		std::vector<unsigned int> _loop_break_target_stack;
+		std::vector<unsigned int> _loop_continue_target_stack;
 	};
 }

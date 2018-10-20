@@ -612,7 +612,7 @@ namespace reshade::opengl
 			}
 		}
 	}
-	bool opengl_runtime::load_effect(const reshadefx::spirv_module &module, std::string &errors)
+	bool opengl_runtime::load_effect(const reshadefx::module &module, std::string &errors)
 	{
 		return opengl_effect_compiler(this, module, errors).run();
 	}

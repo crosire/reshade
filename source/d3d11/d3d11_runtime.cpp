@@ -676,7 +676,7 @@ namespace reshade::d3d11
 
 		_immediate_context->Unmap(texture_staging.get(), 0);
 	}
-	bool d3d11_runtime::load_effect(const reshadefx::spirv_module &module, std::string &errors)
+	bool d3d11_runtime::load_effect(const reshadefx::module &module, std::string &errors)
 	{
 		return d3d11_effect_compiler(this, module, errors, false).run();
 	}

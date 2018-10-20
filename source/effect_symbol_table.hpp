@@ -6,15 +6,9 @@
 #pragma once
 
 #include "effect_types.hpp"
-#include <unordered_map>
 
 namespace reshadefx
 {
-	/// <summary>
-	/// Callback function to invoke an intrinsic function definition
-	/// </summary>
-	using intrinsic_callback = unsigned int(*)(class spirv_module &m, struct spirv_basic_block &block, const std::vector<expression> &args);
-
 	/// <summary>
 	/// A scope encapsulating symbols
 	/// </summary>
@@ -24,17 +18,27 @@ namespace reshadefx
 		unsigned int level, namespace_level;
 	};
 
+	enum class symbol_type
+	{
+		invalid,
+		uniform,
+		variable,
+		constant,
+		function,
+		intrinsic,
+		structure,
+	};
+
 	/// <summary>
 	/// A single symbol in the symbol table
 	/// </summary>
 	struct symbol
 	{
-		unsigned int op;
+		symbol_type op;
 		unsigned int id;
 		type type = {};
 		constant constant = {};
-		intrinsic_callback intrinsic = nullptr;
-		const struct spirv_function_info *function = nullptr;
+		const function_info *function = nullptr;
 	};
 
 	/// <summary>

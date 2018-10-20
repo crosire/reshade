@@ -137,7 +137,7 @@ namespace reshade::d3d9
 		return D3DFMT_UNKNOWN;
 	}
 
-	d3d9_effect_compiler::d3d9_effect_compiler(d3d9_runtime *runtime, const spirv_module &module, std::string &errors, bool skipoptimization) :
+	d3d9_effect_compiler::d3d9_effect_compiler(d3d9_runtime *runtime, const module &module, std::string &errors, bool skipoptimization) :
 		_runtime(runtime),
 		_module(&module),
 		_errors(errors),
@@ -159,11 +159,8 @@ namespace reshade::d3d9
 			return false;
 		}
 
-		std::vector<uint32_t> spirv_bin;
-		_module->write_module(spirv_bin);
-
 		// TODO try catch
-		spirv_compiler cross(std::move(spirv_bin));
+		spirv_compiler cross(std::move(_module->spirv));
 		cross.remap_vertex_id();
 
 		const auto resources = cross.get_shader_resources();
@@ -181,15 +178,15 @@ namespace reshade::d3d9
 		//	}
 		//}
 
-		for (const auto &texture : _module->_textures)
+		for (const auto &texture : _module->textures)
 		{
 			visit_texture(texture);
 		}
-		for (const auto &sampler : _module->_samplers)
+		for (const auto &sampler : _module->samplers)
 		{
 			visit_sampler(sampler);
 		}
-		for (const auto &uniform : _module->_uniforms)
+		for (const auto &uniform : _module->uniforms)
 		{
 			visit_uniform(cross, uniform);
 		}
@@ -201,7 +198,7 @@ namespace reshade::d3d9
 		}
 
 		// Parse technique information
-		for (const auto &technique : _module->_techniques)
+		for (const auto &technique : _module->techniques)
 		{
 			visit_technique(technique);
 		}
@@ -222,7 +219,7 @@ namespace reshade::d3d9
 		_errors += "warning: " + message + '\n';
 	}
 
-	void d3d9_effect_compiler::visit_texture(const spirv_texture_info &texture_info)
+	void d3d9_effect_compiler::visit_texture(const texture_info &texture_info)
 	{
 		const auto existing_texture = _runtime->find_texture(texture_info.unique_name);
 
@@ -309,7 +306,7 @@ namespace reshade::d3d9
 		_runtime->add_texture(std::move(obj));
 	}
 
-	void d3d9_effect_compiler::visit_sampler(const spirv_sampler_info &sampler_info)
+	void d3d9_effect_compiler::visit_sampler(const sampler_info &sampler_info)
 	{
 		const auto existing_texture = _runtime->find_texture(sampler_info.texture_name);
 
@@ -335,16 +332,15 @@ namespace reshade::d3d9
 		_sampler_bindings[sampler_info.binding] = std::move(sampler);
 	}
 
-	void d3d9_effect_compiler::visit_uniform(const spirv_cross::CompilerHLSL &cross, const spirv_uniform_info &uniform_info)
+	void d3d9_effect_compiler::visit_uniform(const spirv_cross::CompilerHLSL &cross, const uniform_info &uniform_info)
 	{
-		const auto &member_type = cross.get_type(uniform_info.type_id);
 		const auto &struct_type = cross.get_type(uniform_info.struct_type_id);
 
 		uniform obj;
 		obj.name = uniform_info.name;
-		obj.rows = member_type.vecsize;
-		obj.columns = member_type.columns;
-		obj.elements = !member_type.array.empty() && member_type.array_size_literal[0] ? member_type.array[0] : 1;
+		obj.rows = uniform_info.type.rows;
+		obj.columns = uniform_info.type.cols;
+		obj.elements = std::max(1, uniform_info.type.array_length);
 		obj.storage_size = cross.get_declared_struct_member_size(struct_type, uniform_info.member_index);
 		//obj.storage_offset = _uniform_storage_offset + cross.type_struct_member_offset(struct_type, uniform_info.member_index);
 		obj.storage_offset = _uniform_storage_offset + cross.type_struct_member_offset(struct_type, uniform_info.member_index) * 4;
@@ -354,15 +350,15 @@ namespace reshade::d3d9
 
 		obj.basetype = uniform_datatype::floating_point;
 
-		switch (member_type.basetype)
+		switch (uniform_info.type.base)
 		{
-		case spirv_cross::SPIRType::Int:
+		case type::t_int:
 			obj.displaytype = uniform_datatype::signed_integer;
 			break;
-		case spirv_cross::SPIRType::UInt:
+		case type::t_uint:
 			obj.displaytype = uniform_datatype::unsigned_integer;
 			break;
-		case spirv_cross::SPIRType::Float:
+		case type::t_float:
 			obj.displaytype = uniform_datatype::floating_point;
 			break;
 		}
@@ -381,15 +377,15 @@ namespace reshade::d3d9
 		{
 			for (size_t i = 0; i < obj.storage_size / 4; i++)
 			{
-				switch (member_type.basetype)
+				switch (uniform_info.type.base)
 				{
-				case spirv_cross::SPIRType::Int:
+				case type::t_int:
 					reinterpret_cast<float *>(uniform_storage.data() + obj.storage_offset)[i] = static_cast<float>(uniform_info.initializer_value.as_int[i]);
 					break;
-				case spirv_cross::SPIRType::UInt:
+				case type::t_uint:
 					reinterpret_cast<float *>(uniform_storage.data() + obj.storage_offset)[i] = static_cast<float>(uniform_info.initializer_value.as_uint[i]);
 					break;
-				case spirv_cross::SPIRType::Float:
+				case type::t_float:
 					reinterpret_cast<float *>(uniform_storage.data() + obj.storage_offset)[i] = uniform_info.initializer_value.as_float[i];
 					break;
 				}
@@ -403,7 +399,7 @@ namespace reshade::d3d9
 		_runtime->add_uniform(std::move(obj));
 	}
 
-	void d3d9_effect_compiler::visit_technique(const spirv_technique_info &technique_info)
+	void d3d9_effect_compiler::visit_technique(const technique_info &technique_info)
 	{
 		technique obj;
 		obj.name = technique_info.name;

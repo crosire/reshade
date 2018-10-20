@@ -685,7 +685,7 @@ namespace reshade::d3d10
 
 		texture_staging->Unmap(0);
 	}
-	bool d3d10_runtime::load_effect(const reshadefx::spirv_module &module, std::string &errors)
+	bool d3d10_runtime::load_effect(const reshadefx::module &module, std::string &errors)
 	{
 		return d3d10_effect_compiler(this, module, errors, false).run();
 	}

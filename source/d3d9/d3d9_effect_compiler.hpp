@@ -5,7 +5,7 @@
 
 #pragma once
 
-#include "spirv_module.hpp"
+#include "effect_parser.hpp"
 #include <sstream>
 #include <unordered_set>
 #include <spirv_hlsl.hpp>
@@ -21,7 +21,7 @@ namespace reshade::d3d9
 	class d3d9_effect_compiler
 	{
 	public:
-		d3d9_effect_compiler(d3d9_runtime *runtime, const reshadefx::spirv_module &module, std::string &errors, bool skipoptimization = false);
+		d3d9_effect_compiler(d3d9_runtime *runtime, const reshadefx::module &module, std::string &errors, bool skipoptimization = false);
 
 		bool run();
 
@@ -29,15 +29,15 @@ namespace reshade::d3d9
 		void error(const std::string &message);
 		void warning(const std::string &message);
 
-		void visit_texture(const reshadefx::spirv_texture_info &texture_info);
-		void visit_sampler(const reshadefx::spirv_sampler_info &sampler_info);
-		void visit_uniform(const spirv_cross::CompilerHLSL &cross, const reshadefx::spirv_uniform_info &uniform_info);
-		void visit_technique(const reshadefx::spirv_technique_info &technique_info);
+		void visit_texture(const reshadefx::texture_info &texture_info);
+		void visit_sampler(const reshadefx::sampler_info &sampler_info);
+		void visit_uniform(const spirv_cross::CompilerHLSL &cross, const reshadefx::uniform_info &uniform_info);
+		void visit_technique(const reshadefx::technique_info &technique_info);
 
 		void compile_entry_point(spirv_cross::CompilerHLSL &cross, const spirv_cross::EntryPoint &entry);
 
 		d3d9_runtime *_runtime;
-		const reshadefx::spirv_module *_module;
+		const reshadefx::module *_module;
 		bool _success = true;
 		std::string &_errors;
 		size_t _uniform_storage_offset = 0, _constant_register_count = 0;
