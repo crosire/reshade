@@ -2829,6 +2829,9 @@ bool reshadefx::parser::parse_variable(type type, std::string name, spirv_basic_
 
 		uniform_info.annotations = std::move(texture_info.annotations);
 
+		uniform_info.initializer_value = std::move(initializer.constant);
+		uniform_info.has_initializer_value = initializer.is_constant;
+
 		const unsigned int member_index = uniform_info.member_index = _uniforms.size();
 
 		_uniforms.push_back(std::move(uniform_info));

@@ -267,7 +267,7 @@ void spirv_module::add_cast_operation(expression &chain, const reshadefx::type &
 	if (chain.is_constant)
 	{
 		const auto cast_constant = [](constant &constant, const type &from, const type &to) {
-			if (to.is_integral())
+			if (to.is_integral() || to.is_boolean())
 			{
 				if (!from.is_integral())
 				{

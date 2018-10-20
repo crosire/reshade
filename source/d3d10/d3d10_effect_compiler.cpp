@@ -455,7 +455,7 @@ namespace reshade::d3d10
 			break;
 		}
 
-		_constant_buffer_size += obj.storage_size;
+		_constant_buffer_size = std::max(_constant_buffer_size, obj.storage_offset + obj.storage_size - _uniform_storage_offset);
 
 		auto &uniform_storage = _runtime->get_uniform_value_storage();
 
@@ -464,15 +464,14 @@ namespace reshade::d3d10
 			uniform_storage.resize(uniform_storage.size() + 128);
 		}
 
-		// TODO
-		//if (node->initializer_expression != nullptr && node->initializer_expression->id == nodeid::literal_expression)
-		//{
-		//	CopyMemory(uniform_storage.data() + obj.storage_offset, &static_cast<const literal_expression_node *>(node->initializer_expression)->value_float, obj.storage_size);
-		//}
-		//else
-		//{
-		//	ZeroMemory(uniform_storage.data() + obj.storage_offset, obj.storage_size);
-		//}
+		if (uniform_info.has_initializer_value)
+		{
+			memcpy(uniform_storage.data() + obj.storage_offset, uniform_info.initializer_value.as_float, obj.storage_size);
+		}
+		else
+		{
+			memset(uniform_storage.data() + obj.storage_offset, 0, obj.storage_size);
+		}
 
 		_runtime->add_uniform(std::move(obj));
 	}

@@ -46,6 +46,8 @@ namespace reshadefx
 		spv::Id struct_type_id = 0;
 		uint32_t member_index = 0;
 		std::unordered_map<std::string, std::string> annotations;
+		bool has_initializer_value = false;
+		constant initializer_value;
 	};
 
 	struct spirv_texture_info

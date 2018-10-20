@@ -377,18 +377,28 @@ namespace reshade::d3d9
 			uniform_storage.resize(uniform_storage.size() + 128);
 		}
 
-		// TODO
-		//if (node->initializer_expression != nullptr && node->initializer_expression->id == nodeid::literal_expression)
-		//{
-		//	for (size_t i = 0; i < obj.storage_size / 4; i++)
-		//	{
-		//		scalar_literal_cast(static_cast<const literal_expression_node *>(node->initializer_expression), i, reinterpret_cast<float *>(uniform_storage.data() + obj.storage_offset)[i]);
-		//	}
-		//}
-		//else
-		//{
-		//	ZeroMemory(uniform_storage.data() + obj.storage_offset, obj.storage_size);
-		//}
+		if (uniform_info.has_initializer_value)
+		{
+			for (size_t i = 0; i < obj.storage_size / 4; i++)
+			{
+				switch (member_type.basetype)
+				{
+				case spirv_cross::SPIRType::Int:
+					reinterpret_cast<float *>(uniform_storage.data() + obj.storage_offset)[i] = static_cast<float>(uniform_info.initializer_value.as_int[i]);
+					break;
+				case spirv_cross::SPIRType::UInt:
+					reinterpret_cast<float *>(uniform_storage.data() + obj.storage_offset)[i] = static_cast<float>(uniform_info.initializer_value.as_uint[i]);
+					break;
+				case spirv_cross::SPIRType::Float:
+					reinterpret_cast<float *>(uniform_storage.data() + obj.storage_offset)[i] = uniform_info.initializer_value.as_float[i];
+					break;
+				}
+			}
+		}
+		else
+		{
+			memset(uniform_storage.data() + obj.storage_offset, 0, obj.storage_size);
+		}
 
 		_runtime->add_uniform(std::move(obj));
 	}
