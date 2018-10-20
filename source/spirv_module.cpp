@@ -388,6 +388,14 @@ void spirv_module::add_dynamic_index_access(expression &chain, spv::Id index_exp
 
 	target_type.is_ptr = true; // OpAccessChain returns a pointer
 
+	if (chain.is_constant)
+	{
+		spv::Id temp_var = make_id();
+		define_variable(temp_var, nullptr, chain.location, chain.type, spv::StorageClassFunction, convert_constant(chain.type, chain.constant));
+		chain.base = temp_var;
+		chain.is_lvalue = true;
+	}
+
 	chain.ops.push_back({ op_index, chain.type, target_type, index_expression });
 
 	chain.is_constant = false;
@@ -1098,10 +1106,19 @@ spv::Id spirv_module::access_chain_load(spirv_basic_block &section, const expres
 		case op_index:
 			if (op.from.is_array())
 			{
-				result = add_instruction(section, chain.location, spv::OpCompositeExtract, convert_type(op.to))
+				assert(false);
+				/*assert(result != 0);
+				//result = add_instruction(section, chain.location, spv::OpCompositeExtract, convert_type(op.to))
+				//	.add(result)
+				//	.add(op.index)
+				//	.result;
+				result = add_instruction(section, chain.location, spv::OpAccessChain, convert_type(op.to))
 					.add(result)
 					.add(op.index)
 					.result;
+				result = add_instruction(section, chain.location, spv::OpLoad, convert_type(op.to))
+					.add(result)
+					.result;*/
 				break;
 			}
 			else if (op.from.is_vector() && op.to.is_scalar())
@@ -1109,6 +1126,7 @@ spv::Id spirv_module::access_chain_load(spirv_basic_block &section, const expres
 				type target_type = op.to;
 				target_type.is_ptr = false;
 
+				assert(result != 0);
 				result = add_instruction(section, chain.location, spv::OpVectorExtractDynamic, convert_type(target_type))
 					.add(result) // Vector
 					.add(op.index) // Index
@@ -1133,6 +1151,7 @@ spv::Id spirv_module::access_chain_load(spirv_basic_block &section, const expres
 						scalar_type.rows = 1;
 						scalar_type.cols = 1;
 
+						assert(result != 0);
 						spirv_instruction &node = add_instruction(section, chain.location, spv::OpCompositeExtract, convert_type(scalar_type))
 							.add(result);
 
@@ -1173,6 +1192,7 @@ spv::Id spirv_module::access_chain_load(spirv_basic_block &section, const expres
 			{
 				assert(op.swizzle[1] < 0);
 
+				assert(result != 0);
 				spirv_instruction &node = add_instruction(section, chain.location, spv::OpCompositeExtract, convert_type(op.to))
 					.add(result); // Composite
 

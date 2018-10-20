@@ -1069,9 +1069,11 @@ bool reshadefx::parser::parse_expression_unary(spirv_basic_block &block, express
 			// Show error if no symbol matching the identifier was found
 			if (!symbol.op) // Note: 'symbol.id' is zero for constants, so have to check 'symbol.op', which cannot be zero
 				return error(location, 3004, "undeclared identifier '" + identifier + "'"), false;
-			else if (symbol.op == spv::OpVariable)
+			else if (symbol.op == spv::OpVariable) {
+				assert(symbol.id != 0);
 				// Simply return the pointer to the variable, dereferencing is done on site where necessary
 				exp.reset_to_lvalue(location, symbol.id, symbol.type);
+			}
 			else if (symbol.op == spv::OpConstant)
 				// Constants are loaded into the access chain
 				exp.reset_to_rvalue_constant(location, symbol.constant, symbol.type);
@@ -3170,6 +3172,7 @@ bool reshadefx::parser::parse_technique_pass(spirv_pass_info &info)
 					for (auto elem : call_params)
 						call.add(elem);
 					const spv::Id call_result = call.result;
+					assert(call_result != 0);
 
 					size_t param_index = 0;
 					size_t inputs_and_outputs_index = 0;

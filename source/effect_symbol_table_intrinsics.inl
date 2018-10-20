@@ -819,6 +819,7 @@ IMPLEMENT_INTRINSIC(distance, 0, {
 		.add(m.glsl_ext)
 		.add(spv::GLSLstd450Distance)
 		.add(args[0].base)
+		.add(args[1].base)
 		.result;
 	})
 
@@ -997,6 +998,16 @@ IMPLEMENT_INTRINSIC(tex2D, 0, {
 		.add(spv::ImageOperandsMaskNone)
 		.result;
 	})
+// ret tex2Doffset(s, coords, offset)
+DEFINE_INTRINSIC(tex2Doffset, 0, T_FLOAT4, T_SAMPLER, T_FLOAT2, T_INT2)
+IMPLEMENT_INTRINSIC(tex2Doffset, 0, {
+	return m.add_instruction(block, {}, spv::OpImageSampleImplicitLod, m.convert_type(T_FLOAT4))
+		.add(args[0].base)
+		.add(args[1].base)
+		.add(spv::ImageOperandsOffsetMask)
+		.add(args[2].base)
+		.result;
+	})
 
 // ret tex2Dlod(s, coords)
 DEFINE_INTRINSIC(tex2Dlod, 0, T_FLOAT4, T_SAMPLER, T_FLOAT4)
@@ -1017,6 +1028,29 @@ IMPLEMENT_INTRINSIC(tex2Dlod, 0, {
 		.add(xy)
 		.add(spv::ImageOperandsLodMask)
 		.add(lod)
+		.result;
+	})
+// ret tex2Dlodoffset(s, coords, offset)
+DEFINE_INTRINSIC(tex2Dlodoffset, 0, T_FLOAT4, T_SAMPLER, T_FLOAT4, T_INT2)
+IMPLEMENT_INTRINSIC(tex2Dlodoffset, 0, {
+	const spv::Id xy = m.add_instruction(block, {}, spv::OpVectorShuffle, m.convert_type(T_FLOAT2))
+		.add(args[1].base)
+		.add(args[1].base)
+		.add(0) // .x
+		.add(1) // .y
+		.result;
+	const spv::Id lod = m.add_instruction(block, {}, spv::OpCompositeExtract, m.convert_type(T_FLOAT1))
+		.add(args[1].base)
+		.add(3) // .w
+		.result;
+
+	return m.add_instruction(block, {}, spv::OpImageSampleExplicitLod, m.convert_type(T_FLOAT4))
+		.add(args[0].base)
+		.add(xy)
+		.add(spv::ImageOperandsLodMask)
+		.add(lod)
+		.add(spv::ImageOperandsOffsetMask)
+		.add(args[2].base)
 		.result;
 	})
 
@@ -1082,5 +1116,18 @@ IMPLEMENT_INTRINSIC(tex2Dgather, 0, {
 		.add(args[1].base)
 		.add(args[2].base)
 		.add(spv::ImageOperandsMaskNone)
+		.result;
+	})
+// ret tex2Dgatheroffset(s, coords, offset, component)
+DEFINE_INTRINSIC(tex2Dgatheroffset, 0, T_FLOAT4, T_SAMPLER, T_FLOAT2, T_INT2, T_INT1)
+IMPLEMENT_INTRINSIC(tex2Dgatheroffset, 0, {
+	m.add_capability(spv::CapabilityImageGatherExtended);
+
+	return m.add_instruction(block, {}, spv::OpImageGather, m.convert_type(T_FLOAT4))
+		.add(args[0].base)
+		.add(args[1].base)
+		.add(args[3].base)
+		.add(spv::ImageOperandsOffsetMask)
+		.add(args[2].base)
 		.result;
 	})
