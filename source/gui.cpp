@@ -773,7 +773,11 @@ namespace reshade
 			ImGui::SameLine(0, 10);
 			modified |= ImGui::Checkbox("Show FPS", &_show_framerate);
 
-			modified |= ImGui::DragFloat("Alpha", &ImGui::GetStyle().Alpha, 0.005f, 0.20f, 1.0f, "%.2f");
+			if (ImGui::DragFloat("Alpha", &ImGui::GetStyle().Alpha, 0.05f, 0.20f, 1.0f, "%.2f"))
+			{
+				ImGui::GetStyle().Alpha = __max(ImGui::GetStyle().Alpha, 0.05f);
+				modified = true;
+			}
 			modified |= ImGui::ColorEdit3("Background Color", _imgui_col_background);
 			modified |= ImGui::ColorEdit3("Item Background Color", _imgui_col_item_background);
 			modified |= ImGui::ColorEdit3("Active Item Color", _imgui_col_active);
