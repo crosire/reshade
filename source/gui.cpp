@@ -96,6 +96,7 @@ namespace reshade
 		{
 			ImGui::SetNextWindowPos(ImVec2(10, 10));
 			ImGui::SetNextWindowSize(ImVec2(_width - 20.0f, ImGui::GetFrameHeightWithSpacing() * 3), ImGuiCond_Appearing);
+			ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(_imgui_col_background[0], _imgui_col_background[1], _imgui_col_background[2], 0.5f));
 			ImGui::Begin("Splash Screen", nullptr,
 				ImGuiWindowFlags_NoTitleBar |
 				ImGuiWindowFlags_NoScrollbar |
@@ -150,83 +151,78 @@ namespace reshade
 			}
 
 			ImGui::End();
+			ImGui::PopStyleColor();
 		}
 
-		if (_reload_remaining_effects == 0)
+		ImGui::SetNextWindowPos(ImVec2(_width - 200.0f, 5));
+		ImGui::SetNextWindowSize(ImVec2(200.0f, 200.0f));
+		ImGui::PushFont(_imgui_context->IO.Fonts->Fonts[1]);
+		ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(_imgui_col_text_fps[0], _imgui_col_text_fps[1], _imgui_col_text_fps[2], 1.0f));
+		ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4());
+		ImGui::Begin("FPS", nullptr,
+			ImGuiWindowFlags_NoTitleBar |
+			ImGuiWindowFlags_NoScrollbar |
+			ImGuiWindowFlags_NoMove |
+			ImGuiWindowFlags_NoResize |
+			ImGuiWindowFlags_NoSavedSettings |
+			ImGuiWindowFlags_NoInputs |
+			ImGuiWindowFlags_NoFocusOnAppearing);
+
+		char temp[512];
+
+		if (_show_clock)
 		{
-			if (!show_splash)
+			const int hour = _date[3] / 3600;
+			const int minute = (_date[3] - hour * 3600) / 60;
+
+			ImFormatString(temp, sizeof(temp), " %02u:%02u", hour, minute);
+			ImGui::SetCursorPosX(ImGui::GetWindowContentRegionWidth() - ImGui::CalcTextSize(temp).x);
+			ImGui::TextUnformatted(temp);
+		}
+		if (_show_framerate)
+		{
+			ImFormatString(temp, sizeof(temp), "%.0f fps", _imgui_context->IO.Framerate);
+			ImGui::SetCursorPosX(ImGui::GetWindowContentRegionWidth() - ImGui::CalcTextSize(temp).x);
+			ImGui::TextUnformatted(temp);
+
+			ImFormatString(temp, sizeof(temp), "%*lld ms", 3, std::chrono::duration_cast<std::chrono::milliseconds>(_last_frame_duration).count());
+			ImGui::SetCursorPosX(ImGui::GetWindowContentRegionWidth() - ImGui::CalcTextSize(temp).x);
+			ImGui::TextUnformatted(temp);
+		}
+
+		ImGui::End();
+		ImGui::PopStyleColor(2);
+		ImGui::PopFont();
+
+		if (_show_menu && _reload_remaining_effects == 0)
+		{
+			if (_is_fast_loading)
 			{
-				ImGui::SetNextWindowPos(ImVec2(_width - 200.0f, 0));
-				ImGui::SetNextWindowSize(ImVec2(200.0f, 200.0f));
-				ImGui::PushFont(_imgui_context->IO.Fonts->Fonts[1]);
-				ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(_imgui_col_text_fps[0], _imgui_col_text_fps[1], _imgui_col_text_fps[2], 1.0f));
-				ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4());
-				ImGui::Begin("FPS", nullptr,
-					ImGuiWindowFlags_NoTitleBar |
-					ImGuiWindowFlags_NoScrollbar |
-					ImGuiWindowFlags_NoMove |
-					ImGuiWindowFlags_NoResize |
-					ImGuiWindowFlags_NoSavedSettings |
-					ImGuiWindowFlags_NoInputs |
-					ImGuiWindowFlags_NoFocusOnAppearing);
+				// Need to do a full reload since some effects might be missing due to fast loading
+				reload();
 
-				char temp[512];
+				assert(!_is_fast_loading);
+			}
+			else
+			{
+				ImGui::SetNextWindowPos(ImVec2(20, 20), ImGuiCond_FirstUseEver);
+				ImGui::SetNextWindowSize(ImVec2(730.0f, _height - 40.0f), ImGuiCond_FirstUseEver);
+				ImGui::Begin("ReShade " VERSION_STRING_FILE " by crosire###Main", &_show_menu,
+					ImGuiWindowFlags_MenuBar |
+					ImGuiWindowFlags_NoCollapse);
 
-				if (_show_clock)
+				// Double click the window title bar to reset position and size
+				const ImRect titlebar_rect = ImGui::GetCurrentWindow()->TitleBarRect();
+
+				if (ImGui::IsMouseDoubleClicked(0) && ImGui::IsMouseHoveringRect(titlebar_rect.Min, titlebar_rect.Max, false))
 				{
-					const int hour = _date[3] / 3600;
-					const int minute = (_date[3] - hour * 3600) / 60;
-
-					ImFormatString(temp, sizeof(temp), " %02u:%02u", hour, minute);
-					ImGui::SetCursorPosX(ImGui::GetWindowContentRegionWidth() - ImGui::CalcTextSize(temp).x);
-					ImGui::TextUnformatted(temp);
+					ImGui::SetWindowPos(ImVec2(20, 20));
+					ImGui::SetWindowSize(ImVec2(730.0f, _height - 40.0f));
 				}
-				if (_show_framerate)
-				{
-					ImFormatString(temp, sizeof(temp), "%.0f fps", _imgui_context->IO.Framerate);
-					ImGui::SetCursorPosX(ImGui::GetWindowContentRegionWidth() - ImGui::CalcTextSize(temp).x);
-					ImGui::TextUnformatted(temp);
 
-					ImFormatString(temp, sizeof(temp), "%*lld ms", 3, std::chrono::duration_cast<std::chrono::milliseconds>(_last_frame_duration).count());
-					ImGui::SetCursorPosX(ImGui::GetWindowContentRegionWidth() - ImGui::CalcTextSize(temp).x);
-					ImGui::TextUnformatted(temp);
-				}
+				draw_overlay_menu();
 
 				ImGui::End();
-				ImGui::PopStyleColor(2);
-				ImGui::PopFont();
-			}
-
-			if (_show_menu)
-			{
-				if (_is_fast_loading)
-				{
-					// Need to do a full reload since some effects might be missing due to fast loading
-					reload();
-
-					assert(!_is_fast_loading);
-				}
-				else
-				{
-					ImGui::SetNextWindowPos(ImVec2(20, 20), ImGuiCond_FirstUseEver);
-					ImGui::SetNextWindowSize(ImVec2(730.0f, _height - 40.0f), ImGuiCond_FirstUseEver);
-					ImGui::Begin("ReShade " VERSION_STRING_FILE " by crosire###Main", &_show_menu,
-						ImGuiWindowFlags_MenuBar |
-						ImGuiWindowFlags_NoCollapse);
-
-					// Double click the window title bar to reset position and size
-					const ImRect titlebar_rect = ImGui::GetCurrentWindow()->TitleBarRect();
-
-					if (ImGui::IsMouseDoubleClicked(0) && ImGui::IsMouseHoveringRect(titlebar_rect.Min, titlebar_rect.Max, false))
-					{
-						ImGui::SetWindowPos(ImVec2(20, 20));
-						ImGui::SetWindowSize(ImVec2(730.0f, _height - 40.0f));
-					}
-
-					draw_overlay_menu();
-
-					ImGui::End();
-				}
 			}
 		}
 
@@ -308,8 +304,8 @@ namespace reshade
 					"Make sure a valid file is selected here before starting to tweak any values later, or else your changes won't be saved!\n\n"
 					"Add a new preset by clicking on the '+' button to continue the tutorial.";
 
-				ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(1, 0, 0, 1));
-				ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(1, 0, 0, 1));
+				ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(0.941176f, 0.392157f, 0.392190f, 1.0f));
+				ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.941176f, 0.392157f, 0.392190f, 1.0f));
 			}
 
 			const auto get_preset_file = [](void *data, int i, const char **out) {
@@ -467,7 +463,7 @@ namespace reshade
 					"Enter text in the box at the top to filter it and search for specific techniques.\n\n"
 					"Click on a technique to enable or disable it or drag it to a new location in the list to change the order in which the effects are applied.";
 
-				ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(1, 0, 0, 1));
+				ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.941176f, 0.392157f, 0.392190f, 1.0f));
 			}
 
 			ImGui::Spacing();
@@ -510,7 +506,7 @@ namespace reshade
 					"Once you have finished tweaking your preset, be sure to go to the 'Settings' tab and change the 'Usage Mode' to 'Performance Mode'. "
 					"This will recompile all shaders into a more optimal representation that gives a significant performance boost, but will disable variable tweaking and this list.";
 
-				ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(1, 0, 0, 1));
+				ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.941176f, 0.392157f, 0.392190f, 1.0f));
 			}
 
 			const float bottom_height = ImGui::GetFrameHeightWithSpacing() + ImGui::GetStyle().ItemSpacing.y + (_tutorial_index == 3 ? 125 : 0);
@@ -751,6 +747,23 @@ namespace reshade
 			{
 				save_config();
 			}
+
+			if (ImGui::Checkbox("Include Preset (*.ini)",&_screenshot_include_preset))
+			{
+				_screenshot_include_configuration = false;
+
+				save_config();
+			}
+
+			if (_screenshot_include_preset)
+			{
+				ImGui::SameLine();
+
+				if (ImGui::Checkbox("Include Configuration (*.ini)", &_screenshot_include_configuration))
+				{
+					save_config();
+				}
+			}
 		}
 
 		if (ImGui::CollapsingHeader("User Interface", ImGuiTreeNodeFlags_DefaultOpen))
@@ -760,7 +773,11 @@ namespace reshade
 			ImGui::SameLine(0, 10);
 			modified |= ImGui::Checkbox("Show FPS", &_show_framerate);
 
-			modified |= ImGui::DragFloat("Alpha", &ImGui::GetStyle().Alpha, 0.005f, 0.20f, 1.0f, "%.2f");
+			if (ImGui::DragFloat("Alpha", &ImGui::GetStyle().Alpha, 0.05f, 0.20f, 1.0f, "%.2f"))
+			{
+				ImGui::GetStyle().Alpha = __max(ImGui::GetStyle().Alpha, 0.05f);
+				modified = true;
+			}
 			modified |= ImGui::ColorEdit3("Background Color", _imgui_col_background);
 			modified |= ImGui::ColorEdit3("Item Background Color", _imgui_col_item_background);
 			modified |= ImGui::ColorEdit3("Active Item Color", _imgui_col_active);
