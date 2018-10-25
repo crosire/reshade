@@ -203,237 +203,7 @@ class codegen_hlsl final : public codegen
 		return func.definition;
 	}
 
-	id emit_constant(const type &type, const constant &data) override
-	{
-		id id = make_id();
-
-		code() += "const " + write_type(type) + ' ' + id_to_name(id) + " = " + write_constant(type, data) + ";\n";
-
-		return id;
-	}
-
-	id emit_unary_op(const location &loc, tokenid op, const type &type, id val) override
-	{
-		id res = make_id();
-		std::string hlsl_op;
-
-		switch (op)
-		{
-		case tokenid::exclaim: hlsl_op = "!"; break;
-		case tokenid::minus: hlsl_op = "-"; break;
-		case tokenid::tilde: hlsl_op = "~"; break;
-		case tokenid::plus_plus: hlsl_op = "+ 1"; break;
-		case tokenid::minus_minus: hlsl_op = "- 1"; break;
-		default:
-			return assert(false), 0;
-		}
-
-		code() += write_location(loc);
-		code() += "const " + write_type(type) + ' ' + id_to_name(res) + " = " + id_to_name(val) + ' ' + hlsl_op + ";\n";
-
-		return res;
-	}
-	id emit_binary_op(const location &loc, tokenid op, const type &res_type, const type &, id lhs, id rhs) override
-	{
-		id res = make_id();
-		std::string hlsl_op;
-
-		switch (op)
-		{
-		case tokenid::percent:
-		case tokenid::percent_equal: hlsl_op = "%"; break;
-		case tokenid::ampersand:
-		case tokenid::ampersand_equal: hlsl_op = "&"; break;
-		case tokenid::star:
-		case tokenid::star_equal: hlsl_op = "*"; break;
-		case tokenid::plus:
-		case tokenid::plus_plus:
-		case tokenid::plus_equal: hlsl_op = "+"; break;
-		case tokenid::minus:
-		case tokenid::minus_minus:
-		case tokenid::minus_equal: hlsl_op = "-"; break;
-		case tokenid::slash:
-		case tokenid::slash_equal: hlsl_op = "/"; break;
-		case tokenid::less: hlsl_op = "<"; break;
-		case tokenid::greater: hlsl_op = ">"; break;
-		case tokenid::caret:
-		case tokenid::caret_equal: hlsl_op = "^"; break;
-		case tokenid::pipe:
-		case tokenid::pipe_equal: hlsl_op = "|"; break;
-		case tokenid::exclaim_equal: hlsl_op = "!"; break;
-		case tokenid::ampersand_ampersand: hlsl_op = "&&";  break;
-		case tokenid::less_less:
-		case tokenid::less_less_equal: hlsl_op = "<<"; break;
-		case tokenid::less_equal: hlsl_op = "<="; break;
-		case tokenid::equal_equal: hlsl_op = "=="; break;
-		case tokenid::greater_greater:
-		case tokenid::greater_greater_equal: hlsl_op = ">>"; break;
-		case tokenid::greater_equal: hlsl_op = ">="; break;
-		case tokenid::pipe_pipe: hlsl_op = "||"; break;
-		default:
-			return assert(false), 0;
-		}
-
-		code() += write_location(loc);
-		code() += "const " + write_type(res_type) + ' ' + id_to_name(res) + " = " + id_to_name(lhs) + ' ' + hlsl_op + ' ' + id_to_name(rhs) + ";\n";
-
-		return res;
-	}
-	id emit_ternary_op(const location &loc, tokenid op, const type &type, id condition, id true_value, id false_value) override
-	{
-		assert(op == tokenid::question);
-
-		id res = make_id();
-
-		code() += write_location(loc);
-		code() += "const " + write_type(type) + ' ' + id_to_name(res) + " = " + id_to_name(condition) + " ? " + id_to_name(true_value) + " : " + id_to_name(false_value) + ";\n";
-
-		return res;
-	}
-	id emit_phi(const type &type, id lhs_value, id lhs_block, id rhs_value, id rhs_block) override
-	{
-		id res = make_id();
-
-		//code() += "if (_" + std::to_string(lhs) + ") ;
-							// Emit "if ( lhs) result = rhs" for && expression
-
-		assert(false);
-		return res;
-	}
-	id emit_call(const location &loc, id function, const type &res_type, const std::vector<expression> &args) override
-	{
-		id res = make_id();
-
-		code() += write_location(loc);
-		code() += "const " + write_type(res_type) + ' ' + id_to_name(res) + " = " + id_to_name(function) + "(";
-
-		for (const auto &arg : args)
-		{
-			code() += id_to_name(arg.base);
-		}
-
-		code() += ");\n";
-
-		return res;
-	}
-	id emit_call_intrinsic(const location &loc, id intrinsic, const type &res_type, const std::vector<expression> &args) override
-	{
-		id res = make_id();
-
-		code() += write_location(loc);
-		code() += "const " + write_type(res_type) + ' ' + id_to_name(res) + " = intrinsic(";
-
-		for (auto &arg : args)
-		{
-			code() += id_to_name(arg.base);
-			code() += ", ";
-		}
-
-		if (code().back() == ' ')
-		{
-			code().pop_back();
-			code().pop_back();
-		}
-
-		code () += ");\n";
-
-		enum
-		{
-#define IMPLEMENT_INTRINSIC_SPIRV(name, i, code) name##i,
-#include "effect_symbol_table_intrinsics.inl"
-		};
-
-		switch (intrinsic)
-		{
-#define IMPLEMENT_INTRINSIC_HLSL(name, i, code) case name##i: code
-#include "effect_symbol_table_intrinsics.inl"
-		default:
-			return res;
-		}
-	}
-	id emit_construct(const type &type, std::vector<expression> &args) override
-	{
-		id id = make_id();
-
-		code() += "const " + write_type(type) + ' ' + id_to_name(id) + " = " + write_type(type) + '(';
-
-		for (const auto &arg : args)
-		{
-			code() += arg.is_constant ? write_constant(arg.type, arg.constant) : id_to_name(arg.base);
-			code() += ", ";
-		}
-
-		if (code().back() == ' ')
-		{
-			code().pop_back();
-			code().pop_back();
-		}
-
-		code() += ");\n";
-
-		return id;
-	}
-
-	void emit_if(const location &loc, id condition, id prev_block, id true_statement_block, id false_statement_block, id merge_block, unsigned int flags) override
-	{
-		_blocks[prev_block] += write_location(loc);
-
-		if (flags & flatten) _blocks[prev_block] += "[flatten]";
-		if (flags & dont_flatten) _blocks[prev_block] += "[branch]";
-
-		_blocks[prev_block] += "if (" + id_to_name(condition) + ")\n{\n" + _blocks[true_statement_block] + "\n}\nelse\n{\n" + _blocks[false_statement_block] + "\n}\n";
-
-		_blocks[merge_block] = _blocks[prev_block];
-	}
-	void emit_loop(const location &loc, id condition, id prev_block, id, id condition_block, id loop_block, id continue_block, id merge_block, unsigned int flags) override
-	{
-		_blocks[prev_block] += _blocks[condition_block];
-		_blocks[prev_block] += write_location(loc);
-
-		if (flags & unroll) _blocks[prev_block] += "[unroll] ";
-		if (flags & dont_unroll) _blocks[prev_block] += "[loop] ";
-
-		if (condition_block == 0)
-		{
-			_blocks[prev_block] += "do\n{\n" + _blocks[loop_block] + _blocks[continue_block] + _blocks[condition_block] + "}\nwhile (" + id_to_name(condition) + ");\n";
-		}
-		else
-		{
-			std::string loop_condition = _blocks[condition_block];
-			auto pos_assign = loop_condition.rfind(id_to_name(condition));
-			auto pos_prev_assign = loop_condition.rfind('\n', pos_assign);
-			loop_condition.erase(pos_prev_assign + 1, pos_assign - pos_prev_assign);
-
-			_blocks[prev_block] += "while (" + id_to_name(condition) + ")\n{\n" + _blocks[loop_block] + _blocks[continue_block] + loop_condition + "}\n";
-		}
-
-		_blocks[merge_block] = _blocks[prev_block];
-	}
-	void emit_switch(const location &loc, id selector_value, id prev_block, id default_label, const std::vector<id> &case_literal_and_labels, id merge_block, unsigned int flags) override
-	{
-		_blocks[prev_block] += write_location(loc);
-
-		if (flags & flatten) _blocks[prev_block] += "[flatten]";
-		if (flags & dont_flatten) _blocks[prev_block] += "[branch]";
-
-		_blocks[prev_block] += "switch (" + id_to_name(selector_value) + ")\n{\n";
-
-		for (size_t i = 0; i < case_literal_and_labels.size(); i += 2)
-		{
-			_blocks[prev_block] += "case " + std::to_string(case_literal_and_labels[i]) + ": " + _blocks[case_literal_and_labels[i + 1]] + '\n';
-		}
-
-		if (default_label != merge_block)
-		{
-			_blocks[prev_block] += "default: " + _blocks[default_label] + '\n';
-		}
-
-		_blocks[prev_block] += "}\n";
-
-		_blocks[merge_block] = _blocks[prev_block];
-	}
-
-	  id emit_load(const expression &chain) override
+	id   emit_load(const expression &chain) override
 	{
 		id res = make_id();
 
@@ -497,6 +267,277 @@ class codegen_hlsl final : public codegen
 		code() += " = " + id_to_name(value) + ";\n";
 	}
 
+	id   emit_constant(const type &type, const constant &data) override
+	{
+		id id = make_id();
+
+		code() += "const " + write_type(type) + ' ' + id_to_name(id) + " = " + write_constant(type, data) + ";\n";
+
+		return id;
+	}
+
+	id   emit_unary_op(const location &loc, tokenid op, const type &type, id val) override
+	{
+		id res = make_id();
+		std::string hlsl_op;
+
+		switch (op)
+		{
+		case tokenid::exclaim: hlsl_op = "!"; break;
+		case tokenid::minus: hlsl_op = "-"; break;
+		case tokenid::tilde: hlsl_op = "~"; break;
+		case tokenid::plus_plus: hlsl_op = "+ 1"; break;
+		case tokenid::minus_minus: hlsl_op = "- 1"; break;
+		default:
+			return assert(false), 0;
+		}
+
+		code() += write_location(loc);
+		code() += "const " + write_type(type) + ' ' + id_to_name(res) + " = " + id_to_name(val) + ' ' + hlsl_op + ";\n";
+
+		return res;
+	}
+	id   emit_binary_op(const location &loc, tokenid op, const type &res_type, const type &, id lhs, id rhs) override
+	{
+		id res = make_id();
+		std::string hlsl_op;
+
+		switch (op)
+		{
+		case tokenid::percent:
+		case tokenid::percent_equal: hlsl_op = "%"; break;
+		case tokenid::ampersand:
+		case tokenid::ampersand_equal: hlsl_op = "&"; break;
+		case tokenid::star:
+		case tokenid::star_equal: hlsl_op = "*"; break;
+		case tokenid::plus:
+		case tokenid::plus_plus:
+		case tokenid::plus_equal: hlsl_op = "+"; break;
+		case tokenid::minus:
+		case tokenid::minus_minus:
+		case tokenid::minus_equal: hlsl_op = "-"; break;
+		case tokenid::slash:
+		case tokenid::slash_equal: hlsl_op = "/"; break;
+		case tokenid::less: hlsl_op = "<"; break;
+		case tokenid::greater: hlsl_op = ">"; break;
+		case tokenid::caret:
+		case tokenid::caret_equal: hlsl_op = "^"; break;
+		case tokenid::pipe:
+		case tokenid::pipe_equal: hlsl_op = "|"; break;
+		case tokenid::exclaim_equal: hlsl_op = "!"; break;
+		case tokenid::ampersand_ampersand: hlsl_op = "&&";  break;
+		case tokenid::less_less:
+		case tokenid::less_less_equal: hlsl_op = "<<"; break;
+		case tokenid::less_equal: hlsl_op = "<="; break;
+		case tokenid::equal_equal: hlsl_op = "=="; break;
+		case tokenid::greater_greater:
+		case tokenid::greater_greater_equal: hlsl_op = ">>"; break;
+		case tokenid::greater_equal: hlsl_op = ">="; break;
+		case tokenid::pipe_pipe: hlsl_op = "||"; break;
+		default:
+			return assert(false), 0;
+		}
+
+		code() += write_location(loc);
+		code() += "const " + write_type(res_type) + ' ' + id_to_name(res) + " = " + id_to_name(lhs) + ' ' + hlsl_op + ' ' + id_to_name(rhs) + ";\n";
+
+		return res;
+	}
+	id   emit_ternary_op(const location &loc, tokenid op, const type &type, id condition, id true_value, id false_value) override
+	{
+		assert(op == tokenid::question);
+
+		id res = make_id();
+
+		code() += write_location(loc);
+		code() += "const " + write_type(type) + ' ' + id_to_name(res) + " = " + id_to_name(condition) + " ? " + id_to_name(true_value) + " : " + id_to_name(false_value) + ";\n";
+
+		return res;
+	}
+	id   emit_call(const location &loc, id function, const type &res_type, const std::vector<expression> &args) override
+	{
+		id res = make_id();
+
+		code() += write_location(loc);
+		code() += "const " + write_type(res_type) + ' ' + id_to_name(res) + " = " + id_to_name(function) + "(";
+
+		for (const auto &arg : args)
+		{
+			code() += id_to_name(arg.base);
+		}
+
+		code() += ");\n";
+
+		return res;
+	}
+	id   emit_call_intrinsic(const location &loc, id intrinsic, const type &res_type, const std::vector<expression> &args) override
+	{
+		id res = make_id();
+
+		code() += write_location(loc);
+		code() += "const " + write_type(res_type) + ' ' + id_to_name(res) + " = ";
+
+		enum
+		{
+#define IMPLEMENT_INTRINSIC_SPIRV(name, i, code2) name##i,
+#include "effect_symbol_table_intrinsics.inl"
+		};
+
+		switch (intrinsic)
+		{
+#define IMPLEMENT_INTRINSIC_SPIRV(name, i, code2) case name##i: code() += #name; break;
+#include "effect_symbol_table_intrinsics.inl"
+		}
+
+		code() += '(';
+
+		for (auto &arg : args)
+		{
+			code() += id_to_name(arg.base);
+			code() += ", ";
+		}
+
+		if (code().back() == ' ')
+		{
+			code().pop_back();
+			code().pop_back();
+		}
+
+		code() += ");\n";
+
+		return res;
+	}
+	id   emit_construct(const type &type, std::vector<expression> &args) override
+	{
+		id id = make_id();
+
+		code() += "const " + write_type(type) + ' ' + id_to_name(id) + " = " + write_type(type) + '(';
+
+		for (const auto &arg : args)
+		{
+			code() += arg.is_constant ? write_constant(arg.type, arg.constant) : id_to_name(arg.base);
+			code() += ", ";
+		}
+
+		if (code().back() == ' ')
+		{
+			code().pop_back();
+			code().pop_back();
+		}
+
+		code() += ");\n";
+
+		return id;
+	}
+
+	void emit_if(const location &loc, id condition_value, id condition_block, id true_statement_block, id false_statement_block, id merge_block, unsigned int flags) override
+	{
+		assert(condition_value != 0);
+		assert(condition_block != 0);
+		assert(true_statement_block != 0);
+		assert(false_statement_block != 0);
+		assert(merge_block != 0);
+
+		_blocks[merge_block] += _blocks[condition_block];
+		_blocks[merge_block] += write_location(loc);
+
+		if (flags & flatten) _blocks[merge_block] += "[flatten]";
+		if (flags & dont_flatten) _blocks[merge_block] += "[branch]";
+
+		_blocks[merge_block] +=
+			"if (" + id_to_name(condition_value) + ")\n{\n" +
+			_blocks[true_statement_block] +
+			"}\nelse\n{\n" +
+			_blocks[false_statement_block] +
+			"}\n";
+	}
+	id   emit_phi(const type &type, id condition_value, id condition_block, id true_value, id true_statement_block, id false_value, id false_statement_block) override
+	{
+		id res = make_id();
+
+		code() += _blocks[condition_block] +
+			write_type(type) + ' ' + id_to_name(res) + ";\n" +
+			"if (" + id_to_name(condition_value) + ")\n{\n" +
+			(true_statement_block != condition_block ? _blocks[true_statement_block] : std::string()) +
+			id_to_name(res) + " = " + id_to_name(true_value) + ";\n" +
+			"}\nelse\n{\n" +
+			(false_statement_block != condition_block ? _blocks[false_statement_block] : std::string()) +
+			id_to_name(res) + " = " + id_to_name(false_value) + ";\n" +
+			"}\n";
+
+		return res;
+	}
+	void emit_loop(const location &loc, id condition_value, id prev_block, id, id condition_block, id loop_block, id continue_block, id merge_block, unsigned int flags) override
+	{
+		assert(condition_value != 0);
+		assert(prev_block != 0);
+		assert(loop_block != 0);
+		assert(continue_block != 0);
+		assert(merge_block != 0);
+
+		_blocks[merge_block] += _blocks[prev_block];
+
+		if (condition_block == 0)
+		{
+			_blocks[merge_block] += "bool " + id_to_name(condition_value) + ";\n";
+		}
+		else
+		{
+			_blocks[merge_block] += _blocks[condition_block];
+		}
+
+		_blocks[merge_block] += write_location(loc);
+
+		if (flags & unroll) _blocks[merge_block] += "[unroll] ";
+		if (flags & dont_unroll) _blocks[merge_block] += "[loop] ";
+
+		if (condition_block == 0)
+		{
+			std::string loop_condition = _blocks[continue_block];
+			auto pos_assign = loop_condition.rfind(id_to_name(condition_value));
+			auto pos_prev_assign = loop_condition.rfind('\n', pos_assign);
+			loop_condition.erase(pos_prev_assign + 1, pos_assign - pos_prev_assign);
+
+			_blocks[merge_block] += "do\n{\n" + _blocks[loop_block] + loop_condition + "}\nwhile (" + id_to_name(condition_value) + ");\n";
+		}
+		else
+		{
+			std::string loop_condition = _blocks[condition_block];
+			auto pos_assign = loop_condition.rfind(id_to_name(condition_value));
+			auto pos_prev_assign = loop_condition.rfind('\n', pos_assign);
+			loop_condition.erase(pos_prev_assign + 1, pos_assign - pos_prev_assign);
+
+			_blocks[merge_block] += "while (" + id_to_name(condition_value) + ")\n{\n" + _blocks[loop_block] + _blocks[continue_block] + loop_condition + "}\n";
+		}
+	}
+	void emit_switch(const location &loc, id selector_value, id selector_block, id default_label, const std::vector<id> &case_literal_and_labels, id merge_block, unsigned int flags) override
+	{
+		assert(selector_value != 0);
+		assert(selector_block != 0);
+		assert(default_label != 0);
+		assert(merge_block != 0);
+
+		_blocks[merge_block] += _blocks[selector_block];
+		_blocks[merge_block] += write_location(loc);
+
+		if (flags & flatten) _blocks[merge_block] += "[flatten]";
+		if (flags & dont_flatten) _blocks[merge_block] += "[branch]";
+
+		_blocks[merge_block] += "switch (" + id_to_name(selector_value) + ")\n{\n";
+
+		for (size_t i = 0; i < case_literal_and_labels.size(); i += 2)
+		{
+			_blocks[merge_block] += "case " + std::to_string(case_literal_and_labels[i]) + ": " + _blocks[case_literal_and_labels[i + 1]] + '\n';
+		}
+
+		if (default_label != merge_block)
+		{
+			_blocks[merge_block] += "default: " + _blocks[default_label] + '\n';
+		}
+
+		_blocks[merge_block] += "}\n";
+	}
+
 	void set_block(id id) override
 	{
 		_current_block = id;
@@ -505,34 +546,62 @@ class codegen_hlsl final : public codegen
 	{
 		_current_block = id;
 	}
-	void leave_block_and_kill() override
+	id   leave_block_and_kill() override
 	{
+		if (!is_in_block())
+			return 0;
+
 		code() += "discard;\n";
 
 		_last_block = _current_block;
 		_current_block = 0;
+
+		return _last_block;
 	}
-	void leave_block_and_return(id value) override
+	id   leave_block_and_return(id value) override
 	{
+		if (!is_in_block())
+			return 0;
+
 		code() += "return" + (value ? ' ' + id_to_name(value) : std::string()) + ";\n";
 
 		_last_block = _current_block;
 		_current_block = 0;
+
+		return _last_block;
 	}
-	void leave_block_and_switch(id) override
+	id   leave_block_and_switch(id) override
 	{
+		if (!is_in_block())
+			return _last_block;
+
 		_last_block = _current_block;
 		_current_block = 0;
+
+		return _last_block;
 	}
-	void leave_block_and_branch(id) override
+	id   leave_block_and_branch(id, bool is_continue) override
 	{
+		if (!is_in_block())
+			return _last_block;
+
+		if (is_continue)
+			code() += "continue;\n";
+
 		_last_block = _current_block;
 		_current_block = 0;
+
+		return _last_block;
 	}
-	void leave_block_and_branch_conditional(id, id, id) override
+	id   leave_block_and_branch_conditional(id, id, id) override
 	{
+		if (!is_in_block())
+			return _last_block;
+
 		_last_block = _current_block;
 		_current_block = 0;
+
+		return _last_block;
 	}
 
 	void enter_function(id id, const type &ret_type) override
