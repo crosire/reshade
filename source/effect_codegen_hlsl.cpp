@@ -14,12 +14,14 @@ class codegen_hlsl final : public codegen
 	id _last_block = 0;
 	std::unordered_map<id, std::string> _names;
 	std::unordered_map<id, std::string> _blocks;
+	unsigned int _scope_level = 0;
 
 	inline std::string &code() { return _blocks[_current_block]; }
 
 	void write_result(module &s) const override
 	{
-		s.hlsl = _blocks.at(0);
+		s.hlsl = "struct __sampler { Texture2D t; SamplerState s; };\nint2 __tex2Dsize(__sampler s, int lod) { uint w, h, l; s.t.GetDimensions(lod, w, h, l); return int2(w, h); }\n" + _blocks.at(0);
+
 		s.samplers = samplers;
 		s.textures = textures;
 		s.uniforms = uniforms;
@@ -55,6 +57,20 @@ class codegen_hlsl final : public codegen
 	{
 		std::string s;
 
+		if (type.is_array())
+		{
+			s += "{ ";
+
+			struct type elem_type = type;
+			elem_type.array_length = 0;
+
+			for (size_t i = 0; i < data.array_data.size(); ++i)
+				s += write_constant(elem_type, data.array_data[i]) + ", ";
+
+			s += " }";
+			return s;
+		}
+
 		if (!type.is_scalar())
 			s += write_type(type);
 
@@ -62,7 +78,7 @@ class codegen_hlsl final : public codegen
 
 		for (unsigned int c = 0; c < type.cols; ++c)
 		{
-			for (unsigned int r = 0; r < type.rows; ++r, s += ',')
+			for (unsigned int r = 0; r < type.rows; ++r, s += ", ")
 			{
 				switch (type.base)
 				{
@@ -79,11 +95,18 @@ class codegen_hlsl final : public codegen
 			}
 		}
 
-		if (s.back() == ',')
+		if (s.back() == ' ')
+		{
 			s.pop_back();
+			s.pop_back();
+		}
 
 		s += ')';
 		return s;
+	}
+	std::string write_scope()
+	{
+		return std::string(_scope_level, '\t');
 	}
 	std::string write_location(const location &loc)
 	{
@@ -129,8 +152,10 @@ class codegen_hlsl final : public codegen
 	{
 		samplers.push_back(info);
 
+		code() += "Texture2D " + info.unique_name + "_t : register(t" + std::to_string(info.binding) + ");\n";
+		code() += "SamplerState " + info.unique_name + "_s : register(s" + std::to_string(info.binding) + ");\n";
 		code() += write_location(loc);
-		code() += "__sampler " + info.unique_name + ";\n";
+		code() += "__sampler " + info.unique_name + " = { " + info.unique_name + "_t, " + info.unique_name + "_s };\n";
 
 		_names[info.id] = info.unique_name;
 
@@ -157,7 +182,7 @@ class codegen_hlsl final : public codegen
 			_names[id] = name;
 
 		code() += write_location(loc);
-		code() += write_type(type) + ' ' + id_to_name(id);
+		code() += write_scope() + write_type(type) + ' ' + id_to_name(id);
 
 		if (initializer_value != 0)
 			code() += " = " + id_to_name(initializer_value);
@@ -172,7 +197,12 @@ class codegen_hlsl final : public codegen
 		if (code().back() == ',')
 			code().pop_back();
 
-		code() += ")\n";
+		code() += ')';
+
+		if (!info.return_semantic.empty())
+			code() += " : " + info.return_semantic;
+
+		code() += '\n';
 
 		//_names[info.definition] = info.unique_name;
 
@@ -187,7 +217,12 @@ class codegen_hlsl final : public codegen
 		_names[id] = info.name;
 
 		code() += '\n' + write_location(loc);
-		code() += write_type(info.type) + ' ' + id_to_name(id) + ',';
+		code() += '\t' + write_type(info.type) + ' ' + id_to_name(id);
+
+		if (!info.semantic.empty())
+			code() += " : " + info.semantic;
+
+		code() +',';
 
 		return id;
 	}
@@ -208,7 +243,7 @@ class codegen_hlsl final : public codegen
 		id res = make_id();
 
 		code() += write_location(chain.location);
-		code() += "const " + write_type(chain.type) + ' ' + id_to_name(res) + " = ";
+		code() += write_scope() + "const " + write_type(chain.type) + ' ' + id_to_name(res) + " = ";
 
 		if (chain.is_constant)
 		{
@@ -247,7 +282,7 @@ class codegen_hlsl final : public codegen
 	void emit_store(const expression &chain, id value, const type &) override
 	{
 		code() += write_location(chain.location);
-		code() += id_to_name(chain.base);
+		code() += write_scope() + id_to_name(chain.base);
 
 		for (const auto &op : chain.ops)
 		{
@@ -271,7 +306,12 @@ class codegen_hlsl final : public codegen
 	{
 		id id = make_id();
 
-		code() += "const " + write_type(type) + ' ' + id_to_name(id) + " = " + write_constant(type, data) + ";\n";
+		code() += write_scope() + "const " + write_type(type) + ' ' + id_to_name(id);
+
+		if (type.is_array())
+			code() += '[' + std::to_string(type.array_length) + ']';
+
+		code() += " = " + write_constant(type, data) + ";\n";
 
 		return id;
 	}
@@ -293,7 +333,7 @@ class codegen_hlsl final : public codegen
 		}
 
 		code() += write_location(loc);
-		code() += "const " + write_type(type) + ' ' + id_to_name(res) + " = " + id_to_name(val) + ' ' + hlsl_op + ";\n";
+		code() += write_scope() + "const " + write_type(type) + ' ' + id_to_name(res) + " = " + id_to_name(val) + ' ' + hlsl_op + ";\n";
 
 		return res;
 	}
@@ -339,7 +379,7 @@ class codegen_hlsl final : public codegen
 		}
 
 		code() += write_location(loc);
-		code() += "const " + write_type(res_type) + ' ' + id_to_name(res) + " = " + id_to_name(lhs) + ' ' + hlsl_op + ' ' + id_to_name(rhs) + ";\n";
+		code() += write_scope() + "const " + write_type(res_type) + ' ' + id_to_name(res) + " = " + id_to_name(lhs) + ' ' + hlsl_op + ' ' + id_to_name(rhs) + ";\n";
 
 		return res;
 	}
@@ -350,7 +390,7 @@ class codegen_hlsl final : public codegen
 		id res = make_id();
 
 		code() += write_location(loc);
-		code() += "const " + write_type(type) + ' ' + id_to_name(res) + " = " + id_to_name(condition) + " ? " + id_to_name(true_value) + " : " + id_to_name(false_value) + ";\n";
+		code() += write_scope() + "const " + write_type(type) + ' ' + id_to_name(res) + " = " + id_to_name(condition) + " ? " + id_to_name(true_value) + " : " + id_to_name(false_value) + ";\n";
 
 		return res;
 	}
@@ -359,42 +399,11 @@ class codegen_hlsl final : public codegen
 		id res = make_id();
 
 		code() += write_location(loc);
-		code() += "const " + write_type(res_type) + ' ' + id_to_name(res) + " = " + id_to_name(function) + "(";
+		code() += write_scope() + "const " + write_type(res_type) + ' ' + id_to_name(res) + " = " + id_to_name(function) + "(";
 
 		for (const auto &arg : args)
 		{
-			code() += id_to_name(arg.base);
-		}
-
-		code() += ");\n";
-
-		return res;
-	}
-	id   emit_call_intrinsic(const location &loc, id intrinsic, const type &res_type, const std::vector<expression> &args) override
-	{
-		id res = make_id();
-
-		code() += write_location(loc);
-		code() += "const " + write_type(res_type) + ' ' + id_to_name(res) + " = ";
-
-		enum
-		{
-#define IMPLEMENT_INTRINSIC_SPIRV(name, i, code2) name##i,
-#include "effect_symbol_table_intrinsics.inl"
-		};
-
-		switch (intrinsic)
-		{
-#define IMPLEMENT_INTRINSIC_SPIRV(name, i, code2) case name##i: code() += #name; break;
-#include "effect_symbol_table_intrinsics.inl"
-		}
-
-		code() += '(';
-
-		for (auto &arg : args)
-		{
-			code() += id_to_name(arg.base);
-			code() += ", ";
+			code() += id_to_name(arg.base) + ", ";
 		}
 
 		if (code().back() == ' ')
@@ -407,11 +416,39 @@ class codegen_hlsl final : public codegen
 
 		return res;
 	}
+	id   emit_call_intrinsic(const location &loc, id intrinsic, const type &res_type, const std::vector<expression> &args) override
+	{
+		id res = make_id();
+
+		code() += write_location(loc);
+		code() += write_scope();
+
+		if (!res_type.is_void())
+		{
+			code() += "const " + write_type(res_type) + ' ' + id_to_name(res) + " = ";
+		}
+
+		enum
+		{
+#define IMPLEMENT_INTRINSIC_HLSL(name, i, code) name##i,
+#include "effect_symbol_table_intrinsics.inl"
+		};
+
+		switch (intrinsic)
+		{
+#define IMPLEMENT_INTRINSIC_HLSL(name, i, code) case name##i: code break;
+#include "effect_symbol_table_intrinsics.inl"
+		}
+
+		code() += ";\n";
+
+		return res;
+	}
 	id   emit_construct(const type &type, std::vector<expression> &args) override
 	{
 		id id = make_id();
 
-		code() += "const " + write_type(type) + ' ' + id_to_name(id) + " = " + write_type(type) + '(';
+		code() += write_scope() + "const " + write_type(type) + ' ' + id_to_name(id) + " = " + write_type(type) + '(';
 
 		for (const auto &arg : args)
 		{
@@ -445,25 +482,25 @@ class codegen_hlsl final : public codegen
 		if (flags & dont_flatten) _blocks[merge_block] += "[branch]";
 
 		_blocks[merge_block] +=
-			"if (" + id_to_name(condition_value) + ")\n{\n" +
-			_blocks[true_statement_block] +
-			"}\nelse\n{\n" +
-			_blocks[false_statement_block] +
-			"}\n";
+			write_scope() + "if (" + id_to_name(condition_value) + ")\n" + write_scope() + "{\n" +
+			write_scope() + _blocks[true_statement_block] +
+			write_scope() + "}\n" + write_scope() + "else\n" + write_scope () + "{\n" +
+			write_scope() + _blocks[false_statement_block] +
+			write_scope() + "}\n";
 	}
 	id   emit_phi(const type &type, id condition_value, id condition_block, id true_value, id true_statement_block, id false_value, id false_statement_block) override
 	{
 		id res = make_id();
 
 		code() += _blocks[condition_block] +
-			write_type(type) + ' ' + id_to_name(res) + ";\n" +
-			"if (" + id_to_name(condition_value) + ")\n{\n" +
+			write_scope() + write_type(type) + ' ' + id_to_name(res) + ";\n" +
+			write_scope() + "if (" + id_to_name(condition_value) + ")\n" + write_scope () + "{\n" +
 			(true_statement_block != condition_block ? _blocks[true_statement_block] : std::string()) +
-			id_to_name(res) + " = " + id_to_name(true_value) + ";\n" +
-			"}\nelse\n{\n" +
+			write_scope() + id_to_name(res) + " = " + id_to_name(true_value) + ";\n" +
+			write_scope() + "}\n" + write_scope() + "else\n" + write_scope () + "{\n" +
 			(false_statement_block != condition_block ? _blocks[false_statement_block] : std::string()) +
-			id_to_name(res) + " = " + id_to_name(false_value) + ";\n" +
-			"}\n";
+			write_scope() + id_to_name(res) + " = " + id_to_name(false_value) + ";\n" +
+			write_scope() + "}\n";
 
 		return res;
 	}
@@ -479,14 +516,14 @@ class codegen_hlsl final : public codegen
 
 		if (condition_block == 0)
 		{
-			_blocks[merge_block] += "bool " + id_to_name(condition_value) + ";\n";
+			_blocks[merge_block] += write_scope() + "bool " + id_to_name(condition_value) + ";\n";
 		}
 		else
 		{
 			_blocks[merge_block] += _blocks[condition_block];
 		}
 
-		_blocks[merge_block] += write_location(loc);
+		_blocks[merge_block] += write_location(loc) + write_scope();
 
 		if (flags & unroll) _blocks[merge_block] += "[unroll] ";
 		if (flags & dont_unroll) _blocks[merge_block] += "[loop] ";
@@ -498,7 +535,7 @@ class codegen_hlsl final : public codegen
 			auto pos_prev_assign = loop_condition.rfind('\n', pos_assign);
 			loop_condition.erase(pos_prev_assign + 1, pos_assign - pos_prev_assign);
 
-			_blocks[merge_block] += "do\n{\n" + _blocks[loop_block] + loop_condition + "}\nwhile (" + id_to_name(condition_value) + ");\n";
+			_blocks[merge_block] += "do\n" + write_scope() + "{\n" + _blocks[loop_block] + loop_condition + "}\n" + write_scope() + "while (" + id_to_name(condition_value) + ");\n";
 		}
 		else
 		{
@@ -507,7 +544,7 @@ class codegen_hlsl final : public codegen
 			auto pos_prev_assign = loop_condition.rfind('\n', pos_assign);
 			loop_condition.erase(pos_prev_assign + 1, pos_assign - pos_prev_assign);
 
-			_blocks[merge_block] += "while (" + id_to_name(condition_value) + ")\n{\n" + _blocks[loop_block] + _blocks[continue_block] + loop_condition + "}\n";
+			_blocks[merge_block] += "while (" + id_to_name(condition_value) + ")\n" + write_scope() + "{\n" + _blocks[loop_block] + _blocks[continue_block] + loop_condition + write_scope() + "}\n";
 		}
 	}
 	void emit_switch(const location &loc, id selector_value, id selector_block, id default_label, const std::vector<id> &case_literal_and_labels, id merge_block, unsigned int flags) override
@@ -518,24 +555,28 @@ class codegen_hlsl final : public codegen
 		assert(merge_block != 0);
 
 		_blocks[merge_block] += _blocks[selector_block];
-		_blocks[merge_block] += write_location(loc);
+		_blocks[merge_block] += write_location(loc) + write_scope();
 
 		if (flags & flatten) _blocks[merge_block] += "[flatten]";
 		if (flags & dont_flatten) _blocks[merge_block] += "[branch]";
 
 		_blocks[merge_block] += "switch (" + id_to_name(selector_value) + ")\n{\n";
 
+		_scope_level++;
+
 		for (size_t i = 0; i < case_literal_and_labels.size(); i += 2)
 		{
-			_blocks[merge_block] += "case " + std::to_string(case_literal_and_labels[i]) + ": " + _blocks[case_literal_and_labels[i + 1]] + '\n';
+			_blocks[merge_block] += write_scope() + "case " + std::to_string(case_literal_and_labels[i]) + ": " + _blocks[case_literal_and_labels[i + 1]] + '\n';
 		}
 
 		if (default_label != merge_block)
 		{
-			_blocks[merge_block] += "default: " + _blocks[default_label] + '\n';
+			_blocks[merge_block] += write_scope() + "default: " + _blocks[default_label] + '\n';
 		}
 
-		_blocks[merge_block] += "}\n";
+		_scope_level--;
+
+		_blocks[merge_block] += write_scope() + "}\n";
 	}
 
 	void set_block(id id) override
@@ -551,7 +592,7 @@ class codegen_hlsl final : public codegen
 		if (!is_in_block())
 			return 0;
 
-		code() += "discard;\n";
+		code() += write_scope() + "discard;\n";
 
 		_last_block = _current_block;
 		_current_block = 0;
@@ -563,7 +604,7 @@ class codegen_hlsl final : public codegen
 		if (!is_in_block())
 			return 0;
 
-		code() += "return" + (value ? ' ' + id_to_name(value) : std::string()) + ";\n";
+		code() += write_scope() + "return" + (value ? ' ' + id_to_name(value) : std::string()) + ";\n";
 
 		_last_block = _current_block;
 		_current_block = 0;
@@ -586,7 +627,7 @@ class codegen_hlsl final : public codegen
 			return _last_block;
 
 		if (is_continue)
-			code() += "continue;\n";
+			code() += write_scope() + "continue;\n";
 
 		_last_block = _current_block;
 		_current_block = 0;
@@ -608,12 +649,15 @@ class codegen_hlsl final : public codegen
 	{
 		code() += write_type(ret_type) + ' ' + id_to_name(id) + '(';
 
+		_scope_level++;
 		_current_function = functions.size();
 	}
 	void leave_function() override
 	{
 		code() += "{\n" + _blocks[_last_block] + "}\n";
 
+		assert(_scope_level > 0);
+		_scope_level--;
 		_current_function = 0xFFFFFFFF;
 	}
 };
