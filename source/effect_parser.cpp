@@ -18,15 +18,15 @@ struct on_scope_exit
 
 // -- Parsing -- //
 
-reshadefx::parser::parser(codegen_backend backend)
+reshadefx::parser::parser(codegen::backend backend)
 {
 	switch (backend)
 	{
-	case codegen_backend::hlsl:
+	case codegen::backend::hlsl:
 		extern reshadefx::codegen *create_codegen_hlsl();
 		_codegen.reset(create_codegen_hlsl());
 		break;
-	case codegen_backend::spirv:
+	case codegen::backend::spirv:
 		extern reshadefx::codegen *create_codegen_spirv();
 		_codegen.reset(create_codegen_spirv());
 		break;
@@ -871,7 +871,7 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 			assert(symbol.id != 0);
 			// Uniform variables need to be dereferenced
 			exp.reset_to_lvalue(location, symbol.id, { type::t_struct, 0, 0, 0, false, false, false, 0, symbol.id });
-			exp.add_member_access(reinterpret_cast<uintptr_t>(symbol.function), symbol.type); // The member index was stored in the 'function' field
+			exp.add_member_access(symbol.uniform_index, symbol.type);
 		}
 		else if (symbol.op == symbol_type::variable)
 		{
@@ -2572,9 +2572,7 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 
 		symbol = { symbol_type::uniform, 0, type };
 		symbol.id = _codegen->define_uniform(location, uniform_info);
-
-		// Encode member index into symbol
-		symbol.function = reinterpret_cast<const function_info *>(static_cast<uintptr_t>(uniform_info.member_index));
+		symbol.uniform_index = uniform_info.member_index;
 	}
 	else // All other variables are separate entities
 	{

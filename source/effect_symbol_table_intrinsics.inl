@@ -56,14 +56,14 @@ IMPLEMENT_INTRINSIC_HLSL(abs, 1, {
 	})
 IMPLEMENT_INTRINSIC_SPIRV(abs, 0, {
 	return add_instruction(spv::OpExtInst, convert_type(res_type))
-		.add(glsl_ext)
+		.add(_glsl_ext)
 		.add(spv::GLSLstd450SAbs)
 		.add(args[0].base)
 		.result;
 	})
 IMPLEMENT_INTRINSIC_SPIRV(abs, 1, {
 	return add_instruction(spv::OpExtInst, convert_type(res_type))
-		.add(glsl_ext)
+		.add(_glsl_ext)
 		.add(spv::GLSLstd450FAbs)
 		.add(args[0].base)
 		.result;
@@ -119,7 +119,7 @@ IMPLEMENT_INTRINSIC_HLSL(asin, 0, {
 	})
 IMPLEMENT_INTRINSIC_SPIRV(asin, 0, {
 	return add_instruction(spv::OpExtInst, convert_type(res_type))
-		.add(glsl_ext)
+		.add(_glsl_ext)
 		.add(spv::GLSLstd450Asin)
 		.add(args[0].base)
 		.result;
@@ -135,7 +135,7 @@ IMPLEMENT_INTRINSIC_HLSL(acos, 0, {
 	})
 IMPLEMENT_INTRINSIC_SPIRV(acos, 0, {
 	return add_instruction(spv::OpExtInst, convert_type(res_type))
-		.add(glsl_ext)
+		.add(_glsl_ext)
 		.add(spv::GLSLstd450Acos)
 		.add(args[0].base)
 		.result;
@@ -151,7 +151,7 @@ IMPLEMENT_INTRINSIC_HLSL(atan, 0, {
 	})
 IMPLEMENT_INTRINSIC_SPIRV(atan, 0, {
 	return add_instruction(spv::OpExtInst, convert_type(res_type))
-		.add(glsl_ext)
+		.add(_glsl_ext)
 		.add(spv::GLSLstd450Atan)
 		.add(args[0].base)
 		.result;
@@ -167,7 +167,7 @@ IMPLEMENT_INTRINSIC_HLSL(atan2, 0, {
 	})
 IMPLEMENT_INTRINSIC_SPIRV(atan2, 0, {
 	return add_instruction(spv::OpExtInst, convert_type(res_type))
-		.add(glsl_ext)
+		.add(_glsl_ext)
 		.add(spv::GLSLstd450Atan2)
 		.add(args[0].base)
 		.add(args[1].base)
@@ -184,7 +184,7 @@ IMPLEMENT_INTRINSIC_HLSL(sin, 0, {
 	})
 IMPLEMENT_INTRINSIC_SPIRV(sin, 0, {
 	return add_instruction(spv::OpExtInst, convert_type(res_type))
-		.add(glsl_ext)
+		.add(_glsl_ext)
 		.add(spv::GLSLstd450Sin)
 		.add(args[0].base)
 		.result;
@@ -200,7 +200,7 @@ IMPLEMENT_INTRINSIC_HLSL(sinh, 0, {
 	})
 IMPLEMENT_INTRINSIC_SPIRV(sinh, 0, {
 	return add_instruction(spv::OpExtInst, convert_type(res_type))
-		.add(glsl_ext)
+		.add(_glsl_ext)
 		.add(spv::GLSLstd450Sinh)
 		.add(args[0].base)
 		.result;
@@ -216,7 +216,7 @@ IMPLEMENT_INTRINSIC_HLSL(cos, 0, {
 	})
 IMPLEMENT_INTRINSIC_SPIRV(cos, 0, {
 	return add_instruction(spv::OpExtInst, convert_type(res_type))
-		.add(glsl_ext)
+		.add(_glsl_ext)
 		.add(spv::GLSLstd450Cos)
 		.add(args[0].base)
 		.result;
@@ -232,7 +232,7 @@ IMPLEMENT_INTRINSIC_HLSL(cosh, 0, {
 	})
 IMPLEMENT_INTRINSIC_SPIRV(cosh, 0, {
 	return add_instruction(spv::OpExtInst, convert_type(res_type))
-		.add(glsl_ext)
+		.add(_glsl_ext)
 		.add(spv::GLSLstd450Cosh)
 		.add(args[0].base)
 		.result;
@@ -248,7 +248,7 @@ IMPLEMENT_INTRINSIC_HLSL(tan, 0, {
 	})
 IMPLEMENT_INTRINSIC_SPIRV(tan, 0, {
 	return add_instruction(spv::OpExtInst, convert_type(res_type))
-		.add(glsl_ext)
+		.add(_glsl_ext)
 		.add(spv::GLSLstd450Tan)
 		.add(args[0].base)
 		.result;
@@ -264,7 +264,7 @@ IMPLEMENT_INTRINSIC_HLSL(tanh, 0, {
 	})
 IMPLEMENT_INTRINSIC_SPIRV(tanh, 0, {
 	return add_instruction(spv::OpExtInst, convert_type(res_type))
-		.add(glsl_ext)
+		.add(_glsl_ext)
 		.add(spv::GLSLstd450Tanh)
 		.add(args[0].base)
 		.result;
@@ -280,12 +280,12 @@ IMPLEMENT_INTRINSIC_HLSL(sincos, 0, {
 	})
 IMPLEMENT_INTRINSIC_SPIRV(sincos, 0, {
 	const spv::Id sin_result = add_instruction(spv::OpExtInst, convert_type(res_type))
-		.add(glsl_ext)
+		.add(_glsl_ext)
 		.add(spv::GLSLstd450Sin)
 		.add(args[0].base)
 		.result;
 	const spv::Id cos_result = add_instruction(spv::OpExtInst, convert_type(res_type))
-		.add(glsl_ext)
+		.add(_glsl_ext)
 		.add(spv::GLSLstd450Cos)
 		.add(args[0].base)
 		.result;
@@ -364,7 +364,7 @@ IMPLEMENT_INTRINSIC_HLSL(ceil, 0, {
 	})
 IMPLEMENT_INTRINSIC_SPIRV(ceil, 0, {
 	return add_instruction(spv::OpExtInst, convert_type(res_type))
-		.add(glsl_ext)
+		.add(_glsl_ext)
 		.add(spv::GLSLstd450Ceil)
 		.add(args[0].base)
 		.result;
@@ -380,7 +380,7 @@ IMPLEMENT_INTRINSIC_HLSL(floor, 0, {
 	})
 IMPLEMENT_INTRINSIC_SPIRV(floor, 0, {
 	return add_instruction(spv::OpExtInst, convert_type(res_type))
-		.add(glsl_ext)
+		.add(_glsl_ext)
 		.add(spv::GLSLstd450Floor)
 		.add(args[0].base)
 		.result;
@@ -410,7 +410,7 @@ IMPLEMENT_INTRINSIC_HLSL(clamp, 2, {
 	})
 IMPLEMENT_INTRINSIC_SPIRV(clamp, 0, {
 	return add_instruction(spv::OpExtInst, convert_type(res_type))
-		.add(glsl_ext)
+		.add(_glsl_ext)
 		.add(spv::GLSLstd450SClamp)
 		.add(args[0].base)
 		.add(args[1].base)
@@ -419,7 +419,7 @@ IMPLEMENT_INTRINSIC_SPIRV(clamp, 0, {
 	})
 IMPLEMENT_INTRINSIC_SPIRV(clamp, 1, {
 	return add_instruction(spv::OpExtInst, convert_type(res_type))
-		.add(glsl_ext)
+		.add(_glsl_ext)
 		.add(spv::GLSLstd450UClamp)
 		.add(args[0].base)
 		.add(args[1].base)
@@ -428,7 +428,7 @@ IMPLEMENT_INTRINSIC_SPIRV(clamp, 1, {
 	})
 IMPLEMENT_INTRINSIC_SPIRV(clamp, 2, {
 	return add_instruction(spv::OpExtInst, convert_type(res_type))
-		.add(glsl_ext)
+		.add(_glsl_ext)
 		.add(spv::GLSLstd450FClamp)
 		.add(args[0].base)
 		.add(args[1].base)
@@ -449,7 +449,7 @@ IMPLEMENT_INTRINSIC_SPIRV(saturate, 0, {
 	const spv::Id constant_zero = emit_constant(args[0].type, { 0.0f, 0.0f, 0.0f, 0.0f });
 
 	return add_instruction(spv::OpExtInst, convert_type(res_type))
-		.add(glsl_ext)
+		.add(_glsl_ext)
 		.add(spv::GLSLstd450FClamp)
 		.add(args[0].base)
 		.add(constant_zero)
@@ -467,7 +467,7 @@ IMPLEMENT_INTRINSIC_HLSL(mad, 0, {
 	})
 IMPLEMENT_INTRINSIC_SPIRV(mad, 0, {
 	return add_instruction(spv::OpExtInst, convert_type(res_type))
-		.add(glsl_ext)
+		.add(_glsl_ext)
 		.add(spv::GLSLstd450Fma)
 		.add(args[0].base)
 		.add(args[1].base)
@@ -502,7 +502,7 @@ IMPLEMENT_INTRINSIC_HLSL(pow, 0, {
 	})
 IMPLEMENT_INTRINSIC_SPIRV(pow, 0, {
 	return add_instruction(spv::OpExtInst, convert_type(res_type))
-		.add(glsl_ext)
+		.add(_glsl_ext)
 		.add(spv::GLSLstd450Pow)
 		.add(args[0].base)
 		.add(args[1].base)
@@ -519,7 +519,7 @@ IMPLEMENT_INTRINSIC_HLSL(exp, 0, {
 	})
 IMPLEMENT_INTRINSIC_SPIRV(exp, 0, {
 	return add_instruction(spv::OpExtInst, convert_type(res_type))
-		.add(glsl_ext)
+		.add(_glsl_ext)
 		.add(spv::GLSLstd450Exp)
 		.add(args[0].base)
 		.result;
@@ -535,7 +535,7 @@ IMPLEMENT_INTRINSIC_HLSL(exp2, 0, {
 	})
 IMPLEMENT_INTRINSIC_SPIRV(exp2, 0, {
 	return add_instruction(spv::OpExtInst, convert_type(res_type))
-		.add(glsl_ext)
+		.add(_glsl_ext)
 		.add(spv::GLSLstd450Exp2)
 		.add(args[0].base)
 		.result;
@@ -551,7 +551,7 @@ IMPLEMENT_INTRINSIC_HLSL(log, 0, {
 	})
 IMPLEMENT_INTRINSIC_SPIRV(log, 0, {
 	return add_instruction(spv::OpExtInst, convert_type(res_type))
-		.add(glsl_ext)
+		.add(_glsl_ext)
 		.add(spv::GLSLstd450Log)
 		.add(args[0].base)
 		.result;
@@ -567,7 +567,7 @@ IMPLEMENT_INTRINSIC_HLSL(log2, 0, {
 	})
 IMPLEMENT_INTRINSIC_SPIRV(log2, 0, {
 	return add_instruction(spv::OpExtInst, convert_type(res_type))
-		.add(glsl_ext)
+		.add(_glsl_ext)
 		.add(spv::GLSLstd450Log2)
 		.add(args[0].base)
 		.result;
@@ -583,7 +583,7 @@ IMPLEMENT_INTRINSIC_HLSL(log10, 0, {
 	})
 IMPLEMENT_INTRINSIC_SPIRV(log10, 0, {
 	const spv::Id log2 = add_instruction(spv::OpExtInst, convert_type(res_type))
-		.add(glsl_ext)
+		.add(_glsl_ext)
 		.add(spv::GLSLstd450Log2)
 		.add(args[0].base)
 		.result;
@@ -613,14 +613,14 @@ IMPLEMENT_INTRINSIC_HLSL(sign, 1, {
 	})
 IMPLEMENT_INTRINSIC_SPIRV(sign, 0, {
 	return add_instruction(spv::OpExtInst, convert_type(res_type))
-		.add(glsl_ext)
+		.add(_glsl_ext)
 		.add(spv::GLSLstd450SSign)
 		.add(args[0].base)
 		.result;
 	})
 IMPLEMENT_INTRINSIC_SPIRV(sign, 1, {
 	return add_instruction(spv::OpExtInst, convert_type(res_type))
-		.add(glsl_ext)
+		.add(_glsl_ext)
 		.add(spv::GLSLstd450FSign)
 		.add(args[0].base)
 		.result;
@@ -636,7 +636,7 @@ IMPLEMENT_INTRINSIC_HLSL(sqrt, 0, {
 	})
 IMPLEMENT_INTRINSIC_SPIRV(sqrt, 0, {
 	return add_instruction(spv::OpExtInst, convert_type(res_type))
-		.add(glsl_ext)
+		.add(_glsl_ext)
 		.add(spv::GLSLstd450Sqrt)
 		.add(args[0].base)
 		.result;
@@ -652,7 +652,7 @@ IMPLEMENT_INTRINSIC_HLSL(rsqrt, 0, {
 	})
 IMPLEMENT_INTRINSIC_SPIRV(rsqrt, 0, {
 	return add_instruction(spv::OpExtInst, convert_type(res_type))
-		.add(glsl_ext)
+		.add(_glsl_ext)
 		.add(spv::GLSLstd450InverseSqrt)
 		.add(args[0].base)
 		.result;
@@ -668,7 +668,7 @@ IMPLEMENT_INTRINSIC_HLSL(lerp, 0, {
 	})
 IMPLEMENT_INTRINSIC_SPIRV(lerp, 0, {
 	return add_instruction(spv::OpExtInst, convert_type(res_type))
-		.add(glsl_ext)
+		.add(_glsl_ext)
 		.add(spv::GLSLstd450FMix)
 		.add(args[0].base)
 		.add(args[1].base)
@@ -686,7 +686,7 @@ IMPLEMENT_INTRINSIC_HLSL(step, 0, {
 	})
 IMPLEMENT_INTRINSIC_SPIRV(step, 0, {
 	return add_instruction(spv::OpExtInst, convert_type(res_type))
-		.add(glsl_ext)
+		.add(_glsl_ext)
 		.add(spv::GLSLstd450Step)
 		.add(args[0].base)
 		.add(args[1].base)
@@ -703,7 +703,7 @@ IMPLEMENT_INTRINSIC_HLSL(smoothstep, 0, {
 	})
 IMPLEMENT_INTRINSIC_SPIRV(smoothstep, 0, {
 	return add_instruction(spv::OpExtInst, convert_type(args[2].type))
-		.add(glsl_ext)
+		.add(_glsl_ext)
 		.add(spv::GLSLstd450SmoothStep)
 		.add(args[0].base)
 		.add(args[1].base)
@@ -721,7 +721,7 @@ IMPLEMENT_INTRINSIC_HLSL(frac, 0, {
 	})
 IMPLEMENT_INTRINSIC_SPIRV(frac, 0, {
 	return add_instruction(spv::OpExtInst, convert_type(res_type))
-		.add(glsl_ext)
+		.add(_glsl_ext)
 		.add(spv::GLSLstd450Fract)
 		.add(args[0].base)
 		.result;
@@ -737,7 +737,7 @@ IMPLEMENT_INTRINSIC_HLSL(ldexp, 0, {
 	})
 IMPLEMENT_INTRINSIC_SPIRV(ldexp, 0, {
 	return add_instruction(spv::OpExtInst, convert_type(res_type))
-		.add(glsl_ext)
+		.add(_glsl_ext)
 		.add(spv::GLSLstd450Ldexp)
 		.add(args[0].base)
 		.add(args[1].base)
@@ -754,7 +754,7 @@ IMPLEMENT_INTRINSIC_HLSL(modf, 0, {
 	})
 IMPLEMENT_INTRINSIC_SPIRV(modf, 0, {
 	return add_instruction(spv::OpExtInst, convert_type(res_type))
-		.add(glsl_ext)
+		.add(_glsl_ext)
 		.add(spv::GLSLstd450Modf)
 		.add(args[0].base)
 		.add(args[1].base)
@@ -771,7 +771,7 @@ IMPLEMENT_INTRINSIC_HLSL(frexp, 0, {
 	})
 IMPLEMENT_INTRINSIC_SPIRV(frexp, 0, {
 	return add_instruction(spv::OpExtInst, convert_type(res_type))
-		.add(glsl_ext)
+		.add(_glsl_ext)
 		.add(spv::GLSLstd450Frexp)
 		.add(args[0].base)
 		.add(args[1].base)
@@ -788,7 +788,7 @@ IMPLEMENT_INTRINSIC_HLSL(trunc, 0, {
 	})
 IMPLEMENT_INTRINSIC_SPIRV(trunc, 0, {
 	return add_instruction(spv::OpExtInst, convert_type(res_type))
-		.add(glsl_ext)
+		.add(_glsl_ext)
 		.add(spv::GLSLstd450Trunc)
 		.add(args[0].base)
 		.result;
@@ -804,7 +804,7 @@ IMPLEMENT_INTRINSIC_HLSL(round, 0, {
 	})
 IMPLEMENT_INTRINSIC_SPIRV(round, 0, {
 	return add_instruction(spv::OpExtInst, convert_type(res_type))
-		.add(glsl_ext)
+		.add(_glsl_ext)
 		.add(spv::GLSLstd450Round)
 		.add(args[0].base)
 		.result;
@@ -827,7 +827,7 @@ IMPLEMENT_INTRINSIC_HLSL(min, 1, {
 	})
 IMPLEMENT_INTRINSIC_SPIRV(min, 0, {
 	return add_instruction(spv::OpExtInst, convert_type(res_type))
-		.add(glsl_ext)
+		.add(_glsl_ext)
 		.add(spv::GLSLstd450SMin)
 		.add(args[0].base)
 		.add(args[1].base)
@@ -835,7 +835,7 @@ IMPLEMENT_INTRINSIC_SPIRV(min, 0, {
 	})
 IMPLEMENT_INTRINSIC_SPIRV(min, 1, {
 	return add_instruction(spv::OpExtInst, convert_type(res_type))
-		.add(glsl_ext)
+		.add(_glsl_ext)
 		.add(spv::GLSLstd450FMin)
 		.add(args[0].base)
 		.add(args[1].base)
@@ -859,7 +859,7 @@ IMPLEMENT_INTRINSIC_HLSL(max, 1, {
 	})
 IMPLEMENT_INTRINSIC_SPIRV(max, 0, {
 	return add_instruction(spv::OpExtInst, convert_type(res_type))
-		.add(glsl_ext)
+		.add(_glsl_ext)
 		.add(spv::GLSLstd450SMax)
 		.add(args[0].base)
 		.add(args[1].base)
@@ -867,7 +867,7 @@ IMPLEMENT_INTRINSIC_SPIRV(max, 0, {
 	})
 IMPLEMENT_INTRINSIC_SPIRV(max, 1, {
 	return add_instruction(spv::OpExtInst, convert_type(res_type))
-		.add(glsl_ext)
+		.add(_glsl_ext)
 		.add(spv::GLSLstd450FMax)
 		.add(args[0].base)
 		.add(args[1].base)
@@ -884,7 +884,7 @@ IMPLEMENT_INTRINSIC_HLSL(degrees, 0, {
 	})
 IMPLEMENT_INTRINSIC_SPIRV(degrees, 0, {
 	return add_instruction(spv::OpExtInst, convert_type(res_type))
-		.add(glsl_ext)
+		.add(_glsl_ext)
 		.add(spv::GLSLstd450Degrees)
 		.add(args[0].base)
 		.result;
@@ -900,7 +900,7 @@ IMPLEMENT_INTRINSIC_HLSL(radians, 0, {
 	})
 IMPLEMENT_INTRINSIC_SPIRV(radians, 0, {
 	return add_instruction(spv::OpExtInst, convert_type(res_type))
-		.add(glsl_ext)
+		.add(_glsl_ext)
 		.add(spv::GLSLstd450Radians)
 		.add(args[0].base)
 		.result;
@@ -969,7 +969,7 @@ IMPLEMENT_INTRINSIC_HLSL(cross, 0, {
 	})
 IMPLEMENT_INTRINSIC_SPIRV(cross, 0, {
 	return add_instruction(spv::OpExtInst, convert_type(res_type))
-		.add(glsl_ext)
+		.add(_glsl_ext)
 		.add(spv::GLSLstd450Cross)
 		.add(args[0].base)
 		.add(args[1].base)
@@ -986,7 +986,7 @@ IMPLEMENT_INTRINSIC_HLSL(length, 0, {
 	})
 IMPLEMENT_INTRINSIC_SPIRV(length, 0, {
 	return add_instruction(spv::OpExtInst, convert_type(res_type))
-		.add(glsl_ext)
+		.add(_glsl_ext)
 		.add(spv::GLSLstd450Length)
 		.add(args[0].base)
 		.result;
@@ -1002,7 +1002,7 @@ IMPLEMENT_INTRINSIC_HLSL(distance, 0, {
 	})
 IMPLEMENT_INTRINSIC_SPIRV(distance, 0, {
 	return add_instruction(spv::OpExtInst, convert_type(res_type))
-		.add(glsl_ext)
+		.add(_glsl_ext)
 		.add(spv::GLSLstd450Distance)
 		.add(args[0].base)
 		.add(args[1].base)
@@ -1018,7 +1018,7 @@ IMPLEMENT_INTRINSIC_HLSL(normalize, 0, {
 	})
 IMPLEMENT_INTRINSIC_SPIRV(normalize, 0, {
 	return add_instruction(spv::OpExtInst, convert_type(res_type))
-		.add(glsl_ext)
+		.add(_glsl_ext)
 		.add(spv::GLSLstd450Normalize)
 		.add(args[0].base)
 		.result;
@@ -1046,7 +1046,7 @@ IMPLEMENT_INTRINSIC_HLSL(determinant, 0, {
 	})
 IMPLEMENT_INTRINSIC_SPIRV(determinant, 0, {
 	return add_instruction(spv::OpExtInst, convert_type(T_FLOAT1))
-		.add(glsl_ext)
+		.add(_glsl_ext)
 		.add(spv::GLSLstd450Determinant)
 		.add(args[0].base)
 		.result;
@@ -1061,7 +1061,7 @@ IMPLEMENT_INTRINSIC_HLSL(reflect, 0, {
 	})
 IMPLEMENT_INTRINSIC_SPIRV(reflect, 0, {
 	return add_instruction(spv::OpExtInst, convert_type(res_type))
-		.add(glsl_ext)
+		.add(_glsl_ext)
 		.add(spv::GLSLstd450Reflect)
 		.add(args[0].base)
 		.add(args[1].base)
@@ -1077,7 +1077,7 @@ IMPLEMENT_INTRINSIC_HLSL(refract, 0, {
 	})
 IMPLEMENT_INTRINSIC_SPIRV(refract, 0, {
 	return add_instruction(spv::OpExtInst, convert_type(res_type))
-		.add(glsl_ext)
+		.add(_glsl_ext)
 		.add(spv::GLSLstd450Refract)
 		.add(args[0].base)
 		.add(args[1].base)
@@ -1095,7 +1095,7 @@ IMPLEMENT_INTRINSIC_HLSL(faceforward, 0, {
 	})
 IMPLEMENT_INTRINSIC_SPIRV(faceforward, 0, {
 	return add_instruction(spv::OpExtInst, convert_type(res_type))
-		.add(glsl_ext)
+		.add(_glsl_ext)
 		.add(spv::GLSLstd450FaceForward)
 		.add(args[0].base)
 		.add(args[1].base)

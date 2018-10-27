@@ -9,11 +9,14 @@
 #include <algorithm>
 #include <unordered_map>
 #include <unordered_set>
+
 // Use the C++ variant of the SPIR-V headers
 #include <spirv.hpp>
 namespace spv {
 #include <GLSL.std.450.h>
 }
+
+#pragma warning(disable: 4267 4244)
 
 using namespace reshadefx;
 
@@ -121,6 +124,13 @@ static inline uint32_t align(uint32_t address, uint32_t alignment)
 
 class codegen_spirv final : public codegen
 {
+public:
+	codegen_spirv()
+	{
+		_glsl_ext = make_id();
+	}
+
+private:
 	struct function_blocks
 	{
 		spirv_basic_block declaration;
@@ -160,21 +170,20 @@ class codegen_spirv final : public codegen
 	std::unordered_map<id, spirv_basic_block> _block_data;
 	spirv_basic_block *_current_block_data = nullptr;
 
-	uint32_t _global_ubo_offset = 0;
-	id _global_ubo_type = 0;
-	id _global_ubo_variable = 0;
-
-	id glsl_ext = 0;
 	id _next_id = 1;
+	id _glsl_ext = 0;
 	id _last_block = 0;
 	id _current_block = 0;
-	unsigned int _current_function = 0xFFFFFFFF;
+	id _global_ubo_type = 0;
+	id _global_ubo_variable = 0;
+	uint32_t _global_ubo_offset = 0;
+	size_t _current_function = std::numeric_limits<size_t>::max();
 
 	void create_global_ubo()
 	{
 		struct_info global_ubo_type;
 		global_ubo_type.definition = _global_ubo_type;
-		for (const auto &uniform : uniforms)
+		for (const auto &uniform : _uniforms)
 			global_ubo_type.member_list.push_back({ uniform.type, uniform.name });
 
 		define_struct({}, global_ubo_type);
@@ -232,10 +241,10 @@ class codegen_spirv final : public codegen
 	{
 		const_cast<codegen_spirv *>(this)->create_global_ubo();
 
-		s.samplers = samplers;
-		s.textures = textures;
-		s.uniforms = uniforms;
-		s.techniques = techniques;
+		s.samplers = _samplers;
+		s.textures = _textures;
+		s.uniforms = _uniforms;
+		s.techniques = _techniques;
 
 		// Write SPIRV header info
 		write(s.spirv, spv::MagicNumber);
@@ -258,7 +267,7 @@ class codegen_spirv final : public codegen
 			.add_string("SPV_GOOGLE_hlsl_functionality1"));
 
 		// Optional extension instructions
-		write(s.spirv, spirv_instruction(spv::OpExtInstImport, glsl_ext)
+		write(s.spirv, spirv_instruction(spv::OpExtInstImport, _glsl_ext)
 			.add_string("GLSL.std.450")); // Import GLSL extension
 
 		// Single required memory model instruction
@@ -565,9 +574,6 @@ class codegen_spirv final : public codegen
 		_capabilities.insert(capability);
 	}
 
-	bool is_in_block() const override { return _current_block != 0; }
-	bool is_in_function() const override { return _current_function != 0xFFFFFFFF; }
-
 	void define_variable(id id, const location &loc, const type &type, const char *name, spv::StorageClass storage, spv::Id initializer_value = 0)
 	{
 		assert(type.is_ptr);
@@ -590,7 +596,7 @@ class codegen_spirv final : public codegen
 
 	id   define_struct(const location &loc, struct_info &info) override
 	{
-		structs.push_back(info);
+		_structs.push_back(info);
 
 		add_location(loc, _types_and_constants);
 
@@ -612,7 +618,7 @@ class codegen_spirv final : public codegen
 	{
 		info.id = make_id();
 
-		textures.push_back(info);
+		_textures.push_back(info);
 
 		return info.id;
 	}
@@ -627,7 +633,7 @@ class codegen_spirv final : public codegen
 		add_decoration(info.id, spv::DecorationBinding, { info.binding });
 		add_decoration(info.id, spv::DecorationDescriptorSet, { info.set });
 
-		samplers.push_back(info);
+		_samplers.push_back(info);
 
 		return info.id;
 	}
@@ -648,10 +654,10 @@ class codegen_spirv final : public codegen
 
 		_global_ubo_offset = info.offset + size;
 
-		info.member_index = uniforms.size();
+		info.member_index = _uniforms.size();
 		info.struct_type_id = _global_ubo_type;
 
-		uniforms.push_back(info);
+		_uniforms.push_back(info);
 
 		add_member_decoration(_global_ubo_type, info.member_index, spv::DecorationOffset, { info.offset });
 
@@ -666,13 +672,13 @@ class codegen_spirv final : public codegen
 	}
 	id   define_function(const location &loc, function_info &info) override
 	{
+		_current_function = _functions2.size();
+
 		auto &function = _functions2.emplace_back();
 		function.return_type = info.return_type;
 
 		for (auto &param : info.parameter_list)
 			function.param_types.push_back(param.type);
-
-		_current_function = _functions2.size() - 1;
 
 		add_location(loc, function.declaration);
 
@@ -694,7 +700,7 @@ class codegen_spirv final : public codegen
 			add_name(param.definition, param.name.c_str());
 		}
 
-		functions.push_back(std::make_unique<function_info>(info));
+		_functions.push_back(std::make_unique<function_info>(info));
 
 		return info.definition;
 	}
@@ -1457,12 +1463,15 @@ class codegen_spirv final : public codegen
 
 		switch (op)
 		{
-		case tokenid::exclaim:
-			spv_op = spv::OpLogicalNot; break;
 		case tokenid::minus:
-			spv_op = type.is_floating_point() ? spv::OpFNegate : spv::OpSNegate; break;
+			spv_op = type.is_floating_point() ? spv::OpFNegate : spv::OpSNegate;
+			break;
 		case tokenid::tilde:
-			spv_op = spv::OpNot; break;
+			spv_op = spv::OpNot;
+			break;
+		case tokenid::exclaim:
+			spv_op = spv::OpLogicalNot;
+			break;
 		default:
 			return assert(false), 0;
 		}
@@ -1481,54 +1490,72 @@ class codegen_spirv final : public codegen
 
 		switch (op)
 		{
-		case tokenid::percent:
-		case tokenid::percent_equal:
-			spv_op = type.is_floating_point() ? spv::OpFRem : type.is_signed() ? spv::OpSRem : spv::OpUMod; break;
-		case tokenid::ampersand:
-		case tokenid::ampersand_equal:
-			spv_op = spv::OpBitwiseAnd; break;
-		case tokenid::star:
-		case tokenid::star_equal:
-			spv_op = type.is_floating_point() ? spv::OpFMul : spv::OpIMul; break;
 		case tokenid::plus:
 		case tokenid::plus_plus:
 		case tokenid::plus_equal:
-			spv_op = type.is_floating_point() ? spv::OpFAdd : spv::OpIAdd; break;
+			spv_op = type.is_floating_point() ? spv::OpFAdd : spv::OpIAdd;
+			break;
 		case tokenid::minus:
 		case tokenid::minus_minus:
 		case tokenid::minus_equal:
-			spv_op = type.is_floating_point() ? spv::OpFSub : spv::OpISub; break;
+			spv_op = type.is_floating_point() ? spv::OpFSub : spv::OpISub;
+			break;
+		case tokenid::star:
+		case tokenid::star_equal:
+			spv_op = type.is_floating_point() ? spv::OpFMul : spv::OpIMul;
+			break;
 		case tokenid::slash:
 		case tokenid::slash_equal:
-			spv_op = type.is_floating_point() ? spv::OpFDiv : type.is_signed() ? spv::OpSDiv : spv::OpUDiv; break;
+			spv_op = type.is_floating_point() ? spv::OpFDiv : type.is_signed() ? spv::OpSDiv : spv::OpUDiv;
+			break;
+		case tokenid::percent:
+		case tokenid::percent_equal:
+			spv_op = type.is_floating_point() ? spv::OpFRem : type.is_signed() ? spv::OpSRem : spv::OpUMod;
+			break;
 		case tokenid::caret:
 		case tokenid::caret_equal:
-			spv_op = spv::OpBitwiseXor; break;
+			spv_op = spv::OpBitwiseXor;
+			break;
 		case tokenid::pipe:
 		case tokenid::pipe_equal:
-			spv_op = spv::OpBitwiseOr; break;
+			spv_op = spv::OpBitwiseOr;
+			break;
+		case tokenid::ampersand:
+		case tokenid::ampersand_equal:
+			spv_op = spv::OpBitwiseAnd;
+			break;
 		case tokenid::less_less:
 		case tokenid::less_less_equal:
-			spv_op = spv::OpShiftLeftLogical; break;
+			spv_op = spv::OpShiftLeftLogical;
+			break;
 		case tokenid::greater_greater:
 		case tokenid::greater_greater_equal:
-			spv_op = type.is_signed() ? spv::OpShiftRightArithmetic : spv::OpShiftRightLogical; break;
-		case tokenid::ampersand_ampersand:
-			spv_op = spv::OpLogicalAnd;  break;
+			spv_op = type.is_signed() ? spv::OpShiftRightArithmetic : spv::OpShiftRightLogical;
+			break;
 		case tokenid::pipe_pipe:
-			spv_op = spv::OpLogicalOr; break;
+			spv_op = spv::OpLogicalOr;
+			break;
+		case tokenid::ampersand_ampersand:
+			spv_op = spv::OpLogicalAnd;
+			break;
 		case tokenid::less:
-			spv_op = type.is_floating_point() ? spv::OpFOrdLessThan : type.is_signed() ? spv::OpSLessThan : spv::OpULessThan; break;
+			spv_op = type.is_floating_point() ? spv::OpFOrdLessThan : type.is_signed() ? spv::OpSLessThan : spv::OpULessThan;
+			break;
 		case tokenid::less_equal:
-			spv_op = type.is_floating_point() ? spv::OpFOrdLessThanEqual : type.is_signed() ? spv::OpSLessThanEqual : spv::OpULessThanEqual; break;
+			spv_op = type.is_floating_point() ? spv::OpFOrdLessThanEqual : type.is_signed() ? spv::OpSLessThanEqual : spv::OpULessThanEqual;
+			break;
 		case tokenid::greater:
-			spv_op = type.is_floating_point() ? spv::OpFOrdGreaterThan : type.is_signed() ? spv::OpSGreaterThan : spv::OpUGreaterThan; break;
+			spv_op = type.is_floating_point() ? spv::OpFOrdGreaterThan : type.is_signed() ? spv::OpSGreaterThan : spv::OpUGreaterThan;
+			break;
 		case tokenid::greater_equal:
-			spv_op = type.is_floating_point() ? spv::OpFOrdGreaterThanEqual : type.is_signed() ? spv::OpSGreaterThanEqual : spv::OpUGreaterThanEqual; break;
+			spv_op = type.is_floating_point() ? spv::OpFOrdGreaterThanEqual : type.is_signed() ? spv::OpSGreaterThanEqual : spv::OpUGreaterThanEqual;
+			break;
 		case tokenid::equal_equal:
-			spv_op = type.is_floating_point() ? spv::OpFOrdEqual : type.is_integral() ? spv::OpIEqual : spv::OpLogicalEqual; break;
+			spv_op = type.is_floating_point() ? spv::OpFOrdEqual : type.is_integral() ? spv::OpIEqual : spv::OpLogicalEqual;
+			break;
 		case tokenid::exclaim_equal:
-			spv_op = type.is_integral() ? spv::OpINotEqual : type.is_floating_point() ? spv::OpFOrdNotEqual : spv::OpLogicalNotEqual; break;
+			spv_op = type.is_integral() ? spv::OpINotEqual : type.is_floating_point() ? spv::OpFOrdNotEqual : spv::OpLogicalNotEqual;
+			break;
 		default:
 			return assert(false), 0;
 		}
@@ -1591,6 +1618,8 @@ class codegen_spirv final : public codegen
 	}
 	id   emit_construct(const location &loc, const type &type, std::vector<expression> &args) override
 	{
+		add_location(loc, *_current_block_data);
+
 		std::vector<spv::Id> ids;
 
 		// There must be exactly one constituent for each top-level component of the result
@@ -1854,7 +1883,7 @@ class codegen_spirv final : public codegen
 	}
 	id   leave_block_and_switch(id value, id default_target) override
 	{
-		assert(value != 0);
+		assert(value != 0 && default_target != 0);
 		assert(is_in_function()); // Can only switch inside functions
 
 		if (!is_in_block())
@@ -1904,14 +1933,11 @@ class codegen_spirv final : public codegen
 		// Append function end instruction
 		add_instruction_without_result(spv::OpFunctionEnd, function.definition);
 
-		_current_function = 0xFFFFFFFF;
+		_current_function = std::numeric_limits<size_t>::max();
 	}
 
-public:
-	codegen_spirv()
-	{
-		glsl_ext = make_id();
-	}
+	bool is_in_block() const override { return _current_block != 0; }
+	bool is_in_function() const override { return _current_function != std::numeric_limits<size_t>::max(); }
 };
 
 codegen *create_codegen_spirv()

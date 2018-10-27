@@ -18,7 +18,7 @@ public:
 		cbuffer_type.name = "$Globals";
 		cbuffer_type.unique_name = "_Globals";
 		cbuffer_type.definition = _cbuffer_type = make_id();
-		structs.push_back(cbuffer_type);
+		_structs.push_back(cbuffer_type);
 
 		_names[_cbuffer_type] = cbuffer_type.unique_name;
 	}
@@ -31,7 +31,6 @@ private:
 	std::unordered_map<id, std::string> _names;
 	std::unordered_map<id, std::string> _blocks;
 	unsigned int _scope_level = 0;
-	unsigned int _current_function = 0xFFFFFFFF;
 	unsigned int _current_sampler_binding = 0;
 
 	inline id make_id() { return _next_id++; }
@@ -43,34 +42,44 @@ private:
 		s.hlsl =
 			"struct __sampler2D { Texture2D t; SamplerState s; };\n"
 			"int2 __tex2Dsize(__sampler2D s, int lod) { uint w, h, l; s.t.GetDimensions(lod, w, h, l); return int2(w, h); }\n"
-			"cbuffer _Globals : register(b0) {\n" +
+			"cbuffer _Globals {\n" +
 			_blocks.at(_cbuffer_type) +
 			"};\n" +
 			_blocks.at(0);
 
-		s.samplers = samplers;
-		s.textures = textures;
-		s.uniforms = uniforms;
-		s.techniques = techniques;
+		s.samplers = _samplers;
+		s.textures = _textures;
+		s.uniforms = _uniforms;
+		s.techniques = _techniques;
 	}
 
 	std::string write_type(const type &type)
 	{
 		std::string s;
+
+		if (type.has(type::q_precise))
+			s += "precise ";
+
 		switch (type.base)
 		{
 		case type::t_void:
-			s += "void"; break;
+			s += "void";
+			break;
 		case type::t_bool:
-			s += "bool"; break;
+			s += "bool";
+			break;
 		case type::t_int:
-			s += "int"; break;
+			s += "int";
+			break;
 		case type::t_uint:
-			s += "uint"; break;
+			s += "uint";
+			break;
 		case type::t_float:
-			s += "float"; break;
+			s += "float";
+			break;
 		case type::t_sampler:
-			s += "__sampler2D"; break;
+			s += "__sampler2D";
+			break;
 		}
 
 		if (type.rows > 1)
@@ -136,7 +145,7 @@ private:
 	}
 	std::string write_location(const location &loc)
 	{
-		//if (loc.source.empty())
+		if (loc.source.empty())
 			return std::string();
 
 		return "#line " + std::to_string(loc.line) + " \"" + loc.source + "\"\n";
@@ -149,26 +158,23 @@ private:
 		return '_' + std::to_string(id);
 	}
 
-	bool is_in_block() const override { return _current_block != 0; }
-	bool is_in_function() const override { return _current_function != 0xFFFFFFFF; }
-
 	id   define_struct(const location &loc, struct_info &info) override
 	{
 		info.definition = make_id();
 
-		structs.push_back(info);
+		_structs.push_back(info);
 
 		code() += write_location(loc) + "struct " + info.unique_name + "\n{\n";
 
 		for (const auto &member : info.member_list)
 		{
-			code() += write_type(member.type) + ' ' + member.name;
+			code() += '\t' + write_type(member.type) + ' ' + member.name;
 			if (!member.semantic.empty())
-				code() += ':' + member.semantic;
-			code() += ';';
+				code() += " : " + member.semantic;
+			code() += ";\n";
 		}
 
-		code() += "\n};\n";
+		code() += "};\n";
 
 		return info.definition;
 	}
@@ -176,7 +182,7 @@ private:
 	{
 		info.id = make_id();
 
-		textures.push_back(info);
+		_textures.push_back(info);
 
 		return info.id;
 	}
@@ -185,12 +191,12 @@ private:
 		info.id = make_id();
 		info.binding = _current_sampler_binding++;
 
-		samplers.push_back(info);
+		_samplers.push_back(info);
 
 		code() += "Texture2D " + info.unique_name + "_t : register(t" + std::to_string(info.binding) + ");\n";
 		code() += "SamplerState " + info.unique_name + "_s : register(s" + std::to_string(info.binding) + ");\n";
 		code() += write_location(loc);
-		code() += "__sampler2D " + info.unique_name + " = { " + info.unique_name + "_t, " + info.unique_name + "_s };\n";
+		code() += "const __sampler2D " + info.unique_name + " = { " + info.unique_name + "_t, " + info.unique_name + "_s };\n";
 
 		_names[info.id] = info.unique_name;
 
@@ -198,9 +204,9 @@ private:
 	}
 	id   define_uniform(const location &loc, uniform_info &info) override
 	{
-		info.member_index = uniforms.size();
+		info.member_index = _uniforms.size();
 
-		uniforms.push_back(info);
+		_uniforms.push_back(info);
 
 		struct_member_info member;
 		member.type = info.type;
@@ -262,9 +268,8 @@ private:
 		code() += '\n';
 
 		_scope_level++;
-		_current_function = functions.size();
 
-		functions.push_back(std::make_unique<function_info>(info));
+		_functions.push_back(std::make_unique<function_info>(info));
 
 		return info.definition;
 	}
@@ -379,18 +384,6 @@ private:
 
 		switch (op)
 		{
-		case tokenid::percent:
-		case tokenid::percent_equal:
-			code() += '%';
-			break;
-		case tokenid::ampersand:
-		case tokenid::ampersand_equal:
-			code() += '&';
-			break;
-		case tokenid::star:
-		case tokenid::star_equal:
-			code() += '*';
-			break;
 		case tokenid::plus:
 		case tokenid::plus_plus:
 		case tokenid::plus_equal:
@@ -401,9 +394,17 @@ private:
 		case tokenid::minus_equal:
 			code() += '-';
 			break;
+		case tokenid::star:
+		case tokenid::star_equal:
+			code() += '*';
+			break;
 		case tokenid::slash:
 		case tokenid::slash_equal:
 			code() += '/';
+			break;
+		case tokenid::percent:
+		case tokenid::percent_equal:
+			code() += '%';
 			break;
 		case tokenid::caret:
 		case tokenid::caret_equal:
@@ -413,6 +414,10 @@ private:
 		case tokenid::pipe_equal:
 			code() += '|';
 			break;
+		case tokenid::ampersand:
+		case tokenid::ampersand_equal:
+			code() += '&';
+			break;
 		case tokenid::less_less:
 		case tokenid::less_less_equal:
 			code() += "<<";
@@ -420,6 +425,12 @@ private:
 		case tokenid::greater_greater:
 		case tokenid::greater_greater_equal:
 			code() += ">>";
+			break;
+		case tokenid::pipe_pipe:
+			code() += "||";
+			break;
+		case tokenid::ampersand_ampersand:
+			code() += "&&";
 			break;
 		case tokenid::less:
 			code() += '<';
@@ -438,12 +449,6 @@ private:
 			break;
 		case tokenid::exclaim_equal:
 			code() += "!=";
-			break;
-		case tokenid::ampersand_ampersand:
-			code() += "&&";
-			break;
-		case tokenid::pipe_pipe:
-			code() += "||";
 			break;
 		default:
 			assert(false);
@@ -704,8 +709,10 @@ private:
 
 		assert(_scope_level > 0);
 		_scope_level--;
-		_current_function = 0xFFFFFFFF;
 	}
+
+	bool is_in_block() const override { return _current_block != 0; }
+	bool is_in_function() const override { return _scope_level > 0; }
 };
 
 codegen *create_codegen_hlsl()

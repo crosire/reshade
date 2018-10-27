@@ -18,7 +18,7 @@ namespace reshadefx
 	class parser : symbol_table
 	{
 	public:
-		parser(codegen_backend backend);
+		explicit parser(codegen::backend backend);
 
 		void write_result(module &stream)
 		{
