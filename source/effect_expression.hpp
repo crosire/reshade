@@ -106,7 +106,7 @@ namespace reshadefx
 		bool is_input = false; // Has the 'Input' storage class
 		bool is_output = false; // Has the 'Output' storage class
 		int array_length = 0; // Negative if an unsized array, otherwise the number of elements if this is an 'OpTypeArray' type
-		unsigned int definition = 0; // Type ID of the structure type
+		uint64_t definition = 0; // Type ID of the structure type
 	};
 
 	/// <summary>
@@ -143,19 +143,19 @@ namespace reshadefx
 
 			op_type type;
 			struct type from, to;
-			uint32_t index;
+			uint64_t index;
 			signed char swizzle[4];
 		};
 
 		struct type type = {};
-		unsigned int base = 0;
+		uint64_t base = 0;
 		constant constant = {};
 		bool is_lvalue = false;
 		bool is_constant = false;
 		location location;
 		std::vector<operation> ops;
 
-		void reset_to_lvalue(const struct location &loc, unsigned int in_base, const struct type &in_type)
+		void reset_to_lvalue(const struct location &loc, uint64_t in_base, const struct type &in_type)
 		{
 			type = in_type;
 			type.is_ptr = false;
@@ -165,7 +165,7 @@ namespace reshadefx
 			is_constant = false;
 			ops.clear();
 		}
-		void reset_to_rvalue(const struct location &loc, unsigned int in_base, const struct type &in_type)
+		void reset_to_rvalue(const struct location &loc, uint64_t in_base, const struct type &in_type)
 		{
 			type = in_type;
 			type.qualifiers |= type::q_const;
@@ -235,14 +235,17 @@ namespace reshadefx
 		void add_cast_operation(const reshadefx::type &type);
 		void add_member_access(class codegen *codegen, size_t index, const reshadefx::type &type);
 		void add_static_index_access(class codegen *codegen, size_t index);
-		void add_dynamic_index_access(class codegen *codegen, unsigned int index_expression);
+		void add_dynamic_index_access(class codegen *codegen, uint64_t index_expression);
 		void add_swizzle_access(class codegen *codegen, signed char swizzle[4], size_t length);
+
+		void evaluate_constant_expression(enum class tokenid op);
+		void evaluate_constant_expression(enum class tokenid op, const reshadefx::constant &rhs);
 	};
 
 
 	struct struct_info
 	{
-		unsigned int definition;
+		uint64_t definition;
 		std::string name;
 		std::string unique_name;
 		std::vector<struct struct_member_info> member_list;
@@ -253,6 +256,8 @@ namespace reshadefx
 		type type;
 		std::string name;
 		std::string semantic;
+		location loc;
+		uint64_t definition = 0;
 	};
 
 	struct uniform_info
@@ -261,7 +266,7 @@ namespace reshadefx
 		type type;
 		uint32_t member_index = 0;
 		uint32_t offset = 0;
-		std::unordered_map<std::string, std::string> annotations;
+		std::unordered_map<std::string, std::pair<struct type, constant>> annotations;
 		bool has_initializer_value = false;
 		constant initializer_value;
 		uint32_t struct_type_id = 0;
@@ -269,10 +274,10 @@ namespace reshadefx
 
 	struct texture_info
 	{
-		unsigned int id = 0;
+		uint64_t id = 0;
 		std::string semantic;
 		std::string unique_name;
-		std::unordered_map<std::string, std::string> annotations;
+		std::unordered_map<std::string, std::pair<type, constant>> annotations;
 		uint32_t width = 1;
 		uint32_t height = 1;
 		uint32_t levels = 1;
@@ -281,12 +286,12 @@ namespace reshadefx
 
 	struct sampler_info
 	{
-		unsigned int id = 0;
+		uint64_t id = 0;
 		uint32_t set = 0;
 		uint32_t binding = 0;
 		std::string unique_name;
 		std::string texture_name;
-		std::unordered_map<std::string, std::string> annotations;
+		std::unordered_map<std::string, std::pair<type, constant>> annotations;
 		uint32_t filter = 0x1; // LINEAR
 		uint32_t address_u = 3; // CLAMP
 		uint32_t address_v = 3;
@@ -326,18 +331,18 @@ namespace reshadefx
 	{
 		std::string name;
 		std::vector<pass_info> passes;
-		std::unordered_map<std::string, std::string> annotations;
+		std::unordered_map<std::string, std::pair<type, constant>> annotations;
 	};
 
 	struct function_info
 	{
-		unsigned int definition;
-		unsigned int entry_block;
+		uint64_t definition;
+		//uint64_t entry_block;
 		std::string name;
 		std::string unique_name;
 		type return_type;
 		std::string return_semantic;
-		std::vector<struct struct_member_info> parameter_list;
-		unsigned int entry_point = 0;
+		std::vector<struct_member_info> parameter_list;
+		uint64_t entry_point = 0;
 	};
 }

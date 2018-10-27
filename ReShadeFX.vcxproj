@@ -138,6 +138,7 @@
   <ItemGroup>
     <ClCompile Include="source\effect_codegen_hlsl.cpp" />
     <ClCompile Include="source\effect_codegen_spirv.cpp" />
+    <ClCompile Include="source\effect_expression.cpp" />
     <ClCompile Include="source\effect_lexer.cpp" />
     <ClCompile Include="source\effect_parser.cpp" />
     <ClCompile Include="source\effect_preprocessor.cpp" />
@@ -145,11 +146,11 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="source\effect_codegen.hpp" />
+    <ClInclude Include="source\effect_expression.hpp" />
     <ClInclude Include="source\effect_lexer.hpp" />
     <ClInclude Include="source\effect_parser.hpp" />
     <ClInclude Include="source\effect_preprocessor.hpp" />
     <ClInclude Include="source\effect_symbol_table.hpp" />
-    <ClInclude Include="source\effect_types.hpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="source\effect_symbol_table_intrinsics.inl" />

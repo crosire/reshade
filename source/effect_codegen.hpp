@@ -5,7 +5,6 @@
 
 #pragma once
 
-#include "effect_types.hpp"
 #include "effect_lexer.hpp"
 #include <algorithm>
 
