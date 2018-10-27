@@ -108,7 +108,7 @@ void reshadefx::expression::add_member_access(size_t index, const reshadefx::typ
 	type = in_type;
 	is_constant = false;
 }
-void reshadefx::expression::add_static_index_access(reshadefx::codegen *codegen, size_t index)
+void reshadefx::expression::add_static_index_access(reshadefx::codegen *codegen, uint32_t index)
 {
 	if (!is_constant)
 	{

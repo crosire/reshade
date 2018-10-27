@@ -585,7 +585,7 @@ namespace reshade
 			return;
 		}
 
-		reshadefx::parser parser(reshadefx::codegen::backend::spirv);
+		reshadefx::parser parser(reshadefx::codegen::backend::hlsl);
 
 		if (!parser.parse(pp.current_output()))
 		{

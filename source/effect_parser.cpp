@@ -743,6 +743,36 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 		}
 		else if (arguments.size() > 1)
 		{
+			// Flatten all arguments to a list of scalars
+			for (auto it = arguments.begin(); it != arguments.end();)
+			{
+				// Argument is a scalar already, so only need to cast it
+				if (it->type.is_scalar())
+				{
+					expression &argument = *it++;
+
+					auto scalar_type = argument.type;
+					scalar_type.base = type.base;
+					argument.add_cast_operation(scalar_type);
+
+					argument.reset_to_rvalue(argument.location, _codegen->emit_load(argument), scalar_type);
+				}
+				else
+				{
+					const expression argument = *it;
+					it = arguments.erase(it);
+
+					// Convert to a scalar value and re-enter the loop in the next iteration (in case a cast is necessary too)
+					for (unsigned int i = argument.type.components(); i > 0; --i)
+					{
+						expression scalar = argument;
+						scalar.add_static_index_access(_codegen.get(), i - 1);
+
+						it = arguments.insert(it, scalar);
+					}
+				}
+			}
+
 			const auto result = _codegen->emit_construct(location, type, arguments);
 
 			exp.reset_to_rvalue(location, result, type);
@@ -1554,7 +1584,7 @@ bool reshadefx::parser::parse_statement(bool scoped)
 
 					// Handle fall-through case
 					if (!case_literal_and_labels.empty() || default_label != merge_block)
-						_codegen->leave_block_and_branch(current_block);
+						_codegen->leave_block_and_branch(current_block, 3);
 
 					_codegen->enter_block(current_block);
 				}
@@ -1608,7 +1638,7 @@ bool reshadefx::parser::parse_statement(bool scoped)
 			}
 
 			// May have left the switch body without an explicit 'break' at the end, so handle that case now
-			_codegen->leave_block_and_branch(merge_block);
+			_codegen->leave_block_and_branch(merge_block, 1);
 
 			if (case_literal_and_labels.empty() && default_label == merge_block)
 				warning(location, 5002, "switch statement contains no 'case' or 'default' labels");
@@ -2577,6 +2607,8 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 		symbol = { symbol_type::uniform, 0, type };
 		symbol.id = _codegen->define_uniform(location, uniform_info);
 		symbol.uniform_index = uniform_info.member_index;
+
+		assert(uniform_info.size != 0);
 	}
 	else // All other variables are separate entities
 	{
@@ -2717,13 +2749,12 @@ bool reshadefx::parser::parse_technique_pass(pass_info &info)
 				function_info &function_info = _codegen->find_function(symbol.id);
 
 				// We potentially need to generate a special entry point function which translates between function parameters and input/output variables
-				if (function_info.entry_point == 0)
-					function_info.entry_point = _codegen->create_entry_point(function_info, is_ps);
+				_codegen->create_entry_point(function_info, is_ps);
 
 				if (is_vs)
-					info.vs_entry_point = function_info.name;
+					info.vs_entry_point = function_info.unique_name;
 				if (is_ps)
-					info.ps_entry_point = function_info.name;
+					info.ps_entry_point = function_info.unique_name;
 			}
 			else
 			{

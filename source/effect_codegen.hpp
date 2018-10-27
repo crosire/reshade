@@ -18,6 +18,7 @@ namespace reshadefx
 		std::vector<struct sampler_info> samplers;
 		std::vector<struct uniform_info> uniforms;
 		std::vector<struct technique_info> techniques;
+		std::vector<std::pair<std::string, bool>> entry_points;
 	};
 
 	enum control_mask
@@ -188,9 +189,9 @@ namespace reshadefx
 		/// Add a type constructor call to the output.
 		/// </summary>
 		/// <param name="type">The data type to construct.</param>
-		/// <param name="args">A list of SSA IDs representing the constructor arguments.</param>
+		/// <param name="args">A list of SSA IDs representing the scalar constructor arguments.</param>
 		/// <returns>New SSA ID with the constructed value.</returns>
-		virtual id   emit_construct(const struct location &loc, const struct type &type, std::vector<struct expression> &args) = 0;
+		virtual id   emit_construct(const struct location &loc, const struct type &type, const std::vector<struct expression> &args) = 0;
 
 		/// <summary>
 		/// Add a structured branch control flow to the output.

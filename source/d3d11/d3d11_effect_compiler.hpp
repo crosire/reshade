@@ -6,21 +6,13 @@
 #pragma once
 
 #include "effect_parser.hpp"
-#include <sstream>
-#include <unordered_set>
-#include <spirv_hlsl.hpp>
 
 namespace reshade::d3d11
 {
-	#pragma region Forward Declarations
-	struct d3d11_pass_data;
-	class d3d11_runtime;
-	#pragma endregion
-
 	class d3d11_effect_compiler
 	{
 	public:
-		d3d11_effect_compiler(d3d11_runtime *runtime, const reshadefx::module &module, std::string &errors, bool skipoptimization = false);
+		d3d11_effect_compiler(class d3d11_runtime *runtime, const reshadefx::module &module, std::string &errors, bool skipoptimization = false);
 
 		bool run();
 
@@ -30,17 +22,17 @@ namespace reshade::d3d11
 
 		void visit_texture(const reshadefx::texture_info &texture_info);
 		void visit_sampler(const reshadefx::sampler_info &sampler_info);
-		void visit_uniform(const spirv_cross::CompilerHLSL &cross, const reshadefx::uniform_info &uniform_info);
+		void visit_uniform(const reshadefx::uniform_info &uniform_info);
 		void visit_technique(const reshadefx::technique_info &technique_info);
 
-		void compile_entry_point(spirv_cross::CompilerHLSL &cross, const spirv_cross::EntryPoint &entry, unsigned int shader_model_version);
+		void compile_entry_point(const std::string &entry_point, bool is_ps);
 
 		d3d11_runtime *_runtime;
 		const reshadefx::module *_module;
 		bool _success = true;
 		std::string &_errors;
-		HMODULE _d3dcompiler_module = nullptr;
 		size_t _uniform_storage_offset = 0, _constant_buffer_size = 0;
+		HMODULE _d3dcompiler_module = nullptr;
 		std::unordered_map<std::string, com_ptr<ID3D11VertexShader>> vs_entry_points;
 		std::unordered_map<std::string, com_ptr< ID3D11PixelShader>> ps_entry_points;
 		std::vector<com_ptr<ID3D11SamplerState>> _sampler_bindings;

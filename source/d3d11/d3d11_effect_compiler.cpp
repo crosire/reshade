@@ -10,7 +10,6 @@
 #include <fstream>
 #include <algorithm>
 #include <d3dcompiler.h>
-#include <spirv_hlsl.hpp>
 
 namespace reshade::d3d11
 {
@@ -181,11 +180,15 @@ namespace reshade::d3d11
 			case type::t_int:
 				target.insert({ annotation.first, variant(annotation.second.second.as_int[0]) });
 				break;
+			case type::t_bool:
 			case type::t_uint:
 				target.insert({ annotation.first, variant(annotation.second.second.as_uint[0]) });
 				break;
 			case type::t_float:
 				target.insert({ annotation.first, variant(annotation.second.second.as_float[0]) });
+				break;
+			case type::t_string:
+				target.insert({ annotation.first, variant(annotation.second.second.string_data) });
 				break;
 			}
 	}
@@ -211,25 +214,9 @@ namespace reshade::d3d11
 			return false;
 		}
 
-		// TODO try catch
-		spirv_cross::CompilerHLSL cross(std::move(_module->spirv));
-
-		const auto resources = cross.get_shader_resources();
 
 		// Parse uniform variables
 		_uniform_storage_offset = _runtime->get_uniform_value_storage().size();
-
-		//for (const spirv_cross::Resource &ubo : resources.uniform_buffers)
-		//{
-		//	const auto &struct_type = cross.get_type(ubo.base_type_id);
-
-		//	_constant_buffer_size += cross.get_declared_struct_size(struct_type);
-
-		//	for (uint32_t i = 0; i < struct_type.member_types.size(); ++i)
-		//	{
-		//		visit_uniform(cross, ubo.base_type_id, i);
-		//	}
-		//}
 
 		for (const auto &texture : _module->textures)
 		{
@@ -241,13 +228,13 @@ namespace reshade::d3d11
 		}
 		for (const auto &uniform : _module->uniforms)
 		{
-			visit_uniform(cross, uniform);
+			visit_uniform(uniform);
 		}
 
 		// Compile all entry points to DX byte code
-		for (const spirv_cross::EntryPoint &entry : cross.get_entry_points_and_stages())
+		for (const auto &entry : _module->entry_points)
 		{
-			compile_entry_point(cross, entry, 50);
+			compile_entry_point(entry.first, entry.second);
 		}
 
 		// Parse technique information
@@ -437,17 +424,15 @@ namespace reshade::d3d11
 		_sampler_bindings[sampler_info.binding] = it->second;
 	}
 
-	void d3d11_effect_compiler::visit_uniform(const spirv_cross::CompilerHLSL &cross, const uniform_info &uniform_info)
+	void d3d11_effect_compiler::visit_uniform(const uniform_info &uniform_info)
 	{
-		const auto &struct_type = cross.get_type(uniform_info.struct_type_id);
-
 		uniform obj;
 		obj.name = uniform_info.name;
 		obj.rows = uniform_info.type.rows;
 		obj.columns = uniform_info.type.cols;
 		obj.elements = std::max(1, uniform_info.type.array_length);
-		obj.storage_size = cross.get_declared_struct_member_size(struct_type, uniform_info.member_index);
-		obj.storage_offset = _uniform_storage_offset + cross.type_struct_member_offset(struct_type, uniform_info.member_index);
+		obj.storage_size = uniform_info.size;
+		obj.storage_offset = _uniform_storage_offset + uniform_info.offset;
 		copy_annotations(uniform_info.annotations, obj.annotations);
 
 		switch (uniform_info.type.base)
@@ -513,7 +498,9 @@ namespace reshade::d3d11
 			auto &pass = static_cast<d3d11_pass_data &>(*obj.passes.emplace_back(std::make_unique<d3d11_pass_data>()));
 
 			pass.vertex_shader = vs_entry_points[pass_info.vs_entry_point];
+			assert(pass.vertex_shader != nullptr);
 			pass.pixel_shader = ps_entry_points[pass_info.ps_entry_point];
+			assert(pass.pixel_shader != nullptr);
 
 			pass.viewport.MaxDepth = 1.0f;
 
@@ -646,43 +633,14 @@ namespace reshade::d3d11
 		_runtime->add_technique(std::move(obj));
 	}
 
-	void d3d11_effect_compiler::compile_entry_point(spirv_cross::CompilerHLSL &cross, const spirv_cross::EntryPoint &entry, unsigned int shader_model_version)
+	void d3d11_effect_compiler::compile_entry_point(const std::string &entry_point, bool is_ps)
 	{
-		std::string hlsl, target;
-
-		// Set shader model version
-		cross.set_hlsl_options({ shader_model_version });
-
-		// Cross compile entry point to HLSL source code
-		cross.set_entry_point(entry.name, entry.execution_model);
-
-		try
-		{
-			hlsl = cross.compile();
-		}
-		catch (const spirv_cross::CompilerError &e)
-		{
-			error(e.what());
-			return;
-		}
-
-		// Figure out the target profile name
-		switch (entry.execution_model)
-		{
-		case spv::ExecutionModelVertex:
-			target = "vs_" + std::to_string(shader_model_version / 10) + '_' + std::to_string(shader_model_version % 10);
-			break;
-		case spv::ExecutionModelFragment:
-			target = "ps_" + std::to_string(shader_model_version / 10) + '_' + std::to_string(shader_model_version % 10);
-			break;
-		}
-
 		// Compile the generated HLSL source code to DX byte code
 		com_ptr<ID3DBlob> compiled, errors;
 
 		const auto D3DCompile = reinterpret_cast<pD3DCompile>(GetProcAddress(_d3dcompiler_module, "D3DCompile"));
 
-		HRESULT hr = D3DCompile(hlsl.c_str(), hlsl.size(), nullptr, nullptr, nullptr, "main", target.c_str(), D3DCOMPILE_ENABLE_STRICTNESS, 0, &compiled, &errors);
+		HRESULT hr = D3DCompile(_module->hlsl.c_str(), _module->hlsl.size(), nullptr, nullptr, nullptr, entry_point.c_str(), is_ps ? "ps_5_0" : "vs_5_0", D3DCOMPILE_ENABLE_STRICTNESS, 0, &compiled, &errors);
 
 		if (errors != nullptr)
 			_errors.append(static_cast<const char *>(errors->GetBufferPointer()), errors->GetBufferSize() - 1); // Subtracting one to not append the null-terminator as well
@@ -694,15 +652,10 @@ namespace reshade::d3d11
 		}
 
 		// Create runtime shader objects from the compiled DX byte code
-		switch (entry.execution_model)
-		{
-		case spv::ExecutionModelVertex:
-			hr = _runtime->_device->CreateVertexShader(compiled->GetBufferPointer(), compiled->GetBufferSize(), nullptr, &vs_entry_points[entry.name]);
-			break;
-		case spv::ExecutionModelFragment:
-			hr = _runtime->_device->CreatePixelShader(compiled->GetBufferPointer(), compiled->GetBufferSize(), nullptr, &ps_entry_points[entry.name]);
-			break;
-		}
+		if (is_ps)
+			hr = _runtime->_device->CreatePixelShader(compiled->GetBufferPointer(), compiled->GetBufferSize(), nullptr, &ps_entry_points[entry_point]);
+		else
+			hr = _runtime->_device->CreateVertexShader(compiled->GetBufferPointer(), compiled->GetBufferSize(), nullptr, &vs_entry_points[entry_point]);
 
 		if (FAILED(hr))
 		{

@@ -1586,7 +1586,7 @@ IMPLEMENT_INTRINSIC_GLSL(tex2Dfetch, 0, {
 	code() += "texelFetch(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ".xy - ivec2(vec2(0, 1.0 - 1.0 / exp2(float(" + id_to_name(args[1].base) + ".w))) * textureSize(" + id_to_name(args[0].base) + ", 0)), " + id_to_name(args[1].base) + ".w)";
 	})
 IMPLEMENT_INTRINSIC_HLSL(tex2Dfetch, 0, {
-	code() += id_to_name(args[0].base) + ".t.Load(" + id_to_name(args[1].base) + ".xyz)";
+	code() += id_to_name(args[0].base) + ".t.Load(" + id_to_name(args[1].base) + ".xyw)";
 	})
 IMPLEMENT_INTRINSIC_SPIRV(tex2Dfetch, 0, {
 	const spv::Id xy = add_instruction(spv::OpVectorShuffle, convert_type(T_INT2))

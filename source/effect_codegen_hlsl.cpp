@@ -17,21 +17,24 @@ public:
 		struct_info cbuffer_type;
 		cbuffer_type.name = "$Globals";
 		cbuffer_type.unique_name = "_Globals";
-		cbuffer_type.definition = _cbuffer_type = make_id();
+		cbuffer_type.definition = _cbuffer_type_id = make_id();
 		_structs.push_back(cbuffer_type);
 
-		_names[_cbuffer_type] = cbuffer_type.unique_name;
+		_names[_cbuffer_type_id] = cbuffer_type.unique_name;
 	}
 
 private:
 	id _next_id = 1;
 	id _last_block = 0;
 	id _current_block = 0;
-	id _cbuffer_type = 0;
+	id _cbuffer_type_id = 0;
 	std::unordered_map<id, std::string> _names;
 	std::unordered_map<id, std::string> _blocks;
 	unsigned int _scope_level = 0;
+	unsigned int _current_cbuffer_size = 0;
 	unsigned int _current_sampler_binding = 0;
+	std::unordered_map<id, std::vector<id>> _switch_fallthrough_blocks;
+	std::vector<std::pair<std::string, bool>> _entry_points;
 
 	inline id make_id() { return _next_id++; }
 
@@ -39,26 +42,44 @@ private:
 
 	void write_result(module &s) const override
 	{
-		s.hlsl =
-			"struct __sampler2D { Texture2D t; SamplerState s; };\n"
-			"int2 __tex2Dsize(__sampler2D s, int lod) { uint w, h, l; s.t.GetDimensions(lod, w, h, l); return int2(w, h); }\n"
-			"cbuffer _Globals {\n" +
-			_blocks.at(_cbuffer_type) +
-			"};\n" +
-			_blocks.at(0);
+		s.hlsl = "struct __sampler2D { Texture2D t; SamplerState s; };\n"
+			"int2 __tex2Dsize(__sampler2D s, int lod) { uint w, h, l; s.t.GetDimensions(lod, w, h, l); return int2(w, h); }\n";
+		if (_blocks.count(_cbuffer_type_id))
+			s.hlsl += "cbuffer _Globals {\n" + _blocks.at(_cbuffer_type_id) + "};\n";
+		s.hlsl += _blocks.at(0);
 
 		s.samplers = _samplers;
 		s.textures = _textures;
 		s.uniforms = _uniforms;
 		s.techniques = _techniques;
+		s.entry_points = _entry_points;
 	}
 
-	std::string write_type(const type &type)
+	std::string write_type(const type &type, bool is_param = false)
 	{
 		std::string s;
 
 		if (type.has(type::q_precise))
 			s += "precise ";
+
+		if (is_param)
+		{
+			if (type.has(type::q_linear))
+				s += "linear ";
+			if (type.has(type::q_noperspective))
+				s += "noperspective ";
+			if (type.has(type::q_centroid))
+				s += "centroid ";
+			if (type.has(type::q_nointerpolation))
+				s += "nointerpolation ";
+
+			if (type.has(type::q_inout))
+				s += "inout ";
+			else if (type.has(type::q_in))
+				s += "in ";
+			else if (type.has(type::q_out))
+				s += "out ";
+		}
 
 		switch (type.base)
 		{
@@ -112,35 +133,37 @@ private:
 			s += " }";
 			return s;
 		}
+		if (type.is_struct())
+		{
+			s += '(' + id_to_name(type.definition) + ")0";
+			return s;
+		}
 
 		if (!type.is_scalar())
 			s += write_type(type);
 
 		s += '(';
 
-		if (type.is_numeric())
+		for (unsigned int i = 0, components = type.components(); i < components; ++i)
 		{
-			for (unsigned int i = 0, components = type.components(); i < components; ++i)
+			switch (type.base)
 			{
-				switch (type.base)
-				{
-				case type::t_bool:
-					s += data.as_uint[i] ? "true" : "false";
-					break;
-				case type::t_int:
-					s += std::to_string(data.as_int[i]);
-					break;
-				case type::t_uint:
-					s += std::to_string(data.as_uint[i]);
-					break;
-				case type::t_float:
-					s += std::to_string(data.as_float[i]);
-					break;
-				}
-
-				if (i < components - 1)
-					s += ", ";
+			case type::t_bool:
+				s += data.as_uint[i] ? "true" : "false";
+				break;
+			case type::t_int:
+				s += std::to_string(data.as_int[i]);
+				break;
+			case type::t_uint:
+				s += std::to_string(data.as_uint[i]);
+				break;
+			case type::t_float:
+				s += std::to_string(data.as_float[i]);
+				break;
 			}
+
+			if (i < components - 1)
+				s += ", ";
 		}
 
 		s += ')';
@@ -177,7 +200,7 @@ private:
 
 		for (const auto &member : info.member_list)
 		{
-			code() += '\t' + write_type(member.type) + ' ' + member.name;
+			code() += '\t' + write_type(member.type, true) + ' ' + member.name;
 			if (!member.semantic.empty())
 				code() += " : " + member.semantic;
 			code() += ";\n";
@@ -205,7 +228,7 @@ private:
 		code() += "Texture2D " + info.unique_name + "_t : register(t" + std::to_string(info.binding) + ");\n";
 		code() += "SamplerState " + info.unique_name + "_s : register(s" + std::to_string(info.binding) + ");\n";
 		code() += write_location(loc);
-		code() += "const __sampler2D " + info.unique_name + " = { " + info.unique_name + "_t, " + info.unique_name + "_s };\n";
+		code() += "static const __sampler2D " + info.unique_name + " = { " + info.unique_name + "_t, " + info.unique_name + "_s };\n";
 
 		_names[info.id] = info.unique_name;
 
@@ -215,19 +238,25 @@ private:
 	{
 		info.member_index = _uniforms.size();
 
-		_uniforms.push_back(info);
+		const unsigned int size = info.type.rows * info.type.cols * std::max(1, info.type.array_length) * 4;
+		const unsigned int alignment = 16 - (_current_cbuffer_size % 16);
+		_current_cbuffer_size += (size > alignment && (alignment != 16 || size <= 16)) ? size + alignment : size;
+		info.size = size;
+		info.offset = _current_cbuffer_size - size;
 
 		struct_member_info member;
 		member.type = info.type;
 		member.name = info.name;
 
-		const_cast<struct_info &>(find_struct(_cbuffer_type))
+		const_cast<struct_info &>(find_struct(_cbuffer_type_id))
 			.member_list.push_back(std::move(member));
 
-		_blocks[_cbuffer_type] += write_location(loc);
-		_blocks[_cbuffer_type] += write_type(info.type) + ' ' + info.name + ";\n";
+		_blocks[_cbuffer_type_id] += write_location(loc);
+		_blocks[_cbuffer_type_id] += write_type(info.type) + " _Globals_" + info.name + ";\n";
 
-		return _cbuffer_type;
+		_uniforms.push_back(info);
+
+		return _cbuffer_type_id;
 	}
 	id   define_variable(const location &loc, const type &type, const char *name, bool, id initializer_value) override
 	{
@@ -236,12 +265,10 @@ private:
 		if (name != nullptr)
 			_names[res] = name;
 
-		code() += write_location(loc) + write_scope() + write_type(type);
+		code() += write_location(loc) + write_scope() + write_type(type) + ' ' + id_to_name(res);
 
 		if (type.is_array())
 			code() += '[' + std::to_string(type.array_length) + ']';
-
-		code() += ' ' + id_to_name(res);
 
 		if (initializer_value != 0)
 			code() += " = " + id_to_name(initializer_value);
@@ -264,7 +291,7 @@ private:
 			param.definition = make_id();
 			_names[param.definition] = param.name;
 
-			code() += '\n' + write_location(param.location) + '\t' + write_type(param.type) + ' ' + param.name;
+			code() += '\n' + write_location(param.location) + '\t' + write_type(param.type, true) + ' ' + param.name;
 
 			if (!param.semantic.empty())
 				code() += " : " + param.semantic;
@@ -292,21 +319,27 @@ private:
 		return make_id();
 	}
 
-	id   create_entry_point(const function_info &func, bool) override
+	id   create_entry_point(const function_info &func, bool is_ps) override
 	{
-		return func.definition;
+		if (const auto it = std::find_if(_entry_points.begin(), _entry_points.end(),
+			[&func](const auto &ep) { return ep.first == func.unique_name; }); it != _entry_points.end())
+			return it - _entry_points.begin();
+
+		_entry_points.push_back({ func.unique_name, is_ps });
+
+		return _entry_points.size() - 1;
 	}
 
 	id   emit_load(const expression &chain) override
 	{
 		const id res = make_id();
 
-		code() += write_location(chain.location) + write_scope() + "const " + write_type(chain.type);
+		code() += write_location(chain.location) + write_scope() + "const " + write_type(chain.type) + ' ' + id_to_name(res);
 
 		if (chain.type.is_array())
 			code() += '[' + std::to_string(chain.type.array_length) + ']';
 
-		code() += ' ' + id_to_name(res) + " = ";
+		code() += " = ";
 
 		if (chain.is_constant)
 		{
@@ -328,7 +361,7 @@ private:
 					newcode += '[' + id_to_name(op.index) + ']';
 					break;
 				case expression::operation::op_member:
-					newcode += '.';
+					newcode += op.from.definition == _cbuffer_type_id ? '_' : '.';
 					newcode += find_struct(op.from.definition).member_list[op.index].name;
 					break;
 				case expression::operation::op_swizzle:
@@ -358,7 +391,7 @@ private:
 				code() += '[' + id_to_name(op.index) + ']';
 				break;
 			case expression::operation::op_member:
-				code() += '.';
+				code() += op.from.definition == _cbuffer_type_id ? '_' : '.';
 				code() += find_struct(op.from.definition).member_list[op.index].name;
 				break;
 			case expression::operation::op_swizzle:
@@ -482,29 +515,32 @@ private:
 
 		const id res = make_id();
 
-		code() += write_location(loc) + write_scope() + "const " + write_type(res_type);
+		code() += write_location(loc) + write_scope() + "const " + write_type(res_type) + ' ' + id_to_name(res);
 
 		if (res_type.is_array())
 			code() += '[' + std::to_string(res_type.array_length) + ']';
 
-		code() += ' ' + id_to_name(res) + " = " + id_to_name(condition) + " ? " + id_to_name(true_value) + " : " + id_to_name(false_value) + ";\n";
+		code() += " = " + id_to_name(condition) + " ? " + id_to_name(true_value) + " : " + id_to_name(false_value) + ";\n";
 
 		return res;
 	}
 	id   emit_call(const location &loc, id function, const type &res_type, const std::vector<expression> &args) override
 	{
+		for (const auto &arg : args)
+			assert(arg.ops.empty() && arg.base != 0);
+
 		const id res = make_id();
 
 		code() += write_location(loc) + write_scope();
 
 		if (!res_type.is_void())
 		{
-			code() += "const " + write_type(res_type);
+			code() += "const " + write_type(res_type) + ' ' + id_to_name(res);
 
 			if (res_type.is_array())
 				code() += '[' + std::to_string(res_type.array_length) + ']';
 
-			code() += ' ' + id_to_name(res) + " = ";
+			code() += " = ";
 		}
 
 		code() += id_to_name(function) + '(';
@@ -523,6 +559,9 @@ private:
 	}
 	id   emit_call_intrinsic(const location &loc, id intrinsic, const type &res_type, const std::vector<expression> &args) override
 	{
+		for (const auto &arg : args)
+			assert(arg.ops.empty() && arg.base != 0);
+
 		const id res = make_id();
 
 		code() += write_location(loc) + write_scope();
@@ -550,26 +589,39 @@ private:
 
 		return res;
 	}
-	id   emit_construct(const location &loc, const type &type, std::vector<expression> &args) override
+	id   emit_construct(const location &loc, const type &type, const std::vector<expression> &args) override
 	{
+		for (const auto &arg : args)
+			assert((arg.type.is_scalar() || type.is_array()) && arg.ops.empty() && arg.base != 0);
+
 		const id res = make_id();
 
-		code() += write_location(loc) + write_scope() + "const " + write_type(type);
+		code() += write_location(loc) + write_scope() + "const " + write_type(type) + ' ' + id_to_name(res);
 
 		if (type.is_array())
 			code() += '[' + std::to_string(type.array_length) + ']';
 
-		code() += ' ' + id_to_name(res) + " = " + write_type(type) + '(';
+		code() += " = ";
+
+		if (type.is_array())
+			code() += "{ ";
+		else
+			code() += write_type(type) + '(';
 
 		for (size_t i = 0, num_args = args.size(); i < num_args; ++i)
 		{
-			code() += args[i].is_constant ? write_constant(args[i].type, args[i].constant) : id_to_name(args[i].base);
+			code() += id_to_name(args[i].base);
 
 			if (i < num_args - 1)
 				code() += ", ";
 		}
 
-		code() += ");\n";
+		if (type.is_array())
+			code() += " }";
+		else
+			code() += ')';
+
+		code() += ";\n";
 
 		return res;
 	}
@@ -675,7 +727,13 @@ private:
 		{
 			assert(case_literal_and_labels[i + 1] != 0);
 
-			code() += write_scope() + "case " + std::to_string(case_literal_and_labels[i]) + ": {\n" + _blocks[case_literal_and_labels[i + 1]] + write_scope() + "}\n";
+			code() += write_scope() + "case " + std::to_string(case_literal_and_labels[i]) + ": {\n" + _blocks[case_literal_and_labels[i + 1]];
+
+			// Handle fall-through blocks
+			for (id fallthrough : _switch_fallthrough_blocks[case_literal_and_labels[i + 1]])
+				code() += _blocks[fallthrough];
+
+			code() += write_scope() + "}\n";
 		}
 
 		if (default_label != _current_block)
@@ -727,15 +785,23 @@ private:
 
 		return set_block(0);
 	}
-	id   leave_block_and_branch(id, unsigned int loop_flow) override
+	id   leave_block_and_branch(id target, unsigned int loop_flow) override
 	{
 		if (!is_in_block())
 			return _last_block;
 
-		if (loop_flow == 1)
+		switch (loop_flow)
+		{
+		case 1:
 			code() += write_scope() + "break;\n";
-		if (loop_flow == 2)
+			break;
+		case 2:
 			code() += write_scope() + "continue;\n";
+			break;
+		case 3:
+			_switch_fallthrough_blocks[_current_block].push_back(target);
+			break;
+		}
 
 		return set_block(0);
 	}

@@ -120,7 +120,7 @@ static void write(std::vector<uint32_t> &s, const spirv_instruction &ins)
 static inline uint32_t align(uint32_t address, uint32_t alignment)
 {
 	return (address % alignment != 0) ? address + alignment - address % alignment : address;
-};
+}
 
 class codegen_spirv final : public codegen
 {
@@ -165,6 +165,7 @@ private:
 	std::unordered_map<std::string, spv::Id> _string_lookup;
 	uint32_t _current_sampler_binding = 0;
 	uint32_t _current_semantic_location = 10;
+	std::vector<std::pair<std::string, bool>> _entry_points;
 
 	std::vector<function_blocks> _functions2;
 	std::unordered_map<id, spirv_basic_block> _block_data;
@@ -245,6 +246,7 @@ private:
 		s.textures = _textures;
 		s.uniforms = _uniforms;
 		s.techniques = _techniques;
+		s.entry_points = _entry_points;
 
 		// Write SPIRV header info
 		write(s.spirv, spv::MagicNumber);
@@ -658,14 +660,13 @@ private:
 		// 1. If the member is a scalar consuming N basic machine units, the base alignment is N.
 		// 2. If the member is a two- or four-component vector with components consuming N basic machine units, the base alignment is 2N or 4N, respectively.
 		// 3. If the member is a three-component vector with components consuming N basic machine units, the base alignment is 4N.
-		unsigned int size = 4 * (info.type.rows == 3 ? 4 : info.type.rows) * info.type.cols * std::max(1, info.type.array_length);
-		unsigned int alignment = size;
+		const unsigned int size = 4 * (info.type.rows == 3 ? 4 : info.type.rows) * info.type.cols * std::max(1, info.type.array_length);
+		const unsigned int alignment = size;
+		info.size = size;
 		info.offset = align(_global_ubo_offset, alignment);
-
 		_global_ubo_offset = info.offset + size;
 
 		info.member_index = _uniforms.size();
-		info.struct_type_id = _global_ubo_type;
 
 		add_member_decoration(_global_ubo_type, info.member_index, spv::DecorationOffset, { info.offset });
 
@@ -722,6 +723,10 @@ private:
 
 	id   create_entry_point(const function_info &func, bool is_ps) override
 	{
+		if (const auto it = std::find_if(_entry_points.begin(), _entry_points.end(),
+			[&func](const auto &ep) { return ep.first == func.unique_name; }); it != _entry_points.end())
+			return it - _entry_points.begin();
+
 		std::vector<expression> call_params;
 		std::vector<unsigned int> inputs_and_outputs;
 
@@ -1009,7 +1014,9 @@ private:
 			.add_string(func.name.c_str())
 			.add(inputs_and_outputs.begin(), inputs_and_outputs.end());
 
-		return entry_point.definition;
+		_entry_points.push_back({ func.name, is_ps });
+
+		return _entry_points.size() - 1;
 	}
 
 	id   emit_load(const expression &chain) override
@@ -1598,6 +1605,9 @@ private:
 	}
 	id   emit_call(const location &loc, id function, const type &res_type, const std::vector<expression> &args) override
 	{
+		for (const auto &arg : args)
+			assert(arg.ops.empty() && arg.base != 0);
+
 		add_location(loc, *_current_block_data);
 
 		// https://www.khronos.org/registry/spir-v/specs/unified1/SPIRV.html#OpFunctionCall
@@ -1610,6 +1620,9 @@ private:
 	}
 	id   emit_call_intrinsic(const location &loc, id intrinsic, const type &res_type, const std::vector<expression> &args) override
 	{
+		for (const auto &arg : args)
+			assert(arg.ops.empty() && arg.base != 0);
+
 		add_location(loc, *_current_block_data);
 
 		enum
@@ -1626,8 +1639,11 @@ private:
 			return 0;
 		}
 	}
-	id   emit_construct(const location &loc, const type &type, std::vector<expression> &args) override
+	id   emit_construct(const location &loc, const type &type, const std::vector<expression> &args) override
 	{
+		for (const auto &arg : args)
+			assert((arg.type.is_scalar() || type.is_array()) && arg.ops.empty() && arg.base != 0);
+
 		add_location(loc, *_current_block_data);
 
 		std::vector<spv::Id> ids;
@@ -1636,32 +1652,6 @@ private:
 		if (type.is_matrix())
 		{
 			assert(type.rows == type.cols);
-
-			// First, extract all arguments so that a list of scalars exist
-			for (auto &argument : args)
-			{
-				if (!argument.type.is_scalar())
-				{
-					for (unsigned int index = 0; index < argument.type.components(); ++index)
-					{
-						expression scalar = argument;
-						scalar.add_static_index_access(this, index);
-						auto scalar_type = scalar.type;
-						scalar_type.base = type.base;
-						scalar.add_cast_operation(scalar_type);
-						ids.push_back(emit_load(scalar));
-						assert(ids.back() != 0);
-					}
-				}
-				else
-				{
-					auto scalar_type = argument.type;
-					scalar_type.base = type.base;
-					argument.add_cast_operation(scalar_type);
-					ids.push_back(emit_load(argument));
-					assert(ids.back() != 0);
-				}
-			}
 
 			// Second, turn that list of scalars into a list of column vectors
 			for (size_t i = 0, j = 0; i < ids.size(); i += type.rows, ++j)
@@ -1692,16 +1682,8 @@ private:
 		{
 			assert(type.is_vector() || type.is_array());
 
-			for (expression &argument : args)
-			{
-				auto target_type = argument.type;
-				target_type.base = type.base;
-				argument.add_cast_operation(target_type);
-				assert(argument.type.is_scalar() || argument.type.is_vector());
-
-				ids.push_back(emit_load(argument));
-				assert(ids.back() != 0);
-			}
+			for (const auto &arg : args)
+				ids.push_back(arg.base);
 		}
 
 		return add_instruction(spv::OpCompositeConstruct, convert_type(type))

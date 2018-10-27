@@ -235,7 +235,7 @@ namespace reshadefx
 
 		void add_cast_operation(const reshadefx::type &type);
 		void add_member_access(size_t index, const reshadefx::type &type);
-		void add_static_index_access(class codegen *codegen, size_t index);
+		void add_static_index_access(class codegen *codegen, uint32_t index);
 		void add_dynamic_index_access(class codegen *codegen, uint64_t index_expression);
 		void add_swizzle_access(signed char swizzle[4], size_t length);
 
@@ -266,11 +266,11 @@ namespace reshadefx
 		std::string name;
 		type type;
 		size_t member_index = 0;
+		uint32_t size = 0;
 		uint32_t offset = 0;
 		std::unordered_map<std::string, std::pair<struct type, constant>> annotations;
 		bool has_initializer_value = false;
 		constant initializer_value;
-		uint32_t struct_type_id = 0;
 	};
 
 	struct texture_info
@@ -343,6 +343,5 @@ namespace reshadefx
 		type return_type;
 		std::string return_semantic;
 		std::vector<struct_member_info> parameter_list;
-		uint64_t entry_point = 0;
 	};
 }

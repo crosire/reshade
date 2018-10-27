@@ -222,38 +222,6 @@ namespace reshade::opengl
 		}
 	}
 
-	static std::string escape_name(const std::string &name)
-	{
-		std::string res;
-
-		static const std::unordered_set<std::string> s_reserverd_names = {
-			"common", "partition", "input", "ouput", "active", "filter", "superp", "invariant",
-			"lowp", "mediump", "highp", "precision", "patch", "subroutine",
-			"abs", "sign", "all", "any", "sin", "sinh", "cos", "cosh", "tan", "tanh", "asin", "acos", "atan",
-			"exp", "exp2", "log", "log2", "sqrt", "inversesqrt", "ceil", "floor", "fract", "trunc", "round",
-			"radians", "degrees", "length", "normalize", "transpose", "determinant", "intBitsToFloat", "uintBitsToFloat",
-			"floatBitsToInt", "floatBitsToUint", "matrixCompMult", "not", "lessThan", "greaterThan", "lessThanEqual",
-			"greaterThanEqual", "equal", "notEqual", "dot", "cross", "distance", "pow", "modf", "frexp", "ldexp",
-			"min", "max", "step", "reflect", "texture", "textureOffset", "fma", "mix", "clamp", "smoothstep", "refract",
-			"faceforward", "textureLod", "textureLodOffset", "texelFetch", "main"
-		};
-
-		if (name.compare(0, 3, "gl_") == 0 || s_reserverd_names.count(name))
-		{
-			res += '_';
-		}
-
-		res += name;
-
-		size_t p;
-
-		while ((p = res.find("__")) != std::string::npos)
-		{
-			res.replace(p, 2, "_US");
-		}
-
-		return res;
-	}
 	static inline uintptr_t align(uintptr_t address, size_t alignment)
 	{
 		if (address % alignment != 0)
@@ -269,11 +237,15 @@ namespace reshade::opengl
 			case type::t_int:
 				target.insert({ annotation.first, variant(annotation.second.second.as_int[0]) });
 				break;
+			case type::t_bool:
 			case type::t_uint:
 				target.insert({ annotation.first, variant(annotation.second.second.as_uint[0]) });
 				break;
 			case type::t_float:
 				target.insert({ annotation.first, variant(annotation.second.second.as_float[0]) });
+				break;
+			case type::t_string:
+				target.insert({ annotation.first, variant(annotation.second.second.string_data) });
 				break;
 			}
 	}
@@ -288,26 +260,8 @@ namespace reshade::opengl
 
 	bool opengl_effect_compiler::run()
 	{
-		// TODO try catch
-		spirv_cross::CompilerGLSL cross(_module->spirv);
-
-		const auto resources = cross.get_shader_resources();
-
 		// Parse uniform variables
 		_uniform_storage_offset = _runtime->get_uniform_value_storage().size();
-
-		for (const spirv_cross::Resource &ubo : resources.uniform_buffers)
-		{
-			const auto &struct_type = cross.get_type(ubo.base_type_id);
-
-			// Make sure names are valid for GLSL
-			for (uint32_t i = 0; i < struct_type.member_types.size(); ++i)
-			{
-				std::string name = cross.get_member_name(ubo.base_type_id, i);
-				name = escape_name(name);
-				cross.set_member_name(ubo.base_type_id, i, name);
-			}
-		}
 
 		for (const auto &texture : _module->textures)
 		{
@@ -319,13 +273,13 @@ namespace reshade::opengl
 		}
 		for (const auto &uniform : _module->uniforms)
 		{
-			visit_uniform(cross, uniform);
+			visit_uniform(uniform);
 		}
 
 		// Compile all entry points
-		for (const spirv_cross::EntryPoint &entry : cross.get_entry_points_and_stages())
+		for (const auto &entry : _module->entry_points)
 		{
-			compile_entry_point(cross, _module->spirv, entry);
+			compile_entry_point(entry.first, entry.second);
 		}
 
 		// Parse technique information
@@ -488,17 +442,15 @@ namespace reshade::opengl
 		_sampler_bindings[sampler_info.binding] = std::move(sampler);
 	}
 
-	void opengl_effect_compiler::visit_uniform(const spirv_cross::CompilerGLSL &cross, const uniform_info &uniform_info)
+	void opengl_effect_compiler::visit_uniform(const uniform_info &uniform_info)
 	{
-		const auto &struct_type = cross.get_type(uniform_info.struct_type_id);
-
 		uniform obj;
 		obj.name = uniform_info.name;
 		obj.rows = uniform_info.type.rows;
 		obj.columns = uniform_info.type.cols;
 		obj.elements = std::max(1, uniform_info.type.array_length);
-		obj.storage_size = cross.get_declared_struct_member_size(struct_type, uniform_info.member_index);
-		obj.storage_offset = _uniform_storage_offset + cross.type_struct_member_offset(struct_type, uniform_info.member_index);
+		obj.storage_size = uniform_info.size;
+		obj.storage_offset = _uniform_storage_offset + uniform_info.offset;
 		copy_annotations(uniform_info.annotations, obj.annotations);
 
 		switch (uniform_info.type.base)
@@ -686,54 +638,23 @@ namespace reshade::opengl
 		_runtime->add_technique(std::move(obj));
 	}
 
-	void opengl_effect_compiler::compile_entry_point(spirv_cross::CompilerGLSL &cross, const std::vector<uint32_t> &spirv_bin, const spirv_cross::EntryPoint &entry)
+	void opengl_effect_compiler::compile_entry_point(const std::string &entry_point, bool is_ps)
 	{
-		GLenum shader_type = GL_NONE;
-
-		// Figure out the shader type
-		switch (entry.execution_model)
-		{
-		case spv::ExecutionModelVertex:
-			shader_type = GL_VERTEX_SHADER;
-			break;
-		case spv::ExecutionModelFragment:
-			shader_type = GL_FRAGMENT_SHADER;
-			break;
-		}
+		const GLuint shader_id = glCreateShader(is_ps ? GL_FRAGMENT_SHADER : GL_VERTEX_SHADER);
 
 #if 0
-		GLuint shader_id = glCreateShader(shader_type);
+		glShaderBinary(1, &shader_id, GL_SHADER_BINARY_FORMAT_SPIR_V, _module->spirv.data(), _module->spirv.size() * sizeof(uint32_t));
 
-		glShaderBinary(1, &shader_id, GL_SHADER_BINARY_FORMAT_SPIR_V, spirv_bin.data(), spirv_bin.size() * sizeof(uint32_t));
-		glSpecializeShader(shader_id, entry.name.c_str(), 0, nullptr, nullptr);
+		glSpecializeShader(shader_id, entry_point.c_str(), 0, nullptr, nullptr);
 #else
-		std::string glsl;
+		const std::string defines =
+			"#version 450\n"
+			"#define ENTRY_POINT_" + entry_point + " 1\n";
 
-		spirv_cross::CompilerGLSL::Options options = {};
-		options.version = 450;
-		options.vertex.flip_vert_y = true;
+		GLsizei lengths[] = { static_cast<GLsizei>(defines.size()), static_cast<GLsizei>(_module->hlsl.size()) };
+		const GLchar *sources[] = { defines.c_str(), _module->hlsl.c_str() };
+		glShaderSource(shader_id, 2, sources, lengths);
 
-		cross.set_common_options(options);
-
-		// Cross compile entry point to GLSL source code
-		cross.set_entry_point(entry.name, entry.execution_model);
-
-		try
-		{
-			glsl = cross.compile();
-		}
-		catch (const spirv_cross::CompilerError &e)
-		{
-			error(e.what());
-			return;
-		}
-
-		GLuint shader_id = glCreateShader(shader_type);
-
-		const GLchar *src = glsl.c_str();
-		const GLsizei len = static_cast<GLsizei>(glsl.size());
-
-		glShaderSource(shader_id, 1, &src, &len);
 		glCompileShader(shader_id);
 #endif
 
@@ -758,14 +679,9 @@ namespace reshade::opengl
 			return;
 		}
 
-		switch (entry.execution_model)
-		{
-		case spv::ExecutionModelVertex:
-			vs_entry_points[entry.name] = shader_id;
-			break;
-		case spv::ExecutionModelFragment:
-			fs_entry_points[entry.name] = shader_id;
-			break;
-		}
+		if (is_ps)
+			fs_entry_points[entry_point] = shader_id;
+		else
+			vs_entry_points[entry_point] = shader_id;
 	}
 }
