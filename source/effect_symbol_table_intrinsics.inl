@@ -279,12 +279,12 @@ IMPLEMENT_INTRINSIC_HLSL(sincos, 0, {
 	code() += id_to_name(args[1].base) + " = sin(" + id_to_name(args[0].base) + "), " + id_to_name(args[2].base) + " = cos(" + id_to_name(args[0].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_SPIRV(sincos, 0, {
-	const spv::Id sin_result = add_instruction(spv::OpExtInst, convert_type(res_type))
+	const spv::Id sin_result = add_instruction(spv::OpExtInst, convert_type(args[0].type))
 		.add(_glsl_ext)
 		.add(spv::GLSLstd450Sin)
 		.add(args[0].base)
 		.result;
-	const spv::Id cos_result = add_instruction(spv::OpExtInst, convert_type(res_type))
+	const spv::Id cos_result = add_instruction(spv::OpExtInst, convert_type(args[0].type))
 		.add(_glsl_ext)
 		.add(spv::GLSLstd450Cos)
 		.add(args[0].base)

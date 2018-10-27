@@ -77,9 +77,14 @@ private:
 		case type::t_float:
 			s += "float";
 			break;
+		case type::t_struct:
+			s += id_to_name(type.definition);
+			break;
 		case type::t_sampler:
 			s += "__sampler2D";
 			break;
+		default:
+			assert(false);
 		}
 
 		if (type.rows > 1)
@@ -161,6 +166,7 @@ private:
 	id   define_struct(const location &loc, struct_info &info) override
 	{
 		info.definition = make_id();
+		_names[info.definition] = info.unique_name;
 
 		_structs.push_back(info);
 
@@ -227,7 +233,12 @@ private:
 		if (name != nullptr)
 			_names[res] = name;
 
-		code() += write_location(loc) + write_scope() + write_type(type) + ' ' + id_to_name(res);
+		code() += write_location(loc) + write_scope() + write_type(type);
+
+		if (type.is_array())
+			code() += '[' + std::to_string(type.array_length) + ']';
+
+		code() += ' ' + id_to_name(res);
 
 		if (initializer_value != 0)
 			code() += " = " + id_to_name(initializer_value);
@@ -288,7 +299,12 @@ private:
 	{
 		const id res = make_id();
 
-		code() += write_location(chain.location) + write_scope() + "const " + write_type(chain.type) + ' ' + id_to_name(res) + " = ";
+		code() += write_location(chain.location) + write_scope() + "const " + write_type(chain.type);
+
+		if (chain.type.is_array())
+			code() += '[' + std::to_string(chain.type.array_length) + ']';
+
+		code() += ' ' + id_to_name(res) + " = ";
 
 		if (chain.is_constant)
 		{
@@ -356,6 +372,8 @@ private:
 
 	id   emit_constant(const type &type, const constant &data) override
 	{
+		assert(type.is_numeric());
+
 		const id res = make_id();
 
 		code() += write_scope() + "const " + write_type(type) + ' ' + id_to_name(res);
@@ -368,11 +386,11 @@ private:
 		return res;
 	}
 
-	id   emit_unary_op(const location &loc, tokenid op, const type &type, id val) override
+	id   emit_unary_op(const location &loc, tokenid op, const type &res_type, id val) override
 	{
 		const id res = make_id();
 
-		code() += write_location(loc) + write_scope() + "const " + write_type(type) + ' ' + id_to_name(res) + " = " + char(op) + ' ' + id_to_name(val) + ";\n";
+		code() += write_location(loc) + write_scope() + "const " + write_type(res_type) + ' ' + id_to_name(res) + " = " + char(op) + ' ' + id_to_name(val) + ";\n";
 
 		return res;
 	}
@@ -458,13 +476,18 @@ private:
 
 		return res;
 	}
-	id   emit_ternary_op(const location &loc, tokenid op, const type &type, id condition, id true_value, id false_value) override
+	id   emit_ternary_op(const location &loc, tokenid op, const type &res_type, id condition, id true_value, id false_value) override
 	{
 		assert(op == tokenid::question);
 
 		const id res = make_id();
 
-		code() += write_location(loc) + write_scope() + "const " + write_type(type) + ' ' + id_to_name(res) + " = " + id_to_name(condition) + " ? " + id_to_name(true_value) + " : " + id_to_name(false_value) + ";\n";
+		code() += write_location(loc) + write_scope() + "const " + write_type(res_type);
+
+		if (res_type.is_array())
+			code() += '[' + std::to_string(res_type.array_length) + ']';
+
+		code() += ' ' + id_to_name(res) + " = " + id_to_name(condition) + " ? " + id_to_name(true_value) + " : " + id_to_name(false_value) + ";\n";
 
 		return res;
 	}
@@ -472,7 +495,19 @@ private:
 	{
 		const id res = make_id();
 
-		code() += write_location(loc) + write_scope() + "const " + write_type(res_type) + ' ' + id_to_name(res) + " = " + id_to_name(function) + '(';
+		code() += write_location(loc) + write_scope();
+
+		if (!res_type.is_void())
+		{
+			code() += "const " + write_type(res_type);
+
+			if (res_type.is_array())
+				code() += '[' + std::to_string(res_type.array_length) + ']';
+
+			code() += ' ' + id_to_name(res) + " = ";
+		}
+
+		code() += id_to_name(function) + '(';
 
 		for (const auto &arg : args)
 			code() += id_to_name(arg.base) + ", ";
@@ -518,7 +553,12 @@ private:
 	{
 		const id res = make_id();
 
-		code() += write_location(loc) + write_scope() + "const " + write_type(type) + ' ' + id_to_name(res) + " = " + write_type(type) + '(';
+		code() += write_location(loc) + write_scope() + "const " + write_type(type);
+
+		if (type.is_array())
+			code() += '[' + std::to_string(type.array_length) + ']';
+
+		code() += ' ' + id_to_name(res) + " = " + write_type(type) + '(';
 
 		for (const auto &arg : args)
 			code() += (arg.is_constant ? write_constant(arg.type, arg.constant) : id_to_name(arg.base)) + ", ";

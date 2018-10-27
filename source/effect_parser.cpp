@@ -2401,7 +2401,7 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 
 			initializer.add_cast_operation(type);
 		}
-		else if (type.is_numeric()) // Numeric variables without an initializer need special handling
+		else if (type.is_numeric() || type.is_struct()) // Numeric variables without an initializer need special handling
 		{
 			if (type.has(type::q_const)) // Constants have to have an initial value
 				return error(location, 3012, "missing initial value for '" + name + "'"), false;

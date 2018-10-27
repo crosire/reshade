@@ -596,21 +596,31 @@ private:
 
 	id   define_struct(const location &loc, struct_info &info) override
 	{
-		_structs.push_back(info);
+		// First define all member types to make sure they are declared before the struct type references them
+		std::vector<spv::Id> member_types;
+		member_types.reserve(info.member_list.size());
+		for (const auto &member : info.member_list)
+			member_types.push_back(convert_type(member.type));
 
+		// Afterwards define the actual struct type
 		add_location(loc, _types_and_constants);
 
-		spirv_instruction &instruction = add_instruction_without_result(spv::OpTypeStruct, _types_and_constants);
-		instruction.result = info.definition;
+		spirv_instruction &instruction = add_instruction(spv::OpTypeStruct, 0, _types_and_constants);
+		for (spv::Id type_id : member_types)
+			instruction.add(type_id);
 
-		for (const auto &member : info.member_list)
-			instruction.add(convert_type(member.type));
+		if (info.definition == _global_ubo_type)
+			instruction.result = info.definition;
+		else
+			assert(info.definition == 0), info.definition = instruction.result;
 
 		if (!info.unique_name.empty())
 			add_name(info.definition, info.unique_name.c_str());
 
 		for (uint32_t index = 0; index < info.member_list.size(); ++index)
 			add_member_name(info.definition, index, info.member_list[index].name.c_str());
+
+		_structs.push_back(info);
 
 		return info.definition;
 	}
@@ -657,9 +667,9 @@ private:
 		info.member_index = _uniforms.size();
 		info.struct_type_id = _global_ubo_type;
 
-		_uniforms.push_back(info);
-
 		add_member_decoration(_global_ubo_type, info.member_index, spv::DecorationOffset, { info.offset });
+
+		_uniforms.push_back(info);
 
 		return _global_ubo_variable;
 	}

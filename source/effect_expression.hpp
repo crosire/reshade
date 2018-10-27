@@ -246,7 +246,7 @@ namespace reshadefx
 
 	struct struct_info
 	{
-		uint64_t definition;
+		uint64_t definition = 0;
 		std::string name;
 		std::string unique_name;
 		std::vector<struct struct_member_info> member_list;
