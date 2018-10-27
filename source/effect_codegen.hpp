@@ -35,7 +35,7 @@ namespace reshadefx
 		/// <summary>
 		/// An opaque ID referring to a SSA value or basic block.
 		/// </summary>
-		using id = uint64_t;
+		using id = uint32_t;
 
 		/// <summary>
 		/// Enumeration with all existing code generation implementations.
@@ -103,7 +103,7 @@ namespace reshadefx
 		/// Create a new basic block.
 		/// </summary>
 		/// <returns>New SSA ID of the basic block.</returns>
-		virtual id create_block() = 0;
+		virtual id   create_block() = 0;
 
 		/// <summary>
 		/// Make a function a shader entry point.
@@ -111,7 +111,7 @@ namespace reshadefx
 		/// <param name="function">The function to use as entry point.</param>
 		/// <param name="is_ps"><c>true</c> if this is a pixel shader, <c>false</c> if it is a vertex shader.</param>
 		/// <returns>New SSA ID of the shader entry point.</returns>
-		virtual id create_entry_point(const struct function_info &function, bool is_ps) = 0;
+		virtual void create_entry_point(const struct function_info &function, bool is_ps) = 0;
 
 		/// <summary>
 		/// Resolve the access chain and add a load operation to the output.

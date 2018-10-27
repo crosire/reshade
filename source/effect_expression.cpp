@@ -98,7 +98,7 @@ void reshadefx::expression::add_cast_operation(const reshadefx::type &in_type)
 	type = in_type;
 	//is_lvalue = false; // Can't do this because of 'if (chain.is_lvalue)' check in 'add_load_operation'
 }
-void reshadefx::expression::add_member_access(size_t index, const reshadefx::type &in_type)
+void reshadefx::expression::add_member_access(uint32_t index, const reshadefx::type &in_type)
 {
 	reshadefx::type target_type = in_type;
 	target_type.is_ptr = true;

@@ -281,7 +281,7 @@ private:
 
 		_samplers.push_back(info);
 
-		code() += "layout(binding = " + std::to_string(info.binding) + ") uniform sampler2D " + info.unique_name + ";\n";
+		code() += write_location(loc) + "layout(binding = " + std::to_string(info.binding) + ") uniform sampler2D " + info.unique_name + ";\n";
 
 		_names[info.id] = info.unique_name;
 
@@ -289,8 +289,6 @@ private:
 	}
 	id   define_uniform(const location &loc, uniform_info &info) override
 	{
-		info.member_index = _uniforms.size();
-
 		const unsigned int size = 4 * (info.type.rows == 3 ? 4 : info.type.rows) * info.type.cols * std::max(1, info.type.array_length);
 		const unsigned int alignment = size;
 		info.size = size;
@@ -304,8 +302,9 @@ private:
 		const_cast<struct_info &>(find_struct(_cbuffer_type_id))
 			.member_list.push_back(std::move(member));
 
-		_blocks[_cbuffer_type_id] += write_location(loc);
-		_blocks[_cbuffer_type_id] += write_type(info.type) + " _Globals_" + info.name + ";\n";
+		_blocks[_cbuffer_type_id] += write_location(loc) + write_type(info.type) + " _Globals_" + info.name + ";\n";
+
+		info.member_index = static_cast<uint32_t>(_uniforms.size());
 
 		_uniforms.push_back(info);
 
@@ -364,13 +363,13 @@ private:
 		return make_id();
 	}
 
-	id   create_entry_point(const function_info &func, bool is_ps) override
+	void create_entry_point(const function_info &func, bool is_ps) override
 	{
 		if (const auto it = std::find_if(_entry_points.begin(), _entry_points.end(),
 			[&func](const auto &ep) { return ep.first == func.unique_name; }); it != _entry_points.end())
-			return it - _entry_points.begin();
+			return;
 
-		code() += "#ifdef ENTRY_POINT_" + func.name + '\n';
+		code() += "#ifdef ENTRY_POINT_" + func.unique_name + '\n';
 
 
 
@@ -387,8 +386,6 @@ private:
 		code() += "#endif\n";
 
 		_entry_points.push_back({ func.unique_name, is_ps });
-
-		return _entry_points.size() - 1;
 	}
 
 	id   emit_load(const expression &chain) override

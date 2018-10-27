@@ -87,8 +87,8 @@ namespace reshadefx
 		std::unique_ptr<codegen> _codegen;
 		token _token, _token_next, _token_backup;
 
-		std::vector<uint64_t> _loop_break_target_stack;
-		std::vector<uint64_t> _loop_continue_target_stack;
+		std::vector<codegen::id> _loop_break_target_stack;
+		std::vector<codegen::id> _loop_continue_target_stack;
 		type _current_return_type;
 	};
 }

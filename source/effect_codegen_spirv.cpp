@@ -16,8 +16,6 @@ namespace spv {
 #include <GLSL.std.450.h>
 }
 
-#pragma warning(disable: 4267 4244)
-
 using namespace reshadefx;
 
 /// <summary>
@@ -103,7 +101,7 @@ static void write(std::vector<uint32_t> &s, const spirv_instruction &ins)
 	// First word of an instruction:
 	// The 16 low-order bits are the opcode
 	// The 16 high-order bits are the word count of the instruction
-	const uint32_t num_words = 1 + (ins.type != 0) + (ins.result != 0) + ins.operands.size();
+	const uint32_t num_words = 1 + (ins.type != 0) + (ins.result != 0) + static_cast<uint32_t>(ins.operands.size());
 	write(s, (num_words << spv::WordCountShift) | ins.op);
 
 	// Optional instruction type ID
@@ -666,7 +664,7 @@ private:
 		info.offset = align(_global_ubo_offset, alignment);
 		_global_ubo_offset = info.offset + size;
 
-		info.member_index = _uniforms.size();
+		info.member_index = static_cast<uint32_t>(_uniforms.size());
 
 		add_member_decoration(_global_ubo_type, info.member_index, spv::DecorationOffset, { info.offset });
 
@@ -721,11 +719,11 @@ private:
 		return make_id();
 	}
 
-	id   create_entry_point(const function_info &func, bool is_ps) override
+	void create_entry_point(const function_info &func, bool is_ps) override
 	{
 		if (const auto it = std::find_if(_entry_points.begin(), _entry_points.end(),
 			[&func](const auto &ep) { return ep.first == func.unique_name; }); it != _entry_points.end())
-			return it - _entry_points.begin();
+			return;
 
 		std::vector<expression> call_params;
 		std::vector<unsigned int> inputs_and_outputs;
@@ -1007,16 +1005,14 @@ private:
 		leave_block_and_return(0);
 		leave_function();
 
-		assert(!func.name.empty());
+		assert(!func.unique_name.empty());
 		add_instruction_without_result(spv::OpEntryPoint, _entries)
 			.add(is_ps ? spv::ExecutionModelFragment : spv::ExecutionModelVertex)
 			.add(entry_point.definition)
-			.add_string(func.name.c_str())
+			.add_string(func.unique_name.c_str())
 			.add(inputs_and_outputs.begin(), inputs_and_outputs.end());
 
-		_entry_points.push_back({ func.name, is_ps });
-
-		return _entry_points.size() - 1;
+		_entry_points.push_back({ func.unique_name, is_ps });
 	}
 
 	id   emit_load(const expression &chain) override

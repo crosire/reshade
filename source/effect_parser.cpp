@@ -1072,7 +1072,7 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 				const auto &member_list = _codegen->find_struct(exp.type.definition).member_list;
 
 				// Find member with matching name is structure definition
-				size_t member_index = 0;
+				uint32_t member_index = 0;
 				for (const struct_member_info &member : member_list) {
 					if (member.name == subscript)
 						break;

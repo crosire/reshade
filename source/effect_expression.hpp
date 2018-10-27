@@ -106,7 +106,7 @@ namespace reshadefx
 		bool is_input = false; // Has the 'input' storage class
 		bool is_output = false; // Has the 'output' storage class
 		int array_length = 0; // Negative if an unsized array, otherwise the number of elements if this is an array type
-		uint64_t definition = 0; // Type ID of the structure type
+		uint32_t definition = 0; // Type ID of the structure type
 	};
 
 	/// <summary>
@@ -144,19 +144,19 @@ namespace reshadefx
 
 			op_type type;
 			struct type from, to;
-			uint64_t index;
+			uint32_t index;
 			signed char swizzle[4];
 		};
 
 		struct type type = {};
-		uint64_t base = 0;
+		uint32_t base = 0;
 		constant constant = {};
 		bool is_lvalue = false;
 		bool is_constant = false;
 		location location;
 		std::vector<operation> ops;
 
-		void reset_to_lvalue(const struct location &loc, uint64_t in_base, const struct type &in_type)
+		void reset_to_lvalue(const struct location &loc, uint32_t in_base, const struct type &in_type)
 		{
 			type = in_type;
 			type.is_ptr = false;
@@ -166,7 +166,7 @@ namespace reshadefx
 			is_constant = false;
 			ops.clear();
 		}
-		void reset_to_rvalue(const struct location &loc, uint64_t in_base, const struct type &in_type)
+		void reset_to_rvalue(const struct location &loc, uint32_t in_base, const struct type &in_type)
 		{
 			type = in_type;
 			type.qualifiers |= type::q_const;
@@ -234,9 +234,9 @@ namespace reshadefx
 		}
 
 		void add_cast_operation(const reshadefx::type &type);
-		void add_member_access(size_t index, const reshadefx::type &type);
+		void add_member_access(uint32_t index, const reshadefx::type &type);
 		void add_static_index_access(class codegen *codegen, uint32_t index);
-		void add_dynamic_index_access(class codegen *codegen, uint64_t index_expression);
+		void add_dynamic_index_access(class codegen *codegen, uint32_t index_expression);
 		void add_swizzle_access(signed char swizzle[4], size_t length);
 
 		void evaluate_constant_expression(enum class tokenid op);
@@ -246,10 +246,10 @@ namespace reshadefx
 
 	struct struct_info
 	{
-		uint64_t definition = 0;
 		std::string name;
 		std::string unique_name;
 		std::vector<struct struct_member_info> member_list;
+		uint32_t definition = 0;
 	};
 
 	struct struct_member_info
@@ -258,14 +258,14 @@ namespace reshadefx
 		std::string name;
 		std::string semantic;
 		location location;
-		uint64_t definition = 0;
+		uint32_t definition = 0;
 	};
 
 	struct uniform_info
 	{
 		std::string name;
 		type type;
-		size_t member_index = 0;
+		uint32_t member_index = 0;
 		uint32_t size = 0;
 		uint32_t offset = 0;
 		std::unordered_map<std::string, std::pair<struct type, constant>> annotations;
@@ -275,7 +275,7 @@ namespace reshadefx
 
 	struct texture_info
 	{
-		uint64_t id = 0;
+		uint32_t id = 0;
 		std::string semantic;
 		std::string unique_name;
 		std::unordered_map<std::string, std::pair<type, constant>> annotations;
@@ -287,7 +287,7 @@ namespace reshadefx
 
 	struct sampler_info
 	{
-		uint64_t id = 0;
+		uint32_t id = 0;
 		uint32_t set = 0;
 		uint32_t binding = 0;
 		std::string unique_name;
@@ -337,7 +337,7 @@ namespace reshadefx
 
 	struct function_info
 	{
-		uint64_t definition;
+		uint32_t definition;
 		std::string name;
 		std::string unique_name;
 		type return_type;

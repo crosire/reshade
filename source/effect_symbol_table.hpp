@@ -38,14 +38,14 @@ namespace reshadefx
 	struct symbol
 	{
 		symbol_type op = symbol_type::invalid;
-		uint64_t id = 0;
+		uint32_t id = 0;
 		type type = {};
 		constant constant = {};
 
 		union
 		{
 			const function_info *function = nullptr;
-			size_t uniform_index;
+			uint32_t uniform_index;
 		};
 	};
 
