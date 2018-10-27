@@ -11,16 +11,42 @@ using namespace reshadefx;
 
 class codegen_hlsl final : public codegen
 {
+public:
+	codegen_hlsl()
+	{
+		struct_info cbuffer_type;
+		cbuffer_type.name = "$Globals";
+		cbuffer_type.unique_name = "_Globals";
+		cbuffer_type.definition = _cbuffer_type = make_id();
+		structs.push_back(cbuffer_type);
+
+		_names[_cbuffer_type] = cbuffer_type.unique_name;
+	}
+
+private:
+	id _next_id = 1;
 	id _last_block = 0;
+	id _current_block = 0;
+	id _cbuffer_type = 0;
 	std::unordered_map<id, std::string> _names;
 	std::unordered_map<id, std::string> _blocks;
 	unsigned int _scope_level = 0;
+	unsigned int _current_function = 0xFFFFFFFF;
+	unsigned int _current_sampler_binding = 0;
+
+	inline id make_id() { return _next_id++; }
 
 	inline std::string &code() { return _blocks[_current_block]; }
 
 	void write_result(module &s) const override
 	{
-		s.hlsl = "struct __sampler { Texture2D t; SamplerState s; };\nint2 __tex2Dsize(__sampler s, int lod) { uint w, h, l; s.t.GetDimensions(lod, w, h, l); return int2(w, h); }\n" + _blocks.at(0);
+		s.hlsl =
+			"struct __sampler2D { Texture2D t; SamplerState s; };\n"
+			"int2 __tex2Dsize(__sampler2D s, int lod) { uint w, h, l; s.t.GetDimensions(lod, w, h, l); return int2(w, h); }\n"
+			"cbuffer _Globals : register(b0) {\n" +
+			_blocks.at(_cbuffer_type) +
+			"};\n" +
+			_blocks.at(0);
 
 		s.samplers = samplers;
 		s.textures = textures;
@@ -44,7 +70,7 @@ class codegen_hlsl final : public codegen
 		case type::t_float:
 			s += "float"; break;
 		case type::t_sampler:
-			s += "__sampler"; break;
+			s += "__sampler2D"; break;
 		}
 
 		if (type.rows > 1)
@@ -110,7 +136,7 @@ class codegen_hlsl final : public codegen
 	}
 	std::string write_location(const location &loc)
 	{
-		if (loc.source.empty())
+		//if (loc.source.empty())
 			return std::string();
 
 		return "#line " + std::to_string(loc.line) + " \"" + loc.source + "\"\n";
@@ -123,12 +149,16 @@ class codegen_hlsl final : public codegen
 		return '_' + std::to_string(id);
 	}
 
-	id define_struct(const location &loc, struct_info &info) override
+	bool is_in_block() const override { return _current_block != 0; }
+	bool is_in_function() const override { return _current_function != 0xFFFFFFFF; }
+
+	id   define_struct(const location &loc, struct_info &info) override
 	{
+		info.definition = make_id();
+
 		structs.push_back(info);
 
-		code() += write_location(loc);
-		code() += "struct " + info.unique_name + "\n{\n";
+		code() += write_location(loc) + "struct " + info.unique_name + "\n{\n";
 
 		for (const auto &member : info.member_list)
 		{
@@ -142,57 +172,84 @@ class codegen_hlsl final : public codegen
 
 		return info.definition;
 	}
-	id define_texture(const location &, texture_info &info) override
+	id   define_texture(const location &, texture_info &info) override
 	{
+		info.id = make_id();
+
 		textures.push_back(info);
 
 		return info.id;
 	}
-	id define_sampler(const location &loc, sampler_info &info) override
+	id   define_sampler(const location &loc, sampler_info &info) override
 	{
+		info.id = make_id();
+		info.binding = _current_sampler_binding++;
+
 		samplers.push_back(info);
 
 		code() += "Texture2D " + info.unique_name + "_t : register(t" + std::to_string(info.binding) + ");\n";
 		code() += "SamplerState " + info.unique_name + "_s : register(s" + std::to_string(info.binding) + ");\n";
 		code() += write_location(loc);
-		code() += "__sampler " + info.unique_name + " = { " + info.unique_name + "_t, " + info.unique_name + "_s };\n";
+		code() += "__sampler2D " + info.unique_name + " = { " + info.unique_name + "_t, " + info.unique_name + "_s };\n";
 
 		_names[info.id] = info.unique_name;
 
 		return info.id;
 	}
-	id define_uniform(const location &loc, uniform_info &info) override
+	id   define_uniform(const location &loc, uniform_info &info) override
 	{
 		info.member_index = uniforms.size();
 
 		uniforms.push_back(info);
 
-		code() += write_location(loc);
-		code() += write_type(info.type) + ' ' + info.name + ";\n";
+		struct_member_info member;
+		member.type = info.type;
+		member.name = info.name;
 
-		_names[0xFFFFFFFF] = "_Globals";
+		const_cast<struct_info &>(find_struct(_cbuffer_type))
+			.member_list.push_back(std::move(member));
 
-		return 0xFFFFFFFF;
+		_blocks[_cbuffer_type] += write_location(loc);
+		_blocks[_cbuffer_type] += write_type(info.type) + ' ' + info.name + ";\n";
+
+		return _cbuffer_type;
 	}
-	id define_variable(const location &loc, const type &type, const char *name, bool, id initializer_value) override
+	id   define_variable(const location &loc, const type &type, const char *name, bool, id initializer_value) override
 	{
-		id id = make_id();
+		const id res = make_id();
 
 		if (name != nullptr)
-			_names[id] = name;
+			_names[res] = name;
 
-		code() += write_location(loc);
-		code() += write_scope() + write_type(type) + ' ' + id_to_name(id);
+		code() += write_location(loc) + write_scope() + write_type(type) + ' ' + id_to_name(res);
 
 		if (initializer_value != 0)
 			code() += " = " + id_to_name(initializer_value);
 
 		code() += ";\n";
 
-		return id;
+		return res;
 	}
-	id define_function(const location &, function_info &info) override
+	id   define_function(const location &loc, function_info &info) override
 	{
+		info.definition = make_id();
+		_names[info.definition] = info.unique_name;
+
+		code() += write_location(loc) + write_type(info.return_type) + ' ' + info.unique_name + '(';
+
+		for (auto &param : info.parameter_list)
+		{
+			param.definition = make_id();
+			_names[param.definition] = param.name;
+
+			code() += '\n' + write_location(param.location) + '\t' + write_type(param.type) + ' ' + param.name;
+
+			if (!param.semantic.empty())
+				code() += " : " + param.semantic;
+
+			code() += ',';
+		}
+
 		// Remove last comma from the parameter list
 		if (code().back() == ',')
 			code().pop_back();
@@ -204,46 +261,29 @@ class codegen_hlsl final : public codegen
 
 		code() += '\n';
 
-		//_names[info.definition] = info.unique_name;
+		_scope_level++;
+		_current_function = functions.size();
 
 		functions.push_back(std::make_unique<function_info>(info));
 
 		return info.definition;
 	}
-	id define_parameter(const location &loc, struct_member_info &info) override
+
+	id   create_block() override
 	{
-		id id = make_id();
-
-		_names[id] = info.name;
-
-		code() += '\n' + write_location(loc);
-		code() += '\t' + write_type(info.type) + ' ' + id_to_name(id);
-
-		if (!info.semantic.empty())
-			code() += " : " + info.semantic;
-
-		code() +',';
-
-		return id;
-	}
-	id define_technique(const location &, technique_info &info) override
-	{
-		techniques.push_back(info);
-
-		return 0;
+		return make_id();
 	}
 
-	id create_entry_point(const function_info &func, bool is_ps) override
+	id   create_entry_point(const function_info &func, bool) override
 	{
 		return func.definition;
 	}
 
 	id   emit_load(const expression &chain) override
 	{
-		id res = make_id();
+		const id res = make_id();
 
-		code() += write_location(chain.location);
-		code() += write_scope() + "const " + write_type(chain.type) + ' ' + id_to_name(res) + " = ";
+		code() += write_location(chain.location) + write_scope() + "const " + write_type(chain.type) + ' ' + id_to_name(res) + " = ";
 
 		if (chain.is_constant)
 		{
@@ -264,6 +304,10 @@ class codegen_hlsl final : public codegen
 				case expression::operation::op_index:
 					newcode += '[' + id_to_name(op.index) + ']';
 					break;
+				case expression::operation::op_member:
+					newcode += '.';
+					newcode += find_struct(op.from.definition).member_list[op.index].name;
+					break;
 				case expression::operation::op_swizzle:
 					newcode += '.';
 					for (unsigned int i = 0; i < 4 && op.swizzle[i] >= 0; ++i)
@@ -281,8 +325,7 @@ class codegen_hlsl final : public codegen
 	}
 	void emit_store(const expression &chain, id value, const type &) override
 	{
-		code() += write_location(chain.location);
-		code() += write_scope() + id_to_name(chain.base);
+		code() += write_location(chain.location) + write_scope() + id_to_name(chain.base);
 
 		for (const auto &op : chain.ops)
 		{
@@ -290,6 +333,10 @@ class codegen_hlsl final : public codegen
 			{
 			case expression::operation::op_index:
 				code() += '[' + id_to_name(op.index) + ']';
+				break;
+			case expression::operation::op_member:
+				code() += '.';
+				code() += find_struct(op.from.definition).member_list[op.index].name;
 				break;
 			case expression::operation::op_swizzle:
 				code() += '.';
@@ -304,82 +351,105 @@ class codegen_hlsl final : public codegen
 
 	id   emit_constant(const type &type, const constant &data) override
 	{
-		id id = make_id();
+		const id res = make_id();
 
-		code() += write_scope() + "const " + write_type(type) + ' ' + id_to_name(id);
+		code() += write_scope() + "const " + write_type(type) + ' ' + id_to_name(res);
 
 		if (type.is_array())
 			code() += '[' + std::to_string(type.array_length) + ']';
 
 		code() += " = " + write_constant(type, data) + ";\n";
 
-		return id;
+		return res;
 	}
 
 	id   emit_unary_op(const location &loc, tokenid op, const type &type, id val) override
 	{
-		id res = make_id();
-		std::string hlsl_op;
+		const id res = make_id();
 
-		switch (op)
-		{
-		case tokenid::exclaim: hlsl_op = "!"; break;
-		case tokenid::minus: hlsl_op = "-"; break;
-		case tokenid::tilde: hlsl_op = "~"; break;
-		case tokenid::plus_plus: hlsl_op = "+ 1"; break;
-		case tokenid::minus_minus: hlsl_op = "- 1"; break;
-		default:
-			return assert(false), 0;
-		}
-
-		code() += write_location(loc);
-		code() += write_scope() + "const " + write_type(type) + ' ' + id_to_name(res) + " = " + id_to_name(val) + ' ' + hlsl_op + ";\n";
+		code() += write_location(loc) + write_scope() + "const " + write_type(type) + ' ' + id_to_name(res) + " = " + char(op) + ' ' + id_to_name(val) + ";\n";
 
 		return res;
 	}
 	id   emit_binary_op(const location &loc, tokenid op, const type &res_type, const type &, id lhs, id rhs) override
 	{
-		id res = make_id();
-		std::string hlsl_op;
+		const id res = make_id();
+
+		code() += write_location(loc) + write_scope() + "const " + write_type(res_type) + ' ' + id_to_name(res) + " = " + id_to_name(lhs) + ' ';
 
 		switch (op)
 		{
 		case tokenid::percent:
-		case tokenid::percent_equal: hlsl_op = "%"; break;
+		case tokenid::percent_equal:
+			code() += '%';
+			break;
 		case tokenid::ampersand:
-		case tokenid::ampersand_equal: hlsl_op = "&"; break;
+		case tokenid::ampersand_equal:
+			code() += '&';
+			break;
 		case tokenid::star:
-		case tokenid::star_equal: hlsl_op = "*"; break;
+		case tokenid::star_equal:
+			code() += '*';
+			break;
 		case tokenid::plus:
 		case tokenid::plus_plus:
-		case tokenid::plus_equal: hlsl_op = "+"; break;
+		case tokenid::plus_equal:
+			code() += '+';
+			break;
 		case tokenid::minus:
 		case tokenid::minus_minus:
-		case tokenid::minus_equal: hlsl_op = "-"; break;
+		case tokenid::minus_equal:
+			code() += '-';
+			break;
 		case tokenid::slash:
-		case tokenid::slash_equal: hlsl_op = "/"; break;
-		case tokenid::less: hlsl_op = "<"; break;
-		case tokenid::greater: hlsl_op = ">"; break;
+		case tokenid::slash_equal:
+			code() += '/';
+			break;
 		case tokenid::caret:
-		case tokenid::caret_equal: hlsl_op = "^"; break;
+		case tokenid::caret_equal:
+			code() += '^';
+			break;
 		case tokenid::pipe:
-		case tokenid::pipe_equal: hlsl_op = "|"; break;
-		case tokenid::exclaim_equal: hlsl_op = "!"; break;
-		case tokenid::ampersand_ampersand: hlsl_op = "&&";  break;
+		case tokenid::pipe_equal:
+			code() += '|';
+			break;
 		case tokenid::less_less:
-		case tokenid::less_less_equal: hlsl_op = "<<"; break;
-		case tokenid::less_equal: hlsl_op = "<="; break;
-		case tokenid::equal_equal: hlsl_op = "=="; break;
+		case tokenid::less_less_equal:
+			code() += "<<";
+			break;
 		case tokenid::greater_greater:
-		case tokenid::greater_greater_equal: hlsl_op = ">>"; break;
-		case tokenid::greater_equal: hlsl_op = ">="; break;
-		case tokenid::pipe_pipe: hlsl_op = "||"; break;
+		case tokenid::greater_greater_equal:
+			code() += ">>";
+			break;
+		case tokenid::less:
+			code() += '<';
+			break;
+		case tokenid::less_equal:
+			code() += "<=";
+			break;
+		case tokenid::greater:
+			code() += '>';
+			break;
+		case tokenid::greater_equal:
+			code() += ">=";
+			break;
+		case tokenid::equal_equal:
+			code() += "==";
+			break;
+		case tokenid::exclaim_equal:
+			code() += "!=";
+			break;
+		case tokenid::ampersand_ampersand:
+			code() += "&&";
+			break;
+		case tokenid::pipe_pipe:
+			code() += "||";
+			break;
 		default:
-			return assert(false), 0;
+			assert(false);
 		}
 
-		code() += write_location(loc);
-		code() += write_scope() + "const " + write_type(res_type) + ' ' + id_to_name(res) + " = " + id_to_name(lhs) + ' ' + hlsl_op + ' ' + id_to_name(rhs) + ";\n";
+		code() += ' ' + id_to_name(rhs) + ";\n";
 
 		return res;
 	}
@@ -387,24 +457,20 @@ class codegen_hlsl final : public codegen
 	{
 		assert(op == tokenid::question);
 
-		id res = make_id();
+		const id res = make_id();
 
-		code() += write_location(loc);
-		code() += write_scope() + "const " + write_type(type) + ' ' + id_to_name(res) + " = " + id_to_name(condition) + " ? " + id_to_name(true_value) + " : " + id_to_name(false_value) + ";\n";
+		code() += write_location(loc) + write_scope() + "const " + write_type(type) + ' ' + id_to_name(res) + " = " + id_to_name(condition) + " ? " + id_to_name(true_value) + " : " + id_to_name(false_value) + ";\n";
 
 		return res;
 	}
 	id   emit_call(const location &loc, id function, const type &res_type, const std::vector<expression> &args) override
 	{
-		id res = make_id();
+		const id res = make_id();
 
-		code() += write_location(loc);
-		code() += write_scope() + "const " + write_type(res_type) + ' ' + id_to_name(res) + " = " + id_to_name(function) + "(";
+		code() += write_location(loc) + write_scope() + "const " + write_type(res_type) + ' ' + id_to_name(res) + " = " + id_to_name(function) + '(';
 
 		for (const auto &arg : args)
-		{
 			code() += id_to_name(arg.base) + ", ";
-		}
 
 		if (code().back() == ' ')
 		{
@@ -418,10 +484,9 @@ class codegen_hlsl final : public codegen
 	}
 	id   emit_call_intrinsic(const location &loc, id intrinsic, const type &res_type, const std::vector<expression> &args) override
 	{
-		id res = make_id();
+		const id res = make_id();
 
-		code() += write_location(loc);
-		code() += write_scope();
+		code() += write_location(loc) + write_scope();
 
 		if (!res_type.is_void())
 		{
@@ -444,17 +509,14 @@ class codegen_hlsl final : public codegen
 
 		return res;
 	}
-	id   emit_construct(const type &type, std::vector<expression> &args) override
+	id   emit_construct(const location &loc, const type &type, std::vector<expression> &args) override
 	{
-		id id = make_id();
+		const id res = make_id();
 
-		code() += write_scope() + "const " + write_type(type) + ' ' + id_to_name(id) + " = " + write_type(type) + '(';
+		code() += write_location(loc) + write_scope() + "const " + write_type(type) + ' ' + id_to_name(res) + " = " + write_type(type) + '(';
 
 		for (const auto &arg : args)
-		{
-			code() += arg.is_constant ? write_constant(arg.type, arg.constant) : id_to_name(arg.base);
-			code() += ", ";
-		}
+			code() += (arg.is_constant ? write_constant(arg.type, arg.constant) : id_to_name(arg.base)) + ", ";
 
 		if (code().back() == ' ')
 		{
@@ -464,36 +526,35 @@ class codegen_hlsl final : public codegen
 
 		code() += ");\n";
 
-		return id;
+		return res;
 	}
 
-	void emit_if(const location &loc, id condition_value, id condition_block, id true_statement_block, id false_statement_block, id merge_block, unsigned int flags) override
+	void emit_if(const location &loc, id condition_value, id condition_block, id true_statement_block, id false_statement_block, unsigned int flags) override
 	{
-		assert(condition_value != 0);
-		assert(condition_block != 0);
-		assert(true_statement_block != 0);
-		assert(false_statement_block != 0);
-		assert(merge_block != 0);
+		assert(condition_value != 0 && condition_block != 0 && true_statement_block != 0 && false_statement_block != 0);
 
-		_blocks[merge_block] += _blocks[condition_block];
-		_blocks[merge_block] += write_location(loc);
+		code() += _blocks[condition_block];
+		code() += write_location(loc);
 
-		if (flags & flatten) _blocks[merge_block] += "[flatten]";
-		if (flags & dont_flatten) _blocks[merge_block] += "[branch]";
+		if (flags & flatten) code() += "[flatten]";
+		if (flags & dont_flatten) code() += "[branch]";
 
-		_blocks[merge_block] +=
+		code() +=
 			write_scope() + "if (" + id_to_name(condition_value) + ")\n" + write_scope() + "{\n" +
-			write_scope() + _blocks[true_statement_block] +
+			_blocks[true_statement_block] +
 			write_scope() + "}\n" + write_scope() + "else\n" + write_scope () + "{\n" +
-			write_scope() + _blocks[false_statement_block] +
+			_blocks[false_statement_block] +
 			write_scope() + "}\n";
 	}
-	id   emit_phi(const type &type, id condition_value, id condition_block, id true_value, id true_statement_block, id false_value, id false_statement_block) override
+	id   emit_phi(const location &loc, id condition_value, id condition_block, id true_value, id true_statement_block, id false_value, id false_statement_block, const type &type) override
 	{
-		id res = make_id();
+		assert(condition_value != 0 && condition_block != 0 && true_value != 0 && true_statement_block != 0 && false_value != 0 && false_statement_block != 0);
+
+		const id res = make_id();
 
 		code() += _blocks[condition_block] +
 			write_scope() + write_type(type) + ' ' + id_to_name(res) + ";\n" +
+			write_location(loc) +
 			write_scope() + "if (" + id_to_name(condition_value) + ")\n" + write_scope () + "{\n" +
 			(true_statement_block != condition_block ? _blocks[true_statement_block] : std::string()) +
 			write_scope() + id_to_name(res) + " = " + id_to_name(true_value) + ";\n" +
@@ -504,79 +565,82 @@ class codegen_hlsl final : public codegen
 
 		return res;
 	}
-	void emit_loop(const location &loc, id condition_value, id prev_block, id, id condition_block, id loop_block, id continue_block, id merge_block, unsigned int flags) override
+	void emit_loop(const location &loc, id condition_value, id prev_block, id, id condition_block, id loop_block, id continue_block, unsigned int flags) override
 	{
-		assert(condition_value != 0);
-		assert(prev_block != 0);
-		assert(loop_block != 0);
-		assert(continue_block != 0);
-		assert(merge_block != 0);
+		assert(condition_value != 0 && prev_block != 0 && loop_block != 0 && continue_block != 0);
 
-		_blocks[merge_block] += _blocks[prev_block];
+		code() += _blocks[prev_block];
 
 		if (condition_block == 0)
 		{
-			_blocks[merge_block] += write_scope() + "bool " + id_to_name(condition_value) + ";\n";
+			code() += write_scope() + "bool " + id_to_name(condition_value) + ";\n";
 		}
 		else
 		{
-			_blocks[merge_block] += _blocks[condition_block];
+			// Remove 'const' from condition variable
+			std::string loop_condition = _blocks[condition_block];
+			auto pos_assign = loop_condition.rfind(id_to_name(condition_value));
+			auto pos_const_keyword = loop_condition.rfind("const", pos_assign);
+			loop_condition.erase(pos_const_keyword, 6);
+
+			code() += loop_condition;
 		}
 
-		_blocks[merge_block] += write_location(loc) + write_scope();
+		code() += write_location(loc) + write_scope();
 
-		if (flags & unroll) _blocks[merge_block] += "[unroll] ";
-		if (flags & dont_unroll) _blocks[merge_block] += "[loop] ";
+		if (flags & unroll) code() += "[unroll] ";
+		if (flags & dont_unroll) code() += "[loop] ";
 
 		if (condition_block == 0)
 		{
+			// Convert variable initializer to assignment statement
 			std::string loop_condition = _blocks[continue_block];
 			auto pos_assign = loop_condition.rfind(id_to_name(condition_value));
 			auto pos_prev_assign = loop_condition.rfind('\n', pos_assign);
-			loop_condition.erase(pos_prev_assign + 1, pos_assign - pos_prev_assign);
+			loop_condition.erase(pos_prev_assign + 1, pos_assign - pos_prev_assign - 1);
 
-			_blocks[merge_block] += "do\n" + write_scope() + "{\n" + _blocks[loop_block] + loop_condition + "}\n" + write_scope() + "while (" + id_to_name(condition_value) + ");\n";
+			code() += "do\n" + write_scope() + "{\n" + _blocks[loop_block] + loop_condition + "}\n" + write_scope() + "while (" + id_to_name(condition_value) + ");\n";
 		}
 		else
 		{
+			// Convert variable initializer to assignment statement
 			std::string loop_condition = _blocks[condition_block];
 			auto pos_assign = loop_condition.rfind(id_to_name(condition_value));
 			auto pos_prev_assign = loop_condition.rfind('\n', pos_assign);
-			loop_condition.erase(pos_prev_assign + 1, pos_assign - pos_prev_assign);
+			loop_condition.erase(pos_prev_assign + 1, pos_assign - pos_prev_assign - 1);
 
-			_blocks[merge_block] += "while (" + id_to_name(condition_value) + ")\n" + write_scope() + "{\n" + _blocks[loop_block] + _blocks[continue_block] + loop_condition + write_scope() + "}\n";
+			code() += "while (" + id_to_name(condition_value) + ")\n" + write_scope() + "{\n" + _blocks[loop_block] + _blocks[continue_block] + loop_condition + write_scope() + "}\n";
 		}
 	}
-	void emit_switch(const location &loc, id selector_value, id selector_block, id default_label, const std::vector<id> &case_literal_and_labels, id merge_block, unsigned int flags) override
+	void emit_switch(const location &loc, id selector_value, id selector_block, id default_label, const std::vector<id> &case_literal_and_labels, unsigned int flags) override
 	{
-		assert(selector_value != 0);
-		assert(selector_block != 0);
-		assert(default_label != 0);
-		assert(merge_block != 0);
+		assert(selector_value != 0 && selector_block != 0 && default_label != 0);
 
-		_blocks[merge_block] += _blocks[selector_block];
-		_blocks[merge_block] += write_location(loc) + write_scope();
+		code() += _blocks[selector_block];
+		code() += write_location(loc) + write_scope();
 
-		if (flags & flatten) _blocks[merge_block] += "[flatten]";
-		if (flags & dont_flatten) _blocks[merge_block] += "[branch]";
+		if (flags & flatten) code() += "[flatten]";
+		if (flags & dont_flatten) code() += "[branch]";
 
-		_blocks[merge_block] += "switch (" + id_to_name(selector_value) + ")\n{\n";
+		code() += "switch (" + id_to_name(selector_value) + ")\n" + write_scope() + "{\n";
 
 		_scope_level++;
 
 		for (size_t i = 0; i < case_literal_and_labels.size(); i += 2)
 		{
-			_blocks[merge_block] += write_scope() + "case " + std::to_string(case_literal_and_labels[i]) + ": " + _blocks[case_literal_and_labels[i + 1]] + '\n';
+			assert(case_literal_and_labels[i + 1] != 0);
+
+			code() += write_scope() + "case " + std::to_string(case_literal_and_labels[i]) + ": {\n" + _blocks[case_literal_and_labels[i + 1]] + write_scope() + "}\n";
 		}
 
-		if (default_label != merge_block)
+		if (default_label != _current_block)
 		{
-			_blocks[merge_block] += write_scope() + "default: " + _blocks[default_label] + '\n';
+			code() += write_scope() + "default: {\n" + _blocks[default_label] + write_scope() + "}\n";
 		}
 
 		_scope_level--;
 
-		_blocks[merge_block] += write_scope() + "}\n";
+		code() += write_scope() + "}\n";
 	}
 
 	void set_block(id id) override
@@ -611,7 +675,7 @@ class codegen_hlsl final : public codegen
 
 		return _last_block;
 	}
-	id   leave_block_and_switch(id) override
+	id   leave_block_and_switch(id, id) override
 	{
 		if (!is_in_block())
 			return _last_block;
@@ -621,12 +685,14 @@ class codegen_hlsl final : public codegen
 
 		return _last_block;
 	}
-	id   leave_block_and_branch(id, bool is_continue) override
+	id   leave_block_and_branch(id, unsigned int loop_flow) override
 	{
 		if (!is_in_block())
 			return _last_block;
 
-		if (is_continue)
+		if (loop_flow == 1)
+			code() += write_scope() + "break;\n";
+		if (loop_flow == 2)
 			code() += write_scope() + "continue;\n";
 
 		_last_block = _current_block;
@@ -643,14 +709,6 @@ class codegen_hlsl final : public codegen
 		_current_block = 0;
 
 		return _last_block;
-	}
-
-	void enter_function(id id, const type &ret_type) override
-	{
-		code() += write_type(ret_type) + ' ' + id_to_name(id) + '(';
-
-		_scope_level++;
-		_current_function = functions.size();
 	}
 	void leave_function() override
 	{

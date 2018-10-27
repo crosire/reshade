@@ -37,16 +37,18 @@ namespace reshadefx
 	class codegen abstract
 	{
 	public:
-		using id = unsigned int;
-
-		unsigned int make_id() { return _next_id++; }
-
-		id current_block() const { return _current_block; }
-		const struct function_info &current_function() const { return *functions[_current_function]; }
-		bool is_in_block() const { return _current_block != 0; }
-		bool is_in_function() const { return _current_function != 0xFFFFFFFF; }
+		using id = uint64_t;
 
 		virtual void write_result(module &stream) const = 0;
+
+		/// <summary>
+		/// Returns true if code is currently added to a basic block.
+		/// </summary>
+		virtual bool is_in_block() const = 0;
+		/// <summary>
+		/// Returns true if code is currently added to a function.
+		/// </summary>
+		virtual bool is_in_function() const = 0;
 
 		/// <summary>
 		/// Define a new structure type.
@@ -54,64 +56,65 @@ namespace reshadefx
 		/// <param name="loc">Source location matching this definition (for debugging).</param>
 		/// <param name="info">The structure type description.</param>
 		/// <returns>New SSA ID of the type.</returns>
-		virtual id   define_struct(const location &loc, struct struct_info &info) = 0;
+		virtual id define_struct(const location &loc, struct struct_info &info) = 0;
 		/// <summary>
 		/// Define a new texture binding.
 		/// </summary>
 		/// <param name="loc">Source location matching this definition (for debugging).</param>
 		/// <param name="info">The texture description.</param>
 		/// <returns>New SSA ID of the binding.</returns>
-		virtual id   define_texture(const location &loc, struct texture_info &info) = 0;
+		virtual id define_texture(const location &loc, struct texture_info &info) = 0;
 		/// <summary>
 		/// Define a new sampler binding.
 		/// </summary>
 		/// <param name="loc">Source location matching this definition (for debugging).</param>
 		/// <param name="info">The sampler description.</param>
 		/// <returns>New SSA ID of the binding.</returns>
-		virtual id   define_sampler(const location &loc, struct sampler_info &info) = 0;
+		virtual id define_sampler(const location &loc, struct sampler_info &info) = 0;
 		/// <summary>
 		/// Define a new uniform variable.
 		/// </summary>
 		/// <param name="loc">Source location matching this definition (for debugging).</param>
 		/// <param name="info">The uniform variable description.</param>
 		/// <returns>New SSA ID of the variable.</returns>
-		virtual id   define_uniform(const location &loc, struct uniform_info &info) = 0;
+		virtual id define_uniform(const location &loc, struct uniform_info &info) = 0;
 		/// <summary>
 		/// Define a new variable.
 		/// </summary>
 		/// <param name="loc">Source location matching this definition (for debugging).</param>
 		/// <param name="info">The variable description.</param>
 		/// <returns>New SSA ID of the variable.</returns>
-		virtual id   define_variable(const location &loc, const type &type, const char *name, bool global, id initializer_value) = 0;
+		virtual id define_variable(const location &loc, const type &type, const char *name, bool global, id initializer_value) = 0;
 		/// <summary>
-		/// Define a new function.
+		/// Define a new function and its function parameters and make it current. Any code added after this call is added to this function.
 		/// </summary>
 		/// <param name="loc">Source location matching this definition (for debugging).</param>
 		/// <param name="info">The function description.</param>
 		/// <returns>New SSA ID of the function.</returns>
-		virtual id   define_function(const location &loc, struct function_info &info) = 0;
-		/// <summary>
-		/// Define a new function parameter.
-		/// </summary>
-		/// <param name="loc">Source location matching this definition (for debugging).</param>
-		/// <param name="info">The function parameter description.</param>
-		/// <returns>New SSA ID of the variable.</returns>
-		virtual id   define_parameter(const location &loc, struct struct_member_info &info) = 0;
+		virtual id define_function(const location &loc, struct function_info &info) = 0;
 		/// <summary>
 		/// Define a new effect technique.
 		/// </summary>
 		/// <param name="loc">Source location matching this definition (for debugging).</param>
 		/// <param name="info">The technique description.</param>
-		/// <returns>New SSA ID of the technique.</returns>
-		virtual id   define_technique(const location &loc, struct technique_info &info) = 0;
+		inline void define_technique(struct technique_info &info)
+		{
+			techniques.push_back(info);
+		}
+
+		/// <summary>
+		/// Create a new basic block.
+		/// </summary>
+		/// <returns>New SSA ID of the basic block.</returns>
+		virtual id create_block() = 0;
 
 		/// <summary>
 		/// Make a function a shader entry point.
 		/// </summary>
 		/// <param name="function">The function to use as entry point.</param>
 		/// <param name="is_ps"><c>true</c> if this is a pixel shader, <c>false</c> if it is a vertex shader.</param>
-		/// <returns></returns>
-		virtual id   create_entry_point(const function_info &function, bool is_ps) = 0;
+		/// <returns>New SSA ID of the shader entry point.</returns>
+		virtual id create_entry_point(const function_info &function, bool is_ps) = 0;
 
 		/// <summary>
 		/// Resolve the access chain and add a load operation to the output.
@@ -191,7 +194,7 @@ namespace reshadefx
 		/// <param name="type">The data type to construct.</param>
 		/// <param name="args">A list of SSA IDs representing the constructor arguments.</param>
 		/// <returns>New SSA ID with the constructed value.</returns>
-		virtual id   emit_construct(const type &type, std::vector<expression> &args) = 0;
+		virtual id   emit_construct(const location &loc, const type &type, std::vector<expression> &args) = 0;
 
 		/// <summary>
 		/// Add a structured branch control flow to the output.
@@ -203,7 +206,7 @@ namespace reshadefx
 		/// <param name="false_statement_block"></param>
 		/// <param name="merge_block"></param>
 		/// <param name="flags"></param>
-		virtual void emit_if(const location &loc, id condition_value, id condition_block, id true_statement_block, id false_statement_block, id merge_block, unsigned int flags) = 0;
+		virtual void emit_if(const location &loc, id condition_value, id condition_block, id true_statement_block, id false_statement_block, unsigned int flags) = 0;
 		/// <summary>
 		/// Add a branch control flow with a SSA phi operation to the output.
 		/// </summary>
@@ -215,7 +218,7 @@ namespace reshadefx
 		/// <param name="false_value"></param>
 		/// <param name="false_statement_block"></param>
 		/// <returns>New SSA ID with the result of the phi operation.</returns>
-		virtual id   emit_phi(const type &type, id condition_value, id condition_block, id true_value, id true_statement_block, id false_value, id false_statement_block) = 0;
+		virtual id   emit_phi(const location &loc, id condition_value, id condition_block, id true_value, id true_statement_block, id false_value, id false_statement_block, const type &type) = 0;
 		/// <summary>
 		/// Add a structured loop control flow to the output.
 		/// </summary>
@@ -228,7 +231,7 @@ namespace reshadefx
 		/// <param name="continue_block"></param>
 		/// <param name="merge_block"></param>
 		/// <param name="flags"></param>
-		virtual void emit_loop(const location &loc, id condition_value, id prev_block, id header_block, id condition_block, id loop_block, id continue_block, id merge_block, unsigned int flags) = 0;
+		virtual void emit_loop(const location &loc, id condition_value, id prev_block, id header_block, id condition_block, id loop_block, id continue_block, unsigned int flags) = 0;
 		/// <summary>
 		/// Add a structured switch control flow to the output.
 		/// </summary>
@@ -239,7 +242,7 @@ namespace reshadefx
 		/// <param name="case_literal_and_labels"></param>
 		/// <param name="merge_block"></param>
 		/// <param name="flags"></param>
-		virtual void emit_switch(const location &loc, id selector_value, id selector_block, id default_label, const std::vector<id> &case_literal_and_labels, id merge_block, unsigned int flags) = 0;
+		virtual void emit_switch(const location &loc, id selector_value, id selector_block, id default_label, const std::vector<id> &case_literal_and_labels, unsigned int flags) = 0;
 
 		/// <summary>
 		/// Overwrite the current block ID.
@@ -267,14 +270,14 @@ namespace reshadefx
 		/// </summary>
 		/// <param name="value">SSA ID of the selector value to decide the switch path.</param>
 		/// <returns>The ID of the current basic block.</returns>
-		virtual id   leave_block_and_switch(id value) = 0;
+		virtual id   leave_block_and_switch(id value, id default_target) = 0;
 		/// <summary>
 		/// Diverge the current control flow and jump to the specified target block.
 		/// </summary>
 		/// <param name="target">The ID of the basic block to jump to.</param>
 		/// <param name="is_continue">True if this corresponds to a loop continue statement.</param>
 		/// <returns>The ID of the current basic block.</returns>
-		virtual id   leave_block_and_branch(id target, bool is_continue = false) = 0;
+		virtual id   leave_block_and_branch(id target, unsigned int loop_flow = 0) = 0;
 		/// <summary>
 		/// Diverge the current control flow and jump to one of the specified target blocks, depending on the condition.
 		/// </summary>
@@ -283,15 +286,8 @@ namespace reshadefx
 		/// <param name="false_target">The ID of the basic block to jump to when the condition is false.</param>
 		/// <returns>The ID of the current basic block.</returns>
 		virtual id   leave_block_and_branch_conditional(id condition, id true_target, id false_target) = 0;
-
 		/// <summary>
-		/// Make the specified function current. Any code added after this call is added to that function.
-		/// </summary>
-		/// <param name="id">The SSA ID of the function to make current.</param>
-		/// <param name="ret_type">The function return data type.</param>
-		virtual void enter_function(id id, const type &ret_type) = 0;
-		/// <summary>
-		/// Leave current function. Any code added after this call is added in the global scope.
+		/// Leave the current function. Any code added after this call is added in the global scope.
 		/// </summary>
 		virtual void leave_function() = 0;
 
@@ -315,9 +311,5 @@ namespace reshadefx
 		std::vector<struct uniform_info> uniforms;
 		std::vector<std::unique_ptr<struct function_info>> functions;
 		std::vector<struct technique_info> techniques;
-
-		unsigned int _next_id = 1;
-		unsigned int _current_block = 0;
-		unsigned int _current_function = 0;
 	};
 }

@@ -75,28 +75,6 @@ unsigned int reshadefx::type::rank(const type &src, const type &dst)
 	return rank;
 }
 
-reshadefx::type reshadefx::type::merge(const type &lhs, const type &rhs)
-{
-	type result = { std::max(lhs.base, rhs.base) };
-
-	// If one side of the expression is scalar, it needs to be promoted to the same dimension as the other side
-	if ((lhs.rows == 1 && lhs.cols == 1) || (rhs.rows == 1 && rhs.cols == 1))
-	{
-		result.rows = std::max(lhs.rows, rhs.rows);
-		result.cols = std::max(lhs.cols, rhs.cols);
-	}
-	else // Otherwise dimensions match or one side is truncated to match the other one
-	{
-		result.rows = std::min(lhs.rows, rhs.rows);
-		result.cols = std::min(lhs.cols, rhs.cols);
-	}
-
-	// Some qualifiers propagate to the result
-	result.qualifiers = (lhs.qualifiers & type::q_precise) | (rhs.qualifiers & type::q_precise);
-
-	return result;
-}
-
 reshadefx::symbol_table::symbol_table()
 {
 	_current_scope.name = "::";

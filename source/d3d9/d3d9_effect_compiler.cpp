@@ -137,6 +137,23 @@ namespace reshade::d3d9
 		return D3DFMT_UNKNOWN;
 	}
 
+	static void copy_annotations(const std::unordered_map<std::string, std::pair<type, constant>> &source, std::unordered_map<std::string, variant> &target)
+	{
+		for (const auto &annotation : source)
+			switch (annotation.second.first.base)
+			{
+			case type::t_int:
+				target.insert({ annotation.first, variant(annotation.second.second.as_int[0]) });
+				break;
+			case type::t_uint:
+				target.insert({ annotation.first, variant(annotation.second.second.as_uint[0]) });
+				break;
+			case type::t_float:
+				target.insert({ annotation.first, variant(annotation.second.second.as_float[0]) });
+				break;
+			}
+	}
+
 	d3d9_effect_compiler::d3d9_effect_compiler(d3d9_runtime *runtime, const module &module, std::string &errors, bool skipoptimization) :
 		_runtime(runtime),
 		_module(&module),
@@ -236,10 +253,7 @@ namespace reshade::d3d9
 
 		texture obj;
 		obj.unique_name = texture_info.unique_name;
-
-		for (const auto &annotation : texture_info.annotations)
-			obj.annotations.insert({ annotation.first, variant(annotation.second) });
-
+		copy_annotations(texture_info.annotations, obj.annotations);
 		obj.width = texture_info.width;
 		obj.height = texture_info.height;
 		obj.levels = texture_info.levels;
@@ -344,9 +358,7 @@ namespace reshade::d3d9
 		obj.storage_size = cross.get_declared_struct_member_size(struct_type, uniform_info.member_index);
 		//obj.storage_offset = _uniform_storage_offset + cross.type_struct_member_offset(struct_type, uniform_info.member_index);
 		obj.storage_offset = _uniform_storage_offset + cross.type_struct_member_offset(struct_type, uniform_info.member_index) * 4;
-
-		for (const auto &annotation : uniform_info.annotations)
-			obj.annotations.insert({ annotation.first, variant(annotation.second) });
+		copy_annotations(uniform_info.annotations, obj.annotations);
 
 		obj.basetype = uniform_datatype::floating_point;
 
@@ -403,9 +415,7 @@ namespace reshade::d3d9
 	{
 		technique obj;
 		obj.name = technique_info.name;
-
-		for (const auto &annotation : technique_info.annotations)
-			obj.annotations.insert({ annotation.first, variant(annotation.second) });
+		copy_annotations(technique_info.annotations, obj.annotations);
 
 		if (_constant_register_count != 0)
 		{

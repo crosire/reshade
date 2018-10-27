@@ -35,7 +35,7 @@ namespace reshadefx
 	struct symbol
 	{
 		symbol_type op;
-		unsigned int id;
+		uint64_t id;
 		type type = {};
 		constant constant = {};
 		const function_info *function = nullptr;

@@ -165,7 +165,10 @@ class codegen_spirv final : public codegen
 	id _global_ubo_variable = 0;
 
 	id glsl_ext = 0;
+	id _next_id = 1;
 	id _last_block = 0;
+	id _current_block = 0;
+	unsigned int _current_function = 0xFFFFFFFF;
 
 	void create_global_ubo()
 	{
@@ -181,6 +184,8 @@ class codegen_spirv final : public codegen
 
 		define_variable(_global_ubo_variable, {}, { type::t_struct, 0, 0, type::q_uniform, true, false, false, 0, _global_ubo_type }, "$Globals", spv::StorageClassUniform);
 	}
+
+	inline id make_id() { return _next_id++; }
 
 	inline void add_location(const location &loc, spirv_basic_block &block)
 	{
@@ -410,12 +415,6 @@ class codegen_spirv final : public codegen
 				assert(info.rows == 1 && info.cols == 1);
 				type = add_instruction(spv::OpTypeBool, 0, _types_and_constants).result;
 				break;
-			case type::t_float:
-				assert(info.rows == 1 && info.cols == 1);
-				type = add_instruction( spv::OpTypeFloat, 0, _types_and_constants)
-					.add(32)
-					.result;
-				break;
 			case type::t_int:
 				assert(info.rows == 1 && info.cols == 1);
 				type = add_instruction(spv::OpTypeInt, 0, _types_and_constants)
@@ -428,6 +427,12 @@ class codegen_spirv final : public codegen
 				type = add_instruction(spv::OpTypeInt, 0, _types_and_constants)
 					.add(32)
 					.add(0)
+					.result;
+				break;
+			case type::t_float:
+				assert(info.rows == 1 && info.cols == 1);
+				type = add_instruction( spv::OpTypeFloat, 0, _types_and_constants)
+					.add(32)
 					.result;
 				break;
 			case type::t_struct:
@@ -560,6 +565,9 @@ class codegen_spirv final : public codegen
 		_capabilities.insert(capability);
 	}
 
+	bool is_in_block() const override { return _current_block != 0; }
+	bool is_in_function() const override { return _current_function != 0xFFFFFFFF; }
+
 	void define_variable(id id, const location &loc, const type &type, const char *name, spv::StorageClass storage, spv::Id initializer_value = 0)
 	{
 		assert(type.is_ptr);
@@ -580,7 +588,7 @@ class codegen_spirv final : public codegen
 			add_name(id, name);
 	}
 
-	id define_struct(const location &loc, struct_info &info) override
+	id   define_struct(const location &loc, struct_info &info) override
 	{
 		structs.push_back(info);
 
@@ -600,14 +608,17 @@ class codegen_spirv final : public codegen
 
 		return info.definition;
 	}
-	id define_texture(const location &, texture_info &info) override
+	id   define_texture(const location &, texture_info &info) override
 	{
+		info.id = make_id();
+
 		textures.push_back(info);
 
 		return info.id;
 	}
-	id define_sampler(const location &loc, sampler_info &info) override
+	id   define_sampler(const location &loc, sampler_info &info) override
 	{
+		info.id = make_id();
 		info.set = 1;
 		info.binding = _current_sampler_binding++;
 
@@ -620,7 +631,7 @@ class codegen_spirv final : public codegen
 
 		return info.id;
 	}
-	id define_uniform(const location &, uniform_info &info) override
+	id   define_uniform(const location &, uniform_info &info) override
 	{
 		if (_global_ubo_type == 0)
 			_global_ubo_type = make_id();
@@ -646,58 +657,64 @@ class codegen_spirv final : public codegen
 
 		return _global_ubo_variable;
 	}
-	id define_variable(const location &loc, const type &type, const char *name, bool global, id initializer_value) override
+	id   define_variable(const location &loc, const type &type, const char *name, bool global, id initializer_value) override
 	{
 		id id = make_id();
 		define_variable(id, loc, type, name, global ? spv::StorageClassPrivate : spv::StorageClassFunction, initializer_value);
 
 		return id;
 	}
-	id define_function(const location &, function_info &info) override
+	id   define_function(const location &loc, function_info &info) override
 	{
-		functions.push_back(std::make_unique<function_info>(info));
+		auto &function = _functions2.emplace_back();
+		function.return_type = info.return_type;
+
+		for (auto &param : info.parameter_list)
+			function.param_types.push_back(param.type);
+
+		_current_function = _functions2.size() - 1;
+
+		add_location(loc, function.declaration);
+
+		info.definition = add_instruction(spv::OpFunction, convert_type(info.return_type), function.declaration)
+			.add(spv::FunctionControlMaskNone)
+			.add(convert_type(function))
+			.result;
 
 		if (!info.name.empty())
 			add_name(info.definition, info.name.c_str());
 
+		for (auto &param : info.parameter_list)
+		{
+			add_location(param.location, function.declaration);
+
+			param.definition = add_instruction(spv::OpFunctionParameter, convert_type(param.type), function.declaration)
+				.result;
+
+			add_name(param.definition, param.name.c_str());
+		}
+
+		functions.push_back(std::make_unique<function_info>(info));
+
 		return info.definition;
 	}
-	id define_parameter(const location &loc, struct_member_info &info) override
+
+	id   create_block() override
 	{
-		id id = make_id();
-
-		_functions2[_current_function].param_types.push_back(info.type);
-
-		add_location(loc, _functions2[_current_function].declaration);
-
-		spirv_instruction &instruction = add_instruction_without_result(spv::OpFunctionParameter, _functions2[_current_function].declaration);
-		instruction.type = convert_type(info.type);
-		instruction.result = id;
-
-		add_name(id, info.name.c_str());
-
-		return id;
-	}
-	id define_technique(const location &, technique_info &info) override
-	{
-		techniques.push_back(info);
-
-		return 0;
+		return make_id();
 	}
 
-	id create_entry_point(const function_info &func, bool is_ps) override
+	id   create_entry_point(const function_info &func, bool is_ps) override
 	{
 		std::vector<expression> call_params;
 		std::vector<unsigned int> inputs_and_outputs;
 
 		// Generate the glue entry point function
 		function_info entry_point;
-		entry_point.definition = make_id();
-		entry_point.entry_block = make_id();
 		entry_point.return_type = { type::t_void };
+		define_function({}, entry_point);
 
-		enter_function(entry_point.definition, entry_point.return_type);
-		enter_block(entry_point.entry_block);
+		enter_block(make_id());
 
 		const auto semantic_to_builtin = [is_ps](const std::string &semantic, spv::BuiltIn &builtin) {
 			builtin = spv::BuiltInMax;
@@ -967,7 +984,6 @@ class codegen_spirv final : public codegen
 		}
 
 		leave_block_and_return(0);
-		define_function({}, entry_point);
 		leave_function();
 
 		assert(!func.name.empty());
@@ -999,7 +1015,7 @@ class codegen_spirv final : public codegen
 				base_type = chain.ops[0].from;
 
 			// Any indexing expressions can be resolved during load with an 'OpAccessChain' already
-			if (!chain.ops.empty() && chain.ops[0].type == expression::operation::op_index)
+			if (!chain.ops.empty() && (chain.ops[0].type == expression::operation::op_index || chain.ops[0].type == expression::operation::op_member))
 			{
 				assert(chain.ops[0].to.is_ptr);
 				spirv_instruction &node = add_instruction(spv::OpAccessChain)
@@ -1012,8 +1028,14 @@ class codegen_spirv final : public codegen
 				do {
 					assert(chain.ops[op_index2].to.is_ptr);
 					base_type = chain.ops[op_index2].to;
-					node.add(chain.ops[op_index2++].index); // Indexes
-				} while (op_index2 < chain.ops.size() && chain.ops[op_index2].type == expression::operation::op_index);
+					if (chain.ops[op_index2].type == expression::operation::op_index)
+						node.add(chain.ops[op_index2++].index); // Indexes
+					else {
+						constant index;
+						index.as_uint[0] = static_cast<uint32_t>(chain.ops[op_index2++].index);
+						node.add(emit_constant({ type::t_uint, 1, 1 }, index)); // Indexes
+					}
+				} while (op_index2 < chain.ops.size() && (chain.ops[op_index2].type == expression::operation::op_index || chain.ops[op_index2].type == expression::operation::op_member));
 				node.type = convert_type(chain.ops[op_index2 - 1].to); // Last type is the result
 				result = node.result; // Result ID
 			}
@@ -1216,7 +1238,7 @@ class codegen_spirv final : public codegen
 
 		return result;
 	}
-	void emit_store(const expression &chain, spv::Id value, const type &value_type) override
+	void emit_store(const expression &chain, id value, const type &value_type) override
 	{
 		assert(value != 0);
 		assert(chain.is_lvalue && !chain.is_constant);
@@ -1233,7 +1255,7 @@ class codegen_spirv final : public codegen
 			base_type = chain.ops[0].from;
 
 		// Any indexing expressions can be resolved with an 'OpAccessChain' already
-		if (!chain.ops.empty() && chain.ops[0].type == expression::operation::op_index)
+		if (!chain.ops.empty() && (chain.ops[0].type == expression::operation::op_index || chain.ops[0].type == expression::operation::op_member))
 		{
 			assert(chain.ops[0].to.is_ptr);
 			spirv_instruction &node = add_instruction(spv::OpAccessChain)
@@ -1246,8 +1268,14 @@ class codegen_spirv final : public codegen
 			do {
 				assert(chain.ops[op_index2].to.is_ptr);
 				base_type = chain.ops[op_index2].to;
-				node.add(chain.ops[op_index2++].index); // Indexes
-			} while (op_index2 < chain.ops.size() && chain.ops[op_index2].type == expression::operation::op_index);
+				if (chain.ops[op_index2].type == expression::operation::op_index)
+					node.add(chain.ops[op_index2++].index); // Indexes
+				else {
+					constant index;
+					index.as_uint[0] = static_cast<uint32_t>(chain.ops[op_index2++].index);
+					node.add(emit_constant({ type::t_uint, 1, 1 }, index)); // Indexes
+				}
+			} while (op_index2 < chain.ops.size() && (chain.ops[op_index2].type == expression::operation::op_index || chain.ops[op_index2].type == expression::operation::op_member));
 			node.type = convert_type(chain.ops[op_index2 - 1].to); // Last type is the result
 			target = node.result; // Result ID
 		}
@@ -1336,6 +1364,7 @@ class codegen_spirv final : public codegen
 			assert(type.array_length > 0);
 
 			std::vector<spv::Id> elements;
+			elements.reserve(type.array_length);
 
 			auto elem_type = type;
 			elem_type.array_length = 0;
@@ -1428,11 +1457,12 @@ class codegen_spirv final : public codegen
 
 		switch (op)
 		{
-		case tokenid::exclaim: spv_op = spv::OpLogicalNot; break;
-		case tokenid::minus: spv_op = type.is_floating_point() ? spv::OpFNegate : spv::OpSNegate; break;
-		case tokenid::tilde: spv_op = spv::OpNot; break;
-		case tokenid::plus_plus: spv_op = type.is_floating_point() ? spv::OpFAdd : spv::OpIAdd; break;
-		case tokenid::minus_minus: spv_op = type.is_floating_point() ? spv::OpFSub : spv::OpISub; break;
+		case tokenid::exclaim:
+			spv_op = spv::OpLogicalNot; break;
+		case tokenid::minus:
+			spv_op = type.is_floating_point() ? spv::OpFNegate : spv::OpSNegate; break;
+		case tokenid::tilde:
+			spv_op = spv::OpNot; break;
 		default:
 			return assert(false), 0;
 		}
@@ -1452,35 +1482,53 @@ class codegen_spirv final : public codegen
 		switch (op)
 		{
 		case tokenid::percent:
-		case tokenid::percent_equal: spv_op = type.is_floating_point() ? spv::OpFRem : type.is_signed() ? spv::OpSRem : spv::OpUMod; break;
+		case tokenid::percent_equal:
+			spv_op = type.is_floating_point() ? spv::OpFRem : type.is_signed() ? spv::OpSRem : spv::OpUMod; break;
 		case tokenid::ampersand:
-		case tokenid::ampersand_equal: spv_op = spv::OpBitwiseAnd; break;
+		case tokenid::ampersand_equal:
+			spv_op = spv::OpBitwiseAnd; break;
 		case tokenid::star:
-		case tokenid::star_equal: spv_op = type.is_floating_point() ? spv::OpFMul : spv::OpIMul; break;
+		case tokenid::star_equal:
+			spv_op = type.is_floating_point() ? spv::OpFMul : spv::OpIMul; break;
 		case tokenid::plus:
 		case tokenid::plus_plus:
-		case tokenid::plus_equal: spv_op = type.is_floating_point() ? spv::OpFAdd : spv::OpIAdd; break;
+		case tokenid::plus_equal:
+			spv_op = type.is_floating_point() ? spv::OpFAdd : spv::OpIAdd; break;
 		case tokenid::minus:
 		case tokenid::minus_minus:
-		case tokenid::minus_equal: spv_op = type.is_floating_point() ? spv::OpFSub : spv::OpISub; break;
+		case tokenid::minus_equal:
+			spv_op = type.is_floating_point() ? spv::OpFSub : spv::OpISub; break;
 		case tokenid::slash:
-		case tokenid::slash_equal: spv_op = type.is_floating_point() ? spv::OpFDiv : type.is_signed() ? spv::OpSDiv : spv::OpUDiv; break;
-		case tokenid::less: spv_op = type.is_floating_point() ? spv::OpFOrdLessThan : type.is_signed() ? spv::OpSLessThan : spv::OpULessThan; break;
-		case tokenid::greater: spv_op = type.is_floating_point() ? spv::OpFOrdGreaterThan : type.is_signed() ? spv::OpSGreaterThan : spv::OpUGreaterThan; break;
+		case tokenid::slash_equal:
+			spv_op = type.is_floating_point() ? spv::OpFDiv : type.is_signed() ? spv::OpSDiv : spv::OpUDiv; break;
 		case tokenid::caret:
-		case tokenid::caret_equal: spv_op = spv::OpBitwiseXor; break;
+		case tokenid::caret_equal:
+			spv_op = spv::OpBitwiseXor; break;
 		case tokenid::pipe:
-		case tokenid::pipe_equal: spv_op = spv::OpBitwiseOr; break;
-		case tokenid::exclaim_equal: spv_op = type.is_integral() ? spv::OpINotEqual : type.is_floating_point() ? spv::OpFOrdNotEqual : spv::OpLogicalNotEqual; break;
-		case tokenid::ampersand_ampersand: spv_op = spv::OpLogicalAnd;  break;
+		case tokenid::pipe_equal:
+			spv_op = spv::OpBitwiseOr; break;
 		case tokenid::less_less:
-		case tokenid::less_less_equal: spv_op = spv::OpShiftLeftLogical; break;
-		case tokenid::less_equal: spv_op = type.is_floating_point() ? spv::OpFOrdLessThanEqual : type.is_signed() ? spv::OpSLessThanEqual : spv::OpULessThanEqual; break;
-		case tokenid::equal_equal: spv_op = type.is_floating_point() ? spv::OpFOrdEqual : type.is_integral() ? spv::OpIEqual : spv::OpLogicalEqual; break;
+		case tokenid::less_less_equal:
+			spv_op = spv::OpShiftLeftLogical; break;
 		case tokenid::greater_greater:
-		case tokenid::greater_greater_equal: spv_op = type.is_signed() ? spv::OpShiftRightArithmetic : spv::OpShiftRightLogical; break;
-		case tokenid::greater_equal: spv_op = type.is_floating_point() ? spv::OpFOrdGreaterThanEqual : type.is_signed() ? spv::OpSGreaterThanEqual : spv::OpUGreaterThanEqual; break;
-		case tokenid::pipe_pipe: spv_op = spv::OpLogicalOr; break;
+		case tokenid::greater_greater_equal:
+			spv_op = type.is_signed() ? spv::OpShiftRightArithmetic : spv::OpShiftRightLogical; break;
+		case tokenid::ampersand_ampersand:
+			spv_op = spv::OpLogicalAnd;  break;
+		case tokenid::pipe_pipe:
+			spv_op = spv::OpLogicalOr; break;
+		case tokenid::less:
+			spv_op = type.is_floating_point() ? spv::OpFOrdLessThan : type.is_signed() ? spv::OpSLessThan : spv::OpULessThan; break;
+		case tokenid::less_equal:
+			spv_op = type.is_floating_point() ? spv::OpFOrdLessThanEqual : type.is_signed() ? spv::OpSLessThanEqual : spv::OpULessThanEqual; break;
+		case tokenid::greater:
+			spv_op = type.is_floating_point() ? spv::OpFOrdGreaterThan : type.is_signed() ? spv::OpSGreaterThan : spv::OpUGreaterThan; break;
+		case tokenid::greater_equal:
+			spv_op = type.is_floating_point() ? spv::OpFOrdGreaterThanEqual : type.is_signed() ? spv::OpSGreaterThanEqual : spv::OpUGreaterThanEqual; break;
+		case tokenid::equal_equal:
+			spv_op = type.is_floating_point() ? spv::OpFOrdEqual : type.is_integral() ? spv::OpIEqual : spv::OpLogicalEqual; break;
+		case tokenid::exclaim_equal:
+			spv_op = type.is_integral() ? spv::OpINotEqual : type.is_floating_point() ? spv::OpFOrdNotEqual : spv::OpLogicalNotEqual; break;
 		default:
 			return assert(false), 0;
 		}
@@ -1541,7 +1589,7 @@ class codegen_spirv final : public codegen
 			return 0;
 		}
 	}
-	id   emit_construct(const type &type, std::vector<expression> &args) override
+	id   emit_construct(const location &loc, const type &type, std::vector<expression> &args) override
 	{
 		std::vector<spv::Id> ids;
 
@@ -1622,43 +1670,53 @@ class codegen_spirv final : public codegen
 			.result;
 	}
 
-	void emit_if(const location &loc, id, id condition_block, id true_statement_block, id false_statement_block, id merge_block, unsigned int flags) override
+	void emit_if(const location &loc, id, id condition_block, id true_statement_block, id false_statement_block, unsigned int flags) override
 	{
 		int selection_control = 0;
 		if (flags & flatten) selection_control |= spv::SelectionControlFlattenMask;
 		if (flags & dont_flatten) selection_control |= spv::SelectionControlDontFlattenMask;
 
-		_block_data[merge_block].append(_block_data[condition_block]);
+		spirv_instruction merge_label = _current_block_data->instructions.back();
+		assert(merge_label.op == spv::OpLabel);
+		_current_block_data->instructions.pop_back();
 
-		spirv_instruction branch = _block_data[merge_block].instructions.back();
-		assert(branch.op == spv::OpBranchConditional);
-		_block_data[merge_block].instructions.pop_back();
+		// Add previous block containing the condition value first
+		_current_block_data->append(_block_data[condition_block]);
 
-		add_location(loc, _block_data[merge_block]);
+		spirv_instruction branch_inst = _current_block_data->instructions.back();
+		assert(branch_inst.op == spv::OpBranchConditional);
+		_current_block_data->instructions.pop_back();
 
-		// https://www.khronos.org/registry/spir-v/specs/unified1/SPIRV.html#OpSelectionMerge
-		add_instruction_without_result(spv::OpSelectionMerge, _block_data[merge_block])
-			.add(merge_block)
+		// Add structured control flow instruction
+		add_location(loc, *_current_block_data);
+		add_instruction_without_result(spv::OpSelectionMerge)
+			.add(merge_label.result)
 			.add(selection_control);
 
-		_block_data[merge_block].instructions.push_back(branch);
-		_block_data[merge_block].append(_block_data[true_statement_block]);
-		_block_data[merge_block].append(_block_data[false_statement_block]);
-	}
-	id   emit_phi(const type &type, id, id condition_block, id true_value, id true_statement_block, id false_value, id false_statement_block) override
-	{
-		spirv_instruction label = _block_data[_current_block].instructions.back();
-		assert(label.op == spv::OpLabel);
-		_block_data[_current_block].instructions.pop_back();
+		// Append all blocks belonging to the branch
+		_current_block_data->instructions.push_back(branch_inst);
+		_current_block_data->append(_block_data[true_statement_block]);
+		_current_block_data->append(_block_data[false_statement_block]);
 
-		_block_data[_current_block].append(_block_data[condition_block]);
+		_current_block_data->instructions.push_back(merge_label);
+	}
+	id   emit_phi(const location &loc, id, id condition_block, id true_value, id true_statement_block, id false_value, id false_statement_block, const type &type) override
+	{
+		spirv_instruction merge_label = _current_block_data->instructions.back();
+		assert(merge_label.op == spv::OpLabel);
+		_current_block_data->instructions.pop_back();
+
+		// Add previous block containing the condition value first
+		_current_block_data->append(_block_data[condition_block]);
 
 		if (true_statement_block != condition_block)
-			_block_data[_current_block].append(_block_data[true_statement_block]);
+			_current_block_data->append(_block_data[true_statement_block]);
 		if (false_statement_block != condition_block)
-			_block_data[_current_block].append(_block_data[false_statement_block]);
+			_current_block_data->append(_block_data[false_statement_block]);
 
-		_block_data[_current_block].instructions.push_back(label);
+		_current_block_data->instructions.push_back(merge_label);
+
+		add_location(loc, *_current_block_data);
 
 		// https://www.khronos.org/registry/spir-v/specs/unified1/SPIRV.html#OpPhi
 		const spv::Id result = add_instruction(spv::OpPhi, convert_type(type))
@@ -1670,61 +1728,77 @@ class codegen_spirv final : public codegen
 
 		return result;
 	}
-	void emit_loop(const location &loc, id, id prev_block, id header_block, id condition_block, id loop_block, id continue_block, id merge_block, unsigned int flags) override
+	void emit_loop(const location &loc, id, id prev_block, id header_block, id condition_block, id loop_block, id continue_block, unsigned int flags) override
 	{
 		int loop_control = 0;
 		if (flags & unroll) loop_control |= spv::LoopControlUnrollMask;
 		if (flags & dont_unroll) loop_control |= spv::LoopControlDontUnrollMask;
 
-		_block_data[merge_block].append(_block_data[prev_block]);
+		spirv_instruction merge_label = _current_block_data->instructions.back();
+		assert(merge_label.op == spv::OpLabel);
+		_current_block_data->instructions.pop_back();
+
+		// Add previous block first
+		_current_block_data->append(_block_data[prev_block]);
 
 		// Fill header block
 		assert(_block_data[header_block].instructions.size() == 2);
-		_block_data[merge_block].instructions.push_back(_block_data[header_block].instructions[0]);
+		_current_block_data->instructions.push_back(_block_data[header_block].instructions[0]);
 
-		add_location(loc, _block_data[merge_block]);
-
-		// https://www.khronos.org/registry/spir-v/specs/unified1/SPIRV.html#OpLoopMerge
-		add_instruction_without_result(spv::OpLoopMerge, _block_data[merge_block])
-			.add(merge_block)
+		// Add structured control flow instruction
+		add_location(loc, *_current_block_data);
+		add_instruction_without_result(spv::OpLoopMerge)
+			.add(merge_label.result)
 			.add(continue_block)
 			.add(loop_control);
 
-		_block_data[merge_block].instructions.push_back(_block_data[header_block].instructions[1]);
+		_current_block_data->instructions.push_back(_block_data[header_block].instructions[1]);
 
 		// Add condition block if it exists
 		if (condition_block != 0)
-			_block_data[merge_block].append(_block_data[condition_block]);
+			_current_block_data->append(_block_data[condition_block]);
 
 		// Append loop body block before continue block
-		_block_data[merge_block].append(_block_data[loop_block]);
-		_block_data[merge_block].append(_block_data[continue_block]);
+		_current_block_data->append(_block_data[loop_block]);
+		_current_block_data->append(_block_data[continue_block]);
+
+		_current_block_data->instructions.push_back(merge_label);
 	}
-	void emit_switch(const location &loc, id selector_value, id selector_block, id default_label, const std::vector<id> &case_literal_and_labels, id merge_block, unsigned int flags) override
+	void emit_switch(const location &loc, id, id selector_block, id default_label, const std::vector<id> &case_literal_and_labels, unsigned int flags) override
 	{
 		int selection_control = 0;
 		if (flags & flatten) selection_control |= spv::SelectionControlFlattenMask;
 		if (flags & dont_flatten) selection_control |= spv::SelectionControlDontFlattenMask;
 
-		_block_data[merge_block].append(_block_data[selector_block]);
+		spirv_instruction merge_label = _current_block_data->instructions.back();
+		assert(merge_label.op == spv::OpLabel);
+		_current_block_data->instructions.pop_back();
 
-		add_location(loc, _block_data[merge_block]);
+		// Add previous block containing the selector value first
+		_current_block_data->append(_block_data[selector_block]);
 
-		add_instruction_without_result(spv::OpSelectionMerge, _block_data[merge_block])
-			.add(merge_block)
+		spirv_instruction switch_inst = _current_block_data->instructions.back();
+		assert(switch_inst.op == spv::OpSwitch);
+		_current_block_data->instructions.pop_back();
+
+		// Add structured control flow instruction
+		add_location(loc, *_current_block_data);
+		add_instruction_without_result(spv::OpSelectionMerge)
+			.add(merge_label.result)
 			.add(selection_control);
 
-		add_instruction_without_result(spv::OpSwitch, _block_data[merge_block])
-			.add(selector_value)
-			.add(default_label)
-			.add(case_literal_and_labels.begin(), case_literal_and_labels.end());
+		// Update switch instruction to contain all case labels
+		switch_inst.operands[1] = default_label;
+		switch_inst.add(case_literal_and_labels.begin(), case_literal_and_labels.end());
 
+		// Append all blocks belonging to the switch
+		_current_block_data->instructions.push_back(switch_inst);
 		for (size_t i = 0; i < case_literal_and_labels.size(); i += 2)
-		{
-			_block_data[merge_block].append(_block_data[case_literal_and_labels[i + 1]]);
-		}
+			_current_block_data->append(_block_data[case_literal_and_labels[i + 1]]);
+		if (default_label != merge_label.result)
+			_current_block_data->append(_block_data[default_label]);
 
-		_block_data[merge_block].append(_block_data[default_label]);
+		_current_block_data->instructions.push_back(merge_label);
 	}
 
 	void set_block(id id) override
@@ -1738,9 +1812,7 @@ class codegen_spirv final : public codegen
 		// Can only use labels inside functions and should never be in another basic block if creating a new one
 		assert(is_in_function() && !is_in_block());
 
-		_current_block = id; // All instructions following a label are inside that basic block
-		//_current_block_data = &_functions2[_current_function].definition; // &_block_data[id];
-		_current_block_data = &_block_data[id];
+		set_block(id);
 
 		add_instruction_without_result(spv::OpLabel)
 			.result = id;
@@ -1772,8 +1844,7 @@ class codegen_spirv final : public codegen
 		}
 		else
 		{
-			if (value == 0)
-				value = add_instruction(spv::OpUndef, convert_type(_functions2[_current_function].return_type), _types_and_constants).result;
+			assert(value != 0);
 
 			add_instruction_without_result(spv::OpReturnValue)
 				.add(value);
@@ -1784,7 +1855,7 @@ class codegen_spirv final : public codegen
 
 		return _last_block;
 	}
-	id   leave_block_and_switch(id value) override
+	id   leave_block_and_switch(id value, id default_target) override
 	{
 		assert(value != 0);
 		assert(is_in_function()); // Can only switch inside functions
@@ -1792,12 +1863,16 @@ class codegen_spirv final : public codegen
 		if (!is_in_block())
 			return _last_block;
 
+		add_instruction_without_result(spv::OpSwitch)
+			.add(value)
+			.add(default_target);
+
 		_last_block = _current_block;
 		_current_block = 0; // A switch leaves the current basic block
 
 		return _last_block;
 	}
-	id   leave_block_and_branch(id target, bool) override
+	id   leave_block_and_branch(id target, unsigned int) override
 	{
 		assert(target != 0);
 		assert(is_in_function()); // Can only branch inside functions
@@ -1831,22 +1906,6 @@ class codegen_spirv final : public codegen
 
 		return _last_block;
 	}
-
-	void enter_function(id id, const type &ret_type) override
-	{
-		assert(id != 0);
-
-		auto &function = _functions2.emplace_back();
-		function.return_type = ret_type;
-
-		_current_function = _functions2.size() - 1;
-
-		spirv_instruction &instruction = add_instruction_without_result(spv::OpFunction, function.declaration);
-		instruction.op = spv::OpFunction;
-		instruction.type = convert_type(ret_type);
-		instruction.result = id;
-		instruction.add(spv::FunctionControlMaskNone);
-	}
 	void leave_function() override
 	{
 		assert(is_in_function()); // Can only leave if there was a function to begin with
@@ -1856,9 +1915,6 @@ class codegen_spirv final : public codegen
 
 		// Append function end instruction
 		add_instruction_without_result(spv::OpFunctionEnd, function.definition);
-
-		// Now that all parameters are known, the full function type can be added to the function
-		function.declaration.instructions[0].add(convert_type(function)); // Function Type
 
 		_current_function = 0xFFFFFFFF;
 	}

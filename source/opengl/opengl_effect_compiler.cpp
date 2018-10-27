@@ -261,6 +261,23 @@ namespace reshade::opengl
 		return address;
 	}
 
+	static void copy_annotations(const std::unordered_map<std::string, std::pair<type, constant>> &source, std::unordered_map<std::string, variant> &target)
+	{
+		for (const auto &annotation : source)
+			switch (annotation.second.first.base)
+			{
+			case type::t_int:
+				target.insert({ annotation.first, variant(annotation.second.second.as_int[0]) });
+				break;
+			case type::t_uint:
+				target.insert({ annotation.first, variant(annotation.second.second.as_uint[0]) });
+				break;
+			case type::t_float:
+				target.insert({ annotation.first, variant(annotation.second.second.as_float[0]) });
+				break;
+			}
+	}
+
 	opengl_effect_compiler::opengl_effect_compiler(opengl_runtime *runtime, const module &module, std::string &errors) :
 		_runtime(runtime),
 		_success(true),
@@ -371,10 +388,7 @@ namespace reshade::opengl
 
 		texture obj;
 		obj.unique_name = texture_info.unique_name;
-
-		for (const auto &annotation : texture_info.annotations)
-			obj.annotations.insert({ annotation.first, variant(annotation.second) });
-
+		copy_annotations(texture_info.annotations, obj.annotations);
 		obj.width = texture_info.width;
 		obj.height = texture_info.height;
 		obj.levels = texture_info.levels;
@@ -485,9 +499,7 @@ namespace reshade::opengl
 		obj.elements = std::max(1, uniform_info.type.array_length);
 		obj.storage_size = cross.get_declared_struct_member_size(struct_type, uniform_info.member_index);
 		obj.storage_offset = _uniform_storage_offset + cross.type_struct_member_offset(struct_type, uniform_info.member_index);
-
-		for (const auto &annotation : uniform_info.annotations)
-			obj.annotations.insert({ annotation.first, variant(annotation.second) });
+		copy_annotations(uniform_info.annotations, obj.annotations);
 
 		switch (uniform_info.type.base)
 		{
@@ -528,9 +540,7 @@ namespace reshade::opengl
 		technique obj;
 		obj.impl = std::make_unique<opengl_technique_data>();
 		obj.name = technique_info.name;
-
-		for (const auto &annotation : technique_info.annotations)
-			obj.annotations.insert({ annotation.first, variant(annotation.second) });
+		copy_annotations(technique_info.annotations, obj.annotations);
 
 		const auto obj_data = obj.impl->as<opengl_technique_data>();
 

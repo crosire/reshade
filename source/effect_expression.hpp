@@ -98,14 +98,14 @@ namespace reshadefx
 		}
 
 		// These are initialized in the type parsing routine
-		datatype base; // Underlying base type ('OpTypeInt', 'OpTypeFloat', ...)
-		unsigned int rows : 4; // Number of rows if this is an 'OpTypeVector' type
-		unsigned int cols : 4; // Number of columns if this is an 'OpTypeMatrix' type
+		datatype base; // Underlying base type ('int', 'float', ...)
+		unsigned int rows : 4; // Number of rows if this is a vector type
+		unsigned int cols : 4; // Number of columns if this is a matrix type
 		unsigned int qualifiers : 24; // Bit mask of all the qualifiers decorating the type
-		bool is_ptr = false; // Is an 'OpTypePointer' to the type
-		bool is_input = false; // Has the 'Input' storage class
-		bool is_output = false; // Has the 'Output' storage class
-		int array_length = 0; // Negative if an unsized array, otherwise the number of elements if this is an 'OpTypeArray' type
+		bool is_ptr = false; // Is a pointer to the type
+		bool is_input = false; // Has the 'input' storage class
+		bool is_output = false; // Has the 'output' storage class
+		int array_length = 0; // Negative if an unsized array, otherwise the number of elements if this is an array type
 		uint64_t definition = 0; // Type ID of the structure type
 	};
 
@@ -138,7 +138,8 @@ namespace reshadefx
 			{
 				op_cast,
 				op_index,
-				op_swizzle
+				op_swizzle,
+				op_member,
 			};
 
 			op_type type;
@@ -233,10 +234,10 @@ namespace reshadefx
 		}
 
 		void add_cast_operation(const reshadefx::type &type);
-		void add_member_access(class codegen *codegen, size_t index, const reshadefx::type &type);
+		void add_member_access(size_t index, const reshadefx::type &type);
 		void add_static_index_access(class codegen *codegen, size_t index);
 		void add_dynamic_index_access(class codegen *codegen, uint64_t index_expression);
-		void add_swizzle_access(class codegen *codegen, signed char swizzle[4], size_t length);
+		void add_swizzle_access(signed char swizzle[4], size_t length);
 
 		void evaluate_constant_expression(enum class tokenid op);
 		void evaluate_constant_expression(enum class tokenid op, const reshadefx::constant &rhs);
@@ -256,7 +257,7 @@ namespace reshadefx
 		type type;
 		std::string name;
 		std::string semantic;
-		location loc;
+		location location;
 		uint64_t definition = 0;
 	};
 
@@ -337,7 +338,6 @@ namespace reshadefx
 	struct function_info
 	{
 		uint64_t definition;
-		//uint64_t entry_block;
 		std::string name;
 		std::string unique_name;
 		type return_type;

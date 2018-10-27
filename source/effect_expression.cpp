@@ -8,6 +8,28 @@
 #include "effect_codegen.hpp"
 #include <assert.h>
 
+reshadefx::type reshadefx::type::merge(const type &lhs, const type &rhs)
+{
+	type result = { std::max(lhs.base, rhs.base) };
+
+	// If one side of the expression is scalar, it needs to be promoted to the same dimension as the other side
+	if ((lhs.rows == 1 && lhs.cols == 1) || (rhs.rows == 1 && rhs.cols == 1))
+	{
+		result.rows = std::max(lhs.rows, rhs.rows);
+		result.cols = std::max(lhs.cols, rhs.cols);
+	}
+	else // Otherwise dimensions match or one side is truncated to match the other one
+	{
+		result.rows = std::min(lhs.rows, rhs.rows);
+		result.cols = std::min(lhs.cols, rhs.cols);
+	}
+
+	// Some qualifiers propagate to the result
+	result.qualifiers = (lhs.qualifiers & type::q_precise) | (rhs.qualifiers & type::q_precise);
+
+	return result;
+}
+
 void reshadefx::expression::add_cast_operation(const reshadefx::type &in_type)
 {
 	if (type == in_type)
@@ -76,14 +98,12 @@ void reshadefx::expression::add_cast_operation(const reshadefx::type &in_type)
 	type = in_type;
 	//is_lvalue = false; // Can't do this because of 'if (chain.is_lvalue)' check in 'add_load_operation'
 }
-void reshadefx::expression::add_member_access(reshadefx::codegen *codegen, size_t index, const reshadefx::type &in_type)
+void reshadefx::expression::add_member_access(size_t index, const reshadefx::type &in_type)
 {
 	reshadefx::type target_type = in_type;
 	target_type.is_ptr = true;
 
-	reshadefx::constant index_c = {};
-	index_c.as_uint[0] = index;
-	ops.push_back({ operation::op_index, type, target_type, codegen->emit_constant({ type::t_uint, 1, 1 }, index_c) });
+	ops.push_back({ operation::op_member, type, target_type, index });
 
 	type = in_type;
 	is_constant = false;
@@ -151,12 +171,8 @@ void reshadefx::expression::add_dynamic_index_access(reshadefx::codegen *codegen
 	type.is_ptr = false;
 	is_constant = false;
 }
-void reshadefx::expression::add_swizzle_access(reshadefx::codegen *codegen, signed char in_swizzle[4], size_t length)
+void reshadefx::expression::add_swizzle_access(signed char in_swizzle[4], size_t length)
 {
-	// Indexing logic is simpler, so use that when possible
-	if (length == 1 && type.is_vector())
-		return add_static_index_access(codegen, in_swizzle[0]);
-
 	// Check for redundant swizzle and ignore them
 	//if (type.is_vector() && length == type.rows)
 	//{

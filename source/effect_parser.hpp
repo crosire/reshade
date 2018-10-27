@@ -70,7 +70,7 @@ namespace reshadefx
 		bool parse_expression_multary(expression &expression, unsigned int precedence = 0);
 		bool parse_expression_assignment(expression &expression);
 
-		bool parse_annotations(std::unordered_map<std::string, std::string> &annotations);
+		bool parse_annotations(std::unordered_map<std::string, std::pair<type, constant>> &annotations);
 
 		bool parse_statement(bool scoped);
 		bool parse_statement_block(bool scoped);
@@ -87,7 +87,8 @@ namespace reshadefx
 		std::unique_ptr<codegen> _codegen;
 		token _token, _token_next, _token_backup;
 
-		std::vector<unsigned int> _loop_break_target_stack;
-		std::vector<unsigned int> _loop_continue_target_stack;
+		std::vector<uint64_t> _loop_break_target_stack;
+		std::vector<uint64_t> _loop_continue_target_stack;
+		type _current_return_type;
 	};
 }
