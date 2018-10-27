@@ -643,9 +643,12 @@ private:
 		code() += write_scope() + "}\n";
 	}
 
-	void set_block(id id) override
+	id   set_block(id id) override
 	{
+		_last_block = _current_block;
 		_current_block = id;
+
+		return _last_block;
 	}
 	void enter_block(id id) override
 	{
@@ -658,10 +661,7 @@ private:
 
 		code() += write_scope() + "discard;\n";
 
-		_last_block = _current_block;
-		_current_block = 0;
-
-		return _last_block;
+		return set_block(0);
 	}
 	id   leave_block_and_return(id value) override
 	{
@@ -670,20 +670,14 @@ private:
 
 		code() += write_scope() + "return" + (value ? ' ' + id_to_name(value) : std::string()) + ";\n";
 
-		_last_block = _current_block;
-		_current_block = 0;
-
-		return _last_block;
+		return set_block(0);
 	}
 	id   leave_block_and_switch(id, id) override
 	{
 		if (!is_in_block())
 			return _last_block;
 
-		_last_block = _current_block;
-		_current_block = 0;
-
-		return _last_block;
+		return set_block(0);
 	}
 	id   leave_block_and_branch(id, unsigned int loop_flow) override
 	{
@@ -695,20 +689,14 @@ private:
 		if (loop_flow == 2)
 			code() += write_scope() + "continue;\n";
 
-		_last_block = _current_block;
-		_current_block = 0;
-
-		return _last_block;
+		return set_block(0);
 	}
 	id   leave_block_and_branch_conditional(id, id, id) override
 	{
 		if (!is_in_block())
 			return _last_block;
 
-		_last_block = _current_block;
-		_current_block = 0;
-
-		return _last_block;
+		return set_block(0);
 	}
 	void leave_function() override
 	{

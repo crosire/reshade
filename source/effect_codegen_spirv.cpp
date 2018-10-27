@@ -1801,10 +1801,13 @@ class codegen_spirv final : public codegen
 		_current_block_data->instructions.push_back(merge_label);
 	}
 
-	void set_block(id id) override
+	id   set_block(id id) override
 	{
+		_last_block = _current_block;
 		_current_block = id;
 		_current_block_data = &_block_data[id];
+
+		return _last_block;
 	}
 	void enter_block(id id) override
 	{
@@ -1826,10 +1829,7 @@ class codegen_spirv final : public codegen
 
 		add_instruction_without_result(spv::OpKill);
 
-		_last_block = _current_block;
-		_current_block = 0; // A discard leaves the current basic block
-
-		return _last_block;
+		return set_block(0);
 	}
 	id   leave_block_and_return(id value) override
 	{
@@ -1850,10 +1850,7 @@ class codegen_spirv final : public codegen
 				.add(value);
 		}
 
-		_last_block = _current_block;
-		_current_block = 0; // A return leaves the current basic block
-
-		return _last_block;
+		return set_block(0);
 	}
 	id   leave_block_and_switch(id value, id default_target) override
 	{
@@ -1867,10 +1864,7 @@ class codegen_spirv final : public codegen
 			.add(value)
 			.add(default_target);
 
-		_last_block = _current_block;
-		_current_block = 0; // A switch leaves the current basic block
-
-		return _last_block;
+		return set_block(0);
 	}
 	id   leave_block_and_branch(id target, unsigned int) override
 	{
@@ -1883,10 +1877,7 @@ class codegen_spirv final : public codegen
 		add_instruction_without_result(spv::OpBranch)
 			.add(target);
 
-		_last_block = _current_block;
-		_current_block = 0; // A branch leaves the current basic block
-
-		return _last_block;
+		return set_block(0);
 	}
 	id   leave_block_and_branch_conditional(id condition, id true_target, id false_target) override
 	{
@@ -1901,10 +1892,7 @@ class codegen_spirv final : public codegen
 			.add(true_target)
 			.add(false_target);
 
-		_last_block = _current_block;
-		_current_block = 0; // A branch leaves the current basic block
-
-		return _last_block;
+		return set_block(0);
 	}
 	void leave_function() override
 	{

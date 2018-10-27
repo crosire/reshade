@@ -1132,25 +1132,24 @@ bool reshadefx::parser::parse_expression_multary(expression &lhs, unsigned int l
 		{
 			#pragma region Binary Expression
 #if RESHADEFX_SHORT_CIRCUIT
-			auto merge_label = 0u;
-			auto lhs_block_label = _codegen->current_block();
-			auto rhs_block_label = 0u;
+			codegen::id lhs_block = 0;
+			codegen::id rhs_block = 0;
+			codegen::id merge_block = 0;
 
-			if (op == tokenid::ampersand_ampersand || op == tokenid::pipe_pipe) {
-				merge_label = _codegen->make_id();
-				rhs_block_label = _codegen->make_id();
-				_codegen->set_block(0);
-				_codegen->enter_block(rhs_block_label);
+			// Switch block to a new one before parsing right-hand side value in case it needs to be skipped during short-circuiting
+			if (op == tokenid::ampersand_ampersand || op == tokenid::pipe_pipe)
+			{
+				lhs_block = _codegen->set_block(0);
+				rhs_block = _codegen->create_block();
+				merge_block = _codegen->create_block();
+
+				_codegen->enter_block(rhs_block);
 			}
 #endif
 			// Parse the right hand side of the binary operation
 			expression rhs;
 			if (!parse_expression_multary(rhs, right_precedence))
 				return false;
-#if RESHADEFX_SHORT_CIRCUIT
-			if (op == tokenid::ampersand_ampersand || op == tokenid::pipe_pipe)
-				_codegen->set_block(lhs_block_label);
-#endif
 
 			// Deduce the result base type based on implicit conversion rules
 			type type = type::merge(lhs.type, rhs.type);
@@ -1199,6 +1198,12 @@ bool reshadefx::parser::parse_expression_multary(expression &lhs, unsigned int l
 			lhs.add_cast_operation(type);
 			rhs.add_cast_operation(type);
 
+#if RESHADEFX_SHORT_CIRCUIT
+			// Reset block to left-hand side since the load of the left-hand side value has to happen in there
+			if (op == tokenid::ampersand_ampersand || op == tokenid::pipe_pipe)
+				_codegen->set_block(lhs_block);
+#endif
+
 			// Constant expressions can be evaluated at compile time
 			if (lhs.is_constant && rhs.is_constant)
 			{
@@ -1212,28 +1217,22 @@ bool reshadefx::parser::parse_expression_multary(expression &lhs, unsigned int l
 			// Short circuit for logical && and || operators
 			if (op == tokenid::ampersand_ampersand || op == tokenid::pipe_pipe)
 			{
-				auto condition_value = 0u;
-				if (op == tokenid::ampersand_ampersand)
-				{
-					// Emit "if ( lhs) result = rhs" for && expression
-					condition_value = lhs_value;
-				}
-				else
-				{
-					// Emit "if (!lhs) result = rhs" for || expression
+				// Emit "if ( lhs) result = rhs" for && expression
+				codegen::id condition_value = lhs_value;
+				// Emit "if (!lhs) result = rhs" for || expression
+				if (op == tokenid::pipe_pipe)
 					condition_value = _codegen->emit_unary_op(lhs.location, tokenid::exclaim, type, lhs_value);
-				}
 
-				_codegen->leave_block_and_branch_conditional(condition_value, rhs_block_label, merge_label);
+				_codegen->leave_block_and_branch_conditional(condition_value, rhs_block, merge_block);
 
-				_codegen->set_block(rhs_block_label);
+				_codegen->set_block(rhs_block);
 				// Only load value of right hand side expression after entering the second block
 				const auto rhs_value = _codegen->emit_load(rhs);
-				_codegen->leave_block_and_branch(merge_label);
+				_codegen->leave_block_and_branch(merge_block);
 
-				_codegen->enter_block(merge_label);
+				_codegen->enter_block(merge_block);
 
-				const auto result_value = _codegen->emit_phi(lhs.location, condition_value, lhs_block_label, rhs_value, rhs_block_label, lhs_value, lhs_block_label, type);
+				const auto result_value = _codegen->emit_phi(lhs.location, condition_value, lhs_block, rhs_value, rhs_block, lhs_value, lhs_block, type);
 
 				lhs.reset_to_rvalue(lhs.location, result_value, type);
 				continue;
@@ -1258,26 +1257,24 @@ bool reshadefx::parser::parse_expression_multary(expression &lhs, unsigned int l
 				return error(lhs.location, 3022, "boolean or vector expression expected"), false;
 
 #if RESHADEFX_SHORT_CIRCUIT
-			const auto merge_label = _codegen->make_id();
-			const auto condition_block = _codegen->current_block();
-			auto true_block = _codegen->make_id();
-			auto false_block = _codegen->make_id();
+			// Switch block to a new one before parsing first part in case it needs to be skipped during short-circuiting
+			const codegen::id merge_block = _codegen->create_block();
+			const codegen::id condition_block = _codegen->set_block(0);
+			codegen::id true_block = _codegen->create_block();
+			codegen::id false_block = _codegen->create_block();
 
-			_codegen->set_block(0);
 			_codegen->enter_block(true_block);
 #endif
 			// Parse the first part of the right hand side of the ternary operation
 			expression true_exp;
 			if (!parse_expression(true_exp))
 				return false;
-#if RESHADEFX_SHORT_CIRCUIT
-			_codegen->set_block(condition_block);
-#endif
 
 			if (!expect(':'))
 				return false;
 
 #if RESHADEFX_SHORT_CIRCUIT
+			// Switch block to a new one before parsing second part in case it needs to be skipped during short-circuiting
 			_codegen->set_block(0);
 			_codegen->enter_block(false_block);
 #endif
@@ -1285,9 +1282,6 @@ bool reshadefx::parser::parse_expression_multary(expression &lhs, unsigned int l
 			expression false_exp;
 			if (!parse_expression_assignment(false_exp))
 				return false;
-#if RESHADEFX_SHORT_CIRCUIT
-			_codegen->set_block(condition_block);
-#endif
 
 			// Check that the condition dimension matches that of at least one side
 			if (lhs.type.is_vector() && lhs.type.rows != true_exp.type.rows && lhs.type.cols != true_exp.type.cols)
@@ -1305,7 +1299,11 @@ bool reshadefx::parser::parse_expression_multary(expression &lhs, unsigned int l
 			if (false_exp.type.components() > type.components())
 				warning(false_exp.location, 3206, "implicit truncation of vector type");
 
-#if !RESHADEFX_SHORT_CIRCUIT
+#if RESHADEFX_SHORT_CIRCUIT
+			// Reset block to left-hand side since the load of the condition value has to happen in there
+			_codegen->set_block(condition_block);
+#else
+			// The conditional operator instruction expects the condition to be a boolean type
 			lhs.add_cast_operation({ type::t_bool, type.rows, 1 });
 #endif
 			true_exp.add_cast_operation(type);
@@ -1320,14 +1318,14 @@ bool reshadefx::parser::parse_expression_multary(expression &lhs, unsigned int l
 			_codegen->set_block(true_block);
 			// Only load true expression value after entering the first block
 			const auto true_value = _codegen->emit_load(true_exp);
-			true_block = _codegen->leave_block_and_branch(merge_label);
+			true_block = _codegen->leave_block_and_branch(merge_block);
 
 			_codegen->set_block(false_block);
 			// Only load false expression value after entering the second block
 			const auto false_value = _codegen->emit_load(false_exp);
-			false_block = _codegen->leave_block_and_branch(merge_label);
+			false_block = _codegen->leave_block_and_branch(merge_block);
 
-			_codegen->enter_block(merge_label);
+			_codegen->enter_block(merge_block);
 
 			const auto result_value = _codegen->emit_phi(lhs.location, condition_value, condition_block, true_value, true_block, false_value, false_block, type);
 #else
@@ -1474,9 +1472,9 @@ bool reshadefx::parser::parse_statement(bool scoped)
 		#pragma region If
 		if (accept(tokenid::if_))
 		{
-			auto true_block = _codegen->create_block(); // Block which contains the statements executed when the condition is true
-			auto false_block = _codegen->create_block(); // Block which contains the statements executed when the condition is false
-			const auto merge_block = _codegen->create_block(); // Block that is executed after the branch re-merged with the current control flow
+			codegen::id true_block = _codegen->create_block(); // Block which contains the statements executed when the condition is true
+			codegen::id false_block = _codegen->create_block(); // Block which contains the statements executed when the condition is false
+			const codegen::id merge_block = _codegen->create_block(); // Block that is executed after the branch re-merged with the current control flow
 
 			expression condition;
 			if (!expect('(') || !parse_expression(condition) || !expect(')'))
@@ -1487,8 +1485,8 @@ bool reshadefx::parser::parse_statement(bool scoped)
 			// Load condition and convert to boolean value as required by 'OpBranchConditional'
 			condition.add_cast_operation({ type::t_bool, 1, 1 });
 
-			const auto condition_value = _codegen->emit_load(condition);
-			const auto condition_block = _codegen->leave_block_and_branch_conditional(condition_value, true_block, false_block);
+			const codegen::id condition_value = _codegen->emit_load(condition);
+			const codegen::id condition_block = _codegen->leave_block_and_branch_conditional(condition_value, true_block, false_block);
 
 			{ // Then block of the if statement
 				_codegen->enter_block(true_block);
@@ -1519,7 +1517,7 @@ bool reshadefx::parser::parse_statement(bool scoped)
 		#pragma region Switch
 		if (accept(tokenid::switch_))
 		{
-			const auto merge_block = _codegen->create_block(); // Block that is executed after the switch re-merged with the current control flow
+			const codegen::id merge_block = _codegen->create_block(); // Block that is executed after the switch re-merged with the current control flow
 
 			expression selector_exp;
 			if (!expect('(') || !parse_expression(selector_exp) || !expect(')'))
@@ -1540,7 +1538,7 @@ bool reshadefx::parser::parse_statement(bool scoped)
 			on_scope_exit _([this]() { _loop_break_target_stack.pop_back(); });
 
 			bool success = true;
-			auto default_label = merge_block; // The default case jumps to the end of the switch statement if not overwritten
+			codegen::id default_label = merge_block; // The default case jumps to the end of the switch statement if not overwritten
 			codegen::id current_block = 0;
 			std::vector<codegen::id> case_literal_and_labels;
 
@@ -1649,15 +1647,15 @@ bool reshadefx::parser::parse_statement(bool scoped)
 			if (!expect(';'))
 				return false;
 
-			const auto merge_block = _codegen->create_block(); // Block that is executed after the loop
-			const auto header_label = _codegen->create_block(); // Pointer to the loop merge instruction
-			const auto continue_label = _codegen->create_block(); // Pointer to the continue block
-			auto loop_block = _codegen->create_block(); // Pointer to the main loop body block
-			auto condition_block = _codegen->create_block(); // Pointer to the condition check
+			const codegen::id merge_block = _codegen->create_block(); // Block that is executed after the loop
+			const codegen::id header_label = _codegen->create_block(); // Pointer to the loop merge instruction
+			const codegen::id continue_label = _codegen->create_block(); // Pointer to the continue block
+			codegen::id loop_block = _codegen->create_block(); // Pointer to the main loop body block
+			codegen::id condition_block = _codegen->create_block(); // Pointer to the condition check
 			codegen::id condition_value = 0;
 
 			// End current block by branching to the next label
-			const auto prev_block = _codegen->leave_block_and_branch(header_label);
+			const codegen::id prev_block = _codegen->leave_block_and_branch(header_label);
 
 			{ // Begin loop block (this header is used for explicit structured control flow)
 				_codegen->enter_block(header_label);
@@ -1735,15 +1733,15 @@ bool reshadefx::parser::parse_statement(bool scoped)
 			enter_scope();
 			on_scope_exit _([this]() { leave_scope(); });
 
-			const auto merge_block = _codegen->create_block();
-			const auto header_label = _codegen->create_block();
-			const auto continue_label = _codegen->create_block();
-			auto loop_block = _codegen->create_block();
-			auto condition_block = _codegen->create_block();
+			const codegen::id merge_block = _codegen->create_block();
+			const codegen::id header_label = _codegen->create_block();
+			const codegen::id continue_label = _codegen->create_block();
+			codegen::id loop_block = _codegen->create_block();
+			codegen::id condition_block = _codegen->create_block();
 			codegen::id condition_value = 0;
 
 			// End current block by branching to the next label
-			const auto prev_block = _codegen->leave_block_and_branch(header_label);
+			const codegen::id prev_block = _codegen->leave_block_and_branch(header_label);
 
 			{ // Begin loop block
 				_codegen->enter_block(header_label);
@@ -1804,14 +1802,14 @@ bool reshadefx::parser::parse_statement(bool scoped)
 		#pragma region DoWhile
 		if (accept(tokenid::do_))
 		{
-			const auto merge_block = _codegen->create_block();
-			const auto header_label = _codegen->create_block();
-			const auto continue_label = _codegen->create_block();
-			auto loop_block = _codegen->create_block();
+			const codegen::id merge_block = _codegen->create_block();
+			const codegen::id header_label = _codegen->create_block();
+			const codegen::id continue_label = _codegen->create_block();
+			codegen::id loop_block = _codegen->create_block();
 			codegen::id condition_value = 0;
 
 			// End current block by branching to the next label
-			const auto prev_block = _codegen->leave_block_and_branch(header_label);
+			const codegen::id prev_block = _codegen->leave_block_and_branch(header_label);
 
 			{ // Begin loop block
 				_codegen->enter_block(header_label);

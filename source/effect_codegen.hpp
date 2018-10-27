@@ -248,7 +248,8 @@ namespace reshadefx
 		/// Overwrite the current block ID.
 		/// </summary>
 		/// <param name="id">The ID of the block to make current.</param>
-		virtual void set_block(id id) = 0;
+		/// <returns>The ID of the previous basic block.</returns>
+		virtual id   set_block(id id) = 0;
 		/// <summary>
 		/// Create a new basic block and make it current.
 		/// </summary>
