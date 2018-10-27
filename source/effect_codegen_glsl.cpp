@@ -9,10 +9,10 @@
 
 using namespace reshadefx;
 
-class codegen_hlsl final : public codegen
+class codegen_glsl final : public codegen
 {
 public:
-	codegen_hlsl()
+	codegen_glsl()
 	{
 		struct_info cbuffer_type;
 		cbuffer_type.name = "$Globals";
@@ -40,9 +40,7 @@ private:
 	void write_result(module &s) const override
 	{
 		s.hlsl =
-			"struct __sampler2D { Texture2D t; SamplerState s; };\n"
-			"int2 __tex2Dsize(__sampler2D s, int lod) { uint w, h, l; s.t.GetDimensions(lod, w, h, l); return int2(w, h); }\n"
-			"cbuffer _Globals {\n" +
+			"layout(std140, binding = 0) uniform _Globals {\n" +
 			_blocks.at(_cbuffer_type) +
 			"};\n" +
 			_blocks.at(0);
@@ -66,31 +64,47 @@ private:
 			s += "void";
 			break;
 		case type::t_bool:
-			s += "bool";
+			if (type.cols > 1)
+				s += "mat" + std::to_string(type.rows) + 'x' + std::to_string(type.cols);
+			else if (type.rows > 1)
+				s += "bvec" + std::to_string(type.rows);
+			else
+				s += "bool";
 			break;
 		case type::t_int:
-			s += "int";
+			if (type.cols > 1)
+				s += "mat" + std::to_string(type.rows) + 'x' + std::to_string(type.cols);
+			else if (type.rows > 1)
+				s += "ivec" + std::to_string(type.rows);
+			else
+				s += "int";
 			break;
 		case type::t_uint:
-			s += "uint";
+			if (type.cols > 1)
+				s += "mat" + std::to_string(type.rows) + 'x' + std::to_string(type.cols);
+			else if (type.rows > 1)
+				s += "uvec" + std::to_string(type.rows);
+			else
+				s += "uint";
 			break;
 		case type::t_float:
-			s += "float";
+			if (type.cols > 1)
+				s += "mat" + std::to_string(type.rows) + 'x' + std::to_string(type.cols);
+			else if (type.rows > 1)
+				s += "vec" + std::to_string(type.rows);
+			else
+				s += "float";
 			break;
 		case type::t_struct:
 			s += id_to_name(type.definition);
 			break;
 		case type::t_sampler:
-			s += "__sampler2D";
+			s += "sampler2D";
 			break;
 		default:
 			assert(false);
 		}
 
-		if (type.rows > 1)
-			s += std::to_string(type.rows);
-		if (type.cols > 1)
-			s += 'x' + std::to_string(type.cols);
 		return s;
 	}
 	std::string write_constant(const type &type, const constant &data)
@@ -114,7 +128,12 @@ private:
 		}
 
 		if (!type.is_scalar())
-			s += write_type(type);
+		{
+			if (type.is_matrix())
+				s += "transpose";
+
+			s += '(' + write_type(type);
+		}
 
 		s += '(';
 
@@ -143,6 +162,11 @@ private:
 			}
 		}
 
+		if (!type.is_scalar())
+		{
+			s += ')';
+		}
+
 		s += ')';
 
 		return s;
@@ -153,10 +177,7 @@ private:
 	}
 	std::string write_location(const location &loc)
 	{
-		if (loc.source.empty())
-			return std::string();
-
-		return "#line " + std::to_string(loc.line) + " \"" + loc.source + "\"\n";
+		return "#line " + std::to_string(loc.line) + '\n';
 	}
 
 	inline std::string id_to_name(id id) const
@@ -176,12 +197,10 @@ private:
 		code() += write_location(loc) + "struct " + info.unique_name + "\n{\n";
 
 		for (const auto &member : info.member_list)
-		{
-			code() += '\t' + write_type(member.type) + ' ' + member.name;
-			if (!member.semantic.empty())
-				code() += " : " + member.semantic;
-			code() += ";\n";
-		}
+			code() += '\t' + write_type(member.type) + ' ' + member.name + ";\n";
+
+		if (info.member_list.empty())
+			code() += "float _dummy;\n";
 
 		code() += "};\n";
 
@@ -202,10 +221,7 @@ private:
 
 		_samplers.push_back(info);
 
-		code() += "Texture2D " + info.unique_name + "_t : register(t" + std::to_string(info.binding) + ");\n";
-		code() += "SamplerState " + info.unique_name + "_s : register(s" + std::to_string(info.binding) + ");\n";
-		code() += write_location(loc);
-		code() += "const __sampler2D " + info.unique_name + " = { " + info.unique_name + "_t, " + info.unique_name + "_s };\n";
+		code() += "layout(binding = " + std::to_string(info.binding) + ") uniform sampler2D " + info.unique_name + ";\n";
 
 		_names[info.id] = info.unique_name;
 
@@ -225,7 +241,7 @@ private:
 			.member_list.push_back(std::move(member));
 
 		_blocks[_cbuffer_type] += write_location(loc);
-		_blocks[_cbuffer_type] += write_type(info.type) + ' ' + info.name + ";\n";
+		_blocks[_cbuffer_type] += write_type(info.type) + " _Globals_" + info.name + ";\n";
 
 		return _cbuffer_type;
 	}
@@ -266,19 +282,11 @@ private:
 
 			code() += '\n' + write_location(param.location) + '\t' + write_type(param.type) + ' ' + param.name;
 
-			if (!param.semantic.empty())
-				code() += " : " + param.semantic;
-
 			if (i < num_params - 1)
 				code() += ',';
 		}
 
-		code() += ')';
-
-		if (!info.return_semantic.empty())
-			code() += " : " + info.return_semantic;
-
-		code() += '\n';
+		code() += ")\n";
 
 		_scope_level++;
 
@@ -328,7 +336,7 @@ private:
 					newcode += '[' + id_to_name(op.index) + ']';
 					break;
 				case expression::operation::op_member:
-					newcode += '.';
+					newcode += op.from.definition == _cbuffer_type ? '_' : '.';
 					newcode += find_struct(op.from.definition).member_list[op.index].name;
 					break;
 				case expression::operation::op_swizzle:
@@ -374,6 +382,8 @@ private:
 
 	id   emit_constant(const type &type, const constant &data) override
 	{
+		assert(type.is_numeric());
+
 		const id res = make_id();
 
 		code() += write_scope() + "const " + write_type(type) + ' ' + id_to_name(res);
@@ -390,89 +400,140 @@ private:
 	{
 		const id res = make_id();
 
-		code() += write_location(loc) + write_scope() + "const " + write_type(res_type) + ' ' + id_to_name(res) + " = " + char(op) + ' ' + id_to_name(val) + ";\n";
+		code() += write_location(loc) + write_scope() + "const " + write_type(res_type) + ' ' + id_to_name(res) + " = ";
+
+		switch (op)
+		{
+		case tokenid::minus:
+			code() += '-';
+			break;
+		case tokenid::tilde:
+			code() += '~';
+			break;
+		case tokenid::exclaim:
+			if (res_type.is_vector())
+				code() += "not";
+			else
+				code() += "!bool";
+			break;
+		default:
+			assert(false);
+		}
+
+		code() += "(" + id_to_name(val) + ");\n";
 
 		return res;
 	}
-	id   emit_binary_op(const location &loc, tokenid op, const type &res_type, const type &, id lhs, id rhs) override
+	id   emit_binary_op(const location &loc, tokenid op, const type &res_type, const type &type, id lhs, id rhs) override
 	{
 		const id res = make_id();
 
-		code() += write_location(loc) + write_scope() + "const " + write_type(res_type) + ' ' + id_to_name(res) + " = " + id_to_name(lhs) + ' ';
+		code() += write_location(loc) + write_scope() + "const " + write_type(res_type) + ' ' + id_to_name(res) + " = ";
+
+		std::string intrinsic, operator_code;
 
 		switch (op)
 		{
 		case tokenid::plus:
 		case tokenid::plus_plus:
 		case tokenid::plus_equal:
-			code() += '+';
+			operator_code = '+';
 			break;
 		case tokenid::minus:
 		case tokenid::minus_minus:
 		case tokenid::minus_equal:
-			code() += '-';
+			operator_code = '-';
 			break;
 		case tokenid::star:
 		case tokenid::star_equal:
-			code() += '*';
+			if (type.is_matrix())
+				intrinsic = "matrixCompMult";
+			else
+				operator_code = '*';
 			break;
 		case tokenid::slash:
 		case tokenid::slash_equal:
-			code() += '/';
+			operator_code = '/';
 			break;
 		case tokenid::percent:
 		case tokenid::percent_equal:
-			code() += '%';
+			if (type.is_floating_point())
+				intrinsic = "_fmod";
+			else
+				operator_code = '%';
 			break;
 		case tokenid::caret:
 		case tokenid::caret_equal:
-			code() += '^';
+			operator_code = '^';
 			break;
 		case tokenid::pipe:
 		case tokenid::pipe_equal:
-			code() += '|';
+			operator_code = '|';
 			break;
 		case tokenid::ampersand:
 		case tokenid::ampersand_equal:
-			code() += '&';
+			operator_code = '&';
 			break;
 		case tokenid::less_less:
 		case tokenid::less_less_equal:
-			code() += "<<";
+			operator_code = "<<";
 			break;
 		case tokenid::greater_greater:
 		case tokenid::greater_greater_equal:
-			code() += ">>";
+			operator_code = ">>";
 			break;
 		case tokenid::pipe_pipe:
-			code() += "||";
+			operator_code = "||";
 			break;
 		case tokenid::ampersand_ampersand:
-			code() += "&&";
+			operator_code = "&&";
 			break;
 		case tokenid::less:
-			code() += '<';
+			if (type.is_vector())
+				intrinsic = "lessThan";
+			else
+				operator_code = '<';
 			break;
 		case tokenid::less_equal:
-			code() += "<=";
+			if (type.is_vector())
+				intrinsic = "lessThanEqual";
+			else
+				operator_code = "<=";
 			break;
 		case tokenid::greater:
-			code() += '>';
+			if (type.is_vector())
+				intrinsic = "greaterThan";
+			else
+				operator_code = '>';
 			break;
 		case tokenid::greater_equal:
-			code() += ">=";
+			if (type.is_vector())
+				intrinsic = "greaterThanEqual";
+			else
+				operator_code = ">=";
 			break;
 		case tokenid::equal_equal:
-			code() += "==";
+			if (type.is_vector())
+				intrinsic = "equal";
+			else
+				operator_code = "==";
 			break;
 		case tokenid::exclaim_equal:
-			code() += "!=";
+			if (type.is_vector())
+				intrinsic = "notEqual";
+			else
+				operator_code = "!=";
 			break;
 		default:
 			assert(false);
 		}
 
-		code() += ' ' + id_to_name(rhs) + ";\n";
+		if (!intrinsic.empty())
+			code() += intrinsic + '(' + id_to_name(lhs) + ", " + id_to_name(rhs) + ')';
+		else
+			code() += id_to_name(lhs) + ' ' + operator_code + ' ' + id_to_name(rhs);
+
+		code() += ";\n";
 
 		return res;
 	}
@@ -534,13 +595,13 @@ private:
 
 		enum
 		{
-#define IMPLEMENT_INTRINSIC_HLSL(name, i, code) name##i,
+#define IMPLEMENT_INTRINSIC_GLSL(name, i, code) name##i,
 #include "effect_symbol_table_intrinsics.inl"
 		};
 
 		switch (intrinsic)
 		{
-#define IMPLEMENT_INTRINSIC_HLSL(name, i, code) case name##i: code break;
+#define IMPLEMENT_INTRINSIC_GLSL(name, i, code) case name##i: code break;
 #include "effect_symbol_table_intrinsics.inl"
 		default:
 			assert(false);
@@ -559,7 +620,17 @@ private:
 		if (type.is_array())
 			code() += '[' + std::to_string(type.array_length) + ']';
 
-		code() += ' ' + id_to_name(res) + " = " + write_type(type) + '(';
+		code() += ' ' + id_to_name(res) + " = ";
+
+		if (!type.is_array() && type.is_matrix())
+			code() += "transpose(";
+
+		code() += write_type(type);
+
+		if (type.is_array())
+			code() += "[]";
+
+		code() += '(';
 
 		for (size_t i = 0, num_args = args.size(); i < num_args; ++i)
 		{
@@ -568,6 +639,9 @@ private:
 			if (i < num_args - 1)
 				code() += ", ";
 		}
+
+		if (!type.is_array() && type.is_matrix())
+			code() += ')';
 
 		code() += ");\n";
 
@@ -755,7 +829,7 @@ private:
 	}
 };
 
-codegen *create_codegen_hlsl()
+codegen *create_codegen_glsl()
 {
-	return new codegen_hlsl();
+	return new codegen_glsl();
 }

@@ -41,8 +41,8 @@ namespace reshadefx
 		/// </summary>
 		enum class backend
 		{
+			glsl,
 			hlsl,
-			llvm,
 			spirv,
 		};
 
@@ -218,6 +218,15 @@ namespace reshadefx
 		virtual void emit_switch(const struct location &loc, id selector_value, id selector_block, id default_label, const std::vector<id> &case_literal_and_labels, unsigned int flags) = 0;
 
 		/// <summary>
+		/// Returns true if code is currently added to a basic block.
+		/// </summary>
+		virtual bool is_in_block() const = 0;
+		/// <summary>
+		/// Returns true if code is currently added to a function.
+		/// </summary>
+		virtual bool is_in_function() const = 0;
+
+		/// <summary>
 		/// Overwrite the current block ID.
 		/// </summary>
 		/// <param name="id">The ID of the block to make current.</param>
@@ -264,15 +273,6 @@ namespace reshadefx
 		/// Leave the current function. Any code added after this call is added in the global scope.
 		/// </summary>
 		virtual void leave_function() = 0;
-
-		/// <summary>
-		/// Returns true if code is currently added to a basic block.
-		/// </summary>
-		virtual bool is_in_block() const = 0;
-		/// <summary>
-		/// Returns true if code is currently added to a function.
-		/// </summary>
-		virtual bool is_in_function() const = 0;
 
 		/// <summary>
 		/// Write result of the code generation to the specified <paramref name="module"/>.

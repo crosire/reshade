@@ -22,6 +22,10 @@ reshadefx::parser::parser(codegen::backend backend)
 {
 	switch (backend)
 	{
+	case codegen::backend::glsl:
+		extern reshadefx::codegen *create_codegen_glsl();
+		_codegen.reset(create_codegen_glsl());
+		break;
 	case codegen::backend::hlsl:
 		extern reshadefx::codegen *create_codegen_hlsl();
 		_codegen.reset(create_codegen_hlsl());
@@ -2106,7 +2110,6 @@ bool reshadefx::parser::parse_struct()
 	const auto location = std::move(_token.location);
 
 	struct_info info;
-
 	// The structure name is optional
 	if (accept(tokenid::identifier))
 		info.name = _token.literal_as_string;
@@ -2197,6 +2200,7 @@ bool reshadefx::parser::parse_function(type type, std::string name)
 	info.name = name;
 	info.unique_name = 'F' + current_scope().name + name;
 	std::replace(info.unique_name.begin(), info.unique_name.end(), ':', '_');
+
 	info.return_type = type;
 	_current_return_type = type;
 

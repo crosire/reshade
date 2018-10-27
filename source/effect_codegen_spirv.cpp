@@ -1840,6 +1840,9 @@ private:
 		_current_block_data->instructions.push_back(merge_label);
 	}
 
+	bool is_in_block() const override { return _current_block != 0; }
+	bool is_in_function() const override { return _current_function != std::numeric_limits<size_t>::max(); }
+
 	id   set_block(id id) override
 	{
 		_last_block = _current_block;
@@ -1945,9 +1948,6 @@ private:
 
 		_current_function = std::numeric_limits<size_t>::max();
 	}
-
-	bool is_in_block() const override { return _current_block != 0; }
-	bool is_in_function() const override { return _current_function != std::numeric_limits<size_t>::max(); }
 };
 
 codegen *create_codegen_spirv()
