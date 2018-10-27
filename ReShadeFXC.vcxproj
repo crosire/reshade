@@ -145,9 +145,6 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ProjectReference Include="deps\SPIRV-Cross.vcxproj">
-      <Project>{977e3701-1a21-4425-b7e5-6bdf5ea062cd}</Project>
-    </ProjectReference>
     <ProjectReference Include="ReShadeFX.vcxproj">
       <Project>{d1c2099b-bec7-4993-8947-01d4a1f7eae2}</Project>
     </ProjectReference>

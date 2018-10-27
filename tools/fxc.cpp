@@ -9,7 +9,6 @@
 #include <vector>
 #include <fstream>
 #include <iostream>
-#include <spirv_hlsl.hpp>
 
 void print_usage(const char *path)
 {
@@ -162,7 +161,18 @@ int main(int argc, char *argv[])
 		return 0;
 	}
 
-	reshadefx::parser parser(reshadefx::codegen::backend::spirv);
+	reshadefx::codegen::backend backend = reshadefx::codegen::backend::spirv;
+
+	if (print_glsl)
+	{
+		backend = reshadefx::codegen::backend::glsl;
+	}
+	if (print_hlsl)
+	{
+		backend = reshadefx::codegen::backend::hlsl;
+	}
+
+	reshadefx::parser parser(backend);
 
 	if (!parser.parse(pp.current_output()))
 	{
@@ -176,60 +186,14 @@ int main(int argc, char *argv[])
 	reshadefx::module module;
 	parser.write_result(module);
 
-	if (objectfile != nullptr)
+	if (print_glsl || print_hlsl)
+	{
+		std::cout << module.hlsl << std::endl;
+	}
+	else if (objectfile != nullptr)
 	{
 		std::ofstream(objectfile, std::ios::binary).write(
 			reinterpret_cast<const char *>(module.spirv.data()), module.spirv.size() * sizeof(uint32_t));
-	}
-
-	if (print_glsl)
-	{
-		try
-		{
-			spirv_cross::CompilerGLSL cross(module.spirv);
-
-			for (const auto &entry : cross.get_entry_points_and_stages())
-			{
-				if (entry.name == entrypoint)
-				{
-					cross.set_entry_point(entry.name, entry.execution_model);
-					break;
-				}
-			}
-
-			const std::string code = cross.compile();
-
-			std::cout << code << std::endl;
-		}
-		catch (const spirv_cross::CompilerError &e)
-		{
-			std::cout << e.what() << std::endl;
-		}
-	}
-	if (print_hlsl)
-	{
-		try
-		{
-			spirv_cross::CompilerHLSL cross(module.spirv);
-			cross.set_hlsl_options({ shader_model });
-
-			for (const auto &entry : cross.get_entry_points_and_stages())
-			{
-				if (entry.name == entrypoint)
-				{
-					cross.set_entry_point(entry.name, entry.execution_model);
-					break;
-				}
-			}
-
-			const std::string code = cross.compile();
-
-			std::cout << code << std::endl;
-		}
-		catch (const spirv_cross::CompilerError &e)
-		{
-			std::cout << e.what() << std::endl;
-		}
 	}
 
 	return 0;
