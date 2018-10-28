@@ -138,7 +138,7 @@ namespace reshade
 						is_mouse_message = true;
 
 						if (raw_input_window != s_raw_input_windows.end() && (raw_input_window->second & 0x2) == 0)
-							break;
+							break; // Input is already handled (since legacy mouse messages are enabled), so nothing to do here
 
 						if (raw_data.data.mouse.usButtonFlags & RI_MOUSE_LEFT_BUTTON_DOWN)
 							input._mouse_buttons[0] = 0x88;
@@ -170,10 +170,14 @@ namespace reshade
 						is_keyboard_message = true;
 
 						if (raw_input_window != s_raw_input_windows.end() && (raw_input_window->second & 0x1) == 0)
-							break;
+							break; // Input is already handled by 'WM_KEYDOWN' and friends (since legacy keyboard messages are enabled), so nothing to do here
 
 						if (raw_data.data.keyboard.VKey != 0xFF)
 							input._keys[raw_data.data.keyboard.VKey] = (raw_data.data.keyboard.Flags & RI_KEY_BREAK) == 0 ? 0x88 : 0x08;
+
+						// No 'WM_CHAR' messages are sent if legacy keyboard messages are disabled, so need to generate text input manually here
+						if (WORD ch = 0; (raw_data.data.keyboard.Flags & RI_KEY_BREAK) == 0 && ToAscii(raw_data.data.keyboard.VKey, raw_data.data.keyboard.MakeCode, input._keys, &ch, 0))
+							input._text_input += ch;
 						break;
 				}
 				break;
