@@ -598,7 +598,7 @@ namespace reshade
 		if (_renderer_id & 0x10000)
 			backend = reshadefx::codegen::backend::glsl;
 
-		reshadefx::parser parser(backend, shader_model);
+		reshadefx::parser parser(backend, shader_model, true);
 
 		if (!parser.parse(pp.current_output()))
 		{

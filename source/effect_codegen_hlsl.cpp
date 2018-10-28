@@ -12,7 +12,7 @@ using namespace reshadefx;
 class codegen_hlsl final : public codegen
 {
 public:
-	codegen_hlsl(unsigned int shader_model) : _shader_model(shader_model)
+	codegen_hlsl(unsigned int shader_model, bool debug_info) : _shader_model(shader_model), _debug_info(debug_info)
 	{
 		struct_info cbuffer_type;
 		cbuffer_type.name = "$Globals";
@@ -30,14 +30,12 @@ private:
 	id _cbuffer_type_id = 0;
 	std::unordered_map<id, std::string> _names;
 	std::unordered_map<id, std::string> _blocks;
-	unsigned int _scope_level = 0;
+	bool _debug_info = false;
 	unsigned int _shader_model = 0;
 	unsigned int _current_cbuffer_size = 0;
 	unsigned int _current_sampler_binding = 0;
 	std::unordered_map<id, std::vector<id>> _switch_fallthrough_blocks;
 	std::vector<std::pair<std::string, bool>> _entry_points;
-
-	inline id make_id() { return _next_id++; }
 
 	inline std::string &code() { return _blocks[_current_block]; }
 
@@ -190,13 +188,9 @@ private:
 
 		return s;
 	}
-	std::string write_scope()
-	{
-		return std::string(_scope_level, '\t');
-	}
 	std::string write_location(const location &loc)
 	{
-		if (loc.source.empty())
+		if (loc.source.empty() || !_debug_info)
 			return std::string();
 
 		return "#line " + std::to_string(loc.line) + " \"" + loc.source + "\"\n";
@@ -207,7 +201,7 @@ private:
 		if (_shader_model < 40)
 		{
 			if (semantic == "SV_VERTEXID" || semantic == "VERTEXID")
-				return "TEXCOORD0";
+				return "TEXCOORD0 /* VERTEXID */";
 			else if (semantic == "SV_POSITION")
 				return "POSITION";
 			else if (semantic.compare(0, 9, "SV_TARGET") == 0)
@@ -230,11 +224,24 @@ private:
 		return semantic;
 	}
 
+	inline id make_id() { return _next_id++; }
+
 	inline std::string id_to_name(id id) const
 	{
 		if (const auto it = _names.find(id); it != _names.end())
 			return it->second;
 		return '_' + std::to_string(id);
+	}
+
+	static void increase_indentation_level(std::string &block)
+	{
+		if (block.empty())
+			return;
+
+		for (size_t pos = 0; (pos = block.find("\n\t", pos)) != std::string::npos; pos += 3)
+			block.replace(pos, 2, "\n\t\t");
+
+		block.insert(block.begin(), '\t');
 	}
 
 	id   define_struct(const location &loc, struct_info &info) override
@@ -244,7 +251,7 @@ private:
 
 		_structs.push_back(info);
 
-		code() += write_location(loc) + "struct " + info.unique_name + "\n{\n";
+		code() += write_location(loc) + "struct " + id_to_name(info.definition) + "\n{\n";
 
 		for (const auto &member : info.member_list)
 		{
@@ -315,10 +322,12 @@ private:
 		const_cast<struct_info &>(find_struct(_cbuffer_type_id))
 			.member_list.push_back(std::move(member));
 
-		_blocks[_cbuffer_type_id] += write_location(loc) + write_type(info.type) + " _Globals_" + info.name;
+		_blocks[_cbuffer_type_id] += write_location(loc);
 
 		if (_shader_model < 40)
-			_blocks[_cbuffer_type_id] += " : register(c" + std::to_string(info.offset / 4) + ')';
+			_blocks[_cbuffer_type_id] += write_type(info.type) + " _Globals_" + info.name + " : register(c" + std::to_string(info.offset / 4) + ')';
+		else
+			_blocks[_cbuffer_type_id] += '\t' + write_type(info.type) + " _Globals_" + info.name;
 
 		_blocks[_cbuffer_type_id] += ";\n";
 
@@ -328,14 +337,19 @@ private:
 
 		return _cbuffer_type_id;
 	}
-	id   define_variable(const location &loc, const type &type, const char *name, bool, id initializer_value) override
+	id   define_variable(const location &loc, const type &type, const char *name, bool global, id initializer_value) override
 	{
 		const id res = make_id();
 
 		if (name != nullptr)
 			_names[res] = name;
 
-		code() += write_location(loc) + write_scope() + write_type(type) + ' ' + id_to_name(res);
+		code() += write_location(loc);
+
+		if (!global)
+			code() += '\t';
+
+		code() += write_type(type) + ' ' + id_to_name(res);
 
 		if (type.is_array())
 			code() += '[' + std::to_string(type.array_length) + ']';
@@ -358,7 +372,7 @@ private:
 			name += '_';
 
 		info.definition = make_id();
-		_names[info.definition] = name;
+		_names[info.definition] = std::move(name);
 
 		code() += write_location(loc) + write_type(info.return_type) + ' ' + id_to_name(info.definition) + '(';
 
@@ -387,8 +401,6 @@ private:
 			code() += " : " + convert_semantic(info.return_semantic);
 
 		code() += '\n';
-
-		_scope_level++;
 
 		_functions.push_back(std::make_unique<function_info>(info));
 
@@ -448,9 +460,9 @@ private:
 		// Clear all color output parameters so no component is left uninitialized
 		for (auto &param : entry_point.parameter_list)
 			if (is_color_semantic(param.semantic))
-				code() += write_scope() + param.name + " = float4(0.0, 0.0, 0.0, 0.0);\n";
+				code() += '\t' + param.name + " = float4(0.0, 0.0, 0.0, 0.0);\n";
 
-		code() += write_scope();
+		code() += '\t';
 		if (is_color_semantic(func.return_semantic))
 			code() += "const float4 ret = float4(";
 		else if (!func.return_type.is_void())
@@ -486,10 +498,9 @@ private:
 
 		code() += ";\n";
 
-		// Shift everything by half a viewport pixel to workaround the different half-pixel offset in D3D9
-		// https://aras-p.info/blog/2016/04/08/solving-dx9-half-pixel-offset/
+		// Shift everything by half a viewport pixel to workaround the different half-pixel offset in D3D9 (https://aras-p.info/blog/2016/04/08/solving-dx9-half-pixel-offset/)
 		if (!position_variable_name.empty() && !is_ps) // Check if we are in a vertex shader definition
-			code() += write_scope() + position_variable_name + ".xy += __TEXEL_SIZE__ * " + position_variable_name + ".ww;\n";
+			code() += '\t' + position_variable_name + ".xy += __TEXEL_SIZE__ * " + position_variable_name + ".ww;\n";
 
 		leave_block_and_return(func.return_type.is_void() ? 0 : ret);
 		leave_function();
@@ -505,7 +516,7 @@ private:
 
 		const id res = make_id();
 
-		code() += write_location(chain.location) + write_scope() + "const " + write_type(chain.type) + ' ' + id_to_name(res);
+		code() += write_location(chain.location) + "\tconst " + write_type(chain.type) + ' ' + id_to_name(res);
 
 		if (chain.type.is_array())
 			code() += '[' + std::to_string(chain.type.array_length) + ']';
@@ -544,7 +555,7 @@ private:
 	}
 	void emit_store(const expression &chain, id value, const type &) override
 	{
-		code() += write_location(chain.location) + write_scope() + id_to_name(chain.base);
+		code() += write_location(chain.location) + '\t' + id_to_name(chain.base);
 
 		for (const auto &op : chain.ops)
 		{
@@ -572,7 +583,7 @@ private:
 	{
 		const id res = make_id();
 
-		code() += write_scope() + "const " + write_type(type) + ' ' + id_to_name(res);
+		code() += "\tconst " + write_type(type) + ' ' + id_to_name(res);
 
 		if (type.is_array())
 			code() += '[' + std::to_string(type.array_length) + ']';
@@ -586,7 +597,7 @@ private:
 	{
 		const id res = make_id();
 
-		code() += write_location(loc) + write_scope() + "const " + write_type(res_type) + ' ' + id_to_name(res) + " = ";
+		code() += write_location(loc) + "\tconst " + write_type(res_type) + ' ' + id_to_name(res) + " = ";
 
 		if (_shader_model < 40 && op == tokenid::tilde)
 			code() += "0xFFFFFFFF -"; // Emulate bitwise not operator on shader model 3
@@ -601,7 +612,7 @@ private:
 	{
 		const id res = make_id();
 
-		code() += write_location(loc) + write_scope() + "const " + write_type(res_type) + ' ' + id_to_name(res) + " = ";
+		code() += write_location(loc) + "\tconst " + write_type(res_type) + ' ' + id_to_name(res) + " = ";
 
 		if (_shader_model < 40 && (op == tokenid::greater_greater || op == tokenid::greater_greater_equal))
 			code() += "floor(";
@@ -695,7 +706,7 @@ private:
 
 		const id res = make_id();
 
-		code() += write_location(loc) + write_scope() + "const " + write_type(res_type) + ' ' + id_to_name(res);
+		code() += write_location(loc) + "\tconst " + write_type(res_type) + ' ' + id_to_name(res);
 
 		if (res_type.is_array())
 			code() += '[' + std::to_string(res_type.array_length) + ']';
@@ -711,7 +722,7 @@ private:
 
 		const id res = make_id();
 
-		code() += write_location(loc) + write_scope();
+		code() += write_location(loc) + '\t';
 
 		if (!res_type.is_void())
 		{
@@ -744,7 +755,7 @@ private:
 
 		const id res = make_id();
 
-		code() += write_location(loc) + write_scope();
+		code() += write_location(loc) + '\t';
 
 		enum
 		{
@@ -781,7 +792,7 @@ private:
 
 		const id res = make_id();
 
-		code() += write_location(loc) + write_scope() + "const " + write_type(type) + ' ' + id_to_name(res);
+		code() += write_location(loc) + "\tconst " + write_type(type) + ' ' + id_to_name(res);
 
 		if (type.is_array())
 			code() += '[' + std::to_string(type.array_length) + ']';
@@ -815,47 +826,64 @@ private:
 	{
 		assert(condition_value != 0 && condition_block != 0 && true_statement_block != 0 && false_statement_block != 0);
 
+		increase_indentation_level(_blocks[true_statement_block]);
+		increase_indentation_level(_blocks[false_statement_block]);
+
 		code() += _blocks[condition_block];
 		code() += write_location(loc);
 
 		if (flags & flatten) code() += "[flatten]";
 		if (flags & dont_flatten) code() += "[branch]";
 
-		code() +=
-			write_scope() + "if (" + id_to_name(condition_value) + ")\n" + write_scope() + "{\n" +
-			_blocks[true_statement_block] +
-			write_scope() + "}\n" + write_scope() + "else\n" + write_scope () + "{\n" +
-			_blocks[false_statement_block] +
-			write_scope() + "}\n";
+		code() += "\tif (" + id_to_name(condition_value) + ")\n\t{\n" + _blocks[true_statement_block] + "\t}\n";
+
+		if (!_blocks[false_statement_block].empty())
+			code() += "\telse\n\t{\n" + _blocks[false_statement_block] + "\t}\n";
+
+		// Remove consumed blocks to save memory resources
+		_blocks.erase(condition_block);
+		_blocks.erase(true_statement_block);
+		_blocks.erase(false_statement_block);
 	}
 	id   emit_phi(const location &loc, id condition_value, id condition_block, id true_value, id true_statement_block, id false_value, id false_statement_block, const type &type) override
 	{
 		assert(condition_value != 0 && condition_block != 0 && true_value != 0 && true_statement_block != 0 && false_value != 0 && false_statement_block != 0);
 
+		increase_indentation_level(_blocks[true_statement_block]);
+		increase_indentation_level(_blocks[false_statement_block]);
+
 		const id res = make_id();
 
 		code() += _blocks[condition_block] +
-			write_scope() + write_type(type) + ' ' + id_to_name(res) + ";\n" +
+			'\t' + write_type(type) + ' ' + id_to_name(res) + ";\n" +
 			write_location(loc) +
-			write_scope() + "if (" + id_to_name(condition_value) + ")\n" + write_scope () + "{\n" +
+			"\tif (" + id_to_name(condition_value) + ")\n\t{\n" +
 			(true_statement_block != condition_block ? _blocks[true_statement_block] : std::string()) +
-			write_scope() + id_to_name(res) + " = " + id_to_name(true_value) + ";\n" +
-			write_scope() + "}\n" + write_scope() + "else\n" + write_scope () + "{\n" +
+			"\t\t" + id_to_name(res) + " = " + id_to_name(true_value) + ";\n" +
+			"\t}\n\telse\n\t{\n" +
 			(false_statement_block != condition_block ? _blocks[false_statement_block] : std::string()) +
-			write_scope() + id_to_name(res) + " = " + id_to_name(false_value) + ";\n" +
-			write_scope() + "}\n";
+			"\t\t" + id_to_name(res) + " = " + id_to_name(false_value) + ";\n" +
+			"\t}\n";
+
+		// Remove consumed blocks to save memory resources
+		_blocks.erase(condition_block);
+		_blocks.erase(true_statement_block);
+		_blocks.erase(false_statement_block);
 
 		return res;
 	}
-	void emit_loop(const location &loc, id condition_value, id prev_block, id, id condition_block, id loop_block, id continue_block, unsigned int flags) override
+	void emit_loop(const location &loc, id condition_value, id prev_block, id header_block, id condition_block, id loop_block, id continue_block, unsigned int flags) override
 	{
-		assert(condition_value != 0 && prev_block != 0 && loop_block != 0 && continue_block != 0);
+		assert(condition_value != 0 && prev_block != 0 && header_block != 0 && loop_block != 0 && continue_block != 0);
+
+		increase_indentation_level(_blocks[loop_block]);
+		increase_indentation_level(_blocks[continue_block]);
 
 		code() += _blocks[prev_block];
 
 		if (condition_block == 0)
 		{
-			code() += write_scope() + "bool " + id_to_name(condition_value) + ";\n";
+			code() += "\tbool " + id_to_name(condition_value) + ";\n";
 		}
 		else
 		{
@@ -868,7 +896,7 @@ private:
 			code() += loop_condition;
 		}
 
-		code() += write_location(loc) + write_scope();
+		code() += write_location(loc) + '\t';
 
 		if (flags & unroll) code() += "[unroll] ";
 		if (flags & dont_unroll) code() += "[loop] ";
@@ -876,63 +904,80 @@ private:
 		if (condition_block == 0)
 		{
 			// Convert variable initializer to assignment statement
-			std::string loop_condition = _blocks[continue_block];
+			std::string loop_condition = std::move(_blocks[continue_block]);
 			auto pos_assign = loop_condition.rfind(id_to_name(condition_value));
-			auto pos_prev_assign = loop_condition.rfind('\n', pos_assign);
+			auto pos_prev_assign = loop_condition.rfind('\t', pos_assign);
 			loop_condition.erase(pos_prev_assign + 1, pos_assign - pos_prev_assign - 1);
 
-			code() += "do\n" + write_scope() + "{\n" + _blocks[loop_block] + loop_condition + "}\n" + write_scope() + "while (" + id_to_name(condition_value) + ");\n";
+			code() += "do\n\t{\n" + _blocks[loop_block] + loop_condition + "}\n\twhile (" + id_to_name(condition_value) + ");\n";
 		}
 		else
 		{
+			increase_indentation_level(_blocks[condition_block]);
+
 			// Convert variable initializer to assignment statement
-			std::string loop_condition = _blocks[condition_block];
+			std::string loop_condition = std::move(_blocks[condition_block]);
 			auto pos_assign = loop_condition.rfind(id_to_name(condition_value));
-			auto pos_prev_assign = loop_condition.rfind('\n', pos_assign);
+			auto pos_prev_assign = loop_condition.rfind('\t', pos_assign);
 			loop_condition.erase(pos_prev_assign + 1, pos_assign - pos_prev_assign - 1);
 
-			code() += "while (" + id_to_name(condition_value) + ")\n" + write_scope() + "{\n" + _blocks[loop_block] + _blocks[continue_block] + loop_condition + write_scope() + "}\n";
+			code() += "while (" + id_to_name(condition_value) + ")\n\t{\n" + _blocks[loop_block] + _blocks[continue_block] + loop_condition + "\t}\n";
+
+			_blocks.erase(condition_block);
 		}
+
+		// Remove consumed blocks to save memory resources
+		_blocks.erase(prev_block);
+		_blocks.erase(header_block);
+		_blocks.erase(loop_block);
+		_blocks.erase(continue_block);
 	}
 	void emit_switch(const location &loc, id selector_value, id selector_block, id default_label, const std::vector<id> &case_literal_and_labels, unsigned int flags) override
 	{
 		assert(selector_value != 0 && selector_block != 0 && default_label != 0);
 
 		code() += _blocks[selector_block];
-		code() += write_location(loc) + write_scope();
+		code() += write_location(loc) + '\t';
 
 		if (flags & flatten) code() += "[flatten]";
 		if (flags & dont_flatten) code() += "[branch]";
 
-		code() += "switch (" + id_to_name(selector_value) + ")\n" + write_scope() + "{\n";
-
-		_scope_level++;
+		code() += "switch (" + id_to_name(selector_value) + ")\n\t{\n";
 
 		for (size_t i = 0; i < case_literal_and_labels.size(); i += 2)
 		{
 			assert(case_literal_and_labels[i + 1] != 0);
 
-			code() += write_scope() + "case " + std::to_string(case_literal_and_labels[i]) + ": {\n" + _blocks[case_literal_and_labels[i + 1]];
+			increase_indentation_level(_blocks[case_literal_and_labels[i + 1]]);
+
+			code() += "\t\tcase " + std::to_string(case_literal_and_labels[i]) + ": {\n" + _blocks[case_literal_and_labels[i + 1]];
 
 			// Handle fall-through blocks
 			for (id fallthrough : _switch_fallthrough_blocks[case_literal_and_labels[i + 1]])
 				code() += _blocks[fallthrough];
 
-			code() += write_scope() + "}\n";
+			code() += "\t\t}\n";
 		}
 
 		if (default_label != _current_block)
 		{
-			code() += write_scope() + "default: {\n" + _blocks[default_label] + write_scope() + "}\n";
+			increase_indentation_level(_blocks[default_label]);
+
+			code() += "\t\tdefault: {\n" + _blocks[default_label] + "\t\t}\n";
+
+			_blocks.erase(default_label);
 		}
 
-		_scope_level--;
+		code() += "\t}\n";
 
-		code() += write_scope() + "}\n";
+		// Remove consumed blocks to save memory resources
+		_blocks.erase(selector_block);
+		for (size_t i = 0; i < case_literal_and_labels.size(); i += 2)
+			_blocks.erase(case_literal_and_labels[i + 1]);
 	}
 
 	bool is_in_block() const override { return _current_block != 0; }
-	bool is_in_function() const override { return _scope_level > 0; }
+	bool is_in_function() const override { return is_in_block(); }
 
 	id   set_block(id id) override
 	{
@@ -950,7 +995,7 @@ private:
 		if (!is_in_block())
 			return 0;
 
-		code() += write_scope() + "discard;\n";
+		code() += "\tdiscard;\n";
 
 		return set_block(0);
 	}
@@ -963,7 +1008,7 @@ private:
 		if (!_functions.back()->return_type.is_void() && value == 0)
 			return set_block(0);
 
-		code() += write_scope() + "return";
+		code() += "\treturn";
 
 		if (value != 0)
 			code() += ' ' + id_to_name(value);
@@ -987,10 +1032,10 @@ private:
 		switch (loop_flow)
 		{
 		case 1:
-			code() += write_scope() + "break;\n";
+			code() += "\tbreak;\n";
 			break;
 		case 2:
-			code() += write_scope() + "continue;\n";
+			code() += "\tcontinue;\n";
 			break;
 		case 3:
 			_switch_fallthrough_blocks[_current_block].push_back(target);
@@ -1008,14 +1053,13 @@ private:
 	}
 	void leave_function() override
 	{
-		code() += "{\n" + _blocks[_last_block] + "}\n";
+		assert(_last_block != 0);
 
-		assert(_scope_level > 0);
-		_scope_level--;
+		code() += "{\n" + _blocks[_last_block] + "}\n";
 	}
 };
 
-codegen *create_codegen_hlsl(unsigned int shader_model)
+codegen *create_codegen_hlsl(unsigned int shader_model, bool debug_info)
 {
-	return new codegen_hlsl(shader_model);
+	return new codegen_hlsl(shader_model, debug_info);
 }

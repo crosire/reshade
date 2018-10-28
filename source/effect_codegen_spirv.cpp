@@ -123,7 +123,7 @@ static inline uint32_t align(uint32_t address, uint32_t alignment)
 class codegen_spirv final : public codegen
 {
 public:
-	codegen_spirv()
+	codegen_spirv(bool debug_info) : _debug_info(debug_info)
 	{
 		_glsl_ext = make_id();
 	}
@@ -169,6 +169,7 @@ private:
 	std::unordered_map<id, spirv_basic_block> _block_data;
 	spirv_basic_block *_current_block_data = nullptr;
 
+	bool _debug_info = false;
 	id _next_id = 1;
 	id _glsl_ext = 0;
 	id _last_block = 0;
@@ -200,7 +201,7 @@ private:
 
 	inline void add_location(const location &loc, spirv_basic_block &block)
 	{
-		if (loc.source.empty())
+		if (loc.source.empty() || !_debug_info)
 			return;
 
 		spv::Id file = _string_lookup[loc.source];
@@ -282,11 +283,14 @@ private:
 		for (const auto &node : _entries.instructions)
 			write(s.spirv, node);
 
-		// All debug instructions
-		for (const auto &node : _debug_a.instructions)
-			write(s.spirv, node);
-		for (const auto &node : _debug_b.instructions)
-			write(s.spirv, node);
+		if (_debug_info)
+		{
+			// All debug instructions
+			for (const auto &node : _debug_a.instructions)
+				write(s.spirv, node);
+			for (const auto &node : _debug_b.instructions)
+				write(s.spirv, node);
+		}
 
 		// All annotation instructions
 		for (const auto &node : _annotations.instructions)
@@ -506,6 +510,9 @@ private:
 
 	inline void add_name(id id, const char *name)
 	{
+		if (!_debug_info)
+			return;
+
 		assert(name != nullptr);
 		// https://www.khronos.org/registry/spir-v/specs/unified1/SPIRV.html#OpName
 		add_instruction_without_result(spv::OpName, _debug_b)
@@ -538,6 +545,9 @@ private:
 	}
 	inline void add_member_name(id id, uint32_t member_index, const char *name)
 	{
+		if (!_debug_info)
+			return;
+
 		assert(name != nullptr);
 		// https://www.khronos.org/registry/spir-v/specs/unified1/SPIRV.html#OpMemberName
 		add_instruction_without_result(spv::OpMemberName, _debug_b)
@@ -1920,7 +1930,7 @@ private:
 	}
 };
 
-codegen *create_codegen_spirv()
+codegen *create_codegen_spirv(bool debug_info)
 {
-	return new codegen_spirv();
+	return new codegen_spirv(debug_info);
 }

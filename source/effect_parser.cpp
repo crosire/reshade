@@ -18,21 +18,21 @@ struct on_scope_exit
 
 // -- Parsing -- //
 
-reshadefx::parser::parser(codegen::backend backend, unsigned int shader_model)
+reshadefx::parser::parser(codegen::backend backend, unsigned int shader_model, bool debug_info)
 {
 	switch (backend)
 	{
 	case codegen::backend::glsl:
-		extern reshadefx::codegen *create_codegen_glsl();
-		_codegen.reset(create_codegen_glsl());
+		extern reshadefx::codegen *create_codegen_glsl(bool);
+		_codegen.reset(create_codegen_glsl(debug_info));
 		break;
 	case codegen::backend::hlsl:
-		extern reshadefx::codegen *create_codegen_hlsl(unsigned int);
-		_codegen.reset(create_codegen_hlsl(shader_model));
+		extern reshadefx::codegen *create_codegen_hlsl(unsigned int, bool);
+		_codegen.reset(create_codegen_hlsl(shader_model, debug_info));
 		break;
 	case codegen::backend::spirv:
-		extern reshadefx::codegen *create_codegen_spirv();
-		_codegen.reset(create_codegen_spirv());
+		extern reshadefx::codegen *create_codegen_spirv(bool);
+		_codegen.reset(create_codegen_spirv(debug_info));
 		break;
 	default:
 		assert(false);

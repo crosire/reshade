@@ -172,7 +172,7 @@ int main(int argc, char *argv[])
 		backend = reshadefx::codegen::backend::hlsl;
 	}
 
-	reshadefx::parser parser(backend, shader_model);
+	reshadefx::parser parser(backend, shader_model, debug_info);
 
 	if (!parser.parse(pp.current_output()))
 	{

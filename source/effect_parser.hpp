@@ -18,7 +18,7 @@ namespace reshadefx
 	class parser : symbol_table
 	{
 	public:
-		explicit parser(codegen::backend backend, unsigned int shader_model);
+		explicit parser(codegen::backend backend, unsigned int shader_model, bool debug_info);
 
 		void write_result(module &stream)
 		{
