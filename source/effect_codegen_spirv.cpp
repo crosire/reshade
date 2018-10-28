@@ -180,6 +180,9 @@ private:
 
 	void create_global_ubo()
 	{
+		if (_global_ubo_type == 0)
+			return;
+
 		struct_info global_ubo_type;
 		global_ubo_type.definition = _global_ubo_type;
 		for (const auto &uniform : _uniforms)
@@ -1637,6 +1640,7 @@ private:
 		add_location(loc, *_current_block_data);
 
 		std::vector<spv::Id> ids;
+		ids.reserve(args.size());
 
 		// There must be exactly one constituent for each top-level component of the result
 		if (type.is_matrix())
@@ -1644,28 +1648,19 @@ private:
 			assert(type.rows == type.cols);
 
 			// Second, turn that list of scalars into a list of column vectors
-			for (size_t i = 0, j = 0; i < ids.size(); i += type.rows, ++j)
+			for (size_t i = 0, j = 0; i < args.size(); i += type.rows, ++j)
 			{
 				auto vector_type = type;
 				vector_type.cols = 1;
 
 				spirv_instruction &node = add_instruction(spv::OpCompositeConstruct, convert_type(vector_type));
 				for (unsigned int k = 0; k < type.rows; ++k)
-					node.add(ids[i + k]);
+					node.add(args[i + k].base);
 
-				ids[j] = node.result;
+				ids.push_back(node.result);
 			}
 
 			ids.erase(ids.begin() + type.cols, ids.end());
-
-			// Finally, construct a matrix from those column vectors
-			spirv_instruction &node = add_instruction(spv::OpCompositeConstruct, convert_type(type));
-
-			for (size_t i = 0; i < ids.size(); i += type.rows)
-			{
-				node.add(ids[i]);
-			}
-
 		}
 		// The exception is that for constructing a vector, a contiguous subset of the scalars consumed can be represented by a vector operand instead
 		else
@@ -1755,6 +1750,7 @@ private:
 		// Fill header block
 		assert(_block_data[header_block].instructions.size() == 2);
 		_current_block_data->instructions.push_back(_block_data[header_block].instructions[0]);
+		assert(_current_block_data->instructions.back().op == spv::OpLabel);
 
 		// Add structured control flow instruction
 		add_location(loc, *_current_block_data);
@@ -1764,6 +1760,7 @@ private:
 			.add(loop_control);
 
 		_current_block_data->instructions.push_back(_block_data[header_block].instructions[1]);
+		assert(_current_block_data->instructions.back().op == spv::OpBranch);
 
 		// Add condition block if it exists
 		if (condition_block != 0)
@@ -1858,7 +1855,8 @@ private:
 		}
 		else
 		{
-			assert(value != 0);
+			if (value == 0) // The implicit return statement needs this
+				value = add_instruction(spv::OpUndef, convert_type(_functions2[_current_function].return_type), _types_and_constants).result;
 
 			add_instruction_without_result(spv::OpReturnValue)
 				.add(value);

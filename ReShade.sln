@@ -78,9 +78,7 @@ Global
 		{D1C2099B-BEC7-4993-8947-01D4A1F7EAE2}.Release|64-bit.ActiveCfg = Release|x64
 		{D1C2099B-BEC7-4993-8947-01D4A1F7EAE2}.Release|64-bit.Build.0 = Release|x64
 		{65640687-0740-4681-B018-17DBF33E061C}.Debug App|32-bit.ActiveCfg = Debug|Win32
-		{65640687-0740-4681-B018-17DBF33E061C}.Debug App|32-bit.Build.0 = Debug|Win32
 		{65640687-0740-4681-B018-17DBF33E061C}.Debug App|64-bit.ActiveCfg = Debug|x64
-		{65640687-0740-4681-B018-17DBF33E061C}.Debug App|64-bit.Build.0 = Debug|x64
 		{65640687-0740-4681-B018-17DBF33E061C}.Debug Setup|32-bit.ActiveCfg = Debug|Win32
 		{65640687-0740-4681-B018-17DBF33E061C}.Debug Setup|64-bit.ActiveCfg = Debug|x64
 		{65640687-0740-4681-B018-17DBF33E061C}.Debug|32-bit.ActiveCfg = Debug|Win32

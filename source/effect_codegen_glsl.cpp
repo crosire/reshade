@@ -50,12 +50,13 @@ private:
 	void write_result(module &s) const override
 	{
 		s.hlsl +=
-			"vec2 hlsl_fmod(vec2 x, vec2 y) { return x - y * trunc(x / y); }"
-			"vec3 hlsl_fmod(vec3 x, vec3 y) { return x - y * trunc(x / y); }"
-			"vec4 hlsl_fmod(vec4 x, vec4 y) { return x - y * trunc(x / y); }"
-			"mat2 hlsl_fmod(mat2 x, mat2 y) { return x - matrixCompMult(y, mat2(trunc(x[0] / y[0]), trunc(x[1] / y[1]))); }"
-			"mat3 hlsl_fmod(mat3 x, mat3 y) { return x - matrixCompMult(y, mat3(trunc(x[0] / y[0]), trunc(x[1] / y[1]), trunc(x[2] / y[2]))); }"
-			"mat4 hlsl_fmod(mat4 x, mat4 y) { return x - matrixCompMult(y, mat4(trunc(x[0] / y[0]), trunc(x[1] / y[1]), trunc(x[2] / y[2]), trunc(x[3] / y[3]))); }\n";
+			"float hlsl_fmod(float x, float y) { return x - y * trunc(x / y); }\n"
+			" vec2 hlsl_fmod( vec2 x,  vec2 y) { return x - y * trunc(x / y); }\n"
+			" vec3 hlsl_fmod( vec3 x,  vec3 y) { return x - y * trunc(x / y); }\n"
+			" vec4 hlsl_fmod( vec4 x,  vec4 y) { return x - y * trunc(x / y); }\n"
+			" mat2 hlsl_fmod( mat2 x,  mat2 y) { return x - matrixCompMult(y, mat2(trunc(x[0] / y[0]), trunc(x[1] / y[1]))); }\n"
+			" mat3 hlsl_fmod( mat3 x,  mat3 y) { return x - matrixCompMult(y, mat3(trunc(x[0] / y[0]), trunc(x[1] / y[1]), trunc(x[2] / y[2]))); }\n"
+			" mat4 hlsl_fmod( mat4 x,  mat4 y) { return x - matrixCompMult(y, mat4(trunc(x[0] / y[0]), trunc(x[1] / y[1]), trunc(x[2] / y[2]), trunc(x[3] / y[3]))); }\n";
 
 		if (_blocks.count(_cbuffer_type_id))
 			s.hlsl += "layout(std140, binding = 0) uniform _Globals {\n" + _blocks.at(_cbuffer_type_id) + "};\n";
@@ -151,15 +152,21 @@ private:
 
 		if (type.is_array())
 		{
-			s += "{ ";
-
 			struct type elem_type = type;
 			elem_type.array_length = 0;
 
-			for (size_t i = 0; i < data.array_data.size(); ++i)
-				s += write_constant(elem_type, data.array_data[i]) + ", ";
+			s += write_type(elem_type) + "[](";
 
-			s += " }";
+			for (int i = 0; i < type.array_length; ++i)
+			{
+				s += write_constant(elem_type, i < static_cast<int>(data.array_data.size()) ? data.array_data[i] : constant());
+
+				if (i < type.array_length - 1)
+					s += ", ";
+			}
+
+			s += ')';
+
 			return s;
 		}
 
@@ -173,29 +180,26 @@ private:
 
 		s += '(';
 
-		if (type.is_numeric())
+		for (unsigned int i = 0, components = type.components(); i < components; ++i)
 		{
-			for (unsigned int i = 0, components = type.components(); i < components; ++i)
+			switch (type.base)
 			{
-				switch (type.base)
-				{
-				case type::t_bool:
-					s += data.as_uint[i] ? "true" : "false";
-					break;
-				case type::t_int:
-					s += std::to_string(data.as_int[i]);
-					break;
-				case type::t_uint:
-					s += std::to_string(data.as_uint[i]);
-					break;
-				case type::t_float:
-					s += std::to_string(data.as_float[i]);
-					break;
-				}
-
-				if (i < components - 1)
-					s += ", ";
+			case type::t_bool:
+				s += data.as_uint[i] ? "true" : "false";
+				break;
+			case type::t_int:
+				s += std::to_string(data.as_int[i]);
+				break;
+			case type::t_uint:
+				s += std::to_string(data.as_uint[i]);
+				break;
+			case type::t_float:
+				s += std::to_string(data.as_float[i]);
+				break;
 			}
+
+			if (i < components - 1)
+				s += ", ";
 		}
 
 		if (!type.is_scalar())
@@ -364,6 +368,9 @@ private:
 
 			code() += '\n' + write_location(param.location) + '\t' + write_type(param.type, true) + ' ' + param.name;
 
+			if (param.type.is_array())
+				code() += '[' + std::to_string(param.type.array_length) + ']';
+
 			if (i < num_params - 1)
 				code() += ',';
 		}
@@ -457,12 +464,16 @@ private:
 		{
 			for (int i = 0, array_length = std::max(1, param.type.array_length); i < array_length; i++)
 			{
+				// Build struct from separate member input variables
 				if (param.type.is_struct())
 				{
-					code() += write_type(param.type) + " _param_" + param.name + std::to_string(i) + " = " + write_type(param.type) + '(';
+					code() += write_type(param.type) + " _param_" + param.name;
+					if (param.type.is_array())
+						code() += std::to_string(i);
+					code() += " = " + write_type(param.type) + '(';
 
 					for (const auto &member : find_struct(param.type.definition).member_list)
-						code() += escape_name_with_builtins("_param_" + param.name + '_' + member.name + std::to_string(i), member.semantic) + ", ";
+						code() += escape_name_with_builtins("_param_" + param.name + '_' + member.name + (param.type.is_array() ? std::to_string(i) : std::string()), member.semantic) + ", ";
 
 					code().pop_back();
 					code().pop_back();
@@ -489,7 +500,7 @@ private:
 		code() += write_scope();
 		// Structs cannot be output variables, so have to write to a temporary first and then output each member separately
 		if (func.return_type.is_struct())
-			code() += write_type(func.return_type) + " ret = ";
+			code() += write_type(func.return_type) + " _return = ";
 		// All other output types can write to the output variable directly
 		else if (!func.return_type.is_void())
 			code() += "_return = ";
@@ -546,6 +557,8 @@ private:
 		// Can refer to l-values without access chain directly
 		if (chain.is_lvalue && chain.ops.empty())
 			return chain.base;
+		else if (chain.is_constant)
+			return emit_constant(chain.type, chain.constant);
 
 		const id res = make_id();
 
@@ -556,38 +569,31 @@ private:
 
 		code() += " = ";
 
-		if (chain.is_constant)
-		{
-			code() += write_constant(chain.type, chain.constant);
-		}
-		else
-		{
-			std::string newcode = id_to_name(chain.base);
+		std::string newcode = id_to_name(chain.base);
 
-			for (const auto &op : chain.ops)
+		for (const auto &op : chain.ops)
+		{
+			switch (op.type)
 			{
-				switch (op.type)
-				{
-				case expression::operation::op_cast:
-					newcode = write_type(op.to) + '(' + newcode + ')';
-					break;
-				case expression::operation::op_index:
-					newcode += '[' + id_to_name(op.index) + ']';
-					break;
-				case expression::operation::op_member:
-					newcode += op.from.definition == _cbuffer_type_id ? '_' : '.';
-					newcode += find_struct(op.from.definition).member_list[op.index].name;
-					break;
-				case expression::operation::op_swizzle:
-					newcode += '.';
-					for (unsigned int i = 0; i < 4 && op.swizzle[i] >= 0; ++i)
-						newcode += "xyzw"[op.swizzle[i]];
-					break;
-				}
+			case expression::operation::op_cast:
+				newcode = write_type(op.to) + '(' + newcode + ')';
+				break;
+			case expression::operation::op_index:
+				newcode += '[' + id_to_name(op.index) + ']';
+				break;
+			case expression::operation::op_member:
+				newcode += op.from.definition == _cbuffer_type_id ? '_' : '.';
+				newcode += find_struct(op.from.definition).member_list[op.index].name;
+				break;
+			case expression::operation::op_swizzle:
+				newcode += '.';
+				for (unsigned int i = 0; i < 4 && op.swizzle[i] >= 0; ++i)
+					newcode += "xyzw"[op.swizzle[i]];
+				break;
 			}
-
-			code() += newcode;
 		}
+
+		code() += newcode;
 
 		code() += ";\n";
 
@@ -629,6 +635,13 @@ private:
 	id   emit_constant(const type &type, const constant &data) override
 	{
 		const id res = make_id();
+
+		// Struct initialization is not supported right now
+		if (type.is_struct())
+		{
+			code() += write_scope() + ' ' + write_type(type) + ' ' + id_to_name(res) + ";\n";
+			return res;
+		}
 
 		code() += write_scope() + "const " + write_type(type) + ' ' + id_to_name(res);
 
@@ -1043,6 +1056,10 @@ private:
 	{
 		if (!is_in_block())
 			return 0;
+
+		// Skip implicit return statement
+		if (!_functions.back()->return_type.is_void() && value == 0)
+			return set_block(0);
 
 		code() += write_scope() + "return";
 

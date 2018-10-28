@@ -638,6 +638,12 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 		{
 			composite_type.array_length = static_cast<int>(elements.size());
 
+			// Resolve all access chains
+			for (expression &element : elements)
+			{
+				element.reset_to_rvalue(element.location, _codegen->emit_load(element), element.type);
+			}
+
 			const auto result = _codegen->emit_construct(location, composite_type, elements);
 
 			exp.reset_to_rvalue(location, result, composite_type);
@@ -2327,12 +2333,7 @@ bool reshadefx::parser::parse_function(type type, std::string name)
 
 	// Add implicit return statement to the end of functions
 	if (_codegen->is_in_block())
-	{
-		if (!info.return_type.is_void())
-			return error(_token.location, 3080, "function must return a value"), false;
-
 		_codegen->leave_block_and_return(0);
-	}
 
 	return parse_success;
 }

@@ -651,7 +651,7 @@ namespace reshade::opengl
 		std::string defines =
 			"#version 450\n"
 			"#define ENTRY_POINT_" + entry_point + " 1\n";
-		if (is_ps)
+		if (!is_ps) // OpenGL does not allow using 'discard' in this profile
 			defines += "#define discard\n";
 
 		GLsizei lengths[] = { static_cast<GLsizei>(defines.size()), static_cast<GLsizei>(_module->hlsl.size()) };

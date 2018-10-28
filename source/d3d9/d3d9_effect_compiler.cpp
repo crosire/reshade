@@ -505,12 +505,17 @@ namespace reshade::d3d9
 
 	void d3d9_effect_compiler::compile_entry_point(const std::string &entry_point, bool is_ps)
 	{
+		std::string hlsl;
+		if (is_ps)
+			hlsl = "#define POSITION VPOS\n";
+		hlsl += _module->hlsl;
+
 		// Compile the generated HLSL source code to DX byte code
 		com_ptr<ID3DBlob> compiled, errors;
 
 		const auto D3DCompile = reinterpret_cast<pD3DCompile>(GetProcAddress(_d3dcompiler_module, "D3DCompile"));
 
-		HRESULT hr = D3DCompile(_module->hlsl.c_str(), _module->hlsl.size(), nullptr, nullptr, nullptr, entry_point.c_str(), is_ps ? "ps_3_0" : "vs_3_0", 0, 0, &compiled, &errors);
+		HRESULT hr = D3DCompile(hlsl.c_str(), hlsl.size(), nullptr, nullptr, nullptr, entry_point.c_str(), is_ps ? "ps_3_0" : "vs_3_0", 0, 0, &compiled, &errors);
 
 		if (errors != nullptr)
 			_errors.append(static_cast<const char *>(errors->GetBufferPointer()), errors->GetBufferSize() - 1); // Subtracting one to not append the null-terminator as well

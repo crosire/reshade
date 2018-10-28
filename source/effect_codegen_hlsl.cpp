@@ -135,20 +135,27 @@ private:
 
 		if (type.is_array())
 		{
-			s += "{ ";
-
 			struct type elem_type = type;
 			elem_type.array_length = 0;
 
-			for (size_t i = 0; i < data.array_data.size(); ++i)
-				s += write_constant(elem_type, data.array_data[i]) + ", ";
+			s += "{ ";
+
+			for (int i = 0; i < type.array_length; ++i)
+			{
+				s += write_constant(elem_type, i < static_cast<int>(data.array_data.size()) ? data.array_data[i] : constant());
+
+				if (i < type.array_length - 1)
+					s += ", ";
+			}
 
 			s += " }";
+
 			return s;
 		}
 		if (type.is_struct())
 		{
 			s += '(' + id_to_name(type.definition) + ")0";
+
 			return s;
 		}
 
@@ -364,6 +371,9 @@ private:
 
 			code() += '\n' + write_location(param.location) + '\t' + write_type(param.type, true) + ' ' + param.name;
 
+			if (param.type.is_array())
+				code() += '[' + std::to_string(param.type.array_length) + ']';
+
 			if (is_entry_point && !param.semantic.empty())
 				code() += " : " + convert_semantic(param.semantic);
 
@@ -490,6 +500,8 @@ private:
 		// Can refer to l-values without access chain directly
 		if (chain.is_lvalue && chain.ops.empty())
 			return chain.base;
+		else if (chain.is_constant)
+			return emit_constant(chain.type, chain.constant);
 
 		const id res = make_id();
 
@@ -500,38 +512,31 @@ private:
 
 		code() += " = ";
 
-		if (chain.is_constant)
-		{
-			code() += write_constant(chain.type, chain.constant);
-		}
-		else
-		{
-			std::string newcode = id_to_name(chain.base);
+		std::string newcode = id_to_name(chain.base);
 
-			for (const auto &op : chain.ops)
+		for (const auto &op : chain.ops)
+		{
+			switch (op.type)
 			{
-				switch (op.type)
-				{
-				case expression::operation::op_cast:
-					newcode = "((" + write_type(op.to) + ')' + newcode + ')';
-					break;
-				case expression::operation::op_index:
-					newcode += '[' + id_to_name(op.index) + ']';
-					break;
-				case expression::operation::op_member:
-					newcode += op.from.definition == _cbuffer_type_id ? '_' : '.';
-					newcode += find_struct(op.from.definition).member_list[op.index].name;
-					break;
-				case expression::operation::op_swizzle:
-					newcode += '.';
-					for (unsigned int i = 0; i < 4 && op.swizzle[i] >= 0; ++i)
-						newcode += "xyzw"[op.swizzle[i]];
-					break;
-				}
+			case expression::operation::op_cast:
+				newcode = "((" + write_type(op.to) + ')' + newcode + ')';
+				break;
+			case expression::operation::op_index:
+				newcode += '[' + id_to_name(op.index) + ']';
+				break;
+			case expression::operation::op_member:
+				newcode += op.from.definition == _cbuffer_type_id ? '_' : '.';
+				newcode += find_struct(op.from.definition).member_list[op.index].name;
+				break;
+			case expression::operation::op_swizzle:
+				newcode += '.';
+				for (unsigned int i = 0; i < 4 && op.swizzle[i] >= 0; ++i)
+					newcode += "xyzw"[op.swizzle[i]];
+				break;
 			}
-
-			code() += newcode;
 		}
+
+		code() += newcode;
 
 		code() += ";\n";
 
@@ -953,6 +958,10 @@ private:
 	{
 		if (!is_in_block())
 			return 0;
+
+		// Skip implicit return statement
+		if (!_functions.back()->return_type.is_void() && value == 0)
+			return set_block(0);
 
 		code() += write_scope() + "return";
 
