@@ -98,10 +98,10 @@ namespace reshadefx
 		}
 
 		// These are initialized in the type parsing routine
-		datatype base; // Underlying base type ('int', 'float', ...)
-		unsigned int rows : 4; // Number of rows if this is a vector type
-		unsigned int cols : 4; // Number of columns if this is a matrix type
-		unsigned int qualifiers : 24; // Bit mask of all the qualifiers decorating the type
+		datatype base = t_void; // Underlying base type ('int', 'float', ...)
+		unsigned int rows = 0; // Number of rows if this is a vector type
+		unsigned int cols = 0; // Number of columns if this is a matrix type
+		unsigned int qualifiers = 0; // Bit mask of all the qualifiers decorating the type
 		bool is_ptr = false; // Is a pointer to the type
 		bool is_input = false; // Has the 'input' storage class
 		bool is_output = false; // Has the 'output' storage class
