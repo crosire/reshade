@@ -2144,7 +2144,7 @@ bool reshadefx::parser::parse_struct()
 	if (accept(tokenid::identifier))
 		info.name = _token.literal_as_string;
 	else
-		info.name = "__anonymous_struct_" + std::to_string(location.line) + '_' + std::to_string(location.column);
+		info.name = "_anonymous_struct_" + std::to_string(location.line) + '_' + std::to_string(location.column);
 
 	info.unique_name = 'S' + current_scope().name + info.name;
 	std::replace(info.unique_name.begin(), info.unique_name.end(), ':', '_');

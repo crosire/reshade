@@ -648,9 +648,11 @@ namespace reshade::opengl
 
 		glSpecializeShader(shader_id, entry_point.c_str(), 0, nullptr, nullptr);
 #else
-		const std::string defines =
+		std::string defines =
 			"#version 450\n"
 			"#define ENTRY_POINT_" + entry_point + " 1\n";
+		if (is_ps)
+			defines += "#define discard\n";
 
 		GLsizei lengths[] = { static_cast<GLsizei>(defines.size()), static_cast<GLsizei>(_module->hlsl.size()) };
 		const GLchar *sources[] = { defines.c_str(), _module->hlsl.c_str() };

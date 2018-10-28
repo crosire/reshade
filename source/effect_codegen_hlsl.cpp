@@ -31,9 +31,9 @@ private:
 	std::unordered_map<id, std::string> _names;
 	std::unordered_map<id, std::string> _blocks;
 	unsigned int _scope_level = 0;
+	unsigned int _shader_model = 0;
 	unsigned int _current_cbuffer_size = 0;
 	unsigned int _current_sampler_binding = 0;
-	unsigned int _shader_model = 0;
 	std::unordered_map<id, std::vector<id>> _switch_fallthrough_blocks;
 	std::vector<std::pair<std::string, bool>> _entry_points;
 
@@ -124,6 +124,7 @@ private:
 			s += std::to_string(type.rows);
 		if (type.cols > 1)
 			s += 'x' + std::to_string(type.cols);
+
 		return s;
 	}
 	std::string write_constant(const type &type, const constant &data)
@@ -263,6 +264,8 @@ private:
 		info.id = make_id();
 		info.binding = _current_sampler_binding++;
 
+		_names[info.id] = info.unique_name;
+
 		_samplers.push_back(info);
 
 		if (_shader_model >= 40)
@@ -287,8 +290,6 @@ private:
 
 			code() += ") }; \n";
 		}
-
-		_names[info.id] = info.unique_name;
 
 		return info.id;
 	}
@@ -352,7 +353,7 @@ private:
 		info.definition = make_id();
 		_names[info.definition] = name;
 
-		code() += write_location(loc) + write_type(info.return_type) + ' ' + name + '(';
+		code() += write_location(loc) + write_type(info.return_type) + ' ' + id_to_name(info.definition) + '(';
 
 		for (size_t i = 0, num_params = info.parameter_list.size(); i < num_params; ++i)
 		{
@@ -440,13 +441,13 @@ private:
 				code() += write_scope() + param.name + " = float4(0.0, 0.0, 0.0, 0.0);\n";
 
 		code() += write_scope();
-
 		if (is_color_semantic(func.return_semantic))
 			code() += "const float4 ret = float4(";
 		else if (!func.return_type.is_void())
-			code() += write_type(func.return_type) + " " + id_to_name(ret) + " = ";
+			code() += write_type(func.return_type) + ' ' + id_to_name(ret) + " = ";
 
-		code() += func.unique_name + '_' + '(';
+		// Call the function this entry point refers to
+		code() += id_to_name(func.definition) + '(';
 
 		for (size_t i = 0, num_params = func.parameter_list.size(); i < num_params; ++i)
 		{
@@ -486,6 +487,10 @@ private:
 
 	id   emit_load(const expression &chain) override
 	{
+		// Can refer to l-values without access chain directly
+		if (chain.is_lvalue && chain.ops.empty())
+			return chain.base;
+
 		const id res = make_id();
 
 		code() += write_location(chain.location) + write_scope() + "const " + write_type(chain.type) + ' ' + id_to_name(res);
@@ -507,10 +512,9 @@ private:
 			{
 				switch (op.type)
 				{
-				case expression::operation::op_cast: {
+				case expression::operation::op_cast:
 					newcode = "((" + write_type(op.to) + ')' + newcode + ')';
 					break;
-				}
 				case expression::operation::op_index:
 					newcode += '[' + id_to_name(op.index) + ']';
 					break;
@@ -545,7 +549,7 @@ private:
 				code() += '[' + id_to_name(op.index) + ']';
 				break;
 			case expression::operation::op_member:
-				code() += op.from.definition == _cbuffer_type_id ? '_' : '.';
+				code() += '.';
 				code() += find_struct(op.from.definition).member_list[op.index].name;
 				break;
 			case expression::operation::op_swizzle:

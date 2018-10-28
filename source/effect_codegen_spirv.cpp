@@ -731,9 +731,9 @@ private:
 		// Generate the glue entry point function
 		function_info entry_point;
 		entry_point.return_type = { type::t_void };
-		define_function({}, entry_point);
 
-		enter_block(make_id());
+		define_function({}, entry_point);
+		enter_block(create_block());
 
 		const auto semantic_to_builtin = [is_ps](const std::string &semantic, spv::BuiltIn &builtin) {
 			builtin = spv::BuiltInMax;
@@ -836,7 +836,7 @@ private:
 		};
 
 		// Handle input parameters
-		for (const struct_member_info &param : func.parameter_list)
+		for (const auto &param : func.parameter_list)
 		{
 			if (param.type.has(type::q_out))
 			{
@@ -844,16 +844,10 @@ private:
 
 				// Flatten structure parameters
 				if (param.type.is_struct())
-				{
 					for (const auto &member : find_struct(param.type.definition).member_list)
-					{
 						create_output_variable(member);
-					}
-				}
 				else
-				{
 					create_output_variable(param);
-				}
 			}
 			else
 			{
