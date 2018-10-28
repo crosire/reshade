@@ -67,12 +67,15 @@ private:
 		s.entry_points = _entry_points;
 	}
 
-	std::string write_type(const type &type, bool is_param = false)
+	std::string write_type(const type &type, bool is_param = false, bool is_decl = true)
 	{
 		std::string s;
 
-		if (type.has(type::q_precise))
-			s += "precise ";
+		if (is_decl)
+		{
+			if (type.has(type::q_precise))
+				s += "precise ";
+		}
 
 		if (is_param)
 		{
@@ -153,7 +156,7 @@ private:
 			struct type elem_type = type;
 			elem_type.array_length = 0;
 
-			s += write_type(elem_type) + "[](";
+			s += write_type(elem_type, false, false) + "[](";
 
 			for (int i = 0; i < type.array_length; ++i)
 			{
@@ -173,7 +176,7 @@ private:
 			if (type.is_matrix())
 				s += "transpose";
 
-			s += '(' + write_type(type);
+			s += '(' + write_type(type, false, false);
 		}
 
 		s += '(';
@@ -480,7 +483,7 @@ private:
 					code() += '\t' + write_type(param.type) + " _param_" + param.name;
 					if (param.type.is_array())
 						code() += std::to_string(i);
-					code() += " = " + write_type(param.type) + '(';
+					code() += " = " + write_type(param.type, false, false) + '(';
 
 					for (const auto &member : find_struct(param.type.definition).member_list)
 						code() += escape_name_with_builtins("_param_" + param.name + '_' + member.name + (param.type.is_array() ? std::to_string(i) : std::string()), member.semantic) + ", ";
@@ -494,7 +497,7 @@ private:
 
 			if (param.type.is_array())
 			{
-				code() += '\t' + write_type(param.type) + " _param_" + param.name + "[] = " + write_type(param.type) + "[](";
+				code() += '\t' + write_type(param.type) + " _param_" + param.name + "[] = " + write_type(param.type, false, false) + "[](";
 
 				for (int i = 0; i < param.type.array_length; ++i)
 				{
@@ -586,7 +589,7 @@ private:
 			switch (op.type)
 			{
 			case expression::operation::op_cast:
-				newcode = write_type(op.to) + '(' + newcode + ')';
+				newcode = write_type(op.to, false, false) + '(' + newcode + ')';
 				break;
 			case expression::operation::op_index:
 				newcode += '[' + id_to_name(op.index) + ']';
@@ -907,7 +910,7 @@ private:
 		if (!type.is_array() && type.is_matrix())
 			code() += "transpose(";
 
-		code() += write_type(type);
+		code() += write_type(type, false, false);
 
 		if (type.is_array())
 			code() += "[]";

@@ -65,12 +65,15 @@ private:
 		s.entry_points = _entry_points;
 	}
 
-	std::string write_type(const type &type, bool is_param = false)
+	std::string write_type(const type &type, bool is_param = false, bool is_decl = true)
 	{
 		std::string s;
 
-		if (type.has(type::q_precise))
-			s += "precise ";
+		if (is_decl)
+		{
+			if (type.has(type::q_precise))
+				s += "precise ";
+		}
 
 		if (is_param)
 		{
@@ -158,7 +161,7 @@ private:
 		}
 
 		if (!type.is_scalar())
-			s += write_type(type);
+			s += write_type(type, false, false);
 
 		s += '(';
 
@@ -530,7 +533,7 @@ private:
 			switch (op.type)
 			{
 			case expression::operation::op_cast:
-				newcode = "((" + write_type(op.to) + ')' + newcode + ')';
+				newcode = "((" + write_type(op.to, false, false) + ')' + newcode + ')';
 				break;
 			case expression::operation::op_index:
 				newcode += '[' + id_to_name(op.index) + ']';
@@ -802,7 +805,7 @@ private:
 		if (type.is_array())
 			code() += "{ ";
 		else
-			code() += write_type(type) + '(';
+			code() += write_type(type, false, false) + '(';
 
 		for (size_t i = 0, num_args = args.size(); i < num_args; ++i)
 		{
