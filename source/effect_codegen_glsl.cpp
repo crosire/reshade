@@ -192,7 +192,7 @@ private:
 				s += std::to_string(data.as_int[i]);
 				break;
 			case type::t_uint:
-				s += std::to_string(data.as_uint[i]);
+				s += std::to_string(data.as_uint[i]) + 'u';
 				break;
 			case type::t_float:
 				s += std::to_string(data.as_float[i]);
@@ -575,7 +575,7 @@ private:
 
 		const id res = make_id();
 
-		code() += write_location(chain.location) + "\tconst " + write_type(chain.type) + ' ' + id_to_name(res);
+		code() += write_location(chain.location) + '\t' + write_type(chain.type) + ' ' + id_to_name(res);
 
 		if (chain.type.is_array())
 			code() += '[' + std::to_string(chain.type.array_length) + ']';
@@ -670,7 +670,7 @@ private:
 	{
 		const id res = make_id();
 
-		code() += write_location(loc) + "\tconst " + write_type(res_type) + ' ' + id_to_name(res) + " = ";
+		code() += write_location(loc) + '\t' + write_type(res_type) + ' ' + id_to_name(res) + " = ";
 
 		switch (op)
 		{
@@ -698,7 +698,7 @@ private:
 	{
 		const id res = make_id();
 
-		code() += write_location(loc) + "\tconst " + write_type(res_type) + ' ' + id_to_name(res) + " = ";
+		code() += write_location(loc) + '\t' + write_type(res_type) + ' ' + id_to_name(res) + " = ";
 
 		std::string intrinsic, operator_code;
 
@@ -813,7 +813,7 @@ private:
 
 		const id res = make_id();
 
-		code() += write_location(loc) + "\tconst " + write_type(res_type) + ' ' + id_to_name(res);
+		code() += write_location(loc) + '\t' + write_type(res_type) + ' ' + id_to_name(res);
 
 		if (res_type.is_array())
 			code() += '[' + std::to_string(res_type.array_length) + ']';
@@ -839,7 +839,7 @@ private:
 
 		if (!res_type.is_void())
 		{
-			code() += "const " + write_type(res_type) + ' ' + id_to_name(res);
+			code() += write_type(res_type) + ' ' + id_to_name(res);
 
 			if (res_type.is_array())
 				code() += '[' + std::to_string(res_type.array_length) + ']';
@@ -872,7 +872,7 @@ private:
 
 		if (!res_type.is_void())
 		{
-			code() += "const " + write_type(res_type) + ' ' + id_to_name(res) + " = ";
+			code() += write_type(res_type) + ' ' + id_to_name(res) + " = ";
 		}
 
 		enum
@@ -900,7 +900,7 @@ private:
 
 		const id res = make_id();
 
-		code() += write_location(loc) + "\tconst " + write_type(type) + ' ' + id_to_name(res);
+		code() += write_location(loc) + '\t' + write_type(type) + ' ' + id_to_name(res);
 
 		if (type.is_array())
 			code() += '[' + std::to_string(type.array_length) + ']';
@@ -990,19 +990,9 @@ private:
 		code() += _blocks[prev_block];
 
 		if (condition_block == 0)
-		{
 			code() += "\tbool " + id_to_name(condition_value) + ";\n";
-		}
 		else
-		{
-			// Remove 'const' from condition variable
-			std::string loop_condition = _blocks[condition_block];
-			auto pos_assign = loop_condition.rfind(id_to_name(condition_value));
-			auto pos_const_keyword = loop_condition.rfind("const", pos_assign);
-			loop_condition.erase(pos_const_keyword, 6);
-
-			code() += loop_condition;
-		}
+			code() += _blocks[condition_block];
 
 		code() += write_location(loc) + '\t';
 
