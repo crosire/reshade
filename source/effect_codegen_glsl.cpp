@@ -5,6 +5,8 @@
 
 #include "effect_parser.hpp"
 #include "effect_codegen.hpp"
+#include <iomanip>
+#include <sstream>
 #include <assert.h>
 #include <unordered_set>
 
@@ -194,9 +196,11 @@ private:
 			case type::t_uint:
 				s += std::to_string(data.as_uint[i]) + 'u';
 				break;
-			case type::t_float:
-				s += std::to_string(data.as_float[i]);
-				break;
+			case type::t_float: {
+				std::stringstream ss;
+				ss << std::setprecision(8) << std::fixed << data.as_float[i];
+				s += ss.str();
+				break; }
 			}
 
 			if (i < components - 1)
