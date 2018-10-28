@@ -1653,7 +1653,7 @@ IMPLEMENT_INTRINSIC_HLSL(tex2Dgather, 0, {
 	if (_shader_model >= 50) {
 		const char *const names[4] = { "GatherRed" COMMA "GatherGreen" COMMA "GatherBlue" COMMA "GatherAlpha" };
 		for (unsigned int c = 0; c < 4; ++c)
-			code() += id_to_name(args[2].base) + " == " + std::to_string(c) + " ? " + id_to_name(args[0].base) + ".t." + names[c] + "(" + id_to_name(args[0].base) + ".s, " + id_to_name(args[1].base) + ") : ";
+			code() += id_to_name(args[2].base) + " == " + std::to_string(c) + " ? " + id_to_name(args[0].base) + ".t." + names[c] + '(' + id_to_name(args[0].base) + ".s, " + id_to_name(args[1].base) + ") : ";
 	} else if (_shader_model >= 40) {
 		for (unsigned int c = 0; c < 4; ++c)
 			code() += id_to_name(args[2].base) + " == " + std::to_string(c) + " ? float4(" +
@@ -1688,7 +1688,7 @@ IMPLEMENT_INTRINSIC_HLSL(tex2Dgatheroffset, 0, {
 	if (_shader_model >= 50) {
 		const char *const names[4] = { "GatherRed" COMMA "GatherGreen" COMMA "GatherBlue" COMMA "GatherAlpha" };
 		for (unsigned int c = 0; c < 4; ++c)
-			code() += id_to_name(args[3].base) + " == " + std::to_string(c) + " ? " + id_to_name(args[0].base) + ".t." + names[c] + "(" + id_to_name(args[0].base) + ".s, " + id_to_name(args[1].base) + ", " + id_to_name(args[2].base) + ") : ";
+			code() += id_to_name(args[3].base) + " == " + std::to_string(c) + " ? " + id_to_name(args[0].base) + ".t." + names[c] + '(' + id_to_name(args[0].base) + ".s, " + id_to_name(args[1].base) + ", " + id_to_name(args[2].base) + ") : ";
 	} else if (_shader_model >= 40u) {
 		for (unsigned int c = 0; c < 4; ++c)
 			code() += id_to_name(args[3].base) + " == " + std::to_string(c) + " ? float4(" +

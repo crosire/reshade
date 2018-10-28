@@ -599,9 +599,26 @@ private:
 				newcode += find_struct(op.from.definition).member_list[op.index].name;
 				break;
 			case expression::operation::op_swizzle:
-				newcode += '.';
-				for (unsigned int i = 0; i < 4 && op.swizzle[i] >= 0; ++i)
-					newcode += "xyzw"[op.swizzle[i]];
+				if (op.from.is_matrix())
+				{
+					if (op.swizzle[1] < 0)
+					{
+						const unsigned int row = op.swizzle[0] % 4;
+						const unsigned int col = (op.swizzle[0] - row) / 4;
+
+						newcode += '[' + std::to_string(row) + "][" + std::to_string(col) + ']';
+					}
+					else
+					{
+						assert(false);
+					}
+				}
+				else
+				{
+					newcode += '.';
+					for (unsigned int i = 0; i < 4 && op.swizzle[i] >= 0; ++i)
+						newcode += "xyzw"[op.swizzle[i]];
+				}
 				break;
 			}
 		}
@@ -635,9 +652,26 @@ private:
 				code() += find_struct(op.from.definition).member_list[op.index].name;
 				break;
 			case expression::operation::op_swizzle:
-				code() += '.';
-				for (unsigned int i = 0; i < 4 && op.swizzle[i] >= 0; ++i)
-					code() += "xyzw"[op.swizzle[i]];
+				if (op.from.is_matrix())
+				{
+					if (op.swizzle[1] < 0)
+					{
+						const unsigned int row = op.swizzle[0] % 4;
+						const unsigned int col = (op.swizzle[0] - row) / 4;
+
+						code() += '[' + std::to_string(row) + "][" + std::to_string(col) + ']';
+					}
+					else
+					{
+						assert(false);
+					}
+				}
+				else
+				{
+					code() += '.';
+					for (unsigned int i = 0; i < 4 && op.swizzle[i] >= 0; ++i)
+						code() += "xyzw"[op.swizzle[i]];
+				}
 				break;
 			}
 		}

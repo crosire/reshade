@@ -9,6 +9,13 @@
 
 using namespace reshadefx;
 
+static const char s_matrix_swizzles[16][5] = {
+	"_m00", "_m01", "_m02", "_m03",
+	"_m10", "_m11", "_m12", "_m13",
+	"_m20", "_m21", "_m22", "_m23",
+	"_m30", "_m31", "_m32", "_m33"
+};
+
 class codegen_hlsl final : public codegen
 {
 public:
@@ -545,14 +552,15 @@ private:
 			case expression::operation::op_swizzle:
 				newcode += '.';
 				for (unsigned int i = 0; i < 4 && op.swizzle[i] >= 0; ++i)
-					newcode += "xyzw"[op.swizzle[i]];
+					if (op.from.is_matrix())
+						newcode += s_matrix_swizzles[op.swizzle[i]];
+					else
+						newcode += "xyzw"[op.swizzle[i]];
 				break;
 			}
 		}
 
-		code() += newcode;
-
-		code() += ";\n";
+		code() += newcode + ";\n";
 
 		return res;
 	}
@@ -574,7 +582,10 @@ private:
 			case expression::operation::op_swizzle:
 				code() += '.';
 				for (unsigned int i = 0; i < 4 && op.swizzle[i] >= 0; ++i)
-					code() += "xyzw"[op.swizzle[i]];
+					if (op.from.is_matrix())
+						code() += s_matrix_swizzles[op.swizzle[i]];
+					else
+						code() += "xyzw"[op.swizzle[i]];
 				break;
 			}
 		}
