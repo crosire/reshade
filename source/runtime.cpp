@@ -585,7 +585,20 @@ namespace reshade
 			return;
 		}
 
-		reshadefx::parser parser(reshadefx::codegen::backend::hlsl);
+		reshadefx::codegen::backend backend = reshadefx::codegen::backend::hlsl;
+		unsigned shader_model = 50;
+		if (_renderer_id < 0xa000)
+			shader_model = 30;
+		else if (_renderer_id < 0xa100)
+			shader_model = 40;
+		else if (_renderer_id < 0xb000)
+			shader_model = 41;
+		else
+			shader_model = 50;
+		if (_renderer_id & 0x10000)
+			backend = reshadefx::codegen::backend::glsl;
+
+		reshadefx::parser parser(backend, shader_model);
 
 		if (!parser.parse(pp.current_output()))
 		{
@@ -597,8 +610,6 @@ namespace reshade
 
 		reshadefx::module module;
 		parser.write_result(module);
-
-		std::ofstream("test.spv", std::ios::binary).write((char*)module.spirv.data(), module.spirv.size() * 4);
 
 		std::string errors = parser.errors();
 

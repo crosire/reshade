@@ -888,7 +888,12 @@ private:
 		if (!is_in_block())
 			return 0;
 
-		code() += write_scope() + "return" + (value ? ' ' + id_to_name(value) : std::string()) + ";\n";
+		code() += write_scope() + "return";
+
+		if (value != 0)
+			code() += ' ' + id_to_name(value);
+
+		code() += ";\n";
 
 		return set_block(0);
 	}

@@ -12,7 +12,7 @@ using namespace reshadefx;
 class codegen_hlsl final : public codegen
 {
 public:
-	codegen_hlsl()
+	codegen_hlsl(unsigned int shader_model) : _shader_model(shader_model)
 	{
 		struct_info cbuffer_type;
 		cbuffer_type.name = "$Globals";
@@ -33,6 +33,7 @@ private:
 	unsigned int _scope_level = 0;
 	unsigned int _current_cbuffer_size = 0;
 	unsigned int _current_sampler_binding = 0;
+	unsigned int _shader_model = 0;
 	std::unordered_map<id, std::vector<id>> _switch_fallthrough_blocks;
 	std::vector<std::pair<std::string, bool>> _entry_points;
 
@@ -42,10 +43,21 @@ private:
 
 	void write_result(module &s) const override
 	{
-		s.hlsl = "struct __sampler2D { Texture2D t; SamplerState s; };\n"
-			"int2 __tex2Dsize(__sampler2D s, int lod) { uint w, h, l; s.t.GetDimensions(lod, w, h, l); return int2(w, h); }\n";
-		if (_blocks.count(_cbuffer_type_id))
-			s.hlsl += "cbuffer _Globals {\n" + _blocks.at(_cbuffer_type_id) + "};\n";
+		if (_shader_model >= 40)
+		{
+			s.hlsl += "struct __sampler2D { Texture2D t; SamplerState s; };\n";
+
+			if (_blocks.count(_cbuffer_type_id))
+				s.hlsl += "cbuffer _Globals {\n" + _blocks.at(_cbuffer_type_id) + "};\n";
+		}
+		else
+		{
+			s.hlsl += "struct __sampler2D { sampler2D s; float2 pixelsize; };\nuniform float2 __TEXEL_SIZE__ : register(c255);\n";
+
+			if (_blocks.count(_cbuffer_type_id))
+				s.hlsl += _blocks.at(_cbuffer_type_id);
+		}
+
 		s.hlsl += _blocks.at(0);
 
 		s.samplers = _samplers;
@@ -182,6 +194,34 @@ private:
 		return "#line " + std::to_string(loc.line) + " \"" + loc.source + "\"\n";
 	}
 
+	std::string convert_semantic(const std::string &semantic) const
+	{
+		if (_shader_model < 40)
+		{
+			if (semantic == "SV_VERTEXID" || semantic == "VERTEXID")
+				return "TEXCOORD0";
+			else if (semantic == "SV_POSITION")
+				return "POSITION";
+			else if (semantic.compare(0, 9, "SV_TARGET") == 0)
+				return "COLOR" + semantic.substr(9);
+			else if (semantic == "SV_DEPTH")
+				return "DEPTH";
+		}
+		else
+		{
+			if (semantic == "VERTEXID")
+				return "SV_VERTEXID";
+			else if (semantic == "POSITION" || semantic == "VPOS")
+				return "SV_POSITION";
+			else if (semantic.compare(0, 5, "COLOR") == 0)
+				return "SV_TARGET" + semantic.substr(5);
+			else if (semantic == "DEPTH")
+				return "SV_DEPTH";
+		}
+
+		return semantic;
+	}
+
 	inline std::string id_to_name(id id) const
 	{
 		if (const auto it = _names.find(id); it != _names.end())
@@ -202,7 +242,7 @@ private:
 		{
 			code() += '\t' + write_type(member.type, true) + ' ' + member.name;
 			if (!member.semantic.empty())
-				code() += " : " + member.semantic;
+				code() += " : " + convert_semantic(member.semantic);
 			code() += ";\n";
 		}
 
@@ -225,9 +265,28 @@ private:
 
 		_samplers.push_back(info);
 
-		code() += "Texture2D " + info.unique_name + "_t : register(t" + std::to_string(info.binding) + ");\n";
-		code() += "SamplerState " + info.unique_name + "_s : register(s" + std::to_string(info.binding) + ");\n";
-		code() += write_location(loc) + "static const __sampler2D " + info.unique_name + " = { " + info.unique_name + "_t, " + info.unique_name + "_s };\n";
+		if (_shader_model >= 40)
+		{
+			code() += "Texture2D " + info.unique_name + "_t : register(t" + std::to_string(info.binding) + ");\n";
+			code() += "SamplerState " + info.unique_name + "_s : register(s" + std::to_string(info.binding) + ");\n";
+			code() += write_location(loc) + "static const __sampler2D " + info.unique_name + " = { " + info.unique_name + "_t, " + info.unique_name + "_s };\n";
+		}
+		else
+		{
+			const auto tex = std::find_if(_textures.begin(), _textures.end(),
+				[&info](const auto &it) { return it.unique_name == info.texture_name; });
+			assert(tex != _textures.end());
+
+			code() += "sampler2D " + info.unique_name + "_s : register(s" + std::to_string(info.binding) + ");\n";
+			code() += write_location(loc) + "static const __sampler2D " + info.unique_name + " = { " + info.unique_name + "_s, float2(";
+
+			if (tex->semantic.empty())
+				code() += std::to_string(1.0f / tex->width) + ", " + std::to_string(1.0f / tex->height);
+			else
+				code() += "0, 0";
+
+			code() += ") }; \n";
+		}
 
 		_names[info.id] = info.unique_name;
 
@@ -248,7 +307,12 @@ private:
 		const_cast<struct_info &>(find_struct(_cbuffer_type_id))
 			.member_list.push_back(std::move(member));
 
-		_blocks[_cbuffer_type_id] += write_location(loc) + write_type(info.type) + " _Globals_" + info.name + ";\n";
+		_blocks[_cbuffer_type_id] += write_location(loc) + write_type(info.type) + " _Globals_" + info.name;
+
+		if (_shader_model < 40)
+			_blocks[_cbuffer_type_id] += " : register(c" + std::to_string(info.offset / 4) + ')';
+
+		_blocks[_cbuffer_type_id] += ";\n";
 
 		info.member_index = static_cast<uint32_t>(_uniforms.size());
 
@@ -277,10 +341,18 @@ private:
 	}
 	id   define_function(const location &loc, function_info &info) override
 	{
-		info.definition = make_id();
-		_names[info.definition] = info.unique_name;
+		return define_function(loc, info, _shader_model >= 40);
+	}
+	id   define_function(const location &loc, function_info &info, bool is_entry_point)
+	{
+		std::string name = info.unique_name;
+		if (!is_entry_point)
+			name += '_';
 
-		code() += write_location(loc) + write_type(info.return_type) + ' ' + info.unique_name + '(';
+		info.definition = make_id();
+		_names[info.definition] = name;
+
+		code() += write_location(loc) + write_type(info.return_type) + ' ' + name + '(';
 
 		for (size_t i = 0, num_params = info.parameter_list.size(); i < num_params; ++i)
 		{
@@ -291,8 +363,8 @@ private:
 
 			code() += '\n' + write_location(param.location) + '\t' + write_type(param.type, true) + ' ' + param.name;
 
-			if (!param.semantic.empty())
-				code() += " : " + param.semantic;
+			if (is_entry_point && !param.semantic.empty())
+				code() += " : " + convert_semantic(param.semantic);
 
 			if (i < num_params - 1)
 				code() += ',';
@@ -300,8 +372,8 @@ private:
 
 		code() += ')';
 
-		if (!info.return_semantic.empty())
-			code() += " : " + info.return_semantic;
+		if (is_entry_point && !info.return_semantic.empty())
+			code() += " : " + convert_semantic(info.return_semantic);
 
 		code() += '\n';
 
@@ -324,6 +396,92 @@ private:
 			return;
 
 		_entry_points.push_back({ func.unique_name, is_ps });
+
+		// Only have to rewrite the entry point function signature in shader model 3
+		if (_shader_model >= 40)
+			return;
+
+		auto entry_point = func;
+
+		const auto is_color_semantic = [](const std::string &semantic) { return semantic.compare(0, 9, "SV_TARGET") == 0 || semantic.compare(0, 5, "COLOR") == 0; };
+		const auto is_position_semantic = [](const std::string &semantic) { return semantic == "SV_POSITION" || semantic == "POSITION"; };
+
+		const auto ret = make_id();
+		_names[ret] = "ret";
+
+		std::string position_variable_name;
+
+		if (func.return_type.is_struct() && !is_ps)
+			// If this function returns a struct which contains a position output, keep track of its member name
+			for (const auto &member : find_struct(func.return_type.definition).member_list)
+				if (is_position_semantic(member.semantic))
+					position_variable_name = id_to_name(ret) + '.' + member.name;
+		if (is_color_semantic(func.return_semantic))
+			// The COLOR output semantic has to be a four-component vector in shader model 3, so enforce that
+			entry_point.return_type.rows = 4;
+		else if (is_position_semantic(func.return_semantic) && !is_ps)
+			position_variable_name = id_to_name(ret);
+
+		for (auto &param : entry_point.parameter_list)
+			if (is_color_semantic(param.semantic))
+				param.type.rows = 4;
+			else if (is_position_semantic(param.semantic))
+				if (is_ps) // Change the position input semantic in pixel shaders
+					param.semantic = "VPOS";
+				else // Keep track of the position output variable
+					position_variable_name = param.name;
+
+		define_function({}, entry_point, true);
+		enter_block(create_block());
+
+		// Clear all color output parameters so no component is left uninitialized
+		for (auto &param : entry_point.parameter_list)
+			if (is_color_semantic(param.semantic))
+				code() += write_scope() + param.name + " = float4(0.0, 0.0, 0.0, 0.0);\n";
+
+		code() += write_scope();
+
+		if (is_color_semantic(func.return_semantic))
+			code() += "const float4 ret = float4(";
+		else if (!func.return_type.is_void())
+			code() += write_type(func.return_type) + " " + id_to_name(ret) + " = ";
+
+		code() += func.unique_name + '_' + '(';
+
+		for (size_t i = 0, num_params = func.parameter_list.size(); i < num_params; ++i)
+		{
+			code() += func.parameter_list[i].name;
+
+			if (is_color_semantic(func.parameter_list[i].semantic))
+			{
+				code() += '.';
+				for (unsigned int k = 0; k < func.parameter_list[i].type.rows; k++)
+					code() += "xyzw"[k];
+			}
+
+			if (i < num_params - 1)
+				code() += ", ";
+		}
+
+		code() += ')';
+
+		// Cast the output value to a four-component vector
+		if (is_color_semantic(func.return_semantic))
+		{
+			for (unsigned int i = 0; i < 4 - func.return_type.rows; i++)
+				code() += ", 0.0";
+			code() += ')';
+		}
+
+		code() += ";\n";
+
+		// Shift everything by half a viewport pixel to workaround the different half-pixel offset in D3D9
+		// https://aras-p.info/blog/2016/04/08/solving-dx9-half-pixel-offset/
+		if (!position_variable_name.empty() && !is_ps) // Check if we are in a vertex shader definition
+			code() += write_scope() + position_variable_name + ".xy += __TEXEL_SIZE__ * " + position_variable_name + ".ww;\n";
+
+		leave_block_and_return(func.return_type.is_void() ? 0 : ret);
+		leave_function();
 	}
 
 	id   emit_load(const expression &chain) override
@@ -419,7 +577,14 @@ private:
 	{
 		const id res = make_id();
 
-		code() += write_location(loc) + write_scope() + "const " + write_type(res_type) + ' ' + id_to_name(res) + " = " + char(op) + ' ' + id_to_name(val) + ";\n";
+		code() += write_location(loc) + write_scope() + "const " + write_type(res_type) + ' ' + id_to_name(res) + " = ";
+
+		if (_shader_model < 40 && op == tokenid::tilde)
+			code() += "0xFFFFFFFF -"; // Emulate bitwise not operator on shader model 3
+		else
+			code() += char(op);
+
+		code() += ' ' + id_to_name(val) + ";\n";
 
 		return res;
 	}
@@ -427,7 +592,12 @@ private:
 	{
 		const id res = make_id();
 
-		code() += write_location(loc) + write_scope() + "const " + write_type(res_type) + ' ' + id_to_name(res) + " = " + id_to_name(lhs) + ' ';
+		code() += write_location(loc) + write_scope() + "const " + write_type(res_type) + ' ' + id_to_name(res) + " = ";
+
+		if (_shader_model < 40 && (op == tokenid::greater_greater || op == tokenid::greater_greater_equal))
+			code() += "floor(";
+
+		code() += '(' + id_to_name(lhs) + ' ';
 
 		switch (op)
 		{
@@ -467,11 +637,11 @@ private:
 			break;
 		case tokenid::less_less:
 		case tokenid::less_less_equal:
-			code() += "<<";
+			code() += _shader_model >= 40 ? "<<" : ") * exp2("; // Emulate bitwise shift operators on shader model 3
 			break;
 		case tokenid::greater_greater:
 		case tokenid::greater_greater_equal:
-			code() += ">>";
+			code() += _shader_model >= 40 ? ">>" : ") / exp2(";
 			break;
 		case tokenid::pipe_pipe:
 			code() += "||";
@@ -501,7 +671,12 @@ private:
 			assert(false);
 		}
 
-		code() += ' ' + id_to_name(rhs) + ";\n";
+		code() += ' ' + id_to_name(rhs) + ')';
+
+		if (_shader_model < 40 && (op == tokenid::greater_greater || op == tokenid::greater_greater_equal))
+			code() += ')';
+
+		code() += ";\n";
 
 		return res;
 	}
@@ -562,16 +737,21 @@ private:
 
 		code() += write_location(loc) + write_scope();
 
-		if (!res_type.is_void())
-		{
-			code() += "const " + write_type(res_type) + ' ' + id_to_name(res) + " = ";
-		}
-
 		enum
 		{
 #define IMPLEMENT_INTRINSIC_HLSL(name, i, code) name##i,
 #include "effect_symbol_table_intrinsics.inl"
 		};
+
+		if (_shader_model >= 40 && (intrinsic == tex2Dsize0 || intrinsic == tex2Dsize1))
+		{
+			// Implementation of the 'tex2Dsize' intrinsic passes the result variable into 'GetDimensions' as output argument
+			code() += write_type(res_type) + ' ' + id_to_name(res) + "; ";
+		}
+		else if (!res_type.is_void())
+		{
+			code() += "const " + write_type(res_type) + ' ' + id_to_name(res) + " = ";
+		}
 
 		switch (intrinsic)
 		{
@@ -770,7 +950,12 @@ private:
 		if (!is_in_block())
 			return 0;
 
-		code() += write_scope() + "return" + (value ? ' ' + id_to_name(value) : std::string()) + ";\n";
+		code() += write_scope() + "return";
+
+		if (value != 0)
+			code() += ' ' + id_to_name(value);
+
+		code() += ";\n";
 
 		return set_block(0);
 	}
@@ -817,7 +1002,7 @@ private:
 	}
 };
 
-codegen *create_codegen_hlsl()
+codegen *create_codegen_hlsl(unsigned int shader_model)
 {
-	return new codegen_hlsl();
+	return new codegen_hlsl(shader_model);
 }

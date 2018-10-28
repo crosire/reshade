@@ -289,6 +289,7 @@ namespace reshade::d3d11
 		}
 
 		texture obj;
+		obj.name = texture_info.unique_name;
 		obj.unique_name = texture_info.unique_name;
 		copy_annotations(texture_info.annotations, obj.annotations);
 		obj.width = texture_info.width;

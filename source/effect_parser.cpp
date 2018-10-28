@@ -18,7 +18,7 @@ struct on_scope_exit
 
 // -- Parsing -- //
 
-reshadefx::parser::parser(codegen::backend backend)
+reshadefx::parser::parser(codegen::backend backend, unsigned int shader_model)
 {
 	switch (backend)
 	{
@@ -27,8 +27,8 @@ reshadefx::parser::parser(codegen::backend backend)
 		_codegen.reset(create_codegen_glsl());
 		break;
 	case codegen::backend::hlsl:
-		extern reshadefx::codegen *create_codegen_hlsl();
-		_codegen.reset(create_codegen_hlsl());
+		extern reshadefx::codegen *create_codegen_hlsl(unsigned int);
+		_codegen.reset(create_codegen_hlsl(shader_model));
 		break;
 	case codegen::backend::spirv:
 		extern reshadefx::codegen *create_codegen_spirv();
@@ -2232,7 +2232,7 @@ bool reshadefx::parser::parse_function(type type, std::string name)
 	std::replace(info.unique_name.begin(), info.unique_name.end(), ':', '_');
 
 	info.return_type = type;
-	_current_return_type = type;
+	_current_return_type = info.return_type;
 
 	// Enter function scope
 	enter_scope(); on_scope_exit _([this]() { leave_scope(); _codegen->leave_function(); });

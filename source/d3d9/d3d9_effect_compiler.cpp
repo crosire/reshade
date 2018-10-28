@@ -208,6 +208,7 @@ namespace reshade::d3d9
 		}
 
 		texture obj;
+		obj.name = texture_info.unique_name;
 		obj.unique_name = texture_info.unique_name;
 		copy_annotations(texture_info.annotations, obj.annotations);
 		obj.width = texture_info.width;
@@ -329,7 +330,6 @@ namespace reshade::d3d9
 		}
 
 		_constant_register_count += obj.storage_size / 4;
-		//_constant_register_count += (obj.storage_size / 4 + 4 - ((obj.storage_size / 4) % 4)) / 4;
 
 		auto &uniform_storage = _runtime->get_uniform_value_storage();
 
