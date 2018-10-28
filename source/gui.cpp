@@ -1149,10 +1149,21 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 					bool data = false;
 					get_uniform_value(variable, &data, 1);
 
-					if (ImGui::Checkbox(ui_label.c_str(), &data))
+					if (ui_type == "combo")
 					{
-						modified = true;
+						int index = data ? 1 : 0;
 
+						modified = ImGui::Combo(ui_label.c_str(), &index, "On\0Off\0");
+
+						data = index != 0;
+					}
+					else
+					{
+						modified = ImGui::Checkbox(ui_label.c_str(), &data);
+					}
+
+					if (modified)
+					{
 						set_uniform_value(variable, &data, 1);
 					}
 					break;
