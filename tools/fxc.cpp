@@ -98,21 +98,21 @@ int main(int argc, char *argv[])
 			}
 			else if (0 == strcmp(arg, "--glsl"))
 			{
-				if (entrypoint == nullptr)
-				{
-					std::cout << "error: No entry point specified" << std::endl;
-					return 1;
-				}
+				//if (entrypoint == nullptr)
+				//{
+				//	std::cout << "error: No entry point specified" << std::endl;
+				//	return 1;
+				//}
 
 				print_glsl = true;
 			}
 			else if (0 == strcmp(arg, "--hlsl"))
 			{
-				if (entrypoint == nullptr)
-				{
-					std::cout << "error: No entry point specified" << std::endl;
-					return 1;
-				}
+				//if (entrypoint == nullptr)
+				//{
+				//	std::cout << "error: No entry point specified" << std::endl;
+				//	return 1;
+				//}
 
 				print_hlsl = true;
 			}
