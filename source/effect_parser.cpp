@@ -801,7 +801,7 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 		if (exclusive ? expect(tokenid::identifier) : accept(tokenid::identifier))
 			identifier = std::move(_token.literal_as_string);
 		else
-			return false; // Warning: This may leave the expression path without issuing an error, so need to catch that at the target side!
+			return false; // Warning: This may leave the expression path without issuing an error, so need to catch that at the call side!
 
 		// Can concatenate multiple '::' to force symbol search for a specific namespace level
 		while (accept(tokenid::colon_colon))
@@ -869,14 +869,13 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 				if (arguments[i].type.components() > param_type.components())
 					warning(arguments[i].location, 3206, "implicit truncation of vector type");
 
-				auto target_type = param_type;
-				target_type.is_ptr = false;
-				arguments[i].add_cast_operation(target_type);
+				arguments[i].add_cast_operation(param_type);
 
-				if (param_type.is_ptr)
+				if (symbol.op == symbol_type::function || param_type.has(type::q_out))
 				{
-					const auto variable = _codegen->define_variable(arguments[i].location, param_type, nullptr, false, 0);
-					parameters[i].reset_to_lvalue(arguments[i].location, variable, param_type);
+					// All user-defined functions actually accept pointers as arguments, same applies to intrinsics with 'out' parameters
+					const auto temp_variable = _codegen->define_variable(arguments[i].location, param_type, nullptr, false);
+					parameters[i].reset_to_lvalue(arguments[i].location, temp_variable, param_type);
 				}
 				else
 				{
@@ -910,7 +909,7 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 		{
 			assert(symbol.id != 0);
 			// Uniform variables need to be dereferenced
-			exp.reset_to_lvalue(location, symbol.id, { type::t_struct, 0, 0, 0, false, false, false, 0, symbol.id });
+			exp.reset_to_lvalue(location, symbol.id, { type::t_struct, 0, 0, 0, 0, symbol.id });
 			exp.add_member_access(symbol.uniform_index, symbol.type);
 		}
 		else if (symbol.op == symbol_type::variable)
@@ -1969,7 +1968,7 @@ bool reshadefx::parser::parse_statement(bool scoped)
 			}
 			else
 			{
-				_codegen->leave_block_and_return(0);
+				_codegen->leave_block_and_return();
 			}
 
 			return expect(';');
@@ -2287,8 +2286,6 @@ bool reshadefx::parser::parse_function(type type, std::string name)
 			std::transform(param.semantic.begin(), param.semantic.end(), param.semantic.begin(), [](char c) { return static_cast<char>(toupper(c)); });
 		}
 
-		param.type.is_ptr = true;
-
 		info.parameter_list.push_back(std::move(param));
 	}
 
@@ -2333,7 +2330,7 @@ bool reshadefx::parser::parse_function(type type, std::string name)
 
 	// Add implicit return statement to the end of functions
 	if (_codegen->is_in_block())
-		_codegen->leave_block_and_return(0);
+		_codegen->leave_block_and_return();
 
 	return parse_success;
 }
@@ -2563,8 +2560,6 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 	{
 		assert(global);
 
-		type.is_ptr = true; // Variables are always pointers
-
 		// Add namespace scope to avoid name clashes
 		texture_info.unique_name = 'V' + current_scope().name + name;
 		std::replace(texture_info.unique_name.begin(), texture_info.unique_name.end(), ':', '_');
@@ -2580,8 +2575,6 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 
 		if (sampler_info.texture_name.empty())
 			return error(location, 3012, "missing 'Texture' property for '" + name + "'"), false;
-
-		type.is_ptr = true; // Variables are always pointers
 
 		// Add namespace scope to avoid name clashes
 		sampler_info.unique_name = 'V' + current_scope().name + name;
@@ -2617,8 +2610,6 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 	}
 	else // All other variables are separate entities
 	{
-		type.is_ptr = true; // Variables are always pointers
-
 		symbol = { symbol_type::variable, 0, type };
 
 		// Update global variable names to contain the namespace scope to avoid name clashes
@@ -2635,7 +2626,7 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 		{
 			const auto initializer_value = _codegen->emit_load(initializer);
 
-			symbol.id = _codegen->define_variable(location, type, unique_name.c_str(), global, 0);
+			symbol.id = _codegen->define_variable(location, type, unique_name.c_str(), global);
 
 			if (initializer_value != 0)
 			{

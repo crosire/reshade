@@ -89,24 +89,19 @@ namespace reshadefx
 
 		friend inline bool operator==(const type &lhs, const type &rhs)
 		{
-			return lhs.base == rhs.base && lhs.rows == rhs.rows && lhs.cols == rhs.cols && lhs.array_length == rhs.array_length
-				&& lhs.definition == rhs.definition && lhs.is_ptr == rhs.is_ptr && lhs.is_input == rhs.is_input && lhs.is_output == rhs.is_output;
+			return lhs.base == rhs.base && lhs.rows == rhs.rows && lhs.cols == rhs.cols && lhs.array_length == rhs.array_length && lhs.definition == rhs.definition;
 		}
 		friend inline bool operator!=(const type &lhs, const type &rhs)
 		{
 			return !operator==(lhs, rhs);
 		}
 
-		// These are initialized in the type parsing routine
 		datatype base = t_void; // Underlying base type ('int', 'float', ...)
 		unsigned int rows = 0; // Number of rows if this is a vector type
 		unsigned int cols = 0; // Number of columns if this is a matrix type
 		unsigned int qualifiers = 0; // Bit mask of all the qualifiers decorating the type
-		bool is_ptr = false; // Is a pointer to the type
-		bool is_input = false; // Has the 'input' storage class
-		bool is_output = false; // Has the 'output' storage class
 		int array_length = 0; // Negative if an unsized array, otherwise the number of elements if this is an array type
-		uint32_t definition = 0; // Type ID of the structure type
+		uint32_t definition = 0; // ID of the matching struct if this is a struct type
 	};
 
 	/// <summary>
@@ -156,88 +151,21 @@ namespace reshadefx
 		location location;
 		std::vector<operation> ops;
 
-		void reset_to_lvalue(const struct location &loc, uint32_t in_base, const struct type &in_type)
-		{
-			type = in_type;
-			type.is_ptr = false;
-			base = in_base;
-			location = loc;
-			is_lvalue = true;
-			is_constant = false;
-			ops.clear();
-		}
-		void reset_to_rvalue(const struct location &loc, uint32_t in_base, const struct type &in_type)
-		{
-			type = in_type;
-			type.qualifiers |= type::q_const;
-			base = in_base;
-			location = loc;
-			is_lvalue = false;
-			is_constant = false;
-			ops.clear();
-		}
+		void reset_to_lvalue(const struct location &loc, uint32_t in_base, const struct type &in_type);
+		void reset_to_rvalue(const struct location &loc, uint32_t in_base, const struct type &in_type);
 
-		void reset_to_rvalue_constant(const struct location &loc, bool data)
-		{
-			type = { type::t_bool, 1, 1, type::q_const };
-			base = 0; constant = {}; constant.as_uint[0] = data;
-			location = loc;
-			is_lvalue = false;
-			is_constant = true;
-			ops.clear();
-		}
-		void reset_to_rvalue_constant(const struct location &loc, float data)
-		{
-			type = { type::t_float, 1, 1, type::q_const };
-			base = 0; constant = {}; constant.as_float[0] = data;
-			location = loc;
-			is_lvalue = false;
-			is_constant = true;
-			ops.clear();
-		}
-		void reset_to_rvalue_constant(const struct location &loc, int32_t data)
-		{
-			type = { type::t_int,  1, 1, type::q_const };
-			base = 0; constant = {}; constant.as_int[0] = data;
-			location = loc;
-			is_lvalue = false;
-			is_constant = true;
-			ops.clear();
-		}
-		void reset_to_rvalue_constant(const struct location &loc, uint32_t data)
-		{
-			type = { type::t_uint, 1, 1, type::q_const };
-			base = 0; constant = {}; constant.as_uint[0] = data;
-			location = loc;
-			is_lvalue = false;
-			is_constant = true;
-			ops.clear();
-		}
-		void reset_to_rvalue_constant(const struct location &loc, std::string data)
-		{
-			type = { type::t_string, 0, 0, type::q_const };
-			base = 0; constant = {}; constant.string_data = std::move(data);
-			location = loc;
-			is_lvalue = false;
-			is_constant = true;
-			ops.clear();
-		}
-		void reset_to_rvalue_constant(const struct location &loc, struct constant data, const struct type &in_type)
-		{
-			type = in_type;
-			type.qualifiers |= type::q_const;
-			base = 0; constant = std::move(data);
-			location = loc;
-			is_lvalue = false;
-			is_constant = true;
-			ops.clear();
-		}
+		void reset_to_rvalue_constant(const struct location &loc, bool data);
+		void reset_to_rvalue_constant(const struct location &loc, float data);
+		void reset_to_rvalue_constant(const struct location &loc, int32_t data);
+		void reset_to_rvalue_constant(const struct location &loc, uint32_t data);
+		void reset_to_rvalue_constant(const struct location &loc, std::string data);
+		void reset_to_rvalue_constant(const struct location &loc, struct constant data, const struct type &in_type);
 
 		void add_cast_operation(const reshadefx::type &type);
-		void add_member_access(uint32_t index, const reshadefx::type &type);
-		void add_static_index_access(class codegen *codegen, uint32_t index);
+		void add_member_access(unsigned int index, const reshadefx::type &type);
+		void add_static_index_access(class codegen *codegen, unsigned int index);
 		void add_dynamic_index_access(class codegen *codegen, uint32_t index_expression);
-		void add_swizzle_access(signed char swizzle[4], size_t length);
+		void add_swizzle_access(const signed char swizzle[4], unsigned int length);
 
 		void evaluate_constant_expression(enum class tokenid op);
 		void evaluate_constant_expression(enum class tokenid op, const reshadefx::constant &rhs);

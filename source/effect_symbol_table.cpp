@@ -34,11 +34,63 @@ enum {
 #include "effect_symbol_table_intrinsics.inl"
 };
 
+#define void { reshadefx::type::t_void }
+#define bool { reshadefx::type::t_bool, 1, 1 }
+#define bool2 { reshadefx::type::t_bool, 2, 1 }
+#define bool3 { reshadefx::type::t_bool, 3, 1 }
+#define bool4 { reshadefx::type::t_bool, 4, 1 }
+#define int { reshadefx::type::t_int, 1, 1 }
+#define int2 { reshadefx::type::t_int, 2, 1 }
+#define int3 { reshadefx::type::t_int, 3, 1 }
+#define int4 { reshadefx::type::t_int, 4, 1 }
+#define uint { reshadefx::type::t_uint, 1, 1 }
+#define uint2 { reshadefx::type::t_uint, 2, 1 }
+#define uint3 { reshadefx::type::t_uint, 3, 1 }
+#define uint4 { reshadefx::type::t_uint, 4, 1 }
+#define float { reshadefx::type::t_float, 1, 1 }
+#define float2 { reshadefx::type::t_float, 2, 1 }
+#define float3 { reshadefx::type::t_float, 3, 1 }
+#define float4 { reshadefx::type::t_float, 4, 1 }
+#define float2x2 { reshadefx::type::t_float, 2, 2 }
+#define float3x3 { reshadefx::type::t_float, 3, 3 }
+#define float4x4 { reshadefx::type::t_float, 4, 4 }
+#define out_float { reshadefx::type::t_float, 1, 1, reshadefx::type::q_out }
+#define out_float2 { reshadefx::type::t_float, 2, 1, reshadefx::type::q_out }
+#define out_float3 { reshadefx::type::t_float, 3, 1, reshadefx::type::q_out }
+#define out_float4 { reshadefx::type::t_float, 4, 1, reshadefx::type::q_out }
+#define sampler { reshadefx::type::t_sampler }
+
 // Import intrinsic function definitions
 #define DEFINE_INTRINSIC(name, i, ret_type, ...) intrinsic(#name, name##i, ret_type, { __VA_ARGS__ }),
 static const intrinsic s_intrinsics[] = {
 #include "effect_symbol_table_intrinsics.inl"
 };
+
+#undef void
+#undef bool
+#undef bool2
+#undef bool3
+#undef bool4
+#undef int
+#undef int2
+#undef int3
+#undef int4
+#undef uint
+#undef uint2
+#undef uint3
+#undef uint4
+#undef float1
+#undef float2
+#undef float3
+#undef float4
+#undef float2x2
+#undef float3x3
+#undef float4x4
+#undef out_float
+#undef out_float2
+#undef out_float3
+#undef out_float4
+#undef sampler
 
 #pragma endregion
 

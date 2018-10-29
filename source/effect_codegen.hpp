@@ -81,7 +81,7 @@ namespace reshadefx
 		/// <param name="loc">Source location matching this definition (for debugging).</param>
 		/// <param name="info">The variable description.</param>
 		/// <returns>New SSA ID of the variable.</returns>
-		virtual id  define_variable(const struct location &loc, const struct type &type, const char *name, bool global, id initializer_value) = 0;
+		virtual id  define_variable(const struct location &loc, const struct type &type, const char *name, bool global, id initializer_value = 0) = 0;
 		/// <summary>
 		/// Define a new function and its function parameters and make it current. Any code added after this call is added to this function.
 		/// </summary>
@@ -248,7 +248,7 @@ namespace reshadefx
 		/// </summary>
 		/// <param name="value">Optional SSA ID of a return value.</param>
 		/// <returns>The ID of the current basic block.</returns>
-		virtual id   leave_block_and_return(id value) = 0;
+		virtual id   leave_block_and_return(id value = 0) = 0;
 		/// <summary>
 		/// Diverge the current control flow and enter a switch.
 		/// </summary>

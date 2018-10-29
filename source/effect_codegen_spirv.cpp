@@ -129,6 +129,13 @@ public:
 	}
 
 private:
+	struct type_lookup
+	{
+		type type;
+		spv::StorageClass storage;
+		bool is_ptr;
+		spv::Id id;
+	};
 	struct function_blocks
 	{
 		spirv_basic_block declaration;
@@ -156,11 +163,12 @@ private:
 	spirv_basic_block _variables;
 
 	std::unordered_set<spv::Capability> _capabilities;
-	std::vector<std::pair<type, spv::Id>> _type_lookup;
+	std::vector<type_lookup> _type_lookup;
 	std::vector<std::pair<function_blocks, spv::Id>> _function_type_lookup;
 	std::vector<std::tuple<type, constant, spv::Id>> _constant_lookup;
 	std::unordered_map<std::string, uint32_t> _semantic_to_location;
 	std::unordered_map<std::string, spv::Id> _string_lookup;
+	std::unordered_map<spv::Id, spv::StorageClass> _storage_lookup;
 	uint32_t _current_sampler_binding = 0;
 	uint32_t _current_semantic_location = 10;
 	std::vector<std::pair<std::string, bool>> _entry_points;
@@ -194,7 +202,7 @@ private:
 		add_decoration(_global_ubo_type, spv::DecorationBinding, { 0 });
 		add_decoration(_global_ubo_type, spv::DecorationDescriptorSet, { 0 });
 
-		define_variable(_global_ubo_variable, {}, { type::t_struct, 0, 0, type::q_uniform, true, false, false, 0, _global_ubo_type }, "$Globals", spv::StorageClassUniform);
+		define_variable(_global_ubo_variable, {}, { type::t_struct, 0, 0, type::q_uniform, 0, _global_ubo_type }, "$Globals", spv::StorageClassUniform);
 	}
 
 	inline id make_id() { return _next_id++; }
@@ -322,32 +330,17 @@ private:
 		}
 	}
 
-	spv::Id convert_type(const type &info)
+	spv::Id convert_type(const type &info, bool is_ptr = false, spv::StorageClass storage = spv::StorageClassFunction)
 	{
 		if (auto it = std::find_if(_type_lookup.begin(), _type_lookup.end(),
-			[&info](auto &x) { return x.first == info && (!info.is_ptr || (x.first.qualifiers & (type::q_static | type::q_uniform)) == (info.qualifiers & (type::q_static | type::q_uniform))); }); it != _type_lookup.end())
-			return it->second;
+			[&](auto &x) { return x.type == info && x.is_ptr == is_ptr && x.storage == storage; }); it != _type_lookup.end())
+			return it->id;
 
 		spv::Id type;
 
-		if (info.is_ptr)
+		if (is_ptr)
 		{
-			auto eleminfo = info;
-			eleminfo.is_input = false;
-			eleminfo.is_output = false;
-			eleminfo.is_ptr = false;
-
-			const spv::Id elemtype = convert_type(eleminfo);
-
-			spv::StorageClass storage = spv::StorageClassFunction;
-			if (info.is_input)
-				storage = spv::StorageClassInput;
-			if (info.is_output)
-				storage = spv::StorageClassOutput;
-			if (info.has(type::q_static))
-				storage = spv::StorageClassPrivate;
-			if (info.has(type::q_uniform))
-				storage = (info.is_texture() || info.is_sampler()) ? spv::StorageClassUniformConstant : spv::StorageClassUniform;
+			const spv::Id elemtype = convert_type(info);
 
 			type = add_instruction(spv::OpTypePointer, 0, _types_and_constants)
 				.add(storage)
@@ -356,31 +349,19 @@ private:
 		}
 		else if (info.is_array())
 		{
-			assert(!info.is_ptr);
-
 			auto eleminfo = info;
 			eleminfo.array_length = 0;
 
+			// Make sure we don't get any dynamic arrays here
+			assert(info.array_length > 0);
+
+			const spv::Id length = emit_constant(info.array_length);
 			const spv::Id elemtype = convert_type(eleminfo);
 
-			if (info.array_length > 0) // Sized array
-			{
-				constant length_data = {};
-				length_data.as_uint[0] = info.array_length;
-
-				const spv::Id length_constant = emit_constant({ type::t_uint, 1, 1 }, length_data);
-
-				type = add_instruction(spv::OpTypeArray, 0, _types_and_constants)
-					.add(elemtype)
-					.add(length_constant)
-					.result;
-			}
-			else // Dynamic array
-			{
-				type = add_instruction(spv::OpTypeRuntimeArray, 0, _types_and_constants)
-					.add(elemtype)
-					.result;
-			}
+			type = add_instruction(spv::OpTypeArray, 0, _types_and_constants)
+				.add(elemtype)
+				.add(length)
+				.result;
 		}
 		else if (info.is_matrix())
 		{
@@ -393,16 +374,12 @@ private:
 
 			// Matrix types with just one row are interpreted as if they were a vector type
 			if (info.rows == 1)
-			{
 				type = elemtype;
-			}
 			else
-			{
 				type = add_instruction(spv::OpTypeMatrix, 0, _types_and_constants)
 					.add(elemtype)
 					.add(info.rows)
 					.result;
-			}
 		}
 		else if (info.is_vector())
 		{
@@ -419,8 +396,6 @@ private:
 		}
 		else
 		{
-			assert(!info.is_input && !info.is_output);
-
 			switch (info.base)
 			{
 			case type::t_void:
@@ -467,23 +442,21 @@ private:
 					.add(1) // Will be used with a sampler
 					.add(spv::ImageFormatUnknown)
 					.result;
-				break;
-			}
+				break; }
 			case type::t_sampler: {
 				assert(info.rows == 0 && info.cols == 0);
 				spv::Id image_type = convert_type({ type::t_texture, 0, 0, type::q_uniform });
 				type = add_instruction(spv::OpTypeSampledImage, 0, _types_and_constants)
 					.add(image_type)
 					.result;
-				break;
-			}
+				break; }
 			default:
 				assert(false);
 				return 0;
 			}
 		}
 
-		_type_lookup.push_back({ info, type });;
+		_type_lookup.push_back({ info, storage, is_ptr, type });;
 
 		return type;
 	}
@@ -496,7 +469,7 @@ private:
 		assert(return_type != 0);
 		std::vector<spv::Id> param_type_ids;
 		for (auto param : info.param_types)
-			param_type_ids.push_back(convert_type(param));
+			param_type_ids.push_back(convert_type(param, true));
 
 		spirv_instruction &node = add_instruction(spv::OpTypeFunction, 0, _types_and_constants);
 		node.add(return_type);
@@ -589,15 +562,13 @@ private:
 
 	void define_variable(id id, const location &loc, const type &type, const char *name, spv::StorageClass storage, spv::Id initializer_value = 0)
 	{
-		assert(type.is_ptr);
-
 		spirv_basic_block &block = storage != spv::StorageClassFunction ? _variables : _functions2[_current_function].variables;
 
 		add_location(loc, block);
 
 		// https://www.khronos.org/registry/spir-v/specs/unified1/SPIRV.html#OpVariable
 		spirv_instruction &instruction = add_instruction_without_result(spv::OpVariable, block);
-		instruction.type = convert_type(type);
+		instruction.type = convert_type(type, true, storage);
 		instruction.result = id;
 		instruction.add(storage);
 		if (initializer_value != 0)
@@ -605,6 +576,8 @@ private:
 
 		if (name != nullptr && *name != '\0')
 			add_name(id, name);
+
+		_storage_lookup[id] = storage;
 	}
 
 	id   define_struct(const location &loc, struct_info &info) override
@@ -651,7 +624,7 @@ private:
 		info.set = 1;
 		info.binding = _current_sampler_binding++;
 
-		define_variable(info.id, loc, { type::t_sampler, 0, 0, type::q_extern | type::q_uniform, true }, info.unique_name.c_str(), spv::StorageClassUniformConstant);
+		define_variable(info.id, loc, { type::t_sampler, 0, 0, type::q_extern | type::q_uniform }, info.unique_name.c_str(), spv::StorageClassUniformConstant);
 
 		add_decoration(info.id, spv::DecorationBinding, { info.binding });
 		add_decoration(info.id, spv::DecorationDescriptorSet, { info.set });
@@ -665,7 +638,10 @@ private:
 		if (_global_ubo_type == 0)
 			_global_ubo_type = make_id();
 		if (_global_ubo_variable == 0)
+		{
 			_global_ubo_variable = make_id();
+			_storage_lookup[_global_ubo_variable] = spv::StorageClassUniform;
+		}
 
 		// GLSL specification on std140 layout:
 		// 1. If the member is a scalar consuming N basic machine units, the base alignment is N.
@@ -716,7 +692,7 @@ private:
 		{
 			add_location(param.location, function.declaration);
 
-			param.definition = add_instruction(spv::OpFunctionParameter, convert_type(param.type), function.declaration)
+			param.definition = add_instruction(spv::OpFunctionParameter, convert_type(param.type, true), function.declaration)
 				.result;
 
 			add_name(param.definition, param.name.c_str());
@@ -768,12 +744,8 @@ private:
 			return function_variable;
 		};
 		const auto create_input_variable = [this, &inputs_and_outputs, &semantic_to_builtin](const struct_member_info &param) {
-			type input_type = param.type;
-			input_type.is_input = true;
-			input_type.is_ptr = true;
-
 			const auto input_variable = make_id();
-			define_variable(input_variable, {}, input_type, nullptr, spv::StorageClassInput);
+			define_variable(input_variable, {}, param.type, nullptr, spv::StorageClassInput);
 
 			if (spv::BuiltIn builtin; semantic_to_builtin(param.semantic, builtin))
 				add_builtin(input_variable, builtin);
@@ -811,12 +783,8 @@ private:
 			return function_variable;
 		};
 		const auto create_output_variable = [this, &inputs_and_outputs, &semantic_to_builtin](const struct_member_info &param) {
-			type output_type = param.type;
-			output_type.is_output = true;
-			output_type.is_ptr = true;
-
 			const auto output_variable = make_id();
-			define_variable(output_variable, {}, output_type, nullptr, spv::StorageClassOutput);
+			define_variable(output_variable, {}, param.type, nullptr, spv::StorageClassOutput);
 
 			if (spv::BuiltIn builtin; semantic_to_builtin(param.semantic, builtin))
 				add_builtin(output_variable, builtin);
@@ -875,18 +843,13 @@ private:
 					{
 						const auto input_variable = create_input_variable(member);
 
-						type value_type = member.type;
-						value_type.is_ptr = false;
-
-						const auto value = add_instruction(spv::OpLoad, convert_type(value_type))
+						const auto value = add_instruction(spv::OpLoad, convert_type(member.type))
 							.add(input_variable)
 							.result;
 						elements.push_back(value);
 					}
 
-					type composite_type = param.type;
-					composite_type.is_ptr = false;
-					spirv_instruction &construct = add_instruction(spv::OpCompositeConstruct, convert_type(composite_type));
+					spirv_instruction &construct = add_instruction(spv::OpCompositeConstruct, convert_type(param.type));
 					for (auto elem : elements)
 						construct.add(elem);
 					const auto composite_value = construct.result;
@@ -899,10 +862,7 @@ private:
 				{
 					const auto input_variable = create_input_variable(param);
 
-					type value_type = param.type;
-					value_type.is_ptr = false;
-
-					const auto value = add_instruction(spv::OpLoad, convert_type(value_type))
+					const auto value = add_instruction(spv::OpLoad, convert_type(param.type))
 						.add(input_variable)
 						.result;
 					add_instruction_without_result(spv::OpStore)
@@ -920,10 +880,7 @@ private:
 		{
 			if (param.type.has(type::q_out))
 			{
-				type value_type = param.type;
-				value_type.is_ptr = false;
-
-				const auto value = add_instruction(spv::OpLoad, convert_type(value_type))
+				const auto value = add_instruction(spv::OpLoad, convert_type(param.type))
 					.add(call_params[param_index++].base)
 					.result;
 
@@ -976,12 +933,8 @@ private:
 		}
 		else if (!func.return_type.is_void())
 		{
-			type ptr_type = func.return_type;
-			ptr_type.is_output = true;
-			ptr_type.is_ptr = true;
-
 			const auto result = make_id();
-			define_variable(result, {}, ptr_type, nullptr, spv::StorageClassOutput);
+			define_variable(result, {}, func.return_type, nullptr, spv::StorageClassOutput);
 
 			if (spv::BuiltIn builtin; semantic_to_builtin(func.return_semantic, builtin))
 				add_builtin(result, builtin);
@@ -1043,7 +996,10 @@ private:
 			// Any indexing expressions can be resolved during load with an 'OpAccessChain' already
 			if (!chain.ops.empty() && (chain.ops[0].type == expression::operation::op_index || chain.ops[0].type == expression::operation::op_member))
 			{
-				assert(chain.ops[0].to.is_ptr);
+				spv::StorageClass storage = spv::StorageClassFunction;
+				if (const auto it = _storage_lookup.find(chain.base); it != _storage_lookup.end())
+					storage = it->second;
+
 				spirv_instruction &node = add_instruction(spv::OpAccessChain)
 					.add(result); // Base
 
@@ -1052,21 +1008,15 @@ private:
 					op_index2 = 1;
 
 				do {
-					assert(chain.ops[op_index2].to.is_ptr);
 					base_type = chain.ops[op_index2].to;
 					if (chain.ops[op_index2].type == expression::operation::op_index)
 						node.add(chain.ops[op_index2++].index); // Indexes
-					else {
-						constant index;
-						index.as_uint[0] = static_cast<uint32_t>(chain.ops[op_index2++].index);
-						node.add(emit_constant({ type::t_uint, 1, 1 }, index)); // Indexes
-					}
+					else
+						node.add(emit_constant(chain.ops[op_index2++].index)); // Indexes
 				} while (op_index2 < chain.ops.size() && (chain.ops[op_index2].type == expression::operation::op_index || chain.ops[op_index2].type == expression::operation::op_member));
-				node.type = convert_type(chain.ops[op_index2 - 1].to); // Last type is the result
+				node.type = convert_type(chain.ops[op_index2 - 1].to, true, storage); // Last type is the result
 				result = node.result; // Result ID
 			}
-
-			base_type.is_ptr = false;
 
 			result = add_instruction(spv::OpLoad, convert_type(base_type))
 				.add(result) // Pointer
@@ -1081,8 +1031,6 @@ private:
 			switch (op.type)
 			{
 			case expression::operation::op_cast:
-				assert(!op.to.is_ptr);
-
 				if (op.from.base != op.to.base)
 				{
 					type from_with_to_base = op.from;
@@ -1169,11 +1117,8 @@ private:
 				}
 				else if (op.from.is_vector() && op.to.is_scalar())
 				{
-					type target_type = op.to;
-					target_type.is_ptr = false;
-
 					assert(result != 0);
-					result = add_instruction(spv::OpVectorExtractDynamic, convert_type(target_type))
+					result = add_instruction(spv::OpVectorExtractDynamic, convert_type(op.to))
 						.add(result) // Vector
 						.add(op.index) // Index
 						.result; // Result ID
@@ -1268,7 +1213,6 @@ private:
 	{
 		assert(value != 0);
 		assert(chain.is_lvalue && !chain.is_constant);
-		assert(!value_type.is_ptr);
 
 		add_location(chain.location, *_current_block_data);
 
@@ -1283,7 +1227,10 @@ private:
 		// Any indexing expressions can be resolved with an 'OpAccessChain' already
 		if (!chain.ops.empty() && (chain.ops[0].type == expression::operation::op_index || chain.ops[0].type == expression::operation::op_member))
 		{
-			assert(chain.ops[0].to.is_ptr);
+			spv::StorageClass storage = spv::StorageClassFunction;
+			if (const auto it = _storage_lookup.find(chain.base); it != _storage_lookup.end())
+				storage = it->second;
+
 			spirv_instruction &node = add_instruction(spv::OpAccessChain)
 				.add(target); // Base
 
@@ -1292,17 +1239,13 @@ private:
 				op_index2 = 1;
 
 			do {
-				assert(chain.ops[op_index2].to.is_ptr);
 				base_type = chain.ops[op_index2].to;
 				if (chain.ops[op_index2].type == expression::operation::op_index)
 					node.add(chain.ops[op_index2++].index); // Indexes
-				else {
-					constant index;
-					index.as_uint[0] = static_cast<uint32_t>(chain.ops[op_index2++].index);
-					node.add(emit_constant({ type::t_uint, 1, 1 }, index)); // Indexes
-				}
+				else
+					node.add(emit_constant(chain.ops[op_index2++].index)); // Indexes
 			} while (op_index2 < chain.ops.size() && (chain.ops[op_index2].type == expression::operation::op_index || chain.ops[op_index2].type == expression::operation::op_member));
-			node.type = convert_type(chain.ops[op_index2 - 1].to); // Last type is the result
+			node.type = convert_type(chain.ops[op_index2 - 1].to, true, storage); // Last type is the result
 			target = node.result; // Result ID
 		}
 
@@ -1322,8 +1265,6 @@ private:
 				break;
 			case expression::operation::op_swizzle:
 			{
-				base_type.is_ptr = false;
-
 				spv::Id result = add_instruction(spv::OpLoad, convert_type(base_type))
 					.add(target) // Pointer
 					.result; // Result ID
@@ -1347,13 +1288,23 @@ private:
 				{
 					assert(op.swizzle[1] < 0); // TODO
 
-					spv::Id result2 = add_instruction(spv::OpCompositeInsert, convert_type(base_type))
+					spirv_instruction &node = add_instruction(spv::OpCompositeInsert, convert_type(base_type))
 						.add(value) // Object
-						.add(result) // Composite
-						.add(op.swizzle[0]) // Index
-						.result; // Result ID
+						.add(result); // Composite
 
-					value = result2;
+					if (op.from.is_matrix() && op.from.rows > 1)
+					{
+						const unsigned int row = op.swizzle[0] / 4;
+						const unsigned int column = op.swizzle[0] - row * 4;
+						node.add(row);
+						node.add(column);
+					}
+					else
+					{
+						node.add(op.swizzle[0]);
+					}
+
+					value = node.result; // Result ID
 				}
 				else
 				{
@@ -1369,10 +1320,14 @@ private:
 			.add(value);
 	}
 
+	id   emit_constant(uint32_t value)
+	{
+		constant data;
+		data.as_uint[0] = value;
+		return emit_constant({ type::t_uint, 1, 1 }, data);
+	}
 	id   emit_constant(const type &type, const constant &data) override
 	{
-		assert(!type.is_ptr);
-
 		if (auto it = std::find_if(_constant_lookup.begin(), _constant_lookup.end(), [&type, &data](auto &x) {
 			if (!(std::get<0>(x) == type && std::memcmp(&std::get<1>(x).as_uint[0], &data.as_uint[0], sizeof(uint32_t) * 16) == 0 && std::get<1>(x).array_data.size() == data.array_data.size()))
 				return false;
