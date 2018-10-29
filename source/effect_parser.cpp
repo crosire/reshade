@@ -2256,8 +2256,8 @@ bool reshadefx::parser::parse_function(type type, std::string name)
 		if (!expect(tokenid::identifier))
 			return false;
 
-		param.location = _token.location;
-		param.name = _token.literal_as_string;
+		param.name = std::move(_token.literal_as_string);
+		param.location = std::move(_token.location);
 
 		if (param.type.is_void())
 			return error(param.location, 3038, "function parameters cannot be void"), false;
@@ -2547,6 +2547,10 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 				return false;
 		}
 	}
+
+	// At this point the array size should be known (either from the declaration or the initializer)
+	if (type.array_length < 0)
+		return error(location, 3074, "implicit array missing initial value"), false;
 
 	symbol symbol;
 
