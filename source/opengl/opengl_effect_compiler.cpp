@@ -260,7 +260,16 @@ namespace reshade::opengl
 
 	bool opengl_effect_compiler::run()
 	{
-		// Parse uniform variables
+		// Compile all entry points
+		for (const auto &entry : _module->entry_points)
+		{
+			compile_entry_point(entry.first, entry.second);
+		}
+
+		// No need to setup resources if any of the shaders failed to compile
+		if (!_success)
+			return false;
+
 		_uniform_storage_offset = _runtime->get_uniform_value_storage().size();
 
 		for (const auto &texture : _module->textures)
@@ -275,14 +284,6 @@ namespace reshade::opengl
 		{
 			visit_uniform(uniform);
 		}
-
-		// Compile all entry points
-		for (const auto &entry : _module->entry_points)
-		{
-			compile_entry_point(entry.first, entry.second);
-		}
-
-		// Parse technique information
 		for (const auto &technique : _module->techniques)
 		{
 			visit_technique(technique);

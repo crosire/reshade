@@ -148,7 +148,18 @@ namespace reshade::d3d9
 			return false;
 		}
 
-		// Parse uniform variables
+		// Compile all entry points
+		for (const auto &entry : _module->entry_points)
+		{
+			compile_entry_point(entry.first, entry.second);
+		}
+
+		FreeLibrary(_d3dcompiler_module);
+
+		// No need to setup resources if any of the shaders failed to compile
+		if (!_success)
+			return false;
+
 		_uniform_storage_offset = _runtime->get_uniform_value_storage().size();
 
 		for (const auto &texture : _module->textures)
@@ -163,20 +174,10 @@ namespace reshade::d3d9
 		{
 			visit_uniform(uniform);
 		}
-
-		// Compile all entry points
-		for (const auto &entry : _module->entry_points)
-		{
-			compile_entry_point(entry.first, entry.second);
-		}
-
-		// Parse technique information
 		for (const auto &technique : _module->techniques)
 		{
 			visit_technique(technique);
 		}
-
-		FreeLibrary(_d3dcompiler_module);
 
 		return _success;
 	}
