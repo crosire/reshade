@@ -176,6 +176,7 @@ namespace reshade
 							input._keys[raw_data.data.keyboard.VKey] = (raw_data.data.keyboard.Flags & RI_KEY_BREAK) == 0 ? 0x88 : 0x08;
 
 						// No 'WM_CHAR' messages are sent if legacy keyboard messages are disabled, so need to generate text input manually here
+						// Cannot use the ToAscii function always as it seems to reset dead key state and thus calling it can break subsequent application input, should be fine here though since the application is already explicitly using raw input
 						if (WORD ch = 0; (raw_data.data.keyboard.Flags & RI_KEY_BREAK) == 0 && ToAscii(raw_data.data.keyboard.VKey, raw_data.data.keyboard.MakeCode, input._keys, &ch, 0))
 							input._text_input += ch;
 						break;

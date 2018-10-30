@@ -179,7 +179,7 @@ namespace reshade
 			ImGui::SetCursorPosX(ImGui::GetWindowContentRegionWidth() - ImGui::CalcTextSize(temp).x);
 			ImGui::TextUnformatted(temp);
 		}
-		if (_show_framerate)
+		if (_show_framerate && _imgui_context->IO.Framerate < 10000)
 		{
 			ImFormatString(temp, sizeof(temp), "%.0f fps", _imgui_context->IO.Framerate);
 			ImGui::SetCursorPosX(ImGui::GetWindowContentRegionWidth() - ImGui::CalcTextSize(temp).x);
