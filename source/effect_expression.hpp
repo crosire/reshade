@@ -221,7 +221,7 @@ namespace reshadefx
 		std::string unique_name;
 		std::string texture_name;
 		std::unordered_map<std::string, std::pair<type, constant>> annotations;
-		uint32_t filter = 0x1; // LINEAR
+		uint32_t filter = 0x15; // MIN_MAG_MIP_LINEAR
 		uint32_t address_u = 3; // CLAMP
 		uint32_t address_v = 3;
 		uint32_t address_w = 3;
