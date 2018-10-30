@@ -123,7 +123,7 @@ bool reshadefx::parser::expect(tokenid tokid)
 {
 	if (!accept(tokid))
 	{
-		error(_token_next.location, 3000, "syntax error: unexpected '" + token::id_to_name(_token_next.id) + "', expected '" + token::id_to_name(tokid) + "'");
+		error(_token_next.location, 3000, "syntax error: unexpected '" + token::id_to_name(_token_next.id) + "', expected '" + token::id_to_name(tokid) + '\'');
 		return false;
 	}
 
@@ -849,11 +849,11 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 			if (!resolve_function_call(identifier, arguments, scope, symbol, ambiguous))
 			{
 				if (undeclared)
-					error(location, 3004, "undeclared identifier '" + identifier + "'");
+					error(location, 3004, "undeclared identifier '" + identifier + '\'');
 				else if (ambiguous)
-					error(location, 3067, "ambiguous function call to '" + identifier + "'");
+					error(location, 3067, "ambiguous function call to '" + identifier + '\'');
 				else
-					error(location, 3013, "no matching function overload for '" + identifier + "'");
+					error(location, 3013, "no matching function overload for '" + identifier + '\'');
 				return false;
 			}
 
@@ -903,7 +903,7 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 		else if (symbol.op == symbol_type::invalid)
 		{
 			// Show error if no symbol matching the identifier was found
-			return error(location, 3004, "undeclared identifier '" + identifier + "'"), false;
+			return error(location, 3004, "undeclared identifier '" + identifier + '\''), false;
 		}
 		else if (symbol.op == symbol_type::uniform)
 		{
@@ -1007,7 +1007,7 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 					case 'p': offsets[i] = 2, set[i] = stpq; break;
 					case 'q': offsets[i] = 3, set[i] = stpq; break;
 					default:
-						return error(location, 3018, "invalid subscript '" + subscript + "'"), false;
+						return error(location, 3018, "invalid subscript '" + subscript + '\''), false;
 					}
 
 					if (i > 0 && (set[i] != set[i - 1]))
@@ -1036,7 +1036,7 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 			{
 				const size_t length = subscript.size();
 				if (length < 3)
-					return error(location, 3018, "invalid subscript '" + subscript + "'"), false;
+					return error(location, 3018, "invalid subscript '" + subscript + '\''), false;
 
 				bool is_const = false;
 				signed char offsets[4] = { -1, -1, -1, -1 };
@@ -1046,7 +1046,7 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 				for (size_t i = 0, j = 0; i < length; i += 3 + set, ++j)
 				{
 					if (subscript[i] != '_' || subscript[i + set + 1] < '0' + coefficient || subscript[i + set + 1] > '3' + coefficient || subscript[i + set + 2] < '0' + coefficient || subscript[i + set + 2] > '3' + coefficient)
-						return error(location, 3018, "invalid subscript '" + subscript + "'"), false;
+						return error(location, 3018, "invalid subscript '" + subscript + '\''), false;
 					if (set && subscript[i + 1] != 'm')
 						return error(location, 3018, "invalid subscript '" + subscript + "', mixed swizzle sets"), false;
 
@@ -1085,7 +1085,7 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 				}
 
 				if (member_index >= member_list.size())
-					return error(location, 3018, "invalid subscript '" + subscript + "'"), false;
+					return error(location, 3018, "invalid subscript '" + subscript + '\''), false;
 
 				// Add field index to current access chain
 				exp.add_member_access(member_index, member_list[member_index].type);
@@ -1101,7 +1101,7 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 
 				for (size_t i = 0; i < length; ++i)
 					if ((subscript[i] != 'x' && subscript[i] != 'r' && subscript[i] != 's') || i > 3)
-						return error(location, 3018, "invalid subscript '" + subscript + "'"), false;
+						return error(location, 3018, "invalid subscript '" + subscript + '\''), false;
 
 				// Promote scalar to vector type using cast
 				auto target_type = exp.type;
@@ -1111,7 +1111,7 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 			}
 			else
 			{
-				error(location, 3018, "invalid subscript '" + subscript + "'");
+				error(location, 3018, "invalid subscript '" + subscript + '\'');
 				return false;
 			}
 		}
@@ -2008,7 +2008,7 @@ bool reshadefx::parser::parse_statement(bool scoped)
 		return expect(';'); // A statement has to be terminated with a semicolon
 
 	// No token should come through here, since all statements and expressions should have been handled above, so this is an error in the syntax
-	error(_token_next.location, 3000, "syntax error: unexpected '" + token::id_to_name(_token_next.id) + "'");
+	error(_token_next.location, 3000, "syntax error: unexpected '" + token::id_to_name(_token_next.id) + '\'');
 
 	// Gracefully consume any remaining characters until the statement would usually end, so that parsing may continue despite the error
 	consume_until(';');
@@ -2133,7 +2133,7 @@ bool reshadefx::parser::parse_top()
 	else if (!accept(';')) // Ignore single semicolons in the source
 	{
 		consume(); // Unexpected token in source stream, consume and report an error about it
-		error(_token.location, 3000, "syntax error: unexpected '" + token::id_to_name(_token.id) + "'");
+		error(_token.location, 3000, "syntax error: unexpected '" + token::id_to_name(_token.id) + '\'');
 		return false;
 	}
 
@@ -2217,7 +2217,7 @@ bool reshadefx::parser::parse_struct()
 	const symbol symbol = { symbol_type::structure, id };
 
 	if (!insert_symbol(info.name, symbol, true))
-		return error(location, 3003, "redefinition of '" + info.name + "'"), false;
+		return error(location, 3003, "redefinition of '" + info.name + '\''), false;
 
 	return expect('}');
 }
@@ -2229,7 +2229,7 @@ bool reshadefx::parser::parse_function(type type, std::string name)
 	if (!expect('(')) // Functions always have a parameter list
 		return false;
 	if (type.qualifiers != 0)
-		return error(location, 3047, "function return type cannot have any qualifiers"), false;
+		return error(location, 3047, '\'' + name + "': function return type cannot have any qualifiers"), false;
 
 	function_info info;
 	info.name = name;
@@ -2259,16 +2259,16 @@ bool reshadefx::parser::parse_function(type type, std::string name)
 		param.location = std::move(_token.location);
 
 		if (param.type.is_void())
-			return error(param.location, 3038, "function parameters cannot be void"), false;
+			return error(param.location, 3038, '\'' + param.name + "': function parameters cannot be void"), false;
 		if (param.type.has(type::q_extern))
-			return error(param.location, 3006, "function parameters cannot be declared 'extern'"), false;
+			return error(param.location, 3006, '\'' + param.name + "': function parameters cannot be declared 'extern'"), false;
 		if (param.type.has(type::q_static))
-			return error(param.location, 3007, "function parameters cannot be declared 'static'"), false;
+			return error(param.location, 3007, '\'' + param.name + "': function parameters cannot be declared 'static'"), false;
 		if (param.type.has(type::q_uniform))
-			return error(param.location, 3047, "function parameters cannot be declared 'uniform', consider placing in global scope instead"), false;
+			return error(param.location, 3047, '\'' + param.name + "': function parameters cannot be declared 'uniform', consider placing in global scope instead"), false;
 
 		if (param.type.has(type::q_out) && param.type.has(type::q_const))
-			return error(param.location, 3046, "output parameters cannot be declared 'const'"), false;
+			return error(param.location, 3046, '\'' + param.name + "': output parameters cannot be declared 'const'"), false;
 		else if (!param.type.has(type::q_out))
 			param.type.qualifiers |= type::q_in; // Function parameters are implicitly 'in' if not explicitly defined as 'out'
 
@@ -2298,7 +2298,7 @@ bool reshadefx::parser::parse_function(type type, std::string name)
 		if (!expect(tokenid::identifier))
 			return false;
 		if (type.is_void())
-			return error(_token.location, 3076, "void function cannot have a semantic"), false;
+			return error(_token.location, 3076, '\'' + name + "': void function cannot have a semantic"), false;
 
 		info.return_semantic = std::move(_token.literal_as_string);
 		// Make semantic upper case to simplify comparison later on
@@ -2307,7 +2307,7 @@ bool reshadefx::parser::parse_function(type type, std::string name)
 
 	// Check if this is a function declaration without a body
 	if (accept(';'))
-		return error(location, 3510, "function is missing an implementation"), false;
+		return error(location, 3510, '\'' + name + "': function is missing an implementation"), false;
 
 	// Define the function now that information about the declaration was gathered
 	const auto id = _codegen->define_function(location, info);
@@ -2317,11 +2317,11 @@ bool reshadefx::parser::parse_function(type type, std::string name)
 	symbol.function = &_codegen->find_function(id);
 
 	if (!insert_symbol(name, symbol, true))
-		return error(location, 3003, "redefinition of '" + name + "'"), false;
+		return error(location, 3003, "redefinition of '" + name + '\''), false;
 
 	for (const auto &param : info.parameter_list)
 		if (!insert_symbol(param.name, { symbol_type::variable, param.definition, param.type }))
-			return error(param.location, 3003, "redefinition of '" + param.name + "'"), false;
+			return error(param.location, 3003, "redefinition of '" + param.name + '\''), false;
 
 	// A function has to start with a new block
 	_codegen->enter_block(_codegen->create_block());
@@ -2340,9 +2340,9 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 	const auto location = std::move(_token.location);
 
 	if (type.is_void())
-		return error(location, 3038, "variables cannot be void"), false;
+		return error(location, 3038, '\'' + name + "': variables cannot be void"), false;
 	if (type.has(type::q_in) || type.has(type::q_out))
-		return error(location, 3055, "variables cannot be declared 'in' or 'out'"), false;
+		return error(location, 3055, '\'' + name + "': variables cannot be declared 'in' or 'out'"), false;
 
 	// Local and global variables have different requirements
 	if (global)
@@ -2352,34 +2352,34 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 		{
 			// Global variables that are 'static' cannot be of another storage class
 			if (type.has(type::q_uniform))
-				return error(location, 3007, "uniform global variables cannot be declared 'static'"), false;
+				return error(location, 3007, '\'' + name + "': uniform global variables cannot be declared 'static'"), false;
 			// The 'volatile qualifier is only valid memory object declarations that are storage images or uniform blocks
 			if (type.has(type::q_volatile))
-				return error(location, 3008, "global variables cannot be declared 'volatile'"), false;
+				return error(location, 3008, '\'' + name + "': global variables cannot be declared 'volatile'"), false;
 		}
 		else
 		{
 			// Make all global variables 'uniform' by default, since they should be externally visible without the 'static' keyword
 			if (!type.has(type::q_uniform) && !(type.is_texture() || type.is_sampler()))
-				warning(location, 5000, "global variables are considered 'uniform' by default");
+				warning(location, 5000, '\'' + name + "': global variables are considered 'uniform' by default");
 
 			// Global variables that are not 'static' are always 'extern' and 'uniform'
 			type.qualifiers |= type::q_extern | type::q_uniform;
 
 			// It is invalid to make 'uniform' variables constant, since they can be modified externally
 			if (type.has(type::q_const))
-				return error(location, 3035, "variables which are 'uniform' cannot be declared 'const'"), false;
+				return error(location, 3035, '\'' + name + "': variables which are 'uniform' cannot be declared 'const'"), false;
 		}
 	}
 	else
 	{
 		if (type.has(type::q_extern))
-			return error(location, 3006, "local variables cannot be declared 'extern'"), false;
+			return error(location, 3006, '\'' + name + "': local variables cannot be declared 'extern'"), false;
 		if (type.has(type::q_uniform))
-			return error(location, 3047, "local variables cannot be declared 'uniform'"), false;
+			return error(location, 3047, '\'' + name + "': local variables cannot be declared 'uniform'"), false;
 
 		if (type.is_texture() || type.is_sampler())
-			return error(location, 3038, "local variables cannot be textures or samplers"), false;
+			return error(location, 3038, '\'' + name + "': local variables cannot be textures or samplers"), false;
 	}
 
 	// The variable name may be followed by an optional array size expression
@@ -2396,7 +2396,7 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 		if (!expect(tokenid::identifier))
 			return false;
 		else if (!global) // Only global variables can have a semantic
-			return error(_token.location, 3043, "local variables cannot have semantics"), false;
+			return error(_token.location, 3043, '\'' + name + "': local variables cannot have semantics"), false;
 
 		semantic = std::move(_token.literal_as_string);
 		// Make semantic upper case to simplify comparison later on
@@ -2415,11 +2415,11 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 				return false;
 
 			if (global && !initializer.is_constant) // TODO: This could be resolved by initializing these at the beginning of the entry point
-				return error(initializer.location, 3011, "initial value must be a literal expression"), false;
+				return error(initializer.location, 3011, '\'' + name + "': initial value must be a literal expression"), false;
 
 			// Check type compatibility
 			if ((type.array_length >= 0 && initializer.type.array_length != type.array_length) || !type::rank(initializer.type, type))
-				return error(initializer.location, 3017, "initial value does not match variable type"), false;
+				return error(initializer.location, 3017, '\'' + name + "': initial value does not match variable type"), false;
 			if ((initializer.type.rows < type.rows || initializer.type.cols < type.cols) && !initializer.type.is_scalar())
 				return error(initializer.location, 3017, "cannot implicitly convert these vector types"), false;
 
@@ -2436,12 +2436,15 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 		else if (type.is_numeric() || type.is_struct()) // Numeric variables without an initializer need special handling
 		{
 			if (type.has(type::q_const)) // Constants have to have an initial value
-				return error(location, 3012, "missing initial value for '" + name + "'"), false;
+				return error(location, 3012, '\'' + name + "': missing initial value"), false;
 			else if (!type.has(type::q_uniform)) // Zero initialize all global variables
 				initializer.reset_to_rvalue_constant(location, {}, type);
 		}
 		else if (global && accept('{')) // Textures and samplers can have a property block attached to their declaration
 		{
+			if (type.has(type::q_const)) // Non-numeric variables cannot be constants
+				return error(location, 3035, '\'' + name + "': this variable type cannot be declared 'const'"), false;
+
 			while (!peek('}'))
 			{
 				if (!expect(tokenid::identifier))
@@ -2533,7 +2536,7 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 					else if (property_name == "MipLODBias" || property_name == "MipMapLodBias")
 						sampler_info.lod_bias = static_cast<float>(value);
 					else
-						return error(property_location, 3004, "unrecognized property '" + property_name + "'"), consume_until('}'), false;
+						return error(property_location, 3004, "unrecognized property '" + property_name + '\''), consume_until('}'), false;
 				}
 
 				if (!expect(';'))
@@ -2547,7 +2550,7 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 
 	// At this point the array size should be known (either from the declaration or the initializer)
 	if (type.array_length < 0)
-		return error(location, 3074, "implicit array missing initial value"), false;
+		return error(location, 3074, '\'' + name + "': implicit array missing initial value"), false;
 
 	symbol symbol;
 
@@ -2574,7 +2577,7 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 		assert(global);
 
 		if (sampler_info.texture_name.empty())
-			return error(location, 3012, "missing 'Texture' property for '" + name + "'"), false;
+			return error(location, 3012, '\'' + name + "': missing 'Texture' property"), false;
 
 		// Add namespace scope to avoid name clashes
 		sampler_info.unique_name = 'V' + current_scope().name + name;
@@ -2641,7 +2644,7 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 
 	// Insert the symbol into the symbol table
 	if (!insert_symbol(name, symbol, global))
-		return error(location, 3003, "redefinition of '" + name + "'"), false;
+		return error(location, 3003, "redefinition of '" + name + '\''), false;
 
 	return true;
 }
@@ -2842,7 +2845,7 @@ bool reshadefx::parser::parse_technique_pass(pass_info &info)
 			else if (state == "StencilZFail" || state == "StencilDepthFail" || state == "StencilDepthFailOp")
 				info.stencil_op_depth_fail = value;
 			else
-				return error(location, 3004, "unrecognized pass state '" + state + "'"), consume_until('}'), false;
+				return error(location, 3004, "unrecognized pass state '" + state + '\''), consume_until('}'), false;
 		}
 
 		if (!expect(';'))
