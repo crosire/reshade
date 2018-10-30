@@ -24,14 +24,14 @@ static LRESULT CALLBACK WndProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lPara
 	switch (Msg)
 	{
 	case WM_DESTROY:
-		PostQuitMessage(0);
+		PostQuitMessage(EXIT_SUCCESS);
 		break;
 	}
 
 	return DefWindowProc(hWnd, Msg, wParam, lParam);
 }
 
-int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
+int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow)
 {
 	using namespace reshade;
 
@@ -66,139 +66,150 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 
 	MSG msg = {};
 
-#if RESHADE_TEST_APPLICATION == 1
-	hooks::register_module("d3d9.dll");
-	const auto d3d9_module = LoadLibrary(TEXT("d3d9.dll"));
-
-	// Initialize Direct3D 9
-	com_ptr<IDirect3D9> d3d(Direct3DCreate9(D3D_SDK_VERSION), true);
-	com_ptr<IDirect3DDevice9> device;
+	if (strstr(lpCmdLine, "-d3d9"))
 	{
-		RECT client_rect;
-		GetClientRect(window_handle, &client_rect);
+		hooks::register_module("d3d9.dll");
+		const auto d3d9_module = LoadLibrary(TEXT("d3d9.dll"));
 
-		D3DPRESENT_PARAMETERS pp = {};
-		pp.BackBufferCount = 1;
-		pp.BackBufferWidth = client_rect.right - client_rect.left;
-		pp.BackBufferHeight = client_rect.bottom - client_rect.top;
-		pp.Windowed = true;
-		pp.hDeviceWindow = window_handle;
-		pp.SwapEffect = D3DSWAPEFFECT_DISCARD;
+		// Initialize Direct3D 9
+		com_ptr<IDirect3D9> d3d(Direct3DCreate9(D3D_SDK_VERSION), true);
+		com_ptr<IDirect3DDevice9> device;
+		{
+			RECT client_rect;
+			GetClientRect(window_handle, &client_rect);
 
-		if (d3d == nullptr || FAILED(d3d->CreateDevice(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, window_handle, D3DCREATE_HARDWARE_VERTEXPROCESSING, &pp, &device)))
+			D3DPRESENT_PARAMETERS pp = {};
+			pp.BackBufferCount = 1;
+			pp.BackBufferWidth = client_rect.right - client_rect.left;
+			pp.BackBufferHeight = client_rect.bottom - client_rect.top;
+			pp.Windowed = true;
+			pp.hDeviceWindow = window_handle;
+			pp.SwapEffect = D3DSWAPEFFECT_DISCARD;
+
+			if (d3d == nullptr || FAILED(d3d->CreateDevice(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, window_handle, D3DCREATE_HARDWARE_VERTEXPROCESSING, &pp, &device)))
+			{
+				return 0;
+			}
+		}
+
+		while (msg.message != WM_QUIT)
+		{
+			while (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE))
+			{
+				DispatchMessage(&msg);
+			}
+
+			device->Clear(0, nullptr, D3DCLEAR_TARGET, 0xFF7F7F7F, 0, 0);
+
+			device->Present(nullptr, nullptr, nullptr, nullptr);
+		}
+
+		FreeLibrary(d3d9_module);
+
+		return static_cast<int>(msg.wParam);
+	}
+
+	if (strstr(lpCmdLine, "-d3d11"))
+	{
+		hooks::register_module("dxgi.dll");
+		hooks::register_module("d3d11.dll");
+		const auto d3d11_module = LoadLibrary(TEXT("d3d11.dll"));
+
+		// Initialize Direct3D 11
+		com_ptr<ID3D11Device> device;
+		com_ptr<ID3D11DeviceContext> immediate_context;
+		com_ptr<IDXGISwapChain> swapchain;
+		{
+			RECT client_rect;
+			GetClientRect(window_handle, &client_rect);
+
+			DXGI_SWAP_CHAIN_DESC scdesc = {};
+			scdesc.BufferCount = 1;
+			scdesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+			scdesc.BufferDesc.Width = client_rect.right - client_rect.left;
+			scdesc.BufferDesc.Height = client_rect.bottom - client_rect.top;
+			scdesc.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+			scdesc.SampleDesc = { 1, 0 };
+			scdesc.Windowed = true;
+			scdesc.OutputWindow = window_handle;
+
+			if (FAILED(D3D11CreateDeviceAndSwapChain(nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr, D3D11_CREATE_DEVICE_DEBUG, nullptr, 0, D3D11_SDK_VERSION, &scdesc, &swapchain, &device, nullptr, &immediate_context)))
+			{
+				return 0;
+			}
+		}
+
+		com_ptr<ID3D11Texture2D> backbuffer;
+		swapchain->GetBuffer(0, IID_PPV_ARGS(&backbuffer));
+		com_ptr<ID3D11RenderTargetView> target;
+		device->CreateRenderTargetView(backbuffer.get(), nullptr, &target);
+
+		while (msg.message != WM_QUIT)
+		{
+			while (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE))
+			{
+				DispatchMessage(&msg);
+			}
+
+			const float color[4] = { 0.5f, 0.5f, 0.5f, 1.0f };
+			immediate_context->ClearRenderTargetView(target.get(), color);
+
+			swapchain->Present(1, 0);
+		}
+
+		FreeLibrary(d3d11_module);
+
+		return static_cast<int>(msg.wParam);
+	}
+
+	if (strstr(lpCmdLine, "-opengl"))
+	{
+		hooks::register_module("opengl32.dll");
+		const auto opengl_module = LoadLibrary(TEXT("opengl32.dll"));
+
+		// Initialize OpenGL
+		const HDC hdc = GetDC(window_handle);
+
+		PIXELFORMATDESCRIPTOR pfd = { sizeof(pfd) };
+		pfd.nVersion = 1;
+		pfd.dwFlags = PFD_DRAW_TO_WINDOW | PFD_SUPPORT_OPENGL | PFD_DOUBLEBUFFER;
+		pfd.iPixelType = PFD_TYPE_RGBA;
+		pfd.cColorBits = 32;
+
+		const int pf = ChoosePixelFormat(hdc, &pfd);
+		SetPixelFormat(hdc, pf, &pfd);
+
+		const HGLRC hglrc = wglCreateContext(hdc);
+
+		if (hglrc == nullptr)
 		{
 			return 0;
 		}
-	}
 
-	while (msg.message != WM_QUIT)
-	{
-		while (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE))
+		wglMakeCurrent(hdc, hglrc);
+
+		while (msg.message != WM_QUIT)
 		{
-			DispatchMessage(&msg);
+			while (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE))
+			{
+				DispatchMessage(&msg);
+			}
+
+			glClearColor(0.5f, 0.5f, 0.5f, 1.0f);
+			glClear(GL_COLOR_BUFFER_BIT);
+
+			SwapBuffers(hdc);
 		}
 
-		device->Clear(0, nullptr, D3DCLEAR_TARGET, 0xFF7F7F7F, 0, 0);
+		wglMakeCurrent(nullptr, nullptr);
+		wglDeleteContext(hglrc);
 
-		device->Present(nullptr, nullptr, nullptr, nullptr);
+		FreeLibrary(opengl_module);
+
+		return static_cast<int>(msg.wParam);
 	}
 
-	FreeLibrary(d3d9_module);
-#endif
-#if RESHADE_TEST_APPLICATION == 2
-	hooks::register_module("dxgi.dll");
-	hooks::register_module("d3d11.dll");
-	const auto d3d11_module = LoadLibrary(TEXT("d3d11.dll"));
-
-	// Initialize Direct3D 11
-	com_ptr<ID3D11Device> device;
-	com_ptr<ID3D11DeviceContext> immediate_context;
-	com_ptr<IDXGISwapChain> swapchain;
-	{
-		RECT client_rect;
-		GetClientRect(window_handle, &client_rect);
-
-		DXGI_SWAP_CHAIN_DESC scdesc = {};
-		scdesc.BufferCount = 1;
-		scdesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-		scdesc.BufferDesc.Width = client_rect.right - client_rect.left;
-		scdesc.BufferDesc.Height = client_rect.bottom - client_rect.top;
-		scdesc.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-		scdesc.SampleDesc = { 1, 0 };
-		scdesc.Windowed = true;
-		scdesc.OutputWindow = window_handle;
-
-		if (FAILED(D3D11CreateDeviceAndSwapChain(nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr, D3D11_CREATE_DEVICE_DEBUG, nullptr, 0, D3D11_SDK_VERSION, &scdesc, &swapchain, &device, nullptr, &immediate_context)))
-		{
-			return 0;
-		}
-	}
-
-	com_ptr<ID3D11Texture2D> backbuffer;
-	swapchain->GetBuffer(0, IID_PPV_ARGS(&backbuffer));
-	com_ptr<ID3D11RenderTargetView> target;
-	device->CreateRenderTargetView(backbuffer.get(), nullptr, &target);
-
-	while (msg.message != WM_QUIT)
-	{
-		while (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE))
-		{
-			DispatchMessage(&msg);
-		}
-
-		const float color[4] = { 0.5f, 0.5f, 0.5f, 1.0f };
-		immediate_context->ClearRenderTargetView(target.get(), color);
-
-		swapchain->Present(1, 0);
-	}
-
-	FreeLibrary(d3d11_module);
-#endif
-#if RESHADE_TEST_APPLICATION == 3
-	hooks::register_module("opengl32.dll");
-	const auto opengl_module = LoadLibrary(TEXT("opengl32.dll"));
-
-	// Initialize OpenGL
-	const HDC hdc = GetDC(window_handle);
-
-	PIXELFORMATDESCRIPTOR pfd = { sizeof(pfd) };
-	pfd.nVersion = 1;
-	pfd.dwFlags = PFD_DRAW_TO_WINDOW | PFD_SUPPORT_OPENGL | PFD_DOUBLEBUFFER;
-	pfd.iPixelType = PFD_TYPE_RGBA;
-	pfd.cColorBits = 32;
-
-	const int pf = ChoosePixelFormat(hdc, &pfd);
-	SetPixelFormat(hdc, pf, &pfd);
-
-	const HGLRC hglrc = wglCreateContext(hdc);
-
-	if (hglrc == nullptr)
-	{
-		return 0;
-	}
-
-	wglMakeCurrent(hdc, hglrc);
-
-	while (msg.message != WM_QUIT)
-	{
-		while (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE))
-		{
-			DispatchMessage(&msg);
-		}
-
-		glClearColor(0.5f, 0.5f, 0.5f, 1.0f);
-		glClear(GL_COLOR_BUFFER_BIT);
-
-		SwapBuffers(hdc);
-	}
-
-	wglMakeCurrent(nullptr, nullptr);
-	wglDeleteContext(hglrc);
-
-	FreeLibrary(opengl_module);
-#endif
-
-	return static_cast<int>(msg.wParam);
+	return EXIT_FAILURE;
 }
 
 #else
