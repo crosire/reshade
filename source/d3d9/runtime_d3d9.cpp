@@ -5,7 +5,7 @@
 
 #include "log.hpp"
 #include "input.hpp"
-#include "d3d9_runtime.hpp"
+#include "runtime_d3d9.hpp"
 #include <imgui.h>
 #include <algorithm>
 #include <d3dcompiler.h>
@@ -128,7 +128,7 @@ namespace reshade::d3d9
 			}
 	}
 
-	d3d9_runtime::d3d9_runtime(IDirect3DDevice9 *device, IDirect3DSwapChain9 *swapchain) :
+	runtime_d3d9::runtime_d3d9(IDirect3DDevice9 *device, IDirect3DSwapChain9 *swapchain) :
 		runtime(0x9300), _device(device), _swapchain(swapchain)
 	{
 		assert(device != nullptr);
@@ -160,13 +160,13 @@ namespace reshade::d3d9
 			config.set("DX9_BUFFER_DETECTION", "DisableINTZ", _disable_intz);
 		});
 	}
-	d3d9_runtime::~d3d9_runtime()
+	runtime_d3d9::~runtime_d3d9()
 	{
 		if (_d3d_compiler != nullptr)
 			FreeLibrary(_d3d_compiler);
 	}
 
-	bool d3d9_runtime::init_backbuffer_texture()
+	bool runtime_d3d9::init_backbuffer_texture()
 	{
 		// Get back buffer surface
 		HRESULT hr = _swapchain->GetBackBuffer(0, D3DBACKBUFFER_TYPE_MONO, &_backbuffer);
@@ -214,7 +214,7 @@ namespace reshade::d3d9
 
 		return true;
 	}
-	bool d3d9_runtime::init_default_depth_stencil()
+	bool runtime_d3d9::init_default_depth_stencil()
 	{
 		// Create default depth stencil surface
 		HRESULT hr = _device->CreateDepthStencilSurface(_width, _height, D3DFMT_D24S8, D3DMULTISAMPLE_NONE, 0, FALSE, &_default_depthstencil, nullptr);
@@ -227,7 +227,7 @@ namespace reshade::d3d9
 
 		return true;
 	}
-	bool d3d9_runtime::init_fx_resources()
+	bool runtime_d3d9::init_fx_resources()
 	{
 		HRESULT hr = _device->CreateVertexBuffer(3 * sizeof(float), D3DUSAGE_WRITEONLY, 0, D3DPOOL_DEFAULT, &_effect_triangle_buffer, nullptr);
 
@@ -267,7 +267,7 @@ namespace reshade::d3d9
 
 		return true;
 	}
-	bool d3d9_runtime::init_imgui_font_atlas()
+	bool runtime_d3d9::init_imgui_font_atlas()
 	{
 		int width, height, bits_per_pixel;
 		unsigned char *pixels;
@@ -357,7 +357,7 @@ namespace reshade::d3d9
 		return true;
 	}
 
-	bool d3d9_runtime::on_init(const D3DPRESENT_PARAMETERS &pp)
+	bool runtime_d3d9::on_init(const D3DPRESENT_PARAMETERS &pp)
 	{
 		_width = pp.BackBufferWidth;
 		_height = pp.BackBufferHeight;
@@ -380,7 +380,7 @@ namespace reshade::d3d9
 
 		return runtime::on_init();
 	}
-	void d3d9_runtime::on_reset()
+	void runtime_d3d9::on_reset()
 	{
 		if (!is_initialized())
 		{
@@ -421,7 +421,7 @@ namespace reshade::d3d9
 
 		_depth_source_table.clear();
 	}
-	void d3d9_runtime::on_present()
+	void runtime_d3d9::on_present()
 	{
 		if (!is_initialized())
 			return;
@@ -503,7 +503,7 @@ namespace reshade::d3d9
 		// End post processing
 		_device->EndScene();
 	}
-	void d3d9_runtime::on_draw_call(D3DPRIMITIVETYPE type, UINT vertices)
+	void runtime_d3d9::on_draw_call(D3DPRIMITIVETYPE type, UINT vertices)
 	{
 		switch (type)
 		{
@@ -544,7 +544,7 @@ namespace reshade::d3d9
 			}
 		}
 	}
-	void d3d9_runtime::on_set_depthstencil_surface(IDirect3DSurface9 *&depthstencil)
+	void runtime_d3d9::on_set_depthstencil_surface(IDirect3DSurface9 *&depthstencil)
 	{
 		if (_depth_source_table.find(depthstencil) == _depth_source_table.end())
 		{
@@ -571,7 +571,7 @@ namespace reshade::d3d9
 			depthstencil = _depthstencil_replacement.get();
 		}
 	}
-	void d3d9_runtime::on_get_depthstencil_surface(IDirect3DSurface9 *&depthstencil)
+	void runtime_d3d9::on_get_depthstencil_surface(IDirect3DSurface9 *&depthstencil)
 	{
 		if (_depthstencil_replacement != nullptr && depthstencil == _depthstencil_replacement)
 		{
@@ -583,7 +583,7 @@ namespace reshade::d3d9
 		}
 	}
 
-	void d3d9_runtime::capture_frame(uint8_t *buffer) const
+	void runtime_d3d9::capture_frame(uint8_t *buffer) const
 	{
 		if (_backbuffer_format != D3DFMT_X8R8G8B8 &&
 			_backbuffer_format != D3DFMT_X8B8G8R8 &&
@@ -642,7 +642,7 @@ namespace reshade::d3d9
 		screenshot_surface->UnlockRect();
 	}
 
-	bool d3d9_runtime::update_texture(texture &texture, const uint8_t *data)
+	bool runtime_d3d9::update_texture(texture &texture, const uint8_t *data)
 	{
 		if (texture.impl_reference != texture_reference::none)
 		{
@@ -719,7 +719,7 @@ namespace reshade::d3d9
 
 		return true;
 	}
-	bool d3d9_runtime::update_texture_reference(texture &texture, texture_reference id)
+	bool runtime_d3d9::update_texture_reference(texture &texture, texture_reference id)
 	{
 		com_ptr<IDirect3DTexture9> new_reference;
 
@@ -772,7 +772,7 @@ namespace reshade::d3d9
 		return true;
 	}
 
-	bool d3d9_runtime::load_effect(const reshadefx::module &module, std::string &errors)
+	bool runtime_d3d9::load_effect(const reshadefx::module &module, std::string &errors)
 	{
 		if (_d3d_compiler == nullptr)
 			_d3d_compiler = LoadLibraryW(L"d3dcompiler_47.dll");
@@ -859,7 +859,7 @@ namespace reshade::d3d9
 		return true;
 	}
 
-	void d3d9_runtime::add_texture(const reshadefx::texture_info &info)
+	void runtime_d3d9::add_texture(const reshadefx::texture_info &info)
 	{
 		texture obj;
 		obj.name = info.unique_name;
@@ -931,7 +931,7 @@ namespace reshade::d3d9
 
 		_textures.push_back(std::move(obj));
 	}
-	void d3d9_runtime::add_sampler(const reshadefx::sampler_info &info, d3d9_technique_data &effect)
+	void runtime_d3d9::add_sampler(const reshadefx::sampler_info &info, d3d9_technique_data &effect)
 	{
 		const auto existing_texture = find_texture(info.texture_name);
 
@@ -954,7 +954,7 @@ namespace reshade::d3d9
 
 		effect.sampler_textures[info.binding] = existing_texture->impl->as<d3d9_tex_data>()->texture.get();
 	}
-	void d3d9_runtime::add_uniform(const reshadefx::uniform_info &info, size_t storage_base_offset)
+	void runtime_d3d9::add_uniform(const reshadefx::uniform_info &info, size_t storage_base_offset)
 	{
 		uniform obj;
 		obj.name = info.name;
@@ -1008,7 +1008,7 @@ namespace reshade::d3d9
 
 		_uniforms.push_back(std::move(obj));
 	}
-	void d3d9_runtime::add_technique(const reshadefx::technique_info &info, const d3d9_technique_data &effect)
+	void runtime_d3d9::add_technique(const reshadefx::technique_info &info, const d3d9_technique_data &effect)
 	{
 		technique obj;
 		obj.impl = std::make_unique<d3d9_technique_data>(effect);
@@ -1137,7 +1137,7 @@ namespace reshade::d3d9
 		_techniques.push_back(std::move(obj));
 	}
 
-	void d3d9_runtime::render_technique(const technique &technique)
+	void runtime_d3d9::render_technique(const technique &technique)
 	{
 		auto &technique_data = *technique.impl->as<d3d9_technique_data>();
 
@@ -1223,7 +1223,7 @@ namespace reshade::d3d9
 			}
 		}
 	}
-	void d3d9_runtime::render_imgui_draw_data(ImDrawData *draw_data)
+	void runtime_d3d9::render_imgui_draw_data(ImDrawData *draw_data)
 	{
 		// Fixed-function vertex layout
 		struct vertex
@@ -1331,7 +1331,7 @@ namespace reshade::d3d9
 		}
 	}
 
-	void d3d9_runtime::draw_debug_menu()
+	void runtime_d3d9::draw_debug_menu()
 	{
 		if (ImGui::CollapsingHeader("Buffer Detection", ImGuiTreeNodeFlags_DefaultOpen))
 		{
@@ -1350,7 +1350,7 @@ namespace reshade::d3d9
 		}
 	}
 
-	void d3d9_runtime::detect_depth_source()
+	void runtime_d3d9::detect_depth_source()
 	{
 		static int cooldown = 0, traffic = 0;
 
@@ -1420,7 +1420,7 @@ namespace reshade::d3d9
 		}
 	}
 
-	bool d3d9_runtime::create_depthstencil_replacement(IDirect3DSurface9 *depthstencil)
+	bool runtime_d3d9::create_depthstencil_replacement(IDirect3DSurface9 *depthstencil)
 	{
 		_depthstencil.reset();
 		_depthstencil_replacement.reset();

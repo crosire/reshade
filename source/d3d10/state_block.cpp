@@ -3,7 +3,7 @@
  * License: https://github.com/crosire/reshade#license
  */
 
-#include "d3d10_stateblock.hpp"
+#include "state_block.hpp"
 
 namespace reshade::d3d10
 {
@@ -17,18 +17,18 @@ namespace reshade::d3d10
 		}
 	}
 
-	d3d10_stateblock::d3d10_stateblock(ID3D10Device *device)
+	state_block::state_block(ID3D10Device *device)
 	{
 		ZeroMemory(this, sizeof(*this));
 
 		_device = device;
 	}
-	d3d10_stateblock::~d3d10_stateblock()
+	state_block::~state_block()
 	{
 		release_all_device_objects();
 	}
 
-	void d3d10_stateblock::capture()
+	void state_block::capture()
 	{
 		_device->IAGetPrimitiveTopology(&_ia_primitive_topology);
 		_device->IAGetInputLayout(&_ia_input_layout);
@@ -58,7 +58,7 @@ namespace reshade::d3d10
 		_device->OMGetDepthStencilState(&_om_depth_stencil_state, &_om_stencil_ref);
 		_device->OMGetRenderTargets(ARRAYSIZE(_om_render_targets), _om_render_targets, &_om_depth_stencil);
 	}
-	void d3d10_stateblock::apply_and_release()
+	void state_block::apply_and_release()
 	{
 		_device->IASetPrimitiveTopology(_ia_primitive_topology);
 		_device->IASetInputLayout(_ia_input_layout);
@@ -89,7 +89,7 @@ namespace reshade::d3d10
 		release_all_device_objects();
 	}
 
-	void d3d10_stateblock::release_all_device_objects()
+	void state_block::release_all_device_objects()
 	{
 		safe_release(_ia_input_layout);
 

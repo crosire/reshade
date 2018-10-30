@@ -6,7 +6,7 @@
 #pragma once
 
 #include "runtime.hpp"
-#include "opengl_stateblock.hpp"
+#include "state_block.hpp"
 #include "effect_codegen.hpp"
 #include "effect_expression.hpp"
 
@@ -69,10 +69,10 @@ namespace reshade::opengl
 		ptrdiff_t uniform_storage_index = -1;
 	};
 
-	class opengl_runtime : public runtime
+	class runtime_opengl : public runtime
 	{
 	public:
-		opengl_runtime(HDC device);
+		runtime_opengl(HDC device);
 
 		bool on_init(unsigned int width, unsigned int height);
 		void on_reset();
@@ -120,7 +120,7 @@ namespace reshade::opengl
 		void detect_depth_source();
 		void create_depth_texture(GLuint width, GLuint height, GLenum format);
 
-		opengl_stateblock _stateblock;
+		state_block _stateblock;
 		std::unordered_map<GLuint, depth_source_info> _depth_source_table;
 
 		GLuint _imgui_shader_program = 0, _imgui_VertHandle = 0, _imgui_FragHandle = 0;

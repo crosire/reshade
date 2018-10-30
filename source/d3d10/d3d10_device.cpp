@@ -6,6 +6,7 @@
 #include "log.hpp"
 #include "d3d10_device.hpp"
 #include "../dxgi/dxgi_device.hpp"
+#include "runtime_d3d10.hpp"
 
 void D3D10Device::clear_drawcall_stats()
 {

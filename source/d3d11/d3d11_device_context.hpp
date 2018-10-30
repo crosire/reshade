@@ -5,7 +5,6 @@
 
 #pragma once
 
-#include <atomic>
 #include "d3d11.hpp"
 #include "draw_call_tracker.hpp"
 

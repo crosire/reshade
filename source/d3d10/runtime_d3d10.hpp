@@ -5,9 +5,8 @@
 
 #pragma once
 
-#include <d3d10_1.h>
 #include "runtime.hpp"
-#include "d3d10_stateblock.hpp"
+#include "state_block.hpp"
 #include "draw_call_tracker.hpp"
 #include "effect_codegen.hpp"
 #include "effect_expression.hpp"
@@ -45,11 +44,11 @@ namespace reshade::d3d10
 		ptrdiff_t uniform_storage_index = -1;
 	};
 
-	class d3d10_runtime : public runtime
+	class runtime_d3d10 : public runtime
 	{
 	public:
-		d3d10_runtime(ID3D10Device1 *device, IDXGISwapChain *swapchain);
-		~d3d10_runtime();
+		runtime_d3d10(ID3D10Device1 *device, IDXGISwapChain *swapchain);
+		~runtime_d3d10();
 
 		bool on_init(const DXGI_SWAP_CHAIN_DESC &desc);
 		void on_reset();
@@ -118,7 +117,7 @@ namespace reshade::d3d10
 
 		bool _is_multisampling_enabled = false;
 		DXGI_FORMAT _backbuffer_format = DXGI_FORMAT_UNKNOWN;
-		d3d10_stateblock _stateblock;
+		state_block _stateblock;
 		com_ptr<ID3D10Texture2D> _backbuffer, _backbuffer_resolved;
 		com_ptr<ID3D10DepthStencilView> _depthstencil, _depthstencil_replacement;
 		ID3D10DepthStencilView *_best_depth_stencil_overwrite = nullptr;

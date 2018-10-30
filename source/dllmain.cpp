@@ -15,9 +15,9 @@ HMODULE g_module_handle = nullptr;
 
 #if defined(RESHADE_TEST_APPLICATION)
 
-#include "d3d9/d3d9.hpp"
-#include "d3d11/d3d11.hpp"
-#include "opengl/opengl_stubs.hpp"
+#include "d3d9/runtime_d3d9.hpp"
+#include "d3d11/runtime_d3d11.hpp"
+#include "opengl/runtime_opengl.hpp"
 
 static LRESULT CALLBACK WndProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam)
 {

@@ -5,13 +5,12 @@
 
 #pragma once
 
-#include <mutex>
-#include <d3d11_3.h>
 #include "runtime.hpp"
-#include "d3d11_stateblock.hpp"
+#include "state_block.hpp"
 #include "draw_call_tracker.hpp"
 #include "effect_codegen.hpp"
 #include "effect_expression.hpp"
+#include <mutex>
 
 namespace reshade::d3d11
 {
@@ -46,11 +45,11 @@ namespace reshade::d3d11
 		ptrdiff_t uniform_storage_index = -1;
 	};
 
-	class d3d11_runtime : public runtime
+	class runtime_d3d11 : public runtime
 	{
 	public:
-		d3d11_runtime(ID3D11Device *device, IDXGISwapChain *swapchain);
-		~d3d11_runtime();
+		runtime_d3d11(ID3D11Device *device, IDXGISwapChain *swapchain);
+		~runtime_d3d11();
 
 		bool on_init(const DXGI_SWAP_CHAIN_DESC &desc);
 		void on_reset();
@@ -116,7 +115,7 @@ namespace reshade::d3d11
 
 		bool _is_multisampling_enabled = false;
 		DXGI_FORMAT _backbuffer_format = DXGI_FORMAT_UNKNOWN;
-		d3d11_stateblock _stateblock;
+		state_block _stateblock;
 		com_ptr<ID3D11Texture2D> _backbuffer, _backbuffer_resolved;
 		com_ptr<ID3D11DepthStencilView> _depthstencil, _depthstencil_replacement;
 		ID3D11DepthStencilView *_best_depth_stencil_overwrite = nullptr;

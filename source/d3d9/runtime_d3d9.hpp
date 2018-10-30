@@ -5,11 +5,11 @@
 
 #pragma once
 
-#include <d3d9.h>
 #include "runtime.hpp"
-#include "com_ptr.hpp"
 #include "effect_codegen.hpp"
 #include "effect_expression.hpp"
+#include "com_ptr.hpp"
+#include <d3d9.h>
 
 namespace reshade::d3d9
 {
@@ -36,11 +36,11 @@ namespace reshade::d3d9
 		size_t uniform_storage_offset = 0;
 	};
 
-	class d3d9_runtime : public runtime
+	class runtime_d3d9 : public runtime
 	{
 	public:
-		d3d9_runtime(IDirect3DDevice9 *device, IDirect3DSwapChain9 *swapchain);
-		~d3d9_runtime();
+		runtime_d3d9(IDirect3DDevice9 *device, IDirect3DSwapChain9 *swapchain);
+		~runtime_d3d9();
 
 		bool on_init(const D3DPRESENT_PARAMETERS &pp);
 		void on_reset();

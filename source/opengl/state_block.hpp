@@ -9,10 +9,10 @@
 
 namespace reshade::opengl
 {
-	class opengl_stateblock
+	class state_block
 	{
 	public:
-		opengl_stateblock();
+		state_block();
 
 		void capture();
 		void apply() const;

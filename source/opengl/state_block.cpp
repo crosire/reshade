@@ -3,16 +3,16 @@
  * License: https://github.com/crosire/reshade#license
  */
 
-#include "opengl_stateblock.hpp"
+#include "state_block.hpp"
 
 namespace reshade::opengl
 {
-	opengl_stateblock::opengl_stateblock()
+	state_block::state_block()
 	{
 		ZeroMemory(this, sizeof(*this));
 	}
 
-	void opengl_stateblock::capture()
+	void state_block::capture()
 	{
 		glGetIntegerv(GL_VERTEX_ARRAY_BINDING, &_vao);
 		glGetIntegerv(GL_ARRAY_BUFFER_BINDING, &_vbo);
@@ -61,7 +61,7 @@ namespace reshade::opengl
 			_drawbuffers[i] = static_cast<GLenum>(drawbuffer);
 		}
 	}
-	void opengl_stateblock::apply() const
+	void state_block::apply() const
 	{
 		glBindVertexArray(_vao);
 		glBindBuffer(GL_ARRAY_BUFFER, _vbo);

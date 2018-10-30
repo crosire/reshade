@@ -5,7 +5,7 @@
 
 #include "log.hpp"
 #include "input.hpp"
-#include "d3d11_runtime.hpp"
+#include "runtime_d3d11.hpp"
 #include "resource_loading.hpp"
 #include <imgui.h>
 #include <algorithm>
@@ -191,7 +191,7 @@ namespace reshade::d3d11
 			}
 	}
 
-	d3d11_runtime::d3d11_runtime(ID3D11Device *device, IDXGISwapChain *swapchain) :
+	runtime_d3d11::runtime_d3d11(ID3D11Device *device, IDXGISwapChain *swapchain) :
 		runtime(device->GetFeatureLevel()), _device(device), _swapchain(swapchain),
 		_stateblock(device)
 	{
@@ -234,13 +234,13 @@ namespace reshade::d3d11
 			config.set("DX11_BUFFER_DETECTION", "DepthBufferClearingNumber", cleared_depth_buffer_index);
 		});
 	}
-	d3d11_runtime::~d3d11_runtime()
+	runtime_d3d11::~runtime_d3d11()
 	{
 		if (_d3d_compiler != nullptr)
 			FreeLibrary(_d3d_compiler);
 	}
 
-	bool d3d11_runtime::init_backbuffer_texture()
+	bool runtime_d3d11::init_backbuffer_texture()
 	{
 		// Get back buffer texture
 		HRESULT hr = _swapchain->GetBuffer(0, IID_PPV_ARGS(&_backbuffer));
@@ -397,7 +397,7 @@ namespace reshade::d3d11
 
 		return true;
 	}
-	bool d3d11_runtime::init_default_depth_stencil()
+	bool runtime_d3d11::init_default_depth_stencil()
 	{
 		const D3D11_TEXTURE2D_DESC texdesc = {
 			_width,
@@ -428,7 +428,7 @@ namespace reshade::d3d11
 
 		return SUCCEEDED(hr);
 	}
-	bool d3d11_runtime::init_fx_resources()
+	bool runtime_d3d11::init_fx_resources()
 	{
 		D3D11_RASTERIZER_DESC desc = { };
 		desc.FillMode = D3D11_FILL_SOLID;
@@ -437,7 +437,7 @@ namespace reshade::d3d11
 
 		return SUCCEEDED(_device->CreateRasterizerState(&desc, &_effect_rasterizer_state));
 	}
-	bool d3d11_runtime::init_imgui_resources()
+	bool runtime_d3d11::init_imgui_resources()
 	{
 		HRESULT hr = E_FAIL;
 
@@ -564,7 +564,7 @@ namespace reshade::d3d11
 
 		return true;
 	}
-	bool d3d11_runtime::init_imgui_font_atlas()
+	bool runtime_d3d11::init_imgui_font_atlas()
 	{
 		int width, height;
 		unsigned char *pixels;
@@ -612,7 +612,7 @@ namespace reshade::d3d11
 		return true;
 	}
 
-	bool d3d11_runtime::on_init(const DXGI_SWAP_CHAIN_DESC &desc)
+	bool runtime_d3d11::on_init(const DXGI_SWAP_CHAIN_DESC &desc)
 	{
 		_width = desc.BufferDesc.Width;
 		_height = desc.BufferDesc.Height;
@@ -634,7 +634,7 @@ namespace reshade::d3d11
 
 		return runtime::on_init();
 	}
-	void d3d11_runtime::on_reset()
+	void runtime_d3d11::on_reset()
 	{
 		if (!is_initialized())
 		{
@@ -683,14 +683,14 @@ namespace reshade::d3d11
 		_imgui_vertex_buffer_size = 0;
 		_imgui_index_buffer_size = 0;
 	}
-	void d3d11_runtime::on_reset_effect()
+	void runtime_d3d11::on_reset_effect()
 	{
 		runtime::on_reset_effect();
 
 		_effect_sampler_states.clear();
 		_constant_buffers.clear();
 	}
-	void d3d11_runtime::on_present(draw_call_tracker &tracker)
+	void runtime_d3d11::on_present(draw_call_tracker &tracker)
 	{
 		if (!is_initialized())
 			return;
@@ -789,7 +789,7 @@ namespace reshade::d3d11
 		_stateblock.apply_and_release();
 	}
 
-	void d3d11_runtime::capture_frame(uint8_t *buffer) const
+	void runtime_d3d11::capture_frame(uint8_t *buffer) const
 	{
 		if (_backbuffer_format != DXGI_FORMAT_R8G8B8A8_UNORM &&
 			_backbuffer_format != DXGI_FORMAT_R8G8B8A8_UNORM_SRGB &&
@@ -854,7 +854,7 @@ namespace reshade::d3d11
 
 		_immediate_context->Unmap(texture_staging.get(), 0);
 	}
-	bool d3d11_runtime::update_texture(texture &texture, const uint8_t *data)
+	bool runtime_d3d11::update_texture(texture &texture, const uint8_t *data)
 	{
 		if (texture.impl_reference != texture_reference::none)
 		{
@@ -900,7 +900,7 @@ namespace reshade::d3d11
 		return true;
 	}
 
-	bool d3d11_runtime::load_effect(const reshadefx::module &module, std::string &errors)
+	bool runtime_d3d11::load_effect(const reshadefx::module &module, std::string &errors)
 	{
 		if (_d3d_compiler == nullptr)
 			_d3d_compiler = LoadLibraryW(L"d3dcompiler_47.dll");
@@ -997,7 +997,7 @@ namespace reshade::d3d11
 		return true;
 	}
 
-	void d3d11_runtime::add_texture(const reshadefx::texture_info &info)
+	void runtime_d3d11::add_texture(const reshadefx::texture_info &info)
 	{
 		texture obj;
 		obj.name = info.unique_name;
@@ -1094,7 +1094,7 @@ namespace reshade::d3d11
 
 		_textures.push_back(std::move(obj));
 	}
-	void d3d11_runtime::add_sampler(const reshadefx::sampler_info &info, d3d11_technique_data &effect)
+	void runtime_d3d11::add_sampler(const reshadefx::sampler_info &info, d3d11_technique_data &effect)
 	{
 		const auto existing_texture = find_texture(info.texture_name);
 
@@ -1147,7 +1147,7 @@ namespace reshade::d3d11
 		effect.sampler_states[info.binding] = it->second;
 		effect.texture_bindings[info.binding] = existing_texture->impl->as<d3d11_tex_data>()->srv[info.srgb ? 1 : 0];
 	}
-	void d3d11_runtime::add_uniform(const reshadefx::uniform_info &info, size_t storage_base_offset)
+	void runtime_d3d11::add_uniform(const reshadefx::uniform_info &info, size_t storage_base_offset)
 	{
 		uniform obj;
 		obj.name = info.name;
@@ -1181,7 +1181,7 @@ namespace reshade::d3d11
 
 		_uniforms.push_back(std::move(obj));
 	}
-	void d3d11_runtime::add_technique(const reshadefx::technique_info &info, const d3d11_technique_data &effect)
+	void runtime_d3d11::add_technique(const reshadefx::technique_info &info, const d3d11_technique_data &effect)
 	{
 		technique obj;
 		obj.impl = std::make_unique<d3d11_technique_data>(effect);
@@ -1340,7 +1340,7 @@ namespace reshade::d3d11
 		_techniques.push_back(std::move(obj));
 	}
 
-	void d3d11_runtime::render_technique(const technique &technique)
+	void runtime_d3d11::render_technique(const technique &technique)
 	{
 		d3d11_technique_data &technique_data = *technique.impl->as<d3d11_technique_data>();
 
@@ -1467,7 +1467,7 @@ namespace reshade::d3d11
 			technique_data.query_in_flight = true;
 		}
 	}
-	void d3d11_runtime::render_imgui_draw_data(ImDrawData *draw_data)
+	void runtime_d3d11::render_imgui_draw_data(ImDrawData *draw_data)
 	{
 		// Create and grow vertex/index buffers if needed
 		if (_imgui_vertex_buffer == nullptr ||
@@ -1602,7 +1602,7 @@ namespace reshade::d3d11
 		}
 	}
 
-	void d3d11_runtime::draw_debug_menu()
+	void runtime_d3d11::draw_debug_menu()
 	{
 		ImGui::Text("MSAA is %s", _is_multisampling_enabled ? "active" : "inactive");
 		ImGui::Spacing();
@@ -1738,7 +1738,7 @@ namespace reshade::d3d11
 	}
 
 #if RESHADE_DX11_CAPTURE_DEPTH_BUFFERS
-	void d3d11_runtime::detect_depth_source(draw_call_tracker &tracker)
+	void runtime_d3d11::detect_depth_source(draw_call_tracker &tracker)
 	{
 		if (depth_buffer_before_clear)
 		{
@@ -1805,7 +1805,7 @@ namespace reshade::d3d11
 		}
 	}
 
-	bool d3d11_runtime::create_depthstencil_replacement(ID3D11DepthStencilView *depthstencil, ID3D11Texture2D *texture)
+	bool runtime_d3d11::create_depthstencil_replacement(ID3D11DepthStencilView *depthstencil, ID3D11Texture2D *texture)
 	{
 		const ID3D11ShaderResourceView *const prev = _depthstencil_texture_srv.get();
 
@@ -1945,7 +1945,7 @@ namespace reshade::d3d11
 		return true;
 	}
 
-	com_ptr<ID3D11Texture2D> d3d11_runtime::select_depth_texture_save(D3D11_TEXTURE2D_DESC &texture_desc)
+	com_ptr<ID3D11Texture2D> runtime_d3d11::select_depth_texture_save(D3D11_TEXTURE2D_DESC &texture_desc)
 	{
 		/* function that selects the appropriate texture where we want to save the depth texture before it is cleared  */
 		/* if this texture is null, create it according to the dimensions and the format of the depth texture */

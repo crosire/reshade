@@ -3,7 +3,7 @@
  * License: https://github.com/crosire/reshade#license
  */
 
-#include "d3d11_stateblock.hpp"
+#include "state_block.hpp"
 
 namespace reshade::d3d11
 {
@@ -17,19 +17,19 @@ namespace reshade::d3d11
 		}
 	}
 
-	d3d11_stateblock::d3d11_stateblock(ID3D11Device *device)
+	state_block::state_block(ID3D11Device *device)
 	{
 		ZeroMemory(this, sizeof(*this));
 
 		_device = device;
 		_device_feature_level = device->GetFeatureLevel();
 	}
-	d3d11_stateblock::~d3d11_stateblock()
+	state_block::~state_block()
 	{
 		release_all_device_objects();
 	}
 
-	void d3d11_stateblock::capture(ID3D11DeviceContext *devicecontext)
+	void state_block::capture(ID3D11DeviceContext *devicecontext)
 	{
 		_device_context = devicecontext;
 
@@ -84,7 +84,7 @@ namespace reshade::d3d11
 		_device_context->OMGetDepthStencilState(&_om_depth_stencil_state, &_om_stencil_ref);
 		_device_context->OMGetRenderTargets(ARRAYSIZE(_om_render_targets), _om_render_targets, &_om_depth_stencil);
 	}
-	void d3d11_stateblock::apply_and_release()
+	void state_block::apply_and_release()
 	{
 		_device_context->IASetPrimitiveTopology(_ia_primitive_topology);
 		_device_context->IASetInputLayout(_ia_input_layout);
@@ -135,7 +135,7 @@ namespace reshade::d3d11
 		_device_context.reset();
 	}
 
-	void d3d11_stateblock::release_all_device_objects()
+	void state_block::release_all_device_objects()
 	{
 		safe_release(_ia_input_layout);
 

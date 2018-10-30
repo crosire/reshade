@@ -5,12 +5,12 @@
 
 #include "log.hpp"
 #include "hook_manager.hpp"
-#include "opengl_runtime.hpp"
+#include "runtime_opengl.hpp"
 #include "opengl_stubs_internal.hpp"
 #include <memory>
 #include <unordered_set>
 
-extern std::unordered_map<HDC, reshade::opengl::opengl_runtime *> g_opengl_runtimes;
+extern std::unordered_map<HDC, reshade::opengl::runtime_opengl *> g_opengl_runtimes;
 
 HOOK_EXPORT void WINAPI glAccum(GLenum op, GLfloat value)
 {

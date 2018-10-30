@@ -7,6 +7,8 @@
 #include "hook_manager.hpp"
 #include "dxgi_device.hpp"
 #include "dxgi_swapchain.hpp"
+#include "d3d10/runtime_d3d10.hpp"
+#include "d3d11/runtime_d3d11.hpp"
 
 void dump_swapchain_desc(const DXGI_SWAP_CHAIN_DESC &desc)
 {
@@ -111,7 +113,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory_CreateSwapChain(IDXGIFactory *pFactory, I
 	{
 		device_d3d10->AddRef();
 
-		const auto runtime = std::make_shared<reshade::d3d10::d3d10_runtime>(device_d3d10->_orig, swapchain);
+		const auto runtime = std::make_shared<reshade::d3d10::runtime_d3d10>(device_d3d10->_orig, swapchain);
 
 		if (!runtime->on_init(desc))
 		{
@@ -126,7 +128,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory_CreateSwapChain(IDXGIFactory *pFactory, I
 	{
 		device_d3d11->AddRef();
 
-		const auto runtime = std::make_shared<reshade::d3d11::d3d11_runtime>(device_d3d11->_orig, swapchain);
+		const auto runtime = std::make_shared<reshade::d3d11::runtime_d3d11>(device_d3d11->_orig, swapchain);
 
 		if (!runtime->on_init(desc))
 		{
@@ -199,7 +201,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForHwnd(IDXGIFactory2 *pF
 	{
 		device_d3d10->AddRef();
 
-		const auto runtime = std::make_shared<reshade::d3d10::d3d10_runtime>(device_d3d10->_orig, swapchain);
+		const auto runtime = std::make_shared<reshade::d3d10::runtime_d3d10>(device_d3d10->_orig, swapchain);
 
 		if (!runtime->on_init(desc))
 		{
@@ -214,7 +216,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForHwnd(IDXGIFactory2 *pF
 	{
 		device_d3d11->AddRef();
 
-		const auto runtime = std::make_shared<reshade::d3d11::d3d11_runtime>(device_d3d11->_orig, swapchain);
+		const auto runtime = std::make_shared<reshade::d3d11::runtime_d3d11>(device_d3d11->_orig, swapchain);
 
 		if (!runtime->on_init(desc))
 		{
@@ -285,7 +287,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForCoreWindow(IDXGIFactor
 	{
 		device_d3d10->AddRef();
 
-		const auto runtime = std::make_shared<reshade::d3d10::d3d10_runtime>(device_d3d10->_orig, swapchain);
+		const auto runtime = std::make_shared<reshade::d3d10::runtime_d3d10>(device_d3d10->_orig, swapchain);
 
 		if (!runtime->on_init(desc))
 		{
@@ -300,7 +302,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForCoreWindow(IDXGIFactor
 	{
 		device_d3d11->AddRef();
 
-		const auto runtime = std::make_shared<reshade::d3d11::d3d11_runtime>(device_d3d11->_orig, swapchain);
+		const auto runtime = std::make_shared<reshade::d3d11::runtime_d3d11>(device_d3d11->_orig, swapchain);
 
 		if (!runtime->on_init(desc))
 		{
@@ -371,7 +373,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForComposition(IDXGIFacto
 	{
 		device_d3d10->AddRef();
 
-		const auto runtime = std::make_shared<reshade::d3d10::d3d10_runtime>(device_d3d10->_orig, swapchain);
+		const auto runtime = std::make_shared<reshade::d3d10::runtime_d3d10>(device_d3d10->_orig, swapchain);
 
 		if (!runtime->on_init(desc))
 		{
@@ -386,7 +388,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForComposition(IDXGIFacto
 	{
 		device_d3d11->AddRef();
 
-		const auto runtime = std::make_shared<reshade::d3d11::d3d11_runtime>(device_d3d11->_orig, swapchain);
+		const auto runtime = std::make_shared<reshade::d3d11::runtime_d3d11>(device_d3d11->_orig, swapchain);
 
 		if (!runtime->on_init(desc))
 		{

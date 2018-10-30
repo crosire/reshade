@@ -6,15 +6,16 @@
 #pragma once
 
 #include "d3d9.hpp"
+#include <memory>
 
 struct Direct3DSwapChain9 : IDirect3DSwapChain9Ex
 {
-	Direct3DSwapChain9(Direct3DDevice9 *device, IDirect3DSwapChain9   *original, const std::shared_ptr<reshade::d3d9::d3d9_runtime> &runtime) :
+	Direct3DSwapChain9(Direct3DDevice9 *device, IDirect3DSwapChain9   *original, const std::shared_ptr<reshade::d3d9::runtime_d3d9> &runtime) :
 		_orig(original),
 		_extended_interface(false),
 		_device(device),
 		_runtime(runtime) { }
-	Direct3DSwapChain9(Direct3DDevice9 *device, IDirect3DSwapChain9Ex *original, const std::shared_ptr<reshade::d3d9::d3d9_runtime> &runtime) :
+	Direct3DSwapChain9(Direct3DDevice9 *device, IDirect3DSwapChain9Ex *original, const std::shared_ptr<reshade::d3d9::runtime_d3d9> &runtime) :
 		_orig(original),
 		_extended_interface(true),
 		_device(device),
@@ -47,5 +48,5 @@ struct Direct3DSwapChain9 : IDirect3DSwapChain9Ex
 	IDirect3DSwapChain9 *_orig;
 	bool _extended_interface;
 	Direct3DDevice9 *const _device;
-	std::shared_ptr<reshade::d3d9::d3d9_runtime> _runtime;
+	std::shared_ptr<reshade::d3d9::runtime_d3d9> _runtime;
 };

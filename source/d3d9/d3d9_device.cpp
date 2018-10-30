@@ -6,6 +6,7 @@
 #include "log.hpp"
 #include "d3d9_device.hpp"
 #include "d3d9_swapchain.hpp"
+#include "runtime_d3d9.hpp"
 
 extern void dump_present_parameters(const D3DPRESENT_PARAMETERS &pp);
 
@@ -166,7 +167,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateAdditionalSwapChain(D3DPRESENT_
 	D3DPRESENT_PARAMETERS pp;
 	swapchain->GetPresentParameters(&pp);
 
-	const auto runtime = std::make_shared<reshade::d3d9::d3d9_runtime>(device, swapchain);
+	const auto runtime = std::make_shared<reshade::d3d9::runtime_d3d9>(device, swapchain);
 
 	if (!runtime->on_init(pp))
 	{
