@@ -329,6 +329,10 @@ private:
 		info.size = size;
 		info.offset = _current_cbuffer_size - size;
 
+		// Simply put each uniform into a separate constant register in shader model 3 for now
+		if (_shader_model < 40)
+			info.offset *= 4;
+
 		struct_member_info member;
 		member.type = info.type;
 		member.name = info.name;
@@ -338,8 +342,8 @@ private:
 
 		_blocks[_cbuffer_type_id] += write_location(loc);
 
-		if (_shader_model < 40)
-			_blocks[_cbuffer_type_id] += write_type(info.type) + " _Globals_" + info.name + " : register(c" + std::to_string(info.offset / 4) + ')';
+		if (_shader_model < 40) // Every constant register is 16 bytes wide, so divide memory offset by 16 to get the constant register index
+			_blocks[_cbuffer_type_id] += write_type(info.type) + " _Globals_" + info.name + " : register(c" + std::to_string(info.offset / 16) + ')';
 		else
 			_blocks[_cbuffer_type_id] += '\t' + write_type(info.type) + " _Globals_" + info.name;
 

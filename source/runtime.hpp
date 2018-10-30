@@ -73,30 +73,11 @@ namespace reshade
 		bool is_effect_loaded() const { return _technique_count > 0 && _reload_remaining_effects == 0; }
 
 		/// <summary>
-		/// Add a new texture.
-		/// </summary>
-		/// <param name="texture">The texture to add.</param>
-		void add_texture(texture &&texture);
-		/// <summary>
-		/// Add a new uniform.
-		/// </summary>
-		/// <param name="uniform">The uniform to add.</param>
-		void add_uniform(uniform &&uniform);
-		/// <summary>
-		/// Add a new technique.
-		/// </summary>
-		/// <param name="technique">The technique to add.</param>
-		void add_technique(technique &&technique);
-		/// <summary>
 		/// Find the texture with the specified name.
 		/// </summary>
 		/// <param name="unique_name">The name of the texture.</param>
 		texture *find_texture(const std::string &unique_name);
 
-		/// <summary>
-		/// Return a reference to the internal uniform storage buffer.
-		/// </summary>
-		inline std::vector<unsigned char> &get_uniform_value_storage() { return _uniform_data_storage; }
 		/// <summary>
 		/// Get the value of a uniform variable.
 		/// </summary>
@@ -233,6 +214,7 @@ namespace reshade
 		std::vector<texture> _textures;
 		std::vector<uniform> _uniforms;
 		std::vector<technique> _techniques;
+		std::vector<unsigned char> _uniform_data_storage;
 
 	private:
 		static bool check_for_update(unsigned long latest_version[3]);
@@ -267,7 +249,6 @@ namespace reshade
 		std::chrono::high_resolution_clock::time_point _last_reload_time;
 		std::chrono::high_resolution_clock::time_point _last_present_time;
 		std::chrono::high_resolution_clock::duration _last_frame_duration;
-		std::vector<unsigned char> _uniform_data_storage;
 		int _date[4] = { };
 		std::vector<std::string> _preprocessor_definitions;
 		std::vector<std::pair<std::string, std::function<void()>>> _menu_callables;

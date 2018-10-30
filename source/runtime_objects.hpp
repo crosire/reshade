@@ -137,7 +137,6 @@ namespace reshade
 		uint32_t toggle_key_data[4];
 		moving_average<uint64_t, 60> average_cpu_duration;
 		moving_average<uint64_t, 60> average_gpu_duration;
-		ptrdiff_t uniform_storage_offset = 0, uniform_storage_index = -1;
 		std::unique_ptr<base_object> impl;
 	};
 }

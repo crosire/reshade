@@ -7,6 +7,8 @@
 
 #include "runtime.hpp"
 #include "opengl_stateblock.hpp"
+#include "effect_codegen.hpp"
+#include "effect_expression.hpp"
 
 namespace reshade::opengl
 {
@@ -63,6 +65,8 @@ namespace reshade::opengl
 		GLuint query = 0;
 		bool query_in_flight = false;
 		std::vector<opengl_sampler_data> samplers;
+		ptrdiff_t uniform_storage_offset = 0;
+		ptrdiff_t uniform_storage_index = -1;
 	};
 
 	class opengl_runtime : public runtime
@@ -108,6 +112,11 @@ namespace reshade::opengl
 		bool init_imgui_resources();
 		bool init_imgui_font_atlas();
 
+		void add_texture(const reshadefx::texture_info &info);
+		void add_sampler(const reshadefx::sampler_info &info, opengl_technique_data &effect);
+		void add_uniform(const reshadefx::uniform_info &info, size_t storage_base_offset);
+		void add_technique(const reshadefx::technique_info &info, const opengl_technique_data &effect, std::string &errors);
+
 		void detect_depth_source();
 		void create_depth_texture(GLuint width, GLuint height, GLenum format);
 
@@ -118,5 +127,7 @@ namespace reshade::opengl
 		int _imgui_attribloc_tex = 0, _imgui_attribloc_projmtx = 0;
 		int _imgui_attribloc_pos = 0, _imgui_attribloc_uv = 0, _imgui_attribloc_color = 0;
 		GLuint _imgui_vbo[2] = { }, _imgui_vao = 0;
+
+		std::unordered_map<std::string, GLuint> _entry_points;
 	};
 }

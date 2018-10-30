@@ -78,9 +78,6 @@
     <ClCompile Include="source\d3d9\d3d9_device.cpp">
       <Filter>hooks\d3d9</Filter>
     </ClCompile>
-    <ClCompile Include="source\d3d9\d3d9_effect_compiler.cpp">
-      <Filter>hooks\d3d9</Filter>
-    </ClCompile>
     <ClCompile Include="source\d3d9\d3d9_runtime.cpp">
       <Filter>hooks\d3d9</Filter>
     </ClCompile>
@@ -91,9 +88,6 @@
       <Filter>hooks\d3d10</Filter>
     </ClCompile>
     <ClCompile Include="source\d3d10\d3d10_device.cpp">
-      <Filter>hooks\d3d10</Filter>
-    </ClCompile>
-    <ClCompile Include="source\d3d10\d3d10_effect_compiler.cpp">
       <Filter>hooks\d3d10</Filter>
     </ClCompile>
     <ClCompile Include="source\d3d10\d3d10_runtime.cpp">
@@ -111,9 +105,6 @@
     <ClCompile Include="source\d3d11\d3d11_device_context.cpp">
       <Filter>hooks\d3d11</Filter>
     </ClCompile>
-    <ClCompile Include="source\d3d11\d3d11_effect_compiler.cpp">
-      <Filter>hooks\d3d11</Filter>
-    </ClCompile>
     <ClCompile Include="source\d3d11\d3d11_runtime.cpp">
       <Filter>hooks\d3d11</Filter>
     </ClCompile>
@@ -128,9 +119,6 @@
     </ClCompile>
     <ClCompile Include="source\dxgi\dxgi_swapchain.cpp">
       <Filter>hooks\dxgi</Filter>
-    </ClCompile>
-    <ClCompile Include="source\opengl\opengl_effect_compiler.cpp">
-      <Filter>hooks\opengl</Filter>
     </ClCompile>
     <ClCompile Include="source\opengl\opengl_runtime.cpp">
       <Filter>hooks\opengl</Filter>
@@ -203,9 +191,6 @@
     <ClInclude Include="source\d3d9\d3d9.hpp">
       <Filter>hooks\d3d9</Filter>
     </ClInclude>
-    <ClInclude Include="source\d3d9\d3d9_effect_compiler.hpp">
-      <Filter>hooks\d3d9</Filter>
-    </ClInclude>
     <ClInclude Include="source\d3d9\d3d9_device.hpp">
       <Filter>hooks\d3d9</Filter>
     </ClInclude>
@@ -219,9 +204,6 @@
       <Filter>hooks\d3d10</Filter>
     </ClInclude>
     <ClInclude Include="source\d3d10\d3d10_device.hpp">
-      <Filter>hooks\d3d10</Filter>
-    </ClInclude>
-    <ClInclude Include="source\d3d10\d3d10_effect_compiler.hpp">
       <Filter>hooks\d3d10</Filter>
     </ClInclude>
     <ClInclude Include="source\d3d10\d3d10_runtime.hpp">
@@ -239,9 +221,6 @@
     <ClInclude Include="source\d3d11\d3d11_device_context.hpp">
       <Filter>hooks\d3d11</Filter>
     </ClInclude>
-    <ClInclude Include="source\d3d11\d3d11_effect_compiler.hpp">
-      <Filter>hooks\d3d11</Filter>
-    </ClInclude>
     <ClInclude Include="source\d3d11\d3d11_runtime.hpp">
       <Filter>hooks\d3d11</Filter>
     </ClInclude>
@@ -256,9 +235,6 @@
     </ClInclude>
     <ClInclude Include="source\dxgi\dxgi_swapchain.hpp">
       <Filter>hooks\dxgi</Filter>
-    </ClInclude>
-    <ClInclude Include="source\opengl\opengl_effect_compiler.hpp">
-      <Filter>hooks\opengl</Filter>
     </ClInclude>
     <ClInclude Include="source\opengl\opengl_runtime.hpp">
       <Filter>hooks\opengl</Filter>

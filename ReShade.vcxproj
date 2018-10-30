@@ -348,20 +348,17 @@
   <ItemGroup>
     <ClCompile Include="source\d3d10\d3d10.cpp" />
     <ClCompile Include="source\d3d10\d3d10_device.cpp" />
-    <ClCompile Include="source\d3d10\d3d10_effect_compiler.cpp" />
     <ClCompile Include="source\d3d10\d3d10_runtime.cpp" />
     <ClCompile Include="source\d3d10\d3d10_stateblock.cpp" />
     <ClCompile Include="source\d3d10\draw_call_tracker.cpp" />
     <ClCompile Include="source\d3d11\d3d11.cpp" />
     <ClCompile Include="source\d3d11\d3d11_device.cpp" />
     <ClCompile Include="source\d3d11\d3d11_device_context.cpp" />
-    <ClCompile Include="source\d3d11\d3d11_effect_compiler.cpp" />
     <ClCompile Include="source\d3d11\d3d11_runtime.cpp" />
     <ClCompile Include="source\d3d11\d3d11_stateblock.cpp" />
     <ClCompile Include="source\d3d11\draw_call_tracker.cpp" />
     <ClCompile Include="source\d3d9\d3d9.cpp" />
     <ClCompile Include="source\d3d9\d3d9_device.cpp" />
-    <ClCompile Include="source\d3d9\d3d9_effect_compiler.cpp" />
     <ClCompile Include="source\d3d9\d3d9_runtime.cpp" />
     <ClCompile Include="source\d3d9\d3d9_swapchain.cpp" />
     <ClCompile Include="source\directory_watcher.cpp" />
@@ -376,7 +373,6 @@
     <ClCompile Include="source\input.cpp" />
     <ClCompile Include="source\log.cpp" />
     <ClCompile Include="source\dllmain.cpp" />
-    <ClCompile Include="source\opengl\opengl_effect_compiler.cpp" />
     <ClCompile Include="source\opengl\opengl_runtime.cpp" />
     <ClCompile Include="source\opengl\opengl_stateblock.cpp" />
     <ClCompile Include="source\opengl\stubs_gl.cpp" />
@@ -394,20 +390,17 @@
     <ClInclude Include="source\com_ptr.hpp" />
     <ClInclude Include="source\d3d10\d3d10.hpp" />
     <ClInclude Include="source\d3d10\d3d10_device.hpp" />
-    <ClInclude Include="source\d3d10\d3d10_effect_compiler.hpp" />
     <ClInclude Include="source\d3d10\d3d10_runtime.hpp" />
     <ClInclude Include="source\d3d10\d3d10_stateblock.hpp" />
     <ClInclude Include="source\d3d10\draw_call_tracker.hpp" />
     <ClInclude Include="source\d3d11\d3d11.hpp" />
     <ClInclude Include="source\d3d11\d3d11_device.hpp" />
     <ClInclude Include="source\d3d11\d3d11_device_context.hpp" />
-    <ClInclude Include="source\d3d11\d3d11_effect_compiler.hpp" />
     <ClInclude Include="source\d3d11\d3d11_runtime.hpp" />
     <ClInclude Include="source\d3d11\d3d11_stateblock.hpp" />
     <ClInclude Include="source\d3d11\draw_call_tracker.hpp" />
     <ClInclude Include="source\d3d9\d3d9.hpp" />
     <ClInclude Include="source\d3d9\d3d9_device.hpp" />
-    <ClInclude Include="source\d3d9\d3d9_effect_compiler.hpp" />
     <ClInclude Include="source\d3d9\d3d9_runtime.hpp" />
     <ClInclude Include="source\d3d9\d3d9_swapchain.hpp" />
     <ClInclude Include="source\directory_watcher.hpp" />
@@ -421,7 +414,6 @@
     <ClInclude Include="source\input.hpp" />
     <ClInclude Include="source\log.hpp" />
     <ClInclude Include="source\moving_average.hpp" />
-    <ClInclude Include="source\opengl\opengl_effect_compiler.hpp" />
     <ClInclude Include="source\opengl\opengl_runtime.hpp" />
     <ClInclude Include="source\opengl\opengl_stateblock.hpp" />
     <ClInclude Include="source\opengl\opengl_stubs.hpp" />

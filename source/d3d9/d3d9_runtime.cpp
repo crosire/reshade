@@ -4,12 +4,11 @@
  */
 
 #include "log.hpp"
-#include "d3d9_runtime.hpp"
-#include "d3d9_effect_compiler.hpp"
-#include "effect_lexer.hpp"
 #include "input.hpp"
+#include "d3d9_runtime.hpp"
 #include <imgui.h>
 #include <algorithm>
+#include <d3dcompiler.h>
 
 const auto D3DFMT_INTZ = static_cast<D3DFORMAT>(MAKEFOURCC('I', 'N', 'T', 'Z'));
 const auto D3DFMT_DF16 = static_cast<D3DFORMAT>(MAKEFOURCC('D', 'F', '1', '6'));
@@ -17,6 +16,118 @@ const auto D3DFMT_DF24 = static_cast<D3DFORMAT>(MAKEFOURCC('D', 'F', '2', '4'));
 
 namespace reshade::d3d9
 {
+	static D3DBLEND literal_to_blend_func(unsigned int value)
+	{
+		switch (value)
+		{
+		case 0:
+			return D3DBLEND_ZERO;
+		default:
+		case 1:
+			return D3DBLEND_ONE;
+		case 2:
+			return D3DBLEND_SRCCOLOR;
+		case 4:
+			return D3DBLEND_INVSRCCOLOR;
+		case 3:
+			return D3DBLEND_SRCALPHA;
+		case 5:
+			return D3DBLEND_INVSRCALPHA;
+		case 6:
+			return D3DBLEND_DESTALPHA;
+		case 7:
+			return D3DBLEND_INVDESTALPHA;
+		case 8:
+			return D3DBLEND_DESTCOLOR;
+		case 9:
+			return D3DBLEND_INVDESTCOLOR;
+		}
+	}
+	static D3DSTENCILOP literal_to_stencil_op(unsigned int value)
+	{
+		switch (value)
+		{
+		default:
+		case 1:
+			return D3DSTENCILOP_KEEP;
+		case 0:
+			return D3DSTENCILOP_ZERO;
+		case 3:
+			return D3DSTENCILOP_REPLACE;
+		case 4:
+			return D3DSTENCILOP_INCRSAT;
+		case 5:
+			return D3DSTENCILOP_DECRSAT;
+		case 6:
+			return D3DSTENCILOP_INVERT;
+		case 7:
+			return D3DSTENCILOP_INCR;
+		case 8:
+			return D3DSTENCILOP_DECR;
+		}
+	}
+	static D3DFORMAT literal_to_format(texture_format value)
+	{
+		switch (value)
+		{
+		case texture_format::r8:
+			return D3DFMT_A8R8G8B8;
+		case texture_format::r16f:
+			return D3DFMT_R16F;
+		case texture_format::r32f:
+			return D3DFMT_R32F;
+		case texture_format::rg8:
+			return D3DFMT_A8R8G8B8;
+		case texture_format::rg16:
+			return D3DFMT_G16R16;
+		case texture_format::rg16f:
+			return D3DFMT_G16R16F;
+		case texture_format::rg32f:
+			return D3DFMT_G32R32F;
+		case texture_format::rgba8:
+			return D3DFMT_A8R8G8B8;
+		case texture_format::rgba16:
+			return D3DFMT_A16B16G16R16;
+		case texture_format::rgba16f:
+			return D3DFMT_A16B16G16R16F;
+		case texture_format::rgba32f:
+			return D3DFMT_A32B32G32R32F;
+		case texture_format::dxt1:
+			return D3DFMT_DXT1;
+		case texture_format::dxt3:
+			return D3DFMT_DXT3;
+		case texture_format::dxt5:
+			return D3DFMT_DXT5;
+		case texture_format::latc1:
+			return static_cast<D3DFORMAT>(MAKEFOURCC('A', 'T', 'I', '1'));
+		case texture_format::latc2:
+			return static_cast<D3DFORMAT>(MAKEFOURCC('A', 'T', 'I', '2'));
+		}
+
+		return D3DFMT_UNKNOWN;
+	}
+
+	static void copy_annotations(const std::unordered_map<std::string, std::pair<reshadefx::type, reshadefx::constant>> &source, std::unordered_map<std::string, variant> &target)
+	{
+		for (const auto &annotation : source)
+			switch (annotation.second.first.base)
+			{
+			case reshadefx::type::t_int:
+				target.insert({ annotation.first, variant(annotation.second.second.as_int[0]) });
+				break;
+			case reshadefx::type::t_bool:
+			case reshadefx::type::t_uint:
+				target.insert({ annotation.first, variant(annotation.second.second.as_uint[0]) });
+				break;
+			case reshadefx::type::t_float:
+				target.insert({ annotation.first, variant(annotation.second.second.as_float[0]) });
+				break;
+			case reshadefx::type::t_string:
+				target.insert({ annotation.first, variant(annotation.second.second.string_data) });
+				break;
+			}
+	}
+
 	d3d9_runtime::d3d9_runtime(IDirect3DDevice9 *device, IDirect3DSwapChain9 *swapchain) :
 		runtime(0x9300), _device(device), _swapchain(swapchain)
 	{
@@ -48,6 +159,11 @@ namespace reshade::d3d9
 		subscribe_to_save_config([this](ini_file& config) {
 			config.set("DX9_BUFFER_DETECTION", "DisableINTZ", _disable_intz);
 		});
+	}
+	d3d9_runtime::~d3d9_runtime()
+	{
+		if (_d3d_compiler != nullptr)
+			FreeLibrary(_d3d_compiler);
 	}
 
 	bool d3d9_runtime::init_backbuffer_texture()
@@ -525,10 +641,7 @@ namespace reshade::d3d9
 
 		screenshot_surface->UnlockRect();
 	}
-	bool d3d9_runtime::load_effect(const reshadefx::module &module, std::string &errors)
-	{
-		return d3d9_effect_compiler(this, module, errors).run();
-	}
+
 	bool d3d9_runtime::update_texture(texture &texture, const uint8_t *data)
 	{
 		if (texture.impl_reference != texture_reference::none)
@@ -659,16 +772,383 @@ namespace reshade::d3d9
 		return true;
 	}
 
+	bool d3d9_runtime::load_effect(const reshadefx::module &module, std::string &errors)
+	{
+		if (_d3d_compiler == nullptr)
+			_d3d_compiler = LoadLibraryW(L"d3dcompiler_47.dll");
+		if (_d3d_compiler == nullptr)
+			_d3d_compiler = LoadLibraryW(L"d3dcompiler_43.dll");
+
+		if (_d3d_compiler == nullptr)
+		{
+			LOG(ERROR) << "Unable to load D3DCompiler library. Make sure you have the DirectX end-user runtime (June 2010) installed or a newer version of the library in the application directory.";
+			return false;
+		}
+
+		const auto D3DCompile = reinterpret_cast<pD3DCompile>(GetProcAddress(_d3d_compiler, "D3DCompile"));
+
+		// Compile the generated HLSL source code to DX byte code
+		for (const auto &entry_point : module.entry_points)
+		{
+			std::string hlsl;
+			if (entry_point.second)
+				hlsl = "#define POSITION VPOS\n";
+			hlsl += module.hlsl;
+
+			com_ptr<ID3DBlob> compiled, d3d_errors;
+
+			HRESULT hr = D3DCompile(hlsl.c_str(), hlsl.size(), nullptr, nullptr, nullptr, entry_point.first.c_str(), entry_point.second ? "ps_3_0" : "vs_3_0", 0, 0, &compiled, &d3d_errors);
+
+			if (d3d_errors != nullptr) // Append warnings to the output error string as well
+				errors.append(static_cast<const char *>(d3d_errors->GetBufferPointer()), d3d_errors->GetBufferSize() - 1); // Subtracting one to not append the null-terminator as well
+
+			// No need to setup resources if any of the shaders failed to compile
+			if (FAILED(hr))
+				return false;
+
+			// Create runtime shader objects from the compiled DX byte code
+			if (entry_point.second)
+				hr = _device->CreatePixelShader(static_cast<const DWORD *>(compiled->GetBufferPointer()), &_ps_entry_points[entry_point.first]);
+			else
+				hr = _device->CreateVertexShader(static_cast<const DWORD *>(compiled->GetBufferPointer()), &_vs_entry_points[entry_point.first]);
+
+			if (FAILED(hr))
+			{
+				LOG(ERROR) << "Failed to create shader for entry point '" << entry_point.first << "'. "
+					"HRESULT is '" << std::hex << hr << std::dec << "'.";
+				return false;
+			}
+		}
+
+		const size_t storage_base_offset = _uniform_data_storage.size();
+		for (const auto &uniform_info : module.uniforms)
+			add_uniform(uniform_info, storage_base_offset);
+
+		for (const auto &texture_info : module.textures)
+		{
+			if (const auto existing_texture = find_texture(texture_info.unique_name); existing_texture != nullptr)
+			{
+				if (texture_info.semantic.empty() && (
+					existing_texture->width != texture_info.width ||
+					existing_texture->height != texture_info.height ||
+					existing_texture->levels != texture_info.levels ||
+					existing_texture->format != static_cast<texture_format>(texture_info.format)))
+					errors += "error: " + existing_texture->effect_filename + " already created a texture with the same name but different dimensions; textures are shared across all effects, so either rename the variable or adjust the dimensions so they match\n";
+				continue;
+			}
+
+			if (!texture_info.semantic.empty() && (texture_info.semantic != "COLOR" && texture_info.semantic != "DEPTH"))
+				errors += "warning: " + texture_info.unique_name + ": unknown semantic '" + texture_info.semantic + "'\n";
+
+			add_texture(texture_info);
+		}
+
+		d3d9_technique_data effect;
+		effect.uniform_storage_offset = storage_base_offset;
+		effect.constant_register_count = (_uniform_data_storage.size() - storage_base_offset + 16) / 16;
+
+		for (const auto &sampler_info : module.samplers)
+			add_sampler(sampler_info, effect);
+
+		for (const auto &technique_info : module.techniques)
+			add_technique(technique_info, effect);
+
+		_vs_entry_points.clear();
+		_ps_entry_points.clear();
+
+		return true;
+	}
+
+	void d3d9_runtime::add_texture(const reshadefx::texture_info &info)
+	{
+		texture obj;
+		obj.name = info.unique_name;
+		obj.unique_name = info.unique_name;
+		copy_annotations(info.annotations, obj.annotations);
+		obj.width = info.width;
+		obj.height = info.height;
+		obj.levels = info.levels;
+		obj.format = static_cast<texture_format>(info.format);
+
+		const D3DFORMAT format = literal_to_format(obj.format);
+
+		obj.impl = std::make_unique<d3d9_tex_data>();
+		const auto obj_data = obj.impl->as<d3d9_tex_data>();
+
+		if (info.semantic == "COLOR")
+		{
+			update_texture_reference(obj, texture_reference::back_buffer);
+		}
+		else if (info.semantic == "DEPTH")
+		{
+			update_texture_reference(obj, texture_reference::depth_buffer);
+		}
+		else
+		{
+			UINT levels = obj.levels;
+			DWORD usage = 0;
+			D3DDEVICE_CREATION_PARAMETERS cp;
+			_device->GetCreationParameters(&cp);
+
+			if (levels > 1)
+			{
+				if (_d3d->CheckDeviceFormat(cp.AdapterOrdinal, cp.DeviceType, D3DFMT_X8R8G8B8, D3DUSAGE_AUTOGENMIPMAP, D3DRTYPE_TEXTURE, format) == D3D_OK)
+				{
+					usage |= D3DUSAGE_AUTOGENMIPMAP;
+					levels = 0;
+				}
+				else
+				{
+					LOG(WARNING) << "Auto-generated mipmap levels are not supported for the format of texture '" << info.unique_name << "'.";
+				}
+			}
+
+			HRESULT hr = _d3d->CheckDeviceFormat(cp.AdapterOrdinal, cp.DeviceType, D3DFMT_X8R8G8B8, D3DUSAGE_RENDERTARGET, D3DRTYPE_TEXTURE, format);
+
+			if (SUCCEEDED(hr))
+			{
+				usage |= D3DUSAGE_RENDERTARGET;
+			}
+
+			hr = _device->CreateTexture(obj.width, obj.height, levels, usage, format, D3DPOOL_DEFAULT, &obj_data->texture, nullptr);
+
+			if (FAILED(hr))
+			{
+				LOG(ERROR) << "Failed to create texture '" << info.unique_name << "' ("
+					"Width = " << obj.width << ", "
+					"Height = " << obj.height << ", "
+					"Levels = " << levels << ", "
+					"Usage = " <<usage << ", "
+					"Format = " << format << ")! "
+					"HRESULT is '" << std::hex << hr << std::dec << "'.";
+				return;
+			}
+
+			hr = obj_data->texture->GetSurfaceLevel(0, &obj_data->surface);
+
+			assert(SUCCEEDED(hr));
+		}
+
+		_textures.push_back(std::move(obj));
+	}
+	void d3d9_runtime::add_sampler(const reshadefx::sampler_info &info, d3d9_technique_data &effect)
+	{
+		const auto existing_texture = find_texture(info.texture_name);
+
+		if (!existing_texture || info.binding > ARRAYSIZE(effect.sampler_states))
+			return;
+
+		effect.num_samplers = std::max(effect.num_samplers, DWORD(info.binding + 1));
+
+		effect.sampler_states[info.binding][D3DSAMP_ADDRESSU] = static_cast<D3DTEXTUREADDRESS>(info.address_u);
+		effect.sampler_states[info.binding][D3DSAMP_ADDRESSV] = static_cast<D3DTEXTUREADDRESS>(info.address_v);
+		effect.sampler_states[info.binding][D3DSAMP_ADDRESSW] = static_cast<D3DTEXTUREADDRESS>(info.address_w);
+		effect.sampler_states[info.binding][D3DSAMP_BORDERCOLOR] = 0;
+		effect.sampler_states[info.binding][D3DSAMP_MAGFILTER] = 1 + ((static_cast<unsigned int>(info.filter) & 0x0C) >> 2);
+		effect.sampler_states[info.binding][D3DSAMP_MINFILTER] = 1 + ((static_cast<unsigned int>(info.filter) & 0x30) >> 4);
+		effect.sampler_states[info.binding][D3DSAMP_MIPFILTER] = 1 + ((static_cast<unsigned int>(info.filter) & 0x03));
+		effect.sampler_states[info.binding][D3DSAMP_MIPMAPLODBIAS] = *reinterpret_cast<const DWORD *>(&info.lod_bias);
+		effect.sampler_states[info.binding][D3DSAMP_MAXMIPLEVEL] = static_cast<DWORD>(std::max(0.0f, info.min_lod));
+		effect.sampler_states[info.binding][D3DSAMP_MAXANISOTROPY] = 1;
+		effect.sampler_states[info.binding][D3DSAMP_SRGBTEXTURE] = info.srgb;
+
+		effect.sampler_textures[info.binding] = existing_texture->impl->as<d3d9_tex_data>()->texture.get();
+	}
+	void d3d9_runtime::add_uniform(const reshadefx::uniform_info &info, size_t storage_base_offset)
+	{
+		uniform obj;
+		obj.name = info.name;
+		obj.rows = info.type.rows;
+		obj.columns = info.type.cols;
+		obj.elements = std::max(1, info.type.array_length);
+		obj.storage_size = info.size;
+		obj.storage_offset = storage_base_offset + info.offset;
+		copy_annotations(info.annotations, obj.annotations);
+
+		obj.basetype = uniform_datatype::floating_point;
+
+		switch (info.type.base)
+		{
+		case reshadefx::type::t_int:
+			obj.displaytype = uniform_datatype::signed_integer;
+			break;
+		case reshadefx::type::t_uint:
+			obj.displaytype = uniform_datatype::unsigned_integer;
+			break;
+		case reshadefx::type::t_float:
+			obj.displaytype = uniform_datatype::floating_point;
+			break;
+		}
+
+		// Create space for the new variable in the storage area and fill it with the initializer value
+		_uniform_data_storage.resize(obj.storage_offset + obj.storage_size);
+
+		if (info.has_initializer_value)
+		{
+			for (size_t i = 0; i < obj.storage_size / 4; i++)
+			{
+				switch (info.type.base)
+				{
+				case reshadefx::type::t_int:
+					reinterpret_cast<float *>(_uniform_data_storage.data() + obj.storage_offset)[i] = static_cast<float>(info.initializer_value.as_int[i]);
+					break;
+				case reshadefx::type::t_uint:
+					reinterpret_cast<float *>(_uniform_data_storage.data() + obj.storage_offset)[i] = static_cast<float>(info.initializer_value.as_uint[i]);
+					break;
+				case reshadefx::type::t_float:
+					reinterpret_cast<float *>(_uniform_data_storage.data() + obj.storage_offset)[i] = info.initializer_value.as_float[i];
+					break;
+				}
+			}
+		}
+		else
+		{
+			memset(_uniform_data_storage.data() + obj.storage_offset, 0, obj.storage_size);
+		}
+
+		_uniforms.push_back(std::move(obj));
+	}
+	void d3d9_runtime::add_technique(const reshadefx::technique_info &info, const d3d9_technique_data &effect)
+	{
+		technique obj;
+		obj.impl = std::make_unique<d3d9_technique_data>(effect);
+		obj.name = info.name;
+		copy_annotations(info.annotations, obj.annotations);
+
+		auto &technique_data = *obj.impl->as<d3d9_technique_data>();
+
+		for (size_t pass_index = 0; pass_index < info.passes.size(); ++pass_index)
+		{
+			const auto &pass_info = info.passes[pass_index];
+			auto &pass = static_cast<d3d9_pass_data &>(*obj.passes.emplace_back(std::make_unique<d3d9_pass_data>()));
+
+			pass.pixel_shader = _ps_entry_points.at(pass_info.ps_entry_point);
+			pass.vertex_shader = _vs_entry_points.at(pass_info.vs_entry_point);
+
+			pass.render_targets[0] = _backbuffer_resolved.get();
+			pass.clear_render_targets = pass_info.clear_render_targets;
+
+			for (size_t k = 0; k < ARRAYSIZE(pass.sampler_textures); ++k)
+				pass.sampler_textures[k] = technique_data.sampler_textures[k];
+
+			const HRESULT hr = _device->BeginStateBlock();
+
+			if (FAILED(hr))
+			{
+				LOG(ERROR) << "Failed to create stateblock for pass " << pass_index << " in technique '" << info.name << "'. "
+					"HRESULT is '" << std::hex << hr << std::dec << "'.";
+				return;
+			}
+
+			_device->SetVertexShader(pass.vertex_shader.get());
+			_device->SetPixelShader(pass.pixel_shader.get());
+
+			_device->SetRenderState(D3DRS_ZENABLE, false);
+			_device->SetRenderState(D3DRS_SPECULARENABLE, false);
+			_device->SetRenderState(D3DRS_FILLMODE, D3DFILL_SOLID);
+			_device->SetRenderState(D3DRS_SHADEMODE, D3DSHADE_GOURAUD);
+			_device->SetRenderState(D3DRS_ZWRITEENABLE, true);
+			_device->SetRenderState(D3DRS_ALPHATESTENABLE, false);
+			_device->SetRenderState(D3DRS_LASTPIXEL, true);
+			_device->SetRenderState(D3DRS_SRCBLEND, literal_to_blend_func(pass_info.src_blend));
+			_device->SetRenderState(D3DRS_DESTBLEND, literal_to_blend_func(pass_info.dest_blend));
+			_device->SetRenderState(D3DRS_ALPHAREF, 0);
+			_device->SetRenderState(D3DRS_ALPHAFUNC, D3DCMP_ALWAYS);
+			_device->SetRenderState(D3DRS_DITHERENABLE, false);
+			_device->SetRenderState(D3DRS_FOGSTART, 0);
+			_device->SetRenderState(D3DRS_FOGEND, 1);
+			_device->SetRenderState(D3DRS_FOGDENSITY, 1);
+			_device->SetRenderState(D3DRS_ALPHABLENDENABLE, pass_info.blend_enable);
+			_device->SetRenderState(D3DRS_DEPTHBIAS, 0);
+			_device->SetRenderState(D3DRS_STENCILENABLE, pass_info.stencil_enable);
+			_device->SetRenderState(D3DRS_STENCILPASS, literal_to_stencil_op(pass_info.stencil_op_pass));
+			_device->SetRenderState(D3DRS_STENCILFAIL, literal_to_stencil_op(pass_info.stencil_op_fail));
+			_device->SetRenderState(D3DRS_STENCILZFAIL, literal_to_stencil_op(pass_info.stencil_op_depth_fail));
+			_device->SetRenderState(D3DRS_STENCILFUNC, static_cast<D3DCMPFUNC>(pass_info.stencil_comparison_func));
+			_device->SetRenderState(D3DRS_STENCILREF, pass_info.stencil_reference_value);
+			_device->SetRenderState(D3DRS_STENCILMASK, pass_info.stencil_read_mask);
+			_device->SetRenderState(D3DRS_STENCILWRITEMASK, pass_info.stencil_write_mask);
+			_device->SetRenderState(D3DRS_TEXTUREFACTOR, 0xFFFFFFFF);
+			_device->SetRenderState(D3DRS_LOCALVIEWER, true);
+			_device->SetRenderState(D3DRS_EMISSIVEMATERIALSOURCE, D3DMCS_MATERIAL);
+			_device->SetRenderState(D3DRS_AMBIENTMATERIALSOURCE, D3DMCS_MATERIAL);
+			_device->SetRenderState(D3DRS_DIFFUSEMATERIALSOURCE, D3DMCS_COLOR1);
+			_device->SetRenderState(D3DRS_SPECULARMATERIALSOURCE, D3DMCS_COLOR2);
+			_device->SetRenderState(D3DRS_COLORWRITEENABLE, pass_info.color_write_mask);
+			_device->SetRenderState(D3DRS_BLENDOP, static_cast<D3DBLENDOP>(pass_info.blend_op));
+			_device->SetRenderState(D3DRS_SCISSORTESTENABLE, false);
+			_device->SetRenderState(D3DRS_SLOPESCALEDEPTHBIAS, 0);
+			_device->SetRenderState(D3DRS_ANTIALIASEDLINEENABLE, false);
+			_device->SetRenderState(D3DRS_TWOSIDEDSTENCILMODE, false);
+			_device->SetRenderState(D3DRS_CCW_STENCILFAIL, D3DSTENCILOP_KEEP);
+			_device->SetRenderState(D3DRS_CCW_STENCILZFAIL, D3DSTENCILOP_KEEP);
+			_device->SetRenderState(D3DRS_CCW_STENCILPASS, D3DSTENCILOP_KEEP);
+			_device->SetRenderState(D3DRS_CCW_STENCILFUNC, D3DCMP_ALWAYS);
+			_device->SetRenderState(D3DRS_COLORWRITEENABLE1, 0x0000000F);
+			_device->SetRenderState(D3DRS_COLORWRITEENABLE2, 0x0000000F);
+			_device->SetRenderState(D3DRS_COLORWRITEENABLE3, 0x0000000F);
+			_device->SetRenderState(D3DRS_BLENDFACTOR, 0xFFFFFFFF);
+			_device->SetRenderState(D3DRS_SRGBWRITEENABLE, pass_info.srgb_write_enable);
+			_device->SetRenderState(D3DRS_SEPARATEALPHABLENDENABLE, false);
+			_device->SetRenderState(D3DRS_SRCBLENDALPHA, literal_to_blend_func(pass_info.src_blend_alpha));
+			_device->SetRenderState(D3DRS_DESTBLENDALPHA, literal_to_blend_func(pass_info.dest_blend_alpha));
+			_device->SetRenderState(D3DRS_BLENDOPALPHA, static_cast<D3DBLENDOP>(pass_info.blend_op_alpha));
+			_device->SetRenderState(D3DRS_FOGENABLE, false);
+			_device->SetRenderState(D3DRS_CULLMODE, D3DCULL_NONE);
+			_device->SetRenderState(D3DRS_LIGHTING, false);
+
+			_device->EndStateBlock(&pass.stateblock);
+
+			D3DCAPS9 caps;
+			_device->GetDeviceCaps(&caps);
+
+			for (unsigned int i = 0; i < 8; ++i)
+			{
+				const std::string &render_target = pass_info.render_target_names[i];
+
+				if (render_target.empty())
+					continue;
+
+				const auto texture = find_texture(render_target);
+
+				if (texture == nullptr)
+				{
+					assert(false);
+					return;
+				}
+
+				if (i > caps.NumSimultaneousRTs)
+				{
+					LOG(WARNING) << "Device only supports " << caps.NumSimultaneousRTs << " simultaneous render targets, but pass " << pass_index << " in technique '" << info.name << "' uses more, which are ignored";
+					break;
+				}
+
+				// Unset textures that are used as render target
+				for (DWORD s = 0; s < technique_data.num_samplers; ++s)
+				{
+					if (pass.sampler_textures[s] == texture->impl->as<d3d9_tex_data>()->texture)
+						pass.sampler_textures[s] = nullptr;
+				}
+
+				pass.render_targets[i] = texture->impl->as<d3d9_tex_data>()->surface.get();
+			}
+		}
+
+		_techniques.push_back(std::move(obj));
+	}
+
 	void d3d9_runtime::render_technique(const technique &technique)
 	{
+		auto &technique_data = *technique.impl->as<d3d9_technique_data>();
+
 		bool is_default_depthstencil_cleared = false;
 
 		// Setup shader constants
-		if (technique.uniform_storage_index >= 0)
+		if (technique_data.constant_register_count > 0)
 		{
-			const auto uniform_storage_data = reinterpret_cast<const float *>(get_uniform_value_storage().data() + technique.uniform_storage_offset);
-			_device->SetVertexShaderConstantF(0, uniform_storage_data, static_cast<UINT>(technique.uniform_storage_index));
-			_device->SetPixelShaderConstantF(0, uniform_storage_data, static_cast<UINT>(technique.uniform_storage_index));
+			const auto uniform_storage_data = reinterpret_cast<const float *>(_uniform_data_storage.data() + technique_data.uniform_storage_offset);
+			_device->SetPixelShaderConstantF(0, uniform_storage_data, technique_data.constant_register_count);
+			_device->SetVertexShaderConstantF(0, uniform_storage_data, technique_data.constant_register_count);
 		}
 
 		for (const auto &pass_object : technique.passes)
@@ -682,13 +1162,13 @@ namespace reshade::d3d9
 			_device->StretchRect(_backbuffer_resolved.get(), nullptr, _backbuffer_texture_surface.get(), nullptr, D3DTEXF_NONE);
 
 			// Setup shader resources
-			for (DWORD sampler = 0; sampler < pass.sampler_count; sampler++)
+			for (DWORD s = 0; s < technique_data.num_samplers; s++)
 			{
-				_device->SetTexture(sampler, pass.samplers[sampler].texture ? pass.samplers[sampler].texture->texture.get() : nullptr);
+				_device->SetTexture(s, pass.sampler_textures[s]);
 
 				for (DWORD state = D3DSAMP_ADDRESSU; state <= D3DSAMP_SRGBTEXTURE; state++)
 				{
-					_device->SetSamplerState(sampler, static_cast<D3DSAMPLERSTATETYPE>(state), pass.samplers[sampler].states[state]);
+					_device->SetSamplerState(s, static_cast<D3DSAMPLERSTATETYPE>(state), technique_data.sampler_states[s][state]);
 				}
 			}
 

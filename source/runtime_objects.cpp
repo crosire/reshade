@@ -10,18 +10,6 @@
 
 namespace reshade
 {
-	void runtime::add_texture(texture &&texture)
-	{
-		_textures.push_back(std::move(texture));
-	}
-	void runtime::add_uniform(uniform &&uniform)
-	{
-		_uniforms.push_back(std::move(uniform));
-	}
-	void runtime::add_technique(technique &&technique)
-	{
-		_techniques.push_back(std::move(technique));
-	}
 	texture *runtime::find_texture(const std::string &unique_name)
 	{
 		const auto it = std::find_if(_textures.begin(), _textures.end(),

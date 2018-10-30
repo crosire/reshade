@@ -4,14 +4,242 @@
  */
 
 #include "log.hpp"
-#include "opengl_runtime.hpp"
-#include "opengl_effect_compiler.hpp"
 #include "input.hpp"
+#include "opengl_runtime.hpp"
 #include <imgui.h>
 #include <assert.h>
 
 namespace reshade::opengl
 {
+	static GLenum literal_to_comp_func(unsigned int value)
+	{
+		switch (value)
+		{
+		default:
+		case 8:
+			return GL_ALWAYS;
+		case 1:
+			return GL_NEVER;
+		case 3:
+			return GL_EQUAL;
+		case 6:
+			return GL_NOTEQUAL;
+		case 2:
+			return GL_LESS;
+		case 4:
+			return GL_LEQUAL;
+		case 5:
+			return GL_GREATER;
+		case 7:
+			return GL_GEQUAL;
+		}
+	}
+	static GLenum literal_to_blend_eq(unsigned int value)
+	{
+		switch (value)
+		{
+		case 1:
+			return GL_FUNC_ADD;
+		case 2:
+			return GL_FUNC_SUBTRACT;
+		case 3:
+			return GL_FUNC_REVERSE_SUBTRACT;
+		case 4:
+			return GL_MIN;
+		case 5:
+			return GL_MAX;
+		}
+
+		return GL_NONE;
+	}
+	static GLenum literal_to_blend_func(unsigned int value)
+	{
+		switch (value)
+		{
+		case 0:
+			return GL_ZERO;
+		case 1:
+			return GL_ONE;
+		case 2:
+			return GL_SRC_COLOR;
+		case 3:
+			return GL_SRC_ALPHA;
+		case 4:
+			return GL_ONE_MINUS_SRC_COLOR;
+		case 5:
+			return GL_ONE_MINUS_SRC_ALPHA;
+		case 8:
+			return GL_DST_COLOR;
+		case 6:
+			return GL_DST_ALPHA;
+		case 9:
+			return GL_ONE_MINUS_DST_COLOR;
+		case 7:
+			return GL_ONE_MINUS_DST_ALPHA;
+		}
+
+		return GL_NONE;
+	}
+	static GLenum literal_to_stencil_op(unsigned int value)
+	{
+		switch (value)
+		{
+		default:
+		case 1:
+			return GL_KEEP;
+		case 0:
+			return GL_ZERO;
+		case 3:
+			return GL_REPLACE;
+		case 7:
+			return GL_INCR_WRAP;
+		case 4:
+			return GL_INCR;
+		case 8:
+			return GL_DECR_WRAP;
+		case 5:
+			return GL_DECR;
+		case 6:
+			return GL_INVERT;
+		}
+	}
+	static GLenum literal_to_wrap_mode(texture_address_mode value)
+	{
+		switch (value)
+		{
+		case texture_address_mode::wrap:
+			return GL_REPEAT;
+		case texture_address_mode::mirror:
+			return GL_MIRRORED_REPEAT;
+		case texture_address_mode::clamp:
+			return GL_CLAMP_TO_EDGE;
+		case texture_address_mode::border:
+			return GL_CLAMP_TO_BORDER;
+		}
+
+		return GL_NONE;
+	}
+	static void literal_to_filter_mode(texture_filter value, GLenum &minfilter, GLenum &magfilter)
+	{
+		switch (value)
+		{
+		case texture_filter::min_mag_mip_point:
+			minfilter = GL_NEAREST_MIPMAP_NEAREST;
+			magfilter = GL_NEAREST;
+			break;
+		case texture_filter::min_mag_point_mip_linear:
+			minfilter = GL_NEAREST_MIPMAP_LINEAR;
+			magfilter = GL_NEAREST;
+			break;
+		case texture_filter::min_point_mag_linear_mip_point:
+			minfilter = GL_NEAREST_MIPMAP_NEAREST;
+			magfilter = GL_LINEAR;
+			break;
+		case texture_filter::min_point_mag_mip_linear:
+			minfilter = GL_NEAREST_MIPMAP_LINEAR;
+			magfilter = GL_LINEAR;
+			break;
+		case texture_filter::min_linear_mag_mip_point:
+			minfilter = GL_LINEAR_MIPMAP_NEAREST;
+			magfilter = GL_NEAREST;
+			break;
+		case texture_filter::min_linear_mag_point_mip_linear:
+			minfilter = GL_LINEAR_MIPMAP_LINEAR;
+			magfilter = GL_NEAREST;
+			break;
+		case texture_filter::min_mag_linear_mip_point:
+			minfilter = GL_LINEAR_MIPMAP_NEAREST;
+			magfilter = GL_LINEAR;
+			break;
+		case texture_filter::min_mag_mip_linear:
+			minfilter = GL_LINEAR_MIPMAP_LINEAR;
+			magfilter = GL_LINEAR;
+			break;
+		}
+	}
+	static void literal_to_format(texture_format value, GLenum &internalformat, GLenum &internalformatsrgb)
+	{
+		switch (value)
+		{
+		case texture_format::r8:
+			internalformat = internalformatsrgb = GL_R8;
+			break;
+		case texture_format::r16f:
+			internalformat = internalformatsrgb = GL_R16F;
+			break;
+		case texture_format::r32f:
+			internalformat = internalformatsrgb = GL_R32F;
+			break;
+		case texture_format::rg8:
+			internalformat = internalformatsrgb = GL_RG8;
+			break;
+		case texture_format::rg16:
+			internalformat = internalformatsrgb = GL_RG16;
+			break;
+		case texture_format::rg16f:
+			internalformat = internalformatsrgb = GL_RG16F;
+			break;
+		case texture_format::rg32f:
+			internalformat = internalformatsrgb = GL_RG32F;
+			break;
+		case texture_format::rgba8:
+			internalformat = GL_RGBA8;
+			internalformatsrgb = GL_SRGB8_ALPHA8;
+			break;
+		case texture_format::rgba16:
+			internalformat = internalformatsrgb = GL_RGBA16;
+			break;
+		case texture_format::rgba16f:
+			internalformat = internalformatsrgb = GL_RGBA16F;
+			break;
+		case texture_format::rgba32f:
+			internalformat = internalformatsrgb = GL_RGBA32F;
+			break;
+		case texture_format::dxt1:
+			internalformat = 0x83F1; // GL_COMPRESSED_RGBA_S3TC_DXT1_EXT
+			internalformatsrgb = 0x8C4D; // GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT1_EXT
+			break;
+		case texture_format::dxt3:
+			internalformat = 0x83F2; // GL_COMPRESSED_RGBA_S3TC_DXT3_EXT
+			internalformatsrgb = 0x8C4E; // GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT3_EXT
+			break;
+		case texture_format::dxt5:
+			internalformat = 0x83F3; // GL_COMPRESSED_RGBA_S3TC_DXT5_EXT
+			internalformatsrgb = 0x8C4F; // GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT5_EXT
+			break;
+		case texture_format::latc1:
+			internalformat = internalformatsrgb = 0x8C70; // GL_COMPRESSED_LUMINANCE_LATC1_EXT
+			break;
+		case texture_format::latc2:
+			internalformat = internalformatsrgb = 0x8C72; // GL_COMPRESSED_LUMINANCE_ALPHA_LATC2_EXT
+			break;
+		default:
+			internalformat = internalformatsrgb = GL_NONE;
+			break;
+		}
+	}
+
+	static void copy_annotations(const std::unordered_map<std::string, std::pair<reshadefx::type, reshadefx::constant>> &source, std::unordered_map<std::string, variant> &target)
+	{
+		for (const auto &annotation : source)
+			switch (annotation.second.first.base)
+			{
+			case reshadefx::type::t_int:
+				target.insert({ annotation.first, variant(annotation.second.second.as_int[0]) });
+				break;
+			case reshadefx::type::t_bool:
+			case reshadefx::type::t_uint:
+				target.insert({ annotation.first, variant(annotation.second.second.as_uint[0]) });
+				break;
+			case reshadefx::type::t_float:
+				target.insert({ annotation.first, variant(annotation.second.second.as_float[0]) });
+				break;
+			case reshadefx::type::t_string:
+				target.insert({ annotation.first, variant(annotation.second.second.string_data) });
+				break;
+			}
+	}
+
 	static GLenum target_to_binding(GLenum target)
 	{
 		switch (target)
@@ -612,10 +840,6 @@ namespace reshade::opengl
 			}
 		}
 	}
-	bool opengl_runtime::load_effect(const reshadefx::module &module, std::string &errors)
-	{
-		return opengl_effect_compiler(this, module, errors).run();
-	}
 	bool opengl_runtime::update_texture(texture &texture, const uint8_t *data)
 	{
 		if (texture.impl_reference != texture_reference::none)
@@ -707,6 +931,398 @@ namespace reshade::opengl
 		return true;
 	}
 
+	bool opengl_runtime::load_effect(const reshadefx::module &module, std::string &errors)
+	{
+		// Compile all entry points
+		for (const auto &entry_point : module.entry_points)
+		{
+			const GLuint shader_id = glCreateShader(entry_point.second ? GL_FRAGMENT_SHADER : GL_VERTEX_SHADER);
+
+#if 0
+			glShaderBinary(1, &shader_id, GL_SHADER_BINARY_FORMAT_SPIR_V, module.spirv.data(), module.spirv.size() * sizeof(uint32_t));
+
+			glSpecializeShader(shader_id, entry_point.first.c_str(), 0, nullptr, nullptr);
+#else
+			std::string defines =
+				"#version 450\n"
+				"#define ENTRY_POINT_" + entry_point.first + " 1\n";
+			if (!entry_point.second) // OpenGL does not allow using 'discard' in the fragment shader profile
+				defines += "#define discard\n";
+
+			GLsizei lengths[] = { static_cast<GLsizei>(defines.size()), static_cast<GLsizei>(module.hlsl.size()) };
+			const GLchar *sources[] = { defines.c_str(), module.hlsl.c_str() };
+			glShaderSource(shader_id, 2, sources, lengths);
+
+			glCompileShader(shader_id);
+#endif
+
+			GLint status = GL_FALSE;
+
+			glGetShaderiv(shader_id, GL_COMPILE_STATUS, &status);
+
+			if (status == GL_FALSE)
+			{
+				GLint logsize = 0;
+				glGetShaderiv(shader_id, GL_INFO_LOG_LENGTH, &logsize);
+
+				if (logsize != 0)
+				{
+					std::string log(logsize, '\0');
+					glGetShaderInfoLog(shader_id, logsize, nullptr, &log.front());
+
+					errors += log;
+				}
+				else
+				{
+					errors += "error: internal shader compilation failed\n";
+				}
+
+				for (auto &it : _entry_points)
+					glDeleteShader(it.second);
+				_entry_points.clear();
+
+				// No need to setup resources if any of the shaders failed to compile
+				return false;
+			}
+
+			_entry_points[entry_point.first] = shader_id;
+		}
+
+		const size_t storage_base_offset = _uniform_data_storage.size();
+		for (const auto &uniform : module.uniforms)
+			add_uniform(uniform, storage_base_offset);
+
+		const size_t uniform_buffer_size = _uniform_data_storage.size() - storage_base_offset;
+		if (uniform_buffer_size != 0)
+		{
+			GLuint ubo = 0;
+			glGenBuffers(1, &ubo);
+
+			GLint previous = 0;
+			glGetIntegerv(GL_UNIFORM_BUFFER_BINDING, &previous);
+
+			glBindBuffer(GL_UNIFORM_BUFFER, ubo);
+			glBufferData(GL_UNIFORM_BUFFER, static_cast<GLintptr>(uniform_buffer_size), _uniform_data_storage.data() + storage_base_offset, GL_DYNAMIC_DRAW);
+
+			glBindBuffer(GL_UNIFORM_BUFFER, previous);
+
+			_effect_ubos.emplace_back(ubo, uniform_buffer_size);
+		}
+
+		for (const auto &texture_info : module.textures)
+		{
+			const auto existing_texture = find_texture(texture_info.unique_name);
+
+			if (existing_texture != nullptr)
+			{
+				if (texture_info.semantic.empty() && (
+					existing_texture->width != texture_info.width ||
+					existing_texture->height != texture_info.height ||
+					existing_texture->levels != texture_info.levels ||
+					existing_texture->format != static_cast<texture_format>(texture_info.format)))
+					errors += "error: " + existing_texture->effect_filename + " already created a texture with the same name but different dimensions; textures are shared across all effects, so either rename the variable or adjust the dimensions so they match\n";
+				continue;
+			}
+
+			if (!texture_info.semantic.empty() && (texture_info.semantic != "COLOR" && texture_info.semantic != "DEPTH"))
+				errors += "warning: " + texture_info.unique_name + ": unknown semantic '" + texture_info.semantic + "'\n";
+
+			add_texture(texture_info);
+		}
+
+		opengl_technique_data effect;
+		effect.uniform_storage_index = _effect_ubos.size() - 1;
+		effect.uniform_storage_offset = storage_base_offset;
+
+		for (const auto &sampler : module.samplers)
+			add_sampler(sampler, effect);
+
+		for (const auto &technique : module.techniques)
+			add_technique(technique, effect, errors);
+
+		for (auto &it : _entry_points)
+			glDeleteShader(it.second);
+		_entry_points.clear();
+
+		return true;
+	}
+
+	void opengl_runtime::add_texture(const reshadefx::texture_info &info)
+	{
+		texture obj;
+		obj.name = info.unique_name;
+		obj.unique_name = info.unique_name;
+		copy_annotations(info.annotations, obj.annotations);
+		obj.width = info.width;
+		obj.height = info.height;
+		obj.levels = info.levels;
+		obj.format = static_cast<texture_format>(info.format);
+
+		GLenum internalformat = GL_RGBA8, internalformat_srgb = GL_SRGB8_ALPHA8;
+		literal_to_format(obj.format, internalformat, internalformat_srgb);
+
+		obj.impl = std::make_unique<opengl_tex_data>();
+		const auto obj_data = obj.impl->as<opengl_tex_data>();
+
+		if (info.semantic == "COLOR")
+		{
+			update_texture_reference(obj, texture_reference::back_buffer);
+		}
+		else if (info.semantic == "DEPTH")
+		{
+			update_texture_reference(obj, texture_reference::depth_buffer);
+		}
+		else
+		{
+			obj_data->should_delete = true;
+			glGenTextures(2, obj_data->id);
+
+			GLint previous = 0, previous_fbo = 0;
+			glGetIntegerv(GL_TEXTURE_BINDING_2D, &previous);
+			glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &previous_fbo);
+
+			glBindTexture(GL_TEXTURE_2D, obj_data->id[0]);
+			glTexStorage2D(GL_TEXTURE_2D, obj.levels, internalformat, obj.width, obj.height);
+			glTextureView(obj_data->id[1], GL_TEXTURE_2D, obj_data->id[0], internalformat_srgb, 0, obj.levels, 0, 1);
+			glBindTexture(GL_TEXTURE_2D, previous);
+
+			// Clear texture to black
+			glBindFramebuffer(GL_DRAW_FRAMEBUFFER, _blit_fbo);
+			glFramebufferTexture(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, obj_data->id[0], 0);
+			glDrawBuffer(GL_COLOR_ATTACHMENT1);
+			const GLuint clear_color[4] = { 0, 0, 0, 0 };
+			glClearBufferuiv(GL_COLOR, 0, clear_color);
+			glFramebufferTexture(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, 0, 0);
+			glBindFramebuffer(GL_DRAW_FRAMEBUFFER, previous_fbo);
+		}
+
+		_textures.push_back(std::move(obj));
+	}
+	void opengl_runtime::add_sampler(const reshadefx::sampler_info &info, opengl_technique_data &effect)
+	{
+		const auto existing_texture = find_texture(info.texture_name);
+
+		if (!existing_texture)
+			return;
+
+		size_t hash = 2166136261;
+		hash = (hash * 16777619) ^ info.address_u;
+		hash = (hash * 16777619) ^ info.address_v;
+		hash = (hash * 16777619) ^ info.address_w;
+		hash = (hash * 16777619) ^ info.filter;
+		hash = (hash * 16777619) ^ reinterpret_cast<const uint32_t &>(info.lod_bias);
+		hash = (hash * 16777619) ^ reinterpret_cast<const uint32_t &>(info.min_lod);
+		hash = (hash * 16777619) ^ reinterpret_cast<const uint32_t &>(info.max_lod);
+
+		auto it = _effect_sampler_states.find(hash);
+
+		if (it == _effect_sampler_states.end())
+		{
+			GLenum minfilter = GL_NONE, magfilter = GL_NONE;
+			literal_to_filter_mode(static_cast<texture_filter>(info.filter), minfilter, magfilter);
+
+			GLuint sampler_id = 0;
+			glGenSamplers(1, &sampler_id);
+			glSamplerParameteri(sampler_id, GL_TEXTURE_WRAP_S, literal_to_wrap_mode(static_cast<texture_address_mode>(info.address_u)));
+			glSamplerParameteri(sampler_id, GL_TEXTURE_WRAP_T, literal_to_wrap_mode(static_cast<texture_address_mode>(info.address_v)));
+			glSamplerParameteri(sampler_id, GL_TEXTURE_WRAP_R, literal_to_wrap_mode(static_cast<texture_address_mode>(info.address_w)));
+			glSamplerParameteri(sampler_id, GL_TEXTURE_MAG_FILTER, magfilter);
+			glSamplerParameteri(sampler_id, GL_TEXTURE_MIN_FILTER, minfilter);
+			glSamplerParameterf(sampler_id, GL_TEXTURE_LOD_BIAS, info.lod_bias);
+			glSamplerParameterf(sampler_id, GL_TEXTURE_MIN_LOD, info.min_lod);
+			glSamplerParameterf(sampler_id, GL_TEXTURE_MAX_LOD, info.max_lod);
+
+			it = _effect_sampler_states.emplace(hash, sampler_id).first;
+		}
+
+		opengl_sampler_data sampler;
+		sampler.id = it->second;
+		sampler.texture = existing_texture->impl->as<opengl_tex_data>();
+		sampler.is_srgb = info.srgb;
+		sampler.has_mipmaps = existing_texture->levels > 1;
+
+		effect.samplers.resize(std::max(effect.samplers.size(), size_t(info.binding + 1)));
+
+		effect.samplers[info.binding] = std::move(sampler);
+	}
+	void opengl_runtime::add_uniform(const reshadefx::uniform_info &info, size_t storage_base_offset)
+	{
+		uniform obj;
+		obj.name = info.name;
+		obj.rows = info.type.rows;
+		obj.columns = info.type.cols;
+		obj.elements = std::max(1, info.type.array_length);
+		obj.storage_size = info.size;
+		obj.storage_offset = storage_base_offset + info.offset;
+		copy_annotations(info.annotations, obj.annotations);
+
+		switch (info.type.base)
+		{
+		case reshadefx::type::t_int:
+			obj.displaytype = obj.basetype = uniform_datatype::signed_integer;
+			break;
+		case reshadefx::type::t_uint:
+			obj.displaytype = obj.basetype = uniform_datatype::unsigned_integer;
+			break;
+		case reshadefx::type::t_float:
+			obj.displaytype = obj.basetype = uniform_datatype::floating_point;
+			break;
+		}
+
+		// Create space for the new variable in the storage area and fill it with the initializer value
+		_uniform_data_storage.resize(obj.storage_offset + obj.storage_size);
+
+		if (info.has_initializer_value)
+			memcpy(_uniform_data_storage.data() + obj.storage_offset, info.initializer_value.as_uint, obj.storage_size);
+		else
+			memset(_uniform_data_storage.data() + obj.storage_offset, 0, obj.storage_size);
+
+		_uniforms.push_back(std::move(obj));
+	}
+	void opengl_runtime::add_technique(const reshadefx::technique_info &info, const opengl_technique_data &effect, std::string &errors)
+	{
+		technique obj;
+		obj.impl = std::make_unique<opengl_technique_data>(effect);
+		obj.name = info.name;
+		copy_annotations(info.annotations, obj.annotations);
+
+		const auto obj_data = obj.impl->as<opengl_technique_data>();
+
+		glGenQueries(1, &obj_data->query);
+
+		for (size_t pass_index = 0; pass_index < info.passes.size(); ++pass_index)
+		{
+			const auto &pass_info = info.passes[pass_index];
+			auto &pass = static_cast<opengl_pass_data &>(*obj.passes.emplace_back(std::make_unique<opengl_pass_data>()));
+
+			pass.color_mask[0] = (pass_info.color_write_mask & (1 << 0)) != 0;
+			pass.color_mask[1] = (pass_info.color_write_mask & (1 << 1)) != 0;
+			pass.color_mask[2] = (pass_info.color_write_mask & (1 << 2)) != 0;
+			pass.color_mask[3] = (pass_info.color_write_mask & (1 << 3)) != 0;
+			pass.stencil_test = pass_info.stencil_enable;
+			pass.stencil_read_mask = pass_info.stencil_read_mask;
+			pass.stencil_mask = pass_info.stencil_write_mask;
+			pass.stencil_func = literal_to_comp_func(pass_info.stencil_comparison_func);
+			pass.stencil_op_z_pass = literal_to_stencil_op(pass_info.stencil_op_pass);
+			pass.stencil_op_fail = literal_to_stencil_op(pass_info.stencil_op_fail);
+			pass.stencil_op_z_fail = literal_to_stencil_op(pass_info.stencil_op_depth_fail);
+			pass.blend = pass_info.blend_enable;
+			pass.blend_eq_color = literal_to_blend_eq(pass_info.blend_op);
+			pass.blend_eq_alpha = literal_to_blend_eq(pass_info.blend_op_alpha);
+			pass.blend_src = literal_to_blend_func(pass_info.src_blend);
+			pass.blend_dest = literal_to_blend_func(pass_info.dest_blend);
+			pass.blend_src_alpha = literal_to_blend_func(pass_info.src_blend_alpha);
+			pass.blend_dest_alpha = literal_to_blend_func(pass_info.dest_blend_alpha);
+			pass.stencil_reference = pass_info.stencil_reference_value;
+			pass.srgb = pass_info.srgb_write_enable;
+			pass.clear_render_targets = pass_info.clear_render_targets;
+
+			glGenFramebuffers(1, &pass.fbo);
+			glBindFramebuffer(GL_FRAMEBUFFER, pass.fbo);
+
+			bool backbuffer_fbo = true;
+
+			for (unsigned int i = 0; i < 8; ++i)
+			{
+				const std::string &render_target = pass_info.render_target_names[i];
+
+				if (render_target.empty())
+					continue;
+
+				const auto texture = find_texture(render_target);
+
+				if (texture == nullptr)
+				{
+					assert(false);
+					return;
+				}
+
+				if (pass.viewport_width != 0 && pass.viewport_height != 0 && (texture->width != static_cast<unsigned int>(pass.viewport_width) || texture->height != static_cast<unsigned int>(pass.viewport_height)))
+				{
+					LOG(ERROR) << "Cannot use multiple render targets with different sized textures";
+					return;
+				}
+				else
+				{
+					pass.viewport_width = texture->width;
+					pass.viewport_height = texture->height;
+				}
+
+				backbuffer_fbo = false;
+
+				const auto texture_data = texture->impl->as<opengl_tex_data>();
+
+				glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + i, texture_data->id[pass.srgb], 0);
+
+				pass.draw_buffers[i] = GL_COLOR_ATTACHMENT0 + i;
+				pass.draw_textures[i] = texture_data->id[pass.srgb];
+			}
+
+			if (backbuffer_fbo)
+			{
+				glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, _default_backbuffer_rbo[0]);
+
+				pass.draw_buffers[0] = GL_COLOR_ATTACHMENT0;
+				pass.draw_textures[0] = _backbuffer_texture[1];
+
+				RECT rect;
+				GetClientRect(WindowFromDC(_hdc), &rect);
+
+				pass.viewport_width = static_cast<GLsizei>(rect.right - rect.left);
+				pass.viewport_height = static_cast<GLsizei>(rect.bottom - rect.top);
+			}
+
+			glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, _default_backbuffer_rbo[1]);
+
+			assert(glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
+
+			glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+			pass.program = glCreateProgram();
+
+			const GLuint vs_shader_id = _entry_points.at(pass_info.vs_entry_point);
+			const GLuint fs_shader_id = _entry_points.at(pass_info.ps_entry_point);
+
+			if (vs_shader_id != 0)
+				glAttachShader(pass.program, vs_shader_id);
+			if (fs_shader_id != 0)
+				glAttachShader(pass.program, fs_shader_id);
+
+			glLinkProgram(pass.program);
+
+			if (vs_shader_id != 0)
+				glDetachShader(pass.program, vs_shader_id);
+			if (fs_shader_id != 0)
+				glDetachShader(pass.program, fs_shader_id);
+
+			GLint status = GL_FALSE;
+
+			glGetProgramiv(pass.program, GL_LINK_STATUS, &status);
+
+			if (status == GL_FALSE)
+			{
+				GLint logsize = 0;
+				glGetProgramiv(pass.program, GL_INFO_LOG_LENGTH, &logsize);
+
+				if (logsize != 0)
+				{
+					std::string log(logsize, '\0');
+					glGetProgramInfoLog(pass.program, logsize, nullptr, log.data());
+
+					errors += log;
+				}
+
+				glDeleteProgram(pass.program);
+				pass.program = 0;
+
+				LOG(ERROR) << "Failed to link program for pass " << pass_index << " in technique '" << info.name << "'.";
+				return;
+			}
+		}
+
+		_techniques.push_back(std::move(obj));
+	}
+
 	void opengl_runtime::render_technique(const technique &technique)
 	{
 		opengl_technique_data &technique_data = *technique.impl->as<opengl_technique_data>();
@@ -719,10 +1335,10 @@ namespace reshade::opengl
 		glClearBufferfi(GL_DEPTH_STENCIL, 0, 1.0f, 0);
 
 		// Setup shader constants
-		if (technique.uniform_storage_index >= 0)
+		if (technique_data.uniform_storage_index >= 0)
 		{
-			glBindBufferBase(GL_UNIFORM_BUFFER, 0, _effect_ubos[technique.uniform_storage_index].first);
-			glBufferSubData(GL_UNIFORM_BUFFER, 0, _effect_ubos[technique.uniform_storage_index].second, get_uniform_value_storage().data() + technique.uniform_storage_offset);
+			glBindBufferBase(GL_UNIFORM_BUFFER, 0, _effect_ubos[technique_data.uniform_storage_index].first);
+			glBufferSubData(GL_UNIFORM_BUFFER, 0, _effect_ubos[technique_data.uniform_storage_index].second, _uniform_data_storage.data() + technique_data.uniform_storage_offset);
 		}
 
 		// Setup shader resources
