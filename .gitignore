@@ -17,7 +17,11 @@ packages/
 *.sdf
 *.opensdf
 *.suo
-*.user
+*.vcxproj.user
+
+# Visual Studio performance profiling
+*.vsp
+*.psess
 
 # Temporary OS files
 .DS_Store
