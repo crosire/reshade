@@ -27,16 +27,44 @@ namespace reshadefx
 			std::vector<std::string> parameters;
 		};
 
+		/// <summary>
+		/// Add an include directory to the list of search paths used when resolving #include directives.
+		/// </summary>
+		/// <param name="path">The path to the directory to add.</param>
 		void add_include_path(const reshade::filesystem::path &path);
+
+		/// <summary>
+		/// Add a new macro definition. This is equal to appending '#define name macro' to this pre-processor instance.
+		/// </summary>
+		/// <param name="name">The name of the macro to define.</param>
+		/// <param name="macro">The definition of the macro function or value.</param>
+		/// <returns></returns>
 		bool add_macro_definition(const std::string &name, const macro &macro);
+		/// <summary>
+		/// Add a new macro value definition. This is equal to appending '#define name macro' to this pre-processor instance.
+		/// </summary>
+		/// <param name="name">The name of the macro to define.</param>
+		/// <param name="value">The value to define that macro to.</param>
+		/// <returns></returns>
 		bool add_macro_definition(const std::string &name, const std::string &value = "1");
 
-		const std::string &errors() const { return _errors; }
-		const std::string &current_output() const { return _output; }
-		const std::vector<std::string> &current_pragmas() const { return _pragmas; }
+		/// <summary>
+		/// Open the specified file, parse its contents and append them to the output.
+		/// </summary>
+		/// <param name="path">The path to the file to parse.</param>
+		/// <returns>A boolean value indicating whether parsing was successful or not.</returns>
+		bool append_file(const reshade::filesystem::path &path);
+		/// <summary>
+		/// Parse the specified string and append it to the output.
+		/// </summary>
+		/// <param name="source_code">The string to parse.</param>
+		/// <returns>A boolean value indicating whether parsing was successful or not.</returns>
+		bool append_string(const std::string &source_code);
 
-		bool run(const reshade::filesystem::path &file_path);
-		bool run(const reshade::filesystem::path &file_path, std::vector<reshade::filesystem::path> &included_files);
+		std::string &errors() { return _errors; }
+		const std::string &errors() const { return _errors; }
+		std::string &output() { return _output; }
+		const std::string &output() const { return _output; }
 
 	private:
 		struct if_level
@@ -71,7 +99,9 @@ namespace reshadefx
 		inline token current_token() const { return _token; }
 		std::stack<if_level> &current_if_stack();
 		if_level &current_if_level();
+
 		void push(const std::string &input, const std::string &name = std::string());
+
 		bool peek(tokenid token) const;
 		void consume();
 		void consume_until(tokenid token);
@@ -105,7 +135,6 @@ namespace reshadefx
 		std::string _output, _errors, _current_token_raw_data;
 		int _recursion_count = 0;
 		std::unordered_map<std::string, macro> _macros;
-		std::vector<std::string> _pragmas;
 		std::vector<reshade::filesystem::path> _include_paths;
 		std::unordered_map<std::string, std::string> _filecache;
 	};

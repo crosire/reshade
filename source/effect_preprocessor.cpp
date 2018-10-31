@@ -42,40 +42,30 @@ namespace reshadefx
 		return add_macro_definition(name, macro);
 	}
 
-	bool preprocessor::run(const filesystem::path &file_path)
+	bool preprocessor::append_file(const filesystem::path &path)
 	{
-		std::ifstream file(file_path.wstring());
+		std::ifstream file(path.wstring());
 
 		if (!file.is_open())
-		{
 			return false;
-		}
 
 		_success = true;
-		_filecache.clear();
 
 		const std::string filedata(std::istreambuf_iterator<char>(file.rdbuf()), std::istreambuf_iterator<char>());
 
-		push(filedata + '\n', file_path.string());
+		push(filedata + '\n', path.string());
 		parse();
 
 		return _success;
 	}
-	bool preprocessor::run(const filesystem::path &file_path, std::vector<filesystem::path> &included_files)
+	bool preprocessor::append_string(const std::string &source_code)
 	{
-		if (run(file_path))
-		{
-			for (const auto &element : _filecache)
-			{
-				included_files.push_back(element.first);
-			}
+		_success = true;
 
-			return true;
-		}
-		else
-		{
-			return false;
-		}
+		push(source_code + '\n');
+		parse();
+
+		return _success;
 	}
 
 	// Error handling
@@ -106,6 +96,7 @@ namespace reshadefx
 	{
 		return current_if_stack().top();
 	}
+
 	void preprocessor::push(const std::string &input, const std::string &name)
 	{
 		const auto parent = _input_stack.empty() ? nullptr : &_input_stack.top();
@@ -127,6 +118,7 @@ namespace reshadefx
 
 		consume();
 	}
+
 	bool preprocessor::peek(tokenid token) const
 	{
 		assert(!_input_stack.empty());
@@ -320,12 +312,11 @@ namespace reshadefx
 
 		_output += line;
 	}
+
 	void preprocessor::parse_def()
 	{
 		if (!expect(tokenid::identifier))
-		{
 			return;
-		}
 
 		macro m;
 		const auto location = current_token().location;
@@ -381,9 +372,7 @@ namespace reshadefx
 	void preprocessor::parse_undef()
 	{
 		if (!expect(tokenid::identifier))
-		{
 			return;
-		}
 
 		const auto location = current_token().location;
 		const auto &macro_name = current_token().literal_as_string;
@@ -417,9 +406,7 @@ namespace reshadefx
 		level.token = current_token();
 
 		if (!expect(tokenid::identifier))
-		{
 			return;
-		}
 
 		const auto &macro_name = current_token().literal_as_string;
 
@@ -437,9 +424,7 @@ namespace reshadefx
 		level.token = current_token();
 
 		if (!expect(tokenid::identifier))
-		{
 			return;
-		}
 
 		const auto &macro_name = current_token().literal_as_string;
 
@@ -514,11 +499,9 @@ namespace reshadefx
 	void preprocessor::parse_error()
 	{
 		const auto keyword_location = current_token().location;
-				
+
 		if (!expect(tokenid::string_literal))
-		{
 			return;
-		}
 
 		error(keyword_location, current_token().literal_as_string);
 	}
@@ -527,18 +510,16 @@ namespace reshadefx
 		const auto keyword_location = current_token().location;
 
 		if (!expect(tokenid::string_literal))
-		{
 			return;
-		}
 
 		warning(keyword_location, current_token().literal_as_string);
 	}
 	void preprocessor::parse_pragma()
 	{
+		const auto keyword_location = current_token().location;
+
 		if (!expect(tokenid::identifier))
-		{
 			return;
-		}
 
 		std::string pragma = current_token().literal_as_string;
 
@@ -554,9 +535,7 @@ namespace reshadefx
 					break;
 				case tokenid::identifier:
 					if (evaluate_identifier_as_macro())
-					{
 						continue;
-					}
 				default:
 					pragma += _current_token_raw_data;
 					break;
@@ -565,15 +544,12 @@ namespace reshadefx
 
 		if (pragma == "once")
 		{
-			const auto it = _filecache.find(_output_location.source);
-
-			if (it != _filecache.end())
-			{
+			if (const auto it = _filecache.find(_output_location.source); it != _filecache.end())
 				it->second.clear();
-			}
+			return;
 		}
 
-		_pragmas.push_back(pragma);
+		warning(keyword_location, "unknown pragma ignored");
 	}
 	void preprocessor::parse_include()
 	{

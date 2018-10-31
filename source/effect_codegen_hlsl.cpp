@@ -622,11 +622,11 @@ private:
 		code() += write_location(loc) + '\t' + write_type(res_type) + ' ' + id_to_name(res) + " = ";
 
 		if (_shader_model < 40 && op == tokenid::tilde)
-			code() += "0xFFFFFFFF -"; // Emulate bitwise not operator on shader model 3
+			code() += "0xFFFFFFFF - "; // Emulate bitwise not operator on shader model 3
 		else
 			code() += char(op);
 
-		code() += ' ' + id_to_name(val) + ";\n";
+		code() += id_to_name(val) + ";\n";
 
 		return res;
 	}

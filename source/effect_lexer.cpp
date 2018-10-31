@@ -702,7 +702,7 @@ bool reshadefx::lexer::parse_pp_directive(token &tok)
 	}
 	else if (tok.literal_as_string == "line") // The #line directive needs special handling
 	{
-		skip(tok.length);
+		skip(tok.length); // The 'parse_identifier' does not update the pointer to the current character, so do that now
 		skip_space();
 		parse_numeric_literal(tok);
 		skip(tok.length);

@@ -18,23 +18,21 @@ namespace reshadefx
 	class parser : symbol_table
 	{
 	public:
-		explicit parser(codegen::backend backend, unsigned int shader_model, bool debug_info);
-
-		void write_result(module &stream)
-		{
-			_codegen->write_result(stream);
-		}
-
 		/// <summary>
 		/// Parse the provided input string.
 		/// </summary>
 		/// <param name="source">The string to analyze.</param>
+		/// <param name="backend">The code generation implementation to use.</param>
+		/// <param name="shader_model">The shader model version to target for code generation. Can be 30, 40, 41, 50, ...</param>
+		/// <param name="debug_info">Whether to append debug information like line directives to the generated code.</param>
+		/// <param name="result">A reference to a module that will be filled with the generated code.</param>
 		/// <returns>A boolean value indicating whether parsing was successful or not.</returns>
-		bool parse(const std::string &source);
+		bool parse(const std::string &source, codegen::backend backend, unsigned int shader_model, bool debug_info, module &result);
 
 		/// <summary>
 		/// Gets the list of error messages.
 		/// </summary>
+		std::string &errors() { return _errors; }
 		const std::string &errors() const { return _errors; }
 
 	private:
@@ -83,9 +81,9 @@ namespace reshadefx
 		bool parse_technique_pass(pass_info &info);
 
 		std::string _errors;
+		token _token, _token_next, _token_backup;
 		std::unique_ptr<lexer> _lexer, _lexer_backup;
 		std::unique_ptr<codegen> _codegen;
-		token _token, _token_next, _token_backup;
 
 		std::vector<codegen::id> _loop_break_target_stack;
 		std::vector<codegen::id> _loop_continue_target_stack;

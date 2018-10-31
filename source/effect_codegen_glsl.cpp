@@ -728,7 +728,7 @@ private:
 			assert(false);
 		}
 
-		code() += "(" + id_to_name(val) + ");\n";
+		code() += '(' + id_to_name(val) + ");\n";
 
 		return res;
 	}

@@ -196,12 +196,12 @@ namespace reshadefx
 	{
 	public:
 		explicit lexer(
-			const std::string &input,
+			std::string input,
 			bool ignore_whitespace = true,
 			bool ignore_pp_directives = true,
 			bool ignore_keywords = false,
 			bool escape_string_literals = true) :
-			_input(input),
+			_input(std::move(input)),
 			_ignore_whitespace(ignore_whitespace),
 			_ignore_pp_directives(ignore_pp_directives),
 			_ignore_keywords(ignore_keywords),

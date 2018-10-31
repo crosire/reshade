@@ -18,14 +18,13 @@ Options:
   -h, --help                Print this help.
   --version                 Print ReShade version.
 
-  -D <value>                Define a pre-processor macro.
-  -I <value>                Add directory to include search path.
-  -P <value>                Pre-process to file. If <value> is "-", then result is written to standard output instead.
+  -D <id>=<text>            Define a pre-processor macro.
+  -I <path>                 Add directory to include search path.
+  -P <path>                 Pre-process to file. If <path> is "-", then result is written to standard output instead.
 
   -Fo <file>                Output SPIR-V binary to the given file.
   -Fe <file>                Output warnings and errors to the given file.
 
-  -E, --entry <value>       Entry point name.
   --glsl                    Print GLSL code for the previously specified entry point.
   --hlsl                    Print HLSL code for the previously specified entry point.
   --shader-model <value>    HLSL shader model version. Can be 30, 40, 41, 50, ...
@@ -40,7 +39,6 @@ int main(int argc, char *argv[])
 	const char *preprocess = nullptr;
 	const char *errorfile = nullptr;
 	const char *objectfile = nullptr;
-	const char *entrypoint = nullptr;
 	bool print_glsl = false;
 	bool print_hlsl = false;
 	bool debug_info = false;
@@ -92,37 +90,21 @@ int main(int argc, char *argv[])
 			{
 				objectfile = argv[++i];
 			}
-			else if (0 == strcmp(arg, "-E") || 0 == strcmp(arg, "--entry"))
+			else if (0 == strcmp(arg, "-Zi"))
 			{
-				entrypoint = argv[++i];
+				debug_info = true;
 			}
 			else if (0 == strcmp(arg, "--glsl"))
 			{
-				//if (entrypoint == nullptr)
-				//{
-				//	std::cout << "error: No entry point specified" << std::endl;
-				//	return 1;
-				//}
-
 				print_glsl = true;
 			}
 			else if (0 == strcmp(arg, "--hlsl"))
 			{
-				//if (entrypoint == nullptr)
-				//{
-				//	std::cout << "error: No entry point specified" << std::endl;
-				//	return 1;
-				//}
-
 				print_hlsl = true;
 			}
 			else if (0 == strcmp(arg, "--shader-model"))
 			{
 				shader_model = std::strtol(argv[++i], nullptr, 10);
-			}
-			else if (0 == strcmp(arg, "-Zi"))
-			{
-				debug_info = true;
 			}
 		}
 		else
@@ -143,7 +125,7 @@ int main(int argc, char *argv[])
 		return 1;
 	}
 
-	if (!pp.run(filename))
+	if (!pp.append_file(filename))
 	{
 		if (errorfile == nullptr)
 			std::cout << pp.errors() << std::endl;
@@ -155,26 +137,22 @@ int main(int argc, char *argv[])
 	if (preprocess != nullptr)
 	{
 		if (strcmp(preprocess, "-") == 0)
-			std::cout << pp.current_output() << std::endl;
+			std::cout << pp.output() << std::endl;
 		else
-			std::ofstream(preprocess) << pp.current_output();
+			std::ofstream(preprocess) << pp.output();
 		return 0;
 	}
 
 	reshadefx::codegen::backend backend = reshadefx::codegen::backend::spirv;
-
 	if (print_glsl)
-	{
 		backend = reshadefx::codegen::backend::glsl;
-	}
 	if (print_hlsl)
-	{
 		backend = reshadefx::codegen::backend::hlsl;
-	}
 
-	reshadefx::parser parser(backend, shader_model, debug_info);
+	reshadefx::parser parser;
+	reshadefx::module module;
 
-	if (!parser.parse(pp.current_output()))
+	if (!parser.parse(pp.output(), backend, shader_model, debug_info, module))
 	{
 		if (errorfile == nullptr)
 			std::cout << parser.errors() << std::endl;
@@ -182,9 +160,6 @@ int main(int argc, char *argv[])
 			std::ofstream(errorfile) << parser.errors();
 		return 1;
 	}
-
-	reshadefx::module module;
-	parser.write_result(module);
 
 	if (print_glsl || print_hlsl)
 	{
