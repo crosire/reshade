@@ -283,6 +283,7 @@ namespace reshade
 		bool _screenshot_key_setting_active = false;
 		bool _toggle_key_setting_active = false;
 		bool _log_wordwrap = false;
+		bool _last_reload_successful = true;
 		unsigned char _switched_menu = 0;
 		float _imgui_col_background[3] = { 0.117647f, 0.117647f, 0.117647f };
 		float _imgui_col_item_background[3] = { 0.156863f, 0.156863f, 0.156863f };

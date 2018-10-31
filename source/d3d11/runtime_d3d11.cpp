@@ -247,7 +247,7 @@ namespace reshade::d3d11
 
 		assert(SUCCEEDED(hr));
 
-		D3D11_TEXTURE2D_DESC texdesc = { };
+		D3D11_TEXTURE2D_DESC texdesc = {};
 		texdesc.Width = _width;
 		texdesc.Height = _height;
 		texdesc.ArraySize = texdesc.MipLevels = 1;
@@ -293,7 +293,7 @@ namespace reshade::d3d11
 
 		if (SUCCEEDED(hr))
 		{
-			D3D11_SHADER_RESOURCE_VIEW_DESC srvdesc = { };
+			D3D11_SHADER_RESOURCE_VIEW_DESC srvdesc = {};
 			srvdesc.Format = make_format_normal(texdesc.Format);
 			srvdesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
 			srvdesc.Texture2D.MipLevels = texdesc.MipLevels;
@@ -335,7 +335,7 @@ namespace reshade::d3d11
 			return false;
 		}
 
-		D3D11_RENDER_TARGET_VIEW_DESC rtdesc = { };
+		D3D11_RENDER_TARGET_VIEW_DESC rtdesc = {};
 		rtdesc.Format = make_format_normal(texdesc.Format);
 		rtdesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
 
@@ -430,7 +430,7 @@ namespace reshade::d3d11
 	}
 	bool runtime_d3d11::init_fx_resources()
 	{
-		D3D11_RASTERIZER_DESC desc = { };
+		D3D11_RASTERIZER_DESC desc = {};
 		desc.FillMode = D3D11_FILL_SOLID;
 		desc.CullMode = D3D11_CULL_NONE;
 		desc.DepthClipEnable = TRUE;
@@ -481,7 +481,7 @@ namespace reshade::d3d11
 
 		// Create the constant buffer
 		{
-			D3D11_BUFFER_DESC desc = { };
+			D3D11_BUFFER_DESC desc = {};
 			desc.ByteWidth = 16 * sizeof(float);
 			desc.Usage = D3D11_USAGE_DYNAMIC;
 			desc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
@@ -497,7 +497,7 @@ namespace reshade::d3d11
 
 		// Create the blending setup
 		{
-			D3D11_BLEND_DESC desc = { };
+			D3D11_BLEND_DESC desc = {};
 			desc.RenderTarget[0].BlendEnable = true;
 			desc.RenderTarget[0].SrcBlend = D3D11_BLEND_SRC_ALPHA;
 			desc.RenderTarget[0].DestBlend = D3D11_BLEND_INV_SRC_ALPHA;
@@ -517,7 +517,7 @@ namespace reshade::d3d11
 
 		// Create the depth stencil state
 		{
-			D3D11_DEPTH_STENCIL_DESC desc = { };
+			D3D11_DEPTH_STENCIL_DESC desc = {};
 			desc.DepthEnable = false;
 			desc.StencilEnable = false;
 
@@ -531,7 +531,7 @@ namespace reshade::d3d11
 
 		// Create the rasterizer state
 		{
-			D3D11_RASTERIZER_DESC desc = { };
+			D3D11_RASTERIZER_DESC desc = {};
 			desc.FillMode = D3D11_FILL_SOLID;
 			desc.CullMode = D3D11_CULL_NONE;
 			desc.ScissorEnable = true;
@@ -547,7 +547,7 @@ namespace reshade::d3d11
 
 		// Create texture sampler
 		{
-			D3D11_SAMPLER_DESC desc = { };
+			D3D11_SAMPLER_DESC desc = {};
 			desc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
 			desc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
 			desc.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
@@ -603,7 +603,7 @@ namespace reshade::d3d11
 			return false;
 		}
 
-		d3d11_tex_data obj = { };
+		d3d11_tex_data obj = {};
 		obj.texture = font_atlas;
 		obj.srv[0] = font_atlas_view;
 
@@ -682,6 +682,9 @@ namespace reshade::d3d11
 		_imgui_depthstencil_state.reset();
 		_imgui_vertex_buffer_size = 0;
 		_imgui_index_buffer_size = 0;
+
+		_vs_entry_points.clear();
+		_ps_entry_points.clear();
 	}
 	void runtime_d3d11::on_reset_effect()
 	{
@@ -800,7 +803,7 @@ namespace reshade::d3d11
 			return;
 		}
 
-		D3D11_TEXTURE2D_DESC texture_desc = { };
+		D3D11_TEXTURE2D_DESC texture_desc = {};
 		texture_desc.Width = _width;
 		texture_desc.Height = _height;
 		texture_desc.ArraySize = 1;
@@ -915,6 +918,9 @@ namespace reshade::d3d11
 
 		const auto D3DCompile = reinterpret_cast<pD3DCompile>(GetProcAddress(_d3d_compiler, "D3DCompile"));
 
+		_vs_entry_points.clear();
+		_ps_entry_points.clear();
+
 		// Compile the generated HLSL source code to DX byte code
 		for (const auto &entry_point : module.entry_points)
 		{
@@ -948,7 +954,6 @@ namespace reshade::d3d11
 			add_uniform(uniform, storage_base_offset);
 
 		const size_t constant_buffer_size = roundto16(_uniform_data_storage.size() - storage_base_offset);
-
 		if (constant_buffer_size != 0)
 		{
 			_uniform_data_storage.resize(storage_base_offset + constant_buffer_size);
@@ -962,6 +967,8 @@ namespace reshade::d3d11
 			_constant_buffers.push_back(std::move(constant_buffer));
 		}
 
+		bool success = true;
+
 		for (const auto &texture_info : module.textures)
 		{
 			if (const auto existing_texture = find_texture(texture_info.unique_name); existing_texture != nullptr)
@@ -971,14 +978,14 @@ namespace reshade::d3d11
 					existing_texture->height != texture_info.height ||
 					existing_texture->levels != texture_info.levels ||
 					existing_texture->format != static_cast<texture_format>(texture_info.format)))
-					errors += "error: " + existing_texture->effect_filename + " already created a texture with the same name but different dimensions; textures are shared across all effects, so either rename the variable or adjust the dimensions so they match\n";
+					errors += "warning: " + existing_texture->effect_filename + " already created a texture with the same name but different dimensions; textures are shared across all effects, so either rename the variable or adjust the dimensions so they match\n";
 				continue;
 			}
 
 			if (!texture_info.semantic.empty() && (texture_info.semantic != "COLOR" && texture_info.semantic != "DEPTH"))
 				errors += "warning: " + texture_info.unique_name + ": unknown semantic '" + texture_info.semantic + "'\n";
 
-			add_texture(texture_info);
+			success &= add_texture(texture_info);
 		}
 
 		d3d11_technique_data effect;
@@ -986,18 +993,52 @@ namespace reshade::d3d11
 		effect.uniform_storage_offset = storage_base_offset;
 
 		for (const auto &sampler : module.samplers)
-			add_sampler(sampler, effect);
+			success &= add_sampler(sampler, effect);
 
 		for (const auto &technique : module.techniques)
-			add_technique(technique, effect);
+			success &= add_technique(technique, effect);
 
 		_vs_entry_points.clear();
 		_ps_entry_points.clear();
 
-		return true;
+		return success;
 	}
 
-	void runtime_d3d11::add_texture(const reshadefx::texture_info &info)
+	void runtime_d3d11::add_uniform(const reshadefx::uniform_info &info, size_t storage_base_offset)
+	{
+		uniform obj;
+		obj.name = info.name;
+		obj.rows = info.type.rows;
+		obj.columns = info.type.cols;
+		obj.elements = std::max(1, info.type.array_length);
+		obj.storage_size = info.size;
+		obj.storage_offset = storage_base_offset + info.offset;
+		copy_annotations(info.annotations, obj.annotations);
+
+		switch (info.type.base)
+		{
+		case reshadefx::type::t_int:
+			obj.displaytype = obj.basetype = uniform_datatype::signed_integer;
+			break;
+		case reshadefx::type::t_uint:
+			obj.displaytype = obj.basetype = uniform_datatype::unsigned_integer;
+			break;
+		case reshadefx::type::t_float:
+			obj.displaytype = obj.basetype = uniform_datatype::floating_point;
+			break;
+		}
+
+		// Create space for the new variable in the storage area and fill it with the initializer value
+		_uniform_data_storage.resize(obj.storage_offset + obj.storage_size);
+
+		if (info.has_initializer_value)
+			memcpy(_uniform_data_storage.data() + obj.storage_offset, info.initializer_value.as_uint, obj.storage_size);
+		else
+			memset(_uniform_data_storage.data() + obj.storage_offset, 0, obj.storage_size);
+
+		_uniforms.push_back(std::move(obj));
+	}
+	bool runtime_d3d11::add_texture(const reshadefx::texture_info &info)
 	{
 		texture obj;
 		obj.name = info.unique_name;
@@ -1054,10 +1095,10 @@ namespace reshade::d3d11
 					"SampleCount = " << texdesc.SampleDesc.Count << ", "
 					"SampleQuality = " << texdesc.SampleDesc.Quality << ")! "
 					"HRESULT is '" << std::hex << hr << std::dec << "'.";
-				return;
+				return false;
 			}
 
-			D3D11_SHADER_RESOURCE_VIEW_DESC srvdesc = { };
+			D3D11_SHADER_RESOURCE_VIEW_DESC srvdesc = {};
 			srvdesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
 			srvdesc.Texture2D.MipLevels = texdesc.MipLevels;
 			srvdesc.Format = make_format_normal(texdesc.Format);
@@ -1069,7 +1110,7 @@ namespace reshade::d3d11
 				LOG(ERROR) << "Failed to create shader resource view for texture '" << info.unique_name << "' ("
 					"Format = " << srvdesc.Format << ")! "
 					"HRESULT is '" << std::hex << hr << std::dec << "'.";
-				return;
+				return false;
 			}
 
 			srvdesc.Format = make_format_srgb(texdesc.Format);
@@ -1083,7 +1124,7 @@ namespace reshade::d3d11
 					LOG(ERROR) << "Failed to create shader resource view for texture '" << info.unique_name << "' ("
 						"Format = " << srvdesc.Format << ")! "
 						"HRESULT is '" << std::hex << hr << std::dec << "'.";
-					return;
+					return false;
 				}
 			}
 			else
@@ -1093,13 +1134,15 @@ namespace reshade::d3d11
 		}
 
 		_textures.push_back(std::move(obj));
+
+		return true;
 	}
-	void runtime_d3d11::add_sampler(const reshadefx::sampler_info &info, d3d11_technique_data &effect)
+	bool runtime_d3d11::add_sampler(const reshadefx::sampler_info &info, d3d11_technique_data &effect)
 	{
 		const auto existing_texture = find_texture(info.texture_name);
 
 		if (!existing_texture)
-			return;
+			return false;
 
 		D3D11_SAMPLER_DESC desc = {};
 		desc.Filter = static_cast<D3D11_FILTER>(info.filter);
@@ -1135,7 +1178,7 @@ namespace reshade::d3d11
 					"MinLOD = " << desc.MinLOD << ", "
 					"MaxLOD = " << desc.MaxLOD << ")! "
 					"HRESULT is '" << std::hex << hr << std::dec << "'.";
-				return;
+				return false;
 			}
 
 			it = _effect_sampler_states.emplace(desc_hash, std::move(sampler)).first;
@@ -1146,42 +1189,10 @@ namespace reshade::d3d11
 
 		effect.sampler_states[info.binding] = it->second;
 		effect.texture_bindings[info.binding] = existing_texture->impl->as<d3d11_tex_data>()->srv[info.srgb ? 1 : 0];
+
+		return true;
 	}
-	void runtime_d3d11::add_uniform(const reshadefx::uniform_info &info, size_t storage_base_offset)
-	{
-		uniform obj;
-		obj.name = info.name;
-		obj.rows = info.type.rows;
-		obj.columns = info.type.cols;
-		obj.elements = std::max(1, info.type.array_length);
-		obj.storage_size = info.size;
-		obj.storage_offset = storage_base_offset + info.offset;
-		copy_annotations(info.annotations, obj.annotations);
-
-		switch (info.type.base)
-		{
-		case reshadefx::type::t_int:
-			obj.displaytype = obj.basetype = uniform_datatype::signed_integer;
-			break;
-		case reshadefx::type::t_uint:
-			obj.displaytype = obj.basetype = uniform_datatype::unsigned_integer;
-			break;
-		case reshadefx::type::t_float:
-			obj.displaytype = obj.basetype = uniform_datatype::floating_point;
-			break;
-		}
-
-		// Create space for the new variable in the storage area and fill it with the initializer value
-		_uniform_data_storage.resize(obj.storage_offset + obj.storage_size);
-
-		if (info.has_initializer_value)
-			memcpy(_uniform_data_storage.data() + obj.storage_offset, info.initializer_value.as_uint, obj.storage_size);
-		else
-			memset(_uniform_data_storage.data() + obj.storage_offset, 0, obj.storage_size);
-
-		_uniforms.push_back(std::move(obj));
-	}
-	void runtime_d3d11::add_technique(const reshadefx::technique_info &info, const d3d11_technique_data &effect)
+	bool runtime_d3d11::add_technique(const reshadefx::technique_info &info, const d3d11_technique_data &effect)
 	{
 		technique obj;
 		obj.impl = std::make_unique<d3d11_technique_data>(effect);
@@ -1226,7 +1237,7 @@ namespace reshade::d3d11
 				if (texture == nullptr)
 				{
 					assert(false);
-					return;
+					return false;
 				}
 
 				d3d11_tex_data *const texture_impl = texture->impl->as<d3d11_tex_data>();
@@ -1237,7 +1248,7 @@ namespace reshade::d3d11
 				if (pass.viewport.Width != 0 && pass.viewport.Height != 0 && (desc.Width != static_cast<unsigned int>(pass.viewport.Width) || desc.Height != static_cast<unsigned int>(pass.viewport.Height)))
 				{
 					LOG(ERROR) << "Cannot use multiple render targets with different sized textures";
-					return;
+					return false;
 				}
 				else
 				{
@@ -1245,7 +1256,7 @@ namespace reshade::d3d11
 					pass.viewport.Height = static_cast<FLOAT>(desc.Height);
 				}
 
-				D3D11_RENDER_TARGET_VIEW_DESC rtvdesc = { };
+				D3D11_RENDER_TARGET_VIEW_DESC rtvdesc = {};
 				rtvdesc.Format = pass_info.srgb_write_enable ? make_format_srgb(desc.Format) : make_format_normal(desc.Format);
 				rtvdesc.ViewDimension = desc.SampleDesc.Count > 1 ? D3D11_RTV_DIMENSION_TEXTURE2DMS : D3D11_RTV_DIMENSION_TEXTURE2D;
 
@@ -1258,6 +1269,7 @@ namespace reshade::d3d11
 						LOG(ERROR) << "Failed to create render target view for texture '" << texture->name << "' ("
 							"Format = " << rtvdesc.Format << ")! "
 							"HRESULT is '" << std::hex << hr << std::dec << "'.";
+						return false;
 					}
 				}
 
@@ -1290,6 +1302,7 @@ namespace reshade::d3d11
 			{
 				LOG(ERROR) << "Failed to create depth stencil state for pass " << pass_index << " in technique '" << info.name << "'! "
 					"HRESULT is '" << std::hex << hr << std::dec << "'.";
+				return false;
 			}
 
 			D3D11_BLEND_DESC bdesc;
@@ -1310,6 +1323,7 @@ namespace reshade::d3d11
 			{
 				LOG(ERROR) << "Failed to create blend state for pass " << pass_index << " in technique '" << info.name << "'! "
 					"HRESULT is '" << std::hex << hr << std::dec << "'.";
+				return false;
 			}
 
 			for (auto &srv : pass.shader_resources)
@@ -1338,6 +1352,8 @@ namespace reshade::d3d11
 		}
 
 		_techniques.push_back(std::move(obj));
+
+		return true;
 	}
 
 	void runtime_d3d11::render_technique(const technique &technique)
@@ -1476,7 +1492,7 @@ namespace reshade::d3d11
 			_imgui_vertex_buffer.reset();
 			_imgui_vertex_buffer_size = draw_data->TotalVtxCount + 5000;
 
-			D3D11_BUFFER_DESC desc = { };
+			D3D11_BUFFER_DESC desc = {};
 			desc.Usage = D3D11_USAGE_DYNAMIC;
 			desc.ByteWidth = _imgui_vertex_buffer_size * sizeof(ImDrawVert);
 			desc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
@@ -1494,7 +1510,7 @@ namespace reshade::d3d11
 			_imgui_index_buffer.reset();
 			_imgui_index_buffer_size = draw_data->TotalIdxCount + 10000;
 
-			D3D11_BUFFER_DESC desc = { };
+			D3D11_BUFFER_DESC desc = {};
 			desc.Usage = D3D11_USAGE_DYNAMIC;
 			desc.ByteWidth = _imgui_index_buffer_size * sizeof(ImDrawIdx);
 			desc.BindFlags = D3D11_BIND_INDEX_BUFFER;
@@ -1832,23 +1848,23 @@ namespace reshade::d3d11
 
 				switch (texdesc.Format)
 				{
-					case DXGI_FORMAT_R16_TYPELESS:
-					case DXGI_FORMAT_D16_UNORM:
-						texdesc.Format = DXGI_FORMAT_R16_TYPELESS;
-						break;
-					case DXGI_FORMAT_R32_TYPELESS:
-					case DXGI_FORMAT_D32_FLOAT:
-						texdesc.Format = DXGI_FORMAT_R32_TYPELESS;
-						break;
-					default:
-					case DXGI_FORMAT_R24G8_TYPELESS:
-					case DXGI_FORMAT_D24_UNORM_S8_UINT:
-						texdesc.Format = DXGI_FORMAT_R24G8_TYPELESS;
-						break;
-					case DXGI_FORMAT_R32G8X24_TYPELESS:
-					case DXGI_FORMAT_D32_FLOAT_S8X24_UINT:
-						texdesc.Format = DXGI_FORMAT_R32G8X24_TYPELESS;
-						break;
+				case DXGI_FORMAT_R16_TYPELESS:
+				case DXGI_FORMAT_D16_UNORM:
+					texdesc.Format = DXGI_FORMAT_R16_TYPELESS;
+					break;
+				case DXGI_FORMAT_R32_TYPELESS:
+				case DXGI_FORMAT_D32_FLOAT:
+					texdesc.Format = DXGI_FORMAT_R32_TYPELESS;
+					break;
+				default:
+				case DXGI_FORMAT_R24G8_TYPELESS:
+				case DXGI_FORMAT_D24_UNORM_S8_UINT:
+					texdesc.Format = DXGI_FORMAT_R24G8_TYPELESS;
+					break;
+				case DXGI_FORMAT_R32G8X24_TYPELESS:
+				case DXGI_FORMAT_D32_FLOAT_S8X24_UINT:
+					texdesc.Format = DXGI_FORMAT_R32G8X24_TYPELESS;
+					break;
 				}
 
 				texdesc.BindFlags = D3D11_BIND_DEPTH_STENCIL | D3D11_BIND_SHADER_RESOURCE;
@@ -1857,23 +1873,23 @@ namespace reshade::d3d11
 
 				if (SUCCEEDED(hr))
 				{
-					D3D11_DEPTH_STENCIL_VIEW_DESC dsvdesc = { };
+					D3D11_DEPTH_STENCIL_VIEW_DESC dsvdesc = {};
 					dsvdesc.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D;
 
 					switch (texdesc.Format)
 					{
-						case DXGI_FORMAT_R16_TYPELESS:
-							dsvdesc.Format = DXGI_FORMAT_D16_UNORM;
-							break;
-						case DXGI_FORMAT_R32_TYPELESS:
-							dsvdesc.Format = DXGI_FORMAT_D32_FLOAT;
-							break;
-						case DXGI_FORMAT_R24G8_TYPELESS:
-							dsvdesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
-							break;
-						case DXGI_FORMAT_R32G8X24_TYPELESS:
-							dsvdesc.Format = DXGI_FORMAT_D32_FLOAT_S8X24_UINT;
-							break;
+					case DXGI_FORMAT_R16_TYPELESS:
+						dsvdesc.Format = DXGI_FORMAT_D16_UNORM;
+						break;
+					case DXGI_FORMAT_R32_TYPELESS:
+						dsvdesc.Format = DXGI_FORMAT_D32_FLOAT;
+						break;
+					case DXGI_FORMAT_R24G8_TYPELESS:
+						dsvdesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
+						break;
+					case DXGI_FORMAT_R32G8X24_TYPELESS:
+						dsvdesc.Format = DXGI_FORMAT_D32_FLOAT_S8X24_UINT;
+						break;
 					}
 
 					hr = _device->CreateDepthStencilView(_depthstencil_texture.get(), &dsvdesc, &_depthstencil_replacement);
@@ -1883,28 +1899,27 @@ namespace reshade::d3d11
 			if (FAILED(hr))
 			{
 				LOG(ERROR) << "Failed to create depth stencil replacement texture! HRESULT is '" << std::hex << hr << std::dec << "'.";
-
 				return false;
 			}
 
-			D3D11_SHADER_RESOURCE_VIEW_DESC srvdesc = { };
+			D3D11_SHADER_RESOURCE_VIEW_DESC srvdesc = {};
 			srvdesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
 			srvdesc.Texture2D.MipLevels = 1;
 
 			switch (texdesc.Format)
 			{
-				case DXGI_FORMAT_R16_TYPELESS:
-					srvdesc.Format = DXGI_FORMAT_R16_FLOAT;
-					break;
-				case DXGI_FORMAT_R32_TYPELESS:
-					srvdesc.Format = DXGI_FORMAT_R32_FLOAT;
-					break;
-				case DXGI_FORMAT_R24G8_TYPELESS:
-					srvdesc.Format = DXGI_FORMAT_R24_UNORM_X8_TYPELESS;
-					break;
-				case DXGI_FORMAT_R32G8X24_TYPELESS:
-					srvdesc.Format = DXGI_FORMAT_R32_FLOAT_X8X24_TYPELESS;
-					break;
+			case DXGI_FORMAT_R16_TYPELESS:
+				srvdesc.Format = DXGI_FORMAT_R16_FLOAT;
+				break;
+			case DXGI_FORMAT_R32_TYPELESS:
+				srvdesc.Format = DXGI_FORMAT_R32_FLOAT;
+				break;
+			case DXGI_FORMAT_R24G8_TYPELESS:
+				srvdesc.Format = DXGI_FORMAT_R24_UNORM_X8_TYPELESS;
+				break;
+			case DXGI_FORMAT_R32G8X24_TYPELESS:
+				srvdesc.Format = DXGI_FORMAT_R32_FLOAT_X8X24_TYPELESS;
+				break;
 			}
 
 			hr = _device->CreateShaderResourceView(_depthstencil_texture.get(), &srvdesc, &_depthstencil_texture_srv);
@@ -1912,7 +1927,6 @@ namespace reshade::d3d11
 			if (FAILED(hr))
 			{
 				LOG(ERROR) << "Failed to create depth stencil replacement resource view! HRESULT is '" << std::hex << hr << std::dec << "'.";
-
 				return false;
 			}
 

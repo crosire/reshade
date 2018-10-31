@@ -293,7 +293,7 @@ namespace reshade::d3d9
 
 		font_atlas->UnlockRect(0);
 
-		d3d9_tex_data obj = { };
+		d3d9_tex_data obj = {};
 		obj.texture = font_atlas;
 
 		_imgui_font_atlas_texture = std::make_unique<d3d9_tex_data>(obj);
@@ -420,6 +420,9 @@ namespace reshade::d3d9
 		}
 
 		_depth_source_table.clear();
+
+		_vs_entry_points.clear();
+		_ps_entry_points.clear();
 	}
 	void runtime_d3d9::on_present()
 	{
@@ -435,7 +438,7 @@ namespace reshade::d3d9
 		// Capture device state
 		_app_state->Capture();
 
-		BOOL software_rendering_enabled;
+		BOOL software_rendering_enabled = FALSE;
 		D3DVIEWPORT9 viewport;
 		com_ptr<IDirect3DSurface9> stateblock_rendertargets[8], stateblock_depthstencil;
 
@@ -787,6 +790,9 @@ namespace reshade::d3d9
 
 		const auto D3DCompile = reinterpret_cast<pD3DCompile>(GetProcAddress(_d3d_compiler, "D3DCompile"));
 
+		_vs_entry_points.clear();
+		_ps_entry_points.clear();
+
 		// Compile the generated HLSL source code to DX byte code
 		for (const auto &entry_point : module.entry_points)
 		{
@@ -824,6 +830,8 @@ namespace reshade::d3d9
 		for (const auto &uniform_info : module.uniforms)
 			add_uniform(uniform_info, storage_base_offset);
 
+		bool success = true;
+
 		for (const auto &texture_info : module.textures)
 		{
 			if (const auto existing_texture = find_texture(texture_info.unique_name); existing_texture != nullptr)
@@ -833,14 +841,14 @@ namespace reshade::d3d9
 					existing_texture->height != texture_info.height ||
 					existing_texture->levels != texture_info.levels ||
 					existing_texture->format != static_cast<texture_format>(texture_info.format)))
-					errors += "error: " + existing_texture->effect_filename + " already created a texture with the same name but different dimensions; textures are shared across all effects, so either rename the variable or adjust the dimensions so they match\n";
+					errors += "warning: " + existing_texture->effect_filename + " already created a texture with the same name but different dimensions; textures are shared across all effects, so either rename the variable or adjust the dimensions so they match\n";
 				continue;
 			}
 
 			if (!texture_info.semantic.empty() && (texture_info.semantic != "COLOR" && texture_info.semantic != "DEPTH"))
 				errors += "warning: " + texture_info.unique_name + ": unknown semantic '" + texture_info.semantic + "'\n";
 
-			add_texture(texture_info);
+			success &= add_texture(texture_info);
 		}
 
 		d3d9_technique_data effect;
@@ -848,18 +856,72 @@ namespace reshade::d3d9
 		effect.constant_register_count = (_uniform_data_storage.size() - storage_base_offset + 16) / 16;
 
 		for (const auto &sampler_info : module.samplers)
-			add_sampler(sampler_info, effect);
+			success &= add_sampler(sampler_info, effect);
 
 		for (const auto &technique_info : module.techniques)
-			add_technique(technique_info, effect);
+			success &= add_technique(technique_info, effect);
 
 		_vs_entry_points.clear();
 		_ps_entry_points.clear();
 
-		return true;
+		return success;
 	}
 
-	void runtime_d3d9::add_texture(const reshadefx::texture_info &info)
+	void runtime_d3d9::add_uniform(const reshadefx::uniform_info &info, size_t storage_base_offset)
+	{
+		uniform obj;
+		obj.name = info.name;
+		obj.rows = info.type.rows;
+		obj.columns = info.type.cols;
+		obj.elements = std::max(1, info.type.array_length);
+		obj.storage_size = info.size;
+		obj.storage_offset = storage_base_offset + info.offset;
+		copy_annotations(info.annotations, obj.annotations);
+
+		obj.basetype = uniform_datatype::floating_point;
+
+		switch (info.type.base)
+		{
+		case reshadefx::type::t_int:
+			obj.displaytype = uniform_datatype::signed_integer;
+			break;
+		case reshadefx::type::t_uint:
+			obj.displaytype = uniform_datatype::unsigned_integer;
+			break;
+		case reshadefx::type::t_float:
+			obj.displaytype = uniform_datatype::floating_point;
+			break;
+		}
+
+		// Create space for the new variable in the storage area and fill it with the initializer value
+		_uniform_data_storage.resize(obj.storage_offset + obj.storage_size);
+
+		if (info.has_initializer_value)
+		{
+			for (size_t i = 0; i < obj.storage_size / 4; i++)
+			{
+				switch (info.type.base)
+				{
+				case reshadefx::type::t_int:
+					reinterpret_cast<float *>(_uniform_data_storage.data() + obj.storage_offset)[i] = static_cast<float>(info.initializer_value.as_int[i]);
+					break;
+				case reshadefx::type::t_uint:
+					reinterpret_cast<float *>(_uniform_data_storage.data() + obj.storage_offset)[i] = static_cast<float>(info.initializer_value.as_uint[i]);
+					break;
+				case reshadefx::type::t_float:
+					reinterpret_cast<float *>(_uniform_data_storage.data() + obj.storage_offset)[i] = info.initializer_value.as_float[i];
+					break;
+				}
+			}
+		}
+		else
+		{
+			memset(_uniform_data_storage.data() + obj.storage_offset, 0, obj.storage_size);
+		}
+
+		_uniforms.push_back(std::move(obj));
+	}
+	bool runtime_d3d9::add_texture(const reshadefx::texture_info &info)
 	{
 		texture obj;
 		obj.name = info.unique_name;
@@ -921,7 +983,7 @@ namespace reshade::d3d9
 					"Usage = " <<usage << ", "
 					"Format = " << format << ")! "
 					"HRESULT is '" << std::hex << hr << std::dec << "'.";
-				return;
+				return false;
 			}
 
 			hr = obj_data->texture->GetSurfaceLevel(0, &obj_data->surface);
@@ -930,13 +992,15 @@ namespace reshade::d3d9
 		}
 
 		_textures.push_back(std::move(obj));
+
+		return true;
 	}
-	void runtime_d3d9::add_sampler(const reshadefx::sampler_info &info, d3d9_technique_data &effect)
+	bool runtime_d3d9::add_sampler(const reshadefx::sampler_info &info, d3d9_technique_data &effect)
 	{
 		const auto existing_texture = find_texture(info.texture_name);
 
 		if (!existing_texture || info.binding > ARRAYSIZE(effect.sampler_states))
-			return;
+			return false;
 
 		effect.num_samplers = std::max(effect.num_samplers, DWORD(info.binding + 1));
 
@@ -953,62 +1017,10 @@ namespace reshade::d3d9
 		effect.sampler_states[info.binding][D3DSAMP_SRGBTEXTURE] = info.srgb;
 
 		effect.sampler_textures[info.binding] = existing_texture->impl->as<d3d9_tex_data>()->texture.get();
+
+		return true;
 	}
-	void runtime_d3d9::add_uniform(const reshadefx::uniform_info &info, size_t storage_base_offset)
-	{
-		uniform obj;
-		obj.name = info.name;
-		obj.rows = info.type.rows;
-		obj.columns = info.type.cols;
-		obj.elements = std::max(1, info.type.array_length);
-		obj.storage_size = info.size;
-		obj.storage_offset = storage_base_offset + info.offset;
-		copy_annotations(info.annotations, obj.annotations);
-
-		obj.basetype = uniform_datatype::floating_point;
-
-		switch (info.type.base)
-		{
-		case reshadefx::type::t_int:
-			obj.displaytype = uniform_datatype::signed_integer;
-			break;
-		case reshadefx::type::t_uint:
-			obj.displaytype = uniform_datatype::unsigned_integer;
-			break;
-		case reshadefx::type::t_float:
-			obj.displaytype = uniform_datatype::floating_point;
-			break;
-		}
-
-		// Create space for the new variable in the storage area and fill it with the initializer value
-		_uniform_data_storage.resize(obj.storage_offset + obj.storage_size);
-
-		if (info.has_initializer_value)
-		{
-			for (size_t i = 0; i < obj.storage_size / 4; i++)
-			{
-				switch (info.type.base)
-				{
-				case reshadefx::type::t_int:
-					reinterpret_cast<float *>(_uniform_data_storage.data() + obj.storage_offset)[i] = static_cast<float>(info.initializer_value.as_int[i]);
-					break;
-				case reshadefx::type::t_uint:
-					reinterpret_cast<float *>(_uniform_data_storage.data() + obj.storage_offset)[i] = static_cast<float>(info.initializer_value.as_uint[i]);
-					break;
-				case reshadefx::type::t_float:
-					reinterpret_cast<float *>(_uniform_data_storage.data() + obj.storage_offset)[i] = info.initializer_value.as_float[i];
-					break;
-				}
-			}
-		}
-		else
-		{
-			memset(_uniform_data_storage.data() + obj.storage_offset, 0, obj.storage_size);
-		}
-
-		_uniforms.push_back(std::move(obj));
-	}
-	void runtime_d3d9::add_technique(const reshadefx::technique_info &info, const d3d9_technique_data &effect)
+	bool runtime_d3d9::add_technique(const reshadefx::technique_info &info, const d3d9_technique_data &effect)
 	{
 		technique obj;
 		obj.impl = std::make_unique<d3d9_technique_data>(effect);
@@ -1037,7 +1049,7 @@ namespace reshade::d3d9
 			{
 				LOG(ERROR) << "Failed to create stateblock for pass " << pass_index << " in technique '" << info.name << "'. "
 					"HRESULT is '" << std::hex << hr << std::dec << "'.";
-				return;
+				return false;
 			}
 
 			_device->SetVertexShader(pass.vertex_shader.get());
@@ -1114,7 +1126,7 @@ namespace reshade::d3d9
 				if (texture == nullptr)
 				{
 					assert(false);
-					return;
+					return false;
 				}
 
 				if (i > caps.NumSimultaneousRTs)
@@ -1135,6 +1147,8 @@ namespace reshade::d3d9
 		}
 
 		_techniques.push_back(std::move(obj));
+
+		return true;
 	}
 
 	void runtime_d3d9::render_technique(const technique &technique)

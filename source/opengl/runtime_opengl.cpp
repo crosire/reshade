@@ -541,7 +541,7 @@ namespace reshade::opengl
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
 
-		opengl_tex_data obj = { };
+		opengl_tex_data obj = {};
 		obj.id[0] = font_atlas_id;
 
 		_imgui_font_atlas_texture = std::make_unique<opengl_tex_data>(obj);
@@ -616,6 +616,10 @@ namespace reshade::opengl
 		_imgui_vao = _imgui_vbo[0] = _imgui_vbo[1] = 0;
 
 		_depth_source = 0;
+
+		for (auto &it : _entry_points)
+			glDeleteShader(it.second);
+		_entry_points.clear();
 	}
 	void runtime_opengl::on_reset_effect()
 	{
@@ -675,7 +679,8 @@ namespace reshade::opengl
 		glBlitFramebuffer(0, 0, _width, _height, 0, 0, _width, _height, GL_DEPTH_BUFFER_BIT, GL_NEAREST);
 
 		// Force Direct3D coordinate conventions
-		GLint clip_origin, clip_depthmode;
+		GLint clip_origin = GL_LOWER_LEFT;
+		GLint clip_depthmode = GL_ZERO_TO_ONE;
 
 		if (gl3wProcs.gl.ClipControl != nullptr)
 		{
@@ -891,7 +896,7 @@ namespace reshade::opengl
 	}
 	bool runtime_opengl::update_texture_reference(texture &texture, texture_reference id)
 	{
-		GLuint new_reference[2] = { };
+		GLuint new_reference[2] = {};
 
 		switch (id)
 		{
@@ -1009,6 +1014,8 @@ namespace reshade::opengl
 			_effect_ubos.emplace_back(ubo, uniform_buffer_size);
 		}
 
+		bool success = true;
+
 		for (const auto &texture_info : module.textures)
 		{
 			const auto existing_texture = find_texture(texture_info.unique_name);
@@ -1020,14 +1027,14 @@ namespace reshade::opengl
 					existing_texture->height != texture_info.height ||
 					existing_texture->levels != texture_info.levels ||
 					existing_texture->format != static_cast<texture_format>(texture_info.format)))
-					errors += "error: " + existing_texture->effect_filename + " already created a texture with the same name but different dimensions; textures are shared across all effects, so either rename the variable or adjust the dimensions so they match\n";
+					errors += "warning: " + existing_texture->effect_filename + " already created a texture with the same name but different dimensions; textures are shared across all effects, so either rename the variable or adjust the dimensions so they match\n";
 				continue;
 			}
 
 			if (!texture_info.semantic.empty() && (texture_info.semantic != "COLOR" && texture_info.semantic != "DEPTH"))
 				errors += "warning: " + texture_info.unique_name + ": unknown semantic '" + texture_info.semantic + "'\n";
 
-			add_texture(texture_info);
+			success &= add_texture(texture_info);
 		}
 
 		opengl_technique_data effect;
@@ -1035,19 +1042,53 @@ namespace reshade::opengl
 		effect.uniform_storage_offset = storage_base_offset;
 
 		for (const auto &sampler : module.samplers)
-			add_sampler(sampler, effect);
+			success &= add_sampler(sampler, effect);
 
 		for (const auto &technique : module.techniques)
-			add_technique(technique, effect, errors);
+			success &= add_technique(technique, effect, errors);
 
 		for (auto &it : _entry_points)
 			glDeleteShader(it.second);
 		_entry_points.clear();
 
-		return true;
+		return success;
 	}
 
-	void runtime_opengl::add_texture(const reshadefx::texture_info &info)
+	void runtime_opengl::add_uniform(const reshadefx::uniform_info &info, size_t storage_base_offset)
+	{
+		uniform obj;
+		obj.name = info.name;
+		obj.rows = info.type.rows;
+		obj.columns = info.type.cols;
+		obj.elements = std::max(1, info.type.array_length);
+		obj.storage_size = info.size;
+		obj.storage_offset = storage_base_offset + info.offset;
+		copy_annotations(info.annotations, obj.annotations);
+
+		switch (info.type.base)
+		{
+		case reshadefx::type::t_int:
+			obj.displaytype = obj.basetype = uniform_datatype::signed_integer;
+			break;
+		case reshadefx::type::t_uint:
+			obj.displaytype = obj.basetype = uniform_datatype::unsigned_integer;
+			break;
+		case reshadefx::type::t_float:
+			obj.displaytype = obj.basetype = uniform_datatype::floating_point;
+			break;
+		}
+
+		// Create space for the new variable in the storage area and fill it with the initializer value
+		_uniform_data_storage.resize(obj.storage_offset + obj.storage_size);
+
+		if (info.has_initializer_value)
+			memcpy(_uniform_data_storage.data() + obj.storage_offset, info.initializer_value.as_uint, obj.storage_size);
+		else
+			memset(_uniform_data_storage.data() + obj.storage_offset, 0, obj.storage_size);
+
+		_uniforms.push_back(std::move(obj));
+	}
+	bool runtime_opengl::add_texture(const reshadefx::texture_info &info)
 	{
 		texture obj;
 		obj.name = info.unique_name;
@@ -1097,13 +1138,15 @@ namespace reshade::opengl
 		}
 
 		_textures.push_back(std::move(obj));
+
+		return true;
 	}
-	void runtime_opengl::add_sampler(const reshadefx::sampler_info &info, opengl_technique_data &effect)
+	bool runtime_opengl::add_sampler(const reshadefx::sampler_info &info, opengl_technique_data &effect)
 	{
 		const auto existing_texture = find_texture(info.texture_name);
 
 		if (!existing_texture)
-			return;
+			return false;
 
 		size_t hash = 2166136261;
 		hash = (hash * 16777619) ^ info.address_u;
@@ -1144,42 +1187,10 @@ namespace reshade::opengl
 		effect.samplers.resize(std::max(effect.samplers.size(), size_t(info.binding + 1)));
 
 		effect.samplers[info.binding] = std::move(sampler);
+
+		return true;
 	}
-	void runtime_opengl::add_uniform(const reshadefx::uniform_info &info, size_t storage_base_offset)
-	{
-		uniform obj;
-		obj.name = info.name;
-		obj.rows = info.type.rows;
-		obj.columns = info.type.cols;
-		obj.elements = std::max(1, info.type.array_length);
-		obj.storage_size = info.size;
-		obj.storage_offset = storage_base_offset + info.offset;
-		copy_annotations(info.annotations, obj.annotations);
-
-		switch (info.type.base)
-		{
-		case reshadefx::type::t_int:
-			obj.displaytype = obj.basetype = uniform_datatype::signed_integer;
-			break;
-		case reshadefx::type::t_uint:
-			obj.displaytype = obj.basetype = uniform_datatype::unsigned_integer;
-			break;
-		case reshadefx::type::t_float:
-			obj.displaytype = obj.basetype = uniform_datatype::floating_point;
-			break;
-		}
-
-		// Create space for the new variable in the storage area and fill it with the initializer value
-		_uniform_data_storage.resize(obj.storage_offset + obj.storage_size);
-
-		if (info.has_initializer_value)
-			memcpy(_uniform_data_storage.data() + obj.storage_offset, info.initializer_value.as_uint, obj.storage_size);
-		else
-			memset(_uniform_data_storage.data() + obj.storage_offset, 0, obj.storage_size);
-
-		_uniforms.push_back(std::move(obj));
-	}
-	void runtime_opengl::add_technique(const reshadefx::technique_info &info, const opengl_technique_data &effect, std::string &errors)
+	bool runtime_opengl::add_technique(const reshadefx::technique_info &info, const opengl_technique_data &effect, std::string &errors)
 	{
 		technique obj;
 		obj.impl = std::make_unique<opengl_technique_data>(effect);
@@ -1234,13 +1245,13 @@ namespace reshade::opengl
 				if (texture == nullptr)
 				{
 					assert(false);
-					return;
+					return false;
 				}
 
 				if (pass.viewport_width != 0 && pass.viewport_height != 0 && (texture->width != static_cast<unsigned int>(pass.viewport_width) || texture->height != static_cast<unsigned int>(pass.viewport_height)))
 				{
 					LOG(ERROR) << "Cannot use multiple render targets with different sized textures";
-					return;
+					return false;
 				}
 				else
 				{
@@ -1316,11 +1327,13 @@ namespace reshade::opengl
 				pass.program = 0;
 
 				LOG(ERROR) << "Failed to link program for pass " << pass_index << " in technique '" << info.name << "'.";
-				return;
+				return false;
 			}
 		}
 
 		_techniques.push_back(std::move(obj));
+
+		return true;
 	}
 
 	void runtime_opengl::render_technique(const technique &technique)

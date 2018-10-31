@@ -478,8 +478,7 @@ namespace reshade
 
 		_effect_files.clear();
 
-		// Clear log on reload so that errors disappear from the splash screen
-		reshade::log::lines.clear();
+		_last_reload_successful = true;
 
 		std::vector<std::string> fastloading_filenames;
 
@@ -582,6 +581,7 @@ namespace reshade
 		if (!pp.run(path))
 		{
 			LOG(ERROR) << "Failed to preprocess " << path << ":\n" << pp.errors();
+			_last_reload_successful = false;
 			return;
 		}
 
@@ -603,6 +603,7 @@ namespace reshade
 		if (!parser.parse(pp.current_output()))
 		{
 			LOG(ERROR) << "Failed to compile " << path << ":\n" << parser.errors();
+			_last_reload_successful = false;
 			return;
 		}
 
@@ -619,6 +620,7 @@ namespace reshade
 			_textures.erase(_textures.begin() + _texture_count, _textures.end());
 			_uniforms.erase(_uniforms.begin() + _uniform_count, _uniforms.end());
 			_techniques.erase(_techniques.begin() + _technique_count, _techniques.end());
+			_last_reload_successful = false;
 			return;
 		}
 		else if (errors.empty())

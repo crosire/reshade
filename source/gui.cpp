@@ -138,9 +138,7 @@ namespace reshade
 					keyboard_keys[_menu_key_data[0]]);
 			}
 
-			if (const auto it = std::find_if(reshade::log::lines.rbegin(), reshade::log::lines.rend(), [](const std::string &line) {
-					return line.find("error") != std::string::npos;
-				}); it != reshade::log::lines.rend())
+			if (!_last_reload_successful)
 			{
 				ImGui::SetWindowSize(ImVec2(_width - 20.0f, ImGui::GetFrameHeightWithSpacing() * 4));
 

@@ -112,10 +112,10 @@ namespace reshade::opengl
 		bool init_imgui_resources();
 		bool init_imgui_font_atlas();
 
-		void add_texture(const reshadefx::texture_info &info);
-		void add_sampler(const reshadefx::sampler_info &info, opengl_technique_data &effect);
 		void add_uniform(const reshadefx::uniform_info &info, size_t storage_base_offset);
-		void add_technique(const reshadefx::technique_info &info, const opengl_technique_data &effect, std::string &errors);
+		bool add_texture(const reshadefx::texture_info &info);
+		bool add_sampler(const reshadefx::sampler_info &info, opengl_technique_data &effect);
+		bool add_technique(const reshadefx::technique_info &info, const opengl_technique_data &effect, std::string &errors);
 
 		void detect_depth_source();
 		void create_depth_texture(GLuint width, GLuint height, GLenum format);
