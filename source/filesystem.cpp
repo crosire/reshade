@@ -97,10 +97,11 @@ namespace reshade::filesystem
 
 	path path::operator/(const path &more) const
 	{
-		WCHAR buffer[MAX_PATH] = { };
-		utf8::unchecked::utf8to16(_data.begin(), _data.end(), buffer);
-		PathAppendW(buffer, more.wstring().c_str());
-		return buffer;
+		path result(*this);
+		if (!_data.empty() && (_data.back() != '\\' && _data.back() != '/'))
+			result._data += '\\';
+		result._data += more._data;
+		return result;
 	}
 
 	bool exists(const path &path)
