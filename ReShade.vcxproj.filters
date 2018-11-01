@@ -141,6 +141,9 @@
     <ClCompile Include="source\opengl\runtime_opengl.cpp">
       <Filter>hooks\opengl</Filter>
     </ClCompile>
+    <ClCompile Include="source\gui_text_editor.cpp">
+      <Filter>core\runtime</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="source\hook.hpp">
@@ -244,6 +247,9 @@
     </ClInclude>
     <ClInclude Include="source\opengl\runtime_opengl.hpp">
       <Filter>hooks\opengl</Filter>
+    </ClInclude>
+    <ClInclude Include="source\gui_text_editor.hpp">
+      <Filter>core\runtime</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

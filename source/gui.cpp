@@ -73,7 +73,6 @@ void reshade::runtime::init_ui()
 	imgui_io.KeyMap[ImGuiKey_X] = 'X';
 	imgui_io.KeyMap[ImGuiKey_Y] = 'Y';
 	imgui_io.KeyMap[ImGuiKey_Z] = 'Z';
-	imgui_io.ConfigFlags = ImGuiConfigFlags_NavEnableKeyboard;
 	imgui_style.WindowRounding = 0.0f;
 	imgui_style.WindowBorderSize = 0.0f;
 	imgui_style.ChildRounding = 0.0f;
@@ -95,6 +94,8 @@ void reshade::runtime::init_ui()
 	subscribe_to_menu("Statistics", [this]() { draw_overlay_menu_statistics(); });
 	subscribe_to_menu("Log", [this]() { draw_overlay_menu_log(); });
 	subscribe_to_menu("About", [this]() { draw_overlay_menu_about(); });
+
+	subscribe_to_menu("Code Editor", [this]() { _editor.render("code editor"); });
 
 	_load_config_callables.push_back([this](const ini_file &config) {
 		config.get("INPUT", "KeyMenu", _menu_key_data);
@@ -222,6 +223,17 @@ void reshade::runtime::draw_ui()
 		// Change global font scale if user presses the control key and moves the mouse wheel
 		imgui_io.FontGlobalScale = ImClamp(imgui_io.FontGlobalScale + imgui_io.MouseWheel * 0.10f, 0.2f, 2.50f);
 	}
+
+	imgui_io.NavInputs[ImGuiNavInput_Activate] = ImGui::IsKeyDown(ImGuiKey_Space);
+	imgui_io.NavInputs[ImGuiNavInput_Input] = ImGui::IsKeyDown(ImGuiKey_Enter);
+	imgui_io.NavInputs[ImGuiNavInput_Cancel] = ImGui::IsKeyDown(ImGuiKey_Escape);
+	imgui_io.NavInputs[ImGuiNavInput_KeyLeft_] = ImGui::IsKeyDown(ImGuiKey_LeftArrow);
+	imgui_io.NavInputs[ImGuiNavInput_KeyRight_] = ImGui::IsKeyDown(ImGuiKey_RightArrow);
+	imgui_io.NavInputs[ImGuiNavInput_KeyUp_] = ImGui::IsKeyDown(ImGuiKey_UpArrow);
+	imgui_io.NavInputs[ImGuiNavInput_KeyDown_] = ImGui::IsKeyDown(ImGuiKey_DownArrow);
+	imgui_io.NavInputs[ImGuiNavInput_TweakSlow] = imgui_io.KeyCtrl;
+	imgui_io.NavInputs[ImGuiNavInput_TweakFast] = imgui_io.KeyShift;
+	//imgui_io.NavInputs[ImGuiNavInput_KeyMenu_] = imgui_io.KeyAlt;
 
 	ImGui::NewFrame();
 

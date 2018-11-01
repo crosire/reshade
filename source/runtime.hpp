@@ -15,6 +15,7 @@
 #include "ini_file.hpp"
 #include "moving_average.hpp"
 #include "effect_codegen.hpp"
+#include "gui_text_editor.hpp"
 
 #pragma region Forward Declarations
 struct ImDrawData;
@@ -379,5 +380,6 @@ namespace reshade
 		unsigned int _tutorial_index = 0;
 		unsigned int _effects_expanded_state = 2;
 		char _effect_filter_buffer[64] = { };
+		code_editor_widget _editor;
 	};
 }
