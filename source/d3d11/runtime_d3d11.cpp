@@ -932,6 +932,7 @@ namespace reshade::d3d11
 			case reshadefx::type::t_int:
 				spec_constants += std::to_string(constant.initializer_value.as_int[0]);
 				break;
+			case reshadefx::type::t_bool:
 			case reshadefx::type::t_uint:
 				spec_constants += std::to_string(constant.initializer_value.as_uint[0]);
 				break;
@@ -1041,6 +1042,9 @@ namespace reshade::d3d11
 
 		switch (info.type.base)
 		{
+		case reshadefx::type::t_bool:
+			obj.displaytype = obj.basetype = uniform_datatype::boolean;
+			break;
 		case reshadefx::type::t_int:
 			obj.displaytype = obj.basetype = uniform_datatype::signed_integer;
 			break;

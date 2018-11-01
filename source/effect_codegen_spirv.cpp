@@ -668,6 +668,10 @@ private:
 			auto &member_list = _global_ubo_type.member_list;
 			member_list.push_back({ info.type, info.name });
 
+			// Convert boolean uniform variables to integer type so that they have a defined size
+			if (info.type.is_boolean())
+				member_list.back().type.base = type::t_uint;
+
 			const uint32_t member_index = static_cast<uint32_t>(member_list.size() - 1);
 
 			add_member_decoration(_global_ubo_type.definition, member_index, spv::DecorationOffset, { info.offset });
@@ -1000,6 +1004,8 @@ private:
 		spv::Id result = chain.base;
 
 		size_t op_index2 = 0;
+		auto base_type = chain.type;
+		bool is_uniform_bool = false;
 
 		if (chain.is_lvalue || !chain.ops.empty())
 			add_location(chain.location, *_current_block_data);
@@ -1007,7 +1013,6 @@ private:
 		// If a variable is referenced, load the value first
 		if (chain.is_lvalue && _spec_constants.find(chain.base) == _spec_constants.end())
 		{
-			auto base_type = chain.type;
 			if (!chain.ops.empty())
 				base_type = chain.ops[0].from;
 
@@ -1019,6 +1024,11 @@ private:
 			if (result & 0xF0000000)
 			{
 				const uint32_t member_index = result ^ 0xF0000000;
+
+				is_uniform_bool = base_type.is_boolean();
+
+				if (is_uniform_bool)
+					base_type.base = type::t_uint;
 
 				result = add_instruction(spv::OpAccessChain, convert_type(base_type, true, spv::StorageClassUniform))
 					.add(_global_ubo_variable)
@@ -1052,6 +1062,16 @@ private:
 			result = add_instruction(spv::OpLoad, convert_type(base_type))
 				.add(result) // Pointer
 				.result; // Result ID
+		}
+
+		if (is_uniform_bool)
+		{
+			base_type.base = type::t_bool;
+
+			result = add_instruction(spv::OpINotEqual, convert_type(base_type))
+				.add(result)
+				.add(emit_constant(0))
+				.result;
 		}
 
 		// Work through all remaining operations in the access chain and apply them to the value

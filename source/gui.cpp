@@ -1151,7 +1151,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 					{
 						int index = data ? 1 : 0;
 
-						modified = ImGui::Combo(ui_label.c_str(), &index, "On\0Off\0");
+						modified = ImGui::Combo(ui_label.c_str(), &index, "Off\0On\0");
 
 						data = index != 0;
 					}

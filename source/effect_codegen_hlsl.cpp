@@ -24,20 +24,13 @@ public:
 	codegen_hlsl(unsigned int shader_model, bool debug_info, bool uniforms_to_spec_constants)
 		: _shader_model(shader_model), _debug_info(debug_info), _uniforms_to_spec_constants(uniforms_to_spec_constants)
 	{
-		struct_info cbuffer_type;
-		cbuffer_type.name = "$Globals";
-		cbuffer_type.unique_name = "_Globals";
-		cbuffer_type.definition = _cbuffer_type_id = make_id();
-		_structs.push_back(cbuffer_type);
-
-		_names[_cbuffer_type_id] = cbuffer_type.unique_name;
 	}
 
 private:
 	id _next_id = 1;
 	id _last_block = 0;
 	id _current_block = 0;
-	id _cbuffer_type_id = 0;
+	std::string _cbuffer_block;
 	std::unordered_map<id, std::string> _names;
 	std::unordered_map<id, std::string> _blocks;
 	bool _debug_info = false;
@@ -57,15 +50,15 @@ private:
 		{
 			s.hlsl += "struct __sampler2D { Texture2D t; SamplerState s; };\n";
 
-			if (_blocks.count(_cbuffer_type_id))
-				s.hlsl += "cbuffer _Globals {\n" + _blocks.at(_cbuffer_type_id) + "};\n";
+			if (!_cbuffer_block.empty())
+				s.hlsl += "cbuffer _Globals {\n" + _cbuffer_block + "};\n";
 		}
 		else
 		{
 			s.hlsl += "struct __sampler2D { sampler2D s; float2 pixelsize; };\nuniform float2 __TEXEL_SIZE__ : register(c255);\n";
 
-			if (_blocks.count(_cbuffer_type_id))
-				s.hlsl += _blocks.at(_cbuffer_type_id);
+			if (!_cbuffer_block.empty())
+				s.hlsl += _cbuffer_block;
 		}
 
 		s.hlsl += _blocks.at(0);
@@ -346,15 +339,12 @@ private:
 				info.offset *= 4;
 
 				// Every constant register is 16 bytes wide, so divide memory offset by 16 to get the constant register index
-				_blocks[_cbuffer_type_id] += write_location(loc) + write_type(info.type) + ' ' + id_to_name(res) + " : register(c" + std::to_string(info.offset / 16) + ");\n";
+				_cbuffer_block += write_location(loc) + write_type(info.type) + ' ' + id_to_name(res) + " : register(c" + std::to_string(info.offset / 16) + ");\n";
 			}
 			else
 			{
-				_blocks[_cbuffer_type_id] += write_location(loc) + '\t' + write_type(info.type) + ' ' + id_to_name(res) + ";\n";
+				_cbuffer_block += write_location(loc) + '\t' + write_type(info.type) + ' ' + id_to_name(res) + ";\n";
 			}
-
-			auto &member_list = find_struct(_cbuffer_type_id).member_list;
-			member_list.push_back({ info.type, info.name });
 
 			_module.uniforms.push_back(info);
 		}

@@ -2588,10 +2588,6 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 	{
 		assert(global);
 
-		// Convert boolean uniform variables to integer type so that they have a defined size
-		if (type.is_boolean())
-			type.base = type::t_uint;
-
 		uniform_info uniform_info;
 		uniform_info.name = name;
 		uniform_info.type = type;

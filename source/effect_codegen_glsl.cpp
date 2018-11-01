@@ -23,25 +23,18 @@ public:
 	codegen_glsl(bool debug_info, bool uniforms_to_spec_constants)
 		: _debug_info(debug_info), _uniforms_to_spec_constants(uniforms_to_spec_constants)
 	{
-		struct_info cbuffer_type;
-		cbuffer_type.name = "$Globals";
-		cbuffer_type.unique_name = "_Globals";
-		cbuffer_type.definition = _cbuffer_type_id = make_id();
-		_structs.push_back(cbuffer_type);
-
-		_names[_cbuffer_type_id] = cbuffer_type.unique_name;
 	}
 
 private:
 	id _next_id = 1;
 	id _last_block = 0;
 	id _current_block = 0;
-	id _cbuffer_type_id = 0;
+	std::string _ubo_block;
 	std::unordered_map<id, std::string> _names;
 	std::unordered_map<id, std::string> _blocks;
 	bool _debug_info = false;
 	bool _uniforms_to_spec_constants = false;
-	unsigned int _current_cbuffer_offset = 0;
+	unsigned int _current_ubo_offset = 0;
 	unsigned int _current_sampler_binding = 0;
 	std::unordered_map<id, id> _remapped_sampler_variables;
 	std::unordered_map<id, std::vector<id>> _switch_fallthrough_blocks;
@@ -61,8 +54,8 @@ private:
 			" mat3 hlsl_fmod( mat3 x,  mat3 y) { return x - matrixCompMult(y, mat3(trunc(x[0] / y[0]), trunc(x[1] / y[1]), trunc(x[2] / y[2]))); }\n"
 			" mat4 hlsl_fmod( mat4 x,  mat4 y) { return x - matrixCompMult(y, mat4(trunc(x[0] / y[0]), trunc(x[1] / y[1]), trunc(x[2] / y[2]), trunc(x[3] / y[3]))); }\n";
 
-		if (_blocks.count(_cbuffer_type_id))
-			s.hlsl += "layout(std140, binding = 0) uniform _Globals {\n" + _blocks.at(_cbuffer_type_id) + "};\n";
+		if (!_ubo_block.empty())
+			s.hlsl += "layout(std140, binding = 0) uniform _Globals {\n" + _ubo_block + "};\n";
 		s.hlsl += _blocks.at(0);
 	}
 
@@ -330,13 +323,10 @@ private:
 			const unsigned int alignment = size;
 
 			info.size = size;
-			info.offset = align(_current_cbuffer_offset, alignment);
-			_current_cbuffer_offset = info.offset + info.size;
+			info.offset = align(_current_ubo_offset, alignment);
+			_current_ubo_offset = info.offset + info.size;
 
-			_blocks[_cbuffer_type_id] += write_location(loc) + '\t' + write_type(info.type) + ' ' + id_to_name(res) + ";\n";
-
-			auto &member_list = find_struct(_cbuffer_type_id).member_list;
-			member_list.push_back({ info.type, info.name });
+			_ubo_block += write_location(loc) + '\t' + write_type(info.type) + ' ' + id_to_name(res) + ";\n";
 
 			_module.uniforms.push_back(info);
 		}
