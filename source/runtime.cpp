@@ -256,20 +256,20 @@ namespace reshade
 			{
 				switch (variable.basetype)
 				{
-					case uniform_datatype::boolean:
+					case reshadefx::type::t_bool:
 					{
 						const bool even = (_framecount % 2) == 0;
 						set_uniform_value(variable, &even, 1);
 						break;
 					}
-					case uniform_datatype::signed_integer:
-					case uniform_datatype::unsigned_integer:
+					case reshadefx::type::t_int:
+					case reshadefx::type::t_uint:
 					{
 						const unsigned int framecount = static_cast<unsigned int>(_framecount % UINT_MAX);
 						set_uniform_value(variable, &framecount, 1);
 						break;
 					}
-					case uniform_datatype::floating_point:
+					case reshadefx::type::t_float:
 					{
 						const float framecount = static_cast<float>(_framecount % 16777216);
 						set_uniform_value(variable, &framecount, 1);
@@ -322,20 +322,20 @@ namespace reshade
 
 				switch (variable.basetype)
 				{
-					case uniform_datatype::boolean:
+					case reshadefx::type::t_bool:
 					{
 						const bool even = (timer % 2) == 0;
 						set_uniform_value(variable, &even, 1);
 						break;
 					}
-					case uniform_datatype::signed_integer:
-					case uniform_datatype::unsigned_integer:
+					case reshadefx::type::t_int:
+					case reshadefx::type::t_uint:
 					{
 						const unsigned int timer_int = static_cast<unsigned int>(timer % UINT_MAX);
 						set_uniform_value(variable, &timer_int, 1);
 						break;
 					}
-					case uniform_datatype::floating_point:
+					case reshadefx::type::t_float:
 					{
 						const float timer_float = std::fmod(static_cast<float>(timer * 1e-6f), 16777216.0f);
 						set_uniform_value(variable, &timer_float, 1);
@@ -910,18 +910,18 @@ namespace reshade
 
 			switch (variable.basetype)
 			{
-			case uniform_datatype::signed_integer:
+			case reshadefx::type::t_int:
 				get_uniform_value(variable, values_int, 16);
 				preset.get(variable.effect_filename, variable.name, values_int);
 				set_uniform_value(variable, values_int, 16);
 				break;
-			case uniform_datatype::boolean:
-			case uniform_datatype::unsigned_integer:
+			case reshadefx::type::t_bool:
+			case reshadefx::type::t_uint:
 				get_uniform_value(variable, values_uint, 16);
 				preset.get(variable.effect_filename, variable.name, values_uint);
 				set_uniform_value(variable, values_uint, 16);
 				break;
-			case uniform_datatype::floating_point:
+			case reshadefx::type::t_float:
 				get_uniform_value(variable, values_float, 16);
 				preset.get(variable.effect_filename, variable.name, values_float);
 				set_uniform_value(variable, values_float, 16);
@@ -991,16 +991,16 @@ namespace reshade
 
 			switch (variable.basetype)
 			{
-			case uniform_datatype::signed_integer:
+			case reshadefx::type::t_int:
 				get_uniform_value(variable, values_int, 16);
 				preset.set(variable.effect_filename, variable.name, variant(values_int, variable.rows * variable.columns));
 				break;
-			case uniform_datatype::boolean:
-			case uniform_datatype::unsigned_integer:
+			case reshadefx::type::t_bool:
+			case reshadefx::type::t_uint:
 				get_uniform_value(variable, values_uint, 16);
 				preset.set(variable.effect_filename, variable.name, variant(values_uint, variable.rows * variable.columns));
 				break;
-			case uniform_datatype::floating_point:
+			case reshadefx::type::t_float:
 				get_uniform_value(variable, values_float, 16);
 				preset.set(variable.effect_filename, variable.name, variant(values_float, variable.rows * variable.columns));
 				break;

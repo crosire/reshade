@@ -11,6 +11,7 @@
 #include <unordered_map>
 #include "variant.hpp"
 #include "moving_average.hpp"
+#include "effect_expression.hpp"
 
 namespace reshade
 {
@@ -60,13 +61,6 @@ namespace reshade
 		back_buffer,
 		depth_buffer
 	};
-	enum class uniform_datatype
-	{
-		boolean,
-		signed_integer,
-		unsigned_integer,
-		floating_point
-	};
 
 	class base_object abstract
 	{
@@ -109,8 +103,8 @@ namespace reshade
 		#pragma endregion
 
 		std::string name, unique_name, effect_filename;
-		uniform_datatype basetype = uniform_datatype::floating_point;
-		uniform_datatype displaytype = uniform_datatype::floating_point;
+		reshadefx::type::datatype basetype = reshadefx::type::t_float;
+		reshadefx::type::datatype displaytype = reshadefx::type::t_float;
 		unsigned int rows = 0, columns = 0, elements = 0;
 		size_t storage_offset = 0, storage_size = 0;
 		std::unordered_map<std::string, variant> annotations;

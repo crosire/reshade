@@ -1039,22 +1039,8 @@ namespace reshade::d3d11
 		obj.storage_size = info.size;
 		obj.storage_offset = storage_base_offset + info.offset;
 		copy_annotations(info.annotations, obj.annotations);
-
-		switch (info.type.base)
-		{
-		case reshadefx::type::t_bool:
-			obj.displaytype = obj.basetype = uniform_datatype::boolean;
-			break;
-		case reshadefx::type::t_int:
-			obj.displaytype = obj.basetype = uniform_datatype::signed_integer;
-			break;
-		case reshadefx::type::t_uint:
-			obj.displaytype = obj.basetype = uniform_datatype::unsigned_integer;
-			break;
-		case reshadefx::type::t_float:
-			obj.displaytype = obj.basetype = uniform_datatype::floating_point;
-			break;
-		}
+		obj.basetype = info.type.base;
+		obj.displaytype = info.type.base;
 
 		// Create space for the new variable in the storage area and fill it with the initializer value
 		_uniform_data_storage.resize(obj.storage_offset + obj.storage_size);

@@ -1142,7 +1142,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 			switch (variable.displaytype)
 			{
-				case uniform_datatype::boolean:
+				case reshadefx::type::t_bool:
 				{
 					bool data = false;
 					get_uniform_value(variable, &data, 1);
@@ -1166,8 +1166,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 					}
 					break;
 				}
-				case uniform_datatype::signed_integer:
-				case uniform_datatype::unsigned_integer:
+				case reshadefx::type::t_int:
+				case reshadefx::type::t_uint:
 				{
 					int data[4] = { };
 					get_uniform_value(variable, data, 4);
@@ -1178,7 +1178,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 						const int ui_max = variable.annotations["ui_max"].as<int>();
 						const float ui_step = variable.annotations["ui_step"].as<float>();
 
-						modified = ImGui::DragScalarN(ui_label.c_str(), ImGuiDataType_S32, data, variable.rows, ui_step, &ui_min, &ui_max);
+						modified = ImGui::DragScalarN(ui_label.c_str(), variable.displaytype == reshadefx::type::t_int ? ImGuiDataType_S32 : ImGuiDataType_U32, data, variable.rows, ui_step, &ui_min, &ui_max);
 					}
 					else if (ui_type == "combo")
 					{
@@ -1192,7 +1192,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 					}
 					else
 					{
-						modified = ImGui::InputScalarN(ui_label.c_str(), ImGuiDataType_S32, data, variable.rows);
+						modified = ImGui::InputScalarN(ui_label.c_str(), variable.displaytype == reshadefx::type::t_int ? ImGuiDataType_S32 : ImGuiDataType_U32, data, variable.rows);
 					}
 
 					if (modified)
@@ -1201,7 +1201,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 					}
 					break;
 				}
-				case uniform_datatype::floating_point:
+				case reshadefx::type::t_float:
 				{
 					float data[4] = { };
 					get_uniform_value(variable, data, 4);
