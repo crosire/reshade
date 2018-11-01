@@ -602,6 +602,10 @@ namespace reshade
 			errors += parser.errors();
 		}
 
+#if RESHADE_DUMP_NATIVE_SHADERS
+		std::ofstream("ReShade-ShaderDump-" + path.filename_without_extension().string() + ".hlsl", std::ios::trunc) << module.hlsl;
+#endif
+
 		if (_performance_mode && _current_preset >= 0)
 		{
 			ini_file preset(_preset_files[_current_preset]);
