@@ -16,7 +16,7 @@ namespace reshadefx
 		std::vector<uint32_t> spirv;
 		std::vector<struct texture_info> textures;
 		std::vector<struct sampler_info> samplers;
-		std::vector<struct uniform_info> uniforms;
+		std::vector<struct uniform_info> uniforms, spec_constants;
 		std::vector<struct technique_info> techniques;
 		std::vector<std::pair<std::string, bool>> entry_points;
 	};
@@ -96,7 +96,7 @@ namespace reshadefx
 		/// <param name="info">The technique description.</param>
 		inline void define_technique(struct technique_info &info)
 		{
-			_techniques.push_back(info);
+			_module.techniques.push_back(info);
 		}
 
 		/// <summary>
@@ -297,7 +297,7 @@ namespace reshadefx
 		/// <returns>A reference to the texture description.</returns>
 		inline struct texture_info &find_texture(id id)
 		{
-			return *std::find_if(_textures.begin(), _textures.end(),[id](const auto &it) { return it.id == id; });
+			return *std::find_if(_module.textures.begin(), _module.textures.end(),[id](const auto &it) { return it.id == id; });
 		}
 		/// <summary>
 		/// Look up an existing function definition.
@@ -310,11 +310,8 @@ namespace reshadefx
 		}
 
 	protected:
+		module _module;
 		std::vector<struct struct_info> _structs;
-		std::vector<struct texture_info> _textures;
-		std::vector<struct sampler_info> _samplers;
-		std::vector<struct uniform_info> _uniforms;
 		std::vector<std::unique_ptr<struct function_info>> _functions;
-		std::vector<struct technique_info> _techniques;
 	};
 }

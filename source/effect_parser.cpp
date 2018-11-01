@@ -18,21 +18,21 @@ struct on_scope_exit
 
 // -- Parsing -- //
 
-bool reshadefx::parser::parse(const std::string &input, codegen::backend backend, unsigned int shader_model, bool debug_info, module &result)
+bool reshadefx::parser::parse(const std::string &input, codegen::backend backend, unsigned int shader_model, bool debug_info, bool uniforms_to_spec_constants, module &result)
 {
 	switch (backend)
 	{
 	case codegen::backend::glsl:
-		extern reshadefx::codegen *create_codegen_glsl(bool);
-		_codegen.reset(create_codegen_glsl(debug_info));
+		extern reshadefx::codegen *create_codegen_glsl(bool, bool);
+		_codegen.reset(create_codegen_glsl(debug_info, uniforms_to_spec_constants));
 		break;
 	case codegen::backend::hlsl:
-		extern reshadefx::codegen *create_codegen_hlsl(unsigned int, bool);
-		_codegen.reset(create_codegen_hlsl(shader_model, debug_info));
+		extern reshadefx::codegen *create_codegen_hlsl(unsigned int, bool, bool);
+		_codegen.reset(create_codegen_hlsl(shader_model, debug_info, uniforms_to_spec_constants));
 		break;
 	case codegen::backend::spirv:
-		extern reshadefx::codegen *create_codegen_spirv(bool);
-		_codegen.reset(create_codegen_spirv(debug_info));
+		extern reshadefx::codegen *create_codegen_spirv(bool, bool);
+		_codegen.reset(create_codegen_spirv(debug_info, uniforms_to_spec_constants));
 		break;
 	default:
 		assert(false);
@@ -2599,8 +2599,6 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 
 		symbol = { symbol_type::variable, 0, type };
 		symbol.id = _codegen->define_uniform(location, uniform_info);
-
-		assert(uniform_info.size != 0);
 	}
 	else // All other variables are separate entities
 	{

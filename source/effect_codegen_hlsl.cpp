@@ -21,7 +21,8 @@ static const char s_matrix_swizzles[16][5] = {
 class codegen_hlsl final : public codegen
 {
 public:
-	codegen_hlsl(unsigned int shader_model, bool debug_info) : _shader_model(shader_model), _debug_info(debug_info)
+	codegen_hlsl(unsigned int shader_model, bool debug_info, bool uniforms_to_spec_constants)
+		: _shader_model(shader_model), _debug_info(debug_info), _uniforms_to_spec_constants(uniforms_to_spec_constants)
 	{
 		struct_info cbuffer_type;
 		cbuffer_type.name = "$Globals";
@@ -40,16 +41,18 @@ private:
 	std::unordered_map<id, std::string> _names;
 	std::unordered_map<id, std::string> _blocks;
 	bool _debug_info = false;
+	bool _uniforms_to_spec_constants = false;
 	unsigned int _shader_model = 0;
 	unsigned int _current_cbuffer_size = 0;
 	unsigned int _current_sampler_binding = 0;
 	std::unordered_map<id, std::vector<id>> _switch_fallthrough_blocks;
-	std::vector<std::pair<std::string, bool>> _entry_points;
 
 	inline std::string &code() { return _blocks[_current_block]; }
 
 	void write_result(module &s) const override
 	{
+		s = _module;
+
 		if (_shader_model >= 40)
 		{
 			s.hlsl += "struct __sampler2D { Texture2D t; SamplerState s; };\n";
@@ -66,12 +69,6 @@ private:
 		}
 
 		s.hlsl += _blocks.at(0);
-
-		s.samplers = _samplers;
-		s.textures = _textures;
-		s.uniforms = _uniforms;
-		s.techniques = _techniques;
-		s.entry_points = _entry_points;
 	}
 
 	std::string write_type(const type &type, bool is_param = false, bool is_decl = true)
@@ -283,7 +280,7 @@ private:
 	{
 		info.id = make_id();
 
-		_textures.push_back(info);
+		_module.textures.push_back(info);
 
 		return info.id;
 	}
@@ -294,7 +291,7 @@ private:
 
 		_names[info.id] = info.unique_name;
 
-		_samplers.push_back(info);
+		_module.samplers.push_back(info);
 
 		if (_shader_model >= 40)
 		{
@@ -304,9 +301,9 @@ private:
 		}
 		else
 		{
-			const auto tex = std::find_if(_textures.begin(), _textures.end(),
+			const auto tex = std::find_if(_module.textures.begin(), _module.textures.end(),
 				[&info](const auto &it) { return it.unique_name == info.texture_name; });
-			assert(tex != _textures.end());
+			assert(tex != _module.textures.end());
 
 			code() += "sampler2D " + info.unique_name + "_s : register(s" + std::to_string(info.binding) + ");\n";
 			code() += write_location(loc) + "static const __sampler2D " + info.unique_name + " = { " + info.unique_name + "_s, float2(";
@@ -327,31 +324,40 @@ private:
 
 		_names[res] = "_Globals_" + info.name;
 
-		const unsigned int size = info.type.rows * info.type.cols * std::max(1, info.type.array_length) * 4;
-		const unsigned int alignment = 16 - (_current_cbuffer_size % 16);
-
-		_current_cbuffer_size += (size > alignment && (alignment != 16 || size <= 16)) ? size + alignment : size;
-
-		info.size = size;
-		info.offset = _current_cbuffer_size - size;
-
-		// Simply put each uniform into a separate constant register in shader model 3 for now
-		if (_shader_model < 40)
+		if (_uniforms_to_spec_constants && info.type.is_scalar() && info.annotations.find("source") == info.annotations.end())
 		{
-			info.offset *= 4;
+			code() += write_location(loc) + "static const " + write_type(info.type) + ' ' + id_to_name(res) + " = " + write_type(info.type, false, false) + "(SPEC_CONSTANT_" + info.name + ");\n";
 
-			// Every constant register is 16 bytes wide, so divide memory offset by 16 to get the constant register index
-			_blocks[_cbuffer_type_id] += write_location(loc) + write_type(info.type) + ' ' + id_to_name(res) + " : register(c" + std::to_string(info.offset / 16) + ");\n";
+			_module.spec_constants.push_back(info);
 		}
 		else
 		{
-			_blocks[_cbuffer_type_id] += write_location(loc) + '\t' + write_type(info.type) + ' ' + id_to_name(res) + ";\n";
+			const unsigned int size = info.type.rows * info.type.cols * std::max(1, info.type.array_length) * 4;
+			const unsigned int alignment = 16 - (_current_cbuffer_size % 16);
+
+			_current_cbuffer_size += (size > alignment && (alignment != 16 || size <= 16)) ? size + alignment : size;
+
+			info.size = size;
+			info.offset = _current_cbuffer_size - size;
+
+			// Simply put each uniform into a separate constant register in shader model 3 for now
+			if (_shader_model < 40)
+			{
+				info.offset *= 4;
+
+				// Every constant register is 16 bytes wide, so divide memory offset by 16 to get the constant register index
+				_blocks[_cbuffer_type_id] += write_location(loc) + write_type(info.type) + ' ' + id_to_name(res) + " : register(c" + std::to_string(info.offset / 16) + ");\n";
+			}
+			else
+			{
+				_blocks[_cbuffer_type_id] += write_location(loc) + '\t' + write_type(info.type) + ' ' + id_to_name(res) + ";\n";
+			}
+
+			auto &member_list = find_struct(_cbuffer_type_id).member_list;
+			member_list.push_back({ info.type, info.name });
+
+			_module.uniforms.push_back(info);
 		}
-
-		auto &member_list = find_struct(_cbuffer_type_id).member_list;
-		member_list.push_back({ info.type, info.name });
-
-		_uniforms.push_back(info);
 
 		return res;
 	}
@@ -432,11 +438,11 @@ private:
 
 	void create_entry_point(const function_info &func, bool is_ps) override
 	{
-		if (const auto it = std::find_if(_entry_points.begin(), _entry_points.end(),
-			[&func](const auto &ep) { return ep.first == func.unique_name; }); it != _entry_points.end())
+		if (const auto it = std::find_if(_module.entry_points.begin(), _module.entry_points.end(),
+			[&func](const auto &ep) { return ep.first == func.unique_name; }); it != _module.entry_points.end())
 			return;
 
-		_entry_points.push_back({ func.unique_name, is_ps });
+		_module.entry_points.push_back({ func.unique_name, is_ps });
 
 		// Only have to rewrite the entry point function signature in shader model 3
 		if (_shader_model >= 40)
@@ -1070,7 +1076,7 @@ private:
 	}
 };
 
-codegen *create_codegen_hlsl(unsigned int shader_model, bool debug_info)
+codegen *create_codegen_hlsl(unsigned int shader_model, bool debug_info, bool uniforms_to_spec_constants)
 {
-	return new codegen_hlsl(shader_model, debug_info);
+	return new codegen_hlsl(shader_model, debug_info, uniforms_to_spec_constants);
 }

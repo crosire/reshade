@@ -152,7 +152,7 @@ int main(int argc, char *argv[])
 	reshadefx::parser parser;
 	reshadefx::module module;
 
-	if (!parser.parse(pp.output(), backend, shader_model, debug_info, module))
+	if (!parser.parse(pp.output(), backend, shader_model, debug_info, false, module))
 	{
 		if (errorfile == nullptr)
 			std::cout << parser.errors() << std::endl;

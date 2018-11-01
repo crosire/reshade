@@ -123,7 +123,8 @@ static inline uint32_t align(uint32_t address, uint32_t alignment)
 class codegen_spirv final : public codegen
 {
 public:
-	codegen_spirv(bool debug_info) : _debug_info(debug_info)
+	codegen_spirv(bool debug_info, bool uniforms_to_spec_constants)
+		: _debug_info(debug_info), _uniforms_to_spec_constants(uniforms_to_spec_constants)
 	{
 		_glsl_ext = make_id();
 	}
@@ -171,13 +172,14 @@ private:
 	std::unordered_map<spv::Id, spv::StorageClass> _storage_lookup;
 	uint32_t _current_sampler_binding = 0;
 	uint32_t _current_semantic_location = 10;
-	std::vector<std::pair<std::string, bool>> _entry_points;
+	std::unordered_set<spv::Id> _spec_constants;
 
 	std::vector<function_blocks> _functions2;
 	std::unordered_map<id, spirv_basic_block> _block_data;
 	spirv_basic_block *_current_block_data = nullptr;
 
 	bool _debug_info = false;
+	bool _uniforms_to_spec_constants = false;
 	id _next_id = 1;
 	id _glsl_ext = 0;
 	id _last_block = 0;
@@ -244,11 +246,7 @@ private:
 	{
 		const_cast<codegen_spirv *>(this)->create_global_ubo();
 
-		s.samplers = _samplers;
-		s.textures = _textures;
-		s.uniforms = _uniforms;
-		s.techniques = _techniques;
-		s.entry_points = _entry_points;
+		s = _module;
 
 		// Write SPIRV header info
 		write(s.spirv, spv::MagicNumber);
@@ -607,7 +605,7 @@ private:
 	{
 		info.id = make_id();
 
-		_textures.push_back(info);
+		_module.textures.push_back(info);
 
 		return info.id;
 	}
@@ -622,46 +620,60 @@ private:
 		add_decoration(info.id, spv::DecorationBinding, { info.binding });
 		add_decoration(info.id, spv::DecorationDescriptorSet, { info.set });
 
-		_samplers.push_back(info);
+		_module.samplers.push_back(info);
 
 		return info.id;
 	}
 	id   define_uniform(const location &, uniform_info &info) override
 	{
-		if (_global_ubo_type.definition == 0)
+		if (_uniforms_to_spec_constants && info.type.is_scalar() && info.annotations.find("source") == info.annotations.end())
 		{
-			_global_ubo_type.definition = make_id();
+			const id res = emit_constant(info.type, info.initializer_value, true);
 
-			add_decoration(_global_ubo_type.definition, spv::DecorationBlock);
-			add_decoration(_global_ubo_type.definition, spv::DecorationBinding, { 0 });
-			add_decoration(_global_ubo_type.definition, spv::DecorationDescriptorSet, { 0 });
+			add_name(res, info.name.c_str());
+
+			_spec_constants.insert(res);
+			_module.spec_constants.push_back(info);
+
+			return res;
 		}
-		if (_global_ubo_variable == 0)
+		else
 		{
-			_global_ubo_variable = make_id();
+			if (_global_ubo_type.definition == 0)
+			{
+				_global_ubo_type.definition = make_id();
+
+				add_decoration(_global_ubo_type.definition, spv::DecorationBlock);
+				add_decoration(_global_ubo_type.definition, spv::DecorationBinding, { 0 });
+				add_decoration(_global_ubo_type.definition, spv::DecorationDescriptorSet, { 0 });
+			}
+			if (_global_ubo_variable == 0)
+			{
+				_global_ubo_variable = make_id();
+			}
+
+			// GLSL specification on std140 layout:
+			// 1. If the member is a scalar consuming N basic machine units, the base alignment is N.
+			// 2. If the member is a two- or four-component vector with components consuming N basic machine units, the base alignment is 2N or 4N, respectively.
+			// 3. If the member is a three-component vector with components consuming N basic machine units, the base alignment is 4N.
+			const unsigned int size = 4 * (info.type.rows == 3 ? 4 : info.type.rows) * info.type.cols * std::max(1, info.type.array_length);
+			const unsigned int alignment = size;
+
+			info.size = size;
+			info.offset = align(_global_ubo_offset, alignment);
+			_global_ubo_offset = info.offset + size;
+
+			_module.uniforms.push_back(info);
+
+			auto &member_list = _global_ubo_type.member_list;
+			member_list.push_back({ info.type, info.name });
+
+			const uint32_t member_index = static_cast<uint32_t>(member_list.size() - 1);
+
+			add_member_decoration(_global_ubo_type.definition, member_index, spv::DecorationOffset, { info.offset });
+
+			return 0xF0000000 | member_index;
 		}
-
-		// GLSL specification on std140 layout:
-		// 1. If the member is a scalar consuming N basic machine units, the base alignment is N.
-		// 2. If the member is a two- or four-component vector with components consuming N basic machine units, the base alignment is 2N or 4N, respectively.
-		// 3. If the member is a three-component vector with components consuming N basic machine units, the base alignment is 4N.
-		const unsigned int size = 4 * (info.type.rows == 3 ? 4 : info.type.rows) * info.type.cols * std::max(1, info.type.array_length);
-		const unsigned int alignment = size;
-
-		info.size = size;
-		info.offset = align(_global_ubo_offset, alignment);
-		_global_ubo_offset = info.offset + size;
-
-		auto &member_list = _global_ubo_type.member_list;
-		member_list.push_back({ info.type, info.name });
-
-		const uint32_t member_index = static_cast<uint32_t>(member_list.size() - 1);
-
-		add_member_decoration(_global_ubo_type.definition, member_index, spv::DecorationOffset, { info.offset });
-
-		_uniforms.push_back(info);
-
-		return 0xF0000000 | member_index;
 	}
 	id   define_variable(const location &loc, const type &type, const char *name, bool global, id initializer_value) override
 	{
@@ -715,9 +727,11 @@ private:
 
 	void create_entry_point(const function_info &func, bool is_ps) override
 	{
-		if (const auto it = std::find_if(_entry_points.begin(), _entry_points.end(),
-			[&func](const auto &ep) { return ep.first == func.unique_name; }); it != _entry_points.end())
+		if (const auto it = std::find_if(_module.entry_points.begin(), _module.entry_points.end(),
+			[&func](const auto &ep) { return ep.first == func.unique_name; }); it != _module.entry_points.end())
 			return;
+
+		_module.entry_points.push_back({ func.unique_name, is_ps });
 
 		std::vector<expression> call_params;
 		std::vector<unsigned int> inputs_and_outputs;
@@ -976,8 +990,6 @@ private:
 			.add(entry_point.definition)
 			.add_string(func.unique_name.c_str())
 			.add(inputs_and_outputs.begin(), inputs_and_outputs.end());
-
-		_entry_points.push_back({ func.unique_name, is_ps });
 	}
 
 	id   emit_load(const expression &chain) override
@@ -993,7 +1005,7 @@ private:
 			add_location(chain.location, *_current_block_data);
 
 		// If a variable is referenced, load the value first
-		if (chain.is_lvalue)
+		if (chain.is_lvalue && _spec_constants.find(chain.base) == _spec_constants.end())
 		{
 			auto base_type = chain.type;
 			if (!chain.ops.empty())
@@ -1343,19 +1355,24 @@ private:
 	{
 		constant data;
 		data.as_uint[0] = value;
-		return emit_constant({ type::t_uint, 1, 1 }, data);
+		return emit_constant({ type::t_uint, 1, 1 }, data, false);
 	}
 	id   emit_constant(const type &type, const constant &data) override
 	{
-		if (auto it = std::find_if(_constant_lookup.begin(), _constant_lookup.end(), [&type, &data](auto &x) {
-			if (!(std::get<0>(x) == type && std::memcmp(&std::get<1>(x).as_uint[0], &data.as_uint[0], sizeof(uint32_t) * 16) == 0 && std::get<1>(x).array_data.size() == data.array_data.size()))
-				return false;
-			for (size_t i = 0; i < data.array_data.size(); ++i)
-				if (std::memcmp(&std::get<1>(x).array_data[i].as_uint[0], &data.array_data[i].as_uint[0], sizeof(uint32_t) * 16) != 0)
+		return emit_constant(type, data, false);
+	}
+	id   emit_constant(const type &type, const constant &data, bool spec_constant)
+	{
+		if (!spec_constant)
+			if (auto it = std::find_if(_constant_lookup.begin(), _constant_lookup.end(), [&type, &data](auto &x) {
+				if (!(std::get<0>(x) == type && std::memcmp(&std::get<1>(x).as_uint[0], &data.as_uint[0], sizeof(uint32_t) * 16) == 0 && std::get<1>(x).array_data.size() == data.array_data.size()))
 					return false;
-			return true;
-		}); it != _constant_lookup.end())
-			return std::get<2>(*it);
+				for (size_t i = 0; i < data.array_data.size(); ++i)
+					if (std::memcmp(&std::get<1>(x).array_data[i].as_uint[0], &data.array_data[i].as_uint[0], sizeof(uint32_t) * 16) != 0)
+						return false;
+				return true;
+			}); it != _constant_lookup.end())
+				return std::get<2>(*it);
 
 		spv::Id result = 0;
 
@@ -1374,7 +1391,9 @@ private:
 			for (size_t i = elements.size(); i < static_cast<size_t>(type.array_length); ++i)
 				elements.push_back(emit_constant(elem_type, {}));
 
-			spirv_instruction &node = add_instruction(spv::OpConstantComposite, convert_type(type), _types_and_constants);
+			spirv_instruction &node = add_instruction(
+				spec_constant ? spv::OpSpecConstantComposite : spv::OpConstantComposite,
+				convert_type(type), _types_and_constants);
 
 			for (spv::Id elem : elements)
 				node.add(elem);
@@ -1383,6 +1402,8 @@ private:
 		}
 		else if (type.is_struct())
 		{
+			assert(!spec_constant);
+
 			result = add_instruction(spv::OpConstantNull, convert_type(type), _types_and_constants).result;
 		}
 		else if (type.is_matrix())
@@ -1407,7 +1428,9 @@ private:
 			}
 			else
 			{
-				spirv_instruction &node = add_instruction(spv::OpConstantComposite, convert_type(type), _types_and_constants);
+				spirv_instruction &node = add_instruction(
+					spec_constant ? spv::OpSpecConstantComposite : spv::OpConstantComposite,
+					convert_type(type), _types_and_constants);
 
 				for (unsigned int i = 0; i < type.rows; ++i)
 					node.add(rows[i]);
@@ -1429,7 +1452,9 @@ private:
 				rows[i] = emit_constant(scalar_type, scalar_data);
 			}
 
-			spirv_instruction &node = add_instruction(spv::OpConstantComposite, convert_type(type), _types_and_constants);
+			spirv_instruction &node = add_instruction(
+				spec_constant ? spv::OpSpecConstantComposite : spv::OpConstantComposite,
+				convert_type(type), _types_and_constants);
 
 			for (unsigned int i = 0; i < type.rows; ++i)
 				node.add(rows[i]);
@@ -1438,15 +1463,21 @@ private:
 		}
 		else if (type.is_boolean())
 		{
-			result = add_instruction(data.as_uint[0] ? spv::OpConstantTrue : spv::OpConstantFalse, convert_type(type), _types_and_constants).result;
+			result = add_instruction(data.as_uint[0] ?
+				(spec_constant ? spv::OpSpecConstantTrue : spv::OpConstantTrue) :
+				(spec_constant ? spv::OpSpecConstantFalse : spv::OpConstantFalse),
+				convert_type(type), _types_and_constants).result;
 		}
 		else
 		{
 			assert(type.is_scalar());
-			result = add_instruction(spv::OpConstant, convert_type(type), _types_and_constants).add(data.as_uint[0]).result;
+			result = add_instruction(
+				spec_constant ? spv::OpSpecConstant : spv::OpConstant,
+				convert_type(type), _types_and_constants).add(data.as_uint[0]).result;
 		}
 
-		_constant_lookup.push_back({ type, data, result });
+		if (!spec_constant)
+			_constant_lookup.push_back({ type, data, result });
 
 		return result;
 	}
@@ -1903,7 +1934,7 @@ private:
 	}
 };
 
-codegen *create_codegen_spirv(bool debug_info)
+codegen *create_codegen_spirv(bool debug_info, bool uniforms_to_spec_constants)
 {
-	return new codegen_spirv(debug_info);
+	return new codegen_spirv(debug_info, uniforms_to_spec_constants);
 }

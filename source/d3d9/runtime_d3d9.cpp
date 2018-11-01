@@ -793,13 +793,35 @@ namespace reshade::d3d9
 		_vs_entry_points.clear();
 		_ps_entry_points.clear();
 
+		// Add specialization constant defines to source code
+		std::string spec_constants;
+		for (const auto &constant : module.spec_constants)
+		{
+			spec_constants += "#define SPEC_CONSTANT_" + constant.name + ' ';
+
+			switch (constant.type.base)
+			{
+			case reshadefx::type::t_int:
+				spec_constants += std::to_string(constant.initializer_value.as_int[0]);
+				break;
+			case reshadefx::type::t_uint:
+				spec_constants += std::to_string(constant.initializer_value.as_uint[0]);
+				break;
+			case reshadefx::type::t_float:
+				spec_constants += std::to_string(constant.initializer_value.as_float[0]);
+				break;
+			}
+
+			spec_constants += '\n';
+		}
+
+		const std::string hlsl_vs = spec_constants + module.hlsl;
+		const std::string hlsl_ps = spec_constants + "#define POSITION VPOS\n" + module.hlsl;
+
 		// Compile the generated HLSL source code to DX byte code
 		for (const auto &entry_point : module.entry_points)
 		{
-			std::string hlsl;
-			if (entry_point.second)
-				hlsl = "#define POSITION VPOS\n";
-			hlsl += module.hlsl;
+			const std::string &hlsl = entry_point.second ? hlsl_ps : hlsl_vs;
 
 			com_ptr<ID3DBlob> compiled, d3d_errors;
 

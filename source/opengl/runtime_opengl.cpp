@@ -938,6 +938,38 @@ namespace reshade::opengl
 
 	bool runtime_opengl::load_effect(const reshadefx::module &module, std::string &errors)
 	{
+		// Add specialization constant defines to source code
+#if 0
+		std::vector<GLuint> spec_constants;
+		std::vector<GLuint> spec_constant_values;
+		for (const auto &constant : module.spec_constants)
+		{
+			spec_constants.push_back(constant.offset);
+			spec_constant_values.push_back(constant.initializer_value.as_uint[0]);
+		}
+#else
+		std::string spec_constants;
+		for (const auto &constant : module.spec_constants)
+		{
+			spec_constants += "#define SPEC_CONSTANT_" + constant.name + ' ';
+
+			switch (constant.type.base)
+			{
+			case reshadefx::type::t_int:
+				spec_constants += std::to_string(constant.initializer_value.as_int[0]);
+				break;
+			case reshadefx::type::t_uint:
+				spec_constants += std::to_string(constant.initializer_value.as_uint[0]);
+				break;
+			case reshadefx::type::t_float:
+				spec_constants += std::to_string(constant.initializer_value.as_float[0]);
+				break;
+			}
+
+			spec_constants += '\n';
+		}
+#endif
+
 		// Compile all entry points
 		for (const auto &entry_point : module.entry_points)
 		{
@@ -946,13 +978,14 @@ namespace reshade::opengl
 #if 0
 			glShaderBinary(1, &shader_id, GL_SHADER_BINARY_FORMAT_SPIR_V, module.spirv.data(), module.spirv.size() * sizeof(uint32_t));
 
-			glSpecializeShader(shader_id, entry_point.first.c_str(), 0, nullptr, nullptr);
+			glSpecializeShader(shader_id, entry_point.first.c_str(), GLuint(spec_constants.size()), spec_constants.data(), spec_constant_values.data());
 #else
 			std::string defines =
 				"#version 450\n"
 				"#define ENTRY_POINT_" + entry_point.first + " 1\n";
 			if (!entry_point.second) // OpenGL does not allow using 'discard' in the fragment shader profile
 				defines += "#define discard\n";
+			defines += spec_constants;
 
 			GLsizei lengths[] = { static_cast<GLsizei>(defines.size()), static_cast<GLsizei>(module.hlsl.size()) };
 			const GLchar *sources[] = { defines.c_str(), module.hlsl.c_str() };

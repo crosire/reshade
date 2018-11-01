@@ -928,12 +928,36 @@ namespace reshade::d3d10
 		_vs_entry_points.clear();
 		_ps_entry_points.clear();
 
+		// Add specialization constant defines to source code
+		std::string spec_constants;
+		for (const auto &constant : module.spec_constants)
+		{
+			spec_constants += "#define SPEC_CONSTANT_" + constant.name + ' ';
+
+			switch (constant.type.base)
+			{
+			case reshadefx::type::t_int:
+				spec_constants += std::to_string(constant.initializer_value.as_int[0]);
+				break;
+			case reshadefx::type::t_uint:
+				spec_constants += std::to_string(constant.initializer_value.as_uint[0]);
+				break;
+			case reshadefx::type::t_float:
+				spec_constants += std::to_string(constant.initializer_value.as_float[0]);
+				break;
+			}
+
+			spec_constants += '\n';
+		}
+
+		const std::string hlsl = spec_constants + module.hlsl;
+
 		// Compile the generated HLSL source code to DX byte code
 		for (const auto &entry_point : module.entry_points)
 		{
 			com_ptr<ID3DBlob> compiled, d3d_errors;
 
-			HRESULT hr = D3DCompile(module.hlsl.c_str(), module.hlsl.size(), nullptr, nullptr, nullptr, entry_point.first.c_str(), entry_point.second ? "ps_4_0" : "vs_4_0", D3DCOMPILE_ENABLE_STRICTNESS, 0, &compiled, &d3d_errors);
+			HRESULT hr = D3DCompile(hlsl.c_str(), hlsl.size(), nullptr, nullptr, nullptr, entry_point.first.c_str(), entry_point.second ? "ps_4_0" : "vs_4_0", D3DCOMPILE_ENABLE_STRICTNESS, 0, &compiled, &d3d_errors);
 
 			if (d3d_errors != nullptr) // Append warnings to the output error string as well
 				errors.append(static_cast<const char *>(d3d_errors->GetBufferPointer()), d3d_errors->GetBufferSize() - 1); // Subtracting one to not append the null-terminator as well

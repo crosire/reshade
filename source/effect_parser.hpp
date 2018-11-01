@@ -25,9 +25,10 @@ namespace reshadefx
 		/// <param name="backend">The code generation implementation to use.</param>
 		/// <param name="shader_model">The shader model version to target for code generation. Can be 30, 40, 41, 50, ...</param>
 		/// <param name="debug_info">Whether to append debug information like line directives to the generated code.</param>
+		/// <param name="uniforms_to_spec_constants">Whether to convert uniform variables to specialization constants.</param>
 		/// <param name="result">A reference to a module that will be filled with the generated code.</param>
 		/// <returns>A boolean value indicating whether parsing was successful or not.</returns>
-		bool parse(const std::string &source, codegen::backend backend, unsigned int shader_model, bool debug_info, module &result);
+		bool parse(const std::string &source, codegen::backend backend, unsigned int shader_model, bool debug_info, bool uniforms_to_spec_constants, module &result);
 
 		/// <summary>
 		/// Gets the list of error messages.

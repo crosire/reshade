@@ -592,7 +592,7 @@ namespace reshade
 			else
 				shader_model = 50;
 
-			if (!parser.parse(source_code, _renderer_id & 0x10000 ? reshadefx::codegen::backend::glsl : reshadefx::codegen::backend::hlsl, shader_model, true, module))
+			if (!parser.parse(source_code, _renderer_id & 0x10000 ? reshadefx::codegen::backend::glsl : reshadefx::codegen::backend::hlsl, shader_model, true, _performance_mode, module))
 			{
 				LOG(ERROR) << "Failed to compile " << path << ":\n" << parser.errors();
 				_last_reload_successful = false;
@@ -602,7 +602,26 @@ namespace reshade
 			errors += parser.errors();
 		}
 
-		// TODO: Performance mode?
+		if (_performance_mode && _current_preset >= 0)
+		{
+			ini_file preset(_preset_files[_current_preset]);
+
+			for (auto &constant : module.spec_constants)
+			{
+				switch (constant.type.base)
+				{
+				case reshadefx::type::t_int:
+					preset.get(path.filename().string(), constant.name, constant.initializer_value.as_int);
+					break;
+				case reshadefx::type::t_uint:
+					preset.get(path.filename().string(), constant.name, constant.initializer_value.as_uint);
+					break;
+				case reshadefx::type::t_float:
+					preset.get(path.filename().string(), constant.name, constant.initializer_value.as_float);
+					break;
+				}
+			}
+		}
 
 		if (!load_effect(std::move(module), errors))
 		{

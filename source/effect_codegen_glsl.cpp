@@ -20,7 +20,8 @@ static inline uint32_t align(uint32_t address, uint32_t alignment)
 class codegen_glsl final : public codegen
 {
 public:
-	codegen_glsl(bool debug_info) : _debug_info(debug_info)
+	codegen_glsl(bool debug_info, bool uniforms_to_spec_constants)
+		: _debug_info(debug_info), _uniforms_to_spec_constants(uniforms_to_spec_constants)
 	{
 		struct_info cbuffer_type;
 		cbuffer_type.name = "$Globals";
@@ -39,16 +40,18 @@ private:
 	std::unordered_map<id, std::string> _names;
 	std::unordered_map<id, std::string> _blocks;
 	bool _debug_info = false;
+	bool _uniforms_to_spec_constants = false;
 	unsigned int _current_cbuffer_offset = 0;
 	unsigned int _current_sampler_binding = 0;
 	std::unordered_map<id, id> _remapped_sampler_variables;
 	std::unordered_map<id, std::vector<id>> _switch_fallthrough_blocks;
-	std::vector<std::pair<std::string, bool>> _entry_points;
 
 	inline std::string &code() { return _blocks[_current_block]; }
 
 	void write_result(module &s) const override
 	{
+		s = _module;
+
 		s.hlsl +=
 			"float hlsl_fmod(float x, float y) { return x - y * trunc(x / y); }\n"
 			" vec2 hlsl_fmod( vec2 x,  vec2 y) { return x - y * trunc(x / y); }\n"
@@ -61,12 +64,6 @@ private:
 		if (_blocks.count(_cbuffer_type_id))
 			s.hlsl += "layout(std140, binding = 0) uniform _Globals {\n" + _blocks.at(_cbuffer_type_id) + "};\n";
 		s.hlsl += _blocks.at(0);
-
-		s.samplers = _samplers;
-		s.textures = _textures;
-		s.uniforms = _uniforms;
-		s.techniques = _techniques;
-		s.entry_points = _entry_points;
 	}
 
 	std::string write_type(const type &type, bool is_param = false, bool is_decl = true)
@@ -294,7 +291,7 @@ private:
 	{
 		info.id = make_id();
 
-		_textures.push_back(info);
+		_module.textures.push_back(info);
 
 		return info.id;
 	}
@@ -305,7 +302,7 @@ private:
 
 		_names[info.id] = escape_name(info.unique_name);
 
-		_samplers.push_back(info);
+		_module.samplers.push_back(info);
 
 		code() += write_location(loc) + "layout(binding = " + std::to_string(info.binding) + ") uniform sampler2D " + id_to_name(info.id) + ";\n";
 
@@ -317,23 +314,32 @@ private:
 
 		_names[res] = "_Globals_" + info.name;
 
-		// GLSL specification on std140 layout:
-		// 1. If the member is a scalar consuming N basic machine units, the base alignment is N.
-		// 2. If the member is a two- or four-component vector with components consuming N basic machine units, the base alignment is 2N or 4N, respectively.
-		// 3. If the member is a three-component vector with components consuming N basic machine units, the base alignment is 4N.
-		const unsigned int size = 4 * (info.type.rows == 3 ? 4 : info.type.rows) * info.type.cols * std::max(1, info.type.array_length);
-		const unsigned int alignment = size;
+		if (_uniforms_to_spec_constants && info.type.is_scalar() && info.annotations.find("source") == info.annotations.end())
+		{
+			code() += write_location(loc) + "const " + write_type(info.type) + ' ' + id_to_name(res) + " = " + write_type(info.type, false, false) + "(SPEC_CONSTANT_" + info.name + ");\n";
 
-		info.size = size;
-		info.offset = align(_current_cbuffer_offset, alignment);
-		_current_cbuffer_offset = info.offset + info.size;
+			_module.spec_constants.push_back(info);
+		}
+		else
+		{
+			// GLSL specification on std140 layout:
+			// 1. If the member is a scalar consuming N basic machine units, the base alignment is N.
+			// 2. If the member is a two- or four-component vector with components consuming N basic machine units, the base alignment is 2N or 4N, respectively.
+			// 3. If the member is a three-component vector with components consuming N basic machine units, the base alignment is 4N.
+			const unsigned int size = 4 * (info.type.rows == 3 ? 4 : info.type.rows) * info.type.cols * std::max(1, info.type.array_length);
+			const unsigned int alignment = size;
 
-		_blocks[_cbuffer_type_id] += write_location(loc) + '\t' + write_type(info.type) + ' ' + id_to_name(res) + ";\n";
+			info.size = size;
+			info.offset = align(_current_cbuffer_offset, alignment);
+			_current_cbuffer_offset = info.offset + info.size;
 
-		auto &member_list = find_struct(_cbuffer_type_id).member_list;
-		member_list.push_back({ info.type, info.name });
+			_blocks[_cbuffer_type_id] += write_location(loc) + '\t' + write_type(info.type) + ' ' + id_to_name(res) + ";\n";
 
-		_uniforms.push_back(info);
+			auto &member_list = find_struct(_cbuffer_type_id).member_list;
+			member_list.push_back({ info.type, info.name });
+
+			_module.uniforms.push_back(info);
+		}
 
 		return res;
 	}
@@ -411,11 +417,11 @@ private:
 
 	void create_entry_point(const function_info &func, bool is_ps) override
 	{
-		if (const auto it = std::find_if(_entry_points.begin(), _entry_points.end(),
-			[&func](const auto &ep) { return ep.first == func.unique_name; }); it != _entry_points.end())
+		if (const auto it = std::find_if(_module.entry_points.begin(), _module.entry_points.end(),
+			[&func](const auto &ep) { return ep.first == func.unique_name; }); it != _module.entry_points.end())
 			return;
 
-		_entry_points.push_back({ func.unique_name, is_ps });
+		_module.entry_points.push_back({ func.unique_name, is_ps });
 
 		code() += "#ifdef ENTRY_POINT_" + func.unique_name + '\n';
 
@@ -1189,7 +1195,7 @@ private:
 	}
 };
 
-codegen *create_codegen_glsl(bool debug_info)
+codegen *create_codegen_glsl(bool debug_info, bool uniforms_to_spec_constants)
 {
-	return new codegen_glsl(debug_info);
+	return new codegen_glsl(debug_info, uniforms_to_spec_constants);
 }
