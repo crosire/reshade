@@ -193,7 +193,6 @@ namespace reshadefx
 	{
 		std::string name;
 		type type;
-		uint32_t member_index = 0;
 		uint32_t size = 0;
 		uint32_t offset = 0;
 		std::unordered_map<std::string, std::pair<struct type, constant>> annotations;

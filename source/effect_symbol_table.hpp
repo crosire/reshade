@@ -24,7 +24,6 @@ namespace reshadefx
 	enum class symbol_type
 	{
 		invalid,
-		uniform,
 		variable,
 		constant,
 		function,
@@ -41,12 +40,7 @@ namespace reshadefx
 		uint32_t id = 0;
 		type type = {};
 		constant constant = {};
-
-		union
-		{
-			const function_info *function = nullptr;
-			uint32_t uniform_index;
-		};
+		const function_info *function = nullptr;
 	};
 
 	/// <summary>

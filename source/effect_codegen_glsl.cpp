@@ -313,26 +313,29 @@ private:
 	}
 	id   define_uniform(const location &loc, uniform_info &info) override
 	{
+		const id res = make_id();
+
+		_names[res] = "_Globals_" + info.name;
+
+		// GLSL specification on std140 layout:
+		// 1. If the member is a scalar consuming N basic machine units, the base alignment is N.
+		// 2. If the member is a two- or four-component vector with components consuming N basic machine units, the base alignment is 2N or 4N, respectively.
+		// 3. If the member is a three-component vector with components consuming N basic machine units, the base alignment is 4N.
 		const unsigned int size = 4 * (info.type.rows == 3 ? 4 : info.type.rows) * info.type.cols * std::max(1, info.type.array_length);
 		const unsigned int alignment = size;
+
 		info.size = size;
 		info.offset = align(_current_cbuffer_offset, alignment);
 		_current_cbuffer_offset = info.offset + info.size;
 
-		struct_member_info member;
-		member.type = info.type;
-		member.name = info.name;
+		_blocks[_cbuffer_type_id] += write_location(loc) + '\t' + write_type(info.type) + ' ' + id_to_name(res) + ";\n";
 
-		const_cast<struct_info &>(find_struct(_cbuffer_type_id))
-			.member_list.push_back(std::move(member));
-
-		_blocks[_cbuffer_type_id] += write_location(loc) + '\t' + write_type(info.type) + " _Globals_" + info.name + ";\n";
-
-		info.member_index = static_cast<uint32_t>(_uniforms.size());
+		auto &member_list = find_struct(_cbuffer_type_id).member_list;
+		member_list.push_back({ info.type, info.name });
 
 		_uniforms.push_back(info);
 
-		return _cbuffer_type_id;
+		return res;
 	}
 	id   define_variable(const location &loc, const type &type, const char *name, bool global, id initializer_value) override
 	{
@@ -571,11 +574,10 @@ private:
 
 	id   emit_load(const expression &chain) override
 	{
-		// Can refer to l-values without access chain directly
-		if (chain.is_lvalue && chain.ops.empty())
-			return chain.base;
-		else if (chain.is_constant)
+		if (chain.is_constant)
 			return emit_constant(chain.type, chain.constant);
+		else if (chain.ops.empty()) // Can refer to values without access chain directly
+			return chain.base;
 
 		const id res = make_id();
 
@@ -599,7 +601,7 @@ private:
 				newcode += '[' + id_to_name(op.index) + ']';
 				break;
 			case expression::operation::op_member:
-				newcode += op.from.definition == _cbuffer_type_id ? '_' : '.';
+				newcode += '.';
 				newcode += find_struct(op.from.definition).member_list[op.index].name;
 				break;
 			case expression::operation::op_swizzle:

@@ -323,37 +323,37 @@ private:
 	}
 	id   define_uniform(const location &loc, uniform_info &info) override
 	{
+		const id res = make_id();
+
+		_names[res] = "_Globals_" + info.name;
+
 		const unsigned int size = info.type.rows * info.type.cols * std::max(1, info.type.array_length) * 4;
 		const unsigned int alignment = 16 - (_current_cbuffer_size % 16);
+
 		_current_cbuffer_size += (size > alignment && (alignment != 16 || size <= 16)) ? size + alignment : size;
+
 		info.size = size;
 		info.offset = _current_cbuffer_size - size;
 
 		// Simply put each uniform into a separate constant register in shader model 3 for now
 		if (_shader_model < 40)
+		{
 			info.offset *= 4;
 
-		struct_member_info member;
-		member.type = info.type;
-		member.name = info.name;
-
-		const_cast<struct_info &>(find_struct(_cbuffer_type_id))
-			.member_list.push_back(std::move(member));
-
-		_blocks[_cbuffer_type_id] += write_location(loc);
-
-		if (_shader_model < 40) // Every constant register is 16 bytes wide, so divide memory offset by 16 to get the constant register index
-			_blocks[_cbuffer_type_id] += write_type(info.type) + " _Globals_" + info.name + " : register(c" + std::to_string(info.offset / 16) + ')';
+			// Every constant register is 16 bytes wide, so divide memory offset by 16 to get the constant register index
+			_blocks[_cbuffer_type_id] += write_location(loc) + write_type(info.type) + ' ' + id_to_name(res) + " : register(c" + std::to_string(info.offset / 16) + ");\n";
+		}
 		else
-			_blocks[_cbuffer_type_id] += '\t' + write_type(info.type) + " _Globals_" + info.name;
+		{
+			_blocks[_cbuffer_type_id] += write_location(loc) + '\t' + write_type(info.type) + ' ' + id_to_name(res) + ";\n";
+		}
 
-		_blocks[_cbuffer_type_id] += ";\n";
-
-		info.member_index = static_cast<uint32_t>(_uniforms.size());
+		auto &member_list = find_struct(_cbuffer_type_id).member_list;
+		member_list.push_back({ info.type, info.name });
 
 		_uniforms.push_back(info);
 
-		return _cbuffer_type_id;
+		return res;
 	}
 	id   define_variable(const location &loc, const type &type, const char *name, bool global, id initializer_value) override
 	{
@@ -526,11 +526,10 @@ private:
 
 	id   emit_load(const expression &chain) override
 	{
-		// Can refer to l-values without access chain directly
-		if (chain.is_lvalue && chain.ops.empty())
-			return chain.base;
-		else if (chain.is_constant)
+		if (chain.is_constant)
 			return emit_constant(chain.type, chain.constant);
+		else if (chain.ops.empty()) // Can refer to values without access chain directly
+			return chain.base;
 
 		const id res = make_id();
 
@@ -554,7 +553,7 @@ private:
 				newcode += '[' + id_to_name(op.index) + ']';
 				break;
 			case expression::operation::op_member:
-				newcode += op.from.definition == _cbuffer_type_id ? '_' : '.';
+				newcode += '.';
 				newcode += find_struct(op.from.definition).member_list[op.index].name;
 				break;
 			case expression::operation::op_swizzle:

@@ -904,13 +904,6 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 			// Show error if no symbol matching the identifier was found
 			return error(location, 3004, "undeclared identifier '" + identifier + '\''), false;
 		}
-		else if (symbol.op == symbol_type::uniform)
-		{
-			assert(symbol.id != 0);
-			// Uniform variables need to be dereferenced
-			exp.reset_to_lvalue(location, symbol.id, { type::t_struct, 0, 0, 0, 0, symbol.id });
-			exp.add_member_access(symbol.uniform_index, symbol.type);
-		}
 		else if (symbol.op == symbol_type::variable)
 		{
 			assert(symbol.id != 0);
@@ -2604,9 +2597,8 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 		uniform_info.initializer_value = std::move(initializer.constant);
 		uniform_info.has_initializer_value = initializer.is_constant;
 
-		symbol = { symbol_type::uniform, 0, type };
+		symbol = { symbol_type::variable, 0, type };
 		symbol.id = _codegen->define_uniform(location, uniform_info);
-		symbol.uniform_index = uniform_info.member_index;
 
 		assert(uniform_info.size != 0);
 	}
