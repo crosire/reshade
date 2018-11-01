@@ -109,9 +109,7 @@ void reshadefx::expression::reset_to_rvalue_constant(const struct location &loc,
 void reshadefx::expression::add_cast_operation(const reshadefx::type &to_type)
 {
 	if (type == to_type)
-	{
 		return; // There is nothing to do if the expression is already of the target type
-	}
 
 	if (to_type.is_scalar() && !type.is_scalar())
 	{
@@ -148,6 +146,8 @@ void reshadefx::expression::add_cast_operation(const reshadefx::type &to_type)
 	}
 	else
 	{
+		assert(!type.is_array() && !to_type.is_array());
+
 		ops.push_back({ operation::op_cast, type, to_type });
 	}
 

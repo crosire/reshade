@@ -57,6 +57,7 @@ namespace reshadefx
 		bool accept_type_qualifiers(type &type);
 
 		bool parse_type(type &type);
+
 		bool parse_array_size(type &type);
 
 		bool accept_unary_op();

@@ -357,6 +357,7 @@ bool reshadefx::parser::parse_type(type &type)
 
 	return true;
 }
+
 bool reshadefx::parser::parse_array_size(type &type)
 {
 	// Reset array length to zero before checking if one exists
@@ -494,6 +495,7 @@ bool reshadefx::parser::parse_expression(expression &exp)
 
 	return true;
 }
+
 bool reshadefx::parser::parse_expression_unary(expression &exp)
 {
 	auto location = _token_next.location;
@@ -569,14 +571,15 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 					return false;
 
 				// Check if the types already match, in which case there is nothing to do
-				if (exp.type.base == cast_type.base && (exp.type.rows == cast_type.rows && exp.type.cols == cast_type.cols) && !(exp.type.is_array() || cast_type.is_array()))
+				if (exp.type.base == cast_type.base &&
+					exp.type.rows == cast_type.rows &&
+					exp.type.cols == cast_type.cols &&
+					exp.type.array_length == cast_type.array_length)
 					return true;
 
 				// Check if a cast between the types is valid
-				if (!exp.type.is_numeric() || !cast_type.is_numeric())
-					return error(location, 3017, "cannot convert non-numeric types"), false;
-				else if (exp.type.components() < cast_type.components() && !exp.type.is_scalar())
-					return error(location, 3017, "cannot convert these vector types"), false;
+				if (!type::rank(exp.type, cast_type))
+					return error(location, 3017, "cannot convert these types"), false;
 
 				exp.add_cast_operation(cast_type);
 				return true;
@@ -1138,6 +1141,7 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 
 	return true;
 }
+
 bool reshadefx::parser::parse_expression_multary(expression &lhs, unsigned int left_precedence)
 {
 	// Parse left hand side of the expression
@@ -1372,6 +1376,7 @@ bool reshadefx::parser::parse_expression_multary(expression &lhs, unsigned int l
 
 	return true;
 }
+
 bool reshadefx::parser::parse_expression_assignment(expression &lhs)
 {
 	// Parse left hand side of the expression
@@ -1394,6 +1399,7 @@ bool reshadefx::parser::parse_expression_assignment(expression &lhs)
 			return error(lhs.location, 3025, "l-value specifies const object"), false;
 		if (!type::rank(lhs.type, rhs.type))
 			return error(rhs.location, 3020, "cannot convert these types"), false;
+
 		// Cannot perform bitwise operations on non-integral types
 		if (!lhs.type.is_integral() && (op == tokenid::ampersand_equal || op == tokenid::pipe_equal || op == tokenid::caret_equal))
 			return error(lhs.location, 3082, "int or unsigned int type required"), false;
@@ -1445,7 +1451,7 @@ bool reshadefx::parser::parse_annotations(std::unordered_map<std::string, std::p
 		const auto name = std::move(_token.literal_as_string);
 
 		if (expression expression; !expect('=') || !parse_expression_unary(expression) || !expect(';'))
-			return false; // Probably a syntax error, so abort parsing
+			return consume_until('>'), false; // Probably a syntax error, so abort parsing
 		else if (expression.is_constant)
 			annotations[name] = { expression.type, expression.constant };
 		else // Continue parsing annotations despite this not being a constant, since the syntax is still correct
@@ -2007,6 +2013,7 @@ bool reshadefx::parser::parse_statement(bool scoped)
 
 	return false;
 }
+
 bool reshadefx::parser::parse_statement_block(bool scoped)
 {
 	if (!expect('{'))
