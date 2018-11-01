@@ -1392,7 +1392,7 @@ bool reshadefx::parser::parse_expression_assignment(expression &lhs)
 		// Check if the assignment is valid
 		if (lhs.type.has(type::q_const) || lhs.type.has(type::q_uniform) || !lhs.is_lvalue)
 			return error(lhs.location, 3025, "l-value specifies const object"), false;
-		if (lhs.type.array_length != rhs.type.array_length || !type::rank(lhs.type, rhs.type))
+		if (!type::rank(lhs.type, rhs.type))
 			return error(rhs.location, 3020, "cannot convert these types"), false;
 		// Cannot perform bitwise operations on non-integral types
 		if (!lhs.type.is_integral() && (op == tokenid::ampersand_equal || op == tokenid::pipe_equal || op == tokenid::caret_equal))
@@ -2151,33 +2151,35 @@ bool reshadefx::parser::parse_struct()
 
 	while (!peek('}')) // Empty structures are possible
 	{
-		// Parse structure members
-		type member_type;
-		if (!parse_type(member_type))
+		struct_member_info member;
+
+		if (!parse_type(member.type))
 			return error(_token_next.location, 3000, "syntax error: unexpected '" + token::id_to_name(_token_next.id) + "', expected struct member type"), consume_until('}'), false;
 
-		if (member_type.is_void())
+		if (member.type.is_void())
 			return error(_token_next.location, 3038, "struct members cannot be void"), consume_until('}'), false;
-		if (member_type.has(type::q_in) || member_type.has(type::q_out))
+		if (member.type.has(type::q_in) || member.type.has(type::q_out))
 			return error(_token_next.location, 3055, "struct members cannot be declared 'in' or 'out'"), consume_until('}'), false;
 
-		if (member_type.is_struct()) // Nesting structures would make input/output argument flattening more complicated, so prevent it for now
+		if (member.type.is_struct()) // Nesting structures would make input/output argument flattening more complicated, so prevent it for now
 			return error(_token_next.location, 3090, "nested struct members are not supported"), consume_until('}'), false;
 
 		unsigned int count = 0;
 		do {
 			if (count++ > 0 && !expect(','))
 				return consume_until('}'), false;
+
 			if (!expect(tokenid::identifier))
 				return consume_until('}'), false;
 
-			struct_member_info member_info;
-			member_info.name = std::move(_token.literal_as_string);
-			member_info.type = member_type;
+			member.name = std::move(_token.literal_as_string);
+			member.location = std::move(_token.location);
 
 			// Modify member specific type, so that following members in the declaration list are not affected by this
-			if (!parse_array_size(member_info.type))
+			if (!parse_array_size(member.type))
 				return consume_until('}'), false;
+			else if (member.type.array_length < 0)
+				return error(member.location, 3072, '\'' + member.name + "': array dimensions of struct members must be explicit"), consume_until('}'), false;
 
 			// Structure members may have semantics to use them as input/output types
 			if (accept(':'))
@@ -2185,13 +2187,13 @@ bool reshadefx::parser::parse_struct()
 				if (!expect(tokenid::identifier))
 					return consume_until('}'), false;
 
-				member_info.semantic = std::move(_token.literal_as_string);
+				member.semantic = std::move(_token.literal_as_string);
 				// Make semantic upper case to simplify comparison later on
-				std::transform(member_info.semantic.begin(), member_info.semantic.end(), member_info.semantic.begin(), [](char c) { return static_cast<char>(toupper(c)); });
+				std::transform(member.semantic.begin(), member.semantic.end(), member.semantic.begin(), [](char c) { return static_cast<char>(toupper(c)); });
 			}
 
 			// Save member name and type for book keeping
-			info.member_list.push_back(std::move(member_info));
+			info.member_list.push_back(member);
 		} while (!peek(';'));
 
 		if (!expect(';'))
@@ -2266,6 +2268,8 @@ bool reshadefx::parser::parse_function(type type, std::string name)
 
 		if (!parse_array_size(param.type))
 			return false;
+		else if (param.type.array_length < 0)
+			return error(param.location, 3072, '\'' + param.name + "': array dimensions of function parameters must be explicit"), false;
 
 		// Handle parameter type semantic
 		if (accept(':'))

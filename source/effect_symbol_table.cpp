@@ -97,19 +97,22 @@ static const intrinsic s_intrinsics[] = {
 unsigned int reshadefx::type::rank(const type &src, const type &dst)
 {
 	if (src.is_array() != dst.is_array() || (src.array_length != dst.array_length && src.array_length > 0 && dst.array_length > 0))
-		return 0;
+		return 0; // Arrays of different sizes are not compatible
 	if (src.is_struct() || dst.is_struct())
-		return src.definition == dst.definition;
+		return src.definition == dst.definition ? 32 : 0; // Structs are only compatible if they are the same type
 	if (src.base == dst.base && src.rows == dst.rows && src.cols == dst.cols)
-		return 1;
+		return 32; // Perfect match, so this returns the highest possible rank
 	if (!src.is_numeric() || !dst.is_numeric())
-		return 0;
+		return 0; // Numeric values are not compatible with other types
 
+	// This table is based on the following rules:
+	//  - Integer to floating point promotion has a higher rank than floating point to integer conversion
+	//  - Signed to unsigned integer conversion has a higher rank than unsigned to signed integer conversion
 	static const int ranks[4][4] = {
-		{ 0, 5, 5, 5 },
-		{ 4, 0, 3, 5 },
-		{ 4, 2, 0, 5 },
-		{ 4, 4, 4, 0 }
+		{ 5, 4, 4, 4 },
+		{ 3, 5, 2, 4 },
+		{ 3, 1, 5, 4 },
+		{ 3, 3, 3, 5 }
 	};
 
 	assert(src.base > 0 && src.base <= 4);
@@ -118,11 +121,11 @@ unsigned int reshadefx::type::rank(const type &src, const type &dst)
 	const int rank = ranks[src.base - 1][dst.base - 1] << 2;
 
 	if (src.is_scalar() && dst.is_vector())
-		return rank | 2;
+		return rank >> 1; // Scalar to vector promotion has a lower rank
 	if (src.is_vector() && dst.is_scalar() || (src.is_vector() == dst.is_vector() && src.rows > dst.rows && src.cols >= dst.cols))
-		return rank | 32;
-	if (src.is_vector() != dst.is_vector() || src.is_matrix() != dst.is_matrix() || src.rows * src.cols != dst.rows * dst.cols)
-		return 0;
+		return rank >> 2; // Vector to scalar conversion has an even lower rank
+	if (src.is_vector() != dst.is_vector() || src.is_matrix() != dst.is_matrix() || src.components() != dst.components())
+		return 0; // If components weren't converted at this point, the types are not compatible
 
 	return rank;
 }
@@ -289,13 +292,13 @@ static int compare_functions(const std::vector<reshadefx::expression> &arguments
 		return function2_viable - function1_viable;
 
 	// Both functions are possible, so find the one with the higher ranking
-	std::sort(function1_ranks, function1_ranks + num_arguments, std::greater<unsigned int>());
-	std::sort(function2_ranks, function2_ranks + num_arguments, std::greater<unsigned int>());
+	std::sort(function1_ranks, function1_ranks + num_arguments, std::less<unsigned int>());
+	std::sort(function2_ranks, function2_ranks + num_arguments, std::less<unsigned int>());
 
 	for (size_t i = 0; i < num_arguments; ++i)
-		if (function1_ranks[i] < function2_ranks[i])
+		if (function1_ranks[i] > function2_ranks[i])
 			return -1; // Left function wins
-		else if (function2_ranks[i] < function1_ranks[i])
+		else if (function2_ranks[i] > function1_ranks[i])
 			return +1; // Right function wins
 
 	return 0; // Both functions are equally viable
@@ -380,7 +383,8 @@ bool reshadefx::symbol_table::resolve_function_call(const std::string &name, con
 				out_data.op = symbol_type::intrinsic;
 				out_data.id = intrinsic.id;
 				out_data.type = intrinsic.function.return_type;
-				out_data.function = result = &intrinsic.function;
+				out_data.function = &intrinsic.function;
+				result = out_data.function;
 				num_overloads = 1;
 			}
 			else if (comparison == 0 && overload_namespace == 0) // Both functions are equally viable, so the call is ambiguous (intrinsics are always in the global namespace)
