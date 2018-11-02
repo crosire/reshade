@@ -414,6 +414,7 @@ next_token:
 		if (_ignore_whitespace || is_at_line_begin || *_cur == '\n')
 			goto next_token;
 		tok.id = tokenid::space;
+		tok.length = _cur - _input.data() - tok.offset;
 		return tok;
 	case '\n':
 		_cur++;
@@ -524,7 +525,11 @@ next_token:
 		if (_cur[1] == '/')
 		{
 			skip_to_next_line();
-			goto next_token;
+			if (_ignore_comments)
+				goto next_token;
+			tok.id = tokenid::single_line_comment;
+			tok.length = _cur - _input.data() - tok.offset;
+			return tok;
 		}
 		else if (_cur[1] == '*')
 		{
@@ -542,7 +547,11 @@ next_token:
 				}
 				skip(1);
 			}
-			goto next_token;
+			if (_ignore_comments)
+				goto next_token;
+			tok.id = tokenid::multi_line_comment;
+			tok.length = _cur - _input.data() - tok.offset;
+			return tok;
 		}
 		else if (_cur[1] == '=')
 			tok.id = tokenid::slash_equal,

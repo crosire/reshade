@@ -165,6 +165,9 @@ namespace reshadefx
 		hash_pragma,
 		hash_include,
 		hash_unknown,
+
+		single_line_comment,
+		multi_line_comment,
 	};
 
 	/// <summary>
@@ -197,11 +200,13 @@ namespace reshadefx
 	public:
 		explicit lexer(
 			std::string input,
+			bool ignore_comments = true,
 			bool ignore_whitespace = true,
 			bool ignore_pp_directives = true,
 			bool ignore_keywords = false,
 			bool escape_string_literals = true) :
 			_input(std::move(input)),
+			_ignore_comments(ignore_comments),
 			_ignore_whitespace(ignore_whitespace),
 			_ignore_pp_directives(ignore_pp_directives),
 			_ignore_keywords(ignore_keywords),
@@ -214,6 +219,7 @@ namespace reshadefx
 		lexer(const lexer &lexer) :
 			_input(lexer._input),
 			_cur_location(lexer._cur_location),
+			_ignore_comments(lexer._ignore_comments),
 			_ignore_whitespace(lexer._ignore_whitespace),
 			_ignore_pp_directives(lexer._ignore_pp_directives),
 			_ignore_keywords(lexer._ignore_keywords),
@@ -272,6 +278,7 @@ namespace reshadefx
 		std::string _input;
 		location _cur_location;
 		const std::string::value_type *_cur, *_end;
+		bool _ignore_comments;
 		bool _ignore_whitespace;
 		bool _ignore_pp_directives;
 		bool _ignore_keywords;

@@ -77,7 +77,7 @@ namespace reshadefx
 		{
 			input_level(const std::string &name, const std::string &text, input_level *parent) :
 				_name(name),
-				_lexer(new lexer(text, false, false, true, false)),
+				_lexer(new lexer(text, true, false, false, true, false)),
 				_parent(parent)
 			{
 				_next_token.id = tokenid::unknown;
