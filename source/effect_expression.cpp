@@ -219,7 +219,7 @@ void reshadefx::expression::add_dynamic_index_access(reshadefx::codegen *codegen
 	// To handle a dynamic index into a constant means we need to create a local variable first or else any of the indexing instructions do not work
 	if (is_constant)
 	{
-		base = codegen->define_variable(location, prev_type, nullptr, false, codegen->emit_constant(prev_type, constant));
+		base = codegen->define_variable(location, prev_type, std::string(), false, codegen->emit_constant(prev_type, constant));
 
 		// We converted the constant to a l-value reference to a new variable
 		is_lvalue = true;

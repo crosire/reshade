@@ -32,6 +32,9 @@ EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "stb", "deps\stb.vcxproj", "{723BDEF8-4A39-4961-BDAB-54074012FF47}"
 EndProject
 Global
+	GlobalSection(Performance) = preSolution
+		HasPerformanceSessions = true
+	EndGlobalSection
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug App|32-bit = Debug App|32-bit
 		Debug App|64-bit = Debug App|64-bit

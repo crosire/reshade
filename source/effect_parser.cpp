@@ -98,7 +98,7 @@ bool reshadefx::parser::peek(tokenid tokid) const
 }
 void reshadefx::parser::consume()
 {
-	_token = _token_next;
+	_token = std::move(_token_next);
 	_token_next = _lexer->lex();
 }
 void reshadefx::parser::consume_until(tokenid tokid)
@@ -810,7 +810,7 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 		{
 			if (!expect(tokenid::identifier))
 				return false;
-			identifier += "::" + _token.literal_as_string;
+			identifier += "::" + std::move(_token.literal_as_string);
 		}
 
 		// Figure out which scope to start searching in
@@ -876,7 +876,7 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 				if (symbol.op == symbol_type::function || param_type.has(type::q_out))
 				{
 					// All user-defined functions actually accept pointers as arguments, same applies to intrinsics with 'out' parameters
-					const auto temp_variable = _codegen->define_variable(arguments[i].location, param_type, nullptr, false);
+					const auto temp_variable = _codegen->define_variable(arguments[i].location, param_type);
 					parameters[i].reset_to_lvalue(arguments[i].location, temp_variable, param_type);
 				}
 				else
@@ -2146,7 +2146,7 @@ bool reshadefx::parser::parse_struct()
 	struct_info info;
 	// The structure name is optional
 	if (accept(tokenid::identifier))
-		info.name = _token.literal_as_string;
+		info.name = std::move(_token.literal_as_string);
 	else
 		info.name = "_anonymous_struct_" + std::to_string(location.line) + '_' + std::to_string(location.column);
 
@@ -2619,13 +2619,13 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 		// Also, only use the variable initializer on global variables, since local variables for e.g. "for" statements need to be assigned in their respective scope and not their declaration
 		if (global && initializer.is_constant)
 		{
-			symbol.id = _codegen->define_variable(location, type, unique_name.c_str(), global, _codegen->emit_constant(initializer.type, initializer.constant));
+			symbol.id = _codegen->define_variable(location, type, std::move(unique_name), global, _codegen->emit_constant(initializer.type, initializer.constant));
 		}
 		else // Non-constant initializers are explicitly stored in the variable at the definition location instead
 		{
 			const auto initializer_value = _codegen->emit_load(initializer);
 
-			symbol.id = _codegen->define_variable(location, type, unique_name.c_str(), global);
+			symbol.id = _codegen->define_variable(location, type, std::move(unique_name), global);
 
 			if (initializer_value != 0)
 			{
@@ -2714,7 +2714,7 @@ bool reshadefx::parser::parse_technique_pass(pass_info &info)
 				if (!expect(tokenid::identifier))
 					return consume_until('}'), false;
 
-				identifier += "::" + _token.literal_as_string;
+				identifier += "::" + std::move(_token.literal_as_string);
 			}
 
 			location = std::move(_token.location);

@@ -550,26 +550,6 @@ private:
 		_capabilities.insert(capability);
 	}
 
-	void define_variable(id id, const location &loc, const type &type, const char *name, spv::StorageClass storage, spv::Id initializer_value = 0)
-	{
-		spirv_basic_block &block = storage != spv::StorageClassFunction ? _variables : _current_function->variables;
-
-		add_location(loc, block);
-
-		// https://www.khronos.org/registry/spir-v/specs/unified1/SPIRV.html#OpVariable
-		spirv_instruction &instruction = add_instruction_without_result(spv::OpVariable, block);
-		instruction.type = convert_type(type, true, storage);
-		instruction.result = id;
-		instruction.add(storage);
-		if (initializer_value != 0)
-			instruction.add(initializer_value);
-
-		if (name != nullptr && *name != '\0')
-			add_name(id, name);
-
-		_storage_lookup[id] = storage;
-	}
-
 	id   define_struct(const location &loc, struct_info &info) override
 	{
 		// First define all member types to make sure they are declared before the struct type references them
@@ -679,13 +659,32 @@ private:
 			return 0xF0000000 | member_index;
 		}
 	}
-	id   define_variable(const location &loc, const type &type, const char *name, bool global, id initializer_value) override
+	id   define_variable(const location &loc, const type &type, std::string name, bool global, id initializer_value) override
 	{
 		const id res = make_id();
 
-		define_variable(res, loc, type, name, global ? spv::StorageClassPrivate : spv::StorageClassFunction, initializer_value);
+		define_variable(res, loc, type, name.c_str(), global ? spv::StorageClassPrivate : spv::StorageClassFunction, initializer_value);
 
 		return res;
+	}
+	void define_variable(id id, const location &loc, const type &type, const char *name, spv::StorageClass storage, spv::Id initializer_value = 0)
+	{
+		spirv_basic_block &block = storage != spv::StorageClassFunction ? _variables : _current_function->variables;
+
+		add_location(loc, block);
+
+		// https://www.khronos.org/registry/spir-v/specs/unified1/SPIRV.html#OpVariable
+		spirv_instruction &instruction = add_instruction_without_result(spv::OpVariable, block);
+		instruction.type = convert_type(type, true, storage);
+		instruction.result = id;
+		instruction.add(storage);
+		if (initializer_value != 0)
+			instruction.add(initializer_value);
+
+		if (name != nullptr && *name != '\0')
+			add_name(id, name);
+
+		_storage_lookup[id] = storage;
 	}
 	id   define_function(const location &loc, function_info &info) override
 	{

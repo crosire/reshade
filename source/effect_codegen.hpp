@@ -5,6 +5,7 @@
 
 #pragma once
 
+#include <string>
 #include <vector>
 #include <algorithm>
 
@@ -81,7 +82,7 @@ namespace reshadefx
 		/// <param name="loc">Source location matching this definition (for debugging).</param>
 		/// <param name="info">The variable description.</param>
 		/// <returns>New SSA ID of the variable.</returns>
-		virtual id  define_variable(const struct location &loc, const struct type &type, const char *name, bool global, id initializer_value = 0) = 0;
+		virtual id  define_variable(const struct location &loc, const struct type &type, std::string name = std::string(), bool global = false, id initializer_value = 0) = 0;
 		/// <summary>
 		/// Define a new function and its function parameters and make it current. Any code added after this call is added to this function.
 		/// </summary>

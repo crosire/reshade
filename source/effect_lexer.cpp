@@ -730,7 +730,7 @@ bool reshadefx::lexer::parse_pp_directive(token &tok)
 			token temptok;
 			parse_string_literal(temptok, false);
 
-			_cur_location.source = temptok.literal_as_string;
+			_cur_location.source = std::move(temptok.literal_as_string);
 		}
 
 		// Do not return the #line directive as token to the caller

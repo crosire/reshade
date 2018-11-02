@@ -31,7 +31,7 @@ namespace reshadefx
 		bool parse(const std::string &source, codegen::backend backend, unsigned int shader_model, bool debug_info, bool uniforms_to_spec_constants, module &result);
 
 		/// <summary>
-		/// Gets the list of error messages.
+		/// Get the list of error messages.
 		/// </summary>
 		std::string &errors() { return _errors; }
 		const std::string &errors() const { return _errors; }
