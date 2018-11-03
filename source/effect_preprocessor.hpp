@@ -46,7 +46,7 @@ namespace reshadefx
 		/// <param name="name">The name of the macro to define.</param>
 		/// <param name="value">The value to define that macro to.</param>
 		/// <returns></returns>
-		bool add_macro_definition(const std::string &name, const std::string &value = "1");
+		bool add_macro_definition(const std::string &name, std::string value = "1");
 
 		/// <summary>
 		/// Open the specified file, parse its contents and append them to the output.
@@ -61,8 +61,14 @@ namespace reshadefx
 		/// <returns>A boolean value indicating whether parsing was successful or not.</returns>
 		bool append_string(const std::string &source_code);
 
+		/// <summary>
+		/// Get the list of error messages.
+		/// </summary>
 		std::string &errors() { return _errors; }
 		const std::string &errors() const { return _errors; }
+		/// <summary>
+		/// Get the current pre-processed output string.
+		/// </summary>
 		std::string &output() { return _output; }
 		const std::string &output() const { return _output; }
 
@@ -75,32 +81,20 @@ namespace reshadefx
 		};
 		struct input_level
 		{
-			input_level(const std::string &name, const std::string &text, input_level *parent) :
-				_name(name),
-				_lexer(new lexer(text, true, false, false, true, false)),
-				_parent(parent)
-			{
-				_next_token.id = tokenid::unknown;
-				_next_token.offset = _next_token.length = 0;
-			}
-
-			std::string _name;
-			std::unique_ptr<lexer> _lexer;
-			token _next_token;
-			size_t _offset;
-			std::stack<if_level> _if_stack;
-			input_level *_parent;
+			std::string name;
+			std::unique_ptr<lexer> lexer;
+			token next_token;
+			std::stack<if_level> if_stack;
+			input_level *parent;
 		};
 
 		void error(const location &location, const std::string &message);
 		void warning(const location &location, const std::string &message);
 
 		lexer &current_lexer();
-		inline token current_token() const { return _token; }
 		std::stack<if_level> &current_if_stack();
-		if_level &current_if_level();
 
-		void push(const std::string &input, const std::string &name = std::string());
+		void push(std::string input, const std::string &name = std::string());
 
 		bool peek(tokenid token) const;
 		void consume();
