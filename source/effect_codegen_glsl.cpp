@@ -616,7 +616,7 @@ private:
 		leave_block_and_return(0);
 		leave_function();
 
-		code += "#endif\n";
+		_blocks.at(0) += "#endif\n";
 	}
 
 	id   emit_load(const expression &chain) override
