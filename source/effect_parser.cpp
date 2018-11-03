@@ -530,7 +530,7 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 			const auto result = _codegen->emit_binary_op(location, op, exp.type, value, _codegen->emit_constant(exp.type, one));
 
 			// The "++" and "--" operands modify the source variable, so store result back into it
-			_codegen->emit_store(exp, result, exp.type);
+			_codegen->emit_store(exp, result);
 		}
 		else if (op != tokenid::plus) // Ignore "+" operator since it does not actually do anything
 		{
@@ -888,7 +888,7 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 			// Copy in parameters from the argument access chains to parameter variables
 			for (size_t i = 0; i < arguments.size(); ++i)
 				if (parameters[i].is_lvalue && parameters[i].type.has(type::q_in)) // Only do this for pointer parameters as discovered above
-					_codegen->emit_store(parameters[i], _codegen->emit_load(arguments[i]), arguments[i].type);
+					_codegen->emit_store(parameters[i], _codegen->emit_load(arguments[i]));
 
 			// Check if the call resolving found an intrinsic or function and invoke the corresponding code
 			const auto result = symbol.op == symbol_type::function ?
@@ -900,7 +900,7 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 			// Copy out parameters from parameter variables back to the argument access chains
 			for (size_t i = 0; i < arguments.size(); ++i)
 				if (parameters[i].is_lvalue && parameters[i].type.has(type::q_out)) // Only do this for pointer parameters as discovered above
-					_codegen->emit_store(arguments[i], _codegen->emit_load(parameters[i]), arguments[i].type);
+					_codegen->emit_store(arguments[i], _codegen->emit_load(parameters[i]));
 		}
 		else if (symbol.op == symbol_type::invalid)
 		{
@@ -949,7 +949,7 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 			const auto result = _codegen->emit_binary_op(location, _token.id, exp.type, value, _codegen->emit_constant(exp.type, one));
 
 			// The "++" and "--" operands modify the source variable, so store result back into it
-			_codegen->emit_store(exp, result, exp.type);
+			_codegen->emit_store(exp, result);
 
 			// All postfix operators return a r-value rather than a l-value to the variable
 			exp.reset_to_rvalue(location, result, exp.type);
@@ -1423,7 +1423,7 @@ bool reshadefx::parser::parse_expression_assignment(expression &lhs)
 		}
 
 		// Write result back to variable
-		_codegen->emit_store(lhs, result, lhs.type);
+		_codegen->emit_store(lhs, result);
 
 		// Return the result value since you can write assignments within expressions
 		lhs.reset_to_rvalue(lhs.location, result, lhs.type);
@@ -1474,6 +1474,14 @@ bool reshadefx::parser::parse_statement(bool scoped)
 	// Read any loop and branch control attributes first
 	while (accept('['))
 	{
+		enum control_mask
+		{
+			unroll = 0x1,
+			dont_unroll = 0x2,
+			flatten = 0x4,
+			dont_flatten = 0x8,
+		};
+
 		const auto attribute = std::move(_token_next.literal_as_string);
 
 		if (!expect(tokenid::identifier) || !expect(']'))
@@ -1495,6 +1503,9 @@ bool reshadefx::parser::parse_statement(bool scoped)
 		if ((selection_control & (flatten | dont_flatten)) == (flatten | dont_flatten))
 			return error(_token.location, 3524, "can't use branch and flatten attributes together"), false;
 	}
+
+	// Shift by two so that the possible values are 0x01 for 'flatten' and 0x02 for 'dont_flatten', equivalent to 'unroll' and 'dont_unroll'
+	selection_control >>= 2;
 
 	if (peek('{')) // Parse statement block
 		return parse_statement_block(scoped);
@@ -2633,7 +2644,7 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 
 				expression variable; variable.reset_to_lvalue(location, symbol.id, type);
 
-				_codegen->emit_store(variable, initializer_value, initializer.type);
+				_codegen->emit_store(variable, initializer_value);
 			}
 		}
 	}

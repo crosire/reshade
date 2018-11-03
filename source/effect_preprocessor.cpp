@@ -962,7 +962,7 @@ void reshadefx::preprocessor::expand_macro(const macro &macro, const std::vector
 void reshadefx::preprocessor::create_macro_replacement_list(macro &macro)
 {
 	// Since the number of parameters is encoded in the string, it may not exceed the available size of a char
-	if (macro.parameters.size() >= std::numeric_limits<char>::max())
+	if (macro.parameters.size() >= std::numeric_limits<unsigned char>::max())
 		return error(_token.location, "too many macro parameters");
 
 	while (!peek(tokenid::end_of_file) && !peek(tokenid::end_of_line))

@@ -30,16 +30,16 @@ reshadefx::type reshadefx::type::merge(const type &lhs, const type &rhs)
 	return result;
 }
 
-void reshadefx::expression::reset_to_lvalue(const struct location &loc, uint32_t in_base, const struct type &in_type)
+void reshadefx::expression::reset_to_lvalue(const reshadefx::location &loc, reshadefx::codegen::id in_base, const reshadefx::type &in_type)
 {
 	type = in_type;
 	base = in_base;
 	location = loc;
 	is_lvalue = true;
 	is_constant = false;
-	ops.clear();
+	chain.clear();
 }
-void reshadefx::expression::reset_to_rvalue(const struct location &loc, uint32_t in_base, const struct type &in_type)
+void reshadefx::expression::reset_to_rvalue(const reshadefx::location &loc, reshadefx::codegen::id in_base, const reshadefx::type &in_type)
 {
 	type = in_type;
 	type.qualifiers |= type::q_const;
@@ -47,55 +47,55 @@ void reshadefx::expression::reset_to_rvalue(const struct location &loc, uint32_t
 	location = loc;
 	is_lvalue = false;
 	is_constant = false;
-	ops.clear();
+	chain.clear();
 }
 
-void reshadefx::expression::reset_to_rvalue_constant(const struct location &loc, bool data)
+void reshadefx::expression::reset_to_rvalue_constant(const reshadefx::location &loc, bool data)
 {
 	type = { type::t_bool, 1, 1, type::q_const };
 	base = 0; constant = {}; constant.as_uint[0] = data;
 	location = loc;
 	is_lvalue = false;
 	is_constant = true;
-	ops.clear();
+	chain.clear();
 }
-void reshadefx::expression::reset_to_rvalue_constant(const struct location &loc, float data)
+void reshadefx::expression::reset_to_rvalue_constant(const reshadefx::location &loc, float data)
 {
 	type = { type::t_float, 1, 1, type::q_const };
 	base = 0; constant = {}; constant.as_float[0] = data;
 	location = loc;
 	is_lvalue = false;
 	is_constant = true;
-	ops.clear();
+	chain.clear();
 }
-void reshadefx::expression::reset_to_rvalue_constant(const struct location &loc, int32_t data)
+void reshadefx::expression::reset_to_rvalue_constant(const reshadefx::location &loc, int32_t data)
 {
 	type = { type::t_int,  1, 1, type::q_const };
 	base = 0; constant = {}; constant.as_int[0] = data;
 	location = loc;
 	is_lvalue = false;
 	is_constant = true;
-	ops.clear();
+	chain.clear();
 }
-void reshadefx::expression::reset_to_rvalue_constant(const struct location &loc, uint32_t data)
+void reshadefx::expression::reset_to_rvalue_constant(const reshadefx::location &loc, uint32_t data)
 {
 	type = { type::t_uint, 1, 1, type::q_const };
 	base = 0; constant = {}; constant.as_uint[0] = data;
 	location = loc;
 	is_lvalue = false;
 	is_constant = true;
-	ops.clear();
+	chain.clear();
 }
-void reshadefx::expression::reset_to_rvalue_constant(const struct location &loc, std::string data)
+void reshadefx::expression::reset_to_rvalue_constant(const reshadefx::location &loc, std::string data)
 {
 	type = { type::t_string, 0, 0, type::q_const };
 	base = 0; constant = {}; constant.string_data = std::move(data);
 	location = loc;
 	is_lvalue = false;
 	is_constant = true;
-	ops.clear();
+	chain.clear();
 }
-void reshadefx::expression::reset_to_rvalue_constant(const struct location &loc, struct constant data, const struct type &in_type)
+void reshadefx::expression::reset_to_rvalue_constant(const reshadefx::location &loc, reshadefx::constant data, const reshadefx::type &in_type)
 {
 	type = in_type;
 	type.qualifiers |= type::q_const;
@@ -103,15 +103,15 @@ void reshadefx::expression::reset_to_rvalue_constant(const struct location &loc,
 	location = loc;
 	is_lvalue = false;
 	is_constant = true;
-	ops.clear();
+	chain.clear();
 }
 
-void reshadefx::expression::add_cast_operation(const reshadefx::type &to_type)
+void reshadefx::expression::add_cast_operation(const reshadefx::type &cast_type)
 {
-	if (type == to_type)
+	if (type == cast_type)
 		return; // There is nothing to do if the expression is already of the target type
 
-	if (to_type.is_scalar() && !type.is_scalar())
+	if (cast_type.is_scalar() && !type.is_scalar())
 	{
 		// A vector or matrix to scalar cast is equivalent to a swizzle
 		const signed char swizzle[] = { 0, -1, -1, -1 };
@@ -140,18 +140,18 @@ void reshadefx::expression::add_cast_operation(const reshadefx::type &to_type)
 		};
 
 		for (auto &element : constant.array_data)
-			cast_constant(element, type, to_type);
+			cast_constant(element, type, cast_type);
 
-		cast_constant(constant, type, to_type);
+		cast_constant(constant, type, cast_type);
 	}
 	else
 	{
-		assert(!type.is_array() && !to_type.is_array());
+		assert(!type.is_array() && !cast_type.is_array());
 
-		ops.push_back({ operation::op_cast, type, to_type });
+		chain.push_back({ operation::op_cast, type, cast_type });
 	}
 
-	type = to_type;
+	type = cast_type;
 }
 void reshadefx::expression::add_member_access(unsigned int index, const reshadefx::type &in_type)
 {
@@ -160,7 +160,7 @@ void reshadefx::expression::add_member_access(unsigned int index, const reshadef
 	type = in_type;
 	is_constant = false;
 
-	ops.push_back({ operation::op_member, prev_type, type, index });
+	chain.push_back({ operation::op_member, prev_type, type, index });
 }
 void reshadefx::expression::add_static_index_access(reshadefx::codegen *codegen, unsigned int index)
 {
@@ -225,7 +225,7 @@ void reshadefx::expression::add_dynamic_index_access(reshadefx::codegen *codegen
 		is_lvalue = true;
 	}
 
-	ops.push_back({ operation::op_index, prev_type, type, index_expression });
+	chain.push_back({ operation::op_index, prev_type, type, index_expression });
 
 	is_constant = false;
 }
@@ -248,12 +248,14 @@ void reshadefx::expression::add_swizzle_access(const signed char in_swizzle[4], 
 	}
 	else
 	{
-		ops.push_back({ operation::op_swizzle, prev_type, type, 0, { in_swizzle[0], in_swizzle[1], in_swizzle[2], in_swizzle[3] } });
+		chain.push_back({ operation::op_swizzle, prev_type, type, 0, { in_swizzle[0], in_swizzle[1], in_swizzle[2], in_swizzle[3] } });
 	}
 }
 
 void reshadefx::expression::evaluate_constant_expression(reshadefx::tokenid op)
 {
+	assert(is_constant);
+
 	switch (op)
 	{
 	case tokenid::exclaim:
@@ -276,6 +278,8 @@ void reshadefx::expression::evaluate_constant_expression(reshadefx::tokenid op)
 }
 void reshadefx::expression::evaluate_constant_expression(reshadefx::tokenid op, const reshadefx::constant &rhs)
 {
+	assert(is_constant);
+
 	switch (op)
 	{
 	case tokenid::percent:

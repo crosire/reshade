@@ -18,14 +18,14 @@ namespace reshadefx
 	{
 		location() : line(1), column(1) { }
 		explicit location(unsigned int line, unsigned int column = 1) : line(line), column(column) { }
-		explicit location(const std::string &source, unsigned int line, unsigned int column = 1) : source(source), line(line), column(column) { }
+		explicit location(std::string source, unsigned int line, unsigned int column = 1) : source(std::move(source)), line(line), column(column) { }
 
 		std::string source;
 		unsigned int line, column;
 	};
 
 	/// <summary>
-	/// Structure which encapsulates a parsed type instance
+	/// Structure which encapsulates a parsed value type
 	/// </summary>
 	struct type
 	{
@@ -133,41 +133,86 @@ namespace reshadefx
 			{
 				op_cast,
 				op_index,
-				op_swizzle,
 				op_member,
+				op_swizzle,
 			};
 
-			op_type type;
-			struct type from, to;
+			op_type op;
+			type from, to;
 			uint32_t index;
 			signed char swizzle[4];
 		};
 
-		struct type type = {};
+		type type = {};
 		uint32_t base = 0;
 		constant constant = {};
 		bool is_lvalue = false;
 		bool is_constant = false;
 		location location;
-		std::vector<operation> ops;
+		std::vector<operation> chain;
 
-		void reset_to_lvalue(const struct location &loc, uint32_t in_base, const struct type &in_type);
-		void reset_to_rvalue(const struct location &loc, uint32_t in_base, const struct type &in_type);
+		/// <summary>
+		/// Initialize the expression to a l-value.
+		/// </summary>
+		/// <param name="loc">The code location of the expression.</param>
+		/// <param name="base">The ID of the l-value.</param>
+		/// <param name="type">The value type of the expression result.</param>
+		void reset_to_lvalue(const reshadefx::location &loc, uint32_t base, const reshadefx::type &type);
+		/// <summary>
+		/// Initialize the expression to a r-value.
+		/// </summary>
+		/// <param name="loc">The code location of the expression.</param>
+		/// <param name="base">The ID of the r-value.</param>
+		/// <param name="type">The value type of the expression result.</param>
+		void reset_to_rvalue(const reshadefx::location &loc, uint32_t base, const reshadefx::type &type);
 
-		void reset_to_rvalue_constant(const struct location &loc, bool data);
-		void reset_to_rvalue_constant(const struct location &loc, float data);
-		void reset_to_rvalue_constant(const struct location &loc, int32_t data);
-		void reset_to_rvalue_constant(const struct location &loc, uint32_t data);
-		void reset_to_rvalue_constant(const struct location &loc, std::string data);
-		void reset_to_rvalue_constant(const struct location &loc, struct constant data, const struct type &in_type);
+		/// <summary>
+		/// Initialize the expression to a constant value.
+		/// </summary>
+		/// <param name="loc">The code location of the constant expression.</param>
+		/// <param name="data">The constant value.</param>
+		void reset_to_rvalue_constant(const reshadefx::location &loc, bool data);
+		void reset_to_rvalue_constant(const reshadefx::location &loc, float data);
+		void reset_to_rvalue_constant(const reshadefx::location &loc, int32_t data);
+		void reset_to_rvalue_constant(const reshadefx::location &loc, uint32_t data);
+		void reset_to_rvalue_constant(const reshadefx::location &loc, std::string data);
+		void reset_to_rvalue_constant(const reshadefx::location &loc, reshadefx::constant data, const reshadefx::type &type);
 
+		/// <summary>
+		/// Add a cast operation to the current access chain.
+		/// </summary>
+		/// <param name="type">The type to cast the expression to.</param>
 		void add_cast_operation(const reshadefx::type &type);
+		/// <summary>
+		/// Add a struct member lookup to the current access chain.
+		/// </summary>
+		/// <param name="index">The index of the member to dereference.</param>
+		/// <param name="type">The value type of the member.</param>
 		void add_member_access(unsigned int index, const reshadefx::type &type);
+		/// <summary>
+		/// 
+		/// </summary>
+		/// <param name="codegen"></param>
+		/// <param name="index"></param>
 		void add_static_index_access(class codegen *codegen, unsigned int index);
 		void add_dynamic_index_access(class codegen *codegen, uint32_t index_expression);
+		/// <summary>
+		/// Add a swizzle operation to the current access chain.
+		/// </summary>
+		/// <param name="swizzle">The swizzle for each component. -1 = unused, 0 = x, 1 = y, 2 = z, 3 = w.</param>
+		/// <param name="length">The number of components in the swizzle. The maximum is 4.</param>
 		void add_swizzle_access(const signed char swizzle[4], unsigned int length);
 
+		/// <summary>
+		/// Apply an unary operation to this constant expression.
+		/// </summary>
+		/// <param name="op">The unary operator to apply.</param>
 		void evaluate_constant_expression(enum class tokenid op);
+		/// <summary>
+		/// Apply a binary operation to this constant expression.
+		/// </summary>
+		/// <param name="op">The binary operator to apply.</param>
+		/// <param name="rhs">The constant to use as right-hand side of the binary operation.</param>
 		void evaluate_constant_expression(enum class tokenid op, const reshadefx::constant &rhs);
 	};
 
@@ -195,7 +240,7 @@ namespace reshadefx
 		type type;
 		uint32_t size = 0;
 		uint32_t offset = 0;
-		std::unordered_map<std::string, std::pair<struct type, constant>> annotations;
+		std::unordered_map<std::string, std::pair<reshadefx::type, constant>> annotations;
 		bool has_initializer_value = false;
 		constant initializer_value;
 	};
@@ -230,6 +275,16 @@ namespace reshadefx
 		uint8_t srgb = false;
 	};
 
+	struct function_info
+	{
+		uint32_t definition;
+		std::string name;
+		std::string unique_name;
+		type return_type;
+		std::string return_semantic;
+		std::vector<struct_member_info> parameter_list;
+	};
+
 	struct pass_info
 	{
 		std::string render_target_names[8] = {};
@@ -260,15 +315,5 @@ namespace reshadefx
 		std::string name;
 		std::vector<pass_info> passes;
 		std::unordered_map<std::string, std::pair<type, constant>> annotations;
-	};
-
-	struct function_info
-	{
-		uint32_t definition;
-		std::string name;
-		std::string unique_name;
-		type return_type;
-		std::string return_semantic;
-		std::vector<struct_member_info> parameter_list;
 	};
 }

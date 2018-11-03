@@ -9,8 +9,6 @@
 
 using namespace reshadefx;
 
-extern std::string to_string(float val, unsigned int precision);
-
 class codegen_hlsl final : public codegen
 {
 public:
@@ -37,26 +35,26 @@ private:
 	unsigned int _current_sampler_binding = 0;
 	std::unordered_map<id, std::vector<id>> _switch_fallthrough_blocks;
 
-	void write_result(module &s) const override
+	void write_result(module &module) override
 	{
-		s = _module;
+		module = std::move(_module);
 
 		if (_shader_model >= 40)
 		{
-			s.hlsl += "struct __sampler2D { Texture2D t; SamplerState s; };\n";
+			module.hlsl += "struct __sampler2D { Texture2D t; SamplerState s; };\n";
 
 			if (!_cbuffer_block.empty())
-				s.hlsl += "cbuffer _Globals {\n" + _cbuffer_block + "};\n";
+				module.hlsl += "cbuffer _Globals {\n" + _cbuffer_block + "};\n";
 		}
 		else
 		{
-			s.hlsl += "struct __sampler2D { sampler2D s; float2 pixelsize; };\nuniform float2 __TEXEL_SIZE__ : register(c255);\n";
+			module.hlsl += "struct __sampler2D { sampler2D s; float2 pixelsize; };\nuniform float2 __TEXEL_SIZE__ : register(c255);\n";
 
 			if (!_cbuffer_block.empty())
-				s.hlsl += _cbuffer_block;
+				module.hlsl += _cbuffer_block;
 		}
 
-		s.hlsl += _blocks.at(0);
+		module.hlsl += _blocks.at(0);
 	}
 
 	template <bool is_param = false, bool is_decl = true>
@@ -169,7 +167,9 @@ private:
 				s += std::to_string(data.as_uint[i]);
 				break;
 			case type::t_float:
-				s += to_string(data.as_float[i], 8);
+				std::string temp(_scprintf("%.8f", data.as_float[i]), '\0');
+				sprintf_s(temp.data(), temp.size() + 1, "%.8f", data.as_float[i]);
+				s += temp;
 				break;
 			}
 
@@ -569,25 +569,25 @@ private:
 		leave_function();
 	}
 
-	id   emit_load(const expression &chain) override
+	id   emit_load(const expression &exp) override
 	{
-		if (chain.is_constant)
-			return emit_constant(chain.type, chain.constant);
-		else if (chain.ops.empty()) // Can refer to values without access chain directly
-			return chain.base;
+		if (exp.is_constant)
+			return emit_constant(exp.type, exp.constant);
+		else if (exp.chain.empty()) // Can refer to values without access chain directly
+			return exp.base;
 
 		const id res = make_id();
 
 		std::string &code = _blocks.at(_current_block);
 
-		write_location(code, chain.location);
+		write_location(code, exp.location);
 
 		code += '\t';
-		write_type(code, chain.type);
+		write_type(code, exp.type);
 		code += ' ' + id_to_name(res);
 
-		if (chain.type.is_array())
-			code += '[' + std::to_string(chain.type.array_length) + ']';
+		if (exp.type.is_array())
+			code += '[' + std::to_string(exp.type.array_length) + ']';
 
 		code += " = ";
 
@@ -598,11 +598,11 @@ private:
 			"_m30", "_m31", "_m32", "_m33"
 		};
 
-		std::string newcode = id_to_name(chain.base);
+		std::string newcode = id_to_name(exp.base);
 
-		for (const auto &op : chain.ops)
+		for (const auto &op : exp.chain)
 		{
-			switch (op.type)
+			switch (op.op)
 			{
 			case expression::operation::op_cast:
 				{ std::string type; write_type<false, false>(type, op.to);
@@ -631,13 +631,13 @@ private:
 
 		return res;
 	}
-	void emit_store(const expression &chain, id value, const type &) override
+	void emit_store(const expression &exp, id value) override
 	{
 		std::string &code = _blocks.at(_current_block);
 
-		write_location(code, chain.location);
+		write_location(code, exp.location);
 
-		code += '\t' + id_to_name(chain.base);
+		code += '\t' + id_to_name(exp.base);
 
 		static const char s_matrix_swizzles[16][5] = {
 			"_m00", "_m01", "_m02", "_m03",
@@ -646,9 +646,9 @@ private:
 			"_m30", "_m31", "_m32", "_m33"
 		};
 
-		for (const auto &op : chain.ops)
+		for (const auto &op : exp.chain)
 		{
-			switch (op.type)
+			switch (op.op)
 			{
 			case expression::operation::op_index:
 				code += '[' + id_to_name(op.index) + ']';
@@ -834,7 +834,7 @@ private:
 	id   emit_call(const location &loc, id function, const type &res_type, const std::vector<expression> &args) override
 	{
 		for (const auto &arg : args)
-			assert(arg.ops.empty() && arg.base != 0);
+			assert(arg.chain.empty() && arg.base != 0);
 
 		const id res = make_id();
 
@@ -872,7 +872,7 @@ private:
 	id   emit_call_intrinsic(const location &loc, id intrinsic, const type &res_type, const std::vector<expression> &args) override
 	{
 		for (const auto &arg : args)
-			assert(arg.ops.empty() && arg.base != 0);
+			assert(arg.chain.empty() && arg.base != 0);
 
 		const id res = make_id();
 
@@ -915,7 +915,7 @@ private:
 	id   emit_construct(const location &loc, const type &type, const std::vector<expression> &args) override
 	{
 		for (const auto &arg : args)
-			assert((arg.type.is_scalar() || type.is_array()) && arg.ops.empty() && arg.base != 0);
+			assert((arg.type.is_scalar() || type.is_array()) && arg.chain.empty() && arg.base != 0);
 
 		const id res = make_id();
 
@@ -973,8 +973,8 @@ private:
 
 		code += '\t';
 
-		if (flags & flatten) code += "[flatten] ";
-		if (flags & dont_flatten) code += "[branch] ";
+		if (flags & 0x1) code += "[flatten] ";
+		if (flags & 0x2) code +=  "[branch] ";
 
 		code += "if (" + id_to_name(condition_value) + ")\n\t{\n";
 		code += true_statement_data;
@@ -1052,8 +1052,8 @@ private:
 
 		code += '\t';
 
-		if (flags & unroll) code += "[unroll] ";
-		if (flags & dont_unroll) code += "[loop] ";
+		if (flags & 0x1) code += "[unroll] ";
+		if (flags & 0x2) code +=   "[loop] ";
 
 		if (condition_block == 0)
 		{
@@ -1105,8 +1105,8 @@ private:
 
 		code += '\t';
 
-		if (flags & flatten) code += "[flatten] ";
-		if (flags & dont_flatten) code += "[branch] ";
+		if (flags & 0x1) code += "[flatten] ";
+		if (flags & 0x2) code +=  "[branch] ";
 
 		code += "switch (" + id_to_name(selector_value) + ")\n\t{\n";
 

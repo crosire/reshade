@@ -10,18 +10,6 @@
 
 using namespace reshadefx;
 
-inline std::string to_string(float val, unsigned int precision)
-{
-	std::string s(_scprintf("%.*f", precision, val), '\0');
-	sprintf_s(s.data(), s.size() + 1, "%.*f", precision, val);
-	return s;
-}
-
-static inline uint32_t align(uint32_t address, uint32_t alignment)
-{
-	return (address % alignment != 0) ? address + alignment - address % alignment : address;
-}
-
 class codegen_glsl final : public codegen
 {
 public:
@@ -47,11 +35,11 @@ private:
 	std::unordered_map<id, id> _remapped_sampler_variables;
 	std::unordered_map<id, std::vector<id>> _switch_fallthrough_blocks;
 
-	void write_result(module &s) const override
+	void write_result(module &module) override
 	{
-		s = _module;
+		module = std::move(_module);
 
-		s.hlsl +=
+		module.hlsl +=
 			"float hlsl_fmod(float x, float y) { return x - y * trunc(x / y); }\n"
 			" vec2 hlsl_fmod( vec2 x,  vec2 y) { return x - y * trunc(x / y); }\n"
 			" vec3 hlsl_fmod( vec3 x,  vec3 y) { return x - y * trunc(x / y); }\n"
@@ -61,8 +49,8 @@ private:
 			" mat4 hlsl_fmod( mat4 x,  mat4 y) { return x - matrixCompMult(y, mat4(trunc(x[0] / y[0]), trunc(x[1] / y[1]), trunc(x[2] / y[2]), trunc(x[3] / y[3]))); }\n";
 
 		if (!_ubo_block.empty())
-			s.hlsl += "layout(std140, binding = 0) uniform _Globals {\n" + _ubo_block + "};\n";
-		s.hlsl += _blocks.at(0);
+			module.hlsl += "layout(std140, binding = 0) uniform _Globals {\n" + _ubo_block + "};\n";
+		module.hlsl += _blocks.at(0);
 	}
 
 	template <bool is_param = false, bool is_decl = true>
@@ -188,7 +176,9 @@ private:
 				s += std::to_string(data.as_uint[i]) + 'u';
 				break;
 			case type::t_float:
-				s += to_string(data.as_float[i], 8);
+				std::string temp(_scprintf("%.8f", data.as_float[i]), '\0');
+				sprintf_s(temp.data(), temp.size() + 1, "%.8f", data.as_float[i]);
+				s += temp;
 				break;
 			}
 
@@ -336,7 +326,7 @@ private:
 			const unsigned int alignment = size;
 
 			info.size = size;
-			info.offset = align(_current_ubo_offset, alignment);
+			info.offset = (_current_ubo_offset % alignment != 0) ? _current_ubo_offset + alignment - _current_ubo_offset % alignment : _current_ubo_offset;
 			_current_ubo_offset = info.offset + info.size;
 
 			write_location(_ubo_block, loc);
@@ -619,33 +609,33 @@ private:
 		_blocks.at(0) += "#endif\n";
 	}
 
-	id   emit_load(const expression &chain) override
+	id   emit_load(const expression &exp) override
 	{
-		if (chain.is_constant)
-			return emit_constant(chain.type, chain.constant);
-		else if (chain.ops.empty()) // Can refer to values without access chain directly
-			return chain.base;
+		if (exp.is_constant)
+			return emit_constant(exp.type, exp.constant);
+		else if (exp.chain.empty()) // Can refer to values without access chain directly
+			return exp.base;
 
 		const id res = make_id();
 
 		std::string &code = _blocks.at(_current_block);
 
-		write_location(code, chain.location);
+		write_location(code, exp.location);
 
 		code += '\t';
-		write_type(code, chain.type);
+		write_type(code, exp.type);
 		code += ' ' + id_to_name(res);
 
-		if (chain.type.is_array())
-			code += '[' + std::to_string(chain.type.array_length) + ']';
+		if (exp.type.is_array())
+			code += '[' + std::to_string(exp.type.array_length) + ']';
 
 		code += " = ";
 
-		std::string newcode = id_to_name(chain.base);
+		std::string newcode = id_to_name(exp.base);
 
-		for (const auto &op : chain.ops)
+		for (const auto &op : exp.chain)
 		{
-			switch (op.type)
+			switch (op.op)
 			{
 			case expression::operation::op_cast:
 				{ std::string type; write_type<false, false>(type, op.to);
@@ -688,9 +678,9 @@ private:
 
 		return res;
 	}
-	void emit_store(const expression &chain, id value, const type &) override
+	void emit_store(const expression &exp, id value) override
 	{
-		if (const auto it = _remapped_sampler_variables.find(chain.base); it != _remapped_sampler_variables.end())
+		if (const auto it = _remapped_sampler_variables.find(exp.base); it != _remapped_sampler_variables.end())
 		{
 			assert(it->second == 0);
 			it->second = value;
@@ -699,13 +689,13 @@ private:
 
 		std::string &code = _blocks.at(_current_block);
 
-		write_location(code, chain.location);
+		write_location(code, exp.location);
 
-		code += '\t' + id_to_name(chain.base);
+		code += '\t' + id_to_name(exp.base);
 
-		for (const auto &op : chain.ops)
+		for (const auto &op : exp.chain)
 		{
-			switch (op.type)
+			switch (op.op)
 			{
 			case expression::operation::op_index:
 				code += '[' + id_to_name(op.index) + ']';
@@ -954,7 +944,7 @@ private:
 	id   emit_call(const location &loc, id function, const type &res_type, const std::vector<expression> &args) override
 	{
 		for (const auto &arg : args)
-			assert(arg.ops.empty() && arg.base != 0);
+			assert(arg.chain.empty() && arg.base != 0);
 
 		const id res = make_id();
 
@@ -992,7 +982,7 @@ private:
 	id   emit_call_intrinsic(const location &loc, id intrinsic, const type &res_type, const std::vector<expression> &args) override
 	{
 		for (const auto &arg : args)
-			assert(arg.ops.empty() && arg.base != 0);
+			assert(arg.chain.empty() && arg.base != 0);
 
 		const id res = make_id();
 
@@ -1029,7 +1019,7 @@ private:
 	id   emit_construct(const location &loc, const type &type, const std::vector<expression> &args) override
 	{
 		for (const auto &arg : args)
-			assert((arg.type.is_scalar() || type.is_array()) && arg.ops.empty() && arg.base != 0);
+			assert((arg.type.is_scalar() || type.is_array()) && arg.chain.empty() && arg.base != 0);
 
 		const id res = make_id();
 

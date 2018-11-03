@@ -23,15 +23,6 @@ using namespace reshadefx;
 /// </summary>
 struct spirv_instruction
 {
-	// See: https://www.khronos.org/registry/spir-v/specs/unified1/SPIRV.html
-	// 0             | Opcode: The 16 high-order bits are the WordCount of the instruction. The 16 low-order bits are the opcode enumerant.
-	// 1             | Optional instruction type <id>
-	// .             | Optional instruction Result <id>
-	// .             | Operand 1 (if needed)
-	// .             | Operand 2 (if needed)
-	// ...           | ...
-	// WordCount - 1 | Operand N (N is determined by WordCount minus the 1 to 3 words used for the opcode, instruction type <id>, and instruction Result <id>).
-
 	spv::Op op;
 	spv::Id type;
 	spv::Id result;
@@ -74,6 +65,34 @@ struct spirv_instruction
 		} while (*string || word & 0xFF000000);
 		return *this;
 	}
+
+	/// <summary>
+	/// Write this instruction to a SPIR-V module.
+	/// </summary>
+	/// <param name="output">The output stream to append this instruction to.</param>
+	void write(std::vector<uint32_t> &output) const
+	{
+		// See: https://www.khronos.org/registry/spir-v/specs/unified1/SPIRV.html
+		// 0             | Opcode: The 16 high-order bits are the WordCount of the instruction. The 16 low-order bits are the opcode enumerant.
+		// 1             | Optional instruction type <id>
+		// .             | Optional instruction Result <id>
+		// .             | Operand 1 (if needed)
+		// .             | Operand 2 (if needed)
+		// ...           | ...
+		// WordCount - 1 | Operand N (N is determined by WordCount minus the 1 to 3 words used for the opcode, instruction type <id>, and instruction Result <id>).
+
+		const uint32_t num_words = 1 + (type != 0) + (result != 0) + static_cast<uint32_t>(operands.size());
+		output.push_back((num_words << spv::WordCountShift) | op);
+
+		// Optional instruction type ID
+		if (type != 0) output.push_back(type);
+
+		// Optional instruction result ID
+		if (result != 0) output.push_back(result);
+
+		// Write out the operands
+		output.insert(output.end(), operands.begin(), operands.end());
+	}
 };
 
 /// <summary>
@@ -91,34 +110,6 @@ struct spirv_basic_block
 		instructions.insert(instructions.end(), block.instructions.begin(), block.instructions.end());
 	}
 };
-
-static void write(std::vector<uint32_t> &s, uint32_t word)
-{
-	s.push_back(word);
-}
-static void write(std::vector<uint32_t> &s, const spirv_instruction &ins)
-{
-	// First word of an instruction:
-	// The 16 low-order bits are the opcode
-	// The 16 high-order bits are the word count of the instruction
-	const uint32_t num_words = 1 + (ins.type != 0) + (ins.result != 0) + static_cast<uint32_t>(ins.operands.size());
-	write(s, (num_words << spv::WordCountShift) | ins.op);
-
-	// Optional instruction type ID
-	if (ins.type != 0) write(s, ins.type);
-
-	// Optional instruction result ID
-	if (ins.result != 0) write(s, ins.result);
-
-	// Write out the operands
-	for (size_t i = 0; i < ins.operands.size(); ++i)
-		write(s, ins.operands[i]);
-}
-
-static inline uint32_t align(uint32_t address, uint32_t alignment)
-{
-	return (address % alignment != 0) ? address + alignment - address % alignment : address;
-}
 
 class codegen_spirv final : public codegen
 {
@@ -189,16 +180,6 @@ private:
 	uint32_t _global_ubo_offset = 0;
 	function_blocks *_current_function = nullptr;
 
-	void create_global_ubo()
-	{
-		if (_global_ubo_type.definition == 0)
-			return;
-
-		define_struct({}, _global_ubo_type);
-
-		define_variable(_global_ubo_variable, {}, { type::t_struct, 0, 0, type::q_uniform, 0, _global_ubo_type.definition }, "$Globals", spv::StorageClassUniform);
-	}
-
 	inline id make_id() { return _next_id++; }
 
 	inline void add_location(const location &loc, spirv_basic_block &block)
@@ -242,63 +223,75 @@ private:
 		return block.instructions.emplace_back(op);
 	}
 
-	void write_result(module &s) const override
+	void write_result(module &module) override
 	{
-		const_cast<codegen_spirv *>(this)->create_global_ubo();
+		// First create the UBO struct type now that all member types are known
+		if (_global_ubo_type.definition != 0)
+		{
+			define_struct({}, _global_ubo_type);
 
-		s = _module;
+			define_variable(_global_ubo_variable, {}, { type::t_struct, 0, 0, type::q_uniform, 0, _global_ubo_type.definition }, "$Globals", spv::StorageClassUniform);
+		}
+
+		module = std::move(_module);
 
 		// Write SPIRV header info
-		write(s.spirv, spv::MagicNumber);
-		write(s.spirv, spv::Version);
-		write(s.spirv, 0u); // Generator magic number, see https://www.khronos.org/registry/spir-v/api/spir-v.xml
-		write(s.spirv, _next_id); // Maximum ID
-		write(s.spirv, 0u); // Reserved for instruction schema
+		module.spirv.push_back(spv::MagicNumber);
+		module.spirv.push_back(spv::Version);
+		module.spirv.push_back(0u); // Generator magic number, see https://www.khronos.org/registry/spir-v/api/spir-v.xml
+		module.spirv.push_back(_next_id); // Maximum ID
+		module.spirv.push_back(0u); // Reserved for instruction schema
 
 		// All capabilities
-		write(s.spirv, spirv_instruction(spv::OpCapability)
-			.add(spv::CapabilityMatrix));
-		write(s.spirv, spirv_instruction(spv::OpCapability)
-			.add(spv::CapabilityShader));
+		spirv_instruction(spv::OpCapability)
+			.add(spv::CapabilityMatrix)
+			.write(module.spirv);
+		spirv_instruction(spv::OpCapability)
+			.add(spv::CapabilityShader)
+			.write(module.spirv);
 
 		for (spv::Capability capability : _capabilities)
-			write(s.spirv, spirv_instruction(spv::OpCapability)
-				.add(capability));
+			spirv_instruction(spv::OpCapability)
+				.add(capability)
+				.write(module.spirv);
 
-		write(s.spirv, spirv_instruction(spv::OpExtension)
-			.add_string("SPV_GOOGLE_hlsl_functionality1"));
+		spirv_instruction(spv::OpExtension)
+			.add_string("SPV_GOOGLE_hlsl_functionality1")
+			.write(module.spirv);
 
 		// Optional extension instructions
-		write(s.spirv, spirv_instruction(spv::OpExtInstImport, _glsl_ext)
-			.add_string("GLSL.std.450")); // Import GLSL extension
+		spirv_instruction(spv::OpExtInstImport, _glsl_ext)
+			.add_string("GLSL.std.450") // Import GLSL extension
+			.write(module.spirv);
 
 		// Single required memory model instruction
-		write(s.spirv, spirv_instruction(spv::OpMemoryModel)
+		spirv_instruction(spv::OpMemoryModel)
 			.add(spv::AddressingModelLogical)
-			.add(spv::MemoryModelGLSL450));
+			.add(spv::MemoryModelGLSL450)
+			.write(module.spirv);
 
 		// All entry point declarations
 		for (const auto &node : _entries.instructions)
-			write(s.spirv, node);
+			node.write(module.spirv);
 
 		if (_debug_info)
 		{
 			// All debug instructions
 			for (const auto &node : _debug_a.instructions)
-				write(s.spirv, node);
+				node.write(module.spirv);
 			for (const auto &node : _debug_b.instructions)
-				write(s.spirv, node);
+				node.write(module.spirv);
 		}
 
 		// All annotation instructions
 		for (const auto &node : _annotations.instructions)
-			write(s.spirv, node);
+			node.write(module.spirv);
 
 		// All type declarations
 		for (const auto &node : _types_and_constants.instructions)
-			write(s.spirv, node);
+			node.write(module.spirv);
 		for (const auto &node : _variables.instructions)
-			write(s.spirv, node);
+			node.write(module.spirv);
 
 		// All function definitions
 		for (const auto &function : _functions2)
@@ -307,16 +300,16 @@ private:
 				continue;
 
 			for (const auto &node : function.declaration.instructions)
-				write(s.spirv, node);
+				node.write(module.spirv);
 
 			// Grab first label and move it in front of variable declarations
-			write(s.spirv, function.definition.instructions.front());
+			function.definition.instructions.front().write(module.spirv);
 			assert(function.definition.instructions.front().op == spv::OpLabel);
 
 			for (const auto &node : function.variables.instructions)
-				write(s.spirv, node);
+				node.write(module.spirv);
 			for (auto it = function.definition.instructions.begin() + 1; it != function.definition.instructions.end(); ++it)
-				write(s.spirv, *it);
+				it->write(module.spirv);
 		}
 	}
 
@@ -640,7 +633,7 @@ private:
 			const unsigned int alignment = size;
 
 			info.size = size;
-			info.offset = align(_global_ubo_offset, alignment);
+			info.offset = (_global_ubo_offset % alignment != 0) ? _global_ubo_offset + alignment - _global_ubo_offset % alignment : _global_ubo_offset;
 			_global_ubo_offset = info.offset + size;
 
 			_module.uniforms.push_back(info);
@@ -995,28 +988,28 @@ private:
 			.add(inputs_and_outputs.begin(), inputs_and_outputs.end());
 	}
 
-	id   emit_load(const expression &chain) override
+	id   emit_load(const expression &exp) override
 	{
-		if (chain.is_constant) // Constant expressions do not have a complex access chain
-			return emit_constant(chain.type, chain.constant);
+		if (exp.is_constant) // Constant expressions do not have a complex access chain
+			return emit_constant(exp.type, exp.constant);
 
-		spv::Id result = chain.base;
+		spv::Id result = exp.base;
 
 		size_t op_index2 = 0;
-		auto base_type = chain.type;
+		auto base_type = exp.type;
 		bool is_uniform_bool = false;
 
-		if (chain.is_lvalue || !chain.ops.empty())
-			add_location(chain.location, *_current_block_data);
+		if (exp.is_lvalue || !exp.chain.empty())
+			add_location(exp.location, *_current_block_data);
 
 		// If a variable is referenced, load the value first
-		if (chain.is_lvalue && _spec_constants.find(chain.base) == _spec_constants.end())
+		if (exp.is_lvalue && _spec_constants.find(exp.base) == _spec_constants.end())
 		{
-			if (!chain.ops.empty())
-				base_type = chain.ops[0].from;
+			if (!exp.chain.empty())
+				base_type = exp.chain[0].from;
 
 			spv::StorageClass storage = spv::StorageClassFunction;
-			if (const auto it = _storage_lookup.find(chain.base); it != _storage_lookup.end())
+			if (const auto it = _storage_lookup.find(exp.base); it != _storage_lookup.end())
 				storage = it->second;
 
 			// Check if this is a uniform variable (see 'define_uniform' function above) and dereference it
@@ -1038,23 +1031,23 @@ private:
 			}
 
 			// Any indexing expressions can be resolved during load with an 'OpAccessChain' already
-			if (!chain.ops.empty() && (chain.ops[0].type == expression::operation::op_index || chain.ops[0].type == expression::operation::op_member))
+			if (!exp.chain.empty() && (exp.chain[0].op == expression::operation::op_index || exp.chain[0].op == expression::operation::op_member))
 			{
 				spirv_instruction &node = add_instruction(spv::OpAccessChain)
 					.add(result); // Base
 
 				// Ignore first index into 1xN matrices, since they were translated to a vector type in SPIR-V
-				if (chain.ops[0].from.rows == 1 && chain.ops[0].from.cols > 1)
+				if (exp.chain[0].from.rows == 1 && exp.chain[0].from.cols > 1)
 					op_index2 = 1;
 
 				do {
-					base_type = chain.ops[op_index2].to;
-					if (chain.ops[op_index2].type == expression::operation::op_index)
-						node.add(chain.ops[op_index2++].index); // Indexes
+					base_type = exp.chain[op_index2].to;
+					if (exp.chain[op_index2].op == expression::operation::op_index)
+						node.add(exp.chain[op_index2++].index); // Indexes
 					else
-						node.add(emit_constant(chain.ops[op_index2++].index)); // Indexes
-				} while (op_index2 < chain.ops.size() && (chain.ops[op_index2].type == expression::operation::op_index || chain.ops[op_index2].type == expression::operation::op_member));
-				node.type = convert_type(chain.ops[op_index2 - 1].to, true, storage); // Last type is the result
+						node.add(emit_constant(exp.chain[op_index2++].index)); // Indexes
+				} while (op_index2 < exp.chain.size() && (exp.chain[op_index2].op == expression::operation::op_index || exp.chain[op_index2].op == expression::operation::op_member));
+				node.type = convert_type(exp.chain[op_index2 - 1].to, true, storage); // Last type is the result
 				result = node.result; // Result ID
 			}
 
@@ -1074,11 +1067,11 @@ private:
 		}
 
 		// Work through all remaining operations in the access chain and apply them to the value
-		for (; op_index2 < chain.ops.size(); ++op_index2)
+		for (; op_index2 < exp.chain.size(); ++op_index2)
 		{
-			const auto &op = chain.ops[op_index2];
+			const auto &op = exp.chain[op_index2];
 
-			switch (op.type)
+			switch (op.op)
 			{
 			case expression::operation::op_cast:
 				if (op.from.base != op.to.base)
@@ -1133,7 +1126,7 @@ private:
 
 				if (op.to.components() > op.from.components())
 				{
-					spirv_instruction &composite_node = add_instruction(chain.is_constant ? spv::OpConstantComposite : spv::OpCompositeConstruct, convert_type(op.to));
+					spirv_instruction &composite_node = add_instruction(exp.is_constant ? spv::OpConstantComposite : spv::OpCompositeConstruct, convert_type(op.to));
 					for (unsigned int i = 0; i < op.to.components(); ++i)
 						composite_node.add(result);
 					result = composite_node.result;
@@ -1259,53 +1252,53 @@ private:
 
 		return result;
 	}
-	void emit_store(const expression &chain, id value, const type &value_type) override
+	void emit_store(const expression &exp, id value) override
 	{
 		assert(value != 0);
-		assert(chain.is_lvalue && !chain.is_constant);
+		assert(exp.is_lvalue && !exp.is_constant);
 
-		add_location(chain.location, *_current_block_data);
+		add_location(exp.location, *_current_block_data);
 
-		spv::Id target = chain.base;
+		spv::Id target = exp.base;
 
 		size_t op_index2 = 0;
 
-		auto base_type = chain.type;
-		if (!chain.ops.empty())
-			base_type = chain.ops[0].from;
+		auto base_type = exp.type;
+		if (!exp.chain.empty())
+			base_type = exp.chain[0].from;
 
 		// Any indexing expressions can be resolved with an 'OpAccessChain' already
-		if (!chain.ops.empty() && (chain.ops[0].type == expression::operation::op_index || chain.ops[0].type == expression::operation::op_member))
+		if (!exp.chain.empty() && (exp.chain[0].op == expression::operation::op_index || exp.chain[0].op == expression::operation::op_member))
 		{
 			spv::StorageClass storage = spv::StorageClassFunction;
-			if (const auto it = _storage_lookup.find(chain.base); it != _storage_lookup.end())
+			if (const auto it = _storage_lookup.find(exp.base); it != _storage_lookup.end())
 				storage = it->second;
 
 			spirv_instruction &node = add_instruction(spv::OpAccessChain)
 				.add(target); // Base
 
 			// Ignore first index into 1xN matrices, since they were translated to a vector type in SPIR-V
-			if (chain.ops[0].from.rows == 1 && chain.ops[0].from.cols > 1)
+			if (exp.chain[0].from.rows == 1 && exp.chain[0].from.cols > 1)
 				op_index2 = 1;
 
 			do {
-				base_type = chain.ops[op_index2].to;
-				if (chain.ops[op_index2].type == expression::operation::op_index)
-					node.add(chain.ops[op_index2++].index); // Indexes
+				base_type = exp.chain[op_index2].to;
+				if (exp.chain[op_index2].op == expression::operation::op_index)
+					node.add(exp.chain[op_index2++].index); // Indexes
 				else
-					node.add(emit_constant(chain.ops[op_index2++].index)); // Indexes
-			} while (op_index2 < chain.ops.size() && (chain.ops[op_index2].type == expression::operation::op_index || chain.ops[op_index2].type == expression::operation::op_member));
-			node.type = convert_type(chain.ops[op_index2 - 1].to, true, storage); // Last type is the result
+					node.add(emit_constant(exp.chain[op_index2++].index)); // Indexes
+			} while (op_index2 < exp.chain.size() && (exp.chain[op_index2].op == expression::operation::op_index || exp.chain[op_index2].op == expression::operation::op_member));
+			node.type = convert_type(exp.chain[op_index2 - 1].to, true, storage); // Last type is the result
 			target = node.result; // Result ID
 		}
 
 		// TODO: Complex access chains like float4x4[0].m00m10[0] = 0;
 		// Work through all remaining operations in the access chain and apply them to the value
-		for (; op_index2 < chain.ops.size(); ++op_index2)
+		for (; op_index2 < exp.chain.size(); ++op_index2)
 		{
-			const auto &op = chain.ops[op_index2];
+			const auto &op = exp.chain[op_index2];
 
-			switch (op.type)
+			switch (op.op)
 			{
 			case expression::operation::op_cast:
 				assert(false); // This cannot happen
@@ -1319,7 +1312,7 @@ private:
 					.add(target) // Pointer
 					.result; // Result ID
 
-				if (base_type.is_vector() && value_type.is_vector())
+				if (base_type.is_vector())
 				{
 					spirv_instruction &node = add_instruction(spv::OpVectorShuffle, convert_type(base_type))
 						.add(result) // Vector 1
@@ -1633,7 +1626,7 @@ private:
 	id   emit_call(const location &loc, id function, const type &res_type, const std::vector<expression> &args) override
 	{
 		for (const auto &arg : args)
-			assert(arg.ops.empty() && arg.base != 0);
+			assert(arg.chain.empty() && arg.base != 0);
 
 		add_location(loc, *_current_block_data);
 
@@ -1648,7 +1641,7 @@ private:
 	id   emit_call_intrinsic(const location &loc, id intrinsic, const type &res_type, const std::vector<expression> &args) override
 	{
 		for (const auto &arg : args)
-			assert(arg.ops.empty() && arg.base != 0);
+			assert(arg.chain.empty() && arg.base != 0);
 
 		add_location(loc, *_current_block_data);
 
@@ -1669,7 +1662,7 @@ private:
 	id   emit_construct(const location &loc, const type &type, const std::vector<expression> &args) override
 	{
 		for (const auto &arg : args)
-			assert((arg.type.is_scalar() || type.is_array()) && arg.ops.empty() && arg.base != 0);
+			assert((arg.type.is_scalar() || type.is_array()) && arg.chain.empty() && arg.base != 0);
 
 		add_location(loc, *_current_block_data);
 
@@ -1710,12 +1703,8 @@ private:
 			.result;
 	}
 
-	void emit_if(const location &loc, id, id condition_block, id true_statement_block, id false_statement_block, unsigned int flags) override
+	void emit_if(const location &loc, id, id condition_block, id true_statement_block, id false_statement_block, unsigned int selection_control) override
 	{
-		int selection_control = 0;
-		if (flags & flatten) selection_control |= spv::SelectionControlFlattenMask;
-		if (flags & dont_flatten) selection_control |= spv::SelectionControlDontFlattenMask;
-
 		spirv_instruction merge_label = _current_block_data->instructions.back();
 		assert(merge_label.op == spv::OpLabel);
 		_current_block_data->instructions.pop_back();
@@ -1731,7 +1720,7 @@ private:
 		add_location(loc, *_current_block_data);
 		add_instruction_without_result(spv::OpSelectionMerge)
 			.add(merge_label.result)
-			.add(selection_control);
+			.add(selection_control); // 'SelectionControl' happens to match the flags produced by the parser
 
 		// Append all blocks belonging to the branch
 		_current_block_data->instructions.push_back(branch_inst);
@@ -1768,12 +1757,8 @@ private:
 
 		return result;
 	}
-	void emit_loop(const location &loc, id, id prev_block, id header_block, id condition_block, id loop_block, id continue_block, unsigned int flags) override
+	void emit_loop(const location &loc, id, id prev_block, id header_block, id condition_block, id loop_block, id continue_block, unsigned int loop_control) override
 	{
-		int loop_control = 0;
-		if (flags & unroll) loop_control |= spv::LoopControlUnrollMask;
-		if (flags & dont_unroll) loop_control |= spv::LoopControlDontUnrollMask;
-
 		spirv_instruction merge_label = _current_block_data->instructions.back();
 		assert(merge_label.op == spv::OpLabel);
 		_current_block_data->instructions.pop_back();
@@ -1791,7 +1776,7 @@ private:
 		add_instruction_without_result(spv::OpLoopMerge)
 			.add(merge_label.result)
 			.add(continue_block)
-			.add(loop_control);
+			.add(loop_control); // 'LoopControl' happens to match the flags produced by the parser
 
 		_current_block_data->instructions.push_back(_block_data[header_block].instructions[1]);
 		assert(_current_block_data->instructions.back().op == spv::OpBranch);
@@ -1806,12 +1791,8 @@ private:
 
 		_current_block_data->instructions.push_back(merge_label);
 	}
-	void emit_switch(const location &loc, id, id selector_block, id default_label, const std::vector<id> &case_literal_and_labels, unsigned int flags) override
+	void emit_switch(const location &loc, id, id selector_block, id default_label, const std::vector<id> &case_literal_and_labels, unsigned int selection_control) override
 	{
-		int selection_control = 0;
-		if (flags & flatten) selection_control |= spv::SelectionControlFlattenMask;
-		if (flags & dont_flatten) selection_control |= spv::SelectionControlDontFlattenMask;
-
 		spirv_instruction merge_label = _current_block_data->instructions.back();
 		assert(merge_label.op == spv::OpLabel);
 		_current_block_data->instructions.pop_back();
@@ -1827,7 +1808,7 @@ private:
 		add_location(loc, *_current_block_data);
 		add_instruction_without_result(spv::OpSelectionMerge)
 			.add(merge_label.result)
-			.add(selection_control);
+			.add(selection_control); // 'SelectionControl' happens to match the flags produced by the parser
 
 		// Update switch instruction to contain all case labels
 		switch_inst.operands[1] = default_label;
