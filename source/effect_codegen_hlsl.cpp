@@ -27,6 +27,7 @@ private:
 	id _last_block = 0;
 	id _current_block = 0;
 	std::string _cbuffer_block;
+	std::string _current_location;
 	std::unordered_map<id, std::string> _names;
 	std::unordered_map<id, std::string> _blocks;
 	bool _debug_info = false;
@@ -178,12 +179,27 @@ private:
 
 		s += ')';
 	}
-	void write_location(std::string &s, const location &loc) const
+	template <bool force_source = false>
+	void write_location(std::string &s, const location &loc)
 	{
 		if (loc.source.empty() || !_debug_info)
 			return;
 
-		s += "#line " + std::to_string(loc.line) + " \"" + loc.source + "\"\n";
+		s += "#line " + std::to_string(loc.line);
+
+		// Avoid writing the file name every time to reduce output text size
+		if constexpr (force_source)
+		{
+			s += " \"" + loc.source + '\"';
+		}
+		else if (loc.source != _current_location)
+		{
+			s += " \"" + loc.source + '\"';
+
+			_current_location = loc.source;
+		}
+
+		s += '\n';
 	}
 
 	std::string convert_semantic(const std::string &semantic) const
@@ -341,7 +357,7 @@ private:
 			info.size = size;
 			info.offset = _current_cbuffer_size - size;
 
-			write_location(_cbuffer_block, loc);
+			write_location<true>(_cbuffer_block, loc);
 
 			// Simply put each uniform into a separate constant register in shader model 3 for now
 			if (_shader_model < 40)
