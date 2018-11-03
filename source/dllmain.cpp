@@ -19,12 +19,18 @@ HMODULE g_module_handle = nullptr;
 #include "d3d11/runtime_d3d11.hpp"
 #include "opengl/runtime_opengl.hpp"
 
+static UINT s_resize_w = 0, s_resize_h = 0;
+
 static LRESULT CALLBACK WndProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam)
 {
 	switch (Msg)
 	{
 	case WM_DESTROY:
 		PostQuitMessage(EXIT_SUCCESS);
+		break;
+	case WM_SIZE:
+		s_resize_w = LOWORD(lParam);
+		s_resize_h = HIWORD(lParam);
 		break;
 	}
 
@@ -55,7 +61,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 	}
 
 	// Create and show window instance
-	const HWND window_handle = CreateWindow(TEXT("test"), TEXT("ReShade ") TEXT(VERSION_STRING_FILE) TEXT(" by crosire"), WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU, 0, 0, 1024, 800, nullptr, nullptr, hInstance, nullptr);
+	const HWND window_handle = CreateWindow(TEXT("test"), TEXT("ReShade ") TEXT(VERSION_STRING_FILE) TEXT(" by crosire"), WS_OVERLAPPEDWINDOW, 0, 0, 1024, 800, nullptr, nullptr, hInstance, nullptr);
 
 	if (window_handle == nullptr)
 	{
@@ -71,25 +77,18 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 		hooks::register_module("d3d9.dll");
 		const auto d3d9_module = LoadLibrary(TEXT("d3d9.dll"));
 
+		D3DPRESENT_PARAMETERS pp = {};
+		pp.Windowed = true;
+		pp.hDeviceWindow = window_handle;
+		pp.SwapEffect = D3DSWAPEFFECT_DISCARD;
+
 		// Initialize Direct3D 9
 		com_ptr<IDirect3D9> d3d(Direct3DCreate9(D3D_SDK_VERSION), true);
 		com_ptr<IDirect3DDevice9> device;
+
+		if (d3d == nullptr || FAILED(d3d->CreateDevice(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, window_handle, D3DCREATE_HARDWARE_VERTEXPROCESSING, &pp, &device)))
 		{
-			RECT client_rect;
-			GetClientRect(window_handle, &client_rect);
-
-			D3DPRESENT_PARAMETERS pp = {};
-			pp.BackBufferCount = 1;
-			pp.BackBufferWidth = client_rect.right - client_rect.left;
-			pp.BackBufferHeight = client_rect.bottom - client_rect.top;
-			pp.Windowed = true;
-			pp.hDeviceWindow = window_handle;
-			pp.SwapEffect = D3DSWAPEFFECT_DISCARD;
-
-			if (d3d == nullptr || FAILED(d3d->CreateDevice(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, window_handle, D3DCREATE_HARDWARE_VERTEXPROCESSING, &pp, &device)))
-			{
-				return 0;
-			}
+			return 0;
 		}
 
 		while (msg.message != WM_QUIT)
@@ -97,6 +96,16 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 			while (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE))
 			{
 				DispatchMessage(&msg);
+			}
+
+			if (s_resize_w != 0)
+			{
+				pp.BackBufferWidth = s_resize_w;
+				pp.BackBufferHeight = s_resize_h;
+
+				device->Reset(&pp);
+
+				s_resize_w = s_resize_h = 0;
 			}
 
 			device->Clear(0, nullptr, D3DCLEAR_TARGET, 0xFF7F7F7F, 0, 0);
@@ -120,14 +129,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 		com_ptr<ID3D11DeviceContext> immediate_context;
 		com_ptr<IDXGISwapChain> swapchain;
 		{
-			RECT client_rect;
-			GetClientRect(window_handle, &client_rect);
-
 			DXGI_SWAP_CHAIN_DESC scdesc = {};
 			scdesc.BufferCount = 1;
 			scdesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-			scdesc.BufferDesc.Width = client_rect.right - client_rect.left;
-			scdesc.BufferDesc.Height = client_rect.bottom - client_rect.top;
 			scdesc.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
 			scdesc.SampleDesc = { 1, 0 };
 			scdesc.Windowed = true;
@@ -149,6 +153,19 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 			while (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE))
 			{
 				DispatchMessage(&msg);
+			}
+
+			if (s_resize_w != 0)
+			{
+				target.reset();
+				backbuffer.reset();
+
+				swapchain->ResizeBuffers(1, s_resize_w, s_resize_h, DXGI_FORMAT_UNKNOWN, 0);
+
+				swapchain->GetBuffer(0, IID_PPV_ARGS(&backbuffer));
+				device->CreateRenderTargetView(backbuffer.get(), nullptr, &target);
+
+				s_resize_w = s_resize_h = 0;
 			}
 
 			const float color[4] = { 0.5f, 0.5f, 0.5f, 1.0f };
@@ -193,6 +210,13 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 			while (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE))
 			{
 				DispatchMessage(&msg);
+			}
+
+			if (s_resize_w != 0)
+			{
+				glViewport(0, 0, s_resize_w, s_resize_h);
+
+				s_resize_w = s_resize_h = 0;
 			}
 
 			glClearColor(0.5f, 0.5f, 0.5f, 1.0f);
