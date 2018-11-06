@@ -22,15 +22,13 @@
 
 namespace reshade
 {
-	filesystem::path runtime::s_reshade_dll_path, runtime::s_target_executable_path;
-
 	runtime::runtime(uint32_t renderer) :
 		_renderer_id(renderer),
 		_start_time(std::chrono::high_resolution_clock::now()),
 		_last_frame_duration(std::chrono::milliseconds(1)),
 		_imgui_context(ImGui::CreateContext()),
-		_effect_search_paths({ s_reshade_dll_path.parent_path() }),
-		_texture_search_paths({ s_reshade_dll_path.parent_path() }),
+		_effect_search_paths({ g_reshade_dll_path.parent_path() }),
+		_texture_search_paths({ g_reshade_dll_path.parent_path() }),
 		_preprocessor_definitions({
 			"RESHADE_DEPTH_LINEARIZATION_FAR_PLANE=1000.0",
 			"RESHADE_DEPTH_INPUT_IS_UPSIDE_DOWN=0",
@@ -40,17 +38,17 @@ namespace reshade
 		_screenshot_key_data(),
 		_reload_key_data(),
 		_effects_key_data(),
-		_screenshot_path(s_target_executable_path.parent_path()),
+		_screenshot_path(g_target_executable_path.parent_path()),
 		_variable_editor_height(500)
 	{
 		_menu_key_data[0] = 0x71; // VK_F2
 		_menu_key_data[2] = true; // VK_SHIFT
 		_screenshot_key_data[0] = 0x2C; // VK_SNAPSHOT
 
-		_configuration_path = s_reshade_dll_path;
+		_configuration_path = g_reshade_dll_path;
 		_configuration_path.replace_extension(".ini");
-		if (!filesystem::exists(_configuration_path))
-			_configuration_path = s_reshade_dll_path.parent_path() / "ReShade.ini";
+		if (std::error_code ec; !std::filesystem::exists(_configuration_path, ec))
+			_configuration_path = g_reshade_dll_path.parent_path() / "ReShade.ini";
 
 		_needs_update = check_for_update(_latest_version);
 
@@ -89,9 +87,9 @@ namespace reshade
 		ImGui::SetCurrentContext(nullptr);
 
 		imgui_io.Fonts->AddFontDefault();
-		const auto font_path = filesystem::get_special_folder_path(filesystem::special_folder::windows) / "Fonts" / "consolab.ttf";
-		if (filesystem::exists(font_path))
-			imgui_io.Fonts->AddFontFromFileTTF(font_path.string().c_str(), 18.0f);
+		const auto font_path = g_windows_path / "Fonts" / "consolab.ttf";
+		if (std::error_code ec; std::filesystem::exists(font_path, ec))
+			imgui_io.Fonts->AddFontFromFileTTF(font_path.u8string().c_str(), 18.0f);
 		else
 			imgui_io.Fonts->AddFontDefault();
 
@@ -504,7 +502,7 @@ namespace reshade
 				{
 					auto effect_file = search_path / effect;
 
-					if (exists(effect_file))
+					if (std::error_code ec; std::filesystem::exists(effect_file, ec))
 					{
 						LOG(INFO) << ">> Found";
 						_effect_files.push_back(std::move(effect_file));
@@ -519,15 +517,16 @@ namespace reshade
 		{
 			for (const auto &search_path : _effect_search_paths)
 			{
-				const std::vector<filesystem::path> matching_files = filesystem::list_files(search_path, "*.fx");
-
-				_effect_files.insert(_effect_files.end(), matching_files.begin(), matching_files.end());
+				std::error_code ec;
+				for (const auto &entry : std::filesystem::directory_iterator(search_path, ec))
+					if (entry.path().extension() == ".fx")
+						_effect_files.push_back(entry.path());
 			}
 		}
 
 		_reload_remaining_effects = _effect_files.size();
 	}
-	void runtime::load_effect(const filesystem::path &path)
+	void runtime::load_effect(const std::filesystem::path &path)
 	{
 		LOG(INFO) << "Compiling " << path << " ...";
 
@@ -552,7 +551,7 @@ namespace reshade
 			pp.add_macro_definition("__VENDOR__", std::to_string(_vendor_id));
 			pp.add_macro_definition("__DEVICE__", std::to_string(_device_id));
 			pp.add_macro_definition("__RENDERER__", std::to_string(_renderer_id));
-			pp.add_macro_definition("__APPLICATION__", std::to_string(std::hash<std::string>()(s_target_executable_path.filename_without_extension().string())));
+			pp.add_macro_definition("__APPLICATION__", std::to_string(std::hash<std::string>()(g_target_executable_path.stem().u8string())));
 			pp.add_macro_definition("BUFFER_WIDTH", std::to_string(_width));
 			pp.add_macro_definition("BUFFER_HEIGHT", std::to_string(_height));
 			pp.add_macro_definition("BUFFER_RCP_WIDTH", std::to_string(1.0f / static_cast<float>(_width)));
@@ -603,7 +602,7 @@ namespace reshade
 		}
 
 #if RESHADE_DUMP_NATIVE_SHADERS
-		std::ofstream("ReShade-ShaderDump-" + path.filename_without_extension().string() + ".hlsl", std::ios::trunc) << module.hlsl;
+		std::ofstream("ReShade-ShaderDump-" + path.stem().u8string() + ".hlsl", std::ios::trunc) << module.hlsl;
 #endif
 
 		if (_performance_mode && _current_preset >= 0)
@@ -615,13 +614,13 @@ namespace reshade
 				switch (constant.type.base)
 				{
 				case reshadefx::type::t_int:
-					preset.get(path.filename().string(), constant.name, constant.initializer_value.as_int);
+					preset.get(path.filename().u8string(), constant.name, constant.initializer_value.as_int);
 					break;
 				case reshadefx::type::t_uint:
-					preset.get(path.filename().string(), constant.name, constant.initializer_value.as_uint);
+					preset.get(path.filename().u8string(), constant.name, constant.initializer_value.as_uint);
 					break;
 				case reshadefx::type::t_float:
-					preset.get(path.filename().string(), constant.name, constant.initializer_value.as_float);
+					preset.get(path.filename().u8string(), constant.name, constant.initializer_value.as_float);
 					break;
 				}
 			}
@@ -648,18 +647,18 @@ namespace reshade
 		for (size_t i = _uniform_count, max = _uniform_count = _uniforms.size(); i < max; i++)
 		{
 			auto &variable = _uniforms[i];
-			variable.effect_filename = path.filename().string();
+			variable.effect_filename = path.filename().u8string();
 			variable.hidden = variable.annotations["hidden"].as<bool>();
 		}
 		for (size_t i = _texture_count, max = _texture_count = _textures.size(); i < max; i++)
 		{
 			auto &texture = _textures[i];
-			texture.effect_filename = path.filename().string();
+			texture.effect_filename = path.filename().u8string();
 		}
 		for (size_t i = _technique_count, max = _technique_count = _techniques.size(); i < max; i++)
 		{
 			auto &technique = _techniques[i];
-			technique.effect_filename = path.filename().string();
+			technique.effect_filename = path.filename().u8string();
 			technique.enabled = technique.annotations["enabled"].as<bool>();
 			technique.hidden = technique.annotations["hidden"].as<bool>();
 			technique.timeleft = technique.timeout = technique.annotations["timeout"].as<int>();
@@ -676,20 +675,20 @@ namespace reshade
 		for (auto &texture : _textures)
 		{
 			if (texture.impl_reference != texture_reference::none)
-			{
 				continue;
-			}
 
 			const auto it = texture.annotations.find("source");
 
 			if (it == texture.annotations.end())
-			{
 				continue;
-			}
 
-			const filesystem::path path = filesystem::resolve(it->second.as<std::string>(), _texture_search_paths);
+			std::error_code ec;
+			std::filesystem::path path;
+			for (const auto &search_path : _texture_search_paths)
+				if (std::filesystem::exists(path = search_path / it->second.as<std::string>(), ec))
+					break;
 
-			if (!filesystem::exists(path))
+			if (!std::filesystem::exists(path, ec))
 			{
 				LOG(ERROR) << "> Source " << path << " for texture '" << texture.name << "' could not be found.";
 				continue;
@@ -821,13 +820,15 @@ namespace reshade
 			_current_preset = -1;
 		}
 
-		const filesystem::path parent_path = s_reshade_dll_path.parent_path();
-		auto preset_files2 = filesystem::list_files(parent_path, "*.ini");
-		auto preset_files3 = filesystem::list_files(parent_path, "*.txt");
-		preset_files2.insert(preset_files2.end(), std::make_move_iterator(preset_files3.begin()), std::make_move_iterator(preset_files3.end()));
+		const std::filesystem::path parent_path = g_reshade_dll_path.parent_path();
 
-		for (const auto &preset_file : preset_files2)
+		std::error_code ec;
+		for (const auto &entry : std::filesystem::directory_iterator(parent_path, ec))
 		{
+			const std::filesystem::path preset_file = entry.path();
+			if (preset_file.extension() != ".ini" && preset_file.extension() != ".txt")
+				continue;
+
 			const ini_file preset(preset_file);
 
 			std::vector<std::string> techniques;
@@ -842,17 +843,6 @@ namespace reshade
 			}
 		}
 
-#if 0
-		auto to_absolute = [&parent_path](auto &paths) {
-			for (auto &path : paths)
-				path = filesystem::absolute(path, parent_path);
-		};
-
-		to_absolute(_preset_files);
-		to_absolute(_effect_search_paths);
-		to_absolute(_texture_search_paths);
-#endif
-
 		for (auto &function : _load_config_callables)
 		{
 			function(config);
@@ -862,9 +852,9 @@ namespace reshade
 	{
 		save_config(_configuration_path);
 	}
-	void runtime::save_config(const filesystem::path &save_path) const
+	void runtime::save_config(const std::filesystem::path &save_path) const
 	{
-		ini_file config(_configuration_path,save_path);
+		ini_file config(_configuration_path, save_path);
 
 		config.set("INPUT", "KeyMenu", _menu_key_data);
 		config.set("INPUT", "KeyScreenshot", _screenshot_key_data);
@@ -902,7 +892,7 @@ namespace reshade
 		}
 	}
 
-	void runtime::load_preset(const filesystem::path &path)
+	void runtime::load_preset(const std::filesystem::path &path)
 	{
 		ini_file preset(path);
 
@@ -963,11 +953,11 @@ namespace reshade
 			load_preset(_preset_files[_current_preset]);
 		}
 	}
-	void runtime::save_preset(const filesystem::path &path) const
+	void runtime::save_preset(const std::filesystem::path &path) const
 	{
 		save_preset(path, path);
 	}
-	void runtime::save_preset(const filesystem::path &path, const filesystem::path &save_path) const
+	void runtime::save_preset(const std::filesystem::path &path, const std::filesystem::path &save_path) const
 	{
 		ini_file preset(path, save_path);
 
@@ -1061,7 +1051,7 @@ namespace reshade
 
 		char filename[25];
 		ImFormatString(filename, sizeof(filename), " %.4d-%.2d-%.2d %.2d-%.2d-%.2d", _date[0], _date[1], _date[2], hour, minute, second);
-		const auto path = _screenshot_path / (s_target_executable_path.filename_without_extension() + filename + (_screenshot_format == 0 ? ".bmp" : ".png"));
+		const auto path = _screenshot_path / (g_target_executable_path.stem().u8string() + filename + (_screenshot_format == 0 ? ".bmp" : ".png"));
 
 		LOG(INFO) << "Saving screenshot to " << path << " ...";
 
@@ -1096,12 +1086,15 @@ namespace reshade
 		if (_screenshot_include_preset && _current_preset >= 0)
 		{
 			const auto preset_file = _preset_files[_current_preset];
-			const auto save_preset_path = _screenshot_path / (s_target_executable_path.filename_without_extension() + filename + " " + preset_file.filename_without_extension() + ".ini");
+			auto preset_file_ini = preset_file;
+			preset_file_ini.replace_extension(".ini");
+
+			const auto save_preset_path = _screenshot_path / (g_target_executable_path.stem().u8string() + filename + " " + preset_file_ini.u8string());
 			save_preset(preset_file, save_preset_path);
 
 			if (_screenshot_include_configuration)
 			{
-				const auto save_configuration_path = _screenshot_path / (s_target_executable_path.filename_without_extension() + filename + ".ini");
+				const auto save_configuration_path = _screenshot_path / (g_target_executable_path.stem().u8string() + filename + ".ini");
 				save_config(save_configuration_path);
 			}
 		}

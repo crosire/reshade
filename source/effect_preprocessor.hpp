@@ -9,8 +9,8 @@
 #include <vector>
 #include <unordered_map>
 #include <memory>
+#include <filesystem>
 #include "effect_lexer.hpp"
-#include "filesystem.hpp"
 
 namespace reshadefx
 {
@@ -31,7 +31,7 @@ namespace reshadefx
 		/// Add an include directory to the list of search paths used when resolving #include directives.
 		/// </summary>
 		/// <param name="path">The path to the directory to add.</param>
-		void add_include_path(const reshade::filesystem::path &path);
+		void add_include_path(const std::filesystem::path &path);
 
 		/// <summary>
 		/// Add a new macro definition. This is equal to appending '#define name macro' to this pre-processor instance.
@@ -53,7 +53,7 @@ namespace reshadefx
 		/// </summary>
 		/// <param name="path">The path to the file to parse.</param>
 		/// <returns>A boolean value indicating whether parsing was successful or not.</returns>
-		bool append_file(const reshade::filesystem::path &path);
+		bool append_file(const std::filesystem::path &path);
 		/// <summary>
 		/// Parse the specified string and append it to the output.
 		/// </summary>
@@ -129,7 +129,7 @@ namespace reshadefx
 		std::string _output, _errors, _current_token_raw_data;
 		int _recursion_count = 0;
 		std::unordered_map<std::string, macro> _macros;
-		std::vector<reshade::filesystem::path> _include_paths;
+		std::vector<std::filesystem::path> _include_paths;
 		std::unordered_map<std::string, std::string> _filecache;
 	};
 }

@@ -19,7 +19,6 @@ namespace reshade
 
 		static void register_window_with_raw_input(window_handle window, bool no_legacy_keyboard, bool no_legacy_mouse);
 		static std::shared_ptr<input> register_window(window_handle window);
-		static void uninstall();
 
 		bool is_key_down(unsigned int keycode) const;
 		bool is_key_down(unsigned int keycode, bool ctrl, bool shift, bool alt) const;

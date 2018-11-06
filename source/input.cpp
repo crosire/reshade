@@ -58,11 +58,6 @@ namespace reshade
 			return insert.first->second.lock();
 		}
 	}
-	void input::uninstall()
-	{
-		s_windows.clear();
-		s_raw_input_windows.clear();
-	}
 
 	bool input::handle_window_message(const void *message_data)
 	{

@@ -14,6 +14,7 @@
 #include <Windows.h>
 
 extern HMODULE g_module_handle;
+extern std::filesystem::path g_reshade_dll_path;
 
 namespace
 {
@@ -30,16 +31,16 @@ namespace
 		unsigned short ordinal;
 	};
 
-	inline auto load_module(const reshade::filesystem::path &path)
+	inline auto load_module(const std::filesystem::path &path)
 	{
 		return LoadLibraryW(path.wstring().c_str());
 	}
-	inline bool is_module_loaded(const reshade::filesystem::path &path)
+	inline bool is_module_loaded(const std::filesystem::path &path)
 	{
 		HMODULE handle = nullptr;
 		return GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT, path.wstring().c_str(), &handle) && handle != nullptr;
 	}
-	inline bool is_module_loaded(const reshade::filesystem::path &path, HMODULE &out_handle)
+	inline bool is_module_loaded(const std::filesystem::path &path, HMODULE &out_handle)
 	{
 		return GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_PIN, path.wstring().c_str(), &out_handle) && out_handle != nullptr;
 	}
@@ -77,9 +78,9 @@ namespace
 		return exports;
 	}
 
-	reshade::filesystem::path s_export_hook_path;
+	std::filesystem::path s_export_hook_path;
 	std::vector<std::tuple<const char *, reshade::hook, hook_method>> s_hooks; std::mutex s_mutex_hooks;
-	std::vector<reshade::filesystem::path> s_delayed_hook_paths; std::mutex s_mutex_delayed_hook_paths;
+	std::vector<std::filesystem::path> s_delayed_hook_paths; std::mutex s_mutex_delayed_hook_paths;
 	std::unordered_map<reshade::hook::address, reshade::hook::address *> s_vtable_addresses; std::mutex s_mutex_vtable_addresses;
 
 	bool install_internal(const char *name, reshade::hook &hook, hook_method method)
@@ -283,7 +284,7 @@ namespace
 		return true;
 	}
 
-	void install_delayed_hooks(const reshade::filesystem::path &loaded_path)
+	void install_delayed_hooks(const std::filesystem::path &loaded_path)
 	{
 		// Ignore this call if unable to acquire the mutex to avoid possible deadlock
 		if (std::unique_lock<std::mutex> lock(s_mutex_delayed_hook_paths, std::try_to_lock); lock.owns_lock())
@@ -448,7 +449,7 @@ void reshade::hooks::uninstall()
 
 	s_hooks.clear();
 }
-void reshade::hooks::register_module(const filesystem::path &target_path)
+void reshade::hooks::register_module(const std::filesystem::path &target_path)
 {
 	install("LoadLibraryA", reinterpret_cast<hook::address>(&LoadLibraryA), reinterpret_cast<hook::address>(&HookLoadLibraryA), true);
 	install("LoadLibraryExA", reinterpret_cast<hook::address>(&LoadLibraryExA), reinterpret_cast<hook::address>(&HookLoadLibraryExA), true);
@@ -459,10 +460,10 @@ void reshade::hooks::register_module(const filesystem::path &target_path)
 
 	LOG(INFO) << "Registering hooks for " << target_path << " ...";
 
-	const auto target_filename = target_path.filename_without_extension();
-	const auto replacement_filename = filesystem::get_module_path(g_module_handle).filename_without_extension();
+	const auto target_filename = target_path.stem();
+	const auto replacement_filename = g_reshade_dll_path.stem();
 
-	if (target_filename == replacement_filename)
+	if (_wcsicmp(target_filename.c_str(), replacement_filename.c_str()) == 0)
 	{
 		LOG(INFO) << "> Delayed until first call to an exported function.";
 

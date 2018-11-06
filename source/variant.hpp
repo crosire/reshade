@@ -7,7 +7,7 @@
 
 #include <string>
 #include <vector>
-#include "filesystem.hpp"
+#include <filesystem>
 
 namespace reshade
 {
@@ -28,12 +28,12 @@ namespace reshade
 		template<class InputIt>
 		variant(InputIt first, InputIt last) : _values(first, last) { }
 		template <>
-		variant(const filesystem::path &value) : variant(value.string()) { }
+		variant(const std::filesystem::path &value) : variant(value.u8string()) { }
 		template <>
-		variant(const std::vector<filesystem::path> &values) : _values(values.size())
+		variant(const std::vector<std::filesystem::path> &values) : _values(values.size())
 		{
 			for (size_t i = 0; i < values.size(); i++)
-				_values[i] = values[i].string();
+				_values[i] = values[i].u8string();
 		}
 		template <typename T>
 		variant(const T *values, size_t count) : _values(count)
@@ -124,7 +124,7 @@ namespace reshade
 			return _values[i];
 		}
 		template <>
-		const filesystem::path as(size_t i) const
+		const std::filesystem::path as(size_t i) const
 		{
 			return as<std::string>(i);
 		}

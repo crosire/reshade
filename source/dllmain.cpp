@@ -4,14 +4,35 @@
  */
 
 #include "log.hpp"
-#include "filesystem.hpp"
-#include "input.hpp"
-#include "runtime.hpp"
 #include "hook_manager.hpp"
 #include "version.h"
 #include <Windows.h>
 
 HMODULE g_module_handle = nullptr;
+
+std::filesystem::path g_reshade_dll_path;
+std::filesystem::path g_target_executable_path;
+std::filesystem::path g_system_path;
+std::filesystem::path g_windows_path;
+
+static inline std::filesystem::path get_module_path(HMODULE module)
+{
+	TCHAR buf[MAX_PATH] = {};
+	GetModuleFileName(module, buf, ARRAYSIZE(buf));
+	return buf;
+}
+static inline std::filesystem::path get_system_path()
+{
+	TCHAR buf[MAX_PATH] = {};
+	GetSystemDirectory(buf, ARRAYSIZE(buf));
+	return buf;
+}
+static inline std::filesystem::path get_windows_path()
+{
+	TCHAR buf[MAX_PATH] = {};
+	GetWindowsDirectory(buf, ARRAYSIZE(buf));
+	return buf;
+}
 
 #if defined(RESHADE_TEST_APPLICATION)
 
@@ -19,59 +40,58 @@ HMODULE g_module_handle = nullptr;
 #include "d3d11/runtime_d3d11.hpp"
 #include "opengl/runtime_opengl.hpp"
 
-static UINT s_resize_w = 0, s_resize_h = 0;
-
-static LRESULT CALLBACK WndProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam)
-{
-	switch (Msg)
-	{
-	case WM_DESTROY:
-		PostQuitMessage(EXIT_SUCCESS);
-		break;
-	case WM_SIZE:
-		s_resize_w = LOWORD(lParam);
-		s_resize_h = HIWORD(lParam);
-		break;
-	}
-
-	return DefWindowProc(hWnd, Msg, wParam, lParam);
-}
-
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow)
 {
 	using namespace reshade;
 
 	g_module_handle = hInstance;
-	runtime::s_reshade_dll_path = filesystem::get_module_path(nullptr);
-	runtime::s_target_executable_path = filesystem::get_module_path(nullptr);
+	g_reshade_dll_path = get_module_path(nullptr);
+	g_target_executable_path = get_module_path(nullptr);
+	g_system_path = get_system_path();
+	g_windows_path = get_windows_path();
 
-	log::open(filesystem::path(runtime::s_reshade_dll_path).replace_extension(".log"));
+	log::open(std::filesystem::path(g_reshade_dll_path).replace_extension(".log"));
 
 	hooks::register_module("user32.dll");
 
-	// Register window class
-	{
-		WNDCLASS wc = { sizeof(wc) };
-		wc.hInstance = hInstance;
-		wc.style = CS_HREDRAW | CS_VREDRAW;
-		wc.lpszClassName = TEXT("Test");
-		wc.lpfnWndProc = &WndProc;
+	static UINT s_resize_w = 0, s_resize_h = 0;
 
-		RegisterClass(&wc);
-	}
+	// Register window class
+	WNDCLASS wc = { sizeof(wc) };
+	wc.hInstance = hInstance;
+	wc.style = CS_HREDRAW | CS_VREDRAW;
+	wc.lpszClassName = TEXT("Test");
+	wc.lpfnWndProc =
+		[](HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam) -> LRESULT {
+			switch (Msg)
+			{
+			case WM_DESTROY:
+				PostQuitMessage(EXIT_SUCCESS);
+				break;
+			case WM_SIZE:
+				s_resize_w = LOWORD(lParam);
+				s_resize_h = HIWORD(lParam);
+				break;
+			}
+
+			return DefWindowProc(hWnd, Msg, wParam, lParam);
+		};
+
+	RegisterClass(&wc);
 
 	// Create and show window instance
-	const HWND window_handle = CreateWindow(TEXT("test"), TEXT("ReShade ") TEXT(VERSION_STRING_FILE) TEXT(" by crosire"), WS_OVERLAPPEDWINDOW, 0, 0, 1024, 800, nullptr, nullptr, hInstance, nullptr);
+	const HWND window_handle = CreateWindow(
+		wc.lpszClassName, TEXT("ReShade ") TEXT(VERSION_STRING_FILE) TEXT(" by crosire"), WS_OVERLAPPEDWINDOW,
+		0, 0, 1024, 800, nullptr, nullptr, hInstance, nullptr);
 
 	if (window_handle == nullptr)
-	{
 		return 0;
-	}
 
 	ShowWindow(window_handle, nCmdShow);
 
 	MSG msg = {};
 
+	#pragma region D3D9 Implementation
 	if (strstr(lpCmdLine, "-d3d9"))
 	{
 		hooks::register_module("d3d9.dll");
@@ -117,7 +137,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 
 		return static_cast<int>(msg.wParam);
 	}
+	#pragma endregion
 
+	#pragma region D3D11 Implementation
 	if (strstr(lpCmdLine, "-d3d11"))
 	{
 		hooks::register_module("dxgi.dll");
@@ -178,7 +200,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 
 		return static_cast<int>(msg.wParam);
 	}
+	#pragma endregion
 
+	#pragma region OpenGL Implementation
 	if (strstr(lpCmdLine, "-opengl"))
 	{
 		hooks::register_module("opengl32.dll");
@@ -232,6 +256,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 
 		return static_cast<int>(msg.wParam);
 	}
+	#pragma endregion
 
 	return EXIT_FAILURE;
 }
@@ -244,43 +269,40 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 
 	switch (fdwReason)
 	{
-		case DLL_PROCESS_ATTACH:
-		{
-			g_module_handle = hModule;
-			runtime::s_reshade_dll_path = filesystem::get_module_path(hModule);
-			runtime::s_target_executable_path = filesystem::get_module_path(nullptr);
+	case DLL_PROCESS_ATTACH:
+		g_module_handle = hModule;
+		g_reshade_dll_path = get_module_path(hModule);
+		g_target_executable_path = get_module_path(nullptr);
+		g_system_path = get_system_path();
+		g_windows_path = get_windows_path();
 
-			log::open(filesystem::path(runtime::s_reshade_dll_path).replace_extension(".log"));
+		log::open(std::filesystem::path(g_reshade_dll_path).replace_extension(".log"));
 
 #ifdef WIN64
-			LOG(INFO) << "Initializing crosire's ReShade version '" VERSION_STRING_FILE "' (64-bit) built on '" VERSION_DATE " " VERSION_TIME "' loaded from " << runtime::s_reshade_dll_path << " to " << runtime::s_target_executable_path << " ...";
+		LOG(INFO) << "Initializing crosire's ReShade version '" VERSION_STRING_FILE "' (64-bit) built on '" VERSION_DATE " " VERSION_TIME "' loaded from " << g_reshade_dll_path << " to " << g_target_executable_path << " ...";
 #else
-			LOG(INFO) << "Initializing crosire's ReShade version '" VERSION_STRING_FILE "' (32-bit) built on '" VERSION_DATE " " VERSION_TIME "' loaded from " << runtime::s_reshade_dll_path << " to " << runtime::s_target_executable_path << " ...";
+		LOG(INFO) << "Initializing crosire's ReShade version '" VERSION_STRING_FILE "' (32-bit) built on '" VERSION_DATE " " VERSION_TIME "' loaded from " << g_reshade_dll_path << " to " << g_target_executable_path << " ...";
 #endif
 
-			const auto system_path = filesystem::get_special_folder_path(filesystem::special_folder::system);
-			hooks::register_module(system_path / "d3d9.dll");
-			hooks::register_module(system_path / "d3d10.dll");
-			hooks::register_module(system_path / "d3d10_1.dll");
-			hooks::register_module(system_path / "d3d11.dll");
-			hooks::register_module(system_path / "dxgi.dll");
-			hooks::register_module(system_path / "opengl32.dll");
-			hooks::register_module(system_path / "user32.dll");
-			hooks::register_module(system_path / "ws2_32.dll");
+		hooks::register_module("user32.dll");
+		hooks::register_module("ws2_32.dll");
 
-			LOG(INFO) << "Initialized.";
-			break;
-		}
-		case DLL_PROCESS_DETACH:
-		{
-			LOG(INFO) << "Exiting ...";
+		hooks::register_module(g_system_path / "d3d9.dll");
+		hooks::register_module(g_system_path / "d3d10.dll");
+		hooks::register_module(g_system_path / "d3d10_1.dll");
+		hooks::register_module(g_system_path / "d3d11.dll");
+		hooks::register_module(g_system_path / "dxgi.dll");
+		hooks::register_module(g_system_path / "opengl32.dll");
 
-			input::uninstall();
-			hooks::uninstall();
+		LOG(INFO) << "Initialized.";
+		break;
+	case DLL_PROCESS_DETACH:
+		LOG(INFO) << "Exiting ...";
 
-			LOG(INFO) << "Exited.";
-			break;
-		}
+		hooks::uninstall();
+
+		LOG(INFO) << "Exited.";
+		break;
 	}
 
 	return TRUE;

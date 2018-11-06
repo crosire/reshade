@@ -306,25 +306,30 @@ namespace reshade
 				ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.941176f, 0.392157f, 0.392190f, 1.0f));
 			}
 
-			const auto get_preset_file = [](void *data, int i, const char **out) {
-				*out = static_cast<runtime *>(data)->_preset_files[i].string().c_str();
-				return true;
-			};
-
 			ImGui::PushItemWidth(-(30 + ImGui::GetStyle().ItemSpacing.x) * 2 - 1);
 
-			if (ImGui::Combo("##presets", &_current_preset, get_preset_file, this, static_cast<int>(_preset_files.size())))
+			if (ImGui::BeginCombo("##presets", _current_preset >= 0 ? _preset_files[_current_preset].u8string().c_str() : ""))
 			{
-				save_config();
+				for (int i = 0; i < static_cast<int>(_preset_files.size()); ++i)
+				{
+					if (ImGui::Selectable(_preset_files[i].u8string().c_str(), _current_preset == i))
+					{
+						_current_preset = i;
 
-				if (_performance_mode)
-				{
-					reload();
+						save_config();
+
+						if (_performance_mode)
+						{
+							reload();
+						}
+						else
+						{
+							load_preset(_preset_files[_current_preset]);
+						}
+					}
 				}
-				else
-				{
-					load_preset(_preset_files[_current_preset]);
-				}
+
+				ImGui::EndCombo();
 			}
 
 			ImGui::PopItemWidth();
@@ -342,10 +347,11 @@ namespace reshade
 
 				if (ImGui::InputText("Name", buf, sizeof(buf), ImGuiInputTextFlags_EnterReturnsTrue))
 				{
-					auto path = filesystem::absolute(buf, s_reshade_dll_path.parent_path());
+					std::error_code ec;
+					auto path = std::filesystem::absolute(g_reshade_dll_path.parent_path() / buf, ec);
 					path.replace_extension(".ini");
 
-					if (filesystem::exists(path) || filesystem::exists(path.parent_path()))
+					if (!ec && (std::filesystem::exists(path, ec) || std::filesystem::exists(path.parent_path(), ec)))
 					{
 						_preset_files.push_back(path);
 
@@ -594,13 +600,14 @@ namespace reshade
 				edit_buffer[offset] = '\0';
 			}
 		};
-		const auto copy_search_paths_to_edit_buffer = [&edit_buffer](const std::vector<filesystem::path> &search_paths) {
+		const auto copy_search_paths_to_edit_buffer = [&edit_buffer](const std::vector<std::filesystem::path> &search_paths) {
 			size_t offset = 0;
 			edit_buffer[0] = '\0';
 			for (const auto &search_path : search_paths)
 			{
-				memcpy(edit_buffer + offset, search_path.string().c_str(), search_path.string().length());
-				offset += search_path.string().length();
+				const std::string search_path_string = search_path.u8string();
+				memcpy(edit_buffer + offset, search_path_string.c_str(), search_path_string.length());
+				offset += search_path_string.length();
 				edit_buffer[offset++] = '\n';
 				edit_buffer[offset] = '\0';
 			}
@@ -732,7 +739,8 @@ namespace reshade
 				ImGui::SetTooltip("Click in the field and press any key to change the shortcut to that key.");
 			}
 
-			memcpy(edit_buffer, _screenshot_path.string().c_str(), _screenshot_path.string().length() + 1);
+			const std::string screenshot_path_string = _screenshot_path.u8string();
+			memcpy(edit_buffer, screenshot_path_string.c_str(), screenshot_path_string.length() + 1);
 
 			if (ImGui::InputText("Screenshot Path", edit_buffer, sizeof(edit_buffer)))
 			{
@@ -828,7 +836,7 @@ namespace reshade
 			ImGui::SameLine(ImGui::GetWindowWidth() * 0.333f);
 
 			ImGui::BeginGroup();
-			ImGui::Text("%X", std::hash<std::string>()(s_target_executable_path.filename_without_extension().string()));
+			ImGui::Text("%X", std::hash<std::string>()(g_target_executable_path.stem().u8string()));
 			ImGui::Text("%d-%d-%d %d", _date[0], _date[1], _date[2], _date[3]);
 			ImGui::Text("%X %d", _vendor_id, _device_id);
 			ImGui::Text("%.2f", _imgui_context->IO.Framerate);

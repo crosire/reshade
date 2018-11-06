@@ -18,9 +18,7 @@ enum macro_replacement
 	macro_replacement_expand = '\xFB',
 };
 
-namespace filesystem = reshade::filesystem;
-
-void reshadefx::preprocessor::add_include_path(const filesystem::path &path)
+void reshadefx::preprocessor::add_include_path(const std::filesystem::path &path)
 {
 	assert(!path.empty());
 
@@ -40,9 +38,9 @@ bool reshadefx::preprocessor::add_macro_definition(const std::string &name, std:
 	return add_macro_definition(name, macro);
 }
 
-bool reshadefx::preprocessor::append_file(const filesystem::path &path)
+bool reshadefx::preprocessor::append_file(const std::filesystem::path &path)
 {
-	std::ifstream file(path.wstring());
+	std::ifstream file(path);
 
 	if (!file.is_open())
 		return false;
@@ -56,7 +54,7 @@ bool reshadefx::preprocessor::append_file(const filesystem::path &path)
 	file.close();
 
 	_success = true;
-	push(std::move(filedata), path.string());
+	push(std::move(filedata), path.u8string());
 	parse();
 
 	return _success;
@@ -509,22 +507,26 @@ void reshadefx::preprocessor::parse_include()
 		return;
 	}
 
-	const filesystem::path filename = std::move(_token.literal_as_string);
-	filesystem::path filepath = filesystem::path(_output_location.source).remove_filename();
-	filepath = filepath / filename;
+	const std::filesystem::path filename = std::move(_token.literal_as_string);
 
-	if (!filesystem::exists(filepath))
-		filepath = filesystem::resolve(filename, _include_paths);
+	std::error_code ec;
+	std::filesystem::path filepath = _output_location.source;
+	filepath.replace_filename(filename);
 
-	auto it = _filecache.find(filepath.string());
+	if (!std::filesystem::exists(filepath, ec))
+		for (const auto &include_path : _include_paths)
+			if (std::filesystem::exists(filepath = include_path / filename, ec))
+				break;
+
+	auto it = _filecache.find(filepath.u8string());
 
 	if (it == _filecache.end())
 	{
-		std::ifstream file(filepath.wstring());
+		std::ifstream file(filepath);
 
 		if (!file.is_open())
 		{
-			error(keyword_location, "could not open included file '" + filepath.string() + "'");
+			error(keyword_location, "could not open included file '" + filepath.u8string() + "'");
 			consume_until(tokenid::end_of_line);
 			return;
 		}
@@ -534,10 +536,10 @@ void reshadefx::preprocessor::parse_include()
 
 		file.close();
 
-		it = _filecache.emplace(filepath.string(), std::move(filedata)).first;
+		it = _filecache.emplace(filepath.u8string(), std::move(filedata)).first;
 	}
 
-	push(it->second, filepath.string());
+	push(it->second, filepath.u8string());
 }
 
 bool reshadefx::preprocessor::evaluate_expression()
@@ -728,14 +730,22 @@ bool reshadefx::preprocessor::evaluate_expression()
 					if (!expect(tokenid::string_literal))
 						return false;
 
-					const filesystem::path filename = _token.literal_as_string;
-					const filesystem::path filename_with_current_directory = filesystem::path(_output_location.source).remove_filename() / filename;
+					const std::filesystem::path filename = std::move(_token.literal_as_string);
 
 					if (has_parentheses && !expect(tokenid::parenthesis_close))
 						return false;
 
+					std::error_code ec;
+					std::filesystem::path filepath = _output_location.source;
+					filepath.replace_filename(filename);
+
+					if (!std::filesystem::exists(filepath, ec))
+						for (const auto &include_path : _include_paths)
+							if (std::filesystem::exists(filepath = include_path / filename, ec))
+								break;
+
 					rpn[rpn_count].is_op = false;
-					rpn[rpn_count++].value = filesystem::exists(filename_with_current_directory) || filesystem::exists(filesystem::resolve(filename, _include_paths));
+					rpn[rpn_count++].value = std::filesystem::exists(filepath, ec);
 					continue;
 				}
 				else if (_token.literal_as_string == "defined")

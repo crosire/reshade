@@ -7,7 +7,7 @@
 
 #include <chrono>
 #include <functional>
-#include "filesystem.hpp"
+#include <filesystem>
 #include "ini_file.hpp"
 #include "runtime_objects.hpp"
 
@@ -26,6 +26,11 @@ namespace reshadefx
 }
 
 extern volatile long g_network_traffic;
+
+extern std::filesystem::path g_reshade_dll_path;
+extern std::filesystem::path g_target_executable_path;
+extern std::filesystem::path g_system_path;
+extern std::filesystem::path g_windows_path;
 #pragma endregion
 
 namespace reshade
@@ -33,15 +38,6 @@ namespace reshade
 	class runtime abstract
 	{
 	public:
-		/// <summary>
-		/// File path to the current module.
-		/// </summary>
-		static filesystem::path s_reshade_dll_path;
-		/// <summary>
-		/// File path to the current executable.
-		/// </summary>
-		static filesystem::path s_target_executable_path;
-
 		/// <summary>
 		/// Construct a new runtime instance.
 		/// </summary>
@@ -160,7 +156,7 @@ namespace reshade
 		/// Compile effect from the specified source file and initialize textures, constants and techniques.
 		/// </summary>
 		/// <param name="path">The path to an effect source code file.</param>
-		void load_effect(const filesystem::path &path);
+		void load_effect(const std::filesystem::path &path);
 		/// <summary>
 		/// Compile effect from the specified abstract syntax tree and initialize textures, constants and techniques.
 		/// </summary>
@@ -191,7 +187,7 @@ namespace reshade
 		/// Save user configuration to disk.
 		/// </summary>
 		/// <param name="path">Output configuration path.</param>
-		void save_config(const filesystem::path &path) const;
+		void save_config(const std::filesystem::path &path) const;
 
 		/// <summary>
 		/// Render all passes in a technique.
@@ -220,10 +216,10 @@ namespace reshade
 		static bool check_for_update(unsigned long latest_version[3]);
 
 		void reload();
-		void load_preset(const filesystem::path &path);
+		void load_preset(const std::filesystem::path &path);
 		void load_current_preset();
-		void save_preset(const filesystem::path &path) const;
-		void save_preset(const filesystem::path &path, const filesystem::path &save_path) const;
+		void save_preset(const std::filesystem::path &path) const;
+		void save_preset(const std::filesystem::path &path, const std::filesystem::path &save_path) const;
 		void save_current_preset() const;
 		void save_screenshot() const;
 
@@ -241,10 +237,10 @@ namespace reshade
 
 		const unsigned int _renderer_id;
 		bool _is_initialized = false;
-		std::vector<filesystem::path> _effect_files;
-		std::vector<filesystem::path> _preset_files;
-		std::vector<filesystem::path> _effect_search_paths;
-		std::vector<filesystem::path> _texture_search_paths;
+		std::vector<std::filesystem::path> _effect_files;
+		std::vector<std::filesystem::path> _preset_files;
+		std::vector<std::filesystem::path> _effect_search_paths;
+		std::vector<std::filesystem::path> _texture_search_paths;
 		std::chrono::high_resolution_clock::time_point _start_time;
 		std::chrono::high_resolution_clock::time_point _last_reload_time;
 		std::chrono::high_resolution_clock::time_point _last_present_time;
@@ -263,8 +259,8 @@ namespace reshade
 		unsigned int _screenshot_key_data[4];
 		unsigned int _reload_key_data[4];
 		unsigned int _effects_key_data[4];
-		filesystem::path _configuration_path;
-		filesystem::path _screenshot_path;
+		std::filesystem::path _configuration_path;
+		std::filesystem::path _screenshot_path;
 		std::string _focus_effect;
 		bool _needs_update = false;
 		unsigned long _latest_version[3] = { };

@@ -5,17 +5,17 @@
 
 #pragma once
 
+#include <filesystem>
 #include <unordered_map>
 #include "variant.hpp"
-#include "filesystem.hpp"
 
 namespace reshade
 {
 	class ini_file
 	{
 	public:
-		explicit ini_file(const filesystem::path &path);
-		explicit ini_file(const filesystem::path &path, const filesystem::path &save_path);
+		explicit ini_file(const std::filesystem::path &path);
+		explicit ini_file(const std::filesystem::path &path, const std::filesystem::path &save_path);
 		~ini_file();
 
 		template <typename T>
@@ -107,8 +107,8 @@ namespace reshade
 		void save() const;
 
 		bool _modified = false;
-		filesystem::path _path;
-		filesystem::path _save_path;
+		std::filesystem::path _path;
+		std::filesystem::path _save_path;
 		using section = std::unordered_map<std::string, variant>;
 		std::unordered_map<std::string, section> _sections;
 	};
