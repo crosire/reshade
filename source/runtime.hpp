@@ -8,6 +8,7 @@
 #include <chrono>
 #include <functional>
 #include <filesystem>
+#include <atomic>
 #include "ini_file.hpp"
 #include "runtime_objects.hpp"
 
@@ -218,6 +219,9 @@ namespace reshade
 	private:
 		static bool check_for_update(unsigned long latest_version[3]);
 
+		void active_technique(const std::string &name);
+		void deactive_technique(const std::string &name);
+
 		void reload();
 		void load_preset(const std::filesystem::path &path);
 		void load_current_preset();
@@ -240,7 +244,9 @@ namespace reshade
 
 		const unsigned int _renderer_id;
 		bool _is_initialized = false;
+		std::vector<reshadefx::module> _effect_modules;
 		std::vector<std::filesystem::path> _effect_files;
+		std::unordered_map<std::string, size_t> _technique_to_effect;
 		std::vector<std::filesystem::path> _preset_files;
 		std::vector<std::filesystem::path> _effect_search_paths;
 		std::vector<std::filesystem::path> _texture_search_paths;
@@ -293,7 +299,7 @@ namespace reshade
 		unsigned int _tutorial_index = 0;
 		unsigned int _effects_expanded_state = 2;
 		char _effect_filter_buffer[64] = { };
-		size_t _reload_remaining_effects = 0;
+		std::atomic<size_t> _reload_remaining_effects = 0;
 		size_t _texture_count = 0;
 		size_t _uniform_count = 0;
 		size_t _technique_count = 0;

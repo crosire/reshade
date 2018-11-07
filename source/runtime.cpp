@@ -11,6 +11,8 @@
 #include "input.hpp"
 #include "ini_file.hpp"
 #include <assert.h>
+#include <mutex>
+#include <thread>
 #include <algorithm>
 #include <unordered_set>
 #include <imgui.h>
@@ -198,40 +200,16 @@ namespace reshade
 		// Reset input status
 		_input->next_frame();
 
-		// Update and compile next effect queued for reloading
-		if (_reload_remaining_effects != 0 && _framecount > 1)
-		{
-			load_effect(_effect_files[_effect_files.size() - _reload_remaining_effects]);
-
-			_last_reload_time = std::chrono::high_resolution_clock::now();
-			_reload_remaining_effects--;
-
-			if (_reload_remaining_effects == 0)
-			{
-				load_textures();
-
-				load_current_preset();
-
-				if (_effect_filter_buffer[0] != '\0' && strcmp(_effect_filter_buffer, "Search") != 0)
-				{
-					filter_techniques(_effect_filter_buffer);
-				}
-			}
-		}
-
 		g_network_traffic = _drawcalls = _vertices = 0;
 	}
 	void runtime::on_present_effect()
 	{
-		if (!_toggle_key_setting_active && _input->is_key_pressed(_effects_key_data[0], _effects_key_data[1] != 0, _effects_key_data[2] != 0, _effects_key_data[3] != 0))
-		{
+		if (!_toggle_key_setting_active &&
+			_input->is_key_pressed(_effects_key_data[0], _effects_key_data[1] != 0, _effects_key_data[2] != 0, _effects_key_data[3] != 0))
 			_effects_enabled = !_effects_enabled;
-		}
 
 		if (!_effects_enabled)
-		{
 			return;
-		}
 
 		// Update all uniform variables
 		for (auto &variable : _uniforms)
@@ -239,9 +217,7 @@ namespace reshade
 			const auto it = variable.annotations.find("source");
 
 			if (it == variable.annotations.end())
-			{
 				continue;
-			}
 
 			const auto source = it->second.as<std::string>();
 
@@ -475,56 +451,24 @@ namespace reshade
 		on_reset_effect();
 
 		_effect_files.clear();
+		_effect_modules.clear();
 
 		_last_reload_successful = true;
 
-		std::vector<std::string> fastloading_filenames;
+		std::vector<std::filesystem::path> files;
 
-		if (_current_preset >= 0 && _performance_mode && !_show_menu)
+		for (const auto &search_path : _effect_search_paths)
 		{
-			const ini_file preset(_preset_files[_current_preset]);
-
-			// Fast loading: Only load effect files that are actually used in the active preset
-			preset.get("", "Effects", fastloading_filenames);
+			std::error_code ec;
+			for (const auto &entry : std::filesystem::directory_iterator(search_path, ec))
+				if (entry.path().extension() == ".fx")
+					files.push_back(entry.path());
 		}
 
-		_is_fast_loading = !fastloading_filenames.empty();
+		_reload_remaining_effects = files.size();
 
-		if (_is_fast_loading)
-		{
-			LOG(INFO) << "Loading " << fastloading_filenames.size() << " active effect files";
-
-			for (const auto &effect : fastloading_filenames)
-			{
-				LOG(INFO) << "Searching for effect file: " << effect;
-
-				for (const auto &search_path : _effect_search_paths)
-				{
-					auto effect_file = search_path / effect;
-
-					if (std::error_code ec; std::filesystem::exists(effect_file, ec))
-					{
-						LOG(INFO) << ">> Found";
-						_effect_files.push_back(std::move(effect_file));
-						break;
-					}
-
-					LOG(INFO) << ">> Not Found";
-				}
-			}
-		}
-		else
-		{
-			for (const auto &search_path : _effect_search_paths)
-			{
-				std::error_code ec;
-				for (const auto &entry : std::filesystem::directory_iterator(search_path, ec))
-					if (entry.path().extension() == ".fx")
-						_effect_files.push_back(entry.path());
-			}
-		}
-
-		_reload_remaining_effects = _effect_files.size();
+		for (const auto &file : files)
+			std::thread([this, &file]() { load_effect(file); }).join();
 	}
 	void runtime::load_effect(const std::filesystem::path &path)
 	{
@@ -626,48 +570,23 @@ namespace reshade
 			}
 		}
 
-		if (!load_effect(std::move(module), errors))
-		{
-			LOG(ERROR) << "Failed to compile " << path << ":\n" << errors;
-			_textures.erase(_textures.begin() + _texture_count, _textures.end());
-			_uniforms.erase(_uniforms.begin() + _uniform_count, _uniforms.end());
-			_techniques.erase(_techniques.begin() + _technique_count, _techniques.end());
-			_last_reload_successful = false;
-			return;
-		}
-		else if (errors.empty())
-		{
+		if (errors.empty())
 			LOG(INFO) << "> Successfully compiled.";
-		}
 		else
-		{
 			LOG(WARNING) << "> Successfully compiled with warnings:\n" << errors;
-		}
 
-		_uniform_init_storage = _uniform_data_storage;
+		static std::mutex s_lock;
+		std::lock_guard<std::mutex> lock(s_lock);
 
-		for (size_t i = _uniform_count, max = _uniform_count = _uniforms.size(); i < max; i++)
+		for (const auto &technique : module.techniques)
+			_technique_to_effect[technique.name] = _effect_modules.size();
+
+		_effect_files.push_back(path);
+		_effect_modules.push_back(std::move(module));
+
+		if (--_reload_remaining_effects == 0)
 		{
-			auto &variable = _uniforms[i];
-			variable.effect_filename = path.filename().u8string();
-			variable.hidden = variable.annotations["hidden"].as<bool>();
-		}
-		for (size_t i = _texture_count, max = _texture_count = _textures.size(); i < max; i++)
-		{
-			auto &texture = _textures[i];
-			texture.effect_filename = path.filename().u8string();
-		}
-		for (size_t i = _technique_count, max = _technique_count = _techniques.size(); i < max; i++)
-		{
-			auto &technique = _techniques[i];
-			technique.effect_filename = path.filename().u8string();
-			technique.enabled = technique.annotations["enabled"].as<bool>();
-			technique.hidden = technique.annotations["hidden"].as<bool>();
-			technique.timeleft = technique.timeout = technique.annotations["timeout"].as<int>();
-			technique.toggle_key_data[0] = technique.annotations["toggle"].as<unsigned int>();
-			technique.toggle_key_data[1] = technique.annotations["togglectrl"].as<bool>() ? 1 : 0;
-			technique.toggle_key_data[2] = technique.annotations["toggleshift"].as<bool>() ? 1 : 0;
-			technique.toggle_key_data[3] = technique.annotations["togglealt"].as<bool>() ? 1 : 0;
+			_last_reload_time = std::chrono::high_resolution_clock::now();
 		}
 	}
 	void runtime::load_textures()
@@ -740,6 +659,60 @@ namespace reshade
 				continue;
 			}
 		}
+	}
+
+	void runtime::active_technique(const std::string &name)
+	{
+		if (std::find_if(_techniques.begin(), _techniques.end(),
+			[&name](const auto &tech) { return tech.name == name; }) != _techniques.end())
+			return;
+
+		const auto it = _technique_to_effect.find(name);
+
+		if (it == _technique_to_effect.end())
+			return;
+
+		const reshadefx::module &module = _effect_modules[it->second];
+		const std::filesystem::path &path = _effect_files[it->second];
+
+		if (std::string errors; !load_effect(module, errors))
+		{
+			LOG(ERROR) << "Failed to compile " << path << ":\n" << errors;
+			_textures.erase(_textures.begin() + _texture_count, _textures.end());
+			_uniforms.erase(_uniforms.begin() + _uniform_count, _uniforms.end());
+			_techniques.erase(_techniques.begin() + _technique_count, _techniques.end());
+			_last_reload_successful = false;
+			return;
+		}
+
+		_uniform_init_storage = _uniform_data_storage;
+
+		for (size_t i = _uniform_count, max = _uniform_count = _uniforms.size(); i < max; i++)
+		{
+			auto &variable = _uniforms[i];
+			variable.effect_filename = path.filename().u8string();
+			variable.hidden = variable.annotations["hidden"].as<bool>();
+		}
+		for (size_t i = _texture_count, max = _texture_count = _textures.size(); i < max; i++)
+		{
+			auto &texture = _textures[i];
+			texture.effect_filename = path.filename().u8string();
+		}
+		for (size_t i = _technique_count, max = _technique_count = _techniques.size(); i < max; i++)
+		{
+			auto &technique = _techniques[i];
+			technique.effect_filename = path.filename().u8string();
+			technique.enabled = technique.annotations["enabled"].as<bool>();
+			technique.hidden = technique.annotations["hidden"].as<bool>();
+			technique.timeleft = technique.timeout = technique.annotations["timeout"].as<int>();
+			technique.toggle_key_data[0] = technique.annotations["toggle"].as<unsigned int>();
+			technique.toggle_key_data[1] = technique.annotations["togglectrl"].as<bool>() ? 1 : 0;
+			technique.toggle_key_data[2] = technique.annotations["toggleshift"].as<bool>() ? 1 : 0;
+			technique.toggle_key_data[3] = technique.annotations["togglealt"].as<bool>() ? 1 : 0;
+		}
+	}
+	void runtime::deactive_technique(const std::string &name)
+	{
 	}
 
 	void runtime::load_config()
@@ -930,6 +903,11 @@ namespace reshade
 		preset.get("", "Techniques", technique_list);
 		std::vector<std::string> technique_sorting_list;
 		preset.get("", "TechniqueSorting", technique_sorting_list);
+
+		for (const auto &name : technique_list)
+		{
+			active_technique(name);
+		}
 
 		if (technique_sorting_list.empty())
 			technique_sorting_list = technique_list;
