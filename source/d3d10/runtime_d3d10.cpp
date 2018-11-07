@@ -152,7 +152,7 @@ namespace reshade::d3d10
 		_vendor_id = adapter_desc.VendorId;
 		_device_id = adapter_desc.DeviceId;
 
-		subscribe_to_menu("DX10", [this]() { draw_debug_menu(); });
+		subscribe_to_ui("DX10", [this]() { draw_debug_menu(); });
 		subscribe_to_load_config([this](const ini_file& config) {
 			config.get("DX10_BUFFER_DETECTION", "DepthBufferRetrievalMode", depth_buffer_before_clear);
 			config.get("DX10_BUFFER_DETECTION", "DepthBufferTextureFormat", depth_buffer_texture_format);

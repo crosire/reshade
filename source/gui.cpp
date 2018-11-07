@@ -73,6 +73,8 @@ void reshade::runtime::init_ui()
 	imgui_io.KeyMap[ImGuiKey_X] = 'X';
 	imgui_io.KeyMap[ImGuiKey_Y] = 'Y';
 	imgui_io.KeyMap[ImGuiKey_Z] = 'Z';
+	imgui_io.ConfigFlags = ImGuiConfigFlags_DockingEnable;
+	imgui_io.ConfigResizeWindowsFromEdges = true;
 	imgui_style.WindowRounding = 0.0f;
 	imgui_style.WindowBorderSize = 0.0f;
 	imgui_style.ChildRounding = 0.0f;
@@ -89,13 +91,11 @@ void reshade::runtime::init_ui()
 	else
 		imgui_io.Fonts->AddFontDefault();
 
-	subscribe_to_menu("Home", [this]() { draw_overlay_menu_home(); });
-	subscribe_to_menu("Settings", [this]() { draw_overlay_menu_settings(); });
-	subscribe_to_menu("Statistics", [this]() { draw_overlay_menu_statistics(); });
-	subscribe_to_menu("Log", [this]() { draw_overlay_menu_log(); });
-	subscribe_to_menu("About", [this]() { draw_overlay_menu_about(); });
-
-	subscribe_to_menu("Code Editor", [this]() { _editor.render("code editor"); });
+	subscribe_to_ui("Home", [this]() { draw_overlay_menu_home(); });
+	subscribe_to_ui("Settings", [this]() { draw_overlay_menu_settings(); });
+	subscribe_to_ui("Statistics", [this]() { draw_overlay_menu_statistics(); });
+	subscribe_to_ui("Log", [this]() { draw_overlay_menu_log(); });
+	subscribe_to_ui("About", [this]() { draw_overlay_menu_about(); });
 
 	_load_config_callables.push_back([this](const ini_file &config) {
 		config.get("INPUT", "KeyMenu", _menu_key_data);
@@ -205,24 +205,15 @@ void reshade::runtime::draw_ui()
 	imgui_io.MouseWheel += _input->mouse_wheel_delta();
 
 	for (unsigned int i = 0; i < 256; i++)
-	{
 		imgui_io.KeysDown[i] = _input->is_key_down(i);
-	}
 	for (unsigned int i = 0; i < 5; i++)
-	{
 		imgui_io.MouseDown[i] = _input->is_mouse_button_down(i);
-	}
-
 	for (wchar_t c : _input->text_input())
-	{
 		imgui_io.AddInputCharacter(c);
-	}
 
 	if (imgui_io.KeyCtrl && !_no_font_scaling)
-	{
 		// Change global font scale if user presses the control key and moves the mouse wheel
 		imgui_io.FontGlobalScale = ImClamp(imgui_io.FontGlobalScale + imgui_io.MouseWheel * 0.10f, 0.2f, 2.50f);
-	}
 
 	imgui_io.NavInputs[ImGuiNavInput_Activate] = ImGui::IsKeyDown(ImGuiKey_Space);
 	imgui_io.NavInputs[ImGuiNavInput_Input] = ImGui::IsKeyDown(ImGuiKey_Enter);
@@ -233,7 +224,6 @@ void reshade::runtime::draw_ui()
 	imgui_io.NavInputs[ImGuiNavInput_KeyDown_] = ImGui::IsKeyDown(ImGuiKey_DownArrow);
 	imgui_io.NavInputs[ImGuiNavInput_TweakSlow] = imgui_io.KeyCtrl;
 	imgui_io.NavInputs[ImGuiNavInput_TweakFast] = imgui_io.KeyShift;
-	//imgui_io.NavInputs[ImGuiNavInput_KeyMenu_] = imgui_io.KeyAlt;
 
 	ImGui::NewFrame();
 
@@ -242,6 +232,7 @@ void reshade::runtime::draw_ui()
 	{
 		ImGui::SetNextWindowPos(ImVec2(10, 10));
 		ImGui::SetNextWindowSize(ImVec2(_width - 20.0f, ImGui::GetFrameHeightWithSpacing() * 3));
+		ImGui::PushStyleVar(ImGuiStyleVar_Alpha, 1.0f);
 		ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(_imgui_col_background[0], _imgui_col_background[1], _imgui_col_background[2], 0.5f));
 		ImGui::Begin("Splash Screen", nullptr,
 			ImGuiWindowFlags_NoTitleBar |
@@ -303,23 +294,27 @@ void reshade::runtime::draw_ui()
 
 		ImGui::End();
 		ImGui::PopStyleColor();
+		ImGui::PopStyleVar();
 	}
 
 	if (_show_clock || _show_framerate)
 	{
 		ImGui::SetNextWindowPos(ImVec2(_width - 200.0f, 5));
 		ImGui::SetNextWindowSize(ImVec2(200.0f, 200.0f));
-		ImGui::PushFont(_imgui_context->IO.Fonts->Fonts[1]);
-		ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(_imgui_col_text_fps[0], _imgui_col_text_fps[1], _imgui_col_text_fps[2], 1.0f));
-		ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4());
 		ImGui::Begin("FPS", nullptr,
 			ImGuiWindowFlags_NoTitleBar |
 			ImGuiWindowFlags_NoScrollbar |
 			ImGuiWindowFlags_NoMove |
 			ImGuiWindowFlags_NoResize |
+			ImGuiWindowFlags_NoDocking |
 			ImGuiWindowFlags_NoSavedSettings |
 			ImGuiWindowFlags_NoInputs |
-			ImGuiWindowFlags_NoFocusOnAppearing);
+			ImGuiWindowFlags_NoCollapse |
+			ImGuiWindowFlags_NoNavFocus |
+			ImGuiWindowFlags_NoBackground);
+
+		ImGui::PushFont(_imgui_context->IO.Fonts->Fonts[1]);
+		ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(_imgui_col_text_fps[0], _imgui_col_text_fps[1], _imgui_col_text_fps[2], 1.0f));
 
 		char temp[512];
 
@@ -343,31 +338,74 @@ void reshade::runtime::draw_ui()
 			ImGui::TextUnformatted(temp);
 		}
 
-		ImGui::End();
-		ImGui::PopStyleColor(2);
+		ImGui::PopStyleColor();
 		ImGui::PopFont();
+
+		ImGui::End();
 	}
 
 	if (_show_menu && _reload_remaining_effects == 0)
 	{
-		ImGui::SetNextWindowPos(ImVec2(20, 20), ImGuiCond_FirstUseEver);
-		ImGui::SetNextWindowSize(ImVec2(730.0f, _height - 40.0f), ImGuiCond_FirstUseEver);
-		ImGui::Begin("ReShade " VERSION_STRING_FILE " by crosire###Main", &_show_menu,
-			ImGuiWindowFlags_MenuBar |
-			ImGuiWindowFlags_NoCollapse);
+		const ImGuiID root_space_id = ImGui::GetID("Dockspace");
+		const ImGuiViewport *const viewport = ImGui::GetMainViewport();
 
-		// Double click the window title bar to reset position and size
-		const ImRect titlebar_rect = ImGui::GetCurrentWindow()->TitleBarRect();
-
-		if (ImGui::IsMouseDoubleClicked(0) && ImGui::IsMouseHoveringRect(titlebar_rect.Min, titlebar_rect.Max, false))
+		// Set up default dock layout if this was not done yet
+		if (ImGui::DockBuilderGetNode(root_space_id) == nullptr)
 		{
-			ImGui::SetWindowPos(ImVec2(20, 20));
-			ImGui::SetWindowSize(ImVec2(730.0f, _height - 40.0f));
+			// Add root node
+			ImGui::DockBuilderAddNode(root_space_id, viewport->Size);
+			// Split root node into two spaces
+			ImGuiID main_space_id = 0;
+			ImGuiID right_space_id = 0;
+			ImGui::DockBuilderSplitNode(root_space_id, ImGuiDir_Left, 0.35f, &main_space_id, &right_space_id);
+
+			// Attach windows to the main dock space
+			ImGui::DockBuilderDockWindow("Home", main_space_id);
+			ImGui::DockBuilderDockWindow("Settings", main_space_id);
+			ImGui::DockBuilderDockWindow("Statistics", main_space_id);
+			ImGui::DockBuilderDockWindow("Log", main_space_id);
+			ImGui::DockBuilderDockWindow("About", main_space_id);
+			ImGui::DockBuilderDockWindow("Code Editor", right_space_id);
+			ImGui::DockBuilderDockWindow("DX9", main_space_id);
+			ImGui::DockBuilderDockWindow("DX10", main_space_id);
+			ImGui::DockBuilderDockWindow("DX11", main_space_id);
+
+			ImGui::DockBuilderGetNode(main_space_id)->SelectedTabID = ImHash("Home", 0); // Select 'Home' tab
+
+			ImGui::DockBuilderFinish(root_space_id);
 		}
 
-		draw_overlay_menu();
+		ImVec2 offset;
+		if (show_splash)
+			offset.y = 10 + ImGui::GetFrameHeightWithSpacing() * 3;
 
+		ImGui::SetNextWindowPos(viewport->Pos + offset);
+		ImGui::SetNextWindowSize(viewport->Size - offset);
+		ImGui::SetNextWindowViewport(viewport->ID);
+		ImGui::Begin("Viewport", nullptr,
+			ImGuiWindowFlags_NoTitleBar |
+			ImGuiWindowFlags_NoMove |
+			ImGuiWindowFlags_NoResize |
+			ImGuiWindowFlags_NoDocking |
+			ImGuiWindowFlags_NoCollapse |
+			ImGuiWindowFlags_NoNavFocus |
+			ImGuiWindowFlags_NoBackground);
+		ImGui::DockSpace(root_space_id, ImVec2(0, 0), ImGuiDockNodeFlags_PassthruDockspace);
 		ImGui::End();
+
+		for (const auto &widget : _menu_callables)
+		{
+			if (ImGui::Begin(widget.first.c_str()))
+				widget.second();
+			ImGui::End();
+		}
+
+		if (_show_code_editor)
+		{
+			if (ImGui::Begin("Code Editor", &_show_code_editor))
+				draw_code_editor();
+			ImGui::End();
+		}
 	}
 
 	// Render ImGui widgets and windows
@@ -381,38 +419,10 @@ void reshade::runtime::draw_ui()
 		render_imgui_draw_data(draw_data);
 	}
 }
-void reshade::runtime::draw_overlay_menu()
+
+void reshade::runtime::draw_code_editor()
 {
-	if (ImGui::BeginMenuBar())
-	{
-		ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImGui::GetStyle().ItemSpacing * 2);
-
-		for (size_t i = 0; i < _menu_callables.size(); ++i)
-		{
-			const std::string &label = _menu_callables[i].first;
-
-			if (ImGui::Selectable(label.c_str(), _menu_index == i, 0, ImVec2(ImGui::CalcTextSize(label.c_str()).x, 0)))
-			{
-				_menu_index = i;
-				// Keep this 'true' for two frame to workaround 'ImGui::SetScrollHereY()' not working properly the first frame
-				_switched_menu = 2;
-			}
-
-			ImGui::SameLine();
-		}
-
-		ImGui::PopStyleVar();
-		ImGui::EndMenuBar();
-	}
-
-	ImGui::PushID(_menu_callables[_menu_index].first.c_str());
-
-	_menu_callables[_menu_index].second();
-
-	ImGui::PopID();
-
-	if (_switched_menu > 0)
-		--_switched_menu;
+	_editor.render("code editor");
 }
 void reshade::runtime::draw_overlay_menu_home()
 {
@@ -653,7 +663,7 @@ void reshade::runtime::draw_overlay_menu_home()
 			tutorial_text =
 				"This is the list of variables. It contains all tweakable options the effects expose. All values here apply in real-time. Double click on a widget to manually edit the value.\n\n"
 				"Enter text in the box at the top to filter it and search for specific variables.\n\n"
-				"Once you have finished tweaking your preset, be sure to go to the 'Settings' tab and change the 'Usage Mode' to 'Performance Mode'. "
+				"Once you have finished tweaking your preset, be sure to enable the 'Performance Mode' check box. "
 				"This will recompile all shaders into a more optimal representation that gives a significant performance boost, but will disable variable tweaking and this list.";
 
 			ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.941176f, 0.392157f, 0.392190f, 1.0f));
@@ -678,12 +688,18 @@ void reshade::runtime::draw_overlay_menu_home()
 	{
 		ImGui::Spacing();
 
-		if (ImGui::Button("Reload", ImVec2(-1, 0)))
+		if (ImGui::Button("Reload", ImVec2(-150, 0)))
 		{
 			reload();
 		}
 
 		ImGui::SameLine();
+
+		if (ImGui::Checkbox("Performance Mode", &_performance_mode))
+		{
+			save_config();
+			reload();
+		}
 	}
 	else
 	{
@@ -814,16 +830,6 @@ void reshade::runtime::draw_overlay_menu_settings()
 			ImGui::SetTooltip("Click in the field and press any key to change the shortcut to that key.");
 		}
 
-		int usage_mode_index = _performance_mode ? 0 : 1;
-
-		if (ImGui::Combo("Usage Mode", &usage_mode_index, "Performance Mode\0Configuration Mode\0"))
-		{
-			_performance_mode = usage_mode_index == 0;
-
-			save_config();
-			reload();
-		}
-
 		if (ImGui::Combo("Input Processing", &_input_processing_mode, "Pass on all input\0Block input when cursor is on overlay\0Block all input when overlay is visible\0"))
 		{
 			save_config();
@@ -945,6 +951,9 @@ void reshade::runtime::draw_overlay_menu_settings()
 }
 void reshade::runtime::draw_overlay_menu_statistics()
 {
+	if (ImGui::Button("Open Code Editor", ImVec2(-1, 0)))
+		_show_code_editor = true;
+
 	if (ImGui::CollapsingHeader("General", ImGuiTreeNodeFlags_DefaultOpen))
 	{
 		ImGui::PushItemWidth(-1);
@@ -1153,10 +1162,6 @@ void reshade::runtime::draw_overlay_menu_log()
 	}
 
 	clipper.End();
-
-	// Scroll to the bottom if the log tab was just opened
-	if (_switched_menu)
-		ImGui::SetScrollHereY();
 
 	ImGui::EndChild();
 }
@@ -1441,9 +1446,8 @@ void reshade::runtime::draw_overlay_variable_editor()
 	if (_tutorial_index == 4 && ImGui::BeginPopup("Performance Mode Hint"))
 	{
 		ImGui::TextUnformatted(
-			"Don't forget to switch to 'Performance Mode' once you are done editing (on the 'Settings' tab).\n"
-			"This will drastically increase runtime performance and loading times on next launch\n"
-			"(Only effect files that are active in the current preset are loaded then instead of the entire list).");
+			"Don't forget to enable 'Performance Mode' once you are done editing.\n"
+			"This will increase runtime performance and loading times.");
 
 		if (ImGui::Button("Ok", ImVec2(-1, 0)))
 		{

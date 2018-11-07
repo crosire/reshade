@@ -178,7 +178,7 @@ namespace reshade
 		/// </summary>
 		/// <param name="label">Name of the tab in the menu bar.</param>
 		/// <param name="function">The callback function.</param>
-		void subscribe_to_menu(std::string label, std::function<void()> function) { _menu_callables.push_back({ label, function }); }
+		void subscribe_to_ui(std::string label, std::function<void()> function) { _menu_callables.push_back({ label, function }); }
 		/// <summary>
 		/// Register a function to be called when user configuration is loaded.
 		/// </summary>
@@ -304,7 +304,7 @@ namespace reshade
 		void deinit_ui();
 
 		void draw_ui();
-		void draw_overlay_menu();
+		void draw_code_editor();
 		void draw_overlay_menu_home();
 		void draw_overlay_menu_settings();
 		void draw_overlay_menu_statistics();
@@ -352,7 +352,6 @@ namespace reshade
 		std::vector<std::function<void(ini_file &)>> _save_config_callables;
 		std::vector<std::function<void(const ini_file &)>> _load_config_callables;
 
-		size_t _menu_index = 0;
 		int _selected_technique = -1;
 		int _input_processing_mode = 2;
 		unsigned int _menu_key_data[4];
@@ -360,6 +359,7 @@ namespace reshade
 		bool _show_menu = false;
 		bool _show_clock = false;
 		bool _show_framerate = false;
+		bool _show_code_editor = false;
 		bool _screenshot_include_preset = false;
 		bool _screenshot_include_configuration = false;
 		bool _no_font_scaling = false;
@@ -370,7 +370,6 @@ namespace reshade
 		bool _screenshot_key_setting_active = false;
 		bool _toggle_key_setting_active = false;
 		bool _log_wordwrap = false;
-		unsigned char _switched_menu = 0;
 		float _imgui_col_background[3] = { 0.117647f, 0.117647f, 0.117647f };
 		float _imgui_col_item_background[3] = { 0.156863f, 0.156863f, 0.156863f };
 		float _imgui_col_active[3] = { 0.392157f, 0.588235f, 0.941176f };

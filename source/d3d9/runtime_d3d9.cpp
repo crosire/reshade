@@ -93,7 +93,7 @@ namespace reshade::d3d9
 		_num_samplers = caps.MaxSimultaneousTextures;
 		_num_simultaneous_rendertargets = std::min(caps.NumSimultaneousRTs, DWORD(8));
 
-		subscribe_to_menu("DX9", [this]() { draw_debug_menu(); });
+		subscribe_to_ui("DX9", [this]() { draw_debug_menu(); });
 		subscribe_to_load_config([this](const ini_file& config) {
 			config.get("DX9_BUFFER_DETECTION", "DisableINTZ", _disable_intz);
 		});
