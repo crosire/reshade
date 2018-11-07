@@ -24,6 +24,7 @@ namespace
 		function_hook,
 		vtable_hook
 	};
+
 	struct module_export
 	{
 		reshade::hook::address address;
@@ -376,21 +377,15 @@ bool reshade::hooks::install(const char *name, hook::address target, hook::addre
 	assert(replacement != nullptr);
 
 	if (target == replacement)
-	{
 		return false;
-	}
 
 	hook hook = find_internal(replacement);
 
 	if (hook.installed())
-	{
 		return target == hook.target;
-	}
-	else
-	{
-		hook.target = target;
-		hook.replacement = replacement;
-	}
+
+	hook.target = target;
+	hook.replacement = replacement;
 
 	return install_internal(name, hook, hook_method::function_hook) && (!queue_enable || hook::apply_queued_actions());
 }
@@ -413,9 +408,7 @@ bool reshade::hooks::install(const char *name, hook::address vtable[], unsigned 
 			hook hook { target, target, replacement };
 
 			if (target != replacement && install_internal(name, hook, hook_method::vtable_hook))
-			{
 				return true;
-			}
 
 			s_vtable_addresses.erase(insert.first);
 		}
@@ -433,22 +426,17 @@ void reshade::hooks::uninstall()
 
 	// Disable all hooks in a single batch job
 	for (auto &hook_info : s_hooks)
-	{
-		const hook &hook = std::get<1>(hook_info);
-
-		hook.enable(false);
-	}
+		std::get<1>(hook_info).enable(false);
 
 	hook::apply_queued_actions();
 
 	// Afterwards remove all hooks from the list
 	for (auto &hook_info : s_hooks)
-	{
 		uninstall_internal(std::get<0>(hook_info), std::get<1>(hook_info), std::get<2>(hook_info));
-	}
 
 	s_hooks.clear();
 }
+
 void reshade::hooks::register_module(const std::filesystem::path &target_path)
 {
 	install("LoadLibraryA", reinterpret_cast<hook::address>(&LoadLibraryA), reinterpret_cast<hook::address>(&HookLoadLibraryA), true);
@@ -456,37 +444,34 @@ void reshade::hooks::register_module(const std::filesystem::path &target_path)
 	install("LoadLibraryW", reinterpret_cast<hook::address>(&LoadLibraryW), reinterpret_cast<hook::address>(&HookLoadLibraryW), true);
 	install("LoadLibraryExW", reinterpret_cast<hook::address>(&LoadLibraryExW), reinterpret_cast<hook::address>(&HookLoadLibraryExW), true);
 
+	// Install all "LoadLibrary" hooks in one go immediately
 	hook::apply_queued_actions();
 
 	LOG(INFO) << "Registering hooks for " << target_path << " ...";
 
-	const auto target_filename = target_path.stem();
-	const auto replacement_filename = g_reshade_dll_path.stem();
+	// Compare module names and delay export hooks for later installation since we cannot call "LoadLibrary" from this function (it is called from "DLLMain", which does not allow this)
+	const std::filesystem::path target_name = target_path.stem();
+	const std::filesystem::path replacement_name = g_reshade_dll_path.stem();
 
-	if (_wcsicmp(target_filename.c_str(), replacement_filename.c_str()) == 0)
+	if (_wcsicmp(target_name.c_str(), replacement_name.c_str()) == 0)
 	{
 		LOG(INFO) << "> Delayed until first call to an exported function.";
 
 		s_export_hook_path = target_path;
 	}
-	else
+	else if (HMODULE handle; !is_module_loaded(target_path, handle)) // Similarly, if the target module was not loaded yet, wait for to get loaded in the "LoadLibrary" hooks and install it then
 	{
-		HMODULE handle = nullptr;
+		LOG(INFO) << "> Delayed.";
 
-		if (is_module_loaded(target_path, handle))
-		{
-			LOG(INFO) << "> Libraries loaded.";
+		s_delayed_hook_paths.push_back(target_path);
+	}
+	else // The target module is already loaded, so we can safely install hooks right away
+	{
+		LOG(INFO) << "> Libraries loaded.";
 
-			install_internal(handle, g_module_handle, hook_method::function_hook);
+		install_internal(handle, g_module_handle, hook_method::function_hook);
 
-			hook::apply_queued_actions();
-		}
-		else
-		{
-			LOG(INFO) << "> Delayed.";
-
-			s_delayed_hook_paths.push_back(target_path);
-		}
+		hook::apply_queued_actions();
 	}
 }
 
@@ -498,7 +483,7 @@ reshade::hook::address reshade::hooks::call(hook::address replacement)
 	{
 		return hook.call();
 	}
-	else if (!s_export_hook_path.empty())
+	else if (!s_export_hook_path.empty()) // If the hook does not exist yet, delay-load export hooks and try again
 	{
 		const HMODULE handle = load_module(s_export_hook_path);
 
@@ -508,7 +493,7 @@ reshade::hook::address reshade::hooks::call(hook::address replacement)
 		{
 			install_internal(handle, g_module_handle, hook_method::export_hook);
 
-			s_export_hook_path = "";
+			s_export_hook_path.clear();
 
 			return call(replacement);
 		}

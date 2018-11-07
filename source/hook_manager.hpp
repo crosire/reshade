@@ -43,6 +43,7 @@ namespace reshade::hooks
 	/// Only call this function as long as the loader-lock is active, since it is not thread-safe.
 	/// </summary>
 	void uninstall();
+
 	/// <summary>
 	/// Register the matching exports in the specified module and install or delay their hooking.
 	/// Only call this function as long as the loader-lock is active, since it is not thread-safe.
