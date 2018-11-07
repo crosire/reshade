@@ -99,7 +99,7 @@ private:
 	bool _overwrite = false;
 	bool _scroll_to_cursor = false;
 	float _cursor_anim = 0.0f;
-	float _last_click_time = -1.0f;
+	double _last_click_time = -1.0;
 	text_pos _cursor_pos;
 	text_pos _select_beg;
 	text_pos _select_end;

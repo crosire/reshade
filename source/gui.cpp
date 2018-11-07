@@ -394,7 +394,7 @@ void reshade::runtime::draw_overlay_menu()
 			if (ImGui::Selectable(label.c_str(), _menu_index == i, 0, ImVec2(ImGui::CalcTextSize(label.c_str()).x, 0)))
 			{
 				_menu_index = i;
-				// Keep this 'true' for two frame to workaround 'ImGui::SetScrollHere()' not working properly the first frame
+				// Keep this 'true' for two frame to workaround 'ImGui::SetScrollHereY()' not working properly the first frame
 				_switched_menu = 2;
 			}
 
@@ -1156,7 +1156,7 @@ void reshade::runtime::draw_overlay_menu_log()
 
 	// Scroll to the bottom if the log tab was just opened
 	if (_switched_menu)
-		ImGui::SetScrollHere();
+		ImGui::SetScrollHereY();
 
 	ImGui::EndChild();
 }
@@ -1256,7 +1256,7 @@ void reshade::runtime::draw_overlay_variable_editor()
 
 			if (is_focused)
 			{
-				ImGui::SetScrollHere(0.0f);
+				ImGui::SetScrollHereY(0.0f);
 				_focus_effect.clear();
 			}
 		}

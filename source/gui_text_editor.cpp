@@ -226,7 +226,7 @@ void code_editor_widget::render(const char *title, bool border)
 				select(_interactive_beg, _interactive_end, selection_mode::line);
 			}
 
-			_last_click_time = -1.0f;
+			_last_click_time = -1.0;
 		}
 		else if (is_double_click)
 		{
@@ -353,7 +353,7 @@ void code_editor_widget::render(const char *title, bool border)
 				}
 
 				// Draw the cursor animation
-				if (is_focused && io.OptCursorBlink && fmodf(_cursor_anim, 1.0f) <= 0.5f)
+				if (is_focused && io.ConfigInputTextCursorBlink && fmodf(_cursor_anim, 1.0f) <= 0.5f)
 				{
 					const float cx = calc_text_distance_to_line_begin(_cursor_pos);
 
@@ -450,7 +450,7 @@ void code_editor_widget::select(const text_pos &beg, const text_pos &end, select
 			if (col != _lines[_select_beg.line][_select_beg.column - 1].col)
 				break;
 		for (auto col = _lines[_select_end.line][_select_end.column - 1].col;
-			_select_end.column < int(_lines[_select_end.line].size()); ++_select_end.column)
+			_select_end.column < int(_lines[_select_end.line].size()) - 1; ++_select_end.column)
 			if (col != _lines[_select_end.line][_select_end.column - 1].col)
 				break;
 		break;
