@@ -18,3 +18,4 @@ Any contributions to the project are welcomed, it's recommended to use GitHub [p
 ## License
 
 All the source code is licensed under the conditions of the [BSD 3-clause license](LICENSE.md).
+
