@@ -83,7 +83,6 @@
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>$(SolutionDir)intermediate\ReShade\$(Platform)\$(Configuration)\source\filesystem.obj;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <ResourceCompile>
       <PreprocessorDefinitions>RESHADE_FXC;WIN64;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
@@ -102,7 +101,6 @@
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>$(SolutionDir)intermediate\ReShade\$(Platform)\$(Configuration)\source\filesystem.obj;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <ResourceCompile>
       <PreprocessorDefinitions>RESHADE_FXC;WIN32;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
@@ -126,7 +124,6 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>false</GenerateDebugInformation>
-      <AdditionalDependencies>$(SolutionDir)intermediate\ReShade\$(Platform)\$(Configuration)\source\filesystem.obj;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <ResourceCompile>
       <PreprocessorDefinitions>RESHADE_FXC;WIN64;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
@@ -150,7 +147,6 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>false</GenerateDebugInformation>
-      <AdditionalDependencies>$(SolutionDir)intermediate\ReShade\$(Platform)\$(Configuration)\source\filesystem.obj;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <ResourceCompile>
       <PreprocessorDefinitions>RESHADE_FXC;WIN32;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
