@@ -1051,17 +1051,15 @@ namespace reshade
 
 		char filename[21];
 		ImFormatString(filename, sizeof(filename), " %.4d-%.2d-%.2d %.2d-%.2d-%.2d", _date[0], _date[1], _date[2], hour, minute, second);
-		const auto least = _screenshot_path / (g_target_executable_path.stem().u8string() + filename);
-
-		auto screenshot_path = least;
-		screenshot_path.replace_extension(_screenshot_format == 0 ? ".bmp" : ".png");
+		const std::wstring least = _screenshot_path / g_target_executable_path.stem().concat(filename);
+		const std::wstring screenshot_path = least + (_screenshot_format == 0 ? L".bmp" : L".png");
 
 		LOG(INFO) << "Saving screenshot to " << screenshot_path << " ...";
 
 		FILE *file;
 		bool success = false;
 
-		if (_wfopen_s(&file, screenshot_path.wstring().c_str(), L"wb") == 0)
+		if (_wfopen_s(&file, screenshot_path.c_str(), L"wb") == 0)
 		{
 			stbi_write_func *const func = [](void *context, void *data, int size) {
 				fwrite(data, 1, size, static_cast<FILE *>(context));
@@ -1088,20 +1086,15 @@ namespace reshade
 
 		if (_screenshot_include_preset && _current_preset >= 0)
 		{
+			const std::filesystem::path preset_file = _preset_files[_current_preset];
+
 			if (_screenshot_include_configuration)
 			{
-				auto config_path = least;
-				config_path.replace_extension(".ini");
-
+				const std::wstring config_path = least + L".ini";
 				save_config(config_path);
 			}
 
-			const auto preset_file = _preset_files[_current_preset];
-
-			auto preset_path = least;
-			preset_path.replace_filename(preset_path.stem().u8string() + " " + preset_file.stem().u8string());
-			preset_path.replace_extension(".ini");
-			
+			const std::wstring preset_path = least + L' ' + preset_file.stem().wstring() + L".ini";
 			save_preset(preset_file, preset_path);
 		}
 	}
