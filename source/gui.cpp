@@ -739,8 +739,7 @@ namespace reshade
 				ImGui::SetTooltip("Click in the field and press any key to change the shortcut to that key.");
 			}
 
-			const std::string screenshot_path_string = _screenshot_path.u8string();
-			memcpy(edit_buffer, screenshot_path_string.c_str(), screenshot_path_string.length() + 1);
+			_screenshot_path.u8string().copy(edit_buffer, sizeof(edit_buffer));
 
 			if (ImGui::InputText("Screenshot Path", edit_buffer, sizeof(edit_buffer)))
 			{
