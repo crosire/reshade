@@ -97,6 +97,8 @@ namespace reshade
 		void set_uniform_value(uniform &variable, const unsigned int *values, size_t count);
 		void set_uniform_value(uniform &variable, const float *values, size_t count);
 
+		void reset_uniform_value(uniform &variable);
+
 		/// <summary>
 		/// Register a function to be called when the menu is drawn.
 		/// </summary>
@@ -211,6 +213,7 @@ namespace reshade
 		std::vector<uniform> _uniforms;
 		std::vector<technique> _techniques;
 		std::vector<unsigned char> _uniform_data_storage;
+		std::vector<unsigned char> _uniform_init_storage;
 
 	private:
 		static bool check_for_update(unsigned long latest_version[3]);

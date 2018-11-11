@@ -1242,6 +1242,12 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 				}
 			}
 
+			if (ImGui::IsItemHovered() && ImGui::GetIO().KeyShift && ImGui::IsMouseClicked(1))
+			{
+				modified = true;
+				reset_uniform_value(variable);
+			}
+
 			if (ImGui::IsItemHovered() && !ui_tooltip.empty())
 			{
 				ImGui::SetTooltip("%s", ui_tooltip.c_str());

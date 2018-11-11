@@ -230,4 +230,8 @@ namespace reshade
 			}
 		}
 	}
+	void runtime::reset_uniform_value(uniform &variable)
+	{
+		std::memcpy(&_uniform_data_storage[variable.storage_offset], &_uniform_init_storage[variable.storage_offset], variable.storage_size);
+	}
 }
