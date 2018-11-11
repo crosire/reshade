@@ -644,6 +644,8 @@ namespace reshade
 			LOG(WARNING) << "> Successfully compiled with warnings:\n" << errors;
 		}
 
+		_uniform_init_storage = _uniform_data_storage;
+
 		for (size_t i = _uniform_count, max = _uniform_count = _uniforms.size(); i < max; i++)
 		{
 			auto &variable = _uniforms[i];
