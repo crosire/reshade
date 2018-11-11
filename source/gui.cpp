@@ -987,11 +987,11 @@ namespace reshade
 			ImVec4 textcol(1, 1, 1, 1);
 
 			if (lines[i].find("ERROR |") != std::string::npos)
-				textcol = ImVec4(1, 0, 0, 1);
+				textcol = ImColor(255, 117, 163);
 			else if (lines[i].find("WARN  |") != std::string::npos)
-				textcol = ImVec4(1, 1, 0, 1);
+				textcol = ImColor(222, 222, 111);
 			else if (lines[i].find("DEBUG |") != std::string::npos)
-				textcol = ImColor(100, 100, 255);
+				textcol = ImColor(117, 163, 255);
 
 			ImGui::PushStyleColor(ImGuiCol_Text, textcol);
 			if (_log_wordwrap) ImGui::PushTextWrapPos();
