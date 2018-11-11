@@ -57,7 +57,7 @@ namespace reshade::d3d11
 		void on_present(draw_call_tracker& tracker);
 
 		void capture_frame(uint8_t *buffer) const override;
-		bool load_effect(const reshadefx::module &module, std::string &errors) override;
+		bool load_effect(const std::string &filename, const reshadefx::module &module, std::string &errors) override;
 		bool update_texture(texture &texture, const uint8_t *data) override;
 
 		void render_technique(const technique &technique) override;
@@ -90,10 +90,10 @@ namespace reshade::d3d11
 		bool init_imgui_resources();
 		bool init_imgui_font_atlas();
 
-		void add_uniform(const reshadefx::uniform_info &info, size_t storage_base_offset);
-		bool add_texture(const reshadefx::texture_info &info);
-		bool add_sampler(const reshadefx::sampler_info &info, d3d11_technique_data &effect);
-		bool add_technique(const reshadefx::technique_info &info, const d3d11_technique_data &effect);
+		void init_uniform(uniform &info, size_t storage_base_offset);
+		bool init_texture(texture &info);
+		bool init_sampler(const reshadefx::sampler_info &info, d3d11_technique_data &effect);
+		bool init_technique(technique &info, const d3d11_technique_data &effect);
 
 		void draw_debug_menu();
 

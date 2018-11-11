@@ -25,7 +25,7 @@ namespace reshade
 	{
 		assert(data != nullptr);
 
-		size = std::min(size, variable.storage_size);
+		size = std::min(size, variable.size);
 
 		assert(variable.storage_offset + size <= _uniform_data_storage.size());
 
@@ -35,12 +35,12 @@ namespace reshade
 	{
 		static_assert(sizeof(int) == 4 && sizeof(float) == 4, "expected int and float size to equal 4");
 
-		count = std::min(count, variable.storage_size / 4);
+		count = std::min(count, variable.size / 4);
 
 		assert(values != nullptr);
 
-		const auto data = static_cast<unsigned char *>(alloca(variable.storage_size));
-		get_uniform_value(variable, data, variable.storage_size);
+		const auto data = static_cast<unsigned char *>(alloca(variable.size));
+		get_uniform_value(variable, data, variable.size);
 
 		for (size_t i = 0; i < count; i++)
 		{
@@ -49,7 +49,7 @@ namespace reshade
 	}
 	void runtime::get_uniform_value(const uniform &variable, int *values, size_t count) const
 	{
-		switch (variable.basetype)
+		switch (variable.type.base)
 		{
 			case reshadefx::type::t_bool:
 			case reshadefx::type::t_int:
@@ -60,12 +60,12 @@ namespace reshade
 			}
 			case reshadefx::type::t_float:
 			{
-				count = std::min(count, variable.storage_size / sizeof(float));
+				count = std::min(count, variable.size / sizeof(float));
 
 				assert(values != nullptr);
 
-				const auto data = static_cast<unsigned char *>(alloca(variable.storage_size));
-				get_uniform_value(variable, data, variable.storage_size);
+				const auto data = static_cast<unsigned char *>(alloca(variable.size));
+				get_uniform_value(variable, data, variable.size);
 
 				for (size_t i = 0; i < count; i++)
 				{
@@ -81,22 +81,22 @@ namespace reshade
 	}
 	void runtime::get_uniform_value(const uniform &variable, float *values, size_t count) const
 	{
-		switch (variable.basetype)
+		switch (variable.type.base)
 		{
 			case reshadefx::type::t_bool:
 			case reshadefx::type::t_int:
 			case reshadefx::type::t_uint:
 			{
-				count = std::min(count, variable.storage_size / sizeof(int));
+				count = std::min(count, variable.size / sizeof(int));
 
 				assert(values != nullptr);
 
-				const auto data = static_cast<unsigned char *>(alloca(variable.storage_size));
-				get_uniform_value(variable, data, variable.storage_size);
+				const auto data = static_cast<unsigned char *>(alloca(variable.size));
+				get_uniform_value(variable, data, variable.size);
 
 				for (size_t i = 0; i < count; ++i)
 				{
-					if (variable.basetype != reshadefx::type::t_uint)
+					if (variable.type.base != reshadefx::type::t_uint)
 					{
 						values[i] = static_cast<float>(reinterpret_cast<const int *>(data)[i]);
 					}
@@ -118,7 +118,7 @@ namespace reshade
 	{
 		assert(data != nullptr);
 
-		size = std::min(size, variable.storage_size);
+		size = std::min(size, variable.size);
 
 		assert(variable.storage_offset + size <= _uniform_data_storage.size());
 
@@ -130,7 +130,7 @@ namespace reshade
 
 		const auto data = static_cast<unsigned char *>(alloca(count * 4));
 
-		switch (variable.basetype)
+		switch (variable.type.base)
 		{
 			case reshadefx::type::t_bool:
 			for (size_t i = 0; i < count; ++i)
@@ -157,7 +157,7 @@ namespace reshade
 	}
 	void runtime::set_uniform_value(uniform &variable, const int *values, size_t count)
 	{
-		switch (variable.basetype)
+		switch (variable.type.base)
 		{
 			case reshadefx::type::t_bool:
 			case reshadefx::type::t_int:
@@ -182,7 +182,7 @@ namespace reshade
 	}
 	void runtime::set_uniform_value(uniform &variable, const unsigned int *values, size_t count)
 	{
-		switch (variable.basetype)
+		switch (variable.type.base)
 		{
 			case reshadefx::type::t_bool:
 			case reshadefx::type::t_int:
@@ -207,7 +207,7 @@ namespace reshade
 	}
 	void runtime::set_uniform_value(uniform &variable, const float *values, size_t count)
 	{
-		switch (variable.basetype)
+		switch (variable.type.base)
 		{
 			case reshadefx::type::t_bool:
 			case reshadefx::type::t_int:
@@ -232,6 +232,9 @@ namespace reshade
 	}
 	void runtime::reset_uniform_value(uniform &variable)
 	{
-		std::memcpy(&_uniform_data_storage[variable.storage_offset], &_uniform_init_storage[variable.storage_offset], variable.storage_size);
+		if (variable.has_initializer_value)
+			memcpy(_uniform_data_storage.data() + variable.storage_offset, variable.initializer_value.as_uint, variable.size);
+		else
+			memset(_uniform_data_storage.data() + variable.storage_offset, 0, variable.size);
 	}
 }

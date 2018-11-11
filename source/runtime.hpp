@@ -67,7 +67,7 @@ namespace reshade
 		/// <summary>
 		/// Returns a boolean indicating whether any effects were loaded.
 		/// </summary>
-		bool is_effect_loaded() const { return _technique_count > 0 && _reload_remaining_effects == 0; }
+		bool is_effect_loaded() const { return !_techniques.empty() && _reload_remaining_effects == 0; }
 
 		/// <summary>
 		/// Find the texture with the specified name.
@@ -165,7 +165,7 @@ namespace reshade
 		/// </summary>
 		/// <param name="module">The effect module to compile.</param>
 		/// <param name="errors">A reference to a buffer to store errors which occur during compilation.</param>
-		virtual bool load_effect(const reshadefx::module &module, std::string &errors) = 0;
+		virtual bool load_effect(const std::string &filename, const reshadefx::module &module, std::string &errors) = 0;
 
 		/// <summary>
 		/// Loads image files and updates all textures with image data.
@@ -214,13 +214,12 @@ namespace reshade
 		std::vector<uniform> _uniforms;
 		std::vector<technique> _techniques;
 		std::vector<unsigned char> _uniform_data_storage;
-		std::vector<unsigned char> _uniform_init_storage;
 
 	private:
 		static bool check_for_update(unsigned long latest_version[3]);
 
-		void active_technique(const std::string &name);
-		void deactive_technique(const std::string &name);
+		void activate_technique(const std::string &name);
+		void deactivate_technique(const std::string &name);
 
 		void reload();
 		void load_preset(const std::filesystem::path &path);
@@ -289,6 +288,7 @@ namespace reshade
 		bool _toggle_key_setting_active = false;
 		bool _log_wordwrap = false;
 		bool _last_reload_successful = true;
+		bool _has_finished_reloading = false;
 		unsigned char _switched_menu = 0;
 		float _imgui_col_background[3] = { 0.117647f, 0.117647f, 0.117647f };
 		float _imgui_col_item_background[3] = { 0.156863f, 0.156863f, 0.156863f };
@@ -300,8 +300,5 @@ namespace reshade
 		unsigned int _effects_expanded_state = 2;
 		char _effect_filter_buffer[64] = { };
 		std::atomic<size_t> _reload_remaining_effects = 0;
-		size_t _texture_count = 0;
-		size_t _uniform_count = 0;
-		size_t _technique_count = 0;
 	};
 }

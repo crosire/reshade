@@ -46,7 +46,7 @@ namespace reshade
 
 	void runtime::draw_overlay()
 	{
-		const bool show_splash = (_last_present_time - _last_reload_time) < std::chrono::seconds(5);
+		const bool show_splash = !_has_finished_reloading || (_last_present_time - _last_reload_time) < std::chrono::seconds(5);
 
 		if (!_overlay_key_setting_active &&
 			_input->is_key_pressed(_menu_key_data[0], _menu_key_data[1], _menu_key_data[2], _menu_key_data[3]))
@@ -868,12 +868,10 @@ namespace reshade
 
 			for (const auto &texture : _textures)
 			{
-				if (texture.impl_reference != texture_reference::none)
-				{
+				if (texture.impl == nullptr || texture.impl_reference != texture_reference::none)
 					continue;
-				}
 
-				ImGui::Text("%s", texture.name.c_str());
+				ImGui::Text("%s", texture.unique_name.c_str());
 			}
 
 			ImGui::EndGroup();
@@ -882,10 +880,8 @@ namespace reshade
 
 			for (const auto& texture : _textures)
 			{
-				if (texture.impl_reference != texture_reference::none)
-				{
+				if (texture.impl == nullptr || texture.impl_reference != texture_reference::none)
 					continue;
-				}
 
 				ImGui::Text("%ux%u +%u ", texture.width, texture.height, (texture.levels - 1));
 			}
@@ -899,6 +895,9 @@ namespace reshade
 
 			for (const auto &technique : _techniques)
 			{
+				if (technique.impl == nullptr)
+					continue;
+
 				if (technique.enabled)
 				{
 					if (technique.passes.size() > 1)
@@ -929,6 +928,9 @@ namespace reshade
 
 			for (const auto &technique : _techniques)
 			{
+				if (technique.impl == nullptr)
+					continue;
+
 				if (technique.enabled)
 				{
 					ImGui::Text("%f ms (CPU)", (technique.average_cpu_duration * 1e-6f));
@@ -945,6 +947,9 @@ namespace reshade
 
 			for (const auto &technique : _techniques)
 			{
+				if (technique.impl == nullptr)
+					continue;
+
 				if (technique.enabled && technique.average_gpu_duration != 0)
 				{
 					ImGui::Text("%f ms (GPU)", (technique.average_gpu_duration * 1e-6f));
@@ -1081,14 +1086,12 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 		std::string current_filename;
 		std::string current_category;
 
-		for (int id = 0; id < static_cast<int>(_uniform_count); id++)
+		for (int id = 0; id < static_cast<int>(_uniforms.size()); id++)
 		{
 			auto &variable = _uniforms[id];
 
-			if (variable.hidden || variable.annotations.count("source"))
-			{
+			if (!variable.loaded || variable.hidden || variable.annotations.count("source"))
 				continue;
-			}
 
 			if (current_filename != variable.effect_filename)
 			{
@@ -1117,10 +1120,10 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 			}
 
 			bool modified = false;
-			const auto ui_type = variable.annotations["ui_type"].as<std::string>();
-			const auto ui_label = variable.annotations.count("ui_label") ? variable.annotations.at("ui_label").as<std::string>() : variable.name;
-			const auto ui_tooltip = variable.annotations["ui_tooltip"].as<std::string>();
-			const auto ui_category = variable.annotations["ui_category"].as<std::string>();
+			const auto ui_type = variable.annotations["ui_type"].second.string_data;
+			const auto ui_label = variable.annotations.count("ui_label") ? variable.annotations.at("ui_label").second.string_data : variable.name;
+			const auto ui_tooltip = variable.annotations["ui_tooltip"].second.string_data;
+			const auto ui_category = variable.annotations["ui_category"].second.string_data;
 
 			if (current_category != ui_category)
 			{
@@ -1147,7 +1150,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 			ImGui::PushID(id);
 
-			switch (variable.displaytype)
+			switch (variable.type.base)
 			{
 				case reshadefx::type::t_bool:
 				{
@@ -1181,15 +1184,15 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 					if (ui_type == "drag")
 					{
-						const int ui_min = variable.annotations["ui_min"].as<int>();
-						const int ui_max = variable.annotations["ui_max"].as<int>();
-						const float ui_step = variable.annotations["ui_step"].as<float>();
+						const int ui_min = variable.annotations["ui_min"].second.as_int[0];
+						const int ui_max = variable.annotations["ui_max"].second.as_int[0];
+						const float ui_step = variable.annotations["ui_step"].first.is_floating_point() ? variable.annotations["ui_step"].second.as_float[0] : static_cast<float>(variable.annotations["ui_step"].second.as_int[0]);
 
-						modified = ImGui::DragScalarN(ui_label.c_str(), variable.displaytype == reshadefx::type::t_int ? ImGuiDataType_S32 : ImGuiDataType_U32, data, variable.rows, ui_step, &ui_min, &ui_max);
+						modified = ImGui::DragScalarN(ui_label.c_str(), variable.type.is_signed() ? ImGuiDataType_S32 : ImGuiDataType_U32, data, variable.type.rows, ui_step, &ui_min, &ui_max);
 					}
 					else if (ui_type == "combo")
 					{
-						std::string items = variable.annotations["ui_items"].as<std::string>();
+						std::string items = variable.annotations["ui_items"].second.string_data;
 
 						// Make sure list is terminated with a zero in case user forgot so no invalid memory is read accidentally
 						if (!items.empty() && items.back() != '\0')
@@ -1199,7 +1202,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 					}
 					else
 					{
-						modified = ImGui::InputScalarN(ui_label.c_str(), variable.displaytype == reshadefx::type::t_int ? ImGuiDataType_S32 : ImGuiDataType_U32, data, variable.rows);
+						modified = ImGui::InputScalarN(ui_label.c_str(), variable.type.is_signed() ? ImGuiDataType_S32 : ImGuiDataType_U32, data, variable.type.rows);
 					}
 
 					if (modified)
@@ -1215,21 +1218,21 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 					if (ui_type == "drag")
 					{
-						const float ui_min = variable.annotations["ui_min"].as<float>();
-						const float ui_max = variable.annotations["ui_max"].as<float>();
-						const float ui_step = variable.annotations["ui_step"].as<float>();
+						const float ui_min = variable.annotations["ui_min"].first.is_floating_point() ? variable.annotations["ui_min"].second.as_float[0] : static_cast<float>(variable.annotations["ui_min"].second.as_int[0]);
+						const float ui_max = variable.annotations["ui_max"].first.is_floating_point() ? variable.annotations["ui_max"].second.as_float[0] : static_cast<float>(variable.annotations["ui_max"].second.as_int[0]);
+						const float ui_step = variable.annotations["ui_step"].first.is_floating_point() ? variable.annotations["ui_step"].second.as_float[0] : static_cast<float>(variable.annotations["ui_step"].second.as_int[0]);
 
-						modified = ImGui::DragScalarN(ui_label.c_str(), ImGuiDataType_Float, data, variable.rows, ui_step, &ui_min, &ui_max, "%.3f");
+						modified = ImGui::DragScalarN(ui_label.c_str(), ImGuiDataType_Float, data, variable.type.rows, ui_step, &ui_min, &ui_max, "%.3f");
 					}
-					else if (ui_type == "input" || (ui_type.empty() && variable.rows < 3))
+					else if (ui_type == "input" || (ui_type.empty() && variable.type.rows < 3))
 					{
-						modified = ImGui::InputScalarN(ui_label.c_str(), ImGuiDataType_Float, data, variable.rows);
+						modified = ImGui::InputScalarN(ui_label.c_str(), ImGuiDataType_Float, data, variable.type.rows);
 					}
-					else if (variable.rows == 3)
+					else if (variable.type.rows == 3)
 					{
 						modified = ImGui::ColorEdit3(ui_label.c_str(), data);
 					}
-					else if (variable.rows == 4)
+					else if (variable.type.rows == 4)
 					{
 						modified = ImGui::ColorEdit4(ui_label.c_str(), data);
 					}
@@ -1308,14 +1311,12 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 		_toggle_key_setting_active = false;
 
-		for (int id = 0, i = 0; id < static_cast<int>(_technique_count); id++, i++)
+		for (int id = 0, i = 0; id < static_cast<int>(_techniques.size()); id++, i++)
 		{
 			auto &technique = _techniques[id];
 
 			if (technique.hidden)
-			{
 				continue;
-			}
 
 			ImGui::PushID(id);
 
@@ -1323,7 +1324,15 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 			if (ImGui::Checkbox(label.c_str(), &technique.enabled))
 			{
+				if (technique.enabled)
+					activate_technique(technique.name);
+				else
+					deactivate_technique(technique.name);
+
 				save_current_preset();
+
+				ImGui::PopID();
+				break;
 			}
 
 			if (ImGui::IsItemActive())
@@ -1418,14 +1427,14 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 			for (auto &uniform : _uniforms)
 			{
-				if (uniform.annotations["hidden"].as<bool>())
+				if (uniform.annotations["hidden"].second.as_uint[0])
 					continue;
 
 				uniform.hidden = false;
 			}
 			for (auto &technique : _techniques)
 			{
-				if (technique.annotations["hidden"].as<bool>())
+				if (technique.annotations["hidden"].second.as_uint[0])
 					continue;
 
 				technique.hidden = false;
@@ -1437,7 +1446,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 			for (auto &uniform : _uniforms)
 			{
-				if (uniform.annotations["hidden"].as<bool>())
+				if (uniform.annotations["hidden"].second.as_uint[0])
 					continue;
 
 				uniform.hidden =
@@ -1448,7 +1457,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 			}
 			for (auto &technique : _techniques)
 			{
-				if (technique.annotations["hidden"].as<bool>())
+				if (technique.annotations["hidden"].second.as_uint[0])
 					continue;
 
 				technique.hidden =

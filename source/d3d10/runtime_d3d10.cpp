@@ -170,27 +170,6 @@ namespace reshade::d3d10
 		}
 	}
 
-	static void copy_annotations(const std::unordered_map<std::string, std::pair<reshadefx::type, reshadefx::constant>> &source, std::unordered_map<std::string, variant> &target)
-	{
-		for (const auto &annotation : source)
-			switch (annotation.second.first.base)
-			{
-			case reshadefx::type::t_int:
-				target.insert({ annotation.first, variant(annotation.second.second.as_int[0]) });
-				break;
-			case reshadefx::type::t_bool:
-			case reshadefx::type::t_uint:
-				target.insert({ annotation.first, variant(annotation.second.second.as_uint[0]) });
-				break;
-			case reshadefx::type::t_float:
-				target.insert({ annotation.first, variant(annotation.second.second.as_float[0]) });
-				break;
-			case reshadefx::type::t_string:
-				target.insert({ annotation.first, variant(annotation.second.second.string_data) });
-				break;
-			}
-	}
-
 	runtime_d3d10::runtime_d3d10(ID3D10Device1 *device, IDXGISwapChain *swapchain) :
 		runtime(device->GetFeatureLevel()), _device(device), _swapchain(swapchain),
 		_stateblock(device)
@@ -702,6 +681,9 @@ namespace reshade::d3d10
 		// Evaluate queries
 		for (technique &technique : _techniques)
 		{
+			if (technique.impl == nullptr)
+				continue;
+
 			d3d10_technique_data &technique_data = *technique.impl->as<d3d10_technique_data>();
 
 			if (technique.enabled && technique_data.query_in_flight)
@@ -876,7 +858,7 @@ namespace reshade::d3d10
 		assert(data != nullptr);
 		assert(texture_impl != nullptr);
 
-		switch (texture.format)
+		switch (static_cast<texture_format>(texture.format))
 		{
 			case texture_format::r8:
 			{
@@ -910,7 +892,7 @@ namespace reshade::d3d10
 		return true;
 	}
 
-	bool runtime_d3d10::load_effect(const reshadefx::module &module, std::string &errors)
+	bool runtime_d3d10::load_effect(const std::string &filename, const reshadefx::module &module, std::string &errors)
 	{
 		if (_d3d_compiler == nullptr)
 			_d3d_compiler = LoadLibraryW(L"d3dcompiler_47.dll");
@@ -982,8 +964,9 @@ namespace reshade::d3d10
 		}
 
 		const size_t storage_base_offset = _uniform_data_storage.size();
-		for (const auto &uniform : module.uniforms)
-			add_uniform(uniform, storage_base_offset);
+		for (uniform &uniform : _uniforms)
+			if (uniform.effect_filename == filename)
+				init_uniform(uniform, storage_base_offset);
 
 		const size_t constant_buffer_size = roundto16(_uniform_data_storage.size() - storage_base_offset);
 		if (constant_buffer_size != 0)
@@ -1001,34 +984,20 @@ namespace reshade::d3d10
 
 		bool success = true;
 
-		for (const auto &texture_info : module.textures)
-		{
-			if (const auto existing_texture = find_texture(texture_info.unique_name); existing_texture != nullptr)
-			{
-				if (texture_info.semantic.empty() && (
-					existing_texture->width != texture_info.width ||
-					existing_texture->height != texture_info.height ||
-					existing_texture->levels != texture_info.levels ||
-					existing_texture->format != static_cast<texture_format>(texture_info.format)))
-					errors += "warning: " + existing_texture->effect_filename + " already created a texture with the same name but different dimensions; textures are shared across all effects, so either rename the variable or adjust the dimensions so they match\n";
-				continue;
-			}
-
-			if (!texture_info.semantic.empty() && (texture_info.semantic != "COLOR" && texture_info.semantic != "DEPTH"))
-				errors += "warning: " + texture_info.unique_name + ": unknown semantic '" + texture_info.semantic + "'\n";
-
-			success &= add_texture(texture_info);
-		}
+		for (texture &texture : _textures)
+			if (texture.effect_filename == filename || (!texture.semantic.empty() && texture.impl == nullptr))
+				success &= init_texture(texture);
 
 		d3d10_technique_data effect;
 		effect.uniform_storage_index = _constant_buffers.size() - 1;
 		effect.uniform_storage_offset = storage_base_offset;
 
 		for (const auto &sampler : module.samplers)
-			success &= add_sampler(sampler, effect);
+			success &= init_sampler(sampler, effect);
 
-		for (const auto &technique : module.techniques)
-			success &= add_technique(technique, effect);
+		for (technique &technique : _techniques)
+			if (technique.effect_filename == filename)
+				success &= init_technique(technique, effect);
 
 		_vs_entry_points.clear();
 		_ps_entry_points.clear();
@@ -1036,46 +1005,27 @@ namespace reshade::d3d10
 		return success;
 	}
 
-	void runtime_d3d10::add_uniform(const reshadefx::uniform_info &info, size_t storage_base_offset)
+	void runtime_d3d10::init_uniform(uniform &obj, size_t storage_base_offset)
 	{
-		uniform obj;
-		obj.name = info.name;
-		obj.rows = info.type.rows;
-		obj.columns = info.type.cols;
-		obj.elements = std::max(1, info.type.array_length);
-		obj.storage_size = info.size;
-		obj.storage_offset = storage_base_offset + info.offset;
-		copy_annotations(info.annotations, obj.annotations);
-		obj.basetype = info.type.base;
-		obj.displaytype = info.type.base;
+		obj.loaded = true;
+		obj.storage_offset = storage_base_offset + obj.offset;
 
 		// Create space for the new variable in the storage area and fill it with the initializer value
-		_uniform_data_storage.resize(obj.storage_offset + obj.storage_size);
+		_uniform_data_storage.resize(obj.storage_offset + obj.size);
 
-		if (info.has_initializer_value)
-			memcpy(_uniform_data_storage.data() + obj.storage_offset, info.initializer_value.as_uint, obj.storage_size);
+		if (obj.has_initializer_value)
+			memcpy(_uniform_data_storage.data() + obj.storage_offset, obj.initializer_value.as_uint, obj.size);
 		else
-			memset(_uniform_data_storage.data() + obj.storage_offset, 0, obj.storage_size);
-
-		_uniforms.push_back(std::move(obj));
+			memset(_uniform_data_storage.data() + obj.storage_offset, 0, obj.size);
 	}
-	bool runtime_d3d10::add_texture(const reshadefx::texture_info &info)
+	bool runtime_d3d10::init_texture(texture &obj)
 	{
-		texture obj;
-		obj.name = info.unique_name;
-		obj.unique_name = info.unique_name;
-		copy_annotations(info.annotations, obj.annotations);
-		obj.width = info.width;
-		obj.height = info.height;
-		obj.levels = info.levels;
-		obj.format = static_cast<texture_format>(info.format);
-
 		D3D10_TEXTURE2D_DESC texdesc = {};
 		texdesc.Width = obj.width;
 		texdesc.Height = obj.height;
 		texdesc.MipLevels = obj.levels;
 		texdesc.ArraySize = 1;
-		texdesc.Format = literal_to_format(obj.format);
+		texdesc.Format = literal_to_format(static_cast<texture_format>(obj.format));
 		texdesc.SampleDesc.Count = 1;
 		texdesc.SampleDesc.Quality = 0;
 		texdesc.Usage = D3D10_USAGE_DEFAULT;
@@ -1085,7 +1035,7 @@ namespace reshade::d3d10
 		obj.impl = std::make_unique<d3d10_tex_data>();
 		const auto obj_data = obj.impl->as<d3d10_tex_data>();
 
-		if (info.semantic == "COLOR")
+		if (obj.semantic == "COLOR")
 		{
 			obj.width = frame_width();
 			obj.height = frame_height();
@@ -1094,7 +1044,7 @@ namespace reshade::d3d10
 			obj_data->srv[0] = _backbuffer_texture_srv[0];
 			obj_data->srv[1] = _backbuffer_texture_srv[1];
 		}
-		else if (info.semantic == "DEPTH")
+		else if (obj.semantic == "DEPTH")
 		{
 			obj.width = frame_width();
 			obj.height = frame_height();
@@ -1109,7 +1059,7 @@ namespace reshade::d3d10
 
 			if (FAILED(hr))
 			{
-				LOG(ERROR) << "Failed to create texture '" << info.unique_name << "' ("
+				LOG(ERROR) << "Failed to create texture '" << obj.unique_name << "' ("
 					"Width = " << texdesc.Width << ", "
 					"Height = " << texdesc.Height << ", "
 					"Format = " << texdesc.Format << ", "
@@ -1128,7 +1078,7 @@ namespace reshade::d3d10
 
 			if (FAILED(hr))
 			{
-				LOG(ERROR) << "Failed to create shader resource view for texture '" << info.unique_name << "' ("
+				LOG(ERROR) << "Failed to create shader resource view for texture '" << obj.unique_name << "' ("
 					"Format = " << srvdesc.Format << ")! "
 					"HRESULT is '" << std::hex << hr << std::dec << "'.";
 				return false;
@@ -1142,7 +1092,7 @@ namespace reshade::d3d10
 
 				if (FAILED(hr))
 				{
-					LOG(ERROR) << "Failed to create shader resource view for texture '" << info.unique_name << "' ("
+					LOG(ERROR) << "Failed to create shader resource view for texture '" << obj.unique_name << "' ("
 						"Format = " << srvdesc.Format << ")! "
 						"HRESULT is '" << std::hex << hr << std::dec << "'.";
 					return false;
@@ -1154,11 +1104,9 @@ namespace reshade::d3d10
 			}
 		}
 
-		_textures.push_back(std::move(obj));
-
 		return true;
 	}
-	bool runtime_d3d10::add_sampler(const reshadefx::sampler_info &info, d3d10_technique_data &effect)
+	bool runtime_d3d10::init_sampler(const reshadefx::sampler_info &info, d3d10_technique_data &effect)
 	{
 		const auto existing_texture = find_texture(info.texture_name);
 
@@ -1213,12 +1161,9 @@ namespace reshade::d3d10
 
 		return true;
 	}
-	bool runtime_d3d10::add_technique(const reshadefx::technique_info &info, const d3d10_technique_data &effect)
+	bool runtime_d3d10::init_technique(technique &obj, const d3d10_technique_data &effect)
 	{
-		technique obj;
 		obj.impl = std::make_unique<d3d10_technique_data>(effect);
-		obj.name = info.name;
-		copy_annotations(info.annotations, obj.annotations);
 
 		auto obj_data = obj.impl->as<d3d10_technique_data>();
 
@@ -1229,10 +1174,10 @@ namespace reshade::d3d10
 		query_desc.Query = D3D10_QUERY_TIMESTAMP_DISJOINT;
 		_device->CreateQuery(&query_desc, &obj_data->timestamp_disjoint);
 
-		for (size_t pass_index = 0; pass_index < info.passes.size(); ++pass_index)
+		for (size_t pass_index = 0; pass_index < obj.passes.size(); ++pass_index)
 		{
-			const auto &pass_info = info.passes[pass_index];
-			auto &pass = static_cast<d3d10_pass_data &>(*obj.passes.emplace_back(std::make_unique<d3d10_pass_data>()));
+			const auto &pass_info = obj.passes[pass_index];
+			auto &pass = static_cast<d3d10_pass_data &>(*obj.passes_data.emplace_back(std::make_unique<d3d10_pass_data>()));
 
 			pass.pixel_shader = _ps_entry_points.at(pass_info.ps_entry_point);
 			pass.vertex_shader = _vs_entry_points.at(pass_info.vs_entry_point);
@@ -1287,7 +1232,7 @@ namespace reshade::d3d10
 
 					if (FAILED(hr))
 					{
-						LOG(ERROR) << "Failed to create render target view for texture '" << texture->name << "' ("
+						LOG(ERROR) << "Failed to create render target view for texture '" << texture->unique_name << "' ("
 							"Format = " << rtvdesc.Format << ")! "
 							"HRESULT is '" << std::hex << hr << std::dec << "'.";
 						return false;
@@ -1321,7 +1266,7 @@ namespace reshade::d3d10
 
 			if (FAILED(hr))
 			{
-				LOG(ERROR) << "Failed to create depth stencil state for pass " << pass_index << " in technique '" << info.name << "'! "
+				LOG(ERROR) << "Failed to create depth stencil state for pass " << pass_index << " in technique '" << obj.name << "'! "
 					"HRESULT is '" << std::hex << hr << std::dec << "'.";
 				return false;
 			}
@@ -1347,7 +1292,7 @@ namespace reshade::d3d10
 
 			if (FAILED(hr))
 			{
-				LOG(ERROR) << "Failed to create blend state for pass " << pass_index << " in technique '" << info.name << "'! "
+				LOG(ERROR) << "Failed to create blend state for pass " << pass_index << " in technique '" << obj.name << "'! "
 					"HRESULT is '" << std::hex << hr << std::dec << "'.";
 				return false;
 			}
@@ -1376,8 +1321,6 @@ namespace reshade::d3d10
 				}
 			}
 		}
-
-		_techniques.push_back(std::move(obj));
 
 		return true;
 	}
@@ -1423,7 +1366,7 @@ namespace reshade::d3d10
 			_device->PSSetConstantBuffers(0, 1, &constant_buffer);
 		}
 
-		for (const auto &pass_object : technique.passes)
+		for (const auto &pass_object : technique.passes_data)
 		{
 			const d3d10_pass_data &pass = *pass_object->as<d3d10_pass_data>();
 
@@ -1978,7 +1921,7 @@ namespace reshade::d3d10
 
 		// Update effect textures
 		for (const auto &technique : _techniques)
-			for (const auto &pass : technique.passes)
+			for (const auto &pass : technique.passes_data)
 				for (auto &srv : pass->as<d3d10_pass_data>()->shader_resources)
 					if (srv.get() == prev) srv = _depthstencil_texture_srv;
 

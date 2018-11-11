@@ -73,57 +73,29 @@ namespace reshade
 		const T *as() const { return dynamic_cast<const T *>(this); }
 	};
 
-	struct texture final
+	struct texture final : reshadefx::texture_info
 	{
-		#pragma region Constructors and Assignment Operators
-		texture() = default;
-		texture(texture &&) = default;
-		texture(const texture &) = delete;
+		texture(const reshadefx::texture_info &init) : texture_info(init) { }
 
-		texture &operator=(texture &&) = default;
-		texture &operator=(const texture &) = delete;
-		#pragma endregion
-
-		std::string name, unique_name, effect_filename;
-		unsigned int width = 0, height = 0, levels = 0;
-		texture_format format = texture_format::unknown;
-		std::unordered_map<std::string, variant> annotations;
+		std::string effect_filename;
 		texture_reference impl_reference = texture_reference::none;
 		std::unique_ptr<base_object> impl;
 	};
-	struct uniform final
+	struct uniform final : reshadefx::uniform_info
 	{
-		#pragma region Constructors and Assignment Operators
-		uniform() = default;
-		uniform(uniform &&) = default;
-		uniform(const uniform &) = delete;
+		uniform(const reshadefx::uniform_info &init) : uniform_info(init) { }
 
-		uniform &operator=(uniform &&) = default;
-		uniform &operator=(const uniform &) = delete;
-		#pragma endregion
-
-		std::string name, unique_name, effect_filename;
-		reshadefx::type::datatype basetype = reshadefx::type::t_float;
-		reshadefx::type::datatype displaytype = reshadefx::type::t_float;
-		unsigned int rows = 0, columns = 0, elements = 0;
-		size_t storage_offset = 0, storage_size = 0;
-		std::unordered_map<std::string, variant> annotations;
+		std::string effect_filename;
+		size_t storage_offset = 0;
 		bool hidden = false;
+		bool loaded = false;
 	};
-	struct technique final
+	struct technique final : reshadefx::technique_info
 	{
-		#pragma region Constructors and Assignment Operators
-		technique() = default;
-		technique(technique &&) = default;
-		technique(const technique &) = delete;
+		technique(const reshadefx::technique_info &init) : technique_info(init) { }
 
-		technique &operator=(technique &&) = default;
-		technique &operator=(const technique &) = delete;
-		#pragma endregion
-
-		std::string name, effect_filename;
-		std::vector<std::unique_ptr<base_object>> passes;
-		std::unordered_map<std::string, variant> annotations;
+		std::string effect_filename;
+		std::vector<std::unique_ptr<base_object>> passes_data;
 		bool hidden = false;
 		bool enabled = false;
 		int32_t timeout = 0;
