@@ -1148,11 +1148,6 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 			ImGui::PushID(id);
 
-			if (ImGui::GetIO().KeyShift && ImGui::IsMouseClicked(1))
-			{
-				reset_uniform_value(variable);
-			}
-
 			switch (variable.displaytype)
 			{
 				case reshadefx::type::t_bool:
@@ -1246,6 +1241,11 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 					}
 					break;
 				}
+			}
+
+			if (ImGui::IsItemHovered() && ImGui::GetIO().KeyShift && ImGui::IsMouseClicked(1))
+			{
+				reset_uniform_value(variable);
 			}
 
 			if (ImGui::IsItemHovered() && !ui_tooltip.empty())
