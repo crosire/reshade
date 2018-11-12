@@ -254,6 +254,7 @@ namespace reshade
 		bool _last_reload_successful = true;
 		bool _has_finished_reloading = false;
 		std::mutex _reload_mutex;
+		std::vector<size_t> _reload_queue;
 		std::atomic<size_t> _reload_remaining_effects = 0;
 
 		std::vector<std::string> _preprocessor_definitions;

@@ -46,7 +46,7 @@ namespace reshade
 
 	void runtime::draw_overlay()
 	{
-		const bool show_splash = !_has_finished_reloading || (_last_present_time - _last_reload_time) < std::chrono::seconds(5);
+		const bool show_splash = _reload_remaining_effects > 0 || (_last_present_time - _last_reload_time) < std::chrono::seconds(5);
 
 		if (!_overlay_key_setting_active &&
 			_input->is_key_pressed(_menu_key_data[0], _menu_key_data[1], _menu_key_data[2], _menu_key_data[3]))
@@ -1090,7 +1090,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 		{
 			auto &variable = _uniforms[id];
 
-			if (!variable.loaded || variable.hidden || variable.annotations.count("source"))
+			if (variable.hidden || variable.annotations.count("source"))
 				continue;
 
 			if (current_filename != variable.effect_filename)

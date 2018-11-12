@@ -88,7 +88,6 @@ namespace reshade
 		std::string effect_filename;
 		size_t storage_offset = 0;
 		bool hidden = false;
-		bool loaded = false;
 	};
 	struct technique final : reshadefx::technique_info
 	{

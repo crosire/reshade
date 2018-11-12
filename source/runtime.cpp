@@ -204,6 +204,18 @@ namespace reshade
 
 			_has_finished_reloading = false;
 		}
+		else if (!_reload_queue.empty())
+		{
+			effect_data &effect = _loaded_effects[_reload_queue.back()];
+
+			_reload_queue.pop_back();
+
+			if (!load_effect(effect))
+			{
+				LOG(ERROR) << "Failed to compile " << effect.source_file << ":\n" << effect.errors;
+				_last_reload_successful = false;
+			}
+		}
 	}
 	void runtime::on_present_effect()
 	{
@@ -217,9 +229,6 @@ namespace reshade
 		// Update all uniform variables
 		for (auto &variable : _uniforms)
 		{
-			if (!variable.loaded)
-				continue;
-
 			const auto it = variable.annotations.find("source");
 
 			if (it == variable.annotations.end())
@@ -480,8 +489,6 @@ namespace reshade
 	}
 	void runtime::load_effect(const std::filesystem::path &path)
 	{
-		LOG(INFO) << "Compiling " << path << " ...";
-
 		std::string source_code, errors;
 		reshadefx::module module;
 
@@ -746,18 +753,7 @@ namespace reshade
 		if (it == _technique_to_effect.end())
 			return;
 
-		effect_data &effect = _loaded_effects[it->second];
-
-		if (!load_effect(effect))
-		{
-			LOG(ERROR) << "Failed to compile " << effect.source_file << ":\n" << effect.errors;
-			_last_reload_successful = false;
-			return;
-		}
-
-		for (uniform &uniform : _uniforms)
-			if (uniform.effect_filename == effect.source_file.filename().u8string())
-				uniform.loaded = true;
+		_reload_queue.push_back(it->second);
 	}
 	void runtime::deactivate_technique(const std::string &name)
 	{
@@ -926,9 +922,7 @@ namespace reshade
 		preset.get("", "TechniqueSorting", technique_sorting_list);
 
 		for (const auto &name : technique_list)
-		{
 			activate_technique(name);
-		}
 
 		if (technique_sorting_list.empty())
 			technique_sorting_list = technique_list;
@@ -941,9 +935,6 @@ namespace reshade
 
 		for (auto &variable : _uniforms)
 		{
-			if (!variable.loaded)
-				continue;
-
 			int values_int[16] = {};
 			unsigned int values_uint[16] = {};
 			float values_float[16] = {};
@@ -1003,7 +994,7 @@ namespace reshade
 
 		for (const auto &variable : _uniforms)
 		{
-			if (!variable.loaded || variable.annotations.count("source") || !active_effect_filenames.count(variable.effect_filename))
+			if (variable.annotations.count("source") || !active_effect_filenames.count(variable.effect_filename))
 				continue;
 
 			int values_int[16] = {};
