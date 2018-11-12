@@ -218,10 +218,6 @@ bool reshade::input::is_key_down(unsigned int keycode) const
 
 	return (_keys[keycode] & 0x80) == 0x80;
 }
-bool reshade::input::is_key_down(unsigned int keycode, bool ctrl, bool shift, bool alt) const
-{
-	return is_key_down(keycode) && (!ctrl || is_key_down(VK_CONTROL)) && (!shift || is_key_down(VK_SHIFT)) && (!alt || is_key_down(VK_MENU));
-}
 bool reshade::input::is_key_pressed(unsigned int keycode) const
 {
 	assert(keycode < 256);

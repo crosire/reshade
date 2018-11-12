@@ -21,9 +21,9 @@ namespace reshade
 		static std::shared_ptr<input> register_window(window_handle window);
 
 		bool is_key_down(unsigned int keycode) const;
-		bool is_key_down(unsigned int keycode, bool ctrl, bool shift, bool alt) const;
 		bool is_key_pressed(unsigned int keycode) const;
 		bool is_key_pressed(unsigned int keycode, bool ctrl, bool shift, bool alt) const;
+		bool is_key_pressed(const unsigned int key[4]) const { return is_key_pressed(key[0], key[1] != 0, key[2] != 0, key[3] != 0); }
 		bool is_key_released(unsigned int keycode) const;
 		bool is_any_key_down() const;
 		bool is_any_key_pressed() const;

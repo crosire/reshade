@@ -30,6 +30,20 @@ extern std::filesystem::path g_windows_path;
 
 namespace reshade
 {
+	enum class special_uniform
+	{
+		none,
+		frame_time,
+		frame_count,
+		random,
+		ping_pong,
+		date,
+		timer,
+		key,
+		mouse_point,
+		mouse_delta,
+		mouse_button,
+	};
 	enum class texture_reference
 	{
 		none,
@@ -71,6 +85,7 @@ namespace reshade
 		std::string effect_filename;
 		size_t storage_offset = 0;
 		bool hidden = false;
+		special_uniform special = special_uniform::none;
 	};
 	struct technique final : reshadefx::technique_info
 	{
@@ -82,7 +97,7 @@ namespace reshade
 		bool hidden = false;
 		bool enabled = false;
 		int32_t timeout = 0;
-		int32_t timeleft = 0;
+		int64_t timeleft = 0;
 		uint32_t toggle_key_data[4];
 		moving_average<uint64_t, 60> average_cpu_duration;
 		moving_average<uint64_t, 60> average_gpu_duration;
@@ -129,10 +144,10 @@ namespace reshade
 		/// <param name="variable">The variable to retrieve the value from.</param>
 		/// <param name="data">The buffer to store the value in.</param>
 		/// <param name="size">The size of the buffer.</param>
-		void get_uniform_value(const uniform &variable, unsigned char *data, size_t size) const;
+		void get_uniform_value(const uniform &variable, uint8_t *data, size_t size) const;
 		void get_uniform_value(const uniform &variable, bool *values, size_t count) const;
-		void get_uniform_value(const uniform &variable, int *values, size_t count) const;
-		void get_uniform_value(const uniform &variable, unsigned int *values, size_t count) const;
+		void get_uniform_value(const uniform &variable, int32_t *values, size_t count) const;
+		void get_uniform_value(const uniform &variable, uint32_t *values, size_t count) const;
 		void get_uniform_value(const uniform &variable, float *values, size_t count) const;
 		/// <summary>
 		/// Update the value of a uniform variable.
@@ -140,11 +155,16 @@ namespace reshade
 		/// <param name="variable">The variable to update.</param>
 		/// <param name="data">The value data to update the variable to.</param>
 		/// <param name="size">The size of the value.</param>
-		void set_uniform_value(uniform &variable, const unsigned char *data, size_t size);
+		void set_uniform_value(uniform &variable, const uint8_t *data, size_t size);
 		void set_uniform_value(uniform &variable, const bool *values, size_t count);
-		void set_uniform_value(uniform &variable, const int *values, size_t count);
-		void set_uniform_value(uniform &variable, const unsigned int *values, size_t count);
+		void set_uniform_value(uniform &variable, const int32_t *values, size_t count);
+		void set_uniform_value(uniform &variable, const uint32_t *values, size_t count);
 		void set_uniform_value(uniform &variable, const float *values, size_t count);
+		void set_uniform_value(uniform &variable, bool     x, bool     y = false, bool     z = false, bool     w = false) { const bool     data[4] = { x, y, z, w }; set_uniform_value(variable, data, 4); }
+		void set_uniform_value(uniform &variable, int32_t  x, int32_t  y = 0,     int32_t  z = 0,     int32_t  w = 0    ) { const int32_t  data[4] = { x, y, z, w }; set_uniform_value(variable, data, 4); }
+		void set_uniform_value(uniform &variable, uint32_t x, uint32_t y = 0u,    uint32_t z = 0u,    uint32_t w = 0u   ) { const uint32_t data[4] = { x, y, z, w }; set_uniform_value(variable, data, 4); }
+		void set_uniform_value(uniform &variable, float    x, float    y = 0.0f,  float    z = 0.0f,  float    w = 0.0f ) { const float    data[4] = { x, y, z, w }; set_uniform_value(variable, data, 4); }
+
 		/// <summary>
 		/// Reset a uniform variable to its initial value.
 		/// </summary>
@@ -156,10 +176,7 @@ namespace reshade
 		/// </summary>
 		/// <param name="label">Name of the tab in the menu bar.</param>
 		/// <param name="function">The callback function.</param>
-		void subscribe_to_menu(std::string label, std::function<void()> function)
-		{
-			_menu_callables.push_back({ label, function });
-		}
+		void subscribe_to_menu(std::string label, std::function<void()> function) { _menu_callables.push_back({ label, function }); }
 		/// <summary>
 		/// Register a function to be called when user configuration is loaded.
 		/// </summary>
@@ -268,21 +285,23 @@ namespace reshade
 	private:
 		static bool check_for_update(unsigned long latest_version[3]);
 
+		void reload();
+
 		void enable_technique(technique &technique);
 		void disable_technique(technique &technique);
 
-		void reload();
 		void load_preset(const std::filesystem::path &path);
 		void load_current_preset();
 		void save_preset(const std::filesystem::path &path) const;
 		void save_preset(const std::filesystem::path &path, const std::filesystem::path &save_path) const;
 		void save_current_preset() const;
+
 		void save_screenshot() const;
 
 		void init_ui();
 		void deinit_ui();
 
-		void draw_overlay();
+		void draw_ui();
 		void draw_overlay_menu();
 		void draw_overlay_menu_home();
 		void draw_overlay_menu_settings();
@@ -295,47 +314,50 @@ namespace reshade
 		void filter_techniques(const std::string &filter);
 
 		const unsigned int _renderer_id;
+		bool _needs_update = false;
+		unsigned long _latest_version[3] = {};
 		bool _is_initialized = false;
 
-		std::vector<struct effect_data> _loaded_effects;
-		bool _last_reload_successful = true;
-		bool _has_finished_reloading = false;
-		std::mutex _reload_mutex;
-		std::vector<size_t> _reload_queue;
-		std::atomic<size_t> _reload_remaining_effects = 0;
+		bool _effects_enabled = true;
+		unsigned int _reload_key_data[4];
+		unsigned int _effects_key_data[4];
+		unsigned int _screenshot_key_data[4];
+		int _screenshot_format = 0;
+		std::filesystem::path _screenshot_path;
+		std::filesystem::path _configuration_path;
+
+		int _current_preset = -1;
+		std::vector<std::filesystem::path> _preset_files;
 
 		std::vector<std::string> _preprocessor_definitions;
 		std::vector<std::filesystem::path> _effect_search_paths;
 		std::vector<std::filesystem::path> _texture_search_paths;
 
-		std::vector<std::filesystem::path> _preset_files;
+		bool _last_reload_successful = true;
+		bool _has_finished_reloading = false;
+		std::mutex _reload_mutex;
+		std::vector<size_t> _reload_queue;
+		std::atomic<size_t> _reload_remaining_effects = 0;
+		std::vector<struct effect_data> _loaded_effects;
+
+		int _date[4] = {};
+		std::chrono::high_resolution_clock::duration _last_frame_duration;
 		std::chrono::high_resolution_clock::time_point _start_time;
 		std::chrono::high_resolution_clock::time_point _last_reload_time;
 		std::chrono::high_resolution_clock::time_point _last_present_time;
-		std::chrono::high_resolution_clock::duration _last_frame_duration;
-		int _date[4] = { };
+
 		std::vector<std::pair<std::string, std::function<void()>>> _menu_callables;
-		std::vector<std::function<void(const ini_file &)>> _load_config_callables;
 		std::vector<std::function<void(ini_file &)>> _save_config_callables;
+		std::vector<std::function<void(const ini_file &)>> _load_config_callables;
+
 		size_t _menu_index = 0;
-		int _screenshot_format = 0;
-		int _current_preset = -1;
 		int _selected_technique = -1;
 		int _input_processing_mode = 2;
 		unsigned int _menu_key_data[4];
-		unsigned int _screenshot_key_data[4];
-		unsigned int _reload_key_data[4];
-		unsigned int _effects_key_data[4];
-		std::filesystem::path _configuration_path;
-		std::filesystem::path _screenshot_path;
 		std::string _focus_effect;
-		bool _needs_update = false;
-		unsigned long _latest_version[3] = { };
 		bool _show_menu = false;
 		bool _show_clock = false;
 		bool _show_framerate = false;
-		bool _effects_enabled = true;
-		bool _is_fast_loading = false;
 		bool _screenshot_include_preset = false;
 		bool _screenshot_include_configuration = false;
 		bool _no_font_scaling = false;

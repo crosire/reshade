@@ -44,6 +44,9 @@ static inline std::vector<std::string> split(const std::string &str, char delim)
 
 void reshade::runtime::init_ui()
 {
+	_menu_key_data[0] = 0x71; // VK_F2
+	_menu_key_data[2] = true; // VK_SHIFT
+
 	_imgui_context = ImGui::CreateContext();
 
 	auto &imgui_io = _imgui_context->IO;
@@ -94,11 +97,15 @@ void reshade::runtime::init_ui()
 	subscribe_to_menu("About", [this]() { draw_overlay_menu_about(); });
 
 	_load_config_callables.push_back([this](const ini_file &config) {
+		config.get("INPUT", "KeyMenu", _menu_key_data);
+		config.get("INPUT", "InputProcessing", _input_processing_mode);
+
 		config.get("GENERAL", "ShowClock", _show_clock);
 		config.get("GENERAL", "ShowFPS", _show_framerate);
 		config.get("GENERAL", "FontGlobalScale", _imgui_context->IO.FontGlobalScale);
 		config.get("GENERAL", "NoFontScaling", _no_font_scaling);
 		config.get("GENERAL", "SaveWindowState", _save_imgui_window_state);
+		config.get("GENERAL", "TutorialProgress", _tutorial_index);
 
 		_imgui_context->IO.IniFilename = _save_imgui_window_state ? "ReShadeGUI.ini" : nullptr;
 
@@ -148,11 +155,15 @@ void reshade::runtime::init_ui()
 		_imgui_context->Style.Colors[ImGuiCol_TextSelectedBg] = ImVec4(_imgui_col_active[0], _imgui_col_active[1], _imgui_col_active[2], 0.43f);
 	});
 	_save_config_callables.push_back([this](ini_file &config) {
+		config.set("INPUT", "KeyMenu", _menu_key_data);
+		config.set("INPUT", "InputProcessing", _input_processing_mode);
+
 		config.set("GENERAL", "ShowClock", _show_clock);
 		config.set("GENERAL", "ShowFPS", _show_framerate);
 		config.set("GENERAL", "FontGlobalScale", _imgui_context->IO.FontGlobalScale);
 		config.set("GENERAL", "NoReloadOnInit", _no_reload_on_init);
 		config.set("GENERAL", "SaveWindowState", _save_imgui_window_state);
+		config.set("GENERAL", "TutorialProgress", _tutorial_index);
 
 		config.set("STYLE", "Alpha", _imgui_context->Style.Alpha);
 		config.set("STYLE", "ColBackground", _imgui_col_background);
@@ -167,15 +178,12 @@ void reshade::runtime::deinit_ui()
 	ImGui::DestroyContext(_imgui_context);
 }
 
-void reshade::runtime::draw_overlay()
+void reshade::runtime::draw_ui()
 {
-	const bool show_splash = _reload_remaining_effects > 0 || (_last_present_time - _last_reload_time) < std::chrono::seconds(5);
+	const bool show_splash = _reload_remaining_effects > 0 || !_reload_queue.empty() || (_last_present_time - _last_reload_time) < std::chrono::seconds(5);
 
-	if (!_overlay_key_setting_active &&
-		_input->is_key_pressed(_menu_key_data[0], _menu_key_data[1], _menu_key_data[2], _menu_key_data[3]))
-	{
+	if (!_overlay_key_setting_active && _input->is_key_pressed(_menu_key_data))
 		_show_menu = !_show_menu;
-	}
 
 	_effects_expanded_state &= 2;
 
@@ -254,6 +262,13 @@ void reshade::runtime::draw_overlay()
 				"This might take a while. The application could become unresponsive for some time.",
 				static_cast<unsigned int>(_reload_remaining_effects));
 		}
+		else if (!_reload_queue.empty())
+		{
+			ImGui::Text(
+				"Compiling (%u effects remaining) ... "
+				"This might take a while. The application could become unresponsive for some time.",
+				static_cast<unsigned int>(_reload_queue.size()));
+		}
 		else
 		{
 			ImGui::Text(
@@ -320,34 +335,24 @@ void reshade::runtime::draw_overlay()
 
 	if (_show_menu && _reload_remaining_effects == 0)
 	{
-		if (_is_fast_loading)
+		ImGui::SetNextWindowPos(ImVec2(20, 20), ImGuiCond_FirstUseEver);
+		ImGui::SetNextWindowSize(ImVec2(730.0f, _height - 40.0f), ImGuiCond_FirstUseEver);
+		ImGui::Begin("ReShade " VERSION_STRING_FILE " by crosire###Main", &_show_menu,
+			ImGuiWindowFlags_MenuBar |
+			ImGuiWindowFlags_NoCollapse);
+
+		// Double click the window title bar to reset position and size
+		const ImRect titlebar_rect = ImGui::GetCurrentWindow()->TitleBarRect();
+
+		if (ImGui::IsMouseDoubleClicked(0) && ImGui::IsMouseHoveringRect(titlebar_rect.Min, titlebar_rect.Max, false))
 		{
-			// Need to do a full reload since some effects might be missing due to fast loading
-			reload();
-
-			assert(!_is_fast_loading);
+			ImGui::SetWindowPos(ImVec2(20, 20));
+			ImGui::SetWindowSize(ImVec2(730.0f, _height - 40.0f));
 		}
-		else
-		{
-			ImGui::SetNextWindowPos(ImVec2(20, 20), ImGuiCond_FirstUseEver);
-			ImGui::SetNextWindowSize(ImVec2(730.0f, _height - 40.0f), ImGuiCond_FirstUseEver);
-			ImGui::Begin("ReShade " VERSION_STRING_FILE " by crosire###Main", &_show_menu,
-				ImGuiWindowFlags_MenuBar |
-				ImGuiWindowFlags_NoCollapse);
 
-			// Double click the window title bar to reset position and size
-			const ImRect titlebar_rect = ImGui::GetCurrentWindow()->TitleBarRect();
+		draw_overlay_menu();
 
-			if (ImGui::IsMouseDoubleClicked(0) && ImGui::IsMouseHoveringRect(titlebar_rect.Min, titlebar_rect.Max, false))
-			{
-				ImGui::SetWindowPos(ImVec2(20, 20));
-				ImGui::SetWindowSize(ImVec2(730.0f, _height - 40.0f));
-			}
-
-			draw_overlay_menu();
-
-			ImGui::End();
-		}
+		ImGui::End();
 	}
 
 	// Render ImGui widgets and windows
@@ -1445,7 +1450,7 @@ void reshade::runtime::draw_overlay_technique_editor()
 	bool current_tree_is_closed = true;
 	std::string current_filename;
 	char edit_buffer[2048];
-	const float toggle_key_text_offset = ImGui::GetWindowContentRegionWidth() - ImGui::CalcTextSize("Toggle Key").x - 201;
+	const float toggle_key_text_offset = ImGui::GetWindowContentRegionWidth() - 201;
 
 	_toggle_key_setting_active = false;
 
@@ -1468,9 +1473,6 @@ void reshade::runtime::draw_overlay_technique_editor()
 				disable_technique(technique);
 
 			save_current_preset();
-
-			ImGui::PopID();
-			break;
 		}
 
 		if (ImGui::IsItemActive())
@@ -1496,8 +1498,6 @@ void reshade::runtime::draw_overlay_technique_editor()
 		memcpy(edit_buffer + offset, keyboard_keys[technique.toggle_key_data[0]], sizeof(*keyboard_keys));
 
 		ImGui::SameLine(toggle_key_text_offset);
-		ImGui::TextUnformatted("Toggle Key");
-		ImGui::SameLine();
 		ImGui::InputTextEx("##ToggleKey", edit_buffer, sizeof(edit_buffer), ImVec2(200, 0), ImGuiInputTextFlags_ReadOnly);
 
 		if (ImGui::IsItemActive())
