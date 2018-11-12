@@ -89,6 +89,10 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 
 	ShowWindow(window_handle, nCmdShow);
 
+	// Avoid resize caused by 'ShowWindow' call
+	s_resize_w = 0;
+	s_resize_h = 0;
+
 	MSG msg = {};
 
 	#pragma region D3D9 Implementation
