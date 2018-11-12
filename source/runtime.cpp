@@ -340,7 +340,13 @@ void reshade::runtime::load_effect(const std::filesystem::path &path)
 		if (!pp.append_file(path))
 		{
 			LOG(ERROR) << "Failed to pre-process " << path << ":\n" << pp.errors();
+
 			_last_reload_successful = false;
+			if (--_reload_remaining_effects == 0)
+			{
+				_last_reload_time = std::chrono::high_resolution_clock::now();
+				_has_finished_reloading = true;
+			}
 			return;
 		}
 
@@ -364,7 +370,13 @@ void reshade::runtime::load_effect(const std::filesystem::path &path)
 		if (!parser.parse(source_code, _renderer_id & 0x10000 ? reshadefx::codegen::backend::glsl : reshadefx::codegen::backend::hlsl, shader_model, true, _performance_mode, module))
 		{
 			LOG(ERROR) << "Failed to compile " << path << ":\n" << parser.errors();
+
 			_last_reload_successful = false;
+			if (--_reload_remaining_effects == 0)
+			{
+				_last_reload_time = std::chrono::high_resolution_clock::now();
+				_has_finished_reloading = true;
+			}
 			return;
 		}
 
