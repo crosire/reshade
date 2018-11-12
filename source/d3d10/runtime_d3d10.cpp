@@ -68,46 +68,6 @@ namespace reshade::d3d10
 			return D3D10_STENCIL_OP_DECR;
 		}
 	}
-	static DXGI_FORMAT literal_to_format(texture_format value)
-	{
-		switch (value)
-		{
-		case texture_format::r8:
-			return DXGI_FORMAT_R8_UNORM;
-		case texture_format::r16f:
-			return DXGI_FORMAT_R16_FLOAT;
-		case texture_format::r32f:
-			return DXGI_FORMAT_R32_FLOAT;
-		case texture_format::rg8:
-			return DXGI_FORMAT_R8G8_UNORM;
-		case texture_format::rg16:
-			return DXGI_FORMAT_R16G16_UNORM;
-		case texture_format::rg16f:
-			return DXGI_FORMAT_R16G16_FLOAT;
-		case texture_format::rg32f:
-			return DXGI_FORMAT_R32G32_FLOAT;
-		case texture_format::rgba8:
-			return DXGI_FORMAT_R8G8B8A8_TYPELESS;
-		case texture_format::rgba16:
-			return DXGI_FORMAT_R16G16B16A16_UNORM;
-		case texture_format::rgba16f:
-			return DXGI_FORMAT_R16G16B16A16_FLOAT;
-		case texture_format::rgba32f:
-			return DXGI_FORMAT_R32G32B32A32_FLOAT;
-		case texture_format::dxt1:
-			return DXGI_FORMAT_BC1_TYPELESS;
-		case texture_format::dxt3:
-			return DXGI_FORMAT_BC2_TYPELESS;
-		case texture_format::dxt5:
-			return DXGI_FORMAT_BC3_TYPELESS;
-		case texture_format::latc1:
-			return DXGI_FORMAT_BC4_UNORM;
-		case texture_format::latc2:
-			return DXGI_FORMAT_BC5_UNORM;
-		}
-
-		return DXGI_FORMAT_UNKNOWN;
-	}
 
 	DXGI_FORMAT make_format_srgb(DXGI_FORMAT format)
 	{
@@ -846,45 +806,35 @@ namespace reshade::d3d10
 	bool runtime_d3d10::update_texture(texture &texture, const uint8_t *data)
 	{
 		if (texture.impl_reference != texture_reference::none)
-		{
 			return false;
-		}
 
 		const auto texture_impl = texture.impl->as<d3d10_tex_data>();
 
 		assert(data != nullptr);
 		assert(texture_impl != nullptr);
 
-		switch (static_cast<texture_format>(texture.format))
+		switch (texture.format)
 		{
-			case texture_format::r8:
-			{
-				std::vector<uint8_t> data2(texture.width * texture.height);
-				for (size_t i = 0, k = 0; i < texture.width * texture.height * 4; i += 4, k++)
-					data2[k] = data[i];
-				_device->UpdateSubresource(texture_impl->texture.get(), 0, nullptr, data2.data(), texture.width, texture.width * texture.height);
-				break;
-			}
-			case texture_format::rg8:
-			{
-				std::vector<uint8_t> data2(texture.width * texture.height * 2);
-				for (size_t i = 0, k = 0; i < texture.width * texture.height * 4; i += 4, k += 2)
-					data2[k] = data[i],
-					data2[k + 1] = data[i + 1];
-				_device->UpdateSubresource(texture_impl->texture.get(), 0, nullptr, data2.data(), texture.width * 2, texture.width * texture.height * 2);
-				break;
-			}
-			default:
-			{
-				_device->UpdateSubresource(texture_impl->texture.get(), 0, nullptr, data, texture.width * 4, texture.width * texture.height * 4);
-				break;
-			}
+		case reshadefx::texture_format::r8: {
+			std::vector<uint8_t> data2(texture.width * texture.height);
+			for (size_t i = 0, k = 0; i < texture.width * texture.height * 4; i += 4, k++)
+				data2[k] = data[i];
+			_device->UpdateSubresource(texture_impl->texture.get(), 0, nullptr, data2.data(), texture.width, texture.width * texture.height);
+			break; }
+		case reshadefx::texture_format::rg8: {
+			std::vector<uint8_t> data2(texture.width * texture.height * 2);
+			for (size_t i = 0, k = 0; i < texture.width * texture.height * 4; i += 4, k += 2)
+				data2[k] = data[i],
+				data2[k + 1] = data[i + 1];
+			_device->UpdateSubresource(texture_impl->texture.get(), 0, nullptr, data2.data(), texture.width * 2, texture.width * texture.height * 2);
+			break; }
+		default:
+			_device->UpdateSubresource(texture_impl->texture.get(), 0, nullptr, data, texture.width * 4, texture.width * texture.height * 4);
+			break;
 		}
 
 		if (texture.levels > 1)
-		{
 			_device->GenerateMips(texture_impl->srv[0].get());
-		}
 
 		return true;
 	}
@@ -980,7 +930,8 @@ namespace reshade::d3d10
 		bool success = true;
 
 		for (texture &texture : _textures)
-			if (texture.effect_filename == effect.source_file.filename().u8string() || (!texture.semantic.empty() && texture.impl == nullptr))
+			if (texture.effect_filename == effect.source_file.filename().u8string()
+				|| (texture.impl_reference != texture_reference::none && texture.impl == nullptr)) // Always initialize special textures, since they are shared across all effect files
 				success &= init_texture(texture);
 
 		d3d10_technique_data technique_init;
@@ -1058,21 +1009,19 @@ namespace reshade::d3d10
 
 		const auto texture_data = texture.impl->as<d3d10_tex_data>();
 
-		if (texture.semantic == "COLOR")
+		if (texture.impl_reference == texture_reference::back_buffer)
 		{
 			texture.width = frame_width();
 			texture.height = frame_height();
-			texture.impl_reference = texture_reference::back_buffer;
 
 			texture_data->srv[0] = _backbuffer_texture_srv[0];
 			texture_data->srv[1] = _backbuffer_texture_srv[1];
 			return true;
 		}
-		if (texture.semantic == "DEPTH")
+		if (texture.impl_reference == texture_reference::depth_buffer)
 		{
 			texture.width = frame_width();
 			texture.height = frame_height();
-			texture.impl_reference = texture_reference::depth_buffer;
 
 			texture_data->srv[0] = _depthstencil_texture_srv;
 			texture_data->srv[1] = _depthstencil_texture_srv;
@@ -1084,12 +1033,63 @@ namespace reshade::d3d10
 		texdesc.Height = texture.height;
 		texdesc.MipLevels = texture.levels;
 		texdesc.ArraySize = 1;
-		texdesc.Format = literal_to_format(static_cast<texture_format>(texture.format));
 		texdesc.SampleDesc.Count = 1;
 		texdesc.SampleDesc.Quality = 0;
 		texdesc.Usage = D3D10_USAGE_DEFAULT;
 		texdesc.BindFlags = D3D10_BIND_SHADER_RESOURCE | D3D10_BIND_RENDER_TARGET;
 		texdesc.MiscFlags = D3D10_RESOURCE_MISC_GENERATE_MIPS;
+
+		switch (texture.format)
+		{
+		case reshadefx::texture_format::r8:
+			texdesc.Format = DXGI_FORMAT_R8_UNORM;
+			break;
+		case reshadefx::texture_format::r16f:
+			texdesc.Format = DXGI_FORMAT_R16_FLOAT;
+			break;
+		case reshadefx::texture_format::r32f:
+			texdesc.Format = DXGI_FORMAT_R32_FLOAT;
+			break;
+		case reshadefx::texture_format::rg8:
+			texdesc.Format = DXGI_FORMAT_R8G8_UNORM;
+			break;
+		case reshadefx::texture_format::rg16:
+			texdesc.Format = DXGI_FORMAT_R16G16_UNORM;
+			break;
+		case reshadefx::texture_format::rg16f:
+			texdesc.Format = DXGI_FORMAT_R16G16_FLOAT;
+			break;
+		case reshadefx::texture_format::rg32f:
+			texdesc.Format = DXGI_FORMAT_R32G32_FLOAT;
+			break;
+		case reshadefx::texture_format::rgba8:
+			texdesc.Format = DXGI_FORMAT_R8G8B8A8_TYPELESS;
+			break;
+		case reshadefx::texture_format::rgba16:
+			texdesc.Format = DXGI_FORMAT_R16G16B16A16_UNORM;
+			break;
+		case reshadefx::texture_format::rgba16f:
+			texdesc.Format = DXGI_FORMAT_R16G16B16A16_FLOAT;
+			break;
+		case reshadefx::texture_format::rgba32f:
+			texdesc.Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
+			break;
+		case reshadefx::texture_format::dxt1:
+			texdesc.Format = DXGI_FORMAT_BC1_TYPELESS;
+			break;
+		case reshadefx::texture_format::dxt3:
+			texdesc.Format = DXGI_FORMAT_BC2_TYPELESS;
+			break;
+		case reshadefx::texture_format::dxt5:
+			texdesc.Format = DXGI_FORMAT_BC3_TYPELESS;
+			break;
+		case reshadefx::texture_format::latc1:
+			texdesc.Format = DXGI_FORMAT_BC4_UNORM;
+			break;
+		case reshadefx::texture_format::latc2:
+			texdesc.Format = DXGI_FORMAT_BC5_UNORM;
+			break;
+		}
 
 		HRESULT hr = _device->CreateTexture2D(&texdesc, nullptr, &texture_data->texture);
 

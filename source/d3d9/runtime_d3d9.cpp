@@ -66,46 +66,6 @@ namespace reshade::d3d9
 			return D3DSTENCILOP_DECR;
 		}
 	}
-	static D3DFORMAT literal_to_format(texture_format value)
-	{
-		switch (value)
-		{
-		case texture_format::r8:
-			return D3DFMT_A8R8G8B8;
-		case texture_format::r16f:
-			return D3DFMT_R16F;
-		case texture_format::r32f:
-			return D3DFMT_R32F;
-		case texture_format::rg8:
-			return D3DFMT_A8R8G8B8;
-		case texture_format::rg16:
-			return D3DFMT_G16R16;
-		case texture_format::rg16f:
-			return D3DFMT_G16R16F;
-		case texture_format::rg32f:
-			return D3DFMT_G32R32F;
-		case texture_format::rgba8:
-			return D3DFMT_A8R8G8B8;
-		case texture_format::rgba16:
-			return D3DFMT_A16B16G16R16;
-		case texture_format::rgba16f:
-			return D3DFMT_A16B16G16R16F;
-		case texture_format::rgba32f:
-			return D3DFMT_A32B32G32R32F;
-		case texture_format::dxt1:
-			return D3DFMT_DXT1;
-		case texture_format::dxt3:
-			return D3DFMT_DXT3;
-		case texture_format::dxt5:
-			return D3DFMT_DXT5;
-		case texture_format::latc1:
-			return static_cast<D3DFORMAT>(MAKEFOURCC('A', 'T', 'I', '1'));
-		case texture_format::latc2:
-			return static_cast<D3DFORMAT>(MAKEFOURCC('A', 'T', 'I', '2'));
-		}
-
-		return D3DFMT_UNKNOWN;
-	}
 
 	runtime_d3d9::runtime_d3d9(IDirect3DDevice9 *device, IDirect3DSwapChain9 *swapchain) :
 		runtime(0x9300), _device(device), _swapchain(swapchain)
@@ -624,9 +584,7 @@ namespace reshade::d3d9
 	bool runtime_d3d9::update_texture(texture &texture, const uint8_t *data)
 	{
 		if (texture.impl_reference != texture_reference::none)
-		{
 			return false;
-		}
 
 		const auto texture_impl = texture.impl->as<d3d9_tex_data>();
 
@@ -658,32 +616,32 @@ namespace reshade::d3d9
 		const UINT size = std::min(texture.width * 4, static_cast<UINT>(mapped_rect.Pitch)) * texture.height;
 		auto mapped_data = static_cast<BYTE *>(mapped_rect.pBits);
 
-		switch (static_cast<texture_format>(texture.format))
+		switch (texture.format)
 		{
-			case texture_format::r8:
-				for (UINT i = 0; i < size; i += 4, mapped_data += 4)
-					mapped_data[0] = 0,
-					mapped_data[1] = 0,
-					mapped_data[2] = data[i],
-					mapped_data[3] = 0;
-				break;
-			case texture_format::rg8:
-				for (UINT i = 0; i < size; i += 4, mapped_data += 4)
-					mapped_data[0] = 0,
-					mapped_data[1] = data[i + 1],
-					mapped_data[2] = data[i],
-					mapped_data[3] = 0;
-				break;
-			case texture_format::rgba8:
-				for (UINT i = 0; i < size; i += 4, mapped_data += 4)
-					mapped_data[0] = data[i + 2],
-					mapped_data[1] = data[i + 1],
-					mapped_data[2] = data[i],
-					mapped_data[3] = data[i + 3];
-				break;
-			default:
-				std::memcpy(mapped_data, data, size);
-				break;
+		case reshadefx::texture_format::r8:
+			for (UINT i = 0; i < size; i += 4, mapped_data += 4)
+				mapped_data[0] = 0,
+				mapped_data[1] = 0,
+				mapped_data[2] = data[i],
+				mapped_data[3] = 0;
+			break;
+		case reshadefx::texture_format::rg8:
+			for (UINT i = 0; i < size; i += 4, mapped_data += 4)
+				mapped_data[0] = 0,
+				mapped_data[1] = data[i + 1],
+				mapped_data[2] = data[i],
+				mapped_data[3] = 0;
+			break;
+		case reshadefx::texture_format::rgba8:
+			for (UINT i = 0; i < size; i += 4, mapped_data += 4)
+				mapped_data[0] = data[i + 2],
+				mapped_data[1] = data[i + 1],
+				mapped_data[2] = data[i],
+				mapped_data[3] = data[i + 3];
+			break;
+		default:
+			std::memcpy(mapped_data, data, size);
+			break;
 		}
 
 		mem_texture->UnlockRect(0);
@@ -698,32 +656,28 @@ namespace reshade::d3d9
 
 		return true;
 	}
-	bool runtime_d3d9::update_texture_reference(texture &texture, texture_reference id)
+	bool runtime_d3d9::update_texture_reference(texture &texture)
 	{
 		com_ptr<IDirect3DTexture9> new_reference;
 
-		switch (id)
+		switch (texture.impl_reference)
 		{
-			case texture_reference::back_buffer:
-				new_reference = _backbuffer_texture;
-				break;
-			case texture_reference::depth_buffer:
-				new_reference = _depthstencil_texture;
-				break;
-			default:
-				return false;
+		case texture_reference::back_buffer:
+			new_reference = _backbuffer_texture;
+			break;
+		case texture_reference::depth_buffer:
+			new_reference = _depthstencil_texture;
+			break;
+		default:
+			return false;
 		}
-
-		texture.impl_reference = id;
 
 		const auto texture_impl = texture.impl->as<d3d9_tex_data>();
 
 		assert(texture_impl != nullptr);
 
 		if (new_reference == texture_impl->texture)
-		{
 			return true;
-		}
 
 		texture_impl->surface.reset();
 
@@ -732,7 +686,7 @@ namespace reshade::d3d9
 			texture_impl->texture.reset();
 
 			texture.width = texture.height = texture.levels = 0;
-			texture.format = static_cast<uint32_t>(texture_format::unknown);
+			texture.format = reshadefx::texture_format::unknown;
 		}
 		else
 		{
@@ -744,7 +698,7 @@ namespace reshade::d3d9
 
 			texture.width = desc.Width;
 			texture.height = desc.Height;
-			texture.format = static_cast<uint32_t>(texture_format::unknown);
+			texture.format = reshadefx::texture_format::unknown;
 			texture.levels = new_reference->GetLevelCount();
 		}
 
@@ -828,7 +782,8 @@ namespace reshade::d3d9
 		bool success = true;
 
 		for (texture &texture : _textures)
-			if (texture.effect_filename == effect.source_file.filename().u8string() || (!texture.semantic.empty() && texture.impl == nullptr))
+			if (texture.effect_filename == effect.source_file.filename().u8string()
+				|| (texture.impl_reference != texture_reference::none && texture.impl == nullptr)) // Always initialize special textures, since they are shared across all effect files
 				success &= init_texture(texture);
 
 		d3d9_technique_data technique_init;
@@ -876,17 +831,66 @@ namespace reshade::d3d9
 
 		const auto texture_data = texture.impl->as<d3d9_tex_data>();
 
-		if (texture.semantic == "COLOR")
-			return update_texture_reference(texture, texture_reference::back_buffer);
-		if (texture.semantic == "DEPTH")
-			return update_texture_reference(texture, texture_reference::depth_buffer);
+		if (texture.impl_reference != texture_reference::none)
+			return update_texture_reference(texture);
 
 		UINT levels = texture.levels;
 		DWORD usage = 0;
+		D3DFORMAT format = D3DFMT_UNKNOWN;
 		D3DDEVICE_CREATION_PARAMETERS cp;
 		_device->GetCreationParameters(&cp);
 
-		const D3DFORMAT format = literal_to_format(static_cast<texture_format>(texture.format));
+		switch (texture.format)
+		{
+		case reshadefx::texture_format::r8:
+			format = D3DFMT_A8R8G8B8;
+			break;
+		case reshadefx::texture_format::r16f:
+			format = D3DFMT_R16F;
+			break;
+		case reshadefx::texture_format::r32f:
+			format = D3DFMT_R32F;
+			break;
+		case reshadefx::texture_format::rg8:
+			format = D3DFMT_A8R8G8B8;
+			break;
+		case reshadefx::texture_format::rg16:
+			format = D3DFMT_G16R16;
+			break;
+		case reshadefx::texture_format::rg16f:
+			format = D3DFMT_G16R16F;
+			break;
+		case reshadefx::texture_format::rg32f:
+			format = D3DFMT_G32R32F;
+			break;
+		case reshadefx::texture_format::rgba8:
+			format = D3DFMT_A8R8G8B8;
+			break;
+		case reshadefx::texture_format::rgba16:
+			format = D3DFMT_A16B16G16R16;
+			break;
+		case reshadefx::texture_format::rgba16f:
+			format = D3DFMT_A16B16G16R16F;
+			break;
+		case reshadefx::texture_format::rgba32f:
+			format = D3DFMT_A32B32G32R32F;
+			break;
+		case reshadefx::texture_format::dxt1:
+			format = D3DFMT_DXT1;
+			break;
+		case reshadefx::texture_format::dxt3:
+			format = D3DFMT_DXT3;
+			break;
+		case reshadefx::texture_format::dxt5:
+			format = D3DFMT_DXT5;
+			break;
+		case reshadefx::texture_format::latc1:
+			format = static_cast<D3DFORMAT>(MAKEFOURCC('A', 'T', 'I', '1'));
+			break;
+		case reshadefx::texture_format::latc2:
+			format = static_cast<D3DFORMAT>(MAKEFOURCC('A', 'T', 'I', '2'));
+			break;
+		}
 
 		if (levels > 1)
 		{
@@ -1426,7 +1430,7 @@ namespace reshade::d3d9
 		{
 			if (texture.impl_reference == texture_reference::depth_buffer)
 			{
-				update_texture_reference(texture, texture_reference::depth_buffer);
+				update_texture_reference(texture);
 			}
 		}
 

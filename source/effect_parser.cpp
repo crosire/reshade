@@ -2480,11 +2480,28 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 					std::transform(_token.literal_as_string.begin(), _token.literal_as_string.end(), _token.literal_as_string.begin(), [](char c) { return static_cast<char>(toupper(c)); });
 
 					static const std::pair<const char *, uint32_t> s_values[] = {
-						{ "NONE", 0 }, { "POINT", 0 }, { "LINEAR", 1 }, { "ANISOTROPIC", 3 },
-						{ "WRAP", 1 }, { "REPEAT", 1 }, { "MIRROR", 2 }, { "CLAMP", 3 }, { "BORDER", 4 },
-						{ "R8", 1 }, { "R16F", 2 }, { "R32F", 3 }, { "RG8", 4 }, { "R8G8", 4 }, { "RG16", 5 }, { "R16G16", 5 }, { "RG16F", 6 }, { "R16G16F", 6 }, { "RG32F", 7 }, { "R32G32F", 7 },
-						{ "RGBA8", 8 }, { "R8G8B8A8", 8 }, { "RGBA16", 9 }, { "R16G16B16A16", 9 }, { "RGBA16F", 10 }, { "R16G16B16A16F", 10 }, { "RGBA32F", 11 }, { "R32G32B32A32F", 11 },
-						{ "DXT1", 12 }, { "DXT3", 13 }, { "DXT4", 14 }, { "LATC1", 15 }, { "LATC2", 16 },
+						{ "NONE", 0 }, { "POINT", 0 },
+						{ "LINEAR", 1 },
+						{ "WRAP", uint32_t(texture_address_mode::wrap) }, { "REPEAT", uint32_t(texture_address_mode::wrap) },
+						{ "MIRROR", uint32_t(texture_address_mode::mirror) },
+						{ "CLAMP", uint32_t(texture_address_mode::clamp) },
+						{ "BORDER", uint32_t(texture_address_mode::border) },
+						{ "R8", uint32_t(texture_format::r8) },
+						{ "R16F", uint32_t(texture_format::r16f) },
+						{ "R32F", uint32_t(texture_format::r32f) },
+						{ "RG8", uint32_t(texture_format::rg8) }, { "R8G8", uint32_t(texture_format::rg8) },
+						{ "RG16", uint32_t(texture_format::rg16) }, { "R16G16", uint32_t(texture_format::rg16) },
+						{ "RG16F", uint32_t(texture_format::rg16f) }, { "R16G16F", uint32_t(texture_format::rg16f) },
+						{ "RG32F", uint32_t(texture_format::rg32f) }, { "R32G32F", uint32_t(texture_format::rg32f) },
+						{ "RGBA8", uint32_t(texture_format::rgba8) }, { "R8G8B8A8", uint32_t(texture_format::rgba8) },
+						{ "RGBA16", uint32_t(texture_format::rgba16) }, { "R16G16B16A16", uint32_t(texture_format::rgba16) },
+						{ "RGBA16F", uint32_t(texture_format::rgba16f) }, { "R16G16B16A16F", uint32_t(texture_format::rgba16f) },
+						{ "RGBA32F", uint32_t(texture_format::rgba32f) }, { "R32G32B32A32F", uint32_t(texture_format::rgba32f) },
+						{ "DXT1", uint32_t(texture_format::dxt1) },
+						{ "DXT3", uint32_t(texture_format::dxt3) },
+						{ "DXT5", uint32_t(texture_format::dxt5) },
+						{ "LATC1", uint32_t(texture_format::latc1) },
+						{ "LATC2", uint32_t(texture_format::latc2) },
 					};
 
 					// Look up identifier in list of possible enumeration names
@@ -2528,21 +2545,21 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 					else if (property_name == "MipLevels")
 						texture_info.levels = value > 0 ? value : 1;
 					else if (property_name == "Format")
-						texture_info.format = value;
+						texture_info.format = static_cast<texture_format>(value);
 					else if (property_name == "SRGBTexture" || property_name == "SRGBReadEnable")
 						sampler_info.srgb = value != 0;
 					else if (property_name == "AddressU")
-						sampler_info.address_u = value;
+						sampler_info.address_u = static_cast<texture_address_mode>(value);
 					else if (property_name == "AddressV")
-						sampler_info.address_v = value;
+						sampler_info.address_v = static_cast<texture_address_mode>(value);
 					else if (property_name == "AddressW")
-						sampler_info.address_w = value;
+						sampler_info.address_w = static_cast<texture_address_mode>(value);
 					else if (property_name == "MinFilter")
-						sampler_info.filter = (sampler_info.filter & 0x0F) | ((value << 4) & 0x30); // Combine sampler filter components into a single filter enumeration value
+						sampler_info.filter = static_cast<texture_filter>((uint32_t(sampler_info.filter) & 0x0F) | ((value << 4) & 0x30)); // Combine sampler filter components into a single filter enumeration value
 					else if (property_name == "MagFilter")
-						sampler_info.filter = (sampler_info.filter & 0x33) | ((value << 2) & 0x0C);
+						sampler_info.filter = static_cast<texture_filter>((uint32_t(sampler_info.filter) & 0x33) | ((value << 2) & 0x0C));
 					else if (property_name == "MipFilter")
-						sampler_info.filter = (sampler_info.filter & 0x3C) | (value & 0x03);
+						sampler_info.filter = static_cast<texture_filter>((uint32_t(sampler_info.filter) & 0x3C) |  (value       & 0x03));
 					else if (property_name == "MinLOD" || property_name == "MaxMipLevel")
 						sampler_info.min_lod = static_cast<float>(value);
 					else if (property_name == "MaxLOD")

@@ -6,23 +6,19 @@
 #pragma once
 
 #include <chrono>
+#include <memory>
 #include <functional>
 #include <filesystem>
 #include <mutex>
 #include <atomic>
+#include "variant.hpp"
 #include "ini_file.hpp"
-#include "runtime_objects.hpp"
+#include "moving_average.hpp"
 #include "effect_codegen.hpp"
 
 #pragma region Forward Declarations
 struct ImDrawData;
-struct ImFontAtlas;
 struct ImGuiContext;
-
-namespace reshade
-{
-	class input;
-}
 
 extern volatile long g_network_traffic;
 
@@ -34,12 +30,62 @@ extern std::filesystem::path g_windows_path;
 
 namespace reshade
 {
+	enum class texture_reference
+	{
+		none,
+		back_buffer,
+		depth_buffer
+	};
+
+	class base_object abstract
+	{
+	public:
+		virtual ~base_object() { }
+
+		template <typename T>
+		T *as() { return dynamic_cast<T *>(this); }
+		template <typename T>
+		const T *as() const { return dynamic_cast<const T *>(this); }
+	};
+
 	struct effect_data
 	{
 		std::string errors;
 		reshadefx::module module;
 		std::filesystem::path source_file;
 		size_t storage_offset, storage_size;
+	};
+
+	struct texture final : reshadefx::texture_info
+	{
+		texture(const reshadefx::texture_info &init) : texture_info(init) { }
+
+		std::string effect_filename;
+		texture_reference impl_reference = texture_reference::none;
+		std::unique_ptr<base_object> impl;
+	};
+	struct uniform final : reshadefx::uniform_info
+	{
+		uniform(const reshadefx::uniform_info &init) : uniform_info(init) { }
+
+		std::string effect_filename;
+		size_t storage_offset = 0;
+		bool hidden = false;
+	};
+	struct technique final : reshadefx::technique_info
+	{
+		technique(const reshadefx::technique_info &init) : technique_info(init) { }
+
+		std::string effect_filename;
+		std::vector<std::unique_ptr<base_object>> passes_data;
+		bool hidden = false;
+		bool enabled = false;
+		int32_t timeout = 0;
+		int32_t timeleft = 0;
+		uint32_t toggle_key_data[4];
+		moving_average<uint64_t, 60> average_cpu_duration;
+		moving_average<uint64_t, 60> average_gpu_duration;
+		std::unique_ptr<base_object> impl;
 	};
 
 	class runtime abstract
@@ -212,7 +258,7 @@ namespace reshade
 		unsigned int _vendor_id = 0, _device_id = 0;
 		uint64_t _framecount = 0;
 		unsigned int _drawcalls = 0, _vertices = 0;
-		std::shared_ptr<input> _input;
+		std::shared_ptr<class input> _input;
 		ImGuiContext *_imgui_context = nullptr;
 		std::unique_ptr<base_object> _imgui_font_atlas_texture;
 		std::vector<texture> _textures;

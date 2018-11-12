@@ -84,7 +84,7 @@ namespace reshade::opengl
 		void capture_frame(uint8_t *buffer) const override;
 		bool load_effect(effect_data &effect) override;
 		bool update_texture(texture &texture, const uint8_t *data) override;
-		bool update_texture_reference(texture &texture, texture_reference id);
+		bool update_texture_reference(texture &texture);
 
 		void render_technique(const technique &technique) override;
 		void render_imgui_draw_data(ImDrawData *data) override;

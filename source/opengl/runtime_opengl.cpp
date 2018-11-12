@@ -103,121 +103,6 @@ namespace reshade::opengl
 			return GL_INVERT;
 		}
 	}
-	static GLenum literal_to_wrap_mode(texture_address_mode value)
-	{
-		switch (value)
-		{
-		case texture_address_mode::wrap:
-			return GL_REPEAT;
-		case texture_address_mode::mirror:
-			return GL_MIRRORED_REPEAT;
-		case texture_address_mode::clamp:
-			return GL_CLAMP_TO_EDGE;
-		case texture_address_mode::border:
-			return GL_CLAMP_TO_BORDER;
-		}
-
-		return GL_NONE;
-	}
-	static void literal_to_filter_mode(texture_filter value, GLenum &minfilter, GLenum &magfilter)
-	{
-		switch (value)
-		{
-		case texture_filter::min_mag_mip_point:
-			minfilter = GL_NEAREST_MIPMAP_NEAREST;
-			magfilter = GL_NEAREST;
-			break;
-		case texture_filter::min_mag_point_mip_linear:
-			minfilter = GL_NEAREST_MIPMAP_LINEAR;
-			magfilter = GL_NEAREST;
-			break;
-		case texture_filter::min_point_mag_linear_mip_point:
-			minfilter = GL_NEAREST_MIPMAP_NEAREST;
-			magfilter = GL_LINEAR;
-			break;
-		case texture_filter::min_point_mag_mip_linear:
-			minfilter = GL_NEAREST_MIPMAP_LINEAR;
-			magfilter = GL_LINEAR;
-			break;
-		case texture_filter::min_linear_mag_mip_point:
-			minfilter = GL_LINEAR_MIPMAP_NEAREST;
-			magfilter = GL_NEAREST;
-			break;
-		case texture_filter::min_linear_mag_point_mip_linear:
-			minfilter = GL_LINEAR_MIPMAP_LINEAR;
-			magfilter = GL_NEAREST;
-			break;
-		case texture_filter::min_mag_linear_mip_point:
-			minfilter = GL_LINEAR_MIPMAP_NEAREST;
-			magfilter = GL_LINEAR;
-			break;
-		case texture_filter::min_mag_mip_linear:
-			minfilter = GL_LINEAR_MIPMAP_LINEAR;
-			magfilter = GL_LINEAR;
-			break;
-		}
-	}
-	static void literal_to_format(texture_format value, GLenum &internalformat, GLenum &internalformatsrgb)
-	{
-		switch (value)
-		{
-		case texture_format::r8:
-			internalformat = internalformatsrgb = GL_R8;
-			break;
-		case texture_format::r16f:
-			internalformat = internalformatsrgb = GL_R16F;
-			break;
-		case texture_format::r32f:
-			internalformat = internalformatsrgb = GL_R32F;
-			break;
-		case texture_format::rg8:
-			internalformat = internalformatsrgb = GL_RG8;
-			break;
-		case texture_format::rg16:
-			internalformat = internalformatsrgb = GL_RG16;
-			break;
-		case texture_format::rg16f:
-			internalformat = internalformatsrgb = GL_RG16F;
-			break;
-		case texture_format::rg32f:
-			internalformat = internalformatsrgb = GL_RG32F;
-			break;
-		case texture_format::rgba8:
-			internalformat = GL_RGBA8;
-			internalformatsrgb = GL_SRGB8_ALPHA8;
-			break;
-		case texture_format::rgba16:
-			internalformat = internalformatsrgb = GL_RGBA16;
-			break;
-		case texture_format::rgba16f:
-			internalformat = internalformatsrgb = GL_RGBA16F;
-			break;
-		case texture_format::rgba32f:
-			internalformat = internalformatsrgb = GL_RGBA32F;
-			break;
-		case texture_format::dxt1:
-			internalformat = 0x83F1; // GL_COMPRESSED_RGBA_S3TC_DXT1_EXT
-			internalformatsrgb = 0x8C4D; // GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT1_EXT
-			break;
-		case texture_format::dxt3:
-			internalformat = 0x83F2; // GL_COMPRESSED_RGBA_S3TC_DXT3_EXT
-			internalformatsrgb = 0x8C4E; // GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT3_EXT
-			break;
-		case texture_format::dxt5:
-			internalformat = 0x83F3; // GL_COMPRESSED_RGBA_S3TC_DXT5_EXT
-			internalformatsrgb = 0x8C4F; // GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT5_EXT
-			break;
-		case texture_format::latc1:
-			internalformat = internalformatsrgb = 0x8C70; // GL_COMPRESSED_LUMINANCE_LATC1_EXT
-			break;
-		case texture_format::latc2:
-			internalformat = internalformatsrgb = 0x8C72; // GL_COMPRESSED_LUMINANCE_ALPHA_LATC2_EXT
-			break;
-		default:
-			internalformat = internalformatsrgb = GL_NONE;
-			break;
-		}
-	}
 
 	static GLenum target_to_binding(GLenum target)
 	{
@@ -826,9 +711,7 @@ namespace reshade::opengl
 	bool runtime_opengl::update_texture(texture &texture, const uint8_t *data)
 	{
 		if (texture.impl_reference != texture_reference::none)
-		{
 			return false;
-		}
 
 		const auto texture_impl = texture.impl->as<opengl_tex_data>();
 
@@ -864,33 +747,29 @@ namespace reshade::opengl
 		glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, texture.width, texture.height, GL_RGBA, GL_UNSIGNED_BYTE, data_flipped.data());
 
 		if (texture.levels > 1)
-		{
 			glGenerateMipmap(GL_TEXTURE_2D);
-		}
 
 		glBindTexture(GL_TEXTURE_2D, previous);
 
 		return true;
 	}
-	bool runtime_opengl::update_texture_reference(texture &texture, texture_reference id)
+	bool runtime_opengl::update_texture_reference(texture &texture)
 	{
 		GLuint new_reference[2] = {};
 
-		switch (id)
+		switch (texture.impl_reference)
 		{
-			case texture_reference::back_buffer:
-				new_reference[0] = _backbuffer_texture[0];
-				new_reference[1] = _backbuffer_texture[1];
-				break;
-			case texture_reference::depth_buffer:
-				new_reference[0] = _depth_texture;
-				new_reference[1] = _depth_texture;
-				break;
-			default:
-				return false;
+		case texture_reference::back_buffer:
+			new_reference[0] = _backbuffer_texture[0];
+			new_reference[1] = _backbuffer_texture[1];
+			break;
+		case texture_reference::depth_buffer:
+			new_reference[0] = _depth_texture;
+			new_reference[1] = _depth_texture;
+			break;
+		default:
+			return false;
 		}
-
-		texture.impl_reference = id;
 
 		const auto texture_impl = texture.impl->as<opengl_tex_data>();
 
@@ -898,14 +777,10 @@ namespace reshade::opengl
 
 		if (texture_impl->id[0] == new_reference[0] &&
 			texture_impl->id[1] == new_reference[1])
-		{
 			return true;
-		}
 
 		if (texture_impl->should_delete)
-		{
 			glDeleteTextures(2, texture_impl->id);
-		}
 
 		texture_impl->id[0] = new_reference[0];
 		texture_impl->id[1] = new_reference[1];
@@ -1025,7 +900,8 @@ namespace reshade::opengl
 		bool success = true;
 
 		for (texture &texture : _textures)
-			if (texture.effect_filename == effect.source_file.filename().u8string() || (!texture.semantic.empty() && texture.impl == nullptr))
+			if (texture.effect_filename == effect.source_file.filename().u8string()
+				|| (texture.impl_reference != texture_reference::none && texture.impl == nullptr)) // Always initialize special textures, since they are shared across all effect files
 				success &= init_texture(texture);
 
 		opengl_technique_data technique_init;
@@ -1053,10 +929,10 @@ namespace reshade::opengl
 			return false;
 
 		size_t hash = 2166136261;
-		hash = (hash * 16777619) ^ info.address_u;
-		hash = (hash * 16777619) ^ info.address_v;
-		hash = (hash * 16777619) ^ info.address_w;
-		hash = (hash * 16777619) ^ info.filter;
+		hash = (hash * 16777619) ^ static_cast<uint32_t>(info.address_u);
+		hash = (hash * 16777619) ^ static_cast<uint32_t>(info.address_v);
+		hash = (hash * 16777619) ^ static_cast<uint32_t>(info.address_w);
+		hash = (hash * 16777619) ^ static_cast<uint32_t>(info.filter);
 		hash = (hash * 16777619) ^ reinterpret_cast<const uint32_t &>(info.lod_bias);
 		hash = (hash * 16777619) ^ reinterpret_cast<const uint32_t &>(info.min_lod);
 		hash = (hash * 16777619) ^ reinterpret_cast<const uint32_t &>(info.max_lod);
@@ -1066,13 +942,64 @@ namespace reshade::opengl
 		if (it == _effect_sampler_states.end())
 		{
 			GLenum minfilter = GL_NONE, magfilter = GL_NONE;
-			literal_to_filter_mode(static_cast<texture_filter>(info.filter), minfilter, magfilter);
+
+			switch (info.filter)
+			{
+			case reshadefx::texture_filter::min_mag_mip_point:
+				minfilter = GL_NEAREST_MIPMAP_NEAREST;
+				magfilter = GL_NEAREST;
+				break;
+			case reshadefx::texture_filter::min_mag_point_mip_linear:
+				minfilter = GL_NEAREST_MIPMAP_LINEAR;
+				magfilter = GL_NEAREST;
+				break;
+			case reshadefx::texture_filter::min_point_mag_linear_mip_point:
+				minfilter = GL_NEAREST_MIPMAP_NEAREST;
+				magfilter = GL_LINEAR;
+				break;
+			case reshadefx::texture_filter::min_point_mag_mip_linear:
+				minfilter = GL_NEAREST_MIPMAP_LINEAR;
+				magfilter = GL_LINEAR;
+				break;
+			case reshadefx::texture_filter::min_linear_mag_mip_point:
+				minfilter = GL_LINEAR_MIPMAP_NEAREST;
+				magfilter = GL_NEAREST;
+				break;
+			case reshadefx::texture_filter::min_linear_mag_point_mip_linear:
+				minfilter = GL_LINEAR_MIPMAP_LINEAR;
+				magfilter = GL_NEAREST;
+				break;
+			case reshadefx::texture_filter::min_mag_linear_mip_point:
+				minfilter = GL_LINEAR_MIPMAP_NEAREST;
+				magfilter = GL_LINEAR;
+				break;
+			case reshadefx::texture_filter::min_mag_mip_linear:
+				minfilter = GL_LINEAR_MIPMAP_LINEAR;
+				magfilter = GL_LINEAR;
+				break;
+			}
+
+			const auto convert_address_mode = [](reshadefx::texture_address_mode value) {
+				switch (value)
+				{
+				case reshadefx::texture_address_mode::wrap:
+					return GL_REPEAT;
+				case reshadefx::texture_address_mode::mirror:
+					return GL_MIRRORED_REPEAT;
+				case reshadefx::texture_address_mode::clamp:
+					return GL_CLAMP_TO_EDGE;
+				case reshadefx::texture_address_mode::border:
+					return GL_CLAMP_TO_BORDER;
+				default:
+					return GL_NONE;
+				}
+			};
 
 			GLuint sampler_id = 0;
 			glGenSamplers(1, &sampler_id);
-			glSamplerParameteri(sampler_id, GL_TEXTURE_WRAP_S, literal_to_wrap_mode(static_cast<texture_address_mode>(info.address_u)));
-			glSamplerParameteri(sampler_id, GL_TEXTURE_WRAP_T, literal_to_wrap_mode(static_cast<texture_address_mode>(info.address_v)));
-			glSamplerParameteri(sampler_id, GL_TEXTURE_WRAP_R, literal_to_wrap_mode(static_cast<texture_address_mode>(info.address_w)));
+			glSamplerParameteri(sampler_id, GL_TEXTURE_WRAP_S, convert_address_mode(info.address_u));
+			glSamplerParameteri(sampler_id, GL_TEXTURE_WRAP_T, convert_address_mode(info.address_v));
+			glSamplerParameteri(sampler_id, GL_TEXTURE_WRAP_R, convert_address_mode(info.address_w));
 			glSamplerParameteri(sampler_id, GL_TEXTURE_MAG_FILTER, magfilter);
 			glSamplerParameteri(sampler_id, GL_TEXTURE_MIN_FILTER, minfilter);
 			glSamplerParameterf(sampler_id, GL_TEXTURE_LOD_BIAS, info.lod_bias);
@@ -1100,13 +1027,69 @@ namespace reshade::opengl
 
 		const auto texture_data = texture.impl->as<opengl_tex_data>();
 
-		if (texture.semantic == "COLOR")
-			return update_texture_reference(texture, texture_reference::back_buffer);
-		if (texture.semantic == "DEPTH")
-			return update_texture_reference(texture, texture_reference::depth_buffer);
+		if (texture.impl_reference != texture_reference::none)
+			return update_texture_reference(texture);
 
 		GLenum internalformat = GL_RGBA8, internalformat_srgb = GL_SRGB8_ALPHA8;
-		literal_to_format(static_cast<texture_format>(texture.format), internalformat, internalformat_srgb);
+
+		switch (texture.format)
+		{
+		case reshadefx::texture_format::r8:
+			internalformat = internalformat_srgb = GL_R8;
+			break;
+		case reshadefx::texture_format::r16f:
+			internalformat = internalformat_srgb = GL_R16F;
+			break;
+		case reshadefx::texture_format::r32f:
+			internalformat = internalformat_srgb = GL_R32F;
+			break;
+		case reshadefx::texture_format::rg8:
+			internalformat = internalformat_srgb = GL_RG8;
+			break;
+		case reshadefx::texture_format::rg16:
+			internalformat = internalformat_srgb = GL_RG16;
+			break;
+		case reshadefx::texture_format::rg16f:
+			internalformat = internalformat_srgb = GL_RG16F;
+			break;
+		case reshadefx::texture_format::rg32f:
+			internalformat = internalformat_srgb = GL_RG32F;
+			break;
+		case reshadefx::texture_format::rgba8:
+			internalformat = GL_RGBA8;
+			internalformat_srgb = GL_SRGB8_ALPHA8;
+			break;
+		case reshadefx::texture_format::rgba16:
+			internalformat = internalformat_srgb = GL_RGBA16;
+			break;
+		case reshadefx::texture_format::rgba16f:
+			internalformat = internalformat_srgb = GL_RGBA16F;
+			break;
+		case reshadefx::texture_format::rgba32f:
+			internalformat = internalformat_srgb = GL_RGBA32F;
+			break;
+		case reshadefx::texture_format::dxt1:
+			internalformat = GL_COMPRESSED_RGBA_S3TC_DXT1_EXT;
+			internalformat_srgb = 0x8C4D; // GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT1_EXT
+			break;
+		case reshadefx::texture_format::dxt3:
+			internalformat = GL_COMPRESSED_RGBA_S3TC_DXT3_EXT;
+			internalformat_srgb = 0x8C4E; // GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT3_EXT
+			break;
+		case reshadefx::texture_format::dxt5:
+			internalformat = GL_COMPRESSED_RGBA_S3TC_DXT5_EXT;
+			internalformat_srgb = 0x8C4F; // GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT5_EXT
+			break;
+		case reshadefx::texture_format::latc1:
+			internalformat = internalformat_srgb = 0x8C70; // GL_COMPRESSED_LUMINANCE_LATC1_EXT
+			break;
+		case reshadefx::texture_format::latc2:
+			internalformat = internalformat_srgb = 0x8C72; // GL_COMPRESSED_LUMINANCE_ALPHA_LATC2_EXT
+			break;
+		default:
+			internalformat = internalformat_srgb = GL_NONE;
+			break;
+		}
 
 		texture_data->should_delete = true;
 		glGenTextures(2, texture_data->id);
@@ -1601,7 +1584,7 @@ namespace reshade::opengl
 		{
 			if (texture.impl_reference == texture_reference::depth_buffer)
 			{
-				update_texture_reference(texture, texture_reference::depth_buffer);
+				update_texture_reference(texture);
 			}
 		}
 	}

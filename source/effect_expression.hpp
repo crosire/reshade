@@ -245,6 +245,49 @@ namespace reshadefx
 		constant initializer_value;
 	};
 
+	enum class texture_filter
+	{
+		min_mag_mip_point = 0,
+		min_mag_point_mip_linear = 0x1,
+		min_point_mag_linear_mip_point = 0x4,
+		min_point_mag_mip_linear = 0x5,
+		min_linear_mag_mip_point = 0x10,
+		min_linear_mag_point_mip_linear = 0x11,
+		min_mag_linear_mip_point = 0x14,
+		min_mag_mip_linear = 0x15
+	};
+
+	enum class texture_format
+	{
+		unknown,
+
+		r8,
+		r16f,
+		r32f,
+		rg8,
+		rg16,
+		rg16f,
+		rg32f,
+		rgba8,
+		rgba16,
+		rgba16f,
+		rgba32f,
+
+		dxt1,
+		dxt3,
+		dxt5,
+		latc1,
+		latc2
+	};
+
+	enum class texture_address_mode
+	{
+		wrap = 1,
+		mirror = 2,
+		clamp = 3,
+		border = 4
+	};
+
 	struct texture_info
 	{
 		uint32_t id = 0;
@@ -254,7 +297,7 @@ namespace reshadefx
 		uint32_t width = 1;
 		uint32_t height = 1;
 		uint32_t levels = 1;
-		uint32_t format = 8; // RGBA8
+		texture_format format = texture_format::rgba8;
 	};
 
 	struct sampler_info
@@ -265,10 +308,10 @@ namespace reshadefx
 		std::string unique_name;
 		std::string texture_name;
 		std::unordered_map<std::string, std::pair<type, constant>> annotations;
-		uint32_t filter = 0x15; // MIN_MAG_MIP_LINEAR
-		uint32_t address_u = 3; // CLAMP
-		uint32_t address_v = 3;
-		uint32_t address_w = 3;
+		texture_filter filter = texture_filter::min_mag_mip_linear;
+		texture_address_mode address_u = texture_address_mode::clamp;
+		texture_address_mode address_v = texture_address_mode::clamp;
+		texture_address_mode address_w = texture_address_mode::clamp;
 		float min_lod = -FLT_MAX;
 		float max_lod = +FLT_MAX;
 		float lod_bias = 0.0f;
