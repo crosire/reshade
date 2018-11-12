@@ -14,8 +14,6 @@
 #include <thread>
 #include <algorithm>
 #include <unordered_set>
-#include <imgui.h>
-#include <imgui_internal.h>
 #include <stb_image.h>
 #include <stb_image_dds.h>
 #include <stb_image_write.h>
@@ -27,7 +25,6 @@ namespace reshade
 		_renderer_id(renderer),
 		_start_time(std::chrono::high_resolution_clock::now()),
 		_last_frame_duration(std::chrono::milliseconds(1)),
-		_imgui_context(ImGui::CreateContext()),
 		_effect_search_paths({ g_reshade_dll_path.parent_path() }),
 		_texture_search_paths({ g_reshade_dll_path.parent_path() }),
 		_preprocessor_definitions({
@@ -53,79 +50,25 @@ namespace reshade
 
 		_needs_update = check_for_update(_latest_version);
 
-		auto &imgui_io = _imgui_context->IO;
-		auto &imgui_style = _imgui_context->Style;
-		imgui_io.IniFilename = nullptr;
-		imgui_io.KeyMap[ImGuiKey_Tab] = 0x09; // VK_TAB
-		imgui_io.KeyMap[ImGuiKey_LeftArrow] = 0x25; // VK_LEFT
-		imgui_io.KeyMap[ImGuiKey_RightArrow] = 0x27; // VK_RIGHT
-		imgui_io.KeyMap[ImGuiKey_UpArrow] = 0x26; // VK_UP
-		imgui_io.KeyMap[ImGuiKey_DownArrow] = 0x28; // VK_DOWN
-		imgui_io.KeyMap[ImGuiKey_PageUp] = 0x21; // VK_PRIOR
-		imgui_io.KeyMap[ImGuiKey_PageDown] = 0x22; // VK_NEXT
-		imgui_io.KeyMap[ImGuiKey_Home] = 0x24; // VK_HOME
-		imgui_io.KeyMap[ImGuiKey_End] = 0x23; // VK_END
-		imgui_io.KeyMap[ImGuiKey_Insert] = 0x2D; // VK_INSERT
-		imgui_io.KeyMap[ImGuiKey_Delete] = 0x2E; // VK_DELETE
-		imgui_io.KeyMap[ImGuiKey_Backspace] = 0x08; // VK_BACK
-		imgui_io.KeyMap[ImGuiKey_Space] = 0x20; // VK_SPACE
-		imgui_io.KeyMap[ImGuiKey_Enter] = 0x0D; // VK_RETURN
-		imgui_io.KeyMap[ImGuiKey_Escape] = 0x1B; // VK_ESCAPE
-		imgui_io.KeyMap[ImGuiKey_A] = 'A';
-		imgui_io.KeyMap[ImGuiKey_C] = 'C';
-		imgui_io.KeyMap[ImGuiKey_V] = 'V';
-		imgui_io.KeyMap[ImGuiKey_X] = 'X';
-		imgui_io.KeyMap[ImGuiKey_Y] = 'Y';
-		imgui_io.KeyMap[ImGuiKey_Z] = 'Z';
-		imgui_io.ConfigFlags = ImGuiConfigFlags_NavEnableKeyboard;
-		imgui_style.WindowRounding = 0.0f;
-		imgui_style.WindowBorderSize = 0.0f;
-		imgui_style.ChildRounding = 0.0f;
-		imgui_style.FrameRounding = 0.0f;
-		imgui_style.ScrollbarRounding = 0.0f;
-		imgui_style.GrabRounding = 0.0f;
-
-		ImGui::SetCurrentContext(nullptr);
-
-		imgui_io.Fonts->AddFontDefault();
-		const auto font_path = g_windows_path / "Fonts" / "consolab.ttf";
-		if (std::error_code ec; std::filesystem::exists(font_path, ec))
-			imgui_io.Fonts->AddFontFromFileTTF(font_path.u8string().c_str(), 18.0f);
-		else
-			imgui_io.Fonts->AddFontDefault();
-
+		init_ui();
 		load_config();
-
-		subscribe_to_menu("Home", [this]() { draw_overlay_menu_home(); });
-		subscribe_to_menu("Settings", [this]() { draw_overlay_menu_settings(); });
-		subscribe_to_menu("Statistics", [this]() { draw_overlay_menu_statistics(); });
-		subscribe_to_menu("Log", [this]() { draw_overlay_menu_log(); });
-		subscribe_to_menu("About", [this]() { draw_overlay_menu_about(); });
 	}
 	runtime::~runtime()
 	{
-		ImGui::DestroyContext(_imgui_context);
+		deinit_ui();
 
 		assert(!_is_initialized && _techniques.empty());
 	}
 
 	bool runtime::on_init()
 	{
-		// Finish initializing ImGui
-		auto &imgui_io = _imgui_context->IO;
-		imgui_io.DisplaySize.x = static_cast<float>(_width);
-		imgui_io.DisplaySize.y = static_cast<float>(_height);
-		imgui_io.Fonts->TexID = _imgui_font_atlas_texture.get();
-
 		LOG(INFO) << "Recreated runtime environment on runtime " << this << ".";
 
 		_is_initialized = true;
 		_last_reload_time = std::chrono::high_resolution_clock::now();
 
 		if (!_no_reload_on_init)
-		{
 			reload();
-		}
 
 		return true;
 	}
@@ -134,15 +77,7 @@ namespace reshade
 		on_reset_effect();
 
 		if (!_is_initialized)
-		{
 			return;
-		}
-
-		// Reset ImGui settings
-		auto &imgui_io = _imgui_context->IO;
-		imgui_io.DisplaySize.x = 0;
-		imgui_io.DisplaySize.y = 0;
-		imgui_io.Fonts->TexID = nullptr;
 
 		_imgui_font_atlas_texture.reset();
 
@@ -780,64 +715,10 @@ namespace reshade
 		config.get("GENERAL", "ScreenshotFormat", _screenshot_format);
 		config.get("GENERAL", "ScreenshotIncludePreset", _screenshot_include_preset);
 		config.get("GENERAL", "ScreenshotIncludeConfiguration", _screenshot_include_configuration);
-		config.get("GENERAL", "ShowClock", _show_clock);
-		config.get("GENERAL", "ShowFPS", _show_framerate);
-		config.get("GENERAL", "FontGlobalScale", _imgui_context->IO.FontGlobalScale);
-		config.get("GENERAL", "NoFontScaling", _no_font_scaling);
 		config.get("GENERAL", "NoReloadOnInit", _no_reload_on_init);
-		config.get("GENERAL", "SaveWindowState", _save_imgui_window_state);
-
-		_imgui_context->IO.IniFilename = _save_imgui_window_state ? "ReShadeGUI.ini" : nullptr;
-
-		config.get("STYLE", "Alpha", _imgui_context->Style.Alpha);
-		config.get("STYLE", "ColBackground", _imgui_col_background);
-		config.get("STYLE", "ColItemBackground", _imgui_col_item_background);
-		config.get("STYLE", "ColActive", _imgui_col_active);
-		config.get("STYLE", "ColText", _imgui_col_text);
-		config.get("STYLE", "ColFPSText", _imgui_col_text_fps);
-
-		_imgui_context->Style.Colors[ImGuiCol_Text] = ImVec4(_imgui_col_text[0], _imgui_col_text[1], _imgui_col_text[2], 1.00f);
-		_imgui_context->Style.Colors[ImGuiCol_TextDisabled] = ImVec4(_imgui_col_text[0], _imgui_col_text[1], _imgui_col_text[2], 0.58f);
-		_imgui_context->Style.Colors[ImGuiCol_WindowBg] = ImVec4(_imgui_col_background[0], _imgui_col_background[1], _imgui_col_background[2], 1.00f);
-		_imgui_context->Style.Colors[ImGuiCol_ChildBg] = ImVec4(_imgui_col_item_background[0], _imgui_col_item_background[1], _imgui_col_item_background[2], 0.00f);
-		_imgui_context->Style.Colors[ImGuiCol_Border] = ImVec4(_imgui_col_text[0], _imgui_col_text[1], _imgui_col_text[2], 0.30f);
-		_imgui_context->Style.Colors[ImGuiCol_FrameBg] = ImVec4(_imgui_col_item_background[0], _imgui_col_item_background[1], _imgui_col_item_background[2], 1.00f);
-		_imgui_context->Style.Colors[ImGuiCol_FrameBgHovered] = ImVec4(_imgui_col_active[0], _imgui_col_active[1], _imgui_col_active[2], 0.68f);
-		_imgui_context->Style.Colors[ImGuiCol_FrameBgActive] = ImVec4(_imgui_col_active[0], _imgui_col_active[1], _imgui_col_active[2], 1.00f);
-		_imgui_context->Style.Colors[ImGuiCol_TitleBg] = ImVec4(_imgui_col_active[0], _imgui_col_active[1], _imgui_col_active[2], 0.45f);
-		_imgui_context->Style.Colors[ImGuiCol_TitleBgCollapsed] = ImVec4(_imgui_col_active[0], _imgui_col_active[1], _imgui_col_active[2], 0.35f);
-		_imgui_context->Style.Colors[ImGuiCol_TitleBgActive] = ImVec4(_imgui_col_active[0], _imgui_col_active[1], _imgui_col_active[2], 0.78f);
-		_imgui_context->Style.Colors[ImGuiCol_MenuBarBg] = ImVec4(_imgui_col_item_background[0], _imgui_col_item_background[1], _imgui_col_item_background[2], 0.57f);
-		_imgui_context->Style.Colors[ImGuiCol_ScrollbarBg] = ImVec4(_imgui_col_item_background[0], _imgui_col_item_background[1], _imgui_col_item_background[2], 1.00f);
-		_imgui_context->Style.Colors[ImGuiCol_ScrollbarGrab] = ImVec4(_imgui_col_active[0], _imgui_col_active[1], _imgui_col_active[2], 0.31f);
-		_imgui_context->Style.Colors[ImGuiCol_ScrollbarGrabHovered] = ImVec4(_imgui_col_active[0], _imgui_col_active[1], _imgui_col_active[2], 0.78f);
-		_imgui_context->Style.Colors[ImGuiCol_ScrollbarGrabActive] = ImVec4(_imgui_col_active[0], _imgui_col_active[1], _imgui_col_active[2], 1.00f);
-		_imgui_context->Style.Colors[ImGuiCol_PopupBg] = ImVec4(_imgui_col_item_background[0], _imgui_col_item_background[1], _imgui_col_item_background[2], 0.92f);
-		_imgui_context->Style.Colors[ImGuiCol_CheckMark] = ImVec4(_imgui_col_active[0], _imgui_col_active[1], _imgui_col_active[2], 0.80f);
-		_imgui_context->Style.Colors[ImGuiCol_SliderGrab] = ImVec4(_imgui_col_active[0], _imgui_col_active[1], _imgui_col_active[2], 0.24f);
-		_imgui_context->Style.Colors[ImGuiCol_SliderGrabActive] = ImVec4(_imgui_col_active[0], _imgui_col_active[1], _imgui_col_active[2], 1.00f);
-		_imgui_context->Style.Colors[ImGuiCol_Button] = ImVec4(_imgui_col_active[0], _imgui_col_active[1], _imgui_col_active[2], 0.44f);
-		_imgui_context->Style.Colors[ImGuiCol_ButtonHovered] = ImVec4(_imgui_col_active[0], _imgui_col_active[1], _imgui_col_active[2], 0.86f);
-		_imgui_context->Style.Colors[ImGuiCol_ButtonActive] = ImVec4(_imgui_col_active[0], _imgui_col_active[1], _imgui_col_active[2], 1.00f);
-		_imgui_context->Style.Colors[ImGuiCol_Header] = ImVec4(_imgui_col_active[0], _imgui_col_active[1], _imgui_col_active[2], 0.76f);
-		_imgui_context->Style.Colors[ImGuiCol_HeaderHovered] = ImVec4(_imgui_col_active[0], _imgui_col_active[1], _imgui_col_active[2], 0.86f);
-		_imgui_context->Style.Colors[ImGuiCol_HeaderActive] = ImVec4(_imgui_col_active[0], _imgui_col_active[1], _imgui_col_active[2], 1.00f);
-		_imgui_context->Style.Colors[ImGuiCol_Separator] = ImVec4(_imgui_col_text[0], _imgui_col_text[1], _imgui_col_text[2], 0.32f);
-		_imgui_context->Style.Colors[ImGuiCol_SeparatorHovered] = ImVec4(_imgui_col_text[0], _imgui_col_text[1], _imgui_col_text[2], 0.78f);
-		_imgui_context->Style.Colors[ImGuiCol_SeparatorActive] = ImVec4(_imgui_col_text[0], _imgui_col_text[1], _imgui_col_text[2], 1.00f);
-		_imgui_context->Style.Colors[ImGuiCol_ResizeGrip] = ImVec4(_imgui_col_active[0], _imgui_col_active[1], _imgui_col_active[2], 0.20f);
-		_imgui_context->Style.Colors[ImGuiCol_ResizeGripHovered] = ImVec4(_imgui_col_active[0], _imgui_col_active[1], _imgui_col_active[2], 0.78f);
-		_imgui_context->Style.Colors[ImGuiCol_ResizeGripActive] = ImVec4(_imgui_col_active[0], _imgui_col_active[1], _imgui_col_active[2], 1.00f);
-		_imgui_context->Style.Colors[ImGuiCol_PlotLines] = ImVec4(_imgui_col_text[0], _imgui_col_text[1], _imgui_col_text[2], 0.63f);
-		_imgui_context->Style.Colors[ImGuiCol_PlotLinesHovered] = ImVec4(_imgui_col_active[0], _imgui_col_active[1], _imgui_col_active[2], 1.00f);
-		_imgui_context->Style.Colors[ImGuiCol_PlotHistogram] = ImVec4(_imgui_col_text[0], _imgui_col_text[1], _imgui_col_text[2], 0.63f);
-		_imgui_context->Style.Colors[ImGuiCol_PlotHistogramHovered] = ImVec4(_imgui_col_active[0], _imgui_col_active[1], _imgui_col_active[2], 1.00f);
-		_imgui_context->Style.Colors[ImGuiCol_TextSelectedBg] = ImVec4(_imgui_col_active[0], _imgui_col_active[1], _imgui_col_active[2], 0.43f);
 
 		if (_current_preset >= static_cast<ptrdiff_t>(_preset_files.size()))
-		{
 			_current_preset = -1;
-		}
 
 		const std::filesystem::path parent_path = g_reshade_dll_path.parent_path();
 
@@ -862,10 +743,8 @@ namespace reshade
 			}
 		}
 
-		for (auto &function : _load_config_callables)
-		{
-			function(config);
-		}
+		for (const auto &callback : _load_config_callables)
+			callback(config);
 	}
 	void runtime::save_config() const
 	{
@@ -892,23 +771,10 @@ namespace reshade
 		config.set("GENERAL", "ScreenshotFormat", _screenshot_format);
 		config.set("GENERAL", "ScreenshotIncludePreset", _screenshot_include_preset);
 		config.set("GENERAL", "ScreenshotIncludeConfiguration", _screenshot_include_configuration);
-		config.set("GENERAL", "ShowClock", _show_clock);
-		config.set("GENERAL", "ShowFPS", _show_framerate);
-		config.set("GENERAL", "FontGlobalScale", _imgui_context->IO.FontGlobalScale);
 		config.set("GENERAL", "NoReloadOnInit", _no_reload_on_init);
-		config.set("GENERAL", "SaveWindowState", _save_imgui_window_state);
 
-		config.set("STYLE", "Alpha", _imgui_context->Style.Alpha);
-		config.set("STYLE", "ColBackground", _imgui_col_background);
-		config.set("STYLE", "ColItemBackground", _imgui_col_item_background);
-		config.set("STYLE", "ColActive", _imgui_col_active);
-		config.set("STYLE", "ColText", _imgui_col_text);
-		config.set("STYLE", "ColFPSText", _imgui_col_text_fps);
-
-		for (auto &function : _save_config_callables)
-		{
-			function(config);
-		}
+		for (const auto &callback : _save_config_callables)
+			callback(config);
 	}
 
 	void runtime::load_preset(const std::filesystem::path &path)
@@ -1070,7 +936,7 @@ namespace reshade
 		const int second = _date[3] - hour * 3600 - minute * 60;
 
 		char filename[21];
-		ImFormatString(filename, sizeof(filename), " %.4d-%.2d-%.2d %.2d-%.2d-%.2d", _date[0], _date[1], _date[2], hour, minute, second);
+		sprintf_s(filename, " %.4d-%.2d-%.2d %.2d-%.2d-%.2d", _date[0], _date[1], _date[2], hour, minute, second);
 		const std::wstring least = _screenshot_path / g_target_executable_path.stem().concat(filename);
 		const std::wstring screenshot_path = least + (_screenshot_format == 0 ? L".bmp" : L".png");
 

@@ -234,6 +234,9 @@ namespace reshade
 		void save_current_preset() const;
 		void save_screenshot() const;
 
+		void init_ui();
+		void deinit_ui();
+
 		void draw_overlay();
 		void draw_overlay_menu();
 		void draw_overlay_menu_home();
