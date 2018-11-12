@@ -58,6 +58,7 @@ namespace reshade::d3d10
 
 		void capture_frame(uint8_t *buffer) const override;
 		void update_texture(texture &texture, const uint8_t *data) override;
+		bool update_texture_reference(texture &texture);
 
 		bool compile_effect(effect_data &effect) override;
 
@@ -83,7 +84,6 @@ namespace reshade::d3d10
 		int depth_buffer_texture_format = 0; // No depth buffer texture format filter by default
 
 	private:
-
 		int _depth_buffer_texture_format = 0;
 		unsigned int _selected_depth_buffer_texture_index = 0;
 

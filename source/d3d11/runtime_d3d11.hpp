@@ -58,6 +58,7 @@ namespace reshade::d3d11
 
 		void capture_frame(uint8_t *buffer) const override;
 		void update_texture(texture &texture, const uint8_t *data) override;
+		bool update_texture_reference(texture &texture);
 
 		bool compile_effect(effect_data &effect) override;
 

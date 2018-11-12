@@ -675,6 +675,12 @@ namespace reshade::d3d9
 		if (new_reference == texture_impl->texture)
 			return true;
 
+		// Update references in technique list
+		for (const auto &technique : _techniques)
+			for (const auto &pass : technique.passes_data)
+				for (auto &tex : pass->as<d3d9_pass_data>()->sampler_textures)
+					if (tex == texture_impl->texture) tex = new_reference.get();
+
 		texture_impl->surface.reset();
 
 		if (new_reference == nullptr)
@@ -796,31 +802,31 @@ namespace reshade::d3d9
 		return success;
 	}
 
-	bool runtime_d3d9::add_sampler(const reshadefx::sampler_info &info, d3d9_technique_data &effect)
+	bool runtime_d3d9::add_sampler(const reshadefx::sampler_info &info, d3d9_technique_data &technique_init)
 	{
 		const auto existing_texture = std::find_if(_textures.begin(), _textures.end(),
 			[&texture_name = info.texture_name](const auto &item) {
 			return item.unique_name == texture_name;
 		});
 
-		if (existing_texture == _textures.end() || info.binding > ARRAYSIZE(effect.sampler_states))
+		if (existing_texture == _textures.end() || info.binding > ARRAYSIZE(technique_init.sampler_states))
 			return false;
 
-		effect.num_samplers = std::max(effect.num_samplers, DWORD(info.binding + 1));
+		technique_init.num_samplers = std::max(technique_init.num_samplers, DWORD(info.binding + 1));
 
-		effect.sampler_states[info.binding][D3DSAMP_ADDRESSU] = static_cast<D3DTEXTUREADDRESS>(info.address_u);
-		effect.sampler_states[info.binding][D3DSAMP_ADDRESSV] = static_cast<D3DTEXTUREADDRESS>(info.address_v);
-		effect.sampler_states[info.binding][D3DSAMP_ADDRESSW] = static_cast<D3DTEXTUREADDRESS>(info.address_w);
-		effect.sampler_states[info.binding][D3DSAMP_BORDERCOLOR] = 0;
-		effect.sampler_states[info.binding][D3DSAMP_MAGFILTER] = 1 + ((static_cast<unsigned int>(info.filter) & 0x0C) >> 2);
-		effect.sampler_states[info.binding][D3DSAMP_MINFILTER] = 1 + ((static_cast<unsigned int>(info.filter) & 0x30) >> 4);
-		effect.sampler_states[info.binding][D3DSAMP_MIPFILTER] = 1 + ((static_cast<unsigned int>(info.filter) & 0x03));
-		effect.sampler_states[info.binding][D3DSAMP_MIPMAPLODBIAS] = *reinterpret_cast<const DWORD *>(&info.lod_bias);
-		effect.sampler_states[info.binding][D3DSAMP_MAXMIPLEVEL] = static_cast<DWORD>(std::max(0.0f, info.min_lod));
-		effect.sampler_states[info.binding][D3DSAMP_MAXANISOTROPY] = 1;
-		effect.sampler_states[info.binding][D3DSAMP_SRGBTEXTURE] = info.srgb;
+		technique_init.sampler_states[info.binding][D3DSAMP_ADDRESSU] = static_cast<D3DTEXTUREADDRESS>(info.address_u);
+		technique_init.sampler_states[info.binding][D3DSAMP_ADDRESSV] = static_cast<D3DTEXTUREADDRESS>(info.address_v);
+		technique_init.sampler_states[info.binding][D3DSAMP_ADDRESSW] = static_cast<D3DTEXTUREADDRESS>(info.address_w);
+		technique_init.sampler_states[info.binding][D3DSAMP_BORDERCOLOR] = 0;
+		technique_init.sampler_states[info.binding][D3DSAMP_MAGFILTER] = 1 + ((static_cast<unsigned int>(info.filter) & 0x0C) >> 2);
+		technique_init.sampler_states[info.binding][D3DSAMP_MINFILTER] = 1 + ((static_cast<unsigned int>(info.filter) & 0x30) >> 4);
+		technique_init.sampler_states[info.binding][D3DSAMP_MIPFILTER] = 1 + ((static_cast<unsigned int>(info.filter) & 0x03));
+		technique_init.sampler_states[info.binding][D3DSAMP_MIPMAPLODBIAS] = *reinterpret_cast<const DWORD *>(&info.lod_bias);
+		technique_init.sampler_states[info.binding][D3DSAMP_MAXMIPLEVEL] = static_cast<DWORD>(std::max(0.0f, info.min_lod));
+		technique_init.sampler_states[info.binding][D3DSAMP_MAXANISOTROPY] = 1;
+		technique_init.sampler_states[info.binding][D3DSAMP_SRGBTEXTURE] = info.srgb;
 
-		effect.sampler_textures[info.binding] = existing_texture->impl->as<d3d9_tex_data>()->texture.get();
+		technique_init.sampler_textures[info.binding] = existing_texture->impl->as<d3d9_tex_data>()->texture.get();
 
 		return true;
 	}
@@ -1425,13 +1431,9 @@ namespace reshade::d3d9
 		}
 
 		// Update effect textures
-		for (auto &texture : _textures)
-		{
-			if (texture.impl_reference == texture_reference::depth_buffer)
-			{
-				update_texture_reference(texture);
-			}
-		}
+		for (auto &tex : _textures)
+			if (tex.impl != nullptr && tex.impl_reference == texture_reference::depth_buffer)
+				update_texture_reference(tex);
 
 		return true;
 	}

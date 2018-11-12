@@ -823,6 +823,47 @@ namespace reshade::d3d11
 		if (texture.levels > 1)
 			_immediate_context->GenerateMips(texture_impl->srv[0].get());
 	}
+	bool runtime_d3d11::update_texture_reference(texture &texture)
+	{
+		com_ptr<ID3D11ShaderResourceView> new_reference[2];
+
+		switch (texture.impl_reference)
+		{
+		case texture_reference::back_buffer:
+			new_reference[0] = _backbuffer_texture_srv[0];
+			new_reference[1] = _backbuffer_texture_srv[1];
+			break;
+		case texture_reference::depth_buffer:
+			new_reference[0] = _depthstencil_texture_srv;
+			new_reference[1] = _depthstencil_texture_srv;
+			break;
+		default:
+			return false;
+		}
+
+		const auto texture_impl = texture.impl->as<d3d11_tex_data>();
+
+		assert(texture_impl != nullptr);
+
+		if (new_reference[0] == texture_impl->srv[0] &&
+			new_reference[1] == texture_impl->srv[1])
+			return true;
+
+		// Update references in technique list
+		for (const auto &technique : _techniques)
+			for (const auto &pass : technique.passes_data)
+				for (auto &srv : pass->as<d3d11_pass_data>()->shader_resources)
+					if (srv == texture_impl->srv[0]) srv = new_reference[0];
+					else if (srv == texture_impl->srv[1]) srv = new_reference[1];
+
+		texture.width = frame_width();
+		texture.height = frame_height();
+
+		texture_impl->srv[0] = new_reference[0];
+		texture_impl->srv[1] = new_reference[1];
+
+		return true;
+	}
 
 	bool runtime_d3d11::compile_effect(effect_data &effect)
 	{
@@ -933,7 +974,7 @@ namespace reshade::d3d11
 		return success;
 	}
 
-	bool runtime_d3d11::add_sampler(const reshadefx::sampler_info &info, d3d11_technique_data &effect)
+	bool runtime_d3d11::add_sampler(const reshadefx::sampler_info &info, d3d11_technique_data &technique_init)
 	{
 		const auto existing_texture = std::find_if(_textures.begin(), _textures.end(),
 			[&texture_name = info.texture_name](const auto &item) {
@@ -983,11 +1024,11 @@ namespace reshade::d3d11
 			it = _effect_sampler_states.emplace(desc_hash, std::move(sampler)).first;
 		}
 
-		effect.sampler_states.resize(std::max(effect.sampler_states.size(), size_t(info.binding + 1)));
-		effect.texture_bindings.resize(std::max(effect.texture_bindings.size(), size_t(info.binding + 1)));
+		technique_init.sampler_states.resize(std::max(technique_init.sampler_states.size(), size_t(info.binding + 1)));
+		technique_init.texture_bindings.resize(std::max(technique_init.texture_bindings.size(), size_t(info.binding + 1)));
 
-		effect.sampler_states[info.binding] = it->second;
-		effect.texture_bindings[info.binding] = existing_texture->impl->as<d3d11_tex_data>()->srv[info.srgb ? 1 : 0];
+		technique_init.sampler_states[info.binding] = it->second;
+		technique_init.texture_bindings[info.binding] = existing_texture->impl->as<d3d11_tex_data>()->srv[info.srgb ? 1 : 0];
 
 		return true;
 	}
@@ -997,24 +1038,8 @@ namespace reshade::d3d11
 
 		const auto texture_data = texture.impl->as<d3d11_tex_data>();
 
-		if (texture.impl_reference == texture_reference::back_buffer)
-		{
-			texture.width = frame_width();
-			texture.height = frame_height();
-
-			texture_data->srv[0] = _backbuffer_texture_srv[0];
-			texture_data->srv[1] = _backbuffer_texture_srv[1];
-			return true;
-		}
-		if (texture.impl_reference == texture_reference::depth_buffer)
-		{
-			texture.width = frame_width();
-			texture.height = frame_height();
-
-			texture_data->srv[0] = _depthstencil_texture_srv;
-			texture_data->srv[1] = _depthstencil_texture_srv;
-			return true;
-		}
+		if (texture.impl_reference != texture_reference::none)
+			return update_texture_reference(texture);
 
 		D3D11_TEXTURE2D_DESC texdesc = {};
 		texdesc.Width = texture.width;
@@ -1746,8 +1771,6 @@ namespace reshade::d3d11
 
 	bool runtime_d3d11::create_depthstencil_replacement(ID3D11DepthStencilView *depthstencil, ID3D11Texture2D *texture)
 	{
-		const ID3D11ShaderResourceView *const prev = _depthstencil_texture_srv.get();
-
 		_depthstencil.reset();
 		_depthstencil_replacement.reset();
 		_depthstencil_texture.reset();
@@ -1874,10 +1897,9 @@ namespace reshade::d3d11
 		}
 
 		// Update effect textures
-		for (const auto &technique : _techniques)
-			for (const auto &pass : technique.passes_data)
-				for (auto &srv : pass->as<d3d11_pass_data>()->shader_resources)
-					if (srv.get() == prev) srv = _depthstencil_texture_srv;
+		for (auto &tex : _textures)
+			if (tex.impl != nullptr && tex.impl_reference == texture_reference::depth_buffer)
+				update_texture_reference(tex);
 
 		return true;
 	}

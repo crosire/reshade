@@ -918,7 +918,7 @@ namespace reshade::opengl
 		return success;
 	}
 
-	bool runtime_opengl::add_sampler(const reshadefx::sampler_info &info, opengl_technique_data &effect)
+	bool runtime_opengl::add_sampler(const reshadefx::sampler_info &info, opengl_technique_data &technique_init)
 	{
 		const auto existing_texture = std::find_if(_textures.begin(), _textures.end(),
 			[&texture_name = info.texture_name](const auto &item) {
@@ -1015,9 +1015,9 @@ namespace reshade::opengl
 		sampler.is_srgb = info.srgb;
 		sampler.has_mipmaps = existing_texture->levels > 1;
 
-		effect.samplers.resize(std::max(effect.samplers.size(), size_t(info.binding + 1)));
+		technique_init.samplers.resize(std::max(technique_init.samplers.size(), size_t(info.binding + 1)));
 
-		effect.samplers[info.binding] = std::move(sampler);
+		technique_init.samplers[info.binding] = std::move(sampler);
 
 		return true;
 	}
@@ -1531,6 +1531,7 @@ namespace reshade::opengl
 			glBindFramebuffer(GL_FRAMEBUFFER, previous_fbo);
 		}
 	}
+
 	void runtime_opengl::create_depth_texture(GLuint width, GLuint height, GLenum format)
 	{
 		glDeleteTextures(1, &_depth_texture);
@@ -1572,12 +1573,8 @@ namespace reshade::opengl
 		}
 
 		// Update effect textures
-		for (auto &texture : _textures)
-		{
-			if (texture.impl_reference == texture_reference::depth_buffer)
-			{
-				update_texture_reference(texture);
-			}
-		}
+		for (auto &tex : _textures)
+			if (tex.impl != nullptr && tex.impl_reference == texture_reference::depth_buffer)
+				update_texture_reference(tex);
 	}
 }

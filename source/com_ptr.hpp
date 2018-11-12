@@ -106,7 +106,7 @@ public:
 		return *this;
 	}
 
-	bool operator==(T *rhs) const
+	bool operator==(const T *rhs) const
 	{
 		return _object == rhs;
 	}
@@ -114,11 +114,11 @@ public:
 	{
 		return _object == rhs._object;
 	}
-	friend bool operator==(T *lhs, const com_ptr<T> &rhs)
+	friend bool operator==(const T *lhs, const com_ptr<T> &rhs)
 	{
 		return rhs.operator==(lhs);
 	}
-	bool operator!=(T *rhs) const
+	bool operator!=(const T *rhs) const
 	{
 		return _object != rhs;
 	}
@@ -126,7 +126,7 @@ public:
 	{
 		return _object != rhs._object;
 	}
-	friend bool operator!=(T *lhs, const com_ptr<T> &rhs)
+	friend bool operator!=(const T *lhs, const com_ptr<T> &rhs)
 	{
 		return rhs.operator!=(lhs);
 	}
