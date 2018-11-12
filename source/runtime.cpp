@@ -452,6 +452,7 @@ void reshade::runtime::load_effect(const std::filesystem::path &path)
 
 	for (const reshadefx::texture_info &info : module.textures)
 	{
+		// Try to share textures with the same name across effects
 		if (const auto existing_texture = std::find_if(_textures.begin(), _textures.end(),
 			[&texture_name = info.unique_name](const auto &item) { return item.unique_name == texture_name; });
 			existing_texture != _textures.end())

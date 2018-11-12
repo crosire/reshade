@@ -10,9 +10,11 @@
 #include <algorithm>
 #include <d3dcompiler.h>
 
-const auto D3DFMT_INTZ = static_cast<D3DFORMAT>(MAKEFOURCC('I', 'N', 'T', 'Z'));
-const auto D3DFMT_DF16 = static_cast<D3DFORMAT>(MAKEFOURCC('D', 'F', '1', '6'));
-const auto D3DFMT_DF24 = static_cast<D3DFORMAT>(MAKEFOURCC('D', 'F', '2', '4'));
+constexpr auto D3DFMT_INTZ = static_cast<D3DFORMAT>(MAKEFOURCC('I', 'N', 'T', 'Z'));
+constexpr auto D3DFMT_DF16 = static_cast<D3DFORMAT>(MAKEFOURCC('D', 'F', '1', '6'));
+constexpr auto D3DFMT_DF24 = static_cast<D3DFORMAT>(MAKEFOURCC('D', 'F', '2', '4'));
+constexpr auto D3DFMT_ATI1 = static_cast<D3DFORMAT>(MAKEFOURCC('A', 'T', 'I', '1'));
+constexpr auto D3DFMT_ATI2 = static_cast<D3DFORMAT>(MAKEFOURCC('A', 'T', 'I', '2'));
 
 namespace reshade::d3d9
 {
@@ -784,8 +786,8 @@ namespace reshade::d3d9
 		bool success = true;
 
 		for (texture &texture : _textures)
-			if (texture.effect_filename == effect.source_file.filename().u8string()
-				|| (texture.impl_reference != texture_reference::none && texture.impl == nullptr)) // Always initialize special textures, since they are shared across all effect files
+			if (texture.impl == nullptr && (texture.effect_filename == effect.source_file.filename().u8string()
+				|| texture.impl_reference != texture_reference::none)) // Always initialize special textures, since they are shared across all effect files
 				success &= init_texture(texture);
 
 		d3d9_technique_data technique_init;
@@ -796,7 +798,7 @@ namespace reshade::d3d9
 			success &= add_sampler(info, technique_init);
 
 		for (technique &technique : _techniques)
-			if (technique.effect_filename == effect.source_file.filename().u8string())
+			if (technique.impl == nullptr && technique.effect_filename == effect.source_file.filename().u8string())
 				success &= init_technique(technique, technique_init, vs_entry_points, ps_entry_points);
 
 		return success;
@@ -890,10 +892,10 @@ namespace reshade::d3d9
 			format = D3DFMT_DXT5;
 			break;
 		case reshadefx::texture_format::latc1:
-			format = static_cast<D3DFORMAT>(MAKEFOURCC('A', 'T', 'I', '1'));
+			format = D3DFMT_ATI1;
 			break;
 		case reshadefx::texture_format::latc2:
-			format = static_cast<D3DFORMAT>(MAKEFOURCC('A', 'T', 'I', '2'));
+			format = D3DFMT_ATI2;
 			break;
 		}
 

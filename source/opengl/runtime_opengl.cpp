@@ -897,8 +897,8 @@ namespace reshade::opengl
 		bool success = true;
 
 		for (texture &texture : _textures)
-			if (texture.effect_filename == effect.source_file.filename().u8string()
-				|| (texture.impl_reference != texture_reference::none && texture.impl == nullptr)) // Always initialize special textures, since they are shared across all effect files
+			if (texture.impl == nullptr && (texture.effect_filename == effect.source_file.filename().u8string()
+				|| texture.impl_reference != texture_reference::none)) // Always initialize special textures, since they are shared across all effect files
 				success &= init_texture(texture);
 
 		opengl_technique_data technique_init;
@@ -909,7 +909,7 @@ namespace reshade::opengl
 			success &= add_sampler(info, technique_init);
 
 		for (technique &technique : _techniques)
-			if (technique.effect_filename == effect.source_file.filename().u8string())
+			if (technique.impl == nullptr && technique.effect_filename == effect.source_file.filename().u8string())
 				success &= init_technique(technique, technique_init, entry_points, effect.errors);
 
 		for (auto &it : entry_points)
