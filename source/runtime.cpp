@@ -498,9 +498,9 @@ void reshade::runtime::load_effect(const std::filesystem::path &path)
 	}
 
 	if (errors.empty())
-		LOG(INFO) << "Successfully compiled " << path << ".";
+		LOG(INFO) << "Successfully loaded " << path << ".";
 	else
-		LOG(WARNING) << "Successfully compiled " << path << " with warnings:\n" << errors;
+		LOG(WARNING) << "Successfully loaded " << path << " with warnings:\n" << errors;
 
 	effect_data effect;
 	effect.errors = std::move(errors);
