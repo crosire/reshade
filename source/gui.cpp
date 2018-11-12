@@ -1224,6 +1224,18 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 						modified = ImGui::DragScalarN(ui_label.c_str(), ImGuiDataType_Float, data, variable.type.rows, ui_step, &ui_min, &ui_max, "%.3f");
 					}
+					else if (ui_type == "combo")
+					{
+						std::string items = variable.annotations["ui_items"].second.string_data;
+
+						// Make sure list is terminated with a zero in case user forgot so no invalid memory is read accidentally
+						if (!items.empty() && items.back() != '\0')
+							items.push_back('\0');
+
+						int current_item = static_cast<int>(data[0]);
+						modified = ImGui::Combo(ui_label.c_str(), &current_item, items.c_str());
+						data[0] = static_cast<float>(current_item);
+					}
 					else if (ui_type == "input" || (ui_type.empty() && variable.type.rows < 3))
 					{
 						modified = ImGui::InputScalarN(ui_label.c_str(), ImGuiDataType_Float, data, variable.type.rows);

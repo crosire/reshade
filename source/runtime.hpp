@@ -11,6 +11,7 @@
 #include <atomic>
 #include "ini_file.hpp"
 #include "runtime_objects.hpp"
+#include "effect_codegen.hpp"
 
 #pragma region Forward Declarations
 struct ImDrawData;
@@ -20,10 +21,6 @@ struct ImGuiContext;
 namespace reshade
 {
 	class input;
-}
-namespace reshadefx
-{
-	struct module;
 }
 
 extern volatile long g_network_traffic;
@@ -36,6 +33,14 @@ extern std::filesystem::path g_windows_path;
 
 namespace reshade
 {
+	struct effect_data
+	{
+		std::string errors;
+		reshadefx::module module;
+		std::filesystem::path source_file;
+		size_t storage_offset, storage_size;
+	};
+
 	class runtime abstract
 	{
 	public:
@@ -163,9 +168,8 @@ namespace reshade
 		/// <summary>
 		/// Compile effect from the specified abstract syntax tree and initialize textures, constants and techniques.
 		/// </summary>
-		/// <param name="module">The effect module to compile.</param>
-		/// <param name="errors">A reference to a buffer to store errors which occur during compilation.</param>
-		virtual bool load_effect(const std::string &filename, const reshadefx::module &module, std::string &errors) = 0;
+		/// <param name="effect">The effect module to compile.</param>
+		virtual bool load_effect(effect_data &effect) = 0;
 
 		/// <summary>
 		/// Loads image files and updates all textures with image data.
@@ -243,18 +247,23 @@ namespace reshade
 
 		const unsigned int _renderer_id;
 		bool _is_initialized = false;
-		std::vector<reshadefx::module> _effect_modules;
-		std::vector<std::filesystem::path> _effect_files;
+
+		std::vector<struct effect_data> _loaded_effects;
 		std::unordered_map<std::string, size_t> _technique_to_effect;
-		std::vector<std::filesystem::path> _preset_files;
+		bool _last_reload_successful = true;
+		bool _has_finished_reloading = false;
+		std::atomic<size_t> _reload_remaining_effects = 0;
+
+		std::vector<std::string> _preprocessor_definitions;
 		std::vector<std::filesystem::path> _effect_search_paths;
 		std::vector<std::filesystem::path> _texture_search_paths;
+
+		std::vector<std::filesystem::path> _preset_files;
 		std::chrono::high_resolution_clock::time_point _start_time;
 		std::chrono::high_resolution_clock::time_point _last_reload_time;
 		std::chrono::high_resolution_clock::time_point _last_present_time;
 		std::chrono::high_resolution_clock::duration _last_frame_duration;
 		int _date[4] = { };
-		std::vector<std::string> _preprocessor_definitions;
 		std::vector<std::pair<std::string, std::function<void()>>> _menu_callables;
 		std::vector<std::function<void(const ini_file &)>> _load_config_callables;
 		std::vector<std::function<void(ini_file &)>> _save_config_callables;
@@ -287,8 +296,6 @@ namespace reshade
 		bool _screenshot_key_setting_active = false;
 		bool _toggle_key_setting_active = false;
 		bool _log_wordwrap = false;
-		bool _last_reload_successful = true;
-		bool _has_finished_reloading = false;
 		unsigned char _switched_menu = 0;
 		float _imgui_col_background[3] = { 0.117647f, 0.117647f, 0.117647f };
 		float _imgui_col_item_background[3] = { 0.156863f, 0.156863f, 0.156863f };
@@ -299,6 +306,5 @@ namespace reshade
 		unsigned int _tutorial_index = 0;
 		unsigned int _effects_expanded_state = 2;
 		char _effect_filter_buffer[64] = { };
-		std::atomic<size_t> _reload_remaining_effects = 0;
 	};
 }

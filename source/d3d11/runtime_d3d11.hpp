@@ -57,7 +57,7 @@ namespace reshade::d3d11
 		void on_present(draw_call_tracker& tracker);
 
 		void capture_frame(uint8_t *buffer) const override;
-		bool load_effect(const std::string &filename, const reshadefx::module &module, std::string &errors) override;
+		bool load_effect(effect_data &effect) override;
 		bool update_texture(texture &texture, const uint8_t *data) override;
 
 		void render_technique(const technique &technique) override;
@@ -90,10 +90,9 @@ namespace reshade::d3d11
 		bool init_imgui_resources();
 		bool init_imgui_font_atlas();
 
-		void init_uniform(uniform &info, size_t storage_base_offset);
+		bool add_sampler(const reshadefx::sampler_info &info, d3d11_technique_data &technique_init);
 		bool init_texture(texture &info);
-		bool init_sampler(const reshadefx::sampler_info &info, d3d11_technique_data &effect);
-		bool init_technique(technique &info, const d3d11_technique_data &effect);
+		bool init_technique(technique &info, const d3d11_technique_data &technique_init, const std::unordered_map<std::string, com_ptr<ID3D11VertexShader>> &vs_entry_points, const std::unordered_map<std::string, com_ptr<ID3D11PixelShader>> &ps_entry_points);
 
 		void draw_debug_menu();
 
@@ -140,7 +139,5 @@ namespace reshade::d3d11
 		draw_call_tracker _current_tracker;
 
 		HMODULE _d3d_compiler = nullptr;
-		std::unordered_map<std::string, com_ptr<ID3D11PixelShader>> _ps_entry_points;
-		std::unordered_map<std::string, com_ptr<ID3D11VertexShader>> _vs_entry_points;
 	};
 }

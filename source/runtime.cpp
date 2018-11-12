@@ -461,8 +461,7 @@ namespace reshade
 	{
 		on_reset_effect();
 
-		_effect_files.clear();
-		_effect_modules.clear();
+		_loaded_effects.clear();
 
 		_last_reload_successful = true;
 		_has_finished_reloading = false;
@@ -497,7 +496,7 @@ namespace reshade
 			for (const auto &include_path : _effect_search_paths)
 			{
 				if (include_path.empty())
-					continue;
+					continue; // Skip invalid paths
 
 				pp.add_include_path(include_path);
 			}
@@ -516,14 +515,16 @@ namespace reshade
 			for (const auto &definition : _preprocessor_definitions)
 			{
 				if (definition.empty())
-					continue;
+					continue; // Skip invalid definitions
 
-				if (const size_t equals_index = definition.find_first_of('='); equals_index != std::string::npos)
+				const size_t equals_index = definition.find_first_of('=');
+				if (equals_index != std::string::npos)
 					pp.add_macro_definition(definition.substr(0, equals_index), definition.substr(equals_index + 1));
 				else
 					pp.add_macro_definition(definition);
 			}
 
+			// Pre-process the source file
 			if (!pp.append_file(path))
 			{
 				LOG(ERROR) << "Failed to pre-process " << path << ":\n" << pp.errors();
@@ -547,6 +548,7 @@ namespace reshade
 			else
 				shader_model = 50;
 
+			// Compile the pre-processed source code
 			if (!parser.parse(source_code, _renderer_id & 0x10000 ? reshadefx::codegen::backend::glsl : reshadefx::codegen::backend::hlsl, shader_model, true, _performance_mode, module))
 			{
 				LOG(ERROR) << "Failed to compile " << path << ":\n" << parser.errors();
@@ -561,6 +563,7 @@ namespace reshade
 		std::ofstream("ReShade-ShaderDump-" + path.stem().u8string() + ".hlsl", std::ios::trunc) << module.hlsl;
 #endif
 
+		// Fill all specialization constants with values from the current preset
 		if (_performance_mode && _current_preset >= 0)
 		{
 			ini_file preset(_preset_files[_current_preset]);
@@ -584,16 +587,28 @@ namespace reshade
 
 		std::lock_guard<std::mutex> lock(s_lock);
 
+		const size_t storage_base_offset = _uniform_data_storage.size();
+
 		for (const reshadefx::uniform_info &info : module.uniforms)
 		{
-			uniform &variable = _uniforms.emplace_back(info);
-			variable.effect_filename = path.filename().u8string();
-			variable.hidden = variable.annotations["hidden"].second.as_uint[0];
+			uniform &uniform = _uniforms.emplace_back(info);
+			uniform.effect_filename = path.filename().u8string();
+			uniform.hidden = uniform.annotations["hidden"].second.as_uint[0];
+
+			uniform.storage_offset = storage_base_offset + uniform.offset;
+
+			// Create space for the new variable in the storage area and fill it with the initializer value
+			_uniform_data_storage.resize(uniform.storage_offset + uniform.size);
+
+			if (uniform.has_initializer_value)
+				memcpy(_uniform_data_storage.data() + uniform.storage_offset, uniform.initializer_value.as_uint, uniform.size);
+			else
+				memset(_uniform_data_storage.data() + uniform.storage_offset, 0, uniform.size);
 		}
 
 		for (const reshadefx::texture_info &info : module.textures)
 		{
-			if (const auto existing_texture = find_texture(info.unique_name); existing_texture != nullptr)
+			if (const texture *const existing_texture = find_texture(info.unique_name); existing_texture != nullptr)
 			{
 				if (info.semantic.empty() && (
 					existing_texture->width != info.width ||
@@ -623,7 +638,7 @@ namespace reshade
 			technique.toggle_key_data[2] = technique.annotations["toggleshift"].second.as_uint[0] ? 1 : 0;
 			technique.toggle_key_data[3] = technique.annotations["togglealt"].second.as_uint[0] ? 1 : 0;
 
-			_technique_to_effect[info.name] = _effect_modules.size();
+			_technique_to_effect[info.name] = _loaded_effects.size();
 		}
 
 		if (errors.empty())
@@ -631,8 +646,17 @@ namespace reshade
 		else
 			LOG(WARNING) << "> Successfully compiled with warnings:\n" << errors;
 
-		_effect_files.push_back(path);
-		_effect_modules.push_back(std::move(module));
+		effect_data effect;
+		effect.errors = std::move(errors);
+		effect.module = std::move(module);
+		effect.source_file = path;
+		effect.storage_offset = storage_base_offset;
+
+		const auto roundto16 = [](size_t size) { return (size + 15) & ~15; };
+		effect.storage_size = roundto16(_uniform_data_storage.size() - storage_base_offset);
+		_uniform_data_storage.resize(effect.storage_offset + effect.storage_size);
+
+		_loaded_effects.push_back(std::move(effect));
 
 		if (--_reload_remaining_effects == 0)
 		{
@@ -725,15 +749,18 @@ namespace reshade
 		if (it == _technique_to_effect.end())
 			return;
 
-		const reshadefx::module &module = _effect_modules[it->second];
-		const std::filesystem::path &path = _effect_files[it->second];
+		effect_data &effect = _loaded_effects[it->second];
 
-		if (std::string errors; !load_effect(path.filename().u8string(), module, errors))
+		if (!load_effect(effect))
 		{
-			LOG(ERROR) << "Failed to compile " << path << ":\n" << errors;
+			LOG(ERROR) << "Failed to compile " << effect.source_file << ":\n" << effect.errors;
 			_last_reload_successful = false;
 			return;
 		}
+
+		for (uniform &uniform : _uniforms)
+			if (uniform.effect_filename == effect.source_file.filename().u8string())
+				uniform.loaded = true;
 	}
 	void runtime::deactivate_technique(const std::string &name)
 	{

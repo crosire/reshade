@@ -653,9 +653,6 @@ namespace reshade::d3d10
 		_imgui_depthstencil_state.reset();
 		_imgui_vertex_buffer_size = 0;
 		_imgui_index_buffer_size = 0;
-
-		_vs_entry_points.clear();
-		_ps_entry_points.clear();
 	}
 	void runtime_d3d10::on_reset_effect()
 	{
@@ -892,7 +889,7 @@ namespace reshade::d3d10
 		return true;
 	}
 
-	bool runtime_d3d10::load_effect(const std::string &filename, const reshadefx::module &module, std::string &errors)
+	bool runtime_d3d10::load_effect(effect_data &effect)
 	{
 		if (_d3d_compiler == nullptr)
 			_d3d_compiler = LoadLibraryW(L"d3dcompiler_47.dll");
@@ -907,12 +904,9 @@ namespace reshade::d3d10
 
 		const auto D3DCompile = reinterpret_cast<pD3DCompile>(GetProcAddress(_d3d_compiler, "D3DCompile"));
 
-		_vs_entry_points.clear();
-		_ps_entry_points.clear();
-
 		// Add specialization constant defines to source code
 		std::string spec_constants;
-		for (const auto &constant : module.spec_constants)
+		for (const auto &constant : effect.module.spec_constants)
 		{
 			spec_constants += "#define SPEC_CONSTANT_" + constant.name + ' ';
 
@@ -933,17 +927,20 @@ namespace reshade::d3d10
 			spec_constants += '\n';
 		}
 
-		const std::string hlsl = spec_constants + module.hlsl;
+		const std::string hlsl = spec_constants + effect.module.hlsl;
+
+		std::unordered_map<std::string, com_ptr<ID3D10PixelShader>> ps_entry_points;
+		std::unordered_map<std::string, com_ptr<ID3D10VertexShader>> vs_entry_points;
 
 		// Compile the generated HLSL source code to DX byte code
-		for (const auto &entry_point : module.entry_points)
+		for (const auto &entry_point : effect.module.entry_points)
 		{
-			com_ptr<ID3DBlob> compiled, d3d_errors;
+			com_ptr<ID3DBlob> d3d_compiled, d3d_errors;
 
-			HRESULT hr = D3DCompile(hlsl.c_str(), hlsl.size(), nullptr, nullptr, nullptr, entry_point.first.c_str(), entry_point.second ? "ps_4_0" : "vs_4_0", D3DCOMPILE_ENABLE_STRICTNESS, 0, &compiled, &d3d_errors);
+			HRESULT hr = D3DCompile(hlsl.c_str(), hlsl.size(), nullptr, nullptr, nullptr, entry_point.first.c_str(), entry_point.second ? "ps_4_0" : "vs_4_0", D3DCOMPILE_ENABLE_STRICTNESS, 0, &d3d_compiled, &d3d_errors);
 
 			if (d3d_errors != nullptr) // Append warnings to the output error string as well
-				errors.append(static_cast<const char *>(d3d_errors->GetBufferPointer()), d3d_errors->GetBufferSize() - 1); // Subtracting one to not append the null-terminator as well
+				effect.errors.append(static_cast<const char *>(d3d_errors->GetBufferPointer()), d3d_errors->GetBufferSize() - 1); // Subtracting one to not append the null-terminator as well
 
 			// No need to setup resources if any of the shaders failed to compile
 			if (FAILED(hr))
@@ -951,9 +948,9 @@ namespace reshade::d3d10
 
 			// Create runtime shader objects from the compiled DX byte code
 			if (entry_point.second)
-				hr = _device->CreatePixelShader(compiled->GetBufferPointer(), compiled->GetBufferSize(), &_ps_entry_points[entry_point.first]);
+				hr = _device->CreatePixelShader(d3d_compiled->GetBufferPointer(), d3d_compiled->GetBufferSize(), &ps_entry_points[entry_point.first]);
 			else
-				hr = _device->CreateVertexShader(compiled->GetBufferPointer(), compiled->GetBufferSize(), &_vs_entry_points[entry_point.first]);
+				hr = _device->CreateVertexShader(d3d_compiled->GetBufferPointer(), d3d_compiled->GetBufferSize(), &vs_entry_points[entry_point.first]);
 
 			if (FAILED(hr))
 			{
@@ -963,60 +960,97 @@ namespace reshade::d3d10
 			}
 		}
 
-		const size_t storage_base_offset = _uniform_data_storage.size();
-		for (uniform &uniform : _uniforms)
-			if (uniform.effect_filename == filename)
-				init_uniform(uniform, storage_base_offset);
-
-		const size_t constant_buffer_size = roundto16(_uniform_data_storage.size() - storage_base_offset);
-		if (constant_buffer_size != 0)
+		if (effect.storage_size != 0)
 		{
-			_uniform_data_storage.resize(storage_base_offset + constant_buffer_size);
+			com_ptr<ID3D10Buffer> cbuffer;
 
-			const CD3D10_BUFFER_DESC globals_desc(static_cast<UINT>(constant_buffer_size), D3D10_BIND_CONSTANT_BUFFER, D3D10_USAGE_DYNAMIC, D3D10_CPU_ACCESS_WRITE);
-			const D3D10_SUBRESOURCE_DATA globals_initial = { _uniform_data_storage.data() + storage_base_offset, static_cast<UINT>(constant_buffer_size) };
+			const D3D10_BUFFER_DESC desc = { static_cast<UINT>(effect.storage_size), D3D10_USAGE_DYNAMIC, D3D10_BIND_CONSTANT_BUFFER, D3D10_CPU_ACCESS_WRITE };
+			const D3D10_SUBRESOURCE_DATA init_data = { _uniform_data_storage.data() + effect.storage_offset, static_cast<UINT>(effect.storage_size) };
 
-			com_ptr<ID3D10Buffer> constant_buffer;
-			_device->CreateBuffer(&globals_desc, &globals_initial, &constant_buffer);
+			if (const HRESULT hr = _device->CreateBuffer(&desc, &init_data, &cbuffer); FAILED(hr))
+			{
+				LOG(ERROR) << "Failed to create constant buffer for effect file " << effect.source_file << ". "
+					"HRESULT is '" << std::hex << hr << std::dec << "'.";
+				return false;
+			}
 
-			_constant_buffers.push_back(std::move(constant_buffer));
+			_constant_buffers.push_back(std::move(cbuffer));
 		}
 
 		bool success = true;
 
 		for (texture &texture : _textures)
-			if (texture.effect_filename == filename || (!texture.semantic.empty() && texture.impl == nullptr))
+			if (texture.effect_filename == effect.source_file.filename().u8string() || (!texture.semantic.empty() && texture.impl == nullptr))
 				success &= init_texture(texture);
 
-		d3d10_technique_data effect;
-		effect.uniform_storage_index = _constant_buffers.size() - 1;
-		effect.uniform_storage_offset = storage_base_offset;
+		d3d10_technique_data technique_init;
+		technique_init.uniform_storage_index = _constant_buffers.size() - 1;
+		technique_init.uniform_storage_offset = effect.storage_offset;
 
-		for (const auto &sampler : module.samplers)
-			success &= init_sampler(sampler, effect);
+		for (const reshadefx::sampler_info &info : effect.module.samplers)
+			success &= add_sampler(info, technique_init);
 
 		for (technique &technique : _techniques)
-			if (technique.effect_filename == filename)
-				success &= init_technique(technique, effect);
-
-		_vs_entry_points.clear();
-		_ps_entry_points.clear();
+			if (technique.effect_filename == effect.source_file.filename().u8string())
+				success &= init_technique(technique, technique_init, vs_entry_points, ps_entry_points);
 
 		return success;
 	}
 
-	void runtime_d3d10::init_uniform(uniform &obj, size_t storage_base_offset)
+	bool runtime_d3d10::add_sampler(const reshadefx::sampler_info &info, d3d10_technique_data &effect)
 	{
-		obj.loaded = true;
-		obj.storage_offset = storage_base_offset + obj.offset;
+		const auto existing_texture = find_texture(info.texture_name);
 
-		// Create space for the new variable in the storage area and fill it with the initializer value
-		_uniform_data_storage.resize(obj.storage_offset + obj.size);
+		if (!existing_texture)
+			return false;
 
-		if (obj.has_initializer_value)
-			memcpy(_uniform_data_storage.data() + obj.storage_offset, obj.initializer_value.as_uint, obj.size);
-		else
-			memset(_uniform_data_storage.data() + obj.storage_offset, 0, obj.size);
+		D3D10_SAMPLER_DESC desc = {};
+		desc.Filter = static_cast<D3D10_FILTER>(info.filter);
+		desc.AddressU = static_cast<D3D10_TEXTURE_ADDRESS_MODE>(info.address_u);
+		desc.AddressV = static_cast<D3D10_TEXTURE_ADDRESS_MODE>(info.address_v);
+		desc.AddressW = static_cast<D3D10_TEXTURE_ADDRESS_MODE>(info.address_w);
+		desc.MipLODBias = info.lod_bias;
+		desc.MaxAnisotropy = 1;
+		desc.ComparisonFunc = D3D10_COMPARISON_NEVER;
+		desc.MinLOD = info.min_lod;
+		desc.MaxLOD = info.max_lod;
+
+		size_t desc_hash = 2166136261;
+		for (size_t i = 0; i < sizeof(desc); ++i)
+			desc_hash = (desc_hash * 16777619) ^ reinterpret_cast<const uint8_t *>(&desc)[i];
+
+		auto it = _effect_sampler_states.find(desc_hash);
+
+		if (it == _effect_sampler_states.end())
+		{
+			com_ptr<ID3D10SamplerState> sampler;
+
+			HRESULT hr = _device->CreateSamplerState(&desc, &sampler);
+
+			if (FAILED(hr))
+			{
+				LOG(ERROR) << "Failed to create sampler state for texture '" << info.texture_name << "' ("
+					"Filter = " << desc.Filter << ", "
+					"AddressU = " << desc.AddressU << ", "
+					"AddressV = " << desc.AddressV << ", "
+					"AddressW = " << desc.AddressW << ", "
+					"MipLODBias = " << desc.MipLODBias << ", "
+					"MinLOD = " << desc.MinLOD << ", "
+					"MaxLOD = " << desc.MaxLOD << ")! "
+					"HRESULT is '" << std::hex << hr << std::dec << "'.";
+				return false;
+			}
+
+			it = _effect_sampler_states.emplace(desc_hash, std::move(sampler)).first;
+		}
+
+		effect.sampler_states.resize(std::max(effect.sampler_states.size(), size_t(info.binding + 1)));
+		effect.texture_bindings.resize(std::max(effect.texture_bindings.size(), size_t(info.binding + 1)));
+
+		effect.sampler_states[info.binding] = it->second;
+		effect.texture_bindings[info.binding] = existing_texture->impl->as<d3d10_tex_data>()->srv[info.srgb ? 1 : 0];
+
+		return true;
 	}
 	bool runtime_d3d10::init_texture(texture &obj)
 	{
@@ -1106,62 +1140,7 @@ namespace reshade::d3d10
 
 		return true;
 	}
-	bool runtime_d3d10::init_sampler(const reshadefx::sampler_info &info, d3d10_technique_data &effect)
-	{
-		const auto existing_texture = find_texture(info.texture_name);
-
-		if (!existing_texture)
-			return false;
-
-		D3D10_SAMPLER_DESC desc = {};
-		desc.Filter = static_cast<D3D10_FILTER>(info.filter);
-		desc.AddressU = static_cast<D3D10_TEXTURE_ADDRESS_MODE>(info.address_u);
-		desc.AddressV = static_cast<D3D10_TEXTURE_ADDRESS_MODE>(info.address_v);
-		desc.AddressW = static_cast<D3D10_TEXTURE_ADDRESS_MODE>(info.address_w);
-		desc.MipLODBias = info.lod_bias;
-		desc.MaxAnisotropy = 1;
-		desc.ComparisonFunc = D3D10_COMPARISON_NEVER;
-		desc.MinLOD = info.min_lod;
-		desc.MaxLOD = info.max_lod;
-
-		size_t desc_hash = 2166136261;
-		for (size_t i = 0; i < sizeof(desc); ++i)
-			desc_hash = (desc_hash * 16777619) ^ reinterpret_cast<const uint8_t *>(&desc)[i];
-
-		auto it = _effect_sampler_states.find(desc_hash);
-
-		if (it == _effect_sampler_states.end())
-		{
-			com_ptr<ID3D10SamplerState> sampler;
-
-			HRESULT hr = _device->CreateSamplerState(&desc, &sampler);
-
-			if (FAILED(hr))
-			{
-				LOG(ERROR) << "Failed to create sampler state for texture '" << info.texture_name << "' ("
-					"Filter = " << desc.Filter << ", "
-					"AddressU = " << desc.AddressU << ", "
-					"AddressV = " << desc.AddressV << ", "
-					"AddressW = " << desc.AddressW << ", "
-					"MipLODBias = " << desc.MipLODBias << ", "
-					"MinLOD = " << desc.MinLOD << ", "
-					"MaxLOD = " << desc.MaxLOD << ")! "
-					"HRESULT is '" << std::hex << hr << std::dec << "'.";
-				return false;
-			}
-
-			it = _effect_sampler_states.emplace(desc_hash, std::move(sampler)).first;
-		}
-
-		effect.sampler_states.resize(std::max(effect.sampler_states.size(), size_t(info.binding + 1)));
-		effect.texture_bindings.resize(std::max(effect.texture_bindings.size(), size_t(info.binding + 1)));
-
-		effect.sampler_states[info.binding] = it->second;
-		effect.texture_bindings[info.binding] = existing_texture->impl->as<d3d10_tex_data>()->srv[info.srgb ? 1 : 0];
-
-		return true;
-	}
-	bool runtime_d3d10::init_technique(technique &obj, const d3d10_technique_data &effect)
+	bool runtime_d3d10::init_technique(technique &obj, const d3d10_technique_data &effect, const std::unordered_map<std::string, com_ptr<ID3D10VertexShader>> &vs_entry_points, const std::unordered_map<std::string, com_ptr<ID3D10PixelShader>> &ps_entry_points)
 	{
 		obj.impl = std::make_unique<d3d10_technique_data>(effect);
 
@@ -1179,8 +1158,8 @@ namespace reshade::d3d10
 			const auto &pass_info = obj.passes[pass_index];
 			auto &pass = static_cast<d3d10_pass_data &>(*obj.passes_data.emplace_back(std::make_unique<d3d10_pass_data>()));
 
-			pass.pixel_shader = _ps_entry_points.at(pass_info.ps_entry_point);
-			pass.vertex_shader = _vs_entry_points.at(pass_info.vs_entry_point);
+			pass.pixel_shader = ps_entry_points.at(pass_info.ps_entry_point);
+			pass.vertex_shader = vs_entry_points.at(pass_info.vs_entry_point);
 
 			pass.viewport.MaxDepth = 1.0f;
 

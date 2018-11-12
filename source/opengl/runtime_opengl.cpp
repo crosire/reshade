@@ -595,10 +595,6 @@ namespace reshade::opengl
 		_imgui_vao = _imgui_vbo[0] = _imgui_vbo[1] = 0;
 
 		_depth_source = 0;
-
-		for (auto &it : _entry_points)
-			glDeleteShader(it.second);
-		_entry_points.clear();
 	}
 	void runtime_opengl::on_reset_effect()
 	{
@@ -918,7 +914,7 @@ namespace reshade::opengl
 		return true;
 	}
 
-	bool runtime_opengl::load_effect(const std::string &filename, const reshadefx::module &module, std::string &errors)
+	bool runtime_opengl::load_effect(effect_data &effect)
 	{
 		// Add specialization constant defines to source code
 #if 0
@@ -931,7 +927,7 @@ namespace reshade::opengl
 		}
 #else
 		std::string spec_constants;
-		for (const auto &constant : module.spec_constants)
+		for (const auto &constant : effect.module.spec_constants)
 		{
 			spec_constants += "#define SPEC_CONSTANT_" + constant.name + ' ';
 
@@ -953,10 +949,12 @@ namespace reshade::opengl
 		}
 #endif
 
+		std::unordered_map<std::string, GLuint> entry_points;
+
 		// Compile all entry points
-		for (const auto &entry_point : module.entry_points)
+		for (const auto &entry_point : effect.module.entry_points)
 		{
-			const GLuint shader_id = glCreateShader(entry_point.second ? GL_FRAGMENT_SHADER : GL_VERTEX_SHADER);
+			GLuint shader_id = glCreateShader(entry_point.second ? GL_FRAGMENT_SHADER : GL_VERTEX_SHADER);
 
 #if 0
 			glShaderBinary(1, &shader_id, GL_SHADER_BINARY_FORMAT_SPIR_V, module.spirv.data(), module.spirv.size() * sizeof(uint32_t));
@@ -970,8 +968,8 @@ namespace reshade::opengl
 				defines += "#define discard\n";
 			defines += spec_constants;
 
-			GLsizei lengths[] = { static_cast<GLsizei>(defines.size()), static_cast<GLsizei>(module.hlsl.size()) };
-			const GLchar *sources[] = { defines.c_str(), module.hlsl.c_str() };
+			GLsizei lengths[] = { static_cast<GLsizei>(defines.size()), static_cast<GLsizei>(effect.module.hlsl.size()) };
+			const GLchar *sources[] = { defines.c_str(), effect.module.hlsl.c_str() };
 			glShaderSource(shader_id, 2, sources, lengths);
 
 			glCompileShader(shader_id);
@@ -991,31 +989,24 @@ namespace reshade::opengl
 					std::string log(logsize, '\0');
 					glGetShaderInfoLog(shader_id, logsize, nullptr, &log.front());
 
-					errors += log;
+					effect.errors += log;
 				}
 				else
 				{
-					errors += "error: internal shader compilation failed\n";
+					effect.errors += "error: internal shader compilation failed\n";
 				}
 
-				for (auto &it : _entry_points)
+				for (auto &it : entry_points)
 					glDeleteShader(it.second);
-				_entry_points.clear();
 
 				// No need to setup resources if any of the shaders failed to compile
 				return false;
 			}
 
-			_entry_points[entry_point.first] = shader_id;
+			entry_points[entry_point.first] = shader_id;
 		}
 
-		const size_t storage_base_offset = _uniform_data_storage.size();
-		for (uniform &uniform : _uniforms)
-			if (uniform.effect_filename == filename)
-				init_uniform(uniform, storage_base_offset);
-
-		const size_t uniform_buffer_size = _uniform_data_storage.size() - storage_base_offset;
-		if (uniform_buffer_size != 0)
+		if (effect.storage_size != 0)
 		{
 			GLuint ubo = 0;
 			glGenBuffers(1, &ubo);
@@ -1024,93 +1015,37 @@ namespace reshade::opengl
 			glGetIntegerv(GL_UNIFORM_BUFFER_BINDING, &previous);
 
 			glBindBuffer(GL_UNIFORM_BUFFER, ubo);
-			glBufferData(GL_UNIFORM_BUFFER, static_cast<GLintptr>(uniform_buffer_size), _uniform_data_storage.data() + storage_base_offset, GL_DYNAMIC_DRAW);
+			glBufferData(GL_UNIFORM_BUFFER, effect.storage_size, _uniform_data_storage.data() + effect.storage_offset, GL_DYNAMIC_DRAW);
 
 			glBindBuffer(GL_UNIFORM_BUFFER, previous);
 
-			_effect_ubos.emplace_back(ubo, uniform_buffer_size);
+			_effect_ubos.emplace_back(ubo, effect.storage_size);
 		}
 
 		bool success = true;
 
 		for (texture &texture : _textures)
-			if (texture.effect_filename == filename || (!texture.semantic.empty() && texture.impl == nullptr))
+			if (texture.effect_filename == effect.source_file.filename().u8string() || (!texture.semantic.empty() && texture.impl == nullptr))
 				success &= init_texture(texture);
 
-		opengl_technique_data effect;
-		effect.uniform_storage_index = _effect_ubos.size() - 1;
-		effect.uniform_storage_offset = storage_base_offset;
+		opengl_technique_data technique_init;
+		technique_init.uniform_storage_index = _effect_ubos.size() - 1;
+		technique_init.uniform_storage_offset = effect.storage_offset;
 
-		for (const auto &sampler : module.samplers)
-			success &= init_sampler(sampler, effect);
+		for (const reshadefx::sampler_info &info : effect.module.samplers)
+			success &= add_sampler(info, technique_init);
 
 		for (technique &technique : _techniques)
-			if (technique.effect_filename == filename)
-				success &= init_technique(technique, effect, errors);
+			if (technique.effect_filename == effect.source_file.filename().u8string())
+				success &= init_technique(technique, technique_init, entry_points, effect.errors);
 
-		for (auto &it : _entry_points)
+		for (auto &it : entry_points)
 			glDeleteShader(it.second);
-		_entry_points.clear();
 
 		return success;
 	}
 
-	void runtime_opengl::init_uniform(uniform &obj, size_t storage_base_offset)
-	{
-		obj.loaded = true;
-		obj.storage_offset = storage_base_offset + obj.offset;
-
-		// Create space for the new variable in the storage area and fill it with the initializer value
-		_uniform_data_storage.resize(obj.storage_offset + obj.size);
-
-		if (obj.has_initializer_value)
-			memcpy(_uniform_data_storage.data() + obj.storage_offset, obj.initializer_value.as_uint, obj.size);
-		else
-			memset(_uniform_data_storage.data() + obj.storage_offset, 0, obj.size);
-	}
-	bool runtime_opengl::init_texture(texture &obj)
-	{
-		GLenum internalformat = GL_RGBA8, internalformat_srgb = GL_SRGB8_ALPHA8;
-		literal_to_format(static_cast<texture_format>(obj.format), internalformat, internalformat_srgb);
-
-		obj.impl = std::make_unique<opengl_tex_data>();
-		const auto obj_data = obj.impl->as<opengl_tex_data>();
-
-		if (obj.semantic == "COLOR")
-		{
-			update_texture_reference(obj, texture_reference::back_buffer);
-		}
-		else if (obj.semantic == "DEPTH")
-		{
-			update_texture_reference(obj, texture_reference::depth_buffer);
-		}
-		else
-		{
-			obj_data->should_delete = true;
-			glGenTextures(2, obj_data->id);
-
-			GLint previous = 0, previous_fbo = 0;
-			glGetIntegerv(GL_TEXTURE_BINDING_2D, &previous);
-			glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &previous_fbo);
-
-			glBindTexture(GL_TEXTURE_2D, obj_data->id[0]);
-			glTexStorage2D(GL_TEXTURE_2D, obj.levels, internalformat, obj.width, obj.height);
-			glTextureView(obj_data->id[1], GL_TEXTURE_2D, obj_data->id[0], internalformat_srgb, 0, obj.levels, 0, 1);
-			glBindTexture(GL_TEXTURE_2D, previous);
-
-			// Clear texture to black
-			glBindFramebuffer(GL_DRAW_FRAMEBUFFER, _blit_fbo);
-			glFramebufferTexture(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, obj_data->id[0], 0);
-			glDrawBuffer(GL_COLOR_ATTACHMENT1);
-			const GLuint clear_color[4] = { 0, 0, 0, 0 };
-			glClearBufferuiv(GL_COLOR, 0, clear_color);
-			glFramebufferTexture(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, 0, 0);
-			glBindFramebuffer(GL_DRAW_FRAMEBUFFER, previous_fbo);
-		}
-
-		return true;
-	}
-	bool runtime_opengl::init_sampler(const reshadefx::sampler_info &info, opengl_technique_data &effect)
+	bool runtime_opengl::add_sampler(const reshadefx::sampler_info &info, opengl_technique_data &effect)
 	{
 		const auto existing_texture = find_texture(info.texture_name);
 
@@ -1159,7 +1094,49 @@ namespace reshade::opengl
 
 		return true;
 	}
-	bool runtime_opengl::init_technique(technique &obj, const opengl_technique_data &effect, std::string &errors)
+	bool runtime_opengl::init_texture(texture &obj)
+	{
+		GLenum internalformat = GL_RGBA8, internalformat_srgb = GL_SRGB8_ALPHA8;
+		literal_to_format(static_cast<texture_format>(obj.format), internalformat, internalformat_srgb);
+
+		obj.impl = std::make_unique<opengl_tex_data>();
+		const auto obj_data = obj.impl->as<opengl_tex_data>();
+
+		if (obj.semantic == "COLOR")
+		{
+			update_texture_reference(obj, texture_reference::back_buffer);
+		}
+		else if (obj.semantic == "DEPTH")
+		{
+			update_texture_reference(obj, texture_reference::depth_buffer);
+		}
+		else
+		{
+			obj_data->should_delete = true;
+			glGenTextures(2, obj_data->id);
+
+			GLint previous = 0, previous_fbo = 0;
+			glGetIntegerv(GL_TEXTURE_BINDING_2D, &previous);
+			glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &previous_fbo);
+
+			glBindTexture(GL_TEXTURE_2D, obj_data->id[0]);
+			glTexStorage2D(GL_TEXTURE_2D, obj.levels, internalformat, obj.width, obj.height);
+			glTextureView(obj_data->id[1], GL_TEXTURE_2D, obj_data->id[0], internalformat_srgb, 0, obj.levels, 0, 1);
+			glBindTexture(GL_TEXTURE_2D, previous);
+
+			// Clear texture to black
+			glBindFramebuffer(GL_DRAW_FRAMEBUFFER, _blit_fbo);
+			glFramebufferTexture(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, obj_data->id[0], 0);
+			glDrawBuffer(GL_COLOR_ATTACHMENT1);
+			const GLuint clear_color[4] = { 0, 0, 0, 0 };
+			glClearBufferuiv(GL_COLOR, 0, clear_color);
+			glFramebufferTexture(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, 0, 0);
+			glBindFramebuffer(GL_DRAW_FRAMEBUFFER, previous_fbo);
+		}
+
+		return true;
+	}
+	bool runtime_opengl::init_technique(technique &obj, const opengl_technique_data &effect, const std::unordered_map<std::string, GLuint> &entry_points, std::string &errors)
 	{
 		obj.impl = std::make_unique<opengl_technique_data>(effect);
 
@@ -1257,8 +1234,8 @@ namespace reshade::opengl
 
 			pass.program = glCreateProgram();
 
-			const GLuint vs_shader_id = _entry_points.at(pass_info.vs_entry_point);
-			const GLuint fs_shader_id = _entry_points.at(pass_info.ps_entry_point);
+			const GLuint vs_shader_id = entry_points.at(pass_info.vs_entry_point);
+			const GLuint fs_shader_id = entry_points.at(pass_info.ps_entry_point);
 
 			if (vs_shader_id != 0)
 				glAttachShader(pass.program, vs_shader_id);

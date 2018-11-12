@@ -82,7 +82,7 @@ namespace reshade::opengl
 		void on_fbo_attachment(GLenum target, GLenum attachment, GLenum objecttarget, GLuint object, GLint level);
 
 		void capture_frame(uint8_t *buffer) const override;
-		bool load_effect(const std::string &filename, const reshadefx::module &module, std::string &errors) override;
+		bool load_effect(effect_data &effect) override;
 		bool update_texture(texture &texture, const uint8_t *data) override;
 		bool update_texture_reference(texture &texture, texture_reference id);
 
@@ -112,10 +112,9 @@ namespace reshade::opengl
 		bool init_imgui_resources();
 		bool init_imgui_font_atlas();
 
-		void init_uniform(uniform &info, size_t storage_base_offset);
+		bool add_sampler(const reshadefx::sampler_info &info, opengl_technique_data &effect);
 		bool init_texture(texture &info);
-		bool init_sampler(const reshadefx::sampler_info &info, opengl_technique_data &effect);
-		bool init_technique(technique &info, const opengl_technique_data &effect, std::string &errors);
+		bool init_technique(technique &info, const opengl_technique_data &effect, const std::unordered_map<std::string, GLuint> &entry_points, std::string &errors);
 
 		void detect_depth_source();
 		void create_depth_texture(GLuint width, GLuint height, GLenum format);
@@ -127,7 +126,5 @@ namespace reshade::opengl
 		int _imgui_attribloc_tex = 0, _imgui_attribloc_projmtx = 0;
 		int _imgui_attribloc_pos = 0, _imgui_attribloc_uv = 0, _imgui_attribloc_color = 0;
 		GLuint _imgui_vbo[2] = { }, _imgui_vao = 0;
-
-		std::unordered_map<std::string, GLuint> _entry_points;
 	};
 }

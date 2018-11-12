@@ -399,9 +399,6 @@ namespace reshade::d3d9
 		}
 
 		_depth_source_table.clear();
-
-		_vs_entry_points.clear();
-		_ps_entry_points.clear();
 	}
 	void runtime_d3d9::on_present()
 	{
@@ -754,7 +751,7 @@ namespace reshade::d3d9
 		return true;
 	}
 
-	bool runtime_d3d9::load_effect(const std::string &filename, const reshadefx::module &module, std::string &errors)
+	bool runtime_d3d9::load_effect(effect_data &effect)
 	{
 		if (_d3d_compiler == nullptr)
 			_d3d_compiler = LoadLibraryW(L"d3dcompiler_47.dll");
@@ -769,12 +766,9 @@ namespace reshade::d3d9
 
 		const auto D3DCompile = reinterpret_cast<pD3DCompile>(GetProcAddress(_d3d_compiler, "D3DCompile"));
 
-		_vs_entry_points.clear();
-		_ps_entry_points.clear();
-
 		// Add specialization constant defines to source code
 		std::string spec_constants;
-		for (const auto &constant : module.spec_constants)
+		for (const auto &constant : effect.module.spec_constants)
 		{
 			spec_constants += "#define SPEC_CONSTANT_" + constant.name + ' ';
 
@@ -795,11 +789,14 @@ namespace reshade::d3d9
 			spec_constants += '\n';
 		}
 
-		const std::string hlsl_vs = spec_constants + module.hlsl;
-		const std::string hlsl_ps = spec_constants + "#define POSITION VPOS\n" + module.hlsl;
+		const std::string hlsl_vs = spec_constants + effect.module.hlsl;
+		const std::string hlsl_ps = spec_constants + "#define POSITION VPOS\n" + effect.module.hlsl;
+
+		std::unordered_map<std::string, com_ptr<IDirect3DPixelShader9>> ps_entry_points;
+		std::unordered_map<std::string, com_ptr<IDirect3DVertexShader9>> vs_entry_points;
 
 		// Compile the generated HLSL source code to DX byte code
-		for (const auto &entry_point : module.entry_points)
+		for (const auto &entry_point : effect.module.entry_points)
 		{
 			const std::string &hlsl = entry_point.second ? hlsl_ps : hlsl_vs;
 
@@ -808,7 +805,7 @@ namespace reshade::d3d9
 			HRESULT hr = D3DCompile(hlsl.c_str(), hlsl.size(), nullptr, nullptr, nullptr, entry_point.first.c_str(), entry_point.second ? "ps_3_0" : "vs_3_0", 0, 0, &compiled, &d3d_errors);
 
 			if (d3d_errors != nullptr) // Append warnings to the output error string as well
-				errors.append(static_cast<const char *>(d3d_errors->GetBufferPointer()), d3d_errors->GetBufferSize() - 1); // Subtracting one to not append the null-terminator as well
+				effect.errors.append(static_cast<const char *>(d3d_errors->GetBufferPointer()), d3d_errors->GetBufferSize() - 1); // Subtracting one to not append the null-terminator as well
 
 			// No need to setup resources if any of the shaders failed to compile
 			if (FAILED(hr))
@@ -816,9 +813,9 @@ namespace reshade::d3d9
 
 			// Create runtime shader objects from the compiled DX byte code
 			if (entry_point.second)
-				hr = _device->CreatePixelShader(static_cast<const DWORD *>(compiled->GetBufferPointer()), &_ps_entry_points[entry_point.first]);
+				hr = _device->CreatePixelShader(static_cast<const DWORD *>(compiled->GetBufferPointer()), &ps_entry_points[entry_point.first]);
 			else
-				hr = _device->CreateVertexShader(static_cast<const DWORD *>(compiled->GetBufferPointer()), &_vs_entry_points[entry_point.first]);
+				hr = _device->CreateVertexShader(static_cast<const DWORD *>(compiled->GetBufferPointer()), &vs_entry_points[entry_point.first]);
 
 			if (FAILED(hr))
 			{
@@ -828,65 +825,50 @@ namespace reshade::d3d9
 			}
 		}
 
-		const size_t storage_base_offset = _uniform_data_storage.size();
-		for (uniform &uniform : _uniforms)
-			if (uniform.effect_filename == filename)
-				init_uniform(uniform, storage_base_offset);
-
 		bool success = true;
 
 		for (texture &texture : _textures)
-			if (texture.effect_filename == filename || (!texture.semantic.empty() && texture.impl == nullptr))
+			if (texture.effect_filename == effect.source_file.filename().u8string() || (!texture.semantic.empty() && texture.impl == nullptr))
 				success &= init_texture(texture);
 
-		d3d9_technique_data effect;
-		effect.uniform_storage_offset = storage_base_offset;
-		effect.constant_register_count = (_uniform_data_storage.size() - storage_base_offset + 16) / 16;
+		d3d9_technique_data technique_init;
+		technique_init.constant_register_count = (effect.storage_size + 16) / 16;
+		technique_init.uniform_storage_offset = effect.storage_offset;
 
-		for (const auto &sampler_info : module.samplers)
-			success &= init_sampler(sampler_info, effect);
+		for (const reshadefx::sampler_info &info : effect.module.samplers)
+			success &= add_sampler(info, technique_init);
 
 		for (technique &technique : _techniques)
-			if (technique.effect_filename == filename)
-				success &= init_technique(technique, effect);
-
-		_vs_entry_points.clear();
-		_ps_entry_points.clear();
+			if (technique.effect_filename == effect.source_file.filename().u8string())
+				success &= init_technique(technique, technique_init, vs_entry_points, ps_entry_points);
 
 		return success;
 	}
 
-	void runtime_d3d9::init_uniform(uniform &obj, size_t storage_base_offset)
+	bool runtime_d3d9::add_sampler(const reshadefx::sampler_info &info, d3d9_technique_data &effect)
 	{
-		obj.loaded = true;
-		obj.storage_offset = storage_base_offset + obj.offset;
-		//obj.basetype = reshadefx::type::t_float;
+		const auto existing_texture = find_texture(info.texture_name);
 
-		// Create space for the new variable in the storage area and fill it with the initializer value
-		_uniform_data_storage.resize(obj.storage_offset + obj.size);
+		if (!existing_texture || info.binding > ARRAYSIZE(effect.sampler_states))
+			return false;
 
-		if (obj.has_initializer_value)
-		{
-			for (size_t i = 0; i < obj.size / 4; i++)
-			{
-				switch (obj.type.base)
-				{
-				case reshadefx::type::t_int:
-					reinterpret_cast<float *>(_uniform_data_storage.data() + obj.storage_offset)[i] = static_cast<float>(obj.initializer_value.as_int[i]);
-					break;
-				case reshadefx::type::t_uint:
-					reinterpret_cast<float *>(_uniform_data_storage.data() + obj.storage_offset)[i] = static_cast<float>(obj.initializer_value.as_uint[i]);
-					break;
-				case reshadefx::type::t_float:
-					reinterpret_cast<float *>(_uniform_data_storage.data() + obj.storage_offset)[i] = obj.initializer_value.as_float[i];
-					break;
-				}
-			}
-		}
-		else
-		{
-			memset(_uniform_data_storage.data() + obj.storage_offset, 0, obj.size);
-		}
+		effect.num_samplers = std::max(effect.num_samplers, DWORD(info.binding + 1));
+
+		effect.sampler_states[info.binding][D3DSAMP_ADDRESSU] = static_cast<D3DTEXTUREADDRESS>(info.address_u);
+		effect.sampler_states[info.binding][D3DSAMP_ADDRESSV] = static_cast<D3DTEXTUREADDRESS>(info.address_v);
+		effect.sampler_states[info.binding][D3DSAMP_ADDRESSW] = static_cast<D3DTEXTUREADDRESS>(info.address_w);
+		effect.sampler_states[info.binding][D3DSAMP_BORDERCOLOR] = 0;
+		effect.sampler_states[info.binding][D3DSAMP_MAGFILTER] = 1 + ((static_cast<unsigned int>(info.filter) & 0x0C) >> 2);
+		effect.sampler_states[info.binding][D3DSAMP_MINFILTER] = 1 + ((static_cast<unsigned int>(info.filter) & 0x30) >> 4);
+		effect.sampler_states[info.binding][D3DSAMP_MIPFILTER] = 1 + ((static_cast<unsigned int>(info.filter) & 0x03));
+		effect.sampler_states[info.binding][D3DSAMP_MIPMAPLODBIAS] = *reinterpret_cast<const DWORD *>(&info.lod_bias);
+		effect.sampler_states[info.binding][D3DSAMP_MAXMIPLEVEL] = static_cast<DWORD>(std::max(0.0f, info.min_lod));
+		effect.sampler_states[info.binding][D3DSAMP_MAXANISOTROPY] = 1;
+		effect.sampler_states[info.binding][D3DSAMP_SRGBTEXTURE] = info.srgb;
+
+		effect.sampler_textures[info.binding] = existing_texture->impl->as<d3d9_tex_data>()->texture.get();
+
+		return true;
 	}
 	bool runtime_d3d9::init_texture(texture &obj)
 	{
@@ -951,32 +933,7 @@ namespace reshade::d3d9
 
 		return true;
 	}
-	bool runtime_d3d9::init_sampler(const reshadefx::sampler_info &info, d3d9_technique_data &effect)
-	{
-		const auto existing_texture = find_texture(info.texture_name);
-
-		if (!existing_texture || info.binding > ARRAYSIZE(effect.sampler_states))
-			return false;
-
-		effect.num_samplers = std::max(effect.num_samplers, DWORD(info.binding + 1));
-
-		effect.sampler_states[info.binding][D3DSAMP_ADDRESSU] = static_cast<D3DTEXTUREADDRESS>(info.address_u);
-		effect.sampler_states[info.binding][D3DSAMP_ADDRESSV] = static_cast<D3DTEXTUREADDRESS>(info.address_v);
-		effect.sampler_states[info.binding][D3DSAMP_ADDRESSW] = static_cast<D3DTEXTUREADDRESS>(info.address_w);
-		effect.sampler_states[info.binding][D3DSAMP_BORDERCOLOR] = 0;
-		effect.sampler_states[info.binding][D3DSAMP_MAGFILTER] = 1 + ((static_cast<unsigned int>(info.filter) & 0x0C) >> 2);
-		effect.sampler_states[info.binding][D3DSAMP_MINFILTER] = 1 + ((static_cast<unsigned int>(info.filter) & 0x30) >> 4);
-		effect.sampler_states[info.binding][D3DSAMP_MIPFILTER] = 1 + ((static_cast<unsigned int>(info.filter) & 0x03));
-		effect.sampler_states[info.binding][D3DSAMP_MIPMAPLODBIAS] = *reinterpret_cast<const DWORD *>(&info.lod_bias);
-		effect.sampler_states[info.binding][D3DSAMP_MAXMIPLEVEL] = static_cast<DWORD>(std::max(0.0f, info.min_lod));
-		effect.sampler_states[info.binding][D3DSAMP_MAXANISOTROPY] = 1;
-		effect.sampler_states[info.binding][D3DSAMP_SRGBTEXTURE] = info.srgb;
-
-		effect.sampler_textures[info.binding] = existing_texture->impl->as<d3d9_tex_data>()->texture.get();
-
-		return true;
-	}
-	bool runtime_d3d9::init_technique(technique &obj, const d3d9_technique_data &effect)
+	bool runtime_d3d9::init_technique(technique &obj, const d3d9_technique_data &effect, const std::unordered_map<std::string, com_ptr<IDirect3DVertexShader9>> &vs_entry_points, const std::unordered_map<std::string, com_ptr<IDirect3DPixelShader9>> &ps_entry_points)
 	{
 		obj.impl = std::make_unique<d3d9_technique_data>(effect);
 
@@ -987,8 +944,8 @@ namespace reshade::d3d9
 			const auto &pass_info = obj.passes[pass_index];
 			auto &pass = static_cast<d3d9_pass_data &>(*obj.passes_data.emplace_back(std::make_unique<d3d9_pass_data>()));
 
-			pass.pixel_shader = _ps_entry_points.at(pass_info.ps_entry_point);
-			pass.vertex_shader = _vs_entry_points.at(pass_info.vs_entry_point);
+			pass.pixel_shader = ps_entry_points.at(pass_info.ps_entry_point);
+			pass.vertex_shader = vs_entry_points.at(pass_info.vs_entry_point);
 
 			pass.render_targets[0] = _backbuffer_resolved.get();
 			pass.clear_render_targets = pass_info.clear_render_targets;

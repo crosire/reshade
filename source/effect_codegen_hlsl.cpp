@@ -364,6 +364,9 @@ private:
 			{
 				info.offset *= 4;
 
+				// We are using constant float registers, so change type to floating-point
+				info.type.base = type::t_float;
+
 				// Every constant register is 16 bytes wide, so divide memory offset by 16 to get the constant register index
 				write_type(_cbuffer_block, info.type);
 				_cbuffer_block += ' ' + id_to_name(res) + " : register(c" + std::to_string(info.offset / 16) + ");\n";
