@@ -1094,60 +1094,57 @@ namespace reshade::opengl
 
 		return true;
 	}
-	bool runtime_opengl::init_texture(texture &obj)
+	bool runtime_opengl::init_texture(texture &texture)
 	{
+		texture.impl = std::make_unique<opengl_tex_data>();
+
+		const auto texture_data = texture.impl->as<opengl_tex_data>();
+
+		if (texture.semantic == "COLOR")
+			return update_texture_reference(texture, texture_reference::back_buffer);
+		if (texture.semantic == "DEPTH")
+			return update_texture_reference(texture, texture_reference::depth_buffer);
+
 		GLenum internalformat = GL_RGBA8, internalformat_srgb = GL_SRGB8_ALPHA8;
-		literal_to_format(static_cast<texture_format>(obj.format), internalformat, internalformat_srgb);
+		literal_to_format(static_cast<texture_format>(texture.format), internalformat, internalformat_srgb);
 
-		obj.impl = std::make_unique<opengl_tex_data>();
-		const auto obj_data = obj.impl->as<opengl_tex_data>();
+		texture_data->should_delete = true;
+		glGenTextures(2, texture_data->id);
 
-		if (obj.semantic == "COLOR")
-		{
-			update_texture_reference(obj, texture_reference::back_buffer);
-		}
-		else if (obj.semantic == "DEPTH")
-		{
-			update_texture_reference(obj, texture_reference::depth_buffer);
-		}
-		else
-		{
-			obj_data->should_delete = true;
-			glGenTextures(2, obj_data->id);
+		GLint previous = 0, previous_fbo = 0;
+		glGetIntegerv(GL_TEXTURE_BINDING_2D, &previous);
+		glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &previous_fbo);
 
-			GLint previous = 0, previous_fbo = 0;
-			glGetIntegerv(GL_TEXTURE_BINDING_2D, &previous);
-			glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &previous_fbo);
+		glBindTexture(GL_TEXTURE_2D, texture_data->id[0]);
+		glTexStorage2D(GL_TEXTURE_2D, texture.levels, internalformat, texture.width, texture.height);
+		glTextureView(texture_data->id[1], GL_TEXTURE_2D, texture_data->id[0], internalformat_srgb, 0, texture.levels, 0, 1);
+		glBindTexture(GL_TEXTURE_2D, previous);
 
-			glBindTexture(GL_TEXTURE_2D, obj_data->id[0]);
-			glTexStorage2D(GL_TEXTURE_2D, obj.levels, internalformat, obj.width, obj.height);
-			glTextureView(obj_data->id[1], GL_TEXTURE_2D, obj_data->id[0], internalformat_srgb, 0, obj.levels, 0, 1);
-			glBindTexture(GL_TEXTURE_2D, previous);
-
-			// Clear texture to black
-			glBindFramebuffer(GL_DRAW_FRAMEBUFFER, _blit_fbo);
-			glFramebufferTexture(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, obj_data->id[0], 0);
-			glDrawBuffer(GL_COLOR_ATTACHMENT1);
-			const GLuint clear_color[4] = { 0, 0, 0, 0 };
-			glClearBufferuiv(GL_COLOR, 0, clear_color);
-			glFramebufferTexture(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, 0, 0);
-			glBindFramebuffer(GL_DRAW_FRAMEBUFFER, previous_fbo);
-		}
+		// Clear texture to black
+		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, _blit_fbo);
+		glFramebufferTexture(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, texture_data->id[0], 0);
+		glDrawBuffer(GL_COLOR_ATTACHMENT1);
+		const GLuint clear_color[4] = { 0, 0, 0, 0 };
+		glClearBufferuiv(GL_COLOR, 0, clear_color);
+		glFramebufferTexture(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, 0, 0);
+		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, previous_fbo);
 
 		return true;
 	}
-	bool runtime_opengl::init_technique(technique &obj, const opengl_technique_data &effect, const std::unordered_map<std::string, GLuint> &entry_points, std::string &errors)
+	bool runtime_opengl::init_technique(technique &technique, const opengl_technique_data &impl_init, const std::unordered_map<std::string, GLuint> &entry_points, std::string &errors)
 	{
-		obj.impl = std::make_unique<opengl_technique_data>(effect);
+		technique.impl = std::make_unique<opengl_technique_data>(impl_init);
 
-		const auto obj_data = obj.impl->as<opengl_technique_data>();
+		const auto technique_data = technique.impl->as<opengl_technique_data>();
 
-		glGenQueries(1, &obj_data->query);
+		glGenQueries(1, &technique_data->query);
 
-		for (size_t pass_index = 0; pass_index < obj.passes.size(); ++pass_index)
+		for (size_t pass_index = 0; pass_index < technique.passes.size(); ++pass_index)
 		{
-			const auto &pass_info = obj.passes[pass_index];
-			auto &pass = static_cast<opengl_pass_data &>(*obj.passes_data.emplace_back(std::make_unique<opengl_pass_data>()));
+			technique.passes_data.push_back(std::make_unique<opengl_pass_data>());
+
+			auto &pass = *technique.passes_data.back()->as<opengl_pass_data>();
+			const auto &pass_info = technique.passes[pass_index];
 
 			pass.color_mask[0] = (pass_info.color_write_mask & (1 << 0)) != 0;
 			pass.color_mask[1] = (pass_info.color_write_mask & (1 << 1)) != 0;
@@ -1269,7 +1266,7 @@ namespace reshade::opengl
 				glDeleteProgram(pass.program);
 				pass.program = 0;
 
-				LOG(ERROR) << "Failed to link program for pass " << pass_index << " in technique '" << obj.name << "'.";
+				LOG(ERROR) << "Failed to link program for pass " << pass_index << " in technique '" << technique.name << "'.";
 				return false;
 			}
 		}

@@ -1052,118 +1052,121 @@ namespace reshade::d3d10
 
 		return true;
 	}
-	bool runtime_d3d10::init_texture(texture &obj)
+	bool runtime_d3d10::init_texture(texture &texture)
 	{
+		texture.impl = std::make_unique<d3d10_tex_data>();
+
+		const auto texture_data = texture.impl->as<d3d10_tex_data>();
+
+		if (texture.semantic == "COLOR")
+		{
+			texture.width = frame_width();
+			texture.height = frame_height();
+			texture.impl_reference = texture_reference::back_buffer;
+
+			texture_data->srv[0] = _backbuffer_texture_srv[0];
+			texture_data->srv[1] = _backbuffer_texture_srv[1];
+			return true;
+		}
+		if (texture.semantic == "DEPTH")
+		{
+			texture.width = frame_width();
+			texture.height = frame_height();
+			texture.impl_reference = texture_reference::depth_buffer;
+
+			texture_data->srv[0] = _depthstencil_texture_srv;
+			texture_data->srv[1] = _depthstencil_texture_srv;
+			return true;
+		}
+
 		D3D10_TEXTURE2D_DESC texdesc = {};
-		texdesc.Width = obj.width;
-		texdesc.Height = obj.height;
-		texdesc.MipLevels = obj.levels;
+		texdesc.Width = texture.width;
+		texdesc.Height = texture.height;
+		texdesc.MipLevels = texture.levels;
 		texdesc.ArraySize = 1;
-		texdesc.Format = literal_to_format(static_cast<texture_format>(obj.format));
+		texdesc.Format = literal_to_format(static_cast<texture_format>(texture.format));
 		texdesc.SampleDesc.Count = 1;
 		texdesc.SampleDesc.Quality = 0;
 		texdesc.Usage = D3D10_USAGE_DEFAULT;
 		texdesc.BindFlags = D3D10_BIND_SHADER_RESOURCE | D3D10_BIND_RENDER_TARGET;
 		texdesc.MiscFlags = D3D10_RESOURCE_MISC_GENERATE_MIPS;
 
-		obj.impl = std::make_unique<d3d10_tex_data>();
-		const auto obj_data = obj.impl->as<d3d10_tex_data>();
+		HRESULT hr = _device->CreateTexture2D(&texdesc, nullptr, &texture_data->texture);
 
-		if (obj.semantic == "COLOR")
+		if (FAILED(hr))
 		{
-			obj.width = frame_width();
-			obj.height = frame_height();
-			obj.impl_reference = texture_reference::back_buffer;
-
-			obj_data->srv[0] = _backbuffer_texture_srv[0];
-			obj_data->srv[1] = _backbuffer_texture_srv[1];
+			LOG(ERROR) << "Failed to create texture '" << texture.unique_name << "' ("
+				"Width = " << texdesc.Width << ", "
+				"Height = " << texdesc.Height << ", "
+				"Format = " << texdesc.Format << ", "
+				"SampleCount = " << texdesc.SampleDesc.Count << ", "
+				"SampleQuality = " << texdesc.SampleDesc.Quality << ")! "
+				"HRESULT is '" << std::hex << hr << std::dec << "'.";
+			return false;
 		}
-		else if (obj.semantic == "DEPTH")
-		{
-			obj.width = frame_width();
-			obj.height = frame_height();
-			obj.impl_reference = texture_reference::depth_buffer;
 
-			obj_data->srv[0] = _depthstencil_texture_srv;
-			obj_data->srv[1] = _depthstencil_texture_srv;
-		}
-		else
+		D3D10_SHADER_RESOURCE_VIEW_DESC srvdesc = {};
+		srvdesc.ViewDimension = D3D10_SRV_DIMENSION_TEXTURE2D;
+		srvdesc.Texture2D.MipLevels = texdesc.MipLevels;
+		srvdesc.Format = make_format_normal(texdesc.Format);
+
+		hr = _device->CreateShaderResourceView(texture_data->texture.get(), &srvdesc, &texture_data->srv[0]);
+
+		if (FAILED(hr))
 		{
-			HRESULT hr = _device->CreateTexture2D(&texdesc, nullptr, &obj_data->texture);
+			LOG(ERROR) << "Failed to create shader resource view for texture '" << texture.unique_name << "' ("
+				"Format = " << srvdesc.Format << ")! "
+				"HRESULT is '" << std::hex << hr << std::dec << "'.";
+			return false;
+		}
+
+		srvdesc.Format = make_format_srgb(texdesc.Format);
+
+		if (srvdesc.Format != texdesc.Format)
+		{
+			hr = _device->CreateShaderResourceView(texture_data->texture.get(), &srvdesc, &texture_data->srv[1]);
 
 			if (FAILED(hr))
 			{
-				LOG(ERROR) << "Failed to create texture '" << obj.unique_name << "' ("
-					"Width = " << texdesc.Width << ", "
-					"Height = " << texdesc.Height << ", "
-					"Format = " << texdesc.Format << ", "
-					"SampleCount = " << texdesc.SampleDesc.Count << ", "
-					"SampleQuality = " << texdesc.SampleDesc.Quality << ")! "
-					"HRESULT is '" << std::hex << hr << std::dec << "'.";
-				return false;
-			}
-
-			D3D10_SHADER_RESOURCE_VIEW_DESC srvdesc = {};
-			srvdesc.ViewDimension = D3D10_SRV_DIMENSION_TEXTURE2D;
-			srvdesc.Texture2D.MipLevels = texdesc.MipLevels;
-			srvdesc.Format = make_format_normal(texdesc.Format);
-
-			hr = _device->CreateShaderResourceView(obj_data->texture.get(), &srvdesc, &obj_data->srv[0]);
-
-			if (FAILED(hr))
-			{
-				LOG(ERROR) << "Failed to create shader resource view for texture '" << obj.unique_name << "' ("
+				LOG(ERROR) << "Failed to create shader resource view for texture '" << texture.unique_name << "' ("
 					"Format = " << srvdesc.Format << ")! "
 					"HRESULT is '" << std::hex << hr << std::dec << "'.";
 				return false;
 			}
-
-			srvdesc.Format = make_format_srgb(texdesc.Format);
-
-			if (srvdesc.Format != texdesc.Format)
-			{
-				hr = _device->CreateShaderResourceView(obj_data->texture.get(), &srvdesc, &obj_data->srv[1]);
-
-				if (FAILED(hr))
-				{
-					LOG(ERROR) << "Failed to create shader resource view for texture '" << obj.unique_name << "' ("
-						"Format = " << srvdesc.Format << ")! "
-						"HRESULT is '" << std::hex << hr << std::dec << "'.";
-					return false;
-				}
-			}
-			else
-			{
-				obj_data->srv[1] = obj_data->srv[0];
-			}
+		}
+		else
+		{
+			texture_data->srv[1] = texture_data->srv[0];
 		}
 
 		return true;
 	}
-	bool runtime_d3d10::init_technique(technique &obj, const d3d10_technique_data &effect, const std::unordered_map<std::string, com_ptr<ID3D10VertexShader>> &vs_entry_points, const std::unordered_map<std::string, com_ptr<ID3D10PixelShader>> &ps_entry_points)
+	bool runtime_d3d10::init_technique(technique &technique, const d3d10_technique_data &impl_init, const std::unordered_map<std::string, com_ptr<ID3D10VertexShader>> &vs_entry_points, const std::unordered_map<std::string, com_ptr<ID3D10PixelShader>> &ps_entry_points)
 	{
-		obj.impl = std::make_unique<d3d10_technique_data>(effect);
+		technique.impl = std::make_unique<d3d10_technique_data>(impl_init);
 
-		auto obj_data = obj.impl->as<d3d10_technique_data>();
+		const auto technique_data = technique.impl->as<d3d10_technique_data>();
 
 		D3D10_QUERY_DESC query_desc = {};
 		query_desc.Query = D3D10_QUERY_TIMESTAMP;
-		_device->CreateQuery(&query_desc, &obj_data->timestamp_query_beg);
-		_device->CreateQuery(&query_desc, &obj_data->timestamp_query_end);
+		_device->CreateQuery(&query_desc, &technique_data->timestamp_query_beg);
+		_device->CreateQuery(&query_desc, &technique_data->timestamp_query_end);
 		query_desc.Query = D3D10_QUERY_TIMESTAMP_DISJOINT;
-		_device->CreateQuery(&query_desc, &obj_data->timestamp_disjoint);
+		_device->CreateQuery(&query_desc, &technique_data->timestamp_disjoint);
 
-		for (size_t pass_index = 0; pass_index < obj.passes.size(); ++pass_index)
+		for (size_t pass_index = 0; pass_index < technique.passes.size(); ++pass_index)
 		{
-			const auto &pass_info = obj.passes[pass_index];
-			auto &pass = static_cast<d3d10_pass_data &>(*obj.passes_data.emplace_back(std::make_unique<d3d10_pass_data>()));
+			technique.passes_data.push_back(std::make_unique<d3d10_pass_data>());
+
+			auto &pass = *technique.passes_data.back()->as<d3d10_pass_data>();
+			const auto &pass_info = technique.passes[pass_index];
 
 			pass.pixel_shader = ps_entry_points.at(pass_info.ps_entry_point);
 			pass.vertex_shader = vs_entry_points.at(pass_info.vs_entry_point);
 
 			pass.viewport.MaxDepth = 1.0f;
 
-			pass.shader_resources = obj_data->texture_bindings;
+			pass.shader_resources = technique_data->texture_bindings;
 			pass.clear_render_targets = pass_info.clear_render_targets;
 
 			const int target_index = pass_info.srgb_write_enable ? 1 : 0;
@@ -1245,7 +1248,7 @@ namespace reshade::d3d10
 
 			if (FAILED(hr))
 			{
-				LOG(ERROR) << "Failed to create depth stencil state for pass " << pass_index << " in technique '" << obj.name << "'! "
+				LOG(ERROR) << "Failed to create depth stencil state for pass " << pass_index << " in technique '" << technique.name << "'! "
 					"HRESULT is '" << std::hex << hr << std::dec << "'.";
 				return false;
 			}
@@ -1271,7 +1274,7 @@ namespace reshade::d3d10
 
 			if (FAILED(hr))
 			{
-				LOG(ERROR) << "Failed to create blend state for pass " << pass_index << " in technique '" << obj.name << "'! "
+				LOG(ERROR) << "Failed to create blend state for pass " << pass_index << " in technique '" << technique.name << "'! "
 					"HRESULT is '" << std::hex << hr << std::dec << "'.";
 				return false;
 			}

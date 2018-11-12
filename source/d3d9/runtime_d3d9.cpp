@@ -832,7 +832,7 @@ namespace reshade::d3d9
 				success &= init_texture(texture);
 
 		d3d9_technique_data technique_init;
-		technique_init.constant_register_count = (effect.storage_size + 16) / 16;
+		technique_init.constant_register_count = static_cast<UINT>((effect.storage_size + 16) / 16);
 		technique_init.uniform_storage_offset = effect.storage_offset;
 
 		for (const reshadefx::sampler_info &info : effect.module.samplers)
@@ -870,79 +870,76 @@ namespace reshade::d3d9
 
 		return true;
 	}
-	bool runtime_d3d9::init_texture(texture &obj)
+	bool runtime_d3d9::init_texture(texture &texture)
 	{
-		const D3DFORMAT format = literal_to_format(static_cast<texture_format>(obj.format));
+		texture.impl = std::make_unique<d3d9_tex_data>();
 
-		obj.impl = std::make_unique<d3d9_tex_data>();
-		const auto obj_data = obj.impl->as<d3d9_tex_data>();
+		const auto texture_data = texture.impl->as<d3d9_tex_data>();
 
-		if (obj.semantic == "COLOR")
+		if (texture.semantic == "COLOR")
+			return update_texture_reference(texture, texture_reference::back_buffer);
+		if (texture.semantic == "DEPTH")
+			return update_texture_reference(texture, texture_reference::depth_buffer);
+
+		UINT levels = texture.levels;
+		DWORD usage = 0;
+		D3DDEVICE_CREATION_PARAMETERS cp;
+		_device->GetCreationParameters(&cp);
+
+		const D3DFORMAT format = literal_to_format(static_cast<texture_format>(texture.format));
+
+		if (levels > 1)
 		{
-			update_texture_reference(obj, texture_reference::back_buffer);
+			if (_d3d->CheckDeviceFormat(cp.AdapterOrdinal, cp.DeviceType, D3DFMT_X8R8G8B8, D3DUSAGE_AUTOGENMIPMAP, D3DRTYPE_TEXTURE, format) == D3D_OK)
+			{
+				usage |= D3DUSAGE_AUTOGENMIPMAP;
+				levels = 0;
+			}
+			else
+			{
+				LOG(WARNING) << "Auto-generated mipmap levels are not supported for the format of texture '" << texture.unique_name << "'.";
+			}
 		}
-		else if (obj.semantic == "DEPTH")
+
+		HRESULT hr = _d3d->CheckDeviceFormat(cp.AdapterOrdinal, cp.DeviceType, D3DFMT_X8R8G8B8, D3DUSAGE_RENDERTARGET, D3DRTYPE_TEXTURE, format);
+
+		if (SUCCEEDED(hr))
 		{
-			update_texture_reference(obj, texture_reference::depth_buffer);
+			usage |= D3DUSAGE_RENDERTARGET;
 		}
-		else
+
+		hr = _device->CreateTexture(texture.width, texture.height, levels, usage, format, D3DPOOL_DEFAULT, &texture_data->texture, nullptr);
+
+		if (FAILED(hr))
 		{
-			UINT levels = obj.levels;
-			DWORD usage = 0;
-			D3DDEVICE_CREATION_PARAMETERS cp;
-			_device->GetCreationParameters(&cp);
-
-			if (levels > 1)
-			{
-				if (_d3d->CheckDeviceFormat(cp.AdapterOrdinal, cp.DeviceType, D3DFMT_X8R8G8B8, D3DUSAGE_AUTOGENMIPMAP, D3DRTYPE_TEXTURE, format) == D3D_OK)
-				{
-					usage |= D3DUSAGE_AUTOGENMIPMAP;
-					levels = 0;
-				}
-				else
-				{
-					LOG(WARNING) << "Auto-generated mipmap levels are not supported for the format of texture '" << obj.unique_name << "'.";
-				}
-			}
-
-			HRESULT hr = _d3d->CheckDeviceFormat(cp.AdapterOrdinal, cp.DeviceType, D3DFMT_X8R8G8B8, D3DUSAGE_RENDERTARGET, D3DRTYPE_TEXTURE, format);
-
-			if (SUCCEEDED(hr))
-			{
-				usage |= D3DUSAGE_RENDERTARGET;
-			}
-
-			hr = _device->CreateTexture(obj.width, obj.height, levels, usage, format, D3DPOOL_DEFAULT, &obj_data->texture, nullptr);
-
-			if (FAILED(hr))
-			{
-				LOG(ERROR) << "Failed to create texture '" << obj.unique_name << "' ("
-					"Width = " << obj.width << ", "
-					"Height = " << obj.height << ", "
-					"Levels = " << levels << ", "
-					"Usage = " <<usage << ", "
-					"Format = " << format << ")! "
-					"HRESULT is '" << std::hex << hr << std::dec << "'.";
-				return false;
-			}
-
-			hr = obj_data->texture->GetSurfaceLevel(0, &obj_data->surface);
-
-			assert(SUCCEEDED(hr));
+			LOG(ERROR) << "Failed to create texture '" << texture.unique_name << "' ("
+				"Width = " << texture.width << ", "
+				"Height = " << texture.height << ", "
+				"Levels = " << levels << ", "
+				"Usage = " <<usage << ", "
+				"Format = " << format << ")! "
+				"HRESULT is '" << std::hex << hr << std::dec << "'.";
+			return false;
 		}
+
+		hr = texture_data->texture->GetSurfaceLevel(0, &texture_data->surface);
+
+		assert(SUCCEEDED(hr));
 
 		return true;
 	}
-	bool runtime_d3d9::init_technique(technique &obj, const d3d9_technique_data &effect, const std::unordered_map<std::string, com_ptr<IDirect3DVertexShader9>> &vs_entry_points, const std::unordered_map<std::string, com_ptr<IDirect3DPixelShader9>> &ps_entry_points)
+	bool runtime_d3d9::init_technique(technique &technique, const d3d9_technique_data &impl_init, const std::unordered_map<std::string, com_ptr<IDirect3DVertexShader9>> &vs_entry_points, const std::unordered_map<std::string, com_ptr<IDirect3DPixelShader9>> &ps_entry_points)
 	{
-		obj.impl = std::make_unique<d3d9_technique_data>(effect);
+		technique.impl = std::make_unique<d3d9_technique_data>(impl_init);
 
-		auto &technique_data = *obj.impl->as<d3d9_technique_data>();
+		const auto technique_data = technique.impl->as<d3d9_technique_data>();
 
-		for (size_t pass_index = 0; pass_index < obj.passes.size(); ++pass_index)
+		for (size_t pass_index = 0; pass_index < technique.passes.size(); ++pass_index)
 		{
-			const auto &pass_info = obj.passes[pass_index];
-			auto &pass = static_cast<d3d9_pass_data &>(*obj.passes_data.emplace_back(std::make_unique<d3d9_pass_data>()));
+			technique.passes_data.push_back(std::make_unique<d3d9_pass_data>());
+
+			auto &pass = *technique.passes_data.back()->as<d3d9_pass_data>();
+			const auto &pass_info = technique.passes[pass_index];
 
 			pass.pixel_shader = ps_entry_points.at(pass_info.ps_entry_point);
 			pass.vertex_shader = vs_entry_points.at(pass_info.vs_entry_point);
@@ -951,13 +948,13 @@ namespace reshade::d3d9
 			pass.clear_render_targets = pass_info.clear_render_targets;
 
 			for (size_t k = 0; k < ARRAYSIZE(pass.sampler_textures); ++k)
-				pass.sampler_textures[k] = technique_data.sampler_textures[k];
+				pass.sampler_textures[k] = technique_data->sampler_textures[k];
 
 			const HRESULT hr = _device->BeginStateBlock();
 
 			if (FAILED(hr))
 			{
-				LOG(ERROR) << "Failed to create stateblock for pass " << pass_index << " in technique '" << obj.name << "'. "
+				LOG(ERROR) << "Failed to create stateblock for pass " << pass_index << " in technique '" << technique.name << "'. "
 					"HRESULT is '" << std::hex << hr << std::dec << "'.";
 				return false;
 			}
@@ -1041,12 +1038,12 @@ namespace reshade::d3d9
 
 				if (i > caps.NumSimultaneousRTs)
 				{
-					LOG(WARNING) << "Device only supports " << caps.NumSimultaneousRTs << " simultaneous render targets, but pass " << pass_index << " in technique '" << obj.name << "' uses more, which are ignored";
+					LOG(WARNING) << "Device only supports " << caps.NumSimultaneousRTs << " simultaneous render targets, but pass " << pass_index << " in technique '" << technique.name << "' uses more, which are ignored";
 					break;
 				}
 
 				// Unset textures that are used as render target
-				for (DWORD s = 0; s < technique_data.num_samplers; ++s)
+				for (DWORD s = 0; s < technique_data->num_samplers; ++s)
 				{
 					if (pass.sampler_textures[s] == texture->impl->as<d3d9_tex_data>()->texture)
 						pass.sampler_textures[s] = nullptr;

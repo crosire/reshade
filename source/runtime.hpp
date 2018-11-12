@@ -8,6 +8,7 @@
 #include <chrono>
 #include <functional>
 #include <filesystem>
+#include <mutex>
 #include <atomic>
 #include "ini_file.hpp"
 #include "runtime_objects.hpp"
@@ -252,6 +253,7 @@ namespace reshade
 		std::unordered_map<std::string, size_t> _technique_to_effect;
 		bool _last_reload_successful = true;
 		bool _has_finished_reloading = false;
+		std::mutex _reload_mutex;
 		std::atomic<size_t> _reload_remaining_effects = 0;
 
 		std::vector<std::string> _preprocessor_definitions;

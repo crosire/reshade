@@ -1022,7 +1022,7 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 				if (length == 1)
 					exp.add_static_index_access(_codegen.get(), offsets[0]);
 				else // Add swizzle to current access chain
-					exp.add_swizzle_access(offsets, length);
+					exp.add_swizzle_access(offsets, static_cast<unsigned int>(length));
 
 				if (is_const || exp.type.has(type::q_uniform))
 					exp.type.qualifiers = (exp.type.qualifiers | type::q_const) & ~type::q_uniform;
@@ -1062,7 +1062,7 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 				}
 
 				// Add swizzle to current access chain
-				exp.add_swizzle_access(offsets, length / (3 + set));
+				exp.add_swizzle_access(offsets, static_cast<unsigned int>(length / (3 + set)));
 
 				if (is_const || exp.type.has(type::q_uniform))
 					exp.type.qualifiers = (exp.type.qualifiers | type::q_const) & ~type::q_uniform;

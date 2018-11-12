@@ -25,7 +25,7 @@ namespace reshade
 	{
 		assert(data != nullptr);
 
-		size = std::min(size, variable.size);
+		size = std::min(size, size_t(variable.size));
 
 		assert(variable.storage_offset + size <= _uniform_data_storage.size());
 
@@ -35,7 +35,7 @@ namespace reshade
 	{
 		static_assert(sizeof(int) == 4 && sizeof(float) == 4, "expected int and float size to equal 4");
 
-		count = std::min(count, variable.size / 4);
+		count = std::min(count, size_t(variable.size / 4));
 
 		assert(values != nullptr);
 
@@ -118,7 +118,7 @@ namespace reshade
 	{
 		assert(data != nullptr);
 
-		size = std::min(size, variable.size);
+		size = std::min(size, size_t(variable.size));
 
 		assert(variable.storage_offset + size <= _uniform_data_storage.size());
 

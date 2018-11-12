@@ -11,7 +11,6 @@
 #include "input.hpp"
 #include "ini_file.hpp"
 #include <assert.h>
-#include <mutex>
 #include <thread>
 #include <algorithm>
 #include <unordered_set>
@@ -455,8 +454,6 @@ namespace reshade
 		}
 	}
 
-	static std::mutex s_lock;
-
 	void runtime::reload()
 	{
 		on_reset_effect();
@@ -585,7 +582,7 @@ namespace reshade
 			}
 		}
 
-		std::lock_guard<std::mutex> lock(s_lock);
+		std::lock_guard<std::mutex> lock(_reload_mutex);
 
 		const size_t storage_base_offset = _uniform_data_storage.size();
 
@@ -642,9 +639,9 @@ namespace reshade
 		}
 
 		if (errors.empty())
-			LOG(INFO) << "> Successfully compiled.";
+			LOG(INFO) << "Successfully compiled " << path << ".";
 		else
-			LOG(WARNING) << "> Successfully compiled with warnings:\n" << errors;
+			LOG(WARNING) << "Successfully compiled " << path << " with warnings:\n" << errors;
 
 		effect_data effect;
 		effect.errors = std::move(errors);
@@ -742,7 +739,7 @@ namespace reshade
 	{
 		if (std::find_if(_techniques.begin(), _techniques.end(),
 			[&name](const auto &tech) { return tech.name == name && tech.impl != nullptr; }) != _techniques.end())
-			return;
+			return; // Effect file was already fully compiled, so there is nothing to do
 
 		const auto it = _technique_to_effect.find(name);
 
