@@ -76,6 +76,7 @@ namespace reshade
 	{
 		technique(const reshadefx::technique_info &init) : technique_info(init) { }
 
+		size_t effect_index;
 		std::string effect_filename;
 		std::vector<std::unique_ptr<base_object>> passes_data;
 		bool hidden = false;
@@ -106,6 +107,7 @@ namespace reshade
 		/// Returns the frame height in pixels.
 		/// </summary>
 		unsigned int frame_height() const { return _height; }
+
 		/// <summary>
 		/// Create a copy of the current frame.
 		/// </summary>
@@ -120,12 +122,6 @@ namespace reshade
 		/// Returns a boolean indicating whether any effects were loaded.
 		/// </summary>
 		bool is_effect_loaded() const { return !_techniques.empty() && _reload_remaining_effects == 0; }
-
-		/// <summary>
-		/// Find the texture with the specified name.
-		/// </summary>
-		/// <param name="unique_name">The name of the texture.</param>
-		texture *find_texture(const std::string &unique_name);
 
 		/// <summary>
 		/// Get the value of a uniform variable.
@@ -149,7 +145,10 @@ namespace reshade
 		void set_uniform_value(uniform &variable, const int *values, size_t count);
 		void set_uniform_value(uniform &variable, const unsigned int *values, size_t count);
 		void set_uniform_value(uniform &variable, const float *values, size_t count);
-
+		/// <summary>
+		/// Reset a uniform variable to its initial value.
+		/// </summary>
+		/// <param name="variable">The variable to update.</param>
 		void reset_uniform_value(uniform &variable);
 
 		/// <summary>
@@ -213,10 +212,10 @@ namespace reshade
 		/// <param name="path">The path to an effect source code file.</param>
 		void load_effect(const std::filesystem::path &path);
 		/// <summary>
-		/// Compile effect from the specified abstract syntax tree and initialize textures, constants and techniques.
+		/// Compile effect from the specified effect module.
 		/// </summary>
 		/// <param name="effect">The effect module to compile.</param>
-		virtual bool load_effect(effect_data &effect) = 0;
+		virtual bool compile_effect(effect_data &effect) = 0;
 
 		/// <summary>
 		/// Loads image files and updates all textures with image data.
@@ -227,7 +226,7 @@ namespace reshade
 		/// </summary>
 		/// <param name="texture">The texture to update.</param>
 		/// <param name="data">The 32bpp RGBA image data to update the texture to.</param>
-		virtual bool update_texture(texture &texture, const uint8_t *data) = 0;
+		virtual void update_texture(texture &texture, const uint8_t *data) = 0;
 
 		/// <summary>
 		/// Load user configuration from disk.
@@ -269,8 +268,8 @@ namespace reshade
 	private:
 		static bool check_for_update(unsigned long latest_version[3]);
 
-		void activate_technique(const std::string &name);
-		void deactivate_technique(const std::string &name);
+		void enable_technique(technique &technique);
+		void disable_technique(technique &technique);
 
 		void reload();
 		void load_preset(const std::filesystem::path &path);
@@ -299,7 +298,6 @@ namespace reshade
 		bool _is_initialized = false;
 
 		std::vector<struct effect_data> _loaded_effects;
-		std::unordered_map<std::string, size_t> _technique_to_effect;
 		bool _last_reload_successful = true;
 		bool _has_finished_reloading = false;
 		std::mutex _reload_mutex;

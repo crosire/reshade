@@ -803,10 +803,9 @@ namespace reshade::d3d10
 
 		texture_staging->Unmap(0);
 	}
-	bool runtime_d3d10::update_texture(texture &texture, const uint8_t *data)
+	void runtime_d3d10::update_texture(texture &texture, const uint8_t *data)
 	{
-		if (texture.impl_reference != texture_reference::none)
-			return false;
+		assert(texture.impl_reference == texture_reference::none);
 
 		const auto texture_impl = texture.impl->as<d3d10_tex_data>();
 
@@ -835,11 +834,9 @@ namespace reshade::d3d10
 
 		if (texture.levels > 1)
 			_device->GenerateMips(texture_impl->srv[0].get());
-
-		return true;
 	}
 
-	bool runtime_d3d10::load_effect(effect_data &effect)
+	bool runtime_d3d10::compile_effect(effect_data &effect)
 	{
 		if (_d3d_compiler == nullptr)
 			_d3d_compiler = LoadLibraryW(L"d3dcompiler_47.dll");
@@ -950,9 +947,12 @@ namespace reshade::d3d10
 
 	bool runtime_d3d10::add_sampler(const reshadefx::sampler_info &info, d3d10_technique_data &effect)
 	{
-		const auto existing_texture = find_texture(info.texture_name);
+		const auto existing_texture = std::find_if(_textures.begin(), _textures.end(),
+			[&texture_name = info.texture_name](const auto &item) {
+			return item.unique_name == texture_name;
+		});
 
-		if (!existing_texture)
+		if (existing_texture == _textures.end())
 			return false;
 
 		D3D10_SAMPLER_DESC desc = {};
@@ -1165,6 +1165,8 @@ namespace reshade::d3d10
 			pass.vertex_shader = vs_entry_points.at(pass_info.vs_entry_point);
 
 			pass.viewport.MaxDepth = 1.0f;
+			pass.viewport.Width = pass_info.viewport_width;
+			pass.viewport.Height = pass_info.viewport_height;
 
 			pass.shader_resources = technique_data->texture_bindings;
 			pass.clear_render_targets = pass_info.clear_render_targets;
@@ -1175,34 +1177,21 @@ namespace reshade::d3d10
 
 			for (unsigned int k = 0; k < 8; k++)
 			{
-				const std::string &render_target = pass_info.render_target_names[k];
+				if (pass_info.render_target_names[k].empty())
+					continue; // Skip unbound render targets
 
-				if (render_target.empty())
-					continue;
+				const auto render_target_texture = std::find_if(_textures.begin(), _textures.end(),
+					[&render_target = pass_info.render_target_names[k]](const auto &item) {
+					return item.unique_name == render_target;
+				});
 
-				const auto texture = find_texture(render_target);
+				if (render_target_texture == _textures.end())
+					return assert(false), false;
 
-				if (texture == nullptr)
-				{
-					assert(false);
-					return false;
-				}
-
-				const auto texture_impl = texture->impl->as<d3d10_tex_data>();
+				const auto texture_impl = render_target_texture->impl->as<d3d10_tex_data>();
 
 				D3D10_TEXTURE2D_DESC texture_desc;
 				texture_impl->texture->GetDesc(&texture_desc);
-
-				if (pass.viewport.Width != 0 && pass.viewport.Height != 0 && (texture_desc.Width != static_cast<unsigned int>(pass.viewport.Width) || texture_desc.Height != static_cast<unsigned int>(pass.viewport.Height)))
-				{
-					LOG(ERROR) << "Cannot use multiple render targets with different sized textures";
-					return false;
-				}
-				else
-				{
-					pass.viewport.Width = texture_desc.Width;
-					pass.viewport.Height = texture_desc.Height;
-				}
 
 				D3D10_RENDER_TARGET_VIEW_DESC rtvdesc = {};
 				rtvdesc.Format = pass_info.srgb_write_enable ? make_format_srgb(texture_desc.Format) : make_format_normal(texture_desc.Format);
@@ -1214,7 +1203,7 @@ namespace reshade::d3d10
 
 					if (FAILED(hr))
 					{
-						LOG(ERROR) << "Failed to create render target view for texture '" << texture->unique_name << "' ("
+						LOG(ERROR) << "Failed to create render target view for texture '" << render_target_texture->unique_name << "' ("
 							"Format = " << rtvdesc.Format << ")! "
 							"HRESULT is '" << std::hex << hr << std::dec << "'.";
 						return false;
@@ -1225,7 +1214,7 @@ namespace reshade::d3d10
 				pass.render_target_resources[k] = texture_impl->srv[target_index];
 			}
 
-			if (pass.viewport.Width == 0 && pass.viewport.Height == 0)
+			if (pass.viewport.Width == 0)
 			{
 				pass.viewport.Width = frame_width();
 				pass.viewport.Height = frame_height();

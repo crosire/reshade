@@ -57,8 +57,9 @@ namespace reshade::d3d11
 		void on_present(draw_call_tracker& tracker);
 
 		void capture_frame(uint8_t *buffer) const override;
-		bool load_effect(effect_data &effect) override;
-		bool update_texture(texture &texture, const uint8_t *data) override;
+		void update_texture(texture &texture, const uint8_t *data) override;
+
+		bool compile_effect(effect_data &effect) override;
 
 		void render_technique(const technique &technique) override;
 		void render_imgui_draw_data(ImDrawData *data) override;

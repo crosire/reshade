@@ -143,7 +143,7 @@ void reshade::runtime::on_present()
 
 		_reload_queue.pop_back();
 
-		if (!load_effect(effect))
+		if (!compile_effect(effect))
 		{
 			LOG(ERROR) << "Failed to compile " << effect.source_file << ":\n" << effect.errors;
 			_last_reload_successful = false;
@@ -545,14 +545,19 @@ void reshade::runtime::load_effect(const std::filesystem::path &path)
 
 	for (const reshadefx::texture_info &info : module.textures)
 	{
-		if (const texture *const existing_texture = find_texture(info.unique_name); existing_texture != nullptr)
+		if (const auto existing_texture = std::find_if(_textures.begin(), _textures.end(),
+			[&texture_name = info.unique_name](const auto &item) { return item.unique_name == texture_name; });
+			existing_texture != _textures.end())
 		{
 			if (info.semantic.empty() && (
 				existing_texture->width != info.width ||
 				existing_texture->height != info.height ||
 				existing_texture->levels != info.levels ||
 				existing_texture->format != info.format))
+			{
 				errors += "warning: " + existing_texture->effect_filename + " already created a texture with the same name but different dimensions; textures are shared across all effects, so either rename the variable or adjust the dimensions so they match\n";
+			}
+
 			continue;
 		}
 
@@ -582,7 +587,7 @@ void reshade::runtime::load_effect(const std::filesystem::path &path)
 		technique.toggle_key_data[2] = technique.annotations["toggleshift"].second.as_uint[0] ? 1 : 0;
 		technique.toggle_key_data[3] = technique.annotations["togglealt"].second.as_uint[0] ? 1 : 0;
 
-		_technique_to_effect[info.name] = _loaded_effects.size();
+		technique.effect_index = _loaded_effects.size();
 	}
 
 	if (errors.empty())
@@ -636,67 +641,54 @@ void reshade::runtime::load_textures()
 			continue;
 		}
 
-		FILE *file;
 		unsigned char *filedata = nullptr;
 		int width = 0, height = 0, channels = 0;
-		bool success = false;
 
-		if (_wfopen_s(&file, path.wstring().c_str(), L"rb") == 0)
+		if (FILE *file; _wfopen_s(&file, path.wstring().c_str(), L"rb") == 0)
 		{
 			if (stbi_dds_test_file(file))
-			{
 				filedata = stbi_dds_load_from_file(file, &width, &height, &channels, STBI_rgb_alpha);
-			}
 			else
-			{
 				filedata = stbi_load_from_file(file, &width, &height, &channels, STBI_rgb_alpha);
-			}
 
 			fclose(file);
 		}
 
-		if (filedata != nullptr)
-		{
-			if (texture.width != static_cast<unsigned int>(width) ||
-				texture.height != static_cast<unsigned int>(height))
-			{
-				LOG(INFO) << "> Resizing image data for texture '" << texture.unique_name << "' from " << width << "x" << height << " to " << texture.width << "x" << texture.height << " ...";
-
-				std::vector<uint8_t> resized(texture.width * texture.height * 4);
-				stbir_resize_uint8(filedata, width, height, 0, resized.data(), texture.width, texture.height, 0, 4);
-				success = update_texture(texture, resized.data());
-			}
-			else
-			{
-				success = update_texture(texture, filedata);
-			}
-
-			stbi_image_free(filedata);
-		}
-
-		if (!success)
+		if (filedata == nullptr)
 		{
 			LOG(ERROR) << "> Source " << path << " for texture '" << texture.unique_name << "' could not be loaded! Make sure it is of a compatible file format.";
 			continue;
 		}
+
+		if (texture.width != static_cast<unsigned int>(width) ||
+			texture.height != static_cast<unsigned int>(height))
+		{
+			LOG(INFO) << "> Resizing image data for texture '" << texture.unique_name << "' from " << width << "x" << height << " to " << texture.width << "x" << texture.height << " ...";
+
+			std::vector<uint8_t> resized(texture.width * texture.height * 4);
+			stbir_resize_uint8(filedata, width, height, 0, resized.data(), texture.width, texture.height, 0, 4);
+			update_texture(texture, resized.data());
+		}
+		else
+		{
+			update_texture(texture, filedata);
+		}
+
+		stbi_image_free(filedata);
 	}
 }
 
-void reshade::runtime::activate_technique(const std::string &name)
+void reshade::runtime::enable_technique(technique &technique)
 {
-	if (std::find_if(_techniques.begin(), _techniques.end(),
-		[&name](const auto &tech) { return tech.name == name && tech.impl != nullptr; }) != _techniques.end())
-		return; // Effect file was already fully compiled, so there is nothing to do
+	technique.enabled = true;
 
-	const auto it = _technique_to_effect.find(name);
-
-	if (it == _technique_to_effect.end())
-		return;
-
-	_reload_queue.push_back(it->second);
+	// Queue effect file for compilation if it was not fully loaded yet
+	if (technique.impl == nullptr)
+		_reload_queue.push_back(technique.effect_index);
 }
-void reshade::runtime::deactivate_technique(const std::string &name)
+void reshade::runtime::disable_technique(technique &technique)
 {
+	technique.enabled = false;
 }
 
 void reshade::runtime::load_config()
@@ -792,9 +784,6 @@ void reshade::runtime::load_preset(const std::filesystem::path &path)
 	std::vector<std::string> technique_sorting_list;
 	preset.get("", "TechniqueSorting", technique_sorting_list);
 
-	for (const auto &name : technique_list)
-		activate_technique(name);
-
 	if (technique_sorting_list.empty())
 		technique_sorting_list = technique_list;
 
@@ -834,7 +823,9 @@ void reshade::runtime::load_preset(const std::filesystem::path &path)
 	for (auto &technique : _techniques)
 	{
 		// Ignore preset if "enabled" annotation is set
-		technique.enabled = technique.annotations["enabled"].second.as_uint[0] || std::find(technique_list.begin(), technique_list.end(), technique.name) != technique_list.end();
+		if (technique.annotations["enabled"].second.as_uint[0]
+			|| std::find(technique_list.begin(), technique_list.end(), technique.name) != technique_list.end())
+			enable_technique(technique);
 
 		preset.get("", "Key" + technique.name, technique.toggle_key_data);
 	}
@@ -988,16 +979,6 @@ void reshade::runtime::save_screenshot() const
 		const std::wstring preset_path = least + L' ' + preset_file.stem().wstring() + L".ini";
 		save_preset(preset_file, preset_path);
 	}
-}
-
-reshade::texture *reshade::runtime::find_texture(const std::string &unique_name)
-{
-	const auto it = std::find_if(_textures.begin(), _textures.end(),
-		[unique_name](const auto &item) {
-		return item.unique_name == unique_name;
-	});
-
-	return it != _textures.end() ? &(*it) : nullptr;
 }
 
 void reshade::runtime::get_uniform_value(const uniform &variable, unsigned char *data, size_t size) const

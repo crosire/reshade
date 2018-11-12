@@ -2788,9 +2788,18 @@ bool reshadefx::parser::parse_technique_pass(pass_info &info)
 				else if (!symbol.type.is_texture())
 					return error(location, 3020, "type mismatch, expected texture name"), consume_until('}'), false;
 
+				const texture_info &target_info = _codegen->find_texture(symbol.id);
+
+				// Verify that all render targets in this pass have the same dimensions
+				if (info.viewport_width != 0 && info.viewport_height != 0 && (target_info.width != info.viewport_width || target_info.height != info.viewport_height))
+					return error(location, 4545, "cannot use multiple render targets with different texture dimensions (is " + std::to_string(target_info.width) + 'x' + std::to_string(target_info.height) + ", but expected " + std::to_string(info.viewport_width) + 'x' + std::to_string(info.viewport_height) + ')'), false;
+
+				info.viewport_width = target_info.width;
+				info.viewport_height = target_info.height;
+
 				const size_t target_index = state.size() > 12 ? (state[12] - '0') : 0;
 
-				info.render_target_names[target_index] = _codegen->find_texture(symbol.id).unique_name;
+				info.render_target_names[target_index] = target_info.unique_name;
 			}
 		}
 		else // Handle the rest of the pass states

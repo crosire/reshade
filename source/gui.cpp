@@ -1463,9 +1463,9 @@ void reshade::runtime::draw_overlay_technique_editor()
 		if (ImGui::Checkbox(label.c_str(), &technique.enabled))
 		{
 			if (technique.enabled)
-				activate_technique(technique.name);
+				enable_technique(technique);
 			else
-				deactivate_technique(technique.name);
+				disable_technique(technique);
 
 			save_current_preset();
 

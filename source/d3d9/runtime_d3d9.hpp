@@ -50,9 +50,10 @@ namespace reshade::d3d9
 		void on_get_depthstencil_surface(IDirect3DSurface9 *&depthstencil);
 
 		void capture_frame(uint8_t *buffer) const override;
-		bool load_effect(effect_data &effect) override;
-		bool update_texture(texture &texture, const uint8_t *data) override;
+		void update_texture(texture &texture, const uint8_t *data) override;
 		bool update_texture_reference(texture &texture);
+
+		bool compile_effect(effect_data &effect) override;
 
 		void render_technique(const technique &technique) override;
 		void render_imgui_draw_data(ImDrawData *data) override;

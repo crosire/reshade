@@ -351,6 +351,8 @@ namespace reshadefx
 		uint32_t stencil_op_pass = 1; // KEEP
 		uint32_t stencil_op_fail = 1; // KEEP
 		uint32_t stencil_op_depth_fail = 1; // KEEP
+		uint32_t viewport_width = 0;
+		uint32_t viewport_height = 0;
 	};
 
 	struct technique_info

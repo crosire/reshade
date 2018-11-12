@@ -580,11 +580,9 @@ namespace reshade::d3d9
 
 		screenshot_surface->UnlockRect();
 	}
-
-	bool runtime_d3d9::update_texture(texture &texture, const uint8_t *data)
+	void runtime_d3d9::update_texture(texture &texture, const uint8_t *data)
 	{
-		if (texture.impl_reference != texture_reference::none)
-			return false;
+		assert(texture.impl_reference == texture_reference::none);
 
 		const auto texture_impl = texture.impl->as<d3d9_tex_data>();
 
@@ -601,7 +599,7 @@ namespace reshade::d3d9
 		if (FAILED(hr))
 		{
 			LOG(ERROR) << "Failed to create memory texture for texture updating! HRESULT is '" << std::hex << hr << std::dec << "'.";
-			return false;
+			return;
 		}
 
 		D3DLOCKED_RECT mapped_rect;
@@ -610,7 +608,7 @@ namespace reshade::d3d9
 		if (FAILED(hr))
 		{
 			LOG(ERROR) << "Failed to lock memory texture for texture updating! HRESULT is '" << std::hex << hr << std::dec << "'.";
-			return false;
+			return;
 		}
 
 		const UINT size = std::min(texture.width * 4, static_cast<UINT>(mapped_rect.Pitch)) * texture.height;
@@ -651,10 +649,8 @@ namespace reshade::d3d9
 		if (FAILED(hr))
 		{
 			LOG(ERROR) << "Failed to update texture from memory texture! HRESULT is '" << std::hex << hr << std::dec << "'.";
-			return false;
+			return;
 		}
-
-		return true;
 	}
 	bool runtime_d3d9::update_texture_reference(texture &texture)
 	{
@@ -705,7 +701,7 @@ namespace reshade::d3d9
 		return true;
 	}
 
-	bool runtime_d3d9::load_effect(effect_data &effect)
+	bool runtime_d3d9::compile_effect(effect_data &effect)
 	{
 		if (_d3d_compiler == nullptr)
 			_d3d_compiler = LoadLibraryW(L"d3dcompiler_47.dll");
@@ -802,9 +798,12 @@ namespace reshade::d3d9
 
 	bool runtime_d3d9::add_sampler(const reshadefx::sampler_info &info, d3d9_technique_data &effect)
 	{
-		const auto existing_texture = find_texture(info.texture_name);
+		const auto existing_texture = std::find_if(_textures.begin(), _textures.end(),
+			[&texture_name = info.texture_name](const auto &item) {
+			return item.unique_name == texture_name;
+		});
 
-		if (!existing_texture || info.binding > ARRAYSIZE(effect.sampler_states))
+		if (existing_texture == _textures.end() || info.binding > ARRAYSIZE(effect.sampler_states))
 			return false;
 
 		effect.num_samplers = std::max(effect.num_samplers, DWORD(info.binding + 1));
@@ -1025,35 +1024,35 @@ namespace reshade::d3d9
 			D3DCAPS9 caps;
 			_device->GetDeviceCaps(&caps);
 
-			for (unsigned int i = 0; i < 8; ++i)
+			for (unsigned int k = 0; k < 8; ++k)
 			{
-				const std::string &render_target = pass_info.render_target_names[i];
-
-				if (render_target.empty())
-					continue;
-
-				const auto texture = find_texture(render_target);
-
-				if (texture == nullptr)
-				{
-					assert(false);
-					return false;
-				}
-
-				if (i > caps.NumSimultaneousRTs)
+				if (k > caps.NumSimultaneousRTs)
 				{
 					LOG(WARNING) << "Device only supports " << caps.NumSimultaneousRTs << " simultaneous render targets, but pass " << pass_index << " in technique '" << technique.name << "' uses more, which are ignored";
 					break;
 				}
 
+				if (pass_info.render_target_names[k].empty())
+					continue; // Skip unbound render targets
+
+				const auto render_target_texture = std::find_if(_textures.begin(), _textures.end(),
+					[&render_target = pass_info.render_target_names[k]](const auto &item) {
+					return item.unique_name == render_target;
+				});
+
+				if (render_target_texture == _textures.end())
+					return assert(false), false;
+
+				const auto texture_impl = render_target_texture->impl->as<d3d9_tex_data>();
+
 				// Unset textures that are used as render target
 				for (DWORD s = 0; s < technique_data->num_samplers; ++s)
 				{
-					if (pass.sampler_textures[s] == texture->impl->as<d3d9_tex_data>()->texture)
+					if (pass.sampler_textures[s] == texture_impl->texture)
 						pass.sampler_textures[s] = nullptr;
 				}
 
-				pass.render_targets[i] = texture->impl->as<d3d9_tex_data>()->surface.get();
+				pass.render_targets[k] = texture_impl->surface.get();
 			}
 		}
 

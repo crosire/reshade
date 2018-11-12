@@ -708,10 +708,9 @@ namespace reshade::opengl
 			}
 		}
 	}
-	bool runtime_opengl::update_texture(texture &texture, const uint8_t *data)
+	void runtime_opengl::update_texture(texture &texture, const uint8_t *data)
 	{
-		if (texture.impl_reference != texture_reference::none)
-			return false;
+		assert(texture.impl_reference == texture_reference::none);
 
 		const auto texture_impl = texture.impl->as<opengl_tex_data>();
 
@@ -750,8 +749,6 @@ namespace reshade::opengl
 			glGenerateMipmap(GL_TEXTURE_2D);
 
 		glBindTexture(GL_TEXTURE_2D, previous);
-
-		return true;
 	}
 	bool runtime_opengl::update_texture_reference(texture &texture)
 	{
@@ -789,7 +786,7 @@ namespace reshade::opengl
 		return true;
 	}
 
-	bool runtime_opengl::load_effect(effect_data &effect)
+	bool runtime_opengl::compile_effect(effect_data &effect)
 	{
 		// Add specialization constant defines to source code
 #if 0
@@ -923,9 +920,12 @@ namespace reshade::opengl
 
 	bool runtime_opengl::add_sampler(const reshadefx::sampler_info &info, opengl_technique_data &effect)
 	{
-		const auto existing_texture = find_texture(info.texture_name);
+		const auto existing_texture = std::find_if(_textures.begin(), _textures.end(),
+			[&texture_name = info.texture_name](const auto &item) {
+			return item.unique_name == texture_name;
+		});
 
-		if (!existing_texture)
+		if (existing_texture == _textures.end())
 			return false;
 
 		size_t hash = 2166136261;
@@ -1150,46 +1150,35 @@ namespace reshade::opengl
 			pass.stencil_reference = pass_info.stencil_reference_value;
 			pass.srgb = pass_info.srgb_write_enable;
 			pass.clear_render_targets = pass_info.clear_render_targets;
+			pass.viewport_width = pass_info.viewport_width;
+			pass.viewport_height = pass_info.viewport_height;
 
 			glGenFramebuffers(1, &pass.fbo);
 			glBindFramebuffer(GL_FRAMEBUFFER, pass.fbo);
 
 			bool backbuffer_fbo = true;
 
-			for (unsigned int i = 0; i < 8; ++i)
+			for (unsigned int k = 0; k < 8; ++k)
 			{
-				const std::string &render_target = pass_info.render_target_names[i];
+				if (pass_info.render_target_names[k].empty())
+					continue; // Skip unbound render targets
 
-				if (render_target.empty())
-					continue;
+				const auto render_target_texture = std::find_if(_textures.begin(), _textures.end(),
+					[&render_target = pass_info.render_target_names[k]](const auto &item) {
+					return item.unique_name == render_target;
+				});
 
-				const auto texture = find_texture(render_target);
-
-				if (texture == nullptr)
-				{
-					assert(false);
-					return false;
-				}
-
-				if (pass.viewport_width != 0 && pass.viewport_height != 0 && (texture->width != static_cast<unsigned int>(pass.viewport_width) || texture->height != static_cast<unsigned int>(pass.viewport_height)))
-				{
-					LOG(ERROR) << "Cannot use multiple render targets with different sized textures";
-					return false;
-				}
-				else
-				{
-					pass.viewport_width = texture->width;
-					pass.viewport_height = texture->height;
-				}
+				if (render_target_texture == _textures.end())
+					return assert(false), false;
 
 				backbuffer_fbo = false;
 
-				const auto texture_data = texture->impl->as<opengl_tex_data>();
+				const auto texture_data = render_target_texture->impl->as<opengl_tex_data>();
 
-				glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + i, texture_data->id[pass.srgb], 0);
+				glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + k, texture_data->id[pass.srgb], 0);
 
-				pass.draw_buffers[i] = GL_COLOR_ATTACHMENT0 + i;
-				pass.draw_textures[i] = texture_data->id[pass.srgb];
+				pass.draw_buffers[k] = GL_COLOR_ATTACHMENT0 + k;
+				pass.draw_textures[k] = texture_data->id[pass.srgb];
 			}
 
 			if (backbuffer_fbo)
@@ -1205,6 +1194,9 @@ namespace reshade::opengl
 				pass.viewport_width = static_cast<GLsizei>(rect.right - rect.left);
 				pass.viewport_height = static_cast<GLsizei>(rect.bottom - rect.top);
 			}
+
+			assert(pass.viewport_width != 0);
+			assert(pass.viewport_height != 0);
 
 			glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, _default_backbuffer_rbo[1]);
 
