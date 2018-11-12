@@ -1032,14 +1032,14 @@ namespace reshade::d3d9
 
 			for (unsigned int k = 0; k < 8; ++k)
 			{
+				if (pass_info.render_target_names[k].empty())
+					continue; // Skip unbound render targets
+
 				if (k > caps.NumSimultaneousRTs)
 				{
 					LOG(WARNING) << "Device only supports " << caps.NumSimultaneousRTs << " simultaneous render targets, but pass " << pass_index << " in technique '" << technique.name << "' uses more, which are ignored";
 					break;
 				}
-
-				if (pass_info.render_target_names[k].empty())
-					continue; // Skip unbound render targets
 
 				const auto render_target_texture = std::find_if(_textures.begin(), _textures.end(),
 					[&render_target = pass_info.render_target_names[k]](const auto &item) {
