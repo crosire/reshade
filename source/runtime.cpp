@@ -61,6 +61,7 @@ bool reshade::runtime::on_init()
 {
 	LOG(INFO) << "Recreated runtime environment on runtime " << this << ".";
 
+	_show_splash = true;
 	_is_initialized = true;
 	_last_reload_time = std::chrono::high_resolution_clock::now();
 
@@ -111,22 +112,24 @@ void reshade::runtime::on_present()
 	if (!_screenshot_key_setting_active && _input->is_key_pressed(_screenshot_key_data))
 		save_screenshot();
 
-	if (_has_finished_reloading)
+	if (_reload_remaining_effects == 0)
 	{
 		load_current_preset();
 		load_textures();
 
-		_has_finished_reloading = false;
+		_last_reload_time = std::chrono::high_resolution_clock::now();
+		_reload_remaining_effects = std::numeric_limits<size_t>::max();
 	}
-	else if (!_reload_queue.empty())
+	else if (!_reload_compile_queue.empty())
 	{
-		effect_data &effect = _loaded_effects[_reload_queue.back()];
+		effect_data &effect = _loaded_effects[_reload_compile_queue.back()];
 
-		_reload_queue.pop_back();
+		_reload_compile_queue.pop_back();
 
 		if (!compile_effect(effect))
 		{
 			LOG(ERROR) << "Failed to compile " << effect.source_file << ":\n" << effect.errors;
+
 			_last_reload_successful = false;
 		}
 	}
@@ -278,8 +281,8 @@ void reshade::runtime::reload()
 	on_reset_effect();
 
 	_loaded_effects.clear();
+	_selected_effect = -1;
 	_last_reload_successful = true;
-	_has_finished_reloading = false;
 
 	std::vector<std::filesystem::path> effect_files;
 	for (const auto &search_path : _effect_search_paths)
@@ -297,7 +300,7 @@ void reshade::runtime::reload()
 }
 void reshade::runtime::load_effect(const std::filesystem::path &path)
 {
-	assert(_reload_remaining_effects > 0);
+	assert(_reload_remaining_effects != 0 && _reload_remaining_effects != std::numeric_limits<size_t>::max());
 
 	std::string source_code, errors;
 	reshadefx::module module;
@@ -343,12 +346,13 @@ void reshade::runtime::load_effect(const std::filesystem::path &path)
 		{
 			LOG(ERROR) << "Failed to pre-process " << path << ":\n" << pp.errors();
 
+			effect_data effect;
+			effect.errors = std::move(pp.errors());
+			effect.source_file = path;
+			_loaded_effects.push_back(std::move(effect));
+
 			_last_reload_successful = false;
-			if (--_reload_remaining_effects == 0)
-			{
-				_last_reload_time = std::chrono::high_resolution_clock::now();
-				_has_finished_reloading = true;
-			}
+			_reload_remaining_effects--;
 			return;
 		}
 
@@ -373,12 +377,13 @@ void reshade::runtime::load_effect(const std::filesystem::path &path)
 		{
 			LOG(ERROR) << "Failed to compile " << path << ":\n" << parser.errors();
 
+			effect_data effect;
+			effect.errors = std::move(parser.errors());
+			effect.source_file = path;
+			_loaded_effects.push_back(std::move(effect));
+
 			_last_reload_successful = false;
-			if (--_reload_remaining_effects == 0)
-			{
-				_last_reload_time = std::chrono::high_resolution_clock::now();
-				_has_finished_reloading = true;
-			}
+			_reload_remaining_effects--;
 			return;
 		}
 
@@ -518,12 +523,33 @@ void reshade::runtime::load_effect(const std::filesystem::path &path)
 
 	_loaded_effects.push_back(std::move(effect));
 
-	if (--_reload_remaining_effects == 0)
-	{
-		_last_reload_time = std::chrono::high_resolution_clock::now();
-		_has_finished_reloading = true;
-	}
+	_reload_remaining_effects--;
 }
+void reshade::runtime::unload_effect(const std::filesystem::path &path)
+{
+	for (auto it = _uniforms.begin(); it != _uniforms.end();)
+		if (it->effect_filename == path.filename().string())
+			it = _uniforms.erase(it);
+		else
+			++it;
+
+	for (auto it = _textures.begin(); it != _textures.end();)
+		if (it->effect_filename == path.filename().string() && !it->shared)
+			it = _textures.erase(it);
+		else
+			++it;
+
+	for (auto it = _techniques.begin(); it != _techniques.end();)
+		if (it->effect_filename == path.filename().string())
+			it = _techniques.erase(it);
+		else
+			++it;
+
+	if (const auto it = std::find_if(_loaded_effects.begin(), _loaded_effects.end(),
+		[&path](const auto &effect) { return effect.source_file == path; }); it != _loaded_effects.end())
+		_loaded_effects.erase(it);
+}
+
 void reshade::runtime::load_textures()
 {
 	LOG(INFO) << "Loading image files for textures ...";
@@ -594,7 +620,7 @@ void reshade::runtime::enable_technique(technique &technique)
 
 	// Queue effect file for compilation if it was not fully loaded yet
 	if (technique.impl == nullptr)
-		_reload_queue.push_back(technique.effect_index);
+		_reload_compile_queue.push_back(technique.effect_index);
 }
 void reshade::runtime::disable_technique(technique &technique)
 {

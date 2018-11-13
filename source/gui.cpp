@@ -181,7 +181,7 @@ void reshade::runtime::deinit_ui()
 
 void reshade::runtime::draw_ui()
 {
-	const bool show_splash = _reload_remaining_effects > 0 || !_reload_queue.empty() || (_last_present_time - _last_reload_time) < std::chrono::seconds(5);
+	const bool show_splash = _show_splash && (_reload_remaining_effects != std::numeric_limits<size_t>::max() || !_reload_compile_queue.empty() || (_last_present_time - _last_reload_time) < std::chrono::seconds(5));
 
 	if (!_overlay_key_setting_active && _input->is_key_pressed(_menu_key_data))
 		_show_menu = !_show_menu;
@@ -258,19 +258,19 @@ void reshade::runtime::draw_ui()
 
 		ImGui::Spacing();
 
-		if (_reload_remaining_effects != 0)
+		if (_reload_remaining_effects != 0 && _reload_remaining_effects != std::numeric_limits<size_t>::max())
 		{
 			ImGui::Text(
-				"Loading (%u effects remaining) ... "
+				"Loading (%zu effects remaining) ... "
 				"This might take a while. The application could become unresponsive for some time.",
-				static_cast<unsigned int>(_reload_remaining_effects));
+				_reload_remaining_effects.load());
 		}
-		else if (!_reload_queue.empty())
+		else if (!_reload_compile_queue.empty())
 		{
 			ImGui::Text(
-				"Compiling (%u effects remaining) ... "
+				"Compiling (%zu effects remaining) ... "
 				"This might take a while. The application could become unresponsive for some time.",
-				static_cast<unsigned int>(_reload_queue.size()));
+				_reload_compile_queue.size());
 		}
 		else
 		{
@@ -342,7 +342,7 @@ void reshade::runtime::draw_ui()
 		ImGui::End();
 	}
 
-	if (_show_menu && _reload_remaining_effects == 0)
+	if (_show_menu && _reload_remaining_effects == std::numeric_limits<size_t>::max())
 	{
 		const ImGuiID root_space_id = ImGui::GetID("Dockspace");
 		const ImGuiViewport *const viewport = ImGui::GetMainViewport();
@@ -420,7 +420,78 @@ void reshade::runtime::draw_ui()
 
 void reshade::runtime::draw_code_editor()
 {
-	_editor.render("code editor");
+	if (_reload_remaining_effects != std::numeric_limits<size_t>::max())
+		return;
+
+	const auto parse_errors = [this](const std::string &errors) {
+		_editor.clear_errors();
+
+		for (size_t offset = 0; offset != std::string::npos;)
+		{
+			const size_t pos_line = errors.find('(', offset);
+			const size_t pos_error = errors.find(':', pos_line);
+			const size_t pos_newline = errors.find('\n', pos_error);
+
+			if (pos_line == std::string::npos || pos_error == std::string::npos)
+				break;
+
+			// Ignore errors that aren't in the main source file
+			const std::string error_file = errors.substr(offset, pos_line - offset);
+			offset = pos_newline;
+			if (error_file != _loaded_effects[_selected_effect].source_file.u8string())
+				continue;
+
+			const int error_line = std::strtol(errors.c_str() + pos_line + 1, nullptr, 10);
+			const std::string error_text = errors.substr(pos_error + 2 /* skip space */, pos_newline - pos_error - 2);
+
+			_editor.add_error(error_line, error_text, error_text.find("warning") != std::string::npos);
+		}
+	};
+
+	if (ImGui::BeginCombo("File", _selected_effect < 0 ? "" : _loaded_effects[_selected_effect].source_file.u8string().c_str()))
+	{
+		for (int i = 0; i < static_cast<int>(_loaded_effects.size()); ++i)
+		{
+			const auto &effect = _loaded_effects[i];
+
+			if (ImGui::Selectable(effect.source_file.u8string().c_str(), _selected_effect == i))
+			{
+				_selected_effect = i;
+
+				// Load file to string and update editor text
+				_editor.set_text(std::string(std::istreambuf_iterator<char>(std::ifstream(effect.source_file).rdbuf()), std::istreambuf_iterator<char>()));
+
+				parse_errors(effect.errors);
+			}
+		}
+
+		ImGui::EndCombo();
+	}
+
+	ImGui::SameLine(0.0f, 20.0f);
+
+	if (ImGui::Button("Save & Compile (Ctrl + S)") || _input->is_key_pressed('S', true, false, false))
+	{
+		_show_splash = false;
+
+		const std::string text = _editor.get_text();
+
+		const std::filesystem::path source_file = _loaded_effects[_selected_effect].source_file;
+
+		// Write editor text to file
+		std::ofstream(source_file, std::ios::trunc).write(text.c_str(), text.size());
+
+		// Reload effect file
+		_reload_remaining_effects = 1;
+		unload_effect(source_file); load_effect(source_file);
+
+		// Switch to the newly loaded effect file
+		_selected_effect = _loaded_effects.size() - 1;
+
+		parse_errors(_loaded_effects[_selected_effect].errors);
+	}
+
+	_editor.render("Editor");
 }
 void reshade::runtime::draw_overlay_menu_home()
 {
@@ -1056,7 +1127,7 @@ void reshade::runtime::draw_overlay_menu_statistics()
 			{
 				if (technique.passes.size() > 1)
 				{
-					ImGui::Text("%s (%u passes)", technique.name.c_str(), static_cast<unsigned int>(technique.passes.size()));
+					ImGui::Text("%s (%zu passes)", technique.name.c_str(), technique.passes.size());
 				}
 				else
 				{
@@ -1067,7 +1138,7 @@ void reshade::runtime::draw_overlay_menu_statistics()
 			{
 				if (technique.passes.size() > 1)
 				{
-					ImGui::TextDisabled("%s (%u passes)", technique.name.c_str(), static_cast<unsigned int>(technique.passes.size()));
+					ImGui::TextDisabled("%s (%zu passes)", technique.name.c_str(), technique.passes.size());
 				}
 				else
 				{

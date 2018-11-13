@@ -138,7 +138,7 @@ namespace reshade
 		/// <summary>
 		/// Returns a boolean indicating whether any effects were loaded.
 		/// </summary>
-		bool is_effect_loaded() const { return !_techniques.empty() && _reload_remaining_effects == 0; }
+		bool is_effect_loaded() const { return !_techniques.empty() && _reload_remaining_effects == std::numeric_limits<size_t>::max(); }
 
 		/// <summary>
 		/// Get the value of a uniform variable.
@@ -230,6 +230,7 @@ namespace reshade
 		/// </summary>
 		/// <param name="path">The path to an effect source code file.</param>
 		void load_effect(const std::filesystem::path &path);
+		void unload_effect(const std::filesystem::path &path);
 		/// <summary>
 		/// Compile effect from the specified effect module.
 		/// </summary>
@@ -336,9 +337,8 @@ namespace reshade
 		std::vector<std::filesystem::path> _texture_search_paths;
 
 		bool _last_reload_successful = true;
-		bool _has_finished_reloading = false;
 		std::mutex _reload_mutex;
-		std::vector<size_t> _reload_queue;
+		std::vector<size_t> _reload_compile_queue;
 		std::atomic<size_t> _reload_remaining_effects = 0;
 		std::vector<struct effect_data> _loaded_effects;
 
@@ -352,6 +352,7 @@ namespace reshade
 		std::vector<std::function<void(ini_file &)>> _save_config_callables;
 		std::vector<std::function<void(const ini_file &)>> _load_config_callables;
 
+		int _selected_effect = -1;
 		int _selected_technique = -1;
 		int _input_processing_mode = 2;
 		unsigned int _menu_key_data[4];
@@ -359,6 +360,7 @@ namespace reshade
 		bool _show_menu = false;
 		bool _show_clock = false;
 		bool _show_framerate = false;
+		bool _show_splash = true;
 		bool _show_code_editor = false;
 		bool _screenshot_include_preset = false;
 		bool _screenshot_include_configuration = false;

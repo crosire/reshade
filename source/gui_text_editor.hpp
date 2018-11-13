@@ -54,10 +54,8 @@ public:
 	void redo(unsigned int steps = 1);
 	bool can_redo() const { return _undo_index < _undo.size(); }
 
-	void add_error(size_t line, const std::string &message)
-	{
-		_errors.insert({ line, message });
-	}
+	void add_error(size_t line, const std::string &message, bool warning = false) { _errors.insert({ line, { message, warning } }); }
+	void clear_errors() { _errors.clear(); }
 
 	void set_tab_size(unsigned int size) { _tab_size = size; }
 	void set_left_margin(float margin) { _left_margin = margin; }
@@ -104,25 +102,30 @@ private:
 
 	void colorize();
 
-	std::vector<std::vector<glyph>> _lines;
-	std::array<uint32_t, 20> _palette;
-	std::unordered_map<size_t, std::string> _errors;
-	unsigned int _tab_size = 4;
 	float _left_margin = 10.0f;
 	float _line_spacing = 1.0f;
+	unsigned int _tab_size = 4;
 	bool _overwrite = false;
 	bool _scroll_to_cursor = false;
 	float _cursor_anim = 0.0f;
 	double _last_click_time = -1.0;
+
+	std::array<uint32_t, 20> _palette;
+
+	std::vector<std::vector<glyph>> _lines;
+
 	text_pos _cursor_pos;
 	text_pos _select_beg;
 	text_pos _select_end;
 	text_pos _interactive_beg;
 	text_pos _interactive_end;
-	size_t _colorize_line_beg = 0;
-	size_t _colorize_line_end = 0;
 
 	size_t _undo_index;
 	std::vector<undo_record> _undo;
 	bool _in_undo_operation = false;
+
+	size_t _colorize_line_beg = 0;
+	size_t _colorize_line_end = 0;
+
+	std::unordered_map<size_t, std::pair<std::string, bool>> _errors;
 };

@@ -31,7 +31,6 @@ enum color_palette
 	color_keyword,
 	color_number_literal,
 	color_string_literal,
-	color_char_literal,
 	color_punctuation,
 	color_preprocessor,
 	color_identifier,
@@ -43,6 +42,7 @@ enum color_palette
 	color_cursor,
 	color_selection,
 	color_error_marker,
+	color_warning_marker,
 	color_line_number,
 	color_current_line_fill,
 	color_current_line_fill_inactive,
@@ -53,12 +53,12 @@ enum color_palette
 
 code_editor_widget::code_editor_widget()
 {
+#if 1
 	_palette = std::array<ImU32, color_palette_max> {
 		0xffffffff,	// color_default
 		0xffd69c56,	// color_keyword	
 		0xff00ff00,	// color_number_literal
 		0xff7070e0,	// color_string_literal
-		0xff70a0e0, // color_char_literal
 		0xffffffff, // color_punctuation
 		0xff409090,	// color_preprocessor
 		0xffaaaaaa, // color_identifier
@@ -70,11 +70,36 @@ code_editor_widget::code_editor_widget()
 		0xffe0e0e0, // color_cursor
 		0x80a06020, // color_selection
 		0x800020ff, // color_error_marker
+		0x8000ffff, // color_warning_marker
 		0xff707000, // color_line_number
 		0x40000000, // color_current_line_fill
 		0x40808080, // color_current_line_fill_inactive
 		0x40a0a0a0, // color_current_line_edge
 	};
+#else
+	_palette = std::array<ImU32, color_palette_max> {
+		0xff000000,
+		0xffff0c06,
+		0xff008000,
+		0xff2020a0,
+		0xff000000,
+		0xff409090,
+		0xff404040,
+		0xff606010,
+		0xffc040a0,
+		0xff205020,
+		0xff405020,
+		0xffffffff,
+		0xff000000,
+		0x80600000,
+		0xa00010ff,
+		0x8000ffff,
+		0xff505000,
+		0x40000000,
+		0x40808080,
+		0x40000000,
+	};
+#endif
 
 	_lines.emplace_back();
 }
@@ -300,18 +325,12 @@ void code_editor_widget::render(const char *title, bool border)
 			const ImVec2 beg = ImVec2(line_screen_pos.x + ImGui::GetScrollX(), line_screen_pos.y);
 			const ImVec2 end = ImVec2(line_screen_pos.x + ImGui::GetWindowContentRegionMax().x + 2.0f * ImGui::GetScrollX(), line_screen_pos.y + char_advance.y);
 
-			draw_list->AddRectFilled(beg, end, _palette[color_error_marker]);
+			draw_list->AddRectFilled(beg, end, _palette[it->second.second ? color_warning_marker : color_error_marker]);
 
 			if (ImGui::IsMouseHoveringRect(beg, end))
 			{
 				ImGui::BeginTooltip();
-				ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.2f, 0.2f, 1.0f));
-				ImGui::Text("Error at line %d:", it->first);
-				ImGui::PopStyleColor();
-				ImGui::Separator();
-				ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 1.0f, 0.2f, 1.0f));
-				ImGui::Text("%s", it->second.c_str());
-				ImGui::PopStyleColor();
+				ImGui::Text("%s", it->second.first.c_str());
 				ImGui::EndTooltip();
 			}
 		}
@@ -566,7 +585,7 @@ void code_editor_widget::insert_character(char c, bool auto_indent)
 	if (c == '\n')
 	{
 		// Move all error markers after the new line one up
-		std::unordered_map<size_t, std::string> errors;
+		std::unordered_map<size_t, std::pair<std::string, bool>> errors;
 		errors.reserve(_errors.size());
 		for (auto &i : _errors)
 			errors.insert({ i.first >= _cursor_pos.line + 1 ? i.first + 1 : i.first, i.second });
@@ -627,12 +646,15 @@ std::string code_editor_widget::get_text(const text_pos &beg, const text_pos &en
 		}
 		else
 		{
-			// Reached end of line, so append a new line feed (+ carriage return since we are on Windows)
-			result.push_back('\r');
-			result.push_back('\n');
-
 			it.line++;
 			it.column = 0;
+
+			if (it.line < _lines.size())
+			{
+				// Reached end of line, so append a new line feed (+ carriage return since we are on Windows)
+				result.push_back('\r');
+				result.push_back('\n');
+			}
 		}
 	}
 
@@ -643,16 +665,6 @@ std::string code_editor_widget::get_selected_text() const
 	assert(has_selection());
 
 	return get_text(_select_beg, _select_end);
-}
-
-void code_editor_widget::record_undo(undo_record &&record)
-{
-	if (_in_undo_operation)
-		return;
-
-	_undo.resize(_undo_index); // Remove all undo records after the current one
-	_undo.push_back(std::move(record)); // Append new record to the list
-	_undo_index++;
 }
 
 void code_editor_widget::undo(unsigned int steps)
@@ -710,6 +722,16 @@ void code_editor_widget::redo(unsigned int steps)
 
 	_scroll_to_cursor = true;
 	_in_undo_operation = false;
+}
+
+void code_editor_widget::record_undo(undo_record &&record)
+{
+	if (_in_undo_operation)
+		return;
+
+	_undo.resize(_undo_index); // Remove all undo records after the current one
+	_undo.push_back(std::move(record)); // Append new record to the list
+	_undo_index++;
 }
 
 void code_editor_widget::delete_next()
@@ -861,7 +883,7 @@ void code_editor_widget::delete_selection()
 void code_editor_widget::delete_lines(size_t first_line, size_t last_line)
 {
 	// Move all error markers after the deleted lines down
-	std::unordered_map<size_t, std::string> errors;
+	std::unordered_map<size_t, std::pair<std::string, bool>> errors;
 	errors.reserve(_errors.size());
 	for (auto &i : _errors)
 		if (i.first < first_line && i.first > last_line)
@@ -1202,24 +1224,27 @@ void code_editor_widget::move_end(bool selection)
 
 void code_editor_widget::colorize()
 {
-	if (_lines.empty() || _colorize_line_beg >= _colorize_line_end)
+	if (_colorize_line_beg >= _colorize_line_end)
 		return;
 
+	// Step through code incrementally rather than coloring everything at once
 	const size_t from = _colorize_line_beg, to = std::min(from + 1000, _colorize_line_end);
 	_colorize_line_beg = to;
 
+	// Reset coloring range if we have finished coloring it after this iteration
 	if (_colorize_line_beg == _colorize_line_end)
 	{
-		_colorize_line_beg = std::numeric_limits<int>::max();
+		_colorize_line_beg = std::numeric_limits<size_t>::max();
 		_colorize_line_end = 0;
 	}
 
+	// Copy lines into string for consumption by the lexer
 	std::string input_string;
-	for (size_t l = from; l < size_t(to) && l < _lines.size(); ++l, input_string.push_back('\n'))
+	for (size_t l = from; l < to && l < _lines.size(); ++l, input_string.push_back('\n'))
 		for (size_t k = 0; k < _lines[l].size(); ++k)
 			input_string.push_back(_lines[l][k].c);
 
-	reshadefx::lexer lexer(input_string, false, true, false, false, false);
+	reshadefx::lexer lexer(input_string, false, true, false, false, true);
 
 	for (reshadefx::token tok; (tok = lexer.lex()).id != reshadefx::tokenid::end_of_file;)
 	{
@@ -1278,23 +1303,7 @@ void code_editor_widget::colorize()
 			col = color_punctuation;
 			break;
 		case reshadefx::tokenid::identifier:
-			if (tok.literal_as_string == "Width" ||
-				tok.literal_as_string == "Height" ||
-				tok.literal_as_string == "Format" ||
-				tok.literal_as_string == "MipLevels" ||
-				tok.literal_as_string == "Texture" ||
-				tok.literal_as_string == "MinFilter" ||
-				tok.literal_as_string == "MagFilter" ||
-				tok.literal_as_string == "MipFilter" ||
-				tok.literal_as_string == "MipLODBias" ||
-				tok.literal_as_string == "MaxMipLevel" ||
-				tok.literal_as_string == "abs" ||
-				tok.literal_as_string == "tex2D" ||
-				tok.literal_as_string == "tex2Dlod" ||
-				tok.literal_as_string == "tex2Dfetch")
-				col = color_known_identifier;
-			else
-				col = color_identifier;
+			col = color_identifier;
 			break;
 		case reshadefx::tokenid::int_literal:
 		case reshadefx::tokenid::uint_literal:
@@ -1397,6 +1406,7 @@ void code_editor_widget::colorize()
 			break;
 		}
 
+		// Update character range matching the current the token
 		size_t line = from + tok.location.line - 1;
 		size_t column = tok.location.column - 1;
 
