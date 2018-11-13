@@ -77,6 +77,7 @@ namespace reshade
 		std::string effect_filename;
 		texture_reference impl_reference = texture_reference::none;
 		std::unique_ptr<base_object> impl;
+		bool shared = false;
 	};
 	struct uniform final : reshadefx::uniform_info
 	{

@@ -786,8 +786,7 @@ namespace reshade::d3d9
 		bool success = true;
 
 		for (texture &texture : _textures)
-			if (texture.impl == nullptr && (texture.effect_filename == effect.source_file.filename().u8string()
-				|| texture.impl_reference != texture_reference::none)) // Always initialize special textures, since they are shared across all effect files
+			if (texture.impl == nullptr && (texture.effect_filename == effect.source_file.filename().u8string() || texture.shared))
 				success &= init_texture(texture);
 
 		d3d9_technique_data technique_init;
@@ -1052,6 +1051,8 @@ namespace reshade::d3d9
 					return assert(false), false;
 
 				const auto texture_impl = render_target_texture->impl->as<d3d9_tex_data>();
+
+				assert(texture_impl != nullptr);
 
 				// Unset textures that are used as render target
 				for (DWORD s = 0; s < technique_data->num_samplers; ++s)

@@ -956,8 +956,7 @@ namespace reshade::d3d11
 		bool success = true;
 
 		for (texture &texture : _textures)
-			if (texture.impl == nullptr && (texture.effect_filename == effect.source_file.filename().u8string()
-				|| texture.impl_reference != texture_reference::none)) // Always initialize special textures, since they are shared across all effect files
+			if (texture.impl == nullptr && (texture.effect_filename == effect.source_file.filename().u8string() || texture.shared))
 				success &= init_texture(texture);
 
 		d3d11_technique_data technique_init;
@@ -1202,6 +1201,8 @@ namespace reshade::d3d11
 					return assert(false), false;
 
 				const auto texture_impl = render_target_texture->impl->as<d3d11_tex_data>();
+
+				assert(texture_impl != nullptr);
 
 				D3D11_TEXTURE2D_DESC desc;
 				texture_impl->texture->GetDesc(&desc);

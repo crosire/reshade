@@ -297,6 +297,8 @@ void reshade::runtime::reload()
 }
 void reshade::runtime::load_effect(const std::filesystem::path &path)
 {
+	assert(_reload_remaining_effects > 0);
+
 	std::string source_code, errors;
 	reshadefx::module module;
 
@@ -466,6 +468,7 @@ void reshade::runtime::load_effect(const std::filesystem::path &path)
 				errors += "warning: " + existing_texture->effect_filename + " already created a texture with the same name but different dimensions; textures are shared across all effects, so either rename the variable or adjust the dimensions so they match\n";
 			}
 
+			existing_texture->shared = true;
 			continue;
 		}
 

@@ -897,8 +897,7 @@ namespace reshade::opengl
 		bool success = true;
 
 		for (texture &texture : _textures)
-			if (texture.impl == nullptr && (texture.effect_filename == effect.source_file.filename().u8string()
-				|| texture.impl_reference != texture_reference::none)) // Always initialize special textures, since they are shared across all effect files
+			if (texture.impl == nullptr && (texture.effect_filename == effect.source_file.filename().u8string() || texture.shared))
 				success &= init_texture(texture);
 
 		opengl_technique_data technique_init;
@@ -1173,12 +1172,14 @@ namespace reshade::opengl
 
 				backbuffer_fbo = false;
 
-				const auto texture_data = render_target_texture->impl->as<opengl_tex_data>();
+				const auto texture_impl = render_target_texture->impl->as<opengl_tex_data>();
 
-				glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + k, texture_data->id[pass.srgb], 0);
+				assert(texture_impl != nullptr);
+
+				glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + k, texture_impl->id[pass.srgb], 0);
 
 				pass.draw_buffers[k] = GL_COLOR_ATTACHMENT0 + k;
-				pass.draw_textures[k] = texture_data->id[pass.srgb];
+				pass.draw_textures[k] = texture_impl->id[pass.srgb];
 			}
 
 			if (backbuffer_fbo)
