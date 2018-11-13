@@ -891,6 +891,7 @@ void reshade::runtime::draw_overlay_menu_settings()
 			ImGui::SetTooltip("Click in the field and press any key to change the shortcut to that key.");
 		}
 
+		memset(edit_buffer, 0, sizeof(edit_buffer));
 		_screenshot_path.u8string().copy(edit_buffer, sizeof(edit_buffer));
 
 		if (ImGui::InputText("Screenshot Path", edit_buffer, sizeof(edit_buffer)))
