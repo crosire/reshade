@@ -119,22 +119,28 @@ void reshade::runtime::on_present()
 		_last_reload_time = std::chrono::high_resolution_clock::now();
 		_reload_remaining_effects = std::numeric_limits<size_t>::max();
 	}
-	else if (!_reload_compile_queue.empty())
+	else if (_reload_remaining_effects == std::numeric_limits<size_t>::max())
 	{
-		effect_data &effect = _loaded_effects[_reload_compile_queue.back()];
-
-		_reload_compile_queue.pop_back();
-
-		if (!compile_effect(effect))
+		if (!_reload_compile_queue.empty())
 		{
-			LOG(ERROR) << "Failed to compile " << effect.source_file << ":\n" << effect.errors;
+			effect_data &effect = _loaded_effects[_reload_compile_queue.back()];
 
-			_last_reload_successful = false;
+			_reload_compile_queue.pop_back();
+
+			if (!compile_effect(effect))
+			{
+				LOG(ERROR) << "Failed to compile " << effect.source_file << ":\n" << effect.errors;
+
+				_last_reload_successful = false;
+			}
+
+			// An effect has changed, need to reload textures
+			_textures_loaded = false;
 		}
-	}
-	else if (_reload_remaining_effects == std::numeric_limits<size_t>::max() && !_textures_loaded)
-	{
-		load_textures();
+		else if (!_textures_loaded)
+		{
+			load_textures();
+		}
 	}
 
 	// Draw overlay
