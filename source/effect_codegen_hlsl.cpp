@@ -365,7 +365,10 @@ private:
 				info.offset *= 4;
 
 				// We are using constant float registers, so change type to floating-point
+				expression exp; exp.reset_to_rvalue_constant({}, info.initializer_value, info.type);
 				info.type.base = type::t_float;
+				exp.add_cast_operation(info.type);
+				info.initializer_value = exp.constant;
 
 				// Every constant register is 16 bytes wide, so divide memory offset by 16 to get the constant register index
 				write_type(_cbuffer_block, info.type);
