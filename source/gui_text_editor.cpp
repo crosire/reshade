@@ -111,10 +111,10 @@ void code_editor_widget::render(const char *title, bool border)
 		io.WantTextInput = true;
 		io.WantCaptureKeyboard = true;
 
-		     if (ctrl && !shift && !alt && ImGui::IsKeyPressed('Z'))
-			{ /* undo() */ }
+		if (ctrl && !shift && !alt && ImGui::IsKeyPressed('Z'))
+			undo();
 		else if (ctrl && !shift && !alt && ImGui::IsKeyPressed('Y'))
-			{ /* redo(); */ }
+			redo();
 		else if (!ctrl && !alt && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_UpArrow)))
 			move_up(1, shift);
 		else if (!ctrl && !alt && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_DownArrow)))
@@ -460,6 +460,9 @@ void code_editor_widget::select_all()
 
 void code_editor_widget::set_text(const std::string &text)
 {
+	_undo.clear();
+	_undo_index = 0;
+
 	_lines.clear();
 	_lines.emplace_back();
 
@@ -489,6 +492,8 @@ void code_editor_widget::insert_text(const std::string &text)
 }
 void code_editor_widget::insert_character(char c, bool auto_indent)
 {
+	undo_record u;
+
 	if (has_selection())
 	{
 		if (c == '\t' && auto_indent) // Pressing tab with a selection indents the entire selection
@@ -502,6 +507,10 @@ void code_editor_widget::insert_character(char c, bool auto_indent)
 			beg.column = 0;
 			if (end.column == 0 && end.line > 0)
 				end.column = _lines[--end.line].size();
+
+			u.removed = get_text(beg, end);
+			u.removed_beg = beg;
+			u.removed_end = end;
 
 			for (size_t i = beg.line; i <= end.line; i++)
 			{
@@ -529,6 +538,11 @@ void code_editor_widget::insert_character(char c, bool auto_indent)
 						++end.column;
 				}
 			}
+
+			u.added = get_text(beg, end);
+			u.added_beg = beg;
+			u.added_end = end;
+			record_undo(std::move(u));
 			return;
 		}
 
@@ -537,6 +551,9 @@ void code_editor_widget::insert_character(char c, bool auto_indent)
 	}
 
 	assert(!_lines.empty());
+
+	u.added = c;
+	u.added_beg = _cursor_pos;
 
 	_colorize_line_beg = std::min(_colorize_line_beg, _cursor_pos.line);
 
@@ -556,7 +573,7 @@ void code_editor_widget::insert_character(char c, bool auto_indent)
 		// Auto indentation
 		if (auto_indent)
 			for (size_t i = 0; i < line.size() && isblank(line[i].c); ++i)
-				new_line.push_back(line[i]);
+				new_line.push_back(line[i]), u.added.push_back(line[i].c);
 		const size_t indentation = new_line.size();
 
 		new_line.insert(new_line.end(), line.begin() + _cursor_pos.column, line.end());
@@ -576,6 +593,9 @@ void code_editor_widget::insert_character(char c, bool auto_indent)
 
 		_cursor_pos.column++;
 	}
+
+	u.added_end = _cursor_pos;
+	record_undo(std::move(u));
 
 	_scroll_to_cursor = true;
 
@@ -620,6 +640,63 @@ std::string code_editor_widget::get_selected_text() const
 	return get_text(_select_beg, _select_end);
 }
 
+void code_editor_widget::record_undo(undo_record &&record)
+{
+	if (_in_undo_operation)
+		return;
+
+	_undo.resize(_undo_index); // Remove all undo records after the current one
+	_undo.push_back(std::move(record)); // Append new record to the list
+	_undo_index++;
+}
+
+void code_editor_widget::undo(unsigned int steps)
+{
+	_in_undo_operation = true;
+
+	while (can_undo() && steps-- > 0)
+	{
+		const undo_record &record = _undo[--_undo_index];
+
+		if (!record.added.empty())
+		{
+			select(record.added_beg, record.added_end);
+			delete_selection();
+		}
+		if (!record.removed.empty())
+		{
+			_cursor_pos = record.removed_beg;
+			insert_text(record.removed);
+		}
+	}
+
+	_scroll_to_cursor = true;
+	_in_undo_operation = false;
+}
+void code_editor_widget::redo(unsigned int steps)
+{
+	_in_undo_operation = true;
+
+	while (can_redo() && steps-- > 0)
+	{
+		const undo_record &record = _undo[_undo_index++];
+
+		if (!record.removed.empty())
+		{
+			select(record.removed_beg, record.removed_end);
+			delete_selection();
+		}
+		if (!record.added.empty())
+		{
+			_cursor_pos = record.added_beg;
+			insert_text(record.added);
+		}
+	}
+
+	_scroll_to_cursor = true;
+	_in_undo_operation = false;
+}
+
 void code_editor_widget::delete_next()
 {
 	if (has_selection())
@@ -632,24 +709,36 @@ void code_editor_widget::delete_next()
 
 	auto &line = _lines[_cursor_pos.line];
 
+	undo_record u;
+	u.removed_beg = _cursor_pos;
+	u.removed_end = _cursor_pos;
+
 	// If at end of line, move next line into the current one
 	if (_cursor_pos.column == line.size())
 	{
 		if (_cursor_pos.line == _lines.size() - 1)
 			return; // This already is the last line
 
-		// Copy next line into current line
+		u.removed = '\n';
+
 		const auto &next_line = _lines[_cursor_pos.line + 1];
+
+		// Copy next line into current line
 		line.insert(line.end(), next_line.begin(), next_line.end());
 
-		// Remove next line
+		// Remove the line
 		delete_lines(_cursor_pos.line + 1, _cursor_pos.line + 1);
 	}
 	else
 	{
+		u.removed = line[_cursor_pos.column].c;
+		u.removed_end.column++;
+
 		// Otherwise just remove the character at the cursor position
 		line.erase(line.begin() + _cursor_pos.column);
 	}
+
+	record_undo(std::move(u));
 
 	_colorize_line_beg = std::min(_colorize_line_beg, _cursor_pos.line);
 	_colorize_line_end = std::max(_colorize_line_end, _cursor_pos.line + 1);
@@ -666,28 +755,39 @@ void code_editor_widget::delete_previous()
 
 	auto &line = _lines[_cursor_pos.line];
 
+	undo_record u;
+	u.removed_beg = _cursor_pos;
+	u.removed_end = _cursor_pos;
+
 	// If at beginning of line, move previous line into the current one
 	if (_cursor_pos.column == 0)
 	{
 		if (_cursor_pos.line == 0)
 			return; // This already is the first line
 
-		// Copy current line into previous line
+		u.removed = '\n';
+
 		auto &prev_line = _lines[_cursor_pos.line - 1];
-		prev_line.insert(prev_line.end(), line.begin(), line.end());
-
-		// Remove current line
-		delete_lines(_cursor_pos.line, _cursor_pos.line);
-
 		_cursor_pos.line--;
 		_cursor_pos.column = prev_line.size();
+
+		// Copy current line into previous line
+		prev_line.insert(prev_line.end(), line.begin(), line.end());
+
+		// Remove the line
+		delete_lines(_cursor_pos.line + 1, _cursor_pos.line + 1);
 	}
 	else
 	{
+		u.removed = line[_cursor_pos.column - 1].c;
+
 		// Otherwise remove the character next to the cursor position
 		_cursor_pos.column--;
 		line.erase(line.begin() + _cursor_pos.column);
 	}
+
+	u.removed_beg = _cursor_pos;
+	record_undo(std::move(u));
 
 	_scroll_to_cursor = true;
 
@@ -700,6 +800,12 @@ void code_editor_widget::delete_selection()
 		return;
 
 	assert(!_lines.empty());
+
+	undo_record u;
+	u.removed = get_selected_text();
+	u.removed_beg = _select_beg;
+	u.removed_end = _select_end;
+	record_undo(std::move(u));
 
 	if (_select_beg.line == _select_end.line)
 	{
@@ -779,10 +885,29 @@ void code_editor_widget::clipboard_paste()
 	if (text == nullptr || *text == '\0')
 		return;
 
+	undo_record u;
+
+	_in_undo_operation = true;
+
 	if (has_selection())
+	{
+		u.removed = get_selected_text();
+		u.removed_beg = _select_beg;
+		u.removed_end = _select_end;
+
 		delete_selection();
+	}
+
+	u.added = text;
+	u.added_beg = _cursor_pos;
 
 	insert_text(text);
+
+	u.added_end = _cursor_pos;
+
+	_in_undo_operation = false;
+
+	record_undo(std::move(u));
 }
 
 void code_editor_widget::move_up(size_t amount, bool selection)

@@ -49,6 +49,11 @@ public:
 	std::string get_text(const text_pos &beg, const text_pos &end) const;
 	std::string get_selected_text() const;
 
+	void undo(unsigned int steps = 1);
+	bool can_undo() const { return _undo_index > 0; }
+	void redo(unsigned int steps = 1);
+	bool can_redo() const { return _undo_index < _undo.size(); }
+
 	void add_error(size_t line, const std::string &message)
 	{
 		_errors.insert({ line, message });
@@ -64,6 +69,18 @@ private:
 		char c = '\0';
 		uint8_t col = 0;
 	};
+
+	struct undo_record
+	{
+		text_pos added_beg;
+		text_pos added_end;
+		std::string added;
+		text_pos removed_beg;
+		text_pos removed_end;
+		std::string removed;
+	};
+
+	void record_undo(undo_record &&record);
 
 	void insert_character(char c, bool auto_indent);
 
@@ -104,4 +121,8 @@ private:
 	text_pos _interactive_end;
 	size_t _colorize_line_beg = 0;
 	size_t _colorize_line_end = 0;
+
+	size_t _undo_index;
+	std::vector<undo_record> _undo;
+	bool _in_undo_operation = false;
 };
