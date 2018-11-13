@@ -100,19 +100,18 @@ unsigned int reshadefx::type::rank(const type &src, const type &dst)
 		return 0; // Arrays of different sizes are not compatible
 	if (src.is_struct() || dst.is_struct())
 		return src.definition == dst.definition ? 32 : 0; // Structs are only compatible if they are the same type
-	if (src.base == dst.base && src.rows == dst.rows && src.cols == dst.cols)
-		return 32; // Perfect match, so this returns the highest possible rank
 	if (!src.is_numeric() || !dst.is_numeric())
-		return 0; // Numeric values are not compatible with other types
+		return src.base == dst.base ? 32 : 0; // Numeric values are not compatible with other types
 
 	// This table is based on the following rules:
+	//  - Floating point has a higher rank than integer types
 	//  - Integer to floating point promotion has a higher rank than floating point to integer conversion
 	//  - Signed to unsigned integer conversion has a higher rank than unsigned to signed integer conversion
 	static const int ranks[4][4] = {
 		{ 5, 4, 4, 4 },
 		{ 3, 5, 2, 4 },
 		{ 3, 1, 5, 4 },
-		{ 3, 3, 3, 5 }
+		{ 3, 3, 3, 6 }
 	};
 
 	assert(src.base > 0 && src.base <= 4);
@@ -127,7 +126,7 @@ unsigned int reshadefx::type::rank(const type &src, const type &dst)
 	if (src.is_vector() != dst.is_vector() || src.is_matrix() != dst.is_matrix() || src.components() != dst.components())
 		return 0; // If components weren't converted at this point, the types are not compatible
 
-	return rank;
+	return rank * src.components(); // More components causes a higher rank
 }
 
 reshadefx::symbol_table::symbol_table()
@@ -292,8 +291,8 @@ static int compare_functions(const std::vector<reshadefx::expression> &arguments
 		return function2_viable - function1_viable;
 
 	// Both functions are possible, so find the one with the higher ranking
-	std::sort(function1_ranks, function1_ranks + num_arguments, std::less<unsigned int>());
-	std::sort(function2_ranks, function2_ranks + num_arguments, std::less<unsigned int>());
+	std::sort(function1_ranks, function1_ranks + num_arguments, std::greater<unsigned int>());
+	std::sort(function2_ranks, function2_ranks + num_arguments, std::greater<unsigned int>());
 
 	for (size_t i = 0; i < num_arguments; ++i)
 		if (function1_ranks[i] > function2_ranks[i])
