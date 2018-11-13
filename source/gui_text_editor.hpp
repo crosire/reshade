@@ -15,10 +15,10 @@ class code_editor_widget
 public:
 	struct text_pos
 	{
-		int line, column;
+		size_t line, column;
 
 		text_pos() : line(0), column(0) {}
-		text_pos(int line, int column = 0) : line(line), column(column) {}
+		text_pos(size_t line, size_t column = 0) : line(line), column(column) {}
 
 		bool operator ==(const text_pos& o) const { return line == o.line && column == o.column; }
 		bool operator !=(const text_pos& o) const { return line != o.line || column != o.column; }
@@ -48,14 +48,13 @@ public:
 	std::string get_text() const;
 	std::string get_text(const text_pos &beg, const text_pos &end) const;
 	std::string get_selected_text() const;
-	std::string get_current_line_text() const;
 
-	void add_error(int line, const std::string &message)
+	void add_error(size_t line, const std::string &message)
 	{
 		_errors.insert({ line, message });
 	}
 
-	void set_tab_size(int size) { _tab_size = size; }
+	void set_tab_size(unsigned int size) { _tab_size = size; }
 	void set_left_margin(float margin) { _left_margin = margin; }
 	void set_line_spacing(float spacing) { _line_spacing = spacing; }
 
@@ -66,23 +65,21 @@ private:
 		uint8_t col = 0;
 	};
 
-	void insert_character(char c, bool shift);
-	std::vector<glyph> &insert_line(int line_pos);
+	void insert_character(char c, bool auto_indent);
 
 	void delete_next();
 	void delete_previous();
 	void delete_selection();
-	void delete_range(const text_pos &beg, const text_pos &end);
-	void delete_lines(int first_line, int last_line);
+	void delete_lines(size_t first_line, size_t last_line);
 
 	void clipboard_copy();
 	void clipboard_cut();
 	void clipboard_paste();
 
-	void move_up(unsigned int amount = 1, bool select = false);
-	void move_down(unsigned int amount = 1, bool select = false);
-	void move_left(unsigned int amount = 1, bool select = false, bool word_mode = false);
-	void move_right(unsigned int amount = 1, bool select = false, bool word_mode = false);
+	void move_up(size_t amount = 1, bool select = false);
+	void move_down(size_t amount = 1, bool select = false);
+	void move_left(size_t amount = 1, bool select = false, bool word_mode = false);
+	void move_right(size_t amount = 1, bool select = false, bool word_mode = false);
 	void move_top(bool select = false);
 	void move_bottom(bool select = false);
 	void move_home(bool select = false);
@@ -92,8 +89,8 @@ private:
 
 	std::vector<std::vector<glyph>> _lines;
 	std::array<uint32_t, 20> _palette;
-	std::unordered_map<int, std::string> _errors;
-	int _tab_size = 4;
+	std::unordered_map<size_t, std::string> _errors;
+	unsigned int _tab_size = 4;
 	float _left_margin = 10.0f;
 	float _line_spacing = 1.0f;
 	bool _overwrite = false;
@@ -105,6 +102,6 @@ private:
 	text_pos _select_end;
 	text_pos _interactive_beg;
 	text_pos _interactive_end;
-	int _colorize_line_beg = 0;
-	int _colorize_line_end = 0;
+	size_t _colorize_line_beg = 0;
+	size_t _colorize_line_end = 0;
 };
