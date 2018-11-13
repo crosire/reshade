@@ -576,7 +576,7 @@ void code_editor_widget::insert_character(char c, bool auto_indent)
 		auto &line = _lines[_cursor_pos.line];
 
 		// Auto indentation
-		if (auto_indent)
+		if (auto_indent && _cursor_pos.column == line.size())
 			for (size_t i = 0; i < line.size() && isblank(line[i].c); ++i)
 				new_line.push_back(line[i]), u.added.push_back(line[i].c);
 		const size_t indentation = new_line.size();
@@ -657,6 +657,10 @@ void code_editor_widget::record_undo(undo_record &&record)
 
 void code_editor_widget::undo(unsigned int steps)
 {
+	// Reset selection
+	_select_beg = _select_end = _cursor_pos;
+	_interactive_beg = _interactive_end = _cursor_pos;
+
 	_in_undo_operation = true;
 
 	while (can_undo() && steps-- > 0)
@@ -665,6 +669,7 @@ void code_editor_widget::undo(unsigned int steps)
 
 		if (!record.added.empty())
 		{
+			_cursor_pos = record.added_beg;
 			select(record.added_beg, record.added_end);
 			delete_selection();
 		}
@@ -680,6 +685,10 @@ void code_editor_widget::undo(unsigned int steps)
 }
 void code_editor_widget::redo(unsigned int steps)
 {
+	// Reset selection
+	_select_beg = _select_end = _cursor_pos;
+	_interactive_beg = _interactive_end = _cursor_pos;
+
 	_in_undo_operation = true;
 
 	while (can_redo() && steps-- > 0)
@@ -688,6 +697,7 @@ void code_editor_widget::redo(unsigned int steps)
 
 		if (!record.removed.empty())
 		{
+			_cursor_pos = record.removed_beg;
 			select(record.removed_beg, record.removed_end);
 			delete_selection();
 		}
@@ -724,9 +734,11 @@ void code_editor_widget::delete_next()
 		if (_cursor_pos.line == _lines.size() - 1)
 			return; // This already is the last line
 
-		u.removed = '\n';
-
 		const auto &next_line = _lines[_cursor_pos.line + 1];
+
+		u.removed = '\n';
+		u.removed_end.line++;
+		u.removed_end.column = 0;
 
 		// Copy next line into current line
 		line.insert(line.end(), next_line.begin(), next_line.end());
@@ -761,7 +773,6 @@ void code_editor_widget::delete_previous()
 	auto &line = _lines[_cursor_pos.line];
 
 	undo_record u;
-	u.removed_beg = _cursor_pos;
 	u.removed_end = _cursor_pos;
 
 	// If at beginning of line, move previous line into the current one
@@ -770,11 +781,11 @@ void code_editor_widget::delete_previous()
 		if (_cursor_pos.line == 0)
 			return; // This already is the first line
 
-		u.removed = '\n';
-
 		auto &prev_line = _lines[_cursor_pos.line - 1];
 		_cursor_pos.line--;
 		_cursor_pos.column = prev_line.size();
+
+		u.removed = '\n';
 
 		// Copy current line into previous line
 		prev_line.insert(prev_line.end(), line.begin(), line.end());
@@ -784,10 +795,11 @@ void code_editor_widget::delete_previous()
 	}
 	else
 	{
-		u.removed = line[_cursor_pos.column - 1].c;
+		_cursor_pos.column--;
+
+		u.removed = line[_cursor_pos.column].c;
 
 		// Otherwise remove the character next to the cursor position
-		_cursor_pos.column--;
 		line.erase(line.begin() + _cursor_pos.column);
 	}
 
@@ -1157,6 +1169,7 @@ void code_editor_widget::move_home(bool selection)
 	}
 
 	select(_interactive_beg, _interactive_end);
+	_scroll_to_cursor = true;
 }
 void code_editor_widget::move_end(bool selection)
 {
@@ -1184,6 +1197,7 @@ void code_editor_widget::move_end(bool selection)
 	}
 
 	select(_interactive_beg, _interactive_end);
+	_scroll_to_cursor = true;
 }
 
 void code_editor_widget::colorize()
