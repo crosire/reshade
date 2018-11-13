@@ -599,7 +599,7 @@ private:
 	}
 	id   define_uniform(const location &, uniform_info &info) override
 	{
-		if (_uniforms_to_spec_constants && info.type.is_scalar() && info.annotations.find("source") == info.annotations.end())
+		if (_uniforms_to_spec_constants && info.type.is_scalar() && info.has_initializer_value)
 		{
 			const id res = emit_constant(info.type, info.initializer_value, true);
 

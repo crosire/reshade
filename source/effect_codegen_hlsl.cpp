@@ -333,7 +333,7 @@ private:
 
 		_names[res] = "_Globals_" + info.name;
 
-		if (_uniforms_to_spec_constants && info.type.is_scalar() && info.annotations.find("source") == info.annotations.end())
+		if (_uniforms_to_spec_constants && info.type.is_scalar() && info.has_initializer_value)
 		{
 			std::string &code = _blocks.at(_current_block);
 
