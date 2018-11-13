@@ -231,7 +231,7 @@ void reshade::runtime::draw_ui()
 	if (show_splash)
 	{
 		ImGui::SetNextWindowPos(ImVec2(10, 10));
-		ImGui::SetNextWindowSize(ImVec2(_width - 20.0f, ImGui::GetFrameHeightWithSpacing() * 3));
+		ImGui::SetNextWindowSize(ImVec2(_width - 20.0f, ImGui::GetFrameHeightWithSpacing() * (_last_reload_successful ? 3 : 4)));
 		ImGui::PushStyleVar(ImGuiStyleVar_Alpha, 1.0f);
 		ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(_imgui_col_background[0], _imgui_col_background[1], _imgui_col_background[2], 0.5f));
 		ImGui::Begin("Splash Screen", nullptr,
@@ -284,8 +284,6 @@ void reshade::runtime::draw_ui()
 
 		if (!_last_reload_successful)
 		{
-			ImGui::SetWindowSize(ImVec2(_width - 20.0f, ImGui::GetFrameHeightWithSpacing() * 4));
-
 			ImGui::Spacing();
 			ImGui::TextColored(ImVec4(1, 0, 0, 1),
 				"There were errors compiling some shaders. "
@@ -377,7 +375,7 @@ void reshade::runtime::draw_ui()
 
 		ImVec2 offset;
 		if (show_splash)
-			offset.y = 10 + ImGui::GetFrameHeightWithSpacing() * 3;
+			offset.y = 10 + ImGui::GetFrameHeightWithSpacing() * (_last_reload_successful ? 3 : 4);
 
 		ImGui::SetNextWindowPos(viewport->Pos + offset);
 		ImGui::SetNextWindowSize(viewport->Size - offset);
