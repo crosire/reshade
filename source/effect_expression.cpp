@@ -128,10 +128,10 @@ void reshadefx::expression::add_cast_operation(const reshadefx::type &cast_type)
 					constant.as_uint[i] = constant.as_uint[0];
 
 			// Next check whether the type needs casting as well (and don't convert between signed/unsigned, since that is handled by the union)
-			if (from.base == to.base || from.is_integral() == to.is_integral())
+			if (from.base == to.base || from.is_floating_point() == to.is_floating_point())
 				return;
 
-			if (to.is_integral() || to.is_boolean())
+			if (!to.is_floating_point())
 				for (unsigned int i = 0; i < to.components(); ++i)
 					constant.as_uint[i] = static_cast<int>(constant.as_float[i]);
 			else
