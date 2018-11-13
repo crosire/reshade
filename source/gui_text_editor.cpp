@@ -83,7 +83,7 @@ void code_editor_widget::render(const char *title, bool border)
 {
 	assert(!_lines.empty());
 
-	ImGui::PushStyleColor(ImGuiCol_ChildBg, ImGui::ColorConvertU32ToFloat4(_palette[int8_t(color_palette::color_background)]));
+	ImGui::PushStyleColor(ImGuiCol_ChildBg, ImGui::ColorConvertU32ToFloat4(_palette[color_palette::color_background]));
 	ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0.0f, 0.0f));
 
 	ImGui::BeginChild(title, ImVec2(), border, ImGuiWindowFlags_HorizontalScrollbar | ImGuiWindowFlags_AlwaysHorizontalScrollbar | ImGuiWindowFlags_NoMove);
@@ -352,15 +352,15 @@ void code_editor_widget::render(const char *title, bool border)
 			continue;
 
 		// Draw colorized line text
-		float text_offset = 0.0f;
-		uint8_t prev_color = line[0].col;
+		auto text_offset = 0.0f;
+		auto current_color = line[0].col;
 
 		// Fill temporary buffer with glyph characters and commit it every time the color changes or a tab character is encountered
 		for (const glyph &glyph : line)
 		{
-			if (buf != buf_end && (glyph.col != prev_color || glyph.c == '\t' || buf_end - buf >= sizeof(buf)))
+			if (buf != buf_end && (glyph.col != current_color || glyph.c == '\t' || buf_end - buf >= sizeof(buf)))
 			{
-				draw_list->AddText(ImVec2(text_screen_pos.x + text_offset, text_screen_pos.y), _palette[prev_color], buf, buf_end);
+				draw_list->AddText(ImVec2(text_screen_pos.x + text_offset, text_screen_pos.y), _palette[current_color], buf, buf_end);
 
 				text_offset += ImGui::CalcTextSize(buf, buf_end).x + font_scale; buf_end = buf; // Reset temporary buffer
 			}
@@ -370,12 +370,12 @@ void code_editor_widget::render(const char *title, bool border)
 			else
 				text_offset += _tab_size * space_size;
 
-			prev_color = glyph.col;
+			current_color = glyph.col;
 		}
 
 		// Draw any text still in the temporary buffer that was not yet committed
 		if (buf != buf_end)
-			draw_list->AddText(ImVec2(text_screen_pos.x + text_offset, text_screen_pos.y), _palette[prev_color], buf, buf_end);
+			draw_list->AddText(ImVec2(text_screen_pos.x + text_offset, text_screen_pos.y), _palette[current_color], buf, buf_end);
 	}
 
 	// Create dummy widget so a horizontal scrollbar appears
@@ -477,6 +477,11 @@ void code_editor_widget::set_text(const std::string &text)
 		else
 			_lines.back().push_back({ c, color_palette::color_default });
 	}
+
+	// Restrict cursor position to new text bounds
+	_select_beg = _select_end = text_pos();
+	_interactive_beg = _interactive_end = text_pos();
+	_cursor_pos = std::min(_cursor_pos, text_pos(_lines.size() - 1, _lines.back().size()));
 
 	_colorize_line_beg = 0;
 	_colorize_line_end = _lines.size();
