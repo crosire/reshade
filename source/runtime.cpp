@@ -115,7 +115,6 @@ void reshade::runtime::on_present()
 	if (_reload_remaining_effects == 0)
 	{
 		load_current_preset();
-		load_textures();
 
 		_last_reload_time = std::chrono::high_resolution_clock::now();
 		_reload_remaining_effects = std::numeric_limits<size_t>::max();
@@ -132,6 +131,10 @@ void reshade::runtime::on_present()
 
 			_last_reload_successful = false;
 		}
+	}
+	else if (_reload_remaining_effects == std::numeric_limits<size_t>::max() && !_textures_loaded)
+	{
+		load_textures();
 	}
 
 	// Draw overlay
@@ -282,6 +285,7 @@ void reshade::runtime::reload()
 
 	_loaded_effects.clear();
 	_selected_effect = -1;
+	_textures_loaded = false;
 	_last_reload_successful = true;
 
 	std::vector<std::filesystem::path> effect_files;
@@ -611,6 +615,8 @@ void reshade::runtime::load_textures()
 
 		stbi_image_free(filedata);
 	}
+
+	_textures_loaded = true;
 }
 
 void reshade::runtime::enable_technique(technique &technique)
