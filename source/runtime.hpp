@@ -336,6 +336,7 @@ namespace reshade
 		std::vector<std::filesystem::path> _effect_search_paths;
 		std::vector<std::filesystem::path> _texture_search_paths;
 
+		bool _performance_mode = false;
 		bool _last_reload_successful = true;
 		std::mutex _reload_mutex;
 		std::vector<size_t> _reload_compile_queue;
@@ -355,6 +356,9 @@ namespace reshade
 		int _selected_effect = -1;
 		int _selected_technique = -1;
 		int _input_processing_mode = 2;
+		int _style_index = 2;
+		int _editor_style_index = 0;
+		float _fps_col[4] = { 1.0f, 1.0f, 0.784314f, 1.0f };
 		unsigned int _menu_key_data[4];
 		std::string _focus_effect;
 		bool _show_menu = false;
@@ -366,21 +370,14 @@ namespace reshade
 		bool _screenshot_include_configuration = false;
 		bool _no_font_scaling = false;
 		bool _no_reload_on_init = false;
-		bool _performance_mode = false;
-		bool _save_imgui_window_state = false;
 		bool _overlay_key_setting_active = false;
 		bool _screenshot_key_setting_active = false;
 		bool _toggle_key_setting_active = false;
 		bool _log_wordwrap = false;
-		float _imgui_col_background[3] = { 0.117647f, 0.117647f, 0.117647f };
-		float _imgui_col_item_background[3] = { 0.156863f, 0.156863f, 0.156863f };
-		float _imgui_col_active[3] = { 0.392157f, 0.588235f, 0.941176f };
-		float _imgui_col_text[3] = { 0.862745f, 0.862745f, 0.862745f };
-		float _imgui_col_text_fps[3] = { 1.0f, 1.0f, 0.784314f };
 		float _variable_editor_height = 0.0f;
 		unsigned int _tutorial_index = 0;
 		unsigned int _effects_expanded_state = 2;
-		char _effect_filter_buffer[64] = { };
+		char _effect_filter_buffer[64] = {};
 		code_editor_widget _editor;
 	};
 }

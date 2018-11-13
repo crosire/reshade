@@ -60,6 +60,7 @@ public:
 	void set_tab_size(unsigned int size) { _tab_size = size; }
 	void set_left_margin(float margin) { _left_margin = margin; }
 	void set_line_spacing(float spacing) { _line_spacing = spacing; }
+	void set_palette(const std::array<uint32_t, 20> &colors) { _palette = colors; }
 
 private:
 	struct glyph

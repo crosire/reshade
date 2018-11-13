@@ -98,6 +98,8 @@ void reshade::runtime::init_ui()
 	subscribe_to_ui("About", [this]() { draw_overlay_menu_about(); });
 
 	_load_config_callables.push_back([this](const ini_file &config) {
+		bool save_imgui_window_state = false;
+
 		config.get("INPUT", "KeyMenu", _menu_key_data);
 		config.get("INPUT", "InputProcessing", _input_processing_mode);
 
@@ -105,55 +107,97 @@ void reshade::runtime::init_ui()
 		config.get("GENERAL", "ShowFPS", _show_framerate);
 		config.get("GENERAL", "FontGlobalScale", _imgui_context->IO.FontGlobalScale);
 		config.get("GENERAL", "NoFontScaling", _no_font_scaling);
-		config.get("GENERAL", "SaveWindowState", _save_imgui_window_state);
+		config.get("GENERAL", "SaveWindowState", save_imgui_window_state);
 		config.get("GENERAL", "TutorialProgress", _tutorial_index);
 
-		_imgui_context->IO.IniFilename = _save_imgui_window_state ? "ReShadeGUI.ini" : nullptr;
-
 		config.get("STYLE", "Alpha", _imgui_context->Style.Alpha);
-		config.get("STYLE", "ColBackground", _imgui_col_background);
-		config.get("STYLE", "ColItemBackground", _imgui_col_item_background);
-		config.get("STYLE", "ColActive", _imgui_col_active);
-		config.get("STYLE", "ColText", _imgui_col_text);
-		config.get("STYLE", "ColFPSText", _imgui_col_text_fps);
+		config.get("STYLE", "FrameRounding", _imgui_context->Style.FrameRounding);
+		config.get("STYLE", "ColFPSText", _fps_col);
+		config.get("STYLE", "StyleIndex", _style_index);
+		config.get("STYLE", "EditorStyleIndex", _editor_style_index);
 
-		_imgui_context->Style.Colors[ImGuiCol_Text] = ImVec4(_imgui_col_text[0], _imgui_col_text[1], _imgui_col_text[2], 1.00f);
-		_imgui_context->Style.Colors[ImGuiCol_TextDisabled] = ImVec4(_imgui_col_text[0], _imgui_col_text[1], _imgui_col_text[2], 0.58f);
-		_imgui_context->Style.Colors[ImGuiCol_WindowBg] = ImVec4(_imgui_col_background[0], _imgui_col_background[1], _imgui_col_background[2], 1.00f);
-		_imgui_context->Style.Colors[ImGuiCol_ChildBg] = ImVec4(_imgui_col_item_background[0], _imgui_col_item_background[1], _imgui_col_item_background[2], 0.00f);
-		_imgui_context->Style.Colors[ImGuiCol_Border] = ImVec4(_imgui_col_text[0], _imgui_col_text[1], _imgui_col_text[2], 0.30f);
-		_imgui_context->Style.Colors[ImGuiCol_FrameBg] = ImVec4(_imgui_col_item_background[0], _imgui_col_item_background[1], _imgui_col_item_background[2], 1.00f);
-		_imgui_context->Style.Colors[ImGuiCol_FrameBgHovered] = ImVec4(_imgui_col_active[0], _imgui_col_active[1], _imgui_col_active[2], 0.68f);
-		_imgui_context->Style.Colors[ImGuiCol_FrameBgActive] = ImVec4(_imgui_col_active[0], _imgui_col_active[1], _imgui_col_active[2], 1.00f);
-		_imgui_context->Style.Colors[ImGuiCol_TitleBg] = ImVec4(_imgui_col_active[0], _imgui_col_active[1], _imgui_col_active[2], 0.45f);
-		_imgui_context->Style.Colors[ImGuiCol_TitleBgCollapsed] = ImVec4(_imgui_col_active[0], _imgui_col_active[1], _imgui_col_active[2], 0.35f);
-		_imgui_context->Style.Colors[ImGuiCol_TitleBgActive] = ImVec4(_imgui_col_active[0], _imgui_col_active[1], _imgui_col_active[2], 0.78f);
-		_imgui_context->Style.Colors[ImGuiCol_MenuBarBg] = ImVec4(_imgui_col_item_background[0], _imgui_col_item_background[1], _imgui_col_item_background[2], 0.57f);
-		_imgui_context->Style.Colors[ImGuiCol_ScrollbarBg] = ImVec4(_imgui_col_item_background[0], _imgui_col_item_background[1], _imgui_col_item_background[2], 1.00f);
-		_imgui_context->Style.Colors[ImGuiCol_ScrollbarGrab] = ImVec4(_imgui_col_active[0], _imgui_col_active[1], _imgui_col_active[2], 0.31f);
-		_imgui_context->Style.Colors[ImGuiCol_ScrollbarGrabHovered] = ImVec4(_imgui_col_active[0], _imgui_col_active[1], _imgui_col_active[2], 0.78f);
-		_imgui_context->Style.Colors[ImGuiCol_ScrollbarGrabActive] = ImVec4(_imgui_col_active[0], _imgui_col_active[1], _imgui_col_active[2], 1.00f);
-		_imgui_context->Style.Colors[ImGuiCol_PopupBg] = ImVec4(_imgui_col_item_background[0], _imgui_col_item_background[1], _imgui_col_item_background[2], 0.92f);
-		_imgui_context->Style.Colors[ImGuiCol_CheckMark] = ImVec4(_imgui_col_active[0], _imgui_col_active[1], _imgui_col_active[2], 0.80f);
-		_imgui_context->Style.Colors[ImGuiCol_SliderGrab] = ImVec4(_imgui_col_active[0], _imgui_col_active[1], _imgui_col_active[2], 0.24f);
-		_imgui_context->Style.Colors[ImGuiCol_SliderGrabActive] = ImVec4(_imgui_col_active[0], _imgui_col_active[1], _imgui_col_active[2], 1.00f);
-		_imgui_context->Style.Colors[ImGuiCol_Button] = ImVec4(_imgui_col_active[0], _imgui_col_active[1], _imgui_col_active[2], 0.44f);
-		_imgui_context->Style.Colors[ImGuiCol_ButtonHovered] = ImVec4(_imgui_col_active[0], _imgui_col_active[1], _imgui_col_active[2], 0.86f);
-		_imgui_context->Style.Colors[ImGuiCol_ButtonActive] = ImVec4(_imgui_col_active[0], _imgui_col_active[1], _imgui_col_active[2], 1.00f);
-		_imgui_context->Style.Colors[ImGuiCol_Header] = ImVec4(_imgui_col_active[0], _imgui_col_active[1], _imgui_col_active[2], 0.76f);
-		_imgui_context->Style.Colors[ImGuiCol_HeaderHovered] = ImVec4(_imgui_col_active[0], _imgui_col_active[1], _imgui_col_active[2], 0.86f);
-		_imgui_context->Style.Colors[ImGuiCol_HeaderActive] = ImVec4(_imgui_col_active[0], _imgui_col_active[1], _imgui_col_active[2], 1.00f);
-		_imgui_context->Style.Colors[ImGuiCol_Separator] = ImVec4(_imgui_col_text[0], _imgui_col_text[1], _imgui_col_text[2], 0.32f);
-		_imgui_context->Style.Colors[ImGuiCol_SeparatorHovered] = ImVec4(_imgui_col_text[0], _imgui_col_text[1], _imgui_col_text[2], 0.78f);
-		_imgui_context->Style.Colors[ImGuiCol_SeparatorActive] = ImVec4(_imgui_col_text[0], _imgui_col_text[1], _imgui_col_text[2], 1.00f);
-		_imgui_context->Style.Colors[ImGuiCol_ResizeGrip] = ImVec4(_imgui_col_active[0], _imgui_col_active[1], _imgui_col_active[2], 0.20f);
-		_imgui_context->Style.Colors[ImGuiCol_ResizeGripHovered] = ImVec4(_imgui_col_active[0], _imgui_col_active[1], _imgui_col_active[2], 0.78f);
-		_imgui_context->Style.Colors[ImGuiCol_ResizeGripActive] = ImVec4(_imgui_col_active[0], _imgui_col_active[1], _imgui_col_active[2], 1.00f);
-		_imgui_context->Style.Colors[ImGuiCol_PlotLines] = ImVec4(_imgui_col_text[0], _imgui_col_text[1], _imgui_col_text[2], 0.63f);
-		_imgui_context->Style.Colors[ImGuiCol_PlotLinesHovered] = ImVec4(_imgui_col_active[0], _imgui_col_active[1], _imgui_col_active[2], 1.00f);
-		_imgui_context->Style.Colors[ImGuiCol_PlotHistogram] = ImVec4(_imgui_col_text[0], _imgui_col_text[1], _imgui_col_text[2], 0.63f);
-		_imgui_context->Style.Colors[ImGuiCol_PlotHistogramHovered] = ImVec4(_imgui_col_active[0], _imgui_col_active[1], _imgui_col_active[2], 1.00f);
-		_imgui_context->Style.Colors[ImGuiCol_TextSelectedBg] = ImVec4(_imgui_col_active[0], _imgui_col_active[1], _imgui_col_active[2], 0.43f);
+		_imgui_context->IO.IniFilename = save_imgui_window_state ? "ReShadeGUI.ini" : nullptr;
+		_imgui_context->Style.GrabRounding = _imgui_context->Style.FrameRounding;
+
+		// For compatibility with older versions, set the alpha value if it is missing
+		if (_fps_col[3] == 0.0f) _fps_col[3] = 1.0f;
+
+		ImVec4 *const colors = _imgui_context->Style.Colors;
+		switch (_style_index)
+		{
+		case 0:
+			ImGui::StyleColorsDark(&_imgui_context->Style);
+			break;
+		case 1:
+			ImGui::StyleColorsLight(&_imgui_context->Style);
+			break;
+		case 2:
+			colors[ImGuiCol_Text] = ImVec4(0.862745f, 0.862745f, 0.862745f, 1.00f);
+			colors[ImGuiCol_TextDisabled] = ImVec4(0.862745f, 0.862745f, 0.862745f, 0.58f);
+			colors[ImGuiCol_WindowBg] = ImVec4(0.117647f, 0.117647f, 0.117647f, 1.00f);
+			colors[ImGuiCol_ChildBg] = ImVec4(0.156863f, 0.156863f, 0.156863f, 0.00f);
+			colors[ImGuiCol_Border] = ImVec4(0.862745f, 0.862745f, 0.862745f, 0.30f);
+			colors[ImGuiCol_FrameBg] = ImVec4(0.156863f, 0.156863f, 0.156863f, 1.00f);
+			colors[ImGuiCol_FrameBgHovered] = ImVec4(0.392157f, 0.588235f, 0.941176f, 0.68f);
+			colors[ImGuiCol_FrameBgActive] = ImVec4(0.392157f, 0.588235f, 0.941176f, 1.00f);
+			colors[ImGuiCol_TitleBg] = ImVec4(0.392157f, 0.588235f, 0.941176f, 0.45f);
+			colors[ImGuiCol_TitleBgCollapsed] = ImVec4(0.392157f, 0.588235f, 0.941176f, 0.35f);
+			colors[ImGuiCol_TitleBgActive] = ImVec4(0.392157f, 0.588235f, 0.941176f, 0.78f);
+			colors[ImGuiCol_MenuBarBg] = ImVec4(0.156863f, 0.156863f, 0.156863f, 0.57f);
+			colors[ImGuiCol_ScrollbarBg] = ImVec4(0.156863f, 0.156863f, 0.156863f, 1.00f);
+			colors[ImGuiCol_ScrollbarGrab] = ImVec4(0.392157f, 0.588235f, 0.941176f, 0.31f);
+			colors[ImGuiCol_ScrollbarGrabHovered] = ImVec4(0.392157f, 0.588235f, 0.941176f, 0.78f);
+			colors[ImGuiCol_ScrollbarGrabActive] = ImVec4(0.392157f, 0.588235f, 0.941176f, 1.00f);
+			colors[ImGuiCol_PopupBg] = ImVec4(0.156863f, 0.156863f, 0.156863f, 0.92f);
+			colors[ImGuiCol_CheckMark] = ImVec4(0.392157f, 0.588235f, 0.941176f, 0.80f);
+			colors[ImGuiCol_SliderGrab] = ImVec4(0.392157f, 0.588235f, 0.941176f, 0.24f);
+			colors[ImGuiCol_SliderGrabActive] = ImVec4(0.392157f, 0.588235f, 0.941176f, 1.00f);
+			colors[ImGuiCol_Button] = ImVec4(0.392157f, 0.588235f, 0.941176f, 0.44f);
+			colors[ImGuiCol_ButtonHovered] = ImVec4(0.392157f, 0.588235f, 0.941176f, 0.86f);
+			colors[ImGuiCol_ButtonActive] = ImVec4(0.392157f, 0.588235f, 0.941176f, 1.00f);
+			colors[ImGuiCol_Header] = ImVec4(0.392157f, 0.588235f, 0.941176f, 0.76f);
+			colors[ImGuiCol_HeaderHovered] = ImVec4(0.392157f, 0.588235f, 0.941176f, 0.86f);
+			colors[ImGuiCol_HeaderActive] = ImVec4(0.392157f, 0.588235f, 0.941176f, 1.00f);
+			colors[ImGuiCol_Separator] = ImVec4(0.862745f, 0.862745f, 0.862745f, 0.32f);
+			colors[ImGuiCol_SeparatorHovered] = ImVec4(0.862745f, 0.862745f, 0.862745f, 0.78f);
+			colors[ImGuiCol_SeparatorActive] = ImVec4(0.862745f, 0.862745f, 0.862745f, 1.00f);
+			colors[ImGuiCol_ResizeGrip] = ImVec4(0.392157f, 0.588235f, 0.941176f, 0.20f);
+			colors[ImGuiCol_ResizeGripHovered] = ImVec4(0.392157f, 0.588235f, 0.941176f, 0.78f);
+			colors[ImGuiCol_ResizeGripActive] = ImVec4(0.392157f, 0.588235f, 0.941176f, 1.00f);
+			colors[ImGuiCol_Tab] = ImLerp(colors[ImGuiCol_Header], colors[ImGuiCol_TitleBgActive], 0.80f);
+			colors[ImGuiCol_TabActive] = ImLerp(colors[ImGuiCol_HeaderActive], colors[ImGuiCol_TitleBgActive], 0.60f);
+			colors[ImGuiCol_TabUnfocused] = ImLerp(colors[ImGuiCol_Tab], colors[ImGuiCol_TitleBg], 0.80f);
+			colors[ImGuiCol_TabUnfocusedActive] = ImLerp(colors[ImGuiCol_TabActive], colors[ImGuiCol_TitleBg], 0.40f);
+			colors[ImGuiCol_TabHovered] = colors[ImGuiCol_HeaderHovered];
+			colors[ImGuiCol_DockingPreview] = colors[ImGuiCol_Header] * ImVec4(1.0f, 1.0f, 1.0f, 0.7f);
+			colors[ImGuiCol_DockingEmptyBg] = ImVec4(0.20f, 0.20f, 0.20f, 1.00f);
+			colors[ImGuiCol_PlotLines] = ImVec4(0.862745f, 0.862745f, 0.862745f, 0.63f);
+			colors[ImGuiCol_PlotLinesHovered] = ImVec4(0.392157f, 0.588235f, 0.941176f, 1.00f);
+			colors[ImGuiCol_PlotHistogram] = ImVec4(0.862745f, 0.862745f, 0.862745f, 0.63f);
+			colors[ImGuiCol_PlotHistogramHovered] = ImVec4(0.392157f, 0.588235f, 0.941176f, 1.00f);
+			colors[ImGuiCol_TextSelectedBg] = ImVec4(0.392157f, 0.588235f, 0.941176f, 0.43f);
+			break;
+		case 3:
+			for (ImGuiCol i = 0; i < ImGuiCol_COUNT; i++)
+				config.get("STYLE", ImGui::GetStyleColorName(i), (float(&)[4])colors[i]);
+			break;
+		}
+
+		switch (_editor_style_index)
+		{
+		case 0:
+			_editor.set_palette({ // Dark
+				0xffffffff, 0xffd69c56, 0xff00ff00, 0xff7070e0, 0xffffffff, 0xff409090, 0xffaaaaaa,
+				0xff9bc64d, 0xffc040a0, 0xff206020, 0xff406020, 0xff101010, 0xffe0e0e0, 0x80a06020,
+				0x800020ff, 0x8000ffff, 0xff707000, 0x40000000, 0x40808080, 0x40a0a0a0 });
+			break;
+		case 1:
+			_editor.set_palette({ // Light
+				0xff000000, 0xffff0c06, 0xff008000, 0xff2020a0, 0xff000000, 0xff409090, 0xff404040,
+				0xff606010, 0xffc040a0, 0xff205020, 0xff405020, 0xffffffff, 0xff000000, 0x80600000,
+				0xa00010ff, 0x8000ffff, 0xff505000, 0x40000000, 0x40808080, 0x40000000 });
+			break;
+		}
 	});
 	_save_config_callables.push_back([this](ini_file &config) {
 		config.set("INPUT", "KeyMenu", _menu_key_data);
@@ -163,15 +207,18 @@ void reshade::runtime::init_ui()
 		config.set("GENERAL", "ShowFPS", _show_framerate);
 		config.set("GENERAL", "FontGlobalScale", _imgui_context->IO.FontGlobalScale);
 		config.set("GENERAL", "NoReloadOnInit", _no_reload_on_init);
-		config.set("GENERAL", "SaveWindowState", _save_imgui_window_state);
+		config.set("GENERAL", "SaveWindowState", _imgui_context->IO.IniFilename != nullptr);
 		config.set("GENERAL", "TutorialProgress", _tutorial_index);
 
 		config.set("STYLE", "Alpha", _imgui_context->Style.Alpha);
-		config.set("STYLE", "ColBackground", _imgui_col_background);
-		config.set("STYLE", "ColItemBackground", _imgui_col_item_background);
-		config.set("STYLE", "ColActive", _imgui_col_active);
-		config.set("STYLE", "ColText", _imgui_col_text);
-		config.set("STYLE", "ColFPSText", _imgui_col_text_fps);
+		config.set("STYLE", "FrameRounding", _imgui_context->Style.FrameRounding);
+		config.set("STYLE", "ColFPSTex", _fps_col);
+		config.set("STYLE", "StyleIndex", _style_index);
+		config.set("STYLE", "EditorStyleIndex", _editor_style_index);
+
+		if (_style_index == 3)
+			for (ImGuiCol i = 0; i < ImGuiCol_COUNT; i++)
+				config.set("STYLE", ImGui::GetStyleColorName(i), (const float(&)[4])_imgui_context->Style.Colors[i]);
 	});
 }
 void reshade::runtime::deinit_ui()
@@ -233,7 +280,8 @@ void reshade::runtime::draw_ui()
 		ImGui::SetNextWindowPos(ImVec2(10, 10));
 		ImGui::SetNextWindowSize(ImVec2(_width - 20.0f, ImGui::GetFrameHeightWithSpacing() * (_last_reload_successful ? 3 : 4)));
 		ImGui::PushStyleVar(ImGuiStyleVar_Alpha, 1.0f);
-		ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(_imgui_col_background[0], _imgui_col_background[1], _imgui_col_background[2], 0.5f));
+		ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.862745f, 0.862745f, 0.862745f, 1.00f));
+		ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0.117647f, 0.117647f, 0.117647f, 0.5f));
 		ImGui::Begin("Splash Screen", nullptr,
 			ImGuiWindowFlags_NoTitleBar |
 			ImGuiWindowFlags_NoScrollbar |
@@ -291,7 +339,7 @@ void reshade::runtime::draw_ui()
 		}
 
 		ImGui::End();
-		ImGui::PopStyleColor();
+		ImGui::PopStyleColor(2);
 		ImGui::PopStyleVar();
 	}
 
@@ -312,7 +360,7 @@ void reshade::runtime::draw_ui()
 			ImGuiWindowFlags_NoBackground);
 
 		ImGui::PushFont(_imgui_context->IO.Fonts->Fonts[1]);
-		ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(_imgui_col_text_fps[0], _imgui_col_text_fps[1], _imgui_col_text_fps[2], 1.0f));
+		ImGui::PushStyleColor(ImGuiCol_Text, (const ImVec4 &)_fps_col);
 
 		char temp[512];
 
@@ -448,7 +496,32 @@ void reshade::runtime::draw_code_editor()
 		}
 	};
 
-	if (ImGui::BeginCombo("File", _selected_effect < 0 ? "" : _loaded_effects[_selected_effect].source_file.u8string().c_str()))
+	if (_selected_effect >= 0 && (ImGui::Button("Save & Compile (Ctrl + S)") || _input->is_key_pressed('S', true, false, false)))
+	{
+		_show_splash = false;
+
+		const std::string text = _editor.get_text();
+
+		const std::filesystem::path source_file = _loaded_effects[_selected_effect].source_file;
+
+		// Write editor text to file
+		std::ofstream(source_file, std::ios::trunc).write(text.c_str(), text.size());
+
+		// Reload effect file
+		_reload_remaining_effects = 1;
+		unload_effect(source_file); load_effect(source_file);
+
+		// Switch to the newly loaded effect file
+		_selected_effect = static_cast<int>(_loaded_effects.size() - 1);
+
+		parse_errors(_loaded_effects[_selected_effect].errors);
+	}
+
+	ImGui::SameLine();
+
+	ImGui::PushItemWidth(-1);
+
+	if (ImGui::BeginCombo("##file", _selected_effect < 0 ? "" : _loaded_effects[_selected_effect].source_file.u8string().c_str(), ImGuiComboFlags_HeightLarge))
 	{
 		for (int i = 0; i < static_cast<int>(_loaded_effects.size()); ++i)
 		{
@@ -468,28 +541,7 @@ void reshade::runtime::draw_code_editor()
 		ImGui::EndCombo();
 	}
 
-	ImGui::SameLine(0.0f, 20.0f);
-
-	if (ImGui::Button("Save & Compile (Ctrl + S)") || _input->is_key_pressed('S', true, false, false))
-	{
-		_show_splash = false;
-
-		const std::string text = _editor.get_text();
-
-		const std::filesystem::path source_file = _loaded_effects[_selected_effect].source_file;
-
-		// Write editor text to file
-		std::ofstream(source_file, std::ios::trunc).write(text.c_str(), text.size());
-
-		// Reload effect file
-		_reload_remaining_effects = 1;
-		unload_effect(source_file); load_effect(source_file);
-
-		// Switch to the newly loaded effect file
-		_selected_effect = _loaded_effects.size() - 1;
-
-		parse_errors(_loaded_effects[_selected_effect].errors);
-	}
+	ImGui::PopItemWidth();
 
 	_editor.render("Editor");
 }
@@ -995,28 +1047,65 @@ void reshade::runtime::draw_overlay_menu_settings()
 
 	if (ImGui::CollapsingHeader("User Interface", ImGuiTreeNodeFlags_DefaultOpen))
 	{
-		bool modified = false;
+		bool modified = false, reload_style = false;
+
 		modified |= ImGui::Checkbox("Show Clock", &_show_clock);
 		ImGui::SameLine(0, 10);
 		modified |= ImGui::Checkbox("Show FPS", &_show_framerate);
 
-		if (ImGui::DragFloat("Alpha", &ImGui::GetStyle().Alpha, 0.05f, 0.20f, 1.0f, "%.2f"))
+		if (ImGui::Combo("Style", &_style_index, "Dark\0Light\0Default\0Custom\0"))
 		{
-			ImGui::GetStyle().Alpha = __max(ImGui::GetStyle().Alpha, 0.05f);
+			modified = true;
+			reload_style = true;
+		}
+
+		// Only show advanced style options if the custom style is selected
+		if (_style_index == 3)
+		{
+			ImGui::BeginChild("#colors", ImVec2(0, 300), true, ImGuiWindowFlags_AlwaysVerticalScrollbar | ImGuiWindowFlags_AlwaysHorizontalScrollbar | ImGuiWindowFlags_NavFlattened);
+			ImGui::PushItemWidth(-160);
+			for (ImGuiCol i = 0; i < ImGuiCol_COUNT; i++)
+			{
+				ImGui::PushID(i);
+				if (ImGui::ColorEdit4("##color", &_imgui_context->Style.Colors[i].x, ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreview))
+					modified = true;
+				ImGui::SameLine();
+				ImGui::TextUnformatted(ImGui::GetStyleColorName(i));
+				ImGui::PopID();
+			}
+			ImGui::PopItemWidth();
+			ImGui::EndChild();
+		}
+
+		if (ImGui::Combo("Editor Style", &_editor_style_index, "Dark\0Light\0"))
+		{
+			modified = true;
+			reload_style = true;
+		}
+
+		if (ImGui::SliderFloat("Font Scale", &_imgui_context->IO.FontGlobalScale, 0.2f, 2.5f, "%.1f"))
+		{
 			modified = true;
 		}
-		modified |= ImGui::ColorEdit3("Background Color", _imgui_col_background);
-		modified |= ImGui::ColorEdit3("Item Background Color", _imgui_col_item_background);
-		modified |= ImGui::ColorEdit3("Active Item Color", _imgui_col_active);
-		modified |= ImGui::ColorEdit3("Text Color", _imgui_col_text);
-		modified |= ImGui::ColorEdit3("FPS Text Color", _imgui_col_text_fps);
+
+		if (ImGui::SliderFloat("Global Alpha", &_imgui_context->Style.Alpha, 0.05f, 1.0f, "%.2f"))
+		{
+			_imgui_context->Style.Alpha = std::max(_imgui_context->Style.Alpha, 0.05f);
+			modified = true;
+		}
+
+		if (ImGui::SliderFloat("Frame Rounding", &_imgui_context->Style.FrameRounding, 0.0f, 12.0f, "%.0f"))
+		{
+			_imgui_context->Style.GrabRounding = _imgui_context->Style.FrameRounding;
+			modified = true;
+		}
+
+		modified |= ImGui::ColorEdit4("FPS Text Color", _fps_col, ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreview);
 
 		if (modified)
-		{
 			save_config();
-			// Style is applied in "load_config()".
+		if (reload_style) // Style is applied in "load_config()".
 			load_config();
-		}
 	}
 }
 void reshade::runtime::draw_overlay_menu_statistics()

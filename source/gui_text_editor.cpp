@@ -53,54 +53,6 @@ enum color_palette
 
 code_editor_widget::code_editor_widget()
 {
-#if 1
-	_palette = std::array<ImU32, color_palette_max> {
-		0xffffffff,	// color_default
-		0xffd69c56,	// color_keyword	
-		0xff00ff00,	// color_number_literal
-		0xff7070e0,	// color_string_literal
-		0xffffffff, // color_punctuation
-		0xff409090,	// color_preprocessor
-		0xffaaaaaa, // color_identifier
-		0xff9bc64d, // color_known_identifier
-		0xffc040a0, // color_preprocessor_identifier
-		0xff206020, // color_comment
-		0xff406020, // color_multiline_comment
-		0xff101010, // color_background
-		0xffe0e0e0, // color_cursor
-		0x80a06020, // color_selection
-		0x800020ff, // color_error_marker
-		0x8000ffff, // color_warning_marker
-		0xff707000, // color_line_number
-		0x40000000, // color_current_line_fill
-		0x40808080, // color_current_line_fill_inactive
-		0x40a0a0a0, // color_current_line_edge
-	};
-#else
-	_palette = std::array<ImU32, color_palette_max> {
-		0xff000000,
-		0xffff0c06,
-		0xff008000,
-		0xff2020a0,
-		0xff000000,
-		0xff409090,
-		0xff404040,
-		0xff606010,
-		0xffc040a0,
-		0xff205020,
-		0xff405020,
-		0xffffffff,
-		0xff000000,
-		0x80600000,
-		0xa00010ff,
-		0x8000ffff,
-		0xff505000,
-		0x40000000,
-		0x40808080,
-		0x40000000,
-	};
-#endif
-
 	_lines.emplace_back();
 }
 
@@ -336,7 +288,7 @@ void code_editor_widget::render(const char *title, bool border)
 		}
 
 		// Draw line number (right aligned)
-		snprintf(buf, 16, "%d  ", line_no + 1);
+		snprintf(buf, 16, "%zu  ", line_no + 1);
 
 		draw_list->AddText(ImVec2(text_screen_pos.x - ImGui::CalcTextSize(buf).x, line_screen_pos.y), _palette[color_line_number], buf);
 
