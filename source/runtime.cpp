@@ -303,7 +303,8 @@ void reshade::runtime::reload()
 				effect_files.push_back(entry.path());
 	}
 
-	_reload_remaining_effects = effect_files.size();
+	_reload_total_effects = effect_files.size();
+	_reload_remaining_effects = _reload_total_effects;
 
 	for (const auto &file : effect_files)
 		std::thread([this, file]() { load_effect(file); }).detach();

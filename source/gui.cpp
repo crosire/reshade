@@ -278,7 +278,7 @@ void reshade::runtime::draw_ui()
 	if (show_splash)
 	{
 		ImGui::SetNextWindowPos(ImVec2(10, 10));
-		ImGui::SetNextWindowSize(ImVec2(_width - 20.0f, ImGui::GetFrameHeightWithSpacing() * (_last_reload_successful ? 3 : 4)));
+		ImGui::SetNextWindowSize(ImVec2(_width - 20.0f, ImGui::GetFrameHeightWithSpacing() * (_last_reload_successful ? 3.2f : 4.2f)));
 		ImGui::PushStyleVar(ImGuiStyleVar_Alpha, 1.0f);
 		ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.862745f, 0.862745f, 0.862745f, 1.00f));
 		ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0.117647f, 0.117647f, 0.117647f, 0.5f));
@@ -308,6 +308,8 @@ void reshade::runtime::draw_ui()
 
 		if (_reload_remaining_effects != 0 && _reload_remaining_effects != std::numeric_limits<size_t>::max())
 		{
+			ImGui::ProgressBar(1.0f - _reload_remaining_effects / float(_reload_total_effects), ImVec2(-1, 0), "");
+			ImGui::SameLine(15);
 			ImGui::Text(
 				"Loading (%zu effects remaining) ... "
 				"This might take a while. The application could become unresponsive for some time.",
@@ -315,6 +317,8 @@ void reshade::runtime::draw_ui()
 		}
 		else if (!_reload_compile_queue.empty())
 		{
+			ImGui::ProgressBar(1.0f - _reload_compile_queue.size() / float(_reload_total_effects), ImVec2(-1, 0), "");
+			ImGui::SameLine(15);
 			ImGui::Text(
 				"Compiling (%zu effects remaining) ... "
 				"This might take a while. The application could become unresponsive for some time.",
@@ -342,8 +346,7 @@ void reshade::runtime::draw_ui()
 		ImGui::PopStyleColor(2);
 		ImGui::PopStyleVar();
 	}
-
-	if (_show_clock || _show_framerate)
+	else if (_show_clock || _show_framerate)
 	{
 		ImGui::SetNextWindowPos(ImVec2(_width - 200.0f, 5));
 		ImGui::SetNextWindowSize(ImVec2(200.0f, 200.0f));
@@ -373,7 +376,7 @@ void reshade::runtime::draw_ui()
 			ImGui::SetCursorPosX(ImGui::GetWindowContentRegionWidth() - ImGui::CalcTextSize(temp).x);
 			ImGui::TextUnformatted(temp);
 		}
-		if (_show_framerate && _imgui_context->IO.Framerate < 10000)
+		if (_show_framerate)
 		{
 			ImFormatString(temp, sizeof(temp), "%.0f fps", _imgui_context->IO.Framerate);
 			ImGui::SetCursorPosX(ImGui::GetWindowContentRegionWidth() - ImGui::CalcTextSize(temp).x);
@@ -423,7 +426,7 @@ void reshade::runtime::draw_ui()
 
 		ImVec2 offset;
 		if (show_splash)
-			offset.y = 10 + ImGui::GetFrameHeightWithSpacing() * (_last_reload_successful ? 3 : 4);
+			offset.y = 10 + ImGui::GetFrameHeightWithSpacing() * (_last_reload_successful ? 3.2f : 4.2f);
 
 		ImGui::SetNextWindowPos(viewport->Pos + offset);
 		ImGui::SetNextWindowSize(viewport->Size - offset);
@@ -468,9 +471,6 @@ void reshade::runtime::draw_ui()
 
 void reshade::runtime::draw_code_editor()
 {
-	if (_reload_remaining_effects != std::numeric_limits<size_t>::max())
-		return;
-
 	const auto parse_errors = [this](const std::string &errors) {
 		_editor.clear_errors();
 
@@ -511,6 +511,7 @@ void reshade::runtime::draw_code_editor()
 
 		// Reload effect file
 		_textures_loaded = false;
+		_reload_total_effects = 1;
 		_reload_remaining_effects = 1;
 		unload_effect(source_file); load_effect(source_file);
 
@@ -715,7 +716,7 @@ void reshade::runtime::draw_overlay_menu_home()
 
 		ImGui::SameLine();
 
-		if (ImGui::Button("Active to Top", ImVec2(130 - ImGui::GetStyle().ItemSpacing.x, 0)))
+		if (ImGui::Button("Active to top", ImVec2(130 - ImGui::GetStyle().ItemSpacing.x, 0)))
 		{
 			for (size_t i = 0; i < _techniques.size(); ++i)
 			{
@@ -735,7 +736,7 @@ void reshade::runtime::draw_overlay_menu_home()
 
 		ImGui::SameLine();
 
-		if (ImGui::Button(_effects_expanded_state & 2 ? "Collapse All" : "Expand All", ImVec2(130 - ImGui::GetStyle().ItemSpacing.x, 0)))
+		if (ImGui::Button(_effects_expanded_state & 2 ? "Collapse all" : "Expand all", ImVec2(130 - ImGui::GetStyle().ItemSpacing.x, 0)))
 		{
 			_effects_expanded_state = (~_effects_expanded_state & 2) | 1;
 		}
@@ -1188,14 +1189,21 @@ void reshade::runtime::draw_overlay_menu_statistics()
 			if (texture.impl == nullptr || texture.impl_reference != texture_reference::none)
 				continue;
 
-			ImGui::Text("%s", texture.unique_name.c_str());
+			ImGui::TextUnformatted(texture.unique_name.c_str());
+
+			if (ImGui::IsItemHovered())
+			{
+				ImGui::BeginTooltip();
+				ImGui::Image(texture.impl.get(), ImVec2(std::max(texture.width * 0.5f, 500.0f), std::max(texture.height * 0.5f, texture.height * 500.0f / texture.width)));
+				ImGui::EndTooltip();
+			}
 		}
 
 		ImGui::EndGroup();
 		ImGui::SameLine(ImGui::GetWindowWidth() * 0.333f);
 		ImGui::BeginGroup();
 
-		for (const auto& texture : _textures)
+		for (const auto &texture : _textures)
 		{
 			if (texture.impl == nullptr || texture.impl_reference != texture_reference::none)
 				continue;
@@ -1283,9 +1291,7 @@ void reshade::runtime::draw_overlay_menu_statistics()
 void reshade::runtime::draw_overlay_menu_log()
 {
 	if (ImGui::Button("Clear Log"))
-	{
 		reshade::log::lines.clear();
-	}
 
 	ImGui::SameLine();
 	ImGui::Checkbox("Word Wrap", &_log_wordwrap);
@@ -1299,31 +1305,32 @@ void reshade::runtime::draw_overlay_menu_log()
 		if (filter.PassFilter(line.c_str()))
 			lines.push_back(line);
 
-	ImGui::BeginChild("log");
+	ImGui::BeginChild("log", ImVec2(), true, _log_wordwrap ? 0 : ImGuiWindowFlags_AlwaysHorizontalScrollbar);
 
 	ImGuiListClipper clipper(static_cast<int>(lines.size()), ImGui::GetTextLineHeightWithSpacing());
 
-	for (int i = clipper.DisplayStart; i < clipper.DisplayEnd; ++i)
+	while (clipper.Step())
 	{
-		ImVec4 textcol(1, 1, 1, 1);
+		for (int i = clipper.DisplayStart; i < clipper.DisplayEnd; ++i)
+		{
+			ImVec4 textcol(1, 1, 1, 1);
 
-		if (lines[i].find("ERROR |") != std::string::npos)
-			textcol = ImVec4(1, 0, 0, 1);
-		else if (lines[i].find("WARN  |") != std::string::npos)
-			textcol = ImVec4(1, 1, 0, 1);
-		else if (lines[i].find("DEBUG |") != std::string::npos)
-			textcol = ImColor(100, 100, 255);
+			if (lines[i].find("ERROR |") != std::string::npos)
+				textcol = ImVec4(1, 0, 0, 1);
+			else if (lines[i].find("WARN  |") != std::string::npos)
+				textcol = ImVec4(1, 1, 0, 1);
+			else if (lines[i].find("DEBUG |") != std::string::npos)
+				textcol = ImColor(100, 100, 255);
 
-		ImGui::PushStyleColor(ImGuiCol_Text, textcol);
-		if (_log_wordwrap) ImGui::PushTextWrapPos();
+			ImGui::PushStyleColor(ImGuiCol_Text, textcol);
+			if (_log_wordwrap) ImGui::PushTextWrapPos();
 
-		ImGui::TextUnformatted(lines[i].c_str());
+			ImGui::TextUnformatted(lines[i].c_str());
 
-		if (_log_wordwrap) ImGui::PopTextWrapPos();
-		ImGui::PopStyleColor();
+			if (_log_wordwrap) ImGui::PopTextWrapPos();
+			ImGui::PopStyleColor();
+		}
 	}
-
-	clipper.End();
 
 	ImGui::EndChild();
 }
@@ -1447,6 +1454,8 @@ void reshade::runtime::draw_overlay_variable_editor()
 		const auto ui_label = variable.annotations.count("ui_label") ? variable.annotations.at("ui_label").second.string_data : variable.name;
 		const auto ui_tooltip = variable.annotations["ui_tooltip"].second.string_data;
 		const auto ui_category = variable.annotations["ui_category"].second.string_data;
+		const auto ui_min = variable.annotations["ui_min"];
+		const auto ui_max = variable.annotations["ui_max"];
 
 		if (current_category != ui_category)
 		{
@@ -1482,11 +1491,9 @@ void reshade::runtime::draw_overlay_variable_editor()
 
 				if (ui_type == "combo")
 				{
-					int index = data ? 1 : 0;
-
-					modified = ImGui::Combo(ui_label.c_str(), &index, "Off\0On\0");
-
-					data = index != 0;
+					int current_item = data ? 1 : 0;
+					modified = ImGui::Combo(ui_label.c_str(), &current_item, "Off\0On\0");
+					data = current_item != 0;
 				}
 				else
 				{
@@ -1494,29 +1501,25 @@ void reshade::runtime::draw_overlay_variable_editor()
 				}
 
 				if (modified)
-				{
 					set_uniform_value(variable, &data, 1);
-				}
 				break;
 			}
 			case reshadefx::type::t_int:
 			case reshadefx::type::t_uint:
 			{
-				int data[4] = { };
+				int data[4] = {};
 				get_uniform_value(variable, data, 4);
 
 				if (ui_type == "drag")
 				{
-					const int ui_min = variable.annotations["ui_min"].second.as_int[0];
-					const int ui_max = variable.annotations["ui_max"].second.as_int[0];
-					const float ui_step = variable.annotations["ui_step"].first.is_floating_point() ? variable.annotations["ui_step"].second.as_float[0] : static_cast<float>(variable.annotations["ui_step"].second.as_int[0]);
+					const auto ui_min_val = ui_min.first.is_floating_point() ? static_cast<int>(ui_min.second.as_float[0]) : ui_min.second.as_int[0];
+					const auto ui_max_val = ui_min.first.is_floating_point() ? static_cast<int>(ui_min.second.as_float[0]) : ui_max.second.as_int[0];
 
-					modified = ImGui::DragScalarN(ui_label.c_str(), variable.type.is_signed() ? ImGuiDataType_S32 : ImGuiDataType_U32, data, variable.type.rows, ui_step, &ui_min, &ui_max);
+					modified = ImGui::SliderScalarN(ui_label.c_str(), variable.type.is_signed() ? ImGuiDataType_S32 : ImGuiDataType_U32, data, variable.type.rows, &ui_min_val, &ui_max_val);
 				}
 				else if (ui_type == "combo")
 				{
 					std::string items = variable.annotations["ui_items"].second.string_data;
-
 					// Make sure list is terminated with a zero in case user forgot so no invalid memory is read accidentally
 					if (!items.empty() && items.back() != '\0')
 						items.push_back('\0');
@@ -1529,28 +1532,24 @@ void reshade::runtime::draw_overlay_variable_editor()
 				}
 
 				if (modified)
-				{
 					set_uniform_value(variable, data, 4);
-				}
 				break;
 			}
 			case reshadefx::type::t_float:
 			{
-				float data[4] = { };
+				float data[4] = {};
 				get_uniform_value(variable, data, 4);
 
 				if (ui_type == "drag")
 				{
-					const float ui_min = variable.annotations["ui_min"].first.is_floating_point() ? variable.annotations["ui_min"].second.as_float[0] : static_cast<float>(variable.annotations["ui_min"].second.as_int[0]);
-					const float ui_max = variable.annotations["ui_max"].first.is_floating_point() ? variable.annotations["ui_max"].second.as_float[0] : static_cast<float>(variable.annotations["ui_max"].second.as_int[0]);
-					const float ui_step = variable.annotations["ui_step"].first.is_floating_point() ? variable.annotations["ui_step"].second.as_float[0] : static_cast<float>(variable.annotations["ui_step"].second.as_int[0]);
+					const auto ui_min_val = ui_min.first.is_floating_point() ? ui_min.second.as_float[0] : static_cast<float>(ui_min.second.as_int[0]);
+					const auto ui_max_val = ui_max.first.is_floating_point() ? ui_max.second.as_float[0] : static_cast<float>(ui_max.second.as_int[0]);
 
-					modified = ImGui::DragScalarN(ui_label.c_str(), ImGuiDataType_Float, data, variable.type.rows, ui_step, &ui_min, &ui_max, "%.3f");
+					modified = ImGui::SliderScalarN(ui_label.c_str(), ImGuiDataType_Float, data, variable.type.rows, &ui_min_val, &ui_max_val, "%.3f");
 				}
 				else if (ui_type == "combo")
 				{
 					std::string items = variable.annotations["ui_items"].second.string_data;
-
 					// Make sure list is terminated with a zero in case user forgot so no invalid memory is read accidentally
 					if (!items.empty() && items.back() != '\0')
 						items.push_back('\0');
@@ -1565,30 +1564,37 @@ void reshade::runtime::draw_overlay_variable_editor()
 				}
 				else if (variable.type.rows == 3)
 				{
-					modified = ImGui::ColorEdit3(ui_label.c_str(), data);
+					modified = ImGui::ColorEdit3(ui_label.c_str(), data, ImGuiColorEditFlags_NoOptions);
 				}
 				else if (variable.type.rows == 4)
 				{
-					modified = ImGui::ColorEdit4(ui_label.c_str(), data);
+					modified = ImGui::ColorEdit4(ui_label.c_str(), data, ImGuiColorEditFlags_NoOptions);
 				}
 
 				if (modified)
-				{
 					set_uniform_value(variable, data, 4);
-				}
 				break;
 			}
 		}
 
-		if (ImGui::IsItemHovered() && ImGui::GetIO().KeyShift && ImGui::IsMouseClicked(1))
+		if (ImGui::BeginPopup("context"))
 		{
-			modified = true;
-			reset_uniform_value(variable);
+			if (ImGui::Button("Reset to default", ImVec2(200, 0)))
+			{
+				modified = true;
+				reset_uniform_value(variable);
+				ImGui::CloseCurrentPopup();
+			}
+
+			ImGui::EndPopup();
 		}
 
-		if (ImGui::IsItemHovered() && !ui_tooltip.empty())
+		if (ImGui::IsItemHovered())
 		{
-			ImGui::SetTooltip("%s", ui_tooltip.c_str());
+			if (ImGui::IsMouseClicked(1))
+				ImGui::OpenPopup("context");
+			else if (!ui_tooltip.empty())
+				ImGui::SetTooltip("%s", ui_tooltip.c_str());
 		}
 
 		ImGui::PopID();
@@ -1641,7 +1647,6 @@ void reshade::runtime::draw_overlay_technique_editor()
 	bool current_tree_is_closed = true;
 	std::string current_filename;
 	char edit_buffer[2048];
-	const float toggle_key_text_offset = ImGui::GetWindowContentRegionWidth() - 201;
 
 	_toggle_key_setting_active = false;
 
@@ -1653,6 +1658,9 @@ void reshade::runtime::draw_overlay_technique_editor()
 			continue;
 
 		ImGui::PushID(id);
+
+		if (_selected_technique == id)
+			ImGui::Separator();
 
 		const std::string label = technique.name + " [" + technique.effect_filename + "]";
 
@@ -1666,6 +1674,84 @@ void reshade::runtime::draw_overlay_technique_editor()
 			save_current_preset();
 		}
 
+		if (_selected_technique == id)
+			ImGui::Separator();
+
+		if (ImGui::BeginPopup("context"))
+		{
+			assert(technique.toggle_key_data[0] < 256);
+
+			size_t offset = 0;
+			if (technique.toggle_key_data[1]) memcpy(edit_buffer, "Ctrl + ", 8), offset += 7;
+			if (technique.toggle_key_data[2]) memcpy(edit_buffer + offset, "Shift + ", 9), offset += 8;
+			if (technique.toggle_key_data[3]) memcpy(edit_buffer + offset, "Alt + ", 7), offset += 6;
+			memcpy(edit_buffer + offset, keyboard_keys[technique.toggle_key_data[0]], sizeof(*keyboard_keys));
+
+			ImGui::InputTextEx("Toggle Key", edit_buffer, sizeof(edit_buffer), ImVec2(200, 0), ImGuiInputTextFlags_ReadOnly);
+
+			if (ImGui::IsItemActive())
+			{
+				_toggle_key_setting_active = true;
+
+				const unsigned int last_key_pressed = _input->last_key_pressed();
+
+				if (last_key_pressed != 0)
+				{
+					if (last_key_pressed == 0x08) // Backspace
+					{
+						technique.toggle_key_data[0] = 0;
+						technique.toggle_key_data[1] = 0;
+						technique.toggle_key_data[2] = 0;
+						technique.toggle_key_data[3] = 0;
+					}
+					else if (last_key_pressed < 0x10 || last_key_pressed > 0x12)
+					{
+						technique.toggle_key_data[0] = last_key_pressed;
+						technique.toggle_key_data[1] = _input->is_key_down(0x11);
+						technique.toggle_key_data[2] = _input->is_key_down(0x10);
+						technique.toggle_key_data[3] = _input->is_key_down(0x12);
+					}
+
+					save_current_preset();
+				}
+			}
+			else if (ImGui::IsItemHovered())
+			{
+				ImGui::SetTooltip("Click in the field and press any key to change the toggle shortcut to that key.\nPress backspace to disable the shortcut.");
+			}
+
+			ImGui::Separator();
+
+			const bool is_not_top = id > 0;
+			const bool is_not_bottom = id < int(_techniques.size() - 1);
+
+			if (is_not_top && ImGui::Button("Move up", ImVec2(200, 0)))
+			{
+				std::swap(_techniques[id], _techniques[id - 1]);
+				ImGui::CloseCurrentPopup();
+			}
+			if (is_not_bottom && ImGui::Button("Move down", ImVec2(200, 0)))
+			{
+				std::swap(_techniques[id], _techniques[id + 1]);
+				ImGui::CloseCurrentPopup();
+			}
+
+			if (is_not_top && ImGui::Button("Move to top", ImVec2(200, 0)))
+			{
+				_techniques.insert(_techniques.begin(), std::move(_techniques[id]));
+				_techniques.erase(_techniques.begin() + 1 + id);
+				ImGui::CloseCurrentPopup();
+			}
+			if (is_not_bottom && ImGui::Button("Move to bottom", ImVec2(200, 0)))
+			{
+				_techniques.push_back(std::move(_techniques[id]));
+				_techniques.erase(_techniques.begin() + id);
+				ImGui::CloseCurrentPopup();
+			}
+
+			ImGui::EndPopup();
+		}
+
 		if (ImGui::IsItemActive())
 		{
 			_selected_technique = id;
@@ -1673,53 +1759,14 @@ void reshade::runtime::draw_overlay_technique_editor()
 		if (ImGui::IsItemHovered(ImGuiHoveredFlags_RectOnly))
 		{
 			hovered_technique_index = id;
+
+			if (ImGui::IsMouseDown(1))
+				ImGui::OpenPopup("context");
 		}
 
 		if (ImGui::IsItemClicked(0))
 		{
 			_focus_effect = technique.effect_filename;
-		}
-
-		assert(technique.toggle_key_data[0] < 256);
-
-		size_t offset = 0;
-		if (technique.toggle_key_data[1]) memcpy(edit_buffer, "Ctrl + ", 8), offset += 7;
-		if (technique.toggle_key_data[2]) memcpy(edit_buffer + offset, "Shift + ", 9), offset += 8;
-		if (technique.toggle_key_data[3]) memcpy(edit_buffer + offset, "Alt + ", 7), offset += 6;
-		memcpy(edit_buffer + offset, keyboard_keys[technique.toggle_key_data[0]], sizeof(*keyboard_keys));
-
-		ImGui::SameLine(toggle_key_text_offset);
-		ImGui::InputTextEx("##ToggleKey", edit_buffer, sizeof(edit_buffer), ImVec2(200, 0), ImGuiInputTextFlags_ReadOnly);
-
-		if (ImGui::IsItemActive())
-		{
-			_toggle_key_setting_active = true;
-
-			const unsigned int last_key_pressed = _input->last_key_pressed();
-
-			if (last_key_pressed != 0)
-			{
-				if (last_key_pressed == 0x08) // Backspace
-				{
-					technique.toggle_key_data[0] = 0;
-					technique.toggle_key_data[1] = 0;
-					technique.toggle_key_data[2] = 0;
-					technique.toggle_key_data[3] = 0;
-				}
-				else if (last_key_pressed < 0x10 || last_key_pressed > 0x12)
-				{
-					technique.toggle_key_data[0] = last_key_pressed;
-					technique.toggle_key_data[1] = _input->is_key_down(0x11);
-					technique.toggle_key_data[2] = _input->is_key_down(0x10);
-					technique.toggle_key_data[3] = _input->is_key_down(0x12);
-				}
-
-				save_current_preset();
-			}
-		}
-		else if (ImGui::IsItemHovered())
-		{
-			ImGui::SetTooltip("Click in the field and press any key to change the toggle shortcut to that key.\nPress backspace to disable the shortcut.");
 		}
 
 		ImGui::PopID();
