@@ -602,11 +602,8 @@ std::string code_editor_widget::get_text(const text_pos &beg, const text_pos &en
 			it.column = 0;
 
 			if (it.line < _lines.size())
-			{
-				// Reached end of line, so append a new line feed (+ carriage return since we are on Windows)
-				result.push_back('\r');
+				// Reached end of line, so append a new line feed
 				result.push_back('\n');
-			}
 		}
 	}
 
