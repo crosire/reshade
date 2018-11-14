@@ -2400,7 +2400,6 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 	if (!parse_array_size(type))
 		return false;
 
-	std::string semantic;
 	expression initializer;
 	texture_info texture_info;
 	sampler_info sampler_info;
@@ -2412,7 +2411,9 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 		else if (!global) // Only global variables can have a semantic
 			return error(_token.location, 3043, '\'' + name + "': local variables cannot have semantics"), false;
 
+		std::string &semantic = texture_info.semantic;
 		semantic = std::move(_token.literal_as_string);
+
 		// Make semantic upper case to simplify comparison later on
 		std::transform(semantic.begin(), semantic.end(), semantic.begin(), [](char c) { return static_cast<char>(toupper(c)); });
 	}
@@ -2597,8 +2598,6 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 		// Add namespace scope to avoid name clashes
 		texture_info.unique_name = 'V' + current_scope().name + name;
 		std::replace(texture_info.unique_name.begin(), texture_info.unique_name.end(), ':', '_');
-
-		texture_info.semantic = std::move(semantic);
 
 		symbol = { symbol_type::variable, 0, type };
 		symbol.id = _codegen->define_texture(location, texture_info);

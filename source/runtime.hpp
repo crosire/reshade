@@ -146,7 +146,6 @@ namespace reshade
 		/// <param name="variable">The variable to retrieve the value from.</param>
 		/// <param name="data">The buffer to store the value in.</param>
 		/// <param name="size">The size of the buffer.</param>
-		void get_uniform_value(const uniform &variable, uint8_t *data, size_t size) const;
 		void get_uniform_value(const uniform &variable, bool *values, size_t count) const;
 		void get_uniform_value(const uniform &variable, int32_t *values, size_t count) const;
 		void get_uniform_value(const uniform &variable, uint32_t *values, size_t count) const;
@@ -155,17 +154,16 @@ namespace reshade
 		/// Update the value of a uniform variable.
 		/// </summary>
 		/// <param name="variable">The variable to update.</param>
-		/// <param name="data">The value data to update the variable to.</param>
-		/// <param name="size">The size of the value.</param>
-		void set_uniform_value(uniform &variable, const uint8_t *data, size_t size);
+		/// <param name="values">The value data to update the variable to.</param>
+		/// <param name="count">The number of components the value.</param>
 		void set_uniform_value(uniform &variable, const bool *values, size_t count);
+		void set_uniform_value(uniform &variable, bool x, bool y = false, bool z = false, bool w = false) { const bool data[4] = { x, y, z, w }; set_uniform_value(variable, data, 4); }
 		void set_uniform_value(uniform &variable, const int32_t *values, size_t count);
+		void set_uniform_value(uniform &variable, int32_t  x, int32_t y = 0, int32_t z = 0, int32_t w = 0) { const int32_t data[4] = { x, y, z, w }; set_uniform_value(variable, data, 4); }
 		void set_uniform_value(uniform &variable, const uint32_t *values, size_t count);
+		void set_uniform_value(uniform &variable, uint32_t x, uint32_t y = 0u, uint32_t z = 0u, uint32_t w = 0u) { const uint32_t data[4] = { x, y, z, w }; set_uniform_value(variable, data, 4); }
 		void set_uniform_value(uniform &variable, const float *values, size_t count);
-		void set_uniform_value(uniform &variable, bool     x, bool     y = false, bool     z = false, bool     w = false) { const bool     data[4] = { x, y, z, w }; set_uniform_value(variable, data, 4); }
-		void set_uniform_value(uniform &variable, int32_t  x, int32_t  y = 0,     int32_t  z = 0,     int32_t  w = 0    ) { const int32_t  data[4] = { x, y, z, w }; set_uniform_value(variable, data, 4); }
-		void set_uniform_value(uniform &variable, uint32_t x, uint32_t y = 0u,    uint32_t z = 0u,    uint32_t w = 0u   ) { const uint32_t data[4] = { x, y, z, w }; set_uniform_value(variable, data, 4); }
-		void set_uniform_value(uniform &variable, float    x, float    y = 0.0f,  float    z = 0.0f,  float    w = 0.0f ) { const float    data[4] = { x, y, z, w }; set_uniform_value(variable, data, 4); }
+		void set_uniform_value(uniform &variable, float x, float y = 0.0f, float z = 0.0f, float w = 0.0f) { const float data[4] = { x, y, z, w }; set_uniform_value(variable, data, 4); }
 
 		/// <summary>
 		/// Reset a uniform variable to its initial value.
@@ -300,6 +298,9 @@ namespace reshade
 		void save_current_preset() const;
 
 		void save_screenshot() const;
+
+		void get_uniform_value(const uniform &variable, uint8_t *data, size_t size) const;
+		void set_uniform_value(uniform &variable, const uint8_t *data, size_t size);
 
 		void init_ui();
 		void deinit_ui();

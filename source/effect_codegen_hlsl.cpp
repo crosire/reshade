@@ -359,19 +359,18 @@ private:
 
 			write_location<true>(_cbuffer_block, loc);
 
-			// Simply put each uniform into a separate constant register in shader model 3 for now
 			if (_shader_model < 40)
 			{
+				type type = info.type;
+				// The HLSL compiler tries to evaluate boolean values with temporary registers, which breaks branches, so force it to use constant float registers
+				if (type.is_boolean())
+					type.base = type::t_float;
+
+				// Simply put each uniform into a separate constant register in shader model 3 for now
 				info.offset *= 4;
 
-				// We are using constant float registers, so change type to floating-point
-				expression exp; exp.reset_to_rvalue_constant({}, info.initializer_value, info.type);
-				info.type.base = type::t_float;
-				exp.add_cast_operation(info.type);
-				info.initializer_value = exp.constant;
-
 				// Every constant register is 16 bytes wide, so divide memory offset by 16 to get the constant register index
-				write_type(_cbuffer_block, info.type);
+				write_type(_cbuffer_block, type);
 				_cbuffer_block += ' ' + id_to_name(res) + " : register(c" + std::to_string(info.offset / 16) + ");\n";
 			}
 			else

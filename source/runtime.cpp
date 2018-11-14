@@ -924,7 +924,7 @@ void reshade::runtime::get_uniform_value(const uniform &variable, bool *values, 
 }
 void reshade::runtime::get_uniform_value(const uniform &variable, int32_t *values, size_t count) const
 {
-	if (!variable.type.is_floating_point())
+	if (!variable.type.is_floating_point() && _renderer_id != 0x9300)
 	{
 		get_uniform_value(variable, reinterpret_cast<uint8_t *>(values), count * sizeof(int32_t));
 		return;
@@ -946,7 +946,7 @@ void reshade::runtime::get_uniform_value(const uniform &variable, uint32_t *valu
 }
 void reshade::runtime::get_uniform_value(const uniform &variable, float *values, size_t count) const
 {
-	if (variable.type.is_floating_point())
+	if (variable.type.is_floating_point() || _renderer_id == 0x9300)
 	{
 		get_uniform_value(variable, reinterpret_cast<uint8_t *>(values), count * sizeof(float));
 		return;
@@ -978,7 +978,7 @@ void reshade::runtime::set_uniform_value(uniform &variable, const uint8_t *data,
 void reshade::runtime::set_uniform_value(uniform &variable, const bool *values, size_t count)
 {
 	const auto data = static_cast<uint8_t *>(alloca(count * 4));
-	switch (variable.type.base)
+	switch (_renderer_id != 0x9300 ? variable.type.base : reshadefx::type::t_float)
 	{
 	case reshadefx::type::t_bool:
 		for (size_t i = 0; i < count; ++i)
@@ -999,7 +999,7 @@ void reshade::runtime::set_uniform_value(uniform &variable, const bool *values, 
 }
 void reshade::runtime::set_uniform_value(uniform &variable, const int32_t *values, size_t count)
 {
-	if (!variable.type.is_floating_point())
+	if (!variable.type.is_floating_point() && _renderer_id != 0x9300)
 	{
 		set_uniform_value(variable, reinterpret_cast<const uint8_t *>(values), count * sizeof(int));
 		return;
@@ -1013,7 +1013,7 @@ void reshade::runtime::set_uniform_value(uniform &variable, const int32_t *value
 }
 void reshade::runtime::set_uniform_value(uniform &variable, const uint32_t *values, size_t count)
 {
-	if (!variable.type.is_floating_point())
+	if (!variable.type.is_floating_point() && _renderer_id != 0x9300)
 	{
 		set_uniform_value(variable, reinterpret_cast<const uint8_t *>(values), count * sizeof(int));
 		return;
@@ -1027,7 +1027,7 @@ void reshade::runtime::set_uniform_value(uniform &variable, const uint32_t *valu
 }
 void reshade::runtime::set_uniform_value(uniform &variable, const float *values, size_t count)
 {
-	if (variable.type.is_floating_point())
+	if (variable.type.is_floating_point() || _renderer_id == 0x9300)
 	{
 		set_uniform_value(variable, reinterpret_cast<const uint8_t *>(values), count * sizeof(float));
 		return;
@@ -1042,8 +1042,33 @@ void reshade::runtime::set_uniform_value(uniform &variable, const float *values,
 
 void reshade::runtime::reset_uniform_value(uniform &variable)
 {
-	if (variable.has_initializer_value)
-		memcpy(_uniform_data_storage.data() + variable.storage_offset, variable.initializer_value.as_uint, variable.size);
-	else
+	if (!variable.has_initializer_value)
+	{
 		memset(_uniform_data_storage.data() + variable.storage_offset, 0, variable.size);
+		return;
+	}
+
+	// Force all uniforms to floating-point in D3D9
+	if (_renderer_id == 0x9300)
+	{
+		for (size_t i = 0; i < variable.size / sizeof(float); i++)
+		{
+			switch (variable.type.base)
+			{
+			case reshadefx::type::t_int:
+				reinterpret_cast<float *>(_uniform_data_storage.data() + variable.storage_offset)[i] = static_cast<float>(variable.initializer_value.as_int[i]);
+				break;
+			case reshadefx::type::t_uint:
+				reinterpret_cast<float *>(_uniform_data_storage.data() + variable.storage_offset)[i] = static_cast<float>(variable.initializer_value.as_uint[i]);
+				break;
+			case reshadefx::type::t_float:
+				reinterpret_cast<float *>(_uniform_data_storage.data() + variable.storage_offset)[i] = variable.initializer_value.as_float[i];
+				break;
+			}
+		}
+	}
+	else
+	{
+		memcpy(_uniform_data_storage.data() + variable.storage_offset, variable.initializer_value.as_uint, variable.size);
+	}
 }
