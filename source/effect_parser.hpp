@@ -28,7 +28,7 @@ namespace reshadefx
 		/// <param name="uniforms_to_spec_constants">Whether to convert uniform variables to specialization constants.</param>
 		/// <param name="result">A reference to a module that will be filled with the generated code.</param>
 		/// <returns>A boolean value indicating whether parsing was successful or not.</returns>
-		bool parse(const std::string &source, codegen::backend backend, unsigned int shader_model, bool debug_info, bool uniforms_to_spec_constants, module &result);
+		bool parse(std::string source, codegen::backend backend, unsigned int shader_model, bool debug_info, bool uniforms_to_spec_constants, module &result);
 
 		/// <summary>
 		/// Get the list of error messages.

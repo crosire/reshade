@@ -18,7 +18,7 @@ struct on_scope_exit
 
 // -- Parsing -- //
 
-bool reshadefx::parser::parse(const std::string &input, codegen::backend backend, unsigned int shader_model, bool debug_info, bool uniforms_to_spec_constants, module &result)
+bool reshadefx::parser::parse(std::string input, codegen::backend backend, unsigned int shader_model, bool debug_info, bool uniforms_to_spec_constants, module &result)
 {
 	switch (backend)
 	{
@@ -38,7 +38,7 @@ bool reshadefx::parser::parse(const std::string &input, codegen::backend backend
 		assert(false);
 	}
 
-	_lexer.reset(new lexer(input));
+	_lexer.reset(new lexer(std::move(input)));
 	_lexer_backup.reset();
 
 	consume();

@@ -208,38 +208,11 @@ namespace reshade::d3d9
 
 		return true;
 	}
-	bool runtime_d3d9::init_imgui_font_atlas()
+	bool runtime_d3d9::init_imgui_resources()
 	{
-		int width, height, bits_per_pixel;
-		unsigned char *pixels;
+		HRESULT hr = _device->BeginStateBlock();
 
-		ImGui::SetCurrentContext(_imgui_context);
-		ImGui::GetIO().Fonts->GetTexDataAsRGBA32(&pixels, &width, &height, &bits_per_pixel);
-
-		D3DLOCKED_RECT font_atlas_rect;
-		com_ptr<IDirect3DTexture9> font_atlas;
-
-		HRESULT hr = _device->CreateTexture(width, height, 1, D3DUSAGE_DYNAMIC, D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT, &font_atlas, nullptr);
-
-		if (FAILED(hr) || FAILED(font_atlas->LockRect(0, &font_atlas_rect, nullptr, 0)))
-		{
-			LOG(ERROR) << "Failed to create font atlas texture! HRESULT is '" << std::hex << hr << std::dec << "'.";
-			return false;
-		}
-
-		for (int y = 0; y < height; y++)
-		{
-			std::memcpy(static_cast<BYTE *>(font_atlas_rect.pBits) + font_atlas_rect.Pitch * y, pixels + (width * bits_per_pixel) * y, width * bits_per_pixel);
-		}
-
-		font_atlas->UnlockRect(0);
-
-		d3d9_tex_data obj = {};
-		obj.texture = font_atlas;
-
-		_imgui_font_atlas_texture = std::make_unique<d3d9_tex_data>(obj);
-
-		if (hr = _device->BeginStateBlock(); SUCCEEDED(hr))
+		if (SUCCEEDED(hr))
 		{
 			_device->SetFVF(D3DFVF_XYZ | D3DFVF_DIFFUSE | D3DFVF_TEX1);
 			_device->SetPixelShader(nullptr);
@@ -304,7 +277,6 @@ namespace reshade::d3d9
 		_height = pp.BackBufferHeight;
 		_backbuffer_format = pp.BackBufferFormat;
 		_is_multisampling_enabled = pp.MultiSampleType != D3DMULTISAMPLE_NONE;
-		_input = input::register_window(pp.hDeviceWindow);
 
 		if (FAILED(_device->CreateStateBlock(D3DSBT_ALL, &_app_state)))
 		{
@@ -314,20 +286,15 @@ namespace reshade::d3d9
 		if (!init_backbuffer_texture() ||
 			!init_default_depth_stencil() ||
 			!init_fx_resources() ||
-			!init_imgui_font_atlas())
+			!init_imgui_resources())
 		{
 			return false;
 		}
 
-		return runtime::on_init();
+		return runtime::on_init(pp.hDeviceWindow);
 	}
 	void runtime_d3d9::on_reset()
 	{
-		if (!is_initialized())
-		{
-			return;
-		}
-
 		runtime::on_reset();
 
 		// Destroy resources
@@ -412,7 +379,7 @@ namespace reshade::d3d9
 			_device->SetStreamSource(0, _effect_triangle_buffer.get(), 0, sizeof(float));
 			_device->SetVertexDeclaration(_effect_triangle_layout.get());
 
-			on_present_effect();
+			update_and_render_effects();
 		}
 
 		// Apply presenting
@@ -784,10 +751,6 @@ namespace reshade::d3d9
 		}
 
 		bool success = true;
-
-		for (texture &texture : _textures)
-			if (texture.impl == nullptr && (texture.effect_filename == effect.source_file.filename().u8string() || texture.shared))
-				success &= init_texture(texture);
 
 		d3d9_technique_data technique_init;
 		technique_init.constant_register_count = static_cast<UINT>((effect.storage_size + 16) / 16);

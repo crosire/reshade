@@ -121,7 +121,7 @@ private:
 	text_pos _interactive_beg;
 	text_pos _interactive_end;
 
-	size_t _undo_index;
+	size_t _undo_index = 0;
 	std::vector<undo_record> _undo;
 	bool _in_undo_operation = false;
 

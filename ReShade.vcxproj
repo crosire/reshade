@@ -417,6 +417,7 @@
     <ClInclude Include="source\opengl\opengl_stubs_internal.hpp" />
     <ClInclude Include="source\resource_loading.hpp" />
     <ClInclude Include="source\runtime.hpp" />
+    <ClInclude Include="source\runtime_objects.hpp" />
     <ClInclude Include="source\variant.hpp" />
   </ItemGroup>
   <ItemGroup>

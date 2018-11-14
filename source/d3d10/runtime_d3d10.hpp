@@ -52,7 +52,6 @@ namespace reshade::d3d10
 
 		bool on_init(const DXGI_SWAP_CHAIN_DESC &desc);
 		void on_reset();
-		void on_reset_effect() override;
 		void on_present(draw_call_tracker& tracker);
 		void on_copy_resource(ID3D10Resource *&dest, ID3D10Resource *&source);
 
@@ -61,6 +60,7 @@ namespace reshade::d3d10
 		bool update_texture_reference(texture &texture);
 
 		bool compile_effect(effect_data &effect) override;
+		void unload_effects() override;
 
 		void render_technique(const technique &technique) override;
 		void render_imgui_draw_data(ImDrawData *data) override;
@@ -91,10 +91,9 @@ namespace reshade::d3d10
 		bool init_default_depth_stencil();
 		bool init_fx_resources();
 		bool init_imgui_resources();
-		bool init_imgui_font_atlas();
 
 		bool add_sampler(const reshadefx::sampler_info &info, d3d10_technique_data &technique_init);
-		bool init_texture(texture &info);
+		bool init_texture(texture &info) override;
 		bool init_technique(technique &info, const d3d10_technique_data &technique_init, const std::unordered_map<std::string, com_ptr<ID3D10VertexShader>> &vs_entry_points, const std::unordered_map<std::string, com_ptr<ID3D10PixelShader>> &ps_entry_points);
 
 		void draw_debug_menu();

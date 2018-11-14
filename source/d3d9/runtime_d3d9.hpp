@@ -78,12 +78,12 @@ namespace reshade::d3d9
 		bool init_backbuffer_texture();
 		bool init_default_depth_stencil();
 		bool init_fx_resources();
-		bool init_imgui_font_atlas();
+		bool init_imgui_resources();
 
 		void draw_debug_menu();
 
 		bool add_sampler(const reshadefx::sampler_info &info, d3d9_technique_data &technique_init);
-		bool init_texture(texture &info);
+		bool init_texture(texture &info) override;
 		bool init_technique(technique &info, const d3d9_technique_data &technique_init, const std::unordered_map<std::string, com_ptr<IDirect3DVertexShader9>> &vs_entry_points, const std::unordered_map<std::string, com_ptr<IDirect3DPixelShader9>> &ps_entry_points);
 
 		void detect_depth_source();

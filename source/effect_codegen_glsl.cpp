@@ -598,11 +598,6 @@ private:
 			for (const auto &member : find_struct(func.return_type.definition).member_list)
 				code += '\t' + escape_name_with_builtins("_return_" + member.name, member.semantic) + " = _return." + member.name + ";\n";
 
-#if 0
-		if (!is_ps) // Flip image horizontally to match DirectX clip space definition
-			code += "\tgl_Position = gl_Position * vec4(1.0, 1.0, 2.0, 1.0) + vec4(0.0, 0.0, -gl_Position.w, 0.0);\n";
-#endif
-
 		leave_block_and_return(0);
 		leave_function();
 

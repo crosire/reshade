@@ -8,13 +8,10 @@
 #include <chrono>
 #include <memory>
 #include <functional>
-#include <filesystem>
 #include <mutex>
 #include <atomic>
-#include "variant.hpp"
 #include "ini_file.hpp"
-#include "moving_average.hpp"
-#include "effect_codegen.hpp"
+#include "runtime_objects.hpp"
 #include "gui_text_editor.hpp"
 
 #pragma region Forward Declarations
@@ -31,81 +28,6 @@ extern std::filesystem::path g_windows_path;
 
 namespace reshade
 {
-	enum class special_uniform
-	{
-		none,
-		frame_time,
-		frame_count,
-		random,
-		ping_pong,
-		date,
-		timer,
-		key,
-		mouse_point,
-		mouse_delta,
-		mouse_button,
-	};
-	enum class texture_reference
-	{
-		none,
-		back_buffer,
-		depth_buffer
-	};
-
-	class base_object abstract
-	{
-	public:
-		virtual ~base_object() { }
-
-		template <typename T>
-		T *as() { return dynamic_cast<T *>(this); }
-		template <typename T>
-		const T *as() const { return dynamic_cast<const T *>(this); }
-	};
-
-	struct effect_data
-	{
-		std::string errors;
-		reshadefx::module module;
-		std::filesystem::path source_file;
-		size_t storage_offset, storage_size;
-	};
-
-	struct texture final : reshadefx::texture_info
-	{
-		texture(const reshadefx::texture_info &init) : texture_info(init) { }
-
-		std::string effect_filename;
-		texture_reference impl_reference = texture_reference::none;
-		std::unique_ptr<base_object> impl;
-		bool shared = false;
-	};
-	struct uniform final : reshadefx::uniform_info
-	{
-		uniform(const reshadefx::uniform_info &init) : uniform_info(init) { }
-
-		std::string effect_filename;
-		size_t storage_offset = 0;
-		bool hidden = false;
-		special_uniform special = special_uniform::none;
-	};
-	struct technique final : reshadefx::technique_info
-	{
-		technique(const reshadefx::technique_info &init) : technique_info(init) { }
-
-		size_t effect_index;
-		std::string effect_filename;
-		std::vector<std::unique_ptr<base_object>> passes_data;
-		bool hidden = false;
-		bool enabled = false;
-		int32_t timeout = 0;
-		int64_t timeleft = 0;
-		uint32_t toggle_key_data[4];
-		moving_average<uint64_t, 60> average_cpu_duration;
-		moving_average<uint64_t, 60> average_gpu_duration;
-		std::unique_ptr<base_object> impl;
-	};
-
 	class runtime abstract
 	{
 	public:
@@ -117,28 +39,45 @@ namespace reshade
 		virtual ~runtime();
 
 		/// <summary>
-		/// Returns the frame width in pixels.
+		/// Return the frame width in pixels.
 		/// </summary>
 		unsigned int frame_width() const { return _width; }
 		/// <summary>
-		/// Returns the frame height in pixels.
+		/// Return the frame height in pixels.
 		/// </summary>
 		unsigned int frame_height() const { return _height; }
 
 		/// <summary>
 		/// Create a copy of the current frame.
 		/// </summary>
-		/// <param name="buffer">The buffer to save the copy to. It has to be the size of at least "frame_width() * frame_height() * 4".</param>
+		/// <param name="buffer">The 32bpp RGBA buffer to save the copy to.</param>
 		virtual void capture_frame(uint8_t *buffer) const = 0;
 
 		/// <summary>
-		/// Returns the initialization status.
+		/// Return the initialization status.
 		/// </summary>
 		bool is_initialized() const { return _is_initialized; }
 		/// <summary>
-		/// Returns a boolean indicating whether any effects were loaded.
+		/// Return a boolean indicating whether any effects were loaded.
 		/// </summary>
-		bool is_effect_loaded() const { return !_techniques.empty() && _reload_remaining_effects == std::numeric_limits<size_t>::max(); }
+		bool is_effect_loaded() const { return !_techniques.empty(); }
+
+		/// <summary>
+		/// Save user configuration to disk.
+		/// </summary>
+		void save_config() const;
+
+		/// <summary>
+		/// Create a new texture with the specified dimensions.
+		/// </summary>
+		/// <param name="texture">The texture description.</param>
+		virtual bool init_texture(texture &texture) = 0;
+		/// <summary>
+		/// Update the image data of a texture.
+		/// </summary>
+		/// <param name="texture">The texture to update.</param>
+		/// <param name="data">The 32bpp RGBA image data to update the texture with.</param>
+		virtual void update_texture(texture &texture, const uint8_t *data) = 0;
 
 		/// <summary>
 		/// Get the value of a uniform variable.
@@ -172,9 +111,9 @@ namespace reshade
 		void reset_uniform_value(uniform &variable);
 
 		/// <summary>
-		/// Register a function to be called when the menu is drawn.
+		/// Register a function to be called when the UI is drawn.
 		/// </summary>
-		/// <param name="label">Name of the tab in the menu bar.</param>
+		/// <param name="label">Name of the widget.</param>
 		/// <param name="function">The callback function.</param>
 		void subscribe_to_ui(std::string label, std::function<void()> function) { _menu_callables.push_back({ label, function }); }
 		/// <summary>
@@ -205,30 +144,29 @@ namespace reshade
 		/// Callback function called when the runtime is initialized.
 		/// </summary>
 		/// <returns>Returns if the initialization succeeded.</returns>
-		bool on_init();
+		bool on_init(void *window);
 		/// <summary>
 		/// Callback function called when the runtime is uninitialized.
 		/// </summary>
 		void on_reset();
 		/// <summary>
-		/// Callback function called when the post-processing effects are uninitialized.
-		/// </summary>
-		virtual void on_reset_effect();
-		/// <summary>
 		/// Callback function called every frame.
 		/// </summary>
 		void on_present();
-		/// <summary>
-		/// Callback function called to apply the post-processing effects to the screen.
-		/// </summary>
-		void on_present_effect();
 
 		/// <summary>
-		/// Compile effect from the specified source file and initialize textures, constants and techniques.
+		/// Load all effects found in the effect search paths.
 		/// </summary>
-		/// <param name="path">The path to an effect source code file.</param>
-		void load_effect(const std::filesystem::path &path);
-		void unload_effect(const std::filesystem::path &path);
+		virtual void load_effects();
+		/// <summary>
+		/// Unload all effects currently loaded.
+		/// </summary>
+		virtual void unload_effects();
+		/// <summary>
+		/// Load image files and update textures with image data.
+		/// </summary>
+		void load_textures();
+
 		/// <summary>
 		/// Compile effect from the specified effect module.
 		/// </summary>
@@ -236,30 +174,9 @@ namespace reshade
 		virtual bool compile_effect(effect_data &effect) = 0;
 
 		/// <summary>
-		/// Loads image files and updates all textures with image data.
+		/// Apply post-processing effects to the frame.
 		/// </summary>
-		void load_textures();
-		/// <summary>
-		/// Update the image data of a texture.
-		/// </summary>
-		/// <param name="texture">The texture to update.</param>
-		/// <param name="data">The 32bpp RGBA image data to update the texture to.</param>
-		virtual void update_texture(texture &texture, const uint8_t *data) = 0;
-
-		/// <summary>
-		/// Load user configuration from disk.
-		/// </summary>
-		void load_config();
-		/// <summary>
-		/// Save user configuration to disk.
-		/// </summary>
-		void save_config() const;
-		/// <summary>
-		/// Save user configuration to disk.
-		/// </summary>
-		/// <param name="path">Output configuration path.</param>
-		void save_config(const std::filesystem::path &path) const;
-
+		void update_and_render_effects();
 		/// <summary>
 		/// Render all passes in a technique.
 		/// </summary>
@@ -275,47 +192,78 @@ namespace reshade
 		unsigned int _vendor_id = 0, _device_id = 0;
 		uint64_t _framecount = 0;
 		unsigned int _drawcalls = 0, _vertices = 0;
-		std::shared_ptr<class input> _input;
-		ImGuiContext *_imgui_context = nullptr;
-		std::unique_ptr<base_object> _imgui_font_atlas_texture;
 		std::vector<texture> _textures;
 		std::vector<uniform> _uniforms;
 		std::vector<technique> _techniques;
 		std::vector<unsigned char> _uniform_data_storage;
 
 	private:
+		/// <summary>
+		/// Compare current version against the latest published one.
+		/// </summary>
+		/// <param name="latest_version">Contains the latest version after this function returned.</param>
+		/// <returns><c>true</c> if an update is available, <c>false</c> otherwise</returns>
 		static bool check_for_update(unsigned long latest_version[3]);
 
-		void reload();
+		/// <summary>
+		/// Compile effect from the specified source file and initialize textures, uniforms and techniques.
+		/// </summary>
+		/// <param name="path">The path to an effect source code file.</param>
+		/// <param name="out_id">The ID of the effect.</param>
+		void load_effect(const std::filesystem::path &path, size_t &out_id);
+		/// <summary>
+		/// Unload the specified effect.
+		/// </summary>
+		/// <param name="id">The ID of the effect.</param>
+		void unload_effect(size_t id);
 
+		/// <summary>
+		/// Enable a technique so it is rendered.
+		/// </summary>
+		/// <param name="technique"></param>
 		void enable_technique(technique &technique);
+		/// <summary>
+		/// Disable a technique so that it is no longer rendered.
+		/// </summary>
+		/// <param name="technique"></param>
 		void disable_technique(technique &technique);
 
+		/// <summary>
+		/// Load user configuration from disk.
+		/// </summary>
+		void load_config();
+		/// <summary>
+		/// Save user configuration to the specified file on disk.
+		/// </summary>
+		/// <param name="path">Output configuration path.</param>
+		void save_config(const std::filesystem::path &path) const;
+
+		/// <summary>
+		/// Load a preset from the specified file and apply it.
+		/// </summary>
+		/// <param name="path">The preset file to load.</param>
 		void load_preset(const std::filesystem::path &path);
+		/// <summary>
+		/// Load the currently selected preset and apply it.
+		/// </summary>
 		void load_current_preset();
+		/// <summary>
+		/// Save the current value configuration as a preset to the specified file.
+		/// </summary>
+		/// <param name="path">The preset file to save to.</param>
 		void save_preset(const std::filesystem::path &path) const;
-		void save_preset(const std::filesystem::path &path, const std::filesystem::path &save_path) const;
+		/// <summary>
+		/// Save the current value configuration to the currently selected preset.
+		/// </summary>
 		void save_current_preset() const;
 
+		/// <summary>
+		/// Create a copy of the current frame and write it to an image file on disk.
+		/// </summary>
 		void save_screenshot() const;
 
 		void get_uniform_value(const uniform &variable, uint8_t *data, size_t size) const;
 		void set_uniform_value(uniform &variable, const uint8_t *data, size_t size);
-
-		void init_ui();
-		void deinit_ui();
-
-		void draw_ui();
-		void draw_code_editor();
-		void draw_overlay_menu_home();
-		void draw_overlay_menu_settings();
-		void draw_overlay_menu_statistics();
-		void draw_overlay_menu_log();
-		void draw_overlay_menu_about();
-		void draw_overlay_variable_editor();
-		void draw_overlay_technique_editor();
-
-		void filter_techniques(const std::string &filter);
 
 		const unsigned int _renderer_id;
 		bool _needs_update = false;
@@ -356,7 +304,30 @@ namespace reshade
 		std::vector<std::function<void(ini_file &)>> _save_config_callables;
 		std::vector<std::function<void(const ini_file &)>> _load_config_callables;
 
-		int _selected_effect = -1;
+		// -- GUI ----------------------------------------------------------------------------------------------------
+
+		void init_ui();
+		void init_ui_font_atlas();
+		void deinit_ui();
+		void deinit_ui_font_atlas();
+
+		void draw_ui();
+		void draw_code_editor();
+		void draw_overlay_menu_home();
+		void draw_overlay_menu_settings();
+		void draw_overlay_menu_statistics();
+		void draw_overlay_menu_log();
+		void draw_overlay_menu_about();
+		void draw_overlay_variable_editor();
+		void draw_overlay_technique_editor();
+
+		void filter_techniques(const std::string &filter);
+
+		std::shared_ptr<class input> _input;
+
+		texture _imgui_font_atlas;
+		ImGuiContext *_imgui_context = nullptr;
+		size_t _selected_effect = std::numeric_limits<size_t>::max();
 		int _selected_technique = -1;
 		int _input_processing_mode = 2;
 		int _style_index = 2;

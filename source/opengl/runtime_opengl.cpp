@@ -156,7 +156,6 @@ namespace reshade::opengl
 
 		_vendor_id = 0;
 		_device_id = 0;
-		_input = input::register_window(WindowFromDC(_hdc));
 
 		// Get vendor and device information on NVIDIA Optimus devices
 		if (GetModuleHandleW(L"nvd3d9wrap.dll") == nullptr &&
@@ -339,7 +338,7 @@ namespace reshade::opengl
 			"out vec4 Frag_Color;\n"
 			"void main()\n"
 			"{\n"
-			"	Frag_UV = UV;\n"
+			"	Frag_UV = UV * vec2(1.0, -1.0) + vec2(0.0, 1.0);\n" // Texture coordinates were flipped in 'update_texture'
 			"	Frag_Color = Color;\n"
 			"	gl_Position = ProjMtx * vec4(Position.xy, 0, 1);\n"
 			"}\n"
@@ -389,29 +388,6 @@ namespace reshade::opengl
 
 		return true;
 	}
-	bool runtime_opengl::init_imgui_font_atlas()
-	{
-		int width, height;
-		unsigned char *pixels;
-
-		ImGui::SetCurrentContext(_imgui_context);
-		ImGui::GetIO().Fonts->GetTexDataAsRGBA32(&pixels, &width, &height);
-
-		GLuint font_atlas_id = 0;
-
-		glGenTextures(1, &font_atlas_id);
-		glBindTexture(GL_TEXTURE_2D, font_atlas_id);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
-
-		opengl_tex_data obj = {};
-		obj.id[0] = font_atlas_id;
-
-		_imgui_font_atlas_texture = std::make_unique<opengl_tex_data>(obj);
-
-		return true;
-	}
 
 	bool runtime_opengl::on_init(unsigned int width, unsigned int height)
 	{
@@ -434,8 +410,7 @@ namespace reshade::opengl
 		if (!init_backbuffer_texture() ||
 			!init_default_depth_stencil() ||
 			!init_fx_resources() ||
-			!init_imgui_resources() ||
-			!init_imgui_font_atlas())
+			!init_imgui_resources())
 		{
 			_stateblock.apply();
 
@@ -444,15 +419,10 @@ namespace reshade::opengl
 
 		_stateblock.apply();
 
-		return runtime::on_init();
+		return runtime::on_init(WindowFromDC(_hdc));
 	}
 	void runtime_opengl::on_reset()
 	{
-		if (!is_initialized())
-		{
-			return;
-		}
-
 		runtime::on_reset();
 
 		// Destroy resources
@@ -480,24 +450,6 @@ namespace reshade::opengl
 		_imgui_vao = _imgui_vbo[0] = _imgui_vbo[1] = 0;
 
 		_depth_source = 0;
-	}
-	void runtime_opengl::on_reset_effect()
-	{
-		runtime::on_reset_effect();
-
-		for (const auto &it : _effect_sampler_states)
-		{
-			glDeleteSamplers(1, &it.second);
-		}
-
-		_effect_sampler_states.clear();
-
-		for (auto &uniform_buffer : _effect_ubos)
-		{
-			glDeleteBuffers(1, &uniform_buffer.first);
-		}
-
-		_effect_ubos.clear();
 	}
 	void runtime_opengl::on_present()
 	{
@@ -541,10 +493,8 @@ namespace reshade::opengl
 		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, _blit_fbo);
 		glBlitFramebuffer(0, 0, _width, _height, 0, 0, _width, _height, GL_DEPTH_BUFFER_BIT, GL_NEAREST);
 
-		// Force Direct3D coordinate conventions
 		GLint clip_origin = GL_LOWER_LEFT;
-		GLint clip_depthmode = GL_ZERO_TO_ONE;
-
+		GLint clip_depthmode = GL_NEGATIVE_ONE_TO_ONE;
 		if (gl3wProcs.gl.ClipControl != nullptr)
 		{
 			glGetIntegerv(GL_CLIP_ORIGIN, &clip_origin);
@@ -565,7 +515,7 @@ namespace reshade::opengl
 			glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
 			// Apply post processing
-			on_present_effect();
+			update_and_render_effects();
 		}
 
 		// Reset render target and copy to frame buffer
@@ -584,7 +534,7 @@ namespace reshade::opengl
 		_stateblock.apply();
 
 		if (gl3wProcs.gl.ClipControl != nullptr
-			&& (clip_origin != GL_LOWER_LEFT || clip_depthmode != GL_ZERO_TO_ONE))
+			&& (clip_origin != GL_LOWER_LEFT || clip_depthmode != GL_NEGATIVE_ONE_TO_ONE))
 		{
 			glClipControl(clip_origin, clip_depthmode);
 		}
@@ -896,10 +846,6 @@ namespace reshade::opengl
 
 		bool success = true;
 
-		for (texture &texture : _textures)
-			if (texture.impl == nullptr && (texture.effect_filename == effect.source_file.filename().u8string() || texture.shared))
-				success &= init_texture(texture);
-
 		opengl_technique_data technique_init;
 		technique_init.uniform_storage_index = _effect_ubos.size() - 1;
 		technique_init.uniform_storage_offset = effect.storage_offset;
@@ -915,6 +861,24 @@ namespace reshade::opengl
 			glDeleteShader(it.second);
 
 		return success;
+	}
+	void runtime_opengl::unload_effects()
+	{
+		runtime::unload_effects();
+
+		for (const auto &it : _effect_sampler_states)
+		{
+			glDeleteSamplers(1, &it.second);
+		}
+
+		_effect_sampler_states.clear();
+
+		for (auto &uniform_buffer : _effect_ubos)
+		{
+			glDeleteBuffers(1, &uniform_buffer.first);
+		}
+
+		_effect_ubos.clear();
 	}
 
 	bool runtime_opengl::add_sampler(const reshadefx::sampler_info &info, opengl_technique_data &technique_init)

@@ -45,7 +45,11 @@ static inline std::vector<std::string> split(const std::string &str, char delim)
 void reshade::runtime::init_ui()
 {
 	_menu_key_data[0] = 0x71; // VK_F2
+	_menu_key_data[1] = false;
 	_menu_key_data[2] = true; // VK_SHIFT
+	_menu_key_data[3] = false;
+
+	_variable_editor_height = 500;
 
 	_imgui_context = ImGui::CreateContext();
 
@@ -221,9 +225,30 @@ void reshade::runtime::init_ui()
 				config.set("STYLE", ImGui::GetStyleColorName(i), (const float(&)[4])_imgui_context->Style.Colors[i]);
 	});
 }
+void reshade::runtime::init_ui_font_atlas()
+{
+	ImGui::SetCurrentContext(_imgui_context);
+
+	int width, height;
+	unsigned char *pixels;
+	ImGui::GetIO().Fonts->GetTexDataAsRGBA32(&pixels, &width, &height);
+
+	_imgui_font_atlas.width = width;
+	_imgui_font_atlas.height = height;
+	_imgui_font_atlas.format = reshadefx::texture_format::rgba8;
+	_imgui_font_atlas.unique_name = "ImGUI Font Atlas";
+	init_texture(_imgui_font_atlas);
+	update_texture(_imgui_font_atlas, pixels);
+
+	ImGui::SetCurrentContext(nullptr);
+}
 void reshade::runtime::deinit_ui()
 {
 	ImGui::DestroyContext(_imgui_context);
+}
+void reshade::runtime::deinit_ui_font_atlas()
+{
+	_imgui_font_atlas.impl.reset();
 }
 
 void reshade::runtime::draw_ui()
@@ -242,7 +267,7 @@ void reshade::runtime::draw_ui()
 	imgui_io.MouseDrawCursor = _show_menu;
 	imgui_io.DisplaySize.x = static_cast<float>(_width);
 	imgui_io.DisplaySize.y = static_cast<float>(_height);
-	imgui_io.Fonts->TexID = _imgui_font_atlas_texture.get();
+	imgui_io.Fonts->TexID = _imgui_font_atlas.impl.get();
 
 	imgui_io.KeyCtrl = _input->is_key_down(0x11); // VK_CONTROL
 	imgui_io.KeyShift = _input->is_key_down(0x10); // VK_SHIFT
@@ -498,7 +523,7 @@ void reshade::runtime::draw_code_editor()
 		}
 	};
 
-	if (_selected_effect >= 0 && (ImGui::Button("Save & Compile (Ctrl + S)") || _input->is_key_pressed('S', true, false, false)))
+	if (_selected_effect < _loaded_effects.size() && (ImGui::Button("Save & Compile (Ctrl + S)") || _input->is_key_pressed('S', true, false, false)))
 	{
 		_show_splash = false;
 
@@ -513,10 +538,8 @@ void reshade::runtime::draw_code_editor()
 		_textures_loaded = false;
 		_reload_total_effects = 1;
 		_reload_remaining_effects = 1;
-		unload_effect(source_file); load_effect(source_file);
-
-		// Switch to the newly loaded effect file
-		_selected_effect = static_cast<int>(_loaded_effects.size() - 1);
+		unload_effect(_selected_effect);
+		load_effect(source_file, _selected_effect);
 
 		parse_errors(_loaded_effects[_selected_effect].errors);
 	}
@@ -525,11 +548,14 @@ void reshade::runtime::draw_code_editor()
 
 	ImGui::PushItemWidth(-1);
 
-	if (ImGui::BeginCombo("##file", _selected_effect < 0 ? "" : _loaded_effects[_selected_effect].source_file.u8string().c_str(), ImGuiComboFlags_HeightLarge))
+	if (ImGui::BeginCombo("##file", _selected_effect < _loaded_effects.size() ? _loaded_effects[_selected_effect].source_file.u8string().c_str() : "", ImGuiComboFlags_HeightLarge))
 	{
-		for (int i = 0; i < static_cast<int>(_loaded_effects.size()); ++i)
+		for (size_t i = 0; i < _loaded_effects.size(); ++i)
 		{
 			const auto &effect = _loaded_effects[i];
+
+			if (effect.source_file.empty())
+				continue;
 
 			if (ImGui::Selectable(effect.source_file.u8string().c_str(), _selected_effect == i))
 			{
@@ -601,7 +627,7 @@ void reshade::runtime::draw_overlay_menu_home()
 
 					if (_performance_mode)
 					{
-						reload();
+						load_effects();
 					}
 					else
 					{
@@ -815,7 +841,7 @@ void reshade::runtime::draw_overlay_menu_home()
 
 		if (ImGui::Button("Reload", ImVec2(-150, 0)))
 		{
-			reload();
+			load_effects();
 		}
 
 		ImGui::SameLine();
@@ -823,7 +849,7 @@ void reshade::runtime::draw_overlay_menu_home()
 		if (ImGui::Checkbox("Performance Mode", &_performance_mode))
 		{
 			save_config();
-			reload();
+			load_effects();
 		}
 	}
 	else

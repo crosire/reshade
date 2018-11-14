@@ -76,7 +76,6 @@ namespace reshade::opengl
 
 		bool on_init(unsigned int width, unsigned int height);
 		void on_reset();
-		void on_reset_effect() override;
 		void on_present();
 		void on_draw_call(unsigned int vertices);
 		void on_fbo_attachment(GLenum target, GLenum attachment, GLenum objecttarget, GLuint object, GLint level);
@@ -86,6 +85,7 @@ namespace reshade::opengl
 		bool update_texture_reference(texture &texture);
 
 		bool compile_effect(effect_data &effect) override;
+		void unload_effects() override;
 
 		void render_technique(const technique &technique) override;
 		void render_imgui_draw_data(ImDrawData *data) override;
@@ -111,10 +111,9 @@ namespace reshade::opengl
 		bool init_default_depth_stencil();
 		bool init_fx_resources();
 		bool init_imgui_resources();
-		bool init_imgui_font_atlas();
 
 		bool add_sampler(const reshadefx::sampler_info &info, opengl_technique_data &effect);
-		bool init_texture(texture &info);
+		bool init_texture(texture &info) override;
 		bool init_technique(technique &info, const opengl_technique_data &effect, const std::unordered_map<std::string, GLuint> &entry_points, std::string &errors);
 
 		void detect_depth_source();

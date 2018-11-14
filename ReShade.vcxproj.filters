@@ -158,6 +158,9 @@
     <ClInclude Include="source\runtime.hpp">
       <Filter>core\runtime</Filter>
     </ClInclude>
+    <ClInclude Include="source\runtime_objects.hpp">
+      <Filter>core\runtime</Filter>
+    </ClInclude>
     <ClInclude Include="source\variant.hpp">
       <Filter>core\utility</Filter>
     </ClInclude>

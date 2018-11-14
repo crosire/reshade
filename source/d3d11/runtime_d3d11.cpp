@@ -155,13 +155,13 @@ namespace reshade::d3d11
 		_device_id = adapter_desc.DeviceId;
 
 		subscribe_to_ui("DX11", [this]() { draw_debug_menu(); });
-		subscribe_to_load_config([this](const ini_file& config) {
+		subscribe_to_load_config([this](const ini_file &config) {
 			config.get("DX11_BUFFER_DETECTION", "DepthBufferRetrievalMode", depth_buffer_before_clear);
 			config.get("DX11_BUFFER_DETECTION", "DepthBufferTextureFormat", depth_buffer_texture_format);
 			config.get("DX11_BUFFER_DETECTION", "ExtendedDepthBufferDetection", extended_depth_buffer_detection);
 			config.get("DX11_BUFFER_DETECTION", "DepthBufferClearingNumber", cleared_depth_buffer_index);
 		});
-		subscribe_to_save_config([this](ini_file& config) {
+		subscribe_to_save_config([this](ini_file &config) {
 			config.set("DX11_BUFFER_DETECTION", "DepthBufferRetrievalMode", depth_buffer_before_clear);
 			config.set("DX11_BUFFER_DETECTION", "DepthBufferTextureFormat", depth_buffer_texture_format);
 			config.set("DX11_BUFFER_DETECTION", "ExtendedDepthBufferDetection", extended_depth_buffer_detection);
@@ -498,53 +498,6 @@ namespace reshade::d3d11
 
 		return true;
 	}
-	bool runtime_d3d11::init_imgui_font_atlas()
-	{
-		int width, height;
-		unsigned char *pixels;
-
-		ImGui::SetCurrentContext(_imgui_context);
-		ImGui::GetIO().Fonts->GetTexDataAsRGBA32(&pixels, &width, &height);
-
-		const D3D11_TEXTURE2D_DESC tex_desc = {
-			static_cast<UINT>(width),
-			static_cast<UINT>(height),
-			1, 1,
-			DXGI_FORMAT_R8G8B8A8_UNORM,
-			{ 1, 0 },
-			D3D11_USAGE_DEFAULT,
-			D3D11_BIND_SHADER_RESOURCE
-		};
-		const D3D11_SUBRESOURCE_DATA tex_data = {
-			pixels,
-			tex_desc.Width * 4
-		};
-
-		com_ptr<ID3D11Texture2D> font_atlas;
-		com_ptr<ID3D11ShaderResourceView> font_atlas_view;
-
-		HRESULT hr = _device->CreateTexture2D(&tex_desc, &tex_data, &font_atlas);
-
-		if (FAILED(hr))
-		{
-			return false;
-		}
-
-		hr = _device->CreateShaderResourceView(font_atlas.get(), nullptr, &font_atlas_view);
-
-		if (FAILED(hr))
-		{
-			return false;
-		}
-
-		d3d11_tex_data obj = {};
-		obj.texture = font_atlas;
-		obj.srv[0] = font_atlas_view;
-
-		_imgui_font_atlas_texture = std::make_unique<d3d11_tex_data>(obj);
-
-		return true;
-	}
 
 	bool runtime_d3d11::on_init(const DXGI_SWAP_CHAIN_DESC &desc)
 	{
@@ -552,13 +505,11 @@ namespace reshade::d3d11
 		_height = desc.BufferDesc.Height;
 		_backbuffer_format = desc.BufferDesc.Format;
 		_is_multisampling_enabled = desc.SampleDesc.Count > 1;
-		_input = input::register_window(desc.OutputWindow);
 
 		if (!init_backbuffer_texture() ||
 			!init_default_depth_stencil() ||
 			!init_fx_resources() ||
-			!init_imgui_resources() ||
-			!init_imgui_font_atlas())
+			!init_imgui_resources())
 		{
 			return false;
 		}
@@ -566,15 +517,10 @@ namespace reshade::d3d11
 		// Clear reference count to make UnrealEngine happy
 		_backbuffer->Release();
 
-		return runtime::on_init();
+		return runtime::on_init(desc.OutputWindow);
 	}
 	void runtime_d3d11::on_reset()
 	{
-		if (!is_initialized())
-		{
-			return;
-		}
-
 		runtime::on_reset();
 
 		// Reset reference count to make UnrealEngine happy
@@ -616,13 +562,6 @@ namespace reshade::d3d11
 		_imgui_depthstencil_state.reset();
 		_imgui_vertex_buffer_size = 0;
 		_imgui_index_buffer_size = 0;
-	}
-	void runtime_d3d11::on_reset_effect()
-	{
-		runtime::on_reset_effect();
-
-		_effect_sampler_states.clear();
-		_constant_buffers.clear();
 	}
 	void runtime_d3d11::on_present(draw_call_tracker &tracker)
 	{
@@ -691,7 +630,7 @@ namespace reshade::d3d11
 
 			_immediate_context->RSSetState(_effect_rasterizer_state.get());
 
-			on_present_effect();
+			update_and_render_effects();
 		}
 
 		// Apply presenting
@@ -955,10 +894,6 @@ namespace reshade::d3d11
 
 		bool success = true;
 
-		for (texture &texture : _textures)
-			if (texture.impl == nullptr && (texture.effect_filename == effect.source_file.filename().u8string() || texture.shared))
-				success &= init_texture(texture);
-
 		d3d11_technique_data technique_init;
 		technique_init.uniform_storage_index = _constant_buffers.size() - 1;
 		technique_init.uniform_storage_offset = effect.storage_offset;
@@ -971,6 +906,13 @@ namespace reshade::d3d11
 				success &= init_technique(technique, technique_init, vs_entry_points, ps_entry_points);
 
 		return success;
+	}
+	void runtime_d3d11::unload_effects()
+	{
+		runtime::unload_effects();
+
+		_effect_sampler_states.clear();
+		_constant_buffers.clear();
 	}
 
 	bool runtime_d3d11::add_sampler(const reshadefx::sampler_info &info, d3d11_technique_data &technique_init)
