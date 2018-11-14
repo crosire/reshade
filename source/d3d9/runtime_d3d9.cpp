@@ -813,6 +813,10 @@ namespace reshade::d3d9
 		if (existing_texture == _textures.end() || info.binding > ARRAYSIZE(technique_init.sampler_states))
 			return false;
 
+		// Since textures with auto-generated mipmap levels do not have a mipmap maximum, limit the bias here so this is not as obvious
+		assert(existing_texture->levels > 0);
+		const float lod_bias = std::min(existing_texture->levels - 1.0f, info.lod_bias);
+
 		technique_init.num_samplers = std::max(technique_init.num_samplers, DWORD(info.binding + 1));
 
 		technique_init.sampler_states[info.binding][D3DSAMP_ADDRESSU] = static_cast<D3DTEXTUREADDRESS>(info.address_u);
@@ -822,7 +826,7 @@ namespace reshade::d3d9
 		technique_init.sampler_states[info.binding][D3DSAMP_MAGFILTER] = 1 + ((static_cast<unsigned int>(info.filter) & 0x0C) >> 2);
 		technique_init.sampler_states[info.binding][D3DSAMP_MINFILTER] = 1 + ((static_cast<unsigned int>(info.filter) & 0x30) >> 4);
 		technique_init.sampler_states[info.binding][D3DSAMP_MIPFILTER] = 1 + ((static_cast<unsigned int>(info.filter) & 0x03));
-		technique_init.sampler_states[info.binding][D3DSAMP_MIPMAPLODBIAS] = *reinterpret_cast<const DWORD *>(&info.lod_bias);
+		technique_init.sampler_states[info.binding][D3DSAMP_MIPMAPLODBIAS] = *reinterpret_cast<const DWORD *>(&lod_bias);
 		technique_init.sampler_states[info.binding][D3DSAMP_MAXMIPLEVEL] = static_cast<DWORD>(std::max(0.0f, info.min_lod));
 		technique_init.sampler_states[info.binding][D3DSAMP_MAXANISOTROPY] = 1;
 		technique_init.sampler_states[info.binding][D3DSAMP_SRGBTEXTURE] = info.srgb;
