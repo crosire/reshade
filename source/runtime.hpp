@@ -271,7 +271,7 @@ namespace reshade
 		bool _screenshot_include_preset = false;
 		bool _screenshot_include_configuration = false;
 
-		int _current_preset = -1;
+		size_t _current_preset = std::numeric_limits<size_t>::max();
 		std::vector<std::filesystem::path> _preset_files;
 
 		std::vector<std::string> _preprocessor_definitions;
@@ -304,28 +304,27 @@ namespace reshade
 		void deinit_ui_font_atlas();
 
 		void draw_ui();
-		void draw_code_editor();
+
 		void draw_overlay_menu_home();
 		void draw_overlay_menu_settings();
 		void draw_overlay_menu_statistics();
 		void draw_overlay_menu_log();
 		void draw_overlay_menu_about();
+		void draw_code_editor();
 		void draw_overlay_variable_editor();
 		void draw_overlay_technique_editor();
-
-		void filter_techniques(const std::string &filter);
 
 		std::vector<std::pair<std::string, std::function<void()>>> _menu_callables;
 		texture _imgui_font_atlas;
 		ImGuiContext *_imgui_context = nullptr;
+		size_t _focused_effect = std::numeric_limits<size_t>::max();
 		size_t _selected_effect = std::numeric_limits<size_t>::max();
-		int _selected_technique = -1;
+		size_t _selected_technique = std::numeric_limits<size_t>::max();
 		int _input_processing_mode = 2;
 		int _style_index = 2;
 		int _editor_style_index = 0;
 		float _fps_col[4] = { 1.0f, 1.0f, 0.784314f, 1.0f };
 		unsigned int _menu_key_data[4];
-		std::string _focus_effect;
 		bool _show_menu = false;
 		bool _show_clock = false;
 		bool _show_framerate = false;
@@ -336,6 +335,7 @@ namespace reshade
 		bool _screenshot_key_setting_active = false;
 		bool _toggle_key_setting_active = false;
 		bool _log_wordwrap = false;
+		bool _variable_editor_tabs = false;
 		float _variable_editor_height = 0.0f;
 		unsigned int _tutorial_index = 0;
 		unsigned int _effects_expanded_state = 2;

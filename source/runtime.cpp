@@ -231,9 +231,9 @@ void reshade::runtime::load_effect(const std::filesystem::path &path, size_t &ou
 #endif
 
 	// Fill all specialization constants with values from the current preset
-	if (_performance_mode && _current_preset >= 0 && compile_success)
+	if (_performance_mode && _current_preset < _preset_files.size() && compile_success)
 	{
-		ini_file preset(_preset_files[_current_preset]);
+		const ini_file preset(_preset_files[_current_preset]);
 
 		for (reshadefx::uniform_info &constant : effect.module.spec_constants)
 		{
@@ -479,7 +479,11 @@ void reshade::runtime::update_and_render_effects()
 		_last_reload_time = std::chrono::high_resolution_clock::now();
 		_reload_remaining_effects = std::numeric_limits<size_t>::max();
 	}
-	else if (_reload_remaining_effects == std::numeric_limits<size_t>::max())
+	else if (_reload_remaining_effects != std::numeric_limits<size_t>::max())
+	{
+		return; // Cannot render while effects are still being loaded
+	}
+	else
 	{
 		if (!_reload_compile_queue.empty())
 		{
@@ -656,6 +660,8 @@ void reshade::runtime::enable_technique(technique &technique)
 	// Queue effect file for compilation if it was not fully loaded yet
 	if (technique.impl == nullptr)
 		_reload_compile_queue.push_back(technique.effect_index);
+
+	_loaded_effects[technique.effect_index].rendering = true;
 }
 void reshade::runtime::disable_technique(technique &technique)
 {
@@ -663,6 +669,8 @@ void reshade::runtime::disable_technique(technique &technique)
 	technique.timeleft = 0;
 	technique.average_cpu_duration.clear();
 	technique.average_gpu_duration.clear();
+
+	_loaded_effects[technique.effect_index].rendering = false;
 }
 
 void reshade::runtime::load_config()
@@ -684,10 +692,6 @@ void reshade::runtime::load_config()
 	config.get("GENERAL", "ScreenshotIncludePreset", _screenshot_include_preset);
 	config.get("GENERAL", "ScreenshotIncludeConfiguration", _screenshot_include_configuration);
 	config.get("GENERAL", "NoReloadOnInit", _no_reload_on_init);
-
-	// Make sure the preset index is in-bounds
-	if (_current_preset >= static_cast<ptrdiff_t>(_preset_files.size()))
-		_current_preset = -1;
 
 	// Look for new preset files in the main directory
 	const std::filesystem::path parent_path = g_reshade_dll_path.parent_path();
@@ -802,7 +806,7 @@ void reshade::runtime::load_preset(const std::filesystem::path &path)
 }
 void reshade::runtime::load_current_preset()
 {
-	if (_current_preset >= 0)
+	if (_current_preset < _preset_files.size())
 		load_preset(_preset_files[_current_preset]);
 }
 void reshade::runtime::save_preset(const std::filesystem::path &path) const
@@ -860,7 +864,7 @@ void reshade::runtime::save_preset(const std::filesystem::path &path) const
 }
 void reshade::runtime::save_current_preset() const
 {
-	if (_current_preset >= 0)
+	if (_current_preset < _preset_files.size())
 		save_preset(_preset_files[_current_preset]);
 }
 
@@ -907,10 +911,9 @@ void reshade::runtime::save_screenshot() const
 		return;
 	}
 
-	if (_screenshot_include_preset && _current_preset >= 0)
+	if (_screenshot_include_preset)
 	{
-		const std::filesystem::path preset_file = _preset_files[_current_preset];
-		save_preset(least + L' ' + preset_file.stem().wstring() + L".ini");
+		save_preset(least + L" Preset.ini");
 	}
 	if (_screenshot_include_configuration)
 	{

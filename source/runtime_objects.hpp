@@ -45,6 +45,7 @@ namespace reshade
 
 	struct effect_data
 	{
+		bool rendering = false;
 		std::string errors;
 		reshadefx::module module;
 		std::filesystem::path source_file;
