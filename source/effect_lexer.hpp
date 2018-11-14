@@ -203,12 +203,14 @@ namespace reshadefx
 			bool ignore_comments = true,
 			bool ignore_whitespace = true,
 			bool ignore_pp_directives = true,
+			bool ignore_line_directives = false,
 			bool ignore_keywords = false,
 			bool escape_string_literals = true) :
 			_input(std::move(input)),
 			_ignore_comments(ignore_comments),
 			_ignore_whitespace(ignore_whitespace),
 			_ignore_pp_directives(ignore_pp_directives),
+			_ignore_line_directives(ignore_line_directives),
 			_ignore_keywords(ignore_keywords),
 			_escape_string_literals(escape_string_literals)
 		{
@@ -216,28 +218,19 @@ namespace reshadefx
 			_end = _cur + _input.size();
 		}
 
-		lexer(const lexer &lexer) :
-			_input(lexer._input),
-			_cur_location(lexer._cur_location),
-			_ignore_comments(lexer._ignore_comments),
-			_ignore_whitespace(lexer._ignore_whitespace),
-			_ignore_pp_directives(lexer._ignore_pp_directives),
-			_ignore_keywords(lexer._ignore_keywords),
-			_escape_string_literals(lexer._escape_string_literals)
-		{
-			_cur = _input.data() + (lexer._cur - lexer._input.data());
-			_end = _input.data() + _input.size();
-		}
+		lexer(const lexer &lexer) { operator=(lexer); }
 		lexer &operator=(const lexer &lexer)
 		{
 			_input = lexer._input;
 			_cur_location = lexer._cur_location;
 			_cur = _input.data() + (lexer._cur - lexer._input.data());
 			_end = _input.data() + _input.size();
+			_ignore_comments = lexer._ignore_comments;
 			_ignore_whitespace = lexer._ignore_whitespace;
 			_ignore_pp_directives = lexer._ignore_pp_directives;
 			_ignore_keywords = lexer._ignore_keywords;
 			_escape_string_literals = lexer._escape_string_literals;
+			_ignore_line_directives = lexer._ignore_line_directives;
 
 			return *this;
 		}
@@ -281,6 +274,7 @@ namespace reshadefx
 		bool _ignore_comments;
 		bool _ignore_whitespace;
 		bool _ignore_pp_directives;
+		bool _ignore_line_directives;
 		bool _ignore_keywords;
 		bool _escape_string_literals;
 	};

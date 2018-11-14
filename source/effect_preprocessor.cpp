@@ -98,7 +98,7 @@ void reshadefx::preprocessor::push(std::string input, const std::string &name)
 {
 	input_level level = {};
 	level.name = name;
-	level.lexer.reset(new lexer(std::move(input), true, false, false, true, false));
+	level.lexer.reset(new lexer(std::move(input), true, false, false, false, true, false));
 	level.parent = _input_stack.empty() ? nullptr : &_input_stack.top();
 	level.next_token.id = tokenid::unknown;
 
@@ -133,6 +133,7 @@ void reshadefx::preprocessor::consume()
 	const auto &input_string = input_level.lexer->input_string();
 
 	_token = std::move(input_level.next_token);
+	_token.location.source = _output_location.source;
 	_current_token_raw_data = input_string.substr(_token.offset, _token.length);
 
 	// Get the next token

@@ -1193,7 +1193,7 @@ void code_editor_widget::colorize()
 		for (size_t k = 0; k < _lines[l].size(); ++k)
 			input_string.push_back(_lines[l][k].c);
 
-	reshadefx::lexer lexer(input_string, false, true, false, false, true);
+	reshadefx::lexer lexer(input_string, false, true, false, true, false, true);
 
 	for (reshadefx::token tok; (tok = lexer.lex()).id != reshadefx::tokenid::end_of_file;)
 	{
@@ -1361,7 +1361,7 @@ void code_editor_widget::colorize()
 
 		for (size_t k = 0; k < tok.length; ++k)
 		{
-			if (column == _lines[line].size())
+			if (column >= _lines[line].size())
 			{
 				line++;
 				column = 0;
