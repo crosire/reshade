@@ -253,6 +253,14 @@ void reshade::runtime::load_effect(const std::filesystem::path &path, size_t &ou
 		}
 	}
 
+	// Clear effect module if compilation was not successful
+	if (!compile_success)
+	{
+		effect.module.uniforms.clear();
+		effect.module.textures.clear();
+		effect.module.techniques.clear();
+	}
+
 	std::lock_guard<std::mutex> lock(_reload_mutex);
 
 	out_id = _loaded_effects.size();

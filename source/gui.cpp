@@ -639,7 +639,7 @@ void reshade::runtime::draw_overlay_menu_home()
 		ImGui::Separator();
 		ImGui::Spacing();
 
-		ImGui::PushItemWidth(_variable_editor_tabs ? -130 : -260);
+		ImGui::PushItemWidth(_variable_editor_tabs ? -130.0f : -260.0f);
 
 		if (ImGui::InputText("##filter", _effect_filter_buffer, sizeof(_effect_filter_buffer), ImGuiInputTextFlags_AutoSelectAll))
 		{
@@ -1058,9 +1058,6 @@ void reshade::runtime::draw_overlay_menu_settings()
 }
 void reshade::runtime::draw_overlay_menu_statistics()
 {
-	if (ImGui::Button("Open Code Editor", ImVec2(-1, 0)))
-		_show_code_editor = true;
-
 	if (ImGui::CollapsingHeader("General", ImGuiTreeNodeFlags_DefaultOpen))
 	{
 		ImGui::PushItemWidth(-1);
@@ -1122,6 +1119,47 @@ void reshade::runtime::draw_overlay_menu_statistics()
 		}
 
 		ImGui::EndGroup();
+	}
+
+	if (ImGui::CollapsingHeader("Effects", ImGuiTreeNodeFlags_DefaultOpen))
+	{
+		for (size_t index = 0; index < _loaded_effects.size(); ++index)
+		{
+			const auto &effect = _loaded_effects[index];
+
+			// Ignore unloaded effects
+			if (effect.source_file.empty())
+				continue;
+
+			ImGui::PushID(static_cast<int>(index));
+
+			ImGui::TextUnformatted(effect.source_file.u8string().c_str());
+
+			ImGui::SameLine(ImGui::GetWindowContentRegionWidth() - (150 + 80 + 10), 10);
+
+			if (ImGui::Button("Edit", ImVec2(80, 0)))
+			{
+				_selected_effect = index;
+				_selected_effect_changed = true;
+				_show_code_editor = true;
+			}
+
+			ImGui::SameLine(0, 10);
+
+			if (ImGui::Button("Show HLSL/GLSL code", ImVec2(150, 0)))
+			{
+				_editor.set_text(effect.module.hlsl);
+				_selected_effect = std::numeric_limits<size_t>::max();
+				_show_code_editor = true;
+			}
+
+			if (!effect.errors.empty())
+				ImGui::TextColored(effect.errors.find("error") != std::string::npos ? ImVec4(1, 0, 0, 1) : ImVec4(1, 1, 0, 1), "%s", effect.errors.c_str());
+
+			ImGui::PopID();
+
+			ImGui::Spacing();
+		}
 	}
 
 	if (ImGui::CollapsingHeader("Textures", ImGuiTreeNodeFlags_DefaultOpen))
@@ -1419,11 +1457,7 @@ void reshade::runtime::draw_code_editor()
 			if (ImGui::Selectable(effect.source_file.u8string().c_str(), _selected_effect == i))
 			{
 				_selected_effect = i;
-
-				// Load file to string and update editor text
-				_editor.set_text(std::string(std::istreambuf_iterator<char>(std::ifstream(effect.source_file).rdbuf()), std::istreambuf_iterator<char>()));
-
-				parse_errors(effect.errors);
+				_selected_effect_changed = true;
 			}
 		}
 
@@ -1431,6 +1465,18 @@ void reshade::runtime::draw_code_editor()
 	}
 
 	ImGui::PopItemWidth();
+
+	if (_selected_effect_changed)
+	{
+		const auto &effect = _loaded_effects[_selected_effect];
+
+		// Load file to string and update editor text
+		_editor.set_text(std::string(std::istreambuf_iterator<char>(std::ifstream(effect.source_file).rdbuf()), std::istreambuf_iterator<char>()));
+
+		parse_errors(effect.errors);
+
+		_selected_effect_changed = false;
+	}
 
 	_editor.render("Editor");
 }

@@ -336,6 +336,7 @@ namespace reshade
 		bool _toggle_key_setting_active = false;
 		bool _log_wordwrap = false;
 		bool _variable_editor_tabs = false;
+		bool _selected_effect_changed = false;
 		float _variable_editor_height = 0.0f;
 		unsigned int _tutorial_index = 0;
 		unsigned int _effects_expanded_state = 2;
