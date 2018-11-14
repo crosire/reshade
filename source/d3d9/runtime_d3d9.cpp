@@ -93,7 +93,9 @@ namespace reshade::d3d9
 		_num_samplers = caps.MaxSimultaneousTextures;
 		_num_simultaneous_rendertargets = std::min(caps.NumSimultaneousRTs, DWORD(8));
 
+#if RESHADE_GUI
 		subscribe_to_ui("DX9", [this]() { draw_debug_menu(); });
+#endif
 		subscribe_to_load_config([this](const ini_file& config) {
 			config.get("DX9_BUFFER_DETECTION", "DisableINTZ", _disable_intz);
 		});
@@ -208,68 +210,6 @@ namespace reshade::d3d9
 
 		return true;
 	}
-	bool runtime_d3d9::init_imgui_resources()
-	{
-		HRESULT hr = _device->BeginStateBlock();
-
-		if (SUCCEEDED(hr))
-		{
-			_device->SetFVF(D3DFVF_XYZ | D3DFVF_DIFFUSE | D3DFVF_TEX1);
-			_device->SetPixelShader(nullptr);
-			_device->SetVertexShader(nullptr);
-			_device->SetRenderState(D3DRS_ZENABLE, false);
-			_device->SetRenderState(D3DRS_FILLMODE, D3DFILL_SOLID);
-			_device->SetRenderState(D3DRS_ALPHATESTENABLE, false);
-			_device->SetRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
-			_device->SetRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
-			_device->SetRenderState(D3DRS_CULLMODE, D3DCULL_NONE);
-			_device->SetRenderState(D3DRS_ALPHABLENDENABLE, true);
-			_device->SetRenderState(D3DRS_FOGENABLE, false);
-			_device->SetRenderState(D3DRS_STENCILENABLE, false);
-			_device->SetRenderState(D3DRS_CLIPPING, false);
-			_device->SetRenderState(D3DRS_LIGHTING, false);
-			_device->SetRenderState(D3DRS_COLORWRITEENABLE, D3DCOLORWRITEENABLE_RED | D3DCOLORWRITEENABLE_GREEN | D3DCOLORWRITEENABLE_BLUE | D3DCOLORWRITEENABLE_ALPHA);
-			_device->SetRenderState(D3DRS_SCISSORTESTENABLE, true);
-			_device->SetRenderState(D3DRS_BLENDOP, D3DBLENDOP_ADD);
-			_device->SetRenderState(D3DRS_SRGBWRITEENABLE, false);
-			_device->SetRenderState(D3DRS_BLENDOPALPHA, D3DBLENDOP_ADD);
-			_device->SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_MODULATE);
-			_device->SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_TEXTURE);
-			_device->SetTextureStageState(0, D3DTSS_COLORARG2, D3DTA_DIFFUSE);
-			_device->SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_MODULATE);
-			_device->SetTextureStageState(0, D3DTSS_ALPHAARG1, D3DTA_TEXTURE);
-			_device->SetTextureStageState(0, D3DTSS_ALPHAARG2, D3DTA_DIFFUSE);
-			_device->SetSamplerState(0, D3DSAMP_MINFILTER, D3DTEXF_LINEAR);
-			_device->SetSamplerState(0, D3DSAMP_MAGFILTER, D3DTEXF_LINEAR);
-
-			const D3DMATRIX identity_mat = {
-				1.0f, 0.0f, 0.0f, 0.0f,
-				0.0f, 1.0f, 0.0f, 0.0f,
-				0.0f, 0.0f, 1.0f, 0.0f,
-				0.0f, 0.0f, 0.0f, 1.0f
-			};
-			const D3DMATRIX ortho_projection = {
-				2.0f / _width, 0.0f, 0.0f, 0.0f,
-				0.0f, -2.0f / _height, 0.0f, 0.0f,
-				0.0f, 0.0f, 0.5f, 0.0f,
-				-(_width + 1.0f) / _width, (_height + 1.0f) / _height, 0.5f, 1.0f
-			};
-
-			_device->SetTransform(D3DTS_WORLD, &identity_mat);
-			_device->SetTransform(D3DTS_VIEW, &identity_mat);
-			_device->SetTransform(D3DTS_PROJECTION, &ortho_projection);
-
-			hr = _device->EndStateBlock(&_imgui_state);
-		}
-
-		if (FAILED(hr))
-		{
-			LOG(ERROR) << "Failed to create state block! HRESULT is '" << std::hex << hr << std::dec << "'.";
-			return false;
-		}
-
-		return true;
-	}
 
 	bool runtime_d3d9::on_init(const D3DPRESENT_PARAMETERS &pp)
 	{
@@ -285,8 +225,11 @@ namespace reshade::d3d9
 
 		if (!init_backbuffer_texture() ||
 			!init_default_depth_stencil() ||
-			!init_fx_resources() ||
-			!init_imgui_resources())
+			!init_fx_resources()
+#if RESHADE_GUI
+			|| !init_imgui_resources()
+#endif
+			)
 		{
 			return false;
 		}
@@ -331,7 +274,7 @@ namespace reshade::d3d9
 	}
 	void runtime_d3d9::on_present()
 	{
-		if (!is_initialized())
+		if (!_is_initialized)
 			return;
 
 		// Begin post processing
@@ -370,17 +313,14 @@ namespace reshade::d3d9
 		}
 
 		// Apply post processing
-		if (is_effect_loaded())
-		{
-			_device->SetRenderTarget(0, _backbuffer_resolved.get());
-			_device->SetDepthStencilSurface(nullptr);
+		_device->SetRenderTarget(0, _backbuffer_resolved.get());
+		_device->SetDepthStencilSurface(nullptr);
 
-			// Setup vertex input
-			_device->SetStreamSource(0, _effect_triangle_buffer.get(), 0, sizeof(float));
-			_device->SetVertexDeclaration(_effect_triangle_layout.get());
+		// Setup vertex input
+		_device->SetStreamSource(0, _effect_triangle_buffer.get(), 0, sizeof(float));
+		_device->SetVertexDeclaration(_effect_triangle_layout.get());
 
-			update_and_render_effects();
-		}
+		update_and_render_effects();
 
 		// Apply presenting
 		runtime::on_present();
@@ -1121,6 +1061,71 @@ namespace reshade::d3d9
 			}
 		}
 	}
+
+#if RESHADE_GUI
+	bool runtime_d3d9::init_imgui_resources()
+	{
+		HRESULT hr = _device->BeginStateBlock();
+
+		if (SUCCEEDED(hr))
+		{
+			_device->SetFVF(D3DFVF_XYZ | D3DFVF_DIFFUSE | D3DFVF_TEX1);
+			_device->SetPixelShader(nullptr);
+			_device->SetVertexShader(nullptr);
+			_device->SetRenderState(D3DRS_ZENABLE, false);
+			_device->SetRenderState(D3DRS_FILLMODE, D3DFILL_SOLID);
+			_device->SetRenderState(D3DRS_ALPHATESTENABLE, false);
+			_device->SetRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
+			_device->SetRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
+			_device->SetRenderState(D3DRS_CULLMODE, D3DCULL_NONE);
+			_device->SetRenderState(D3DRS_ALPHABLENDENABLE, true);
+			_device->SetRenderState(D3DRS_FOGENABLE, false);
+			_device->SetRenderState(D3DRS_STENCILENABLE, false);
+			_device->SetRenderState(D3DRS_CLIPPING, false);
+			_device->SetRenderState(D3DRS_LIGHTING, false);
+			_device->SetRenderState(D3DRS_COLORWRITEENABLE, D3DCOLORWRITEENABLE_RED | D3DCOLORWRITEENABLE_GREEN | D3DCOLORWRITEENABLE_BLUE | D3DCOLORWRITEENABLE_ALPHA);
+			_device->SetRenderState(D3DRS_SCISSORTESTENABLE, true);
+			_device->SetRenderState(D3DRS_BLENDOP, D3DBLENDOP_ADD);
+			_device->SetRenderState(D3DRS_SRGBWRITEENABLE, false);
+			_device->SetRenderState(D3DRS_BLENDOPALPHA, D3DBLENDOP_ADD);
+			_device->SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_MODULATE);
+			_device->SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_TEXTURE);
+			_device->SetTextureStageState(0, D3DTSS_COLORARG2, D3DTA_DIFFUSE);
+			_device->SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_MODULATE);
+			_device->SetTextureStageState(0, D3DTSS_ALPHAARG1, D3DTA_TEXTURE);
+			_device->SetTextureStageState(0, D3DTSS_ALPHAARG2, D3DTA_DIFFUSE);
+			_device->SetSamplerState(0, D3DSAMP_MINFILTER, D3DTEXF_LINEAR);
+			_device->SetSamplerState(0, D3DSAMP_MAGFILTER, D3DTEXF_LINEAR);
+
+			const D3DMATRIX identity_mat = {
+				1.0f, 0.0f, 0.0f, 0.0f,
+				0.0f, 1.0f, 0.0f, 0.0f,
+				0.0f, 0.0f, 1.0f, 0.0f,
+				0.0f, 0.0f, 0.0f, 1.0f
+			};
+			const D3DMATRIX ortho_projection = {
+				2.0f / _width, 0.0f, 0.0f, 0.0f,
+				0.0f, -2.0f / _height, 0.0f, 0.0f,
+				0.0f, 0.0f, 0.5f, 0.0f,
+				-(_width + 1.0f) / _width, (_height + 1.0f) / _height, 0.5f, 1.0f
+			};
+
+			_device->SetTransform(D3DTS_WORLD, &identity_mat);
+			_device->SetTransform(D3DTS_VIEW, &identity_mat);
+			_device->SetTransform(D3DTS_PROJECTION, &ortho_projection);
+
+			hr = _device->EndStateBlock(&_imgui_state);
+		}
+
+		if (FAILED(hr))
+		{
+			LOG(ERROR) << "Failed to create state block! HRESULT is '" << std::hex << hr << std::dec << "'.";
+			return false;
+		}
+
+		return true;
+	}
+
 	void runtime_d3d9::render_imgui_draw_data(ImDrawData *draw_data)
 	{
 		// Fixed-function vertex layout
@@ -1247,34 +1252,16 @@ namespace reshade::d3d9
 			}
 		}
 	}
+#endif
 
 	void runtime_d3d9::detect_depth_source()
 	{
-		static int cooldown = 0, traffic = 0;
-
-		if (cooldown-- > 0)
-		{
-			traffic += g_network_traffic > 0;
+		if (_framecount % 30 || _is_multisampling_enabled || _depth_source_table.empty())
 			return;
-		}
-		else
-		{
-			cooldown = 30;
 
-			if (traffic > 10)
-			{
-				traffic = 0;
-				create_depthstencil_replacement(nullptr);
-				return;
-			}
-			else
-			{
-				traffic = 0;
-			}
-		}
-
-		if (_is_multisampling_enabled || _depth_source_table.empty())
+		if (_has_high_network_activity)
 		{
+			create_depthstencil_replacement(nullptr);
 			return;
 		}
 

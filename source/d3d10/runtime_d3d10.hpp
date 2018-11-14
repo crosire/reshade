@@ -63,7 +63,6 @@ namespace reshade::d3d10
 		void unload_effects() override;
 
 		void render_technique(const technique &technique) override;
-		void render_imgui_draw_data(ImDrawData *data) override;
 
 #if RESHADE_DX10_CAPTURE_DEPTH_BUFFERS
 		com_ptr<ID3D10Texture2D> select_depth_texture_save(D3D10_TEXTURE2D_DESC &texture_desc);
@@ -90,13 +89,16 @@ namespace reshade::d3d10
 		bool init_backbuffer_texture();
 		bool init_default_depth_stencil();
 		bool init_fx_resources();
-		bool init_imgui_resources();
 
 		bool add_sampler(const reshadefx::sampler_info &info, d3d10_technique_data &technique_init);
 		bool init_texture(texture &info) override;
 		bool init_technique(technique &info, const d3d10_technique_data &technique_init, const std::unordered_map<std::string, com_ptr<ID3D10VertexShader>> &vs_entry_points, const std::unordered_map<std::string, com_ptr<ID3D10PixelShader>> &ps_entry_points);
 
+#if RESHADE_GUI
+		bool init_imgui_resources();
+		void render_imgui_draw_data(ImDrawData *data) override;
 		void draw_debug_menu();
+#endif
 
 #if RESHADE_DX10_CAPTURE_DEPTH_BUFFERS
 		void detect_depth_source(draw_call_tracker& tracker);

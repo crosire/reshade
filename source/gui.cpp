@@ -3,6 +3,8 @@
  * License: https://github.com/crosire/reshade#license
  */
 
+#if RESHADE_GUI
+
 #include "log.hpp"
 #include "version.h"
 #include "runtime.hpp"
@@ -11,6 +13,12 @@
 #include <algorithm>
 #include <imgui.h>
 #include <imgui_internal.h>
+
+extern volatile long g_network_traffic;
+extern std::filesystem::path g_reshade_dll_path;
+extern std::filesystem::path g_target_executable_path;
+extern std::filesystem::path g_system_path;
+extern std::filesystem::path g_windows_path;
 
 static const char keyboard_keys[256][16] = {
 	"", "", "", "Cancel", "", "", "", "", "Backspace", "Tab", "", "", "Clear", "Enter", "", "",
@@ -227,6 +235,8 @@ void reshade::runtime::init_ui()
 }
 void reshade::runtime::init_ui_font_atlas()
 {
+	_show_splash = true;
+
 	ImGui::SetCurrentContext(_imgui_context);
 
 	int width, height;
@@ -1870,3 +1880,5 @@ void reshade::runtime::filter_techniques(const std::string &filter)
 		}
 	}
 }
+
+#endif

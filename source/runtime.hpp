@@ -12,19 +12,13 @@
 #include <atomic>
 #include "ini_file.hpp"
 #include "runtime_objects.hpp"
+
+#if RESHADE_GUI
 #include "gui_text_editor.hpp"
 
-#pragma region Forward Declarations
 struct ImDrawData;
 struct ImGuiContext;
-
-extern volatile long g_network_traffic;
-
-extern std::filesystem::path g_reshade_dll_path;
-extern std::filesystem::path g_target_executable_path;
-extern std::filesystem::path g_system_path;
-extern std::filesystem::path g_windows_path;
-#pragma endregion
+#endif
 
 namespace reshade
 {
@@ -52,15 +46,6 @@ namespace reshade
 		/// </summary>
 		/// <param name="buffer">The 32bpp RGBA buffer to save the copy to.</param>
 		virtual void capture_frame(uint8_t *buffer) const = 0;
-
-		/// <summary>
-		/// Return the initialization status.
-		/// </summary>
-		bool is_initialized() const { return _is_initialized; }
-		/// <summary>
-		/// Return a boolean indicating whether any effects were loaded.
-		/// </summary>
-		bool is_effect_loaded() const { return !_techniques.empty(); }
 
 		/// <summary>
 		/// Save user configuration to disk.
@@ -110,12 +95,14 @@ namespace reshade
 		/// <param name="variable">The variable to update.</param>
 		void reset_uniform_value(uniform &variable);
 
+#if RESHADE_GUI
 		/// <summary>
 		/// Register a function to be called when the UI is drawn.
 		/// </summary>
 		/// <param name="label">Name of the widget.</param>
 		/// <param name="function">The callback function.</param>
 		void subscribe_to_ui(std::string label, std::function<void()> function) { _menu_callables.push_back({ label, function }); }
+#endif
 		/// <summary>
 		/// Register a function to be called when user configuration is loaded.
 		/// </summary>
@@ -182,12 +169,16 @@ namespace reshade
 		/// </summary>
 		/// <param name="technique">The technique to render.</param>
 		virtual void render_technique(const technique &technique) = 0;
+#if RESHADE_GUI
 		/// <summary>
 		/// Render command lists obtained from ImGui.
 		/// </summary>
 		/// <param name="data">The draw data to render.</param>
 		virtual void render_imgui_draw_data(ImDrawData *draw_data) = 0;
+#endif
 
+		bool _is_initialized = false;
+		bool _has_high_network_activity = false;
 		unsigned int _width = 0, _height = 0;
 		unsigned int _vendor_id = 0, _device_id = 0;
 		uint64_t _framecount = 0;
@@ -268,7 +259,7 @@ namespace reshade
 		const unsigned int _renderer_id;
 		bool _needs_update = false;
 		unsigned long _latest_version[3] = {};
-		bool _is_initialized = false;
+		std::shared_ptr<class input> _input;
 
 		bool _effects_enabled = true;
 		unsigned int _reload_key_data[4];
@@ -277,6 +268,8 @@ namespace reshade
 		int _screenshot_format = 0;
 		std::filesystem::path _screenshot_path;
 		std::filesystem::path _configuration_path;
+		bool _screenshot_include_preset = false;
+		bool _screenshot_include_configuration = false;
 
 		int _current_preset = -1;
 		std::vector<std::filesystem::path> _preset_files;
@@ -287,6 +280,7 @@ namespace reshade
 
 		bool _textures_loaded = false;
 		bool _performance_mode = false;
+		bool _no_reload_on_init = false;
 		bool _last_reload_successful = true;
 		std::mutex _reload_mutex;
 		size_t _reload_total_effects = 1;
@@ -300,12 +294,10 @@ namespace reshade
 		std::chrono::high_resolution_clock::time_point _last_reload_time;
 		std::chrono::high_resolution_clock::time_point _last_present_time;
 
-		std::vector<std::pair<std::string, std::function<void()>>> _menu_callables;
 		std::vector<std::function<void(ini_file &)>> _save_config_callables;
 		std::vector<std::function<void(const ini_file &)>> _load_config_callables;
 
-		// -- GUI ----------------------------------------------------------------------------------------------------
-
+#if RESHADE_GUI
 		void init_ui();
 		void init_ui_font_atlas();
 		void deinit_ui();
@@ -323,8 +315,7 @@ namespace reshade
 
 		void filter_techniques(const std::string &filter);
 
-		std::shared_ptr<class input> _input;
-
+		std::vector<std::pair<std::string, std::function<void()>>> _menu_callables;
 		texture _imgui_font_atlas;
 		ImGuiContext *_imgui_context = nullptr;
 		size_t _selected_effect = std::numeric_limits<size_t>::max();
@@ -340,10 +331,7 @@ namespace reshade
 		bool _show_framerate = false;
 		bool _show_splash = true;
 		bool _show_code_editor = false;
-		bool _screenshot_include_preset = false;
-		bool _screenshot_include_configuration = false;
 		bool _no_font_scaling = false;
-		bool _no_reload_on_init = false;
 		bool _overlay_key_setting_active = false;
 		bool _screenshot_key_setting_active = false;
 		bool _toggle_key_setting_active = false;
@@ -353,5 +341,6 @@ namespace reshade
 		unsigned int _effects_expanded_state = 2;
 		char _effect_filter_buffer[64] = {};
 		code_editor_widget _editor;
+#endif
 	};
 }

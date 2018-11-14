@@ -152,7 +152,9 @@ namespace reshade::d3d10
 		_vendor_id = adapter_desc.VendorId;
 		_device_id = adapter_desc.DeviceId;
 
+#if RESHADE_GUI
 		subscribe_to_ui("DX10", [this]() { draw_debug_menu(); });
+#endif
 		subscribe_to_load_config([this](const ini_file &config) {
 			config.get("DX10_BUFFER_DETECTION", "DepthBufferRetrievalMode", depth_buffer_before_clear);
 			config.get("DX10_BUFFER_DETECTION", "DepthBufferTextureFormat", depth_buffer_texture_format);
@@ -369,133 +371,6 @@ namespace reshade::d3d10
 
 		return SUCCEEDED(_device->CreateRasterizerState(&desc, &_effect_rasterizer_state));
 	}
-	bool runtime_d3d10::init_imgui_resources()
-	{
-		HRESULT hr = E_FAIL;
-
-		// Create the vertex shader
-		{
-			const resources::data_resource vs = resources::load_data_resource(IDR_RCDATA3);
-
-			hr = _device->CreateVertexShader(vs.data, vs.data_size, &_imgui_vertex_shader);
-
-			if (FAILED(hr))
-			{
-				return false;
-			}
-
-			// Create the input layout
-			D3D10_INPUT_ELEMENT_DESC input_layout[] = {
-				{ "POSITION", 0, DXGI_FORMAT_R32G32_FLOAT, 0, offsetof(ImDrawVert, pos), D3D10_INPUT_PER_VERTEX_DATA, 0 },
-				{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, offsetof(ImDrawVert, uv), D3D10_INPUT_PER_VERTEX_DATA, 0 },
-				{ "COLOR", 0, DXGI_FORMAT_R8G8B8A8_UNORM, 0, offsetof(ImDrawVert, col), D3D10_INPUT_PER_VERTEX_DATA, 0 },
-			};
-
-			hr = _device->CreateInputLayout(input_layout, _countof(input_layout), vs.data, vs.data_size, &_imgui_input_layout);
-
-			if (FAILED(hr))
-			{
-				return false;
-			}
-		}
-
-		// Create the pixel shader
-		{
-			const resources::data_resource ps = resources::load_data_resource(IDR_RCDATA4);
-
-			hr = _device->CreatePixelShader(ps.data, ps.data_size, &_imgui_pixel_shader);
-
-			if (FAILED(hr))
-			{
-				return false;
-			}
-		}
-
-		// Create the constant buffer
-		{
-			D3D10_BUFFER_DESC desc = {};
-			desc.ByteWidth = 16 * sizeof(float);
-			desc.Usage = D3D10_USAGE_DYNAMIC;
-			desc.BindFlags = D3D10_BIND_CONSTANT_BUFFER;
-			desc.CPUAccessFlags = D3D10_CPU_ACCESS_WRITE;
-
-			hr = _device->CreateBuffer(&desc, nullptr, &_imgui_constant_buffer);
-
-			if (FAILED(hr))
-			{
-				return false;
-			}
-		}
-
-		// Create the blending setup
-		{
-			D3D10_BLEND_DESC desc = {};
-			desc.BlendEnable[0] = true;
-			desc.SrcBlend = D3D10_BLEND_SRC_ALPHA;
-			desc.DestBlend = D3D10_BLEND_INV_SRC_ALPHA;
-			desc.BlendOp = D3D10_BLEND_OP_ADD;
-			desc.SrcBlendAlpha = D3D10_BLEND_INV_SRC_ALPHA;
-			desc.DestBlendAlpha = D3D10_BLEND_ZERO;
-			desc.BlendOpAlpha = D3D10_BLEND_OP_ADD;
-			desc.RenderTargetWriteMask[0] = D3D10_COLOR_WRITE_ENABLE_ALL;
-
-			hr = _device->CreateBlendState(&desc, &_imgui_blend_state);
-
-			if (FAILED(hr))
-			{
-				return false;
-			}
-		}
-
-		// Create the depth stencil state
-		{
-			D3D10_DEPTH_STENCIL_DESC desc = {};
-			desc.DepthEnable = false;
-			desc.StencilEnable = false;
-
-			hr = _device->CreateDepthStencilState(&desc, &_imgui_depthstencil_state);
-
-			if (FAILED(hr))
-			{
-				return false;
-			}
-		}
-
-		// Create the rasterizer state
-		{
-			D3D10_RASTERIZER_DESC desc = {};
-			desc.FillMode = D3D10_FILL_SOLID;
-			desc.CullMode = D3D10_CULL_NONE;
-			desc.ScissorEnable = true;
-			desc.DepthClipEnable = true;
-
-			hr = _device->CreateRasterizerState(&desc, &_imgui_rasterizer_state);
-
-			if (FAILED(hr))
-			{
-				return false;
-			}
-		}
-
-		// Create texture sampler
-		{
-			D3D10_SAMPLER_DESC desc = {};
-			desc.Filter = D3D10_FILTER_MIN_MAG_MIP_LINEAR;
-			desc.AddressU = D3D10_TEXTURE_ADDRESS_WRAP;
-			desc.AddressV = D3D10_TEXTURE_ADDRESS_WRAP;
-			desc.AddressW = D3D10_TEXTURE_ADDRESS_WRAP;
-			desc.ComparisonFunc = D3D10_COMPARISON_ALWAYS;
-
-			hr = _device->CreateSamplerState(&desc, &_imgui_texture_sampler);
-
-			if (FAILED(hr))
-			{
-				return false;
-			}
-		}
-
-		return true;
-	}
 
 	bool runtime_d3d10::on_init(const DXGI_SWAP_CHAIN_DESC &desc)
 	{
@@ -506,8 +381,11 @@ namespace reshade::d3d10
 
 		if (!init_backbuffer_texture() ||
 			!init_default_depth_stencil() ||
-			!init_fx_resources() ||
-			!init_imgui_resources())
+			!init_fx_resources()
+#if RESHADE_GUI
+			|| !init_imgui_resources()
+#endif
+			)
 		{
 			return false;
 		}
@@ -557,7 +435,7 @@ namespace reshade::d3d10
 	}
 	void runtime_d3d10::on_present(draw_call_tracker &tracker)
 	{
-		if (!is_initialized())
+		if (!_is_initialized)
 			return;
 
 		_vertices = tracker.total_vertices();
@@ -605,23 +483,20 @@ namespace reshade::d3d10
 			_device->ResolveSubresource(_backbuffer_resolved.get(), 0, _backbuffer.get(), 0, _backbuffer_format);
 		}
 
+		// Setup real back buffer
+		auto rtv = _backbuffer_rtv[0].get();
+		_device->OMSetRenderTargets(1, &rtv, nullptr);
+
+		// Setup vertex input
+		const uintptr_t null = 0;
+		_device->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+		_device->IASetInputLayout(nullptr);
+		_device->IASetVertexBuffers(0, 1, reinterpret_cast<ID3D10Buffer *const *>(&null), reinterpret_cast<const UINT *>(&null), reinterpret_cast<const UINT *>(&null));
+
+		_device->RSSetState(_effect_rasterizer_state.get());
+
 		// Apply post processing
-		if (is_effect_loaded())
-		{
-			// Setup real back buffer
-			const auto rtv = _backbuffer_rtv[0].get();
-			_device->OMSetRenderTargets(1, &rtv, nullptr);
-
-			// Setup vertex input
-			const uintptr_t null = 0;
-			_device->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-			_device->IASetInputLayout(nullptr);
-			_device->IASetVertexBuffers(0, 1, reinterpret_cast<ID3D10Buffer *const *>(&null), reinterpret_cast<const UINT *>(&null), reinterpret_cast<const UINT *>(&null));
-
-			_device->RSSetState(_effect_rasterizer_state.get());
-
-			update_and_render_effects();
-		}
+		update_and_render_effects();
 
 		// Apply presenting
 		runtime::on_present();
@@ -631,10 +506,9 @@ namespace reshade::d3d10
 		{
 			_device->CopyResource(_backbuffer_texture.get(), _backbuffer_resolved.get());
 
-			const auto rtv = _backbuffer_rtv[2].get();
+			rtv = _backbuffer_rtv[2].get();
 			_device->OMSetRenderTargets(1, &rtv, nullptr);
 
-			const uintptr_t null = 0;
 			_device->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 			_device->IASetInputLayout(nullptr);
 			_device->IASetVertexBuffers(0, 1, reinterpret_cast<ID3D10Buffer *const *>(&null), reinterpret_cast<const UINT *>(&null), reinterpret_cast<const UINT *>(&null));
@@ -1388,6 +1262,136 @@ namespace reshade::d3d10
 			technique_data.query_in_flight = true;
 		}
 	}
+
+#if RESHADE_GUI
+	bool runtime_d3d10::init_imgui_resources()
+	{
+		HRESULT hr = E_FAIL;
+
+		// Create the vertex shader
+		{
+			const resources::data_resource vs = resources::load_data_resource(IDR_RCDATA3);
+
+			hr = _device->CreateVertexShader(vs.data, vs.data_size, &_imgui_vertex_shader);
+
+			if (FAILED(hr))
+			{
+				return false;
+			}
+
+			// Create the input layout
+			D3D10_INPUT_ELEMENT_DESC input_layout[] = {
+				{ "POSITION", 0, DXGI_FORMAT_R32G32_FLOAT, 0, offsetof(ImDrawVert, pos), D3D10_INPUT_PER_VERTEX_DATA, 0 },
+				{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, offsetof(ImDrawVert, uv), D3D10_INPUT_PER_VERTEX_DATA, 0 },
+				{ "COLOR", 0, DXGI_FORMAT_R8G8B8A8_UNORM, 0, offsetof(ImDrawVert, col), D3D10_INPUT_PER_VERTEX_DATA, 0 },
+			};
+
+			hr = _device->CreateInputLayout(input_layout, _countof(input_layout), vs.data, vs.data_size, &_imgui_input_layout);
+
+			if (FAILED(hr))
+			{
+				return false;
+			}
+		}
+
+		// Create the pixel shader
+		{
+			const resources::data_resource ps = resources::load_data_resource(IDR_RCDATA4);
+
+			hr = _device->CreatePixelShader(ps.data, ps.data_size, &_imgui_pixel_shader);
+
+			if (FAILED(hr))
+			{
+				return false;
+			}
+		}
+
+		// Create the constant buffer
+		{
+			D3D10_BUFFER_DESC desc = {};
+			desc.ByteWidth = 16 * sizeof(float);
+			desc.Usage = D3D10_USAGE_DYNAMIC;
+			desc.BindFlags = D3D10_BIND_CONSTANT_BUFFER;
+			desc.CPUAccessFlags = D3D10_CPU_ACCESS_WRITE;
+
+			hr = _device->CreateBuffer(&desc, nullptr, &_imgui_constant_buffer);
+
+			if (FAILED(hr))
+			{
+				return false;
+			}
+		}
+
+		// Create the blending setup
+		{
+			D3D10_BLEND_DESC desc = {};
+			desc.BlendEnable[0] = true;
+			desc.SrcBlend = D3D10_BLEND_SRC_ALPHA;
+			desc.DestBlend = D3D10_BLEND_INV_SRC_ALPHA;
+			desc.BlendOp = D3D10_BLEND_OP_ADD;
+			desc.SrcBlendAlpha = D3D10_BLEND_INV_SRC_ALPHA;
+			desc.DestBlendAlpha = D3D10_BLEND_ZERO;
+			desc.BlendOpAlpha = D3D10_BLEND_OP_ADD;
+			desc.RenderTargetWriteMask[0] = D3D10_COLOR_WRITE_ENABLE_ALL;
+
+			hr = _device->CreateBlendState(&desc, &_imgui_blend_state);
+
+			if (FAILED(hr))
+			{
+				return false;
+			}
+		}
+
+		// Create the depth stencil state
+		{
+			D3D10_DEPTH_STENCIL_DESC desc = {};
+			desc.DepthEnable = false;
+			desc.StencilEnable = false;
+
+			hr = _device->CreateDepthStencilState(&desc, &_imgui_depthstencil_state);
+
+			if (FAILED(hr))
+			{
+				return false;
+			}
+		}
+
+		// Create the rasterizer state
+		{
+			D3D10_RASTERIZER_DESC desc = {};
+			desc.FillMode = D3D10_FILL_SOLID;
+			desc.CullMode = D3D10_CULL_NONE;
+			desc.ScissorEnable = true;
+			desc.DepthClipEnable = true;
+
+			hr = _device->CreateRasterizerState(&desc, &_imgui_rasterizer_state);
+
+			if (FAILED(hr))
+			{
+				return false;
+			}
+		}
+
+		// Create texture sampler
+		{
+			D3D10_SAMPLER_DESC desc = {};
+			desc.Filter = D3D10_FILTER_MIN_MAG_MIP_LINEAR;
+			desc.AddressU = D3D10_TEXTURE_ADDRESS_WRAP;
+			desc.AddressV = D3D10_TEXTURE_ADDRESS_WRAP;
+			desc.AddressW = D3D10_TEXTURE_ADDRESS_WRAP;
+			desc.ComparisonFunc = D3D10_COMPARISON_ALWAYS;
+
+			hr = _device->CreateSamplerState(&desc, &_imgui_texture_sampler);
+
+			if (FAILED(hr))
+			{
+				return false;
+			}
+		}
+
+		return true;
+	}
+
 	void runtime_d3d10::render_imgui_draw_data(ImDrawData *draw_data)
 	{
 		// Create and grow vertex/index buffers if needed
@@ -1655,48 +1659,20 @@ namespace reshade::d3d10
 		}
 #endif
 	}
+#endif
 
 #if RESHADE_DX10_CAPTURE_DEPTH_BUFFERS
 	void runtime_d3d10::detect_depth_source(draw_call_tracker &tracker)
 	{
 		if (depth_buffer_before_clear)
-		{
 			_best_depth_stencil_overwrite = nullptr;
-		}
 
-		if (_best_depth_stencil_overwrite != nullptr)
-		{
+		if (_is_multisampling_enabled || _best_depth_stencil_overwrite != nullptr || (_framecount % 30 && !depth_buffer_before_clear))
 			return;
-		}
 
-		static int cooldown = 0, traffic = 0;
-
-		if (cooldown-- > 0)
+		if (_has_high_network_activity)
 		{
-			traffic += g_network_traffic > 0;
-
-			if (!depth_buffer_before_clear)
-			{
-				return;
-			}
-		}
-		else
-		{
-			cooldown = 30;
-			if (traffic > 10)
-			{
-				traffic = 0;
-				create_depthstencil_replacement(nullptr, nullptr);
-				return;
-			}
-			else
-			{
-				traffic = 0;
-			}
-		}
-
-		if (_is_multisampling_enabled)
-		{
+			create_depthstencil_replacement(nullptr, nullptr);
 			return;
 		}
 

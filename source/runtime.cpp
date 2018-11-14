@@ -19,6 +19,10 @@
 #include <stb_image_write.h>
 #include <stb_image_resize.h>
 
+extern volatile long g_network_traffic;
+extern std::filesystem::path g_reshade_dll_path;
+extern std::filesystem::path g_target_executable_path;
+
 reshade::runtime::runtime(uint32_t renderer) :
 	_renderer_id(renderer),
 	_start_time(std::chrono::high_resolution_clock::now()),
@@ -45,12 +49,16 @@ reshade::runtime::runtime(uint32_t renderer) :
 
 	_needs_update = check_for_update(_latest_version);
 
+#if RESHADE_GUI
 	init_ui();
+#endif
 	load_config();
 }
 reshade::runtime::~runtime()
 {
+#if RESHADE_GUI
 	deinit_ui();
+#endif
 
 	assert(!_is_initialized && _techniques.empty());
 }
@@ -61,11 +69,12 @@ bool reshade::runtime::on_init(input::window_handle window)
 
 	_input = input::register_window(window);
 
-	_show_splash = true;
 	_is_initialized = true;
 	_last_reload_time = std::chrono::high_resolution_clock::now();
 
+#if RESHADE_GUI
 	init_ui_font_atlas();
+#endif
 
 	if (!_no_reload_on_init)
 		load_effects();
@@ -79,7 +88,9 @@ void reshade::runtime::on_reset()
 	if (!_is_initialized)
 		return;
 
+#if RESHADE_GUI
 	deinit_ui_font_atlas();
+#endif
 
 	LOG(INFO) << "Destroyed runtime environment on runtime " << this << ".";
 
@@ -104,16 +115,35 @@ void reshade::runtime::on_present()
 		load_effects();
 
 	// Create and save screenshot if associated shortcut is down
-	if (!_screenshot_key_setting_active && _input->is_key_pressed(_screenshot_key_data))
+	if (_input->is_key_pressed(_screenshot_key_data))
+#if RESHADE_GUI
+		if (!_screenshot_key_setting_active)
+#endif
 		save_screenshot();
 
+#if RESHADE_GUI
 	// Draw overlay
 	draw_ui();
+#endif
 
 	// Reset input status
 	_input->next_frame();
 
-	g_network_traffic = _drawcalls = _vertices = 0;
+	static int cooldown = 0, traffic = 0;
+
+	if (cooldown-- > 0)
+	{
+		traffic += g_network_traffic > 0;
+	}
+	else
+	{
+		_has_high_network_activity = traffic > 10;
+		traffic = 0;
+		cooldown = 30;
+	}
+
+	g_network_traffic = 0;
+	_drawcalls = _vertices = 0;
 }
 
 void reshade::runtime::load_effect(const std::filesystem::path &path, size_t &out_id)
@@ -478,7 +508,10 @@ void reshade::runtime::update_and_render_effects()
 		}
 	}
 
-	if (!_toggle_key_setting_active && _input->is_key_pressed(_effects_key_data))
+	if (_input->is_key_pressed(_effects_key_data))
+#if RESHADE_GUI
+		if (!_toggle_key_setting_active)
+#endif
 		_effects_enabled = !_effects_enabled;
 
 	// Nothing to do here if effects are disabled globally
@@ -592,9 +625,12 @@ void reshade::runtime::update_and_render_effects()
 			if (technique.timeleft <= 0)
 				disable_technique(technique);
 		}
-		else if (!_toggle_key_setting_active && _input->is_key_pressed(technique.toggle_key_data)
-			|| (technique.toggle_key_data[0] >= 0x01 && technique.toggle_key_data[0] <= 0x06 && _input->is_mouse_button_pressed(technique.toggle_key_data[0] - 1)))
+		else if (_input->is_key_pressed(technique.toggle_key_data) ||
+			(technique.toggle_key_data[0] >= 0x01 && technique.toggle_key_data[0] <= 0x06 && _input->is_mouse_button_pressed(technique.toggle_key_data[0] - 1)))
 		{
+#if RESHADE_GUI
+			if (!_toggle_key_setting_active)
+#endif
 			if (!technique.enabled)
 				enable_technique(technique);
 			else

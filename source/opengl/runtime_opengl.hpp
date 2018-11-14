@@ -88,7 +88,6 @@ namespace reshade::opengl
 		void unload_effects() override;
 
 		void render_technique(const technique &technique) override;
-		void render_imgui_draw_data(ImDrawData *data) override;
 
 		HDC _hdc;
 
@@ -110,11 +109,15 @@ namespace reshade::opengl
 		bool init_backbuffer_texture();
 		bool init_default_depth_stencil();
 		bool init_fx_resources();
-		bool init_imgui_resources();
 
 		bool add_sampler(const reshadefx::sampler_info &info, opengl_technique_data &effect);
 		bool init_texture(texture &info) override;
 		bool init_technique(technique &info, const opengl_technique_data &effect, const std::unordered_map<std::string, GLuint> &entry_points, std::string &errors);
+
+#if RESHADE_GUI
+		bool init_imgui_resources();
+		void render_imgui_draw_data(ImDrawData *data) override;
+#endif
 
 		void detect_depth_source();
 		void create_depth_texture(GLuint width, GLuint height, GLenum format);

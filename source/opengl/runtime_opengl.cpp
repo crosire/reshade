@@ -327,67 +327,6 @@ namespace reshade::opengl
 
 		return true;
 	}
-	bool runtime_opengl::init_imgui_resources()
-	{
-		const GLchar *vertex_shader[] = {
-			"#version 330\n"
-			"uniform mat4 ProjMtx;\n"
-			"in vec2 Position, UV;\n"
-			"in vec4 Color;\n"
-			"out vec2 Frag_UV;\n"
-			"out vec4 Frag_Color;\n"
-			"void main()\n"
-			"{\n"
-			"	Frag_UV = UV * vec2(1.0, -1.0) + vec2(0.0, 1.0);\n" // Texture coordinates were flipped in 'update_texture'
-			"	Frag_Color = Color;\n"
-			"	gl_Position = ProjMtx * vec4(Position.xy, 0, 1);\n"
-			"}\n"
-		};
-		const GLchar *fragment_shader[] = {
-			"#version 330\n"
-			"uniform sampler2D Texture;\n"
-			"in vec2 Frag_UV;\n"
-			"in vec4 Frag_Color;\n"
-			"out vec4 Out_Color;\n"
-			"void main()\n"
-			"{\n"
-			"	Out_Color = Frag_Color * texture(Texture, Frag_UV.st);\n"
-			"}\n"
-		};
-
-		_imgui_shader_program = glCreateProgram();
-		const auto imgui_vs = glCreateShader(GL_VERTEX_SHADER);
-		const auto imgui_fs = glCreateShader(GL_FRAGMENT_SHADER);
-		glShaderSource(imgui_vs, 1, vertex_shader, 0);
-		glShaderSource(imgui_fs, 1, fragment_shader, 0);
-		glCompileShader(imgui_vs);
-		glCompileShader(imgui_fs);
-		glAttachShader(_imgui_shader_program, imgui_vs);
-		glAttachShader(_imgui_shader_program, imgui_fs);
-		glLinkProgram(_imgui_shader_program);
-		glDeleteShader(imgui_vs);
-		glDeleteShader(imgui_fs);
-
-		_imgui_attribloc_tex = glGetUniformLocation(_imgui_shader_program, "Texture");
-		_imgui_attribloc_projmtx = glGetUniformLocation(_imgui_shader_program, "ProjMtx");
-		_imgui_attribloc_pos = glGetAttribLocation(_imgui_shader_program, "Position");
-		_imgui_attribloc_uv = glGetAttribLocation(_imgui_shader_program, "UV");
-		_imgui_attribloc_color = glGetAttribLocation(_imgui_shader_program, "Color");
-
-		glGenBuffers(2, _imgui_vbo);
-
-		glGenVertexArrays(1, &_imgui_vao);
-		glBindVertexArray(_imgui_vao);
-		glBindBuffer(GL_ARRAY_BUFFER, _imgui_vbo[0]);
-		glEnableVertexAttribArray(_imgui_attribloc_pos);
-		glEnableVertexAttribArray(_imgui_attribloc_uv);
-		glEnableVertexAttribArray(_imgui_attribloc_color);
-		glVertexAttribPointer(_imgui_attribloc_pos, 2, GL_FLOAT, GL_FALSE, sizeof(ImDrawVert), reinterpret_cast<GLvoid *>(offsetof(ImDrawVert, pos)));
-		glVertexAttribPointer(_imgui_attribloc_uv, 2, GL_FLOAT, GL_FALSE, sizeof(ImDrawVert), reinterpret_cast<GLvoid *>(offsetof(ImDrawVert, uv)));
-		glVertexAttribPointer(_imgui_attribloc_color, 4, GL_UNSIGNED_BYTE, GL_TRUE, sizeof(ImDrawVert), reinterpret_cast<GLvoid *>(offsetof(ImDrawVert, col)));
-
-		return true;
-	}
 
 	bool runtime_opengl::on_init(unsigned int width, unsigned int height)
 	{
@@ -409,8 +348,11 @@ namespace reshade::opengl
 
 		if (!init_backbuffer_texture() ||
 			!init_default_depth_stencil() ||
-			!init_fx_resources() ||
-			!init_imgui_resources())
+			!init_fx_resources()
+#if RESHADE_GUI
+			|| !init_imgui_resources()
+#endif
+			)
 		{
 			_stateblock.apply();
 
@@ -453,7 +395,7 @@ namespace reshade::opengl
 	}
 	void runtime_opengl::on_present()
 	{
-		if (!is_initialized())
+		if (!_is_initialized)
 			return;
 
 		detect_depth_source();
@@ -502,21 +444,17 @@ namespace reshade::opengl
 			glClipControl(GL_LOWER_LEFT, GL_ZERO_TO_ONE);
 		}
 
+		// Setup vertex input
+		glBindVertexArray(_default_vao);
+
+		// Setup global states
+		glDisable(GL_CULL_FACE);
+		glDisable(GL_DEPTH_TEST);
+		glFrontFace(GL_CCW);
+		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+
 		// Apply post processing
-		if (is_effect_loaded())
-		{
-			// Setup vertex input
-			glBindVertexArray(_default_vao);
-
-			// Setup global states
-			glDisable(GL_CULL_FACE);
-			glDisable(GL_DEPTH_TEST);
-			glFrontFace(GL_CCW);
-			glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-
-			// Apply post processing
-			update_and_render_effects();
-		}
+		update_and_render_effects();
 
 		// Reset render target and copy to frame buffer
 		glDisable(GL_SCISSOR_TEST);
@@ -1333,6 +1271,70 @@ namespace reshade::opengl
 			glEndQuery(GL_TIME_ELAPSED);
 		technique_data.query_in_flight = true;
 	}
+
+#if RESHADE_GUI
+	bool runtime_opengl::init_imgui_resources()
+	{
+		const GLchar *vertex_shader[] = {
+			"#version 330\n"
+			"uniform mat4 ProjMtx;\n"
+			"in vec2 Position, UV;\n"
+			"in vec4 Color;\n"
+			"out vec2 Frag_UV;\n"
+			"out vec4 Frag_Color;\n"
+			"void main()\n"
+			"{\n"
+			"	Frag_UV = UV * vec2(1.0, -1.0) + vec2(0.0, 1.0);\n" // Texture coordinates were flipped in 'update_texture'
+			"	Frag_Color = Color;\n"
+			"	gl_Position = ProjMtx * vec4(Position.xy, 0, 1);\n"
+			"}\n"
+		};
+		const GLchar *fragment_shader[] = {
+			"#version 330\n"
+			"uniform sampler2D Texture;\n"
+			"in vec2 Frag_UV;\n"
+			"in vec4 Frag_Color;\n"
+			"out vec4 Out_Color;\n"
+			"void main()\n"
+			"{\n"
+			"	Out_Color = Frag_Color * texture(Texture, Frag_UV.st);\n"
+			"}\n"
+		};
+
+		_imgui_shader_program = glCreateProgram();
+		const auto imgui_vs = glCreateShader(GL_VERTEX_SHADER);
+		const auto imgui_fs = glCreateShader(GL_FRAGMENT_SHADER);
+		glShaderSource(imgui_vs, 1, vertex_shader, 0);
+		glShaderSource(imgui_fs, 1, fragment_shader, 0);
+		glCompileShader(imgui_vs);
+		glCompileShader(imgui_fs);
+		glAttachShader(_imgui_shader_program, imgui_vs);
+		glAttachShader(_imgui_shader_program, imgui_fs);
+		glLinkProgram(_imgui_shader_program);
+		glDeleteShader(imgui_vs);
+		glDeleteShader(imgui_fs);
+
+		_imgui_attribloc_tex = glGetUniformLocation(_imgui_shader_program, "Texture");
+		_imgui_attribloc_projmtx = glGetUniformLocation(_imgui_shader_program, "ProjMtx");
+		_imgui_attribloc_pos = glGetAttribLocation(_imgui_shader_program, "Position");
+		_imgui_attribloc_uv = glGetAttribLocation(_imgui_shader_program, "UV");
+		_imgui_attribloc_color = glGetAttribLocation(_imgui_shader_program, "Color");
+
+		glGenBuffers(2, _imgui_vbo);
+
+		glGenVertexArrays(1, &_imgui_vao);
+		glBindVertexArray(_imgui_vao);
+		glBindBuffer(GL_ARRAY_BUFFER, _imgui_vbo[0]);
+		glEnableVertexAttribArray(_imgui_attribloc_pos);
+		glEnableVertexAttribArray(_imgui_attribloc_uv);
+		glEnableVertexAttribArray(_imgui_attribloc_color);
+		glVertexAttribPointer(_imgui_attribloc_pos, 2, GL_FLOAT, GL_FALSE, sizeof(ImDrawVert), reinterpret_cast<GLvoid *>(offsetof(ImDrawVert, pos)));
+		glVertexAttribPointer(_imgui_attribloc_uv, 2, GL_FLOAT, GL_FALSE, sizeof(ImDrawVert), reinterpret_cast<GLvoid *>(offsetof(ImDrawVert, uv)));
+		glVertexAttribPointer(_imgui_attribloc_color, 4, GL_UNSIGNED_BYTE, GL_TRUE, sizeof(ImDrawVert), reinterpret_cast<GLvoid *>(offsetof(ImDrawVert, col)));
+
+		return true;
+	}
+
 	void runtime_opengl::render_imgui_draw_data(ImDrawData *draw_data)
 	{
 		glEnable(GL_BLEND);
@@ -1382,31 +1384,18 @@ namespace reshade::opengl
 			}
 		}
 	}
+#endif
 
 	void runtime_opengl::detect_depth_source()
 	{
-		static int cooldown = 0, traffic = 0;
-
-		if (cooldown-- > 0)
-		{
-			traffic += g_network_traffic > 0;
+		if (_framecount % 30)
 			return;
-		}
-		else
-		{
-			cooldown = 30;
 
-			if (traffic > 10)
-			{
-				traffic = 0;
-				_depth_source = 0;
-				create_depth_texture(0, 0, GL_NONE);
-				return;
-			}
-			else
-			{
-				traffic = 0;
-			}
+		if (_has_high_network_activity)
+		{
+			_depth_source = 0;
+			create_depth_texture(0, 0, GL_NONE);
+			return;
 		}
 
 		GLuint best_match = 0;

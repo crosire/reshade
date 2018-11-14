@@ -56,7 +56,6 @@ namespace reshade::d3d9
 		bool compile_effect(effect_data &effect) override;
 
 		void render_technique(const technique &technique) override;
-		void render_imgui_draw_data(ImDrawData *data) override;
 
 		com_ptr<IDirect3D9> _d3d;
 		com_ptr<IDirect3DDevice9> _device;
@@ -78,13 +77,16 @@ namespace reshade::d3d9
 		bool init_backbuffer_texture();
 		bool init_default_depth_stencil();
 		bool init_fx_resources();
-		bool init_imgui_resources();
-
-		void draw_debug_menu();
 
 		bool add_sampler(const reshadefx::sampler_info &info, d3d9_technique_data &technique_init);
 		bool init_texture(texture &info) override;
 		bool init_technique(technique &info, const d3d9_technique_data &technique_init, const std::unordered_map<std::string, com_ptr<IDirect3DVertexShader9>> &vs_entry_points, const std::unordered_map<std::string, com_ptr<IDirect3DPixelShader9>> &ps_entry_points);
+
+#if RESHADE_GUI
+		bool init_imgui_resources();
+		void render_imgui_draw_data(ImDrawData *data) override;
+		void draw_debug_menu();
+#endif
 
 		void detect_depth_source();
 		bool create_depthstencil_replacement(IDirect3DSurface9 *depthstencil);
