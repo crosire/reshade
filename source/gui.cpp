@@ -1110,12 +1110,8 @@ void reshade::runtime::draw_overlay_menu_settings()
 		modified |= ImGui::Checkbox("Show Clock", &_show_clock);
 		ImGui::SameLine(0, 10);
 		modified |= ImGui::Checkbox("Show FPS", &_show_framerate);
-
-		if (_show_clock || _show_framerate)
-		{
-			ImGui::SameLine(0, 10);
-			modified |= ImGui::Checkbox("Precise FPS", &_fps_precise);
-		}
+		ImGui::SameLine(0, 10);
+		modified |= ImGui::Checkbox("Precise FPS", &_fps_precise);
 
 		if (ImGui::Combo("Style", &_style_index, "Dark\0Light\0Default\0Custom\0"))
 		{
@@ -1247,9 +1243,13 @@ void reshade::runtime::draw_overlay_menu_statistics()
 
 			ImGui::PushID(static_cast<int>(index));
 
-			ImGui::TextUnformatted(effect.source_file.u8string().c_str());
+			const float button_pos = ImGui::GetWindowContentRegionWidth() - (150 + 80 + 5);
 
-			ImGui::SameLine(ImGui::GetWindowContentRegionWidth() - (150 + 80 + 10), 10);
+			ImGui::PushItemWidth(button_pos - 5);
+			ImGui::LabelText("", "%s", effect.source_file.u8string().c_str());
+			ImGui::PopItemWidth();
+
+			ImGui::SameLine(button_pos, 5);
 
 			if (ImGui::Button("Edit", ImVec2(80, 0)))
 			{
@@ -1258,7 +1258,7 @@ void reshade::runtime::draw_overlay_menu_statistics()
 				_show_code_editor = true;
 			}
 
-			ImGui::SameLine(0, 10);
+			ImGui::SameLine(0, 5);
 
 			if (ImGui::Button("Show HLSL/GLSL code", ImVec2(150, 0)))
 			{
@@ -1304,7 +1304,22 @@ void reshade::runtime::draw_overlay_menu_statistics()
 			if (texture.impl == nullptr || texture.impl_reference != texture_reference::none)
 				continue;
 
-			ImGui::Text("%ux%u +%u ", texture.width, texture.height, (texture.levels - 1));
+			ImGui::Text("%ux%u +%u", texture.width, texture.height, (texture.levels - 1));
+		}
+
+		ImGui::EndGroup();
+		ImGui::SameLine(ImGui::GetWindowWidth() * 0.666f);
+		ImGui::BeginGroup();
+
+		for (const auto &texture : _textures)
+		{
+			if (texture.impl == nullptr || texture.impl_reference != texture_reference::none)
+				continue;
+
+			if (const auto it = texture.annotations.find("source"); it != texture.annotations.end())
+				ImGui::TextUnformatted(it->second.second.string_data.c_str());
+			else
+				ImGui::TextUnformatted("-");
 		}
 
 		ImGui::EndGroup();
