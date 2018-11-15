@@ -545,7 +545,7 @@ void reshade::runtime::draw_ui()
 		ImGuiWindowFlags_NoCollapse |
 		ImGuiWindowFlags_NoNavFocus |
 		ImGuiWindowFlags_NoBackground);
-	ImGui::DockSpace(root_space_id, ImVec2(0, 0), ImGuiDockNodeFlags_PassthruDockspace | ImGuiDockNodeFlags_NoDockingInCentralNode);
+	ImGui::DockSpace(root_space_id, ImVec2(0, 0), ImGuiDockNodeFlags_PassthruDockspace);
 	ImGui::End();
 
 	if (_show_menu && _reload_remaining_effects == std::numeric_limits<size_t>::max())
