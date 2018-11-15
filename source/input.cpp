@@ -99,23 +99,22 @@ bool reshade::input::handle_window_message(const void *message_data)
 	if (input_window == s_windows.end())
 		return false;
 
-	RAWINPUT raw_data = {};
-	UINT raw_data_size = sizeof(raw_data);
-
-	const auto input_lock = input_window->second.lock();
-	input &input = *input_lock;
+	const std::shared_ptr<input> input = input_window->second.lock();
 
 	// At this point we have a shared pointer to the input object and no longer reference any memory from the windows list, so can release the lock
 	lock.unlock();
 
 	// Prevent input threads from modifying input while it is accessed elsewhere
-	lock.swap(std::unique_lock<std::mutex>(input._mutex));
+	std::lock_guard<std::mutex> input_lock(input->_mutex);
 
 	// Calculate window client mouse position
-	ScreenToClient(static_cast<HWND>(input._window), &details.pt);
+	ScreenToClient(static_cast<HWND>(input->_window), &details.pt);
 
-	input._mouse_position[0] = details.pt.x;
-	input._mouse_position[1] = details.pt.y;
+	input->_mouse_position[0] = details.pt.x;
+	input->_mouse_position[1] = details.pt.y;
+
+	RAWINPUT raw_data = {};
+	UINT raw_data_size = sizeof(raw_data);
 
 	switch (details.message)
 	{
@@ -133,30 +132,30 @@ bool reshade::input::handle_window_message(const void *message_data)
 				break; // Input is already handled (since legacy mouse messages are enabled), so nothing to do here
 
 			if (raw_data.data.mouse.usButtonFlags & RI_MOUSE_LEFT_BUTTON_DOWN)
-				input._mouse_buttons[0] = 0x88;
+				input->_mouse_buttons[0] = 0x88;
 			else if (raw_data.data.mouse.usButtonFlags & RI_MOUSE_LEFT_BUTTON_UP)
-				input._mouse_buttons[0] = 0x08;
+				input->_mouse_buttons[0] = 0x08;
 			if (raw_data.data.mouse.usButtonFlags & RI_MOUSE_RIGHT_BUTTON_DOWN)
-				input._mouse_buttons[1] = 0x88;
+				input->_mouse_buttons[1] = 0x88;
 			else if (raw_data.data.mouse.usButtonFlags & RI_MOUSE_RIGHT_BUTTON_UP)
-				input._mouse_buttons[1] = 0x08;
+				input->_mouse_buttons[1] = 0x08;
 			if (raw_data.data.mouse.usButtonFlags & RI_MOUSE_MIDDLE_BUTTON_DOWN)
-				input._mouse_buttons[2] = 0x88;
+				input->_mouse_buttons[2] = 0x88;
 			else if (raw_data.data.mouse.usButtonFlags & RI_MOUSE_MIDDLE_BUTTON_UP)
-				input._mouse_buttons[2] = 0x08;
+				input->_mouse_buttons[2] = 0x08;
 
 			if (raw_data.data.mouse.usButtonFlags & RI_MOUSE_BUTTON_4_DOWN)
-				input._mouse_buttons[3] = 0x88;
+				input->_mouse_buttons[3] = 0x88;
 			else if (raw_data.data.mouse.usButtonFlags & RI_MOUSE_BUTTON_4_UP)
-				input._mouse_buttons[3] = 0x08;
+				input->_mouse_buttons[3] = 0x08;
 
 			if (raw_data.data.mouse.usButtonFlags & RI_MOUSE_BUTTON_5_DOWN)
-				input._mouse_buttons[4] = 0x88;
+				input->_mouse_buttons[4] = 0x88;
 			else if (raw_data.data.mouse.usButtonFlags & RI_MOUSE_BUTTON_5_UP)
-				input._mouse_buttons[4] = 0x08;
+				input->_mouse_buttons[4] = 0x08;
 
 			if (raw_data.data.mouse.usButtonFlags & RI_MOUSE_WHEEL)
-				input._mouse_wheel_delta += static_cast<short>(raw_data.data.mouse.usButtonData) / WHEEL_DELTA;
+				input->_mouse_wheel_delta += static_cast<short>(raw_data.data.mouse.usButtonData) / WHEEL_DELTA;
 			break;
 		case RIM_TYPEKEYBOARD:
 			is_keyboard_message = true;
@@ -165,58 +164,58 @@ bool reshade::input::handle_window_message(const void *message_data)
 				break; // Input is already handled by 'WM_KEYDOWN' and friends (since legacy keyboard messages are enabled), so nothing to do here
 
 			if (raw_data.data.keyboard.VKey != 0xFF)
-				input._keys[raw_data.data.keyboard.VKey] = (raw_data.data.keyboard.Flags & RI_KEY_BREAK) == 0 ? 0x88 : 0x08;
+				input->_keys[raw_data.data.keyboard.VKey] = (raw_data.data.keyboard.Flags & RI_KEY_BREAK) == 0 ? 0x88 : 0x08;
 
 			// No 'WM_CHAR' messages are sent if legacy keyboard messages are disabled, so need to generate text input manually here
 			// Cannot use the ToAscii function always as it seems to reset dead key state and thus calling it can break subsequent application input, should be fine here though since the application is already explicitly using raw input
-			if (WORD ch = 0; (raw_data.data.keyboard.Flags & RI_KEY_BREAK) == 0 && ToAscii(raw_data.data.keyboard.VKey, raw_data.data.keyboard.MakeCode, input._keys, &ch, 0))
-				input._text_input += ch;
+			if (WORD ch = 0; (raw_data.data.keyboard.Flags & RI_KEY_BREAK) == 0 && ToAscii(raw_data.data.keyboard.VKey, raw_data.data.keyboard.MakeCode, input->_keys, &ch, 0))
+				input->_text_input += ch;
 			break;
 		}
 		break;
 	case WM_CHAR:
-		input._text_input += static_cast<wchar_t>(details.wParam);
+		input->_text_input += static_cast<wchar_t>(details.wParam);
 		break;
 	case WM_KEYDOWN:
 	case WM_SYSKEYDOWN:
-		input._keys[details.wParam] = 0x88;
+		input->_keys[details.wParam] = 0x88;
 		break;
 	case WM_KEYUP:
 	case WM_SYSKEYUP:
-		input._keys[details.wParam] = 0x08;
+		input->_keys[details.wParam] = 0x08;
 		break;
 	case WM_LBUTTONDOWN:
-		input._mouse_buttons[0] = 0x88;
+		input->_mouse_buttons[0] = 0x88;
 		break;
 	case WM_LBUTTONUP:
-		input._mouse_buttons[0] = 0x08;
+		input->_mouse_buttons[0] = 0x08;
 		break;
 	case WM_RBUTTONDOWN:
-		input._mouse_buttons[1] = 0x88;
+		input->_mouse_buttons[1] = 0x88;
 		break;
 	case WM_RBUTTONUP:
-		input._mouse_buttons[1] = 0x08;
+		input->_mouse_buttons[1] = 0x08;
 		break;
 	case WM_MBUTTONDOWN:
-		input._mouse_buttons[2] = 0x88;
+		input->_mouse_buttons[2] = 0x88;
 		break;
 	case WM_MBUTTONUP:
-		input._mouse_buttons[2] = 0x08;
+		input->_mouse_buttons[2] = 0x08;
 		break;
 	case WM_MOUSEWHEEL:
-		input._mouse_wheel_delta += GET_WHEEL_DELTA_WPARAM(details.wParam) / WHEEL_DELTA;
+		input->_mouse_wheel_delta += GET_WHEEL_DELTA_WPARAM(details.wParam) / WHEEL_DELTA;
 		break;
 	case WM_XBUTTONDOWN:
 		assert(HIWORD(details.wParam) < 3);
-		input._mouse_buttons[2 + HIWORD(details.wParam)] = 0x88;
+		input->_mouse_buttons[2 + HIWORD(details.wParam)] = 0x88;
 		break;
 	case WM_XBUTTONUP:
 		assert(HIWORD(details.wParam) < 3);
-		input._mouse_buttons[2 + HIWORD(details.wParam)] = 0x08;
+		input->_mouse_buttons[2 + HIWORD(details.wParam)] = 0x08;
 		break;
 	}
 
-	return (is_mouse_message && input._block_mouse) || (is_keyboard_message && input._block_keyboard);
+	return (is_mouse_message && input->_block_mouse) || (is_keyboard_message && input->_block_keyboard);
 }
 
 bool reshade::input::is_key_down(unsigned int keycode) const
