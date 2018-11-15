@@ -266,7 +266,7 @@ private:
 		for (const auto &member : info.member_list)
 		{
 			code += '\t';
-			write_type<true>(code, member.type);
+			write_type<true>(code, member.type); // HLSL allows interpolation attributes on struct members, so handle this like a parameter
 			code += ' ' + member.name;
 			if (member.type.is_array())
 				code += '[' + std::to_string(member.type.array_length) + ']';

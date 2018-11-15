@@ -260,7 +260,7 @@ private:
 		for (const auto &member : info.member_list)
 		{
 			code += '\t';
-			write_type<true>(code, member.type);
+			write_type(code, member.type); // GLSL does not allow interpolation attributes on struct members
 			code += ' ' + member.name;
 			if (member.type.is_array())
 				code += '[' + std::to_string(member.type.array_length) + ']';
