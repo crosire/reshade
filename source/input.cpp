@@ -12,7 +12,7 @@
 #include <algorithm>
 #include <unordered_map>
 
-static std::mutex s_mutex;
+static std::mutex s_windows_mutex;
 static std::unordered_map<HWND, unsigned int> s_raw_input_windows;
 static std::unordered_map<HWND, std::weak_ptr<reshade::input>> s_windows;
 
@@ -24,7 +24,7 @@ reshade::input::input(window_handle window)
 
 void reshade::input::register_window_with_raw_input(window_handle window, bool no_legacy_keyboard, bool no_legacy_mouse)
 {
-	const std::lock_guard<std::mutex> lock(s_mutex);
+	const std::lock_guard<std::mutex> lock(s_windows_mutex);
 
 	const auto flags = (no_legacy_keyboard ? 0x1u : 0u) | (no_legacy_mouse ? 0x2u : 0u);
 	const auto insert = s_raw_input_windows.emplace(static_cast<HWND>(window), flags);
@@ -33,7 +33,7 @@ void reshade::input::register_window_with_raw_input(window_handle window, bool n
 }
 std::shared_ptr<reshade::input> reshade::input::register_window(window_handle window)
 {
-	const std::lock_guard<std::mutex> lock(s_mutex);
+	const std::lock_guard<std::mutex> lock(s_windows_mutex);
 
 	const auto insert = s_windows.emplace(static_cast<HWND>(window), std::weak_ptr<input>());
 
@@ -68,7 +68,8 @@ bool reshade::input::handle_window_message(const void *message_data)
 	if (details.message != WM_INPUT && !is_mouse_message && !is_keyboard_message)
 		return false;
 
-	const std::lock_guard<std::mutex> lock(s_mutex);
+	// Guard access to windows list against race conditions
+	std::unique_lock<std::mutex> lock(s_windows_mutex);
 
 	// Remove any expired entry from the list
 	for (auto it = s_windows.begin(); it != s_windows.end();)
@@ -103,6 +104,12 @@ bool reshade::input::handle_window_message(const void *message_data)
 
 	const auto input_lock = input_window->second.lock();
 	input &input = *input_lock;
+
+	// At this point we have a shared pointer to the input object and no longer reference any memory from the windows list, so can release the lock
+	lock.unlock();
+
+	// Prevent input threads from modifying input while it is accessed elsewhere
+	lock.swap(std::unique_lock<std::mutex>(input._mutex));
 
 	// Calculate window client mouse position
 	ScreenToClient(static_cast<HWND>(input._window), &details.pt);

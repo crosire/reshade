@@ -113,6 +113,9 @@ void reshade::runtime::on_present()
 	_framecount++;
 	_last_present_time += _last_frame_duration = std::chrono::high_resolution_clock::now() - _last_present_time;
 
+	// Lock input so it cannot be modified by other threads while we are reading it here
+	const auto input_lock = _input->lock();
+
 	if (_input->is_key_pressed(_reload_key_data))
 		load_effects();
 
@@ -531,6 +534,9 @@ void reshade::runtime::update_and_render_effects()
 			load_textures();
 		}
 	}
+
+	// Lock input so it cannot be modified by other threads while we are reading it here
+	const auto input_lock = _input->lock();
 
 	if (_input->is_key_pressed(_effects_key_data))
 #if RESHADE_GUI
