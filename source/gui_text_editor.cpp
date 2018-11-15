@@ -271,6 +271,39 @@ void code_editor_widget::render(const char *title, bool border)
 			draw_list->AddRectFilled(beg, end, _palette[color_selection]);
 		}
 
+		// Find any highlighted words and draw a selection rectangle below them
+		if (!_highlighted.empty())
+		{
+			size_t begin_column = 0;
+			size_t highlight_index = 0;
+
+			for (size_t i = 0; i < line.size(); ++i)
+			{
+				if (line[i].c == _highlighted[highlight_index])
+				{
+					if (highlight_index++ == 0)
+					{
+						begin_column = i;
+					}
+					else if (highlight_index == _highlighted.size()) // Using 'else' here to avoid catching one-character highlights
+					{
+						// We found a matching text block
+						highlight_index = 0;
+
+						const ImVec2 beg = ImVec2(text_screen_pos.x + calc_text_distance_to_line_begin(text_pos(line_no, begin_column)), text_screen_pos.y);
+						const ImVec2 end = ImVec2(text_screen_pos.x + calc_text_distance_to_line_begin(text_pos(line_no, i + 1)), text_screen_pos.y + char_advance.y);
+
+						draw_list->AddRectFilled(beg, end, _palette[color_selection]);
+					}
+				}
+				else
+				{
+					// Current text no longer matches, reset search
+					highlight_index = 0;
+				}
+			}
+		}
+
 		// Draw error markers
 		if (auto it = _errors.find(line_no + 1); it != _errors.end())
 		{
@@ -396,32 +429,41 @@ void code_editor_widget::select(const text_pos &beg, const text_pos &end, select
 		_select_end = beg,
 		_select_beg = end;
 
-	const auto &beg_line = _lines[_select_beg.line];
-	const auto &end_line = _lines[_select_end.line];
+	const auto select_word = [this](text_pos &beg, text_pos &end) {
+		const auto &beg_line = _lines[beg.line];
+		const auto &end_line = _lines[end.line];
+		// Empty lines cannot have any words, so abort
+		if (beg_line.empty() || end_line.empty())
+			return;
+		// Whitespace has a special meaning in that if we select the space next to a word, then that word is precedence over the whitespace
+		if (beg.column == beg_line.size() || (beg.column > 0 && beg_line[beg.column].col == color_default))
+			beg.column--;
+		if (end.column == end_line.size() || (end.column > 0 && end_line[end.column].col == color_default))
+			end.column--;
+		// Search from the first position backwards until a character with a different color is found
+		for (auto word_color = beg_line[beg.column].col;
+			beg.column > 0 && beg_line[beg.column - 1].col == word_color;
+			--beg.column) continue;
+		// Search from the selection end position forwards until a character with a different color is found
+		for (auto word_color = end_line[end.column].col;
+			end.column < end_line.size() && end_line[end.column].col == word_color;
+			++end.column) continue;
+	};
+
+	text_pos highlight_beg = _select_beg;
+	text_pos highlight_end = _select_end;
+	select_word(highlight_beg, highlight_end);
+	_highlighted = !_lines[highlight_beg.line].empty() && _lines[highlight_beg.line][highlight_beg.column].col == color_identifier ?
+		get_text(highlight_beg, highlight_end) : std::string();
 
 	switch (mode)
 	{
 	case selection_mode::word:
-		// Empty lines cannot have any words, so abort
-		if (beg_line.empty() || end_line.empty())
-			break;
-		// Whitespace has a special meaning in that if we select the space next to a word, then that word is precedence over the whitespace
-		if (_select_beg.column == beg_line.size() || (_select_beg.column > 0 && beg_line[_select_beg.column].col == color_default))
-			_select_beg.column--;
-		if (_select_end.column == end_line.size() || (_select_end.column > 0 && end_line[_select_end.column].col == color_default))
-			_select_end.column--;
-		// Search from the first position backwards until a character with a different color is found
-		for (auto word_color = beg_line[_select_beg.column].col;
-			_select_beg.column > 0 && beg_line[_select_beg.column - 1].col == word_color;
-			--_select_beg.column) continue;
-		// Search from the selection end position forwards until a character with a different color is found
-		for (auto word_color = end_line[_select_end.column].col;
-			_select_end.column < end_line.size() && end_line[_select_end.column].col == word_color;
-			++_select_end.column) continue;
+		select_word(_select_beg, _select_end);
 		break;
 	case selection_mode::line:
 		_select_beg.column = 0;
-		_select_end.column = end_line.size();
+		_select_end.column = _lines[end.line].size();
 		break;
 	}
 }

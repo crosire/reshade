@@ -120,6 +120,7 @@ private:
 	text_pos _select_end;
 	text_pos _interactive_beg;
 	text_pos _interactive_end;
+	std::string _highlighted;
 
 	size_t _undo_index = 0;
 	std::vector<undo_record> _undo;
