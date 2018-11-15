@@ -447,30 +447,6 @@ namespace reshade::d3d10
 		detect_depth_source(tracker);
 #endif
 
-		// Evaluate queries
-		for (technique &technique : _techniques)
-		{
-			if (technique.impl == nullptr)
-				continue;
-
-			d3d10_technique_data &technique_data = *technique.impl->as<d3d10_technique_data>();
-
-			if (technique.enabled && technique_data.query_in_flight)
-			{
-				UINT64 timestamp0, timestamp1;
-				D3D10_QUERY_DATA_TIMESTAMP_DISJOINT disjoint;
-
-				if (technique_data.timestamp_disjoint->GetData(&disjoint, sizeof(disjoint), D3D10_ASYNC_GETDATA_DONOTFLUSH) == S_OK &&
-					technique_data.timestamp_query_beg->GetData(&timestamp0, sizeof(timestamp0), D3D10_ASYNC_GETDATA_DONOTFLUSH) == S_OK &&
-					technique_data.timestamp_query_end->GetData(&timestamp1, sizeof(timestamp1), D3D10_ASYNC_GETDATA_DONOTFLUSH) == S_OK)
-				{
-					if (!disjoint.Disjoint)
-						technique.average_gpu_duration.append((timestamp1 - timestamp0) * 1'000'000'000 / disjoint.Frequency);
-					technique_data.query_in_flight = false;
-				}
-			}
-		}
-
 		// Capture device state
 		_stateblock.capture();
 
@@ -1136,6 +1112,22 @@ namespace reshade::d3d10
 	void runtime_d3d10::render_technique(const technique &technique)
 	{
 		d3d10_technique_data &technique_data = *technique.impl->as<d3d10_technique_data>();
+
+		// Evaluate queries
+		if (technique_data.query_in_flight)
+		{
+			UINT64 timestamp0, timestamp1;
+			D3D10_QUERY_DATA_TIMESTAMP_DISJOINT disjoint;
+
+			if (technique_data.timestamp_disjoint->GetData(&disjoint, sizeof(disjoint), D3D10_ASYNC_GETDATA_DONOTFLUSH) == S_OK &&
+				technique_data.timestamp_query_beg->GetData(&timestamp0, sizeof(timestamp0), D3D10_ASYNC_GETDATA_DONOTFLUSH) == S_OK &&
+				technique_data.timestamp_query_end->GetData(&timestamp1, sizeof(timestamp1), D3D10_ASYNC_GETDATA_DONOTFLUSH) == S_OK)
+			{
+				if (!disjoint.Disjoint)
+					const_cast<struct technique &>(technique).average_gpu_duration.append((timestamp1 - timestamp0) * 1'000'000'000 / disjoint.Frequency);
+				technique_data.query_in_flight = false;
+			}
+		}
 
 		if (!technique_data.query_in_flight)
 		{

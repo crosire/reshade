@@ -455,30 +455,6 @@ namespace reshade::d3d11
 		detect_depth_source(tracker);
 #endif
 
-		// Evaluate queries
-		for (technique &technique : _techniques)
-		{
-			if (technique.impl == nullptr)
-				continue;
-
-			d3d11_technique_data &technique_data = *technique.impl->as<d3d11_technique_data>();
-
-			if (technique.enabled && technique_data.query_in_flight)
-			{
-				UINT64 timestamp0, timestamp1;
-				D3D11_QUERY_DATA_TIMESTAMP_DISJOINT disjoint_data;
-
-				if (_immediate_context->GetData(technique_data.timestamp_disjoint.get(), &disjoint_data, sizeof(disjoint_data), D3D11_ASYNC_GETDATA_DONOTFLUSH) == S_OK &&
-					_immediate_context->GetData(technique_data.timestamp_query_beg.get(), &timestamp0, sizeof(timestamp0), D3D11_ASYNC_GETDATA_DONOTFLUSH) == S_OK &&
-					_immediate_context->GetData(technique_data.timestamp_query_end.get(), &timestamp1, sizeof(timestamp1), D3D11_ASYNC_GETDATA_DONOTFLUSH) == S_OK)
-				{
-					if (!disjoint_data.Disjoint)
-						technique.average_gpu_duration.append((timestamp1 - timestamp0) * 1'000'000'000 / disjoint_data.Frequency);
-					technique_data.query_in_flight = false;
-				}
-			}
-		}
-
 		// Capture device state
 		_stateblock.capture(_immediate_context.get());
 
@@ -1124,6 +1100,22 @@ namespace reshade::d3d11
 	void runtime_d3d11::render_technique(const technique &technique)
 	{
 		d3d11_technique_data &technique_data = *technique.impl->as<d3d11_technique_data>();
+
+		// Evaluate queries
+		if (technique_data.query_in_flight)
+		{
+			UINT64 timestamp0, timestamp1;
+			D3D11_QUERY_DATA_TIMESTAMP_DISJOINT disjoint_data;
+
+			if (_immediate_context->GetData(technique_data.timestamp_disjoint.get(), &disjoint_data, sizeof(disjoint_data), D3D11_ASYNC_GETDATA_DONOTFLUSH) == S_OK &&
+				_immediate_context->GetData(technique_data.timestamp_query_beg.get(), &timestamp0, sizeof(timestamp0), D3D11_ASYNC_GETDATA_DONOTFLUSH) == S_OK &&
+				_immediate_context->GetData(technique_data.timestamp_query_end.get(), &timestamp1, sizeof(timestamp1), D3D11_ASYNC_GETDATA_DONOTFLUSH) == S_OK)
+			{
+				if (!disjoint_data.Disjoint)
+					const_cast<struct technique &>(technique).average_gpu_duration.append((timestamp1 - timestamp0) * 1'000'000'000 / disjoint_data.Frequency);
+				technique_data.query_in_flight = false;
+			}
+		}
 
 		if (!technique_data.query_in_flight)
 		{
