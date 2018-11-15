@@ -402,6 +402,8 @@ void reshade::runtime::draw_ui()
 			ImGuiWindowFlags_NoInputs |
 			ImGuiWindowFlags_NoFocusOnAppearing);
 
+		viewport_offset.y += 10;
+
 		ImGui::TextUnformatted("ReShade " VERSION_STRING_FILE " by crosire");
 
 		if (_needs_update)
@@ -627,6 +629,7 @@ void reshade::runtime::draw_overlay_menu_home()
 					save_config();
 
 					_show_splash = true;
+					_effect_filter_buffer[0] = '\0'; // Reset filter
 
 					// Need to reload effects in performance mode, so values are applied
 					if (_performance_mode)
@@ -835,6 +838,7 @@ void reshade::runtime::draw_overlay_menu_home()
 		if (ImGui::Button("Reload", ImVec2(-150, 0)))
 		{
 			_show_splash = true;
+			_effect_filter_buffer[0] = '\0'; // Reset filter
 
 			load_effects();
 		}
@@ -844,6 +848,7 @@ void reshade::runtime::draw_overlay_menu_home()
 		if (ImGui::Checkbox("Performance Mode", &_performance_mode))
 		{
 			_show_splash = true;
+			_effect_filter_buffer[0] = '\0'; // Reset filter
 
 			save_config();
 			load_effects(); // Reload effects after switching
