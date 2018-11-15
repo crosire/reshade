@@ -706,8 +706,10 @@ namespace reshade::opengl
 			std::string defines =
 				"#version 450\n"
 				"#define ENTRY_POINT_" + entry_point.first + " 1\n";
-			if (!entry_point.second) // OpenGL does not allow using 'discard' in the fragment shader profile
-				defines += "#define discard\n";
+			if (!entry_point.second) // OpenGL does not allow using 'discard' in the vertex shader profile
+				defines += "#define discard\n"
+					"#define dFdx(x) x\n" // 'dFdx' and 'dFdx' too are only available in fragment shaders
+					"#define dFdy(y) y\n";
 			defines += spec_constants;
 
 			GLsizei lengths[] = { static_cast<GLsizei>(defines.size()), static_cast<GLsizei>(effect.module.hlsl.size()) };
