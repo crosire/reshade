@@ -287,6 +287,7 @@ namespace reshade
 		std::vector<size_t> _reload_compile_queue;
 		std::atomic<size_t> _reload_remaining_effects = 0;
 		std::vector<struct effect_data> _loaded_effects;
+		std::vector<std::thread> _worker_threads;
 
 		int _date[4] = {};
 		std::chrono::high_resolution_clock::duration _last_frame_duration;

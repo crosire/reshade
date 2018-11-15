@@ -81,9 +81,6 @@ bool reshade::runtime::on_init(input::window_handle window)
 	init_ui_font_atlas();
 #endif
 
-	if (!_no_reload_on_init)
-		load_effects();
-
 	return true;
 }
 void reshade::runtime::on_reset()
@@ -393,7 +390,7 @@ void reshade::runtime::load_effects()
 
 	// Now that we have a list of files, load them in parallel
 	for (const std::filesystem::path &file : effect_files)
-		std::thread([this, file]() { size_t id; load_effect(file, id); }).detach();
+		_worker_threads.emplace_back([this, file]() { size_t id; load_effect(file, id); }); // Keep track of the spawned threads, so the runtime cannot be destroyed while they are still running
 }
 void reshade::runtime::load_textures()
 {
@@ -473,6 +470,11 @@ void reshade::runtime::unload_effect(size_t id)
 }
 void reshade::runtime::unload_effects()
 {
+	// Make sure no threads are still accessing effect data
+	for (std::thread &thread : _worker_threads)
+		thread.join();
+	_worker_threads.clear();
+
 	_uniforms.clear();
 	_textures.clear();
 	_techniques.clear();
@@ -485,6 +487,10 @@ void reshade::runtime::unload_effects()
 
 void reshade::runtime::update_and_render_effects()
 {
+	// Delay first load to the first render call to avoid loading while the application is still initializing
+	if (_framecount == 0 && !_no_reload_on_init)
+		load_effects();
+
 	if (_reload_remaining_effects == 0)
 	{
 		_last_reload_time = std::chrono::high_resolution_clock::now();
