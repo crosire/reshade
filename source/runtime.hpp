@@ -342,6 +342,7 @@ namespace reshade
 		unsigned int _tutorial_index = 0;
 		unsigned int _effects_expanded_state = 2;
 		char _effect_filter_buffer[64] = {};
+		std::filesystem::path _file_selection_path;
 		code_editor_widget _editor;
 #endif
 	};

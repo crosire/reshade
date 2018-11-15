@@ -50,6 +50,75 @@ static inline std::vector<std::string> split(const std::string &str, char delim)
 	return result;
 }
 
+static bool imgui_file_dialog(const char *name, std::filesystem::path &path, const std::string &filter = std::string())
+{
+	bool ok = false, cancel = false;
+
+	if (!ImGui::BeginPopup(name))
+		return false;
+
+	char buf[260] = "";
+	path.u8string().copy(buf, std::string::npos);
+
+	ImGui::PushItemWidth(400);
+	if (ImGui::InputText("##path", buf, sizeof(buf)))
+		path = buf;
+	ImGui::PopItemWidth();
+
+	ImGui::SameLine();
+	if (ImGui::Button("Ok", ImVec2(100, 0)))
+		ok = true;
+	ImGui::SameLine();
+	if (ImGui::Button("Cancel", ImVec2(100, 0)))
+		cancel = true;
+
+	ImGui::BeginChild("##files", ImVec2(0, 300));
+
+	std::error_code ec;
+
+	if (path.is_relative())
+		path = std::filesystem::absolute(path);
+	if (!std::filesystem::is_directory(path, ec))
+		path.remove_filename();
+	else if (!path.has_filename())
+		path = path.parent_path();
+
+	if (path.has_parent_path() && ImGui::Selectable("<DIR> .."))
+		path = path.parent_path();
+
+	for (const auto &entry : std::filesystem::directory_iterator(path, ec))
+	{
+		std::string label = entry.is_directory() ? "<DIR> " : "      ";
+		label += entry.path().filename().u8string();
+
+		// Only show directories and files
+		if (!entry.is_directory(ec) && !entry.is_regular_file(ec))
+			continue;
+
+		// Apply extension filter to the remaining files
+		if (!entry.is_directory(ec) && !filter.empty() && filter.find(entry.path().extension().u8string()) == std::string::npos)
+			continue;
+
+		if (ImGui::Selectable(label.c_str(), entry.path() == path))
+		{
+			if (entry.is_regular_file(ec))
+				ok = true;
+
+			path = entry.path();
+			break;
+		}
+	}
+
+	ImGui::EndChild();
+
+	if (ok || cancel)
+		ImGui::CloseCurrentPopup();
+
+	ImGui::EndPopup();
+
+	return ok;
+}
+
 void reshade::runtime::init_ui()
 {
 	// Default shortcut Ctrl + Home
@@ -924,6 +993,18 @@ void reshade::runtime::draw_overlay_menu_settings()
 			save_config();
 		}
 
+		ImGui::SameLine(0, ImGui::CalcTextSize("Effect Search Paths").x + 10);
+		if (ImGui::Button("+##+0", ImVec2(30, 0)))
+		{
+			_file_selection_path = g_reshade_dll_path.parent_path();
+			ImGui::OpenPopup("Effect Search Path File Dialog");
+		}
+		if (imgui_file_dialog("Effect Search Path File Dialog", _file_selection_path, "?") && std::filesystem::is_directory(_file_selection_path))
+		{
+			_effect_search_paths.push_back(_file_selection_path);
+			save_config();
+		}
+
 		copy_search_paths_to_edit_buffer(_texture_search_paths);
 
 		if (ImGui::InputTextMultiline("Texture Search Paths", edit_buffer, sizeof(edit_buffer), ImVec2(0, 60)))
@@ -931,6 +1012,18 @@ void reshade::runtime::draw_overlay_menu_settings()
 			const auto texture_search_paths = split(edit_buffer, '\n');
 			_texture_search_paths.assign(texture_search_paths.begin(), texture_search_paths.end());
 
+			save_config();
+		}
+
+		ImGui::SameLine(0, ImGui::CalcTextSize("Texture Search Paths").x + 10);
+		if (ImGui::Button("+##+1", ImVec2(30, 0)))
+		{
+			_file_selection_path = g_reshade_dll_path.parent_path();
+			ImGui::OpenPopup("Texture Search Path File Dialog");
+		}
+		if (imgui_file_dialog("Texture Search Path File Dialog", _file_selection_path, "?") && std::filesystem::is_directory(_file_selection_path))
+		{
+			_texture_search_paths.push_back(_file_selection_path);
 			save_config();
 		}
 
@@ -1006,6 +1099,13 @@ void reshade::runtime::draw_overlay_menu_settings()
 	if (ImGui::CollapsingHeader("User Interface", ImGuiTreeNodeFlags_DefaultOpen))
 	{
 		bool modified = false, reload_style = false;
+
+		bool save_imgui_window_state = _imgui_context->IO.IniFilename != nullptr;
+		if (ImGui::Checkbox("Save Window State (ReShadeGUI.ini)", &save_imgui_window_state))
+		{
+			modified = true;
+			_imgui_context->IO.IniFilename = save_imgui_window_state ? "ReShadeGUI.ini" : nullptr;
+		}
 
 		modified |= ImGui::Checkbox("Experimental Variable Editing UI", &_variable_editor_tabs);
 
@@ -1132,9 +1232,7 @@ void reshade::runtime::draw_overlay_menu_statistics()
 		ImGui::NewLine();
 
 		if (post_processing_time_gpu != 0)
-		{
 			ImGui::Text("%f ms (GPU)", (post_processing_time_gpu * 1e-6f));
-		}
 
 		ImGui::EndGroup();
 	}
@@ -1223,28 +1321,14 @@ void reshade::runtime::draw_overlay_menu_statistics()
 			if (technique.impl == nullptr)
 				continue;
 
-			if (technique.enabled)
-			{
-				if (technique.passes.size() > 1)
-				{
-					ImGui::Text("%s (%zu passes)", technique.name.c_str(), technique.passes.size());
-				}
-				else
-				{
-					ImGui::Text("%s", technique.name.c_str());
-				}
-			}
+			ImGui::PushStyleColor(ImGuiCol_Text, _imgui_context->Style.Colors[technique.enabled ? ImGuiCol_Text : ImGuiCol_TextDisabled]);
+
+			if (technique.passes.size() > 1)
+				ImGui::Text("%s (%zu passes)", technique.name.c_str(), technique.passes.size());
 			else
-			{
-				if (technique.passes.size() > 1)
-				{
-					ImGui::TextDisabled("%s (%zu passes)", technique.name.c_str(), technique.passes.size());
-				}
-				else
-				{
-					ImGui::TextDisabled("%s", technique.name.c_str());
-				}
-			}
+				ImGui::TextUnformatted(technique.name.c_str());
+
+			ImGui::PopStyleColor();
 		}
 
 		ImGui::EndGroup();
@@ -1257,13 +1341,9 @@ void reshade::runtime::draw_overlay_menu_statistics()
 				continue;
 
 			if (technique.enabled)
-			{
 				ImGui::Text("%f ms (CPU)", (technique.average_cpu_duration * 1e-6f));
-			}
 			else
-			{
 				ImGui::NewLine();
-			}
 		}
 
 		ImGui::EndGroup();
@@ -1276,13 +1356,9 @@ void reshade::runtime::draw_overlay_menu_statistics()
 				continue;
 
 			if (technique.enabled && technique.average_gpu_duration != 0)
-			{
 				ImGui::Text("%f ms (GPU)", (technique.average_gpu_duration * 1e-6f));
-			}
 			else
-			{
 				ImGui::NewLine();
-			}
 		}
 
 		ImGui::EndGroup();
@@ -1687,16 +1763,11 @@ void reshade::runtime::draw_overlay_variable_editor()
 			break; }
 		}
 
-		if (ImGui::IsItemHovered())
-		{
-			if (ImGui::IsMouseClicked(1))
-				ImGui::OpenPopup("context");
-			else if (!ui_tooltip.empty())
-				ImGui::SetTooltip("%s", ui_tooltip.c_str());
-		}
+		if (ImGui::IsItemHovered() && !ui_tooltip.empty())
+			ImGui::SetTooltip("%s", ui_tooltip.c_str());
 
 		// Create context menu
-		if (ImGui::BeginPopup("context"))
+		if (ImGui::BeginPopupContextItem("context"))
 		{
 			if (ImGui::Button("Reset to default", ImVec2(200, 0)))
 			{
@@ -1797,13 +1868,11 @@ void reshade::runtime::draw_overlay_technique_editor()
 			_selected_technique = index;
 		if (ImGui::IsItemClicked(0))
 			_focused_effect = technique.effect_index;
-		if (ImGui::IsItemClicked(1))
-			ImGui::OpenPopup("context");
 		if (ImGui::IsItemHovered(ImGuiHoveredFlags_RectOnly))
 			hovered_technique_index = index;
 
 		// Create context menu
-		if (ImGui::BeginPopup("context"))
+		if (ImGui::BeginPopupContextItem("context"))
 		{
 			assert(technique.toggle_key_data[0] < 256);
 
