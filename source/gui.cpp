@@ -651,9 +651,9 @@ void reshade::runtime::draw_overlay_menu_home()
 			if (_effect_filter_buffer[0] == '\0')
 			{
 				// Reset visibility state
-				for (auto &uniform : _uniforms)
-					uniform.hidden = uniform.annotations["hidden"].second.as_uint[0];
-				for (auto &technique : _techniques)
+				for (uniform &variable : _uniforms)
+					variable.hidden = variable.annotations["hidden"].second.as_uint[0];
+				for (technique &technique : _techniques)
 					technique.hidden = technique.annotations["hidden"].second.as_uint[0];
 			}
 			else
@@ -661,11 +661,11 @@ void reshade::runtime::draw_overlay_menu_home()
 				const std::string filter = _effect_filter_buffer;
 
 				for (uniform &variable : _uniforms)
-					variable.hidden |=
+					variable.hidden = variable.annotations["hidden"].second.as_uint[0] ||
 						std::search(variable.name.begin(), variable.name.end(), filter.begin(), filter.end(),
 							[](auto c1, auto c2) { return tolower(c1) == tolower(c2); }) == variable.name.end() && variable.effect_filename.find(filter) == std::string::npos;
 				for (technique &technique : _techniques)
-					technique.hidden |=
+					technique.hidden = technique.annotations["hidden"].second.as_uint[0] ||
 						std::search(technique.name.begin(), technique.name.end(), filter.begin(), filter.end(),
 							[](auto c1, auto c2) { return tolower(c1) == tolower(c2); }) == technique.name.end() && technique.effect_filename.find(filter) == std::string::npos;
 			}
