@@ -1294,9 +1294,10 @@ void reshade::runtime::draw_overlay_menu_statistics()
 
 			const float button_pos = ImGui::GetWindowContentRegionWidth() - (150 + 80 + 5);
 
-			ImGui::PushItemWidth(button_pos - 5);
-			ImGui::LabelText("", "%s", effect.source_file.u8string().c_str());
-			ImGui::PopItemWidth();
+			ImGui::AlignTextToFramePadding();
+			ImGui::TextDisabled("%s%lc", effect.source_file.parent_path().u8string().c_str(), std::filesystem::path::preferred_separator);
+			ImGui::SameLine(0, 0);
+			ImGui::TextUnformatted(effect.source_file.filename().u8string().c_str());
 
 			ImGui::SameLine(button_pos, 5);
 
