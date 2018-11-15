@@ -396,21 +396,32 @@ void code_editor_widget::select(const text_pos &beg, const text_pos &end, select
 		_select_end = beg,
 		_select_beg = end;
 
+	const auto &beg_line = _lines[_select_beg.line];
+	const auto &end_line = _lines[_select_end.line];
+
 	switch (mode)
 	{
 	case selection_mode::word:
-		if (_select_beg.column > 0)
-			for (auto word_color = _lines[_select_beg.line][_select_beg.column - 1].col; _select_beg.column > 0; --_select_beg.column)
-				if (_lines[_select_beg.line][_select_beg.column - 1].col != word_color)
-					break;
-		if (_select_end.column < _lines[_select_end.line].size())
-			for (auto word_color = _lines[_select_end.line][_select_end.column].col; _select_end.column < _lines[_select_end.line].size(); ++_select_end.column)
-				if (_lines[_select_end.line][_select_end.column].col != word_color)
-					break;
+		// Empty lines cannot have any words, so abort
+		if (beg_line.empty() || end_line.empty())
+			break;
+		// Whitespace has a special meaning in that if we select the space next to a word, then that word is precedence over the whitespace
+		if (_select_beg.column == beg_line.size() || (_select_beg.column > 0 && beg_line[_select_beg.column].col == color_default))
+			_select_beg.column--;
+		if (_select_end.column == end_line.size() || (_select_end.column > 0 && end_line[_select_end.column].col == color_default))
+			_select_end.column--;
+		// Search from the first position backwards until a character with a different color is found
+		for (auto word_color = beg_line[_select_beg.column].col;
+			_select_beg.column > 0 && beg_line[_select_beg.column - 1].col == word_color;
+			--_select_beg.column) continue;
+		// Search from the selection end position forwards until a character with a different color is found
+		for (auto word_color = end_line[_select_end.column].col;
+			_select_end.column < end_line.size() && end_line[_select_end.column].col == word_color;
+			++_select_end.column) continue;
 		break;
 	case selection_mode::line:
 		_select_beg.column = 0;
-		_select_end.column = _lines[_select_end.line].size();
+		_select_end.column = end_line.size();
 		break;
 	}
 }
