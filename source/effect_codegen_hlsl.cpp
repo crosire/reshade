@@ -268,6 +268,8 @@ private:
 			code += '\t';
 			write_type<true>(code, member.type);
 			code += ' ' + member.name;
+			if (member.type.is_array())
+				code += '[' + std::to_string(member.type.array_length) + ']';
 			if (!member.semantic.empty())
 				code += " : " + convert_semantic(member.semantic);
 			code += ";\n";

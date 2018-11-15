@@ -261,7 +261,10 @@ private:
 		{
 			code += '\t';
 			write_type<true>(code, member.type);
-			code += ' ' + member.name + ";\n";
+			code += ' ' + member.name;
+			if (member.type.is_array())
+				code += '[' + std::to_string(member.type.array_length) + ']';
+			code += ";\n";
 		}
 
 		if (info.member_list.empty())
