@@ -1731,9 +1731,9 @@ void reshade::runtime::draw_overlay_variable_editor()
 		bool modified = false;
 		const auto ui_type = variable.annotations["ui_type"].second.string_data;
 		const auto ui_label = variable.annotations.count("ui_label") ? variable.annotations.at("ui_label").second.string_data : variable.name;
-		const auto ui_tooltip = variable.annotations["ui_tooltip"].second.string_data;
 		const auto ui_min = variable.annotations["ui_min"];
 		const auto ui_max = variable.annotations["ui_max"];
+		const auto ui_stp = variable.annotations["ui_step"];
 
 		ImGui::PushID(imgui_id);
 
@@ -1765,9 +1765,32 @@ void reshade::runtime::draw_overlay_variable_editor()
 			if (ui_type == "drag")
 			{
 				const auto ui_min_val = ui_min.first.is_floating_point() ? static_cast<int>(ui_min.second.as_float[0]) : ui_min.second.as_int[0];
-				const auto ui_max_val = ui_min.first.is_floating_point() ? static_cast<int>(ui_min.second.as_float[0]) : ui_max.second.as_int[0];
+				const auto ui_max_val = ui_max.first.is_floating_point() ? static_cast<int>(ui_max.second.as_float[0]) : ui_max.second.as_int[0];
+				const auto ui_stp_val = std::max(1, ui_stp.first.is_floating_point() ? static_cast<int>(ui_stp.second.as_float[0]) : ui_stp.second.as_int[0]);
 
-				modified = ImGui::SliderScalarN(ui_label.c_str(), variable.type.is_signed() ? ImGuiDataType_S32 : ImGuiDataType_U32, data, variable.type.rows, &ui_min_val, &ui_max_val);
+				ImGui::PushItemWidth(ImGui::CalcItemWidth() - ( // same line space * 2 + button width * 2
+					_imgui_context->Style.ItemInnerSpacing.x * 2 +
+					(ImGui::CalcTextSize("+").x + _imgui_context->Style.FramePadding.x * 2) * 2));
+
+				modified = ImGui::SliderScalarN("", variable.type.is_signed() ? ImGuiDataType_S32 : ImGuiDataType_U32, data, variable.type.rows, &ui_min_val, &ui_max_val);
+
+				ImGui::PopItemWidth();
+				ImGui::SameLine(0, 0);
+				if (ImGui::Button("-") && data[0] > ui_min_val)
+				{
+					for (unsigned int c = 0; c < variable.type.rows; ++c)
+						data[c] -= ui_stp_val;
+					modified = true;
+				}
+				ImGui::SameLine(0, _imgui_context->Style.ItemInnerSpacing.x);
+				if (ImGui::Button("+") && data[0] < ui_max_val)
+				{
+					for (unsigned int c = 0; c < variable.type.rows; ++c)
+						data[c] += ui_stp_val;
+					modified = true;
+				}
+				ImGui::SameLine(0, _imgui_context->Style.ItemInnerSpacing.x);
+				ImGui::TextUnformatted(ui_label.c_str());
 			}
 			else if (ui_type == "combo")
 			{
@@ -1794,8 +1817,32 @@ void reshade::runtime::draw_overlay_variable_editor()
 			{
 				const auto ui_min_val = ui_min.first.is_floating_point() ? ui_min.second.as_float[0] : static_cast<float>(ui_min.second.as_int[0]);
 				const auto ui_max_val = ui_max.first.is_floating_point() ? ui_max.second.as_float[0] : static_cast<float>(ui_max.second.as_int[0]);
+				const auto ui_stp_val = std::max(0.001f, ui_stp.first.is_floating_point() ? ui_stp.second.as_float[0] : static_cast<float>(ui_stp.second.as_int[0]));
 
-				modified = ImGui::SliderScalarN(ui_label.c_str(), ImGuiDataType_Float, data, variable.type.rows, &ui_min_val, &ui_max_val, "%.3f");
+				ImGui::PushItemWidth(ImGui::CalcItemWidth() - ( // same line space * 2 + button width * 2
+					_imgui_context->Style.ItemInnerSpacing.x * 2 +
+					(ImGui::CalcTextSize("+").x + _imgui_context->Style.FramePadding.x * 2) * 2));
+
+				modified = ImGui::SliderScalarN("", ImGuiDataType_Float, data, variable.type.rows, &ui_min_val, &ui_max_val, "%.3f");
+
+				ImGui::PopItemWidth();
+
+				ImGui::SameLine(0, 0);
+				if (ImGui::Button("-") && data[0] > ui_min_val)
+				{
+					for (unsigned int c = 0; c < variable.type.rows; ++c)
+						data[c] -= ui_stp_val;
+					modified = true;
+				}
+				ImGui::SameLine(0, _imgui_context->Style.ItemInnerSpacing.x);
+				if (ImGui::Button("+") && data[0] < ui_max_val)
+				{
+					for (unsigned int c = 0; c < variable.type.rows; ++c)
+						data[c] += ui_stp_val;
+					modified = true;
+				}
+				ImGui::SameLine(0, _imgui_context->Style.ItemInnerSpacing.x);
+				ImGui::TextUnformatted(ui_label.c_str());
 			}
 			else if (ui_type == "combo")
 			{
@@ -1826,6 +1873,8 @@ void reshade::runtime::draw_overlay_variable_editor()
 			break; }
 		}
 
+		// Display tooltip
+		const auto &ui_tooltip = variable.annotations["ui_tooltip"].second.string_data;
 		if (ImGui::IsItemHovered() && !ui_tooltip.empty())
 			ImGui::SetTooltip("%s", ui_tooltip.c_str());
 
@@ -1910,13 +1959,14 @@ void reshade::runtime::draw_overlay_technique_editor()
 		ImGui::PushID(static_cast<int>(index));
 
 		// Draw border around the item if it is selected
-		if (_selected_technique == index)
+		const bool draw_border = _selected_technique == index;
+		if (draw_border)
 			ImGui::Separator();
-
-		const std::string label = technique.name + " [" + technique.effect_filename + ']';
 
 		// Gray out disabled techniques
 		ImGui::PushStyleColor(ImGuiCol_Text, _imgui_context->Style.Colors[technique.enabled ? ImGuiCol_Text : ImGuiCol_TextDisabled]);
+
+		const std::string label = technique.name + " [" + technique.effect_filename + ']';
 
 		if (ImGui::Checkbox(label.c_str(), &technique.enabled))
 		{
@@ -1929,15 +1979,17 @@ void reshade::runtime::draw_overlay_technique_editor()
 
 		ImGui::PopStyleColor();
 
-		if (_selected_technique == index)
-			ImGui::Separator();
-
 		if (ImGui::IsItemActive())
 			_selected_technique = index;
 		if (ImGui::IsItemClicked(0))
 			_focused_effect = technique.effect_index;
 		if (ImGui::IsItemHovered(ImGuiHoveredFlags_RectOnly))
 			hovered_technique_index = index;
+
+		// Display tooltip
+		const auto &ui_tooltip = technique.annotations["ui_tooltip"].second.string_data;
+		if (ImGui::IsItemHovered() && !ui_tooltip.empty())
+			ImGui::SetTooltip("%s", ui_tooltip.c_str());
 
 		// Create context menu
 		if (ImGui::BeginPopupContextItem("context"))
@@ -2014,6 +2066,9 @@ void reshade::runtime::draw_overlay_technique_editor()
 
 			ImGui::EndPopup();
 		}
+
+		if (draw_border)
+			ImGui::Separator();
 
 		ImGui::PopID();
 	}
