@@ -40,7 +40,12 @@ reshade::runtime::runtime(uint32_t renderer) :
 	_screenshot_key_data(),
 	_screenshot_path(g_target_executable_path.parent_path())
 {
-	_screenshot_key_data[0] = 0x2C; // VK_SNAPSHOT
+	// Default shortcut Ctrl + Insert
+	_effects_key_data[0] = 0x2D;
+	_effects_key_data[1] = true;
+
+	// Default shortcut PrtScrn
+	_screenshot_key_data[0] = 0x2C;
 
 	_configuration_path = g_reshade_dll_path;
 	_configuration_path.replace_extension(".ini");

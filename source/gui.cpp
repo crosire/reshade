@@ -52,9 +52,10 @@ static inline std::vector<std::string> split(const std::string &str, char delim)
 
 void reshade::runtime::init_ui()
 {
-	_menu_key_data[0] = 0x71; // VK_F2
-	_menu_key_data[1] = false;
-	_menu_key_data[2] = true; // VK_SHIFT
+	// Default shortcut Ctrl + Home
+	_menu_key_data[0] = 0x24;
+	_menu_key_data[1] = true;
+	_menu_key_data[2] = false;
 	_menu_key_data[3] = false;
 
 	_variable_editor_height = 300;
