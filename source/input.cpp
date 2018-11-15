@@ -508,13 +508,11 @@ static POINT last_cursor_position = {};
 
 HOOK_EXPORT BOOL WINAPI HookSetCursorPosition(int X, int Y)
 {
-	if (is_blocking_mouse_input())
-	{
-		last_cursor_position.x = X;
-		last_cursor_position.y = Y;
+	last_cursor_position.x = X;
+	last_cursor_position.y = Y;
 
+	if (is_blocking_mouse_input())
 		return TRUE;
-	}
 
 	static const auto trampoline = reshade::hooks::call(&HookSetCursorPosition);
 
