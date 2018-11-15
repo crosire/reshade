@@ -774,6 +774,12 @@ namespace reshade::d3d10
 
 	bool runtime_d3d10::add_sampler(const reshadefx::sampler_info &info, d3d10_technique_data &technique_init)
 	{
+		if (info.binding >= D3D10_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT)
+		{
+			LOG(ERROR) << "Cannot create sampler '" << info.unique_name << "' since it exceeds the maximum number of allowed input resource slots in D3D11 (" << info.binding << ", allowed are up to " << D3D10_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT << ").";
+			return false;
+		}
+
 		const auto existing_texture = std::find_if(_textures.begin(), _textures.end(),
 			[&texture_name = info.texture_name](const auto &item) {
 			return item.unique_name == texture_name;
@@ -807,7 +813,7 @@ namespace reshade::d3d10
 
 			if (FAILED(hr))
 			{
-				LOG(ERROR) << "Failed to create sampler state for texture '" << info.texture_name << "' ("
+				LOG(ERROR) << "Failed to create sampler state for sampler '" << info.unique_name << "' ("
 					"Filter = " << desc.Filter << ", "
 					"AddressU = " << desc.AddressU << ", "
 					"AddressV = " << desc.AddressV << ", "
