@@ -326,7 +326,8 @@ namespace reshade
 		unsigned int _menu_key_data[4];
 		bool _show_menu = false;
 		bool _show_clock = false;
-		bool _show_framerate = false;
+		bool _show_fps = false;
+		bool _show_frametime = false;
 		bool _show_splash = true;
 		bool _show_code_editor = false;
 		bool _no_font_scaling = false;
@@ -336,7 +337,6 @@ namespace reshade
 		bool _log_wordwrap = false;
 		bool _variable_editor_tabs = false;
 		bool _selected_effect_changed = false;
-		bool _fps_precise = false;
 		float _fps_col[4] = { 1.0f, 1.0f, 0.784314f, 1.0f };
 		float _variable_editor_height = 0.0f;
 		unsigned int _tutorial_index = 0;

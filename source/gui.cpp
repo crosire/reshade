@@ -186,7 +186,8 @@ void reshade::runtime::init_ui()
 		config.get("INPUT", "InputProcessing", _input_processing_mode);
 
 		config.get("GENERAL", "ShowClock", _show_clock);
-		config.get("GENERAL", "ShowFPS", _show_framerate);
+		config.get("GENERAL", "ShowFPS", _show_fps);
+		config.get("GENERAL", "ShowFrameTime", _show_frametime);
 		config.get("GENERAL", "FontGlobalScale", _imgui_context->IO.FontGlobalScale);
 		config.get("GENERAL", "NoFontScaling", _no_font_scaling);
 		config.get("GENERAL", "SaveWindowState", save_imgui_window_state);
@@ -196,7 +197,6 @@ void reshade::runtime::init_ui()
 		config.get("STYLE", "Alpha", _imgui_context->Style.Alpha);
 		config.get("STYLE", "FrameRounding", _imgui_context->Style.FrameRounding);
 		config.get("STYLE", "ColFPSText", _fps_col);
-		config.get("STYLE", "PreciseFPS", _fps_precise);
 		config.get("STYLE", "StyleIndex", _style_index);
 		config.get("STYLE", "EditorStyleIndex", _editor_style_index);
 
@@ -222,8 +222,8 @@ void reshade::runtime::init_ui()
 			colors[ImGuiCol_ChildBg] = ImVec4(0.156863f, 0.156863f, 0.156863f, 0.00f);
 			colors[ImGuiCol_Border] = ImVec4(0.862745f, 0.862745f, 0.862745f, 0.30f);
 			colors[ImGuiCol_FrameBg] = ImVec4(0.156863f, 0.156863f, 0.156863f, 1.00f);
-			colors[ImGuiCol_FrameBgHovered] = ImVec4(0.392157f, 0.588235f, 0.941176f, 0.68f);
-			colors[ImGuiCol_FrameBgActive] = ImVec4(0.392157f, 0.588235f, 0.941176f, 1.00f);
+			colors[ImGuiCol_FrameBgHovered] = ImVec4(0.392157f, 0.588235f, 0.941176f, 0.470588f);
+			colors[ImGuiCol_FrameBgActive] = ImVec4(0.392157f, 0.588235f, 0.941176f, 0.588235f);
 			colors[ImGuiCol_TitleBg] = ImVec4(0.392157f, 0.588235f, 0.941176f, 0.45f);
 			colors[ImGuiCol_TitleBgCollapsed] = ImVec4(0.392157f, 0.588235f, 0.941176f, 0.35f);
 			colors[ImGuiCol_TitleBgActive] = ImVec4(0.392157f, 0.588235f, 0.941176f, 0.78f);
@@ -234,7 +234,7 @@ void reshade::runtime::init_ui()
 			colors[ImGuiCol_ScrollbarGrabActive] = ImVec4(0.392157f, 0.588235f, 0.941176f, 1.00f);
 			colors[ImGuiCol_PopupBg] = ImVec4(0.156863f, 0.156863f, 0.156863f, 0.92f);
 			colors[ImGuiCol_CheckMark] = ImVec4(0.392157f, 0.588235f, 0.941176f, 0.80f);
-			colors[ImGuiCol_SliderGrab] = ImVec4(0.392157f, 0.588235f, 0.941176f, 0.24f);
+			colors[ImGuiCol_SliderGrab] = ImVec4(0.392157f, 0.588235f, 0.941176f, 0.784314f);
 			colors[ImGuiCol_SliderGrabActive] = ImVec4(0.392157f, 0.588235f, 0.941176f, 1.00f);
 			colors[ImGuiCol_Button] = ImVec4(0.392157f, 0.588235f, 0.941176f, 0.44f);
 			colors[ImGuiCol_ButtonHovered] = ImVec4(0.392157f, 0.588235f, 0.941176f, 0.86f);
@@ -288,7 +288,8 @@ void reshade::runtime::init_ui()
 		config.set("INPUT", "InputProcessing", _input_processing_mode);
 
 		config.set("GENERAL", "ShowClock", _show_clock);
-		config.set("GENERAL", "ShowFPS", _show_framerate);
+		config.set("GENERAL", "ShowFPS", _show_fps);
+		config.set("GENERAL", "ShowFrameTime", _show_frametime);
 		config.set("GENERAL", "FontGlobalScale", _imgui_context->IO.FontGlobalScale);
 		config.set("GENERAL", "NoReloadOnInit", _no_reload_on_init);
 		config.set("GENERAL", "SaveWindowState", _imgui_context->IO.IniFilename != nullptr);
@@ -298,7 +299,6 @@ void reshade::runtime::init_ui()
 		config.set("STYLE", "Alpha", _imgui_context->Style.Alpha);
 		config.set("STYLE", "FrameRounding", _imgui_context->Style.FrameRounding);
 		config.set("STYLE", "ColFPSTex", _fps_col);
-		config.set("STYLE", "PreciseFPS", _fps_precise);
 		config.set("STYLE", "StyleIndex", _style_index);
 		config.set("STYLE", "EditorStyleIndex", _editor_style_index);
 
@@ -457,7 +457,7 @@ void reshade::runtime::draw_ui()
 		ImGui::PopStyleColor(2);
 		ImGui::PopStyleVar();
 	}
-	else if (_show_clock || _show_framerate)
+	else if (_show_clock || _show_fps || _show_frametime)
 	{
 		ImGui::SetNextWindowPos(ImVec2(_width - 200.0f, 5));
 		ImGui::SetNextWindowSize(ImVec2(200.0f, 200.0f));
@@ -484,17 +484,19 @@ void reshade::runtime::draw_ui()
 			const int minute = (_date[3] - hour * 3600) / 60;
 			const int seconds = _date[3] - hour * 3600 - minute * 60;
 
-			ImFormatString(temp, sizeof(temp), _fps_precise ? " %02u:%02u:%02u" : " %02u:%02u", hour, minute, seconds);
+			ImFormatString(temp, sizeof(temp), " %02u:%02u:%02u", hour, minute, seconds);
 			ImGui::SetCursorPosX(ImGui::GetWindowContentRegionWidth() - ImGui::CalcTextSize(temp).x);
 			ImGui::TextUnformatted(temp);
 		}
-		if (_show_framerate)
+		if (_show_fps)
 		{
-			ImFormatString(temp, sizeof(temp), "%.*f fps", _fps_precise ? 2 : 0, _imgui_context->IO.Framerate);
+			ImFormatString(temp, sizeof(temp), "%.0f fps", _imgui_context->IO.Framerate);
 			ImGui::SetCursorPosX(ImGui::GetWindowContentRegionWidth() - ImGui::CalcTextSize(temp).x);
 			ImGui::TextUnformatted(temp);
-
-			ImFormatString(temp, sizeof(temp), "%*.*f ms", 5, _fps_precise ? 2 : 0, _last_frame_duration.count() * 1e-6f);
+		}
+		if (_show_frametime)
+		{
+			ImFormatString(temp, sizeof(temp), "%5.2f ms", _last_frame_duration.count() * 1e-6f);
 			ImGui::SetCursorPosX(ImGui::GetWindowContentRegionWidth() - ImGui::CalcTextSize(temp).x);
 			ImGui::TextUnformatted(temp);
 		}
@@ -612,7 +614,7 @@ void reshade::runtime::draw_overlay_menu_home()
 			ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.941176f, 0.392157f, 0.392190f, 1.0f));
 		}
 
-		ImGui::PushItemWidth(-(30 + ImGui::GetStyle().ItemSpacing.x) * 2 - 1);
+		ImGui::PushItemWidth(-(30 + _imgui_context->Style.ItemSpacing.x) * 2 - 1);
 
 		if (ImGui::BeginCombo("##presets", _current_preset < _preset_files.size() ? _preset_files[_current_preset].u8string().c_str() : ""))
 		{
@@ -749,7 +751,7 @@ void reshade::runtime::draw_overlay_menu_home()
 
 		ImGui::SameLine();
 
-		if (ImGui::Button("Active to top", ImVec2(130 - ImGui::GetStyle().ItemSpacing.x, 0)))
+		if (ImGui::Button("Active to top", ImVec2(130 - _imgui_context->Style.ItemSpacing.x, 0)))
 		{
 			for (size_t i = 0; i < _techniques.size(); ++i)
 			{
@@ -769,7 +771,7 @@ void reshade::runtime::draw_overlay_menu_home()
 
 		ImGui::SameLine();
 
-		if (ImGui::Button(_effects_expanded_state & 2 ? "Collapse all" : "Expand all", ImVec2(130 - ImGui::GetStyle().ItemSpacing.x, 0)))
+		if (ImGui::Button(_effects_expanded_state & 2 ? "Collapse all" : "Expand all", ImVec2(130 - _imgui_context->Style.ItemSpacing.x, 0)))
 			_effects_expanded_state = (~_effects_expanded_state & 2) | 1;
 
 		if (_tutorial_index == 2)
@@ -784,7 +786,7 @@ void reshade::runtime::draw_overlay_menu_home()
 
 		ImGui::Spacing();
 
-		const float bottom_height = _performance_mode ? ImGui::GetFrameHeightWithSpacing() + ImGui::GetStyle().ItemSpacing.y : _variable_editor_height;
+		const float bottom_height = _performance_mode ? ImGui::GetFrameHeightWithSpacing() + _imgui_context->Style.ItemSpacing.y : _variable_editor_height;
 
 		if (ImGui::BeginChild("##techniques", ImVec2(-1, -bottom_height), true))
 			draw_overlay_technique_editor();
@@ -816,7 +818,7 @@ void reshade::runtime::draw_overlay_menu_home()
 			ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.941176f, 0.392157f, 0.392190f, 1.0f));
 		}
 
-		const float bottom_height = ImGui::GetFrameHeightWithSpacing() + ImGui::GetStyle().ItemSpacing.y + (_tutorial_index == 3 ? 125 : 0);
+		const float bottom_height = ImGui::GetFrameHeightWithSpacing() + _imgui_context->Style.ItemSpacing.y + (_tutorial_index == 3 ? 125 : 0);
 
 		if (ImGui::BeginChild("##variables", ImVec2(-1, -bottom_height), true))
 			draw_overlay_variable_editor();
@@ -1109,9 +1111,9 @@ void reshade::runtime::draw_overlay_menu_settings()
 
 		modified |= ImGui::Checkbox("Show Clock", &_show_clock);
 		ImGui::SameLine(0, 10);
-		modified |= ImGui::Checkbox("Show FPS", &_show_framerate);
+		modified |= ImGui::Checkbox("Show FPS", &_show_fps);
 		ImGui::SameLine(0, 10);
-		modified |= ImGui::Checkbox("Precise FPS", &_fps_precise);
+		modified |= ImGui::Checkbox("Show Frame Time", &_show_frametime);
 
 		if (ImGui::Combo("Style", &_style_index, "Dark\0Light\0Default\0Custom\0"))
 		{
@@ -1865,6 +1867,9 @@ void reshade::runtime::draw_overlay_technique_editor()
 
 		const std::string label = technique.name + " [" + technique.effect_filename + ']';
 
+		// Gray out disabled techniques
+		ImGui::PushStyleColor(ImGuiCol_Text, _imgui_context->Style.Colors[technique.enabled ? ImGuiCol_Text : ImGuiCol_TextDisabled]);
+
 		if (ImGui::Checkbox(label.c_str(), &technique.enabled))
 		{
 			if (technique.enabled)
@@ -1873,6 +1878,8 @@ void reshade::runtime::draw_overlay_technique_editor()
 				disable_technique(technique);
 			save_current_preset();
 		}
+
+		ImGui::PopStyleColor();
 
 		if (_selected_technique == index)
 			ImGui::Separator();
