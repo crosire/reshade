@@ -383,11 +383,13 @@ void reshade::runtime::draw_ui()
 
 	ImGui::NewFrame();
 
+	ImVec2 viewport_offset = ImVec2(0, 0);
+
 	// Create ImGui widgets and windows
 	if (show_splash)
 	{
 		ImGui::SetNextWindowPos(ImVec2(10, 10));
-		ImGui::SetNextWindowSize(ImVec2(_width - 20.0f, ImGui::GetFrameHeightWithSpacing() * (_last_reload_successful ? 3.2f : 4.2f)));
+		ImGui::SetNextWindowSize(ImVec2(_width - 20.0f, viewport_offset.y = ImGui::GetFrameHeightWithSpacing() * (_last_reload_successful ? 3.2f : 4.2f)));
 		ImGui::PushStyleVar(ImGuiStyleVar_Alpha, 1.0f);
 		ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.862745f, 0.862745f, 0.862745f, 1.00f));
 		ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0.117647f, 0.117647f, 0.117647f, 0.5f));
@@ -503,55 +505,51 @@ void reshade::runtime::draw_ui()
 		ImGui::End();
 	}
 
+	const ImGuiID root_space_id = ImGui::GetID("Dockspace");
+	const ImGuiViewport *const viewport = ImGui::GetMainViewport();
+
+	// Set up default dock layout if this was not done yet
+	if (ImGui::DockBuilderGetNode(root_space_id) == nullptr)
+	{
+		// Add root node
+		ImGui::DockBuilderAddNode(root_space_id, viewport->Size);
+		// Split root node into two spaces
+		ImGuiID main_space_id = 0;
+		ImGuiID right_space_id = 0;
+		ImGui::DockBuilderSplitNode(root_space_id, ImGuiDir_Left, 0.35f, &main_space_id, &right_space_id);
+
+		// Attach windows to the main dock space
+		ImGui::DockBuilderDockWindow("Home", main_space_id);
+		ImGui::DockBuilderDockWindow("Settings", main_space_id);
+		ImGui::DockBuilderDockWindow("Statistics", main_space_id);
+		ImGui::DockBuilderDockWindow("Log", main_space_id);
+		ImGui::DockBuilderDockWindow("About", main_space_id);
+		ImGui::DockBuilderDockWindow("Code Editor", right_space_id);
+		ImGui::DockBuilderDockWindow("DX9", main_space_id);
+		ImGui::DockBuilderDockWindow("DX10", main_space_id);
+		ImGui::DockBuilderDockWindow("DX11", main_space_id);
+
+		ImGui::DockBuilderGetNode(main_space_id)->SelectedTabID = ImHash("Home", 0); // Select 'Home' tab
+
+		ImGui::DockBuilderFinish(root_space_id);
+	}
+
+	ImGui::SetNextWindowPos(viewport->Pos + viewport_offset);
+	ImGui::SetNextWindowSize(viewport->Size - viewport_offset);
+	ImGui::SetNextWindowViewport(viewport->ID);
+	ImGui::Begin("Viewport", nullptr,
+		ImGuiWindowFlags_NoTitleBar |
+		ImGuiWindowFlags_NoMove |
+		ImGuiWindowFlags_NoResize |
+		ImGuiWindowFlags_NoDocking |
+		ImGuiWindowFlags_NoCollapse |
+		ImGuiWindowFlags_NoNavFocus |
+		ImGuiWindowFlags_NoBackground);
+	ImGui::DockSpace(root_space_id, ImVec2(0, 0), ImGuiDockNodeFlags_PassthruDockspace | ImGuiDockNodeFlags_NoDockingInCentralNode);
+	ImGui::End();
+
 	if (_show_menu && _reload_remaining_effects == std::numeric_limits<size_t>::max())
 	{
-		const ImGuiID root_space_id = ImGui::GetID("Dockspace");
-		const ImGuiViewport *const viewport = ImGui::GetMainViewport();
-
-		// Set up default dock layout if this was not done yet
-		if (ImGui::DockBuilderGetNode(root_space_id) == nullptr)
-		{
-			// Add root node
-			ImGui::DockBuilderAddNode(root_space_id, viewport->Size);
-			// Split root node into two spaces
-			ImGuiID main_space_id = 0;
-			ImGuiID right_space_id = 0;
-			ImGui::DockBuilderSplitNode(root_space_id, ImGuiDir_Left, 0.35f, &main_space_id, &right_space_id);
-
-			// Attach windows to the main dock space
-			ImGui::DockBuilderDockWindow("Home", main_space_id);
-			ImGui::DockBuilderDockWindow("Settings", main_space_id);
-			ImGui::DockBuilderDockWindow("Statistics", main_space_id);
-			ImGui::DockBuilderDockWindow("Log", main_space_id);
-			ImGui::DockBuilderDockWindow("About", main_space_id);
-			ImGui::DockBuilderDockWindow("Code Editor", right_space_id);
-			ImGui::DockBuilderDockWindow("DX9", main_space_id);
-			ImGui::DockBuilderDockWindow("DX10", main_space_id);
-			ImGui::DockBuilderDockWindow("DX11", main_space_id);
-
-			ImGui::DockBuilderGetNode(main_space_id)->SelectedTabID = ImHash("Home", 0); // Select 'Home' tab
-
-			ImGui::DockBuilderFinish(root_space_id);
-		}
-
-		ImVec2 offset;
-		if (show_splash)
-			offset.y = 10 + ImGui::GetFrameHeightWithSpacing() * (_last_reload_successful ? 3.2f : 4.2f);
-
-		ImGui::SetNextWindowPos(viewport->Pos + offset);
-		ImGui::SetNextWindowSize(viewport->Size - offset);
-		ImGui::SetNextWindowViewport(viewport->ID);
-		ImGui::Begin("Viewport", nullptr,
-			ImGuiWindowFlags_NoTitleBar |
-			ImGuiWindowFlags_NoMove |
-			ImGuiWindowFlags_NoResize |
-			ImGuiWindowFlags_NoDocking |
-			ImGuiWindowFlags_NoCollapse |
-			ImGuiWindowFlags_NoNavFocus |
-			ImGuiWindowFlags_NoBackground);
-		ImGui::DockSpace(root_space_id, ImVec2(0, 0), ImGuiDockNodeFlags_PassthruDockspace);
-		ImGui::End();
-
 		for (const auto &widget : _menu_callables)
 		{
 			if (ImGui::Begin(widget.first.c_str()))
