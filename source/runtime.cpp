@@ -482,10 +482,11 @@ void reshade::runtime::update_and_render_effects()
 {
 	if (_reload_remaining_effects == 0)
 	{
-		load_current_preset();
-
 		_last_reload_time = std::chrono::high_resolution_clock::now();
+		_reload_total_effects = 0;
 		_reload_remaining_effects = std::numeric_limits<size_t>::max();
+
+		load_current_preset();
 	}
 	else if (_reload_remaining_effects != std::numeric_limits<size_t>::max())
 	{
@@ -667,7 +668,10 @@ void reshade::runtime::enable_technique(technique &technique)
 
 	// Queue effect file for compilation if it was not fully loaded yet
 	if (technique.impl == nullptr)
+	{
+		_reload_total_effects++;
 		_reload_compile_queue.push_back(technique.effect_index);
+	}
 
 	_loaded_effects[technique.effect_index].rendering = true;
 }

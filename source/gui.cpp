@@ -553,6 +553,8 @@ void reshade::runtime::draw_overlay_menu_home()
 
 					save_config();
 
+					_show_splash = true;
+
 					// Need to reload effects in performance mode, so values are applied
 					if (_performance_mode)
 						load_effects();
@@ -758,12 +760,18 @@ void reshade::runtime::draw_overlay_menu_home()
 		ImGui::Spacing();
 
 		if (ImGui::Button("Reload", ImVec2(-150, 0)))
+		{
+			_show_splash = true;
+
 			load_effects();
+		}
 
 		ImGui::SameLine();
 
 		if (ImGui::Checkbox("Performance Mode", &_performance_mode))
 		{
+			_show_splash = true;
+
 			save_config();
 			load_effects(); // Reload effects after switching
 		}
