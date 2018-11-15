@@ -339,6 +339,7 @@ namespace reshade
 		bool _variable_editor_tabs = false;
 		bool _selected_effect_changed = false;
 		float _fps_col[4] = { 1.0f, 1.0f, 0.784314f, 1.0f };
+		float _fps_scale = 1.0f;
 		float _variable_editor_height = 0.0f;
 		unsigned int _tutorial_index = 0;
 		unsigned int _effects_expanded_state = 2;
