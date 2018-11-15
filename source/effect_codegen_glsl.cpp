@@ -1139,6 +1139,7 @@ private:
 		std::string &continue_data = _blocks.at(continue_block);
 
 		increase_indentation_level(loop_data);
+		increase_indentation_level(loop_data);
 		increase_indentation_level(continue_data);
 
 		code += _blocks.at(prev_block);
@@ -1159,10 +1160,11 @@ private:
 			auto pos_prev_assign = continue_data.rfind('\t', pos_assign);
 			continue_data.erase(pos_prev_assign + 1, pos_assign - pos_prev_assign - 1);
 
-			code += "do\n\t{\n";
-			code += loop_data;
+			code += "do\n\t{\n\t\t{\n";
+			code += loop_data; // Encapsulate loop body into another scope, so not to confuse any local variables with the current iteration variable accessed in the continue block below
+			code += "\t\t}\n";
 			code += continue_data;
-			code += "}\n\twhile (" + id_to_name(condition_value) + ");\n";
+			code += "\t}\n\twhile (" + id_to_name(condition_value) + ");\n";
 		}
 		else
 		{
@@ -1175,8 +1177,9 @@ private:
 			auto pos_prev_assign = condition_data.rfind('\t', pos_assign);
 			condition_data.erase(pos_prev_assign + 1, pos_assign - pos_prev_assign - 1);
 
-			code += "while (" + id_to_name(condition_value) + ")\n\t{\n";
+			code += "while (" + id_to_name(condition_value) + ")\n\t{\n\t\t{\n";
 			code += loop_data;
+			code += "\t\t}\n";
 			code += continue_data;
 			code += condition_data;
 			code += "\t}\n";
