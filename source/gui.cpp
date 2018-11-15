@@ -127,6 +127,7 @@ void reshade::runtime::init_ui()
 		config.get("STYLE", "Alpha", _imgui_context->Style.Alpha);
 		config.get("STYLE", "FrameRounding", _imgui_context->Style.FrameRounding);
 		config.get("STYLE", "ColFPSText", _fps_col);
+		config.get("STYLE", "PreciseFPS", _fps_precise);
 		config.get("STYLE", "StyleIndex", _style_index);
 		config.get("STYLE", "EditorStyleIndex", _editor_style_index);
 
@@ -228,6 +229,7 @@ void reshade::runtime::init_ui()
 		config.set("STYLE", "Alpha", _imgui_context->Style.Alpha);
 		config.set("STYLE", "FrameRounding", _imgui_context->Style.FrameRounding);
 		config.set("STYLE", "ColFPSTex", _fps_col);
+		config.set("STYLE", "PreciseFPS", _fps_precise);
 		config.set("STYLE", "StyleIndex", _style_index);
 		config.set("STYLE", "EditorStyleIndex", _editor_style_index);
 
@@ -409,18 +411,19 @@ void reshade::runtime::draw_ui()
 		{
 			const int hour = _date[3] / 3600;
 			const int minute = (_date[3] - hour * 3600) / 60;
+			const int seconds = _date[3] - hour * 3600 - minute * 60;
 
-			ImFormatString(temp, sizeof(temp), " %02u:%02u", hour, minute);
+			ImFormatString(temp, sizeof(temp), _fps_precise ? " %02u:%02u:%02u" : " %02u:%02u", hour, minute, seconds);
 			ImGui::SetCursorPosX(ImGui::GetWindowContentRegionWidth() - ImGui::CalcTextSize(temp).x);
 			ImGui::TextUnformatted(temp);
 		}
 		if (_show_framerate)
 		{
-			ImFormatString(temp, sizeof(temp), "%.0f fps", _imgui_context->IO.Framerate);
+			ImFormatString(temp, sizeof(temp), "%.*f fps", _fps_precise ? 2 : 0, _imgui_context->IO.Framerate);
 			ImGui::SetCursorPosX(ImGui::GetWindowContentRegionWidth() - ImGui::CalcTextSize(temp).x);
 			ImGui::TextUnformatted(temp);
 
-			ImFormatString(temp, sizeof(temp), "%*lld ms", 3, std::chrono::duration_cast<std::chrono::milliseconds>(_last_frame_duration).count());
+			ImFormatString(temp, sizeof(temp), "%*.*f ms", 5, _fps_precise ? 2 : 0, _last_frame_duration.count() * 1e-6f);
 			ImGui::SetCursorPosX(ImGui::GetWindowContentRegionWidth() - ImGui::CalcTextSize(temp).x);
 			ImGui::TextUnformatted(temp);
 		}
@@ -1004,11 +1007,17 @@ void reshade::runtime::draw_overlay_menu_settings()
 	{
 		bool modified = false, reload_style = false;
 
-		modified |= ImGui::Checkbox("New Variable UI", &_variable_editor_tabs);
-		ImGui::SameLine(0, 10);
+		modified |= ImGui::Checkbox("Experimental Variable Editing UI", &_variable_editor_tabs);
+
 		modified |= ImGui::Checkbox("Show Clock", &_show_clock);
 		ImGui::SameLine(0, 10);
 		modified |= ImGui::Checkbox("Show FPS", &_show_framerate);
+
+		if (_show_clock || _show_framerate)
+		{
+			ImGui::SameLine(0, 10);
+			modified |= ImGui::Checkbox("Precise FPS", &_fps_precise);
+		}
 
 		if (ImGui::Combo("Style", &_style_index, "Dark\0Light\0Default\0Custom\0"))
 		{

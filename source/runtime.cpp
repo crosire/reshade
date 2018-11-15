@@ -892,10 +892,10 @@ void reshade::runtime::save_screenshot() const
 
 	const int hour = _date[3] / 3600;
 	const int minute = (_date[3] - hour * 3600) / 60;
-	const int second = _date[3] - hour * 3600 - minute * 60;
+	const int seconds = _date[3] - hour * 3600 - minute * 60;
 
 	char filename[21];
-	sprintf_s(filename, " %.4d-%.2d-%.2d %.2d-%.2d-%.2d", _date[0], _date[1], _date[2], hour, minute, second);
+	sprintf_s(filename, " %.4d-%.2d-%.2d %.2d-%.2d-%.2d", _date[0], _date[1], _date[2], hour, minute, seconds);
 	const std::wstring least = _screenshot_path / g_target_executable_path.stem().concat(filename);
 	const std::wstring screenshot_path = least + (_screenshot_format == 0 ? L".bmp" : L".png");
 
