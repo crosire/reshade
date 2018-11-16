@@ -52,7 +52,7 @@ static inline std::vector<std::string> split(const std::string &str, char delim)
 }
 
 const ImVec4 COLOR_RED = ImColor(240, 100, 100);
-const ImVec4 COLOR_YELLOW = ImColor(222, 222, 111);
+const ImVec4 COLOR_YELLOW = ImColor(204, 204, 0);
 
 void reshade::runtime::init_ui()
 {
@@ -1503,7 +1503,7 @@ void reshade::runtime::draw_overlay_menu_log()
 		{
 			for (int i = clipper.DisplayStart; i < clipper.DisplayEnd; ++i)
 			{
-				ImVec4 textcol(1, 1, 1, 1);
+				ImVec4 textcol = _imgui_context->Style.Colors[ImGuiCol_Text];
 
 				if (lines[i].find("ERROR |") != std::string::npos)
 					textcol = COLOR_RED;
