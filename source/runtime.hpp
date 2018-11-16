@@ -271,7 +271,7 @@ namespace reshade
 		bool _screenshot_include_preset = false;
 		bool _screenshot_include_configuration = false;
 
-		size_t _current_preset = std::numeric_limits<size_t>::max();
+		size_t _current_preset = 0;
 		std::vector<std::filesystem::path> _preset_files;
 
 		std::vector<std::string> _preprocessor_definitions;

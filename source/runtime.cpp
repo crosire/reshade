@@ -760,6 +760,10 @@ void reshade::runtime::load_config()
 			_preset_files.push_back(preset_file);
 	}
 
+	// Create a default preset file if none exists yet
+	if (_preset_files.empty())
+		_preset_files.push_back("DefaultPreset.ini");
+
 	for (const auto &callback : _load_config_callables)
 		callback(config);
 }
