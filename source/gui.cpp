@@ -354,7 +354,7 @@ void reshade::runtime::draw_ui()
 
 		if (_needs_update)
 		{
-			ImGui::TextColored(ImVec4(1, 1, 0, 1),
+			ImGui::TextColored(COLOR_YELLOW,
 				"An update is available! Please visit https://reshade.me and install the new version (v%lu.%lu.%lu).",
 				_latest_version[0], _latest_version[1], _latest_version[2]);
 		}
@@ -396,9 +396,9 @@ void reshade::runtime::draw_ui()
 		if (!_last_reload_successful)
 		{
 			ImGui::Spacing();
-			ImGui::TextColored(ImVec4(1, 0, 0, 1),
+			ImGui::TextColored(COLOR_RED,
 				"There were errors compiling some shaders. "
-				"Open the configuration menu and switch to the 'Log' tab for more details.");
+				"Open the configuration menu and switch to the 'Statistics' tab for more details.");
 		}
 
 		ImGui::End();
@@ -419,6 +419,7 @@ void reshade::runtime::draw_ui()
 			ImGuiWindowFlags_NoInputs |
 			ImGuiWindowFlags_NoCollapse |
 			ImGuiWindowFlags_NoNavFocus |
+			ImGuiWindowFlags_NoFocusOnAppearing |
 			ImGuiWindowFlags_NoBackground);
 
 		ImGui::SetWindowFontScale(_fps_scale);
@@ -446,7 +447,7 @@ void reshade::runtime::draw_ui()
 		}
 		if (_show_frametime)
 		{
-			ImFormatString(temp, sizeof(temp), "%5.2f ms", _last_frame_duration.count() * 1e-6f);
+			ImFormatString(temp, sizeof(temp), "%5.2f ms", 1000.0f / _imgui_context->IO.Framerate);
 			ImGui::SetCursorPosX(ImGui::GetWindowContentRegionWidth() - ImGui::CalcTextSize(temp).x);
 			ImGui::TextUnformatted(temp);
 		}
@@ -1031,7 +1032,7 @@ void reshade::runtime::draw_overlay_menu_settings()
 
 				ImGui::PopItemWidth();
 				ImGui::SameLine(0, button_spacing);
-				ImGui::PushItemWidth(ImGui::GetWindowContentRegionWidth() * 0.3333333f - (button_spacing + button_size));
+				ImGui::PushItemWidth(ImGui::GetWindowContentRegionWidth() * 0.3333333f - (button_spacing + button_size) + 1);
 
 				memset(edit_buffer, 0, sizeof(edit_buffer));
 				definition[1].copy(edit_buffer, sizeof(edit_buffer) - 1);
@@ -1058,7 +1059,7 @@ void reshade::runtime::draw_overlay_menu_settings()
 			}
 
 			ImGui::Dummy(ImVec2());
-			ImGui::SameLine(0, ImGui::GetWindowContentRegionWidth() - button_size - 1.0f);
+			ImGui::SameLine(0, ImGui::GetWindowContentRegionWidth() - button_size);
 			if (ImGui::Button("+", ImVec2(button_size, 0)))
 				_preprocessor_definitions.emplace_back();
 		} ImGui::EndChild();
@@ -1340,8 +1341,6 @@ void reshade::runtime::draw_overlay_menu_statistics()
 				continue;
 
 			ImGui::PushID(static_cast<int>(index));
-
-			ImGui::Separator();
 
 			ImGui::AlignTextToFramePadding();
 
