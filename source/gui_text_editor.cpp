@@ -279,28 +279,33 @@ void code_editor_widget::render(const char *title, bool border)
 
 			for (size_t i = 0; i < line.size(); ++i)
 			{
-				if (line[i].c == _highlighted[highlight_index])
+				if (line[i].c == _highlighted[highlight_index] && line[i].col == color_identifier)
 				{
-					if (highlight_index++ == 0)
-					{
+					if (highlight_index == 0)
 						begin_column = i;
-					}
-					else if (highlight_index == _highlighted.size()) // Using 'else' here to avoid catching one-character highlights
+
+					++highlight_index;
+
+					if (highlight_index == _highlighted.size())
 					{
-						// We found a matching text block
-						highlight_index = 0;
+						if (i + 1 == line.size() || line[i + 1].col != color_identifier) // Make sure this is a whole word and not just part of one
+						{
+							// We found a matching text block
+							const ImVec2 beg = ImVec2(text_screen_pos.x + calc_text_distance_to_line_begin(text_pos(line_no, begin_column)), text_screen_pos.y);
+							const ImVec2 end = ImVec2(text_screen_pos.x + calc_text_distance_to_line_begin(text_pos(line_no, i + 1)), text_screen_pos.y + char_advance.y);
 
-						const ImVec2 beg = ImVec2(text_screen_pos.x + calc_text_distance_to_line_begin(text_pos(line_no, begin_column)), text_screen_pos.y);
-						const ImVec2 end = ImVec2(text_screen_pos.x + calc_text_distance_to_line_begin(text_pos(line_no, i + 1)), text_screen_pos.y + char_advance.y);
-
-						draw_list->AddRectFilled(beg, end, _palette[color_selection]);
+							draw_list->AddRectFilled(beg, end, _palette[color_selection]);
+						}
+					}
+					else
+					{
+						// Continue search
+						continue;
 					}
 				}
-				else
-				{
-					// Current text no longer matches, reset search
-					highlight_index = 0;
-				}
+
+				// Current text no longer matches, reset search
+				highlight_index = 0;
 			}
 		}
 
