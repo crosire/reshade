@@ -18,7 +18,7 @@ Options:
   -h, --help                Print this help.
   --version                 Print ReShade version.
 
-  -D <id>=<text>            Define a pre-processor macro.
+  -D <id>=<text>            Define a preprocessor macro.
   -I <path>                 Add directory to include search path.
   -P <path>                 Pre-process to file. If <path> is "-", then result is written to standard output instead.
 

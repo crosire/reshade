@@ -206,7 +206,7 @@ void reshade::runtime::load_effect(const std::filesystem::path &path, size_t &ou
 		}
 
 		source_code = std::move(pp.output());
-		effect.errors = std::move(pp.errors()); // Add pre-processor errors to the error list
+		effect.errors = std::move(pp.errors()); // Add preprocessor errors to the error list
 	}
 
 	{ reshadefx::parser parser;
@@ -224,7 +224,7 @@ void reshade::runtime::load_effect(const std::filesystem::path &path, size_t &ou
 		const reshadefx::codegen::backend language =
 			_renderer_id & 0x10000 ? reshadefx::codegen::backend::glsl : reshadefx::codegen::backend::hlsl;
 
-		// Compile the pre-processed source code (try the compile even if the pre-processor step failed to get additional error information)
+		// Compile the pre-processed source code (try the compile even if the preprocessor step failed to get additional error information)
 		if (!parser.parse(std::move(source_code), language, shader_model, true, _performance_mode, effect.module))
 		{
 			LOG(ERROR) << "Failed to compile " << path << ":\n" << parser.errors();
@@ -329,7 +329,7 @@ void reshade::runtime::load_effect(const std::filesystem::path &path, size_t &ou
 				existing_texture->levels != info.levels ||
 				existing_texture->format != info.format))
 			{
-				effect.errors += "warning: another effect already created a texture with the same name but different dimensions; textures are shared across all effects, so either rename the variable or adjust the dimensions so they match\n";
+				effect.errors += "warning: " + info.unique_name + ": another effect already created a texture with the same name but different dimensions; textures are shared across all effects, so either rename the variable or adjust the dimensions so they match\n";
 			}
 
 			existing_texture->shared = true;
