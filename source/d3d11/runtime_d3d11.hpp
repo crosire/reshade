@@ -8,8 +8,6 @@
 #include "runtime.hpp"
 #include "state_block.hpp"
 #include "draw_call_tracker.hpp"
-#include "effect_codegen.hpp"
-#include "effect_expression.hpp"
 #include <mutex>
 
 namespace reshade::d3d11

@@ -366,6 +366,7 @@
     <ClCompile Include="source\dxgi\dxgi_swapchain.cpp" />
     <ClCompile Include="source\gui.cpp" />
     <ClCompile Include="source\gui_text_editor.cpp" />
+    <ClCompile Include="source\gui_widgets.cpp" />
     <ClCompile Include="source\hook.cpp" />
     <ClCompile Include="source\hook_manager.cpp" />
     <ClCompile Include="source\ini_file.cpp" />
@@ -405,6 +406,7 @@
     <ClInclude Include="source\dxgi\dxgi_device.hpp" />
     <ClInclude Include="source\dxgi\dxgi_swapchain.hpp" />
     <ClInclude Include="source\gui_text_editor.hpp" />
+    <ClInclude Include="source\gui_widgets.hpp" />
     <ClInclude Include="source\hook.hpp" />
     <ClInclude Include="source\hook_manager.hpp" />
     <ClInclude Include="source\ini_file.hpp" />

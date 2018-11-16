@@ -6,7 +6,6 @@
 #pragma once
 
 #include "runtime.hpp"
-#include "effect_codegen.hpp"
 #include "effect_expression.hpp"
 #include "com_ptr.hpp"
 #include <d3d9.h>

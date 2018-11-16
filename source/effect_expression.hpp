@@ -361,4 +361,19 @@ namespace reshadefx
 		std::vector<pass_info> passes;
 		std::unordered_map<std::string, std::pair<type, constant>> annotations;
 	};
+
+
+	/// <summary>
+	/// In-memory representation of an effect file.
+	/// </summary>
+	struct module
+	{
+		std::string hlsl;
+		std::vector<uint32_t> spirv;
+		std::vector<texture_info> textures;
+		std::vector<sampler_info> samplers;
+		std::vector<uniform_info> uniforms, spec_constants;
+		std::vector<technique_info> techniques;
+		std::vector<std::pair<std::string, bool>> entry_points;
+	};
 }

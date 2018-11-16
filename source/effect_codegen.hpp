@@ -11,20 +11,6 @@
 namespace reshadefx
 {
 	/// <summary>
-	/// In-memory representation of an effect file.
-	/// </summary>
-	struct module
-	{
-		std::string hlsl;
-		std::vector<uint32_t> spirv;
-		std::vector<texture_info> textures;
-		std::vector<sampler_info> samplers;
-		std::vector<uniform_info> uniforms, spec_constants;
-		std::vector<technique_info> techniques;
-		std::vector<std::pair<std::string, bool>> entry_points;
-	};
-
-	/// <summary>
 	/// A code generation back-end interface for the parser to call into.
 	/// </summary>
 	class codegen abstract

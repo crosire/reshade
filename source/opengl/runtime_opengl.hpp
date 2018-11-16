@@ -7,8 +7,6 @@
 
 #include "runtime.hpp"
 #include "state_block.hpp"
-#include "effect_codegen.hpp"
-#include "effect_expression.hpp"
 
 namespace reshade::opengl
 {

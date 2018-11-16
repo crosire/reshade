@@ -122,6 +122,12 @@ void reshade::runtime::on_present()
 	if (_input->is_key_pressed(_reload_key_data))
 		load_effects();
 
+	if (_input->is_key_pressed(_effects_key_data))
+#if RESHADE_GUI
+		if (!_toggle_key_setting_active)
+#endif
+			_effects_enabled = !_effects_enabled;
+
 	// Create and save screenshot if associated shortcut is down
 	if (_input->is_key_pressed(_screenshot_key_data))
 #if RESHADE_GUI
@@ -158,8 +164,8 @@ void reshade::runtime::load_effect(const std::filesystem::path &path, size_t &ou
 {
 	effect_data effect;
 	effect.source_file = path;
+	effect.compile_sucess = true;
 
-	bool compile_success = true;
 	std::string source_code;
 
 	{ reshadefx::preprocessor pp;
@@ -202,7 +208,7 @@ void reshade::runtime::load_effect(const std::filesystem::path &path, size_t &ou
 		if (!pp.append_file(path))
 		{
 			LOG(ERROR) << "Failed to load " << path << ":\n" << pp.errors();
-			compile_success = false;
+			effect.compile_sucess = false;
 		}
 
 		source_code = std::move(pp.output());
@@ -228,7 +234,7 @@ void reshade::runtime::load_effect(const std::filesystem::path &path, size_t &ou
 		if (!parser.parse(std::move(source_code), language, shader_model, true, _performance_mode, effect.module))
 		{
 			LOG(ERROR) << "Failed to compile " << path << ":\n" << parser.errors();
-			compile_success = false;
+			effect.compile_sucess = false;
 		}
 
 		effect.errors += parser.errors(); // Append parser errors and warnings to the error list
@@ -239,7 +245,7 @@ void reshade::runtime::load_effect(const std::filesystem::path &path, size_t &ou
 #endif
 
 	// Fill all specialization constants with values from the current preset
-	if (_performance_mode && _current_preset < _preset_files.size() && compile_success)
+	if (_performance_mode && _current_preset < _preset_files.size() && effect.compile_sucess)
 	{
 		const ini_file preset(_preset_files[_current_preset]);
 
@@ -259,14 +265,6 @@ void reshade::runtime::load_effect(const std::filesystem::path &path, size_t &ou
 				break;
 			}
 		}
-	}
-
-	// Clear effect module if compilation was not successful
-	if (!compile_success)
-	{
-		effect.module.uniforms.clear();
-		effect.module.textures.clear();
-		effect.module.techniques.clear();
 	}
 
 	std::lock_guard<std::mutex> lock(_reload_mutex);
@@ -348,12 +346,13 @@ void reshade::runtime::load_effect(const std::filesystem::path &path, size_t &ou
 			effect.errors += "warning: " + info.unique_name + ": unknown semantic '" + info.semantic + "'\n";
 	}
 
+	_loaded_effects.push_back(effect); // The 'enable_technique' call below needs to access this, so append the effect now
+
 	for (const reshadefx::technique_info &info : effect.module.techniques)
 	{
 		technique &technique = _techniques.emplace_back(info);
 		technique.effect_index = out_id;
 		technique.effect_filename = path.filename().u8string();
-		technique.enabled = technique.annotations["enabled"].second.as_uint[0];
 		technique.hidden = technique.annotations["hidden"].second.as_uint[0];
 		technique.timeout = technique.annotations["timeout"].second.as_int[0];
 		technique.timeleft = technique.timeout;
@@ -361,17 +360,19 @@ void reshade::runtime::load_effect(const std::filesystem::path &path, size_t &ou
 		technique.toggle_key_data[1] = technique.annotations["togglectrl"].second.as_uint[0] ? 1 : 0;
 		technique.toggle_key_data[2] = technique.annotations["toggleshift"].second.as_uint[0] ? 1 : 0;
 		technique.toggle_key_data[3] = technique.annotations["togglealt"].second.as_uint[0] ? 1 : 0;
+
+		if (technique.annotations["enabled"].second.as_uint[0])
+			enable_technique(technique);
 	}
 
-	if (compile_success)
+	if (effect.compile_sucess)
 		if (effect.errors.empty())
 			LOG(INFO) << "Successfully loaded " << path << ".";
 		else
 			LOG(WARNING) << "Successfully loaded " << path << " with warnings:\n" << effect.errors;
 
-	_loaded_effects.push_back(std::move(effect));
-
 	_reload_remaining_effects--;
+	_last_reload_successful &= effect.compile_sucess;
 }
 void reshade::runtime::load_effects()
 {
@@ -513,19 +514,31 @@ void reshade::runtime::update_and_render_effects()
 	{
 		if (!_reload_compile_queue.empty())
 		{
-			effect_data &effect = _loaded_effects[_reload_compile_queue.back()];
-
+			// Pop an effect from the queue
+			size_t effect_index = _reload_compile_queue.back();
 			_reload_compile_queue.pop_back();
+
+			effect_data &effect = _loaded_effects[effect_index];
 
 			bool success = true;
 			for (texture &texture : _textures)
-				if (texture.impl == nullptr && (texture.effect_filename == effect.source_file.filename().u8string() || texture.shared))
+				if (texture.impl == nullptr && (texture.effect_index == effect_index || texture.shared))
 					success &= init_texture(texture);
 
 			if (!compile_effect(effect) || !success)
 			{
 				LOG(ERROR) << "Failed to compile " << effect.source_file << ":\n" << effect.errors;
 
+				// Destroy all textures belonging to this effect
+				for (texture &texture : _textures)
+					if (texture.effect_index == effect_index && !texture.shared)
+						texture.impl.reset();
+				// Disable all techniques belonging to this effect
+				for (technique &technique : _techniques)
+					if (technique.effect_index == effect_index)
+						disable_technique(technique);
+
+				effect.compile_sucess = false;
 				_last_reload_successful = false;
 			}
 
@@ -539,13 +552,8 @@ void reshade::runtime::update_and_render_effects()
 	}
 
 	// Lock input so it cannot be modified by other threads while we are reading it here
+	// TODO: This does not catch input happening between now and 'on_present'
 	const auto input_lock = _input->lock();
-
-	if (_input->is_key_pressed(_effects_key_data))
-#if RESHADE_GUI
-		if (!_toggle_key_setting_active)
-#endif
-		_effects_enabled = !_effects_enabled;
 
 	// Nothing to do here if effects are disabled globally
 	if (!_effects_enabled)
@@ -683,6 +691,9 @@ void reshade::runtime::update_and_render_effects()
 
 void reshade::runtime::enable_technique(technique &technique)
 {
+	if (!_loaded_effects[technique.effect_index].compile_sucess)
+		return; // Cannot enable techniques that failed to compile
+
 	technique.enabled = true;
 	technique.timeleft = technique.timeout;
 

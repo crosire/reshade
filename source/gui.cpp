@@ -9,6 +9,7 @@
 #include "version.h"
 #include "runtime.hpp"
 #include "input.hpp"
+#include "gui_widgets.hpp"
 #include <assert.h>
 #include <algorithm>
 #include <imgui.h>
@@ -48,70 +49,6 @@ static inline std::vector<std::string> split(const std::string &str, char delim)
 	}
 
 	return result;
-}
-
-static bool imgui_directory_dialog(const char *name, std::filesystem::path &path)
-{
-	bool ok = false, cancel = false;
-
-	if (!ImGui::BeginPopup(name))
-		return false;
-
-	char buf[260] = "";
-	path.u8string().copy(buf, sizeof(buf) - 1);
-
-	ImGui::PushItemWidth(400);
-	if (ImGui::InputText("##path", buf, sizeof(buf)))
-		path = buf;
-	ImGui::PopItemWidth();
-
-	ImGui::SameLine();
-	if (ImGui::Button("Ok", ImVec2(100, 0)))
-		ok = true;
-	ImGui::SameLine();
-	if (ImGui::Button("Cancel", ImVec2(100, 0)))
-		cancel = true;
-
-	ImGui::BeginChild("##files", ImVec2(0, 300));
-
-	std::error_code ec;
-
-	if (path.is_relative())
-		path = std::filesystem::absolute(path);
-	if (!std::filesystem::is_directory(path, ec))
-		path.remove_filename();
-	else if (!path.has_filename())
-		path = path.parent_path();
-
-	if (ImGui::Selectable("."))
-		ok = true;
-	if (path.has_parent_path() && ImGui::Selectable(".."))
-		path = path.parent_path();
-
-	for (const auto &entry : std::filesystem::directory_iterator(path, ec))
-	{
-		// Only show directories
-		if (!entry.is_directory(ec))
-			continue;
-
-		if (ImGui::Selectable(entry.path().filename().u8string().c_str(), entry.path() == path))
-		{
-			if (entry.is_regular_file(ec))
-				ok = true;
-
-			path = entry.path();
-			break;
-		}
-	}
-
-	ImGui::EndChild();
-
-	if (ok || cancel)
-		ImGui::CloseCurrentPopup();
-
-	ImGui::EndPopup();
-
-	return ok;
 }
 
 const ImVec4 COLOR_RED = ImColor(240, 100, 100);
@@ -919,6 +856,7 @@ void reshade::runtime::draw_overlay_menu_settings()
 	};
 
 	const auto copy_key_shortcut_to_edit_buffer = [&edit_buffer](const unsigned int shortcut[4]) {
+		assert(shortcut[0] < 256);
 		size_t offset = 0;
 		if (shortcut[1]) memcpy(edit_buffer, "Ctrl + ", 8), offset += 7;
 		if (shortcut[2]) memcpy(edit_buffer + offset, "Shift + ", 9), offset += 8;
@@ -928,10 +866,7 @@ void reshade::runtime::draw_overlay_menu_settings()
 
 	if (ImGui::CollapsingHeader("General", ImGuiTreeNodeFlags_DefaultOpen))
 	{
-		assert(_menu_key_data[0] < 256);
-
 		copy_key_shortcut_to_edit_buffer(_menu_key_data);
-
 		ImGui::InputText("Overlay Key", edit_buffer, sizeof(edit_buffer), ImGuiInputTextFlags_ReadOnly);
 
 		_overlay_key_setting_active = false;
@@ -947,10 +882,7 @@ void reshade::runtime::draw_overlay_menu_settings()
 			ImGui::SetTooltip("Click in the field and press any key to change the shortcut to that key.");
 		}
 
-		assert(_reload_key_data[0] < 256);
-
 		copy_key_shortcut_to_edit_buffer(_reload_key_data);
-
 		ImGui::InputText("Effect Reload Key", edit_buffer, sizeof(edit_buffer), ImGuiInputTextFlags_ReadOnly);
 
 		if (ImGui::IsItemActive())
@@ -962,10 +894,7 @@ void reshade::runtime::draw_overlay_menu_settings()
 			ImGui::SetTooltip("Click in the field and press any key to change the shortcut to that key.");
 		}
 
-		assert(_effects_key_data[0] < 256);
-
 		copy_key_shortcut_to_edit_buffer(_effects_key_data);
-
 		ImGui::InputText("Effect Toggle Key", edit_buffer, sizeof(edit_buffer), ImGuiInputTextFlags_ReadOnly);
 
 		_toggle_key_setting_active = false;
@@ -1029,8 +958,7 @@ void reshade::runtime::draw_overlay_menu_settings()
 				modified = true;
 				_effect_search_paths.push_back(_file_selection_path);
 			}
-		}
-		ImGui::EndChild();
+		} ImGui::EndChild();
 		ImGui::SameLine(0, button_spacing);
 		ImGui::TextUnformatted("Effect Search Paths");
 
@@ -1074,8 +1002,7 @@ void reshade::runtime::draw_overlay_menu_settings()
 				modified = true;
 				_texture_search_paths.push_back(_file_selection_path);
 			}
-		}
-		ImGui::EndChild();
+		} ImGui::EndChild();
 		ImGui::SameLine(0, button_spacing);
 		ImGui::TextUnformatted("Texture Search Paths");
 
@@ -1083,7 +1010,7 @@ void reshade::runtime::draw_overlay_menu_settings()
 		{
 			for (size_t i = 0; i < _preprocessor_definitions.size(); ++i)
 			{
-				auto definition = split(_preprocessor_definitions[i], '=');
+				std::vector<std::string> definition = split(_preprocessor_definitions[i], '=');
 
 				if (definition.size() < 2)
 				{
@@ -1134,8 +1061,7 @@ void reshade::runtime::draw_overlay_menu_settings()
 			ImGui::SameLine(0, ImGui::GetWindowContentRegionWidth() - button_size - 1.0f);
 			if (ImGui::Button("+", ImVec2(button_size, 0)))
 				_preprocessor_definitions.emplace_back();
-		}
-		ImGui::EndChild();
+		} ImGui::EndChild();
 		ImGui::SameLine(0, button_spacing);
 		ImGui::TextUnformatted("Preprocessor Definitions");
 
@@ -1286,19 +1212,20 @@ void reshade::runtime::draw_overlay_menu_settings()
 		}
 		if (_style_index == 4) // Custom Advanced
 		{
-			ImGui::BeginChild("##colors", ImVec2(0, 300), true, ImGuiWindowFlags_AlwaysVerticalScrollbar | ImGuiWindowFlags_AlwaysHorizontalScrollbar | ImGuiWindowFlags_NavFlattened);
-			ImGui::PushItemWidth(-160);
-			for (ImGuiCol i = 0; i < ImGuiCol_COUNT; i++)
+			if (ImGui::BeginChild("##colors", ImVec2(0, 300), true, ImGuiWindowFlags_AlwaysVerticalScrollbar | ImGuiWindowFlags_AlwaysHorizontalScrollbar | ImGuiWindowFlags_NavFlattened))
 			{
-				ImGui::PushID(i);
-				if (ImGui::ColorEdit4("##color", &_imgui_context->Style.Colors[i].x, ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreview))
-					modified = true;
-				ImGui::SameLine();
-				ImGui::TextUnformatted(ImGui::GetStyleColorName(i));
-				ImGui::PopID();
-			}
-			ImGui::PopItemWidth();
-			ImGui::EndChild();
+				ImGui::PushItemWidth(-160);
+				for (ImGuiCol i = 0; i < ImGuiCol_COUNT; i++)
+				{
+					ImGui::PushID(i);
+					if (ImGui::ColorEdit4("##color", &_imgui_context->Style.Colors[i].x, ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreview))
+						modified = true;
+					ImGui::SameLine();
+					ImGui::TextUnformatted(ImGui::GetStyleColorName(i));
+					ImGui::PopID();
+				}
+				ImGui::PopItemWidth();
+			} ImGui::EndChild();
 		}
 
 		if (ImGui::Combo("Editor Style", &_editor_style_index, "Dark\0Light\0"))
@@ -1378,10 +1305,10 @@ void reshade::runtime::draw_overlay_menu_statistics()
 		ImGui::Text("%d-%d-%d %d", _date[0], _date[1], _date[2], _date[3]);
 		ImGui::Text("%X %d", _vendor_id, _device_id);
 		ImGui::Text("%.2f", _imgui_context->IO.Framerate);
-		ImGui::Text("%f ms (CPU)", (post_processing_time_cpu * 1e-6f));
+		ImGui::Text("%f ms (CPU)", post_processing_time_cpu * 1e-6f);
 		ImGui::Text("%u (%u vertices)", _drawcalls, _vertices);
 		ImGui::Text("%f ms", _last_frame_duration.count() * 1e-6f);
-		ImGui::Text("%f ms", std::fmod(std::chrono::duration_cast<std::chrono::nanoseconds>(_last_present_time - _start_time).count() * 1e-6f, 16777216.0f));
+		ImGui::Text("%f ms", std::chrono::duration_cast<std::chrono::nanoseconds>(_last_present_time - _start_time).count() * 1e-6f);
 		ImGui::Text("%u B", g_network_traffic);
 		ImGui::EndGroup();
 
@@ -1392,10 +1319,8 @@ void reshade::runtime::draw_overlay_menu_statistics()
 		ImGui::NewLine();
 		ImGui::NewLine();
 		ImGui::NewLine();
-
 		if (post_processing_time_gpu != 0)
 			ImGui::Text("%f ms (GPU)", (post_processing_time_gpu * 1e-6f));
-
 		ImGui::EndGroup();
 	}
 
@@ -1408,7 +1333,7 @@ void reshade::runtime::draw_overlay_menu_statistics()
 
 		for (size_t index = 0; index < _loaded_effects.size(); ++index)
 		{
-			const auto &effect = _loaded_effects[index];
+			const effect_data &effect = _loaded_effects[index];
 
 			// Ignore unloaded effects
 			if (effect.source_file.empty())
@@ -1505,8 +1430,7 @@ void reshade::runtime::draw_overlay_menu_statistics()
 							ImGui::NewLine();
 
 					ImGui::EndGroup();
-				}
-				ImGui::EndChild();
+				} ImGui::EndChild();
 			}
 			#pragma endregion
 
@@ -1539,8 +1463,7 @@ void reshade::runtime::draw_overlay_menu_statistics()
 							ImGui::EndTooltip();
 						}
 					}
-				}
-				ImGui::EndChild();
+				} ImGui::EndChild();
 			}
 			#pragma endregion
 
@@ -1562,39 +1485,38 @@ void reshade::runtime::draw_overlay_menu_log()
 	static ImGuiTextFilter filter; // TODO: Better make this a member of the runtime class, in case there are multiple instances.
 	filter.Draw("Filter (inc, -exc)", -150);
 
-	std::vector<std::string> lines;
-	for (auto &line : reshade::log::lines)
-		if (filter.PassFilter(line.c_str()))
-			lines.push_back(line);
-
-	ImGui::BeginChild("log", ImVec2(), true, _log_wordwrap ? 0 : ImGuiWindowFlags_AlwaysHorizontalScrollbar);
-
-	ImGuiListClipper clipper(static_cast<int>(lines.size()), ImGui::GetTextLineHeightWithSpacing());
-
-	while (clipper.Step())
+	if (ImGui::BeginChild("log", ImVec2(), true, _log_wordwrap ? 0 : ImGuiWindowFlags_AlwaysHorizontalScrollbar))
 	{
-		for (int i = clipper.DisplayStart; i < clipper.DisplayEnd; ++i)
+		std::vector<std::string> lines;
+		for (auto &line : reshade::log::lines)
+			if (filter.PassFilter(line.c_str()))
+				lines.push_back(line);
+
+		ImGuiListClipper clipper(static_cast<int>(lines.size()), ImGui::GetTextLineHeightWithSpacing());
+
+		while (clipper.Step())
 		{
-			ImVec4 textcol(1, 1, 1, 1);
+			for (int i = clipper.DisplayStart; i < clipper.DisplayEnd; ++i)
+			{
+				ImVec4 textcol(1, 1, 1, 1);
 
-			if (lines[i].find("ERROR |") != std::string::npos)
-				textcol = COLOR_RED;
-			else if (lines[i].find("WARN  |") != std::string::npos)
-				textcol = COLOR_YELLOW;
-			else if (lines[i].find("DEBUG |") != std::string::npos)
-				textcol = ImColor(100, 100, 255);
+				if (lines[i].find("ERROR |") != std::string::npos)
+					textcol = COLOR_RED;
+				else if (lines[i].find("WARN  |") != std::string::npos)
+					textcol = COLOR_YELLOW;
+				else if (lines[i].find("DEBUG |") != std::string::npos)
+					textcol = ImColor(100, 100, 255);
 
-			ImGui::PushStyleColor(ImGuiCol_Text, textcol);
-			if (_log_wordwrap) ImGui::PushTextWrapPos();
+				ImGui::PushStyleColor(ImGuiCol_Text, textcol);
+				if (_log_wordwrap) ImGui::PushTextWrapPos();
 
-			ImGui::TextUnformatted(lines[i].c_str());
+				ImGui::TextUnformatted(lines[i].c_str());
 
-			if (_log_wordwrap) ImGui::PopTextWrapPos();
-			ImGui::PopStyleColor();
+				if (_log_wordwrap) ImGui::PopTextWrapPos();
+				ImGui::PopStyleColor();
+			}
 		}
-	}
-
-	ImGui::EndChild();
+	} ImGui::EndChild();
 }
 void reshade::runtime::draw_overlay_menu_about()
 {
@@ -1788,6 +1710,7 @@ void reshade::runtime::draw_overlay_variable_editor()
 		// Hide variables that are not currently used in any of the active effects
 		if (!_loaded_effects[variable.effect_index].rendering)
 			continue;
+		assert(_loaded_effects[variable.effect_index].compile_sucess);
 
 		// Create separate tab for every effect file
 		if (variable.effect_filename != current_filename)
@@ -2100,10 +2023,16 @@ void reshade::runtime::draw_overlay_technique_editor()
 		if (draw_border)
 			ImGui::Separator();
 
-		// Gray out disabled techniques
-		ImGui::PushStyleColor(ImGuiCol_Text, _imgui_context->Style.Colors[technique.enabled ? ImGuiCol_Text : ImGuiCol_TextDisabled]);
+		const bool clicked = _imgui_context->IO.MouseClicked[0];
+		const bool compile_success = _loaded_effects[technique.effect_index].compile_sucess;
+		if (!compile_success) // Prevent user from enabling the technique when the effect failed to compile
+			_imgui_context->IO.MouseClicked[0] = false;
+		assert(compile_success || !technique.enabled);
 
-		const std::string label = technique.name + " [" + technique.effect_filename + ']';
+		// Gray out disabled techniques and mark techniques which failed to compile red
+		ImGui::PushStyleColor(ImGuiCol_Text, compile_success ? _imgui_context->Style.Colors[technique.enabled ? ImGuiCol_Text : ImGuiCol_TextDisabled] : COLOR_RED);
+
+		const std::string label = technique.name + " [" + technique.effect_filename + ']' + (!compile_success ? " (failed to compile)" : "");
 
 		if (ImGui::Checkbox(label.c_str(), &technique.enabled))
 		{
@@ -2114,11 +2043,13 @@ void reshade::runtime::draw_overlay_technique_editor()
 			save_current_preset();
 		}
 
+		_imgui_context->IO.MouseClicked[0] = clicked; // Reset click status
+
 		ImGui::PopStyleColor();
 
 		if (ImGui::IsItemActive())
 			_selected_technique = index;
-		if (ImGui::IsItemClicked(0))
+		if (ImGui::IsItemClicked())
 			_focused_effect = technique.effect_index;
 		if (ImGui::IsItemHovered(ImGuiHoveredFlags_RectOnly))
 			hovered_technique_index = index;

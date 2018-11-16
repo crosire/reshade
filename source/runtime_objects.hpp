@@ -5,7 +5,7 @@
 
 #pragma once
 
-#include "effect_codegen.hpp"
+#include "effect_expression.hpp"
 #include "moving_average.hpp"
 #include <filesystem>
 
@@ -46,6 +46,7 @@ namespace reshade
 	struct effect_data
 	{
 		bool rendering = false;
+		bool compile_sucess = false;
 		std::string errors;
 		reshadefx::module module;
 		std::filesystem::path source_file;
