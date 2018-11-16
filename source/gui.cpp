@@ -1597,22 +1597,22 @@ void reshade::runtime::draw_code_editor()
 
 		for (size_t offset = 0, next; offset != std::string::npos; offset = next)
 		{
-			const size_t pos_line = errors.find('(', offset);
-			const size_t pos_error = errors.find(':', pos_line);
+			const size_t pos_error = errors.find(": ", offset);
+			const size_t pos_error_line = errors.rfind('(', pos_error); // Paths can contain '(', but no ": ", so search backwards from th error location to find the line info
+			if (pos_error == std::string::npos || pos_error_line == std::string::npos)
+				break;
+
 			const size_t pos_linefeed = errors.find('\n', pos_error);
 
 			next = pos_linefeed != std::string::npos ? pos_linefeed + 1 : std::string::npos;
 
-			if (pos_line == std::string::npos || pos_error == std::string::npos)
-				break;
-
 			// Ignore errors that aren't in the main source file
-			const std::string error_file = errors.substr(offset, pos_line - offset);
+			const std::string error_file = errors.substr(offset, pos_error_line - offset);
 
 			if (error_file != _loaded_effects[_selected_effect].source_file.u8string())
 				continue;
 
-			const int error_line = std::strtol(errors.c_str() + pos_line + 1, nullptr, 10);
+			const int error_line = std::strtol(errors.c_str() + pos_error_line + 1, nullptr, 10);
 			const std::string error_text = errors.substr(pos_error + 2 /* skip space */, pos_linefeed - pos_error - 2);
 
 			_editor.add_error(error_line, error_text, error_text.find("warning") != std::string::npos);
