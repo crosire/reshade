@@ -28,8 +28,8 @@ reshade::runtime::runtime(uint32_t renderer) :
 	_start_time(std::chrono::high_resolution_clock::now()),
 	_last_present_time(std::chrono::high_resolution_clock::now()),
 	_last_frame_duration(std::chrono::milliseconds(1)),
-	_effect_search_paths({ g_reshade_dll_path.parent_path() }),
-	_texture_search_paths({ g_reshade_dll_path.parent_path() }),
+	_effect_search_paths({ ".\\" }),
+	_texture_search_paths({ ".\\" }),
 	_preprocessor_definitions({
 		"RESHADE_DEPTH_LINEARIZATION_FAR_PLANE=1000.0",
 		"RESHADE_DEPTH_INPUT_IS_UPSIDE_DOWN=0",

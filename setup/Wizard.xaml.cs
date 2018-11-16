@@ -317,7 +317,7 @@ namespace ReShade.Setup
 				{
 					string targetDirectory = Path.GetDirectoryName(_targetPath);
 
-					WriteSearchPaths(targetDirectory, targetDirectory);
+					WriteSearchPaths(".\\", ".\\");
 				}
 
 				EnableSettingsWindow();
@@ -447,7 +447,7 @@ namespace ReShade.Setup
 				}
 			}
 
-			WriteSearchPaths(targetPathShaders, targetPathTextures);
+			WriteSearchPaths(".\\reshade-shaders\\Shaders", ".\\reshade-shaders\\Textures");
 
 			Title += " Succeeded!";
 			Glass.HideSystemMenu(this, false);
@@ -489,10 +489,8 @@ namespace ReShade.Setup
 				}
 			}
 
-			if (!pathExists && newPath.StartsWith(basePath))
-			{
+			if (!pathExists)
 				searchPaths.Add(newPath);
-			}
 		}
 		private void WriteSearchPaths(string targetPathShaders, string targetPathTextures)
 		{
