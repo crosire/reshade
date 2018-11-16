@@ -1350,13 +1350,19 @@ void reshade::runtime::draw_overlay_menu_statistics()
 				ImGui::SameLine();
 			}
 
-			ImGui::TextDisabled("%s%lc", effect.source_file.parent_path().u8string().c_str(), std::filesystem::path::preferred_separator);
-			ImGui::SameLine(0, 0);
+			const float button_spacing = _imgui_context->Style.ItemInnerSpacing.x;
+			const float button_offset = ImGui::GetWindowContentRegionWidth() - (80 + button_spacing + 150);
+
+			// Hide parent path if window is small
+			if (ImGui::CalcTextSize(effect.source_file.u8string().c_str()).x < button_offset)
+			{
+				ImGui::TextDisabled("%s%lc", effect.source_file.parent_path().u8string().c_str(), std::filesystem::path::preferred_separator);
+				ImGui::SameLine(0, 0);
+			}
+
 			ImGui::TextUnformatted(effect.source_file.filename().u8string().c_str());
 
-			const float button_spacing = _imgui_context->Style.ItemInnerSpacing.x;
-
-			ImGui::SameLine(ImGui::GetWindowContentRegionWidth() - (80 + button_spacing + 150) + _imgui_context->Style.ItemSpacing.x, 0);
+			ImGui::SameLine(button_offset + _imgui_context->Style.ItemSpacing.x, 0);
 
 			if (ImGui::Button("Edit", ImVec2(80, 0)))
 			{
