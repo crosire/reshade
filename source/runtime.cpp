@@ -81,7 +81,7 @@ bool reshade::runtime::on_init(input::window_handle window)
 	_last_reload_time = std::chrono::high_resolution_clock::now();
 
 #if RESHADE_GUI
-	init_ui_font_atlas();
+	build_font_atlas();
 #endif
 
 	return true;
@@ -94,7 +94,7 @@ void reshade::runtime::on_reset()
 		return;
 
 #if RESHADE_GUI
-	deinit_ui_font_atlas();
+	destroy_font_atlas();
 #endif
 
 	LOG(INFO) << "Destroyed runtime environment on runtime " << this << ".";
@@ -520,12 +520,13 @@ void reshade::runtime::update_and_render_effects()
 
 			effect_data &effect = _loaded_effects[effect_index];
 
+			// Create textures now, since they are referenced when building samplers in the 'compile_effect' call below
 			bool success = true;
 			for (texture &texture : _textures)
 				if (texture.impl == nullptr && (texture.effect_index == effect_index || texture.shared))
 					success &= init_texture(texture);
 
-			if (!compile_effect(effect) || !success)
+			if (!success || !compile_effect(effect))
 			{
 				LOG(ERROR) << "Failed to compile " << effect.source_file << ":\n" << effect.errors;
 

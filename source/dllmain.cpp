@@ -12,25 +12,20 @@ HMODULE g_module_handle = nullptr;
 
 std::filesystem::path g_reshade_dll_path;
 std::filesystem::path g_target_executable_path;
-std::filesystem::path g_system_path;
-std::filesystem::path g_windows_path;
 
+static inline std::filesystem::path get_system_path()
+{
+	static std::filesystem::path system_path;
+	if (!system_path.empty())
+		return system_path;
+	TCHAR buf[MAX_PATH] = {};
+	GetSystemDirectory(buf, ARRAYSIZE(buf));
+	return system_path = buf;
+}
 static inline std::filesystem::path get_module_path(HMODULE module)
 {
 	TCHAR buf[MAX_PATH] = {};
 	GetModuleFileName(module, buf, ARRAYSIZE(buf));
-	return buf;
-}
-static inline std::filesystem::path get_system_path()
-{
-	TCHAR buf[MAX_PATH] = {};
-	GetSystemDirectory(buf, ARRAYSIZE(buf));
-	return buf;
-}
-static inline std::filesystem::path get_windows_path()
-{
-	TCHAR buf[MAX_PATH] = {};
-	GetWindowsDirectory(buf, ARRAYSIZE(buf));
 	return buf;
 }
 
@@ -47,8 +42,6 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 	g_module_handle = hInstance;
 	g_reshade_dll_path = get_module_path(nullptr);
 	g_target_executable_path = get_module_path(nullptr);
-	g_system_path = get_system_path();
-	g_windows_path = get_windows_path();
 
 	log::open(std::filesystem::path(g_reshade_dll_path).replace_extension(".log"));
 
@@ -277,8 +270,6 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 		g_module_handle = hModule;
 		g_reshade_dll_path = get_module_path(hModule);
 		g_target_executable_path = get_module_path(nullptr);
-		g_system_path = get_system_path();
-		g_windows_path = get_windows_path();
 
 		log::open(std::filesystem::path(g_reshade_dll_path).replace_extension(".log"));
 
@@ -291,12 +282,12 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 		hooks::register_module("user32.dll");
 		hooks::register_module("ws2_32.dll");
 
-		hooks::register_module(g_system_path / "d3d9.dll");
-		hooks::register_module(g_system_path / "d3d10.dll");
-		hooks::register_module(g_system_path / "d3d10_1.dll");
-		hooks::register_module(g_system_path / "d3d11.dll");
-		hooks::register_module(g_system_path / "dxgi.dll");
-		hooks::register_module(g_system_path / "opengl32.dll");
+		hooks::register_module(get_system_path() / "d3d9.dll");
+		hooks::register_module(get_system_path() / "d3d10.dll");
+		hooks::register_module(get_system_path() / "d3d10_1.dll");
+		hooks::register_module(get_system_path() / "d3d11.dll");
+		hooks::register_module(get_system_path() / "dxgi.dll");
+		hooks::register_module(get_system_path() / "opengl32.dll");
 
 		LOG(INFO) << "Initialized.";
 		break;

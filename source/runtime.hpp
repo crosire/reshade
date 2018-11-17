@@ -300,9 +300,9 @@ namespace reshade
 
 #if RESHADE_GUI
 		void init_ui();
-		void init_ui_font_atlas();
 		void deinit_ui();
-		void deinit_ui_font_atlas();
+		void build_font_atlas();
+		void destroy_font_atlas();
 
 		void draw_ui();
 
@@ -324,6 +324,10 @@ namespace reshade
 		int _input_processing_mode = 2;
 		int _style_index = 2;
 		int _editor_style_index = 0;
+		int _font_size = 13;
+		int _editor_font_size = 13;
+		std::filesystem::path _font;
+		std::filesystem::path _editor_font;
 		unsigned int _menu_key_data[4];
 		bool _show_menu = false;
 		bool _show_clock = false;
@@ -338,6 +342,7 @@ namespace reshade
 		bool _log_wordwrap = false;
 		bool _variable_editor_tabs = false;
 		bool _selected_effect_changed = false;
+		bool _rebuild_font_atlas = false;
 		float _fps_col[4] = { 1.0f, 1.0f, 0.784314f, 1.0f };
 		float _fps_scale = 1.0f;
 		float _variable_editor_height = 0.0f;

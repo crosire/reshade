@@ -7,4 +7,6 @@
 
 #include <filesystem>
 
+bool imgui_font_select(const char *name, std::filesystem::path &path, int &size);
+
 bool imgui_directory_dialog(const char *name, std::filesystem::path &path);

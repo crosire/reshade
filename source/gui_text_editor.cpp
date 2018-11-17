@@ -112,9 +112,9 @@ void code_editor_widget::render(const char *title, bool border)
 		else if (!alt && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_RightArrow)))
 			move_right(1, shift, ctrl);
 		else if (!alt && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_PageUp)))
-			move_up((size_t)floor((ImGui::GetWindowHeight() - 20.0f) / char_advance.y) - 4, shift);
+			move_up(static_cast<size_t>(floor((ImGui::GetWindowHeight() - 20.0f) / char_advance.y) - 4), shift);
 		else if (!alt && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_PageDown)))
-			move_down((size_t)floor((ImGui::GetWindowHeight() - 20.0f) / char_advance.y) - 4, shift);
+			move_down(static_cast<size_t>(floor((ImGui::GetWindowHeight() - 20.0f) / char_advance.y) - 4), shift);
 		else if (!alt && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_Home)))
 			ctrl ? move_top(shift) : move_home(shift);
 		else if (!alt && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_End)))
@@ -148,7 +148,7 @@ void code_editor_widget::render(const char *title, bool border)
 			const ImVec2 pos(ImGui::GetMousePos().x - ImGui::GetCursorScreenPos().x, ImGui::GetMousePos().y - ImGui::GetCursorScreenPos().y);
 
 			text_pos res;
-			res.line = std::max<size_t>(0, floor(pos.y / char_advance.y));
+			res.line = std::max<size_t>(0, static_cast<size_t>(floor(pos.y / char_advance.y)));
 			res.line = std::min<size_t>(res.line, _lines.size() - 1);
 
 			float column_width = 0.0f;
@@ -233,8 +233,8 @@ void code_editor_widget::render(const char *title, bool border)
 	float longest_line = 0.0f;
 	const float space_size = calc_text_size(" ").x;
 
-	size_t line_no = (size_t)floor(ImGui::GetScrollY() / char_advance.y);
-	size_t line_max = std::max<size_t>(0, std::min(_lines.size() - 1, line_no + (size_t)floor((ImGui::GetScrollY() + ImGui::GetWindowContentRegionMax().y) / char_advance.y)));
+	size_t line_no = static_cast<size_t>(floor(ImGui::GetScrollY() / char_advance.y));
+	size_t line_max = std::max<size_t>(0, std::min(_lines.size() - 1, line_no + static_cast<size_t>(floor((ImGui::GetScrollY() + ImGui::GetWindowContentRegionMax().y) / char_advance.y))));
 
 	const auto calc_text_distance_to_line_begin = [this, space_size, &calc_text_size](const text_pos &from) {
 		float distance = 0.0f;
@@ -402,10 +402,10 @@ void code_editor_widget::render(const char *title, bool border)
 
 	if (_scroll_to_cursor)
 	{
-		const auto l = (size_t)ceil( ImGui::GetScrollX()                             / char_advance.x);
-		const auto r = (size_t)ceil((ImGui::GetScrollX() + ImGui::GetWindowWidth())  / char_advance.x);
-		const auto t = (size_t)ceil( ImGui::GetScrollY()                             / char_advance.y) + 1;
-		const auto b = (size_t)ceil((ImGui::GetScrollY() + ImGui::GetWindowHeight()) / char_advance.y);
+		const auto l = static_cast<size_t>(ceil( ImGui::GetScrollX()                             / char_advance.x));
+		const auto r = static_cast<size_t>(ceil((ImGui::GetScrollX() + ImGui::GetWindowWidth())  / char_advance.x));
+		const auto t = static_cast<size_t>(ceil( ImGui::GetScrollY()                             / char_advance.y)) + 1;
+		const auto b = static_cast<size_t>(ceil((ImGui::GetScrollY() + ImGui::GetWindowHeight()) / char_advance.y));
 
 		const auto len = calc_text_distance_to_line_begin(_cursor_pos);
 

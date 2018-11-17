@@ -18,8 +18,6 @@
 extern volatile long g_network_traffic;
 extern std::filesystem::path g_reshade_dll_path;
 extern std::filesystem::path g_target_executable_path;
-extern std::filesystem::path g_system_path;
-extern std::filesystem::path g_windows_path;
 
 static const char keyboard_keys[256][16] = {
 	"", "", "", "Cancel", "", "", "", "", "Backspace", "Tab", "", "", "Clear", "Enter", "", "",
@@ -101,13 +99,6 @@ void reshade::runtime::init_ui()
 
 	ImGui::SetCurrentContext(nullptr);
 
-	imgui_io.Fonts->AddFontDefault();
-	const auto font_path = g_windows_path / "Fonts" / "consolab.ttf";
-	if (std::error_code ec; std::filesystem::exists(font_path, ec))
-		imgui_io.Fonts->AddFontFromFileTTF(font_path.u8string().c_str(), 18.0f);
-	else
-		imgui_io.Fonts->AddFontDefault();
-
 	subscribe_to_ui("Home", [this]() { draw_overlay_menu_home(); });
 	subscribe_to_ui("Settings", [this]() { draw_overlay_menu_settings(); });
 	subscribe_to_ui("Statistics", [this]() { draw_overlay_menu_statistics(); });
@@ -123,7 +114,6 @@ void reshade::runtime::init_ui()
 		config.get("GENERAL", "ShowClock", _show_clock);
 		config.get("GENERAL", "ShowFPS", _show_fps);
 		config.get("GENERAL", "ShowFrameTime", _show_frametime);
-		config.get("GENERAL", "FontGlobalScale", _imgui_context->IO.FontGlobalScale);
 		config.get("GENERAL", "NoFontScaling", _no_font_scaling);
 		config.get("GENERAL", "SaveWindowState", save_imgui_window_state);
 		config.get("GENERAL", "TutorialProgress", _tutorial_index);
@@ -138,6 +128,10 @@ void reshade::runtime::init_ui()
 		config.get("STYLE", "ScrollbarRounding", _imgui_context->Style.ScrollbarRounding);
 		config.get("STYLE", "FPSScale", _fps_scale);
 		config.get("STYLE", "ColFPSText", _fps_col);
+		config.get("STYLE", "Font", _font);
+		config.get("STYLE", "FontSize", _font_size);
+		config.get("STYLE", "EditorFont", _editor_font);
+		config.get("STYLE", "EditorFontSize", _editor_font_size);
 		config.get("STYLE", "StyleIndex", _style_index);
 		config.get("STYLE", "EditorStyleIndex", _editor_style_index);
 
@@ -230,7 +224,6 @@ void reshade::runtime::init_ui()
 		config.set("GENERAL", "ShowClock", _show_clock);
 		config.set("GENERAL", "ShowFPS", _show_fps);
 		config.set("GENERAL", "ShowFrameTime", _show_frametime);
-		config.set("GENERAL", "FontGlobalScale", _imgui_context->IO.FontGlobalScale);
 		config.set("GENERAL", "NoReloadOnInit", _no_reload_on_init);
 		config.set("GENERAL", "SaveWindowState", _imgui_context->IO.IniFilename != nullptr);
 		config.set("GENERAL", "TutorialProgress", _tutorial_index);
@@ -244,7 +237,11 @@ void reshade::runtime::init_ui()
 		config.set("STYLE", "WindowRounding", _imgui_context->Style.WindowRounding);
 		config.set("STYLE", "ScrollbarRounding", _imgui_context->Style.ScrollbarRounding);
 		config.set("STYLE", "FPSScale", _fps_scale);
-		config.set("STYLE", "ColFPSTex", _fps_col);
+		config.set("STYLE", "ColFPSText", _fps_col);
+		config.set("STYLE", "Font", _font);
+		config.set("STYLE", "FontSize", _font_size);
+		config.set("STYLE", "EditorFont", _editor_font);
+		config.set("STYLE", "EditorFontSize", _editor_font_size);
 		config.set("STYLE", "StyleIndex", _style_index);
 		config.set("STYLE", "EditorStyleIndex", _editor_style_index);
 
@@ -253,15 +250,58 @@ void reshade::runtime::init_ui()
 				config.set("STYLE", ImGui::GetStyleColorName(i), (const float(&)[4])_imgui_context->Style.Colors[i]);
 	});
 }
-void reshade::runtime::init_ui_font_atlas()
+void reshade::runtime::deinit_ui()
 {
-	_show_splash = true;
+	ImGui::DestroyContext(_imgui_context);
+}
 
+void reshade::runtime::build_font_atlas()
+{
 	ImGui::SetCurrentContext(_imgui_context);
+
+	const auto atlas = _imgui_context->IO.Fonts;
+
+	atlas->Clear();
+
+	for (unsigned int i = 0; i < 2; ++i)
+	{
+		ImFontConfig cfg;
+		cfg.SizePixels = static_cast<float>(i == 0 ? _font_size : _editor_font_size);
+
+		const std::filesystem::path &font_path = i == 0 ? _font : _editor_font;
+
+		if (std::error_code ec; !std::filesystem::is_regular_file(font_path, ec) || !atlas->AddFontFromFileTTF(font_path.u8string().c_str(), cfg.SizePixels))
+			atlas->AddFontDefault(&cfg); // Use default font if custom font failed to load or does not exist
+	}
+
+	// If unable to build font atlas due to an invalid font, revert to the default font
+	if (!atlas->Build())
+	{
+		_font.clear();
+		_editor_font.clear();
+
+		atlas->Clear();
+
+		for (unsigned int i = 0; i < 2; ++i)
+		{
+			ImFontConfig cfg;
+			cfg.SizePixels = static_cast<float>(i == 0 ? _font_size : _editor_font_size);
+
+			atlas->AddFontDefault(&cfg);
+			atlas->AddFontDefault(&cfg);
+		}
+	}
+
+	destroy_font_atlas();
+
+	_show_splash = true;
+	_rebuild_font_atlas = false;
 
 	int width, height;
 	unsigned char *pixels;
-	ImGui::GetIO().Fonts->GetTexDataAsRGBA32(&pixels, &width, &height);
+	atlas->GetTexDataAsRGBA32(&pixels, &width, &height);
+
+	ImGui::SetCurrentContext(nullptr);
 
 	_imgui_font_atlas.width = width;
 	_imgui_font_atlas.height = height;
@@ -269,14 +309,8 @@ void reshade::runtime::init_ui_font_atlas()
 	_imgui_font_atlas.unique_name = "ImGUI Font Atlas";
 	init_texture(_imgui_font_atlas);
 	update_texture(_imgui_font_atlas, pixels);
-
-	ImGui::SetCurrentContext(nullptr);
 }
-void reshade::runtime::deinit_ui()
-{
-	ImGui::DestroyContext(_imgui_context);
-}
-void reshade::runtime::deinit_ui_font_atlas()
+void reshade::runtime::destroy_font_atlas()
 {
 	_imgui_font_atlas.impl.reset();
 }
@@ -289,6 +323,9 @@ void reshade::runtime::draw_ui()
 		_show_menu = !_show_menu;
 
 	_effects_expanded_state &= 2;
+
+	if (_rebuild_font_atlas)
+		build_font_atlas();
 
 	// Update ImGui configuration
 	ImGui::SetCurrentContext(_imgui_context);
@@ -313,9 +350,14 @@ void reshade::runtime::draw_ui()
 	for (wchar_t c : _input->text_input())
 		imgui_io.AddInputCharacter(c);
 
-	if (imgui_io.KeyCtrl && !_no_font_scaling)
-		// Change global font scale if user presses the control key and moves the mouse wheel
-		imgui_io.FontGlobalScale = ImClamp(imgui_io.FontGlobalScale + imgui_io.MouseWheel * 0.10f, 0.2f, 2.50f);
+	// Change font size if user presses the control key and moves the mouse wheel
+	if (imgui_io.KeyCtrl && imgui_io.MouseWheel != 0 && !_no_font_scaling)
+	{
+		_font_size = ImClamp(_font_size + static_cast<int>(imgui_io.MouseWheel), 8, 32);
+		_editor_font_size = ImClamp(_editor_font_size + static_cast<int>(imgui_io.MouseWheel), 8, 32);
+		_rebuild_font_atlas = true;
+		save_config();
+	}
 
 	imgui_io.NavInputs[ImGuiNavInput_Activate] = ImGui::IsKeyDown(ImGuiKey_Space);
 	imgui_io.NavInputs[ImGuiNavInput_Input] = ImGui::IsKeyDown(ImGuiKey_Enter);
@@ -424,7 +466,6 @@ void reshade::runtime::draw_ui()
 
 		ImGui::SetWindowFontScale(_fps_scale);
 
-		ImGui::PushFont(_imgui_context->IO.Fonts->Fonts[1]);
 		ImGui::PushStyleColor(ImGuiCol_Text, (const ImVec4 &)_fps_col);
 
 		char temp[512];
@@ -453,7 +494,6 @@ void reshade::runtime::draw_ui()
 		}
 
 		ImGui::PopStyleColor();
-		ImGui::PopFont();
 
 		ImGui::End();
 	}
@@ -512,7 +552,7 @@ void reshade::runtime::draw_ui()
 
 		if (_show_code_editor)
 		{
-			const std::string title = _selected_effect < _loaded_effects.size() ? "Editing " + _loaded_effects[_selected_effect].source_file.filename().u8string() + " ###editor" : "Viewing Code###editor";
+			const std::string title = _selected_effect < _loaded_effects.size() ? "Editing " + _loaded_effects[_selected_effect].source_file.filename().u8string() + " ###editor" : "Viewing code###editor";
 
 			if (ImGui::Begin(title.c_str(), &_show_code_editor))
 				draw_code_editor();
@@ -1235,6 +1275,18 @@ void reshade::runtime::draw_overlay_menu_settings()
 			reload_style = true;
 		}
 
+		if (imgui_font_select("Font", _font, _font_size))
+		{
+			modified = true;
+			_rebuild_font_atlas = true;
+		}
+
+		if (imgui_font_select("Editor Font", _editor_font, _editor_font_size))
+		{
+			modified = true;
+			_rebuild_font_atlas = true;
+		}
+
 		if (ImGui::SliderFloat("Global Alpha", &_imgui_context->Style.Alpha, 0.1f, 1.0f, "%.2f"))
 		{
 			_imgui_context->Style.Alpha = std::max(_imgui_context->Style.Alpha, 0.1f);
@@ -1351,7 +1403,7 @@ void reshade::runtime::draw_overlay_menu_statistics()
 			}
 
 			const float button_spacing = _imgui_context->Style.ItemInnerSpacing.x;
-			const float button_offset = ImGui::GetWindowContentRegionWidth() - (80 + button_spacing + 150);
+			const float button_offset = ImGui::GetWindowContentRegionWidth() - (50 + button_spacing + 120);
 
 			// Hide parent path if window is small
 			if (ImGui::CalcTextSize(effect.source_file.u8string().c_str()).x < button_offset)
@@ -1364,7 +1416,7 @@ void reshade::runtime::draw_overlay_menu_statistics()
 
 			ImGui::SameLine(button_offset + _imgui_context->Style.ItemSpacing.x, 0);
 
-			if (ImGui::Button("Edit", ImVec2(80, 0)))
+			if (ImGui::Button("Edit", ImVec2(50, 0)))
 			{
 				_selected_effect = index;
 				_selected_effect_changed = true;
@@ -1373,7 +1425,7 @@ void reshade::runtime::draw_overlay_menu_statistics()
 
 			ImGui::SameLine(0, button_spacing);
 
-			if (ImGui::Button("Show HLSL/GLSL code", ImVec2(150, 0)))
+			if (ImGui::Button("Show HLSL/GLSL", ImVec2(120, 0)))
 			{
 				_editor.set_text(effect.module.hlsl);
 				_selected_effect = std::numeric_limits<size_t>::max();
@@ -1685,7 +1737,11 @@ void reshade::runtime::draw_code_editor()
 		_selected_effect_changed = false;
 	}
 
-	_editor.render("Editor");
+	ImGui::PushFont(_imgui_context->IO.Fonts->Fonts[1]);
+
+	_editor.render("##editor");
+
+	ImGui::PopFont();
 }
 
 void reshade::runtime::draw_overlay_variable_editor()
@@ -1822,22 +1878,23 @@ void reshade::runtime::draw_overlay_variable_editor()
 
 			if (ui_type == "drag")
 			{
-				ImGui::PushItemWidth(ImGui::CalcItemWidth() - ( // same line space * 2 + button width * 2
-					_imgui_context->Style.ItemInnerSpacing.x * 2 +
-					(ImGui::CalcTextSize("+").x + _imgui_context->Style.FramePadding.x * 2) * 2));
+				const float button_size = ImGui::GetFrameHeight();
+
+				ImGui::PushItemWidth(ImGui::CalcItemWidth() - (
+					_imgui_context->Style.ItemInnerSpacing.x * 2 + button_size * 2));
 
 				modified = ImGui::SliderScalarN("", variable.type.is_signed() ? ImGuiDataType_S32 : ImGuiDataType_U32, data, variable.type.rows, &ui_min_val, &ui_max_val);
 
 				ImGui::PopItemWidth();
 				ImGui::SameLine(0, 0);
-				if (ImGui::Button("-") && data[0] > ui_min_val)
+				if (ImGui::Button("-", ImVec2(button_size, 0)) && data[0] > ui_min_val)
 				{
 					for (unsigned int c = 0; c < variable.type.rows; ++c)
 						data[c] -= ui_stp_val;
 					modified = true;
 				}
 				ImGui::SameLine(0, _imgui_context->Style.ItemInnerSpacing.x);
-				if (ImGui::Button("+") && data[0] < ui_max_val)
+				if (ImGui::Button("+", ImVec2(button_size, 0)) && data[0] < ui_max_val)
 				{
 					for (unsigned int c = 0; c < variable.type.rows; ++c)
 						data[c] += ui_stp_val;
@@ -1879,23 +1936,24 @@ void reshade::runtime::draw_overlay_variable_editor()
 
 			if (ui_type == "drag")
 			{
-				ImGui::PushItemWidth(ImGui::CalcItemWidth() - ( // same line space * 2 + button width * 2
-					_imgui_context->Style.ItemInnerSpacing.x * 2 +
-					(ImGui::CalcTextSize("+").x + _imgui_context->Style.FramePadding.x * 2) * 2));
+				const float button_size = ImGui::GetFrameHeight();
+
+				ImGui::PushItemWidth(ImGui::CalcItemWidth() - (
+					_imgui_context->Style.ItemInnerSpacing.x * 2 + button_size * 2));
 
 				modified = ImGui::SliderScalarN("", ImGuiDataType_Float, data, variable.type.rows, &ui_min_val, &ui_max_val, "%.3f");
 
 				ImGui::PopItemWidth();
 
 				ImGui::SameLine(0, 0);
-				if (ImGui::Button("-") && data[0] > ui_min_val)
+				if (ImGui::Button("-", ImVec2(button_size, 0)) && data[0] > ui_min_val)
 				{
 					for (unsigned int c = 0; c < variable.type.rows; ++c)
 						data[c] -= ui_stp_val;
 					modified = true;
 				}
 				ImGui::SameLine(0, _imgui_context->Style.ItemInnerSpacing.x);
-				if (ImGui::Button("+") && data[0] < ui_max_val)
+				if (ImGui::Button("+", ImVec2(button_size, 0)) && data[0] < ui_max_val)
 				{
 					for (unsigned int c = 0; c < variable.type.rows; ++c)
 						data[c] += ui_stp_val;
