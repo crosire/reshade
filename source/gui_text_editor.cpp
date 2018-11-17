@@ -68,11 +68,16 @@ void code_editor_widget::render(const char *title, bool border)
 
 	char buf[128] = "", *buf_end = buf;
 
+	// 'ImGui::CalcTextSize' cancels out character spacing at the end, but we do not want that, hence the custom function
+	const auto calc_text_size = [](const char *text, const char *text_end = nullptr) {
+		return ImGui::GetFont()->CalcTextSizeA(ImGui::GetFontSize(), FLT_MAX, -1.0f, text, text_end, nullptr);
+	};
+
 	// Deduce text start offset by evaluating maximum number of lines plus two spaces as text width
 	snprintf(buf, 16, " %zu ", _lines.size());
 	const float text_start = ImGui::CalcTextSize(buf).x + _left_margin;
-	// Compute char advance offset in regards to font size
-	const ImVec2 char_advance = ImVec2(ImGui::CalcTextSize("#").x, ImGui::GetTextLineHeightWithSpacing() * _line_spacing);
+	// The following holds the approximate width and height of a default character for offset calculation
+	const ImVec2 char_advance = ImVec2(calc_text_size(" ").x, ImGui::GetTextLineHeightWithSpacing() * _line_spacing);
 
 	ImGuiIO &io = ImGui::GetIO();
 	_cursor_anim += io.DeltaTime;
@@ -139,12 +144,12 @@ void code_editor_widget::render(const char *title, bool border)
 	// Handle mouse input
 	if (ImGui::IsWindowHovered() && !shift && !alt)
 	{
-		const auto mouse_to_text_pos = [this, text_start, &char_advance]() {
+		const auto mouse_to_text_pos = [this, text_start, &char_advance, &calc_text_size]() {
 			const ImVec2 pos(ImGui::GetMousePos().x - ImGui::GetCursorScreenPos().x, ImGui::GetMousePos().y - ImGui::GetCursorScreenPos().y);
 
 			text_pos res;
-			res.line = std::max(size_t(0), (size_t)floor(pos.y / char_advance.y));
-			res.line = std::min(res.line, _lines.size() - 1);
+			res.line = std::max<size_t>(0, floor(pos.y / char_advance.y));
+			res.line = std::min<size_t>(res.line, _lines.size() - 1);
 
 			float column_width = 0.0f;
 			std::string cumulated_string = "";
@@ -157,7 +162,7 @@ void code_editor_widget::render(const char *title, bool border)
 			{
 				cumulated_string_width[1] = cumulated_string_width[0];
 				cumulated_string += line[res.column].c;
-				cumulated_string_width[0] = ImGui::CalcTextSize(cumulated_string.c_str()).x;
+				cumulated_string_width[0] = calc_text_size(cumulated_string.c_str()).x;
 				column_width = (cumulated_string_width[0] - cumulated_string_width[1]);
 				res.column++;
 			}
@@ -226,20 +231,19 @@ void code_editor_widget::render(const char *title, bool border)
 	const auto draw_list = ImGui::GetWindowDrawList();
 
 	float longest_line = 0.0f;
-	const float font_scale = ImGui::GetFontSize() / ImGui::GetFont()->FontSize;
-	const float space_size = ImGui::CalcTextSize(" ").x + font_scale;
+	const float space_size = calc_text_size(" ").x;
 
 	size_t line_no = (size_t)floor(ImGui::GetScrollY() / char_advance.y);
-	size_t line_max = std::max(size_t(0), std::min(_lines.size() - 1, line_no + (size_t)floor((ImGui::GetScrollY() + ImGui::GetWindowContentRegionMax().y) / char_advance.y)));
+	size_t line_max = std::max<size_t>(0, std::min(_lines.size() - 1, line_no + (size_t)floor((ImGui::GetScrollY() + ImGui::GetWindowContentRegionMax().y) / char_advance.y)));
 
-	const auto calc_text_distance_to_line_begin = [this, font_scale, space_size](const text_pos &from) {
+	const auto calc_text_distance_to_line_begin = [this, space_size, &calc_text_size](const text_pos &from) {
 		float distance = 0.0f;
 		const auto &line = _lines[from.line];
 		for (size_t i = 0u; i < line.size() && i < from.column; ++i)
 			if (line[i].c == '\t')
 				distance += _tab_size * space_size;
 			else
-				distance += ImGui::CalcTextSize(&line[i].c, &line[i].c + 1).x + font_scale;
+				distance += calc_text_size(&line[i].c, &line[i].c + 1).x;
 		return distance;
 	};
 
@@ -294,7 +298,7 @@ void code_editor_widget::render(const char *title, bool border)
 
 					if (highlight_index == _highlighted.size())
 					{
-						if (i + 1 == line.size() || line[i + 1].col != color_identifier) // Make sure this is a whole word and not just part of one
+						if ((begin_column == 0 || line[begin_column - 1].col != color_identifier) && (i + 1 == line.size() || line[i + 1].col != color_identifier)) // Make sure this is a whole word and not just part of one
 						{
 							// We found a matching text block
 							const ImVec2 beg = ImVec2(text_screen_pos.x + calc_text_distance_to_line_begin(text_pos(line_no, begin_column)), text_screen_pos.y);
@@ -377,7 +381,7 @@ void code_editor_widget::render(const char *title, bool border)
 			{
 				draw_list->AddText(ImVec2(text_screen_pos.x + text_offset, text_screen_pos.y), _palette[current_color], buf, buf_end);
 
-				text_offset += ImGui::CalcTextSize(buf, buf_end).x + font_scale; buf_end = buf; // Reset temporary buffer
+				text_offset += calc_text_size(buf, buf_end).x; buf_end = buf; // Reset temporary buffer
 			}
 
 			if (glyph.c != '\t')
@@ -464,7 +468,7 @@ void code_editor_widget::select(const text_pos &beg, const text_pos &end, select
 	text_pos highlight_beg = _select_beg;
 	text_pos highlight_end = _select_end;
 	select_word(highlight_beg, highlight_end);
-	_highlighted = !_lines[highlight_beg.line].empty() && _lines[highlight_beg.line][highlight_beg.column].col == color_identifier ?
+	_highlighted = _lines[highlight_beg.line].size() > highlight_beg.column && _lines[highlight_beg.line][highlight_beg.column].col == color_identifier ?
 		get_text(highlight_beg, highlight_end) : std::string();
 
 	switch (mode)
