@@ -143,6 +143,10 @@ namespace ReShade.Setup
 				CheckFileExists = true
 			};
 
+			// Open Steam game installation directory by default if it exists
+			if (Directory.Exists(@"C:\Program Files (x86)\Steam\steamapps\common"))
+				dlg.InitialDirectory = @"C:\Program Files (x86)\Steam\steamapps\common";
+
 			if (dlg.ShowDialog(this) == true)
 			{
 				_targetPath = dlg.FileName;
