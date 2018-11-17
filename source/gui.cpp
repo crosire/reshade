@@ -501,6 +501,18 @@ void reshade::runtime::draw_ui()
 	const ImGuiID root_space_id = ImGui::GetID("Dockspace");
 	const ImGuiViewport *const viewport = ImGui::GetMainViewport();
 
+	ImGui::SetNextWindowPos(viewport->Pos + viewport_offset);
+	ImGui::SetNextWindowSize(viewport->Size - viewport_offset);
+	ImGui::SetNextWindowViewport(viewport->ID);
+	ImGui::Begin("Viewport", nullptr,
+		ImGuiWindowFlags_NoTitleBar |
+		ImGuiWindowFlags_NoMove |
+		ImGuiWindowFlags_NoResize |
+		ImGuiWindowFlags_NoDocking |
+		ImGuiWindowFlags_NoCollapse |
+		ImGuiWindowFlags_NoNavFocus |
+		ImGuiWindowFlags_NoBackground);
+
 	// Set up default dock layout if this was not done yet
 	if (ImGui::DockBuilderGetNode(root_space_id) == nullptr)
 	{
@@ -527,17 +539,6 @@ void reshade::runtime::draw_ui()
 		ImGui::DockBuilderFinish(root_space_id);
 	}
 
-	ImGui::SetNextWindowPos(viewport->Pos + viewport_offset);
-	ImGui::SetNextWindowSize(viewport->Size - viewport_offset);
-	ImGui::SetNextWindowViewport(viewport->ID);
-	ImGui::Begin("Viewport", nullptr,
-		ImGuiWindowFlags_NoTitleBar |
-		ImGuiWindowFlags_NoMove |
-		ImGuiWindowFlags_NoResize |
-		ImGuiWindowFlags_NoDocking |
-		ImGuiWindowFlags_NoCollapse |
-		ImGuiWindowFlags_NoNavFocus |
-		ImGuiWindowFlags_NoBackground);
 	ImGui::DockSpace(root_space_id, ImVec2(0, 0), ImGuiDockNodeFlags_PassthruDockspace);
 	ImGui::End();
 
