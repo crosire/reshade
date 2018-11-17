@@ -100,6 +100,8 @@ private:
 	void move_bottom(bool select = false);
 	void move_home(bool select = false);
 	void move_end(bool select = false);
+	void move_lines_up();
+	void move_lines_down();
 
 	void colorize();
 

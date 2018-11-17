@@ -92,10 +92,16 @@ void code_editor_widget::render(const char *title, bool border)
 			undo();
 		else if (ctrl && !shift && !alt && ImGui::IsKeyPressed('Y'))
 			redo();
-		else if (!ctrl && !alt && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_UpArrow)))
-			move_up(1, shift);
-		else if (!ctrl && !alt && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_DownArrow)))
-			move_down(1, shift);
+		else if (!ctrl && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_UpArrow)))
+			if (alt && !shift) // Alt + Up moves the current line one up
+				move_lines_up();
+			else
+				move_up(1, shift);
+		else if (!ctrl && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_DownArrow)))
+			if (alt && !shift) // Alt + Down moves the current line one down
+				move_lines_down();
+			else
+				move_down(1, shift);
 		else if (!alt && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_LeftArrow)))
 			move_left(1, shift, ctrl);
 		else if (!alt && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_RightArrow)))
@@ -1227,6 +1233,30 @@ void code_editor_widget::move_end(bool selection)
 
 	select(_interactive_beg, _interactive_end);
 	_scroll_to_cursor = true;
+}
+void code_editor_widget::move_lines_up()
+{
+	if (_select_beg.line == 0)
+		return;
+
+	for (size_t line = _select_beg.line; line <= _select_end.line; ++line)
+		std::swap(_lines[line], _lines[line - 1]);
+
+	_select_beg.line--;
+	_select_end.line--;
+	_cursor_pos.line--;
+}
+void code_editor_widget::move_lines_down()
+{
+	if (_select_end.line + 1 >= _lines.size())
+		return;
+
+	for (size_t line = _select_end.line; line >= _select_beg.line && line < _lines.size(); --line)
+		std::swap(_lines[line], _lines[line + 1]);
+
+	_select_beg.line++;
+	_select_end.line++;
+	_cursor_pos.line++;
 }
 
 void code_editor_widget::colorize()
