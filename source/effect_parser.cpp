@@ -1587,22 +1587,14 @@ bool reshadefx::parser::parse_statement(bool scoped)
 
 			bool success = true;
 			codegen::id default_label = merge_block; // The default case jumps to the end of the switch statement if not overwritten
-			codegen::id current_block = 0;
 			std::vector<codegen::id> case_literal_and_labels;
+			size_t last_case_label_index = 0;
 
-			while (!peek('}') && !peek(tokenid::end_of_file))
+			// Enter first switch statement body block
+			_codegen->enter_block(_codegen->create_block());
+
+			while (!peek(tokenid::end_of_file))
 			{
-				if (peek(tokenid::case_) || peek(tokenid::default_))
-				{
-					current_block = _codegen->create_block();
-
-					// Handle fall-through case
-					if (!case_literal_and_labels.empty() || default_label != merge_block)
-						_codegen->leave_block_and_branch(current_block, 3);
-
-					_codegen->enter_block(current_block);
-				}
-
 				while (accept(tokenid::case_) || accept(tokenid::default_))
 				{
 					if (_token.id == tokenid::case_)
@@ -1625,7 +1617,7 @@ bool reshadefx::parser::parse_statement(bool scoped)
 						}
 
 						case_literal_and_labels.push_back(case_label.constant.as_uint[0]);
-						case_literal_and_labels.push_back(current_block);
+						case_literal_and_labels.emplace_back(); // This is set to the actual block below
 					}
 					else
 					{
@@ -1636,7 +1628,7 @@ bool reshadefx::parser::parse_statement(bool scoped)
 							success = false;
 						}
 
-						default_label = current_block;
+						default_label = 0; // This is set to the actual block below
 					}
 
 					if (!expect(':'))
@@ -1644,20 +1636,42 @@ bool reshadefx::parser::parse_statement(bool scoped)
 				}
 
 				// It is valid for no statement to follow if this is the last label in the switch body
-				if (accept('}'))
-					break;
+				const bool end_of_switch = peek('}');
 
-				if (!parse_statement(true))
+				if (!end_of_switch && !parse_statement(true))
 					return consume_until('}'), false;
-			}
 
-			// May have left the switch body without an explicit 'break' at the end, so handle that case now
-			_codegen->leave_block_and_branch(merge_block, 1);
+				// Handle fall-through case and end of switch statement
+				if (peek(tokenid::case_) || peek(tokenid::default_) || end_of_switch)
+				{
+					if (_codegen->is_in_block()) // Disallow fall-through for now
+					{
+						error(_token_next.location, 3533, "non-empty case statements must have break or return");
+						success = false;
+					}
+
+					const codegen::id next_block = end_of_switch ? merge_block : _codegen->create_block();
+					const codegen::id current_block = _codegen->leave_block_and_branch(next_block);
+
+					assert(current_block != 0);
+
+					if (default_label == 0)
+						default_label = current_block;
+					else
+						for (size_t i = last_case_label_index; i < case_literal_and_labels.size(); i += 2)
+							case_literal_and_labels[i + 1] = current_block;
+
+					_codegen->enter_block(next_block);
+
+					if (end_of_switch) // We reached the end, nothing more to do
+						break;
+
+					last_case_label_index = case_literal_and_labels.size();
+				}
+			}
 
 			if (case_literal_and_labels.empty() && default_label == merge_block)
 				warning(location, 5002, "switch statement contains no 'case' or 'default' labels");
-
-			_codegen->enter_block(merge_block);
 
 			// Emit structured control flow for a switch statement and connect all basic blocks
 			_codegen->emit_switch(location, selector_value, selector_block, default_label, case_literal_and_labels, selection_control);

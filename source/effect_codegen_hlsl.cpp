@@ -33,7 +33,6 @@ private:
 	unsigned int _shader_model = 0;
 	unsigned int _current_cbuffer_size = 0;
 	unsigned int _current_sampler_binding = 0;
-	std::unordered_map<id, std::vector<id>> _switch_fallthrough_blocks;
 
 	void write_result(module &module) override
 	{
@@ -1128,13 +1127,9 @@ private:
 
 			increase_indentation_level(case_data);
 
-			code += "\t\tcase " + std::to_string(case_literal_and_labels[i]) + ": {\n" + case_data;
-
-			// Handle fall-through blocks
-			for (id fallthrough : _switch_fallthrough_blocks[case_literal_and_labels[i + 1]])
-				code += _blocks.at(fallthrough);
-
-			code += "\t\t}\n";
+			code += "\tcase " + std::to_string(case_literal_and_labels[i]) + ": {\n";
+			code += case_data;
+			code += "\t}\n";
 		}
 
 		if (default_label != _current_block)
@@ -1143,9 +1138,9 @@ private:
 
 			increase_indentation_level(default_data);
 
-			code += "\t\tdefault: {\n";
+			code += "\tdefault: {\n";
 			code += default_data;
-			code += "\t\t}\n";
+			code += "\t}\n";
 
 			_blocks.erase(default_label);
 		}
@@ -1210,7 +1205,7 @@ private:
 
 		return set_block(0);
 	}
-	id   leave_block_and_branch(id target, unsigned int loop_flow) override
+	id   leave_block_and_branch(id, unsigned int loop_flow) override
 	{
 		if (!is_in_block())
 			return _last_block;
@@ -1224,9 +1219,6 @@ private:
 			break;
 		case 2:
 			code += "\tcontinue;\n";
-			break;
-		case 3:
-			_switch_fallthrough_blocks[_current_block].push_back(target);
 			break;
 		}
 
