@@ -144,8 +144,8 @@ namespace ReShade.Setup
 			};
 
 			// Open Steam game installation directory by default if it exists
-			if (Directory.Exists(@"C:\Program Files (x86)\Steam\steamapps\common"))
-				dlg.InitialDirectory = @"C:\Program Files (x86)\Steam\steamapps\common";
+			if (Directory.Exists(Path.Combine(GetProgramFilesFolder(), "Steam", "steamapps", "common")))
+				dlg.InitialDirectory = Path.Combine(GetProgramFilesFolder(), "Steam", "steamapps", "common");
 
 			if (dlg.ShowDialog(this) == true)
 			{
@@ -514,6 +514,18 @@ namespace ReShade.Setup
 			SetupButton.IsEnabled = true;
 			SetupButton.Click -= OnSetupButtonClick;
 			SetupButton.Click += (object s, RoutedEventArgs e) => new SettingsWindow(_configPath) { Owner = this }.ShowDialog();
+		}
+
+		private static string GetProgramFilesFolder()
+		{
+			if (Environment.Is64BitOperatingSystem)
+			{
+				return Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86);
+			}
+			else
+			{
+				return Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
+			}
 		}
 	}
 }
