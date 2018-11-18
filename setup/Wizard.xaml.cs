@@ -486,7 +486,7 @@ namespace ReShade.Setup
 
 			foreach (var searchPath in searchPaths)
 			{
-				if (Path.GetFullPath(searchPath) == newPath)
+				if (Path.GetFullPath(searchPath) == Path.GetFullPath(newPath))
 				{
 					pathExists = true;
 					break;
