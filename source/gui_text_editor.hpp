@@ -28,6 +28,32 @@ public:
 		bool operator >=(const text_pos& o) const { return line != o.line ? line > o.line : column >= o.column; }
 	};
 
+	enum color
+	{
+		color_default,
+		color_keyword,
+		color_number_literal,
+		color_string_literal,
+		color_punctuation,
+		color_preprocessor,
+		color_identifier,
+		color_known_identifier,
+		color_preprocessor_identifier,
+		color_comment,
+		color_multiline_comment,
+		color_background,
+		color_cursor,
+		color_selection,
+		color_error_marker,
+		color_warning_marker,
+		color_line_number,
+		color_current_line_fill,
+		color_current_line_fill_inactive,
+		color_current_line_edge,
+
+		color_palette_max
+	};
+
 	enum class selection_mode
 	{
 		normal,
@@ -60,13 +86,16 @@ public:
 	void set_tab_size(unsigned int size) { _tab_size = size; }
 	void set_left_margin(float margin) { _left_margin = margin; }
 	void set_line_spacing(float spacing) { _line_spacing = spacing; }
-	void set_palette(const std::array<uint32_t, 20> &colors) { _palette = colors; }
+
+	void set_palette(const std::array<uint32_t, color_palette_max> &palette) { _palette = palette; }
+	uint32_t &get_palette_index(unsigned int index) { return _palette[index]; }
+	static const char *get_palette_color_name(unsigned int index);
 
 private:
 	struct glyph
 	{
 		char c = '\0';
-		uint8_t col = 0;
+		color col = color_default;
 	};
 
 	struct undo_record
@@ -113,7 +142,7 @@ private:
 	float _cursor_anim = 0.0f;
 	double _last_click_time = -1.0;
 
-	std::array<uint32_t, 20> _palette;
+	std::array<uint32_t, color_palette_max> _palette;
 
 	std::vector<std::vector<glyph>> _lines;
 

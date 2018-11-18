@@ -45,12 +45,13 @@ namespace reshade
 
 	struct effect_data
 	{
+		size_t index = std::numeric_limits<size_t>::max();
 		bool rendering = false;
 		bool compile_sucess = false;
 		std::string errors;
 		reshadefx::module module;
 		std::filesystem::path source_file;
-		size_t storage_offset, storage_size;
+		size_t storage_offset = 0, storage_size = 0;
 	};
 
 	struct texture final : reshadefx::texture_info
@@ -58,8 +59,7 @@ namespace reshade
 		texture() {}
 		texture(const reshadefx::texture_info &init) : texture_info(init) { }
 
-		size_t effect_index;
-		std::string effect_filename;
+		size_t effect_index = std::numeric_limits<size_t>::max();
 		texture_reference impl_reference = texture_reference::none;
 		std::unique_ptr<base_object> impl;
 		bool shared = false;
@@ -69,8 +69,7 @@ namespace reshade
 	{
 		uniform(const reshadefx::uniform_info &init) : uniform_info(init) { }
 
-		size_t effect_index;
-		std::string effect_filename;
+		size_t effect_index = std::numeric_limits<size_t>::max();
 		size_t storage_offset = 0;
 		bool hidden = false;
 		special_uniform special = special_uniform::none;
@@ -80,8 +79,7 @@ namespace reshade
 	{
 		technique(const reshadefx::technique_info &init) : technique_info(init) { }
 
-		size_t effect_index;
-		std::string effect_filename;
+		size_t effect_index = std::numeric_limits<size_t>::max();
 		std::vector<std::unique_ptr<base_object>> passes_data;
 		bool hidden = false;
 		bool enabled = false;

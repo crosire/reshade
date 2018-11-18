@@ -25,31 +25,53 @@
 #include "effect_lexer.hpp"
 #include <imgui.h>
 
-enum color_palette
+const char *code_editor_widget::get_palette_color_name(unsigned int col)
 {
-	color_default,
-	color_keyword,
-	color_number_literal,
-	color_string_literal,
-	color_punctuation,
-	color_preprocessor,
-	color_identifier,
-	color_known_identifier,
-	color_preprocessor_identifier,
-	color_comment,
-	color_multiline_comment,
-	color_background,
-	color_cursor,
-	color_selection,
-	color_error_marker,
-	color_warning_marker,
-	color_line_number,
-	color_current_line_fill,
-	color_current_line_fill_inactive,
-	color_current_line_edge,
-
-	color_palette_max
-};
+	switch (col)
+	{
+	case color_default:
+		return "Default";
+	case color_keyword:
+		return "Keyword";
+	case color_number_literal:
+		return "NumberLiteral";
+	case color_string_literal:
+		return "StringLiteral";
+	case color_punctuation:
+		return "Punctuation";
+	case color_preprocessor:
+		return "Preprocessor";
+	case color_identifier:
+		return "Identifier";
+	case color_known_identifier:
+		return "KnownIdentifier";
+	case color_preprocessor_identifier:
+		return "PreprocessorIdentifier";
+	case color_comment:
+		return "Comment";
+	case color_multiline_comment:
+		return "MultilineComment";
+	case color_background:
+		return "Background";
+	case color_cursor:
+		return "Cursor";
+	case color_selection:
+		return "Selection";
+	case color_error_marker:
+		return "ErrorMarker";
+	case color_warning_marker:
+		return "WarningMarker";
+	case color_line_number:
+		return "LineNumber";
+	case color_current_line_fill:
+		return "LineNumberFill";
+	case color_current_line_fill_inactive:
+		return "LineNumberFillInactive";
+	case color_current_line_edge:
+		return "CurrentLineEdge";
+	}
+	return nullptr;
+}
 
 code_editor_widget::code_editor_widget()
 {
@@ -60,7 +82,7 @@ void code_editor_widget::render(const char *title, bool border)
 {
 	assert(!_lines.empty());
 
-	ImGui::PushStyleColor(ImGuiCol_ChildBg, ImGui::ColorConvertU32ToFloat4(_palette[color_palette::color_background]));
+	ImGui::PushStyleColor(ImGuiCol_ChildBg, ImGui::ColorConvertU32ToFloat4(_palette[color_background]));
 	ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0.0f, 0.0f));
 
 	ImGui::BeginChild(title, ImVec2(), border, ImGuiWindowFlags_HorizontalScrollbar | ImGuiWindowFlags_AlwaysHorizontalScrollbar | ImGuiWindowFlags_NoMove);
@@ -350,7 +372,7 @@ void code_editor_widget::render(const char *title, bool border)
 				const ImVec2 beg = ImVec2(line_screen_pos.x + ImGui::GetScrollX(), line_screen_pos.y);
 				const ImVec2 end = ImVec2(line_screen_pos.x + ImGui::GetWindowContentRegionMax().x + 2.0f * ImGui::GetScrollX(), line_screen_pos.y + char_advance.y);
 
-				draw_list->AddRectFilled(beg, end, _palette[is_focused ? color_palette::color_current_line_fill : color_palette::color_current_line_fill_inactive]);
+				draw_list->AddRectFilled(beg, end, _palette[is_focused ? color_current_line_fill : color_current_line_fill_inactive]);
 				draw_list->AddRect(beg, end, _palette[color_current_line_edge], 1.0f);
 			}
 
@@ -514,7 +536,7 @@ void code_editor_widget::set_text(const std::string &text)
 		else if (c == '\n')
 			_lines.emplace_back();
 		else
-			_lines.back().push_back({ c, color_palette::color_default });
+			_lines.back().push_back({ c, color_default });
 	}
 
 	// Restrict cursor position to new text bounds
@@ -577,7 +599,7 @@ void code_editor_widget::insert_character(char c, bool auto_indent)
 				}
 				else
 				{
-					line.insert(line.begin(), { '\t', color_palette::color_background });
+					line.insert(line.begin(), { '\t', color_background });
 					if (i == end.line)
 						++end.column;
 				}
@@ -631,9 +653,9 @@ void code_editor_widget::insert_character(char c, bool auto_indent)
 		auto &line = _lines[_cursor_pos.line];
 
 		if (_overwrite && _cursor_pos.column < line.size())
-			line[_cursor_pos.column] = { c, color_palette::color_default };
+			line[_cursor_pos.column] = { c, color_default };
 		else
-			line.insert(line.begin() + _cursor_pos.column, { c, color_palette::color_default });
+			line.insert(line.begin() + _cursor_pos.column, { c, color_default });
 
 		_cursor_pos.column++;
 	}
@@ -1289,7 +1311,7 @@ void code_editor_widget::colorize()
 
 	for (reshadefx::token tok; (tok = lexer.lex()).id != reshadefx::tokenid::end_of_file;)
 	{
-		uint8_t col = color_default;
+		color col = color_default;
 
 		switch (tok.id)
 		{

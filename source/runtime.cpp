@@ -13,7 +13,6 @@
 #include <assert.h>
 #include <thread>
 #include <algorithm>
-#include <unordered_set>
 #include <stb_image.h>
 #include <stb_image_dds.h>
 #include <stb_image_write.h>
@@ -40,10 +39,6 @@ reshade::runtime::runtime(uint32_t renderer) :
 	_screenshot_key_data(),
 	_screenshot_path(g_target_executable_path.parent_path())
 {
-	// Default shortcut Ctrl + Insert
-	_effects_key_data[0] = 0x2D;
-	_effects_key_data[1] = true;
-
 	// Default shortcut PrtScrn
 	_screenshot_key_data[0] = 0x2C;
 
@@ -197,7 +192,7 @@ void reshade::runtime::load_effect(const std::filesystem::path &path, size_t &ou
 			if (definition.empty())
 				continue; // Skip invalid definitions
 
-			const size_t equals_index = definition.find_first_of('=');
+			const size_t equals_index = definition.find('=');
 			if (equals_index != std::string::npos)
 				pp.add_macro_definition(definition.substr(0, equals_index), definition.substr(equals_index + 1));
 			else
@@ -269,14 +264,13 @@ void reshade::runtime::load_effect(const std::filesystem::path &path, size_t &ou
 
 	std::lock_guard<std::mutex> lock(_reload_mutex);
 
-	out_id = _loaded_effects.size();
+	effect.index = out_id = _loaded_effects.size();
 	effect.storage_offset = _uniform_data_storage.size();
 
 	for (const reshadefx::uniform_info &info : effect.module.uniforms)
 	{
 		uniform &variable = _uniforms.emplace_back(info);
-		variable.effect_index = out_id;
-		variable.effect_filename = path.filename().u8string();
+		variable.effect_index = effect.index;
 		variable.hidden = variable.annotations["hidden"].second.as_uint[0];
 
 		variable.storage_offset = effect.storage_offset + variable.offset;
@@ -335,8 +329,7 @@ void reshade::runtime::load_effect(const std::filesystem::path &path, size_t &ou
 		}
 
 		texture &texture = _textures.emplace_back(info);
-		texture.effect_index = out_id;
-		texture.effect_filename = path.filename().u8string();
+		texture.effect_index = effect.index;
 
 		if (info.semantic == "COLOR")
 			texture.impl_reference = texture_reference::back_buffer;
@@ -351,8 +344,7 @@ void reshade::runtime::load_effect(const std::filesystem::path &path, size_t &ou
 	for (const reshadefx::technique_info &info : effect.module.techniques)
 	{
 		technique &technique = _techniques.emplace_back(info);
-		technique.effect_index = out_id;
-		technique.effect_filename = path.filename().u8string();
+		technique.effect_index = effect.index;
 		technique.hidden = technique.annotations["hidden"].second.as_uint[0];
 		technique.timeout = technique.annotations["timeout"].second.as_int[0];
 		technique.timeleft = technique.timeout;
@@ -734,7 +726,6 @@ void reshade::runtime::load_config()
 	config.get("GENERAL", "ScreenshotPath", _screenshot_path);
 	config.get("GENERAL", "ScreenshotFormat", _screenshot_format);
 	config.get("GENERAL", "ScreenshotIncludePreset", _screenshot_include_preset);
-	config.get("GENERAL", "ScreenshotIncludeConfiguration", _screenshot_include_configuration);
 	config.get("GENERAL", "NoReloadOnInit", _no_reload_on_init);
 
 	// Look for new preset files in the main directory
@@ -789,7 +780,6 @@ void reshade::runtime::save_config(const std::filesystem::path &path) const
 	config.set("GENERAL", "ScreenshotPath", _screenshot_path);
 	config.set("GENERAL", "ScreenshotFormat", _screenshot_format);
 	config.set("GENERAL", "ScreenshotIncludePreset", _screenshot_include_preset);
-	config.set("GENERAL", "ScreenshotIncludeConfiguration", _screenshot_include_configuration);
 	config.set("GENERAL", "NoReloadOnInit", _no_reload_on_init);
 
 	for (const auto &callback : _save_config_callables)
@@ -823,18 +813,18 @@ void reshade::runtime::load_preset(const std::filesystem::path &path)
 		{
 		case reshadefx::type::t_int:
 			get_uniform_value(variable, values.as_int, 16);
-			preset.get(variable.effect_filename, variable.name, values.as_int);
+			preset.get(_loaded_effects[variable.effect_index].source_file.filename().u8string(), variable.name, values.as_int);
 			set_uniform_value(variable, values.as_int, 16);
 			break;
 		case reshadefx::type::t_bool:
 		case reshadefx::type::t_uint:
 			get_uniform_value(variable, values.as_uint, 16);
-			preset.get(variable.effect_filename, variable.name, values.as_uint);
+			preset.get(_loaded_effects[variable.effect_index].source_file.filename().u8string(), variable.name, values.as_uint);
 			set_uniform_value(variable, values.as_uint, 16);
 			break;
 		case reshadefx::type::t_float:
 			get_uniform_value(variable, values.as_float, 16);
-			preset.get(variable.effect_filename, variable.name, values.as_float);
+			preset.get(_loaded_effects[variable.effect_index].source_file.filename().u8string(), variable.name, values.as_float);
 			set_uniform_value(variable, values.as_float, 16);
 			break;
 		}
@@ -862,15 +852,11 @@ void reshade::runtime::save_preset(const std::filesystem::path &path) const
 	ini_file preset(path);
 
 	std::vector<std::string> technique_list, technique_sorting_list;
-	std::unordered_set<std::string> active_effect_filenames;
 
 	for (const technique &technique : _techniques)
 	{
 		if (technique.enabled)
-		{
 			technique_list.push_back(technique.name);
-			active_effect_filenames.insert(technique.effect_filename);
-		}
 
 		technique_sorting_list.push_back(technique.name);
 
@@ -885,7 +871,7 @@ void reshade::runtime::save_preset(const std::filesystem::path &path) const
 
 	for (const uniform &variable : _uniforms)
 	{
-		if (variable.special != special_uniform::none || !active_effect_filenames.count(variable.effect_filename))
+		if (variable.special != special_uniform::none || !_loaded_effects[variable.effect_index].rendering)
 			continue;
 
 		assert(variable.type.components() < 16);
@@ -896,16 +882,16 @@ void reshade::runtime::save_preset(const std::filesystem::path &path) const
 		{
 		case reshadefx::type::t_int:
 			get_uniform_value(variable, values.as_int, 16);
-			preset.set(variable.effect_filename, variable.name, variant(values.as_int, variable.type.components()));
+			preset.set(_loaded_effects[variable.effect_index].source_file.filename().u8string(), variable.name, variant(values.as_int, variable.type.components()));
 			break;
 		case reshadefx::type::t_bool:
 		case reshadefx::type::t_uint:
 			get_uniform_value(variable, values.as_uint, 16);
-			preset.set(variable.effect_filename, variable.name, variant(values.as_uint, variable.type.components()));
+			preset.set(_loaded_effects[variable.effect_index].source_file.filename().u8string(), variable.name, variant(values.as_uint, variable.type.components()));
 			break;
 		case reshadefx::type::t_float:
 			get_uniform_value(variable, values.as_float, 16);
-			preset.set(variable.effect_filename, variable.name, variant(values.as_float, variable.type.components()));
+			preset.set(_loaded_effects[variable.effect_index].source_file.filename().u8string(), variable.name, variant(values.as_float, variable.type.components()));
 			break;
 		}
 	}
@@ -962,10 +948,7 @@ void reshade::runtime::save_screenshot() const
 	if (_screenshot_include_preset)
 	{
 		save_preset(least + L" Preset.ini");
-	}
-	if (_screenshot_include_configuration)
-	{
-		save_config(least + L".ini");
+		save_config(least + L" Settings.ini");
 	}
 }
 

@@ -776,7 +776,7 @@ namespace reshade::opengl
 			success &= add_sampler(info, technique_init);
 
 		for (technique &technique : _techniques)
-			if (technique.impl == nullptr && technique.effect_filename == effect.source_file.filename().u8string())
+			if (technique.impl == nullptr && technique.effect_index == effect.index)
 				success &= init_technique(technique, technique_init, entry_points, effect.errors);
 
 		for (auto &it : entry_points)
