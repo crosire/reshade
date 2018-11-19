@@ -53,6 +53,9 @@ namespace reshade
 		auto lock() { return std::lock_guard<std::mutex>(_mutex); }
 		void next_frame();
 
+		static std::string key_name(unsigned int keycode);
+		static std::string key_name(const unsigned int key[4]);
+
 		static bool handle_window_message(const void *message_data);
 
 	private:

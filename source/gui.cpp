@@ -18,7 +18,6 @@
 extern volatile long g_network_traffic;
 extern std::filesystem::path g_reshade_dll_path;
 extern std::filesystem::path g_target_executable_path;
-extern const char *g_keyboard_keys[256];
 
 const ImVec4 COLOR_RED = ImColor(240, 100, 100);
 const ImVec4 COLOR_YELLOW = ImColor(204, 204, 0);
@@ -420,11 +419,7 @@ void reshade::runtime::draw_ui()
 		else
 		{
 			ImGui::Text(
-				"Press '%s%s%s%s' to open the configuration menu.",
-				_menu_key_data[1] ? "Ctrl + " : "",
-				_menu_key_data[2] ? "Shift + " : "",
-				_menu_key_data[3] ? "Alt + " : "",
-				g_keyboard_keys[_menu_key_data[0]]);
+				"Press '%s' to open the configuration menu.", input::key_name(_menu_key_data).c_str());
 		}
 
 		if (!_last_reload_successful)
@@ -568,11 +563,7 @@ void reshade::runtime::draw_ui()
 void reshade::runtime::draw_overlay_menu_home()
 {
 	if (!_effects_enabled)
-		ImGui::Text("Effects are disabled. Press '%s%s%s%s' to enable them again.",
-			_effects_key_data[1] ? "Ctrl + " : "",
-			_effects_key_data[2] ? "Shift + " : "",
-			_effects_key_data[3] ? "Alt + " : "",
-			g_keyboard_keys[_effects_key_data[0]]);
+		ImGui::Text("Effects are disabled. Press '%s' to enable them again.", input::key_name(_effects_key_data).c_str());
 
 	const char *tutorial_text =
 		"Welcome! Since this is the first time you start ReShade, we'll go through a quick tutorial covering the most important features.\n\n"
