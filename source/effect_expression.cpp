@@ -283,15 +283,21 @@ void reshadefx::expression::evaluate_constant_expression(reshadefx::tokenid op, 
 	switch (op)
 	{
 	case tokenid::percent:
-		if (type.is_floating_point())
+		if (type.is_floating_point()) {
 			for (unsigned int i = 0; i < type.components(); ++i)
-				constant.as_float[i] = fmodf(constant.as_float[i], rhs.as_float[i]);
-		else if (type.is_signed())
+				if (rhs.as_float[i] != 0)
+					constant.as_float[i] = fmodf(constant.as_float[i], rhs.as_float[i]);
+		}
+		else if (type.is_signed()) {
 			for (unsigned int i = 0; i < type.components(); ++i)
-				constant.as_int[i] %= rhs.as_int[i];
-		else
+				if (rhs.as_int[i] != 0)
+					constant.as_int[i] %= rhs.as_int[i];
+		}
+		else {
 			for (unsigned int i = 0; i < type.components(); ++i)
-				constant.as_uint[i] %= rhs.as_uint[i];
+				if (rhs.as_uint[i] != 0)
+					constant.as_uint[i] %= rhs.as_uint[i];
+		}
 		break;
 	case tokenid::star:
 		if (type.is_floating_point())
@@ -318,15 +324,21 @@ void reshadefx::expression::evaluate_constant_expression(reshadefx::tokenid op, 
 				constant.as_uint[i] -= rhs.as_uint[i];
 		break;
 	case tokenid::slash:
-		if (type.is_floating_point())
+		if (type.is_floating_point()) {
 			for (unsigned int i = 0; i < type.components(); ++i)
-				constant.as_float[i] /= rhs.as_float[i];
-		else if (type.is_signed())
+				if (rhs.as_float[i] != 0)
+					constant.as_float[i] /= rhs.as_float[i];
+		}
+		else if (type.is_signed()) {
 			for (unsigned int i = 0; i < type.components(); ++i)
-				constant.as_int[i] /= rhs.as_int[i];
-		else
+				if (rhs.as_int[i] != 0)
+					constant.as_int[i] /= rhs.as_int[i];
+		}
+		else {
 			for (unsigned int i = 0; i < type.components(); ++i)
-				constant.as_uint[i] /= rhs.as_uint[i];
+				if (rhs.as_uint[i] != 0)
+					constant.as_uint[i] /= rhs.as_uint[i];
+		}
 		break;
 	case tokenid::ampersand:
 	case tokenid::ampersand_ampersand:
