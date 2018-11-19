@@ -1165,9 +1165,19 @@ void reshade::runtime::draw_overlay_menu_statistics()
 			ImGui::SameLine(0, button_spacing);
 			if (ImGui::Button("Show HLSL/GLSL", ImVec2(120, 0)))
 			{
-				_editor.set_text(effect.module.hlsl);
-				_selected_effect = std::numeric_limits<size_t>::max();
-				_show_code_editor = true;
+				// Act as a toggle when already showing the generated code
+				if (_show_code_editor
+					&& _selected_effect == std::numeric_limits<size_t>::max()
+					&& _editor.get_text() == effect.module.hlsl)
+				{
+					_show_code_editor = false;
+				}
+				else
+				{
+					_editor.set_text(effect.module.hlsl);
+					_selected_effect = std::numeric_limits<size_t>::max();
+					_show_code_editor = true;
+				}
 			}
 
 			if (!effect.errors.empty())
