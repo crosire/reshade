@@ -9,7 +9,7 @@ namespace reshade::opengl
 {
 	state_block::state_block()
 	{
-		ZeroMemory(this, sizeof(*this));
+		memset(this, 0, sizeof(*this));
 	}
 
 	void state_block::capture()
@@ -59,6 +59,12 @@ namespace reshade::opengl
 			GLint drawbuffer = GL_NONE;
 			glGetIntegerv(GL_DRAW_BUFFER0 + i, &drawbuffer);
 			_drawbuffers[i] = static_cast<GLenum>(drawbuffer);
+		}
+
+		if (gl3wProcs.gl.ClipControl != nullptr)
+		{
+			glGetIntegerv(GL_CLIP_ORIGIN, &clip_origin);
+			glGetIntegerv(GL_CLIP_DEPTH_MODE, &clip_depthmode);
 		}
 	}
 	void state_block::apply() const
@@ -117,5 +123,8 @@ namespace reshade::opengl
 		{
 			glDrawBuffers(8, _drawbuffers);
 		}
+
+		if (gl3wProcs.gl.ClipControl != nullptr)
+			glClipControl(clip_origin, clip_depthmode);
 	}
 }

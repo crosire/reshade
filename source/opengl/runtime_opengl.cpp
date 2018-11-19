@@ -417,14 +417,8 @@ namespace reshade::opengl
 		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, _blit_fbo);
 		glBlitFramebuffer(0, 0, _width, _height, 0, 0, _width, _height, GL_DEPTH_BUFFER_BIT, GL_NEAREST);
 
-		GLint clip_origin = GL_LOWER_LEFT;
-		GLint clip_depthmode = GL_NEGATIVE_ONE_TO_ONE;
-		if (gl3wProcs.gl.ClipControl != nullptr)
-		{
-			glGetIntegerv(GL_CLIP_ORIGIN, &clip_origin);
-			glGetIntegerv(GL_CLIP_DEPTH_MODE, &clip_depthmode);
-			glClipControl(GL_LOWER_LEFT, GL_ZERO_TO_ONE);
-		}
+		// Set up clip space to something consistent
+		glClipControl(GL_LOWER_LEFT, GL_ZERO_TO_ONE);
 
 		// Setup vertex input
 		glBindVertexArray(_default_vao);
@@ -452,12 +446,6 @@ namespace reshade::opengl
 
 		// Apply states
 		_stateblock.apply();
-
-		if (gl3wProcs.gl.ClipControl != nullptr
-			&& (clip_origin != GL_LOWER_LEFT || clip_depthmode != GL_NEGATIVE_ONE_TO_ONE))
-		{
-			glClipControl(clip_origin, clip_depthmode);
-		}
 	}
 	void runtime_opengl::on_draw_call(unsigned int vertices)
 	{
