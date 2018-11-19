@@ -1696,9 +1696,9 @@ void reshade::runtime::draw_overlay_variable_editor()
 			const auto ui_max_val = ui_max.first.is_floating_point() ? static_cast<int>(ui_max.second.as_float[0]) : ui_max.second.as_int[0];
 			const auto ui_stp_val = std::max(1, ui_stp.first.is_floating_point() ? static_cast<int>(ui_stp.second.as_float[0]) : ui_stp.second.as_int[0]);
 
-			if (ui_type == "drag")
+			if (ui_type == "slider")
 				modified = imgui_slider_with_buttons(ui_label.c_str(), variable.type.is_signed() ? ImGuiDataType_S32 : ImGuiDataType_U32, data, variable.type.rows, &ui_stp_val, &ui_min_val, &ui_max_val);
-			else if (ui_type == "drag2")
+			else if (ui_type == "drag")
 				modified = ImGui::DragScalarN(ui_label.c_str(), variable.type.is_signed() ? ImGuiDataType_S32 : ImGuiDataType_U32, data, variable.type.rows, static_cast<float>(ui_stp_val), &ui_min_val, &ui_max_val);
 			else if (ui_type == "combo") {
 				std::string ui_items = variable.annotations["ui_items"].second.string_data;
@@ -1731,9 +1731,9 @@ void reshade::runtime::draw_overlay_variable_editor()
 			const auto ui_max_val = ui_max.first.is_floating_point() ? ui_max.second.as_float[0] : static_cast<float>(ui_max.second.as_int[0]);
 			const auto ui_stp_val = std::max(0.001f, ui_stp.first.is_floating_point() ? ui_stp.second.as_float[0] : static_cast<float>(ui_stp.second.as_int[0]));
 
-			if (ui_type == "drag")
+			if (ui_type == "slider")
 				modified = imgui_slider_with_buttons(ui_label.c_str(), ImGuiDataType_Float, data, variable.type.rows, &ui_stp_val, &ui_min_val, &ui_max_val, "%.3f");
-			else if (ui_type == "drag2")
+			else if (ui_type == "drag")
 				modified = ImGui::DragScalarN(ui_label.c_str(), ImGuiDataType_Float, data, variable.type.rows, ui_stp_val, &ui_min_val, &ui_max_val, "%.3f");
 			else if (ui_type == "input" || (ui_type.empty() && variable.type.rows < 3))
 				modified = ImGui::InputScalarN(ui_label.c_str(), ImGuiDataType_Float, data, variable.type.rows);
