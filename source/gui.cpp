@@ -85,6 +85,7 @@ void reshade::runtime::init_ui()
 		config.get("GENERAL", "ShowClock", _show_clock);
 		config.get("GENERAL", "ShowFPS", _show_fps);
 		config.get("GENERAL", "ShowFrameTime", _show_frametime);
+		config.get("GENERAL", "ClockFormat", _clock_format);
 		config.get("GENERAL", "NoFontScaling", _no_font_scaling);
 		config.get("GENERAL", "SaveWindowState", save_imgui_window_state);
 		config.get("GENERAL", "TutorialProgress", _tutorial_index);
@@ -202,7 +203,7 @@ void reshade::runtime::init_ui()
 		config.set("GENERAL", "ShowClock", _show_clock);
 		config.set("GENERAL", "ShowFPS", _show_fps);
 		config.set("GENERAL", "ShowFrameTime", _show_frametime);
-		config.set("GENERAL", "NoReloadOnInit", _no_reload_on_init);
+		config.set("GENERAL", "ClockFormat", _clock_format);
 		config.set("GENERAL", "SaveWindowState", _imgui_context->IO.IniFilename != nullptr);
 		config.set("GENERAL", "TutorialProgress", _tutorial_index);
 		config.set("GENERAL", "NewVariableUI", _variable_editor_tabs);
@@ -467,7 +468,7 @@ void reshade::runtime::draw_ui()
 			const int minute = (_date[3] - hour * 3600) / 60;
 			const int seconds = _date[3] - hour * 3600 - minute * 60;
 
-			ImFormatString(temp, sizeof(temp), " %02u:%02u:%02u", hour, minute, seconds);
+			ImFormatString(temp, sizeof(temp), _clock_format != 0 ? " %02u:%02u:%02u" : " %02u:%02u", hour, minute, seconds);
 			ImGui::SetCursorPosX(ImGui::GetWindowContentRegionWidth() - ImGui::CalcTextSize(temp).x);
 			ImGui::TextUnformatted(temp);
 		}
@@ -1042,6 +1043,7 @@ void reshade::runtime::draw_overlay_menu_settings()
 		modified |= ImGui::Checkbox("Show Clock", &_show_clock);
 		ImGui::SameLine(0, 10); modified |= ImGui::Checkbox("Show FPS", &_show_fps);
 		ImGui::SameLine(0, 10); modified |= ImGui::Checkbox("Show Frame Time", &_show_frametime);
+		modified |= ImGui::Combo("Clock Format", &_clock_format, "HH:MM\0HH:MM:SS\0");
 		modified |= ImGui::SliderFloat("FPS Text Size", &_fps_scale, 0.2f, 2.5f, "%.1f");
 		modified |= ImGui::ColorEdit4("FPS Text Color", _fps_col, ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreview);
 	}

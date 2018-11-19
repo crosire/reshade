@@ -325,6 +325,7 @@ namespace reshade
 		int _editor_style_index = 0;
 		int _font_size = 13;
 		int _editor_font_size = 13;
+		int _clock_format = 0;
 		std::filesystem::path _font;
 		std::filesystem::path _editor_font;
 		unsigned int _menu_key_data[4];
