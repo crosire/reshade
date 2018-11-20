@@ -419,9 +419,9 @@ HOOK_EXPORT HGLRC WINAPI wglCreateContext(HDC hdc)
 
 	LOG(INFO) << "> Requesting " << (core ? "core " : compatibility ? "compatibility " : "") << "OpenGL context for version " << major << '.' << minor << " ...";
 
-	if (major < 4 || minor < 5)
+	if (major < 4 || minor < 3)
 	{
-		LOG(WARNING) << "> Replacing requested version with 4.5 ...";
+		LOG(WARNING) << "> Replacing requested version with 4.3 ...";
 
 		for (int k = 0; k < i; ++k)
 		{
@@ -431,7 +431,7 @@ HOOK_EXPORT HGLRC WINAPI wglCreateContext(HDC hdc)
 					attribs[k].value = 4;
 					break;
 				case attribute::WGL_CONTEXT_MINOR_VERSION_ARB:
-					attribs[k].value = 5;
+					attribs[k].value = 3;
 					break;
 				case attribute::WGL_CONTEXT_PROFILE_MASK_ARB:
 					attribs[k].value = attribute::WGL_CONTEXT_COMPATIBILITY_PROFILE_BIT_ARB;
@@ -722,7 +722,7 @@ HOOK_EXPORT BOOL  WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 		gl3wProcs.gl.TexSubImage2D = reshade::hooks::call(&glTexSubImage2D);
 		gl3wProcs.gl.Viewport = reshade::hooks::call(&glViewport);
 
-		if (gl3wIsSupported(4, 5))
+		if (gl3wIsSupported(4, 3))
 		{
 			const auto runtime = new reshade::opengl::runtime_opengl(hdc);
 
@@ -732,7 +732,7 @@ HOOK_EXPORT BOOL  WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 		}
 		else
 		{
-			LOG(ERROR) << "Your graphics card does not seem to support OpenGL 4.5. Initialization failed.";
+			LOG(ERROR) << "Your graphics card does not seem to support OpenGL 4.3. Initialization failed.";
 		}
 
 		s_window_rects[hwnd].left = s_window_rects[hwnd].top = s_window_rects[hwnd].right = s_window_rects[hwnd].bottom = 0;
