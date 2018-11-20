@@ -487,6 +487,10 @@ void code_editor_widget::select(const text_pos &beg, const text_pos &end, select
 			++end.column) continue;
 	};
 
+	// Reset cursor animation (so it is always visible when clicking something)
+	_cursor_anim = 0;
+
+	// Find the identifier under the cursor position
 	text_pos highlight_beg = _select_beg;
 	text_pos highlight_end = _select_end;
 	select_word(highlight_beg, highlight_end);
@@ -666,6 +670,9 @@ void code_editor_widget::insert_character(char c, bool auto_indent)
 
 	u.added_end = _cursor_pos;
 	record_undo(std::move(u));
+
+	// Reset cursor animation
+	_cursor_anim = 0;
 
 	_scroll_to_cursor = true;
 
