@@ -10,7 +10,7 @@
 #include <vector>
 #include <unordered_map>
 
-class code_editor_widget
+class imgui_code_editor
 {
 public:
 	struct text_pos
@@ -61,7 +61,7 @@ public:
 		line
 	};
 
-	code_editor_widget();
+	imgui_code_editor();
 
 	void render(const char *title, bool border = false);
 

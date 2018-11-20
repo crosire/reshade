@@ -51,7 +51,7 @@
     <ClCompile Include="source\gui.cpp">
       <Filter>core\runtime</Filter>
     </ClCompile>
-    <ClCompile Include="source\gui_text_editor.cpp">
+    <ClCompile Include="source\gui_code_editor.cpp">
       <Filter>core\runtime</Filter>
     </ClCompile>
     <ClCompile Include="source\gui_widgets.cpp">
@@ -155,7 +155,7 @@
     <ClInclude Include="source\hook_manager.hpp">
       <Filter>core\hook</Filter>
     </ClInclude>
-    <ClInclude Include="source\gui_text_editor.hpp">
+    <ClInclude Include="source\gui_code_editor.hpp">
       <Filter>core\runtime</Filter>
     </ClInclude>
     <ClInclude Include="source\gui_widgets.hpp">

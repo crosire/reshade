@@ -191,8 +191,8 @@ void reshade::runtime::init_ui()
 			break;
 		default:
 			ImVec4 value; // Note: This expects that all colors exist in the config
-			for (ImGuiCol i = 0; i < code_editor_widget::color_palette_max; i++)
-				config.get("STYLE", code_editor_widget::get_palette_color_name(i), (float(&)[4])value),
+			for (ImGuiCol i = 0; i < imgui_code_editor::color_palette_max; i++)
+				config.get("STYLE", imgui_code_editor::get_palette_color_name(i), (float(&)[4])value),
 				_editor.get_palette_index(i) = ImGui::ColorConvertFloat4ToU32(value);
 			break;
 		}
@@ -235,9 +235,9 @@ void reshade::runtime::init_ui()
 		if (_editor_style_index > 1)
 		{
 			ImVec4 value;
-			for (ImGuiCol i = 0; i < code_editor_widget::color_palette_max; i++)
+			for (ImGuiCol i = 0; i < imgui_code_editor::color_palette_max; i++)
 				value = ImGui::ColorConvertU32ToFloat4(_editor.get_palette_index(i)),
-				config.set("STYLE", code_editor_widget::get_palette_color_name(i), (const float(&)[4])value);
+				config.set("STYLE", imgui_code_editor::get_palette_color_name(i), (const float(&)[4])value);
 		}
 	});
 }
@@ -991,12 +991,12 @@ void reshade::runtime::draw_overlay_menu_settings()
 			if (ImGui::BeginChild("##editor_colors", ImVec2(0, 300), true, ImGuiWindowFlags_AlwaysVerticalScrollbar | ImGuiWindowFlags_NavFlattened))
 			{
 				ImGui::PushItemWidth(-160);
-				for (ImGuiCol i = 0; i < code_editor_widget::color_palette_max; i++)
+				for (ImGuiCol i = 0; i < imgui_code_editor::color_palette_max; i++)
 				{
 					ImVec4 color = ImGui::ColorConvertU32ToFloat4(_editor.get_palette_index(i));
 					ImGui::PushID(i);
 					modified |= ImGui::ColorEdit4("##editor_color", &color.x, ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreview);
-					ImGui::SameLine(); ImGui::TextUnformatted(code_editor_widget::get_palette_color_name(i));
+					ImGui::SameLine(); ImGui::TextUnformatted(imgui_code_editor::get_palette_color_name(i));
 					ImGui::PopID();
 					_editor.get_palette_index(i) = ImGui::ColorConvertFloat4ToU32(color);
 				}

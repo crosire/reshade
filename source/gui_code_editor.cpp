@@ -21,11 +21,11 @@
  * SOFTWARE.
  */
 
-#include "gui_text_editor.hpp"
+#include "gui_code_editor.hpp"
 #include "effect_lexer.hpp"
 #include <imgui.h>
 
-const char *code_editor_widget::get_palette_color_name(unsigned int col)
+const char *imgui_code_editor::get_palette_color_name(unsigned int col)
 {
 	switch (col)
 	{
@@ -73,12 +73,12 @@ const char *code_editor_widget::get_palette_color_name(unsigned int col)
 	return nullptr;
 }
 
-code_editor_widget::code_editor_widget()
+imgui_code_editor::imgui_code_editor()
 {
 	_lines.emplace_back();
 }
 
-void code_editor_widget::render(const char *title, bool border)
+void imgui_code_editor::render(const char *title, bool border)
 {
 	assert(!_lines.empty());
 
@@ -452,7 +452,7 @@ void code_editor_widget::render(const char *title, bool border)
 	ImGui::PopStyleColor();
 }
 
-void code_editor_widget::select(const text_pos &beg, const text_pos &end, selection_mode mode)
+void imgui_code_editor::select(const text_pos &beg, const text_pos &end, selection_mode mode)
 {
 	assert(beg.line < _lines.size());
 	assert(end.line < _lines.size());
@@ -508,7 +508,7 @@ void code_editor_widget::select(const text_pos &beg, const text_pos &end, select
 		break;
 	}
 }
-void code_editor_widget::select_all()
+void imgui_code_editor::select_all()
 {
 	if (_lines.empty())
 		return; // Cannot select anything if no text is set
@@ -523,7 +523,7 @@ void code_editor_widget::select_all()
 	select(_interactive_beg, _interactive_end);
 }
 
-void code_editor_widget::set_text(const std::string &text)
+void imgui_code_editor::set_text(const std::string &text)
 {
 	_undo.clear();
 	_undo_index = 0;
@@ -551,11 +551,11 @@ void code_editor_widget::set_text(const std::string &text)
 	_colorize_line_beg = 0;
 	_colorize_line_end = _lines.size();
 }
-void code_editor_widget::clear_text()
+void imgui_code_editor::clear_text()
 {
 	set_text(std::string());
 }
-void code_editor_widget::insert_text(const std::string &text)
+void imgui_code_editor::insert_text(const std::string &text)
 {
 	// Insert all characters of the text
 	for (const char c : text)
@@ -564,7 +564,7 @@ void code_editor_widget::insert_text(const std::string &text)
 	// Move cursor to end of inserted text
 	select(_cursor_pos, _cursor_pos);
 }
-void code_editor_widget::insert_character(char c, bool auto_indent)
+void imgui_code_editor::insert_character(char c, bool auto_indent)
 {
 	undo_record u;
 
@@ -679,11 +679,11 @@ void code_editor_widget::insert_character(char c, bool auto_indent)
 	_colorize_line_end = std::max(_colorize_line_end, _cursor_pos.line + 1);
 }
 
-std::string code_editor_widget::get_text() const
+std::string imgui_code_editor::get_text() const
 {
 	return get_text(0, _lines.size());
 }
-std::string code_editor_widget::get_text(const text_pos &beg, const text_pos &end) const
+std::string imgui_code_editor::get_text(const text_pos &beg, const text_pos &end) const
 {
 	std::string result;
 
@@ -710,14 +710,14 @@ std::string code_editor_widget::get_text(const text_pos &beg, const text_pos &en
 
 	return result;
 }
-std::string code_editor_widget::get_selected_text() const
+std::string imgui_code_editor::get_selected_text() const
 {
 	assert(has_selection());
 
 	return get_text(_select_beg, _select_end);
 }
 
-void code_editor_widget::undo(unsigned int steps)
+void imgui_code_editor::undo(unsigned int steps)
 {
 	// Reset selection
 	_select_beg = _select_end = _cursor_pos;
@@ -745,7 +745,7 @@ void code_editor_widget::undo(unsigned int steps)
 	_scroll_to_cursor = true;
 	_in_undo_operation = false;
 }
-void code_editor_widget::redo(unsigned int steps)
+void imgui_code_editor::redo(unsigned int steps)
 {
 	// Reset selection
 	_select_beg = _select_end = _cursor_pos;
@@ -774,7 +774,7 @@ void code_editor_widget::redo(unsigned int steps)
 	_in_undo_operation = false;
 }
 
-void code_editor_widget::record_undo(undo_record &&record)
+void imgui_code_editor::record_undo(undo_record &&record)
 {
 	if (_in_undo_operation)
 		return;
@@ -784,7 +784,7 @@ void code_editor_widget::record_undo(undo_record &&record)
 	_undo_index++;
 }
 
-void code_editor_widget::delete_next()
+void imgui_code_editor::delete_next()
 {
 	if (has_selection())
 	{
@@ -832,7 +832,7 @@ void code_editor_widget::delete_next()
 	_colorize_line_beg = std::min(_colorize_line_beg, _cursor_pos.line);
 	_colorize_line_end = std::max(_colorize_line_end, _cursor_pos.line + 1);
 }
-void code_editor_widget::delete_previous()
+void imgui_code_editor::delete_previous()
 {
 	if (has_selection())
 	{
@@ -883,7 +883,7 @@ void code_editor_widget::delete_previous()
 	_colorize_line_beg = std::min(_colorize_line_beg, _cursor_pos.line);
 	_colorize_line_end = std::max(_colorize_line_end, _cursor_pos.line + 1);
 }
-void code_editor_widget::delete_selection()
+void imgui_code_editor::delete_selection()
 {
 	if (!has_selection())
 		return;
@@ -930,7 +930,7 @@ void code_editor_widget::delete_selection()
 	_cursor_pos = _select_beg;
 	select(_cursor_pos, _cursor_pos);
 }
-void code_editor_widget::delete_lines(size_t first_line, size_t last_line)
+void imgui_code_editor::delete_lines(size_t first_line, size_t last_line)
 {
 	// Move all error markers after the deleted lines down
 	std::unordered_map<size_t, std::pair<std::string, bool>> errors;
@@ -943,7 +943,7 @@ void code_editor_widget::delete_lines(size_t first_line, size_t last_line)
 	_lines.erase(_lines.begin() + first_line, _lines.begin() + last_line + 1);
 }
 
-void code_editor_widget::clipboard_copy()
+void imgui_code_editor::clipboard_copy()
 {
 	if (has_selection())
 	{
@@ -959,7 +959,7 @@ void code_editor_widget::clipboard_copy()
 		ImGui::SetClipboardText(line_text.c_str());
 	}
 }
-void code_editor_widget::clipboard_cut()
+void imgui_code_editor::clipboard_cut()
 {
 	if (!has_selection())
 		return;
@@ -967,7 +967,7 @@ void code_editor_widget::clipboard_cut()
 	clipboard_copy();
 	delete_selection();
 }
-void code_editor_widget::clipboard_paste()
+void imgui_code_editor::clipboard_paste()
 {
 	const char *const text = ImGui::GetClipboardText();
 
@@ -999,7 +999,7 @@ void code_editor_widget::clipboard_paste()
 	record_undo(std::move(u));
 }
 
-void code_editor_widget::move_up(size_t amount, bool selection)
+void imgui_code_editor::move_up(size_t amount, bool selection)
 {
 	assert(!_lines.empty());
 
@@ -1031,7 +1031,7 @@ void code_editor_widget::move_up(size_t amount, bool selection)
 	select(_interactive_beg, _interactive_end);
 	_scroll_to_cursor = true;
 }
-void code_editor_widget::move_down(size_t amount, bool selection)
+void imgui_code_editor::move_down(size_t amount, bool selection)
 {
 	assert(!_lines.empty());
 
@@ -1063,7 +1063,7 @@ void code_editor_widget::move_down(size_t amount, bool selection)
 	select(_interactive_beg, _interactive_end);
 	_scroll_to_cursor = true;
 }
-void code_editor_widget::move_left(size_t amount, bool selection, bool word_mode)
+void imgui_code_editor::move_left(size_t amount, bool selection, bool word_mode)
 {
 	assert(!_lines.empty());
 
@@ -1110,7 +1110,7 @@ void code_editor_widget::move_left(size_t amount, bool selection, bool word_mode
 	select(_interactive_beg, _interactive_end);
 	_scroll_to_cursor = true;
 }
-void code_editor_widget::move_right(size_t amount, bool selection, bool word_mode)
+void imgui_code_editor::move_right(size_t amount, bool selection, bool word_mode)
 {
 	assert(!_lines.empty());
 
@@ -1158,7 +1158,7 @@ void code_editor_widget::move_right(size_t amount, bool selection, bool word_mod
 	select(_interactive_beg, _interactive_end);
 	_scroll_to_cursor = true;
 }
-void code_editor_widget::move_top(bool selection)
+void imgui_code_editor::move_top(bool selection)
 {
 	assert(!_lines.empty());
 
@@ -1187,7 +1187,7 @@ void code_editor_widget::move_top(bool selection)
 	select(_interactive_beg, _interactive_end);
 	_scroll_to_cursor = true;
 }
-void code_editor_widget::move_bottom(bool selection)
+void imgui_code_editor::move_bottom(bool selection)
 {
 	assert(!_lines.empty());
 
@@ -1215,7 +1215,7 @@ void code_editor_widget::move_bottom(bool selection)
 	select(_interactive_beg, _interactive_end);
 	_scroll_to_cursor = true;
 }
-void code_editor_widget::move_home(bool selection)
+void imgui_code_editor::move_home(bool selection)
 {
 	assert(!_lines.empty());
 
@@ -1243,7 +1243,7 @@ void code_editor_widget::move_home(bool selection)
 	select(_interactive_beg, _interactive_end);
 	_scroll_to_cursor = true;
 }
-void code_editor_widget::move_end(bool selection)
+void imgui_code_editor::move_end(bool selection)
 {
 	assert(!_lines.empty());
 
@@ -1271,7 +1271,7 @@ void code_editor_widget::move_end(bool selection)
 	select(_interactive_beg, _interactive_end);
 	_scroll_to_cursor = true;
 }
-void code_editor_widget::move_lines_up()
+void imgui_code_editor::move_lines_up()
 {
 	if (_select_beg.line == 0)
 		return;
@@ -1283,7 +1283,7 @@ void code_editor_widget::move_lines_up()
 	_select_end.line--;
 	_cursor_pos.line--;
 }
-void code_editor_widget::move_lines_down()
+void imgui_code_editor::move_lines_down()
 {
 	if (_select_end.line + 1 >= _lines.size())
 		return;
@@ -1296,7 +1296,7 @@ void code_editor_widget::move_lines_down()
 	_cursor_pos.line++;
 }
 
-void code_editor_widget::colorize()
+void imgui_code_editor::colorize()
 {
 	if (_colorize_line_beg >= _colorize_line_end)
 		return;

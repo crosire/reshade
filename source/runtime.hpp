@@ -14,7 +14,7 @@
 #include "runtime_objects.hpp"
 
 #if RESHADE_GUI
-#include "gui_text_editor.hpp"
+#include "gui_code_editor.hpp"
 
 struct ImDrawData;
 struct ImGuiContext;
@@ -348,7 +348,7 @@ namespace reshade
 		unsigned int _effects_expanded_state = 2;
 		char _effect_filter_buffer[64] = {};
 		std::filesystem::path _file_selection_path;
-		code_editor_widget _editor;
+		imgui_code_editor _editor;
 #endif
 	};
 }
