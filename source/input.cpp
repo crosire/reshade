@@ -375,7 +375,8 @@ std::string reshade::input::key_name(unsigned int keycode)
 		"", "", "", "", "", "", "Attn", "CrSel", "ExSel", "Erase EOF", "Play", "Zoom", "", "PA1", "OEM Clear", ""
 	};
 
-	assert(keycode < 256);
+	if (keycode >= _countof(keyboard_keys))
+		return std::string();
 
 	return keyboard_keys[keycode];
 }

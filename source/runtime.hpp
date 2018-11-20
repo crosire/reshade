@@ -262,6 +262,7 @@ namespace reshade
 		std::shared_ptr<class input> _input;
 
 		bool _effects_enabled = true;
+		bool _ignore_shortcuts = false;
 		unsigned int _reload_key_data[4];
 		unsigned int _effects_key_data[4];
 		unsigned int _screenshot_key_data[4];
@@ -336,9 +337,6 @@ namespace reshade
 		bool _show_splash = true;
 		bool _show_code_editor = false;
 		bool _no_font_scaling = false;
-		bool _overlay_key_setting_active = false;
-		bool _screenshot_key_setting_active = false;
-		bool _toggle_key_setting_active = false;
 		bool _log_wordwrap = false;
 		bool _variable_editor_tabs = false;
 		bool _selected_effect_changed = false;

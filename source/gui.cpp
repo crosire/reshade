@@ -312,9 +312,10 @@ void reshade::runtime::draw_ui()
 
 	if (_show_menu && _input->is_key_pressed(0x1B)) // VK_ESCAPE
 		_show_menu = false;
-	else if (!_overlay_key_setting_active && _input->is_key_pressed(_menu_key_data))
+	else if (!_ignore_shortcuts && _input->is_key_pressed(_menu_key_data))
 		_show_menu = !_show_menu;
 
+	_ignore_shortcuts = false;
 	_effects_expanded_state &= 2;
 
 	if (_rebuild_font_atlas)
@@ -865,11 +866,12 @@ void reshade::runtime::draw_overlay_menu_settings()
 	if (ImGui::CollapsingHeader("General", ImGuiTreeNodeFlags_DefaultOpen))
 	{
 		modified |= imgui_key_input("Overlay Key", _menu_key_data, *_input);
-		_overlay_key_setting_active = ImGui::IsItemActive();
+		_ignore_shortcuts |= ImGui::IsItemActive(); 
 
 		modified |= imgui_key_input("Effect Reload Key", _reload_key_data, *_input);
+		_ignore_shortcuts |= ImGui::IsItemActive();
 		modified |= imgui_key_input("Effect Toggle Key", _effects_key_data, *_input);
-		_toggle_key_setting_active = ImGui::IsItemActive();
+		_ignore_shortcuts |= ImGui::IsItemActive();
 
 		modified |= ImGui::Combo("Input Processing", &_input_processing_mode,
 			"Pass on all input\0"
@@ -886,7 +888,7 @@ void reshade::runtime::draw_overlay_menu_settings()
 	if (ImGui::CollapsingHeader("Screenshots", ImGuiTreeNodeFlags_DefaultOpen))
 	{
 		modified |= imgui_key_input("Screenshot Key", _screenshot_key_data, *_input);
-		_screenshot_key_setting_active = ImGui::IsItemActive();
+		_ignore_shortcuts |= ImGui::IsItemActive();
 
 		modified |= imgui_directory_input_box("Screenshot Path", _screenshot_path, _file_selection_path);
 		modified |= ImGui::Combo("Screenshot Format", &_screenshot_format, "Bitmap (*.bmp)\0Portable Network Graphics (*.png)\0");
@@ -1404,6 +1406,9 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 void reshade::runtime::draw_code_editor()
 {
+	// Disable keyboard shortcuts when the window is focused so they don't get triggered while editing text
+	_ignore_shortcuts |= ImGui::IsWindowFocused(ImGuiFocusedFlags_ChildWindows);
+
 	const auto parse_errors = [this](const std::string &errors) {
 		_editor.clear_errors();
 
@@ -1809,8 +1814,6 @@ void reshade::runtime::draw_overlay_technique_editor()
 {
 	size_t hovered_technique_index = std::numeric_limits<size_t>::max();
 
-	_toggle_key_setting_active = false;
-
 	for (size_t index = 0; index < _techniques.size(); ++index)
 	{
 		technique &technique = _techniques[index];
@@ -1867,7 +1870,7 @@ void reshade::runtime::draw_overlay_technique_editor()
 		{
 			if (imgui_key_input("Toggle Key", technique.toggle_key_data, *_input))
 				save_current_preset();
-			_toggle_key_setting_active |= ImGui::IsItemActive();
+			_ignore_shortcuts |= ImGui::IsItemActive();
 
 			ImGui::Separator();
 

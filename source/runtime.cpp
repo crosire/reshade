@@ -114,21 +114,18 @@ void reshade::runtime::on_present()
 	// Lock input so it cannot be modified by other threads while we are reading it here
 	const auto input_lock = _input->lock();
 
-	if (_input->is_key_pressed(_reload_key_data))
-		load_effects();
+	// Handle keyboard shortcuts
+	if (!_ignore_shortcuts)
+	{
+		if (_input->is_key_pressed(_reload_key_data))
+			load_effects();
 
-	if (_input->is_key_pressed(_effects_key_data))
-#if RESHADE_GUI
-		if (!_toggle_key_setting_active)
-#endif
+		if (_input->is_key_pressed(_effects_key_data))
 			_effects_enabled = !_effects_enabled;
 
-	// Create and save screenshot if associated shortcut is down
-	if (_input->is_key_pressed(_screenshot_key_data))
-#if RESHADE_GUI
-		if (!_screenshot_key_setting_active)
-#endif
-		save_screenshot();
+		if (_input->is_key_pressed(_screenshot_key_data))
+			save_screenshot();
+	}
 
 #if RESHADE_GUI
 	// Draw overlay
@@ -659,12 +656,9 @@ void reshade::runtime::update_and_render_effects()
 			if (technique.timeleft <= 0)
 				disable_technique(technique);
 		}
-		else if (_input->is_key_pressed(technique.toggle_key_data) ||
-			(technique.toggle_key_data[0] >= 0x01 && technique.toggle_key_data[0] <= 0x06 && _input->is_mouse_button_pressed(technique.toggle_key_data[0] - 1)))
+		else if (!_ignore_shortcuts && (_input->is_key_pressed(technique.toggle_key_data) ||
+			(technique.toggle_key_data[0] >= 0x01 && technique.toggle_key_data[0] <= 0x06 && _input->is_mouse_button_pressed(technique.toggle_key_data[0] - 1))))
 		{
-#if RESHADE_GUI
-			if (!_toggle_key_setting_active)
-#endif
 			if (!technique.enabled)
 				enable_technique(technique);
 			else
