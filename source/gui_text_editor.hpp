@@ -70,6 +70,7 @@ public:
 	bool has_selection() const { return _select_end > _select_beg; }
 
 	void set_text(const std::string &text);
+	void clear_text();
 	void insert_text(const std::string &text);
 	std::string get_text() const;
 	std::string get_text(const text_pos &beg, const text_pos &end) const;

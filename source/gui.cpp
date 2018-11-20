@@ -612,9 +612,16 @@ void reshade::runtime::draw_overlay_menu_home()
 
 					// Need to reload effects in performance mode, so values are applied
 					if (_performance_mode)
+					{
+						_editor.clear_text();
+						_selected_effect = std::numeric_limits<size_t>::max();
+
 						load_effects();
+					}
 					else
+					{
 						load_preset(_preset_files[_current_preset]);
+					}
 				}
 			}
 
@@ -812,6 +819,8 @@ void reshade::runtime::draw_overlay_menu_home()
 		if (ImGui::Button("Reload", ImVec2(-150, 0)))
 		{
 			_show_splash = true;
+			_editor.clear_text();
+			_selected_effect = std::numeric_limits<size_t>::max();
 			_effect_filter_buffer[0] = '\0'; // Reset filter
 
 			load_effects();
@@ -822,6 +831,8 @@ void reshade::runtime::draw_overlay_menu_home()
 		if (ImGui::Checkbox("Performance Mode", &_performance_mode))
 		{
 			_show_splash = true;
+			_editor.clear_text();
+			_selected_effect = std::numeric_limits<size_t>::max();
 			_effect_filter_buffer[0] = '\0'; // Reset filter
 
 			save_config();

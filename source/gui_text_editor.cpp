@@ -547,6 +547,10 @@ void code_editor_widget::set_text(const std::string &text)
 	_colorize_line_beg = 0;
 	_colorize_line_end = _lines.size();
 }
+void code_editor_widget::clear_text()
+{
+	set_text(std::string());
+}
 void code_editor_widget::insert_text(const std::string &text)
 {
 	// Insert all characters of the text
