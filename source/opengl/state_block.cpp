@@ -125,6 +125,8 @@ namespace reshade::opengl
 		}
 
 		if (gl3wProcs.gl.ClipControl != nullptr)
+		{
 			glClipControl(clip_origin, clip_depthmode);
+		}
 	}
 }

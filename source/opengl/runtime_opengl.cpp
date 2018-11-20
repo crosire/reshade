@@ -418,7 +418,8 @@ namespace reshade::opengl
 		glBlitFramebuffer(0, 0, _width, _height, 0, 0, _width, _height, GL_DEPTH_BUFFER_BIT, GL_NEAREST);
 
 		// Set up clip space to something consistent
-		glClipControl(GL_LOWER_LEFT, GL_ZERO_TO_ONE);
+		if (gl3wProcs.gl.ClipControl != nullptr)
+			glClipControl(GL_LOWER_LEFT, GL_ZERO_TO_ONE);
 
 		// Setup vertex input
 		glBindVertexArray(_default_vao);
