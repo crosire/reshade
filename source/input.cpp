@@ -178,10 +178,12 @@ bool reshade::input::handle_window_message(const void *message_data)
 		break;
 	case WM_KEYDOWN:
 	case WM_SYSKEYDOWN:
+		assert(details.wParam < _countof(input->_keys));
 		input->_keys[details.wParam] = 0x88;
 		break;
 	case WM_KEYUP:
 	case WM_SYSKEYUP:
+		assert(details.wParam < _countof(input->_keys));
 		input->_keys[details.wParam] = 0x08;
 		break;
 	case WM_LBUTTONDOWN:
@@ -206,11 +208,11 @@ bool reshade::input::handle_window_message(const void *message_data)
 		input->_mouse_wheel_delta += GET_WHEEL_DELTA_WPARAM(details.wParam) / WHEEL_DELTA;
 		break;
 	case WM_XBUTTONDOWN:
-		assert(HIWORD(details.wParam) < 3);
+		assert(2 + HIWORD(details.wParam) < _countof(input->_mouse_buttons));
 		input->_mouse_buttons[2 + HIWORD(details.wParam)] = 0x88;
 		break;
 	case WM_XBUTTONUP:
-		assert(HIWORD(details.wParam) < 3);
+		assert(2 + HIWORD(details.wParam) < _countof(input->_mouse_buttons));
 		input->_mouse_buttons[2 + HIWORD(details.wParam)] = 0x08;
 		break;
 	}
@@ -220,15 +222,15 @@ bool reshade::input::handle_window_message(const void *message_data)
 
 bool reshade::input::is_key_down(unsigned int keycode) const
 {
-	assert(keycode < 256);
+	assert(keycode < _countof(_keys));
 
-	return (_keys[keycode] & 0x80) == 0x80;
+	return keycode < _countof(_keys) && (_keys[keycode] & 0x80) == 0x80;
 }
 bool reshade::input::is_key_pressed(unsigned int keycode) const
 {
-	assert(keycode < 256);
+	assert(keycode < _countof(_keys));
 
-	return (_keys[keycode] & 0x88) == 0x88;
+	return keycode < _countof(_keys) && (_keys[keycode] & 0x88) == 0x88;
 }
 bool reshade::input::is_key_pressed(unsigned int keycode, bool ctrl, bool shift, bool alt) const
 {
@@ -236,14 +238,14 @@ bool reshade::input::is_key_pressed(unsigned int keycode, bool ctrl, bool shift,
 }
 bool reshade::input::is_key_released(unsigned int keycode) const
 {
-	assert(keycode < 256);
+	assert(keycode < _countof(_keys));
 
-	return (_keys[keycode] & 0x88) == 0x08;
+	return keycode < _countof(_keys) && (_keys[keycode] & 0x88) == 0x08;
 }
 
 bool reshade::input::is_any_key_down() const
 {
-	for (unsigned int i = 0; i < 256; i++)
+	for (unsigned int i = 0; i < _countof(_keys); i++)
 		if (is_key_down(i))
 			return true;
 	return false;
@@ -259,14 +261,14 @@ bool reshade::input::is_any_key_released() const
 
 unsigned int reshade::input::last_key_pressed() const
 {
-	for (unsigned int i = 0; i < 256; i++)
+	for (unsigned int i = 0; i < _countof(_keys); i++)
 		if (is_key_pressed(i))
 			return i;
 	return 0;
 }
 unsigned int reshade::input::last_key_released() const
 {
-	for (unsigned int i = 0; i < 256; i++)
+	for (unsigned int i = 0; i < _countof(_keys); i++)
 		if (is_key_released(i))
 			return i;
 	return 0;
@@ -274,40 +276,40 @@ unsigned int reshade::input::last_key_released() const
 
 bool reshade::input::is_mouse_button_down(unsigned int button) const
 {
-	assert(button < 5);
+	assert(button < _countof(_mouse_buttons));
 
-	return (_mouse_buttons[button] & 0x80) == 0x80;
+	return button < _countof(_mouse_buttons) && (_mouse_buttons[button] & 0x80) == 0x80;
 }
 bool reshade::input::is_mouse_button_pressed(unsigned int button) const
 {
-	assert(button < 5);
+	assert(button < _countof(_mouse_buttons));
 
-	return (_mouse_buttons[button] & 0x88) == 0x88;
+	return button < _countof(_mouse_buttons) && (_mouse_buttons[button] & 0x88) == 0x88;
 }
 bool reshade::input::is_mouse_button_released(unsigned int button) const
 {
-	assert(button < 5);
+	assert(button < _countof(_mouse_buttons));
 
-	return (_mouse_buttons[button] & 0x88) == 0x08;
+	return button < _countof(_mouse_buttons) && (_mouse_buttons[button] & 0x88) == 0x08;
 }
 
 bool reshade::input::is_any_mouse_button_down() const
 {
-	for (unsigned int i = 0; i < 5; i++)
+	for (unsigned int i = 0; i < _countof(_mouse_buttons); i++)
 		if (is_mouse_button_down(i))
 			return true;
 	return false;
 }
 bool reshade::input::is_any_mouse_button_pressed() const
 {
-	for (unsigned int i = 0; i < 5; i++)
+	for (unsigned int i = 0; i < _countof(_mouse_buttons); i++)
 		if (is_mouse_button_pressed(i))
 			return true;
 	return false;
 }
 bool reshade::input::is_any_mouse_button_released() const
 {
-	for (unsigned int i = 0; i < 5; i++)
+	for (unsigned int i = 0; i < _countof(_mouse_buttons); i++)
 		if (is_mouse_button_released(i))
 			return true;
 	return false;
