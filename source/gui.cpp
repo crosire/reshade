@@ -320,6 +320,9 @@ void reshade::runtime::draw_ui()
 
 	if (_rebuild_font_atlas)
 		build_font_atlas();
+	if (_reload_remaining_effects != std::numeric_limits<size_t>::max())
+		_selected_effect = std::numeric_limits<size_t>::max(),
+		_selected_effect_changed = true; // Force editor to clear text after effects where reloaded
 
 	// Update ImGui configuration
 	ImGui::SetCurrentContext(_imgui_context);
@@ -613,16 +616,9 @@ void reshade::runtime::draw_overlay_menu_home()
 
 					// Need to reload effects in performance mode, so values are applied
 					if (_performance_mode)
-					{
-						_editor.clear_text();
-						_selected_effect = std::numeric_limits<size_t>::max();
-
 						load_effects();
-					}
 					else
-					{
 						load_preset(_preset_files[_current_preset]);
-					}
 				}
 			}
 
@@ -820,8 +816,6 @@ void reshade::runtime::draw_overlay_menu_home()
 		if (ImGui::Button("Reload", ImVec2(-150, 0)))
 		{
 			_show_splash = true;
-			_editor.clear_text();
-			_selected_effect = std::numeric_limits<size_t>::max();
 			_effect_filter_buffer[0] = '\0'; // Reset filter
 
 			load_effects();
@@ -832,8 +826,6 @@ void reshade::runtime::draw_overlay_menu_home()
 		if (ImGui::Checkbox("Performance Mode", &_performance_mode))
 		{
 			_show_splash = true;
-			_editor.clear_text();
-			_selected_effect = std::numeric_limits<size_t>::max();
 			_effect_filter_buffer[0] = '\0'; // Reset filter
 
 			save_config();
@@ -1454,6 +1446,7 @@ void reshade::runtime::draw_code_editor()
 		_reload_remaining_effects = 1;
 		unload_effect(_selected_effect);
 		load_effect(source_file, _selected_effect);
+		assert(_reload_total_effects == 0);
 
 		parse_errors(_loaded_effects[_selected_effect].errors);
 	}
@@ -1486,12 +1479,19 @@ void reshade::runtime::draw_code_editor()
 
 	if (_selected_effect_changed)
 	{
-		const auto &effect = _loaded_effects[_selected_effect];
+		if (_selected_effect < _loaded_effects.size())
+		{
+			const auto &effect = _loaded_effects[_selected_effect];
 
-		// Load file to string and update editor text
-		_editor.set_text(std::string(std::istreambuf_iterator<char>(std::ifstream(effect.source_file).rdbuf()), std::istreambuf_iterator<char>()));
+			// Load file to string and update editor text
+			_editor.set_text(std::string(std::istreambuf_iterator<char>(std::ifstream(effect.source_file).rdbuf()), std::istreambuf_iterator<char>()));
 
-		parse_errors(effect.errors);
+			parse_errors(effect.errors);
+		}
+		else
+		{
+			_editor.clear_text();
+		}
 
 		_selected_effect_changed = false;
 	}
