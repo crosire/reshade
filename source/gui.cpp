@@ -298,8 +298,8 @@ void reshade::runtime::build_font_atlas()
 	_imgui_font_atlas.height = height;
 	_imgui_font_atlas.format = reshadefx::texture_format::rgba8;
 	_imgui_font_atlas.unique_name = "ImGUI Font Atlas";
-	init_texture(_imgui_font_atlas);
-	update_texture(_imgui_font_atlas, pixels);
+	if (init_texture(_imgui_font_atlas))
+		update_texture(_imgui_font_atlas, pixels);
 }
 void reshade::runtime::destroy_font_atlas()
 {
@@ -1261,9 +1261,34 @@ void reshade::runtime::draw_overlay_menu_statistics()
 
 						if (ImGui::IsItemHovered())
 						{
+							const ImVec2 tooltip_size = ImVec2(std::max(texture->width * 0.5f, 500.0f), std::max(texture->height * 0.5f, texture->height * 500.0f / texture->width));
+
+							ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
+							ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
+							ImGui::PushStyleColor(ImGuiCol_PopupBg, IM_COL32(204, 204, 204, 255));
 							ImGui::BeginTooltip();
-							ImGui::Image(texture->impl.get(), ImVec2(std::max(texture->width * 0.5f, 500.0f), std::max(texture->height * 0.5f, texture->height * 500.0f / texture->width)));
+
+							// Render background checkerboard pattern
+							const auto draw_list = ImGui::GetWindowDrawList();
+							const ImVec2 pos_min = ImGui::GetCursorScreenPos();
+							const ImVec2 pos_max = pos_min + tooltip_size; int yi = 0;
+
+							for (float y = pos_min.y, grid_size = 25.0f; y < pos_max.y; y += grid_size, yi++)
+							{
+								const float y1 = std::min(y, pos_max.y), y2 = std::min(y + grid_size, pos_max.y);
+								for (float x = pos_min.x + (yi & 1) * grid_size; x < pos_max.x; x += grid_size * 2.0f)
+								{
+									const float x1 = std::min(x, pos_max.x), x2 = std::min(x + grid_size, pos_max.x);
+									draw_list->AddRectFilled(ImVec2(x1, y1), ImVec2(x2, y2), IM_COL32(128, 128, 128, 255));
+								}
+							}
+
+							// Add image on top
+							ImGui::Image(texture->impl.get(), tooltip_size);
+
 							ImGui::EndTooltip();
+							ImGui::PopStyleColor();
+							ImGui::PopStyleVar(2);
 						}
 					}
 				} ImGui::EndChild();
