@@ -700,9 +700,32 @@ namespace reshade::d3d11
 		// Compile the generated HLSL source code to DX byte code
 		for (const auto &entry_point : effect.module.entry_points)
 		{
+			std::string profile = entry_point.second ? "ps" : "vs";
+
+			switch (_renderer_id)
+			{
+			default:
+			case D3D_FEATURE_LEVEL_11_0:
+				profile += "_5_0";
+				break;
+			case D3D_FEATURE_LEVEL_10_1:
+				profile += "_4_1";
+				break;
+			case D3D_FEATURE_LEVEL_10_0:
+				profile += "_4_0";
+				break;
+			case D3D_FEATURE_LEVEL_9_1:
+			case D3D_FEATURE_LEVEL_9_2:
+				profile += "_4_0_level_9_1";
+				break;
+			case D3D_FEATURE_LEVEL_9_3:
+				profile += "_4_0_level_9_3";
+				break;
+			}
+
 			com_ptr<ID3DBlob> d3d_compiled, d3d_errors;
 
-			HRESULT hr = D3DCompile(hlsl.c_str(), hlsl.size(), nullptr, nullptr, nullptr, entry_point.first.c_str(), entry_point.second ? "ps_5_0" : "vs_5_0", D3DCOMPILE_ENABLE_STRICTNESS, 0, &d3d_compiled, &d3d_errors);
+			HRESULT hr = D3DCompile(hlsl.c_str(), hlsl.size(), nullptr, nullptr, nullptr, entry_point.first.c_str(), profile.c_str(), D3DCOMPILE_ENABLE_STRICTNESS, 0, &d3d_compiled, &d3d_errors);
 
 			if (d3d_errors != nullptr) // Append warnings to the output error string as well
 				effect.errors.append(static_cast<const char *>(d3d_errors->GetBufferPointer()), d3d_errors->GetBufferSize() - 1); // Subtracting one to not append the null-terminator as well

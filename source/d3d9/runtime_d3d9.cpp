@@ -70,7 +70,7 @@ namespace reshade::d3d9
 	}
 
 	runtime_d3d9::runtime_d3d9(IDirect3DDevice9 *device, IDirect3DSwapChain9 *swapchain) :
-		runtime(0x9300), _device(device), _swapchain(swapchain)
+		runtime(0x9000), _device(device), _swapchain(swapchain)
 	{
 		assert(device != nullptr);
 		assert(swapchain != nullptr);

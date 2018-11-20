@@ -179,6 +179,7 @@ namespace reshade
 
 		bool _is_initialized = false;
 		bool _has_high_network_activity = false;
+		const unsigned int _renderer_id;
 		unsigned int _width = 0, _height = 0;
 		unsigned int _vendor_id = 0, _device_id = 0;
 		uint64_t _framecount = 0;
@@ -256,7 +257,6 @@ namespace reshade
 		void get_uniform_value(const uniform &variable, uint8_t *data, size_t size) const;
 		void set_uniform_value(uniform &variable, const uint8_t *data, size_t size);
 
-		const unsigned int _renderer_id;
 		bool _needs_update = false;
 		unsigned long _latest_version[3] = {};
 		std::shared_ptr<class input> _input;
