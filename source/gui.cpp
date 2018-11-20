@@ -59,13 +59,15 @@ void reshade::runtime::init_ui()
 	imgui_io.KeyMap[ImGuiKey_Y] = 'Y';
 	imgui_io.KeyMap[ImGuiKey_Z] = 'Z';
 	imgui_io.ConfigFlags = ImGuiConfigFlags_DockingEnable;
-	imgui_io.ConfigResizeWindowsFromEdges = true;
+	imgui_io.BackendFlags = ImGuiBackendFlags_HasMouseCursors;
+
+	// Disable rounding by default
+	imgui_style.GrabRounding = 0.0f;
+	imgui_style.FrameRounding = 0.0f;
+	imgui_style.ChildRounding = 0.0f;
+	imgui_style.ScrollbarRounding = 0.0f;
 	imgui_style.WindowRounding = 0.0f;
 	imgui_style.WindowBorderSize = 0.0f;
-	imgui_style.ChildRounding = 0.0f;
-	imgui_style.FrameRounding = 0.0f;
-	imgui_style.ScrollbarRounding = 0.0f;
-	imgui_style.GrabRounding = 0.0f;
 
 	ImGui::SetCurrentContext(nullptr);
 
