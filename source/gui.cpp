@@ -1906,6 +1906,12 @@ void reshade::runtime::draw_overlay_technique_editor()
 			ImGui::EndPopup();
 		}
 
+		if (technique.toggle_key_data[0] != 0)
+		{
+			ImGui::SameLine(ImGui::GetWindowContentRegionWidth() * 0.75f);
+			ImGui::TextDisabled("%s", reshade::input::key_name(technique.toggle_key_data).c_str());
+		}
+
 		if (draw_border)
 			ImGui::Separator();
 
