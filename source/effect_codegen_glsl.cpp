@@ -1159,6 +1159,11 @@ private:
 			auto pos_prev_assign = continue_data.rfind('\t', pos_assign);
 			continue_data.erase(pos_prev_assign + 1, pos_assign - pos_prev_assign - 1);
 
+			// We need to add the continue block to all "continue" statements as well
+			const std::string continue_id = "__CONTINUE__" + std::to_string(continue_block);
+			for (size_t offset = 0; (offset = loop_data.find(continue_id, offset)) != std::string::npos; offset += continue_data.size())
+				loop_data.replace(offset, continue_id.size(), continue_data);
+
 			code += "do\n\t{\n\t\t{\n";
 			code += loop_data; // Encapsulate loop body into another scope, so not to confuse any local variables with the current iteration variable accessed in the continue block below
 			code += "\t\t}\n";
@@ -1175,6 +1180,10 @@ private:
 			auto pos_assign = condition_data.rfind(id_to_name(condition_value));
 			auto pos_prev_assign = condition_data.rfind('\t', pos_assign);
 			condition_data.erase(pos_prev_assign + 1, pos_assign - pos_prev_assign - 1);
+
+			const std::string continue_id = "__CONTINUE__" + std::to_string(continue_block);
+			for (size_t offset = 0; (offset = loop_data.find(continue_id, offset)) != std::string::npos; offset += continue_data.size())
+				loop_data.replace(offset, continue_id.size(), continue_data + condition_data);
 
 			code += "while (" + id_to_name(condition_value) + ")\n\t{\n\t\t{\n";
 			code += loop_data;
@@ -1290,7 +1299,7 @@ private:
 
 		return set_block(0);
 	}
-	id   leave_block_and_branch(id, unsigned int loop_flow) override
+	id   leave_block_and_branch(id target, unsigned int loop_flow) override
 	{
 		if (!is_in_block())
 			return _last_block;
@@ -1302,8 +1311,8 @@ private:
 		case 1:
 			code += "\tbreak;\n";
 			break;
-		case 2:
-			code += "\tcontinue;\n";
+		case 2: // Keep track of continue target block, so we can insert its code here later
+			code += "__CONTINUE__" + std::to_string(target) + "\tcontinue;\n";
 			break;
 		}
 
