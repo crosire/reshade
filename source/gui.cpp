@@ -322,7 +322,8 @@ void reshade::runtime::draw_ui()
 		build_font_atlas();
 	if (_reload_remaining_effects != std::numeric_limits<size_t>::max())
 		_selected_effect = std::numeric_limits<size_t>::max(),
-		_selected_effect_changed = true; // Force editor to clear text after effects where reloaded
+		_selected_effect_changed = true, // Force editor to clear text after effects where reloaded
+		_effect_filter_buffer[0] = '\0'; // Reset filter as well, since the list of techniques might have changed
 
 	// Update ImGui configuration
 	ImGui::SetCurrentContext(_imgui_context);
@@ -612,7 +613,6 @@ void reshade::runtime::draw_overlay_menu_home()
 					save_config();
 
 					_show_splash = true;
-					_effect_filter_buffer[0] = '\0'; // Reset filter
 
 					// Need to reload effects in performance mode, so values are applied
 					if (_performance_mode)
@@ -700,8 +700,6 @@ void reshade::runtime::draw_overlay_menu_home()
 			if (_effect_filter_buffer[0] == '\0')
 			{
 				// Reset visibility state
-				for (uniform &variable : _uniforms)
-					variable.hidden = variable.annotations["hidden"].second.as_uint[0];
 				for (technique &technique : _techniques)
 					technique.hidden = technique.annotations["hidden"].second.as_uint[0];
 			}
@@ -709,10 +707,6 @@ void reshade::runtime::draw_overlay_menu_home()
 			{
 				const std::string filter = _effect_filter_buffer;
 
-				for (uniform &variable : _uniforms)
-					variable.hidden = variable.annotations["hidden"].second.as_uint[0] ||
-						std::search(variable.name.begin(), variable.name.end(), filter.begin(), filter.end(),
-							[](auto c1, auto c2) { return tolower(c1) == tolower(c2); }) == variable.name.end() && _loaded_effects[variable.effect_index].source_file.filename().u8string().find(filter) == std::string::npos;
 				for (technique &technique : _techniques)
 					technique.hidden = technique.annotations["hidden"].second.as_uint[0] ||
 						std::search(technique.name.begin(), technique.name.end(), filter.begin(), filter.end(),
