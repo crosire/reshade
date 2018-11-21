@@ -505,6 +505,8 @@ void reshade::runtime::draw_ui()
 		ImGuiWindowFlags_NoDocking |
 		ImGuiWindowFlags_NoCollapse |
 		ImGuiWindowFlags_NoNavFocus |
+		ImGuiWindowFlags_NoFocusOnAppearing |
+		ImGuiWindowFlags_NoBringToFrontOnFocus |
 		ImGuiWindowFlags_NoBackground);
 
 	// Set up default dock layout if this was not done yet
