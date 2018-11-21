@@ -310,7 +310,7 @@ void reshade::runtime::draw_ui()
 {
 	const bool show_splash = _show_splash && (_reload_remaining_effects != std::numeric_limits<size_t>::max() || !_reload_compile_queue.empty() || (_last_present_time - _last_reload_time) < std::chrono::seconds(5));
 
-	if (_show_menu && _input->is_key_pressed(0x1B)) // VK_ESCAPE
+	if (_show_menu && !_ignore_shortcuts && _input->is_key_pressed(0x1B)) // VK_ESCAPE
 		_show_menu = false;
 	else if (!_ignore_shortcuts && _input->is_key_pressed(_menu_key_data))
 		_show_menu = !_show_menu;
@@ -1585,6 +1585,8 @@ void reshade::runtime::draw_overlay_variable_editor()
 		ImGui::EndPopup();
 	}
 
+	ImGui::BeginChild("##variables");
+
 	bool current_tree_is_open = false;
 	bool current_category_is_closed = false;
 	size_t current_effect = std::numeric_limits<size_t>::max();
@@ -1827,6 +1829,8 @@ void reshade::runtime::draw_overlay_variable_editor()
 		if (current_tree_is_open)
 			ImGui::TreePop();
 	}
+
+	ImGui::EndChild();
 }
 
 void reshade::runtime::draw_overlay_technique_editor()
