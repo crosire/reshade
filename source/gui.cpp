@@ -1467,7 +1467,7 @@ void reshade::runtime::draw_code_editor()
 		_reload_remaining_effects = 1;
 		unload_effect(_selected_effect);
 		load_effect(source_file, _selected_effect);
-		assert(_reload_total_effects == 0);
+		assert(_reload_remaining_effects == 0);
 
 		parse_errors(_loaded_effects[_selected_effect].errors);
 	}
@@ -1856,10 +1856,10 @@ void reshade::runtime::draw_overlay_technique_editor()
 
 		const bool clicked = _imgui_context->IO.MouseClicked[0];
 		const bool compile_success = _loaded_effects[technique.effect_index].compile_sucess;
-		if (!compile_success) // Prevent user from enabling the technique when the effect failed to compile
-			_imgui_context->IO.MouseClicked[0] = false;
 		assert(compile_success || !technique.enabled);
 
+		// Prevent user from enabling the technique when the effect failed to compile
+		ImGui::PushItemFlag(ImGuiItemFlags_Disabled, !compile_success);
 		// Gray out disabled techniques and mark techniques which failed to compile red
 		ImGui::PushStyleColor(ImGuiCol_Text, compile_success ? _imgui_context->Style.Colors[technique.enabled ? ImGuiCol_Text : ImGuiCol_TextDisabled] : COLOR_RED);
 
@@ -1874,9 +1874,8 @@ void reshade::runtime::draw_overlay_technique_editor()
 			save_current_preset();
 		}
 
-		_imgui_context->IO.MouseClicked[0] = clicked; // Reset click status
-
 		ImGui::PopStyleColor();
+		ImGui::PopItemFlag();
 
 		if (ImGui::IsItemActive())
 			_selected_technique = index;
@@ -1934,7 +1933,7 @@ void reshade::runtime::draw_overlay_technique_editor()
 			ImGui::EndPopup();
 		}
 
-		if (technique.toggle_key_data[0] != 0)
+		if (technique.toggle_key_data[0] != 0 && compile_success)
 		{
 			ImGui::SameLine(ImGui::GetWindowContentRegionWidth() * 0.75f);
 			ImGui::TextDisabled("%s", reshade::input::key_name(technique.toggle_key_data).c_str());
