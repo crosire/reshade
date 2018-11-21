@@ -222,7 +222,7 @@ namespace ReShade.Setup
 			string name = !string.IsNullOrEmpty(info.ProductName) ? info.ProductName : Path.GetFileNameWithoutExtension(_targetPath);
 			_targetPEInfo = new PEInfo(_targetPath);
 
-			Title = "Installing to " + name + " ...";
+			Title = "Working on " + name + " ...";
 			Message.Text = "Analyzing " + name + " ...";
 			MessageDescription.Visibility = Visibility.Collapsed;
 
@@ -247,7 +247,7 @@ namespace ReShade.Setup
 				MessageBox.Show(this, "It looks like the target application uses Direct3D 8. You'll have to download an additional wrapper from 'http://reshade.me/d3d8to9' which converts all API calls to Direct3D 9 in order to use ReShade.", "Warning", MessageBoxButton.OK, MessageBoxImage.Warning);
 			}
 
-			Message.Text = "Select rendering API";
+			Message.Text = "Select the rendering API the game uses:";
 			ApiGroup.IsEnabled = true;
 			ApiDirect3D9.IsChecked = isApiD3D9;
 			ApiDirectXGI.IsChecked = isApiDXGI;
@@ -264,22 +264,51 @@ namespace ReShade.Setup
 			if (ApiOpenGL.IsChecked == true)
 				nameModule = "opengl32.dll";
 
-			string pathModule = _targetModulePath = Path.Combine(Path.GetDirectoryName(_targetPath), nameModule);
+			string targetDir = Path.GetDirectoryName(_targetPath);
+			string pathModule = _targetModulePath = Path.Combine(targetDir, nameModule);
 
-			_configPath = Path.ChangeExtension(_targetModulePath, ".ini");
-
+			_configPath = Path.ChangeExtension(pathModule, ".ini");
 			if (!File.Exists(_configPath))
-			{
-				_configPath = Path.Combine(Path.GetDirectoryName(_targetPath), "ReShade.ini");
-			}
+				_configPath = Path.Combine(targetDir, "ReShade.ini");
 
-			if (File.Exists(pathModule) && !_isHeadless &&
-				MessageBox.Show(this, "Do you want to overwrite the existing installation?", string.Empty, MessageBoxButton.YesNo) != MessageBoxResult.Yes)
+			if (File.Exists(pathModule) && !_isHeadless)
 			{
-				Title += " Failed!";
-				Message.Text = "Existing installation found.";
-				Glass.HideSystemMenu(this, false);
-				return;
+				var result = MessageBox.Show(this, "Do you want to overwrite the existing installation or uninstall ReShade?\n\nPress 'Yes' to overwrite or 'No' to uninstall.", string.Empty, MessageBoxButton.YesNoCancel);
+
+				if (result == MessageBoxResult.No)
+				{
+					try
+					{
+						File.Delete(pathModule);
+						if (File.Exists(_configPath))
+							File.Delete(_configPath);
+						if (File.Exists(Path.ChangeExtension(pathModule, ".log")))
+							File.Delete(Path.ChangeExtension(pathModule, ".log"));
+						if (Directory.Exists(Path.Combine(targetDir, "reshade-shaders")))
+							Directory.Delete(Path.Combine(targetDir, "reshade-shaders"), true);
+					}
+					catch (Exception ex)
+					{
+						Title += " Failed!";
+						Message.Text = "Unable to delete some files.";
+						MessageDescription.Visibility = Visibility.Visible;
+						MessageDescription.Text = ex.Message;
+						Glass.HideSystemMenu(this, false);
+						return;
+					}
+
+					Title += " Succeeded!";
+					Message.Text = "Successfully uninstalled.";
+					Glass.HideSystemMenu(this, false);
+					return;
+				}
+				else if (result != MessageBoxResult.Yes)
+				{
+					Title += " Failed!";
+					Message.Text = "Existing installation found.";
+					Glass.HideSystemMenu(this, false);
+					return;
+				}
 			}
 
 			try
