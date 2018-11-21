@@ -167,10 +167,13 @@ void reshade::runtime::load_effect(const std::filesystem::path &path, size_t &ou
 
 		for (const auto &include_path : _effect_search_paths)
 		{
-			if (include_path.empty())
-				continue; // Skip invalid paths
+			std::error_code ec;
+			std::filesystem::path canonical_include_path = include_path;
+			if (include_path.is_relative()) // Ignore the working directory and instead start relative paths at the DLL location
+				canonical_include_path = std::filesystem::canonical(g_reshade_dll_path.parent_path() / include_path, ec);
 
-			pp.add_include_path(include_path);
+			if (!ec && !canonical_include_path.empty())
+				pp.add_include_path(canonical_include_path);
 		}
 
 		pp.add_macro_definition("__RESHADE__", std::to_string(VERSION_MAJOR * 10000 + VERSION_MINOR * 100 + VERSION_REVISION));
@@ -372,11 +375,16 @@ void reshade::runtime::load_effects()
 
 	// Build a list of effect files by walking through the effect search paths
 	std::vector<std::filesystem::path> effect_files;
-	for (const auto &search_path : _effect_search_paths) {
+	for (const auto &search_path : _effect_search_paths)
+	{
 		std::error_code ec;
-		for (const auto &entry : std::filesystem::directory_iterator(search_path, ec))
-			if (entry.path().extension() == ".fx")
-				effect_files.push_back(entry.path());
+		std::filesystem::path canonical_search_path = search_path;
+		if (search_path.is_relative()) // Ignore the working directory and instead start relative paths at the DLL location
+			canonical_search_path = std::filesystem::canonical(g_reshade_dll_path.parent_path() / search_path, ec);
+		if (!ec && !canonical_search_path.empty())
+			for (const auto &entry : std::filesystem::directory_iterator(canonical_search_path, ec))
+				if (entry.path().extension() == ".fx")
+					effect_files.push_back(entry.path());
 		if (ec)
 			LOG(WARNING) << "Skipping effect search path " << search_path << " since it is not a valid path to a directory. Opening it failed with error code " << ec << '.';
 	}
@@ -401,16 +409,26 @@ void reshade::runtime::load_textures()
 		if (source == texture.annotations.end())
 			continue; // Ignore textures that have no image file attached to them (e.g. plain render targets)
 
-		// Search for image file using the provided search paths
-		std::error_code ec;
-		std::filesystem::path path;
-		for (const auto &search_path : _texture_search_paths)
-			if (std::filesystem::exists(path = search_path / source->second.second.string_data, ec))
-				break;
+		std::filesystem::path path = source->second.second.string_data;
 
-		if (!std::filesystem::exists(path, ec))
+		// Search for image file using the provided search paths unless the path provided is already absolute
+		if (path.is_relative())
 		{
-			LOG(ERROR) << "> Source " << path << " for texture '" << texture.unique_name << "' could not be found.";
+			for (const auto &search_path : _texture_search_paths)
+			{
+				std::error_code ec;
+				std::filesystem::path canonical_search_path = search_path;
+				if (search_path.is_relative()) // Ignore the working directory and instead start relative paths at the DLL location
+					canonical_search_path = std::filesystem::canonical(g_reshade_dll_path.parent_path() / search_path, ec);
+				if (!ec && !canonical_search_path.empty())
+					if (std::filesystem::exists(path = canonical_search_path / source->second.second.string_data, ec))
+						break;
+			}
+		}
+
+		if (std::error_code ec; !std::filesystem::exists(path, ec))
+		{
+			LOG(ERROR) << "> Source \"" << source->second.second.string_data << "\" for texture '" << texture.unique_name << "' could not be found in any of the texture search paths.";
 			continue;
 		}
 
