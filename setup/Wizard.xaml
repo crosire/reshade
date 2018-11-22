@@ -80,7 +80,7 @@
 					HorizontalAlignment="Center"
 					FontSize="10"
 					TextWrapping="WrapWithOverflow"
-					Text="(Or press 'Ctrl' while clicking to extract binaries for manual installation)"/>
+					Visibility="Collapsed" />
 			</Grid>
 		</Button>
 	</DockPanel>
