@@ -52,7 +52,7 @@ private:
 		module.hlsl += _blocks.at(0);
 	}
 
-	template <bool is_param = false, bool is_decl = true>
+	template <bool is_param = false, bool is_decl = true, bool is_interface = false>
 	void write_type(std::string &s, const type &type) const
 	{
 		if constexpr (is_decl)
@@ -61,7 +61,7 @@ private:
 				s += "precise ";
 		}
 
-		if constexpr (is_param)
+		if constexpr (is_interface)
 		{
 			if (type.has(type::q_linear))
 				s += "smooth ";
@@ -71,7 +71,10 @@ private:
 				s += "centroid ";
 			if (type.has(type::q_nointerpolation))
 				s += "flat ";
+		}
 
+		if constexpr (is_interface || is_param)
+		{
 			if (type.has(type::q_inout))
 				s += "inout ";
 			else if (type.has(type::q_in))
@@ -405,7 +408,7 @@ private:
 			code += '\n';
 			write_location(code, param.location);
 			code += '\t';
-			write_type<true>(code, param.type);
+			write_type<true>(code, param.type); // GLSL does not allow interpolation attributes on function parameters
 			code += ' ' + param.name;
 
 			if (param.type.is_array())
@@ -483,7 +486,7 @@ private:
 					location = strtoul(semantic.c_str() + 9, nullptr, 10);
 
 				code += "layout(location = " + std::to_string(location + i) + ") ";
-				write_type<true>(code, type);
+				write_type<false, false, true>(code, type);
 				code += ' ' + name;
 				if (type.is_array())
 					code += std::to_string(i);
@@ -519,7 +522,7 @@ private:
 				if (param.type.is_struct())
 				{
 					code += '\t';
-					write_type(code, param.type);
+					write_type<false, true>(code, param.type);
 					code += " _param_" + param.name;
 					if (param.type.is_array())
 						code += std::to_string(i);
@@ -540,7 +543,7 @@ private:
 			if (param.type.is_array())
 			{
 				code += '\t';
-				write_type(code, param.type);
+				write_type<false, true>(code, param.type);
 				code += " _param_" + param.name + "[] = ";
 				write_type<false, false>(code, param.type);
 				code += "[](";
