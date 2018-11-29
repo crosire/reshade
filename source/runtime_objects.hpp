@@ -46,7 +46,7 @@ namespace reshade
 	struct effect_data
 	{
 		size_t index = std::numeric_limits<size_t>::max();
-		bool rendering = false;
+		unsigned int rendering = 0;
 		bool compile_sucess = false;
 		std::string errors;
 		reshadefx::module module;

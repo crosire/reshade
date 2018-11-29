@@ -1866,9 +1866,9 @@ void reshade::runtime::draw_overlay_technique_editor()
 
 		const std::string label = technique.name + " [" + _loaded_effects[technique.effect_index].source_file.filename().u8string() + ']' + (!compile_success ? " (failed to compile)" : "");
 
-		if (ImGui::Checkbox(label.c_str(), &technique.enabled))
+		if (bool status = technique.enabled; ImGui::Checkbox(label.c_str(), &status))
 		{
-			if (technique.enabled)
+			if (status)
 				enable_technique(technique);
 			else
 				disable_technique(technique);

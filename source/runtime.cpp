@@ -699,6 +699,7 @@ void reshade::runtime::enable_technique(technique &technique)
 	if (!_loaded_effects[technique.effect_index].compile_sucess)
 		return; // Cannot enable techniques that failed to compile
 
+	const bool status_changed = !technique.enabled;
 	technique.enabled = true;
 	technique.timeleft = technique.timeout;
 
@@ -709,16 +710,19 @@ void reshade::runtime::enable_technique(technique &technique)
 		_reload_compile_queue.push_back(technique.effect_index);
 	}
 
-	_loaded_effects[technique.effect_index].rendering = true;
+	if (status_changed) // Increase rendering reference count
+		_loaded_effects[technique.effect_index].rendering++;
 }
 void reshade::runtime::disable_technique(technique &technique)
 {
+	const bool status_changed =  technique.enabled;
 	technique.enabled = false;
 	technique.timeleft = 0;
 	technique.average_cpu_duration.clear();
 	technique.average_gpu_duration.clear();
 
-	_loaded_effects[technique.effect_index].rendering = false;
+	if (status_changed) // Decrease rendering reference count
+		_loaded_effects[technique.effect_index].rendering--;
 }
 
 void reshade::runtime::load_config()
