@@ -1958,7 +1958,7 @@ bool reshadefx::parser::parse_statement(bool scoped)
 			{
 				expression expression;
 				if (!parse_expression(expression))
-					return consume_until(';'), false;
+					return error(_token_next.location, 3000, "syntax error: unexpected '" + token::id_to_name(_token_next.id) + "', expected expression"), consume_until(';'), false;
 
 				// Cannot return to void
 				if (ret_type.is_void())
@@ -2441,7 +2441,7 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 		if (accept('='))
 		{
 			if (!parse_expression_assignment(initializer))
-				return false;
+				return error(_token_next.location, 3000, "syntax error: unexpected '" + token::id_to_name(_token_next.id) + "', expected expression"), false;
 
 			if (global && !initializer.is_constant) // TODO: This could be resolved by initializing these at the beginning of the entry point
 				return error(initializer.location, 3011, '\'' + name + "': initial value must be a literal expression"), false;
