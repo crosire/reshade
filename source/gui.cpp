@@ -1191,12 +1191,12 @@ void reshade::runtime::draw_overlay_menu_statistics()
 				if (ImGui::CollapsingHeader(errors_found ? "Errors" : "Warnings"))
 				{
 					ImGui::PushStyleColor(ImGuiCol_Text, errors_found ? COLOR_RED : COLOR_YELLOW);
-				ImGui::PushTextWrapPos();
-				ImGui::TextUnformatted(effect.errors.c_str());
-				ImGui::PopTextWrapPos();
-				ImGui::PopStyleColor();
-				ImGui::Spacing();
-			}
+					ImGui::PushTextWrapPos();
+					ImGui::TextUnformatted(effect.errors.c_str());
+					ImGui::PopTextWrapPos();
+					ImGui::PopStyleColor();
+					ImGui::Spacing();
+				}
 
 				ImGui::PopStyleColor(3);
 			}
