@@ -271,6 +271,8 @@ namespace reshade
 		std::filesystem::path _configuration_path;
 		bool _screenshot_include_preset = false;
 
+		bool _statistics_effects_show_enabled = false;
+
 		size_t _current_preset = 0;
 		std::vector<std::filesystem::path> _preset_files;
 
