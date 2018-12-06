@@ -1118,12 +1118,14 @@ void reshade::runtime::draw_overlay_menu_statistics()
 		std::vector<const technique *> current_techniques;
 		current_techniques.reserve(_techniques.size());
 
+		ImGui::Checkbox("Show only active techniques", &_statistics_effects_show_enabled);
+
 		for (size_t index = 0; index < _loaded_effects.size(); ++index)
 		{
 			const effect_data &effect = _loaded_effects[index];
 
-			// Ignore unloaded effects
-			if (effect.source_file.empty())
+			// Ignore unloaded effects, filter for active effects if enabled
+			if (effect.source_file.empty() || (_statistics_effects_show_enabled && effect.rendering == 0))
 				continue;
 
 			ImGui::PushID(static_cast<int>(index));
