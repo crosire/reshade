@@ -22,6 +22,9 @@ extern std::filesystem::path g_target_executable_path;
 const ImVec4 COLOR_RED = ImColor(240, 100, 100);
 const ImVec4 COLOR_YELLOW = ImColor(204, 204, 0);
 
+const ImVec4 COLOR_RED_HOVER = ImColor(240, 130, 130);
+const ImVec4 COLOR_YELLOW_HOVER = ImColor(204, 204, 100);
+
 void reshade::runtime::init_ui()
 {
 	// Default shortcut: Home
@@ -1179,12 +1182,23 @@ void reshade::runtime::draw_overlay_menu_statistics()
 
 			if (!effect.errors.empty())
 			{
-				ImGui::PushStyleColor(ImGuiCol_Text, effect.errors.find("error") != std::string::npos ? COLOR_RED : COLOR_YELLOW);
+				bool errors_found = effect.errors.find("error") != std::string::npos;
+
+				ImGui::PushStyleColor(ImGuiCol_Header, errors_found ? COLOR_RED : COLOR_YELLOW);
+				ImGui::PushStyleColor(ImGuiCol_HeaderHovered, errors_found ? COLOR_RED_HOVER : COLOR_YELLOW_HOVER);
+				ImGui::PushStyleColor(ImGuiCol_Text, errors_found ? _imgui_context->Style.Colors[ImGuiCol_Text] : _imgui_context->Style.Colors[ImGuiCol_WindowBg]);
+
+				if (ImGui::CollapsingHeader(errors_found ? "Errors" : "Warnings"))
+				{
+					ImGui::PushStyleColor(ImGuiCol_Text, errors_found ? COLOR_RED : COLOR_YELLOW);
 				ImGui::PushTextWrapPos();
 				ImGui::TextUnformatted(effect.errors.c_str());
 				ImGui::PopTextWrapPos();
 				ImGui::PopStyleColor();
 				ImGui::Spacing();
+			}
+
+				ImGui::PopStyleColor(3);
 			}
 
 			#pragma region Techniques
