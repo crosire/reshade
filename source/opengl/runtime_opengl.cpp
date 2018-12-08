@@ -693,7 +693,7 @@ namespace reshade::opengl
 			glSpecializeShader(shader_id, entry_point.first.c_str(), GLuint(spec_constants.size()), spec_constants.data(), spec_constant_values.data());
 #else
 			std::string defines =
-				"#version 450\n"
+				"#version 430\n"
 				"#define ENTRY_POINT_" + entry_point.first + " 1\n";
 			if (!entry_point.second) // OpenGL does not allow using 'discard' in the vertex shader profile
 				defines += "#define discard\n"
