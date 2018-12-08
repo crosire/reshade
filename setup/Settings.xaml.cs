@@ -109,7 +109,7 @@ namespace ReShade.Setup
 				FileName = Path.GetFileName(origFirstValue)
 			};
 
-			if (dlg.ShowDialog(this).Value)
+			if (dlg.ShowDialog(this) == true)
 			{
 				Presets.Text = string.Join(",", dlg.FileNames);
 			}
