@@ -1444,9 +1444,8 @@ void reshade::runtime::draw_code_editor()
 			next = pos_linefeed != std::string::npos ? pos_linefeed + 1 : std::string::npos;
 
 			// Ignore errors that aren't in the main source file
-			const std::string error_file = errors.substr(offset, pos_error_line - offset);
-
-			if (error_file != _loaded_effects[_selected_effect].source_file.u8string())
+			if (const std::string_view error_file(errors.c_str() + offset, pos_error_line - offset);
+				error_file != _loaded_effects[_selected_effect].source_file.u8string())
 				continue;
 
 			const int error_line = std::strtol(errors.c_str() + pos_error_line + 1, nullptr, 10);

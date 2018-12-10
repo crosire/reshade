@@ -533,7 +533,24 @@ void reshade::runtime::update_and_render_effects()
 				if (texture.impl == nullptr && (texture.effect_index == effect_index || texture.shared))
 					success &= init_texture(texture);
 
-			if (!success || !compile_effect(effect))
+			// Compile the effect with the back-end implementation
+			success = success && compile_effect(effect);
+
+			// De-duplicate error lines (D3DCompiler sometimes repeats the same error multiple times)
+			for (size_t cur_line_offset = 0, next_line_offset, end_offset;
+				(next_line_offset = effect.errors.find('\n', cur_line_offset)) != std::string::npos && (end_offset = effect.errors.find('\n', next_line_offset + 1)) != std::string::npos; cur_line_offset = next_line_offset + 1)
+			{
+				const std::string_view cur_line(effect.errors.c_str() + cur_line_offset, next_line_offset - cur_line_offset);
+				const std::string_view next_line(effect.errors.c_str() + next_line_offset + 1, end_offset - next_line_offset - 1);
+
+				if (cur_line == next_line)
+				{
+					effect.errors.erase(next_line_offset, end_offset - next_line_offset);
+					next_line_offset = cur_line_offset - 1;
+				}
+			}
+
+			if (!success)
 			{
 				LOG(ERROR) << "Failed to compile " << effect.source_file << ":\n" << effect.errors;
 
