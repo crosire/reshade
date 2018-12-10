@@ -317,6 +317,7 @@ namespace reshade
 		void draw_overlay_variable_editor();
 		void draw_overlay_technique_editor();
 
+		std::vector<const texture *> _texture_previews;
 		std::vector<std::pair<std::string, std::function<void()>>> _menu_callables;
 		texture _imgui_font_atlas;
 		ImGuiContext *_imgui_context = nullptr;

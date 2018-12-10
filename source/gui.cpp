@@ -555,6 +555,23 @@ void reshade::runtime::draw_ui()
 				draw_code_editor();
 			ImGui::End();
 		}
+
+		for (auto it = _texture_previews.begin(); it != _texture_previews.end();)
+		{
+			const texture *texture = *it;
+
+			bool open = true;
+			char window_name[64];
+			sprintf_s(window_name, "%s##%p", texture->unique_name.c_str(), *it);
+
+			ImGui::Begin(window_name, &open, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoDocking);
+			imgui_image_with_checkerboard_background(texture->impl.get(), ImVec2(std::max(texture->width * 0.5f, 500.0f), std::max(texture->height * 0.5f, texture->height * 500.0f / texture->width)));
+			ImGui::End();
+
+			if (!open)
+				it = _texture_previews.erase(it);
+			else ++it;
+		}
 	}
 
 	// Render ImGui widgets and windows
@@ -1215,7 +1232,7 @@ void reshade::runtime::draw_overlay_menu_statistics()
 					ImGui::SameLine(ImGui::GetWindowWidth() * 0.33333333f);
 					ImGui::BeginGroup();
 
-					for (const auto &technique : current_techniques)
+					for (const technique *technique : current_techniques)
 						if (technique->enabled)
 							ImGui::Text("%f ms (CPU) (%.0f%%)", technique->average_cpu_duration * 1e-6f, 100 * (technique->average_cpu_duration * 1e-6f) / (post_processing_time_cpu * 1e-6f));
 						else
@@ -1225,7 +1242,7 @@ void reshade::runtime::draw_overlay_menu_statistics()
 					ImGui::SameLine(ImGui::GetWindowWidth() * 0.66666666f);
 					ImGui::BeginGroup();
 
-					for (const auto &technique : current_techniques)
+					for (const technique *technique : current_techniques)
 						if (technique->enabled && technique->average_gpu_duration != 0)
 							ImGui::Text("%f ms (GPU) (%.0f%%)", technique->average_gpu_duration * 1e-6f, 100 * (technique->average_gpu_duration * 1e-6f) / (post_processing_time_gpu * 1e-6f));
 						else
@@ -1254,37 +1271,24 @@ void reshade::runtime::draw_overlay_menu_statistics()
 
 					static_assert(_countof(texture_formats) - 1 == static_cast<unsigned int>(reshadefx::texture_format::latc2));
 
-					for (const auto &texture : current_textures)
+					for (const texture *texture : current_textures)
 					{
 						ImGui::Text("%s (%ux%u +%u %s)", texture->unique_name.c_str(), texture->width, texture->height, (texture->levels - 1), texture_formats[static_cast<unsigned int>(texture->format)]);
 
-						if (ImGui::IsItemHovered())
-						{
-							const ImVec2 tooltip_size = ImVec2(std::max(texture->width * 0.5f, 500.0f), std::max(texture->height * 0.5f, texture->height * 500.0f / texture->width));
+						if (std::find(_texture_previews.begin(), _texture_previews.end(), texture) != _texture_previews.end())
+							continue;
 
+						if (ImGui::IsItemClicked())
+						{
+							_texture_previews.push_back(texture);
+						}
+						else if (ImGui::IsItemHovered())
+						{
 							ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
 							ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
 							ImGui::PushStyleColor(ImGuiCol_PopupBg, IM_COL32(204, 204, 204, 255));
 							ImGui::BeginTooltip();
-
-							// Render background checkerboard pattern
-							const auto draw_list = ImGui::GetWindowDrawList();
-							const ImVec2 pos_min = ImGui::GetCursorScreenPos();
-							const ImVec2 pos_max = pos_min + tooltip_size; int yi = 0;
-
-							for (float y = pos_min.y, grid_size = 25.0f; y < pos_max.y; y += grid_size, yi++)
-							{
-								const float y1 = std::min(y, pos_max.y), y2 = std::min(y + grid_size, pos_max.y);
-								for (float x = pos_min.x + (yi & 1) * grid_size; x < pos_max.x; x += grid_size * 2.0f)
-								{
-									const float x1 = std::min(x, pos_max.x), x2 = std::min(x + grid_size, pos_max.x);
-									draw_list->AddRectFilled(ImVec2(x1, y1), ImVec2(x2, y2), IM_COL32(128, 128, 128, 255));
-								}
-							}
-
-							// Add image on top
-							ImGui::Image(texture->impl.get(), tooltip_size);
-
+							imgui_image_with_checkerboard_background(texture->impl.get(), ImVec2(std::max(texture->width * 0.5f, 500.0f), std::max(texture->height * 0.5f, texture->height * 500.0f / texture->width)));
 							ImGui::EndTooltip();
 							ImGui::PopStyleColor();
 							ImGui::PopStyleVar(2);

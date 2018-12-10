@@ -5,7 +5,6 @@
 
 #include "input.hpp"
 #include "gui_widgets.hpp"
-#include <imgui.h>
 #include <assert.h>
 
 bool imgui_key_input(const char *name, unsigned int key_data[4], const reshade::input &input)
@@ -316,4 +315,26 @@ bool imgui_slider_with_buttons(const char *label, ImGuiDataType data_type, void 
 	case ImGuiDataType_Double:
 		return imgui_slider_with_buttons<double, ImGuiDataType_Double>(label, static_cast<double *>(v), components, *static_cast<const double *>(v_speed), *static_cast<const double *>(v_min), *static_cast<const double *>(v_max), format);
 	}
+}
+
+void imgui_image_with_checkerboard_background(ImTextureID user_texture_id, const ImVec2 &size)
+{
+	const auto draw_list = ImGui::GetWindowDrawList();
+
+	// Render background checkerboard pattern
+	const ImVec2 pos_min = ImGui::GetCursorScreenPos();
+	const ImVec2 pos_max = ImVec2(pos_min.x + size.x, pos_min.y + size.y); int yi = 0;
+
+	for (float y = pos_min.y, grid_size = 25.0f; y < pos_max.y; y += grid_size, yi++)
+	{
+		const float y1 = std::min(y, pos_max.y), y2 = std::min(y + grid_size, pos_max.y);
+		for (float x = pos_min.x + (yi & 1) * grid_size; x < pos_max.x; x += grid_size * 2.0f)
+		{
+			const float x1 = std::min(x, pos_max.x), x2 = std::min(x + grid_size, pos_max.x);
+			draw_list->AddRectFilled(ImVec2(x1, y1), ImVec2(x2, y2), IM_COL32(128, 128, 128, 255));
+		}
+	}
+
+	// Add image on top
+	ImGui::Image(user_texture_id, size);
 }
