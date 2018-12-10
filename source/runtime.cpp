@@ -704,7 +704,8 @@ void reshade::runtime::enable_technique(technique &technique)
 	technique.timeleft = technique.timeout;
 
 	// Queue effect file for compilation if it was not fully loaded yet
-	if (technique.impl == nullptr)
+	if (technique.impl == nullptr && // Avoid adding the same effect multiple times to the queue if it contains multiple techniques that were enabled simultaneously
+		std::find(_reload_compile_queue.begin(), _reload_compile_queue.end(), technique.effect_index) == _reload_compile_queue.end())
 	{
 		_reload_total_effects++;
 		_reload_compile_queue.push_back(technique.effect_index);
