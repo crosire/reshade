@@ -10,6 +10,9 @@
 #include "d3d11/d3d11_device.hpp"
 #include "d3d11/d3d11_device_context.hpp"
 #include "d3d11/runtime_d3d11.hpp"
+#include "d3d12/d3d12_device.hpp"
+#include "d3d12/d3d12_command_queue.hpp"
+#include "d3d12/runtime_d3d12.hpp"
 #include <algorithm>
 
 DXGISwapChain::DXGISwapChain(D3D10Device *device, IDXGISwapChain  *original, const std::shared_ptr<reshade::runtime> &runtime) :
@@ -36,6 +39,12 @@ DXGISwapChain::DXGISwapChain(D3D11Device *device, IDXGISwapChain1 *original, con
 	_direct3d_device(device, false),
 	_direct3d_version(11),
 	_runtime(runtime) {}
+DXGISwapChain::DXGISwapChain(D3D12CommandQueue *command_queue, IDXGISwapChain3 *original, const std::shared_ptr<reshade::runtime> &runtime) :
+	_orig(original),
+	_interface_version(3),
+	_direct3d_device(command_queue, false),
+	_direct3d_version(12),
+	_runtime(runtime) {}
 
 void DXGISwapChain::perform_present(UINT PresentFlags)
 {
@@ -58,6 +67,9 @@ void DXGISwapChain::perform_present(UINT PresentFlags)
 		std::static_pointer_cast<reshade::d3d11::runtime_d3d11>(_runtime)->on_present(device->_immediate_context->_draw_call_tracker);
 		device->clear_drawcall_stats();
 		break; }
+	case 12:
+		std::static_pointer_cast<reshade::d3d12::runtime_d3d12>(_runtime)->on_present();
+		break;
 	}
 }
 
@@ -144,6 +156,10 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::QueryInterface(REFIID riid, void **ppvO
 			device->clear_drawcall_stats(); // Release any live references to depth buffers etc.
 			device->_runtimes.erase(std::remove(device->_runtimes.begin(), device->_runtimes.end(), runtime), device->_runtimes.end());
 			break; }
+		case 12: {
+			const auto runtime = std::static_pointer_cast<reshade::d3d12::runtime_d3d12>(_runtime);
+			runtime->on_reset();
+			break; }
 		}
 
 		_runtime.reset();
@@ -227,6 +243,10 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers(UINT BufferCount, UINT Wi
 		static_cast<D3D11Device *>(_direct3d_device.get())->clear_drawcall_stats();
 		std::static_pointer_cast<reshade::d3d11::runtime_d3d11>(_runtime)->on_reset();
 		break;
+	case 12:
+		assert(_runtime != nullptr);
+		std::static_pointer_cast<reshade::d3d12::runtime_d3d12>(_runtime)->on_reset();
+		break;
 	}
 
 	const HRESULT hr = _orig->ResizeBuffers(BufferCount, Width, Height, NewFormat, SwapChainFlags);
@@ -254,6 +274,10 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers(UINT BufferCount, UINT Wi
 	case 11:
 		assert(_runtime != nullptr);
 		initialized = std::static_pointer_cast<reshade::d3d11::runtime_d3d11>(_runtime)->on_init(desc);
+		break;
+	case 12:
+		assert(_runtime != nullptr);
+		initialized = std::static_pointer_cast<reshade::d3d12::runtime_d3d12>(_runtime)->on_init(desc);
 		break;
 	}
 
@@ -425,6 +449,10 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers1(UINT BufferCount, UINT W
 		static_cast<D3D11Device *>(_direct3d_device.get())->clear_drawcall_stats();
 		std::static_pointer_cast<reshade::d3d11::runtime_d3d11>(_runtime)->on_reset();
 		break;
+	case 12:
+		assert(_runtime != nullptr);
+		std::static_pointer_cast<reshade::d3d12::runtime_d3d12>(_runtime)->on_reset();
+		break;
 	}
 
 	const HRESULT hr = static_cast<IDXGISwapChain3 *>(_orig)->ResizeBuffers1(BufferCount, Width, Height, Format, SwapChainFlags, pCreationNodeMask, ppPresentQueue);
@@ -452,6 +480,10 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers1(UINT BufferCount, UINT W
 	case 11:
 		assert(_runtime != nullptr);
 		initialized = std::static_pointer_cast<reshade::d3d11::runtime_d3d11>(_runtime)->on_init(desc);
+		break;
+	case 12:
+		assert(_runtime != nullptr);
+		initialized = std::static_pointer_cast<reshade::d3d12::runtime_d3d12>(_runtime)->on_init(desc);
 		break;
 	}
 

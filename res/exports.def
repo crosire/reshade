@@ -23,6 +23,9 @@ EXPORTS
 	D3D11CreateDevice
 	D3D11CreateDeviceAndSwapChain
 
+	; d3d12.dll
+	D3D12CreateDevice
+
 	; dxgi.dll
 	CreateDXGIFactory
 	CreateDXGIFactory1

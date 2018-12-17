@@ -363,6 +363,10 @@
     <ClCompile Include="source\d3d11\runtime_d3d11.cpp" />
     <ClCompile Include="source\d3d11\state_block.cpp" />
     <ClCompile Include="source\d3d11\draw_call_tracker.cpp" />
+    <ClCompile Include="source\d3d12\d3d12.cpp" />
+    <ClCompile Include="source\d3d12\d3d12_command_queue.cpp" />
+    <ClCompile Include="source\d3d12\d3d12_device.cpp" />
+    <ClCompile Include="source\d3d12\runtime_d3d12.cpp" />
     <ClCompile Include="source\d3d9\d3d9.cpp" />
     <ClCompile Include="source\d3d9\d3d9_device.cpp" />
     <ClCompile Include="source\d3d9\d3d9_profiling.cpp" />
@@ -405,6 +409,9 @@
     <ClInclude Include="source\d3d11\runtime_d3d11.hpp" />
     <ClInclude Include="source\d3d11\state_block.hpp" />
     <ClInclude Include="source\d3d11\draw_call_tracker.hpp" />
+    <ClInclude Include="source\d3d12\d3d12_command_queue.hpp" />
+    <ClInclude Include="source\d3d12\d3d12_device.hpp" />
+    <ClInclude Include="source\d3d12\runtime_d3d12.hpp" />
     <ClInclude Include="source\d3d9\d3d9_device.hpp" />
     <ClInclude Include="source\d3d9\runtime_d3d9.hpp" />
     <ClInclude Include="source\d3d9\d3d9_swapchain.hpp" />

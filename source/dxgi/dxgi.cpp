@@ -11,6 +11,9 @@
 #include "d3d10/runtime_d3d10.hpp"
 #include "d3d11/d3d11_device.hpp"
 #include "d3d11/runtime_d3d11.hpp"
+#include "d3d12/d3d12_device.hpp"
+#include "d3d12/d3d12_command_queue.hpp"
+#include "d3d12/runtime_d3d12.hpp"
 
 reshade::log::message &operator<<(reshade::log::message &m, REFIID riid)
 {
@@ -19,12 +22,14 @@ reshade::log::message &operator<<(reshade::log::message &m, REFIID riid)
 	return m << riid_string;
 }
 
-static void query_device(IUnknown *&device, com_ptr<D3D10Device> &device_d3d10, com_ptr<D3D11Device> &device_d3d11)
+static void query_device(IUnknown *&device, com_ptr<D3D10Device> &device_d3d10, com_ptr<D3D11Device> &device_d3d11, com_ptr<D3D12CommandQueue> &command_queue_d3d12)
 {
 	if (SUCCEEDED(device->QueryInterface(&device_d3d10)))
 		device = device_d3d10->_orig;
 	else if (SUCCEEDED(device->QueryInterface(&device_d3d11)))
 		device = device_d3d11->_orig; // Set device pointer back to original object so that the swapchain creation functions work as expected
+	else if (SUCCEEDED(device->QueryInterface(&command_queue_d3d12)))
+		device = command_queue_d3d12->_orig;
 }
 
 static void dump_swapchain_desc(const DXGI_SWAP_CHAIN_DESC &desc)
@@ -77,7 +82,7 @@ static void dump_swapchain_desc(const DXGI_SWAP_CHAIN_DESC1 &desc)
 }
 
 template <typename T>
-static void init_reshade_runtime_d3d(T *&swapchain, com_ptr<D3D10Device> &device_d3d10, com_ptr<D3D11Device> &device_d3d11)
+static void init_reshade_runtime_d3d(T *&swapchain, com_ptr<D3D10Device> &device_d3d10, com_ptr<D3D11Device> &device_d3d11, com_ptr<D3D12CommandQueue> &command_queue_d3d12)
 {
 	DXGI_SWAP_CHAIN_DESC desc;
 	if (FAILED(swapchain->GetDesc(&desc)))
@@ -109,6 +114,22 @@ static void init_reshade_runtime_d3d(T *&swapchain, com_ptr<D3D10Device> &device
 
 		swapchain = new DXGISwapChain(device_d3d11.get(), swapchain, runtime); // Overwrite returned swapchain pointer with hooked object
 	}
+	else if (command_queue_d3d12 != nullptr)
+	{
+		if (com_ptr<IDXGISwapChain3> swapchain3; SUCCEEDED(swapchain->QueryInterface(&swapchain3)))
+		{
+			const auto runtime = std::make_shared<reshade::d3d12::runtime_d3d12>(command_queue_d3d12->_device->_orig, command_queue_d3d12->_orig, swapchain3.get());
+
+			if (!runtime->on_init(desc))
+				LOG(ERROR) << "Failed to initialize Direct3D 12 runtime environment on runtime " << runtime.get() << '.';
+
+			swapchain = new DXGISwapChain(command_queue_d3d12.get(), swapchain3.get(), runtime);
+		}
+		else
+		{
+			LOG(WARN) << "> Skipping swap chain because it is missing support for the IDXGISwapChain3 interface.";
+		}
+	}
 	else
 	{
 		LOG(WARN) << "> Skipping swap chain because it was created without a (hooked) Direct3D device.";
@@ -128,9 +149,11 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory_CreateSwapChain(IDXGIFactory *pFactory, I
 
 	com_ptr<D3D10Device> device_d3d10;
 	com_ptr<D3D11Device> device_d3d11;
+	com_ptr<D3D12CommandQueue> command_queue_d3d12;
 	query_device(pDevice,
 		device_d3d10,
-		device_d3d11);
+		device_d3d11,
+		command_queue_d3d12);
 	dump_swapchain_desc(*pDesc);
 
 	const HRESULT hr = reshade::hooks::call(IDXGIFactory_CreateSwapChain)(pFactory, pDevice, pDesc, ppSwapChain);
@@ -143,7 +166,8 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory_CreateSwapChain(IDXGIFactory *pFactory, I
 
 	init_reshade_runtime_d3d(*ppSwapChain,
 		device_d3d10,
-		device_d3d11);
+		device_d3d11,
+		command_queue_d3d12);
 
 	return hr;
 }
@@ -157,9 +181,11 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForHwnd(IDXGIFactory2 *pF
 
 	com_ptr<D3D10Device> device_d3d10;
 	com_ptr<D3D11Device> device_d3d11;
+	com_ptr<D3D12CommandQueue> command_queue_d3d12;
 	query_device(pDevice,
 		device_d3d10,
-		device_d3d11);
+		device_d3d11,
+		command_queue_d3d12);
 	dump_swapchain_desc(*pDesc);
 
 	const HRESULT hr = reshade::hooks::call(IDXGIFactory2_CreateSwapChainForHwnd)(pFactory, pDevice, hWnd, pDesc, pFullscreenDesc, pRestrictToOutput, ppSwapChain);
@@ -172,7 +198,8 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForHwnd(IDXGIFactory2 *pF
 
 	init_reshade_runtime_d3d(*ppSwapChain,
 		device_d3d10,
-		device_d3d11);
+		device_d3d11,
+		command_queue_d3d12);
 
 	return hr;
 }
@@ -185,9 +212,11 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForCoreWindow(IDXGIFactor
 
 	com_ptr<D3D10Device> device_d3d10;
 	com_ptr<D3D11Device> device_d3d11;
+	com_ptr<D3D12CommandQueue> command_queue_d3d12;
 	query_device(pDevice,
 		device_d3d10,
-		device_d3d11);
+		device_d3d11,
+		command_queue_d3d12);
 	dump_swapchain_desc(*pDesc);
 
 	const HRESULT hr = reshade::hooks::call(IDXGIFactory2_CreateSwapChainForCoreWindow)(pFactory, pDevice, pWindow, pDesc, pRestrictToOutput, ppSwapChain);
@@ -200,7 +229,8 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForCoreWindow(IDXGIFactor
 
 	init_reshade_runtime_d3d(*ppSwapChain,
 		device_d3d10,
-		device_d3d11);
+		device_d3d11,
+		command_queue_d3d12);
 
 	return hr;
 }
@@ -213,9 +243,11 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForComposition(IDXGIFacto
 
 	com_ptr<D3D10Device> device_d3d10;
 	com_ptr<D3D11Device> device_d3d11;
+	com_ptr<D3D12CommandQueue> command_queue_d3d12;
 	query_device(pDevice,
 		device_d3d10,
-		device_d3d11);
+		device_d3d11,
+		command_queue_d3d12);
 	dump_swapchain_desc(*pDesc);
 
 	const HRESULT hr = reshade::hooks::call(IDXGIFactory2_CreateSwapChainForComposition)(pFactory, pDevice, pDesc, pRestrictToOutput, ppSwapChain);
@@ -228,7 +260,8 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForComposition(IDXGIFacto
 
 	init_reshade_runtime_d3d(*ppSwapChain,
 		device_d3d10,
-		device_d3d11);
+		device_d3d11,
+		command_queue_d3d12);
 
 	return hr;
 }

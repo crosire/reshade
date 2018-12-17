@@ -25,6 +25,9 @@
     <Filter Include="hooks\d3d11">
       <UniqueIdentifier>{2ed46921-48e6-4996-a11c-0a246bd56a86}</UniqueIdentifier>
     </Filter>
+    <Filter Include="hooks\d3d12">
+      <UniqueIdentifier>{e905e357-66ed-4246-a0a9-d3b4c84c2d7f}</UniqueIdentifier>
+    </Filter>
     <Filter Include="hooks\dxgi">
       <UniqueIdentifier>{4d42777e-6ba3-4965-b0dc-88186095f1a9}</UniqueIdentifier>
     </Filter>
@@ -125,6 +128,18 @@
     </ClCompile>
     <ClCompile Include="source\d3d11\state_block.cpp">
       <Filter>hooks\d3d11</Filter>
+    </ClCompile>
+    <ClCompile Include="source\d3d12\d3d12.cpp">
+      <Filter>hooks\d3d12</Filter>
+    </ClCompile>
+    <ClCompile Include="source\d3d12\d3d12_command_queue.cpp">
+      <Filter>hooks\d3d12</Filter>
+    </ClCompile>
+    <ClCompile Include="source\d3d12\d3d12_device.cpp">
+      <Filter>hooks\d3d12</Filter>
+    </ClCompile>
+    <ClCompile Include="source\d3d12\runtime_d3d12.cpp">
+      <Filter>hooks\d3d12</Filter>
     </ClCompile>
     <ClCompile Include="source\dxgi\dxgi.cpp">
       <Filter>hooks\dxgi</Filter>
@@ -235,6 +250,15 @@
     </ClInclude>
     <ClInclude Include="source\d3d11\state_block.hpp">
       <Filter>hooks\d3d11</Filter>
+    </ClInclude>
+    <ClInclude Include="source\d3d12\d3d12_command_queue.hpp">
+      <Filter>hooks\d3d12</Filter>
+    </ClInclude>
+    <ClInclude Include="source\d3d12\d3d12_device.hpp">
+      <Filter>hooks\d3d12</Filter>
+    </ClInclude>
+    <ClInclude Include="source\d3d12\runtime_d3d12.hpp">
+      <Filter>hooks\d3d12</Filter>
     </ClInclude>
     <ClInclude Include="source\dxgi\dxgi_device.hpp">
       <Filter>hooks\dxgi</Filter>
