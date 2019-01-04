@@ -1785,12 +1785,12 @@ void reshade::runtime::draw_overlay_variable_editor()
 				modified = imgui_slider_with_buttons(ui_label.c_str(), ImGuiDataType_Float, data, variable.type.rows, &ui_stp_val, &ui_min_val, &ui_max_val, "%.3f");
 			else if (ui_type == "drag")
 				modified = ImGui::DragScalarN(ui_label.c_str(), ImGuiDataType_Float, data, variable.type.rows, ui_stp_val, &ui_min_val, &ui_max_val, "%.3f");
-			else if (ui_type == "input" || (ui_type.empty() && variable.type.rows < 3))
-				modified = ImGui::InputScalarN(ui_label.c_str(), ImGuiDataType_Float, data, variable.type.rows);
-			else if (variable.type.rows == 3)
+			else if (ui_type == "color" && variable.type.rows == 3)
 				modified = ImGui::ColorEdit3(ui_label.c_str(), data, ImGuiColorEditFlags_NoOptions);
-			else if (variable.type.rows == 4)
+			else if (ui_type == "color" && variable.type.rows == 4)
 				modified = ImGui::ColorEdit4(ui_label.c_str(), data, ImGuiColorEditFlags_NoOptions);
+			else
+				modified = ImGui::InputScalarN(ui_label.c_str(), ImGuiDataType_Float, data, variable.type.rows);
 
 			if (modified)
 				set_uniform_value(variable, data, 4);
