@@ -790,9 +790,9 @@ namespace reshade::d3d11
 
 	bool runtime_d3d11::add_sampler(const reshadefx::sampler_info &info, d3d11_technique_data &technique_init)
 	{
-		if (info.binding >= D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT)
+		if (info.binding >= D3D11_COMMONSHADER_SAMPLER_SLOT_COUNT)
 		{
-			LOG(ERROR) << "Cannot create sampler '" << info.unique_name << "' since it exceeds the maximum number of allowed input resource slots in D3D11 (" << info.binding << ", allowed are up to " << D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT << ").";
+			LOG(ERROR) << "Cannot create sampler '" << info.unique_name << "' since it exceeds the maximum number of allowed sampler slots in D3D11 (" << info.binding << ", allowed are up to " << D3D11_COMMONSHADER_SAMPLER_SLOT_COUNT << ").";
 			return false;
 		}
 
@@ -815,12 +815,12 @@ namespace reshade::d3d11
 		desc.MinLOD = info.min_lod;
 		desc.MaxLOD = info.max_lod;
 
+		// Generate hash for sampler description
 		size_t desc_hash = 2166136261;
 		for (size_t i = 0; i < sizeof(desc); ++i)
 			desc_hash = (desc_hash * 16777619) ^ reinterpret_cast<const uint8_t *>(&desc)[i];
 
 		auto it = _effect_sampler_states.find(desc_hash);
-
 		if (it == _effect_sampler_states.end())
 		{
 			com_ptr<ID3D11SamplerState> sampler;
@@ -845,10 +845,10 @@ namespace reshade::d3d11
 		}
 
 		technique_init.sampler_states.resize(std::max(technique_init.sampler_states.size(), size_t(info.binding + 1)));
-		technique_init.texture_bindings.resize(std::max(technique_init.texture_bindings.size(), size_t(info.binding + 1)));
+		technique_init.texture_bindings.resize(std::max(technique_init.texture_bindings.size(), size_t(info.texture_binding + 1)));
 
 		technique_init.sampler_states[info.binding] = it->second;
-		technique_init.texture_bindings[info.binding] = existing_texture->impl->as<d3d11_tex_data>()->srv[info.srgb ? 1 : 0];
+		technique_init.texture_bindings[info.texture_binding] = existing_texture->impl->as<d3d11_tex_data>()->srv[info.srgb ? 1 : 0];
 
 		return true;
 	}

@@ -585,13 +585,12 @@ private:
 	id   define_sampler(const location &loc, sampler_info &info) override
 	{
 		info.id = make_id();
-		info.set = 1;
 		info.binding = _current_sampler_binding++;
 
 		define_variable(info.id, loc, { type::t_sampler, 0, 0, type::q_extern | type::q_uniform }, info.unique_name.c_str(), spv::StorageClassUniformConstant);
 
 		add_decoration(info.id, spv::DecorationBinding, { info.binding });
-		add_decoration(info.id, spv::DecorationDescriptorSet, { info.set });
+		add_decoration(info.id, spv::DecorationDescriptorSet, { 1 });
 
 		_module.samplers.push_back(info);
 

@@ -33,6 +33,7 @@ private:
 	unsigned int _shader_model = 0;
 	unsigned int _current_cbuffer_size = 0;
 	unsigned int _current_sampler_binding = 0;
+	unsigned int _current_texture_binding = 0;
 
 	void write_result(module &module) override
 	{
@@ -278,53 +279,78 @@ private:
 
 		return info.definition;
 	}
-	id   define_texture(const location &, texture_info &info) override
+	id   define_texture(const location &loc, texture_info &info) override
 	{
 		info.id = make_id();
+		info.binding = _current_texture_binding++;
 
 		_module.textures.push_back(info);
+
+		std::string &code = _blocks.at(_current_block);
+
+		if (_shader_model >= 40)
+		{
+			write_location(code, loc);
+
+			code += "Texture2D " + info.unique_name + " : register(t" + std::to_string(info.binding) + ");\n";
+		}
 
 		return info.id;
 	}
 	id   define_sampler(const location &loc, sampler_info &info) override
 	{
 		info.id = make_id();
-		info.binding = _current_sampler_binding++;
 
 		_names[info.id] = info.unique_name;
 
-		_module.samplers.push_back(info);
+		const auto texture = std::find_if(_module.textures.begin(), _module.textures.end(),
+			[&info](const auto &it) { return it.unique_name == info.texture_name; });
+		assert(texture != _module.textures.end());
 
 		std::string &code = _blocks.at(_current_block);
 
 		if (_shader_model >= 40)
 		{
-			code += "Texture2D " + info.unique_name + "_t : register(t" + std::to_string(info.binding) + ");\n";
-			code += "SamplerState " + info.unique_name + "_s : register(s" + std::to_string(info.binding) + ");\n";
+			// Try and reuse a sampler binding with the same sampler description
+			const auto existing_sampler = std::find_if(_module.samplers.begin(), _module.samplers.end(),
+				[&info](const auto &it) { return it.filter == info.filter && it.address_u == info.address_u && it.address_v == info.address_v && it.address_w == info.address_w && it.min_lod == info.min_lod && it.max_lod == info.max_lod && it.lod_bias == info.lod_bias; });
+
+			if (existing_sampler != _module.samplers.end())
+			{
+				info.binding = existing_sampler->binding;
+			}
+			else
+			{
+				info.binding = _current_sampler_binding++;
+
+				code += "SamplerState __s" + std::to_string(info.binding) + " : register(s" + std::to_string(info.binding) + ");\n";
+			}
+
+			info.texture_binding = texture->binding;
 
 			write_location(code, loc);
 
-			code += "static const __sampler2D " + info.unique_name + " = { " + info.unique_name + "_t, " + info.unique_name + "_s };\n";
+			code += "static const __sampler2D " + info.unique_name + " = { " + info.texture_name + ", __s" + std::to_string(info.binding) + " };\n";
 		}
 		else
 		{
-			const auto tex = std::find_if(_module.textures.begin(), _module.textures.end(),
-				[&info](const auto &it) { return it.unique_name == info.texture_name; });
-			assert(tex != _module.textures.end());
+			info.binding = _current_sampler_binding++;
 
-			code += "sampler2D " + info.unique_name + "_s : register(s" + std::to_string(info.binding) + ");\n";
+			code += "sampler2D __" + info.unique_name + "_s : register(s" + std::to_string(info.binding) + ");\n";
 
 			write_location(code, loc);
 
-			code += "static const __sampler2D " + info.unique_name + " = { " + info.unique_name + "_s, float2(";
+			code += "static const __sampler2D " + info.unique_name + " = { __" + info.unique_name + "_s, float2(";
 
-			if (tex->semantic.empty())
-				code += std::to_string(1.0f / tex->width) + ", " + std::to_string(1.0f / tex->height);
+			if (texture->semantic.empty())
+				code += std::to_string(1.0f / texture->width) + ", " + std::to_string(1.0f / texture->height);
 			else
 				code += "0, 0";
 
 			code += ") }; \n";
 		}
+
+		_module.samplers.push_back(info);
 
 		return info.id;
 	}

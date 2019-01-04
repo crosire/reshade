@@ -291,6 +291,7 @@ namespace reshadefx
 	struct texture_info
 	{
 		uint32_t id = 0;
+		uint32_t binding = 0;
 		std::string semantic;
 		std::string unique_name;
 		std::unordered_map<std::string, std::pair<type, constant>> annotations;
@@ -303,8 +304,8 @@ namespace reshadefx
 	struct sampler_info
 	{
 		uint32_t id = 0;
-		uint32_t set = 0;
 		uint32_t binding = 0;
+		uint32_t texture_binding = 0;
 		std::string unique_name;
 		std::string texture_name;
 		std::unordered_map<std::string, std::pair<type, constant>> annotations;
