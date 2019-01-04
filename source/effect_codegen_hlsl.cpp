@@ -1119,42 +1119,84 @@ private:
 
 		code += _blocks.at(selector_block);
 
-		write_location(code, loc);
-
-		code += '\t';
-
-		if (flags & 0x1) code += "[flatten] ";
-		if (flags & 0x2) code +=  "[branch] ";
-
-		code += "switch (" + id_to_name(selector_value) + ")\n\t{\n";
-
-		for (size_t i = 0; i < case_literal_and_labels.size(); i += 2)
+		// Switch statements do not work correctly in shader model 3 if a constant is used as selector value (this is a D3DCompiler bug), so replace them with if statements instead there
+		if (_shader_model >= 40)
 		{
-			assert(case_literal_and_labels[i + 1] != 0);
+			write_location(code, loc);
 
-			std::string &case_data = _blocks.at(case_literal_and_labels[i + 1]);
+			code += '\t';
 
-			increase_indentation_level(case_data);
+			if (flags & 0x1) code += "[flatten] ";
+			if (flags & 0x2) code += "[branch] ";
 
-			code += "\tcase " + std::to_string(case_literal_and_labels[i]) + ": {\n";
-			code += case_data;
+			code += "switch (" + id_to_name(selector_value) + ")\n\t{\n";
+
+			for (size_t i = 0; i < case_literal_and_labels.size(); i += 2)
+			{
+				assert(case_literal_and_labels[i + 1] != 0);
+
+				std::string &case_data = _blocks.at(case_literal_and_labels[i + 1]);
+
+				increase_indentation_level(case_data);
+
+				code += "\tcase " + std::to_string(case_literal_and_labels[i]) + ": {\n";
+				code += case_data;
+				code += "\t}\n";
+			}
+
+			if (default_label != _current_block)
+			{
+				std::string &default_data = _blocks.at(default_label);
+
+				increase_indentation_level(default_data);
+
+				code += "\tdefault: {\n";
+				code += default_data;
+				code += "\t}\n";
+
+				_blocks.erase(default_label);
+			}
+
 			code += "\t}\n";
 		}
-
-		if (default_label != _current_block)
+		else
 		{
-			std::string &default_data = _blocks.at(default_label);
+			write_location(code, loc);
 
-			increase_indentation_level(default_data);
+			code += "\t[unroll] do { "; // This dummy loop makes "break" statements work
 
-			code += "\tdefault: {\n";
-			code += default_data;
-			code += "\t}\n";
+			if (flags & 0x1) code += "[flatten] ";
+			if (flags & 0x2) code += "[branch] ";
 
-			_blocks.erase(default_label);
+			for (size_t i = 0; i < case_literal_and_labels.size(); i += 2)
+			{
+				assert(case_literal_and_labels[i + 1] != 0);
+
+				std::string &case_data = _blocks.at(case_literal_and_labels[i + 1]);
+
+				increase_indentation_level(case_data);
+
+				code += "if (" + id_to_name(selector_value) + " == " + std::to_string(case_literal_and_labels[i]) + ")\n\t{\n";
+				code += case_data;
+				code += "\t}\n\telse\n\t";
+
+			}
+
+			code += "{\n";
+
+			if (default_label != _current_block)
+			{
+				std::string &default_data = _blocks.at(default_label);
+
+				increase_indentation_level(default_data);
+
+				code += default_data;
+
+				_blocks.erase(default_label);
+			}
+
+			code += "\t} } while (false);\n";
 		}
-
-		code += "\t}\n";
 
 		// Remove consumed blocks to save memory
 		_blocks.erase(selector_block);
