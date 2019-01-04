@@ -297,7 +297,7 @@ namespace
 				if (!is_module_loaded(path, delayed_handle))
 					return false;
 
-				LOG(INFO) << "Installing delayed hooks for " << path << " (Just loaded via 'LoadLibrary(\"" << loaded_path << "\")') ...";
+				LOG(INFO) << "Installing delayed hooks for " << path << " (Just loaded via 'LoadLibrary(" << loaded_path << ")') ...";
 
 				return install_internal(delayed_handle, g_module_handle, hook_method::function_hook) && reshade::hook::apply_queued_actions();
 			});
@@ -306,7 +306,7 @@ namespace
 		}
 		else
 		{
-			LOG(WARNING) << "Ignoring 'LoadLibrary(\"" << loaded_path << "\")' call to avoid possible deadlock.";
+			LOG(WARNING) << "Ignoring 'LoadLibrary(" << loaded_path << ")' call to avoid possible deadlock.";
 		}
 	}
 
