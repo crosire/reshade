@@ -764,32 +764,44 @@ void reshade::runtime::load_config()
 	config.get("GENERAL", "ScreenshotIncludePreset", _screenshot_include_preset);
 	config.get("GENERAL", "NoReloadOnInit", _no_reload_on_init);
 
-	// Look for new preset files in the main and additional directory
-	std::vector<std::filesystem::path> parent_paths({ g_reshade_dll_path.parent_path() });
-	parent_paths.insert(parent_paths.end(), _preset_search_paths.begin(), _preset_search_paths.end());
+	// Look for new preset files in the search paths and main directory
+	auto search_paths = _preset_search_paths;
+	if (search_paths.empty())
+		search_paths.push_back(g_reshade_dll_path.parent_path());
 
-	for (const auto &parent_path : parent_paths)
+	for (const auto &search_path : search_paths)
 	{
-		std::error_code ec;
-		for (const auto &entry : std::filesystem::directory_iterator(parent_path, ec))
+		const auto parent_paths = { search_path, g_reshade_dll_path.parent_path() / search_path };
+		for (const auto &parent_path : parent_paths)
 		{
-			const std::filesystem::path preset_file = entry.path();
-			if (preset_file.extension() != ".ini" && preset_file.extension() != ".txt")
-				continue; // Only look at INI and TXT files
-			if (std::find_if(_preset_files.begin(), _preset_files.end(),
-				[&preset_file, &parent_path](const auto &path) {
+			auto added = false;
+
+			std::error_code ec;
+			for (const auto &entry : std::filesystem::directory_iterator(parent_path, ec))
+			{
+				const std::filesystem::path preset_file = entry.path();
+				if (preset_file.extension() != ".ini" && preset_file.extension() != ".txt")
+					continue; // Only look at INI and TXT files
+				if (std::find_if(_preset_files.begin(), _preset_files.end(),
+					[&preset_file, &parent_path](const auto &path) {
 					return preset_file.filename() == path.filename() && (path.parent_path() == parent_path || !path.is_absolute());
 				}) != _preset_files.end())
-				continue; // Preset file is already in the preset list
+					continue; // Preset file is already in the preset list
 
-			// Check if the INI file contains a list of techniques (it is not a valid preset file if it does not)
-			const ini_file preset(preset_file);
+				// Check if the INI file contains a list of techniques (it is not a valid preset file if it does not)
+				const ini_file preset(preset_file);
 
-			std::vector<std::string> techniques;
-			preset.get("", "Techniques", techniques);
+				std::vector<std::string> techniques;
+				preset.get("", "Techniques", techniques);
 
-			if (!techniques.empty())
-				_preset_files.push_back(preset_file);
+				if (!techniques.empty() || preset_file.filename() == "DefaultPreset.ini")
+				{
+					_preset_files.push_back(preset_file);
+					added = true;
+				}
+			}
+			if (added)
+				break;
 		}
 	}
 

@@ -653,16 +653,16 @@ void reshade::runtime::draw_overlay_menu_home()
 			char buf[260] = "";
 			if (ImGui::InputText("Name", buf, sizeof(buf), ImGuiInputTextFlags_EnterReturnsTrue))
 			{
-				auto added = false;
-
 				auto search_paths = _preset_search_paths;
 				if (search_paths.empty())
 					search_paths.push_back(g_reshade_dll_path.parent_path());
 
-				for (auto search_path : search_paths)
+				for (const auto &search_path : search_paths)
 				{
-					auto parent_paths = { search_path, g_reshade_dll_path.parent_path() / search_path };
-					for (auto parent_path : parent_paths)
+					auto added = false;
+
+					const auto parent_paths = { search_path, g_reshade_dll_path.parent_path() / search_path };
+					for (const auto &parent_path : parent_paths)
 					{
 						std::error_code ec;
 						auto path = std::filesystem::absolute(parent_path / buf, ec);
