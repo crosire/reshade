@@ -792,9 +792,9 @@ void reshade::runtime::load_config()
 				const ini_file preset(preset_file);
 
 				std::vector<std::string> techniques;
-				preset.get("", "Techniques", techniques);
+				preset.get("", "TechniqueSorting", techniques);
 
-				if (!techniques.empty() || preset_file.filename() == "DefaultPreset.ini")
+				if (!techniques.empty())
 				{
 					_preset_files.push_back(preset_file);
 					added = true;
