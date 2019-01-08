@@ -29,6 +29,7 @@ reshade::runtime::runtime(uint32_t renderer) :
 	_last_frame_duration(std::chrono::milliseconds(1)),
 	_effect_search_paths({ ".\\" }),
 	_texture_search_paths({ ".\\" }),
+	_preset_search_paths({ ".\\" }),
 	_preprocessor_definitions({
 		"RESHADE_DEPTH_LINEARIZATION_FAR_PLANE=1000.0",
 		"RESHADE_DEPTH_INPUT_IS_UPSIDE_DOWN=0",
@@ -754,6 +755,7 @@ void reshade::runtime::load_config()
 	config.get("GENERAL", "PerformanceMode", _performance_mode);
 	config.get("GENERAL", "EffectSearchPaths", _effect_search_paths);
 	config.get("GENERAL", "TextureSearchPaths", _texture_search_paths);
+	config.get("GENERAL", "PresetSearchPaths", _preset_search_paths);
 	config.get("GENERAL", "PreprocessorDefinitions", _preprocessor_definitions);
 	config.get("GENERAL", "PresetFiles", _preset_files);
 	config.get("GENERAL", "CurrentPreset", _current_preset);
@@ -762,28 +764,33 @@ void reshade::runtime::load_config()
 	config.get("GENERAL", "ScreenshotIncludePreset", _screenshot_include_preset);
 	config.get("GENERAL", "NoReloadOnInit", _no_reload_on_init);
 
-	// Look for new preset files in the main directory
-	const std::filesystem::path parent_path = g_reshade_dll_path.parent_path();
-	std::error_code ec;
-	for (const auto &entry : std::filesystem::directory_iterator(parent_path, ec))
+	// Look for new preset files in the main and additional directory
+	std::vector<std::filesystem::path> parent_paths({ g_reshade_dll_path.parent_path() });
+	parent_paths.insert(parent_paths.end(), _preset_search_paths.begin(), _preset_search_paths.end());
+
+	for (const auto &parent_path : parent_paths)
 	{
-		const std::filesystem::path preset_file = entry.path();
-		if (preset_file.extension() != ".ini" && preset_file.extension() != ".txt")
-			continue; // Only look at INI and TXT files
-		if (std::find_if(_preset_files.begin(), _preset_files.end(),
-			[&preset_file, &parent_path](const auto &path) {
-				return preset_file.filename() == path.filename() && (path.parent_path() == parent_path || !path.is_absolute());
-			}) != _preset_files.end())
-			continue; // Preset file is already in the preset list
+		std::error_code ec;
+		for (const auto &entry : std::filesystem::directory_iterator(parent_path, ec))
+		{
+			const std::filesystem::path preset_file = entry.path();
+			if (preset_file.extension() != ".ini" && preset_file.extension() != ".txt")
+				continue; // Only look at INI and TXT files
+			if (std::find_if(_preset_files.begin(), _preset_files.end(),
+				[&preset_file, &parent_path](const auto &path) {
+					return preset_file.filename() == path.filename() && (path.parent_path() == parent_path || !path.is_absolute());
+				}) != _preset_files.end())
+				continue; // Preset file is already in the preset list
 
-		// Check if the INI file contains a list of techniques (it is not a valid preset file if it does not)
-		const ini_file preset(preset_file);
+			// Check if the INI file contains a list of techniques (it is not a valid preset file if it does not)
+			const ini_file preset(preset_file);
 
-		std::vector<std::string> techniques;
-		preset.get("", "Techniques", techniques);
+			std::vector<std::string> techniques;
+			preset.get("", "Techniques", techniques);
 
-		if (!techniques.empty())
-			_preset_files.push_back(preset_file);
+			if (!techniques.empty())
+				_preset_files.push_back(preset_file);
+		}
 	}
 
 	// Create a default preset file if none exists yet
@@ -808,6 +815,7 @@ void reshade::runtime::save_config(const std::filesystem::path &path) const
 	config.set("GENERAL", "PerformanceMode", _performance_mode);
 	config.set("GENERAL", "EffectSearchPaths", _effect_search_paths);
 	config.set("GENERAL", "TextureSearchPaths", _texture_search_paths);
+	config.set("GENERAL", "PresetSearchPaths", _preset_search_paths);
 	config.set("GENERAL", "PreprocessorDefinitions", _preprocessor_definitions);
 	config.set("GENERAL", "PresetFiles", _preset_files);
 	config.set("GENERAL", "CurrentPreset", _current_preset);

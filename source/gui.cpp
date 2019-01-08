@@ -653,20 +653,38 @@ void reshade::runtime::draw_overlay_menu_home()
 			char buf[260] = "";
 			if (ImGui::InputText("Name", buf, sizeof(buf), ImGuiInputTextFlags_EnterReturnsTrue))
 			{
-				std::error_code ec;
-				auto path = std::filesystem::absolute(g_reshade_dll_path.parent_path() / buf, ec);
-				path.replace_extension(".ini");
+				auto added = false;
 
-				if (!ec && (std::filesystem::exists(path, ec) || std::filesystem::exists(path.parent_path(), ec)))
+				auto search_paths = _preset_search_paths;
+				if (search_paths.empty())
+					search_paths.push_back(g_reshade_dll_path.parent_path());
+
+				for (auto search_path : search_paths)
 				{
-					_preset_files.push_back(path);
+					auto parent_paths = { search_path, g_reshade_dll_path.parent_path() / search_path };
+					for (auto parent_path : parent_paths)
+					{
+						std::error_code ec;
+						auto path = std::filesystem::absolute(parent_path / buf, ec);
+						path.replace_extension(".ini");
 
-					_current_preset = _preset_files.size() - 1;
+						if (!ec && (std::filesystem::exists(path, ec) || std::filesystem::exists(path.parent_path(), ec)))
+						{
+							_preset_files.push_back(path);
 
-					save_config();
-					load_current_preset(); // Load the new preset
+							_current_preset = _preset_files.size() - 1;
 
-					ImGui::CloseCurrentPopup();
+							save_config();
+							load_current_preset(); // Load the new preset
+
+							ImGui::CloseCurrentPopup();
+
+							added = true;
+							break;
+						}
+					}
+					if (added)
+						break;
 				}
 			}
 
@@ -885,6 +903,7 @@ void reshade::runtime::draw_overlay_menu_settings()
 
 		modified |= imgui_path_list("Effect Search Paths", _effect_search_paths, _file_selection_path, g_reshade_dll_path.parent_path());
 		modified |= imgui_path_list("Texture Search Paths", _texture_search_paths, _file_selection_path, g_reshade_dll_path.parent_path());
+		modified |= imgui_path_list("Preset Search Paths", _preset_search_paths, _file_selection_path, g_reshade_dll_path.parent_path());
 
 		if (ImGui::Button("Restart Tutorial", ImVec2(ImGui::CalcItemWidth(), 0)))
 			_tutorial_index = 0;
