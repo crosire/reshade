@@ -197,15 +197,14 @@ bool imgui_path_list(const char *label, std::vector<std::filesystem::path> &path
 	static int erase_count = 0;
 
 	ImGui::PushID(label);
-	ImGui::BeginGroup();
-
 	ImGui::PushID(erase_count);
+	ImGui::BeginGroup();
 
 	char buf[260];
 
 	if (ImGui::BeginChild("##paths", ImVec2(item_width, (paths.size() + 1) * item_height), false, ImGuiWindowFlags_NoScrollWithMouse))
 	{
-		for (auto i = 0; i < paths.size(); ++i)
+		for (size_t i = 0; i < paths.size(); ++i)
 		{
 			ImGui::PushID(static_cast<int>(i));
 
@@ -235,7 +234,7 @@ bool imgui_path_list(const char *label, std::vector<std::filesystem::path> &path
 
 			ImGui::PopID();
 		}
-		for (auto i = 0; i < paths.size(); ++i)
+		for (size_t i = 0; i < paths.size(); ++i)
 		{
 			if (paths[i].empty())
 			{
@@ -259,12 +258,11 @@ bool imgui_path_list(const char *label, std::vector<std::filesystem::path> &path
 		}
 	} ImGui::EndChild();
 
-	ImGui::PopID();
-
 	ImGui::SameLine(0, button_spacing);
 	ImGui::TextUnformatted(label);
 
 	ImGui::EndGroup();
+	ImGui::PopID();
 	ImGui::PopID();
 
 	return res;
