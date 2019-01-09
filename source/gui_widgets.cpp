@@ -194,14 +194,18 @@ bool imgui_path_list(const char *label, std::vector<std::filesystem::path> &path
 	const float button_size = ImGui::GetFrameHeight();
 	const float button_spacing = ImGui::GetStyle().ItemInnerSpacing.x;
 
-	ImGui::BeginGroup();
+	static int erase_count = 0;
+
 	ImGui::PushID(label);
+	ImGui::BeginGroup();
+
+	ImGui::PushID(erase_count);
 
 	char buf[260];
 
 	if (ImGui::BeginChild("##paths", ImVec2(item_width, (paths.size() + 1) * item_height), false, ImGuiWindowFlags_NoScrollWithMouse))
 	{
-		for (size_t i = 0; i < paths.size(); ++i)
+		for (auto i = 0; i < paths.size(); ++i)
 		{
 			ImGui::PushID(static_cast<int>(i));
 
@@ -217,13 +221,27 @@ bool imgui_path_list(const char *label, std::vector<std::filesystem::path> &path
 			ImGui::PopItemWidth();
 
 			ImGui::SameLine(0, button_spacing);
-			if (ImGui::Button("-", ImVec2(button_size, 0)))
+			if (ImGui::Button("..", ImVec2(button_size, 0)))
+			{
+				dialog_path = default_path;
+				ImGui::OpenPopup("##select");
+			}
+
+			if (imgui_directory_dialog("##select", dialog_path))
 			{
 				res = true;
-				paths.erase(paths.begin() + i--);
+				paths[i] = dialog_path;
 			}
 
 			ImGui::PopID();
+		}
+		for (auto i = 0; i < paths.size(); ++i)
+		{
+			if (paths[i].empty())
+			{
+				paths.erase(paths.begin() + i--);
+				erase_count++;
+			}
 		}
 
 		ImGui::Dummy(ImVec2(0, 0));
@@ -247,6 +265,7 @@ bool imgui_path_list(const char *label, std::vector<std::filesystem::path> &path
 	ImGui::TextUnformatted(label);
 
 	ImGui::EndGroup();
+	ImGui::PopID();
 
 	return res;
 }

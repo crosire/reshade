@@ -1533,7 +1533,7 @@ void reshade::runtime::draw_code_editor()
 
 void reshade::runtime::draw_overlay_variable_editor()
 {
-	const ImVec2 popup_pos = ImGui::GetCursorScreenPos() + ImVec2(std::max(0.f, ImGui::GetWindowContentRegionWidth() * 0.5f - 200.0f), ImGui::GetFrameHeightWithSpacing());
+	const ImVec2 popup_pos = ImGui::GetCursorScreenPos() + ImVec2(std::max(0.0f, ImGui::GetWindowContentRegionWidth() * 0.5f - 200.0f), ImGui::GetFrameHeightWithSpacing());
 
 	if (imgui_popup_button("Edit global preprocessor definitions", -1.0f, ImGuiWindowFlags_NoMove))
 	{
@@ -1542,6 +1542,9 @@ void reshade::runtime::draw_overlay_variable_editor()
 		const float button_size = ImGui::GetFrameHeight();
 		const float button_spacing = _imgui_context->Style.ItemInnerSpacing.x;
 
+		static int erase_count = 0;
+
+		ImGui::PushID(erase_count);
 		ImGui::BeginChild("##definitions", ImVec2(400.0f, (_preprocessor_definitions.size() + 1) * ImGui::GetFrameHeightWithSpacing()), false, ImGuiWindowFlags_NoScrollWithMouse);
 
 		for (size_t i = 0; i < _preprocessor_definitions.size(); ++i)
@@ -1562,23 +1565,24 @@ void reshade::runtime::draw_overlay_variable_editor()
 
 			ImGui::SameLine(0, button_spacing);
 
-			ImGui::PushItemWidth(ImGui::GetWindowContentRegionWidth() * 0.33333333f - (button_spacing + button_size) + 1);
+			ImGui::PushItemWidth(ImGui::GetWindowContentRegionWidth() * 0.33333333f + 1);
 			modified |= ImGui::InputText("##value", value, sizeof(value));
 			ImGui::PopItemWidth();
 
-			ImGui::SameLine(0, button_spacing);
-
-			if (ImGui::Button("-", ImVec2(button_size, 0)))
-			{
-				modified = true;
-				_preprocessor_definitions.erase(_preprocessor_definitions.begin() + i--);
-			}
-			else if (modified)
+			if (modified)
 			{
 				_preprocessor_definitions[i] = std::string(name) + '=' + std::string(value);
 			}
 
 			ImGui::PopID();
+		}
+		for (size_t i = 0; i < _preprocessor_definitions.size(); ++i)
+		{
+			if (_preprocessor_definitions[i] == "=")
+			{
+				_preprocessor_definitions.erase(_preprocessor_definitions.begin() + i--);
+				erase_count++;
+			}
 		}
 
 		ImGui::Dummy(ImVec2());
@@ -1586,6 +1590,7 @@ void reshade::runtime::draw_overlay_variable_editor()
 		if (ImGui::Button("+", ImVec2(button_size, 0)))
 			_preprocessor_definitions.emplace_back();
 		ImGui::EndChild();
+		ImGui::PopID();
 
 		if (modified)
 			save_config();
