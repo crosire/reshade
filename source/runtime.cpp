@@ -765,49 +765,40 @@ void reshade::runtime::load_config()
 	config.get("GENERAL", "NoReloadOnInit", _no_reload_on_init);
 
 	// Look for new preset files in the search paths and main directory
-	auto search_paths = _preset_search_paths;
-	if (search_paths.empty())
-		search_paths.push_back(g_reshade_dll_path.parent_path());
+	auto parent_paths = _preset_search_paths;
+	parent_paths.push_back(g_reshade_dll_path.parent_path());
 
-	for (const auto &search_path : search_paths)
+	for (const auto &parent_path : parent_paths)
 	{
-		const auto parent_paths = { search_path, g_reshade_dll_path.parent_path() / search_path };
-		for (const auto &parent_path : parent_paths)
+		std::error_code ec;
+		for (const auto &entry : std::filesystem::directory_iterator(g_reshade_dll_path.parent_path() / parent_path, ec))
 		{
-			auto added = false;
+			const std::filesystem::path preset_file = entry.path();
+			if (preset_file.extension() != ".ini" && preset_file.extension() != ".txt")
+				continue; // Only look at INI and TXT files
+			if (std::find_if(_preset_files.begin(), _preset_files.end(),
+				[&preset_file, &parent_path](const auto &path) {
+				return preset_file.filename() == path.filename() && (path.parent_path() == parent_path || !path.is_absolute());
+			}) != _preset_files.end())
+				continue; // Preset file is already in the preset list
 
-			std::error_code ec;
-			for (const auto &entry : std::filesystem::directory_iterator(parent_path, ec))
+			// Check if the INI file contains a list of techniques (it is not a valid preset file if it does not)
+			const ini_file preset(preset_file);
+
+			std::vector<std::string> techniques;
+			preset.get("", "TechniqueSorting", techniques);
+
+			if (!techniques.empty())
 			{
-				const std::filesystem::path preset_file = entry.path();
-				if (preset_file.extension() != ".ini" && preset_file.extension() != ".txt")
-					continue; // Only look at INI and TXT files
-				if (std::find_if(_preset_files.begin(), _preset_files.end(),
-					[&preset_file, &parent_path](const auto &path) {
-					return preset_file.filename() == path.filename() && (path.parent_path() == parent_path || !path.is_absolute());
-				}) != _preset_files.end())
-					continue; // Preset file is already in the preset list
-
-				// Check if the INI file contains a list of techniques (it is not a valid preset file if it does not)
-				const ini_file preset(preset_file);
-
-				std::vector<std::string> techniques;
-				preset.get("", "TechniqueSorting", techniques);
-
-				if (!techniques.empty())
-				{
-					_preset_files.push_back(preset_file);
-					added = true;
-				}
-			}
-			if (added)
+				_preset_files.push_back(preset_file);
 				break;
+			}
 		}
 	}
 
 	// Create a default preset file if none exists yet
 	if (_preset_files.empty())
-		_preset_files.push_back("DefaultPreset.ini");
+		_preset_files.push_back(g_reshade_dll_path.parent_path() / "DefaultPreset.ini");
 
 	for (const auto &callback : _load_config_callables)
 		callback(config);

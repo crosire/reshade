@@ -659,32 +659,22 @@ void reshade::runtime::draw_overlay_menu_home()
 
 				for (const auto &search_path : search_paths)
 				{
-					auto added = false;
+					std::error_code ec;
+					auto path = std::filesystem::absolute(g_reshade_dll_path.parent_path() / search_path / buf, ec);
+					path.replace_extension(".ini");
 
-					const auto parent_paths = { search_path, g_reshade_dll_path.parent_path() / search_path };
-					for (const auto &parent_path : parent_paths)
+					if (!ec && (std::filesystem::exists(path, ec) || std::filesystem::exists(path.parent_path(), ec)))
 					{
-						std::error_code ec;
-						auto path = std::filesystem::absolute(parent_path / buf, ec);
-						path.replace_extension(".ini");
+						_preset_files.push_back(path);
 
-						if (!ec && (std::filesystem::exists(path, ec) || std::filesystem::exists(path.parent_path(), ec)))
-						{
-							_preset_files.push_back(path);
+						_current_preset = _preset_files.size() - 1;
 
-							_current_preset = _preset_files.size() - 1;
+						save_config();
+						load_current_preset(); // Load the new preset
 
-							save_config();
-							load_current_preset(); // Load the new preset
-
-							ImGui::CloseCurrentPopup();
-
-							added = true;
-							break;
-						}
-					}
-					if (added)
+						ImGui::CloseCurrentPopup();
 						break;
+					}
 				}
 			}
 
