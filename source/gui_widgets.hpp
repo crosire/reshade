@@ -6,6 +6,7 @@
 #pragma once
 
 #include <imgui.h>
+#include <imgui_internal.h>
 #include <filesystem>
 
 bool imgui_key_input(const char *name, unsigned int key_data[4], const reshade::input &input);

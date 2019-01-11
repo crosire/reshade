@@ -194,11 +194,8 @@ bool imgui_path_list(const char *label, std::vector<std::filesystem::path> &path
 	const float button_size = ImGui::GetFrameHeight();
 	const float button_spacing = ImGui::GetStyle().ItemInnerSpacing.x;
 
-	static int erase_count = 0;
-
-	ImGui::PushID(label);
-	ImGui::PushID(erase_count);
 	ImGui::BeginGroup();
+	ImGui::PushID(label);
 
 	char buf[260];
 
@@ -216,6 +213,11 @@ bool imgui_path_list(const char *label, std::vector<std::filesystem::path> &path
 			{
 				res = true;
 				paths[i] = buf;
+				if (paths[i].empty())
+				{
+					paths.erase(paths.begin() + i--);
+					ImGui::ClearActiveID();
+				}
 			}
 			ImGui::PopItemWidth();
 
@@ -234,14 +236,6 @@ bool imgui_path_list(const char *label, std::vector<std::filesystem::path> &path
 
 			ImGui::PopID();
 		}
-		for (size_t i = 0; i < paths.size(); ++i)
-		{
-			if (paths[i].empty())
-			{
-				paths.erase(paths.begin() + i--);
-				erase_count++;
-			}
-		}
 
 		ImGui::Dummy(ImVec2(0, 0));
 		ImGui::SameLine(0, ImGui::GetWindowContentRegionWidth() - button_size);
@@ -258,12 +252,12 @@ bool imgui_path_list(const char *label, std::vector<std::filesystem::path> &path
 		}
 	} ImGui::EndChild();
 
+	ImGui::PopID();
+
 	ImGui::SameLine(0, button_spacing);
 	ImGui::TextUnformatted(label);
 
 	ImGui::EndGroup();
-	ImGui::PopID();
-	ImGui::PopID();
 
 	return res;
 }
