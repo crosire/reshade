@@ -497,6 +497,11 @@ void reshade::runtime::unload_effects()
 	_uniform_data_storage.clear();
 
 	_textures_loaded = false;
+
+#if RESHADE_GUI
+	// Remove all texture preview windows since those textures were deleted above
+	_texture_previews.clear();
+#endif
 }
 
 void reshade::runtime::update_and_render_effects()
