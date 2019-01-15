@@ -235,10 +235,6 @@ void reshade::runtime::load_effect(const std::filesystem::path &path, size_t &ou
 		effect.errors += parser.errors(); // Append parser errors and warnings to the error list
 	}
 
-#if RESHADE_DUMP_NATIVE_SHADERS
-	std::ofstream("ReShade-ShaderDump-" + path.stem().u8string() + ".hlsl", std::ios::trunc) << effect.module.hlsl;
-#endif
-
 	// Fill all specialization constants with values from the current preset
 	if (_performance_mode && _current_preset < _preset_files.size() && effect.compile_sucess)
 	{
