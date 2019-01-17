@@ -749,7 +749,7 @@ void reshadefx::lexer::parse_string_literal(token &tok, bool escape) const
 	{
 		if (c == '\n' || end >= _end)
 		{
-			// Line feed reached, the string literal is done
+			// Line feed reached, the string literal is done (technically this should be an error, but the lexer does not report errors, so ignore it)
 			end--;
 			break;
 		}
