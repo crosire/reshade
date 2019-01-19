@@ -489,6 +489,11 @@ namespace reshade::d3d10
 			_device->IASetInputLayout(nullptr);
 			_device->IASetVertexBuffers(0, 1, reinterpret_cast<ID3D10Buffer *const *>(&null), reinterpret_cast<const UINT *>(&null), reinterpret_cast<const UINT *>(&null));
 
+			// Set blend state to defaults (since this may have been modified by ImGui)
+			_device->OMSetBlendState(nullptr, nullptr, D3D10_DEFAULT_SAMPLE_MASK);
+			// Set depth stencil state to defaults
+			_device->OMSetDepthStencilState(nullptr, D3D10_DEFAULT_STENCIL_REFERENCE);
+			// Set rasterizer state to the effect defaults
 			_device->RSSetState(_effect_rasterizer_state.get());
 
 			_device->VSSetShader(_copy_vertex_shader.get());

@@ -1542,7 +1542,7 @@ void reshade::runtime::draw_code_editor()
 
 void reshade::runtime::draw_overlay_variable_editor()
 {
-	const ImVec2 popup_pos = ImGui::GetCursorScreenPos() + ImVec2(ImGui::GetWindowContentRegionWidth() * 0.5f - 200.0f, ImGui::GetFrameHeightWithSpacing());
+	const ImVec2 popup_pos = ImGui::GetCursorScreenPos() + ImVec2(std::max(0.f, ImGui::GetWindowContentRegionWidth() * 0.5f - 200.0f), ImGui::GetFrameHeightWithSpacing());
 
 	if (imgui_popup_button("Edit global preprocessor definitions", -1.0f, ImGuiWindowFlags_NoMove))
 	{

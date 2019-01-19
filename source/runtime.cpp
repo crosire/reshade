@@ -236,10 +236,6 @@ void reshade::runtime::load_effect(const std::filesystem::path &path, size_t &ou
 		effect.errors += parser.errors(); // Append parser errors and warnings to the error list
 	}
 
-#if RESHADE_DUMP_NATIVE_SHADERS
-	std::ofstream("ReShade-ShaderDump-" + path.stem().u8string() + ".hlsl", std::ios::trunc) << effect.module.hlsl;
-#endif
-
 	// Fill all specialization constants with values from the current preset
 	if (_performance_mode && _current_preset < _preset_files.size() && effect.compile_sucess)
 	{
@@ -482,6 +478,11 @@ void reshade::runtime::unload_effect(size_t id)
 		[id](const auto &it) { return it.effect_index == id; }), _techniques.end());
 
 	_loaded_effects[id].source_file.clear();
+
+#if RESHADE_GUI
+	// Remove all texture preview windows since some may no longer be valid
+	_texture_previews.clear();
+#endif
 }
 void reshade::runtime::unload_effects()
 {
@@ -498,6 +499,11 @@ void reshade::runtime::unload_effects()
 	_uniform_data_storage.clear();
 
 	_textures_loaded = false;
+
+#if RESHADE_GUI
+	// Remove all texture preview windows since those textures were deleted above
+	_texture_previews.clear();
+#endif
 }
 
 void reshade::runtime::update_and_render_effects()

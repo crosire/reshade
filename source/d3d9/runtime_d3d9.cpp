@@ -693,7 +693,7 @@ namespace reshade::d3d9
 		bool success = true;
 
 		d3d9_technique_data technique_init;
-		technique_init.constant_register_count = static_cast<UINT>((effect.storage_size + 16) / 16);
+		technique_init.constant_register_count = static_cast<UINT>((effect.storage_size + 15) / 16);
 		technique_init.uniform_storage_offset = effect.storage_offset;
 
 		for (const reshadefx::sampler_info &info : effect.module.samplers)
