@@ -499,6 +499,11 @@ namespace reshade::d3d11
 			_immediate_context->IASetInputLayout(nullptr);
 			_immediate_context->IASetVertexBuffers(0, 1, reinterpret_cast<ID3D11Buffer *const *>(&null), reinterpret_cast<const UINT *>(&null), reinterpret_cast<const UINT *>(&null));
 
+			// Set blend state to defaults (since this may have been modified by ImGui)
+			_immediate_context->OMSetBlendState(nullptr, nullptr, D3D11_DEFAULT_SAMPLE_MASK);
+			// Set depth stencil state to defaults
+			_immediate_context->OMSetDepthStencilState(nullptr, D3D11_DEFAULT_STENCIL_REFERENCE);
+			// Set rasterizer state to the effect defaults
 			_immediate_context->RSSetState(_effect_rasterizer_state.get());
 
 			_immediate_context->VSSetShader(_copy_vertex_shader.get(), nullptr, 0);
