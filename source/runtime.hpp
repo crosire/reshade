@@ -277,6 +277,7 @@ namespace reshade
 		std::vector<std::filesystem::path> _preset_files;
 
 		std::vector<std::string> _preprocessor_definitions;
+		std::vector<std::filesystem::path> _preset_search_paths;
 		std::vector<std::filesystem::path> _effect_search_paths;
 		std::vector<std::filesystem::path> _texture_search_paths;
 

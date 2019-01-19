@@ -27,6 +27,7 @@ reshade::runtime::runtime(uint32_t renderer) :
 	_start_time(std::chrono::high_resolution_clock::now()),
 	_last_present_time(std::chrono::high_resolution_clock::now()),
 	_last_frame_duration(std::chrono::milliseconds(1)),
+	_preset_search_paths({ ".\\" }),
 	_effect_search_paths({ ".\\" }),
 	_texture_search_paths({ ".\\" }),
 	_preprocessor_definitions({
@@ -758,6 +759,7 @@ void reshade::runtime::load_config()
 	config.get("INPUT", "KeyEffects", _effects_key_data);
 
 	config.get("GENERAL", "PerformanceMode", _performance_mode);
+	config.get("GENERAL", "PresetSearchPaths", _preset_search_paths);
 	config.get("GENERAL", "EffectSearchPaths", _effect_search_paths);
 	config.get("GENERAL", "TextureSearchPaths", _texture_search_paths);
 	config.get("GENERAL", "PreprocessorDefinitions", _preprocessor_definitions);
@@ -768,33 +770,41 @@ void reshade::runtime::load_config()
 	config.get("GENERAL", "ScreenshotIncludePreset", _screenshot_include_preset);
 	config.get("GENERAL", "NoReloadOnInit", _no_reload_on_init);
 
-	// Look for new preset files in the main directory
-	const std::filesystem::path parent_path = g_reshade_dll_path.parent_path();
-	std::error_code ec;
-	for (const auto &entry : std::filesystem::directory_iterator(parent_path, ec))
+	// Look for new preset files in the preset search paths
+	for (const auto &search_path : _preset_search_paths)
 	{
-		const std::filesystem::path preset_file = entry.path();
-		if (preset_file.extension() != ".ini" && preset_file.extension() != ".txt")
-			continue; // Only look at INI and TXT files
-		if (std::find_if(_preset_files.begin(), _preset_files.end(),
-			[&preset_file, &parent_path](const auto &path) {
-				return preset_file.filename() == path.filename() && (path.parent_path() == parent_path || !path.is_absolute());
-			}) != _preset_files.end())
-			continue; // Preset file is already in the preset list
+		std::error_code ec;
+		std::filesystem::path canonical_search_path = search_path;
+		if (search_path.is_relative()) // Ignore the working directory and instead start relative paths at the DLL location
+			canonical_search_path = std::filesystem::canonical(g_reshade_dll_path.parent_path() / search_path, ec);
+		if (ec || canonical_search_path.empty())
+			continue; // Failed to find a valid directory matching the search path
 
-		// Check if the INI file contains a list of techniques (it is not a valid preset file if it does not)
-		const ini_file preset(preset_file);
+		for (const auto &entry : std::filesystem::directory_iterator(canonical_search_path, ec))
+		{
+			const std::filesystem::path preset_file = entry.path();
+			if (preset_file.extension() != ".ini" && preset_file.extension() != ".txt")
+				continue; // Only look at INI and TXT files
+			if (std::find_if(_preset_files.begin(), _preset_files.end(),
+				[&preset_file, &ec](const auto &path) {
+					return std::filesystem::equivalent(path, preset_file, ec);
+				}) != _preset_files.end())
+				continue; // Preset file is already in the preset list
 
-		std::vector<std::string> techniques;
-		preset.get("", "Techniques", techniques);
+			// Check if the INI file contains a list of techniques (it is not a valid preset file if it does not)
+			const ini_file preset(preset_file);
 
-		if (!techniques.empty())
-			_preset_files.push_back(preset_file);
+			std::vector<std::string> techniques;
+			preset.get("", "TechniqueSorting", techniques);
+
+			if (!techniques.empty())
+				_preset_files.push_back(preset_file);
+		}
 	}
 
 	// Create a default preset file if none exists yet
 	if (_preset_files.empty())
-		_preset_files.push_back("DefaultPreset.ini");
+		_preset_files.push_back(g_reshade_dll_path.parent_path() / "DefaultPreset.ini");
 
 	for (const auto &callback : _load_config_callables)
 		callback(config);
@@ -812,6 +822,7 @@ void reshade::runtime::save_config(const std::filesystem::path &path) const
 	config.set("INPUT", "KeyEffects", _effects_key_data);
 
 	config.set("GENERAL", "PerformanceMode", _performance_mode);
+	config.set("GENERAL", "PresetSearchPaths", _preset_search_paths);
 	config.set("GENERAL", "EffectSearchPaths", _effect_search_paths);
 	config.set("GENERAL", "TextureSearchPaths", _texture_search_paths);
 	config.set("GENERAL", "PreprocessorDefinitions", _preprocessor_definitions);
