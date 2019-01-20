@@ -58,7 +58,7 @@ void reshade::runtime::init_ui()
 	imgui_io.KeyMap[ImGuiKey_X] = 'X';
 	imgui_io.KeyMap[ImGuiKey_Y] = 'Y';
 	imgui_io.KeyMap[ImGuiKey_Z] = 'Z';
-	imgui_io.ConfigFlags = ImGuiConfigFlags_DockingEnable;
+	imgui_io.ConfigFlags = ImGuiConfigFlags_DockingEnable | ImGuiConfigFlags_NavEnableKeyboard;
 	imgui_io.BackendFlags = ImGuiBackendFlags_HasMouseCursors;
 
 	// Disable rounding by default
@@ -310,8 +310,8 @@ void reshade::runtime::draw_ui()
 {
 	const bool show_splash = _show_splash && (_reload_remaining_effects != std::numeric_limits<size_t>::max() || !_reload_compile_queue.empty() || (_last_present_time - _last_reload_time) < std::chrono::seconds(5));
 
-	if (_show_menu && !_ignore_shortcuts && _input->is_key_pressed(0x1B)) // VK_ESCAPE
-		_show_menu = false;
+	if (_show_menu && !_ignore_shortcuts && !_imgui_context->IO.NavVisible && _input->is_key_pressed(0x1B /* VK_ESCAPE */))
+		_show_menu = false; // Close when pressing the escape button and not currently navigating with the keyboard
 	else if (!_ignore_shortcuts && _input->is_key_pressed(_menu_key_data))
 		_show_menu = !_show_menu;
 
@@ -356,16 +356,6 @@ void reshade::runtime::draw_ui()
 		_rebuild_font_atlas = true;
 		save_config();
 	}
-
-	imgui_io.NavInputs[ImGuiNavInput_Activate] = ImGui::IsKeyDown(ImGuiKey_Space);
-	imgui_io.NavInputs[ImGuiNavInput_Input] = ImGui::IsKeyDown(ImGuiKey_Enter);
-	imgui_io.NavInputs[ImGuiNavInput_Cancel] = ImGui::IsKeyDown(ImGuiKey_Escape);
-	imgui_io.NavInputs[ImGuiNavInput_KeyLeft_] = ImGui::IsKeyDown(ImGuiKey_LeftArrow);
-	imgui_io.NavInputs[ImGuiNavInput_KeyRight_] = ImGui::IsKeyDown(ImGuiKey_RightArrow);
-	imgui_io.NavInputs[ImGuiNavInput_KeyUp_] = ImGui::IsKeyDown(ImGuiKey_UpArrow);
-	imgui_io.NavInputs[ImGuiNavInput_KeyDown_] = ImGui::IsKeyDown(ImGuiKey_DownArrow);
-	imgui_io.NavInputs[ImGuiNavInput_TweakSlow] = imgui_io.KeyCtrl;
-	imgui_io.NavInputs[ImGuiNavInput_TweakFast] = imgui_io.KeyShift;
 
 	ImGui::NewFrame();
 
@@ -455,6 +445,7 @@ void reshade::runtime::draw_ui()
 			ImGuiWindowFlags_NoInputs |
 			ImGuiWindowFlags_NoCollapse |
 			ImGuiWindowFlags_NoNavFocus |
+			ImGuiWindowFlags_NoNavInputs |
 			ImGuiWindowFlags_NoFocusOnAppearing |
 			ImGuiWindowFlags_NoBackground);
 
@@ -476,13 +467,13 @@ void reshade::runtime::draw_ui()
 		}
 		if (_show_fps)
 		{
-			ImFormatString(temp, sizeof(temp), "%.0f fps", _imgui_context->IO.Framerate);
+			ImFormatString(temp, sizeof(temp), "%.0f fps", imgui_io.Framerate);
 			ImGui::SetCursorPosX(ImGui::GetWindowContentRegionWidth() - ImGui::CalcTextSize(temp).x);
 			ImGui::TextUnformatted(temp);
 		}
 		if (_show_frametime)
 		{
-			ImFormatString(temp, sizeof(temp), "%5.2f ms", 1000.0f / _imgui_context->IO.Framerate);
+			ImFormatString(temp, sizeof(temp), "%5.2f ms", 1000.0f / imgui_io.Framerate);
 			ImGui::SetCursorPosX(ImGui::GetWindowContentRegionWidth() - ImGui::CalcTextSize(temp).x);
 			ImGui::TextUnformatted(temp);
 		}
@@ -492,54 +483,58 @@ void reshade::runtime::draw_ui()
 		ImGui::End();
 	}
 
-	const ImGuiID root_space_id = ImGui::GetID("Dockspace");
-	const ImGuiViewport *const viewport = ImGui::GetMainViewport();
-
-	ImGui::SetNextWindowPos(viewport->Pos + viewport_offset);
-	ImGui::SetNextWindowSize(viewport->Size - viewport_offset);
-	ImGui::SetNextWindowViewport(viewport->ID);
-	ImGui::Begin("Viewport", nullptr,
-		ImGuiWindowFlags_NoTitleBar |
-		ImGuiWindowFlags_NoMove |
-		ImGuiWindowFlags_NoResize |
-		ImGuiWindowFlags_NoDocking |
-		ImGuiWindowFlags_NoCollapse |
-		ImGuiWindowFlags_NoNavFocus |
-		ImGuiWindowFlags_NoFocusOnAppearing |
-		ImGuiWindowFlags_NoBringToFrontOnFocus |
-		ImGuiWindowFlags_NoBackground);
-
-	// Set up default dock layout if this was not done yet
-	if (ImGui::DockBuilderGetNode(root_space_id) == nullptr)
-	{
-		// Add root node
-		ImGui::DockBuilderAddNode(root_space_id, viewport->Size);
-		// Split root node into two spaces
-		ImGuiID main_space_id = 0;
-		ImGuiID right_space_id = 0;
-		ImGui::DockBuilderSplitNode(root_space_id, ImGuiDir_Left, 0.35f, &main_space_id, &right_space_id);
-
-		// Attach windows to the main dock space
-		ImGui::DockBuilderDockWindow("Home", main_space_id);
-		ImGui::DockBuilderDockWindow("Settings", main_space_id);
-		ImGui::DockBuilderDockWindow("Statistics", main_space_id);
-		ImGui::DockBuilderDockWindow("Log", main_space_id);
-		ImGui::DockBuilderDockWindow("About", main_space_id);
-		ImGui::DockBuilderDockWindow("###editor", right_space_id);
-		ImGui::DockBuilderDockWindow("DX9", main_space_id);
-		ImGui::DockBuilderDockWindow("DX10", main_space_id);
-		ImGui::DockBuilderDockWindow("DX11", main_space_id);
-
-		ImGui::DockBuilderGetNode(main_space_id)->SelectedTabID = ImHash("Home", 0); // Select 'Home' tab
-
-		ImGui::DockBuilderFinish(root_space_id);
-	}
-
-	ImGui::DockSpace(root_space_id, ImVec2(0, 0), ImGuiDockNodeFlags_PassthruDockspace);
-	ImGui::End();
-
 	if (_show_menu && _reload_remaining_effects == std::numeric_limits<size_t>::max())
 	{
+		const ImGuiID root_space_id = ImGui::GetID("Dockspace");
+		const ImGuiViewport *const viewport = ImGui::GetMainViewport();
+
+		ImGui::SetNextWindowPos(viewport->Pos + viewport_offset);
+		ImGui::SetNextWindowSize(viewport->Size - viewport_offset);
+		ImGui::SetNextWindowViewport(viewport->ID);
+		ImGui::Begin("Viewport", nullptr,
+			ImGuiWindowFlags_NoTitleBar |
+			ImGuiWindowFlags_NoMove |
+			ImGuiWindowFlags_NoResize |
+			ImGuiWindowFlags_NoDocking |
+			ImGuiWindowFlags_NoCollapse |
+			ImGuiWindowFlags_NoNavFocus |
+			ImGuiWindowFlags_NoNavInputs |
+			ImGuiWindowFlags_NoFocusOnAppearing |
+			ImGuiWindowFlags_NoBringToFrontOnFocus |
+			ImGuiWindowFlags_NoBackground);
+
+		// Set up default dock layout if this was not done yet
+		const bool init_window_layout = !ImGui::DockBuilderGetNode(root_space_id);
+		if (init_window_layout)
+		{
+			// Add the root node
+			ImGui::DockBuilderAddNode(root_space_id, viewport->Size);
+
+			// Split root node into two spaces
+			ImGuiID main_space_id = 0;
+			ImGuiID right_space_id = 0;
+			ImGui::DockBuilderSplitNode(root_space_id, ImGuiDir_Left, 0.35f, &main_space_id, &right_space_id);
+
+			// Attach most window to the main dock space
+			ImGui::DockBuilderDockWindow("Home", main_space_id);
+			ImGui::DockBuilderDockWindow("Settings", main_space_id);
+			ImGui::DockBuilderDockWindow("Statistics", main_space_id);
+			ImGui::DockBuilderDockWindow("Log", main_space_id);
+			ImGui::DockBuilderDockWindow("About", main_space_id);
+			ImGui::DockBuilderDockWindow("DX9", main_space_id);
+			ImGui::DockBuilderDockWindow("DX10", main_space_id);
+			ImGui::DockBuilderDockWindow("DX11", main_space_id);
+
+			// Attach editor window to the remaining dock space
+			ImGui::DockBuilderDockWindow("###editor", right_space_id);
+
+			// Commit the layout
+			ImGui::DockBuilderFinish(root_space_id);
+		}
+
+		ImGui::DockSpace(root_space_id, ImVec2(0, 0), ImGuiDockNodeFlags_PassthruDockspace);
+		ImGui::End();
+
 		for (const auto &widget : _menu_callables)
 		{
 			if (ImGui::Begin(widget.first.c_str()))
@@ -547,9 +542,14 @@ void reshade::runtime::draw_ui()
 			ImGui::End();
 		}
 
+		// Make sure navigation focus is on the home window by default (at this point 'FindWindowByName' should return the correct window)
+		if (init_window_layout)
+			ImGui::FocusWindow(ImGui::FindWindowByName("Home"));
+
 		if (_show_code_editor)
 		{
-			const std::string title = _selected_effect < _loaded_effects.size() ? "Editing " + _loaded_effects[_selected_effect].source_file.filename().u8string() + " ###editor" : "Viewing code###editor";
+			const std::string title = _selected_effect < _loaded_effects.size() ?
+				"Editing " + _loaded_effects[_selected_effect].source_file.filename().u8string() + " ###editor" : "Viewing code###editor";
 
 			if (ImGui::Begin(title.c_str(), &_show_code_editor))
 				draw_code_editor();
@@ -568,7 +568,7 @@ void reshade::runtime::draw_ui()
 			imgui_image_with_checkerboard_background(texture->impl.get(), ImVec2(std::max(texture->width * 0.5f, 500.0f), std::max(texture->height * 0.5f, texture->height * 500.0f / texture->width)));
 			ImGui::End();
 
-			if (!open)
+			if (!open) // Close window by removing it from the list so it is not rendered next frame
 				it = _texture_previews.erase(it);
 			else ++it;
 		}
@@ -577,8 +577,8 @@ void reshade::runtime::draw_ui()
 	// Render ImGui widgets and windows
 	ImGui::Render();
 
-	_input->block_mouse_input(_input_processing_mode != 0 && _show_menu && (_imgui_context->IO.WantCaptureMouse || _input_processing_mode == 2));
-	_input->block_keyboard_input(_input_processing_mode != 0 && _show_menu && (_imgui_context->IO.WantCaptureKeyboard || _input_processing_mode == 2));
+	_input->block_mouse_input(_input_processing_mode != 0 && _show_menu && (imgui_io.WantCaptureMouse || _input_processing_mode == 2));
+	_input->block_keyboard_input(_input_processing_mode != 0 && _show_menu && (imgui_io.WantCaptureKeyboard || _input_processing_mode == 2));
 
 	if (const auto draw_data = ImGui::GetDrawData(); draw_data != nullptr && draw_data->CmdListsCount != 0 && draw_data->TotalVtxCount != 0)
 	{
