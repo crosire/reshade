@@ -22,50 +22,50 @@ namespace reshade::d3d9
 	{
 		switch (value)
 		{
-			case 0:
-				return D3DBLEND_ZERO;
-			default:
-			case 1:
-				return D3DBLEND_ONE;
-			case 2:
-				return D3DBLEND_SRCCOLOR;
-			case 4:
-				return D3DBLEND_INVSRCCOLOR;
-			case 3:
-				return D3DBLEND_SRCALPHA;
-			case 5:
-				return D3DBLEND_INVSRCALPHA;
-			case 6:
-				return D3DBLEND_DESTALPHA;
-			case 7:
-				return D3DBLEND_INVDESTALPHA;
-			case 8:
-				return D3DBLEND_DESTCOLOR;
-			case 9:
-				return D3DBLEND_INVDESTCOLOR;
+		case 0:
+			return D3DBLEND_ZERO;
+		default:
+		case 1:
+			return D3DBLEND_ONE;
+		case 2:
+			return D3DBLEND_SRCCOLOR;
+		case 4:
+			return D3DBLEND_INVSRCCOLOR;
+		case 3:
+			return D3DBLEND_SRCALPHA;
+		case 5:
+			return D3DBLEND_INVSRCALPHA;
+		case 6:
+			return D3DBLEND_DESTALPHA;
+		case 7:
+			return D3DBLEND_INVDESTALPHA;
+		case 8:
+			return D3DBLEND_DESTCOLOR;
+		case 9:
+			return D3DBLEND_INVDESTCOLOR;
 		}
 	}
 	static D3DSTENCILOP literal_to_stencil_op(unsigned int value)
 	{
 		switch (value)
 		{
-			default:
-			case 1:
-				return D3DSTENCILOP_KEEP;
-			case 0:
-				return D3DSTENCILOP_ZERO;
-			case 3:
-				return D3DSTENCILOP_REPLACE;
-			case 4:
-				return D3DSTENCILOP_INCRSAT;
-			case 5:
-				return D3DSTENCILOP_DECRSAT;
-			case 6:
-				return D3DSTENCILOP_INVERT;
-			case 7:
-				return D3DSTENCILOP_INCR;
-			case 8:
-				return D3DSTENCILOP_DECR;
+		default:
+		case 1:
+			return D3DSTENCILOP_KEEP;
+		case 0:
+			return D3DSTENCILOP_ZERO;
+		case 3:
+			return D3DSTENCILOP_REPLACE;
+		case 4:
+			return D3DSTENCILOP_INCRSAT;
+		case 5:
+			return D3DSTENCILOP_DECRSAT;
+		case 6:
+			return D3DSTENCILOP_INVERT;
+		case 7:
+			return D3DSTENCILOP_INCR;
+		case 8:
+			return D3DSTENCILOP_DECR;
 		}
 	}
 
@@ -741,30 +741,30 @@ namespace reshade::d3d9
 
 		switch (texture.format)
 		{
-			case reshadefx::texture_format::r8:
-				for (UINT i = 0; i < size; i += 4, mapped_data += 4)
-					mapped_data[0] = 0,
-					mapped_data[1] = 0,
-					mapped_data[2] = data[i],
-					mapped_data[3] = 0;
-				break;
-			case reshadefx::texture_format::rg8:
-				for (UINT i = 0; i < size; i += 4, mapped_data += 4)
-					mapped_data[0] = 0,
-					mapped_data[1] = data[i + 1],
-					mapped_data[2] = data[i],
-					mapped_data[3] = 0;
-				break;
-			case reshadefx::texture_format::rgba8:
-				for (UINT i = 0; i < size; i += 4, mapped_data += 4)
-					mapped_data[0] = data[i + 2],
-					mapped_data[1] = data[i + 1],
-					mapped_data[2] = data[i],
-					mapped_data[3] = data[i + 3];
-				break;
-			default:
-				std::memcpy(mapped_data, data, size);
-				break;
+		case reshadefx::texture_format::r8:
+			for (UINT i = 0; i < size; i += 4, mapped_data += 4)
+				mapped_data[0] = 0,
+				mapped_data[1] = 0,
+				mapped_data[2] = data[i],
+				mapped_data[3] = 0;
+			break;
+		case reshadefx::texture_format::rg8:
+			for (UINT i = 0; i < size; i += 4, mapped_data += 4)
+				mapped_data[0] = 0,
+				mapped_data[1] = data[i + 1],
+				mapped_data[2] = data[i],
+				mapped_data[3] = 0;
+			break;
+		case reshadefx::texture_format::rgba8:
+			for (UINT i = 0; i < size; i += 4, mapped_data += 4)
+				mapped_data[0] = data[i + 2],
+				mapped_data[1] = data[i + 1],
+				mapped_data[2] = data[i],
+				mapped_data[3] = data[i + 3];
+			break;
+		default:
+			std::memcpy(mapped_data, data, size);
+			break;
 		}
 
 		mem_texture->UnlockRect(0);
@@ -783,14 +783,14 @@ namespace reshade::d3d9
 
 		switch (texture.impl_reference)
 		{
-			case texture_reference::back_buffer:
-				new_reference = _backbuffer_texture;
-				break;
-			case texture_reference::depth_buffer:
-				new_reference = get_depthstencil_texture();
-				break;
-			default:
-				return false;
+		case texture_reference::back_buffer:
+			new_reference = _backbuffer_texture;
+			break;
+		case texture_reference::depth_buffer:
+			new_reference = get_depthstencil_texture();
+			break;
+		default:
+			return false;
 		}
 
 		const auto texture_impl = texture.impl->as<d3d9_tex_data>();
@@ -855,16 +855,16 @@ namespace reshade::d3d9
 
 			switch (constant.type.base)
 			{
-				case reshadefx::type::t_int:
-					spec_constants += std::to_string(constant.initializer_value.as_int[0]);
-					break;
-				case reshadefx::type::t_bool:
-				case reshadefx::type::t_uint:
-					spec_constants += std::to_string(constant.initializer_value.as_uint[0]);
-					break;
-				case reshadefx::type::t_float:
-					spec_constants += std::to_string(constant.initializer_value.as_float[0]);
-					break;
+			case reshadefx::type::t_int:
+				spec_constants += std::to_string(constant.initializer_value.as_int[0]);
+				break;
+			case reshadefx::type::t_bool:
+			case reshadefx::type::t_uint:
+				spec_constants += std::to_string(constant.initializer_value.as_uint[0]);
+				break;
+			case reshadefx::type::t_float:
+				spec_constants += std::to_string(constant.initializer_value.as_float[0]);
+				break;
 			}
 
 			spec_constants += '\n';
@@ -971,54 +971,54 @@ namespace reshade::d3d9
 
 		switch (texture.format)
 		{
-			case reshadefx::texture_format::r8:
-				format = D3DFMT_A8R8G8B8;
-				break;
-			case reshadefx::texture_format::r16f:
-				format = D3DFMT_R16F;
-				break;
-			case reshadefx::texture_format::r32f:
-				format = D3DFMT_R32F;
-				break;
-			case reshadefx::texture_format::rg8:
-				format = D3DFMT_A8R8G8B8;
-				break;
-			case reshadefx::texture_format::rg16:
-				format = D3DFMT_G16R16;
-				break;
-			case reshadefx::texture_format::rg16f:
-				format = D3DFMT_G16R16F;
-				break;
-			case reshadefx::texture_format::rg32f:
-				format = D3DFMT_G32R32F;
-				break;
-			case reshadefx::texture_format::rgba8:
-				format = D3DFMT_A8R8G8B8;
-				break;
-			case reshadefx::texture_format::rgba16:
-				format = D3DFMT_A16B16G16R16;
-				break;
-			case reshadefx::texture_format::rgba16f:
-				format = D3DFMT_A16B16G16R16F;
-				break;
-			case reshadefx::texture_format::rgba32f:
-				format = D3DFMT_A32B32G32R32F;
-				break;
-			case reshadefx::texture_format::dxt1:
-				format = D3DFMT_DXT1;
-				break;
-			case reshadefx::texture_format::dxt3:
-				format = D3DFMT_DXT3;
-				break;
-			case reshadefx::texture_format::dxt5:
-				format = D3DFMT_DXT5;
-				break;
-			case reshadefx::texture_format::latc1:
-				format = D3DFMT_ATI1;
-				break;
-			case reshadefx::texture_format::latc2:
-				format = D3DFMT_ATI2;
-				break;
+		case reshadefx::texture_format::r8:
+			format = D3DFMT_A8R8G8B8;
+			break;
+		case reshadefx::texture_format::r16f:
+			format = D3DFMT_R16F;
+			break;
+		case reshadefx::texture_format::r32f:
+			format = D3DFMT_R32F;
+			break;
+		case reshadefx::texture_format::rg8:
+			format = D3DFMT_A8R8G8B8;
+			break;
+		case reshadefx::texture_format::rg16:
+			format = D3DFMT_G16R16;
+			break;
+		case reshadefx::texture_format::rg16f:
+			format = D3DFMT_G16R16F;
+			break;
+		case reshadefx::texture_format::rg32f:
+			format = D3DFMT_G32R32F;
+			break;
+		case reshadefx::texture_format::rgba8:
+			format = D3DFMT_A8R8G8B8;
+			break;
+		case reshadefx::texture_format::rgba16:
+			format = D3DFMT_A16B16G16R16;
+			break;
+		case reshadefx::texture_format::rgba16f:
+			format = D3DFMT_A16B16G16R16F;
+			break;
+		case reshadefx::texture_format::rgba32f:
+			format = D3DFMT_A32B32G32R32F;
+			break;
+		case reshadefx::texture_format::dxt1:
+			format = D3DFMT_DXT1;
+			break;
+		case reshadefx::texture_format::dxt3:
+			format = D3DFMT_DXT3;
+			break;
+		case reshadefx::texture_format::dxt5:
+			format = D3DFMT_DXT5;
+			break;
+		case reshadefx::texture_format::latc1:
+			format = D3DFMT_ATI1;
+			break;
+		case reshadefx::texture_format::latc2:
+			format = D3DFMT_ATI2;
+			break;
 		}
 
 		if (levels > 1)
