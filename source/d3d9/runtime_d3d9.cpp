@@ -1552,7 +1552,6 @@ namespace reshade::d3d9
 
 				for (const auto &it : _depth_clearing_table)
 				{
-					int crosire_count = (it.second.vertices_count * (1.2f - float(it.second.drawcall_count) / _drawcalls));
 					char label[512] = "";
 					sprintf_s(label, "%s%2u", (it.first == _preserve_starting_index ? "> " : "  "), it.first);
 
@@ -1571,7 +1570,7 @@ namespace reshade::d3d9
 
 					ImGui::SameLine();
 
-					ImGui::Text("0x%p | %ux%u : %u draw calls ==> %u vertices | crosire's count: %u", it.second.depthstencil, it.second.width, it.second.height, it.second.drawcall_count, it.second.vertices_count, crosire_count);
+					ImGui::Text("0x%p | %ux%u : %u draw calls ==> %u vertices", it.second.depthstencil, it.second.width, it.second.height, it.second.drawcall_count, it.second.vertices_count);
 					ImGui::Spacing();
 				}
 
