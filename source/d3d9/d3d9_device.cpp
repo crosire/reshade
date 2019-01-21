@@ -456,7 +456,24 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::EndScene()
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::Clear(DWORD Count, const D3DRECT *pRects, DWORD Flags, D3DCOLOR Color, float Z, DWORD Stencil)
 {
-	return _orig->Clear(Count, pRects, Flags, Color, Z, Stencil);
+	com_ptr<IDirect3DSurface9> depthstencil;
+	_orig->GetDepthStencilSurface(&depthstencil);
+	assert(_implicit_swapchain != nullptr);
+	assert(_implicit_swapchain->_runtime != nullptr);
+
+	if ((Flags & D3DCLEAR_ZBUFFER) != 0)
+	{
+		_implicit_swapchain->_runtime->before_clear(depthstencil);
+	}
+
+	const HRESULT hr = _orig->Clear(Count, pRects, Flags, Color, Z, Stencil);
+
+	if ((Flags & D3DCLEAR_ZBUFFER) != 0)
+	{
+		_implicit_swapchain->_runtime->after_clear(depthstencil);
+	}
+
+	return hr;
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetTransform(D3DTRANSFORMSTATETYPE State, const D3DMATRIX *pMatrix)
 {
