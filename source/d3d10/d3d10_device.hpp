@@ -136,7 +136,7 @@ struct D3D10Device : ID3D10Device1
 	LONG _ref = 1;
 	ID3D10Device1 *_orig;
 	struct DXGIDevice *_dxgi_device = nullptr;
-	std::vector<std::shared_ptr<reshade::d3d10::d3d10_runtime>> _runtimes;
+	std::vector<std::shared_ptr<reshade::d3d10::runtime_d3d10>> _runtimes;
 	com_ptr<ID3D10DepthStencilView> _active_depthstencil;
 	reshade::d3d10::draw_call_tracker _draw_call_tracker;
 	unsigned int _clear_DSV_iter = 1;

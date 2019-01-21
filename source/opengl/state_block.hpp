@@ -9,10 +9,10 @@
 
 namespace reshade::opengl
 {
-	class opengl_stateblock
+	class state_block
 	{
 	public:
-		opengl_stateblock();
+		state_block();
 
 		void capture();
 		void apply() const;
@@ -42,6 +42,8 @@ namespace reshade::opengl
 		GLint _cullface, _cullface_mode;
 		GLint _fbo;
 		GLint _srgb;
+		GLint clip_origin;
+		GLint clip_depthmode;
 		GLboolean _color_mask[4];
 		GLenum _drawbuffers[8];
 	};

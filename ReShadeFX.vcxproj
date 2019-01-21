@@ -21,7 +21,7 @@
   <PropertyGroup Label="Globals">
     <ProjectGuid>{D1C2099B-BEC7-4993-8947-01D4A1F7EAE2}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
-    <WindowsTargetPlatformVersion>10.0.16299.0</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformVersion>10.0.17763.0</WindowsTargetPlatformVersion>
     <ProjectName>ReShade FX</ProjectName>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
@@ -49,6 +49,7 @@
   <ImportGroup Label="PropertySheets">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
     <Import Project="Common.props" />
+    <Import Project="deps\SPIRV.props" />
   </ImportGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -135,20 +136,25 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="source\constant_folding.cpp" />
+    <ClCompile Include="source\effect_codegen_glsl.cpp" />
+    <ClCompile Include="source\effect_codegen_hlsl.cpp" />
+    <ClCompile Include="source\effect_codegen_spirv.cpp" />
+    <ClCompile Include="source\effect_expression.cpp" />
     <ClCompile Include="source\effect_lexer.cpp" />
     <ClCompile Include="source\effect_parser.cpp" />
     <ClCompile Include="source\effect_preprocessor.cpp" />
     <ClCompile Include="source\effect_symbol_table.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="source\effect_codegen.hpp" />
+    <ClInclude Include="source\effect_expression.hpp" />
     <ClInclude Include="source\effect_lexer.hpp" />
     <ClInclude Include="source\effect_parser.hpp" />
     <ClInclude Include="source\effect_preprocessor.hpp" />
     <ClInclude Include="source\effect_symbol_table.hpp" />
-    <ClInclude Include="source\effect_syntax_tree.hpp" />
-    <ClInclude Include="source\effect_syntax_tree_nodes.hpp" />
-    <ClInclude Include="source\source_location.hpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="source\effect_symbol_table_intrinsics.inl" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
 </Project>

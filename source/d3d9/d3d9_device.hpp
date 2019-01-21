@@ -6,6 +6,8 @@
 #pragma once
 
 #include "d3d9.hpp"
+#include "com_ptr.hpp"
+#include <vector>
 
 struct Direct3DDevice9 : IDirect3DDevice9Ex
 {

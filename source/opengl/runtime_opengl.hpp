@@ -6,7 +6,7 @@
 #pragma once
 
 #include "runtime.hpp"
-#include "opengl_stateblock.hpp"
+#include "state_block.hpp"
 
 namespace reshade::opengl
 {
@@ -23,6 +23,15 @@ namespace reshade::opengl
 		bool should_delete = false;
 		GLuint id[2] = { };
 	};
+
+	struct opengl_sampler_data
+	{
+		GLuint id;
+		opengl_tex_data *texture;
+		bool is_srgb;
+		bool has_mipmaps;
+	};
+
 	struct opengl_pass_data : base_object
 	{
 		~opengl_pass_data()
@@ -43,6 +52,7 @@ namespace reshade::opengl
 		GLboolean color_mask[4] = { };
 		bool srgb = false, blend = false, stencil_test = false, clear_render_targets = true;
 	};
+
 	struct opengl_technique_data : base_object
 	{
 		~opengl_technique_data()
@@ -52,44 +62,39 @@ namespace reshade::opengl
 
 		GLuint query = 0;
 		bool query_in_flight = false;
+		std::vector<opengl_sampler_data> samplers;
+		ptrdiff_t uniform_storage_offset = 0;
+		ptrdiff_t uniform_storage_index = -1;
 	};
 
-	struct opengl_sampler
-	{
-		GLuint id;
-		opengl_tex_data *texture;
-		bool is_srgb;
-		bool has_mipmaps;
-	};
-
-	class opengl_runtime : public runtime
+	class runtime_opengl : public runtime
 	{
 	public:
-		opengl_runtime(HDC device);
+		runtime_opengl(HDC device);
 
 		bool on_init(unsigned int width, unsigned int height);
 		void on_reset();
-		void on_reset_effect() override;
 		void on_present();
 		void on_draw_call(unsigned int vertices);
 		void on_fbo_attachment(GLenum target, GLenum attachment, GLenum objecttarget, GLuint object, GLint level);
 
 		void capture_frame(uint8_t *buffer) const override;
-		bool load_effect(const reshadefx::syntax_tree &ast, std::string &errors) override;
-		bool update_texture(texture &texture, const uint8_t *data) override;
-		bool update_texture_reference(texture &texture, texture_reference id);
+		void update_texture(texture &texture, const uint8_t *data) override;
+		bool update_texture_reference(texture &texture);
+
+		bool compile_effect(effect_data &effect) override;
+		void unload_effects() override;
 
 		void render_technique(const technique &technique) override;
-		void render_imgui_draw_data(ImDrawData *data) override;
 
 		HDC _hdc;
 
 		GLuint _reference_count = 1, _current_vertex_count = 0;
 		GLuint _default_backbuffer_fbo = 0, _default_backbuffer_rbo[2] = { }, _backbuffer_texture[2] = { };
 		GLuint _depth_source_fbo = 0, _depth_source = 0, _depth_texture = 0, _blit_fbo = 0;
-		std::vector<struct opengl_sampler> _effect_samplers;
 		GLuint _default_vao = 0;
 		std::vector<std::pair<GLuint, GLsizeiptr>> _effect_ubos;
+		std::unordered_map<size_t, GLuint> _effect_sampler_states;
 
 	private:
 		struct depth_source_info
@@ -102,13 +107,20 @@ namespace reshade::opengl
 		bool init_backbuffer_texture();
 		bool init_default_depth_stencil();
 		bool init_fx_resources();
+
+		bool add_sampler(const reshadefx::sampler_info &info, opengl_technique_data &effect);
+		bool init_texture(texture &info) override;
+		bool init_technique(technique &info, const opengl_technique_data &effect, const std::unordered_map<std::string, GLuint> &entry_points, std::string &errors);
+
+#if RESHADE_GUI
 		bool init_imgui_resources();
-		bool init_imgui_font_atlas();
+		void render_imgui_draw_data(ImDrawData *data) override;
+#endif
 
 		void detect_depth_source();
 		void create_depth_texture(GLuint width, GLuint height, GLenum format);
 
-		opengl_stateblock _stateblock;
+		state_block _stateblock;
 		std::unordered_map<GLuint, depth_source_info> _depth_source_table;
 
 		GLuint _imgui_shader_program = 0, _imgui_VertHandle = 0, _imgui_FragHandle = 0;

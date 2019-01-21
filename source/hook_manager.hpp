@@ -6,7 +6,7 @@
 #pragma once
 
 #include "hook.hpp"
-#include "filesystem.hpp"
+#include <filesystem>
 
 #define HOOK_EXPORT extern "C"
 
@@ -43,12 +43,13 @@ namespace reshade::hooks
 	/// Only call this function as long as the loader-lock is active, since it is not thread-safe.
 	/// </summary>
 	void uninstall();
+
 	/// <summary>
 	/// Register the matching exports in the specified module and install or delay their hooking.
 	/// Only call this function as long as the loader-lock is active, since it is not thread-safe.
 	/// </summary>
 	/// <param name="path">The file path to the target module.</param>
-	void register_module(const filesystem::path &path);
+	void register_module(const std::filesystem::path &path);
 
 	/// <summary>
 	/// Call the original/trampoline function for the specified hook.

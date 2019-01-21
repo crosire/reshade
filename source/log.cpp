@@ -58,9 +58,9 @@ namespace reshade::log
 		s_mutex.unlock();
 	}
 
-	bool open(const filesystem::path &path)
+	bool open(const std::filesystem::path &path)
 	{
-		stream.open(path.wstring(), std::ios::out | std::ios::trunc);
+		stream.open(path, std::ios::out | std::ios::trunc);
 
 		if (!stream.is_open())
 		{

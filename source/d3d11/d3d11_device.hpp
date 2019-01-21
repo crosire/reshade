@@ -7,6 +7,7 @@
 
 #include "d3d11.hpp"
 #include "draw_call_tracker.hpp"
+#include <mutex>
 
 struct D3D11Device : ID3D11Device3
 {
@@ -112,7 +113,7 @@ struct D3D11Device : ID3D11Device3
 	unsigned int _interface_version;
 	struct DXGIDevice *_dxgi_device = nullptr;
 	D3D11DeviceContext *_immediate_context = nullptr;
-	std::vector<std::shared_ptr<reshade::d3d11::d3d11_runtime>> _runtimes;
+	std::vector<std::shared_ptr<reshade::d3d11::runtime_d3d11>> _runtimes;
 	std::unordered_map<ID3D11CommandList *, reshade::d3d11::draw_call_tracker> _trackers_per_commandlist;
 	std::mutex _trackers_per_commandlist_mutex;
 	unsigned int _clear_DSV_iter = 1;

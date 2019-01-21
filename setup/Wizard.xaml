@@ -72,7 +72,7 @@
 					Grid.Column="0"
 					HorizontalAlignment="Center"
 					FontSize="14"
-					Text="Select game" />
+					Text="Select game to install to or uninstall from" />
 				<TextBlock
 					x:Name="MessageDescription"
 					Grid.Row="1"
@@ -80,7 +80,7 @@
 					HorizontalAlignment="Center"
 					FontSize="10"
 					TextWrapping="WrapWithOverflow"
-					Text="(Press 'Ctrl' while clicking to extract binaries for manual installation)"/>
+					Visibility="Collapsed" />
 			</Grid>
 		</Button>
 	</DockPanel>

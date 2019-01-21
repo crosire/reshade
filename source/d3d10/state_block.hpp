@@ -5,16 +5,16 @@
 
 #pragma once
 
+#include "com_ptr.hpp"
 #include <d3d10_1.h>
-#include <com_ptr.hpp>
 
 namespace reshade::d3d10
 {
-	class d3d10_stateblock
+	class state_block
 	{
 	public:
-		explicit d3d10_stateblock(ID3D10Device *device);
-		~d3d10_stateblock();
+		explicit state_block(ID3D10Device *device);
+		~state_block();
 
 		void capture();
 		void apply_and_release();

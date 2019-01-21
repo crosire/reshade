@@ -6,6 +6,7 @@
 #include "log.hpp"
 #include "d3d11_device.hpp"
 #include "d3d11_device_context.hpp"
+#include "runtime_d3d11.hpp"
 
 void D3D11DeviceContext::clear_drawcall_stats()
 {

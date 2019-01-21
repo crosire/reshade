@@ -6,6 +6,7 @@
 #include "log.hpp"
 #include "d3d9_device.hpp"
 #include "d3d9_swapchain.hpp"
+#include "runtime_d3d9.hpp"
 
 // IDirect3DSwapChain9
 HRESULT STDMETHODCALLTYPE Direct3DSwapChain9::QueryInterface(REFIID riid, void **ppvObj)

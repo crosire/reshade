@@ -25,11 +25,19 @@
       <Configuration>Release</Configuration>
       <Platform>x64</Platform>
     </ProjectConfiguration>
+    <ProjectConfiguration Include="Release App|Win32">
+      <Configuration>Release App</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release App|x64">
+      <Configuration>Release App</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{0401ADF5-D085-4A3D-95B2-D9B7896BB338}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
-    <WindowsTargetPlatformVersion>10.0.16299.0</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformVersion>10.0.17763.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Label="Configuration">
@@ -58,6 +66,12 @@
     <LinkIncremental>false</LinkIncremental>
     <WholeProgramOptimization>true</WholeProgramOptimization>
   </PropertyGroup>
+  <PropertyGroup Label="Configuration" Condition="'$(Configuration)'=='Release App'">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <LinkIncremental>false</LinkIncremental>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+  </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ImportGroup Label="PropertySheets">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
@@ -68,6 +82,7 @@
     <Import Project="deps\stb.props" />
     <Import Project="deps\ImGui.props" />
     <Import Project="deps\utfcpp.props" />
+    <Import Project="deps\SPIRV.props" />
   </ImportGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -75,11 +90,11 @@
       <SDLCheck>true</SDLCheck>
       <Optimization>Disabled</Optimization>
       <AdditionalIncludeDirectories>$(SolutionDir)res;$(SolutionDir)source;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>RESHADE_VERBOSE_LOG;WIN32_LEAN_AND_MEAN;NOMINMAX;_SILENCE_ALL_CXX17_DEPRECATION_WARNINGS;_GDI32_;WINSOCK_API_LINKAGE=;WIN32;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>RESHADE_GUI;RESHADE_VERBOSE_LOG;WIN32_LEAN_AND_MEAN;NOMINMAX;_SILENCE_ALL_CXX17_DEPRECATION_WARNINGS;_GDI32_;WINSOCK_API_LINKAGE=;WIN32;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <DisableSpecificWarnings>4351;%(DisableSpecificWarnings)</DisableSpecificWarnings>
       <ObjectFileName>$(IntDir)%(RelativeDir)</ObjectFileName>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
-      <AdditionalOptions>/std:c++latest %(AdditionalOptions)</AdditionalOptions>
+      <LanguageStandard>stdcpplatest</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -104,11 +119,11 @@
       <SDLCheck>true</SDLCheck>
       <Optimization>Disabled</Optimization>
       <AdditionalIncludeDirectories>$(SolutionDir)res;$(SolutionDir)source;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>RESHADE_VERBOSE_LOG;WIN32_LEAN_AND_MEAN;NOMINMAX;_SILENCE_ALL_CXX17_DEPRECATION_WARNINGS;_GDI32_;WINSOCK_API_LINKAGE=;WIN64;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>RESHADE_GUI;RESHADE_VERBOSE_LOG;WIN32_LEAN_AND_MEAN;NOMINMAX;_SILENCE_ALL_CXX17_DEPRECATION_WARNINGS;_GDI32_;WINSOCK_API_LINKAGE=;WIN64;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <DisableSpecificWarnings>4351;%(DisableSpecificWarnings)</DisableSpecificWarnings>
       <ObjectFileName>$(IntDir)%(RelativeDir)</ObjectFileName>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
-      <AdditionalOptions>/std:c++latest %(AdditionalOptions)</AdditionalOptions>
+      <LanguageStandard>stdcpplatest</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -133,11 +148,11 @@
       <SDLCheck>true</SDLCheck>
       <Optimization>Disabled</Optimization>
       <AdditionalIncludeDirectories>$(SolutionDir)res;$(SolutionDir)source;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>RESHADE_TEST_APPLICATION=2;RESHADE_VERBOSE_LOG;RESHADE_DUMP_NATIVE_SHADERS;D3D_DEBUG_INFO;WIN32_LEAN_AND_MEAN;NOMINMAX;_SILENCE_ALL_CXX17_DEPRECATION_WARNINGS;_GDI32_;WINSOCK_API_LINKAGE=;WIN32;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>RESHADE_GUI;RESHADE_TEST_APPLICATION;RESHADE_VERBOSE_LOG;D3D_DEBUG_INFO;WIN32_LEAN_AND_MEAN;NOMINMAX;_SILENCE_ALL_CXX17_DEPRECATION_WARNINGS;_GDI32_;WINSOCK_API_LINKAGE=;WIN32;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <DisableSpecificWarnings>4351;%(DisableSpecificWarnings)</DisableSpecificWarnings>
       <ObjectFileName>$(IntDir)%(RelativeDir)</ObjectFileName>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
-      <AdditionalOptions>/std:c++latest %(AdditionalOptions)</AdditionalOptions>
+      <LanguageStandard>stdcpplatest</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -162,11 +177,11 @@
       <SDLCheck>true</SDLCheck>
       <Optimization>Disabled</Optimization>
       <AdditionalIncludeDirectories>$(SolutionDir)res;$(SolutionDir)source;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>RESHADE_TEST_APPLICATION=2;RESHADE_VERBOSE_LOG;RESHADE_DUMP_NATIVE_SHADERS;D3D_DEBUG_INFO;WIN32_LEAN_AND_MEAN;NOMINMAX;_SILENCE_ALL_CXX17_DEPRECATION_WARNINGS;_GDI32_;WINSOCK_API_LINKAGE=;WIN64;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>RESHADE_GUI;RESHADE_TEST_APPLICATION;RESHADE_VERBOSE_LOG;D3D_DEBUG_INFO;WIN32_LEAN_AND_MEAN;NOMINMAX;_SILENCE_ALL_CXX17_DEPRECATION_WARNINGS;_GDI32_;WINSOCK_API_LINKAGE=;WIN64;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <DisableSpecificWarnings>4351;%(DisableSpecificWarnings)</DisableSpecificWarnings>
       <ObjectFileName>$(IntDir)%(RelativeDir)</ObjectFileName>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
-      <AdditionalOptions>/std:c++latest %(AdditionalOptions)</AdditionalOptions>
+      <LanguageStandard>stdcpplatest</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -193,11 +208,11 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <AdditionalIncludeDirectories>$(SolutionDir)res;$(SolutionDir)source;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>WIN32_LEAN_AND_MEAN;NOMINMAX;_SILENCE_ALL_CXX17_DEPRECATION_WARNINGS;_GDI32_;WINSOCK_API_LINKAGE=;WIN32;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>RESHADE_GUI;WIN32_LEAN_AND_MEAN;NOMINMAX;_SILENCE_ALL_CXX17_DEPRECATION_WARNINGS;_GDI32_;WINSOCK_API_LINKAGE=;WIN32;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <DisableSpecificWarnings>4351;%(DisableSpecificWarnings)</DisableSpecificWarnings>
       <ObjectFileName>$(IntDir)%(RelativeDir)</ObjectFileName>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
-      <AdditionalOptions>/std:c++latest %(AdditionalOptions)</AdditionalOptions>
+      <LanguageStandard>stdcpplatest</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -226,11 +241,11 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <AdditionalIncludeDirectories>$(SolutionDir)res;$(SolutionDir)source;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>WIN32_LEAN_AND_MEAN;NOMINMAX;_SILENCE_ALL_CXX17_DEPRECATION_WARNINGS;_GDI32_;WINSOCK_API_LINKAGE=;WIN64;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>RESHADE_GUI;WIN32_LEAN_AND_MEAN;NOMINMAX;_SILENCE_ALL_CXX17_DEPRECATION_WARNINGS;_GDI32_;WINSOCK_API_LINKAGE=;WIN64;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <DisableSpecificWarnings>4351;%(DisableSpecificWarnings)</DisableSpecificWarnings>
       <ObjectFileName>$(IntDir)%(RelativeDir)</ObjectFileName>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
-      <AdditionalOptions>/std:c++latest %(AdditionalOptions)</AdditionalOptions>
+      <LanguageStandard>stdcpplatest</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -250,6 +265,68 @@
     <PreBuildEvent>
       <Command>tools\verbuild res\version.h *.*.*.+ -xFP -b0.0.0.0 -s</Command>
     </PreBuildEvent>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release App|Win32'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <SDLCheck>true</SDLCheck>
+      <Optimization>MaxSpeed</Optimization>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <AdditionalIncludeDirectories>$(SolutionDir)res;$(SolutionDir)source;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>RESHADE_TEST_APPLICATION;RESHADE_VERBOSE_LOG;WIN32_LEAN_AND_MEAN;NOMINMAX;_SILENCE_ALL_CXX17_DEPRECATION_WARNINGS;_GDI32_;WINSOCK_API_LINKAGE=;WIN32;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <DisableSpecificWarnings>4351;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+      <ObjectFileName>$(IntDir)%(RelativeDir)</ObjectFileName>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <LanguageStandard>stdcpplatest</LanguageStandard>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>false</GenerateDebugInformation>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+      <AdditionalLibraryDirectories>$(SolutionDir)bin\$(Platform)\$(Configuration);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <ModuleDefinitionFile>res\exports.def</ModuleDefinitionFile>
+      <Profile>true</Profile>
+    </Link>
+    <FxCompile>
+      <ShaderModel>4.0</ShaderModel>
+      <ObjectFileOutput>$(SolutionDir)res\%(Filename).cso</ObjectFileOutput>
+    </FxCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>WIN32;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ResourceCompile>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release App|x64'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <SDLCheck>true</SDLCheck>
+      <Optimization>MaxSpeed</Optimization>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <AdditionalIncludeDirectories>$(SolutionDir)res;$(SolutionDir)source;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>RESHADE_TEST_APPLICATION;RESHADE_VERBOSE_LOG;WIN32_LEAN_AND_MEAN;NOMINMAX;_SILENCE_ALL_CXX17_DEPRECATION_WARNINGS;_GDI32_;WINSOCK_API_LINKAGE=;WIN64;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <DisableSpecificWarnings>4351;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+      <ObjectFileName>$(IntDir)%(RelativeDir)</ObjectFileName>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <LanguageStandard>stdcpplatest</LanguageStandard>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>false</GenerateDebugInformation>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+      <AdditionalLibraryDirectories>$(SolutionDir)bin\$(Platform)\$(Configuration);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <ModuleDefinitionFile>res\exports.def</ModuleDefinitionFile>
+      <Profile>true</Profile>
+    </Link>
+    <FxCompile>
+      <ShaderModel>4.0</ShaderModel>
+      <ObjectFileOutput>$(SolutionDir)res\%(Filename).cso</ObjectFileOutput>
+    </FxCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>WIN64;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ResourceCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ProjectReference Include="deps\gl3w.vcxproj">
@@ -271,42 +348,37 @@
   <ItemGroup>
     <ClCompile Include="source\d3d10\d3d10.cpp" />
     <ClCompile Include="source\d3d10\d3d10_device.cpp" />
-    <ClCompile Include="source\d3d10\d3d10_effect_compiler.cpp" />
-    <ClCompile Include="source\d3d10\d3d10_runtime.cpp" />
-    <ClCompile Include="source\d3d10\d3d10_stateblock.cpp" />
+    <ClCompile Include="source\d3d10\runtime_d3d10.cpp" />
+    <ClCompile Include="source\d3d10\state_block.cpp" />
     <ClCompile Include="source\d3d10\draw_call_tracker.cpp" />
     <ClCompile Include="source\d3d11\d3d11.cpp" />
     <ClCompile Include="source\d3d11\d3d11_device.cpp" />
     <ClCompile Include="source\d3d11\d3d11_device_context.cpp" />
-    <ClCompile Include="source\d3d11\d3d11_effect_compiler.cpp" />
-    <ClCompile Include="source\d3d11\d3d11_runtime.cpp" />
-    <ClCompile Include="source\d3d11\d3d11_stateblock.cpp" />
+    <ClCompile Include="source\d3d11\runtime_d3d11.cpp" />
+    <ClCompile Include="source\d3d11\state_block.cpp" />
     <ClCompile Include="source\d3d11\draw_call_tracker.cpp" />
     <ClCompile Include="source\d3d9\d3d9.cpp" />
     <ClCompile Include="source\d3d9\d3d9_device.cpp" />
-    <ClCompile Include="source\d3d9\d3d9_effect_compiler.cpp" />
-    <ClCompile Include="source\d3d9\d3d9_runtime.cpp" />
+    <ClCompile Include="source\d3d9\runtime_d3d9.cpp" />
     <ClCompile Include="source\d3d9\d3d9_swapchain.cpp" />
-    <ClCompile Include="source\directory_watcher.cpp" />
     <ClCompile Include="source\dxgi\dxgi.cpp" />
     <ClCompile Include="source\dxgi\dxgi_device.cpp" />
     <ClCompile Include="source\dxgi\dxgi_swapchain.cpp" />
-    <ClCompile Include="source\filesystem.cpp" />
     <ClCompile Include="source\gui.cpp" />
+    <ClCompile Include="source\gui_code_editor.cpp" />
+    <ClCompile Include="source\gui_widgets.cpp" />
     <ClCompile Include="source\hook.cpp" />
     <ClCompile Include="source\hook_manager.cpp" />
     <ClCompile Include="source\ini_file.cpp" />
     <ClCompile Include="source\input.cpp" />
     <ClCompile Include="source\log.cpp" />
     <ClCompile Include="source\dllmain.cpp" />
-    <ClCompile Include="source\opengl\opengl_effect_compiler.cpp" />
-    <ClCompile Include="source\opengl\opengl_runtime.cpp" />
-    <ClCompile Include="source\opengl\opengl_stateblock.cpp" />
+    <ClCompile Include="source\opengl\runtime_opengl.cpp" />
+    <ClCompile Include="source\opengl\state_block.cpp" />
     <ClCompile Include="source\opengl\stubs_gl.cpp" />
     <ClCompile Include="source\opengl\stubs_wgl.cpp" />
     <ClCompile Include="source\resource_loading.cpp" />
     <ClCompile Include="source\runtime.cpp" />
-    <ClCompile Include="source\runtime_objects.cpp" />
     <ClCompile Include="source\update_check.cpp" />
     <ClCompile Include="source\windows\user32.cpp" />
     <ClCompile Include="source\windows\ws2_32.cpp" />
@@ -317,36 +389,32 @@
     <ClInclude Include="source\com_ptr.hpp" />
     <ClInclude Include="source\d3d10\d3d10.hpp" />
     <ClInclude Include="source\d3d10\d3d10_device.hpp" />
-    <ClInclude Include="source\d3d10\d3d10_effect_compiler.hpp" />
-    <ClInclude Include="source\d3d10\d3d10_runtime.hpp" />
-    <ClInclude Include="source\d3d10\d3d10_stateblock.hpp" />
+    <ClInclude Include="source\d3d10\runtime_d3d10.hpp" />
+    <ClInclude Include="source\d3d10\state_block.hpp" />
     <ClInclude Include="source\d3d10\draw_call_tracker.hpp" />
     <ClInclude Include="source\d3d11\d3d11.hpp" />
     <ClInclude Include="source\d3d11\d3d11_device.hpp" />
     <ClInclude Include="source\d3d11\d3d11_device_context.hpp" />
-    <ClInclude Include="source\d3d11\d3d11_effect_compiler.hpp" />
-    <ClInclude Include="source\d3d11\d3d11_runtime.hpp" />
-    <ClInclude Include="source\d3d11\d3d11_stateblock.hpp" />
+    <ClInclude Include="source\d3d11\runtime_d3d11.hpp" />
+    <ClInclude Include="source\d3d11\state_block.hpp" />
     <ClInclude Include="source\d3d11\draw_call_tracker.hpp" />
     <ClInclude Include="source\d3d9\d3d9.hpp" />
     <ClInclude Include="source\d3d9\d3d9_device.hpp" />
-    <ClInclude Include="source\d3d9\d3d9_effect_compiler.hpp" />
-    <ClInclude Include="source\d3d9\d3d9_runtime.hpp" />
+    <ClInclude Include="source\d3d9\runtime_d3d9.hpp" />
     <ClInclude Include="source\d3d9\d3d9_swapchain.hpp" />
-    <ClInclude Include="source\directory_watcher.hpp" />
     <ClInclude Include="source\dxgi\dxgi.hpp" />
     <ClInclude Include="source\dxgi\dxgi_device.hpp" />
     <ClInclude Include="source\dxgi\dxgi_swapchain.hpp" />
-    <ClInclude Include="source\filesystem.hpp" />
+    <ClInclude Include="source\gui_code_editor.hpp" />
+    <ClInclude Include="source\gui_widgets.hpp" />
     <ClInclude Include="source\hook.hpp" />
     <ClInclude Include="source\hook_manager.hpp" />
     <ClInclude Include="source\ini_file.hpp" />
     <ClInclude Include="source\input.hpp" />
     <ClInclude Include="source\log.hpp" />
     <ClInclude Include="source\moving_average.hpp" />
-    <ClInclude Include="source\opengl\opengl_effect_compiler.hpp" />
-    <ClInclude Include="source\opengl\opengl_runtime.hpp" />
-    <ClInclude Include="source\opengl\opengl_stateblock.hpp" />
+    <ClInclude Include="source\opengl\runtime_opengl.hpp" />
+    <ClInclude Include="source\opengl\state_block.hpp" />
     <ClInclude Include="source\opengl\opengl_stubs.hpp" />
     <ClInclude Include="source\opengl\opengl_stubs_internal.hpp" />
     <ClInclude Include="source\resource_loading.hpp" />

@@ -8,8 +8,8 @@
 #include <fstream>
 #include <iomanip>
 #include <sstream>
+#include <filesystem>
 #include <utf8/unchecked.h>
-#include "filesystem.hpp"
 
 #define LOG(LEVEL) LOG_##LEVEL()
 #define LOG_INFO() reshade::log::message(reshade::log::level::info)
@@ -73,5 +73,5 @@ namespace reshade::log
 	/// Open a log file for writing.
 	/// </summary>
 	/// <param name="path">The path to the log file.</param>
-	bool open(const filesystem::path &path);
+	bool open(const std::filesystem::path &path);
 }

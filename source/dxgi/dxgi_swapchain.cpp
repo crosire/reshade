@@ -6,6 +6,8 @@
 #include "log.hpp"
 #include "dxgi_swapchain.hpp"
 #include "../d3d11/d3d11_device_context.hpp"
+#include "d3d10/runtime_d3d10.hpp"
+#include "d3d11/runtime_d3d11.hpp"
 #include <algorithm>
 
 void DXGISwapChain::perform_present(UINT PresentFlags)
@@ -18,12 +20,12 @@ void DXGISwapChain::perform_present(UINT PresentFlags)
 		{
 		case 10:
 			assert(_runtime != nullptr);
-			std::static_pointer_cast<reshade::d3d10::d3d10_runtime>(_runtime)->on_present(static_cast<D3D10Device *>(_direct3d_device)->_draw_call_tracker);
+			std::static_pointer_cast<reshade::d3d10::runtime_d3d10>(_runtime)->on_present(static_cast<D3D10Device *>(_direct3d_device)->_draw_call_tracker);
 			clear_drawcall_stats();
 			break;
 		case 11:
 			assert(_runtime != nullptr);
-			std::static_pointer_cast<reshade::d3d11::d3d11_runtime>(_runtime)->on_present(static_cast<D3D11Device *>(_direct3d_device)->_immediate_context->_draw_call_tracker);
+			std::static_pointer_cast<reshade::d3d11::runtime_d3d11>(_runtime)->on_present(static_cast<D3D11Device *>(_direct3d_device)->_immediate_context->_draw_call_tracker);
 			clear_drawcall_stats();
 			break;
 		}
@@ -169,7 +171,7 @@ ULONG STDMETHODCALLTYPE DXGISwapChain::Release()
 				assert(_runtime != nullptr);
 
 				auto &runtimes = static_cast<D3D10Device *>(_direct3d_device)->_runtimes;
-				const auto runtime = std::static_pointer_cast<reshade::d3d10::d3d10_runtime>(_runtime);
+				const auto runtime = std::static_pointer_cast<reshade::d3d10::runtime_d3d10>(_runtime);
 				runtime->on_reset();
 
 				runtimes.erase(std::remove(runtimes.begin(), runtimes.end(), runtime), runtimes.end());
@@ -182,7 +184,7 @@ ULONG STDMETHODCALLTYPE DXGISwapChain::Release()
 				clear_drawcall_stats();
 
 				auto &runtimes = static_cast<D3D11Device *>(_direct3d_device)->_runtimes;
-				const auto runtime = std::static_pointer_cast<reshade::d3d11::d3d11_runtime>(_runtime);
+				const auto runtime = std::static_pointer_cast<reshade::d3d11::runtime_d3d11>(_runtime);
 				runtime->on_reset();
 
 				runtimes.erase(std::remove(runtimes.begin(), runtimes.end(), runtime), runtimes.end());
@@ -272,12 +274,12 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers(UINT BufferCount, UINT Wi
 	{
 		case 10:
 			assert(_runtime != nullptr);
-			std::static_pointer_cast<reshade::d3d10::d3d10_runtime>(_runtime)->on_reset();
+			std::static_pointer_cast<reshade::d3d10::runtime_d3d10>(_runtime)->on_reset();
 			break;
 		case 11:
 			assert(_runtime != nullptr);
 			clear_drawcall_stats();
-			std::static_pointer_cast<reshade::d3d11::d3d11_runtime>(_runtime)->on_reset();
+			std::static_pointer_cast<reshade::d3d11::runtime_d3d11>(_runtime)->on_reset();
 			break;
 	}
 
@@ -303,11 +305,11 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers(UINT BufferCount, UINT Wi
 	{
 		case 10:
 			assert(_runtime != nullptr);
-			initialized = std::static_pointer_cast<reshade::d3d10::d3d10_runtime>(_runtime)->on_init(desc);
+			initialized = std::static_pointer_cast<reshade::d3d10::runtime_d3d10>(_runtime)->on_init(desc);
 			break;
 		case 11:
 			assert(_runtime != nullptr);
-			initialized = std::static_pointer_cast<reshade::d3d11::d3d11_runtime>(_runtime)->on_init(desc);
+			initialized = std::static_pointer_cast<reshade::d3d11::runtime_d3d11>(_runtime)->on_init(desc);
 			break;
 	}
 
@@ -476,12 +478,12 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers1(UINT BufferCount, UINT W
 	{
 		case 10:
 			assert(_runtime != nullptr);
-			std::static_pointer_cast<reshade::d3d10::d3d10_runtime>(_runtime)->on_reset();
+			std::static_pointer_cast<reshade::d3d10::runtime_d3d10>(_runtime)->on_reset();
 			break;
 		case 11:
 			assert(_runtime != nullptr);
 			clear_drawcall_stats();
-			std::static_pointer_cast<reshade::d3d11::d3d11_runtime>(_runtime)->on_reset();
+			std::static_pointer_cast<reshade::d3d11::runtime_d3d11>(_runtime)->on_reset();
 			break;
 	}
 
@@ -507,11 +509,11 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers1(UINT BufferCount, UINT W
 	{
 		case 10:
 			assert(_runtime != nullptr);
-			initialized = std::static_pointer_cast<reshade::d3d10::d3d10_runtime>(_runtime)->on_init(desc);
+			initialized = std::static_pointer_cast<reshade::d3d10::runtime_d3d10>(_runtime)->on_init(desc);
 			break;
 		case 11:
 			assert(_runtime != nullptr);
-			initialized = std::static_pointer_cast<reshade::d3d11::d3d11_runtime>(_runtime)->on_init(desc);
+			initialized = std::static_pointer_cast<reshade::d3d11::runtime_d3d11>(_runtime)->on_init(desc);
 			break;
 	}
 

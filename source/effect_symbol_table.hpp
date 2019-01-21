@@ -5,22 +5,12 @@
 
 #pragma once
 
-#include <stack>
-#include <unordered_map>
-#include <string>
+#include "effect_expression.hpp"
 
 namespace reshadefx
 {
-	#pragma region Forward Declarations
-	namespace nodes
-	{
-		struct declaration_node;
-		struct call_expression_node;
-	}
-	#pragma endregion
-
 	/// <summary>
-	/// A scope encapsulating a list of symbols.
+	/// A scope encapsulating symbols
 	/// </summary>
 	struct scope
 	{
@@ -29,34 +19,84 @@ namespace reshadefx
 	};
 
 	/// <summary>
-	/// A single symbol in the symbol table.
+	/// Enumeration of all possible symbol types
 	/// </summary>
-	using symbol = nodes::declaration_node *;
+	enum class symbol_type
+	{
+		invalid,
+		variable,
+		constant,
+		function,
+		intrinsic,
+		structure,
+	};
 
 	/// <summary>
-	/// A symbol table managing a list of scopes and symbols.
+	/// A single symbol in the symbol table
+	/// </summary>
+	struct symbol
+	{
+		symbol_type op = symbol_type::invalid;
+		uint32_t id = 0;
+		type type = {};
+		constant constant = {};
+		const function_info *function = nullptr;
+	};
+
+	/// <summary>
+	/// A symbol table managing a list of scopes and symbols
 	/// </summary>
 	class symbol_table
 	{
 	public:
 		symbol_table();
 
-		void enter_scope(symbol parent = nullptr);
+		/// <summary>
+		/// Enter a new scope as child of the current one.
+		/// </summary>
+		void enter_scope();
+		/// <summary>
+		/// Enter a new namespace as child of the current one.
+		/// </summary>
 		void enter_namespace(const std::string &name);
+		/// <summary>
+		/// Leave the current scope and enter the parent one.
+		/// </summary>
 		void leave_scope();
+		/// <summary>
+		/// Leave the current namespace and enter the parent one.
+		/// </summary>
 		void leave_namespace();
 
-		symbol current_parent() const { return _parent_stack.empty() ? nullptr : _parent_stack.top(); }
+		/// <summary>
+		/// Get the current scope the symbol table operates in.
+		/// </summary>
+		/// <returns></returns>
 		const scope &current_scope() const { return _current_scope; }
 
-		bool insert(symbol symbol, bool global = false);
-		symbol find(const std::string &name) const;
-		symbol find(const std::string &name, const scope &scope, bool exclusive) const;
-		bool resolve_call(nodes::call_expression_node *call, const scope &scope, bool &intrinsic, bool &ambiguous) const;
+		/// <summary>
+		/// Insert an new symbol in the symbol table. Returns <c>false</c> if a symbol by that name and type already exists.
+		/// </summary>
+		bool insert_symbol(const std::string &name, const symbol &symbol, bool global = false);
+
+		/// <summary>
+		/// Look for an existing symbol with the specified <paramref name="name"/>.
+		/// </summary>
+		symbol find_symbol(const std::string &name) const;
+		symbol find_symbol(const std::string &name, const scope &scope, bool exclusive) const;
+
+		/// <summary>
+		/// Search for the best function or intrinsic overload matching the argument list.
+		/// </summary>
+		bool resolve_function_call(const std::string &name, const std::vector<expression> &args, const scope &scope, symbol &data, bool &ambiguous) const;
 
 	private:
+		struct scoped_symbol : symbol {
+			scope scope; // Store scope with symbol data
+		};
+
 		scope _current_scope;
-		std::stack<symbol> _parent_stack;
-		std::unordered_map<std::string, std::vector<std::pair<scope, symbol>>> _symbol_stack;
+		std::unordered_map<std::string, // Lookup table from name to matching symbols
+			std::vector<scoped_symbol>> _symbol_stack;
 	};
 }

@@ -5,16 +5,16 @@
 
 #pragma once
 
+#include "com_ptr.hpp"
 #include <d3d11_1.h>
-#include <com_ptr.hpp>
 
 namespace reshade::d3d11
 {
-	class d3d11_stateblock
+	class state_block
 	{
 	public:
-		explicit d3d11_stateblock(ID3D11Device *device);
-		~d3d11_stateblock();
+		explicit state_block(ID3D11Device *device);
+		~state_block();
 
 		void capture(ID3D11DeviceContext *devicecontext);
 		void apply_and_release();

@@ -6,6 +6,7 @@
 #include "log.hpp"
 #include "d3d10_device.hpp"
 #include "../dxgi/dxgi_device.hpp"
+#include "runtime_d3d10.hpp"
 
 void D3D10Device::clear_drawcall_stats()
 {
@@ -82,7 +83,6 @@ bool D3D10Device::save_depth_texture(ID3D10DepthStencilView *pDepthStencilView, 
 		_draw_call_tracker.track_depth_texture(runtime->depth_buffer_texture_format, this->_clear_DSV_iter, texture.get(), pDepthStencilView, nullptr, cleared);
 	}
 
-	// TODO: This is unsafe if multiple device contexts are used on multiple threads
 	this->_clear_DSV_iter++;
 
 	return true;

@@ -5,7 +5,7 @@
 
 #include "log.hpp"
 #include "hook_manager.hpp"
-#include "opengl_runtime.hpp"
+#include "runtime_opengl.hpp"
 #include "opengl_stubs_internal.hpp"
 #include <assert.h>
 #include <mutex>
@@ -19,7 +19,7 @@ static std::mutex s_mutex;
 static std::unordered_map<HWND, RECT> s_window_rects;
 static std::unordered_set<HDC> s_pbuffer_device_contexts;
 static std::unordered_map<HGLRC, HGLRC> s_shared_contexts;
-std::unordered_map<HDC, reshade::opengl::opengl_runtime *> g_opengl_runtimes;
+std::unordered_map<HDC, reshade::opengl::runtime_opengl *> g_opengl_runtimes;
 
 HOOK_EXPORT int   WINAPI wglChoosePixelFormat(HDC hdc, const PIXELFORMATDESCRIPTOR *ppfd)
 {
@@ -724,7 +724,7 @@ HOOK_EXPORT BOOL  WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 
 		if (gl3wIsSupported(4, 3))
 		{
-			const auto runtime = new reshade::opengl::opengl_runtime(hdc);
+			const auto runtime = new reshade::opengl::runtime_opengl(hdc);
 
 			g_opengl_runtimes[hdc] = runtime;
 

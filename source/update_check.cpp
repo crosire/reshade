@@ -18,6 +18,7 @@ bool reshade::runtime::check_for_update(unsigned long latest_version[3])
 {
 	memset(latest_version, 0, 3 * sizeof(unsigned long));
 
+#if !defined(_DEBUG)
 	const scoped_handle handle = InternetOpen(L"reshade", INTERNET_OPEN_TYPE_PRECONFIG, nullptr, nullptr, 0);
 
 	if (handle == nullptr)
@@ -59,6 +60,7 @@ bool reshade::runtime::check_for_update(unsigned long latest_version[3])
 			return true;
 		}
 	}
+#endif
 
 	return false;
 }

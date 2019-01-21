@@ -14,6 +14,7 @@
 #include <Windows.h>
 
 extern HMODULE g_module_handle;
+extern std::filesystem::path g_reshade_dll_path;
 
 namespace
 {
@@ -23,6 +24,7 @@ namespace
 		function_hook,
 		vtable_hook
 	};
+
 	struct module_export
 	{
 		reshade::hook::address address;
@@ -30,16 +32,16 @@ namespace
 		unsigned short ordinal;
 	};
 
-	inline auto load_module(const reshade::filesystem::path &path)
+	inline auto load_module(const std::filesystem::path &path)
 	{
 		return LoadLibraryW(path.wstring().c_str());
 	}
-	inline bool is_module_loaded(const reshade::filesystem::path &path)
+	inline bool is_module_loaded(const std::filesystem::path &path)
 	{
 		HMODULE handle = nullptr;
 		return GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT, path.wstring().c_str(), &handle) && handle != nullptr;
 	}
-	inline bool is_module_loaded(const reshade::filesystem::path &path, HMODULE &out_handle)
+	inline bool is_module_loaded(const std::filesystem::path &path, HMODULE &out_handle)
 	{
 		return GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_PIN, path.wstring().c_str(), &out_handle) && out_handle != nullptr;
 	}
@@ -77,9 +79,9 @@ namespace
 		return exports;
 	}
 
-	reshade::filesystem::path s_export_hook_path;
+	std::filesystem::path s_export_hook_path;
 	std::vector<std::tuple<const char *, reshade::hook, hook_method>> s_hooks; std::mutex s_mutex_hooks;
-	std::vector<reshade::filesystem::path> s_delayed_hook_paths; std::mutex s_mutex_delayed_hook_paths;
+	std::vector<std::filesystem::path> s_delayed_hook_paths; std::mutex s_mutex_delayed_hook_paths;
 	std::unordered_map<reshade::hook::address, reshade::hook::address *> s_vtable_addresses; std::mutex s_mutex_vtable_addresses;
 
 	bool install_internal(const char *name, reshade::hook &hook, hook_method method)
@@ -140,7 +142,7 @@ namespace
 
 		return true;
 	}
-	bool install_internal(const HMODULE target_module, const HMODULE replacement_module, hook_method method)
+	bool install_internal(HMODULE target_module, HMODULE replacement_module, hook_method method)
 	{
 		assert(target_module != nullptr);
 		assert(replacement_module != nullptr);
@@ -283,6 +285,31 @@ namespace
 		return true;
 	}
 
+	void install_delayed_hooks(const std::filesystem::path &loaded_path)
+	{
+		// Ignore this call if unable to acquire the mutex to avoid possible deadlock
+		if (std::unique_lock<std::mutex> lock(s_mutex_delayed_hook_paths, std::try_to_lock); lock.owns_lock())
+		{
+			const auto remove = std::remove_if(s_delayed_hook_paths.begin(), s_delayed_hook_paths.end(),
+				[&loaded_path](const auto &path) {
+				HMODULE delayed_handle = nullptr;
+
+				if (!is_module_loaded(path, delayed_handle))
+					return false;
+
+				LOG(INFO) << "Installing delayed hooks for " << path << " (Just loaded via 'LoadLibrary(" << loaded_path << ")') ...";
+
+				return install_internal(delayed_handle, g_module_handle, hook_method::function_hook) && reshade::hook::apply_queued_actions();
+			});
+
+			s_delayed_hook_paths.erase(remove, s_delayed_hook_paths.end());
+		}
+		else
+		{
+			LOG(WARNING) << "Ignoring 'LoadLibrary(" << loaded_path << ")' call to avoid possible deadlock.";
+		}
+	}
+
 	reshade::hook find_internal(reshade::hook::address replacement)
 	{ const std::lock_guard<std::mutex> lock(s_mutex_hooks);
 		const auto it = std::find_if(s_hooks.cbegin(), s_hooks.cend(),
@@ -304,47 +331,21 @@ namespace
 
 		const HMODULE handle = trampoline(lpFileName);
 
-		if (handle == nullptr || handle == g_module_handle)
-		{
-			return handle;
-		}
-
-		// Ignore this call if unable to acquire the mutex to avoid possible deadlock
-		if (std::unique_lock<std::mutex> lock(s_mutex_delayed_hook_paths, std::try_to_lock); lock.owns_lock())
-		{
-			const auto remove = std::remove_if(s_delayed_hook_paths.begin(), s_delayed_hook_paths.end(),
-				[lpFileName](const auto &path) {
-				HMODULE delayed_handle = nullptr;
-
-				if (!is_module_loaded(path, delayed_handle))
-				{
-					return false;
-				}
-
-				LOG(INFO) << "Installing delayed hooks for " << path << " (Just loaded via 'LoadLibraryA(\"" << lpFileName << "\")') ...";
-
-				return install_internal(delayed_handle, g_module_handle, hook_method::function_hook) && reshade::hook::apply_queued_actions();
-			});
-
-			s_delayed_hook_paths.erase(remove, s_delayed_hook_paths.end());
-		}
-		else
-		{
-			LOG(WARNING) << "Ignoring 'LoadLibraryA(\"" << lpFileName << "\")' call to avoid possible deadlock.";
-		}
+		if (handle != nullptr && handle != g_module_handle)
+			install_delayed_hooks(lpFileName);
 
 		return handle;
 	}
 	HMODULE WINAPI HookLoadLibraryExA(LPCSTR lpFileName, HANDLE hFile, DWORD dwFlags)
 	{
-		if (dwFlags == 0)
-		{
-			return HookLoadLibraryA(lpFileName);
-		}
-
 		static const auto trampoline = call_unchecked(&HookLoadLibraryExA);
 
-		return trampoline(lpFileName, hFile, dwFlags);
+		const HMODULE handle = trampoline(lpFileName, hFile, dwFlags);
+
+		if (dwFlags == 0 && handle != nullptr && handle != g_module_handle)
+			install_delayed_hooks(lpFileName);
+
+		return handle;
 	}
 	HMODULE WINAPI HookLoadLibraryW(LPCWSTR lpFileName)
 	{
@@ -352,47 +353,21 @@ namespace
 
 		const HMODULE handle = trampoline(lpFileName);
 
-		if (handle == nullptr || handle == g_module_handle)
-		{
-			return handle;
-		}
-
-		// Ignore this call if unable to acquire the mutex to avoid possible deadlock
-		if (std::unique_lock<std::mutex> lock(s_mutex_delayed_hook_paths, std::try_to_lock); lock.owns_lock())
-		{
-			const auto remove = std::remove_if(s_delayed_hook_paths.begin(), s_delayed_hook_paths.end(),
-				[lpFileName](const auto &path) {
-				HMODULE delayed_handle = nullptr;
-
-				if (!is_module_loaded(path, delayed_handle))
-				{
-					return false;
-				}
-
-				LOG(INFO) << "Installing delayed hooks for " << path << " (Just loaded via 'LoadLibraryW(\"" << lpFileName << "\")') ...";
-
-				return install_internal(delayed_handle, g_module_handle, hook_method::function_hook) && reshade::hook::apply_queued_actions();
-			});
-
-			s_delayed_hook_paths.erase(remove, s_delayed_hook_paths.end());
-		}
-		else
-		{
-			LOG(WARNING) << "Ignoring 'LoadLibraryA(\"" << lpFileName << "\")' call to avoid possible deadlock.";
-		}
+		if (handle != nullptr && handle != g_module_handle)
+			install_delayed_hooks(lpFileName);
 
 		return handle;
 	}
 	HMODULE WINAPI HookLoadLibraryExW(LPCWSTR lpFileName, HANDLE hFile, DWORD dwFlags)
 	{
-		if (dwFlags == 0)
-		{
-			return HookLoadLibraryW(lpFileName);
-		}
-
 		static const auto trampoline = call_unchecked(&HookLoadLibraryExW);
 
-		return trampoline(lpFileName, hFile, dwFlags);
+
+		const HMODULE handle = trampoline(lpFileName, hFile, dwFlags);
+		if (dwFlags == 0 && handle != nullptr && handle != g_module_handle)
+			install_delayed_hooks(lpFileName);
+
+		return handle;
 	}
 }
 
@@ -402,21 +377,15 @@ bool reshade::hooks::install(const char *name, hook::address target, hook::addre
 	assert(replacement != nullptr);
 
 	if (target == replacement)
-	{
 		return false;
-	}
 
 	hook hook = find_internal(replacement);
 
 	if (hook.installed())
-	{
 		return target == hook.target;
-	}
-	else
-	{
-		hook.target = target;
-		hook.replacement = replacement;
-	}
+
+	hook.target = target;
+	hook.replacement = replacement;
 
 	return install_internal(name, hook, hook_method::function_hook) && (!queue_enable || hook::apply_queued_actions());
 }
@@ -439,9 +408,7 @@ bool reshade::hooks::install(const char *name, hook::address vtable[], unsigned 
 			hook hook { target, target, replacement };
 
 			if (target != replacement && install_internal(name, hook, hook_method::vtable_hook))
-			{
 				return true;
-			}
 
 			s_vtable_addresses.erase(insert.first);
 		}
@@ -459,60 +426,52 @@ void reshade::hooks::uninstall()
 
 	// Disable all hooks in a single batch job
 	for (auto &hook_info : s_hooks)
-	{
-		const hook &hook = std::get<1>(hook_info);
-
-		hook.enable(false);
-	}
+		std::get<1>(hook_info).enable(false);
 
 	hook::apply_queued_actions();
 
 	// Afterwards remove all hooks from the list
 	for (auto &hook_info : s_hooks)
-	{
 		uninstall_internal(std::get<0>(hook_info), std::get<1>(hook_info), std::get<2>(hook_info));
-	}
 
 	s_hooks.clear();
 }
-void reshade::hooks::register_module(const filesystem::path &target_path)
+
+void reshade::hooks::register_module(const std::filesystem::path &target_path)
 {
 	install("LoadLibraryA", reinterpret_cast<hook::address>(&LoadLibraryA), reinterpret_cast<hook::address>(&HookLoadLibraryA), true);
 	install("LoadLibraryExA", reinterpret_cast<hook::address>(&LoadLibraryExA), reinterpret_cast<hook::address>(&HookLoadLibraryExA), true);
 	install("LoadLibraryW", reinterpret_cast<hook::address>(&LoadLibraryW), reinterpret_cast<hook::address>(&HookLoadLibraryW), true);
 	install("LoadLibraryExW", reinterpret_cast<hook::address>(&LoadLibraryExW), reinterpret_cast<hook::address>(&HookLoadLibraryExW), true);
 
+	// Install all "LoadLibrary" hooks in one go immediately
 	hook::apply_queued_actions();
 
 	LOG(INFO) << "Registering hooks for " << target_path << " ...";
 
-	const auto target_filename = target_path.filename_without_extension();
-	const auto replacement_filename = filesystem::get_module_path(g_module_handle).filename_without_extension();
+	// Compare module names and delay export hooks for later installation since we cannot call "LoadLibrary" from this function (it is called from "DLLMain", which does not allow this)
+	const std::filesystem::path target_name = target_path.stem();
+	const std::filesystem::path replacement_name = g_reshade_dll_path.stem();
 
-	if (target_filename == replacement_filename)
+	if (_wcsicmp(target_name.c_str(), replacement_name.c_str()) == 0)
 	{
 		LOG(INFO) << "> Delayed until first call to an exported function.";
 
 		s_export_hook_path = target_path;
 	}
-	else
+	else if (HMODULE handle; !is_module_loaded(target_path, handle)) // Similarly, if the target module was not loaded yet, wait for to get loaded in the "LoadLibrary" hooks and install it then
 	{
-		HMODULE handle = nullptr;
+		LOG(INFO) << "> Delayed.";
 
-		if (is_module_loaded(target_path, handle))
-		{
-			LOG(INFO) << "> Libraries loaded.";
+		s_delayed_hook_paths.push_back(target_path);
+	}
+	else // The target module is already loaded, so we can safely install hooks right away
+	{
+		LOG(INFO) << "> Libraries loaded.";
 
-			install_internal(handle, g_module_handle, hook_method::function_hook);
+		install_internal(handle, g_module_handle, hook_method::function_hook);
 
-			hook::apply_queued_actions();
-		}
-		else
-		{
-			LOG(INFO) << "> Delayed.";
-
-			s_delayed_hook_paths.push_back(target_path);
-		}
+		hook::apply_queued_actions();
 	}
 }
 
@@ -524,7 +483,7 @@ reshade::hook::address reshade::hooks::call(hook::address replacement)
 	{
 		return hook.call();
 	}
-	else if (!s_export_hook_path.empty())
+	else if (!s_export_hook_path.empty()) // If the hook does not exist yet, delay-load export hooks and try again
 	{
 		const HMODULE handle = load_module(s_export_hook_path);
 
@@ -534,7 +493,7 @@ reshade::hook::address reshade::hooks::call(hook::address replacement)
 		{
 			install_internal(handle, g_module_handle, hook_method::export_hook);
 
-			s_export_hook_path = "";
+			s_export_hook_path.clear();
 
 			return call(replacement);
 		}

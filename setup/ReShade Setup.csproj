@@ -52,6 +52,7 @@
     <Reference Include="PresentationCore" />
     <Reference Include="PresentationFramework" />
     <Reference Include="System" />
+    <Reference Include="System.IO.Compression" />
     <Reference Include="System.IO.Compression.FileSystem" />
     <Reference Include="System.Xaml" />
     <Reference Include="WindowsBase" />
@@ -96,11 +97,6 @@
     <None Include="Properties\Assembly.manifest">
       <SubType>Designer</SubType>
     </None>
-  </ItemGroup>
-  <ItemGroup>
-    <EmbeddedResource Include="..\bin\**\Release\ReShade*.dll">
-      <Visible>false</Visible>
-    </EmbeddedResource>
   </ItemGroup>
   <ItemGroup>
     <Content Include="Properties\Icon.ico" />
@@ -151,4 +147,17 @@ foreach (var item in filesToCleanup)
   </Target>
   <Import Project="..\packages\Costura.Fody.1.6.2\build\dotnet\Costura.Fody.targets" Condition="Exists('..\packages\Costura.Fody.1.6.2\build\dotnet\Costura.Fody.targets')" />
   <Import Project="..\packages\Fody.2.3.22\build\Fody.targets" Condition="Exists('..\packages\Fody.2.3.22\build\Fody.targets')" />
+  <PropertyGroup>
+    <PostBuildEvent>
+echo Compressing ReShade DLLs ...
+"$(SolutionDir)tools\7za" a -y "$(TargetDir)ReShade.zip" "$(SolutionDir)bin\Win32\Release\ReShade32.dll" "$(SolutionDir)bin\x64\Release\ReShade64.dll"
+
+echo Appending archive to setup executable ...
+copy /b "$(TargetPath)" + "$(TargetDir)ReShade.zip" "$(TargetPath)"
+
+echo Cleaning up and deleting temporary archive ...
+del "$(TargetDir)ReShade.zip"
+    </PostBuildEvent>
+    <RunPostBuildEvent>OnOutputUpdated</RunPostBuildEvent>
+  </PropertyGroup>
 </Project>

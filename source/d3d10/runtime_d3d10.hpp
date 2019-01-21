@@ -5,9 +5,8 @@
 
 #pragma once
 
-#include <d3d10_1.h>
 #include "runtime.hpp"
-#include "d3d10_stateblock.hpp"
+#include "state_block.hpp"
 #include "draw_call_tracker.hpp"
 
 namespace reshade::d3d10
@@ -37,25 +36,31 @@ namespace reshade::d3d10
 		com_ptr<ID3D10Query> timestamp_disjoint;
 		com_ptr<ID3D10Query> timestamp_query_beg;
 		com_ptr<ID3D10Query> timestamp_query_end;
+		std::vector<com_ptr<ID3D10SamplerState>> sampler_states;
+		std::vector<com_ptr<ID3D10ShaderResourceView>> texture_bindings;
+		ptrdiff_t uniform_storage_offset = 0;
+		ptrdiff_t uniform_storage_index = -1;
 	};
 
-	class d3d10_runtime : public runtime
+	class runtime_d3d10 : public runtime
 	{
 	public:
-		d3d10_runtime(ID3D10Device1 *device, IDXGISwapChain *swapchain);
+		runtime_d3d10(ID3D10Device1 *device, IDXGISwapChain *swapchain);
+		~runtime_d3d10();
 
 		bool on_init(const DXGI_SWAP_CHAIN_DESC &desc);
 		void on_reset();
-		void on_reset_effect() override;
 		void on_present(draw_call_tracker& tracker);
 		void on_copy_resource(ID3D10Resource *&dest, ID3D10Resource *&source);
 
 		void capture_frame(uint8_t *buffer) const override;
-		bool load_effect(const reshadefx::syntax_tree &ast, std::string &errors) override;
-		bool update_texture(texture &texture, const uint8_t *data) override;
+		void update_texture(texture &texture, const uint8_t *data) override;
+		bool update_texture_reference(texture &texture);
+
+		bool compile_effect(effect_data &effect) override;
+		void unload_effects() override;
 
 		void render_technique(const technique &technique) override;
-		void render_imgui_draw_data(ImDrawData *data) override;
 
 #if RESHADE_DX10_CAPTURE_DEPTH_BUFFERS
 		com_ptr<ID3D10Texture2D> select_depth_texture_save(D3D10_TEXTURE2D_DESC &texture_desc);
@@ -67,9 +72,7 @@ namespace reshade::d3d10
 		com_ptr<ID3D10Texture2D> _backbuffer_texture;
 		com_ptr<ID3D10RenderTargetView> _backbuffer_rtv[3];
 		com_ptr<ID3D10ShaderResourceView> _backbuffer_texture_srv[2], _depthstencil_texture_srv;
-		std::vector<com_ptr<ID3D10SamplerState>> _effect_sampler_states;
-		std::unordered_map<size_t, size_t> _effect_sampler_descs;
-		std::vector<com_ptr<ID3D10ShaderResourceView>> _effect_shader_resources;
+		std::unordered_map<size_t, com_ptr<ID3D10SamplerState>> _effect_sampler_states;
 		std::vector<com_ptr<ID3D10Buffer>> _constant_buffers;
 
 		bool depth_buffer_before_clear = false;
@@ -78,17 +81,22 @@ namespace reshade::d3d10
 		int depth_buffer_texture_format = 0; // No depth buffer texture format filter by default
 
 	private:
-
 		int _depth_buffer_texture_format = 0;
 		unsigned int _selected_depth_buffer_texture_index = 0;
 
 		bool init_backbuffer_texture();
 		bool init_default_depth_stencil();
 		bool init_fx_resources();
-		bool init_imgui_resources();
-		bool init_imgui_font_atlas();
 
+		bool add_sampler(const reshadefx::sampler_info &info, d3d10_technique_data &technique_init);
+		bool init_texture(texture &info) override;
+		bool init_technique(technique &info, const d3d10_technique_data &technique_init, const std::unordered_map<std::string, com_ptr<ID3D10VertexShader>> &vs_entry_points, const std::unordered_map<std::string, com_ptr<ID3D10PixelShader>> &ps_entry_points);
+
+#if RESHADE_GUI
+		bool init_imgui_resources();
+		void render_imgui_draw_data(ImDrawData *data) override;
 		void draw_debug_menu();
+#endif
 
 #if RESHADE_DX10_CAPTURE_DEPTH_BUFFERS
 		void detect_depth_source(draw_call_tracker& tracker);
@@ -108,7 +116,7 @@ namespace reshade::d3d10
 
 		bool _is_multisampling_enabled = false;
 		DXGI_FORMAT _backbuffer_format = DXGI_FORMAT_UNKNOWN;
-		d3d10_stateblock _stateblock;
+		state_block _stateblock;
 		com_ptr<ID3D10Texture2D> _backbuffer, _backbuffer_resolved;
 		com_ptr<ID3D10DepthStencilView> _depthstencil, _depthstencil_replacement;
 		ID3D10DepthStencilView *_best_depth_stencil_overwrite = nullptr;
@@ -130,5 +138,7 @@ namespace reshade::d3d10
 		com_ptr<ID3D10DepthStencilState> _imgui_depthstencil_state;
 		int _imgui_vertex_buffer_size = 0, _imgui_index_buffer_size = 0;
 		draw_call_tracker _current_tracker;
+
+		HMODULE _d3d_compiler = nullptr;
 	};
 }

@@ -51,17 +51,17 @@
     <ClCompile Include="source\gui.cpp">
       <Filter>core\runtime</Filter>
     </ClCompile>
+    <ClCompile Include="source\gui_code_editor.cpp">
+      <Filter>core\runtime</Filter>
+    </ClCompile>
+    <ClCompile Include="source\gui_widgets.cpp">
+      <Filter>core\runtime</Filter>
+    </ClCompile>
     <ClCompile Include="source\input.cpp">
       <Filter>core\runtime</Filter>
     </ClCompile>
     <ClCompile Include="source\runtime.cpp">
       <Filter>core\runtime</Filter>
-    </ClCompile>
-    <ClCompile Include="source\runtime_objects.cpp">
-      <Filter>core\runtime</Filter>
-    </ClCompile>
-    <ClCompile Include="source\filesystem.cpp">
-      <Filter>core\utility</Filter>
     </ClCompile>
     <ClCompile Include="source\ini_file.cpp">
       <Filter>core\utility</Filter>
@@ -72,19 +72,19 @@
     <ClCompile Include="source\log.cpp">
       <Filter>core\utility</Filter>
     </ClCompile>
+    <ClCompile Include="source\update_check.cpp">
+      <Filter>core\utility</Filter>
+    </ClCompile>
     <ClCompile Include="source\d3d9\d3d9.cpp">
       <Filter>hooks\d3d9</Filter>
     </ClCompile>
     <ClCompile Include="source\d3d9\d3d9_device.cpp">
       <Filter>hooks\d3d9</Filter>
     </ClCompile>
-    <ClCompile Include="source\d3d9\d3d9_effect_compiler.cpp">
-      <Filter>hooks\d3d9</Filter>
-    </ClCompile>
-    <ClCompile Include="source\d3d9\d3d9_runtime.cpp">
-      <Filter>hooks\d3d9</Filter>
-    </ClCompile>
     <ClCompile Include="source\d3d9\d3d9_swapchain.cpp">
+      <Filter>hooks\d3d9</Filter>
+    </ClCompile>
+    <ClCompile Include="source\d3d9\runtime_d3d9.cpp">
       <Filter>hooks\d3d9</Filter>
     </ClCompile>
     <ClCompile Include="source\d3d10\d3d10.cpp">
@@ -93,13 +93,13 @@
     <ClCompile Include="source\d3d10\d3d10_device.cpp">
       <Filter>hooks\d3d10</Filter>
     </ClCompile>
-    <ClCompile Include="source\d3d10\d3d10_effect_compiler.cpp">
+    <ClCompile Include="source\d3d10\draw_call_tracker.cpp">
       <Filter>hooks\d3d10</Filter>
     </ClCompile>
-    <ClCompile Include="source\d3d10\d3d10_runtime.cpp">
+    <ClCompile Include="source\d3d10\runtime_d3d10.cpp">
       <Filter>hooks\d3d10</Filter>
     </ClCompile>
-    <ClCompile Include="source\d3d10\d3d10_stateblock.cpp">
+    <ClCompile Include="source\d3d10\state_block.cpp">
       <Filter>hooks\d3d10</Filter>
     </ClCompile>
     <ClCompile Include="source\d3d11\d3d11.cpp">
@@ -111,13 +111,13 @@
     <ClCompile Include="source\d3d11\d3d11_device_context.cpp">
       <Filter>hooks\d3d11</Filter>
     </ClCompile>
-    <ClCompile Include="source\d3d11\d3d11_effect_compiler.cpp">
+    <ClCompile Include="source\d3d11\draw_call_tracker.cpp">
       <Filter>hooks\d3d11</Filter>
     </ClCompile>
-    <ClCompile Include="source\d3d11\d3d11_runtime.cpp">
+    <ClCompile Include="source\d3d11\runtime_d3d11.cpp">
       <Filter>hooks\d3d11</Filter>
     </ClCompile>
-    <ClCompile Include="source\d3d11\d3d11_stateblock.cpp">
+    <ClCompile Include="source\d3d11\state_block.cpp">
       <Filter>hooks\d3d11</Filter>
     </ClCompile>
     <ClCompile Include="source\dxgi\dxgi.cpp">
@@ -129,19 +129,16 @@
     <ClCompile Include="source\dxgi\dxgi_swapchain.cpp">
       <Filter>hooks\dxgi</Filter>
     </ClCompile>
-    <ClCompile Include="source\opengl\opengl_effect_compiler.cpp">
-      <Filter>hooks\opengl</Filter>
-    </ClCompile>
-    <ClCompile Include="source\opengl\opengl_runtime.cpp">
-      <Filter>hooks\opengl</Filter>
-    </ClCompile>
-    <ClCompile Include="source\opengl\opengl_stateblock.cpp">
-      <Filter>hooks\opengl</Filter>
-    </ClCompile>
     <ClCompile Include="source\opengl\stubs_gl.cpp">
       <Filter>hooks\opengl</Filter>
     </ClCompile>
     <ClCompile Include="source\opengl\stubs_wgl.cpp">
+      <Filter>hooks\opengl</Filter>
+    </ClCompile>
+    <ClCompile Include="source\opengl\runtime_opengl.cpp">
+      <Filter>hooks\opengl</Filter>
+    </ClCompile>
+    <ClCompile Include="source\opengl\state_block.cpp">
       <Filter>hooks\opengl</Filter>
     </ClCompile>
     <ClCompile Include="source\windows\user32.cpp">
@@ -150,18 +147,6 @@
     <ClCompile Include="source\windows\ws2_32.cpp">
       <Filter>hooks\windows</Filter>
     </ClCompile>
-    <ClCompile Include="source\directory_watcher.cpp">
-      <Filter>core\utility</Filter>
-    </ClCompile>
-    <ClCompile Include="source\d3d11\draw_call_tracker.cpp">
-      <Filter>hooks\d3d11</Filter>
-    </ClCompile>
-    <ClCompile Include="source\update_check.cpp">
-      <Filter>core\utility</Filter>
-    </ClCompile>
-    <ClCompile Include="source\d3d10\draw_call_tracker.cpp">
-      <Filter>hooks\d3d10</Filter>
-    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="source\hook.hpp">
@@ -169,6 +154,12 @@
     </ClInclude>
     <ClInclude Include="source\hook_manager.hpp">
       <Filter>core\hook</Filter>
+    </ClInclude>
+    <ClInclude Include="source\gui_code_editor.hpp">
+      <Filter>core\runtime</Filter>
+    </ClInclude>
+    <ClInclude Include="source\gui_widgets.hpp">
+      <Filter>core\runtime</Filter>
     </ClInclude>
     <ClInclude Include="source\input.hpp">
       <Filter>core\runtime</Filter>
@@ -191,9 +182,6 @@
     <ClInclude Include="source\resource_loading.hpp">
       <Filter>core\utility</Filter>
     </ClInclude>
-    <ClInclude Include="source\filesystem.hpp">
-      <Filter>core\utility</Filter>
-    </ClInclude>
     <ClInclude Include="source\ini_file.hpp">
       <Filter>core\utility</Filter>
     </ClInclude>
@@ -203,16 +191,13 @@
     <ClInclude Include="source\d3d9\d3d9.hpp">
       <Filter>hooks\d3d9</Filter>
     </ClInclude>
-    <ClInclude Include="source\d3d9\d3d9_effect_compiler.hpp">
-      <Filter>hooks\d3d9</Filter>
-    </ClInclude>
     <ClInclude Include="source\d3d9\d3d9_device.hpp">
       <Filter>hooks\d3d9</Filter>
     </ClInclude>
-    <ClInclude Include="source\d3d9\d3d9_runtime.hpp">
+    <ClInclude Include="source\d3d9\d3d9_swapchain.hpp">
       <Filter>hooks\d3d9</Filter>
     </ClInclude>
-    <ClInclude Include="source\d3d9\d3d9_swapchain.hpp">
+    <ClInclude Include="source\d3d9\runtime_d3d9.hpp">
       <Filter>hooks\d3d9</Filter>
     </ClInclude>
     <ClInclude Include="source\d3d10\d3d10.hpp">
@@ -221,13 +206,13 @@
     <ClInclude Include="source\d3d10\d3d10_device.hpp">
       <Filter>hooks\d3d10</Filter>
     </ClInclude>
-    <ClInclude Include="source\d3d10\d3d10_effect_compiler.hpp">
+    <ClInclude Include="source\d3d10\draw_call_tracker.hpp">
       <Filter>hooks\d3d10</Filter>
     </ClInclude>
-    <ClInclude Include="source\d3d10\d3d10_runtime.hpp">
+    <ClInclude Include="source\d3d10\runtime_d3d10.hpp">
       <Filter>hooks\d3d10</Filter>
     </ClInclude>
-    <ClInclude Include="source\d3d10\d3d10_stateblock.hpp">
+    <ClInclude Include="source\d3d10\state_block.hpp">
       <Filter>hooks\d3d10</Filter>
     </ClInclude>
     <ClInclude Include="source\d3d11\d3d11.hpp">
@@ -239,13 +224,13 @@
     <ClInclude Include="source\d3d11\d3d11_device_context.hpp">
       <Filter>hooks\d3d11</Filter>
     </ClInclude>
-    <ClInclude Include="source\d3d11\d3d11_effect_compiler.hpp">
+    <ClInclude Include="source\d3d11\draw_call_tracker.hpp">
       <Filter>hooks\d3d11</Filter>
     </ClInclude>
-    <ClInclude Include="source\d3d11\d3d11_runtime.hpp">
+    <ClInclude Include="source\d3d11\runtime_d3d11.hpp">
       <Filter>hooks\d3d11</Filter>
     </ClInclude>
-    <ClInclude Include="source\d3d11\d3d11_stateblock.hpp">
+    <ClInclude Include="source\d3d11\state_block.hpp">
       <Filter>hooks\d3d11</Filter>
     </ClInclude>
     <ClInclude Include="source\dxgi\dxgi.hpp">
@@ -257,19 +242,16 @@
     <ClInclude Include="source\dxgi\dxgi_swapchain.hpp">
       <Filter>hooks\dxgi</Filter>
     </ClInclude>
-    <ClInclude Include="source\opengl\opengl_effect_compiler.hpp">
-      <Filter>hooks\opengl</Filter>
-    </ClInclude>
-    <ClInclude Include="source\opengl\opengl_runtime.hpp">
-      <Filter>hooks\opengl</Filter>
-    </ClInclude>
-    <ClInclude Include="source\opengl\opengl_stateblock.hpp">
-      <Filter>hooks\opengl</Filter>
-    </ClInclude>
     <ClInclude Include="source\opengl\opengl_stubs.hpp">
       <Filter>hooks\opengl</Filter>
     </ClInclude>
     <ClInclude Include="source\opengl\opengl_stubs_internal.hpp">
+      <Filter>hooks\opengl</Filter>
+    </ClInclude>
+    <ClInclude Include="source\opengl\runtime_opengl.hpp">
+      <Filter>hooks\opengl</Filter>
+    </ClInclude>
+    <ClInclude Include="source\opengl\state_block.hpp">
       <Filter>hooks\opengl</Filter>
     </ClInclude>
     <ClInclude Include="res\resource.h">
@@ -277,15 +259,6 @@
     </ClInclude>
     <ClInclude Include="res\version.h">
       <Filter>resources</Filter>
-    </ClInclude>
-    <ClInclude Include="source\directory_watcher.hpp">
-      <Filter>core\utility</Filter>
-    </ClInclude>
-    <ClInclude Include="source\d3d11\draw_call_tracker.hpp">
-      <Filter>hooks\d3d11</Filter>
-    </ClInclude>
-    <ClInclude Include="source\d3d10\draw_call_tracker.hpp">
-      <Filter>hooks\d3d10</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

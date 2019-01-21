@@ -5,7 +5,7 @@
 
 #pragma once
 
-#include "source_location.hpp"
+#include "effect_expression.hpp"
 
 namespace reshadefx
 {
@@ -119,31 +119,31 @@ namespace reshadefx
 		void_,
 		bool_,
 		bool2,
-		bool2x2,
 		bool3,
-		bool3x3,
 		bool4,
+		bool2x2,
+		bool3x3,
 		bool4x4,
 		int_,
 		int2,
-		int2x2,
 		int3,
-		int3x3,
 		int4,
+		int2x2,
+		int3x3,
 		int4x4,
 		uint_,
 		uint2,
-		uint2x2,
 		uint3,
-		uint3x3,
 		uint4,
+		uint2x2,
+		uint3x3,
 		uint4x4,
 		float_,
 		float2,
-		float2x2,
 		float3,
-		float3x3,
 		float4,
+		float2x2,
+		float3x3,
 		float4x4,
 		vector,
 		matrix,
@@ -165,6 +165,9 @@ namespace reshadefx
 		hash_pragma,
 		hash_include,
 		hash_unknown,
+
+		single_line_comment,
+		multi_line_comment,
 	};
 
 	/// <summary>
@@ -185,30 +188,52 @@ namespace reshadefx
 		std::string literal_as_string;
 
 		inline operator tokenid() const { return id; }
+
+		static std::string id_to_name(tokenid id);
 	};
 
 	/// <summary>
-	/// A lexical analyzer implementation.
+	/// A lexical analyzer for C-like languages.
 	/// </summary>
 	class lexer
 	{
 	public:
-		/// <summary>
-		/// Construct a new lexical analyzer for an input string.
-		/// </summary>
-		/// <param name="source">The string to analyze.</param>
 		explicit lexer(
-			const std::string &input,
+			std::string input,
+			bool ignore_comments = true,
 			bool ignore_whitespace = true,
 			bool ignore_pp_directives = true,
+			bool ignore_line_directives = false,
 			bool ignore_keywords = false,
-			bool escape_string_literals = true);
-		/// <summary>
-		/// Construct a copy of an existing instance.
-		/// </summary>
-		/// <param name="lexer">The instance to copy.</param>
-		lexer(const lexer &lexer);
-		lexer &operator=(const lexer &);
+			bool escape_string_literals = true) :
+			_input(std::move(input)),
+			_ignore_comments(ignore_comments),
+			_ignore_whitespace(ignore_whitespace),
+			_ignore_pp_directives(ignore_pp_directives),
+			_ignore_line_directives(ignore_line_directives),
+			_ignore_keywords(ignore_keywords),
+			_escape_string_literals(escape_string_literals)
+		{
+			_cur = _input.data();
+			_end = _cur + _input.size();
+		}
+
+		lexer(const lexer &lexer) { operator=(lexer); }
+		lexer &operator=(const lexer &lexer)
+		{
+			_input = lexer._input;
+			_cur_location = lexer._cur_location;
+			_cur = _input.data() + (lexer._cur - lexer._input.data());
+			_end = _input.data() + _input.size();
+			_ignore_comments = lexer._ignore_comments;
+			_ignore_whitespace = lexer._ignore_whitespace;
+			_ignore_pp_directives = lexer._ignore_pp_directives;
+			_ignore_keywords = lexer._ignore_keywords;
+			_escape_string_literals = lexer._escape_string_literals;
+			_ignore_line_directives = lexer._ignore_line_directives;
+
+			return *this;
+		}
 
 		/// <summary>
 		/// Get the input string this lexical analyzer works on.
@@ -233,7 +258,7 @@ namespace reshadefx
 
 	private:
 		/// <summary>
-		/// Skips an arbitary amount of characters in the input string.
+		/// Skips an arbitrary amount of characters in the input string.
 		/// </summary>
 		/// <param name="length">The number of input characters to skip.</param>
 		void skip(size_t length);
@@ -246,8 +271,10 @@ namespace reshadefx
 		std::string _input;
 		location _cur_location;
 		const std::string::value_type *_cur, *_end;
+		bool _ignore_comments;
 		bool _ignore_whitespace;
 		bool _ignore_pp_directives;
+		bool _ignore_line_directives;
 		bool _ignore_keywords;
 		bool _escape_string_literals;
 	};

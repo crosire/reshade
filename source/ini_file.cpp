@@ -20,11 +20,13 @@ namespace reshade
 		return res;
 	}
 
-	ini_file::ini_file(const filesystem::path &path) : _path(path), _save_path(path)
+	ini_file::ini_file(const std::filesystem::path &path)
+		: _path(path), _save_path(path)
 	{
 		load();
 	}
-	ini_file::ini_file(const filesystem::path &path, const filesystem::path &save_path) : _path(path), _save_path(save_path)
+	ini_file::ini_file(const std::filesystem::path &path, const std::filesystem::path &save_path)
+		: _path(path), _save_path(save_path)
 	{
 		load();
 	}

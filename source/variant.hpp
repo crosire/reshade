@@ -7,7 +7,7 @@
 
 #include <string>
 #include <vector>
-#include "filesystem.hpp"
+#include <filesystem>
 
 namespace reshade
 {
@@ -28,12 +28,12 @@ namespace reshade
 		template<class InputIt>
 		variant(InputIt first, InputIt last) : _values(first, last) { }
 		template <>
-		variant(const filesystem::path &value) : variant(value.string()) { }
+		variant(const std::filesystem::path &value) : variant(value.u8string()) { }
 		template <>
-		variant(const std::vector<filesystem::path> &values) : _values(values.size())
+		variant(const std::vector<std::filesystem::path> &values) : _values(values.size())
 		{
 			for (size_t i = 0; i < values.size(); i++)
-				_values[i] = values[i].string();
+				_values[i] = values[i].u8string();
 		}
 		template <typename T>
 		variant(const T *values, size_t count) : _values(count)
@@ -52,17 +52,11 @@ namespace reshade
 		template <typename T>
 		variant(std::initializer_list<T> values) : variant(values.begin(), values.size()) { }
 
-		std::vector<std::string> &data()
-		{
-			return _values;
-		}
-		const std::vector<std::string> &data() const
-		{
-			return _values;
-		}
+		std::vector<std::string> &data() { return _values; }
+		const std::vector<std::string> &data() const { return _values; }
 
 		template <typename T>
-		const T as(size_t index = 0) const;
+		const T as(size_t index = 0) const = delete;
 		template <>
 		const bool as(size_t i) const
 		{
@@ -81,22 +75,22 @@ namespace reshade
 		template <>
 		const long as(size_t i) const
 		{
-			if (i >= _values.size())
-			{
-				return 0l;
-			}
-
-			return std::strtol(_values[i].c_str(), nullptr, 10);
+			return i < _values.size() ? std::strtol(_values[i].c_str(), nullptr, 10) : 0l;
 		}
 		template <>
 		const unsigned long as(size_t i) const
 		{
-			if (i >= _values.size())
-			{
-				return 0ul;
-			}
-
-			return std::strtoul(_values[i].c_str(), nullptr, 10);
+			return i < _values.size() ? std::strtoul(_values[i].c_str(), nullptr, 10) : 0ul;
+		}
+		template <>
+		const long long as(size_t i) const
+		{
+			return i < _values.size() ? std::strtoll(_values[i].c_str(), nullptr, 10) : 0ll;
+		}
+		template <>
+		const unsigned long long as(size_t i) const
+		{
+			return i < _values.size() ? std::strtoull(_values[i].c_str(), nullptr, 10) : 0ull;
 		}
 		template <>
 		const float as(size_t i) const
@@ -106,25 +100,15 @@ namespace reshade
 		template <>
 		const double as(size_t i) const
 		{
-			if (i >= _values.size())
-			{
-				return 0.0;
-			}
-
-			return std::strtod(_values[i].c_str(), nullptr);
+			return i < _values.size() ? std::strtod(_values[i].c_str(), nullptr) : 0.0;
 		}
 		template <>
 		const std::string as(size_t i) const
 		{
-			if (i >= _values.size())
-			{
-				return std::string();
-			}
-
-			return _values[i];
+			return i < _values.size() ? _values[i] : std::string();
 		}
 		template <>
-		const filesystem::path as(size_t i) const
+		const std::filesystem::path as(size_t i) const
 		{
 			return as<std::string>(i);
 		}
