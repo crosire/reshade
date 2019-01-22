@@ -398,15 +398,23 @@ namespace reshade::d3d9
 
 			for (auto &it : _depth_clearing_table)
 			{
-				_device->SetDepthStencilSurface(it.second.depthstencil.get());
-				_device->Clear(0, nullptr, D3DCLEAR_ZBUFFER, 0, 1.0f, 0);
+				if (_multi_depthstencil)
+				{
+					_device->SetDepthStencilSurface(it.second.depthstencil.get());
+					_device->Clear(0, nullptr, D3DCLEAR_ZBUFFER, 0, 1.0f, 0);
+				}
 
 				it.second.vertices_count = 0;
 				it.second.drawcall_count = 0;
 			}
 
+			if (!_depth_clearing_table.empty())
+			{
+				_device->SetDepthStencilSurface(_depthstencil_replacement.get());
+				_device->Clear(0, nullptr, D3DCLEAR_ZBUFFER, 0, 1.0f, 0);
+			}
+
 			_depth_buffer_table.clear();
-			// _depth_clearing_table.clear();
 		}
 		else
 		{
