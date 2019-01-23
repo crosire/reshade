@@ -435,6 +435,7 @@ void reshade::runtime::draw_ui()
 	{
 		ImGui::SetNextWindowPos(ImVec2(_width - 200.0f, 5));
 		ImGui::SetNextWindowSize(ImVec2(200.0f, 200.0f));
+		ImGui::PushStyleColor(ImGuiCol_Text, (const ImVec4 &)_fps_col);
 		ImGui::Begin("FPS", nullptr,
 			ImGuiWindowFlags_NoDecoration |
 			ImGuiWindowFlags_NoNav |
@@ -446,8 +447,6 @@ void reshade::runtime::draw_ui()
 			ImGuiWindowFlags_NoBackground);
 
 		ImGui::SetWindowFontScale(_fps_scale);
-
-		ImGui::PushStyleColor(ImGuiCol_Text, (const ImVec4 &)_fps_col);
 
 		char temp[512];
 
@@ -474,27 +473,14 @@ void reshade::runtime::draw_ui()
 			ImGui::TextUnformatted(temp);
 		}
 
-		ImGui::PopStyleColor();
-
 		ImGui::End();
+		ImGui::PopStyleColor();
 	}
 
 	if (_show_menu && _reload_remaining_effects == std::numeric_limits<size_t>::max())
 	{
 		const ImGuiID root_space_id = ImGui::GetID("Dockspace");
 		const ImGuiViewport *const viewport = ImGui::GetMainViewport();
-
-		ImGui::SetNextWindowPos(viewport->Pos + viewport_offset);
-		ImGui::SetNextWindowSize(viewport->Size - viewport_offset);
-		ImGui::SetNextWindowViewport(viewport->ID);
-		ImGui::Begin("Viewport", nullptr,
-			ImGuiWindowFlags_NoDecoration |
-			ImGuiWindowFlags_NoNav |
-			ImGuiWindowFlags_NoMove |
-			ImGuiWindowFlags_NoDocking | // This is the background viewport, the docking space is a child of it
-			ImGuiWindowFlags_NoFocusOnAppearing |
-			ImGuiWindowFlags_NoBringToFrontOnFocus |
-			ImGuiWindowFlags_NoBackground);
 
 		// Set up default dock layout if this was not done yet
 		const bool init_window_layout = !ImGui::DockBuilderGetNode(root_space_id);
@@ -508,15 +494,9 @@ void reshade::runtime::draw_ui()
 			ImGuiID right_space_id = 0;
 			ImGui::DockBuilderSplitNode(root_space_id, ImGuiDir_Left, 0.35f, &main_space_id, &right_space_id);
 
-			// Attach most window to the main dock space
-			ImGui::DockBuilderDockWindow("Home", main_space_id);
-			ImGui::DockBuilderDockWindow("Settings", main_space_id);
-			ImGui::DockBuilderDockWindow("Statistics", main_space_id);
-			ImGui::DockBuilderDockWindow("Log", main_space_id);
-			ImGui::DockBuilderDockWindow("About", main_space_id);
-			ImGui::DockBuilderDockWindow("DX9", main_space_id);
-			ImGui::DockBuilderDockWindow("DX10", main_space_id);
-			ImGui::DockBuilderDockWindow("DX11", main_space_id);
+			// Attach most windows to the main dock space
+			for (const auto &widget : _menu_callables)
+				ImGui::DockBuilderDockWindow(widget.first.c_str(), main_space_id);
 
 			// Attach editor window to the remaining dock space
 			ImGui::DockBuilderDockWindow("###editor", right_space_id);
@@ -525,19 +505,26 @@ void reshade::runtime::draw_ui()
 			ImGui::DockBuilderFinish(root_space_id);
 		}
 
+		ImGui::SetNextWindowPos(viewport->Pos + viewport_offset);
+		ImGui::SetNextWindowSize(viewport->Size - viewport_offset);
+		ImGui::SetNextWindowViewport(viewport->ID);
+		ImGui::Begin("Viewport", nullptr,
+			ImGuiWindowFlags_NoDecoration |
+			ImGuiWindowFlags_NoNav |
+			ImGuiWindowFlags_NoMove |
+			ImGuiWindowFlags_NoDocking | // This is the background viewport, the docking space is a child of it
+			ImGuiWindowFlags_NoFocusOnAppearing |
+			ImGuiWindowFlags_NoBringToFrontOnFocus |
+			ImGuiWindowFlags_NoBackground);
 		ImGui::DockSpace(root_space_id, ImVec2(0, 0), ImGuiDockNodeFlags_PassthruDockspace);
 		ImGui::End();
 
 		for (const auto &widget : _menu_callables)
 		{
-			if (ImGui::Begin(widget.first.c_str()))
+			if (ImGui::Begin(widget.first.c_str(), nullptr, ImGuiWindowFlags_NoFocusOnAppearing)) // No focus so that window state is preserved between opening/closing the UI
 				widget.second();
 			ImGui::End();
 		}
-
-		// Make sure navigation focus is on the home window by default (at this point 'FindWindowByName' should return the correct window)
-		if (init_window_layout)
-			ImGui::FocusWindow(ImGui::FindWindowByName("Home"));
 
 		if (_show_code_editor)
 		{
