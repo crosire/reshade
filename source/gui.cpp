@@ -537,7 +537,7 @@ void reshade::runtime::draw_ui()
 
 		for (const auto &widget : _menu_callables)
 		{
-			if (ImGui::Begin(widget.first.c_str()))
+			if (ImGui::Begin(widget.first.c_str(), NULL, ImGuiWindowFlags_NoFocusOnAppearing))
 				widget.second();
 			ImGui::End();
 		}
