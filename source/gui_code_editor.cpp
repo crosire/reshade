@@ -158,8 +158,8 @@ void imgui_code_editor::render(const char *title, bool border)
 		else if (!ctrl && !shift && !alt && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_Enter)))
 			insert_character('\n', true);
 		else
-			for (size_t i = 0; i < _countof(io.InputCharacters); i++)
-				if (const auto c = static_cast<unsigned char>(io.InputCharacters[i]); c != 0 && (isprint(c) || isspace(c)))
+			for (ImWchar c : io.InputQueueCharacters)
+				if (c != 0 && (isprint(c) || isspace(c)))
 					insert_character(static_cast<char>(c), true);
 	}
 
