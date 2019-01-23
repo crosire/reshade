@@ -370,12 +370,12 @@ void reshade::runtime::draw_ui()
 		ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.862745f, 0.862745f, 0.862745f, 1.00f));
 		ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0.117647f, 0.117647f, 0.117647f, 0.5f));
 		ImGui::Begin("Splash Screen", nullptr,
-			ImGuiWindowFlags_NoTitleBar |
-			ImGuiWindowFlags_NoScrollbar |
+			ImGuiWindowFlags_NoDecoration |
+			ImGuiWindowFlags_NoNav |
 			ImGuiWindowFlags_NoMove |
-			ImGuiWindowFlags_NoResize |
-			ImGuiWindowFlags_NoSavedSettings |
 			ImGuiWindowFlags_NoInputs |
+			ImGuiWindowFlags_NoSavedSettings |
+			ImGuiWindowFlags_NoDocking |
 			ImGuiWindowFlags_NoFocusOnAppearing);
 
 		viewport_offset.y += 10;
@@ -436,16 +436,12 @@ void reshade::runtime::draw_ui()
 		ImGui::SetNextWindowPos(ImVec2(_width - 200.0f, 5));
 		ImGui::SetNextWindowSize(ImVec2(200.0f, 200.0f));
 		ImGui::Begin("FPS", nullptr,
-			ImGuiWindowFlags_NoTitleBar |
-			ImGuiWindowFlags_NoScrollbar |
+			ImGuiWindowFlags_NoDecoration |
+			ImGuiWindowFlags_NoNav |
 			ImGuiWindowFlags_NoMove |
-			ImGuiWindowFlags_NoResize |
-			ImGuiWindowFlags_NoDocking |
-			ImGuiWindowFlags_NoSavedSettings |
 			ImGuiWindowFlags_NoInputs |
-			ImGuiWindowFlags_NoCollapse |
-			ImGuiWindowFlags_NoNavFocus |
-			ImGuiWindowFlags_NoNavInputs |
+			ImGuiWindowFlags_NoSavedSettings |
+			ImGuiWindowFlags_NoDocking |
 			ImGuiWindowFlags_NoFocusOnAppearing |
 			ImGuiWindowFlags_NoBackground);
 
@@ -492,13 +488,10 @@ void reshade::runtime::draw_ui()
 		ImGui::SetNextWindowSize(viewport->Size - viewport_offset);
 		ImGui::SetNextWindowViewport(viewport->ID);
 		ImGui::Begin("Viewport", nullptr,
-			ImGuiWindowFlags_NoTitleBar |
+			ImGuiWindowFlags_NoDecoration |
+			ImGuiWindowFlags_NoNav |
 			ImGuiWindowFlags_NoMove |
-			ImGuiWindowFlags_NoResize |
-			ImGuiWindowFlags_NoDocking |
-			ImGuiWindowFlags_NoCollapse |
-			ImGuiWindowFlags_NoNavFocus |
-			ImGuiWindowFlags_NoNavInputs |
+			ImGuiWindowFlags_NoDocking | // This is the background viewport, the docking space is a child of it
 			ImGuiWindowFlags_NoFocusOnAppearing |
 			ImGuiWindowFlags_NoBringToFrontOnFocus |
 			ImGuiWindowFlags_NoBackground);
