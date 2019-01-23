@@ -796,7 +796,7 @@ namespace reshade::opengl
 	{
 		const auto existing_texture = std::find_if(_textures.begin(), _textures.end(),
 			[&texture_name = info.texture_name](const auto &item) {
-			return item.unique_name == texture_name;
+			return item.unique_name == texture_name && item.impl != nullptr;
 		});
 
 		if (existing_texture == _textures.end())
