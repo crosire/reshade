@@ -588,6 +588,8 @@ void reshade::runtime::draw_overlay_menu_home()
 		"Welcome! Since this is the first time you start ReShade, we'll go through a quick tutorial covering the most important features.\n\n"
 		"Before we continue: If you have difficulties reading this text, press the 'Ctrl' key and adjust the font size with your mouse wheel. "
 		"The window size is variable as well, just grab the bottom right corner and move it around.\n\n"
+		"You can also use the keyboard for navigation in case mouse input does not work. Use the arrow keys to navigate, space bar to confirm an action or enter a control and the 'Esc' key to leave a control. "
+		"Pree 'Ctrl' + 'Tab' to switch between tabs and windows.\n\n"
 		"Click on the 'Continue' button to continue the tutorial.";
 
 	// It is not possible to follow some of the tutorial steps while performance mode is active, so skip them
@@ -780,7 +782,7 @@ void reshade::runtime::draw_overlay_menu_home()
 
 		ImGui::Spacing();
 
-		const float bottom_height = _performance_mode ? ImGui::GetFrameHeightWithSpacing() + _imgui_context->Style.ItemSpacing.y : _variable_editor_height;
+		const float bottom_height = _performance_mode ? ImGui::GetFrameHeightWithSpacing() + _imgui_context->Style.ItemSpacing.y : (_variable_editor_height + (_tutorial_index == 3 ? 175 : 0));
 
 		if (ImGui::BeginChild("##techniques", ImVec2(-1, -bottom_height), true))
 			draw_overlay_technique_editor();
@@ -813,7 +815,7 @@ void reshade::runtime::draw_overlay_menu_home()
 			ImGui::PushStyleColor(ImGuiCol_Border, COLOR_RED);
 		}
 
-		const float bottom_height = ImGui::GetFrameHeightWithSpacing() + _imgui_context->Style.ItemSpacing.y + (_tutorial_index == 3 ? 125 : 0);
+		const float bottom_height = ImGui::GetFrameHeightWithSpacing() + _imgui_context->Style.ItemSpacing.y + (_tutorial_index == 3 ? 175 : 0);
 
 		if (ImGui::BeginChild("##variables", ImVec2(-1, -bottom_height), true))
 			draw_overlay_variable_editor();
@@ -848,7 +850,7 @@ void reshade::runtime::draw_overlay_menu_home()
 	}
 	else
 	{
-		ImGui::BeginChildFrame(ImGui::GetID("tutorial"), ImVec2(-1, 125));
+		ImGui::BeginChildFrame(ImGui::GetID("tutorial"), ImVec2(-1, 175));
 		ImGui::TextWrapped(tutorial_text);
 		ImGui::EndChildFrame();
 
