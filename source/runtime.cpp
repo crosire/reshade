@@ -903,11 +903,14 @@ void reshade::runtime::save_preset(const std::filesystem::path &path) const
 	ini_file preset(path);
 
 	std::vector<std::string> technique_list, technique_sorting_list;
+	std::vector<size_t> effect_list;
 
 	for (const technique &technique : _techniques)
 	{
 		if (technique.enabled)
 			technique_list.push_back(technique.name);
+		if (technique.enabled || technique.toggle_key_data[0] != 0)
+			effect_list.push_back(technique.effect_index);
 
 		technique_sorting_list.push_back(technique.name);
 
@@ -922,7 +925,8 @@ void reshade::runtime::save_preset(const std::filesystem::path &path) const
 
 	for (const uniform &variable : _uniforms)
 	{
-		if (variable.special != special_uniform::none || !_loaded_effects[variable.effect_index].rendering)
+		if (variable.special != special_uniform::none
+			|| std::find(effect_list.begin(), effect_list.end(), variable.effect_index) == effect_list.end())
 			continue;
 
 		assert(variable.type.components() < 16);
