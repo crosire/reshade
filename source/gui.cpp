@@ -370,12 +370,12 @@ void reshade::runtime::draw_ui()
 		ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.862745f, 0.862745f, 0.862745f, 1.00f));
 		ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0.117647f, 0.117647f, 0.117647f, 0.5f));
 		ImGui::Begin("Splash Screen", nullptr,
-			ImGuiWindowFlags_NoTitleBar |
-			ImGuiWindowFlags_NoScrollbar |
+			ImGuiWindowFlags_NoDecoration |
+			ImGuiWindowFlags_NoNav |
 			ImGuiWindowFlags_NoMove |
-			ImGuiWindowFlags_NoResize |
-			ImGuiWindowFlags_NoSavedSettings |
 			ImGuiWindowFlags_NoInputs |
+			ImGuiWindowFlags_NoSavedSettings |
+			ImGuiWindowFlags_NoDocking |
 			ImGuiWindowFlags_NoFocusOnAppearing);
 
 		viewport_offset.y += 10;
@@ -435,23 +435,18 @@ void reshade::runtime::draw_ui()
 	{
 		ImGui::SetNextWindowPos(ImVec2(_width - 200.0f, 5));
 		ImGui::SetNextWindowSize(ImVec2(200.0f, 200.0f));
+		ImGui::PushStyleColor(ImGuiCol_Text, (const ImVec4 &)_fps_col);
 		ImGui::Begin("FPS", nullptr,
-			ImGuiWindowFlags_NoTitleBar |
-			ImGuiWindowFlags_NoScrollbar |
+			ImGuiWindowFlags_NoDecoration |
+			ImGuiWindowFlags_NoNav |
 			ImGuiWindowFlags_NoMove |
-			ImGuiWindowFlags_NoResize |
-			ImGuiWindowFlags_NoDocking |
-			ImGuiWindowFlags_NoSavedSettings |
 			ImGuiWindowFlags_NoInputs |
-			ImGuiWindowFlags_NoCollapse |
-			ImGuiWindowFlags_NoNavFocus |
-			ImGuiWindowFlags_NoNavInputs |
+			ImGuiWindowFlags_NoSavedSettings |
+			ImGuiWindowFlags_NoDocking |
 			ImGuiWindowFlags_NoFocusOnAppearing |
 			ImGuiWindowFlags_NoBackground);
 
 		ImGui::SetWindowFontScale(_fps_scale);
-
-		ImGui::PushStyleColor(ImGuiCol_Text, (const ImVec4 &)_fps_col);
 
 		char temp[512];
 
@@ -478,30 +473,14 @@ void reshade::runtime::draw_ui()
 			ImGui::TextUnformatted(temp);
 		}
 
-		ImGui::PopStyleColor();
-
 		ImGui::End();
+		ImGui::PopStyleColor();
 	}
 
 	if (_show_menu && _reload_remaining_effects == std::numeric_limits<size_t>::max())
 	{
 		const ImGuiID root_space_id = ImGui::GetID("Dockspace");
 		const ImGuiViewport *const viewport = ImGui::GetMainViewport();
-
-		ImGui::SetNextWindowPos(viewport->Pos + viewport_offset);
-		ImGui::SetNextWindowSize(viewport->Size - viewport_offset);
-		ImGui::SetNextWindowViewport(viewport->ID);
-		ImGui::Begin("Viewport", nullptr,
-			ImGuiWindowFlags_NoTitleBar |
-			ImGuiWindowFlags_NoMove |
-			ImGuiWindowFlags_NoResize |
-			ImGuiWindowFlags_NoDocking |
-			ImGuiWindowFlags_NoCollapse |
-			ImGuiWindowFlags_NoNavFocus |
-			ImGuiWindowFlags_NoNavInputs |
-			ImGuiWindowFlags_NoFocusOnAppearing |
-			ImGuiWindowFlags_NoBringToFrontOnFocus |
-			ImGuiWindowFlags_NoBackground);
 
 		// Set up default dock layout if this was not done yet
 		const bool init_window_layout = !ImGui::DockBuilderGetNode(root_space_id);
@@ -515,15 +494,9 @@ void reshade::runtime::draw_ui()
 			ImGuiID right_space_id = 0;
 			ImGui::DockBuilderSplitNode(root_space_id, ImGuiDir_Left, 0.35f, &main_space_id, &right_space_id);
 
-			// Attach most window to the main dock space
-			ImGui::DockBuilderDockWindow("Home", main_space_id);
-			ImGui::DockBuilderDockWindow("Settings", main_space_id);
-			ImGui::DockBuilderDockWindow("Statistics", main_space_id);
-			ImGui::DockBuilderDockWindow("Log", main_space_id);
-			ImGui::DockBuilderDockWindow("About", main_space_id);
-			ImGui::DockBuilderDockWindow("DX9", main_space_id);
-			ImGui::DockBuilderDockWindow("DX10", main_space_id);
-			ImGui::DockBuilderDockWindow("DX11", main_space_id);
+			// Attach most windows to the main dock space
+			for (const auto &widget : _menu_callables)
+				ImGui::DockBuilderDockWindow(widget.first.c_str(), main_space_id);
 
 			// Attach editor window to the remaining dock space
 			ImGui::DockBuilderDockWindow("###editor", right_space_id);
@@ -532,19 +505,26 @@ void reshade::runtime::draw_ui()
 			ImGui::DockBuilderFinish(root_space_id);
 		}
 
+		ImGui::SetNextWindowPos(viewport->Pos + viewport_offset);
+		ImGui::SetNextWindowSize(viewport->Size - viewport_offset);
+		ImGui::SetNextWindowViewport(viewport->ID);
+		ImGui::Begin("Viewport", nullptr,
+			ImGuiWindowFlags_NoDecoration |
+			ImGuiWindowFlags_NoNav |
+			ImGuiWindowFlags_NoMove |
+			ImGuiWindowFlags_NoDocking | // This is the background viewport, the docking space is a child of it
+			ImGuiWindowFlags_NoFocusOnAppearing |
+			ImGuiWindowFlags_NoBringToFrontOnFocus |
+			ImGuiWindowFlags_NoBackground);
 		ImGui::DockSpace(root_space_id, ImVec2(0, 0), ImGuiDockNodeFlags_PassthruDockspace);
 		ImGui::End();
 
 		for (const auto &widget : _menu_callables)
 		{
-			if (ImGui::Begin(widget.first.c_str()))
+			if (ImGui::Begin(widget.first.c_str(), nullptr, ImGuiWindowFlags_NoFocusOnAppearing)) // No focus so that window state is preserved between opening/closing the UI
 				widget.second();
 			ImGui::End();
 		}
-
-		// Make sure navigation focus is on the home window by default (at this point 'FindWindowByName' should return the correct window)
-		if (init_window_layout)
-			ImGui::FocusWindow(ImGui::FindWindowByName("Home"));
 
 		if (_show_code_editor)
 		{
@@ -595,6 +575,8 @@ void reshade::runtime::draw_overlay_menu_home()
 		"Welcome! Since this is the first time you start ReShade, we'll go through a quick tutorial covering the most important features.\n\n"
 		"Before we continue: If you have difficulties reading this text, press the 'Ctrl' key and adjust the font size with your mouse wheel. "
 		"The window size is variable as well, just grab the bottom right corner and move it around.\n\n"
+		"You can also use the keyboard for navigation in case mouse input does not work. Use the arrow keys to navigate, space bar to confirm an action or enter a control and the 'Esc' key to leave a control. "
+		"Pree 'Ctrl' + 'Tab' to switch between tabs and windows.\n\n"
 		"Click on the 'Continue' button to continue the tutorial.";
 
 	// It is not possible to follow some of the tutorial steps while performance mode is active, so skip them
@@ -787,7 +769,7 @@ void reshade::runtime::draw_overlay_menu_home()
 
 		ImGui::Spacing();
 
-		const float bottom_height = _performance_mode ? ImGui::GetFrameHeightWithSpacing() + _imgui_context->Style.ItemSpacing.y : _variable_editor_height;
+		const float bottom_height = _performance_mode ? ImGui::GetFrameHeightWithSpacing() + _imgui_context->Style.ItemSpacing.y : (_variable_editor_height + (_tutorial_index == 3 ? 175 : 0));
 
 		if (ImGui::BeginChild("##techniques", ImVec2(-1, -bottom_height), true))
 			draw_overlay_technique_editor();
@@ -820,7 +802,7 @@ void reshade::runtime::draw_overlay_menu_home()
 			ImGui::PushStyleColor(ImGuiCol_Border, COLOR_RED);
 		}
 
-		const float bottom_height = ImGui::GetFrameHeightWithSpacing() + _imgui_context->Style.ItemSpacing.y + (_tutorial_index == 3 ? 125 : 0);
+		const float bottom_height = ImGui::GetFrameHeightWithSpacing() + _imgui_context->Style.ItemSpacing.y + (_tutorial_index == 3 ? 175 : 0);
 
 		if (ImGui::BeginChild("##variables", ImVec2(-1, -bottom_height), true))
 			draw_overlay_variable_editor();
@@ -855,7 +837,7 @@ void reshade::runtime::draw_overlay_menu_home()
 	}
 	else
 	{
-		ImGui::BeginChildFrame(ImGui::GetID("tutorial"), ImVec2(-1, 125));
+		ImGui::BeginChildFrame(ImGui::GetID("tutorial"), ImVec2(-1, 175));
 		ImGui::TextWrapped(tutorial_text);
 		ImGui::EndChildFrame();
 
