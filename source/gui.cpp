@@ -348,15 +348,6 @@ void reshade::runtime::draw_ui()
 	for (wchar_t c : _input->text_input())
 		imgui_io.AddInputCharacter(c);
 
-	// Change font size if user presses the control key and moves the mouse wheel
-	if (imgui_io.KeyCtrl && imgui_io.MouseWheel != 0 && !_no_font_scaling)
-	{
-		_font_size = ImClamp(_font_size + static_cast<int>(imgui_io.MouseWheel), 8, 32);
-		_editor_font_size = ImClamp(_editor_font_size + static_cast<int>(imgui_io.MouseWheel), 8, 32);
-		_rebuild_font_atlas = true;
-		save_config();
-	}
-
 	ImGui::NewFrame();
 
 	ImVec2 viewport_offset = ImVec2(0, 0);
@@ -479,6 +470,15 @@ void reshade::runtime::draw_ui()
 
 	if (_show_menu && _reload_remaining_effects == std::numeric_limits<size_t>::max())
 	{
+		// Change font size if user presses the control key and moves the mouse wheel
+		if (imgui_io.KeyCtrl && imgui_io.MouseWheel != 0 && !_no_font_scaling)
+		{
+			_font_size = ImClamp(_font_size + static_cast<int>(imgui_io.MouseWheel), 8, 32);
+			_editor_font_size = ImClamp(_editor_font_size + static_cast<int>(imgui_io.MouseWheel), 8, 32);
+			_rebuild_font_atlas = true;
+			save_config();
+		}
+
 		const ImGuiID root_space_id = ImGui::GetID("Dockspace");
 		const ImGuiViewport *const viewport = ImGui::GetMainViewport();
 
