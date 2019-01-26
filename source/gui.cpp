@@ -315,6 +315,8 @@ void reshade::runtime::draw_ui()
 	else if (!_ignore_shortcuts && _input->is_key_pressed(_menu_key_data))
 		_show_menu = !_show_menu;
 
+	const bool show_menu = _show_menu && _reload_remaining_effects == std::numeric_limits<size_t>::max();
+
 	_ignore_shortcuts = false;
 	_effects_expanded_state &= 2;
 
@@ -349,7 +351,8 @@ void reshade::runtime::draw_ui()
 		imgui_io.AddInputCharacter(c);
 
 	// Change font size if user presses the control key and moves the mouse wheel
-	if (imgui_io.KeyCtrl && imgui_io.MouseWheel != 0 && !_no_font_scaling)
+	if (imgui_io.KeyCtrl && imgui_io.MouseWheel != 0 && !_no_font_scaling
+		&& (show_splash || _show_clock || _show_fps || _show_frametime || show_menu))
 	{
 		_font_size = ImClamp(_font_size + static_cast<int>(imgui_io.MouseWheel), 8, 32);
 		_editor_font_size = ImClamp(_editor_font_size + static_cast<int>(imgui_io.MouseWheel), 8, 32);
@@ -477,7 +480,7 @@ void reshade::runtime::draw_ui()
 		ImGui::PopStyleColor();
 	}
 
-	if (_show_menu && _reload_remaining_effects == std::numeric_limits<size_t>::max())
+	if (show_menu)
 	{
 		const ImGuiID root_space_id = ImGui::GetID("Dockspace");
 		const ImGuiViewport *const viewport = ImGui::GetMainViewport();
