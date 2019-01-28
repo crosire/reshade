@@ -345,6 +345,7 @@ namespace reshade
 		bool _variable_editor_tabs = false;
 		bool _selected_effect_changed = false;
 		bool _rebuild_font_atlas = false;
+		bool _was_preprocessor_popup_visible = false;
 		float _fps_col[4] = { 1.0f, 1.0f, 0.784314f, 1.0f };
 		float _fps_scale = 1.0f;
 		float _variable_editor_height = 0.0f;
