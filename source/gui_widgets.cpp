@@ -6,6 +6,7 @@
 #include "input.hpp"
 #include "gui_widgets.hpp"
 #include <assert.h>
+#include <imgui_internal.h>
 
 bool imgui_key_input(const char *name, unsigned int key_data[4], const reshade::input &input)
 {
@@ -272,14 +273,14 @@ bool imgui_slider_with_buttons(const char *label, T *v, int components, T v_spee
 	ImGui::PopItemWidth();
 
 	ImGui::SameLine(0, 0);
-	if (ImGui::Button("<", ImVec2(button_size, 0)) && v[0] > v_min)
+	if (ImGui::ButtonEx("<", ImVec2(button_size, 0), ImGuiButtonFlags_Repeat) && v[0] > v_min)
 	{
 		for (int c = 0; c < components; ++c)
 			v[c] -= v_speed;
 		value_changed = true;
 	}
 	ImGui::SameLine(0, button_spacing);
-	if (ImGui::Button(">", ImVec2(button_size, 0)) && v[0] < v_max)
+	if (ImGui::ButtonEx(">", ImVec2(button_size, 0), ImGuiButtonFlags_Repeat) && v[0] < v_max)
 	{
 		for (int c = 0; c < components; ++c)
 			v[c] += v_speed;
