@@ -320,6 +320,7 @@ namespace reshade::d3d9
 			return;
 
 		if (_preserve_depth_buffer && _auto_preserve)
+		{
 			_db_vertices = 0;
 			_db_drawcalls = 0;
 			// if auto preserve mode is enabled, try to detect the best depth buffer clearing instance from which the depth buffer texture could be preserved
