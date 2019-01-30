@@ -510,7 +510,7 @@ namespace reshade::d3d9
 	void runtime_d3d9::before_clear(com_ptr<IDirect3DSurface9> depthstencil)
 	{
 		// early rejection
-		if (depthstencil == nullptr && !_preserve_depth_buffer && depthstencil != get_depthstencil_replacement())
+		if (depthstencil == nullptr || !_preserve_depth_buffer || depthstencil != get_depthstencil_replacement())
 			return;
 
 		if (_auto_preserve && _multi_depthstencil)
@@ -528,7 +528,7 @@ namespace reshade::d3d9
 	void runtime_d3d9::after_clear(com_ptr<IDirect3DSurface9> depthstencil)
 	{
 		// early rejection
-		if (depthstencil == nullptr && !_preserve_depth_buffer)
+		if (depthstencil == nullptr || !_preserve_depth_buffer)
 			return;
 
 		D3DSURFACE_DESC desc;
