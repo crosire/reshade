@@ -307,16 +307,12 @@ namespace reshade::d3d9
 		if (FAILED(_device->BeginScene()))
 			return;
 
-		if (_preserve_depth_buffer)
-		{
-			if (_auto_preserve)
-			{
-				_db_vertices = 0;
-				_db_drawcalls = 0;
-				_preserve_starting_index = get_best_preserve_starting_index(false);
-				_previous_best_vertices = _db_vertices;
-				_previous_best_drawcalls = _db_drawcalls;
-			}
+		if (_preserve_depth_buffer && _auto_preserve)
+			_db_vertices = 0;
+			_db_drawcalls = 0;
+			_preserve_starting_index = get_best_preserve_starting_index(false);
+			_previous_best_vertices = _db_vertices;
+			_previous_best_drawcalls = _db_drawcalls;
 		}
 
 		detect_depth_source();
@@ -449,17 +445,14 @@ namespace reshade::d3d9
 
 		if (depthstencil != nullptr)
 		{
-			if (_preserve_depth_buffer)
+			if (_preserve_depth_buffer && depthstencil == get_depthstencil_replacement())
 			{
-				if (depthstencil == get_depthstencil_replacement())
-				{
-					const auto it2 = _depth_clearing_table.find(_clear_idx);
+				const auto it2 = _depth_clearing_table.find(_clear_idx);
 
-					if (it2 != _depth_clearing_table.end())
-					{
-						it2->second.drawcall_count++;
-						it2->second.vertices_count += vertices;
-					}
+				if (it2 != _depth_clearing_table.end())
+				{
+					it2->second.drawcall_count++;
+					it2->second.vertices_count += vertices;
 				}
 			}
 
@@ -494,13 +487,7 @@ namespace reshade::d3d9
 	}
 	void runtime_d3d9::before_clear(com_ptr<IDirect3DSurface9> depthstencil)
 	{
-		if (depthstencil == nullptr)
-			return;
-
-		if (!_preserve_depth_buffer)
-			return;
-
-		if (depthstencil != get_depthstencil_replacement())
+		if (depthstencil == nullptr && !_preserve_depth_buffer && depthstencil != get_depthstencil_replacement())
 			return;
 
 		if (_auto_preserve && _multi_depthstencil)
@@ -515,10 +502,7 @@ namespace reshade::d3d9
 	}
 	void runtime_d3d9::after_clear(com_ptr<IDirect3DSurface9> depthstencil)
 	{
-		if (depthstencil == nullptr)
-			return;
-
-		if (!_preserve_depth_buffer)
+		if (depthstencil == nullptr && !_preserve_depth_buffer)
 			return;
 
 		D3DSURFACE_DESC desc;
