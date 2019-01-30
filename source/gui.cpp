@@ -571,6 +571,11 @@ void reshade::runtime::draw_overlay_menu_home()
 	if (!_effects_enabled)
 		ImGui::Text("Effects are disabled. Press '%s' to enable them again.", input::key_name(_effects_key_data).c_str());
 
+	if (!std::filesystem::exists(_screenshot_path))
+	{
+		ImGui::TextColored(COLOR_RED, "Unable to save screenshots because path doesn't exist: %s", _screenshot_path.u8string().c_str());
+	}
+
 	const char *tutorial_text =
 		"Welcome! Since this is the first time you start ReShade, we'll go through a quick tutorial covering the most important features.\n\n"
 		"Before we continue: If you have difficulties reading this text, press the 'Ctrl' key and adjust the font size with your mouse wheel. "
