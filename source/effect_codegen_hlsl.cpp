@@ -282,7 +282,7 @@ private:
 	id   define_texture(const location &loc, texture_info &info) override
 	{
 		info.id = make_id();
-		info.binding = _current_texture_binding++;
+		info.binding = _current_texture_binding;
 
 		_module.textures.push_back(info);
 
@@ -292,7 +292,10 @@ private:
 		{
 			write_location(code, loc);
 
-			code += "Texture2D " + info.unique_name + " : register(t" + std::to_string(info.binding) + ");\n";
+			code += "Texture2D "       + info.unique_name + " : register(t" + std::to_string(info.binding + 0) + ");\n";
+			code += "Texture2D __srgb" + info.unique_name + " : register(t" + std::to_string(info.binding + 1) + ");\n";
+
+			_current_texture_binding += 2;
 		}
 
 		return info.id;
@@ -326,11 +329,12 @@ private:
 				code += "SamplerState __s" + std::to_string(info.binding) + " : register(s" + std::to_string(info.binding) + ");\n";
 			}
 
-			info.texture_binding = texture->binding;
+			assert(info.srgb == 0 || info.srgb == 1);
+			info.texture_binding = texture->binding + info.srgb; // Offset binding by one to choose the SRGB variant
 
 			write_location(code, loc);
 
-			code += "static const __sampler2D " + info.unique_name + " = { " + info.texture_name + ", __s" + std::to_string(info.binding) + " };\n";
+			code += "static const __sampler2D " + info.unique_name + " = { " + (info.srgb ? "__srgb" : "") + info.texture_name + ", __s" + std::to_string(info.binding) + " };\n";
 		}
 		else
 		{
