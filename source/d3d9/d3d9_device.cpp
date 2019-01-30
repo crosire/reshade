@@ -460,8 +460,10 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::Clear(DWORD Count, const D3DRECT *pRe
 	assert(_implicit_swapchain != nullptr);
 	assert(_implicit_swapchain->_runtime != nullptr);
 
+	// check if this clear pass concerns the depth buffer
 	if ((Flags & D3DCLEAR_ZBUFFER) != 0)
 	{
+		// the depth buffer is about to be cleared, add a pre action to eventually preserve it
 		_orig->GetDepthStencilSurface(&depthstencil);
 		_implicit_swapchain->_runtime->before_clear(depthstencil);
 	}
@@ -470,6 +472,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::Clear(DWORD Count, const D3DRECT *pRe
 
 	if ((Flags & D3DCLEAR_ZBUFFER) != 0)
 	{
+		// the depth buffer has been cleared, add a post action to eventually bring back the preserved depth buffer
 		_implicit_swapchain->_runtime->after_clear(depthstencil);
 	}
 
