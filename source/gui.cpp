@@ -573,9 +573,7 @@ void reshade::runtime::draw_overlay_menu_home()
 
 	if (!std::filesystem::exists(_screenshot_path))
 	{
-		ImGui::PushStyleColor(ImGuiCol_Text, COLOR_RED);
-		ImGui::Text("Unable to save screenshots: directory '%s' doesn't exist!", _screenshot_path.string().c_str());
-		ImGui::PopStyleColor();
+		ImGui::TextColored(COLOR_RED, "Unable to save screenshots because path doesn't exist: %s", _screenshot_path.u8string().c_str());
 	}
 
 	const char *tutorial_text =
