@@ -654,6 +654,11 @@ namespace reshade::d3d9
 			spec_constants += '\n';
 		}
 
+		spec_constants += "#define COLOR_PIXEL_SIZE " + std::to_string(1.0f / _width) + ", " + std::to_string(1.0f / _height) + "\n"
+			"#define DEPTH_PIXEL_SIZE COLOR_PIXEL_SIZE\n"
+			"#define SV_TARGET_PIXEL_SIZE COLOR_PIXEL_SIZE\n"
+			"#define SV_DEPTH_PIXEL_SIZE COLOR_PIXEL_SIZE\n";
+
 		const std::string hlsl_vs = spec_constants + effect.module.hlsl;
 		const std::string hlsl_ps = spec_constants + "#define POSITION VPOS\n" + effect.module.hlsl;
 

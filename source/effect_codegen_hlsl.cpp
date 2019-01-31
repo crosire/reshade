@@ -349,7 +349,7 @@ private:
 			if (texture->semantic.empty())
 				code += std::to_string(1.0f / texture->width) + ", " + std::to_string(1.0f / texture->height);
 			else
-				code += "0, 0";
+				code += texture->semantic + "_PIXEL_SIZE"; // Expect application to set inverse texture size via a define if it is not known here
 
 			code += ") }; \n";
 		}
