@@ -319,15 +319,36 @@ namespace reshade::d3d9
 		if (FAILED(_device->BeginScene()))
 			return;
 
-		if (_preserve_depth_buffer && _auto_preserve)
+		if (_preserve_depth_buffer)
 		{
-			_db_vertices = 0;
-			_db_drawcalls = 0;
-			// if auto preserve mode is enabled, try to detect the best depth buffer clearing instance from which the depth buffer texture could be preserved
-			_preserve_starting_index = get_best_preserve_starting_index(false);
-			// keep trace of the max number of vertices and drawcalls of the depth buffer clearing instances for this frame
-			_previous_best_vertices = _db_vertices;
-			_previous_best_drawcalls = _db_drawcalls;
+			const auto it = _depth_buffer_table.find(_clear_buffer_idx);
+
+			if (it != _depth_buffer_table.end())
+			{
+				it->second.drawcall_count = _preserve_drawcalls;
+				it->second.vertices_count = _preserve_vertices;
+			}
+
+			const auto it2 = _depth_clearing_table.find(_clear_idx);
+
+			if (it2 != _depth_clearing_table.end())
+			{
+				it2->second.drawcall_count = _preserve_drawcalls;
+				it2->second.vertices_count = _preserve_vertices;
+			}
+
+			if (_auto_preserve)
+			{
+				_db_vertices = 0;
+				_db_drawcalls = 0;
+				_preserve_vertices = 0;
+				_preserve_drawcalls = 0;
+				// if auto preserve mode is enabled, try to detect the best depth buffer clearing instance from which the depth buffer texture could be preserved
+				_preserve_starting_index = get_best_preserve_starting_index(false);
+				// keep trace of the max number of vertices and drawcalls of the depth buffer clearing instances for this frame
+				_previous_best_vertices = _db_vertices;
+				_previous_best_drawcalls = _db_drawcalls;
+			}
 		}
 
 		detect_depth_source();
@@ -463,18 +484,6 @@ namespace reshade::d3d9
 
 		if (depthstencil != nullptr)
 		{
-			// keep trace of the number of draw calls and the number of vertices for the current depth buffer replacement texture ref, until the next depth buffer clearance
-			if (_preserve_depth_buffer && depthstencil == get_depthstencil_replacement())
-			{
-				const auto it2 = _depth_clearing_table.find(_clear_idx);
-
-				if (it2 != _depth_clearing_table.end())
-				{
-					it2->second.drawcall_count++;
-					it2->second.vertices_count += vertices;
-				}
-			}
-
 			if (depthstencil == get_depthstencil_replacement())
 			{
 				// for the next tables, we need to get back to the original depthstencil ref
@@ -494,14 +503,8 @@ namespace reshade::d3d9
 			}
 			else
 			{
-				// keep trace of the number of draw calls and the number of vertices for the current depthstencil texture ref, until the next depth buffer clearance
-				const auto it = _depth_buffer_table.find(_clear_buffer_idx);
-
-				if (it != _depth_buffer_table.end())
-				{
-					it->second.drawcall_count++;
-					it->second.vertices_count += vertices;
-				}
+				_preserve_drawcalls++;
+				_preserve_vertices += vertices;
 
 				depthstencil = get_depthstencil_replacement();
 			}
@@ -512,6 +515,25 @@ namespace reshade::d3d9
 		// early rejection
 		if (depthstencil == nullptr || !_preserve_depth_buffer || depthstencil != get_depthstencil_replacement())
 			return;
+
+		const auto it = _depth_buffer_table.find(_clear_buffer_idx);
+
+		if (it != _depth_buffer_table.end())
+		{
+			it->second.drawcall_count = _preserve_drawcalls;
+			it->second.vertices_count = _preserve_vertices;
+		}
+
+		const auto it2 = _depth_clearing_table.find(_clear_idx);
+
+		if (it2 != _depth_clearing_table.end())
+		{
+			it2->second.drawcall_count = _preserve_drawcalls;
+			it2->second.vertices_count = _preserve_vertices;
+		}
+
+		_preserve_drawcalls = 0;
+		_preserve_vertices = 0;
 
 		if (_auto_preserve && _multi_depthstencil)
 		{
@@ -1788,6 +1810,25 @@ namespace reshade::d3d9
 
 		D3DSURFACE_DESC desc;
 		depthstencil->GetDesc(&desc);
+
+		// check the size of the current depth buffer
+		if (!_disable_depth_buffer_size_restriction)
+		{
+			if ((desc.Width < _width * 0.95 || desc.Width > _width * 1.05) ||
+				(desc.Height < _height * 0.95 || desc.Height > _height * 1.05))
+			{
+				return nullptr;
+			}
+		}
+		else
+		{
+			// allow to retrieve depth buffers having greater dimensions than the viewport's ones (fix depth buffer detection in games like Vanquish)
+			if (desc.Width < _width * 0.95 ||
+				desc.Height < _height * 0.95)
+			{
+				return nullptr;
+			}
+		}
 
 		desc.Format = D3DFMT_UNKNOWN;
 		const D3DFORMAT formats[] = { D3DFMT_INTZ, D3DFMT_DF24, D3DFMT_DF16 };

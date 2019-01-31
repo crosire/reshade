@@ -126,6 +126,8 @@ namespace reshade::d3d9
 		bool _auto_preserve_on_drawcalls = false;
 		bool _auto_preserve_on_vertices = true;
 		bool _multi_depthstencil = false;
+		int _preserve_vertices = 0;
+		int _preserve_drawcalls = 0;
 		bool _is_multisampling_enabled = false;
 		int _clear_buffer_idx = 0;
 		int _clear_idx = 0;
