@@ -1069,42 +1069,51 @@ void imgui_code_editor::move_left(size_t amount, bool selection, bool word_mode)
 
 	const auto prev_pos = _cursor_pos;
 
-	while (amount-- > 0)
+	// Move cursor to selection start when moving left and no longer selecting
+	if (!selection && _interactive_beg != _interactive_end)
 	{
-		if (_cursor_pos.column == 0) // At the beginning of the current line, so move on to previous
-		{
-			if (_cursor_pos.line == 0)
-				break;
-
-			_cursor_pos.line--;
-			_cursor_pos.column = _lines[_cursor_pos.line].size();
-		}
-		else if (word_mode)
-		{
-			for (const auto word_color = _lines[_cursor_pos.line][_cursor_pos.column - 1].col; _cursor_pos.column > 0; --_cursor_pos.column)
-				if (_lines[_cursor_pos.line][_cursor_pos.column - 1].col != word_color)
-					break;
-		}
-		else
-		{
-			_cursor_pos.column--;
-		}
-	}
-
-	if (selection)
-	{
-		if (prev_pos == _interactive_beg)
-			_interactive_beg = _cursor_pos;
-		else if (prev_pos == _interactive_end)
-			_interactive_end = _cursor_pos;
-		else
-			_interactive_beg = _cursor_pos,
-			_interactive_end = prev_pos;
+		_cursor_pos = _interactive_beg;
+		_interactive_end = _cursor_pos;
 	}
 	else
 	{
-		_interactive_beg = _cursor_pos;
-		_interactive_end = _cursor_pos;
+		while (amount-- > 0)
+		{
+			if (_cursor_pos.column == 0) // At the beginning of the current line, so move on to previous
+			{
+				if (_cursor_pos.line == 0)
+					break;
+
+				_cursor_pos.line--;
+				_cursor_pos.column = _lines[_cursor_pos.line].size();
+			}
+			else if (word_mode)
+			{
+				for (const auto word_color = _lines[_cursor_pos.line][_cursor_pos.column - 1].col; _cursor_pos.column > 0; --_cursor_pos.column)
+					if (_lines[_cursor_pos.line][_cursor_pos.column - 1].col != word_color)
+						break;
+			}
+			else
+			{
+				_cursor_pos.column--;
+			}
+		}
+
+		if (selection)
+		{
+			if (prev_pos == _interactive_beg)
+				_interactive_beg = _cursor_pos;
+			else if (prev_pos == _interactive_end)
+				_interactive_end = _cursor_pos;
+			else
+				_interactive_beg = _cursor_pos,
+				_interactive_end = prev_pos;
+		}
+		else
+		{
+			_interactive_beg = _cursor_pos;
+			_interactive_end = _cursor_pos;
+		}
 	}
 
 	select(_interactive_beg, _interactive_end);
