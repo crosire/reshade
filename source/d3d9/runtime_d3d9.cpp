@@ -1501,6 +1501,19 @@ namespace reshade::d3d9
 				}
 			}
 
+			ImGui::Spacing();
+
+			if (ImGui::Checkbox("Disable the depth buffer size restriction", &_disable_depth_buffer_size_restriction))
+			{
+				runtime::save_config();
+
+				// Force depth-stencil replacement recreation
+				_depthstencil = nullptr;
+				// Force depth-stencil clearing table recreation
+				_depth_buffer_table.clear();
+				_depth_clearing_table.clear();
+			}
+
 			if (_preserve_depth_buffer)
 			{
 				if (ImGui::Checkbox("multiple depthstencil replacement buffer", &_multi_depthstencil))
@@ -1515,18 +1528,6 @@ namespace reshade::d3d9
 				}
 
 				ImGui::Spacing();
-				ImGui::Spacing();
-
-				if (ImGui::Checkbox("Disable the depth buffer size restriction", &_disable_depth_buffer_size_restriction))
-				{
-					runtime::save_config();
-
-					// Force depth-stencil replacement recreation
-					_depthstencil = nullptr;
-					// Force depth-stencil clearing table recreation
-					_depth_buffer_table.clear();
-					_depth_clearing_table.clear();
-				}
 
 				/*for (const auto &it : _depth_buffer_table)
 				{
