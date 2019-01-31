@@ -100,9 +100,8 @@ namespace reshade::d3d9
 		com_ptr<IDirect3DTexture9> create_depthstencil_texture(com_ptr<IDirect3DSurface9> depthstencil);
 		com_ptr<IDirect3DSurface9> get_depthstencil_replacement();
 		com_ptr<IDirect3DTexture9> get_depthstencil_texture();
-		int get_depthstencil_drawcalls();
-		int get_depthstencil_vertices();
 		int get_best_preserve_starting_index(bool multi);
+		bool check_depthstencil_size(com_ptr<IDirect3DSurface9> depthstencil);
 		bool is_preserved();
 
 #if RESHADE_GUI

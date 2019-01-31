@@ -330,7 +330,8 @@ void STDMETHODCALLTYPE D3D10Device::ClearRenderTargetView(ID3D10RenderTargetView
 void STDMETHODCALLTYPE D3D10Device::ClearDepthStencilView(ID3D10DepthStencilView *pDepthStencilView, UINT ClearFlags, FLOAT Depth, UINT8 Stencil)
 {
 #if RESHADE_DX10_CAPTURE_DEPTH_BUFFERS
-	track_cleared_depthstencil(pDepthStencilView);
+	if (ClearFlags & D3D10_CLEAR_DEPTH)
+		track_cleared_depthstencil(pDepthStencilView);
 #endif
 	_orig->ClearDepthStencilView(pDepthStencilView, ClearFlags, Depth, Stencil);
 }

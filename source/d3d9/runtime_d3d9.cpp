@@ -550,30 +550,11 @@ namespace reshade::d3d9
 	void runtime_d3d9::after_clear(com_ptr<IDirect3DSurface9> depthstencil)
 	{
 		// early rejection
-		if (depthstencil == nullptr || !_preserve_depth_buffer)
+		if (depthstencil == nullptr || !_preserve_depth_buffer || !check_depthstencil_size(depthstencil))
 			return;
 
 		D3DSURFACE_DESC desc;
 		depthstencil->GetDesc(&desc);
-
-		// check the size of the current depth buffer
-		if (!_disable_depth_buffer_size_restriction)
-		{
-			if ((desc.Width < _width * 0.95 || desc.Width > _width * 1.05) ||
-				(desc.Height < _height * 0.95 || desc.Height > _height * 1.05))
-			{
-				return;
-			}
-		}
-		else
-		{
-			// allow to retrieve depth buffers having greater dimensions than the viewport's ones (fix depth buffer detection in games like Vanquish)
-			if (desc.Width < _width * 0.95 ||
-				desc.Height < _height * 0.95)
-			{
-				return;
-			}
-		}
 
 		// check if we are in the main depth buffer surface
 		if (depthstencil == get_depthstencil_replacement() || depthstencil == _depthstencil)
@@ -655,27 +636,8 @@ namespace reshade::d3d9
 			depthstencil->GetDesc(&desc);
 
 			// Early rejection
-			if (desc.MultiSampleType != D3DMULTISAMPLE_NONE)
-			{
+			if (desc.MultiSampleType != D3DMULTISAMPLE_NONE || !check_depthstencil_size(depthstencil))
 				return;
-			}
-
-			if (!_disable_depth_buffer_size_restriction)
-			{
-				if ((desc.Width < _width * 0.95 || desc.Width > _width * 1.05) ||
-					(desc.Height < _height * 0.95 || desc.Height > _height * 1.05))
-				{
-					return;
-				}
-			}
-			else
-			{
-				if (desc.Width < _width * 0.95 ||
-					desc.Height < _height * 0.95)
-				{
-					return;
-				}
-			}
 	
 			depthstencil->AddRef();
 
@@ -1801,6 +1763,10 @@ namespace reshade::d3d9
 
 	com_ptr<IDirect3DTexture9> runtime_d3d9::create_depthstencil_texture(com_ptr<IDirect3DSurface9> depthstencil)
 	{
+		// check the size of the current depth buffer
+		if (!check_depthstencil_size(depthstencil))
+			return nullptr;
+
 		com_ptr<IDirect3DTexture9> depthstencil_replacement;
 
 		D3DDISPLAYMODE displaymode;
@@ -1810,25 +1776,6 @@ namespace reshade::d3d9
 
 		D3DSURFACE_DESC desc;
 		depthstencil->GetDesc(&desc);
-
-		// check the size of the current depth buffer
-		if (!_disable_depth_buffer_size_restriction)
-		{
-			if ((desc.Width < _width * 0.95 || desc.Width > _width * 1.05) ||
-				(desc.Height < _height * 0.95 || desc.Height > _height * 1.05))
-			{
-				return nullptr;
-			}
-		}
-		else
-		{
-			// allow to retrieve depth buffers having greater dimensions than the viewport's ones (fix depth buffer detection in games like Vanquish)
-			if (desc.Width < _width * 0.95 ||
-				desc.Height < _height * 0.95)
-			{
-				return nullptr;
-			}
-		}
 
 		desc.Format = D3DFMT_UNKNOWN;
 		const D3DFORMAT formats[] = { D3DFMT_INTZ, D3DFMT_DF24, D3DFMT_DF16 };
@@ -1886,32 +1833,6 @@ namespace reshade::d3d9
 		return _depthstencil_texture;
 	}
 
-	// retrieve the number of drawcalls corresponding to the current depth buffer replacement (unused for the moment) 
-	int runtime_d3d9::get_depthstencil_drawcalls()
-	{
-		const auto it = _depth_clearing_table.find(_clear_idx);
-
-		if (it != _depth_clearing_table.end())
-		{
-			return it->second.drawcall_count;
-		}
-
-		return 0;
-	}
-
-	// retrieve the number of vertices corresponding to the current depth buffer replacement (unused for the moment) 
-	int runtime_d3d9::get_depthstencil_vertices()
-	{
-		const auto it = _depth_clearing_table.find(_clear_idx);
-
-		if (it != _depth_clearing_table.end())
-		{
-			return it->second.vertices_count;
-		}
-
-		return 0;
-	}
-
 	// retrieve the best depth buffer clearing instance, depending on the options selected
 	int runtime_d3d9::get_best_preserve_starting_index(bool multi)
 	{
@@ -1951,6 +1872,33 @@ namespace reshade::d3d9
 		}
 
 		return result;
+	}
+
+	bool runtime_d3d9::check_depthstencil_size(com_ptr<IDirect3DSurface9> depthstencil)
+	{
+		D3DSURFACE_DESC desc;
+		depthstencil->GetDesc(&desc);
+
+		// check the size of the current depth buffer
+		if (!_disable_depth_buffer_size_restriction)
+		{
+			if ((desc.Width < _width * 0.95 || desc.Width > _width * 1.05) ||
+				(desc.Height < _height * 0.95 || desc.Height > _height * 1.05))
+			{
+				return false;
+			}
+		}
+		else
+		{
+			// allow to retrieve depth buffers having greater dimensions than the viewport's ones (fix depth buffer detection in games like Vanquish)
+			if (desc.Width < _width * 0.95 ||
+				desc.Height < _height * 0.95)
+			{
+				return false;
+			}
+		}
+
+		return true;
 	}
 
 	// preservation decision
