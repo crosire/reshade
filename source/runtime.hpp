@@ -285,6 +285,7 @@ namespace reshade
 		bool _performance_mode = false;
 		bool _no_reload_on_init = false;
 		bool _last_reload_successful = true;
+		bool _last_exists_screenshot_path = true;
 		std::mutex _reload_mutex;
 		size_t _reload_total_effects = 1;
 		std::vector<size_t> _reload_compile_queue;

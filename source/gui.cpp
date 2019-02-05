@@ -19,8 +19,6 @@ extern volatile long g_network_traffic;
 extern std::filesystem::path g_reshade_dll_path;
 extern std::filesystem::path g_target_executable_path;
 
-bool last_exists_screenshot_path = true;
-
 const ImVec4 COLOR_RED = ImColor(240, 100, 100);
 const ImVec4 COLOR_YELLOW = ImColor(204, 204, 0);
 
@@ -574,7 +572,7 @@ void reshade::runtime::draw_overlay_menu_home()
 		ImGui::Text("Effects are disabled. Press '%s' to enable them again.", input::key_name(_effects_key_data).c_str());
 
 	if (_screenshot_key_data[0] != 0
-		&& (_framecount % 60 == 0 ? !(last_exists_screenshot_path = std::filesystem::exists(_screenshot_path)) : !last_exists_screenshot_path))
+		&& (_framecount % 60 == 0 ? !(_last_exists_screenshot_path = std::filesystem::exists(_screenshot_path)) : !_last_exists_screenshot_path))
 	{
 		ImGui::TextColored(COLOR_RED, "Unable to save screenshots because path doesn't exist: %s", _screenshot_path.u8string().c_str());
 	}
