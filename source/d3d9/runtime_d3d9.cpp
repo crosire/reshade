@@ -544,7 +544,7 @@ namespace reshade::d3d9
 		if (is_preserved())
 		{
 			// if the current depth buffer replacement texture has to be preserved, replace the depthStencilSurface ref with a dummy one, so the depth buffer replacement texture will not be cleared
-			_device->SetDepthStencilSurface(nullptr);
+			_device->SetDepthStencilSurface(_depthstencil.get());
 		}
 	}
 	void runtime_d3d9::after_clear(com_ptr<IDirect3DSurface9> depthstencil)
@@ -1542,7 +1542,13 @@ namespace reshade::d3d9
 				{
 					if (_auto_preserve)
 						_preserve_starting_index = -1;
-
+					else
+					{
+						if(_multi_depthstencil)
+							_preserve_starting_index = 999999;
+						else
+							_preserve_starting_index = -1;
+					}
 					runtime::save_config();
 					// Force depth-stencil replacement recreation
 					_depthstencil = nullptr;
