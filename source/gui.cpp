@@ -571,10 +571,8 @@ void reshade::runtime::draw_overlay_menu_home()
 	if (!_effects_enabled)
 		ImGui::Text("Effects are disabled. Press '%s' to enable them again.", input::key_name(_effects_key_data).c_str());
 
-	if (!std::filesystem::exists(_screenshot_path))
-	{
+	if (!_screenshot_path_exists)
 		ImGui::TextColored(COLOR_RED, "Unable to save screenshots because path doesn't exist: %s", _screenshot_path.u8string().c_str());
-	}
 
 	const char *tutorial_text =
 		"Welcome! Since this is the first time you start ReShade, we'll go through a quick tutorial covering the most important features.\n\n"
@@ -894,6 +892,9 @@ void reshade::runtime::draw_overlay_menu_settings()
 		modified |= imgui_directory_input_box("Screenshot Path", _screenshot_path, _file_selection_path);
 		modified |= ImGui::Combo("Screenshot Format", &_screenshot_format, "Bitmap (*.bmp)\0Portable Network Graphics (*.png)\0");
 		modified |= ImGui::Checkbox("Include Preset & Settings", &_screenshot_include_preset);
+
+		if (modified)
+			_screenshot_path_exists = std::filesystem::exists(_screenshot_path);
 	}
 
 	if (ImGui::CollapsingHeader("User Interface", ImGuiTreeNodeFlags_DefaultOpen))

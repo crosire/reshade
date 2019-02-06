@@ -770,6 +770,8 @@ void reshade::runtime::load_config()
 	config.get("GENERAL", "ScreenshotIncludePreset", _screenshot_include_preset);
 	config.get("GENERAL", "NoReloadOnInit", _no_reload_on_init);
 
+	_screenshot_path_exists = std::filesystem::exists(_screenshot_path);
+
 	// Look for new preset files in the preset search paths
 	for (const auto &search_path : _preset_search_paths)
 	{

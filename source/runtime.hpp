@@ -269,9 +269,8 @@ namespace reshade
 		int _screenshot_format = 0;
 		std::filesystem::path _screenshot_path;
 		std::filesystem::path _configuration_path;
+		bool _screenshot_path_exists = false;
 		bool _screenshot_include_preset = false;
-
-		bool _statistics_effects_show_enabled = false;
 
 		size_t _current_preset = 0;
 		std::vector<std::filesystem::path> _preset_files;
@@ -346,6 +345,7 @@ namespace reshade
 		bool _selected_effect_changed = false;
 		bool _rebuild_font_atlas = false;
 		bool _was_preprocessor_popup_visible = false;
+		bool _statistics_effects_show_enabled = false;
 		float _fps_col[4] = { 1.0f, 1.0f, 0.784314f, 1.0f };
 		float _fps_scale = 1.0f;
 		float _variable_editor_height = 0.0f;
