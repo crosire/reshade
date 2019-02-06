@@ -571,7 +571,7 @@ void reshade::runtime::draw_overlay_menu_home()
 	if (!_effects_enabled)
 		ImGui::Text("Effects are disabled. Press '%s' to enable them again.", input::key_name(_effects_key_data).c_str());
 
-	if (!_screenshot_path_exists)
+	if (!_screenshot_path_exists && (_screenshot_key_data[0] != 0 || _screenshot_path != ""))
 		ImGui::TextColored(COLOR_RED, "Unable to save screenshots because path doesn't exist: %s", _screenshot_path.u8string().c_str());
 
 	const char *tutorial_text =
