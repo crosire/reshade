@@ -7,6 +7,7 @@
 
 #include <filesystem>
 #include <unordered_map>
+#include "unicode.hpp"
 #include "variant.hpp"
 
 namespace reshade
@@ -53,8 +54,7 @@ namespace reshade
 				return;
 			}
 
-			std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> cv;
-			value = cv.from_bytes(it2->second.as<std::string>());
+			value = unicode::convert_utf16(it2->second.as<std::string>());
 		}
 		template <typename T, size_t SIZE>
 		void get(const std::string &section, const std::string &key, T(&values)[SIZE]) const
@@ -120,10 +120,9 @@ namespace reshade
 
 			pathes.clear();
 
-			std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> cv;
 			for (size_t i = 0; i < it2->second.data().size(); i++)
 			{
-				pathes.emplace_back(cv.from_bytes(it2->second.as<std::string>(i)));
+				pathes.emplace_back(unicode::convert_utf16(it2->second.as<std::string>(i)));
 			}
 		}
 		template <typename T>
@@ -147,11 +146,10 @@ namespace reshade
 		void set(const std::string &section, const std::string &key, const std::vector<std::filesystem::path> &pathes)
 		{
 			_modified = true;
-			std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> cv;
 			std::vector<std::string> values;
 			for (auto it = pathes.begin(); it != pathes.end(); it++)
 			{
-				values.push_back(cv.to_bytes(*it));
+				values.push_back((*it).u8string());
 			}
 			_sections[section][key] = values;
 		}
