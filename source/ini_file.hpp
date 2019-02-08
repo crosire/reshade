@@ -37,6 +37,25 @@ namespace reshade
 
 			value = it2->second.as<T>();
 		}
+		void get(const std::string &section, const std::string &key, std::filesystem::path &value) const
+		{
+			const auto it1 = _sections.find(section);
+
+			if (it1 == _sections.end())
+			{
+				return;
+			}
+
+			const auto it2 = it1->second.find(key);
+
+			if (it2 == it1->second.end())
+			{
+				return;
+			}
+
+			std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> cv;
+			value = cv.from_bytes(it2->second.as<std::string>());
+		}
 		template <typename T, size_t SIZE>
 		void get(const std::string &section, const std::string &key, T(&values)[SIZE]) const
 		{
@@ -83,6 +102,30 @@ namespace reshade
 				values.emplace_back(it2->second.as<T>(i));
 			}
 		}
+		void get(const std::string &section, const std::string &key, std::vector<std::filesystem::path> &pathes) const
+		{
+			const auto it1 = _sections.find(section);
+
+			if (it1 == _sections.end())
+			{
+				return;
+			}
+
+			const auto it2 = it1->second.find(key);
+
+			if (it2 == it1->second.end())
+			{
+				return;
+			}
+
+			pathes.clear();
+
+			std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> cv;
+			for (size_t i = 0; i < it2->second.data().size(); i++)
+			{
+				pathes.emplace_back(cv.from_bytes(it2->second.as<std::string>(i)));
+			}
+		}
 		template <typename T>
 		void set(const std::string &section, const std::string &key, const T &value)
 		{
@@ -99,6 +142,17 @@ namespace reshade
 		void set(const std::string &section, const std::string &key, const std::vector<T> &values)
 		{
 			_modified = true;
+			_sections[section][key] = values;
+		}
+		void set(const std::string &section, const std::string &key, const std::vector<std::filesystem::path> &pathes)
+		{
+			_modified = true;
+			std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> cv;
+			std::vector<std::string> values;
+			for (auto it = pathes.begin(); it != pathes.end(); it++)
+			{
+				values.push_back(cv.to_bytes(*it));
+			}
 			_sections[section][key] = values;
 		}
 

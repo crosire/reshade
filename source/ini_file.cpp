@@ -39,6 +39,11 @@ namespace reshade
 	{
 		std::string line, section;
 		std::ifstream file(_path.wstring());
+		file.imbue(std::locale("en-us.UTF-8"));
+
+		// Remove BOM (0xefbbbf means 0xfeff)
+		if (file.get() != 0xef || file.get() != 0xbb || file.get() != 0xbf)
+			file.seekg(0, SEEK_SET);
 
 		while (std::getline(file, line))
 		{
@@ -91,6 +96,7 @@ namespace reshade
 		}
 
 		std::ofstream file(_save_path.wstring());
+		file.imbue(std::locale("en-us.UTF-8"));
 
 		const auto it = _sections.find("");
 
