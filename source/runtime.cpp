@@ -959,7 +959,7 @@ void reshade::runtime::save_current_preset() const
 		save_preset(_preset_files[_current_preset]);
 }
 
-void reshade::runtime::save_screenshot() const
+void reshade::runtime::save_screenshot()
 {
 	std::vector<uint8_t> data(_width * _height * 4);
 	capture_frame(data.data());
@@ -996,7 +996,11 @@ void reshade::runtime::save_screenshot() const
 		fclose(file);
 	}
 
-	if (!success)
+	if (success)
+	{
+		_screenshot_path_exists = true;
+	}
+	else
 	{
 		LOG(ERROR) << "Failed to write screenshot to " << screenshot_path << '!';
 		return;
