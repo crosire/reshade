@@ -1803,7 +1803,16 @@ namespace reshade::d3d9
 			return nullptr;
 		}
 
-		const HRESULT hr = _device->CreateTexture(_width, _height, 1, D3DUSAGE_DEPTHSTENCIL, desc.Format, D3DPOOL_DEFAULT, &depthstencil_replacement, nullptr);
+		UINT width = desc.Width;
+		UINT height = desc.Height;
+
+		if (_disable_depth_buffer_size_restriction)
+		{
+			width = _width;
+			height = _height;
+		}
+
+		const HRESULT hr = _device->CreateTexture(width, height, 1, D3DUSAGE_DEPTHSTENCIL, desc.Format, D3DPOOL_DEFAULT, &depthstencil_replacement, nullptr);
 
 		if (!SUCCEEDED(hr))
 		{
