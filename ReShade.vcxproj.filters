@@ -72,9 +72,6 @@
     <ClCompile Include="source\log.cpp">
       <Filter>core\utility</Filter>
     </ClCompile>
-    <ClCompile Include="source\unicode.cpp">
-      <Filter>core\utility</Filter>
-    </ClCompile>
     <ClCompile Include="source\update_check.cpp">
       <Filter>core\utility</Filter>
     </ClCompile>
@@ -172,9 +169,6 @@
     </ClInclude>
     <ClInclude Include="source\runtime_objects.hpp">
       <Filter>core\runtime</Filter>
-    </ClInclude>
-    <ClInclude Include="source\unicode.hpp">
-      <Filter>core\utility</Filter>
     </ClInclude>
     <ClInclude Include="source\variant.hpp">
       <Filter>core\utility</Filter>
