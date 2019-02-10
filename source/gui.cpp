@@ -895,7 +895,8 @@ void reshade::runtime::draw_overlay_menu_settings()
 		modified |= ImGui::Checkbox("Include Preset & Settings", &_screenshot_include_preset);
 
 		if (modified)
-			_screenshot_path_exists = std::filesystem::exists(g_target_executable_path.parent_path() / _screenshot_path);
+			_screenshot_path_exists = std::filesystem::exists(
+				_screenshot_path.is_relative() ? g_target_executable_path.parent_path() / _screenshot_path : _screenshot_path);
 	}
 
 	if (ImGui::CollapsingHeader("User Interface", ImGuiTreeNodeFlags_DefaultOpen))
