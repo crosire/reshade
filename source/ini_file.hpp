@@ -7,7 +7,6 @@
 
 #include <filesystem>
 #include <unordered_map>
-#include "unicode.hpp"
 #include "variant.hpp"
 
 namespace reshade
@@ -54,7 +53,7 @@ namespace reshade
 				return;
 			}
 
-			value = unicode::convert_utf16(it2->second.as<std::string>());
+			value = std::filesystem::u8path(it2->second.as<std::string>());
 		}
 		template <typename T, size_t SIZE>
 		void get(const std::string &section, const std::string &key, T(&values)[SIZE]) const
@@ -122,7 +121,7 @@ namespace reshade
 
 			for (size_t i = 0; i < it2->second.data().size(); i++)
 			{
-				pathes.emplace_back(unicode::convert_utf16(it2->second.as<std::string>(i)));
+				pathes.emplace_back(std::filesystem::u8path(it2->second.as<std::string>(i)));
 			}
 		}
 		template <typename T>

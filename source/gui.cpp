@@ -6,7 +6,6 @@
 #if RESHADE_GUI
 
 #include "log.hpp"
-#include "unicode.hpp"
 #include "version.h"
 #include "runtime.hpp"
 #include "input.hpp"
@@ -639,7 +638,7 @@ void reshade::runtime::draw_overlay_menu_home()
 			char buf[260] = "";
 			if (ImGui::InputText("Name", buf, sizeof(buf), ImGuiInputTextFlags_EnterReturnsTrue))
 			{
-				auto name = unicode::convert_utf16(buf);
+				auto name = std::filesystem::u8path(buf);
 				auto search_paths = _preset_search_paths;
 				if (search_paths.empty())
 					search_paths.push_back(g_reshade_dll_path.parent_path());
