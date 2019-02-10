@@ -770,7 +770,7 @@ void reshade::runtime::load_config()
 	config.get("GENERAL", "ScreenshotIncludePreset", _screenshot_include_preset);
 	config.get("GENERAL", "NoReloadOnInit", _no_reload_on_init);
 
-	_screenshot_path_exists = std::filesystem::exists(_screenshot_path);
+	_screenshot_path_exists = std::filesystem::exists(g_target_executable_path.parent_path() / _screenshot_path);
 
 	// Look for new preset files in the preset search paths
 	for (const auto &search_path : _preset_search_paths)
@@ -970,7 +970,7 @@ void reshade::runtime::save_screenshot() const
 
 	char filename[21];
 	sprintf_s(filename, " %.4d-%.2d-%.2d %.2d-%.2d-%.2d", _date[0], _date[1], _date[2], hour, minute, seconds);
-	const std::wstring least = _screenshot_path / g_target_executable_path.stem().concat(filename);
+	const std::wstring least = g_target_executable_path.parent_path() / _screenshot_path / g_target_executable_path.stem().concat(filename);
 	const std::wstring screenshot_path = least + (_screenshot_format == 0 ? L".bmp" : L".png");
 
 	LOG(INFO) << "Saving screenshot to " << screenshot_path << " ...";
