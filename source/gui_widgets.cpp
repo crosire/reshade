@@ -67,7 +67,7 @@ bool imgui_font_select(const char *name, std::filesystem::path &path, int &size)
 	if (ImGui::InputText("##font", buf, sizeof(buf)))
 	{
 		std::error_code ec;
-		const std::filesystem::path new_path = buf;
+		const std::filesystem::path new_path = std::filesystem::u8path(buf);
 
 		if ((new_path.empty() || new_path == "ProggyClean.ttf") || (std::filesystem::is_regular_file(new_path, ec) && new_path.extension() == ".ttf"))
 		{
@@ -105,7 +105,7 @@ bool imgui_directory_dialog(const char *name, std::filesystem::path &path)
 
 	ImGui::PushItemWidth(400);
 	if (ImGui::InputText("##path", buf, sizeof(buf)))
-		path = buf;
+		path = std::filesystem::u8path(buf);
 	ImGui::PopItemWidth();
 
 	ImGui::SameLine();
@@ -168,7 +168,7 @@ bool imgui_directory_input_box(const char *name, std::filesystem::path &path, st
 
 	ImGui::PushItemWidth(ImGui::CalcItemWidth() - (button_spacing + button_size));
 	if (ImGui::InputText("##path", buf, sizeof(buf)))
-		path = buf, res = true;
+		path = std::filesystem::u8path(buf), res = true;
 	ImGui::PopItemWidth();
 
 	ImGui::SameLine(0, button_spacing);
@@ -213,7 +213,7 @@ bool imgui_path_list(const char *label, std::vector<std::filesystem::path> &path
 			if (ImGui::InputText("##path", buf, sizeof(buf)))
 			{
 				res = true;
-				paths[i] = buf;
+				paths[i] = std::filesystem::u8path(buf);
 			}
 			ImGui::PopItemWidth();
 

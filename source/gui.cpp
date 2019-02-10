@@ -638,6 +638,7 @@ void reshade::runtime::draw_overlay_menu_home()
 			char buf[260] = "";
 			if (ImGui::InputText("Name", buf, sizeof(buf), ImGuiInputTextFlags_EnterReturnsTrue))
 			{
+				auto name = std::filesystem::u8path(buf);
 				auto search_paths = _preset_search_paths;
 				if (search_paths.empty())
 					search_paths.push_back(g_reshade_dll_path.parent_path());
@@ -645,7 +646,7 @@ void reshade::runtime::draw_overlay_menu_home()
 				for (const auto &search_path : search_paths)
 				{
 					std::error_code ec;
-					auto path = std::filesystem::absolute(g_reshade_dll_path.parent_path() / search_path / buf, ec);
+					auto path = std::filesystem::absolute(g_reshade_dll_path.parent_path() / search_path / name, ec);
 					path.replace_extension(".ini");
 
 					if (!ec && (std::filesystem::exists(path, ec) || std::filesystem::exists(path.parent_path(), ec)))
