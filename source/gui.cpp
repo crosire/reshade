@@ -767,6 +767,7 @@ void reshade::runtime::draw_overlay_menu_home()
 					}
 				}
 			}
+
 			save_current_preset();
 		}
 
