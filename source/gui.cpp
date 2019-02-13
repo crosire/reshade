@@ -1798,7 +1798,7 @@ void reshade::runtime::draw_overlay_variable_editor()
 			else if (ui_type == "color" && variable.type.rows == 3)
 				modified = ImGui::ColorEdit3(ui_label.c_str(), data, ImGuiColorEditFlags_NoOptions);
 			else if (ui_type == "color" && variable.type.rows == 4)
-				modified = ImGui::ColorEdit4(ui_label.c_str(), data, ImGuiColorEditFlags_NoOptions);
+				modified = ImGui::ColorEdit4(ui_label.c_str(), data, ImGuiColorEditFlags_NoOptions | ImGuiColorEditFlags_AlphaPreview | ImGuiColorEditFlags_AlphaBar);
 			else
 				modified = ImGui::InputScalarN(ui_label.c_str(), ImGuiDataType_Float, data, variable.type.rows);
 
