@@ -318,6 +318,32 @@ bool imgui_slider_with_buttons(const char *label, ImGuiDataType data_type, void 
 	}
 }
 
+bool imgui_slider_for_alpha(const char *label, float *v)
+{
+	const float button_size = ImGui::GetFrameHeight();
+	const float button_spacing = ImGui::GetStyle().ItemInnerSpacing.x;
+
+	ImGui::BeginGroup();
+	ImGui::PushID(label);
+
+	ImGui::PushItemWidth(ImGui::CalcItemWidth() - button_spacing - button_size);
+	bool value_changed = ImGui::SliderFloat("##v", v, 0.0f, 1.0f);
+	ImGui::PopItemWidth();
+
+	ImGui::SameLine(0, button_spacing);
+	ImGui::ColorButton("##preview", ImVec4(1.0f, 1.0f, 1.0f, *v), ImGuiColorEditFlags_NoOptions | ImGuiColorEditFlags_AlphaPreview | ImGuiColorEditFlags_NoPicker);
+
+	ImGui::PopID();
+
+	ImGui::SameLine(0, button_spacing);
+	ImGui::TextUnformatted(label);
+
+	ImGui::EndGroup();
+
+	return value_changed;
+
+}
+
 void imgui_image_with_checkerboard_background(ImTextureID user_texture_id, const ImVec2 &size)
 {
 	const auto draw_list = ImGui::GetWindowDrawList();
