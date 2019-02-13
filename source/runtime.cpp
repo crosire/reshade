@@ -1168,6 +1168,7 @@ void reshade::runtime::reset_uniform_value(uniform &variable)
 			case reshadefx::type::t_int:
 				reinterpret_cast<float *>(_uniform_data_storage.data() + variable.storage_offset)[i] = static_cast<float>(variable.initializer_value.as_int[i]);
 				break;
+			case reshadefx::type::t_bool:
 			case reshadefx::type::t_uint:
 				reinterpret_cast<float *>(_uniform_data_storage.data() + variable.storage_offset)[i] = static_cast<float>(variable.initializer_value.as_uint[i]);
 				break;
