@@ -735,7 +735,7 @@ void reshade::runtime::draw_overlay_menu_home()
 
 		ImGui::SameLine();
 
-		if (ImGui::Button("Sort by used", ImVec2(130 - _imgui_context->Style.ItemSpacing.x, 0)))
+		if (ImGui::Button("Active to top", ImVec2(130 - _imgui_context->Style.ItemSpacing.x, 0)))
 		{
 			for (size_t i = 0; i < _techniques.size(); ++i)
 			{
