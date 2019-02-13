@@ -232,10 +232,11 @@ private:
 
 	id make_id() { return _next_id++; }
 
+	template <bool is_function = false>
 	std::string id_to_name(id id) const
 	{
 		if (const auto it = _names.find(id); it != _names.end())
-			return it->second;
+			return is_function ? it->second : it->second + '_' + std::to_string(id);
 		return '_' + std::to_string(id);
 	}
 
@@ -334,7 +335,7 @@ private:
 
 			write_location(code, loc);
 
-			code += "static const __sampler2D " + info.unique_name + " = { " + (info.srgb ? "__srgb" : "") + info.texture_name + ", __s" + std::to_string(info.binding) + " };\n";
+			code += "static const __sampler2D " + id_to_name(info.id) + " = { " + (info.srgb ? "__srgb" : "") + info.texture_name + ", __s" + std::to_string(info.binding) + " };\n";
 		}
 		else
 		{
@@ -344,7 +345,7 @@ private:
 
 			write_location(code, loc);
 
-			code += "static const __sampler2D " + info.unique_name + " = { __" + info.unique_name + "_s, float2(";
+			code += "static const __sampler2D " + id_to_name(info.id) + " = { __" + info.unique_name + "_s, float2(";
 
 			if (texture->semantic.empty())
 				code += std::to_string(1.0f / texture->width) + ", " + std::to_string(1.0f / texture->height);
@@ -461,7 +462,7 @@ private:
 		write_location(code, loc);
 
 		write_type(code, info.return_type);
-		code += ' ' + id_to_name(info.definition) + '(';
+		code += ' ' + id_to_name<true>(info.definition) + '(';
 
 		for (size_t i = 0, num_params = info.parameter_list.size(); i < num_params; ++i)
 		{
@@ -474,7 +475,7 @@ private:
 			write_location(code, param.location);
 			code += '\t';
 			write_type<true>(code, param.type);
-			code += ' ' + param.name;
+			code += ' ' + id_to_name(param.definition);
 
 			if (param.type.is_array())
 				code += '[' + std::to_string(param.type.array_length) + ']';
@@ -891,7 +892,7 @@ private:
 			code += " = ";
 		}
 
-		code += id_to_name(function) + '(';
+		code += id_to_name<true>(function) + '(';
 
 		for (size_t i = 0, num_args = args.size(); i < num_args; ++i)
 		{

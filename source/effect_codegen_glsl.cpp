@@ -205,13 +205,15 @@ private:
 
 	id make_id() { return _next_id++; }
 
+	template <bool is_function = false>
 	std::string id_to_name(id id) const
 	{
-		if (const auto it = _remapped_sampler_variables.find(id); it != _remapped_sampler_variables.end())
-			id = it->second;
+		if constexpr (!is_function)
+			if (const auto it = _remapped_sampler_variables.find(id); it != _remapped_sampler_variables.end())
+				id = it->second;
 		assert(id != 0);
 		if (const auto it = _names.find(id); it != _names.end())
-			return it->second;
+			return is_function ? it->second : it->second + '_' + std::to_string(id);
 		return '_' + std::to_string(id);
 	}
 
@@ -394,7 +396,7 @@ private:
 		write_location(code, loc);
 
 		write_type(code, info.return_type);
-		code += ' ' + id_to_name(info.definition) + '(';
+		code += ' ' + id_to_name<true>(info.definition) + '(';
 
 		assert(info.parameter_list.empty() || !is_entry_point);
 
@@ -409,7 +411,7 @@ private:
 			write_location(code, param.location);
 			code += '\t';
 			write_type<true>(code, param.type); // GLSL does not allow interpolation attributes on function parameters
-			code += ' ' + param.name;
+			code += ' ' + id_to_name(param.definition);
 
 			if (param.type.is_array())
 				code += '[' + std::to_string(param.type.array_length) + ']';
@@ -568,7 +570,7 @@ private:
 			code += "_return = ";
 
 		// Call the function this entry point refers to
-		code += id_to_name(func.definition) + '(';
+		code += id_to_name<true>(func.definition) + '(';
 
 		for (size_t i = 0, num_params = func.parameter_list.size(); i < num_params; ++i)
 		{
@@ -965,7 +967,7 @@ private:
 			code += " = ";
 		}
 
-		code += id_to_name(function) + '(';
+		code += id_to_name<true>(function) + '(';
 
 		for (size_t i = 0, num_args = args.size(); i < num_args; ++i)
 		{
