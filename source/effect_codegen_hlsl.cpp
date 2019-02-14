@@ -240,7 +240,7 @@ private:
 	}
 
 	template <bool is_unique = true>
-	std::string define_name(const id id, const std::string name)
+	std::string &define_name(const id id, const std::string &name)
 	{
 		if constexpr (!is_unique)
 			for (auto it = _names.begin(); it != _names.end(); it++)
