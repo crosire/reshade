@@ -232,12 +232,19 @@ private:
 
 	id make_id() { return _next_id++; }
 
-	template <bool is_function = false>
 	std::string id_to_name(id id) const
 	{
 		if (const auto it = _names.find(id); it != _names.end())
-			return is_function ? it->second : it->second + '_' + std::to_string(id);
+			return it->second;
 		return '_' + std::to_string(id);
+	}
+
+	std::string define_name(const id id, const std::string name)
+	{
+		for (auto it = _names.begin(); it != _names.end(); it++)
+			if (it->second == name)
+				return _names[id] = it->second + '_' + std::to_string(id);
+		return _names[id] = name;
 	}
 
 	static void increase_indentation_level(std::string &block)
@@ -422,7 +429,7 @@ private:
 		const id res = make_id();
 
 		if (!name.empty())
-			_names[res] = std::move(name);
+			define_name(res, std::move(name));
 
 		std::string &code = _blocks.at(_current_block);
 
@@ -462,7 +469,7 @@ private:
 		write_location(code, loc);
 
 		write_type(code, info.return_type);
-		code += ' ' + id_to_name<true>(info.definition) + '(';
+		code += ' ' + id_to_name(info.definition) + '(';
 
 		for (size_t i = 0, num_params = info.parameter_list.size(); i < num_params; ++i)
 		{
@@ -892,7 +899,7 @@ private:
 			code += " = ";
 		}
 
-		code += id_to_name<true>(function) + '(';
+		code += id_to_name(function) + '(';
 
 		for (size_t i = 0, num_args = args.size(); i < num_args; ++i)
 		{
