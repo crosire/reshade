@@ -239,11 +239,13 @@ private:
 		return '_' + std::to_string(id);
 	}
 
+	template <bool is_unique = true>
 	std::string define_name(const id id, const std::string name)
 	{
-		for (auto it = _names.begin(); it != _names.end(); it++)
-			if (it->second == name)
-				return _names[id] = it->second + '_' + std::to_string(id);
+		if constexpr (!is_unique)
+			for (auto it = _names.begin(); it != _names.end(); it++)
+				if (it->second == name)
+					return _names[id] = it->second + '_' + std::to_string(id);
 		return _names[id] = name;
 	}
 
@@ -429,7 +431,7 @@ private:
 		const id res = make_id();
 
 		if (!name.empty())
-			define_name(res, std::move(name));
+			define_name<false>(res, std::move(name));
 
 		std::string &code = _blocks.at(_current_block);
 
