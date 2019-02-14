@@ -20,6 +20,7 @@ namespace reshade
 		return res;
 	}
 
+	ini_file::ini_file() {}
 	ini_file::ini_file(const std::filesystem::path &path)
 		: _path(path), _save_path(path)
 	{
@@ -37,6 +38,8 @@ namespace reshade
 
 	void ini_file::load()
 	{
+		_sections.clear();
+
 		std::string line, section;
 		std::ifstream file(_path.wstring());
 		file.imbue(std::locale("en-us.UTF-8"));
@@ -90,7 +93,7 @@ namespace reshade
 	}
 	void ini_file::save() const
 	{
-		if (!_modified)
+		if (!_modified || _save_path.empty())
 		{
 			return;
 		}

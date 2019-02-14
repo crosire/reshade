@@ -674,9 +674,17 @@ void reshade::runtime::draw_overlay_menu_home()
 
 			if (imgui_popup_button("-", button_size))
 			{
-				ImGui::Text("Do you really want to remove this preset?");
+				ImGui::Text("Do you really want to reset/remove this preset?");
 
-				if (ImGui::Button("Yes", ImVec2(-1, 0)))
+				if (ImGui::Button("Yes (Reset only)", ImVec2(-1, 0)))
+				{
+					reset_current_preset(); // Reset the now selected preset
+					save_current_preset();
+
+					ImGui::CloseCurrentPopup();
+				}
+
+				if (ImGui::Button("Yes (Remove from presets)", ImVec2(-1, 0)))
 				{
 					_preset_files.erase(_preset_files.begin() + _current_preset);
 

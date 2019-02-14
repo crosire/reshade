@@ -842,8 +842,10 @@ void reshade::runtime::save_config(const std::filesystem::path &path) const
 
 void reshade::runtime::load_preset(const std::filesystem::path &path)
 {
-	const ini_file preset(path);
-
+	load_preset(ini_file(path));
+}
+void reshade::runtime::load_preset(const ini_file &preset)
+{
 	// Reorder techniques
 	std::vector<std::string> technique_list;
 	preset.get("", "Techniques", technique_list);
@@ -900,6 +902,22 @@ void reshade::runtime::load_current_preset()
 {
 	if (_current_preset < _preset_files.size())
 		load_preset(_preset_files[_current_preset]);
+}
+void reshade::runtime::reset_current_preset()
+{
+	for (technique &technique : _techniques)
+	{
+		technique.toggle_key_data[0] = 0;
+		technique.toggle_key_data[1] = 0;
+		technique.toggle_key_data[2] = 0;
+		technique.toggle_key_data[3] = 0;
+	}
+
+	for (uniform &uniform : _uniforms)
+		reset_uniform_value(uniform);
+
+	if (_current_preset < _preset_files.size())
+		load_preset(ini_file());
 }
 void reshade::runtime::save_preset(const std::filesystem::path &path) const
 {

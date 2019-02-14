@@ -14,6 +14,7 @@ namespace reshade
 	class ini_file
 	{
 	public:
+		explicit ini_file();
 		explicit ini_file(const std::filesystem::path &path);
 		explicit ini_file(const std::filesystem::path &path, const std::filesystem::path &save_path);
 		~ini_file();

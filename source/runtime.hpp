@@ -236,9 +236,18 @@ namespace reshade
 		/// <param name="path">The preset file to load.</param>
 		void load_preset(const std::filesystem::path &path);
 		/// <summary>
+		/// Load a preset from the specified file and apply it.
+		/// </summary>
+		/// <param name="preset">The preset file to load.</param>
+		void load_preset(const ini_file &preset);
+		/// <summary>
 		/// Load the currently selected preset and apply it.
 		/// </summary>
 		void load_current_preset();
+		/// <summary>
+		/// Reset the currently selected preset and apply it.
+		/// </summary>
+		void reset_current_preset();
 		/// <summary>
 		/// Save the current value configuration as a preset to the specified file.
 		/// </summary>
