@@ -739,13 +739,29 @@ void reshade::runtime::draw_overlay_menu_home()
 		{
 			for (size_t i = 0; i < _techniques.size(); ++i)
 			{
-				if (!_techniques[i].enabled)
+				if (!_techniques[i].enabled && _techniques[i].toggle_key_data[0] == 0)
 				{
 					for (size_t k = i + 1; k < _techniques.size(); ++k)
 					{
-						if (_techniques[k].enabled)
+						if (_techniques[k].enabled || _techniques[k].toggle_key_data[0] != 0)
 						{
 							std::swap(_techniques[i], _techniques[k]);
+							break;
+						}
+					}
+				}
+			}
+			for (size_t i = 0; i < _techniques.size(); ++i)
+			{
+				if (!_techniques[i].enabled && _techniques[i].toggle_key_data[0] == 0)
+				{
+					for (size_t k = i + 1; k < _techniques.size(); ++k)
+					{
+						if (!_techniques[k].enabled && _techniques[k].toggle_key_data[0] == 0
+							&& _techniques[i].name.compare(_techniques[k].name) > 0)
+						{
+							std::swap(_techniques[i], _techniques[k]);
+							i = 0;
 							break;
 						}
 					}
