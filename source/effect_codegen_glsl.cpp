@@ -22,6 +22,16 @@ public:
 	}
 
 private:
+	enum class naming
+	{
+		// After escaping, when clashing as other name in source, it will be numbered
+		general,
+		// After escaping, when clashing as other name in source, occurs error
+		unique,
+		// When clashing as other name in source, occurs error
+		reserved,
+	};
+
 	id _next_id = 1;
 	id _last_block = 0;
 	id _current_block = 0;
@@ -215,20 +225,22 @@ private:
 		return '_' + std::to_string(id);
 	}
 
-	template <bool is_unique = true>
-	std::string &define_name(const id id, const std::string &name)
+	template <naming naming = naming::general>
+	std::string &define_name(const id id, std::string name)
 	{
-		if constexpr (!is_unique)
+		if constexpr (naming != naming::reserved)
+			escape_name(name);
+		if constexpr (naming == naming::general)
 			for (auto it = _names.begin(); it != _names.end(); it++)
 				if (it->second == name)
-					return _names[id] = name + '_' + std::to_string(id);
-		return _names[id] = name;
+					return _names[id] = conform_naming_rule(name + '_' + std::to_string(id));
+		return _names[id] = std::move(name);
 	}
 
 	static void escape_name(std::string &name)
 	{
 		static const std::unordered_set<std::string> s_reserverd_names = {
-			"common", "partition", "input", "ouput", "active", "filter", "superp", "invariant",
+			"common", "partition", "input", "output", "active", "filter", "superp", "invariant",
 			"lowp", "mediump", "highp", "precision", "patch", "subroutine",
 			"abs", "sign", "all", "any", "sin", "sinh", "cos", "cosh", "tan", "tanh", "asin", "acos", "atan",
 			"exp", "exp2", "log", "log2", "sqrt", "inversesqrt", "ceil", "floor", "fract", "trunc", "round",
@@ -241,8 +253,15 @@ private:
 
 		if (name.compare(0, 3, "gl_") == 0 || s_reserverd_names.count(name))
 			name += '_';
+
+		conform_naming_rule(name);
+	}
+
+	static std::string &conform_naming_rule(std::string &name)
+	{
 		for (size_t pos = 0; (pos = name.find("__", pos)) != std::string::npos; pos += 3)
 			name.replace(pos, 2, "_US");
+		return name;
 	}
 
 	static void increase_indentation_level(std::string &block)
@@ -259,7 +278,7 @@ private:
 	id   define_struct(const location &loc, struct_info &info) override
 	{
 		info.definition = make_id();
-		escape_name(_names[info.definition] = info.unique_name);
+		define_name<naming::unique>(info.definition, info.unique_name);
 
 		_structs.push_back(info);
 
@@ -299,7 +318,7 @@ private:
 		info.id = make_id();
 		info.binding = _current_sampler_binding++;
 
-		escape_name(_names[info.id] = info.unique_name);
+		define_name<naming::unique>(info.id, info.unique_name);
 
 		_module.samplers.push_back(info);
 
@@ -315,7 +334,7 @@ private:
 	{
 		const id res = make_id();
 
-		_names[res] = "_Globals_" + info.name;
+		define_name<naming::unique>(res, "_Globals_" + info.name);
 
 		if (_uniforms_to_spec_constants && info.type.is_scalar() && info.has_initializer_value)
 		{
@@ -364,10 +383,7 @@ private:
 			return (_remapped_sampler_variables[res] = 0), res;
 
 		if (!name.empty())
-		{
-			escape_name(name);
-			define_name<false>(res, name);
-		}
+			define_name<naming::general>(res, name);
 
 		std::string &code = _blocks.at(_current_block);
 
@@ -398,9 +414,9 @@ private:
 		info.definition = make_id();
 
 		if (is_entry_point)
-			_names[info.definition] = "main";
+			define_name<naming::reserved>(info.definition, "main");
 		else
-			escape_name(_names[info.definition] = info.unique_name);
+			define_name<naming::unique>(info.definition, info.unique_name);
 
 		std::string &code = _blocks.at(_current_block);
 
@@ -416,7 +432,7 @@ private:
 			auto &param = info.parameter_list[i];
 
 			param.definition = make_id();
-			_names[param.definition] = param.name;
+			define_name<naming::unique>(param.definition, param.name);
 
 			code += '\n';
 			write_location(code, param.location);
