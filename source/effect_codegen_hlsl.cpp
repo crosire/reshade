@@ -583,7 +583,7 @@ private:
 
 		code += '\t';
 		if (is_color_semantic(func.return_semantic))
-			code += "const float4 ret = float4(";
+			code += "const float4 " + id_to_name(ret) + " = float4(";
 		else if (!func.return_type.is_void())
 			write_type(code, func.return_type), code += ' ' + id_to_name(ret) + " = ";
 
