@@ -233,7 +233,7 @@ private:
 		if constexpr (naming == naming::general)
 			for (auto it = _names.begin(); it != _names.end(); it++)
 				if (it->second == name)
-					return _names[id] = conform_naming_rule(name + '_' + std::to_string(id));
+					return conform_naming_rule(_names[id] = name + '_' + std::to_string(id));
 		return _names[id] = std::move(name);
 	}
 
