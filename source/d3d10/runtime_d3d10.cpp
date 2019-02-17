@@ -704,6 +704,7 @@ namespace reshade::d3d10
 			spec_constants += '\n';
 		}
 
+		effect.module.constants = spec_constants;
 		const std::string hlsl = spec_constants + effect.module.hlsl;
 
 		std::unordered_map<std::string, com_ptr<ID3D10PixelShader>> ps_entry_points;

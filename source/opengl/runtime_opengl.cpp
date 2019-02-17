@@ -678,6 +678,7 @@ namespace reshade::opengl
 
 			spec_constants += '\n';
 		}
+		effect.module.constants = spec_constants;
 #endif
 
 		std::unordered_map<std::string, GLuint> entry_points;

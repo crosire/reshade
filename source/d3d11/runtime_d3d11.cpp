@@ -697,6 +697,7 @@ namespace reshade::d3d11
 			spec_constants += '\n';
 		}
 
+		effect.module.constants = spec_constants;
 		const std::string hlsl = spec_constants + effect.module.hlsl;
 
 		std::unordered_map<std::string, com_ptr<ID3D11PixelShader>> ps_entry_points;
