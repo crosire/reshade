@@ -23,12 +23,10 @@ public:
 private:
 	enum class naming
 	{
-		// When clashing as other name in source, it will be numbered
+		// Will be numbered when clashing with another name
 		general,
-		// When clashing as other name in source, occurs error
+		// Name should already be unique, so no additional steps are taken
 		unique,
-		// Not used yet
-		reserved,
 	};
 
 	id _next_id = 1;
@@ -250,13 +248,12 @@ private:
 	}
 
 	template <naming naming = naming::general>
-	std::string &define_name(const id id, std::string name)
+	void define_name(const id id, std::string name)
 	{
 		if constexpr (naming == naming::general)
-			for (auto it = _names.begin(); it != _names.end(); it++)
-				if (it->second == name)
-					return _names[id] = it->second + '_' + std::to_string(id);
-		return _names[id] = std::move(name);
+			if (std::find_if(_names.begin(), _names.end(), [&name](const auto &it) { return it.second == name; }) != _names.end())
+				name += '_' + std::to_string(id);
+		_names[id] = std::move(name);
 	}
 
 	static void increase_indentation_level(std::string &block)

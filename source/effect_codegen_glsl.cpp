@@ -24,11 +24,11 @@ public:
 private:
 	enum class naming
 	{
-		// After escaping, when clashing as other name in source, it will be numbered
+		// After escaping, will be numbered when clashing with another name
 		general,
-		// After escaping, when clashing as other name in source, occurs error
+		// After escaping, name should already be unique, so no additional steps are taken
 		unique,
-		// When clashing as other name in source, occurs error
+		// This is a special name that is not modified and should be unique
 		reserved,
 	};
 
@@ -226,15 +226,17 @@ private:
 	}
 
 	template <naming naming = naming::general>
-	std::string &define_name(const id id, std::string name)
+	void define_name(const id id, std::string name)
 	{
 		if constexpr (naming != naming::reserved)
 			escape_name(name);
 		if constexpr (naming == naming::general)
-			for (auto it = _names.begin(); it != _names.end(); it++)
-				if (it->second == name)
-					return conform_naming_rule(_names[id] = name + '_' + std::to_string(id));
-		return _names[id] = std::move(name);
+			if (std::find_if(_names.begin(), _names.end(), [&name](const auto &it) { return it.second == name; }) != _names.end())
+				name += '_' + std::to_string(id);
+		// Remove double underscore symbols from name which can occur due to namespaces but are not allowed in GLSL
+		for (size_t pos = 0; (pos = name.find("__", pos)) != std::string::npos; pos += 3)
+			name.replace(pos, 2, "_US");
+		_names[id] = std::move(name);
 	}
 
 	static void escape_name(std::string &name)
@@ -253,15 +255,6 @@ private:
 
 		if (name.compare(0, 3, "gl_") == 0 || s_reserverd_names.count(name))
 			name += '_';
-
-		conform_naming_rule(name);
-	}
-
-	static std::string &conform_naming_rule(std::string &name)
-	{
-		for (size_t pos = 0; (pos = name.find("__", pos)) != std::string::npos; pos += 3)
-			name.replace(pos, 2, "_US");
-		return name;
 	}
 
 	static void increase_indentation_level(std::string &block)
