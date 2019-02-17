@@ -27,6 +27,8 @@ private:
 		general,
 		// Name should already be unique, so no additional steps are taken
 		unique,
+		// A formula token for referring as operand
+		formula,
 	};
 
 	id _next_id = 1;
@@ -157,9 +159,9 @@ private:
 		assert(type.is_numeric());
 
 		if (!type.is_scalar())
-			write_type<false, false>(s, type);
-
-		s += '(';
+			write_type<false, false>(s, type), s += '(';
+		else if (type.components() > 1)
+			s += '(';
 
 		for (unsigned int i = 0, components = type.components(); i < components; ++i)
 		{
@@ -185,7 +187,8 @@ private:
 				s += ", ";
 		}
 
-		s += ')';
+		if (!type.is_scalar() || type.components() > 1)
+			s += ')';
 	}
 	template <bool force_source = false>
 	void write_location(std::string &s, const location &loc)
@@ -631,19 +634,6 @@ private:
 
 		const id res = make_id();
 
-		std::string &code = _blocks.at(_current_block);
-
-		write_location(code, exp.location);
-
-		code += '\t';
-		write_type(code, exp.type);
-		code += ' ' + id_to_name(res);
-
-		if (exp.type.is_array())
-			code += '[' + std::to_string(exp.type.array_length) + ']';
-
-		code += " = ";
-
 		static const char s_matrix_swizzles[16][5] = {
 			"_m00", "_m01", "_m02", "_m03",
 			"_m10", "_m11", "_m12", "_m13",
@@ -659,7 +649,7 @@ private:
 			{
 			case expression::operation::op_cast:
 				{ std::string type; write_type<false, false>(type, op.to);
-				newcode = "((" + type + ')' + newcode + ')'; }
+				newcode = '(' + type + ')' + newcode; }
 				break;
 			case expression::operation::op_index:
 				newcode += '[' + id_to_name(op.index) + ']';
@@ -679,8 +669,7 @@ private:
 			}
 		}
 
-		code += newcode;
-		code += ";\n";
+		define_name<naming::formula>(res, newcode);
 
 		return res;
 	}
@@ -728,59 +717,39 @@ private:
 	{
 		const id res = make_id();
 
-		std::string &code = _blocks.at(_current_block);
-
-		code += "\tconst ";
-		write_type(code, type);
-		code += ' ' + id_to_name(res);
-
-		if (type.is_array())
-			code += '[' + std::to_string(type.array_length) + ']';
-
-		code += " = ";
-		write_constant(code, type, data);
-		code += ";\n";
+		std::string value;
+		write_constant(value, type, data);
+		define_name<naming::formula>(res, value);
 
 		return res;
 	}
 
-	id   emit_unary_op(const location &loc, tokenid op, const type &res_type, id val) override
+	id   emit_unary_op(const location &, tokenid op, const type &, id val) override
 	{
 		const id res = make_id();
 
-		std::string &code = _blocks.at(_current_block);
-
-		write_location(code, loc);
-
-		code += '\t';
-		write_type(code, res_type);
-		code += ' ' + id_to_name(res) + " = ";
+		std::string code = "(";
 
 		if (_shader_model < 40 && op == tokenid::tilde)
 			code += "0xFFFFFFFF - "; // Emulate bitwise not operator on shader model 3
 		else
 			code += char(op);
 
-		code += id_to_name(val) + ";\n";
+		code += '(' + id_to_name(val) + ')' + ')';
+		define_name<naming::formula>(res, code);
 
 		return res;
 	}
-	id   emit_binary_op(const location &loc, tokenid op, const type &res_type, const type &, id lhs, id rhs) override
+	id   emit_binary_op(const location &, tokenid op, const type &, const type &, id lhs, id rhs) override
 	{
 		const id res = make_id();
 
-		std::string &code = _blocks.at(_current_block);
-
-		write_location(code, loc);
-
-		code += '\t';
-		write_type(code, res_type);
-		code += ' ' + id_to_name(res) + " = ";
+		std::string code = "(";
 
 		if (_shader_model < 40 && (op == tokenid::greater_greater || op == tokenid::greater_greater_equal))
 			code += "floor(";
 
-		code += '(' + id_to_name(lhs) + ' ';
+		code += id_to_name(lhs) + ' ';
 
 		switch (op)
 		{
@@ -854,33 +823,30 @@ private:
 			assert(false);
 		}
 
-		code += ' ' + id_to_name(rhs) + ')';
+		code += ' ' + id_to_name(rhs);
 
 		if (_shader_model < 40 && (op == tokenid::greater_greater || op == tokenid::greater_greater_equal))
 			code += ')';
 
-		code += ";\n";
+		code += ')';
+		define_name<naming::formula>(res, code);
 
 		return res;
 	}
-	id   emit_ternary_op(const location &loc, tokenid op, const type &res_type, id condition, id true_value, id false_value) override
+	id   emit_ternary_op(const location &, tokenid op, const type &res_type, id condition, id true_value, id false_value) override
 	{
 		assert(op == tokenid::question);
 
 		const id res = make_id();
 
-		std::string &code = _blocks.at(_current_block);
-
-		write_location(code, loc);
-
-		code += '\t';
+		std::string code;
 		write_type(code, res_type);
-		code += ' ' + id_to_name(res);
 
 		if (res_type.is_array())
 			code += '[' + std::to_string(res_type.array_length) + ']';
 
-		code += " = " + id_to_name(condition) + " ? " + id_to_name(true_value) + " : " + id_to_name(false_value) + ";\n";
+		code += '(' + id_to_name(condition) + " ? " + id_to_name(true_value) + " : " + id_to_name(false_value) + ')';
+		define_name<naming::formula>(res, code);
 
 		return res;
 	}

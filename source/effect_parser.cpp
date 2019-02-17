@@ -873,7 +873,7 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 
 				arguments[i].add_cast_operation(param_type);
 
-				if (symbol.op == symbol_type::function || param_type.has(type::q_out))
+				if (param_type.has(type::q_out))
 				{
 					// All user-defined functions actually accept pointers as arguments, same applies to intrinsics with 'out' parameters
 					const auto temp_variable = _codegen->define_variable(arguments[i].location, param_type);
@@ -2666,16 +2666,10 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 		{
 			const auto initializer_value = _codegen->emit_load(initializer);
 
-			symbol.id = _codegen->define_variable(location, type, std::move(unique_name), global);
-
 			if (initializer_value != 0)
-			{
 				assert(!global); // Global variables cannot have a dynamic initializer
 
-				expression variable; variable.reset_to_lvalue(location, symbol.id, type);
-
-				_codegen->emit_store(variable, initializer_value);
-			}
+			symbol.id = _codegen->define_variable(location, type, std::move(unique_name), global, initializer_value);
 		}
 	}
 

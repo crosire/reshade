@@ -30,6 +30,8 @@ private:
 		unique,
 		// This is a special name that is not modified and should be unique
 		reserved,
+		// A formula token for referring as operand
+		formula,
 	};
 
 	id _next_id = 1;
@@ -172,7 +174,8 @@ private:
 			write_type<false, false>(s, type);
 		}
 
-		s += '(';
+		if (type.components() > 1)
+			s += '(';
 
 		for (unsigned int i = 0, components = type.components(); i < components; ++i)
 		{
@@ -203,7 +206,8 @@ private:
 			s += ')';
 		}
 
-		s += ')';
+		if (type.components() > 1)
+			s += ')';
 	}
 	void write_location(std::string &s, const location &loc) const
 	{
@@ -228,14 +232,15 @@ private:
 	template <naming naming = naming::general>
 	void define_name(const id id, std::string name)
 	{
-		if constexpr (naming != naming::reserved)
+		if constexpr (naming != naming::reserved && naming != naming::formula)
 			escape_name(name);
 		if constexpr (naming == naming::general)
 			if (std::find_if(_names.begin(), _names.end(), [&name](const auto &it) { return it.second == name; }) != _names.end())
 				name += '_' + std::to_string(id);
 		// Remove double underscore symbols from name which can occur due to namespaces but are not allowed in GLSL
-		for (size_t pos = 0; (pos = name.find("__", pos)) != std::string::npos; pos += 3)
-			name.replace(pos, 2, "_US");
+		if constexpr (naming != naming::formula)
+			for (size_t pos = 0; (pos = name.find("__", pos)) != std::string::npos; pos += 3)
+				name.replace(pos, 2, "_US");
 		_names[id] = std::move(name);
 	}
 
@@ -640,19 +645,6 @@ private:
 
 		const id res = make_id();
 
-		std::string &code = _blocks.at(_current_block);
-
-		write_location(code, exp.location);
-
-		code += '\t';
-		write_type(code, exp.type);
-		code += ' ' + id_to_name(res);
-
-		if (exp.type.is_array())
-			code += '[' + std::to_string(exp.type.array_length) + ']';
-
-		code += " = ";
-
 		std::string newcode = id_to_name(exp.base);
 
 		for (const auto &op : exp.chain)
@@ -695,8 +687,7 @@ private:
 			}
 		}
 
-		code += newcode;
-		code += ";\n";
+		define_name<naming::formula>(res, newcode);
 
 		return res;
 	}
@@ -758,42 +749,29 @@ private:
 	{
 		const id res = make_id();
 
-		std::string &code = _blocks.at(_current_block);
-
 		// Struct initialization is not supported right now
 		if (type.is_struct())
 		{
+			std::string &code = _blocks.at(_current_block);
+
 			code += '\t';
 			write_type(code, type);
 			code += ' ' + id_to_name(res) + ";\n";
 			return res;
 		}
 
-		code += "\tconst ";
-		write_type(code, type);
-		code += ' ' + id_to_name(res);
-
-		if (type.is_array())
-			code += '[' + std::to_string(type.array_length) + ']';
-
-		code += " = ";
+		std::string code;
 		write_constant(code, type, data);
-		code += ";\n";
+		define_name<naming::formula>(res, code);
 
 		return res;
 	}
 
-	id   emit_unary_op(const location &loc, tokenid op, const type &res_type, id val) override
+	id   emit_unary_op(const location &, tokenid op, const type &res_type, id val) override
 	{
 		const id res = make_id();
 
-		std::string &code = _blocks.at(_current_block);
-
-		write_location(code, loc);
-
-		code += '\t';
-		write_type(code, res_type);
-		code += ' ' + id_to_name(res) + " = ";
+		std::string code = "(";
 
 		switch (op)
 		{
@@ -813,21 +791,16 @@ private:
 			assert(false);
 		}
 
-		code += '(' + id_to_name(val) + ");\n";
+		code += '(' + id_to_name(val) + ')' + ')';
+		define_name<naming::formula>(res, code);
 
 		return res;
 	}
-	id   emit_binary_op(const location &loc, tokenid op, const type &res_type, const type &type, id lhs, id rhs) override
+	id   emit_binary_op(const location &, tokenid op, const type &, const type &type, id lhs, id rhs) override
 	{
 		const id res = make_id();
 
-		std::string &code = _blocks.at(_current_block);
-
-		write_location(code, loc);
-
-		code += '\t';
-		write_type(code, res_type);
-		code += ' ' + id_to_name(res) + " = ";
+		std::string code = "(";
 
 		std::string intrinsic, operator_code;
 
@@ -932,34 +905,33 @@ private:
 		else
 			code += id_to_name(lhs) + ' ' + operator_code + ' ' + id_to_name(rhs);
 
-		code += ";\n";
+		code += ')';
+		define_name<naming::formula>(res, code);
 
 		return res;
 	}
-	id   emit_ternary_op(const location &loc, tokenid op, const type &res_type, id condition, id true_value, id false_value) override
+	id   emit_ternary_op(const location &, tokenid op, const type &res_type, id condition, id true_value, id false_value) override
 	{
 		assert(op == tokenid::question);
 
 		const id res = make_id();
 
-		std::string &code = _blocks.at(_current_block);
-
-		write_location(code, loc);
-
-		code += '\t';
+		std::string code;
 		write_type(code, res_type);
-		code += ' ' + id_to_name(res);
 
 		if (res_type.is_array())
 			code += '[' + std::to_string(res_type.array_length) + ']';
 
-		code += " = ";
+		code += '(';
 
 		// GLSL requires the selection first expression to be a scalar boolean
 		if (!res_type.is_scalar())
-			code += "all";
+			code += "all(" + id_to_name(condition) + ')';
+		else
+			code += id_to_name(condition);
 
-		code += '(' + id_to_name(condition) + ") ? " + id_to_name(true_value) + " : " + id_to_name(false_value) + ";\n";
+		code += " ? " + id_to_name(true_value) + " : " + id_to_name(false_value) + ')';
+		define_name<naming::formula>(res, code);
 
 		return res;
 	}
