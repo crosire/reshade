@@ -21,6 +21,16 @@ public:
 	}
 
 private:
+	enum class naming
+	{
+		// When clashing as other name in source, it will be numbered
+		general,
+		// When clashing as other name in source, occurs error
+		unique,
+		// Not used yet
+		reserved,
+	};
+
 	id _next_id = 1;
 	id _last_block = 0;
 	id _current_block = 0;
@@ -232,12 +242,21 @@ private:
 
 	id make_id() { return _next_id++; }
 
-	template <bool is_function = false>
 	std::string id_to_name(id id) const
 	{
 		if (const auto it = _names.find(id); it != _names.end())
-			return is_function ? it->second : it->second + '_' + std::to_string(id);
+			return it->second;
 		return '_' + std::to_string(id);
+	}
+
+	template <naming naming = naming::general>
+	std::string &define_name(const id id, std::string name)
+	{
+		if constexpr (naming == naming::general)
+			for (auto it = _names.begin(); it != _names.end(); it++)
+				if (it->second == name)
+					return _names[id] = it->second + '_' + std::to_string(id);
+		return _names[id] = std::move(name);
 	}
 
 	static void increase_indentation_level(std::string &block)
@@ -254,7 +273,7 @@ private:
 	id   define_struct(const location &loc, struct_info &info) override
 	{
 		info.definition = make_id();
-		_names[info.definition] = info.unique_name;
+		define_name<naming::unique>(info.definition, info.unique_name);
 
 		_structs.push_back(info);
 
@@ -305,7 +324,7 @@ private:
 	{
 		info.id = make_id();
 
-		_names[info.id] = info.unique_name;
+		define_name<naming::unique>(info.id, info.unique_name);
 
 		const auto texture = std::find_if(_module.textures.begin(), _module.textures.end(),
 			[&info](const auto &it) { return it.unique_name == info.texture_name; });
@@ -363,7 +382,7 @@ private:
 	{
 		const id res = make_id();
 
-		_names[res] = "_Globals_" + info.name;
+		define_name<naming::unique>(res, "_Globals_" + info.name);
 
 		if (_uniforms_to_spec_constants && info.type.is_scalar() && info.has_initializer_value)
 		{
@@ -422,7 +441,7 @@ private:
 		const id res = make_id();
 
 		if (!name.empty())
-			_names[res] = std::move(name);
+			define_name<naming::general>(res, name);
 
 		std::string &code = _blocks.at(_current_block);
 
@@ -455,21 +474,21 @@ private:
 			name += '_';
 
 		info.definition = make_id();
-		_names[info.definition] = std::move(name);
+		define_name<naming::unique>(info.definition, name);
 
 		std::string &code = _blocks.at(_current_block);
 
 		write_location(code, loc);
 
 		write_type(code, info.return_type);
-		code += ' ' + id_to_name<true>(info.definition) + '(';
+		code += ' ' + id_to_name(info.definition) + '(';
 
 		for (size_t i = 0, num_params = info.parameter_list.size(); i < num_params; ++i)
 		{
 			auto &param = info.parameter_list[i];
 
 			param.definition = make_id();
-			_names[param.definition] = param.name;
+			define_name<naming::unique>(param.definition, param.name);
 
 			code += '\n';
 			write_location(code, param.location);
@@ -528,7 +547,7 @@ private:
 		const auto is_position_semantic = [](const std::string &semantic) { return semantic == "SV_POSITION" || semantic == "POSITION"; };
 
 		const auto ret = make_id();
-		_names[ret] = "ret";
+		define_name<naming::general>(ret, "ret");
 
 		std::string position_variable_name;
 
@@ -564,7 +583,7 @@ private:
 
 		code += '\t';
 		if (is_color_semantic(func.return_semantic))
-			code += "const float4 ret = float4(";
+			code += "const float4 " + id_to_name(ret) + " = float4(";
 		else if (!func.return_type.is_void())
 			write_type(code, func.return_type), code += ' ' + id_to_name(ret) + " = ";
 
@@ -892,7 +911,7 @@ private:
 			code += " = ";
 		}
 
-		code += id_to_name<true>(function) + '(';
+		code += id_to_name(function) + '(';
 
 		for (size_t i = 0, num_args = args.size(); i < num_args; ++i)
 		{
