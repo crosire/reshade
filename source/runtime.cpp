@@ -770,9 +770,6 @@ void reshade::runtime::load_config()
 	config.get("GENERAL", "ScreenshotIncludePreset", _screenshot_include_preset);
 	config.get("GENERAL", "NoReloadOnInit", _no_reload_on_init);
 
-	_screenshot_path_exists = std::filesystem::exists(_screenshot_path.is_relative() ?
-		g_target_executable_path.parent_path() / _screenshot_path : _screenshot_path);
-
 	// Look for new preset files in the preset search paths
 	for (const auto &search_path : _preset_search_paths)
 	{
@@ -960,7 +957,7 @@ void reshade::runtime::save_current_preset() const
 		save_preset(_preset_files[_current_preset]);
 }
 
-void reshade::runtime::save_screenshot() const
+void reshade::runtime::save_screenshot()
 {
 	std::vector<uint8_t> data(_width * _height * 4);
 	capture_frame(data.data());
@@ -971,12 +968,13 @@ void reshade::runtime::save_screenshot() const
 
 	char filename[21];
 	sprintf_s(filename, " %.4d-%.2d-%.2d %.2d-%.2d-%.2d", _date[0], _date[1], _date[2], hour, minute, seconds);
+
 	const std::wstring least = (_screenshot_path.is_relative() ? g_target_executable_path.parent_path() / _screenshot_path : _screenshot_path) / g_target_executable_path.stem().concat(filename);
 	const std::wstring screenshot_path = least + (_screenshot_format == 0 ? L".bmp" : L".png");
 
 	LOG(INFO) << "Saving screenshot to " << screenshot_path << " ...";
 
-	bool success = false;
+	_screenshot_save_success = false; // Default to a save failure unless it is reported to succeed below
 
 	if (FILE *file; _wfopen_s(&file, screenshot_path.c_str(), L"wb") == 0)
 	{
@@ -987,23 +985,24 @@ void reshade::runtime::save_screenshot() const
 		switch (_screenshot_format)
 		{
 		case 0:
-			success = stbi_write_bmp_to_func(write_callback, file, _width, _height, 4, data.data()) != 0;
+			_screenshot_save_success = stbi_write_bmp_to_func(write_callback, file, _width, _height, 4, data.data()) != 0;
 			break;
 		case 1:
-			success = stbi_write_png_to_func(write_callback, file, _width, _height, 4, data.data(), 0) != 0;
+			_screenshot_save_success = stbi_write_png_to_func(write_callback, file, _width, _height, 4, data.data(), 0) != 0;
 			break;
 		}
 
 		fclose(file);
 	}
 
-	if (!success)
+	_last_screenshot_file = screenshot_path;
+	_last_screenshot_time = std::chrono::high_resolution_clock::now();
+
+	if (!_screenshot_save_success)
 	{
 		LOG(ERROR) << "Failed to write screenshot to " << screenshot_path << '!';
-		return;
 	}
-
-	if (_screenshot_include_preset)
+	else if (_screenshot_include_preset)
 	{
 		save_preset(least + L" Preset.ini");
 		save_config(least + L" Settings.ini");

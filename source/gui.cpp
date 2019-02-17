@@ -309,6 +309,7 @@ void reshade::runtime::destroy_font_atlas()
 void reshade::runtime::draw_ui()
 {
 	const bool show_splash = _show_splash && (_reload_remaining_effects != std::numeric_limits<size_t>::max() || !_reload_compile_queue.empty() || (_last_present_time - _last_reload_time) < std::chrono::seconds(5));
+	const bool show_screenshot_message = _last_present_time - _last_screenshot_time < std::chrono::seconds(_screenshot_save_success ? 3 : 5);
 
 	if (_show_menu && !_ignore_shortcuts && !_imgui_context->IO.NavVisible && _input->is_key_pressed(0x1B /* VK_ESCAPE */))
 		_show_menu = false; // Close when pressing the escape button and not currently navigating with the keyboard
@@ -353,13 +354,15 @@ void reshade::runtime::draw_ui()
 	ImVec2 viewport_offset = ImVec2(0, 0);
 
 	// Create ImGui widgets and windows
-	if (show_splash)
+	if (show_splash || show_screenshot_message)
 	{
+		viewport_offset.y = ImGui::GetFrameHeightWithSpacing() * (show_screenshot_message ? 1.2f : _last_reload_successful ? 3.2f : 4.2f);
+
 		ImGui::SetNextWindowPos(ImVec2(10, 10));
-		ImGui::SetNextWindowSize(ImVec2(_width - 20.0f, viewport_offset.y = ImGui::GetFrameHeightWithSpacing() * (_last_reload_successful ? 3.2f : 4.2f)));
+		ImGui::SetNextWindowSize(ImVec2(_width - 20.0f, viewport_offset.y));
 		ImGui::PushStyleVar(ImGuiStyleVar_Alpha, 1.0f);
-		ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.862745f, 0.862745f, 0.862745f, 1.00f));
-		ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0.117647f, 0.117647f, 0.117647f, 0.5f));
+		ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.862745f, 0.862745f, 0.862745f, 1.0f));
+		ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0.117647f, 0.117647f, 0.117647f, 0.7f));
 		ImGui::Begin("Splash Screen", nullptr,
 			ImGuiWindowFlags_NoDecoration |
 			ImGuiWindowFlags_NoNav |
@@ -369,53 +372,63 @@ void reshade::runtime::draw_ui()
 			ImGuiWindowFlags_NoDocking |
 			ImGuiWindowFlags_NoFocusOnAppearing);
 
-		viewport_offset.y += 10;
+		viewport_offset.y += 10; // Add small space between windows
 
-		ImGui::TextUnformatted("ReShade " VERSION_STRING_FILE " by crosire");
-
-		if (_needs_update)
+		if (show_screenshot_message)
 		{
-			ImGui::TextColored(COLOR_YELLOW,
-				"An update is available! Please visit https://reshade.me and install the new version (v%lu.%lu.%lu).",
-				_latest_version[0], _latest_version[1], _latest_version[2]);
+			if (!_screenshot_save_success)
+				ImGui::TextColored(COLOR_RED, "Unable to save screenshot because path doesn't exist: %s", _screenshot_path.u8string().c_str());
+			else
+				ImGui::Text("Screenshot successfully saved to %s", _last_screenshot_file.u8string().c_str());
 		}
 		else
 		{
-			ImGui::TextUnformatted("Visit https://reshade.me for news, updates, shaders and discussion.");
-		}
+			ImGui::TextUnformatted("ReShade " VERSION_STRING_FILE " by crosire");
 
-		ImGui::Spacing();
+			if (_needs_update)
+			{
+				ImGui::TextColored(COLOR_YELLOW,
+					"An update is available! Please visit https://reshade.me and install the new version (v%lu.%lu.%lu).",
+					_latest_version[0], _latest_version[1], _latest_version[2]);
+			}
+			else
+			{
+				ImGui::TextUnformatted("Visit https://reshade.me for news, updates, shaders and discussion.");
+			}
 
-		if (_reload_remaining_effects != 0 && _reload_remaining_effects != std::numeric_limits<size_t>::max())
-		{
-			ImGui::ProgressBar(1.0f - _reload_remaining_effects / float(_reload_total_effects), ImVec2(-1, 0), "");
-			ImGui::SameLine(15);
-			ImGui::Text(
-				"Loading (%zu effects remaining) ... "
-				"This might take a while. The application could become unresponsive for some time.",
-				_reload_remaining_effects.load());
-		}
-		else if (!_reload_compile_queue.empty())
-		{
-			ImGui::ProgressBar(1.0f - _reload_compile_queue.size() / float(_reload_total_effects), ImVec2(-1, 0), "");
-			ImGui::SameLine(15);
-			ImGui::Text(
-				"Compiling (%zu effects remaining) ... "
-				"This might take a while. The application could become unresponsive for some time.",
-				_reload_compile_queue.size());
-		}
-		else
-		{
-			ImGui::Text(
-				"Press '%s' to open the configuration menu.", input::key_name(_menu_key_data).c_str());
-		}
-
-		if (!_last_reload_successful)
-		{
 			ImGui::Spacing();
-			ImGui::TextColored(COLOR_RED,
-				"There were errors compiling some shaders. "
-				"Open the configuration menu and switch to the 'Statistics' tab for more details.");
+
+			if (_reload_remaining_effects != 0 && _reload_remaining_effects != std::numeric_limits<size_t>::max())
+			{
+				ImGui::ProgressBar(1.0f - _reload_remaining_effects / float(_reload_total_effects), ImVec2(-1, 0), "");
+				ImGui::SameLine(15);
+				ImGui::Text(
+					"Loading (%zu effects remaining) ... "
+					"This might take a while. The application could become unresponsive for some time.",
+					_reload_remaining_effects.load());
+			}
+			else if (!_reload_compile_queue.empty())
+			{
+				ImGui::ProgressBar(1.0f - _reload_compile_queue.size() / float(_reload_total_effects), ImVec2(-1, 0), "");
+				ImGui::SameLine(15);
+				ImGui::Text(
+					"Compiling (%zu effects remaining) ... "
+					"This might take a while. The application could become unresponsive for some time.",
+					_reload_compile_queue.size());
+			}
+			else
+			{
+				ImGui::Text(
+					"Press '%s' to open the configuration menu.", input::key_name(_menu_key_data).c_str());
+			}
+
+			if (!_last_reload_successful)
+			{
+				ImGui::Spacing();
+				ImGui::TextColored(COLOR_RED,
+					"There were errors compiling some shaders. "
+					"Open the configuration menu and switch to the 'Statistics' tab for more details.");
+			}
 		}
 
 		ImGui::End();
@@ -570,9 +583,6 @@ void reshade::runtime::draw_overlay_menu_home()
 {
 	if (!_effects_enabled)
 		ImGui::Text("Effects are disabled. Press '%s' to enable them again.", input::key_name(_effects_key_data).c_str());
-
-	if (!_screenshot_path_exists && _screenshot_key_data[0] != 0)
-		ImGui::TextColored(COLOR_RED, "Unable to save screenshots because path doesn't exist: %s", _screenshot_path.u8string().c_str());
 
 	const char *tutorial_text =
 		"Welcome! Since this is the first time you start ReShade, we'll go through a quick tutorial covering the most important features.\n\n"
@@ -909,10 +919,6 @@ void reshade::runtime::draw_overlay_menu_settings()
 		modified |= imgui_directory_input_box("Screenshot Path", _screenshot_path, _file_selection_path);
 		modified |= ImGui::Combo("Screenshot Format", &_screenshot_format, "Bitmap (*.bmp)\0Portable Network Graphics (*.png)\0");
 		modified |= ImGui::Checkbox("Include Preset & Settings", &_screenshot_include_preset);
-
-		if (modified)
-			_screenshot_path_exists = std::filesystem::exists(
-				_screenshot_path.is_relative() ? g_target_executable_path.parent_path() / _screenshot_path : _screenshot_path);
 	}
 
 	if (ImGui::CollapsingHeader("User Interface", ImGuiTreeNodeFlags_DefaultOpen))

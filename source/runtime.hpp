@@ -252,7 +252,7 @@ namespace reshade
 		/// <summary>
 		/// Create a copy of the current frame and write it to an image file on disk.
 		/// </summary>
-		void save_screenshot() const;
+		void save_screenshot();
 
 		void get_uniform_value(const uniform &variable, uint8_t *data, size_t size) const;
 		void set_uniform_value(uniform &variable, const uint8_t *data, size_t size);
@@ -269,7 +269,8 @@ namespace reshade
 		int _screenshot_format = 0;
 		std::filesystem::path _screenshot_path;
 		std::filesystem::path _configuration_path;
-		bool _screenshot_path_exists = false;
+		std::filesystem::path _last_screenshot_file;
+		bool _screenshot_save_success = false;
 		bool _screenshot_include_preset = false;
 
 		size_t _current_preset = 0;
@@ -296,6 +297,7 @@ namespace reshade
 		std::chrono::high_resolution_clock::time_point _start_time;
 		std::chrono::high_resolution_clock::time_point _last_reload_time;
 		std::chrono::high_resolution_clock::time_point _last_present_time;
+		std::chrono::high_resolution_clock::time_point _last_screenshot_time;
 
 		std::vector<std::function<void(ini_file &)>> _save_config_callables;
 		std::vector<std::function<void(const ini_file &)>> _load_config_callables;
