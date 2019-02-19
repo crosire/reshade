@@ -2657,6 +2657,7 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 		std::replace(unique_name.begin(), unique_name.end(), ':', '_');
 
 		const auto initializer_value = _codegen->emit_load(initializer);
+		symbol.id = _codegen->define_variable(location, type, std::move(unique_name), global, initializer_value);
 
 		// The initializer expression for variables must be a constant
 		// Also, only use the variable initializer on global variables, since local variables for e.g. "for" statements need to be assigned in their respective scope and not their declaration
@@ -2664,19 +2665,13 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 		{
 			// Global variables cannot have a dynamic initializer
 			assert(initializer_value == 0 || !global || initializer.is_constant);
-
-			symbol.id = _codegen->define_variable(location, type, std::move(unique_name), global, _codegen->emit_constant(initializer.type, initializer.constant));
 		}
-		else // Non-constant initializers are explicitly stored in the variable at the definition location instead
+		// Non-constant initializers are explicitly stored in the variable at the definition location instead
+		else if (initializer_value != 0)
 		{
-			symbol.id = _codegen->define_variable(location, type, std::move(unique_name), global);
+			expression variable; variable.reset_to_lvalue(location, symbol.id, type);
 
-			if (initializer_value != 0)
-			{
-				expression variable; variable.reset_to_lvalue(location, symbol.id, type);
-
-				_codegen->emit_store(variable, initializer_value);
-			}
+			_codegen->emit_store(variable, initializer_value);
 		}
 	}
 
