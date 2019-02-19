@@ -873,7 +873,7 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 
 				arguments[i].add_cast_operation(param_type);
 
-				if (param_type.has(type::q_out))
+				if (symbol.op == symbol_type::function || param_type.has(type::q_out))
 				{
 					// All user-defined functions actually accept pointers as arguments, same applies to intrinsics with 'out' parameters
 					const auto temp_variable = _codegen->define_variable(arguments[i].location, param_type);
@@ -2656,20 +2656,27 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 		std::string unique_name = global ? 'V' + current_scope().name + name : name;
 		std::replace(unique_name.begin(), unique_name.end(), ':', '_');
 
+		const auto initializer_value = _codegen->emit_load(initializer);
+
 		// The initializer expression for variables must be a constant
 		// Also, only use the variable initializer on global variables, since local variables for e.g. "for" statements need to be assigned in their respective scope and not their declaration
-		if (global && initializer.is_constant)
+		if (global || initializer.is_constant)
 		{
+			// Global variables cannot have a dynamic initializer
+			assert(initializer_value == 0 || !global || initializer.is_constant);
+
 			symbol.id = _codegen->define_variable(location, type, std::move(unique_name), global, _codegen->emit_constant(initializer.type, initializer.constant));
 		}
 		else // Non-constant initializers are explicitly stored in the variable at the definition location instead
 		{
-			const auto initializer_value = _codegen->emit_load(initializer);
+			symbol.id = _codegen->define_variable(location, type, std::move(unique_name), global);
 
 			if (initializer_value != 0)
-				assert(!global); // Global variables cannot have a dynamic initializer
+			{
+				expression variable; variable.reset_to_lvalue(location, symbol.id, type);
 
-			symbol.id = _codegen->define_variable(location, type, std::move(unique_name), global, initializer_value);
+				_codegen->emit_store(variable, initializer_value);
+			}
 		}
 	}
 

@@ -30,8 +30,8 @@ private:
 		unique,
 		// This is a special name that is not modified and should be unique
 		reserved,
-		// A formula token for referring as operand
-		formula,
+		// An expression token for referring as operand
+		expression,
 	};
 
 	id _next_id = 1;
@@ -232,13 +232,13 @@ private:
 	template <naming naming = naming::general>
 	void define_name(const id id, std::string name)
 	{
-		if constexpr (naming != naming::reserved && naming != naming::formula)
+		if constexpr (naming != naming::reserved && naming != naming::expression)
 			escape_name(name);
 		if constexpr (naming == naming::general)
 			if (std::find_if(_names.begin(), _names.end(), [&name](const auto &it) { return it.second == name; }) != _names.end())
 				name += '_' + std::to_string(id);
 		// Remove double underscore symbols from name which can occur due to namespaces but are not allowed in GLSL
-		if constexpr (naming != naming::formula)
+		if constexpr (naming != naming::expression)
 			for (size_t pos = 0; (pos = name.find("__", pos)) != std::string::npos; pos += 3)
 				name.replace(pos, 2, "_US");
 		_names[id] = std::move(name);
@@ -687,7 +687,7 @@ private:
 			}
 		}
 
-		define_name<naming::formula>(res, newcode);
+		define_name<naming::expression>(res, newcode);
 
 		return res;
 	}
@@ -762,7 +762,7 @@ private:
 
 		std::string code;
 		write_constant(code, type, data);
-		define_name<naming::formula>(res, code);
+		define_name<naming::expression>(res, code);
 
 		return res;
 	}
@@ -792,7 +792,7 @@ private:
 		}
 
 		code += '(' + id_to_name(val) + ')' + ')';
-		define_name<naming::formula>(res, code);
+		define_name<naming::expression>(res, code);
 
 		return res;
 	}
@@ -906,7 +906,7 @@ private:
 			code += id_to_name(lhs) + ' ' + operator_code + ' ' + id_to_name(rhs);
 
 		code += ')';
-		define_name<naming::formula>(res, code);
+		define_name<naming::expression>(res, code);
 
 		return res;
 	}
@@ -931,7 +931,7 @@ private:
 			code += id_to_name(condition);
 
 		code += " ? " + id_to_name(true_value) + " : " + id_to_name(false_value) + ')';
-		define_name<naming::formula>(res, code);
+		define_name<naming::expression>(res, code);
 
 		return res;
 	}

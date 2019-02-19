@@ -27,8 +27,8 @@ private:
 		general,
 		// Name should already be unique, so no additional steps are taken
 		unique,
-		// A formula token for referring as operand
-		formula,
+		// An expression token for referring as operand
+		expression,
 	};
 
 	id _next_id = 1;
@@ -669,7 +669,7 @@ private:
 			}
 		}
 
-		define_name<naming::formula>(res, newcode);
+		define_name<naming::expression>(res, newcode);
 
 		return res;
 	}
@@ -719,7 +719,7 @@ private:
 
 		std::string value;
 		write_constant(value, type, data);
-		define_name<naming::formula>(res, value);
+		define_name<naming::expression>(res, value);
 
 		return res;
 	}
@@ -736,7 +736,7 @@ private:
 			code += char(op);
 
 		code += '(' + id_to_name(val) + ')' + ')';
-		define_name<naming::formula>(res, code);
+		define_name<naming::expression>(res, code);
 
 		return res;
 	}
@@ -829,7 +829,7 @@ private:
 			code += ')';
 
 		code += ')';
-		define_name<naming::formula>(res, code);
+		define_name<naming::expression>(res, code);
 
 		return res;
 	}
@@ -846,7 +846,7 @@ private:
 			code += '[' + std::to_string(res_type.array_length) + ']';
 
 		code += '(' + id_to_name(condition) + " ? " + id_to_name(true_value) + " : " + id_to_name(false_value) + ')';
-		define_name<naming::formula>(res, code);
+		define_name<naming::expression>(res, code);
 
 		return res;
 	}
