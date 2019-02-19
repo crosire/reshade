@@ -1817,6 +1817,8 @@ void reshade::runtime::draw_overlay_variable_editor()
 				modified = imgui_slider_with_buttons(ui_label.c_str(), ImGuiDataType_Float, data, variable.type.rows, &ui_stp_val, &ui_min_val, &ui_max_val, "%.3f");
 			else if (ui_type == "drag")
 				modified = ImGui::DragScalarN(ui_label.c_str(), ImGuiDataType_Float, data, variable.type.rows, ui_stp_val, &ui_min_val, &ui_max_val, "%.3f");
+			else if (ui_type == "color" && variable.type.rows == 1)
+				modified = imgui_slider_for_alpha(ui_label.c_str(), data);
 			else if (ui_type == "color" && variable.type.rows == 3)
 				modified = ImGui::ColorEdit3(ui_label.c_str(), data, ImGuiColorEditFlags_NoOptions);
 			else if (ui_type == "color" && variable.type.rows == 4)
