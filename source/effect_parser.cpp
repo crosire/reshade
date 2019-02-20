@@ -2697,6 +2697,10 @@ bool reshadefx::parser::parse_technique()
 	if (!parse_annotations(info.annotations) || !expect('{'))
 		return false;
 
+	info.display_name = std::move(info.annotations["ui_label"].second.string_data);
+	if (info.display_name.empty())
+		info.display_name = info.name;
+
 	while (!peek('}'))
 	{
 		if (pass_info pass; parse_technique_pass(pass))
