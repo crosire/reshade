@@ -164,7 +164,7 @@ void imgui_code_editor::render(const char *title, bool border)
 	}
 
 	// Handle mouse input
-	if (ImGui::IsWindowHovered() && !shift && !alt)
+	if (ImGui::IsWindowHovered() && !alt)
 	{
 		const auto mouse_to_text_pos = [this, text_start, &char_advance, &calc_text_size]() {
 			const ImVec2 pos(ImGui::GetMousePos().x - ImGui::GetCursorScreenPos().x, ImGui::GetMousePos().y - ImGui::GetCursorScreenPos().y);
@@ -197,8 +197,8 @@ void imgui_code_editor::render(const char *title, bool border)
 		};
 
 		const bool is_clicked = ImGui::IsMouseClicked(0);
-		const bool is_double_click = ImGui::IsMouseDoubleClicked(0);
-		const bool is_triple_click = is_clicked && !is_double_click && ImGui::GetTime() - _last_click_time < io.MouseDoubleClickTime;
+		const bool is_double_click = !shift && ImGui::IsMouseDoubleClicked(0);
+		const bool is_triple_click = !shift && is_clicked && !is_double_click && ImGui::GetTime() - _last_click_time < io.MouseDoubleClickTime;
 
 		if (is_triple_click)
 		{
@@ -228,9 +228,17 @@ void imgui_code_editor::render(const char *title, bool border)
 		}
 		else if (is_clicked)
 		{
+			const bool flip_selection = _cursor_pos > _select_beg;
+
 			_cursor_pos = mouse_to_text_pos();
 			_interactive_beg = _cursor_pos;
 			_interactive_end = _cursor_pos;
+
+			if (shift)
+				if (flip_selection)
+					_interactive_beg = _select_beg;
+				else
+					_interactive_end = _select_end;
 
 			select(_interactive_beg, _interactive_end, ctrl ? selection_mode::word : selection_mode::normal);
 
