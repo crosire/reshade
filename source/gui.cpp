@@ -1903,7 +1903,8 @@ void reshade::runtime::draw_overlay_technique_editor()
 		// Gray out disabled techniques and mark techniques which failed to compile red
 		ImGui::PushStyleColor(ImGuiCol_Text, compile_success ? _imgui_context->Style.Colors[technique.enabled ? ImGuiCol_Text : ImGuiCol_TextDisabled] : COLOR_RED);
 
-		const std::string label = technique.name + " [" + _loaded_effects[technique.effect_index].source_file.filename().u8string() + ']' + (!compile_success ? " (failed to compile)" : "");
+		std::string label = compile_success && technique.annotations.count("ui_label") ? technique.annotations.at("ui_label").second.string_data : technique.name;
+		label += " [" + _loaded_effects[technique.effect_index].source_file.filename().u8string() + ']' + (!compile_success ? " (failed to compile)" : "");
 
 		if (bool status = technique.enabled; ImGui::Checkbox(label.c_str(), &status))
 		{
