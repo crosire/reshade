@@ -128,7 +128,7 @@ bool reshade::input::handle_window_message(const void *message_data)
 		case RIM_TYPEMOUSE:
 			is_mouse_message = true;
 
-			if (raw_input_window != s_raw_input_windows.end() && (raw_input_window->second & 0x2) == 0)
+			if (raw_input_window == s_raw_input_windows.end() || (raw_input_window->second & 0x2) == 0)
 				break; // Input is already handled (since legacy mouse messages are enabled), so nothing to do here
 
 			if (raw_data.data.mouse.usButtonFlags & RI_MOUSE_LEFT_BUTTON_DOWN)
@@ -160,7 +160,7 @@ bool reshade::input::handle_window_message(const void *message_data)
 		case RIM_TYPEKEYBOARD:
 			is_keyboard_message = true;
 
-			if (raw_input_window != s_raw_input_windows.end() && (raw_input_window->second & 0x1) == 0)
+			if (raw_input_window == s_raw_input_windows.end() || (raw_input_window->second & 0x1) == 0)
 				break; // Input is already handled by 'WM_KEYDOWN' and friends (since legacy keyboard messages are enabled), so nothing to do here
 
 			if (raw_data.data.keyboard.VKey != 0xFF)
