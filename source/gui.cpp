@@ -724,14 +724,14 @@ void reshade::runtime::draw_overlay_menu_home()
 			{
 				// Reset visibility state
 				for (technique &technique : _techniques)
-					technique.hidden = technique.annotations["hidden"].second.as_uint[0];
+					technique.hidden = technique.annotation_as_int("hidden") != 0;
 			}
 			else
 			{
 				const std::string filter = _effect_filter_buffer;
 
 				for (technique &technique : _techniques)
-					technique.hidden = technique.annotations["hidden"].second.as_uint[0] ||
+					technique.hidden = technique.annotation_as_int("hidden") != 0 ||
 						std::search(technique.name.begin(), technique.name.end(), filter.begin(), filter.end(),
 							[](auto c1, auto c2) { return tolower(c1) == tolower(c2); }) == technique.name.end() && _loaded_effects[technique.effect_index].source_file.filename().u8string().find(filter) == std::string::npos;
 			}
@@ -1644,7 +1644,7 @@ void reshade::runtime::draw_overlay_variable_editor()
 		uniform &variable = _uniforms[index];
 
 		// Skip hidden and special variables
-		if (variable.hidden || variable.special != special_uniform::none)
+		if (variable.annotation_as_int("hidden") || variable.special != special_uniform::none)
 			continue;
 
 		// Hide variables that are not currently used in any of the active effects
@@ -1711,17 +1711,16 @@ void reshade::runtime::draw_overlay_variable_editor()
 		if (!current_tree_is_open)
 			continue;
 
-		const std::string &ui_category = variable.annotations["ui_category"].second.string_data;
-
-		if (ui_category != current_category)
+		if (std::string category = variable.annotation_as_string("ui_category");
+			category != current_category)
 		{
-			if (!ui_category.empty())
+			current_category = category;
+
+			if (!category.empty())
 			{
-				std::string category;
 				if (!_variable_editor_tabs)
-					for (float x = 0, space_x = ImGui::CalcTextSize(" ").x, width = (ImGui::CalcItemWidth() - ImGui::CalcTextSize(ui_category.c_str()).x) / 2 - 42; x < width; x += space_x)
-						category += ' ';
-				category += ui_category;
+					for (float x = 0, space_x = ImGui::CalcTextSize(" ").x, width = (ImGui::CalcItemWidth() - ImGui::CalcTextSize(category.c_str()).x) / 2 - 42; x < width; x += space_x)
+						category = ' ' + category;
 
 				current_category_is_closed = !ImGui::TreeNodeEx(category.c_str(), ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_NoTreePushOnOpen);
 			}
@@ -1729,8 +1728,6 @@ void reshade::runtime::draw_overlay_variable_editor()
 			{
 				current_category_is_closed = false;
 			}
-
-			current_category = ui_category;
 		}
 
 		// Skip rendering invisible items
@@ -1738,104 +1735,96 @@ void reshade::runtime::draw_overlay_variable_editor()
 			continue;
 
 		bool modified = false;
-		const auto ui_type = variable.annotations["ui_type"].second.string_data;
-		const auto ui_label = variable.annotations.count("ui_label") ? variable.annotations.at("ui_label").second.string_data : variable.name;
-		const auto ui_min = variable.annotations["ui_min"];
-		const auto ui_max = variable.annotations["ui_max"];
-		const auto ui_stp = variable.annotations["ui_step"];
+		std::string label = variable.annotation_as_string("ui_label");
+		if (label.empty()) label = variable.name;
+		const std::string ui_type = variable.annotation_as_string("ui_type");
 
 		ImGui::PushID(static_cast<int>(index));
 
 		switch (variable.type.base)
 		{
-		case reshadefx::type::t_bool:
-		{
+		case reshadefx::type::t_bool: {
 			bool data;
 			get_uniform_value(variable, &data, 1);
 
 			if (ui_type == "combo")
 			{
 				int current_item = data ? 1 : 0;
-				modified = ImGui::Combo(ui_label.c_str(), &current_item, "Off\0On\0");
+				modified = ImGui::Combo(label.c_str(), &current_item, "Off\0On\0");
 				data = current_item != 0;
 			}
 			else
 			{
-				modified = ImGui::Checkbox(ui_label.c_str(), &data);
+				modified = ImGui::Checkbox(label.c_str(), &data);
 			}
 
 			if (modified)
 				set_uniform_value(variable, &data, 1);
-			break;
-		}
+			break; }
 		case reshadefx::type::t_int:
-		case reshadefx::type::t_uint:
-		{
+		case reshadefx::type::t_uint: {
 			int data[4];
 			get_uniform_value(variable, data, 4);
 
-			const auto ui_min_val = ui_min.first.is_floating_point() ? static_cast<int>(ui_min.second.as_float[0]) : ui_min.second.as_int[0];
-			const auto ui_max_val = ui_max.first.is_floating_point() ? static_cast<int>(ui_max.second.as_float[0]) : ui_max.second.as_int[0];
-			const auto ui_stp_val = std::max(1, ui_stp.first.is_floating_point() ? static_cast<int>(ui_stp.second.as_float[0]) : ui_stp.second.as_int[0]);
+			const auto ui_min_val = variable.annotation_as_int("ui_min");
+			const auto ui_max_val = variable.annotation_as_int("ui_max");
+			const auto ui_stp_val = std::max(1, variable.annotation_as_int("ui_step"));
 
 			if (ui_type == "slider")
-				modified = imgui_slider_with_buttons(ui_label.c_str(), variable.type.is_signed() ? ImGuiDataType_S32 : ImGuiDataType_U32, data, variable.type.rows, &ui_stp_val, &ui_min_val, &ui_max_val);
+				modified = imgui_slider_with_buttons(label.c_str(), variable.type.is_signed() ? ImGuiDataType_S32 : ImGuiDataType_U32, data, variable.type.rows, &ui_stp_val, &ui_min_val, &ui_max_val);
 			else if (ui_type == "drag")
-				modified = ImGui::DragScalarN(ui_label.c_str(), variable.type.is_signed() ? ImGuiDataType_S32 : ImGuiDataType_U32, data, variable.type.rows, static_cast<float>(ui_stp_val), &ui_min_val, &ui_max_val);
+				modified = ImGui::DragScalarN(label.c_str(), variable.type.is_signed() ? ImGuiDataType_S32 : ImGuiDataType_U32, data, variable.type.rows, static_cast<float>(ui_stp_val), &ui_min_val, &ui_max_val);
 			else if (ui_type == "combo") {
-				std::string ui_items = variable.annotations["ui_items"].second.string_data;
+				std::string ui_items = variable.annotation_as_string("ui_items");
 				// Make sure list is terminated with a zero in case user forgot so no invalid memory is read accidentally
 				if (ui_items.empty() || ui_items.back() != '\0')
 					ui_items.push_back('\0');
 
-				modified = ImGui::Combo(ui_label.c_str(), data, ui_items.c_str());
+				modified = ImGui::Combo(label.c_str(), data, ui_items.c_str());
 			}
 			else if (ui_type == "radio") {
-				const std::string &ui_items = variable.annotations["ui_items"].second.string_data;
+				const std::string &ui_items = variable.annotation_as_string("ui_items");
 				ImGui::BeginGroup();
 				for (size_t offset = 0, next, i = 0; (next = ui_items.find('\0', offset)) != std::string::npos; offset = next + 1, ++i)
 					modified |= ImGui::RadioButton(ui_items.data() + offset, data, static_cast<int>(i));
 				ImGui::EndGroup();
 			}
 			else
-				modified = ImGui::InputScalarN(ui_label.c_str(), variable.type.is_signed() ? ImGuiDataType_S32 : ImGuiDataType_U32, data, variable.type.rows);
+				modified = ImGui::InputScalarN(label.c_str(), variable.type.is_signed() ? ImGuiDataType_S32 : ImGuiDataType_U32, data, variable.type.rows);
 
 			if (modified)
 				set_uniform_value(variable, data, 4);
-			break;
-		}
-		case reshadefx::type::t_float:
-		{
+			break; }
+		case reshadefx::type::t_float: {
 			float data[4];
 			get_uniform_value(variable, data, 4);
 
-			const auto ui_min_val = ui_min.first.is_floating_point() ? ui_min.second.as_float[0] : static_cast<float>(ui_min.second.as_int[0]);
-			const auto ui_max_val = ui_max.first.is_floating_point() ? ui_max.second.as_float[0] : static_cast<float>(ui_max.second.as_int[0]);
-			const auto ui_stp_val = std::max(0.001f, ui_stp.first.is_floating_point() ? ui_stp.second.as_float[0] : static_cast<float>(ui_stp.second.as_int[0]));
+			const auto ui_min_val = variable.annotation_as_float("ui_min");
+			const auto ui_max_val = variable.annotation_as_float("ui_max");
+			const auto ui_stp_val = std::max(0.001f, variable.annotation_as_float("ui_step"));
 
 			if (ui_type == "slider")
-				modified = imgui_slider_with_buttons(ui_label.c_str(), ImGuiDataType_Float, data, variable.type.rows, &ui_stp_val, &ui_min_val, &ui_max_val, "%.3f");
+				modified = imgui_slider_with_buttons(label.c_str(), ImGuiDataType_Float, data, variable.type.rows, &ui_stp_val, &ui_min_val, &ui_max_val, "%.3f");
 			else if (ui_type == "drag")
-				modified = ImGui::DragScalarN(ui_label.c_str(), ImGuiDataType_Float, data, variable.type.rows, ui_stp_val, &ui_min_val, &ui_max_val, "%.3f");
+				modified = ImGui::DragScalarN(label.c_str(), ImGuiDataType_Float, data, variable.type.rows, ui_stp_val, &ui_min_val, &ui_max_val, "%.3f");
 			else if (ui_type == "color" && variable.type.rows == 1)
-				modified = imgui_slider_for_alpha(ui_label.c_str(), data);
+				modified = imgui_slider_for_alpha(label.c_str(), data);
 			else if (ui_type == "color" && variable.type.rows == 3)
-				modified = ImGui::ColorEdit3(ui_label.c_str(), data, ImGuiColorEditFlags_NoOptions);
+				modified = ImGui::ColorEdit3(label.c_str(), data, ImGuiColorEditFlags_NoOptions);
 			else if (ui_type == "color" && variable.type.rows == 4)
-				modified = ImGui::ColorEdit4(ui_label.c_str(), data, ImGuiColorEditFlags_NoOptions | ImGuiColorEditFlags_AlphaPreview | ImGuiColorEditFlags_AlphaBar);
+				modified = ImGui::ColorEdit4(label.c_str(), data, ImGuiColorEditFlags_NoOptions | ImGuiColorEditFlags_AlphaPreview | ImGuiColorEditFlags_AlphaBar);
 			else
-				modified = ImGui::InputScalarN(ui_label.c_str(), ImGuiDataType_Float, data, variable.type.rows);
+				modified = ImGui::InputScalarN(label.c_str(), ImGuiDataType_Float, data, variable.type.rows);
 
 			if (modified)
 				set_uniform_value(variable, data, 4);
-			break;
-		}
+			break; }
 		}
 
 		// Display tooltip
-		const auto &ui_tooltip = variable.annotations["ui_tooltip"].second.string_data;
-		if (ImGui::IsItemHovered() && !ui_tooltip.empty())
-			ImGui::SetTooltip("%s", ui_tooltip.c_str());
+		if (const std::string tooltip = variable.annotation_as_string("ui_tooltip");
+			!tooltip.empty() && ImGui::IsItemHovered())
+			ImGui::SetTooltip("%s", tooltip.c_str());
 
 		// Create context menu
 		if (ImGui::BeginPopupContextItem("##context"))
@@ -1903,7 +1892,8 @@ void reshade::runtime::draw_overlay_technique_editor()
 		// Gray out disabled techniques and mark techniques which failed to compile red
 		ImGui::PushStyleColor(ImGuiCol_Text, compile_success ? _imgui_context->Style.Colors[technique.enabled ? ImGuiCol_Text : ImGuiCol_TextDisabled] : COLOR_RED);
 
-		std::string label = compile_success && technique.annotations.count("ui_label") ? technique.annotations.at("ui_label").second.string_data : technique.name;
+		std::string label = technique.annotation_as_string("ui_label");
+		if (label.empty() || !compile_success) label = technique.name;
 		label += " [" + _loaded_effects[technique.effect_index].source_file.filename().u8string() + ']' + (!compile_success ? " (failed to compile)" : "");
 
 		if (bool status = technique.enabled; ImGui::Checkbox(label.c_str(), &status))
@@ -1926,9 +1916,9 @@ void reshade::runtime::draw_overlay_technique_editor()
 			hovered_technique_index = index;
 
 		// Display tooltip
-		const auto &ui_tooltip = technique.annotations["ui_tooltip"].second.string_data;
-		if (ImGui::IsItemHovered() && !ui_tooltip.empty())
-			ImGui::SetTooltip("%s", ui_tooltip.c_str());
+		if (const std::string tooltip = technique.annotation_as_string("ui_tooltip");
+			!tooltip.empty() && ImGui::IsItemHovered())
+			ImGui::SetTooltip("%s", tooltip.c_str());
 
 		// Create context menu
 		if (ImGui::BeginPopupContextItem("##context"))

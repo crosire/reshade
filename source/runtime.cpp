@@ -268,7 +268,6 @@ void reshade::runtime::load_effect(const std::filesystem::path &path, size_t &ou
 	{
 		uniform &variable = _uniforms.emplace_back(info);
 		variable.effect_index = effect.index;
-		variable.hidden = variable.annotations["hidden"].second.as_uint[0];
 
 		variable.storage_offset = effect.storage_offset + variable.offset;
 		// Create space for the new variable in the storage area and fill it with the initializer value
@@ -277,29 +276,28 @@ void reshade::runtime::load_effect(const std::filesystem::path &path, size_t &ou
 		// Copy initial data into uniform storage area
 		reset_uniform_value(variable);
 
-		if (const auto it = variable.annotations.find("source"); it != variable.annotations.end())
-		{
-			if (it->second.second.string_data == "frametime")
-				variable.special = special_uniform::frame_time;
-			else if (it->second.second.string_data == "framecount")
-				variable.special = special_uniform::frame_count;
-			else if (it->second.second.string_data == "random")
-				variable.special = special_uniform::random;
-			else if (it->second.second.string_data == "pingpong")
-				variable.special = special_uniform::ping_pong;
-			else if (it->second.second.string_data == "date")
-				variable.special = special_uniform::date;
-			else if (it->second.second.string_data == "timer")
-				variable.special = special_uniform::timer;
-			else if (it->second.second.string_data == "key")
-				variable.special = special_uniform::key;
-			else if (it->second.second.string_data == "mousepoint")
-				variable.special = special_uniform::mouse_point;
-			else if (it->second.second.string_data == "mousedelta")
-				variable.special = special_uniform::mouse_delta;
-			else if (it->second.second.string_data == "mousebutton")
-				variable.special = special_uniform::mouse_button;
-		}
+		const std::string special = variable.annotation_as_string("source");
+		if (special.empty()) /* Ignore if annotation is missing */;
+		else if (special == "frametime")
+			variable.special = special_uniform::frame_time;
+		else if (special == "framecount")
+			variable.special = special_uniform::frame_count;
+		else if (special == "random")
+			variable.special = special_uniform::random;
+		else if (special == "pingpong")
+			variable.special = special_uniform::ping_pong;
+		else if (special == "date")
+			variable.special = special_uniform::date;
+		else if (special == "timer")
+			variable.special = special_uniform::timer;
+		else if (special == "key")
+			variable.special = special_uniform::key;
+		else if (special == "mousepoint")
+			variable.special = special_uniform::mouse_point;
+		else if (special == "mousedelta")
+			variable.special = special_uniform::mouse_delta;
+		else if (special == "mousebutton")
+			variable.special = special_uniform::mouse_button;
 	}
 
 	effect.storage_size = (_uniform_data_storage.size() - effect.storage_offset + 15) & ~15;
@@ -342,15 +340,16 @@ void reshade::runtime::load_effect(const std::filesystem::path &path, size_t &ou
 	{
 		technique &technique = _techniques.emplace_back(info);
 		technique.effect_index = effect.index;
-		technique.hidden = technique.annotations["hidden"].second.as_uint[0];
-		technique.timeout = technique.annotations["timeout"].second.as_int[0];
-		technique.timeleft = technique.timeout;
-		technique.toggle_key_data[0] = technique.annotations["toggle"].second.as_uint[0];
-		technique.toggle_key_data[1] = technique.annotations["togglectrl"].second.as_uint[0] ? 1 : 0;
-		technique.toggle_key_data[2] = technique.annotations["toggleshift"].second.as_uint[0] ? 1 : 0;
-		technique.toggle_key_data[3] = technique.annotations["togglealt"].second.as_uint[0] ? 1 : 0;
 
-		if (technique.annotations["enabled"].second.as_uint[0])
+		technique.hidden = technique.annotation_as_int("hidden") != 0;
+		technique.timeout = technique.annotation_as_int("timeout");
+		technique.timeleft = technique.timeout;
+		technique.toggle_key_data[0] = technique.annotation_as_int("toggle");
+		technique.toggle_key_data[1] = technique.annotation_as_int("togglectrl");
+		technique.toggle_key_data[2] = technique.annotation_as_int("toggleshift");
+		technique.toggle_key_data[3] = technique.annotation_as_int("togglealt");
+
+		if (technique.annotation_as_int("enabled"))
 			enable_technique(technique);
 	}
 
@@ -402,11 +401,9 @@ void reshade::runtime::load_textures()
 		if (texture.impl == nullptr || texture.impl_reference != texture_reference::none)
 			continue; // Ignore textures that are not created yet and those that are handled in the runtime implementation
 
-		const auto source = texture.annotations.find("source");
-		if (source == texture.annotations.end())
+		std::filesystem::path source = std::filesystem::u8path(texture.annotation_as_string("source")), path = source;
+		if (source.empty())
 			continue; // Ignore textures that have no image file attached to them (e.g. plain render targets)
-
-		std::filesystem::path path = source->second.second.string_data;
 
 		// Search for image file using the provided search paths unless the path provided is already absolute
 		if (path.is_relative())
@@ -418,14 +415,14 @@ void reshade::runtime::load_textures()
 				if (search_path.is_relative()) // Ignore the working directory and instead start relative paths at the DLL location
 					canonical_search_path = std::filesystem::canonical(g_reshade_dll_path.parent_path() / search_path, ec);
 				if (!ec && !canonical_search_path.empty())
-					if (std::filesystem::exists(path = canonical_search_path / source->second.second.string_data, ec))
+					if (std::filesystem::exists(path = canonical_search_path / source, ec))
 						break;
 			}
 		}
 
 		if (std::error_code ec; !std::filesystem::exists(path, ec))
 		{
-			LOG(ERROR) << "> Source \"" << source->second.second.string_data << "\" for texture '" << texture.unique_name << "' could not be found in any of the texture search paths.";
+			LOG(ERROR) << "> Source " << source << " for texture '" << texture.unique_name << "' could not be found in any of the texture search paths.";
 			continue;
 		}
 
@@ -606,17 +603,17 @@ void reshade::runtime::update_and_render_effects()
 				set_uniform_value(variable, static_cast<unsigned int>(_framecount % UINT_MAX));
 			break;
 		case special_uniform::random: {
-			const int min = variable.annotations["min"].second.as_int[0];
-			const int max = variable.annotations["max"].second.as_int[0];
+			const int min = variable.annotation_as_int("min");
+			const int max = variable.annotation_as_int("max");
 			set_uniform_value(variable, min + (std::rand() % (max - min + 1)));
 			break; }
 		case special_uniform::ping_pong: {
-			const float min = variable.annotations["min"].second.as_float[0];
-			const float max = variable.annotations["max"].second.as_float[0];
-			const float step_min = variable.annotations["step"].second.as_float[0];
-			const float step_max = variable.annotations["step"].second.as_float[1];
+			const float min = variable.annotation_as_float("min");
+			const float max = variable.annotation_as_float("max");
+			const float step_min = variable.annotation_as_float("step", 0);
+			const float step_max = variable.annotation_as_float("step", 1);
 			float increment = step_max == 0 ? step_min : (step_min + std::fmodf(static_cast<float>(std::rand()), step_max - step_min + 1));
-			const float smoothing = variable.annotations["smoothing"].second.as_float[0];
+			const float smoothing = variable.annotation_as_float("smoothing");
 
 			float value[2] = { 0, 0 };
 			get_uniform_value(variable, value, 2);
@@ -645,22 +642,18 @@ void reshade::runtime::update_and_render_effects()
 			set_uniform_value(variable, std::chrono::duration_cast<std::chrono::nanoseconds>(_last_present_time - _start_time).count() * 1e-6f);
 			break;
 		case special_uniform::key:
-			if (const int keycode = variable.annotations["keycode"].second.as_int[0];
+			if (const int keycode = variable.annotation_as_int("keycode");
 				keycode > 7 && keycode < 256)
-			{
-				const auto &mode = variable.annotations["mode"].second.string_data;
-				if (mode == "toggle" || variable.annotations["toggle"].second.as_uint[0])
-				{
+				if (const std::string mode = variable.annotation_as_string("mode");
+					mode == "toggle" || variable.annotation_as_int("toggle")) {
 					bool current_value = false;
 					get_uniform_value(variable, &current_value, 1);
 					if (_input->is_key_pressed(keycode))
 						set_uniform_value(variable, !current_value);
-				}
-				else if (mode == "press")
+				} else if (mode == "press")
 					set_uniform_value(variable, _input->is_key_pressed(keycode));
 				else
 					set_uniform_value(variable, _input->is_key_down(keycode));
-			}
 			break;
 		case special_uniform::mouse_point:
 			set_uniform_value(variable, _input->mouse_position_x(), _input->mouse_position_y());
@@ -669,22 +662,18 @@ void reshade::runtime::update_and_render_effects()
 			set_uniform_value(variable, _input->mouse_movement_delta_x(), _input->mouse_movement_delta_y());
 			break;
 		case special_uniform::mouse_button:
-			if (const int keycode = variable.annotations["keycode"].second.as_int[0];
+			if (const int keycode = variable.annotation_as_int("keycode");
 				keycode >= 0 && keycode < 5)
-			{
-				const auto &mode = variable.annotations["mode"].second.string_data;
-				if (mode == "toggle" || variable.annotations["toggle"].second.as_uint[0])
-				{
+				if (const std::string mode = variable.annotation_as_string("mode");
+					mode == "toggle" || variable.annotation_as_int("toggle")) {
 					bool current_value = false;
 					get_uniform_value(variable, &current_value, 1);
 					if (_input->is_mouse_button_pressed(keycode))
 						set_uniform_value(variable, !current_value);
-				}
-				else if (mode == "press")
+				} else if (mode == "press")
 					set_uniform_value(variable, _input->is_mouse_button_pressed(keycode));
 				else
 					set_uniform_value(variable, _input->is_mouse_button_down(keycode));
-			}
 			break;
 		}
 	}
@@ -884,7 +873,7 @@ void reshade::runtime::load_preset(const std::filesystem::path &path)
 	for (technique &technique : _techniques)
 	{
 		// Ignore preset if "enabled" annotation is set
-		if (technique.annotations["enabled"].second.as_uint[0]
+		if (technique.annotation_as_int("enabled")
 			|| std::find(technique_list.begin(), technique_list.end(), technique.name) != technique_list.end())
 			enable_technique(technique);
 		else
