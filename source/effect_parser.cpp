@@ -2542,7 +2542,7 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 					if (!expression.type.is_texture())
 						return error(expression.location, 3020, "type mismatch, expected texture name"), consume_until('}'), false;
 
-					sampler_info.texture_name = _codegen->find_texture(expression.base).unique_name;
+					sampler_info.texture_name = _codegen->find_texture(expression.base).texture_name;
 				}
 				else
 				{
@@ -2612,6 +2612,9 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 		// Add namespace scope to avoid name clashes
 		texture_info.unique_name = 'V' + current_scope().name + name;
 		std::replace(texture_info.unique_name.begin(), texture_info.unique_name.end(), ':', '_');
+
+		std::hash<std::string> hasher;
+		texture_info.texture_name = texture_info.unique_name + std::to_string(hasher(_lexer->input_string()));
 
 		symbol = { symbol_type::variable, 0, type };
 		symbol.id = _codegen->define_texture(location, texture_info);
@@ -2812,7 +2815,7 @@ bool reshadefx::parser::parse_technique_pass(pass_info &info)
 
 				const size_t target_index = state.size() > 12 ? (state[12] - '0') : 0;
 
-				info.render_target_names[target_index] = target_info.unique_name;
+				info.render_target_names[target_index] = target_info.texture_name;
 			}
 		}
 		else // Handle the rest of the pass states

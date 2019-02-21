@@ -309,8 +309,8 @@ private:
 		{
 			write_location(code, loc);
 
-			code += "Texture2D "       + info.unique_name + " : register(t" + std::to_string(info.binding + 0) + ");\n";
-			code += "Texture2D __srgb" + info.unique_name + " : register(t" + std::to_string(info.binding + 1) + ");\n";
+			code += "Texture2D "       + info.texture_name + " : register(t" + std::to_string(info.binding + 0) + ");\n";
+			code += "Texture2D __srgb" + info.texture_name + " : register(t" + std::to_string(info.binding + 1) + ");\n";
 
 			_current_texture_binding += 2;
 		}
@@ -324,7 +324,7 @@ private:
 		define_name<naming::unique>(info.id, info.unique_name);
 
 		const auto texture = std::find_if(_module.textures.begin(), _module.textures.end(),
-			[&info](const auto &it) { return it.unique_name == info.texture_name; });
+			[&info](const auto &it) { return it.texture_name == info.texture_name; });
 		assert(texture != _module.textures.end());
 
 		std::string &code = _blocks.at(_current_block);

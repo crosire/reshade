@@ -812,7 +812,7 @@ namespace reshade::d3d10
 
 		const auto existing_texture = std::find_if(_textures.begin(), _textures.end(),
 			[&texture_name = info.texture_name](const auto &item) {
-			return item.unique_name == texture_name && item.impl != nullptr;
+			return item.texture_name == texture_name && item.impl != nullptr;
 		});
 
 		if (existing_texture == _textures.end())
@@ -1029,7 +1029,7 @@ namespace reshade::d3d10
 
 				const auto render_target_texture = std::find_if(_textures.begin(), _textures.end(),
 					[&render_target = pass_info.render_target_names[k]](const auto &item) {
-					return item.unique_name == render_target;
+					return item.texture_name == render_target;
 				});
 
 				if (render_target_texture == _textures.end())

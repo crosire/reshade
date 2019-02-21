@@ -294,6 +294,7 @@ namespace reshadefx
 		uint32_t binding = 0;
 		std::string semantic;
 		std::string unique_name;
+		std::string texture_name;
 		std::unordered_map<std::string, std::pair<type, constant>> annotations;
 		uint32_t width = 1;
 		uint32_t height = 1;
