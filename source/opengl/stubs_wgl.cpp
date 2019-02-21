@@ -515,13 +515,13 @@ HOOK_EXPORT BOOL  WINAPI wglDeleteContext(HGLRC hglrc)
 		if (reshade::hooks::call(&wglMakeCurrent)(hdc, hglrc))
 		{
 			it->second->on_reset();
+
+			delete it->second;
 		}
 		else
 		{
 			LOG(WARNING) << "> Unable to make context current, leaking resources ...";
 		}
-
-		delete it->second;
 
 		s_opengl_runtimes.erase(it);
 	}

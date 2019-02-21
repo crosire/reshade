@@ -1064,7 +1064,7 @@ private:
 		write_type<false, false>(code, type);
 
 		if (type.is_array())
-			code += "[]";
+			code += '[' + std::to_string(type.array_length) + ']';
 
 		code += '(';
 
