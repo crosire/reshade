@@ -7,6 +7,7 @@
 
 #include "runtime.hpp"
 #include "state_block.hpp"
+#include <unordered_set>
 
 namespace reshade::opengl
 {
@@ -70,9 +71,9 @@ namespace reshade::opengl
 	class runtime_opengl : public runtime
 	{
 	public:
-		runtime_opengl(HDC device);
+		runtime_opengl();
 
-		bool on_init(unsigned int width, unsigned int height);
+		bool on_init(HWND hwnd, unsigned int width, unsigned int height);
 		void on_reset();
 		void on_present();
 		void on_draw_call(unsigned int vertices);
@@ -87,9 +88,9 @@ namespace reshade::opengl
 
 		void render_technique(const technique &technique) override;
 
-		HDC _hdc;
+		std::unordered_set<HDC> _hdcs;
 
-		GLuint _reference_count = 1, _current_vertex_count = 0;
+		GLuint _current_vertex_count = 0;
 		GLuint _default_backbuffer_fbo = 0, _default_backbuffer_rbo[2] = { }, _backbuffer_texture[2] = { };
 		GLuint _depth_source_fbo = 0, _depth_source = 0, _depth_texture = 0, _blit_fbo = 0;
 		GLuint _default_vao = 0;

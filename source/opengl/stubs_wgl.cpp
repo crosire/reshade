@@ -16,10 +16,10 @@
 DECLARE_HANDLE(HPBUFFERARB);
 
 static std::mutex s_mutex;
-static std::unordered_map<HWND, RECT> s_window_rects;
 static std::unordered_set<HDC> s_pbuffer_device_contexts;
 static std::unordered_map<HGLRC, HGLRC> s_shared_contexts;
-std::unordered_map<HDC, reshade::opengl::runtime_opengl *> g_opengl_runtimes;
+static std::unordered_map<HGLRC, reshade::opengl::runtime_opengl *> s_opengl_runtimes;
+thread_local reshade::opengl::runtime_opengl *g_current_runtime = nullptr;
 
 HOOK_EXPORT int   WINAPI wglChoosePixelFormat(HDC hdc, const PIXELFORMATDESCRIPTOR *ppfd)
 {
@@ -236,9 +236,7 @@ HOOK_EXPORT int   WINAPI wglChoosePixelFormat(HDC hdc, const PIXELFORMATDESCRIPT
 	assert(nNumFormats != nullptr);
 
 	if (*nNumFormats < nMaxFormats)
-	{
 		nMaxFormats = *nNumFormats;
-	}
 
 	std::string formats;
 
@@ -504,13 +502,29 @@ HOOK_EXPORT BOOL  WINAPI wglCopyContext(HGLRC hglrcSrc, HGLRC hglrcDst, UINT mas
 }
 HOOK_EXPORT BOOL  WINAPI wglDeleteContext(HGLRC hglrc)
 {
-	if (hglrc == wglGetCurrentContext())
-	{
-		// Unset the rendering context if it's the calling thread's current one
-		wglMakeCurrent(nullptr, nullptr);
-	}
-
 	LOG(INFO) << "Redirecting '" << "wglDeleteContext" << "(" << hglrc << ")' ...";
+
+	if (const auto it = s_opengl_runtimes.find(hglrc); it != s_opengl_runtimes.end())
+	{
+		LOG(INFO) << "> Cleaning up runtime " << it->second << " ...";
+
+		// Choose a random device context to make current with (and hope that is still alive)
+		const HDC hdc = *it->second->_hdcs.begin();
+
+		// Set the render context current so its resources can be cleaned up
+		if (reshade::hooks::call(&wglMakeCurrent)(hdc, hglrc))
+		{
+			it->second->on_reset();
+		}
+		else
+		{
+			LOG(WARNING) << "> Unable to make context current, leaking resources ...";
+		}
+
+		delete it->second;
+
+		s_opengl_runtimes.erase(it);
+	}
 
 	{ const std::lock_guard<std::mutex> lock(s_mutex);
 		for (auto it = s_shared_contexts.begin(); it != s_shared_contexts.end();)
@@ -561,35 +575,9 @@ HOOK_EXPORT BOOL  WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 {
 	static const auto trampoline = reshade::hooks::call(&wglMakeCurrent);
 
-	LOG(INFO) << "Redirecting '" << "wglMakeCurrent" << "(" << hdc << ", " << hglrc << ")' ...";
+	LOG(DEBUG) << "Redirecting '" << "wglMakeCurrent" << "(" << hdc << ", " << hglrc << ")' ...";
 
-	const HDC hdc_previous = wglGetCurrentDC();
-	const HGLRC hglrc_previous = wglGetCurrentContext();
-
-	if (hdc == hdc_previous && hglrc == hglrc_previous)
-	{
-		return TRUE;
-	}
-	
-	const std::lock_guard<std::mutex> lock(s_mutex);
-
-	const bool is_pbuffer_device_context = s_pbuffer_device_contexts.find(hdc) != s_pbuffer_device_contexts.end();
-	
-	if (hdc_previous != nullptr)
-	{
-		const auto it = g_opengl_runtimes.find(hdc_previous);
-
-		if (it != g_opengl_runtimes.end() && --it->second->_reference_count == 0 && !is_pbuffer_device_context)
-		{
-			LOG(INFO) << "> Cleaning up runtime " << it->second << " ...";
-
-			it->second->on_reset();
-
-			delete it->second;
-
-			g_opengl_runtimes.erase(it);
-		}
-	}
+	const HGLRC prev_hglrc = wglGetCurrentContext();
 
 	if (!trampoline(hdc, hglrc))
 	{
@@ -598,39 +586,52 @@ HOOK_EXPORT BOOL  WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 		return FALSE;
 	}
 
-	if (hglrc == nullptr)
+	if (hglrc == prev_hglrc)
 	{
+		// Nothing has changed, so there is nothing more to do
+		return TRUE;
+	}
+	else if (hglrc == nullptr)
+	{
+		g_current_runtime = nullptr;
+
 		return TRUE;
 	}
 
-	const auto it = g_opengl_runtimes.find(hdc);
+	const std::lock_guard<std::mutex> lock(s_mutex);
 
-	if (it != g_opengl_runtimes.end())
+	if (s_shared_contexts.at(hglrc) != nullptr)
 	{
-		it->second->_reference_count++;
+		LOG(DEBUG) << "> Using shared OpenGL context " << hglrc << ".";
 
-		LOG(INFO) << "> Switched to existing runtime " << it->second << ".";
+		hglrc = s_shared_contexts.at(hglrc);
+	}
+
+	if (const auto it = s_opengl_runtimes.find(hglrc); it != s_opengl_runtimes.end())
+	{
+		if (it->second != g_current_runtime)
+		{
+			g_current_runtime = it->second;
+
+			LOG(DEBUG) << "> Switched to existing runtime " << it->second << ".";
+
+			// Keep track of all device contexts that were used with this render context
+			it->second->_hdcs.insert(hdc);
+		}
 	}
 	else
 	{
 		const HWND hwnd = WindowFromDC(hdc);
 
-		if (hwnd == nullptr || is_pbuffer_device_context)
+		if (hwnd == nullptr || s_pbuffer_device_contexts.find(hdc) != s_pbuffer_device_contexts.end())
 		{
-			LOG(WARNING) << "> Skipped because there is no window associated with this device context.";
+			LOG(DEBUG) << "> Skipped because there is no window associated with this device context.";
 
 			return TRUE;
 		}
 		else if ((GetClassLongPtr(hwnd, GCL_STYLE) & CS_OWNDC) == 0)
 		{
-			LOG(WARNING) << "> Window class style of window " << hwnd << " is missing 'CS_OWNDC' flag.";
-		}
-
-		if (s_shared_contexts.at(hglrc) != nullptr)
-		{
-			hglrc = s_shared_contexts.at(hglrc);
-
-			LOG(INFO) << "> Using shared OpenGL context " << hglrc << ".";
+			LOG(WARNING) << "Window class style of window " << hwnd << " is missing 'CS_OWNDC' flag.";
 		}
 
 		gl3wInit();
@@ -724,18 +725,19 @@ HOOK_EXPORT BOOL  WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 
 		if (gl3wIsSupported(4, 3))
 		{
-			const auto runtime = new reshade::opengl::runtime_opengl(hdc);
+			const auto runtime = new reshade::opengl::runtime_opengl();
+			runtime->_hdcs.insert(hdc);
 
-			g_opengl_runtimes[hdc] = runtime;
+			g_current_runtime = s_opengl_runtimes[hglrc] = runtime;
 
-			LOG(INFO) << "> Switched to new runtime " << runtime << ".";
+			LOG(DEBUG) << "> Switched to new runtime " << runtime << ".";
 		}
 		else
 		{
 			LOG(ERROR) << "Your graphics card does not seem to support OpenGL 4.3. Initialization failed.";
-		}
 
-		s_window_rects[hwnd].left = s_window_rects[hwnd].top = s_window_rects[hwnd].right = s_window_rects[hwnd].bottom = 0;
+			g_current_runtime = nullptr;
+		}
 	}
 
 	return TRUE;
@@ -744,13 +746,11 @@ HOOK_EXPORT BOOL  WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 HOOK_EXPORT HDC   WINAPI wglGetCurrentDC()
 {
 	static const auto trampoline = reshade::hooks::call(&wglGetCurrentDC);
-
 	return trampoline();
 }
 HOOK_EXPORT HGLRC WINAPI wglGetCurrentContext()
 {
 	static const auto trampoline = reshade::hooks::call(&wglGetCurrentContext);
-
 	return trampoline();
 }
 
@@ -875,13 +875,11 @@ HOOK_EXPORT HGLRC WINAPI wglGetCurrentContext()
 			BOOL  WINAPI wglSwapIntervalEXT(int interval)
 {
 	static const auto trampoline = reshade::hooks::call(&wglSwapIntervalEXT);
-
 	return trampoline(interval);
 }
 			int   WINAPI wglGetSwapIntervalEXT()
 {
 	static const auto trampoline = reshade::hooks::call(&wglGetSwapIntervalEXT);
-
 	return trampoline();
 }
 
@@ -889,31 +887,33 @@ HOOK_EXPORT BOOL  WINAPI wglSwapBuffers(HDC hdc)
 {
 	static const auto trampoline = reshade::hooks::call(&wglSwapBuffers);
 
-	const auto it = g_opengl_runtimes.find(hdc);
 	const HWND hwnd = WindowFromDC(hdc);
 
-	if (hwnd != nullptr && it != g_opengl_runtimes.end())
-	{
-		assert(it->second != nullptr);
-		assert(hdc == wglGetCurrentDC());
+	// Find the runtime that is associated with this device context
+	const auto it = std::find_if(s_opengl_runtimes.begin(), s_opengl_runtimes.end(),
+		[hdc](const std::pair<HGLRC, reshade::opengl::runtime_opengl *> &it) { return it.second->_hdcs.count(hdc); });
 
-		RECT rect, &rectPrevious = s_window_rects.at(hwnd);
+	if (hwnd != nullptr && it != s_opengl_runtimes.end())
+	{
+		RECT rect = { 0, 0, 0, 0 };
 		GetClientRect(hwnd, &rect);
 
-		if (rect.right != rectPrevious.right || rect.bottom != rectPrevious.bottom)
+		const auto width = static_cast<unsigned int>(rect.right - rect.left);
+		const auto height = static_cast<unsigned int>(rect.bottom - rect.top);
+
+		if (width != it->second->frame_width() || height != it->second->frame_height())
 		{
-			LOG(INFO) << "Resizing runtime " << it->second << " on device context " << hdc << " to " << rect.right << "x" << rect.bottom << " ...";
+			LOG(INFO) << "Resizing runtime " << it->second << " on device context " << hdc << " to " << width << "x" << height << " ...";
 
 			it->second->on_reset();
 
-			if (!(rect.right == 0 && rect.bottom == 0) && !it->second->on_init(static_cast<unsigned int>(rect.right), static_cast<unsigned int>(rect.bottom)))
+			if (!(width == 0 && height == 0) && !it->second->on_init(hwnd, width, height))
 			{
 				LOG(ERROR) << "Failed to recreate OpenGL runtime environment on runtime " << it->second << ".";
 			}
-
-			rectPrevious = rect;
 		}
 
+		// Assume that the correct OpenGL context is still current here
 		it->second->on_present();
 	}
 
@@ -950,25 +950,21 @@ HOOK_EXPORT DWORD WINAPI wglSwapMultipleBuffers(UINT cNumBuffers, const WGLSWAP 
 HOOK_EXPORT BOOL  WINAPI wglUseFontBitmapsA(HDC hdc, DWORD dw1, DWORD dw2, DWORD dw3)
 {
 	static const auto trampoline = reshade::hooks::call(&wglUseFontBitmapsA);
-
 	return trampoline(hdc, dw1, dw2, dw3);
 }
 HOOK_EXPORT BOOL  WINAPI wglUseFontBitmapsW(HDC hdc, DWORD dw1, DWORD dw2, DWORD dw3)
 {
 	static const auto trampoline = reshade::hooks::call(&wglUseFontBitmapsW);
-
 	return trampoline(hdc, dw1, dw2, dw3);
 }
 HOOK_EXPORT BOOL  WINAPI wglUseFontOutlinesA(HDC hdc, DWORD dw1, DWORD dw2, DWORD dw3, FLOAT f1, FLOAT f2, int i, LPGLYPHMETRICSFLOAT pgmf)
 {
 	static const auto trampoline = reshade::hooks::call(&wglUseFontOutlinesA);
-
 	return trampoline(hdc, dw1, dw2, dw3, f1, f2, i, pgmf);
 }
 HOOK_EXPORT BOOL  WINAPI wglUseFontOutlinesW(HDC hdc, DWORD dw1, DWORD dw2, DWORD dw3, FLOAT f1, FLOAT f2, int i, LPGLYPHMETRICSFLOAT pgmf)
 {
 	static const auto trampoline = reshade::hooks::call(&wglUseFontOutlinesW);
-
 	return trampoline(hdc, dw1, dw2, dw3, f1, f2, i, pgmf);
 }
 

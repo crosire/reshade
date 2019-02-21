@@ -149,11 +149,9 @@ namespace reshade::opengl
 		return 0x10000 | (major << 12) | (minor << 8);
 	}
 
-	runtime_opengl::runtime_opengl(HDC device) :
-		runtime(get_renderer_id()), _hdc(device)
+	runtime_opengl::runtime_opengl() :
+		runtime(get_renderer_id())
 	{
-		assert(device != nullptr);
-
 		_vendor_id = 0;
 		_device_id = 0;
 
@@ -328,7 +326,7 @@ namespace reshade::opengl
 		return true;
 	}
 
-	bool runtime_opengl::on_init(unsigned int width, unsigned int height)
+	bool runtime_opengl::on_init(HWND hwnd, unsigned int width, unsigned int height)
 	{
 		_width = width;
 		_height = height;
@@ -361,7 +359,7 @@ namespace reshade::opengl
 
 		_stateblock.apply();
 
-		return runtime::on_init(WindowFromDC(_hdc));
+		return runtime::on_init(hwnd);
 	}
 	void runtime_opengl::on_reset()
 	{
@@ -1064,11 +1062,8 @@ namespace reshade::opengl
 				pass.draw_buffers[0] = GL_COLOR_ATTACHMENT0;
 				pass.draw_textures[0] = _backbuffer_texture[1];
 
-				RECT rect;
-				GetClientRect(WindowFromDC(_hdc), &rect);
-
-				pass.viewport_width = static_cast<GLsizei>(rect.right - rect.left);
-				pass.viewport_height = static_cast<GLsizei>(rect.bottom - rect.top);
+				pass.viewport_width = static_cast<GLsizei>(frame_width());
+				pass.viewport_height = static_cast<GLsizei>(frame_height());
 			}
 
 			assert(pass.viewport_width != 0);
