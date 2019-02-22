@@ -508,10 +508,6 @@ HOOK_EXPORT HRESULT WINAPI CreateDXGIFactory2(UINT flags, REFIID riid, void **pp
 		return CreateDXGIFactory1(riid, ppFactory);
 	}
 
-#ifdef _DEBUG
-	flags |= DXGI_CREATE_FACTORY_DEBUG;
-#endif
-
 	const HRESULT hr = reshade::hooks::call(&CreateDXGIFactory2)(flags, riid, ppFactory);
 
 	if (FAILED(hr))

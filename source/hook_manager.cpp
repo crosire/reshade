@@ -36,15 +36,11 @@ namespace
 	{
 		return LoadLibraryW(path.wstring().c_str());
 	}
-	inline bool is_module_loaded(const std::filesystem::path &path)
-	{
-		HMODULE handle = nullptr;
-		return GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT, path.wstring().c_str(), &handle) && handle != nullptr;
-	}
 	inline bool is_module_loaded(const std::filesystem::path &path, HMODULE &out_handle)
 	{
 		return GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_PIN, path.wstring().c_str(), &out_handle) && out_handle != nullptr;
 	}
+
 	std::vector<module_export> get_module_exports(HMODULE handle)
 	{
 		const auto imagebase = reinterpret_cast<const BYTE *>(handle);
