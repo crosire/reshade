@@ -630,9 +630,15 @@ void reshade::runtime::draw_overlay_menu_home()
 
 					// Need to reload effects in performance mode, so values are applied
 					if (_performance_mode)
+					{
+						_techniques[i].toggle_key_data[0] = 0;
 						load_effects();
+					}
 					else
+					{
 						load_preset(_preset_files[_current_preset]);
+						_techniques[i].toggle_key_data[0] = 0;
+					}
 				}
 			}
 
