@@ -636,8 +636,8 @@ void reshade::runtime::draw_overlay_menu_home()
 					}
 					else
 					{
-						load_preset(_preset_files[_current_preset]);
 						_techniques[i].toggle_key_data[0] = 0;
+						load_preset(_preset_files[_current_preset]);
 					}
 				}
 			}
