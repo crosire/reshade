@@ -733,8 +733,8 @@ void reshade::runtime::draw_overlay_menu_home()
 
 				for (technique &technique : _techniques)
 					technique.hidden = technique.annotations["hidden"].second.as_uint[0] ||
-					std::search(technique.name.begin(), technique.name.end(), filter.begin(), filter.end(),
-						[](auto c1, auto c2) { return tolower(c1) == tolower(c2); }) == technique.name.end() && _loaded_effects[technique.effect_index].source_file.filename().u8string().find(filter) == std::string::npos;
+						std::search(technique.name.begin(), technique.name.end(), filter.begin(), filter.end(),
+							[](auto c1, auto c2) { return tolower(c1) == tolower(c2); }) == technique.name.end() && _loaded_effects[technique.effect_index].source_file.filename().u8string().find(filter) == std::string::npos;
 			}
 		}
 		else if (!ImGui::IsItemActive() && _effect_filter_buffer[0] == '\0')
