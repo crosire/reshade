@@ -705,7 +705,17 @@ void reshade::runtime::draw_overlay_menu_home()
 		ImGui::Separator();
 		ImGui::Spacing();
 
-		ImGui::PushItemWidth(_variable_editor_tabs ? -160.0f : -290.0f);
+		bool show_clear_button = false;
+
+		if (strcmp(_effect_filter_buffer, "Search") != 0 && strlen(_effect_filter_buffer) != 0)
+		{
+			show_clear_button = true;
+			ImGui::PushItemWidth(_variable_editor_tabs ? -158.0f : -288.0f);
+		}
+		else
+		{
+			ImGui::PushItemWidth(_variable_editor_tabs ? -130.0f : -260.0f);
+		}
 
 		if (ImGui::InputText("##filter", _effect_filter_buffer, sizeof(_effect_filter_buffer), ImGuiInputTextFlags_AutoSelectAll))
 		{
@@ -723,8 +733,8 @@ void reshade::runtime::draw_overlay_menu_home()
 
 				for (technique &technique : _techniques)
 					technique.hidden = technique.annotations["hidden"].second.as_uint[0] ||
-						std::search(technique.name.begin(), technique.name.end(), filter.begin(), filter.end(),
-							[](auto c1, auto c2) { return tolower(c1) == tolower(c2); }) == technique.name.end() && _loaded_effects[technique.effect_index].source_file.filename().u8string().find(filter) == std::string::npos;
+					std::search(technique.name.begin(), technique.name.end(), filter.begin(), filter.end(),
+						[](auto c1, auto c2) { return tolower(c1) == tolower(c2); }) == technique.name.end() && _loaded_effects[technique.effect_index].source_file.filename().u8string().find(filter) == std::string::npos;
 			}
 		}
 		else if (!ImGui::IsItemActive() && _effect_filter_buffer[0] == '\0')
@@ -736,12 +746,15 @@ void reshade::runtime::draw_overlay_menu_home()
 
 		ImGui::SameLine();
 
-		if (ImGui::Button("X", ImVec2(20.0f, 0)))
+		if (show_clear_button)
 		{
-			strcpy(_effect_filter_buffer, "Search");
-			// Reset visibility state
-			for (technique &technique : _techniques)
-				technique.hidden = technique.annotations["hidden"].second.as_uint[0];
+			if (ImGui::Button("X", ImVec2(20.0f, 0)))
+			{
+				strcpy(_effect_filter_buffer, "Search");
+				// Reset visibility state
+				for (technique &technique : _techniques)
+					technique.hidden = technique.annotations["hidden"].second.as_uint[0];
+			}
 		}
 
 		ImGui::SameLine();
