@@ -105,7 +105,8 @@ private:
 			s += "int";
 			break;
 		case type::t_uint:
-			s += "uint";
+			// In shader model 3, uints can only be used with known-positive values, so use ints instead
+			s += _shader_model >= 40 ? "uint" : "int";
 			break;
 		case type::t_float:
 			s += "float";
