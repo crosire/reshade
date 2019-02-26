@@ -714,17 +714,8 @@ void reshade::runtime::draw_overlay_menu_home()
 		ImGui::Separator();
 		ImGui::Spacing();
 
-		bool show_clear_button = false;
-
-		if (strcmp(_effect_filter_buffer, "Search") != 0 && strlen(_effect_filter_buffer) != 0)
-		{
-			show_clear_button = true;
-			ImGui::PushItemWidth(_variable_editor_tabs ? -158.0f : -288.0f);
-		}
-		else
-		{
-			ImGui::PushItemWidth(_variable_editor_tabs ? -130.0f : -260.0f);
-		}
+		const bool show_clear_button = strcmp(_effect_filter_buffer, "Search") != 0 && _effect_filter_buffer[0] != '\0';
+		ImGui::PushItemWidth((_variable_editor_tabs ? -130.0f : -260.0f) - (show_clear_button ? ImGui::GetFrameHeight() + _imgui_context->Style.ItemSpacing.x : 0));
 
 		if (ImGui::InputText("##filter", _effect_filter_buffer, sizeof(_effect_filter_buffer), ImGuiInputTextFlags_AutoSelectAll))
 		{
@@ -755,15 +746,12 @@ void reshade::runtime::draw_overlay_menu_home()
 
 		ImGui::SameLine();
 
-		if (show_clear_button)
+		if (show_clear_button && ImGui::Button("X", ImVec2(ImGui::GetFrameHeight(), 0)))
 		{
-			if (ImGui::Button("X", ImVec2(20.0f, 0)))
-			{
-				strcpy(_effect_filter_buffer, "Search");
-				// Reset visibility state
-				for (technique &technique : _techniques)
-					technique.hidden = technique.annotations["hidden"].second.as_uint[0];
-			}
+			strcpy(_effect_filter_buffer, "Search");
+			// Reset visibility state
+			for (technique &technique : _techniques)
+				technique.hidden = technique.annotation_as_int("hidden") != 0;
 		}
 
 		ImGui::SameLine();
