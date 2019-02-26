@@ -632,35 +632,13 @@ namespace reshade::d3d9
 		const auto D3DCompile = reinterpret_cast<pD3DCompile>(GetProcAddress(_d3d_compiler, "D3DCompile"));
 
 		// Add specialization constant defines to source code
-		std::string spec_constants;
-		for (const auto &constant : effect.module.spec_constants)
-		{
-			spec_constants += "#define SPEC_CONSTANT_" + constant.name + ' ';
-
-			switch (constant.type.base)
-			{
-			case reshadefx::type::t_int:
-				spec_constants += std::to_string(constant.initializer_value.as_int[0]);
-				break;
-			case reshadefx::type::t_bool:
-			case reshadefx::type::t_uint:
-				spec_constants += std::to_string(constant.initializer_value.as_uint[0]);
-				break;
-			case reshadefx::type::t_float:
-				spec_constants += std::to_string(constant.initializer_value.as_float[0]);
-				break;
-			}
-
-			spec_constants += '\n';
-		}
-
-		spec_constants += "#define COLOR_PIXEL_SIZE " + std::to_string(1.0f / _width) + ", " + std::to_string(1.0f / _height) + "\n"
+		effect.preamble += "#define COLOR_PIXEL_SIZE " + std::to_string(1.0f / _width) + ", " + std::to_string(1.0f / _height) + "\n"
 			"#define DEPTH_PIXEL_SIZE COLOR_PIXEL_SIZE\n"
 			"#define SV_TARGET_PIXEL_SIZE COLOR_PIXEL_SIZE\n"
 			"#define SV_DEPTH_PIXEL_SIZE COLOR_PIXEL_SIZE\n";
 
-		const std::string hlsl_vs = spec_constants + effect.module.hlsl;
-		const std::string hlsl_ps = spec_constants + "#define POSITION VPOS\n" + effect.module.hlsl;
+		const std::string hlsl_vs = effect.preamble + effect.module.hlsl;
+		const std::string hlsl_ps = effect.preamble + "#define POSITION VPOS\n" + effect.module.hlsl;
 
 		std::unordered_map<std::string, com_ptr<IDirect3DPixelShader9>> ps_entry_points;
 		std::unordered_map<std::string, com_ptr<IDirect3DVertexShader9>> vs_entry_points;

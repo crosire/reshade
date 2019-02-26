@@ -655,27 +655,7 @@ namespace reshade::opengl
 			spec_constant_values.push_back(constant.initializer_value.as_uint[0]);
 		}
 #else
-		std::string spec_constants;
-		for (const auto &constant : effect.module.spec_constants)
-		{
-			spec_constants += "#define SPEC_CONSTANT_" + constant.name + ' ';
-
-			switch (constant.type.base)
-			{
-			case reshadefx::type::t_int:
-				spec_constants += std::to_string(constant.initializer_value.as_int[0]);
-				break;
-			case reshadefx::type::t_bool:
-			case reshadefx::type::t_uint:
-				spec_constants += std::to_string(constant.initializer_value.as_uint[0]);
-				break;
-			case reshadefx::type::t_float:
-				spec_constants += std::to_string(constant.initializer_value.as_float[0]);
-				break;
-			}
-
-			spec_constants += '\n';
-		}
+		effect.preamble = "#version 430\n" + effect.preamble;
 #endif
 
 		std::unordered_map<std::string, GLuint> entry_points;
@@ -690,15 +670,13 @@ namespace reshade::opengl
 
 			glSpecializeShader(shader_id, entry_point.first.c_str(), GLuint(spec_constants.size()), spec_constants.data(), spec_constant_values.data());
 #else
-			std::string defines =
-				"#version 430\n"
-				"#define ENTRY_POINT_" + entry_point.first + " 1\n";
+			std::string defines = effect.preamble;
+			defines += "#define ENTRY_POINT_" + entry_point.first + " 1\n";
 			if (!entry_point.second) // OpenGL does not allow using 'discard' in the vertex shader profile
 				defines += "#define discard\n"
 					"#define dFdx(x) x\n" // 'dFdx', 'dFdx' and 'fwidth' too are only available in fragment shaders
 					"#define dFdy(y) y\n"
 					"#define fwidth(p) p\n";
-			defines += spec_constants;
 
 			GLsizei lengths[] = { static_cast<GLsizei>(defines.size()), static_cast<GLsizei>(effect.module.hlsl.size()) };
 			const GLchar *sources[] = { defines.c_str(), effect.module.hlsl.c_str() };

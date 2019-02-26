@@ -243,6 +243,8 @@ void reshade::runtime::load_effect(const std::filesystem::path &path, size_t &ou
 
 		for (reshadefx::uniform_info &constant : effect.module.spec_constants)
 		{
+			effect.preamble += "#define SPEC_CONSTANT_" + constant.name + ' ';
+
 			switch (constant.type.base)
 			{
 			case reshadefx::type::t_int:
@@ -256,6 +258,30 @@ void reshade::runtime::load_effect(const std::filesystem::path &path, size_t &ou
 				preset.get(path.filename().u8string(), constant.name, constant.initializer_value.as_float);
 				break;
 			}
+
+			for (unsigned int i = 0; i < constant.type.components(); ++i)
+			{
+				switch (constant.type.base)
+				{
+				case reshadefx::type::t_bool:
+					effect.preamble += constant.initializer_value.as_uint[i] ? "true" : "false";
+					break;
+				case reshadefx::type::t_int:
+					effect.preamble += std::to_string(constant.initializer_value.as_int[i]);
+					break;
+				case reshadefx::type::t_uint:
+					effect.preamble += std::to_string(constant.initializer_value.as_uint[i]);
+					break;
+				case reshadefx::type::t_float:
+					effect.preamble += std::to_string(constant.initializer_value.as_float[i]);
+					break;
+				}
+
+				if (i + 1 < constant.type.components())
+					effect.preamble += ", ";
+			}
+
+			effect.preamble += '\n';
 		}
 	}
 

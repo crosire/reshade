@@ -382,7 +382,7 @@ private:
 
 		define_name<naming::unique>(res, "_Globals_" + info.name);
 
-		if (_uniforms_to_spec_constants && info.type.is_scalar() && info.has_initializer_value)
+		if (_uniforms_to_spec_constants && info.has_initializer_value)
 		{
 			std::string &code = _blocks.at(_current_block);
 
@@ -391,7 +391,8 @@ private:
 			code += "static const ";
 			write_type(code, info.type);
 			code += ' ' + id_to_name(res) + " = ";
-			write_type<false, false>(code, info.type);
+			if (!info.type.is_scalar())
+				write_type<false, false>(code, info.type);
 			code += "(SPEC_CONSTANT_" + info.name + ");\n";
 
 			_module.spec_constants.push_back(info);

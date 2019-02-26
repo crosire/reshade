@@ -674,30 +674,7 @@ namespace reshade::d3d11
 
 		const auto D3DCompile = reinterpret_cast<pD3DCompile>(GetProcAddress(_d3d_compiler, "D3DCompile"));
 
-		// Add specialization constant defines to source code
-		std::string spec_constants;
-		for (const auto &constant : effect.module.spec_constants)
-		{
-			spec_constants += "#define SPEC_CONSTANT_" + constant.name + ' ';
-
-			switch (constant.type.base)
-			{
-			case reshadefx::type::t_int:
-				spec_constants += std::to_string(constant.initializer_value.as_int[0]);
-				break;
-			case reshadefx::type::t_bool:
-			case reshadefx::type::t_uint:
-				spec_constants += std::to_string(constant.initializer_value.as_uint[0]);
-				break;
-			case reshadefx::type::t_float:
-				spec_constants += std::to_string(constant.initializer_value.as_float[0]);
-				break;
-			}
-
-			spec_constants += '\n';
-		}
-
-		const std::string hlsl = spec_constants + effect.module.hlsl;
+		const std::string hlsl = effect.preamble + effect.module.hlsl;
 
 		std::unordered_map<std::string, com_ptr<ID3D11PixelShader>> ps_entry_points;
 		std::unordered_map<std::string, com_ptr<ID3D11VertexShader>> vs_entry_points;

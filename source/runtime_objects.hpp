@@ -50,6 +50,7 @@ namespace reshade
 		unsigned int rendering = 0;
 		bool compile_sucess = false;
 		std::string errors;
+		std::string preamble;
 		reshadefx::module module;
 		std::filesystem::path source_file;
 		size_t storage_offset = 0, storage_size = 0;
