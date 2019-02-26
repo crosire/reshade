@@ -130,6 +130,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 			device->Present(nullptr, nullptr, nullptr, nullptr);
 		}
 
+		reshade::hooks::uninstall();
+
 		FreeLibrary(d3d9_module);
 
 		return static_cast<int>(msg.wParam);
@@ -193,6 +195,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 			swapchain->Present(1, 0);
 		}
 
+		reshade::hooks::uninstall();
+
 		FreeLibrary(d3d11_module);
 
 		return static_cast<int>(msg.wParam);
@@ -248,6 +252,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 
 		wglMakeCurrent(nullptr, nullptr);
 		wglDeleteContext(hglrc);
+
+		reshade::hooks::uninstall();
 
 		FreeLibrary(opengl_module);
 
