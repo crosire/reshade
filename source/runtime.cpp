@@ -879,6 +879,8 @@ void reshade::runtime::load_preset(const std::filesystem::path &path)
 		else
 			disable_technique(technique);
 
+		// Reset toggle key first, since it may not exist in the preset
+		std::fill_n(technique.toggle_key_data, _countof(technique.toggle_key_data), 0);
 		preset.get("", "Key" + technique.name, technique.toggle_key_data);
 	}
 }
