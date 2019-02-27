@@ -664,12 +664,15 @@ private:
 				{ std::string type; write_type<false, false>(type, op.to);
 				newcode = type + '(' + newcode + ')'; }
 				break;
-			case expression::operation::op_index:
-				newcode += '[' + id_to_name(op.index) + ']';
-				break;
 			case expression::operation::op_member:
 				newcode += '.';
 				newcode += find_struct(op.from.definition).member_list[op.index].name;
+				break;
+			case expression::operation::op_dynamic_index:
+				newcode += '[' + id_to_name(op.index) + ']';
+				break;
+			case expression::operation::op_constant_index:
+				newcode += '[' + std::to_string(op.index) + ']';
 				break;
 			case expression::operation::op_swizzle:
 				if (op.from.is_matrix())
@@ -683,6 +686,7 @@ private:
 					}
 					else
 					{
+						// TODO: Implement matrix to vector swizzles
 						assert(false);
 					}
 				}
@@ -720,12 +724,15 @@ private:
 		{
 			switch (op.op)
 			{
-			case expression::operation::op_index:
-				code += '[' + id_to_name(op.index) + ']';
-				break;
 			case expression::operation::op_member:
 				code += '.';
 				code += find_struct(op.from.definition).member_list[op.index].name;
+				break;
+			case expression::operation::op_dynamic_index:
+				code += '[' + id_to_name(op.index) + ']';
+				break;
+			case expression::operation::op_constant_index:
+				code += '[' + std::to_string(op.index) + ']';
 				break;
 			case expression::operation::op_swizzle:
 				if (op.from.is_matrix())
@@ -739,6 +746,7 @@ private:
 					}
 					else
 					{
+						// TODO: Implement matrix to vector swizzles
 						assert(false);
 					}
 				}

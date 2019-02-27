@@ -132,8 +132,9 @@ namespace reshadefx
 			enum op_type
 			{
 				op_cast,
-				op_index,
 				op_member,
+				op_dynamic_index,
+				op_constant_index,
 				op_swizzle,
 			};
 
@@ -190,12 +191,15 @@ namespace reshadefx
 		/// <param name="type">The value type of the member.</param>
 		void add_member_access(unsigned int index, const reshadefx::type &type);
 		/// <summary>
-		/// 
+		/// Add an index operation to the current access chain.
 		/// </summary>
-		/// <param name="codegen"></param>
-		/// <param name="index"></param>
-		void add_static_index_access(class codegen *codegen, unsigned int index);
-		void add_dynamic_index_access(class codegen *codegen, uint32_t index_expression);
+		/// <param name="index_expression">The SSA ID of the indexing value.</param>
+		void add_dynamic_index_access(uint32_t index_expression);
+		/// <summary>
+		/// Add an constant index operation to the current access chain.
+		/// </summary>
+		/// <param name="index">The constant indexing value.</param>
+		void add_constant_index_access(unsigned int index);
 		/// <summary>
 		/// Add a swizzle operation to the current access chain.
 		/// </summary>
@@ -207,13 +211,13 @@ namespace reshadefx
 		/// Apply an unary operation to this constant expression.
 		/// </summary>
 		/// <param name="op">The unary operator to apply.</param>
-		void evaluate_constant_expression(enum class tokenid op);
+		bool evaluate_constant_expression(enum class tokenid op);
 		/// <summary>
 		/// Apply a binary operation to this constant expression.
 		/// </summary>
 		/// <param name="op">The binary operator to apply.</param>
 		/// <param name="rhs">The constant to use as right-hand side of the binary operation.</param>
-		void evaluate_constant_expression(enum class tokenid op, const reshadefx::constant &rhs);
+		bool evaluate_constant_expression(enum class tokenid op, const reshadefx::constant &rhs);
 	};
 
 
