@@ -1563,6 +1563,12 @@ void reshade::runtime::draw_code_editor()
 	_editor.render("##editor");
 
 	ImGui::PopFont();
+
+	// Disable keyboard navigation starting with next frame when editor is focused so that the Alt key can be used without it switching focus to the menu bar
+	if (ImGui::IsWindowFocused(ImGuiFocusedFlags_ChildWindows))
+		_imgui_context->IO.ConfigFlags &= ~ImGuiConfigFlags_NavEnableKeyboard;
+	else // Enable navigation again if focus is lost
+		_imgui_context->IO.ConfigFlags |=  ImGuiConfigFlags_NavEnableKeyboard;
 }
 
 void reshade::runtime::draw_overlay_variable_editor()
