@@ -108,16 +108,22 @@ void reshadefx::expression::reset_to_rvalue_constant(const reshadefx::location &
 
 void reshadefx::expression::add_cast_operation(const reshadefx::type &cast_type)
 {
-	if (type == cast_type)
-		return; // There is nothing to do if the expression is already of the target type
-
-	if (cast_type.is_scalar() && !type.is_scalar())
+	// First try to simplify the cast with a swizzle operation (only works with scalars and vectors)
+	if (type.cols == 1 && cast_type.cols == 1 && type.rows != cast_type.rows)
 	{
-		// A vector or matrix to scalar cast is equivalent to a swizzle
-		const signed char swizzle[] = { 0, -1, -1, -1 };
-		add_swizzle_access(swizzle, 1);
-		return;
+		signed char swizzle[] = { 0, 1, 2, 3 };
+		// Ignore components in a demotion cast
+		for (unsigned int i = cast_type.rows; i < 4; ++i)
+			swizzle[i] = -1;
+		// Use the last component to fill in a promotion cast
+		for (unsigned int i = type.rows; i < cast_type.rows; ++i)
+			swizzle[i] = swizzle[type.rows - 1];
+
+		add_swizzle_access(swizzle, cast_type.rows);
 	}
+
+	if (type == cast_type)
+		return; // There is nothing more to do if the expression is already of the target type at this point
 
 	if (is_constant)
 	{
