@@ -5,8 +5,8 @@
 
 #include "log.hpp"
 #include "dxgi_swapchain.hpp"
-#include "../d3d11/d3d11_device_context.hpp"
 #include "d3d10/runtime_d3d10.hpp"
+#include "d3d11/d3d11_device_context.hpp"
 #include "d3d11/runtime_d3d11.hpp"
 #include <algorithm>
 
@@ -14,51 +14,48 @@ void DXGISwapChain::perform_present(UINT PresentFlags)
 {
 	// Some D3D11 games test presentation for timing and composition purposes.
 	// These calls are NOT rendering-related, but rather a status request for the D3D runtime and as such should be ignored.
-	if (!(PresentFlags & DXGI_PRESENT_TEST))
+	if (PresentFlags & DXGI_PRESENT_TEST)
+		return;
+
+	assert(_runtime != nullptr);
+
+	switch (_direct3d_version)
 	{
-		switch (_direct3d_version)
-		{
-		case 10:
-			assert(_runtime != nullptr);
-			std::static_pointer_cast<reshade::d3d10::runtime_d3d10>(_runtime)->on_present(static_cast<D3D10Device *>(_direct3d_device)->_draw_call_tracker);
-			clear_drawcall_stats();
-			break;
-		case 11:
-			assert(_runtime != nullptr);
-			std::static_pointer_cast<reshade::d3d11::runtime_d3d11>(_runtime)->on_present(static_cast<D3D11Device *>(_direct3d_device)->_immediate_context->_draw_call_tracker);
-			clear_drawcall_stats();
-			break;
-		}
+	case 10:
+		std::static_pointer_cast<reshade::d3d10::runtime_d3d10>(_runtime)->on_present(
+			static_cast<D3D10Device *>(_direct3d_device)->_draw_call_tracker);
+		break;
+	case 11:
+		std::static_pointer_cast<reshade::d3d11::runtime_d3d11>(_runtime)->on_present(
+			static_cast<D3D11Device *>(_direct3d_device)->_immediate_context->_draw_call_tracker);
+		break;
 	}
+
+	clear_drawcall_stats();
 }
 
 void DXGISwapChain::clear_drawcall_stats()
 {
-	const auto device_d3d10_proxy = static_cast<D3D10Device *>(_direct3d_device);
-	const auto device_d3d11_proxy = static_cast<D3D11Device *>(_direct3d_device);
-
 	switch (_direct3d_version)
 	{
 	case 10:			
-		device_d3d10_proxy->clear_drawcall_stats();
+		static_cast<D3D10Device *>(_direct3d_device)->clear_drawcall_stats();
 		break;
 	case 11:			
-		const auto immediate_context_proxy = device_d3d11_proxy->_immediate_context;
+		const auto device_proxy = static_cast<D3D11Device *>(_direct3d_device);
+		const auto immediate_context_proxy = device_proxy->_immediate_context;
 		immediate_context_proxy->clear_drawcall_stats();
-		device_d3d11_proxy->clear_drawcall_stats();
+		device_proxy->clear_drawcall_stats();
 		break;
 	}
 }
 
-// IDXGISwapChain
 HRESULT STDMETHODCALLTYPE DXGISwapChain::QueryInterface(REFIID riid, void **ppvObj)
 {
 	if (ppvObj == nullptr)
-	{
 		return E_POINTER;
-	}
-	else if (
-		riid == __uuidof(this) ||
+
+	if (riid == __uuidof(this) ||
 		riid == __uuidof(IUnknown) ||
 		riid == __uuidof(IDXGIObject) ||
 		riid == __uuidof(IDXGIDeviceSubObject) ||
@@ -154,42 +151,36 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::QueryInterface(REFIID riid, void **ppvO
 
 	return _orig->QueryInterface(riid, ppvObj);
 }
-ULONG STDMETHODCALLTYPE DXGISwapChain::AddRef()
+  ULONG STDMETHODCALLTYPE DXGISwapChain::AddRef()
 {
 	_ref++;
 
 	return _orig->AddRef();
 }
-ULONG STDMETHODCALLTYPE DXGISwapChain::Release()
+  ULONG STDMETHODCALLTYPE DXGISwapChain::Release()
 {
 	if (--_ref == 0)
 	{
+		clear_drawcall_stats();
+
+		assert(_runtime != nullptr);
+
 		switch (_direct3d_version)
 		{
-			case 10:
-			{
-				assert(_runtime != nullptr);
+		case 10: {
+			auto &runtimes = static_cast<D3D10Device *>(_direct3d_device)->_runtimes;
+			const auto runtime = std::static_pointer_cast<reshade::d3d10::runtime_d3d10>(_runtime);
+			runtime->on_reset();
 
-				auto &runtimes = static_cast<D3D10Device *>(_direct3d_device)->_runtimes;
-				const auto runtime = std::static_pointer_cast<reshade::d3d10::runtime_d3d10>(_runtime);
-				runtime->on_reset();
+			runtimes.erase(std::remove(runtimes.begin(), runtimes.end(), runtime), runtimes.end());
+			break; }
+		case 11: {
+			auto &runtimes = static_cast<D3D11Device *>(_direct3d_device)->_runtimes;
+			const auto runtime = std::static_pointer_cast<reshade::d3d11::runtime_d3d11>(_runtime);
+			runtime->on_reset();
 
-				runtimes.erase(std::remove(runtimes.begin(), runtimes.end(), runtime), runtimes.end());
-				break;
-			}
-			case 11:
-			{
-				assert(_runtime != nullptr);
-
-				clear_drawcall_stats();
-
-				auto &runtimes = static_cast<D3D11Device *>(_direct3d_device)->_runtimes;
-				const auto runtime = std::static_pointer_cast<reshade::d3d11::runtime_d3d11>(_runtime);
-				runtime->on_reset();
-
-				runtimes.erase(std::remove(runtimes.begin(), runtimes.end(), runtime), runtimes.end());
-				break;
-			}
+			runtimes.erase(std::remove(runtimes.begin(), runtimes.end(), runtime), runtimes.end());
+			break; }
 		}
 
 		_runtime.reset();
@@ -218,6 +209,7 @@ ULONG STDMETHODCALLTYPE DXGISwapChain::Release()
 
 	return ref;
 }
+
 HRESULT STDMETHODCALLTYPE DXGISwapChain::SetPrivateData(REFGUID Name, UINT DataSize, const void *pData)
 {
 	return _orig->SetPrivateData(Name, DataSize, pData);
@@ -337,7 +329,6 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::GetLastPresentCount(UINT *pLastPresentC
 	return _orig->GetLastPresentCount(pLastPresentCount);
 }
 
-// IDXGISwapChain1
 HRESULT STDMETHODCALLTYPE DXGISwapChain::GetDesc1(DXGI_SWAP_CHAIN_DESC1 *pDesc)
 {
 	assert(_interface_version >= 1);
@@ -368,7 +359,7 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::Present1(UINT SyncInterval, UINT Presen
 	perform_present(PresentFlags);
 	return static_cast<IDXGISwapChain1 *>(_orig)->Present1(SyncInterval, PresentFlags, pPresentParameters);
 }
-BOOL STDMETHODCALLTYPE DXGISwapChain::IsTemporaryMonoSupported()
+   BOOL STDMETHODCALLTYPE DXGISwapChain::IsTemporaryMonoSupported()
 {
 	assert(_interface_version >= 1);
 
@@ -405,7 +396,6 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::GetRotation(DXGI_MODE_ROTATION *pRotati
 	return static_cast<IDXGISwapChain1 *>(_orig)->GetRotation(pRotation);
 }
 
-// IDXGISwapChain2
 HRESULT STDMETHODCALLTYPE DXGISwapChain::SetSourceSize(UINT Width, UINT Height)
 {
 	assert(_interface_version >= 2);
@@ -430,7 +420,7 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::GetMaximumFrameLatency(UINT *pMaxLatenc
 
 	return static_cast<IDXGISwapChain2 *>(_orig)->GetMaximumFrameLatency(pMaxLatency);
 }
-HANDLE STDMETHODCALLTYPE DXGISwapChain::GetFrameLatencyWaitableObject()
+ HANDLE STDMETHODCALLTYPE DXGISwapChain::GetFrameLatencyWaitableObject()
 {
 	assert(_interface_version >= 2);
 
@@ -449,8 +439,7 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::GetMatrixTransform(DXGI_MATRIX_3X2_F *p
 	return static_cast<IDXGISwapChain2 *>(_orig)->GetMatrixTransform(pMatrix);
 }
 
-// IDXGISwapChain3
-UINT STDMETHODCALLTYPE DXGISwapChain::GetCurrentBackBufferIndex()
+   UINT STDMETHODCALLTYPE DXGISwapChain::GetCurrentBackBufferIndex()
 {
 	assert(_interface_version >= 3);
 
@@ -525,7 +514,6 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers1(UINT BufferCount, UINT W
 	return hr;
 }
 
-// IDXGISwapChain5
 HRESULT STDMETHODCALLTYPE DXGISwapChain::SetHDRMetaData(DXGI_HDR_METADATA_TYPE Type, UINT Size, void *pMetaData)
 {
 	assert(_interface_version >= 4);

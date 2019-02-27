@@ -7,15 +7,12 @@
 #include "dxgi_device.hpp"
 #include "dxgi_swapchain.hpp"
 
-// IDXGIDevice
 HRESULT STDMETHODCALLTYPE DXGIDevice::QueryInterface(REFIID riid, void **ppvObj)
 {
 	if (ppvObj == nullptr)
-	{
 		return E_POINTER;
-	}
-	else if (
-		riid == __uuidof(this) ||
+
+	if (riid == __uuidof(this) ||
 		riid == __uuidof(IUnknown) ||
 		riid == __uuidof(IDXGIObject) ||
 		riid == __uuidof(IDXGIDevice) ||
@@ -28,11 +25,8 @@ HRESULT STDMETHODCALLTYPE DXGIDevice::QueryInterface(REFIID riid, void **ppvObj)
 		if (riid == __uuidof(IDXGIDevice2) && _interface_version < 2)
 		{
 			IDXGIDevice2 *device2 = nullptr;
-
 			if (FAILED(_orig->QueryInterface(&device2)))
-			{
 				return E_NOINTERFACE;
-			}
 
 			_orig->Release();
 
@@ -47,11 +41,8 @@ HRESULT STDMETHODCALLTYPE DXGIDevice::QueryInterface(REFIID riid, void **ppvObj)
 		if (riid == __uuidof(IDXGIDevice3) && _interface_version < 3)
 		{
 			IDXGIDevice3 *device3 = nullptr;
-
 			if (FAILED(_orig->QueryInterface(&device3)))
-			{
 				return E_NOINTERFACE;
-			}
 
 			_orig->Release();
 
@@ -66,11 +57,8 @@ HRESULT STDMETHODCALLTYPE DXGIDevice::QueryInterface(REFIID riid, void **ppvObj)
 		if (riid == __uuidof(IDXGIDevice4) && _interface_version < 4)
 		{
 			IDXGIDevice4 *device4 = nullptr;
-
 			if (FAILED(_orig->QueryInterface(&device4)))
-			{
 				return E_NOINTERFACE;
-			}
 
 			_orig->Release();
 
@@ -91,13 +79,13 @@ HRESULT STDMETHODCALLTYPE DXGIDevice::QueryInterface(REFIID riid, void **ppvObj)
 
 	return _direct3d_device->QueryInterface(riid, ppvObj);
 }
-ULONG STDMETHODCALLTYPE DXGIDevice::AddRef()
+  ULONG STDMETHODCALLTYPE DXGIDevice::AddRef()
 {
 	_ref++;
 
 	return _orig->AddRef();
 }
-ULONG STDMETHODCALLTYPE DXGIDevice::Release()
+  ULONG STDMETHODCALLTYPE DXGIDevice::Release()
 {
 	ULONG ref = _orig->Release();
 
@@ -120,6 +108,7 @@ ULONG STDMETHODCALLTYPE DXGIDevice::Release()
 
 	return ref;
 }
+
 HRESULT STDMETHODCALLTYPE DXGIDevice::SetPrivateData(REFGUID Name, UINT DataSize, const void *pData)
 {
 	return _orig->SetPrivateData(Name, DataSize, pData);
@@ -157,7 +146,6 @@ HRESULT STDMETHODCALLTYPE DXGIDevice::GetGPUThreadPriority(INT *pPriority)
 	return _orig->GetGPUThreadPriority(pPriority);
 }
 
-// IDXGIDevice1
 HRESULT STDMETHODCALLTYPE DXGIDevice::SetMaximumFrameLatency(UINT MaxLatency)
 {
 	return _orig->SetMaximumFrameLatency(MaxLatency);
@@ -188,7 +176,7 @@ HRESULT STDMETHODCALLTYPE DXGIDevice::EnqueueSetEvent(HANDLE hEvent)
 }
 
 // IDXGIDevice3
-void STDMETHODCALLTYPE DXGIDevice::Trim()
+   void STDMETHODCALLTYPE DXGIDevice::Trim()
 {
 	assert(_interface_version >= 3);
 

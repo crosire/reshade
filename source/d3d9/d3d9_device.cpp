@@ -10,15 +10,12 @@
 
 extern void dump_present_parameters(const D3DPRESENT_PARAMETERS &pp);
 
-// IDirect3DDevice9
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::QueryInterface(REFIID riid, void **ppvObj)
 {
 	if (ppvObj == nullptr)
-	{
 		return E_POINTER;
-	}
-	else if (
-		riid == __uuidof(this) ||
+
+	if (riid == __uuidof(this) ||
 		riid == __uuidof(IUnknown) ||
 		riid == __uuidof(IDirect3DDevice9) ||
 		riid == __uuidof(IDirect3DDevice9Ex))
@@ -27,11 +24,8 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::QueryInterface(REFIID riid, void **pp
 		if (!_extended_interface && riid == __uuidof(IDirect3DDevice9Ex))
 		{
 			IDirect3DDevice9Ex *deviceex = nullptr;
-
 			if (FAILED(_orig->QueryInterface(IID_PPV_ARGS(&deviceex))))
-			{
 				return E_NOINTERFACE;
-			}
 
 			_orig->Release();
 
@@ -52,13 +46,13 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::QueryInterface(REFIID riid, void **pp
 
 	return _orig->QueryInterface(riid, ppvObj);
 }
-ULONG STDMETHODCALLTYPE Direct3DDevice9::AddRef()
+  ULONG STDMETHODCALLTYPE Direct3DDevice9::AddRef()
 {
 	_ref++;
 
 	return _orig->AddRef();
 }
-ULONG STDMETHODCALLTYPE Direct3DDevice9::Release()
+  ULONG STDMETHODCALLTYPE Direct3DDevice9::Release()
 {
 	if (--_ref == 0)
 	{
@@ -90,11 +84,12 @@ ULONG STDMETHODCALLTYPE Direct3DDevice9::Release()
 
 	return ref;
 }
+
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::TestCooperativeLevel()
 {
 	return _orig->TestCooperativeLevel();
 }
-UINT STDMETHODCALLTYPE Direct3DDevice9::GetAvailableTextureMem()
+   UINT STDMETHODCALLTYPE Direct3DDevice9::GetAvailableTextureMem()
 {
 	return _orig->GetAvailableTextureMem();
 }
@@ -131,11 +126,11 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetCursorProperties(UINT XHotSpot, UI
 {
 	return _orig->SetCursorProperties(XHotSpot, YHotSpot, pCursorBitmap);
 }
-void STDMETHODCALLTYPE Direct3DDevice9::SetCursorPosition(int X, int Y, DWORD Flags)
+   void STDMETHODCALLTYPE Direct3DDevice9::SetCursorPosition(int X, int Y, DWORD Flags)
 {
 	return _orig->SetCursorPosition(X, Y, Flags);
 }
-BOOL STDMETHODCALLTYPE Direct3DDevice9::ShowCursor(BOOL bShow)
+   BOOL STDMETHODCALLTYPE Direct3DDevice9::ShowCursor(BOOL bShow)
 {
 	return _orig->ShowCursor(bShow);
 }
@@ -209,7 +204,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetSwapChain(UINT iSwapChain, IDirect
 
 	return D3D_OK;
 }
-UINT STDMETHODCALLTYPE Direct3DDevice9::GetNumberOfSwapChains()
+   UINT STDMETHODCALLTYPE Direct3DDevice9::GetNumberOfSwapChains()
 {
 	return 1;
 }
@@ -218,9 +213,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::Reset(D3DPRESENT_PARAMETERS *pPresent
 	LOG(INFO) << "Redirecting '" << "IDirect3DDevice9::Reset" << "(" << this << ", " << pPresentationParameters << ")' ...";
 
 	if (pPresentationParameters == nullptr)
-	{
 		return D3DERR_INVALIDCALL;
-	}
 
 	dump_present_parameters(*pPresentationParameters);
 
@@ -238,7 +231,6 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::Reset(D3DPRESENT_PARAMETERS *pPresent
 	if (FAILED(hr))
 	{
 		LOG(ERROR) << "> 'IDirect3DDevice9::Reset' failed with error code " << std::hex << hr << std::dec << "!";
-
 		return hr;
 	}
 
@@ -246,9 +238,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::Reset(D3DPRESENT_PARAMETERS *pPresent
 	_implicit_swapchain->GetPresentParameters(&pp);
 
 	if (!runtime->on_init(pp))
-	{
 		LOG(ERROR) << "Failed to recreate Direct3D 9 runtime environment on runtime " << runtime.get() << ".";
-	}
 
 	if (pp.EnableAutoDepthStencil)
 	{
@@ -297,7 +287,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetDialogBoxMode(BOOL bEnableDialogs)
 {
 	return _orig->SetDialogBoxMode(bEnableDialogs);
 }
-void STDMETHODCALLTYPE Direct3DDevice9::SetGammaRamp(UINT iSwapChain, DWORD Flags, const D3DGAMMARAMP *pRamp)
+   void STDMETHODCALLTYPE Direct3DDevice9::SetGammaRamp(UINT iSwapChain, DWORD Flags, const D3DGAMMARAMP *pRamp)
 {
 	if (iSwapChain != 0)
 	{
@@ -308,7 +298,7 @@ void STDMETHODCALLTYPE Direct3DDevice9::SetGammaRamp(UINT iSwapChain, DWORD Flag
 
 	return _orig->SetGammaRamp(0, Flags, pRamp);
 }
-void STDMETHODCALLTYPE Direct3DDevice9::GetGammaRamp(UINT iSwapChain, D3DGAMMARAMP *pRamp)
+   void STDMETHODCALLTYPE Direct3DDevice9::GetGammaRamp(UINT iSwapChain, D3DGAMMARAMP *pRamp)
 {
 	if (iSwapChain != 0)
 	{
@@ -594,7 +584,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetSoftwareVertexProcessing(BOOL bSof
 {
 	return _orig->SetSoftwareVertexProcessing(bSoftware);
 }
-BOOL STDMETHODCALLTYPE Direct3DDevice9::GetSoftwareVertexProcessing()
+   BOOL STDMETHODCALLTYPE Direct3DDevice9::GetSoftwareVertexProcessing()
 {
 	return _orig->GetSoftwareVertexProcessing();
 }
@@ -602,7 +592,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetNPatchMode(float nSegments)
 {
 	return _orig->SetNPatchMode(nSegments);
 }
-float STDMETHODCALLTYPE Direct3DDevice9::GetNPatchMode()
+  float STDMETHODCALLTYPE Direct3DDevice9::GetNPatchMode()
 {
 	return _orig->GetNPatchMode();
 }
@@ -807,7 +797,6 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateQuery(D3DQUERYTYPE Type, IDirec
 	return _orig->CreateQuery(Type, ppQuery);
 }
 
-// IDirect3DDevice9Ex
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetConvolutionMonoKernel(UINT width, UINT height, float *rows, float *columns)
 {
 	assert(_extended_interface);
@@ -904,9 +893,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::ResetEx(D3DPRESENT_PARAMETERS *pPrese
 	LOG(INFO) << "Redirecting '" << "IDirect3DDevice9Ex::ResetEx" << "(" << this << ", " << pPresentationParameters << ", " << pFullscreenDisplayMode << ")' ...";
 
 	if (pPresentationParameters == nullptr)
-	{
 		return D3DERR_INVALIDCALL;
-	}
 
 	dump_present_parameters(*pPresentationParameters);
 
@@ -924,7 +911,6 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::ResetEx(D3DPRESENT_PARAMETERS *pPrese
 	if (FAILED(hr))
 	{
 		LOG(ERROR) << "> 'IDirect3DDevice9Ex::ResetEx' failed with error code " << std::hex << hr << std::dec << "!";
-
 		return hr;
 	}
 
@@ -932,9 +918,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::ResetEx(D3DPRESENT_PARAMETERS *pPrese
 	_implicit_swapchain->GetPresentParameters(&pp);
 
 	if (!runtime->on_init(pp))
-	{
 		LOG(ERROR) << "Failed to recreate Direct3D 9 runtime environment on runtime " << runtime.get() << ".";
-	}
 
 	if (pp.EnableAutoDepthStencil)
 	{

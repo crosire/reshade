@@ -37,25 +37,67 @@ void dump_present_parameters(const D3DPRESENT_PARAMETERS &pp)
 	LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
 
 	if (pp.MultiSampleType != D3DMULTISAMPLE_NONE)
-	{
 		LOG(WARNING) << "> Multisampling is enabled. This is not compatible with depth buffer access, which was therefore disabled.";
+}
+
+template <typename T>
+static void init_runtime_d3d(T *&device, D3DDEVTYPE device_type, D3DPRESENT_PARAMETERS pp, bool use_software_rendering)
+{
+	if (use_software_rendering)
+		device->SetSoftwareVertexProcessing(TRUE);
+
+	if (pp.Flags & D3DPRESENTFLAG_VIDEO)
+	{
+		LOG(WARNING) << "> Skipping device due to video swapchain.";
+	}
+	else if (device_type == D3DDEVTYPE_NULLREF)
+	{
+		LOG(WARNING) << "> Skipping device due to device type being 'D3DDEVTYPE_NULLREF'.";
+	}
+	else
+	{
+		IDirect3DSwapChain9 *swapchain = nullptr;
+		device->GetSwapChain(0, &swapchain);
+
+		assert(swapchain != nullptr);
+
+		swapchain->GetPresentParameters(&pp);
+
+		const auto runtime = std::make_shared<reshade::d3d9::runtime_d3d9>(device, swapchain);
+
+		if (!runtime->on_init(pp))
+			LOG(ERROR) << "Failed to initialize Direct3D 9 runtime environment on runtime " << runtime.get() << ".";
+
+		const auto device_proxy = new Direct3DDevice9(device);
+		const auto swapchain_proxy = new Direct3DSwapChain9(device_proxy, swapchain, runtime);
+
+		device_proxy->_implicit_swapchain = swapchain_proxy;
+		device_proxy->_use_software_rendering = use_software_rendering;
+
+		if (pp.EnableAutoDepthStencil)
+		{
+			device->GetDepthStencilSurface(&device_proxy->_auto_depthstencil);
+			device_proxy->SetDepthStencilSurface(device_proxy->_auto_depthstencil.get());
+		}
+
+		device = device_proxy;
+
+		// Upgrade to extended interface if available
+		com_ptr<IDirect3DDevice9Ex> deviceex;
+		device_proxy->QueryInterface(IID_PPV_ARGS(&deviceex));
 	}
 }
 
-// IDirect3D9
 HRESULT STDMETHODCALLTYPE IDirect3D9_CreateDevice(IDirect3D9 *pD3D, UINT Adapter, D3DDEVTYPE DeviceType, HWND hFocusWindow, DWORD BehaviorFlags, D3DPRESENT_PARAMETERS *pPresentationParameters, IDirect3DDevice9 **ppReturnedDeviceInterface)
 {
 	LOG(INFO) << "Redirecting '" << "IDirect3D9::CreateDevice" << "(" << pD3D << ", " << Adapter << ", " << DeviceType << ", " << hFocusWindow << ", " << std::hex << BehaviorFlags << std::dec << ", " << pPresentationParameters << ", " << ppReturnedDeviceInterface << ")' ...";
 
 	if (pPresentationParameters == nullptr)
-	{
 		return D3DERR_INVALIDCALL;
-	}
 
 	if ((BehaviorFlags & D3DCREATE_ADAPTERGROUP_DEVICE) != 0)
 	{
 		LOG(WARNING) << "Adapter group devices are unsupported.";
-
 		return D3DERR_NOTAVAILABLE;
 	}
 
@@ -75,59 +117,10 @@ HRESULT STDMETHODCALLTYPE IDirect3D9_CreateDevice(IDirect3D9 *pD3D, UINT Adapter
 	if (FAILED(hr))
 	{
 		LOG(WARNING) << "> 'IDirect3D9::CreateDevice' failed with error code " << std::hex << hr << std::dec << "!";
-
 		return hr;
 	}
 
-	IDirect3DDevice9 *const device = *ppReturnedDeviceInterface;
-
-	if (use_software_rendering)
-	{
-		device->SetSoftwareVertexProcessing(TRUE);
-	}
-
-	if (pPresentationParameters->Flags & D3DPRESENTFLAG_VIDEO)
-	{
-		LOG(WARNING) << "> Skipping device due to video swapchain.";
-	}
-	else if (DeviceType == D3DDEVTYPE_NULLREF)
-	{
-		LOG(WARNING) << "> Skipping device due to device type being 'D3DDEVTYPE_NULLREF'.";
-	}
-	else
-	{
-		IDirect3DSwapChain9 *swapchain = nullptr;
-		device->GetSwapChain(0, &swapchain);
-
-		assert(swapchain != nullptr);
-
-		D3DPRESENT_PARAMETERS pp;
-		swapchain->GetPresentParameters(&pp);
-
-		const auto runtime = std::make_shared<reshade::d3d9::runtime_d3d9>(device, swapchain);
-
-		if (!runtime->on_init(pp))
-		{
-			LOG(ERROR) << "Failed to initialize Direct3D 9 runtime environment on runtime " << runtime.get() << ".";
-		}
-
-		const auto device_proxy = new Direct3DDevice9(device);
-		const auto swapchain_proxy = new Direct3DSwapChain9(device_proxy, swapchain, runtime);
-
-		device_proxy->_implicit_swapchain = swapchain_proxy;
-		device_proxy->_use_software_rendering = use_software_rendering;
-		*ppReturnedDeviceInterface = device_proxy;
-
-		if (pp.EnableAutoDepthStencil)
-		{
-			device->GetDepthStencilSurface(&device_proxy->_auto_depthstencil);
-			device_proxy->SetDepthStencilSurface(device_proxy->_auto_depthstencil.get());
-		}
-
-		// Upgrade to extended interface if available
-		com_ptr<IDirect3DDevice9Ex> deviceex;
-		device_proxy->QueryInterface(IID_PPV_ARGS(&deviceex));
-	}
+	init_runtime_d3d(*ppReturnedDeviceInterface, DeviceType, *pPresentationParameters, use_software_rendering);
 
 #if RESHADE_VERBOSE_LOG
 	LOG(DEBUG) << "Returning 'IDirect3DDevice9' object " << *ppReturnedDeviceInterface;
@@ -136,20 +129,16 @@ HRESULT STDMETHODCALLTYPE IDirect3D9_CreateDevice(IDirect3D9 *pD3D, UINT Adapter
 	return D3D_OK;
 }
 
-// IDirect3D9Ex
 HRESULT STDMETHODCALLTYPE IDirect3D9Ex_CreateDeviceEx(IDirect3D9Ex *pD3D, UINT Adapter, D3DDEVTYPE DeviceType, HWND hFocusWindow, DWORD BehaviorFlags, D3DPRESENT_PARAMETERS *pPresentationParameters, D3DDISPLAYMODEEX *pFullscreenDisplayMode, IDirect3DDevice9Ex **ppReturnedDeviceInterface)
 {
 	LOG(INFO) << "Redirecting '" << "IDirect3D9Ex::CreateDeviceEx" << "(" << pD3D << ", " << Adapter << ", " << DeviceType << ", " << hFocusWindow << ", " << std::hex << BehaviorFlags << std::dec << ", " << pPresentationParameters << ", " << pFullscreenDisplayMode << ", " << ppReturnedDeviceInterface << ")' ...";
 
 	if (pPresentationParameters == nullptr)
-	{
 		return D3DERR_INVALIDCALL;
-	}
 
 	if ((BehaviorFlags & D3DCREATE_ADAPTERGROUP_DEVICE) != 0)
 	{
 		LOG(WARNING) << "Adapter group devices are unsupported.";
-
 		return D3DERR_NOTAVAILABLE;
 	}
 
@@ -169,55 +158,10 @@ HRESULT STDMETHODCALLTYPE IDirect3D9Ex_CreateDeviceEx(IDirect3D9Ex *pD3D, UINT A
 	if (FAILED(hr))
 	{
 		LOG(WARNING) << "> 'IDirect3D9Ex::CreateDeviceEx' failed with error code " << std::hex << hr << std::dec << "!";
-
 		return hr;
 	}
 
-	IDirect3DDevice9Ex *const device = *ppReturnedDeviceInterface;
-
-	if (use_software_rendering)
-	{
-		device->SetSoftwareVertexProcessing(TRUE);
-	}
-
-	if (pPresentationParameters->Flags & D3DPRESENTFLAG_VIDEO)
-	{
-		LOG(WARNING) << "> Skipping device due to video swapchain.";
-	}
-	else if (DeviceType == D3DDEVTYPE_NULLREF)
-	{
-		LOG(WARNING) << "> Skipping device due to device type being 'D3DDEVTYPE_NULLREF'.";
-	}
-	else
-	{
-		IDirect3DSwapChain9 *swapchain = nullptr;
-		device->GetSwapChain(0, &swapchain);
-
-		assert(swapchain != nullptr);
-
-		D3DPRESENT_PARAMETERS pp;
-		swapchain->GetPresentParameters(&pp);
-
-		const auto runtime = std::make_shared<reshade::d3d9::runtime_d3d9>(device, swapchain);
-
-		if (!runtime->on_init(pp))
-		{
-			LOG(ERROR) << "Failed to initialize Direct3D 9 runtime environment on runtime " << runtime.get() << ".";
-		}
-
-		const auto device_proxy = new Direct3DDevice9(device);
-		const auto swapchain_proxy = new Direct3DSwapChain9(device_proxy, swapchain, runtime);
-
-		device_proxy->_implicit_swapchain = swapchain_proxy;
-		device_proxy->_use_software_rendering = use_software_rendering;
-		*ppReturnedDeviceInterface = device_proxy;
-
-		if (pp.EnableAutoDepthStencil)
-		{
-			device->GetDepthStencilSurface(&device_proxy->_auto_depthstencil);
-			device_proxy->SetDepthStencilSurface(device_proxy->_auto_depthstencil.get());
-		}
-	}
+	init_runtime_d3d(*ppReturnedDeviceInterface, DeviceType, *pPresentationParameters, use_software_rendering);
 
 #if RESHADE_VERBOSE_LOG
 	LOG(DEBUG) << "Returning 'IDirect3DDevice9Ex' object " << *ppReturnedDeviceInterface;
@@ -226,7 +170,6 @@ HRESULT STDMETHODCALLTYPE IDirect3D9Ex_CreateDeviceEx(IDirect3D9Ex *pD3D, UINT A
 	return D3D_OK;
 }
 
-// PIX
 HOOK_EXPORT int WINAPI D3DPERF_BeginEvent(D3DCOLOR col, LPCWSTR wszName)
 {
 	UNREFERENCED_PARAMETER(col);
@@ -265,7 +208,6 @@ HOOK_EXPORT DWORD WINAPI D3DPERF_GetStatus()
 	return 0;
 }
 
-// D3D9
 HOOK_EXPORT IDirect3D9 *WINAPI Direct3DCreate9(UINT SDKVersion)
 {
 	LOG(INFO) << "Redirecting '" << "Direct3DCreate9" << "(" << SDKVersion << ")' ...";
@@ -275,7 +217,6 @@ HOOK_EXPORT IDirect3D9 *WINAPI Direct3DCreate9(UINT SDKVersion)
 	if (res == nullptr)
 	{
 		LOG(WARNING) << "> 'Direct3DCreate9' failed!";
-
 		return nullptr;
 	}
 
@@ -296,7 +237,6 @@ HOOK_EXPORT HRESULT WINAPI Direct3DCreate9Ex(UINT SDKVersion, IDirect3D9Ex **ppD
 	if (FAILED(hr))
 	{
 		LOG(WARNING) << "> 'Direct3DCreate9Ex' failed with error code " << std::hex << hr << std::dec << "!";
-
 		return hr;
 	}
 

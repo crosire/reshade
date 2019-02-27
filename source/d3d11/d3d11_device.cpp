@@ -50,15 +50,12 @@ void D3D11Device::clear_drawcall_stats()
 	_clear_DSV_iter = 1;
 }
 
-// ID3D11Device
 HRESULT STDMETHODCALLTYPE D3D11Device::QueryInterface(REFIID riid, void **ppvObj)
 {
 	if (ppvObj == nullptr)
-	{
 		return E_POINTER;
-	}
-	else if (
-		riid == __uuidof(this) ||
+
+	if (riid == __uuidof(this) ||
 		riid == __uuidof(IUnknown) ||
 		riid == __uuidof(ID3D11Device) ||
 		riid == __uuidof(ID3D11Device1) ||
@@ -70,11 +67,8 @@ HRESULT STDMETHODCALLTYPE D3D11Device::QueryInterface(REFIID riid, void **ppvObj
 		{
 			ID3D11Device1 *device1 = nullptr;
 			ID3D11DeviceContext1 *devicecontext1 = nullptr;
-
 			if (FAILED(_orig->QueryInterface(&device1)))
-			{
 				return E_NOINTERFACE;
-			}
 
 			_orig->Release();
 
@@ -94,11 +88,8 @@ HRESULT STDMETHODCALLTYPE D3D11Device::QueryInterface(REFIID riid, void **ppvObj
 		{
 			ID3D11Device2 *device2 = nullptr;
 			ID3D11DeviceContext2 *devicecontext2 = nullptr;
-
 			if (FAILED(_orig->QueryInterface(&device2)))
-			{
 				return E_NOINTERFACE;
-			}
 
 			_orig->Release();
 
@@ -118,11 +109,8 @@ HRESULT STDMETHODCALLTYPE D3D11Device::QueryInterface(REFIID riid, void **ppvObj
 		{
 			ID3D11Device3 *device3 = nullptr;
 			ID3D11DeviceContext3 *devicecontext3 = nullptr;
-
 			if (FAILED(_orig->QueryInterface(&device3)))
-			{
 				return E_NOINTERFACE;
-			}
 
 			_orig->Release();
 
@@ -159,7 +147,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::QueryInterface(REFIID riid, void **ppvObj
 
 	return _orig->QueryInterface(riid, ppvObj);
 }
-ULONG STDMETHODCALLTYPE D3D11Device::AddRef()
+  ULONG STDMETHODCALLTYPE D3D11Device::AddRef()
 {
 	_ref++;
 
@@ -171,7 +159,7 @@ ULONG STDMETHODCALLTYPE D3D11Device::AddRef()
 
 	return _orig->AddRef();
 }
-ULONG STDMETHODCALLTYPE D3D11Device::Release()
+  ULONG STDMETHODCALLTYPE D3D11Device::Release()
 {
 	assert(_dxgi_device != nullptr);
 	assert(_immediate_context != nullptr);
@@ -200,6 +188,7 @@ ULONG STDMETHODCALLTYPE D3D11Device::Release()
 
 	return ref;
 }
+
 HRESULT STDMETHODCALLTYPE D3D11Device::CreateBuffer(const D3D11_BUFFER_DESC *pDesc, const D3D11_SUBRESOURCE_DATA *pInitialData, ID3D11Buffer **ppBuffer)
 {
 	return _orig->CreateBuffer(pDesc, pInitialData, ppBuffer);
@@ -334,7 +323,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CheckMultisampleQualityLevels(DXGI_FORMAT
 {
 	return _orig->CheckMultisampleQualityLevels(Format, SampleCount, pNumQualityLevels);
 }
-void STDMETHODCALLTYPE D3D11Device::CheckCounterInfo(D3D11_COUNTER_INFO *pCounterInfo)
+   void STDMETHODCALLTYPE D3D11Device::CheckCounterInfo(D3D11_COUNTER_INFO *pCounterInfo)
 {
 	_orig->CheckCounterInfo(pCounterInfo);
 }
@@ -358,7 +347,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::SetPrivateDataInterface(REFGUID guid, con
 {
 	return _orig->SetPrivateDataInterface(guid, pData);
 }
-UINT STDMETHODCALLTYPE D3D11Device::GetCreationFlags()
+   UINT STDMETHODCALLTYPE D3D11Device::GetCreationFlags()
 {
 	return _orig->GetCreationFlags();
 }
@@ -366,7 +355,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::GetDeviceRemovedReason()
 {
 	return _orig->GetDeviceRemovedReason();
 }
-void STDMETHODCALLTYPE D3D11Device::GetImmediateContext(ID3D11DeviceContext **ppImmediateContext)
+   void STDMETHODCALLTYPE D3D11Device::GetImmediateContext(ID3D11DeviceContext **ppImmediateContext)
 {
 	if (ppImmediateContext == nullptr)
 	{
@@ -383,7 +372,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::SetExceptionMode(UINT RaiseFlags)
 {
 	return _orig->SetExceptionMode(RaiseFlags);
 }
-UINT STDMETHODCALLTYPE D3D11Device::GetExceptionMode()
+   UINT STDMETHODCALLTYPE D3D11Device::GetExceptionMode()
 {
 	return _orig->GetExceptionMode();
 }
@@ -392,8 +381,7 @@ D3D_FEATURE_LEVEL STDMETHODCALLTYPE D3D11Device::GetFeatureLevel()
 	return _orig->GetFeatureLevel();
 }
 
-// ID3D11Device1
-void STDMETHODCALLTYPE D3D11Device::GetImmediateContext1(ID3D11DeviceContext1 **ppImmediateContext)
+void    STDMETHODCALLTYPE D3D11Device::GetImmediateContext1(ID3D11DeviceContext1 **ppImmediateContext)
 {
 	if (ppImmediateContext == nullptr)
 	{
@@ -467,8 +455,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::OpenSharedResourceByName(LPCWSTR lpName, 
 	return static_cast<ID3D11Device1 *>(_orig)->OpenSharedResourceByName(lpName, dwDesiredAccess, returnedInterface, ppResource);
 }
 
-// ID3D11Device2
-void STDMETHODCALLTYPE D3D11Device::GetImmediateContext2(ID3D11DeviceContext2 **ppImmediateContext)
+   void STDMETHODCALLTYPE D3D11Device::GetImmediateContext2(ID3D11DeviceContext2 **ppImmediateContext)
 {
 	assert(_interface_version >= 2);
 
@@ -480,7 +467,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateDeferredContext2(UINT ContextFlags,
 
 	return static_cast<ID3D11Device2 *>(_orig)->CreateDeferredContext2(ContextFlags, ppDeferredContext);
 }
-void STDMETHODCALLTYPE D3D11Device::GetResourceTiling(ID3D11Resource *pTiledResource, UINT *pNumTilesForEntireResource, D3D11_PACKED_MIP_DESC *pPackedMipDesc, D3D11_TILE_SHAPE *pStandardTileShapeForNonPackedMips, UINT *pNumSubresourceTilings, UINT FirstSubresourceTilingToGet, D3D11_SUBRESOURCE_TILING *pSubresourceTilingsForNonPackedMips)
+   void STDMETHODCALLTYPE D3D11Device::GetResourceTiling(ID3D11Resource *pTiledResource, UINT *pNumTilesForEntireResource, D3D11_PACKED_MIP_DESC *pPackedMipDesc, D3D11_TILE_SHAPE *pStandardTileShapeForNonPackedMips, UINT *pNumSubresourceTilings, UINT FirstSubresourceTilingToGet, D3D11_SUBRESOURCE_TILING *pSubresourceTilingsForNonPackedMips)
 {
 	assert(_interface_version >= 2);
 
@@ -493,7 +480,6 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CheckMultisampleQualityLevels1(DXGI_FORMA
 	return static_cast<ID3D11Device2 *>(_orig)->CheckMultisampleQualityLevels1(Format, SampleCount, Flags, pNumQualityLevels);
 }
 
-// ID3D11Device3
 HRESULT STDMETHODCALLTYPE D3D11Device::CreateTexture2D1(const D3D11_TEXTURE2D_DESC1 *pDesc1, const D3D11_SUBRESOURCE_DATA *pInitialData, ID3D11Texture2D1 **ppTexture2D)
 {
 	assert(_interface_version >= 3);
@@ -536,7 +522,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateQuery1(const D3D11_QUERY_DESC1 *pQu
 
 	return static_cast<ID3D11Device3 *>(_orig)->CreateQuery1(pQueryDesc1, ppQuery1);
 }
-void STDMETHODCALLTYPE D3D11Device::GetImmediateContext3(ID3D11DeviceContext3 **ppImmediateContext)
+   void STDMETHODCALLTYPE D3D11Device::GetImmediateContext3(ID3D11DeviceContext3 **ppImmediateContext)
 {
 	assert(_interface_version >= 3);
 
@@ -548,13 +534,13 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateDeferredContext3(UINT ContextFlags,
 
 	return static_cast<ID3D11Device3 *>(_orig)->CreateDeferredContext3(ContextFlags, ppDeferredContext);
 }
-void STDMETHODCALLTYPE D3D11Device::WriteToSubresource(ID3D11Resource *pDstResource, UINT DstSubresource, const D3D11_BOX *pDstBox, const void *pSrcData, UINT SrcRowPitch, UINT SrcDepthPitch)
+   void STDMETHODCALLTYPE D3D11Device::WriteToSubresource(ID3D11Resource *pDstResource, UINT DstSubresource, const D3D11_BOX *pDstBox, const void *pSrcData, UINT SrcRowPitch, UINT SrcDepthPitch)
 {
 	assert(_interface_version >= 3);
 
 	static_cast<ID3D11Device3 *>(_orig)->WriteToSubresource(pDstResource, DstSubresource, pDstBox, pSrcData, SrcRowPitch, SrcDepthPitch);
 }
-void STDMETHODCALLTYPE D3D11Device::ReadFromSubresource(void *pDstData, UINT DstRowPitch, UINT DstDepthPitch, ID3D11Resource *pSrcResource, UINT SrcSubresource, const D3D11_BOX *pSrcBox)
+   void STDMETHODCALLTYPE D3D11Device::ReadFromSubresource(void *pDstData, UINT DstRowPitch, UINT DstDepthPitch, ID3D11Resource *pSrcResource, UINT SrcSubresource, const D3D11_BOX *pSrcBox)
 {
 	assert(_interface_version >= 3);
 

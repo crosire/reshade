@@ -10,7 +10,15 @@
 #include "d3d10/runtime_d3d10.hpp"
 #include "d3d11/runtime_d3d11.hpp"
 
-void dump_swapchain_desc(const DXGI_SWAP_CHAIN_DESC &desc)
+static void query_device(IUnknown *&device, com_ptr<D3D10Device> &device_d3d10, com_ptr<D3D11Device> &device_d3d11)
+{
+	if (SUCCEEDED(device->QueryInterface(&device_d3d10)))
+		device = device_d3d10->_orig;
+	else if (SUCCEEDED(device->QueryInterface(&device_d3d11)))
+		device = device_d3d11->_orig;
+}
+
+static void dump_swapchain_desc(const DXGI_SWAP_CHAIN_DESC &desc)
 {
 	LOG(INFO) << "> Dumping swap chain description:";
 	LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
@@ -33,11 +41,9 @@ void dump_swapchain_desc(const DXGI_SWAP_CHAIN_DESC &desc)
 	LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
 
 	if (desc.SampleDesc.Count > 1)
-	{
 		LOG(WARNING) << "> Multisampling is enabled. This is not compatible with depth buffer access, which was therefore disabled.";
-	}
 }
-void dump_swapchain_desc(const DXGI_SWAP_CHAIN_DESC1 &desc)
+static void dump_swapchain_desc(const DXGI_SWAP_CHAIN_DESC1 &desc)
 {
 	LOG(INFO) << "> Dumping swap chain description:";
 	LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
@@ -58,50 +64,12 @@ void dump_swapchain_desc(const DXGI_SWAP_CHAIN_DESC1 &desc)
 	LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
 
 	if (desc.SampleDesc.Count > 1)
-	{
 		LOG(WARNING) << "> Multisampling is enabled. This is not compatible with depth buffer access, which was therefore disabled.";
-	}
 }
 
-// IDXGIFactory
-HRESULT STDMETHODCALLTYPE IDXGIFactory_CreateSwapChain(IDXGIFactory *pFactory, IUnknown *pDevice, DXGI_SWAP_CHAIN_DESC *pDesc, IDXGISwapChain **ppSwapChain)
+template <typename T>
+static void init_runtime_d3d(T *&swapchain, com_ptr<D3D10Device> &device_d3d10, com_ptr<D3D11Device> &device_d3d11)
 {
-	LOG(INFO) << "Redirecting '" << "IDXGIFactory::CreateSwapChain" << "(" << pFactory << ", " << pDevice << ", " << pDesc << ", " << ppSwapChain << ")' ...";
-
-	IUnknown *device_orig = pDevice;
-	D3D10Device *device_d3d10 = nullptr;
-	D3D11Device *device_d3d11 = nullptr;
-
-	if (pDevice == nullptr || pDesc == nullptr || ppSwapChain == nullptr)
-	{
-		return DXGI_ERROR_INVALID_CALL;
-	}
-	else if (SUCCEEDED(pDevice->QueryInterface(&device_d3d10)))
-	{
-		device_orig = device_d3d10->_orig;
-
-		device_d3d10->Release();
-	}
-	else if (SUCCEEDED(pDevice->QueryInterface(&device_d3d11)))
-	{
-		device_orig = device_d3d11->_orig;
-
-		device_d3d11->Release();
-	}
-
-	dump_swapchain_desc(*pDesc);
-
-	const HRESULT hr = reshade::hooks::call(&IDXGIFactory_CreateSwapChain)(pFactory, device_orig, pDesc, ppSwapChain);
-
-	if (FAILED(hr))
-	{
-		LOG(WARNING) << "> 'IDXGIFactory::CreateSwapChain' failed with error code " << std::hex << hr << std::dec << "!";
-
-		return hr;
-	}
-
-	IDXGISwapChain *const swapchain = *ppSwapChain;
-
 	DXGI_SWAP_CHAIN_DESC desc;
 	swapchain->GetDesc(&desc);
 
@@ -116,13 +84,11 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory_CreateSwapChain(IDXGIFactory *pFactory, I
 		const auto runtime = std::make_shared<reshade::d3d10::runtime_d3d10>(device_d3d10->_orig, swapchain);
 
 		if (!runtime->on_init(desc))
-		{
 			LOG(ERROR) << "Failed to initialize Direct3D 10 runtime environment on runtime " << runtime.get() << ".";
-		}
 
 		device_d3d10->_runtimes.push_back(runtime);
 
-		*ppSwapChain = new DXGISwapChain(device_d3d10, swapchain, runtime);
+		swapchain = new DXGISwapChain(device_d3d10.get(), swapchain, runtime);
 	}
 	else if (device_d3d11 != nullptr)
 	{
@@ -131,18 +97,43 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory_CreateSwapChain(IDXGIFactory *pFactory, I
 		const auto runtime = std::make_shared<reshade::d3d11::runtime_d3d11>(device_d3d11->_orig, swapchain);
 
 		if (!runtime->on_init(desc))
-		{
 			LOG(ERROR) << "Failed to initialize Direct3D 11 runtime environment on runtime " << runtime.get() << ".";
-		}
 
 		device_d3d11->_runtimes.push_back(runtime);
 
-		*ppSwapChain = new DXGISwapChain(device_d3d11, swapchain, runtime);
+		swapchain = new DXGISwapChain(device_d3d11.get(), swapchain, runtime);
 	}
 	else
 	{
 		LOG(WARNING) << "> Skipping swap chain because it was created without a (hooked) Direct3D device.";
 	}
+}
+
+HRESULT STDMETHODCALLTYPE IDXGIFactory_CreateSwapChain(IDXGIFactory *pFactory, IUnknown *pDevice, DXGI_SWAP_CHAIN_DESC *pDesc, IDXGISwapChain **ppSwapChain)
+{
+	LOG(INFO) << "Redirecting '" << "IDXGIFactory::CreateSwapChain" << "(" << pFactory << ", " << pDevice << ", " << pDesc << ", " << ppSwapChain << ")' ...";
+
+	if (pDevice == nullptr || pDesc == nullptr || ppSwapChain == nullptr)
+		return DXGI_ERROR_INVALID_CALL;
+
+	com_ptr<D3D10Device> device_d3d10;
+	com_ptr<D3D11Device> device_d3d11;
+	query_device(pDevice,
+		device_d3d10,
+		device_d3d11);
+	dump_swapchain_desc(*pDesc);
+
+	const HRESULT hr = reshade::hooks::call(&IDXGIFactory_CreateSwapChain)(pFactory, pDevice, pDesc, ppSwapChain);
+
+	if (FAILED(hr))
+	{
+		LOG(WARNING) << "> 'IDXGIFactory::CreateSwapChain' failed with error code " << std::hex << hr << std::dec << "!";
+		return hr;
+	}
+
+	init_runtime_d3d(*ppSwapChain,
+		device_d3d10,
+		device_d3d11);
 
 #if RESHADE_VERBOSE_LOG
 	LOG(DEBUG) << "Returning 'IDXGISwapChain' object " << *ppSwapChain;
@@ -151,86 +142,31 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory_CreateSwapChain(IDXGIFactory *pFactory, I
 	return S_OK;
 }
 
-// IDXGIFactory2
 HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForHwnd(IDXGIFactory2 *pFactory, IUnknown *pDevice, HWND hWnd, const DXGI_SWAP_CHAIN_DESC1 *pDesc, const DXGI_SWAP_CHAIN_FULLSCREEN_DESC *pFullscreenDesc, IDXGIOutput *pRestrictToOutput, IDXGISwapChain1 **ppSwapChain)
 {
 	LOG(INFO) << "Redirecting '" << "IDXGIFactory2::CreateSwapChainForHwnd" << "(" << pFactory << ", " << pDevice << ", " << hWnd << ", " << pDesc << ", " << pFullscreenDesc << ", " << pRestrictToOutput << ", " << ppSwapChain << ")' ...";
 
-	IUnknown *device_orig = pDevice;
-	D3D10Device *device_d3d10 = nullptr;
-	D3D11Device *device_d3d11 = nullptr;
-
 	if (pDevice == nullptr || pDesc == nullptr || ppSwapChain == nullptr)
-	{
 		return DXGI_ERROR_INVALID_CALL;
-	}
-	else if (SUCCEEDED(pDevice->QueryInterface(&device_d3d10)))
-	{
-		device_orig = device_d3d10->_orig;
 
-		device_d3d10->Release();
-	}
-	else if (SUCCEEDED(pDevice->QueryInterface(&device_d3d11)))
-	{
-		device_orig = device_d3d11->_orig;
-
-		device_d3d11->Release();
-	}
-
+	com_ptr<D3D10Device> device_d3d10;
+	com_ptr<D3D11Device> device_d3d11;
+	query_device(pDevice,
+		device_d3d10,
+		device_d3d11);
 	dump_swapchain_desc(*pDesc);
 
-	const HRESULT hr = reshade::hooks::call(&IDXGIFactory2_CreateSwapChainForHwnd)(pFactory, device_orig, hWnd, pDesc, pFullscreenDesc, pRestrictToOutput, ppSwapChain);
+	const HRESULT hr = reshade::hooks::call(&IDXGIFactory2_CreateSwapChainForHwnd)(pFactory, pDevice, hWnd, pDesc, pFullscreenDesc, pRestrictToOutput, ppSwapChain);
 
 	if (FAILED(hr))
 	{
 		LOG(WARNING) << "> 'IDXGIFactory2::CreateSwapChainForHwnd' failed with error code " << std::hex << hr << std::dec << "!";
-
 		return hr;
 	}
 
-	IDXGISwapChain1 *const swapchain = *ppSwapChain;
-
-	DXGI_SWAP_CHAIN_DESC desc;
-	swapchain->GetDesc(&desc);
-
-	if ((desc.BufferUsage & DXGI_USAGE_RENDER_TARGET_OUTPUT) == 0)
-	{
-		LOG(WARNING) << "> Skipping swap chain due to missing 'DXGI_USAGE_RENDER_TARGET_OUTPUT' flag.";
-	}
-	else if (device_d3d10 != nullptr)
-	{
-		device_d3d10->AddRef();
-
-		const auto runtime = std::make_shared<reshade::d3d10::runtime_d3d10>(device_d3d10->_orig, swapchain);
-
-		if (!runtime->on_init(desc))
-		{
-			LOG(ERROR) << "Failed to initialize Direct3D 10 runtime environment on runtime " << runtime.get() << ".";
-		}
-
-		device_d3d10->_runtimes.push_back(runtime);
-
-		*ppSwapChain = new DXGISwapChain(device_d3d10, swapchain, runtime);
-	}
-	else if (device_d3d11 != nullptr)
-	{
-		device_d3d11->AddRef();
-
-		const auto runtime = std::make_shared<reshade::d3d11::runtime_d3d11>(device_d3d11->_orig, swapchain);
-
-		if (!runtime->on_init(desc))
-		{
-			LOG(ERROR) << "Failed to initialize Direct3D 11 runtime environment on runtime " << runtime.get() << ".";
-		}
-
-		device_d3d11->_runtimes.push_back(runtime);
-
-		*ppSwapChain = new DXGISwapChain(device_d3d11, swapchain, runtime);
-	}
-	else
-	{
-		LOG(WARNING) << "> Skipping swap chain because it was created without a (hooked) Direct3D device.";
-	}
+	init_runtime_d3d(*ppSwapChain,
+		device_d3d10,
+		device_d3d11);
 
 #if RESHADE_VERBOSE_LOG
 	LOG(DEBUG) << "Returning 'IDXGISwapChain1' object " << *ppSwapChain;
@@ -242,81 +178,27 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForCoreWindow(IDXGIFactor
 {
 	LOG(INFO) << "Redirecting '" << "IDXGIFactory2::CreateSwapChainForCoreWindow" << "(" << pFactory << ", " << pDevice << ", " << pWindow << ", " << pDesc << ", " << pRestrictToOutput << ", " << ppSwapChain << ")' ...";
 
-	IUnknown *device_orig = pDevice;
-	D3D10Device *device_d3d10 = nullptr;
-	D3D11Device *device_d3d11 = nullptr;
-
 	if (pDevice == nullptr || pDesc == nullptr || ppSwapChain == nullptr)
-	{
 		return DXGI_ERROR_INVALID_CALL;
-	}
-	else if (SUCCEEDED(pDevice->QueryInterface(&device_d3d10)))
-	{
-		device_orig = device_d3d10->_orig;
 
-		device_d3d10->Release();
-	}
-	else if (SUCCEEDED(pDevice->QueryInterface(&device_d3d11)))
-	{
-		device_orig = device_d3d11->_orig;
-
-		device_d3d11->Release();
-	}
-
+	com_ptr<D3D10Device> device_d3d10;
+	com_ptr<D3D11Device> device_d3d11;
+	query_device(pDevice,
+		device_d3d10,
+		device_d3d11);
 	dump_swapchain_desc(*pDesc);
 
-	const HRESULT hr = reshade::hooks::call(&IDXGIFactory2_CreateSwapChainForCoreWindow)(pFactory, device_orig, pWindow, pDesc, pRestrictToOutput, ppSwapChain);
+	const HRESULT hr = reshade::hooks::call(&IDXGIFactory2_CreateSwapChainForCoreWindow)(pFactory, pDevice, pWindow, pDesc, pRestrictToOutput, ppSwapChain);
 
 	if (FAILED(hr))
 	{
 		LOG(WARNING) << "> 'IDXGIFactory2::CreateSwapChainForCoreWindow' failed with error code " << std::hex << hr << std::dec << "!";
-
 		return hr;
 	}
 
-	IDXGISwapChain1 *const swapchain = *ppSwapChain;
-
-	DXGI_SWAP_CHAIN_DESC desc;
-	swapchain->GetDesc(&desc);
-
-	if ((desc.BufferUsage & DXGI_USAGE_RENDER_TARGET_OUTPUT) == 0)
-	{
-		LOG(WARNING) << "> Skipping swap chain due to missing 'DXGI_USAGE_RENDER_TARGET_OUTPUT' flag.";
-	}
-	else if (device_d3d10 != nullptr)
-	{
-		device_d3d10->AddRef();
-
-		const auto runtime = std::make_shared<reshade::d3d10::runtime_d3d10>(device_d3d10->_orig, swapchain);
-
-		if (!runtime->on_init(desc))
-		{
-			LOG(ERROR) << "Failed to initialize Direct3D 10 runtime environment on runtime " << runtime.get() << ".";
-		}
-
-		device_d3d10->_runtimes.push_back(runtime);
-
-		*ppSwapChain = new DXGISwapChain(device_d3d10, swapchain, runtime);
-	}
-	else if (device_d3d11 != nullptr)
-	{
-		device_d3d11->AddRef();
-
-		const auto runtime = std::make_shared<reshade::d3d11::runtime_d3d11>(device_d3d11->_orig, swapchain);
-
-		if (!runtime->on_init(desc))
-		{
-			LOG(ERROR) << "Failed to initialize Direct3D 11 runtime environment on runtime " << runtime.get() << ".";
-		}
-
-		device_d3d11->_runtimes.push_back(runtime);
-
-		*ppSwapChain = new DXGISwapChain(device_d3d11, swapchain, runtime);
-	}
-	else
-	{
-		LOG(WARNING) << "> Skipping swap chain because it was created without a (hooked) Direct3D device.";
-	}
+	init_runtime_d3d(*ppSwapChain,
+		device_d3d10,
+		device_d3d11);
 
 #if RESHADE_VERBOSE_LOG
 	LOG(DEBUG) << "Returning 'IDXGISwapChain1' object " << *ppSwapChain;
@@ -328,81 +210,27 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForComposition(IDXGIFacto
 {
 	LOG(INFO) << "Redirecting '" << "IDXGIFactory2::CreateSwapChainForComposition" << "(" << pFactory << ", " << pDevice << ", " << pDesc << ", " << pRestrictToOutput << ", " << ppSwapChain << ")' ...";
 
-	IUnknown *device_orig = pDevice;
-	D3D10Device *device_d3d10 = nullptr;
-	D3D11Device *device_d3d11 = nullptr;
-
 	if (pDevice == nullptr || pDesc == nullptr || ppSwapChain == nullptr)
-	{
 		return DXGI_ERROR_INVALID_CALL;
-	}
-	else if (SUCCEEDED(pDevice->QueryInterface(&device_d3d10)))
-	{
-		device_orig = device_d3d10->_orig;
 
-		device_d3d10->Release();
-	}
-	else if (SUCCEEDED(pDevice->QueryInterface(&device_d3d11)))
-	{
-		device_orig = device_d3d11->_orig;
-
-		device_d3d11->Release();
-	}
-
+	com_ptr<D3D10Device> device_d3d10;
+	com_ptr<D3D11Device> device_d3d11;
+	query_device(pDevice,
+		device_d3d10,
+		device_d3d11);
 	dump_swapchain_desc(*pDesc);
 
-	const HRESULT hr = reshade::hooks::call(&IDXGIFactory2_CreateSwapChainForComposition)(pFactory, device_orig, pDesc, pRestrictToOutput, ppSwapChain);
+	const HRESULT hr = reshade::hooks::call(&IDXGIFactory2_CreateSwapChainForComposition)(pFactory, pDevice, pDesc, pRestrictToOutput, ppSwapChain);
 
 	if (FAILED(hr))
 	{
 		LOG(WARNING) << "> 'IDXGIFactory2::CreateSwapChainForComposition' failed with error code " << std::hex << hr << std::dec << "!";
-
 		return hr;
 	}
 
-	IDXGISwapChain1 *const swapchain = *ppSwapChain;
-
-	DXGI_SWAP_CHAIN_DESC desc;
-	swapchain->GetDesc(&desc);
-
-	if ((desc.BufferUsage & DXGI_USAGE_RENDER_TARGET_OUTPUT) == 0)
-	{
-		LOG(WARNING) << "> Skipping swap chain due to missing 'DXGI_USAGE_RENDER_TARGET_OUTPUT' flag.";
-	}
-	else if (device_d3d10 != nullptr)
-	{
-		device_d3d10->AddRef();
-
-		const auto runtime = std::make_shared<reshade::d3d10::runtime_d3d10>(device_d3d10->_orig, swapchain);
-
-		if (!runtime->on_init(desc))
-		{
-			LOG(ERROR) << "Failed to initialize Direct3D 10 runtime environment on runtime " << runtime.get() << ".";
-		}
-
-		device_d3d10->_runtimes.push_back(runtime);
-
-		*ppSwapChain = new DXGISwapChain(device_d3d10, swapchain, runtime);
-	}
-	else if (device_d3d11 != nullptr)
-	{
-		device_d3d11->AddRef();
-
-		const auto runtime = std::make_shared<reshade::d3d11::runtime_d3d11>(device_d3d11->_orig, swapchain);
-
-		if (!runtime->on_init(desc))
-		{
-			LOG(ERROR) << "Failed to initialize Direct3D 11 runtime environment on runtime " << runtime.get() << ".";
-		}
-
-		device_d3d11->_runtimes.push_back(runtime);
-
-		*ppSwapChain = new DXGISwapChain(device_d3d11, swapchain, runtime);
-	}
-	else
-	{
-		LOG(WARNING) << "> Skipping swap chain because it was created without a (hooked) Direct3D device.";
-	}
+	init_runtime_d3d(*ppSwapChain,
+		device_d3d10,
+		device_d3d11);
 
 #if RESHADE_VERBOSE_LOG
 	LOG(DEBUG) << "Returning 'IDXGISwapChain1' object " << *ppSwapChain;
@@ -411,7 +239,6 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForComposition(IDXGIFacto
 	return S_OK;
 }
 
-// DXGI
 HOOK_EXPORT HRESULT WINAPI DXGIDumpJournal()
 {
 	assert(false);
@@ -433,7 +260,7 @@ HOOK_EXPORT HRESULT WINAPI DXGID3D10CreateLayeredDevice(void *pUnknown1, void *p
 {
 	return reshade::hooks::call(&DXGID3D10CreateLayeredDevice)(pUnknown1, pUnknown2, pUnknown3, pUnknown4, pUnknown5);
 }
-HOOK_EXPORT SIZE_T WINAPI DXGID3D10GetLayeredDeviceSize(const void *pLayers, UINT NumLayers)
+HOOK_EXPORT  SIZE_T WINAPI DXGID3D10GetLayeredDeviceSize(const void *pLayers, UINT NumLayers)
 {
 	return reshade::hooks::call(&DXGID3D10GetLayeredDeviceSize)(pLayers, NumLayers);
 }
@@ -464,7 +291,6 @@ HOOK_EXPORT HRESULT WINAPI CreateDXGIFactory1(REFIID riid, void **ppFactory)
 	if (FAILED(hr))
 	{
 		LOG(WARNING) << "> 'CreateDXGIFactory1' failed with error code " << std::hex << hr << std::dec << "!";
-
 		return hr;
 	}
 
@@ -513,7 +339,6 @@ HOOK_EXPORT HRESULT WINAPI CreateDXGIFactory2(UINT flags, REFIID riid, void **pp
 	if (FAILED(hr))
 	{
 		LOG(WARNING) << "> 'CreateDXGIFactory2' failed with error code " << std::hex << hr << std::dec << "!";
-
 		return hr;
 	}
 

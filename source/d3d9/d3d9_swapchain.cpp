@@ -8,15 +8,12 @@
 #include "d3d9_swapchain.hpp"
 #include "runtime_d3d9.hpp"
 
-// IDirect3DSwapChain9
 HRESULT STDMETHODCALLTYPE Direct3DSwapChain9::QueryInterface(REFIID riid, void **ppvObj)
 {
 	if (ppvObj == nullptr)
-	{
 		return E_POINTER;
-	}
-	else if (
-		riid == __uuidof(this) ||
+
+	if (riid == __uuidof(this) ||
 		riid == __uuidof(IUnknown) ||
 		riid == __uuidof(IDirect3DSwapChain9) ||
 		riid == __uuidof(IDirect3DSwapChain9Ex))
@@ -25,11 +22,8 @@ HRESULT STDMETHODCALLTYPE Direct3DSwapChain9::QueryInterface(REFIID riid, void *
 		if (!_extended_interface && riid == __uuidof(IDirect3DSwapChain9Ex))
 		{
 			IDirect3DSwapChain9Ex *swapchainex = nullptr;
-
 			if (FAILED(_orig->QueryInterface(IID_PPV_ARGS(&swapchainex))))
-			{
 				return E_NOINTERFACE;
-			}
 
 			_orig->Release();
 
@@ -50,13 +44,13 @@ HRESULT STDMETHODCALLTYPE Direct3DSwapChain9::QueryInterface(REFIID riid, void *
 
 	return _orig->QueryInterface(riid, ppvObj);
 }
-ULONG STDMETHODCALLTYPE Direct3DSwapChain9::AddRef()
+  ULONG STDMETHODCALLTYPE Direct3DSwapChain9::AddRef()
 {
 	_ref++;
 
 	return _orig->AddRef();
 }
-ULONG STDMETHODCALLTYPE Direct3DSwapChain9::Release()
+  ULONG STDMETHODCALLTYPE Direct3DSwapChain9::Release()
 {
 	if (--_ref == 0)
 	{
@@ -97,6 +91,7 @@ ULONG STDMETHODCALLTYPE Direct3DSwapChain9::Release()
 
 	return ref;
 }
+
 HRESULT STDMETHODCALLTYPE Direct3DSwapChain9::Present(const RECT *pSourceRect, const RECT *pDestRect, HWND hDestWindowOverride, const RGNDATA *pDirtyRegion, DWORD dwFlags)
 {
 	assert(_runtime != nullptr);
@@ -139,7 +134,6 @@ HRESULT STDMETHODCALLTYPE Direct3DSwapChain9::GetPresentParameters(D3DPRESENT_PA
 	return _orig->GetPresentParameters(pPresentationParameters);
 }
 
-// IDirect3DSwapChain9Ex
 HRESULT STDMETHODCALLTYPE Direct3DSwapChain9::GetLastPresentCount(UINT *pLastPresentCount)
 {
 	assert(_extended_interface);
