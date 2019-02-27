@@ -332,7 +332,7 @@ void reshadefx::expression::evaluate_constant_expression(reshadefx::tokenid op, 
 	case tokenid::slash:
 		if (type.is_floating_point()) {
 			for (unsigned int i = 0; i < type.components(); ++i)
-				if (rhs.as_float[i] != 0)
+				if (rhs.as_float[i] != 0) // TODO: Maybe throw an error on divide by zero?
 					constant.as_float[i] /= rhs.as_float[i];
 		}
 		else if (type.is_signed()) {

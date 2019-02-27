@@ -148,6 +148,7 @@ private:
 	};
 
 	spirv_basic_block _entries;
+	spirv_basic_block _execution_modes;
 	spirv_basic_block _debug_a;
 	spirv_basic_block _debug_b;
 	spirv_basic_block _annotations;
@@ -244,10 +245,10 @@ private:
 
 		// All capabilities
 		spirv_instruction(spv::OpCapability)
-			.add(spv::CapabilityMatrix)
+			.add(spv::CapabilityShader)
 			.write(module.spirv);
 		spirv_instruction(spv::OpCapability)
-			.add(spv::CapabilityShader)
+			.add(spv::CapabilityMatrix)
 			.write(module.spirv);
 
 		for (spv::Capability capability : _capabilities)
@@ -272,6 +273,10 @@ private:
 
 		// All entry point declarations
 		for (const auto &node : _entries.instructions)
+			node.write(module.spirv);
+
+		// All execution mode declarations
+		for (const auto &node : _execution_modes.instructions)
 			node.write(module.spirv);
 
 		if (_debug_info)
@@ -985,6 +990,11 @@ private:
 			.add(entry_point.definition)
 			.add_string(func.unique_name.c_str())
 			.add(inputs_and_outputs.begin(), inputs_and_outputs.end());
+
+		if (is_ps)
+			add_instruction_without_result(spv::OpExecutionMode, _execution_modes)
+				.add(entry_point.definition)
+				.add(spv::ExecutionModeOriginUpperLeft);
 	}
 
 	id   emit_load(const expression &exp) override
@@ -1199,23 +1209,29 @@ private:
 						spirv_instruction &node = add_instruction(spv::OpCompositeConstruct, convert_type(op.to));
 
 						for (unsigned int i = 0; i < 4 && op.swizzle[i] >= 0; ++i)
-						{
 							node.add(components[i]);
-						}
 
 						result = node.result;
 						break;
 					}
-					else
+					else if (op.from.is_vector())
 					{
-						assert(op.from.is_vector());
-
 						spirv_instruction &node = add_instruction(spv::OpVectorShuffle, convert_type(op.to))
 							.add(result) // Vector 1
 							.add(result); // Vector 2
 
 						for (unsigned int i = 0; i < 4 && op.swizzle[i] >= 0; ++i)
 							node.add(op.swizzle[i]);
+
+						result = node.result;
+						break;
+					}
+					else
+					{
+						spirv_instruction &node = add_instruction(spv::OpCompositeConstruct, convert_type(op.to));
+
+						for (unsigned int i = 0; i < op.to.rows; ++i)
+							node.add(result);
 
 						result = node.result;
 						break;
@@ -1575,22 +1591,28 @@ private:
 			spv_op = spv::OpLogicalAnd;
 			break;
 		case tokenid::less:
-			spv_op = type.is_floating_point() ? spv::OpFOrdLessThan : type.is_signed() ? spv::OpSLessThan : spv::OpULessThan;
+			spv_op = type.is_floating_point() ? spv::OpFOrdLessThan :
+				type.is_signed() ? spv::OpSLessThan : spv::OpULessThan;
 			break;
 		case tokenid::less_equal:
-			spv_op = type.is_floating_point() ? spv::OpFOrdLessThanEqual : type.is_signed() ? spv::OpSLessThanEqual : spv::OpULessThanEqual;
+			spv_op = type.is_floating_point() ? spv::OpFOrdLessThanEqual :
+				type.is_signed() ? spv::OpSLessThanEqual : spv::OpULessThanEqual;
 			break;
 		case tokenid::greater:
-			spv_op = type.is_floating_point() ? spv::OpFOrdGreaterThan : type.is_signed() ? spv::OpSGreaterThan : spv::OpUGreaterThan;
+			spv_op = type.is_floating_point() ? spv::OpFOrdGreaterThan :
+				type.is_signed() ? spv::OpSGreaterThan : spv::OpUGreaterThan;
 			break;
 		case tokenid::greater_equal:
-			spv_op = type.is_floating_point() ? spv::OpFOrdGreaterThanEqual : type.is_signed() ? spv::OpSGreaterThanEqual : spv::OpUGreaterThanEqual;
+			spv_op = type.is_floating_point() ? spv::OpFOrdGreaterThanEqual :
+				type.is_signed() ? spv::OpSGreaterThanEqual : spv::OpUGreaterThanEqual;
 			break;
 		case tokenid::equal_equal:
-			spv_op = type.is_floating_point() ? spv::OpFOrdEqual : type.is_integral() ? spv::OpIEqual : spv::OpLogicalEqual;
+			spv_op = type.is_floating_point() ? spv::OpFOrdEqual :
+				type.is_integral() ? spv::OpIEqual : spv::OpLogicalEqual;
 			break;
 		case tokenid::exclaim_equal:
-			spv_op = type.is_integral() ? spv::OpINotEqual : type.is_floating_point() ? spv::OpFOrdNotEqual : spv::OpLogicalNotEqual;
+			spv_op = type.is_floating_point() ? spv::OpFOrdNotEqual :
+				type.is_integral() ? spv::OpINotEqual : spv::OpLogicalNotEqual;
 			break;
 		default:
 			return assert(false), 0;

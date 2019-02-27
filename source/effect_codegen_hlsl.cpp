@@ -158,9 +158,9 @@ private:
 		assert(type.is_numeric());
 
 		if (!type.is_scalar())
-			write_type<false, false>(s, type);
-
-		s += '(';
+			write_type<false, false>(s, type), s += '(';
+		else if (type.components() > 1)
+			s += '(';
 
 		for (unsigned int i = 0, components = type.components(); i < components; ++i)
 		{
@@ -186,7 +186,8 @@ private:
 				s += ", ";
 		}
 
-		s += ')';
+		if (!type.is_scalar() || type.components() > 1)
+			s += ')';
 	}
 	template <bool force_source = false>
 	void write_location(std::string &s, const location &loc)
