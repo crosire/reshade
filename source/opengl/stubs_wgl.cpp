@@ -602,9 +602,9 @@ HOOK_EXPORT BOOL  WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 
 	if (s_shared_contexts.at(hglrc) != nullptr)
 	{
-		LOG(DEBUG) << "> Using shared OpenGL context " << hglrc << ".";
-
 		hglrc = s_shared_contexts.at(hglrc);
+
+		LOG(DEBUG) << "> Using shared OpenGL context " << hglrc << ".";
 	}
 
 	if (const auto it = s_opengl_runtimes.find(hglrc); it != s_opengl_runtimes.end())
@@ -614,10 +614,11 @@ HOOK_EXPORT BOOL  WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 			g_current_runtime = it->second;
 
 			LOG(DEBUG) << "> Switched to existing runtime " << it->second << ".";
-
-			// Keep track of all device contexts that were used with this render context
-			it->second->_hdcs.insert(hdc);
 		}
+
+		// Keep track of all device contexts that were used with this render context
+		// Do this outside the above if statement since the game may change the device context without changing the render context and thus the current runtime
+		it->second->_hdcs.insert(hdc);
 	}
 	else
 	{
@@ -888,12 +889,13 @@ HOOK_EXPORT BOOL  WINAPI wglSwapBuffers(HDC hdc)
 	static const auto trampoline = reshade::hooks::call(&wglSwapBuffers);
 
 	const HWND hwnd = WindowFromDC(hdc);
+	assert(hwnd != nullptr); // SwapBuffers should only work on device contexts associated with windows
 
 	// Find the runtime that is associated with this device context
 	const auto it = std::find_if(s_opengl_runtimes.begin(), s_opengl_runtimes.end(),
 		[hdc](const std::pair<HGLRC, reshade::opengl::runtime_opengl *> &it) { return it.second->_hdcs.count(hdc); });
 
-	if (hwnd != nullptr && it != s_opengl_runtimes.end())
+	if (it != s_opengl_runtimes.end())
 	{
 		RECT rect = { 0, 0, 0, 0 };
 		GetClientRect(hwnd, &rect);
