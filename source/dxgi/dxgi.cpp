@@ -123,7 +123,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory_CreateSwapChain(IDXGIFactory *pFactory, I
 		device_d3d11);
 	dump_swapchain_desc(*pDesc);
 
-	const HRESULT hr = reshade::hooks::call(&IDXGIFactory_CreateSwapChain)(pFactory, pDevice, pDesc, ppSwapChain);
+	const HRESULT hr = reshade::hooks::call(IDXGIFactory_CreateSwapChain)(pFactory, pDevice, pDesc, ppSwapChain);
 
 	if (FAILED(hr))
 	{
@@ -156,7 +156,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForHwnd(IDXGIFactory2 *pF
 		device_d3d11);
 	dump_swapchain_desc(*pDesc);
 
-	const HRESULT hr = reshade::hooks::call(&IDXGIFactory2_CreateSwapChainForHwnd)(pFactory, pDevice, hWnd, pDesc, pFullscreenDesc, pRestrictToOutput, ppSwapChain);
+	const HRESULT hr = reshade::hooks::call(IDXGIFactory2_CreateSwapChainForHwnd)(pFactory, pDevice, hWnd, pDesc, pFullscreenDesc, pRestrictToOutput, ppSwapChain);
 
 	if (FAILED(hr))
 	{
@@ -188,7 +188,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForCoreWindow(IDXGIFactor
 		device_d3d11);
 	dump_swapchain_desc(*pDesc);
 
-	const HRESULT hr = reshade::hooks::call(&IDXGIFactory2_CreateSwapChainForCoreWindow)(pFactory, pDevice, pWindow, pDesc, pRestrictToOutput, ppSwapChain);
+	const HRESULT hr = reshade::hooks::call(IDXGIFactory2_CreateSwapChainForCoreWindow)(pFactory, pDevice, pWindow, pDesc, pRestrictToOutput, ppSwapChain);
 
 	if (FAILED(hr))
 	{
@@ -220,7 +220,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForComposition(IDXGIFacto
 		device_d3d11);
 	dump_swapchain_desc(*pDesc);
 
-	const HRESULT hr = reshade::hooks::call(&IDXGIFactory2_CreateSwapChainForComposition)(pFactory, pDevice, pDesc, pRestrictToOutput, ppSwapChain);
+	const HRESULT hr = reshade::hooks::call(IDXGIFactory2_CreateSwapChainForComposition)(pFactory, pDevice, pDesc, pRestrictToOutput, ppSwapChain);
 
 	if (FAILED(hr))
 	{
@@ -254,19 +254,19 @@ HOOK_EXPORT HRESULT WINAPI DXGIReportAdapterConfiguration()
 
 HOOK_EXPORT HRESULT WINAPI DXGID3D10CreateDevice(HMODULE hModule, IDXGIFactory *pFactory, IDXGIAdapter *pAdapter, UINT Flags, void *pUnknown, void **ppDevice)
 {
-	return reshade::hooks::call(&DXGID3D10CreateDevice)(hModule, pFactory, pAdapter, Flags, pUnknown, ppDevice);
+	return reshade::hooks::call(DXGID3D10CreateDevice)(hModule, pFactory, pAdapter, Flags, pUnknown, ppDevice);
 }
 HOOK_EXPORT HRESULT WINAPI DXGID3D10CreateLayeredDevice(void *pUnknown1, void *pUnknown2, void *pUnknown3, void *pUnknown4, void *pUnknown5)
 {
-	return reshade::hooks::call(&DXGID3D10CreateLayeredDevice)(pUnknown1, pUnknown2, pUnknown3, pUnknown4, pUnknown5);
+	return reshade::hooks::call(DXGID3D10CreateLayeredDevice)(pUnknown1, pUnknown2, pUnknown3, pUnknown4, pUnknown5);
 }
 HOOK_EXPORT  SIZE_T WINAPI DXGID3D10GetLayeredDeviceSize(const void *pLayers, UINT NumLayers)
 {
-	return reshade::hooks::call(&DXGID3D10GetLayeredDeviceSize)(pLayers, NumLayers);
+	return reshade::hooks::call(DXGID3D10GetLayeredDeviceSize)(pLayers, NumLayers);
 }
 HOOK_EXPORT HRESULT WINAPI DXGID3D10RegisterLayers(const void *pLayers, UINT NumLayers)
 {
-	return reshade::hooks::call(&DXGID3D10RegisterLayers)(pLayers, NumLayers);
+	return reshade::hooks::call(DXGID3D10RegisterLayers)(pLayers, NumLayers);
 }
 
 HOOK_EXPORT HRESULT WINAPI CreateDXGIFactory(REFIID riid, void **ppFactory)
@@ -286,7 +286,7 @@ HOOK_EXPORT HRESULT WINAPI CreateDXGIFactory1(REFIID riid, void **ppFactory)
 
 	LOG(INFO) << "Redirecting 'CreateDXGIFactory1(" << riid_string << ", " << ppFactory << ")' ...";
 
-	const HRESULT hr = reshade::hooks::call(&CreateDXGIFactory1)(riid, ppFactory);
+	const HRESULT hr = reshade::hooks::call(CreateDXGIFactory1)(riid, ppFactory);
 
 	if (FAILED(hr))
 	{
@@ -334,7 +334,7 @@ HOOK_EXPORT HRESULT WINAPI CreateDXGIFactory2(UINT flags, REFIID riid, void **pp
 		return CreateDXGIFactory1(riid, ppFactory);
 	}
 
-	const HRESULT hr = reshade::hooks::call(&CreateDXGIFactory2)(flags, riid, ppFactory);
+	const HRESULT hr = reshade::hooks::call(CreateDXGIFactory2)(flags, riid, ppFactory);
 
 	if (FAILED(hr))
 	{
