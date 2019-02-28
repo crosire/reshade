@@ -13,7 +13,7 @@ HMODULE g_module_handle = nullptr;
 std::filesystem::path g_reshade_dll_path;
 std::filesystem::path g_target_executable_path;
 
-static inline std::filesystem::path get_system_path()
+extern std::filesystem::path get_system_path()
 {
 	static std::filesystem::path system_path;
 	if (!system_path.empty())

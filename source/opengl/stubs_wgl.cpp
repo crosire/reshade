@@ -639,94 +639,15 @@ HOOK_EXPORT BOOL  WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 			LOG(WARNING) << "Window class style of window " << hwnd << " is missing 'CS_OWNDC' flag.";
 		}
 
-		gl3wInit();
-
-		// Fix up gl3w to use the original OpenGL functions and not the hooked ones
-		gl3wProcs.gl.BindTexture = reshade::hooks::call(glBindTexture);
-		gl3wProcs.gl.BlendFunc = reshade::hooks::call(glBlendFunc);
-		gl3wProcs.gl.Clear = reshade::hooks::call(glClear);
-		gl3wProcs.gl.ClearColor = reshade::hooks::call(glClearColor);
-		gl3wProcs.gl.ClearDepth = reshade::hooks::call(glClearDepth);
-		gl3wProcs.gl.ClearStencil = reshade::hooks::call(glClearStencil);
-		gl3wProcs.gl.ColorMask = reshade::hooks::call(glColorMask);
-		gl3wProcs.gl.CopyTexImage1D = reshade::hooks::call(glCopyTexImage1D);
-		gl3wProcs.gl.CopyTexImage2D = reshade::hooks::call(glCopyTexImage2D);
-		gl3wProcs.gl.CopyTexSubImage1D = reshade::hooks::call(glCopyTexSubImage1D);
-		gl3wProcs.gl.CopyTexSubImage2D = reshade::hooks::call(glCopyTexSubImage2D);
-		gl3wProcs.gl.CullFace = reshade::hooks::call(glCullFace);
-		gl3wProcs.gl.DeleteTextures = reshade::hooks::call(glDeleteTextures);
-		gl3wProcs.gl.DepthFunc = reshade::hooks::call(glDepthFunc);
-		gl3wProcs.gl.DepthMask = reshade::hooks::call(glDepthMask);
-		gl3wProcs.gl.DepthRange = reshade::hooks::call(glDepthRange);
-		gl3wProcs.gl.Disable = reshade::hooks::call(glDisable);
-		gl3wProcs.gl.DrawArrays = reshade::hooks::call(glDrawArrays);
-		gl3wProcs.gl.DrawArraysIndirect = reshade::hooks::call(glDrawArraysIndirect);
-		gl3wProcs.gl.DrawArraysInstanced = reshade::hooks::call(glDrawArraysInstanced);
-		gl3wProcs.gl.DrawArraysInstancedBaseInstance = reshade::hooks::call(glDrawArraysInstancedBaseInstance);
-		gl3wProcs.gl.DrawBuffer = reshade::hooks::call(glDrawBuffer);
-		gl3wProcs.gl.DrawElements = reshade::hooks::call(glDrawElements);
-		gl3wProcs.gl.DrawElementsBaseVertex = reshade::hooks::call(glDrawElementsBaseVertex);
-		gl3wProcs.gl.DrawElementsIndirect = reshade::hooks::call(glDrawElementsIndirect);
-		gl3wProcs.gl.DrawElementsInstanced = reshade::hooks::call(glDrawElementsInstanced);
-		gl3wProcs.gl.DrawElementsInstancedBaseVertex = reshade::hooks::call(glDrawElementsInstancedBaseVertex);
-		gl3wProcs.gl.DrawElementsInstancedBaseInstance = reshade::hooks::call(glDrawElementsInstancedBaseInstance);
-		gl3wProcs.gl.DrawElementsInstancedBaseVertexBaseInstance = reshade::hooks::call(glDrawElementsInstancedBaseVertexBaseInstance);
-		gl3wProcs.gl.DrawRangeElements = reshade::hooks::call(glDrawRangeElements);
-		gl3wProcs.gl.DrawRangeElementsBaseVertex = reshade::hooks::call(glDrawRangeElementsBaseVertex);
-		gl3wProcs.gl.Enable = reshade::hooks::call(glEnable);
-		gl3wProcs.gl.Finish = reshade::hooks::call(glFinish);
-		gl3wProcs.gl.Flush = reshade::hooks::call(glFlush);
-		gl3wProcs.gl.FramebufferRenderbuffer = reshade::hooks::call(glFramebufferRenderbuffer);
-		gl3wProcs.gl.FramebufferTexture = reshade::hooks::call(glFramebufferTexture);
-		gl3wProcs.gl.FramebufferTexture1D = reshade::hooks::call(glFramebufferTexture1D);
-		gl3wProcs.gl.FramebufferTexture2D = reshade::hooks::call(glFramebufferTexture2D);
-		gl3wProcs.gl.FramebufferTexture3D = reshade::hooks::call(glFramebufferTexture3D);
-		gl3wProcs.gl.FramebufferTextureLayer = reshade::hooks::call(glFramebufferTextureLayer);
-		gl3wProcs.gl.FrontFace = reshade::hooks::call(glFrontFace);
-		gl3wProcs.gl.GenTextures = reshade::hooks::call(glGenTextures);
-		gl3wProcs.gl.GetBooleanv = reshade::hooks::call(glGetBooleanv);
-		gl3wProcs.gl.GetDoublev = reshade::hooks::call(glGetDoublev);
-		gl3wProcs.gl.GetError = reshade::hooks::call(glGetError);
-		gl3wProcs.gl.GetFloatv = reshade::hooks::call(glGetFloatv);
-		gl3wProcs.gl.GetIntegerv = reshade::hooks::call(glGetIntegerv);
-		gl3wProcs.gl.GetPointerv = reshade::hooks::call(glGetPointerv);
-		gl3wProcs.gl.GetString = reshade::hooks::call(glGetString);
-		gl3wProcs.gl.GetTexImage = reshade::hooks::call(glGetTexImage);
-		gl3wProcs.gl.GetTexLevelParameterfv = reshade::hooks::call(glGetTexLevelParameterfv);
-		gl3wProcs.gl.GetTexLevelParameteriv = reshade::hooks::call(glGetTexLevelParameteriv);
-		gl3wProcs.gl.GetTexParameterfv = reshade::hooks::call(glGetTexParameterfv);
-		gl3wProcs.gl.GetTexParameteriv = reshade::hooks::call(glGetTexParameteriv);
-		gl3wProcs.gl.Hint = reshade::hooks::call(glHint);
-		gl3wProcs.gl.IsEnabled = reshade::hooks::call(glIsEnabled);
-		gl3wProcs.gl.IsTexture = reshade::hooks::call(glIsTexture);
-		gl3wProcs.gl.LineWidth = reshade::hooks::call(glLineWidth);
-		gl3wProcs.gl.LogicOp = reshade::hooks::call(glLogicOp);
-		gl3wProcs.gl.MultiDrawArrays = reshade::hooks::call(glMultiDrawArrays);
-		gl3wProcs.gl.MultiDrawArraysIndirect = reshade::hooks::call(glMultiDrawArraysIndirect);
-		gl3wProcs.gl.MultiDrawElements = reshade::hooks::call(glMultiDrawElements);
-		gl3wProcs.gl.MultiDrawElementsBaseVertex = reshade::hooks::call(glMultiDrawElementsBaseVertex);
-		gl3wProcs.gl.MultiDrawElementsIndirect = reshade::hooks::call(glMultiDrawElementsIndirect);
-		gl3wProcs.gl.PixelStoref = reshade::hooks::call(glPixelStoref);
-		gl3wProcs.gl.PixelStorei = reshade::hooks::call(glPixelStorei);
-		gl3wProcs.gl.PointSize = reshade::hooks::call(glPointSize);
-		gl3wProcs.gl.PolygonMode = reshade::hooks::call(glPolygonMode);
-		gl3wProcs.gl.PolygonOffset = reshade::hooks::call(glPolygonOffset);
-		gl3wProcs.gl.ReadBuffer = reshade::hooks::call(glReadBuffer);
-		gl3wProcs.gl.ReadPixels = reshade::hooks::call(glReadPixels);
-		gl3wProcs.gl.Scissor = reshade::hooks::call(glScissor);
-		gl3wProcs.gl.StencilFunc = reshade::hooks::call(glStencilFunc);
-		gl3wProcs.gl.StencilMask = reshade::hooks::call(glStencilMask);
-		gl3wProcs.gl.StencilOp = reshade::hooks::call(glStencilOp);
-		gl3wProcs.gl.TexImage1D = reshade::hooks::call(glTexImage1D);
-		gl3wProcs.gl.TexImage2D = reshade::hooks::call(glTexImage2D);
-		gl3wProcs.gl.TexImage3D = reshade::hooks::call(glTexImage3D);
-		gl3wProcs.gl.TexParameterf = reshade::hooks::call(glTexParameterf);
-		gl3wProcs.gl.TexParameterfv = reshade::hooks::call(glTexParameterfv);
-		gl3wProcs.gl.TexParameteri = reshade::hooks::call(glTexParameteri);
-		gl3wProcs.gl.TexParameteriv = reshade::hooks::call(glTexParameteriv);
-		gl3wProcs.gl.TexSubImage1D = reshade::hooks::call(glTexSubImage1D);
-		gl3wProcs.gl.TexSubImage2D = reshade::hooks::call(glTexSubImage2D);
-		gl3wProcs.gl.Viewport = reshade::hooks::call(glViewport);
+		// Load original OpenGL functions instead of using the hooked ones
+		gl3wInit2([](const char *name) {
+			extern std::filesystem::path get_system_path();
+			// First attempt to load from the OpenGL ICD
+			FARPROC address = reshade::hooks::call(wglGetProcAddress)(name);
+			if (address == nullptr) address = GetProcAddress( // Load from the Windows OpenGL DLL if that fails
+				GetModuleHandleW((get_system_path() / "opengl32.dll").c_str()), name);
+			return reinterpret_cast<GL3WglProc>(address);
+		});
 
 		if (gl3wIsSupported(4, 3))
 		{
@@ -893,13 +814,13 @@ HOOK_EXPORT BOOL  WINAPI wglSwapBuffers(HDC hdc)
 	static const auto trampoline = reshade::hooks::call(wglSwapBuffers);
 
 	const HWND hwnd = WindowFromDC(hdc);
-	assert(hwnd != nullptr); // SwapBuffers should only work on device contexts associated with windows
 
 	// Find the runtime that is associated with this device context
 	const auto it = std::find_if(s_opengl_runtimes.begin(), s_opengl_runtimes.end(),
 		[hdc](const std::pair<HGLRC, reshade::opengl::runtime_opengl *> &it) { return it.second->_hdcs.count(hdc); });
 
-	if (it != s_opengl_runtimes.end())
+	// The window handle can be invalid if the window was already destroyed
+	if (hwnd != nullptr && it != s_opengl_runtimes.end())
 	{
 		RECT rect = { 0, 0, 0, 0 };
 		GetClientRect(hwnd, &rect);
@@ -914,9 +835,7 @@ HOOK_EXPORT BOOL  WINAPI wglSwapBuffers(HDC hdc)
 			it->second->on_reset();
 
 			if (!(width == 0 && height == 0) && !it->second->on_init(hwnd, width, height))
-			{
 				LOG(ERROR) << "Failed to recreate OpenGL runtime environment on runtime " << it->second << ".";
-			}
 		}
 
 		// Assume that the correct OpenGL context is still current here
