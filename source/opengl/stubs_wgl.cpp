@@ -50,9 +50,13 @@ HOOK_EXPORT int   WINAPI wglChoosePixelFormat(HDC hdc, const PIXELFORMATDESCRIPT
 		LOG(WARNING) << "> Single buffered OpenGL contexts are not supported.";
 	}
 
+	// Note: Windows calls into 'wglDescribePixelFormat' repeatedly from this, so make sure it reports correct results
 	const int format = reshade::hooks::call(&wglChoosePixelFormat)(hdc, ppfd);
 
-	LOG(INFO) << "> Returned format: " << format;
+	if (format != 0)
+		LOG(INFO) << "> Returned format: " << format;
+	else
+		LOG(WARNING) << "> 'wglChoosePixelFormat' failed with error code " << (GetLastError() & 0xFFFF) << "!";
 
 	return format;
 }
@@ -303,7 +307,7 @@ HOOK_EXPORT BOOL  WINAPI wglSetPixelFormat(HDC hdc, int iPixelFormat, const PIXE
 }
 HOOK_EXPORT int   WINAPI wglDescribePixelFormat(HDC hdc, int iPixelFormat, UINT nBytes, LPPIXELFORMATDESCRIPTOR ppfd)
 {
-	return reshade::hooks::call(wglDescribePixelFormat)(hdc, iPixelFormat, nBytes, ppfd);
+	return reshade::hooks::call(&wglDescribePixelFormat)(hdc, iPixelFormat, nBytes, ppfd);
 }
 
 HOOK_EXPORT BOOL  WINAPI wglDescribeLayerPlane(HDC hdc, int iPixelFormat, int iLayerPlane, UINT nBytes, LPLAYERPLANEDESCRIPTOR plpd)
