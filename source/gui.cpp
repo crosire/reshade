@@ -500,7 +500,8 @@ void reshade::runtime::draw_ui()
 		if (init_window_layout)
 		{
 			// Add the root node
-			ImGui::DockBuilderAddNode(root_space_id, viewport->Size);
+			ImGui::DockBuilderAddNode(root_space_id, ImGuiDockNodeFlags_Dockspace);
+			ImGui::DockBuilderSetNodeSize(root_space_id, viewport->Size);
 
 			// Split root node into two spaces
 			ImGuiID main_space_id = 0;
