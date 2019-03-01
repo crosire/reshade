@@ -579,14 +579,17 @@ HOOK_EXPORT BOOL  WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 {
 	static const auto trampoline = reshade::hooks::call(wglMakeCurrent);
 
+#if RESHADE_VERBOSE_LOG
 	LOG(DEBUG) << "Redirecting '" << "wglMakeCurrent" << "(" << hdc << ", " << hglrc << ")' ...";
+#endif
 
 	const HGLRC prev_hglrc = wglGetCurrentContext();
 
 	if (!trampoline(hdc, hglrc))
 	{
+#if RESHADE_VERBOSE_LOG
 		LOG(WARNING) << "> 'wglMakeCurrent' failed with error code " << (GetLastError() & 0xFFFF) << "!";
-
+#endif
 		return FALSE;
 	}
 
@@ -608,7 +611,9 @@ HOOK_EXPORT BOOL  WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 	{
 		hglrc = s_shared_contexts.at(hglrc);
 
+#if RESHADE_VERBOSE_LOG
 		LOG(DEBUG) << "> Using shared OpenGL context " << hglrc << ".";
+#endif
 	}
 
 	if (const auto it = s_opengl_runtimes.find(hglrc); it != s_opengl_runtimes.end())
@@ -617,7 +622,9 @@ HOOK_EXPORT BOOL  WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 		{
 			g_current_runtime = it->second;
 
+#if RESHADE_VERBOSE_LOG
 			LOG(DEBUG) << "> Switched to existing runtime " << it->second << ".";
+#endif
 		}
 
 		// Keep track of all device contexts that were used with this render context
@@ -630,7 +637,7 @@ HOOK_EXPORT BOOL  WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 
 		if (hwnd == nullptr || s_pbuffer_device_contexts.find(hdc) != s_pbuffer_device_contexts.end())
 		{
-			LOG(DEBUG) << "> Skipped because there is no window associated with this device context.";
+			LOG(WARNING) << "Skipping render context " << hglrc << " because there is no window associated with its device context " << hdc << ".";
 
 			return TRUE;
 		}
@@ -656,7 +663,9 @@ HOOK_EXPORT BOOL  WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 
 			g_current_runtime = s_opengl_runtimes[hglrc] = runtime;
 
+#if RESHADE_VERBOSE_LOG
 			LOG(DEBUG) << "> Switched to new runtime " << runtime << ".";
+#endif
 		}
 		else
 		{
