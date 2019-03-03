@@ -38,7 +38,7 @@ namespace reshade
 	void ini_file::load()
 	{
 		std::string line, section;
-		std::ifstream file(_path.wstring());
+		std::ifstream file(_path);
 		file.imbue(std::locale("en-us.UTF-8"));
 
 		// Remove BOM (0xefbbbf means 0xfeff)
@@ -95,7 +95,7 @@ namespace reshade
 			return;
 		}
 
-		std::ofstream file(_save_path.wstring());
+		std::ofstream file(_save_path);
 		file.imbue(std::locale("en-us.UTF-8"));
 
 		const auto it = _sections.find("");

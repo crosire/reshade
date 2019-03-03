@@ -45,6 +45,11 @@ namespace reshade::log
 		}
 
 		template <>
+		inline message &operator<<(const std::filesystem::path &path)
+		{
+			return operator<<(path.u8string());
+		}
+		template <>
 		inline message &operator<<(const std::wstring &message)
 		{
 			static_assert(sizeof(std::wstring::value_type) == sizeof(uint16_t), "expected 'std::wstring' to use UTF-16 encoding");
