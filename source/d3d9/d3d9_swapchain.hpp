@@ -5,21 +5,15 @@
 
 #pragma once
 
-#include "d3d9.hpp"
+#include <d3d9.h>
 #include <memory>
 
-struct Direct3DSwapChain9 : IDirect3DSwapChain9Ex
+namespace reshade::d3d9 { class runtime_d3d9; }
+
+struct __declspec(uuid("BC52FCE4-1EAC-40C8-84CF-863600BBAA01")) Direct3DSwapChain9 : IDirect3DSwapChain9Ex
 {
-	Direct3DSwapChain9(Direct3DDevice9 *device, IDirect3DSwapChain9   *original, const std::shared_ptr<reshade::d3d9::runtime_d3d9> &runtime) :
-		_orig(original),
-		_extended_interface(false),
-		_device(device),
-		_runtime(runtime) {}
-	Direct3DSwapChain9(Direct3DDevice9 *device, IDirect3DSwapChain9Ex *original, const std::shared_ptr<reshade::d3d9::runtime_d3d9> &runtime) :
-		_orig(original),
-		_extended_interface(true),
-		_device(device),
-		_runtime(runtime) {}
+	Direct3DSwapChain9(struct Direct3DDevice9 *device, IDirect3DSwapChain9   *original, const std::shared_ptr<reshade::d3d9::runtime_d3d9> &runtime);
+	Direct3DSwapChain9(struct Direct3DDevice9 *device, IDirect3DSwapChain9Ex *original, const std::shared_ptr<reshade::d3d9::runtime_d3d9> &runtime);
 
 	Direct3DSwapChain9(const Direct3DSwapChain9 &) = delete;
 	Direct3DSwapChain9 &operator=(const Direct3DSwapChain9 &) = delete;

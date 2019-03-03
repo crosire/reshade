@@ -9,6 +9,8 @@
 
 namespace reshade::d3d11
 {
+	class runtime_d3d11;
+
 	class draw_call_tracker
 	{
 	public:

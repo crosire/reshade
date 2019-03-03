@@ -6,7 +6,7 @@
 #include "log.hpp"
 #include "hook_manager.hpp"
 #include "runtime_opengl.hpp"
-#include "opengl_stubs_internal.hpp"
+#include "opengl_hooks.hpp"
 #include <numeric>
 
 extern thread_local reshade::opengl::runtime_opengl *g_current_runtime;

@@ -66,7 +66,7 @@ reshade::runtime::~runtime()
 
 bool reshade::runtime::on_init(input::window_handle window)
 {
-	LOG(INFO) << "Recreated runtime environment on runtime " << this << ".";
+	LOG(INFO) << "Recreated runtime environment on runtime " << this << '.';
 
 	_input = input::register_window(window);
 
@@ -93,7 +93,7 @@ void reshade::runtime::on_reset()
 	destroy_font_atlas();
 #endif
 
-	LOG(INFO) << "Destroyed runtime environment on runtime " << this << ".";
+	LOG(INFO) << "Destroyed runtime environment on runtime " << this << '.';
 
 	_width = _height = 0;
 	_is_initialized = false;
@@ -381,9 +381,9 @@ void reshade::runtime::load_effect(const std::filesystem::path &path, size_t &ou
 
 	if (effect.compile_sucess)
 		if (effect.errors.empty())
-			LOG(INFO) << "Successfully loaded " << path << ".";
+			LOG(INFO) << "Successfully loaded " << path << '.';
 		else
-			LOG(WARNING) << "Successfully loaded " << path << " with warnings:\n" << effect.errors;
+			LOG(WARN) << "Successfully loaded " << path << " with warnings:\n" << effect.errors;
 
 	_reload_remaining_effects--;
 	_last_reload_successful &= effect.compile_sucess;
@@ -408,7 +408,7 @@ void reshade::runtime::load_effects()
 				if (entry.path().extension() == ".fx")
 					effect_files.push_back(entry.path());
 		if (ec)
-			LOG(WARNING) << "Skipping effect search path " << search_path << " since it is not a valid path to a directory. Opening it failed with error code " << ec << '.';
+			LOG(WARN) << "Skipping effect search path " << search_path << " since it is not a valid path to a directory. Opening it failed with error code " << ec << '.';
 	}
 
 	_reload_total_effects = effect_files.size();

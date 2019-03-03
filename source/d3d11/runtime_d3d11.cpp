@@ -527,7 +527,7 @@ namespace reshade::d3d11
 			_backbuffer_format != DXGI_FORMAT_B8G8R8A8_UNORM &&
 			_backbuffer_format != DXGI_FORMAT_B8G8R8A8_UNORM_SRGB)
 		{
-			LOG(WARNING) << "Screenshots are not supported for back buffer format " << _backbuffer_format << ".";
+			LOG(WARN) << "Screenshots are not supported for back buffer format " << _backbuffer_format << '.';
 			return;
 		}
 

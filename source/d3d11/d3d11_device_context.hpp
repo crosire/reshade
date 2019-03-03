@@ -5,27 +5,15 @@
 
 #pragma once
 
-#include "d3d11.hpp"
+#include <d3d11_4.h>
 #include "draw_call_tracker.hpp"
 
-struct D3D11DeviceContext : ID3D11DeviceContext3
+struct __declspec(uuid("27B0246B-2152-4D42-AD11-32489472238F")) D3D11DeviceContext : ID3D11DeviceContext4
 {
-	D3D11DeviceContext(D3D11Device *device, ID3D11DeviceContext  *original) :
-		_orig(original),
-		_interface_version(0),
-		_device(device) {}
-	D3D11DeviceContext(D3D11Device *device, ID3D11DeviceContext1 *original) :
-		_orig(original),
-		_interface_version(1),
-		_device(device) {}
-	D3D11DeviceContext(D3D11Device *device, ID3D11DeviceContext2 *original) :
-		_orig(original),
-		_interface_version(2),
-		_device(device) {}
-	D3D11DeviceContext(D3D11Device *device, ID3D11DeviceContext3 *original) :
-		_orig(original),
-		_interface_version(3),
-		_device(device) {}
+	D3D11DeviceContext(D3D11Device *device, ID3D11DeviceContext  *original);
+	D3D11DeviceContext(D3D11Device *device, ID3D11DeviceContext1 *original);
+	D3D11DeviceContext(D3D11Device *device, ID3D11DeviceContext2 *original);
+	D3D11DeviceContext(D3D11Device *device, ID3D11DeviceContext3 *original);
 
 	D3D11DeviceContext(const D3D11DeviceContext &) = delete;
 	D3D11DeviceContext &operator=(const D3D11DeviceContext &) = delete;
@@ -187,6 +175,10 @@ struct D3D11DeviceContext : ID3D11DeviceContext3
 	   void STDMETHODCALLTYPE Flush1(D3D11_CONTEXT_TYPE ContextType, HANDLE hEvent) override;
 	   void STDMETHODCALLTYPE SetHardwareProtectionState(BOOL HwProtectionEnable) override;
 	   void STDMETHODCALLTYPE GetHardwareProtectionState(BOOL *pHwProtectionEnable) override;
+	#pragma endregion
+	#pragma region ID3D11DeviceContext4
+	HRESULT STDMETHODCALLTYPE Signal(ID3D11Fence *pFence, UINT64 Value) override;
+	HRESULT STDMETHODCALLTYPE Wait(ID3D11Fence *pFence, UINT64 Value) override;
 	#pragma endregion
 
 	void clear_drawcall_stats();

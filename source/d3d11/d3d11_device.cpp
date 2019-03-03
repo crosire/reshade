@@ -9,6 +9,14 @@
 #include "../dxgi/dxgi_device.hpp"
 #include "draw_call_tracker.hpp"
 
+D3D11Device::D3D11Device(IDXGIDevice1 *dxgi_device, ID3D11Device *original, ID3D11DeviceContext *immediate_context) :
+	_orig(original),
+	_interface_version(0),
+	_dxgi_device(new DXGIDevice(dxgi_device, this)),
+	_immediate_context(new D3D11DeviceContext(this, immediate_context)) {
+	assert(original != nullptr);
+}
+
 void D3D11Device::add_commandlist_trackers(ID3D11CommandList* command_list, const reshade::d3d11::draw_call_tracker &tracker_source)
 {
 	assert(command_list != nullptr);
@@ -17,15 +25,10 @@ void D3D11Device::add_commandlist_trackers(ID3D11CommandList* command_list, cons
 
 	// Merges the counters in counters_source in the counters_per_commandlist for the command list specified
 	const auto it = _trackers_per_commandlist.find(command_list);
-
 	if (it == _trackers_per_commandlist.end())
-	{
 		_trackers_per_commandlist.emplace(command_list, tracker_source);
-	}
 	else
-	{
 		it->second.merge(tracker_source);
-	}
 }
 void D3D11Device::merge_commandlist_trackers(ID3D11CommandList* command_list, reshade::d3d11::draw_call_tracker &tracker_destination)
 {
@@ -35,11 +38,8 @@ void D3D11Device::merge_commandlist_trackers(ID3D11CommandList* command_list, re
 
 	// Merges the counters logged for the specified command list in the counters destination tracker specified
 	const auto it = _trackers_per_commandlist.find(command_list);
-
 	if (it != _trackers_per_commandlist.end())
-	{
 		tracker_destination.merge(it->second);
-	}
 }
 
 void D3D11Device::clear_drawcall_stats()
@@ -59,69 +59,100 @@ HRESULT STDMETHODCALLTYPE D3D11Device::QueryInterface(REFIID riid, void **ppvObj
 		riid == __uuidof(ID3D11Device) ||
 		riid == __uuidof(ID3D11Device1) ||
 		riid == __uuidof(ID3D11Device2) ||
-		riid == __uuidof(ID3D11Device3))
+		riid == __uuidof(ID3D11Device3) ||
+		riid == __uuidof(ID3D11Device4) ||
+		riid == __uuidof(ID3D11Device5))
 	{
 		#pragma region Update to ID3D11Device1 interface
 		if (riid == __uuidof(ID3D11Device1) && _interface_version < 1)
 		{
 			ID3D11Device1 *device1 = nullptr;
-			ID3D11DeviceContext1 *devicecontext1 = nullptr;
+			com_ptr<ID3D11DeviceContext1> devicecontext1;
 			if (FAILED(_orig->QueryInterface(&device1)))
 				return E_NOINTERFACE;
 
 			_orig->Release();
 
 #if RESHADE_VERBOSE_LOG
-			LOG(DEBUG) << "Upgraded 'ID3D11Device' object " << this << " to 'ID3D11Device1'.";
+			LOG(DEBUG) << "Upgraded ID3D11Device object " << this << " to ID3D11Device1.";
 #endif
 			_orig = device1;
 			_interface_version = 1;
 
 			_immediate_context->QueryInterface(IID_PPV_ARGS(&devicecontext1));
-
-			devicecontext1->Release();
 		}
 		#pragma endregion
 		#pragma region Update to ID3D11Device2 interface
 		if (riid == __uuidof(ID3D11Device2) && _interface_version < 2)
 		{
 			ID3D11Device2 *device2 = nullptr;
-			ID3D11DeviceContext2 *devicecontext2 = nullptr;
+			com_ptr<ID3D11DeviceContext2> devicecontext2;
 			if (FAILED(_orig->QueryInterface(&device2)))
 				return E_NOINTERFACE;
 
 			_orig->Release();
 
 #if RESHADE_VERBOSE_LOG
-			LOG(DEBUG) << "Upgraded 'ID3D11Device" << (_interface_version > 0 ? std::to_string(_interface_version) : "") << "' object " << this << " to 'ID3D11Device2'.";
+			LOG(DEBUG) << "Upgraded ID3D11Device" << (_interface_version > 0 ? std::to_string(_interface_version) : "") << " object " << this << " to ID3D11Device2.";
 #endif
 			_orig = device2;
 			_interface_version = 2;
 
 			_immediate_context->QueryInterface(IID_PPV_ARGS(&devicecontext2));
-
-			devicecontext2->Release();
 		}
 		#pragma endregion
 		#pragma region Update to ID3D11Device3 interface
 		if (riid == __uuidof(ID3D11Device3) && _interface_version < 3)
 		{
 			ID3D11Device3 *device3 = nullptr;
-			ID3D11DeviceContext3 *devicecontext3 = nullptr;
+			com_ptr<ID3D11DeviceContext3> devicecontext3;
 			if (FAILED(_orig->QueryInterface(&device3)))
 				return E_NOINTERFACE;
 
 			_orig->Release();
 
 #if RESHADE_VERBOSE_LOG
-			LOG(DEBUG) << "Upgraded 'ID3D11Device" << (_interface_version > 0 ? std::to_string(_interface_version) : "") << "' object " << this << " to 'ID3D11Device3'.";
+			LOG(DEBUG) << "Upgraded ID3D11Device" << (_interface_version > 0 ? std::to_string(_interface_version) : "") << " object " << this << " to ID3D11Device3.";
 #endif
 			_orig = device3;
 			_interface_version = 3;
 
 			_immediate_context->QueryInterface(IID_PPV_ARGS(&devicecontext3));
+		}
+		#pragma endregion
+		#pragma region Update to ID3D11Device4 interface
+		if (riid == __uuidof(ID3D11Device4) && _interface_version < 4)
+		{
+			ID3D11Device4 *device4 = nullptr;
+			com_ptr<ID3D11DeviceContext4> devicecontext4;
+			if (FAILED(_orig->QueryInterface(&device4)))
+				return E_NOINTERFACE;
 
-			devicecontext3->Release();
+			_orig->Release();
+
+#if RESHADE_VERBOSE_LOG
+			LOG(DEBUG) << "Upgraded ID3D11Device" << (_interface_version > 0 ? std::to_string(_interface_version) : "") << " object " << this << " to ID3D11Device4.";
+#endif
+			_orig = device4;
+			_interface_version = 4;
+
+			_immediate_context->QueryInterface(IID_PPV_ARGS(&devicecontext4));
+		}
+		#pragma endregion
+		#pragma region Update to ID3D11Device5 interface
+		if (riid == __uuidof(ID3D11Device5) && _interface_version < 5)
+		{
+			ID3D11Device5 *device5 = nullptr;
+			if (FAILED(_orig->QueryInterface(&device5)))
+				return E_NOINTERFACE;
+
+			_orig->Release();
+
+#if RESHADE_VERBOSE_LOG
+			LOG(DEBUG) << "Upgraded ID3D11Device" << (_interface_version > 0 ? std::to_string(_interface_version) : "") << " object " << this << " to ID3D11Device5.";
+#endif
+			_orig = device5;
+			_interface_version = 5;
 		}
 		#pragma endregion
 
@@ -141,20 +172,13 @@ HRESULT STDMETHODCALLTYPE D3D11Device::QueryInterface(REFIID riid, void **ppvObj
 		riid == __uuidof(IDXGIDevice1) ||
 		riid == __uuidof(IDXGIDevice2) ||
 		riid == __uuidof(IDXGIDevice3))
-	{
-		assert(_dxgi_device != nullptr);
-
 		return _dxgi_device->QueryInterface(riid, ppvObj);
-	}
 
 	return _orig->QueryInterface(riid, ppvObj);
 }
   ULONG STDMETHODCALLTYPE D3D11Device::AddRef()
 {
 	_ref++;
-
-	assert(_dxgi_device != nullptr);
-	assert(_immediate_context != nullptr);
 
 	_dxgi_device->AddRef();
 	_immediate_context->AddRef();
@@ -163,29 +187,24 @@ HRESULT STDMETHODCALLTYPE D3D11Device::QueryInterface(REFIID riid, void **ppvObj
 }
   ULONG STDMETHODCALLTYPE D3D11Device::Release()
 {
-	assert(_dxgi_device != nullptr);
-	assert(_immediate_context != nullptr);
-
 	_dxgi_device->Release();
 	_immediate_context->Release();
 
-	ULONG ref = _orig->Release();
+	const ULONG ref = _orig->Release();
 
-	if (--_ref == 0 && ref != 0)
-	{
-		LOG(WARNING) << "Reference count for 'ID3D11Device" << (_interface_version > 0 ? std::to_string(_interface_version) : "") << "' object " << this << " is inconsistent: " << ref << ", but expected 0.";
-
-		ref = 0;
-	}
-
-	if (ref == 0)
+	if (--_ref == 0 || ref == 0)
 	{
 		assert(_ref <= 0);
 
+		if (ref != 0)
+			LOG(WARN) << "Reference count for ID3D11Device" << (_interface_version > 0 ? std::to_string(_interface_version) : "") << " object " << this << " is inconsistent: " << ref << ", but expected 0.";
+
 #if RESHADE_VERBOSE_LOG
-		LOG(DEBUG) << "Destroyed 'ID3D11Device" << (_interface_version > 0 ? std::to_string(_interface_version) : "") << "' object " << this << ".";
+		LOG(DEBUG) << "Destroying ID3D11Device" << (_interface_version > 0 ? std::to_string(_interface_version) : "") << " object " << this << '.';
 #endif
 		delete this;
+
+		return 0;
 	}
 
 	return ref;
@@ -289,29 +308,26 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateCounter(const D3D11_COUNTER_DESC *p
 }
 HRESULT STDMETHODCALLTYPE D3D11Device::CreateDeferredContext(UINT ContextFlags, ID3D11DeviceContext **ppDeferredContext)
 {
-	LOG(INFO) << "Redirecting '" << "ID3D11Device::CreateDeferredContext" << "(" << this << ", " << ContextFlags << ", " << ppDeferredContext << ")' ...";
+	LOG(INFO) << "Redirecting ID3D11Device::CreateDeferredContext" << '(' << this << ", " << ContextFlags << ", " << ppDeferredContext << ')' << " ...";
 
 	if (ppDeferredContext == nullptr)
-	{
 		return E_INVALIDARG;
-	}
 
 	const HRESULT hr = _orig->CreateDeferredContext(ContextFlags, ppDeferredContext);
 
 	if (FAILED(hr))
 	{
-		LOG(WARNING) << "> 'ID3D11Device::CreateDeferredContext' failed with error code " << std::hex << hr << std::dec << "!";
-
+		LOG(WARN) << "> ID3D11Device::CreateDeferredContext failed with error code " << std::hex << hr << std::dec << '!';
 		return hr;
 	}
 
 	*ppDeferredContext = new D3D11DeviceContext(this, *ppDeferredContext);
 
 #if RESHADE_VERBOSE_LOG
-	LOG(DEBUG) << "Returning 'ID3D11DeviceContext' object " << *ppDeferredContext;
+	LOG(DEBUG) << "Returning ID3D11DeviceContext object " << *ppDeferredContext;
 #endif
 
-	return S_OK;
+	return hr;
 }
 HRESULT STDMETHODCALLTYPE D3D11Device::OpenSharedResource(HANDLE hResource, REFIID ReturnedInterface, void **ppResource)
 {
@@ -360,14 +376,9 @@ HRESULT STDMETHODCALLTYPE D3D11Device::GetDeviceRemovedReason()
    void STDMETHODCALLTYPE D3D11Device::GetImmediateContext(ID3D11DeviceContext **ppImmediateContext)
 {
 	if (ppImmediateContext == nullptr)
-	{
 		return;
-	}
-
-	assert(_immediate_context != nullptr);
 
 	_immediate_context->AddRef();
-
 	*ppImmediateContext = _immediate_context;
 }
 HRESULT STDMETHODCALLTYPE D3D11Device::SetExceptionMode(UINT RaiseFlags)
@@ -386,26 +397,20 @@ D3D_FEATURE_LEVEL STDMETHODCALLTYPE D3D11Device::GetFeatureLevel()
 void    STDMETHODCALLTYPE D3D11Device::GetImmediateContext1(ID3D11DeviceContext1 **ppImmediateContext)
 {
 	if (ppImmediateContext == nullptr)
-	{
 		return;
-	}
 
 	assert(_interface_version >= 1);
-	assert(_immediate_context != nullptr);
 	assert(_immediate_context->_interface_version >= 1);
 
 	_immediate_context->AddRef();
-
 	*ppImmediateContext = _immediate_context;
 }
 HRESULT STDMETHODCALLTYPE D3D11Device::CreateDeferredContext1(UINT ContextFlags, ID3D11DeviceContext1 **ppDeferredContext)
 {
-	LOG(INFO) << "Redirecting '" << "ID3D11Device1::CreateDeferredContext1" << "(" << this << ", " << ContextFlags << ", " << ppDeferredContext << ")' ...";
+	LOG(INFO) << "Redirecting ID3D11Device1::CreateDeferredContext1" << '(' << this << ", " << ContextFlags << ", " << ppDeferredContext << ')' << " ...";
 
 	if (ppDeferredContext == nullptr)
-	{
 		return E_INVALIDARG;
-	}
 
 	assert(_interface_version >= 1);
 
@@ -413,18 +418,17 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateDeferredContext1(UINT ContextFlags,
 
 	if (FAILED(hr))
 	{
-		LOG(WARNING) << "> 'ID3D11Device1::CreateDeferredContext1' failed with error code " << std::hex << hr << std::dec << "!";
-
+		LOG(WARN) << "> ID3D11Device1::CreateDeferredContext1 failed with error code " << std::hex << hr << std::dec << '!';
 		return hr;
 	}
 
 	*ppDeferredContext = new D3D11DeviceContext(this, *ppDeferredContext);
 
 #if RESHADE_VERBOSE_LOG
-	LOG(DEBUG) << "Returning 'ID3D11DeviceContext1' object " << *ppDeferredContext;
+	LOG(DEBUG) << "Returning ID3D11DeviceContext1 object " << *ppDeferredContext;
 #endif
 
-	return S_OK;
+	return hr;
 }
 HRESULT STDMETHODCALLTYPE D3D11Device::CreateBlendState1(const D3D11_BLEND_DESC1 *pBlendStateDesc, ID3D11BlendState1 **ppBlendState)
 {
@@ -547,4 +551,30 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateDeferredContext3(UINT ContextFlags,
 	assert(_interface_version >= 3);
 
 	static_cast<ID3D11Device3 *>(_orig)->ReadFromSubresource(pDstData, DstRowPitch, DstDepthPitch, pSrcResource, SrcSubresource, pSrcBox);
+}
+
+HRESULT STDMETHODCALLTYPE D3D11Device::RegisterDeviceRemovedEvent(HANDLE hEvent, DWORD *pdwCookie)
+{
+	assert(_interface_version >= 4);
+
+	return static_cast<ID3D11Device4 *>(_orig)->RegisterDeviceRemovedEvent(hEvent, pdwCookie);
+}
+   void STDMETHODCALLTYPE D3D11Device::UnregisterDeviceRemoved(DWORD dwCookie)
+{
+	assert(_interface_version >= 4);
+
+	static_cast<ID3D11Device4 *>(_orig)->UnregisterDeviceRemoved(dwCookie);
+}
+
+HRESULT STDMETHODCALLTYPE D3D11Device::OpenSharedFence(HANDLE hFence, REFIID ReturnedInterface, void **ppFence)
+{
+	assert(_interface_version >= 5);
+
+	return static_cast<ID3D11Device5 *>(_orig)->OpenSharedFence(hFence, ReturnedInterface, ppFence);
+}
+HRESULT STDMETHODCALLTYPE D3D11Device::CreateFence(UINT64 InitialValue, D3D11_FENCE_FLAG Flags, REFIID ReturnedInterface, void **ppFence)
+{
+	assert(_interface_version >= 5);
+
+	return static_cast<ID3D11Device5 *>(_orig)->CreateFence(InitialValue, Flags, ReturnedInterface, ppFence);
 }

@@ -1427,7 +1427,7 @@ namespace reshade::opengl
 
 				if (status != GL_FRAMEBUFFER_COMPLETE)
 				{
-					LOG(ERROR) << "Failed to create depth source frame buffer with status code " << status << ".";
+					LOG(ERROR) << "Failed to create depth source frame buffer with status code " << status << '.';
 
 					glDeleteFramebuffers(1, &_depth_source_fbo);
 					_depth_source_fbo = 0;

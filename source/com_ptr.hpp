@@ -13,16 +13,14 @@ class com_ptr
 {
 public:
 	com_ptr()
-		: _object(nullptr) { }
+		: _object(nullptr) {}
 	com_ptr(std::nullptr_t)
-		: _object(nullptr) { }
+		: _object(nullptr) {}
 	com_ptr(T *object, bool own = false)
 		: _object(object)
 	{
 		if (!own && _object != nullptr)
-		{
 			_object->AddRef();
-		}
 	}
 	com_ptr(const com_ptr<T> &ptr)
 		: _object(nullptr)
@@ -60,6 +58,7 @@ public:
 
 		return _object;
 	}
+
 	T **operator&() throw()
 	{
 		assert(_object == nullptr);
@@ -70,35 +69,27 @@ public:
 	void reset(T *object = nullptr)
 	{
 		if (_object != nullptr)
-		{
 			_object->Release();
-		}
 
 		_object = object;
 
 		if (_object != nullptr)
-		{
 			_object->AddRef();
-		}
 	}
 	com_ptr<T> &operator=(T *object)
 	{
 		reset(object);
-
 		return *this;
 	}
 	com_ptr<T> &operator=(const com_ptr<T> &copy)
 	{
 		reset(copy._object);
-
 		return *this;
 	}
 	com_ptr<T> &operator=(com_ptr<T> &&move)
 	{
 		if (_object != nullptr)
-		{
 			_object->Release();
-		}
 
 		_object = move._object;
 		move._object = nullptr;

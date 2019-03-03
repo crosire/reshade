@@ -5,24 +5,13 @@
 
 #pragma once
 
-#include "d3d11.hpp"
-#include "draw_call_tracker.hpp"
 #include <mutex>
+#include <d3d11_4.h>
+#include "draw_call_tracker.hpp"
 
-struct D3D11Device : ID3D11Device3
+struct __declspec(uuid("72299288-2C68-4AD8-945D-2BFB5AA9C609")) D3D11Device : ID3D11Device5
 {
-	explicit D3D11Device(ID3D11Device  *original) :
-		_orig(original),
-		_interface_version(0) {}
-	explicit D3D11Device(ID3D11Device1 *original) :
-		_orig(original),
-		_interface_version(1) {}
-	explicit D3D11Device(ID3D11Device2 *original) :
-		_orig(original),
-		_interface_version(2) {}
-	explicit D3D11Device(ID3D11Device3 *original) :
-		_orig(original),
-		_interface_version(3) {}
+	D3D11Device(IDXGIDevice1 *dxgi_device, ID3D11Device *original, ID3D11DeviceContext *immediate_context);
 
 	D3D11Device(const D3D11Device &) = delete;
 	D3D11Device &operator=(const D3D11Device &) = delete;
@@ -101,6 +90,14 @@ struct D3D11Device : ID3D11Device3
 	   void STDMETHODCALLTYPE WriteToSubresource(ID3D11Resource *pDstResource, UINT DstSubresource, const D3D11_BOX *pDstBox, const void *pSrcData, UINT SrcRowPitch, UINT SrcDepthPitch) override;
 	   void STDMETHODCALLTYPE ReadFromSubresource(void *pDstData, UINT DstRowPitch, UINT DstDepthPitch, ID3D11Resource *pSrcResource, UINT SrcSubresource, const D3D11_BOX *pSrcBox) override;
 	#pragma endregion
+	#pragma region ID3D11Device4
+	HRESULT STDMETHODCALLTYPE RegisterDeviceRemovedEvent( HANDLE hEvent, DWORD *pdwCookie) override;
+	   void STDMETHODCALLTYPE UnregisterDeviceRemoved(DWORD dwCookie) override;
+	#pragma endregion
+	#pragma region ID3D11Device5
+	HRESULT STDMETHODCALLTYPE OpenSharedFence(HANDLE hFence, REFIID ReturnedInterface, void **ppFence) override;
+	HRESULT STDMETHODCALLTYPE CreateFence(UINT64 InitialValue, D3D11_FENCE_FLAG Flags, REFIID ReturnedInterface, void **ppFence) override;
+	#pragma endregion
 
 	void add_commandlist_trackers(ID3D11CommandList* command_list, const reshade::d3d11::draw_call_tracker &tracker_source);
 	void merge_commandlist_trackers(ID3D11CommandList* command_list, reshade::d3d11::draw_call_tracker &tracker_destination);
@@ -110,8 +107,8 @@ struct D3D11Device : ID3D11Device3
 	LONG _ref = 1;
 	ID3D11Device *_orig;
 	unsigned int _interface_version;
-	struct DXGIDevice *_dxgi_device = nullptr;
-	D3D11DeviceContext *_immediate_context = nullptr;
+	struct DXGIDevice *const _dxgi_device;
+	struct D3D11DeviceContext *const _immediate_context;
 	std::vector<std::shared_ptr<reshade::d3d11::runtime_d3d11>> _runtimes;
 	std::unordered_map<ID3D11CommandList *, reshade::d3d11::draw_call_tracker> _trackers_per_commandlist;
 	std::mutex _trackers_per_commandlist_mutex;

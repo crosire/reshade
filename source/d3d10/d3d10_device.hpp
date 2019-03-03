@@ -5,13 +5,12 @@
 
 #pragma once
 
-#include "d3d10.hpp"
+#include <d3d10_1.h>
 #include "draw_call_tracker.hpp"
 
-struct D3D10Device : ID3D10Device1
+struct __declspec(uuid("88399375-734F-4892-A95F-70DD42CE7CDD")) D3D10Device : ID3D10Device1
 {
-	explicit D3D10Device(ID3D10Device1 *original) :
-		_orig(original) {}
+	D3D10Device(IDXGIDevice1 *dxgi_device, ID3D10Device1 *original);
 
 	D3D10Device(const D3D10Device &) = delete;
 	D3D10Device &operator=(const D3D10Device &) = delete;
@@ -134,7 +133,7 @@ struct D3D10Device : ID3D10Device1
 
 	LONG _ref = 1;
 	ID3D10Device1 *_orig;
-	struct DXGIDevice *_dxgi_device = nullptr;
+	struct DXGIDevice *const _dxgi_device;
 	std::vector<std::shared_ptr<reshade::d3d10::runtime_d3d10>> _runtimes;
 	com_ptr<ID3D10DepthStencilView> _active_depthstencil;
 	reshade::d3d10::draw_call_tracker _draw_call_tracker;

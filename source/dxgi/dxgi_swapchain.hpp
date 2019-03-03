@@ -5,34 +5,18 @@
 
 #pragma once
 
-#include "dxgi.hpp"
+#include "com_ptr.hpp"
+#include <memory>
+#include <dxgi1_5.h>
 
-struct DXGISwapChain : IDXGISwapChain4
+namespace reshade { class runtime; }
+
+struct __declspec(uuid("1F445F9F-9887-4C4C-9055-4E3BADAFCCA8")) DXGISwapChain : IDXGISwapChain4
 {
-	DXGISwapChain(D3D10Device *device, IDXGISwapChain *original, const std::shared_ptr<reshade::runtime> &runtime) :
-		_orig(original),
-		_interface_version(0),
-		_direct3d_device(device),
-		_direct3d_version(10),
-		_runtime(runtime) {}
-	DXGISwapChain(D3D10Device *device, IDXGISwapChain1 *original, const std::shared_ptr<reshade::runtime> &runtime) :
-		_orig(original),
-		_interface_version(1),
-		_direct3d_device(device),
-		_direct3d_version(10),
-		_runtime(runtime) {}
-	DXGISwapChain(D3D11Device *device, IDXGISwapChain *original, const std::shared_ptr<reshade::runtime> &runtime) :
-		_orig(original),
-		_interface_version(0),
-		_direct3d_device(device),
-		_direct3d_version(11),
-		_runtime(runtime) {}
-	DXGISwapChain(D3D11Device *device, IDXGISwapChain1 *original, const std::shared_ptr<reshade::runtime> &runtime) :
-		_orig(original),
-		_interface_version(1),
-		_direct3d_device(device),
-		_direct3d_version(11),
-		_runtime(runtime) {}
+	DXGISwapChain(const com_ptr<struct D3D10Device> &device, IDXGISwapChain  *original, const std::shared_ptr<reshade::runtime> &runtime);
+	DXGISwapChain(const com_ptr<struct D3D10Device> &device, IDXGISwapChain1 *original, const std::shared_ptr<reshade::runtime> &runtime);
+	DXGISwapChain(const com_ptr<struct D3D11Device> &device, IDXGISwapChain  *original, const std::shared_ptr<reshade::runtime> &runtime);
+	DXGISwapChain(const com_ptr<struct D3D11Device> &device, IDXGISwapChain1 *original, const std::shared_ptr<reshade::runtime> &runtime);
 
 	DXGISwapChain(const DXGISwapChain &) = delete;
 	DXGISwapChain &operator=(const DXGISwapChain &) = delete;
@@ -101,7 +85,7 @@ struct DXGISwapChain : IDXGISwapChain4
 	LONG _ref = 1;
 	IDXGISwapChain *_orig;
 	unsigned int _interface_version;
-	IUnknown *const _direct3d_device;
+	com_ptr<IUnknown> _direct3d_device;
 	const unsigned int _direct3d_version;
 	std::shared_ptr<reshade::runtime> _runtime;
 };

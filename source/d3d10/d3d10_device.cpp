@@ -8,6 +8,12 @@
 #include "../dxgi/dxgi_device.hpp"
 #include "runtime_d3d10.hpp"
 
+D3D10Device::D3D10Device(IDXGIDevice1 *dxgi_device, ID3D10Device1 *original) :
+	_orig(original),
+	_dxgi_device(new DXGIDevice(dxgi_device, this)) {
+	assert(original != nullptr);
+}
+
 void D3D10Device::clear_drawcall_stats()
 {
 	_draw_call_tracker.reset();
@@ -120,11 +126,7 @@ HRESULT STDMETHODCALLTYPE D3D10Device::QueryInterface(REFIID riid, void **ppvObj
 		riid == __uuidof(IDXGIDevice1) ||
 		riid == __uuidof(IDXGIDevice2) ||
 		riid == __uuidof(IDXGIDevice3))
-	{
-		assert(_dxgi_device != nullptr);
-
 		return _dxgi_device->QueryInterface(riid, ppvObj);
-	}
 
 	return _orig->QueryInterface(riid, ppvObj);
 }
@@ -132,35 +134,25 @@ HRESULT STDMETHODCALLTYPE D3D10Device::QueryInterface(REFIID riid, void **ppvObj
 {
 	_ref++;
 
-	assert(_dxgi_device != nullptr);
-
-	_dxgi_device->AddRef();
-
 	return _orig->AddRef();
 }
   ULONG STDMETHODCALLTYPE D3D10Device::Release()
 {
-	assert(_dxgi_device != nullptr);
+	const ULONG ref = _orig->Release();
 
-	_dxgi_device->Release();
-
-	ULONG ref = _orig->Release();
-
-	if (--_ref == 0 && ref != 0)
-	{
-		LOG(WARNING) << "Reference count for 'ID3D10Device1' object " << this << " is inconsistent: " << ref << ", but expected 0.";
-
-		ref = 0;
-	}
-
-	if (ref == 0)
+	if (--_ref == 0 || ref == 0)
 	{
 		assert(_ref <= 0);
 
+		if (ref != 0)
+			LOG(WARN) << "Reference count for ID3D10Device1 object " << this << " is inconsistent: " << ref << ", but expected 0.";
+
 #if RESHADE_VERBOSE_LOG
-		LOG(DEBUG) << "Destroyed 'ID3D10Device1' object " << this << ".";
+		LOG(DEBUG) << "Destroyed ID3D10Device1 object " << this << '.';
 #endif
 		delete this;
+
+		return 0;
 	}
 
 	return ref;

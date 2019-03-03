@@ -5,18 +5,11 @@
 
 #pragma once
 
-#include "dxgi.hpp"
+#include <dxgi1_5.h>
 
-struct DXGIDevice : IDXGIDevice4
+struct __declspec(uuid("CB285C3B-3677-4332-98C7-D6339B9782B1")) DXGIDevice : IDXGIDevice4
 {
-	DXGIDevice(IDXGIDevice1 *original, D3D10Device *direct3d_device) :
-		_orig(original),
-		_interface_version(1),
-		_direct3d_device(direct3d_device) {}
-	DXGIDevice(IDXGIDevice1 *original, D3D11Device *direct3d_device) :
-		_orig(original),
-		_interface_version(1),
-		_direct3d_device(direct3d_device) {}
+	DXGIDevice(IDXGIDevice1 *original, IUnknown *direct3d_device);
 
 	DXGIDevice(const DXGIDevice &) = delete;
 	DXGIDevice &operator=(const DXGIDevice &) = delete;

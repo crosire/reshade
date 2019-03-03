@@ -8,6 +8,17 @@
 #include "d3d9_swapchain.hpp"
 #include "runtime_d3d9.hpp"
 
+Direct3DSwapChain9::Direct3DSwapChain9(Direct3DDevice9 *device, IDirect3DSwapChain9   *original, const std::shared_ptr<reshade::d3d9::runtime_d3d9> &runtime) :
+	_orig(original),
+	_extended_interface(false),
+	_device(device),
+	_runtime(runtime) {}
+Direct3DSwapChain9::Direct3DSwapChain9(Direct3DDevice9 *device, IDirect3DSwapChain9Ex *original, const std::shared_ptr<reshade::d3d9::runtime_d3d9> &runtime) :
+	_orig(original),
+	_extended_interface(true),
+	_device(device),
+	_runtime(runtime) {}
+
 HRESULT STDMETHODCALLTYPE Direct3DSwapChain9::QueryInterface(REFIID riid, void **ppvObj)
 {
 	if (ppvObj == nullptr)
@@ -70,23 +81,21 @@ HRESULT STDMETHODCALLTYPE Direct3DSwapChain9::QueryInterface(REFIID riid, void *
 		}
 	}
 
-	ULONG ref = _orig->Release();
+	const ULONG ref = _orig->Release();
 
-	if (_ref == 0 && ref != 0)
-	{
-		LOG(WARNING) << "Reference count for 'IDirect3DSwapChain9" << (_extended_interface ? "Ex" : "") << "' object " << this << " is inconsistent: " << ref << ", but expected 0.";
-
-		ref = 0;
-	}
-
-	if (ref == 0)
+	if (_ref == 0 || ref == 0)
 	{
 		assert(_ref <= 0);
+
+		if (ref != 0)
+			LOG(WARN) << "Reference count for 'IDirect3DSwapChain9" << (_extended_interface ? "Ex" : "") << "' object " << this << " is inconsistent: " << ref << ", but expected 0.";
 
 #if RESHADE_VERBOSE_LOG
 		LOG(DEBUG) << "Destroyed 'IDirect3DSwapChain9" << (_extended_interface ? "Ex" : "") << "' object " << this << ".";
 #endif
 		delete this;
+
+		return 0;
 	}
 
 	return ref;

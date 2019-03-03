@@ -3,6 +3,13 @@
  * License: https://github.com/crosire/reshade#license
  */
 
+#ifdef __INTELLISENSE__
+#undef DEFINE_INTRINSIC
+#undef IMPLEMENT_INTRINSIC_GLSL
+#undef IMPLEMENT_INTRINSIC_HLSL
+#undef IMPLEMENT_INTRINSIC_SPIRV
+#endif
+
 #ifndef DEFINE_INTRINSIC
 #define DEFINE_INTRINSIC(name, i, ret_type, ...)
 #endif

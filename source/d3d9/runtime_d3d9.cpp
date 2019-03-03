@@ -438,7 +438,7 @@ namespace reshade::d3d9
 			_backbuffer_format != D3DFMT_A8R8G8B8 &&
 			_backbuffer_format != D3DFMT_A8B8G8R8)
 		{
-			LOG(WARNING) << "Screenshots are not supported for back buffer format " << _backbuffer_format << ".";
+			LOG(WARN) << "Screenshots are not supported for back buffer format " << _backbuffer_format << '.';
 			return;
 		}
 
@@ -797,7 +797,7 @@ namespace reshade::d3d9
 			}
 			else
 			{
-				LOG(WARNING) << "Auto-generated mipmap levels are not supported for the format of texture '" << texture.unique_name << "'.";
+				LOG(WARN) << "Auto-generated mipmap levels are not supported for the format of texture '" << texture.unique_name << "'.";
 			}
 		}
 
@@ -928,7 +928,7 @@ namespace reshade::d3d9
 
 				if (k > caps.NumSimultaneousRTs)
 				{
-					LOG(WARNING) << "Device only supports " << caps.NumSimultaneousRTs << " simultaneous render targets, but pass " << pass_index << " in technique '" << technique.name << "' uses more, which are ignored";
+					LOG(WARN) << "Device only supports " << caps.NumSimultaneousRTs << " simultaneous render targets, but pass " << pass_index << " in technique '" << technique.name << "' uses more, which are ignored";
 					break;
 				}
 

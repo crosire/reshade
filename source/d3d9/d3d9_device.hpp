@@ -5,18 +5,16 @@
 
 #pragma once
 
-#include "d3d9.hpp"
 #include "com_ptr.hpp"
+#include <d3d9.h>
 #include <vector>
 
-struct Direct3DDevice9 : IDirect3DDevice9Ex
+struct Direct3DSwapChain9;
+
+struct __declspec(uuid("F1006E9A-1C51-4AF4-ACEF-3605D2D4C8EE")) Direct3DDevice9 : IDirect3DDevice9Ex
 {
-	explicit Direct3DDevice9(IDirect3DDevice9   *original) :
-		_orig(original),
-		_extended_interface(false) {}
-	explicit Direct3DDevice9(IDirect3DDevice9Ex *original) :
-		_orig(original),
-		_extended_interface(true) {}
+	explicit Direct3DDevice9(IDirect3DDevice9   *original);
+	explicit Direct3DDevice9(IDirect3DDevice9Ex *original);
 
 	Direct3DDevice9(const Direct3DDevice9 &) = delete;
 	Direct3DDevice9 &operator=(const Direct3DDevice9 &) = delete;

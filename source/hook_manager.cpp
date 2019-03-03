@@ -38,26 +38,25 @@ namespace
 	}
 	inline bool is_module_loaded(const std::filesystem::path &path, HMODULE &out_handle)
 	{
-		return GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_PIN, path.wstring().c_str(), &out_handle) && out_handle != nullptr;
+		return GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_PIN, path.wstring().c_str(), &out_handle);
 	}
 
 	std::vector<module_export> get_module_exports(HMODULE handle)
 	{
 		const auto imagebase = reinterpret_cast<const BYTE *>(handle);
-		const auto imageheader = reinterpret_cast<const IMAGE_NT_HEADERS *>(imagebase + reinterpret_cast<const IMAGE_DOS_HEADER *>(imagebase)->e_lfanew);
+		const auto imageheader = reinterpret_cast<const IMAGE_NT_HEADERS *>(imagebase +
+			reinterpret_cast<const IMAGE_DOS_HEADER *>(imagebase)->e_lfanew);
 
-		if (imageheader->Signature != IMAGE_NT_SIGNATURE || imageheader->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT].Size == 0)
-		{
-			return { };
-		}
+		if (imageheader->Signature != IMAGE_NT_SIGNATURE ||
+			imageheader->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT].Size == 0)
+			return {};
 
-		const auto exportdir = reinterpret_cast<const IMAGE_EXPORT_DIRECTORY *>(imagebase + imageheader->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT].VirtualAddress);
+		const auto exportdir = reinterpret_cast<const IMAGE_EXPORT_DIRECTORY *>(imagebase +
+			imageheader->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT].VirtualAddress);
 		const auto exportbase = static_cast<WORD>(exportdir->Base);
 
 		if (exportdir->NumberOfFunctions == 0)
-		{
-			return { };
-		}
+			return {};
 
 		std::vector<module_export> exports;
 		exports.reserve(exportdir->NumberOfNames);
@@ -65,9 +64,12 @@ namespace
 		for (size_t i = 0; i < exports.capacity(); i++)
 		{
 			module_export symbol;
-			symbol.ordinal = reinterpret_cast<const WORD *>(imagebase + exportdir->AddressOfNameOrdinals)[i] + exportbase;
-			symbol.name = reinterpret_cast<const char *>(imagebase + reinterpret_cast<const DWORD *>(imagebase + exportdir->AddressOfNames)[i]);
-			symbol.address = const_cast<void *>(reinterpret_cast<const void *>(imagebase + reinterpret_cast<const DWORD *>(imagebase + exportdir->AddressOfFunctions)[symbol.ordinal - exportbase]));
+			symbol.ordinal = reinterpret_cast<const WORD *>(imagebase +
+				exportdir->AddressOfNameOrdinals)[i] + exportbase;
+			symbol.name = reinterpret_cast<const char *>(imagebase +
+				reinterpret_cast<const DWORD *>(imagebase + exportdir->AddressOfNames)[i]);
+			symbol.address = const_cast<void *>(reinterpret_cast<const void *>(imagebase +
+				reinterpret_cast<const DWORD *>(imagebase + exportdir->AddressOfFunctions)[symbol.ordinal - exportbase]));
 
 			exports.push_back(std::move(symbol));
 		}
@@ -83,9 +85,8 @@ namespace
 	bool install_internal(const char *name, reshade::hook &hook, hook_method method)
 	{
 #if RESHADE_VERBOSE_LOG
-		LOG(DEBUG) << "Installing hook for '" << name << "' at 0x" << hook.target << " with 0x" << hook.replacement << " using method " << static_cast<int>(method) << " ...";
+		LOG(DEBUG) << "Installing hook for " << name << " at 0x" << hook.target << " with 0x" << hook.replacement << " using method " << static_cast<int>(method) << " ...";
 #endif
-
 		auto status = reshade::hook::status::unknown;
 
 		switch (method)
@@ -123,8 +124,7 @@ namespace
 
 		if (status != reshade::hook::status::success)
 		{
-			LOG(ERROR) << "Failed to install hook for '" << name << "' with status code " << static_cast<int>(status) << ".";
-
+			LOG(ERROR) << "Failed to install hook for " << name << " with status code " << static_cast<int>(status) << '.';
 			return false;
 		}
 
@@ -150,7 +150,6 @@ namespace
 		if (target_exports.empty())
 		{
 			LOG(INFO) << "> Empty export table! Skipped.";
-
 			return false;
 		}
 
@@ -169,9 +168,7 @@ namespace
 		for (const auto &symbol : target_exports)
 		{
 			if (symbol.name == nullptr || symbol.address == nullptr)
-			{
 				continue;
-			}
 
 			// Find appropriate replacement
 			const auto it = std::find_if(replacement_exports.cbegin(), replacement_exports.cend(),
@@ -187,7 +184,6 @@ namespace
 #if RESHADE_VERBOSE_LOG
 				LOG(DEBUG) << "  | 0x" << std::setw(16) << symbol.address << " | " << std::setw(7) << symbol.ordinal << " | " << std::setw(50) << symbol.name << " |";
 #endif
-
 				matches.push_back(std::make_tuple(symbol.name, symbol.address, it->address));
 			}
 		}
@@ -216,13 +212,11 @@ namespace
 	bool uninstall_internal(const char *name, reshade::hook &hook, hook_method method)
 	{
 #if RESHADE_VERBOSE_LOG
-		LOG(DEBUG) << "Uninstalling hook for '" << name << "' ...";
+		LOG(DEBUG) << "Uninstalling hook for " << name << " ...";
 #endif
-
 		if (hook.uninstalled())
 		{
-			LOG(WARNING) << "Hook for '" << name << "' was already uninstalled.";
-
+			LOG(WARN) << "Hook for " << name << " was already uninstalled.";
 			return true;
 		}
 
@@ -235,7 +229,6 @@ namespace
 #if RESHADE_VERBOSE_LOG
 				LOG(DEBUG) << "> Skipped.";
 #endif
-
 				return true;
 			}
 			case hook_method::function_hook:
@@ -267,7 +260,7 @@ namespace
 
 		if (status != reshade::hook::status::success)
 		{
-			LOG(WARNING) << "Failed to uninstall hook for '" << name << "' with status code " << static_cast<int>(status) << ".";
+			LOG(WARN) << "Failed to uninstall hook for " << name << " with status code " << static_cast<int>(status) << '.';
 
 			return false;
 		}
@@ -275,7 +268,6 @@ namespace
 #if RESHADE_VERBOSE_LOG
 		LOG(DEBUG) << "> Succeeded.";
 #endif
-
 		hook.trampoline = nullptr;
 
 		return true;
@@ -293,7 +285,7 @@ namespace
 				if (!is_module_loaded(path, delayed_handle))
 					return false;
 
-				LOG(INFO) << "Installing delayed hooks for " << path << " (Just loaded via 'LoadLibrary(" << loaded_path << ")') ...";
+				LOG(INFO) << "Installing delayed hooks for " << path << " (Just loaded via LoadLibrary(" << loaded_path << ")) ...";
 
 				return install_internal(delayed_handle, g_module_handle, hook_method::function_hook) && reshade::hook::apply_queued_actions();
 			});
@@ -302,7 +294,7 @@ namespace
 		}
 		else
 		{
-			LOG(WARNING) << "Ignoring 'LoadLibrary(" << loaded_path << ")' call to avoid possible deadlock.";
+			LOG(WARN) << "Ignoring LoadLibrary(" << loaded_path << ") call to avoid possible deadlock.";
 		}
 	}
 
@@ -326,7 +318,6 @@ namespace
 		static const auto trampoline = call_unchecked(&HookLoadLibraryA);
 
 		const HMODULE handle = trampoline(lpFileName);
-
 		if (handle != nullptr && handle != g_module_handle)
 			install_delayed_hooks(lpFileName);
 
@@ -337,7 +328,6 @@ namespace
 		static const auto trampoline = call_unchecked(&HookLoadLibraryExA);
 
 		const HMODULE handle = trampoline(lpFileName, hFile, dwFlags);
-
 		if (dwFlags == 0 && handle != nullptr && handle != g_module_handle)
 			install_delayed_hooks(lpFileName);
 
@@ -348,7 +338,6 @@ namespace
 		static const auto trampoline = call_unchecked(&HookLoadLibraryW);
 
 		const HMODULE handle = trampoline(lpFileName);
-
 		if (handle != nullptr && handle != g_module_handle)
 			install_delayed_hooks(lpFileName);
 
@@ -357,7 +346,6 @@ namespace
 	HMODULE WINAPI HookLoadLibraryExW(LPCWSTR lpFileName, HANDLE hFile, DWORD dwFlags)
 	{
 		static const auto trampoline = call_unchecked(&HookLoadLibraryExW);
-
 
 		const HMODULE handle = trampoline(lpFileName, hFile, dwFlags);
 		if (dwFlags == 0 && handle != nullptr && handle != g_module_handle)
@@ -428,7 +416,10 @@ void reshade::hooks::uninstall()
 
 	// Afterwards remove all hooks from the list
 	for (auto &hook_info : s_hooks)
-		uninstall_internal(std::get<0>(hook_info), std::get<1>(hook_info), std::get<2>(hook_info));
+		uninstall_internal(
+			std::get<0>(hook_info),
+			std::get<1>(hook_info),
+			std::get<2>(hook_info));
 
 	s_hooks.clear();
 }
@@ -495,11 +486,11 @@ reshade::hook::address reshade::hooks::call(hook::address replacement)
 		}
 		else
 		{
-			LOG(ERROR) << "Failed to load " << s_export_hook_path << "!";
+			LOG(ERROR) << "Failed to load " << s_export_hook_path << '!';
 		}
 	}
 
-	LOG(ERROR) << "Unable to resolve hook for '0x" << replacement << "'!";
+	LOG(ERROR) << "Unable to resolve hook for 0x" << replacement << '!';
 
 	return nullptr;
 }
