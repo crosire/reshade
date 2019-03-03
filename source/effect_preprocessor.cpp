@@ -41,9 +41,14 @@ bool reshadefx::preprocessor::add_macro_definition(const std::string &name, std:
 bool reshadefx::preprocessor::append_file(const std::filesystem::path &path)
 {
 	std::ifstream file(path);
+	file.imbue(std::locale("en-us.UTF-8"));
 
 	if (!file.is_open())
 		return false;
+
+	// Remove BOM (0xefbbbf means 0xfeff)
+	if (file.get() != 0xef || file.get() != 0xbb || file.get() != 0xbf)
+		file.seekg(0, std::ios::beg);
 
 	// Read file contents into a string
 	std::string filedata(std::istreambuf_iterator<char>(file.rdbuf()), std::istreambuf_iterator<char>());
