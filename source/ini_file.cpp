@@ -43,7 +43,7 @@ namespace reshade
 
 		// Remove BOM (0xefbbbf means 0xfeff)
 		if (file.get() != 0xef || file.get() != 0xbb || file.get() != 0xbf)
-			file.seekg(0, SEEK_SET);
+			file.seekg(0, std::ios::beg);
 
 		while (std::getline(file, line))
 		{
