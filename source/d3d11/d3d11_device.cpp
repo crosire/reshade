@@ -56,7 +56,6 @@ HRESULT STDMETHODCALLTYPE D3D11Device::QueryInterface(REFIID riid, void **ppvObj
 		return E_POINTER;
 
 	if (riid == __uuidof(this) ||
-		riid == __uuidof(IUnknown) ||
 		riid == __uuidof(ID3D11Device) ||
 		riid == __uuidof(ID3D11Device1) ||
 		riid == __uuidof(ID3D11Device2) ||
@@ -132,7 +131,10 @@ HRESULT STDMETHODCALLTYPE D3D11Device::QueryInterface(REFIID riid, void **ppvObj
 
 		return S_OK;
 	}
-	else if (
+
+	// Note: Objects must have an identity, so use DXGIDevice for IID_IUnknown
+	// See https://docs.microsoft.com/en-us/windows/desktop/com/rules-for-implementing-queryinterface
+	if (riid == __uuidof(IUnknown) ||
 		riid == __uuidof(DXGIDevice) ||
 		riid == __uuidof(IDXGIObject) ||
 		riid == __uuidof(IDXGIDevice) ||
