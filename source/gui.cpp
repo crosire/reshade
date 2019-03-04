@@ -357,7 +357,7 @@ void reshade::runtime::draw_ui()
 	if (show_splash || show_screenshot_message || (!_show_menu && _tutorial_index == 0))
 	{
 		ImGui::SetNextWindowPos(ImVec2(10, 10));
-		ImGui::SetNextWindowSize(ImVec2(_width - 20.0f, viewport_offset.y));
+		ImGui::SetNextWindowSize(ImVec2(_width - 20.0f, 0.0f));
 		ImGui::PushStyleVar(ImGuiStyleVar_Alpha, 1.0f);
 		ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.862745f, 0.862745f, 0.862745f, 1.0f));
 		ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0.117647f, 0.117647f, 0.117647f, 0.7f));
@@ -370,12 +370,8 @@ void reshade::runtime::draw_ui()
 			ImGuiWindowFlags_NoDocking |
 			ImGuiWindowFlags_NoFocusOnAppearing);
 
-		viewport_offset.y += 10; // Add small space between windows
-
 		if (show_screenshot_message)
 		{
-			viewport_offset.y = ImGui::GetFrameHeightWithSpacing() * 1.2f;
-
 			if (!_screenshot_save_success)
 				ImGui::TextColored(COLOR_RED, "Unable to save screenshot because path doesn't exist: %s", _screenshot_path.u8string().c_str());
 			else
@@ -383,8 +379,6 @@ void reshade::runtime::draw_ui()
 		}
 		else
 		{
-			viewport_offset.y = ImGui::GetFrameHeightWithSpacing() * (_last_reload_successful ? 3.2f : 4.2f);
-
 			ImGui::TextUnformatted("ReShade " VERSION_STRING_FILE " by crosire");
 
 			if (_needs_update)
@@ -418,23 +412,17 @@ void reshade::runtime::draw_ui()
 					"This might take a while. The application could become unresponsive for some time.",
 					_reload_compile_queue.size());
 			}
+			else if (_tutorial_index == 0)
+			{
+				ImGui::TextUnformatted("ReShade is now installed successfully!");
+				ImGui::Text(
+					"Please press '%s' to start the tutorial =)", input::key_name(_menu_key_data).c_str());
+			}
 			else
 			{
-				if (_tutorial_index == 0)
-				{
-					viewport_offset.y += ImGui::GetFrameHeightWithSpacing() * 1.0f;
-
-					ImGui::TextUnformatted("ReShade is now installed successfully!");
-					ImGui::Text(
-						"Please press '%s' to start the tutorial =)", input::key_name(_menu_key_data).c_str());
-				}
-				else
-				{
-					viewport_offset.y += ImGui::GetFrameHeightWithSpacing() * 0.2f;
-
-					ImGui::Text(
-						"Press '%s' to open the configuration menu.", input::key_name(_menu_key_data).c_str());
-				}
+				ImGui::Text(
+					"Press '%s' to open the configuration menu.", input::key_name(_menu_key_data).c_str());
+				ImGui::Dummy(ImVec2(0, _imgui_context->Style.FramePadding.y - 1.0f)); // Add small offset to align with progress bar from reload screen
 			}
 
 			if (!_last_reload_successful)
@@ -445,6 +433,8 @@ void reshade::runtime::draw_ui()
 					"Open the configuration menu and switch to the 'Statistics' tab for more details.");
 			}
 		}
+
+		viewport_offset.y += ImGui::GetWindowHeight() + 10; // Add small space between windows
 
 		ImGui::End();
 		ImGui::PopStyleColor(2);
