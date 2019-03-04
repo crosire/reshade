@@ -59,7 +59,7 @@ HOOK_EXPORT HRESULT WINAPI D3D11CreateDeviceAndSwapChain(IDXGIAdapter *pAdapter,
 		// Fall back to the same adapter as the device if it was not explicitly specified in the argument list
 		if (adapter == nullptr)
 		{
-			hr = dxgi_device->GetAdapter(&pAdapter);
+			hr = dxgi_device->GetAdapter(&adapter);
 			assert(SUCCEEDED(hr)); // Lets just assume this works =)
 		}
 

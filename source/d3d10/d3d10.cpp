@@ -67,15 +67,15 @@ HOOK_EXPORT HRESULT WINAPI D3D10CreateDeviceAndSwapChain1(IDXGIAdapter *pAdapter
 
 		com_ptr<IDXGIAdapter> adapter(pAdapter, false);
 		// Fall back to the same adapter as the device if it was not explicitly specified in the argument list
-		if (pAdapter == nullptr)
+		if (adapter == nullptr)
 		{
-			hr = dxgi_device->GetAdapter(&pAdapter);
+			hr = dxgi_device->GetAdapter(&adapter);
 			assert(SUCCEEDED(hr));
 		}
 
 		// Time to find a factory associated with the target adapter and create a swap chain with it
 		com_ptr<IDXGIFactory> factory;
-		hr = pAdapter->GetParent(IID_PPV_ARGS(&factory));
+		hr = adapter->GetParent(IID_PPV_ARGS(&factory));
 		assert(SUCCEEDED(hr));
 
 		LOG(INFO) << "> Calling IDXGIFactory::CreateSwapChain:";
