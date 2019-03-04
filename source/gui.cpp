@@ -86,6 +86,7 @@ void reshade::runtime::init_ui()
 		config.get("GENERAL", "ShowClock", _show_clock);
 		config.get("GENERAL", "ShowFPS", _show_fps);
 		config.get("GENERAL", "ShowFrameTime", _show_frametime);
+		config.get("GENERAL", "ShowScreenshotMessage", _show_screenshot_message);
 		config.get("GENERAL", "ClockFormat", _clock_format);
 		config.get("GENERAL", "NoFontScaling", _no_font_scaling);
 		config.get("GENERAL", "SaveWindowState", save_imgui_window_state);
@@ -204,6 +205,7 @@ void reshade::runtime::init_ui()
 		config.set("GENERAL", "ShowClock", _show_clock);
 		config.set("GENERAL", "ShowFPS", _show_fps);
 		config.set("GENERAL", "ShowFrameTime", _show_frametime);
+		config.set("GENERAL", "ShowScreenshotMessage", _show_screenshot_message);
 		config.set("GENERAL", "ClockFormat", _clock_format);
 		config.set("GENERAL", "SaveWindowState", _imgui_context->IO.IniFilename != nullptr);
 		config.set("GENERAL", "TutorialProgress", _tutorial_index);
@@ -309,7 +311,7 @@ void reshade::runtime::destroy_font_atlas()
 void reshade::runtime::draw_ui()
 {
 	const bool show_splash = _show_splash && (_reload_remaining_effects != std::numeric_limits<size_t>::max() || !_reload_compile_queue.empty() || (_last_present_time - _last_reload_time) < std::chrono::seconds(5));
-	const bool show_screenshot_message = _last_present_time - _last_screenshot_time < std::chrono::seconds(_screenshot_save_success ? 3 : 5);
+	const bool show_screenshot_message = _show_screenshot_message && _last_present_time - _last_screenshot_time < std::chrono::seconds(_screenshot_save_success ? 3 : 5);
 
 	if (_show_menu && !_ignore_shortcuts && !_imgui_context->IO.NavVisible && _input->is_key_pressed(0x1B /* VK_ESCAPE */))
 		_show_menu = false; // Close when pressing the escape button and not currently navigating with the keyboard
@@ -940,6 +942,8 @@ void reshade::runtime::draw_overlay_menu_settings()
 
 	if (ImGui::CollapsingHeader("User Interface", ImGuiTreeNodeFlags_DefaultOpen))
 	{
+		modified |= ImGui::Checkbox("Show Screenshot Message", &_show_screenshot_message);
+
 		bool save_imgui_window_state = _imgui_context->IO.IniFilename != nullptr;
 		if (ImGui::Checkbox("Save Window State (ReShadeGUI.ini)", &save_imgui_window_state))
 		{
