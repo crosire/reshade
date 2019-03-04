@@ -354,10 +354,8 @@ void reshade::runtime::draw_ui()
 	ImVec2 viewport_offset = ImVec2(0, 0);
 
 	// Create ImGui widgets and windows
-	if (show_splash || show_screenshot_message)
+	if (show_splash || show_screenshot_message || (!_show_menu && _tutorial_index == 0))
 	{
-		viewport_offset.y = ImGui::GetFrameHeightWithSpacing() * (show_screenshot_message ? 1.2f : _last_reload_successful ? 3.2f : 4.2f);
-
 		ImGui::SetNextWindowPos(ImVec2(10, 10));
 		ImGui::SetNextWindowSize(ImVec2(_width - 20.0f, viewport_offset.y));
 		ImGui::PushStyleVar(ImGuiStyleVar_Alpha, 1.0f);
@@ -376,6 +374,8 @@ void reshade::runtime::draw_ui()
 
 		if (show_screenshot_message)
 		{
+			viewport_offset.y = ImGui::GetFrameHeightWithSpacing() * 1.2f;
+
 			if (!_screenshot_save_success)
 				ImGui::TextColored(COLOR_RED, "Unable to save screenshot because path doesn't exist: %s", _screenshot_path.u8string().c_str());
 			else
@@ -383,6 +383,8 @@ void reshade::runtime::draw_ui()
 		}
 		else
 		{
+			viewport_offset.y = ImGui::GetFrameHeightWithSpacing() * (_last_reload_successful ? 3.2f : 4.2f);
+
 			ImGui::TextUnformatted("ReShade " VERSION_STRING_FILE " by crosire");
 
 			if (_needs_update)
@@ -418,8 +420,21 @@ void reshade::runtime::draw_ui()
 			}
 			else
 			{
-				ImGui::Text(
-					"Press '%s' to open the configuration menu.", input::key_name(_menu_key_data).c_str());
+				if (_tutorial_index == 0)
+				{
+					viewport_offset.y += ImGui::GetFrameHeightWithSpacing() * 1.0f;
+
+					ImGui::TextUnformatted("ReShade is now installed successfully!");
+					ImGui::Text(
+						"Please press '%s' to start the tutorial =)", input::key_name(_menu_key_data).c_str());
+				}
+				else
+				{
+					viewport_offset.y += ImGui::GetFrameHeightWithSpacing() * 0.2f;
+
+					ImGui::Text(
+						"Press '%s' to open the configuration menu.", input::key_name(_menu_key_data).c_str());
+				}
 			}
 
 			if (!_last_reload_successful)
