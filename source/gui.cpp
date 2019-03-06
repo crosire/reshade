@@ -637,7 +637,7 @@ void reshade::runtime::draw_overlay_menu_home()
 					_show_splash = true;
 
 					// Need to reload effects in performance mode, so values are applied
-					if (reload_preprocessor_definitions() || _performance_mode)
+					if (load_preprocessor_definitions() || _performance_mode)
 						load_effects();
 					else
 						load_preset(_preset_files[_current_preset]);
@@ -675,7 +675,7 @@ void reshade::runtime::draw_overlay_menu_home()
 
 						save_config();
 
-						if (reload_preprocessor_definitions())
+						if (load_preprocessor_definitions())
 							load_effects(); // Load the new preset after load effects
 						else
 							load_current_preset(); // Load the new preset
@@ -708,7 +708,7 @@ void reshade::runtime::draw_overlay_menu_home()
 
 					save_config();
 
-					if (reload_preprocessor_definitions())
+					if (load_preprocessor_definitions())
 						load_effects(); // Load the now selected preset after load effects
 					else
 						load_current_preset(); // Load the now selected preset
@@ -878,7 +878,7 @@ void reshade::runtime::draw_overlay_menu_home()
 			_show_splash = true;
 			_effect_filter_buffer[0] = '\0'; // Reset filter
 
-			reload_preprocessor_definitions();
+			load_preprocessor_definitions();
 			load_effects();
 		}
 
@@ -890,7 +890,7 @@ void reshade::runtime::draw_overlay_menu_home()
 			_effect_filter_buffer[0] = '\0'; // Reset filter
 
 			save_config();
-			reload_preprocessor_definitions();
+			load_preprocessor_definitions();
 			load_effects(); // Reload effects after switching
 		}
 	}

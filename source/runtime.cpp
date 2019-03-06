@@ -119,7 +119,7 @@ void reshade::runtime::on_present()
 	if (!_ignore_shortcuts)
 	{
 		if (_input->is_key_pressed(_reload_key_data))
-			reload_preprocessor_definitions(), load_effects();
+			load_preprocessor_definitions(), load_effects();
 
 		if (_input->is_key_pressed(_effects_key_data))
 			_effects_enabled = !_effects_enabled;
@@ -153,7 +153,7 @@ void reshade::runtime::on_present()
 	_drawcalls = _vertices = 0;
 }
 
-bool reshade::runtime::reload_preprocessor_definitions()
+bool reshade::runtime::load_preprocessor_definitions()
 {
 	bool load_effect_required = false;
 
@@ -562,7 +562,7 @@ void reshade::runtime::update_and_render_effects()
 {
 	// Delay first load to the first render call to avoid loading while the application is still initializing
 	if (_framecount == 0 && !_no_reload_on_init)
-		reload_preprocessor_definitions(), load_effects();
+		load_preprocessor_definitions(), load_effects();
 
 	if (_reload_remaining_effects == 0)
 	{

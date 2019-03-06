@@ -200,7 +200,7 @@ namespace reshade
 		/// <summary>
 		/// Load the preprocessor definitions from config and current preset and apply it.
 		/// </summary>
-		bool reload_preprocessor_definitions();
+		bool load_preprocessor_definitions();
 
 		/// <summary>
 		/// Compile effect from the specified source file and initialize textures, uniforms and techniques.
