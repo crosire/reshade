@@ -637,7 +637,7 @@ void reshade::runtime::draw_overlay_menu_home()
 					_show_splash = true;
 
 					// Need to reload effects in performance mode, so values are applied
-					if (_performance_mode)
+					if (reload_preprocessor_definitions() || _performance_mode)
 						load_effects();
 					else
 						load_preset(_preset_files[_current_preset]);
@@ -674,7 +674,11 @@ void reshade::runtime::draw_overlay_menu_home()
 						_current_preset = _preset_files.size() - 1;
 
 						save_config();
-						load_current_preset(); // Load the new preset
+
+						if (reload_preprocessor_definitions())
+							load_effects(); // Load the new preset after load effects
+						else
+							load_current_preset(); // Load the new preset
 
 						ImGui::CloseCurrentPopup();
 						break;
@@ -703,7 +707,11 @@ void reshade::runtime::draw_overlay_menu_home()
 						_current_preset--;
 
 					save_config();
-					load_current_preset(); // Load the now selected preset
+
+					if (reload_preprocessor_definitions())
+						load_effects(); // Load the now selected preset after load effects
+					else
+						load_current_preset(); // Load the now selected preset
 
 					ImGui::CloseCurrentPopup();
 				}
@@ -870,6 +878,7 @@ void reshade::runtime::draw_overlay_menu_home()
 			_show_splash = true;
 			_effect_filter_buffer[0] = '\0'; // Reset filter
 
+			reload_preprocessor_definitions();
 			load_effects();
 		}
 
@@ -881,6 +890,7 @@ void reshade::runtime::draw_overlay_menu_home()
 			_effect_filter_buffer[0] = '\0'; // Reset filter
 
 			save_config();
+			reload_preprocessor_definitions();
 			load_effects(); // Reload effects after switching
 		}
 	}
@@ -1593,53 +1603,111 @@ void reshade::runtime::draw_overlay_variable_editor()
 		const float button_size = ImGui::GetFrameHeight();
 		const float button_spacing = _imgui_context->Style.ItemInnerSpacing.x;
 
-		ImGui::BeginChild("##definitions", ImVec2(400.0f, (_preprocessor_definitions.size() + 1) * ImGui::GetFrameHeightWithSpacing()), false, ImGuiWindowFlags_NoScrollWithMouse);
+		ImGui::BeginChild("##definitions", ImVec2(400.0f, (std::max(_global_preprocessor_definitions.size(), _preset_preprocessor_definitions.size()) + 2) * ImGui::GetFrameHeightWithSpacing()), false, ImGuiWindowFlags_NoScrollWithMouse);
 
-		for (size_t i = 0; i < _preprocessor_definitions.size(); ++i)
+		if (ImGui::BeginTabBar("##definition_types", ImGuiTabBarFlags_None))
 		{
-			char name[128] = "";
-			char value[128] = "";
-
-			const size_t equals_index = _preprocessor_definitions[i].find('=');
-			_preprocessor_definitions[i].copy(name, std::min(equals_index, sizeof(name) - 1));
-			if (equals_index != std::string::npos)
-				_preprocessor_definitions[i].copy(value, sizeof(value) - 1, equals_index + 1);
-
-			ImGui::PushID(static_cast<int>(i));
-
-			ImGui::PushItemWidth(ImGui::GetWindowContentRegionWidth() * 0.66666666f - (button_spacing));
-			modified |= ImGui::InputText("##name", name, sizeof(name));
-			ImGui::PopItemWidth();
-
-			ImGui::SameLine(0, button_spacing);
-
-			ImGui::PushItemWidth(ImGui::GetWindowContentRegionWidth() * 0.33333333f - (button_spacing + button_size) + 1);
-			modified |= ImGui::InputText("##value", value, sizeof(value));
-			ImGui::PopItemWidth();
-
-			ImGui::SameLine(0, button_spacing);
-
-			if (ImGui::Button("-", ImVec2(button_size, 0)))
+			if (ImGui::BeginTabItem("Global"))
 			{
-				modified = true;
-				_preprocessor_definitions.erase(_preprocessor_definitions.begin() + i--);
-			}
-			else if (modified)
-			{
-				_preprocessor_definitions[i] = std::string(name) + '=' + std::string(value);
+				for (size_t i = 0; i < _global_preprocessor_definitions.size(); ++i)
+				{
+					char name[128] = "";
+					char value[128] = "";
+
+					const size_t equals_index = _global_preprocessor_definitions[i].find('=');
+					_global_preprocessor_definitions[i].copy(name, std::min(equals_index, sizeof(name) - 1));
+					if (equals_index != std::string::npos)
+						_global_preprocessor_definitions[i].copy(value, sizeof(value) - 1, equals_index + 1);
+
+					ImGui::PushID(static_cast<int>(i));
+
+					ImGui::PushItemWidth(ImGui::GetWindowContentRegionWidth() * 0.66666666f - (button_spacing));
+					modified |= ImGui::InputText("##name", name, sizeof(name));
+					ImGui::PopItemWidth();
+
+					ImGui::SameLine(0, button_spacing);
+
+					ImGui::PushItemWidth(ImGui::GetWindowContentRegionWidth() * 0.33333333f - (button_spacing + button_size) + 1);
+					modified |= ImGui::InputText("##value", value, sizeof(value));
+					ImGui::PopItemWidth();
+
+					ImGui::SameLine(0, button_spacing);
+
+					if (ImGui::Button("-", ImVec2(button_size, 0)))
+					{
+						modified = true;
+						_global_preprocessor_definitions.erase(_global_preprocessor_definitions.begin() + i--);
+					}
+					else if (modified)
+					{
+						_global_preprocessor_definitions[i] = std::string(name) + '=' + std::string(value);
+					}
+
+					ImGui::PopID();
+				}
+
+				ImGui::Dummy(ImVec2());
+				ImGui::SameLine(0, ImGui::GetWindowContentRegionWidth() - button_size);
+				if (ImGui::Button("+", ImVec2(button_size, 0)))
+					_global_preprocessor_definitions.emplace_back();
+
+				ImGui::EndTabItem();
 			}
 
-			ImGui::PopID();
+			if (ImGui::BeginTabItem("Current Preset"))
+			{
+				for (size_t i = 0; i < _preset_preprocessor_definitions.size(); ++i)
+				{
+					char name[128] = "";
+					char value[128] = "";
+
+					const size_t equals_index = _preset_preprocessor_definitions[i].find('=');
+					_preset_preprocessor_definitions[i].copy(name, std::min(equals_index, sizeof(name) - 1));
+					if (equals_index != std::string::npos)
+						_preset_preprocessor_definitions[i].copy(value, sizeof(value) - 1, equals_index + 1);
+
+					ImGui::PushID(static_cast<int>(i));
+
+					ImGui::PushItemWidth(ImGui::GetWindowContentRegionWidth() * 0.66666666f - (button_spacing));
+					modified |= ImGui::InputText("##name", name, sizeof(name));
+					ImGui::PopItemWidth();
+
+					ImGui::SameLine(0, button_spacing);
+
+					ImGui::PushItemWidth(ImGui::GetWindowContentRegionWidth() * 0.33333333f - (button_spacing + button_size) + 1);
+					modified |= ImGui::InputText("##value", value, sizeof(value));
+					ImGui::PopItemWidth();
+
+					ImGui::SameLine(0, button_spacing);
+
+					if (ImGui::Button("-", ImVec2(button_size, 0)))
+					{
+						modified = true;
+						_preset_preprocessor_definitions.erase(_preset_preprocessor_definitions.begin() + i--);
+					}
+					else if (modified)
+					{
+						_preset_preprocessor_definitions[i] = std::string(name) + '=' + std::string(value);
+					}
+
+					ImGui::PopID();
+				}
+
+				ImGui::Dummy(ImVec2());
+				ImGui::SameLine(0, ImGui::GetWindowContentRegionWidth() - button_size);
+				if (ImGui::Button("+", ImVec2(button_size, 0)))
+					_preset_preprocessor_definitions.emplace_back();
+
+				ImGui::EndTabItem();
+			}
+
+			ImGui::EndTabBar();
 		}
 
-		ImGui::Dummy(ImVec2());
-		ImGui::SameLine(0, ImGui::GetWindowContentRegionWidth() - button_size);
-		if (ImGui::Button("+", ImVec2(button_size, 0)))
-			_preprocessor_definitions.emplace_back();
 		ImGui::EndChild();
 
 		if (modified)
-			save_config();
+			save_config(), save_current_preset();
 
 		ImGui::EndPopup();
 

@@ -198,6 +198,11 @@ namespace reshade
 		static bool check_for_update(unsigned long latest_version[3]);
 
 		/// <summary>
+		/// Load the preprocessor definitions from config and current preset and apply it.
+		/// </summary>
+		bool reload_preprocessor_definitions();
+
+		/// <summary>
 		/// Compile effect from the specified source file and initialize textures, uniforms and techniques.
 		/// </summary>
 		/// <param name="path">The path to an effect source code file.</param>
@@ -235,6 +240,11 @@ namespace reshade
 		/// </summary>
 		/// <param name="path">The preset file to load.</param>
 		void load_preset(const std::filesystem::path &path);
+		/// <summary>
+		/// Load a preset and apply it.
+		/// </summary>
+		/// <param name="path">The preset file</param>
+		void load_preset(const ini_file &preset);
 		/// <summary>
 		/// Load the currently selected preset and apply it.
 		/// </summary>
@@ -276,7 +286,8 @@ namespace reshade
 		size_t _current_preset = 0;
 		std::vector<std::filesystem::path> _preset_files;
 
-		std::vector<std::string> _preprocessor_definitions;
+		std::vector<std::string> _global_preprocessor_definitions;
+		std::vector<std::string> _preset_preprocessor_definitions;
 		std::vector<std::filesystem::path> _preset_search_paths;
 		std::vector<std::filesystem::path> _effect_search_paths;
 		std::vector<std::filesystem::path> _texture_search_paths;
