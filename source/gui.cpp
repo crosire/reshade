@@ -1605,7 +1605,7 @@ void reshade::runtime::draw_overlay_variable_editor()
 
 		ImGui::BeginChild("##definitions", ImVec2(400.0f, (std::max(_global_preprocessor_definitions.size(), _preset_preprocessor_definitions.size()) + 2) * ImGui::GetFrameHeightWithSpacing()), false, ImGuiWindowFlags_NoScrollWithMouse);
 
-		if (ImGui::BeginTabBar("##definition_types", ImGuiTabBarFlags_None))
+		if (ImGui::BeginTabBar("##definition_types", ImGuiTabBarFlags_NoTooltip))
 		{
 			if (ImGui::BeginTabItem("Global"))
 			{
