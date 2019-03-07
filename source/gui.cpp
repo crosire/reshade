@@ -1639,15 +1639,13 @@ void reshade::runtime::draw_overlay_variable_editor()
 		ImGui::EndChild();
 
 		if (modified)
-			save_config();
+			save_config(), _was_preprocessor_popup_edited = true;
 
 		ImGui::EndPopup();
-
-		_was_preprocessor_popup_visible = true;
 	}
-	else if (_was_preprocessor_popup_visible)
+	else if (_was_preprocessor_popup_edited)
 	{
-		_was_preprocessor_popup_visible = false;
+		_was_preprocessor_popup_edited = false;
 
 		_show_splash = true;
 		_effect_filter_buffer[0] = '\0'; // Reset filter
