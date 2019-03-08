@@ -622,6 +622,40 @@ void reshade::runtime::draw_overlay_menu_home()
 		const float button_size = ImGui::GetFrameHeight();
 		const float button_spacing = _imgui_context->Style.ItemInnerSpacing.x;
 
+		if (ImGui::ButtonEx("<", ImVec2(button_size,0), 0 < _current_preset ? 0 : ImGuiButtonFlags_Disabled))
+		{
+			_current_preset--;
+
+			save_config();
+
+			_show_splash = true;
+
+			// Need to reload effects in performance mode, so values are applied
+			if (_performance_mode)
+				load_effects();
+			else
+				load_preset(_preset_files[_current_preset]);
+		}
+
+		ImGui::SameLine(0, button_spacing);
+
+		if (ImGui::ButtonEx(">", ImVec2(button_size, 0), (_current_preset < _preset_files.size() - 1) ? 0 : ImGuiButtonFlags_Disabled))
+		{
+			_current_preset++;
+
+			save_config();
+
+			_show_splash = true;
+
+			// Need to reload effects in performance mode, so values are applied
+			if (_performance_mode)
+				load_effects();
+			else
+				load_preset(_preset_files[_current_preset]);
+		}
+
+		ImGui::SameLine(0, button_spacing);
+
 		ImGui::PushItemWidth((button_size + button_spacing) * -2.0f - 1.0f);
 
 		if (ImGui::BeginCombo("##presets", _current_preset < _preset_files.size() ? _preset_files[_current_preset].u8string().c_str() : ""))
