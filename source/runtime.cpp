@@ -30,7 +30,7 @@ reshade::runtime::runtime(uint32_t renderer) :
 	_preset_search_paths({ ".\\" }),
 	_effect_search_paths({ ".\\" }),
 	_texture_search_paths({ ".\\" }),
-	_preprocessor_definitions({
+	_global_preprocessor_definitions({
 		"RESHADE_DEPTH_LINEARIZATION_FAR_PLANE=1000.0",
 		"RESHADE_DEPTH_INPUT_IS_UPSIDE_DOWN=0",
 		"RESHADE_DEPTH_INPUT_IS_REVERSED=1",
@@ -119,7 +119,7 @@ void reshade::runtime::on_present()
 	if (!_ignore_shortcuts)
 	{
 		if (_input->is_key_pressed(_reload_key_data))
-			load_effects();
+			load_preprocessor_definitions(), load_effects();
 
 		if (_input->is_key_pressed(_effects_key_data))
 			_effects_enabled = !_effects_enabled;
@@ -151,6 +151,32 @@ void reshade::runtime::on_present()
 
 	g_network_traffic = 0;
 	_drawcalls = _vertices = 0;
+}
+
+bool reshade::runtime::load_preprocessor_definitions()
+{
+	bool load_effect_required = false;
+
+	const ini_file config(_configuration_path);
+
+	std::vector<std::string> global_preprocessor_definitions;
+	config.get("GENERAL", "PreprocessorDefinitions", global_preprocessor_definitions);
+
+	if (global_preprocessor_definitions != _global_preprocessor_definitions)
+		_global_preprocessor_definitions = global_preprocessor_definitions, load_effect_required = true;
+
+	if (_current_preset < _preset_files.size())
+	{
+		const ini_file preset(_preset_files[_current_preset]);
+
+		std::vector<std::string> preset_preprocessor_definitions;
+		preset.get("", "PreprocessorDefinitions", preset_preprocessor_definitions);
+
+		if (preset_preprocessor_definitions != _preset_preprocessor_definitions)
+			_preset_preprocessor_definitions = preset_preprocessor_definitions, load_effect_required = true;
+	}
+
+	return load_effect_required;
 }
 
 void reshade::runtime::load_effect(const std::filesystem::path &path, size_t &out_id)
@@ -188,7 +214,10 @@ void reshade::runtime::load_effect(const std::filesystem::path &path, size_t &ou
 		pp.add_macro_definition("BUFFER_RCP_WIDTH", std::to_string(1.0f / static_cast<float>(_width)));
 		pp.add_macro_definition("BUFFER_RCP_HEIGHT", std::to_string(1.0f / static_cast<float>(_height)));
 
-		for (const auto &definition : _preprocessor_definitions)
+		std::vector<std::string> preprocessor_definitions = _global_preprocessor_definitions;
+		preprocessor_definitions.insert(preprocessor_definitions.end(), _preset_preprocessor_definitions.begin(), _preset_preprocessor_definitions.end());
+
+		for (const auto &definition : preprocessor_definitions)
 		{
 			if (definition.empty())
 				continue; // Skip invalid definitions
@@ -533,7 +562,7 @@ void reshade::runtime::update_and_render_effects()
 {
 	// Delay first load to the first render call to avoid loading while the application is still initializing
 	if (_framecount == 0 && !_no_reload_on_init)
-		load_effects();
+		load_preprocessor_definitions(), load_effects();
 
 	if (_reload_remaining_effects == 0)
 	{
@@ -777,7 +806,7 @@ void reshade::runtime::load_config()
 	config.get("GENERAL", "PresetSearchPaths", _preset_search_paths);
 	config.get("GENERAL", "EffectSearchPaths", _effect_search_paths);
 	config.get("GENERAL", "TextureSearchPaths", _texture_search_paths);
-	config.get("GENERAL", "PreprocessorDefinitions", _preprocessor_definitions);
+	config.get("GENERAL", "PreprocessorDefinitions", _global_preprocessor_definitions);
 	config.get("GENERAL", "PresetFiles", _preset_files);
 	config.get("GENERAL", "CurrentPreset", _current_preset);
 	config.get("GENERAL", "ScreenshotPath", _screenshot_path);
@@ -840,7 +869,7 @@ void reshade::runtime::save_config(const std::filesystem::path &path) const
 	config.set("GENERAL", "PresetSearchPaths", _preset_search_paths);
 	config.set("GENERAL", "EffectSearchPaths", _effect_search_paths);
 	config.set("GENERAL", "TextureSearchPaths", _texture_search_paths);
-	config.set("GENERAL", "PreprocessorDefinitions", _preprocessor_definitions);
+	config.set("GENERAL", "PreprocessorDefinitions", _global_preprocessor_definitions);
 	config.set("GENERAL", "PresetFiles", _preset_files);
 	config.set("GENERAL", "CurrentPreset", _current_preset);
 	config.set("GENERAL", "ScreenshotPath", _screenshot_path);
@@ -854,8 +883,11 @@ void reshade::runtime::save_config(const std::filesystem::path &path) const
 
 void reshade::runtime::load_preset(const std::filesystem::path &path)
 {
-	const ini_file preset(path);
+	load_preset(ini_file(path));
+}
 
+void reshade::runtime::load_preset(const ini_file &preset)
+{
 	// Reorder techniques
 	std::vector<std::string> technique_list;
 	preset.get("", "Techniques", technique_list);
@@ -939,6 +971,7 @@ void reshade::runtime::save_preset(const std::filesystem::path &path) const
 
 	preset.set("", "Techniques", std::move(technique_list));
 	preset.set("", "TechniqueSorting", std::move(technique_sorting_list));
+	preset.set("", "PreprocessorDefinitions", std::move(_preset_preprocessor_definitions));
 
 	for (const uniform &variable : _uniforms)
 	{
