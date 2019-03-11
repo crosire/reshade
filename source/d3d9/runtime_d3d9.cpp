@@ -300,14 +300,12 @@ namespace reshade::d3d9
 		// reset the new tables
 		_depth_buffer_table.clear();
 
-		if (!_depth_clearing_table.empty())
+		for (auto &it : _depth_clearing_table)
 		{
-			for (auto &it : _depth_clearing_table)
-			{
-				it.second.depthtexture.reset();
-				it.second.depthstencil.reset();
-			}
+			it.second.depthtexture.reset();
+			it.second.depthstencil.reset();
 		}
+
 		_depth_clearing_table.clear();
 	}
 	void runtime_d3d9::on_present()
@@ -505,8 +503,6 @@ namespace reshade::d3d9
 			{
 				_preserve_drawcalls++;
 				_preserve_vertices += vertices;
-
-				depthstencil = get_depthstencil_replacement();
 			}
 		}
 	}
@@ -549,12 +545,12 @@ namespace reshade::d3d9
 	}
 	void runtime_d3d9::after_clear(com_ptr<IDirect3DSurface9> depthstencil)
 	{
-		// early rejection
-		if (depthstencil == nullptr || !_preserve_depth_buffer || !check_depthstencil_size(depthstencil))
-			return;
-
 		D3DSURFACE_DESC desc;
 		depthstencil->GetDesc(&desc);
+
+		// early rejection
+		if (depthstencil == nullptr || !_preserve_depth_buffer || !check_depthstencil_size(desc))
+			return;
 
 		// check if we are in the main depth buffer surface
 		if (depthstencil == get_depthstencil_replacement() || depthstencil == _depthstencil)
@@ -636,7 +632,7 @@ namespace reshade::d3d9
 			depthstencil->GetDesc(&desc);
 
 			// Early rejection
-			if (desc.MultiSampleType != D3DMULTISAMPLE_NONE || !check_depthstencil_size(depthstencil))
+			if (desc.MultiSampleType != D3DMULTISAMPLE_NONE || !check_depthstencil_size(desc))
 				return;
 	
 			depthstencil->AddRef();
@@ -1692,7 +1688,7 @@ namespace reshade::d3d9
 			}
 		}
 
-		if (best_match != nullptr && (_depthstencil != best_match))
+		if (best_match != nullptr && _depthstencil != best_match)
 		{
 			create_depthstencil_replacement(best_match);
 		}
@@ -1770,8 +1766,11 @@ namespace reshade::d3d9
 
 	com_ptr<IDirect3DTexture9> runtime_d3d9::create_depthstencil_texture(com_ptr<IDirect3DSurface9> depthstencil)
 	{
+		D3DSURFACE_DESC desc;
+		depthstencil->GetDesc(&desc);
+
 		// check the size of the current depth buffer
-		if (!check_depthstencil_size(depthstencil))
+		if (!check_depthstencil_size(desc))
 			return nullptr;
 
 		com_ptr<IDirect3DTexture9> depthstencil_replacement;
@@ -1780,9 +1779,6 @@ namespace reshade::d3d9
 		_swapchain->GetDisplayMode(&displaymode);
 		D3DDEVICE_CREATION_PARAMETERS creation_params;
 		_device->GetCreationParameters(&creation_params);
-
-		D3DSURFACE_DESC desc;
-		depthstencil->GetDesc(&desc);
 
 		desc.Format = D3DFMT_UNKNOWN;
 		const D3DFORMAT formats[] = { D3DFMT_INTZ, D3DFMT_DF24, D3DFMT_DF16 };
@@ -1814,7 +1810,7 @@ namespace reshade::d3d9
 
 		const HRESULT hr = _device->CreateTexture(width, height, 1, D3DUSAGE_DEPTHSTENCIL, desc.Format, D3DPOOL_DEFAULT, &depthstencil_replacement, nullptr);
 
-		if (!SUCCEEDED(hr))
+		if (FAILED(hr))
 		{
 			LOG(ERROR) << "Failed to create depth replacement texture! HRESULT is '" << std::hex << hr << std::dec << "'.";
 
@@ -1890,11 +1886,8 @@ namespace reshade::d3d9
 		return result;
 	}
 
-	bool runtime_d3d9::check_depthstencil_size(com_ptr<IDirect3DSurface9> depthstencil)
+	bool runtime_d3d9::check_depthstencil_size(const D3DSURFACE_DESC &desc)
 	{
-		D3DSURFACE_DESC desc;
-		depthstencil->GetDesc(&desc);
-
 		// check the size of the current depth buffer
 		if (!_disable_depth_buffer_size_restriction)
 		{
