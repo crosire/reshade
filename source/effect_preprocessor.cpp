@@ -599,7 +599,6 @@ bool reshadefx::preprocessor::evaluate_expression()
 			error(_token.location, "expression evaluator ran out of stack space");
 			return false;
 		}
-
 		int op = op_none;
 		bool is_left_associative = true;
 
@@ -607,89 +606,93 @@ bool reshadefx::preprocessor::evaluate_expression()
 
 		switch (_token)
 		{
-			case tokenid::exclaim:
-				op = op_not;
-				is_left_associative = false;
+		case tokenid::space:
+			continue;
+		case tokenid::backslash:
+			// Skip to next line if the line ends with a backslash
+			if (accept(tokenid::end_of_line))
+				continue;
+			else // Otherwise continue on processing the token (it is not valid here, but make that an error below)
 				break;
-			case tokenid::percent:
-				op = op_modulo;
-				break;
-			case tokenid::ampersand:
-				op = op_bitand;
-				break;
-			case tokenid::star:
-				op = op_multiply;
-				break;
-			case tokenid::plus:
-				is_left_associative =
-					previous_token == tokenid::int_literal ||
-					previous_token == tokenid::uint_literal ||
-					previous_token == tokenid::identifier ||
-					previous_token == tokenid::parenthesis_close;
-				op = is_left_associative ? op_add : op_plus;
-				break;
-			case tokenid::minus:
-				is_left_associative =
-					previous_token == tokenid::int_literal ||
-					previous_token == tokenid::uint_literal ||
-					previous_token == tokenid::identifier ||
-					previous_token == tokenid::parenthesis_close;
-				op = is_left_associative ? op_subtract : op_negate;
-				break;
-			case tokenid::slash:
-				op = op_divide;
-				break;
-			case tokenid::less:
-				op = op_less;
-				break;
-			case tokenid::greater:
-				op = op_greater;
-				break;
-			case tokenid::caret:
-				op = op_bitxor;
-				break;
-			case tokenid::pipe:
-				op = op_bitor;
-				break;
-			case tokenid::tilde:
-				op = op_bitnot;
-				is_left_associative = false;
-				break;
-			case tokenid::exclaim_equal:
-				op = op_not_equal;
-				break;
-			case tokenid::ampersand_ampersand:
-				op = op_and;
-				break;
-			case tokenid::less_less:
-				op = op_leftshift;
-				break;
-			case tokenid::less_equal:
-				op = op_less_equal;
-				break;
-			case tokenid::equal_equal:
-				op = op_equal;
-				break;
-			case tokenid::greater_greater:
-				op = op_rightshift;
-				break;
-			case tokenid::greater_equal:
-				op = op_greater_equal;
-				break;
-			case tokenid::pipe_pipe:
-				op = op_or;
-				break;
+		case tokenid::exclaim:
+			op = op_not;
+			is_left_associative = false;
+			break;
+		case tokenid::percent:
+			op = op_modulo;
+			break;
+		case tokenid::ampersand:
+			op = op_bitand;
+			break;
+		case tokenid::star:
+			op = op_multiply;
+			break;
+		case tokenid::plus:
+			is_left_associative =
+				previous_token == tokenid::int_literal ||
+				previous_token == tokenid::uint_literal ||
+				previous_token == tokenid::identifier ||
+				previous_token == tokenid::parenthesis_close;
+			op = is_left_associative ? op_add : op_plus;
+			break;
+		case tokenid::minus:
+			is_left_associative =
+				previous_token == tokenid::int_literal ||
+				previous_token == tokenid::uint_literal ||
+				previous_token == tokenid::identifier ||
+				previous_token == tokenid::parenthesis_close;
+			op = is_left_associative ? op_subtract : op_negate;
+			break;
+		case tokenid::slash:
+			op = op_divide;
+			break;
+		case tokenid::less:
+			op = op_less;
+			break;
+		case tokenid::greater:
+			op = op_greater;
+			break;
+		case tokenid::caret:
+			op = op_bitxor;
+			break;
+		case tokenid::pipe:
+			op = op_bitor;
+			break;
+		case tokenid::tilde:
+			op = op_bitnot;
+			is_left_associative = false;
+			break;
+		case tokenid::exclaim_equal:
+			op = op_not_equal;
+			break;
+		case tokenid::ampersand_ampersand:
+			op = op_and;
+			break;
+		case tokenid::less_less:
+			op = op_leftshift;
+			break;
+		case tokenid::less_equal:
+			op = op_less_equal;
+			break;
+		case tokenid::equal_equal:
+			op = op_equal;
+			break;
+		case tokenid::greater_greater:
+			op = op_rightshift;
+			break;
+		case tokenid::greater_equal:
+			op = op_greater_equal;
+			break;
+		case tokenid::pipe_pipe:
+			op = op_or;
+			break;
 		}
 
 		switch (_token)
 		{
-			case tokenid::space:
-				continue;
 			case tokenid::parenthesis_open:
-			{
 				stack[stack_count++] = op_parentheses;
 				break;
-			}
 			case tokenid::parenthesis_close:
 			{
 				bool matched = false;
@@ -842,9 +845,17 @@ bool reshadefx::preprocessor::evaluate_expression()
 	{
 		if (token->is_op)
 		{
-#define UNARY_OPERATION(op) { if (stack_count < 1) return 0; stack[stack_count - 1] = op stack[stack_count - 1]; }
-#define BINARY_OPERATION(op) { if (stack_count < 2) return 0; stack[stack_count - 2] = stack[stack_count - 2] op stack[stack_count - 1]; stack_count--; }
-
+#define UNARY_OPERATION(op) { \
+	if (stack_count < 1) \
+		return error(_token.location, "invalid expression"), 0; \
+	stack[stack_count - 1] = op stack[stack_count - 1]; \
+	}
+#define BINARY_OPERATION(op) { \
+	if (stack_count < 2) \
+		return error(_token.location, "invalid expression"), 0; \
+	stack[stack_count - 2] = stack[stack_count - 2] op stack[stack_count - 1]; \
+	stack_count--; \
+	}
 			switch (token->value)
 			{
 				case op_or: BINARY_OPERATION(||); break;
