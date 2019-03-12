@@ -180,10 +180,15 @@ namespace reshade
 		bool _is_initialized = false;
 		bool _has_high_network_activity = false;
 		const unsigned int _renderer_id;
-		unsigned int _width = 0, _height = 0;
-		unsigned int _vendor_id = 0, _device_id = 0;
+		unsigned int _width = 0;
+		unsigned int _height = 0;
+		unsigned int _window_width = 0;
+		unsigned int _window_height = 0;
+		unsigned int _vendor_id = 0;
+		unsigned int _device_id = 0;
 		uint64_t _framecount = 0;
-		unsigned int _drawcalls = 0, _vertices = 0;
+		unsigned int _vertices = 0;
+		unsigned int _drawcalls = 0;
 		std::vector<texture> _textures;
 		std::vector<uniform> _uniforms;
 		std::vector<technique> _techniques;

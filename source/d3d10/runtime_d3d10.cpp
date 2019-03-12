@@ -374,8 +374,13 @@ namespace reshade::d3d10
 
 	bool runtime_d3d10::on_init(const DXGI_SWAP_CHAIN_DESC &desc)
 	{
+		RECT window_rect = {};
+		GetClientRect(desc.OutputWindow, &window_rect);
+
 		_width = desc.BufferDesc.Width;
 		_height = desc.BufferDesc.Height;
+		_window_width = window_rect.right - window_rect.left;
+		_window_height = window_rect.bottom - window_rect.top;
 		_backbuffer_format = desc.BufferDesc.Format;
 		_is_multisampling_enabled = desc.SampleDesc.Count > 1;
 
@@ -386,9 +391,7 @@ namespace reshade::d3d10
 			|| !init_imgui_resources()
 #endif
 			)
-		{
 			return false;
-		}
 
 		return runtime::on_init(desc.OutputWindow);
 	}

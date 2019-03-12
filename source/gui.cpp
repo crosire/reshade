@@ -326,9 +326,8 @@ void reshade::runtime::draw_ui()
 	if (_reload_remaining_effects != std::numeric_limits<size_t>::max())
 		_selected_effect = std::numeric_limits<size_t>::max(),
 		_selected_effect_changed = true, // Force editor to clear text after effects where reloaded
-		_effect_filter_buffer[0] = '\0'; // Reset filter as well, since the list of techniques might have changed
+		_effect_filter_buffer[0] = '\0'; // And reset filter too, since the list of techniques might have changed
 
-	// Update ImGui configuration
 	ImGui::SetCurrentContext(_imgui_context);
 	auto &imgui_io = _imgui_context->IO;
 	imgui_io.DeltaTime = _last_frame_duration.count() * 1e-9f;
@@ -337,13 +336,17 @@ void reshade::runtime::draw_ui()
 	imgui_io.DisplaySize.y = static_cast<float>(_height);
 	imgui_io.Fonts->TexID = _imgui_font_atlas.impl.get();
 
-	imgui_io.KeyCtrl = _input->is_key_down(0x11); // VK_CONTROL
-	imgui_io.KeyShift = _input->is_key_down(0x10); // VK_SHIFT
-	imgui_io.KeyAlt = _input->is_key_down(0x12); // VK_MENU
-	imgui_io.MousePos.x = static_cast<float>(_input->mouse_position_x());
-	imgui_io.MousePos.y = static_cast<float>(_input->mouse_position_y());
+	// Scale mouse position in case render resolution does not match the window size
+	imgui_io.MousePos.x = _input->mouse_position_x() * (imgui_io.DisplaySize.x / _window_width);
+	imgui_io.MousePos.y = _input->mouse_position_y() * (imgui_io.DisplaySize.y / _window_height);
+
+	// Add wheel delta to the current absolute mouse wheel position
 	imgui_io.MouseWheel += _input->mouse_wheel_delta();
 
+	// Update all the button states
+	imgui_io.KeyAlt = _input->is_key_down(0x12); // VK_MENU
+	imgui_io.KeyCtrl = _input->is_key_down(0x11); // VK_CONTROL
+	imgui_io.KeyShift = _input->is_key_down(0x10); // VK_SHIFT
 	for (unsigned int i = 0; i < 256; i++)
 		imgui_io.KeysDown[i] = _input->is_key_down(i);
 	for (unsigned int i = 0; i < 5; i++)
@@ -359,7 +362,7 @@ void reshade::runtime::draw_ui()
 	if (show_splash || show_screenshot_message || (!_show_menu && _tutorial_index == 0))
 	{
 		ImGui::SetNextWindowPos(ImVec2(10, 10));
-		ImGui::SetNextWindowSize(ImVec2(_width - 20.0f, 0.0f));
+		ImGui::SetNextWindowSize(ImVec2(imgui_io.DisplaySize.x - 20.0f, 0.0f));
 		ImGui::PushStyleVar(ImGuiStyleVar_Alpha, 1.0f);
 		ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.862745f, 0.862745f, 0.862745f, 1.0f));
 		ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0.117647f, 0.117647f, 0.117647f, 0.7f));
@@ -444,7 +447,7 @@ void reshade::runtime::draw_ui()
 	}
 	else if (_show_clock || _show_fps || _show_frametime)
 	{
-		ImGui::SetNextWindowPos(ImVec2(_width - 200.0f, 5));
+		ImGui::SetNextWindowPos(ImVec2(imgui_io.DisplaySize.x - 200.0f, 5));
 		ImGui::SetNextWindowSize(ImVec2(200.0f, 200.0f));
 		ImGui::PushStyleColor(ImGuiCol_Text, (const ImVec4 &)_fps_col);
 		ImGui::Begin("FPS", nullptr,

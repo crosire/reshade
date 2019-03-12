@@ -224,7 +224,9 @@ void reshade::runtime::load_effect(const std::filesystem::path &path, size_t &ou
 
 			const size_t equals_index = definition.find('=');
 			if (equals_index != std::string::npos)
-				pp.add_macro_definition(definition.substr(0, equals_index), definition.substr(equals_index + 1));
+				pp.add_macro_definition(
+					definition.substr(0, equals_index),
+					definition.substr(equals_index + 1));
 			else
 				pp.add_macro_definition(definition);
 		}

@@ -213,15 +213,18 @@ namespace reshade::d3d9
 
 	bool runtime_d3d9::on_init(const D3DPRESENT_PARAMETERS &pp)
 	{
+		RECT window_rect = {};
+		GetClientRect(pp.hDeviceWindow, &window_rect);
+
 		_width = pp.BackBufferWidth;
 		_height = pp.BackBufferHeight;
+		_window_width = window_rect.right - window_rect.left;
+		_window_height = window_rect.bottom - window_rect.top;
 		_backbuffer_format = pp.BackBufferFormat;
 		_is_multisampling_enabled = pp.MultiSampleType != D3DMULTISAMPLE_NONE;
 
 		if (FAILED(_device->CreateStateBlock(D3DSBT_ALL, &_app_state)))
-		{
 			return false;
-		}
 
 		if (!init_backbuffer_texture() ||
 			!init_default_depth_stencil() ||
@@ -230,9 +233,7 @@ namespace reshade::d3d9
 			|| !init_imgui_resources()
 #endif
 			)
-		{
 			return false;
-		}
 
 		return runtime::on_init(pp.hDeviceWindow);
 	}
