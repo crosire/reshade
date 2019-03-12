@@ -1799,6 +1799,7 @@ namespace reshade::d3d9
 		UINT width = desc.Width;
 		UINT height = desc.Height;
 
+		// fix for games like Vanquish
 		if (_disable_depth_buffer_size_restriction)
 		{
 			width = _width;
@@ -1905,16 +1906,5 @@ namespace reshade::d3d9
 		}
 
 		return true;
-	}
-
-	// preservation decision
-	bool runtime_d3d9::is_preserved()
-	{
-		if (_multi_depthstencil)
-			// when multiple depth buffer replacement textures are created, we reference the previous textures and the current one as the new depth buffer replacement texture ref
-			return (_clear_idx <= _preserve_starting_index);
-		
-		// when only one depth buffer replacement texture is created, we keep this texture unclear from a starting point (_preserve_starting_index)
-		return (_clear_idx >= _preserve_starting_index);
 	}
 }
