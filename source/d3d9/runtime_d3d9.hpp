@@ -48,8 +48,7 @@ namespace reshade::d3d9
 		void on_draw_call(D3DPRIMITIVETYPE type, UINT count);
 		void on_set_depthstencil_surface(IDirect3DSurface9 *&depthstencil);
 		void on_get_depthstencil_surface(IDirect3DSurface9 *&depthstencil);
-		void before_clear(com_ptr<IDirect3DSurface9> depthstencil);
-		void after_clear(com_ptr<IDirect3DSurface9> depthstencil);
+		bool on_clear(com_ptr<IDirect3DSurface9> depthstencil);
 
 		void capture_frame(uint8_t *buffer) const override;
 		void update_texture(texture &texture, const uint8_t *data) override;
