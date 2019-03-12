@@ -196,7 +196,8 @@ bool reshadefx::preprocessor::expect(tokenid token)
 	{
 		assert(!_input_stack.empty());
 
-		const auto &actual_token = _input_stack.top().next_token;
+		auto actual_token = _input_stack.top().next_token;
+		actual_token.location.source = _output_location.source;
 
 		error(actual_token.location, "syntax error: unexpected token '" + current_lexer().input_string().substr(actual_token.offset, actual_token.length) + "'");
 
