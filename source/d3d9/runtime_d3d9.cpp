@@ -621,7 +621,7 @@ namespace reshade::d3d9
 		const depth_buffer_info buffer_info = { depthstencil, desc.Width, desc.Height, 0, 0 };
 
 		_clear_buffer_idx++;
-		// keep trace of the counters for the next clerance step for the original depthstencil ref
+		// keep trace of the counters for the next clearance step for the original depthstencil ref
 		_depth_buffer_table.emplace(_clear_buffer_idx, buffer_info);
 
 		return is_preserved;
@@ -1651,7 +1651,7 @@ namespace reshade::d3d9
 					++it;
 				}
 
-				if (depthstencil_info.drawcall_count == 0 && !_preserve_depth_buffer)
+				if (depthstencil_info.drawcall_count == 0)
 					continue;
 
 				if ((depthstencil_info.vertices_count * (1.2f - float(depthstencil_info.drawcall_count) / _drawcalls)) >= (best_info.vertices_count * (1.2f - float(best_info.drawcall_count) / _drawcalls)))
