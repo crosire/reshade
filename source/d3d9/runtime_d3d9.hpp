@@ -97,11 +97,8 @@ namespace reshade::d3d9
 		bool init_technique(technique &info, const d3d9_technique_data &technique_init, const std::unordered_map<std::string, com_ptr<IDirect3DVertexShader9>> &vs_entry_points, const std::unordered_map<std::string, com_ptr<IDirect3DPixelShader9>> &ps_entry_points);
 
 		com_ptr<IDirect3DTexture9> create_depthstencil_texture(com_ptr<IDirect3DSurface9> depthstencil);
-		com_ptr<IDirect3DSurface9> get_depthstencil_replacement();
-		com_ptr<IDirect3DTexture9> get_depthstencil_texture();
-		int get_best_preserve_starting_index(bool multi);
+		int get_best_preserve_starting_index();
 		bool runtime_d3d9::check_depthstencil_size(const D3DSURFACE_DESC &desc);
-		bool is_preserved();
 
 #if RESHADE_GUI
 		bool init_imgui_resources();
