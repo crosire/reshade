@@ -777,32 +777,40 @@ void reshade::runtime::draw_overlay_menu_home()
 
 		if (ImGui::Button("Active to top", ImVec2(130 - _imgui_context->Style.ItemSpacing.x, 0)))
 		{
-			for (size_t i = 0; i < _techniques.size(); ++i)
+			for (auto i_it = _techniques.begin(); i_it != _techniques.end(); ++i_it)
 			{
-				if (!_techniques[i].enabled && _techniques[i].toggle_key_data[0] == 0)
+				if (!i_it->enabled && i_it->toggle_key_data[0] == 0)
 				{
-					for (size_t k = i + 1; k < _techniques.size(); ++k)
+					for (auto k_it = i_it + 1; k_it != _techniques.end(); ++k_it)
 					{
-						if (_techniques[k].enabled || _techniques[k].toggle_key_data[0] != 0)
+						if (k_it->enabled || k_it->toggle_key_data[0] != 0)
 						{
-							std::swap(_techniques[i], _techniques[k]);
+							std::iter_swap(i_it, k_it);
 							break;
 						}
 					}
 				}
 			}
-			for (size_t i = 0; i < _techniques.size(); ++i)
+			for (auto i_it = _techniques.begin(); i_it != _techniques.end(); ++i_it)
 			{
-				if (!_techniques[i].enabled && _techniques[i].toggle_key_data[0] == 0)
+				if (!i_it->enabled && i_it->toggle_key_data[0] == 0)
 				{
-					for (size_t k = i + 1; k < _techniques.size(); ++k)
+					for (auto k_it = i_it + 1; k_it != _techniques.end(); ++k_it)
 					{
-						if (!_techniques[k].enabled && _techniques[k].toggle_key_data[0] == 0
-							&& _techniques[i].name.compare(_techniques[k].name) > 0)
+						if (!k_it->enabled && k_it->toggle_key_data[0] == 0)
 						{
-							std::swap(_techniques[i], _techniques[k]);
-							i = 0;
-							break;
+							// Using static to avoid allocate std::string in loop
+							static const std::string ui_label("ui_label");
+
+							const auto &i_name = i_it->annotations.find(ui_label) == i_it->annotations.end() ? i_it->name : i_it->annotations[ui_label].second.string_data;
+							const auto &k_name = k_it->annotations.find(ui_label) == k_it->annotations.end() ? k_it->name : k_it->annotations[ui_label].second.string_data;
+
+							if (i_name.compare(k_name) > 0)
+							{
+								std::iter_swap(i_it, k_it);
+								i_it = _techniques.begin();
+								break;
+							}
 						}
 					}
 				}
