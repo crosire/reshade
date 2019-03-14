@@ -777,38 +777,38 @@ void reshade::runtime::draw_overlay_menu_home()
 
 		if (ImGui::Button("Active to top", ImVec2(130 - _imgui_context->Style.ItemSpacing.x, 0)))
 		{
-			for (auto i_it = _techniques.begin(); i_it != _techniques.end(); ++i_it)
+			for (auto i = _techniques.begin(); i != _techniques.end(); ++i)
 			{
-				if (!i_it->enabled && i_it->toggle_key_data[0] == 0)
+				if (!i->enabled && i->toggle_key_data[0] == 0)
 				{
-					for (auto k_it = i_it + 1; k_it != _techniques.end(); ++k_it)
+					for (auto k = i + 1; k != _techniques.end(); ++k)
 					{
-						if (k_it->enabled || k_it->toggle_key_data[0] != 0)
+						if (k->enabled || k->toggle_key_data[0] != 0)
 						{
-							std::iter_swap(i_it, k_it);
+							std::iter_swap(i, k);
 							break;
 						}
 					}
 				}
 			}
-			for (auto i_it = _techniques.begin(); i_it != _techniques.end(); ++i_it)
+			for (auto i = _techniques.begin(); i != _techniques.end(); ++i)
 			{
-				if (!i_it->enabled && i_it->toggle_key_data[0] == 0)
+				if (!i->enabled && i->toggle_key_data[0] == 0)
 				{
-					for (auto k_it = i_it + 1; k_it != _techniques.end(); ++k_it)
+					for (auto k = i + 1; k != _techniques.end(); ++k)
 					{
-						if (!k_it->enabled && k_it->toggle_key_data[0] == 0)
+						if (!k->enabled && k->toggle_key_data[0] == 0)
 						{
 							// Using static to avoid allocate std::string in loop
 							static const std::string ui_label("ui_label");
 
-							const auto &i_name = i_it->annotations.find(ui_label) == i_it->annotations.end() ? i_it->name : i_it->annotations[ui_label].second.string_data;
-							const auto &k_name = k_it->annotations.find(ui_label) == k_it->annotations.end() ? k_it->name : k_it->annotations[ui_label].second.string_data;
+							const auto &a = i->annotations.find(ui_label) == i->annotations.end() ? i->name : i->annotations[ui_label].second.string_data;
+							const auto &b = k->annotations.find(ui_label) == k->annotations.end() ? k->name : k->annotations[ui_label].second.string_data;
 
-							if (i_name.compare(k_name) > 0)
+							if (a.compare(b) > 0)
 							{
-								std::iter_swap(i_it, k_it);
-								i_it = _techniques.begin();
+								std::iter_swap(i, k);
+								i = _techniques.begin();
 								break;
 							}
 						}
