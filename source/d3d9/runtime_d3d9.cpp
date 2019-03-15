@@ -70,7 +70,7 @@ namespace reshade::d3d9
 	}
 
 	runtime_d3d9::runtime_d3d9(IDirect3DDevice9 *device, IDirect3DSwapChain9 *swapchain) :
-		runtime(0x9000), _device(device), _swapchain(swapchain)
+		_device(device), _swapchain(swapchain)
 	{
 		assert(device != nullptr);
 		assert(swapchain != nullptr);
@@ -89,6 +89,7 @@ namespace reshade::d3d9
 
 		_vendor_id = adapter_desc.VendorId;
 		_device_id = adapter_desc.DeviceId;
+		_renderer_id = 0x9000;
 		_behavior_flags = creation_params.BehaviorFlags;
 		_num_samplers = caps.MaxSimultaneousTextures;
 		_num_simultaneous_rendertargets = std::min(caps.NumSimultaneousRTs, DWORD(8));

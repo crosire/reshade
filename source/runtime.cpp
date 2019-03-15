@@ -22,8 +22,7 @@ extern volatile long g_network_traffic;
 extern std::filesystem::path g_reshade_dll_path;
 extern std::filesystem::path g_target_executable_path;
 
-reshade::runtime::runtime(uint32_t renderer) :
-	_renderer_id(renderer),
+reshade::runtime::runtime() :
 	_start_time(std::chrono::high_resolution_clock::now()),
 	_last_present_time(std::chrono::high_resolution_clock::now()),
 	_last_frame_duration(std::chrono::milliseconds(1)),
@@ -1209,28 +1208,27 @@ void reshade::runtime::reset_uniform_value(uniform &variable)
 		return;
 	}
 
-	// Force all uniforms to floating-point in D3D9
-	if (_renderer_id == 0x9000)
-	{
-		for (size_t i = 0; i < variable.size / sizeof(float); i++)
-		{
-			switch (variable.type.base)
-			{
-			case reshadefx::type::t_int:
-				reinterpret_cast<float *>(_uniform_data_storage.data() + variable.storage_offset)[i] = static_cast<float>(variable.initializer_value.as_int[i]);
-				break;
-			case reshadefx::type::t_bool:
-			case reshadefx::type::t_uint:
-				reinterpret_cast<float *>(_uniform_data_storage.data() + variable.storage_offset)[i] = static_cast<float>(variable.initializer_value.as_uint[i]);
-				break;
-			case reshadefx::type::t_float:
-				reinterpret_cast<float *>(_uniform_data_storage.data() + variable.storage_offset)[i] = variable.initializer_value.as_float[i];
-				break;
-			}
-		}
-	}
-	else
+	if (_renderer_id != 0x9000)
 	{
 		memcpy(_uniform_data_storage.data() + variable.storage_offset, variable.initializer_value.as_uint, variable.size);
+		return;
+	}
+
+	// Force all uniforms to floating-point in D3D9
+	for (size_t i = 0; i < variable.size / sizeof(float); i++)
+	{
+		switch (variable.type.base)
+		{
+		case reshadefx::type::t_int:
+			reinterpret_cast<float *>(_uniform_data_storage.data() + variable.storage_offset)[i] = static_cast<float>(variable.initializer_value.as_int[i]);
+			break;
+		case reshadefx::type::t_bool:
+		case reshadefx::type::t_uint:
+			reinterpret_cast<float *>(_uniform_data_storage.data() + variable.storage_offset)[i] = static_cast<float>(variable.initializer_value.as_uint[i]);
+			break;
+		case reshadefx::type::t_float:
+			reinterpret_cast<float *>(_uniform_data_storage.data() + variable.storage_offset)[i] = variable.initializer_value.as_float[i];
+			break;
+		}
 	}
 }

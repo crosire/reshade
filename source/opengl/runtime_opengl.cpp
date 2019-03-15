@@ -140,20 +140,16 @@ namespace reshade::opengl
 				return GL_NONE;
 		}
 	}
-	static unsigned int get_renderer_id()
-	{
-		GLint major = 0, minor = 0;
-		glGetIntegerv(GL_MAJOR_VERSION, &major);
-		glGetIntegerv(GL_MAJOR_VERSION, &minor);
 
-		return 0x10000 | (major << 12) | (minor << 8);
-	}
-
-	runtime_opengl::runtime_opengl() :
-		runtime(get_renderer_id())
+	runtime_opengl::runtime_opengl()
 	{
 		_vendor_id = 0;
 		_device_id = 0;
+
+		GLint major = 0, minor = 0;
+		glGetIntegerv(GL_MAJOR_VERSION, &major);
+		glGetIntegerv(GL_MAJOR_VERSION, &minor);
+		_renderer_id = 0x10000 | (major << 12) | (minor << 8);
 
 		// Get vendor and device information on NVIDIA Optimus devices
 		if (GetModuleHandleW(L"nvd3d9wrap.dll") == nullptr &&

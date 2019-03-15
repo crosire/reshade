@@ -26,13 +26,6 @@ namespace reshade
 	{
 	public:
 		/// <summary>
-		/// Construct a new runtime instance.
-		/// </summary>
-		/// <param name="renderer">A unique number identifying the renderer implementation.</param>
-		runtime(uint32_t renderer);
-		virtual ~runtime();
-
-		/// <summary>
 		/// Return the frame width in pixels.
 		/// </summary>
 		unsigned int frame_width() const { return _width; }
@@ -127,6 +120,9 @@ namespace reshade
 		}
 
 	protected:
+		runtime();
+		virtual ~runtime();
+
 		/// <summary>
 		/// Callback function called when the runtime is initialized.
 		/// </summary>
@@ -179,13 +175,13 @@ namespace reshade
 
 		bool _is_initialized = false;
 		bool _has_high_network_activity = false;
-		const unsigned int _renderer_id;
 		unsigned int _width = 0;
 		unsigned int _height = 0;
 		unsigned int _window_width = 0;
 		unsigned int _window_height = 0;
 		unsigned int _vendor_id = 0;
 		unsigned int _device_id = 0;
+		unsigned int _renderer_id = 0;
 		uint64_t _framecount = 0;
 		unsigned int _vertices = 0;
 		unsigned int _drawcalls = 0;

@@ -126,7 +126,7 @@ namespace reshade::d3d11
 	}
 
 	runtime_d3d11::runtime_d3d11(ID3D11Device *device, IDXGISwapChain *swapchain) :
-		runtime(device->GetFeatureLevel()), _device(device), _swapchain(swapchain),
+		_device(device), _swapchain(swapchain),
 		_stateblock(device)
 	{
 		assert(device != nullptr);
@@ -153,6 +153,7 @@ namespace reshade::d3d11
 
 		_vendor_id = adapter_desc.VendorId;
 		_device_id = adapter_desc.DeviceId;
+		_renderer_id = device->GetFeatureLevel();
 
 #if RESHADE_GUI
 		subscribe_to_ui("DX11", [this]() { draw_debug_menu(); });
