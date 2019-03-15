@@ -22,20 +22,16 @@ bool reshade::runtime::check_for_update(unsigned long latest_version[3])
 	const scoped_handle handle = InternetOpen(L"reshade", INTERNET_OPEN_TYPE_PRECONFIG, nullptr, nullptr, 0);
 
 	if (handle == nullptr)
-	{
 		return false;
-	}
 
 	constexpr auto api_url = TEXT("https://api.github.com/repos/crosire/reshade/tags");
 
 	const scoped_handle request = InternetOpenUrl(handle, api_url, nullptr, 0, INTERNET_FLAG_RELOAD | INTERNET_FLAG_PRAGMA_NOCACHE | INTERNET_FLAG_NO_CACHE_WRITE, 0);
 
 	if (request == nullptr)
-	{
 		return false;
-	}
 
-	char response_data[32];
+	CHAR response_data[32];
 	DWORD response_length = 0;
 
 	if (InternetReadFile(request, response_data, sizeof(response_data) - 1, &response_length) && response_length > 0)
@@ -53,12 +49,9 @@ bool reshade::runtime::check_for_update(unsigned long latest_version[3])
 		latest_version[1] = std::strtoul(version_minor_offset, nullptr, 10);
 		latest_version[2] = std::strtoul(version_revision_offset, nullptr, 10);
 
-		if ((latest_version[0] > VERSION_MAJOR) ||
+		return (latest_version[0] > VERSION_MAJOR) ||
 			(latest_version[0] == VERSION_MAJOR && latest_version[1] > VERSION_MINOR) ||
-			(latest_version[0] == VERSION_MAJOR && latest_version[1] == VERSION_MINOR && latest_version[2] > VERSION_REVISION))
-		{
-			return true;
-		}
+			(latest_version[0] == VERSION_MAJOR && latest_version[1] == VERSION_MINOR && latest_version[2] > VERSION_REVISION);
 	}
 #endif
 

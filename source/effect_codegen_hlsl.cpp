@@ -21,6 +21,14 @@ public:
 	}
 
 private:
+	enum class naming
+	{
+		// Will be numbered when clashing with another name
+		general,
+		// Name should already be unique, so no additional steps are taken
+		unique,
+	};
+
 	id _next_id = 1;
 	id _last_block = 0;
 	id _current_block = 0;
@@ -97,7 +105,8 @@ private:
 			s += "int";
 			break;
 		case type::t_uint:
-			s += "uint";
+			// In shader model 3, uints can only be used with known-positive values, so use ints instead
+			s += _shader_model >= 40 ? "uint" : "int";
 			break;
 		case type::t_float:
 			s += "float";
@@ -149,9 +158,9 @@ private:
 		assert(type.is_numeric());
 
 		if (!type.is_scalar())
-			write_type<false, false>(s, type);
-
-		s += '(';
+			write_type<false, false>(s, type), s += '(';
+		else if (type.components() > 1)
+			s += '(';
 
 		for (unsigned int i = 0, components = type.components(); i < components; ++i)
 		{
@@ -177,7 +186,8 @@ private:
 				s += ", ";
 		}
 
-		s += ')';
+		if (!type.is_scalar() || type.components() > 1)
+			s += ')';
 	}
 	template <bool force_source = false>
 	void write_location(std::string &s, const location &loc)
@@ -239,6 +249,15 @@ private:
 		return '_' + std::to_string(id);
 	}
 
+	template <naming naming = naming::general>
+	void define_name(const id id, std::string name)
+	{
+		if constexpr (naming == naming::general)
+			if (std::find_if(_names.begin(), _names.end(), [&name](const auto &it) { return it.second == name; }) != _names.end())
+				name += '_' + std::to_string(id);
+		_names[id] = std::move(name);
+	}
+
 	static void increase_indentation_level(std::string &block)
 	{
 		if (block.empty())
@@ -253,7 +272,7 @@ private:
 	id   define_struct(const location &loc, struct_info &info) override
 	{
 		info.definition = make_id();
-		_names[info.definition] = info.unique_name;
+		define_name<naming::unique>(info.definition, info.unique_name);
 
 		_structs.push_back(info);
 
@@ -282,7 +301,7 @@ private:
 	id   define_texture(const location &loc, texture_info &info) override
 	{
 		info.id = make_id();
-		info.binding = _current_texture_binding++;
+		info.binding = _current_texture_binding;
 
 		_module.textures.push_back(info);
 
@@ -292,7 +311,10 @@ private:
 		{
 			write_location(code, loc);
 
-			code += "Texture2D " + info.unique_name + " : register(t" + std::to_string(info.binding) + ");\n";
+			code += "Texture2D "       + info.unique_name + " : register(t" + std::to_string(info.binding + 0) + ");\n";
+			code += "Texture2D __srgb" + info.unique_name + " : register(t" + std::to_string(info.binding + 1) + ");\n";
+
+			_current_texture_binding += 2;
 		}
 
 		return info.id;
@@ -301,7 +323,7 @@ private:
 	{
 		info.id = make_id();
 
-		_names[info.id] = info.unique_name;
+		define_name<naming::unique>(info.id, info.unique_name);
 
 		const auto texture = std::find_if(_module.textures.begin(), _module.textures.end(),
 			[&info](const auto &it) { return it.unique_name == info.texture_name; });
@@ -326,11 +348,12 @@ private:
 				code += "SamplerState __s" + std::to_string(info.binding) + " : register(s" + std::to_string(info.binding) + ");\n";
 			}
 
-			info.texture_binding = texture->binding;
+			assert(info.srgb == 0 || info.srgb == 1);
+			info.texture_binding = texture->binding + info.srgb; // Offset binding by one to choose the SRGB variant
 
 			write_location(code, loc);
 
-			code += "static const __sampler2D " + info.unique_name + " = { " + info.texture_name + ", __s" + std::to_string(info.binding) + " };\n";
+			code += "static const __sampler2D " + id_to_name(info.id) + " = { " + (info.srgb ? "__srgb" : "") + info.texture_name + ", __s" + std::to_string(info.binding) + " };\n";
 		}
 		else
 		{
@@ -340,12 +363,12 @@ private:
 
 			write_location(code, loc);
 
-			code += "static const __sampler2D " + info.unique_name + " = { __" + info.unique_name + "_s, float2(";
+			code += "static const __sampler2D " + id_to_name(info.id) + " = { __" + info.unique_name + "_s, float2(";
 
 			if (texture->semantic.empty())
 				code += std::to_string(1.0f / texture->width) + ", " + std::to_string(1.0f / texture->height);
 			else
-				code += "0, 0";
+				code += texture->semantic + "_PIXEL_SIZE"; // Expect application to set inverse texture size via a define if it is not known here
 
 			code += ") }; \n";
 		}
@@ -358,9 +381,9 @@ private:
 	{
 		const id res = make_id();
 
-		_names[res] = "_Globals_" + info.name;
+		define_name<naming::unique>(res, "_Globals_" + info.name);
 
-		if (_uniforms_to_spec_constants && info.type.is_scalar() && info.has_initializer_value)
+		if (_uniforms_to_spec_constants && info.has_initializer_value)
 		{
 			std::string &code = _blocks.at(_current_block);
 
@@ -369,7 +392,8 @@ private:
 			code += "static const ";
 			write_type(code, info.type);
 			code += ' ' + id_to_name(res) + " = ";
-			write_type<false, false>(code, info.type);
+			if (!info.type.is_scalar())
+				write_type<false, false>(code, info.type);
 			code += "(SPEC_CONSTANT_" + info.name + ");\n";
 
 			_module.spec_constants.push_back(info);
@@ -417,7 +441,7 @@ private:
 		const id res = make_id();
 
 		if (!name.empty())
-			_names[res] = std::move(name);
+			define_name<naming::general>(res, name);
 
 		std::string &code = _blocks.at(_current_block);
 
@@ -450,7 +474,7 @@ private:
 			name += '_';
 
 		info.definition = make_id();
-		_names[info.definition] = std::move(name);
+		define_name<naming::unique>(info.definition, name);
 
 		std::string &code = _blocks.at(_current_block);
 
@@ -464,13 +488,13 @@ private:
 			auto &param = info.parameter_list[i];
 
 			param.definition = make_id();
-			_names[param.definition] = param.name;
+			define_name<naming::unique>(param.definition, param.name);
 
 			code += '\n';
 			write_location(code, param.location);
 			code += '\t';
 			write_type<true>(code, param.type);
-			code += ' ' + param.name;
+			code += ' ' + id_to_name(param.definition);
 
 			if (param.type.is_array())
 				code += '[' + std::to_string(param.type.array_length) + ']';
@@ -523,7 +547,7 @@ private:
 		const auto is_position_semantic = [](const std::string &semantic) { return semantic == "SV_POSITION" || semantic == "POSITION"; };
 
 		const auto ret = make_id();
-		_names[ret] = "ret";
+		define_name<naming::general>(ret, "ret");
 
 		std::string position_variable_name;
 
@@ -559,7 +583,7 @@ private:
 
 		code += '\t';
 		if (is_color_semantic(func.return_semantic))
-			code += "const float4 ret = float4(";
+			code += "const float4 " + id_to_name(ret) + " = float4(";
 		else if (!func.return_type.is_void())
 			write_type(code, func.return_type), code += ' ' + id_to_name(ret) + " = ";
 
@@ -640,12 +664,15 @@ private:
 				{ std::string type; write_type<false, false>(type, op.to);
 				newcode = "((" + type + ')' + newcode + ')'; }
 				break;
-			case expression::operation::op_index:
-				newcode += '[' + id_to_name(op.index) + ']';
-				break;
 			case expression::operation::op_member:
 				newcode += '.';
 				newcode += find_struct(op.from.definition).member_list[op.index].name;
+				break;
+			case expression::operation::op_constant_index:
+				newcode += '[' + std::to_string(op.index) + ']';
+				break;
+			case expression::operation::op_dynamic_index:
+				newcode += '[' + id_to_name(op.index) + ']';
 				break;
 			case expression::operation::op_swizzle:
 				newcode += '.';
@@ -682,12 +709,15 @@ private:
 		{
 			switch (op.op)
 			{
-			case expression::operation::op_index:
-				code += '[' + id_to_name(op.index) + ']';
-				break;
 			case expression::operation::op_member:
 				code += '.';
 				code += find_struct(op.from.definition).member_list[op.index].name;
+				break;
+			case expression::operation::op_dynamic_index:
+				code += '[' + id_to_name(op.index) + ']';
+				break;
+			case expression::operation::op_constant_index:
+				code += '[' + std::to_string(op.index) + ']';
 				break;
 			case expression::operation::op_swizzle:
 				code += '.';

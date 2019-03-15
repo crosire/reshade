@@ -148,6 +148,7 @@ private:
 	};
 
 	spirv_basic_block _entries;
+	spirv_basic_block _execution_modes;
 	spirv_basic_block _debug_a;
 	spirv_basic_block _debug_b;
 	spirv_basic_block _annotations;
@@ -244,10 +245,10 @@ private:
 
 		// All capabilities
 		spirv_instruction(spv::OpCapability)
-			.add(spv::CapabilityMatrix)
+			.add(spv::CapabilityShader)
 			.write(module.spirv);
 		spirv_instruction(spv::OpCapability)
-			.add(spv::CapabilityShader)
+			.add(spv::CapabilityMatrix)
 			.write(module.spirv);
 
 		for (spv::Capability capability : _capabilities)
@@ -272,6 +273,10 @@ private:
 
 		// All entry point declarations
 		for (const auto &node : _entries.instructions)
+			node.write(module.spirv);
+
+		// All execution mode declarations
+		for (const auto &node : _execution_modes.instructions)
 			node.write(module.spirv);
 
 		if (_debug_info)
@@ -985,6 +990,11 @@ private:
 			.add(entry_point.definition)
 			.add_string(func.unique_name.c_str())
 			.add(inputs_and_outputs.begin(), inputs_and_outputs.end());
+
+		if (is_ps)
+			add_instruction_without_result(spv::OpExecutionMode, _execution_modes)
+				.add(entry_point.definition)
+				.add(spv::ExecutionModeOriginUpperLeft);
 	}
 
 	id   emit_load(const expression &exp) override
@@ -992,9 +1002,9 @@ private:
 		if (exp.is_constant) // Constant expressions do not have a complex access chain
 			return emit_constant(exp.type, exp.constant);
 
+		size_t i = 0;
 		spv::Id result = exp.base;
 
-		size_t op_index2 = 0;
 		auto base_type = exp.type;
 		bool is_uniform_bool = false;
 
@@ -1030,31 +1040,38 @@ private:
 			}
 
 			// Any indexing expressions can be resolved during load with an 'OpAccessChain' already
-			if (!exp.chain.empty() && (exp.chain[0].op == expression::operation::op_index || exp.chain[0].op == expression::operation::op_member))
+			if (!exp.chain.empty() && (
+				exp.chain[0].op == expression::operation::op_member ||
+				exp.chain[0].op == expression::operation::op_dynamic_index ||
+				exp.chain[0].op == expression::operation::op_constant_index))
 			{
 				spirv_instruction &node = add_instruction(spv::OpAccessChain)
 					.add(result); // Base
 
 				// Ignore first index into 1xN matrices, since they were translated to a vector type in SPIR-V
 				if (exp.chain[0].from.rows == 1 && exp.chain[0].from.cols > 1)
-					op_index2 = 1;
+					i = 1;
 
 				do {
-					base_type = exp.chain[op_index2].to;
-					if (exp.chain[op_index2].op == expression::operation::op_index)
-						node.add(exp.chain[op_index2++].index); // Indexes
-					else
-						node.add(emit_constant(exp.chain[op_index2++].index)); // Indexes
-				} while (op_index2 < exp.chain.size() && (exp.chain[op_index2].op == expression::operation::op_index || exp.chain[op_index2].op == expression::operation::op_member));
-				node.type = convert_type(exp.chain[op_index2 - 1].to, true, storage); // Last type is the result
-				result = node.result; // Result ID
+					node.add(exp.chain[i].op == expression::operation::op_dynamic_index ?
+						exp.chain[i].index :
+						emit_constant(exp.chain[i].index)); // Indexes
+					base_type = exp.chain[i++].to;
+				} while (i < exp.chain.size() && (
+					exp.chain[i].op == expression::operation::op_member ||
+					exp.chain[i].op == expression::operation::op_dynamic_index ||
+					exp.chain[i].op == expression::operation::op_constant_index));
+
+				node.type = convert_type(exp.chain[i - 1].to, true, storage); // Last type is the result
+				result = node.result;
 			}
 
 			result = add_instruction(spv::OpLoad, convert_type(base_type))
 				.add(result) // Pointer
-				.result; // Result ID
+				.result;
 		}
 
+		// Need to convert boolean uniforms which are actually integers in SPIR-V
 		if (is_uniform_bool)
 		{
 			base_type.base = type::t_bool;
@@ -1066,104 +1083,74 @@ private:
 		}
 
 		// Work through all remaining operations in the access chain and apply them to the value
-		for (; op_index2 < exp.chain.size(); ++op_index2)
+		for (; i < exp.chain.size(); ++i)
 		{
-			const auto &op = exp.chain[op_index2];
+			const auto &op = exp.chain[i];
 
 			switch (op.op)
 			{
 			case expression::operation::op_cast:
-				if (op.from.base != op.to.base)
+				if (op.from.is_boolean())
 				{
-					type from_with_to_base = op.from;
-					from_with_to_base.base = op.to.base;
+					const spv::Id true_constant = emit_constant(op.to, 1);
+					const spv::Id false_constant = emit_constant(op.to, 0);
 
-					if (op.from.is_boolean())
-					{
-						constant true_value = {};
-						constant false_value = {};
-						for (unsigned int i = 0; i < op.to.components(); ++i)
-							true_value.as_uint[i] = op.to.is_floating_point() ? 0x3f800000 : 1;
-						const spv::Id true_constant = emit_constant(from_with_to_base, true_value);
-						const spv::Id false_constant = emit_constant(from_with_to_base, false_value);
-
-						result = add_instruction(spv::OpSelect, convert_type(from_with_to_base))
-							.add(result) // Condition
-							.add(true_constant)
-							.add(false_constant)
-							.result;
-					}
-					else
-					{
-						switch (op.to.base)
-						{
-						case type::t_bool:
-							result = add_instruction(op.from.is_floating_point() ? spv::OpFOrdNotEqual : spv::OpINotEqual, convert_type(from_with_to_base))
-								.add(result)
-								.add(emit_constant(op.from, {}))
-								.result;
-							break;
-						case type::t_int:
-							result = add_instruction(op.from.is_floating_point() ? spv::OpConvertFToS : spv::OpBitcast, convert_type(from_with_to_base))
-								.add(result)
-								.result;
-							break;
-						case type::t_uint:
-							result = add_instruction(op.from.is_floating_point() ? spv::OpConvertFToU : spv::OpBitcast, convert_type(from_with_to_base))
-								.add(result)
-								.result;
-							break;
-						case type::t_float:
-							assert(op.from.is_integral());
-							result = add_instruction(op.from.is_signed() ? spv::OpConvertSToF : spv::OpConvertUToF, convert_type(from_with_to_base))
-								.add(result)
-								.result;
-							break;
-						}
-					}
+					result = add_instruction(spv::OpSelect, convert_type(op.to))
+						.add(result) // Condition
+						.add(true_constant)
+						.add(false_constant)
+						.result;
 				}
-
-				if (op.to.components() > op.from.components())
+				else if (op.to.is_boolean())
 				{
-					spirv_instruction &composite_node = add_instruction(exp.is_constant ? spv::OpConstantComposite : spv::OpCompositeConstruct, convert_type(op.to));
-					for (unsigned int i = 0; i < op.to.components(); ++i)
-						composite_node.add(result);
-					result = composite_node.result;
+					result = add_instruction(op.from.is_floating_point() ? spv::OpFOrdNotEqual : spv::OpINotEqual, convert_type(op.to))
+						.add(result)
+						.add(emit_constant(op.from, 0))
+						.result;
 				}
-				if (op.from.components() > op.to.components())
+				else
 				{
-					//signed char swizzle[4] = { -1, -1, -1, -1 };
-					//for (unsigned int i = 0; i < rhs.type.rows; ++i)
-					//	swizzle[i] = i;
-					//from.push_swizzle(swizzle);
-					assert(false); // TODO
+					spv::Op spv_op = spv::OpNop;
+
+					switch (op.to.base)
+					{
+					case type::t_int:
+						spv_op = op.from.is_floating_point() ? spv::OpConvertFToS : spv::OpBitcast;
+						break;
+					case type::t_uint:
+						spv_op = op.from.is_floating_point() ? spv::OpConvertFToU : spv::OpBitcast;
+						break;
+					case type::t_float:
+						assert(op.from.is_integral());
+						spv_op = op.from.is_signed() ? spv::OpConvertSToF : spv::OpConvertUToF;
+						break;
+					}
+
+					result = add_instruction(spv_op, convert_type(op.to))
+						.add(result)
+						.result;
 				}
 				break;
-			case expression::operation::op_index:
-				if (op.from.is_array())
+			case expression::operation::op_dynamic_index:
+				if (op.from.is_vector())
 				{
-					assert(false);
-					/*assert(result != 0);
-					//result = add_instruction(section, chain.location, spv::OpCompositeExtract, convert_type(op.to))
-					//	.add(result)
-					//	.add(op.index)
-					//	.result;
-					result = add_instruction(section, chain.location, spv::OpAccessChain, convert_type(op.to))
-						.add(result)
-						.add(op.index)
-						.result;
-					result = add_instruction(section, chain.location, spv::OpLoad, convert_type(op.to))
-						.add(result)
-						.result;*/
-					break;
-				}
-				else if (op.from.is_vector() && op.to.is_scalar())
-				{
-					assert(result != 0);
+					assert(result != 0 && op.to.is_scalar());
 					result = add_instruction(spv::OpVectorExtractDynamic, convert_type(op.to))
 						.add(result) // Vector
 						.add(op.index) // Index
 						.result; // Result ID
+					break;
+				}
+				assert(false);
+				break;
+			case expression::operation::op_constant_index:
+				if (op.from.is_vector())
+				{
+					assert(result != 0 && op.to.is_scalar());
+					result = add_instruction(spv::OpCompositeExtract, convert_type(op.to))
+						.add(result)
+						.add(op.index) // Literal Index
+						.result;
 					break;
 				}
 				assert(false);
@@ -1175,10 +1162,10 @@ private:
 					{
 						spv::Id components[4];
 
-						for (unsigned int i = 0; i < 4 && op.swizzle[i] >= 0; ++i)
+						for (unsigned int c = 0; c < 4 && op.swizzle[c] >= 0; ++c)
 						{
-							const unsigned int row = op.swizzle[i] / 4;
-							const unsigned int column = op.swizzle[i] - row * 4;
+							const unsigned int row = op.swizzle[c] / 4;
+							const unsigned int column = op.swizzle[c] - row * 4;
 
 							type scalar_type = op.to;
 							scalar_type.rows = 1;
@@ -1193,43 +1180,47 @@ private:
 
 							node.add(column);
 
-							components[i] = node.result;
+							components[c] = node.result;
 						}
 
 						spirv_instruction &node = add_instruction(spv::OpCompositeConstruct, convert_type(op.to));
 
-						for (unsigned int i = 0; i < 4 && op.swizzle[i] >= 0; ++i)
-						{
-							node.add(components[i]);
-						}
+						for (unsigned int c = 0; c < 4 && op.swizzle[c] >= 0; ++c)
+							node.add(components[c]);
+
+						result = node.result;
+						break;
+					}
+					else if (op.from.is_vector())
+					{
+						spirv_instruction &node = add_instruction(spv::OpVectorShuffle, convert_type(op.to))
+							.add(result) // Vector 1
+							.add(result); // Vector 2
+
+						for (unsigned int c = 0; c < 4 && op.swizzle[c] >= 0; ++c)
+							node.add(op.swizzle[c]);
 
 						result = node.result;
 						break;
 					}
 					else
 					{
-						assert(op.from.is_vector());
+						spirv_instruction &node = add_instruction(spv::OpCompositeConstruct, convert_type(op.to));
 
-						spirv_instruction &node = add_instruction(spv::OpVectorShuffle, convert_type(op.to))
-							.add(result) // Vector 1
-							.add(result); // Vector 2
-
-						for (unsigned int i = 0; i < 4 && op.swizzle[i] >= 0; ++i)
-							node.add(op.swizzle[i]);
+						for (unsigned int c = 0; c < op.to.rows; ++c)
+							node.add(result);
 
 						result = node.result;
 						break;
 					}
 				}
-				else if (op.to.is_scalar())
+				else if (op.from.is_matrix() && op.to.is_scalar())
 				{
-					assert(op.swizzle[1] < 0);
-
-					assert(result != 0);
+					assert(result != 0 && op.swizzle[1] < 0);
 					spirv_instruction &node = add_instruction(spv::OpCompositeExtract, convert_type(op.to))
 						.add(result); // Composite
 
-					if (op.from.is_matrix() && op.from.rows > 1)
+					if (op.from.rows > 1)
 					{
 						const unsigned int row = op.swizzle[0] / 4;
 						const unsigned int column = op.swizzle[0] - row * 4;
@@ -1258,16 +1249,16 @@ private:
 
 		add_location(exp.location, *_current_block_data);
 
+		size_t i = 0;
 		spv::Id target = exp.base;
 
-		size_t op_index2 = 0;
-
-		auto base_type = exp.type;
-		if (!exp.chain.empty())
-			base_type = exp.chain[0].from;
+		auto base_type = exp.chain.empty() ? exp.type : exp.chain[0].from;
 
 		// Any indexing expressions can be resolved with an 'OpAccessChain' already
-		if (!exp.chain.empty() && (exp.chain[0].op == expression::operation::op_index || exp.chain[0].op == expression::operation::op_member))
+		if (!exp.chain.empty() && (
+			exp.chain[0].op == expression::operation::op_member ||
+			exp.chain[0].op == expression::operation::op_dynamic_index ||
+			exp.chain[0].op == expression::operation::op_constant_index))
 		{
 			spv::StorageClass storage = spv::StorageClassFunction;
 			if (const auto it = _storage_lookup.find(exp.base); it != _storage_lookup.end())
@@ -1278,35 +1269,35 @@ private:
 
 			// Ignore first index into 1xN matrices, since they were translated to a vector type in SPIR-V
 			if (exp.chain[0].from.rows == 1 && exp.chain[0].from.cols > 1)
-				op_index2 = 1;
+				i = 1;
 
 			do {
-				base_type = exp.chain[op_index2].to;
-				if (exp.chain[op_index2].op == expression::operation::op_index)
-					node.add(exp.chain[op_index2++].index); // Indexes
-				else
-					node.add(emit_constant(exp.chain[op_index2++].index)); // Indexes
-			} while (op_index2 < exp.chain.size() && (exp.chain[op_index2].op == expression::operation::op_index || exp.chain[op_index2].op == expression::operation::op_member));
-			node.type = convert_type(exp.chain[op_index2 - 1].to, true, storage); // Last type is the result
-			target = node.result; // Result ID
+				node.add(exp.chain[i].op == expression::operation::op_dynamic_index ?
+					exp.chain[i].index :
+					emit_constant(exp.chain[i].index)); // Indexes
+				base_type = exp.chain[i++].to;
+			} while (i < exp.chain.size() && (
+				exp.chain[i].op == expression::operation::op_member ||
+				exp.chain[i].op == expression::operation::op_dynamic_index ||
+				exp.chain[i].op == expression::operation::op_constant_index));
+
+			node.type = convert_type(exp.chain[i - 1].to, true, storage); // Last type is the result
+			target = node.result;
 		}
 
 		// TODO: Complex access chains like float4x4[0].m00m10[0] = 0;
 		// Work through all remaining operations in the access chain and apply them to the value
-		for (; op_index2 < exp.chain.size(); ++op_index2)
+		for (; i < exp.chain.size(); ++i)
 		{
-			const auto &op = exp.chain[op_index2];
+			const auto &op = exp.chain[i];
 
 			switch (op.op)
 			{
-			case expression::operation::op_cast:
-				assert(false); // This cannot happen
-				break;
-			case expression::operation::op_index:
+			case expression::operation::op_constant_index:
+			case expression::operation::op_dynamic_index:
 				assert(false);
 				break;
-			case expression::operation::op_swizzle:
-			{
+			case expression::operation::op_swizzle: {
 				spv::Id result = add_instruction(spv::OpLoad, convert_type(base_type))
 					.add(target) // Pointer
 					.result; // Result ID
@@ -1318,17 +1309,17 @@ private:
 						.add(value); // Vector 2
 
 					unsigned int shuffle[4] = { 0, 1, 2, 3 };
-					for (unsigned int i = 0; i < base_type.rows; ++i)
-						if (op.swizzle[i] >= 0)
-							shuffle[op.swizzle[i]] = base_type.rows + i;
-					for (unsigned int i = 0; i < base_type.rows; ++i)
-						node.add(shuffle[i]);
+					for (unsigned int c = 0; c < base_type.rows; ++c)
+						if (op.swizzle[c] >= 0)
+							shuffle[op.swizzle[c]] = base_type.rows + i;
+					for (unsigned int c = 0; c < base_type.rows; ++c)
+						node.add(shuffle[c]);
 
 					value = node.result;
 				}
 				else if (op.to.is_scalar())
 				{
-					assert(op.swizzle[1] < 0); // TODO
+					assert(op.swizzle[1] < 0);
 
 					spirv_instruction &node = add_instruction(spv::OpCompositeInsert, convert_type(base_type))
 						.add(value) // Object
@@ -1352,8 +1343,7 @@ private:
 				{
 					assert(false);
 				}
-				break;
-			}
+				break; }
 			}
 		}
 
@@ -1367,6 +1357,16 @@ private:
 		constant data;
 		data.as_uint[0] = value;
 		return emit_constant({ type::t_uint, 1, 1 }, data, false);
+	}
+	id   emit_constant(const type &type, uint32_t value)
+	{
+		constant data;
+		for (unsigned int i = 0; i < type.components(); ++i)
+			if (type.is_integral())
+				data.as_uint[i] = value;
+			else
+				data.as_float[i] = static_cast<float>(value);
+		return emit_constant(type, data, false);
 	}
 	id   emit_constant(const type &type, const constant &data) override
 	{
@@ -1575,22 +1575,28 @@ private:
 			spv_op = spv::OpLogicalAnd;
 			break;
 		case tokenid::less:
-			spv_op = type.is_floating_point() ? spv::OpFOrdLessThan : type.is_signed() ? spv::OpSLessThan : spv::OpULessThan;
+			spv_op = type.is_floating_point() ? spv::OpFOrdLessThan :
+				type.is_signed() ? spv::OpSLessThan : spv::OpULessThan;
 			break;
 		case tokenid::less_equal:
-			spv_op = type.is_floating_point() ? spv::OpFOrdLessThanEqual : type.is_signed() ? spv::OpSLessThanEqual : spv::OpULessThanEqual;
+			spv_op = type.is_floating_point() ? spv::OpFOrdLessThanEqual :
+				type.is_signed() ? spv::OpSLessThanEqual : spv::OpULessThanEqual;
 			break;
 		case tokenid::greater:
-			spv_op = type.is_floating_point() ? spv::OpFOrdGreaterThan : type.is_signed() ? spv::OpSGreaterThan : spv::OpUGreaterThan;
+			spv_op = type.is_floating_point() ? spv::OpFOrdGreaterThan :
+				type.is_signed() ? spv::OpSGreaterThan : spv::OpUGreaterThan;
 			break;
 		case tokenid::greater_equal:
-			spv_op = type.is_floating_point() ? spv::OpFOrdGreaterThanEqual : type.is_signed() ? spv::OpSGreaterThanEqual : spv::OpUGreaterThanEqual;
+			spv_op = type.is_floating_point() ? spv::OpFOrdGreaterThanEqual :
+				type.is_signed() ? spv::OpSGreaterThanEqual : spv::OpUGreaterThanEqual;
 			break;
 		case tokenid::equal_equal:
-			spv_op = type.is_floating_point() ? spv::OpFOrdEqual : type.is_integral() ? spv::OpIEqual : spv::OpLogicalEqual;
+			spv_op = type.is_floating_point() ? spv::OpFOrdEqual :
+				type.is_integral() ? spv::OpIEqual : spv::OpLogicalEqual;
 			break;
 		case tokenid::exclaim_equal:
-			spv_op = type.is_integral() ? spv::OpINotEqual : type.is_floating_point() ? spv::OpFOrdNotEqual : spv::OpLogicalNotEqual;
+			spv_op = type.is_floating_point() ? spv::OpFOrdNotEqual :
+				type.is_integral() ? spv::OpINotEqual : spv::OpLogicalNotEqual;
 			break;
 		default:
 			return assert(false), 0;

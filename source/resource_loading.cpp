@@ -23,7 +23,7 @@ namespace reshade::resources
 	}
 	image_resource load_image_resource(unsigned int id)
 	{
-		DIBSECTION dib = { };
+		DIBSECTION dib = {};
 		const HANDLE handle = LoadImage(g_module_handle, MAKEINTRESOURCE(id), IMAGE_BITMAP, 0, 0, LR_CREATEDIBSECTION);
 		GetObject(handle, sizeof(dib), &dib);
 

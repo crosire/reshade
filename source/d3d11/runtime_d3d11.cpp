@@ -376,8 +376,13 @@ namespace reshade::d3d11
 
 	bool runtime_d3d11::on_init(const DXGI_SWAP_CHAIN_DESC &desc)
 	{
+		RECT window_rect = {};
+		GetClientRect(desc.OutputWindow, &window_rect);
+
 		_width = desc.BufferDesc.Width;
 		_height = desc.BufferDesc.Height;
+		_window_width = window_rect.right - window_rect.left;
+		_window_height = window_rect.bottom - window_rect.top;
 		_backbuffer_format = desc.BufferDesc.Format;
 		_is_multisampling_enabled = desc.SampleDesc.Count > 1;
 
@@ -388,9 +393,7 @@ namespace reshade::d3d11
 			|| !init_imgui_resources()
 #endif
 			)
-		{
 			return false;
-		}
 
 		// Clear reference count to make UnrealEngine happy
 		_backbuffer->Release();
@@ -527,7 +530,7 @@ namespace reshade::d3d11
 			_backbuffer_format != DXGI_FORMAT_B8G8R8A8_UNORM &&
 			_backbuffer_format != DXGI_FORMAT_B8G8R8A8_UNORM_SRGB)
 		{
-			LOG(WARNING) << "Screenshots are not supported for back buffer format " << _backbuffer_format << ".";
+			LOG(WARN) << "Screenshots are not supported for back buffer format " << _backbuffer_format << '.';
 			return;
 		}
 
@@ -674,30 +677,7 @@ namespace reshade::d3d11
 
 		const auto D3DCompile = reinterpret_cast<pD3DCompile>(GetProcAddress(_d3d_compiler, "D3DCompile"));
 
-		// Add specialization constant defines to source code
-		std::string spec_constants;
-		for (const auto &constant : effect.module.spec_constants)
-		{
-			spec_constants += "#define SPEC_CONSTANT_" + constant.name + ' ';
-
-			switch (constant.type.base)
-			{
-			case reshadefx::type::t_int:
-				spec_constants += std::to_string(constant.initializer_value.as_int[0]);
-				break;
-			case reshadefx::type::t_bool:
-			case reshadefx::type::t_uint:
-				spec_constants += std::to_string(constant.initializer_value.as_uint[0]);
-				break;
-			case reshadefx::type::t_float:
-				spec_constants += std::to_string(constant.initializer_value.as_float[0]);
-				break;
-			}
-
-			spec_constants += '\n';
-		}
-
-		const std::string hlsl = spec_constants + effect.module.hlsl;
+		const std::string hlsl = effect.preamble + effect.module.hlsl;
 
 		std::unordered_map<std::string, com_ptr<ID3D11PixelShader>> ps_entry_points;
 		std::unordered_map<std::string, com_ptr<ID3D11VertexShader>> vs_entry_points;
@@ -797,7 +777,12 @@ namespace reshade::d3d11
 	{
 		if (info.binding >= D3D11_COMMONSHADER_SAMPLER_SLOT_COUNT)
 		{
-			LOG(ERROR) << "Cannot create sampler '" << info.unique_name << "' since it exceeds the maximum number of allowed sampler slots in D3D11 (" << info.binding << ", allowed are up to " << D3D11_COMMONSHADER_SAMPLER_SLOT_COUNT << ").";
+			LOG(ERROR) << "Cannot bind sampler '" << info.unique_name << "' since it exceeds the maximum number of allowed sampler slots in D3D11 (" << info.binding << ", allowed are up to " << D3D11_COMMONSHADER_SAMPLER_SLOT_COUNT << ").";
+			return false;
+		}
+		if (info.texture_binding >= D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT)
+		{
+			LOG(ERROR) << "Cannot bind texture '" << info.texture_name << "' since it exceeds the maximum number of allowed resource slots in D3D11 (" << info.texture_binding << ", allowed are up to " << D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT << ").";
 			return false;
 		}
 

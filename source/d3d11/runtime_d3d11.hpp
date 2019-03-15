@@ -10,6 +10,14 @@
 #include "draw_call_tracker.hpp"
 #include <mutex>
 
+inline reshade::log::message &operator<<(reshade::log::message &m, REFIID riid)
+{
+	OLECHAR riid_string[40];
+	StringFromGUID2(riid, riid_string, ARRAYSIZE(riid_string));
+
+	return m << riid_string;
+}
+
 namespace reshade::d3d11
 {
 	struct d3d11_tex_data : base_object

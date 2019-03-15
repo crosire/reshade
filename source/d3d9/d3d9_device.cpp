@@ -10,15 +10,19 @@
 
 extern void dump_present_parameters(const D3DPRESENT_PARAMETERS &pp);
 
-// IDirect3DDevice9
+Direct3DDevice9::Direct3DDevice9(IDirect3DDevice9   *original) :
+	_orig(original),
+	_extended_interface(false) {}
+Direct3DDevice9::Direct3DDevice9(IDirect3DDevice9Ex *original) :
+	_orig(original),
+	_extended_interface(true) {}
+
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::QueryInterface(REFIID riid, void **ppvObj)
 {
 	if (ppvObj == nullptr)
-	{
 		return E_POINTER;
-	}
-	else if (
-		riid == __uuidof(this) ||
+
+	if (riid == __uuidof(this) ||
 		riid == __uuidof(IUnknown) ||
 		riid == __uuidof(IDirect3DDevice9) ||
 		riid == __uuidof(IDirect3DDevice9Ex))
@@ -27,16 +31,13 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::QueryInterface(REFIID riid, void **pp
 		if (!_extended_interface && riid == __uuidof(IDirect3DDevice9Ex))
 		{
 			IDirect3DDevice9Ex *deviceex = nullptr;
-
 			if (FAILED(_orig->QueryInterface(IID_PPV_ARGS(&deviceex))))
-			{
 				return E_NOINTERFACE;
-			}
 
 			_orig->Release();
 
 #if RESHADE_VERBOSE_LOG
-			LOG(DEBUG) << "Upgraded 'IDirect3DDevice9' object " << this << " to 'IDirect3DDevice9Ex'.";
+			LOG(DEBUG) << "Upgraded IDirect3DDevice9 object " << this << " to IDirect3DDevice9Ex.";
 #endif
 			_orig = deviceex;
 			_extended_interface = 1;
@@ -52,13 +53,13 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::QueryInterface(REFIID riid, void **pp
 
 	return _orig->QueryInterface(riid, ppvObj);
 }
-ULONG STDMETHODCALLTYPE Direct3DDevice9::AddRef()
+  ULONG STDMETHODCALLTYPE Direct3DDevice9::AddRef()
 {
 	_ref++;
 
 	return _orig->AddRef();
 }
-ULONG STDMETHODCALLTYPE Direct3DDevice9::Release()
+  ULONG STDMETHODCALLTYPE Direct3DDevice9::Release()
 {
 	if (--_ref == 0)
 	{
@@ -69,32 +70,31 @@ ULONG STDMETHODCALLTYPE Direct3DDevice9::Release()
 		_implicit_swapchain->Release();
 	}
 
-	ULONG ref = _orig->Release();
+	const ULONG ref = _orig->Release();
 
-	if (_ref == 0 && ref != 0)
-	{
-		LOG(WARNING) << "Reference count for 'IDirect3DDevice9" << (_extended_interface ? "Ex" : "") << "' object " << this << " is inconsistent: " << ref << ", but expected 0.";
-
-		ref = 0;
-	}
-
-	if (ref == 0)
+	if (_ref == 0 || ref == 0)
 	{
 		assert(_ref <= 0);
 
+		if (ref != 0)
+			LOG(WARN) << "Reference count for IDirect3DDevice9" << (_extended_interface ? "Ex" : "") << " object " << this << " is inconsistent: " << ref << ", but expected 0.";
+
 #if RESHADE_VERBOSE_LOG
-		LOG(DEBUG) << "Destroyed 'IDirect3DDevice9" << (_extended_interface ? "Ex" : "") << "' object " << this << ".";
+		LOG(DEBUG) << "Destroying IDirect3DDevice9" << (_extended_interface ? "Ex" : "") << " object " << this << '.';
 #endif
 		delete this;
+
+		return 0;
 	}
 
 	return ref;
 }
+
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::TestCooperativeLevel()
 {
 	return _orig->TestCooperativeLevel();
 }
-UINT STDMETHODCALLTYPE Direct3DDevice9::GetAvailableTextureMem()
+   UINT STDMETHODCALLTYPE Direct3DDevice9::GetAvailableTextureMem()
 {
 	return _orig->GetAvailableTextureMem();
 }
@@ -114,8 +114,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetDisplayMode(UINT iSwapChain, D3DDI
 {
 	if (iSwapChain != 0)
 	{
-		LOG(WARNING) << "Access to multi-head swap chain at index " << iSwapChain << " is unsupported.";
-
+		LOG(WARN) << "Access to multi-head swap chain at index " << iSwapChain << " is unsupported.";
 		return D3DERR_INVALIDCALL;
 	}
 
@@ -131,22 +130,20 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetCursorProperties(UINT XHotSpot, UI
 {
 	return _orig->SetCursorProperties(XHotSpot, YHotSpot, pCursorBitmap);
 }
-void STDMETHODCALLTYPE Direct3DDevice9::SetCursorPosition(int X, int Y, DWORD Flags)
+   void STDMETHODCALLTYPE Direct3DDevice9::SetCursorPosition(int X, int Y, DWORD Flags)
 {
 	return _orig->SetCursorPosition(X, Y, Flags);
 }
-BOOL STDMETHODCALLTYPE Direct3DDevice9::ShowCursor(BOOL bShow)
+   BOOL STDMETHODCALLTYPE Direct3DDevice9::ShowCursor(BOOL bShow)
 {
 	return _orig->ShowCursor(bShow);
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateAdditionalSwapChain(D3DPRESENT_PARAMETERS *pPresentationParameters, IDirect3DSwapChain9 **ppSwapChain)
 {
-	LOG(INFO) << "Redirecting '" << "IDirect3DDevice9::CreateAdditionalSwapChain" << "(" << this << ", " << pPresentationParameters << ", " << ppSwapChain << ")' ...";
+	LOG(INFO) << "Redirecting IDirect3DDevice9::CreateAdditionalSwapChain" << '(' << this << ", " << pPresentationParameters << ", " << ppSwapChain << ')' << " ...";
 
 	if (pPresentationParameters == nullptr)
-	{
 		return D3DERR_INVALIDCALL;
-	}
 
 	dump_present_parameters(*pPresentationParameters);
 
@@ -154,8 +151,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateAdditionalSwapChain(D3DPRESENT_
 
 	if (FAILED(hr))
 	{
-		LOG(WARNING) << "> 'IDirect3DDevice9::CreateAdditionalSwapChain' failed with error code " << std::hex << hr << std::dec << "!";
-
+		LOG(WARN) << "> IDirect3DDevice9::CreateAdditionalSwapChain failed with error code " << std::hex << hr << std::dec << '!';
 		return hr;
 	}
 
@@ -170,9 +166,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateAdditionalSwapChain(D3DPRESENT_
 	const auto runtime = std::make_shared<reshade::d3d9::runtime_d3d9>(device, swapchain);
 
 	if (!runtime->on_init(pp))
-	{
-		LOG(ERROR) << "Failed to initialize Direct3D 9 runtime environment on runtime " << runtime.get() << ".";
-	}
+		LOG(ERROR) << "Failed to initialize Direct3D 9 runtime environment on runtime " << runtime.get() << '.';
 
 	AddRef();
 
@@ -182,7 +176,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateAdditionalSwapChain(D3DPRESENT_
 	*ppSwapChain = swapchain_proxy;
 
 #if RESHADE_VERBOSE_LOG
-	LOG(DEBUG) << "Returning 'IDirect3DSwapChain9' object: " << *ppSwapChain;
+	LOG(DEBUG) << "Returning IDirect3DSwapChain9 object: " << *ppSwapChain;
 #endif
 
 	return D3D_OK;
@@ -191,36 +185,30 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetSwapChain(UINT iSwapChain, IDirect
 {
 	if (iSwapChain != 0)
 	{
-		LOG(WARNING) << "Access to multi-head swap chain at index " << iSwapChain << " is unsupported.";
-
+		LOG(WARN) << "Access to multi-head swap chain at index " << iSwapChain << " is unsupported.";
 		return D3DERR_INVALIDCALL;
 	}
 
 	if (ppSwapChain == nullptr)
-	{
 		return D3DERR_INVALIDCALL;
-	}
 
 	assert(_implicit_swapchain != nullptr);
 
 	_implicit_swapchain->AddRef();
-
 	*ppSwapChain = _implicit_swapchain;
 
 	return D3D_OK;
 }
-UINT STDMETHODCALLTYPE Direct3DDevice9::GetNumberOfSwapChains()
+   UINT STDMETHODCALLTYPE Direct3DDevice9::GetNumberOfSwapChains()
 {
 	return 1;
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::Reset(D3DPRESENT_PARAMETERS *pPresentationParameters)
 {
-	LOG(INFO) << "Redirecting '" << "IDirect3DDevice9::Reset" << "(" << this << ", " << pPresentationParameters << ")' ...";
+	LOG(INFO) << "Redirecting IDirect3DDevice9::Reset" << '(' << this << ", " << pPresentationParameters << ')' << " ...";
 
 	if (pPresentationParameters == nullptr)
-	{
 		return D3DERR_INVALIDCALL;
-	}
 
 	dump_present_parameters(*pPresentationParameters);
 
@@ -237,8 +225,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::Reset(D3DPRESENT_PARAMETERS *pPresent
 
 	if (FAILED(hr))
 	{
-		LOG(ERROR) << "> 'IDirect3DDevice9::Reset' failed with error code " << std::hex << hr << std::dec << "!";
-
+		LOG(ERROR) << "> IDirect3DDevice9::Reset failed with error code " << std::hex << hr << std::dec << '!';
 		return hr;
 	}
 
@@ -246,9 +233,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::Reset(D3DPRESENT_PARAMETERS *pPresent
 	_implicit_swapchain->GetPresentParameters(&pp);
 
 	if (!runtime->on_init(pp))
-	{
-		LOG(ERROR) << "Failed to recreate Direct3D 9 runtime environment on runtime " << runtime.get() << ".";
-	}
+		LOG(ERROR) << "Failed to recreate Direct3D 9 runtime environment on runtime " << runtime.get() << '.';
 
 	if (pp.EnableAutoDepthStencil)
 	{
@@ -271,8 +256,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetBackBuffer(UINT iSwapChain, UINT i
 {
 	if (iSwapChain != 0)
 	{
-		LOG(WARNING) << "Access to multi-head swap chain at index " << iSwapChain << " is unsupported.";
-
+		LOG(WARN) << "Access to multi-head swap chain at index " << iSwapChain << " is unsupported.";
 		return D3DERR_INVALIDCALL;
 	}
 
@@ -284,8 +268,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetRasterStatus(UINT iSwapChain, D3DR
 {
 	if (iSwapChain != 0)
 	{
-		LOG(WARNING) << "Access to multi-head swap chain at index " << iSwapChain << " is unsupported.";
-
+		LOG(WARN) << "Access to multi-head swap chain at index " << iSwapChain << " is unsupported.";
 		return D3DERR_INVALIDCALL;
 	}
 
@@ -297,23 +280,21 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetDialogBoxMode(BOOL bEnableDialogs)
 {
 	return _orig->SetDialogBoxMode(bEnableDialogs);
 }
-void STDMETHODCALLTYPE Direct3DDevice9::SetGammaRamp(UINT iSwapChain, DWORD Flags, const D3DGAMMARAMP *pRamp)
+   void STDMETHODCALLTYPE Direct3DDevice9::SetGammaRamp(UINT iSwapChain, DWORD Flags, const D3DGAMMARAMP *pRamp)
 {
 	if (iSwapChain != 0)
 	{
-		LOG(WARNING) << "Access to multi-head swap chain at index " << iSwapChain << " is unsupported.";
-
+		LOG(WARN) << "Access to multi-head swap chain at index " << iSwapChain << " is unsupported.";
 		return;
 	}
 
 	return _orig->SetGammaRamp(0, Flags, pRamp);
 }
-void STDMETHODCALLTYPE Direct3DDevice9::GetGammaRamp(UINT iSwapChain, D3DGAMMARAMP *pRamp)
+   void STDMETHODCALLTYPE Direct3DDevice9::GetGammaRamp(UINT iSwapChain, D3DGAMMARAMP *pRamp)
 {
 	if (iSwapChain != 0)
 	{
-		LOG(WARNING) << "Access to multi-head swap chain at index " << iSwapChain << " is unsupported.";
-
+		LOG(WARN) << "Access to multi-head swap chain at index " << iSwapChain << " is unsupported.";
 		return;
 	}
 
@@ -334,18 +315,14 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateCubeTexture(UINT EdgeLength, UI
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateVertexBuffer(UINT Length, DWORD Usage, DWORD FVF, D3DPOOL Pool, IDirect3DVertexBuffer9 **ppVertexBuffer, HANDLE *pSharedHandle)
 {
 	if (_use_software_rendering)
-	{
 		Usage |= D3DUSAGE_SOFTWAREPROCESSING;
-	}
 
 	return _orig->CreateVertexBuffer(Length, Usage, FVF, Pool, ppVertexBuffer, pSharedHandle);
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateIndexBuffer(UINT Length, DWORD Usage, D3DFORMAT Format, D3DPOOL Pool, IDirect3DIndexBuffer9 **ppIndexBuffer, HANDLE *pSharedHandle)
 {
 	if (_use_software_rendering)
-	{
 		Usage |= D3DUSAGE_SOFTWAREPROCESSING;
-	}
 
 	return _orig->CreateIndexBuffer(Length, Usage, Format, Pool, ppIndexBuffer, pSharedHandle);
 }
@@ -373,8 +350,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetFrontBufferData(UINT iSwapChain, I
 {
 	if (iSwapChain != 0)
 	{
-		LOG(WARNING) << "Access to multi-head swap chain at index " << iSwapChain << " is unsupported.";
-
+		LOG(WARN) << "Access to multi-head swap chain at index " << iSwapChain << " is unsupported.";
 		return D3DERR_INVALIDCALL;
 	}
 
@@ -607,7 +583,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetSoftwareVertexProcessing(BOOL bSof
 {
 	return _orig->SetSoftwareVertexProcessing(bSoftware);
 }
-BOOL STDMETHODCALLTYPE Direct3DDevice9::GetSoftwareVertexProcessing()
+   BOOL STDMETHODCALLTYPE Direct3DDevice9::GetSoftwareVertexProcessing()
 {
 	return _orig->GetSoftwareVertexProcessing();
 }
@@ -615,7 +591,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetNPatchMode(float nSegments)
 {
 	return _orig->SetNPatchMode(nSegments);
 }
-float STDMETHODCALLTYPE Direct3DDevice9::GetNPatchMode()
+  float STDMETHODCALLTYPE Direct3DDevice9::GetNPatchMode()
 {
 	return _orig->GetNPatchMode();
 }
@@ -820,7 +796,6 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateQuery(D3DQUERYTYPE Type, IDirec
 	return _orig->CreateQuery(Type, ppQuery);
 }
 
-// IDirect3DDevice9Ex
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetConvolutionMonoKernel(UINT width, UINT height, float *rows, float *columns)
 {
 	assert(_extended_interface);
@@ -861,8 +836,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::WaitForVBlank(UINT iSwapChain)
 
 	if (iSwapChain != 0)
 	{
-		LOG(WARNING) << "Access to multi-head swap chain at index " << iSwapChain << " is unsupported.";
-
+		LOG(WARN) << "Access to multi-head swap chain at index " << iSwapChain << " is unsupported.";
 		return D3DERR_INVALIDCALL;
 	}
 
@@ -914,12 +888,10 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::ResetEx(D3DPRESENT_PARAMETERS *pPrese
 {
 	assert(_extended_interface);
 
-	LOG(INFO) << "Redirecting '" << "IDirect3DDevice9Ex::ResetEx" << "(" << this << ", " << pPresentationParameters << ", " << pFullscreenDisplayMode << ")' ...";
+	LOG(INFO) << "Redirecting IDirect3DDevice9Ex::ResetEx" << '(' << this << ", " << pPresentationParameters << ", " << pFullscreenDisplayMode << ')' << " ...";
 
 	if (pPresentationParameters == nullptr)
-	{
 		return D3DERR_INVALIDCALL;
-	}
 
 	dump_present_parameters(*pPresentationParameters);
 
@@ -936,8 +908,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::ResetEx(D3DPRESENT_PARAMETERS *pPrese
 
 	if (FAILED(hr))
 	{
-		LOG(ERROR) << "> 'IDirect3DDevice9Ex::ResetEx' failed with error code " << std::hex << hr << std::dec << "!";
-
+		LOG(ERROR) << "> IDirect3DDevice9Ex::ResetEx failed with error code " << std::hex << hr << std::dec << '!';
 		return hr;
 	}
 
@@ -945,9 +916,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::ResetEx(D3DPRESENT_PARAMETERS *pPrese
 	_implicit_swapchain->GetPresentParameters(&pp);
 
 	if (!runtime->on_init(pp))
-	{
-		LOG(ERROR) << "Failed to recreate Direct3D 9 runtime environment on runtime " << runtime.get() << ".";
-	}
+		LOG(ERROR) << "Failed to recreate Direct3D 9 runtime environment on runtime " << runtime.get() << '.';
 
 	if (pp.EnableAutoDepthStencil)
 	{
@@ -963,8 +932,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetDisplayModeEx(UINT iSwapChain, D3D
 
 	if (iSwapChain != 0)
 	{
-		LOG(WARNING) << "Access to multi-head swap chain at index " << iSwapChain << " is unsupported.";
-
+		LOG(WARN) << "Access to multi-head swap chain at index " << iSwapChain << " is unsupported.";
 		return D3DERR_INVALIDCALL;
 	}
 

@@ -149,11 +149,9 @@ namespace reshade::opengl
 		return 0x10000 | (major << 12) | (minor << 8);
 	}
 
-	runtime_opengl::runtime_opengl(HDC device) :
-		runtime(get_renderer_id()), _hdc(device)
+	runtime_opengl::runtime_opengl() :
+		runtime(get_renderer_id())
 	{
-		assert(device != nullptr);
-
 		_vendor_id = 0;
 		_device_id = 0;
 
@@ -328,10 +326,15 @@ namespace reshade::opengl
 		return true;
 	}
 
-	bool runtime_opengl::on_init(unsigned int width, unsigned int height)
+	bool runtime_opengl::on_init(HWND hwnd, unsigned int width, unsigned int height)
 	{
+		RECT window_rect = {};
+		GetClientRect(hwnd, &window_rect);
+
 		_width = width;
 		_height = height;
+		_window_width = window_rect.right - window_rect.left;
+		_window_height = window_rect.bottom - window_rect.top;
 
 		_stateblock.capture();
 
@@ -361,7 +364,7 @@ namespace reshade::opengl
 
 		_stateblock.apply();
 
-		return runtime::on_init(WindowFromDC(_hdc));
+		return runtime::on_init(hwnd);
 	}
 	void runtime_opengl::on_reset()
 	{
@@ -657,27 +660,7 @@ namespace reshade::opengl
 			spec_constant_values.push_back(constant.initializer_value.as_uint[0]);
 		}
 #else
-		std::string spec_constants;
-		for (const auto &constant : effect.module.spec_constants)
-		{
-			spec_constants += "#define SPEC_CONSTANT_" + constant.name + ' ';
-
-			switch (constant.type.base)
-			{
-			case reshadefx::type::t_int:
-				spec_constants += std::to_string(constant.initializer_value.as_int[0]);
-				break;
-			case reshadefx::type::t_bool:
-			case reshadefx::type::t_uint:
-				spec_constants += std::to_string(constant.initializer_value.as_uint[0]);
-				break;
-			case reshadefx::type::t_float:
-				spec_constants += std::to_string(constant.initializer_value.as_float[0]);
-				break;
-			}
-
-			spec_constants += '\n';
-		}
+		effect.preamble = "#version 430\n" + effect.preamble;
 #endif
 
 		std::unordered_map<std::string, GLuint> entry_points;
@@ -692,14 +675,13 @@ namespace reshade::opengl
 
 			glSpecializeShader(shader_id, entry_point.first.c_str(), GLuint(spec_constants.size()), spec_constants.data(), spec_constant_values.data());
 #else
-			std::string defines =
-				"#version 430\n"
-				"#define ENTRY_POINT_" + entry_point.first + " 1\n";
+			std::string defines = effect.preamble;
+			defines += "#define ENTRY_POINT_" + entry_point.first + " 1\n";
 			if (!entry_point.second) // OpenGL does not allow using 'discard' in the vertex shader profile
 				defines += "#define discard\n"
-					"#define dFdx(x) x\n" // 'dFdx' and 'dFdx' too are only available in fragment shaders
-					"#define dFdy(y) y\n";
-			defines += spec_constants;
+					"#define dFdx(x) x\n" // 'dFdx', 'dFdx' and 'fwidth' too are only available in fragment shaders
+					"#define dFdy(y) y\n"
+					"#define fwidth(p) p\n";
 
 			GLsizei lengths[] = { static_cast<GLsizei>(defines.size()), static_cast<GLsizei>(effect.module.hlsl.size()) };
 			const GLchar *sources[] = { defines.c_str(), effect.module.hlsl.c_str() };
@@ -1064,11 +1046,8 @@ namespace reshade::opengl
 				pass.draw_buffers[0] = GL_COLOR_ATTACHMENT0;
 				pass.draw_textures[0] = _backbuffer_texture[1];
 
-				RECT rect;
-				GetClientRect(WindowFromDC(_hdc), &rect);
-
-				pass.viewport_width = static_cast<GLsizei>(rect.right - rect.left);
-				pass.viewport_height = static_cast<GLsizei>(rect.bottom - rect.top);
+				pass.viewport_width = static_cast<GLsizei>(frame_width());
+				pass.viewport_height = static_cast<GLsizei>(frame_height());
 			}
 
 			assert(pass.viewport_width != 0);
@@ -1453,7 +1432,7 @@ namespace reshade::opengl
 
 				if (status != GL_FRAMEBUFFER_COMPLETE)
 				{
-					LOG(ERROR) << "Failed to create depth source frame buffer with status code " << status << ".";
+					LOG(ERROR) << "Failed to create depth source frame buffer with status code " << status << '.';
 
 					glDeleteFramebuffers(1, &_depth_source_fbo);
 					_depth_source_fbo = 0;

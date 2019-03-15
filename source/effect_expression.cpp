@@ -108,16 +108,22 @@ void reshadefx::expression::reset_to_rvalue_constant(const reshadefx::location &
 
 void reshadefx::expression::add_cast_operation(const reshadefx::type &cast_type)
 {
-	if (type == cast_type)
-		return; // There is nothing to do if the expression is already of the target type
-
-	if (cast_type.is_scalar() && !type.is_scalar())
+	// First try to simplify the cast with a swizzle operation (only works with scalars and vectors)
+	if (type.cols == 1 && cast_type.cols == 1 && type.rows != cast_type.rows)
 	{
-		// A vector or matrix to scalar cast is equivalent to a swizzle
-		const signed char swizzle[] = { 0, -1, -1, -1 };
-		add_swizzle_access(swizzle, 1);
-		return;
+		signed char swizzle[] = { 0, 1, 2, 3 };
+		// Ignore components in a demotion cast
+		for (unsigned int i = cast_type.rows; i < 4; ++i)
+			swizzle[i] = -1;
+		// Use the last component to fill in a promotion cast
+		for (unsigned int i = type.rows; i < cast_type.rows; ++i)
+			swizzle[i] = swizzle[type.rows - 1];
+
+		add_swizzle_access(swizzle, cast_type.rows);
 	}
+
+	if (type == cast_type)
+		return; // There is nothing more to do if the expression is already of the target type at this point
 
 	if (is_constant)
 	{
@@ -155,51 +161,18 @@ void reshadefx::expression::add_cast_operation(const reshadefx::type &cast_type)
 }
 void reshadefx::expression::add_member_access(unsigned int index, const reshadefx::type &in_type)
 {
-	const auto prev_type = type;
+	assert(type.is_struct());
 
+	chain.push_back({ operation::op_member, type, in_type, index });
+
+	// The type is now the type of the member that was accessed
 	type = in_type;
 	is_constant = false;
-
-	chain.push_back({ operation::op_member, prev_type, type, index });
 }
-void reshadefx::expression::add_static_index_access(reshadefx::codegen *codegen, unsigned int index)
+void reshadefx::expression::add_dynamic_index_access(reshadefx::codegen::id index_expression)
 {
-	// A static index into a non-constant expression is functionally equivalent to a dynamic index
-	if (!is_constant)
-	{
-		constant.as_uint[0] = index;
+	assert(type.is_numeric() && !is_constant);
 
-		return add_dynamic_index_access(codegen, codegen->emit_constant({ type::t_uint, 1, 1 }, constant));
-	}
-
-	if (type.is_array())
-	{
-		type.array_length = 0;
-
-		constant = constant.array_data[index];
-	}
-	else if (type.is_matrix()) // Indexing into a matrix returns a row of it as a vector
-	{
-		type.rows = type.cols;
-		type.cols = 1;
-
-		for (unsigned int i = 0; i < 4; ++i)
-			constant.as_uint[i] = constant.as_uint[index * 4 + i];
-	}
-	else if (type.is_vector()) // Indexing into a vector returns the element as a scalar
-	{
-		type.rows = 1;
-
-		constant.as_uint[0] = constant.as_uint[index];
-	}
-	else
-	{
-		// There is no other type possible which allows indexing
-		assert(false);
-	}
-}
-void reshadefx::expression::add_dynamic_index_access(reshadefx::codegen *codegen, reshadefx::codegen::id index_expression)
-{
 	auto prev_type = type;
 
 	if (type.is_array())
@@ -216,21 +189,53 @@ void reshadefx::expression::add_dynamic_index_access(reshadefx::codegen *codegen
 		type.rows = 1;
 	}
 
-	// To handle a dynamic index into a constant means we need to create a local variable first or else any of the indexing instructions do not work
-	if (is_constant)
-	{
-		base = codegen->define_variable(location, prev_type, std::string(), false, codegen->emit_constant(prev_type, constant));
+	chain.push_back({ operation::op_dynamic_index, prev_type, type, index_expression });
+}
+void reshadefx::expression::add_constant_index_access(unsigned int index)
+{
+	assert(type.is_numeric() && !type.is_scalar());
 
-		// We converted the constant to a l-value reference to a new variable
-		is_lvalue = true;
+	auto prev_type = type;
+
+	if (type.is_array())
+	{
+		type.array_length = 0;
+	}
+	else if (type.is_matrix())
+	{
+		type.rows = type.cols;
+		type.cols = 1;
+	}
+	else if (type.is_vector())
+	{
+		type.rows = 1;
 	}
 
-	chain.push_back({ operation::op_index, prev_type, type, index_expression });
-
-	is_constant = false;
+	if (is_constant)
+	{
+		if (prev_type.is_array())
+		{
+			constant = constant.array_data[index];
+		}
+		else if (prev_type.is_matrix()) // Indexing into a matrix returns a row of it as a vector
+		{
+			for (unsigned int i = 0; i < 4; ++i)
+				constant.as_uint[i] = constant.as_uint[index * 4 + i];
+		}
+		else // Indexing into a vector returns the element as a scalar
+		{
+			constant.as_uint[0] = constant.as_uint[index];
+		}
+	}
+	else
+	{
+		chain.push_back({ operation::op_constant_index, prev_type, type, index });
+	}
 }
-void reshadefx::expression::add_swizzle_access(const signed char in_swizzle[4], unsigned int length)
+void reshadefx::expression::add_swizzle_access(const signed char swizzle[4], unsigned int length)
 {
+	assert(type.is_numeric() && !type.is_array());
+
 	const auto prev_type = type;
 
 	type.rows = length;
@@ -243,18 +248,23 @@ void reshadefx::expression::add_swizzle_access(const signed char in_swizzle[4], 
 		uint32_t data[16];
 		memcpy(data, &constant.as_uint[0], sizeof(data));
 		for (unsigned int i = 0; i < length; ++i)
-			constant.as_uint[i] = data[in_swizzle[i]];
+			constant.as_uint[i] = data[swizzle[i]];
 		memset(&constant.as_uint[length], 0, sizeof(uint32_t) * (16 - length)); // Clear the rest of the constant
+	}
+	else if (length == 1 && prev_type.is_vector()) // Use indexing when possible since the code generation logic is simpler in SPIR-V
+	{
+		chain.push_back({ operation::op_constant_index, prev_type, type, static_cast<uint32_t>(swizzle[0]) });
 	}
 	else
 	{
-		chain.push_back({ operation::op_swizzle, prev_type, type, 0, { in_swizzle[0], in_swizzle[1], in_swizzle[2], in_swizzle[3] } });
+		chain.push_back({ operation::op_swizzle, prev_type, type, 0, { swizzle[0], swizzle[1], swizzle[2], swizzle[3] } });
 	}
 }
 
-void reshadefx::expression::evaluate_constant_expression(reshadefx::tokenid op)
+bool reshadefx::expression::evaluate_constant_expression(reshadefx::tokenid op)
 {
-	assert(is_constant);
+	if (!is_constant)
+		return false;
 
 	switch (op)
 	{
@@ -275,10 +285,13 @@ void reshadefx::expression::evaluate_constant_expression(reshadefx::tokenid op)
 			constant.as_uint[i] = ~constant.as_uint[i];
 		break;
 	}
+
+	return true;
 }
-void reshadefx::expression::evaluate_constant_expression(reshadefx::tokenid op, const reshadefx::constant &rhs)
+bool reshadefx::expression::evaluate_constant_expression(reshadefx::tokenid op, const reshadefx::constant &rhs)
 {
-	assert(is_constant);
+	if (!is_constant)
+		return false;
 
 	switch (op)
 	{
@@ -326,7 +339,7 @@ void reshadefx::expression::evaluate_constant_expression(reshadefx::tokenid op, 
 	case tokenid::slash:
 		if (type.is_floating_point()) {
 			for (unsigned int i = 0; i < type.components(); ++i)
-				if (rhs.as_float[i] != 0)
+				if (rhs.as_float[i] != 0) // TODO: Maybe throw an error on divide by zero?
 					constant.as_float[i] /= rhs.as_float[i];
 		}
 		else if (type.is_signed()) {
@@ -427,4 +440,6 @@ void reshadefx::expression::evaluate_constant_expression(reshadefx::tokenid op, 
 				constant.as_uint[i] >>= rhs.as_uint[i];
 		break;
 	}
+
+	return true;
 }

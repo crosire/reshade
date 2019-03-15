@@ -22,4 +22,6 @@ bool imgui_popup_button(const char *label, float width = 0.0f, ImGuiWindowFlags 
 
 bool imgui_slider_with_buttons(const char *label, ImGuiDataType data_type, void *v, int components, const void *v_speed, const void *v_min, const void *v_max, const char *format = nullptr);
 
+bool imgui_slider_for_alpha(const char *label, float *v);
+
 void imgui_image_with_checkerboard_background(ImTextureID user_texture_id, const ImVec2 &size);

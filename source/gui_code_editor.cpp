@@ -164,7 +164,7 @@ void imgui_code_editor::render(const char *title, bool border)
 	}
 
 	// Handle mouse input
-	if (ImGui::IsWindowHovered() && !shift && !alt)
+	if (ImGui::IsWindowHovered() && !alt)
 	{
 		const auto mouse_to_text_pos = [this, text_start, &char_advance, &calc_text_size]() {
 			const ImVec2 pos(ImGui::GetMousePos().x - ImGui::GetCursorScreenPos().x, ImGui::GetMousePos().y - ImGui::GetCursorScreenPos().y);
@@ -197,8 +197,8 @@ void imgui_code_editor::render(const char *title, bool border)
 		};
 
 		const bool is_clicked = ImGui::IsMouseClicked(0);
-		const bool is_double_click = ImGui::IsMouseDoubleClicked(0);
-		const bool is_triple_click = is_clicked && !is_double_click && ImGui::GetTime() - _last_click_time < io.MouseDoubleClickTime;
+		const bool is_double_click = !shift && ImGui::IsMouseDoubleClicked(0);
+		const bool is_triple_click = !shift && is_clicked && !is_double_click && ImGui::GetTime() - _last_click_time < io.MouseDoubleClickTime;
 
 		if (is_triple_click)
 		{
@@ -228,9 +228,17 @@ void imgui_code_editor::render(const char *title, bool border)
 		}
 		else if (is_clicked)
 		{
+			const bool flip_selection = _cursor_pos > _select_beg;
+
 			_cursor_pos = mouse_to_text_pos();
 			_interactive_beg = _cursor_pos;
 			_interactive_end = _cursor_pos;
+
+			if (shift)
+				if (flip_selection)
+					_interactive_beg = _select_beg;
+				else
+					_interactive_end = _select_end;
 
 			select(_interactive_beg, _interactive_end, ctrl ? selection_mode::word : selection_mode::normal);
 
@@ -424,21 +432,21 @@ void imgui_code_editor::render(const char *title, bool border)
 
 	if (_scroll_to_cursor)
 	{
-		const auto l = static_cast<size_t>(ceil( ImGui::GetScrollX()                             / char_advance.x));
-		const auto r = static_cast<size_t>(ceil((ImGui::GetScrollX() + ImGui::GetWindowWidth())  / char_advance.x));
-		const auto t = static_cast<size_t>(ceil( ImGui::GetScrollY()                             / char_advance.y)) + 1;
-		const auto b = static_cast<size_t>(ceil((ImGui::GetScrollY() + ImGui::GetWindowHeight()) / char_advance.y));
+		const float len = calc_text_distance_to_line_begin(_cursor_pos);
+		const float extra_space = 8.0f;
 
-		const auto len = calc_text_distance_to_line_begin(_cursor_pos);
+		const float max_scroll_width = ImGui::GetWindowWidth() - 16.0f;
+		const float max_scroll_height = ImGui::GetWindowHeight() - 32.0f;
 
-		if (_cursor_pos.line < t)
-			ImGui::SetScrollY(std::max(0.0f, (_cursor_pos.line) * char_advance.y));
-		if (_cursor_pos.line > b - 4)
-			ImGui::SetScrollY(std::max(0.0f, (_cursor_pos.line + 4) * char_advance.y - ImGui::GetWindowHeight()));
-		if (len + text_start < l + 4)
-			ImGui::SetScrollX(std::max(0.0f, len + text_start - 4));
-		if (len + text_start > r - 4)
-			ImGui::SetScrollX(std::max(0.0f, len + text_start + 4 - ImGui::GetWindowWidth()));
+		if (_cursor_pos.line < (ImGui::GetScrollY()) / char_advance.y) // No additional space when scrolling up
+			ImGui::SetScrollY(std::max(0.0f, _cursor_pos.line * char_advance.y));
+		if (_cursor_pos.line > (ImGui::GetScrollY() + max_scroll_height - extra_space) / char_advance.y)
+			ImGui::SetScrollY(std::max(0.0f, _cursor_pos.line * char_advance.y + extra_space - max_scroll_height));
+
+		if (len + text_start < (ImGui::GetScrollX() + extra_space))
+			ImGui::SetScrollX(std::max(0.0f, len + text_start - extra_space));
+		if (len + text_start > (ImGui::GetScrollX() + max_scroll_width - extra_space))
+			ImGui::SetScrollX(std::max(0.0f, len + text_start + extra_space - max_scroll_width));
 
 		ImGui::SetWindowFocus();
 
@@ -1069,42 +1077,51 @@ void imgui_code_editor::move_left(size_t amount, bool selection, bool word_mode)
 
 	const auto prev_pos = _cursor_pos;
 
-	while (amount-- > 0)
+	// Move cursor to selection start when moving left and no longer selecting
+	if (!selection && _interactive_beg != _interactive_end)
 	{
-		if (_cursor_pos.column == 0) // At the beginning of the current line, so move on to previous
-		{
-			if (_cursor_pos.line == 0)
-				break;
-
-			_cursor_pos.line--;
-			_cursor_pos.column = _lines[_cursor_pos.line].size();
-		}
-		else if (word_mode)
-		{
-			for (const auto word_color = _lines[_cursor_pos.line][_cursor_pos.column - 1].col; _cursor_pos.column > 0; --_cursor_pos.column)
-				if (_lines[_cursor_pos.line][_cursor_pos.column - 1].col != word_color)
-					break;
-		}
-		else
-		{
-			_cursor_pos.column--;
-		}
-	}
-
-	if (selection)
-	{
-		if (prev_pos == _interactive_beg)
-			_interactive_beg = _cursor_pos;
-		else if (prev_pos == _interactive_end)
-			_interactive_end = _cursor_pos;
-		else
-			_interactive_beg = _cursor_pos,
-			_interactive_end = prev_pos;
+		_cursor_pos = _interactive_beg;
+		_interactive_end = _cursor_pos;
 	}
 	else
 	{
-		_interactive_beg = _cursor_pos;
-		_interactive_end = _cursor_pos;
+		while (amount-- > 0)
+		{
+			if (_cursor_pos.column == 0) // At the beginning of the current line, so move on to previous
+			{
+				if (_cursor_pos.line == 0)
+					break;
+
+				_cursor_pos.line--;
+				_cursor_pos.column = _lines[_cursor_pos.line].size();
+			}
+			else if (word_mode)
+			{
+				for (const auto word_color = _lines[_cursor_pos.line][_cursor_pos.column - 1].col; _cursor_pos.column > 0; --_cursor_pos.column)
+					if (_lines[_cursor_pos.line][_cursor_pos.column - 1].col != word_color)
+						break;
+			}
+			else
+			{
+				_cursor_pos.column--;
+			}
+		}
+
+		if (selection)
+		{
+			if (prev_pos == _interactive_beg)
+				_interactive_beg = _cursor_pos;
+			else if (prev_pos == _interactive_end)
+				_interactive_end = _cursor_pos;
+			else
+				_interactive_beg = _cursor_pos,
+				_interactive_end = prev_pos;
+		}
+		else
+		{
+			_interactive_beg = _cursor_pos;
+			_interactive_end = _cursor_pos;
+		}
 	}
 
 	select(_interactive_beg, _interactive_end);
@@ -1222,7 +1239,8 @@ void imgui_code_editor::move_home(bool selection)
 	const auto prev_pos = _cursor_pos;
 	_cursor_pos.column = 0;
 
-	if (prev_pos == _cursor_pos)
+	if (prev_pos == _cursor_pos &&
+		_interactive_beg == _interactive_end) // This ensures that deselection works even when cursor is already at begin
 		return;
 
 	if (selection)
@@ -1250,7 +1268,8 @@ void imgui_code_editor::move_end(bool selection)
 	const auto prev_pos = _cursor_pos;
 	_cursor_pos.column = _lines[_cursor_pos.line].size();
 
-	if (prev_pos == _cursor_pos)
+	if (prev_pos == _cursor_pos &&
+		_interactive_beg == _interactive_end) // This ensures that deselection works even when cursor is already at end
 		return;
 
 	if (selection)

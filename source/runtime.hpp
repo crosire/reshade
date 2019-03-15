@@ -180,10 +180,15 @@ namespace reshade
 		bool _is_initialized = false;
 		bool _has_high_network_activity = false;
 		const unsigned int _renderer_id;
-		unsigned int _width = 0, _height = 0;
-		unsigned int _vendor_id = 0, _device_id = 0;
+		unsigned int _width = 0;
+		unsigned int _height = 0;
+		unsigned int _window_width = 0;
+		unsigned int _window_height = 0;
+		unsigned int _vendor_id = 0;
+		unsigned int _device_id = 0;
 		uint64_t _framecount = 0;
-		unsigned int _drawcalls = 0, _vertices = 0;
+		unsigned int _vertices = 0;
+		unsigned int _drawcalls = 0;
 		std::vector<texture> _textures;
 		std::vector<uniform> _uniforms;
 		std::vector<technique> _techniques;
@@ -196,6 +201,11 @@ namespace reshade
 		/// <param name="latest_version">Contains the latest version after this function returned.</param>
 		/// <returns><c>true</c> if an update is available, <c>false</c> otherwise</returns>
 		static bool check_for_update(unsigned long latest_version[3]);
+
+		/// <summary>
+		/// Load the preprocessor definitions from config and current preset and apply it.
+		/// </summary>
+		bool load_preprocessor_definitions();
 
 		/// <summary>
 		/// Compile effect from the specified source file and initialize textures, uniforms and techniques.
@@ -236,6 +246,11 @@ namespace reshade
 		/// <param name="path">The preset file to load.</param>
 		void load_preset(const std::filesystem::path &path);
 		/// <summary>
+		/// Load a preset and apply it.
+		/// </summary>
+		/// <param name="path">The preset file</param>
+		void load_preset(const ini_file &preset);
+		/// <summary>
 		/// Load the currently selected preset and apply it.
 		/// </summary>
 		void load_current_preset();
@@ -252,7 +267,7 @@ namespace reshade
 		/// <summary>
 		/// Create a copy of the current frame and write it to an image file on disk.
 		/// </summary>
-		void save_screenshot() const;
+		void save_screenshot();
 
 		void get_uniform_value(const uniform &variable, uint8_t *data, size_t size) const;
 		void set_uniform_value(uniform &variable, const uint8_t *data, size_t size);
@@ -266,17 +281,18 @@ namespace reshade
 		unsigned int _reload_key_data[4];
 		unsigned int _effects_key_data[4];
 		unsigned int _screenshot_key_data[4];
-		int _screenshot_format = 0;
+		int _screenshot_format = 1;
 		std::filesystem::path _screenshot_path;
 		std::filesystem::path _configuration_path;
+		std::filesystem::path _last_screenshot_file;
+		bool _screenshot_save_success = false;
 		bool _screenshot_include_preset = false;
-
-		bool _statistics_effects_show_enabled = false;
 
 		size_t _current_preset = 0;
 		std::vector<std::filesystem::path> _preset_files;
 
-		std::vector<std::string> _preprocessor_definitions;
+		std::vector<std::string> _global_preprocessor_definitions;
+		std::vector<std::string> _preset_preprocessor_definitions;
 		std::vector<std::filesystem::path> _preset_search_paths;
 		std::vector<std::filesystem::path> _effect_search_paths;
 		std::vector<std::filesystem::path> _texture_search_paths;
@@ -297,6 +313,7 @@ namespace reshade
 		std::chrono::high_resolution_clock::time_point _start_time;
 		std::chrono::high_resolution_clock::time_point _last_reload_time;
 		std::chrono::high_resolution_clock::time_point _last_present_time;
+		std::chrono::high_resolution_clock::time_point _last_screenshot_time;
 
 		std::vector<std::function<void(ini_file &)>> _save_config_callables;
 		std::vector<std::function<void(const ini_file &)>> _load_config_callables;
@@ -340,11 +357,14 @@ namespace reshade
 		bool _show_frametime = false;
 		bool _show_splash = true;
 		bool _show_code_editor = false;
+		bool _show_screenshot_message = true;
 		bool _no_font_scaling = false;
 		bool _log_wordwrap = false;
 		bool _variable_editor_tabs = false;
 		bool _selected_effect_changed = false;
 		bool _rebuild_font_atlas = false;
+		bool _was_preprocessor_popup_edited = false;
+		bool _statistics_effects_show_enabled = false;
 		float _fps_col[4] = { 1.0f, 1.0f, 0.784314f, 1.0f };
 		float _fps_scale = 1.0f;
 		float _variable_editor_height = 0.0f;

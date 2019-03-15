@@ -6,17 +6,22 @@
 #include "log.hpp"
 #include "dxgi_device.hpp"
 #include "dxgi_swapchain.hpp"
+#include <assert.h>
 
-// IDXGIDevice
+DXGIDevice::DXGIDevice(IDXGIDevice1 *original, IUnknown *direct3d_device) :
+	_orig(original),
+	_interface_version(1),
+	_direct3d_device(direct3d_device) {
+	assert(original != nullptr);
+}
+
 HRESULT STDMETHODCALLTYPE DXGIDevice::QueryInterface(REFIID riid, void **ppvObj)
 {
 	if (ppvObj == nullptr)
-	{
 		return E_POINTER;
-	}
-	else if (
-		riid == __uuidof(this) ||
-		riid == __uuidof(IUnknown) ||
+
+	if (riid == __uuidof(this) ||
+		riid == __uuidof(IUnknown) || // This is the IID_IUnknown identity object
 		riid == __uuidof(IDXGIObject) ||
 		riid == __uuidof(IDXGIDevice) ||
 		riid == __uuidof(IDXGIDevice1) ||
@@ -28,16 +33,13 @@ HRESULT STDMETHODCALLTYPE DXGIDevice::QueryInterface(REFIID riid, void **ppvObj)
 		if (riid == __uuidof(IDXGIDevice2) && _interface_version < 2)
 		{
 			IDXGIDevice2 *device2 = nullptr;
-
 			if (FAILED(_orig->QueryInterface(&device2)))
-			{
 				return E_NOINTERFACE;
-			}
 
 			_orig->Release();
 
 #if RESHADE_VERBOSE_LOG
-			LOG(DEBUG) << "Upgraded 'IDXGIDevice" << (_interface_version > 0 ? std::to_string(_interface_version) : "") << "' object " << this << " to 'IDXGIDevice2'.";
+			LOG(DEBUG) << "Upgraded IDXGIDevice" << (_interface_version > 0 ? std::to_string(_interface_version) : "") << " object " << this << " to IDXGIDevice2.";
 #endif
 			_orig = device2;
 			_interface_version = 2;
@@ -47,16 +49,13 @@ HRESULT STDMETHODCALLTYPE DXGIDevice::QueryInterface(REFIID riid, void **ppvObj)
 		if (riid == __uuidof(IDXGIDevice3) && _interface_version < 3)
 		{
 			IDXGIDevice3 *device3 = nullptr;
-
 			if (FAILED(_orig->QueryInterface(&device3)))
-			{
 				return E_NOINTERFACE;
-			}
 
 			_orig->Release();
 
 #if RESHADE_VERBOSE_LOG
-			LOG(DEBUG) << "Upgraded 'IDXGIDevice" << (_interface_version > 0 ? std::to_string(_interface_version) : "") << "' object " << this << " to 'IDXGIDevice3'.";
+			LOG(DEBUG) << "Upgraded IDXGIDevice" << (_interface_version > 0 ? std::to_string(_interface_version) : "") << " object " << this << " to IDXGIDevice3.";
 #endif
 			_orig = device3;
 			_interface_version = 3;
@@ -66,16 +65,13 @@ HRESULT STDMETHODCALLTYPE DXGIDevice::QueryInterface(REFIID riid, void **ppvObj)
 		if (riid == __uuidof(IDXGIDevice4) && _interface_version < 4)
 		{
 			IDXGIDevice4 *device4 = nullptr;
-
 			if (FAILED(_orig->QueryInterface(&device4)))
-			{
 				return E_NOINTERFACE;
-			}
 
 			_orig->Release();
 
 #if RESHADE_VERBOSE_LOG
-			LOG(DEBUG) << "Upgraded 'IDXGIDevice" << (_interface_version > 0 ? std::to_string(_interface_version) : "") << "' object " << this << " to 'IDXGIDevice4'.";
+			LOG(DEBUG) << "Upgraded IDXGIDevice" << (_interface_version > 0 ? std::to_string(_interface_version) : "") << " object " << this << " to IDXGIDevice4.";
 #endif
 			_orig = device4;
 			_interface_version = 4;
@@ -91,35 +87,34 @@ HRESULT STDMETHODCALLTYPE DXGIDevice::QueryInterface(REFIID riid, void **ppvObj)
 
 	return _direct3d_device->QueryInterface(riid, ppvObj);
 }
-ULONG STDMETHODCALLTYPE DXGIDevice::AddRef()
+  ULONG STDMETHODCALLTYPE DXGIDevice::AddRef()
 {
 	_ref++;
 
 	return _orig->AddRef();
 }
-ULONG STDMETHODCALLTYPE DXGIDevice::Release()
+  ULONG STDMETHODCALLTYPE DXGIDevice::Release()
 {
 	ULONG ref = _orig->Release();
 
-	if (--_ref == 0 && ref != 1)
-	{
-		LOG(WARNING) << "Reference count for 'IDXGIDevice" << (_interface_version > 0 ? std::to_string(_interface_version) : "") << "' object " << this << " is inconsistent: " << ref << ", but expected 1.";
-
-		ref = 1;
-	}
-
-	if (ref == 1)
+	if (--_ref == 0 || ref == 1)
 	{
 		assert(_ref <= 0);
 
+		if (ref != 1)
+			LOG(WARN) << "Reference count for IDXGIDevice" << _interface_version << " object " << this << " is inconsistent: " << ref << ", but expected 1.";
+
 #if RESHADE_VERBOSE_LOG
-		LOG(DEBUG) << "Destroyed 'IDXGIDevice" << (_interface_version > 0 ? std::to_string(_interface_version) : "") << "' object " << this << ".";
+		LOG(DEBUG) << "Destroyed IDXGIDevice" << _interface_version << " object " << this << '.';
 #endif
 		delete this;
+
+		return 0;
 	}
 
 	return ref;
 }
+
 HRESULT STDMETHODCALLTYPE DXGIDevice::SetPrivateData(REFGUID Name, UINT DataSize, const void *pData)
 {
 	return _orig->SetPrivateData(Name, DataSize, pData);
@@ -157,7 +152,6 @@ HRESULT STDMETHODCALLTYPE DXGIDevice::GetGPUThreadPriority(INT *pPriority)
 	return _orig->GetGPUThreadPriority(pPriority);
 }
 
-// IDXGIDevice1
 HRESULT STDMETHODCALLTYPE DXGIDevice::SetMaximumFrameLatency(UINT MaxLatency)
 {
 	return _orig->SetMaximumFrameLatency(MaxLatency);
@@ -188,7 +182,7 @@ HRESULT STDMETHODCALLTYPE DXGIDevice::EnqueueSetEvent(HANDLE hEvent)
 }
 
 // IDXGIDevice3
-void STDMETHODCALLTYPE DXGIDevice::Trim()
+   void STDMETHODCALLTYPE DXGIDevice::Trim()
 {
 	assert(_interface_version >= 3);
 

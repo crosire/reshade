@@ -22,6 +22,16 @@ public:
 	}
 
 private:
+	enum class naming
+	{
+		// After escaping, will be numbered when clashing with another name
+		general,
+		// After escaping, name should already be unique, so no additional steps are taken
+		unique,
+		// This is a special name that is not modified and should be unique
+		reserved,
+	};
+
 	id _next_id = 1;
 	id _last_block = 0;
 	id _current_block = 0;
@@ -215,10 +225,24 @@ private:
 		return '_' + std::to_string(id);
 	}
 
+	template <naming naming = naming::general>
+	void define_name(const id id, std::string name)
+	{
+		if constexpr (naming != naming::reserved)
+			escape_name(name);
+		if constexpr (naming == naming::general)
+			if (std::find_if(_names.begin(), _names.end(), [&name](const auto &it) { return it.second == name; }) != _names.end())
+				name += '_' + std::to_string(id);
+		// Remove double underscore symbols from name which can occur due to namespaces but are not allowed in GLSL
+		for (size_t pos = 0; (pos = name.find("__", pos)) != std::string::npos; pos += 3)
+			name.replace(pos, 2, "_US");
+		_names[id] = std::move(name);
+	}
+
 	static void escape_name(std::string &name)
 	{
 		static const std::unordered_set<std::string> s_reserverd_names = {
-			"common", "partition", "input", "ouput", "active", "filter", "superp", "invariant",
+			"common", "partition", "input", "output", "active", "filter", "superp", "invariant",
 			"lowp", "mediump", "highp", "precision", "patch", "subroutine",
 			"abs", "sign", "all", "any", "sin", "sinh", "cos", "cosh", "tan", "tanh", "asin", "acos", "atan",
 			"exp", "exp2", "log", "log2", "sqrt", "inversesqrt", "ceil", "floor", "fract", "trunc", "round",
@@ -231,8 +255,6 @@ private:
 
 		if (name.compare(0, 3, "gl_") == 0 || s_reserverd_names.count(name))
 			name += '_';
-		for (size_t pos = 0; (pos = name.find("__", pos)) != std::string::npos; pos += 3)
-			name.replace(pos, 2, "_US");
 	}
 
 	static void increase_indentation_level(std::string &block)
@@ -249,7 +271,7 @@ private:
 	id   define_struct(const location &loc, struct_info &info) override
 	{
 		info.definition = make_id();
-		escape_name(_names[info.definition] = info.unique_name);
+		define_name<naming::unique>(info.definition, info.unique_name);
 
 		_structs.push_back(info);
 
@@ -289,7 +311,7 @@ private:
 		info.id = make_id();
 		info.binding = _current_sampler_binding++;
 
-		escape_name(_names[info.id] = info.unique_name);
+		define_name<naming::unique>(info.id, info.unique_name);
 
 		_module.samplers.push_back(info);
 
@@ -305,9 +327,9 @@ private:
 	{
 		const id res = make_id();
 
-		_names[res] = "_Globals_" + info.name;
+		define_name<naming::unique>(res, "_Globals_" + info.name);
 
-		if (_uniforms_to_spec_constants && info.type.is_scalar() && info.has_initializer_value)
+		if (_uniforms_to_spec_constants && info.has_initializer_value)
 		{
 			std::string &code = _blocks.at(_current_block);
 
@@ -316,7 +338,8 @@ private:
 			code += "const ";
 			write_type(code, info.type);
 			code += ' ' + id_to_name(res) + " = ";
-			write_type<false, false>(code, info.type);
+			if (!info.type.is_scalar())
+				write_type<false, false>(code, info.type);
 			code += "(SPEC_CONSTANT_" + info.name + ");\n";
 
 			_module.spec_constants.push_back(info);
@@ -354,7 +377,7 @@ private:
 			return (_remapped_sampler_variables[res] = 0), res;
 
 		if (!name.empty())
-			escape_name(_names[res] = name);
+			define_name<naming::general>(res, name);
 
 		std::string &code = _blocks.at(_current_block);
 
@@ -385,9 +408,9 @@ private:
 		info.definition = make_id();
 
 		if (is_entry_point)
-			_names[info.definition] = "main";
+			define_name<naming::reserved>(info.definition, "main");
 		else
-			escape_name(_names[info.definition] = info.unique_name);
+			define_name<naming::unique>(info.definition, info.unique_name);
 
 		std::string &code = _blocks.at(_current_block);
 
@@ -403,13 +426,13 @@ private:
 			auto &param = info.parameter_list[i];
 
 			param.definition = make_id();
-			_names[param.definition] = param.name;
+			define_name<naming::unique>(param.definition, param.name);
 
 			code += '\n';
 			write_location(code, param.location);
 			code += '\t';
 			write_type<true>(code, param.type); // GLSL does not allow interpolation attributes on function parameters
-			code += ' ' + param.name;
+			code += ' ' + id_to_name(param.definition);
 
 			if (param.type.is_array())
 				code += '[' + std::to_string(param.type.array_length) + ']';
@@ -641,12 +664,15 @@ private:
 				{ std::string type; write_type<false, false>(type, op.to);
 				newcode = type + '(' + newcode + ')'; }
 				break;
-			case expression::operation::op_index:
-				newcode += '[' + id_to_name(op.index) + ']';
-				break;
 			case expression::operation::op_member:
 				newcode += '.';
 				newcode += find_struct(op.from.definition).member_list[op.index].name;
+				break;
+			case expression::operation::op_dynamic_index:
+				newcode += '[' + id_to_name(op.index) + ']';
+				break;
+			case expression::operation::op_constant_index:
+				newcode += '[' + std::to_string(op.index) + ']';
 				break;
 			case expression::operation::op_swizzle:
 				if (op.from.is_matrix())
@@ -660,6 +686,7 @@ private:
 					}
 					else
 					{
+						// TODO: Implement matrix to vector swizzles
 						assert(false);
 					}
 				}
@@ -697,12 +724,15 @@ private:
 		{
 			switch (op.op)
 			{
-			case expression::operation::op_index:
-				code += '[' + id_to_name(op.index) + ']';
-				break;
 			case expression::operation::op_member:
 				code += '.';
 				code += find_struct(op.from.definition).member_list[op.index].name;
+				break;
+			case expression::operation::op_dynamic_index:
+				code += '[' + id_to_name(op.index) + ']';
+				break;
+			case expression::operation::op_constant_index:
+				code += '[' + std::to_string(op.index) + ']';
 				break;
 			case expression::operation::op_swizzle:
 				if (op.from.is_matrix())
@@ -716,6 +746,7 @@ private:
 					}
 					else
 					{
+						// TODO: Implement matrix to vector swizzles
 						assert(false);
 					}
 				}
@@ -1042,7 +1073,7 @@ private:
 		write_type<false, false>(code, type);
 
 		if (type.is_array())
-			code += "[]";
+			code += '[' + std::to_string(type.array_length) + ']';
 
 		code += '(';
 

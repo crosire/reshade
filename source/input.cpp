@@ -128,7 +128,7 @@ bool reshade::input::handle_window_message(const void *message_data)
 		case RIM_TYPEMOUSE:
 			is_mouse_message = true;
 
-			if (raw_input_window != s_raw_input_windows.end() && (raw_input_window->second & 0x2) == 0)
+			if (raw_input_window == s_raw_input_windows.end() || (raw_input_window->second & 0x2) == 0)
 				break; // Input is already handled (since legacy mouse messages are enabled), so nothing to do here
 
 			if (raw_data.data.mouse.usButtonFlags & RI_MOUSE_LEFT_BUTTON_DOWN)
@@ -160,7 +160,7 @@ bool reshade::input::handle_window_message(const void *message_data)
 		case RIM_TYPEKEYBOARD:
 			is_keyboard_message = true;
 
-			if (raw_input_window != s_raw_input_windows.end() && (raw_input_window->second & 0x1) == 0)
+			if (raw_input_window == s_raw_input_windows.end() || (raw_input_window->second & 0x1) == 0)
 				break; // Input is already handled by 'WM_KEYDOWN' and friends (since legacy keyboard messages are enabled), so nothing to do here
 
 			if (raw_data.data.keyboard.VKey != 0xFF)
@@ -361,7 +361,7 @@ std::string reshade::input::key_name(unsigned int keycode)
 	const char *keyboard_keys[256] = {
 		"", "", "", "Cancel", "", "", "", "", "Backspace", "Tab", "", "", "Clear", "Enter", "", "",
 		"Shift", "Control", "Alt", "Pause", "Caps Lock", "", "", "", "", "", "", "Escape", "", "", "", "",
-		"Space", "Page Up", "Page Down", "End", "Home / Pos 1", "Left Arrow", "Up Arrow", "Right Arrow", "Down Arrow", "Select", "", "", "Print Screen", "Insert", "Delete", "Help",
+		"Space", "Page Up", "Page Down", "End", "Home or Pos 1", "Left Arrow", "Up Arrow", "Right Arrow", "Down Arrow", "Select", "", "", "Print Screen", "Insert", "Delete", "Help",
 		"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "", "", "", "", "", "",
 		"", "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O",
 		"P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z", "Left Windows", "Right Windows", "Apps", "", "Sleep",
@@ -406,7 +406,7 @@ static inline bool is_blocking_keyboard_input()
 
 HOOK_EXPORT BOOL WINAPI HookGetMessageA(LPMSG lpMsg, HWND hWnd, UINT wMsgFilterMin, UINT wMsgFilterMax)
 {
-	static const auto trampoline = reshade::hooks::call(&HookGetMessageA);
+	static const auto trampoline = reshade::hooks::call(HookGetMessageA);
 
 	if (!trampoline(lpMsg, hWnd, wMsgFilterMin, wMsgFilterMax))
 		return FALSE;
@@ -426,7 +426,7 @@ HOOK_EXPORT BOOL WINAPI HookGetMessageA(LPMSG lpMsg, HWND hWnd, UINT wMsgFilterM
 }
 HOOK_EXPORT BOOL WINAPI HookGetMessageW(LPMSG lpMsg, HWND hWnd, UINT wMsgFilterMin, UINT wMsgFilterMax)
 {
-	static const auto trampoline = reshade::hooks::call(&HookGetMessageW);
+	static const auto trampoline = reshade::hooks::call(HookGetMessageW);
 
 	if (!trampoline(lpMsg, hWnd, wMsgFilterMin, wMsgFilterMax))
 		return FALSE;
@@ -446,7 +446,7 @@ HOOK_EXPORT BOOL WINAPI HookGetMessageW(LPMSG lpMsg, HWND hWnd, UINT wMsgFilterM
 }
 HOOK_EXPORT BOOL WINAPI HookPeekMessageA(LPMSG lpMsg, HWND hWnd, UINT wMsgFilterMin, UINT wMsgFilterMax, UINT wRemoveMsg)
 {
-	static const auto trampoline = reshade::hooks::call(&HookPeekMessageA);
+	static const auto trampoline = reshade::hooks::call(HookPeekMessageA);
 
 	if (!trampoline(lpMsg, hWnd, wMsgFilterMin, wMsgFilterMax, wRemoveMsg))
 		return FALSE;
@@ -466,7 +466,7 @@ HOOK_EXPORT BOOL WINAPI HookPeekMessageA(LPMSG lpMsg, HWND hWnd, UINT wMsgFilter
 }
 HOOK_EXPORT BOOL WINAPI HookPeekMessageW(LPMSG lpMsg, HWND hWnd, UINT wMsgFilterMin, UINT wMsgFilterMax, UINT wRemoveMsg)
 {
-	static const auto trampoline = reshade::hooks::call(&HookPeekMessageW);
+	static const auto trampoline = reshade::hooks::call(HookPeekMessageW);
 
 	if (!trampoline(lpMsg, hWnd, wMsgFilterMin, wMsgFilterMax, wRemoveMsg))
 		return FALSE;
@@ -491,7 +491,7 @@ HOOK_EXPORT BOOL WINAPI HookPostMessageA(HWND hWnd, UINT Msg, WPARAM wParam, LPA
 	if (is_blocking_mouse_input() && Msg == WM_MOUSEMOVE)
 		return TRUE;
 
-	static const auto trampoline = reshade::hooks::call(&HookPostMessageA);
+	static const auto trampoline = reshade::hooks::call(HookPostMessageA);
 
 	return trampoline(hWnd, Msg, wParam, lParam);
 }
@@ -500,7 +500,7 @@ HOOK_EXPORT BOOL WINAPI HookPostMessageW(HWND hWnd, UINT Msg, WPARAM wParam, LPA
 	if (is_blocking_mouse_input() && Msg == WM_MOUSEMOVE)
 		return TRUE;
 
-	static const auto trampoline = reshade::hooks::call(&HookPostMessageW);
+	static const auto trampoline = reshade::hooks::call(HookPostMessageW);
 
 	return trampoline(hWnd, Msg, wParam, lParam);
 }
@@ -508,7 +508,7 @@ HOOK_EXPORT BOOL WINAPI HookPostMessageW(HWND hWnd, UINT Msg, WPARAM wParam, LPA
 HOOK_EXPORT BOOL WINAPI HookRegisterRawInputDevices(PCRAWINPUTDEVICE pRawInputDevices, UINT uiNumDevices, UINT cbSize)
 {
 #if RESHADE_VERBOSE_LOG
-	LOG(DEBUG) << "Redirecting '" << "RegisterRawInputDevices" << "(" << pRawInputDevices << ", " << uiNumDevices << ", " << cbSize << ")' ...";
+	LOG(DEBUG) << "Redirecting RegisterRawInputDevices" << '(' << pRawInputDevices << ", " << uiNumDevices << ", " << cbSize << ')' << " ...";
 #endif
 
 	for (UINT i = 0; i < uiNumDevices; ++i)
@@ -533,9 +533,9 @@ HOOK_EXPORT BOOL WINAPI HookRegisterRawInputDevices(PCRAWINPUTDEVICE pRawInputDe
 		reshade::input::register_window_with_raw_input(device.hwndTarget, device.usUsage == 0x06 && (device.dwFlags & RIDEV_NOLEGACY) != 0, device.usUsage == 0x02 && (device.dwFlags & RIDEV_NOLEGACY) != 0);
 	}
 
-	if (!reshade::hooks::call(&HookRegisterRawInputDevices)(pRawInputDevices, uiNumDevices, cbSize))
+	if (!reshade::hooks::call(HookRegisterRawInputDevices)(pRawInputDevices, uiNumDevices, cbSize))
 	{
-		LOG(WARNING) << "'RegisterRawInputDevices' failed with error code " << GetLastError() << "!";
+		LOG(WARN) << "'RegisterRawInputDevices' failed with error code " << GetLastError() << "!";
 
 		return FALSE;
 	}
@@ -553,7 +553,7 @@ HOOK_EXPORT BOOL WINAPI HookSetCursorPosition(int X, int Y)
 	if (is_blocking_mouse_input())
 		return TRUE;
 
-	static const auto trampoline = reshade::hooks::call(&HookSetCursorPosition);
+	static const auto trampoline = reshade::hooks::call(HookSetCursorPosition);
 
 	return trampoline(X, Y);
 }
@@ -569,7 +569,7 @@ HOOK_EXPORT BOOL WINAPI HookGetCursorPosition(LPPOINT lpPoint)
 		return TRUE;
 	}
 
-	static const auto trampoline = reshade::hooks::call(&HookGetCursorPosition);
+	static const auto trampoline = reshade::hooks::call(HookGetCursorPosition);
 
 	return trampoline(lpPoint);
 }

@@ -57,25 +57,29 @@ bool reshadefx::parser::parse(std::string input, codegen::backend backend, unsig
 
 void reshadefx::parser::error(const location &location, unsigned int code, const std::string &message)
 {
-	_errors += location.source + '(' + std::to_string(location.line) + ", " + std::to_string(location.column) + ')' + ": ";
+	_errors += location.source;
+	_errors += '(' + std::to_string(location.line) + ", " + std::to_string(location.column) + ')' + ": error";
 
 	if (code == 0)
-		_errors += "error: ";
+		_errors += ": ";
 	else
-		_errors += "error X" + std::to_string(code) + ": ";
+		_errors += " X" + std::to_string(code) + ": ";
 
-	_errors += message + '\n';
+	_errors += message;
+	_errors += '\n';
 }
 void reshadefx::parser::warning(const location &location, unsigned int code, const std::string &message)
 {
-	_errors += location.source + '(' + std::to_string(location.line) + ", " + std::to_string(location.column) + ')' + ": ";
+	_errors += location.source;
+	_errors += '(' + std::to_string(location.line) + ", " + std::to_string(location.column) + ')' + ": warning";
 
 	if (code == 0)
-		_errors += "warning: ";
+		_errors += ": ";
 	else
-		_errors += "warning X" + std::to_string(code) + ": ";
+		_errors += " X" + std::to_string(code) + ": ";
 
-	_errors += message + '\n';
+	_errors += message;
+	_errors += '\n';
 }
 
 // -- Token Management -- //
@@ -92,10 +96,6 @@ void reshadefx::parser::restore()
 	_token_next = _token_backup;
 }
 
-bool reshadefx::parser::peek(tokenid tokid) const
-{
-	return _token_next.id == tokid;
-}
 void reshadefx::parser::consume()
 {
 	_token = std::move(_token_next);
@@ -108,6 +108,7 @@ void reshadefx::parser::consume_until(tokenid tokid)
 		consume();
 	}
 }
+
 bool reshadefx::parser::accept(tokenid tokid)
 {
 	if (peek(tokid))
@@ -153,7 +154,7 @@ bool reshadefx::parser::accept_type_class(type &type)
 	}
 	else if (accept(tokenid::vector))
 	{
-		type.base = type::t_float;
+		type.base = type::t_float; // Default to float4 unless a type is specified (see below)
 		type.rows = 4, type.cols = 1;
 
 		if (accept('<'))
@@ -178,7 +179,7 @@ bool reshadefx::parser::accept_type_class(type &type)
 	}
 	else if (accept(tokenid::matrix))
 	{
-		type.base = type::t_float;
+		type.base = type::t_float; // Default to float4x4 unless a type is specified (see below)
 		type.rows = 4, type.cols = 4;
 
 		if (accept('<'))
@@ -527,7 +528,8 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 				if (exp.type.is_floating_point()) one.as_float[i] = 1.0f; else one.as_uint[i] = 1u;
 
 			const auto value = _codegen->emit_load(exp);
-			const auto result = _codegen->emit_binary_op(location, op, exp.type, value, _codegen->emit_constant(exp.type, one));
+			const auto result = _codegen->emit_binary_op(location, op, exp.type, value,
+				_codegen->emit_constant(exp.type, one));
 
 			// The "++" and "--" operands modify the source variable, so store result back into it
 			_codegen->emit_store(exp, result);
@@ -539,12 +541,11 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 				return error(exp.location, 3082, "int or unsigned int type required"), false;
 			// The logical not operator expects a boolean type as input, so perform cast if necessary
 			if (op == tokenid::exclaim && !exp.type.is_boolean())
-				exp.add_cast_operation({ type::t_bool, exp.type.rows, exp.type.cols }); // The result type will be boolean as well
+				exp.add_cast_operation({ type::t_bool, exp.type.rows, exp.type.cols }); // Note: The result will be boolean as well
 
 			// Constant expressions can be evaluated at compile time
-			if (exp.is_constant)
-				exp.evaluate_constant_expression(op);
-			else {
+			if (!exp.evaluate_constant_expression(op))
+			{
 				const auto value = _codegen->emit_load(exp);
 				const auto result = _codegen->emit_unary_op(location, op, exp.type, value);
 
@@ -566,18 +567,15 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 			}
 			else if (expect(')'))
 			{
-				// Parse expression behind cast operator
+				// Parse the expression behind cast operator
 				if (!parse_expression_unary(exp))
 					return false;
 
 				// Check if the types already match, in which case there is nothing to do
-				if (exp.type.base == cast_type.base &&
-					exp.type.rows == cast_type.rows &&
-					exp.type.cols == cast_type.cols &&
-					exp.type.array_length == cast_type.array_length)
+				if (exp.type == cast_type)
 					return true;
 
-				// Check if a cast between the types is valid
+				// Check if a cast between these types is valid
 				if (!type::rank(exp.type, cast_type))
 					return error(location, 3017, "cannot convert these types"), false;
 
@@ -597,9 +595,8 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 	}
 	else if (accept('{'))
 	{
-		std::vector<expression> elements;
-
 		bool is_constant = true;
+		std::vector<expression> elements;
 		type composite_type = { type::t_bool, 1, 1 };
 
 		while (!peek('}'))
@@ -774,7 +771,7 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 					for (unsigned int i = argument.type.components(); i > 0; --i)
 					{
 						expression scalar = argument;
-						scalar.add_static_index_access(_codegen.get(), i - 1);
+						scalar.add_constant_index_access(i - 1);
 
 						it = arguments.insert(it, scalar);
 					}
@@ -1018,11 +1015,8 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 						}
 				}
 
-				// Indexing logic is simpler, so use that when possible
-				if (length == 1)
-					exp.add_static_index_access(_codegen.get(), offsets[0]);
-				else // Add swizzle to current access chain
-					exp.add_swizzle_access(offsets, static_cast<unsigned int>(length));
+				// Add swizzle to current access chain
+				exp.add_swizzle_access(offsets, static_cast<unsigned int>(length));
 
 				if (is_const || exp.type.has(type::q_uniform))
 					exp.type.qualifiers = (exp.type.qualifiers | type::q_const) & ~type::q_uniform;
@@ -1122,15 +1116,26 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 			else if (!index.type.is_scalar() || !index.type.is_integral())
 				return error(index.location, 3120, "invalid type for index - index must be an integer scalar"), false;
 
-			// Check array bounds if known
-			if (index.is_constant && exp.type.array_length > 0 && index.constant.as_uint[0] >= static_cast<unsigned int>(exp.type.array_length))
-				return error(index.location, 3504, "array index out of bounds"), false;
-
 			// Add index expression to current access chain
 			if (index.is_constant)
-				exp.add_static_index_access(_codegen.get(), index.constant.as_uint[0]);
+			{
+				// Check array bounds if known
+				if (exp.type.array_length > 0 && index.constant.as_uint[0] >= static_cast<unsigned int>(exp.type.array_length))
+					return error(index.location, 3504, "array index out of bounds"), false;
+
+				exp.add_constant_index_access(index.constant.as_uint[0]);
+			}
 			else
-				exp.add_dynamic_index_access(_codegen.get(), _codegen->emit_load(index));
+			{
+				if (exp.is_constant)
+				{
+					// To handle a dynamic index into a constant means we need to create a local variable first or else any of the indexing instructions do not work
+					const auto temp_variable = _codegen->define_variable(location, exp.type, std::string(), false, _codegen->emit_constant(exp.type, exp.constant));
+					exp.reset_to_lvalue(exp.location, temp_variable, exp.type);
+				}
+
+				exp.add_dynamic_index_access(_codegen->emit_load(index));
+			}
 		}
 		else
 		{
@@ -1240,11 +1245,8 @@ bool reshadefx::parser::parse_expression_multary(expression &lhs, unsigned int l
 #endif
 
 			// Constant expressions can be evaluated at compile time
-			if (lhs.is_constant && rhs.is_constant)
-			{
-				lhs.evaluate_constant_expression(op, rhs.constant);
+			if (rhs.is_constant && lhs.evaluate_constant_expression(op, rhs.constant))
 				continue;
-			}
 
 			const auto lhs_value = _codegen->emit_load(lhs);
 

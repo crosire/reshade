@@ -233,15 +233,18 @@ namespace reshade::d3d9
 
 	bool runtime_d3d9::on_init(const D3DPRESENT_PARAMETERS &pp)
 	{
+		RECT window_rect = {};
+		GetClientRect(pp.hDeviceWindow, &window_rect);
+
 		_width = pp.BackBufferWidth;
 		_height = pp.BackBufferHeight;
+		_window_width = window_rect.right - window_rect.left;
+		_window_height = window_rect.bottom - window_rect.top;
 		_backbuffer_format = pp.BackBufferFormat;
 		_is_multisampling_enabled = pp.MultiSampleType != D3DMULTISAMPLE_NONE;
 
 		if (FAILED(_device->CreateStateBlock(D3DSBT_ALL, &_app_state)))
-		{
 			return false;
-		}
 
 		if (!init_backbuffer_texture() ||
 			!init_default_depth_stencil() ||
@@ -250,9 +253,7 @@ namespace reshade::d3d9
 			|| !init_imgui_resources()
 #endif
 			)
-		{
 			return false;
-		}
 
 		return runtime::on_init(pp.hDeviceWindow);
 	}
@@ -641,7 +642,7 @@ namespace reshade::d3d9
 			_backbuffer_format != D3DFMT_A8R8G8B8 &&
 			_backbuffer_format != D3DFMT_A8B8G8R8)
 		{
-			LOG(WARNING) << "Screenshots are not supported for back buffer format " << _backbuffer_format << ".";
+			LOG(WARN) << "Screenshots are not supported for back buffer format " << _backbuffer_format << '.';
 			return;
 		}
 
@@ -836,30 +837,13 @@ namespace reshade::d3d9
 		const auto D3DCompile = reinterpret_cast<pD3DCompile>(GetProcAddress(_d3d_compiler, "D3DCompile"));
 
 		// Add specialization constant defines to source code
-		std::string spec_constants;
-		for (const auto &constant : effect.module.spec_constants)
-		{
-			spec_constants += "#define SPEC_CONSTANT_" + constant.name + ' ';
+		effect.preamble += "#define COLOR_PIXEL_SIZE " + std::to_string(1.0f / _width) + ", " + std::to_string(1.0f / _height) + "\n"
+			"#define DEPTH_PIXEL_SIZE COLOR_PIXEL_SIZE\n"
+			"#define SV_TARGET_PIXEL_SIZE COLOR_PIXEL_SIZE\n"
+			"#define SV_DEPTH_PIXEL_SIZE COLOR_PIXEL_SIZE\n";
 
-			switch (constant.type.base)
-			{
-			case reshadefx::type::t_int:
-				spec_constants += std::to_string(constant.initializer_value.as_int[0]);
-				break;
-			case reshadefx::type::t_bool:
-			case reshadefx::type::t_uint:
-				spec_constants += std::to_string(constant.initializer_value.as_uint[0]);
-				break;
-			case reshadefx::type::t_float:
-				spec_constants += std::to_string(constant.initializer_value.as_float[0]);
-				break;
-			}
-
-			spec_constants += '\n';
-		}
-
-		const std::string hlsl_vs = spec_constants + effect.module.hlsl;
-		const std::string hlsl_ps = spec_constants + "#define POSITION VPOS\n" + effect.module.hlsl;
+		const std::string hlsl_vs = effect.preamble + effect.module.hlsl;
+		const std::string hlsl_ps = effect.preamble + "#define POSITION VPOS\n" + effect.module.hlsl;
 
 		std::unordered_map<std::string, com_ptr<IDirect3DPixelShader9>> ps_entry_points;
 		std::unordered_map<std::string, com_ptr<IDirect3DVertexShader9>> vs_entry_points;
@@ -1018,7 +1002,7 @@ namespace reshade::d3d9
 			}
 			else
 			{
-				LOG(WARNING) << "Auto-generated mipmap levels are not supported for the format of texture '" << texture.unique_name << "'.";
+				LOG(WARN) << "Auto-generated mipmap levels are not supported for the format of texture '" << texture.unique_name << "'.";
 			}
 		}
 
@@ -1149,7 +1133,7 @@ namespace reshade::d3d9
 
 				if (k > caps.NumSimultaneousRTs)
 				{
-					LOG(WARNING) << "Device only supports " << caps.NumSimultaneousRTs << " simultaneous render targets, but pass " << pass_index << " in technique '" << technique.name << "' uses more, which are ignored";
+					LOG(WARN) << "Device only supports " << caps.NumSimultaneousRTs << " simultaneous render targets, but pass " << pass_index << " in technique '" << technique.name << "' uses more, which are ignored";
 					break;
 				}
 

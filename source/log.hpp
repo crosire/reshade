@@ -14,7 +14,7 @@
 #define LOG(LEVEL) LOG_##LEVEL()
 #define LOG_INFO() reshade::log::message(reshade::log::level::info)
 #define LOG_ERROR() reshade::log::message(reshade::log::level::error)
-#define LOG_WARNING() reshade::log::message(reshade::log::level::warning)
+#define LOG_WARN() reshade::log::message(reshade::log::level::warning)
 #define LOG_DEBUG() reshade::log::message(reshade::log::level::debug)
 
 namespace reshade::log
@@ -52,6 +52,11 @@ namespace reshade::log
 			utf8_message.reserve(message.size());
 			utf8::unchecked::utf16to8(message.begin(), message.end(), std::back_inserter(utf8_message));
 			return operator<<(utf8_message);
+		}
+		template <>
+		inline message &operator<<(const std::filesystem::path &path)
+		{
+			return operator<<('"' + path.u8string() + '"');
 		}
 
 		inline message &operator<<(const char *message)

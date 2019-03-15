@@ -6,6 +6,7 @@
 #include "input.hpp"
 #include "gui_widgets.hpp"
 #include <assert.h>
+#include <imgui_internal.h>
 
 bool imgui_key_input(const char *name, unsigned int key_data[4], const reshade::input &input)
 {
@@ -66,7 +67,7 @@ bool imgui_font_select(const char *name, std::filesystem::path &path, int &size)
 	if (ImGui::InputText("##font", buf, sizeof(buf)))
 	{
 		std::error_code ec;
-		const std::filesystem::path new_path = buf;
+		const std::filesystem::path new_path = std::filesystem::u8path(buf);
 
 		if ((new_path.empty() || new_path == "ProggyClean.ttf") || (std::filesystem::is_regular_file(new_path, ec) && new_path.extension() == ".ttf"))
 		{
@@ -104,7 +105,7 @@ bool imgui_directory_dialog(const char *name, std::filesystem::path &path)
 
 	ImGui::PushItemWidth(400);
 	if (ImGui::InputText("##path", buf, sizeof(buf)))
-		path = buf;
+		path = std::filesystem::u8path(buf);
 	ImGui::PopItemWidth();
 
 	ImGui::SameLine();
@@ -167,7 +168,7 @@ bool imgui_directory_input_box(const char *name, std::filesystem::path &path, st
 
 	ImGui::PushItemWidth(ImGui::CalcItemWidth() - (button_spacing + button_size));
 	if (ImGui::InputText("##path", buf, sizeof(buf)))
-		path = buf, res = true;
+		path = std::filesystem::u8path(buf), res = true;
 	ImGui::PopItemWidth();
 
 	ImGui::SameLine(0, button_spacing);
@@ -212,7 +213,7 @@ bool imgui_path_list(const char *label, std::vector<std::filesystem::path> &path
 			if (ImGui::InputText("##path", buf, sizeof(buf)))
 			{
 				res = true;
-				paths[i] = buf;
+				paths[i] = std::filesystem::u8path(buf);
 			}
 			ImGui::PopItemWidth();
 
@@ -272,14 +273,14 @@ bool imgui_slider_with_buttons(const char *label, T *v, int components, T v_spee
 	ImGui::PopItemWidth();
 
 	ImGui::SameLine(0, 0);
-	if (ImGui::Button("<", ImVec2(button_size, 0)) && v[0] > v_min)
+	if (ImGui::ButtonEx("<", ImVec2(button_size, 0), ImGuiButtonFlags_Repeat) && v[0] > v_min)
 	{
 		for (int c = 0; c < components; ++c)
 			v[c] -= v_speed;
 		value_changed = true;
 	}
 	ImGui::SameLine(0, button_spacing);
-	if (ImGui::Button(">", ImVec2(button_size, 0)) && v[0] < v_max)
+	if (ImGui::ButtonEx(">", ImVec2(button_size, 0), ImGuiButtonFlags_Repeat) && v[0] < v_max)
 	{
 		for (int c = 0; c < components; ++c)
 			v[c] += v_speed;
@@ -315,6 +316,32 @@ bool imgui_slider_with_buttons(const char *label, ImGuiDataType data_type, void 
 	case ImGuiDataType_Double:
 		return imgui_slider_with_buttons<double, ImGuiDataType_Double>(label, static_cast<double *>(v), components, *static_cast<const double *>(v_speed), *static_cast<const double *>(v_min), *static_cast<const double *>(v_max), format);
 	}
+}
+
+bool imgui_slider_for_alpha(const char *label, float *v)
+{
+	const float button_size = ImGui::GetFrameHeight();
+	const float button_spacing = ImGui::GetStyle().ItemInnerSpacing.x;
+
+	ImGui::BeginGroup();
+	ImGui::PushID(label);
+
+	ImGui::PushItemWidth(ImGui::CalcItemWidth() - button_spacing - button_size);
+	bool value_changed = ImGui::SliderFloat("##v", v, 0.0f, 1.0f);
+	ImGui::PopItemWidth();
+
+	ImGui::SameLine(0, button_spacing);
+	ImGui::ColorButton("##preview", ImVec4(1.0f, 1.0f, 1.0f, *v), ImGuiColorEditFlags_NoOptions | ImGuiColorEditFlags_AlphaPreview | ImGuiColorEditFlags_NoPicker);
+
+	ImGui::PopID();
+
+	ImGui::SameLine(0, button_spacing);
+	ImGui::TextUnformatted(label);
+
+	ImGui::EndGroup();
+
+	return value_changed;
+
 }
 
 void imgui_image_with_checkerboard_background(ImTextureID user_texture_id, const ImVec2 &size)

@@ -43,8 +43,8 @@ namespace reshadefx
 		void backup();
 		void restore();
 
-		bool peek(char tok) const { return peek(static_cast<tokenid>(tok)); }
-		bool peek(tokenid tokid) const;
+		bool peek(char tok) const { return _token_next.id == static_cast<tokenid>(tok); }
+		bool peek(tokenid tokid) const { return _token_next.id == tokid; }
 		void consume();
 		void consume_until(char tok) { return consume_until(static_cast<tokenid>(tok)); }
 		void consume_until(tokenid tokid);

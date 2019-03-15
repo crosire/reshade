@@ -40,8 +40,7 @@ namespace reshade::log
 			<< std::setw(2) << time.wMinute << ':'
 			<< std::setw(2) << time.wSecond << ':'
 			<< std::setw(3) << time.wMilliseconds << ' '
-			<< '[' << std::setw(5) << GetCurrentThreadId() << ']' << std::setfill(' ')
-			<< " | "
+			<< '[' << std::setw(5) << GetCurrentThreadId() << ']' << std::setfill(' ') << " | "
 			<< level_names[static_cast<unsigned int>(level) - 1] << " | " << std::left;
 		linestream
 			<< level_names[static_cast<unsigned int>(level) - 1] << " | ";
@@ -63,13 +62,14 @@ namespace reshade::log
 		stream.open(path, std::ios::out | std::ios::trunc);
 
 		if (!stream.is_open())
-		{
 			return false;
-		}
 
-		stream.setf(std::ios_base::showbase);
-
+		stream.setf(std::ios::left);
+		stream.setf(std::ios::showbase);
 		stream.flush();
+
+		linestream.setf(std::ios::left);
+		linestream.setf(std::ios::showbase);
 
 		return true;
 	}
