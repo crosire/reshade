@@ -8,7 +8,6 @@
 #include "runtime.hpp"
 #include "effect_expression.hpp"
 #include "com_ptr.hpp"
-#include <map>
 #include <d3d9.h>
 
 namespace reshade::d3d9
@@ -74,16 +73,10 @@ namespace reshade::d3d9
 			UINT width, height;
 			UINT drawcall_count, vertices_count;
 		};
+
 		struct depth_buffer_info
 		{
 			com_ptr<IDirect3DSurface9> depthstencil;
-			UINT width, height;
-			UINT drawcall_count, vertices_count;
-		};
-		struct depth_clearing_info
-		{
-			com_ptr<IDirect3DSurface9> depthstencil;
-			com_ptr<IDirect3DTexture9> depthtexture;
 			UINT width, height;
 			UINT drawcall_count, vertices_count;
 		};
@@ -96,9 +89,8 @@ namespace reshade::d3d9
 		bool init_texture(texture &info) override;
 		bool init_technique(technique &info, const d3d9_technique_data &technique_init, const std::unordered_map<std::string, com_ptr<IDirect3DVertexShader9>> &vs_entry_points, const std::unordered_map<std::string, com_ptr<IDirect3DPixelShader9>> &ps_entry_points);
 
-		com_ptr<IDirect3DTexture9> create_depthstencil_texture(com_ptr<IDirect3DSurface9> depthstencil);
 		int get_best_preserve_starting_index();
-		bool runtime_d3d9::check_depthstencil_size(const D3DSURFACE_DESC &desc);
+		bool check_depthstencil_size(D3DSURFACE_DESC desc);
 
 #if RESHADE_GUI
 		bool init_imgui_resources();
@@ -116,28 +108,21 @@ namespace reshade::d3d9
 		bool _preserve_depth_buffer = false;
 		bool _disable_depth_buffer_size_restriction = false;
 		int _preserve_starting_index = 0;
-		int _preserve_selected_index = 0;
 		bool _auto_preserve = true;
 		bool _auto_preserve_on_drawcalls = false;
 		bool _auto_preserve_on_vertices = true;
-		bool _multi_depthstencil = false;
-		int _preserve_vertices = 0;
-		int _preserve_drawcalls = 0;
-		bool _is_multisampling_enabled = false;
-		int _clear_buffer_idx = 0;
-		int _clear_idx = 0;
 		int _db_vertices = 0;
 		int _db_drawcalls = 0;
-		int _previous_best_vertices = 0;
-		int _previous_best_drawcalls = 0;
+		int _current_db_vertices = 0;
+		int _current_db_drawcalls = 0;
+		bool _is_multisampling_enabled = false;
 		D3DFORMAT _backbuffer_format = D3DFMT_UNKNOWN;
 		com_ptr<IDirect3DStateBlock9> _app_state;
 		com_ptr<IDirect3DSurface9> _depthstencil;
 		com_ptr<IDirect3DSurface9> _depthstencil_replacement;
 		com_ptr<IDirect3DSurface9> _default_depthstencil;
 		std::unordered_map<IDirect3DSurface9 *, depth_source_info> _depth_source_table;
-		std::map<int, depth_buffer_info> _depth_buffer_table;
-		std::map<int, depth_clearing_info> _depth_clearing_table;
+		std::vector<depth_buffer_info> _depth_buffer_table;
 
 		com_ptr<IDirect3DVertexBuffer9> _effect_triangle_buffer;
 		com_ptr<IDirect3DVertexDeclaration9> _effect_triangle_layout;

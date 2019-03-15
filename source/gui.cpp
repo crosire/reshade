@@ -337,8 +337,10 @@ void reshade::runtime::draw_ui()
 	imgui_io.Fonts->TexID = _imgui_font_atlas.impl.get();
 
 	// Scale mouse position in case render resolution does not match the window size
-	imgui_io.MousePos.x = _input->mouse_position_x() * (imgui_io.DisplaySize.x / _window_width);
-	imgui_io.MousePos.y = _input->mouse_position_y() * (imgui_io.DisplaySize.y / _window_height);
+	// imgui_io.MousePos.x = _input->mouse_position_x() * (imgui_io.DisplaySize.x / _window_width);
+	// imgui_io.MousePos.y = _input->mouse_position_y() * (imgui_io.DisplaySize.y / _window_height);
+	imgui_io.MousePos.x = static_cast<float>(_input->mouse_position_x());
+	imgui_io.MousePos.y = static_cast<float>(_input->mouse_position_y());
 
 	// Add wheel delta to the current absolute mouse wheel position
 	imgui_io.MouseWheel += _input->mouse_wheel_delta();
