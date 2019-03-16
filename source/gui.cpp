@@ -18,12 +18,16 @@
 extern volatile long g_network_traffic;
 extern std::filesystem::path g_reshade_dll_path;
 extern std::filesystem::path g_target_executable_path;
+char g_reshadegui_ini_path[260 * 3];
 
 const ImVec4 COLOR_RED = ImColor(240, 100, 100);
 const ImVec4 COLOR_YELLOW = ImColor(204, 204, 0);
 
 void reshade::runtime::init_ui()
 {
+	memset(g_reshadegui_ini_path, 0, sizeof(g_reshadegui_ini_path));
+	(g_reshade_dll_path.parent_path() / "ReShadeGUI.ini").u8string().copy(g_reshadegui_ini_path, sizeof(g_reshadegui_ini_path));
+
 	// Default shortcut: Home
 	_menu_key_data[0] = 0x24;
 	_menu_key_data[1] = false;
@@ -110,7 +114,7 @@ void reshade::runtime::init_ui()
 		config.get("STYLE", "StyleIndex", _style_index);
 		config.get("STYLE", "EditorStyleIndex", _editor_style_index);
 
-		_imgui_context->IO.IniFilename = save_imgui_window_state ? "ReShadeGUI.ini" : nullptr;
+		_imgui_context->IO.IniFilename = save_imgui_window_state ? g_reshadegui_ini_path : nullptr;
 
 		// For compatibility with older versions, set the alpha value if it is missing
 		if (_fps_col[3] == 0.0f) _fps_col[3] = 1.0f;
@@ -969,7 +973,7 @@ void reshade::runtime::draw_overlay_menu_settings()
 		if (ImGui::Checkbox("Save Window State (ReShadeGUI.ini)", &save_imgui_window_state))
 		{
 			modified = true;
-			_imgui_context->IO.IniFilename = save_imgui_window_state ? "ReShadeGUI.ini" : nullptr;
+			_imgui_context->IO.IniFilename = save_imgui_window_state ? g_reshadegui_ini_path : nullptr;
 		}
 
 		modified |= ImGui::Checkbox("Experimental Variable Editing UI", &_variable_editor_tabs);
