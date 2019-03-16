@@ -232,6 +232,9 @@
     <PreBuildEvent>
       <Command>tools\verbuild res\version.h *.*.*.+ -xFP -b0.0.0.0 -s</Command>
     </PreBuildEvent>
+    <PostBuildEvent>
+      <Command>if exist "res\sign.pfx" signtool sign /f "res\sign.pfx" /t http://timestamp.verisign.com/scripts/timstamp.dll "$(TargetPath)"</Command>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
@@ -265,6 +268,9 @@
     <PreBuildEvent>
       <Command>tools\verbuild res\version.h *.*.*.+ -xFP -b0.0.0.0 -s</Command>
     </PreBuildEvent>
+    <PostBuildEvent>
+      <Command>if exist "res\sign.pfx" signtool sign /f "res\sign.pfx" /t http://timestamp.verisign.com/scripts/timstamp.dll "$(TargetPath)"</Command>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release App|Win32'">
     <ClCompile>
