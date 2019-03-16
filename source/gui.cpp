@@ -1797,6 +1797,8 @@ void reshade::runtime::draw_overlay_variable_editor()
 							if (reset_variable.effect_index == current_effect)
 								reset_uniform_value(reset_variable);
 
+						save_current_preset();
+
 						ImGui::CloseCurrentPopup();
 					}
 
