@@ -16,6 +16,7 @@ namespace reshade::d3d12
 	{
 	public:
 		runtime_d3d12(ID3D12Device *device, ID3D12CommandQueue *queue, IDXGISwapChain3 *swapchain);
+		~runtime_d3d12();
 
 		bool on_init(const DXGI_SWAP_CHAIN_DESC &desc);
 		void on_reset();
@@ -30,6 +31,8 @@ namespace reshade::d3d12
 		bool compile_effect(effect_data &effect) override;
 		void unload_effects() override;
 
+		bool init_technique(technique &technique, const struct d3d12_technique_data &impl_init, const std::unordered_map<std::string, com_ptr<ID3DBlob>> &entry_points);
+
 		void render_technique(technique &technique) override;
 
 #if RESHADE_GUI
@@ -39,5 +42,7 @@ namespace reshade::d3d12
 		com_ptr<ID3D12Device> _device;
 		com_ptr<ID3D12CommandQueue> _commandqueue;
 		com_ptr<IDXGISwapChain3> _swapchain;
+		HMODULE _d3d_compiler = nullptr;
+		D3D12_CPU_DESCRIPTOR_HANDLE _default_depthstencil;
 	};
 }
