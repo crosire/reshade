@@ -406,7 +406,7 @@ namespace reshade::d3d9
 
 		if (_preserve_depth_buffer && !_depth_buffer_table.empty())
 		{
-			// ensure that the main depth buffer replacement surface (and texture) is cleared before the next frame rendering
+			// Ensure that the main depth buffer replacement surface (and texture) is cleared before the next frame
 			_device->SetDepthStencilSurface(_depthstencil_replacement.get());
 			_device->Clear(0, nullptr, D3DCLEAR_ZBUFFER, 0, 1.0f, 0);
 		}
@@ -464,7 +464,6 @@ namespace reshade::d3d9
 	}
 	bool runtime_d3d9::on_clear(com_ptr<IDirect3DSurface9> depthstencil)
 	{
-		// early rejection
 		if (depthstencil == nullptr || !_preserve_depth_buffer || depthstencil != _depthstencil_replacement)
 			return false;
 
@@ -475,7 +474,7 @@ namespace reshade::d3d9
 		if (desc.MultiSampleType != D3DMULTISAMPLE_NONE || !check_depthstencil_size(desc))
 			return false;
 
-		// check if we drawcalls have been registered since the last cleaning
+		// Check if any drawcalls have been registered since the last clear operation
 		if (_current_db_drawcalls > 0 && _current_db_vertices > 0)
 		{
 			const depth_buffer_info db_info = { _depthstencil_replacement, desc.Width, desc.Height, _current_db_drawcalls, _current_db_vertices };
@@ -488,7 +487,7 @@ namespace reshade::d3d9
 		if (_depth_buffer_table.empty() || _depth_buffer_table.size() <= _preserve_starting_index)
 			return false;
 
-		// if the current depth buffer replacement texture has to be preserved, replace the depthStencilSurface ref with the standard one, so the depth buffer replacement texture will not be cleared
+		// If the current depth buffer replacement texture has to be preserved, replace the set surface with the original one, so that the replacement texture will not be cleared
 		_device->SetDepthStencilSurface(_depthstencil.get());
 		_device->Clear(0, nullptr, D3DCLEAR_ZBUFFER, 0, 1.0f, 0);
 
@@ -502,7 +501,7 @@ namespace reshade::d3d9
 			depthstencil->GetDesc(&desc);
 
 			// Early rejection
-			if ( desc.MultiSampleType != D3DMULTISAMPLE_NONE || !check_depthstencil_size(desc))
+			if (desc.MultiSampleType != D3DMULTISAMPLE_NONE || !check_depthstencil_size(desc))
 				return;
 	
 			depthstencil->AddRef();
@@ -1610,51 +1609,37 @@ namespace reshade::d3d9
 
 		return true;
 	}
-	// retrieve the best depth buffer clearing instance, depending on the options selected
+
 	int runtime_d3d9::get_best_preserve_starting_index()
 	{
 		int result = 0;
 
 		for (std::vector<depth_buffer_info>::size_type i = 0; i != _depth_buffer_table.size(); i++)
 		{
-			const auto it = _depth_buffer_table[i];
-			bool best = (it.vertices_count >= _db_vertices);
-			if (_auto_preserve_on_drawcalls)
-				best = (it.drawcall_count >= _db_drawcalls);
-
-			if (best)
+			const auto &it = _depth_buffer_table[i];
+			if (_auto_preserve_on_drawcalls ?
+				it.drawcall_count >= _db_drawcalls : it.vertices_count >= _db_vertices)
 			{
 				_db_vertices = it.vertices_count;
 				_db_drawcalls = it.drawcall_count;
-			}
-
-			if (best)
 				result = i;
+			}
 		}
 
 		return result;
 	}
+
 	bool runtime_d3d9::check_depthstencil_size(D3DSURFACE_DESC desc)
 	{
-		// check the size of the current depth buffer
-		if (!_disable_depth_buffer_size_restriction)
+		if (_disable_depth_buffer_size_restriction)
 		{
-			if ((desc.Width < _width * 0.95 || desc.Width > _width * 1.05) ||
-				(desc.Height < _height * 0.95 || desc.Height > _height * 1.05))
-			{
-				return false;
-			}
+			// Allow depth buffers with greater dimensions than the viewport (e.g. in games like Vanquish)
+			return desc.Width >= _width * 0.95 && desc.Height >= _height * 0.95;
 		}
 		else
 		{
-			// allow to retrieve depth buffers having greater dimensions than the viewport's ones (fix depth buffer detection in games like Vanquish)
-			if (desc.Width < _width * 0.95 ||
-				desc.Height < _height * 0.95)
-			{
-				return false;
-			}
+			return (desc.Width >= _width * 0.95 && desc.Width <= _width * 1.05)
+				&& (desc.Height >= _height * 0.95 && desc.Height <= _height * 1.05);
 		}
-
-		return true;
 	}
 }
