@@ -485,16 +485,14 @@ namespace reshade::d3d9
 		_current_db_drawcalls = 0;
 		_current_db_vertices = 0;
 
-		bool is_preserved = (!_depth_buffer_table.empty() && _depth_buffer_table.size() > _preserve_starting_index);
+		if (_depth_buffer_table.empty() || _depth_buffer_table.size() <= _preserve_starting_index)
+			return false;
 
-		if (is_preserved)
-		{
-			// if the current depth buffer replacement texture has to be preserved, replace the depthStencilSurface ref with the standard one, so the depth buffer replacement texture will not be cleared
-			_device->SetDepthStencilSurface(_depthstencil.get());
-			_device->Clear(0, nullptr, D3DCLEAR_ZBUFFER, 0, 1.0f, 0);
-		}
+		// if the current depth buffer replacement texture has to be preserved, replace the depthStencilSurface ref with the standard one, so the depth buffer replacement texture will not be cleared
+		_device->SetDepthStencilSurface(_depthstencil.get());
+		_device->Clear(0, nullptr, D3DCLEAR_ZBUFFER, 0, 1.0f, 0);
 
-		return is_preserved;
+		return true;
 	}
 	void runtime_d3d9::on_set_depthstencil_surface(IDirect3DSurface9 *&depthstencil)
 	{
