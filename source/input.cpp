@@ -113,13 +113,12 @@ bool reshade::input::handle_window_message(const void *message_data)
 	input->_mouse_position[0] = details.pt.x;
 	input->_mouse_position[1] = details.pt.y;
 
-	RAWINPUT raw_data = {};
-	UINT raw_data_size = sizeof(raw_data);
-
 	switch (details.message)
 	{
-	case WM_INPUT:
-		if (GET_RAWINPUT_CODE_WPARAM(details.wParam) != RIM_INPUT ||
+	case WM_INPUT: {
+		RAWINPUT raw_data = {};
+		if (UINT raw_data_size = sizeof(raw_data);
+			GET_RAWINPUT_CODE_WPARAM(details.wParam) != RIM_INPUT ||
 			GetRawInputData(reinterpret_cast<HRAWINPUT>(details.lParam), RID_INPUT, &raw_data, &raw_data_size, sizeof(raw_data.header)) == UINT(-1))
 			break;
 
@@ -172,7 +171,7 @@ bool reshade::input::handle_window_message(const void *message_data)
 				input->_text_input += ch;
 			break;
 		}
-		break;
+		break; }
 	case WM_CHAR:
 		input->_text_input += static_cast<wchar_t>(details.wParam);
 		break;
@@ -223,13 +222,11 @@ bool reshade::input::handle_window_message(const void *message_data)
 bool reshade::input::is_key_down(unsigned int keycode) const
 {
 	assert(keycode < _countof(_keys));
-
 	return keycode < _countof(_keys) && (_keys[keycode] & 0x80) == 0x80;
 }
 bool reshade::input::is_key_pressed(unsigned int keycode) const
 {
 	assert(keycode < _countof(_keys));
-
 	return keycode < _countof(_keys) && (_keys[keycode] & 0x88) == 0x88;
 }
 bool reshade::input::is_key_pressed(unsigned int keycode, bool ctrl, bool shift, bool alt) const
@@ -239,7 +236,6 @@ bool reshade::input::is_key_pressed(unsigned int keycode, bool ctrl, bool shift,
 bool reshade::input::is_key_released(unsigned int keycode) const
 {
 	assert(keycode < _countof(_keys));
-
 	return keycode < _countof(_keys) && (_keys[keycode] & 0x88) == 0x08;
 }
 
@@ -277,19 +273,16 @@ unsigned int reshade::input::last_key_released() const
 bool reshade::input::is_mouse_button_down(unsigned int button) const
 {
 	assert(button < _countof(_mouse_buttons));
-
 	return button < _countof(_mouse_buttons) && (_mouse_buttons[button] & 0x80) == 0x80;
 }
 bool reshade::input::is_mouse_button_pressed(unsigned int button) const
 {
 	assert(button < _countof(_mouse_buttons));
-
 	return button < _countof(_mouse_buttons) && (_mouse_buttons[button] & 0x88) == 0x88;
 }
 bool reshade::input::is_mouse_button_released(unsigned int button) const
 {
 	assert(button < _countof(_mouse_buttons));
-
 	return button < _countof(_mouse_buttons) && (_mouse_buttons[button] & 0x88) == 0x08;
 }
 
@@ -392,7 +385,6 @@ static inline bool is_blocking_mouse_input()
 	const auto predicate = [](auto input_window) {
 		return !input_window.second.expired() && input_window.second.lock()->is_blocking_mouse_input();
 	};
-
 	return std::any_of(s_windows.cbegin(), s_windows.cend(), predicate);
 }
 static inline bool is_blocking_keyboard_input()
@@ -400,7 +392,6 @@ static inline bool is_blocking_keyboard_input()
 	const auto predicate = [](auto input_window) {
 		return !input_window.second.expired() && input_window.second.lock()->is_blocking_keyboard_input();
 	};
-
 	return std::any_of(s_windows.cbegin(), s_windows.cend(), predicate);
 }
 
@@ -492,7 +483,6 @@ HOOK_EXPORT BOOL WINAPI HookPostMessageA(HWND hWnd, UINT Msg, WPARAM wParam, LPA
 		return TRUE;
 
 	static const auto trampoline = reshade::hooks::call(HookPostMessageA);
-
 	return trampoline(hWnd, Msg, wParam, lParam);
 }
 HOOK_EXPORT BOOL WINAPI HookPostMessageW(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam)
@@ -501,7 +491,6 @@ HOOK_EXPORT BOOL WINAPI HookPostMessageW(HWND hWnd, UINT Msg, WPARAM wParam, LPA
 		return TRUE;
 
 	static const auto trampoline = reshade::hooks::call(HookPostMessageW);
-
 	return trampoline(hWnd, Msg, wParam, lParam);
 }
 
@@ -510,7 +499,6 @@ HOOK_EXPORT BOOL WINAPI HookRegisterRawInputDevices(PCRAWINPUTDEVICE pRawInputDe
 #if RESHADE_VERBOSE_LOG
 	LOG(DEBUG) << "Redirecting RegisterRawInputDevices" << '(' << pRawInputDevices << ", " << uiNumDevices << ", " << cbSize << ')' << " ...";
 #endif
-
 	for (UINT i = 0; i < uiNumDevices; ++i)
 	{
 		const auto &device = pRawInputDevices[i];
@@ -536,7 +524,6 @@ HOOK_EXPORT BOOL WINAPI HookRegisterRawInputDevices(PCRAWINPUTDEVICE pRawInputDe
 	if (!reshade::hooks::call(HookRegisterRawInputDevices)(pRawInputDevices, uiNumDevices, cbSize))
 	{
 		LOG(WARN) << "'RegisterRawInputDevices' failed with error code " << GetLastError() << "!";
-
 		return FALSE;
 	}
 
@@ -554,7 +541,6 @@ HOOK_EXPORT BOOL WINAPI HookSetCursorPosition(int X, int Y)
 		return TRUE;
 
 	static const auto trampoline = reshade::hooks::call(HookSetCursorPosition);
-
 	return trampoline(X, Y);
 }
 HOOK_EXPORT BOOL WINAPI HookGetCursorPosition(LPPOINT lpPoint)
@@ -570,6 +556,5 @@ HOOK_EXPORT BOOL WINAPI HookGetCursorPosition(LPPOINT lpPoint)
 	}
 
 	static const auto trampoline = reshade::hooks::call(HookGetCursorPosition);
-
 	return trampoline(lpPoint);
 }
