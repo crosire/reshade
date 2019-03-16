@@ -251,25 +251,25 @@ void reshade::runtime::load_effect(const std::filesystem::path &path, size_t &ou
 			effect.compile_sucess = false;
 		}
 
-		std::unique_ptr<reshadefx::codegen> codegen;
-		if (_renderer_id & 0x10000)
-		{
-			codegen.reset(reshadefx::create_codegen_glsl(true, _performance_mode));
-		}
+		unsigned shader_model;
+		if (_renderer_id == 0x9000)
+			shader_model = 30;
+		else if (_renderer_id < 0xa100)
+			shader_model = 40;
+		else if (_renderer_id < 0xb000)
+			shader_model = 41;
+		else if (_renderer_id < 0xc000)
+			shader_model = 50;
 		else
-		{
-			unsigned shader_model;
-			if (_renderer_id == 0x9000)
-				shader_model = 30;
-			else if (_renderer_id < 0xa100)
-				shader_model = 40;
-			else if (_renderer_id < 0xb000)
-				shader_model = 41;
-			else
-				shader_model = 50;
+			shader_model = 60;
 
+		std::unique_ptr<reshadefx::codegen> codegen;
+		if ((_renderer_id & 0xF0000) == 0)
 			codegen.reset(reshadefx::create_codegen_hlsl(shader_model, true, _performance_mode));
-		}
+		else if (_renderer_id < 0x20000)
+			codegen.reset(reshadefx::create_codegen_glsl(true, _performance_mode));
+		else // Vulkan uses SPIR-V input
+			codegen.reset(reshadefx::create_codegen_spirv(true, _performance_mode));
 
 		reshadefx::parser parser;
 
