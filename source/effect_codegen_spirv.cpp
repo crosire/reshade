@@ -1311,7 +1311,7 @@ private:
 					unsigned int shuffle[4] = { 0, 1, 2, 3 };
 					for (unsigned int c = 0; c < base_type.rows; ++c)
 						if (op.swizzle[c] >= 0)
-							shuffle[op.swizzle[c]] = base_type.rows + i;
+							shuffle[op.swizzle[c]] = base_type.rows + c;
 					for (unsigned int c = 0; c < base_type.rows; ++c)
 						node.add(shuffle[c]);
 
