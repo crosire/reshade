@@ -777,32 +777,40 @@ void reshade::runtime::draw_overlay_menu_home()
 
 		if (ImGui::Button("Active to top", ImVec2(130 - _imgui_context->Style.ItemSpacing.x, 0)))
 		{
-			for (size_t i = 0; i < _techniques.size(); ++i)
+			for (auto i = _techniques.begin(); i != _techniques.end(); ++i)
 			{
-				if (!_techniques[i].enabled && _techniques[i].toggle_key_data[0] == 0)
+				if (!i->enabled && i->toggle_key_data[0] == 0)
 				{
-					for (size_t k = i + 1; k < _techniques.size(); ++k)
+					for (auto k = i + 1; k != _techniques.end(); ++k)
 					{
-						if (_techniques[k].enabled || _techniques[k].toggle_key_data[0] != 0)
+						if (k->enabled || k->toggle_key_data[0] != 0)
 						{
-							std::swap(_techniques[i], _techniques[k]);
+							std::iter_swap(i, k);
 							break;
 						}
 					}
 				}
 			}
-			for (size_t i = 0; i < _techniques.size(); ++i)
+			for (auto i = _techniques.begin(); i != _techniques.end(); ++i)
 			{
-				if (!_techniques[i].enabled && _techniques[i].toggle_key_data[0] == 0)
+				if (!i->enabled && i->toggle_key_data[0] == 0)
 				{
-					for (size_t k = i + 1; k < _techniques.size(); ++k)
+					for (auto k = i + 1; k != _techniques.end(); ++k)
 					{
-						if (!_techniques[k].enabled && _techniques[k].toggle_key_data[0] == 0
-							&& _techniques[i].name.compare(_techniques[k].name) > 0)
+						if (!k->enabled && k->toggle_key_data[0] == 0)
 						{
-							std::swap(_techniques[i], _techniques[k]);
-							i = 0;
-							break;
+							// Using static to avoid allocate std::string in loop
+							static const std::string ui_label("ui_label");
+
+							const auto &a = i->annotations.find(ui_label) == i->annotations.end() ? i->name : i->annotations[ui_label].second.string_data;
+							const auto &b = k->annotations.find(ui_label) == k->annotations.end() ? k->name : k->annotations[ui_label].second.string_data;
+
+							if (a.compare(b) > 0)
+							{
+								std::iter_swap(i, k);
+								i = _techniques.begin();
+								break;
+							}
 						}
 					}
 				}
