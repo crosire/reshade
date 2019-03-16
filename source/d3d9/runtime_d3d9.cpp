@@ -99,9 +99,29 @@ namespace reshade::d3d9
 #endif
 		subscribe_to_load_config([this](const ini_file& config) {
 			config.get("DX9_BUFFER_DETECTION", "DisableINTZ", _disable_intz);
+			// add an option to switch to the new depth buffer detection mode, which tries to preserve the depth buffer
+			config.get("DX9_BUFFER_DETECTION", "PreserveDepthBuffer", _preserve_depth_buffer);
+			// add an option to disable the depth buffer size rejection, if this size is greater than the actual viewport
+			config.get("DX9_BUFFER_DETECTION", "DisableDepthBufferSizeRestriction", _disable_depth_buffer_size_restriction);
+			// add an option that allows the user to select a specific clearance index from which Reshade can preserve the depth buffer texture
+			config.get("DX9_BUFFER_DETECTION", "PreserveDepthBufferIndex", _preserve_starting_index);
+			// switch between auto preserve mode (Reshade tries to detect the best depth buffer clearing instance from the number of drawcalls or the number of vertices)
+			// and manual mode (the user can select the depth buffer clearing instance from which the depth buffer texture is preserved)
+			config.get("DX9_BUFFER_DETECTION", "AutoPreserve", _auto_preserve);
+			// when auto preserve is enabled, add two options to specify the best depth buffer clearing instance detection method:
+			// Reshade tries to detect the best depth buffer clearing instance from the number of vertices
+			config.get("DX9_BUFFER_DETECTION", "AutoPreserveOnVertices", _auto_preserve_on_vertices);
+			// Reshade tries to detect the best depth buffer clearing instance from the number of drawcalls
+			config.get("DX9_BUFFER_DETECTION", "AutoPreserveOnDrawcalls", _auto_preserve_on_drawcalls);
 		});
 		subscribe_to_save_config([this](ini_file& config) {
 			config.set("DX9_BUFFER_DETECTION", "DisableINTZ", _disable_intz);
+			config.set("DX9_BUFFER_DETECTION", "PreserveDepthBuffer", _preserve_depth_buffer);
+			config.set("DX9_BUFFER_DETECTION", "DisableDepthBufferSizeRestriction", _disable_depth_buffer_size_restriction);
+			config.set("DX9_BUFFER_DETECTION", "PreserveDepthBufferIndex", _preserve_starting_index);
+			config.set("DX9_BUFFER_DETECTION", "AutoPreserve", _auto_preserve);
+			config.set("DX9_BUFFER_DETECTION", "AutoPreserveOnVertices", _auto_preserve_on_vertices);
+			config.set("DX9_BUFFER_DETECTION", "AutoPreserveOnDrawcalls", _auto_preserve_on_drawcalls);
 		});
 	}
 	runtime_d3d9::~runtime_d3d9()
@@ -273,6 +293,14 @@ namespace reshade::d3d9
 		}
 
 		_depth_source_table.clear();
+
+		// reset the new tables
+		_depth_buffer_table.clear();
+
+		_db_vertices = 0;
+		_db_drawcalls = 0;
+		_current_db_vertices = 0;
+		_current_db_drawcalls = 0;
 	}
 	void runtime_d3d9::on_present()
 	{
@@ -282,6 +310,30 @@ namespace reshade::d3d9
 		// Begin post processing
 		if (FAILED(_device->BeginScene()))
 			return;
+
+		if (_preserve_depth_buffer)
+		{
+			// check if we drawcalls have been registered since the last cleaning
+			if (_depthstencil_replacement != nullptr && _current_db_drawcalls > 0 && _current_db_vertices > 0)
+			{
+				D3DSURFACE_DESC desc;
+				_depthstencil_replacement->GetDesc(&desc);
+
+				const depth_buffer_info db_info = { _depthstencil_replacement, desc.Width, desc.Height, _current_db_drawcalls, _current_db_vertices };
+				_depth_buffer_table.push_back(db_info);
+			}
+
+			_db_vertices = 0;
+			_db_drawcalls = 0;
+			_current_db_vertices = 0;
+			_current_db_drawcalls = 0;
+
+			if (_auto_preserve)
+			{
+				// if auto preserve mode is enabled, try to detect the best depth buffer clearing instance from which the depth buffer texture could be preserved
+				_preserve_starting_index = get_best_preserve_starting_index();
+			}
+		}
 
 		detect_depth_source();
 
@@ -352,6 +404,15 @@ namespace reshade::d3d9
 
 		// End post processing
 		_device->EndScene();
+
+		if (_preserve_depth_buffer && !_depth_buffer_table.empty())
+		{
+			// Ensure that the main depth buffer replacement surface (and texture) is cleared before the next frame
+			_device->SetDepthStencilSurface(_depthstencil_replacement.get());
+			_device->Clear(0, nullptr, D3DCLEAR_ZBUFFER, 0, 1.0f, 0);
+		}
+
+		_depth_buffer_table.clear();
 	}
 	void runtime_d3d9::on_draw_call(D3DPRIMITIVETYPE type, UINT vertices)
 	{
@@ -382,9 +443,17 @@ namespace reshade::d3d9
 		{
 			if (depthstencil == _depthstencil_replacement)
 			{
+				// for the next tables, we need to get back to the original depthstencil ref
 				depthstencil = _depthstencil;
 			}
 
+			if (_preserve_depth_buffer)
+			{
+				_current_db_drawcalls++;
+				_current_db_vertices += vertices;
+			}
+
+			// original depth source table update
 			const auto it = _depth_source_table.find(depthstencil.get());
 
 			if (it != _depth_source_table.end())
@@ -394,6 +463,37 @@ namespace reshade::d3d9
 			}
 		}
 	}
+	bool runtime_d3d9::on_clear(com_ptr<IDirect3DSurface9> depthstencil)
+	{
+		if (depthstencil == nullptr || !_preserve_depth_buffer || depthstencil != _depthstencil_replacement)
+			return false;
+
+		D3DSURFACE_DESC desc;
+		depthstencil->GetDesc(&desc);
+
+		// Early rejection
+		if (desc.MultiSampleType != D3DMULTISAMPLE_NONE || !check_depthstencil_size(desc))
+			return false;
+
+		// Check if any drawcalls have been registered since the last clear operation
+		if (_current_db_drawcalls > 0 && _current_db_vertices > 0)
+		{
+			const depth_buffer_info db_info = { _depthstencil_replacement, desc.Width, desc.Height, _current_db_drawcalls, _current_db_vertices };
+			_depth_buffer_table.push_back(db_info);
+		}
+
+		_current_db_drawcalls = 0;
+		_current_db_vertices = 0;
+
+		if (_depth_buffer_table.empty() || _depth_buffer_table.size() <= _preserve_starting_index)
+			return false;
+
+		// If the current depth buffer replacement texture has to be preserved, replace the set surface with the original one, so that the replacement texture will not be cleared
+		_device->SetDepthStencilSurface(_depthstencil.get());
+		_device->Clear(0, nullptr, D3DCLEAR_ZBUFFER, 0, 1.0f, 0);
+
+		return true;
+	}
 	void runtime_d3d9::on_set_depthstencil_surface(IDirect3DSurface9 *&depthstencil)
 	{
 		if (_depth_source_table.find(depthstencil) == _depth_source_table.end())
@@ -402,12 +502,8 @@ namespace reshade::d3d9
 			depthstencil->GetDesc(&desc);
 
 			// Early rejection
-			if ( desc.MultiSampleType != D3DMULTISAMPLE_NONE ||
-				(desc.Width < _width * 0.95 || desc.Width > _width * 1.05) ||
-				(desc.Height < _height * 0.95 || desc.Height > _height * 1.05))
-			{
+			if (desc.MultiSampleType != D3DMULTISAMPLE_NONE || !check_depthstencil_size(desc))
 				return;
-			}
 	
 			depthstencil->AddRef();
 
@@ -1221,19 +1317,144 @@ namespace reshade::d3d9
 
 	void runtime_d3d9::draw_debug_menu()
 	{
+		ImGui::Text("MSAA is %s", _is_multisampling_enabled ? "active" : "inactive");
+		ImGui::Spacing();
+
 		if (ImGui::CollapsingHeader("Buffer Detection", ImGuiTreeNodeFlags_DefaultOpen))
 		{
-			if (ImGui::Checkbox("Disable replacement with INTZ format", &_disable_intz))
+			if (ImGui::Checkbox("Preserve depth buffer from being cleared", &_preserve_depth_buffer))
 			{
 				runtime::save_config();
 
 				// Force depth-stencil replacement recreation
-				_depthstencil = nullptr;
+				_depthstencil = _default_depthstencil;
+				// Force depth-stencil clearing table recreation
+				_depth_buffer_table.clear();
+				// Force depth source table recreation
+				for (auto &it : _depth_source_table)
+				{
+					it.first->Release();
+				}
+				_depth_source_table.clear();
+
+				if(_preserve_depth_buffer)
+					_disable_intz = false;
 			}
 
-			for (const auto &it : _depth_source_table)
+			ImGui::Spacing();
+			ImGui::Spacing();
+
+			if (!_preserve_depth_buffer)
 			{
-				ImGui::Text("%s0x%p | %u draw calls ==> %u vertices", (it.first == _depthstencil ? "> " : "  "), it.first, it.second.drawcall_count, it.second.vertices_count);
+				if (ImGui::Checkbox("Disable replacement with INTZ format", &_disable_intz))
+				{
+					runtime::save_config();
+
+					// Force depth-stencil replacement recreation
+					_depthstencil = _default_depthstencil;
+					// Force depth source table recreation
+					for (auto &it : _depth_source_table)
+					{
+						it.first->Release();
+					}
+					_depth_source_table.clear();
+				}
+			}
+
+			ImGui::Spacing();
+
+			if (ImGui::Checkbox("Disable the depth buffer size restriction", &_disable_depth_buffer_size_restriction))
+			{
+				runtime::save_config();
+
+				// Force depth-stencil replacement 
+				_depthstencil = _default_depthstencil;
+				// Force depth-stencil clearing table recreation
+				_depth_buffer_table.clear();
+				// Force depth source table recreation
+				for (auto &it : _depth_source_table)
+				{
+					it.first->Release();
+				}
+				_depth_source_table.clear();
+			}
+
+			if (_preserve_depth_buffer)
+			{
+				ImGui::Spacing();
+
+				bool modified = false;
+
+				if (ImGui::Checkbox("Auto preserve", &_auto_preserve))
+				{
+					if (_auto_preserve)
+						_preserve_starting_index = -1;
+					runtime::save_config();
+					// Force depth-stencil replacement recreation
+					_depthstencil = _default_depthstencil;
+				}
+
+				if (_auto_preserve)
+				{
+					if (ImGui::Checkbox("find best depthstencil based on vertices", &_auto_preserve_on_vertices))
+					{
+						_auto_preserve_on_drawcalls = !_auto_preserve_on_vertices;
+						runtime::save_config();
+
+						// Force depth-stencil replacement recreation
+						_depthstencil = _default_depthstencil;
+					}
+					if (ImGui::Checkbox("find best depthstencil based on drawcalls", &_auto_preserve_on_drawcalls))
+					{
+						_auto_preserve_on_vertices = !_auto_preserve_on_drawcalls;
+						runtime::save_config();
+
+						// Force depth-stencil replacement recreation
+						_depthstencil = _default_depthstencil;
+					}
+				}
+
+				ImGui::Spacing();
+
+				for (std::vector<depth_buffer_info>::size_type i = 0; i != _depth_buffer_table.size(); i++)
+				{
+					const auto it = _depth_buffer_table[i];
+					char label[512] = "";
+					sprintf_s(label, "%s%2u", (i == _preserve_starting_index ? "> " : "  "), i);
+
+					if (!_auto_preserve)
+					{
+						if (bool value = (_preserve_starting_index == i && !_auto_preserve); ImGui::Checkbox(label, &value))
+						{
+							_preserve_starting_index = value ? i : -1;
+							modified = true;
+						}
+					}
+					else
+					{
+						ImGui::Text("%s", label);
+					}
+
+					ImGui::SameLine();
+
+					ImGui::Text("0x%p | %ux%u : %u draw calls ==> %u vertices", it.depthstencil, it.width, it.height, it.drawcall_count, it.vertices_count);
+					ImGui::Spacing();
+				}
+
+				if (modified)
+				{
+					runtime::save_config();
+
+					// Force depth-stencil replacement recreation
+					_depthstencil = _default_depthstencil;
+				}
+			}
+			else
+			{
+				for (const auto &it : _depth_source_table)
+				{
+					ImGui::Text("%s0x%p | %u draw calls ==> %u vertices", (it.first == _depthstencil ? "> " : "  "), it.first, it.second.drawcall_count, it.second.vertices_count);
+				}
 			}
 		}
 	}
@@ -1270,7 +1491,7 @@ namespace reshade::d3d9
 				++it;
 			}
 
-			if (depthstencil_info.drawcall_count == 0)
+			if (depthstencil_info.drawcall_count == 0 && !_preserve_depth_buffer)
 			{
 				continue;
 			}
@@ -1332,7 +1553,17 @@ namespace reshade::d3d9
 					return false;
 				}
 
-				const HRESULT hr = _device->CreateTexture(desc.Width, desc.Height, 1, D3DUSAGE_DEPTHSTENCIL, desc.Format, D3DPOOL_DEFAULT, &_depthstencil_texture, nullptr);
+
+				UINT width = desc.Width;
+				UINT height = desc.Height;
+
+				if (_disable_depth_buffer_size_restriction)
+				{
+					width = _width;
+					height = _height;
+				}
+
+				const HRESULT hr = _device->CreateTexture(width, height, 1, D3DUSAGE_DEPTHSTENCIL, desc.Format, D3DPOOL_DEFAULT, &_depthstencil_texture, nullptr);
 
 				if (SUCCEEDED(hr))
 				{
@@ -1378,5 +1609,38 @@ namespace reshade::d3d9
 				update_texture_reference(tex);
 
 		return true;
+	}
+
+	int runtime_d3d9::get_best_preserve_starting_index()
+	{
+		int result = 0;
+
+		for (std::vector<depth_buffer_info>::size_type i = 0; i != _depth_buffer_table.size(); i++)
+		{
+			const auto &it = _depth_buffer_table[i];
+			if (_auto_preserve_on_drawcalls ?
+				it.drawcall_count >= _db_drawcalls : it.vertices_count >= _db_vertices)
+			{
+				_db_vertices = it.vertices_count;
+				_db_drawcalls = it.drawcall_count;
+				result = i;
+			}
+		}
+
+		return result;
+	}
+
+	bool runtime_d3d9::check_depthstencil_size(D3DSURFACE_DESC desc)
+	{
+		if (_disable_depth_buffer_size_restriction)
+		{
+			// Allow depth buffers with greater dimensions than the viewport (e.g. in games like Vanquish)
+			return desc.Width >= _width * 0.95 && desc.Height >= _height * 0.95;
+		}
+		else
+		{
+			return (desc.Width >= _width * 0.95 && desc.Width <= _width * 1.05)
+				&& (desc.Height >= _height * 0.95 && desc.Height <= _height * 1.05);
+		}
 	}
 }
