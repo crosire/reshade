@@ -25,6 +25,8 @@ EXPORTS
 
 	; d3d12.dll
 	D3D12CreateDevice
+	D3D12SerializeRootSignature
+	D3D12SerializeVersionedRootSignature
 
 	; dxgi.dll
 	CreateDXGIFactory

@@ -24,22 +24,22 @@ HOOK_EXPORT HRESULT WINAPI D3D12CreateDevice(IUnknown *pAdapter, D3D_FEATURE_LEV
 	if (ppDevice == nullptr)
 		return hr;
 
-	ID3D12Device *device = nullptr;
+	// The returned device should alway implement at least the 'ID3D12Device' interface
+	const auto device_proxy = new D3D12Device(static_cast<ID3D12Device *>(*ppDevice));
 
-	if (SUCCEEDED(static_cast<IUnknown *>(*ppDevice)->QueryInterface(&device)))
-	{
-		const auto device_proxy = new D3D12Device(device);
+	*ppDevice = device_proxy;
 
-		device->Release();
-
-		*ppDevice = device_proxy;
-
-		LOG(INFO) << "Returning 'ID3D12Device' object " << device_proxy;
-	}
-	else
-	{
-		LOG(WARN) << "> Skipping device because it is missing support for the ID3D12Device interface.";
-	}
+	LOG(INFO) << "Returning ID3D12Device object " << device_proxy;
 
 	return hr;
+}
+
+HOOK_EXPORT HRESULT WINAPI D3D12SerializeRootSignature(const D3D12_ROOT_SIGNATURE_DESC *pRootSignature, D3D_ROOT_SIGNATURE_VERSION Version, ID3DBlob **ppBlob, ID3DBlob **ppErrorBlob)
+{
+	return reshade::hooks::call(D3D12SerializeRootSignature)(pRootSignature, Version, ppBlob, ppErrorBlob);
+}
+
+HOOK_EXPORT HRESULT WINAPI D3D12SerializeVersionedRootSignature(const D3D12_VERSIONED_ROOT_SIGNATURE_DESC *pRootSignature, ID3DBlob **ppBlob, ID3DBlob **ppErrorBlob)
+{
+	return reshade::hooks::call(D3D12SerializeVersionedRootSignature)(pRootSignature, ppBlob, ppErrorBlob);
 }
