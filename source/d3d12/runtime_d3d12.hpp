@@ -26,7 +26,8 @@ namespace reshade::d3d12
 
 	private:
 		bool init_texture(texture &info) override;
-		void upload_texture(texture &texture, const uint8_t *data) override;
+		void upload_texture(texture &texture, const uint8_t *pixels) override;
+		bool update_texture_reference(texture &texture);
 
 		bool compile_effect(effect_data &effect) override;
 		void unload_effects() override;
@@ -36,13 +37,31 @@ namespace reshade::d3d12
 		void render_technique(technique &technique) override;
 
 #if RESHADE_GUI
+		bool init_imgui_resources();
 		void render_imgui_draw_data(ImDrawData *data) override;
 #endif
+		void execute_command_list(const com_ptr<ID3D12GraphicsCommandList> &list)
+		{
+			ID3D12CommandList *const cmd_lists[] = { list.get() };
+			_commandqueue->ExecuteCommandLists(ARRAYSIZE(cmd_lists), cmd_lists);
+		}
 
 		com_ptr<ID3D12Device> _device;
 		com_ptr<ID3D12CommandQueue> _commandqueue;
 		com_ptr<IDXGISwapChain3> _swapchain;
 		HMODULE _d3d_compiler = nullptr;
+
+		DXGI_FORMAT _backbuffer_format = DXGI_FORMAT_UNKNOWN;
+		com_ptr<ID3D12CommandAllocator> _cmd_alloc;
+
 		D3D12_CPU_DESCRIPTOR_HANDLE _default_depthstencil;
+
+		int _imgui_index_buffer_size[3] = {};
+		com_ptr<ID3D12Resource> _imgui_index_buffer[3];
+		int _imgui_vertex_buffer_size[3] = {};
+		com_ptr<ID3D12Resource> _imgui_vertex_buffer[3];
+		com_ptr<ID3D12PipelineState> _imgui_pipeline;
+		com_ptr<ID3D12RootSignature> _imgui_signature;
+		com_ptr<ID3D12GraphicsCommandList> _imgui_cmd_list;
 	};
 }
