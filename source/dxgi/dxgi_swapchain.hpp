@@ -5,18 +5,20 @@
 
 #pragma once
 
+#include <dxgi1_5.h>
 #include "com_ptr.hpp"
 #include <memory>
-#include <dxgi1_5.h>
 
+struct D3D10Device;
+struct D3D11Device;
 namespace reshade { class runtime; }
 
 struct __declspec(uuid("1F445F9F-9887-4C4C-9055-4E3BADAFCCA8")) DXGISwapChain : IDXGISwapChain4
 {
-	DXGISwapChain(const com_ptr<struct D3D10Device> &device, IDXGISwapChain  *original, const std::shared_ptr<reshade::runtime> &runtime);
-	DXGISwapChain(const com_ptr<struct D3D10Device> &device, IDXGISwapChain1 *original, const std::shared_ptr<reshade::runtime> &runtime);
-	DXGISwapChain(const com_ptr<struct D3D11Device> &device, IDXGISwapChain  *original, const std::shared_ptr<reshade::runtime> &runtime);
-	DXGISwapChain(const com_ptr<struct D3D11Device> &device, IDXGISwapChain1 *original, const std::shared_ptr<reshade::runtime> &runtime);
+	DXGISwapChain(D3D10Device *device, IDXGISwapChain  *original, const std::shared_ptr<reshade::runtime> &runtime);
+	DXGISwapChain(D3D10Device *device, IDXGISwapChain1 *original, const std::shared_ptr<reshade::runtime> &runtime);
+	DXGISwapChain(D3D11Device *device, IDXGISwapChain  *original, const std::shared_ptr<reshade::runtime> &runtime);
+	DXGISwapChain(D3D11Device *device, IDXGISwapChain1 *original, const std::shared_ptr<reshade::runtime> &runtime);
 
 	DXGISwapChain(const DXGISwapChain &) = delete;
 	DXGISwapChain &operator=(const DXGISwapChain &) = delete;
@@ -80,7 +82,7 @@ struct __declspec(uuid("1F445F9F-9887-4C4C-9055-4E3BADAFCCA8")) DXGISwapChain : 
 
 	void perform_present(UINT PresentFlags);
 
-	void clear_drawcall_stats();
+	bool check_and_upgrade_interface(REFIID riid);
 
 	LONG _ref = 1;
 	IDXGISwapChain *_orig;

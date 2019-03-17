@@ -48,6 +48,8 @@ struct __declspec(uuid("CB285C3B-3677-4332-98C7-D6339B9782B1")) DXGIDevice : IDX
 	HRESULT STDMETHODCALLTYPE ReclaimResources1(UINT NumResources, IDXGIResource *const *ppResources, DXGI_RECLAIM_RESOURCE_RESULTS *pResults) override;
 	#pragma endregion
 
+	bool check_and_upgrade_interface(REFIID riid);
+
 	LONG _ref = 1;
 	IDXGIDevice1 *_orig;
 	unsigned int _interface_version;

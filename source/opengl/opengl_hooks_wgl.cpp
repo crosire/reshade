@@ -350,7 +350,7 @@ HOOK_EXPORT int   WINAPI wglSetLayerPaletteEntries(HDC hdc, int iLayerPlane, int
 HOOK_EXPORT HGLRC WINAPI wglCreateContext(HDC hdc)
 {
 	LOG(INFO) << "Redirecting wglCreateContext" << '(' << hdc << ')' << " ...";
-	LOG(INFO) << "> Passing on to 'wglCreateLayerContext' ...";
+	LOG(INFO) << "> Passing on to wglCreateLayerContext ...";
 
 	return wglCreateLayerContext(hdc, 0);
 }
@@ -464,7 +464,7 @@ HOOK_EXPORT HGLRC WINAPI wglCreateContext(HDC hdc)
 		}
 	}
 
-	LOG(INFO) << "> Returning OpenGL context: " << hglrc;
+	LOG(INFO) << "> Returning OpenGL context " << hglrc << '.';
 
 	return hglrc;
 }
@@ -494,7 +494,7 @@ HOOK_EXPORT HGLRC WINAPI wglCreateLayerContext(HDC hdc, int iLayerPlane)
 		s_shared_contexts.emplace(hglrc, nullptr);
 	}
 
-	LOG(INFO) << "> Returning OpenGL context: " << hglrc;
+	LOG(INFO) << "> Returning OpenGL context " << hglrc << '.';
 
 	return hglrc;
 }
@@ -742,7 +742,7 @@ HOOK_EXPORT HGLRC WINAPI wglGetCurrentContext()
 	}
 
 #if RESHADE_VERBOSE_LOG
-	LOG(DEBUG) << "> Returning pixel buffer: " << hpbuffer;
+	LOG(DEBUG) << "> Returning pixel buffer " << hpbuffer << '.';
 #endif
 
 	return hpbuffer;
@@ -781,7 +781,7 @@ HOOK_EXPORT HGLRC WINAPI wglGetCurrentContext()
 	}
 
 #if RESHADE_VERBOSE_LOG
-	LOG(DEBUG) << "> Returning pixel buffer device context: " << hdc;
+	LOG(DEBUG) << "> Returning pixel buffer device context " << hdc << '.';
 #endif
 
 	return hdc;

@@ -52,7 +52,7 @@ HOOK_EXPORT HRESULT WINAPI D3D10CreateDeviceAndSwapChain1(IDXGIAdapter *pAdapter
 	if (ppDevice == nullptr)
 		return hr;
 
-	ID3D10Device1 *const device = *ppDevice;
+	const auto device = *ppDevice;
 
 	// Query for the DXGI device since we need to reference it in the hooked device
 	IDXGIDevice1 *dxgi_device = nullptr;
@@ -86,7 +86,7 @@ HOOK_EXPORT HRESULT WINAPI D3D10CreateDeviceAndSwapChain1(IDXGIAdapter *pAdapter
 	if (SUCCEEDED(hr))
 	{
 #if RESHADE_VERBOSE_LOG
-		LOG(DEBUG) << "Returning IDXGIDevice1 object " << device_proxy->_dxgi_device << " and ID3D10Device1 object " << device_proxy;
+		LOG(DEBUG) << "Returning IDXGIDevice1 object " << device_proxy->_dxgi_device << " and ID3D10Device1 object " << device_proxy << '.';
 #endif
 		*ppDevice = device_proxy;
 	}

@@ -5,13 +5,12 @@
 
 #pragma once
 
-#include <chrono>
-#include <memory>
-#include <functional>
 #include <mutex>
+#include <memory>
 #include <atomic>
-#include "ini_file.hpp"
-#include "runtime_objects.hpp"
+#include <chrono>
+#include <functional>
+#include <filesystem>
 
 #if RESHADE_GUI
 #include "gui_code_editor.hpp"
@@ -22,6 +21,16 @@ struct ImGuiContext;
 
 namespace reshade
 {
+	class ini_file; // Some forward declarations to keep number of includes small
+	struct uniform;
+	struct texture;
+	struct technique;
+	struct effect_data;
+
+	/// <summary>
+	/// Platform independent base class for the main ReShade runtime.
+	/// This class needs to be implemented for all supported rendering APIs.
+	/// </summary>
 	class runtime abstract
 	{
 	public:
@@ -35,10 +44,10 @@ namespace reshade
 		unsigned int frame_height() const { return _height; }
 
 		/// <summary>
-		/// Create a copy of the current frame.
+		/// Create a copy of the current frame image in system memory.
 		/// </summary>
-		/// <param name="buffer">The 32bpp RGBA buffer to save the copy to.</param>
-		virtual void capture_frame(uint8_t *buffer) const = 0;
+		/// <param name="buffer">The 32bpp RGBA buffer to save the screenshot to.</param>
+		virtual void capture_screenshot(uint8_t *buffer) const = 0;
 
 		/// <summary>
 		/// Save user configuration to disk.
@@ -54,15 +63,15 @@ namespace reshade
 		/// Update the image data of a texture.
 		/// </summary>
 		/// <param name="texture">The texture to update.</param>
-		/// <param name="data">The 32bpp RGBA image data to update the texture with.</param>
-		virtual void update_texture(texture &texture, const uint8_t *data) = 0;
+		/// <param name="pixels">The 32bpp RGBA image data to update the texture with.</param>
+		virtual void update_texture(texture &texture, const uint8_t *pixels) = 0;
 
 		/// <summary>
 		/// Get the value of a uniform variable.
 		/// </summary>
 		/// <param name="variable">The variable to retrieve the value from.</param>
-		/// <param name="data">The buffer to store the value in.</param>
-		/// <param name="size">The size of the buffer.</param>
+		/// <param name="values">The buffer to store the value data in.</param>
+		/// <param name="count">The number of components the value.</param>
 		void get_uniform_value(const uniform &variable, bool *values, size_t count) const;
 		void get_uniform_value(const uniform &variable, int32_t *values, size_t count) const;
 		void get_uniform_value(const uniform &variable, uint32_t *values, size_t count) const;
@@ -100,24 +109,12 @@ namespace reshade
 		/// Register a function to be called when user configuration is loaded.
 		/// </summary>
 		/// <param name="function">The callback function.</param>
-		void subscribe_to_load_config(std::function<void(const ini_file &)> function)
-		{
-			_load_config_callables.push_back(function);
-
-			const ini_file config(_configuration_path);
-			function(config);
-		}
+		void subscribe_to_load_config(std::function<void(const ini_file &)> function);
 		/// <summary>
 		/// Register a function to be called when user configuration is stored.
 		/// </summary>
 		/// <param name="function">The callback function.</param>
-		void subscribe_to_save_config(std::function<void(ini_file &)> function)
-		{
-			_save_config_callables.push_back(function);
-
-			ini_file config(_configuration_path);
-			function(config);
-		}
+		void subscribe_to_save_config(std::function<void(ini_file &)> function);
 
 	protected:
 		runtime();
@@ -301,7 +298,7 @@ namespace reshade
 		size_t _reload_total_effects = 1;
 		std::vector<size_t> _reload_compile_queue;
 		std::atomic<size_t> _reload_remaining_effects = 0;
-		std::vector<struct effect_data> _loaded_effects;
+		std::vector<effect_data> _loaded_effects;
 		std::vector<std::thread> _worker_threads;
 
 		int _date[4] = {};
@@ -333,7 +330,7 @@ namespace reshade
 
 		std::vector<const texture *> _texture_previews;
 		std::vector<std::pair<std::string, std::function<void()>>> _menu_callables;
-		texture _imgui_font_atlas;
+		std::unique_ptr<texture> _imgui_font_atlas;
 		ImGuiContext *_imgui_context = nullptr;
 		size_t _focused_effect = std::numeric_limits<size_t>::max();
 		size_t _selected_effect = std::numeric_limits<size_t>::max();

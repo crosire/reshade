@@ -5,8 +5,8 @@
 
 #pragma once
 
-#include "com_ptr.hpp"
 #include <d3d9.h>
+#include "com_ptr.hpp"
 #include <vector>
 
 struct Direct3DSwapChain9;
@@ -158,6 +158,8 @@ struct __declspec(uuid("F1006E9A-1C51-4AF4-ACEF-3605D2D4C8EE")) Direct3DDevice9 
 	HRESULT STDMETHODCALLTYPE ResetEx(D3DPRESENT_PARAMETERS *pPresentationParameters, D3DDISPLAYMODEEX *pFullscreenDisplayMode) override;
 	HRESULT STDMETHODCALLTYPE GetDisplayModeEx(UINT iSwapChain, D3DDISPLAYMODEEX *pMode, D3DDISPLAYROTATION *pRotation) override;
 	#pragma endregion
+
+	bool check_and_upgrade_interface(REFIID riid);
 
 	LONG _ref = 1;
 	IDirect3DDevice9 *_orig;

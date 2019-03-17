@@ -190,6 +190,8 @@ struct __declspec(uuid("27B0246B-2152-4D42-AD11-32489472238F")) D3D11DeviceConte
 	void track_cleared_depthstencil(ID3D11DepthStencilView* pDepthStencilView);
 #endif
 
+	bool check_and_upgrade_interface(REFIID riid);
+
 	LONG _ref = 1;
 	ID3D11DeviceContext *_orig;
 	unsigned int _interface_version;

@@ -6,10 +6,11 @@
 #include "log.hpp"
 #include "version.h"
 #include "runtime.hpp"
+#include "runtime_objects.hpp"
 #include "effect_parser.hpp"
 #include "effect_preprocessor.hpp"
 #include "input.hpp"
-#include "variant.hpp"
+#include "ini_file.hpp"
 #include <assert.h>
 #include <thread>
 #include <algorithm>
@@ -795,6 +796,21 @@ void reshade::runtime::disable_technique(technique &technique)
 		_loaded_effects[technique.effect_index].rendering--;
 }
 
+void reshade::runtime::subscribe_to_load_config(std::function<void(const ini_file &)> function)
+{
+	_load_config_callables.push_back(function);
+
+	const ini_file config(_configuration_path);
+	function(config);
+}
+void reshade::runtime::subscribe_to_save_config(std::function<void(ini_file &)> function)
+{
+	_save_config_callables.push_back(function);
+
+	ini_file config(_configuration_path);
+	function(config);
+}
+
 void reshade::runtime::load_config()
 {
 	const ini_file config(_configuration_path);
@@ -1011,7 +1027,7 @@ void reshade::runtime::save_current_preset() const
 void reshade::runtime::save_screenshot()
 {
 	std::vector<uint8_t> data(_width * _height * 4);
-	capture_frame(data.data());
+	capture_screenshot(data.data());
 
 	const int hour = _date[3] / 3600;
 	const int minute = (_date[3] - hour * 3600) / 60;

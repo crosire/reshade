@@ -32,7 +32,7 @@ HOOK_EXPORT void WINAPI D3DPERF_SetOptions(DWORD dwOptions)
 {
 	UNREFERENCED_PARAMETER(dwOptions);
 
-#ifdef _DEBUG
+#ifdef _DEBUG // Enable PIX in debug builds (calling 'D3DPERF_SetOptions(1)' disables profiling/analysis tools, so revert that)
 	reshade::hooks::call(D3DPERF_SetOptions)(0);
 #endif
 }

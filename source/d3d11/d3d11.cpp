@@ -40,7 +40,7 @@ HOOK_EXPORT HRESULT WINAPI D3D11CreateDeviceAndSwapChain(IDXGIAdapter *pAdapter,
 	if (ppDevice == nullptr)
 		return hr;
 
-	ID3D11Device *const device = *ppDevice;
+	const auto device = *ppDevice;
 
 	// Query for the DXGI device and immediate device context since we need to reference them in the hooked device
 	IDXGIDevice1 *dxgi_device = nullptr;
@@ -76,14 +76,14 @@ HOOK_EXPORT HRESULT WINAPI D3D11CreateDeviceAndSwapChain(IDXGIAdapter *pAdapter,
 	if (SUCCEEDED(hr))
 	{
 #if RESHADE_VERBOSE_LOG
-		LOG(DEBUG) << "Returning IDXGIDevice1 object " << device_proxy->_dxgi_device << " and ID3D11Device object " << device_proxy;
+		LOG(DEBUG) << "Returning IDXGIDevice1 object " << device_proxy->_dxgi_device << " and ID3D11Device object " << device_proxy << '.';
 #endif
 		*ppDevice = device_proxy;
 
 		if (ppImmediateContext != nullptr)
 		{
 #if RESHADE_VERBOSE_LOG
-			LOG(DEBUG) << "Returning ID3D11DeviceContext object " << device_proxy->_immediate_context;
+			LOG(DEBUG) << "Returning ID3D11DeviceContext object " << device_proxy->_immediate_context << '.';
 #endif
 			device_proxy->_immediate_context->AddRef(); // D3D11CreateDeviceAndSwapChain increases the reference count on the returned object
 			*ppImmediateContext = device_proxy->_immediate_context;

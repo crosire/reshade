@@ -111,9 +111,7 @@ HRESULT STDMETHODCALLTYPE D3D10Device::QueryInterface(REFIID riid, void **ppvObj
 		riid == __uuidof(ID3D10Device1))
 	{
 		AddRef();
-
 		*ppvObj = this;
-
 		return S_OK;
 	}
 
@@ -132,30 +130,27 @@ HRESULT STDMETHODCALLTYPE D3D10Device::QueryInterface(REFIID riid, void **ppvObj
 }
   ULONG STDMETHODCALLTYPE D3D10Device::AddRef()
 {
-	_ref++;
+	++_ref;
 
 	return _orig->AddRef();
 }
   ULONG STDMETHODCALLTYPE D3D10Device::Release()
 {
+	--_ref;
+
 	const ULONG ref = _orig->Release();
 
-	if (--_ref == 0 || ref == 0)
-	{
-		assert(_ref <= 0);
+	if (ref != 0 || _ref != 0)
+		return ref;
+	else if (ref != 0)
+		LOG(WARN) << "Reference count for ID3D10Device1 object " << this << " is inconsistent: " << ref << ", but expected 0.";
 
-		if (ref != 0)
-			LOG(WARN) << "Reference count for ID3D10Device1 object " << this << " is inconsistent: " << ref << ", but expected 0.";
-
+	assert(_ref <= 0);
 #if RESHADE_VERBOSE_LOG
-		LOG(DEBUG) << "Destroyed ID3D10Device1 object " << this << '.';
+	LOG(DEBUG) << "Destroyed ID3D10Device1 object " << this << '.';
 #endif
-		delete this;
-
-		return 0;
-	}
-
-	return ref;
+	delete this;
+	return 0;
 }
 
    void STDMETHODCALLTYPE D3D10Device::VSSetConstantBuffers(UINT StartSlot, UINT NumBuffers, ID3D10Buffer *const *ppConstantBuffers)
@@ -288,11 +283,6 @@ HRESULT STDMETHODCALLTYPE D3D10Device::QueryInterface(REFIID riid, void **ppvObj
 }
    void STDMETHODCALLTYPE D3D10Device::CopyResource(ID3D10Resource *pDstResource, ID3D10Resource *pSrcResource)
 {
-	for (auto runtime : _runtimes)
-	{
-		runtime->on_copy_resource(pDstResource, pSrcResource);
-	}
-
 	_orig->CopyResource(pDstResource, pSrcResource);
 }
    void STDMETHODCALLTYPE D3D10Device::UpdateSubresource(ID3D10Resource *pDstResource, UINT DstSubresource, const D3D10_BOX *pDstBox, const void *pSrcData, UINT SrcRowPitch, UINT SrcDepthPitch)

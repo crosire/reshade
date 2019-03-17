@@ -8,7 +8,9 @@
 #include "log.hpp"
 #include "version.h"
 #include "runtime.hpp"
+#include "runtime_objects.hpp"
 #include "input.hpp"
+#include "ini_file.hpp"
 #include "gui_widgets.hpp"
 #include <assert.h>
 #include <algorithm>
@@ -300,16 +302,17 @@ void reshade::runtime::build_font_atlas()
 
 	ImGui::SetCurrentContext(nullptr);
 
-	_imgui_font_atlas.width = width;
-	_imgui_font_atlas.height = height;
-	_imgui_font_atlas.format = reshadefx::texture_format::rgba8;
-	_imgui_font_atlas.unique_name = "ImGUI Font Atlas";
-	if (init_texture(_imgui_font_atlas))
-		update_texture(_imgui_font_atlas, pixels);
+	_imgui_font_atlas = std::make_unique<texture>();
+	_imgui_font_atlas->width = width;
+	_imgui_font_atlas->height = height;
+	_imgui_font_atlas->format = reshadefx::texture_format::rgba8;
+	_imgui_font_atlas->unique_name = "ImGUI Font Atlas";
+	if (init_texture(*_imgui_font_atlas))
+		update_texture(*_imgui_font_atlas, pixels);
 }
 void reshade::runtime::destroy_font_atlas()
 {
-	_imgui_font_atlas.impl.reset();
+	_imgui_font_atlas.reset();
 }
 
 void reshade::runtime::draw_ui()
@@ -338,7 +341,7 @@ void reshade::runtime::draw_ui()
 	imgui_io.MouseDrawCursor = _show_menu;
 	imgui_io.DisplaySize.x = static_cast<float>(_width);
 	imgui_io.DisplaySize.y = static_cast<float>(_height);
-	imgui_io.Fonts->TexID = _imgui_font_atlas.impl.get();
+	imgui_io.Fonts->TexID = _imgui_font_atlas->impl.get();
 
 	// Scale mouse position in case render resolution does not match the window size
 	imgui_io.MousePos.x = _input->mouse_position_x() * (imgui_io.DisplaySize.x / _window_width);
@@ -935,7 +938,7 @@ void reshade::runtime::draw_overlay_menu_settings()
 	if (ImGui::CollapsingHeader("General", ImGuiTreeNodeFlags_DefaultOpen))
 	{
 		modified |= imgui_key_input("Overlay Key", _menu_key_data, *_input);
-		_ignore_shortcuts |= ImGui::IsItemActive(); 
+		_ignore_shortcuts |= ImGui::IsItemActive();
 
 		modified |= imgui_key_input("Effect Reload Key", _reload_key_data, *_input);
 		_ignore_shortcuts |= ImGui::IsItemActive();
