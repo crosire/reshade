@@ -1892,14 +1892,15 @@ void reshade::runtime::draw_overlay_variable_editor()
 				// Make sure list is terminated with a zero in case user forgot so no invalid memory is read accidentally
 				if (ui_items.empty() || ui_items.back() != '\0')
 					ui_items.push_back('\0');
-				std::vector<const char *> items;
+
+				std::vector<std::string_view> items;
 				const char *preview_value = NULL;
 				for (size_t i = 0, next = 0, size = 0; (size = strlen(ui_items.c_str() + next)) > 0; ++i, next += ++size)
 				{
-					const char *p = ui_items.c_str() + next;
-					items.push_back(p);
+					const std::string_view item = ui_items.c_str() + next;
+					items.push_back(item);
 					if (data[0] == static_cast<int>(i))
-						preview_value = p;
+						preview_value = item.data();
 				}
 
 				ImGui::BeginGroup();
@@ -1916,7 +1917,7 @@ void reshade::runtime::draw_overlay_variable_editor()
 					for (size_t i = 0; it != items.end(); ++it, ++i)
 					{
 						selected = data[0] == static_cast<int>(i);
-						if (ImGui::Selectable(*it, &selected))
+						if (ImGui::Selectable(it->data(), &selected))
 							data[0] = static_cast<int>(i), modified = true;
 					}
 
@@ -1957,7 +1958,7 @@ void reshade::runtime::draw_overlay_variable_editor()
 					for (size_t i = 0; it != items.end(); ++it, ++i)
 					{
 						selected = data[0] == static_cast<int>(i);
-						ImGui::Selectable(*it, &selected);
+						ImGui::Selectable(it->data(), &selected);
 					}
 
 					ImGui::End();
