@@ -1895,12 +1895,13 @@ void reshade::runtime::draw_overlay_variable_editor()
 
 				std::vector<std::string_view> items;
 				const char *preview_value = NULL;
-				for (size_t i = 0, next = 0, size = 0; (size = strlen(ui_items.c_str() + next)) > 0; ++i, next += ++size)
+				for (size_t i = 0, next = 0, size = 0; (size = strlen(ui_items.c_str() + next)) > 0; i++, next += ++size)
 				{
 					const std::string_view item = ui_items.c_str() + next;
-					items.push_back(item);
 					if (data[0] == static_cast<int>(i))
 						preview_value = item.data();
+
+					items.push_back(item);
 				}
 
 				ImGui::BeginGroup();
@@ -1912,11 +1913,10 @@ void reshade::runtime::draw_overlay_variable_editor()
 
 				if (ImGui::BeginCombo("##v", preview_value, ImGuiComboFlags_NoArrowButton))
 				{
-					bool selected = false;
 					auto it = items.begin();
-					for (size_t i = 0; it != items.end(); ++it, ++i)
+					for (size_t i = 0; it != items.end(); it++, i++)
 					{
-						selected = data[0] == static_cast<int>(i);
+						bool selected = data[0] == static_cast<int>(i);
 						if (ImGui::Selectable(it->data(), &selected))
 							data[0] = static_cast<int>(i), modified = true;
 					}
@@ -1953,11 +1953,10 @@ void reshade::runtime::draw_overlay_variable_editor()
 					ImGui::SetNextWindowPos(ImGui::GetCursorScreenPos());
 					ImGui::Begin("##spinner_items", NULL, ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoDocking);
 
-					bool selected = false;
 					auto it = items.begin();
-					for (size_t i = 0; it != items.end(); ++it, ++i)
+					for (size_t i = 0; it != items.end(); it++, i++)
 					{
-						selected = data[0] == static_cast<int>(i);
+						bool selected = data[0] == static_cast<int>(i);
 						ImGui::Selectable(it->data(), &selected);
 					}
 
