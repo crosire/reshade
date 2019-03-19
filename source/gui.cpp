@@ -1892,15 +1892,14 @@ void reshade::runtime::draw_overlay_variable_editor()
 				// Make sure list is terminated with a zero in case user forgot so no invalid memory is read accidentally
 				if (ui_items.empty() || ui_items.back() != '\0')
 					ui_items.push_back('\0');
-				std::vector<std::string> items;
-				std::stringstream stream{ ui_items };
-				std::string buffer;
+				std::vector<const char *> items;
 				const char *preview_value = NULL;
-				for (auto i = 0, next = 0; std::getline(stream, buffer, '\0'); ++i, next = stream.tellg())
+				for (size_t i = 0, next = 0, size = 0; (size = strlen(ui_items.c_str() + next)) > 0; ++i, next += ++size)
 				{
-					items.push_back(buffer);
-					if (data[0] == i)
-						preview_value = ui_items.c_str() + next;
+					const char *p = ui_items.c_str() + next;
+					items.push_back(p);
+					if (data[0] == static_cast<int>(i))
+						preview_value = p;
 				}
 
 				ImGui::BeginGroup();
@@ -1914,11 +1913,11 @@ void reshade::runtime::draw_overlay_variable_editor()
 				{
 					bool selected = false;
 					auto it = items.begin();
-					for (auto i = 0; it != items.end(); ++it, ++i)
+					for (size_t i = 0; it != items.end(); ++it, ++i)
 					{
-						selected = data[0] == i;
-						if (ImGui::Selectable(it->c_str(), &selected))
-							data[0] = i, modified = true;
+						selected = data[0] == static_cast<int>(i);
+						if (ImGui::Selectable(*it, &selected))
+							data[0] = static_cast<int>(i), modified = true;
 					}
 
 					ImGui::EndCombo();
@@ -1937,7 +1936,7 @@ void reshade::runtime::draw_overlay_variable_editor()
 				ImGui::SameLine(0, button_spacing);
 				if (ImGui::Button(">", ImVec2(button_size, 0)))
 					if (0 < items.size())
-						if (data[0] == items.size() - 1)
+						if (data[0] == static_cast<int>(items.size()) - 1)
 							data[0] = 0, modified = true;
 						else
 							data[0] += 1, modified = true;
@@ -1955,10 +1954,10 @@ void reshade::runtime::draw_overlay_variable_editor()
 
 					bool selected = false;
 					auto it = items.begin();
-					for (auto i = 0; it != items.end(); ++it, ++i)
+					for (size_t i = 0; it != items.end(); ++it, ++i)
 					{
-						selected = data[0] == i;
-						ImGui::Selectable(it->c_str(), &selected);
+						selected = data[0] == static_cast<int>(i);
+						ImGui::Selectable(*it, &selected);
 					}
 
 					ImGui::End();
