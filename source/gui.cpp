@@ -1910,8 +1910,7 @@ void reshade::runtime::draw_overlay_variable_editor()
 
 				ImGui::PushItemWidth(ImGui::CalcItemWidth() - (button_spacing * 2 + button_size * 2));
 
-				const auto begin_combo = ImGui::BeginCombo("##v", preview_value, ImGuiComboFlags_NoArrowButton);
-				if (begin_combo)
+				if (ImGui::BeginCombo("##v", preview_value, ImGuiComboFlags_NoArrowButton))
 				{
 					bool selected = false;
 					auto it = items.begin();
