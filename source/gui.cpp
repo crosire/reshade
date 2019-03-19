@@ -1887,6 +1887,84 @@ void reshade::runtime::draw_overlay_variable_editor()
 				modified = imgui_slider_with_buttons(label.c_str(), variable.type.is_signed() ? ImGuiDataType_S32 : ImGuiDataType_U32, data, variable.type.rows, &ui_stp_val, &ui_min_val, &ui_max_val);
 			else if (ui_type == "drag")
 				modified = ImGui::DragScalarN(label.c_str(), variable.type.is_signed() ? ImGuiDataType_S32 : ImGuiDataType_U32, data, variable.type.rows, static_cast<float>(ui_stp_val), &ui_min_val, &ui_max_val);
+			else if (ui_type == "spinner") {
+				std::string ui_items = variable.annotation_as_string("ui_items");
+				// Make sure list is terminated with a zero in case user forgot so no invalid memory is read accidentally
+				if (ui_items.empty() || ui_items.back() != '\0')
+					ui_items.push_back('\0');
+				std::vector<std::string> items;
+				std::stringstream stream{ ui_items };
+				std::string buffer;
+				const char *preview_value = NULL;
+				for (auto i = 0, next = 0; std::getline(stream, buffer, '\0'); ++i, next = stream.tellg())
+				{
+					items.push_back(buffer);
+					if (data[0] == i)
+						preview_value = ui_items.c_str() + next;
+				}
+
+				ImGui::BeginGroup();
+
+				const float button_size = ImGui::GetFrameHeight();
+				const float button_spacing = _imgui_context->Style.ItemInnerSpacing.x;
+
+				ImGui::PushItemWidth(ImGui::CalcItemWidth() - (button_spacing * 2 + button_size * 2));
+
+				const auto begin_combo = ImGui::BeginCombo("##v", preview_value, ImGuiComboFlags_NoArrowButton);
+				if (begin_combo)
+				{
+					bool selected = false;
+					auto it = items.begin();
+					for (auto i = 0; it != items.end(); ++it, ++i)
+					{
+						selected = data[0] == i;
+						if (ImGui::Selectable(it->c_str(), &selected))
+							data[0] = i, modified = true;
+					}
+
+					ImGui::EndCombo();
+				}
+
+				ImGui::PopItemWidth();
+
+				ImGui::SameLine(0, button_spacing);
+				if (ImGui::Button("<", ImVec2(button_size, 0)))
+					if (0 < items.size())
+						if (data[0] == 0)
+							data[0] = items.size() - 1, modified = true;
+						else
+							data[0] -= 1, modified = true;
+
+				ImGui::SameLine(0, button_spacing);
+				if (ImGui::Button(">", ImVec2(button_size, 0)))
+					if (0 < items.size())
+						if (data[0] == items.size() - 1)
+							data[0] = 0, modified = true;
+						else
+							data[0] += 1, modified = true;
+
+				ImGui::EndGroup();
+				const bool is_hovered = ImGui::IsItemHovered();
+
+				ImGui::SameLine(0, button_spacing);
+				ImGui::TextUnformatted(label.c_str());
+
+				if (is_hovered)
+				{
+					ImGui::SetNextWindowPos(ImGui::GetCursorScreenPos());
+					ImGui::Begin("##spinner_items", NULL, ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoDocking);
+
+					bool selected = false;
+					auto it = items.begin();
+					for (auto i = 0; it != items.end(); ++it, ++i)
+					{
+						selected = data[0] == i;
+						ImGui::Selectable(it->c_str(), &selected);
+					}
+
+					ImGui::End();
+				}
+			}
 			else if (ui_type == "combo") {
 				std::string ui_items = variable.annotation_as_string("ui_items");
 				// Make sure list is terminated with a zero in case user forgot so no invalid memory is read accidentally
