@@ -210,8 +210,8 @@ void reshade::runtime::load_effect(const std::filesystem::path &path, size_t &ou
 		pp.add_macro_definition("__APPLICATION__", std::to_string(std::hash<std::string>()(g_target_executable_path.stem().u8string())));
 		pp.add_macro_definition("BUFFER_WIDTH", std::to_string(_width));
 		pp.add_macro_definition("BUFFER_HEIGHT", std::to_string(_height));
-		pp.add_macro_definition("BUFFER_RCP_WIDTH", std::_Floating_to_string("%.8f", 1.0f / static_cast<float>(_width)));
-		pp.add_macro_definition("BUFFER_RCP_HEIGHT", std::_Floating_to_string("%.8f", 1.0f / static_cast<float>(_height)));
+		pp.add_macro_definition("BUFFER_RCP_WIDTH", "(1.0 / BUFFER_WIDTH)");
+		pp.add_macro_definition("BUFFER_RCP_HEIGHT", "(1.0 / BUFFER_HEIGHT)");
 
 		std::vector<std::string> preprocessor_definitions = _global_preprocessor_definitions;
 		preprocessor_definitions.insert(preprocessor_definitions.end(), _preset_preprocessor_definitions.begin(), _preset_preprocessor_definitions.end());
