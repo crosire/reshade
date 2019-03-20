@@ -1889,15 +1889,14 @@ void reshade::runtime::draw_overlay_variable_editor()
 				modified = ImGui::DragScalarN(label.c_str(), variable.type.is_signed() ? ImGuiDataType_S32 : ImGuiDataType_U32, data, variable.type.rows, static_cast<float>(ui_stp_val), &ui_min_val, &ui_max_val);
 			else if (ui_type == "spinner") {
 				std::string ui_items = variable.annotation_as_string("ui_items");
-				// Make sure list is terminated with a zero in case user forgot so no invalid memory is read accidentally
-				if (ui_items.empty() || ui_items.back() != '\0')
-					ui_items.push_back('\0');
-
 				std::vector<std::string_view> items;
 				const char *preview_value = NULL;
-				for (size_t i = 0, next = 0, size = 0; (size = strlen(ui_items.c_str() + next)) > 0; i++, next += ++size)
+
+				for (size_t i = 0, next = 0, size = 0;
+					ui_items.size() > next;
+					next += strnlen_s(ui_items.data() + next, ui_items.size() - next) + 1, i++)
 				{
-					const std::string_view item = ui_items.c_str() + next;
+					const std::string_view item = ui_items.data() + next;
 					if (data[0] == static_cast<int>(i))
 						preview_value = item.data();
 
@@ -1919,6 +1918,8 @@ void reshade::runtime::draw_overlay_variable_editor()
 						bool selected = data[0] == static_cast<int>(i);
 						if (ImGui::Selectable(it->data(), &selected))
 							data[0] = static_cast<int>(i), modified = true;
+						if (selected)
+							ImGui::SetItemDefaultFocus();
 					}
 
 					ImGui::EndCombo();
@@ -1951,6 +1952,7 @@ void reshade::runtime::draw_overlay_variable_editor()
 				if (is_hovered)
 				{
 					ImGui::SetNextWindowPos(ImGui::GetCursorScreenPos());
+					ImGui::SetNextWindowSizeConstraints(ImVec2(ImGui::CalcItemWidth(), 0.0f), ImVec2(FLT_MAX, (_imgui_context->FontSize + _imgui_context->Style.ItemSpacing.y) * 8 - _imgui_context->Style.ItemSpacing.y + (_imgui_context->Style.WindowPadding.y * 2))); // 8 by ImGuiComboFlags_HeightRegular
 					ImGui::Begin("##spinner_items", NULL, ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoDocking);
 
 					auto it = items.begin();
@@ -1958,6 +1960,8 @@ void reshade::runtime::draw_overlay_variable_editor()
 					{
 						bool selected = data[0] == static_cast<int>(i);
 						ImGui::Selectable(it->data(), &selected);
+						if (selected)
+							ImGui::SetScrollHereY();
 					}
 
 					ImGui::End();
