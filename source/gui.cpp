@@ -1907,6 +1907,7 @@ void reshade::runtime::draw_overlay_variable_editor()
 
 				const float button_size = ImGui::GetFrameHeight();
 				const float button_spacing = _imgui_context->Style.ItemInnerSpacing.x;
+				const ImVec2 popup_pos = ImGui::GetCursorScreenPos() + ImVec2(0, button_size);
 
 				ImGui::PushItemWidth(ImGui::CalcItemWidth() - (button_spacing * 2 + button_size * 2));
 
@@ -1929,19 +1930,19 @@ void reshade::runtime::draw_overlay_variable_editor()
 
 				ImGui::SameLine(0, button_spacing);
 				if (ImGui::Button("<", ImVec2(button_size, 0)))
-					if (0 < items.size())
+					if (items.size() > 0)
 						if (data[0] == 0)
 							data[0] = items.size() - 1, modified = true;
 						else
-							data[0] -= 1, modified = true;
+							data[0]--, modified = true;
 
 				ImGui::SameLine(0, button_spacing);
 				if (ImGui::Button(">", ImVec2(button_size, 0)))
-					if (0 < items.size())
+					if (items.size() > 0)
 						if (data[0] == static_cast<int>(items.size()) - 1)
 							data[0] = 0, modified = true;
 						else
-							data[0] += 1, modified = true;
+							data[0]++, modified = true;
 
 				ImGui::EndGroup();
 				const bool is_hovered = ImGui::IsItemHovered();
@@ -1951,9 +1952,11 @@ void reshade::runtime::draw_overlay_variable_editor()
 
 				if (is_hovered)
 				{
-					ImGui::SetNextWindowPos(ImGui::GetCursorScreenPos());
+					ImGui::SetNextWindowPos(popup_pos);
 					ImGui::SetNextWindowSizeConstraints(ImVec2(ImGui::CalcItemWidth(), 0.0f), ImVec2(FLT_MAX, (_imgui_context->FontSize + _imgui_context->Style.ItemSpacing.y) * 8 - _imgui_context->Style.ItemSpacing.y + (_imgui_context->Style.WindowPadding.y * 2))); // 8 by ImGuiComboFlags_HeightRegular
+					ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(_imgui_context->Style.FramePadding.x, _imgui_context->Style.WindowPadding.y));
 					ImGui::Begin("##spinner_items", NULL, ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoDocking);
+					ImGui::PopStyleVar();
 
 					auto it = items.begin();
 					for (size_t i = 0; it != items.end(); it++, i++)
