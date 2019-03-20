@@ -161,29 +161,6 @@ bool reshade::opengl::runtime_opengl::init_backbuffer_texture()
 		return false;
 	}
 
-	glGenFramebuffers(1, &_blit_fbo);
-
-	glBindFramebuffer(GL_FRAMEBUFFER, _blit_fbo);
-	glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, _depth_texture, 0);
-	glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, _backbuffer_texture[1], 0);
-
-	status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
-
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
-	if (status != GL_FRAMEBUFFER_COMPLETE)
-	{
-		LOG(ERROR) << "Failed to create blit FBO with status code " << status;
-
-		glDeleteFramebuffers(1, &_blit_fbo);
-		glDeleteTextures(1, &_depth_texture);
-		glDeleteTextures(2, _backbuffer_texture);
-		glDeleteFramebuffers(1, &_default_backbuffer_fbo);
-		glDeleteRenderbuffers(2, _default_backbuffer_rbo);
-
-		return false;
-	}
-
 	return true;
 }
 bool reshade::opengl::runtime_opengl::init_default_depth_stencil()
@@ -210,6 +187,29 @@ bool reshade::opengl::runtime_opengl::init_default_depth_stencil()
 	{
 		LOG(ERROR) << "Failed to create depth texture with error code " << status;
 
+		glDeleteTextures(1, &_depth_texture);
+		glDeleteTextures(2, _backbuffer_texture);
+		glDeleteFramebuffers(1, &_default_backbuffer_fbo);
+		glDeleteRenderbuffers(2, _default_backbuffer_rbo);
+
+		return false;
+	}
+
+	glGenFramebuffers(1, &_blit_fbo);
+
+	glBindFramebuffer(GL_FRAMEBUFFER, _blit_fbo);
+	glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, _depth_texture, 0);
+	glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, _backbuffer_texture[1], 0);
+
+	status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+	if (status != GL_FRAMEBUFFER_COMPLETE)
+	{
+		LOG(ERROR) << "Failed to create blit FBO with status code " << status;
+
+		glDeleteFramebuffers(1, &_blit_fbo);
 		glDeleteTextures(1, &_depth_texture);
 		glDeleteTextures(2, _backbuffer_texture);
 		glDeleteFramebuffers(1, &_default_backbuffer_fbo);
@@ -337,10 +337,11 @@ void reshade::opengl::runtime_opengl::on_draw_call(unsigned int vertices)
 	GLint object = 0;
 	GLint target = GL_NONE;
 	glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &object);
-	if (object == 0) return;
-	glGetFramebufferAttachmentParameteriv(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_FRAMEBUFFER_ATTACHMENT_OBJECT_TYPE, &target);
-	if (target == GL_NONE) return;
-	glGetFramebufferAttachmentParameteriv(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_FRAMEBUFFER_ATTACHMENT_OBJECT_NAME, &object);
+	if (object != 0) { // Zero is valid too, in which case the default back buffer is referenced, instead of a FBO
+		glGetFramebufferAttachmentParameteriv(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_FRAMEBUFFER_ATTACHMENT_OBJECT_TYPE, &target);
+		if (target == GL_NONE) return;
+		glGetFramebufferAttachmentParameteriv(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_FRAMEBUFFER_ATTACHMENT_OBJECT_NAME, &object);
+	}
 
 	const auto it = _depth_source_table.find(object | (target == GL_RENDERBUFFER ? 0x80000000 : 0));
 	if (it != _depth_source_table.end())
@@ -392,7 +393,9 @@ void reshade::opengl::runtime_opengl::on_fbo_attachment(GLenum target, GLenum at
 
 	// Get current frame buffer
 	GLuint fbo = 0;
-	glGetIntegerv(target_to_binding(target), reinterpret_cast<GLint *>(&fbo)); assert(fbo != 0);
+	glGetIntegerv(target_to_binding(target), reinterpret_cast<GLint *>(&fbo));
+	assert(fbo != 0);
+
 	if (fbo == _default_backbuffer_fbo || fbo == _depth_source_fbo || fbo == _blit_fbo)
 		return;
 
