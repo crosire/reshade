@@ -76,39 +76,23 @@ namespace reshade::opengl
 		glGetIntegerv(GL_MAJOR_VERSION, &minor);
 		_renderer_id = 0x10000 | (major << 12) | (minor << 8);
 
-		// Get vendor and device information on NVIDIA Optimus devices
-		if (GetModuleHandleW(L"nvd3d9wrap.dll") == nullptr &&
-			GetModuleHandleW(L"nvd3d9wrapx.dll") == nullptr)
+		// Query vendor and device ID from Windows assuming we are running on the primary display device
+		// This is done because the information reported by OpenGL is not always reflecting the actual rendering device (e.g. on NVIDIA Optimus laptops)
+		DISPLAY_DEVICEA dd = { sizeof(dd) };
+		for (DWORD i = 0; EnumDisplayDevicesA(nullptr, i, &dd, 0) != FALSE; ++i)
 		{
-			DISPLAY_DEVICEA dd = { sizeof(dd) };
-
-			for (DWORD i = 0; EnumDisplayDevicesA(nullptr, i, &dd, 0) != FALSE; ++i)
+			if ((dd.StateFlags & DISPLAY_DEVICE_PRIMARY_DEVICE) != 0)
 			{
-				if ((dd.StateFlags & DISPLAY_DEVICE_PRIMARY_DEVICE) != 0)
+				// Format: PCI\VEN_XXXX&DEV_XXXX...
+				const std::string id = dd.DeviceID;
+
+				if (id.length() > 20)
 				{
-					const std::string id = dd.DeviceID;
-
-					if (id.length() > 20)
-					{
-						_vendor_id = std::stoi(id.substr(8, 4), nullptr, 16);
-						_device_id = std::stoi(id.substr(17, 4), nullptr, 16);
-					}
-					break;
+					_vendor_id = std::stoi(id.substr(8, 4), nullptr, 16);
+					_device_id = std::stoi(id.substr(17, 4), nullptr, 16);
 				}
+				break;
 			}
-		}
-
-		// Get vendor and device information on general devices
-		if (_vendor_id == 0)
-		{
-			const std::string name = reinterpret_cast<const char *>(glGetString(GL_VENDOR));
-
-			if (name.find("NVIDIA") != std::string::npos)
-				_vendor_id = 0x10DE;
-			else if (name.find("AMD") != std::string::npos || name.find("ATI") != std::string::npos)
-				_vendor_id = 0x1002;
-			else if (name.find("Intel") != std::string::npos)
-				_vendor_id = 0x8086;
 		}
 	}
 
