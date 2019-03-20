@@ -332,7 +332,7 @@ void reshade::runtime::load_effect(const std::filesystem::path &path, size_t &ou
 		// Copy initial data into uniform storage area
 		reset_uniform_value(variable);
 
-		const std::string special = variable.annotation_as_string("source");
+		const std::string_view special = variable.annotation_as_string("source");
 		if (special.empty()) /* Ignore if annotation is missing */;
 		else if (special == "frametime")
 			variable.special = special_uniform::frame_time;
@@ -700,7 +700,7 @@ void reshade::runtime::update_and_render_effects()
 		case special_uniform::key:
 			if (const int keycode = variable.annotation_as_int("keycode");
 				keycode > 7 && keycode < 256)
-				if (const std::string mode = variable.annotation_as_string("mode");
+				if (const std::string_view mode = variable.annotation_as_string("mode");
 					mode == "toggle" || variable.annotation_as_int("toggle")) {
 					bool current_value = false;
 					get_uniform_value(variable, &current_value, 1);
@@ -720,7 +720,7 @@ void reshade::runtime::update_and_render_effects()
 		case special_uniform::mouse_button:
 			if (const int keycode = variable.annotation_as_int("keycode");
 				keycode >= 0 && keycode < 5)
-				if (const std::string mode = variable.annotation_as_string("mode");
+				if (const std::string_view mode = variable.annotation_as_string("mode");
 					mode == "toggle" || variable.annotation_as_int("toggle")) {
 					bool current_value = false;
 					get_uniform_value(variable, &current_value, 1);
