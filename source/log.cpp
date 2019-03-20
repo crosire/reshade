@@ -8,69 +8,66 @@
 #include <assert.h>
 #include <Windows.h>
 
-namespace reshade::log
+std::ofstream reshade::log::stream;
+std::ostringstream reshade::log::linestream;
+std::vector<std::string> reshade::log::lines;
+static std::mutex s_mutex;
+
+reshade::log::message::message(level level)
 {
-	std::ofstream stream;
-	std::ostringstream linestream;
-	std::vector<std::string> lines;
-	static std::mutex s_mutex;
+	SYSTEMTIME time;
+	GetLocalTime(&time);
 
-	message::message(level level)
-	{
-		SYSTEMTIME time;
-		GetLocalTime(&time);
+	const char level_names[][6] = { "ERROR", "WARN ", "INFO ", "DEBUG" };
+	assert(static_cast<unsigned int>(level) - 1 < _countof(level_names));
 
-		const char level_names[][6] = { "ERROR", "WARN ", "INFO ", "DEBUG" };
-		assert(static_cast<unsigned int>(level) - 1 < _countof(level_names));
+	// Lock the stream until the message is complete
+	s_mutex.lock();
 
-		// Lock the stream until the message is complete
-		s_mutex.lock();
+	// Start a new line
+	linestream.str("");
+	linestream.clear();
 
-		// Start a new line
-		linestream.str("");
-		linestream.clear();
-
-		stream << std::right << std::setfill('0')
+	stream << std::right << std::setfill('0')
 #if RESHADE_VERBOSE_LOG
-			<< std::setw(4) << time.wYear << '-'
-			<< std::setw(2) << time.wMonth << '-'
-			<< std::setw(2) << time.wDay << 'T'
+		<< std::setw(4) << time.wYear << '-'
+		<< std::setw(2) << time.wMonth << '-'
+		<< std::setw(2) << time.wDay << 'T'
 #endif
-			<< std::setw(2) << time.wHour << ':'
-			<< std::setw(2) << time.wMinute << ':'
-			<< std::setw(2) << time.wSecond << ':'
-			<< std::setw(3) << time.wMilliseconds << ' '
-			<< '[' << std::setw(5) << GetCurrentThreadId() << ']' << std::setfill(' ') << " | "
-			<< level_names[static_cast<unsigned int>(level) - 1] << " | " << std::left;
-		linestream
-			<< level_names[static_cast<unsigned int>(level) - 1] << " | ";
-	}
-	message::~message()
-	{
-		// Finish the line
-		stream << std::endl;
-		linestream << std::endl;
+		<< std::setw(2) << time.wHour << ':'
+		<< std::setw(2) << time.wMinute << ':'
+		<< std::setw(2) << time.wSecond << ':'
+		<< std::setw(3) << time.wMilliseconds << ' '
+		<< '[' << std::setw(5) << GetCurrentThreadId() << ']' << std::setfill(' ') << " | "
+		<< level_names[static_cast<unsigned int>(level) - 1] << " | " << std::left;
+	linestream
+		<< level_names[static_cast<unsigned int>(level) - 1] << " | ";
+}
+reshade::log::message::~message()
+{
+	// Finish the line
+	stream << std::endl;
+	linestream << std::endl;
 
-		lines.push_back(linestream.str());
+	lines.push_back(linestream.str());
 
-		// The message is finished, we can unlock the stream
-		s_mutex.unlock();
-	}
+	// The message is finished, we can unlock the stream
+	s_mutex.unlock();
+}
 
-	bool open(const std::filesystem::path &path)
-	{
-		stream.open(path, std::ios::out | std::ios::trunc);
+bool reshade::log::open(const std::filesystem::path &path)
+{
+	stream.open(path, std::ios::out | std::ios::trunc);
 
-		if (!stream.is_open())
-			return false;
+	if (!stream.is_open())
+		return false;
 
-		stream.setf(std::ios::left);
-		stream.setf(std::ios::showbase);
-		stream.flush();
+	stream.setf(std::ios::left);
+	stream.setf(std::ios::showbase);
+	stream.flush();
 
-		linestream.setf(std::ios::left);
-		linestream.setf(std::ios::showbase);
+	linestream.setf(std::ios::left);
+	linestream.setf(std::ios::showbase);
 
-		return true;
-	}
+	return true;
 }
