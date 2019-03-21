@@ -365,3 +365,90 @@ void imgui_image_with_checkerboard_background(ImTextureID user_texture_id, const
 	// Add image on top
 	ImGui::Image(user_texture_id, size);
 }
+
+bool imgui_list_with_buttons(const std::string_view label, const std::string_view ui_items, int *v)
+{
+	const auto imgui_context = ImGui::GetCurrentContext();
+
+	bool modified = false;
+
+	std::vector<std::string_view> items;
+	std::string_view preview_value;
+
+	for (size_t i = 0, next = 0;
+		ui_items.size() > next;
+		next += strnlen_s(ui_items.data() + next, ui_items.size() - next) + 1, i++)
+	{
+		if (*v == static_cast<int>(i))
+			preview_value = ui_items.data() + next;
+
+		items.push_back(ui_items.data() + next);
+	}
+
+	ImGui::BeginGroup();
+
+	const float button_size = ImGui::GetFrameHeight();
+	const float button_spacing = imgui_context->Style.ItemInnerSpacing.x;
+	const ImVec2 hover_pos = ImGui::GetCursorScreenPos() + ImVec2(0, button_size);
+
+	ImGui::PushItemWidth(ImGui::CalcItemWidth() - (button_spacing * 2 + button_size * 2));
+
+	if (ImGui::BeginCombo("##v", preview_value.data(), ImGuiComboFlags_NoArrowButton))
+	{
+		auto it = items.begin();
+		for (size_t i = 0; it != items.end(); it++, i++)
+		{
+			bool selected = *v == static_cast<int>(i);
+			if (ImGui::Selectable(it->data(), &selected))
+				*v = static_cast<int>(i), modified = true;
+			if (selected)
+				ImGui::SetItemDefaultFocus();
+		}
+
+		ImGui::EndCombo();
+	}
+
+	ImGui::PopItemWidth();
+
+	ImGui::SameLine(0, button_spacing);
+	if (ImGui::ButtonEx("<", ImVec2(button_size, 0), items.size() > 0 ? 0 : ImGuiButtonFlags_Disabled))
+		if (*v == 0)
+			*v = items.size() - 1, modified = true;
+		else
+			(*v)--, modified = true;
+
+	ImGui::SameLine(0, button_spacing);
+	if (ImGui::ButtonEx(">", ImVec2(button_size, 0), items.size() > 0 ? 0 : ImGuiButtonFlags_Disabled))
+		if (*v == static_cast<int>(items.size()) - 1)
+			*v = 0, modified = true;
+		else
+			(*v)++, modified = true;
+
+	ImGui::EndGroup();
+	const bool is_hovered = ImGui::IsItemHovered();
+
+	ImGui::SameLine(0, button_spacing);
+	ImGui::TextUnformatted(label.data());
+
+	if (is_hovered)
+	{
+		ImGui::SetNextWindowPos(hover_pos);
+		ImGui::SetNextWindowSizeConstraints(ImVec2(ImGui::CalcItemWidth(), 0.0f), ImVec2(FLT_MAX, (imgui_context->FontSize + imgui_context->Style.ItemSpacing.y) * 8 - imgui_context->Style.ItemSpacing.y + (imgui_context->Style.WindowPadding.y * 2))); // 8 by ImGuiComboFlags_HeightRegular
+		ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(imgui_context->Style.FramePadding.x, imgui_context->Style.WindowPadding.y));
+		ImGui::Begin("##spinner_items", NULL, ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoDocking);
+		ImGui::PopStyleVar();
+
+		auto it = items.begin();
+		for (size_t i = 0; it != items.end(); it++, i++)
+		{
+			bool selected = *v == static_cast<int>(i);
+			ImGui::Selectable(it->data(), &selected);
+			if (selected)
+				ImGui::SetScrollHereY();
+		}
+
+		ImGui::End();
+	}
+
+	return modified;
+}
