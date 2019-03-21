@@ -73,11 +73,11 @@ namespace reshade
 			if (it == annotations.end()) return 0.0f;
 			return it->second.first.is_floating_point() ? it->second.second.as_float[i] : static_cast<float>(it->second.second.as_int[i]);
 		}
-		std::string annotation_as_string(const char *ann_name) const
+		std::string_view annotation_as_string(const char *ann_name) const
 		{
 			const auto it = annotations.find(ann_name);
-			if (it == annotations.end()) return std::string();
-			return it->second.second.string_data;
+			if (it == annotations.end()) return std::string_view();
+			return std::string_view(it->second.second.string_data.data(), it->second.second.string_data.size());
 		}
 
 		size_t effect_index = std::numeric_limits<size_t>::max();
@@ -102,11 +102,11 @@ namespace reshade
 			if (it == annotations.end()) return 0.0f;
 			return it->second.first.is_floating_point() ? it->second.second.as_float[i] : static_cast<float>(it->second.second.as_int[i]);
 		}
-		std::string annotation_as_string(const char *ann_name) const
+		std::string_view annotation_as_string(const char *ann_name) const
 		{
 			const auto it = annotations.find(ann_name);
-			if (it == annotations.end()) return std::string();
-			return it->second.second.string_data;
+			if (it == annotations.end()) return std::string_view();
+			return std::string_view(it->second.second.string_data.data(), it->second.second.string_data.size());
 		}
 
 		size_t effect_index = std::numeric_limits<size_t>::max();
@@ -130,11 +130,11 @@ namespace reshade
 			if (it == annotations.end()) return 0.0f;
 			return it->second.first.is_floating_point() ? it->second.second.as_float[i] : static_cast<float>(it->second.second.as_int[i]);
 		}
-		std::string annotation_as_string(const char *ann_name) const
+		std::string_view annotation_as_string(const char *ann_name) const
 		{
 			const auto it = annotations.find(ann_name);
-			if (it == annotations.end()) return std::string();
-			return it->second.second.string_data;
+			if (it == annotations.end()) return std::string_view();
+			return std::string_view(it->second.second.string_data.data(), it->second.second.string_data.size());
 		}
 
 		size_t effect_index = std::numeric_limits<size_t>::max();
