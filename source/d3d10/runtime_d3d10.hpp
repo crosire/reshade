@@ -9,6 +9,7 @@
 #include "state_block.hpp"
 #include "draw_call_tracker.hpp"
 
+namespace reshade { enum class texture_reference; }
 namespace reshadefx { struct sampler_info; }
 
 namespace reshade::d3d10
@@ -29,16 +30,6 @@ namespace reshade::d3d10
 		com_ptr<ID3D10Texture2D> select_depth_texture_save(D3D10_TEXTURE2D_DESC &texture_desc);
 #endif
 
-		com_ptr<ID3D10Device1> _device;
-		com_ptr<IDXGISwapChain> _swapchain;
-
-		com_ptr<ID3D10Texture2D> _backbuffer_texture;
-		com_ptr<ID3D10RenderTargetView> _backbuffer_rtv[3];
-		com_ptr<ID3D10ShaderResourceView> _backbuffer_texture_srv[2];
-		com_ptr<ID3D10ShaderResourceView> _depthstencil_texture_srv;
-		std::unordered_map<size_t, com_ptr<ID3D10SamplerState>> _effect_sampler_states;
-		std::vector<com_ptr<ID3D10Buffer>> _constant_buffers;
-
 		bool depth_buffer_before_clear = false;
 		bool extended_depth_buffer_detection = false;
 		unsigned int cleared_depth_buffer_index = 0;
@@ -51,6 +42,7 @@ namespace reshade::d3d10
 		bool init_texture(texture &info) override;
 		void update_texture(texture &texture, const uint8_t *pixels) override;
 		bool update_texture_reference(texture &texture);
+		void update_texture_references(texture_reference type);
 
 		bool compile_effect(effect_data &effect) override;
 		void unload_effects() override;
@@ -58,7 +50,7 @@ namespace reshade::d3d10
 		bool add_sampler(const reshadefx::sampler_info &info, struct d3d10_technique_data &technique_init);
 		bool init_technique(technique &info, struct d3d10_technique_data &&technique_init, const std::unordered_map<std::string, com_ptr<IUnknown>> &entry_points);
 
-		void render_technique(const technique &technique) override;
+		void render_technique(technique &technique) override;
 
 #if RESHADE_GUI
 		bool init_imgui_resources();
@@ -78,6 +70,16 @@ namespace reshade::d3d10
 			com_ptr<ID3D10Texture2D> dest_texture;
 			bool cleared = false;
 		};
+
+		com_ptr<ID3D10Device1> _device;
+		com_ptr<IDXGISwapChain> _swapchain;
+
+		com_ptr<ID3D10Texture2D> _backbuffer_texture;
+		com_ptr<ID3D10RenderTargetView> _backbuffer_rtv[3];
+		com_ptr<ID3D10ShaderResourceView> _backbuffer_texture_srv[2];
+		com_ptr<ID3D10ShaderResourceView> _depthstencil_texture_srv;
+		std::unordered_map<size_t, com_ptr<ID3D10SamplerState>> _effect_sampler_states;
+		std::vector<com_ptr<ID3D10Buffer>> _constant_buffers;
 
 		std::map<UINT, depth_texture_save_info> _displayed_depth_textures;
 		std::unordered_map<UINT, com_ptr<ID3D10Texture2D>> _depth_texture_saves;

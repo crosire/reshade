@@ -9,6 +9,7 @@
 #include "effect_expression.hpp"
 #include "state_block.hpp"
 
+namespace reshade { enum class texture_reference; }
 namespace reshadefx { struct sampler_info; }
 
 namespace reshade::d3d9
@@ -30,16 +31,6 @@ namespace reshade::d3d9
 
 		void capture_screenshot(uint8_t *buffer) const override;
 
-		com_ptr<IDirect3D9> _d3d;
-		com_ptr<IDirect3DDevice9> _device;
-		com_ptr<IDirect3DSwapChain9> _swapchain;
-
-		com_ptr<IDirect3DSurface9> _backbuffer;
-		com_ptr<IDirect3DSurface9> _backbuffer_resolved;
-		com_ptr<IDirect3DTexture9> _backbuffer_texture;
-		com_ptr<IDirect3DSurface9> _backbuffer_texture_surface;
-		com_ptr<IDirect3DTexture9> _depthstencil_texture;
-
 	private:
 		struct depth_source_info
 		{
@@ -55,13 +46,14 @@ namespace reshade::d3d9
 		bool init_texture(texture &info) override;
 		void update_texture(texture &texture, const uint8_t *pixels) override;
 		bool update_texture_reference(texture &texture);
+		void update_texture_references(texture_reference type);
 
 		bool compile_effect(effect_data &effect) override;
 
 		bool add_sampler(const reshadefx::sampler_info &info, struct d3d9_technique_data &technique_init);
 		bool init_technique(technique &info, struct d3d9_technique_data &&technique_init, const std::unordered_map<std::string, com_ptr<IUnknown>> &entry_points);
 
-		void render_technique(const technique &technique) override;
+		void render_technique(technique &technique) override;
 
 		bool check_depthstencil_size(const D3DSURFACE_DESC &desc);
 
@@ -73,6 +65,16 @@ namespace reshade::d3d9
 
 		void detect_depth_source();
 		bool create_depthstencil_replacement(const com_ptr<IDirect3DSurface9> &depthstencil);
+
+		com_ptr<IDirect3D9> _d3d;
+		com_ptr<IDirect3DDevice9> _device;
+		com_ptr<IDirect3DSwapChain9> _swapchain;
+
+		com_ptr<IDirect3DSurface9> _backbuffer;
+		com_ptr<IDirect3DSurface9> _backbuffer_resolved;
+		com_ptr<IDirect3DTexture9> _backbuffer_texture;
+		com_ptr<IDirect3DSurface9> _backbuffer_texture_surface;
+		com_ptr<IDirect3DTexture9> _depthstencil_texture;
 
 		unsigned int _num_samplers;
 		unsigned int _num_simultaneous_rendertargets;

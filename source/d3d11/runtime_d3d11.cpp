@@ -89,7 +89,6 @@ reshade::d3d11::runtime_d3d11::~runtime_d3d11()
 
 bool reshade::d3d11::runtime_d3d11::init_backbuffer_texture()
 {
-	// Get back buffer texture
 	HRESULT hr = _swapchain->GetBuffer(0, IID_PPV_ARGS(&_backbuffer));
 	assert(SUCCEEDED(hr));
 
@@ -102,6 +101,7 @@ bool reshade::d3d11::runtime_d3d11::init_backbuffer_texture()
 	tex_desc.Usage = D3D11_USAGE_DEFAULT;
 	tex_desc.BindFlags = D3D11_BIND_RENDER_TARGET;
 
+	// Creating a render target view for the back buffer fails on Windows 8+, so use a intermediate texture there
 	OSVERSIONINFOEX verinfo_windows7 = { sizeof(OSVERSIONINFOEX), 6, 1 };
 	const bool is_windows7 = VerifyVersionInfo(&verinfo_windows7, VER_MAJORVERSION | VER_MINORVERSION,
 		VerSetConditionMask(VerSetConditionMask(0, VER_MAJORVERSION, VER_EQUAL), VER_MINORVERSION, VER_EQUAL)) != FALSE;
@@ -115,9 +115,7 @@ bool reshade::d3d11::runtime_d3d11::init_backbuffer_texture()
 			LOG(ERROR) << "Failed to create back buffer resolve texture ("
 				"Width = " << tex_desc.Width << ", "
 				"Height = " << tex_desc.Height << ", "
-				"Format = " << tex_desc.Format << ", "
-				"SampleCount = " << tex_desc.SampleDesc.Count << ", "
-				"SampleQuality = " << tex_desc.SampleDesc.Quality << ")! HRESULT is '" << std::hex << hr << std::dec << "'.";
+				"Format = " << tex_desc.Format << ")! HRESULT is '" << std::hex << hr << std::dec << "'.";
 			return false;
 		}
 
@@ -158,9 +156,7 @@ bool reshade::d3d11::runtime_d3d11::init_backbuffer_texture()
 		LOG(ERROR) << "Failed to create back buffer texture ("
 			"Width = " << tex_desc.Width << ", "
 			"Height = " << tex_desc.Height << ", "
-			"Format = " << tex_desc.Format << ", "
-			"SampleCount = " << tex_desc.SampleDesc.Count << ", "
-			"SampleQuality = " << tex_desc.SampleDesc.Quality << ")! HRESULT is '" << std::hex << hr << std::dec << "'.";
+			"Format = " << tex_desc.Format << ")! HRESULT is '" << std::hex << hr << std::dec << "'.";
 	}
 
 	if (FAILED(hr))
@@ -592,6 +588,12 @@ bool reshade::d3d11::runtime_d3d11::update_texture_reference(texture &texture)
 
 	return true;
 }
+void reshade::d3d11::runtime_d3d11::update_texture_references(texture_reference type)
+{
+	for (auto &tex : _textures)
+		if (tex.impl != nullptr && tex.impl_reference == type)
+			update_texture_reference(tex);
+}
 
 bool reshade::d3d11::runtime_d3d11::compile_effect(effect_data &effect)
 {
@@ -968,7 +970,7 @@ bool reshade::d3d11::runtime_d3d11::init_technique(technique &technique, d3d11_t
 	return true;
 }
 
-void reshade::d3d11::runtime_d3d11::render_technique(const technique &technique)
+void reshade::d3d11::runtime_d3d11::render_technique(technique &technique)
 {
 	d3d11_technique_data &technique_data = *technique.impl->as<d3d11_technique_data>();
 
@@ -983,7 +985,7 @@ void reshade::d3d11::runtime_d3d11::render_technique(const technique &technique)
 			_immediate_context->GetData(technique_data.timestamp_query_end.get(), &timestamp1, sizeof(timestamp1), D3D11_ASYNC_GETDATA_DONOTFLUSH) == S_OK)
 		{
 			if (!disjoint.Disjoint)
-				const_cast<struct technique &>(technique).average_gpu_duration.append((timestamp1 - timestamp0) * 1'000'000'000 / disjoint.Frequency);
+				technique.average_gpu_duration.append((timestamp1 - timestamp0) * 1'000'000'000 / disjoint.Frequency);
 			technique_data.query_in_flight = false;
 		}
 	}
@@ -1547,10 +1549,7 @@ bool reshade::d3d11::runtime_d3d11::create_depthstencil_replacement(ID3D11DepthS
 			_immediate_context->OMSetRenderTargets(D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT, reinterpret_cast<ID3D11RenderTargetView *const *>(targets), _depthstencil_replacement.get());
 	}
 
-	// Update effect textures
-	for (auto &tex : _textures)
-		if (tex.impl != nullptr && tex.impl_reference == texture_reference::depth_buffer)
-			update_texture_reference(tex);
+	update_texture_references(texture_reference::depth_buffer);
 
 	return true;
 }

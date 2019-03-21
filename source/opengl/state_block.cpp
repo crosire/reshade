@@ -12,6 +12,10 @@ reshade::opengl::state_block::state_block()
 
 void reshade::opengl::state_block::capture()
 {
+#ifndef NDEBUG
+	has_state = true;
+#endif
+
 	glGetIntegerv(GL_VERTEX_ARRAY_BINDING, &_vao);
 	glGetIntegerv(GL_ARRAY_BUFFER_BINDING, &_vbo);
 	glGetIntegerv(GL_UNIFORM_BUFFER_BINDING, &_ubo);
@@ -67,6 +71,10 @@ void reshade::opengl::state_block::capture()
 }
 void reshade::opengl::state_block::apply() const
 {
+#ifndef NDEBUG
+	has_state = false;
+#endif
+
 	glBindVertexArray(_vao);
 	glBindBuffer(GL_ARRAY_BUFFER, _vbo);
 	glBindBuffer(GL_UNIFORM_BUFFER, _ubo);

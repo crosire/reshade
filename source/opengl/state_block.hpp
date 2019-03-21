@@ -17,6 +17,10 @@ namespace reshade::opengl
 		void capture();
 		void apply() const;
 
+#ifndef NDEBUG
+		mutable bool has_state = false;
+#endif
+
 	private:
 		GLint _vao;
 		GLint _vbo;

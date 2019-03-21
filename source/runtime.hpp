@@ -161,7 +161,7 @@ namespace reshade
 		/// Render all passes in a technique.
 		/// </summary>
 		/// <param name="technique">The technique to render.</param>
-		virtual void render_technique(const technique &technique) = 0;
+		virtual void render_technique(technique &technique) = 0;
 #if RESHADE_GUI
 		/// <summary>
 		/// Render command lists obtained from ImGui.

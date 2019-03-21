@@ -624,6 +624,12 @@ bool reshade::d3d9::runtime_d3d9::update_texture_reference(texture &texture)
 
 	return true;
 }
+void reshade::d3d9::runtime_d3d9::update_texture_references(texture_reference type)
+{
+	for (auto &tex : _textures)
+		if (tex.impl != nullptr && tex.impl_reference == type)
+			update_texture_reference(tex);
+}
 
 bool reshade::d3d9::runtime_d3d9::compile_effect(effect_data &effect)
 {
@@ -906,7 +912,7 @@ bool reshade::d3d9::runtime_d3d9::init_technique(technique &technique, d3d9_tech
 	return true;
 }
 
-void reshade::d3d9::runtime_d3d9::render_technique(const technique &technique)
+void reshade::d3d9::runtime_d3d9::render_technique(technique &technique)
 {
 	auto &technique_data = *technique.impl->as<d3d9_technique_data>();
 
@@ -1452,10 +1458,7 @@ bool reshade::d3d9::runtime_d3d9::create_depthstencil_replacement(const com_ptr<
 		}
 	}
 
-	// Update effect textures
-	for (auto &tex : _textures)
-		if (tex.impl != nullptr && tex.impl_reference == texture_reference::depth_buffer)
-			update_texture_reference(tex);
+	update_texture_references(texture_reference::depth_buffer);
 
 	return true;
 }

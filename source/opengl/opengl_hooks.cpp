@@ -637,98 +637,98 @@ extern "C"  void WINAPI glFramebufferRenderbuffer(GLenum target, GLenum attachme
 	static const auto trampoline = reshade::hooks::call(glFramebufferRenderbuffer);
 	trampoline(target, attachment, renderbuffertarget, renderbuffer);
 
-	if (g_current_runtime) g_current_runtime->on_fbo_attachment(target, attachment, renderbuffertarget, renderbuffer, 0);
+	if (g_current_runtime) g_current_runtime->on_fbo_attachment(attachment, renderbuffertarget, renderbuffer, 0);
 }
 extern "C"  void WINAPI glFramebufferRenderbufferEXT(GLenum target, GLenum attachment, GLenum renderbuffertarget, GLuint renderbuffer)
 {
 	static const auto trampoline = reshade::hooks::call(glFramebufferRenderbufferEXT);
 	trampoline(target, attachment, renderbuffertarget, renderbuffer);
 
-	if (g_current_runtime) g_current_runtime->on_fbo_attachment(target, attachment, renderbuffertarget, renderbuffer, 0);
+	if (g_current_runtime) g_current_runtime->on_fbo_attachment(attachment, renderbuffertarget, renderbuffer, 0);
 }
 extern "C"  void WINAPI glFramebufferTexture(GLenum target, GLenum attachment, GLuint texture, GLint level)
 {
 	static const auto trampoline = reshade::hooks::call(glFramebufferTexture);
 	trampoline(target, attachment, texture, level);
 
-	if (g_current_runtime) g_current_runtime->on_fbo_attachment(target, attachment, GL_TEXTURE, texture, level);
+	if (g_current_runtime) g_current_runtime->on_fbo_attachment(attachment, GL_TEXTURE_2D, texture, level);
 }
 extern "C"  void WINAPI glFramebufferTextureARB(GLenum target, GLenum attachment, GLuint texture, GLint level)
 {
 	static const auto trampoline = reshade::hooks::call(glFramebufferTextureARB);
 	trampoline(target, attachment, texture, level);
 
-	if (g_current_runtime) g_current_runtime->on_fbo_attachment(target, attachment, GL_TEXTURE, texture, level);
+	if (g_current_runtime) g_current_runtime->on_fbo_attachment(attachment, GL_TEXTURE_2D, texture, level);
 }
 extern "C"  void WINAPI glFramebufferTextureEXT(GLenum target, GLenum attachment, GLuint texture, GLint level)
 {
 	static const auto trampoline = reshade::hooks::call(glFramebufferTextureEXT);
 	trampoline(target, attachment, texture, level);
 
-	if (g_current_runtime) g_current_runtime->on_fbo_attachment(target, attachment, GL_TEXTURE, texture, level);
+	if (g_current_runtime) g_current_runtime->on_fbo_attachment(attachment, GL_TEXTURE_2D, texture, level);
 }
 extern "C"  void WINAPI glFramebufferTexture1D(GLenum target, GLenum attachment, GLenum textarget, GLuint texture, GLint level)
 {
 	static const auto trampoline = reshade::hooks::call(glFramebufferTexture1D);
 	trampoline(target, attachment, textarget, texture, level);
 
-	if (g_current_runtime) g_current_runtime->on_fbo_attachment(target, attachment, textarget, texture, level);
+	if (g_current_runtime) g_current_runtime->on_fbo_attachment(attachment, textarget, texture, level);
 }
 extern "C"  void WINAPI glFramebufferTexture1DEXT(GLenum target, GLenum attachment, GLenum textarget, GLuint texture, GLint level)
 {
 	static const auto trampoline = reshade::hooks::call(glFramebufferTexture1DEXT);
 	trampoline(target, attachment, textarget, texture, level);
 
-	if (g_current_runtime) g_current_runtime->on_fbo_attachment(target, attachment, textarget, texture, level);
+	if (g_current_runtime) g_current_runtime->on_fbo_attachment(attachment, textarget, texture, level);
 }
 extern "C"  void WINAPI glFramebufferTexture2D(GLenum target, GLenum attachment, GLenum textarget, GLuint texture, GLint level)
 {
 	static const auto trampoline = reshade::hooks::call(glFramebufferTexture2D);
 	trampoline(target, attachment, textarget, texture, level);
 
-	if (g_current_runtime) g_current_runtime->on_fbo_attachment(target, attachment, textarget, texture, level);
+	if (g_current_runtime) g_current_runtime->on_fbo_attachment(attachment, textarget, texture, level);
 }
 extern "C"  void WINAPI glFramebufferTexture2DEXT(GLenum target, GLenum attachment, GLenum textarget, GLuint texture, GLint level)
 {
 	static const auto trampoline = reshade::hooks::call(glFramebufferTexture2DEXT);
 	trampoline(target, attachment, textarget, texture, level);
 
-	if (g_current_runtime) g_current_runtime->on_fbo_attachment(target, attachment, textarget, texture, level);
+	if (g_current_runtime) g_current_runtime->on_fbo_attachment(attachment, textarget, texture, level);
 }
 extern "C"  void WINAPI glFramebufferTexture3D(GLenum target, GLenum attachment, GLenum textarget, GLuint texture, GLint level, GLint zoffset)
 {
 	static const auto trampoline = reshade::hooks::call(glFramebufferTexture3D);
 	trampoline(target, attachment, textarget, texture, level, zoffset);
 
-	if (g_current_runtime) g_current_runtime->on_fbo_attachment(target, attachment, textarget, texture, level);
+	if (g_current_runtime) g_current_runtime->on_fbo_attachment(attachment, textarget, texture, level);
 }
 extern "C"  void WINAPI glFramebufferTexture3DEXT(GLenum target, GLenum attachment, GLenum textarget, GLuint texture, GLint level, GLint zoffset)
 {
 	static const auto trampoline = reshade::hooks::call(glFramebufferTexture3DEXT);
 	trampoline(target, attachment, textarget, texture, level, zoffset);
 
-	if (g_current_runtime) g_current_runtime->on_fbo_attachment(target, attachment, textarget, texture, level);
+	if (g_current_runtime) g_current_runtime->on_fbo_attachment(attachment, textarget, texture, level);
 }
 extern "C"  void WINAPI glFramebufferTextureLayer(GLenum target, GLenum attachment, GLuint texture, GLint level, GLint layer)
 {
 	static const auto trampoline = reshade::hooks::call(glFramebufferTextureLayer);
 	trampoline(target, attachment, texture, level, layer);
 
-	if (g_current_runtime) g_current_runtime->on_fbo_attachment(target, attachment, GL_TEXTURE, texture, level);
+	if (g_current_runtime) g_current_runtime->on_fbo_attachment(attachment, GL_TEXTURE_2D, texture, level);
 }
 extern "C"  void WINAPI glFramebufferTextureLayerARB(GLenum target, GLenum attachment, GLuint texture, GLint level, GLint layer)
 {
 	static const auto trampoline = reshade::hooks::call(glFramebufferTextureLayerARB);
 	trampoline(target, attachment, texture, level, layer);
 
-	if (g_current_runtime) g_current_runtime->on_fbo_attachment(target, attachment, GL_TEXTURE, texture, level);
+	if (g_current_runtime) g_current_runtime->on_fbo_attachment(attachment, GL_TEXTURE_2D, texture, level);
 }
 extern "C"  void WINAPI glFramebufferTextureLayerEXT(GLenum target, GLenum attachment, GLuint texture, GLint level, GLint layer)
 {
 	static const auto trampoline = reshade::hooks::call(glFramebufferTextureLayerEXT);
 	trampoline(target, attachment, texture, level, layer);
 
-	if (g_current_runtime) g_current_runtime->on_fbo_attachment(target, attachment, GL_TEXTURE, texture, level);
+	if (g_current_runtime) g_current_runtime->on_fbo_attachment(attachment, GL_TEXTURE_2D, texture, level);
 }
 
 HOOK_EXPORT void WINAPI glFrontFace(GLenum mode)
