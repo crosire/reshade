@@ -351,10 +351,31 @@ void reshade::input::next_frame()
 
 std::string reshade::input::key_name(unsigned int keycode)
 {
-	const char *keyboard_keys[256] = {
+	if (keycode >= 256)
+		return std::string();
+
+	static const char *keyboard_keys_german[256] = {
 		"", "", "", "Cancel", "", "", "", "", "Backspace", "Tab", "", "", "Clear", "Enter", "", "",
 		"Shift", "Control", "Alt", "Pause", "Caps Lock", "", "", "", "", "", "", "Escape", "", "", "", "",
-		"Space", "Page Up", "Page Down", "End", "Home or Pos 1", "Left Arrow", "Up Arrow", "Right Arrow", "Down Arrow", "Select", "", "", "Print Screen", "Insert", "Delete", "Help",
+		"Leertaste", "Bild auf", "Bild ab", "Ende", "Pos 1", "Left Arrow", "Up Arrow", "Right Arrow", "Down Arrow", "Select", "", "", "Druck", "Einfg", "Entf", "Hilfe",
+		"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "", "", "", "", "", "",
+		"", "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O",
+		"P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z", "Left Windows", "Right Windows", "Apps", "", "Sleep",
+		"Numpad 0", "Numpad 1", "Numpad 2", "Numpad 3", "Numpad 4", "Numpad 5", "Numpad 6", "Numpad 7", "Numpad 8", "Numpad 9", "Numpad *", "Numpad +", "", "Numpad -", "Numpad ,", "Numpad /",
+		"F1", "F2", "F3", "F4", "F5", "F6", "F7", "F8", "F9", "F10", "F11", "F12", "F13", "F14", "F15", "F16",
+		"F17", "F18", "F19", "F20", "F21", "F22", "F23", "F24", "", "", "", "", "", "", "", "",
+		"Num Lock", "Scroll Lock", "", "", "", "", "", "", "", "", "", "", "", "", "", "",
+		"Left Shift", "Right Shift", "Left Control", "Right Control", "Left Menu", "Right Menu", "Browser Back", "Browser Forward", "Browser Refresh", "Browser Stop", "Browser Search", "Browser Favorites", "Browser Home", "Volume Mute", "Volume Down", "Volume Up",
+		"Next Track", "Previous Track", "Media Stop", "Media Play/Pause", "Mail", "Media Select", "Launch App 1", "Launch App 2", "", "", u8"Ü", "OEM +", "OEM ,", "OEM -", "OEM .", "OEM #",
+		u8"Ö", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "",
+		"", "", "", "", "", "", "", "", "", "", "", u8"OEM ß", "OEM ^", u8"OEM ´", u8"Ä", "OEM 8",
+		"", "", "OEM <", "", "", "", "", "", "", "", "", "", "", "", "", "",
+		"", "", "", "", "", "", "Attn", "CrSel", "ExSel", "Erase EOF", "Play", "Zoom", "", "PA1", "OEM Clear", ""
+	};
+	static const char *keyboard_keys_international[256] = {
+		"", "", "", "Cancel", "", "", "", "", "Backspace", "Tab", "", "", "Clear", "Enter", "", "",
+		"Shift", "Control", "Alt", "Pause", "Caps Lock", "", "", "", "", "", "", "Escape", "", "", "", "",
+		"Space", "Page Up", "Page Down", "End", "Home", "Left Arrow", "Up Arrow", "Right Arrow", "Down Arrow", "Select", "", "", "Print Screen", "Insert", "Delete", "Help",
 		"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "", "", "", "", "", "",
 		"", "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O",
 		"P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z", "Left Windows", "Right Windows", "Apps", "", "Sleep",
@@ -370,10 +391,10 @@ std::string reshade::input::key_name(unsigned int keycode)
 		"", "", "", "", "", "", "Attn", "CrSel", "ExSel", "Erase EOF", "Play", "Zoom", "", "PA1", "OEM Clear", ""
 	};
 
-	if (keycode >= _countof(keyboard_keys))
-		return std::string();
+	const LANGID language = LOWORD(GetKeyboardLayout(0));
 
-	return keyboard_keys[keycode];
+	return ((language & 0xFF) == LANG_GERMAN) ?
+		keyboard_keys_german[keycode] : keyboard_keys_international[keycode];
 }
 std::string reshade::input::key_name(const unsigned int key[4])
 {
