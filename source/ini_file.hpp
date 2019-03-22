@@ -18,6 +18,17 @@ namespace reshade
 		ini_file(const std::filesystem::path &path, const std::filesystem::path &save_path);
 		~ini_file();
 
+		bool has(const std::string &section, const std::string &key) const
+		{
+			const auto it1 = _sections.find(section);
+			if (it1 == _sections.end())
+				return false;
+			const auto it2 = it1->second.find(key);
+			if (it2 == it1->second.end())
+				return false;
+			return true;
+		}
+
 		template <typename T>
 		void get(const std::string &section, const std::string &key, T &value) const
 		{

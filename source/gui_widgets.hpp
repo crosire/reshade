@@ -26,4 +26,4 @@ bool imgui_slider_for_alpha(const char *label, float *v);
 
 void imgui_image_with_checkerboard_background(ImTextureID user_texture_id, const ImVec2 &size);
 
-bool imgui_list_with_buttons(const std::string_view label, const std::string_view ui_items, int *v);
+bool imgui_list_with_buttons(const char *label, const std::string_view ui_items, int &v);

@@ -20,15 +20,15 @@
 extern volatile long g_network_traffic;
 extern std::filesystem::path g_reshade_dll_path;
 extern std::filesystem::path g_target_executable_path;
-char g_reshadegui_ini_path[260 * 3];
+static char g_reshadegui_ini_path[260 * 3] = {};
 
 const ImVec4 COLOR_RED = ImColor(240, 100, 100);
 const ImVec4 COLOR_YELLOW = ImColor(204, 204, 0);
 
 void reshade::runtime::init_ui()
 {
-	memset(g_reshadegui_ini_path, 0, sizeof(g_reshadegui_ini_path));
-	(g_reshade_dll_path.parent_path() / "ReShadeGUI.ini").u8string().copy(g_reshadegui_ini_path, sizeof(g_reshadegui_ini_path));
+	(g_reshade_dll_path.parent_path() / "ReShadeGUI.ini").u8string()
+		.copy(g_reshadegui_ini_path, sizeof(g_reshadegui_ini_path));
 
 	// Default shortcut: Home
 	_menu_key_data[0] = 0x24;
@@ -640,17 +640,11 @@ void reshade::runtime::draw_overlay_menu_home()
 			{
 				if (ImGui::Selectable(_preset_files[i].u8string().c_str(), _current_preset == i))
 				{
+					_show_splash = true;
 					_current_preset = i;
 
 					save_config();
-
-					_show_splash = true;
-
-					// Need to reload effects in performance mode, so values are applied
-					if (load_preprocessor_definitions() || _performance_mode)
-						load_effects();
-					else
-						load_preset(_preset_files[_current_preset]);
+					load_current_preset();
 				}
 			}
 
@@ -667,28 +661,25 @@ void reshade::runtime::draw_overlay_menu_home()
 			if (ImGui::InputText("Name", buf, sizeof(buf), ImGuiInputTextFlags_EnterReturnsTrue))
 			{
 				auto name = std::filesystem::u8path(buf);
-				auto search_paths = _preset_search_paths;
-				if (search_paths.empty())
-					search_paths.push_back(g_reshade_dll_path.parent_path());
 
-				for (const auto &search_path : search_paths)
+				if (_preset_search_paths.empty()) // Make sure there always is at least one search path
+					_preset_search_paths.push_back(g_reshade_dll_path.parent_path());
+
+				for (const auto &search_path : _preset_search_paths)
 				{
 					std::error_code ec;
 					auto path = std::filesystem::absolute(g_reshade_dll_path.parent_path() / search_path / name, ec);
 					path.replace_extension(".ini");
 
-					if (!ec && (std::filesystem::exists(path, ec) || std::filesystem::exists(path.parent_path(), ec)))
+					const bool existing_preset = std::filesystem::exists(path, ec);
+
+					if (existing_preset || std::filesystem::exists(path.parent_path(), ec))
 					{
 						_preset_files.push_back(path);
-
 						_current_preset = _preset_files.size() - 1;
 
 						save_config();
-
-						if (load_preprocessor_definitions())
-							load_effects(); // Load the new preset after load effects
-						else
-							load_current_preset(); // Load the new preset
+						load_current_preset(); // Load the new preset
 
 						ImGui::CloseCurrentPopup();
 						break;
@@ -717,11 +708,7 @@ void reshade::runtime::draw_overlay_menu_home()
 						_current_preset--;
 
 					save_config();
-
-					if (load_preprocessor_definitions())
-						load_effects(); // Load the now selected preset after load effects
-					else
-						load_current_preset(); // Load the now selected preset
+					load_current_preset(); // Load the now selected preset
 
 					ImGui::CloseCurrentPopup();
 				}
@@ -896,7 +883,6 @@ void reshade::runtime::draw_overlay_menu_home()
 			_show_splash = true;
 			_effect_filter_buffer[0] = '\0'; // Reset filter
 
-			load_preprocessor_definitions();
 			load_effects();
 		}
 
@@ -908,7 +894,6 @@ void reshade::runtime::draw_overlay_menu_home()
 			_effect_filter_buffer[0] = '\0'; // Reset filter
 
 			save_config();
-			load_preprocessor_definitions();
 			load_effects(); // Reload effects after switching
 		}
 	}
@@ -1892,7 +1877,7 @@ void reshade::runtime::draw_overlay_variable_editor()
 			else if (ui_type == "drag")
 				modified = ImGui::DragScalarN(label.data(), variable.type.is_signed() ? ImGuiDataType_S32 : ImGuiDataType_U32, data, variable.type.rows, static_cast<float>(ui_stp_val), &ui_min_val, &ui_max_val);
 			else if (ui_type == "list")
-				modified = imgui_list_with_buttons(label, variable.annotation_as_string("ui_items"), data);
+				modified = imgui_list_with_buttons(label.data(), variable.annotation_as_string("ui_items"), data[0]);
 			else if (ui_type == "combo") {
 				const std::string_view ui_items = variable.annotation_as_string("ui_items");
 				std::string items(ui_items.data(), ui_items.size());

@@ -23,6 +23,47 @@ extern volatile long g_network_traffic;
 extern std::filesystem::path g_reshade_dll_path;
 extern std::filesystem::path g_target_executable_path;
 
+static bool find_file(const std::vector<std::filesystem::path> &search_paths, std::filesystem::path &path)
+{
+	std::error_code ec;
+	if (path.is_relative())
+		for (const auto &search_path : search_paths)
+		{
+			std::filesystem::path canonical_search_path = search_path;
+			if (search_path.is_relative())
+				canonical_search_path = std::filesystem::canonical(g_reshade_dll_path.parent_path() / search_path, ec);
+			if (ec || canonical_search_path.empty())
+				continue;
+
+			if (std::filesystem::path result = canonical_search_path / path; std::filesystem::exists(result, ec))
+			{
+				path = std::move(result);
+				return true;
+			}
+		}
+	return std::filesystem::exists(path, ec);
+}
+
+static std::vector<std::filesystem::path> find_files(const std::vector<std::filesystem::path> &search_paths, std::initializer_list<const char *> extensions)
+{
+	std::error_code ec;
+	std::vector<std::filesystem::path> files;
+	for (const auto &search_path : search_paths)
+	{
+		std::filesystem::path canonical_search_path = search_path;
+		if (search_path.is_relative()) // Ignore the working directory and instead start relative paths at the DLL location
+			canonical_search_path = std::filesystem::canonical(g_reshade_dll_path.parent_path() / search_path, ec);
+		if (ec || canonical_search_path.empty())
+			continue; // Failed to find a valid directory matching the search path
+
+		for (const auto &entry : std::filesystem::directory_iterator(canonical_search_path, ec))
+			for (auto ext : extensions)
+				if (entry.path().extension() == ext)
+					files.push_back(entry.path());
+	}
+	return files;
+}
+
 reshade::runtime::runtime() :
 	_start_time(std::chrono::high_resolution_clock::now()),
 	_last_present_time(std::chrono::high_resolution_clock::now()),
@@ -119,7 +160,7 @@ void reshade::runtime::on_present()
 	if (!_ignore_shortcuts)
 	{
 		if (_input->is_key_pressed(_reload_key_data))
-			load_preprocessor_definitions(), load_effects();
+			load_effects();
 
 		if (_input->is_key_pressed(_effects_key_data))
 			_effects_enabled = !_effects_enabled;
@@ -151,32 +192,6 @@ void reshade::runtime::on_present()
 
 	g_network_traffic = 0;
 	_drawcalls = _vertices = 0;
-}
-
-bool reshade::runtime::load_preprocessor_definitions()
-{
-	bool load_effect_required = false;
-
-	const ini_file config(_configuration_path);
-
-	std::vector<std::string> global_preprocessor_definitions;
-	config.get("GENERAL", "PreprocessorDefinitions", global_preprocessor_definitions);
-
-	if (global_preprocessor_definitions != _global_preprocessor_definitions)
-		_global_preprocessor_definitions = global_preprocessor_definitions, load_effect_required = true;
-
-	if (_current_preset < _preset_files.size())
-	{
-		const ini_file preset(_preset_files[_current_preset]);
-
-		std::vector<std::string> preset_preprocessor_definitions;
-		preset.get("", "PreprocessorDefinitions", preset_preprocessor_definitions);
-
-		if (preset_preprocessor_definitions != _preset_preprocessor_definitions)
-			_preset_preprocessor_definitions = preset_preprocessor_definitions, load_effect_required = true;
-	}
-
-	return load_effect_required;
 }
 
 void reshade::runtime::load_effect(const std::filesystem::path &path, size_t &out_id)
@@ -271,6 +286,7 @@ void reshade::runtime::load_effect(const std::filesystem::path &path, size_t &ou
 	if (_performance_mode && _current_preset < _preset_files.size() && effect.compile_sucess)
 	{
 		const ini_file preset(_preset_files[_current_preset]);
+		const std::string section(path.filename().u8string());
 
 		for (reshadefx::uniform_info &constant : effect.module.spec_constants)
 		{
@@ -279,14 +295,14 @@ void reshade::runtime::load_effect(const std::filesystem::path &path, size_t &ou
 			switch (constant.type.base)
 			{
 			case reshadefx::type::t_int:
-				preset.get(path.filename().u8string(), constant.name, constant.initializer_value.as_int);
+				preset.get(section, constant.name, constant.initializer_value.as_int);
 				break;
 			case reshadefx::type::t_bool:
 			case reshadefx::type::t_uint:
-				preset.get(path.filename().u8string(), constant.name, constant.initializer_value.as_uint);
+				preset.get(section, constant.name, constant.initializer_value.as_uint);
 				break;
 			case reshadefx::type::t_float:
-				preset.get(path.filename().u8string(), constant.name, constant.initializer_value.as_float);
+				preset.get(section, constant.name, constant.initializer_value.as_float);
 				break;
 			}
 
@@ -316,7 +332,8 @@ void reshade::runtime::load_effect(const std::filesystem::path &path, size_t &ou
 		}
 	}
 
-	std::lock_guard<std::mutex> lock(_reload_mutex);
+	// Guard access to shared variables
+	const std::lock_guard<std::mutex> lock(_reload_mutex);
 
 	effect.index = out_id = _loaded_effects.size();
 	effect.storage_offset = _uniform_data_storage.size();
@@ -426,21 +443,17 @@ void reshade::runtime::load_effects()
 
 	_last_reload_successful = true;
 
-	// Build a list of effect files by walking through the effect search paths
-	std::vector<std::filesystem::path> effect_files;
-	for (const auto &search_path : _effect_search_paths)
+	// Reload preprocessor definitions from current preset
+	if (_current_preset < _preset_files.size())
 	{
-		std::error_code ec;
-		std::filesystem::path canonical_search_path = search_path;
-		if (search_path.is_relative()) // Ignore the working directory and instead start relative paths at the DLL location
-			canonical_search_path = std::filesystem::canonical(g_reshade_dll_path.parent_path() / search_path, ec);
-		if (!ec && !canonical_search_path.empty())
-			for (const auto &entry : std::filesystem::directory_iterator(canonical_search_path, ec))
-				if (entry.path().extension() == ".fx")
-					effect_files.push_back(entry.path());
-		if (ec)
-			LOG(WARN) << "Skipping effect search path " << search_path << " since it is not a valid path to a directory. Opening it failed with error code " << ec << '.';
+		_preset_preprocessor_definitions.clear();
+		const ini_file preset(_preset_files[_current_preset]);
+		preset.get("", "PreprocessorDefinitions", _preset_preprocessor_definitions);
 	}
+
+	// Build a list of effect files by walking through the effect search paths
+	const std::vector<std::filesystem::path> effect_files =
+		find_files(_effect_search_paths, { ".fx" });
 
 	_reload_total_effects = effect_files.size();
 	_reload_remaining_effects = _reload_total_effects;
@@ -458,52 +471,38 @@ void reshade::runtime::load_textures()
 		if (texture.impl == nullptr || texture.impl_reference != texture_reference::none)
 			continue; // Ignore textures that are not created yet and those that are handled in the runtime implementation
 
-		std::filesystem::path source = std::filesystem::u8path(texture.annotation_as_string("source")), path = source;
-		if (source.empty())
-			continue; // Ignore textures that have no image file attached to them (e.g. plain render targets)
+		std::filesystem::path source_path = std::filesystem::u8path(
+			texture.annotation_as_string("source"));
+		// Ignore textures that have no image file attached to them (e.g. plain render targets)
+		if (source_path.empty())
+			continue;
 
 		// Search for image file using the provided search paths unless the path provided is already absolute
-		if (path.is_relative())
+		if (!find_file(_texture_search_paths, source_path))
 		{
-			for (const auto &search_path : _texture_search_paths)
-			{
-				std::error_code ec;
-				std::filesystem::path canonical_search_path = search_path;
-				if (search_path.is_relative()) // Ignore the working directory and instead start relative paths at the DLL location
-					canonical_search_path = std::filesystem::canonical(g_reshade_dll_path.parent_path() / search_path, ec);
-				if (!ec && !canonical_search_path.empty())
-					if (std::filesystem::exists(path = canonical_search_path / source, ec))
-						break;
-			}
-		}
-
-		if (std::error_code ec; !std::filesystem::exists(path, ec))
-		{
-			LOG(ERROR) << "> Source " << source << " for texture '" << texture.unique_name << "' could not be found in any of the texture search paths.";
+			LOG(ERROR) << "> Source " << source_path << " for texture '" << texture.unique_name << "' could not be found in any of the texture search paths.";
 			continue;
 		}
 
 		unsigned char *filedata = nullptr;
 		int width = 0, height = 0, channels = 0;
 
-		if (FILE *file; _wfopen_s(&file, path.wstring().c_str(), L"rb") == 0)
+		if (FILE *file; _wfopen_s(&file, source_path.wstring().c_str(), L"rb") == 0)
 		{
 			if (stbi_dds_test_file(file))
 				filedata = stbi_dds_load_from_file(file, &width, &height, &channels, STBI_rgb_alpha);
 			else
 				filedata = stbi_load_from_file(file, &width, &height, &channels, STBI_rgb_alpha);
-
 			fclose(file);
 		}
 
 		if (filedata == nullptr)
 		{
-			LOG(ERROR) << "> Source " << path << " for texture '" << texture.unique_name << "' could not be loaded! Make sure it is of a compatible file format.";
+			LOG(ERROR) << "> Source " << source_path << " for texture '" << texture.unique_name << "' could not be loaded! Make sure it is of a compatible file format.";
 			continue;
 		}
 
-		if (texture.width != uint32_t(width) ||
-			texture.height != uint32_t(height))
+		if (texture.width != uint32_t(width) || texture.height != uint32_t(height))
 		{
 			LOG(INFO) << "> Resizing image data for texture '" << texture.unique_name << "' from " << width << "x" << height << " to " << texture.width << "x" << texture.height << " ...";
 
@@ -564,15 +563,16 @@ void reshade::runtime::update_and_render_effects()
 {
 	// Delay first load to the first render call to avoid loading while the application is still initializing
 	if (_framecount == 0 && !_no_reload_on_init)
-		load_preprocessor_definitions(), load_effects();
+		load_effects();
 
 	if (_reload_remaining_effects == 0)
 	{
+		// Finished loading effects, so apply preset to figure out which ones need compiling
+		load_current_preset();
+
 		_last_reload_time = std::chrono::high_resolution_clock::now();
 		_reload_total_effects = 0;
 		_reload_remaining_effects = std::numeric_limits<size_t>::max();
-
-		load_current_preset();
 	}
 	else if (_reload_remaining_effects != std::numeric_limits<size_t>::max())
 	{
@@ -832,35 +832,19 @@ void reshade::runtime::load_config()
 	config.get("GENERAL", "NoReloadOnInit", _no_reload_on_init);
 
 	// Look for new preset files in the preset search paths
-	for (const auto &search_path : _preset_search_paths)
+	for (const auto &preset_file : find_files(_preset_search_paths, { ".ini", ".txt" }))
 	{
-		std::error_code ec;
-		std::filesystem::path canonical_search_path = search_path;
-		if (search_path.is_relative()) // Ignore the working directory and instead start relative paths at the DLL location
-			canonical_search_path = std::filesystem::canonical(g_reshade_dll_path.parent_path() / search_path, ec);
-		if (ec || canonical_search_path.empty())
-			continue; // Failed to find a valid directory matching the search path
+		if (std::find_if(_preset_files.begin(), _preset_files.end(),
+			[&preset_file](const auto &path) {
+				std::error_code ec;
+				return std::filesystem::equivalent(path, preset_file, ec);
+			}) != _preset_files.end())
+			continue; // Preset file is already in the preset list
 
-		for (const auto &entry : std::filesystem::directory_iterator(canonical_search_path, ec))
-		{
-			const std::filesystem::path preset_file = entry.path();
-			if (preset_file.extension() != ".ini" && preset_file.extension() != ".txt")
-				continue; // Only look at INI and TXT files
-			if (std::find_if(_preset_files.begin(), _preset_files.end(),
-				[&preset_file, &ec](const auto &path) {
-					return std::filesystem::equivalent(path, preset_file, ec);
-				}) != _preset_files.end())
-				continue; // Preset file is already in the preset list
-
-			// Check if the INI file contains a list of techniques (it is not a valid preset file if it does not)
-			const ini_file preset(preset_file);
-
-			std::vector<std::string> techniques;
-			preset.get("", "TechniqueSorting", techniques);
-
-			if (!techniques.empty())
-				_preset_files.push_back(preset_file);
-		}
+		// Check if the INI file contains a list of techniques (it is not a valid preset file if it does not)
+		const ini_file preset(preset_file);
+		if (preset.has("", "TechniqueSorting"))
+			_preset_files.push_back(preset_file);
 	}
 
 	// Create a default preset file if none exists yet
@@ -900,17 +884,26 @@ void reshade::runtime::save_config(const std::filesystem::path &path) const
 
 void reshade::runtime::load_preset(const std::filesystem::path &path)
 {
-	load_preset(ini_file(path));
-}
+	const ini_file preset(path);
 
-void reshade::runtime::load_preset(const ini_file &preset)
-{
-	// Reorder techniques
 	std::vector<std::string> technique_list;
 	preset.get("", "Techniques", technique_list);
 	std::vector<std::string> technique_sorting_list;
 	preset.get("", "TechniqueSorting", technique_sorting_list);
+	std::vector<std::string> preset_preprocessor_definitions;
+	preset.get("", "PreprocessorDefinitions", preset_preprocessor_definitions);
 
+	// Recompile effects if preprocessor definitions have changed or running in performance mode (in which case all preset values are compile-time constants)
+	if (_reload_remaining_effects != 0 && // ... unless this is the 'load_current_preset' call in 'update_and_render_effects'
+		(_performance_mode || preset_preprocessor_definitions != _preset_preprocessor_definitions))
+	{
+		assert(!_preset_files.empty() && path == _preset_files[_current_preset]);
+		_preset_preprocessor_definitions = preset_preprocessor_definitions;
+		load_effects();
+		return; // Preset values are loaded in 'update_and_render_effects' during effect loading
+	}
+
+	// Reorder techniques
 	if (technique_sorting_list.empty())
 		technique_sorting_list = technique_list;
 
@@ -968,8 +961,9 @@ void reshade::runtime::save_preset(const std::filesystem::path &path) const
 {
 	ini_file preset(path);
 
-	std::vector<std::string> technique_list, technique_sorting_list;
 	std::vector<size_t> effect_list;
+	std::vector<std::string> technique_list;
+	std::vector<std::string> technique_sorting_list;
 
 	for (const technique &technique : _techniques)
 	{
@@ -978,6 +972,7 @@ void reshade::runtime::save_preset(const std::filesystem::path &path) const
 		if (technique.enabled || technique.toggle_key_data[0] != 0)
 			effect_list.push_back(technique.effect_index);
 
+		// Keep track of the order of all techniques and not just the enabled ones
 		technique_sorting_list.push_back(technique.name);
 
 		if (technique.toggle_key_data[0] != 0)
@@ -988,8 +983,9 @@ void reshade::runtime::save_preset(const std::filesystem::path &path) const
 
 	preset.set("", "Techniques", std::move(technique_list));
 	preset.set("", "TechniqueSorting", std::move(technique_sorting_list));
-	preset.set("", "PreprocessorDefinitions", std::move(_preset_preprocessor_definitions));
+	preset.set("", "PreprocessorDefinitions", _preset_preprocessor_definitions);
 
+	// TODO: Do we want to save spec constants here too? The preset will be rather empty in performance mode otherwise.
 	for (const uniform &variable : _uniforms)
 	{
 		if (variable.special != special_uniform::none

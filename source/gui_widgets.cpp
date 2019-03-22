@@ -366,7 +366,7 @@ void imgui_image_with_checkerboard_background(ImTextureID user_texture_id, const
 	ImGui::Image(user_texture_id, size);
 }
 
-bool imgui_list_with_buttons(const std::string_view label, const std::string_view ui_items, int *v)
+bool imgui_list_with_buttons(const char *label, const std::string_view ui_items, int &v)
 {
 	const auto imgui_context = ImGui::GetCurrentContext();
 
@@ -375,11 +375,10 @@ bool imgui_list_with_buttons(const std::string_view label, const std::string_vie
 	std::vector<std::string_view> items;
 	std::string_view preview_value;
 
-	for (size_t i = 0, next = 0;
-		ui_items.size() > next;
-		next += strnlen_s(ui_items.data() + next, ui_items.size() - next) + 1, i++)
+	for (size_t i = 0, next = 0; ui_items.size() > next;
+		next += strnlen_s(ui_items.data() + next, ui_items.size() - next) + 1, ++i)
 	{
-		if (*v == static_cast<int>(i))
+		if (v == static_cast<int>(i))
 			preview_value = ui_items.data() + next;
 
 		items.push_back(ui_items.data() + next);
@@ -396,11 +395,11 @@ bool imgui_list_with_buttons(const std::string_view label, const std::string_vie
 	if (ImGui::BeginCombo("##v", preview_value.data(), ImGuiComboFlags_NoArrowButton))
 	{
 		auto it = items.begin();
-		for (size_t i = 0; it != items.end(); it++, i++)
+		for (size_t i = 0; it != items.end(); ++it, ++i)
 		{
-			bool selected = *v == static_cast<int>(i);
+			bool selected = v == static_cast<int>(i);
 			if (ImGui::Selectable(it->data(), &selected))
-				*v = static_cast<int>(i), modified = true;
+				v = static_cast<int>(i), modified = true;
 			if (selected)
 				ImGui::SetItemDefaultFocus();
 		}
@@ -412,23 +411,25 @@ bool imgui_list_with_buttons(const std::string_view label, const std::string_vie
 
 	ImGui::SameLine(0, button_spacing);
 	if (ImGui::ButtonEx("<", ImVec2(button_size, 0), items.size() > 0 ? 0 : ImGuiButtonFlags_Disabled))
-		if (*v == 0)
-			*v = items.size() - 1, modified = true;
-		else
-			(*v)--, modified = true;
+	{
+		modified = true;
+		if (v == 0) v = static_cast<int>(items.size() - 1);
+		else --v;
+	}
 
 	ImGui::SameLine(0, button_spacing);
 	if (ImGui::ButtonEx(">", ImVec2(button_size, 0), items.size() > 0 ? 0 : ImGuiButtonFlags_Disabled))
-		if (*v == static_cast<int>(items.size()) - 1)
-			*v = 0, modified = true;
-		else
-			(*v)++, modified = true;
+	{
+		modified = true;
+		if (v == static_cast<int>(items.size()) - 1) v = 0;
+		else ++v;
+	}
 
 	ImGui::EndGroup();
 	const bool is_hovered = ImGui::IsItemHovered();
 
 	ImGui::SameLine(0, button_spacing);
-	ImGui::TextUnformatted(label.data());
+	ImGui::TextUnformatted(label);
 
 	if (is_hovered)
 	{
@@ -439,9 +440,9 @@ bool imgui_list_with_buttons(const std::string_view label, const std::string_vie
 		ImGui::PopStyleVar();
 
 		auto it = items.begin();
-		for (size_t i = 0; it != items.end(); it++, i++)
+		for (size_t i = 0; it != items.end(); ++it, ++i)
 		{
-			bool selected = *v == static_cast<int>(i);
+			bool selected = v == static_cast<int>(i);
 			ImGui::Selectable(it->data(), &selected);
 			if (selected)
 				ImGui::SetScrollHereY();
