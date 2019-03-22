@@ -24,13 +24,15 @@ HOOK_EXPORT HRESULT WINAPI D3D12CreateDevice(IUnknown *pAdapter, D3D_FEATURE_LEV
 	if (ppDevice == nullptr)
 		return hr;
 
-	// The returned device should alway implement at least the 'ID3D12Device' interface
+	// The returned device should alway implement the 'ID3D12Device' base interface
 	const auto device_proxy = new D3D12Device(static_cast<ID3D12Device *>(*ppDevice));
+	device_proxy->check_and_upgrade_interface(riid); // Upgrade to the actual interface version requested here
 
 	*ppDevice = device_proxy;
 
-	LOG(INFO) << "Returning ID3D12Device object " << device_proxy;
-
+#if RESHADE_VERBOSE_LOG
+	LOG(DEBUG) << "Returning ID3D12Device" << device_proxy->_interface_version << " object " << device_proxy;
+#endif
 	return hr;
 }
 

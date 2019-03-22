@@ -27,39 +27,35 @@ HRESULT STDMETHODCALLTYPE D3D12CommandQueue::QueryInterface(REFIID riid, void **
 		riid == __uuidof(ID3D12CommandQueue))
 	{
 		AddRef();
-
 		*ppvObj = this;
-
 		return S_OK;
 	}
 
 	return _orig->QueryInterface(riid, ppvObj);
 }
-  ULONG STDMETHODCALLTYPE D3D12CommandQueue::AddRef()
+ULONG   STDMETHODCALLTYPE D3D12CommandQueue::AddRef()
 {
-	_ref++;
+	++_ref;
 
 	return _orig->AddRef();
 }
-  ULONG STDMETHODCALLTYPE D3D12CommandQueue::Release()
+ULONG   STDMETHODCALLTYPE D3D12CommandQueue::Release()
 {
+	--_ref;
+
 	const ULONG ref = _orig->Release();
 
-	if (--_ref == 0 || ref == 0)
-	{
-		assert(_ref <= 0);
+	if (ref != 0 && _ref != 0)
+		return ref;
+	else if (ref != 0)
+		LOG(WARN) << "Reference count for ID3D12CommandQueue object " << this << " is inconsistent: " << ref << ", but expected 0.";
 
-		if (ref != 0)
-			LOG(WARN) << "Reference count for ID3D12CommandQueue object " << this << " is inconsistent: " << ref << ", but expected 0.";
-
-		LOG(INFO) << "Destroyed ID3D12CommandQueue object " << this << ".";
-
-		delete this;
-
-		return 0;
-	}
-
-	return ref;
+	assert(_ref <= 0);
+#if RESHADE_VERBOSE_LOG
+	LOG(DEBUG) << "Destroyed ID3D12CommandQueue object " << this << ".";
+#endif
+	delete this;
+	return 0;
 }
 
 HRESULT STDMETHODCALLTYPE D3D12CommandQueue::GetPrivateData(REFGUID guid, UINT *pDataSize, void *pData)
@@ -85,27 +81,27 @@ HRESULT STDMETHODCALLTYPE D3D12CommandQueue::GetDevice(REFIID riid, void **ppvDe
 
 	return _device->QueryInterface(riid, ppvDevice);
 }
-   void STDMETHODCALLTYPE D3D12CommandQueue::UpdateTileMappings(ID3D12Resource *pResource, UINT NumResourceRegions, const D3D12_TILED_RESOURCE_COORDINATE *pResourceRegionStartCoordinates, const D3D12_TILE_REGION_SIZE *pResourceRegionSizes, ID3D12Heap *pHeap, UINT NumRanges, const D3D12_TILE_RANGE_FLAGS *pRangeFlags, const UINT *pHeapRangeStartOffsets, const UINT *pRangeTileCounts, D3D12_TILE_MAPPING_FLAGS Flags)
+void    STDMETHODCALLTYPE D3D12CommandQueue::UpdateTileMappings(ID3D12Resource *pResource, UINT NumResourceRegions, const D3D12_TILED_RESOURCE_COORDINATE *pResourceRegionStartCoordinates, const D3D12_TILE_REGION_SIZE *pResourceRegionSizes, ID3D12Heap *pHeap, UINT NumRanges, const D3D12_TILE_RANGE_FLAGS *pRangeFlags, const UINT *pHeapRangeStartOffsets, const UINT *pRangeTileCounts, D3D12_TILE_MAPPING_FLAGS Flags)
 {
 	_orig->UpdateTileMappings(pResource, NumResourceRegions, pResourceRegionStartCoordinates, pResourceRegionSizes, pHeap, NumRanges, pRangeFlags, pHeapRangeStartOffsets, pRangeTileCounts, Flags);
 }
-   void STDMETHODCALLTYPE D3D12CommandQueue::CopyTileMappings(ID3D12Resource *pDstResource, const D3D12_TILED_RESOURCE_COORDINATE *pDstRegionStartCoordinate, ID3D12Resource *pSrcResource, const D3D12_TILED_RESOURCE_COORDINATE *pSrcRegionStartCoordinate, const D3D12_TILE_REGION_SIZE *pRegionSize, D3D12_TILE_MAPPING_FLAGS Flags)
+void    STDMETHODCALLTYPE D3D12CommandQueue::CopyTileMappings(ID3D12Resource *pDstResource, const D3D12_TILED_RESOURCE_COORDINATE *pDstRegionStartCoordinate, ID3D12Resource *pSrcResource, const D3D12_TILED_RESOURCE_COORDINATE *pSrcRegionStartCoordinate, const D3D12_TILE_REGION_SIZE *pRegionSize, D3D12_TILE_MAPPING_FLAGS Flags)
 {
 	_orig->CopyTileMappings(pDstResource, pDstRegionStartCoordinate, pSrcResource, pSrcRegionStartCoordinate, pRegionSize, Flags);
 }
-   void STDMETHODCALLTYPE D3D12CommandQueue::ExecuteCommandLists(UINT NumCommandLists, ID3D12CommandList *const *ppCommandLists)
+void    STDMETHODCALLTYPE D3D12CommandQueue::ExecuteCommandLists(UINT NumCommandLists, ID3D12CommandList *const *ppCommandLists)
 {
 	_orig->ExecuteCommandLists(NumCommandLists, ppCommandLists);
 }
-   void STDMETHODCALLTYPE D3D12CommandQueue::SetMarker(UINT Metadata, const void *pData, UINT Size)
+void    STDMETHODCALLTYPE D3D12CommandQueue::SetMarker(UINT Metadata, const void *pData, UINT Size)
 {
 	_orig->SetMarker(Metadata, pData, Size);
 }
-   void STDMETHODCALLTYPE D3D12CommandQueue::BeginEvent(UINT Metadata, const void *pData, UINT Size)
+void    STDMETHODCALLTYPE D3D12CommandQueue::BeginEvent(UINT Metadata, const void *pData, UINT Size)
 {
 	_orig->BeginEvent(Metadata, pData, Size);
 }
-   void STDMETHODCALLTYPE D3D12CommandQueue::EndEvent()
+void    STDMETHODCALLTYPE D3D12CommandQueue::EndEvent()
 {
 	_orig->EndEvent();
 }

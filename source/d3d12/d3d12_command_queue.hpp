@@ -14,9 +14,9 @@ struct __declspec(uuid("2C576D2A-0C1C-4D1D-AD7C-BC4FAEC15ABC")) D3D12CommandQueu
 	D3D12CommandQueue(const D3D12CommandQueue &) = delete;
 	D3D12CommandQueue &operator=(const D3D12CommandQueue &) = delete;
 
-	virtual HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void **ppvObj) override;
-	virtual   ULONG STDMETHODCALLTYPE AddRef() override;
-	virtual   ULONG STDMETHODCALLTYPE Release() override;
+	HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void **ppvObj) override;
+	ULONG   STDMETHODCALLTYPE AddRef() override;
+	ULONG   STDMETHODCALLTYPE Release() override;
 
 	#pragma region ID3D12Object
 	HRESULT STDMETHODCALLTYPE GetPrivateData(REFGUID guid, UINT *pDataSize, void *pData) override;
@@ -28,12 +28,12 @@ struct __declspec(uuid("2C576D2A-0C1C-4D1D-AD7C-BC4FAEC15ABC")) D3D12CommandQueu
 	HRESULT STDMETHODCALLTYPE GetDevice(REFIID riid, void **ppvDevice) override;
 	#pragma endregion
 	#pragma region ID3D12CommandQueue
-	   void STDMETHODCALLTYPE UpdateTileMappings(ID3D12Resource *pResource, UINT NumResourceRegions, const D3D12_TILED_RESOURCE_COORDINATE *pResourceRegionStartCoordinates, const D3D12_TILE_REGION_SIZE *pResourceRegionSizes, ID3D12Heap *pHeap, UINT NumRanges, const D3D12_TILE_RANGE_FLAGS *pRangeFlags, const UINT *pHeapRangeStartOffsets, const UINT *pRangeTileCounts, D3D12_TILE_MAPPING_FLAGS Flags) override;
-	   void STDMETHODCALLTYPE CopyTileMappings(ID3D12Resource *pDstResource, const D3D12_TILED_RESOURCE_COORDINATE *pDstRegionStartCoordinate, ID3D12Resource *pSrcResource, const D3D12_TILED_RESOURCE_COORDINATE *pSrcRegionStartCoordinate, const D3D12_TILE_REGION_SIZE *pRegionSize, D3D12_TILE_MAPPING_FLAGS Flags) override;
-	   void STDMETHODCALLTYPE ExecuteCommandLists(UINT NumCommandLists, ID3D12CommandList *const *ppCommandLists) override;
-	   void STDMETHODCALLTYPE SetMarker(UINT Metadata, const void *pData, UINT Size) override;
-	   void STDMETHODCALLTYPE BeginEvent(UINT Metadata, const void *pData, UINT Size) override;
-	   void STDMETHODCALLTYPE EndEvent() override;
+	void    STDMETHODCALLTYPE UpdateTileMappings(ID3D12Resource *pResource, UINT NumResourceRegions, const D3D12_TILED_RESOURCE_COORDINATE *pResourceRegionStartCoordinates, const D3D12_TILE_REGION_SIZE *pResourceRegionSizes, ID3D12Heap *pHeap, UINT NumRanges, const D3D12_TILE_RANGE_FLAGS *pRangeFlags, const UINT *pHeapRangeStartOffsets, const UINT *pRangeTileCounts, D3D12_TILE_MAPPING_FLAGS Flags) override;
+	void    STDMETHODCALLTYPE CopyTileMappings(ID3D12Resource *pDstResource, const D3D12_TILED_RESOURCE_COORDINATE *pDstRegionStartCoordinate, ID3D12Resource *pSrcResource, const D3D12_TILED_RESOURCE_COORDINATE *pSrcRegionStartCoordinate, const D3D12_TILE_REGION_SIZE *pRegionSize, D3D12_TILE_MAPPING_FLAGS Flags) override;
+	void    STDMETHODCALLTYPE ExecuteCommandLists(UINT NumCommandLists, ID3D12CommandList *const *ppCommandLists) override;
+	void    STDMETHODCALLTYPE SetMarker(UINT Metadata, const void *pData, UINT Size) override;
+	void    STDMETHODCALLTYPE BeginEvent(UINT Metadata, const void *pData, UINT Size) override;
+	void    STDMETHODCALLTYPE EndEvent() override;
 	HRESULT STDMETHODCALLTYPE Signal(ID3D12Fence *pFence, UINT64 Value) override;
 	HRESULT STDMETHODCALLTYPE Wait(ID3D12Fence *pFence, UINT64 Value) override;
 	HRESULT STDMETHODCALLTYPE GetTimestampFrequency(UINT64 *pFrequency) override;
