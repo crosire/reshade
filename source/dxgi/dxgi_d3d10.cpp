@@ -11,13 +11,11 @@
 HOOK_EXPORT HRESULT WINAPI DXGIDumpJournal()
 {
 	assert(false);
-
 	return E_NOTIMPL;
 }
 HOOK_EXPORT HRESULT WINAPI DXGIReportAdapterConfiguration()
 {
 	assert(false);
-
 	return E_NOTIMPL;
 }
 

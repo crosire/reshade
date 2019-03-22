@@ -12,6 +12,13 @@
 #include "d3d11/d3d11_device.hpp"
 #include "d3d11/runtime_d3d11.hpp"
 
+reshade::log::message &operator<<(reshade::log::message &m, REFIID riid)
+{
+	OLECHAR riid_string[40];
+	StringFromGUID2(riid, riid_string, ARRAYSIZE(riid_string));
+	return m << riid_string;
+}
+
 static void query_device(IUnknown *&device, com_ptr<D3D10Device> &device_d3d10, com_ptr<D3D11Device> &device_d3d11)
 {
 	if (SUCCEEDED(device->QueryInterface(&device_d3d10)))
@@ -89,7 +96,7 @@ static void init_reshade_runtime_d3d(T *&swapchain, com_ptr<D3D10Device> &device
 
 		device_d3d10->_runtimes.push_back(runtime);
 
-		swapchain = new DXGISwapChain(device_d3d10, swapchain, runtime);
+		swapchain = new DXGISwapChain(device_d3d10.get(), swapchain, runtime);
 	}
 	else if (device_d3d11 != nullptr)
 	{
@@ -100,7 +107,7 @@ static void init_reshade_runtime_d3d(T *&swapchain, com_ptr<D3D10Device> &device
 
 		device_d3d11->_runtimes.push_back(runtime);
 
-		swapchain = new DXGISwapChain(device_d3d11, swapchain, runtime); // Overwrite returned swapchain pointer with hooked object
+		swapchain = new DXGISwapChain(device_d3d11.get(), swapchain, runtime); // Overwrite returned swapchain pointer with hooked object
 	}
 	else
 	{
@@ -108,7 +115,7 @@ static void init_reshade_runtime_d3d(T *&swapchain, com_ptr<D3D10Device> &device
 	}
 
 #if RESHADE_VERBOSE_LOG
-	LOG(DEBUG) << "Returning 'IDXGISwapChain' object " << swapchain;
+	LOG(DEBUG) << "Returning IDXGISwapChain object " << swapchain << '.';
 #endif
 }
 
@@ -259,9 +266,8 @@ HOOK_EXPORT HRESULT WINAPI CreateDXGIFactory1(REFIID riid, void **ppFactory)
 	}
 
 #if RESHADE_VERBOSE_LOG
-	LOG(DEBUG) << "Returning IDXGIFactory1 object " << *ppFactory;
+	LOG(DEBUG) << "Returning IDXGIFactory1 object " << *ppFactory << '.';
 #endif
-
 	return hr;
 }
 HOOK_EXPORT HRESULT WINAPI CreateDXGIFactory2(UINT flags, REFIID riid, void **ppFactory)
@@ -296,8 +302,7 @@ HOOK_EXPORT HRESULT WINAPI CreateDXGIFactory2(UINT flags, REFIID riid, void **pp
 	reshade::hooks::install("IDXGIFactory2::CreateSwapChainForComposition", vtable_from_instance(factory), 24, reinterpret_cast<reshade::hook::address>(&IDXGIFactory2_CreateSwapChainForComposition));
 
 #if RESHADE_VERBOSE_LOG
-	LOG(DEBUG) << "Returning IDXGIFactory2 object " << *ppFactory;
+	LOG(DEBUG) << "Returning IDXGIFactory2 object " << *ppFactory << '.';
 #endif
-
 	return hr;
 }

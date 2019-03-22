@@ -6,10 +6,11 @@
 #include "log.hpp"
 #include "version.h"
 #include "runtime.hpp"
+#include "runtime_objects.hpp"
 #include "effect_parser.hpp"
 #include "effect_preprocessor.hpp"
 #include "input.hpp"
-#include "variant.hpp"
+#include "ini_file.hpp"
 #include <assert.h>
 #include <thread>
 #include <algorithm>
@@ -210,8 +211,8 @@ void reshade::runtime::load_effect(const std::filesystem::path &path, size_t &ou
 		pp.add_macro_definition("__APPLICATION__", std::to_string(std::hash<std::string>()(g_target_executable_path.stem().u8string())));
 		pp.add_macro_definition("BUFFER_WIDTH", std::to_string(_width));
 		pp.add_macro_definition("BUFFER_HEIGHT", std::to_string(_height));
-		pp.add_macro_definition("BUFFER_RCP_WIDTH", std::to_string(1.0f / static_cast<float>(_width)));
-		pp.add_macro_definition("BUFFER_RCP_HEIGHT", std::to_string(1.0f / static_cast<float>(_height)));
+		pp.add_macro_definition("BUFFER_RCP_WIDTH", "(1.0 / BUFFER_WIDTH)");
+		pp.add_macro_definition("BUFFER_RCP_HEIGHT", "(1.0 / BUFFER_HEIGHT)");
 
 		std::vector<std::string> preprocessor_definitions = _global_preprocessor_definitions;
 		preprocessor_definitions.insert(preprocessor_definitions.end(), _preset_preprocessor_definitions.begin(), _preset_preprocessor_definitions.end());
@@ -332,7 +333,7 @@ void reshade::runtime::load_effect(const std::filesystem::path &path, size_t &ou
 		// Copy initial data into uniform storage area
 		reset_uniform_value(variable);
 
-		const std::string special = variable.annotation_as_string("source");
+		const std::string_view special = variable.annotation_as_string("source");
 		if (special.empty()) /* Ignore if annotation is missing */;
 		else if (special == "frametime")
 			variable.special = special_uniform::frame_time;
@@ -700,7 +701,7 @@ void reshade::runtime::update_and_render_effects()
 		case special_uniform::key:
 			if (const int keycode = variable.annotation_as_int("keycode");
 				keycode > 7 && keycode < 256)
-				if (const std::string mode = variable.annotation_as_string("mode");
+				if (const std::string_view mode = variable.annotation_as_string("mode");
 					mode == "toggle" || variable.annotation_as_int("toggle")) {
 					bool current_value = false;
 					get_uniform_value(variable, &current_value, 1);
@@ -720,7 +721,7 @@ void reshade::runtime::update_and_render_effects()
 		case special_uniform::mouse_button:
 			if (const int keycode = variable.annotation_as_int("keycode");
 				keycode >= 0 && keycode < 5)
-				if (const std::string mode = variable.annotation_as_string("mode");
+				if (const std::string_view mode = variable.annotation_as_string("mode");
 					mode == "toggle" || variable.annotation_as_int("toggle")) {
 					bool current_value = false;
 					get_uniform_value(variable, &current_value, 1);
@@ -793,6 +794,21 @@ void reshade::runtime::disable_technique(technique &technique)
 
 	if (status_changed) // Decrease rendering reference count
 		_loaded_effects[technique.effect_index].rendering--;
+}
+
+void reshade::runtime::subscribe_to_load_config(std::function<void(const ini_file &)> function)
+{
+	_load_config_callables.push_back(function);
+
+	const ini_file config(_configuration_path);
+	function(config);
+}
+void reshade::runtime::subscribe_to_save_config(std::function<void(ini_file &)> function)
+{
+	_save_config_callables.push_back(function);
+
+	ini_file config(_configuration_path);
+	function(config);
 }
 
 void reshade::runtime::load_config()
@@ -1011,7 +1027,7 @@ void reshade::runtime::save_current_preset() const
 void reshade::runtime::save_screenshot()
 {
 	std::vector<uint8_t> data(_width * _height * 4);
-	capture_frame(data.data());
+	capture_screenshot(data.data());
 
 	const int hour = _date[3] / 3600;
 	const int minute = (_date[3] - hour * 3600) / 60;

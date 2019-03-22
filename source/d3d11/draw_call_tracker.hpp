@@ -1,7 +1,7 @@
 #pragma once
 
-#include <d3d11.h>
 #include <map>
+#include <d3d11.h>
 #include "com_ptr.hpp"
 
 #define RESHADE_DX11_CAPTURE_DEPTH_BUFFERS 1
@@ -9,8 +9,6 @@
 
 namespace reshade::d3d11
 {
-	class runtime_d3d11;
-
 	class draw_call_tracker
 	{
 	public:
