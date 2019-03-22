@@ -1891,6 +1891,8 @@ void reshade::runtime::draw_overlay_variable_editor()
 				modified = imgui_slider_with_buttons(label.data(), variable.type.is_signed() ? ImGuiDataType_S32 : ImGuiDataType_U32, data, variable.type.rows, &ui_stp_val, &ui_min_val, &ui_max_val);
 			else if (ui_type == "drag")
 				modified = ImGui::DragScalarN(label.data(), variable.type.is_signed() ? ImGuiDataType_S32 : ImGuiDataType_U32, data, variable.type.rows, static_cast<float>(ui_stp_val), &ui_min_val, &ui_max_val);
+			else if (ui_type == "list")
+				modified = imgui_list_with_buttons(label, variable.annotation_as_string("ui_items"), data);
 			else if (ui_type == "combo") {
 				const std::string_view ui_items = variable.annotation_as_string("ui_items");
 				std::string items(ui_items.data(), ui_items.size());
