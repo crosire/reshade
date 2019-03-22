@@ -19,9 +19,9 @@ struct __declspec(uuid("BC52FCE4-1EAC-40C8-84CF-863600BBAA01")) Direct3DSwapChai
 	Direct3DSwapChain9(const Direct3DSwapChain9 &) = delete;
 	Direct3DSwapChain9 &operator=(const Direct3DSwapChain9 &) = delete;
 
-	virtual HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void **ppvObj) override;
-	virtual   ULONG STDMETHODCALLTYPE AddRef() override;
-	virtual   ULONG STDMETHODCALLTYPE Release() override;
+	HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void **ppvObj) override;
+	ULONG   STDMETHODCALLTYPE AddRef() override;
+	ULONG   STDMETHODCALLTYPE Release() override;
 
 	#pragma region IDirect3DSwapChain9
 	HRESULT STDMETHODCALLTYPE Present(const RECT *pSourceRect, const RECT *pDestRect, HWND hDestWindowOverride, const RGNDATA *pDirtyRegion, DWORD dwFlags) override;

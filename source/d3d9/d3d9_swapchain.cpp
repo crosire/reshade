@@ -57,13 +57,13 @@ HRESULT STDMETHODCALLTYPE Direct3DSwapChain9::QueryInterface(REFIID riid, void *
 
 	return _orig->QueryInterface(riid, ppvObj);
 }
-  ULONG STDMETHODCALLTYPE Direct3DSwapChain9::AddRef()
+ULONG   STDMETHODCALLTYPE Direct3DSwapChain9::AddRef()
 {
 	++_ref;
 
 	return _orig->AddRef();
 }
-  ULONG STDMETHODCALLTYPE Direct3DSwapChain9::Release()
+ULONG   STDMETHODCALLTYPE Direct3DSwapChain9::Release()
 {
 	if (--_ref == 0)
 	{
@@ -135,18 +135,15 @@ HRESULT STDMETHODCALLTYPE Direct3DSwapChain9::GetPresentParameters(D3DPRESENT_PA
 HRESULT STDMETHODCALLTYPE Direct3DSwapChain9::GetLastPresentCount(UINT *pLastPresentCount)
 {
 	assert(_extended_interface);
-
 	return static_cast<IDirect3DSwapChain9Ex *>(_orig)->GetLastPresentCount(pLastPresentCount);
 }
 HRESULT STDMETHODCALLTYPE Direct3DSwapChain9::GetPresentStats(D3DPRESENTSTATS *pPresentationStatistics)
 {
 	assert(_extended_interface);
-
 	return static_cast<IDirect3DSwapChain9Ex *>(_orig)->GetPresentStats(pPresentationStatistics);
 }
 HRESULT STDMETHODCALLTYPE Direct3DSwapChain9::GetDisplayModeEx(D3DDISPLAYMODEEX *pMode, D3DDISPLAYROTATION *pRotation)
 {
 	assert(_extended_interface);
-
 	return static_cast<IDirect3DSwapChain9Ex *>(_orig)->GetDisplayModeEx(pMode, pRotation);
 }

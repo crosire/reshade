@@ -54,13 +54,13 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::QueryInterface(REFIID riid, void **pp
 
 	return _orig->QueryInterface(riid, ppvObj);
 }
-  ULONG STDMETHODCALLTYPE Direct3DDevice9::AddRef()
+ULONG   STDMETHODCALLTYPE Direct3DDevice9::AddRef()
 {
 	++_ref;
 
 	return _orig->AddRef();
 }
-  ULONG STDMETHODCALLTYPE Direct3DDevice9::Release()
+ULONG   STDMETHODCALLTYPE Direct3DDevice9::Release()
 {
 	if (--_ref == 0)
 	{
@@ -88,7 +88,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::TestCooperativeLevel()
 {
 	return _orig->TestCooperativeLevel();
 }
-   UINT STDMETHODCALLTYPE Direct3DDevice9::GetAvailableTextureMem()
+UINT    STDMETHODCALLTYPE Direct3DDevice9::GetAvailableTextureMem()
 {
 	return _orig->GetAvailableTextureMem();
 }
@@ -123,11 +123,11 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetCursorProperties(UINT XHotSpot, UI
 {
 	return _orig->SetCursorProperties(XHotSpot, YHotSpot, pCursorBitmap);
 }
-   void STDMETHODCALLTYPE Direct3DDevice9::SetCursorPosition(int X, int Y, DWORD Flags)
+void    STDMETHODCALLTYPE Direct3DDevice9::SetCursorPosition(int X, int Y, DWORD Flags)
 {
 	return _orig->SetCursorPosition(X, Y, Flags);
 }
-   BOOL STDMETHODCALLTYPE Direct3DDevice9::ShowCursor(BOOL bShow)
+BOOL    STDMETHODCALLTYPE Direct3DDevice9::ShowCursor(BOOL bShow)
 {
 	return _orig->ShowCursor(bShow);
 }
@@ -189,7 +189,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetSwapChain(UINT iSwapChain, IDirect
 
 	return D3D_OK;
 }
-   UINT STDMETHODCALLTYPE Direct3DDevice9::GetNumberOfSwapChains()
+UINT    STDMETHODCALLTYPE Direct3DDevice9::GetNumberOfSwapChains()
 {
 	return 1;
 }
@@ -266,7 +266,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetDialogBoxMode(BOOL bEnableDialogs)
 {
 	return _orig->SetDialogBoxMode(bEnableDialogs);
 }
-   void STDMETHODCALLTYPE Direct3DDevice9::SetGammaRamp(UINT iSwapChain, DWORD Flags, const D3DGAMMARAMP *pRamp)
+void    STDMETHODCALLTYPE Direct3DDevice9::SetGammaRamp(UINT iSwapChain, DWORD Flags, const D3DGAMMARAMP *pRamp)
 {
 	if (iSwapChain != 0)
 	{
@@ -276,7 +276,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetDialogBoxMode(BOOL bEnableDialogs)
 
 	return _orig->SetGammaRamp(0, Flags, pRamp);
 }
-   void STDMETHODCALLTYPE Direct3DDevice9::GetGammaRamp(UINT iSwapChain, D3DGAMMARAMP *pRamp)
+void    STDMETHODCALLTYPE Direct3DDevice9::GetGammaRamp(UINT iSwapChain, D3DGAMMARAMP *pRamp)
 {
 	if (iSwapChain != 0)
 	{
@@ -561,7 +561,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetSoftwareVertexProcessing(BOOL bSof
 {
 	return _orig->SetSoftwareVertexProcessing(bSoftware);
 }
-   BOOL STDMETHODCALLTYPE Direct3DDevice9::GetSoftwareVertexProcessing()
+BOOL   STDMETHODCALLTYPE Direct3DDevice9::GetSoftwareVertexProcessing()
 {
 	return _orig->GetSoftwareVertexProcessing();
 }
@@ -569,7 +569,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetNPatchMode(float nSegments)
 {
 	return _orig->SetNPatchMode(nSegments);
 }
-  float STDMETHODCALLTYPE Direct3DDevice9::GetNPatchMode()
+float   STDMETHODCALLTYPE Direct3DDevice9::GetNPatchMode()
 {
 	return _orig->GetNPatchMode();
 }

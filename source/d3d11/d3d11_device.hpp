@@ -20,9 +20,9 @@ struct __declspec(uuid("72299288-2C68-4AD8-945D-2BFB5AA9C609")) D3D11Device : ID
 	D3D11Device(const D3D11Device &) = delete;
 	D3D11Device &operator=(const D3D11Device &) = delete;
 
-	virtual HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void **ppvObj) override;
-	virtual   ULONG STDMETHODCALLTYPE AddRef() override;
-	virtual   ULONG STDMETHODCALLTYPE Release() override;
+	HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void **ppvObj) override;
+	ULONG   STDMETHODCALLTYPE AddRef() override;
+	ULONG   STDMETHODCALLTYPE Release() override;
 
 	#pragma region ID3D11Device
 	HRESULT STDMETHODCALLTYPE CreateBuffer(const D3D11_BUFFER_DESC *pDesc, const D3D11_SUBRESOURCE_DATA *pInitialData, ID3D11Buffer **ppBuffer) override;
@@ -53,21 +53,21 @@ struct __declspec(uuid("72299288-2C68-4AD8-945D-2BFB5AA9C609")) D3D11Device : ID
 	HRESULT STDMETHODCALLTYPE OpenSharedResource(HANDLE hResource, REFIID ReturnedInterface, void **ppResource) override;
 	HRESULT STDMETHODCALLTYPE CheckFormatSupport(DXGI_FORMAT Format, UINT *pFormatSupport) override;
 	HRESULT STDMETHODCALLTYPE CheckMultisampleQualityLevels(DXGI_FORMAT Format, UINT SampleCount, UINT *pNumQualityLevels) override;
-	   void STDMETHODCALLTYPE CheckCounterInfo(D3D11_COUNTER_INFO *pCounterInfo) override;
+	void    STDMETHODCALLTYPE CheckCounterInfo(D3D11_COUNTER_INFO *pCounterInfo) override;
 	HRESULT STDMETHODCALLTYPE CheckCounter(const D3D11_COUNTER_DESC *pDesc, D3D11_COUNTER_TYPE *pType, UINT *pActiveCounters, LPSTR szName, UINT *pNameLength, LPSTR szUnits, UINT *pUnitsLength, LPSTR szDescription, UINT *pDescriptionLength) override;
 	HRESULT STDMETHODCALLTYPE CheckFeatureSupport(D3D11_FEATURE Feature, void *pFeatureSupportData, UINT FeatureSupportDataSize) override;
 	HRESULT STDMETHODCALLTYPE GetPrivateData(REFGUID guid, UINT *pDataSize, void *pData) override;
 	HRESULT STDMETHODCALLTYPE SetPrivateData(REFGUID guid, UINT DataSize, const void *pData) override;
 	HRESULT STDMETHODCALLTYPE SetPrivateDataInterface(REFGUID guid, const IUnknown *pData) override;
-	   UINT STDMETHODCALLTYPE GetCreationFlags() override;
+	UINT    STDMETHODCALLTYPE GetCreationFlags() override;
 	HRESULT STDMETHODCALLTYPE GetDeviceRemovedReason() override;
-	   void STDMETHODCALLTYPE GetImmediateContext(ID3D11DeviceContext **ppImmediateContext) override;
+	void    STDMETHODCALLTYPE GetImmediateContext(ID3D11DeviceContext **ppImmediateContext) override;
 	HRESULT STDMETHODCALLTYPE SetExceptionMode(UINT RaiseFlags) override;
-	   UINT STDMETHODCALLTYPE GetExceptionMode() override;
+	UINT    STDMETHODCALLTYPE GetExceptionMode() override;
 	D3D_FEATURE_LEVEL STDMETHODCALLTYPE GetFeatureLevel() override;
 	#pragma endregion
 	#pragma region ID3D11Device1
-	   void STDMETHODCALLTYPE GetImmediateContext1(ID3D11DeviceContext1 **ppImmediateContext) override;
+	void    STDMETHODCALLTYPE GetImmediateContext1(ID3D11DeviceContext1 **ppImmediateContext) override;
 	HRESULT STDMETHODCALLTYPE CreateDeferredContext1(UINT ContextFlags, ID3D11DeviceContext1 **ppDeferredContext) override;
 	HRESULT STDMETHODCALLTYPE CreateBlendState1(const D3D11_BLEND_DESC1 *pBlendStateDesc, ID3D11BlendState1 **ppBlendState);
 	HRESULT STDMETHODCALLTYPE CreateRasterizerState1(const D3D11_RASTERIZER_DESC1 *pRasterizerDesc, ID3D11RasterizerState1 **ppRasterizerState) override;
@@ -76,9 +76,9 @@ struct __declspec(uuid("72299288-2C68-4AD8-945D-2BFB5AA9C609")) D3D11Device : ID
 	HRESULT STDMETHODCALLTYPE OpenSharedResourceByName(LPCWSTR lpName, DWORD dwDesiredAccess, REFIID returnedInterface, void **ppResource) override;
 	#pragma endregion
 	#pragma region ID3D11Device2
-	   void STDMETHODCALLTYPE GetImmediateContext2(ID3D11DeviceContext2 **ppImmediateContext) override;
+	void    STDMETHODCALLTYPE GetImmediateContext2(ID3D11DeviceContext2 **ppImmediateContext) override;
 	HRESULT STDMETHODCALLTYPE CreateDeferredContext2(UINT ContextFlags, ID3D11DeviceContext2 **ppDeferredContext) override;
-	   void STDMETHODCALLTYPE GetResourceTiling(ID3D11Resource *pTiledResource, UINT *pNumTilesForEntireResource, D3D11_PACKED_MIP_DESC *pPackedMipDesc, D3D11_TILE_SHAPE *pStandardTileShapeForNonPackedMips, UINT *pNumSubresourceTilings, UINT FirstSubresourceTilingToGet, D3D11_SUBRESOURCE_TILING *pSubresourceTilingsForNonPackedMips) override;
+	void    STDMETHODCALLTYPE GetResourceTiling(ID3D11Resource *pTiledResource, UINT *pNumTilesForEntireResource, D3D11_PACKED_MIP_DESC *pPackedMipDesc, D3D11_TILE_SHAPE *pStandardTileShapeForNonPackedMips, UINT *pNumSubresourceTilings, UINT FirstSubresourceTilingToGet, D3D11_SUBRESOURCE_TILING *pSubresourceTilingsForNonPackedMips) override;
 	HRESULT STDMETHODCALLTYPE CheckMultisampleQualityLevels1(DXGI_FORMAT Format, UINT SampleCount, UINT Flags, UINT *pNumQualityLevels) override;
 	#pragma endregion
 	#pragma region ID3D11Device3
@@ -89,14 +89,14 @@ struct __declspec(uuid("72299288-2C68-4AD8-945D-2BFB5AA9C609")) D3D11Device : ID
 	HRESULT STDMETHODCALLTYPE CreateUnorderedAccessView1(ID3D11Resource *pResource, const D3D11_UNORDERED_ACCESS_VIEW_DESC1 *pDesc1, ID3D11UnorderedAccessView1 **ppUAView1) override;
 	HRESULT STDMETHODCALLTYPE CreateRenderTargetView1(ID3D11Resource *pResource, const D3D11_RENDER_TARGET_VIEW_DESC1 *pDesc1, ID3D11RenderTargetView1 **ppRTView1) override;
 	HRESULT STDMETHODCALLTYPE CreateQuery1(const D3D11_QUERY_DESC1 *pQueryDesc1, ID3D11Query1 **ppQuery1) override;
-	   void STDMETHODCALLTYPE GetImmediateContext3(ID3D11DeviceContext3 **ppImmediateContext) override;
+	void    STDMETHODCALLTYPE GetImmediateContext3(ID3D11DeviceContext3 **ppImmediateContext) override;
 	HRESULT STDMETHODCALLTYPE CreateDeferredContext3(UINT ContextFlags, ID3D11DeviceContext3 **ppDeferredContext) override;
-	   void STDMETHODCALLTYPE WriteToSubresource(ID3D11Resource *pDstResource, UINT DstSubresource, const D3D11_BOX *pDstBox, const void *pSrcData, UINT SrcRowPitch, UINT SrcDepthPitch) override;
-	   void STDMETHODCALLTYPE ReadFromSubresource(void *pDstData, UINT DstRowPitch, UINT DstDepthPitch, ID3D11Resource *pSrcResource, UINT SrcSubresource, const D3D11_BOX *pSrcBox) override;
+	void    STDMETHODCALLTYPE WriteToSubresource(ID3D11Resource *pDstResource, UINT DstSubresource, const D3D11_BOX *pDstBox, const void *pSrcData, UINT SrcRowPitch, UINT SrcDepthPitch) override;
+	void    STDMETHODCALLTYPE ReadFromSubresource(void *pDstData, UINT DstRowPitch, UINT DstDepthPitch, ID3D11Resource *pSrcResource, UINT SrcSubresource, const D3D11_BOX *pSrcBox) override;
 	#pragma endregion
 	#pragma region ID3D11Device4
 	HRESULT STDMETHODCALLTYPE RegisterDeviceRemovedEvent( HANDLE hEvent, DWORD *pdwCookie) override;
-	   void STDMETHODCALLTYPE UnregisterDeviceRemoved(DWORD dwCookie) override;
+	void    STDMETHODCALLTYPE UnregisterDeviceRemoved(DWORD dwCookie) override;
 	#pragma endregion
 	#pragma region ID3D11Device5
 	HRESULT STDMETHODCALLTYPE OpenSharedFence(HANDLE hFence, REFIID ReturnedInterface, void **ppFence) override;
