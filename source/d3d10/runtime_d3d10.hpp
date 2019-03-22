@@ -48,7 +48,7 @@ namespace reshade::d3d10
 		void unload_effects() override;
 
 		bool add_sampler(const reshadefx::sampler_info &info, struct d3d10_technique_data &technique_init);
-		bool init_technique(technique &info, struct d3d10_technique_data &&technique_init, const std::unordered_map<std::string, com_ptr<IUnknown>> &entry_points);
+		bool init_technique(technique &info, const struct d3d10_technique_data &technique_init, const std::unordered_map<std::string, com_ptr<IUnknown>> &entry_points);
 
 		void render_technique(technique &technique) override;
 

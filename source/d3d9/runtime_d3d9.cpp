@@ -698,7 +698,7 @@ bool reshade::d3d9::runtime_d3d9::compile_effect(effect_data &effect)
 
 	for (technique &technique : _techniques)
 		if (technique.impl == nullptr && technique.effect_index == effect.index)
-			success &= init_technique(technique, std::move(technique_init), entry_points);
+			success &= init_technique(technique, technique_init, entry_points);
 
 	return success;
 }
@@ -735,9 +735,10 @@ bool reshade::d3d9::runtime_d3d9::add_sampler(const reshadefx::sampler_info &inf
 
 	return true;
 }
-bool reshade::d3d9::runtime_d3d9::init_technique(technique &technique, d3d9_technique_data &&impl_init, const std::unordered_map<std::string, com_ptr<IUnknown>> &entry_points)
+bool reshade::d3d9::runtime_d3d9::init_technique(technique &technique, const d3d9_technique_data &impl_init, const std::unordered_map<std::string, com_ptr<IUnknown>> &entry_points)
 {
-	technique.impl = std::make_unique<d3d9_technique_data>(std::move(impl_init));
+	// Copy construct new technique implementation instead of move because effect may contain multiple techniques
+	technique.impl = std::make_unique<d3d9_technique_data>(impl_init);
 
 	const auto technique_data = technique.impl->as<d3d9_technique_data>();
 

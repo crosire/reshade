@@ -600,7 +600,7 @@ bool reshade::opengl::runtime_opengl::compile_effect(effect_data &effect)
 
 	for (technique &technique : _techniques)
 		if (technique.impl == nullptr && technique.effect_index == effect.index)
-			success &= init_technique(technique, std::move(technique_init), entry_points, effect.errors);
+			success &= init_technique(technique, technique_init, entry_points, effect.errors);
 
 	for (auto &it : entry_points)
 		glDeleteShader(it.second);
@@ -723,11 +723,12 @@ bool reshade::opengl::runtime_opengl::add_sampler(const reshadefx::sampler_info 
 
 	return true;
 }
-bool reshade::opengl::runtime_opengl::init_technique(technique &technique, opengl_technique_data &&impl_init, const std::unordered_map<std::string, GLuint> &entry_points, std::string &errors)
+bool reshade::opengl::runtime_opengl::init_technique(technique &technique, const opengl_technique_data &impl_init, const std::unordered_map<std::string, GLuint> &entry_points, std::string &errors)
 {
 	assert(_app_state.has_state);
 
-	technique.impl = std::make_unique<opengl_technique_data>(std::move(impl_init));
+	// Copy construct new technique implementation instead of move because effect may contain multiple techniques
+	technique.impl = std::make_unique<opengl_technique_data>(impl_init);
 
 	const auto technique_data = technique.impl->as<opengl_technique_data>();
 

@@ -48,7 +48,7 @@ namespace reshade::opengl
 		void unload_effects() override;
 
 		bool add_sampler(const reshadefx::sampler_info &info, struct opengl_technique_data &technique_init);
-		bool init_technique(technique &info, struct opengl_technique_data &&technique_init, const std::unordered_map<std::string, GLuint> &entry_points, std::string &errors);
+		bool init_technique(technique &info, const struct opengl_technique_data &technique_init, const std::unordered_map<std::string, GLuint> &entry_points, std::string &errors);
 
 		void render_technique(technique &technique) override;
 
