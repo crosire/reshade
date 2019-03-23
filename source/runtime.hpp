@@ -60,11 +60,11 @@ namespace reshade
 		/// <param name="texture">The texture description.</param>
 		virtual bool init_texture(texture &texture) = 0;
 		/// <summary>
-		/// Update the image data of a texture.
+		/// Upload the image data of a texture.
 		/// </summary>
 		/// <param name="texture">The texture to update.</param>
 		/// <param name="pixels">The 32bpp RGBA image data to update the texture with.</param>
-		virtual void update_texture(texture &texture, const uint8_t *pixels) = 0;
+		virtual void upload_texture(texture &texture, const uint8_t *pixels) = 0;
 
 		/// <summary>
 		/// Get the value of a uniform variable.

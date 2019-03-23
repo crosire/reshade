@@ -508,11 +508,11 @@ void reshade::runtime::load_textures()
 
 			std::vector<uint8_t> resized(texture.width * texture.height * 4);
 			stbir_resize_uint8(filedata, width, height, 0, resized.data(), texture.width, texture.height, 0, 4);
-			update_texture(texture, resized.data());
+			upload_texture(texture, resized.data());
 		}
 		else
 		{
-			update_texture(texture, filedata);
+			upload_texture(texture, filedata);
 		}
 
 		stbi_image_free(filedata);

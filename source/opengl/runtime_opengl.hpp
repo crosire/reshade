@@ -40,7 +40,7 @@ namespace reshade::opengl
 		};
 
 		bool init_texture(texture &info) override;
-		void update_texture(texture &texture, const uint8_t *data) override;
+		void upload_texture(texture &texture, const uint8_t *data) override;
 		bool update_texture_reference(texture &texture);
 		void update_texture_references(texture_reference type);
 

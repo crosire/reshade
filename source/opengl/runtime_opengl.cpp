@@ -435,7 +435,7 @@ bool reshade::opengl::runtime_opengl::init_texture(texture &texture)
 
 	return true;
 }
-void reshade::opengl::runtime_opengl::update_texture(texture &texture, const uint8_t *pixels)
+void reshade::opengl::runtime_opengl::upload_texture(texture &texture, const uint8_t *pixels)
 {
 	assert(texture.impl_reference == texture_reference::none && pixels != nullptr);
 

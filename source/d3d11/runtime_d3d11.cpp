@@ -520,7 +520,7 @@ bool reshade::d3d11::runtime_d3d11::init_texture(texture &info)
 
 	return true;
 }
-void reshade::d3d11::runtime_d3d11::update_texture(texture &texture, const uint8_t *pixels)
+void reshade::d3d11::runtime_d3d11::upload_texture(texture &texture, const uint8_t *pixels)
 {
 	assert(texture.impl_reference == texture_reference::none && pixels != nullptr);
 

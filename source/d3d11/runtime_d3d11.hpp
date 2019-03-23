@@ -41,7 +41,7 @@ namespace reshade::d3d11
 		bool init_default_depth_stencil();
 
 		bool init_texture(texture &info) override;
-		void update_texture(texture &texture, const uint8_t *pixels) override;
+		void upload_texture(texture &texture, const uint8_t *pixels) override;
 		bool update_texture_reference(texture &texture);
 		void update_texture_references(texture_reference type);
 

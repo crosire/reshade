@@ -308,7 +308,7 @@ void reshade::runtime::build_font_atlas()
 	_imgui_font_atlas->format = reshadefx::texture_format::rgba8;
 	_imgui_font_atlas->unique_name = "ImGUI Font Atlas";
 	if (init_texture(*_imgui_font_atlas))
-		update_texture(*_imgui_font_atlas, pixels);
+		upload_texture(*_imgui_font_atlas, pixels);
 }
 void reshade::runtime::destroy_font_atlas()
 {
