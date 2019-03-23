@@ -32,9 +32,7 @@ extern std::filesystem::path g_reshade_dll_path;
 static std::filesystem::path s_export_hook_path;
 static std::vector<std::filesystem::path> s_delayed_hook_paths;
 static std::vector<std::tuple<const char *, reshade::hook, hook_method>> s_hooks;
-static std::unordered_map<reshade::hook::address, reshade::hook::address *> s_vtable_addresses;
 static std::mutex s_mutex_hooks;
-static std::mutex s_mutex_vtable_addresses;
 static std::mutex s_mutex_delayed_hook_paths;
 
 std::vector<module_export> get_module_exports(HMODULE handle)
@@ -92,15 +90,13 @@ static bool install_internal(const char *name, reshade::hook &hook, hook_method 
 	case hook_method::function_hook:
 		status = hook.install();
 		break;
-	case hook_method::vtable_hook: {
-		DWORD protection = PAGE_READWRITE;
-		const auto target_address = s_vtable_addresses.at(hook.target);
-
-		if (VirtualProtect(target_address, sizeof(*target_address), protection, &protection))
+	case hook_method::vtable_hook:
+		if (DWORD protection = PAGE_READWRITE;
+			VirtualProtect(hook.target, sizeof(reshade::hook::address), protection, &protection))
 		{
-			*target_address = hook.replacement;
+			*reinterpret_cast<reshade::hook::address *>(hook.target) = hook.replacement;
 
-			VirtualProtect(target_address, sizeof(*target_address), protection, &protection);
+			VirtualProtect(hook.target, sizeof(reshade::hook::address), protection, &protection);
 
 			status = reshade::hook::status::success;
 		}
@@ -108,7 +104,7 @@ static bool install_internal(const char *name, reshade::hook &hook, hook_method 
 		{
 			status = reshade::hook::status::memory_protection_failure;
 		}
-		break; }
+		break;
 	}
 
 	if (status != reshade::hook::status::success)
@@ -117,13 +113,13 @@ static bool install_internal(const char *name, reshade::hook &hook, hook_method 
 		return false;
 	}
 
-#if RESHADE_VERBOSE_LOG
-	LOG(DEBUG) << "> Succeeded.";
-#endif
-
 	{ const std::lock_guard<std::mutex> lock(s_mutex_hooks);
 		s_hooks.push_back(std::make_tuple(name, hook, method));
 	}
+
+#if RESHADE_VERBOSE_LOG
+	LOG(DEBUG) << "> Succeeded.";
+#endif
 
 	return true;
 }
@@ -219,16 +215,13 @@ static bool uninstall_internal(const char *name, reshade::hook &hook, hook_metho
 	case hook_method::function_hook:
 		status = hook.uninstall();
 		break;
-	case hook_method::vtable_hook: {
-		DWORD protection = PAGE_READWRITE;
-		const auto target_address = s_vtable_addresses.at(hook.target);
-
-		if (VirtualProtect(target_address, sizeof(*target_address), protection, &protection))
+	case hook_method::vtable_hook:
+		if (DWORD protection = PAGE_READWRITE;
+			VirtualProtect(hook.target, sizeof(reshade::hook::address), protection, &protection))
 		{
-			*target_address = hook.target;
-			s_vtable_addresses.erase(hook.target);
+			*reinterpret_cast<reshade::hook::address *>(hook.target) = hook.trampoline;
 
-			VirtualProtect(target_address, sizeof(*target_address), protection, &protection);
+			VirtualProtect(hook.target, sizeof(reshade::hook::address), protection, &protection);
 
 			status = reshade::hook::status::success;
 		}
@@ -236,13 +229,12 @@ static bool uninstall_internal(const char *name, reshade::hook &hook, hook_metho
 		{
 			status = reshade::hook::status::memory_protection_failure;
 		}
-		break; }
+		break;
 	}
 
 	if (status != reshade::hook::status::success)
 	{
 		LOG(WARN) << "Failed to uninstall hook for " << name << " with status code " << static_cast<int>(status) << '.';
-
 		return false;
 	}
 
@@ -279,11 +271,14 @@ static void install_delayed_hooks(const std::filesystem::path &loaded_path)
 	}
 }
 
-static reshade::hook find_internal(reshade::hook::address replacement)
-{ const std::lock_guard<std::mutex> lock(s_mutex_hooks);
+static reshade::hook find_internal(reshade::hook::address target, reshade::hook::address replacement)
+{
+	const std::lock_guard<std::mutex> lock(s_mutex_hooks);
+
 	const auto it = std::find_if(s_hooks.cbegin(), s_hooks.cend(),
-		[replacement](const auto &hook) {
-			return std::get<1>(hook).replacement == replacement;
+		[target, replacement](const auto &hook) {
+			return std::get<1>(hook).replacement == replacement &&
+				(target == nullptr || std::get<1>(hook).target == target);
 		});
 
 	return it != s_hooks.cend() ? std::get<1>(*it) : reshade::hook {};
@@ -292,7 +287,7 @@ static reshade::hook find_internal(reshade::hook::address replacement)
 template <typename T>
 static inline T call_unchecked(T replacement)
 {
-	return reinterpret_cast<T>(find_internal(reinterpret_cast<reshade::hook::address>(replacement)).call());
+	return reinterpret_cast<T>(find_internal(nullptr, reinterpret_cast<reshade::hook::address>(replacement)).call());
 }
 
 HMODULE WINAPI HookLoadLibraryA(LPCSTR lpFileName)
@@ -341,8 +336,9 @@ bool reshade::hooks::install(const char *name, hook::address target, hook::addre
 	assert(target != nullptr);
 	assert(replacement != nullptr);
 
-	hook hook = find_internal(replacement);
-	if (hook.installed()) // If the hook was already installed, make sure it was installed for the same target function
+	hook hook = find_internal(nullptr, replacement);
+	// If the hook was already installed, make sure it was installed for the same target function
+	if (hook.installed())
 		return target == hook.target;
 
 	// Otherwise, set up the new hook and install it
@@ -357,33 +353,16 @@ bool reshade::hooks::install(const char *name, hook::address vtable[], unsigned 
 	assert(vtable != nullptr);
 	assert(replacement != nullptr);
 
-	DWORD protection = PAGE_READONLY;
-	hook::address &target = vtable[offset]; // Lookup the target function in the virtual function table
+	hook hook = find_internal(nullptr, replacement);
+	// Check if the hook was already installed to this vtable
+	if (hook.installed() && vtable[offset] == hook.replacement)
+		return true;
 
-	// Check if the target address can actually be made writable before later trying to install the hook
-	if (VirtualProtect(&target, sizeof(hook::address), protection, &protection))
-	{ const std::lock_guard<std::mutex> lock(s_mutex_vtable_addresses);
-		const auto insert = s_vtable_addresses.emplace(target, &target);
+	hook.target = &vtable[offset]; // Target is the address of the vtable entry
+	hook.trampoline = vtable[offset]; // The current function in that entry is the original function to call
+	hook.replacement = replacement;
 
-		VirtualProtect(&target, sizeof(hook::address), protection, &protection);
-
-		if (insert.second)
-		{
-			hook hook { target, target, replacement };
-			if (install_internal(name, hook, hook_method::vtable_hook))
-				return true;
-
-			// Something went wrong, clean up
-			s_vtable_addresses.erase(insert.first);
-		}
-		else
-		{
-			// If the hook was already installed, make sure it was installed for the same target function
-			return insert.first->first == target;
-		}
-	}
-
-	return false;
+	return install_internal(name, hook, hook_method::vtable_hook);
 }
 void reshade::hooks::uninstall()
 {
@@ -447,9 +426,9 @@ void reshade::hooks::register_module(const std::filesystem::path &target_path)
 	}
 }
 
-reshade::hook::address reshade::hooks::call(hook::address replacement)
+reshade::hook::address reshade::hooks::call(hook::address target, hook::address replacement)
 {
-	const hook hook = find_internal(replacement);
+	const hook hook = find_internal(target, replacement);
 
 	if (hook.valid())
 	{

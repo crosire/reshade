@@ -54,12 +54,13 @@ namespace reshade::hooks
 	/// <summary>
 	/// Call the original/trampoline function for the specified hook.
 	/// </summary>
+	/// <param name="target">The original target address the hook was installed to (optional).</param>
 	/// <param name="replacement">The address of the hook function which was previously used to install a hook.</param>
 	/// <returns>The address of original/trampoline function.</returns>
-	hook::address call(hook::address replacement);
+	hook::address call(hook::address target, hook::address replacement);
 	template <typename T>
-	inline T call(T replacement)
+	inline T call(T replacement, hook::address target = nullptr)
 	{
-		return reinterpret_cast<T>(call(reinterpret_cast<hook::address>(replacement)));
+		return reinterpret_cast<T>(call(target, reinterpret_cast<hook::address>(replacement)));
 	}
 }
