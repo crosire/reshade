@@ -396,7 +396,7 @@ void reshade::d3d11::runtime_d3d11::capture_screenshot(uint8_t *buffer) const
 
 	for (UINT y = 0, pitch = _width * 4; y < _height; y++, buffer += pitch, mapped_data += mapped.RowPitch)
 	{
-		std::memcpy(buffer, mapped_data, pitch);
+		memcpy(buffer, mapped_data, pitch);
 
 		for (UINT x = 0; x < pitch; x += 4)
 		{
@@ -526,7 +526,7 @@ void reshade::d3d11::runtime_d3d11::upload_texture(texture &texture, const uint8
 {
 	assert(texture.impl_reference == texture_reference::none && pixels != nullptr);
 
-	unsigned int upload_pitch = texture.width * 4;
+	unsigned int upload_pitch;
 	std::vector<uint8_t> upload_data;
 
 	switch (texture.format)
@@ -546,6 +546,12 @@ void reshade::d3d11::runtime_d3d11::upload_texture(texture &texture, const uint8
 			upload_data[k + 1] = pixels[i + 1];
 		pixels = upload_data.data();
 		break;
+	case reshadefx::texture_format::rgba8:
+		upload_pitch = texture.width * 4;
+		break;
+	default:
+		LOG(ERROR) << "Texture upload is not supported for format " << static_cast<unsigned int>(texture.format) << '!';
+		return;
 	}
 
 	const auto texture_impl = texture.impl->as<d3d11_tex_data>();
@@ -1030,7 +1036,7 @@ void reshade::d3d11::runtime_d3d11::render_technique(technique &technique)
 
 		if (SUCCEEDED(hr))
 		{
-			CopyMemory(mapped.pData, _uniform_data_storage.data() + technique_data.uniform_storage_offset, mapped.RowPitch);
+			memcpy(mapped.pData, _uniform_data_storage.data() + technique_data.uniform_storage_offset, mapped.RowPitch);
 
 			_immediate_context->Unmap(constant_buffer, 0);
 		}
@@ -1262,8 +1268,8 @@ void reshade::d3d11::runtime_d3d11::render_imgui_draw_data(ImDrawData *draw_data
 	for (int n = 0; n < draw_data->CmdListsCount; n++)
 	{
 		const ImDrawList *const draw_list = draw_data->CmdLists[n];
-		CopyMemory(idx_dst, &draw_list->IdxBuffer.front(), draw_list->IdxBuffer.Size * sizeof(ImDrawIdx));
-		CopyMemory(vtx_dst, &draw_list->VtxBuffer.front(), draw_list->VtxBuffer.Size * sizeof(ImDrawVert));
+		memcpy(idx_dst, draw_list->IdxBuffer.Data, draw_list->IdxBuffer.Size * sizeof(ImDrawIdx));
+		memcpy(vtx_dst, draw_list->VtxBuffer.Data, draw_list->VtxBuffer.Size * sizeof(ImDrawVert));
 		idx_dst += draw_list->IdxBuffer.Size;
 		vtx_dst += draw_list->VtxBuffer.Size;
 	}

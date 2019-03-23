@@ -532,40 +532,40 @@ void reshade::d3d9::runtime_d3d9::upload_texture(texture &texture, const uint8_t
 		return;
 	}
 
-	D3DLOCKED_RECT mapped_rect;
-	if (FAILED(intermediate->LockRect(0, &mapped_rect, nullptr, 0)))
+	D3DLOCKED_RECT mapped;
+	if (FAILED(intermediate->LockRect(0, &mapped, nullptr, 0)))
 		return;
-	auto mapped_data = static_cast<BYTE *>(mapped_rect.pBits);
+	auto mapped_data = static_cast<BYTE *>(mapped.pBits);
 
-	for (UINT y = 0, pitch = texture.width * 4; y < texture.height; ++y, mapped_data += mapped_rect.Pitch, pixels += pitch)
+	switch (texture.format)
 	{
-		switch (texture.format)
-		{
-		case reshadefx::texture_format::r8: // These are actually D3DFMT_A8R8G8B8, see 'init_texture'
+	case reshadefx::texture_format::r8: // These are actually D3DFMT_A8R8G8B8, see 'init_texture'
+		for (UINT y = 0, pitch = texture.width * 4; y < texture.height; ++y, mapped_data += mapped.Pitch, pixels += pitch)
 			for (UINT x = 0; x < pitch; x += 4)
-				mapped_data[x + 0] = 0,
+				mapped_data[x + 0] = 0, // Set green and blue channel to zero
 				mapped_data[x + 1] = 0,
 				mapped_data[x + 2] = pixels[x + 0],
 				mapped_data[x + 3] = 0xFF;
-			break;
-		case reshadefx::texture_format::rg8:
+		break;
+	case reshadefx::texture_format::rg8:
+		for (UINT y = 0, pitch = texture.width * 4; y < texture.height; ++y, mapped_data += mapped.Pitch, pixels += pitch)
 			for (UINT x = 0; x < pitch; x += 4)
-				mapped_data[x + 0] = 0,
+				mapped_data[x + 0] = 0, // Set blue channel to zero
 				mapped_data[x + 1] = pixels[x + 1],
 				mapped_data[x + 2] = pixels[x + 0],
 				mapped_data[x + 3] = 0xFF;
-			break;
-		case reshadefx::texture_format::rgba8:
+		break;
+	case reshadefx::texture_format::rgba8:
+		for (UINT y = 0, pitch = texture.width * 4; y < texture.height; ++y, mapped_data += mapped.Pitch, pixels += pitch)
 			for (UINT x = 0; x < pitch; x += 4)
 				mapped_data[x + 0] = pixels[x + 2], // Flip RGBA input to BGRA
 				mapped_data[x + 1] = pixels[x + 1],
 				mapped_data[x + 2] = pixels[x + 0],
 				mapped_data[x + 3] = pixels[x + 3];
-			break;
-		default:
-			std::memcpy(mapped_data, pixels, pitch);
-			break;
-		}
+		break;
+	default:
+		LOG(ERROR) << "Texture upload is not supported for format " << static_cast<unsigned int>(texture.format) << '!';
+		break;
 	}
 
 	intermediate->UnlockRect(0);
@@ -1108,21 +1108,22 @@ void reshade::d3d9::runtime_d3d9::render_imgui_draw_data(ImDrawData *draw_data)
 	{
 		const ImDrawList *const draw_list = draw_data->CmdLists[n];
 
-		for (auto vtx_src = draw_list->VtxBuffer.begin(); vtx_src != draw_list->VtxBuffer.end(); vtx_src++, vtx_dst++)
+		for (const ImDrawVert &vtx : draw_list->VtxBuffer)
 		{
-			vtx_dst->x = vtx_src->pos.x;
-			vtx_dst->y = vtx_src->pos.y;
+			vtx_dst->x = vtx.pos.x;
+			vtx_dst->y = vtx.pos.y;
 			vtx_dst->z = 0.0f;
 
 			// RGBA --> ARGB for Direct3D 9
-			vtx_dst->col = (vtx_src->col & 0xFF00FF00) | ((vtx_src->col & 0xFF0000) >> 16) | ((vtx_src->col & 0xFF) << 16);
+			vtx_dst->col = (vtx.col & 0xFF00FF00) | ((vtx.col & 0xFF0000) >> 16) | ((vtx.col & 0xFF) << 16);
 
-			vtx_dst->u = vtx_src->uv.x;
-			vtx_dst->v = vtx_src->uv.y;
+			vtx_dst->u = vtx.uv.x;
+			vtx_dst->v = vtx.uv.y;
+
+			++vtx_dst; // Next vertex
 		}
 
-		CopyMemory(idx_dst, &draw_list->IdxBuffer.front(), draw_list->IdxBuffer.size() * sizeof(ImDrawIdx));
-
+		memcpy(idx_dst, draw_list->IdxBuffer.Data, draw_list->IdxBuffer.size() * sizeof(ImDrawIdx));
 		idx_dst += draw_list->IdxBuffer.size();
 	}
 

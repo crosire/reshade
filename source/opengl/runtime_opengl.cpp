@@ -327,8 +327,8 @@ void reshade::opengl::runtime_opengl::capture_screenshot(uint8_t *buffer) const
 	// Flip image horizontally
 	for (unsigned int y = 0, pitch = _width * 4; y * 2 < _height; ++y)
 	{
-		const unsigned int i1 = y * pitch;
-		const unsigned int i2 = (_height - 1 - y) * pitch;
+		const auto i1 = y * pitch;
+		const auto i2 = (_height - 1 - y) * pitch;
 
 		for (unsigned int x = 0; x < pitch; x += 4)
 		{
