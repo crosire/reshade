@@ -11,7 +11,7 @@
 
 struct D3D10Device;
 struct D3D11Device;
-struct D3D12CommandQueue;
+struct D3D12Device;
 namespace reshade { class runtime; }
 
 struct __declspec(uuid("1F445F9F-9887-4C4C-9055-4E3BADAFCCA8")) DXGISwapChain : IDXGISwapChain4
@@ -20,14 +20,14 @@ struct __declspec(uuid("1F445F9F-9887-4C4C-9055-4E3BADAFCCA8")) DXGISwapChain : 
 	DXGISwapChain(D3D10Device *device, IDXGISwapChain1 *original, const std::shared_ptr<reshade::runtime> &runtime);
 	DXGISwapChain(D3D11Device *device, IDXGISwapChain  *original, const std::shared_ptr<reshade::runtime> &runtime);
 	DXGISwapChain(D3D11Device *device, IDXGISwapChain1 *original, const std::shared_ptr<reshade::runtime> &runtime);
-	DXGISwapChain(D3D12CommandQueue *command_queue, IDXGISwapChain3 *original, const std::shared_ptr<reshade::runtime> &runtime);
+	DXGISwapChain(D3D12Device *device, IDXGISwapChain3 *original, const std::shared_ptr<reshade::runtime> &runtime);
 
 	DXGISwapChain(const DXGISwapChain &) = delete;
 	DXGISwapChain &operator=(const DXGISwapChain &) = delete;
 
-	virtual HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void **ppvObj) override;
-	virtual   ULONG STDMETHODCALLTYPE AddRef() override;
-	virtual   ULONG STDMETHODCALLTYPE Release() override;
+	HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void **ppvObj) override;
+	ULONG   STDMETHODCALLTYPE AddRef() override;
+	ULONG   STDMETHODCALLTYPE Release() override;
 
 	#pragma region IDXGIObject
 	HRESULT STDMETHODCALLTYPE SetPrivateData(REFGUID Name, UINT DataSize, const void *pData) override;
@@ -56,7 +56,7 @@ struct __declspec(uuid("1F445F9F-9887-4C4C-9055-4E3BADAFCCA8")) DXGISwapChain : 
 	HRESULT STDMETHODCALLTYPE GetHwnd(HWND *pHwnd) override;
 	HRESULT STDMETHODCALLTYPE GetCoreWindow(REFIID refiid, void **ppUnk) override;
 	HRESULT STDMETHODCALLTYPE Present1(UINT SyncInterval, UINT PresentFlags, const DXGI_PRESENT_PARAMETERS *pPresentParameters) override;
-	   BOOL STDMETHODCALLTYPE IsTemporaryMonoSupported() override;
+	BOOL    STDMETHODCALLTYPE IsTemporaryMonoSupported() override;
 	HRESULT STDMETHODCALLTYPE GetRestrictToOutput(IDXGIOutput **ppRestrictToOutput) override;
 	HRESULT STDMETHODCALLTYPE SetBackgroundColor(const DXGI_RGBA *pColor) override;
 	HRESULT STDMETHODCALLTYPE GetBackgroundColor(DXGI_RGBA *pColor) override;
@@ -68,12 +68,12 @@ struct __declspec(uuid("1F445F9F-9887-4C4C-9055-4E3BADAFCCA8")) DXGISwapChain : 
 	HRESULT STDMETHODCALLTYPE GetSourceSize(UINT *pWidth, UINT *pHeight) override;
 	HRESULT STDMETHODCALLTYPE SetMaximumFrameLatency(UINT MaxLatency) override;
 	HRESULT STDMETHODCALLTYPE GetMaximumFrameLatency(UINT *pMaxLatency) override;
-	 HANDLE STDMETHODCALLTYPE GetFrameLatencyWaitableObject() override;
+	HANDLE  STDMETHODCALLTYPE GetFrameLatencyWaitableObject() override;
 	HRESULT STDMETHODCALLTYPE SetMatrixTransform(const DXGI_MATRIX_3X2_F *pMatrix) override;
 	HRESULT STDMETHODCALLTYPE GetMatrixTransform(DXGI_MATRIX_3X2_F *pMatrix) override;
 	#pragma endregion
 	#pragma region IDXGISwapChain3
-	   UINT STDMETHODCALLTYPE GetCurrentBackBufferIndex() override;
+	UINT    STDMETHODCALLTYPE GetCurrentBackBufferIndex() override;
 	HRESULT STDMETHODCALLTYPE CheckColorSpaceSupport(DXGI_COLOR_SPACE_TYPE ColorSpace, UINT *pColorSpaceSupport) override;
 	HRESULT STDMETHODCALLTYPE SetColorSpace1(DXGI_COLOR_SPACE_TYPE ColorSpace) override;
 	HRESULT STDMETHODCALLTYPE ResizeBuffers1(UINT BufferCount, UINT Width, UINT Height, DXGI_FORMAT Format, UINT SwapChainFlags, const UINT *pCreationNodeMask, IUnknown *const *ppPresentQueue) override;

@@ -42,14 +42,22 @@ reshade::d3d12::runtime_d3d12::runtime_d3d12(ID3D12Device *device, ID3D12Command
 	assert(device != nullptr);
 	assert(swapchain != nullptr);
 
-	com_ptr<IDXGIDevice> dxgi_device;
-	_device->QueryInterface(&dxgi_device);
-	com_ptr<IDXGIAdapter> dxgi_adapter;
-	dxgi_device->GetAdapter(&dxgi_adapter);
-
 	_renderer_id = D3D_FEATURE_LEVEL_12_0;
-	if (DXGI_ADAPTER_DESC desc; SUCCEEDED(dxgi_adapter->GetDesc(&desc)))
-		_vendor_id = desc.VendorId, _device_id = desc.DeviceId;
+
+	if (com_ptr<IDXGIFactory4> factory;
+		SUCCEEDED(swapchain->GetParent(IID_PPV_ARGS(&factory))))
+	{
+		const LUID luid = device->GetAdapterLuid();
+
+		if (com_ptr<IDXGIAdapter> adapter;
+			factory->EnumAdapterByLuid(luid, IID_PPV_ARGS(&adapter)))
+		{
+			DXGI_ADAPTER_DESC desc;
+			adapter->GetDesc(&desc);
+			_vendor_id = desc.VendorId;
+			_device_id = desc.DeviceId;
+		}
+	}
 }
 reshade::d3d12::runtime_d3d12::~runtime_d3d12()
 {

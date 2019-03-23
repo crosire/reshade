@@ -15,13 +15,6 @@
 #include "d3d12/d3d12_command_queue.hpp"
 #include "d3d12/runtime_d3d12.hpp"
 
-reshade::log::message &operator<<(reshade::log::message &m, REFIID riid)
-{
-	OLECHAR riid_string[40];
-	StringFromGUID2(riid, riid_string, ARRAYSIZE(riid_string));
-	return m << riid_string;
-}
-
 static void query_device(IUnknown *&device, com_ptr<D3D10Device> &device_d3d10, com_ptr<D3D11Device> &device_d3d11, com_ptr<D3D12CommandQueue> &command_queue_d3d12)
 {
 	if (SUCCEEDED(device->QueryInterface(&device_d3d10)))
@@ -123,7 +116,7 @@ static void init_reshade_runtime_d3d(T *&swapchain, com_ptr<D3D10Device> &device
 			if (!runtime->on_init(desc))
 				LOG(ERROR) << "Failed to initialize Direct3D 12 runtime environment on runtime " << runtime.get() << '.';
 
-			swapchain = new DXGISwapChain(command_queue_d3d12.get(), swapchain3.get(), runtime);
+			swapchain = new DXGISwapChain(command_queue_d3d12->_device, swapchain3.get(), runtime);
 		}
 		else
 		{
@@ -138,6 +131,13 @@ static void init_reshade_runtime_d3d(T *&swapchain, com_ptr<D3D10Device> &device
 #if RESHADE_VERBOSE_LOG
 	LOG(DEBUG) << "Returning IDXGISwapChain object " << swapchain << '.';
 #endif
+}
+
+reshade::log::message &operator<<(reshade::log::message &m, REFIID riid)
+{
+	OLECHAR riid_string[40];
+	StringFromGUID2(riid, riid_string, ARRAYSIZE(riid_string));
+	return m << riid_string;
 }
 
 HRESULT STDMETHODCALLTYPE IDXGIFactory_CreateSwapChain(IDXGIFactory *pFactory, IUnknown *pDevice, DXGI_SWAP_CHAIN_DESC *pDesc, IDXGISwapChain **ppSwapChain)

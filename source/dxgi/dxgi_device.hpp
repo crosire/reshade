@@ -14,9 +14,9 @@ struct __declspec(uuid("CB285C3B-3677-4332-98C7-D6339B9782B1")) DXGIDevice : IDX
 	DXGIDevice(const DXGIDevice &) = delete;
 	DXGIDevice &operator=(const DXGIDevice &) = delete;
 
-	virtual HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void **ppvObj) override;
-	virtual   ULONG STDMETHODCALLTYPE AddRef() override;
-	virtual   ULONG STDMETHODCALLTYPE Release() override;
+	HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void **ppvObj) override;
+	ULONG   STDMETHODCALLTYPE AddRef() override;
+	ULONG   STDMETHODCALLTYPE Release() override;
 
 	#pragma region IDXGIObject
 	HRESULT STDMETHODCALLTYPE SetPrivateData(REFGUID Name, UINT DataSize, const void *pData) override;
@@ -41,7 +41,7 @@ struct __declspec(uuid("CB285C3B-3677-4332-98C7-D6339B9782B1")) DXGIDevice : IDX
 	HRESULT STDMETHODCALLTYPE EnqueueSetEvent(HANDLE hEvent) override;
 	#pragma endregion
 	#pragma region IDXGIDevice3
-	   void STDMETHODCALLTYPE Trim() override;
+	void    STDMETHODCALLTYPE Trim() override;
 	#pragma endregion
 	#pragma region IDXGIDevice4
 	HRESULT STDMETHODCALLTYPE OfferResources1(UINT NumResources, IDXGIResource *const *ppResources, DXGI_OFFER_RESOURCE_PRIORITY Priority, UINT Flags) override;
