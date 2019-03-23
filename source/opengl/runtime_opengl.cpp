@@ -4,7 +4,6 @@
  */
 
 #include "log.hpp"
-#include "input.hpp"
 #include "runtime_opengl.hpp"
 #include "runtime_objects.hpp"
 #include <imgui.h>
@@ -1095,11 +1094,11 @@ void reshade::opengl::runtime_opengl::render_imgui_draw_data(ImDrawData *draw_da
 	glViewport(0, 0, GLsizei(draw_data->DisplaySize.x), GLsizei(draw_data->DisplaySize.y));
 
 	const float ortho_projection[16] = {
-		 2.0f / draw_data->DisplaySize.x, 0.0f,   0.0f, 0.0f,
-		 0.0f, -2.0f / draw_data->DisplaySize.y,  0.0f, 0.0f,
-		 0.0f,                            0.0f,  -1.0f, 0.0f,
+		2.0f / draw_data->DisplaySize.x, 0.0f,   0.0f, 0.0f,
+		0.0f, -2.0f / draw_data->DisplaySize.y,  0.0f, 0.0f,
+		0.0f,                            0.0f,  -1.0f, 0.0f,
 		-(2 * draw_data->DisplayPos.x + draw_data->DisplaySize.x) / draw_data->DisplaySize.x,
-		 (2 * draw_data->DisplayPos.y + draw_data->DisplaySize.y) / draw_data->DisplaySize.y, 0.0f, 1.0f,
+		+(2 * draw_data->DisplayPos.y + draw_data->DisplaySize.y) / draw_data->DisplaySize.y, 0.0f, 1.0f,
 	};
 
 	glUniform1i(_imgui_uniform_tex, 0); // Set to GL_TEXTURE0

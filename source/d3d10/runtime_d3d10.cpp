@@ -4,7 +4,6 @@
  */
 
 #include "log.hpp"
-#include "input.hpp"
 #include "ini_file.hpp"
 #include "runtime_d3d10.hpp"
 #include "runtime_objects.hpp"
@@ -382,13 +381,13 @@ void reshade::d3d10::runtime_d3d10::capture_screenshot(uint8_t *buffer) const
 	D3D10_MAPPED_TEXTURE2D mapped;
 	if (FAILED(intermediate->Map(0, D3D10_MAP_READ, 0, &mapped)))
 		return;
-	auto mapped_data = static_cast<BYTE *>(mapped.pData);
+	auto mapped_data = static_cast<uint8_t *>(mapped.pData);
 
-	for (UINT y = 0, pitch = _width * 4; y < _height; y++, buffer += pitch, mapped_data += mapped.RowPitch)
+	for (uint32_t y = 0, pitch = _width * 4; y < _height; y++, buffer += pitch, mapped_data += mapped.RowPitch)
 	{
 		memcpy(buffer, mapped_data, pitch);
 
-		for (UINT x = 0; x < pitch; x += 4)
+		for (uint32_t x = 0; x < pitch; x += 4)
 		{
 			buffer[x + 3] = 0xFF; // Clear alpha channel
 			if (_backbuffer_format == DXGI_FORMAT_B8G8R8A8_UNORM || _backbuffer_format == DXGI_FORMAT_B8G8R8A8_UNORM_SRGB)
@@ -524,14 +523,14 @@ void reshade::d3d10::runtime_d3d10::upload_texture(texture &texture, const uint8
 	case reshadefx::texture_format::r8:
 		upload_pitch = texture.width;
 		upload_data.resize(upload_pitch * texture.height);
-		for (size_t i = 0, k = 0; i < texture.width * texture.height * 4; i += 4, k += 1)
+		for (uint32_t i = 0, k = 0; i < texture.width * texture.height * 4; i += 4, k += 1)
 			upload_data[k] = pixels[i];
 		pixels = upload_data.data();
 		break;
 	case reshadefx::texture_format::rg8:
 		upload_pitch = texture.width * 2;
 		upload_data.resize(upload_pitch * texture.height);
-		for (size_t i = 0, k = 0; i < texture.width * texture.height * 4; i += 4, k += 2)
+		for (uint32_t i = 0, k = 0; i < texture.width * texture.height * 4; i += 4, k += 2)
 			upload_data[k + 0] = pixels[i + 0],
 			upload_data[k + 1] = pixels[i + 1];
 		pixels = upload_data.data();
@@ -571,7 +570,6 @@ bool reshade::d3d10::runtime_d3d10::update_texture_reference(texture &texture)
 	}
 
 	const auto texture_impl = texture.impl->as<d3d10_tex_data>();
-
 	assert(texture_impl != nullptr);
 
 	if (new_reference[0] == texture_impl->srv[0] &&
@@ -1161,10 +1159,10 @@ bool reshade::d3d10::runtime_d3d10::init_imgui_resources()
 
 		// Setup orthographic projection matrix
 		const float ortho_projection[16] = {
-				2.0f / _width, 0.0f,   0.0f, 0.0f,
-				0.0f, -2.0f / _height, 0.0f, 0.0f,
-				0.0f,          0.0f,   0.5f, 0.0f,
-			-1.0f,          1.0f,   0.5f, 1.0f
+			2.0f / _width, 0.0f,   0.0f, 0.0f,
+			0.0f, -2.0f / _height, 0.0f, 0.0f,
+			0.0f,          0.0f,   0.5f, 0.0f,
+			-1.f,          1.0f,   0.5f, 1.0f
 		};
 
 		D3D10_SUBRESOURCE_DATA initial_data = {};
@@ -1358,7 +1356,7 @@ void reshade::d3d10::runtime_d3d10::draw_debug_menu()
 			ImGui::Spacing();
 			ImGui::TextUnformatted("Depth Buffers:");
 
-			UINT current_index = 1;
+			unsigned int current_index = 1;
 
 			for (const auto &it : _current_tracker->cleared_depth_textures())
 			{
