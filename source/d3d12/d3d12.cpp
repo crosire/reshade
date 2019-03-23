@@ -36,6 +36,11 @@ HOOK_EXPORT HRESULT WINAPI D3D12CreateDevice(IUnknown *pAdapter, D3D_FEATURE_LEV
 	return hr;
 }
 
+HOOK_EXPORT HRESULT WINAPI D3D12GetDebugInterface(REFIID riid, void **ppvDebug)
+{
+	return reshade::hooks::call(D3D12GetDebugInterface)(riid, ppvDebug);
+}
+
 HOOK_EXPORT HRESULT WINAPI D3D12SerializeRootSignature(const D3D12_ROOT_SIGNATURE_DESC *pRootSignature, D3D_ROOT_SIGNATURE_VERSION Version, ID3DBlob **ppBlob, ID3DBlob **ppErrorBlob)
 {
 	return reshade::hooks::call(D3D12SerializeRootSignature)(pRootSignature, Version, ppBlob, ppErrorBlob);
