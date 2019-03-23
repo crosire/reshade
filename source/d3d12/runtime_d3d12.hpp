@@ -67,7 +67,9 @@ namespace reshade::d3d12
 		com_ptr<ID3D12DescriptorHeap> _backbuffer_rtvs;
 		std::vector<com_ptr<ID3D12Resource>> _backbuffers;
 
+		UINT _swap_index = 0;
 		UINT _srv_handle_size = 0;
+		UINT _rtv_handle_size = 0;
 		D3D12_CPU_DESCRIPTOR_HANDLE _srv_cpu_handle = {};
 		D3D12_GPU_DESCRIPTOR_HANDLE _srv_gpu_handle = {};
 		com_ptr<ID3D12DescriptorHeap> _srvs;

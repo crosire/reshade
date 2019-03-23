@@ -73,18 +73,30 @@ bool reshade::d3d12::runtime_d3d12::init_backbuffer_textures(unsigned int num_bu
 			return false;
 	}
 
-	const unsigned int handle_size = _device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+	_rtv_handle_size = _device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 	D3D12_CPU_DESCRIPTOR_HANDLE handle = _backbuffer_rtvs->GetCPUDescriptorHandleForHeapStart();
 
 	_backbuffers.resize(num_buffers);
 
-	for (unsigned int i = 0; i < num_buffers; ++i, handle.ptr += handle_size)
+	for (unsigned int i = 0; i < num_buffers; ++i, handle.ptr += _rtv_handle_size)
 	{
 		if (HRESULT hr = _swapchain->GetBuffer(i, IID_PPV_ARGS(&_backbuffers[i])); FAILED(hr))
 			return false;
 
 		_device->CreateRenderTargetView(_backbuffers[i].get(), nullptr, handle);
 	}
+
+
+	{   D3D12_DESCRIPTOR_HEAP_DESC desc = { D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV };
+		desc.NumDescriptors = 100;
+		desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+		if (FAILED(_device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&_srvs))))
+			return false;
+	}
+
+	_srv_cpu_handle = _srvs->GetCPUDescriptorHandleForHeapStart();
+	_srv_gpu_handle = _srvs->GetGPUDescriptorHandleForHeapStart();
+	_srv_handle_size = _device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
 
 	_screenshot_event = CreateEvent(nullptr, FALSE, FALSE, nullptr);
@@ -109,17 +121,6 @@ bool reshade::d3d12::runtime_d3d12::on_init(const DXGI_SWAP_CHAIN_DESC &desc)
 
 	if (FAILED(_device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&_cmd_alloc))))
 		return false;
-
-	{   D3D12_DESCRIPTOR_HEAP_DESC desc = { D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV };
-		desc.NumDescriptors = 100;
-		desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
-		if (FAILED(_device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&_srvs))))
-			return false;
-	}
-
-	_srv_cpu_handle = _srvs->GetCPUDescriptorHandleForHeapStart();
-	_srv_gpu_handle = _srvs->GetGPUDescriptorHandleForHeapStart();
-	_srv_handle_size = _device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
 	if (!init_backbuffer_textures(desc.BufferCount)
 #if RESHADE_GUI
@@ -161,6 +162,8 @@ void reshade::d3d12::runtime_d3d12::on_present()
 {
 	if (!_is_initialized)
 		return;
+
+	_swap_index = _swapchain->GetCurrentBackBufferIndex();
 
 	update_and_render_effects();
 	runtime::on_present();
@@ -867,7 +870,7 @@ void reshade::d3d12::runtime_d3d12::render_imgui_draw_data(ImDrawData *draw_data
 
 	// Create and grow vertex/index buffers if needed
 	const unsigned int resource_index = _framecount % 3;
-	if (_imgui_index_buffer_size[resource_index] < draw_data->TotalIdxCount)
+	if (_imgui_index_buffer_size[resource_index] < UINT(draw_data->TotalIdxCount))
 	{
 		_imgui_index_buffer[resource_index].reset();
 
@@ -886,7 +889,7 @@ void reshade::d3d12::runtime_d3d12::render_imgui_draw_data(ImDrawData *draw_data
 
 		_imgui_index_buffer_size[resource_index] = new_size;
 	}
-	if (_imgui_vertex_buffer_size[resource_index] < draw_data->TotalVtxCount)
+	if (_imgui_vertex_buffer_size[resource_index] < UINT(draw_data->TotalVtxCount))
 	{
 		_imgui_vertex_buffer[resource_index].reset();
 
@@ -923,13 +926,21 @@ void reshade::d3d12::runtime_d3d12::render_imgui_draw_data(ImDrawData *draw_data
 	_imgui_index_buffer[resource_index]->Unmap(0, nullptr);
 	_imgui_vertex_buffer[resource_index]->Unmap(0, nullptr);
 
+	// Transition render target
+	D3D12_RESOURCE_BARRIER barrier = { D3D12_RESOURCE_BARRIER_TYPE_TRANSITION };
+	barrier.Transition.pResource = _backbuffers[_swap_index].get();
+	barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+	barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_PRESENT;
+	barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET;
+	cmd_list->ResourceBarrier(1, &barrier);
+
 	// Setup orthographic projection matrix
 	const float ortho_projection[16] = {
 		2.0f / draw_data->DisplaySize.x, 0.0f,  0.0f, 0.0f,
 		0.0f, -2.0f / draw_data->DisplaySize.y, 0.0f, 0.0f,
 		0.0f,                            0.0f,  0.5f, 0.0f,
-		(2 * draw_data->DisplayPos.x + draw_data->DisplaySize.x) / -draw_data->DisplaySize.x,
-		(2 * draw_data->DisplayPos.y + draw_data->DisplaySize.y) / -draw_data->DisplaySize.y, 0.5f, 1.0f,
+		-(2 * draw_data->DisplayPos.x + draw_data->DisplaySize.x) / draw_data->DisplaySize.x,
+		+(2 * draw_data->DisplayPos.y + draw_data->DisplaySize.y) / draw_data->DisplaySize.y, 0.5f, 1.0f,
 	};
 
 	// Setup render state and render draw lists
@@ -946,6 +957,8 @@ void reshade::d3d12::runtime_d3d12::render_imgui_draw_data(ImDrawData *draw_data
 	cmd_list->RSSetViewports(1, &viewport);
 	const FLOAT blend_factor[4] = { 0.f, 0.f, 0.f, 0.f };
 	cmd_list->OMSetBlendFactor(blend_factor);
+	D3D12_CPU_DESCRIPTOR_HANDLE render_target = { _backbuffer_rtvs->GetCPUDescriptorHandleForHeapStart().ptr + _swap_index * _rtv_handle_size };
+	cmd_list->OMSetRenderTargets(1, &render_target, false, nullptr);
 	ID3D12DescriptorHeap *const descriptor_heaps[] = { _srvs.get() };
 	cmd_list->SetDescriptorHeaps(1, descriptor_heaps);
 
@@ -977,6 +990,11 @@ void reshade::d3d12::runtime_d3d12::render_imgui_draw_data(ImDrawData *draw_data
 
 		vtx_offset += draw_list->VtxBuffer.Size;
 	}
+
+	// Transition render target back to previous state
+	barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
+	barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
+	cmd_list->ResourceBarrier(1, &barrier);
 
 	cmd_list->Close();
 	execute_command_list_async(cmd_list);
