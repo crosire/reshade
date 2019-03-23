@@ -17,9 +17,9 @@ namespace reshade::d3d12
 	struct d3d12_tex_data : base_object
 	{
 		com_ptr<ID3D12Resource> resource;
-		D3D12_CPU_DESCRIPTOR_HANDLE rtv[2];
-		D3D12_CPU_DESCRIPTOR_HANDLE srv[2];
-		D3D12_GPU_DESCRIPTOR_HANDLE srv_gpu[2];
+		D3D12_CPU_DESCRIPTOR_HANDLE rtv_cpu_handle[2];
+		D3D12_CPU_DESCRIPTOR_HANDLE srv_cpu_handle[2];
+		D3D12_GPU_DESCRIPTOR_HANDLE srv_gpu_handle[2];
 	};
 	struct d3d12_pass_data : base_object
 	{
@@ -65,6 +65,37 @@ reshade::d3d12::runtime_d3d12::~runtime_d3d12()
 		FreeLibrary(_d3d_compiler);
 }
 
+bool reshade::d3d12::runtime_d3d12::init_backbuffer_textures(unsigned int num_buffers)
+{
+	{   D3D12_DESCRIPTOR_HEAP_DESC desc = { D3D12_DESCRIPTOR_HEAP_TYPE_RTV };
+		desc.NumDescriptors = num_buffers;
+		if (HRESULT hr = _device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&_backbuffer_rtvs)); FAILED(hr))
+			return false;
+	}
+
+	const unsigned int handle_size = _device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+	D3D12_CPU_DESCRIPTOR_HANDLE handle = _backbuffer_rtvs->GetCPUDescriptorHandleForHeapStart();
+
+	_backbuffers.resize(num_buffers);
+
+	for (unsigned int i = 0; i < num_buffers; ++i, handle.ptr += handle_size)
+	{
+		if (HRESULT hr = _swapchain->GetBuffer(i, IID_PPV_ARGS(&_backbuffers[i])); FAILED(hr))
+			return false;
+
+		_device->CreateRenderTargetView(_backbuffers[i].get(), nullptr, handle);
+	}
+
+
+	_screenshot_event = CreateEvent(nullptr, FALSE, FALSE, nullptr);
+	if (_screenshot_event == nullptr)
+		return false;
+	if (HRESULT hr = _device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&_screenshot_fence)); FAILED(hr))
+		return false;
+
+	return true;
+}
+
 bool reshade::d3d12::runtime_d3d12::on_init(const DXGI_SWAP_CHAIN_DESC &desc)
 {
 	RECT window_rect = {};
@@ -76,9 +107,23 @@ bool reshade::d3d12::runtime_d3d12::on_init(const DXGI_SWAP_CHAIN_DESC &desc)
 	_window_height = window_rect.bottom - window_rect.top;
 	_backbuffer_format = desc.BufferDesc.Format;
 
-	if (
+	if (FAILED(_device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&_cmd_alloc))))
+		return false;
+
+	{   D3D12_DESCRIPTOR_HEAP_DESC desc = { D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV };
+		desc.NumDescriptors = 100;
+		desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+		if (FAILED(_device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&_srvs))))
+			return false;
+	}
+
+	_srv_cpu_handle = _srvs->GetCPUDescriptorHandleForHeapStart();
+	_srv_gpu_handle = _srvs->GetGPUDescriptorHandleForHeapStart();
+	_srv_handle_size = _device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+
+	if (!init_backbuffer_textures(desc.BufferCount)
 #if RESHADE_GUI
-		!init_imgui_resources()
+		|| !init_imgui_resources()
 #endif
 		)
 		return false;
@@ -89,6 +134,15 @@ void reshade::d3d12::runtime_d3d12::on_reset()
 {
 	runtime::on_reset();
 
+	_cmd_alloc.reset();
+
+	_backbuffers.clear();
+	_backbuffer_rtvs.reset();
+
+	_screenshot_fence.reset();
+	CloseHandle(_screenshot_event);
+
+#if RESHADE_GUI
 	for (unsigned int resource_index = 0; resource_index < 3; ++resource_index)
 	{
 		_imgui_index_buffer_size[resource_index] = 0;
@@ -100,6 +154,7 @@ void reshade::d3d12::runtime_d3d12::on_reset()
 	_imgui_cmd_list.reset();
 	_imgui_pipeline.reset();
 	_imgui_signature.reset();
+#endif
 }
 
 void reshade::d3d12::runtime_d3d12::on_present()
@@ -113,6 +168,82 @@ void reshade::d3d12::runtime_d3d12::on_present()
 
 void reshade::d3d12::runtime_d3d12::capture_screenshot(uint8_t *buffer) const
 {
+	const uint32_t data_pitch = _width * 4;
+	const uint32_t download_pitch = (data_pitch + D3D12_TEXTURE_DATA_PITCH_ALIGNMENT - 1u) & ~(D3D12_TEXTURE_DATA_PITCH_ALIGNMENT - 1u);
+
+	D3D12_RESOURCE_DESC desc = { D3D12_RESOURCE_DIMENSION_BUFFER };
+	desc.Width = _height * download_pitch;
+	desc.Height = 1;
+	desc.DepthOrArraySize = 1;
+	desc.MipLevels = 1;
+	desc.SampleDesc = { 1, 0 };
+	desc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+	D3D12_HEAP_PROPERTIES props = { D3D12_HEAP_TYPE_READBACK };
+
+	com_ptr<ID3D12Resource> intermediate;
+	if (FAILED(_device->CreateCommittedResource(&props, D3D12_HEAP_FLAG_NONE, &desc, D3D12_RESOURCE_STATE_COPY_DEST, nullptr, IID_PPV_ARGS(&intermediate))))
+	{
+		LOG(ERROR) << "Failed to create system memory texture for screenshot capture!";
+		return;
+	}
+
+	const UINT swap_index = _swapchain->GetCurrentBackBufferIndex();
+
+	com_ptr<ID3D12GraphicsCommandList> cmd_list;
+	_device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, _cmd_alloc.get(), nullptr, IID_PPV_ARGS(&cmd_list));
+
+	{ // Perform layout transition to allow subsequent copy
+		D3D12_RESOURCE_BARRIER transition = { D3D12_RESOURCE_BARRIER_TYPE_TRANSITION };
+		transition.Transition.pResource = _backbuffers[swap_index].get();
+		transition.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+		transition.Transition.StateBefore = D3D12_RESOURCE_STATE_PRESENT;
+		transition.Transition.StateAfter = D3D12_RESOURCE_STATE_COPY_SOURCE;
+		cmd_list->ResourceBarrier(1, &transition);
+	}
+
+	{ // Copy data from upload buffer into target texture
+		D3D12_TEXTURE_COPY_LOCATION src_location = { _backbuffers[swap_index].get() };
+		src_location.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
+		src_location.SubresourceIndex = 0;
+
+		D3D12_TEXTURE_COPY_LOCATION dst_location = { intermediate.get() };
+		dst_location.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
+		dst_location.PlacedFootprint.Footprint.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+		dst_location.PlacedFootprint.Footprint.Width = _width;
+		dst_location.PlacedFootprint.Footprint.Height = _height;
+		dst_location.PlacedFootprint.Footprint.Depth = 1;
+		dst_location.PlacedFootprint.Footprint.RowPitch = download_pitch;
+
+		cmd_list->CopyTextureRegion(&dst_location, 0, 0, 0, &src_location, nullptr);
+	}
+
+	{ // Perform layout transition back to shader resource after the copy
+		D3D12_RESOURCE_BARRIER transition = { D3D12_RESOURCE_BARRIER_TYPE_TRANSITION };
+		transition.Transition.pResource = _backbuffers[swap_index].get();
+		transition.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+		transition.Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_SOURCE;
+		transition.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
+		cmd_list->ResourceBarrier(1, &transition);
+	}
+
+	if (FAILED(cmd_list->Close()))
+		return;
+
+	execute_command_list(cmd_list); // Execute and wait for completion
+
+	BYTE *mapped_data;
+	if (FAILED(intermediate->Map(0, nullptr, reinterpret_cast<void **>(&mapped_data))))
+		return;
+
+	for (uint32_t y = 0; y < _height; y++, buffer += data_pitch, mapped_data += download_pitch)
+	{
+		std::memcpy(buffer, mapped_data, data_pitch);
+
+		for (uint32_t x = 0; x < data_pitch; x += 4)
+			buffer[x + 3] = 0xFF; // Clear alpha channel
+	}
+
+	intermediate->Unmap(0, nullptr);
 }
 
 bool reshade::d3d12::runtime_d3d12::init_texture(texture &info)
@@ -130,6 +261,7 @@ bool reshade::d3d12::runtime_d3d12::init_texture(texture &info)
 	desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
 	desc.SampleDesc = { 1, 0 };
 	desc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+	desc.Flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
 
 	switch (info.format)
 	{
@@ -187,7 +319,7 @@ bool reshade::d3d12::runtime_d3d12::init_texture(texture &info)
 
 	const auto texture_data = info.impl->as<d3d12_tex_data>();
 
-	if (HRESULT hr = _device->CreateCommittedResource(&props, D3D12_HEAP_FLAG_NONE, &desc, D3D12_RESOURCE_STATE_COPY_DEST, nullptr, IID_PPV_ARGS(&texture_data->resource)); FAILED(hr))
+	if (HRESULT hr = _device->CreateCommittedResource(&props, D3D12_HEAP_FLAG_NONE, &desc, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, nullptr, IID_PPV_ARGS(&texture_data->resource)); FAILED(hr))
 	{
 		LOG(ERROR) << "Failed to create texture '" << info.unique_name << "' ("
 			"Width = " << desc.Width << ", "
@@ -203,17 +335,22 @@ bool reshade::d3d12::runtime_d3d12::init_texture(texture &info)
 	srv_desc.Texture2D.MipLevels = desc.MipLevels;
 	srv_desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
 
-	_device->CreateShaderResourceView(texture_data->resource.get(), &srv_desc, texture_data->srv[0]);
+	texture_data->srv_cpu_handle[0] = _srv_cpu_handle; _srv_cpu_handle.ptr += _srv_handle_size;
+	texture_data->srv_gpu_handle[0] = _srv_gpu_handle; _srv_gpu_handle.ptr += _srv_handle_size;
+	_device->CreateShaderResourceView(texture_data->resource.get(), &srv_desc, texture_data->srv_cpu_handle[0]);
 		
 	srv_desc.Format = make_dxgi_format_srgb(desc.Format);
 
 	if (srv_desc.Format != desc.Format)
 	{
-		_device->CreateShaderResourceView(texture_data->resource.get(), &srv_desc, texture_data->srv[1]);
+		texture_data->srv_cpu_handle[1] = _srv_cpu_handle; _srv_cpu_handle.ptr += _srv_handle_size;
+		texture_data->srv_gpu_handle[1] = _srv_gpu_handle; _srv_gpu_handle.ptr += _srv_handle_size;
+		_device->CreateShaderResourceView(texture_data->resource.get(), &srv_desc, texture_data->srv_cpu_handle[1]);
 	}
 	else
 	{
-		texture_data->srv[1] = texture_data->srv[0];
+		texture_data->srv_cpu_handle[1] = texture_data->srv_cpu_handle[0];
+		texture_data->srv_gpu_handle[1] = texture_data->srv_gpu_handle[0];
 	}
 
 	return true;
@@ -222,45 +359,58 @@ void reshade::d3d12::runtime_d3d12::upload_texture(texture &texture, const uint8
 {
 	assert(texture.impl_reference == texture_reference::none);
 
+	const uint32_t data_pitch = texture.width * 4;
+	const uint32_t upload_pitch = (data_pitch + D3D12_TEXTURE_DATA_PITCH_ALIGNMENT - 1u) & ~(D3D12_TEXTURE_DATA_PITCH_ALIGNMENT - 1u);
+
+	D3D12_RESOURCE_DESC desc = { D3D12_RESOURCE_DIMENSION_BUFFER };
+	desc.Width = texture.height * upload_pitch;
+	desc.Height = 1;
+	desc.DepthOrArraySize = 1;
+	desc.MipLevels = 1;
+	desc.SampleDesc = { 1, 0 };
+	desc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+	D3D12_HEAP_PROPERTIES props = { D3D12_HEAP_TYPE_UPLOAD };
+
+	com_ptr<ID3D12Resource> intermediate;
+	if (FAILED(_device->CreateCommittedResource(&props, D3D12_HEAP_FLAG_NONE, &desc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&intermediate))))
+	{
+		LOG(ERROR) << "Failed to create system memory texture for texture updating!";
+		return;
+	}
+
+	// Fill upload buffer with pixel data
+	uint8_t *mapped_data;
+	if (FAILED(intermediate->Map(0, nullptr, reinterpret_cast<void **>(&mapped_data))))
+		return;
+
+	switch (texture.format)
+	{
+	case reshadefx::texture_format::r8:
+		for (uint32_t y = 0; y < texture.height; ++y, mapped_data += upload_pitch, pixels += data_pitch)
+			for (uint32_t x = 0; x < texture.width; ++x)
+				mapped_data[x] = pixels[x * 4];
+		break;
+	case reshadefx::texture_format::rg8:
+		for (uint32_t y = 0; y < texture.height; ++y, mapped_data += upload_pitch, pixels += data_pitch)
+			for (uint32_t x = 0; x < texture.width; ++x)
+				mapped_data[x * 2 + 0] = pixels[x * 4 + 0],
+				mapped_data[x * 2 + 1] = pixels[x * 4 + 1];
+		break;
+	case reshadefx::texture_format::rgba8:
+		for (uint32_t y = 0; y < texture.height; ++y, mapped_data += upload_pitch, pixels += data_pitch)
+			memcpy(mapped_data, pixels, data_pitch);
+		break;
+	default:
+		LOG(ERROR) << "Texture upload is not supported for format " << static_cast<unsigned int>(texture.format) << '!';
+		break;
+	}
+
+	intermediate->Unmap(0, nullptr);
+
 	const auto texture_impl = texture.impl->as<d3d12_tex_data>();
 
 	assert(pixels != nullptr);
 	assert(texture_impl != nullptr);
-
-	unsigned int num_components = 4;
-	switch (texture.format)
-	{
-	case reshadefx::texture_format::r8:
-		num_components = 1; break;
-	case reshadefx::texture_format::rg8:
-		num_components = 2; break;
-	}
-
-	const UINT upload_pitch = (texture.width * num_components + D3D12_TEXTURE_DATA_PITCH_ALIGNMENT - 1u) & ~(D3D12_TEXTURE_DATA_PITCH_ALIGNMENT - 1u);
-
-	D3D12_RESOURCE_DESC desc = texture_impl->resource->GetDesc();
-	desc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
-	desc.Width = desc.Height * upload_pitch;
-	desc.Height = desc.DepthOrArraySize = desc.MipLevels = 1;
-	DXGI_FORMAT format = desc.Format;
-	desc.Format = DXGI_FORMAT_UNKNOWN;
-	desc.Flags = D3D12_RESOURCE_FLAG_NONE;
-	desc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
-
-	D3D12_HEAP_PROPERTIES props = { D3D12_HEAP_TYPE_UPLOAD };
-
-	com_ptr<ID3D12Resource> intermediate;
-
-	if (FAILED(_device->CreateCommittedResource(&props, D3D12_HEAP_FLAG_NONE, &desc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&intermediate))))
-		return;
-
-	// Fill upload buffer with pixel data
-	if (uint8_t *mapped; FAILED(intermediate->Map(0, nullptr, reinterpret_cast<void **>(&mapped))))
-		return;
-	else
-		for (uint32_t y = 0; y < texture.width; y++)
-			memcpy(mapped + y * upload_pitch, pixels + y * texture.width * num_components, texture.width * num_components);
-	intermediate->Unmap(0, nullptr);
 
 	com_ptr<ID3D12GraphicsCommandList> cmd_list;
 	_device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, _cmd_alloc.get(), nullptr, IID_PPV_ARGS(&cmd_list));
@@ -277,7 +427,7 @@ void reshade::d3d12::runtime_d3d12::upload_texture(texture &texture, const uint8
 	{ // Copy data from upload buffer into target texture
 		D3D12_TEXTURE_COPY_LOCATION src_location = { intermediate.get() };
 		src_location.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
-		src_location.PlacedFootprint.Footprint.Format = format;
+		src_location.PlacedFootprint.Footprint.Format = texture_impl->resource->GetDesc().Format;
 		src_location.PlacedFootprint.Footprint.Width = texture.width;
 		src_location.PlacedFootprint.Footprint.Height = texture.height;
 		src_location.PlacedFootprint.Footprint.Depth = 1;
@@ -309,6 +459,7 @@ bool reshade::d3d12::runtime_d3d12::update_texture_reference(texture &texture)
 
 bool reshade::d3d12::runtime_d3d12::compile_effect(effect_data &effect)
 {
+	return false;
 	if (_d3d_compiler == nullptr)
 		_d3d_compiler = LoadLibraryW(L"d3dcompiler_47.dll");
 
@@ -434,14 +585,14 @@ bool reshade::d3d12::runtime_d3d12::init_technique(technique &technique, const d
 			rtvdesc.Format = pass_info.srgb_write_enable ? make_dxgi_format_srgb(desc.Format) : make_dxgi_format_normal(desc.Format);
 			rtvdesc.ViewDimension = desc.SampleDesc.Count > 1 ? D3D12_RTV_DIMENSION_TEXTURE2DMS : D3D12_RTV_DIMENSION_TEXTURE2D;
 
-			if (!texture_impl->rtv[target_index].ptr)
+			if (!texture_impl->rtv_cpu_handle[target_index].ptr)
 			{
 				// TODO Init descriptor
 
-				_device->CreateRenderTargetView(texture_impl->resource.get(), &rtvdesc, texture_impl->rtv[target_index]);
+				_device->CreateRenderTargetView(texture_impl->resource.get(), &rtvdesc, texture_impl->rtv_cpu_handle[target_index]);
 			}
 
-			pass.render_targets[k] = texture_impl->rtv[target_index];
+			pass.render_targets[k] = texture_impl->rtv_cpu_handle[target_index];
 		}
 
 		if (pass.viewport.Width == 0)
@@ -551,6 +702,7 @@ bool reshade::d3d12::runtime_d3d12::init_technique(technique &technique, const d
 
 void reshade::d3d12::runtime_d3d12::render_technique(technique &technique)
 {
+	return;
 	bool is_default_depthstencil_cleared = false;
 
 	com_ptr<ID3D12GraphicsCommandList> cmd_list;
@@ -606,7 +758,7 @@ void reshade::d3d12::runtime_d3d12::render_technique(technique &technique)
 		_drawcalls += 1;
 	}
 
-	execute_command_list(cmd_list);
+	execute_command_list_async(cmd_list);
 }
 
 #if RESHADE_GUI
@@ -670,7 +822,7 @@ bool reshade::d3d12::runtime_d3d12::init_imgui_resources()
 	pso_desc.NodeMask = 1;
 
 	{   const resources::data_resource vs = resources::load_data_resource(IDR_RCDATA3);
-		pso_desc.PS = { vs.data, vs.data_size };
+		pso_desc.VS = { vs.data, vs.data_size };
 
 		static const D3D12_INPUT_ELEMENT_DESC input_layout[] = {
 			{ "POSITION", 0, DXGI_FORMAT_R32G32_FLOAT,   0, offsetof(ImDrawVert, pos), D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
@@ -711,39 +863,47 @@ bool reshade::d3d12::runtime_d3d12::init_imgui_resources()
 void reshade::d3d12::runtime_d3d12::render_imgui_draw_data(ImDrawData *draw_data)
 {
 	com_ptr<ID3D12GraphicsCommandList> &cmd_list = _imgui_cmd_list;
-	cmd_list->Reset(_cmd_alloc.get(), nullptr);
+	cmd_list->Reset(_cmd_alloc.get(), _imgui_pipeline.get());
 
 	// Create and grow vertex/index buffers if needed
 	const unsigned int resource_index = _framecount % 3;
 	if (_imgui_index_buffer_size[resource_index] < draw_data->TotalIdxCount)
 	{
 		_imgui_index_buffer[resource_index].reset();
-		_imgui_index_buffer_size[resource_index] = draw_data->TotalIdxCount + 10000;
 
+		const UINT new_size = draw_data->TotalIdxCount + 10000;
 		D3D12_RESOURCE_DESC desc = { D3D12_RESOURCE_DIMENSION_BUFFER };
-		desc.Width = _imgui_index_buffer_size[resource_index] * sizeof(ImDrawIdx);
-		desc.Height = desc.DepthOrArraySize = desc.MipLevels = 1;
-		desc.SampleDesc.Count = 1;
+		desc.Width = new_size * sizeof(ImDrawIdx);
+		desc.Height = 1;
+		desc.DepthOrArraySize = 1;
+		desc.MipLevels = 1;
+		desc.SampleDesc = { 1, 0 };
 		desc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
-
 		D3D12_HEAP_PROPERTIES props = { D3D12_HEAP_TYPE_UPLOAD };
+
 		if (FAILED(_device->CreateCommittedResource(&props, D3D12_HEAP_FLAG_NONE, &desc, D3D12_RESOURCE_STATE_GENERIC_READ, NULL, IID_PPV_ARGS(&_imgui_index_buffer[resource_index]))))
 			return;
+
+		_imgui_index_buffer_size[resource_index] = new_size;
 	}
 	if (_imgui_vertex_buffer_size[resource_index] < draw_data->TotalVtxCount)
 	{
 		_imgui_vertex_buffer[resource_index].reset();
-		_imgui_vertex_buffer_size[resource_index] = draw_data->TotalVtxCount + 5000;
 
+		const UINT new_size = draw_data->TotalVtxCount + 5000;
 		D3D12_RESOURCE_DESC desc = { D3D12_RESOURCE_DIMENSION_BUFFER };
-		desc.Width = _imgui_vertex_buffer_size[resource_index] * sizeof(ImDrawVert);
-		desc.Height = desc.DepthOrArraySize = desc.MipLevels = 1;
-		desc.SampleDesc.Count = 1;
+		desc.Width = new_size * sizeof(ImDrawVert);
+		desc.Height = 1;
+		desc.DepthOrArraySize = 1;
+		desc.MipLevels = 1;
+		desc.SampleDesc = { 1, 0 };
 		desc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
-
 		D3D12_HEAP_PROPERTIES props = { D3D12_HEAP_TYPE_UPLOAD };
+
 		if (FAILED(_device->CreateCommittedResource(&props, D3D12_HEAP_FLAG_NONE, &desc, D3D12_RESOURCE_STATE_GENERIC_READ, NULL, IID_PPV_ARGS(&_imgui_vertex_buffer[resource_index]))))
 			return;
+
+		_imgui_vertex_buffer_size[resource_index] = new_size;
 	}
 
 	ImDrawIdx *idx_dst; ImDrawVert *vtx_dst;
@@ -780,13 +940,14 @@ void reshade::d3d12::runtime_d3d12::render_imgui_draw_data(ImDrawData *draw_data
 		_imgui_vertex_buffer[resource_index]->GetGPUVirtualAddress(), _imgui_vertex_buffer_size[resource_index] * sizeof(ImDrawVert),  sizeof(ImDrawVert) };
 	cmd_list->IASetVertexBuffers(0, 1, &vertex_buffer_view);
 	cmd_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-	cmd_list->SetPipelineState(_imgui_pipeline.get());
 	cmd_list->SetGraphicsRootSignature(_imgui_signature.get());
 	cmd_list->SetGraphicsRoot32BitConstants(0, sizeof(ortho_projection) / 4, ortho_projection, 0);
 	const D3D12_VIEWPORT viewport = { 0, 0, draw_data->DisplaySize.x, draw_data->DisplaySize.y, 0.0f, 1.0f };
 	cmd_list->RSSetViewports(1, &viewport);
 	const FLOAT blend_factor[4] = { 0.f, 0.f, 0.f, 0.f };
 	cmd_list->OMSetBlendFactor(blend_factor);
+	ID3D12DescriptorHeap *const descriptor_heaps[] = { _srvs.get() };
+	cmd_list->SetDescriptorHeaps(1, descriptor_heaps);
 
 	UINT vtx_offset = 0, idx_offset = 0;
 	for (int n = 0; n < draw_data->CmdListsCount; ++n)
@@ -806,7 +967,7 @@ void reshade::d3d12::runtime_d3d12::render_imgui_draw_data(ImDrawData *draw_data
 			cmd_list->RSSetScissorRects(1, &scissor_rect);
 
 			const D3D12_GPU_DESCRIPTOR_HANDLE descriptor_handle =
-				static_cast<const d3d12_tex_data *>(cmd.TextureId)->srv_gpu[0];
+				static_cast<const d3d12_tex_data *>(cmd.TextureId)->srv_gpu_handle[0];
 			cmd_list->SetGraphicsRootDescriptorTable(1, descriptor_handle);
 
 			cmd_list->DrawIndexedInstanced(cmd.ElemCount, 1, idx_offset, vtx_offset, 0);
@@ -818,6 +979,6 @@ void reshade::d3d12::runtime_d3d12::render_imgui_draw_data(ImDrawData *draw_data
 	}
 
 	cmd_list->Close();
-	execute_command_list(cmd_list);
+	execute_command_list_async(cmd_list);
 }
 #endif
