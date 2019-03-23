@@ -401,6 +401,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 		hooks::register_module(get_system_path() / "d3d10.dll");
 		hooks::register_module(get_system_path() / "d3d10_1.dll");
 		hooks::register_module(get_system_path() / "d3d11.dll");
+		hooks::register_module(get_system_path() / "d3d12.dll");
 		hooks::register_module(get_system_path() / "dxgi.dll");
 		hooks::register_module(get_system_path() / "opengl32.dll");
 
