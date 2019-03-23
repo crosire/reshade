@@ -111,7 +111,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 
 		while (msg.message != WM_QUIT)
 		{
-			while (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE))
+			while (msg.message != WM_QUIT &&
+				PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE))
 				DispatchMessage(&msg);
 
 			if (s_resize_w != 0)
@@ -167,7 +168,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 
 		while (msg.message != WM_QUIT)
 		{
-			while (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE))
+			while (msg.message != WM_QUIT &&
+				PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE))
 				DispatchMessage(&msg);
 
 			if (s_resize_w != 0)
@@ -283,7 +285,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 
 		while (msg.message != WM_QUIT)
 		{
-			while (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE))
+			while (msg.message != WM_QUIT &&
+				PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE))
 				DispatchMessage(&msg);
 
 			const UINT swap_index = swapchain->GetCurrentBackBufferIndex();
@@ -339,7 +342,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 
 		while (msg.message != WM_QUIT)
 		{
-			while (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE))
+			while (msg.message != WM_QUIT &&
+				PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE))
 				DispatchMessage(&msg);
 
 			if (s_resize_w != 0)
