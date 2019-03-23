@@ -322,22 +322,24 @@ void reshade::d3d10::runtime_d3d10::on_present(draw_call_tracker &tracker)
 	{
 		_device->CopyResource(_backbuffer_texture.get(), _backbuffer_resolved.get());
 
-		_device->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 		_device->IASetInputLayout(nullptr);
 		const uintptr_t null = 0;
 		_device->IASetVertexBuffers(0, 1, reinterpret_cast<ID3D10Buffer *const *>(&null), reinterpret_cast<const UINT *>(&null), reinterpret_cast<const UINT *>(&null));
+		_device->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 		_device->VSSetShader(_copy_vertex_shader.get());
 		_device->GSSetShader(nullptr);
-		_device->RSSetState(_effect_rasterizer_state.get());
 		_device->PSSetShader(_copy_pixel_shader.get());
-		const auto sst = _copy_sampler.get();
-		_device->PSSetSamplers(0, 1, &sst);
-		const auto srv = _backbuffer_texture_srv[make_dxgi_format_srgb(_backbuffer_format) == _backbuffer_format].get();
-		_device->PSSetShaderResources(0, 1, &srv);
+		ID3D10SamplerState *const samplers[] = { _copy_sampler.get() };
+		_device->PSSetSamplers(0, ARRAYSIZE(samplers), samplers);
+		ID3D10ShaderResourceView *const srvs[] = { _backbuffer_texture_srv[make_dxgi_format_srgb(_backbuffer_format) == _backbuffer_format].get() };
+		_device->PSSetShaderResources(0, ARRAYSIZE(srvs), srvs);
+		_device->RSSetState(_effect_rasterizer_state.get());
+		const D3D10_VIEWPORT viewport = { 0, 0, _width, _height, 0.0f, 1.0f };
+		_device->RSSetViewports(1, &viewport);
 		_device->OMSetBlendState(nullptr, nullptr, D3D10_DEFAULT_SAMPLE_MASK);
 		_device->OMSetDepthStencilState(nullptr, D3D10_DEFAULT_STENCIL_REFERENCE);
-		const auto rtv = _backbuffer_rtv[2].get();
-		_device->OMSetRenderTargets(1, &rtv, nullptr);
+		ID3D10RenderTargetView *const render_targets[] = { _backbuffer_rtv[2].get() };
+		_device->OMSetRenderTargets(ARRAYSIZE(render_targets), render_targets, nullptr);
 
 		_device->Draw(3, 0);
 	}

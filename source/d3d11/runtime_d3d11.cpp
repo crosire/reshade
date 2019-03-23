@@ -330,24 +330,26 @@ void reshade::d3d11::runtime_d3d11::on_present(draw_call_tracker &tracker)
 	{
 		_immediate_context->CopyResource(_backbuffer_texture.get(), _backbuffer_resolved.get());
 
-		_immediate_context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 		_immediate_context->IASetInputLayout(nullptr);
 		const uintptr_t null = 0;
 		_immediate_context->IASetVertexBuffers(0, 1, reinterpret_cast<ID3D11Buffer *const *>(&null), reinterpret_cast<const UINT *>(&null), reinterpret_cast<const UINT *>(&null));
+		_immediate_context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 		_immediate_context->VSSetShader(_copy_vertex_shader.get(), nullptr, 0);
 		_immediate_context->HSSetShader(nullptr, nullptr, 0);
 		_immediate_context->DSSetShader(nullptr, nullptr, 0);
 		_immediate_context->GSSetShader(nullptr, nullptr, 0);
-		_immediate_context->RSSetState(_effect_rasterizer_state.get());
 		_immediate_context->PSSetShader(_copy_pixel_shader.get(), nullptr, 0);
-		const auto sst = _copy_sampler.get();
-		_immediate_context->PSSetSamplers(0, 1, &sst);
-		const auto srv = _backbuffer_texture_srv[make_dxgi_format_srgb(_backbuffer_format) == _backbuffer_format].get();
-		_immediate_context->PSSetShaderResources(0, 1, &srv);
+		ID3D11SamplerState *const samplers[] = { _copy_sampler.get() };
+		_immediate_context->PSSetSamplers(0, ARRAYSIZE(samplers), samplers);
+		ID3D11ShaderResourceView *const srvs[] = { _backbuffer_texture_srv[make_dxgi_format_srgb(_backbuffer_format) == _backbuffer_format].get() };
+		_immediate_context->PSSetShaderResources(0, ARRAYSIZE(srvs), srvs);
+		_immediate_context->RSSetState(_effect_rasterizer_state.get());
+		const D3D11_VIEWPORT viewport = { 0, 0, FLOAT(_width), FLOAT(_height), 0.0f, 1.0f };
+		_immediate_context->RSSetViewports(1, &viewport);
 		_immediate_context->OMSetBlendState(nullptr, nullptr, D3D11_DEFAULT_SAMPLE_MASK);
 		_immediate_context->OMSetDepthStencilState(nullptr, D3D11_DEFAULT_STENCIL_REFERENCE);
-		const auto rtv = _backbuffer_rtv[2].get();
-		_immediate_context->OMSetRenderTargets(1, &rtv, nullptr);
+		ID3D11RenderTargetView *const render_targets[] = { _backbuffer_rtv[2].get() };
+		_immediate_context->OMSetRenderTargets(ARRAYSIZE(render_targets), render_targets, nullptr);
 
 		_immediate_context->Draw(3, 0);
 	}
