@@ -384,21 +384,23 @@ void reshade::d3d9::runtime_d3d9::capture_screenshot(uint8_t *buffer) const
 	}
 
 	// Create a surface in system memory, copy back buffer data into it and lock it for reading
-	D3DLOCKED_RECT mapped_rect;
 	com_ptr<IDirect3DSurface9> intermediate;
-	if (FAILED(_device->CreateOffscreenPlainSurface(_width, _height, _backbuffer_format, D3DPOOL_SYSTEMMEM, &intermediate, nullptr)) ||
-		FAILED(_device->GetRenderTargetData(_backbuffer_resolved.get(), intermediate.get())) ||
-		FAILED(intermediate->LockRect(&mapped_rect, nullptr, D3DLOCK_READONLY)))
+	if (FAILED(_device->CreateOffscreenPlainSurface(_width, _height, _backbuffer_format, D3DPOOL_SYSTEMMEM, &intermediate, nullptr)))
 	{
-		LOG(ERROR) << "Failed to create and map system memory texture for screenshot capture!";
+		LOG(ERROR) << "Failed to create system memory texture for screenshot capture!";
 		return;
 	}
 
-	auto mapped_data = static_cast<BYTE *>(mapped_rect.pBits);
+	_device->GetRenderTargetData(_backbuffer_resolved.get(), intermediate.get());
 
-	for (UINT y = 0, pitch = _width * 4; y < _height; y++, buffer += pitch, mapped_data += mapped_rect.Pitch)
+	D3DLOCKED_RECT mapped;
+	if (FAILED(intermediate->LockRect(&mapped, nullptr, D3DLOCK_READONLY)))
+		return;
+	auto mapped_data = static_cast<BYTE *>(mapped.pBits);
+
+	for (UINT y = 0, pitch = _width * 4; y < _height; y++, buffer += pitch, mapped_data += mapped.Pitch)
 	{
-		std::memcpy(buffer, mapped_data, std::min(pitch, static_cast<UINT>(mapped_rect.Pitch)));
+		std::memcpy(buffer, mapped_data, pitch);
 
 		for (UINT x = 0; x < pitch; x += 4)
 		{
@@ -522,45 +524,48 @@ void reshade::d3d9::runtime_d3d9::update_texture(texture &texture, const uint8_t
 	const auto texture_impl = texture.impl->as<d3d9_tex_data>();
 	assert(texture_impl != nullptr);
 
-	D3DLOCKED_RECT mapped_rect;
 	D3DSURFACE_DESC desc; texture_impl->texture->GetLevelDesc(0, &desc); // Get D3D texture format
 	com_ptr<IDirect3DTexture9> intermediate;
-	if (FAILED(_device->CreateTexture(texture.width, texture.height, 1, 0, desc.Format, D3DPOOL_SYSTEMMEM, &intermediate, nullptr)) ||
-		FAILED(intermediate->LockRect(0, &mapped_rect, nullptr, 0)))
+	if (FAILED(_device->CreateTexture(texture.width, texture.height, 1, 0, desc.Format, D3DPOOL_SYSTEMMEM, &intermediate, nullptr)))
 	{
-		LOG(ERROR) << "Failed to create and map system memory texture for texture updating!";
+		LOG(ERROR) << "Failed to create system memory texture for texture updating!";
 		return;
 	}
 
-	const UINT size = std::min(texture.width * 4, static_cast<UINT>(mapped_rect.Pitch)) * texture.height;
+	D3DLOCKED_RECT mapped_rect;
+	if (FAILED(intermediate->LockRect(0, &mapped_rect, nullptr, 0)))
+		return;
 	auto mapped_data = static_cast<BYTE *>(mapped_rect.pBits);
 
-	switch (texture.format)
+	for (UINT y = 0, pitch = texture.width * 4; y < texture.height; ++y, mapped_data += mapped_rect.Pitch, pixels += pitch)
 	{
-	case reshadefx::texture_format::r8:
-		for (UINT i = 0; i < size; i += 4, mapped_data += 4)
-			mapped_data[0] = 0,
-			mapped_data[1] = 0,
-			mapped_data[2] = pixels[i],
-			mapped_data[3] = 0;
-		break;
-	case reshadefx::texture_format::rg8:
-		for (UINT i = 0; i < size; i += 4, mapped_data += 4)
-			mapped_data[0] = 0,
-			mapped_data[1] = pixels[i + 1],
-			mapped_data[2] = pixels[i],
-			mapped_data[3] = 0;
-		break;
-	case reshadefx::texture_format::rgba8:
-		for (UINT i = 0; i < size; i += 4, mapped_data += 4)
-			mapped_data[0] = pixels[i + 2],
-			mapped_data[1] = pixels[i + 1],
-			mapped_data[2] = pixels[i],
-			mapped_data[3] = pixels[i + 3];
-		break;
-	default:
-		std::memcpy(mapped_data, pixels, size);
-		break;
+		switch (texture.format)
+		{
+		case reshadefx::texture_format::r8: // These are actually D3DFMT_A8R8G8B8, see 'init_texture'
+			for (UINT x = 0; x < pitch; x += 4)
+				mapped_data[x + 0] = 0,
+				mapped_data[x + 1] = 0,
+				mapped_data[x + 2] = pixels[x + 0],
+				mapped_data[x + 3] = 0xFF;
+			break;
+		case reshadefx::texture_format::rg8:
+			for (UINT x = 0; x < pitch; x += 4)
+				mapped_data[x + 0] = 0,
+				mapped_data[x + 1] = pixels[x + 1],
+				mapped_data[x + 2] = pixels[x + 0],
+				mapped_data[x + 3] = 0xFF;
+			break;
+		case reshadefx::texture_format::rgba8:
+			for (UINT x = 0; x < pitch; x += 4)
+				mapped_data[x + 0] = pixels[x + 2], // Flip RGBA input to BGRA
+				mapped_data[x + 1] = pixels[x + 1],
+				mapped_data[x + 2] = pixels[x + 0],
+				mapped_data[x + 3] = pixels[x + 3];
+			break;
+		default:
+			std::memcpy(mapped_data, pixels, pitch);
+			break;
+		}
 	}
 
 	intermediate->UnlockRect(0);
