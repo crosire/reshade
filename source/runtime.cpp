@@ -490,16 +490,14 @@ void reshade::runtime::load_textures()
 
 		if (FILE *file; _wfopen_s(&file, source_path.wstring().c_str(), L"rb") == 0)
 		{
-			unsigned char *filebuffer = static_cast<unsigned char *>(malloc(static_cast<size_t>(st.st_size)));
-			assert(static_cast<size_t>(st.st_size) == fread(filebuffer, 1, static_cast<size_t>(st.st_size), file));
+			std::vector<uint8_t> filebuffer(static_cast<size_t>(st.st_size));
+			assert(filebuffer.size() == fread(filebuffer.data(), 1, filebuffer.size(), file));
 			fclose(file);
 
-			if (stbi_dds_test_memory(filebuffer, static_cast<int>(st.st_size)))
-				filedata = stbi_dds_load_from_memory(filebuffer, static_cast<int>(st.st_size), &width, &height, &channels, STBI_rgb_alpha);
+			if (stbi_dds_test_memory(filebuffer.data(), filebuffer.size()))
+				filedata = stbi_dds_load_from_memory(filebuffer.data(), filebuffer.size(), &width, &height, &channels, STBI_rgb_alpha);
 			else
-				filedata = stbi_load_from_memory(filebuffer, static_cast<int>(st.st_size), &width, &height, &channels, STBI_rgb_alpha);
-
-			free(filebuffer);
+				filedata = stbi_load_from_memory(filebuffer.data(), filebuffer.size(), &width, &height, &channels, STBI_rgb_alpha);
 		}
 
 		if (filedata == nullptr)
