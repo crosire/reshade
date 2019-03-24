@@ -110,10 +110,10 @@ void reshade::ini_file::save() const
 				file << item;
 			}
 
-			file << std::endl;
+			file << '\n';
 		}
 
-		file << std::endl;
+		file << '\n';
 	}
 
 	for (const auto &section : _sections)
@@ -121,7 +121,7 @@ void reshade::ini_file::save() const
 		if (section.first.empty())
 			continue;
 
-		file << '[' << section.first << ']' << std::endl;
+		file << '[' << section.first << ']' << '\n';
 
 		for (const auto &section_line : section.second)
 		{
@@ -137,9 +137,9 @@ void reshade::ini_file::save() const
 				file << item;
 			}
 
-			file << std::endl;
+			file << '\n';
 		}
 
-		file << std::endl;
+		file << '\n';
 	}
 }
