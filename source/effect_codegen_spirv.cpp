@@ -162,7 +162,6 @@ private:
 	std::unordered_map<std::string, uint32_t> _semantic_to_location;
 	std::unordered_map<std::string, spv::Id> _string_lookup;
 	std::unordered_map<spv::Id, spv::StorageClass> _storage_lookup;
-	uint32_t _current_sampler_binding = 0;
 	uint32_t _current_semantic_location = 10;
 	std::unordered_set<spv::Id> _spec_constants;
 
@@ -585,7 +584,7 @@ private:
 	id   define_sampler(const location &loc, sampler_info &info) override
 	{
 		info.id = make_id();
-		info.binding = _current_sampler_binding++;
+		info.binding = _module.num_sampler_bindings++;
 
 		define_variable(info.id, loc, { type::t_sampler, 0, 0, type::q_extern | type::q_uniform }, info.unique_name.c_str(), spv::StorageClassUniformConstant);
 

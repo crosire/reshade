@@ -38,7 +38,6 @@ private:
 	bool _debug_info = false;
 	bool _uniforms_to_spec_constants = false;
 	unsigned int _current_ubo_offset = 0;
-	unsigned int _current_sampler_binding = 0;
 	std::unordered_map<id, id> _remapped_sampler_variables;
 
 	void write_result(module &module) override
@@ -305,7 +304,7 @@ private:
 	id   define_sampler(const location &loc, sampler_info &info) override
 	{
 		info.id = make_id();
-		info.binding = _current_sampler_binding++;
+		info.binding = _module.num_sampler_bindings++;
 
 		define_name<naming::unique>(info.id, info.unique_name);
 

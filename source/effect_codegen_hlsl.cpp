@@ -37,8 +37,6 @@ private:
 	bool _uniforms_to_spec_constants = false;
 	unsigned int _shader_model = 0;
 	unsigned int _current_cbuffer_size = 0;
-	unsigned int _current_sampler_binding = 0;
-	unsigned int _current_texture_binding = 0;
 
 	void write_result(module &module) override
 	{
@@ -300,7 +298,7 @@ private:
 	id   define_texture(const location &loc, texture_info &info) override
 	{
 		info.id = make_id();
-		info.binding = _current_texture_binding;
+		info.binding = _module.num_texture_bindings;
 
 		_module.textures.push_back(info);
 
@@ -313,7 +311,7 @@ private:
 			code += "Texture2D "       + info.unique_name + " : register(t" + std::to_string(info.binding + 0) + ");\n";
 			code += "Texture2D __srgb" + info.unique_name + " : register(t" + std::to_string(info.binding + 1) + ");\n";
 
-			_current_texture_binding += 2;
+			_module.num_texture_bindings += 2;
 		}
 
 		return info.id;
@@ -342,7 +340,7 @@ private:
 			}
 			else
 			{
-				info.binding = _current_sampler_binding++;
+				info.binding = _module.num_sampler_bindings++;
 
 				code += "SamplerState __s" + std::to_string(info.binding) + " : register(s" + std::to_string(info.binding) + ");\n";
 			}
@@ -356,7 +354,7 @@ private:
 		}
 		else
 		{
-			info.binding = _current_sampler_binding++;
+			info.binding = _module.num_sampler_bindings++;
 
 			code += "sampler2D __" + info.unique_name + "_s : register(s" + std::to_string(info.binding) + ");\n";
 
