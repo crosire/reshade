@@ -491,7 +491,7 @@ void reshade::runtime::load_textures()
 		if (FILE *file; _wfopen_s(&file, source_path.wstring().c_str(), L"rb") == 0)
 		{
 			std::vector<uint8_t> filebuffer(static_cast<size_t>(st.st_size));
-			assert(filebuffer.size() == fread(filebuffer.data(), 1, filebuffer.size(), file));
+			fread(filebuffer.data(), 1, filebuffer.size(), file);
 			fclose(file);
 
 			if (stbi_dds_test_memory(filebuffer.data(), filebuffer.size()))
