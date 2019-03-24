@@ -477,7 +477,7 @@ void reshade::runtime::load_textures()
 		if (source_path.empty())
 			continue;
 
-		struct _stat64 st;
+		struct _stat64 st {};
 		// Search for image file using the provided search paths unless the path provided is already absolute
 		if (!find_file(_texture_search_paths, source_path) || _wstati64(source_path.wstring().c_str(), &st) != 0)
 		{
@@ -490,14 +490,14 @@ void reshade::runtime::load_textures()
 
 		if (FILE *file; _wfopen_s(&file, source_path.wstring().c_str(), L"rb") == 0)
 		{
-			unsigned char *filebuffer = static_cast<unsigned char *>(malloc(st.st_size));
-			assert(st.st_size == fread(filebuffer, st.st_size / st.st_size, st.st_size, file));
+			unsigned char *filebuffer = static_cast<unsigned char *>(malloc(static_cast<size_t>(st.st_size)));
+			assert(static_cast<size_t>(st.st_size) == fread(filebuffer, 1, static_cast<size_t>(st.st_size), file));
 			fclose(file);
 
-			if (stbi_dds_test_memory(filebuffer, st.st_size))
-				filedata = stbi_dds_load_from_memory(filebuffer, st.st_size, &width, &height, &channels, STBI_rgb_alpha);
+			if (stbi_dds_test_memory(filebuffer, static_cast<int>(st.st_size)))
+				filedata = stbi_dds_load_from_memory(filebuffer, static_cast<int>(st.st_size), &width, &height, &channels, STBI_rgb_alpha);
 			else
-				filedata = stbi_load_from_memory(filebuffer, st.st_size, &width, &height, &channels, STBI_rgb_alpha);
+				filedata = stbi_load_from_memory(filebuffer, static_cast<int>(st.st_size), &width, &height, &channels, STBI_rgb_alpha);
 
 			free(filebuffer);
 		}
