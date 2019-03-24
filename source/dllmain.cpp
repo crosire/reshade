@@ -216,10 +216,10 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 		com_ptr<ID3D12Device> device;
 		com_ptr<ID3D12CommandQueue> command_queue;
 		com_ptr<IDXGISwapChain3> swapchain;
-		com_ptr<ID3D12Resource> backbuffers[2];
+		com_ptr<ID3D12Resource> backbuffers[3];
 		com_ptr<ID3D12DescriptorHeap> rtv_heap;
 		com_ptr<ID3D12CommandAllocator> cmd_alloc;
-		com_ptr<ID3D12GraphicsCommandList> cmd_lists[2];
+		com_ptr<ID3D12GraphicsCommandList> cmd_lists[3];
 
 		HCHECK(D3D12CreateDevice(nullptr, D3D_FEATURE_LEVEL_12_0, IID_PPV_ARGS(&device)));
 
@@ -277,7 +277,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 			HCHECK(cmd_lists[i]->Close());
 		}
 
-		UINT64 next_fence_value = 1;
+		UINT64 next_fence_value = 0;
 		const HANDLE frame_event = CreateEvent(nullptr, FALSE, FALSE, nullptr);
 		assert(frame_event != nullptr);
 		com_ptr<ID3D12Fence> frame_fence;
@@ -297,12 +297,13 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 			swapchain->Present(1, 0);
 
 			// Wait for frame to complete
-			const UINT64 fence_value = next_fence_value++;
+			const UINT64 fence_value = ++next_fence_value;
 			command_queue->Signal(frame_fence.get(), fence_value);
 			if (frame_fence->GetCompletedValue() < fence_value)
 			{
 				frame_fence->SetEventOnCompletion(fence_value, frame_event);
 				WaitForSingleObject(frame_event, INFINITE);
+				Sleep(1); // TODO: Mmmmmh
 			}
 		}
 

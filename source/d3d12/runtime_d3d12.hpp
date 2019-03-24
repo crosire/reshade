@@ -10,6 +10,8 @@
 #include <d3d12.h>
 #include <dxgi1_5.h>
 
+namespace reshadefx { struct sampler_info; }
+
 namespace reshade::d3d12
 {
 	class runtime_d3d12 : public runtime
@@ -34,7 +36,7 @@ namespace reshade::d3d12
 		bool compile_effect(effect_data &effect) override;
 		void unload_effects() override;
 
-		bool init_technique(technique &technique, const struct d3d12_technique_data &impl_init, const std::unordered_map<std::string, com_ptr<ID3DBlob>> &entry_points);
+		bool init_technique(technique &technique, const std::unordered_map<std::string, com_ptr<ID3DBlob>> &entry_points);
 
 		void render_technique(technique &technique) override;
 
@@ -43,6 +45,12 @@ namespace reshade::d3d12
 		void render_imgui_draw_data(ImDrawData *data) override;
 #endif
 
+		com_ptr<ID3D12GraphicsCommandList> create_command_list(D3D12_COMMAND_LIST_TYPE type = D3D12_COMMAND_LIST_TYPE_DIRECT) const
+		{
+			com_ptr<ID3D12GraphicsCommandList> cmd_list;
+			_device->CreateCommandList(0, type, _cmd_alloc.get(), nullptr, IID_PPV_ARGS(&cmd_list));
+			return cmd_list;
+		}
 		void execute_command_list(const com_ptr<ID3D12GraphicsCommandList> &list) const
 		{
 			ID3D12CommandList *const cmd_lists[] = { list.get() };
@@ -67,12 +75,19 @@ namespace reshade::d3d12
 		com_ptr<ID3D12DescriptorHeap> _backbuffer_rtvs;
 		std::vector<com_ptr<ID3D12Resource>> _backbuffers;
 
+		com_ptr<ID3D12Resource> _backbuffer_texture;
+
 		UINT _swap_index = 0;
 		UINT _srv_handle_size = 0;
+		UINT _sampler_handle_size = 0;
 		UINT _rtv_handle_size = 0;
+		D3D12_CPU_DESCRIPTOR_HANDLE _rtv_cpu_handle = {};
 		D3D12_CPU_DESCRIPTOR_HANDLE _srv_cpu_handle = {};
 		D3D12_GPU_DESCRIPTOR_HANDLE _srv_gpu_handle = {};
+		com_ptr<ID3D12DescriptorHeap> _rtvs;
 		com_ptr<ID3D12DescriptorHeap> _srvs;
+
+		std::vector<struct d3d12_effect_data> _effect_data;
 
 		HANDLE _screenshot_event = nullptr;
 		com_ptr<ID3D12Fence> _screenshot_fence;
@@ -82,7 +97,7 @@ namespace reshade::d3d12
 		DXGI_FORMAT _backbuffer_format = DXGI_FORMAT_UNKNOWN;
 		com_ptr<ID3D12CommandAllocator> _cmd_alloc;
 
-		D3D12_CPU_DESCRIPTOR_HANDLE _default_depthstencil;
+		D3D12_CPU_DESCRIPTOR_HANDLE _default_depthstencil = {};
 
 		unsigned int _imgui_index_buffer_size[3] = {};
 		com_ptr<ID3D12Resource> _imgui_index_buffer[3];

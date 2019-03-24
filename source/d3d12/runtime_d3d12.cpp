@@ -25,14 +25,40 @@ namespace reshade::d3d12
 	{
 		com_ptr<ID3D12PipelineState> pipeline;
 		D3D12_VIEWPORT viewport;
-		bool clear_render_targets;
-		UINT stencil_reference;
+		UINT num_render_targets;
 		D3D12_CPU_DESCRIPTOR_HANDLE render_targets[D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT];
 	};
 	struct d3d12_technique_data : base_object
 	{
-
 	};
+	struct d3d12_effect_data
+	{
+		com_ptr<ID3D12Resource> cb;
+		com_ptr<ID3D12RootSignature> signature;
+		com_ptr<ID3D12DescriptorHeap> srv_heap;
+		com_ptr<ID3D12DescriptorHeap> sampler_heap;
+
+		UINT64 storage_offset, storage_size;
+		D3D12_GPU_VIRTUAL_ADDRESS cbv_gpu_address;
+		D3D12_CPU_DESCRIPTOR_HANDLE srv_cpu_base;
+		D3D12_GPU_DESCRIPTOR_HANDLE srv_gpu_base;
+		D3D12_CPU_DESCRIPTOR_HANDLE sampler_cpu_base;
+		D3D12_GPU_DESCRIPTOR_HANDLE sampler_gpu_base;
+	};
+
+	static void transition_state(
+		const com_ptr<ID3D12GraphicsCommandList> &list,
+		const com_ptr<ID3D12Resource> &res,
+		D3D12_RESOURCE_STATES from, D3D12_RESOURCE_STATES to,
+		UINT subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES)
+	{
+		D3D12_RESOURCE_BARRIER transition = { D3D12_RESOURCE_BARRIER_TYPE_TRANSITION };
+		transition.Transition.pResource = res.get();
+		transition.Transition.Subresource = subresource;
+		transition.Transition.StateBefore = from;
+		transition.Transition.StateAfter = to;
+		list->ResourceBarrier(1, &transition);
+	}
 }
 
 reshade::d3d12::runtime_d3d12::runtime_d3d12(ID3D12Device *device, ID3D12CommandQueue *queue, IDXGISwapChain3 *swapchain) :
@@ -80,13 +106,37 @@ bool reshade::d3d12::runtime_d3d12::init_backbuffer_textures(unsigned int num_bu
 
 	for (unsigned int i = 0; i < num_buffers; ++i, handle.ptr += _rtv_handle_size)
 	{
-		if (HRESULT hr = _swapchain->GetBuffer(i, IID_PPV_ARGS(&_backbuffers[i])); FAILED(hr))
+		if (FAILED(_swapchain->GetBuffer(i, IID_PPV_ARGS(&_backbuffers[i]))))
 			return false;
+#ifdef _DEBUG
+		_backbuffers[i]->SetName(L"Backbuffer");
+#endif
 
 		_device->CreateRenderTargetView(_backbuffers[i].get(), nullptr, handle);
 	}
 
+	{   D3D12_RESOURCE_DESC desc = { D3D12_RESOURCE_DIMENSION_TEXTURE2D };
+		desc.Width = _width;
+		desc.Height = _height;
+		desc.DepthOrArraySize = 1;
+		desc.MipLevels = 1;
+		desc.Format = make_dxgi_format_typeless(_backbuffer_format);
+		desc.SampleDesc = { 1, 0 };
+		D3D12_HEAP_PROPERTIES props = { D3D12_HEAP_TYPE_DEFAULT };
 
+		if (FAILED(_device->CreateCommittedResource(&props, D3D12_HEAP_FLAG_NONE, &desc, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, nullptr, IID_PPV_ARGS(&_backbuffer_texture))))
+			return false;
+#ifdef _DEBUG
+		_backbuffer_texture->SetName(L"ReShade Backbuffer Texture");
+#endif
+	}
+
+
+	{   D3D12_DESCRIPTOR_HEAP_DESC desc = { D3D12_DESCRIPTOR_HEAP_TYPE_RTV };
+		desc.NumDescriptors = 100;
+		if (FAILED(_device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&_rtvs))))
+			return false;
+	}
 	{   D3D12_DESCRIPTOR_HEAP_DESC desc = { D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV };
 		desc.NumDescriptors = 100;
 		desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
@@ -94,9 +144,11 @@ bool reshade::d3d12::runtime_d3d12::init_backbuffer_textures(unsigned int num_bu
 			return false;
 	}
 
+	_rtv_cpu_handle = _rtvs->GetCPUDescriptorHandleForHeapStart();
 	_srv_cpu_handle = _srvs->GetCPUDescriptorHandleForHeapStart();
 	_srv_gpu_handle = _srvs->GetGPUDescriptorHandleForHeapStart();
 	_srv_handle_size = _device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	_sampler_handle_size = _device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER);
 
 
 	_screenshot_event = CreateEvent(nullptr, FALSE, FALSE, nullptr);
@@ -139,6 +191,7 @@ void reshade::d3d12::runtime_d3d12::on_reset()
 
 	_backbuffers.clear();
 	_backbuffer_rtvs.reset();
+	_backbuffer_texture.reset();
 
 	_screenshot_fence.reset();
 	CloseHandle(_screenshot_event);
@@ -165,12 +218,23 @@ void reshade::d3d12::runtime_d3d12::on_present()
 
 	_swap_index = _swapchain->GetCurrentBackBufferIndex();
 
+	_cmd_alloc->Reset();
+
 	update_and_render_effects();
 	runtime::on_present();
 }
 
 void reshade::d3d12::runtime_d3d12::capture_screenshot(uint8_t *buffer) const
 {
+	if (_backbuffer_format != DXGI_FORMAT_R8G8B8A8_UNORM &&
+		_backbuffer_format != DXGI_FORMAT_R8G8B8A8_UNORM_SRGB &&
+		_backbuffer_format != DXGI_FORMAT_B8G8R8A8_UNORM &&
+		_backbuffer_format != DXGI_FORMAT_B8G8R8A8_UNORM_SRGB)
+	{
+		LOG(WARN) << "Screenshots are not supported for back buffer format " << _backbuffer_format << '.';
+		return;
+	}
+
 	const uint32_t data_pitch = _width * 4;
 	const uint32_t download_pitch = (data_pitch + D3D12_TEXTURE_DATA_PITCH_ALIGNMENT - 1u) & ~(D3D12_TEXTURE_DATA_PITCH_ALIGNMENT - 1u);
 
@@ -190,20 +254,14 @@ void reshade::d3d12::runtime_d3d12::capture_screenshot(uint8_t *buffer) const
 		return;
 	}
 
+#ifdef _DEBUG
+	intermediate->SetName(L"ReShade screenshot texture");
+#endif
+
 	const UINT swap_index = _swapchain->GetCurrentBackBufferIndex();
 
-	com_ptr<ID3D12GraphicsCommandList> cmd_list;
-	_device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, _cmd_alloc.get(), nullptr, IID_PPV_ARGS(&cmd_list));
-
-	{ // Perform layout transition to allow subsequent copy
-		D3D12_RESOURCE_BARRIER transition = { D3D12_RESOURCE_BARRIER_TYPE_TRANSITION };
-		transition.Transition.pResource = _backbuffers[swap_index].get();
-		transition.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
-		transition.Transition.StateBefore = D3D12_RESOURCE_STATE_PRESENT;
-		transition.Transition.StateAfter = D3D12_RESOURCE_STATE_COPY_SOURCE;
-		cmd_list->ResourceBarrier(1, &transition);
-	}
-
+	const com_ptr<ID3D12GraphicsCommandList> cmd_list = create_command_list();
+	transition_state(cmd_list, _backbuffers[swap_index], D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_COPY_SOURCE, 0);
 	{ // Copy data from upload buffer into target texture
 		D3D12_TEXTURE_COPY_LOCATION src_location = { _backbuffers[swap_index].get() };
 		src_location.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
@@ -211,37 +269,29 @@ void reshade::d3d12::runtime_d3d12::capture_screenshot(uint8_t *buffer) const
 
 		D3D12_TEXTURE_COPY_LOCATION dst_location = { intermediate.get() };
 		dst_location.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
-		dst_location.PlacedFootprint.Footprint.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
 		dst_location.PlacedFootprint.Footprint.Width = _width;
 		dst_location.PlacedFootprint.Footprint.Height = _height;
 		dst_location.PlacedFootprint.Footprint.Depth = 1;
+		dst_location.PlacedFootprint.Footprint.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
 		dst_location.PlacedFootprint.Footprint.RowPitch = download_pitch;
 
 		cmd_list->CopyTextureRegion(&dst_location, 0, 0, 0, &src_location, nullptr);
 	}
-
-	{ // Perform layout transition back to shader resource after the copy
-		D3D12_RESOURCE_BARRIER transition = { D3D12_RESOURCE_BARRIER_TYPE_TRANSITION };
-		transition.Transition.pResource = _backbuffers[swap_index].get();
-		transition.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
-		transition.Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_SOURCE;
-		transition.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
-		cmd_list->ResourceBarrier(1, &transition);
-	}
+	transition_state(cmd_list, _backbuffers[swap_index], D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_PRESENT, 0);
 
 	if (FAILED(cmd_list->Close()))
 		return;
 
 	execute_command_list(cmd_list); // Execute and wait for completion
 
-	BYTE *mapped_data;
+	// Copy data from system memory texture into output buffer
+	uint8_t *mapped_data;
 	if (FAILED(intermediate->Map(0, nullptr, reinterpret_cast<void **>(&mapped_data))))
 		return;
 
 	for (uint32_t y = 0; y < _height; y++, buffer += data_pitch, mapped_data += download_pitch)
 	{
-		std::memcpy(buffer, mapped_data, data_pitch);
-
+		memcpy(buffer, mapped_data, data_pitch);
 		for (uint32_t x = 0; x < data_pitch; x += 4)
 			buffer[x + 3] = 0xFF; // Clear alpha channel
 	}
@@ -264,7 +314,7 @@ bool reshade::d3d12::runtime_d3d12::init_texture(texture &info)
 	desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
 	desc.SampleDesc = { 1, 0 };
 	desc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
-	desc.Flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
+	desc.Flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET; // Textures may be bound as render target
 
 	switch (info.format)
 	{
@@ -320,9 +370,13 @@ bool reshade::d3d12::runtime_d3d12::init_texture(texture &info)
 
 	D3D12_HEAP_PROPERTIES props = { D3D12_HEAP_TYPE_DEFAULT };
 
+	// Render targets are always either cleared to zero or not cleared at all (see 'ClearRenderTargets' pass state), so can set the optimized clear value here to zero
+	D3D12_CLEAR_VALUE clear_value = {};
+	clear_value.Format = make_dxgi_format_normal(desc.Format);
+
 	const auto texture_data = info.impl->as<d3d12_tex_data>();
 
-	if (HRESULT hr = _device->CreateCommittedResource(&props, D3D12_HEAP_FLAG_NONE, &desc, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, nullptr, IID_PPV_ARGS(&texture_data->resource)); FAILED(hr))
+	if (HRESULT hr = _device->CreateCommittedResource(&props, D3D12_HEAP_FLAG_NONE, &desc, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, &clear_value, IID_PPV_ARGS(&texture_data->resource)); FAILED(hr))
 	{
 		LOG(ERROR) << "Failed to create texture '" << info.unique_name << "' ("
 			"Width = " << desc.Width << ", "
@@ -332,18 +386,25 @@ bool reshade::d3d12::runtime_d3d12::init_texture(texture &info)
 		return false;
 	}
 
+#ifdef _DEBUG
+	std::wstring debug_name;
+	debug_name.reserve(info.unique_name.size());
+	utf8::unchecked::utf8to16(info.unique_name.begin(), info.unique_name.end(), std::back_inserter(debug_name));
+	texture_data->resource->SetName(debug_name.c_str());
+#endif
+
 	D3D12_SHADER_RESOURCE_VIEW_DESC srv_desc = {};
 	srv_desc.Format = make_dxgi_format_normal(desc.Format);
 	srv_desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-	srv_desc.Texture2D.MipLevels = desc.MipLevels;
 	srv_desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	srv_desc.Texture2D.MipLevels = desc.MipLevels;
 
+	assert((_srv_cpu_handle.ptr - _srvs->GetCPUDescriptorHandleForHeapStart().ptr) / _srv_handle_size < 100);
 	texture_data->srv_cpu_handle[0] = _srv_cpu_handle; _srv_cpu_handle.ptr += _srv_handle_size;
 	texture_data->srv_gpu_handle[0] = _srv_gpu_handle; _srv_gpu_handle.ptr += _srv_handle_size;
 	_device->CreateShaderResourceView(texture_data->resource.get(), &srv_desc, texture_data->srv_cpu_handle[0]);
 		
 	srv_desc.Format = make_dxgi_format_srgb(desc.Format);
-
 	if (srv_desc.Format != desc.Format)
 	{
 		texture_data->srv_cpu_handle[1] = _srv_cpu_handle; _srv_cpu_handle.ptr += _srv_handle_size;
@@ -354,6 +415,25 @@ bool reshade::d3d12::runtime_d3d12::init_texture(texture &info)
 	{
 		texture_data->srv_cpu_handle[1] = texture_data->srv_cpu_handle[0];
 		texture_data->srv_gpu_handle[1] = texture_data->srv_gpu_handle[0];
+	}
+
+	D3D12_RENDER_TARGET_VIEW_DESC rtv_desc = {};
+	rtv_desc.Format = make_dxgi_format_normal(desc.Format);
+	rtv_desc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
+
+	assert((_rtv_cpu_handle.ptr - _rtvs->GetCPUDescriptorHandleForHeapStart().ptr) / _srv_handle_size < 100);
+	texture_data->rtv_cpu_handle[0] = _rtv_cpu_handle; _rtv_cpu_handle.ptr += _rtv_handle_size;
+	_device->CreateRenderTargetView(texture_data->resource.get(), &rtv_desc, texture_data->rtv_cpu_handle[0]);
+
+	rtv_desc.Format = make_dxgi_format_srgb(desc.Format);
+	if (rtv_desc.Format != desc.Format)
+	{
+		texture_data->rtv_cpu_handle[1] = _rtv_cpu_handle; _rtv_cpu_handle.ptr += _rtv_handle_size;
+		_device->CreateRenderTargetView(texture_data->resource.get(), &rtv_desc, texture_data->rtv_cpu_handle[1]);
+	}
+	else
+	{
+		texture_data->rtv_cpu_handle[1] = texture_data->rtv_cpu_handle[0];
 	}
 
 	return true;
@@ -380,6 +460,10 @@ void reshade::d3d12::runtime_d3d12::upload_texture(texture &texture, const uint8
 		LOG(ERROR) << "Failed to create system memory texture for texture updating!";
 		return;
 	}
+
+#ifdef _DEBUG
+	intermediate->SetName(L"ReShade upload texture");
+#endif
 
 	// Fill upload buffer with pixel data
 	uint8_t *mapped_data;
@@ -415,25 +499,15 @@ void reshade::d3d12::runtime_d3d12::upload_texture(texture &texture, const uint8
 	assert(pixels != nullptr);
 	assert(texture_impl != nullptr);
 
-	com_ptr<ID3D12GraphicsCommandList> cmd_list;
-	_device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, _cmd_alloc.get(), nullptr, IID_PPV_ARGS(&cmd_list));
-
-	{ // Perform layout transition to allow subsequent copy
-		D3D12_RESOURCE_BARRIER transition = { D3D12_RESOURCE_BARRIER_TYPE_TRANSITION };
-		transition.Transition.pResource = texture_impl->resource.get();
-		transition.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
-		transition.Transition.StateBefore = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
-		transition.Transition.StateAfter = D3D12_RESOURCE_STATE_COPY_DEST;
-		cmd_list->ResourceBarrier(1, &transition);
-	}
-
+	const com_ptr<ID3D12GraphicsCommandList> cmd_list = create_command_list();
+	transition_state(cmd_list, texture_impl->resource, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_COPY_DEST, 0);
 	{ // Copy data from upload buffer into target texture
 		D3D12_TEXTURE_COPY_LOCATION src_location = { intermediate.get() };
 		src_location.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
-		src_location.PlacedFootprint.Footprint.Format = texture_impl->resource->GetDesc().Format;
 		src_location.PlacedFootprint.Footprint.Width = texture.width;
 		src_location.PlacedFootprint.Footprint.Height = texture.height;
 		src_location.PlacedFootprint.Footprint.Depth = 1;
+		src_location.PlacedFootprint.Footprint.Format = texture_impl->resource->GetDesc().Format;
 		src_location.PlacedFootprint.Footprint.RowPitch = upload_pitch;
 
 		D3D12_TEXTURE_COPY_LOCATION dst_location = { texture_impl->resource.get() };
@@ -442,27 +516,23 @@ void reshade::d3d12::runtime_d3d12::upload_texture(texture &texture, const uint8
 
 		cmd_list->CopyTextureRegion(&dst_location, 0, 0, 0, &src_location, nullptr);
 	}
+	transition_state(cmd_list, texture_impl->resource, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, 0);
 
-	{ // Perform layout transition back to shader resource after the copy
-		D3D12_RESOURCE_BARRIER transition = { D3D12_RESOURCE_BARRIER_TYPE_TRANSITION };
-		transition.Transition.pResource = texture_impl->resource.get();
-		transition.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
-		transition.Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_DEST;
-		transition.Transition.StateAfter = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
-		cmd_list->ResourceBarrier(1, &transition);
-	}
+	// TODO: Generate mipmaps
 
-	if (SUCCEEDED(cmd_list->Close()))
-		execute_command_list(cmd_list);
+	if (FAILED(cmd_list->Close()))
+		return;
+
+	execute_command_list(cmd_list);
 }
 bool reshade::d3d12::runtime_d3d12::update_texture_reference(texture &texture)
 {
-	return false;
+	// TODO
+	return true;
 }
 
 bool reshade::d3d12::runtime_d3d12::compile_effect(effect_data &effect)
 {
-	return false;
 	if (_d3d_compiler == nullptr)
 		_d3d_compiler = LoadLibraryW(L"d3dcompiler_47.dll");
 
@@ -481,7 +551,7 @@ bool reshade::d3d12::runtime_d3d12::compile_effect(effect_data &effect)
 	// Compile the generated HLSL source code to DX byte code
 	for (const auto &entry_point : effect.module.entry_points)
 	{
-		std::string profile = entry_point.second ? "ps_6_0" : "vs_6_0";
+		std::string profile = entry_point.second ? "ps_5_0" : "vs_5_0";
 
 		com_ptr<ID3DBlob> d3d_errors;
 
@@ -495,71 +565,200 @@ bool reshade::d3d12::runtime_d3d12::compile_effect(effect_data &effect)
 			return false;
 	}
 
-	/*if (effect.storage_size != 0)
-	{
-		com_ptr<ID3D11Buffer> cbuffer;
+	if (_effect_data.size() <= effect.index)
+		_effect_data.resize(effect.index + 1);
 
-		const D3D11_BUFFER_DESC desc = { static_cast<UINT>(effect.storage_size), D3D11_USAGE_DYNAMIC, D3D11_BIND_CONSTANT_BUFFER, D3D11_CPU_ACCESS_WRITE };
-		const D3D11_SUBRESOURCE_DATA init_data = { _uniform_data_storage.data() + effect.storage_offset, static_cast<UINT>(effect.storage_size) };
+	d3d12_effect_data &effect_data = _effect_data[effect.index];
+	effect_data.storage_size = effect.storage_size;
+	effect_data.storage_offset = effect.storage_offset;
 
-		if (const HRESULT hr = _device->CreateBuffer(&desc, &init_data, &cbuffer); FAILED(hr))
-		{
-			LOG(ERROR) << "Failed to create constant buffer for effect file " << effect.source_file << ". "
-				"HRESULT is '" << std::hex << hr << std::dec << "'.";
+	{   D3D12_DESCRIPTOR_RANGE srv_range = {};
+		srv_range.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+		srv_range.NumDescriptors = effect.module.num_texture_bindings;
+		srv_range.BaseShaderRegister = 0;
+		D3D12_DESCRIPTOR_RANGE sampler_range = {};
+		sampler_range.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER;
+		sampler_range.NumDescriptors = effect.module.num_sampler_bindings;
+		sampler_range.BaseShaderRegister = 0;
+
+		D3D12_ROOT_PARAMETER params[3] = {};
+		params[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+		params[0].Descriptor.ShaderRegister = 0; // b0 (global constant buffer)
+		params[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+		params[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+		params[1].DescriptorTable.NumDescriptorRanges = 1;
+		params[1].DescriptorTable.pDescriptorRanges = &srv_range;
+		params[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+		params[2].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+		params[2].DescriptorTable.NumDescriptorRanges = 1;
+		params[2].DescriptorTable.pDescriptorRanges = &sampler_range;
+		params[2].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+
+		D3D12_ROOT_SIGNATURE_DESC desc = {};
+		desc.NumParameters = ARRAYSIZE(params);
+		desc.pParameters = params;
+		desc.Flags = D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS |
+			D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS |
+			D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS;
+
+		if (com_ptr<ID3DBlob> blob; SUCCEEDED(hooks::call(D3D12SerializeRootSignature)(&desc, D3D_ROOT_SIGNATURE_VERSION_1, &blob, nullptr)))
+			_device->CreateRootSignature(0, blob->GetBufferPointer(), blob->GetBufferSize(), IID_PPV_ARGS(&effect_data.signature));
+		else
 			return false;
-		}
+	}
 
-		_constant_buffers.push_back(std::move(cbuffer));
-	}*/
+
+	if (effect.storage_size != 0)
+	{
+		D3D12_RESOURCE_DESC desc = { D3D12_RESOURCE_DIMENSION_BUFFER };
+		desc.Width = effect.storage_size;
+		desc.Height = 1;
+		desc.DepthOrArraySize = 1;
+		desc.MipLevels = 1;
+		desc.SampleDesc = { 1, 0 };
+		desc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+		D3D12_HEAP_PROPERTIES props = { D3D12_HEAP_TYPE_UPLOAD };
+
+		if (FAILED(_device->CreateCommittedResource(&props, D3D12_HEAP_FLAG_NONE, &desc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&effect_data.cb))))
+			return false;
+#ifdef _DEBUG
+		effect_data.cb->SetName(L"ReShade Global CB");
+#endif
+
+		effect_data.cbv_gpu_address = effect_data.cb->GetGPUVirtualAddress();
+	}
+
+	{   D3D12_DESCRIPTOR_HEAP_DESC desc = { D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV };
+		desc.NumDescriptors = effect.module.num_texture_bindings;
+		desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+
+		if (FAILED(_device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&effect_data.srv_heap))))
+			return false;
+
+		effect_data.srv_cpu_base = effect_data.srv_heap->GetCPUDescriptorHandleForHeapStart();
+		effect_data.srv_gpu_base = effect_data.srv_heap->GetGPUDescriptorHandleForHeapStart();
+	}
+
+	{   D3D12_DESCRIPTOR_HEAP_DESC desc = { D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER };
+		desc.NumDescriptors = effect.module.num_sampler_bindings;
+		desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+
+		if (FAILED(_device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&effect_data.sampler_heap))))
+			return false;
+
+		effect_data.sampler_cpu_base = effect_data.sampler_heap->GetCPUDescriptorHandleForHeapStart();
+		effect_data.sampler_gpu_base = effect_data.sampler_heap->GetGPUDescriptorHandleForHeapStart();
+	}
 
 	bool success = true;
 
-	d3d12_technique_data technique_init;
-	//technique_init.uniform_storage_index = _constant_buffers.size() - 1;
-	//technique_init.uniform_storage_offset = effect.storage_offset;
+	for (const reshadefx::sampler_info &info : effect.module.samplers)
+	{
+		if (info.binding >= D3D12_COMMONSHADER_SAMPLER_SLOT_COUNT)
+		{
+			LOG(ERROR) << "Cannot bind sampler '" << info.unique_name << "' since it exceeds the maximum number of allowed sampler slots in D3D12 (" << info.binding << ", allowed are up to " << D3D12_COMMONSHADER_SAMPLER_SLOT_COUNT << ").";
+			return false;
+		}
+		if (info.texture_binding >= D3D12_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT)
+		{
+			LOG(ERROR) << "Cannot bind texture '" << info.texture_name << "' since it exceeds the maximum number of allowed resource slots in D3D12 (" << info.texture_binding << ", allowed are up to " << D3D12_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT << ").";
+			return false;
+		}
 
-	//for (const reshadefx::sampler_info &info : effect.module.samplers)
-	//	success &= add_sampler(info, technique_init);
+		const auto existing_texture = std::find_if(_textures.begin(), _textures.end(),
+			[&texture_name = info.texture_name](const auto &item) {
+			return item.unique_name == texture_name && item.impl != nullptr;
+		});
+		if (existing_texture == _textures.end())
+			return false;
+
+		com_ptr<ID3D12Resource> resource;
+		switch (existing_texture->impl_reference)
+		{
+		case texture_reference::back_buffer:
+			resource = _backbuffer_texture;
+			break;
+		case texture_reference::depth_buffer:
+			break; // TODO
+		default:
+			resource = existing_texture->impl->as<d3d12_tex_data>()->resource;
+			break;
+		}
+
+		if (resource == nullptr)
+			continue;
+
+		{   D3D12_SHADER_RESOURCE_VIEW_DESC desc = {};
+			desc.Format = info.srgb ?
+				make_dxgi_format_srgb(resource->GetDesc().Format) :
+				make_dxgi_format_normal(resource->GetDesc().Format);
+			desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+			desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+			desc.Texture2D.MipLevels = existing_texture->levels;
+
+			D3D12_CPU_DESCRIPTOR_HANDLE srv_handle = effect_data.srv_cpu_base;
+			srv_handle.ptr += info.texture_binding * _srv_handle_size;
+
+			_device->CreateShaderResourceView(resource.get(), &desc, srv_handle);
+		}
+
+		{   D3D12_SAMPLER_DESC desc = {};
+			desc.Filter = static_cast<D3D12_FILTER>(info.filter);
+			desc.AddressU = static_cast<D3D12_TEXTURE_ADDRESS_MODE>(info.address_u);
+			desc.AddressV = static_cast<D3D12_TEXTURE_ADDRESS_MODE>(info.address_v);
+			desc.AddressW = static_cast<D3D12_TEXTURE_ADDRESS_MODE>(info.address_w);
+			desc.MipLODBias = info.lod_bias;
+			desc.MaxAnisotropy = 1;
+			desc.ComparisonFunc = D3D12_COMPARISON_FUNC_NEVER;
+			desc.MinLOD = info.min_lod;
+			desc.MaxLOD = info.max_lod;
+
+			D3D12_CPU_DESCRIPTOR_HANDLE sampler_handle = effect_data.sampler_cpu_base;
+			sampler_handle.ptr += info.binding * _sampler_handle_size;
+
+			// TODO: Only intialize if not yet initialized
+			_device->CreateSampler(&desc, sampler_handle);
+		}
+	}
 
 	for (technique &technique : _techniques)
 		if (technique.impl == nullptr && technique.effect_index == effect.index)
-			success &= init_technique(technique, technique_init, entry_points);
+			success &= init_technique(technique, entry_points);
 
 	return success;
 }
 void reshade::d3d12::runtime_d3d12::unload_effects()
 {
 	runtime::unload_effects();
+
+	_effect_data.clear();
 }
 
-bool reshade::d3d12::runtime_d3d12::init_technique(technique &technique, const d3d12_technique_data &impl_init, const std::unordered_map<std::string, com_ptr<ID3DBlob>> &entry_points)
+bool reshade::d3d12::runtime_d3d12::init_technique(technique &technique, const std::unordered_map<std::string, com_ptr<ID3DBlob>> &entry_points)
 {
-	technique.impl = std::make_unique<d3d12_technique_data>(impl_init);
+	technique.impl = std::make_unique<d3d12_technique_data>();
 
 	for (size_t pass_index = 0; pass_index < technique.passes.size(); ++pass_index)
 	{
 		technique.passes_data.push_back(std::make_unique<d3d12_pass_data>());
 
-		auto &pass = *technique.passes_data.back()->as<d3d12_pass_data>();
+		auto &pass_data = *technique.passes_data.back()->as<d3d12_pass_data>();
 		const auto &pass_info = technique.passes[pass_index];
 
 		D3D12_GRAPHICS_PIPELINE_STATE_DESC pso_desc = {};
+		pso_desc.pRootSignature = _effect_data[technique.effect_index].signature.get();
 
 		const auto &VS = entry_points.at(pass_info.vs_entry_point);
 		pso_desc.VS = { VS->GetBufferPointer(), VS->GetBufferSize() };
 		const auto &PS = entry_points.at(pass_info.ps_entry_point);
 		pso_desc.PS = { PS->GetBufferPointer(), PS->GetBufferSize() };
 
-		pass.viewport.Width = static_cast<FLOAT>(pass_info.viewport_width);
-		pass.viewport.Height = static_cast<FLOAT>(pass_info.viewport_height);
-		pass.viewport.MaxDepth = 1.0f;
-
-		pass.clear_render_targets = pass_info.clear_render_targets;
-
-		const int target_index = pass_info.srgb_write_enable ? 1 : 0;
-		//pass.render_targets[0] = _backbuffer_rtv[target_index];
+		pass_data.viewport.Width = static_cast<FLOAT>(pass_info.viewport_width);
+		pass_data.viewport.Height = static_cast<FLOAT>(pass_info.viewport_height);
+		pass_data.viewport.MaxDepth = 1.0f;
 
 		pso_desc.NumRenderTargets = 1;
+		pso_desc.RTVFormats[0] = _backbuffer_format;
 		pso_desc.DSVFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
 
 		for (unsigned int k = 0; k < 8; k++)
@@ -567,44 +766,30 @@ bool reshade::d3d12::runtime_d3d12::init_technique(technique &technique, const d
 			if (pass_info.render_target_names[k].empty())
 				continue; // Skip unbound render targets
 
-			pso_desc.NumRenderTargets = k + 1;
-			pso_desc.RTVFormats[k] = _backbuffer_format; // TODO
-
 			const auto render_target_texture = std::find_if(_textures.begin(), _textures.end(),
 				[&render_target = pass_info.render_target_names[k]](const auto &item) {
 				return item.unique_name == render_target;
 			});
-
 			if (render_target_texture == _textures.end())
 				return assert(false), false;
 
 			const auto texture_impl = render_target_texture->impl->as<d3d12_tex_data>();
-
 			assert(texture_impl != nullptr);
 
-			const D3D12_RESOURCE_DESC desc = texture_impl->resource->GetDesc();
+			pso_desc.NumRenderTargets = k + 1;
+			const DXGI_FORMAT format = texture_impl->resource->GetDesc().Format;
+			pso_desc.RTVFormats[k] = pass_info.srgb_write_enable ? make_dxgi_format_srgb(format) : make_dxgi_format_normal(format);
 
-			D3D12_RENDER_TARGET_VIEW_DESC rtvdesc = {};
-			rtvdesc.Format = pass_info.srgb_write_enable ? make_dxgi_format_srgb(desc.Format) : make_dxgi_format_normal(desc.Format);
-			rtvdesc.ViewDimension = desc.SampleDesc.Count > 1 ? D3D12_RTV_DIMENSION_TEXTURE2DMS : D3D12_RTV_DIMENSION_TEXTURE2D;
-
-			if (!texture_impl->rtv_cpu_handle[target_index].ptr)
-			{
-				// TODO Init descriptor
-
-				_device->CreateRenderTargetView(texture_impl->resource.get(), &rtvdesc, texture_impl->rtv_cpu_handle[target_index]);
-			}
-
-			pass.render_targets[k] = texture_impl->rtv_cpu_handle[target_index];
+			pass_data.render_targets[k] = texture_impl->rtv_cpu_handle[pass_info.srgb_write_enable ? 1 : 0];
 		}
 
-		if (pass.viewport.Width == 0)
+		pass_data.num_render_targets = pso_desc.NumRenderTargets;
+
+		if (pass_data.viewport.Width == 0)
 		{
-			pass.viewport.Width = static_cast<FLOAT>(frame_width());
-			pass.viewport.Height = static_cast<FLOAT>(frame_height());
+			pass_data.viewport.Width = FLOAT(frame_width());
+			pass_data.viewport.Height = FLOAT(frame_height());
 		}
-
-		pass.stencil_reference = pass_info.stencil_reference_value;
 
 		pso_desc.SampleMask = UINT_MAX;
 		pso_desc.SampleDesc = { 1, 0 };
@@ -616,27 +801,17 @@ bool reshade::d3d12::runtime_d3d12::init_technique(technique &technique, const d
 
 			const auto literal_to_blend_func = [](unsigned int value) {
 				switch (value) {
-				case 0:
-					return D3D12_BLEND_ZERO;
 				default:
-				case 1:
-					return D3D12_BLEND_ONE;
-				case 2:
-					return D3D12_BLEND_SRC_COLOR;
-				case 4:
-					return D3D12_BLEND_INV_SRC_COLOR;
-				case 3:
-					return D3D12_BLEND_SRC_ALPHA;
-				case 5:
-					return D3D12_BLEND_INV_SRC_ALPHA;
-				case 6:
-					return D3D12_BLEND_DEST_ALPHA;
-				case 7:
-					return D3D12_BLEND_INV_DEST_ALPHA;
-				case 8:
-					return D3D12_BLEND_DEST_COLOR;
-				case 9:
-					return D3D12_BLEND_INV_DEST_COLOR;
+				case 1: return D3D12_BLEND_ONE;
+				case 0: return D3D12_BLEND_ZERO;
+				case 2: return D3D12_BLEND_SRC_COLOR;
+				case 4: return D3D12_BLEND_INV_SRC_COLOR;
+				case 3: return D3D12_BLEND_SRC_ALPHA;
+				case 5: return D3D12_BLEND_INV_SRC_ALPHA;
+				case 6: return D3D12_BLEND_DEST_ALPHA;
+				case 7: return D3D12_BLEND_INV_DEST_ALPHA;
+				case 8: return D3D12_BLEND_DEST_COLOR;
+				case 9: return D3D12_BLEND_INV_DEST_COLOR;
 				}
 			};
 
@@ -663,22 +838,14 @@ bool reshade::d3d12::runtime_d3d12::init_technique(technique &technique, const d
 			const auto literal_to_stencil_op = [](unsigned int value) {
 				switch (value) {
 				default:
-				case 1:
-					return D3D12_STENCIL_OP_KEEP;
-				case 0:
-					return D3D12_STENCIL_OP_ZERO;
-				case 3:
-					return D3D12_STENCIL_OP_REPLACE;
-				case 4:
-					return D3D12_STENCIL_OP_INCR_SAT;
-				case 5:
-					return D3D12_STENCIL_OP_DECR_SAT;
-				case 6:
-					return D3D12_STENCIL_OP_INVERT;
-				case 7:
-					return D3D12_STENCIL_OP_INCR;
-				case 8:
-					return D3D12_STENCIL_OP_DECR;
+				case 1: return D3D12_STENCIL_OP_KEEP;
+				case 0: return D3D12_STENCIL_OP_ZERO;
+				case 3: return D3D12_STENCIL_OP_REPLACE;
+				case 4: return D3D12_STENCIL_OP_INCR_SAT;
+				case 5: return D3D12_STENCIL_OP_DECR_SAT;
+				case 6: return D3D12_STENCIL_OP_INVERT;
+				case 7: return D3D12_STENCIL_OP_INCR;
+				case 8: return D3D12_STENCIL_OP_DECR;
 				}
 			};
 
@@ -692,7 +859,7 @@ bool reshade::d3d12::runtime_d3d12::init_technique(technique &technique, const d
 			desc.BackFace = desc.FrontFace;
 		}
 
-		if (HRESULT hr = _device->CreateGraphicsPipelineState(&pso_desc, IID_PPV_ARGS(&pass.pipeline)); FAILED(hr))
+		if (HRESULT hr = _device->CreateGraphicsPipelineState(&pso_desc, IID_PPV_ARGS(&pass_data.pipeline)); FAILED(hr))
 		{
 			LOG(ERROR) << "Failed to create pipeline for pass " << pass_index << " in technique '" << technique.name << "'! "
 				"HRESULT is '" << std::hex << hr << std::dec << "'.";
@@ -705,61 +872,107 @@ bool reshade::d3d12::runtime_d3d12::init_technique(technique &technique, const d
 
 void reshade::d3d12::runtime_d3d12::render_technique(technique &technique)
 {
-	return;
 	bool is_default_depthstencil_cleared = false;
+	d3d12_effect_data &effect_data = _effect_data[technique.effect_index];
 
-	com_ptr<ID3D12GraphicsCommandList> cmd_list;
+	const com_ptr<ID3D12GraphicsCommandList> cmd_list = create_command_list();
 
-	for (const auto &pass_object : technique.passes_data)
+	ID3D12DescriptorHeap *const descriptor_heaps[] = { effect_data.srv_heap.get(), effect_data.sampler_heap.get() };
+	cmd_list->SetDescriptorHeaps(ARRAYSIZE(descriptor_heaps), descriptor_heaps);
+	cmd_list->SetGraphicsRootSignature(effect_data.signature.get());
+
+	// Setup vertex input
+	cmd_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+	// Setup shader constants
+	if (effect_data.storage_size != 0)
 	{
-		const d3d12_pass_data &pass = *pass_object->as<d3d12_pass_data>();
+		void *mapped;
+		effect_data.cb->Map(0, nullptr, &mapped);
+		memcpy(mapped, _uniform_data_storage.data() + effect_data.storage_offset, effect_data.storage_size);
+		effect_data.cb->Unmap(0, nullptr);
 
-		cmd_list->SetPipelineState(pass.pipeline.get());
-		cmd_list->OMSetStencilRef(pass.stencil_reference);
+		cmd_list->SetGraphicsRootConstantBufferView(0, effect_data.cbv_gpu_address);
+	}
+
+	// Setup shader resources
+	cmd_list->SetGraphicsRootDescriptorTable(1, effect_data.srv_gpu_base);
+
+	// Setup samplers
+	cmd_list->SetGraphicsRootDescriptorTable(2, effect_data.sampler_gpu_base);
+
+	transition_state(cmd_list, _backbuffers[_swap_index], D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
+
+	for (size_t i = 0; i < technique.passes.size(); ++i)
+	{
+		const auto &pass_info = technique.passes[i];
+		const auto &pass_data = *technique.passes_data[i]->as<d3d12_pass_data>();
 
 		// Save back buffer of previous pass
-		//cmd_list->CopyResource(_backbuffer_texture.get(), _backbuffer_resolved.get());
+		transition_state(cmd_list, _backbuffer_texture, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_COPY_DEST);
+		transition_state(cmd_list, _backbuffers[_swap_index], D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_COPY_SOURCE);
+		cmd_list->CopyResource(_backbuffer_texture.get(), _backbuffers[_swap_index].get());
+		transition_state(cmd_list, _backbuffer_texture, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+		transition_state(cmd_list, _backbuffers[_swap_index], D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
 
-		// Setup shader resources
-		cmd_list->SetGraphicsRootShaderResourceView(0, 0); // TODO
+		// Setup states
+		cmd_list->SetPipelineState(pass_data.pipeline.get());
+		cmd_list->OMSetStencilRef(pass_info.stencil_reference_value);
 
 		// Setup render targets
-		if (static_cast<UINT>(pass.viewport.Width) == _width && static_cast<UINT>(pass.viewport.Height) == _height)
+		const float clear_color[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+		if (pass_data.render_targets[0].ptr == 0)
 		{
-			cmd_list->OMSetRenderTargets(D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT, pass.render_targets, false, &_default_depthstencil);
+			assert(pass_data.num_render_targets == 1);
 
-			if (!is_default_depthstencil_cleared)
+			D3D12_CPU_DESCRIPTOR_HANDLE render_target = { _backbuffer_rtvs->GetCPUDescriptorHandleForHeapStart().ptr + _swap_index * _rtv_handle_size };
+			cmd_list->OMSetRenderTargets(1, &render_target, false, nullptr/*&_default_depthstencil*/);
+
+			if (pass_info.clear_render_targets)
+				cmd_list->ClearRenderTargetView(render_target, clear_color, 0, nullptr);
+		}
+		else if (_width == UINT(pass_data.viewport.Width) && _height == UINT(pass_data.viewport.Height))
+		{
+			cmd_list->OMSetRenderTargets(pass_data.num_render_targets, pass_data.render_targets, false, nullptr/*&_default_depthstencil*/);
+
+			if (pass_info.clear_render_targets)
+				for (UINT k = 0; k < pass_data.num_render_targets; ++k)
+					cmd_list->ClearRenderTargetView(pass_data.render_targets[k], clear_color, 0, nullptr);
+
+			/*if (!is_default_depthstencil_cleared)
 			{
 				is_default_depthstencil_cleared = true;
 
 				cmd_list->ClearDepthStencilView(_default_depthstencil, D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
-			}
+			}*/
 		}
 		else
 		{
-			cmd_list->OMSetRenderTargets(D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT, pass.render_targets, false, nullptr);
+			cmd_list->OMSetRenderTargets(pass_data.num_render_targets, pass_data.render_targets, false, nullptr);
+
+			if (pass_info.clear_render_targets)
+				for (UINT k = 0; k < pass_data.num_render_targets; ++k)
+					cmd_list->ClearRenderTargetView(pass_data.render_targets[k], clear_color, 0, nullptr);
 		}
 
-		cmd_list->RSSetViewports(1, &pass.viewport);
+		cmd_list->RSSetViewports(1, &pass_data.viewport);
 
-		if (pass.clear_render_targets)
-		{
-			for (const auto &target : pass.render_targets)
-			{
-				if (target.ptr == 0)
-					continue;
-
-				const float color[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
-				cmd_list->ClearRenderTargetView(target, color, 0, nullptr);
-			}
-		}
+		D3D12_RECT scissor_rect = { 0, 0, LONG(pass_data.viewport.Width), LONG(pass_data.viewport.Height) };
+		cmd_list->RSSetScissorRects(1, &scissor_rect);
 
 		// Draw triangle
 		cmd_list->DrawInstanced(3, 1, 0, 0);
 
 		_vertices += 3;
 		_drawcalls += 1;
+
+		// TODO: Generate mipmaps
 	}
+
+	transition_state(cmd_list, _backbuffers[_swap_index], D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
+
+	if (FAILED(cmd_list->Close()))
+		return;
 
 	execute_command_list_async(cmd_list);
 }
@@ -771,43 +984,38 @@ bool reshade::d3d12::runtime_d3d12::init_imgui_resources()
 		FAILED(_imgui_cmd_list->Close())) // Close command list immediately since it is reset every frame in 'render_imgui_draw_data'
 		return false;
 
-	{   D3D12_ROOT_SIGNATURE_DESC desc = {};
-		desc.Flags =
-			D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT |
-			D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS |
-			D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS |
-			D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS;
-
-		D3D12_DESCRIPTOR_RANGE descriptor_range = {};
-		descriptor_range.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
-		descriptor_range.NumDescriptors = 1;
-		descriptor_range.BaseShaderRegister = 0;
-		descriptor_range.RegisterSpace = 0;
-		descriptor_range.OffsetInDescriptorsFromTableStart = 0;
+	{   D3D12_DESCRIPTOR_RANGE range = {};
+		range.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+		range.NumDescriptors = 1;
+		range.BaseShaderRegister = 0;
 
 		D3D12_ROOT_PARAMETER params[2] = {};
 		params[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
 		params[0].Constants.ShaderRegister = 0;
-		params[0].Constants.RegisterSpace = 0;
 		params[0].Constants.Num32BitValues = 16;
 		params[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
 		params[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
 		params[1].DescriptorTable.NumDescriptorRanges = 1;
-		params[1].DescriptorTable.pDescriptorRanges = &descriptor_range;
+		params[1].DescriptorTable.pDescriptorRanges = &range;
 		params[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
 
-		D3D12_STATIC_SAMPLER_DESC sampler_desc = {};
-		sampler_desc.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
-		sampler_desc.AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
-		sampler_desc.AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
-		sampler_desc.AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
-		sampler_desc.ComparisonFunc = D3D12_COMPARISON_FUNC_ALWAYS;
-		sampler_desc.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+		D3D12_STATIC_SAMPLER_DESC samplers[1] = {};
+		samplers[0].Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
+		samplers[0].AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+		samplers[0].AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+		samplers[0].AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+		samplers[0].ComparisonFunc = D3D12_COMPARISON_FUNC_ALWAYS;
+		samplers[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
 
+		D3D12_ROOT_SIGNATURE_DESC desc = {};
 		desc.NumParameters = ARRAYSIZE(params);
 		desc.pParameters = params;
-		desc.NumStaticSamplers = 1;
-		desc.pStaticSamplers = &sampler_desc;
+		desc.NumStaticSamplers = ARRAYSIZE(samplers);
+		desc.pStaticSamplers = samplers;
+		desc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT |
+			D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS |
+			D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS |
+			D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS;
 
 		if (com_ptr<ID3DBlob> blob; SUCCEEDED(hooks::call(D3D12SerializeRootSignature)(&desc, D3D_ROOT_SIGNATURE_VERSION_1, &blob, nullptr)))
 			_device->CreateRootSignature(0, blob->GetBufferPointer(), blob->GetBufferSize(), IID_PPV_ARGS(&_imgui_signature));
@@ -886,6 +1094,9 @@ void reshade::d3d12::runtime_d3d12::render_imgui_draw_data(ImDrawData *draw_data
 
 		if (FAILED(_device->CreateCommittedResource(&props, D3D12_HEAP_FLAG_NONE, &desc, D3D12_RESOURCE_STATE_GENERIC_READ, NULL, IID_PPV_ARGS(&_imgui_index_buffer[resource_index]))))
 			return;
+#ifdef _DEBUG
+		_imgui_index_buffer[resource_index]->SetName(L"ImGui Index Buffer");
+#endif
 
 		_imgui_index_buffer_size[resource_index] = new_size;
 	}
@@ -905,6 +1116,9 @@ void reshade::d3d12::runtime_d3d12::render_imgui_draw_data(ImDrawData *draw_data
 
 		if (FAILED(_device->CreateCommittedResource(&props, D3D12_HEAP_FLAG_NONE, &desc, D3D12_RESOURCE_STATE_GENERIC_READ, NULL, IID_PPV_ARGS(&_imgui_vertex_buffer[resource_index]))))
 			return;
+#ifdef _DEBUG
+		_imgui_index_buffer[resource_index]->SetName(L"ImGui Vertex Buffer");
+#endif
 
 		_imgui_vertex_buffer_size[resource_index] = new_size;
 	}
@@ -927,12 +1141,7 @@ void reshade::d3d12::runtime_d3d12::render_imgui_draw_data(ImDrawData *draw_data
 	_imgui_vertex_buffer[resource_index]->Unmap(0, nullptr);
 
 	// Transition render target
-	D3D12_RESOURCE_BARRIER barrier = { D3D12_RESOURCE_BARRIER_TYPE_TRANSITION };
-	barrier.Transition.pResource = _backbuffers[_swap_index].get();
-	barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
-	barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_PRESENT;
-	barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET;
-	cmd_list->ResourceBarrier(1, &barrier);
+	transition_state(cmd_list, _backbuffers[_swap_index], D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
 
 	// Setup orthographic projection matrix
 	const float ortho_projection[16] = {
@@ -951,6 +1160,8 @@ void reshade::d3d12::runtime_d3d12::render_imgui_draw_data(ImDrawData *draw_data
 		_imgui_vertex_buffer[resource_index]->GetGPUVirtualAddress(), _imgui_vertex_buffer_size[resource_index] * sizeof(ImDrawVert),  sizeof(ImDrawVert) };
 	cmd_list->IASetVertexBuffers(0, 1, &vertex_buffer_view);
 	cmd_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	ID3D12DescriptorHeap *const descriptor_heaps[] = { _srvs.get() };
+	cmd_list->SetDescriptorHeaps(ARRAYSIZE(descriptor_heaps), descriptor_heaps);
 	cmd_list->SetGraphicsRootSignature(_imgui_signature.get());
 	cmd_list->SetGraphicsRoot32BitConstants(0, sizeof(ortho_projection) / 4, ortho_projection, 0);
 	const D3D12_VIEWPORT viewport = { 0, 0, draw_data->DisplaySize.x, draw_data->DisplaySize.y, 0.0f, 1.0f };
@@ -959,8 +1170,6 @@ void reshade::d3d12::runtime_d3d12::render_imgui_draw_data(ImDrawData *draw_data
 	cmd_list->OMSetBlendFactor(blend_factor);
 	D3D12_CPU_DESCRIPTOR_HANDLE render_target = { _backbuffer_rtvs->GetCPUDescriptorHandleForHeapStart().ptr + _swap_index * _rtv_handle_size };
 	cmd_list->OMSetRenderTargets(1, &render_target, false, nullptr);
-	ID3D12DescriptorHeap *const descriptor_heaps[] = { _srvs.get() };
-	cmd_list->SetDescriptorHeaps(1, descriptor_heaps);
 
 	UINT vtx_offset = 0, idx_offset = 0;
 	for (int n = 0; n < draw_data->CmdListsCount; ++n)
@@ -992,11 +1201,11 @@ void reshade::d3d12::runtime_d3d12::render_imgui_draw_data(ImDrawData *draw_data
 	}
 
 	// Transition render target back to previous state
-	barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
-	barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
-	cmd_list->ResourceBarrier(1, &barrier);
+	transition_state(cmd_list, _backbuffers[_swap_index], D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
 
-	cmd_list->Close();
+	if (FAILED(cmd_list->Close()))
+		return;
+
 	execute_command_list_async(cmd_list);
 }
 #endif
