@@ -301,6 +301,10 @@ void reshade::d3d9::runtime_d3d9::on_draw_call(D3DPRIMITIVETYPE type, unsigned i
 	com_ptr<IDirect3DSurface9> depthstencil;
 	_device->GetDepthStencilSurface(&depthstencil);
 
+	// remove parasite items
+	if (!_is_good_viewport)
+		return;
+
 	if (depthstencil != nullptr)
 	{
 		// Resolve pointer to original depth stencil
@@ -349,6 +353,10 @@ void reshade::d3d9::runtime_d3d9::on_clear_depthstencil_surface(IDirect3DSurface
 	D3DSURFACE_DESC desc;
 	depthstencil->GetDesc(&desc);
 	if (!check_depthstencil_size(desc)) // Ignore unlikely candidates
+		return;
+
+	// remove parasite items
+	if (!_is_good_viewport)
 		return;
 
 	// Check if any draw calls have been registered since the last clear operation
@@ -411,6 +419,17 @@ void reshade::d3d9::runtime_d3d9::capture_screenshot(uint8_t *buffer) const
 	}
 
 	intermediate->UnlockRect();
+}
+
+void reshade::d3d9::runtime_d3d9::on_set_viewport(const D3DVIEWPORT9 *pViewport)
+{
+	D3DSURFACE_DESC desc;
+
+	desc.Width = pViewport->Width;
+	desc.Height = pViewport->Height;
+	desc.MultiSampleType = D3DMULTISAMPLE_NONE;
+
+	_is_good_viewport = check_depthstencil_size(desc);
 }
 
 bool reshade::d3d9::runtime_d3d9::init_texture(texture &texture)
