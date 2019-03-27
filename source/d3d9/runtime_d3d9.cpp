@@ -1319,7 +1319,7 @@ void reshade::d3d9::runtime_d3d9::detect_depth_source()
 	if (_preserve_depth_buffer)
 	{
 		// check if we draw calls have been registered since the last cleaning
-		if (_depthstencil_replacement != nullptr && _current_db_drawcalls > 0 && _current_db_vertices > 0)
+		if (_is_good_viewport && _depthstencil_replacement != nullptr && _current_db_drawcalls > 0 && _current_db_vertices > 0)
 		{
 			D3DSURFACE_DESC desc;
 			_depthstencil_replacement->GetDesc(&desc);
