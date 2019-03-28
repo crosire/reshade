@@ -28,6 +28,7 @@ namespace reshade::d3d9
 		void on_set_depthstencil_surface(IDirect3DSurface9 *&depthstencil);
 		void on_get_depthstencil_surface(IDirect3DSurface9 *&depthstencil);
 		void on_clear_depthstencil_surface(IDirect3DSurface9 *depthstencil);
+		void on_set_viewport(const D3DVIEWPORT9 *pViewport);
 
 		void capture_screenshot(uint8_t *buffer) const override;
 
@@ -86,6 +87,7 @@ namespace reshade::d3d9
 		bool _auto_preserve = true;
 		bool _auto_preserve_on_drawcalls = false;
 		bool _auto_preserve_on_vertices = true;
+		bool _is_good_viewport = true;
 		unsigned int _db_vertices = 0;
 		unsigned int _db_drawcalls = 0;
 		unsigned int _current_db_vertices = 0;
