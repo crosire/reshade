@@ -760,6 +760,12 @@ bool reshade::d3d12::runtime_d3d12::compile_effect(effect_data &effect)
 }
 void reshade::d3d12::runtime_d3d12::unload_effects()
 {
+	// Wait for all GPU operations to finish so resources are no longer referenced
+	_screenshot_fence->SetEventOnCompletion(1, _screenshot_event);
+	_commandqueue->Signal(_screenshot_fence.get(), 1);
+	WaitForSingleObject(_screenshot_event, INFINITE);
+	_screenshot_fence->Signal(0);
+
 	runtime::unload_effects();
 
 	_effect_data.clear();
