@@ -28,6 +28,7 @@ namespace reshade::d3d12
 
 	private:
 		bool init_backbuffer_textures(UINT num_buffers);
+		bool init_default_depth_stencil();
 
 		bool init_texture(texture &info) override;
 		void upload_texture(texture &texture, const uint8_t *pixels) override;
@@ -36,7 +37,7 @@ namespace reshade::d3d12
 		bool compile_effect(effect_data &effect) override;
 		void unload_effects() override;
 
-		bool init_technique(technique &technique, const std::unordered_map<std::string, com_ptr<ID3DBlob>> &entry_points);
+		bool init_technique(technique &technique, const struct d3d12_effect_data &effect_data, const std::unordered_map<std::string, com_ptr<ID3DBlob>> &entry_points);
 
 		void render_technique(technique &technique) override;
 
@@ -45,10 +46,10 @@ namespace reshade::d3d12
 		void render_imgui_draw_data(ImDrawData *data) override;
 #endif
 
-		com_ptr<ID3D12GraphicsCommandList> create_command_list(D3D12_COMMAND_LIST_TYPE type = D3D12_COMMAND_LIST_TYPE_DIRECT) const
+		com_ptr<ID3D12GraphicsCommandList> create_command_list(const com_ptr<ID3D12PipelineState> &state = nullptr, D3D12_COMMAND_LIST_TYPE type = D3D12_COMMAND_LIST_TYPE_DIRECT) const
 		{
 			com_ptr<ID3D12GraphicsCommandList> cmd_list;
-			_device->CreateCommandList(0, type, _cmd_alloc.get(), nullptr, IID_PPV_ARGS(&cmd_list));
+			_device->CreateCommandList(0, type, _cmd_alloc[_framecount % ARRAYSIZE(_cmd_alloc)].get(), state.get(), IID_PPV_ARGS(&cmd_list));
 			return cmd_list;
 		}
 		void execute_command_list(const com_ptr<ID3D12GraphicsCommandList> &list) const
@@ -73,19 +74,16 @@ namespace reshade::d3d12
 		com_ptr<IDXGISwapChain3> _swapchain;
 
 		com_ptr<ID3D12DescriptorHeap> _backbuffer_rtvs;
+		com_ptr<ID3D12DescriptorHeap> _depthstencil_dsvs;
 		std::vector<com_ptr<ID3D12Resource>> _backbuffers;
 
 		com_ptr<ID3D12Resource> _backbuffer_texture;
+		com_ptr<ID3D12Resource> _default_depthstencil;
 
 		UINT _swap_index = 0;
 		UINT _srv_handle_size = 0;
-		UINT _sampler_handle_size = 0;
 		UINT _rtv_handle_size = 0;
-		D3D12_CPU_DESCRIPTOR_HANDLE _rtv_cpu_handle = {};
-		D3D12_CPU_DESCRIPTOR_HANDLE _srv_cpu_handle = {};
-		D3D12_GPU_DESCRIPTOR_HANDLE _srv_gpu_handle = {};
-		com_ptr<ID3D12DescriptorHeap> _rtvs;
-		com_ptr<ID3D12DescriptorHeap> _srvs;
+		UINT _sampler_handle_size = 0;
 
 		std::vector<struct d3d12_effect_data> _effect_data;
 
@@ -95,16 +93,17 @@ namespace reshade::d3d12
 		HMODULE _d3d_compiler = nullptr;
 
 		DXGI_FORMAT _backbuffer_format = DXGI_FORMAT_UNKNOWN;
-		com_ptr<ID3D12CommandAllocator> _cmd_alloc;
+		com_ptr<ID3D12CommandAllocator> _cmd_alloc[3];
 
-		D3D12_CPU_DESCRIPTOR_HANDLE _default_depthstencil = {};
-
+#if RESHADE_GUI
 		unsigned int _imgui_index_buffer_size[3] = {};
 		com_ptr<ID3D12Resource> _imgui_index_buffer[3];
 		unsigned int _imgui_vertex_buffer_size[3] = {};
 		com_ptr<ID3D12Resource> _imgui_vertex_buffer[3];
 		com_ptr<ID3D12PipelineState> _imgui_pipeline;
 		com_ptr<ID3D12RootSignature> _imgui_signature;
-		com_ptr<ID3D12GraphicsCommandList> _imgui_cmd_list;
+		unsigned int _imgui_num_srv_handles = 0;
+		com_ptr<ID3D12DescriptorHeap> _imgui_srvs;
+#endif
 	};
 }
