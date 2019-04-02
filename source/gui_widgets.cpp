@@ -373,16 +373,9 @@ bool imgui_list_with_buttons(const char *label, const std::string_view ui_items,
 	bool modified = false;
 
 	std::vector<std::string_view> items;
-	std::string_view preview_value;
-
-	for (size_t i = 0, next = 0; ui_items.size() > next;
-		next += strnlen_s(ui_items.data() + next, ui_items.size() - next) + 1, ++i)
-	{
-		if (v == static_cast<int>(i))
-			preview_value = ui_items.data() + next;
-
-		items.push_back(ui_items.data() + next);
-	}
+	for (std::string_view item = ui_items; ui_items.data() + ui_items.size() > item.data();
+		item = item.data() + item.size() + 1)
+		items.push_back(item);
 
 	ImGui::BeginGroup();
 
@@ -392,7 +385,7 @@ bool imgui_list_with_buttons(const char *label, const std::string_view ui_items,
 
 	ImGui::PushItemWidth(ImGui::CalcItemWidth() - (button_spacing * 2 + button_size * 2));
 
-	if (ImGui::BeginCombo("##v", preview_value.data(), ImGuiComboFlags_NoArrowButton))
+	if (ImGui::BeginCombo("##v", items.size() > v && v >= 0 ? items[v].data() : nullptr, ImGuiComboFlags_NoArrowButton))
 	{
 		auto it = items.begin();
 		for (size_t i = 0; it != items.end(); ++it, ++i)
