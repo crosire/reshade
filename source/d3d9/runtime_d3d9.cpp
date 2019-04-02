@@ -245,12 +245,9 @@ void reshade::d3d9::runtime_d3d9::on_present()
 		_disable_depth_buffer_size_restriction = true;
 	// if the depthstencil_replacement surface detection succeeds by retrieving bigger resolutions candidates
 	// the texture is cropped to the actual viewport, so we can go back to the standard resolution filter
+	// and recheck for a depthstencil replacement candidate using the good resolution
 	else if (_disable_depth_buffer_size_restriction)
 	{
-		// Force depth-stencil replacement 
-		_depthstencil = _default_depthstencil;
-		// Force depth-stencil clearing table recreation
-		_depth_buffer_table.clear();
 		_depth_source_table.clear();
 		_disable_depth_buffer_size_restriction = false;
 	}
