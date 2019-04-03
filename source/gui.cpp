@@ -634,34 +634,22 @@ void reshade::runtime::draw_overlay_menu_home()
 
 		if (ImGui::ButtonEx("<", ImVec2(button_size,0), 0 < _current_preset ? 0 : ImGuiButtonFlags_Disabled))
 		{
+			_show_splash = true;
 			_current_preset--;
 
 			save_config();
-
-			_show_splash = true;
-
-			// Need to reload effects in performance mode, so values are applied
-			if (_performance_mode)
-				load_effects();
-			else
-				load_preset(_preset_files[_current_preset]);
+			load_current_preset();
 		}
 
 		ImGui::SameLine(0, button_spacing);
 
 		if (ImGui::ButtonEx(">", ImVec2(button_size, 0), (_current_preset < _preset_files.size() - 1) ? 0 : ImGuiButtonFlags_Disabled))
 		{
+			_show_splash = true;
 			_current_preset++;
 
 			save_config();
-
-			_show_splash = true;
-
-			// Need to reload effects in performance mode, so values are applied
-			if (_performance_mode)
-				load_effects();
-			else
-				load_preset(_preset_files[_current_preset]);
+			load_current_preset();
 		}
 
 		ImGui::SameLine(0, button_spacing);
