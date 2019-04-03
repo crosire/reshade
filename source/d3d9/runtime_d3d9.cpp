@@ -386,7 +386,7 @@ void reshade::d3d9::runtime_d3d9::on_clear_depthstencil_surface(IDirect3DSurface
 	_current_db_vertices = 0;
 	_current_db_drawcalls = 0;
 
-	if (_depth_buffer_table.empty() || _depth_buffer_table.size() == _preserve_starting_index)
+	if (_depth_buffer_table.empty() || _depth_buffer_table.size() <= _preserve_starting_index)
 		return;
 
 	// If the current depth buffer replacement texture has to be preserved, replace the set surface with a dummy one, so that the replacement texture will not be cleared
