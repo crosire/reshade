@@ -377,6 +377,7 @@ bool reshadefx::expression::evaluate_constant_expression(reshadefx::tokenid op, 
 		else
 			for (unsigned int i = 0; i < type.components(); ++i)
 				constant.as_uint[i] = constant.as_uint[i] < rhs.as_uint[i];
+		type.base = type::t_bool; // Logic operations change the type to boolean
 		break;
 	case tokenid::less_equal:
 		if (type.is_floating_point())
@@ -388,6 +389,7 @@ bool reshadefx::expression::evaluate_constant_expression(reshadefx::tokenid op, 
 		else
 			for (unsigned int i = 0; i < type.components(); ++i)
 				constant.as_uint[i] = constant.as_uint[i] <= rhs.as_uint[i];
+		type.base = type::t_bool;
 		break;
 	case tokenid::greater:
 		if (type.is_floating_point())
@@ -399,6 +401,7 @@ bool reshadefx::expression::evaluate_constant_expression(reshadefx::tokenid op, 
 		else
 			for (unsigned int i = 0; i < type.components(); ++i)
 				constant.as_uint[i] = constant.as_uint[i] > rhs.as_uint[i];
+		type.base = type::t_bool;
 		break;
 	case tokenid::greater_equal:
 		if (type.is_floating_point())
@@ -410,6 +413,7 @@ bool reshadefx::expression::evaluate_constant_expression(reshadefx::tokenid op, 
 		else
 			for (unsigned int i = 0; i < type.components(); ++i)
 				constant.as_uint[i] = constant.as_uint[i] >= rhs.as_uint[i];
+		type.base = type::t_bool;
 		break;
 	case tokenid::equal_equal:
 		if (type.is_floating_point())
@@ -418,6 +422,7 @@ bool reshadefx::expression::evaluate_constant_expression(reshadefx::tokenid op, 
 		else
 			for (unsigned int i = 0; i < type.components(); ++i)
 				constant.as_uint[i] = constant.as_uint[i] == rhs.as_uint[i];
+		type.base = type::t_bool;
 		break;
 	case tokenid::exclaim_equal:
 		if (type.is_floating_point())
@@ -426,6 +431,7 @@ bool reshadefx::expression::evaluate_constant_expression(reshadefx::tokenid op, 
 		else
 			for (unsigned int i = 0; i < type.components(); ++i)
 				constant.as_uint[i] = constant.as_uint[i] != rhs.as_uint[i];
+		type.base = type::t_bool;
 		break;
 	case tokenid::less_less:
 		for (unsigned int i = 0; i < type.components(); ++i)

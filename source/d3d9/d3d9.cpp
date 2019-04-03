@@ -9,7 +9,7 @@
 #include "d3d9_swapchain.hpp"
 #include "runtime_d3d9.hpp"
 
-// These are set in d3d9.h, but we want to use them as function names below
+// These are defined in d3d9.h, but we want to use them as function names below
 #undef IDirect3D9_CreateDevice
 #undef IDirect3D9Ex_CreateDeviceEx
 
@@ -46,53 +46,53 @@ static void init_runtime_d3d(T *&device, D3DDEVTYPE device_type, D3DPRESENT_PARA
 	if (use_software_rendering)
 		device->SetSoftwareVertexProcessing(TRUE);
 
+	// TODO: Make this configurable, since it prevents ReShade from being applied to video players.
 	if (pp.Flags & D3DPRESENTFLAG_VIDEO)
 	{
-		// TODO: Make this configurable, since it prevents ReShade from being applied to video players.
 		LOG(WARN) << "> Skipping device due to video swapchain.";
+		return;
 	}
-	else if (device_type == D3DDEVTYPE_NULLREF)
+
+	if (device_type == D3DDEVTYPE_NULLREF)
 	{
 		LOG(WARN) << "> Skipping device due to device type being 'D3DDEVTYPE_NULLREF'.";
+		return;
 	}
-	else
+
+	IDirect3DSwapChain9 *swapchain = nullptr;
+	device->GetSwapChain(0, &swapchain);
+	assert(swapchain != nullptr);
+
+	swapchain->GetPresentParameters(&pp);
+
+	const auto runtime = std::make_shared<reshade::d3d9::runtime_d3d9>(device, swapchain);
+
+	if (!runtime->on_init(pp))
+		LOG(ERROR) << "Failed to initialize Direct3D 9 runtime environment on runtime " << runtime.get() << '.';
+
+	const auto device_proxy = new Direct3DDevice9(device);
+	const auto swapchain_proxy = new Direct3DSwapChain9(device_proxy, swapchain, runtime);
+
+	device_proxy->_implicit_swapchain = swapchain_proxy;
+	device_proxy->_use_software_rendering = use_software_rendering;
+
+	// Get and set depth stencil surface so that the depth detection callbacks are called with the auto depth stencil surface
+	if (pp.EnableAutoDepthStencil)
 	{
-		IDirect3DSwapChain9 *swapchain = nullptr;
-		device->GetSwapChain(0, &swapchain);
+		device->GetDepthStencilSurface(&device_proxy->_auto_depthstencil);
+		device_proxy->SetDepthStencilSurface(device_proxy->_auto_depthstencil.get());
+	}
 
-		assert(swapchain != nullptr);
+	// Overwrite returned device with hooked one
+	device = device_proxy;
 
-		swapchain->GetPresentParameters(&pp);
-
-		const auto runtime = std::make_shared<reshade::d3d9::runtime_d3d9>(device, swapchain);
-
-		if (!runtime->on_init(pp))
-			LOG(ERROR) << "Failed to initialize Direct3D 9 runtime environment on runtime " << runtime.get() << '.';
-
-		const auto device_proxy = new Direct3DDevice9(device);
-		const auto swapchain_proxy = new Direct3DSwapChain9(device_proxy, swapchain, runtime);
-
-		device_proxy->_implicit_swapchain = swapchain_proxy;
-		device_proxy->_use_software_rendering = use_software_rendering;
-
-		// Get and set depth stencil surface so that the depth detection callbacks are called with the auto depth stencil surface
-		if (pp.EnableAutoDepthStencil)
-		{
-			device->GetDepthStencilSurface(&device_proxy->_auto_depthstencil);
-			device_proxy->SetDepthStencilSurface(device_proxy->_auto_depthstencil.get());
-		}
-
-		// Overwrite returned device with hooked one
-		device = device_proxy;
-
-		// Upgrade to extended interface if available to prevent compatibility issues with some games
-		com_ptr<IDirect3DDevice9Ex> deviceex;
-		device_proxy->QueryInterface(IID_PPV_ARGS(&deviceex));
+	// Upgrade to extended interface if available to prevent compatibility issues with some games
+	com_ptr<IDirect3DDevice9Ex> deviceex;
+	device_proxy->QueryInterface(IID_PPV_ARGS(&deviceex));
 
 #if RESHADE_VERBOSE_LOG
-		LOG(DEBUG) << "Returning IDirect3DDevice9" << (device_proxy->_extended_interface ? "Ex" : "") << " object " << device;
+	LOG(DEBUG) << "Returning IDirect3DDevice9" << (device_proxy->_extended_interface ? "Ex" : "") << " object " << device << '.';
 #endif
-	}
 }
 
 HRESULT STDMETHODCALLTYPE IDirect3D9_CreateDevice(IDirect3D9 *pD3D, UINT Adapter, D3DDEVTYPE DeviceType, HWND hFocusWindow, DWORD BehaviorFlags, D3DPRESENT_PARAMETERS *pPresentationParameters, IDirect3DDevice9 **ppReturnedDeviceInterface)
@@ -114,7 +114,6 @@ HRESULT STDMETHODCALLTYPE IDirect3D9_CreateDevice(IDirect3D9 *pD3D, UINT Adapter
 	if (use_software_rendering)
 	{
 		LOG(WARN) << "> Replacing 'D3DCREATE_SOFTWARE_VERTEXPROCESSING' flag with 'D3DCREATE_MIXED_VERTEXPROCESSING' to allow for hardware rendering ...";
-
 		BehaviorFlags = (BehaviorFlags & ~D3DCREATE_SOFTWARE_VERTEXPROCESSING) | D3DCREATE_MIXED_VERTEXPROCESSING;
 	}
 
@@ -150,7 +149,6 @@ HRESULT STDMETHODCALLTYPE IDirect3D9Ex_CreateDeviceEx(IDirect3D9Ex *pD3D, UINT A
 	if (use_software_rendering)
 	{
 		LOG(WARN) << "> Replacing 'D3DCREATE_SOFTWARE_VERTEXPROCESSING' flag with 'D3DCREATE_MIXED_VERTEXPROCESSING' to allow for hardware rendering ...";
-
 		BehaviorFlags = (BehaviorFlags & ~D3DCREATE_SOFTWARE_VERTEXPROCESSING) | D3DCREATE_MIXED_VERTEXPROCESSING;
 	}
 
@@ -182,7 +180,7 @@ HOOK_EXPORT IDirect3D9 *WINAPI Direct3DCreate9(UINT SDKVersion)
 	reshade::hooks::install("IDirect3D9::CreateDevice", vtable_from_instance(res), 16, reinterpret_cast<reshade::hook::address>(&IDirect3D9_CreateDevice));
 
 #if RESHADE_VERBOSE_LOG
-	LOG(DEBUG) << "Returning IDirect3D9 object " << res;
+	LOG(DEBUG) << "Returning IDirect3D9 object " << res << '.';
 #endif
 	return res;
 }
@@ -203,7 +201,7 @@ HOOK_EXPORT HRESULT WINAPI Direct3DCreate9Ex(UINT SDKVersion, IDirect3D9Ex **ppD
 	reshade::hooks::install("IDirect3D9Ex::CreateDeviceEx", vtable_from_instance(*ppD3D), 20, reinterpret_cast<reshade::hook::address>(&IDirect3D9Ex_CreateDeviceEx));
 
 #if RESHADE_VERBOSE_LOG
-	LOG(DEBUG) << "Returning IDirect3D9Ex object " << *ppD3D;
+	LOG(DEBUG) << "Returning IDirect3D9Ex object " << *ppD3D << '.';
 #endif
 	return hr;
 }

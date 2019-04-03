@@ -5,13 +5,12 @@
 
 #pragma once
 
-#include <chrono>
-#include <memory>
-#include <functional>
 #include <mutex>
+#include <memory>
 #include <atomic>
-#include "ini_file.hpp"
-#include "runtime_objects.hpp"
+#include <chrono>
+#include <functional>
+#include <filesystem>
 
 #if RESHADE_GUI
 #include "gui_code_editor.hpp"
@@ -22,16 +21,19 @@ struct ImGuiContext;
 
 namespace reshade
 {
+	class ini_file; // Some forward declarations to keep number of includes small
+	struct uniform;
+	struct texture;
+	struct technique;
+	struct effect_data;
+
+	/// <summary>
+	/// Platform independent base class for the main ReShade runtime.
+	/// This class needs to be implemented for all supported rendering APIs.
+	/// </summary>
 	class runtime abstract
 	{
 	public:
-		/// <summary>
-		/// Construct a new runtime instance.
-		/// </summary>
-		/// <param name="renderer">A unique number identifying the renderer implementation.</param>
-		runtime(uint32_t renderer);
-		virtual ~runtime();
-
 		/// <summary>
 		/// Return the frame width in pixels.
 		/// </summary>
@@ -42,10 +44,10 @@ namespace reshade
 		unsigned int frame_height() const { return _height; }
 
 		/// <summary>
-		/// Create a copy of the current frame.
+		/// Create a copy of the current frame image in system memory.
 		/// </summary>
-		/// <param name="buffer">The 32bpp RGBA buffer to save the copy to.</param>
-		virtual void capture_frame(uint8_t *buffer) const = 0;
+		/// <param name="buffer">The 32bpp RGBA buffer to save the screenshot to.</param>
+		virtual void capture_screenshot(uint8_t *buffer) const = 0;
 
 		/// <summary>
 		/// Save user configuration to disk.
@@ -58,18 +60,18 @@ namespace reshade
 		/// <param name="texture">The texture description.</param>
 		virtual bool init_texture(texture &texture) = 0;
 		/// <summary>
-		/// Update the image data of a texture.
+		/// Upload the image data of a texture.
 		/// </summary>
 		/// <param name="texture">The texture to update.</param>
-		/// <param name="data">The 32bpp RGBA image data to update the texture with.</param>
-		virtual void update_texture(texture &texture, const uint8_t *data) = 0;
+		/// <param name="pixels">The 32bpp RGBA image data to update the texture with.</param>
+		virtual void upload_texture(texture &texture, const uint8_t *pixels) = 0;
 
 		/// <summary>
 		/// Get the value of a uniform variable.
 		/// </summary>
 		/// <param name="variable">The variable to retrieve the value from.</param>
-		/// <param name="data">The buffer to store the value in.</param>
-		/// <param name="size">The size of the buffer.</param>
+		/// <param name="values">The buffer to store the value data in.</param>
+		/// <param name="count">The number of components the value.</param>
 		void get_uniform_value(const uniform &variable, bool *values, size_t count) const;
 		void get_uniform_value(const uniform &variable, int32_t *values, size_t count) const;
 		void get_uniform_value(const uniform &variable, uint32_t *values, size_t count) const;
@@ -107,26 +109,17 @@ namespace reshade
 		/// Register a function to be called when user configuration is loaded.
 		/// </summary>
 		/// <param name="function">The callback function.</param>
-		void subscribe_to_load_config(std::function<void(const ini_file &)> function)
-		{
-			_load_config_callables.push_back(function);
-
-			const ini_file config(_configuration_path);
-			function(config);
-		}
+		void subscribe_to_load_config(std::function<void(const ini_file &)> function);
 		/// <summary>
 		/// Register a function to be called when user configuration is stored.
 		/// </summary>
 		/// <param name="function">The callback function.</param>
-		void subscribe_to_save_config(std::function<void(ini_file &)> function)
-		{
-			_save_config_callables.push_back(function);
-
-			ini_file config(_configuration_path);
-			function(config);
-		}
+		void subscribe_to_save_config(std::function<void(ini_file &)> function);
 
 	protected:
+		runtime();
+		virtual ~runtime();
+
 		/// <summary>
 		/// Callback function called when the runtime is initialized.
 		/// </summary>
@@ -168,7 +161,7 @@ namespace reshade
 		/// Render all passes in a technique.
 		/// </summary>
 		/// <param name="technique">The technique to render.</param>
-		virtual void render_technique(const technique &technique) = 0;
+		virtual void render_technique(technique &technique) = 0;
 #if RESHADE_GUI
 		/// <summary>
 		/// Render command lists obtained from ImGui.
@@ -179,11 +172,16 @@ namespace reshade
 
 		bool _is_initialized = false;
 		bool _has_high_network_activity = false;
-		const unsigned int _renderer_id;
-		unsigned int _width = 0, _height = 0;
-		unsigned int _vendor_id = 0, _device_id = 0;
+		unsigned int _width = 0;
+		unsigned int _height = 0;
+		unsigned int _window_width = 0;
+		unsigned int _window_height = 0;
+		unsigned int _vendor_id = 0;
+		unsigned int _device_id = 0;
+		unsigned int _renderer_id = 0;
 		uint64_t _framecount = 0;
-		unsigned int _drawcalls = 0, _vertices = 0;
+		unsigned int _vertices = 0;
+		unsigned int _drawcalls = 0;
 		std::vector<texture> _textures;
 		std::vector<uniform> _uniforms;
 		std::vector<technique> _techniques;
@@ -236,7 +234,7 @@ namespace reshade
 		/// <param name="path">The preset file to load.</param>
 		void load_preset(const std::filesystem::path &path);
 		/// <summary>
-		/// Load the currently selected preset and apply it.
+		/// Load the selected preset and apply it.
 		/// </summary>
 		void load_current_preset();
 		/// <summary>
@@ -276,7 +274,8 @@ namespace reshade
 		size_t _current_preset = 0;
 		std::vector<std::filesystem::path> _preset_files;
 
-		std::vector<std::string> _preprocessor_definitions;
+		std::vector<std::string> _global_preprocessor_definitions;
+		std::vector<std::string> _preset_preprocessor_definitions;
 		std::vector<std::filesystem::path> _preset_search_paths;
 		std::vector<std::filesystem::path> _effect_search_paths;
 		std::vector<std::filesystem::path> _texture_search_paths;
@@ -289,7 +288,7 @@ namespace reshade
 		size_t _reload_total_effects = 1;
 		std::vector<size_t> _reload_compile_queue;
 		std::atomic<size_t> _reload_remaining_effects = 0;
-		std::vector<struct effect_data> _loaded_effects;
+		std::vector<effect_data> _loaded_effects;
 		std::vector<std::thread> _worker_threads;
 
 		int _date[4] = {};
@@ -321,7 +320,7 @@ namespace reshade
 
 		std::vector<const texture *> _texture_previews;
 		std::vector<std::pair<std::string, std::function<void()>>> _menu_callables;
-		texture _imgui_font_atlas;
+		std::unique_ptr<texture> _imgui_font_atlas;
 		ImGuiContext *_imgui_context = nullptr;
 		size_t _focused_effect = std::numeric_limits<size_t>::max();
 		size_t _selected_effect = std::numeric_limits<size_t>::max();
@@ -347,7 +346,7 @@ namespace reshade
 		bool _variable_editor_tabs = false;
 		bool _selected_effect_changed = false;
 		bool _rebuild_font_atlas = false;
-		bool _was_preprocessor_popup_visible = false;
+		bool _was_preprocessor_popup_edited = false;
 		bool _statistics_effects_show_enabled = false;
 		float _fps_col[4] = { 1.0f, 1.0f, 0.784314f, 1.0f };
 		float _fps_scale = 1.0f;

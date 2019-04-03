@@ -75,10 +75,10 @@ namespace reshadefx
 		bool is_vector() const { return rows > 1 && cols == 1; }
 		bool is_matrix() const { return rows >= 1 && cols > 1; }
 		bool is_signed() const { return base == t_int || base == t_float; }
-		bool is_numeric() const { return is_boolean() || is_integral() || is_floating_point(); }
+		bool is_numeric() const { return is_integral() || is_floating_point(); }
 		bool is_void() const { return base == t_void; }
 		bool is_boolean() const { return base == t_bool; }
-		bool is_integral() const { return base == t_int || base == t_uint; }
+		bool is_integral() const { return base == t_bool || base == t_int || base == t_uint; }
 		bool is_floating_point() const { return base == t_float; }
 		bool is_struct() const { return base == t_struct; }
 		bool is_texture() const { return base == t_texture; }

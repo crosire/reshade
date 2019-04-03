@@ -24,6 +24,10 @@ packages/
 *.vsp
 *.psess
 
+# Code signing
+*.pfx
+*.pvk
+
 # Temporary OS files
 .DS_Store
 Thumbs.db
