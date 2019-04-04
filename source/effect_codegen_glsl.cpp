@@ -162,6 +162,7 @@ private:
 			return;
 		}
 
+		// There can only be numeric constants
 		assert(type.is_numeric());
 
 		if (!type.is_scalar())
@@ -170,9 +171,8 @@ private:
 				s += "transpose(";
 
 			write_type<false, false>(s, type);
+			s += '(';
 		}
-
-		s += '(';
 
 		for (unsigned int i = 0, components = type.components(); i < components; ++i)
 		{
@@ -198,12 +198,13 @@ private:
 				s += ", ";
 		}
 
-		if (!type.is_scalar() && type.is_matrix())
+		if (!type.is_scalar())
 		{
+			if (type.is_matrix())
+				s += ')';
+
 			s += ')';
 		}
-
-		s += ')';
 	}
 	void write_location(std::string &s, const location &loc) const
 	{
@@ -966,9 +967,11 @@ private:
 
 		// GLSL requires the selection first expression to be a scalar boolean
 		if (!res_type.is_scalar())
-			code += "all";
+			code += "all(" + id_to_name(condition) + ')';
+		else
+			code += id_to_name(condition);
 
-		code += '(' + id_to_name(condition) + ") ? " + id_to_name(true_value) + " : " + id_to_name(false_value) + ";\n";
+		code += " ? " + id_to_name(true_value) + " : " + id_to_name(false_value) + ";\n";
 
 		return res;
 	}
