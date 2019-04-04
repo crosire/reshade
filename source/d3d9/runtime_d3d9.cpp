@@ -74,20 +74,14 @@ reshade::d3d9::runtime_d3d9::runtime_d3d9(IDirect3DDevice9 *device, IDirect3DSwa
 	subscribe_to_load_config([this](const ini_file &config) {
 		config.get("DX9_BUFFER_DETECTION", "DisableINTZ", _disable_intz);
 		config.get("DX9_BUFFER_DETECTION", "PreserveDepthBuffer", _preserve_depth_buffer);
-		config.get("DX9_BUFFER_DETECTION", "DisableDepthBufferSizeRestriction", _disable_depth_buffer_size_restriction);
 		config.get("DX9_BUFFER_DETECTION", "PreserveDepthBufferIndex", _preserve_starting_index);
 		config.get("DX9_BUFFER_DETECTION", "AutoPreserve", _auto_preserve);
-		config.get("DX9_BUFFER_DETECTION", "AutoPreserveOnVertices", _auto_preserve_on_vertices);
-		config.get("DX9_BUFFER_DETECTION", "AutoPreserveOnDrawcalls", _auto_preserve_on_drawcalls);
 	});
 	subscribe_to_save_config([this](ini_file &config) {
 		config.set("DX9_BUFFER_DETECTION", "DisableINTZ", _disable_intz);
 		config.set("DX9_BUFFER_DETECTION", "PreserveDepthBuffer", _preserve_depth_buffer);
-		config.set("DX9_BUFFER_DETECTION", "DisableDepthBufferSizeRestriction", _disable_depth_buffer_size_restriction);
 		config.set("DX9_BUFFER_DETECTION", "PreserveDepthBufferIndex", _preserve_starting_index);
 		config.set("DX9_BUFFER_DETECTION", "AutoPreserve", _auto_preserve);
-		config.set("DX9_BUFFER_DETECTION", "AutoPreserveOnVertices", _auto_preserve_on_vertices);
-		config.set("DX9_BUFFER_DETECTION", "AutoPreserveOnDrawcalls", _auto_preserve_on_drawcalls);
 	});
 }
 reshade::d3d9::runtime_d3d9::~runtime_d3d9()
@@ -233,6 +227,8 @@ void reshade::d3d9::runtime_d3d9::on_reset()
 	_db_drawcalls = 0;
 	_current_db_vertices = 0;
 	_current_db_drawcalls = 0;
+
+	_disable_depth_buffer_size_restriction = false;
 }
 
 void reshade::d3d9::runtime_d3d9::on_present()
@@ -241,6 +237,20 @@ void reshade::d3d9::runtime_d3d9::on_present()
 		return;
 
 	detect_depth_source();
+
+	/** Vanquish fix (and other games using bigger depth buffer surface than the viewport) **/
+	// if the depthstencil_replacement surface detection fails on the first attempt, try to detect it
+	// in some bigger resolutions
+	if (_depthstencil_replacement == nullptr)
+		_disable_depth_buffer_size_restriction = true;
+	// if the depthstencil_replacement surface detection succeeds by retrieving bigger resolutions candidates
+	// the texture is cropped to the actual viewport, so we can go back to the standard resolution filter
+	// and recheck for a depthstencil replacement candidate using the good resolution
+	else if (_disable_depth_buffer_size_restriction)
+	{
+		_depth_source_table.clear();
+		_disable_depth_buffer_size_restriction = false;
+	}
 
 	_app_state.capture();
 	BOOL software_rendering_enabled = FALSE;
@@ -305,6 +315,13 @@ void reshade::d3d9::runtime_d3d9::on_draw_call(D3DPRIMITIVETYPE type, unsigned i
 	if (!_is_good_viewport)
 		return;
 
+	if (_preserve_depth_buffer && _depthstencil_replacement != nullptr)
+	{
+		// ensure that the draw calls are targetted to the depthstencil replacement surface 
+		if(_depthstencil_replacement != depthstencil)
+			_device->SetDepthStencilSurface(_depthstencil_replacement.get());
+	}
+
 	if (depthstencil != nullptr)
 	{
 		// Resolve pointer to original depth stencil
@@ -355,10 +372,6 @@ void reshade::d3d9::runtime_d3d9::on_clear_depthstencil_surface(IDirect3DSurface
 	if (!check_depthstencil_size(desc)) // Ignore unlikely candidates
 		return;
 
-	// remove parasite items
-	if (!_is_good_viewport)
-		return;
-
 	// Check if any draw calls have been registered since the last clear operation
 	if (_current_db_drawcalls > 0 && _current_db_vertices > 0)
 	{
@@ -376,9 +389,9 @@ void reshade::d3d9::runtime_d3d9::on_clear_depthstencil_surface(IDirect3DSurface
 	if (_depth_buffer_table.empty() || _depth_buffer_table.size() <= _preserve_starting_index)
 		return;
 
-	// If the current depth buffer replacement texture has to be preserved, replace the set surface with the original one, so that the replacement texture will not be cleared
-	_device->SetDepthStencilSurface(_depthstencil.get());
-}
+	// If the current depth buffer replacement texture has to be preserved, replace the set surface with a dummy one, so that the replacement texture will not be cleared
+	_device->SetDepthStencilSurface(nullptr);
+}	
 
 void reshade::d3d9::runtime_d3d9::capture_screenshot(uint8_t *buffer) const
 {
@@ -423,13 +436,26 @@ void reshade::d3d9::runtime_d3d9::capture_screenshot(uint8_t *buffer) const
 
 void reshade::d3d9::runtime_d3d9::on_set_viewport(const D3DVIEWPORT9 *pViewport)
 {
-	D3DSURFACE_DESC desc;
+	D3DSURFACE_DESC desc, depthstencil_desc;
 
 	desc.Width = pViewport->Width;
 	desc.Height = pViewport->Height;
 	desc.MultiSampleType = D3DMULTISAMPLE_NONE;
+	_is_good_viewport = true;
 
-	_is_good_viewport = check_depthstencil_size(desc);
+	if (_preserve_depth_buffer)
+	{
+		// if there is no depthstencil replacement surface, check the viewport with the actual back buffer size
+		if (_depthstencil_replacement == nullptr)
+			_is_good_viewport = check_depthstencil_size(desc);
+		// if there is a depthstencil replacement surface, check the viewport with this one,
+		// in order to remove the parasite depth buffers that have a different size from the correct one
+		else
+		{
+			_depthstencil_replacement->GetDesc(&depthstencil_desc);
+			_is_good_viewport = check_depthstencil_size(desc, depthstencil_desc);
+		}
+	}
 }
 
 bool reshade::d3d9::runtime_d3d9::init_texture(texture &texture)
@@ -1225,19 +1251,6 @@ void reshade::d3d9::runtime_d3d9::draw_debug_menu()
 			}
 		}
 
-		ImGui::Spacing();
-
-		if (ImGui::Checkbox("Disable the depth buffer size restriction", &_disable_depth_buffer_size_restriction))
-		{
-			runtime::save_config();
-
-			// Force depth-stencil replacement 
-			_depthstencil = _default_depthstencil;
-			// Force depth-stencil clearing table recreation
-			_depth_buffer_table.clear();
-			_depth_source_table.clear();
-		}
-
 		if (_preserve_depth_buffer)
 		{
 			ImGui::Spacing();
@@ -1249,20 +1262,6 @@ void reshade::d3d9::runtime_d3d9::draw_debug_menu()
 				modified = true;
 				if (_auto_preserve)
 					_preserve_starting_index = std::numeric_limits<size_t>::max();
-			}
-
-			if (_auto_preserve)
-			{
-				if (ImGui::Checkbox("find best depthstencil based on vertices", &_auto_preserve_on_vertices))
-				{
-					modified = true;
-					_auto_preserve_on_drawcalls = !_auto_preserve_on_vertices;
-				}
-				if (ImGui::Checkbox("find best depthstencil based on drawcalls", &_auto_preserve_on_drawcalls))
-				{
-					modified = true;
-					_auto_preserve_on_vertices = !_auto_preserve_on_drawcalls;
-				}
 			}
 
 			ImGui::Spacing();
@@ -1319,7 +1318,7 @@ void reshade::d3d9::runtime_d3d9::detect_depth_source()
 	if (_preserve_depth_buffer)
 	{
 		// check if we draw calls have been registered since the last cleaning
-		if (_is_good_viewport && _depthstencil_replacement != nullptr && _current_db_drawcalls > 0 && _current_db_vertices > 0)
+		if (_depthstencil_replacement != nullptr && _current_db_drawcalls > 0 && _current_db_vertices > 0)
 		{
 			D3DSURFACE_DESC desc;
 			_depthstencil_replacement->GetDesc(&desc);
@@ -1340,8 +1339,7 @@ void reshade::d3d9::runtime_d3d9::detect_depth_source()
 			for (size_t i = 0; i != _depth_buffer_table.size(); i++)
 			{
 				const auto &it = _depth_buffer_table[i];
-				if (_auto_preserve_on_drawcalls ?
-					it.drawcall_count >= _db_drawcalls : it.vertices_count >= _db_vertices)
+				if (it.vertices_count >= _db_vertices)
 				{
 					_db_vertices = it.vertices_count;
 					_db_drawcalls = it.drawcall_count;
@@ -1410,6 +1408,23 @@ bool reshade::d3d9::runtime_d3d9::check_depthstencil_size(const D3DSURFACE_DESC 
 	{
 		return (desc.Width >= _width * 0.95 && desc.Width <= _width * 1.05)
 			&& (desc.Height >= _height * 0.95 && desc.Height <= _height * 1.05);
+	}
+}
+
+bool reshade::d3d9::runtime_d3d9::check_depthstencil_size(const D3DSURFACE_DESC &desc, const D3DSURFACE_DESC &compared_desc)
+{
+	if (desc.MultiSampleType != D3DMULTISAMPLE_NONE)
+		return false; // MSAA depth buffers are not supported since they would have to be moved into a plain surface before attaching to a shader slot
+
+	if (_disable_depth_buffer_size_restriction)
+	{
+		// Allow depth buffers with greater dimensions than the viewport (e.g. in games like Vanquish)
+		return desc.Width >= compared_desc.Width * 0.95 && desc.Height >= compared_desc.Height * 0.95;
+	}
+	else
+	{
+		return (desc.Width >= compared_desc.Width * 0.95 && desc.Width <= compared_desc.Width * 1.05)
+			&& (desc.Height >= compared_desc.Height * 0.95 && desc.Height <= compared_desc.Height * 1.05);
 	}
 }
 
