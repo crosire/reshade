@@ -54,6 +54,8 @@ namespace reshade
 		reshadefx::module module;
 		std::filesystem::path source_file;
 		size_t storage_offset = 0, storage_size = 0;
+
+		std::vector<std::pair<std::filesystem::path, std::string>> user_definitions;
 	};
 
 	struct texture final : reshadefx::texture_info

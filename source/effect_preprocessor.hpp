@@ -72,6 +72,12 @@ namespace reshadefx
 		std::string &output() { return _output; }
 		const std::string &output() const { return _output; }
 
+		/// <summary>
+		/// Get list the names of definition that can pre-processing by user.
+		/// </summary>
+		std::vector<std::pair<std::filesystem::path, std::string>> &user_definitions() { return _user_definitions; }
+		const std::vector<std::pair<std::filesystem::path, std::string>> &user_definitions() const { return _user_definitions; }
+
 	private:
 		struct if_level
 		{
@@ -129,6 +135,7 @@ namespace reshadefx
 		std::string _output, _errors, _current_token_raw_data;
 		int _recursion_count = 0;
 		std::unordered_map<std::string, macro> _macros;
+		std::vector<std::pair<std::filesystem::path, std::string>> _user_definitions;
 		std::vector<std::filesystem::path> _include_paths;
 		std::unordered_map<std::string, std::string> _filecache;
 	};

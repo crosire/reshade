@@ -247,10 +247,16 @@ void reshade::runtime::load_effect(const std::filesystem::path &path, size_t &ou
 		}
 
 		// Pre-process the source file
-		if (!pp.append_file(path))
+		if (pp.append_file(path))
+		{
+			effect.user_definitions = std::move(pp.user_definitions());
+		}
+		else
 		{
 			LOG(ERROR) << "Failed to load " << path << ":\n" << pp.errors();
 			effect.compile_sucess = false;
+
+			effect.user_definitions.clear();
 		}
 
 		source_code = std::move(pp.output());
@@ -273,12 +279,15 @@ void reshade::runtime::load_effect(const std::filesystem::path &path, size_t &ou
 			_renderer_id & 0x10000 ? reshadefx::codegen::backend::glsl : reshadefx::codegen::backend::hlsl;
 
 		// Compile the pre-processed source code (try the compile even if the preprocessor step failed to get additional error information)
-		if (!parser.parse(std::move(source_code), language, shader_model, true, _performance_mode, effect.module))
+		if (parser.parse(std::move(source_code), language, shader_model, true, _performance_mode, effect.module))
+		{
+			parser.errors();
+		}
+		else
 		{
 			LOG(ERROR) << "Failed to compile " << path << ":\n" << parser.errors();
 			effect.compile_sucess = false;
 		}
-
 		effect.errors += parser.errors(); // Append parser errors and warnings to the error list
 	}
 

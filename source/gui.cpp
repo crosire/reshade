@@ -1786,6 +1786,139 @@ void reshade::runtime::draw_overlay_variable_editor()
 
 			if (current_tree_is_open)
 			{
+				const float button_size = ImGui::GetFrameHeight();
+				const float button_spacing = _imgui_context->Style.ItemInnerSpacing.x;
+
+				ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(_imgui_context->Style.FramePadding.x, 0));
+				if (imgui_popup_button("Edit effect preprocessor definitions", -1, ImGuiWindowFlags_NoMove))
+				{
+					ImGui::PopStyleVar();
+
+					std::vector<std::string> user_definitions;
+					for (size_t i = 0; i < _loaded_effects[variable.effect_index].user_definitions.size(); ++i)
+						if (_loaded_effects[variable.effect_index].user_definitions[i].first == _loaded_effects[variable.effect_index].source_file)
+							user_definitions.push_back(_loaded_effects[variable.effect_index].user_definitions[i].second);
+
+					ImGui::SetWindowPos(popup_pos);
+					bool modified = false;
+
+					ImGui::BeginChild("##user_definitions", ImVec2(400.0f, std::max(user_definitions.size(), user_definitions.size()) * ImGui::GetFrameHeightWithSpacing()), false, ImGuiWindowFlags_NoScrollWithMouse);
+
+					for (size_t i = 0; i < user_definitions.size(); ++i)
+					{
+						char value[128] = "";
+
+						int is_global = -1;
+						for (size_t k = 0; k < _global_preprocessor_definitions.size(); ++k)
+						{
+							std::string_view definition_name;
+							std::string_view definition_value;
+
+							int idx = _global_preprocessor_definitions[k].find('=');
+							if (-1 == idx)
+							{
+								definition_name = std::string_view(_global_preprocessor_definitions[k].data(), _global_preprocessor_definitions[k].size());
+							}
+							else
+							{
+								definition_name = std::string_view(_global_preprocessor_definitions[k].data(), idx);
+								definition_value = std::string_view(_global_preprocessor_definitions[k].data() + definition_name.size() + 1, _global_preprocessor_definitions[k].size() - idx - 1);
+							}
+
+							if (user_definitions[i] == definition_name)
+							{
+								definition_value.copy(value, sizeof(value) - 1);
+								is_global = k;
+								break;
+							}
+						}
+						int is_preset = -1;
+						if (-1 == is_global)
+						{
+							for (size_t k = 0; k < _preset_preprocessor_definitions.size(); ++k)
+							{
+								std::string_view definition_name;
+								std::string_view definition_value;
+
+								int idx = _preset_preprocessor_definitions[k].find('=');
+								if (-1 == idx)
+								{
+									definition_name = std::string_view(_preset_preprocessor_definitions[k].data(), _preset_preprocessor_definitions[k].size());
+								}
+								else
+								{
+									definition_name = std::string_view(_preset_preprocessor_definitions[k].data(), idx);
+									definition_value = std::string_view(_preset_preprocessor_definitions[k].data() + definition_name.size() + 1, _preset_preprocessor_definitions[k].size() - idx - 1);
+								}
+
+								if (user_definitions[i] == definition_name)
+								{
+									definition_value.copy(value, sizeof(value) - 1);
+									is_preset = k;
+									break;
+								}
+							}
+						}
+
+						ImGui::PushID(user_definitions[i].c_str());
+
+						ImGui::PushItemWidth(ImGui::GetWindowContentRegionWidth() * 0.66666666f - (button_spacing));
+						ImGui::LabelText("##user_definition_name", user_definitions[i].c_str());
+						ImGui::PopItemWidth();
+
+						ImGui::SameLine(0, button_spacing);
+
+						ImGui::PushItemWidth(ImGui::GetWindowContentRegionWidth() * 0.33333333f - (button_spacing + button_size) + 1);
+						if (-1 == is_global && -1 == is_preset)
+							ImGui::LabelText("##value_undefined", "(undefined)");
+						else
+							modified |= ImGui::InputText("##user_definition_value", value, sizeof(value), (-1 != is_global) ? ImGuiInputTextFlags_ReadOnly : 0);
+						ImGui::PopItemWidth();
+
+						ImGui::SameLine(0, button_spacing);
+
+						if (ImGui::ButtonEx((-1 == is_global && -1 == is_preset) ? "+" : "-", ImVec2(button_size, 0), (-1 != is_global) ? ImGuiButtonFlags_Disabled : 0))
+						{
+							modified = true;
+							if (-1 == is_global && -1 == is_preset)
+								_preset_preprocessor_definitions.push_back(user_definitions[i]);
+							else if (-1 != is_preset)
+								_preset_preprocessor_definitions.erase(_preset_preprocessor_definitions.begin() + is_preset);
+						}
+						else if (modified && -1 != is_preset)
+						{
+							modified = true;
+							_preset_preprocessor_definitions[is_preset] = user_definitions[i] + '=' + std::string(value);
+						}
+
+						ImGui::PopID();
+					}
+
+					ImGui::EndChild();
+
+					if (modified)
+						_was_user_definitions_popup_edited = true;
+
+					ImGui::EndPopup();
+				}
+				else if (_was_user_definitions_popup_edited)
+				{
+					ImGui::PopStyleVar();
+					_was_user_definitions_popup_edited = false;
+
+					_show_splash = true;
+					_effect_filter_buffer[0] = '\0'; // Reset filter
+
+					save_config();
+					save_current_preset();
+					load_effects();
+
+					index = std::numeric_limits<size_t>::max();
+				}
+				else
+				{
+					ImGui::PopStyleVar();
+				}
 				ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(_imgui_context->Style.FramePadding.x, 0));
 				if (imgui_popup_button("Reset all to default", _variable_editor_tabs ? -1 : ImGui::CalcItemWidth()))
 				{
@@ -1812,8 +1945,11 @@ void reshade::runtime::draw_overlay_variable_editor()
 		if (!current_tree_is_open)
 			continue;
 
+		if (index == std::numeric_limits<size_t>::max())
+			break;
+
 		if (const std::string_view category = variable.annotation_as_string("ui_category");
-			category != current_category)
+			category.size() != 0 && category != current_category)
 		{
 			current_category = category;
 

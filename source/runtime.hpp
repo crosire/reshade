@@ -347,6 +347,7 @@ namespace reshade
 		bool _selected_effect_changed = false;
 		bool _rebuild_font_atlas = false;
 		bool _was_preprocessor_popup_edited = false;
+		bool _was_user_definitions_popup_edited = false;
 		bool _statistics_effects_show_enabled = false;
 		float _fps_col[4] = { 1.0f, 1.0f, 0.784314f, 1.0f };
 		float _fps_scale = 1.0f;
