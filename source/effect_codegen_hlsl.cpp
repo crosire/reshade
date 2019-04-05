@@ -155,12 +155,14 @@ private:
 			return;
 		}
 
+		// There can only be numeric constants
 		assert(type.is_numeric());
 
 		if (!type.is_scalar())
-			write_type<false, false>(s, type), s += '(';
-		else if (type.components() > 1)
+		{
+			write_type<false, false>(s, type);
 			s += '(';
+		}
 
 		for (unsigned int i = 0, components = type.components(); i < components; ++i)
 		{
@@ -186,8 +188,10 @@ private:
 				s += ", ";
 		}
 
-		if (!type.is_scalar() || type.components() > 1)
+		if (!type.is_scalar())
+		{
 			s += ')';
+		}
 	}
 	template <bool force_source = false>
 	void write_location(std::string &s, const location &loc)
@@ -662,7 +666,7 @@ private:
 			{
 			case expression::operation::op_cast:
 				{ std::string type; write_type<false, false>(type, op.to);
-				newcode = "((" + type + ')' + newcode + ')'; }
+				newcode = "((" + type + ')' + newcode + ')'; } // Cast in parentheses so that a subsequent operation operates on the casted value
 				break;
 			case expression::operation::op_member:
 				newcode += '.';
@@ -786,10 +790,16 @@ private:
 		write_type(code, res_type);
 		code += ' ' + id_to_name(res) + " = ";
 
-		if (_shader_model < 40 && (op == tokenid::greater_greater || op == tokenid::greater_greater_equal))
-			code += "floor(";
+		if (_shader_model < 40)
+		{
+			// See bitwise shift operator emulation below
+			if (op == tokenid::less_less || op == tokenid::less_less_equal)
+				code += '(';
+			else if (op == tokenid::greater_greater || op == tokenid::greater_greater_equal)
+				code += "floor(";
+		}
 
-		code += '(' + id_to_name(lhs) + ' ';
+		code += id_to_name(lhs) + ' ';
 
 		switch (op)
 		{
@@ -863,10 +873,15 @@ private:
 			assert(false);
 		}
 
-		code += ' ' + id_to_name(rhs) + ')';
+		code += ' ' + id_to_name(rhs);
 
-		if (_shader_model < 40 && (op == tokenid::greater_greater || op == tokenid::greater_greater_equal))
-			code += ')';
+		if (_shader_model < 40)
+		{
+			// See bitwise shift operator emulation above
+			if (op == tokenid::less_less || op == tokenid::less_less_equal ||
+				op == tokenid::greater_greater || op == tokenid::greater_greater_equal)
+				code += ')';
+		}
 
 		code += ";\n";
 
