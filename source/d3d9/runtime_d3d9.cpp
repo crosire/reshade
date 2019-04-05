@@ -359,7 +359,7 @@ void reshade::d3d9::runtime_d3d9::on_set_depthstencil_surface(IDirect3DSurface9 
 	}
 
 	if (_depthstencil_replacement != nullptr && depthstencil == _depthstencil)
-			depthstencil = _depthstencil_replacement.get(); // Replace application depth stencil surface with our custom one
+		depthstencil = _depthstencil_replacement.get(); // Replace application depth stencil surface with our custom one
 }
 void reshade::d3d9::runtime_d3d9::on_get_depthstencil_surface(IDirect3DSurface9 *&depthstencil)
 {
@@ -393,7 +393,7 @@ void reshade::d3d9::runtime_d3d9::on_clear_depthstencil_surface(IDirect3DSurface
 	if (_depth_buffer_table.empty() || _depth_buffer_table.size() <= _preserve_starting_index)
 		return;
 
-	// If the current depth buffer replacement texture has to be preserved, replace the set surface with the original one, so that the replacement texture will not be cleared
+	// If the current depth buffer replacement texture has to be preserved, replace the set surface with a dummy one, so that the replacement texture will not be cleared
 	_device->SetDepthStencilSurface(nullptr);
 }
 
