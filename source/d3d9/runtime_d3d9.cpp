@@ -311,26 +311,11 @@ void reshade::d3d9::runtime_d3d9::on_draw_call(D3DPRIMITIVETYPE type, unsigned i
 	com_ptr<IDirect3DSurface9> depthstencil;
 	_device->GetDepthStencilSurface(&depthstencil);
 
-	// remove parasite items
-	if (!_is_good_viewport)
-		return;
-
-	if (_preserve_depth_buffer && _depthstencil_replacement != nullptr)
-	{
-		// ensure that the draw calls are targetted to the depthstencil replacement surface 
-		if(_depthstencil_replacement != depthstencil)
-			_device->SetDepthStencilSurface(_depthstencil_replacement.get());
-	}
-
 	if (depthstencil != nullptr)
 	{
 		// Resolve pointer to original depth stencil
 		if (_depthstencil_replacement == depthstencil)
 			depthstencil = _depthstencil;
-
-		if (_preserve_depth_buffer)
-			_current_db_vertices += vertices,
-			_current_db_drawcalls += 1;
 
 		// Update draw statistics for tracked depth stencil surfaces
 		const auto it = _depth_source_table.find(depthstencil.get());
@@ -340,9 +325,28 @@ void reshade::d3d9::runtime_d3d9::on_draw_call(D3DPRIMITIVETYPE type, unsigned i
 			it->second.vertices_count += vertices;
 		}
 	}
+
+	if (_preserve_depth_buffer && _depthstencil_replacement != nullptr)
+	{
+		// remove parasite items
+		if (!_is_good_viewport)
+			return;
+
+		// check that the drawcall is done on the good depthstencil (the one from which the depthstencil_replaceent was created)
+		if (!_is_good_depthstencil)
+			return;
+
+		_current_db_vertices += vertices,
+		_current_db_drawcalls += 1;
+
+		if (_depthstencil_replacement != depthstencil)
+			_device->SetDepthStencilSurface(_depthstencil_replacement.get());
+	}
 }
 void reshade::d3d9::runtime_d3d9::on_set_depthstencil_surface(IDirect3DSurface9 *&depthstencil)
 {
+	_is_good_depthstencil = (depthstencil == _depthstencil);
+
 	// Keep track of all used depth stencil surfaces
 	if (_depth_source_table.find(depthstencil) == _depth_source_table.end())
 	{
@@ -355,7 +359,7 @@ void reshade::d3d9::runtime_d3d9::on_set_depthstencil_surface(IDirect3DSurface9 
 	}
 
 	if (_depthstencil_replacement != nullptr && depthstencil == _depthstencil)
-		depthstencil = _depthstencil_replacement.get(); // Replace application depth stencil surface with our custom one
+			depthstencil = _depthstencil_replacement.get(); // Replace application depth stencil surface with our custom one
 }
 void reshade::d3d9::runtime_d3d9::on_get_depthstencil_surface(IDirect3DSurface9 *&depthstencil)
 {
@@ -389,9 +393,27 @@ void reshade::d3d9::runtime_d3d9::on_clear_depthstencil_surface(IDirect3DSurface
 	if (_depth_buffer_table.empty() || _depth_buffer_table.size() <= _preserve_starting_index)
 		return;
 
-	// If the current depth buffer replacement texture has to be preserved, replace the set surface with a dummy one, so that the replacement texture will not be cleared
+	// If the current depth buffer replacement texture has to be preserved, replace the set surface with the original one, so that the replacement texture will not be cleared
 	_device->SetDepthStencilSurface(nullptr);
-}	
+}
+
+void reshade::d3d9::runtime_d3d9::on_set_viewport(const D3DVIEWPORT9 *pViewport)
+{
+	D3DSURFACE_DESC desc, depthstencil_desc;
+
+	desc.Width = pViewport->Width;
+	desc.Height = pViewport->Height;
+	desc.MultiSampleType = D3DMULTISAMPLE_NONE;
+	_is_good_viewport = true;
+
+	if (_depthstencil_replacement == nullptr)
+		_is_good_viewport = check_depthstencil_size(desc);
+	else
+	{
+		_depthstencil_replacement->GetDesc(&depthstencil_desc);
+		_is_good_viewport = check_depthstencil_size(desc, depthstencil_desc);
+	}
+}
 
 void reshade::d3d9::runtime_d3d9::capture_screenshot(uint8_t *buffer) const
 {
@@ -432,30 +454,6 @@ void reshade::d3d9::runtime_d3d9::capture_screenshot(uint8_t *buffer) const
 	}
 
 	intermediate->UnlockRect();
-}
-
-void reshade::d3d9::runtime_d3d9::on_set_viewport(const D3DVIEWPORT9 *pViewport)
-{
-	D3DSURFACE_DESC desc, depthstencil_desc;
-
-	desc.Width = pViewport->Width;
-	desc.Height = pViewport->Height;
-	desc.MultiSampleType = D3DMULTISAMPLE_NONE;
-	_is_good_viewport = true;
-
-	if (_preserve_depth_buffer)
-	{
-		// if there is no depthstencil replacement surface, check the viewport with the actual back buffer size
-		if (_depthstencil_replacement == nullptr)
-			_is_good_viewport = check_depthstencil_size(desc);
-		// if there is a depthstencil replacement surface, check the viewport with this one,
-		// in order to remove the parasite depth buffers that have a different size from the correct one
-		else
-		{
-			_depthstencil_replacement->GetDesc(&depthstencil_desc);
-			_is_good_viewport = check_depthstencil_size(desc, depthstencil_desc);
-		}
-	}
 }
 
 bool reshade::d3d9::runtime_d3d9::init_texture(texture &texture)
@@ -551,7 +549,7 @@ bool reshade::d3d9::runtime_d3d9::init_texture(texture &texture)
 			"Width = " << texture.width << ", "
 			"Height = " << texture.height << ", "
 			"Levels = " << levels << ", "
-			"Usage = " <<usage << ", "
+			"Usage = " << usage << ", "
 			"Format = " << format << ")! "
 			"HRESULT is '" << std::hex << hr << std::dec << "'.";
 		return false;
@@ -1230,8 +1228,9 @@ void reshade::d3d9::runtime_d3d9::draw_debug_menu()
 			// Force depth source table recreation
 			_depth_buffer_table.clear();
 			_depth_source_table.clear();
+			_depthstencil_replacement.reset();
 
-			if(_preserve_depth_buffer)
+			if (_preserve_depth_buffer)
 				_disable_intz = false;
 		}
 
@@ -1300,6 +1299,10 @@ void reshade::d3d9::runtime_d3d9::draw_debug_menu()
 
 				// Force depth-stencil replacement recreation
 				_depthstencil = _default_depthstencil;
+				// Force depth source table recreation
+				_depth_buffer_table.clear();
+				_depth_source_table.clear();
+				_depthstencil_replacement.reset();
 			}
 		}
 		else
