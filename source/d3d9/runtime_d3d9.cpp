@@ -332,7 +332,7 @@ void reshade::d3d9::runtime_d3d9::on_draw_call(D3DPRIMITIVETYPE type, unsigned i
 		if (!_is_good_viewport)
 			return;
 
-		// check that the drawcall is done on the good depthstencil (the one from which the depthstencil_replaceent was created)
+		// check that the drawcall is done on the good depthstencil (the one from which the depthstencil_replacement was created)
 		if (!_is_good_depthstencil)
 			return;
 
