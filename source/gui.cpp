@@ -1796,7 +1796,7 @@ void reshade::runtime::draw_overlay_variable_editor()
 
 					std::vector<std::string> user_definitions;
 					for (size_t i = 0; i < _loaded_effects[variable.effect_index].user_definitions.size(); ++i)
-						if (_loaded_effects[variable.effect_index].user_definitions[i].first == _loaded_effects[variable.effect_index].source_file)
+						if (_loaded_effects[variable.effect_index].user_definitions[i].first.stem() == _loaded_effects[variable.effect_index].source_file.stem())
 							user_definitions.push_back(_loaded_effects[variable.effect_index].user_definitions[i].second);
 
 					ImGui::SetWindowPos(popup_pos);
@@ -1949,7 +1949,7 @@ void reshade::runtime::draw_overlay_variable_editor()
 			break;
 
 		if (const std::string_view category = variable.annotation_as_string("ui_category");
-			category.size() != 0 && category != current_category)
+			category != current_category)
 		{
 			current_category = category;
 
