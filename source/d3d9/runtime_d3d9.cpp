@@ -229,6 +229,7 @@ void reshade::d3d9::runtime_d3d9::on_reset()
 	_current_db_drawcalls = 0;
 
 	_disable_depth_buffer_size_restriction = false;
+	_init_depthbuffer_detection = true;
 }
 
 void reshade::d3d9::runtime_d3d9::on_present()
@@ -251,6 +252,8 @@ void reshade::d3d9::runtime_d3d9::on_present()
 		_depth_source_table.clear();
 		_disable_depth_buffer_size_restriction = false;
 	}
+
+	_init_depthbuffer_detection = false;
 
 	_app_state.capture();
 	BOOL software_rendering_enabled = FALSE;
@@ -280,9 +283,14 @@ void reshade::d3d9::runtime_d3d9::on_present()
 	{
 		_depth_buffer_table.clear();
 
+		com_ptr<IDirect3DSurface9> depthstencil;
+		_device->GetDepthStencilSurface(&depthstencil);
+
 		// Ensure that the main depth buffer replacement surface (and texture) is cleared before the next frame
 		_device->SetDepthStencilSurface(_depthstencil_replacement.get());
 		_device->Clear(0, nullptr, D3DCLEAR_ZBUFFER, 0, 1.0f, 0);
+
+		_device->SetDepthStencilSurface(depthstencil.get());
 	}
 }
 
@@ -325,21 +333,25 @@ void reshade::d3d9::runtime_d3d9::on_draw_call(D3DPRIMITIVETYPE type, unsigned i
 			it->second.vertices_count += vertices;
 		}
 	}
+	else
+		depthstencil = _depthstencil;
 
 	if (_preserve_depth_buffer && _depthstencil_replacement != nullptr)
 	{
+		_device->SetDepthStencilSurface(depthstencil.get());
+
 		// remove parasite items
 		if (!_is_good_viewport)
 			return;
 
-		// check that the drawcall is done on the good depthstencil (the one from which the depthstencil_replacement was created)
+		// check that the drawcall is done on the good depthstencil (the one from which the depthstencil_replaceent was created)
 		if (!_is_good_depthstencil)
-			return;
+		 	return;
 
 		_current_db_vertices += vertices,
 		_current_db_drawcalls += 1;
 
-		if (_depthstencil_replacement != depthstencil)
+		if (_depthstencil_replacement != depthstencil && _depth_buffer_table.size() <= _preserve_starting_index)
 			_device->SetDepthStencilSurface(_depthstencil_replacement.get());
 	}
 }
@@ -355,7 +367,7 @@ void reshade::d3d9::runtime_d3d9::on_set_depthstencil_surface(IDirect3DSurface9 
 		if (!check_depthstencil_size(desc)) // Ignore unlikely candidates
 			return;
 
-		_depth_source_table.emplace(depthstencil, depth_source_info { nullptr, desc.Width, desc.Height });
+		_depth_source_table.emplace(depthstencil, depth_source_info{ nullptr, desc.Width, desc.Height });
 	}
 
 	if (_depthstencil_replacement != nullptr && depthstencil == _depthstencil)
@@ -393,8 +405,12 @@ void reshade::d3d9::runtime_d3d9::on_clear_depthstencil_surface(IDirect3DSurface
 	if (_depth_buffer_table.empty() || _depth_buffer_table.size() <= _preserve_starting_index)
 		return;
 
-	// If the current depth buffer replacement texture has to be preserved, replace the set surface with a dummy one, so that the replacement texture will not be cleared
-	_device->SetDepthStencilSurface(nullptr);
+	if (_depthstencil_replacement != _depthstencil)
+		// If the current depth buffer replacement texture has to be preserved, replace the set surface with the original one, so that the replacement texture will not be cleared
+		_device->SetDepthStencilSurface(_depthstencil.get());
+	else
+		// If the current depth buffer replacement texture has to be preserved, replace the set surface with a dummy one, so that the replacement texture will not be cleared
+		_device->SetDepthStencilSurface(nullptr);
 }
 
 void reshade::d3d9::runtime_d3d9::on_set_viewport(const D3DVIEWPORT9 *pViewport)
@@ -1229,6 +1245,7 @@ void reshade::d3d9::runtime_d3d9::draw_debug_menu()
 			_depth_buffer_table.clear();
 			_depth_source_table.clear();
 			_depthstencil_replacement.reset();
+			_init_depthbuffer_detection = true;
 
 			if (_preserve_depth_buffer)
 				_disable_intz = false;
@@ -1259,8 +1276,7 @@ void reshade::d3d9::runtime_d3d9::draw_debug_menu()
 			if (ImGui::Checkbox("Auto preserve", &_auto_preserve))
 			{
 				modified = true;
-				if (_auto_preserve)
-					_preserve_starting_index = std::numeric_limits<size_t>::max();
+				_preserve_starting_index = std::numeric_limits<size_t>::max();
 			}
 
 			ImGui::Spacing();
@@ -1303,6 +1319,7 @@ void reshade::d3d9::runtime_d3d9::draw_debug_menu()
 				_depth_buffer_table.clear();
 				_depth_source_table.clear();
 				_depthstencil_replacement.reset();
+				_init_depthbuffer_detection = true;
 			}
 		}
 		else
@@ -1342,7 +1359,7 @@ void reshade::d3d9::runtime_d3d9::detect_depth_source()
 			for (size_t i = 0; i != _depth_buffer_table.size(); i++)
 			{
 				const auto &it = _depth_buffer_table[i];
-				if (it.vertices_count >= _db_vertices)
+				if (it.drawcall_count >= _db_drawcalls)
 				{
 					_db_vertices = it.vertices_count;
 					_db_drawcalls = it.drawcall_count;
@@ -1352,7 +1369,7 @@ void reshade::d3d9::runtime_d3d9::detect_depth_source()
 		}
 	}
 
-	if (_framecount % 30 || _is_multisampling_enabled || _depth_source_table.empty())
+	if (!_init_depthbuffer_detection && (_framecount % 30 || _is_multisampling_enabled || _depth_source_table.empty()))
 		return;
 
 	if (_has_high_network_activity)
@@ -1487,10 +1504,10 @@ bool reshade::d3d9::runtime_d3d9::create_depthstencil_replacement(const com_ptr<
 			com_ptr<IDirect3DSurface9> current_depthstencil;
 			_device->GetDepthStencilSurface(&current_depthstencil);
 
-			if (current_depthstencil != nullptr && current_depthstencil == _depthstencil)
+			if (!_preserve_depth_buffer && current_depthstencil != nullptr && current_depthstencil == _depthstencil)
 				_device->SetDepthStencilSurface(_depthstencil_replacement.get());
 		}
-		else
+		else 
 		{
 			_depthstencil_replacement = _depthstencil;
 

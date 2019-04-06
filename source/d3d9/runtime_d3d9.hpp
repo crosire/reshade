@@ -85,6 +85,7 @@ namespace reshade::d3d9
 		bool _preserve_depth_buffer = false;
 		bool _disable_depth_buffer_size_restriction = false;
 		size_t _preserve_starting_index = 0;
+		bool _init_depthbuffer_detection = true;
 		bool _auto_preserve = true;
 		bool _is_good_viewport = true;
 		bool _is_good_depthstencil = true;
