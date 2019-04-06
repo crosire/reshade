@@ -333,8 +333,6 @@ void reshade::d3d9::runtime_d3d9::on_draw_call(D3DPRIMITIVETYPE type, unsigned i
 			it->second.vertices_count += vertices;
 		}
 	}
-	else
-		depthstencil = _depthstencil;
 
 	if (_preserve_depth_buffer && _depthstencil_replacement != nullptr)
 	{
