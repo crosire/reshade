@@ -403,12 +403,8 @@ void reshade::d3d9::runtime_d3d9::on_clear_depthstencil_surface(IDirect3DSurface
 	if (_depth_buffer_table.empty() || _depth_buffer_table.size() <= _preserve_starting_index)
 		return;
 
-	if (_depthstencil_replacement != _depthstencil)
-		// If the current depth buffer replacement texture has to be preserved, replace the set surface with the original one, so that the replacement texture will not be cleared
-		_device->SetDepthStencilSurface(_depthstencil.get());
-	else
-		// If the current depth buffer replacement texture has to be preserved, replace the set surface with a dummy one, so that the replacement texture will not be cleared
-		_device->SetDepthStencilSurface(nullptr);
+	// If the current depth buffer replacement texture has to be preserved, replace the set surface with the original one, so that the replacement texture will not be cleared
+	_device->SetDepthStencilSurface(_depthstencil.get());
 }
 
 void reshade::d3d9::runtime_d3d9::on_set_viewport(const D3DVIEWPORT9 *pViewport)
@@ -1385,7 +1381,7 @@ void reshade::d3d9::runtime_d3d9::detect_depth_source()
 		const auto &depthstencil = it->first;
 
 		// Remove unreferenced depth stencil surfaces from the list (application is no longer using it if we are the only ones who still hold a reference)
-		if (depthstencil.ref_count() == 1)
+		if (!_preserve_depth_buffer && depthstencil.ref_count() == 1)
 		{
 			it = _depth_source_table.erase(it);
 			continue;
@@ -1459,10 +1455,12 @@ bool reshade::d3d9::runtime_d3d9::create_depthstencil_replacement(const com_ptr<
 
 		_depthstencil = depthstencil;
 
-		if (!_disable_intz &&
+		if (_preserve_depth_buffer ||
+			(!_disable_intz &&
 			desc.Format != D3DFMT_INTZ &&
 			desc.Format != D3DFMT_DF16 &&
 			desc.Format != D3DFMT_DF24)
+		)
 		{
 			D3DDISPLAYMODE displaymode;
 			_swapchain->GetDisplayMode(&displaymode);
