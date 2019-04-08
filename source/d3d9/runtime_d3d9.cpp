@@ -336,18 +336,18 @@ void reshade::d3d9::runtime_d3d9::on_draw_call(D3DPRIMITIVETYPE type, unsigned i
 
 	if (_preserve_depth_buffer && _depthstencil_replacement != nullptr)
 	{
-		_device->SetDepthStencilSurface(depthstencil.get());
-
 		// remove parasite items
 		if (!_is_good_viewport)
 			return;
 
 		// check that the drawcall is done on the good depthstencil (the one from which the depthstencil_replaceent was created)
 		if (!_is_good_depthstencil)
-		 	return;
+			return;
+
+		_device->SetDepthStencilSurface(depthstencil.get());
 
 		_current_db_vertices += vertices,
-		_current_db_drawcalls += 1;
+			_current_db_drawcalls += 1;
 
 		if (_depthstencil_replacement != depthstencil && _depth_buffer_table.size() <= _preserve_starting_index)
 			_device->SetDepthStencilSurface(_depthstencil_replacement.get());
