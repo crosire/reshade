@@ -442,12 +442,17 @@
   <ItemGroup>
     <None Include="res\exports.def" />
     <None Include="res\resource.rc2" />
+    <None Include="res\shader_copy_ps.cso" />
+    <None Include="res\shader_fullscreen_vs.cso" />
+    <None Include="res\shader_imgui_ps.cso" />
+    <None Include="res\shader_imgui_vs.cso" />
+    <None Include="res\shader_mipmap_cs.cso" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="res\shader_copy_ps.hlsl">
       <ShaderType>Pixel</ShaderType>
     </FxCompile>
-    <FxCompile Include="res\shader_copy_vs.hlsl">
+    <FxCompile Include="res\shader_fullscreen_vs.hlsl">
       <ShaderType>Vertex</ShaderType>
     </FxCompile>
     <FxCompile Include="res\shader_imgui_ps.hlsl">
@@ -455,6 +460,10 @@
     </FxCompile>
     <FxCompile Include="res\shader_imgui_vs.hlsl">
       <ShaderType>Vertex</ShaderType>
+    </FxCompile>
+    <FxCompile Include="res\shader_mipmap_cs.hlsl">
+      <ShaderType>Compute</ShaderType>
+      <ShaderModel>5.0</ShaderModel>
     </FxCompile>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

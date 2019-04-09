@@ -289,10 +289,33 @@
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
+    <None Include="res\exports.def">
+      <Filter>resources</Filter>
+    </None>
+    <None Include="res\resource.rc2">
+      <Filter>resources</Filter>
+    </None>
+    <None Include="res\shader_copy_ps.cso">
+      <Filter>resources</Filter>
+    </None>
+    <None Include="res\shader_fullscreen_vs.cso">
+      <Filter>resources</Filter>
+    </None>
+    <None Include="res\shader_imgui_ps.cso">
+      <Filter>resources</Filter>
+    </None>
+    <None Include="res\shader_imgui_vs.cso">
+      <Filter>resources</Filter>
+    </None>
+    <None Include="res\shader_mipmap_cs.cso">
+      <Filter>resources</Filter>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
     <FxCompile Include="res\shader_copy_ps.hlsl">
       <Filter>resources</Filter>
     </FxCompile>
-    <FxCompile Include="res\shader_copy_vs.hlsl">
+    <FxCompile Include="res\shader_fullscreen_vs.hlsl">
       <Filter>resources</Filter>
     </FxCompile>
     <FxCompile Include="res\shader_imgui_ps.hlsl">
@@ -301,14 +324,9 @@
     <FxCompile Include="res\shader_imgui_vs.hlsl">
       <Filter>resources</Filter>
     </FxCompile>
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="res\exports.def">
+    <FxCompile Include="res\shader_mipmap_cs.hlsl">
       <Filter>resources</Filter>
-    </None>
-    <None Include="res\resource.rc2">
-      <Filter>resources</Filter>
-    </None>
+    </FxCompile>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="res\resource.rc">

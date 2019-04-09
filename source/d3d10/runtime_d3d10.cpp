@@ -180,10 +180,10 @@ bool reshade::d3d10::runtime_d3d10::init_backbuffer_texture()
 		return false;
 	}
 
-	const resources::data_resource vs = resources::load_data_resource(IDR_RCDATA1);
+	const resources::data_resource vs = resources::load_data_resource(IDR_FULLSCREEN_VS);
 	if (hr = _device->CreateVertexShader(vs.data, vs.data_size, &_copy_vertex_shader); FAILED(hr))
 		return false;
-	const resources::data_resource ps = resources::load_data_resource(IDR_RCDATA2);
+	const resources::data_resource ps = resources::load_data_resource(IDR_COPY_PS);
 	if (hr = _device->CreatePixelShader(ps.data, ps.data_size, &_copy_pixel_shader); FAILED(hr))
 		return false;
 
@@ -1134,7 +1134,7 @@ void reshade::d3d10::runtime_d3d10::render_technique(technique &technique)
 #if RESHADE_GUI
 bool reshade::d3d10::runtime_d3d10::init_imgui_resources()
 {
-	{   const resources::data_resource vs = resources::load_data_resource(IDR_RCDATA3);
+	{   const resources::data_resource vs = resources::load_data_resource(IDR_IMGUI_VS);
 		if (FAILED(_device->CreateVertexShader(vs.data, vs.data_size, &_imgui_vertex_shader)))
 			return false;
 
@@ -1147,7 +1147,7 @@ bool reshade::d3d10::runtime_d3d10::init_imgui_resources()
 			return false;
 	}
 
-	{   const resources::data_resource ps = resources::load_data_resource(IDR_RCDATA4);
+	{   const resources::data_resource ps = resources::load_data_resource(IDR_IMGUI_PS);
 		if (FAILED(_device->CreatePixelShader(ps.data, ps.data_size, &_imgui_pixel_shader)))
 			return false;
 	}
