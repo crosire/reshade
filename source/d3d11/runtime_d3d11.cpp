@@ -4,7 +4,6 @@
  */
 
 #include "log.hpp"
-#include "input.hpp"
 #include "ini_file.hpp"
 #include "runtime_d3d11.hpp"
 #include "runtime_objects.hpp"
@@ -183,10 +182,10 @@ bool reshade::d3d11::runtime_d3d11::init_backbuffer_texture()
 		return false;
 	}
 
-	const resources::data_resource vs = resources::load_data_resource(IDR_RCDATA1);
+	const resources::data_resource vs = resources::load_data_resource(IDR_FULLSCREEN_VS);
 	if (hr = _device->CreateVertexShader(vs.data, vs.data_size, nullptr, &_copy_vertex_shader); FAILED(hr))
 		return false;
-	const resources::data_resource ps = resources::load_data_resource(IDR_RCDATA2);
+	const resources::data_resource ps = resources::load_data_resource(IDR_COPY_PS);
 	if (hr = _device->CreatePixelShader(ps.data, ps.data_size, nullptr, &_copy_pixel_shader); FAILED(hr))
 		return false;
 
@@ -392,13 +391,13 @@ void reshade::d3d11::runtime_d3d11::capture_screenshot(uint8_t *buffer) const
 	D3D11_MAPPED_SUBRESOURCE mapped;
 	if (FAILED(_immediate_context->Map(intermediate.get(), 0, D3D11_MAP_READ, 0, &mapped)))
 		return;
-	auto mapped_data = static_cast<BYTE *>(mapped.pData);
+	auto mapped_data = static_cast<uint8_t *>(mapped.pData);
 
-	for (UINT y = 0, pitch = _width * 4; y < _height; y++, buffer += pitch, mapped_data += mapped.RowPitch)
+	for (uint32_t y = 0, pitch = _width * 4; y < _height; y++, buffer += pitch, mapped_data += mapped.RowPitch)
 	{
 		memcpy(buffer, mapped_data, pitch);
 
-		for (UINT x = 0; x < pitch; x += 4)
+		for (uint32_t x = 0; x < pitch; x += 4)
 		{
 			buffer[x + 3] = 0xFF; // Clear alpha channel
 			if (_backbuffer_format == DXGI_FORMAT_B8G8R8A8_UNORM || _backbuffer_format == DXGI_FORMAT_B8G8R8A8_UNORM_SRGB)
@@ -534,14 +533,14 @@ void reshade::d3d11::runtime_d3d11::upload_texture(texture &texture, const uint8
 	case reshadefx::texture_format::r8:
 		upload_pitch = texture.width;
 		upload_data.resize(upload_pitch * texture.height);
-		for (size_t i = 0, k = 0; i < texture.width * texture.height * 4; i += 4, k += 1)
+		for (uint32_t i = 0, k = 0; i < texture.width * texture.height * 4; i += 4, k += 1)
 			upload_data[k] = pixels[i];
 		pixels = upload_data.data();
 		break;
 	case reshadefx::texture_format::rg8:
 		upload_pitch = texture.width * 2;
 		upload_data.resize(upload_pitch * texture.height);
-		for (size_t i = 0, k = 0; i < texture.width * texture.height * 4; i += 4, k += 2)
+		for (uint32_t i = 0, k = 0; i < texture.width * texture.height * 4; i += 4, k += 2)
 			upload_data[k + 0] = pixels[i + 0],
 			upload_data[k + 1] = pixels[i + 1];
 		pixels = upload_data.data();
@@ -581,7 +580,6 @@ bool reshade::d3d11::runtime_d3d11::update_texture_reference(texture &texture)
 	}
 
 	const auto texture_impl = texture.impl->as<d3d11_tex_data>();
-
 	assert(texture_impl != nullptr);
 
 	if (new_reference[0] == texture_impl->srv[0] &&
@@ -619,14 +617,13 @@ bool reshade::d3d11::runtime_d3d11::compile_effect(effect_data &effect)
 
 	if (_d3d_compiler == nullptr)
 	{
-		LOG(ERROR) << "Unable to load D3DCompiler library. Make sure you have the DirectX end-user runtime (June 2010) installed or a newer version of the library in the application directory.";
+		LOG(ERROR) << "Unable to load HLSL compiler (\"d3dcompiler_47.dll\"). Make sure you have the DirectX end-user runtime (June 2010) installed or a newer version of the library in the application directory.";
 		return false;
 	}
 
 	const auto D3DCompile = reinterpret_cast<pD3DCompile>(GetProcAddress(_d3d_compiler, "D3DCompile"));
 
 	const std::string hlsl = effect.preamble + effect.module.hlsl;
-
 	std::unordered_map<std::string, com_ptr<IUnknown>> entry_points;
 
 	// Compile the generated HLSL source code to DX byte code
@@ -1142,7 +1139,7 @@ void reshade::d3d11::runtime_d3d11::render_technique(technique &technique)
 #if RESHADE_GUI
 bool reshade::d3d11::runtime_d3d11::init_imgui_resources()
 {
-	{   const resources::data_resource vs = resources::load_data_resource(IDR_RCDATA3);
+	{   const resources::data_resource vs = resources::load_data_resource(IDR_IMGUI_VS);
 		if (FAILED(_device->CreateVertexShader(vs.data, vs.data_size, nullptr, &_imgui_vertex_shader)))
 			return false;
 
@@ -1155,7 +1152,7 @@ bool reshade::d3d11::runtime_d3d11::init_imgui_resources()
 			return false;
 	}
 
-	{   const resources::data_resource ps = resources::load_data_resource(IDR_RCDATA4);
+	{   const resources::data_resource ps = resources::load_data_resource(IDR_IMGUI_PS);
 		if (FAILED(_device->CreatePixelShader(ps.data, ps.data_size, nullptr, &_imgui_pixel_shader)))
 			return false;
 	}
@@ -1167,10 +1164,10 @@ bool reshade::d3d11::runtime_d3d11::init_imgui_resources()
 
 		// Setup orthographic projection matrix
 		const float ortho_projection[16] = {
-				2.0f / _width, 0.0f,   0.0f, 0.0f,
-				0.0f, -2.0f / _height, 0.0f, 0.0f,
-				0.0f,          0.0f,   0.5f, 0.0f,
-			-1.0f,          1.0f,   0.5f, 1.0f
+			2.0f / _width, 0.0f,   0.0f, 0.0f,
+			0.0f, -2.0f / _height, 0.0f, 0.0f,
+			0.0f,          0.0f,   0.5f, 0.0f,
+			-1.f,          1.0f,   0.5f, 1.0f
 		};
 
 		D3D11_SUBRESOURCE_DATA initial_data = {};
@@ -1368,7 +1365,7 @@ void reshade::d3d11::runtime_d3d11::draw_debug_menu()
 			ImGui::Spacing();
 			ImGui::TextUnformatted("Depth Buffers:");
 
-			UINT current_index = 1;
+			unsigned int current_index = 1;
 
 			for (const auto &it : _current_tracker->cleared_depth_textures())
 			{

@@ -4,7 +4,6 @@
  */
 
 #include "log.hpp"
-#include "input.hpp"
 #include "ini_file.hpp"
 #include "runtime_d3d9.hpp"
 #include "runtime_objects.hpp"
@@ -365,7 +364,7 @@ void reshade::d3d9::runtime_d3d9::on_set_depthstencil_surface(IDirect3DSurface9 
 		if (!check_depthstencil_size(desc)) // Ignore unlikely candidates
 			return;
 
-		_depth_source_table.emplace(depthstencil, depth_source_info{ nullptr, desc.Width, desc.Height });
+		_depth_source_table.emplace(depthstencil, depth_source_info { nullptr, desc.Width, desc.Height });
 	}
 
 	if (_depthstencil_replacement != nullptr && depthstencil == _depthstencil)
@@ -449,13 +448,13 @@ void reshade::d3d9::runtime_d3d9::capture_screenshot(uint8_t *buffer) const
 	D3DLOCKED_RECT mapped;
 	if (FAILED(intermediate->LockRect(&mapped, nullptr, D3DLOCK_READONLY)))
 		return;
-	auto mapped_data = static_cast<BYTE *>(mapped.pBits);
+	auto mapped_data = static_cast<uint8_t *>(mapped.pBits);
 
-	for (UINT y = 0, pitch = _width * 4; y < _height; y++, buffer += pitch, mapped_data += mapped.Pitch)
+	for (uint32_t y = 0, pitch = _width * 4; y < _height; y++, buffer += pitch, mapped_data += mapped.Pitch)
 	{
 		std::memcpy(buffer, mapped_data, pitch);
 
-		for (UINT x = 0; x < pitch; x += 4)
+		for (uint32_t x = 0; x < pitch; x += 4)
 		{
 			buffer[x + 3] = 0xFF; // Clear alpha channel
 			if (_backbuffer_format == D3DFMT_A8R8G8B8 || _backbuffer_format == D3DFMT_X8R8G8B8)
@@ -588,29 +587,29 @@ void reshade::d3d9::runtime_d3d9::upload_texture(texture &texture, const uint8_t
 	D3DLOCKED_RECT mapped;
 	if (FAILED(intermediate->LockRect(0, &mapped, nullptr, 0)))
 		return;
-	auto mapped_data = static_cast<BYTE *>(mapped.pBits);
+	auto mapped_data = static_cast<uint8_t *>(mapped.pBits);
 
 	switch (texture.format)
 	{
 	case reshadefx::texture_format::r8: // These are actually D3DFMT_A8R8G8B8, see 'init_texture'
-		for (UINT y = 0, pitch = texture.width * 4; y < texture.height; ++y, mapped_data += mapped.Pitch, pixels += pitch)
-			for (UINT x = 0; x < pitch; x += 4)
+		for (uint32_t y = 0, pitch = texture.width * 4; y < texture.height; ++y, mapped_data += mapped.Pitch, pixels += pitch)
+			for (uint32_t x = 0; x < pitch; x += 4)
 				mapped_data[x + 0] = 0, // Set green and blue channel to zero
 				mapped_data[x + 1] = 0,
 				mapped_data[x + 2] = pixels[x + 0],
 				mapped_data[x + 3] = 0xFF;
 		break;
 	case reshadefx::texture_format::rg8:
-		for (UINT y = 0, pitch = texture.width * 4; y < texture.height; ++y, mapped_data += mapped.Pitch, pixels += pitch)
-			for (UINT x = 0; x < pitch; x += 4)
+		for (uint32_t y = 0, pitch = texture.width * 4; y < texture.height; ++y, mapped_data += mapped.Pitch, pixels += pitch)
+			for (uint32_t x = 0; x < pitch; x += 4)
 				mapped_data[x + 0] = 0, // Set blue channel to zero
 				mapped_data[x + 1] = pixels[x + 1],
 				mapped_data[x + 2] = pixels[x + 0],
 				mapped_data[x + 3] = 0xFF;
 		break;
 	case reshadefx::texture_format::rgba8:
-		for (UINT y = 0, pitch = texture.width * 4; y < texture.height; ++y, mapped_data += mapped.Pitch, pixels += pitch)
-			for (UINT x = 0; x < pitch; x += 4)
+		for (uint32_t y = 0, pitch = texture.width * 4; y < texture.height; ++y, mapped_data += mapped.Pitch, pixels += pitch)
+			for (uint32_t x = 0; x < pitch; x += 4)
 				mapped_data[x + 0] = pixels[x + 2], // Flip RGBA input to BGRA
 				mapped_data[x + 1] = pixels[x + 1],
 				mapped_data[x + 2] = pixels[x + 0],
@@ -698,7 +697,7 @@ bool reshade::d3d9::runtime_d3d9::compile_effect(effect_data &effect)
 
 	if (_d3d_compiler == nullptr)
 	{
-		LOG(ERROR) << "Unable to load D3DCompiler library. Make sure you have the DirectX end-user runtime (June 2010) installed or a newer version of the library in the application directory.";
+		LOG(ERROR) << "Unable to load HLSL compiler (\"d3dcompiler_47.dll\"). Make sure you have the DirectX end-user runtime (June 2010) installed or a newer version of the library in the application directory.";
 		return false;
 	}
 
@@ -748,7 +747,7 @@ bool reshade::d3d9::runtime_d3d9::compile_effect(effect_data &effect)
 	bool success = true;
 
 	d3d9_technique_data technique_init;
-	technique_init.constant_register_count = static_cast<UINT>((effect.storage_size + 15) / 16);
+	technique_init.constant_register_count = static_cast<DWORD>((effect.storage_size + 15) / 16);
 	technique_init.uniform_storage_offset = effect.storage_offset;
 
 	for (const reshadefx::sampler_info &info : effect.module.samplers)
@@ -1187,11 +1186,11 @@ void reshade::d3d9::runtime_d3d9::render_imgui_draw_data(ImDrawData *draw_data)
 	_imgui_state->Apply();
 	_device->SetIndices(_imgui_index_buffer.get());
 	_device->SetStreamSource(0, _imgui_vertex_buffer.get(), 0, sizeof(vertex));
-	for (UINT i = 0; i < _num_samplers; i++)
+	for (unsigned int i = 0; i < _num_samplers; i++)
 		_device->SetTexture(i, nullptr);
 	_device->SetRenderTarget(0, _backbuffer_resolved.get());
-	for (DWORD target = 1; target < _num_simultaneous_rendertargets; target++)
-		_device->SetRenderTarget(target, nullptr);
+	for (unsigned int i = 1; i < _num_simultaneous_rendertargets; i++)
+		_device->SetRenderTarget(i, nullptr);
 	_device->SetDepthStencilSurface(nullptr);
 
 	UINT vtx_offset = 0, idx_offset = 0;
@@ -1457,10 +1456,9 @@ bool reshade::d3d9::runtime_d3d9::create_depthstencil_replacement(const com_ptr<
 
 		if (_preserve_depth_buffer ||
 			(!_disable_intz &&
-			desc.Format != D3DFMT_INTZ &&
-			desc.Format != D3DFMT_DF16 &&
-			desc.Format != D3DFMT_DF24)
-		)
+				desc.Format != D3DFMT_INTZ &&
+				desc.Format != D3DFMT_DF16 &&
+				desc.Format != D3DFMT_DF24))
 		{
 			D3DDISPLAYMODE displaymode;
 			_swapchain->GetDisplayMode(&displaymode);
@@ -1485,8 +1483,8 @@ bool reshade::d3d9::runtime_d3d9::create_depthstencil_replacement(const com_ptr<
 				return false;
 			}
 
-			const UINT width = _disable_depth_buffer_size_restriction ? _width : desc.Width;
-			const UINT height = _disable_depth_buffer_size_restriction ? _height : desc.Height;
+			const unsigned int width = _disable_depth_buffer_size_restriction ? _width : desc.Width;
+			const unsigned int height = _disable_depth_buffer_size_restriction ? _height : desc.Height;
 
 			if (HRESULT hr = _device->CreateTexture(width, height, 1, D3DUSAGE_DEPTHSTENCIL, desc.Format, D3DPOOL_DEFAULT, &_depthstencil_texture, nullptr); FAILED(hr))
 			{
@@ -1503,7 +1501,7 @@ bool reshade::d3d9::runtime_d3d9::create_depthstencil_replacement(const com_ptr<
 			if (!_preserve_depth_buffer && current_depthstencil != nullptr && current_depthstencil == _depthstencil)
 				_device->SetDepthStencilSurface(_depthstencil_replacement.get());
 		}
-		else 
+		else
 		{
 			_depthstencil_replacement = _depthstencil;
 

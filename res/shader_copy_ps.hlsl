@@ -1,7 +1,8 @@
-Texture2D texture0 : register(t0);
-SamplerState sampler0 : register(s0);
+Texture2D t0 : register(t0);
+SamplerState s0 : register(s0);
 
-float4 main(float4 vpos : SV_POSITION, float2 uv : TEXCOORD) : SV_TARGET
+void main(float4 vpos : SV_POSITION, float2 uv : TEXCOORD0, out float4 col : SV_TARGET)
 {
-	return float4(texture0.Sample(sampler0, uv).rgb, 1.0);
+	col = t0.Sample(s0, uv);
+	col.a = 1.0; // Clear alpha channel
 }

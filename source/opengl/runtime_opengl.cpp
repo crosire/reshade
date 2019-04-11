@@ -4,9 +4,9 @@
  */
 
 #include "log.hpp"
-#include "input.hpp"
 #include "runtime_opengl.hpp"
 #include "runtime_objects.hpp"
+#include "ini_file.hpp"
 #include <imgui.h>
 
 namespace reshade::opengl
@@ -98,6 +98,12 @@ reshade::opengl::runtime_opengl::runtime_opengl()
 			break;
 		}
 	}
+
+	subscribe_to_load_config([this](const ini_file &config) {
+		size_t num_reserve_texture_names = 0;
+		config.get("OPENGL", "ReserveTextureNames", num_reserve_texture_names);
+		_reserved_texture_names.resize(num_reserve_texture_names);
+	});
 }
 
 bool reshade::opengl::runtime_opengl::on_init(HWND hwnd, unsigned int width, unsigned int height)
@@ -116,13 +122,9 @@ bool reshade::opengl::runtime_opengl::on_init(HWND hwnd, unsigned int width, uns
 	// Capture and later restore so that the resource creation code below does not affect the application state
 	_app_state.capture();
 
-	// Clear pixel storage modes to defaults (texture uploads can break otherwise)
-	glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
-	glPixelStorei(GL_UNPACK_SWAP_BYTES, GL_FALSE);
-	glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
-	glPixelStorei(GL_UNPACK_IMAGE_HEIGHT, 0);
-	glPixelStorei(GL_UNPACK_SKIP_ROWS, 0);
-	glPixelStorei(GL_UNPACK_SKIP_PIXELS, 0);
+	// Some games (like Hot Wheels Velocity X) use fixed texture names, which can clash with the ones ReShade generates below, since most implementations will return values linearly
+	// Reserve a configurable range of names for those games to work around this
+	glGenTextures(GLsizei(_reserved_texture_names.size()), _reserved_texture_names.data());
 
 	glGenBuffers(NUM_BUF, _buf);
 	glGenTextures(NUM_TEX, _tex);
@@ -166,6 +168,7 @@ void reshade::opengl::runtime_opengl::on_reset()
 
 	glDeleteBuffers(NUM_BUF, _buf);
 	glDeleteTextures(NUM_TEX, _tex);
+	glDeleteTextures(GLsizei(_reserved_texture_names.size()), _reserved_texture_names.data());
 	glDeleteVertexArrays(NUM_VAO, _vao);
 	glDeleteFramebuffers(NUM_FBO, _fbo);
 	glDeleteRenderbuffers(NUM_RBO, _rbo);
@@ -255,7 +258,7 @@ void reshade::opengl::runtime_opengl::on_fbo_attachment(GLenum attachment, GLenu
 		return;
 
 	const GLuint id = object | (target == GL_RENDERBUFFER ? 0x80000000 : 0);
-		
+
 	if (_depth_source_table.find(id) != _depth_source_table.end())
 		return;
 
@@ -311,7 +314,7 @@ void reshade::opengl::runtime_opengl::on_fbo_attachment(GLenum attachment, GLenu
 		glGetTexLevelParameteriv(target, level, GL_TEXTURE_WIDTH, reinterpret_cast<int *>(&info.width));
 		glGetTexLevelParameteriv(target, level, GL_TEXTURE_HEIGHT, reinterpret_cast<int *>(&info.height));
 		glGetTexLevelParameteriv(target, level, GL_TEXTURE_INTERNAL_FORMAT, &info.format);
-			
+
 		glBindTexture(target, previous_tex);
 	}
 
@@ -439,11 +442,13 @@ void reshade::opengl::runtime_opengl::upload_texture(texture &texture, const uin
 {
 	assert(texture.impl_reference == texture_reference::none && pixels != nullptr);
 
+	// Clear pixel storage modes to defaults (texture uploads can break otherwise)
+	glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
+	glPixelStorei(GL_UNPACK_SWAP_BYTES, GL_FALSE);
 	glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
 	glPixelStorei(GL_UNPACK_IMAGE_HEIGHT, 0);
 	glPixelStorei(GL_UNPACK_SKIP_ROWS, 0);
 	glPixelStorei(GL_UNPACK_SKIP_PIXELS, 0);
-	glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
 
 	GLint previous_tex = 0;
 	glGetIntegerv(GL_TEXTURE_BINDING_2D, &previous_tex);
@@ -843,8 +848,8 @@ bool reshade::opengl::runtime_opengl::init_technique(technique &technique, const
 			pass.draw_targets[0] = GL_COLOR_ATTACHMENT0;
 			pass.draw_textures[0] = _tex[TEX_BACK_SRGB];
 
-			pass.viewport_width = static_cast<GLsizei>(frame_width());
-			pass.viewport_height = static_cast<GLsizei>(frame_height());
+			pass.viewport_width = static_cast<GLsizei>(_width);
+			pass.viewport_height = static_cast<GLsizei>(_height);
 		}
 		else
 		{
@@ -856,7 +861,12 @@ bool reshade::opengl::runtime_opengl::init_technique(technique &technique, const
 		assert(pass.viewport_width != 0);
 		assert(pass.viewport_height != 0);
 
-		glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, _rbo[RBO_DEPTH]);
+		if (pass.viewport_width == GLsizei(_width) && pass.viewport_height == GLsizei(_height))
+		{
+			// Only attach depth-stencil when viewport matches back buffer or else the frame buffer will always be resized to those dimensions
+			glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, _rbo[RBO_DEPTH]);
+		}
+
 		assert(glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
 
 		// Link program from input shaders
@@ -912,8 +922,10 @@ void reshade::opengl::runtime_opengl::render_technique(technique &technique)
 	// Set up global states
 	glDisable(GL_CULL_FACE);
 	glDisable(GL_DEPTH_TEST);
+	glDisable(GL_SCISSOR_TEST);
 	glFrontFace(GL_CCW);
 	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+	glDepthMask(GL_FALSE); // No need to write to the depth buffer
 	glBindVertexArray(_vao[VAO_FX]); // This is an empty vertex array object
 
 	// Set up shader constants
@@ -1082,24 +1094,30 @@ void reshade::opengl::runtime_opengl::render_imgui_draw_data(ImDrawData *draw_da
 {
 	assert(_app_state.has_state);
 
+	glDisable(GL_CULL_FACE);
+	glDisable(GL_DEPTH_TEST);
+	glFrontFace(GL_CCW);
+	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	glBlendEquation(GL_FUNC_ADD);
 	glEnable(GL_SCISSOR_TEST);
 	glDisable(GL_STENCIL_TEST);
 	glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+	glDepthMask(GL_FALSE);
 	glActiveTexture(GL_TEXTURE0);
 	glUseProgram(_imgui_program);
 	glBindSampler(0, 0);
 	glBindVertexArray(_vao[VAO_IMGUI]);
+
 	glViewport(0, 0, GLsizei(draw_data->DisplaySize.x), GLsizei(draw_data->DisplaySize.y));
 
 	const float ortho_projection[16] = {
-		 2.0f / draw_data->DisplaySize.x, 0.0f,   0.0f, 0.0f,
-		 0.0f, -2.0f / draw_data->DisplaySize.y,  0.0f, 0.0f,
-		 0.0f,                            0.0f,  -1.0f, 0.0f,
+		2.0f / draw_data->DisplaySize.x, 0.0f,   0.0f, 0.0f,
+		0.0f, -2.0f / draw_data->DisplaySize.y,  0.0f, 0.0f,
+		0.0f,                            0.0f,  -1.0f, 0.0f,
 		-(2 * draw_data->DisplayPos.x + draw_data->DisplaySize.x) / draw_data->DisplaySize.x,
-		 (2 * draw_data->DisplayPos.y + draw_data->DisplaySize.y) / draw_data->DisplaySize.y, 0.0f, 1.0f,
+		+(2 * draw_data->DisplayPos.y + draw_data->DisplaySize.y) / draw_data->DisplaySize.y, 0.0f, 1.0f,
 	};
 
 	glUniform1i(_imgui_uniform_tex, 0); // Set to GL_TEXTURE0
@@ -1181,8 +1199,9 @@ void reshade::opengl::runtime_opengl::detect_depth_source()
 			if (best_info.format == GL_DEPTH_STENCIL)
 				best_info.format = GL_UNSIGNED_INT_24_8;
 
-			glDeleteTextures(1, &_tex[TEX_DEPTH]);
-			glGenTextures(1, &_tex[TEX_DEPTH]);
+			// Recreate depth texture name (since the storage is immutable after the first call to glTexStorage)
+			glDeleteTextures(1, &_tex[TEX_DEPTH]); glGenTextures(1, &_tex[TEX_DEPTH]);
+
 			glBindTexture(GL_TEXTURE_2D, _tex[TEX_DEPTH]);
 			glTexStorage2D(GL_TEXTURE_2D, 1, best_info.format, best_info.width, best_info.height);
 

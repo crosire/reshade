@@ -259,6 +259,147 @@ bool imgui_popup_button(const char *label, float width, ImGuiWindowFlags flags)
 	return ImGui::BeginPopup(label, flags);
 }
 
+bool imgui_list_with_buttons(const char *label, const std::string_view ui_items, int &v)
+{
+	const auto imgui_context = ImGui::GetCurrentContext();
+
+	bool modified = false;
+
+	std::vector<std::string_view> items;
+	if (!ui_items.empty())
+		for (std::string_view item = ui_items.data(); ui_items.data() + ui_items.size() > item.data();
+			item = item.data() + item.size() + 1)
+			items.push_back(item);
+
+	ImGui::BeginGroup();
+
+	const float button_size = ImGui::GetFrameHeight();
+	const float button_spacing = imgui_context->Style.ItemInnerSpacing.x;
+	const ImVec2 hover_pos = ImGui::GetCursorScreenPos() + ImVec2(0, button_size);
+
+	ImGui::PushItemWidth(ImGui::CalcItemWidth() - (button_spacing * 2 + button_size * 2));
+
+	if (ImGui::BeginCombo("##v", items.size() > static_cast<size_t>(v) && v >= 0 ? items[v].data() : nullptr, ImGuiComboFlags_NoArrowButton))
+	{
+		auto it = items.begin();
+		for (size_t i = 0; it != items.end(); ++it, ++i)
+		{
+			bool selected = v == static_cast<int>(i);
+			if (ImGui::Selectable(it->data(), &selected))
+				v = static_cast<int>(i), modified = true;
+			if (selected)
+				ImGui::SetItemDefaultFocus();
+		}
+
+		ImGui::EndCombo();
+	}
+
+	ImGui::PopItemWidth();
+
+	ImGui::SameLine(0, button_spacing);
+	if (ImGui::ButtonEx("<", ImVec2(button_size, 0), items.size() > 0 ? 0 : ImGuiButtonFlags_Disabled))
+	{
+		modified = true;
+		if (v == 0) v = static_cast<int>(items.size() - 1);
+		else --v;
+	}
+
+	ImGui::SameLine(0, button_spacing);
+	if (ImGui::ButtonEx(">", ImVec2(button_size, 0), items.size() > 0 ? 0 : ImGuiButtonFlags_Disabled))
+	{
+		modified = true;
+		if (v == static_cast<int>(items.size()) - 1) v = 0;
+		else ++v;
+	}
+
+	ImGui::EndGroup();
+	const bool is_hovered = ImGui::IsItemHovered();
+
+	ImGui::SameLine(0, button_spacing);
+	ImGui::TextUnformatted(label);
+
+	if (is_hovered)
+	{
+		ImGui::SetNextWindowPos(hover_pos);
+		ImGui::SetNextWindowSizeConstraints(ImVec2(ImGui::CalcItemWidth(), 0.0f), ImVec2(FLT_MAX, (imgui_context->FontSize + imgui_context->Style.ItemSpacing.y) * 8 - imgui_context->Style.ItemSpacing.y + (imgui_context->Style.WindowPadding.y * 2))); // 8 by ImGuiComboFlags_HeightRegular
+		ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(imgui_context->Style.FramePadding.x, imgui_context->Style.WindowPadding.y));
+		ImGui::Begin("##spinner_items", NULL, ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoDocking);
+		ImGui::PopStyleVar();
+
+		auto it = items.begin();
+		for (size_t i = 0; it != items.end(); ++it, ++i)
+		{
+			bool selected = v == static_cast<int>(i);
+			ImGui::Selectable(it->data(), &selected);
+			if (selected)
+				ImGui::SetScrollHereY();
+		}
+
+		ImGui::End();
+	}
+
+	return modified;
+}
+
+template <typename T, ImGuiDataType data_type>
+bool imgui_drag_with_buttons(const char *label, T *v, int components, T v_speed, T v_min, T v_max, const char *format)
+{
+	const float button_size = ImGui::GetFrameHeight();
+	const float button_spacing = ImGui::GetStyle().ItemInnerSpacing.x;
+
+	ImGui::BeginGroup();
+	ImGui::PushID(label);
+
+	ImGui::PushItemWidth(ImGui::CalcItemWidth() - (button_spacing * 2 + button_size * 2));
+	bool value_changed = ImGui::DragScalarN("##v", data_type, v, components, static_cast<float>(v_speed), &v_min, &v_max, format);
+	ImGui::PopItemWidth();
+
+	ImGui::SameLine(0, 0);
+	if (ImGui::ButtonEx("<", ImVec2(button_size, 0), ImGuiButtonFlags_Repeat) && v[0] > v_min)
+	{
+		for (int c = 0; c < components; ++c)
+			v[c] -= v_speed;
+		value_changed = true;
+	}
+	ImGui::SameLine(0, button_spacing);
+	if (ImGui::ButtonEx(">", ImVec2(button_size, 0), ImGuiButtonFlags_Repeat) && v[0] < v_max)
+	{
+		for (int c = 0; c < components; ++c)
+			v[c] += v_speed;
+		value_changed = true;
+	}
+
+	ImGui::PopID();
+
+	ImGui::SameLine(0, button_spacing);
+	ImGui::TextUnformatted(label);
+
+	ImGui::EndGroup();
+
+	return value_changed;
+
+}
+bool imgui_drag_with_buttons(const char *label, ImGuiDataType data_type, void *v, int components, const void *v_speed, const void *v_min, const void *v_max, const char *format)
+{
+	switch (data_type)
+	{
+	default:
+		return false;
+	case ImGuiDataType_S32:
+		return imgui_drag_with_buttons<ImS32, ImGuiDataType_S32>(label, static_cast<ImS32 *>(v), components, *static_cast<const ImS32 *>(v_speed), *static_cast<const ImS32 *>(v_min), *static_cast<const ImS32 *>(v_max), format);
+	case ImGuiDataType_U32:
+		return imgui_drag_with_buttons<ImU32, ImGuiDataType_U32>(label, static_cast<ImU32 *>(v), components, *static_cast<const ImU32 *>(v_speed), *static_cast<const ImU32 *>(v_min), *static_cast<const ImU32 *>(v_max), format);
+	case ImGuiDataType_S64:
+		return imgui_drag_with_buttons<ImS64, ImGuiDataType_S64>(label, static_cast<ImS64 *>(v), components, *static_cast<const ImS64 *>(v_speed), *static_cast<const ImS64 *>(v_min), *static_cast<const ImS64 *>(v_max), format);
+	case ImGuiDataType_U64:
+		return imgui_drag_with_buttons<ImU64, ImGuiDataType_U64>(label, static_cast<ImU64 *>(v), components, *static_cast<const ImU64 *>(v_speed), *static_cast<const ImU64 *>(v_min), *static_cast<const ImU64 *>(v_max), format);
+	case ImGuiDataType_Float:
+		return imgui_drag_with_buttons<float, ImGuiDataType_Float>(label, static_cast<float *>(v), components, *static_cast<const float *>(v_speed), *static_cast<const float *>(v_min), *static_cast<const float *>(v_max), format);
+	case ImGuiDataType_Double:
+		return imgui_drag_with_buttons<double, ImGuiDataType_Double>(label, static_cast<double *>(v), components, *static_cast<const double *>(v_speed), *static_cast<const double *>(v_min), *static_cast<const double *>(v_max), format);
+	}
+}
+
 template <typename T, ImGuiDataType data_type>
 bool imgui_slider_with_buttons(const char *label, T *v, int components, T v_speed, T v_min, T v_max, const char *format)
 {
@@ -364,85 +505,4 @@ void imgui_image_with_checkerboard_background(ImTextureID user_texture_id, const
 
 	// Add image on top
 	ImGui::Image(user_texture_id, size);
-}
-
-bool imgui_list_with_buttons(const char *label, const std::string_view ui_items, int &v)
-{
-	const auto imgui_context = ImGui::GetCurrentContext();
-
-	bool modified = false;
-
-	std::vector<std::string_view> items;
-	for (std::string_view item = ui_items; ui_items.data() + ui_items.size() > item.data();
-		item = item.data() + item.size() + 1)
-		items.push_back(item);
-
-	ImGui::BeginGroup();
-
-	const float button_size = ImGui::GetFrameHeight();
-	const float button_spacing = imgui_context->Style.ItemInnerSpacing.x;
-	const ImVec2 hover_pos = ImGui::GetCursorScreenPos() + ImVec2(0, button_size);
-
-	ImGui::PushItemWidth(ImGui::CalcItemWidth() - (button_spacing * 2 + button_size * 2));
-
-	if (ImGui::BeginCombo("##v", items.size() > v && v >= 0 ? items[v].data() : nullptr, ImGuiComboFlags_NoArrowButton))
-	{
-		auto it = items.begin();
-		for (size_t i = 0; it != items.end(); ++it, ++i)
-		{
-			bool selected = v == static_cast<int>(i);
-			if (ImGui::Selectable(it->data(), &selected))
-				v = static_cast<int>(i), modified = true;
-			if (selected)
-				ImGui::SetItemDefaultFocus();
-		}
-
-		ImGui::EndCombo();
-	}
-
-	ImGui::PopItemWidth();
-
-	ImGui::SameLine(0, button_spacing);
-	if (ImGui::ButtonEx("<", ImVec2(button_size, 0), items.size() > 0 ? 0 : ImGuiButtonFlags_Disabled))
-	{
-		modified = true;
-		if (v == 0) v = static_cast<int>(items.size() - 1);
-		else --v;
-	}
-
-	ImGui::SameLine(0, button_spacing);
-	if (ImGui::ButtonEx(">", ImVec2(button_size, 0), items.size() > 0 ? 0 : ImGuiButtonFlags_Disabled))
-	{
-		modified = true;
-		if (v == static_cast<int>(items.size()) - 1) v = 0;
-		else ++v;
-	}
-
-	ImGui::EndGroup();
-	const bool is_hovered = ImGui::IsItemHovered();
-
-	ImGui::SameLine(0, button_spacing);
-	ImGui::TextUnformatted(label);
-
-	if (is_hovered)
-	{
-		ImGui::SetNextWindowPos(hover_pos);
-		ImGui::SetNextWindowSizeConstraints(ImVec2(ImGui::CalcItemWidth(), 0.0f), ImVec2(FLT_MAX, (imgui_context->FontSize + imgui_context->Style.ItemSpacing.y) * 8 - imgui_context->Style.ItemSpacing.y + (imgui_context->Style.WindowPadding.y * 2))); // 8 by ImGuiComboFlags_HeightRegular
-		ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(imgui_context->Style.FramePadding.x, imgui_context->Style.WindowPadding.y));
-		ImGui::Begin("##spinner_items", NULL, ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoDocking);
-		ImGui::PopStyleVar();
-
-		auto it = items.begin();
-		for (size_t i = 0; it != items.end(); ++it, ++i)
-		{
-			bool selected = v == static_cast<int>(i);
-			ImGui::Selectable(it->data(), &selected);
-			if (selected)
-				ImGui::SetScrollHereY();
-		}
-
-		ImGui::End();
-	}
-
-	return modified;
 }

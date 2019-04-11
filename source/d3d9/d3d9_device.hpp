@@ -23,7 +23,7 @@ struct __declspec(uuid("F1006E9A-1C51-4AF4-ACEF-3605D2D4C8EE")) Direct3DDevice9 
 	ULONG   STDMETHODCALLTYPE AddRef() override;
 	ULONG   STDMETHODCALLTYPE Release() override;
 
-	#pragma region IDirect3DDevice9
+#pragma region IDirect3DDevice9
 	HRESULT STDMETHODCALLTYPE TestCooperativeLevel() override;
 	UINT    STDMETHODCALLTYPE GetAvailableTextureMem() override;
 	HRESULT STDMETHODCALLTYPE EvictManagedResources() override;
@@ -36,7 +36,7 @@ struct __declspec(uuid("F1006E9A-1C51-4AF4-ACEF-3605D2D4C8EE")) Direct3DDevice9 
 	BOOL    STDMETHODCALLTYPE ShowCursor(BOOL bShow) override;
 	HRESULT STDMETHODCALLTYPE CreateAdditionalSwapChain(D3DPRESENT_PARAMETERS *pPresentationParameters, IDirect3DSwapChain9 **ppSwapChain) override;
 	HRESULT STDMETHODCALLTYPE GetSwapChain(UINT iSwapChain, IDirect3DSwapChain9 **ppSwapChain) override;
-	   UINT STDMETHODCALLTYPE GetNumberOfSwapChains() override;
+	UINT STDMETHODCALLTYPE GetNumberOfSwapChains() override;
 	HRESULT STDMETHODCALLTYPE Reset(D3DPRESENT_PARAMETERS *pPresentationParameters) override;
 	HRESULT STDMETHODCALLTYPE Present(const RECT *pSourceRect, const RECT *pDestRect, HWND hDestWindowOverride, const RGNDATA *pDirtyRegion) override;
 	HRESULT STDMETHODCALLTYPE GetBackBuffer(UINT iSwapChain, UINT iBackBuffer, D3DBACKBUFFER_TYPE Type, IDirect3DSurface9 **ppBackBuffer) override;
@@ -140,8 +140,8 @@ struct __declspec(uuid("F1006E9A-1C51-4AF4-ACEF-3605D2D4C8EE")) Direct3DDevice9 
 	HRESULT STDMETHODCALLTYPE DrawTriPatch(UINT Handle, const float *pNumSegs, const D3DTRIPATCH_INFO *pTriPatchInfo) override;
 	HRESULT STDMETHODCALLTYPE DeletePatch(UINT Handle) override;
 	HRESULT STDMETHODCALLTYPE CreateQuery(D3DQUERYTYPE Type, IDirect3DQuery9 **ppQuery) override;
-	#pragma endregion
-	#pragma region IDirect3DDevice9Ex
+#pragma endregion
+#pragma region IDirect3DDevice9Ex
 	HRESULT STDMETHODCALLTYPE SetConvolutionMonoKernel(UINT width, UINT height, float *rows, float *columns) override;
 	HRESULT STDMETHODCALLTYPE ComposeRects(IDirect3DSurface9 *pSrc, IDirect3DSurface9 *pDst, IDirect3DVertexBuffer9 *pSrcRectDescs, UINT NumRects, IDirect3DVertexBuffer9 *pDstRectDescs, D3DCOMPOSERECTSOP Operation, int Xoffset, int Yoffset) override;
 	HRESULT STDMETHODCALLTYPE PresentEx(const RECT *pSourceRect, const RECT *pDestRect, HWND hDestWindowOverride, const RGNDATA *pDirtyRegion, DWORD dwFlags) override;
@@ -157,7 +157,7 @@ struct __declspec(uuid("F1006E9A-1C51-4AF4-ACEF-3605D2D4C8EE")) Direct3DDevice9 
 	HRESULT STDMETHODCALLTYPE CreateDepthStencilSurfaceEx(UINT Width, UINT Height, D3DFORMAT Format, D3DMULTISAMPLE_TYPE MultiSample, DWORD MultisampleQuality, BOOL Discard, IDirect3DSurface9 **ppSurface, HANDLE *pSharedHandle, DWORD Usage) override;
 	HRESULT STDMETHODCALLTYPE ResetEx(D3DPRESENT_PARAMETERS *pPresentationParameters, D3DDISPLAYMODEEX *pFullscreenDisplayMode) override;
 	HRESULT STDMETHODCALLTYPE GetDisplayModeEx(UINT iSwapChain, D3DDISPLAYMODEEX *pMode, D3DDISPLAYROTATION *pRotation) override;
-	#pragma endregion
+#pragma endregion
 
 	bool check_and_upgrade_interface(REFIID riid);
 
