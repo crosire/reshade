@@ -4,6 +4,7 @@
  */
 
 #include "effect_parser.hpp"
+#include "effect_codegen.hpp"
 #include "effect_preprocessor.hpp"
 #include "version.h"
 #include <vector>
@@ -44,6 +45,7 @@ int main(int argc, char *argv[])
 	bool debug_info = false;
 	unsigned int shader_model = 50;
 
+	reshadefx::parser parser;
 	reshadefx::preprocessor pp;
 	pp.add_macro_definition("__RESHADE__", std::to_string(VERSION_MAJOR * 10000 + VERSION_MINOR * 100 + VERSION_REVISION));
 	pp.add_macro_definition("__RESHADE_PERFORMANCE_MODE__", "0");
@@ -143,23 +145,25 @@ int main(int argc, char *argv[])
 		return 0;
 	}
 
-	reshadefx::codegen::backend backend = reshadefx::codegen::backend::spirv;
+	std::unique_ptr<reshadefx::codegen> backend;
 	if (print_glsl)
-		backend = reshadefx::codegen::backend::glsl;
-	if (print_hlsl)
-		backend = reshadefx::codegen::backend::hlsl;
+		backend.reset(reshadefx::create_codegen_glsl(debug_info, false));
+	else if (print_hlsl)
+		backend.reset(reshadefx::create_codegen_hlsl(shader_model, debug_info, false));
+	else
+		backend.reset(reshadefx::create_codegen_spirv(debug_info, false));
 
-	reshadefx::parser parser;
-	reshadefx::module module;
-
-	if (!parser.parse(pp.output(), backend, shader_model, debug_info, false, module))
+	if (!parser.parse(pp.output(), backend.get()))
 	{
 		if (errorfile == nullptr)
-			std::cout << parser.errors() << std::endl;
+			std::cout << pp.errors() << parser.errors() << std::endl;
 		else
-			std::ofstream(errorfile) << parser.errors();
+			std::ofstream(errorfile) << pp.errors() << parser.errors();
 		return 1;
 	}
+
+	reshadefx::module module;
+	backend->write_result(module);
 
 	if (print_glsl || print_hlsl)
 	{

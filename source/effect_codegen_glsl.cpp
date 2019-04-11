@@ -32,9 +32,6 @@ private:
 		reserved,
 	};
 
-	id _next_id = 1;
-	id _last_block = 0;
-	id _current_block = 0;
 	std::string _ubo_block;
 	std::unordered_map<id, std::string> _names;
 	std::unordered_map<id, std::string> _blocks;
@@ -213,8 +210,6 @@ private:
 
 		s += "#line " + std::to_string(loc.line) + '\n';
 	}
-
-	id make_id() { return _next_id++; }
 
 	std::string id_to_name(id id) const
 	{
@@ -448,19 +443,7 @@ private:
 
 		return info.definition;
 	}
-
-	id   create_block() override
-	{
-		const id res = make_id();
-
-		std::string &block = _blocks.emplace(res, std::string()).first->second;
-		// Reserve a decently big enough memory block to avoid frequent reallocations
-		block.reserve(4096);
-
-		return res;
-	}
-
-	void create_entry_point(const function_info &func, bool is_ps) override
+	void define_entry_point(const function_info &func, bool is_ps) override
 	{
 		if (const auto it = std::find_if(_module.entry_points.begin(), _module.entry_points.end(),
 			[&func](const auto &ep) { return ep.first == func.unique_name; }); it != _module.entry_points.end())
@@ -1284,9 +1267,16 @@ private:
 			_blocks.erase(case_literal_and_labels[i + 1]);
 	}
 
-	bool is_in_block() const override { return _current_block != 0; }
-	bool is_in_function() const override { return is_in_block(); }
+	id   create_block() override
+	{
+		const id res = make_id();
 
+		std::string &block = _blocks.emplace(res, std::string()).first->second;
+		// Reserve a decently big enough memory block to avoid frequent reallocations
+		block.reserve(4096);
+
+		return res;
+	}
 	id   set_block(id id) override
 	{
 		_last_block = _current_block;
@@ -1370,7 +1360,7 @@ private:
 	}
 };
 
-codegen *create_codegen_glsl(bool debug_info, bool uniforms_to_spec_constants)
+codegen *reshadefx::create_codegen_glsl(bool debug_info, bool uniforms_to_spec_constants)
 {
 	return new codegen_glsl(debug_info, uniforms_to_spec_constants);
 }

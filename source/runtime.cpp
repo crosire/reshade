@@ -8,6 +8,7 @@
 #include "runtime.hpp"
 #include "runtime_objects.hpp"
 #include "effect_parser.hpp"
+#include "effect_codegen.hpp"
 #include "effect_preprocessor.hpp"
 #include "input.hpp"
 #include "ini_file.hpp"
@@ -200,10 +201,8 @@ void reshade::runtime::load_effect(const std::filesystem::path &path, size_t &ou
 	effect.source_file = path;
 	effect.compile_sucess = true;
 
-	std::string source_code;
-
-	{ reshadefx::preprocessor pp;
-
+	{ // Load, pre-process and compile the source file
+		reshadefx::preprocessor pp;
 		if (path.is_absolute())
 			pp.add_include_path(path.parent_path());
 
@@ -246,40 +245,46 @@ void reshade::runtime::load_effect(const std::filesystem::path &path, size_t &ou
 				pp.add_macro_definition(definition);
 		}
 
-		// Pre-process the source file
 		if (!pp.append_file(path))
 		{
 			LOG(ERROR) << "Failed to load " << path << ":\n" << pp.errors();
 			effect.compile_sucess = false;
 		}
 
-		source_code = std::move(pp.output());
-		effect.errors = std::move(pp.errors()); // Add preprocessor errors to the error list
-	}
-
-	{ reshadefx::parser parser;
-
-		unsigned shader_model;
-		if (_renderer_id == 0x9000)
-			shader_model = 30;
-		else if (_renderer_id < 0xa100)
-			shader_model = 40;
-		else if (_renderer_id < 0xb000)
-			shader_model = 41;
+		std::unique_ptr<reshadefx::codegen> codegen;
+		if (_renderer_id & 0x10000)
+		{
+			codegen.reset(reshadefx::create_codegen_glsl(true, _performance_mode));
+		}
 		else
-			shader_model = 50;
+		{
+			unsigned shader_model;
+			if (_renderer_id == 0x9000)
+				shader_model = 30;
+			else if (_renderer_id < 0xa100)
+				shader_model = 40;
+			else if (_renderer_id < 0xb000)
+				shader_model = 41;
+			else
+				shader_model = 50;
 
-		const reshadefx::codegen::backend language =
-			_renderer_id & 0x10000 ? reshadefx::codegen::backend::glsl : reshadefx::codegen::backend::hlsl;
+			codegen.reset(reshadefx::create_codegen_hlsl(shader_model, true, _performance_mode));
+		}
+
+		reshadefx::parser parser;
 
 		// Compile the pre-processed source code (try the compile even if the preprocessor step failed to get additional error information)
-		if (!parser.parse(std::move(source_code), language, shader_model, true, _performance_mode, effect.module))
+		if (!parser.parse(std::move(pp.output()), codegen.get()))
 		{
 			LOG(ERROR) << "Failed to compile " << path << ":\n" << parser.errors();
 			effect.compile_sucess = false;
 		}
 
-		effect.errors += parser.errors(); // Append parser errors and warnings to the error list
+		// Append preprocessor and parser errors to the error list
+		effect.errors = std::move(pp.errors()) + std::move(parser.errors());
+
+		// Write result to effect module
+		codegen->write_result(effect.module);
 	}
 
 	// Fill all specialization constants with values from the current preset

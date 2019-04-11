@@ -4,6 +4,7 @@
  */
 
 #include "effect_parser.hpp"
+#include "effect_codegen.hpp"
 #include <assert.h>
 #include <algorithm>
 #include <functional>
@@ -16,30 +17,13 @@ struct on_scope_exit
 	std::function<void()> leave;
 };
 
-// -- Parsing -- //
-
-bool reshadefx::parser::parse(std::string input, codegen::backend backend, unsigned int shader_model, bool debug_info, bool uniforms_to_spec_constants, module &result)
+bool reshadefx::parser::parse(std::string input, codegen *backend)
 {
-	switch (backend)
-	{
-	case codegen::backend::glsl:
-		extern reshadefx::codegen *create_codegen_glsl(bool, bool);
-		_codegen.reset(create_codegen_glsl(debug_info, uniforms_to_spec_constants));
-		break;
-	case codegen::backend::hlsl:
-		extern reshadefx::codegen *create_codegen_hlsl(unsigned int, bool, bool);
-		_codegen.reset(create_codegen_hlsl(shader_model, debug_info, uniforms_to_spec_constants));
-		break;
-	case codegen::backend::spirv:
-		extern reshadefx::codegen *create_codegen_spirv(bool, bool);
-		_codegen.reset(create_codegen_spirv(debug_info, uniforms_to_spec_constants));
-		break;
-	default:
-		assert(false);
-	}
-
 	_lexer.reset(new lexer(std::move(input)));
 	_lexer_backup.reset();
+
+	// Set backend for subsequent code-generation
+	_codegen = backend;
 
 	consume();
 
@@ -47,8 +31,6 @@ bool reshadefx::parser::parse(std::string input, codegen::backend backend, unsig
 	while (!peek(tokenid::end_of_file))
 		if (!parse_top())
 			success = false;
-
-	_codegen->write_result(result);
 
 	return success;
 }
@@ -59,12 +41,7 @@ void reshadefx::parser::error(const location &location, unsigned int code, const
 {
 	_errors += location.source;
 	_errors += '(' + std::to_string(location.line) + ", " + std::to_string(location.column) + ')' + ": error";
-
-	if (code == 0)
-		_errors += ": ";
-	else
-		_errors += " X" + std::to_string(code) + ": ";
-
+	_errors += (code == 0) ? ": " : " X" + std::to_string(code) + ": ";
 	_errors += message;
 	_errors += '\n';
 }
@@ -72,12 +49,7 @@ void reshadefx::parser::warning(const location &location, unsigned int code, con
 {
 	_errors += location.source;
 	_errors += '(' + std::to_string(location.line) + ", " + std::to_string(location.column) + ')' + ": warning";
-
-	if (code == 0)
-		_errors += ": ";
-	else
-		_errors += " X" + std::to_string(code) + ": ";
-
+	_errors += (code == 0) ? ": " : " X" + std::to_string(code) + ": ";
 	_errors += message;
 	_errors += '\n';
 }
@@ -2787,7 +2759,7 @@ bool reshadefx::parser::parse_technique_pass(pass_info &info)
 				function_info &function_info = _codegen->find_function(symbol.id);
 
 				// We potentially need to generate a special entry point function which translates between function parameters and input/output variables
-				_codegen->create_entry_point(function_info, is_ps);
+				_codegen->define_entry_point(function_info, is_ps);
 
 				if (is_vs)
 					info.vs_entry_point = function_info.unique_name;

@@ -172,16 +172,11 @@ private:
 
 	bool _debug_info = false;
 	bool _uniforms_to_spec_constants = false;
-	id _next_id = 1;
 	id _glsl_ext = 0;
-	id _last_block = 0;
-	id _current_block = 0;
 	struct_info _global_ubo_type;
 	id _global_ubo_variable = 0;
 	uint32_t _global_ubo_offset = 0;
 	function_blocks *_current_function = nullptr;
-
-	inline id make_id() { return _next_id++; }
 
 	inline void add_location(const location &loc, spirv_basic_block &block)
 	{
@@ -719,13 +714,7 @@ private:
 
 		return info.definition;
 	}
-
-	id   create_block() override
-	{
-		return make_id();
-	}
-
-	void create_entry_point(const function_info &func, bool is_ps) override
+	void define_entry_point(const function_info &func, bool is_ps) override
 	{
 		if (const auto it = std::find_if(_module.entry_points.begin(), _module.entry_points.end(),
 			[&func](const auto &ep) { return ep.first == func.unique_name; }); it != _module.entry_points.end())
@@ -1829,7 +1818,6 @@ private:
 		_current_block_data->instructions.push_back(merge_label);
 	}
 
-	bool is_in_block() const override { return _current_block != 0; }
 	bool is_in_function() const override { return _current_function != nullptr; }
 
 	id   set_block(id id) override
@@ -1939,7 +1927,7 @@ private:
 	}
 };
 
-codegen *create_codegen_spirv(bool debug_info, bool uniforms_to_spec_constants)
+codegen *reshadefx::create_codegen_spirv(bool debug_info, bool uniforms_to_spec_constants)
 {
 	return new codegen_spirv(debug_info, uniforms_to_spec_constants);
 }
