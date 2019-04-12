@@ -391,8 +391,7 @@ void reshadefx::preprocessor::parse_ifdef()
 	level.skipping = (level.parent != nullptr && level.parent->skipping) || !level.value;
 
 	current_if_stack().push(level);
-
-	_user_definitions.push_back(std::pair(_token.location.source, _token.literal_as_string));
+	_user_definitions.try_emplace(_token.literal_as_string, _token.location.source);
 }
 void reshadefx::preprocessor::parse_ifndef()
 {
@@ -407,8 +406,7 @@ void reshadefx::preprocessor::parse_ifndef()
 	level.skipping = (level.parent != nullptr && level.parent->skipping) || !level.value;
 
 	current_if_stack().push(level);
-
-	_user_definitions.push_back(std::pair(_token.location.source, _token.literal_as_string));
+	_user_definitions.try_emplace(_token.literal_as_string, _token.location.source);
 }
 void reshadefx::preprocessor::parse_elif()
 {

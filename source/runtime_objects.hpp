@@ -53,9 +53,8 @@ namespace reshade
 		std::string preamble;
 		reshadefx::module module;
 		std::filesystem::path source_file;
+		std::unordered_map<std::string, std::filesystem::path> user_definitions;
 		size_t storage_offset = 0, storage_size = 0;
-
-		std::vector<std::pair<std::filesystem::path, std::string>> user_definitions;
 	};
 
 	struct texture final : reshadefx::texture_info

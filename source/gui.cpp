@@ -1794,101 +1794,101 @@ void reshade::runtime::draw_overlay_variable_editor()
 				{
 					ImGui::PopStyleVar();
 
-					std::vector<std::string> user_definitions;
-					for (size_t i = 0; i < _loaded_effects[variable.effect_index].user_definitions.size(); ++i)
-						if (_loaded_effects[variable.effect_index].user_definitions[i].first.stem() == _loaded_effects[variable.effect_index].source_file.stem())
-							user_definitions.push_back(_loaded_effects[variable.effect_index].user_definitions[i].second);
+					std::set<std::string> user_definitions;
+					for (auto it = _loaded_effects[variable.effect_index].user_definitions.begin(); it != _loaded_effects[variable.effect_index].user_definitions.end(); ++it)
+						if (it->second.stem() == _loaded_effects[variable.effect_index].source_file.stem())
+							user_definitions.insert(it->first);
 
 					ImGui::SetWindowPos(popup_pos);
 					bool modified = false;
 
 					ImGui::BeginChild("##user_definitions", ImVec2(400.0f, std::max(user_definitions.size(), user_definitions.size()) * ImGui::GetFrameHeightWithSpacing()), false, ImGuiWindowFlags_NoScrollWithMouse);
 
-					for (size_t i = 0; i < user_definitions.size(); ++i)
+					for (auto name = user_definitions.begin(); name != user_definitions.end(); ++name)
 					{
-						char value[128] = "";
+						char value[128]{};
 
-						int is_global = -1;
-						for (size_t k = 0; k < _global_preprocessor_definitions.size(); ++k)
+						auto global_defined = _global_preprocessor_definitions.end();
+						for (auto global_it = _global_preprocessor_definitions.begin(); global_it != _global_preprocessor_definitions.end(); ++global_it)
 						{
 							std::string_view definition_name;
 							std::string_view definition_value;
 
-							int idx = _global_preprocessor_definitions[k].find('=');
+							int idx = global_it->find('=');
 							if (-1 == idx)
 							{
-								definition_name = std::string_view(_global_preprocessor_definitions[k].data(), _global_preprocessor_definitions[k].size());
+								definition_name = std::string_view(global_it->data(), global_it->size());
 							}
 							else
 							{
-								definition_name = std::string_view(_global_preprocessor_definitions[k].data(), idx);
-								definition_value = std::string_view(_global_preprocessor_definitions[k].data() + definition_name.size() + 1, _global_preprocessor_definitions[k].size() - idx - 1);
+								definition_name = std::string_view(global_it->data(), idx);
+								definition_value = std::string_view(global_it->data() + definition_name.size() + 1, global_it->size() - idx - 1);
 							}
 
-							if (user_definitions[i] == definition_name)
+							if (*name == definition_name)
 							{
 								definition_value.copy(value, sizeof(value) - 1);
-								is_global = k;
+								global_defined = global_it;
 								break;
 							}
 						}
-						int is_preset = -1;
-						if (-1 == is_global)
+						auto preset_defined = _preset_preprocessor_definitions.end();
+						if (global_defined == _global_preprocessor_definitions.end())
 						{
-							for (size_t k = 0; k < _preset_preprocessor_definitions.size(); ++k)
+							for (auto preset_it = _preset_preprocessor_definitions.begin(); preset_it != _preset_preprocessor_definitions.end(); ++preset_it)
 							{
 								std::string_view definition_name;
 								std::string_view definition_value;
 
-								int idx = _preset_preprocessor_definitions[k].find('=');
+								int idx = preset_it->find('=');
 								if (-1 == idx)
 								{
-									definition_name = std::string_view(_preset_preprocessor_definitions[k].data(), _preset_preprocessor_definitions[k].size());
+									definition_name = std::string_view(preset_it->data(), preset_it->size());
 								}
 								else
 								{
-									definition_name = std::string_view(_preset_preprocessor_definitions[k].data(), idx);
-									definition_value = std::string_view(_preset_preprocessor_definitions[k].data() + definition_name.size() + 1, _preset_preprocessor_definitions[k].size() - idx - 1);
+									definition_name = std::string_view(preset_it->data(), idx);
+									definition_value = std::string_view(preset_it->data() + definition_name.size() + 1, preset_it->size() - idx - 1);
 								}
 
-								if (user_definitions[i] == definition_name)
+								if (*name == definition_name)
 								{
 									definition_value.copy(value, sizeof(value) - 1);
-									is_preset = k;
+									preset_defined = preset_it;
 									break;
 								}
 							}
 						}
 
-						ImGui::PushID(user_definitions[i].c_str());
+						ImGui::PushID(name->c_str());
 
 						ImGui::PushItemWidth(ImGui::GetWindowContentRegionWidth() * 0.66666666f - (button_spacing));
-						ImGui::LabelText("##user_definition_name", user_definitions[i].c_str());
+						ImGui::LabelText("##user_definition_name", name->c_str());
 						ImGui::PopItemWidth();
 
 						ImGui::SameLine(0, button_spacing);
 
 						ImGui::PushItemWidth(ImGui::GetWindowContentRegionWidth() * 0.33333333f - (button_spacing + button_size) + 1);
-						if (-1 == is_global && -1 == is_preset)
+						if (global_defined == _global_preprocessor_definitions.end() && preset_defined == _preset_preprocessor_definitions.end())
 							ImGui::LabelText("##value_undefined", "(undefined)");
 						else
-							modified |= ImGui::InputText("##user_definition_value", value, sizeof(value), (-1 != is_global) ? ImGuiInputTextFlags_ReadOnly : 0);
+							modified |= ImGui::InputText("##user_definition_value", value, sizeof(value), (global_defined != _global_preprocessor_definitions.end()) ? ImGuiInputTextFlags_ReadOnly : 0);
 						ImGui::PopItemWidth();
 
 						ImGui::SameLine(0, button_spacing);
 
-						if (ImGui::ButtonEx((-1 == is_global && -1 == is_preset) ? "+" : "-", ImVec2(button_size, 0), (-1 != is_global) ? ImGuiButtonFlags_Disabled : 0))
+						if (ImGui::ButtonEx((global_defined == _global_preprocessor_definitions.end() && preset_defined == _preset_preprocessor_definitions.end()) ? "+" : "-", ImVec2(button_size, 0), (global_defined != _global_preprocessor_definitions.end()) ? ImGuiButtonFlags_Disabled : 0))
 						{
 							modified = true;
-							if (-1 == is_global && -1 == is_preset)
-								_preset_preprocessor_definitions.push_back(user_definitions[i]);
-							else if (-1 != is_preset)
-								_preset_preprocessor_definitions.erase(_preset_preprocessor_definitions.begin() + is_preset);
+							if (global_defined == _global_preprocessor_definitions.end() && preset_defined == _preset_preprocessor_definitions.end())
+								_preset_preprocessor_definitions.push_back(*name);
+							else if (preset_defined != _preset_preprocessor_definitions.end())
+								_preset_preprocessor_definitions.erase(preset_defined);
 						}
-						else if (modified && -1 != is_preset)
+						else if (modified &&  preset_defined != _preset_preprocessor_definitions.end())
 						{
 							modified = true;
-							_preset_preprocessor_definitions[is_preset] = user_definitions[i] + '=' + std::string(value);
+							*preset_defined = *name + '=' + std::string(value);
 						}
 
 						ImGui::PopID();

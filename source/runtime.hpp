@@ -11,6 +11,7 @@
 #include <chrono>
 #include <functional>
 #include <filesystem>
+#include <set>
 
 #if RESHADE_GUI
 #include "gui_code_editor.hpp"
