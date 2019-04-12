@@ -373,7 +373,7 @@ bool imgui_list_with_buttons(const char *label, const std::string_view ui_items,
 	bool modified = false;
 
 	std::vector<std::string_view> items;
-	for (std::string_view item = ui_items; ui_items.data() + ui_items.size() > item.data();
+	for (std::string_view item = ui_items.data(); ui_items.data() + ui_items.size() > item.data();
 		item = item.data() + item.size() + 1)
 		items.push_back(item);
 
