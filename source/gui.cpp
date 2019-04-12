@@ -1862,13 +1862,13 @@ void reshade::runtime::draw_overlay_variable_editor()
 
 						ImGui::PushID(name->c_str());
 
-						ImGui::PushItemWidth(ImGui::GetWindowContentRegionWidth() * 0.66666666f - (button_spacing));
-						ImGui::LabelText("##user_definition_name", name->c_str());
+						ImGui::PushItemWidth(ImGui::GetWindowContentRegionWidth() * 0.66666666f - button_spacing);
+						ImGui::LabelText("##user_definition_name", "%s", name->c_str());
 						ImGui::PopItemWidth();
 
 						ImGui::SameLine(0, button_spacing);
 
-						ImGui::PushItemWidth(ImGui::GetWindowContentRegionWidth() * 0.33333333f - (button_spacing + button_size) + 1);
+						ImGui::PushItemWidth(ImGui::GetWindowContentRegionWidth() * 0.33333333f - button_spacing - button_size + 1);
 						if (global_defined == _global_preprocessor_definitions.end() && preset_defined == _preset_preprocessor_definitions.end())
 							ImGui::LabelText("##value_undefined", "(undefined)");
 						else
