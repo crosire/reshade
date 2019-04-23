@@ -256,6 +256,20 @@ void reshade::runtime::load_effect(const std::filesystem::path &path, size_t &ou
 		source_code = std::move(pp.output());
 		effect.user_definitions = std::move(pp.user_definitions());
 		effect.errors = std::move(pp.errors()); // Add preprocessor errors to the error list
+
+		// EXPERIMENTAL: exclude ReShade*.fxh files
+		std::vector<std::string> user_definition_keys;
+		for (auto it = effect.user_definitions.begin(); it != effect.user_definitions.end(); ++it)
+		{
+			std::string stem = it->second.stem().u8string().substr(0, 7);
+			for (auto i = 0; stem.size() > i; ++i)
+				if ('A' <= stem[i] && stem[i] <= 'Z')
+					stem[i] += -'A' + 'a';
+			if (stem == "reshade")
+				user_definition_keys.push_back(it->first);
+		}
+		for (auto it = user_definition_keys.begin(); it != user_definition_keys.end(); ++it)
+			effect.user_definitions.erase(*it);
 	}
 
 	{ reshadefx::parser parser;
