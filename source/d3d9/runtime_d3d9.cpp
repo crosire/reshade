@@ -364,7 +364,7 @@ void reshade::d3d9::runtime_d3d9::on_set_depthstencil_surface(IDirect3DSurface9 
 		if (!check_depthstencil_size(desc)) // Ignore unlikely candidates
 			return;
 
-		_depth_source_table.emplace(depthstencil, depth_source_info{ nullptr, desc.Width, desc.Height });
+		_depth_source_table.emplace(depthstencil, depth_source_info { nullptr, desc.Width, desc.Height });
 	}
 
 	if (_depthstencil_replacement != nullptr && depthstencil == _depthstencil)
@@ -1456,10 +1456,9 @@ bool reshade::d3d9::runtime_d3d9::create_depthstencil_replacement(const com_ptr<
 
 		if (_preserve_depth_buffer ||
 			(!_disable_intz &&
-			desc.Format != D3DFMT_INTZ &&
-			desc.Format != D3DFMT_DF16 &&
-			desc.Format != D3DFMT_DF24)
-		)
+				desc.Format != D3DFMT_INTZ &&
+				desc.Format != D3DFMT_DF16 &&
+				desc.Format != D3DFMT_DF24))
 		{
 			D3DDISPLAYMODE displaymode;
 			_swapchain->GetDisplayMode(&displaymode);
@@ -1502,7 +1501,7 @@ bool reshade::d3d9::runtime_d3d9::create_depthstencil_replacement(const com_ptr<
 			if (!_preserve_depth_buffer && current_depthstencil != nullptr && current_depthstencil == _depthstencil)
 				_device->SetDepthStencilSurface(_depthstencil_replacement.get());
 		}
-		else 
+		else
 		{
 			_depthstencil_replacement = _depthstencil;
 

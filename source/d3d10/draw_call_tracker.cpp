@@ -55,10 +55,10 @@ namespace reshade::d3d10
 		UNREFERENCED_PARAMETER(resource);
 
 #if RESHADE_DX10_CAPTURE_CONSTANT_BUFFERS
-		d3d10_RESOURCE_DIMENSION dim;
+		D3D10_RESOURCE_DIMENSION dim;
 		resource->GetType(&dim);
 
-		if (dim == d3d10_RESOURCE_DIMENSION_BUFFER)
+		if (dim == D3D10_RESOURCE_DIMENSION_BUFFER)
 		{
 			_counters_per_constant_buffer[static_cast<ID3D10Buffer *>(resource)].mapped += 1;
 		}
@@ -109,8 +109,8 @@ namespace reshade::d3d10
 #endif
 #if RESHADE_DX10_CAPTURE_CONSTANT_BUFFERS
 		// Capture constant buffers that are used when depth stencils are drawn
-		com_ptr<ID3D10Buffer> vscbuffers[d3d10_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT];
-		context->VSGetConstantBuffers(0, ARRAYSIZE(vscbuffers), reinterpret_cast<ID3D10Buffer **>(vscbuffers));
+		com_ptr<ID3D10Buffer> vscbuffers[D3D10_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT];
+		device->VSGetConstantBuffers(0, ARRAYSIZE(vscbuffers), reinterpret_cast<ID3D10Buffer **>(vscbuffers));
 
 		for (UINT i = 0; i < ARRAYSIZE(vscbuffers); i++)
 		{
@@ -121,8 +121,8 @@ namespace reshade::d3d10
 			}
 		}
 
-		com_ptr<ID3D10Buffer> pscbuffers[d3d10_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT];
-		context->PSGetConstantBuffers(0, ARRAYSIZE(pscbuffers), reinterpret_cast<ID3D10Buffer **>(pscbuffers));
+		com_ptr<ID3D10Buffer> pscbuffers[D3D10_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT];
+		device->PSGetConstantBuffers(0, ARRAYSIZE(pscbuffers), reinterpret_cast<ID3D10Buffer **>(pscbuffers));
 
 		for (UINT i = 0; i < ARRAYSIZE(pscbuffers); i++)
 		{
@@ -238,11 +238,11 @@ namespace reshade::d3d10
 		// fill the ordered map with the saved depth texture
 		if (const auto it = _cleared_depth_textures.find(index); it == _cleared_depth_textures.end())
 		{
-			_cleared_depth_textures.emplace(index, depth_texture_save_info{ src_texture, src_depthstencil, src_texture_desc, dest_texture, cleared });
+			_cleared_depth_textures.emplace(index, depth_texture_save_info { src_texture, src_depthstencil, src_texture_desc, dest_texture, cleared });
 		}
 		else
 		{
-			it->second = depth_texture_save_info{ src_texture, src_depthstencil, src_texture_desc, dest_texture, cleared };
+			it->second = depth_texture_save_info { src_texture, src_depthstencil, src_texture_desc, dest_texture, cleared };
 		}
 	}
 

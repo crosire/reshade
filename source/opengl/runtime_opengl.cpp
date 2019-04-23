@@ -254,7 +254,7 @@ void reshade::opengl::runtime_opengl::on_fbo_attachment(GLenum attachment, GLenu
 		return;
 
 	const GLuint id = object | (target == GL_RENDERBUFFER ? 0x80000000 : 0);
-		
+
 	if (_depth_source_table.find(id) != _depth_source_table.end())
 		return;
 
@@ -310,7 +310,7 @@ void reshade::opengl::runtime_opengl::on_fbo_attachment(GLenum attachment, GLenu
 		glGetTexLevelParameteriv(target, level, GL_TEXTURE_WIDTH, reinterpret_cast<int *>(&info.width));
 		glGetTexLevelParameteriv(target, level, GL_TEXTURE_HEIGHT, reinterpret_cast<int *>(&info.height));
 		glGetTexLevelParameteriv(target, level, GL_TEXTURE_INTERNAL_FORMAT, &info.format);
-			
+
 		glBindTexture(target, previous_tex);
 	}
 
