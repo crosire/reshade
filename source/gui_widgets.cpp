@@ -157,7 +157,7 @@ bool imgui_directory_dialog(const char *name, std::filesystem::path &path)
 	return ok;
 }
 
-bool imgui_preset_dialog(std::filesystem::path &path)
+bool imgui_preset_dialog(std::filesystem::path& path)
 {
 	bool ok = false, apply = false, cancel = false;
 
@@ -167,12 +167,10 @@ bool imgui_preset_dialog(std::filesystem::path &path)
 		path.u8string().copy(buf, sizeof(buf) - 1);
 
 	ImGui::PushItemWidth(400);
-	ImGui::InputText("##preset_path", buf, sizeof(buf));
+	if (ImGui::InputText("##preset_path", buf, sizeof(buf)) && ImGui::IsKeyPressedMap(ImGuiKey_Enter))
+		ok = true, apply = true;
 	path = std::filesystem::u8path(buf);
 	ImGui::PopItemWidth();
-
-	if (ImGui::IsItemActive() && ImGui::IsKeyPressedMap(ImGuiKey_Enter))
-		ok = true, apply = true;
 
 	if (ImGui::SameLine(); ImGui::Button("Ok", ImVec2(100, 0)))
 		ok = true, apply = true;
@@ -203,7 +201,7 @@ bool imgui_preset_dialog(std::filesystem::path &path)
 	else
 		parent_path = path.parent_path();
 
-	for (const auto &entry : std::filesystem::directory_iterator(parent_path, ec))
+	for (const auto& entry : std::filesystem::directory_iterator(parent_path, ec))
 	{
 		const bool is_directory = entry.is_directory(ec);
 
@@ -233,8 +231,7 @@ bool imgui_preset_dialog(std::filesystem::path &path)
 	if (ImGui::BeginPopup("##preset_name"))
 	{
 		char name[_MAX_PATH]{};
-		if (ImGui::InputText("Name", name, sizeof(name), ImGuiInputTextFlags_CharsNoBlank | ImGuiInputTextFlags_EnterReturnsTrue)
-			&& ImGui::IsKeyPressedMap(ImGuiKey_Enter))
+		if (ImGui::InputText("Name", name, sizeof(name)) && ImGui::IsKeyPressedMap(ImGuiKey_Enter))
 		{
 			std::filesystem::path relative_path = std::filesystem::u8path(name);
 			if (!relative_path.empty())
