@@ -3,10 +3,13 @@
  * License: https://github.com/crosire/reshade#license
  */
 
+#include "ini_file.hpp"
 #include "input.hpp"
 #include "gui_widgets.hpp"
 #include <assert.h>
 #include <imgui_internal.h>
+
+extern std::filesystem::path g_reshade_dll_path;
 
 bool imgui_key_input(const char *name, unsigned int key_data[4], const reshade::input &input)
 {
@@ -154,6 +157,103 @@ bool imgui_directory_dialog(const char *name, std::filesystem::path &path)
 	return ok;
 }
 
+bool imgui_preset_dialog(std::filesystem::path &path)
+{
+	bool ok = false, apply = false, cancel = false;
+
+	char buf[_MAX_PATH]{};
+
+	if (!path.empty())
+		path.u8string().copy(buf, sizeof(buf) - 1);
+
+	ImGui::PushItemWidth(400);
+	ImGui::InputText("##preset_path", buf, sizeof(buf));
+	path = std::filesystem::u8path(buf);
+	ImGui::PopItemWidth();
+
+	if (ImGui::IsItemActive() && ImGui::IsKeyPressedMap(ImGuiKey_Enter))
+		ok = true, apply = true;
+
+	if (ImGui::SameLine(); ImGui::Button("Ok", ImVec2(100, 0)))
+		ok = true, apply = true;
+
+	if (ImGui::SameLine(); ImGui::Button("Cancel", ImVec2(100, 0)))
+		cancel = true;
+
+	ImGui::BeginChild("##files", ImVec2(0, 300), true);
+
+	std::error_code ec;
+
+	if (!path.has_filename())
+		path = path.parent_path();
+
+	if (path.is_relative())
+		path = g_reshade_dll_path.parent_path() / path;
+
+	if (path.has_parent_path() && ImGui::Selectable(".."))
+	{
+		while (!std::filesystem::is_directory(path) && path.parent_path() != path)
+			path = path.parent_path();
+		path = path.parent_path();
+	}
+
+	std::filesystem::path parent_path;
+	if (std::filesystem::is_directory(path) || !path.has_parent_path())
+		parent_path = path;
+	else
+		parent_path = path.parent_path();
+
+	for (const auto &entry : std::filesystem::directory_iterator(parent_path, ec))
+	{
+		const bool is_directory = entry.is_directory(ec);
+
+		if (!is_directory)
+			if (const std::string extension = entry.path().extension().u8string(); extension != ".ini" && extension != ".txt")
+				continue;
+
+		std::string label = entry.path().filename().u8string();
+		if (is_directory)
+			label += '\\';
+		if (ImGui::Selectable(label.c_str()))
+			if (path = entry, !is_directory && -1 != entry.file_size(ec))
+				apply = true;
+	}
+
+	ImGui::EndChild();
+	if (apply)
+	{
+		if (std::filesystem::is_directory(path))
+			apply = false;
+		else if (-1 != std::filesystem::file_size(path, ec))
+			if (const reshade::ini_file preset(path); !preset.has("", "TechniqueSorting"))
+				ok = false, apply = false;
+	}
+	if (ok && !apply)
+		ok = false, ImGui::OpenPopup("##preset_name");
+	if (ImGui::BeginPopup("##preset_name"))
+	{
+		char name[_MAX_PATH]{};
+		if (ImGui::InputText("Name", name, sizeof(name), ImGuiInputTextFlags_CharsNoBlank | ImGuiInputTextFlags_EnterReturnsTrue)
+			&& ImGui::IsKeyPressedMap(ImGuiKey_Enter))
+		{
+			std::filesystem::path relative_path = std::filesystem::u8path(name);
+			if (!relative_path.empty())
+			{
+				apply = true;
+				if (!relative_path.has_extension())
+					relative_path = relative_path.u8string() + ".ini";
+				path /= relative_path;
+			}
+			ImGui::CloseCurrentPopup();
+		}
+		ImGui::EndPopup();
+	}
+	if (apply || cancel)
+		ImGui::CloseCurrentPopup();
+
+	return apply;
+}
+
 bool imgui_directory_input_box(const char *name, std::filesystem::path &path, std::filesystem::path &dialog_path)
 {
 	bool res = false;
@@ -257,6 +357,13 @@ bool imgui_popup_button(const char *label, float width, ImGuiWindowFlags flags)
 	if (ImGui::Button(label, ImVec2(width, 0)))
 		ImGui::OpenPopup(label); // Popups can have the same ID as other items without conflict
 	return ImGui::BeginPopup(label, flags);
+}
+
+bool imgui_popup_presets(const char *id, const char *label, float width, ImGuiWindowFlags flags)
+{
+	if (bool selected = true; ImGui::Selectable(label, &selected, 0, ImVec2(0, 0)))
+		ImGui::OpenPopup(id); // Popups can have the same ID as other items without conflict
+	return ImGui::BeginPopup(id, flags);
 }
 
 template <typename T, ImGuiDataType data_type>

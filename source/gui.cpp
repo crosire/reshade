@@ -629,92 +629,18 @@ void reshade::runtime::draw_overlay_menu_home()
 			ImGui::PushStyleColor(ImGuiCol_Button, COLOR_RED);
 		}
 
-		const float button_size = ImGui::GetFrameHeight();
-		const float button_spacing = _imgui_context->Style.ItemInnerSpacing.x;
-
-		ImGui::PushItemWidth((button_size + button_spacing) * -2.0f - 1.0f);
-
-		if (ImGui::BeginCombo("##presets", _current_preset < _preset_files.size() ? _preset_files[_current_preset].u8string().c_str() : ""))
+		if (imgui_popup_presets("##presets", _current_preset.empty() ? "(no preset)" : _current_preset.u8string().c_str(), -1.0f))
 		{
-			for (size_t i = 0; i < _preset_files.size(); ++i)
+			if (imgui_preset_dialog(_file_selection_path))
 			{
-				if (ImGui::Selectable(_preset_files[i].u8string().c_str(), _current_preset == i))
-				{
-					_show_splash = true;
-					_current_preset = i;
+				_show_splash = true;
+				_current_preset = _file_selection_path;
 
-					save_config();
-					load_current_preset();
-				}
-			}
-
-			ImGui::EndCombo();
-		}
-
-		ImGui::PopItemWidth();
-
-		ImGui::SameLine(0, button_spacing);
-
-		if (imgui_popup_button("+", button_size))
-		{
-			char buf[260] = "";
-			if (ImGui::InputText("Name", buf, sizeof(buf), ImGuiInputTextFlags_EnterReturnsTrue))
-			{
-				auto name = std::filesystem::u8path(buf);
-
-				if (_preset_search_paths.empty()) // Make sure there always is at least one search path
-					_preset_search_paths.push_back(g_reshade_dll_path.parent_path());
-
-				for (const auto &search_path : _preset_search_paths)
-				{
-					std::error_code ec;
-					auto path = std::filesystem::absolute(g_reshade_dll_path.parent_path() / search_path / name, ec);
-					path.replace_extension(".ini");
-
-					const bool existing_preset = std::filesystem::exists(path, ec);
-
-					if (existing_preset || std::filesystem::exists(path.parent_path(), ec))
-					{
-						_preset_files.push_back(path);
-						_current_preset = _preset_files.size() - 1;
-
-						save_config();
-						load_current_preset(); // Load the new preset
-
-						ImGui::CloseCurrentPopup();
-						break;
-					}
-				}
+				save_config();
+				load_current_preset();
 			}
 
 			ImGui::EndPopup();
-		}
-
-		// Only show the remove preset button if a preset is selected
-		if (_current_preset < _preset_files.size())
-		{
-			ImGui::SameLine(0, button_spacing);
-
-			if (imgui_popup_button("-", button_size))
-			{
-				ImGui::Text("Do you really want to remove this preset?");
-
-				if (ImGui::Button("Yes", ImVec2(-1, 0)))
-				{
-					_preset_files.erase(_preset_files.begin() + _current_preset);
-
-					// If the removed preset is the last in the list, try to selected the one before that next
-					if (_current_preset == _preset_files.size())
-						_current_preset--;
-
-					save_config();
-					load_current_preset(); // Load the now selected preset
-
-					ImGui::CloseCurrentPopup();
-				}
-
-				ImGui::EndPopup();
-			}
 		}
 
 		if (_tutorial_index == 1)
@@ -903,7 +829,7 @@ void reshade::runtime::draw_overlay_menu_home()
 		ImGui::TextWrapped(tutorial_text);
 		ImGui::EndChildFrame();
 
-		if ((_tutorial_index != 1 || _current_preset < _preset_files.size()) &&
+		if ((_tutorial_index != 1 || !_current_preset.empty()) &&
 			ImGui::Button(_tutorial_index == 3 ? "Finish" : "Continue", ImVec2(-1, 0)))
 		{
 			_tutorial_index++;
