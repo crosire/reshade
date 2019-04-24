@@ -157,7 +157,7 @@ bool imgui_directory_dialog(const char *name, std::filesystem::path &path)
 	return ok;
 }
 
-bool imgui_preset_dialog(std::filesystem::path& path)
+bool imgui_preset_dialog(std::filesystem::path &path)
 {
 	bool ok = false, apply = false, cancel = false;
 
@@ -201,7 +201,7 @@ bool imgui_preset_dialog(std::filesystem::path& path)
 	else
 		parent_path = path.parent_path();
 
-	for (const auto& entry : std::filesystem::directory_iterator(parent_path, ec))
+	for (const auto &entry : std::filesystem::directory_iterator(parent_path, ec))
 	{
 		const bool is_directory = entry.is_directory(ec);
 
