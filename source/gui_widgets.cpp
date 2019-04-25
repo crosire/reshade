@@ -170,7 +170,7 @@ bool imgui_preset_explore(std::filesystem::path &path)
 	if (!path.empty())
 		path.u8string().copy(buf, sizeof(buf) - 1);
 
-	const ImVec2 preset_pos = ImGui::GetCursorScreenPos() + ImVec2(200, 0);
+	const ImVec2 preset_pos = ImGui::GetCursorScreenPos() + ImVec2(200, button_size);
 	ImGui::PushItemWidth(400 - button_spacing - button_size);
 	ImGui::InputText("##preset_path", buf, sizeof(buf));
 	path = std::filesystem::u8path(buf);
@@ -181,7 +181,8 @@ bool imgui_preset_explore(std::filesystem::path &path)
 
 	if (!path.has_filename())
 		path = path.parent_path();
-	else if (ImGui::IsKeyPressedMap(ImGuiKey_Enter))
+
+	if (ImGui::IsKeyPressedMap(ImGuiKey_Enter))
 	{
 		if (file_type = std::filesystem::status(path).type();
 			file_type == std::filesystem::file_type::not_found && !path.has_extension())
