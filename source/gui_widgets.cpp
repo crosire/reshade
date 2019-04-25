@@ -382,8 +382,10 @@ bool imgui_popup_button(const char *label, float width, ImGuiWindowFlags flags)
 
 bool imgui_popup_presets(const char *id, const char *label, float width, ImGuiWindowFlags flags)
 {
-	if (bool selected = true; ImGui::Selectable(label, &selected, 0, ImVec2(0, 0)))
+	ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2(0.0f, 0.5f));
+	if (bool selected = true; ImGui::ButtonEx(label, ImVec2(-1.0f, 0.0f)))
 		ImGui::OpenPopup(id); // Popups can have the same ID as other items without conflict
+	ImGui::PopStyleVar();
 	return ImGui::BeginPopup(id, flags);
 }
 
