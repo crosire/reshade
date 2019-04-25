@@ -629,17 +629,30 @@ void reshade::runtime::draw_overlay_menu_home()
 			ImGui::PushStyleColor(ImGuiCol_Button, COLOR_RED);
 		}
 
-		if (imgui_popup_presets("##presets", _current_preset.empty() ? "(no preset)" : _current_preset.u8string().c_str(), -1.0f))
+		const float button_size = ImGui::GetFrameHeight();
+		const ImVec2 preset_pos = ImGui::GetCursorScreenPos() + ImVec2(-_imgui_context->Style.WindowPadding.x, button_size);
+
+		if (bool selected = true; ImGui::Selectable(_current_preset.empty() ? "(no preset)" : _current_preset.u8string().c_str(), &selected, 0, ImVec2(0, 0)))
 		{
-			if (imgui_preset_dialog(_file_selection_path))
+			_file_selection_path = _current_preset;
+
+			ImGui::OpenPopup("##presets");
+			ImGui::ClearActiveID();
+		}
+		if (ImGui::IsPopupOpen("##presets"))
+		{
+			ImGui::SetNextWindowPos(preset_pos);
+			ImGui::BeginPopup("##presets");
+			if (imgui_preset_explore(_file_selection_path))
 			{
 				_show_splash = true;
 				_current_preset = _file_selection_path;
 
 				save_config();
 				load_current_preset();
-			}
 
+				ImGui::CloseCurrentPopup();
+			}
 			ImGui::EndPopup();
 		}
 

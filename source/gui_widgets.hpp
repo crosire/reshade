@@ -14,7 +14,7 @@ bool imgui_font_select(const char *name, std::filesystem::path &path, int &size)
 
 bool imgui_directory_dialog(const char *name, std::filesystem::path &path);
 
-bool imgui_preset_dialog(std::filesystem::path &path);
+bool imgui_preset_explore(std::filesystem::path &path);
 
 bool imgui_directory_input_box(const char *name, std::filesystem::path &path, std::filesystem::path &dialog_path);
 
