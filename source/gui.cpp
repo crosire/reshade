@@ -629,32 +629,7 @@ void reshade::runtime::draw_overlay_menu_home()
 			ImGui::PushStyleColor(ImGuiCol_Button, COLOR_RED);
 		}
 
-		const float button_size = ImGui::GetFrameHeight();
-		const ImVec2 preset_pos = ImGui::GetCursorScreenPos() + ImVec2(-_imgui_context->Style.WindowPadding.x, button_size);
-
-		if (bool selected = true; ImGui::Selectable(_current_preset.empty() ? "(no preset)" : _current_preset.u8string().c_str(), &selected, 0, ImVec2(0, 0)))
-		{
-			_file_selection_path = _current_preset;
-
-			ImGui::OpenPopup("##presets");
-			ImGui::ClearActiveID();
-		}
-		if (ImGui::IsPopupOpen("##presets"))
-		{
-			ImGui::SetNextWindowPos(preset_pos);
-			ImGui::BeginPopup("##presets");
-			if (imgui_preset_explore(_file_selection_path))
-			{
-				_show_splash = true;
-				_current_preset = _file_selection_path;
-
-				save_config();
-				load_current_preset();
-
-				ImGui::CloseCurrentPopup();
-			}
-			ImGui::EndPopup();
-		}
+		draw_preset_explorer();
 
 		if (_tutorial_index == 1)
 			ImGui::PopStyleColor(2);
@@ -2035,6 +2010,157 @@ void reshade::runtime::draw_overlay_technique_editor()
 	{
 		_selected_technique = std::numeric_limits<size_t>::max();
 	}
+}
+
+void reshade::runtime::draw_preset_explorer()
+{
+	const float button_size = ImGui::GetFrameHeight();
+	const float button_spacing = _imgui_context->Style.ItemInnerSpacing.x;
+	ImVec2 path_pos = ImGui::GetCursorScreenPos();
+	const float root_window_width = ImGui::GetWindowContentRegionWidth();
+
+	bool ok = false, apply = false, add = false;
+
+	ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2(0.0f, 0.5f));
+	if (ImGui::ButtonEx(_current_preset.u8string().c_str(), ImVec2(root_window_width - button_spacing - button_size, 0)))
+		ImGui::OpenPopup("##explore");
+	ImGui::PopStyleVar();
+
+	if (ImGui::SameLine(0, button_spacing); ImGui::Button("+", ImVec2(button_size, 0)))
+		_file_selection_path = _current_preset.parent_path(), ok = true, apply = true, add = true;
+
+	bool beginPopup = false;
+	if (ImGui::IsPopupOpen("##explore"))
+	{
+		ImGui::SetNextWindowPos(path_pos - _imgui_context->Style.WindowPadding);
+		beginPopup = ImGui::BeginPopup("##explore");
+	}
+	if (beginPopup)
+	{
+		char buf[_MAX_PATH]{};
+
+		if (!_file_selection_path.empty())
+			_file_selection_path.u8string().copy(buf, sizeof(buf) - 1);
+
+		path_pos = ImGui::GetCursorScreenPos();
+
+		ImGui::PushItemWidth(root_window_width - button_spacing - button_size);
+		ImGui::InputText("##path", buf, sizeof(buf));
+		_file_selection_path = std::filesystem::u8path(buf);
+		ImGui::PopItemWidth();
+
+		if (_file_selection_path.is_relative())
+			_file_selection_path = g_reshade_dll_path.parent_path() / _file_selection_path;
+
+		if (!_file_selection_path.has_filename())
+			_file_selection_path = _file_selection_path.parent_path();
+
+		if (ImGui::IsKeyPressedMap(ImGuiKey_Enter) || add)
+		{
+			if (!_file_selection_path.has_extension() && !std::filesystem::exists(_file_selection_path))
+				_file_selection_path = _file_selection_path.wstring() + L".ini";
+			ok = true, apply = true;
+		}
+
+		std::filesystem::path parent_path;
+		if (std::filesystem::is_directory(_file_selection_path) || !_file_selection_path.has_parent_path())
+			parent_path = _file_selection_path;
+		else
+			parent_path = _file_selection_path.parent_path();
+
+		if (ImGui::SameLine(0, button_spacing); ImGui::Button("+", ImVec2(button_size, 0)))
+			_file_selection_path = parent_path, ok = true, apply = true;
+
+		ImGui::BeginChild("##paths", ImVec2(0, 300), true);
+
+		if (_file_selection_path.has_parent_path() && ImGui::Selectable(".."))
+		{
+			while (!std::filesystem::is_directory(_file_selection_path) && _file_selection_path.parent_path() != _file_selection_path)
+				_file_selection_path = _file_selection_path.parent_path();
+			_file_selection_path = _file_selection_path.parent_path();
+		}
+
+		std::error_code ec;
+		for (const auto &entry : std::filesystem::directory_iterator(parent_path, ec))
+		{
+			const bool is_directory = entry.is_directory(ec);
+
+			if (!is_directory)
+				if (const std::string extension = entry.path().extension().u8string(); extension != ".ini" && extension != ".txt")
+					continue;
+
+			std::string label = entry.path().filename().u8string();
+			if (is_directory)
+				label += '\\';
+			if (ImGui::Selectable(label.c_str()))
+				if (_file_selection_path = entry, !is_directory && -1 != entry.file_size(ec))
+					apply = true;
+		}
+
+		ImGui::EndChild();
+	}
+
+	std::filesystem::file_type file_type;
+
+	if (apply)
+		if (file_type = std::filesystem::status(_file_selection_path).type();
+			file_type == std::filesystem::file_type::directory)
+			apply = false;
+		else if (file_type != std::filesystem::file_type::not_found)
+			if (const reshade::ini_file preset(_file_selection_path); !preset.has("", "TechniqueSorting"))
+				ok = false, apply = false;
+
+	if (ok && !apply)
+		ok = false, ImGui::OpenPopup("##name");
+	if (ImGui::IsPopupOpen("##name"))
+	{
+		ImGui::SetNextWindowPos(path_pos + ImVec2(200, button_size));
+		ImGui::BeginPopup("##name");
+
+		char name[_MAX_PATH]{};
+		ImGui::InputText("Name", name, sizeof(name));
+
+		if (name[0] != '\0' && ImGui::IsKeyPressedMap(ImGuiKey_Enter))
+		{
+			if (std::filesystem::path relative_path = std::filesystem::u8path(name);
+				relative_path.has_filename())
+			{
+				if (!relative_path.has_extension())
+					relative_path = relative_path.wstring() + L".ini";
+				std::filesystem::path absolute_path = _file_selection_path / relative_path;
+
+				if (file_type = std::filesystem::status(absolute_path).type();
+					file_type == std::filesystem::file_type::not_found)
+					apply = true;
+				else if (file_type != std::filesystem::file_type::directory)
+					if (const reshade::ini_file preset(absolute_path); preset.has("", "TechniqueSorting"))
+						apply = true;
+
+				if (apply)
+					_file_selection_path = absolute_path;
+			}
+		}
+
+		if (apply)
+			ImGui::CloseCurrentPopup();
+
+		ImGui::EndPopup();
+	}
+
+	if (apply)
+	{
+		_show_splash = true;
+		_current_preset = _file_selection_path;
+
+		save_config();
+		load_current_preset();
+
+		if (beginPopup)
+			ImGui::CloseCurrentPopup();
+	}
+
+	if (beginPopup)
+		ImGui::EndPopup();
 }
 
 #endif

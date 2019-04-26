@@ -316,6 +316,7 @@ namespace reshade
 		void draw_code_editor();
 		void draw_overlay_variable_editor();
 		void draw_overlay_technique_editor();
+		void draw_preset_explorer();
 
 		std::vector<const texture *> _texture_previews;
 		std::vector<std::pair<std::string, std::function<void()>>> _menu_callables;
