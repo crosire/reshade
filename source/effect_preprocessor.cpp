@@ -530,6 +530,7 @@ void reshadefx::preprocessor::parse_include()
 	if (it == _filecache.end())
 	{
 		std::ifstream file(filepath);
+		file.imbue(std::locale("en-us.UTF-8"));
 
 		if (!file.is_open())
 		{
@@ -537,6 +538,10 @@ void reshadefx::preprocessor::parse_include()
 			consume_until(tokenid::end_of_line);
 			return;
 		}
+
+		// Remove BOM (0xefbbbf means 0xfeff)
+		if (file.get() != 0xef || file.get() != 0xbb || file.get() != 0xbf)
+			file.seekg(0, std::ios::beg);
 
 		std::string filedata(std::istreambuf_iterator<char>(file.rdbuf()), std::istreambuf_iterator<char>());
 		filedata.push_back('\n');
