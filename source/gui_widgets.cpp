@@ -3,13 +3,10 @@
  * License: https://github.com/crosire/reshade#license
  */
 
-#include "ini_file.hpp"
 #include "input.hpp"
 #include "gui_widgets.hpp"
 #include <assert.h>
 #include <imgui_internal.h>
-
-extern std::filesystem::path g_reshade_dll_path;
 
 bool imgui_key_input(const char *name, unsigned int key_data[4], const reshade::input &input)
 {
@@ -260,15 +257,6 @@ bool imgui_popup_button(const char *label, float width, ImGuiWindowFlags flags)
 	if (ImGui::Button(label, ImVec2(width, 0)))
 		ImGui::OpenPopup(label); // Popups can have the same ID as other items without conflict
 	return ImGui::BeginPopup(label, flags);
-}
-
-bool imgui_popup_presets(const char *id, const char *label, float width, ImGuiWindowFlags flags)
-{
-	ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2(0.0f, 0.5f));
-	if (bool selected = true; ImGui::ButtonEx(label, ImVec2(-1.0f, 0.0f)))
-		ImGui::OpenPopup(id); // Popups can have the same ID as other items without conflict
-	ImGui::PopStyleVar();
-	return ImGui::BeginPopup(id, flags);
 }
 
 template <typename T, ImGuiDataType data_type>
