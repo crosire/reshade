@@ -843,7 +843,7 @@ void reshade::runtime::load_config()
 	config.get("GENERAL", "NoReloadOnInit", _no_reload_on_init);
 
 	// Create a default preset file if none exists yet
-	if (const std::wstring str = _current_preset.wstring(); std::all_of(str.begin(), str.end(), [](wchar_t c) {return L'0' <= c && c <= L'9'; }) || _current_preset.empty())
+	if (const std::wstring str = _current_preset.wstring(); std::all_of(str.begin(), str.end(), [](wchar_t c) { return L'0' <= c && c <= L'9'; }) || _current_preset.empty())
 		_current_preset = g_reshade_dll_path.parent_path() / "DefaultPreset.ini";
 
 	for (const auto &callback : _load_config_callables)
