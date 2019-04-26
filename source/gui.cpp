@@ -2081,20 +2081,24 @@ void reshade::runtime::draw_preset_explorer()
 		}
 
 		std::error_code ec;
+		std::vector<std::filesystem::directory_entry> file_entries;
 		for (const auto &entry : std::filesystem::directory_iterator(parent_path, ec))
 		{
-			const bool is_directory = entry.is_directory(ec);
-
-			if (!is_directory)
-				if (const std::string extension = entry.path().extension().u8string(); extension != ".ini" && extension != ".txt")
-					continue;
-
-			std::string label = entry.path().filename().u8string();
-			if (is_directory)
-				label += '\\';
-			if (ImGui::Selectable(label.c_str()))
-				if (_file_selection_path = entry, !is_directory && -1 != entry.file_size(ec))
-					apply = true;
+			if (entry.is_directory(ec))
+			{
+				if (ImGui::Selectable((entry.path().filename().u8string() + '\\').c_str()))
+					_file_selection_path = entry;
+			}
+			else
+			{
+				if (const std::string extension = entry.path().extension().u8string(); extension == ".ini" || extension == ".txt")
+					file_entries.push_back(entry);
+			}
+		}
+		for (const auto &entry : file_entries)
+		{
+			if (ImGui::Selectable(entry.path().filename().u8string().c_str()))
+				_file_selection_path = entry, apply = true;
 		}
 
 		ImGui::EndChild();
