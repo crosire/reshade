@@ -629,93 +629,7 @@ void reshade::runtime::draw_overlay_menu_home()
 			ImGui::PushStyleColor(ImGuiCol_Button, COLOR_RED);
 		}
 
-		const float button_size = ImGui::GetFrameHeight();
-		const float button_spacing = _imgui_context->Style.ItemInnerSpacing.x;
-
-		ImGui::PushItemWidth((button_size + button_spacing) * -2.0f - 1.0f);
-
-		if (ImGui::BeginCombo("##presets", _current_preset < _preset_files.size() ? _preset_files[_current_preset].u8string().c_str() : ""))
-		{
-			for (size_t i = 0; i < _preset_files.size(); ++i)
-			{
-				if (ImGui::Selectable(_preset_files[i].u8string().c_str(), _current_preset == i))
-				{
-					_show_splash = true;
-					_current_preset = i;
-
-					save_config();
-					load_current_preset();
-				}
-			}
-
-			ImGui::EndCombo();
-		}
-
-		ImGui::PopItemWidth();
-
-		ImGui::SameLine(0, button_spacing);
-
-		if (imgui_popup_button("+", button_size))
-		{
-			char buf[260] = "";
-			if (ImGui::InputText("Name", buf, sizeof(buf), ImGuiInputTextFlags_EnterReturnsTrue))
-			{
-				auto name = std::filesystem::u8path(buf);
-
-				if (_preset_search_paths.empty()) // Make sure there always is at least one search path
-					_preset_search_paths.push_back(g_reshade_dll_path.parent_path());
-
-				for (const auto &search_path : _preset_search_paths)
-				{
-					std::error_code ec;
-					auto path = std::filesystem::absolute(g_reshade_dll_path.parent_path() / search_path / name, ec);
-					path.replace_extension(".ini");
-
-					const bool existing_preset = std::filesystem::exists(path, ec);
-
-					if (existing_preset || std::filesystem::exists(path.parent_path(), ec))
-					{
-						_preset_files.push_back(path);
-						_current_preset = _preset_files.size() - 1;
-
-						save_config();
-						load_current_preset(); // Load the new preset
-
-						ImGui::CloseCurrentPopup();
-						break;
-					}
-				}
-			}
-
-			ImGui::EndPopup();
-		}
-
-		// Only show the remove preset button if a preset is selected
-		if (_current_preset < _preset_files.size())
-		{
-			ImGui::SameLine(0, button_spacing);
-
-			if (imgui_popup_button("-", button_size))
-			{
-				ImGui::Text("Do you really want to remove this preset?");
-
-				if (ImGui::Button("Yes", ImVec2(ImGui::GetContentRegionAvailWidth(), 0)))
-				{
-					_preset_files.erase(_preset_files.begin() + _current_preset);
-
-					// If the removed preset is the last in the list, try to selected the one before that next
-					if (_current_preset == _preset_files.size())
-						_current_preset--;
-
-					save_config();
-					load_current_preset(); // Load the now selected preset
-
-					ImGui::CloseCurrentPopup();
-				}
-
-				ImGui::EndPopup();
-			}
-		}
+		draw_preset_explorer();
 
 		if (_tutorial_index == 1)
 			ImGui::PopStyleColor(2);
@@ -903,7 +817,7 @@ void reshade::runtime::draw_overlay_menu_home()
 		ImGui::TextWrapped(tutorial_text);
 		ImGui::EndChildFrame();
 
-		if ((_tutorial_index != 1 || _current_preset < _preset_files.size()) &&
+		if ((_tutorial_index != 1 || !_current_preset_path.empty()) &&
 			ImGui::Button(_tutorial_index == 3 ? "Finish" : "Continue", ImVec2(ImGui::GetContentRegionAvailWidth(), 0)))
 		{
 			_tutorial_index++;
@@ -935,7 +849,6 @@ void reshade::runtime::draw_overlay_menu_settings()
 			"Block input when cursor is on overlay\0"
 			"Block all input when overlay is visible\0");
 
-		modified |= imgui_path_list("Preset Search Paths", _preset_search_paths, _file_selection_path, g_reshade_dll_path.parent_path());
 		modified |= imgui_path_list("Effect Search Paths", _effect_search_paths, _file_selection_path, g_reshade_dll_path.parent_path());
 		modified |= imgui_path_list("Texture Search Paths", _texture_search_paths, _file_selection_path, g_reshade_dll_path.parent_path());
 
@@ -2096,6 +2009,159 @@ void reshade::runtime::draw_overlay_technique_editor()
 	{
 		_selected_technique = std::numeric_limits<size_t>::max();
 	}
+}
+
+void reshade::runtime::draw_preset_explorer()
+{
+	const ImVec2 cursor_pos = ImGui::GetCursorScreenPos();
+	const float button_size = ImGui::GetFrameHeight();
+	const float button_spacing = _imgui_context->Style.ItemInnerSpacing.x;
+	const float root_window_width = ImGui::GetWindowContentRegionWidth();
+
+	enum class condition { none, select, add, create };
+	condition condition = condition::none;
+
+	ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2(0.0f, 0.5f));
+	if (ImGui::ButtonEx(_current_preset_path.u8string().c_str(), ImVec2(root_window_width - button_spacing - button_size, 0)))
+		_file_selection_path = _current_preset_path, ImGui::OpenPopup("##explore");
+	ImGui::PopStyleVar();
+
+	if (ImGui::SameLine(0, button_spacing); ImGui::Button("+", ImVec2(button_size, 0)))
+		_file_selection_path = _current_preset_path.parent_path(), condition = condition::add;
+
+	ImGui::SetNextWindowPos(cursor_pos - _imgui_context->Style.WindowPadding);
+	const bool popup_visible = ImGui::BeginPopup("##explore");
+	if (popup_visible)
+	{
+		char buf[_MAX_PATH]{};
+
+		if (!_file_selection_path.empty())
+			_file_selection_path.u8string().copy(buf, sizeof(buf) - 1);
+
+		ImGui::PushItemWidth(root_window_width - button_spacing - button_size);
+		ImGui::InputText("##path", buf, sizeof(buf));
+		_file_selection_path = std::filesystem::u8path(buf);
+		ImGui::PopItemWidth();
+
+		if (_file_selection_path.is_relative())
+			_file_selection_path = g_reshade_dll_path.parent_path() / _file_selection_path;
+
+		if (!_file_selection_path.has_filename())
+			_file_selection_path = _file_selection_path.parent_path();
+
+		if (ImGui::IsKeyPressedMap(ImGuiKey_Enter))
+		{
+			if (std::filesystem::file_type file_type = std::filesystem::status(_file_selection_path).type();
+				file_type == std::filesystem::file_type::directory)
+				condition = condition::add;
+			else
+			{
+				if (const std::string extension = _file_selection_path.extension().u8string();
+					extension != ".ini" && extension != ".txt")
+					_file_selection_path = _file_selection_path.wstring() + L".ini";
+				if (file_type == std::filesystem::file_type::not_found)
+					condition = condition::create;
+				else
+					condition = condition::select;
+			}
+		}
+
+		std::filesystem::path directory_path;
+		if (std::filesystem::is_directory(_file_selection_path) || !_file_selection_path.has_parent_path())
+			directory_path = _file_selection_path;
+		else
+			directory_path = _file_selection_path.parent_path();
+
+		if (ImGui::SameLine(0, button_spacing); ImGui::Button("+", ImVec2(button_size, 0)))
+			_file_selection_path = directory_path, condition = condition::add;
+
+		if (ImGui::BeginChild("##paths", ImVec2(0, 300), true))
+		{
+			if (ImGui::Selectable(".."))
+			{
+				while (!std::filesystem::is_directory(_file_selection_path) && _file_selection_path.parent_path() != _file_selection_path)
+					_file_selection_path = _file_selection_path.parent_path();
+				_file_selection_path = _file_selection_path.parent_path();
+			}
+
+			std::error_code ec;
+			std::vector<std::filesystem::directory_entry> preset_files;
+			for (const auto &entry : std::filesystem::directory_iterator(directory_path, std::filesystem::directory_options::skip_permission_denied, ec))
+			{
+				if (entry.is_directory(ec))
+				{
+					if (ImGui::Selectable((entry.path().filename().u8string() + '\\').c_str()))
+						_file_selection_path = entry;
+				}
+				else
+				{
+					if (const std::string extension = entry.path().extension().u8string(); extension == ".ini" || extension == ".txt")
+						preset_files.push_back(entry);
+				}
+			}
+			for (const auto &entry : preset_files)
+			{
+				if (ImGui::Selectable(entry.path().filename().u8string().c_str()))
+					_file_selection_path = entry, condition = condition::select;
+			}
+		}
+		ImGui::EndChild();
+	}
+
+	if (condition == condition::select)
+		if (const reshade::ini_file preset(_file_selection_path); !preset.has("", "TechniqueSorting"))
+			condition = condition::none;
+
+	if (condition == condition::add)
+		ImGui::OpenPopup("##name"), condition = condition::none;
+
+	ImGui::SetNextWindowPos(cursor_pos + ImVec2(root_window_width + button_size - 230, button_size));
+	if (ImGui::BeginPopup("##name"))
+	{
+		char filename[_MAX_PATH]{};
+		ImGui::InputText("Name", filename, sizeof(filename));
+
+		if (filename[0] != '\0' && ImGui::IsKeyPressedMap(ImGuiKey_Enter))
+		{
+			if (std::filesystem::path relative_path = std::filesystem::u8path(filename);
+				relative_path.has_filename())
+			{
+				if (!relative_path.has_extension())
+					relative_path = relative_path.wstring() + L".ini";
+				std::filesystem::path file_selection_path = _file_selection_path / relative_path;
+
+				if (std::filesystem::file_type file_type = std::filesystem::status(file_selection_path).type();
+					file_type == std::filesystem::file_type::not_found)
+					condition = condition::add;
+				else if (file_type != std::filesystem::file_type::directory)
+					if (const reshade::ini_file preset(file_selection_path); preset.has("", "TechniqueSorting"))
+						condition = condition::add;
+
+				if (condition == condition::add)
+					_file_selection_path = file_selection_path;
+			}
+		}
+
+		if (condition == condition::add)
+			ImGui::CloseCurrentPopup();
+
+		ImGui::EndPopup();
+	}
+
+	if (condition == condition::select || condition == condition::add || condition == condition::create)
+	{
+		_show_splash = true;
+		_current_preset_path = std::filesystem::absolute(_file_selection_path);
+
+		save_config();
+		load_current_preset();
+
+		if (popup_visible)
+			ImGui::CloseCurrentPopup();
+	}
+
+	if (popup_visible)
+		ImGui::EndPopup();
 }
 
 #endif

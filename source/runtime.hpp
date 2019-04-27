@@ -271,12 +271,10 @@ namespace reshade
 		bool _screenshot_save_success = false;
 		bool _screenshot_include_preset = false;
 
-		size_t _current_preset = 0;
-		std::vector<std::filesystem::path> _preset_files;
+		std::filesystem::path _current_preset_path;
 
 		std::vector<std::string> _global_preprocessor_definitions;
 		std::vector<std::string> _preset_preprocessor_definitions;
-		std::vector<std::filesystem::path> _preset_search_paths;
 		std::vector<std::filesystem::path> _effect_search_paths;
 		std::vector<std::filesystem::path> _texture_search_paths;
 
@@ -317,6 +315,7 @@ namespace reshade
 		void draw_code_editor();
 		void draw_overlay_variable_editor();
 		void draw_overlay_technique_editor();
+		void draw_preset_explorer();
 
 		std::vector<const texture *> _texture_previews;
 		std::vector<std::pair<std::string, std::function<void()>>> _menu_callables;
