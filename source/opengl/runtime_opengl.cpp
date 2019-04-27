@@ -254,7 +254,7 @@ void reshade::opengl::runtime_opengl::on_fbo_attachment(GLenum attachment, GLenu
 		return;
 
 	const GLuint id = object | (target == GL_RENDERBUFFER ? 0x80000000 : 0);
-		
+
 	if (_depth_source_table.find(id) != _depth_source_table.end())
 		return;
 
@@ -310,7 +310,7 @@ void reshade::opengl::runtime_opengl::on_fbo_attachment(GLenum attachment, GLenu
 		glGetTexLevelParameteriv(target, level, GL_TEXTURE_WIDTH, reinterpret_cast<int *>(&info.width));
 		glGetTexLevelParameteriv(target, level, GL_TEXTURE_HEIGHT, reinterpret_cast<int *>(&info.height));
 		glGetTexLevelParameteriv(target, level, GL_TEXTURE_INTERNAL_FORMAT, &info.format);
-			
+
 		glBindTexture(target, previous_tex);
 	}
 
@@ -842,8 +842,8 @@ bool reshade::opengl::runtime_opengl::init_technique(technique &technique, const
 			pass.draw_targets[0] = GL_COLOR_ATTACHMENT0;
 			pass.draw_textures[0] = _tex[TEX_BACK_SRGB];
 
-			pass.viewport_width = static_cast<GLsizei>(frame_width());
-			pass.viewport_height = static_cast<GLsizei>(frame_height());
+			pass.viewport_width = static_cast<GLsizei>(_width);
+			pass.viewport_height = static_cast<GLsizei>(_height);
 		}
 		else
 		{
@@ -855,7 +855,12 @@ bool reshade::opengl::runtime_opengl::init_technique(technique &technique, const
 		assert(pass.viewport_width != 0);
 		assert(pass.viewport_height != 0);
 
-		glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, _rbo[RBO_DEPTH]);
+		if (pass.viewport_width == _width && pass.viewport_height == _height)
+		{
+			// Only attach depth-stencil when viewport matches back buffer or else the frame buffer will always be resized to those dimensions
+			glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, _rbo[RBO_DEPTH]);
+		}
+
 		assert(glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
 
 		// Link program from input shaders

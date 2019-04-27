@@ -747,7 +747,7 @@ void reshade::runtime::draw_overlay_menu_home()
 
 		const float bottom_height = _performance_mode ? ImGui::GetFrameHeightWithSpacing() + _imgui_context->Style.ItemSpacing.y : (_variable_editor_height + (_tutorial_index == 3 ? 175 : 0));
 
-		if (ImGui::BeginChild("##techniques", ImVec2(-1, -bottom_height), true))
+		if (ImGui::BeginChild("##techniques", ImVec2(0, -bottom_height), true))
 			draw_overlay_technique_editor();
 		ImGui::EndChild();
 
@@ -758,7 +758,7 @@ void reshade::runtime::draw_overlay_menu_home()
 	if (_tutorial_index > 2 && !_performance_mode)
 	{
 		ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(0, 0));
-		ImGui::ButtonEx("##splitter", ImVec2(-1, 5));
+		ImGui::ButtonEx("##splitter", ImVec2(ImGui::GetContentRegionAvailWidth(), 5));
 		ImGui::PopStyleVar();
 
 		if (ImGui::IsItemHovered())
@@ -780,7 +780,7 @@ void reshade::runtime::draw_overlay_menu_home()
 
 		const float bottom_height = ImGui::GetFrameHeightWithSpacing() + _imgui_context->Style.ItemSpacing.y + (_tutorial_index == 3 ? 175 : 0);
 
-		if (ImGui::BeginChild("##variables", ImVec2(-1, -bottom_height), true))
+		if (ImGui::BeginChild("##variables", ImVec2(0, -bottom_height), true))
 			draw_overlay_variable_editor();
 		ImGui::EndChild();
 
@@ -813,12 +813,12 @@ void reshade::runtime::draw_overlay_menu_home()
 	}
 	else
 	{
-		ImGui::BeginChildFrame(ImGui::GetID("tutorial"), ImVec2(-1, 175));
+		ImGui::BeginChildFrame(ImGui::GetID("tutorial"), ImVec2(0, 175));
 		ImGui::TextWrapped(tutorial_text);
 		ImGui::EndChildFrame();
 
 		if ((_tutorial_index != 1 || !_current_preset_path.empty()) &&
-			ImGui::Button(_tutorial_index == 3 ? "Finish" : "Continue", ImVec2(-1, 0)))
+			ImGui::Button(_tutorial_index == 3 ? "Finish" : "Continue", ImVec2(ImGui::GetContentRegionAvailWidth(), 0)))
 		{
 			_tutorial_index++;
 
@@ -1046,7 +1046,7 @@ void reshade::runtime::draw_overlay_menu_statistics()
 
 	if (ImGui::CollapsingHeader("General", ImGuiTreeNodeFlags_DefaultOpen))
 	{
-		ImGui::PushItemWidth(-1);
+		ImGui::PushItemWidth(ImGui::GetContentRegionAvailWidth());
 		ImGui::PlotLines("##framerate",
 			_imgui_context->FramerateSecPerFrame, 120,
 			_imgui_context->FramerateSecPerFrameIdx,
@@ -1447,7 +1447,7 @@ void reshade::runtime::draw_code_editor()
 
 	ImGui::SameLine();
 
-	ImGui::PushItemWidth(-1);
+	ImGui::PushItemWidth(ImGui::GetContentRegionAvailWidth());
 
 	if (ImGui::BeginCombo("##file", _selected_effect < _loaded_effects.size() ? _loaded_effects[_selected_effect].source_file.u8string().c_str() : "", ImGuiComboFlags_HeightLarge))
 	{
@@ -1512,7 +1512,7 @@ void reshade::runtime::draw_overlay_variable_editor()
 {
 	const ImVec2 popup_pos = ImGui::GetCursorScreenPos() + ImVec2(std::max(0.f, ImGui::GetWindowContentRegionWidth() * 0.5f - 200.0f), ImGui::GetFrameHeightWithSpacing());
 
-	if (imgui_popup_button("Edit global preprocessor definitions", -1.0f, ImGuiWindowFlags_NoMove))
+	if (imgui_popup_button("Edit global preprocessor definitions", ImGui::GetContentRegionAvailWidth(), ImGuiWindowFlags_NoMove))
 	{
 		ImGui::SetWindowPos(popup_pos);
 		bool modified = false;
@@ -1700,11 +1700,11 @@ void reshade::runtime::draw_overlay_variable_editor()
 			if (current_tree_is_open)
 			{
 				ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(_imgui_context->Style.FramePadding.x, 0));
-				if (imgui_popup_button("Reset all to default", _variable_editor_tabs ? -1 : ImGui::CalcItemWidth()))
+				if (imgui_popup_button("Reset all to default", _variable_editor_tabs ? ImGui::GetContentRegionAvailWidth() : ImGui::CalcItemWidth()))
 				{
 					ImGui::Text("Do you really want to reset all values in '%s' to their defaults?", filename.c_str());
 
-					if (ImGui::Button("Yes", ImVec2(-1, 0)))
+					if (ImGui::Button("Yes", ImVec2(ImGui::GetContentRegionAvailWidth(), 0)))
 					{
 						for (uniform &reset_variable : _uniforms)
 							if (reset_variable.effect_index == current_effect)

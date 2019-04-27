@@ -142,7 +142,7 @@ namespace reshade::d3d11
 		if (pDepthStencilView == nullptr)
 		{
 			return false;
-		}		
+		}
 
 		// Retrieve texture from depth stencil
 		com_ptr<ID3D11Resource> resource;
