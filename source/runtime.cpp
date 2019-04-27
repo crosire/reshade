@@ -69,7 +69,6 @@ reshade::runtime::runtime() :
 	_start_time(std::chrono::high_resolution_clock::now()),
 	_last_present_time(std::chrono::high_resolution_clock::now()),
 	_last_frame_duration(std::chrono::milliseconds(1)),
-	_preset_search_paths({ ".\\" }),
 	_effect_search_paths({ ".\\" }),
 	_texture_search_paths({ ".\\" }),
 	_global_preprocessor_definitions({
@@ -832,7 +831,6 @@ void reshade::runtime::load_config()
 	config.get("INPUT", "KeyEffects", _effects_key_data);
 
 	config.get("GENERAL", "PerformanceMode", _performance_mode);
-	config.get("GENERAL", "PresetSearchPaths", _preset_search_paths);
 	config.get("GENERAL", "EffectSearchPaths", _effect_search_paths);
 	config.get("GENERAL", "TextureSearchPaths", _texture_search_paths);
 	config.get("GENERAL", "PreprocessorDefinitions", _global_preprocessor_definitions);
@@ -862,7 +860,6 @@ void reshade::runtime::save_config(const std::filesystem::path &path) const
 	config.set("INPUT", "KeyEffects", _effects_key_data);
 
 	config.set("GENERAL", "PerformanceMode", _performance_mode);
-	config.set("GENERAL", "PresetSearchPaths", _preset_search_paths);
 	config.set("GENERAL", "EffectSearchPaths", _effect_search_paths);
 	config.set("GENERAL", "TextureSearchPaths", _texture_search_paths);
 	config.set("GENERAL", "PreprocessorDefinitions", _global_preprocessor_definitions);

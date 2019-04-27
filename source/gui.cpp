@@ -849,7 +849,6 @@ void reshade::runtime::draw_overlay_menu_settings()
 			"Block input when cursor is on overlay\0"
 			"Block all input when overlay is visible\0");
 
-		modified |= imgui_path_list("Preset Search Paths", _preset_search_paths, _file_selection_path, g_reshade_dll_path.parent_path());
 		modified |= imgui_path_list("Effect Search Paths", _effect_search_paths, _file_selection_path, g_reshade_dll_path.parent_path());
 		modified |= imgui_path_list("Texture Search Paths", _texture_search_paths, _file_selection_path, g_reshade_dll_path.parent_path());
 
