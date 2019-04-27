@@ -817,7 +817,7 @@ void reshade::runtime::draw_overlay_menu_home()
 		ImGui::TextWrapped(tutorial_text);
 		ImGui::EndChildFrame();
 
-		if ((_tutorial_index != 1 || !_current_preset.empty()) &&
+		if ((_tutorial_index != 1 || !_current_preset_path.empty()) &&
 			ImGui::Button(_tutorial_index == 3 ? "Finish" : "Continue", ImVec2(-1, 0)))
 		{
 			_tutorial_index++;
@@ -2023,12 +2023,12 @@ void reshade::runtime::draw_preset_explorer()
 	condition condition = condition::none;
 
 	ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2(0.0f, 0.5f));
-	if (ImGui::ButtonEx(_current_preset.u8string().c_str(), ImVec2(root_window_width - button_spacing - button_size, 0)))
-		_file_selection_path = _current_preset, ImGui::OpenPopup("##explore");
+	if (ImGui::ButtonEx(_current_preset_path.u8string().c_str(), ImVec2(root_window_width - button_spacing - button_size, 0)))
+		_file_selection_path = _current_preset_path, ImGui::OpenPopup("##explore");
 	ImGui::PopStyleVar();
 
 	if (ImGui::SameLine(0, button_spacing); ImGui::Button("+", ImVec2(button_size, 0)))
-		_file_selection_path = _current_preset.parent_path(), condition = condition::add;
+		_file_selection_path = _current_preset_path.parent_path(), condition = condition::add;
 
 	ImGui::SetNextWindowPos(cursor_pos - _imgui_context->Style.WindowPadding);
 	const bool popup_visible = ImGui::BeginPopup("##explore");
@@ -2152,7 +2152,7 @@ void reshade::runtime::draw_preset_explorer()
 	if (condition == condition::select || condition == condition::add || condition == condition::create)
 	{
 		_show_splash = true;
-		_current_preset = std::filesystem::absolute(_file_selection_path);
+		_current_preset_path = std::filesystem::absolute(_file_selection_path);
 
 		save_config();
 		load_current_preset();

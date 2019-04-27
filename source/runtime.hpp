@@ -271,7 +271,7 @@ namespace reshade
 		bool _screenshot_save_success = false;
 		bool _screenshot_include_preset = false;
 
-		std::filesystem::path _current_preset;
+		std::filesystem::path _current_preset_path;
 
 		std::vector<std::string> _global_preprocessor_definitions;
 		std::vector<std::string> _preset_preprocessor_definitions;
