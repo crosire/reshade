@@ -2018,7 +2018,7 @@ void reshade::runtime::draw_preset_explorer()
 	const float button_spacing = _imgui_context->Style.ItemInnerSpacing.x;
 	const float root_window_width = ImGui::GetWindowContentRegionWidth();
 
-	bool ok = false, apply = false, add = false;
+	bool ok = false, apply = false, add_mode = false;
 	ImVec2 cursor_pos = ImGui::GetCursorScreenPos();
 
 	ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2(0.0f, 0.5f));
@@ -2027,7 +2027,7 @@ void reshade::runtime::draw_preset_explorer()
 	ImGui::PopStyleVar();
 
 	if (ImGui::SameLine(0, button_spacing); ImGui::Button("+", ImVec2(button_size, 0)))
-		_file_selection_path = _current_preset.parent_path(), ok = true, apply = true, add = true;
+		_file_selection_path = _current_preset.parent_path(), ok = true, apply = true, add_mode = true;
 
 	bool popup_visible = false;
 	if (ImGui::IsPopupOpen("##explore"))
@@ -2055,59 +2055,57 @@ void reshade::runtime::draw_preset_explorer()
 		if (!_file_selection_path.has_filename())
 			_file_selection_path = _file_selection_path.parent_path();
 
-		if (ImGui::IsKeyPressedMap(ImGuiKey_Enter) || add)
+		if (ImGui::IsKeyPressedMap(ImGuiKey_Enter) || add_mode)
 		{
 			if (!_file_selection_path.has_extension() && !std::filesystem::exists(_file_selection_path))
 				_file_selection_path = _file_selection_path.wstring() + L".ini";
 			ok = true, apply = true;
 		}
 
-		std::filesystem::path parent_path;
+		std::filesystem::path directory_path;
 		if (std::filesystem::is_directory(_file_selection_path) || !_file_selection_path.has_parent_path())
-			parent_path = _file_selection_path;
+			directory_path = _file_selection_path;
 		else
-			parent_path = _file_selection_path.parent_path();
+			directory_path = _file_selection_path.parent_path();
 
 		if (ImGui::SameLine(0, button_spacing); ImGui::Button("+", ImVec2(button_size, 0)))
-			_file_selection_path = parent_path, ok = true, apply = true;
+			_file_selection_path = directory_path, ok = true, apply = true;
 
-		ImGui::BeginChild("##paths", ImVec2(0, 300), true);
-
-		if (_file_selection_path.has_parent_path() && ImGui::Selectable(".."))
+		if (ImGui::BeginChild("##paths", ImVec2(0, 300), true))
 		{
-			while (!std::filesystem::is_directory(_file_selection_path) && _file_selection_path.parent_path() != _file_selection_path)
+			if (ImGui::Selectable(".."))
+			{
+				while (!std::filesystem::is_directory(_file_selection_path) && _file_selection_path.parent_path() != _file_selection_path)
+					_file_selection_path = _file_selection_path.parent_path();
 				_file_selection_path = _file_selection_path.parent_path();
-			_file_selection_path = _file_selection_path.parent_path();
-		}
-
-		std::error_code ec;
-		std::vector<std::filesystem::directory_entry> preset_files;
-		for (const auto &entry : std::filesystem::directory_iterator(parent_path, ec))
-		{
-			if (entry.is_directory(ec))
-			{
-				if (ImGui::Selectable((entry.path().filename().u8string() + '\\').c_str()))
-					_file_selection_path = entry;
 			}
-			else
+
+			std::error_code ec;
+			std::vector<std::filesystem::directory_entry> preset_files;
+			for (const auto &entry : std::filesystem::directory_iterator(directory_path, std::filesystem::directory_options::skip_permission_denied, ec))
 			{
-				if (const std::string extension = entry.path().extension().u8string(); extension == ".ini" || extension == ".txt")
-					preset_files.push_back(entry);
+				if (entry.is_directory(ec))
+				{
+					if (ImGui::Selectable((entry.path().filename().u8string() + '\\').c_str()))
+						_file_selection_path = entry;
+				}
+				else
+				{
+					if (const std::string extension = entry.path().extension().u8string(); extension == ".ini" || extension == ".txt")
+						preset_files.push_back(entry);
+				}
+			}
+			for (const auto &entry : preset_files)
+			{
+				if (ImGui::Selectable(entry.path().filename().u8string().c_str()))
+					_file_selection_path = entry, apply = true;
 			}
 		}
-		for (const auto &entry : preset_files)
-		{
-			if (ImGui::Selectable(entry.path().filename().u8string().c_str()))
-				_file_selection_path = entry, apply = true;
-		}
-
 		ImGui::EndChild();
 	}
 
-	std::filesystem::file_type file_type;
-
 	if (apply)
-		if (file_type = std::filesystem::status(_file_selection_path).type();
+		if (std::filesystem::file_type file_type = std::filesystem::status(_file_selection_path).type();
 			file_type == std::filesystem::file_type::directory)
 			apply = false;
 		else if (file_type != std::filesystem::file_type::not_found)
@@ -2133,7 +2131,7 @@ void reshade::runtime::draw_preset_explorer()
 					relative_path = relative_path.wstring() + L".ini";
 				std::filesystem::path file_selection_path = _file_selection_path / relative_path;
 
-				if (file_type = std::filesystem::status(file_selection_path).type();
+				if (std::filesystem::file_type file_type = std::filesystem::status(file_selection_path).type();
 					file_type == std::filesystem::file_type::not_found)
 					apply = true;
 				else if (file_type != std::filesystem::file_type::directory)
