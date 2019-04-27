@@ -2116,7 +2116,7 @@ void reshade::runtime::draw_preset_explorer()
 	if (condition == condition::add)
 		ImGui::OpenPopup("##name"), condition = condition::none;
 
-	ImGui::SetNextWindowPos(cursor_pos + ImVec2(root_window_width + button_size - 130, button_size));
+	ImGui::SetNextWindowPos(cursor_pos + ImVec2(root_window_width + button_size - 230, button_size));
 	if (ImGui::BeginPopup("##name"))
 	{
 		char filename[_MAX_PATH]{};
