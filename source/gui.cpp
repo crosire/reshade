@@ -2118,6 +2118,7 @@ void reshade::runtime::draw_preset_explorer()
 					_file_selection_path = preset_paths[0];
 				else
 					_file_selection_path = preset_paths[i + 1];
+
 			break;
 		}
 
@@ -2136,38 +2137,39 @@ void reshade::runtime::draw_preset_explorer()
 		if (ImGui::SameLine(0, button_spacing); ImGui::Button("+", ImVec2(button_size, 0)))
 			_file_selection_path = directory_path, condition = condition::add;
 
-		ImGui::BeginChild("##paths", ImVec2(0, 300), true);
-		if (ImGui::Selectable(".."))
+		if (popup_explore || condition == condition::backward || condition == condition::forward)
+			ImGui::SetNextWindowFocus();
+
+		if (ImGui::BeginChild("##paths", ImVec2(0, 300), true))
 		{
-			while (!std::filesystem::is_directory(_file_selection_path) && _file_selection_path.parent_path() != _file_selection_path)
+			if (ImGui::Selectable(".."))
+			{
+				while (!std::filesystem::is_directory(_file_selection_path) && _file_selection_path.parent_path() != _file_selection_path)
+					_file_selection_path = _file_selection_path.parent_path();
 				_file_selection_path = _file_selection_path.parent_path();
-			_file_selection_path = _file_selection_path.parent_path();
-		}
-
-		std::error_code ec;
-		std::vector<std::filesystem::directory_entry> preset_files;
-		for (const auto &entry : std::filesystem::directory_iterator(directory_path, std::filesystem::directory_options::skip_permission_denied, ec))
-		{
-			if (entry.is_directory(ec))
-			{
-				if (ImGui::Selectable((entry.path().filename().u8string() + '\\').c_str()))
-					_file_selection_path = entry;
 			}
-			else
-			{
-				if (const std::string extension = entry.path().extension().u8string(); extension == ".ini" || extension == ".txt")
-					preset_files.push_back(entry);
-			}
-		}
-		for (const auto &entry : preset_files)
-		{
-			const bool is_current_preset_path = entry == _current_preset_path;
-			if (bool selected = is_current_preset_path;  ImGui::Selectable(entry.path().filename().u8string().c_str(), &selected))
-				_file_selection_path = entry, condition = is_current_preset_path ? condition::none : condition::select;
 
-			if (((condition == condition::backward || condition == condition::forward) && entry == _file_selection_path)
-				|| (is_current_preset_path && ImGui::IsWindowAppearing()))
-				ImGui::SetScrollHereY(); // TODO: not work in is_current_preset_path && ImGui::IsWindowAppearing()
+			std::error_code ec;
+			std::vector<std::filesystem::directory_entry> preset_files;
+			for (const auto &entry : std::filesystem::directory_iterator(directory_path, std::filesystem::directory_options::skip_permission_denied, ec))
+			{
+				if (entry.is_directory(ec))
+				{
+					if (ImGui::Selectable((entry.path().filename().u8string() + '\\').c_str()))
+						_file_selection_path = entry;
+				}
+				else
+				{
+					if (const std::string extension = entry.path().extension().u8string(); extension == ".ini" || extension == ".txt")
+						preset_files.push_back(entry);
+				}
+			}
+			for (const auto &entry : preset_files)
+			{
+				const bool is_current_preset_path = entry == _current_preset_path;
+				if (bool selected = is_current_preset_path;  ImGui::Selectable(entry.path().filename().u8string().c_str(), &selected))
+					_file_selection_path = entry, condition = is_current_preset_path ? condition::none : condition::select;
+			}
 		}
 		ImGui::EndChild();
 	}
@@ -2182,6 +2184,9 @@ void reshade::runtime::draw_preset_explorer()
 	ImGui::SetNextWindowPos(cursor_pos + ImVec2(root_window_width + button_size - 230, button_size));
 	if (ImGui::BeginPopup("##name"))
 	{
+		if (ImGui::IsWindowAppearing())
+			ImGui::SetKeyboardFocusHere();
+
 		char filename[_MAX_PATH]{};
 		ImGui::InputText("Name", filename, sizeof(filename));
 
