@@ -2038,8 +2038,8 @@ void reshade::runtime::draw_preset_explorer()
 		_file_selection_path = _current_preset_path.parent_path(), condition = condition::add;
 
 	ImGui::SetNextWindowPos(cursor_pos - _imgui_context->Style.WindowPadding);
-	const bool popup_visible = ImGui::BeginPopup("##explore");
-	if (popup_visible)
+	const bool is_explore_open = ImGui::BeginPopup("##explore");
+	if (is_explore_open)
 	{
 		if (ImGui::ButtonEx("<", ImVec2(button_size, 0)))
 			condition = condition::backward;
@@ -2124,7 +2124,7 @@ void reshade::runtime::draw_preset_explorer()
 			condition = condition::none;
 	}
 
-	if (popup_visible)
+	if (is_explore_open)
 	{
 		std::filesystem::path directory_path;
 		if (std::filesystem::is_directory(_file_selection_path) || !_file_selection_path.has_parent_path())
@@ -2223,11 +2223,11 @@ void reshade::runtime::draw_preset_explorer()
 		save_config();
 		load_current_preset();
 
-		if (popup_visible && condition != condition::backward && condition != condition::forward)
+		if (is_explore_open && condition != condition::backward && condition != condition::forward)
 			ImGui::CloseCurrentPopup();
 	}
 
-	if (popup_visible)
+	if (is_explore_open)
 		ImGui::EndPopup();
 }
 
