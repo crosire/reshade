@@ -2021,6 +2021,8 @@ void reshade::runtime::draw_preset_explorer()
 	enum class condition { none, select, add, create, backward, forward };
 	condition condition = condition::none;
 
+	bool popup_explore = false;
+
 	if (ImGui::ButtonEx("<", ImVec2(button_size, 0)))
 		_file_selection_path = _current_preset_path, condition = condition::backward;
 
@@ -2031,7 +2033,7 @@ void reshade::runtime::draw_preset_explorer()
 	ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2(0.0f, 0.5f));
 	if (ImGui::SameLine(0, button_spacing);
 		ImGui::ButtonEx(_current_preset_path.stem().u8string().c_str(), ImVec2(root_window_width - (button_spacing + button_size) * 3, 0)))
-		_file_selection_path = _current_preset_path, ImGui::OpenPopup("##explore");
+		_file_selection_path = _current_preset_path, ImGui::OpenPopup("##explore"), popup_explore = true;
 	ImGui::PopStyleVar();
 
 	if (ImGui::SameLine(0, button_spacing); ImGui::Button("+", ImVec2(button_size, 0)))
@@ -2042,11 +2044,11 @@ void reshade::runtime::draw_preset_explorer()
 	if (popup_visible)
 	{
 		if (ImGui::ButtonEx("<", ImVec2(button_size, 0)))
-			_file_selection_path = _current_preset_path, condition = condition::backward;
+			condition = condition::backward;
 
 		if (ImGui::SameLine(0, button_spacing);
 			ImGui::ButtonEx(">", ImVec2(button_size, 0)))
-			_file_selection_path = _current_preset_path, condition = condition::forward;
+			condition = condition::forward;
 
 		char buf[_MAX_PATH]{};
 
@@ -2091,6 +2093,9 @@ void reshade::runtime::draw_preset_explorer()
 		if (ImGui::SameLine(0, button_spacing); ImGui::Button("+", ImVec2(button_size, 0)))
 			_file_selection_path = directory_path, condition = condition::add;
 
+		if (popup_explore || condition == condition::backward || condition == condition::forward)
+			ImGui::SetNextWindowFocus();
+
 		if (ImGui::BeginChild("##paths", ImVec2(0, 300), true))
 		{
 			if (ImGui::Selectable(".."))
@@ -2118,7 +2123,7 @@ void reshade::runtime::draw_preset_explorer()
 			for (const auto &entry : preset_files)
 			{
 				const bool is_current_preset_path = entry == _current_preset_path;
-				if (bool selected = is_current_preset_path; ImGui::Selectable(entry.path().filename().u8string().c_str(), &selected))
+				if (bool selected = is_current_preset_path;  ImGui::Selectable(entry.path().filename().u8string().c_str(), &selected))
 					_file_selection_path = entry, condition = is_current_preset_path ? condition::none : condition::select;
 			}
 		}
@@ -2181,10 +2186,13 @@ void reshade::runtime::draw_preset_explorer()
 					if (const reshade::ini_file preset(entry); preset.has("", "TechniqueSorting"))
 						preset_paths.push_back(entry);
 
+		bool not_found = true;
 		for (size_t i = 0; preset_paths.size() > i; ++i)
 		{
 			if (preset_paths[i] != _current_preset_path)
 				continue;
+			else
+				not_found = false;
 
 			if (condition == condition::backward)
 				if (i == 0)
@@ -2199,6 +2207,9 @@ void reshade::runtime::draw_preset_explorer()
 
 			break;
 		}
+
+		if (not_found)
+			condition = condition::none;
 	}
 
 	if (condition != condition::none)
