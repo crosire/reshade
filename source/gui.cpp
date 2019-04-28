@@ -2021,8 +2021,6 @@ void reshade::runtime::draw_preset_explorer()
 	enum class condition { none, select, add, create, backward, forward };
 	condition condition = condition::none;
 
-	bool popup_explore = false;
-
 	if (ImGui::ButtonEx("<", ImVec2(button_size, 0)))
 		_file_selection_path = _current_preset_path, condition = condition::backward;
 
@@ -2033,7 +2031,7 @@ void reshade::runtime::draw_preset_explorer()
 	ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2(0.0f, 0.5f));
 	if (ImGui::SameLine(0, button_spacing);
 		ImGui::ButtonEx(_current_preset_path.stem().u8string().c_str(), ImVec2(root_window_width - (button_spacing + button_size) * 3, 0)))
-		_file_selection_path = _current_preset_path, ImGui::OpenPopup("##explore"), popup_explore = true;
+		_file_selection_path = _current_preset_path, ImGui::OpenPopup("##explore");
 	ImGui::PopStyleVar();
 
 	if (ImGui::SameLine(0, button_spacing); ImGui::Button("+", ImVec2(button_size, 0)))
@@ -2137,7 +2135,7 @@ void reshade::runtime::draw_preset_explorer()
 		if (ImGui::SameLine(0, button_spacing); ImGui::Button("+", ImVec2(button_size, 0)))
 			_file_selection_path = directory_path, condition = condition::add;
 
-		if (popup_explore || condition == condition::backward || condition == condition::forward)
+		if (ImGui::IsWindowAppearing() || condition == condition::backward || condition == condition::forward)
 			ImGui::SetNextWindowFocus();
 
 		if (ImGui::BeginChild("##paths", ImVec2(0, 300), true))
