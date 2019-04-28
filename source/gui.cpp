@@ -2083,7 +2083,50 @@ void reshade::runtime::draw_preset_explorer()
 					condition = condition::select;
 			}
 		}
+	}
 
+	if (condition == condition::backward || condition == condition::forward)
+	{
+		std::filesystem::path directory_path;
+		if (std::filesystem::is_directory(_file_selection_path) || !_file_selection_path.has_parent_path())
+			directory_path = _file_selection_path;
+		else
+			directory_path = _file_selection_path.parent_path();
+
+		std::error_code ec;
+		std::vector<std::filesystem::directory_entry> preset_paths;
+		for (const auto &entry : std::filesystem::directory_iterator(directory_path, std::filesystem::directory_options::skip_permission_denied, ec))
+			if (!entry.is_directory())
+				if (const std::string extension = entry.path().extension().u8string(); extension == ".ini" || extension == ".txt")
+					if (const reshade::ini_file preset(entry); preset.has("", "TechniqueSorting"))
+						preset_paths.push_back(entry);
+
+		bool not_found = true;
+		for (size_t i = 0; preset_paths.size() > i; ++i)
+		{
+			if (preset_paths[i] == _current_preset_path)
+				not_found = false;
+			else
+				continue;
+			if (condition == condition::backward)
+				if (i == 0)
+					_file_selection_path = preset_paths[preset_paths.size() - 1];
+				else
+					_file_selection_path = preset_paths[i - 1];
+			else
+				if (i == preset_paths.size() - 1)
+					_file_selection_path = preset_paths[0];
+				else
+					_file_selection_path = preset_paths[i + 1];
+			break;
+		}
+
+		if (not_found)
+			condition = condition::none;
+	}
+
+	if (popup_visible)
+	{
 		std::filesystem::path directory_path;
 		if (std::filesystem::is_directory(_file_selection_path) || !_file_selection_path.has_parent_path())
 			directory_path = _file_selection_path;
@@ -2093,39 +2136,38 @@ void reshade::runtime::draw_preset_explorer()
 		if (ImGui::SameLine(0, button_spacing); ImGui::Button("+", ImVec2(button_size, 0)))
 			_file_selection_path = directory_path, condition = condition::add;
 
-		if (popup_explore || condition == condition::backward || condition == condition::forward)
-			ImGui::SetNextWindowFocus();
-
-		if (ImGui::BeginChild("##paths", ImVec2(0, 300), true))
+		ImGui::BeginChild("##paths", ImVec2(0, 300), true);
+		if (ImGui::Selectable(".."))
 		{
-			if (ImGui::Selectable(".."))
-			{
-				while (!std::filesystem::is_directory(_file_selection_path) && _file_selection_path.parent_path() != _file_selection_path)
-					_file_selection_path = _file_selection_path.parent_path();
+			while (!std::filesystem::is_directory(_file_selection_path) && _file_selection_path.parent_path() != _file_selection_path)
 				_file_selection_path = _file_selection_path.parent_path();
-			}
+			_file_selection_path = _file_selection_path.parent_path();
+		}
 
-			std::error_code ec;
-			std::vector<std::filesystem::directory_entry> preset_files;
-			for (const auto &entry : std::filesystem::directory_iterator(directory_path, std::filesystem::directory_options::skip_permission_denied, ec))
+		std::error_code ec;
+		std::vector<std::filesystem::directory_entry> preset_files;
+		for (const auto &entry : std::filesystem::directory_iterator(directory_path, std::filesystem::directory_options::skip_permission_denied, ec))
+		{
+			if (entry.is_directory(ec))
 			{
-				if (entry.is_directory(ec))
-				{
-					if (ImGui::Selectable((entry.path().filename().u8string() + '\\').c_str()))
-						_file_selection_path = entry;
-				}
-				else
-				{
-					if (const std::string extension = entry.path().extension().u8string(); extension == ".ini" || extension == ".txt")
-						preset_files.push_back(entry);
-				}
+				if (ImGui::Selectable((entry.path().filename().u8string() + '\\').c_str()))
+					_file_selection_path = entry;
 			}
-			for (const auto &entry : preset_files)
+			else
 			{
-				const bool is_current_preset_path = entry == _current_preset_path;
-				if (bool selected = is_current_preset_path;  ImGui::Selectable(entry.path().filename().u8string().c_str(), &selected))
-					_file_selection_path = entry, condition = is_current_preset_path ? condition::none : condition::select;
+				if (const std::string extension = entry.path().extension().u8string(); extension == ".ini" || extension == ".txt")
+					preset_files.push_back(entry);
 			}
+		}
+		for (const auto &entry : preset_files)
+		{
+			const bool is_current_preset_path = entry == _current_preset_path;
+			if (bool selected = is_current_preset_path;  ImGui::Selectable(entry.path().filename().u8string().c_str(), &selected))
+				_file_selection_path = entry, condition = is_current_preset_path ? condition::none : condition::select;
+
+			if (((condition == condition::backward || condition == condition::forward) && entry == _file_selection_path)
+				|| (is_current_preset_path && ImGui::IsWindowAppearing()))
+				ImGui::SetScrollHereY(); // TODO: not work in is_current_preset_path && ImGui::IsWindowAppearing()
 		}
 		ImGui::EndChild();
 	}
@@ -2168,48 +2210,6 @@ void reshade::runtime::draw_preset_explorer()
 			ImGui::CloseCurrentPopup();
 
 		ImGui::EndPopup();
-	}
-
-	if (condition == condition::backward || condition == condition::forward)
-	{
-		std::filesystem::path directory_path;
-		if (std::filesystem::is_directory(_file_selection_path) || !_file_selection_path.has_parent_path())
-			directory_path = _file_selection_path;
-		else
-			directory_path = _file_selection_path.parent_path();
-
-		std::error_code ec;
-		std::vector<std::filesystem::directory_entry> preset_paths;
-		for (const auto &entry : std::filesystem::directory_iterator(directory_path, std::filesystem::directory_options::skip_permission_denied, ec))
-			if (!entry.is_directory())
-				if (const std::string extension = entry.path().extension().u8string(); extension == ".ini" || extension == ".txt")
-					if (const reshade::ini_file preset(entry); preset.has("", "TechniqueSorting"))
-						preset_paths.push_back(entry);
-
-		bool not_found = true;
-		for (size_t i = 0; preset_paths.size() > i; ++i)
-		{
-			if (preset_paths[i] != _current_preset_path)
-				continue;
-			else
-				not_found = false;
-
-			if (condition == condition::backward)
-				if (i == 0)
-					_file_selection_path = preset_paths[preset_paths.size() - 1];
-				else
-					_file_selection_path = preset_paths[i - 1];
-			else
-				if (i == preset_paths.size() - 1)
-					_file_selection_path = preset_paths[0];
-				else
-					_file_selection_path = preset_paths[i + 1];
-
-			break;
-		}
-
-		if (not_found)
-			condition = condition::none;
 	}
 
 	if (condition != condition::none)
