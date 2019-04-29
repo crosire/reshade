@@ -2011,9 +2011,6 @@ void reshade::runtime::draw_overlay_technique_editor()
 	}
 }
 
-bool _preset_path_input_mode = false;
-bool _preset_path_input_mode_changed = false;
-bool _preset_selectable_item_is_covered = true;
 void reshade::runtime::draw_preset_explorer()
 {
 	const ImVec2 cursor_pos = ImGui::GetCursorScreenPos();

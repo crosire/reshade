@@ -355,6 +355,11 @@ namespace reshade
 		char _effect_filter_buffer[64] = {};
 		std::filesystem::path _file_selection_path;
 		imgui_code_editor _editor;
+
+		// used by preset explorer
+		bool _preset_path_input_mode = false;
+		bool _preset_path_input_mode_changed = false;
+		bool _preset_selectable_item_is_covered = true;
 #endif
 	};
 }
