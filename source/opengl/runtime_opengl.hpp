@@ -110,6 +110,7 @@ namespace reshade::opengl
 		int _imgui_uniform_tex = 0;
 		int _imgui_uniform_proj = 0;
 #endif
+		std::vector<GLuint> _reserved_texture_names;
 		std::unordered_map<size_t, GLuint> _effect_sampler_states;
 		std::vector<std::pair<GLuint, GLsizeiptr>> _effect_ubos;
 	};

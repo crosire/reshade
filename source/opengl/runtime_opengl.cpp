@@ -6,6 +6,7 @@
 #include "log.hpp"
 #include "runtime_opengl.hpp"
 #include "runtime_objects.hpp"
+#include "ini_file.hpp"
 #include <imgui.h>
 
 namespace reshade::opengl
@@ -97,6 +98,12 @@ reshade::opengl::runtime_opengl::runtime_opengl()
 			break;
 		}
 	}
+
+	subscribe_to_load_config([this](const ini_file &config) {
+		size_t num_reserve_texture_names = 0;
+		config.get("OPENGL", "ReserveTextureNames", num_reserve_texture_names);
+		_reserved_texture_names.resize(num_reserve_texture_names);
+	});
 }
 
 bool reshade::opengl::runtime_opengl::on_init(HWND hwnd, unsigned int width, unsigned int height)
@@ -115,6 +122,9 @@ bool reshade::opengl::runtime_opengl::on_init(HWND hwnd, unsigned int width, uns
 	// Capture and later restore so that the resource creation code below does not affect the application state
 	_app_state.capture();
 
+	// Some games (like Hot Wheels Velocity X) use fixed texture names, which can clash with the ones ReShade generates below, since most implementations will return values linearly
+	// Reserve a configurable range of names for those games to work around this
+	glGenTextures(GLsizei(_reserved_texture_names.size()), _reserved_texture_names.data());
 
 	glGenBuffers(NUM_BUF, _buf);
 	glGenTextures(NUM_TEX, _tex);
@@ -158,6 +168,7 @@ void reshade::opengl::runtime_opengl::on_reset()
 
 	glDeleteBuffers(NUM_BUF, _buf);
 	glDeleteTextures(NUM_TEX, _tex);
+	glDeleteTextures(GLsizei(_reserved_texture_names.size()), _reserved_texture_names.data());
 	glDeleteVertexArrays(NUM_VAO, _vao);
 	glDeleteFramebuffers(NUM_FBO, _fbo);
 	glDeleteRenderbuffers(NUM_RBO, _rbo);
