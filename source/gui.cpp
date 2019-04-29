@@ -2060,8 +2060,6 @@ void reshade::runtime::draw_preset_explorer()
 		ImGui::SameLine(0, button_spacing);
 		if (_preset_path_input_mode || ImGui::IsPopupOpen("##name"))
 		{
-			if (ImGui::IsPopupOpen("##name"))
-				auto a = 0;
 			ImGui::PushItemWidth(root_window_width - (button_spacing + button_size) * 3);
 			ImGui::InputText("##path", buf, sizeof(buf));
 			if (!ImGui::IsWindowAppearing())
