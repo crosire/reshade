@@ -2195,7 +2195,7 @@ void reshade::runtime::draw_preset_explorer()
 			{
 				const bool is_current_preset_path = entry == _current_preset_path;
 				if (bool selected = is_current_preset_path;  ImGui::Selectable(entry.path().filename().u8string().c_str(), &selected))
-					_file_selection_path = entry, condition = is_current_preset_path ? condition::none : condition::select;
+					_file_selection_path = entry, condition = condition::select;
 				if (is_current_preset_path && _preset_selectable_item_is_covered && !ImGui::IsWindowAppearing())
 					_preset_selectable_item_is_covered = false, ImGui::SetScrollHereY();
 			}
