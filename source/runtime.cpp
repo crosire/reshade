@@ -840,8 +840,10 @@ void reshade::runtime::load_config()
 	config.get("GENERAL", "ScreenshotIncludePreset", _screenshot_include_preset);
 	config.get("GENERAL", "NoReloadOnInit", _no_reload_on_init);
 
+	std::error_code ec;
+
 	// Create a default preset file if none exists yet
-	if (_current_preset_path.empty())
+	if (_current_preset_path.empty() || (std::filesystem::status(_current_preset_path, ec), ec.value() == 0x7b)) // 0x7b: ERROR_INVALID_NAME
 		_current_preset_path = g_reshade_dll_path.parent_path() / "DefaultPreset.ini";
 
 	for (const auto &callback : _load_config_callables)

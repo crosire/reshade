@@ -2018,6 +2018,8 @@ void reshade::runtime::draw_preset_explorer()
 	const float button_spacing = _imgui_context->Style.ItemInnerSpacing.x;
 	const float root_window_width = ImGui::GetWindowContentRegionWidth();
 
+	std::error_code ec;
+
 	enum class condition { none, select, add, create, backward, forward, cancel };
 	condition condition = condition::none;
 
@@ -2060,9 +2062,12 @@ void reshade::runtime::draw_preset_explorer()
 		ImGui::SameLine(0, button_spacing);
 		if (_preset_path_input_mode || ImGui::IsPopupOpen("##name"))
 		{
-			ImGui::PushItemWidth(root_window_width - (button_spacing + button_size) * 3);
-			ImGui::InputText("##path", buf, sizeof(buf));
-			_file_selection_path = std::filesystem::u8path(buf);
+			ImGui::InputTextEx("##path", buf, sizeof(buf), ImVec2(root_window_width - (button_spacing + button_size) * 3, 0), ImGuiInputTextFlags_None);
+
+			std::filesystem::path file_selection_path = std::filesystem::u8path(buf);
+			if (!ImGui::IsItemEdited() || (std::filesystem::status(file_selection_path, ec), ec.value() != 0x7b)) // 0x7b: ERROR_INVALID_NAME
+				_file_selection_path = std::move(file_selection_path);
+
 			if (!ImGui::IsWindowAppearing())
 			{
 				if (_preset_path_input_mode_changed)
@@ -2075,7 +2080,6 @@ void reshade::runtime::draw_preset_explorer()
 					_preset_path_input_mode_changed = true, _preset_path_input_mode = false;
 				}
 			}
-			ImGui::PopItemWidth();
 		}
 		else
 		{
@@ -2096,7 +2100,7 @@ void reshade::runtime::draw_preset_explorer()
 
 		if (ImGui::IsKeyPressedMap(ImGuiKey_Enter))
 		{
-			if (std::filesystem::file_type file_type = std::filesystem::status(_file_selection_path).type();
+			if (std::filesystem::file_type file_type = std::filesystem::status(_file_selection_path, ec).type();
 				file_type == std::filesystem::file_type::directory)
 				condition = condition::add;
 			else
@@ -2115,12 +2119,11 @@ void reshade::runtime::draw_preset_explorer()
 	if (condition == condition::backward || condition == condition::forward)
 	{
 		std::filesystem::path directory_path;
-		if (std::filesystem::is_directory(_file_selection_path) || !_file_selection_path.has_parent_path())
+		if (std::filesystem::is_directory(_file_selection_path, ec) || !_file_selection_path.has_parent_path())
 			directory_path = _file_selection_path;
 		else
 			directory_path = _file_selection_path.parent_path();
 
-		std::error_code ec;
 		std::vector<std::filesystem::directory_entry> preset_paths;
 		for (const auto &entry : std::filesystem::directory_iterator(directory_path, std::filesystem::directory_options::skip_permission_denied, ec))
 			if (!entry.is_directory())
@@ -2158,7 +2161,7 @@ void reshade::runtime::draw_preset_explorer()
 	if (is_explore_open)
 	{
 		std::filesystem::path directory_path;
-		if (std::filesystem::is_directory(_file_selection_path) || !_file_selection_path.has_parent_path())
+		if (std::filesystem::is_directory(_file_selection_path, ec) || !_file_selection_path.has_parent_path())
 			directory_path = _file_selection_path;
 		else
 			directory_path = _file_selection_path.parent_path();
@@ -2173,12 +2176,11 @@ void reshade::runtime::draw_preset_explorer()
 		{
 			if (ImGui::Selectable(".."))
 			{
-				while (!std::filesystem::is_directory(_file_selection_path) && _file_selection_path.parent_path() != _file_selection_path)
+				while (!std::filesystem::is_directory(_file_selection_path, ec) && _file_selection_path.parent_path() != _file_selection_path)
 					_file_selection_path = _file_selection_path.parent_path();
 				_file_selection_path = _file_selection_path.parent_path();
 			}
 
-			std::error_code ec;
 			std::vector<std::filesystem::directory_entry> preset_files;
 			for (const auto &entry : std::filesystem::directory_iterator(directory_path, std::filesystem::directory_options::skip_permission_denied, ec))
 			{
@@ -2235,7 +2237,7 @@ void reshade::runtime::draw_preset_explorer()
 					relative_path = relative_path.wstring() + L".ini";
 				std::filesystem::path file_selection_path = _file_selection_path / relative_path;
 
-				if (std::filesystem::file_type file_type = std::filesystem::status(file_selection_path).type();
+				if (std::filesystem::file_type file_type = std::filesystem::status(file_selection_path, ec).type();
 					file_type == std::filesystem::file_type::not_found)
 					condition = condition::add;
 				else if (file_type != std::filesystem::file_type::directory)
@@ -2243,7 +2245,7 @@ void reshade::runtime::draw_preset_explorer()
 						condition = condition::add;
 
 				if (condition == condition::add)
-					_file_selection_path = file_selection_path;
+					_file_selection_path = std::move(file_selection_path);
 			}
 		}
 
