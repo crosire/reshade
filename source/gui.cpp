@@ -2011,6 +2011,8 @@ void reshade::runtime::draw_overlay_technique_editor()
 	}
 }
 
+bool _preset_path_input_mode = false;
+bool _preset_path_input_mode_changed = false;
 void reshade::runtime::draw_preset_explorer()
 {
 	const ImVec2 cursor_pos = ImGui::GetCursorScreenPos();
@@ -2018,7 +2020,7 @@ void reshade::runtime::draw_preset_explorer()
 	const float button_spacing = _imgui_context->Style.ItemInnerSpacing.x;
 	const float root_window_width = ImGui::GetWindowContentRegionWidth();
 
-	enum class condition { none, select, add, create, backward, forward };
+	enum class condition { none, select, add, create, backward, forward, cancel };
 	condition condition = condition::none;
 
 	if (ImGui::ButtonEx("<", ImVec2(button_size, 0)))
@@ -2031,10 +2033,14 @@ void reshade::runtime::draw_preset_explorer()
 	ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2(0.0f, 0.5f));
 	if (ImGui::SameLine(0, button_spacing);
 		ImGui::ButtonEx(_current_preset_path.stem().u8string().c_str(), ImVec2(root_window_width - (button_spacing + button_size) * 3, 0)))
+	{
+		if (_imgui_context->IO.KeyCtrl)
+			_preset_path_input_mode = true, _preset_path_input_mode_changed = true;
 		_file_selection_path = _current_preset_path, ImGui::OpenPopup("##explore");
+	}
 	ImGui::PopStyleVar();
 
-	if (ImGui::SameLine(0, button_spacing); ImGui::Button("+", ImVec2(button_size, 0)))
+	if (ImGui::SameLine(0, button_spacing); ImGui::ButtonEx("+", ImVec2(button_size, 0), ImGuiButtonFlags_PressedOnClick))
 		_file_selection_path = _current_preset_path.parent_path(), condition = condition::add;
 
 	ImGui::SetNextWindowPos(cursor_pos - _imgui_context->Style.WindowPadding);
@@ -2054,10 +2060,38 @@ void reshade::runtime::draw_preset_explorer()
 			_file_selection_path.u8string().copy(buf, sizeof(buf) - 1);
 
 		ImGui::SameLine(0, button_spacing);
-		ImGui::PushItemWidth(root_window_width - (button_spacing + button_size) * 3);
-		ImGui::InputText("##path", buf, sizeof(buf));
-		_file_selection_path = std::filesystem::u8path(buf);
-		ImGui::PopItemWidth();
+		if (_preset_path_input_mode || ImGui::IsPopupOpen("##name"))
+		{
+			if (ImGui::IsPopupOpen("##name"))
+				auto a = 0;
+			ImGui::PushItemWidth(root_window_width - (button_spacing + button_size) * 3);
+			ImGui::InputText("##path", buf, sizeof(buf));
+			if (!ImGui::IsWindowAppearing())
+			{
+				if (_preset_path_input_mode_changed)
+				{
+					if (_preset_path_input_mode_changed = false, !ImGui::IsPopupOpen("##name"))
+						ImGui::SetKeyboardFocusHere();
+				}
+				else if (!ImGui::IsItemActive())
+				{
+					_preset_path_input_mode_changed = true, _preset_path_input_mode = false;
+				}
+			}
+			ImGui::PopItemWidth();
+
+			_file_selection_path = std::filesystem::u8path(buf);
+		}
+		else
+		{
+			ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2(0.0f, 0.5f));
+			if (ImGui::ButtonEx(_current_preset_path.stem().u8string().c_str(), ImVec2(root_window_width - (button_spacing + button_size) * 3, 0)))
+				if (_imgui_context->IO.KeyCtrl)
+					_preset_path_input_mode = true, _preset_path_input_mode_changed = true;
+				else
+					condition = condition::cancel;
+			ImGui::PopStyleVar();
+		}
 
 		if (_file_selection_path.is_relative())
 			_file_selection_path = g_reshade_dll_path.parent_path() / _file_selection_path;
@@ -2132,7 +2166,7 @@ void reshade::runtime::draw_preset_explorer()
 		else
 			directory_path = _file_selection_path.parent_path();
 
-		if (ImGui::SameLine(0, button_spacing); ImGui::Button("+", ImVec2(button_size, 0)))
+		if (ImGui::SameLine(0, button_spacing); ImGui::ButtonEx("+", ImVec2(button_size, 0), ImGuiButtonFlags_PressedOnClick))
 			_file_selection_path = directory_path, condition = condition::add;
 
 		if (ImGui::IsWindowAppearing() || condition == condition::backward || condition == condition::forward)
@@ -2217,12 +2251,14 @@ void reshade::runtime::draw_preset_explorer()
 
 	if (condition != condition::none)
 	{
-		_show_splash = true;
-		_current_preset_path = std::filesystem::absolute(_file_selection_path);
+		if (condition != condition::cancel)
+		{
+			_show_splash = true;
+			_current_preset_path = std::filesystem::absolute(_file_selection_path);
 
-		save_config();
-		load_current_preset();
-
+			save_config();
+			load_current_preset();
+		}
 		if (is_explore_open && condition != condition::backward && condition != condition::forward)
 			ImGui::CloseCurrentPopup();
 	}
