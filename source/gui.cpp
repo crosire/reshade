@@ -2135,6 +2135,7 @@ void reshade::runtime::draw_preset_explorer()
 				not_found = false;
 			else
 				continue;
+
 			if (condition == condition::backward)
 				if (i == 0)
 					_file_selection_path = preset_paths[preset_paths.size() - 1];
@@ -2145,7 +2146,6 @@ void reshade::runtime::draw_preset_explorer()
 					_file_selection_path = preset_paths[0];
 				else
 					_file_selection_path = preset_paths[i + 1];
-
 			break;
 		}
 
