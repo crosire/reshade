@@ -2062,6 +2062,7 @@ void reshade::runtime::draw_preset_explorer()
 		{
 			ImGui::PushItemWidth(root_window_width - (button_spacing + button_size) * 3);
 			ImGui::InputText("##path", buf, sizeof(buf));
+			_file_selection_path = std::filesystem::u8path(buf);
 			if (!ImGui::IsWindowAppearing())
 			{
 				if (_preset_path_input_mode_changed)
@@ -2075,8 +2076,6 @@ void reshade::runtime::draw_preset_explorer()
 				}
 			}
 			ImGui::PopItemWidth();
-
-			_file_selection_path = std::filesystem::u8path(buf);
 		}
 		else
 		{
