@@ -2013,6 +2013,7 @@ void reshade::runtime::draw_overlay_technique_editor()
 
 bool _preset_path_input_mode = false;
 bool _preset_path_input_mode_changed = false;
+bool _preset_selectable_item_is_covered = true;
 void reshade::runtime::draw_preset_explorer()
 {
 	const ImVec2 cursor_pos = ImGui::GetCursorScreenPos();
@@ -2201,6 +2202,8 @@ void reshade::runtime::draw_preset_explorer()
 				const bool is_current_preset_path = entry == _current_preset_path;
 				if (bool selected = is_current_preset_path;  ImGui::Selectable(entry.path().filename().u8string().c_str(), &selected))
 					_file_selection_path = entry, condition = is_current_preset_path ? condition::none : condition::select;
+				if (is_current_preset_path && _preset_selectable_item_is_covered && !ImGui::IsWindowAppearing())
+					_preset_selectable_item_is_covered = false, ImGui::SetScrollHereY();
 			}
 		}
 		ImGui::EndChild();
@@ -2265,6 +2268,8 @@ void reshade::runtime::draw_preset_explorer()
 
 	if (is_explore_open)
 		ImGui::EndPopup();
+	else if (!_preset_selectable_item_is_covered)
+		_preset_selectable_item_is_covered = true;
 }
 
 #endif
