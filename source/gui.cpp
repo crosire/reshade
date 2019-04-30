@@ -2020,8 +2020,8 @@ void reshade::runtime::draw_preset_explorer()
 
 	std::error_code ec;
 
-	enum class condition { none, select, add, create, backward, forward, cancel };
-	condition condition = condition::none;
+	enum class condition { pass, select, popup_add, create, backward, forward, cancel };
+	condition condition = condition::pass;
 
 	if (ImGui::ButtonEx("<", ImVec2(button_size, 0)))
 		_file_selection_path = _current_preset_path, condition = condition::backward;
@@ -2041,7 +2041,7 @@ void reshade::runtime::draw_preset_explorer()
 	ImGui::PopStyleVar();
 
 	if (ImGui::SameLine(0, button_spacing); ImGui::ButtonEx("+", ImVec2(button_size, 0), ImGuiButtonFlags_PressedOnClick))
-		_file_selection_path = _current_preset_path.parent_path(), condition = condition::add;
+		_file_selection_path = _current_preset_path.parent_path(), condition = condition::popup_add;
 
 	ImGui::SetNextWindowPos(cursor_pos - _imgui_context->Style.WindowPadding);
 	const bool is_explore_open = ImGui::BeginPopup("##explore");
@@ -2102,11 +2102,11 @@ void reshade::runtime::draw_preset_explorer()
 		{
 			if (std::filesystem::file_type file_type = std::filesystem::status(_file_selection_path, ec).type();
 				file_type == std::filesystem::file_type::directory)
-				condition = condition::add;
+				condition = condition::popup_add;
 			else
 			{
 				if (const std::wstring extension(_file_selection_path.extension()); extension != L".ini" && extension != L".txt")
-					_file_selection_path /= L".ini";
+					_file_selection_path += L".ini";
 				if (file_type == std::filesystem::file_type::not_found)
 					condition = condition::create;
 				else
@@ -2152,7 +2152,7 @@ void reshade::runtime::draw_preset_explorer()
 		}
 
 		if (not_found)
-			condition = condition::none;
+			condition = condition::pass;
 		else
 			_current_preset_path = std::filesystem::absolute(_file_selection_path);
 	}
@@ -2166,7 +2166,7 @@ void reshade::runtime::draw_preset_explorer()
 			directory_path = _file_selection_path.parent_path();
 
 		if (ImGui::SameLine(0, button_spacing); ImGui::ButtonEx("+", ImVec2(button_size, 0), ImGuiButtonFlags_PressedOnClick))
-			_file_selection_path = directory_path, condition = condition::add;
+			_file_selection_path = directory_path, condition = condition::popup_add;
 
 		if (ImGui::IsWindowAppearing() || condition == condition::backward || condition == condition::forward)
 			ImGui::SetNextWindowFocus();
@@ -2213,10 +2213,10 @@ void reshade::runtime::draw_preset_explorer()
 
 	if (condition == condition::select)
 		if (const reshade::ini_file preset(_file_selection_path); !preset.has("", "TechniqueSorting"))
-			condition = condition::none;
+			condition = condition::pass;
 
-	if (condition == condition::add)
-		ImGui::OpenPopup("##name"), condition = condition::none;
+	if (condition == condition::popup_add)
+		ImGui::OpenPopup("##name"), condition = condition::pass;
 
 	ImGui::SetNextWindowPos(cursor_pos + ImVec2(root_window_width + button_size - 230, button_size));
 	if (ImGui::BeginPopup("##name"))
@@ -2233,28 +2233,28 @@ void reshade::runtime::draw_preset_explorer()
 				relative_path.has_filename())
 			{
 				if (const std::wstring extension(relative_path.extension()); extension != L".ini" && extension != L".txt")
-					relative_path /= L".ini";
+					relative_path += L".ini";
 				std::filesystem::path file_selection_path = _file_selection_path / relative_path;
 
 				if (std::filesystem::file_type file_type = std::filesystem::status(file_selection_path, ec).type();
 					file_type == std::filesystem::file_type::not_found)
-					condition = condition::add;
+					condition = condition::select;
 				else if (file_type != std::filesystem::file_type::directory)
 					if (const reshade::ini_file preset(file_selection_path); preset.has("", "TechniqueSorting"))
-						condition = condition::add;
+						condition = condition::select;
 
-				if (condition == condition::add)
+				if (condition == condition::select)
 					_file_selection_path = std::move(file_selection_path);
 			}
 		}
 
-		if (condition == condition::add)
+		if (condition != condition::pass)
 			ImGui::CloseCurrentPopup();
 
 		ImGui::EndPopup();
 	}
 
-	if (condition != condition::none)
+	if (condition != condition::pass)
 	{
 		if (condition != condition::cancel)
 		{
