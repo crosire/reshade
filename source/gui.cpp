@@ -2105,9 +2105,8 @@ void reshade::runtime::draw_preset_explorer()
 				condition = condition::add;
 			else
 			{
-				if (const std::string extension = _file_selection_path.extension().u8string();
-					extension != ".ini" && extension != ".txt")
-					_file_selection_path = _file_selection_path.wstring() + L".ini";
+				if (const std::wstring extension(_file_selection_path.extension()); extension != L".ini" && extension != L".txt")
+					_file_selection_path /= L".ini";
 				if (file_type == std::filesystem::file_type::not_found)
 					condition = condition::create;
 				else
@@ -2127,7 +2126,7 @@ void reshade::runtime::draw_preset_explorer()
 		std::vector<std::filesystem::directory_entry> preset_paths;
 		for (const auto &entry : std::filesystem::directory_iterator(directory_path, std::filesystem::directory_options::skip_permission_denied, ec))
 			if (!entry.is_directory())
-				if (const std::string extension = entry.path().extension().u8string(); extension == ".ini" || extension == ".txt")
+				if (const std::wstring extension(entry.path().extension()); extension == L".ini" || extension == L".txt")
 					if (const reshade::ini_file preset(entry); preset.has("", "TechniqueSorting"))
 						preset_paths.push_back(entry);
 
@@ -2191,7 +2190,7 @@ void reshade::runtime::draw_preset_explorer()
 				}
 				else
 				{
-					if (const std::string extension = entry.path().extension().u8string(); extension == ".ini" || extension == ".txt")
+					if (const std::wstring extension(entry.path().extension()); extension == L".ini" || extension == L".txt")
 						preset_files.push_back(entry);
 				}
 			}
@@ -2233,8 +2232,8 @@ void reshade::runtime::draw_preset_explorer()
 			if (std::filesystem::path relative_path = std::filesystem::u8path(filename);
 				relative_path.has_filename())
 			{
-				if (!relative_path.has_extension())
-					relative_path = relative_path.wstring() + L".ini";
+				if (const std::wstring extension(relative_path.extension()); extension != L".ini" && extension != L".txt")
+					relative_path /= L".ini";
 				std::filesystem::path file_selection_path = _file_selection_path / relative_path;
 
 				if (std::filesystem::file_type file_type = std::filesystem::status(file_selection_path, ec).type();
