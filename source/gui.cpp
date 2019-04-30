@@ -213,6 +213,7 @@ void reshade::runtime::init_ui()
 		config.set("GENERAL", "ShowFrameTime", _show_frametime);
 		config.set("GENERAL", "ShowScreenshotMessage", _show_screenshot_message);
 		config.set("GENERAL", "ClockFormat", _clock_format);
+		config.set("GENERAL", "NoFontScaling", _no_font_scaling);
 		config.set("GENERAL", "SaveWindowState", _imgui_context->IO.IniFilename != nullptr);
 		config.set("GENERAL", "TutorialProgress", _tutorial_index);
 		config.set("GENERAL", "NewVariableUI", _variable_editor_tabs);
