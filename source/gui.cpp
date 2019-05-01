@@ -2190,7 +2190,7 @@ void reshade::runtime::draw_preset_explorer()
 				{
 					const bool is_current_preset = entry == _current_preset_path;
 
-					if (bool selected = is_current_preset;  ImGui::Selectable(entry.path().filename().u8string().c_str(), &selected))
+					if (ImGui::Selectable(entry.path().filename().u8string().c_str(), static_cast<bool>(is_current_preset)))
 						_file_selection_path = entry, condition = condition::select;
 
 					if (is_current_preset)
