@@ -2225,22 +2225,22 @@ void reshade::runtime::draw_preset_explorer()
 
 		if (filename[0] != '\0' && ImGui::IsKeyPressedMap(ImGuiKey_Enter))
 		{
-			if (std::filesystem::path relative_path = std::filesystem::u8path(filename);
-				relative_path.has_filename())
+			if (std::filesystem::path input_relative_preset_path = std::filesystem::u8path(filename);
+				input_relative_preset_path.has_filename())
 			{
-				if (const std::wstring extension(relative_path.extension()); extension != L".ini" && extension != L".txt")
-					relative_path += L".ini";
-				std::filesystem::path file_selection_path = _file_selection_path / relative_path;
+				if (const std::wstring extension(input_relative_preset_path.extension()); extension != L".ini" && extension != L".txt")
+					input_relative_preset_path += L".ini";
+				std::filesystem::path input_absolute_preset_path = _file_selection_path / input_relative_preset_path;
 
-				if (std::filesystem::file_type file_type = std::filesystem::status(file_selection_path, ec).type();
+				if (std::filesystem::file_type file_type = std::filesystem::status(input_absolute_preset_path, ec).type();
 					file_type == std::filesystem::file_type::not_found)
 					condition = condition::select;
 				else if (file_type != std::filesystem::file_type::directory)
-					if (const reshade::ini_file preset(file_selection_path); preset.has("", "TechniqueSorting"))
+					if (const reshade::ini_file preset(input_absolute_preset_path); preset.has("", "TechniqueSorting"))
 						condition = condition::select;
 
 				if (condition == condition::select)
-					_file_selection_path = std::move(file_selection_path);
+					_file_selection_path = std::move(input_absolute_preset_path);
 			}
 		}
 
