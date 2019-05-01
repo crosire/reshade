@@ -358,7 +358,6 @@ namespace reshade
 
 		// used by preset explorer
 		bool _preset_path_input_mode = false;
-		bool _preset_path_input_mode_changed = false;
 		bool _preset_selectable_item_is_covered = true;
 #endif
 	};

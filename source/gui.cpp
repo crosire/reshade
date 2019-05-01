@@ -2035,7 +2035,7 @@ void reshade::runtime::draw_preset_explorer()
 		ImGui::ButtonEx(_current_preset_path.stem().u8string().c_str(), ImVec2(root_window_width - (button_spacing + button_size) * 3, 0)))
 	{
 		if (_imgui_context->IO.KeyCtrl)
-			_preset_path_input_mode = true, _preset_path_input_mode_changed = true;
+			_preset_path_input_mode = true;
 		_file_selection_path = _current_preset_path, ImGui::OpenPopup("##explore");
 	}
 	ImGui::PopStyleVar();
@@ -2060,25 +2060,20 @@ void reshade::runtime::draw_preset_explorer()
 			_file_selection_path.u8string().copy(buf, sizeof(buf) - 1);
 
 		ImGui::SameLine(0, button_spacing);
-		if (_preset_path_input_mode || ImGui::IsPopupOpen("##name"))
+		if (_preset_path_input_mode)
 		{
 			ImGui::InputTextEx("##path", buf, sizeof(buf), ImVec2(root_window_width - (button_spacing + button_size) * 3, 0), ImGuiInputTextFlags_None);
 
 			std::filesystem::path file_selection_path = std::filesystem::u8path(buf);
-			if (!ImGui::IsItemEdited() || (std::filesystem::status(file_selection_path, ec), ec.value() != 0x7b)) // 0x7b: ERROR_INVALID_NAME
+			if (!ImGui::IsItemEdited() || (static_cast<void>(std::filesystem::status(file_selection_path, ec)), ec.value() != 0x7b)) // 0x7b: ERROR_INVALID_NAME
 				_file_selection_path = std::move(file_selection_path);
 
 			if (!ImGui::IsWindowAppearing())
 			{
-				if (_preset_path_input_mode_changed)
-				{
-					if (_preset_path_input_mode_changed = false, !ImGui::IsPopupOpen("##name"))
-						ImGui::SetKeyboardFocusHere();
-				}
-				else if (!ImGui::IsItemActive())
-				{
-					_preset_path_input_mode_changed = true, _preset_path_input_mode = false;
-				}
+				if (_imgui_context->IO.KeyCtrl && !ImGui::IsPopupOpen("##name"))
+					ImGui::SetKeyboardFocusHere();
+				else if (_preset_path_input_mode && !ImGui::IsItemActive())
+					_preset_path_input_mode = false;
 			}
 		}
 		else
@@ -2086,7 +2081,7 @@ void reshade::runtime::draw_preset_explorer()
 			ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2(0.0f, 0.5f));
 			if (ImGui::ButtonEx(_current_preset_path.stem().u8string().c_str(), ImVec2(root_window_width - (button_spacing + button_size) * 3, 0)))
 				if (_imgui_context->IO.KeyCtrl)
-					_preset_path_input_mode = true, _preset_path_input_mode_changed = true;
+					_preset_path_input_mode = true;
 				else
 					condition = condition::cancel;
 			ImGui::PopStyleVar();
