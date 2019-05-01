@@ -2069,13 +2069,13 @@ void reshade::runtime::draw_preset_explorer()
 			else if (!ImGui::IsItemActive())
 				_preset_path_input_mode = false;
 
-			std::filesystem::path input_preset_path = std::filesystem::u8path(buf);
+			const std::filesystem::path input_preset_path = std::filesystem::u8path(buf);
 			if (!ImGui::IsItemEdited() || (static_cast<void>(std::filesystem::status(input_preset_path, ec)), ec.value() != 0x7b)) // 0x7b: ERROR_INVALID_NAME
 				_file_selection_path = std::move(input_preset_path);
 
 			if (ImGui::IsKeyPressedMap(ImGuiKey_Enter))
 			{
-				if (std::filesystem::file_type file_type = std::filesystem::status(input_preset_path, ec).type(); ec.value() == 0x7b) // 0x7b: ERROR_INVALID_NAME
+				if (const std::filesystem::file_type file_type = std::filesystem::status(input_preset_path, ec).type(); ec.value() == 0x7b) // 0x7b: ERROR_INVALID_NAME
 					condition = condition::pass, _file_selection_path = _current_preset_path;
 				else if (file_type == std::filesystem::file_type::directory)
 					condition = condition::popup_add;
@@ -2230,9 +2230,9 @@ void reshade::runtime::draw_preset_explorer()
 			{
 				if (const std::wstring extension(input_relative_preset_path.extension()); extension != L".ini" && extension != L".txt")
 					input_relative_preset_path += L".ini";
-				std::filesystem::path input_absolute_preset_path = _file_selection_path / input_relative_preset_path;
+				const std::filesystem::path input_absolute_preset_path = _file_selection_path / input_relative_preset_path;
 
-				if (std::filesystem::file_type file_type = std::filesystem::status(input_absolute_preset_path, ec).type();
+				if (const std::filesystem::file_type file_type = std::filesystem::status(input_absolute_preset_path, ec).type();
 					file_type == std::filesystem::file_type::not_found)
 					condition = condition::select;
 				else if (file_type != std::filesystem::file_type::directory)
