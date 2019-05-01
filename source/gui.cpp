@@ -2032,7 +2032,7 @@ void reshade::runtime::draw_preset_explorer()
 
 	ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2(0.0f, 0.5f));
 	if (ImGui::SameLine(0, button_spacing);
-		ImGui::ButtonEx(_current_preset_path.stem().u8string().c_str(), ImVec2(root_window_width - (button_spacing + button_size) * 3, 0)))
+		ImGui::ButtonEx(_current_preset_path.stem().u8string().c_str(), ImVec2(root_window_width - (button_spacing + button_size) * 3, 0), ImGuiButtonFlags_NoNavFocus))
 	{
 		if (_imgui_context->IO.KeyCtrl)
 			_preset_path_input_mode = true;
@@ -2040,18 +2040,18 @@ void reshade::runtime::draw_preset_explorer()
 	}
 	ImGui::PopStyleVar();
 
-	if (ImGui::SameLine(0, button_spacing); ImGui::ButtonEx("+", ImVec2(button_size, 0), ImGuiButtonFlags_PressedOnClick))
+	if (ImGui::SameLine(0, button_spacing); ImGui::ButtonEx("+", ImVec2(button_size, 0), ImGuiButtonFlags_PressedOnClick | ImGuiButtonFlags_NoNavFocus))
 		_file_selection_path = _current_preset_path.parent_path(), condition = condition::popup_add;
 
 	ImGui::SetNextWindowPos(cursor_pos - _imgui_context->Style.WindowPadding);
 	const bool is_explore_open = ImGui::BeginPopup("##explore");
 	if (is_explore_open)
 	{
-		if (ImGui::ButtonEx("<", ImVec2(button_size, 0)))
+		if (ImGui::ButtonEx("<", ImVec2(button_size, 0), ImGuiButtonFlags_NoNavFocus))
 			condition = condition::backward;
 
 		if (ImGui::SameLine(0, button_spacing);
-			ImGui::ButtonEx(">", ImVec2(button_size, 0)))
+			ImGui::ButtonEx(">", ImVec2(button_size, 0), ImGuiButtonFlags_NoNavFocus))
 			condition = condition::forward;
 
 		char buf[_MAX_PATH]{};
@@ -2064,24 +2064,21 @@ void reshade::runtime::draw_preset_explorer()
 		{
 			ImGui::InputTextEx("##path", buf, sizeof(buf), ImVec2(root_window_width - (button_spacing + button_size) * 3, 0), ImGuiInputTextFlags_None);
 
+			if (ImGui::IsWindowAppearing())
+				ImGui::SetKeyboardFocusHere();
+			else if (!ImGui::IsItemActive())
+				_preset_path_input_mode = false;
+
 			std::filesystem::path file_selection_path = std::filesystem::u8path(buf);
 			if (!ImGui::IsItemEdited() || (static_cast<void>(std::filesystem::status(file_selection_path, ec)), ec.value() != 0x7b)) // 0x7b: ERROR_INVALID_NAME
 				_file_selection_path = std::move(file_selection_path);
-
-			if (!ImGui::IsWindowAppearing())
-			{
-				if (_imgui_context->IO.KeyCtrl && !ImGui::IsPopupOpen("##name"))
-					ImGui::SetKeyboardFocusHere();
-				else if (_preset_path_input_mode && !ImGui::IsItemActive())
-					_preset_path_input_mode = false;
-			}
 		}
 		else
 		{
 			ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2(0.0f, 0.5f));
-			if (ImGui::ButtonEx(_current_preset_path.stem().u8string().c_str(), ImVec2(root_window_width - (button_spacing + button_size) * 3, 0)))
+			if (ImGui::ButtonEx(_current_preset_path.stem().u8string().c_str(), ImVec2(root_window_width - (button_spacing + button_size) * 3, 0), ImGuiButtonFlags_NoNavFocus))
 				if (_imgui_context->IO.KeyCtrl)
-					_preset_path_input_mode = true;
+					ImGui::ActivateItem(ImGui::GetID("##path")), _preset_path_input_mode = true;
 				else
 					condition = condition::cancel;
 			ImGui::PopStyleVar();
@@ -2160,7 +2157,7 @@ void reshade::runtime::draw_preset_explorer()
 
 		if (is_explore_open)
 		{
-			if (ImGui::SameLine(0, button_spacing); ImGui::ButtonEx("+", ImVec2(button_size, 0), ImGuiButtonFlags_PressedOnClick))
+			if (ImGui::SameLine(0, button_spacing); ImGui::ButtonEx("+", ImVec2(button_size, 0), ImGuiButtonFlags_PressedOnClick | ImGuiButtonFlags_NoNavFocus))
 				_file_selection_path = directory_path, condition = condition::popup_add;
 
 			if (ImGui::IsWindowAppearing() || condition == condition::backward || condition == condition::forward)
