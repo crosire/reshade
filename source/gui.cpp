@@ -2115,7 +2115,7 @@ void reshade::runtime::draw_preset_explorer()
 		}
 	}
 
-	if (condition == condition::backward || condition == condition::forward)
+	if (is_explore_open || condition == condition::backward || condition == condition::forward)
 	{
 		std::filesystem::path directory_path;
 		if (std::filesystem::is_directory(_file_selection_path, ec) || !_file_selection_path.has_parent_path())
@@ -2123,92 +2123,93 @@ void reshade::runtime::draw_preset_explorer()
 		else
 			directory_path = _file_selection_path.parent_path();
 
-		std::vector<std::filesystem::directory_entry> preset_paths;
+		std::vector<std::filesystem::directory_entry> directory_entries;
 		for (const auto &entry : std::filesystem::directory_iterator(directory_path, std::filesystem::directory_options::skip_permission_denied, ec))
-			if (!entry.is_directory())
-				if (const std::wstring extension(entry.path().extension()); extension == L".ini" || extension == L".txt")
-					if (const reshade::ini_file preset(entry); preset.has("", "TechniqueSorting"))
-						preset_paths.push_back(entry);
+			directory_entries.push_back(entry);
 
-		bool not_found = true;
-		for (size_t i = 0; preset_paths.size() > i; ++i)
+		if (condition == condition::backward || condition == condition::forward)
 		{
-			if (preset_paths[i] == _current_preset_path)
-				not_found = false;
-			else
-				continue;
-
-			if (condition == condition::backward)
-				if (i == 0)
-					_file_selection_path = preset_paths[preset_paths.size() - 1];
-				else
-					_file_selection_path = preset_paths[i - 1];
-			else
-				if (i == preset_paths.size() - 1)
-					_file_selection_path = preset_paths[0];
-				else
-					_file_selection_path = preset_paths[i + 1];
-			break;
-		}
-
-		if (not_found)
-			condition = condition::pass;
-		else
-			_current_preset_path = std::filesystem::absolute(_file_selection_path);
-	}
-
-	if (is_explore_open)
-	{
-		std::filesystem::path directory_path;
-		if (std::filesystem::is_directory(_file_selection_path, ec) || !_file_selection_path.has_parent_path())
-			directory_path = _file_selection_path;
-		else
-			directory_path = _file_selection_path.parent_path();
-
-		if (ImGui::SameLine(0, button_spacing); ImGui::ButtonEx("+", ImVec2(button_size, 0), ImGuiButtonFlags_PressedOnClick))
-			_file_selection_path = directory_path, condition = condition::popup_add;
-
-		if (ImGui::IsWindowAppearing() || condition == condition::backward || condition == condition::forward)
-			ImGui::SetNextWindowFocus();
-
-		if (ImGui::BeginChild("##paths", ImVec2(0, 300), true))
-		{
-			if (ImGui::Selectable(".."))
-			{
-				while (!std::filesystem::is_directory(_file_selection_path, ec) && _file_selection_path.parent_path() != _file_selection_path)
-					_file_selection_path = _file_selection_path.parent_path();
-				_file_selection_path = _file_selection_path.parent_path();
-			}
-
-			std::vector<std::filesystem::directory_entry> preset_files;
-			for (const auto &entry : std::filesystem::directory_iterator(directory_path, std::filesystem::directory_options::skip_permission_denied, ec))
-			{
-				if (entry.is_directory(ec))
-				{
-					if (ImGui::Selectable((entry.path().filename().u8string() + '\\').c_str()))
-						_file_selection_path = entry;
-				}
-				else
-				{
+			std::vector<std::filesystem::directory_entry> preset_paths;
+			for (const auto &entry : directory_entries)
+				if (!entry.is_directory())
 					if (const std::wstring extension(entry.path().extension()); extension == L".ini" || extension == L".txt")
-						preset_files.push_back(entry);
+						if (const reshade::ini_file preset(entry); preset.has("", "TechniqueSorting"))
+							preset_paths.push_back(entry);
+
+			bool not_found = true;
+			for (size_t i = 0; preset_paths.size() > i; ++i)
+			{
+				if (preset_paths[i] == _current_preset_path)
+					not_found = false;
+				else
+					continue;
+
+				if (condition == condition::backward)
+					if (i == 0)
+						_file_selection_path = preset_paths[preset_paths.size() - 1];
+					else
+						_file_selection_path = preset_paths[i - 1];
+				else
+					if (i == preset_paths.size() - 1)
+						_file_selection_path = preset_paths[0];
+					else
+						_file_selection_path = preset_paths[i + 1];
+				break;
+			}
+
+			if (not_found)
+				condition = condition::pass;
+			else
+				_current_preset_path = std::filesystem::absolute(_file_selection_path);
+		}
+
+		if (is_explore_open)
+		{
+			if (ImGui::SameLine(0, button_spacing); ImGui::ButtonEx("+", ImVec2(button_size, 0), ImGuiButtonFlags_PressedOnClick))
+				_file_selection_path = directory_path, condition = condition::popup_add;
+
+			if (ImGui::IsWindowAppearing() || condition == condition::backward || condition == condition::forward)
+				ImGui::SetNextWindowFocus();
+
+			if (ImGui::BeginChild("##paths", ImVec2(0, 300), true))
+			{
+				if (ImGui::Selectable(".."))
+				{
+					while (!std::filesystem::is_directory(_file_selection_path, ec) && _file_selection_path.parent_path() != _file_selection_path)
+						_file_selection_path = _file_selection_path.parent_path();
+					_file_selection_path = _file_selection_path.parent_path();
+				}
+
+				std::vector<std::filesystem::directory_entry> preset_files;
+				for (const auto &entry : directory_entries)
+				{
+					if (entry.is_directory(ec))
+					{
+						if (ImGui::Selectable((entry.path().filename().u8string() + '\\').c_str()))
+							_file_selection_path = entry;
+					}
+					else
+					{
+						if (const std::wstring extension(entry.path().extension()); extension == L".ini" || extension == L".txt")
+							preset_files.push_back(entry);
+					}
+				}
+				for (const auto &entry : preset_files)
+				{
+					const bool is_current_preset = entry == _current_preset_path;
+
+					if (bool selected = is_current_preset;  ImGui::Selectable(entry.path().filename().u8string().c_str(), &selected))
+						_file_selection_path = entry, condition = condition::select;
+
+					if (is_current_preset)
+						if (_preset_selectable_item_is_covered && !ImGui::IsWindowAppearing())
+							_preset_selectable_item_is_covered = false, ImGui::SetScrollHereY();
+						else if (condition == condition::backward || condition == condition::forward)
+							ImGui::SetScrollHereY();
 				}
 			}
-			for (const auto &entry : preset_files)
-			{
-				const bool is_current_preset_path = entry == _current_preset_path;
-
-				if (bool selected = is_current_preset_path;  ImGui::Selectable(entry.path().filename().u8string().c_str(), &selected))
-					_file_selection_path = entry, condition = condition::select;
-
-				if (is_current_preset_path)
-					if (_preset_selectable_item_is_covered && !ImGui::IsWindowAppearing())
-						_preset_selectable_item_is_covered = false, ImGui::SetScrollHereY();
-					else if (condition == condition::backward || condition == condition::forward)
-						ImGui::SetScrollHereY();
-			}
+			ImGui::EndChild();
 		}
-		ImGui::EndChild();
 	}
 
 	if (condition == condition::select)
