@@ -2069,9 +2069,26 @@ void reshade::runtime::draw_preset_explorer()
 			else if (!ImGui::IsItemActive())
 				_preset_path_input_mode = false;
 
-			std::filesystem::path file_selection_path = std::filesystem::u8path(buf);
-			if (!ImGui::IsItemEdited() || (static_cast<void>(std::filesystem::status(file_selection_path, ec)), ec.value() != 0x7b)) // 0x7b: ERROR_INVALID_NAME
-				_file_selection_path = std::move(file_selection_path);
+			std::filesystem::path input_preset_path = std::filesystem::u8path(buf);
+			if (!ImGui::IsItemEdited() || (static_cast<void>(std::filesystem::status(input_preset_path, ec)), ec.value() != 0x7b)) // 0x7b: ERROR_INVALID_NAME
+				_file_selection_path = std::move(input_preset_path);
+
+			if (ImGui::IsKeyPressedMap(ImGuiKey_Enter))
+			{
+				if (std::filesystem::file_type file_type = std::filesystem::status(input_preset_path, ec).type(); ec.value() == 0x7b) // 0x7b: ERROR_INVALID_NAME
+					condition = condition::pass, _file_selection_path = _current_preset_path;
+				else if (file_type == std::filesystem::file_type::directory)
+					condition = condition::popup_add;
+				else
+				{
+					if (const std::wstring extension(_file_selection_path.extension()); extension != L".ini" && extension != L".txt")
+						_file_selection_path += L".ini";
+					if (file_type == std::filesystem::file_type::not_found)
+						condition = condition::create;
+					else
+						condition = condition::select;
+				}
+			}
 		}
 		else
 		{
@@ -2081,6 +2098,8 @@ void reshade::runtime::draw_preset_explorer()
 					ImGui::ActivateItem(ImGui::GetID("##path")), _preset_path_input_mode = true;
 				else
 					condition = condition::cancel;
+			else if (ImGui::IsKeyPressedMap(ImGuiKey_Enter))
+				condition = condition::cancel;
 			ImGui::PopStyleVar();
 		}
 
@@ -2089,22 +2108,6 @@ void reshade::runtime::draw_preset_explorer()
 
 		if (!_file_selection_path.has_filename())
 			_file_selection_path = _file_selection_path.parent_path();
-
-		if (ImGui::IsKeyPressedMap(ImGuiKey_Enter))
-		{
-			if (std::filesystem::file_type file_type = std::filesystem::status(_file_selection_path, ec).type();
-				file_type == std::filesystem::file_type::directory)
-				condition = condition::popup_add;
-			else
-			{
-				if (const std::wstring extension(_file_selection_path.extension()); extension != L".ini" && extension != L".txt")
-					_file_selection_path += L".ini";
-				if (file_type == std::filesystem::file_type::not_found)
-					condition = condition::create;
-				else
-					condition = condition::select;
-			}
-		}
 	}
 
 	if (is_explore_open || condition == condition::backward || condition == condition::forward)
