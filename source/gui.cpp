@@ -2242,9 +2242,11 @@ void reshade::runtime::draw_preset_explorer()
 		char filename[_MAX_PATH]{};
 		ImGui::InputText("Name", filename, sizeof(filename));
 
-		if (filename[0] != '\0' && ImGui::IsKeyPressedMap(ImGuiKey_Enter))
+		if (ImGui::IsKeyPressedMap(ImGuiKey_Enter))
 		{
-			if (std::filesystem::path input_relative_preset_path = std::filesystem::u8path(filename);
+			if (filename[0] == '\0')
+				condition = condition::cancel, _preset_working_path = _current_preset_path;
+			else if (std::filesystem::path input_relative_preset_path = std::filesystem::u8path(filename);
 				input_relative_preset_path.has_filename())
 			{
 				if (const std::wstring extension(input_relative_preset_path.extension()); extension != L".ini" && extension != L".txt")
