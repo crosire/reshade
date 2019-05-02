@@ -2249,11 +2249,12 @@ void reshade::runtime::draw_preset_explorer()
 					input_relative_preset_path += L".ini";
 				const std::filesystem::path input_absolute_preset_path = _preset_working_path / input_relative_preset_path;
 
-				if (const std::filesystem::file_type file_type = std::filesystem::status(input_absolute_preset_path, ec).type();
-					file_type == std::filesystem::file_type::not_found)
-					condition = condition::create;
+				if (const std::filesystem::file_type file_type = std::filesystem::status(input_absolute_preset_path, ec).type(); ec.value() == 0x7b) // 0x7b: ERROR_INVALID_NAME
+					condition = condition::pass;
 				else if (file_type == std::filesystem::file_type::directory)
 					condition = condition::pass;
+				else if (file_type == std::filesystem::file_type::not_found)
+					condition = condition::create;
 				else if (const reshade::ini_file preset(input_absolute_preset_path); preset.has("", "TechniqueSorting"))
 					condition = condition::select;
 				else
