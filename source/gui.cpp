@@ -2274,8 +2274,10 @@ void reshade::runtime::draw_preset_explorer()
 	{
 		if (condition != condition::cancel)
 		{
+			if (condition != condition::backward && condition != condition::forward)
+				_current_preset_path = std::filesystem::absolute(_preset_working_path);
+
 			_show_splash = true;
-			_current_preset_path = std::filesystem::absolute(_preset_working_path);
 
 			save_config();
 			load_current_preset();
