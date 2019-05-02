@@ -2083,7 +2083,11 @@ void reshade::runtime::draw_preset_explorer()
 				{
 					if (const std::wstring extension(_preset_working_path.extension()); extension != L".ini" && extension != L".txt")
 						_preset_working_path += L".ini";
-					if (file_type == std::filesystem::file_type::not_found)
+					if (const std::filesystem::file_type file_type = std::filesystem::status(_preset_working_path, ec).type(); ec.value() == 0x7b) // 0x7b: ERROR_INVALID_NAME
+						condition = condition::pass, _preset_working_path = _current_preset_path;
+					else if (file_type == std::filesystem::file_type::directory)
+						condition = condition::popup_add;
+					else if (file_type == std::filesystem::file_type::not_found)
 						condition = condition::create;
 					else
 						condition = condition::select;
@@ -2207,6 +2211,10 @@ void reshade::runtime::draw_preset_explorer()
 		}
 	}
 
+	if (condition == condition::select)
+		if (const reshade::ini_file preset(_preset_working_path); !preset.has("", "TechniqueSorting"))
+			condition = condition::pass;
+
 	if (condition == condition::popup_add)
 		ImGui::OpenPopup("##name"), condition = condition::pass;
 
@@ -2245,10 +2253,6 @@ void reshade::runtime::draw_preset_explorer()
 
 		ImGui::EndPopup();
 	}
-
-	if (condition == condition::select)
-		if (const reshade::ini_file preset(_preset_working_path); !preset.has("", "TechniqueSorting"))
-			condition = condition::pass;
 
 	if (condition != condition::pass)
 	{
