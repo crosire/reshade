@@ -2103,7 +2103,7 @@ void reshade::runtime::draw_preset_explorer()
 				else
 					condition = condition::cancel;
 			else if (ImGui::IsKeyPressedMap(ImGuiKey_Enter))
-				condition = condition::cancel;
+				condition = condition::select; // Strongly trust the preset path passed by user-edited configuration
 			ImGui::PopStyleVar();
 		}
 
