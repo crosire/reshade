@@ -2072,34 +2072,36 @@ void reshade::runtime::draw_preset_explorer()
 			{
 				std::filesystem::path input_preset_path = std::filesystem::u8path(buf);
 				const std::filesystem::file_type file_type = std::filesystem::status(input_preset_path, ec).type();
+
 				if (is_edited && ec.value() != 0x7b) // 0x7b: ERROR_INVALID_NAME
-				{
-					if (input_preset_path.is_relative())
-						input_preset_path = g_reshade_dll_path.parent_path() / input_preset_path;
-
-					if (!input_preset_path.has_filename())
-						input_preset_path = input_preset_path.parent_path();
-
 					_preset_working_path = std::move(input_preset_path);
-				}
+
 				if (is_returned)
 				{
-					if (ec.value() == 0x7b) // 0x7b: ERROR_INVALID_NAME
-						condition = condition::pass, _preset_working_path = _current_preset_path;
-					else if (file_type == std::filesystem::file_type::directory)
-						condition = condition::popup_add;
+					if (_preset_working_path.empty())
+						condition = condition::cancel, _preset_working_path = _current_preset_path;
 					else
 					{
-						if (const std::wstring extension(_preset_working_path.extension()); extension != L".ini" && extension != L".txt")
-							_preset_working_path += L".ini";
-						if (const std::filesystem::file_type file_type = std::filesystem::status(_preset_working_path, ec).type(); ec.value() == 0x7b) // 0x7b: ERROR_INVALID_NAME
+						if (_preset_working_path.is_relative())
+							_preset_working_path = g_reshade_dll_path.parent_path() / _preset_working_path;
+
+						if (ec.value() == 0x7b) // 0x7b: ERROR_INVALID_NAME
 							condition = condition::pass, _preset_working_path = _current_preset_path;
 						else if (file_type == std::filesystem::file_type::directory)
 							condition = condition::popup_add;
-						else if (file_type == std::filesystem::file_type::not_found)
-							condition = condition::create;
 						else
-							condition = condition::select;
+						{
+							if (const std::wstring extension(_preset_working_path.extension()); extension != L".ini" && extension != L".txt")
+								_preset_working_path += L".ini";
+							if (const std::filesystem::file_type file_type = std::filesystem::status(_preset_working_path, ec).type(); ec.value() == 0x7b) // 0x7b: ERROR_INVALID_NAME
+								condition = condition::pass, _preset_working_path = _current_preset_path;
+							else if (file_type == std::filesystem::file_type::directory)
+								condition = condition::popup_add;
+							else if (file_type == std::filesystem::file_type::not_found)
+								condition = condition::create;
+							else
+								condition = condition::select;
+						}
 					}
 				}
 			}
@@ -2114,7 +2116,7 @@ void reshade::runtime::draw_preset_explorer()
 					condition = condition::cancel;
 			else if (ImGui::IsKeyPressedMap(ImGuiKey_Enter))
 			{
-				if (const std::filesystem::file_type file_type = std::filesystem::status(_current_preset_path, ec).type(); ec.value() == 0x7b) // 0x7b: ERROR_INVALID_NAME
+				if (const std::filesystem::file_type file_type = std::filesystem::status(_preset_working_path, ec).type(); ec.value() == 0x7b) // 0x7b: ERROR_INVALID_NAME
 					condition = condition::pass, assert(false); // ASSERT(). No recover
 				else if (file_type == std::filesystem::file_type::directory)
 					condition = condition::pass; // Wrong user use case
@@ -2247,21 +2249,21 @@ void reshade::runtime::draw_preset_explorer()
 			{
 				if (const std::wstring extension(input_relative_preset_path.extension()); extension != L".ini" && extension != L".txt")
 					input_relative_preset_path += L".ini";
-				const std::filesystem::path input_absolute_preset_path = _preset_working_path / input_relative_preset_path;
+				const std::filesystem::path input_preset_path = std::filesystem::absolute(_preset_working_path / input_relative_preset_path);
 
-				if (const std::filesystem::file_type file_type = std::filesystem::status(input_absolute_preset_path, ec).type(); ec.value() == 0x7b) // 0x7b: ERROR_INVALID_NAME
+				if (const std::filesystem::file_type file_type = std::filesystem::status(input_preset_path, ec).type(); ec.value() == 0x7b) // 0x7b: ERROR_INVALID_NAME
 					condition = condition::pass;
 				else if (file_type == std::filesystem::file_type::directory)
 					condition = condition::pass;
 				else if (file_type == std::filesystem::file_type::not_found)
 					condition = condition::create;
-				else if (const reshade::ini_file preset(input_absolute_preset_path); preset.has("", "TechniqueSorting"))
+				else if (const reshade::ini_file preset(input_preset_path); preset.has("", "TechniqueSorting"))
 					condition = condition::select;
 				else
 					condition = condition::pass;
 
 				if (condition != condition::pass)
-					_preset_working_path = std::move(input_absolute_preset_path);
+					_preset_working_path = std::move(input_preset_path);
 			}
 		}
 

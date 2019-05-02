@@ -845,6 +845,8 @@ void reshade::runtime::load_config()
 	// Create a default preset file if none exists yet
 	if (_current_preset_path.empty() || (std::filesystem::status(_current_preset_path, ec), ec.value() == 0x7b)) // 0x7b: ERROR_INVALID_NAME
 		_current_preset_path = g_reshade_dll_path.parent_path() / "DefaultPreset.ini";
+	else
+		_current_preset_path = std::filesystem::absolute(_current_preset_path);
 
 	for (const auto &callback : _load_config_callables)
 		callback(config);
