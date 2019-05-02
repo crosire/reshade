@@ -2060,14 +2060,14 @@ void reshade::runtime::draw_preset_explorer()
 			char buf[_MAX_PATH]{};
 			_preset_working_path.u8string().copy(buf, sizeof(buf) - 1);
 
-			ImGui::InputTextEx("##path", buf, sizeof(buf), ImVec2(root_window_width - (button_spacing + button_size) * 3, 0), ImGuiInputTextFlags_None);
+			const bool is_edited = ImGui::InputTextEx("##path", buf, sizeof(buf), ImVec2(root_window_width - (button_spacing + button_size) * 3, 0), ImGuiInputTextFlags_None);
 
 			if (ImGui::IsWindowAppearing())
 				ImGui::SetKeyboardFocusHere();
 			else if (!ImGui::IsItemActive())
 				_preset_path_input_mode = false;
 
-			if (const bool is_edited = ImGui::IsItemEdited(), is_returned = ImGui::IsKeyPressedMap(ImGuiKey_Enter);
+			if (const bool is_returned = ImGui::IsKeyPressedMap(ImGuiKey_Enter);
 				is_edited || is_returned)
 			{
 				std::filesystem::path input_preset_path = std::filesystem::u8path(buf);
