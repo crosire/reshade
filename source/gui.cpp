@@ -2083,7 +2083,7 @@ void reshade::runtime::draw_preset_explorer()
 					else
 					{
 						if (_preset_working_path.is_relative())
-							_preset_working_path = g_reshade_dll_path.parent_path() / _preset_working_path;
+							_preset_working_path = _current_preset_path.parent_path() / _preset_working_path;
 
 						if (ec.value() == 0x7b) // 0x7b: ERROR_INVALID_NAME
 							condition = condition::pass, _preset_working_path = _current_preset_path;
@@ -2140,7 +2140,7 @@ void reshade::runtime::draw_preset_explorer()
 	{
 		std::filesystem::path directory_path = _preset_working_path;
 		if (directory_path.is_relative())
-			directory_path = g_reshade_dll_path.parent_path() / directory_path;
+			directory_path = _current_preset_path.parent_path() / directory_path;
 		if (!std::filesystem::is_directory(directory_path, ec) && directory_path.has_parent_path())
 			directory_path = directory_path.parent_path();
 
