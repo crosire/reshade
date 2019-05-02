@@ -2131,6 +2131,9 @@ void reshade::runtime::draw_preset_explorer()
 
 	if (is_explore_open || condition == condition::backward || condition == condition::forward)
 	{
+		if (_preset_working_path.is_relative())
+			_preset_working_path = g_reshade_dll_path.parent_path() / _preset_working_path;
+
 		std::filesystem::path directory_path;
 		if (std::filesystem::is_directory(_preset_working_path, ec) || !_preset_working_path.has_parent_path())
 			directory_path = _preset_working_path;
