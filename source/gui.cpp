@@ -2023,11 +2023,11 @@ void reshade::runtime::draw_preset_explorer()
 	enum class condition { pass, select, popup_add, create, backward, forward, cancel };
 	condition condition = condition::pass;
 
-	if (ImGui::ButtonEx("<", ImVec2(button_size, 0)))
+	if (ImGui::ButtonEx("<", ImVec2(button_size, 0), ImGuiButtonFlags_NoNavFocus))
 		_preset_working_path = _current_preset_path, condition = condition::backward;
 
 	if (ImGui::SameLine(0, button_spacing);
-		ImGui::ButtonEx(">", ImVec2(button_size, 0)))
+		ImGui::ButtonEx(">", ImVec2(button_size, 0), ImGuiButtonFlags_NoNavFocus))
 		_preset_working_path = _current_preset_path, condition = condition::forward;
 
 	ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2(0.0f, 0.5f));
