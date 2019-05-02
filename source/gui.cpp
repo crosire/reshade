@@ -2054,14 +2054,12 @@ void reshade::runtime::draw_preset_explorer()
 			ImGui::ButtonEx(">", ImVec2(button_size, 0), ImGuiButtonFlags_NoNavFocus))
 			condition = condition::forward;
 
-		char buf[_MAX_PATH]{};
-
-		if (!_preset_working_path.empty())
-			_preset_working_path.u8string().copy(buf, sizeof(buf) - 1);
-
 		ImGui::SameLine(0, button_spacing);
 		if (_preset_path_input_mode)
 		{
+			char buf[_MAX_PATH]{};
+			_preset_working_path.u8string().copy(buf, sizeof(buf) - 1);
+
 			ImGui::InputTextEx("##path", buf, sizeof(buf), ImVec2(root_window_width - (button_spacing + button_size) * 3, 0), ImGuiInputTextFlags_None);
 
 			if (ImGui::IsWindowAppearing())
@@ -2069,28 +2067,40 @@ void reshade::runtime::draw_preset_explorer()
 			else if (!ImGui::IsItemActive())
 				_preset_path_input_mode = false;
 
-			const std::filesystem::path input_preset_path = std::filesystem::u8path(buf);
-			if (!ImGui::IsItemEdited() || (static_cast<void>(std::filesystem::status(input_preset_path, ec)), ec.value() != 0x7b)) // 0x7b: ERROR_INVALID_NAME
-				_preset_working_path = std::move(input_preset_path);
-
-			if (ImGui::IsKeyPressedMap(ImGuiKey_Enter))
+			if (const bool is_edited = ImGui::IsItemEdited(), is_returned = ImGui::IsKeyPressedMap(ImGuiKey_Enter);
+				is_edited || is_returned)
 			{
-				if (const std::filesystem::file_type file_type = std::filesystem::status(input_preset_path, ec).type(); ec.value() == 0x7b) // 0x7b: ERROR_INVALID_NAME
-					condition = condition::pass, _preset_working_path = _current_preset_path;
-				else if (file_type == std::filesystem::file_type::directory)
-					condition = condition::popup_add;
-				else
+				std::filesystem::path input_preset_path = std::filesystem::u8path(buf);
+				const std::filesystem::file_type file_type = std::filesystem::status(input_preset_path, ec).type();
+				if (is_edited && ec.value() != 0x7b) // 0x7b: ERROR_INVALID_NAME
 				{
-					if (const std::wstring extension(_preset_working_path.extension()); extension != L".ini" && extension != L".txt")
-						_preset_working_path += L".ini";
-					if (const std::filesystem::file_type file_type = std::filesystem::status(_preset_working_path, ec).type(); ec.value() == 0x7b) // 0x7b: ERROR_INVALID_NAME
+					if (input_preset_path.is_relative())
+						input_preset_path = g_reshade_dll_path.parent_path() / input_preset_path;
+
+					if (!input_preset_path.has_filename())
+						input_preset_path = input_preset_path.parent_path();
+
+					_preset_working_path = std::move(input_preset_path);
+				}
+				if (is_returned)
+				{
+					if (ec.value() == 0x7b) // 0x7b: ERROR_INVALID_NAME
 						condition = condition::pass, _preset_working_path = _current_preset_path;
 					else if (file_type == std::filesystem::file_type::directory)
 						condition = condition::popup_add;
-					else if (file_type == std::filesystem::file_type::not_found)
-						condition = condition::create;
 					else
-						condition = condition::select;
+					{
+						if (const std::wstring extension(_preset_working_path.extension()); extension != L".ini" && extension != L".txt")
+							_preset_working_path += L".ini";
+						if (const std::filesystem::file_type file_type = std::filesystem::status(_preset_working_path, ec).type(); ec.value() == 0x7b) // 0x7b: ERROR_INVALID_NAME
+							condition = condition::pass, _preset_working_path = _current_preset_path;
+						else if (file_type == std::filesystem::file_type::directory)
+							condition = condition::popup_add;
+						else if (file_type == std::filesystem::file_type::not_found)
+							condition = condition::create;
+						else
+							condition = condition::select;
+					}
 				}
 			}
 		}
@@ -2115,12 +2125,6 @@ void reshade::runtime::draw_preset_explorer()
 			}
 			ImGui::PopStyleVar();
 		}
-
-		if (_preset_working_path.is_relative())
-			_preset_working_path = g_reshade_dll_path.parent_path() / _preset_working_path;
-
-		if (!_preset_working_path.has_filename())
-			_preset_working_path = _preset_working_path.parent_path();
 	}
 
 	if (is_explore_open || condition == condition::backward || condition == condition::forward)
