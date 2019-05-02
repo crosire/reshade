@@ -2103,7 +2103,16 @@ void reshade::runtime::draw_preset_explorer()
 				else
 					condition = condition::cancel;
 			else if (ImGui::IsKeyPressedMap(ImGuiKey_Enter))
-				condition = condition::select; // Strongly trust the preset path passed by user-edited configuration
+			{
+				if (const std::filesystem::file_type file_type = std::filesystem::status(_current_preset_path, ec).type(); ec.value() == 0x7b) // 0x7b: ERROR_INVALID_NAME
+					condition = condition::pass, assert(false); // ASSERT(). No recover
+				else if (file_type == std::filesystem::file_type::directory)
+					condition = condition::pass; // Wrong user use case
+				else if (file_type == std::filesystem::file_type::not_found)
+					condition = condition::create;
+				else
+					condition = condition::select;
+			}
 			ImGui::PopStyleVar();
 		}
 
