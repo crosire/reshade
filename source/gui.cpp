@@ -2048,11 +2048,11 @@ void reshade::runtime::draw_preset_explorer()
 	if (is_explore_open)
 	{
 		if (ImGui::ButtonEx("<", ImVec2(button_size, 0), ImGuiButtonFlags_NoNavFocus))
-			condition = condition::backward;
+			condition = condition::backward, _preset_working_path = _current_preset_path;
 
 		if (ImGui::SameLine(0, button_spacing);
 			ImGui::ButtonEx(">", ImVec2(button_size, 0), ImGuiButtonFlags_NoNavFocus))
-			condition = condition::forward;
+			condition = condition::forward, _preset_working_path = _current_preset_path;
 
 		ImGui::SameLine(0, button_spacing);
 		if (_preset_path_input_mode)
@@ -2274,10 +2274,8 @@ void reshade::runtime::draw_preset_explorer()
 	{
 		if (condition != condition::cancel)
 		{
-			if (condition != condition::backward && condition != condition::forward)
-				_current_preset_path = std::filesystem::absolute(_preset_working_path);
-
 			_show_splash = true;
+			_current_preset_path = std::filesystem::absolute(_preset_working_path);
 
 			save_config();
 			load_current_preset();
