@@ -2098,7 +2098,10 @@ void reshade::runtime::draw_preset_explorer()
 							else if (file_type == std::filesystem::file_type::directory)
 								condition = condition::popup_add;
 							else if (file_type == std::filesystem::file_type::not_found)
-								condition = condition::create;
+								if (_preset_working_path.has_filename())
+									condition = condition::create;
+								else
+									condition = condition::popup_add;
 							else
 								condition = condition::select;
 						}
@@ -2121,7 +2124,10 @@ void reshade::runtime::draw_preset_explorer()
 				else if (file_type == std::filesystem::file_type::directory)
 					condition = condition::pass; // Wrong user use case
 				else if (file_type == std::filesystem::file_type::not_found)
-					condition = condition::create;
+					if (_preset_working_path.has_filename())
+						condition = condition::create;
+					else
+						condition = condition::popup_add;
 				else
 					condition = condition::select;
 			}
@@ -2131,14 +2137,11 @@ void reshade::runtime::draw_preset_explorer()
 
 	if (is_explore_open || condition == condition::backward || condition == condition::forward)
 	{
-		if (_preset_working_path.is_relative())
-			_preset_working_path = g_reshade_dll_path.parent_path() / _preset_working_path;
-
-		std::filesystem::path directory_path;
-		if (std::filesystem::is_directory(_preset_working_path, ec) || !_preset_working_path.has_parent_path())
-			directory_path = _preset_working_path;
-		else
-			directory_path = _preset_working_path.parent_path();
+		std::filesystem::path directory_path = _preset_working_path;
+		if (directory_path.is_relative())
+			directory_path = g_reshade_dll_path.parent_path() / directory_path;
+		if (!std::filesystem::is_directory(directory_path, ec) && directory_path.has_parent_path())
+			directory_path = directory_path.parent_path();
 
 		std::vector<std::filesystem::directory_entry> directory_entries;
 		for (const auto &entry : std::filesystem::directory_iterator(directory_path, std::filesystem::directory_options::skip_permission_denied, ec))
@@ -2245,7 +2248,7 @@ void reshade::runtime::draw_preset_explorer()
 		char filename[_MAX_PATH]{};
 		ImGui::InputText("Name", filename, sizeof(filename));
 
-		if (ImGui::IsKeyPressedMap(ImGuiKey_Enter))
+		if (!ImGui::IsWindowAppearing() && ImGui::IsKeyPressedMap(ImGuiKey_Enter))
 		{
 			if (filename[0] == '\0')
 				condition = condition::cancel, _preset_working_path = _current_preset_path;
