@@ -2024,11 +2024,11 @@ void reshade::runtime::draw_preset_explorer()
 	condition condition = condition::pass;
 
 	if (ImGui::ButtonEx("<", ImVec2(button_size, 0), ImGuiButtonFlags_NoNavFocus))
-		_preset_working_path = _current_preset_path, condition = condition::backward;
+		condition = condition::backward, _preset_working_path = _current_preset_path;
 
 	if (ImGui::SameLine(0, button_spacing);
 		ImGui::ButtonEx(">", ImVec2(button_size, 0), ImGuiButtonFlags_NoNavFocus))
-		_preset_working_path = _current_preset_path, condition = condition::forward;
+		condition = condition::forward, _preset_working_path = _current_preset_path;
 
 	ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2(0.0f, 0.5f));
 	if (ImGui::SameLine(0, button_spacing);
@@ -2041,7 +2041,7 @@ void reshade::runtime::draw_preset_explorer()
 	ImGui::PopStyleVar();
 
 	if (ImGui::SameLine(0, button_spacing); ImGui::ButtonEx("+", ImVec2(button_size, 0), ImGuiButtonFlags_PressedOnClick | ImGuiButtonFlags_NoNavFocus))
-		_preset_working_path = _current_preset_path.parent_path(), condition = condition::popup_add;
+		condition = condition::popup_add, _preset_working_path = _current_preset_path.parent_path();
 
 	ImGui::SetNextWindowPos(cursor_pos - _imgui_context->Style.WindowPadding);
 	const bool is_explore_open = ImGui::BeginPopup("##explore");
@@ -2174,7 +2174,7 @@ void reshade::runtime::draw_preset_explorer()
 		if (is_explore_open)
 		{
 			if (ImGui::SameLine(0, button_spacing); ImGui::ButtonEx("+", ImVec2(button_size, 0), ImGuiButtonFlags_PressedOnClick | ImGuiButtonFlags_NoNavFocus))
-				_preset_working_path = directory_path, condition = condition::popup_add;
+				condition = condition::popup_add, _preset_working_path = directory_path;
 
 			if (ImGui::IsWindowAppearing() || condition == condition::backward || condition == condition::forward)
 				ImGui::SetNextWindowFocus();
@@ -2207,7 +2207,7 @@ void reshade::runtime::draw_preset_explorer()
 					const bool is_current_preset = entry == _current_preset_path;
 
 					if (ImGui::Selectable(entry.path().filename().u8string().c_str(), static_cast<bool>(is_current_preset)))
-						_preset_working_path = entry, condition = condition::select;
+						condition = condition::select, _preset_working_path = entry;
 
 					if (is_current_preset)
 						if (_preset_selectable_item_is_covered && !ImGui::IsWindowAppearing())
@@ -2225,7 +2225,7 @@ void reshade::runtime::draw_preset_explorer()
 			condition = condition::pass;
 
 	if (condition == condition::popup_add)
-		ImGui::OpenPopup("##name"), condition = condition::pass;
+		condition = condition::pass, ImGui::OpenPopup("##name");
 
 	ImGui::SetNextWindowPos(cursor_pos + ImVec2(root_window_width + button_size - 230, button_size));
 	if (ImGui::BeginPopup("##name"))
@@ -2247,12 +2247,15 @@ void reshade::runtime::draw_preset_explorer()
 
 				if (const std::filesystem::file_type file_type = std::filesystem::status(input_absolute_preset_path, ec).type();
 					file_type == std::filesystem::file_type::not_found)
+					condition = condition::create;
+				else if (file_type == std::filesystem::file_type::directory)
+					condition = condition::pass;
+				else if (const reshade::ini_file preset(input_absolute_preset_path); preset.has("", "TechniqueSorting"))
 					condition = condition::select;
-				else if (file_type != std::filesystem::file_type::directory)
-					if (const reshade::ini_file preset(input_absolute_preset_path); preset.has("", "TechniqueSorting"))
-						condition = condition::select;
+				else
+					condition = condition::pass;
 
-				if (condition == condition::select)
+				if (condition != condition::pass)
 					_preset_working_path = std::move(input_absolute_preset_path);
 			}
 		}
