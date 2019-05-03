@@ -2179,7 +2179,13 @@ void reshade::runtime::draw_preset_explorer()
 			}
 
 			if (not_found)
-				condition = condition::pass;
+				if (preset_paths.size() > 0)
+					if (condition == condition::backward)
+						_preset_working_path = preset_paths[preset_paths.size() - 1];
+					else
+						_preset_working_path = preset_paths[0];
+				else
+					condition = condition::pass;
 			else
 				_current_preset_path = std::filesystem::absolute(_preset_working_path);
 		}
