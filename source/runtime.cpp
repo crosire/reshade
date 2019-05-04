@@ -843,8 +843,8 @@ void reshade::runtime::load_config()
 	std::error_code ec;
 
 	// Create a default preset file if none exists yet
-	if (_current_preset_path.empty() || (std::filesystem::status(_current_preset_path, ec), ec.value() == 0x7b)) // 0x7b: ERROR_INVALID_NAME
-		_current_preset_path = g_reshade_dll_path.parent_path() / "DefaultPreset.ini";
+	if (_current_preset_path.empty() || (std::filesystem::status(g_reshade_dll_path.parent_path() / _current_preset_path, ec), ec.value() == 0x7b)) // 0x7b: ERROR_INVALID_NAME
+		_current_preset_path = "DefaultPreset.ini";
 	else
 		_current_preset_path = _current_preset_path;
 
