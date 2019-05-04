@@ -2071,7 +2071,7 @@ void reshade::runtime::draw_preset_explorer()
 				is_edited || is_returned)
 			{
 				const std::filesystem::path input_preset_path = g_reshade_dll_path.parent_path() / std::filesystem::u8path(buf);
-				const std::filesystem::file_type file_type = std::filesystem::status(input_preset_path, ec).type();
+				std::filesystem::file_type file_type = std::filesystem::status(input_preset_path, ec).type();
 
 				if (is_edited && ec.value() != 0x7b) // 0x7b: ERROR_INVALID_NAME
 					_preset_working_path = std::move(input_preset_path);
@@ -2091,7 +2091,7 @@ void reshade::runtime::draw_preset_explorer()
 							if (_preset_working_path.has_filename())
 								if (const std::wstring extension(_preset_working_path.extension()); extension != L".ini" && extension != L".txt")
 									_preset_working_path += L".ini";
-							if (const std::filesystem::file_type file_type = std::filesystem::status(g_reshade_dll_path.parent_path() / _preset_working_path, ec).type(); ec.value() == 0x7b) // 0x7b: ERROR_INVALID_NAME
+							if (file_type = std::filesystem::status(g_reshade_dll_path.parent_path() / _preset_working_path, ec).type(); ec.value() == 0x7b) // 0x7b: ERROR_INVALID_NAME
 								condition = condition::pass, _preset_working_path = _current_preset_path;
 							else if (file_type == std::filesystem::file_type::directory)
 								condition = condition::popup_add;
@@ -2135,18 +2135,18 @@ void reshade::runtime::draw_preset_explorer()
 
 	if (is_explore_open || condition == condition::backward || condition == condition::forward)
 	{
-		std::filesystem::path directory_path = g_reshade_dll_path.parent_path() / _preset_working_path;
-		if (!std::filesystem::is_directory(directory_path, ec) && directory_path.has_parent_path())
-			directory_path = directory_path.parent_path();
+		std::filesystem::path preset_container_path = g_reshade_dll_path.parent_path() / _preset_working_path;
+		if (!std::filesystem::is_directory(preset_container_path, ec) && preset_container_path.has_parent_path())
+			preset_container_path = preset_container_path.parent_path();
 
-		std::vector<std::filesystem::directory_entry> directory_entries;
-		for (const auto &entry : std::filesystem::directory_iterator(directory_path, std::filesystem::directory_options::skip_permission_denied, ec))
-			directory_entries.push_back(entry);
+		std::vector<std::filesystem::directory_entry> preset_container;
+		for (const auto &entry : std::filesystem::directory_iterator(preset_container_path, std::filesystem::directory_options::skip_permission_denied, ec))
+			preset_container.push_back(entry);
 
 		if (condition == condition::backward || condition == condition::forward)
 		{
 			std::vector<std::filesystem::directory_entry> preset_paths;
-			for (const auto &entry : directory_entries)
+			for (const auto &entry : preset_container)
 				if (!entry.is_directory())
 					if (const std::wstring extension(entry.path().extension()); extension == L".ini" || extension == L".txt")
 						if (const reshade::ini_file preset(entry); preset.has("", "TechniqueSorting"))
@@ -2189,7 +2189,7 @@ void reshade::runtime::draw_preset_explorer()
 		if (is_explore_open)
 		{
 			if (ImGui::SameLine(0, button_spacing); ImGui::ButtonEx("+", ImVec2(button_size, 0), ImGuiButtonFlags_PressedOnClick | ImGuiButtonFlags_NoNavFocus))
-				condition = condition::popup_add, _preset_working_path = directory_path;
+				condition = condition::popup_add, _preset_working_path = preset_container_path;
 
 			if (ImGui::IsWindowAppearing() || condition == condition::backward || condition == condition::forward)
 				ImGui::SetNextWindowFocus();
@@ -2203,8 +2203,7 @@ void reshade::runtime::draw_preset_explorer()
 						preset_canonical_path = preset_canonical_path.parent_path();
 					preset_canonical_path = preset_canonical_path.parent_path();
 
-					if (const std::filesystem::path reshade_container_path = g_reshade_dll_path.parent_path();
-						reshade_container_path == preset_canonical_path)
+					if (const std::filesystem::path reshade_container_path = g_reshade_dll_path.parent_path(); reshade_container_path == preset_canonical_path)
 						_preset_working_path = L".";
 					else if (std::equal(reshade_container_path.begin(), reshade_container_path.end(), preset_canonical_path.begin()))
 						_preset_working_path = std::filesystem::relative(preset_canonical_path, g_reshade_dll_path.parent_path(), ec);
@@ -2212,16 +2211,15 @@ void reshade::runtime::draw_preset_explorer()
 						_preset_working_path = preset_canonical_path;
 				}
 
-				std::vector<std::filesystem::directory_entry> preset_files;
-				for (const auto &entry : directory_entries)
+				std::vector<std::filesystem::directory_entry> preset_paths;
+				for (const auto &entry : preset_container)
 				{
 					if (entry.is_directory(ec))
 					{
 						if (ImGui::Selectable((entry.path().filename().u8string() + '\\').c_str()))
 						{
 							const std::filesystem::path preset_canonical_path = std::filesystem::weakly_canonical(g_reshade_dll_path.parent_path() / entry, ec);
-							if (const std::filesystem::path reshade_container_path = g_reshade_dll_path.parent_path();
-								reshade_container_path == preset_canonical_path)
+							if (const std::filesystem::path reshade_container_path = g_reshade_dll_path.parent_path(); reshade_container_path == preset_canonical_path)
 								_preset_working_path = L".";
 							else if (std::equal(reshade_container_path.begin(), reshade_container_path.end(), preset_canonical_path.begin()))
 								_preset_working_path = std::filesystem::relative(preset_canonical_path, g_reshade_dll_path.parent_path(), ec);
@@ -2232,11 +2230,11 @@ void reshade::runtime::draw_preset_explorer()
 					else
 					{
 						if (const std::wstring extension(entry.path().extension()); extension == L".ini" || extension == L".txt")
-							preset_files.push_back(entry);
+							preset_paths.push_back(entry);
 					}
 				}
 				const std::filesystem::path current_preset_path = g_reshade_dll_path.parent_path() / _current_preset_path;
-				for (const auto &entry : preset_files)
+				for (const auto &entry : preset_paths)
 				{
 					const bool is_current_preset = entry == current_preset_path;
 
