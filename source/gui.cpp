@@ -2153,9 +2153,10 @@ void reshade::runtime::draw_preset_explorer()
 							preset_paths.push_back(entry);
 
 			bool not_found = true;
+			const std::filesystem::path current_preset_path = std::filesystem::canonical(g_reshade_dll_path.parent_path() / _current_preset_path, ec);
 			for (size_t i = 0; preset_paths.size() > i; ++i)
 			{
-				if (preset_paths[i] == _current_preset_path)
+				if (preset_paths[i] == current_preset_path)
 					not_found = false;
 				else
 					continue;
@@ -2197,17 +2198,18 @@ void reshade::runtime::draw_preset_explorer()
 			{
 				if (ImGui::Selectable(".."))
 				{
-					std::filesystem::path preset_absolute_path = std::filesystem::absolute(g_reshade_dll_path.parent_path() / _preset_working_path);
-					while (!std::filesystem::is_directory(preset_absolute_path, ec) && preset_absolute_path.parent_path() != preset_absolute_path)
-						preset_absolute_path = preset_absolute_path.parent_path();
-					preset_absolute_path = preset_absolute_path.parent_path();
+					std::filesystem::path preset_canonical_path = std::filesystem::weakly_canonical(g_reshade_dll_path.parent_path() / _preset_working_path, ec);
+					while (!std::filesystem::is_directory(preset_canonical_path, ec) && preset_canonical_path.parent_path() != preset_canonical_path)
+						preset_canonical_path = preset_canonical_path.parent_path();
+					preset_canonical_path = preset_canonical_path.parent_path();
 
-					if (const int c = preset_absolute_path.compare(g_reshade_dll_path.parent_path()); c > 0)
-						_preset_working_path = std::filesystem::relative(preset_absolute_path, g_reshade_dll_path.parent_path(), ec);
-					else if (c == 0)
+					if (const std::filesystem::path reshade_container_path = g_reshade_dll_path.parent_path();
+						reshade_container_path == preset_canonical_path)
 						_preset_working_path = L".";
+					else if (std::equal(reshade_container_path.begin(), reshade_container_path.end(), preset_canonical_path.begin()))
+						_preset_working_path = std::filesystem::relative(preset_canonical_path, g_reshade_dll_path.parent_path(), ec);
 					else
-						_preset_working_path = preset_absolute_path;
+						_preset_working_path = preset_canonical_path;
 				}
 
 				std::vector<std::filesystem::directory_entry> preset_files;
@@ -2217,13 +2219,14 @@ void reshade::runtime::draw_preset_explorer()
 					{
 						if (ImGui::Selectable((entry.path().filename().u8string() + '\\').c_str()))
 						{
-							const std::filesystem::path preset_absolute_path = std::filesystem::absolute(g_reshade_dll_path.parent_path() / entry, ec);
-							if (const int c = preset_absolute_path.compare(g_reshade_dll_path.parent_path()); c > 0)
-								_preset_working_path = std::filesystem::relative(entry, g_reshade_dll_path.parent_path(), ec);
-							else if (c == 0)
+							const std::filesystem::path preset_canonical_path = std::filesystem::weakly_canonical(g_reshade_dll_path.parent_path() / entry, ec);
+							if (const std::filesystem::path reshade_container_path = g_reshade_dll_path.parent_path();
+								reshade_container_path == preset_canonical_path)
 								_preset_working_path = L".";
+							else if (std::equal(reshade_container_path.begin(), reshade_container_path.end(), preset_canonical_path.begin()))
+								_preset_working_path = std::filesystem::relative(preset_canonical_path, g_reshade_dll_path.parent_path(), ec);
 							else
-								_preset_working_path = preset_absolute_path;
+								_preset_working_path = preset_canonical_path;
 						}
 					}
 					else
@@ -2238,7 +2241,7 @@ void reshade::runtime::draw_preset_explorer()
 					const bool is_current_preset = entry == current_preset_path;
 
 					if (ImGui::Selectable(entry.path().filename().u8string().c_str(), static_cast<bool>(is_current_preset)))
-						condition = condition::select, _preset_working_path = std::filesystem::relative(entry, g_reshade_dll_path.parent_path(), ec);
+						condition = condition::select, _preset_working_path = entry;
 
 					if (is_current_preset)
 						if (_preset_selectable_item_is_covered && !ImGui::IsWindowAppearing())
@@ -2305,11 +2308,12 @@ void reshade::runtime::draw_preset_explorer()
 		{
 			_show_splash = true;
 
-			const std::filesystem::path preset_absolute_path = std::filesystem::absolute(g_reshade_dll_path.parent_path() / _preset_working_path, ec);
-			if (const int c = preset_absolute_path.parent_path().compare(g_reshade_dll_path.parent_path()); c >= 0)
-				_current_preset_path = std::filesystem::relative(preset_absolute_path, g_reshade_dll_path.parent_path(), ec);
+			const std::filesystem::path preset_canonical_path = std::filesystem::weakly_canonical(g_reshade_dll_path.parent_path() / _preset_working_path, ec);
+			if (const std::filesystem::path reshade_container_path = g_reshade_dll_path.parent_path();
+				std::equal(reshade_container_path.begin(), reshade_container_path.end(), preset_canonical_path.begin()))
+				_current_preset_path = std::filesystem::relative(preset_canonical_path, g_reshade_dll_path.parent_path(), ec);
 			else
-				_current_preset_path = preset_absolute_path;
+				_current_preset_path = preset_canonical_path;
 
 			save_config();
 			load_current_preset();
