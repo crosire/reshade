@@ -846,7 +846,7 @@ void reshade::runtime::load_config()
 	if (_current_preset_path.empty() || (std::filesystem::status(_current_preset_path, ec), ec.value() == 0x7b)) // 0x7b: ERROR_INVALID_NAME
 		_current_preset_path = g_reshade_dll_path.parent_path() / "DefaultPreset.ini";
 	else
-		_current_preset_path = std::filesystem::absolute(_current_preset_path);
+		_current_preset_path = _current_preset_path;
 
 	for (const auto &callback : _load_config_callables)
 		callback(config);
@@ -879,7 +879,7 @@ void reshade::runtime::save_config(const std::filesystem::path &path) const
 
 void reshade::runtime::load_preset(const std::filesystem::path &path)
 {
-	const ini_file preset(path);
+	const ini_file preset(g_reshade_dll_path.parent_path() / path);
 
 	std::vector<std::string> technique_list;
 	preset.get("", "Techniques", technique_list);
@@ -892,7 +892,7 @@ void reshade::runtime::load_preset(const std::filesystem::path &path)
 	if (_reload_remaining_effects != 0 && // ... unless this is the 'load_current_preset' call in 'update_and_render_effects'
 		(_performance_mode || preset_preprocessor_definitions != _preset_preprocessor_definitions))
 	{
-		assert(path == _current_preset_path);
+		assert(g_reshade_dll_path.parent_path() / path == g_reshade_dll_path.parent_path() / _current_preset_path);
 		_preset_preprocessor_definitions = preset_preprocessor_definitions;
 		load_effects();
 		return; // Preset values are loaded in 'update_and_render_effects' during effect loading
@@ -953,7 +953,7 @@ void reshade::runtime::load_current_preset()
 }
 void reshade::runtime::save_preset(const std::filesystem::path &path) const
 {
-	ini_file preset(path);
+	ini_file preset(g_reshade_dll_path.parent_path() / path);
 
 	std::vector<size_t> effect_list;
 	std::vector<std::string> technique_list;
