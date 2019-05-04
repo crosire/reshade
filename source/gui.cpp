@@ -2149,38 +2149,32 @@ void reshade::runtime::draw_preset_explorer()
 						if (const reshade::ini_file preset(entry); preset.has("", "TechniqueSorting"))
 							preset_paths.push_back(entry);
 
-			bool not_found = true;
-			const std::filesystem::path current_preset_path = std::filesystem::canonical(g_reshade_dll_path.parent_path() / _current_preset_path, ec);
-			for (size_t i = 0; preset_paths.size() > i; ++i)
+			if (preset_paths.size() > 0)
 			{
-				if (preset_paths[i] == current_preset_path)
-					not_found = false;
-				else
-					continue;
-
-				if (condition == condition::backward)
-					if (i == 0)
+				const std::filesystem::path current_preset_path = std::filesystem::weakly_canonical(g_reshade_dll_path.parent_path() / _current_preset_path, ec);
+				bool not_found = true;
+				for (size_t i = 0; preset_paths.size() > i && not_found; ++i)
+					if (preset_paths[i] == current_preset_path)
+						if (not_found = false, condition == condition::backward)
+							if (i == 0)
+								_preset_working_path = preset_paths[preset_paths.size() - 1];
+							else
+								_preset_working_path = preset_paths[i - 1];
+						else
+							if (i == preset_paths.size() - 1)
+								_preset_working_path = preset_paths[0];
+							else
+								_preset_working_path = preset_paths[i + 1];
+				if (not_found)
+					if (condition == condition::backward)
 						_preset_working_path = preset_paths[preset_paths.size() - 1];
 					else
-						_preset_working_path = preset_paths[i - 1];
-				else
-					if (i == preset_paths.size() - 1)
 						_preset_working_path = preset_paths[0];
-					else
-						_preset_working_path = preset_paths[i + 1];
-				break;
-			}
 
-			if (not_found && preset_paths.size() > 0)
-				if (not_found = false, condition == condition::backward)
-					_preset_working_path = preset_paths[preset_paths.size() - 1];
-				else
-					_preset_working_path = preset_paths[0];
-
-			if (not_found)
-				condition = condition::pass;
-			else
 				_current_preset_path = _preset_working_path;
+			}
+			else
+				condition = condition::pass;
 		}
 
 		if (is_explore_open)
