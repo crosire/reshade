@@ -2090,8 +2090,10 @@ void reshade::runtime::draw_preset_explorer()
 						{
 							if (_preset_working_path.has_filename())
 								if (const std::wstring extension(_preset_working_path.extension()); extension != L".ini" && extension != L".txt")
-									_preset_working_path += L".ini";
-							if (file_type = std::filesystem::status(g_reshade_dll_path.parent_path() / _preset_working_path, ec).type(); ec.value() == 0x7b) // 0x7b: ERROR_INVALID_NAME
+									_preset_working_path += L".ini",
+									file_type = std::filesystem::status(g_reshade_dll_path.parent_path() / _preset_working_path, ec).type();
+
+							if (ec.value() == 0x7b) // 0x7b: ERROR_INVALID_NAME
 								condition = condition::pass, _preset_working_path = _current_preset_path;
 							else if (file_type == std::filesystem::file_type::directory)
 								condition = condition::popup_add;
@@ -2201,7 +2203,7 @@ void reshade::runtime::draw_preset_explorer()
 					if (const std::filesystem::path reshade_container_path = g_reshade_dll_path.parent_path(); reshade_container_path == preset_canonical_path)
 						_preset_working_path = L".";
 					else if (std::equal(reshade_container_path.begin(), reshade_container_path.end(), preset_canonical_path.begin()))
-						_preset_working_path = std::filesystem::relative(preset_canonical_path, g_reshade_dll_path.parent_path(), ec);
+						_preset_working_path = std::filesystem::proximate(preset_canonical_path, g_reshade_dll_path.parent_path(), ec);
 					else
 						_preset_working_path = preset_canonical_path;
 				}
@@ -2217,7 +2219,7 @@ void reshade::runtime::draw_preset_explorer()
 							if (const std::filesystem::path reshade_container_path = g_reshade_dll_path.parent_path(); reshade_container_path == preset_canonical_path)
 								_preset_working_path = L".";
 							else if (std::equal(reshade_container_path.begin(), reshade_container_path.end(), preset_canonical_path.begin()))
-								_preset_working_path = std::filesystem::relative(preset_canonical_path, g_reshade_dll_path.parent_path(), ec);
+								_preset_working_path = std::filesystem::proximate(preset_canonical_path, g_reshade_dll_path.parent_path(), ec);
 							else
 								_preset_working_path = preset_canonical_path;
 						}
@@ -2304,7 +2306,7 @@ void reshade::runtime::draw_preset_explorer()
 			const std::filesystem::path preset_canonical_path = std::filesystem::weakly_canonical(g_reshade_dll_path.parent_path() / _preset_working_path, ec);
 			if (const std::filesystem::path reshade_container_path = g_reshade_dll_path.parent_path();
 				std::equal(reshade_container_path.begin(), reshade_container_path.end(), preset_canonical_path.begin()))
-				_current_preset_path = std::filesystem::relative(preset_canonical_path, g_reshade_dll_path.parent_path(), ec);
+				_current_preset_path = std::filesystem::proximate(preset_canonical_path, g_reshade_dll_path.parent_path(), ec);
 			else
 				_current_preset_path = preset_canonical_path;
 
