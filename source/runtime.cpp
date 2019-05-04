@@ -289,7 +289,7 @@ void reshade::runtime::load_effect(const std::filesystem::path &path, size_t &ou
 	// Fill all specialization constants with values from the current preset
 	if (_performance_mode && !_current_preset_path.empty() && effect.compile_sucess)
 	{
-		const ini_file preset(_current_preset_path);
+		const ini_file preset(g_reshade_dll_path.parent_path() / _current_preset_path);
 		const std::string section(path.filename().u8string());
 
 		for (reshadefx::uniform_info &constant : effect.module.spec_constants)
@@ -451,7 +451,7 @@ void reshade::runtime::load_effects()
 	if (!_current_preset_path.empty())
 	{
 		_preset_preprocessor_definitions.clear();
-		const ini_file preset(_current_preset_path);
+		const ini_file preset(g_reshade_dll_path.parent_path() / _current_preset_path);
 		preset.get("", "PreprocessorDefinitions", _preset_preprocessor_definitions);
 	}
 
