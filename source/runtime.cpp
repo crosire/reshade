@@ -843,10 +843,16 @@ void reshade::runtime::load_config()
 	std::error_code ec;
 
 	// Create a default preset file if none exists yet
-	if (_current_preset_path.empty() || (std::filesystem::status(g_reshade_dll_path.parent_path() / _current_preset_path, ec), ec.value() == 0x7b)) // 0x7b: ERROR_INVALID_NAME
+	enum class path_state { invalid, valid };
+	path_state path_state = path_state::invalid;
+
+	if (!_current_preset_path.empty())
+		if (const std::wstring extension(_current_preset_path.extension()); extension == L".ini" || extension == L".txt")
+			if (const reshade::ini_file preset(g_reshade_dll_path.parent_path() / _current_preset_path); preset.has("", "TechniqueSorting"))
+				path_state = path_state::valid;
+
+	if (path_state == path_state::invalid)
 		_current_preset_path = "DefaultPreset.ini";
-	else
-		_current_preset_path = _current_preset_path;
 
 	for (const auto &callback : _load_config_callables)
 		callback(config);

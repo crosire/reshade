@@ -2070,7 +2070,7 @@ void reshade::runtime::draw_preset_explorer()
 			if (const bool is_returned = ImGui::IsKeyPressedMap(ImGuiKey_Enter);
 				is_edited || is_returned)
 			{
-				const std::filesystem::path input_preset_path = g_reshade_dll_path.parent_path() / std::filesystem::u8path(buf);
+				const std::filesystem::path input_preset_path = std::filesystem::u8path(buf);
 				std::filesystem::file_type file_type = std::filesystem::status(input_preset_path, ec).type();
 
 				if (is_edited && ec.value() != 0x7b) // 0x7b: ERROR_INVALID_NAME
@@ -2116,19 +2116,11 @@ void reshade::runtime::draw_preset_explorer()
 				else
 					condition = condition::cancel;
 			else if (ImGui::IsKeyPressedMap(ImGuiKey_Enter))
-			{
-				if (const std::filesystem::file_type file_type = std::filesystem::status(g_reshade_dll_path.parent_path() / _preset_working_path, ec).type(); ec.value() == 0x7b) // 0x7b: ERROR_INVALID_NAME
-					condition = condition::pass, assert(false); // ASSERT(). No recover
-				else if (file_type == std::filesystem::file_type::directory)
-					condition = condition::pass; // Wrong user use case
-				else if (file_type == std::filesystem::file_type::not_found)
-					if (_preset_working_path.has_filename())
-						condition = condition::create;
-					else
-						condition = condition::popup_add;
-				else
-					condition = condition::select;
-			}
+				if (_preset_working_path.has_filename())
+					if (const std::wstring extension(_preset_working_path.extension()); extension == L".ini" || extension == L".txt")
+						if (const std::filesystem::file_type file_type = std::filesystem::status(g_reshade_dll_path.parent_path() / _current_preset_path, ec).type();
+							ec.value() != 0x7b && file_type != std::filesystem::file_type::directory && file_type != std::filesystem::file_type::not_found) // 0x7b: ERROR_INVALID_NAME
+							condition = condition::select;
 			ImGui::PopStyleVar();
 		}
 	}
