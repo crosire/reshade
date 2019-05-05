@@ -115,7 +115,6 @@ bool reshade::d3d12::runtime_d3d12::init_backbuffer_textures(unsigned int num_bu
 
 		if (FAILED(_device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&_depthstencil_dsvs))))
 			return false;
-
 	}
 
 	_backbuffers.resize(num_buffers);
@@ -395,8 +394,9 @@ bool reshade::d3d12::runtime_d3d12::init_texture(texture &info)
 {
 	info.impl = std::make_unique<d3d12_tex_data>();
 
+	// Do not create resource if it is a reference, it is set in 'render_technique'
 	if (info.impl_reference != texture_reference::none)
-		return update_texture_reference(info);
+		return true;
 
 	D3D12_RESOURCE_DESC desc = { D3D12_RESOURCE_DIMENSION_TEXTURE2D };
 	desc.Width = info.width;
@@ -612,11 +612,6 @@ void reshade::d3d12::runtime_d3d12::upload_texture(texture &texture, const uint8
 
 	execute_command_list(cmd_list);
 }
-bool reshade::d3d12::runtime_d3d12::update_texture_reference(texture &)
-{
-	// TODO
-	return true;
-}
 
 void reshade::d3d12::runtime_d3d12::generate_mipmaps(const com_ptr<ID3D12GraphicsCommandList> &cmd_list, texture &texture)
 {
@@ -691,14 +686,13 @@ bool reshade::d3d12::runtime_d3d12::compile_effect(effect_data &effect)
 
 	if (_d3d_compiler == nullptr)
 	{
-		LOG(ERROR) << "Unable to load D3DCompiler library.";
+		LOG(ERROR) << "Unable to load HLSL compiler (\"d3dcompiler_47.dll\").";
 		return false;
 	}
 
 	const auto D3DCompile = reinterpret_cast<pD3DCompile>(GetProcAddress(_d3d_compiler, "D3DCompile"));
 
 	const std::string hlsl = effect.preamble + effect.module.hlsl;
-
 	std::unordered_map<std::string, com_ptr<ID3DBlob>> entry_points;
 
 	// Compile the generated HLSL source code to DX byte code
