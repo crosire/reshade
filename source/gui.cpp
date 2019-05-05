@@ -2071,7 +2071,7 @@ void reshade::runtime::draw_preset_explorer()
 			if (const bool is_returned = ImGui::IsKeyPressedMap(ImGuiKey_Enter);
 				is_edited || is_returned)
 			{
-				const std::filesystem::path input_preset_path = std::filesystem::u8path(buf);
+				std::filesystem::path input_preset_path = std::filesystem::u8path(buf);
 				std::filesystem::file_type file_type = std::filesystem::status(reshade_container_path / input_preset_path, ec).type();
 
 				if (is_edited && ec.value() != 0x7b) // 0x7b: ERROR_INVALID_NAME
