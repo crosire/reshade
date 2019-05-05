@@ -49,15 +49,13 @@ namespace reshade::d3d11
 		void on_draw(ID3D11DeviceContext *context, UINT vertices);
 
 #if RESHADE_DX11_CAPTURE_DEPTH_BUFFERS
-		bool check_depth_texture_format(int depth_buffer_texture_format, ID3D11DepthStencilView *pDepthStencilView);
-		bool check_depthstencil(ID3D11DepthStencilView *depthstencil) const;
-		void track_rendertargets(int depth_buffer_texture_format, ID3D11DepthStencilView *depthstencil, UINT num_views, ID3D11RenderTargetView *const *views);
-		void track_depth_texture(int depth_buffer_texture_format, UINT index, com_ptr<ID3D11Texture2D> src_texture, com_ptr<ID3D11DepthStencilView> src_depthstencil, com_ptr<ID3D11Texture2D> dest_texture, bool cleared);
+		void track_rendertargets(int format_index, ID3D11DepthStencilView *depthstencil, UINT num_views, ID3D11RenderTargetView *const *views);
+		void track_depth_texture(int format_index, UINT index, com_ptr<ID3D11Texture2D> src_texture, com_ptr<ID3D11DepthStencilView> src_depthstencil, com_ptr<ID3D11Texture2D> dest_texture, bool cleared);
 
 		void keep_cleared_depth_textures();
 
 		intermediate_snapshot_info find_best_snapshot(UINT width, UINT height);
-		ID3D11Texture2D *find_best_cleared_depth_buffer_texture(UINT depth_buffer_clearing_number);
+		ID3D11Texture2D *find_best_cleared_depth_buffer_texture(UINT clear_index);
 #endif
 
 	private:
@@ -69,6 +67,11 @@ namespace reshade::d3d11
 			com_ptr<ID3D11Texture2D> dest_texture;
 			bool cleared = false;
 		};
+
+#if RESHADE_DX11_CAPTURE_DEPTH_BUFFERS
+		bool check_depthstencil(ID3D11DepthStencilView *depthstencil) const;
+		bool check_depth_texture_format(int format_index, ID3D11DepthStencilView *depthstencil);
+#endif
 
 		draw_stats _global_counter;
 #if RESHADE_DX11_CAPTURE_DEPTH_BUFFERS

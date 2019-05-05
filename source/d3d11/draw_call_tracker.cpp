@@ -1,5 +1,6 @@
 #include "draw_call_tracker.hpp"
 #include "log.hpp"
+#include "dxgi/format_utils.hpp"
 #include <math.h>
 
 namespace reshade::d3d11
@@ -21,9 +22,7 @@ namespace reshade::d3d11
 			const auto destination_entry = _cleared_depth_textures.find(source_entry.first);
 
 			if (destination_entry == _cleared_depth_textures.end())
-			{
 				_cleared_depth_textures.emplace(source_entry.first, source_entry.second);
-			}
 		}
 #endif
 #if RESHADE_DX11_CAPTURE_CONSTANT_BUFFERS
@@ -59,9 +58,7 @@ namespace reshade::d3d11
 		resource->GetType(&dim);
 
 		if (dim == D3D11_RESOURCE_DIMENSION_BUFFER)
-		{
 			_counters_per_constant_buffer[static_cast<ID3D11Buffer *>(resource)].mapped += 1;
-		}
 #endif
 	}
 
@@ -102,7 +99,7 @@ namespace reshade::d3d11
 				else
 				{
 					// This shouldn't happen - it means somehow someone has called 'on_draw' with a render target without calling 'track_rendertargets' first
-					LOG(ERROR) << "Draw has been called on an untracked render target.";
+					assert(false);
 				}
 			}
 		}
@@ -113,70 +110,42 @@ namespace reshade::d3d11
 		context->VSGetConstantBuffers(0, ARRAYSIZE(vscbuffers), reinterpret_cast<ID3D11Buffer **>(vscbuffers));
 
 		for (UINT i = 0; i < ARRAYSIZE(vscbuffers); i++)
-		{
 			// Uses the default drawcalls = 0 the first time around.
 			if (vscbuffers[i] != nullptr)
-			{
 				_counters_per_constant_buffer[vscbuffers[i]].vs_uses += 1;
-			}
-		}
 
 		com_ptr<ID3D11Buffer> pscbuffers[D3D11_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT];
 		context->PSGetConstantBuffers(0, ARRAYSIZE(pscbuffers), reinterpret_cast<ID3D11Buffer **>(pscbuffers));
 
 		for (UINT i = 0; i < ARRAYSIZE(pscbuffers); i++)
-		{
 			// Uses the default drawcalls = 0 the first time around.
 			if (pscbuffers[i] != nullptr)
-			{
 				_counters_per_constant_buffer[pscbuffers[i]].ps_uses += 1;
-			}
-		}
 #endif
 	}
 
 #if RESHADE_DX11_CAPTURE_DEPTH_BUFFERS
-
-	bool draw_call_tracker::check_depth_texture_format(int depth_buffer_texture_format, ID3D11DepthStencilView *pDepthStencilView)
+	bool draw_call_tracker::check_depthstencil(ID3D11DepthStencilView *depthstencil) const
 	{
-		if (pDepthStencilView == nullptr)
-		{
-			return false;
-		}
+		return _counters_per_used_depthstencil.find(depthstencil) != _counters_per_used_depthstencil.end();
+	}
+	bool draw_call_tracker::check_depth_texture_format(int format_index, ID3D11DepthStencilView *depthstencil)
+	{
+		assert(depthstencil != nullptr);
+
+		// Do not check format if all formats are allowed (index zero is DXGI_FORMAT_UNKNOWN)
+		if (format_index == 0)
+			return true;
 
 		// Retrieve texture from depth stencil
 		com_ptr<ID3D11Resource> resource;
-		pDepthStencilView->GetResource(&resource);
-
 		com_ptr<ID3D11Texture2D> texture;
+		depthstencil->GetResource(&resource);
 		if (FAILED(resource->QueryInterface(&texture)))
-		{
 			return false;
-		}
 
 		D3D11_TEXTURE2D_DESC desc;
-		texture->GetDesc(&desc); DXGI_FORMAT depth_texture_format = desc.Format;
-
-		switch (depth_texture_format)
-		{
-		case DXGI_FORMAT_R16_TYPELESS:
-		case DXGI_FORMAT_D16_UNORM:
-			depth_texture_format = DXGI_FORMAT_R16_TYPELESS;
-			break;
-		case DXGI_FORMAT_R32_TYPELESS:
-		case DXGI_FORMAT_D32_FLOAT:
-			depth_texture_format = DXGI_FORMAT_R32_TYPELESS;
-			break;
-		default:
-		case DXGI_FORMAT_R24G8_TYPELESS:
-		case DXGI_FORMAT_D24_UNORM_S8_UINT:
-			depth_texture_format = DXGI_FORMAT_R24G8_TYPELESS;
-			break;
-		case DXGI_FORMAT_R32G8X24_TYPELESS:
-		case DXGI_FORMAT_D32_FLOAT_S8X24_UINT:
-			depth_texture_format = DXGI_FORMAT_R32G8X24_TYPELESS;
-			break;
-		}
+		texture->GetDesc(&desc);
 
 		const DXGI_FORMAT depth_texture_formats[] = {
 			DXGI_FORMAT_UNKNOWN,
@@ -186,47 +155,32 @@ namespace reshade::d3d11
 			DXGI_FORMAT_R32G8X24_TYPELESS
 		};
 
-		assert(depth_buffer_texture_format >= 0 && depth_buffer_texture_format < ARRAYSIZE(depth_texture_formats));
+		assert(format_index > 0 && format_index < ARRAYSIZE(depth_texture_formats));
 
-		if (depth_texture_formats[depth_buffer_texture_format] != DXGI_FORMAT_UNKNOWN && depth_texture_format != depth_texture_formats[depth_buffer_texture_format])
-		{
-			return false;
-		}
-
-		return true;
-	}
-	bool draw_call_tracker::check_depthstencil(ID3D11DepthStencilView *depthstencil) const
-	{
-		return _counters_per_used_depthstencil.find(depthstencil) != _counters_per_used_depthstencil.end();
+		return make_dxgi_format_typeless(desc.Format) == depth_texture_formats[format_index];
 	}
 
-	void draw_call_tracker::track_rendertargets(int depth_buffer_texture_format, ID3D11DepthStencilView *depthstencil, UINT num_views, ID3D11RenderTargetView *const *views)
+	void draw_call_tracker::track_rendertargets(int format_index, ID3D11DepthStencilView *depthstencil, UINT num_views, ID3D11RenderTargetView *const *views)
 	{
 		assert(depthstencil != nullptr);
 
-		if (!check_depth_texture_format(depth_buffer_texture_format, depthstencil))
-		{
+		if (!check_depth_texture_format(format_index, depthstencil))
 			return;
-		}
 
 		if (_counters_per_used_depthstencil[depthstencil].depthstencil == nullptr)
 			_counters_per_used_depthstencil[depthstencil].depthstencil = depthstencil;
 
 		for (UINT i = 0; i < num_views; i++)
-		{
 			// If the render target isn't being tracked, this will create it
 			_counters_per_used_depthstencil[depthstencil].additional_views[views[i]].drawcalls += 1;
-		}
 	}
-	void draw_call_tracker::track_depth_texture(int depth_buffer_texture_format, UINT index, com_ptr<ID3D11Texture2D> src_texture, com_ptr<ID3D11DepthStencilView> src_depthstencil, com_ptr<ID3D11Texture2D> dest_texture, bool cleared)
+	void draw_call_tracker::track_depth_texture(int format_index, UINT index, com_ptr<ID3D11Texture2D> src_texture, com_ptr<ID3D11DepthStencilView> src_depthstencil, com_ptr<ID3D11Texture2D> dest_texture, bool cleared)
 	{
 		// Function that keeps track of a cleared depth texture in an ordered map in order to retrieve it at the final rendering stage
 		assert(src_texture != nullptr);
 
-		if (!check_depth_texture_format(depth_buffer_texture_format, src_depthstencil.get()))
-		{
+		if (!check_depth_texture_format(format_index, src_depthstencil.get()))
 			return;
-		}
 
 		// Gather some extra info for later display
 		D3D11_TEXTURE2D_DESC src_texture_desc;
@@ -237,37 +191,27 @@ namespace reshade::d3d11
 
 		// fill the ordered map with the saved depth texture
 		if (const auto it = _cleared_depth_textures.find(index); it == _cleared_depth_textures.end())
-		{
 			_cleared_depth_textures.emplace(index, depth_texture_save_info { src_texture, src_depthstencil, src_texture_desc, dest_texture, cleared });
-		}
 		else
-		{
 			it->second = depth_texture_save_info { src_texture, src_depthstencil, src_texture_desc, dest_texture, cleared };
-		}
 	}
 
 	draw_call_tracker::intermediate_snapshot_info draw_call_tracker::find_best_snapshot(UINT width, UINT height)
 	{
 		const float aspect_ratio = float(width) / float(height);
-
 		intermediate_snapshot_info best_snapshot;
 
 		for (auto &[depthstencil, snapshot] : _counters_per_used_depthstencil)
 		{
 			if (snapshot.stats.drawcalls == 0 || snapshot.stats.vertices == 0)
-			{
 				continue;
-			}
 
 			if (snapshot.texture == nullptr)
 			{
 				com_ptr<ID3D11Resource> resource;
 				depthstencil->GetResource(&resource);
-
 				if (FAILED(resource->QueryInterface(&snapshot.texture)))
-				{
 					continue;
-				}
 			}
 
 			D3D11_TEXTURE2D_DESC desc;
@@ -281,15 +225,10 @@ namespace reshade::d3d11
 			const float texture_aspect_ratio = float(desc.Width) / float(desc.Height);
 
 			if (fabs(texture_aspect_ratio - aspect_ratio) > 0.1f || width_factor > 2.0f || height_factor > 2.0f || width_factor < 0.5f || height_factor < 0.5f)
-			{
-				// No match, not a good fit
-				continue;
-			}
+				continue; // No match, not a good fit
 
 			if (snapshot.stats.drawcalls >= best_snapshot.stats.drawcalls)
-			{
 				best_snapshot = snapshot;
-			}
 		}
 
 		return best_snapshot;
@@ -312,7 +251,7 @@ namespace reshade::d3d11
 		}
 	}
 
-	ID3D11Texture2D *draw_call_tracker::find_best_cleared_depth_buffer_texture(UINT depth_buffer_clearing_number)
+	ID3D11Texture2D *draw_call_tracker::find_best_cleared_depth_buffer_texture(UINT clear_index)
 	{
 		// Function that selects the best cleared depth texture according to the clearing number defined in the configuration settings
 		ID3D11Texture2D *best_match = nullptr;
@@ -326,24 +265,15 @@ namespace reshade::d3d11
 			auto &texture_counter_info = it.second;
 
 			com_ptr<ID3D11Texture2D> texture;
-
 			if (texture_counter_info.dest_texture == nullptr)
-			{
 				continue;
-			}
-
 			texture = texture_counter_info.dest_texture;
 
-			D3D11_TEXTURE2D_DESC desc;
-			texture->GetDesc(&desc);
-
-			if (depth_buffer_clearing_number != 0 && i > depth_buffer_clearing_number)
-			{
+			if (clear_index != 0 && i > clear_index)
 				continue;
-			}
 
 			// The _cleared_dept_textures ordered map stores the depth textures, according to the order of clearing
-			// if depth_buffer_clearing_number == 0, the auto select mode is defined, so the last cleared depth texture is retrieved
+			// if clear_index == 0, the auto select mode is defined, so the last cleared depth texture is retrieved
 			// if the user selects a clearing number and the number of cleared depth textures is greater or equal than it, the texture corresponding to this number is retrieved
 			// if the user selects a clearing number and the number of cleared depth textures is lower than it, the last cleared depth texture is retrieved
 			best_match = texture.get();
