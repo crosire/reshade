@@ -289,7 +289,7 @@ void reshade::runtime::load_effect(const std::filesystem::path &path, size_t &ou
 	// Fill all specialization constants with values from the current preset
 	if (_performance_mode && !_current_preset_path.empty() && effect.compile_sucess)
 	{
-		const ini_file preset(g_reshade_dll_path.parent_path() / _current_preset_path);
+		const ini_file preset(_current_preset_path);
 		const std::string section(path.filename().u8string());
 
 		for (reshadefx::uniform_info &constant : effect.module.spec_constants)
@@ -451,7 +451,7 @@ void reshade::runtime::load_effects()
 	if (!_current_preset_path.empty())
 	{
 		_preset_preprocessor_definitions.clear();
-		const ini_file preset(g_reshade_dll_path.parent_path() / _current_preset_path);
+		const ini_file preset(_current_preset_path);
 		preset.get("", "PreprocessorDefinitions", _preset_preprocessor_definitions);
 	}
 
@@ -825,6 +825,7 @@ void reshade::runtime::subscribe_to_save_config(std::function<void(ini_file &)> 
 void reshade::runtime::load_config()
 {
 	const ini_file config(_configuration_path);
+	std::filesystem::path current_preset_path;
 
 	config.get("INPUT", "KeyScreenshot", _screenshot_key_data);
 	config.get("INPUT", "KeyReload", _reload_key_data);
@@ -834,32 +835,13 @@ void reshade::runtime::load_config()
 	config.get("GENERAL", "EffectSearchPaths", _effect_search_paths);
 	config.get("GENERAL", "TextureSearchPaths", _texture_search_paths);
 	config.get("GENERAL", "PreprocessorDefinitions", _global_preprocessor_definitions);
-	config.get("GENERAL", "CurrentPresetPath", _current_preset_path);
+	config.get("GENERAL", "CurrentPresetPath", current_preset_path);
 	config.get("GENERAL", "ScreenshotPath", _screenshot_path);
 	config.get("GENERAL", "ScreenshotFormat", _screenshot_format);
 	config.get("GENERAL", "ScreenshotIncludePreset", _screenshot_include_preset);
 	config.get("GENERAL", "NoReloadOnInit", _no_reload_on_init);
 
-	std::error_code ec;
-
-	// Create a default preset file if none exists yet
-	enum class path_state { invalid, valid };
-	path_state path_state = path_state::invalid;
-
-	if (!_current_preset_path.empty())
-		if (const std::wstring extension(_current_preset_path.extension()); extension == L".ini" || extension == L".txt")
-			if (const reshade::ini_file preset(g_reshade_dll_path.parent_path() / _current_preset_path); preset.has("", "TechniqueSorting"))
-				path_state = path_state::valid;
-
-	if (path_state == path_state::invalid)
-		_current_preset_path = "DefaultPreset.ini";
-
-	if (const std::filesystem::path reshade_container_path = g_reshade_dll_path.parent_path(),
-		preset_canonical_path = std::filesystem::weakly_canonical(reshade_container_path / _current_preset_path, ec);
-		std::equal(reshade_container_path.begin(), reshade_container_path.end(), preset_canonical_path.begin()))
-		_current_preset_path = std::filesystem::proximate(preset_canonical_path, reshade_container_path, ec);
-	else
-		_current_preset_path = preset_canonical_path;
+	set_current_preset(current_preset_path);
 
 	for (const auto &callback : _load_config_callables)
 		callback(config);
@@ -892,7 +874,7 @@ void reshade::runtime::save_config(const std::filesystem::path &path) const
 
 void reshade::runtime::load_preset(const std::filesystem::path &path)
 {
-	const ini_file preset(g_reshade_dll_path.parent_path() / path);
+	const ini_file preset(path);
 
 	std::vector<std::string> technique_list;
 	preset.get("", "Techniques", technique_list);
@@ -905,7 +887,7 @@ void reshade::runtime::load_preset(const std::filesystem::path &path)
 	if (_reload_remaining_effects != 0 && // ... unless this is the 'load_current_preset' call in 'update_and_render_effects'
 		(_performance_mode || preset_preprocessor_definitions != _preset_preprocessor_definitions))
 	{
-		assert(g_reshade_dll_path.parent_path() / path == g_reshade_dll_path.parent_path() / _current_preset_path);
+		assert(path == _current_preset_path);
 		_preset_preprocessor_definitions = preset_preprocessor_definitions;
 		load_effects();
 		return; // Preset values are loaded in 'update_and_render_effects' during effect loading
@@ -966,7 +948,7 @@ void reshade::runtime::load_current_preset()
 }
 void reshade::runtime::save_preset(const std::filesystem::path &path) const
 {
-	ini_file preset(g_reshade_dll_path.parent_path() / path);
+	ini_file preset(path);
 
 	std::vector<size_t> effect_list;
 	std::vector<std::string> technique_list;
@@ -1249,4 +1231,38 @@ void reshade::runtime::reset_uniform_value(uniform &variable)
 			break;
 		}
 	}
+}
+
+void reshade::runtime::set_current_preset()
+{
+	set_current_preset(_preset_working_path);
+}
+void reshade::runtime::set_current_preset(std::filesystem::path path)
+{
+	std::error_code ec;
+	std::filesystem::path reshade_container_path = g_reshade_dll_path.parent_path();
+
+	// Create a default preset file if none exists yet
+	enum class path_state { invalid, valid };
+	path_state path_state = path_state::invalid;
+
+	if (!path.empty())
+		if (const std::wstring extension(path.extension()); extension == L".ini" || extension == L".txt")
+			if (const reshade::ini_file preset(reshade_container_path / path); preset.has("", "TechniqueSorting"))
+				path_state = path_state::valid;
+
+	if (path_state == path_state::invalid)
+		path = "DefaultPreset.ini";
+
+	if (const std::filesystem::path preset_absolute_path = std::filesystem::absolute(reshade_container_path / path, ec);
+		std::equal(reshade_container_path.begin(), reshade_container_path.end(), preset_absolute_path.begin()))
+		path = preset_absolute_path.lexically_proximate(reshade_container_path);
+	else if (const std::filesystem::path preset_canonical_path = std::filesystem::weakly_canonical(reshade_container_path / path, ec);
+		std::equal(reshade_container_path.begin(), reshade_container_path.end(), preset_canonical_path.begin()))
+		path = preset_canonical_path.lexically_proximate(reshade_container_path);
+	else
+		path = preset_canonical_path;
+
+	_preset_working_path = path;
+	_current_preset_path = reshade_container_path / path;
 }

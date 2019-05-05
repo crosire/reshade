@@ -2034,11 +2034,8 @@ void reshade::runtime::draw_preset_explorer()
 	ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2(0.0f, 0.5f));
 	if (ImGui::SameLine(0, button_spacing);
 		ImGui::ButtonEx(_current_preset_path.stem().u8string().c_str(), ImVec2(root_window_width - (button_spacing + button_size) * 3, 0), ImGuiButtonFlags_NoNavFocus))
-	{
-		if (_imgui_context->IO.KeyCtrl)
+		if (ImGui::OpenPopup("##explore"), _imgui_context->IO.KeyCtrl)
 			_preset_path_input_mode = true;
-		_preset_working_path = _current_preset_path, ImGui::OpenPopup("##explore");
-	}
 	ImGui::PopStyleVar();
 
 	if (ImGui::SameLine(0, button_spacing); ImGui::ButtonEx("+", ImVec2(button_size, 0), ImGuiButtonFlags_PressedOnClick | ImGuiButtonFlags_NoNavFocus))
@@ -2068,8 +2065,7 @@ void reshade::runtime::draw_preset_explorer()
 			else if (!ImGui::IsItemActive())
 				_preset_path_input_mode = false;
 
-			if (const bool is_returned = ImGui::IsKeyPressedMap(ImGuiKey_Enter);
-				is_edited || is_returned)
+			if (const bool is_returned = ImGui::IsKeyPressedMap(ImGuiKey_Enter); is_edited || is_returned)
 			{
 				std::filesystem::path input_preset_path = std::filesystem::u8path(buf);
 				std::filesystem::file_type file_type = std::filesystem::status(reshade_container_path / input_preset_path, ec).type();
@@ -2080,11 +2076,11 @@ void reshade::runtime::draw_preset_explorer()
 				if (is_returned)
 				{
 					if (_preset_working_path.empty())
-						condition = condition::cancel, _preset_working_path = _current_preset_path;
+						condition = condition::cancel;
 					else
 					{
 						if (ec.value() == 0x7b) // 0x7b: ERROR_INVALID_NAME
-							condition = condition::pass, _preset_working_path = _current_preset_path;
+							condition = condition::pass;
 						else if (file_type == std::filesystem::file_type::directory)
 							condition = condition::popup_add;
 						else
@@ -2095,7 +2091,7 @@ void reshade::runtime::draw_preset_explorer()
 									file_type = std::filesystem::status(reshade_container_path / _preset_working_path, ec).type();
 
 							if (ec.value() == 0x7b) // 0x7b: ERROR_INVALID_NAME
-								condition = condition::pass, _preset_working_path = _current_preset_path;
+								condition = condition::pass;
 							else if (file_type == std::filesystem::file_type::directory)
 								condition = condition::popup_add;
 							else if (file_type == std::filesystem::file_type::not_found)
@@ -2285,15 +2281,7 @@ void reshade::runtime::draw_preset_explorer()
 		if (condition != condition::cancel)
 		{
 			_show_splash = true;
-
-			if (const std::filesystem::path preset_absolute_path = std::filesystem::absolute(reshade_container_path / _preset_working_path, ec);
-				std::equal(reshade_container_path.begin(), reshade_container_path.end(), preset_absolute_path.begin()))
-				_current_preset_path = _preset_working_path = preset_absolute_path.lexically_proximate(reshade_container_path);
-			else if (const std::filesystem::path preset_canonical_path = std::filesystem::weakly_canonical(reshade_container_path / _preset_working_path, ec);
-				std::equal(reshade_container_path.begin(), reshade_container_path.end(), preset_canonical_path.begin()))
-				_current_preset_path = _preset_working_path = std::filesystem::proximate(preset_canonical_path, reshade_container_path, ec);
-			else
-				_current_preset_path = _preset_working_path = preset_canonical_path;
+			set_current_preset();
 
 			save_config();
 			load_current_preset();
