@@ -427,5 +427,4 @@ EXPORTS
 	WSASend = HookWSASend
 	WSASendTo = HookWSASendTo
 	WSARecv = HookWSARecv
-	WSARecvEx = HookWSARecvEx
 	WSARecvFrom = HookWSARecvFrom
