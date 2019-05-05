@@ -854,6 +854,13 @@ void reshade::runtime::load_config()
 	if (path_state == path_state::invalid)
 		_current_preset_path = "DefaultPreset.ini";
 
+	if (const std::filesystem::path reshade_container_path = g_reshade_dll_path.parent_path(),
+		preset_canonical_path = std::filesystem::weakly_canonical(reshade_container_path / _current_preset_path, ec);
+		std::equal(reshade_container_path.begin(), reshade_container_path.end(), preset_canonical_path.begin()))
+		_current_preset_path = std::filesystem::proximate(preset_canonical_path, reshade_container_path, ec);
+	else
+		_current_preset_path = preset_canonical_path;
+
 	for (const auto &callback : _load_config_callables)
 		callback(config);
 }
