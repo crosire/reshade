@@ -26,6 +26,9 @@ EXPORTS
 	; d3d12.dll
 	D3D12CreateDevice @101
 	D3D12GetDebugInterface @102
+	D3D12CreateRootSignatureDeserializer @107
+	D3D12CreateVersionedRootSignatureDeserializer @108
+	D3D12EnableExperimentalFeatures @110
 	D3D12SerializeRootSignature @115
 	D3D12SerializeVersionedRootSignature @116
 
