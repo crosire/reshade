@@ -2021,7 +2021,7 @@ void reshade::runtime::draw_preset_explorer()
 
 	std::error_code ec;
 
-	enum class condition { pass, select, popup_add, create, backward, forward, cancel };
+	enum class condition { pass, select, popup_add, create, backward, forward, reload, cancel };
 	condition condition = condition::pass;
 
 	if (ImGui::ButtonEx("<", ImVec2(button_size, 0), ImGuiButtonFlags_NoNavFocus))
@@ -2113,14 +2113,7 @@ void reshade::runtime::draw_preset_explorer()
 				else
 					condition = condition::cancel;
 			else if (ImGui::IsKeyPressedMap(ImGuiKey_Enter))
-				if (_current_browse_path.has_filename())
-					if (const std::wstring extension(_current_browse_path.extension()); extension == L".ini" || extension == L".txt")
-						if (const std::filesystem::file_type file_type = std::filesystem::status(reshade_container_path / _current_preset_path, ec).type();
-							ec.value() != 0x7b && file_type != std::filesystem::file_type::directory) // 0x7b: ERROR_INVALID_NAME
-							if (file_type == std::filesystem::file_type::not_found)
-								condition = condition::create;
-							else
-								condition = condition::select;
+				condition = condition::reload;
 			ImGui::PopStyleVar();
 		}
 	}
@@ -2148,8 +2141,8 @@ void reshade::runtime::draw_preset_explorer()
 				condition = condition::pass;
 			else
 			{
-				const std::filesystem::path reshade_preset_path = reshade_container_path / _current_preset_path;
-				if (auto it = std::find_if(preset_paths.begin(), preset_paths.end(), [&ec, &reshade_preset_path](const std::filesystem::directory_entry &entry) { return std::filesystem::equivalent(entry, reshade_container_path / reshade_preset_path, ec); }); it == preset_paths.end())
+				const std::filesystem::path &current_preset_path = _current_preset_path;
+				if (auto it = std::find_if(preset_paths.begin(), preset_paths.end(), [&ec, &current_preset_path](const std::filesystem::directory_entry &entry) { return std::filesystem::equivalent(entry, current_preset_path, ec); }); it == preset_paths.end())
 					if (condition == condition::backward)
 						_current_preset_path = _current_browse_path = preset_paths.back();
 					else
@@ -2201,10 +2194,9 @@ void reshade::runtime::draw_preset_explorer()
 					else if (const std::wstring extension(entry.path().extension()); extension == L".ini" || extension == L".txt")
 						preset_paths.push_back(entry);
 
-				const std::filesystem::path current_preset_path = reshade_container_path / _current_preset_path;
 				for (const auto &entry : preset_paths)
 				{
-					const bool is_current_preset = std::filesystem::equivalent(entry, current_preset_path, ec);
+					const bool is_current_preset = std::filesystem::equivalent(entry, _current_preset_path, ec);
 
 					if (ImGui::Selectable(entry.path().filename().u8string().c_str(), static_cast<bool>(is_current_preset)))
 						condition = condition::select, _current_browse_path = entry.path().lexically_proximate(reshade_container_path);
