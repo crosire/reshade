@@ -360,9 +360,9 @@ namespace reshade
 		imgui_code_editor _editor;
 
 		// used by preset explorer
-		bool _preset_path_input_mode = false;
-		bool _preset_selectable_item_is_covered = true;
-		std::filesystem::path _preset_working_path;
+		bool _browse_path_is_input_mode = false;
+		bool _current_preset_is_covered = true;
+		std::filesystem::path _current_browse_path;
 #endif
 	};
 }

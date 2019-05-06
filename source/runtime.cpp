@@ -1235,7 +1235,7 @@ void reshade::runtime::reset_uniform_value(uniform &variable)
 
 void reshade::runtime::set_current_preset()
 {
-	set_current_preset(_preset_working_path);
+	set_current_preset(_current_browse_path);
 }
 void reshade::runtime::set_current_preset(std::filesystem::path path)
 {
@@ -1247,7 +1247,9 @@ void reshade::runtime::set_current_preset(std::filesystem::path path)
 
 	if (!path.empty())
 		if (const std::wstring extension(path.extension()); extension == L".ini" || extension == L".txt")
-			if (const reshade::ini_file preset(reshade_container_path / path); preset.has("", "TechniqueSorting"))
+			if (!std::filesystem::exists(path, ec))
+				path_state = path_state::valid;
+			else if (const reshade::ini_file preset(reshade_container_path / path); preset.has("", "TechniqueSorting"))
 				path_state = path_state::valid;
 
 	// Select a default preset file if none exists yet or not own
@@ -1262,6 +1264,6 @@ void reshade::runtime::set_current_preset(std::filesystem::path path)
 	else
 		path = preset_canonical_path;
 
-	_preset_working_path = path;
+	_current_browse_path = path;
 	_current_preset_path = reshade_container_path / path;
 }
