@@ -1242,7 +1242,6 @@ void reshade::runtime::set_current_preset(std::filesystem::path path)
 	std::error_code ec;
 	std::filesystem::path reshade_container_path = g_reshade_dll_path.parent_path();
 
-	// Create a default preset file if none exists yet
 	enum class path_state { invalid, valid };
 	path_state path_state = path_state::invalid;
 
@@ -1251,10 +1250,10 @@ void reshade::runtime::set_current_preset(std::filesystem::path path)
 			if (const reshade::ini_file preset(reshade_container_path / path); preset.has("", "TechniqueSorting"))
 				path_state = path_state::valid;
 
+	// Select a default preset file if none exists yet or not own
 	if (path_state == path_state::invalid)
 		path = "DefaultPreset.ini";
-
-	if (const std::filesystem::path preset_canonical_path = std::filesystem::weakly_canonical(reshade_container_path / path, ec);
+	else if (const std::filesystem::path preset_canonical_path = std::filesystem::weakly_canonical(reshade_container_path / path, ec);
 		std::equal(reshade_container_path.begin(), reshade_container_path.end(), preset_canonical_path.begin()))
 		path = preset_canonical_path.lexically_proximate(reshade_container_path);
 	else if (const std::filesystem::path preset_absolute_path = std::filesystem::absolute(reshade_container_path / path, ec);

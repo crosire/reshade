@@ -2178,25 +2178,15 @@ void reshade::runtime::draw_preset_explorer()
 			{
 				if (ImGui::Selectable(".."))
 				{
-					if (!_preset_working_path.has_parent_path())
-						_preset_working_path = std::filesystem::absolute(reshade_container_path / _preset_working_path, ec);
-					while (!std::filesystem::is_directory(reshade_container_path / _preset_working_path, ec))
-					{
-						if (!_preset_working_path.has_parent_path())
-							_preset_working_path = std::filesystem::absolute(reshade_container_path / _preset_working_path, ec);
-						if (_preset_working_path.parent_path() != _preset_working_path)
-							_preset_working_path = _preset_working_path.parent_path();
-						else break;
-					}
+					for (_preset_working_path = std::filesystem::absolute(reshade_container_path / _preset_working_path);
+						!std::filesystem::is_directory(_preset_working_path, ec) && _preset_working_path.parent_path() != _preset_working_path;)
+						_preset_working_path = _preset_working_path.parent_path();
 					_preset_working_path = _preset_working_path.parent_path();
 
-					if (const std::filesystem::path preset_absolute_path = std::filesystem::absolute(reshade_container_path / _preset_working_path, ec);
-						std::filesystem::equivalent(reshade_container_path, preset_absolute_path))
+					if (std::filesystem::equivalent(reshade_container_path, _preset_working_path))
 						_preset_working_path = L".";
-					else if (std::equal(reshade_container_path.begin(), reshade_container_path.end(), preset_absolute_path.begin()))
+					else if (std::equal(reshade_container_path.begin(), reshade_container_path.end(), _preset_working_path.begin()))
 						_preset_working_path = _preset_working_path.lexically_proximate(reshade_container_path);
-					else
-						_preset_working_path = preset_absolute_path;
 				}
 
 				std::vector<std::filesystem::directory_entry> preset_paths;
