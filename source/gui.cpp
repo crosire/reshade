@@ -2059,13 +2059,14 @@ void reshade::runtime::draw_preset_explorer()
 			_current_browse_path.u8string().copy(buf, sizeof(buf) - 1);
 
 			const bool is_edited = ImGui::InputTextEx("##path", buf, sizeof(buf), ImVec2(root_window_width - (button_spacing + button_size) * 3, 0), ImGuiInputTextFlags_None);
+			const bool is_returned = ImGui::IsKeyPressedMap(ImGuiKey_Enter);
 
 			if (ImGui::IsWindowAppearing())
 				ImGui::SetKeyboardFocusHere();
 			else if (!ImGui::IsItemActive())
 				_browse_path_is_input_mode = false;
 
-			if (const bool is_returned = ImGui::IsKeyPressedMap(ImGuiKey_Enter); is_edited || is_returned)
+			if (is_edited || is_returned)
 			{
 				std::filesystem::path input_preset_path = std::filesystem::u8path(buf);
 				std::filesystem::file_type file_type = std::filesystem::status(reshade_container_path / input_preset_path, ec).type();
@@ -2077,31 +2078,28 @@ void reshade::runtime::draw_preset_explorer()
 				{
 					if (_current_browse_path.empty())
 						condition = condition::cancel;
+					else if (ec.value() == 0x7b) // 0x7b: ERROR_INVALID_NAME
+						condition = condition::pass;
+					else if (file_type == std::filesystem::file_type::directory)
+						condition = condition::popup_add;
 					else
 					{
+						if (_current_browse_path.has_filename())
+							if (const std::wstring extension(_current_browse_path.extension()); extension != L".ini" && extension != L".txt")
+								_current_browse_path += L".ini",
+								file_type = std::filesystem::status(reshade_container_path / _current_browse_path, ec).type();
+
 						if (ec.value() == 0x7b) // 0x7b: ERROR_INVALID_NAME
 							condition = condition::pass;
 						else if (file_type == std::filesystem::file_type::directory)
 							condition = condition::popup_add;
-						else
-						{
+						else if (file_type == std::filesystem::file_type::not_found)
 							if (_current_browse_path.has_filename())
-								if (const std::wstring extension(_current_browse_path.extension()); extension != L".ini" && extension != L".txt")
-									_current_browse_path += L".ini",
-									file_type = std::filesystem::status(reshade_container_path / _current_browse_path, ec).type();
-
-							if (ec.value() == 0x7b) // 0x7b: ERROR_INVALID_NAME
-								condition = condition::pass;
-							else if (file_type == std::filesystem::file_type::directory)
-								condition = condition::popup_add;
-							else if (file_type == std::filesystem::file_type::not_found)
-								if (_current_browse_path.has_filename())
-									condition = condition::create;
-								else
-									condition = condition::popup_add;
+								condition = condition::create;
 							else
-								condition = condition::select;
-						}
+								condition = condition::popup_add;
+						else
+							condition = condition::select;
 					}
 				}
 			}
