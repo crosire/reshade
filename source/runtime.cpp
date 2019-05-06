@@ -1254,12 +1254,12 @@ void reshade::runtime::set_current_preset(std::filesystem::path path)
 	if (path_state == path_state::invalid)
 		path = "DefaultPreset.ini";
 
-	if (const std::filesystem::path preset_absolute_path = std::filesystem::absolute(reshade_container_path / path, ec);
-		std::equal(reshade_container_path.begin(), reshade_container_path.end(), preset_absolute_path.begin()))
-		path = preset_absolute_path.lexically_proximate(reshade_container_path);
-	else if (const std::filesystem::path preset_canonical_path = std::filesystem::weakly_canonical(reshade_container_path / path, ec);
+	if (const std::filesystem::path preset_canonical_path = std::filesystem::weakly_canonical(reshade_container_path / path, ec);
 		std::equal(reshade_container_path.begin(), reshade_container_path.end(), preset_canonical_path.begin()))
 		path = preset_canonical_path.lexically_proximate(reshade_container_path);
+	else if (const std::filesystem::path preset_absolute_path = std::filesystem::absolute(reshade_container_path / path, ec);
+		std::equal(reshade_container_path.begin(), reshade_container_path.end(), preset_absolute_path.begin()))
+		path = preset_absolute_path.lexically_proximate(reshade_container_path);
 	else
 		path = preset_canonical_path;
 

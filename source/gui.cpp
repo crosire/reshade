@@ -2130,7 +2130,7 @@ void reshade::runtime::draw_preset_explorer()
 	if (is_explore_open || condition == condition::backward || condition == condition::forward)
 	{
 		std::filesystem::path preset_container_path = std::filesystem::absolute(reshade_container_path / _preset_working_path);
-		if (!std::filesystem::is_directory(preset_container_path, ec) && preset_container_path.has_parent_path())
+		if (!std::filesystem::is_directory(preset_container_path, ec) && preset_container_path.has_filename())
 			preset_container_path = preset_container_path.parent_path();
 
 		std::vector<std::filesystem::directory_entry> preset_container;
@@ -2183,7 +2183,7 @@ void reshade::runtime::draw_preset_explorer()
 					while (!std::filesystem::is_directory(reshade_container_path / _preset_working_path, ec))
 					{
 						if (!_preset_working_path.has_parent_path())
-							_preset_working_path = std::filesystem::weakly_canonical(reshade_container_path / _preset_working_path, ec);
+							_preset_working_path = std::filesystem::absolute(reshade_container_path / _preset_working_path, ec);
 						if (_preset_working_path.parent_path() != _preset_working_path)
 							_preset_working_path = _preset_working_path.parent_path();
 						else break;
