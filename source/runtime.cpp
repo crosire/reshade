@@ -1245,9 +1245,9 @@ void reshade::runtime::set_current_preset(std::filesystem::path path)
 	enum class path_state { invalid, valid };
 	path_state path_state = path_state::invalid;
 
-	if (!path.empty())
+	if (path.has_filename())
 		if (const std::wstring extension(path.extension()); extension == L".ini" || extension == L".txt")
-			if (!std::filesystem::exists(path, ec))
+			if (!std::filesystem::exists(reshade_container_path / path, ec))
 				path_state = path_state::valid;
 			else if (const reshade::ini_file preset(reshade_container_path / path); preset.has("", "TechniqueSorting"))
 				path_state = path_state::valid;
