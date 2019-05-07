@@ -2113,7 +2113,7 @@ void reshade::runtime::draw_preset_explorer()
 				else
 					condition = condition::cancel;
 			else if (ImGui::IsKeyPressedMap(ImGuiKey_Enter))
-				condition = condition::reload;
+				condition = condition::reload, _current_browse_path = _current_preset_path;
 			ImGui::PopStyleVar();
 		}
 	}
