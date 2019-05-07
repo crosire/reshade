@@ -1935,9 +1935,15 @@ void reshade::runtime::draw_overlay_technique_editor()
 			hovered_technique_index = index;
 
 		// Display tooltip
-		if (const std::string_view tooltip = technique.annotation_as_string("ui_tooltip");
+		if (const std::string_view tooltip = compile_success ? technique.annotation_as_string("ui_tooltip") : _loaded_effects[technique.effect_index].errors;
 			!tooltip.empty() && ImGui::IsItemHovered())
-			ImGui::SetTooltip("%s", tooltip.data());
+		{
+			ImGui::BeginTooltip();
+			if (!compile_success) ImGui::PushStyleColor(ImGuiCol_Text, COLOR_RED);
+			ImGui::TextUnformatted(tooltip.data());
+			if (!compile_success) ImGui::PopStyleColor();
+			ImGui::EndTooltip();
+		}
 
 		// Create context menu
 		if (ImGui::BeginPopupContextItem("##context"))
