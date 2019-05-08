@@ -699,29 +699,19 @@ void reshade::runtime::draw_overlay_menu_home()
 					}
 				}
 			}
-			for (auto i = _techniques.begin(); i != _techniques.end(); ++i)
+			if (const auto it = std::find_if_not(_techniques.begin(), _techniques.end(), [](const reshade::technique &a) { return a.enabled || a.toggle_key_data[0] != 0; }); it != _techniques.end())
 			{
-				if (!i->enabled && i->toggle_key_data[0] == 0)
-				{
-					for (auto k = i + 1; k != _techniques.end(); ++k)
+				static const std::string ui_label("ui_label");
+				std::stable_sort(it, _techniques.end(), [](const reshade::technique &h, const reshade::technique &i)
 					{
-						if (!k->enabled && k->toggle_key_data[0] == 0)
-						{
-							// Using static to avoid allocate std::string in loop
-							static const std::string ui_label("ui_label");
-
-							const auto &a = i->annotations.find(ui_label) == i->annotations.end() ? i->name : i->annotations[ui_label].second.string_data;
-							const auto &b = k->annotations.find(ui_label) == k->annotations.end() ? k->name : k->annotations[ui_label].second.string_data;
-
-							if (a.compare(b) > 0)
-							{
-								std::iter_swap(i, k);
-								i = _techniques.begin();
-								break;
-							}
-						}
-					}
-				}
+						const auto v = h.annotations.find(ui_label);
+						const auto w = i.annotations.find(ui_label);
+						std::string x(v == h.annotations.end() ? h.name : v->second.second.string_data);
+						std::string y(w == i.annotations.end() ? i.name : w->second.second.string_data);
+						std::transform(x.begin(), x.end(), x.begin(), tolower);
+						std::transform(y.begin(), y.end(), y.begin(), tolower);
+						return x < y;
+					});
 			}
 
 			save_current_preset();
