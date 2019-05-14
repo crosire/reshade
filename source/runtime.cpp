@@ -825,6 +825,7 @@ void reshade::runtime::subscribe_to_save_config(std::function<void(ini_file &)> 
 void reshade::runtime::load_config()
 {
 	const ini_file config(_configuration_path);
+	std::filesystem::path current_preset_path;
 
 	config.get("INPUT", "KeyScreenshot", _screenshot_key_data);
 	config.get("INPUT", "KeyReload", _reload_key_data);
@@ -834,15 +835,13 @@ void reshade::runtime::load_config()
 	config.get("GENERAL", "EffectSearchPaths", _effect_search_paths);
 	config.get("GENERAL", "TextureSearchPaths", _texture_search_paths);
 	config.get("GENERAL", "PreprocessorDefinitions", _global_preprocessor_definitions);
-	config.get("GENERAL", "CurrentPresetPath", _current_preset_path);
+	config.get("GENERAL", "CurrentPresetPath", current_preset_path);
 	config.get("GENERAL", "ScreenshotPath", _screenshot_path);
 	config.get("GENERAL", "ScreenshotFormat", _screenshot_format);
 	config.get("GENERAL", "ScreenshotIncludePreset", _screenshot_include_preset);
 	config.get("GENERAL", "NoReloadOnInit", _no_reload_on_init);
 
-	// Create a default preset file if none exists yet
-	if (_current_preset_path.empty())
-		_current_preset_path = g_reshade_dll_path.parent_path() / "DefaultPreset.ini";
+	set_current_preset(current_preset_path);
 
 	for (const auto &callback : _load_config_callables)
 		callback(config);
@@ -1232,4 +1231,39 @@ void reshade::runtime::reset_uniform_value(uniform &variable)
 			break;
 		}
 	}
+}
+
+void reshade::runtime::set_current_preset()
+{
+	set_current_preset(_current_browse_path);
+}
+void reshade::runtime::set_current_preset(std::filesystem::path path)
+{
+	std::error_code ec;
+	std::filesystem::path reshade_container_path = g_reshade_dll_path.parent_path();
+
+	enum class path_state { invalid, valid };
+	path_state path_state = path_state::invalid;
+
+	if (path.has_filename())
+		if (const std::wstring extension(path.extension()); extension == L".ini" || extension == L".txt")
+			if (!std::filesystem::exists(reshade_container_path / path, ec))
+				path_state = path_state::valid;
+			else if (const reshade::ini_file preset(reshade_container_path / path); preset.has("", "TechniqueSorting"))
+				path_state = path_state::valid;
+
+	// Select a default preset file if none exists yet or not own
+	if (path_state == path_state::invalid)
+		path = "DefaultPreset.ini";
+	else if (const std::filesystem::path preset_canonical_path = std::filesystem::weakly_canonical(reshade_container_path / path, ec);
+		std::equal(reshade_container_path.begin(), reshade_container_path.end(), preset_canonical_path.begin()))
+		path = preset_canonical_path.lexically_proximate(reshade_container_path);
+	else if (const std::filesystem::path preset_absolute_path = std::filesystem::absolute(reshade_container_path / path, ec);
+		std::equal(reshade_container_path.begin(), reshade_container_path.end(), preset_absolute_path.begin()))
+		path = preset_absolute_path.lexically_proximate(reshade_container_path);
+	else
+		path = preset_canonical_path;
+
+	_current_browse_path = path;
+	_current_preset_path = reshade_container_path / path;
 }

@@ -255,6 +255,9 @@ namespace reshade
 		void get_uniform_value(const uniform &variable, uint8_t *data, size_t size) const;
 		void set_uniform_value(uniform &variable, const uint8_t *data, size_t size);
 
+		void set_current_preset();
+		void set_current_preset(std::filesystem::path path);
+
 		bool _needs_update = false;
 		unsigned long _latest_version[3] = {};
 		std::shared_ptr<class input> _input;
@@ -355,6 +358,11 @@ namespace reshade
 		char _effect_filter_buffer[64] = {};
 		std::filesystem::path _file_selection_path;
 		imgui_code_editor _editor;
+
+		// used by preset explorer
+		bool _browse_path_is_input_mode = false;
+		bool _current_preset_is_covered = true;
+		std::filesystem::path _current_browse_path;
 #endif
 	};
 }

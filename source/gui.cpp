@@ -2041,155 +2041,267 @@ void reshade::runtime::draw_overlay_technique_editor()
 
 void reshade::runtime::draw_preset_explorer()
 {
+	static const std::filesystem::path reshade_container_path = g_reshade_dll_path.parent_path();
 	const ImVec2 cursor_pos = ImGui::GetCursorScreenPos();
 	const float button_size = ImGui::GetFrameHeight();
 	const float button_spacing = _imgui_context->Style.ItemInnerSpacing.x;
 	const float root_window_width = ImGui::GetWindowContentRegionWidth();
 
-	enum class condition { none, select, add, create };
-	condition condition = condition::none;
+	std::error_code ec;
+
+	enum class condition { pass, select, popup_add, create, backward, forward, reload, cancel };
+	condition condition = condition::pass;
+
+	if (ImGui::ButtonEx("<", ImVec2(button_size, 0), ImGuiButtonFlags_NoNavFocus))
+		condition = condition::backward, _current_browse_path = _current_preset_path;
+
+	if (ImGui::SameLine(0, button_spacing);
+		ImGui::ButtonEx(">", ImVec2(button_size, 0), ImGuiButtonFlags_NoNavFocus))
+		condition = condition::forward, _current_browse_path = _current_preset_path;
 
 	ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2(0.0f, 0.5f));
-	if (ImGui::ButtonEx(_current_preset_path.u8string().c_str(), ImVec2(root_window_width - button_spacing - button_size, 0)))
-		_file_selection_path = _current_preset_path, ImGui::OpenPopup("##explore");
+	if (ImGui::SameLine(0, button_spacing);
+		ImGui::ButtonEx(_current_preset_path.stem().u8string().c_str(), ImVec2(root_window_width - (button_spacing + button_size) * 3, 0), ImGuiButtonFlags_NoNavFocus))
+		if (ImGui::OpenPopup("##explore"), _imgui_context->IO.KeyCtrl)
+			_browse_path_is_input_mode = true;
 	ImGui::PopStyleVar();
 
-	if (ImGui::SameLine(0, button_spacing); ImGui::Button("+", ImVec2(button_size, 0)))
-		_file_selection_path = _current_preset_path.parent_path(), condition = condition::add;
+	if (ImGui::SameLine(0, button_spacing); ImGui::ButtonEx("+", ImVec2(button_size, 0), ImGuiButtonFlags_PressedOnClick | ImGuiButtonFlags_NoNavFocus))
+		condition = condition::popup_add, _current_browse_path = _current_preset_path.parent_path();
 
 	ImGui::SetNextWindowPos(cursor_pos - _imgui_context->Style.WindowPadding);
-	const bool popup_visible = ImGui::BeginPopup("##explore");
-	if (popup_visible)
+	const bool is_explore_open = ImGui::BeginPopup("##explore");
+	if (is_explore_open)
 	{
-		char buf[_MAX_PATH]{};
+		if (ImGui::ButtonEx("<", ImVec2(button_size, 0), ImGuiButtonFlags_NoNavFocus))
+			condition = condition::backward, _current_browse_path = _current_preset_path;
 
-		if (!_file_selection_path.empty())
-			_file_selection_path.u8string().copy(buf, sizeof(buf) - 1);
+		if (ImGui::SameLine(0, button_spacing);
+			ImGui::ButtonEx(">", ImVec2(button_size, 0), ImGuiButtonFlags_NoNavFocus))
+			condition = condition::forward, _current_browse_path = _current_preset_path;
 
-		ImGui::PushItemWidth(root_window_width - button_spacing - button_size);
-		ImGui::InputText("##path", buf, sizeof(buf));
-		_file_selection_path = std::filesystem::u8path(buf);
-		ImGui::PopItemWidth();
-
-		if (_file_selection_path.is_relative())
-			_file_selection_path = g_reshade_dll_path.parent_path() / _file_selection_path;
-
-		if (!_file_selection_path.has_filename())
-			_file_selection_path = _file_selection_path.parent_path();
-
-		if (ImGui::IsKeyPressedMap(ImGuiKey_Enter))
+		ImGui::SameLine(0, button_spacing);
+		if (_browse_path_is_input_mode)
 		{
-			if (std::filesystem::file_type file_type = std::filesystem::status(_file_selection_path).type();
-				file_type == std::filesystem::file_type::directory)
-				condition = condition::add;
+			char buf[_MAX_PATH]{};
+			_current_browse_path.u8string().copy(buf, sizeof(buf) - 1);
+
+			const bool is_edited = ImGui::InputTextEx("##path", buf, sizeof(buf), ImVec2(root_window_width - (button_spacing + button_size) * 3, 0), ImGuiInputTextFlags_None);
+			const bool is_returned = ImGui::IsKeyPressedMap(ImGuiKey_Enter);
+
+			if (ImGui::IsWindowAppearing())
+				ImGui::SetKeyboardFocusHere();
+			else if (!ImGui::IsItemActive())
+				_browse_path_is_input_mode = false;
+
+			if (is_edited || is_returned)
+			{
+				std::filesystem::path input_preset_path = std::filesystem::u8path(buf);
+				std::filesystem::file_type file_type = std::filesystem::status(reshade_container_path / input_preset_path, ec).type();
+
+				if (is_edited && ec.value() != 0x7b) // 0x7b: ERROR_INVALID_NAME
+					_current_browse_path = std::move(input_preset_path);
+
+				if (is_returned)
+				{
+					if (_current_browse_path.empty())
+						condition = condition::cancel;
+					else if (ec.value() == 0x7b) // 0x7b: ERROR_INVALID_NAME
+						condition = condition::pass;
+					else if (file_type == std::filesystem::file_type::directory)
+						condition = condition::popup_add;
+					else
+					{
+						if (_current_browse_path.has_filename())
+							if (const std::wstring extension(_current_browse_path.extension()); extension != L".ini" && extension != L".txt")
+								_current_browse_path += L".ini",
+								file_type = std::filesystem::status(reshade_container_path / _current_browse_path, ec).type();
+
+						if (ec.value() == 0x7b) // 0x7b: ERROR_INVALID_NAME
+							condition = condition::pass;
+						else if (file_type == std::filesystem::file_type::directory)
+							condition = condition::popup_add;
+						else if (file_type == std::filesystem::file_type::not_found)
+							if (_current_browse_path.has_filename())
+								condition = condition::create;
+							else
+								condition = condition::popup_add;
+						else
+							condition = condition::select;
+					}
+				}
+			}
+		}
+		else
+		{
+			ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2(0.0f, 0.5f));
+			if (ImGui::ButtonEx(_current_preset_path.stem().u8string().c_str(), ImVec2(root_window_width - (button_spacing + button_size) * 3, 0), ImGuiButtonFlags_NoNavFocus))
+				if (_imgui_context->IO.KeyCtrl)
+					ImGui::ActivateItem(ImGui::GetID("##path")), _browse_path_is_input_mode = true;
+				else
+					condition = condition::cancel;
+			else if (ImGui::IsKeyPressedMap(ImGuiKey_Enter))
+				condition = condition::reload, _current_browse_path = _current_preset_path;
+			ImGui::PopStyleVar();
+		}
+	}
+
+	if (is_explore_open || condition == condition::backward || condition == condition::forward)
+	{
+		std::filesystem::path preset_container_path = std::filesystem::absolute(reshade_container_path / _current_browse_path);
+		if (!std::filesystem::is_directory(preset_container_path, ec) && preset_container_path.has_filename())
+			preset_container_path = preset_container_path.parent_path();
+
+		std::vector<std::filesystem::directory_entry> preset_container;
+		for (const auto &entry : std::filesystem::directory_iterator(preset_container_path, std::filesystem::directory_options::skip_permission_denied, ec))
+			preset_container.push_back(entry);
+
+		if (condition == condition::backward || condition == condition::forward)
+		{
+			std::vector<std::filesystem::directory_entry> preset_paths;
+			for (const auto &entry : preset_container)
+				if (!entry.is_directory())
+					if (const std::wstring extension(entry.path().extension()); extension == L".ini" || extension == L".txt")
+						if (const reshade::ini_file preset(entry); preset.has("", "TechniqueSorting"))
+							preset_paths.push_back(entry);
+
+			if (preset_paths.begin() == preset_paths.end())
+				condition = condition::pass;
 			else
 			{
-				if (const std::string extension = _file_selection_path.extension().u8string();
-					extension != ".ini" && extension != ".txt")
-					_file_selection_path = _file_selection_path.wstring() + L".ini";
-				if (file_type == std::filesystem::file_type::not_found)
-					condition = condition::create;
+				const std::filesystem::path &current_preset_path = _current_preset_path;
+				if (auto it = std::find_if(preset_paths.begin(), preset_paths.end(), [&ec, &current_preset_path](const std::filesystem::directory_entry &entry) { return std::filesystem::equivalent(entry, current_preset_path, ec); }); it == preset_paths.end())
+					if (condition == condition::backward)
+						_current_preset_path = _current_browse_path = preset_paths.back();
+					else
+						_current_preset_path = _current_browse_path = preset_paths.front();
 				else
-					condition = condition::select;
+					if (condition == condition::backward)
+						_current_preset_path = _current_browse_path = it == preset_paths.begin() ? preset_paths.back() : *--it;
+					else
+						_current_preset_path = _current_browse_path = it == preset_paths.end() - 1 ? preset_paths.front() : *++it;
 			}
 		}
 
-		std::filesystem::path directory_path;
-		if (std::filesystem::is_directory(_file_selection_path) || !_file_selection_path.has_parent_path())
-			directory_path = _file_selection_path;
-		else
-			directory_path = _file_selection_path.parent_path();
-
-		if (ImGui::SameLine(0, button_spacing); ImGui::Button("+", ImVec2(button_size, 0)))
-			_file_selection_path = directory_path, condition = condition::add;
-
-		if (ImGui::BeginChild("##paths", ImVec2(0, 300), true))
+		if (is_explore_open)
 		{
-			if (ImGui::Selectable(".."))
-			{
-				while (!std::filesystem::is_directory(_file_selection_path) && _file_selection_path.parent_path() != _file_selection_path)
-					_file_selection_path = _file_selection_path.parent_path();
-				_file_selection_path = _file_selection_path.parent_path();
-			}
+			if (ImGui::SameLine(0, button_spacing); ImGui::ButtonEx("+", ImVec2(button_size, 0), ImGuiButtonFlags_PressedOnClick | ImGuiButtonFlags_NoNavFocus))
+				if (const std::filesystem::file_type file_type = std::filesystem::status(reshade_container_path / _current_browse_path, ec).type(); ec.value() != 0x7b) // 0x7b: ERROR_INVALID_NAME
+					if (condition = condition::popup_add; file_type == std::filesystem::file_type::not_found || file_type != std::filesystem::file_type::directory)
+						_current_browse_path = _current_browse_path.parent_path();
 
-			std::error_code ec;
-			std::vector<std::filesystem::directory_entry> preset_files;
-			for (const auto &entry : std::filesystem::directory_iterator(directory_path, std::filesystem::directory_options::skip_permission_denied, ec))
+			if (ImGui::IsWindowAppearing() || condition == condition::backward || condition == condition::forward)
+				ImGui::SetNextWindowFocus();
+
+			if (ImGui::BeginChild("##paths", ImVec2(0, 300), true))
 			{
-				if (entry.is_directory(ec))
+				if (ImGui::Selectable(".."))
 				{
-					if (ImGui::Selectable((entry.path().filename().u8string() + '\\').c_str()))
-						_file_selection_path = entry;
+					for (_current_browse_path = std::filesystem::absolute(reshade_container_path / _current_browse_path);
+						!std::filesystem::is_directory(_current_browse_path, ec) && _current_browse_path.parent_path() != _current_browse_path;)
+						_current_browse_path = _current_browse_path.parent_path();
+					_current_browse_path = _current_browse_path.parent_path();
+
+					if (std::filesystem::equivalent(reshade_container_path, _current_browse_path))
+						_current_browse_path = L".";
+					else if (std::equal(reshade_container_path.begin(), reshade_container_path.end(), _current_browse_path.begin()))
+						_current_browse_path = _current_browse_path.lexically_proximate(reshade_container_path);
 				}
-				else
+
+				std::vector<std::filesystem::directory_entry> preset_paths;
+				for (const auto &entry : preset_container)
+					if (const std::filesystem::file_type file_type = entry.status(ec).type(); file_type == std::filesystem::file_type::directory)
+						if (ImGui::Selectable((entry.path().filename().u8string() + '\\').c_str()))
+							if (std::filesystem::equivalent(reshade_container_path, entry))
+								_current_browse_path = L".";
+							else if (std::equal(reshade_container_path.begin(), reshade_container_path.end(), entry.path().begin()))
+								_current_browse_path = entry.path().lexically_proximate(reshade_container_path);
+							else
+								_current_browse_path = entry;
+						else {}
+					else if (const std::wstring extension(entry.path().extension()); extension == L".ini" || extension == L".txt")
+						preset_paths.push_back(entry);
+
+				for (const auto &entry : preset_paths)
 				{
-					if (const std::string extension = entry.path().extension().u8string(); extension == ".ini" || extension == ".txt")
-						preset_files.push_back(entry);
+					const bool is_current_preset = std::filesystem::equivalent(entry, _current_preset_path, ec);
+
+					if (ImGui::Selectable(entry.path().filename().u8string().c_str(), static_cast<bool>(is_current_preset)))
+						condition = condition::select, _current_browse_path = entry.path().lexically_proximate(reshade_container_path);
+
+					if (is_current_preset)
+						if (_current_preset_is_covered && !ImGui::IsWindowAppearing())
+							_current_preset_is_covered = false, ImGui::SetScrollHereY();
+						else if (condition == condition::backward || condition == condition::forward)
+							ImGui::SetScrollHereY();
 				}
 			}
-			for (const auto &entry : preset_files)
-			{
-				if (ImGui::Selectable(entry.path().filename().u8string().c_str()))
-					_file_selection_path = entry, condition = condition::select;
-			}
+			ImGui::EndChild();
 		}
-		ImGui::EndChild();
 	}
 
 	if (condition == condition::select)
-		if (const reshade::ini_file preset(_file_selection_path); !preset.has("", "TechniqueSorting"))
-			condition = condition::none;
+		if (const reshade::ini_file preset(reshade_container_path / _current_browse_path); !preset.has("", "TechniqueSorting"))
+			condition = condition::pass;
 
-	if (condition == condition::add)
-		ImGui::OpenPopup("##name"), condition = condition::none;
+	if (condition == condition::popup_add)
+		condition = condition::pass, ImGui::OpenPopup("##name");
 
 	ImGui::SetNextWindowPos(cursor_pos + ImVec2(root_window_width + button_size - 230, button_size));
 	if (ImGui::BeginPopup("##name"))
 	{
+		if (ImGui::IsWindowAppearing())
+			ImGui::SetKeyboardFocusHere();
+
 		char filename[_MAX_PATH]{};
 		ImGui::InputText("Name", filename, sizeof(filename));
 
-		if (filename[0] != '\0' && ImGui::IsKeyPressedMap(ImGuiKey_Enter))
+		if (ImGui::IsKeyPressedMap(ImGuiKey_Enter))
 		{
-			if (std::filesystem::path relative_path = std::filesystem::u8path(filename);
-				relative_path.has_filename())
+			if (std::filesystem::path input_preset_path = std::filesystem::u8path(filename); input_preset_path.has_filename())
 			{
-				if (!relative_path.has_extension())
-					relative_path = relative_path.wstring() + L".ini";
-				std::filesystem::path file_selection_path = _file_selection_path / relative_path;
+				if (const std::wstring extension(input_preset_path.extension()); extension != L".ini" && extension != L".txt")
+					input_preset_path += L".ini";
+				if (const std::filesystem::file_type file_type = std::filesystem::status(reshade_container_path / _current_browse_path / input_preset_path, ec).type(); ec.value() == 0x7b) // 0x7b: ERROR_INVALID_NAME
+					condition = condition::pass;
+				else if (file_type == std::filesystem::file_type::directory)
+					condition = condition::pass;
+				else if (file_type == std::filesystem::file_type::not_found)
+					condition = condition::create;
+				else if (const reshade::ini_file preset(reshade_container_path / _current_browse_path / input_preset_path); preset.has("", "TechniqueSorting"))
+					condition = condition::select;
+				else
+					condition = condition::pass;
 
-				if (std::filesystem::file_type file_type = std::filesystem::status(file_selection_path).type();
-					file_type == std::filesystem::file_type::not_found)
-					condition = condition::add;
-				else if (file_type != std::filesystem::file_type::directory)
-					if (const reshade::ini_file preset(file_selection_path); preset.has("", "TechniqueSorting"))
-						condition = condition::add;
-
-				if (condition == condition::add)
-					_file_selection_path = file_selection_path;
+				if (condition != condition::pass)
+					_current_browse_path /= input_preset_path;
 			}
 		}
 
-		if (condition == condition::add)
+		if (condition != condition::pass)
 			ImGui::CloseCurrentPopup();
 
 		ImGui::EndPopup();
 	}
 
-	if (condition == condition::select || condition == condition::add || condition == condition::create)
+	if (condition != condition::pass)
 	{
-		_show_splash = true;
-		_current_preset_path = std::filesystem::absolute(_file_selection_path);
+		if (condition != condition::cancel)
+		{
+			_show_splash = true;
+			set_current_preset();
 
-		save_config();
-		load_current_preset();
-
-		if (popup_visible)
+			save_config();
+			load_current_preset();
+		}
+		if (is_explore_open && condition != condition::backward && condition != condition::forward)
 			ImGui::CloseCurrentPopup();
 	}
 
-	if (popup_visible)
+	if (is_explore_open)
 		ImGui::EndPopup();
+	else if (!_current_preset_is_covered)
+		_current_preset_is_covered = true;
 }
 
 #endif
