@@ -59,7 +59,10 @@ bool reshadefx::preprocessor::append_file(const std::filesystem::path &path)
 	std::string_view filedata(filebuffer.data(), static_cast<size_t>(st.st_size));
 
 	// Remove BOM (0xefbbbf means 0xfeff)
-	if (filedata.size() >= 3 && filedata[0] == (char)0xef && filedata[1] == (char)0xbb && filedata[2] == (char)0xbf)
+	if (filedata.size() >= 3 &&
+		static_cast<unsigned char>(filedata[0]) == 0xef &&
+		static_cast<unsigned char>(filedata[1]) == 0xbb &&
+		static_cast<unsigned char>(filedata[2]) == 0xbf)
 		filedata = std::string_view(filedata.data() + 3, filedata.size() - 3);
 
 	_success = true;
@@ -551,7 +554,10 @@ void reshadefx::preprocessor::parse_include()
 		std::string_view filedata(filebuffer.data(), static_cast<size_t>(st.st_size));
 
 		// Remove BOM (0xefbbbf means 0xfeff)
-		if (filedata.size() >= 3 && filedata[0] == (char)0xef && filedata[1] == (char)0xbb && filedata[2] == (char)0xbf)
+		if (filedata.size() >= 3 &&
+			static_cast<unsigned char>(filedata[0]) == 0xef &&
+			static_cast<unsigned char>(filedata[1]) == 0xbb &&
+			static_cast<unsigned char>(filedata[2]) == 0xbf)
 			filedata = std::string_view(filedata.data() + 3, filedata.size() - 3);
 
 		it = _filecache.emplace(filepath.u8string(), std::string(filedata)).first;

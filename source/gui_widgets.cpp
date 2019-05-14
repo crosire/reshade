@@ -279,7 +279,7 @@ bool imgui_list_with_buttons(const char *label, const std::string_view ui_items,
 
 	ImGui::PushItemWidth(ImGui::CalcItemWidth() - (button_spacing * 2 + button_size * 2));
 
-	if (ImGui::BeginCombo("##v", items.size() > v && v >= 0 ? items[v].data() : nullptr, ImGuiComboFlags_NoArrowButton))
+	if (ImGui::BeginCombo("##v", items.size() > static_cast<size_t>(v) && v >= 0 ? items[v].data() : nullptr, ImGuiComboFlags_NoArrowButton))
 	{
 		auto it = items.begin();
 		for (size_t i = 0; it != items.end(); ++it, ++i)

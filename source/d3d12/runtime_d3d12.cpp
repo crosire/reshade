@@ -39,7 +39,7 @@ namespace reshade::d3d12
 		com_ptr<ID3D12DescriptorHeap> sampler_heap;
 
 		UINT16 sampler_list = 0;
-		UINT64 storage_offset, storage_size;
+		SIZE_T storage_offset, storage_size;
 		D3D12_GPU_VIRTUAL_ADDRESS cbv_gpu_address;
 		D3D12_CPU_DESCRIPTOR_HANDLE srv_cpu_base;
 		D3D12_GPU_DESCRIPTOR_HANDLE srv_gpu_base;
