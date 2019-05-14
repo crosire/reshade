@@ -1862,24 +1862,24 @@ HOOK_EXPORT void WINAPI glTexImage1D(GLenum target, GLint level, GLint internalf
 
 	switch (internalformat)
 	{
-		case GL_RED:
-			internalformat = GL_R8;
-			break;
-		case GL_RG:
-			internalformat = GL_RG8;
-			break;
-		case GL_RGB:
-			internalformat = GL_RGB8;
-			break;
-		case GL_RGBA:
-			internalformat = GL_RGBA8;
-			break;
-		case GL_DEPTH_COMPONENT:
-			internalformat = GL_DEPTH_COMPONENT16;
-			break;
-		case GL_DEPTH_STENCIL:
-			internalformat = GL_DEPTH24_STENCIL8;
-			break;
+	case GL_RED:
+		internalformat = GL_R8;
+		break;
+	case GL_RG:
+		internalformat = GL_RG8;
+		break;
+	case GL_RGB:
+		internalformat = GL_RGB8;
+		break;
+	case GL_RGBA:
+		internalformat = GL_RGBA8;
+		break;
+	case GL_DEPTH_COMPONENT:
+		internalformat = GL_DEPTH_COMPONENT16;
+		break;
+	case GL_DEPTH_STENCIL:
+		internalformat = GL_DEPTH24_STENCIL8;
+		break;
 	}
 	trampoline(target, level, internalformat, width, border, format, type, pixels);
 }
@@ -1889,24 +1889,24 @@ HOOK_EXPORT void WINAPI glTexImage2D(GLenum target, GLint level, GLint internalf
 
 	switch (internalformat)
 	{
-		case GL_RED:
-			internalformat = GL_R8;
-			break;
-		case GL_RG:
-			internalformat = GL_RG8;
-			break;
-		case GL_RGB:
-			internalformat = GL_RGB8;
-			break;
-		case GL_RGBA:
-			internalformat = GL_RGBA8;
-			break;
-		case GL_DEPTH_COMPONENT:
-			internalformat = GL_DEPTH_COMPONENT16;
-			break;
-		case GL_DEPTH_STENCIL:
-			internalformat = GL_DEPTH24_STENCIL8;
-			break;
+	case GL_RED:
+		internalformat = GL_R8;
+		break;
+	case GL_RG:
+		internalformat = GL_RG8;
+		break;
+	case GL_RGB:
+		internalformat = GL_RGB8;
+		break;
+	case GL_RGBA:
+		internalformat = GL_RGBA8;
+		break;
+	case GL_DEPTH_COMPONENT:
+		internalformat = GL_DEPTH_COMPONENT16;
+		break;
+	case GL_DEPTH_STENCIL:
+		internalformat = GL_DEPTH24_STENCIL8;
+		break;
 	}
 	trampoline(target, level, internalformat, width, height, border, format, type, pixels);
 }
@@ -1916,24 +1916,24 @@ extern "C"  void WINAPI glTexImage3D(GLenum target, GLint level, GLint internalf
 
 	switch (internalformat)
 	{
-		case GL_RED:
-			internalformat = GL_R8;
-			break;
-		case GL_RG:
-			internalformat = GL_RG8;
-			break;
-		case GL_RGB:
-			internalformat = GL_RGB8;
-			break;
-		case GL_RGBA:
-			internalformat = GL_RGBA8;
-			break;
-		case GL_DEPTH_COMPONENT:
-			internalformat = GL_DEPTH_COMPONENT16;
-			break;
-		case GL_DEPTH_STENCIL:
-			internalformat = GL_DEPTH24_STENCIL8;
-			break;
+	case GL_RED:
+		internalformat = GL_R8;
+		break;
+	case GL_RG:
+		internalformat = GL_RG8;
+		break;
+	case GL_RGB:
+		internalformat = GL_RGB8;
+		break;
+	case GL_RGBA:
+		internalformat = GL_RGBA8;
+		break;
+	case GL_DEPTH_COMPONENT:
+		internalformat = GL_DEPTH_COMPONENT16;
+		break;
+	case GL_DEPTH_STENCIL:
+		internalformat = GL_DEPTH24_STENCIL8;
+		break;
 	}
 	trampoline(target, level, internalformat, width, height, depth, border, format, type, pixels);
 }

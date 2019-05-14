@@ -255,6 +255,9 @@ namespace reshade
 		void get_uniform_value(const uniform &variable, uint8_t *data, size_t size) const;
 		void set_uniform_value(uniform &variable, const uint8_t *data, size_t size);
 
+		void set_current_preset();
+		void set_current_preset(std::filesystem::path path);
+
 		bool _needs_update = false;
 		unsigned long _latest_version[3] = {};
 		std::shared_ptr<class input> _input;
@@ -271,12 +274,10 @@ namespace reshade
 		bool _screenshot_save_success = false;
 		bool _screenshot_include_preset = false;
 
-		size_t _current_preset = 0;
-		std::vector<std::filesystem::path> _preset_files;
+		std::filesystem::path _current_preset_path;
 
 		std::vector<std::string> _global_preprocessor_definitions;
 		std::vector<std::string> _preset_preprocessor_definitions;
-		std::vector<std::filesystem::path> _preset_search_paths;
 		std::vector<std::filesystem::path> _effect_search_paths;
 		std::vector<std::filesystem::path> _texture_search_paths;
 
@@ -317,6 +318,7 @@ namespace reshade
 		void draw_code_editor();
 		void draw_overlay_variable_editor();
 		void draw_overlay_technique_editor();
+		void draw_preset_explorer();
 
 		std::vector<const texture *> _texture_previews;
 		std::vector<std::pair<std::string, std::function<void()>>> _menu_callables;
@@ -356,6 +358,11 @@ namespace reshade
 		char _effect_filter_buffer[64] = {};
 		std::filesystem::path _file_selection_path;
 		imgui_code_editor _editor;
+
+		// used by preset explorer
+		bool _browse_path_is_input_mode = false;
+		bool _current_preset_is_covered = true;
+		std::filesystem::path _current_browse_path;
 #endif
 	};
 }

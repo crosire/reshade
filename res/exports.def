@@ -1,44 +1,47 @@
 EXPORTS
 	; d3d9.dll
-	Direct3DCreate9
-	Direct3DCreate9Ex
+	Direct3DCreate9 @37
+	Direct3DCreate9Ex @38
 
-	D3DPERF_BeginEvent
-	D3DPERF_EndEvent
-	D3DPERF_SetMarker
-	D3DPERF_SetRegion
-	D3DPERF_QueryRepeatFrame
-	D3DPERF_SetOptions
-	D3DPERF_GetStatus
+	D3DPERF_BeginEvent @27
+	D3DPERF_EndEvent @28
+	D3DPERF_GetStatus @29
+	D3DPERF_QueryRepeatFrame @30
+	D3DPERF_SetMarker @31
+	D3DPERF_SetOptions @32
+	D3DPERF_SetRegion @33
 
 	; d3d10.dll
-	D3D10CreateDevice
-	D3D10CreateDeviceAndSwapChain
+	D3D10CreateDevice @4
+	D3D10CreateDeviceAndSwapChain @5
 
 	; d3d10_1.dll
 	D3D10CreateDevice1
 	D3D10CreateDeviceAndSwapChain1
 
 	; d3d11.dll
-	D3D11CreateDevice
-	D3D11CreateDeviceAndSwapChain
+	D3D11CreateDevice @22
+	D3D11CreateDeviceAndSwapChain @23
 
 	; d3d12.dll
-	D3D12CreateDevice
-	D3D12GetDebugInterface
-	D3D12SerializeRootSignature
-	D3D12SerializeVersionedRootSignature
+	D3D12CreateDevice @101
+	D3D12GetDebugInterface @102
+	D3D12CreateRootSignatureDeserializer @107
+	D3D12CreateVersionedRootSignatureDeserializer @108
+	D3D12EnableExperimentalFeatures @110
+	D3D12SerializeRootSignature @115
+	D3D12SerializeVersionedRootSignature @116
 
 	; dxgi.dll
-	CreateDXGIFactory
-	CreateDXGIFactory1
-	CreateDXGIFactory2
+	CreateDXGIFactory @10
+	CreateDXGIFactory1 @11
+	CreateDXGIFactory2 @12
 
 	DXGIDumpJournal
 	DXGIReportAdapterConfiguration
-	DXGID3D10CreateDevice
-	DXGID3D10CreateLayeredDevice
-	DXGID3D10GetLayeredDeviceSize
+	DXGID3D10CreateDevice @13
+	DXGID3D10CreateLayeredDevice @14
+	DXGID3D10GetLayeredDeviceSize @15
 	DXGID3D10RegisterLayers
 
 	; opengl32.dll
@@ -420,12 +423,11 @@ EXPORTS
 	SetCursorPos = HookSetCursorPosition
 
 	; ws2_32.dll
-	send = HookSend
-	sendto = HookSendTo
-	recv = HookRecv
-	recvfrom = HookRecvFrom
-	WSASend = HookWSASend
-	WSASendTo = HookWSASendTo
-	WSARecv = HookWSARecv
-	WSARecvEx = HookWSARecvEx
-	WSARecvFrom = HookWSARecvFrom
+	send = HookSend @19
+	sendto = HookSendTo @20
+	recv = HookRecv @16
+	recvfrom = HookRecvFrom @17
+	WSASend = HookWSASend @96
+	WSASendTo = HookWSASendTo @99
+	WSARecv = HookWSARecv @91
+	WSARecvFrom = HookWSARecvFrom @93

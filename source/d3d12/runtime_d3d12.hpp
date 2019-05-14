@@ -32,7 +32,6 @@ namespace reshade::d3d12
 
 		bool init_texture(texture &info) override;
 		void upload_texture(texture &texture, const uint8_t *pixels) override;
-		bool update_texture_reference(texture &texture);
 
 		bool compile_effect(effect_data &effect) override;
 		void unload_effects() override;

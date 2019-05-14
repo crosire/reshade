@@ -35,14 +35,6 @@ HOOK_EXPORT int WSAAPI HookWSARecv(SOCKET s, LPWSABUF lpBuffers, DWORD dwBufferC
 
 	return status;
 }
-HOOK_EXPORT int WSAAPI HookWSARecvEx(SOCKET s, char *buf, int len, int *flags)
-{
-	static const auto trampoline = reshade::hooks::call(HookWSARecvEx);
-	const int recieved = trampoline(s, buf, len, flags);
-	if (recieved > 0)
-		InterlockedAdd(&g_network_traffic, recieved);
-	return recieved;
-}
 HOOK_EXPORT int WSAAPI HookWSARecvFrom(SOCKET s, LPWSABUF lpBuffers, DWORD dwBufferCount, LPDWORD lpNumberOfBytesRecvd, LPDWORD lpFlags, struct sockaddr *lpFrom, LPINT lpFromlen, LPWSAOVERLAPPED lpOverlapped, LPWSAOVERLAPPED_COMPLETION_ROUTINE lpCompletionRoutine)
 {
 	static const auto trampoline = reshade::hooks::call(HookWSARecvFrom);
