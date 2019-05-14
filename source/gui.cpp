@@ -1836,12 +1836,17 @@ void reshade::runtime::draw_overlay_variable_editor()
 			const auto ui_max_val = variable.annotation_as_float("ui_max");
 			const auto ui_stp_val = std::max(0.001f, variable.annotation_as_float("ui_step"));
 
+			// Calculate display precision based on step value
+			char precision_format[] = "%.0f";
+			for (float x = ui_stp_val; x < 1.0f && precision_format[2] < '9'; x *= 10.0f)
+				++precision_format[2]; // This changes the text to "%.1f", "%.2f", "%.3f", ...
+
 			if (ui_type == "slider")
-				modified = imgui_slider_with_buttons(label.data(), ImGuiDataType_Float, data, variable.type.rows, &ui_stp_val, &ui_min_val, &ui_max_val, "%.3f");
+				modified = imgui_slider_with_buttons(label.data(), ImGuiDataType_Float, data, variable.type.rows, &ui_stp_val, &ui_min_val, &ui_max_val, precision_format);
 			else if (ui_type == "drag")
 				modified = variable.annotations.find("ui_step") == variable.annotations.end() ?
-					ImGui::DragScalarN(label.data(), ImGuiDataType_Float, data, variable.type.rows, ui_stp_val, &ui_min_val, &ui_max_val, "%.3f") :
-					imgui_drag_with_buttons(label.data(), ImGuiDataType_Float, data, variable.type.rows, &ui_stp_val, &ui_min_val, &ui_max_val, "%.3f");
+					ImGui::DragScalarN(label.data(), ImGuiDataType_Float, data, variable.type.rows, ui_stp_val, &ui_min_val, &ui_max_val, precision_format) :
+					imgui_drag_with_buttons(label.data(), ImGuiDataType_Float, data, variable.type.rows, &ui_stp_val, &ui_min_val, &ui_max_val, precision_format);
 			else if (ui_type == "color" && variable.type.rows == 1)
 				modified = imgui_slider_for_alpha(label.data(), data);
 			else if (ui_type == "color" && variable.type.rows == 3)
