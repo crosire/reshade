@@ -213,6 +213,7 @@ void reshade::runtime::init_ui()
 		config.set("GENERAL", "ShowFrameTime", _show_frametime);
 		config.set("GENERAL", "ShowScreenshotMessage", _show_screenshot_message);
 		config.set("GENERAL", "ClockFormat", _clock_format);
+		config.set("GENERAL", "NoFontScaling", _no_font_scaling);
 		config.set("GENERAL", "SaveWindowState", _imgui_context->IO.IniFilename != nullptr);
 		config.set("GENERAL", "TutorialProgress", _tutorial_index);
 		config.set("GENERAL", "NewVariableUI", _variable_editor_tabs);
@@ -820,7 +821,9 @@ void reshade::runtime::draw_overlay_menu_home()
 		if ((_tutorial_index != 1 || !_current_preset_path.empty()) &&
 			ImGui::Button(_tutorial_index == 3 ? "Finish" : "Continue", ImVec2(ImGui::GetContentRegionAvailWidth(), 0)))
 		{
-			_tutorial_index++;
+			// Disable font scaling after tutorial
+			if (_tutorial_index++ == 3)
+				_no_font_scaling = true;
 
 			save_config();
 		}
