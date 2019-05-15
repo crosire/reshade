@@ -52,10 +52,10 @@ namespace reshade::d3d11
 		void track_rendertargets(int format_index, ID3D11DepthStencilView *depthstencil, UINT num_views, ID3D11RenderTargetView *const *views);
 		void track_depth_texture(int format_index, UINT index, com_ptr<ID3D11Texture2D> src_texture, com_ptr<ID3D11DepthStencilView> src_depthstencil, com_ptr<ID3D11Texture2D> dest_texture, bool cleared);
 
-		void keep_cleared_depth_textures(bool reversed);
+		void keep_cleared_depth_textures(bool inverted);
 
 		intermediate_snapshot_info find_best_snapshot(UINT width, UINT height);
-		ID3D11Texture2D *find_best_cleared_depth_buffer_texture(UINT clear_index, bool reversed);
+		ID3D11Texture2D *find_best_cleared_depth_buffer_texture(UINT clear_index, bool inverted);
 #endif
 
 	private:

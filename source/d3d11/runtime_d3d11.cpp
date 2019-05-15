@@ -1362,7 +1362,7 @@ void reshade::d3d11::runtime_d3d11::draw_debug_menu()
 		if (depth_buffer_before_clear)
 		{
 			ImGui::SameLine();
-			modified |= ImGui::Checkbox("Reversed", &_clearing_depthstencil_after_present);
+			modified |= ImGui::Checkbox("Inverted", &_clearing_depthstencil_after_present);
 
 			if (ImGui::Checkbox("Extended depth buffer detection", &extended_depth_buffer_detection))
 			{

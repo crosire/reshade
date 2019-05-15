@@ -234,9 +234,9 @@ namespace reshade::d3d11
 		return best_snapshot;
 	}
 
-	void draw_call_tracker::keep_cleared_depth_textures(bool reversed)
+	void draw_call_tracker::keep_cleared_depth_textures(bool inverted)
 	{
-		if (reversed)
+		if (inverted)
 		{
 			auto it = std::find_if(_cleared_depth_textures.rbegin(), _cleared_depth_textures.rend(), [](const std::pair<UINT, depth_texture_save_info> &w) { return w.second.cleared; }).base();
 			if (it != _cleared_depth_textures.begin())
@@ -260,13 +260,13 @@ namespace reshade::d3d11
 		}
 	}
 
-	ID3D11Texture2D *draw_call_tracker::find_best_cleared_depth_buffer_texture(UINT clear_index, bool reversed)
+	ID3D11Texture2D *draw_call_tracker::find_best_cleared_depth_buffer_texture(UINT clear_index, bool inverted)
 	{
 		// Function that selects the best cleared depth texture according to the clearing number defined in the configuration settings
 		ID3D11Texture2D *best_match = nullptr;
 
 		// Ensure to work only on the depth textures retrieved before the last depth stencil clearance
-		keep_cleared_depth_textures(reversed);
+		keep_cleared_depth_textures(inverted);
 
 		for (const auto &it : _cleared_depth_textures)
 		{
