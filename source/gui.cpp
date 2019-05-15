@@ -701,11 +701,10 @@ void reshade::runtime::draw_overlay_menu_home()
 			}
 			if (const auto it = std::find_if_not(_techniques.begin(), _techniques.end(), [](const reshade::technique &a) { return a.enabled || a.toggle_key_data[0] != 0; }); it != _techniques.end())
 			{
-				static const std::string ui_label("ui_label");
 				std::stable_sort(it, _techniques.end(), [](const reshade::technique &h, const reshade::technique &i)
 					{
-						const auto v = h.annotations.find(ui_label);
-						const auto w = i.annotations.find(ui_label);
+						const auto v = h.annotations.find("ui_label");
+						const auto w = i.annotations.find("ui_label");
 						std::string x(v == h.annotations.end() ? h.name : v->second.second.string_data);
 						std::string y(w == i.annotations.end() ? i.name : w->second.second.string_data);
 						std::transform(x.begin(), x.end(), x.begin(), tolower);
