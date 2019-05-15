@@ -699,17 +699,19 @@ void reshade::runtime::draw_overlay_menu_home()
 					}
 				}
 			}
-			if (const auto it = std::find_if_not(_techniques.begin(), _techniques.end(), [](const reshade::technique &a) { return a.enabled || a.toggle_key_data[0] != 0; }); it != _techniques.end())
+
+			if (const auto it = std::find_if_not(_techniques.begin(), _techniques.end(), [](const reshade::technique &a) {
+					return a.enabled || a.toggle_key_data[0] != 0;
+				}); it != _techniques.end())
 			{
-				std::stable_sort(it, _techniques.end(), [](const reshade::technique &h, const reshade::technique &i)
-					{
-						const auto v = h.annotations.find("ui_label");
-						const auto w = i.annotations.find("ui_label");
-						std::string x(v == h.annotations.end() ? h.name : v->second.second.string_data);
-						std::string y(w == i.annotations.end() ? i.name : w->second.second.string_data);
-						std::transform(x.begin(), x.end(), x.begin(), tolower);
-						std::transform(y.begin(), y.end(), y.begin(), tolower);
-						return x < y;
+				std::stable_sort(it, _techniques.end(), [](const reshade::technique &lhs, const reshade::technique &rhs) {
+						std::string lhs_label(lhs.annotation_as_string("ui_label"));
+						if (lhs_label.empty()) lhs_label = lhs.name;
+						std::transform(lhs_label.begin(), lhs_label.end(), lhs_label.begin(), tolower);
+						std::string rhs_label(rhs.annotation_as_string("ui_label"));
+						if (rhs_label.empty()) rhs_label = rhs.name;
+						std::transform(rhs_label.begin(), rhs_label.end(), rhs_label.begin(), tolower);
+						return lhs_label < rhs_label;
 					});
 			}
 
