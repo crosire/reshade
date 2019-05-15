@@ -234,30 +234,39 @@ namespace reshade::d3d11
 		return best_snapshot;
 	}
 
-	void draw_call_tracker::keep_cleared_depth_textures()
+	void draw_call_tracker::keep_cleared_depth_textures(bool reversed)
 	{
-		// Function that keeps only the depth textures that has been retrieved before the last depth stencil clearance
-		std::map<UINT, depth_texture_save_info>::reverse_iterator it = _cleared_depth_textures.rbegin();
-
-		// Reverse loop on the cleared depth textures map
-		while (it != _cleared_depth_textures.rend())
+		if (reversed)
 		{
-			// Exit if the last cleared depth stencil is found
-			if (it->second.cleared)
-				return;
+			auto it = std::find_if(_cleared_depth_textures.rbegin(), _cleared_depth_textures.rend(), [](const std::pair<UINT, depth_texture_save_info> &w) { return w.second.cleared; }).base();
+			if (it != _cleared_depth_textures.begin())
+				_cleared_depth_textures.erase(_cleared_depth_textures.begin(), it--);
+		}
+		else
+		{
+			// Function that keeps only the depth textures that has been retrieved before the last depth stencil clearance
+			std::map<UINT, depth_texture_save_info>::reverse_iterator it = _cleared_depth_textures.rbegin();
 
-			// Remove the depth texture if it was retrieved after the last clearance of the depth stencil
-			it = std::map<UINT, depth_texture_save_info>::reverse_iterator(_cleared_depth_textures.erase(std::next(it).base()));
+			// Reverse loop on the cleared depth textures map
+			while (it != _cleared_depth_textures.rend())
+			{
+				// Exit if the last cleared depth stencil is found
+				if (it->second.cleared)
+					return;
+
+				// Remove the depth texture if it was retrieved after the last clearance of the depth stencil
+				it = std::map<UINT, depth_texture_save_info>::reverse_iterator(_cleared_depth_textures.erase(std::next(it).base()));
+			}
 		}
 	}
 
-	ID3D11Texture2D *draw_call_tracker::find_best_cleared_depth_buffer_texture(UINT clear_index)
+	ID3D11Texture2D *draw_call_tracker::find_best_cleared_depth_buffer_texture(UINT clear_index, bool reversed)
 	{
 		// Function that selects the best cleared depth texture according to the clearing number defined in the configuration settings
 		ID3D11Texture2D *best_match = nullptr;
 
 		// Ensure to work only on the depth textures retrieved before the last depth stencil clearance
-		keep_cleared_depth_textures();
+		keep_cleared_depth_textures(reversed);
 
 		for (const auto &it : _cleared_depth_textures)
 		{

@@ -72,12 +72,14 @@ reshade::d3d11::runtime_d3d11::runtime_d3d11(ID3D11Device *device, IDXGISwapChai
 		config.get("DX11_BUFFER_DETECTION", "DepthBufferTextureFormat", depth_buffer_texture_format);
 		config.get("DX11_BUFFER_DETECTION", "ExtendedDepthBufferDetection", extended_depth_buffer_detection);
 		config.get("DX11_BUFFER_DETECTION", "DepthBufferClearingNumber", cleared_depth_buffer_index);
+		config.get("DX11_BUFFER_DETECTION", "ClearingDepthStencilAfterPresent", _clearing_depthstencil_after_present);
 	});
 	subscribe_to_save_config([this](ini_file &config) {
 		config.set("DX11_BUFFER_DETECTION", "DepthBufferRetrievalMode", depth_buffer_before_clear);
 		config.set("DX11_BUFFER_DETECTION", "DepthBufferTextureFormat", depth_buffer_texture_format);
 		config.set("DX11_BUFFER_DETECTION", "ExtendedDepthBufferDetection", extended_depth_buffer_detection);
 		config.set("DX11_BUFFER_DETECTION", "DepthBufferClearingNumber", cleared_depth_buffer_index);
+		config.set("DX11_BUFFER_DETECTION", "ClearingDepthStencilAfterPresent", _clearing_depthstencil_after_present);
 	});
 }
 reshade::d3d11::runtime_d3d11::~runtime_d3d11()
@@ -1350,17 +1352,31 @@ void reshade::d3d11::runtime_d3d11::draw_debug_menu()
 			return;
 		}
 
-		modified |= ImGui::Checkbox("Copy depth before clearing", &depth_buffer_before_clear);
+		if (ImGui::Checkbox("Copy depth before clearing", &depth_buffer_before_clear))
+		{
+			modified = true;
+			_clearing_depthstencil_after_present = false;
+		}
 
 		if (depth_buffer_before_clear)
 		{
+			ImGui::SameLine();
+			modified |= ImGui::Checkbox("Reversed", &_clearing_depthstencil_after_present);
+
 			if (ImGui::Checkbox("Extended depth buffer detection", &extended_depth_buffer_detection))
 			{
-				cleared_depth_buffer_index = 0;
+				if (cleared_depth_buffer_index != UINT_MAX)
+					cleared_depth_buffer_index = 0;
 				modified = true;
 			}
 
-			_current_tracker->keep_cleared_depth_textures();
+			if (bool value = UINT_MAX == cleared_depth_buffer_index; ImGui::Checkbox("Always copy depth buffer", &value))
+			{
+				cleared_depth_buffer_index = value ? UINT_MAX : 0;
+				modified = true;
+			}
+
+			_current_tracker->keep_cleared_depth_textures(_clearing_depthstencil_after_present);
 
 			ImGui::Spacing();
 			ImGui::TextUnformatted("Depth Buffers:");
@@ -1369,13 +1385,18 @@ void reshade::d3d11::runtime_d3d11::draw_debug_menu()
 
 			for (const auto &it : _current_tracker->cleared_depth_textures())
 			{
-				char label[512] = "";
+				char label[16]{};
 				sprintf_s(label, "%s%2u", (current_index == cleared_depth_buffer_index ? "> " : "  "), current_index);
 
-				if (bool value = cleared_depth_buffer_index == current_index; ImGui::Checkbox(label, &value))
+				if (cleared_depth_buffer_index == UINT_MAX)
+					ImGui::Text(label);
+				else
 				{
-					cleared_depth_buffer_index = value ? current_index : 0;
-					modified = true;
+					if (bool value = cleared_depth_buffer_index == current_index; ImGui::Checkbox(label, &value))
+					{
+						cleared_depth_buffer_index = value ? current_index : 0;
+						modified = true;
+					}
 				}
 
 				ImGui::SameLine();
@@ -1489,7 +1510,7 @@ void reshade::d3d11::runtime_d3d11::detect_depth_source(draw_call_tracker &track
 		// In this case, we cannot use the depth stencil to determine which depth texture is the good one, so we can use the default depth stencil
 		// For the moment, the best we can do is retrieve all the depth textures that has been cleared in the rendering pipeline, then select one of them (by default, the last one)
 		// In the future, maybe we could find a way to retrieve depth texture statistics (number of draw calls and number of vertices), so ReShade could automatically select the best one
-		ID3D11Texture2D *const best_match_texture = tracker.find_best_cleared_depth_buffer_texture(cleared_depth_buffer_index);
+		ID3D11Texture2D *const best_match_texture = tracker.find_best_cleared_depth_buffer_texture(cleared_depth_buffer_index, _clearing_depthstencil_after_present);
 		if (best_match_texture != nullptr)
 			create_depthstencil_replacement(_default_depthstencil.get(), best_match_texture);
 		return;

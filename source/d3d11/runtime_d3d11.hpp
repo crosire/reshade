@@ -34,6 +34,7 @@ namespace reshade::d3d11
 		bool depth_buffer_before_clear = false;
 		bool extended_depth_buffer_detection = false;
 		unsigned int cleared_depth_buffer_index = 0;
+		bool _clearing_depthstencil_after_present = false;
 		int depth_buffer_texture_format = 0; // No depth buffer texture format filter by default
 
 	private:
