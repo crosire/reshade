@@ -700,29 +700,20 @@ void reshade::runtime::draw_overlay_menu_home()
 					}
 				}
 			}
-			for (auto i = _techniques.begin(); i != _techniques.end(); ++i)
+
+			if (const auto it = std::find_if_not(_techniques.begin(), _techniques.end(), [](const reshade::technique &a) {
+					return a.enabled || a.toggle_key_data[0] != 0;
+				}); it != _techniques.end())
 			{
-				if (!i->enabled && i->toggle_key_data[0] == 0)
-				{
-					for (auto k = i + 1; k != _techniques.end(); ++k)
-					{
-						if (!k->enabled && k->toggle_key_data[0] == 0)
-						{
-							// Using static to avoid allocate std::string in loop
-							static const std::string ui_label("ui_label");
-
-							const auto &a = i->annotations.find(ui_label) == i->annotations.end() ? i->name : i->annotations[ui_label].second.string_data;
-							const auto &b = k->annotations.find(ui_label) == k->annotations.end() ? k->name : k->annotations[ui_label].second.string_data;
-
-							if (a.compare(b) > 0)
-							{
-								std::iter_swap(i, k);
-								i = _techniques.begin();
-								break;
-							}
-						}
-					}
-				}
+				std::stable_sort(it, _techniques.end(), [](const reshade::technique &lhs, const reshade::technique &rhs) {
+						std::string lhs_label(lhs.annotation_as_string("ui_label"));
+						if (lhs_label.empty()) lhs_label = lhs.name;
+						std::transform(lhs_label.begin(), lhs_label.end(), lhs_label.begin(), tolower);
+						std::string rhs_label(rhs.annotation_as_string("ui_label"));
+						if (rhs_label.empty()) rhs_label = rhs.name;
+						std::transform(rhs_label.begin(), rhs_label.end(), rhs_label.begin(), tolower);
+						return lhs_label < rhs_label;
+					});
 			}
 
 			save_current_preset();

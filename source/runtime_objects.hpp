@@ -77,7 +77,7 @@ namespace reshade
 		{
 			const auto it = annotations.find(ann_name);
 			if (it == annotations.end()) return std::string_view();
-			return std::string_view(it->second.second.string_data.data(), it->second.second.string_data.size());
+			return it->second.second.string_data;
 		}
 
 		size_t effect_index = std::numeric_limits<size_t>::max();
@@ -106,7 +106,7 @@ namespace reshade
 		{
 			const auto it = annotations.find(ann_name);
 			if (it == annotations.end()) return std::string_view();
-			return std::string_view(it->second.second.string_data.data(), it->second.second.string_data.size());
+			return it->second.second.string_data;
 		}
 
 		size_t effect_index = std::numeric_limits<size_t>::max();
@@ -134,7 +134,7 @@ namespace reshade
 		{
 			const auto it = annotations.find(ann_name);
 			if (it == annotations.end()) return std::string_view();
-			return std::string_view(it->second.second.string_data.data(), it->second.second.string_data.size());
+			return it->second.second.string_data;
 		}
 
 		size_t effect_index = std::numeric_limits<size_t>::max();
