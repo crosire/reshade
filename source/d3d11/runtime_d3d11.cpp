@@ -10,6 +10,7 @@
 #include "resource_loading.hpp"
 #include "dxgi/format_utils.hpp"
 #include <imgui.h>
+#include <imgui_internal.h>
 #include <d3dcompiler.h>
 
 namespace reshade::d3d11
@@ -1381,17 +1382,23 @@ void reshade::d3d11::runtime_d3d11::draw_debug_menu()
 			ImGui::Spacing();
 			ImGui::TextUnformatted("Depth Buffers:");
 
+			if (cleared_depth_buffer_index == UINT_MAX)
+				ImGui::SetCursorPosY(ImGui::GetCursorPosY() + ImGui::GetCurrentContext()->Style.FramePadding.y);
+
 			unsigned int current_index = 1;
 
 			for (const auto &it : _current_tracker->cleared_depth_textures())
 			{
-				char label[16]{};
-				sprintf_s(label, "%s%2u", (current_index == cleared_depth_buffer_index ? "> " : "  "), current_index);
-
 				if (cleared_depth_buffer_index == UINT_MAX)
-					ImGui::Text(label);
+				{
+					ImGui::Dummy(ImVec2(ImGui::GetFrameHeight(), ImGui::GetCurrentContext()->FontSize + ImGui::GetCurrentContext()->Style.FramePadding.y * 2.0f));
+					ImGui::SameLine(0.0f, ImGui::GetCurrentContext()->Style.ItemInnerSpacing.x), ImGui::TextUnformatted("    ");
+				}
 				else
 				{
+					char label[16]{};
+					sprintf_s(label, "%s%2u", (current_index == cleared_depth_buffer_index ? "> " : "  "), current_index);
+
 					if (bool value = cleared_depth_buffer_index == current_index; ImGui::Checkbox(label, &value))
 					{
 						cleared_depth_buffer_index = value ? current_index : 0;
