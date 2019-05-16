@@ -56,7 +56,7 @@ bool reshadefx::preprocessor::append_file(const std::filesystem::path &path)
 	// No longer need to have a handle open to the file, since all data was read to a string, so can safely close it
 	fclose(file);
 
-	std::string_view filedata(filebuffer.data(), static_cast<size_t>(st.st_size));
+	std::string_view filedata(filebuffer.data(), filebuffer.size());
 
 	// Remove BOM (0xefbbbf means 0xfeff)
 	if (filedata.size() >= 3 &&
@@ -546,12 +546,16 @@ void reshadefx::preprocessor::parse_include()
 
 		std::vector<char> filebuffer(static_cast<size_t>(st.st_size) + 1);
 
+		// Read file contents into a string
 		size_t eof = fread_s(filebuffer.data(), filebuffer.size(), 1, static_cast<size_t>(st.st_size), file);
+
+		// Append a new line feed to the end of the input string to avoid issues with parsing
 		filebuffer[eof] = '\n';
 
+		// No longer need to have a handle open to the file, since all data was read to a string, so can safely close it
 		fclose(file);
 
-		std::string_view filedata(filebuffer.data(), static_cast<size_t>(st.st_size));
+		std::string_view filedata(filebuffer.data(), filebuffer.size());
 
 		// Remove BOM (0xefbbbf means 0xfeff)
 		if (filedata.size() >= 3 &&
