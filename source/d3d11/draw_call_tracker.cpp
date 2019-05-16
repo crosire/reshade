@@ -238,9 +238,9 @@ namespace reshade::d3d11
 	{
 		if (inverted)
 		{
-			auto it = std::find_if(_cleared_depth_textures.rbegin(), _cleared_depth_textures.rend(), [](const std::pair<UINT, depth_texture_save_info> &w) { return w.second.cleared; }).base();
-			if (it != _cleared_depth_textures.begin())
-				_cleared_depth_textures.erase(_cleared_depth_textures.begin(), it--);
+			const auto it = std::find_if(_cleared_depth_textures.rbegin(), _cleared_depth_textures.rend(), [](const std::pair<UINT, depth_texture_save_info> &w) { return w.second.cleared; });
+			if (it != _cleared_depth_textures.rend())
+				_cleared_depth_textures.erase(_cleared_depth_textures.begin(), --it.base());
 		}
 		else
 		{
