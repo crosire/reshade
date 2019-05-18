@@ -1775,6 +1775,12 @@ void reshade::runtime::draw_overlay_variable_editor()
 				modified = ImGui::Combo(label.data(), &current_item, "Off\0On\0");
 				data = current_item != 0;
 			}
+			else if (ui_type == "list")
+			{
+				int current_item = data ? 1 : 0;
+				modified = imgui_list_with_buttons(label.data(), std::string_view("Off\0On\0", 7), current_item);
+				data = current_item != 0;
+			}
 			else
 			{
 				modified = ImGui::Checkbox(label.data(), &data);
