@@ -820,7 +820,7 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 			if (!resolve_function_call(identifier, arguments, scope, symbol, ambiguous))
 			{
 				if (undeclared)
-					error(location, 3004, "undeclared identifier '" + identifier + '\'');
+					error(location, 3004, "undeclared identifier or no matching intrinsic overload for '" + identifier + '\'');
 				else if (ambiguous)
 					error(location, 3067, "ambiguous function call to '" + identifier + '\'');
 				else
