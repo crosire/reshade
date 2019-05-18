@@ -151,7 +151,8 @@ void reshade::runtime::on_present()
 
 	// Advance various statistics
 	_framecount++;
-	_last_present_time += _last_frame_duration = std::chrono::high_resolution_clock::now() - _last_present_time;
+	const auto current_time = std::chrono::high_resolution_clock::now();
+	_last_frame_duration = current_time - _last_present_time; _last_present_time = current_time;
 
 	// Lock input so it cannot be modified by other threads while we are reading it here
 	const auto input_lock = _input->lock();
@@ -707,7 +708,7 @@ void reshade::runtime::update_and_render_effects()
 			set_uniform_value(variable, _date, 4);
 			break;
 		case special_uniform::timer:
-			set_uniform_value(variable, std::chrono::duration_cast<std::chrono::nanoseconds>(_last_present_time - _start_time).count() * 1e-6f);
+			set_uniform_value(variable, static_cast<unsigned int>(std::chrono::duration_cast<std::chrono::milliseconds>(_last_present_time - _start_time).count()));
 			break;
 		case special_uniform::key:
 			if (const int keycode = variable.annotation_as_int("keycode");
