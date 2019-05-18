@@ -482,10 +482,8 @@ void reshade::runtime::load_textures()
 		if (source_path.empty())
 			continue;
 
-		struct _stat64 st {};
 		// Search for image file using the provided search paths unless the path provided is already absolute
-		if (!find_file(_texture_search_paths, source_path) || _wstati64(source_path.wstring().c_str(), &st) != 0)
-		{
+		if (!find_file(_texture_search_paths, source_path)) {
 			LOG(ERROR) << "> Source " << source_path << " for texture '" << texture.unique_name << "' could not be found in any of the texture search paths.";
 			continue;
 		}
@@ -493,20 +491,19 @@ void reshade::runtime::load_textures()
 		unsigned char *filedata = nullptr;
 		int width = 0, height = 0, channels = 0;
 
-		if (FILE *file; _wfopen_s(&file, source_path.wstring().c_str(), L"rb") == 0)
+		if (FILE *file; _wfopen_s(&file, source_path.c_str(), L"rb") == 0)
 		{
-			std::vector<uint8_t> filebuffer(static_cast<size_t>(st.st_size));
-			fread(filebuffer.data(), 1, filebuffer.size(), file);
+			std::vector<uint8_t> mem(std::filesystem::file_size(source_path));
+			fread(mem.data(), 1, mem.size(), file);
 			fclose(file);
 
-			if (stbi_dds_test_memory(filebuffer.data(), filebuffer.size()))
-				filedata = stbi_dds_load_from_memory(filebuffer.data(), filebuffer.size(), &width, &height, &channels, STBI_rgb_alpha);
+			if (stbi_dds_test_memory(mem.data(), mem.size()))
+				filedata = stbi_dds_load_from_memory(mem.data(), mem.size(), &width, &height, &channels, STBI_rgb_alpha);
 			else
-				filedata = stbi_load_from_memory(filebuffer.data(), filebuffer.size(), &width, &height, &channels, STBI_rgb_alpha);
+				filedata = stbi_load_from_memory(mem.data(), mem.size(), &width, &height, &channels, STBI_rgb_alpha);
 		}
 
-		if (filedata == nullptr)
-		{
+		if (filedata == nullptr) {
 			LOG(ERROR) << "> Source " << source_path << " for texture '" << texture.unique_name << "' could not be loaded! Make sure it is of a compatible file format.";
 			continue;
 		}
