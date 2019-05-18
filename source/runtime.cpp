@@ -981,22 +981,24 @@ void reshade::runtime::save_preset(const std::filesystem::path &path) const
 
 		assert(variable.type.components() < 16);
 
+		const std::string section =
+			_loaded_effects[variable.effect_index].source_file.filename().u8string();
 		reshadefx::constant values;
 
 		switch (variable.type.base)
 		{
 		case reshadefx::type::t_int:
 			get_uniform_value(variable, values.as_int, 16);
-			preset.set(_loaded_effects[variable.effect_index].source_file.filename().u8string(), variable.name, variant(values.as_int, variable.type.components()));
+			preset.set(section, variable.name, values.as_int, variable.type.components());
 			break;
 		case reshadefx::type::t_bool:
 		case reshadefx::type::t_uint:
 			get_uniform_value(variable, values.as_uint, 16);
-			preset.set(_loaded_effects[variable.effect_index].source_file.filename().u8string(), variable.name, variant(values.as_uint, variable.type.components()));
+			preset.set(section, variable.name, values.as_uint, variable.type.components());
 			break;
 		case reshadefx::type::t_float:
 			get_uniform_value(variable, values.as_float, 16);
-			preset.set(_loaded_effects[variable.effect_index].source_file.filename().u8string(), variable.name, variant(values.as_float, variable.type.components()));
+			preset.set(section, variable.name, values.as_float, variable.type.components());
 			break;
 		}
 	}
