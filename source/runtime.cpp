@@ -823,11 +823,12 @@ void reshade::runtime::subscribe_to_save_config(std::function<void(ini_file &)> 
 void reshade::runtime::load_config()
 {
 	const ini_file config(_configuration_path);
-	std::filesystem::path current_preset_path;
 
 	config.get("INPUT", "KeyScreenshot", _screenshot_key_data);
 	config.get("INPUT", "KeyReload", _reload_key_data);
 	config.get("INPUT", "KeyEffects", _effects_key_data);
+
+	std::filesystem::path current_preset_path;
 
 	config.get("GENERAL", "PerformanceMode", _performance_mode);
 	config.get("GENERAL", "EffectSearchPaths", _effect_search_paths);
@@ -838,6 +839,17 @@ void reshade::runtime::load_config()
 	config.get("GENERAL", "ScreenshotFormat", _screenshot_format);
 	config.get("GENERAL", "ScreenshotIncludePreset", _screenshot_include_preset);
 	config.get("GENERAL", "NoReloadOnInit", _no_reload_on_init);
+
+	if (current_preset_path.empty())
+	{
+		size_t preset_index = 0;
+		std::vector<std::filesystem::path> preset_files;
+		config.get("GENERAL", "PresetFiles", preset_files);
+		config.get("GENERAL", "CurrentPreset", preset_index);
+
+		if (preset_index < preset_files.size())
+			current_preset_path = preset_files[preset_index];
+	}
 
 	set_current_preset(current_preset_path);
 
