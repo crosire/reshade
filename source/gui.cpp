@@ -2205,7 +2205,9 @@ void reshade::runtime::draw_preset_explorer()
 				std::vector<std::filesystem::directory_entry> preset_paths;
 				for (const auto &entry : preset_container)
 					if (const std::filesystem::file_type file_type = entry.status(ec).type(); file_type == std::filesystem::file_type::directory)
-						if (ImGui::Selectable(("<DIR> " + entry.path().filename().u8string()).c_str()))
+						if (const ImVec2 attrsSize = ImGui::CalcTextSize("<DIR>");
+							ImGui::RenderTextWrapped(ImGui::GetCursorScreenPos() + ImVec2(ImGui::GetWindowContentRegionWidth() - attrsSize.x, 0), "<DIR>", nullptr, attrsSize.x),
+							ImGui::Selectable((entry.path().filename().u8string() + '\\').c_str()))
 							if (std::filesystem::equivalent(reshade_container_path, entry))
 								_current_browse_path = L".";
 							else if (std::equal(reshade_container_path.begin(), reshade_container_path.end(), entry.path().begin()))
