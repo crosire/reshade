@@ -100,7 +100,7 @@ bool imgui_directory_dialog(const char *name, std::filesystem::path &path)
 	if (!ImGui::BeginPopup(name))
 		return false;
 
-	char buf[260] = "";
+	char buf[_MAX_PATH] = "";
 	path.u8string().copy(buf, sizeof(buf) - 1);
 
 	ImGui::PushItemWidth(400);
@@ -115,7 +115,7 @@ bool imgui_directory_dialog(const char *name, std::filesystem::path &path)
 	if (ImGui::Button("Cancel", ImVec2(100, 0)))
 		cancel = true;
 
-	ImGui::BeginChild("##files", ImVec2(0, 300), true);
+	ImGui::BeginChild("##files", ImVec2(0, 300));
 
 	std::error_code ec;
 
@@ -133,11 +133,13 @@ bool imgui_directory_dialog(const char *name, std::filesystem::path &path)
 
 	for (const auto &entry : std::filesystem::directory_iterator(path, ec))
 	{
-		// Only show directories
 		if (!entry.is_directory(ec))
-			continue;
+			continue; // Only show directories
 
-		if (ImGui::Selectable(("<DIR> " + entry.path().filename().u8string()).c_str(), entry.path() == path))
+		std::string label = entry.path().filename().u8string();
+		label = "<DIR> " + label;
+
+		if (ImGui::Selectable(label.c_str(), entry.path() == path))
 		{
 			path = entry.path();
 			break;
@@ -163,7 +165,7 @@ bool imgui_directory_input_box(const char *name, std::filesystem::path &path, st
 	ImGui::PushID(name);
 	ImGui::BeginGroup();
 
-	char buf[260] = "";
+	char buf[_MAX_PATH] = "";
 	path.u8string().copy(buf, sizeof(buf) - 1);
 
 	ImGui::PushItemWidth(ImGui::CalcItemWidth() - (button_spacing + button_size));
@@ -198,7 +200,7 @@ bool imgui_path_list(const char *label, std::vector<std::filesystem::path> &path
 	ImGui::BeginGroup();
 	ImGui::PushID(label);
 
-	char buf[260];
+	char buf[_MAX_PATH];
 
 	if (ImGui::BeginChild("##paths", ImVec2(item_width, (paths.size() + 1) * item_height), false, ImGuiWindowFlags_NoScrollWithMouse))
 	{
@@ -240,7 +242,9 @@ bool imgui_path_list(const char *label, std::vector<std::filesystem::path> &path
 			res = true;
 			paths.push_back(dialog_path);
 		}
-	} ImGui::EndChild();
+	}
+
+	ImGui::EndChild();
 
 	ImGui::PopID();
 
