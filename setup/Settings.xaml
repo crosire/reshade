@@ -10,17 +10,9 @@
 		WindowStyle="ToolWindow">
 	<StackPanel Margin="5">
 		<DockPanel LastChildFill="True" Margin="0,5">
-			<Label Content="Presets" />
-			<ComboBox Name="PresetSelect" DockPanel.Dock="Left" DisplayMemberPath="Text" SelectedValuePath="Value" SelectedIndex="0" Visibility="{Binding Items.Count, Converter={src:ComboSizeToVisibilityConverter}, RelativeSource={RelativeSource Self}}" Margin="0,0,5,0" SelectionChanged="PresetSelect_SelectionChanged">
-				<ComboBox.ItemsSource>
-					<CompositeCollection>
-						<src:PresetComboItem Text="Select Active"/>
-						<CollectionContainer x:Name="PresetOptions" />
-					</CompositeCollection>
-				</ComboBox.ItemsSource>
-			</ComboBox>
-		    <Button Name="BtnPresets" Content="..." Padding="5,0" DockPanel.Dock="Right" Click="BtnPresets_Clicked" />
-			<TextBox Name="Presets" Width="427" />
+			<Label Content="Preset" />
+		    <Button Name="BtnPreset" Content="..." Padding="5,0" DockPanel.Dock="Right" Click="BtnPreset_Clicked" />
+			<TextBox Name="Preset" Width="427" />
 		</DockPanel>
 		<DockPanel LastChildFill="True" Margin="0,5">
 			<Label Content="Effects Path" />

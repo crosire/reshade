@@ -22,13 +22,6 @@ namespace ReShade.Setup
 			InitializeComponent();
 			_configFilePath = configPath;
 
-			Presets.TextChanged += (s, e) =>
-			{
-				PresetOptions.Collection = (Presets.Text ?? "").Split(',')
-					.Where(f => !string.IsNullOrWhiteSpace(f))
-					.Select((f, i) => new PresetComboItem { Text = Path.GetFileName(f), Value = i });
-			};
-
 			BtnSave.Click += (s, e) => { Save(); Close(); };
 			BtnReload.Click += (s, e) => Load();
 			BtnCancel.Click += (s, e) => Close();
@@ -49,8 +42,7 @@ namespace ReShade.Setup
 
 		private void Save()
 		{
-			WriteValue("PresetFiles", Presets.Text);
-			WriteValue("CurrentPreset", PresetSelect.SelectedValue?.ToString());
+			WriteValue("CurrentPresetPath", Preset.Text);
 			WriteValue("EffectSearchPaths", EffectsPath.Text);
 			WriteValue("TextureSearchPaths", TexturesPath.Text);
 			WriteValue("ScreenshotPath", ScreenshotsPath.Text);
@@ -68,8 +60,7 @@ namespace ReShade.Setup
 		{
 			if (File.Exists(_configFilePath))
 			{
-				Presets.Text = ReadValue("PresetFiles");
-				PresetSelect.SelectedIndex = Convert.ToInt32(ReadValue("CurrentPreset", "-1")) + 1;
+				Preset.Text = ReadValue("CurrentPresetPath");
 				EffectsPath.Text = ReadValue("EffectSearchPaths");
 				TexturesPath.Text = ReadValue("TextureSearchPaths");
 				ScreenshotsPath.Text = ReadValue("ScreenshotPath");
@@ -94,16 +85,16 @@ namespace ReShade.Setup
 			}
 		}
 
-		private void BtnPresets_Clicked(object sender, RoutedEventArgs e)
+		private void BtnPreset_Clicked(object sender, RoutedEventArgs e)
 		{
-			string origFirstValue = (Presets.Text ?? "").Split(',')[0];
+			string origFirstValue = (Preset.Text ?? "").Split(',')[0];
 
 			var dlg = new OpenFileDialog
 			{
 				CheckFileExists = false,
 				CheckPathExists = true,
 				Multiselect = true,
-				Filter = "Config Files (*.ini, *.txt)|*.ini;*.txt",
+				Filter = "Preset Files (*.ini, *.txt)|*.ini;*.txt",
 				DefaultExt = ".ini",
 				InitialDirectory = string.IsNullOrWhiteSpace(origFirstValue) ? null : Path.GetDirectoryName(origFirstValue),
 				FileName = Path.GetFileName(origFirstValue)
@@ -111,7 +102,7 @@ namespace ReShade.Setup
 
 			if (dlg.ShowDialog(this) == true)
 			{
-				Presets.Text = string.Join(",", dlg.FileNames);
+				Preset.Text = string.Join(",", dlg.FileNames);
 			}
 		}
 
@@ -133,12 +124,6 @@ namespace ReShade.Setup
 			{
 				target.Tag = string.Join(",", dlg.FileNames);
 			}
-		}
-
-		// Force select the first item when there is no selection
-		private void PresetSelect_SelectionChanged(object sender, SelectionChangedEventArgs e)
-		{
-			PresetSelect.SelectedItem = PresetSelect.SelectedItem ?? PresetSelect.Items[0];
 		}
 
 		private static string CheckboxValue(bool? check) => (check.HasValue && check.Value ? "1" : "0");
