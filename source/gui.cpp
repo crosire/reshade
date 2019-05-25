@@ -427,9 +427,8 @@ void reshade::runtime::draw_ui()
 			}
 			else if (_tutorial_index == 0)
 			{
-				ImGui::TextUnformatted("ReShade is now installed successfully!");
 				ImGui::Text(
-					"Please press '%s' to start the tutorial =)", input::key_name(_menu_key_data).c_str());
+					"ReShade is now installed successfully! Press '%s' to start the tutorial.", input::key_name(_menu_key_data).c_str());
 			}
 			else
 			{
@@ -621,10 +620,8 @@ void reshade::runtime::draw_overlay_menu_home()
 		{
 			tutorial_text =
 				"This is the preset selection. All changes will be saved to the selected file.\n\n"
-				"You can add a new one by clicking on the '+' button. Simply enter a new preset name or the full path to an existing file (*.ini) in the text box that opens.\n"
-				"To delete the currently selected preset file, click on the '-' button.\n"
-				"Make sure a valid file is selected here before starting to tweak any values later, or else your changes won't be saved!\n\n"
-				"Add a new preset by clicking on the '+' button to continue the tutorial.";
+				"Click on the '+' button to name and add a new one.\n"
+				"Make sure you always have a preset selected here before starting to tweak any values later, or else your changes won't be saved!";
 
 			ImGui::PushStyleColor(ImGuiCol_FrameBg, COLOR_RED);
 			ImGui::PushStyleColor(ImGuiCol_Button, COLOR_RED);
@@ -727,10 +724,10 @@ void reshade::runtime::draw_overlay_menu_home()
 		if (_tutorial_index == 2)
 		{
 			tutorial_text =
-				"This is the list of techniques. It contains all techniques in the effect files (*.fx) that were found in the effect search paths as specified on the 'Settings' tab.\n"
-				"Additional options are hidden in a context menu that can be opened by clicking on them with the right mouse button.\n\n"
+				"This is the list of techniques. It contains all techniques in the effect files (*.fx) that were found in the effect search paths as specified in the settings.\n"
 				"Enter text in the box at the top to filter it and search for specific techniques.\n\n"
-				"Click on a technique to enable or disable it or drag it to a new location in the list to change the order in which the effects are applied.";
+				"Click on a technique to enable or disable it or drag it to a new location in the list to change the order in which the effects are applied.\n"
+				"Use the right mouse button and click on an item to open the context menu with additional options.\n\n";
 
 			ImGui::PushStyleColor(ImGuiCol_Border, COLOR_RED);
 		}
@@ -761,9 +758,9 @@ void reshade::runtime::draw_overlay_menu_home()
 		if (_tutorial_index == 3)
 		{
 			tutorial_text =
-				"This is the list of variables. It contains all tweakable options the effects expose. All values here apply in real-time. Press 'Ctrl' and click on a widget to manually edit the value.\n"
-				"Additional options are hidden in a context menu that can be opened by clicking on them with the right mouse button.\n\n"
+				"This is the list of variables. It contains all tweakable options the effects expose. All values here apply in real-time. Press 'Ctrl' and click on a widget to manually edit the value.\n\n"
 				"Enter text in the box at the top to filter it and search for specific variables.\n\n"
+				"Use the right mouse button and click on an item to open the context menu with additional options.\n\n"
 				"Once you have finished tweaking your preset, be sure to enable the 'Performance Mode' check box. "
 				"This will recompile all shaders into a more optimal representation that can give a performance boost, but will disable variable tweaking and this list.";
 
@@ -871,7 +868,7 @@ void reshade::runtime::draw_overlay_menu_settings()
 			_imgui_context->IO.IniFilename = save_imgui_window_state ? g_reshadegui_ini_path : nullptr;
 		}
 
-		modified |= ImGui::Checkbox("Experimental Variable Editing UI", &_variable_editor_tabs);
+		modified |= ImGui::Checkbox("Group effect files with tabs instead of a tree", &_variable_editor_tabs);
 
 		#pragma region Style
 		if (ImGui::Combo("Style", &_style_index, "Dark\0Light\0Default\0Custom Simple\0Custom Advanced\0"))
@@ -1519,14 +1516,17 @@ void reshade::runtime::draw_overlay_variable_editor()
 {
 	const ImVec2 popup_pos = ImGui::GetCursorScreenPos() + ImVec2(std::max(0.f, ImGui::GetWindowContentRegionWidth() * 0.5f - 200.0f), ImGui::GetFrameHeightWithSpacing());
 
-	if (imgui_popup_button("Edit global preprocessor definitions", ImGui::GetContentRegionAvailWidth(), ImGuiWindowFlags_NoMove))
+	if (imgui_popup_button("Edit preprocessor definitions", ImGui::GetContentRegionAvailWidth(), ImGuiWindowFlags_NoMove))
 	{
 		ImGui::SetWindowPos(popup_pos);
+
 		bool modified = false;
+		float popup_height = (std::max(_global_preprocessor_definitions.size(), _preset_preprocessor_definitions.size()) + 2) * ImGui::GetFrameHeightWithSpacing();
+		popup_height = std::min(popup_height, _window_height - popup_pos.y - 20.0f);
 		const float button_size = ImGui::GetFrameHeight();
 		const float button_spacing = _imgui_context->Style.ItemInnerSpacing.x;
 
-		ImGui::BeginChild("##definitions", ImVec2(400.0f, (std::max(_global_preprocessor_definitions.size(), _preset_preprocessor_definitions.size()) + 2) * ImGui::GetFrameHeightWithSpacing()), false, ImGuiWindowFlags_NoScrollWithMouse);
+		ImGui::BeginChild("##definitions", ImVec2(400.0f, popup_height), false, ImGuiWindowFlags_NoScrollWithMouse);
 
 		if (ImGui::BeginTabBar("##definition_types", ImGuiTabBarFlags_NoTooltip))
 		{

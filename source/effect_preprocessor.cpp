@@ -24,7 +24,7 @@ static bool read_file(const std::filesystem::path &path, std::string &data)
 		return false;
 
 	// Read file contents into memory
-	std::vector<char> mem(std::filesystem::file_size(path) + 1);
+	std::vector<char> mem(static_cast<size_t>(std::filesystem::file_size(path) + 1));
 	const size_t eof = fread(mem.data(), 1, mem.size() - 1, file);
 
 	// Append a new line feed to the end of the input string to avoid issues with parsing
