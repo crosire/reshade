@@ -80,7 +80,7 @@ void reshade::ini_file::load()
 		}
 		else
 		{
-			_sections[section][line] = 0;
+			_sections[section][line] = {};
 		}
 	}
 }
@@ -102,7 +102,7 @@ void reshade::ini_file::save() const
 
 			size_t i = 0;
 
-			for (const auto &item : section_line.second.data())
+			for (const auto &item : section_line.second)
 			{
 				if (i++ != 0)
 					file << ',';
@@ -129,7 +129,7 @@ void reshade::ini_file::save() const
 
 			size_t i = 0;
 
-			for (const auto &item : section_line.second.data())
+			for (const auto &item : section_line.second)
 			{
 				if (i++ != 0)
 					file << ',';

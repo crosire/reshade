@@ -137,7 +137,7 @@ bool imgui_directory_dialog(const char *name, std::filesystem::path &path)
 		if (!entry.is_directory(ec))
 			continue;
 
-		if (ImGui::Selectable(entry.path().filename().u8string().c_str(), entry.path() == path))
+		if (ImGui::Selectable(("<DIR> " + entry.path().filename().u8string()).c_str(), entry.path() == path))
 		{
 			path = entry.path();
 			break;

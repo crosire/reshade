@@ -434,7 +434,6 @@
     <ClInclude Include="source\resource_loading.hpp" />
     <ClInclude Include="source\runtime.hpp" />
     <ClInclude Include="source\runtime_objects.hpp" />
-    <ClInclude Include="source\variant.hpp" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="res\resource.rc" />

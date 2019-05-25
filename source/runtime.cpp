@@ -151,7 +151,8 @@ void reshade::runtime::on_present()
 
 	// Advance various statistics
 	_framecount++;
-	_last_present_time += _last_frame_duration = std::chrono::high_resolution_clock::now() - _last_present_time;
+	const auto current_time = std::chrono::high_resolution_clock::now();
+	_last_frame_duration = current_time - _last_present_time; _last_present_time = current_time;
 
 	// Lock input so it cannot be modified by other threads while we are reading it here
 	const auto input_lock = _input->lock();
@@ -481,10 +482,8 @@ void reshade::runtime::load_textures()
 		if (source_path.empty())
 			continue;
 
-		struct _stat64 st {};
 		// Search for image file using the provided search paths unless the path provided is already absolute
-		if (!find_file(_texture_search_paths, source_path) || _wstati64(source_path.wstring().c_str(), &st) != 0)
-		{
+		if (!find_file(_texture_search_paths, source_path)) {
 			LOG(ERROR) << "> Source " << source_path << " for texture '" << texture.unique_name << "' could not be found in any of the texture search paths.";
 			continue;
 		}
@@ -492,20 +491,19 @@ void reshade::runtime::load_textures()
 		unsigned char *filedata = nullptr;
 		int width = 0, height = 0, channels = 0;
 
-		if (FILE *file; _wfopen_s(&file, source_path.wstring().c_str(), L"rb") == 0)
+		if (FILE *file; _wfopen_s(&file, source_path.c_str(), L"rb") == 0)
 		{
-			std::vector<uint8_t> filebuffer(static_cast<size_t>(st.st_size));
-			fread(filebuffer.data(), 1, filebuffer.size(), file);
+			std::vector<uint8_t> mem(std::filesystem::file_size(source_path));
+			fread(mem.data(), 1, mem.size(), file);
 			fclose(file);
 
-			if (stbi_dds_test_memory(filebuffer.data(), filebuffer.size()))
-				filedata = stbi_dds_load_from_memory(filebuffer.data(), filebuffer.size(), &width, &height, &channels, STBI_rgb_alpha);
+			if (stbi_dds_test_memory(mem.data(), mem.size()))
+				filedata = stbi_dds_load_from_memory(mem.data(), mem.size(), &width, &height, &channels, STBI_rgb_alpha);
 			else
-				filedata = stbi_load_from_memory(filebuffer.data(), filebuffer.size(), &width, &height, &channels, STBI_rgb_alpha);
+				filedata = stbi_load_from_memory(mem.data(), mem.size(), &width, &height, &channels, STBI_rgb_alpha);
 		}
 
-		if (filedata == nullptr)
-		{
+		if (filedata == nullptr) {
 			LOG(ERROR) << "> Source " << source_path << " for texture '" << texture.unique_name << "' could not be loaded! Make sure it is of a compatible file format.";
 			continue;
 		}
@@ -707,7 +705,7 @@ void reshade::runtime::update_and_render_effects()
 			set_uniform_value(variable, _date, 4);
 			break;
 		case special_uniform::timer:
-			set_uniform_value(variable, std::chrono::duration_cast<std::chrono::nanoseconds>(_last_present_time - _start_time).count() * 1e-6f);
+			set_uniform_value(variable, static_cast<unsigned int>(std::chrono::duration_cast<std::chrono::milliseconds>(_last_present_time - _start_time).count()));
 			break;
 		case special_uniform::key:
 			if (const int keycode = variable.annotation_as_int("keycode");
@@ -983,22 +981,24 @@ void reshade::runtime::save_preset(const std::filesystem::path &path) const
 
 		assert(variable.type.components() < 16);
 
+		const std::string section =
+			_loaded_effects[variable.effect_index].source_file.filename().u8string();
 		reshadefx::constant values;
 
 		switch (variable.type.base)
 		{
 		case reshadefx::type::t_int:
 			get_uniform_value(variable, values.as_int, 16);
-			preset.set(_loaded_effects[variable.effect_index].source_file.filename().u8string(), variable.name, variant(values.as_int, variable.type.components()));
+			preset.set(section, variable.name, values.as_int, variable.type.components());
 			break;
 		case reshadefx::type::t_bool:
 		case reshadefx::type::t_uint:
 			get_uniform_value(variable, values.as_uint, 16);
-			preset.set(_loaded_effects[variable.effect_index].source_file.filename().u8string(), variable.name, variant(values.as_uint, variable.type.components()));
+			preset.set(section, variable.name, values.as_uint, variable.type.components());
 			break;
 		case reshadefx::type::t_float:
 			get_uniform_value(variable, values.as_float, 16);
-			preset.set(_loaded_effects[variable.effect_index].source_file.filename().u8string(), variable.name, variant(values.as_float, variable.type.components()));
+			preset.set(section, variable.name, values.as_float, variable.type.components());
 			break;
 		}
 	}
