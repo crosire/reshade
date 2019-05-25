@@ -528,10 +528,10 @@ void reshadefx::preprocessor::parse_include()
 		return;
 	}
 
-	const std::filesystem::path filename = std::move(_token.literal_as_string);
+	const std::filesystem::path filename = std::filesystem::u8path(_token.literal_as_string);
 
 	std::error_code ec;
-	std::filesystem::path filepath = _output_location.source;
+	std::filesystem::path filepath = std::filesystem::u8path(_output_location.source);
 	filepath.replace_filename(filename);
 
 	if (!std::filesystem::exists(filepath, ec))
@@ -748,13 +748,13 @@ bool reshadefx::preprocessor::evaluate_expression()
 					if (!expect(tokenid::string_literal))
 						return false;
 
-					const std::filesystem::path filename = std::move(_token.literal_as_string);
+					const std::filesystem::path filename = std::filesystem::u8path(_token.literal_as_string);
 
 					if (has_parentheses && !expect(tokenid::parenthesis_close))
 						return false;
 
 					std::error_code ec;
-					std::filesystem::path filepath = _output_location.source;
+					std::filesystem::path filepath = std::filesystem::u8path(_output_location.source);
 					filepath.replace_filename(filename);
 
 					if (!std::filesystem::exists(filepath, ec))
