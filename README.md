@@ -9,7 +9,9 @@ You'll need both Git and Visual Studio 2017 or higher to build ReShade. Latter i
 
 1. Clone this repository including all Git submodules
 2. Open the Visual Studio solution
-3. Select either the "32-bit" or "64-bit" target platform and build the solution (this will build ReShade and all dependencies)
+3. Select either the "32-bit" or "64-bit" target platform and build the solution (this will build ReShade and all dependencies).
+
+After the first build, a `version.h` file will show up in the [res](/res) directory. Change the `VERSION_FULL` definition inside to something matching the current release version and rebuild so that shaders from the official repository at https://github.com/crosire/reshade-shaders won't cause a version mismatch error during compilation.
 
 ## Contributing
 
