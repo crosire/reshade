@@ -136,7 +136,7 @@ bool imgui_directory_dialog(const char *name, std::filesystem::path &path)
 		if (!entry.is_directory(ec))
 			continue; // Only show directories
 
-		ImGui::RenderTextWrapped(ImGui::GetCursorScreenPos() + ImVec2(ImGui::GetContentRegionAvailWidth() - ImGui::CalcTextSize("<DIR>").x, 0), "<DIR>", nullptr, 0);
+		ImGui::RenderText(ImGui::GetCursorScreenPos() + ImVec2(ImGui::GetContentRegionAvailWidth() - ImGui::CalcTextSize("<DIR>").x, 0), "<DIR>", nullptr);
 
 		if (ImGui::Selectable((entry.path().filename().u8string() + '\\').c_str(), entry.path() == path))
 		{
