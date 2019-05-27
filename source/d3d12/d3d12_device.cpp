@@ -88,11 +88,11 @@ ULONG   STDMETHODCALLTYPE D3D12Device::Release()
 	if (ref != 0 && _ref != 0)
 		return ref;
 	else if (ref != 0)
-		LOG(WARN) << "Reference count for ID3D12Device object " << this << " is inconsistent: " << ref << ", but expected 0.";
+		LOG(WARN) << "Reference count for ID3D12Device" << _interface_version << " object " << this << " is inconsistent: " << ref << ", but expected 0.";
 
 	assert(_ref <= 0);
 #if RESHADE_VERBOSE_LOG
-	LOG(DEBUG) << "Destroyed ID3D12Device object " << this << ".";
+	LOG(DEBUG) << "Destroyed ID3D12Device" << _interface_version << " object " << this << ".";
 #endif
 	delete this;
 	return 0;

@@ -17,6 +17,35 @@ enum macro_replacement
 	macro_replacement_expand = '\xFB',
 };
 
+static bool read_file(const std::filesystem::path &path, std::string &data)
+{
+	FILE *file = nullptr;
+	if (_wfopen_s(&file, path.c_str(), L"rb") != 0)
+		return false;
+
+	// Read file contents into memory
+	std::vector<char> mem(static_cast<size_t>(std::filesystem::file_size(path) + 1));
+	const size_t eof = fread(mem.data(), 1, mem.size() - 1, file);
+
+	// Append a new line feed to the end of the input string to avoid issues with parsing
+	mem[eof] = '\n';
+
+	// No longer need to have a handle open to the file, since all data was read, so can safely close it
+	fclose(file);
+
+	std::string_view filedata(mem.data(), mem.size());
+
+	// Remove BOM (0xefbbbf means 0xfeff)
+	if (filedata.size() >= 3 &&
+		static_cast<unsigned char>(filedata[0]) == 0xef &&
+		static_cast<unsigned char>(filedata[1]) == 0xbb &&
+		static_cast<unsigned char>(filedata[2]) == 0xbf)
+		filedata = std::string_view(filedata.data() + 3, filedata.size() - 3);
+
+	data = filedata;
+	return true;
+}
+
 void reshadefx::preprocessor::add_include_path(const std::filesystem::path &path)
 {
 	assert(!path.empty());
@@ -39,34 +68,12 @@ bool reshadefx::preprocessor::add_macro_definition(const std::string &name, std:
 
 bool reshadefx::preprocessor::append_file(const std::filesystem::path &path)
 {
-	struct _stat64 st {};
-
-	FILE *file = nullptr;
-	if (_wstati64(path.wstring().c_str(), &st) != 0 || _wfopen_s(&file, path.wstring().c_str(), L"rb") != 0)
+	std::string data;
+	if (!read_file(path, data))
 		return false;
 
-	std::vector<char> filebuffer(static_cast<size_t>(st.st_size) + 1);
-
-	// Read file contents into a string
-	size_t eof = fread_s(filebuffer.data(), filebuffer.size(), 1, static_cast<size_t>(st.st_size), file);
-
-	// Append a new line feed to the end of the input string to avoid issues with parsing
-	filebuffer[eof] = '\n';
-
-	// No longer need to have a handle open to the file, since all data was read to a string, so can safely close it
-	fclose(file);
-
-	std::string_view filedata(filebuffer.data(), filebuffer.size());
-
-	// Remove BOM (0xefbbbf means 0xfeff)
-	if (filedata.size() >= 3 &&
-		static_cast<unsigned char>(filedata[0]) == 0xef &&
-		static_cast<unsigned char>(filedata[1]) == 0xbb &&
-		static_cast<unsigned char>(filedata[2]) == 0xbf)
-		filedata = std::string_view(filedata.data() + 3, filedata.size() - 3);
-
 	_success = true;
-	push(std::string(filedata), path.u8string());
+	push(std::move(data), path.u8string());
 	parse();
 
 	return _success;
@@ -521,50 +528,30 @@ void reshadefx::preprocessor::parse_include()
 		return;
 	}
 
-	const std::filesystem::path filename = std::move(_token.literal_as_string);
+	const std::filesystem::path filename = std::filesystem::u8path(_token.literal_as_string);
 
-	std::filesystem::path filepath = _output_location.source;
+	std::error_code ec;
+	std::filesystem::path filepath = std::filesystem::u8path(_output_location.source);
 	filepath.replace_filename(filename);
 
-	struct _stat64 st {};
-	if (_wstati64(filepath.wstring().c_str(), &st) != 0)
+	if (!std::filesystem::exists(filepath, ec))
 		for (const auto &include_path : _include_paths)
-			if (filepath = include_path / filename, _wstati64(filepath.wstring().c_str(), &st) == 0)
+			if (std::filesystem::exists(filepath = include_path / filename, ec))
 				break;
 
 	auto it = _filecache.find(filepath.u8string());
 
 	if (it == _filecache.end())
 	{
-		FILE *file = nullptr;
-		if (_wfopen_s(&file, filepath.wstring().c_str(), L"rb") != 0)
+		std::string data;
+		if (!read_file(filepath, data))
 		{
 			error(keyword_location, "could not open included file '" + filepath.u8string() + "'");
 			consume_until(tokenid::end_of_line);
 			return;
 		}
 
-		std::vector<char> filebuffer(static_cast<size_t>(st.st_size) + 1);
-
-		// Read file contents into a string
-		size_t eof = fread_s(filebuffer.data(), filebuffer.size(), 1, static_cast<size_t>(st.st_size), file);
-
-		// Append a new line feed to the end of the input string to avoid issues with parsing
-		filebuffer[eof] = '\n';
-
-		// No longer need to have a handle open to the file, since all data was read to a string, so can safely close it
-		fclose(file);
-
-		std::string_view filedata(filebuffer.data(), filebuffer.size());
-
-		// Remove BOM (0xefbbbf means 0xfeff)
-		if (filedata.size() >= 3 &&
-			static_cast<unsigned char>(filedata[0]) == 0xef &&
-			static_cast<unsigned char>(filedata[1]) == 0xbb &&
-			static_cast<unsigned char>(filedata[2]) == 0xbf)
-			filedata = std::string_view(filedata.data() + 3, filedata.size() - 3);
-
-		it = _filecache.emplace(filepath.u8string(), std::string(filedata)).first;
+		it = _filecache.emplace(filepath.u8string(), std::move(data)).first;
 	}
 
 	push(it->second, filepath.u8string());
@@ -761,13 +748,13 @@ bool reshadefx::preprocessor::evaluate_expression()
 					if (!expect(tokenid::string_literal))
 						return false;
 
-					const std::filesystem::path filename = std::move(_token.literal_as_string);
+					const std::filesystem::path filename = std::filesystem::u8path(_token.literal_as_string);
 
 					if (has_parentheses && !expect(tokenid::parenthesis_close))
 						return false;
 
 					std::error_code ec;
-					std::filesystem::path filepath = _output_location.source;
+					std::filesystem::path filepath = std::filesystem::u8path(_output_location.source);
 					filepath.replace_filename(filename);
 
 					if (!std::filesystem::exists(filepath, ec))
@@ -971,8 +958,7 @@ bool reshadefx::preprocessor::evaluate_identifier_as_macro()
 
 	std::string input;
 	expand_macro(it->second, arguments, input);
-
-	push(input);
+	push(std::move(input));
 
 	return true;
 }

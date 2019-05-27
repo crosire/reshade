@@ -151,7 +151,8 @@ void reshade::runtime::on_present()
 
 	// Advance various statistics
 	_framecount++;
-	_last_present_time += _last_frame_duration = std::chrono::high_resolution_clock::now() - _last_present_time;
+	const auto current_time = std::chrono::high_resolution_clock::now();
+	_last_frame_duration = current_time - _last_present_time; _last_present_time = current_time;
 
 	// Lock input so it cannot be modified by other threads while we are reading it here
 	const auto input_lock = _input->lock();
@@ -447,10 +448,11 @@ void reshade::runtime::load_effects()
 
 	_last_reload_successful = true;
 
-	// Reload preprocessor definitions from current preset
+	// Reload preprocessor definitions from current preset before compiling
 	if (!_current_preset_path.empty())
 	{
 		_preset_preprocessor_definitions.clear();
+
 		const ini_file preset(_current_preset_path);
 		preset.get("", "PreprocessorDefinitions", _preset_preprocessor_definitions);
 	}
@@ -481,10 +483,8 @@ void reshade::runtime::load_textures()
 		if (source_path.empty())
 			continue;
 
-		struct _stat64 st {};
 		// Search for image file using the provided search paths unless the path provided is already absolute
-		if (!find_file(_texture_search_paths, source_path) || _wstati64(source_path.wstring().c_str(), &st) != 0)
-		{
+		if (!find_file(_texture_search_paths, source_path)) {
 			LOG(ERROR) << "> Source " << source_path << " for texture '" << texture.unique_name << "' could not be found in any of the texture search paths.";
 			continue;
 		}
@@ -492,20 +492,20 @@ void reshade::runtime::load_textures()
 		unsigned char *filedata = nullptr;
 		int width = 0, height = 0, channels = 0;
 
-		if (FILE *file; _wfopen_s(&file, source_path.wstring().c_str(), L"rb") == 0)
+		if (FILE *file; _wfopen_s(&file, source_path.c_str(), L"rb") == 0)
 		{
-			std::vector<uint8_t> filebuffer(static_cast<size_t>(st.st_size));
-			fread(filebuffer.data(), 1, filebuffer.size(), file);
+			// Read texture data into memory in one go since that is faster than reading chunk by chunk
+			std::vector<uint8_t> mem(static_cast<size_t>(std::filesystem::file_size(source_path)));
+			fread(mem.data(), 1, mem.size(), file);
 			fclose(file);
 
-			if (stbi_dds_test_memory(filebuffer.data(), filebuffer.size()))
-				filedata = stbi_dds_load_from_memory(filebuffer.data(), filebuffer.size(), &width, &height, &channels, STBI_rgb_alpha);
+			if (stbi_dds_test_memory(mem.data(), mem.size()))
+				filedata = stbi_dds_load_from_memory(mem.data(), mem.size(), &width, &height, &channels, STBI_rgb_alpha);
 			else
-				filedata = stbi_load_from_memory(filebuffer.data(), filebuffer.size(), &width, &height, &channels, STBI_rgb_alpha);
+				filedata = stbi_load_from_memory(mem.data(), mem.size(), &width, &height, &channels, STBI_rgb_alpha);
 		}
 
-		if (filedata == nullptr)
-		{
+		if (filedata == nullptr) {
 			LOG(ERROR) << "> Source " << source_path << " for texture '" << texture.unique_name << "' could not be loaded! Make sure it is of a compatible file format.";
 			continue;
 		}
@@ -707,7 +707,7 @@ void reshade::runtime::update_and_render_effects()
 			set_uniform_value(variable, _date, 4);
 			break;
 		case special_uniform::timer:
-			set_uniform_value(variable, std::chrono::duration_cast<std::chrono::nanoseconds>(_last_present_time - _start_time).count() * 1e-6f);
+			set_uniform_value(variable, static_cast<unsigned int>(std::chrono::duration_cast<std::chrono::milliseconds>(_last_present_time - _start_time).count()));
 			break;
 		case special_uniform::key:
 			if (const int keycode = variable.annotation_as_int("keycode");
@@ -825,11 +825,12 @@ void reshade::runtime::subscribe_to_save_config(std::function<void(ini_file &)> 
 void reshade::runtime::load_config()
 {
 	const ini_file config(_configuration_path);
+
 	std::filesystem::path current_preset_path;
 
-	config.get("INPUT", "KeyScreenshot", _screenshot_key_data);
 	config.get("INPUT", "KeyReload", _reload_key_data);
 	config.get("INPUT", "KeyEffects", _effects_key_data);
+	config.get("INPUT", "KeyScreenshot", _screenshot_key_data);
 
 	config.get("GENERAL", "PerformanceMode", _performance_mode);
 	config.get("GENERAL", "EffectSearchPaths", _effect_search_paths);
@@ -840,6 +841,17 @@ void reshade::runtime::load_config()
 	config.get("GENERAL", "ScreenshotFormat", _screenshot_format);
 	config.get("GENERAL", "ScreenshotIncludePreset", _screenshot_include_preset);
 	config.get("GENERAL", "NoReloadOnInit", _no_reload_on_init);
+
+	if (current_preset_path.empty())
+	{
+		size_t preset_index = 0;
+		std::vector<std::filesystem::path> preset_files;
+		config.get("GENERAL", "PresetFiles", preset_files);
+		config.get("GENERAL", "CurrentPreset", preset_index);
+
+		if (preset_index < preset_files.size())
+			current_preset_path = preset_files[preset_index];
+	}
 
 	set_current_preset(current_preset_path);
 
@@ -854,9 +866,9 @@ void reshade::runtime::save_config(const std::filesystem::path &path) const
 {
 	ini_file config(_configuration_path, path);
 
-	config.set("INPUT", "KeyScreenshot", _screenshot_key_data);
 	config.set("INPUT", "KeyReload", _reload_key_data);
 	config.set("INPUT", "KeyEffects", _effects_key_data);
+	config.set("INPUT", "KeyScreenshot", _screenshot_key_data);
 
 	config.set("GENERAL", "PerformanceMode", _performance_mode);
 	config.set("GENERAL", "EffectSearchPaths", _effect_search_paths);
@@ -878,8 +890,8 @@ void reshade::runtime::load_preset(const std::filesystem::path &path)
 
 	std::vector<std::string> technique_list;
 	preset.get("", "Techniques", technique_list);
-	std::vector<std::string> technique_sorting_list;
-	preset.get("", "TechniqueSorting", technique_sorting_list);
+	std::vector<std::string> sorted_technique_list;
+	preset.get("", "TechniqueSorting", sorted_technique_list);
 	std::vector<std::string> preset_preprocessor_definitions;
 	preset.get("", "PreprocessorDefinitions", preset_preprocessor_definitions);
 
@@ -888,19 +900,19 @@ void reshade::runtime::load_preset(const std::filesystem::path &path)
 		(_performance_mode || preset_preprocessor_definitions != _preset_preprocessor_definitions))
 	{
 		assert(path == _current_preset_path);
-		_preset_preprocessor_definitions = preset_preprocessor_definitions;
+		_preset_preprocessor_definitions = std::move(preset_preprocessor_definitions);
 		load_effects();
 		return; // Preset values are loaded in 'update_and_render_effects' during effect loading
 	}
 
 	// Reorder techniques
-	if (technique_sorting_list.empty())
-		technique_sorting_list = technique_list;
+	if (sorted_technique_list.empty())
+		sorted_technique_list = technique_list;
 
 	std::sort(_techniques.begin(), _techniques.end(),
-		[&technique_sorting_list](const auto &lhs, const auto &rhs) {
-			return (std::find(technique_sorting_list.begin(), technique_sorting_list.end(), lhs.name) - technique_sorting_list.begin()) <
-			       (std::find(technique_sorting_list.begin(), technique_sorting_list.end(), rhs.name) - technique_sorting_list.begin());
+		[&sorted_technique_list](const auto &lhs, const auto &rhs) {
+			return (std::find(sorted_technique_list.begin(), sorted_technique_list.end(), lhs.name) - sorted_technique_list.begin()) <
+			       (std::find(sorted_technique_list.begin(), sorted_technique_list.end(), rhs.name) - sorted_technique_list.begin());
 		});
 
 	for (uniform &variable : _uniforms)
@@ -952,7 +964,7 @@ void reshade::runtime::save_preset(const std::filesystem::path &path) const
 
 	std::vector<size_t> effect_list;
 	std::vector<std::string> technique_list;
-	std::vector<std::string> technique_sorting_list;
+	std::vector<std::string> sorted_technique_list;
 
 	for (const technique &technique : _techniques)
 	{
@@ -962,7 +974,7 @@ void reshade::runtime::save_preset(const std::filesystem::path &path) const
 			effect_list.push_back(technique.effect_index);
 
 		// Keep track of the order of all techniques and not just the enabled ones
-		technique_sorting_list.push_back(technique.name);
+		sorted_technique_list.push_back(technique.name);
 
 		if (technique.toggle_key_data[0] != 0)
 			preset.set("", "Key" + technique.name, technique.toggle_key_data);
@@ -971,7 +983,7 @@ void reshade::runtime::save_preset(const std::filesystem::path &path) const
 	}
 
 	preset.set("", "Techniques", std::move(technique_list));
-	preset.set("", "TechniqueSorting", std::move(technique_sorting_list));
+	preset.set("", "TechniqueSorting", std::move(sorted_technique_list));
 	preset.set("", "PreprocessorDefinitions", _preset_preprocessor_definitions);
 
 	// TODO: Do we want to save spec constants here too? The preset will be rather empty in performance mode otherwise.
@@ -981,24 +993,26 @@ void reshade::runtime::save_preset(const std::filesystem::path &path) const
 			|| std::find(effect_list.begin(), effect_list.end(), variable.effect_index) == effect_list.end())
 			continue;
 
-		assert(variable.type.components() < 16);
-
+		const std::string section =
+			_loaded_effects[variable.effect_index].source_file.filename().u8string();
 		reshadefx::constant values;
+
+		assert(variable.type.components() <= 16);
 
 		switch (variable.type.base)
 		{
 		case reshadefx::type::t_int:
 			get_uniform_value(variable, values.as_int, 16);
-			preset.set(_loaded_effects[variable.effect_index].source_file.filename().u8string(), variable.name, variant(values.as_int, variable.type.components()));
+			preset.set(section, variable.name, values.as_int, variable.type.components());
 			break;
 		case reshadefx::type::t_bool:
 		case reshadefx::type::t_uint:
 			get_uniform_value(variable, values.as_uint, 16);
-			preset.set(_loaded_effects[variable.effect_index].source_file.filename().u8string(), variable.name, variant(values.as_uint, variable.type.components()));
+			preset.set(section, variable.name, values.as_uint, variable.type.components());
 			break;
 		case reshadefx::type::t_float:
 			get_uniform_value(variable, values.as_float, 16);
-			preset.set(_loaded_effects[variable.effect_index].source_file.filename().u8string(), variable.name, variant(values.as_float, variable.type.components()));
+			preset.set(section, variable.name, values.as_float, variable.type.components());
 			break;
 		}
 	}
