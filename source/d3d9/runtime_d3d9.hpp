@@ -73,6 +73,10 @@ namespace reshade::d3d9
 		void detect_depth_source();
 		bool create_depthstencil_replacement(const com_ptr<IDirect3DSurface9> &depthstencil);
 
+		void weapon_or_cockpit_fix(const com_ptr<IDirect3DSurface9> depthstencil, D3DPRIMITIVETYPE PrimitiveType, UINT StartVertex, UINT PrimitiveCount);
+		void weapon_or_cockpit_fix(const com_ptr<IDirect3DSurface9> depthstencil, D3DPRIMITIVETYPE PrimitiveType, INT BaseVertexIndex, UINT MinVertexIndex, UINT NumVertices, UINT StartIndex, UINT PrimitiveCount);
+		void create_fixed_viewport(const D3DVIEWPORT9 mViewport);
+
 		com_ptr<IDirect3D9> _d3d;
 		com_ptr<IDirect3DDevice9> _device;
 		com_ptr<IDirect3DSwapChain9> _swapchain;
@@ -89,9 +93,11 @@ namespace reshade::d3d9
 		bool _disable_intz = false;
 		bool _preserve_depth_buffer = false;
 		bool _auto_preserve = true;
-		bool _focus_on_best_original_depthstencil_source = false;
 		size_t _preserve_starting_index = 0;
+		size_t _adjusted_preserve_starting_index = 0;
+		bool _source_engine_fix = false;
 		bool _brute_force_fix = false;
+		bool _focus_on_best_original_depthstencil_source = false;
 		bool _disable_depth_buffer_size_restriction = false;
 		bool _init_depthbuffer_detection = true;
 		bool _is_good_viewport = true;
