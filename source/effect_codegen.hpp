@@ -7,6 +7,7 @@
 
 #include "effect_lexer.hpp"
 #include <algorithm>
+#include <memory>
 
 namespace reshadefx
 {
