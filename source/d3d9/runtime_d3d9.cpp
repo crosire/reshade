@@ -338,12 +338,26 @@ void reshade::d3d9::runtime_d3d9::on_draw_primitive_up(D3DPRIMITIVETYPE Primitiv
 	com_ptr<IDirect3DSurface9> depthstencil;
 	_device->GetDepthStencilSurface(&depthstencil);
 
+	if (depthstencil != nullptr)
+	{
+		// Resolve pointer to original depth stencil
+		if (_depthstencil_replacement == depthstencil)
+			depthstencil = _depthstencil;
+	}
+
 	on_draw_call(depthstencil, PrimitiveType, PrimitiveCount);
 }
 void reshade::d3d9::runtime_d3d9::on_draw_indexed_primitive_up(D3DPRIMITIVETYPE PrimitiveType, UINT MinVertexIndex, UINT NumVertices, UINT PrimitiveCount, const void *pIndexData, D3DFORMAT IndexDataFormat, const void *pVertexStreamZeroData, UINT VertexStreamZeroStride)
 {
 	com_ptr<IDirect3DSurface9> depthstencil;
 	_device->GetDepthStencilSurface(&depthstencil);
+
+	if (depthstencil != nullptr)
+	{
+		// Resolve pointer to original depth stencil
+		if (_depthstencil_replacement == depthstencil)
+			depthstencil = _depthstencil;
+	}
 
 	on_draw_call(depthstencil, PrimitiveType, PrimitiveCount);
 }
@@ -387,6 +401,24 @@ void reshade::d3d9::runtime_d3d9::on_draw_call(com_ptr<IDirect3DSurface9> depths
 	if (_preserve_depth_buffer && _depthstencil_replacement != nullptr)
 	{
 		_device->SetDepthStencilSurface(depthstencil.get());
+
+		D3DSURFACE_DESC desc, depthstencil_desc;
+		D3DVIEWPORT9 pViewport;
+
+		_device->GetViewport(&pViewport);
+
+		desc.Width = pViewport.Width;
+		desc.Height = pViewport.Height;
+		desc.MultiSampleType = D3DMULTISAMPLE_NONE;
+		_is_good_viewport = true;
+
+		if (_depthstencil_replacement == nullptr)
+			_is_good_viewport = check_depthstencil_size(desc);
+		else
+		{
+			_depthstencil_replacement->GetDesc(&depthstencil_desc);
+			_is_good_viewport = check_depthstencil_size(desc, depthstencil_desc);
+		}
 
 		// remove parasite items
 		if (!_is_good_viewport)
@@ -458,24 +490,6 @@ void reshade::d3d9::runtime_d3d9::on_clear_depthstencil_surface(IDirect3DSurface
 
 	// If the current depth buffer replacement texture has to be preserved, replace the set surface with the original one, so that the replacement texture will not be cleared
 	_device->SetDepthStencilSurface(_depthstencil.get());
-}
-
-void reshade::d3d9::runtime_d3d9::on_set_viewport(const D3DVIEWPORT9 *pViewport)
-{
-	D3DSURFACE_DESC desc, depthstencil_desc;
-
-	desc.Width = pViewport->Width;
-	desc.Height = pViewport->Height;
-	desc.MultiSampleType = D3DMULTISAMPLE_NONE;
-	_is_good_viewport = true;
-
-	if (_depthstencil_replacement == nullptr)
-		_is_good_viewport = check_depthstencil_size(desc);
-	else
-	{
-		_depthstencil_replacement->GetDesc(&depthstencil_desc);
-		_is_good_viewport = check_depthstencil_size(desc, depthstencil_desc);
-	}
 }
 
 void reshade::d3d9::runtime_d3d9::capture_screenshot(uint8_t *buffer) const

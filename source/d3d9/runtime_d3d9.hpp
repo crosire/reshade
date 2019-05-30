@@ -33,7 +33,6 @@ namespace reshade::d3d9
 		void on_set_depthstencil_surface(IDirect3DSurface9 *&depthstencil);
 		void on_get_depthstencil_surface(IDirect3DSurface9 *&depthstencil);
 		void on_clear_depthstencil_surface(IDirect3DSurface9 *depthstencil);
-		void on_set_viewport(const D3DVIEWPORT9 *pViewport);
 
 		void capture_screenshot(uint8_t *buffer) const override;
 

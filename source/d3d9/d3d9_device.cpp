@@ -439,10 +439,6 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::MultiplyTransform(D3DTRANSFORMSTATETY
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetViewport(const D3DVIEWPORT9 *pViewport)
 {
-	assert(_implicit_swapchain != nullptr);
-	assert(_implicit_swapchain->_runtime != nullptr);
-	_implicit_swapchain->_runtime->on_set_viewport(pViewport);
-
 	return _orig->SetViewport(pViewport);
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetViewport(D3DVIEWPORT9 *pViewport)
