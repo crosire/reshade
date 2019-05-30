@@ -1475,6 +1475,9 @@ void reshade::d3d9::runtime_d3d9::detect_depth_source()
 
 	if (_has_high_network_activity)
 	{
+		// Force depth source table recreation
+		_depth_buffer_table.clear();
+		_depth_source_table.clear();
 		create_depthstencil_replacement(nullptr);
 		return;
 	}
