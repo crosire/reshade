@@ -396,6 +396,16 @@ void reshade::d3d9::runtime_d3d9::on_draw_call(com_ptr<IDirect3DSurface9> depths
 			it->second.drawcall_count = _drawcalls;
 			it->second.vertices_count += vertices;
 		}
+		else
+		{
+			D3DSURFACE_DESC desc;
+			depthstencil->GetDesc(&desc);
+
+			if (!check_depthstencil_size(desc)) // Ignore unlikely candidates
+				return;
+
+			_depth_source_table.emplace(depthstencil, depth_source_info{ nullptr, desc.Width, desc.Height, _drawcalls, _vertices });
+		}
 	}
 
 	if (_preserve_depth_buffer && _depthstencil_replacement != nullptr)
