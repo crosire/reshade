@@ -253,19 +253,23 @@ bool reshade::d3d12::runtime_d3d12::on_init(const DXGI_SWAP_CHAIN_DESC &desc)
 	_backbuffer_format = desc.BufferDesc.Format;
 
 	// Create multiple command allocators to buffer for multiple frames
-	assert(desc.BufferCount <= ARRAYSIZE(_cmd_alloc));
-	for (unsigned int i = 0; i < ARRAYSIZE(_cmd_alloc); ++i)
+	_cmd_alloc.resize(desc.BufferCount);
+	for (UINT i = 0; i < desc.BufferCount; ++i)
 		if (FAILED(_device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&_cmd_alloc[i]))))
 			return false;
 	if (FAILED(_device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, _cmd_alloc[0].get(), nullptr, IID_PPV_ARGS(&_cmd_list))))
 		return false;
 	_cmd_list->Close(); // Immediately close since it will be reset on first use
 
-	_screenshot_event = CreateEvent(nullptr, FALSE, FALSE, nullptr);
-	if (_screenshot_event == nullptr)
+	// Create fences for synchronization
+	_fence_event = CreateEvent(nullptr, FALSE, FALSE, nullptr);
+	if (_fence_event == nullptr)
 		return false;
-	if (FAILED(_device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&_screenshot_fence))))
-		return false;
+	_fence.resize(desc.BufferCount);
+	_fence_value.resize(desc.BufferCount);
+	for (UINT i = 0; i < desc.BufferCount; ++i)
+		if (FAILED(_device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&_fence[i]))))
+			return false;
 
 	if (!init_backbuffer_textures(desc.BufferCount) ||
 		!init_default_depth_stencil() ||
@@ -283,8 +287,11 @@ void reshade::d3d12::runtime_d3d12::on_reset()
 	runtime::on_reset();
 
 	_cmd_list.reset();
-	for (unsigned int i = 0; i < ARRAYSIZE(_cmd_alloc); ++i)
-		_cmd_alloc[i].reset();
+	_cmd_alloc.clear();
+
+	CloseHandle(_fence_event);
+	_fence.clear();
+	_fence_value.clear();
 
 	_backbuffers.clear();
 	_backbuffer_rtvs.reset();
@@ -294,9 +301,6 @@ void reshade::d3d12::runtime_d3d12::on_reset()
 
 	_mipmap_pipeline.reset();
 	_mipmap_signature.reset();
-
-	_screenshot_fence.reset();
-	CloseHandle(_screenshot_event);
 
 #if RESHADE_GUI
 	for (unsigned int resource_index = 0; resource_index < 3; ++resource_index)
@@ -319,11 +323,20 @@ void reshade::d3d12::runtime_d3d12::on_present()
 
 	_swap_index = _swapchain->GetCurrentBackBufferIndex();
 
+	// Make sure all commands for this command allocator have finished executing before reseting it
+	if (_fence[_swap_index]->GetCompletedValue() < _fence_value[_swap_index])
+	{
+		_fence[_swap_index]->SetEventOnCompletion(_fence_value[_swap_index], _fence_event);
+		WaitForSingleObject(_fence_event, INFINITE);
+	}
+
 	// Reset command allocator before using it this frame again
 	_cmd_alloc[_swap_index]->Reset();
 
 	update_and_render_effects();
 	runtime::on_present();
+
+	_commandqueue->Signal(_fence[_swap_index].get(), ++_fence_value[_swap_index]);
 }
 
 void reshade::d3d12::runtime_d3d12::capture_screenshot(uint8_t *buffer) const
@@ -384,6 +397,7 @@ void reshade::d3d12::runtime_d3d12::capture_screenshot(uint8_t *buffer) const
 
 	// Execute and wait for completion
 	execute_command_list(cmd_list);
+	wait_for_command_queue();
 
 	// Copy data from system memory texture into output buffer
 	uint8_t *mapped_data;
@@ -619,7 +633,9 @@ void reshade::d3d12::runtime_d3d12::upload_texture(texture &texture, const uint8
 
 	generate_mipmaps(cmd_list, texture);
 
+	// Execute and wait for completion
 	execute_command_list(cmd_list);
+	wait_for_command_queue();
 }
 
 void reshade::d3d12::runtime_d3d12::generate_mipmaps(const com_ptr<ID3D12GraphicsCommandList> &cmd_list, texture &texture)
@@ -672,21 +688,18 @@ com_ptr<ID3D12GraphicsCommandList> reshade::d3d12::runtime_d3d12::create_command
 }
 void reshade::d3d12::runtime_d3d12::execute_command_list(const com_ptr<ID3D12GraphicsCommandList> &list) const
 {
-	execute_command_list_async(list);
-
-	_screenshot_fence->SetEventOnCompletion(1, _screenshot_event);
-	_commandqueue->Signal(_screenshot_fence.get(), 1);
-	WaitForSingleObject(_screenshot_event, INFINITE);
-	_screenshot_fence->Signal(0);
-
-}
-void reshade::d3d12::runtime_d3d12::execute_command_list_async(const com_ptr<ID3D12GraphicsCommandList> &list) const
-{
 	if (FAILED(list->Close()))
 		return;
 
 	ID3D12CommandList *const cmd_lists[] = { list.get() };
 	_commandqueue->ExecuteCommandLists(ARRAYSIZE(cmd_lists), cmd_lists);
+}
+void reshade::d3d12::runtime_d3d12::wait_for_command_queue() const
+{
+	const UINT64 sync_value = ++_fence_value[_swap_index];
+	_commandqueue->Signal(_fence[_swap_index].get(), sync_value);
+	_fence[_swap_index]->SetEventOnCompletion(sync_value, _fence_event);
+	WaitForSingleObject(_fence_event, INFINITE);
 }
 
 bool reshade::d3d12::runtime_d3d12::compile_effect(effect_data &effect)
@@ -897,10 +910,7 @@ bool reshade::d3d12::runtime_d3d12::compile_effect(effect_data &effect)
 void reshade::d3d12::runtime_d3d12::unload_effects()
 {
 	// Wait for all GPU operations to finish so resources are no longer referenced
-	_screenshot_fence->SetEventOnCompletion(1, _screenshot_event);
-	_commandqueue->Signal(_screenshot_fence.get(), 1);
-	WaitForSingleObject(_screenshot_event, INFINITE);
-	_screenshot_fence->Signal(0);
+	wait_for_command_queue();
 
 	runtime::unload_effects();
 
@@ -1176,7 +1186,7 @@ void reshade::d3d12::runtime_d3d12::render_technique(technique &technique)
 
 	transition_state(cmd_list, _backbuffers[_swap_index], D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
 
-	execute_command_list_async(cmd_list);
+	execute_command_list(cmd_list);
 }
 
 #if RESHADE_GUI
@@ -1397,6 +1407,6 @@ void reshade::d3d12::runtime_d3d12::render_imgui_draw_data(ImDrawData *draw_data
 	// Transition render target back to previous state
 	transition_state(cmd_list, _backbuffers[_swap_index], D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
 
-	execute_command_list_async(cmd_list);
+	execute_command_list(cmd_list);
 }
 #endif

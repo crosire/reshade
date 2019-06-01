@@ -277,12 +277,6 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 			HCHECK(cmd_lists[i]->Close());
 		}
 
-		UINT64 next_fence_value = 0;
-		const HANDLE frame_event = CreateEvent(nullptr, FALSE, FALSE, nullptr);
-		assert(frame_event != nullptr);
-		com_ptr<ID3D12Fence> frame_fence;
-		HCHECK(device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&frame_fence)));
-
 		while (msg.message != WM_QUIT)
 		{
 			while (msg.message != WM_QUIT &&
@@ -294,20 +288,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 			ID3D12CommandList *const cmd_list = cmd_lists[swap_index].get();
 			command_queue->ExecuteCommandLists(1, &cmd_list);
 
+			// Synchronization is handled in "runtime_d3d12::on_present"
 			swapchain->Present(1, 0);
-
-			// Wait for frame to complete
-			const UINT64 fence_value = ++next_fence_value;
-			command_queue->Signal(frame_fence.get(), fence_value);
-			if (frame_fence->GetCompletedValue() < fence_value)
-			{
-				frame_fence->SetEventOnCompletion(fence_value, frame_event);
-				WaitForSingleObject(frame_event, INFINITE);
-				Sleep(1); // TODO: Mmmmmh
-			}
 		}
-
-		CloseHandle(frame_event);
 
 		reshade::hooks::uninstall();
 
