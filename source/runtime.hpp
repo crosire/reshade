@@ -250,7 +250,7 @@ namespace reshade
 		/// <summary>
 		/// Create a copy of the current frame and write it to an image file on disk.
 		/// </summary>
-		void save_screenshot();
+		void save_screenshot(bool before = false);
 
 		void get_uniform_value(const uniform &variable, uint8_t *data, size_t size) const;
 		void set_uniform_value(uniform &variable, const uint8_t *data, size_t size);
@@ -273,6 +273,7 @@ namespace reshade
 		std::filesystem::path _last_screenshot_file;
 		bool _screenshot_save_success = false;
 		bool _screenshot_include_preset = false;
+		bool _screenshot_save_before = false;
 
 		std::filesystem::path _current_preset_path;
 
@@ -285,6 +286,7 @@ namespace reshade
 		bool _performance_mode = false;
 		bool _no_reload_on_init = false;
 		bool _last_reload_successful = true;
+		bool _should_save_screenshot = false;
 		std::mutex _reload_mutex;
 		size_t _reload_total_effects = 1;
 		std::vector<size_t> _reload_compile_queue;

@@ -855,6 +855,7 @@ void reshade::runtime::draw_overlay_menu_settings()
 		modified |= imgui_directory_input_box("Screenshot Path", _screenshot_path, _file_selection_path);
 		modified |= ImGui::Combo("Screenshot Format", &_screenshot_format, "Bitmap (*.bmp)\0Portable Network Graphics (*.png)\0");
 		modified |= ImGui::Checkbox("Include Preset & Settings", &_screenshot_include_preset);
+		modified |= ImGui::Checkbox("Save Before and After", &_screenshot_save_before);
 	}
 
 	if (ImGui::CollapsingHeader("User Interface", ImGuiTreeNodeFlags_DefaultOpen))
