@@ -48,7 +48,7 @@ namespace reshade::d3d12
 		void generate_mipmaps(const com_ptr<ID3D12GraphicsCommandList> &list, texture &texture);
 
 		com_ptr<ID3D12RootSignature> create_root_signature(const D3D12_ROOT_SIGNATURE_DESC &desc) const;
-		com_ptr<ID3D12GraphicsCommandList> create_command_list(const com_ptr<ID3D12PipelineState> &state = nullptr, D3D12_COMMAND_LIST_TYPE type = D3D12_COMMAND_LIST_TYPE_DIRECT) const;
+		com_ptr<ID3D12GraphicsCommandList> create_command_list(const com_ptr<ID3D12PipelineState> &state = nullptr) const;
 		void execute_command_list(const com_ptr<ID3D12GraphicsCommandList> &list) const;
 		void execute_command_list_async(const com_ptr<ID3D12GraphicsCommandList> &list) const;
 
@@ -80,6 +80,7 @@ namespace reshade::d3d12
 
 		DXGI_FORMAT _backbuffer_format = DXGI_FORMAT_UNKNOWN;
 		com_ptr<ID3D12CommandAllocator> _cmd_alloc[3];
+		com_ptr<ID3D12GraphicsCommandList> _cmd_list;
 
 #if RESHADE_GUI
 		unsigned int _imgui_index_buffer_size[3] = {};
