@@ -34,7 +34,7 @@
 					Click="OnApiChecked" />
 				<RadioButton
 					x:Name="ApiDirectXGI"
-					Content="Direct3D 10+"
+					Content="Direct3D 10/11/12"
 					HorizontalAlignment="Center"
 					VerticalAlignment="Center"
 					Margin="8,0,0,0"
