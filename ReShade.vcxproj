@@ -83,6 +83,7 @@
     <Import Project="deps\ImGui.props" />
     <Import Project="deps\utfcpp.props" />
     <Import Project="deps\SPIRV.props" />
+    <Import Project="deps\Vulkan.props" />
   </ImportGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -393,6 +394,8 @@
     <ClCompile Include="source\resource_loading.cpp" />
     <ClCompile Include="source\runtime.cpp" />
     <ClCompile Include="source\update_check.cpp" />
+    <ClCompile Include="source\vulkan\vulkan.cpp" />
+    <ClCompile Include="source\vulkan\runtime_vulkan.cpp" />
     <ClCompile Include="source\windows\user32.cpp" />
     <ClCompile Include="source\windows\ws2_32.cpp" />
   </ItemGroup>
@@ -434,6 +437,7 @@
     <ClInclude Include="source\resource_loading.hpp" />
     <ClInclude Include="source\runtime.hpp" />
     <ClInclude Include="source\runtime_objects.hpp" />
+    <ClInclude Include="source\vulkan\runtime_vulkan.hpp" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="res\resource.rc" />
