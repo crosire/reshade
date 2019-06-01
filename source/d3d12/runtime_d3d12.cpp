@@ -98,7 +98,7 @@ reshade::d3d12::runtime_d3d12::~runtime_d3d12()
 		FreeLibrary(_d3d_compiler);
 }
 
-bool reshade::d3d12::runtime_d3d12::init_backbuffer_textures(unsigned int num_buffers)
+bool reshade::d3d12::runtime_d3d12::init_backbuffer_textures(UINT num_buffers)
 {
 	_srv_handle_size = _device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 	_rtv_handle_size = _device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
@@ -157,6 +157,36 @@ bool reshade::d3d12::runtime_d3d12::init_backbuffer_textures(unsigned int num_bu
 #endif
 	}
 
+	return true;
+}
+bool reshade::d3d12::runtime_d3d12::init_default_depth_stencil()
+{
+	{   D3D12_RESOURCE_DESC desc = { D3D12_RESOURCE_DIMENSION_TEXTURE2D };
+		desc.Width = _width;
+		desc.Height = _height;
+		desc.DepthOrArraySize = 1;
+		desc.MipLevels = 1;
+		desc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
+		desc.SampleDesc = { 1, 0 };
+		desc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
+		D3D12_HEAP_PROPERTIES props = { D3D12_HEAP_TYPE_DEFAULT };
+
+		D3D12_CLEAR_VALUE clear_value = {};
+		clear_value.Format = desc.Format;
+		clear_value.DepthStencil = { 1.0f, 0x0 };
+
+		if (FAILED(_device->CreateCommittedResource(&props, D3D12_HEAP_FLAG_NONE, &desc, D3D12_RESOURCE_STATE_DEPTH_WRITE, &clear_value, IID_PPV_ARGS(&_default_depthstencil))))
+			return false;
+#ifdef _DEBUG
+		_default_depthstencil->SetName(L"ReShade Default Depth-Stencil");
+#endif
+		_device->CreateDepthStencilView(_default_depthstencil.get(), nullptr, _depthstencil_dsvs->GetCPUDescriptorHandleForHeapStart());
+	}
+
+	return true;
+}
+bool reshade::d3d12::runtime_d3d12::init_mipmap_pipeline()
+{
 	{   D3D12_DESCRIPTOR_RANGE srv_range = {};
 		srv_range.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
 		srv_range.NumDescriptors = 1;
@@ -208,38 +238,6 @@ bool reshade::d3d12::runtime_d3d12::init_backbuffer_textures(unsigned int num_bu
 			return false;
 	}
 
-	_screenshot_event = CreateEvent(nullptr, FALSE, FALSE, nullptr);
-	if (_screenshot_event == nullptr)
-		return false;
-	if (FAILED(_device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&_screenshot_fence))))
-		return false;
-
-	return true;
-}
-bool reshade::d3d12::runtime_d3d12::init_default_depth_stencil()
-{
-	{   D3D12_RESOURCE_DESC desc = { D3D12_RESOURCE_DIMENSION_TEXTURE2D };
-		desc.Width = _width;
-		desc.Height = _height;
-		desc.DepthOrArraySize = 1;
-		desc.MipLevels = 1;
-		desc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
-		desc.SampleDesc = { 1, 0 };
-		desc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
-		D3D12_HEAP_PROPERTIES props = { D3D12_HEAP_TYPE_DEFAULT };
-
-		D3D12_CLEAR_VALUE clear_value = {};
-		clear_value.Format = desc.Format;
-		clear_value.DepthStencil = { 1.0f, 0x0 };
-
-		if (FAILED(_device->CreateCommittedResource(&props, D3D12_HEAP_FLAG_NONE, &desc, D3D12_RESOURCE_STATE_DEPTH_WRITE, &clear_value, IID_PPV_ARGS(&_default_depthstencil))))
-			return false;
-#ifdef _DEBUG
-		_default_depthstencil->SetName(L"ReShade Default Depth-Stencil");
-#endif
-		_device->CreateDepthStencilView(_default_depthstencil.get(), nullptr, _depthstencil_dsvs->GetCPUDescriptorHandleForHeapStart());
-	}
-
 	return true;
 }
 
@@ -263,8 +261,15 @@ bool reshade::d3d12::runtime_d3d12::on_init(const DXGI_SWAP_CHAIN_DESC &desc)
 		return false;
 	_cmd_list->Close(); // Immediately close since it will be reset on first use
 
+	_screenshot_event = CreateEvent(nullptr, FALSE, FALSE, nullptr);
+	if (_screenshot_event == nullptr)
+		return false;
+	if (FAILED(_device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&_screenshot_fence))))
+		return false;
+
 	if (!init_backbuffer_textures(desc.BufferCount) ||
-		!init_default_depth_stencil()
+		!init_default_depth_stencil() ||
+		!init_mipmap_pipeline()
 #if RESHADE_GUI
 		|| !init_imgui_resources()
 #endif

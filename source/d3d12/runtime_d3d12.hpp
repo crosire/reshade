@@ -29,6 +29,7 @@ namespace reshade::d3d12
 	private:
 		bool init_backbuffer_textures(UINT num_buffers);
 		bool init_default_depth_stencil();
+		bool init_mipmap_pipeline();
 
 		bool init_texture(texture &info) override;
 		void upload_texture(texture &texture, const uint8_t *pixels) override;
