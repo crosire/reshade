@@ -705,7 +705,7 @@ bool reshade::d3d12::runtime_d3d12::compile_effect(effect_data &effect)
 			nullptr, nullptr, nullptr,
 			entry_point.first.c_str(),
 			entry_point.second ? "ps_5_0" : "vs_5_0",
-			D3DCOMPILE_ENABLE_STRICTNESS | D3DCOMPILE_ALL_RESOURCES_BOUND, 0,
+			D3DCOMPILE_ENABLE_STRICTNESS | D3DCOMPILE_OPTIMIZATION_LEVEL3, 0,
 			&entry_points[entry_point.first], &d3d_errors);
 
 		if (d3d_errors != nullptr) // Append warnings to the output error string as well

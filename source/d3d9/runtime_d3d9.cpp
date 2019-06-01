@@ -721,7 +721,13 @@ bool reshade::d3d9::runtime_d3d9::compile_effect(effect_data &effect)
 
 		com_ptr<ID3DBlob> compiled, d3d_errors;
 
-		HRESULT hr = D3DCompile(hlsl.c_str(), hlsl.size(), nullptr, nullptr, nullptr, entry_point.first.c_str(), entry_point.second ? "ps_3_0" : "vs_3_0", 0, 0, &compiled, &d3d_errors);
+		HRESULT hr = D3DCompile(
+			hlsl.c_str(), hlsl.size(),
+			nullptr, nullptr, nullptr,
+			entry_point.first.c_str(),
+			entry_point.second ? "ps_3_0" : "vs_3_0",
+			D3DCOMPILE_OPTIMIZATION_LEVEL3, 0,
+			&compiled, &d3d_errors);
 
 		if (d3d_errors != nullptr) // Append warnings to the output error string as well
 			effect.errors.append(static_cast<const char *>(d3d_errors->GetBufferPointer()), d3d_errors->GetBufferSize() - 1); // Subtracting one to not append the null-terminator as well
