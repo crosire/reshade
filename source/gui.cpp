@@ -806,12 +806,23 @@ void reshade::runtime::draw_overlay_menu_home()
 		ImGui::TextWrapped(tutorial_text);
 		ImGui::EndChildFrame();
 
-		if ((_tutorial_index != 1 || !_current_preset_path.empty()) &&
-			ImGui::Button(_tutorial_index == 3 ? "Finish" : "Continue", ImVec2(ImGui::GetContentRegionAvailWidth(), 0)))
+		const float max_button_width = ImGui::GetContentRegionAvailWidth();
+
+		if (ImGui::Button(_tutorial_index == 3 ? "Finish" : "Continue", ImVec2(max_button_width * 0.66666666f, 0)))
 		{
 			// Disable font scaling after tutorial
 			if (_tutorial_index++ == 3)
 				_no_font_scaling = true;
+
+			save_config();
+		}
+
+		ImGui::SameLine();
+
+		if (ImGui::Button("Skip Tutorial", ImVec2(max_button_width * 0.33333333f - _imgui_context->Style.ItemSpacing.x, 0)))
+		{
+			_tutorial_index = 4;
+			_no_font_scaling = true;
 
 			save_config();
 		}
