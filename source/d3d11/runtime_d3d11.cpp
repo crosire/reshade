@@ -654,7 +654,13 @@ bool reshade::d3d11::runtime_d3d11::compile_effect(effect_data &effect)
 
 		com_ptr<ID3DBlob> d3d_compiled, d3d_errors;
 
-		HRESULT hr = D3DCompile(hlsl.c_str(), hlsl.size(), nullptr, nullptr, nullptr, entry_point.first.c_str(), profile.c_str(), D3DCOMPILE_ENABLE_STRICTNESS, 0, &d3d_compiled, &d3d_errors);
+		HRESULT hr = D3DCompile(
+			hlsl.c_str(), hlsl.size(),
+			nullptr, nullptr, nullptr,
+			entry_point.first.c_str(),
+			profile.c_str(),
+			D3DCOMPILE_ENABLE_STRICTNESS | D3DCOMPILE_OPTIMIZATION_LEVEL3, 0,
+			&d3d_compiled, &d3d_errors);
 
 		if (d3d_errors != nullptr) // Append warnings to the output error string as well
 			effect.errors.append(static_cast<const char *>(d3d_errors->GetBufferPointer()), d3d_errors->GetBufferSize() - 1); // Subtracting one to not append the null-terminator as well

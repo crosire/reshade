@@ -359,14 +359,14 @@ bool imgui_drag_with_buttons(const char *label, T *v, int components, T v_speed,
 	ImGui::PopItemWidth();
 
 	ImGui::SameLine(0, 0);
-	if (ImGui::ButtonEx("<", ImVec2(button_size, 0), ImGuiButtonFlags_Repeat) && v[0] > v_min)
+	if (ImGui::ButtonEx("<", ImVec2(button_size, 0), ImGuiButtonFlags_PressedOnClick | ImGuiButtonFlags_Repeat) && v[0] > v_min)
 	{
 		for (int c = 0; c < components; ++c)
 			v[c] -= v_speed;
 		value_changed = true;
 	}
 	ImGui::SameLine(0, button_spacing);
-	if (ImGui::ButtonEx(">", ImVec2(button_size, 0), ImGuiButtonFlags_Repeat) && v[0] < v_max)
+	if (ImGui::ButtonEx(">", ImVec2(button_size, 0), ImGuiButtonFlags_PressedOnClick | ImGuiButtonFlags_Repeat) && v[0] < v_max)
 	{
 		for (int c = 0; c < components; ++c)
 			v[c] += v_speed;
@@ -418,14 +418,14 @@ bool imgui_slider_with_buttons(const char *label, T *v, int components, T v_spee
 	ImGui::PopItemWidth();
 
 	ImGui::SameLine(0, 0);
-	if (ImGui::ButtonEx("<", ImVec2(button_size, 0), ImGuiButtonFlags_Repeat) && v[0] > v_min)
+	if (ImGui::ButtonEx("<", ImVec2(button_size, 0), ImGuiButtonFlags_PressedOnClick | ImGuiButtonFlags_Repeat) && v[0] > v_min)
 	{
 		for (int c = 0; c < components; ++c)
 			v[c] -= v_speed;
 		value_changed = true;
 	}
 	ImGui::SameLine(0, button_spacing);
-	if (ImGui::ButtonEx(">", ImVec2(button_size, 0), ImGuiButtonFlags_Repeat) && v[0] < v_max)
+	if (ImGui::ButtonEx(">", ImVec2(button_size, 0), ImGuiButtonFlags_PressedOnClick | ImGuiButtonFlags_Repeat) && v[0] < v_max)
 	{
 		for (int c = 0; c < components; ++c)
 			v[c] += v_speed;
