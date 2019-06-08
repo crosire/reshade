@@ -1070,8 +1070,7 @@ void reshade::runtime::save_screenshot()
 	}
 	else if (_screenshot_include_preset)
 	{
-		save_preset(least + L" Preset.ini");
-		save_config(least + L" Settings.ini");
+		save_preset(least + L".ini");
 	}
 }
 
