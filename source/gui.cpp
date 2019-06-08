@@ -1337,6 +1337,8 @@ void reshade::runtime::draw_overlay_menu_log()
 
 void reshade::runtime::draw_overlay_menu_about()
 {
+	ImGui::TextUnformatted("ReShade " VERSION_STRING_FILE);
+
 	ImGui::PushTextWrapPos();
 	ImGui::TextUnformatted(R"(Copyright (C) 2014 Patrick Mours. All rights reserved.
 
