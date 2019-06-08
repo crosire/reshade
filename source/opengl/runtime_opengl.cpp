@@ -442,23 +442,12 @@ void reshade::opengl::runtime_opengl::upload_texture(texture &texture, const uin
 {
 	assert(texture.impl_reference == texture_reference::none && pixels != nullptr);
 
-	// Clear pixel storage modes to defaults (texture uploads can break otherwise)
-	glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
-	glPixelStorei(GL_UNPACK_SWAP_BYTES, GL_FALSE);
-	glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
-	glPixelStorei(GL_UNPACK_IMAGE_HEIGHT, 0);
-	glPixelStorei(GL_UNPACK_SKIP_ROWS, 0);
-	glPixelStorei(GL_UNPACK_SKIP_PIXELS, 0);
-
-	GLint previous_tex = 0;
-	glGetIntegerv(GL_TEXTURE_BINDING_2D, &previous_tex);
-
 	// Flip image data horizontally
-	const unsigned int pitch = texture.width * 4;
+	const uint32_t pitch = texture.width * 4;
 	std::vector<uint8_t> data_flipped(pixels, pixels + pitch * texture.height);
 	const auto temp = static_cast<uint8_t *>(alloca(pitch));
 
-	for (unsigned int y = 0; 2 * y < texture.height; y++)
+	for (uint32_t y = 0; 2 * y < texture.height; y++)
 	{
 		const auto line1 = data_flipped.data() + pitch * (y);
 		const auto line2 = data_flipped.data() + pitch * (texture.height - 1 - y);
@@ -471,7 +460,23 @@ void reshade::opengl::runtime_opengl::upload_texture(texture &texture, const uin
 	const auto texture_impl = texture.impl->as<opengl_tex_data>();
 	assert(texture_impl != nullptr);
 
+	// Unset any existing unpack buffer so pointer is not interpreted as offset
+	glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
+
+	// Clear pixel storage modes to defaults (texture uploads can break otherwise)
+	glPixelStorei(GL_UNPACK_LSB_FIRST, GL_FALSE);
+	glPixelStorei(GL_UNPACK_SWAP_BYTES, GL_FALSE);
+	glPixelStorei(GL_UNPACK_ALIGNMENT, 4); // RGBA data is 4-byte aligned
+	glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
+	glPixelStorei(GL_UNPACK_IMAGE_HEIGHT, 0);
+	glPixelStorei(GL_UNPACK_SKIP_ROWS, 0);
+	glPixelStorei(GL_UNPACK_SKIP_PIXELS, 0);
+	glPixelStorei(GL_UNPACK_SKIP_IMAGES, 0);
+
 	// Bind and update texture
+	GLint previous_tex = 0;
+	glGetIntegerv(GL_TEXTURE_BINDING_2D, &previous_tex);
+
 	glBindTexture(GL_TEXTURE_2D, texture_impl->id[0]);
 	glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, texture.width, texture.height, GL_RGBA, GL_UNSIGNED_BYTE, data_flipped.data());
 
