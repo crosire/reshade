@@ -98,11 +98,12 @@ reshade::runtime::runtime() :
 }
 reshade::runtime::~runtime()
 {
+	assert(_worker_threads.empty());
+	assert(!_is_initialized && _techniques.empty());
+
 #if RESHADE_GUI
 	deinit_ui();
 #endif
-
-	assert(!_is_initialized && _techniques.empty());
 }
 
 bool reshade::runtime::on_init(input::window_handle window)
