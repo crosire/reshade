@@ -447,7 +447,19 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 			assert(VK_FALSE != supported);
 		}
 
-		{   uint32_t num_present_modes = 0, num_surface_formats = 0;
+		VkQueue queue = VK_NULL_HANDLE;
+		vkGetDeviceQueue(device, queue_family_index, 0, &queue);
+		VkCommandPool cmd_alloc = VK_NULL_HANDLE;
+		std::vector<VkCommandBuffer> cmd_list;
+
+		{   VkCommandPoolCreateInfo create_info { VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO };
+			create_info.queueFamilyIndex = queue_family_index;
+
+			VKCHECK(vkCreateCommandPool(device, &create_info, nullptr, &cmd_alloc));
+		}
+
+		const auto resize_swapchain = [&](VkSwapchainKHR old_swapchain = VK_NULL_HANDLE) {
+			uint32_t num_present_modes = 0, num_surface_formats = 0;
 			vkGetPhysicalDeviceSurfaceFormatsKHR(physical_device, surface, &num_surface_formats, nullptr);
 			vkGetPhysicalDeviceSurfacePresentModesKHR(physical_device, surface, &num_present_modes, nullptr);
 			std::vector<VkPresentModeKHR> present_modes(num_present_modes);
@@ -464,70 +476,68 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 			create_info.imageColorSpace = surface_formats[0].colorSpace;
 			create_info.imageExtent = capabilities.currentExtent;
 			create_info.imageArrayLayers = 1;
-			create_info.imageUsage = VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+			create_info.imageUsage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 			create_info.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
 			create_info.preTransform = VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR;
 			create_info.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
 			create_info.presentMode = present_modes[0];
 			create_info.clipped = VK_TRUE;
+			create_info.oldSwapchain = old_swapchain;
 
 			VKCHECK(vkCreateSwapchainKHR(device, &create_info, nullptr, &swapchain));
-		}
 
-		uint32_t num_swapchain_images = 0;
-		VKCHECK(vkGetSwapchainImagesKHR(device, swapchain, &num_swapchain_images, nullptr));
-		std::vector<VkImage> swapchain_images(num_swapchain_images);
-		VKCHECK(vkGetSwapchainImagesKHR(device, swapchain, &num_swapchain_images, swapchain_images.data()));
+			if (old_swapchain != VK_NULL_HANDLE)
+				vkDestroySwapchainKHR(device, old_swapchain, nullptr);
+			vkFreeCommandBuffers(device, cmd_alloc, uint32_t(cmd_list.size()), cmd_list.data());
 
-		VkQueue queue = VK_NULL_HANDLE;
-		vkGetDeviceQueue(device, queue_family_index, 0, &queue);
-		VkCommandPool cmd_alloc = VK_NULL_HANDLE;
-		std::vector<VkCommandBuffer> cmd_list(num_swapchain_images);
+			uint32_t num_swapchain_images = 0;
+			VKCHECK(vkGetSwapchainImagesKHR(device, swapchain, &num_swapchain_images, nullptr));
+			std::vector<VkImage> swapchain_images(num_swapchain_images);
+			VKCHECK(vkGetSwapchainImagesKHR(device, swapchain, &num_swapchain_images, swapchain_images.data()));
 
-		{   VkCommandPoolCreateInfo create_info { VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO };
-			create_info.queueFamilyIndex = queue_family_index;
+			cmd_list.resize(num_swapchain_images);
 
-			VKCHECK(vkCreateCommandPool(device, &create_info, nullptr, &cmd_alloc));
-		}
+			{   VkCommandBufferAllocateInfo alloc_info { VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO };
+				alloc_info.commandPool = cmd_alloc;
+				alloc_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+				alloc_info.commandBufferCount = num_swapchain_images;
 
-		{   VkCommandBufferAllocateInfo alloc_info { VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO };
-			alloc_info.commandPool = cmd_alloc;
-			alloc_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-			alloc_info.commandBufferCount = num_swapchain_images;
+				VKCHECK(vkAllocateCommandBuffers(device, &alloc_info, cmd_list.data()));
+			}
 
-			VKCHECK(vkAllocateCommandBuffers(device, &alloc_info, cmd_list.data()));
-		}
+			for (uint32_t i = 0; i < num_swapchain_images; ++i)
+			{
+				VkCommandBufferBeginInfo begin_info { VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO };
+				begin_info.flags = VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
+				VKCHECK(vkBeginCommandBuffer(cmd_list[i], &begin_info));
 
-		for (uint32_t i = 0; i < num_swapchain_images; ++i)
-		{
-			VkCommandBufferBeginInfo begin_info { VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO };
-			begin_info.flags = VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
-			VKCHECK(vkBeginCommandBuffer(cmd_list[i], &begin_info));
+				const VkImageSubresourceRange range = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
 
-			const VkImageSubresourceRange range = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
+				VkImageMemoryBarrier transition { VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };
+				transition.srcAccessMask = 0;
+				transition.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+				transition.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+				transition.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+				transition.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+				transition.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+				transition.image = swapchain_images[i];
+				transition.subresourceRange = range;
+				vkCmdPipelineBarrier(cmd_list[i], VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, 0, 0, nullptr, 0, nullptr, 1, &transition);
 
-			VkImageMemoryBarrier transition { VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };
-			transition.srcAccessMask = 0;
-			transition.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-			transition.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-			transition.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-			transition.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-			transition.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-			transition.image = swapchain_images[i];
-			transition.subresourceRange = range;
-			vkCmdPipelineBarrier(cmd_list[i], VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, 0, 0, nullptr, 0, nullptr, 1, &transition);
+				const VkClearColorValue color = { 0.5f, 0.5f, 0.5f, 1.0f };
+				vkCmdClearColorImage(cmd_list[i], swapchain_images[i], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &color, 1, &range);
 
-			const VkClearColorValue color = { 0.5f, 0.5f, 0.5f, 1.0f };
-			vkCmdClearColorImage(cmd_list[i], swapchain_images[i], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &color, 1, &range);
+				transition.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+				transition.dstAccessMask = 0;
+				transition.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+				transition.newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+				vkCmdPipelineBarrier(cmd_list[i], VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, 0, 0, nullptr, 0, nullptr, 1, &transition);
 
-			transition.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-			transition.dstAccessMask = 0;
-			transition.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-			transition.newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-			vkCmdPipelineBarrier(cmd_list[i], VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, 0, 0, nullptr, 0, nullptr, 1, &transition);
+				VKCHECK(vkEndCommandBuffer(cmd_list[i]));
+			}
+		};
 
-			VKCHECK(vkEndCommandBuffer(cmd_list[i]));
-		}
+		resize_swapchain();
 
 		VkSemaphore sem_acquire = VK_NULL_HANDLE;
 		VkSemaphore sem_present = VK_NULL_HANDLE;
@@ -543,6 +553,13 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 				DispatchMessage(&msg);
 			if (msg.message == WM_QUIT)
 				break;
+
+			if (s_resize_w != 0)
+			{
+				resize_swapchain(swapchain);
+
+				s_resize_w = s_resize_h = 0;
+			}
 
 			uint32_t swapchain_image_index = 0;
 			VKCHECK(vkAcquireNextImageKHR(device, swapchain, UINT64_MAX, sem_acquire, VK_NULL_HANDLE, &swapchain_image_index));
@@ -574,7 +591,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 
 		vkDestroySemaphore(device, sem_acquire, nullptr);
 		vkDestroySemaphore(device, sem_present, nullptr);
-		vkFreeCommandBuffers(device, cmd_alloc, num_swapchain_images, cmd_list.data());
+		vkFreeCommandBuffers(device, cmd_alloc, uint32_t(cmd_list.size()), cmd_list.data());
 		vkDestroyCommandPool(device, cmd_alloc, nullptr);
 		vkDestroySwapchainKHR(device, swapchain, nullptr);
 		vkDestroySurfaceKHR(instance, surface, nullptr);

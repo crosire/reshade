@@ -13,11 +13,10 @@ namespace reshade::vulkan
 	class runtime_vulkan : public runtime
 	{
 	public:
-		runtime_vulkan(VkDevice device, VkSwapchainKHR swapchain);
+		runtime_vulkan(VkDevice device, VkPhysicalDevice physical_device);
 
-		bool on_init(const VkSwapchainCreateInfoKHR &desc, HWND hwnd);
+		bool on_init(VkSwapchainKHR swapchain, const VkSwapchainCreateInfoKHR &desc, HWND hwnd);
 		void on_reset();
-
 		void on_present(uint32_t swapchain_image_index);
 
 		void capture_screenshot(uint8_t *buffer) const override;
@@ -36,6 +35,7 @@ namespace reshade::vulkan
 #endif
 
 		VkDevice _device;
+		VkPhysicalDevice _physical_device;
 		VkSwapchainKHR _swapchain;
 	};
 }

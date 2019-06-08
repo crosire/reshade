@@ -11,7 +11,42 @@
 #include <unordered_map>
 
 static std::unordered_map<VkSurfaceKHR, HWND> s_surface_windows;
+static std::unordered_map<VkDevice, VkPhysicalDevice> s_device_mapping;
 static std::unordered_map<VkSwapchainKHR, std::shared_ptr<reshade::vulkan::runtime_vulkan>> s_runtimes;
+
+HOOK_EXPORT VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDeviceCreateInfo *pCreateInfo, const VkAllocationCallbacks *pAllocator, VkDevice *pDevice)
+{
+	LOG(INFO) << "Redirecting vkCreateDevice" << '(' << physicalDevice << ", " << pCreateInfo << ", " << pAllocator << ", " << pDevice << ')' << " ...";
+
+	std::vector<const char *> enabled_extensions;
+	enabled_extensions.reserve(pCreateInfo->enabledExtensionCount);
+	for (uint32_t i = 0; i < pCreateInfo->enabledExtensionCount; ++i)
+		enabled_extensions.push_back(pCreateInfo->ppEnabledExtensionNames[i]);
+
+	VkDeviceCreateInfo create_info = *pCreateInfo;
+	create_info.enabledExtensionCount = uint32_t(enabled_extensions.size());
+	create_info.ppEnabledExtensionNames = enabled_extensions.data();
+
+	const VkResult result = reshade::hooks::call(vkCreateDevice)(physicalDevice, &create_info, pAllocator, pDevice);
+
+	if (result != VK_SUCCESS)
+	{
+		LOG(WARN) << "> vkCreateDevice failed with error code " << result << '!';
+		return result;
+	}
+
+	s_device_mapping[*pDevice] = physicalDevice;
+
+	return VK_SUCCESS;
+}
+HOOK_EXPORT void     VKAPI_CALL vkDestroyDevice(VkDevice device, const VkAllocationCallbacks *pAllocator)
+{
+	LOG(INFO) << "Redirecting vkDestroyDevice" << '(' << device << ", " << pAllocator << ')' << " ...";
+
+	s_device_mapping.erase(device);
+
+	return reshade::hooks::call(vkDestroyDevice)(device, pAllocator);
+}
 
 HOOK_EXPORT VkResult VKAPI_CALL vkCreateWin32SurfaceKHR(VkInstance instance, const VkWin32SurfaceCreateInfoKHR *pCreateInfo, const VkAllocationCallbacks *pAllocator, VkSurfaceKHR *pSurface)
 {
@@ -19,7 +54,7 @@ HOOK_EXPORT VkResult VKAPI_CALL vkCreateWin32SurfaceKHR(VkInstance instance, con
 
 	const VkResult result = reshade::hooks::call(vkCreateWin32SurfaceKHR)(instance, pCreateInfo, pAllocator, pSurface);
 
-	if (result != VK_SUCCESS || pCreateInfo == nullptr || pSurface == nullptr)
+	if (result != VK_SUCCESS)
 	{
 		LOG(WARN) << "> vkCreateWin32SurfaceKHR failed with error code " << result << '!';
 		return result;
@@ -44,15 +79,31 @@ HOOK_EXPORT VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSw
 
 	VkResult result = reshade::hooks::call(vkCreateSwapchainKHR)(device, pCreateInfo, pAllocator, pSwapchain);
 
-	if (result != VK_SUCCESS || pCreateInfo == nullptr || pSwapchain == nullptr)
+	if (result != VK_SUCCESS)
 	{
 		LOG(WARN) << "> vkCreateSwapchainKHR failed with error code " << result << '!';
 		return result;
 	}
 
-	const auto runtime = std::make_shared<reshade::vulkan::runtime_vulkan>(device, *pSwapchain);
+	std::shared_ptr<reshade::vulkan::runtime_vulkan> runtime;
+	if (const auto it = s_runtimes.find(pCreateInfo->oldSwapchain); it != s_runtimes.end())
+	{
+		assert(pCreateInfo->oldSwapchain != VK_NULL_HANDLE);
 
-	if (!runtime->on_init(*pCreateInfo, s_surface_windows[pCreateInfo->surface]))
+		// Re-use an existing runtime if this swapchain was not created from scratch
+		runtime = it->second;
+		// Reset the old runtime before initializing it again below
+		runtime->on_reset();
+
+		// Remove it from the list so that a call to 'vkDestroySwapchainKHR' won't reset the runtime again
+		s_runtimes.erase(it);
+	}
+	else
+	{
+		runtime = std::make_shared<reshade::vulkan::runtime_vulkan>(device, s_device_mapping.at(device));
+	}
+
+	if (!runtime->on_init(*pSwapchain, *pCreateInfo, s_surface_windows.at(pCreateInfo->surface)))
 		LOG(ERROR) << "Failed to initialize Vulkan runtime environment on runtime " << runtime.get() << '.';
 
 	s_runtimes[*pSwapchain] = runtime;

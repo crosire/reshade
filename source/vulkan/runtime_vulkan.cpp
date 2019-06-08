@@ -11,16 +11,24 @@ namespace reshade::vulkan
 {
 }
 
-reshade::vulkan::runtime_vulkan::runtime_vulkan(VkDevice device, VkSwapchainKHR swapchain) :
-	_device(device), _swapchain(swapchain)
+reshade::vulkan::runtime_vulkan::runtime_vulkan(VkDevice device, VkPhysicalDevice physical_device) :
+	_device(device), _physical_device(physical_device)
 {
 	_renderer_id = 0x20000;
 }
 
-bool reshade::vulkan::runtime_vulkan::on_init(const VkSwapchainCreateInfoKHR &desc, HWND hwnd)
+bool reshade::vulkan::runtime_vulkan::on_init(VkSwapchainKHR swapchain, const VkSwapchainCreateInfoKHR &desc, HWND hwnd)
 {
+	// Update swapchain to the new one
+	_swapchain = swapchain;
+
+	RECT window_rect = {};
+	GetClientRect(hwnd, &window_rect);
+
 	_width = desc.imageExtent.width;
 	_height = desc.imageExtent.height;
+	_window_width = window_rect.right - window_rect.left;
+	_window_height = window_rect.bottom - window_rect.top;
 
 	return runtime::on_init(hwnd);
 }
