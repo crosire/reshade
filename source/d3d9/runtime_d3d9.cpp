@@ -1093,26 +1093,17 @@ bool reshade::d3d9::runtime_d3d9::init_imgui_resources()
 		_device->SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_MODULATE);
 		_device->SetTextureStageState(0, D3DTSS_ALPHAARG1, D3DTA_TEXTURE);
 		_device->SetTextureStageState(0, D3DTSS_ALPHAARG2, D3DTA_DIFFUSE);
-		_device->SetSamplerState(0, D3DSAMP_MINFILTER, D3DTEXF_LINEAR);
+		_device->SetTextureStageState(0, D3DTSS_TEXCOORDINDEX, 0);
+		_device->SetTextureStageState(0, D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_DISABLE);
+		_device->SetSamplerState(0, D3DSAMP_ADDRESSU, D3DTADDRESS_WRAP);
+		_device->SetSamplerState(0, D3DSAMP_ADDRESSV, D3DTADDRESS_WRAP);
+		_device->SetSamplerState(0, D3DSAMP_ADDRESSW, D3DTADDRESS_WRAP);
 		_device->SetSamplerState(0, D3DSAMP_MAGFILTER, D3DTEXF_LINEAR);
-
-		const D3DMATRIX identity_mat = {
-			1.0f, 0.0f, 0.0f, 0.0f,
-			0.0f, 1.0f, 0.0f, 0.0f,
-			0.0f, 0.0f, 1.0f, 0.0f,
-			0.0f, 0.0f, 0.0f, 1.0f
-		};
-		const D3DMATRIX ortho_projection = {
-				2.0f / _width, 0.0f,   0.0f, 0.0f,
-				0.0f, -2.0f / _height, 0.0f, 0.0f,
-				0.0f,          0.0f,   0.5f, 0.0f,
-			-(_width + 1.0f) / _width, // Bake half-pixel offset into projection matrix
-				(_height + 1.0f) / _height, 0.5f, 1.0f
-		};
-
-		_device->SetTransform(D3DTS_VIEW, &identity_mat);
-		_device->SetTransform(D3DTS_WORLD, &identity_mat);
-		_device->SetTransform(D3DTS_PROJECTION, &ortho_projection);
+		_device->SetSamplerState(0, D3DSAMP_MINFILTER, D3DTEXF_LINEAR);
+		_device->SetSamplerState(0, D3DSAMP_MIPFILTER, D3DTEXF_NONE);
+		_device->SetSamplerState(0, D3DSAMP_MIPMAPLODBIAS, 0);
+		_device->SetSamplerState(0, D3DSAMP_MAXMIPLEVEL, 0);
+		_device->SetSamplerState(0, D3DSAMP_SRGBTEXTURE, 0);
 
 		hr = _device->EndStateBlock(&_imgui_state);
 	}
@@ -1128,11 +1119,8 @@ bool reshade::d3d9::runtime_d3d9::init_imgui_resources()
 
 void reshade::d3d9::runtime_d3d9::render_imgui_draw_data(ImDrawData *draw_data)
 {
-	assert(draw_data->DisplayPos.x == 0 && draw_data->DisplaySize.x == _width);
-	assert(draw_data->DisplayPos.y == 0 && draw_data->DisplaySize.y == _height);
-
 	// Fixed-function vertex layout
-	struct vertex
+	struct ImDrawVert9
 	{
 		float x, y, z;
 		D3DCOLOR col;
@@ -1153,13 +1141,13 @@ void reshade::d3d9::runtime_d3d9::render_imgui_draw_data(ImDrawData *draw_data)
 		_imgui_vertex_buffer.reset();
 		_imgui_vertex_buffer_size = draw_data->TotalVtxCount + 5000;
 
-		if (FAILED(_device->CreateVertexBuffer(_imgui_vertex_buffer_size * sizeof(vertex), D3DUSAGE_DYNAMIC | D3DUSAGE_WRITEONLY, D3DFVF_XYZ | D3DFVF_DIFFUSE | D3DFVF_TEX1, D3DPOOL_DEFAULT, &_imgui_vertex_buffer, nullptr)))
+		if (FAILED(_device->CreateVertexBuffer(_imgui_vertex_buffer_size * sizeof(ImDrawVert9), D3DUSAGE_DYNAMIC | D3DUSAGE_WRITEONLY, D3DFVF_XYZ | D3DFVF_DIFFUSE | D3DFVF_TEX1, D3DPOOL_DEFAULT, &_imgui_vertex_buffer, nullptr)))
 			return;
 	}
 
-	vertex *vtx_dst; ImDrawIdx *idx_dst;
+	ImDrawVert9 *vtx_dst; ImDrawIdx *idx_dst;
 	if (FAILED(_imgui_index_buffer->Lock(0, draw_data->TotalIdxCount * sizeof(ImDrawIdx), reinterpret_cast<void **>(&idx_dst), D3DLOCK_DISCARD)) ||
-		FAILED(_imgui_vertex_buffer->Lock(0, draw_data->TotalVtxCount * sizeof(vertex), reinterpret_cast<void **>(&vtx_dst), D3DLOCK_DISCARD)))
+		FAILED(_imgui_vertex_buffer->Lock(0, draw_data->TotalVtxCount * sizeof(ImDrawVert9), reinterpret_cast<void **>(&vtx_dst), D3DLOCK_DISCARD)))
 		return;
 
 	for (int n = 0; n < draw_data->CmdListsCount; n++)
@@ -1191,13 +1179,31 @@ void reshade::d3d9::runtime_d3d9::render_imgui_draw_data(ImDrawData *draw_data)
 	// Setup render state: fixed-pipeline, alpha-blending, no face culling, no depth testing
 	_imgui_state->Apply();
 	_device->SetIndices(_imgui_index_buffer.get());
-	_device->SetStreamSource(0, _imgui_vertex_buffer.get(), 0, sizeof(vertex));
+	_device->SetStreamSource(0, _imgui_vertex_buffer.get(), 0, sizeof(ImDrawVert9));
 	for (unsigned int i = 0; i < _num_samplers; i++)
 		_device->SetTexture(i, nullptr);
 	_device->SetRenderTarget(0, _backbuffer_resolved.get());
 	for (unsigned int i = 1; i < _num_simultaneous_rendertargets; i++)
 		_device->SetRenderTarget(i, nullptr);
 	_device->SetDepthStencilSurface(nullptr);
+
+	const D3DMATRIX identity_mat = {
+		1.0f, 0.0f, 0.0f, 0.0f,
+		0.0f, 1.0f, 0.0f, 0.0f,
+		0.0f, 0.0f, 1.0f, 0.0f,
+		0.0f, 0.0f, 0.0f, 1.0f
+	};
+	const D3DMATRIX ortho_projection = {
+		2.0f / draw_data->DisplaySize.x, 0.0f,   0.0f, 0.0f,
+		0.0f, -2.0f / draw_data->DisplaySize.y,  0.0f, 0.0f,
+		0.0f,                            0.0f,   0.5f, 0.0f,
+		-(2 * draw_data->DisplayPos.x + draw_data->DisplaySize.x + 1.0f) / draw_data->DisplaySize.x, // Bake half-pixel offset into projection matrix
+		+(2 * draw_data->DisplayPos.y + draw_data->DisplaySize.y + 1.0f) / draw_data->DisplaySize.y, 0.5f, 1.0f
+	};
+
+	_device->SetTransform(D3DTS_VIEW, &identity_mat);
+	_device->SetTransform(D3DTS_WORLD, &identity_mat);
+	_device->SetTransform(D3DTS_PROJECTION, &ortho_projection);
 
 	UINT vtx_offset = 0, idx_offset = 0;
 	for (int n = 0; n < draw_data->CmdListsCount; n++)
