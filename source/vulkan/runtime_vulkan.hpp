@@ -8,6 +8,9 @@
 #include <vulkan/vulkan.h>
 #include "runtime.hpp"
 
+namespace reshade { enum class texture_reference; }
+namespace reshadefx { struct sampler_info; }
+
 namespace reshade::vulkan
 {
 	class runtime_vulkan : public runtime
@@ -23,13 +26,16 @@ namespace reshade::vulkan
 
 	private:
 		bool init_backbuffer_textures(const VkSwapchainCreateInfoKHR &desc);
-		bool init_command_pools();
+		bool init_default_depth_stencil();
+		bool init_pools();
 
 		bool init_texture(texture &texture);
 		void upload_texture(texture &texture, const uint8_t *pixels);
 
 		bool compile_effect(effect_data &effect);
 		void unload_effects();
+
+		bool init_technique(technique &info, VkShaderModule module, const VkSpecializationInfo &spec_info);
 
 		void render_technique(technique &technique) override;
 
@@ -50,15 +56,28 @@ namespace reshade::vulkan
 
 		VkFence _wait_fence = VK_NULL_HANDLE;
 		VkQueue _current_queue = VK_NULL_HANDLE;
-		uint32_t _current_index = 0;
+		uint32_t _swap_index = 0;
 
 		std::vector<VkCommandPool> _cmd_pool;
 
+		std::vector<VkImage> _swapchain_images;
 		std::vector<VkImageView> _swapchain_views;
 		std::vector<VkFramebuffer> _swapchain_frames;
 		VkRenderPass _default_render_pass = VK_NULL_HANDLE;
 		VkExtent2D _render_area = {};
 		VkFormat _backbuffer_format = VK_FORMAT_UNDEFINED;
+
+		VkImage _backbuffer_texture = VK_NULL_HANDLE;
+		VkImageView _backbuffer_texture_view = VK_NULL_HANDLE;
+		VkDeviceMemory _backbuffer_texture_mem = VK_NULL_HANDLE;
+		VkImage _default_depthstencil = VK_NULL_HANDLE;
+		VkImageView _default_depthstencil_view = VK_NULL_HANDLE;
+		VkDeviceMemory _default_depthstencil_mem = VK_NULL_HANDLE;
+
+		VkDescriptorPool _effect_descriptor_pool = VK_NULL_HANDLE;
+		VkDescriptorSetLayout _effect_ubo_layout = VK_NULL_HANDLE;
+		std::vector<struct vulkan_effect_data> _effect_data;
+		std::unordered_map<size_t, VkSampler> _effect_sampler_states;
 
 		PFN_vkCmdPushDescriptorSetKHR vkCmdPushDescriptorSetKHR = nullptr;
 		PFN_vkDebugMarkerSetObjectNameEXT vkDebugMarkerSetObjectNameEXT = nullptr;

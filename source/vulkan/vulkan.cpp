@@ -31,7 +31,6 @@ HOOK_EXPORT VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, 
 	create_info.ppEnabledExtensionNames = enabled_extensions.data();
 
 	const VkResult result = reshade::hooks::call(vkCreateDevice)(physicalDevice, &create_info, pAllocator, pDevice);
-
 	if (result != VK_SUCCESS)
 	{
 		LOG(WARN) << "> vkCreateDevice failed with error code " << result << '!';
@@ -56,7 +55,6 @@ HOOK_EXPORT VkResult VKAPI_CALL vkCreateWin32SurfaceKHR(VkInstance instance, con
 	LOG(INFO) << "Redirecting vkCreateWin32SurfaceKHR" << '(' << instance << ", " << pCreateInfo << ", " << pAllocator << ", " << pSurface << ')' << " ...";
 
 	const VkResult result = reshade::hooks::call(vkCreateWin32SurfaceKHR)(instance, pCreateInfo, pAllocator, pSurface);
-
 	if (result != VK_SUCCESS)
 	{
 		LOG(WARN) << "> vkCreateWin32SurfaceKHR failed with error code " << result << '!';
@@ -80,8 +78,11 @@ HOOK_EXPORT VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSw
 {
 	LOG(INFO) << "Redirecting vkCreateSwapchainKHR" << '(' << device << ", " << pCreateInfo << ", " << pAllocator << ", " << pSwapchain << ')' << " ...";
 
-	VkResult result = reshade::hooks::call(vkCreateSwapchainKHR)(device, pCreateInfo, pAllocator, pSwapchain);
+	// Add required usage flags to create info
+	VkSwapchainCreateInfoKHR create_info = *pCreateInfo;
+	create_info.imageUsage |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
 
+	VkResult result = reshade::hooks::call(vkCreateSwapchainKHR)(device, &create_info, pAllocator, pSwapchain);
 	if (result != VK_SUCCESS)
 	{
 		LOG(WARN) << "> vkCreateSwapchainKHR failed with error code " << result << '!';
