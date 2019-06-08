@@ -500,10 +500,10 @@ void reshade::runtime::load_textures()
 			fread(mem.data(), 1, mem.size(), file);
 			fclose(file);
 
-			if (stbi_dds_test_memory(mem.data(), mem.size()))
-				filedata = stbi_dds_load_from_memory(mem.data(), mem.size(), &width, &height, &channels, STBI_rgb_alpha);
+			if (stbi_dds_test_memory(mem.data(), static_cast<int>(mem.size())))
+				filedata = stbi_dds_load_from_memory(mem.data(), static_cast<int>(mem.size()), &width, &height, &channels, STBI_rgb_alpha);
 			else
-				filedata = stbi_load_from_memory(mem.data(), mem.size(), &width, &height, &channels, STBI_rgb_alpha);
+				filedata = stbi_load_from_memory(mem.data(), static_cast<int>(mem.size()), &width, &height, &channels, STBI_rgb_alpha);
 		}
 
 		if (filedata == nullptr) {
