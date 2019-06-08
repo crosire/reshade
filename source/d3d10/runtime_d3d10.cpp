@@ -450,20 +450,8 @@ bool reshade::d3d10::runtime_d3d10::init_texture(texture &info)
 	case reshadefx::texture_format::rgba32f:
 		desc.Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
 		break;
-	case reshadefx::texture_format::dxt1:
-		desc.Format = DXGI_FORMAT_BC1_TYPELESS;
-		break;
-	case reshadefx::texture_format::dxt3:
-		desc.Format = DXGI_FORMAT_BC2_TYPELESS;
-		break;
-	case reshadefx::texture_format::dxt5:
-		desc.Format = DXGI_FORMAT_BC3_TYPELESS;
-		break;
-	case reshadefx::texture_format::latc1:
-		desc.Format = DXGI_FORMAT_BC4_UNORM;
-		break;
-	case reshadefx::texture_format::latc2:
-		desc.Format = DXGI_FORMAT_BC5_UNORM;
+	case reshadefx::texture_format::rgb10a2:
+		desc.Format = DXGI_FORMAT_R10G10B10A2_UNORM;
 		break;
 	}
 

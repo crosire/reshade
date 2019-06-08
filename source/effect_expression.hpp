@@ -276,12 +276,7 @@ namespace reshadefx
 		rgba16,
 		rgba16f,
 		rgba32f,
-
-		dxt1,
-		dxt3,
-		dxt5,
-		latc1,
-		latc2
+		rgb10a2,
 	};
 
 	enum class texture_address_mode

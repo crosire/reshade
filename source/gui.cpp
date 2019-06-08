@@ -1238,11 +1238,10 @@ void reshade::runtime::draw_overlay_menu_statistics()
 					{
 						const char *texture_formats[] = {
 							"unknown",
-							"R8", "R16F", "R32F", "RG8", "RG16", "RG16F", "RG32F", "RGBA8", "RGBA16", "RGBA16F", "RGBA32F",
-							"DXT1", "DXT3", "DXT5", "LATC1", "LATC2"
+							"R8", "R16F", "R32F", "RG8", "RG16", "RG16F", "RG32F", "RGBA8", "RGBA16", "RGBA16F", "RGBA32F", "RGB10A2"
 						};
 
-						static_assert(_countof(texture_formats) - 1 == static_cast<unsigned int>(reshadefx::texture_format::latc2));
+						static_assert(_countof(texture_formats) - 1 == static_cast<unsigned int>(reshadefx::texture_format::rgb10a2));
 
 						for (const texture *texture : current_textures)
 						{

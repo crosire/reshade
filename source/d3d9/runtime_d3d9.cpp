@@ -593,20 +593,8 @@ bool reshade::d3d9::runtime_d3d9::init_texture(texture &texture)
 	case reshadefx::texture_format::rgba32f:
 		format = D3DFMT_A32B32G32R32F;
 		break;
-	case reshadefx::texture_format::dxt1:
-		format = D3DFMT_DXT1;
-		break;
-	case reshadefx::texture_format::dxt3:
-		format = D3DFMT_DXT3;
-		break;
-	case reshadefx::texture_format::dxt5:
-		format = D3DFMT_DXT5;
-		break;
-	case reshadefx::texture_format::latc1:
-		format = D3DFMT_ATI1;
-		break;
-	case reshadefx::texture_format::latc2:
-		format = D3DFMT_ATI2;
+	case reshadefx::texture_format::rgb10a2:
+		format = D3DFMT_A2B10G10R10;
 		break;
 	}
 

@@ -390,23 +390,8 @@ bool reshade::opengl::runtime_opengl::init_texture(texture &texture)
 	case reshadefx::texture_format::rgba32f:
 		internalformat = internalformat_srgb = GL_RGBA32F;
 		break;
-	case reshadefx::texture_format::dxt1:
-		internalformat = GL_COMPRESSED_RGBA_S3TC_DXT1_EXT;
-		internalformat_srgb = 0x8C4D; // GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT1_EXT
-		break;
-	case reshadefx::texture_format::dxt3:
-		internalformat = GL_COMPRESSED_RGBA_S3TC_DXT3_EXT;
-		internalformat_srgb = 0x8C4E; // GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT3_EXT
-		break;
-	case reshadefx::texture_format::dxt5:
-		internalformat = GL_COMPRESSED_RGBA_S3TC_DXT5_EXT;
-		internalformat_srgb = 0x8C4F; // GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT5_EXT
-		break;
-	case reshadefx::texture_format::latc1:
-		internalformat = internalformat_srgb = 0x8C70; // GL_COMPRESSED_LUMINANCE_LATC1_EXT
-		break;
-	case reshadefx::texture_format::latc2:
-		internalformat = internalformat_srgb = 0x8C72; // GL_COMPRESSED_LUMINANCE_ALPHA_LATC2_EXT
+	case reshadefx::texture_format::rgb10a2:
+		internalformat = internalformat_srgb = GL_RGB10_A2;
 		break;
 	}
 
