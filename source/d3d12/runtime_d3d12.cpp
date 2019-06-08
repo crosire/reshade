@@ -538,6 +538,7 @@ bool reshade::d3d12::runtime_d3d12::init_texture(texture &info)
 }
 void reshade::d3d12::runtime_d3d12::upload_texture(texture &texture, const uint8_t *pixels)
 {
+	assert(pixels != nullptr);
 	assert(texture.impl_reference == texture_reference::none);
 
 	const uint32_t data_pitch = texture.width * 4;
@@ -593,8 +594,6 @@ void reshade::d3d12::runtime_d3d12::upload_texture(texture &texture, const uint8
 	intermediate->Unmap(0, nullptr);
 
 	const auto texture_impl = texture.impl->as<d3d12_tex_data>();
-
-	assert(pixels != nullptr);
 	assert(texture_impl != nullptr);
 
 	const com_ptr<ID3D12GraphicsCommandList> cmd_list = create_command_list();

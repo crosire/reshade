@@ -23,6 +23,9 @@ HOOK_EXPORT VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, 
 	for (uint32_t i = 0; i < pCreateInfo->enabledExtensionCount; ++i)
 		enabled_extensions.push_back(pCreateInfo->ppEnabledExtensionNames[i]);
 
+	// Add extensions that ReShade requires
+	enabled_extensions.push_back(VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME);
+
 	VkDeviceCreateInfo create_info = *pCreateInfo;
 	create_info.enabledExtensionCount = uint32_t(enabled_extensions.size());
 	create_info.ppEnabledExtensionNames = enabled_extensions.data();

@@ -313,7 +313,13 @@
     <None Include="res\shader_imgui_ps.cso">
       <Filter>resources</Filter>
     </None>
+    <None Include="res\shader_imgui_ps.spv">
+      <Filter>resources</Filter>
+    </None>
     <None Include="res\shader_imgui_vs.cso">
+      <Filter>resources</Filter>
+    </None>
+    <None Include="res\shader_imgui_vs.spv">
       <Filter>resources</Filter>
     </None>
     <None Include="res\shader_mipmap_cs.cso">
@@ -336,6 +342,14 @@
     <FxCompile Include="res\shader_mipmap_cs.hlsl">
       <Filter>resources</Filter>
     </FxCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="res\shader_imgui_vs.glsl">
+      <Filter>resources</Filter>
+    </CustomBuild>
+    <CustomBuild Include="res\shader_imgui_ps.glsl">
+      <Filter>resources</Filter>
+    </CustomBuild>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="res\resource.rc">
