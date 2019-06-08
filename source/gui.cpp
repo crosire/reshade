@@ -607,7 +607,7 @@ void reshade::runtime::draw_overlay_menu_home()
 		"Before we continue: If you have difficulties reading this text, press the 'Ctrl' key and adjust the font size with your mouse wheel. "
 		"The window size is variable as well, just grab the bottom right corner and move it around.\n\n"
 		"You can also use the keyboard for navigation in case mouse input does not work. Use the arrow keys to navigate, space bar to confirm an action or enter a control and the 'Esc' key to leave a control. "
-		"Pree 'Ctrl' + 'Tab' to switch between tabs and windows.\n\n"
+		"Press 'Ctrl + Tab' to switch between tabs and windows.\n\n"
 		"Click on the 'Continue' button to continue the tutorial.";
 
 	// It is not possible to follow some of the tutorial steps while performance mode is active, so skip them
@@ -1516,7 +1516,7 @@ void reshade::runtime::draw_overlay_variable_editor()
 {
 	const ImVec2 popup_pos = ImGui::GetCursorScreenPos() + ImVec2(std::max(0.f, ImGui::GetWindowContentRegionWidth() * 0.5f - 200.0f), ImGui::GetFrameHeightWithSpacing());
 
-	if (imgui_popup_button("Edit preprocessor definitions", ImGui::GetContentRegionAvailWidth(), ImGuiWindowFlags_NoMove))
+	if (imgui_popup_button("Edit global preprocessor definitions", ImGui::GetContentRegionAvailWidth(), ImGuiWindowFlags_NoMove))
 	{
 		ImGui::SetWindowPos(popup_pos);
 

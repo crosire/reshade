@@ -245,8 +245,8 @@ void reshade::d3d9::runtime_d3d9::on_present()
 	detect_depth_source();
 
 	/** Vanquish fix (and other games using bigger depth buffer surface than the viewport) **/
-    // if the depthstencil_replacement surface detection fails on the first attempt, try to detect it
-    // in some bigger resolutions
+	// if the depthstencil_replacement surface detection fails on the first attempt, try to detect it
+	// in some bigger resolutions
 	if (_depthstencil_replacement == nullptr)
 		_disable_depth_buffer_size_restriction = true;
 	// if the depthstencil_replacement surface detection succeeds by retrieving bigger resolutions candidates
@@ -483,7 +483,7 @@ void reshade::d3d9::runtime_d3d9::on_clear_depthstencil_surface(IDirect3DSurface
 
 	// Check if any draw calls have been registered since the last clear operation
 	if (_current_db_drawcalls > min_db_drawcalls && _current_db_vertices > min_db_vertices)
- 	{
+	{
 		_depth_buffer_table.push_back({
 			_depthstencil_replacement,
 			desc.Width,
