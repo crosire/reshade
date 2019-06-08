@@ -1091,7 +1091,7 @@ void reshade::opengl::runtime_opengl::init_imgui_resources()
 	glEnableVertexAttribArray(attrib_uv );
 	glEnableVertexAttribArray(attrib_col);
 	glVertexAttribPointer(attrib_pos, 2, GL_FLOAT, GL_FALSE, sizeof(ImDrawVert), reinterpret_cast<GLvoid *>(offsetof(ImDrawVert, pos)));
-	glVertexAttribPointer(attrib_uv , 2, GL_FLOAT, GL_FALSE, sizeof(ImDrawVert), reinterpret_cast<GLvoid *>(offsetof(ImDrawVert, uv)));
+	glVertexAttribPointer(attrib_uv , 2, GL_FLOAT, GL_FALSE, sizeof(ImDrawVert), reinterpret_cast<GLvoid *>(offsetof(ImDrawVert, uv )));
 	glVertexAttribPointer(attrib_col, 4, GL_UNSIGNED_BYTE, GL_TRUE, sizeof(ImDrawVert), reinterpret_cast<GLvoid *>(offsetof(ImDrawVert, col)));
 }
 
@@ -1110,9 +1110,9 @@ void reshade::opengl::runtime_opengl::render_imgui_draw_data(ImDrawData *draw_da
 	glDisable(GL_STENCIL_TEST);
 	glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
 	glDepthMask(GL_FALSE);
-	glActiveTexture(GL_TEXTURE0);
+	glActiveTexture(GL_TEXTURE0); // Bind texture at location zero below
 	glUseProgram(_imgui_program);
-	glBindSampler(0, 0);
+	glBindSampler(0, 0); // Do not use separate sampler object, since state is already set in texture
 	glBindVertexArray(_vao[VAO_IMGUI]);
 
 	glViewport(0, 0, GLsizei(draw_data->DisplaySize.x), GLsizei(draw_data->DisplaySize.y));
@@ -1141,11 +1141,16 @@ void reshade::opengl::runtime_opengl::render_imgui_draw_data(ImDrawData *draw_da
 
 		for (const ImDrawCmd &cmd : draw_list->CmdBuffer)
 		{
+			const ImVec4 scissor_rect(
+				cmd.ClipRect.x - draw_data->DisplayPos.x,
+				cmd.ClipRect.y - draw_data->DisplayPos.y,
+				cmd.ClipRect.z - draw_data->DisplayPos.x,
+				cmd.ClipRect.w - draw_data->DisplayPos.y);
 			glScissor(
-				static_cast<GLint>(cmd.ClipRect.x - draw_data->DisplayPos.x),
-				static_cast<GLint>(_height - cmd.ClipRect.w - draw_data->DisplayPos.y),
-				static_cast<GLint>(cmd.ClipRect.z - cmd.ClipRect.x - draw_data->DisplayPos.x),
-				static_cast<GLint>(cmd.ClipRect.w - cmd.ClipRect.y - draw_data->DisplayPos.y));
+				static_cast<GLint>(scissor_rect.x),
+				static_cast<GLint>(_height - scissor_rect.w),
+				static_cast<GLint>(scissor_rect.z - scissor_rect.x),
+				static_cast<GLint>(scissor_rect.w - scissor_rect.y));
 
 			glBindTexture(GL_TEXTURE_2D, static_cast<const opengl_tex_data *>(cmd.TextureId)->id[0]);
 
