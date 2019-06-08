@@ -1302,6 +1302,7 @@ void reshade::d3d10::runtime_d3d10::render_imgui_draw_data(ImDrawData *draw_data
 
 		for (const ImDrawCmd &cmd : draw_list->CmdBuffer)
 		{
+			assert(cmd.TextureId != 0);
 			assert(cmd.UserCallback == nullptr);
 
 			const D3D10_RECT scissor_rect = {

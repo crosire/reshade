@@ -1379,6 +1379,7 @@ void reshade::d3d12::runtime_d3d12::render_imgui_draw_data(ImDrawData *draw_data
 
 		for (const ImDrawCmd &cmd : draw_list->CmdBuffer)
 		{
+			assert(cmd.TextureId != 0);
 			assert(cmd.UserCallback == nullptr);
 
 			const D3D12_RECT scissor_rect = {
@@ -1389,12 +1390,14 @@ void reshade::d3d12::runtime_d3d12::render_imgui_draw_data(ImDrawData *draw_data
 			};
 			cmd_list->RSSetScissorRects(1, &scissor_rect);
 
+			const auto tex_data = static_cast<const d3d12_tex_data *>(cmd.TextureId);
+			// TODO: Transition resource state of the user texture?
+			assert(tex_data->state == D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+
 			// First descriptor in resource-specific descriptor heap is SRV to top-most mipmap level
-			ID3D12DescriptorHeap *const descriptor_heap = { static_cast<const d3d12_tex_data *>(cmd.TextureId)->descriptors.get() };
+			ID3D12DescriptorHeap *const descriptor_heap = { tex_data->descriptors.get() };
 			cmd_list->SetDescriptorHeaps(1, &descriptor_heap);
-			const D3D12_GPU_DESCRIPTOR_HANDLE descriptor_handle =
-				static_cast<const d3d12_tex_data *>(cmd.TextureId)->descriptors->GetGPUDescriptorHandleForHeapStart();
-			cmd_list->SetGraphicsRootDescriptorTable(1, descriptor_handle);
+			cmd_list->SetGraphicsRootDescriptorTable(1, descriptor_heap->GetGPUDescriptorHandleForHeapStart());
 
 			cmd_list->DrawIndexedInstanced(cmd.ElemCount, 1, idx_offset, vtx_offset, 0);
 

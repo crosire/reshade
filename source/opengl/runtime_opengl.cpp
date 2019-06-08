@@ -1141,6 +1141,9 @@ void reshade::opengl::runtime_opengl::render_imgui_draw_data(ImDrawData *draw_da
 
 		for (const ImDrawCmd &cmd : draw_list->CmdBuffer)
 		{
+			assert(cmd.TextureId != 0);
+			assert(cmd.UserCallback == nullptr);
+
 			const ImVec4 scissor_rect(
 				cmd.ClipRect.x - draw_data->DisplayPos.x,
 				cmd.ClipRect.y - draw_data->DisplayPos.y,
