@@ -390,23 +390,8 @@ bool reshade::opengl::runtime_opengl::init_texture(texture &texture)
 	case reshadefx::texture_format::rgba32f:
 		internalformat = internalformat_srgb = GL_RGBA32F;
 		break;
-	case reshadefx::texture_format::dxt1:
-		internalformat = GL_COMPRESSED_RGBA_S3TC_DXT1_EXT;
-		internalformat_srgb = 0x8C4D; // GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT1_EXT
-		break;
-	case reshadefx::texture_format::dxt3:
-		internalformat = GL_COMPRESSED_RGBA_S3TC_DXT3_EXT;
-		internalformat_srgb = 0x8C4E; // GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT3_EXT
-		break;
-	case reshadefx::texture_format::dxt5:
-		internalformat = GL_COMPRESSED_RGBA_S3TC_DXT5_EXT;
-		internalformat_srgb = 0x8C4F; // GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT5_EXT
-		break;
-	case reshadefx::texture_format::latc1:
-		internalformat = internalformat_srgb = 0x8C70; // GL_COMPRESSED_LUMINANCE_LATC1_EXT
-		break;
-	case reshadefx::texture_format::latc2:
-		internalformat = internalformat_srgb = 0x8C72; // GL_COMPRESSED_LUMINANCE_ALPHA_LATC2_EXT
+	case reshadefx::texture_format::rgb10a2:
+		internalformat = internalformat_srgb = GL_RGB10_A2;
 		break;
 	}
 
@@ -442,23 +427,12 @@ void reshade::opengl::runtime_opengl::upload_texture(texture &texture, const uin
 {
 	assert(texture.impl_reference == texture_reference::none && pixels != nullptr);
 
-	// Clear pixel storage modes to defaults (texture uploads can break otherwise)
-	glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
-	glPixelStorei(GL_UNPACK_SWAP_BYTES, GL_FALSE);
-	glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
-	glPixelStorei(GL_UNPACK_IMAGE_HEIGHT, 0);
-	glPixelStorei(GL_UNPACK_SKIP_ROWS, 0);
-	glPixelStorei(GL_UNPACK_SKIP_PIXELS, 0);
-
-	GLint previous_tex = 0;
-	glGetIntegerv(GL_TEXTURE_BINDING_2D, &previous_tex);
-
 	// Flip image data horizontally
-	const unsigned int pitch = texture.width * 4;
+	const uint32_t pitch = texture.width * 4;
 	std::vector<uint8_t> data_flipped(pixels, pixels + pitch * texture.height);
 	const auto temp = static_cast<uint8_t *>(alloca(pitch));
 
-	for (unsigned int y = 0; 2 * y < texture.height; y++)
+	for (uint32_t y = 0; 2 * y < texture.height; y++)
 	{
 		const auto line1 = data_flipped.data() + pitch * (y);
 		const auto line2 = data_flipped.data() + pitch * (texture.height - 1 - y);
@@ -471,7 +445,23 @@ void reshade::opengl::runtime_opengl::upload_texture(texture &texture, const uin
 	const auto texture_impl = texture.impl->as<opengl_tex_data>();
 	assert(texture_impl != nullptr);
 
+	// Unset any existing unpack buffer so pointer is not interpreted as offset
+	glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
+
+	// Clear pixel storage modes to defaults (texture uploads can break otherwise)
+	glPixelStorei(GL_UNPACK_LSB_FIRST, GL_FALSE);
+	glPixelStorei(GL_UNPACK_SWAP_BYTES, GL_FALSE);
+	glPixelStorei(GL_UNPACK_ALIGNMENT, 4); // RGBA data is 4-byte aligned
+	glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
+	glPixelStorei(GL_UNPACK_IMAGE_HEIGHT, 0);
+	glPixelStorei(GL_UNPACK_SKIP_ROWS, 0);
+	glPixelStorei(GL_UNPACK_SKIP_PIXELS, 0);
+	glPixelStorei(GL_UNPACK_SKIP_IMAGES, 0);
+
 	// Bind and update texture
+	GLint previous_tex = 0;
+	glGetIntegerv(GL_TEXTURE_BINDING_2D, &previous_tex);
+
 	glBindTexture(GL_TEXTURE_2D, texture_impl->id[0]);
 	glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, texture.width, texture.height, GL_RGBA, GL_UNSIGNED_BYTE, data_flipped.data());
 
@@ -1086,7 +1076,7 @@ void reshade::opengl::runtime_opengl::init_imgui_resources()
 	glEnableVertexAttribArray(attrib_uv );
 	glEnableVertexAttribArray(attrib_col);
 	glVertexAttribPointer(attrib_pos, 2, GL_FLOAT, GL_FALSE, sizeof(ImDrawVert), reinterpret_cast<GLvoid *>(offsetof(ImDrawVert, pos)));
-	glVertexAttribPointer(attrib_uv , 2, GL_FLOAT, GL_FALSE, sizeof(ImDrawVert), reinterpret_cast<GLvoid *>(offsetof(ImDrawVert, uv)));
+	glVertexAttribPointer(attrib_uv , 2, GL_FLOAT, GL_FALSE, sizeof(ImDrawVert), reinterpret_cast<GLvoid *>(offsetof(ImDrawVert, uv )));
 	glVertexAttribPointer(attrib_col, 4, GL_UNSIGNED_BYTE, GL_TRUE, sizeof(ImDrawVert), reinterpret_cast<GLvoid *>(offsetof(ImDrawVert, col)));
 }
 
@@ -1105,9 +1095,9 @@ void reshade::opengl::runtime_opengl::render_imgui_draw_data(ImDrawData *draw_da
 	glDisable(GL_STENCIL_TEST);
 	glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
 	glDepthMask(GL_FALSE);
-	glActiveTexture(GL_TEXTURE0);
+	glActiveTexture(GL_TEXTURE0); // Bind texture at location zero below
 	glUseProgram(_imgui_program);
-	glBindSampler(0, 0);
+	glBindSampler(0, 0); // Do not use separate sampler object, since state is already set in texture
 	glBindVertexArray(_vao[VAO_IMGUI]);
 
 	glViewport(0, 0, GLsizei(draw_data->DisplaySize.x), GLsizei(draw_data->DisplaySize.y));
@@ -1136,11 +1126,19 @@ void reshade::opengl::runtime_opengl::render_imgui_draw_data(ImDrawData *draw_da
 
 		for (const ImDrawCmd &cmd : draw_list->CmdBuffer)
 		{
+			assert(cmd.TextureId != 0);
+			assert(cmd.UserCallback == nullptr);
+
+			const ImVec4 scissor_rect(
+				cmd.ClipRect.x - draw_data->DisplayPos.x,
+				cmd.ClipRect.y - draw_data->DisplayPos.y,
+				cmd.ClipRect.z - draw_data->DisplayPos.x,
+				cmd.ClipRect.w - draw_data->DisplayPos.y);
 			glScissor(
-				static_cast<GLint>(cmd.ClipRect.x - draw_data->DisplayPos.x),
-				static_cast<GLint>(_height - cmd.ClipRect.w - draw_data->DisplayPos.y),
-				static_cast<GLint>(cmd.ClipRect.z - cmd.ClipRect.x - draw_data->DisplayPos.x),
-				static_cast<GLint>(cmd.ClipRect.w - cmd.ClipRect.y - draw_data->DisplayPos.y));
+				static_cast<GLint>(scissor_rect.x),
+				static_cast<GLint>(_height - scissor_rect.w),
+				static_cast<GLint>(scissor_rect.z - scissor_rect.x),
+				static_cast<GLint>(scissor_rect.w - scissor_rect.y));
 
 			glBindTexture(GL_TEXTURE_2D, static_cast<const opengl_tex_data *>(cmd.TextureId)->id[0]);
 
