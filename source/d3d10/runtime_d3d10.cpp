@@ -313,6 +313,10 @@ void reshade::d3d10::runtime_d3d10::on_present(draw_call_tracker &tracker)
 	if (_backbuffer_resolved != _backbuffer)
 		_device->ResolveSubresource(_backbuffer_resolved.get(), 0, _backbuffer.get(), 0, _backbuffer_format);
 
+	// Setup real back buffer
+	auto rtv = _backbuffer_rtv[0].get();
+	 _device->OMSetRenderTargets(1, &rtv, nullptr);
+
 	update_and_render_effects();
 	runtime::on_present();
 
@@ -345,6 +349,31 @@ void reshade::d3d10::runtime_d3d10::on_present(draw_call_tracker &tracker)
 
 	// Apply previous state from application
 	_app_state.apply_and_release();
+}
+void reshade::d3d10::runtime_d3d10::on_set_depthstencil_view(ID3D10DepthStencilView *&depthstencil)
+{
+	if (_depthstencil_texture_desc_changed && _depthstencil_replacement != nullptr && depthstencil == _depthstencil)
+	{
+		depthstencil = _depthstencil_replacement.get();
+	}
+}
+void reshade::d3d10::runtime_d3d10::on_get_depthstencil_view(ID3D10DepthStencilView *&depthstencil)
+{
+	if (_depthstencil_texture_desc_changed && _depthstencil_replacement != nullptr && depthstencil == _depthstencil_replacement)
+	{
+		depthstencil->Release();
+
+		depthstencil = _depthstencil.get();
+
+		depthstencil->AddRef();
+	}
+}
+void reshade::d3d10::runtime_d3d10::on_clear_depthstencil_view(ID3D10DepthStencilView *&depthstencil)
+{
+	if (_depthstencil_texture_desc_changed && _depthstencil_replacement != nullptr && depthstencil == _depthstencil)
+	{
+		depthstencil = _depthstencil_replacement.get();
+	}
 }
 
 void reshade::d3d10::runtime_d3d10::capture_screenshot(uint8_t *buffer) const
@@ -1327,6 +1356,9 @@ void reshade::d3d10::runtime_d3d10::draw_debug_menu()
 		bool modified = false;
 		modified |= ImGui::Combo("Depth Texture Format", &depth_buffer_texture_format, "All\0D16\0D32F\0D24S8\0D32FS8\0");
 
+		ImGui::Spacing();
+		modified |= ImGui::Checkbox("Copy depth before clearing", &depth_buffer_before_clear);
+
 		if (modified)
 		{
 			runtime::save_config();
@@ -1335,10 +1367,11 @@ void reshade::d3d10::runtime_d3d10::draw_debug_menu()
 			return;
 		}
 
-		modified |= ImGui::Checkbox("Copy depth before clearing", &depth_buffer_before_clear);
-
 		if (depth_buffer_before_clear)
 		{
+			ImGui::Spacing();
+			ImGui::Spacing();
+
 			if (ImGui::Checkbox("Extended depth buffer detection", &extended_depth_buffer_detection))
 			{
 				cleared_depth_buffer_index = 0;
@@ -1387,21 +1420,21 @@ void reshade::d3d10::runtime_d3d10::draw_debug_menu()
 				char label[512] = "";
 				sprintf_s(label, "%s0x%p", (depthstencil == _depthstencil ? "> " : "  "), depthstencil.get());
 
-				if (bool value = _best_depth_stencil_overwrite == depthstencil; ImGui::Checkbox(label, &value))
+				if (bool value = _best_depthstencil_overwrite == depthstencil; ImGui::Checkbox(label, &value))
 				{
-					_best_depth_stencil_overwrite = value ? depthstencil.get() : nullptr;
+					_best_depthstencil_overwrite = value ? depthstencil.get() : nullptr;
 
 					com_ptr<ID3D10Texture2D> texture = snapshot.texture;
 
-					if (texture == nullptr && _best_depth_stencil_overwrite != nullptr)
+					if (texture == nullptr && _best_depthstencil_overwrite != nullptr)
 					{
 						com_ptr<ID3D10Resource> resource;
-						_best_depth_stencil_overwrite->GetResource(&resource);
+						_best_depthstencil_overwrite->GetResource(&resource);
 
 						resource->QueryInterface(&texture);
 					}
 
-					create_depthstencil_replacement(_best_depth_stencil_overwrite, texture.get());
+					create_depthstencil_replacement(_best_depthstencil_overwrite, texture.get());
 				}
 
 				ImGui::SameLine();
@@ -1456,9 +1489,9 @@ void reshade::d3d10::runtime_d3d10::draw_debug_menu()
 void reshade::d3d10::runtime_d3d10::detect_depth_source(draw_call_tracker &tracker)
 {
 	if (depth_buffer_before_clear)
-		_best_depth_stencil_overwrite = nullptr;
+		_best_depthstencil_overwrite = nullptr;
 
-	if (_is_multisampling_enabled || _best_depth_stencil_overwrite != nullptr || (_framecount % 30 && !depth_buffer_before_clear))
+	if (_is_multisampling_enabled || _best_depthstencil_overwrite != nullptr || (_framecount % 30 && !depth_buffer_before_clear))
 		return;
 
 	if (_has_high_network_activity)
@@ -1475,6 +1508,7 @@ void reshade::d3d10::runtime_d3d10::detect_depth_source(draw_call_tracker &track
 		// For the moment, the best we can do is retrieve all the depth textures that has been cleared in the rendering pipeline, then select one of them (by default, the last one)
 		// In the future, maybe we could find a way to retrieve depth texture statistics (number of draw calls and number of vertices), so ReShade could automatically select the best one
 		ID3D10Texture2D *const best_match_texture = tracker.find_best_cleared_depth_buffer_texture(cleared_depth_buffer_index);
+		_best_depthstencil_overwrite = nullptr;
 		if (best_match_texture != nullptr)
 			create_depthstencil_replacement(_default_depthstencil.get(), best_match_texture);
 		return;
@@ -1487,9 +1521,14 @@ void reshade::d3d10::runtime_d3d10::detect_depth_source(draw_call_tracker &track
 
 bool reshade::d3d10::runtime_d3d10::create_depthstencil_replacement(ID3D10DepthStencilView *depthstencil, ID3D10Texture2D *texture)
 {
+	if (!depth_buffer_before_clear && depthstencil == _depthstencil)
+		return false;
+
+	_depthstencil_texture_desc_changed = false;
+
 	_depthstencil.reset();
 	_depthstencil_replacement.reset();
-	_depthstencil_texture.reset();
+	_depthstencil_texture.reset();	
 	_depthstencil_texture_srv.reset();
 
 	if (depthstencil != nullptr)
@@ -1503,7 +1542,9 @@ bool reshade::d3d10::runtime_d3d10::create_depthstencil_replacement(ID3D10DepthS
 
 		HRESULT hr = S_OK;
 
-		if ((tex_desc.BindFlags & D3D10_BIND_SHADER_RESOURCE) == 0)
+		_depthstencil_texture_desc_changed = ((tex_desc.BindFlags & D3D10_BIND_SHADER_RESOURCE) == 0);
+
+		if (_depthstencil_texture_desc_changed)
 		{
 			_depthstencil_texture.reset();
 
@@ -1552,7 +1593,7 @@ bool reshade::d3d10::runtime_d3d10::create_depthstencil_replacement(ID3D10DepthS
 	return true;
 }
 
-com_ptr<ID3D10Texture2D> reshade::d3d10::runtime_d3d10::select_depth_texture_save(D3D10_TEXTURE2D_DESC &texture_desc)
+com_ptr<ID3D10Texture2D> reshade::d3d10::runtime_d3d10::select_depth_texture_save(D3D10_TEXTURE2D_DESC texture_desc)
 {
 	// Function that selects the appropriate texture where we want to save the depth texture before it is cleared
 	// If this texture is null, create it according to the dimensions and the format of the depth texture

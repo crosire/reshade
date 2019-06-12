@@ -65,11 +65,13 @@ bool D3D11DeviceContext::save_depth_texture(ID3D11DepthStencilView *pDepthStenci
 	texture->GetDesc(&desc);
 
 	// Check if aspect ratio is similar to the back buffer one
-	const float screen_aspect_ratio = float(runtime->frame_width()) / float(runtime->frame_height());
+	const float width_factor = desc.Width != runtime->frame_width() ? float(runtime->frame_width()) / desc.Width : 1.0f;
+	const float height_factor = desc.Height != runtime->frame_height() ? float(runtime->frame_height()) / desc.Height : 1.0f;
+	const float aspect_ratio = float(runtime->frame_width()) / float(runtime->frame_height());
 	const float texture_aspect_ratio = float(desc.Width) / float(desc.Height);
 
-	if (fabs(texture_aspect_ratio - screen_aspect_ratio) > 0.1f || desc.Width > runtime->frame_width())
-		return false;
+	if (fabs(texture_aspect_ratio - aspect_ratio) > 0.1f || width_factor > 2.0f || height_factor > 2.0f || width_factor < 0.5f || height_factor < 0.5f)
+		return false; // No match, not a good fit
 
 	// In case the depth texture is retrieved, we make a copy of it and store it in an ordered map to use it later in the final rendering stage.
 	if ((runtime->cleared_depth_buffer_index == 0 && cleared) || (_device->_clear_DSV_iter <= runtime->cleared_depth_buffer_index))
@@ -335,6 +337,14 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::OMSetRenderTargets(UINT NumViews, 
 #if RESHADE_DX11_CAPTURE_DEPTH_BUFFERS
 	track_active_rendertargets(NumViews, ppRenderTargetViews, pDepthStencilView);
 #endif
+
+	if (_device->_runtimes.empty())
+		return;
+
+	const auto runtime = _device->_runtimes.front();
+
+	runtime->on_set_depthstencil_view(pDepthStencilView);
+
 	_orig->OMSetRenderTargets(NumViews, ppRenderTargetViews, pDepthStencilView);
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::OMSetRenderTargetsAndUnorderedAccessViews(UINT NumRTVs, ID3D11RenderTargetView *const *ppRenderTargetViews, ID3D11DepthStencilView *pDepthStencilView, UINT UAVStartSlot, UINT NumUAVs, ID3D11UnorderedAccessView *const *ppUnorderedAccessViews, const UINT *pUAVInitialCounts)
@@ -421,6 +431,13 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::ClearUnorderedAccessViewFloat(ID3D
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::ClearDepthStencilView(ID3D11DepthStencilView *pDepthStencilView, UINT ClearFlags, FLOAT Depth, UINT8 Stencil)
 {
+	if (_device->_runtimes.empty())
+		return;
+
+	const auto runtime = _device->_runtimes.front();
+
+	runtime->on_clear_depthstencil_view(pDepthStencilView);
+
 #if RESHADE_DX11_CAPTURE_DEPTH_BUFFERS
 	if (ClearFlags & D3D11_CLEAR_DEPTH)
 		track_cleared_depthstencil(pDepthStencilView);
@@ -573,10 +590,26 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::GSGetSamplers(UINT StartSlot, UINT
 void    STDMETHODCALLTYPE D3D11DeviceContext::OMGetRenderTargets(UINT NumViews, ID3D11RenderTargetView **ppRenderTargetViews, ID3D11DepthStencilView **ppDepthStencilView)
 {
 	_orig->OMGetRenderTargets(NumViews, ppRenderTargetViews, ppDepthStencilView);
+
+	if (_device->_runtimes.empty())
+		return;
+
+	const auto runtime = _device->_runtimes.front();
+
+	if (ppDepthStencilView != nullptr)
+		runtime->on_get_depthstencil_view(*ppDepthStencilView);
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::OMGetRenderTargetsAndUnorderedAccessViews(UINT NumRTVs, ID3D11RenderTargetView **ppRenderTargetViews, ID3D11DepthStencilView **ppDepthStencilView, UINT UAVStartSlot, UINT NumUAVs, ID3D11UnorderedAccessView **ppUnorderedAccessViews)
 {
 	_orig->OMGetRenderTargetsAndUnorderedAccessViews(NumRTVs, ppRenderTargetViews, ppDepthStencilView, UAVStartSlot, NumUAVs, ppUnorderedAccessViews);
+
+	if (_device->_runtimes.empty())
+		return;
+
+	const auto runtime = _device->_runtimes.front();
+
+	if (ppDepthStencilView != nullptr)
+		runtime->on_get_depthstencil_view(*ppDepthStencilView);
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::OMGetBlendState(ID3D11BlendState **ppBlendState, FLOAT BlendFactor[4], UINT *pSampleMask)
 {
