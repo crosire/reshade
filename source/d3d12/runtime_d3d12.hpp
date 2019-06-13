@@ -5,10 +5,13 @@
 
 #pragma once
 
+#include "ini_file.hpp"
 #include "runtime.hpp"
 #include "com_ptr.hpp"
 #include <d3d12.h>
 #include <dxgi1_5.h>
+
+#define RESHADE_DX12_CAPTURE_DEPTH_BUFFERS 1
 
 namespace reshadefx { struct sampler_info; }
 
@@ -25,6 +28,15 @@ namespace reshade::d3d12
 		void on_present();
 
 		void capture_screenshot(uint8_t *buffer) const override;
+
+#if RESHADE_DX12_CAPTURE_DEPTH_BUFFERS
+		com_ptr<ID3D12Resource> select_depth_texture_save(D3D12_RESOURCE_DESC &texture_desc);
+#endif
+
+		bool depth_buffer_before_clear = false;
+		bool extended_depth_buffer_detection = false;
+		unsigned int cleared_depth_buffer_index = 0;
+		int depth_buffer_texture_format = 0; // No depth buffer texture format filter by default
 
 	private:
 		bool init_backbuffer_textures(UINT num_buffers);
@@ -44,6 +56,7 @@ namespace reshade::d3d12
 #if RESHADE_GUI
 		bool init_imgui_resources();
 		void render_imgui_draw_data(ImDrawData *data) override;
+		void draw_debug_menu();
 #endif
 
 		void generate_mipmaps(const com_ptr<ID3D12GraphicsCommandList> &list, texture &texture);
