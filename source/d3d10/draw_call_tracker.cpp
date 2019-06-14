@@ -18,9 +18,7 @@ namespace reshade::d3d10
 		}
 
 		for (const auto &[index, depth_texture_save_info] : source._cleared_depth_textures)
-		{
 			_cleared_depth_textures[index] = depth_texture_save_info;
-		}
 #endif
 #if RESHADE_DX10_CAPTURE_CONSTANT_BUFFERS
 		for (const auto &[buffer, snapshot] : source._counters_per_constant_buffer)
