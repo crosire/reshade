@@ -17,12 +17,9 @@ namespace reshade::d3d10
 			_counters_per_used_depthstencil[depthstencil].stats.drawcalls += snapshot.stats.drawcalls;
 		}
 
-		for (auto source_entry : source._cleared_depth_textures)
+		for (const auto &[index, depth_texture_save_info] : source._cleared_depth_textures)
 		{
-			const auto destination_entry = _cleared_depth_textures.find(source_entry.first);
-
-			if (destination_entry == _cleared_depth_textures.end())
-				_cleared_depth_textures.emplace(source_entry.first, source_entry.second);
+			_cleared_depth_textures[index] = depth_texture_save_info;
 		}
 #endif
 #if RESHADE_DX10_CAPTURE_CONSTANT_BUFFERS
@@ -190,10 +187,7 @@ namespace reshade::d3d10
 		assert((src_texture_desc.BindFlags & D3D10_BIND_DEPTH_STENCIL) != 0);
 
 		// fill the ordered map with the saved depth texture
-		if (const auto it = _cleared_depth_textures.find(index); it == _cleared_depth_textures.end())
-			_cleared_depth_textures.emplace(index, depth_texture_save_info { src_texture, src_depthstencil, src_texture_desc, dest_texture, cleared });
-		else
-			it->second = depth_texture_save_info { src_texture, src_depthstencil, src_texture_desc, dest_texture, cleared };
+		_cleared_depth_textures[index] = depth_texture_save_info{ src_texture, src_depthstencil, src_texture_desc, dest_texture, cleared };
 	}
 
 	draw_call_tracker::intermediate_snapshot_info draw_call_tracker::find_best_snapshot(UINT width, UINT height)
