@@ -6,6 +6,7 @@
 #include "log.hpp"
 #include "d3d12_device.hpp"
 #include "d3d12_command_queue.hpp"
+#include "d3d12_command_list.hpp"
 #include "../dxgi/dxgi_device.hpp"
 #include <assert.h>
 
@@ -158,7 +159,28 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateComputePipelineState(const D3D12_CO
 }
 HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommandList(UINT nodeMask, D3D12_COMMAND_LIST_TYPE type, ID3D12CommandAllocator *pCommandAllocator, ID3D12PipelineState *pInitialState, REFIID riid, void **ppCommandList)
 {
-	return _orig->CreateCommandList(nodeMask, type, pCommandAllocator, pInitialState, riid, ppCommandList);
+	LOG(INFO) << "Redirecting ID3D12Device::CreateCommandList" << '(' << nodeMask << ", " << type << ", " << pCommandAllocator << ", " << pInitialState << ", " << riid << ", " << ppCommandList << ')' << " ...";
+
+	if (ppCommandList == nullptr)
+		return E_INVALIDARG;
+
+	const HRESULT hr = _orig->CreateCommandList(nodeMask, type, pCommandAllocator, pInitialState, riid, ppCommandList);
+
+	if (FAILED(hr))
+	{
+		LOG(WARN) << "> 'ID3D12Device::CreateCommandList' failed with error code " << std::hex << hr << std::dec << "!";
+		return hr;
+	}
+
+	if (riid == __uuidof(ID3D12GraphicsCommandList))
+	{
+		*ppCommandList = new D3D12CommandList(this, nodeMask, type, pCommandAllocator, pInitialState, static_cast<ID3D12GraphicsCommandList *>(*ppCommandList));
+	}
+
+#if RESHADE_VERBOSE_LOG
+	LOG(DEBUG) << "Returning ID3D12CommandList object " << *ppCommandList << '.';
+#endif
+	return hr;
 }
 HRESULT STDMETHODCALLTYPE D3D12Device::CheckFeatureSupport(D3D12_FEATURE Feature, void *pFeatureSupportData, UINT FeatureSupportDataSize)
 {
@@ -325,8 +347,30 @@ HRESULT STDMETHODCALLTYPE D3D12Device::EnqueueMakeResident(D3D12_RESIDENCY_FLAGS
 
 HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommandList1(UINT NodeMask, D3D12_COMMAND_LIST_TYPE Type, D3D12_COMMAND_LIST_FLAGS Flags, REFIID riid, void **ppCommandList)
 {
+	LOG(INFO) << "Redirecting ID3D12Device::CreateCommandList1" << '(' << NodeMask << ", " << Type << ", " << riid << ", " << ppCommandList << ')' << " ...";
+
 	assert(_interface_version >= 4);
-	return static_cast<ID3D12Device4 *>(_orig)->CreateCommandList1(NodeMask, Type, Flags, riid, ppCommandList);
+
+	if (ppCommandList == nullptr)
+		return E_INVALIDARG;
+
+	const HRESULT hr = static_cast<ID3D12Device4 *>(_orig)->CreateCommandList1(NodeMask, Type, Flags, riid, ppCommandList);
+
+	if (FAILED(hr))
+	{
+		LOG(WARN) << "> 'ID3D12Device::CreateCommandList' failed with error code " << std::hex << hr << std::dec << "!";
+		return hr;
+	}
+
+	if (riid == __uuidof(ID3D12GraphicsCommandList))
+	{
+		*ppCommandList = new D3D12CommandList(this, NodeMask, Type, nullptr, nullptr, static_cast<ID3D12GraphicsCommandList *>(*ppCommandList));
+	}
+
+#if RESHADE_VERBOSE_LOG
+	LOG(DEBUG) << "Returning ID3D12CommandList object " << *ppCommandList << '.';
+#endif
+	return hr;
 }
 HRESULT STDMETHODCALLTYPE D3D12Device::CreateProtectedResourceSession(const D3D12_PROTECTED_RESOURCE_SESSION_DESC *pDesc, REFIID riid, void **ppSession)
 {

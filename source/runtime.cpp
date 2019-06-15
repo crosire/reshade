@@ -771,7 +771,6 @@ void reshade::runtime::update_and_render_effects()
 		const auto time_technique_started = std::chrono::high_resolution_clock::now();
 		render_technique(technique);
 		const auto time_technique_finished = std::chrono::high_resolution_clock::now();
-
 		technique.average_cpu_duration.append(std::chrono::duration_cast<std::chrono::nanoseconds>(time_technique_finished - time_technique_started).count());
 	}
 }
