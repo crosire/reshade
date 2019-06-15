@@ -654,7 +654,7 @@ void reshade::runtime::update_and_render_effects()
 	const auto input_lock = _input->lock();
 
 	if (_should_save_screenshot && (_screenshot_save_before || !_effects_enabled))
-		save_screenshot(_effects_enabled ? L"-original" : std::wstring(), _effects_enabled);
+		save_screenshot(_effects_enabled ? L"-original" : std::wstring(), !_effects_enabled);
 
 	// Nothing to do here if effects are disabled globally
 	if (!_effects_enabled)
@@ -783,7 +783,7 @@ void reshade::runtime::update_and_render_effects()
 
 	if (_should_save_screenshot)
 	{
-		save_screenshot(std::wstring(), false);
+		save_screenshot(std::wstring(), true);
 		_should_save_screenshot = false;
 	}
 }
