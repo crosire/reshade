@@ -158,13 +158,6 @@ void reshade::runtime::on_present()
 	// Lock input so it cannot be modified by other threads while we are reading it here
 	const auto input_lock = _input->lock();
 
-	if (_should_save_screenshot)
-	{
-		if (_effects_enabled)
-			save_screenshot(false);
-		_should_save_screenshot = false;
-	}
-
 	// Handle keyboard shortcuts
 	if (!_ignore_shortcuts)
 	{
@@ -175,12 +168,7 @@ void reshade::runtime::on_present()
 			_effects_enabled = !_effects_enabled;
 
 		if (_input->is_key_pressed(_screenshot_key_data))
-		{
-			if (_screenshot_save_before)
-				_should_save_screenshot = true;
-			else
-				save_screenshot(false);
-		}
+			_should_save_screenshot = true;
 	}
 
 #if RESHADE_GUI
@@ -665,12 +653,15 @@ void reshade::runtime::update_and_render_effects()
 	// TODO: This does not catch input happening between now and 'on_present'
 	const auto input_lock = _input->lock();
 
-	if (_should_save_screenshot && _screenshot_save_before)
-		save_screenshot(true);
+	if (_should_save_screenshot && (_screenshot_save_before || !_effects_enabled))
+		save_screenshot(_effects_enabled ? L"-original" : std::wstring(), _effects_enabled);
 
 	// Nothing to do here if effects are disabled globally
 	if (!_effects_enabled)
+	{
+		_should_save_screenshot = false;
 		return;
+	}
 
 	// Update special uniform variables
 	for (uniform &variable : _uniforms)
@@ -788,6 +779,12 @@ void reshade::runtime::update_and_render_effects()
 		const auto time_technique_finished = std::chrono::high_resolution_clock::now();
 
 		technique.average_cpu_duration.append(std::chrono::duration_cast<std::chrono::nanoseconds>(time_technique_finished - time_technique_started).count());
+	}
+
+	if (_should_save_screenshot)
+	{
+		save_screenshot(std::wstring(), false);
+		_should_save_screenshot = false;
 	}
 }
 
@@ -1040,7 +1037,7 @@ void reshade::runtime::save_current_preset() const
 	save_preset(_current_preset_path);
 }
 
-void reshade::runtime::save_screenshot(bool before)
+void reshade::runtime::save_screenshot(const std::wstring &postfix, const bool should_save_preset)
 {
 	std::vector<uint8_t> data(_width * _height * 4);
 	capture_screenshot(data.data());
@@ -1053,8 +1050,7 @@ void reshade::runtime::save_screenshot(bool before)
 	sprintf_s(filename, " %.4d-%.2d-%.2d %.2d-%.2d-%.2d", _date[0], _date[1], _date[2], hour, minute, seconds);
 
 	const std::wstring least = (_screenshot_path.is_relative() ? g_target_executable_path.parent_path() / _screenshot_path : _screenshot_path) / g_target_executable_path.stem().concat(filename);
-	const std::wstring beforeafter = least + (_screenshot_save_before ? (before ? L"-before" : L"-after") : L"");
-	const std::wstring screenshot_path = beforeafter + (_screenshot_format == 0 ? L".bmp" : L".png");
+	const std::wstring screenshot_path = least + postfix + (_screenshot_format == 0 ? L".bmp" : L".png");
 
 	LOG(INFO) << "Saving screenshot to " << screenshot_path << " ...";
 
@@ -1086,7 +1082,7 @@ void reshade::runtime::save_screenshot(bool before)
 	{
 		LOG(ERROR) << "Failed to write screenshot to " << screenshot_path << '!';
 	}
-	else if (_screenshot_include_preset && (!before || !_effects_enabled))
+	else if (_screenshot_include_preset && should_save_preset)
 	{
 		save_preset(least + L".ini");
 	}

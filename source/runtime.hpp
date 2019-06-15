@@ -250,7 +250,7 @@ namespace reshade
 		/// <summary>
 		/// Create a copy of the current frame and write it to an image file on disk.
 		/// </summary>
-		void save_screenshot(bool before = false);
+		void save_screenshot(const std::wstring &postfix = std::wstring(), bool should_save_preset = false);
 
 		void get_uniform_value(const uniform &variable, uint8_t *data, size_t size) const;
 		void set_uniform_value(uniform &variable, const uint8_t *data, size_t size);
