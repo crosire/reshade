@@ -29,6 +29,7 @@ namespace reshade::d3d12
 	private:
 		bool init_backbuffer_textures(UINT num_buffers);
 		bool init_default_depth_stencil();
+		bool init_mipmap_pipeline();
 
 		bool init_texture(texture &info) override;
 		void upload_texture(texture &texture, const uint8_t *pixels) override;
@@ -48,14 +49,23 @@ namespace reshade::d3d12
 		void generate_mipmaps(const com_ptr<ID3D12GraphicsCommandList> &list, texture &texture);
 
 		com_ptr<ID3D12RootSignature> create_root_signature(const D3D12_ROOT_SIGNATURE_DESC &desc) const;
-		com_ptr<ID3D12GraphicsCommandList> create_command_list(const com_ptr<ID3D12PipelineState> &state = nullptr, D3D12_COMMAND_LIST_TYPE type = D3D12_COMMAND_LIST_TYPE_DIRECT) const;
+		com_ptr<ID3D12GraphicsCommandList> create_command_list(const com_ptr<ID3D12PipelineState> &state = nullptr) const;
 		void execute_command_list(const com_ptr<ID3D12GraphicsCommandList> &list) const;
-		void execute_command_list_async(const com_ptr<ID3D12GraphicsCommandList> &list) const;
+		void wait_for_command_queue() const;
 
 		com_ptr<ID3D12Device> _device;
 		com_ptr<ID3D12CommandQueue> _commandqueue;
 		com_ptr<IDXGISwapChain3> _swapchain;
 
+		UINT _swap_index = 0;
+		HANDLE _fence_event = nullptr;
+		mutable std::vector<UINT64> _fence_value;
+		std::vector<com_ptr<ID3D12Fence>> _fence;
+
+		com_ptr<ID3D12GraphicsCommandList> _cmd_list;
+		std::vector<com_ptr<ID3D12CommandAllocator>> _cmd_alloc;
+
+		DXGI_FORMAT _backbuffer_format = DXGI_FORMAT_UNKNOWN;
 		com_ptr<ID3D12DescriptorHeap> _backbuffer_rtvs;
 		com_ptr<ID3D12DescriptorHeap> _depthstencil_dsvs;
 		std::vector<com_ptr<ID3D12Resource>> _backbuffers;
@@ -66,20 +76,13 @@ namespace reshade::d3d12
 		com_ptr<ID3D12PipelineState> _mipmap_pipeline;
 		com_ptr<ID3D12RootSignature> _mipmap_signature;
 
-		UINT _swap_index = 0;
 		UINT _srv_handle_size = 0;
 		UINT _rtv_handle_size = 0;
 		UINT _sampler_handle_size = 0;
 
 		std::vector<struct d3d12_effect_data> _effect_data;
 
-		HANDLE _screenshot_event = nullptr;
-		com_ptr<ID3D12Fence> _screenshot_fence;
-
 		HMODULE _d3d_compiler = nullptr;
-
-		DXGI_FORMAT _backbuffer_format = DXGI_FORMAT_UNKNOWN;
-		com_ptr<ID3D12CommandAllocator> _cmd_alloc[3];
 
 #if RESHADE_GUI
 		unsigned int _imgui_index_buffer_size[3] = {};

@@ -276,12 +276,7 @@ namespace reshadefx
 		rgba16,
 		rgba16f,
 		rgba32f,
-
-		dxt1,
-		dxt3,
-		dxt5,
-		latc1,
-		latc2
+		rgb10a2,
 	};
 
 	enum class texture_address_mode
@@ -338,7 +333,7 @@ namespace reshadefx
 		std::string render_target_names[8] = {};
 		std::string vs_entry_point;
 		std::string ps_entry_point;
-		uint8_t clear_render_targets = true;
+		uint8_t clear_render_targets = false;
 		uint8_t srgb_write_enable = false;
 		uint8_t blend_enable = false;
 		uint8_t stencil_enable = false;

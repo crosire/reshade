@@ -607,7 +607,7 @@ void reshade::runtime::draw_overlay_menu_home()
 		"Before we continue: If you have difficulties reading this text, press the 'Ctrl' key and adjust the font size with your mouse wheel. "
 		"The window size is variable as well, just grab the bottom right corner and move it around.\n\n"
 		"You can also use the keyboard for navigation in case mouse input does not work. Use the arrow keys to navigate, space bar to confirm an action or enter a control and the 'Esc' key to leave a control. "
-		"Pree 'Ctrl' + 'Tab' to switch between tabs and windows.\n\n"
+		"Press 'Ctrl + Tab' to switch between tabs and windows.\n\n"
 		"Click on the 'Continue' button to continue the tutorial.";
 
 	// It is not possible to follow some of the tutorial steps while performance mode is active, so skip them
@@ -806,12 +806,23 @@ void reshade::runtime::draw_overlay_menu_home()
 		ImGui::TextWrapped(tutorial_text);
 		ImGui::EndChildFrame();
 
-		if ((_tutorial_index != 1 || !_current_preset_path.empty()) &&
-			ImGui::Button(_tutorial_index == 3 ? "Finish" : "Continue", ImVec2(ImGui::GetContentRegionAvailWidth(), 0)))
+		const float max_button_width = ImGui::GetContentRegionAvailWidth();
+
+		if (ImGui::Button(_tutorial_index == 3 ? "Finish" : "Continue", ImVec2(max_button_width * 0.66666666f, 0)))
 		{
 			// Disable font scaling after tutorial
 			if (_tutorial_index++ == 3)
 				_no_font_scaling = true;
+
+			save_config();
+		}
+
+		ImGui::SameLine();
+
+		if (ImGui::Button("Skip Tutorial", ImVec2(max_button_width * 0.33333333f - _imgui_context->Style.ItemSpacing.x, 0)))
+		{
+			_tutorial_index = 4;
+			_no_font_scaling = true;
 
 			save_config();
 		}
@@ -854,7 +865,7 @@ void reshade::runtime::draw_overlay_menu_settings()
 
 		modified |= imgui_directory_input_box("Screenshot Path", _screenshot_path, _file_selection_path);
 		modified |= ImGui::Combo("Screenshot Format", &_screenshot_format, "Bitmap (*.bmp)\0Portable Network Graphics (*.png)\0");
-		modified |= ImGui::Checkbox("Include Preset & Settings", &_screenshot_include_preset);
+		modified |= ImGui::Checkbox("Include Current Preset", &_screenshot_include_preset);
 		modified |= ImGui::Checkbox("Save Before and After", &_screenshot_save_before);
 	}
 
@@ -1239,11 +1250,10 @@ void reshade::runtime::draw_overlay_menu_statistics()
 					{
 						const char *texture_formats[] = {
 							"unknown",
-							"R8", "R16F", "R32F", "RG8", "RG16", "RG16F", "RG32F", "RGBA8", "RGBA16", "RGBA16F", "RGBA32F",
-							"DXT1", "DXT3", "DXT5", "LATC1", "LATC2"
+							"R8", "R16F", "R32F", "RG8", "RG16", "RG16F", "RG32F", "RGBA8", "RGBA16", "RGBA16F", "RGBA32F", "RGB10A2"
 						};
 
-						static_assert(_countof(texture_formats) - 1 == static_cast<unsigned int>(reshadefx::texture_format::latc2));
+						static_assert(_countof(texture_formats) - 1 == static_cast<unsigned int>(reshadefx::texture_format::rgb10a2));
 
 						for (const texture *texture : current_textures)
 						{
@@ -1328,6 +1338,8 @@ void reshade::runtime::draw_overlay_menu_log()
 
 void reshade::runtime::draw_overlay_menu_about()
 {
+	ImGui::TextUnformatted("ReShade " VERSION_STRING_FILE);
+
 	ImGui::PushTextWrapPos();
 	ImGui::TextUnformatted(R"(Copyright (C) 2014 Patrick Mours. All rights reserved.
 
@@ -1517,7 +1529,7 @@ void reshade::runtime::draw_overlay_variable_editor()
 {
 	const ImVec2 popup_pos = ImGui::GetCursorScreenPos() + ImVec2(std::max(0.f, ImGui::GetWindowContentRegionWidth() * 0.5f - 200.0f), ImGui::GetFrameHeightWithSpacing());
 
-	if (imgui_popup_button("Edit preprocessor definitions", ImGui::GetContentRegionAvailWidth(), ImGuiWindowFlags_NoMove))
+	if (imgui_popup_button("Edit global preprocessor definitions", ImGui::GetContentRegionAvailWidth(), ImGuiWindowFlags_NoMove))
 	{
 		ImGui::SetWindowPos(popup_pos);
 

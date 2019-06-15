@@ -902,183 +902,182 @@ HOOK_EXPORT BOOL  WINAPI wglUseFontOutlinesW(HDC hdc, DWORD dw1, DWORD dw2, DWOR
 HOOK_EXPORT PROC  WINAPI wglGetProcAddress(LPCSTR lpszProc)
 {
 	static const auto trampoline = reshade::hooks::call(wglGetProcAddress);
-
 	const PROC address = trampoline(lpszProc);
 
 	if (address == nullptr || lpszProc == nullptr)
 		return nullptr;
-	else if (strcmp(lpszProc, "glBindTexture") == 0)
-		return reinterpret_cast<PROC>(&glBindTexture);
-	else if (strcmp(lpszProc, "glBlendFunc") == 0)
-		return reinterpret_cast<PROC>(&glBlendFunc);
-	else if (strcmp(lpszProc, "glClear") == 0)
-		return reinterpret_cast<PROC>(&glClear);
-	else if (strcmp(lpszProc, "glClearColor") == 0)
-		return reinterpret_cast<PROC>(&glClearColor);
-	else if (strcmp(lpszProc, "glClearDepth") == 0)
-		return reinterpret_cast<PROC>(&glClearDepth);
-	else if (strcmp(lpszProc, "glClearStencil") == 0)
-		return reinterpret_cast<PROC>(&glClearStencil);
-	else if (strcmp(lpszProc, "glCopyTexImage1D") == 0)
-		return reinterpret_cast<PROC>(&glCopyTexImage1D);
-	else if (strcmp(lpszProc, "glCopyTexImage2D") == 0)
-		return reinterpret_cast<PROC>(&glCopyTexImage2D);
-	else if (strcmp(lpszProc, "glCopyTexSubImage1D") == 0)
-		return reinterpret_cast<PROC>(&glCopyTexSubImage1D);
-	else if (strcmp(lpszProc, "glCopyTexSubImage2D") == 0)
-		return reinterpret_cast<PROC>(&glCopyTexSubImage2D);
-	else if (strcmp(lpszProc, "glCullFace") == 0)
-		return reinterpret_cast<PROC>(&glCullFace);
-	else if (strcmp(lpszProc, "glDeleteTextures") == 0)
-		return reinterpret_cast<PROC>(&glDeleteTextures);
-	else if (strcmp(lpszProc, "glDepthFunc") == 0)
-		return reinterpret_cast<PROC>(&glDepthFunc);
-	else if (strcmp(lpszProc, "glDepthMask") == 0)
-		return reinterpret_cast<PROC>(&glDepthMask);
-	else if (strcmp(lpszProc, "glDepthRange") == 0)
-		return reinterpret_cast<PROC>(&glDepthRange);
-	else if (strcmp(lpszProc, "glDisable") == 0)
-		return reinterpret_cast<PROC>(&glDisable);
-	else if (strcmp(lpszProc, "glDrawArrays") == 0)
-		return reinterpret_cast<PROC>(&glDrawArrays);
-	else if (strcmp(lpszProc, "glDrawBuffer") == 0)
-		return reinterpret_cast<PROC>(&glDrawBuffer);
-	else if (strcmp(lpszProc, "glDrawElements") == 0)
-		return reinterpret_cast<PROC>(&glDrawElements);
-	else if (strcmp(lpszProc, "glEnable") == 0)
-		return reinterpret_cast<PROC>(&glEnable);
-	else if (strcmp(lpszProc, "glFinish") == 0)
-		return reinterpret_cast<PROC>(&glFinish);
-	else if (strcmp(lpszProc, "glFlush") == 0)
-		return reinterpret_cast<PROC>(&glFlush);
-	else if (strcmp(lpszProc, "glFrontFace") == 0)
-		return reinterpret_cast<PROC>(&glFrontFace);
-	else if (strcmp(lpszProc, "glGenTextures") == 0)
-		return reinterpret_cast<PROC>(&glGenTextures);
-	else if (strcmp(lpszProc, "glGetBooleanv") == 0)
-		return reinterpret_cast<PROC>(&glGetBooleanv);
-	else if (strcmp(lpszProc, "glGetDoublev") == 0)
-		return reinterpret_cast<PROC>(&glGetDoublev);
-	else if (strcmp(lpszProc, "glGetFloatv") == 0)
-		return reinterpret_cast<PROC>(&glGetFloatv);
-	else if (strcmp(lpszProc, "glGetIntegerv") == 0)
-		return reinterpret_cast<PROC>(&glGetIntegerv);
-	else if (strcmp(lpszProc, "glGetError") == 0)
-		return reinterpret_cast<PROC>(&glGetError);
-	else if (strcmp(lpszProc, "glGetPointerv") == 0)
-		return reinterpret_cast<PROC>(&glGetPointerv);
-	else if (strcmp(lpszProc, "glGetString") == 0)
-		return reinterpret_cast<PROC>(&glGetString);
-	else if (strcmp(lpszProc, "glGetTexImage") == 0)
-		return reinterpret_cast<PROC>(&glGetTexImage);
-	else if (strcmp(lpszProc, "glGetTexLevelParameterfv") == 0)
-		return reinterpret_cast<PROC>(&glGetTexLevelParameterfv);
-	else if (strcmp(lpszProc, "glGetTexLevelParameteriv") == 0)
-		return reinterpret_cast<PROC>(&glGetTexLevelParameteriv);
-	else if (strcmp(lpszProc, "glGetTexParameterfv") == 0)
-		return reinterpret_cast<PROC>(&glGetTexParameterfv);
-	else if (strcmp(lpszProc, "glGetTexParameteriv") == 0)
-		return reinterpret_cast<PROC>(&glGetTexParameteriv);
-	else if (strcmp(lpszProc, "glHint") == 0)
-		return reinterpret_cast<PROC>(&glHint);
-	else if (strcmp(lpszProc, "glIsEnabled") == 0)
-		return reinterpret_cast<PROC>(&glIsEnabled);
-	else if (strcmp(lpszProc, "glIsTexture") == 0)
-		return reinterpret_cast<PROC>(&glIsTexture);
-	else if (strcmp(lpszProc, "glLineWidth") == 0)
-		return reinterpret_cast<PROC>(&glLineWidth);
-	else if (strcmp(lpszProc, "glLogicOp") == 0)
-		return reinterpret_cast<PROC>(&glLogicOp);
-	else if (strcmp(lpszProc, "glPixelStoref") == 0)
-		return reinterpret_cast<PROC>(&glPixelStoref);
-	else if (strcmp(lpszProc, "glPixelStorei") == 0)
-		return reinterpret_cast<PROC>(&glPixelStorei);
-	else if (strcmp(lpszProc, "glPointSize") == 0)
-		return reinterpret_cast<PROC>(&glPointSize);
-	else if (strcmp(lpszProc, "glPolygonMode") == 0)
-		return reinterpret_cast<PROC>(&glPolygonMode);
-	else if (strcmp(lpszProc, "glPolygonOffset") == 0)
-		return reinterpret_cast<PROC>(&glPolygonOffset);
-	else if (strcmp(lpszProc, "glReadBuffer") == 0)
-		return reinterpret_cast<PROC>(&glReadBuffer);
-	else if (strcmp(lpszProc, "glReadPixels") == 0)
-		return reinterpret_cast<PROC>(&glReadPixels);
-	else if (strcmp(lpszProc, "glScissor") == 0)
-		return reinterpret_cast<PROC>(&glScissor);
-	else if (strcmp(lpszProc, "glStencilFunc") == 0)
-		return reinterpret_cast<PROC>(&glStencilFunc);
-	else if (strcmp(lpszProc, "glStencilMask") == 0)
-		return reinterpret_cast<PROC>(&glStencilMask);
-	else if (strcmp(lpszProc, "glStencilOp") == 0)
-		return reinterpret_cast<PROC>(&glStencilOp);
-	else if (strcmp(lpszProc, "glTexImage1D") == 0)
-		return reinterpret_cast<PROC>(&glTexImage1D);
-	else if (strcmp(lpszProc, "glTexImage2D") == 0)
-		return reinterpret_cast<PROC>(&glTexImage2D);
-	else if (strcmp(lpszProc, "glTexParameterf") == 0)
-		return reinterpret_cast<PROC>(&glTexParameterf);
-	else if (strcmp(lpszProc, "glTexParameterfv") == 0)
-		return reinterpret_cast<PROC>(&glTexParameterfv);
-	else if (strcmp(lpszProc, "glTexParameteri") == 0)
-		return reinterpret_cast<PROC>(&glTexParameteri);
-	else if (strcmp(lpszProc, "glTexParameteriv") == 0)
-		return reinterpret_cast<PROC>(&glTexParameteriv);
-	else if (strcmp(lpszProc, "glTexSubImage1D") == 0)
-		return reinterpret_cast<PROC>(&glTexSubImage1D);
-	else if (strcmp(lpszProc, "glTexSubImage2D") == 0)
-		return reinterpret_cast<PROC>(&glTexSubImage2D);
-	else if (strcmp(lpszProc, "glViewport") == 0)
-		return reinterpret_cast<PROC>(&glViewport);
+	else if (0 == strcmp(lpszProc, "glBindTexture"))
+		return reinterpret_cast<PROC>(glBindTexture);
+	else if (0 == strcmp(lpszProc, "glBlendFunc"))
+		return reinterpret_cast<PROC>(glBlendFunc);
+	else if (0 == strcmp(lpszProc, "glClear"))
+		return reinterpret_cast<PROC>(glClear);
+	else if (0 == strcmp(lpszProc, "glClearColor"))
+		return reinterpret_cast<PROC>(glClearColor);
+	else if (0 == strcmp(lpszProc, "glClearDepth"))
+		return reinterpret_cast<PROC>(glClearDepth);
+	else if (0 == strcmp(lpszProc, "glClearStencil"))
+		return reinterpret_cast<PROC>(glClearStencil);
+	else if (0 == strcmp(lpszProc, "glCopyTexImage1D"))
+		return reinterpret_cast<PROC>(glCopyTexImage1D);
+	else if (0 == strcmp(lpszProc, "glCopyTexImage2D"))
+		return reinterpret_cast<PROC>(glCopyTexImage2D);
+	else if (0 == strcmp(lpszProc, "glCopyTexSubImage1D"))
+		return reinterpret_cast<PROC>(glCopyTexSubImage1D);
+	else if (0 == strcmp(lpszProc, "glCopyTexSubImage2D"))
+		return reinterpret_cast<PROC>(glCopyTexSubImage2D);
+	else if (0 == strcmp(lpszProc, "glCullFace"))
+		return reinterpret_cast<PROC>(glCullFace);
+	else if (0 == strcmp(lpszProc, "glDeleteTextures"))
+		return reinterpret_cast<PROC>(glDeleteTextures);
+	else if (0 == strcmp(lpszProc, "glDepthFunc"))
+		return reinterpret_cast<PROC>(glDepthFunc);
+	else if (0 == strcmp(lpszProc, "glDepthMask"))
+		return reinterpret_cast<PROC>(glDepthMask);
+	else if (0 == strcmp(lpszProc, "glDepthRange"))
+		return reinterpret_cast<PROC>(glDepthRange);
+	else if (0 == strcmp(lpszProc, "glDisable"))
+		return reinterpret_cast<PROC>(glDisable);
+	else if (0 == strcmp(lpszProc, "glDrawArrays"))
+		return reinterpret_cast<PROC>(glDrawArrays);
+	else if (0 == strcmp(lpszProc, "glDrawBuffer"))
+		return reinterpret_cast<PROC>(glDrawBuffer);
+	else if (0 == strcmp(lpszProc, "glDrawElements"))
+		return reinterpret_cast<PROC>(glDrawElements);
+	else if (0 == strcmp(lpszProc, "glEnable"))
+		return reinterpret_cast<PROC>(glEnable);
+	else if (0 == strcmp(lpszProc, "glFinish"))
+		return reinterpret_cast<PROC>(glFinish);
+	else if (0 == strcmp(lpszProc, "glFlush"))
+		return reinterpret_cast<PROC>(glFlush);
+	else if (0 == strcmp(lpszProc, "glFrontFace"))
+		return reinterpret_cast<PROC>(glFrontFace);
+	else if (0 == strcmp(lpszProc, "glGenTextures"))
+		return reinterpret_cast<PROC>(glGenTextures);
+	else if (0 == strcmp(lpszProc, "glGetBooleanv"))
+		return reinterpret_cast<PROC>(glGetBooleanv);
+	else if (0 == strcmp(lpszProc, "glGetDoublev"))
+		return reinterpret_cast<PROC>(glGetDoublev);
+	else if (0 == strcmp(lpszProc, "glGetFloatv"))
+		return reinterpret_cast<PROC>(glGetFloatv);
+	else if (0 == strcmp(lpszProc, "glGetIntegerv"))
+		return reinterpret_cast<PROC>(glGetIntegerv);
+	else if (0 == strcmp(lpszProc, "glGetError"))
+		return reinterpret_cast<PROC>(glGetError);
+	else if (0 == strcmp(lpszProc, "glGetPointerv"))
+		return reinterpret_cast<PROC>(glGetPointerv);
+	else if (0 == strcmp(lpszProc, "glGetString"))
+		return reinterpret_cast<PROC>(glGetString);
+	else if (0 == strcmp(lpszProc, "glGetTexImage"))
+		return reinterpret_cast<PROC>(glGetTexImage);
+	else if (0 == strcmp(lpszProc, "glGetTexLevelParameterfv"))
+		return reinterpret_cast<PROC>(glGetTexLevelParameterfv);
+	else if (0 == strcmp(lpszProc, "glGetTexLevelParameteriv"))
+		return reinterpret_cast<PROC>(glGetTexLevelParameteriv);
+	else if (0 == strcmp(lpszProc, "glGetTexParameterfv"))
+		return reinterpret_cast<PROC>(glGetTexParameterfv);
+	else if (0 == strcmp(lpszProc, "glGetTexParameteriv"))
+		return reinterpret_cast<PROC>(glGetTexParameteriv);
+	else if (0 == strcmp(lpszProc, "glHint"))
+		return reinterpret_cast<PROC>(glHint);
+	else if (0 == strcmp(lpszProc, "glIsEnabled"))
+		return reinterpret_cast<PROC>(glIsEnabled);
+	else if (0 == strcmp(lpszProc, "glIsTexture"))
+		return reinterpret_cast<PROC>(glIsTexture);
+	else if (0 == strcmp(lpszProc, "glLineWidth"))
+		return reinterpret_cast<PROC>(glLineWidth);
+	else if (0 == strcmp(lpszProc, "glLogicOp"))
+		return reinterpret_cast<PROC>(glLogicOp);
+	else if (0 == strcmp(lpszProc, "glPixelStoref"))
+		return reinterpret_cast<PROC>(glPixelStoref);
+	else if (0 == strcmp(lpszProc, "glPixelStorei"))
+		return reinterpret_cast<PROC>(glPixelStorei);
+	else if (0 == strcmp(lpszProc, "glPointSize"))
+		return reinterpret_cast<PROC>(glPointSize);
+	else if (0 == strcmp(lpszProc, "glPolygonMode"))
+		return reinterpret_cast<PROC>(glPolygonMode);
+	else if (0 == strcmp(lpszProc, "glPolygonOffset"))
+		return reinterpret_cast<PROC>(glPolygonOffset);
+	else if (0 == strcmp(lpszProc, "glReadBuffer"))
+		return reinterpret_cast<PROC>(glReadBuffer);
+	else if (0 == strcmp(lpszProc, "glReadPixels"))
+		return reinterpret_cast<PROC>(glReadPixels);
+	else if (0 == strcmp(lpszProc, "glScissor"))
+		return reinterpret_cast<PROC>(glScissor);
+	else if (0 == strcmp(lpszProc, "glStencilFunc"))
+		return reinterpret_cast<PROC>(glStencilFunc);
+	else if (0 == strcmp(lpszProc, "glStencilMask"))
+		return reinterpret_cast<PROC>(glStencilMask);
+	else if (0 == strcmp(lpszProc, "glStencilOp"))
+		return reinterpret_cast<PROC>(glStencilOp);
+	else if (0 == strcmp(lpszProc, "glTexImage1D"))
+		return reinterpret_cast<PROC>(glTexImage1D);
+	else if (0 == strcmp(lpszProc, "glTexImage2D"))
+		return reinterpret_cast<PROC>(glTexImage2D);
+	else if (0 == strcmp(lpszProc, "glTexParameterf"))
+		return reinterpret_cast<PROC>(glTexParameterf);
+	else if (0 == strcmp(lpszProc, "glTexParameterfv"))
+		return reinterpret_cast<PROC>(glTexParameterfv);
+	else if (0 == strcmp(lpszProc, "glTexParameteri"))
+		return reinterpret_cast<PROC>(glTexParameteri);
+	else if (0 == strcmp(lpszProc, "glTexParameteriv"))
+		return reinterpret_cast<PROC>(glTexParameteriv);
+	else if (0 == strcmp(lpszProc, "glTexSubImage1D"))
+		return reinterpret_cast<PROC>(glTexSubImage1D);
+	else if (0 == strcmp(lpszProc, "glTexSubImage2D"))
+		return reinterpret_cast<PROC>(glTexSubImage2D);
+	else if (0 == strcmp(lpszProc, "glViewport"))
+		return reinterpret_cast<PROC>(glViewport);
 	else if (static bool s_hooks_not_installed = true; s_hooks_not_installed)
 	{
 		// Install all OpenGL hooks in a single batch job
-		reshade::hooks::install("glDrawArraysIndirect", reinterpret_cast<reshade::hook::address>(trampoline("glDrawArraysIndirect")), reinterpret_cast<reshade::hook::address>(&glDrawArraysIndirect), true);
-		reshade::hooks::install("glDrawArraysInstanced", reinterpret_cast<reshade::hook::address>(trampoline("glDrawArraysInstanced")), reinterpret_cast<reshade::hook::address>(&glDrawArraysInstanced), true);
-		reshade::hooks::install("glDrawArraysInstancedARB", reinterpret_cast<reshade::hook::address>(trampoline("glDrawArraysInstancedARB")), reinterpret_cast<reshade::hook::address>(&glDrawArraysInstancedARB), true);
-		reshade::hooks::install("glDrawArraysInstancedEXT", reinterpret_cast<reshade::hook::address>(trampoline("glDrawArraysInstancedEXT")), reinterpret_cast<reshade::hook::address>(&glDrawArraysInstancedEXT), true);
-		reshade::hooks::install("glDrawArraysInstancedBaseInstance", reinterpret_cast<reshade::hook::address>(trampoline("glDrawArraysInstancedBaseInstance")), reinterpret_cast<reshade::hook::address>(&glDrawArraysInstancedBaseInstance), true);
-		reshade::hooks::install("glDrawElementsBaseVertex", reinterpret_cast<reshade::hook::address>(trampoline("glDrawElementsBaseVertex")), reinterpret_cast<reshade::hook::address>(&glDrawElementsBaseVertex), true);
-		reshade::hooks::install("glDrawElementsIndirect", reinterpret_cast<reshade::hook::address>(trampoline("glDrawElementsIndirect")), reinterpret_cast<reshade::hook::address>(&glDrawElementsIndirect), true);
-		reshade::hooks::install("glDrawElementsInstanced", reinterpret_cast<reshade::hook::address>(trampoline("glDrawElementsInstanced")), reinterpret_cast<reshade::hook::address>(&glDrawElementsInstanced), true);
-		reshade::hooks::install("glDrawElementsInstancedARB", reinterpret_cast<reshade::hook::address>(trampoline("glDrawElementsInstancedARB")), reinterpret_cast<reshade::hook::address>(&glDrawElementsInstancedARB), true);
-		reshade::hooks::install("glDrawElementsInstancedEXT", reinterpret_cast<reshade::hook::address>(trampoline("glDrawElementsInstancedEXT")), reinterpret_cast<reshade::hook::address>(&glDrawElementsInstancedEXT), true);
-		reshade::hooks::install("glDrawElementsInstancedBaseVertex", reinterpret_cast<reshade::hook::address>(trampoline("glDrawElementsInstancedBaseVertex")), reinterpret_cast<reshade::hook::address>(&glDrawElementsInstancedBaseVertex), true);
-		reshade::hooks::install("glDrawElementsInstancedBaseInstance", reinterpret_cast<reshade::hook::address>(trampoline("glDrawElementsInstancedBaseInstance")), reinterpret_cast<reshade::hook::address>(&glDrawElementsInstancedBaseInstance), true);
-		reshade::hooks::install("glDrawElementsInstancedBaseVertexBaseInstance", reinterpret_cast<reshade::hook::address>(trampoline("glDrawElementsInstancedBaseVertexBaseInstance")), reinterpret_cast<reshade::hook::address>(&glDrawElementsInstancedBaseVertexBaseInstance), true);
-		reshade::hooks::install("glDrawRangeElements", reinterpret_cast<reshade::hook::address>(trampoline("glDrawRangeElements")), reinterpret_cast<reshade::hook::address>(&glDrawRangeElements), true);
-		reshade::hooks::install("glDrawRangeElementsBaseVertex", reinterpret_cast<reshade::hook::address>(trampoline("glDrawRangeElementsBaseVertex")), reinterpret_cast<reshade::hook::address>(&glDrawRangeElementsBaseVertex), true);
-		reshade::hooks::install("glFramebufferRenderbuffer", reinterpret_cast<reshade::hook::address>(trampoline("glFramebufferRenderbuffer")), reinterpret_cast<reshade::hook::address>(&glFramebufferRenderbuffer), true);
-		reshade::hooks::install("glFramebufferRenderbufferEXT", reinterpret_cast<reshade::hook::address>(trampoline("glFramebufferRenderbufferEXT")), reinterpret_cast<reshade::hook::address>(&glFramebufferRenderbufferEXT), true);
-		reshade::hooks::install("glFramebufferTexture", reinterpret_cast<reshade::hook::address>(trampoline("glFramebufferTexture")), reinterpret_cast<reshade::hook::address>(&glFramebufferTexture), true);
-		reshade::hooks::install("glFramebufferTextureARB", reinterpret_cast<reshade::hook::address>(trampoline("glFramebufferTextureARB")), reinterpret_cast<reshade::hook::address>(&glFramebufferTextureARB), true);
-		reshade::hooks::install("glFramebufferTextureEXT", reinterpret_cast<reshade::hook::address>(trampoline("glFramebufferTextureEXT")), reinterpret_cast<reshade::hook::address>(&glFramebufferTextureEXT), true);
-		reshade::hooks::install("glFramebufferTexture1D", reinterpret_cast<reshade::hook::address>(trampoline("glFramebufferTexture1D")), reinterpret_cast<reshade::hook::address>(&glFramebufferTexture1D), true);
-		reshade::hooks::install("glFramebufferTexture1DEXT", reinterpret_cast<reshade::hook::address>(trampoline("glFramebufferTexture1DEXT")), reinterpret_cast<reshade::hook::address>(&glFramebufferTexture1DEXT), true);
-		reshade::hooks::install("glFramebufferTexture2D", reinterpret_cast<reshade::hook::address>(trampoline("glFramebufferTexture2D")), reinterpret_cast<reshade::hook::address>(&glFramebufferTexture2D), true);
-		reshade::hooks::install("glFramebufferTexture2DEXT", reinterpret_cast<reshade::hook::address>(trampoline("glFramebufferTexture2DEXT")), reinterpret_cast<reshade::hook::address>(&glFramebufferTexture2DEXT), true);
-		reshade::hooks::install("glFramebufferTexture3D", reinterpret_cast<reshade::hook::address>(trampoline("glFramebufferTexture3D")), reinterpret_cast<reshade::hook::address>(&glFramebufferTexture3D), true);
-		reshade::hooks::install("glFramebufferTexture3DEXT", reinterpret_cast<reshade::hook::address>(trampoline("glFramebufferTexture3DEXT")), reinterpret_cast<reshade::hook::address>(&glFramebufferTexture3DEXT), true);
-		reshade::hooks::install("glFramebufferTextureLayer", reinterpret_cast<reshade::hook::address>(trampoline("glFramebufferTextureLayer")), reinterpret_cast<reshade::hook::address>(&glFramebufferTextureLayer), true);
-		reshade::hooks::install("glFramebufferTextureLayerARB", reinterpret_cast<reshade::hook::address>(trampoline("glFramebufferTextureLayerARB")), reinterpret_cast<reshade::hook::address>(&glFramebufferTextureLayerARB), true);
-		reshade::hooks::install("glFramebufferTextureLayerEXT", reinterpret_cast<reshade::hook::address>(trampoline("glFramebufferTextureLayerEXT")), reinterpret_cast<reshade::hook::address>(&glFramebufferTextureLayerEXT), true);
-		reshade::hooks::install("glMultiDrawArrays", reinterpret_cast<reshade::hook::address>(trampoline("glMultiDrawArrays")), reinterpret_cast<reshade::hook::address>(&glMultiDrawArrays), true);
-		reshade::hooks::install("glMultiDrawArraysIndirect", reinterpret_cast<reshade::hook::address>(trampoline("glMultiDrawArraysIndirect")), reinterpret_cast<reshade::hook::address>(&glMultiDrawArraysIndirect), true);
-		reshade::hooks::install("glMultiDrawElements", reinterpret_cast<reshade::hook::address>(trampoline("glMultiDrawElements")), reinterpret_cast<reshade::hook::address>(&glMultiDrawElements), true);
-		reshade::hooks::install("glMultiDrawElementsBaseVertex", reinterpret_cast<reshade::hook::address>(trampoline("glMultiDrawElementsBaseVertex")), reinterpret_cast<reshade::hook::address>(&glMultiDrawElementsBaseVertex), true);
-		reshade::hooks::install("glMultiDrawElementsIndirect", reinterpret_cast<reshade::hook::address>(trampoline("glMultiDrawElementsIndirect")), reinterpret_cast<reshade::hook::address>(&glMultiDrawElementsIndirect), true);
-		reshade::hooks::install("glTexImage3D", reinterpret_cast<reshade::hook::address>(trampoline("glTexImage3D")), reinterpret_cast<reshade::hook::address>(&glTexImage3D), true);
+		reshade::hooks::install("glDrawArraysIndirect", reinterpret_cast<reshade::hook::address>(trampoline("glDrawArraysIndirect")), reinterpret_cast<reshade::hook::address>(glDrawArraysIndirect), true);
+		reshade::hooks::install("glDrawArraysInstanced", reinterpret_cast<reshade::hook::address>(trampoline("glDrawArraysInstanced")), reinterpret_cast<reshade::hook::address>(glDrawArraysInstanced), true);
+		reshade::hooks::install("glDrawArraysInstancedARB", reinterpret_cast<reshade::hook::address>(trampoline("glDrawArraysInstancedARB")), reinterpret_cast<reshade::hook::address>(glDrawArraysInstancedARB), true);
+		reshade::hooks::install("glDrawArraysInstancedEXT", reinterpret_cast<reshade::hook::address>(trampoline("glDrawArraysInstancedEXT")), reinterpret_cast<reshade::hook::address>(glDrawArraysInstancedEXT), true);
+		reshade::hooks::install("glDrawArraysInstancedBaseInstance", reinterpret_cast<reshade::hook::address>(trampoline("glDrawArraysInstancedBaseInstance")), reinterpret_cast<reshade::hook::address>(glDrawArraysInstancedBaseInstance), true);
+		reshade::hooks::install("glDrawElementsBaseVertex", reinterpret_cast<reshade::hook::address>(trampoline("glDrawElementsBaseVertex")), reinterpret_cast<reshade::hook::address>(glDrawElementsBaseVertex), true);
+		reshade::hooks::install("glDrawElementsIndirect", reinterpret_cast<reshade::hook::address>(trampoline("glDrawElementsIndirect")), reinterpret_cast<reshade::hook::address>(glDrawElementsIndirect), true);
+		reshade::hooks::install("glDrawElementsInstanced", reinterpret_cast<reshade::hook::address>(trampoline("glDrawElementsInstanced")), reinterpret_cast<reshade::hook::address>(glDrawElementsInstanced), true);
+		reshade::hooks::install("glDrawElementsInstancedARB", reinterpret_cast<reshade::hook::address>(trampoline("glDrawElementsInstancedARB")), reinterpret_cast<reshade::hook::address>(glDrawElementsInstancedARB), true);
+		reshade::hooks::install("glDrawElementsInstancedEXT", reinterpret_cast<reshade::hook::address>(trampoline("glDrawElementsInstancedEXT")), reinterpret_cast<reshade::hook::address>(glDrawElementsInstancedEXT), true);
+		reshade::hooks::install("glDrawElementsInstancedBaseVertex", reinterpret_cast<reshade::hook::address>(trampoline("glDrawElementsInstancedBaseVertex")), reinterpret_cast<reshade::hook::address>(glDrawElementsInstancedBaseVertex), true);
+		reshade::hooks::install("glDrawElementsInstancedBaseInstance", reinterpret_cast<reshade::hook::address>(trampoline("glDrawElementsInstancedBaseInstance")), reinterpret_cast<reshade::hook::address>(glDrawElementsInstancedBaseInstance), true);
+		reshade::hooks::install("glDrawElementsInstancedBaseVertexBaseInstance", reinterpret_cast<reshade::hook::address>(trampoline("glDrawElementsInstancedBaseVertexBaseInstance")), reinterpret_cast<reshade::hook::address>(glDrawElementsInstancedBaseVertexBaseInstance), true);
+		reshade::hooks::install("glDrawRangeElements", reinterpret_cast<reshade::hook::address>(trampoline("glDrawRangeElements")), reinterpret_cast<reshade::hook::address>(glDrawRangeElements), true);
+		reshade::hooks::install("glDrawRangeElementsBaseVertex", reinterpret_cast<reshade::hook::address>(trampoline("glDrawRangeElementsBaseVertex")), reinterpret_cast<reshade::hook::address>(glDrawRangeElementsBaseVertex), true);
+		reshade::hooks::install("glFramebufferRenderbuffer", reinterpret_cast<reshade::hook::address>(trampoline("glFramebufferRenderbuffer")), reinterpret_cast<reshade::hook::address>(glFramebufferRenderbuffer), true);
+		reshade::hooks::install("glFramebufferRenderbufferEXT", reinterpret_cast<reshade::hook::address>(trampoline("glFramebufferRenderbufferEXT")), reinterpret_cast<reshade::hook::address>(glFramebufferRenderbufferEXT), true);
+		reshade::hooks::install("glFramebufferTexture", reinterpret_cast<reshade::hook::address>(trampoline("glFramebufferTexture")), reinterpret_cast<reshade::hook::address>(glFramebufferTexture), true);
+		reshade::hooks::install("glFramebufferTextureARB", reinterpret_cast<reshade::hook::address>(trampoline("glFramebufferTextureARB")), reinterpret_cast<reshade::hook::address>(glFramebufferTextureARB), true);
+		reshade::hooks::install("glFramebufferTextureEXT", reinterpret_cast<reshade::hook::address>(trampoline("glFramebufferTextureEXT")), reinterpret_cast<reshade::hook::address>(glFramebufferTextureEXT), true);
+		reshade::hooks::install("glFramebufferTexture1D", reinterpret_cast<reshade::hook::address>(trampoline("glFramebufferTexture1D")), reinterpret_cast<reshade::hook::address>(glFramebufferTexture1D), true);
+		reshade::hooks::install("glFramebufferTexture1DEXT", reinterpret_cast<reshade::hook::address>(trampoline("glFramebufferTexture1DEXT")), reinterpret_cast<reshade::hook::address>(glFramebufferTexture1DEXT), true);
+		reshade::hooks::install("glFramebufferTexture2D", reinterpret_cast<reshade::hook::address>(trampoline("glFramebufferTexture2D")), reinterpret_cast<reshade::hook::address>(glFramebufferTexture2D), true);
+		reshade::hooks::install("glFramebufferTexture2DEXT", reinterpret_cast<reshade::hook::address>(trampoline("glFramebufferTexture2DEXT")), reinterpret_cast<reshade::hook::address>(glFramebufferTexture2DEXT), true);
+		reshade::hooks::install("glFramebufferTexture3D", reinterpret_cast<reshade::hook::address>(trampoline("glFramebufferTexture3D")), reinterpret_cast<reshade::hook::address>(glFramebufferTexture3D), true);
+		reshade::hooks::install("glFramebufferTexture3DEXT", reinterpret_cast<reshade::hook::address>(trampoline("glFramebufferTexture3DEXT")), reinterpret_cast<reshade::hook::address>(glFramebufferTexture3DEXT), true);
+		reshade::hooks::install("glFramebufferTextureLayer", reinterpret_cast<reshade::hook::address>(trampoline("glFramebufferTextureLayer")), reinterpret_cast<reshade::hook::address>(glFramebufferTextureLayer), true);
+		reshade::hooks::install("glFramebufferTextureLayerARB", reinterpret_cast<reshade::hook::address>(trampoline("glFramebufferTextureLayerARB")), reinterpret_cast<reshade::hook::address>(glFramebufferTextureLayerARB), true);
+		reshade::hooks::install("glFramebufferTextureLayerEXT", reinterpret_cast<reshade::hook::address>(trampoline("glFramebufferTextureLayerEXT")), reinterpret_cast<reshade::hook::address>(glFramebufferTextureLayerEXT), true);
+		reshade::hooks::install("glMultiDrawArrays", reinterpret_cast<reshade::hook::address>(trampoline("glMultiDrawArrays")), reinterpret_cast<reshade::hook::address>(glMultiDrawArrays), true);
+		reshade::hooks::install("glMultiDrawArraysIndirect", reinterpret_cast<reshade::hook::address>(trampoline("glMultiDrawArraysIndirect")), reinterpret_cast<reshade::hook::address>(glMultiDrawArraysIndirect), true);
+		reshade::hooks::install("glMultiDrawElements", reinterpret_cast<reshade::hook::address>(trampoline("glMultiDrawElements")), reinterpret_cast<reshade::hook::address>(glMultiDrawElements), true);
+		reshade::hooks::install("glMultiDrawElementsBaseVertex", reinterpret_cast<reshade::hook::address>(trampoline("glMultiDrawElementsBaseVertex")), reinterpret_cast<reshade::hook::address>(glMultiDrawElementsBaseVertex), true);
+		reshade::hooks::install("glMultiDrawElementsIndirect", reinterpret_cast<reshade::hook::address>(trampoline("glMultiDrawElementsIndirect")), reinterpret_cast<reshade::hook::address>(glMultiDrawElementsIndirect), true);
+		reshade::hooks::install("glTexImage3D", reinterpret_cast<reshade::hook::address>(trampoline("glTexImage3D")), reinterpret_cast<reshade::hook::address>(glTexImage3D), true);
 
-		reshade::hooks::install("wglChoosePixelFormatARB", reinterpret_cast<reshade::hook::address>(trampoline("wglChoosePixelFormatARB")), reinterpret_cast<reshade::hook::address>(&wglChoosePixelFormatARB), true);
-		reshade::hooks::install("wglCreateContextAttribsARB", reinterpret_cast<reshade::hook::address>(trampoline("wglCreateContextAttribsARB")), reinterpret_cast<reshade::hook::address>(&wglCreateContextAttribsARB), true);
-		reshade::hooks::install("wglCreatePbufferARB", reinterpret_cast<reshade::hook::address>(trampoline("wglCreatePbufferARB")), reinterpret_cast<reshade::hook::address>(&wglCreatePbufferARB), true);
-		reshade::hooks::install("wglDestroyPbufferARB", reinterpret_cast<reshade::hook::address>(trampoline("wglDestroyPbufferARB")), reinterpret_cast<reshade::hook::address>(&wglDestroyPbufferARB), true);
-		reshade::hooks::install("wglGetPbufferDCARB", reinterpret_cast<reshade::hook::address>(trampoline("wglGetPbufferDCARB")), reinterpret_cast<reshade::hook::address>(&wglGetPbufferDCARB), true);
-		reshade::hooks::install("wglGetPixelFormatAttribivARB", reinterpret_cast<reshade::hook::address>(trampoline("wglGetPixelFormatAttribivARB")), reinterpret_cast<reshade::hook::address>(&wglGetPixelFormatAttribivARB), true);
-		reshade::hooks::install("wglGetPixelFormatAttribfvARB", reinterpret_cast<reshade::hook::address>(trampoline("wglGetPixelFormatAttribfvARB")), reinterpret_cast<reshade::hook::address>(&wglGetPixelFormatAttribfvARB), true);
-		reshade::hooks::install("wglQueryPbufferARB", reinterpret_cast<reshade::hook::address>(trampoline("wglQueryPbufferARB")), reinterpret_cast<reshade::hook::address>(&wglQueryPbufferARB), true);
-		reshade::hooks::install("wglReleasePbufferDCARB", reinterpret_cast<reshade::hook::address>(trampoline("wglReleasePbufferDCARB")), reinterpret_cast<reshade::hook::address>(&wglReleasePbufferDCARB), true);
-		reshade::hooks::install("wglGetSwapIntervalEXT", reinterpret_cast<reshade::hook::address>(trampoline("wglGetSwapIntervalEXT")), reinterpret_cast<reshade::hook::address>(&wglGetSwapIntervalEXT), true);
-		reshade::hooks::install("wglSwapIntervalEXT", reinterpret_cast<reshade::hook::address>(trampoline("wglSwapIntervalEXT")), reinterpret_cast<reshade::hook::address>(&wglSwapIntervalEXT), true);
+		reshade::hooks::install("wglChoosePixelFormatARB", reinterpret_cast<reshade::hook::address>(trampoline("wglChoosePixelFormatARB")), reinterpret_cast<reshade::hook::address>(wglChoosePixelFormatARB), true);
+		reshade::hooks::install("wglCreateContextAttribsARB", reinterpret_cast<reshade::hook::address>(trampoline("wglCreateContextAttribsARB")), reinterpret_cast<reshade::hook::address>(wglCreateContextAttribsARB), true);
+		reshade::hooks::install("wglCreatePbufferARB", reinterpret_cast<reshade::hook::address>(trampoline("wglCreatePbufferARB")), reinterpret_cast<reshade::hook::address>(wglCreatePbufferARB), true);
+		reshade::hooks::install("wglDestroyPbufferARB", reinterpret_cast<reshade::hook::address>(trampoline("wglDestroyPbufferARB")), reinterpret_cast<reshade::hook::address>(wglDestroyPbufferARB), true);
+		reshade::hooks::install("wglGetPbufferDCARB", reinterpret_cast<reshade::hook::address>(trampoline("wglGetPbufferDCARB")), reinterpret_cast<reshade::hook::address>(wglGetPbufferDCARB), true);
+		reshade::hooks::install("wglGetPixelFormatAttribivARB", reinterpret_cast<reshade::hook::address>(trampoline("wglGetPixelFormatAttribivARB")), reinterpret_cast<reshade::hook::address>(wglGetPixelFormatAttribivARB), true);
+		reshade::hooks::install("wglGetPixelFormatAttribfvARB", reinterpret_cast<reshade::hook::address>(trampoline("wglGetPixelFormatAttribfvARB")), reinterpret_cast<reshade::hook::address>(wglGetPixelFormatAttribfvARB), true);
+		reshade::hooks::install("wglQueryPbufferARB", reinterpret_cast<reshade::hook::address>(trampoline("wglQueryPbufferARB")), reinterpret_cast<reshade::hook::address>(wglQueryPbufferARB), true);
+		reshade::hooks::install("wglReleasePbufferDCARB", reinterpret_cast<reshade::hook::address>(trampoline("wglReleasePbufferDCARB")), reinterpret_cast<reshade::hook::address>(wglReleasePbufferDCARB), true);
+		reshade::hooks::install("wglGetSwapIntervalEXT", reinterpret_cast<reshade::hook::address>(trampoline("wglGetSwapIntervalEXT")), reinterpret_cast<reshade::hook::address>(wglGetSwapIntervalEXT), true);
+		reshade::hooks::install("wglSwapIntervalEXT", reinterpret_cast<reshade::hook::address>(trampoline("wglSwapIntervalEXT")), reinterpret_cast<reshade::hook::address>(wglSwapIntervalEXT), true);
 
 		reshade::hook::apply_queued_actions();
 

@@ -450,20 +450,8 @@ bool reshade::d3d10::runtime_d3d10::init_texture(texture &info)
 	case reshadefx::texture_format::rgba32f:
 		desc.Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
 		break;
-	case reshadefx::texture_format::dxt1:
-		desc.Format = DXGI_FORMAT_BC1_TYPELESS;
-		break;
-	case reshadefx::texture_format::dxt3:
-		desc.Format = DXGI_FORMAT_BC2_TYPELESS;
-		break;
-	case reshadefx::texture_format::dxt5:
-		desc.Format = DXGI_FORMAT_BC3_TYPELESS;
-		break;
-	case reshadefx::texture_format::latc1:
-		desc.Format = DXGI_FORMAT_BC4_UNORM;
-		break;
-	case reshadefx::texture_format::latc2:
-		desc.Format = DXGI_FORMAT_BC5_UNORM;
+	case reshadefx::texture_format::rgb10a2:
+		desc.Format = DXGI_FORMAT_R10G10B10A2_UNORM;
 		break;
 	}
 
@@ -641,7 +629,13 @@ bool reshade::d3d10::runtime_d3d10::compile_effect(effect_data &effect)
 
 		com_ptr<ID3DBlob> d3d_compiled, d3d_errors;
 
-		HRESULT hr = D3DCompile(hlsl.c_str(), hlsl.size(), nullptr, nullptr, nullptr, entry_point.first.c_str(), profile.c_str(), D3DCOMPILE_ENABLE_STRICTNESS, 0, &d3d_compiled, &d3d_errors);
+		HRESULT hr = D3DCompile(
+			hlsl.c_str(), hlsl.size(),
+			nullptr, nullptr, nullptr,
+			entry_point.first.c_str(),
+			profile.c_str(),
+			D3DCOMPILE_ENABLE_STRICTNESS | D3DCOMPILE_OPTIMIZATION_LEVEL3, 0,
+			&d3d_compiled, &d3d_errors);
 
 		if (d3d_errors != nullptr) // Append warnings to the output error string as well
 			effect.errors.append(static_cast<const char *>(d3d_errors->GetBufferPointer()), d3d_errors->GetBufferSize() - 1); // Subtracting one to not append the null-terminator as well
@@ -1296,6 +1290,7 @@ void reshade::d3d10::runtime_d3d10::render_imgui_draw_data(ImDrawData *draw_data
 
 		for (const ImDrawCmd &cmd : draw_list->CmdBuffer)
 		{
+			assert(cmd.TextureId != 0);
 			assert(cmd.UserCallback == nullptr);
 
 			const D3D10_RECT scissor_rect = {

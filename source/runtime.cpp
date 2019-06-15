@@ -98,11 +98,12 @@ reshade::runtime::runtime() :
 }
 reshade::runtime::~runtime()
 {
+	assert(_worker_threads.empty());
+	assert(!_is_initialized && _techniques.empty());
+
 #if RESHADE_GUI
 	deinit_ui();
 #endif
-
-	assert(!_is_initialized && _techniques.empty());
 }
 
 bool reshade::runtime::on_init(input::window_handle window)
@@ -511,10 +512,10 @@ void reshade::runtime::load_textures()
 			fread(mem.data(), 1, mem.size(), file);
 			fclose(file);
 
-			if (stbi_dds_test_memory(mem.data(), mem.size()))
-				filedata = stbi_dds_load_from_memory(mem.data(), mem.size(), &width, &height, &channels, STBI_rgb_alpha);
+			if (stbi_dds_test_memory(mem.data(), static_cast<int>(mem.size())))
+				filedata = stbi_dds_load_from_memory(mem.data(), static_cast<int>(mem.size()), &width, &height, &channels, STBI_rgb_alpha);
 			else
-				filedata = stbi_load_from_memory(mem.data(), mem.size(), &width, &height, &channels, STBI_rgb_alpha);
+				filedata = stbi_load_from_memory(mem.data(), static_cast<int>(mem.size()), &width, &height, &channels, STBI_rgb_alpha);
 		}
 
 		if (filedata == nullptr) {
@@ -1087,8 +1088,7 @@ void reshade::runtime::save_screenshot(bool before)
 	}
 	else if (_screenshot_include_preset && (!before || !_effects_enabled))
 	{
-		save_preset(least + L" Preset.ini");
-		save_config(least + L" Settings.ini");
+		save_preset(least + L".ini");
 	}
 }
 
