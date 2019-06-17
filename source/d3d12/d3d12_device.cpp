@@ -6,11 +6,60 @@
 #include "log.hpp"
 #include "d3d12_device.hpp"
 #include "d3d12_command_queue.hpp"
-#include "d3d12_command_list.hpp"
 #include "../dxgi/dxgi_device.hpp"
+#include "hook_manager.hpp"
 #include <assert.h>
 
+#undef ID3D12GraphicsCommandList_ClearDepthStencilView
+
 extern reshade::log::message &operator<<(reshade::log::message &m, REFIID riid);
+extern thread_local reshade::d3d12::runtime_d3d12 *d3d12_current_runtime = nullptr;
+
+#if RESHADE_DX12_CAPTURE_DEPTH_BUFFERS
+void D3D12Device::track_cleared_depthstencil(D3D12_CPU_DESCRIPTOR_HANDLE pDepthStencilView)
+{
+	if (&pDepthStencilView == nullptr)
+		return;
+
+	// save_depth_texture(pDepthStencilView, true);
+}
+#endif
+
+void STDMETHODCALLTYPE ID3D12GraphicsCommandList_OMSetRenderTargets(
+	ID3D12GraphicsCommandList * pcmdList,
+	UINT NumRenderTargetDescriptors,
+	const D3D12_CPU_DESCRIPTOR_HANDLE *pRenderTargetDescriptors,
+	BOOL RTsSingleHandleToDescriptorRange,
+	const D3D12_CPU_DESCRIPTOR_HANDLE *pDepthStencilDescriptor)
+{
+	LOG(INFO) << "Redirecting ID3D12GraphicsCommandList::OMSetRenderTargets";
+
+	if (d3d12_current_runtime != nullptr)
+		pDepthStencilDescriptor = &d3d12_current_runtime->on_OM_set_render_targets();
+
+	reshade::hooks::call(ID3D12GraphicsCommandList_OMSetRenderTargets, vtable_from_instance(pcmdList) + 46)(pcmdList, NumRenderTargetDescriptors, pRenderTargetDescriptors, RTsSingleHandleToDescriptorRange, pDepthStencilDescriptor);
+}
+
+void STDMETHODCALLTYPE ID3D12GraphicsCommandList_ClearDepthStencilView(
+	ID3D12GraphicsCommandList *pcmdList,
+	D3D12_CPU_DESCRIPTOR_HANDLE DepthStencilView,
+	D3D12_CLEAR_FLAGS ClearFlags,
+	FLOAT Depth,
+	UINT8 Stencil,
+	UINT NumRects,
+	const D3D12_RECT *pRects)
+{
+	LOG(INFO) << "Redirecting ID3D12GraphicsCommandList::ClearDepthStencilView";
+
+#if RESHADE_DX12_CAPTURE_DEPTH_BUFFERS
+	if (ClearFlags & D3D12_CLEAR_FLAG_DEPTH)
+	{
+		// track_cleared_depthstencil(DepthStencilView);
+	}
+#endif
+
+	reshade::hooks::call(ID3D12GraphicsCommandList_ClearDepthStencilView, vtable_from_instance(pcmdList) + 47)(pcmdList, DepthStencilView, ClearFlags, Depth, Stencil, NumRects, pRects);
+}
 
 D3D12Device::D3D12Device(ID3D12Device *original) :
 	_orig(original),
@@ -159,11 +208,6 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateComputePipelineState(const D3D12_CO
 }
 HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommandList(UINT nodeMask, D3D12_COMMAND_LIST_TYPE type, ID3D12CommandAllocator *pCommandAllocator, ID3D12PipelineState *pInitialState, REFIID riid, void **ppCommandList)
 {
-	LOG(INFO) << "Redirecting ID3D12Device::CreateCommandList" << '(' << nodeMask << ", " << type << ", " << pCommandAllocator << ", " << pInitialState << ", " << riid << ", " << ppCommandList << ')' << " ...";
-
-	if (ppCommandList == nullptr)
-		return E_INVALIDARG;
-
 	const HRESULT hr = _orig->CreateCommandList(nodeMask, type, pCommandAllocator, pInitialState, riid, ppCommandList);
 
 	if (FAILED(hr))
@@ -172,14 +216,19 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommandList(UINT nodeMask, D3D12_CO
 		return hr;
 	}
 
-	if (riid == __uuidof(ID3D12GraphicsCommandList))
+	if (riid == __uuidof(ID3D12GraphicsCommandList) || riid == __uuidof(ID3D12GraphicsCommandList1))
 	{
-		*ppCommandList = new D3D12CommandList(this, nodeMask, type, pCommandAllocator, pInitialState, static_cast<ID3D12GraphicsCommandList *>(*ppCommandList));
+		if (_runtimes.empty())
+			return hr;
+
+		const auto runtime = _runtimes.front();
+		d3d12_current_runtime = runtime.get();
+
+		ID3D12GraphicsCommandList *const cmdList = static_cast<ID3D12GraphicsCommandList *>(*ppCommandList);
+		reshade::hooks::install("ID3D12GraphicsCommandList::OMSetRenderTargets", vtable_from_instance(cmdList), 46, reinterpret_cast<reshade::hook::address>(&ID3D12GraphicsCommandList_OMSetRenderTargets));
+		reshade::hooks::install("ID3D12GraphicsCommandList::ClearDepthStencilView", vtable_from_instance(cmdList), 47, reinterpret_cast<reshade::hook::address>(&ID3D12GraphicsCommandList_ClearDepthStencilView));
 	}
 
-#if RESHADE_VERBOSE_LOG
-	LOG(DEBUG) << "Returning ID3D12CommandList object " << *ppCommandList << '.';
-#endif
 	return hr;
 }
 HRESULT STDMETHODCALLTYPE D3D12Device::CheckFeatureSupport(D3D12_FEATURE Feature, void *pFeatureSupportData, UINT FeatureSupportDataSize)
@@ -347,30 +396,7 @@ HRESULT STDMETHODCALLTYPE D3D12Device::EnqueueMakeResident(D3D12_RESIDENCY_FLAGS
 
 HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommandList1(UINT NodeMask, D3D12_COMMAND_LIST_TYPE Type, D3D12_COMMAND_LIST_FLAGS Flags, REFIID riid, void **ppCommandList)
 {
-	LOG(INFO) << "Redirecting ID3D12Device::CreateCommandList1" << '(' << NodeMask << ", " << Type << ", " << riid << ", " << ppCommandList << ')' << " ...";
-
-	assert(_interface_version >= 4);
-
-	if (ppCommandList == nullptr)
-		return E_INVALIDARG;
-
-	const HRESULT hr = static_cast<ID3D12Device4 *>(_orig)->CreateCommandList1(NodeMask, Type, Flags, riid, ppCommandList);
-
-	if (FAILED(hr))
-	{
-		LOG(WARN) << "> 'ID3D12Device::CreateCommandList' failed with error code " << std::hex << hr << std::dec << "!";
-		return hr;
-	}
-
-	if (riid == __uuidof(ID3D12GraphicsCommandList))
-	{
-		*ppCommandList = new D3D12CommandList(this, NodeMask, Type, nullptr, nullptr, static_cast<ID3D12GraphicsCommandList *>(*ppCommandList));
-	}
-
-#if RESHADE_VERBOSE_LOG
-	LOG(DEBUG) << "Returning ID3D12CommandList object " << *ppCommandList << '.';
-#endif
-	return hr;
+	return static_cast<ID3D12Device4 *>(_orig)->CreateCommandList1(NodeMask, Type, Flags, riid, ppCommandList);
 }
 HRESULT STDMETHODCALLTYPE D3D12Device::CreateProtectedResourceSession(const D3D12_PROTECTED_RESOURCE_SESSION_DESC *pDesc, REFIID riid, void **ppSession)
 {

@@ -355,6 +355,11 @@ void reshade::d3d12::runtime_d3d12::on_present()
 	_commandqueue->Signal(_fence[_swap_index].get(), ++_fence_value[_swap_index]);
 }
 
+D3D12_CPU_DESCRIPTOR_HANDLE reshade::d3d12::runtime_d3d12::on_OM_set_render_targets()
+{
+	return _depthstencil_dsvs->GetCPUDescriptorHandleForHeapStart();
+}
+
 void reshade::d3d12::runtime_d3d12::capture_screenshot(uint8_t *buffer) const
 {
 	if (_backbuffer_format != DXGI_FORMAT_R8G8B8A8_UNORM &&
@@ -1134,6 +1139,7 @@ void reshade::d3d12::runtime_d3d12::render_technique(technique &technique)
 		// Setup states
 		cmd_list->SetPipelineState(pass_data.pipeline.get());
 		cmd_list->OMSetStencilRef(pass_info.stencil_reference_value);
+		cmd_list->GetType();
 
 		// Setup render targets
 		const float clear_color[4] = { 0.0f, 0.0f, 0.0f, 0.0f };

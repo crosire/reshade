@@ -26,6 +26,8 @@ namespace reshade::d3d12
 		bool on_init(const DXGI_SWAP_CHAIN_DESC &desc);
 		void on_reset();
 		void on_present();
+		D3D12_CPU_DESCRIPTOR_HANDLE on_OM_set_render_targets();
+		com_ptr<ID3D12Resource> _default_depthstencil;
 
 		void capture_screenshot(uint8_t *buffer) const override;
 
@@ -84,7 +86,6 @@ namespace reshade::d3d12
 		std::vector<com_ptr<ID3D12Resource>> _backbuffers;
 
 		com_ptr<ID3D12Resource> _backbuffer_texture;
-		com_ptr<ID3D12Resource> _default_depthstencil;
 
 		com_ptr<ID3D12PipelineState> _mipmap_pipeline;
 		com_ptr<ID3D12RootSignature> _mipmap_signature;
