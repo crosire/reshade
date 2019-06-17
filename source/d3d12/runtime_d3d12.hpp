@@ -8,6 +8,7 @@
 #include "ini_file.hpp"
 #include "runtime.hpp"
 #include "com_ptr.hpp"
+#include "draw_call_tracker.hpp"
 #include <d3d12.h>
 #include <dxgi1_5.h>
 
@@ -25,9 +26,8 @@ namespace reshade::d3d12
 
 		bool on_init(const DXGI_SWAP_CHAIN_DESC &desc);
 		void on_reset();
-		void on_present();
+		void on_present(draw_call_tracker& tracker);
 		D3D12_CPU_DESCRIPTOR_HANDLE on_OM_set_render_targets();
-		com_ptr<ID3D12Resource> _default_depthstencil;
 
 		void capture_screenshot(uint8_t *buffer) const override;
 
@@ -84,6 +84,7 @@ namespace reshade::d3d12
 		com_ptr<ID3D12DescriptorHeap> _backbuffer_rtvs;
 		com_ptr<ID3D12DescriptorHeap> _depthstencil_dsvs;
 		std::vector<com_ptr<ID3D12Resource>> _backbuffers;
+		com_ptr<ID3D12Resource> _default_depthstencil;
 
 		com_ptr<ID3D12Resource> _backbuffer_texture;
 
@@ -97,6 +98,8 @@ namespace reshade::d3d12
 		std::vector<struct d3d12_effect_data> _effect_data;
 
 		HMODULE _d3d_compiler = nullptr;
+
+		draw_call_tracker *_current_tracker = nullptr;
 
 #if RESHADE_GUI
 		unsigned int _imgui_index_buffer_size[3] = {};

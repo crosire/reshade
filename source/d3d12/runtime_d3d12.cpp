@@ -332,10 +332,14 @@ void reshade::d3d12::runtime_d3d12::on_reset()
 #endif
 }
 
-void reshade::d3d12::runtime_d3d12::on_present()
+void reshade::d3d12::runtime_d3d12::on_present(draw_call_tracker &tracker)
 {
 	if (!_is_initialized)
 		return;
+
+	_vertices = tracker.total_vertices();
+	_drawcalls = tracker.total_drawcalls();
+	_current_tracker = &tracker;
 
 	_swap_index = _swapchain->GetCurrentBackBufferIndex();
 
@@ -1425,6 +1429,11 @@ void reshade::d3d12::runtime_d3d12::render_imgui_draw_data(ImDrawData *draw_data
 
 void reshade::d3d12::runtime_d3d12::draw_debug_menu()
 {
+	for (const auto it : _current_tracker->depthstencil_infos_by_heap())
+	{
+		ImGui::Text("depthStencilView descriptor => 0x%p | depthstencil => 0x%p | %ux%u", it.first, it.second.depthstencil, it.second.desc.Width, it.second.desc.Height);
+	}
+
 	// ImGui::Text("MSAA is %s", _is_multisampling_enabled ? "active" : "inactive");
 	// ImGui::Spacing();
 

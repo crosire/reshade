@@ -10,6 +10,7 @@
 #include "hook_manager.hpp"
 #include <assert.h>
 
+#undef ID3D12GraphicsCommandList_OMSetRenderTargets
 #undef ID3D12GraphicsCommandList_ClearDepthStencilView
 
 extern reshade::log::message &operator<<(reshade::log::message &m, REFIID riid);
@@ -34,8 +35,8 @@ void STDMETHODCALLTYPE ID3D12GraphicsCommandList_OMSetRenderTargets(
 {
 	LOG(INFO) << "Redirecting ID3D12GraphicsCommandList::OMSetRenderTargets";
 
-	if (d3d12_current_runtime != nullptr)
-		pDepthStencilDescriptor = &d3d12_current_runtime->on_OM_set_render_targets();
+	// if (d3d12_current_runtime != nullptr)
+		// pDepthStencilDescriptor = &d3d12_current_runtime->on_OM_set_render_targets();
 
 	reshade::hooks::call(ID3D12GraphicsCommandList_OMSetRenderTargets, vtable_from_instance(pcmdList) + 46)(pcmdList, NumRenderTargetDescriptors, pRenderTargetDescriptors, RTsSingleHandleToDescriptorRange, pDepthStencilDescriptor);
 }
@@ -65,6 +66,11 @@ D3D12Device::D3D12Device(ID3D12Device *original) :
 	_orig(original),
 	_interface_version(0) {
 	assert(original != nullptr);
+}
+
+void D3D12Device::clear_drawcall_stats(bool all)
+{
+	_draw_call_tracker.reset(all);
 }
 
 bool D3D12Device::check_and_upgrade_interface(REFIID riid)
@@ -221,10 +227,12 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommandList(UINT nodeMask, D3D12_CO
 		if (_runtimes.empty())
 			return hr;
 
+		// retrieve current runtime
 		const auto runtime = _runtimes.front();
 		d3d12_current_runtime = runtime.get();
 
 		ID3D12GraphicsCommandList *const cmdList = static_cast<ID3D12GraphicsCommandList *>(*ppCommandList);
+		// hool ID3D12GrapgicsCommandList methods
 		reshade::hooks::install("ID3D12GraphicsCommandList::OMSetRenderTargets", vtable_from_instance(cmdList), 46, reinterpret_cast<reshade::hook::address>(&ID3D12GraphicsCommandList_OMSetRenderTargets));
 		reshade::hooks::install("ID3D12GraphicsCommandList::ClearDepthStencilView", vtable_from_instance(cmdList), 47, reinterpret_cast<reshade::hook::address>(&ID3D12GraphicsCommandList_ClearDepthStencilView));
 	}
@@ -266,6 +274,8 @@ void    STDMETHODCALLTYPE D3D12Device::CreateRenderTargetView(ID3D12Resource *pR
 void    STDMETHODCALLTYPE D3D12Device::CreateDepthStencilView(ID3D12Resource *pResource, const D3D12_DEPTH_STENCIL_VIEW_DESC *pDesc, D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptor)
 {
 	_orig->CreateDepthStencilView(pResource, pDesc, DestDescriptor);
+
+	_draw_call_tracker.track_depthstencil_info(pResource, DestDescriptor);
 }
 void    STDMETHODCALLTYPE D3D12Device::CreateSampler(const D3D12_SAMPLER_DESC *pDesc, D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptor)
 {
