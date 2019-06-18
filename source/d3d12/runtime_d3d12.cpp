@@ -1431,7 +1431,7 @@ void reshade::d3d12::runtime_d3d12::draw_debug_menu()
 {
 	for (const auto it : _current_tracker->depthstencil_infos_by_heap())
 	{
-		ImGui::Text("depthStencilView descriptor => 0x%p | depthstencil => 0x%p | %ux%u", it.first, it.second.depthstencil, it.second.desc.Width, it.second.desc.Height);
+		ImGui::Text("=> 0x%p | texture => 0x%p | depthstencilView descriptor => 0x%p | %ux%u", it.first, it.second.texture, it.second.depthstencilView, it.second.texture_desc.Width, it.second.texture_desc.Height);
 	}
 
 	// ImGui::Text("MSAA is %s", _is_multisampling_enabled ? "active" : "inactive");

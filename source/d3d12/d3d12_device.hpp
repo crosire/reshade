@@ -103,6 +103,7 @@ struct __declspec(uuid("2523AFF4-978B-4939-BA16-8EE876A4CB2A")) D3D12Device : ID
 	void clear_drawcall_stats(bool all = false);
 
 #if RESHADE_DX12_CAPTURE_DEPTH_BUFFERS
+	bool save_depth_texture(D3D12_CPU_DESCRIPTOR_HANDLE pDepthStencilView, bool cleared);
 	void track_cleared_depthstencil(D3D12_CPU_DESCRIPTOR_HANDLE pDepthStencilView);
 #endif
 
@@ -111,4 +112,5 @@ struct __declspec(uuid("2523AFF4-978B-4939-BA16-8EE876A4CB2A")) D3D12Device : ID
 	unsigned int _interface_version;
 	std::vector<std::shared_ptr<reshade::d3d12::runtime_d3d12>> _runtimes;
 	reshade::d3d12::draw_call_tracker _draw_call_tracker;
+	unsigned int _clear_DSV_iter = 1;
 };
