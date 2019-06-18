@@ -49,6 +49,14 @@ namespace reshadefx
 		bool add_macro_definition(const std::string &name, std::string value = "1");
 
 		/// <summary>
+		/// Add a new macro definition. This is equal to appending '#define name macro' to this preprocessor instance.
+		/// </summary>
+		/// <param name="name">The name of the macro to define.</param>
+		/// <param name="macro">The definition of the macro function or value.</param>
+		/// <returns></returns>
+		bool touch_weak_macro_definition(const std::string &name) { return _weak_macros[name]; }
+
+		/// <summary>
 		/// Open the specified file, parse its contents and append them to the output.
 		/// </summary>
 		/// <param name="path">The path to the file to parse.</param>
@@ -129,6 +137,7 @@ namespace reshadefx
 		std::string _output, _errors, _current_token_raw_data;
 		int _recursion_count = 0;
 		std::unordered_map<std::string, macro> _macros;
+		std::unordered_map<std::string, bool> _weak_macros;
 		std::vector<std::filesystem::path> _include_paths;
 		std::unordered_map<std::string, std::string> _filecache;
 	};

@@ -400,7 +400,13 @@ void reshadefx::preprocessor::parse_ifdef()
 	if (!expect(tokenid::identifier))
 		return;
 
-	level.value = _macros.find(_token.literal_as_string) != _macros.end();
+	if (_macros.find(_token.literal_as_string) != _macros.end())
+		level.value = true;
+	else if (auto it = _weak_macros.find(_token.literal_as_string); it != _weak_macros.end())
+		level.value = true, it->second = true;
+	else
+		level.value = false;
+
 	level.parent = current_if_stack().empty() ? nullptr : &current_if_stack().top();
 	level.skipping = (level.parent != nullptr && level.parent->skipping) || !level.value;
 
@@ -414,7 +420,13 @@ void reshadefx::preprocessor::parse_ifndef()
 	if (!expect(tokenid::identifier))
 		return;
 
-	level.value = _macros.find(_token.literal_as_string) == _macros.end();
+	if (_macros.find(_token.literal_as_string) != _macros.end())
+		level.value = false;
+	else if (auto it = _weak_macros.find(_token.literal_as_string); it != _weak_macros.end())
+		level.value = false, it->second = true;
+	else
+		level.value = true;
+
 	level.parent = current_if_stack().empty() ? nullptr : &current_if_stack().top();
 	level.skipping = (level.parent != nullptr && level.parent->skipping) || !level.value;
 

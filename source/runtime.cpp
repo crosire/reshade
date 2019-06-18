@@ -198,6 +198,8 @@ void reshade::runtime::on_present()
 
 void reshade::runtime::load_effect(const std::filesystem::path &path, size_t &out_id)
 {
+	const ini_file preset(_current_preset_path);
+
 	effect_data effect;
 	effect.source_file = path;
 	effect.compile_sucess = true;
@@ -206,6 +208,11 @@ void reshade::runtime::load_effect(const std::filesystem::path &path, size_t &ou
 		reshadefx::preprocessor pp;
 		if (path.is_absolute())
 			pp.add_include_path(path.parent_path());
+
+		for (const auto section : preset._sections)
+			if (section.first == path.filename())
+				for (const auto key : section.second)
+					pp.touch_weak_macro_definition(key.first);
 
 		for (const auto &include_path : _effect_search_paths)
 		{
@@ -272,7 +279,16 @@ void reshade::runtime::load_effect(const std::filesystem::path &path, size_t &ou
 		else // Vulkan uses SPIR-V input
 			codegen.reset(reshadefx::create_codegen_spirv(true, _performance_mode));
 
-		reshadefx::parser parser;
+		reshadefx::parser parser(_renderer_id);
+
+		std::unordered_map<std::string, std::vector<std::string>> readonly_variables;
+		for (const auto section : preset._sections)
+			if (section.first == path.filename())
+				for (const auto key : section.second)
+					if (pp.touch_weak_macro_definition(key.first))
+						preset.get(section.first, key.first, readonly_variables[key.first]);
+
+		parser.set_readonly_uniforms(readonly_variables);
 
 		// Compile the pre-processed source code (try the compile even if the preprocessor step failed to get additional error information)
 		if (!parser.parse(std::move(pp.output()), codegen.get()))
@@ -291,7 +307,6 @@ void reshade::runtime::load_effect(const std::filesystem::path &path, size_t &ou
 	// Fill all specialization constants with values from the current preset
 	if (_performance_mode && !_current_preset_path.empty() && effect.compile_sucess)
 	{
-		const ini_file preset(_current_preset_path);
 		const std::string section(path.filename().u8string());
 
 		for (reshadefx::uniform_info &constant : effect.module.spec_constants)

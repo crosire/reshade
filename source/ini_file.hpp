@@ -191,6 +191,8 @@ namespace reshade
 		std::filesystem::path _save_path;
 		using value = std::vector<std::string>;
 		using section = std::unordered_map<std::string, value>;
+
+	public:
 		std::unordered_map<std::string, section> _sections;
 	};
 }

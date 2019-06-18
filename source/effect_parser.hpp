@@ -17,6 +17,11 @@ namespace reshadefx
 	class parser : symbol_table
 	{
 	public:
+
+		parser(unsigned int renderer_id)
+			:_renderer_id(renderer_id)
+		{}
+
 		/// <summary>
 		/// Parse the provided input string.
 		/// </summary>
@@ -24,6 +29,8 @@ namespace reshadefx
 		/// <param name="backend">The code generation implementation to use.</param>
 		/// <returns>A boolean value indicating whether parsing was successful or not.</returns>
 		bool parse(std::string source, class codegen *backend);
+
+		void set_readonly_uniforms(std::unordered_map<std::string, std::vector<std::string>> &variables) { _readonly_variables = std::move(variables); }
 
 		/// <summary>
 		/// Get the list of error messages.
@@ -77,6 +84,8 @@ namespace reshadefx
 		bool parse_technique();
 		bool parse_technique_pass(pass_info &info);
 
+		unsigned int _renderer_id;
+
 		std::string _errors;
 		token _token, _token_next, _token_backup;
 		std::unique_ptr<lexer> _lexer, _lexer_backup;
@@ -85,5 +94,7 @@ namespace reshadefx
 		std::vector<uint32_t> _loop_break_target_stack;
 		std::vector<uint32_t> _loop_continue_target_stack;
 		type _current_return_type;
+
+		std::unordered_map<std::string, std::vector<std::string>> _readonly_variables;
 	};
 }

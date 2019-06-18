@@ -2411,6 +2411,9 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 		if (global && !parse_annotations(texture_info.annotations))
 			return false;
 
+		if (const auto it = texture_info.annotations.find("readonly"); it != texture_info.annotations.end() && it->second.second.as_uint != 0)
+			type.qualifiers |= type.q_static | type.q_const;
+
 		// Variables without a semantic may have an optional initializer
 		if (accept('='))
 		{
@@ -2561,6 +2564,62 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 
 			if (!expect('}'))
 				return false;
+		}
+
+		if (const auto it = _readonly_variables.find(name); it != _readonly_variables.end() && !it->second.empty())
+		{
+			const size_t size = std::min(static_cast<size_t>(type.rows), it->second.size());
+			for (size_t i = 0; size > i; ++i)
+			{
+				if (_renderer_id == 0x9000)
+				{
+					initializer.constant.as_float[i] = std::strtod(it->second[i].c_str(), nullptr);
+					continue;
+				}
+				switch (initializer.type.base)
+				{
+				case type::t_bool:
+					initializer.constant.as_int[i] = std::strtol(it->second[i].c_str(), nullptr, 10) != 0 ? -1 : 0;
+					break;
+				case type::t_int:
+					initializer.constant.as_int[i] = std::strtol(it->second[i].c_str(), nullptr, 10);
+					break;
+				case type::t_uint:
+					initializer.constant.as_uint[i] = std::strtoul(it->second[i].c_str(), nullptr, 10);
+					break;
+				case type::t_float:
+					initializer.constant.as_float[i] = std::strtod(it->second[i].c_str(), nullptr);
+					break;
+				}
+			}
+		}
+
+		if (const auto it = texture_info.annotations.find("migrate_from"); it != texture_info.annotations.end())
+		{
+			const size_t size = std::min(static_cast<size_t>(type.rows), it->second.first.rows);
+			for (size_t i = 0; size > i; ++i)
+			{
+				if (_renderer_id == 0x9000)
+				{
+					initializer.constant.as_float[i] = it->second.second.as_float[i];
+					continue;
+				}
+				switch (initializer.type.base)
+				{
+				case type::t_bool:
+					initializer.constant.as_int[i] = it->second.second.as_int[i];
+					break;
+				case type::t_int:
+					initializer.constant.as_int[i] = it->second.second.as_int[i];
+					break;
+				case type::t_uint:
+					initializer.constant.as_uint[i] = it->second.second.as_uint[i];
+					break;
+				case type::t_float:
+					initializer.constant.as_float[i] = it->second.second.as_float[i];
+					break;
+				}
+			}
 		}
 	}
 
