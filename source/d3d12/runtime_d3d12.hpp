@@ -37,7 +37,7 @@ namespace reshade::d3d12
 		bool compile_effect(effect_data &effect) override;
 		void unload_effects() override;
 
-		bool init_technique(technique &technique, const struct d3d12_effect_data &effect_data, const std::unordered_map<std::string, com_ptr<ID3DBlob>> &entry_points);
+		bool init_technique(technique &technique, const std::unordered_map<std::string, com_ptr<ID3DBlob>> &entry_points);
 
 		void render_technique(technique &technique) override;
 

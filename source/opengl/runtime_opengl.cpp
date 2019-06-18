@@ -520,7 +520,7 @@ bool reshade::opengl::runtime_opengl::compile_effect(effect_data &effect)
 #if 0
 	std::vector<GLuint> spec_constants;
 	std::vector<GLuint> spec_constant_values;
-	for (const auto &constant : module.spec_constants)
+	for (const auto &constant : effect.module.spec_constants)
 	{
 		spec_constants.push_back(constant.offset);
 		spec_constant_values.push_back(constant.initializer_value.as_uint[0]);
@@ -538,7 +538,7 @@ bool reshade::opengl::runtime_opengl::compile_effect(effect_data &effect)
 		entry_points[entry_point.first] = shader_id;
 
 #if 0
-		glShaderBinary(1, &shader_id, GL_SHADER_BINARY_FORMAT_SPIR_V, module.spirv.data(), module.spirv.size() * sizeof(uint32_t));
+		glShaderBinary(1, &shader_id, GL_SHADER_BINARY_FORMAT_SPIR_V, effect.module.spirv.data(), effect.module.spirv.size() * sizeof(uint32_t));
 		glSpecializeShader(shader_id, entry_point.first.c_str(), GLuint(spec_constants.size()), spec_constants.data(), spec_constant_values.data());
 #else
 		std::string defines = effect.preamble;

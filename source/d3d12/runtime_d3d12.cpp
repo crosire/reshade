@@ -814,8 +814,6 @@ bool reshade::d3d12::runtime_d3d12::compile_effect(effect_data &effect)
 		effect_data.sampler_gpu_base = effect_data.sampler_heap->GetGPUDescriptorHandleForHeapStart();
 	}
 
-	bool success = true;
-
 	for (const reshadefx::sampler_info &info : effect.module.samplers)
 	{
 		if (info.binding >= D3D12_COMMONSHADER_SAMPLER_SLOT_COUNT)
@@ -889,9 +887,11 @@ bool reshade::d3d12::runtime_d3d12::compile_effect(effect_data &effect)
 		}
 	}
 
+	bool success = true;
+
 	for (technique &technique : _techniques)
 		if (technique.impl == nullptr && technique.effect_index == effect.index)
-			success &= init_technique(technique, effect_data, entry_points);
+			success &= init_technique(technique, entry_points);
 
 	return success;
 }
@@ -905,9 +905,11 @@ void reshade::d3d12::runtime_d3d12::unload_effects()
 	_effect_data.clear();
 }
 
-bool reshade::d3d12::runtime_d3d12::init_technique(technique &technique, const d3d12_effect_data &effect_data, const std::unordered_map<std::string, com_ptr<ID3DBlob>> &entry_points)
+bool reshade::d3d12::runtime_d3d12::init_technique(technique &technique, const std::unordered_map<std::string, com_ptr<ID3DBlob>> &entry_points)
 {
 	technique.impl = std::make_unique<d3d12_technique_data>();
+
+	const d3d12_effect_data &effect_data = _effect_data[technique.effect_index];
 
 	for (size_t pass_index = 0; pass_index < technique.passes.size(); ++pass_index)
 	{
