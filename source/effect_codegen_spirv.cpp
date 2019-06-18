@@ -603,6 +603,9 @@ private:
 
 			add_name(res, info.name.c_str());
 
+			const uint32_t spec_id = uint32_t(_module.spec_constants.size());
+			add_decoration(res, spv::DecorationSpecId, { spec_id });
+
 			_spec_constants.insert(res);
 			_module.spec_constants.push_back(info);
 
