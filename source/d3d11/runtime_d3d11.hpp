@@ -62,7 +62,6 @@ namespace reshade::d3d11
 #if RESHADE_DX11_CAPTURE_DEPTH_BUFFERS
 		void detect_depth_source(draw_call_tracker& tracker);
 		bool create_depthstencil_replacement(ID3D11DepthStencilView *depthstencil, ID3D11Texture2D *texture);
-#endif
 
 		struct depth_texture_save_info
 		{
@@ -71,6 +70,7 @@ namespace reshade::d3d11
 			com_ptr<ID3D11Texture2D> dest_texture;
 			bool cleared = false;
 		};
+#endif
 
 		com_ptr<ID3D11Device> _device;
 		com_ptr<ID3D11DeviceContext> _immediate_context;

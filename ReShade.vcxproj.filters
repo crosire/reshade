@@ -299,6 +299,9 @@
     <ClInclude Include="source\d3d12\d3d12_command_list.hpp">
       <Filter>hooks\d3d12</Filter>
     </ClInclude>
+    <ClInclude Include="res\d3dx12.h">
+      <Filter>resources</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="res\exports.def">
