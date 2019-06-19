@@ -124,6 +124,16 @@ namespace reshade
 			_modified = true;
 		}
 
+		void erase(const std::string &section)
+		{
+			_modified |= _sections.erase(section) != 0;
+		}
+		void erase(const std::string &section, const std::string &key)
+		{
+			if (const auto it = _sections.find(section); it != _sections.end())
+				_modified |= it->second.erase(key) != 0;
+		}
+
 	private:
 		void load();
 		void save() const;

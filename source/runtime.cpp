@@ -199,6 +199,7 @@ void reshade::runtime::on_present()
 void reshade::runtime::load_effect(const std::filesystem::path &path, size_t &out_id)
 {
 	const ini_file preset(_current_preset_path);
+	std::unordered_map<std::string, std::vector<std::string>> loaded_readonly_uniforms;
 
 	effect_data effect;
 	effect.source_file = path;
@@ -281,14 +282,13 @@ void reshade::runtime::load_effect(const std::filesystem::path &path, size_t &ou
 
 		reshadefx::parser parser(_renderer_id);
 
-		std::unordered_map<std::string, std::vector<std::string>> readonly_variables;
 		for (const auto section : preset._sections)
 			if (section.first == path.filename())
 				for (const auto key : section.second)
 					if (pp.touch_weak_macro_definition(key.first))
-						preset.get(section.first, key.first, readonly_variables[key.first]);
+						preset.get(section.first, key.first, loaded_readonly_uniforms[key.first]);
 
-		parser.set_readonly_uniforms(readonly_variables);
+		parser.set_readonly_uniforms(loaded_readonly_uniforms);
 
 		// Compile the pre-processed source code (try the compile even if the preprocessor step failed to get additional error information)
 		if (!parser.parse(std::move(pp.output()), codegen.get()))
@@ -448,6 +448,10 @@ void reshade::runtime::load_effect(const std::filesystem::path &path, size_t &ou
 			enable_technique(technique);
 	}
 
+	if (effect.compile_sucess && !loaded_readonly_uniforms.empty())
+		for (auto it = loaded_readonly_uniforms.begin(); it != loaded_readonly_uniforms.end(); ++it)
+			_loaded_readonly_uniforms[path.filename().u8string()].insert(it->first);
+
 	if (effect.compile_sucess)
 		if (effect.errors.empty())
 			LOG(INFO) << "Successfully loaded " << path << '.';
@@ -575,6 +579,8 @@ void reshade::runtime::unload_effects()
 	_loaded_effects.clear();
 	_uniform_data_storage.clear();
 
+	_loaded_readonly_uniforms.clear();
+
 	_textures_loaded = false;
 
 #if RESHADE_GUI
@@ -591,6 +597,10 @@ void reshade::runtime::update_and_render_effects()
 
 	if (_reload_remaining_effects == 0)
 	{
+		// Finished Uniform migration
+		if (!_loaded_readonly_uniforms.empty())
+			apply_current_preset_migration();
+
 		// Finished loading effects, so apply preset to figure out which ones need compiling
 		load_current_preset();
 
@@ -992,7 +1002,7 @@ void reshade::runtime::save_preset(const std::filesystem::path &path) const
 {
 	ini_file preset(path);
 
-	std::vector<size_t> effect_list;
+	std::unordered_set<size_t> effect_list;
 	std::vector<std::string> technique_list;
 	std::vector<std::string> sorted_technique_list;
 
@@ -1001,7 +1011,7 @@ void reshade::runtime::save_preset(const std::filesystem::path &path) const
 		if (technique.enabled)
 			technique_list.push_back(technique.name);
 		if (technique.enabled || technique.toggle_key_data[0] != 0)
-			effect_list.push_back(technique.effect_index);
+			effect_list.insert(technique.effect_index);
 
 		// Keep track of the order of all techniques and not just the enabled ones
 		sorted_technique_list.push_back(technique.name);
@@ -1016,6 +1026,10 @@ void reshade::runtime::save_preset(const std::filesystem::path &path) const
 	preset.set("", "TechniqueSorting", std::move(sorted_technique_list));
 	preset.set("", "PreprocessorDefinitions", _preset_preprocessor_definitions);
 
+	save_preset_uniforms(preset, effect_list);
+}
+void reshade::runtime::save_preset_uniforms(ini_file &preset, const std::unordered_set<size_t> &effect_list) const
+{
 	// TODO: Do we want to save spec constants here too? The preset will be rather empty in performance mode otherwise.
 	for (const uniform &variable : _uniforms)
 	{
@@ -1046,6 +1060,36 @@ void reshade::runtime::save_preset(const std::filesystem::path &path) const
 			break;
 		}
 	}
+}
+void reshade::runtime::apply_current_preset_migration() const
+{
+	apply_preset_migration(_current_preset_path);
+}
+void reshade::runtime::apply_preset_migration(const std::filesystem::path &path) const
+{
+	ini_file preset(path);
+	apply_preset_migration(preset);
+}
+void reshade::runtime::apply_preset_migration(ini_file &preset) const
+{
+	if (_loaded_readonly_uniforms.empty())
+		return;
+
+	std::unordered_set<std::string> effect_files;
+	for (auto it = _loaded_readonly_uniforms.begin(); it != _loaded_readonly_uniforms.end(); ++it)
+		effect_files.insert(it->first);
+
+	std::unordered_set<size_t> effect_list;
+	for (size_t i = 0; _loaded_effects.size() > i; ++i)
+		if (effect_files.find(_loaded_effects[i].source_file.filename().u8string()) != effect_files.end())
+			effect_list.insert(i);
+
+	save_preset_uniforms(preset, effect_list);
+
+	for (auto it = effect_list.begin(); it != effect_list.end(); ++it)
+		if (auto kt = _loaded_readonly_uniforms.find(_loaded_effects[*it].source_file.filename().u8string()); kt != _loaded_readonly_uniforms.end())
+			for (auto key = kt->second.begin(); key != kt->second.end(); ++key)
+				preset.erase(kt->first, *key);
 }
 void reshade::runtime::save_current_preset() const
 {

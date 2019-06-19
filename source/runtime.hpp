@@ -11,6 +11,7 @@
 #include <chrono>
 #include <functional>
 #include <filesystem>
+#include <unordered_set>
 
 #if RESHADE_GUI
 #include "gui_code_editor.hpp"
@@ -242,6 +243,21 @@ namespace reshade
 		/// </summary>
 		/// <param name="path">The preset file to save to.</param>
 		void save_preset(const std::filesystem::path &path) const;
+		void save_preset_uniforms(ini_file &preset, const std::unordered_set<size_t> &effect_list) const;
+		/// <summary>
+		/// Save the current value configuration as a preset to the specified file.
+		/// </summary>
+		void reshade::runtime::apply_current_preset_migration() const;
+		/// <summary>
+		/// Save the current value configuration as a preset to the specified file.
+		/// </summary>
+		/// <param name="path">The preset file to save to.</param>
+		void apply_preset_migration(const std::filesystem::path &path) const;
+		/// <summary>
+		/// Save the current value configuration as a preset to the specified file.
+		/// </summary>
+		/// <param name="path">The preset file to save to.</param>
+		void apply_preset_migration(ini_file &preset) const;
 		/// <summary>
 		/// Save the current value configuration to the currently selected preset.
 		/// </summary>
@@ -360,6 +376,9 @@ namespace reshade
 		char _effect_filter_buffer[64] = {};
 		std::filesystem::path _file_selection_path;
 		imgui_code_editor _editor;
+
+		// used by uniform migration
+		std::unordered_map<std::string, std::unordered_set<std::string>> _loaded_readonly_uniforms;
 
 		// used by preset explorer
 		bool _browse_path_is_input_mode = false;

@@ -2566,7 +2566,7 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 				return false;
 		}
 
-		if (const auto it = _readonly_variables.find(name); it != _readonly_variables.end() && !it->second.empty())
+		if (const auto it = _readonly_variables.find(name); it != _readonly_variables.end())
 		{
 			const size_t size = std::min(static_cast<size_t>(type.rows), it->second.size());
 			for (size_t i = 0; size > i; ++i)
@@ -2593,8 +2593,7 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 				}
 			}
 		}
-
-		if (const auto it = texture_info.annotations.find("migrate_from"); it != texture_info.annotations.end())
+		else if (const auto it = texture_info.annotations.find("migrate_from"); it != texture_info.annotations.end())
 		{
 			const size_t size = std::min(static_cast<size_t>(type.rows), it->second.first.rows);
 			for (size_t i = 0; size > i; ++i)

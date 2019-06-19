@@ -30,7 +30,7 @@ namespace reshadefx
 		/// <returns>A boolean value indicating whether parsing was successful or not.</returns>
 		bool parse(std::string source, class codegen *backend);
 
-		void set_readonly_uniforms(std::unordered_map<std::string, std::vector<std::string>> &variables) { _readonly_variables = std::move(variables); }
+		void set_readonly_uniforms(const std::unordered_map<std::string, std::vector<std::string>> &variables) { _readonly_variables = variables; }
 
 		/// <summary>
 		/// Get the list of error messages.
