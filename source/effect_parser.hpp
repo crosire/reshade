@@ -18,7 +18,7 @@ namespace reshadefx
 	{
 	public:
 
-		parser(unsigned int renderer_id)
+		parser(unsigned int renderer_id = 0)
 			:_renderer_id(renderer_id)
 		{}
 
@@ -30,7 +30,7 @@ namespace reshadefx
 		/// <returns>A boolean value indicating whether parsing was successful or not.</returns>
 		bool parse(std::string source, class codegen *backend);
 
-		void set_readonly_uniforms(const std::unordered_map<std::string, std::vector<std::string>> &variables) { _readonly_variables = variables; }
+		void set_readonly_uniforms(const std::unordered_map<std::string, std::vector<std::string>> &variables) { _readonly_uniforms = variables; }
 
 		/// <summary>
 		/// Get the list of error messages.
@@ -95,6 +95,6 @@ namespace reshadefx
 		std::vector<uint32_t> _loop_continue_target_stack;
 		type _current_return_type;
 
-		std::unordered_map<std::string, std::vector<std::string>> _readonly_variables;
+		std::unordered_map<std::string, std::vector<std::string>> _readonly_uniforms;
 	};
 }
