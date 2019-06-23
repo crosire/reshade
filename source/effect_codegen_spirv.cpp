@@ -114,8 +114,8 @@ struct spirv_basic_block
 class codegen_spirv final : public codegen
 {
 public:
-	codegen_spirv(bool debug_info, bool uniforms_to_spec_constants)
-		: _debug_info(debug_info), _uniforms_to_spec_constants(uniforms_to_spec_constants)
+	codegen_spirv(bool vulkan_semantics, bool debug_info, bool uniforms_to_spec_constants)
+		: _debug_info(debug_info), _vulkan_semantics(vulkan_semantics), _uniforms_to_spec_constants(uniforms_to_spec_constants)
 	{
 		_glsl_ext = make_id();
 	}
@@ -170,6 +170,7 @@ private:
 	spirv_basic_block *_current_block_data = nullptr;
 
 	bool _debug_info = false;
+	bool _vulkan_semantics = false;
 	bool _uniforms_to_spec_constants = false;
 	id _glsl_ext = 0;
 	struct_info _global_ubo_type;
@@ -220,7 +221,8 @@ private:
 
 	void write_result(module &module) override
 	{
-		// First create the UBO struct type now that all member types are known
+		// First initialize the UBO type now that all member types are known
+		// The name for both the type and variable were initialized in 'define_uniform' earlier already
 		if (_global_ubo_type.definition != 0)
 		{
 			define_struct({}, _global_ubo_type);
@@ -613,17 +615,19 @@ private:
 		}
 		else
 		{
+			// Create global uniform buffer variable on demand
 			if (_global_ubo_type.definition == 0)
 			{
 				_global_ubo_type.definition = make_id();
 
 				add_decoration(_global_ubo_type.definition, spv::DecorationBlock);
-				add_decoration(_global_ubo_type.definition, spv::DecorationBinding, { 0 });
-				add_decoration(_global_ubo_type.definition, spv::DecorationDescriptorSet, { 0 });
 			}
 			if (_global_ubo_variable == 0)
 			{
 				_global_ubo_variable = make_id();
+
+				add_decoration(_global_ubo_variable, spv::DecorationBinding, { 0 });
+				add_decoration(_global_ubo_variable, spv::DecorationDescriptorSet, { 0 });
 			}
 
 			// GLSL specification on std140 layout:
@@ -734,7 +738,7 @@ private:
 		define_function({}, entry_point);
 		enter_block(create_block());
 
-		const auto semantic_to_builtin = [is_ps](const std::string &semantic, spv::BuiltIn &builtin) {
+		const auto semantic_to_builtin = [this, is_ps](const std::string &semantic, spv::BuiltIn &builtin) {
 			builtin = spv::BuiltInMax;
 			if (semantic == "SV_POSITION")
 				builtin = is_ps ? spv::BuiltInFragCoord : spv::BuiltInPosition;
@@ -743,7 +747,7 @@ private:
 			if (semantic == "SV_DEPTH")
 				builtin = spv::BuiltInFragDepth;
 			if (semantic == "VERTEXID" || semantic == "SV_VERTEXID")
-				builtin = spv::BuiltInVertexId;
+				builtin = _vulkan_semantics ? spv::BuiltInVertexIndex : spv::BuiltInVertexId;
 			return builtin != spv::BuiltInMax;
 		};
 
@@ -1929,7 +1933,7 @@ private:
 	}
 };
 
-codegen *reshadefx::create_codegen_spirv(bool debug_info, bool uniforms_to_spec_constants)
+codegen *reshadefx::create_codegen_spirv(bool vulkan_semantics, bool debug_info, bool uniforms_to_spec_constants)
 {
-	return new codegen_spirv(debug_info, uniforms_to_spec_constants);
+	return new codegen_spirv(vulkan_semantics, debug_info, uniforms_to_spec_constants);
 }
