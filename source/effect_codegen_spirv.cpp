@@ -1583,11 +1583,11 @@ private:
 			break;
 		case tokenid::equal_equal:
 			spv_op = type.is_floating_point() ? spv::OpFOrdEqual :
-				type.is_integral() ? spv::OpIEqual : spv::OpLogicalEqual;
+				type.is_boolean() ? spv::OpLogicalEqual : spv::OpIEqual;
 			break;
 		case tokenid::exclaim_equal:
 			spv_op = type.is_floating_point() ? spv::OpFOrdNotEqual :
-				type.is_integral() ? spv::OpINotEqual : spv::OpLogicalNotEqual;
+				type.is_boolean() ? spv::OpLogicalNotEqual : spv::OpINotEqual;
 			break;
 		default:
 			return assert(false), 0;
