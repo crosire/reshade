@@ -438,6 +438,7 @@
     <ClInclude Include="source\runtime.hpp" />
     <ClInclude Include="source\runtime_objects.hpp" />
     <ClInclude Include="source\vulkan\runtime_vulkan.hpp" />
+    <ClInclude Include="source\vulkan\vk_handle.hpp" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="res\resource.rc" />

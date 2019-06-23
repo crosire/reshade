@@ -290,6 +290,9 @@
     <ClInclude Include="source\vulkan\runtime_vulkan.hpp">
       <Filter>hooks\vulkan</Filter>
     </ClInclude>
+    <ClInclude Include="source\vulkan\vk_handle.hpp">
+      <Filter>hooks\vulkan</Filter>
+    </ClInclude>
     <ClInclude Include="res\resource.h">
       <Filter>resources</Filter>
     </ClInclude>

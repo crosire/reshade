@@ -5,8 +5,8 @@
 
 #pragma once
 
-#include <vulkan/vulkan.h>
 #include "runtime.hpp"
+#include "vk_handle.hpp"
 
 namespace reshade { enum class texture_reference; }
 namespace reshadefx { struct sampler_info; }
@@ -25,10 +25,6 @@ namespace reshade::vulkan
 		void capture_screenshot(uint8_t *buffer) const override;
 
 	private:
-		bool init_backbuffer_textures(const VkSwapchainCreateInfoKHR &desc);
-		bool init_default_depth_stencil();
-		bool init_pools();
-
 		bool init_texture(texture &texture);
 		void upload_texture(texture &texture, const uint8_t *pixels);
 
@@ -43,6 +39,12 @@ namespace reshade::vulkan
 		bool init_imgui_resources();
 		void render_imgui_draw_data(ImDrawData *draw_data) override;
 #endif
+
+		VkImage create_image(uint32_t width, uint32_t height, uint32_t levels, VkFormat format, VkImageUsageFlags usage, VkMemoryPropertyFlags mem = 0, VkImageCreateFlags = 0);
+		VkBuffer create_buffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags mem = 0);
+		VkImageView create_image_view(VkImage image, VkFormat format, uint32_t levels = 1);
+
+		void set_object_name(uint64_t handle, VkDebugReportObjectTypeEXT type, const char *name) const;
 
 		void generate_mipmaps(const VkCommandBuffer cmd_list, texture &texture);
 
@@ -69,10 +71,9 @@ namespace reshade::vulkan
 
 		VkImage _backbuffer_texture = VK_NULL_HANDLE;
 		VkImageView _backbuffer_texture_view = VK_NULL_HANDLE;
-		VkDeviceMemory _backbuffer_texture_mem = VK_NULL_HANDLE;
 		VkImage _default_depthstencil = VK_NULL_HANDLE;
 		VkImageView _default_depthstencil_view = VK_NULL_HANDLE;
-		VkDeviceMemory _default_depthstencil_mem = VK_NULL_HANDLE;
+		std::vector<VkDeviceMemory> _allocations;
 
 		VkDescriptorPool _effect_descriptor_pool = VK_NULL_HANDLE;
 		VkDescriptorSetLayout _effect_ubo_layout = VK_NULL_HANDLE;
