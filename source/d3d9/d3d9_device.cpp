@@ -577,12 +577,13 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::DrawPrimitive(D3DPRIMITIVETYPE Primit
 {
 	assert(_implicit_swapchain != nullptr);
 	assert(_implicit_swapchain->_runtime != nullptr);
-	_implicit_swapchain->_runtime->on_draw_primitive(PrimitiveType, StartVertex, PrimitiveCount);
+	_implicit_swapchain->_runtime->weapon_or_cockpit_fix(PrimitiveType, StartVertex, PrimitiveCount);
+	_implicit_swapchain->_runtime->on_draw_call(PrimitiveType, PrimitiveCount);
 
 	for (auto swapchain : _additional_swapchains)
 	{
 		assert(swapchain->_runtime != nullptr);
-		swapchain->_runtime->on_draw_primitive(PrimitiveType, StartVertex, PrimitiveCount);
+		swapchain->_runtime->on_draw_call(PrimitiveType, PrimitiveCount);
 	}
 
 	return _orig->DrawPrimitive(PrimitiveType, StartVertex, PrimitiveCount);
@@ -591,12 +592,13 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::DrawIndexedPrimitive(D3DPRIMITIVETYPE
 {
 	assert(_implicit_swapchain != nullptr);
 	assert(_implicit_swapchain->_runtime != nullptr);
-	_implicit_swapchain->_runtime->on_draw_indexed_primitive(PrimitiveType, BaseVertexIndex, MinVertexIndex, NumVertices, StartIndex, PrimitiveCount);
+	_implicit_swapchain->_runtime->weapon_or_cockpit_fix(PrimitiveType, BaseVertexIndex, MinVertexIndex, NumVertices, StartIndex, PrimitiveCount);
+	_implicit_swapchain->_runtime->on_draw_call(PrimitiveType, PrimitiveCount);
 
 	for (auto swapchain : _additional_swapchains)
 	{
 		assert(swapchain->_runtime != nullptr);
-		swapchain->_runtime->on_draw_indexed_primitive(PrimitiveType, BaseVertexIndex, MinVertexIndex, NumVertices, StartIndex, PrimitiveCount);
+		swapchain->_runtime->on_draw_call(PrimitiveType, PrimitiveCount);
 	}
 
 	return _orig->DrawIndexedPrimitive(PrimitiveType, BaseVertexIndex, MinVertexIndex, NumVertices, StartIndex, PrimitiveCount);
@@ -605,13 +607,12 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::DrawPrimitiveUP(D3DPRIMITIVETYPE Prim
 {
 	assert(_implicit_swapchain != nullptr);
 	assert(_implicit_swapchain->_runtime != nullptr);
-
-	_implicit_swapchain->_runtime->on_draw_primitive_up(PrimitiveType, PrimitiveCount, pVertexStreamZeroData, VertexStreamZeroStride);
+	_implicit_swapchain->_runtime->on_draw_call(PrimitiveType, PrimitiveCount);
 
 	for (auto swapchain : _additional_swapchains)
 	{
 		assert(swapchain->_runtime != nullptr);
-		swapchain->_runtime->on_draw_primitive_up(PrimitiveType, PrimitiveCount, pVertexStreamZeroData, VertexStreamZeroStride);
+		swapchain->_runtime->on_draw_call(PrimitiveType, PrimitiveCount);
 	}
 
 	return _orig->DrawPrimitiveUP(PrimitiveType, PrimitiveCount, pVertexStreamZeroData, VertexStreamZeroStride);
@@ -620,13 +621,12 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::DrawIndexedPrimitiveUP(D3DPRIMITIVETY
 {
 	assert(_implicit_swapchain != nullptr);
 	assert(_implicit_swapchain->_runtime != nullptr);
-
-	_implicit_swapchain->_runtime->on_draw_indexed_primitive_up(PrimitiveType, MinVertexIndex, NumVertices, PrimitiveCount, pIndexData, IndexDataFormat, pVertexStreamZeroData, VertexStreamZeroStride);
+	_implicit_swapchain->_runtime->on_draw_call(PrimitiveType, PrimitiveCount);
 
 	for (auto swapchain : _additional_swapchains)
 	{
 		assert(swapchain->_runtime != nullptr);
-		swapchain->_runtime->on_draw_indexed_primitive_up(PrimitiveType, MinVertexIndex, NumVertices, PrimitiveCount, pIndexData, IndexDataFormat, pVertexStreamZeroData, VertexStreamZeroStride);
+		swapchain->_runtime->on_draw_call(PrimitiveType, PrimitiveCount);
 	}
 
 	return _orig->DrawIndexedPrimitiveUP(PrimitiveType, MinVertexIndex, NumVertices, PrimitiveCount, pIndexData, IndexDataFormat, pVertexStreamZeroData, VertexStreamZeroStride);

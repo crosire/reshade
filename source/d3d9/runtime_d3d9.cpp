@@ -299,89 +299,30 @@ void reshade::d3d9::runtime_d3d9::on_present()
 	}
 }
 
-void reshade::d3d9::runtime_d3d9::on_draw_primitive(D3DPRIMITIVETYPE PrimitiveType, UINT StartVertex, UINT PrimitiveCount)
-{
-	com_ptr<IDirect3DSurface9> depthstencil;
-	_device->GetDepthStencilSurface(&depthstencil);
-
-	if (depthstencil != nullptr)
-	{
-		// Resolve pointer to original depth stencil
-		if (_depthstencil_replacement == depthstencil)
-			depthstencil = _depthstencil;
-	}
-
-	// fix to display user weapon and cockpit in some games
-	weapon_or_cockpit_fix(depthstencil, PrimitiveType, StartVertex, PrimitiveCount);
-
-	on_draw_call(depthstencil, PrimitiveType, PrimitiveCount);
-}
-void reshade::d3d9::runtime_d3d9::on_draw_indexed_primitive(D3DPRIMITIVETYPE PrimitiveType, INT BaseVertexIndex, UINT MinVertexIndex, UINT NumVertices, UINT StartIndex, UINT PrimitiveCount)
-{
-	com_ptr<IDirect3DSurface9> depthstencil;
-	_device->GetDepthStencilSurface(&depthstencil);
-
-	if (depthstencil != nullptr)
-	{
-		// Resolve pointer to original depth stencil
-		if (_depthstencil_replacement == depthstencil)
-			depthstencil = _depthstencil;
-	}
-
-	// fix to display user weapon and cockpit in some games
-	weapon_or_cockpit_fix(depthstencil, PrimitiveType, BaseVertexIndex, MinVertexIndex, NumVertices, StartIndex, PrimitiveCount);
-
-	on_draw_call(depthstencil, PrimitiveType, PrimitiveCount);
-}
-void reshade::d3d9::runtime_d3d9::on_draw_primitive_up(D3DPRIMITIVETYPE PrimitiveType, UINT PrimitiveCount, const void *pVertexStreamZeroData, UINT VertexStreamZeroStride)
-{
-	com_ptr<IDirect3DSurface9> depthstencil;
-	_device->GetDepthStencilSurface(&depthstencil);
-
-	if (depthstencil != nullptr)
-	{
-		// Resolve pointer to original depth stencil
-		if (_depthstencil_replacement == depthstencil)
-			depthstencil = _depthstencil;
-	}
-
-	on_draw_call(depthstencil, PrimitiveType, PrimitiveCount);
-}
-void reshade::d3d9::runtime_d3d9::on_draw_indexed_primitive_up(D3DPRIMITIVETYPE PrimitiveType, UINT MinVertexIndex, UINT NumVertices, UINT PrimitiveCount, const void *pIndexData, D3DFORMAT IndexDataFormat, const void *pVertexStreamZeroData, UINT VertexStreamZeroStride)
-{
-	com_ptr<IDirect3DSurface9> depthstencil;
-	_device->GetDepthStencilSurface(&depthstencil);
-
-	if (depthstencil != nullptr)
-	{
-		// Resolve pointer to original depth stencil
-		if (_depthstencil_replacement == depthstencil)
-			depthstencil = _depthstencil;
-	}
-
-	on_draw_call(depthstencil, PrimitiveType, PrimitiveCount);
-}
-void reshade::d3d9::runtime_d3d9::on_draw_call(com_ptr<IDirect3DSurface9> depthstencil, D3DPRIMITIVETYPE type, unsigned int vertices)
+void reshade::d3d9::runtime_d3d9::on_draw_call(D3DPRIMITIVETYPE type, UINT vertices)
 {
 	switch (type)
 	{
-		case D3DPT_LINELIST:
-			vertices *= 2;
-			break;
-		case D3DPT_LINESTRIP:
-			vertices += 1;
-			break;
-		case D3DPT_TRIANGLELIST:
-			vertices *= 3;
-			break;
-		case D3DPT_TRIANGLESTRIP:
-		case D3DPT_TRIANGLEFAN:
-			vertices += 2;
-			break;
+	case D3DPT_LINELIST:
+		vertices *= 2;
+		break;
+	case D3DPT_LINESTRIP:
+		vertices += 1;
+		break;
+	case D3DPT_TRIANGLELIST:
+		vertices *= 3;
+		break;
+	case D3DPT_TRIANGLESTRIP:
+	case D3DPT_TRIANGLEFAN:
+		vertices += 2;
+		break;
 	}
 
 	_vertices += vertices;
 	_drawcalls += 1;
+
+	com_ptr<IDirect3DSurface9> depthstencil;
+	_device->GetDepthStencilSurface(&depthstencil);
 
 	if (depthstencil != nullptr)
 	{
@@ -1640,10 +1581,9 @@ bool reshade::d3d9::runtime_d3d9::create_depthstencil_replacement(const com_ptr<
 	return true;
 }
 
-void reshade::d3d9::runtime_d3d9::weapon_or_cockpit_fix(const com_ptr<IDirect3DSurface9> depthstencil, D3DPRIMITIVETYPE PrimitiveType, UINT StartVertex, UINT PrimitiveCount)
+void reshade::d3d9::runtime_d3d9::weapon_or_cockpit_fix(D3DPRIMITIVETYPE PrimitiveType, UINT StartVertex, UINT PrimitiveCount)
 {
 	if (_brute_force_fix &&
-		depthstencil != _depthstencil_replacement &&
 		_is_good_viewport &&
 		_is_best_original_depthstencil_source &&
 		_depth_buffer_table.size() > _adjusted_preserve_starting_index)
@@ -1666,11 +1606,9 @@ void reshade::d3d9::runtime_d3d9::weapon_or_cockpit_fix(const com_ptr<IDirect3DS
 		_device->SetViewport(&mViewport);
 	}
 }
-
-void reshade::d3d9::runtime_d3d9::weapon_or_cockpit_fix(const com_ptr<IDirect3DSurface9> depthstencil, D3DPRIMITIVETYPE PrimitiveType, INT BaseVertexIndex, UINT MinVertexIndex, UINT NumVertices, UINT StartIndex, UINT PrimitiveCount)
+void reshade::d3d9::runtime_d3d9::weapon_or_cockpit_fix(D3DPRIMITIVETYPE PrimitiveType, INT BaseVertexIndex, UINT MinVertexIndex, UINT NumVertices, UINT StartIndex, UINT PrimitiveCount)
 {
 	if (_brute_force_fix &&
-		depthstencil != _depthstencil_replacement &&
 		_is_good_viewport &&
 		_is_best_original_depthstencil_source &&
 		_depth_buffer_table.size() > _adjusted_preserve_starting_index)
@@ -1682,18 +1620,12 @@ void reshade::d3d9::runtime_d3d9::weapon_or_cockpit_fix(const com_ptr<IDirect3DS
 		create_fixed_viewport(mViewport);
 		_device->SetDepthStencilSurface(_depthstencil_replacement.get());
 
-		if (FAILED(_device->DrawIndexedPrimitive(PrimitiveType, BaseVertexIndex, MinVertexIndex, NumVertices, StartIndex, PrimitiveCount)))
-		{
-			// Original viewport is reloaded
-			_device->SetViewport(&mViewport);
-			return;
-		}
+		_device->DrawIndexedPrimitive(PrimitiveType, BaseVertexIndex, MinVertexIndex, NumVertices, StartIndex, PrimitiveCount);
 
 		// Original viewport is reloaded
 		_device->SetViewport(&mViewport);
 	}
 }
-
 void reshade::d3d9::runtime_d3d9::create_fixed_viewport(const D3DVIEWPORT9 mViewport)
 {
 	D3DVIEWPORT9 mNewViewport; // Holds new viewport data

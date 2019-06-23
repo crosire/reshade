@@ -24,15 +24,13 @@ namespace reshade::d3d9
 		void on_reset();
 		void on_present();
 
-		void on_draw_primitive(D3DPRIMITIVETYPE PrimitiveType, UINT StartVertex, UINT PrimitiveCount);
-		void on_draw_indexed_primitive(D3DPRIMITIVETYPE PrimitiveType, INT BaseVertexIndex, UINT MinVertexIndex, UINT NumVertices, UINT StartIndex, UINT PrimitiveCount);
-		void on_draw_primitive_up(D3DPRIMITIVETYPE PrimitiveType, UINT PrimitiveCount, const void *pVertexStreamZeroData, UINT VertexStreamZeroStride);
-		void on_draw_indexed_primitive_up(D3DPRIMITIVETYPE PrimitiveType, UINT MinVertexIndex, UINT NumVertices, UINT PrimitiveCount, const void *pIndexData, D3DFORMAT IndexDataFormat, const void *pVertexStreamZeroData, UINT VertexStreamZeroStride);
-		void on_draw_call(com_ptr<IDirect3DSurface9> depthstencil, D3DPRIMITIVETYPE type, unsigned int count);
-
+		void on_draw_call(D3DPRIMITIVETYPE type, UINT count);
 		void on_set_depthstencil_surface(IDirect3DSurface9 *&depthstencil);
 		void on_get_depthstencil_surface(IDirect3DSurface9 *&depthstencil);
 		void on_clear_depthstencil_surface(IDirect3DSurface9 *depthstencil);
+
+		void weapon_or_cockpit_fix(D3DPRIMITIVETYPE PrimitiveType, UINT StartVertex, UINT PrimitiveCount);
+		void weapon_or_cockpit_fix(D3DPRIMITIVETYPE PrimitiveType, INT BaseVertexIndex, UINT MinVertexIndex, UINT NumVertices, UINT StartIndex, UINT PrimitiveCount);
 
 		void capture_screenshot(uint8_t *buffer) const override;
 
@@ -72,8 +70,6 @@ namespace reshade::d3d9
 		void detect_depth_source();
 		bool create_depthstencil_replacement(const com_ptr<IDirect3DSurface9> &depthstencil);
 
-		void weapon_or_cockpit_fix(const com_ptr<IDirect3DSurface9> depthstencil, D3DPRIMITIVETYPE PrimitiveType, UINT StartVertex, UINT PrimitiveCount);
-		void weapon_or_cockpit_fix(const com_ptr<IDirect3DSurface9> depthstencil, D3DPRIMITIVETYPE PrimitiveType, INT BaseVertexIndex, UINT MinVertexIndex, UINT NumVertices, UINT StartIndex, UINT PrimitiveCount);
 		void create_fixed_viewport(const D3DVIEWPORT9 mViewport);
 
 		com_ptr<IDirect3D9> _d3d;

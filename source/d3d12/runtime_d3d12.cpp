@@ -378,7 +378,7 @@ void reshade::d3d12::runtime_d3d12::capture_screenshot(uint8_t *buffer) const
 		return;
 
 	transition_state(cmd_list, _backbuffers[_swap_index], D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_COPY_SOURCE, 0);
-	{ // Copy data from upload buffer into target texture
+	{
 		D3D12_TEXTURE_COPY_LOCATION src_location = { _backbuffers[_swap_index].get() };
 		src_location.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
 		src_location.SubresourceIndex = 0;
