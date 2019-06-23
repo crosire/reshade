@@ -52,6 +52,11 @@ struct vk_handle
 	// This should only be called on uninitialized objects, e.g. when passed into creation functions.
 	T *operator&() { assert(_object == VK_NULL_HANDLE); return &_object; }
 
+	vk_handle<T> &operator=(T object)
+	{
+		_object = object;
+		return *this;
+	}
 	vk_handle<T> &operator=(const vk_handle<T> &) = delete;
 	vk_handle<T> &operator=(vk_handle<T> &&move)
 	{

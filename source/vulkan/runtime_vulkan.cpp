@@ -458,6 +458,79 @@ void reshade::vulkan::runtime_vulkan::on_present(uint32_t swapchain_image_index)
 
 void reshade::vulkan::runtime_vulkan::capture_screenshot(uint8_t *buffer) const
 {
+	vk_handle<VkImage> intermediate(_device);
+	vk_handle<VkDeviceMemory> intermediate_mem(_device);
+
+	{   VkImageCreateInfo create_info { VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO };
+		create_info.imageType = VK_IMAGE_TYPE_2D;
+		create_info.format = _backbuffer_format;
+		create_info.extent = { _width, _height, 1u };
+		create_info.mipLevels = 1;
+		create_info.arrayLayers = 1;
+		create_info.samples = VK_SAMPLE_COUNT_1_BIT;
+		create_info.tiling = VK_IMAGE_TILING_LINEAR;
+		create_info.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+		create_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+		create_info.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+
+		check_result(vkCreateImage(_device, &create_info, nullptr, &intermediate));
+
+		VkMemoryRequirements reqs = {};
+		vkGetImageMemoryRequirements(_device, intermediate, &reqs);
+
+		VkMemoryAllocateInfo alloc_info { VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO };
+		alloc_info.allocationSize = reqs.size;
+		alloc_info.memoryTypeIndex = find_memory_type_index(_physical_device,
+			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, reqs.memoryTypeBits);
+
+		vk_handle<VkDeviceMemory> mem(_device);
+		check_result(vkAllocateMemory(_device, &alloc_info, nullptr, &intermediate_mem));
+		check_result(vkBindImageMemory(_device, intermediate, intermediate_mem, 0));
+	}
+
+	const VkCommandBuffer cmd_list = create_command_list();
+	if (cmd_list == VK_NULL_HANDLE)
+		return;
+
+	transition_layout(cmd_list, intermediate, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+	transition_layout(cmd_list, _swapchain_images[_swap_index], VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
+	{
+		VkImageBlit blit;
+		blit.srcOffsets[0] = { 0, 0, 0 };
+		blit.srcOffsets[1] = { int32_t(_width), int32_t(_height), 1 };
+		blit.srcSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 };
+		blit.dstOffsets[0] = { 0, 0, 0 };
+		blit.dstOffsets[1] = { int32_t(_width), int32_t(_height), 1 };
+		blit.dstSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 };
+
+		vkCmdBlitImage(cmd_list, _swapchain_images[_swap_index], VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, intermediate, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &blit, VK_FILTER_NEAREST);
+	}
+	transition_layout(cmd_list, intermediate, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL);
+	transition_layout(cmd_list, _swapchain_images[_swap_index], VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
+
+	// Execute and wait for completion
+	execute_command_list(cmd_list);
+
+	// Get data layout of the intermediate image
+	VkImageSubresource subresource { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0 };
+	VkSubresourceLayout subresource_layout = {};
+	vkGetImageSubresourceLayout(_device, intermediate, &subresource, &subresource_layout);
+
+	// Copy data from intermediate image into output buffer
+	uint8_t *mapped_data;
+	check_result(vkMapMemory(_device, intermediate_mem, 0, VK_WHOLE_SIZE, 0, reinterpret_cast<void **>(&mapped_data)));
+
+	const VkDeviceSize data_pitch = _width * 4;
+	const VkDeviceSize download_pitch = subresource_layout.rowPitch;
+
+	for (uint32_t y = 0; y < _height; y++, buffer += data_pitch, mapped_data += download_pitch)
+	{
+		memcpy(buffer, mapped_data, data_pitch);
+		for (uint32_t x = 0; x < data_pitch; x += 4)
+			buffer[x + 3] = 0xFF; // Clear alpha channel
+	}
+
+	vkUnmapMemory(_device, intermediate_mem);
 }
 
 bool reshade::vulkan::runtime_vulkan::init_texture(texture &info)
