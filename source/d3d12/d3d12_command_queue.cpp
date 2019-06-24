@@ -90,6 +90,10 @@ void    STDMETHODCALLTYPE D3D12CommandQueue::CopyTileMappings(ID3D12Resource *pD
 }
 void    STDMETHODCALLTYPE D3D12CommandQueue::ExecuteCommandLists(UINT NumCommandLists, ID3D12CommandList *const *ppCommandLists)
 {
+	if (ppCommandLists != nullptr)
+		for (UINT i = 0; i < NumCommandLists; i++)
+		_device->merge_commandlist_trackers(ppCommandLists[i], _device->_draw_call_tracker);
+
 	_orig->ExecuteCommandLists(NumCommandLists, ppCommandLists);
 }
 void    STDMETHODCALLTYPE D3D12CommandQueue::SetMarker(UINT Metadata, const void *pData, UINT Size)
