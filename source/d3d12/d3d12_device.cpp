@@ -214,7 +214,6 @@ void STDMETHODCALLTYPE ID3D12GraphicsCommandList_ClearDepthStencilView(
 	UINT NumRects,
 	const D3D12_RECT *pRects)
 {
-	LOG(INFO) << "Redirecting ID3D12GraphicsCommandList::ClearDepthStencilView";
 
 #if RESHADE_DX12_CAPTURE_DEPTH_BUFFERS
 	if (d3d12_current_device != nullptr && ClearFlags & D3D12_CLEAR_FLAG_DEPTH)
