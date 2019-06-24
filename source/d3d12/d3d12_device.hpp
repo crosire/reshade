@@ -101,12 +101,13 @@ struct __declspec(uuid("2523AFF4-978B-4939-BA16-8EE876A4CB2A")) D3D12Device : ID
 
 	bool check_and_upgrade_interface(REFIID riid);
 	void clear_drawcall_stats(bool all = false);
+	void track_active_rendertargets(D3D12_CPU_DESCRIPTOR_HANDLE pDepthStencilView);
 
 #if RESHADE_DX12_CAPTURE_DEPTH_BUFFERS
 	bool save_depth_texture(D3D12_CPU_DESCRIPTOR_HANDLE pDepthStencilView, bool cleared);
 	void track_cleared_depthstencil(D3D12_CPU_DESCRIPTOR_HANDLE pDepthStencilView);
 #endif
-
+	
 	LONG _ref = 1;
 	ID3D12Device *_orig;
 	unsigned int _interface_version;

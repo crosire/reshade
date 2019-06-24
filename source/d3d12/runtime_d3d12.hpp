@@ -33,7 +33,7 @@ namespace reshade::d3d12
 		void capture_screenshot(uint8_t *buffer) const override;
 
 #if RESHADE_DX12_CAPTURE_DEPTH_BUFFERS
-		com_ptr<ID3D12Resource> select_depth_texture_save(D3D12_RESOURCE_DESC &texture_desc, const D3D12_HEAP_PROPERTIES props, D3D12_HEAP_FLAGS heap_flags, const D3D12_CLEAR_VALUE clear_value);
+		com_ptr<ID3D12Resource> select_depth_texture_save(D3D12_RESOURCE_DESC &texture_desc, const D3D12_HEAP_PROPERTIES *props, D3D12_HEAP_FLAGS *heap_flags);
 #endif
 
 		bool depth_buffer_before_clear = false;
@@ -48,8 +48,6 @@ namespace reshade::d3d12
 
 		bool init_texture(texture &info) override;
 		void upload_texture(texture &texture, const uint8_t *pixels) override;
-		// bool update_texture_reference(texture &texture);
-		// void update_texture_references(texture_reference type);
 
 		bool compile_effect(effect_data &effect) override;
 		void unload_effects() override;
@@ -66,7 +64,7 @@ namespace reshade::d3d12
 
 #if RESHADE_DX12_CAPTURE_DEPTH_BUFFERS
 		void detect_depth_source(draw_call_tracker& tracker);
-		bool create_depthstencil_replacement(ID3D12Resource *depthstencil, ID3D12Resource *texture, D3D12_RESOURCE_DESC desc);
+		bool create_depthstencil_replacement(ID3D12Resource *depthstencil, ID3D12Resource *texture);
 
 		struct depth_texture_save_info
 		{
