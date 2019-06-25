@@ -62,8 +62,6 @@ bool D3D12Device::save_depth_texture(D3D12_CPU_DESCRIPTOR_HANDLE pDepthStencilVi
 
 	assert(&pDepthStencilView != nullptr);
 
-	const std::lock_guard<std::mutex> lock(d3d12_current_device->_draw_call_tracker_mutex);
-
 	// Retrieve texture from depth stencil
 	com_ptr<ID3D12Resource> depthstencil = _draw_call_tracker.retrieve_depthstencil_from_handle(pDepthStencilView);
 
