@@ -62,6 +62,8 @@ bool D3D12Device::save_depth_texture(D3D12_CPU_DESCRIPTOR_HANDLE pDepthStencilVi
 
 	assert(&pDepthStencilView != nullptr);
 
+	const std::lock_guard<std::mutex> lock(d3d12_current_device->_draw_call_tracker_mutex);
+
 	// Retrieve texture from depth stencil
 	com_ptr<ID3D12Resource> depthstencil = _draw_call_tracker.retrieve_depthstencil_from_handle(pDepthStencilView);
 
@@ -128,7 +130,9 @@ void D3D12Device::track_active_rendertargets(ID3D12GraphicsCommandList *pcmdList
 
 	save_depth_texture(pDepthStencilView, false);
 
-	if (&d3d12_current_device->_trackers_per_commandlist[pcmdList] == nullptr)
+	const std::lock_guard<std::mutex> lock(_trackers_per_commandlist_mutex);
+
+	if (&_trackers_per_commandlist[pcmdList] == nullptr)
 		return;
 
 	d3d12_current_device->_trackers_per_commandlist[pcmdList].current_depthstencil = depthstencil;
@@ -167,6 +171,8 @@ void STDMETHODCALLTYPE ID3D12GraphicsCommandList_DrawInstanced(
 	if (d3d12_current_device == nullptr)
 		return;
 
+	const std::lock_guard<std::mutex> lock(d3d12_current_device->_trackers_per_commandlist_mutex);
+
 	if (&d3d12_current_device->_trackers_per_commandlist[pcmdList] == nullptr)
 		return;
 
@@ -185,6 +191,8 @@ void STDMETHODCALLTYPE ID3D12GraphicsCommandList_DrawIndexedInstanced(
 
 	if (d3d12_current_device == nullptr)
 		return;
+
+	const std::lock_guard<std::mutex> lock(d3d12_current_device->_trackers_per_commandlist_mutex);
 
 	if (&d3d12_current_device->_trackers_per_commandlist[pcmdList] == nullptr)
 		return;
