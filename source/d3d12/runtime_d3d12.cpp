@@ -890,15 +890,15 @@ bool reshade::d3d12::runtime_d3d12::compile_effect(effect_data &effect)
 		com_ptr<ID3D12Resource> resource;
 		switch (existing_texture->impl_reference)
 		{
-			case texture_reference::back_buffer:
-				resource = _backbuffer_texture;
-				break;
-			case texture_reference::depth_buffer:
-				resource = _depthstencil_texture;
-				break;
-			default:
-				resource = existing_texture->impl->as<d3d12_tex_data>()->resource;
-				break;
+		case texture_reference::back_buffer:
+			resource = _backbuffer_texture;
+			break;
+		case texture_reference::depth_buffer:
+			resource = _depthstencil_texture;
+			break;
+		default:
+			resource = existing_texture->impl->as<d3d12_tex_data>()->resource;
+			break;
 		}
 
 		if (resource == nullptr)
@@ -1145,7 +1145,7 @@ void reshade::d3d12::runtime_d3d12::render_technique(technique &technique)
 	for (size_t i = 0; i < technique.passes.size(); ++i)
 	{
 		const auto &pass_info = technique.passes[i];
-		const auto &pass_data = *technique.passes_data[i]->as<d3d12_pass_data>();		
+		const auto &pass_data = *technique.passes_data[i]->as<d3d12_pass_data>();
 
 		// Transition render targets
 		for (unsigned int k = 0; k < pass_data.num_render_targets; ++k)
@@ -1170,7 +1170,6 @@ void reshade::d3d12::runtime_d3d12::render_technique(technique &technique)
 		// Setup states
 		cmd_list->SetPipelineState(pass_data.pipeline.get());
 		cmd_list->OMSetStencilRef(pass_info.stencil_reference_value);
-		cmd_list->GetType();
 
 		// Setup render targets
 		const float clear_color[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
@@ -1725,7 +1724,6 @@ com_ptr<ID3D12Resource> reshade::d3d12::runtime_d3d12::select_depth_texture_save
 	// Create the saved texture pointed by the index if it does not already exist
 	com_ptr<ID3D12Resource> depth_texture_save;
 
-	// Render targets are always either cleared to zero or not cleared at all (see 'ClearRenderTargets' pass state), so we can set the optimized clear value here to zero
 	D3D12_CLEAR_VALUE m_clear_value = {};
 	m_clear_value.Format = make_dxgi_format_dsv(textureDesc.Format);
 	m_clear_value.DepthStencil = { 1.0f, 0x0 };

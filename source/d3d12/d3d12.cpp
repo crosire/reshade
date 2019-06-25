@@ -6,9 +6,6 @@
 #include "log.hpp"
 #include "hook_manager.hpp"
 #include "d3d12_device.hpp"
-#include "runtime_d3d12.hpp"
-
-#undef ID3D12GraphicsCommandList_ClearDepthStencilView
 
 extern reshade::log::message &operator<<(reshade::log::message &m, REFIID riid);
 

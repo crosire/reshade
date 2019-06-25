@@ -1513,6 +1513,31 @@ bool reshade::d3d11::runtime_d3d11::create_depthstencil_replacement(ID3D11DepthS
 
 		HRESULT hr = S_OK;
 
+		if ((tex_desc.BindFlags & D3D11_BIND_SHADER_RESOURCE) == 0)
+		{
+			_depthstencil_texture.reset();
+
+			tex_desc.Format = make_dxgi_format_typeless(tex_desc.Format);
+			tex_desc.BindFlags = D3D11_BIND_DEPTH_STENCIL | D3D11_BIND_SHADER_RESOURCE;
+
+			hr = _device->CreateTexture2D(&tex_desc, nullptr, &_depthstencil_texture);
+
+			if (SUCCEEDED(hr))
+			{
+				D3D11_DEPTH_STENCIL_VIEW_DESC dsv_desc = {};
+				dsv_desc.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D;
+				dsv_desc.Format = make_dxgi_format_dsv(tex_desc.Format);
+
+				hr = _device->CreateDepthStencilView(_depthstencil_texture.get(), &dsv_desc, &_depthstencil_replacement);
+			}
+		}
+
+		if (FAILED(hr))
+		{
+			LOG(ERROR) << "Failed to create depth stencil replacement texture! HRESULT is '" << std::hex << hr << std::dec << "'.";
+			return false;
+		}
+
 		D3D11_SHADER_RESOURCE_VIEW_DESC srv_desc = {};
 		srv_desc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
 		srv_desc.Texture2D.MipLevels = 1;
