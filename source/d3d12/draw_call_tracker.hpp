@@ -3,7 +3,6 @@
 #include <map>
 #include "com_ptr.hpp"
 #include <d3d12.h>
-#include "d3dx12.h"
 
 #define RESHADE_DX12_CAPTURE_DEPTH_BUFFERS 1
 
