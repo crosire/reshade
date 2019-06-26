@@ -147,7 +147,7 @@ VkImage reshade::vulkan::runtime_vulkan::create_image(uint32_t width, uint32_t h
 	create_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 	create_info.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 
-	vk_handle<VkImage> res(_device);
+	vk_handle<VK_OBJECT_TYPE_IMAGE> res(_device);
 	check_result(vkCreateImage(_device, &create_info, nullptr, &res)) VK_NULL_HANDLE;
 
 	if (mem_flags != 0)
@@ -163,7 +163,7 @@ VkImage reshade::vulkan::runtime_vulkan::create_image(uint32_t width, uint32_t h
 		alloc_info.pNext = &dedicated_info;
 		dedicated_info.image = res;
 
-		vk_handle<VkDeviceMemory> mem(_device);
+		vk_handle<VK_OBJECT_TYPE_DEVICE_MEMORY> mem(_device);
 		check_result(vkAllocateMemory(_device, &alloc_info, nullptr, &mem)) VK_NULL_HANDLE;
 		check_result(vkBindImageMemory(_device, res, mem, 0)) VK_NULL_HANDLE;
 
@@ -179,7 +179,7 @@ VkBuffer reshade::vulkan::runtime_vulkan::create_buffer(VkDeviceSize size, VkBuf
 	create_info.usage = usage_flags;
 	create_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
-	vk_handle<VkBuffer> res(_device);
+	vk_handle<VK_OBJECT_TYPE_BUFFER> res(_device);
 	check_result(vkCreateBuffer(_device, &create_info, nullptr, &res)) VK_NULL_HANDLE;
 
 	if (mem_flags != 0)
@@ -195,7 +195,7 @@ VkBuffer reshade::vulkan::runtime_vulkan::create_buffer(VkDeviceSize size, VkBuf
 		alloc_info.pNext = &dedicated_info;
 		dedicated_info.buffer = res;
 
-		vk_handle<VkDeviceMemory> mem(_device);
+		vk_handle<VK_OBJECT_TYPE_DEVICE_MEMORY> mem(_device);
 		check_result(vkAllocateMemory(_device, &alloc_info, nullptr, &mem)) VK_NULL_HANDLE;
 		check_result(vkBindBufferMemory(_device, res, mem, 0)) VK_NULL_HANDLE;
 
@@ -217,7 +217,7 @@ VkImageView reshade::vulkan::runtime_vulkan::create_image_view(VkImage image, Vk
 	create_info.components = { VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY };
 	create_info.subresourceRange = { aspect, 0, levels, 0, 1 };
 
-	vk_handle<VkImageView> res(_device);
+	vk_handle<VK_OBJECT_TYPE_IMAGE_VIEW> res(_device);
 	check_result(vkCreateImageView(_device, &create_info, nullptr, &res)) VK_NULL_HANDLE;
 
 	return res.release();
@@ -458,8 +458,8 @@ void reshade::vulkan::runtime_vulkan::on_present(uint32_t swapchain_image_index)
 
 void reshade::vulkan::runtime_vulkan::capture_screenshot(uint8_t *buffer) const
 {
-	vk_handle<VkImage> intermediate(_device);
-	vk_handle<VkDeviceMemory> intermediate_mem(_device);
+	vk_handle<VK_OBJECT_TYPE_IMAGE> intermediate(_device);
+	vk_handle<VK_OBJECT_TYPE_DEVICE_MEMORY> intermediate_mem(_device);
 
 	{   VkImageCreateInfo create_info { VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO };
 		create_info.imageType = VK_IMAGE_TYPE_2D;
@@ -483,7 +483,7 @@ void reshade::vulkan::runtime_vulkan::capture_screenshot(uint8_t *buffer) const
 		alloc_info.memoryTypeIndex = find_memory_type_index(_physical_device,
 			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, reqs.memoryTypeBits);
 
-		vk_handle<VkDeviceMemory> mem(_device);
+		vk_handle<VK_OBJECT_TYPE_DEVICE_MEMORY> mem(_device);
 		check_result(vkAllocateMemory(_device, &alloc_info, nullptr, &intermediate_mem));
 		check_result(vkBindImageMemory(_device, intermediate, intermediate_mem, 0));
 	}
@@ -520,7 +520,7 @@ void reshade::vulkan::runtime_vulkan::capture_screenshot(uint8_t *buffer) const
 	uint8_t *mapped_data;
 	check_result(vkMapMemory(_device, intermediate_mem, 0, VK_WHOLE_SIZE, 0, reinterpret_cast<void **>(&mapped_data)));
 
-	const VkDeviceSize data_pitch = _width * 4;
+	const size_t data_pitch = _width * 4;
 	const VkDeviceSize download_pitch = subresource_layout.rowPitch;
 
 	for (uint32_t y = 0; y < _height; y++, buffer += data_pitch, mapped_data += download_pitch)
@@ -627,8 +627,8 @@ void reshade::vulkan::runtime_vulkan::upload_texture(texture &texture, const uin
 	assert(pixels != nullptr);
 	assert(texture.impl_reference == texture_reference::none);
 
-	vk_handle<VkBuffer> intermediate(_device);
-	vk_handle<VkDeviceMemory> intermediate_mem(_device);
+	vk_handle<VK_OBJECT_TYPE_BUFFER> intermediate(_device);
+	vk_handle<VK_OBJECT_TYPE_DEVICE_MEMORY> intermediate_mem(_device);
 
 	{   VkBufferCreateInfo create_info { VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO };
 		create_info.size = texture.width * texture.height * 4;
@@ -777,7 +777,7 @@ void reshade::vulkan::runtime_vulkan::execute_command_list_async(VkCommandBuffer
 
 bool reshade::vulkan::runtime_vulkan::compile_effect(effect_data &effect)
 {
-	vk_handle<VkShaderModule> module(_device);
+	vk_handle<VK_OBJECT_TYPE_SHADER_MODULE> module(_device);
 
 	// Load shader module
 	{   VkShaderModuleCreateInfo create_info { VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO };
@@ -1338,8 +1338,8 @@ void reshade::vulkan::runtime_vulkan::render_technique(technique &technique)
 #if RESHADE_GUI
 bool reshade::vulkan::runtime_vulkan::init_imgui_resources()
 {
-	vk_handle<VkShaderModule> vs_module(_device);
-	vk_handle<VkShaderModule> fs_module(_device);
+	vk_handle<VK_OBJECT_TYPE_SHADER_MODULE> vs_module(_device);
+	vk_handle<VK_OBJECT_TYPE_SHADER_MODULE> fs_module(_device);
 
 	VkPipelineShaderStageCreateInfo stages[2];
 	stages[0] = { VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO };

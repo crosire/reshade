@@ -705,10 +705,10 @@ void reshade::runtime::draw_overlay_menu_home()
 				std::stable_sort(it, _techniques.end(), [](const reshade::technique &lhs, const reshade::technique &rhs) {
 						std::string lhs_label(lhs.annotation_as_string("ui_label"));
 						if (lhs_label.empty()) lhs_label = lhs.name;
-						std::transform(lhs_label.begin(), lhs_label.end(), lhs_label.begin(), tolower);
+						std::transform(lhs_label.begin(), lhs_label.end(), lhs_label.begin(), [](char c) { return static_cast<char>(toupper(c)); });
 						std::string rhs_label(rhs.annotation_as_string("ui_label"));
 						if (rhs_label.empty()) rhs_label = rhs.name;
-						std::transform(rhs_label.begin(), rhs_label.end(), rhs_label.begin(), tolower);
+						std::transform(rhs_label.begin(), rhs_label.end(), rhs_label.begin(), [](char c) { return static_cast<char>(toupper(c)); });
 						return lhs_label < rhs_label;
 					});
 			}

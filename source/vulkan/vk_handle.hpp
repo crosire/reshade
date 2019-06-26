@@ -8,33 +8,52 @@
 #include <assert.h>
 #include <vulkan/vulkan.h>
 
-template <typename T>
-using vk_free_func_t = void(VKAPI_CALL *)(VkDevice, T, VkAllocationCallbacks const*);
-
-template <typename T>
-struct vk_handle_traits
+template <VkObjectType type>
+struct vk_handle_traits;
+template <>
+struct vk_handle_traits<VK_OBJECT_TYPE_IMAGE>
 {
-	static const vk_free_func_t<T> free_func;
+	using T = VkImage;
+	static inline void destroy(VkDevice device, T obj) { vkDestroyImage(device, obj, nullptr); }
+};
+template <>
+struct vk_handle_traits<VK_OBJECT_TYPE_IMAGE_VIEW>
+{
+	using T = VkImageView;
+	static inline void destroy(VkDevice device, T obj) { vkDestroyImageView(device, obj, nullptr); }
+};
+template <>
+struct vk_handle_traits<VK_OBJECT_TYPE_BUFFER>
+{
+	using T = VkBuffer;
+	static inline void destroy(VkDevice device, T obj) { vkDestroyBuffer(device, obj, nullptr); }
+};
+template <>
+struct vk_handle_traits<VK_OBJECT_TYPE_SHADER_MODULE>
+{
+	using T = VkShaderModule;
+	static inline void destroy(VkDevice device, T obj) { vkDestroyShaderModule(device, obj, nullptr); }
+};
+template <>
+struct vk_handle_traits<VK_OBJECT_TYPE_DEVICE_MEMORY>
+{
+	using T = VkDeviceMemory;
+	static inline void destroy(VkDevice device, T obj) { vkFreeMemory(device, obj, nullptr); }
 };
 
-const vk_free_func_t<VkImage> vk_handle_traits<VkImage>::free_func = vkDestroyImage;
-const vk_free_func_t<VkBuffer> vk_handle_traits<VkBuffer>::free_func = vkDestroyBuffer;
-const vk_free_func_t<VkImageView> vk_handle_traits<VkImageView>::free_func = vkDestroyImageView;
-const vk_free_func_t<VkShaderModule> vk_handle_traits<VkShaderModule>::free_func = vkDestroyShaderModule;
-const vk_free_func_t<VkDeviceMemory> vk_handle_traits<VkDeviceMemory>::free_func = vkFreeMemory;
-
-template <typename T>
+template <VkObjectType type>
 struct vk_handle
 {
+	using T = typename vk_handle_traits<type>::T;
+
 	explicit vk_handle(VkDevice device)
 		: _object(VK_NULL_HANDLE), _device(device) {}
 	vk_handle(VkDevice device, T object)
 		: _object(object), _device(device) {}
 	vk_handle(const vk_handle &other) = delete;
 	vk_handle(vk_handle &&other) { operator=(other); }
-	~vk_handle()
-	{
-		vk_handle_traits<T>::free_func(_device, _object, nullptr);
+	~vk_handle() {
+		vk_handle_traits<type>::destroy(_device, _object);
 	}
 
 	operator T() const { return _object; }
@@ -52,13 +71,13 @@ struct vk_handle
 	// This should only be called on uninitialized objects, e.g. when passed into creation functions.
 	T *operator&() { assert(_object == VK_NULL_HANDLE); return &_object; }
 
-	vk_handle<T> &operator=(T object)
+	vk_handle &operator=(T object)
 	{
 		_object = object;
 		return *this;
 	}
-	vk_handle<T> &operator=(const vk_handle<T> &) = delete;
-	vk_handle<T> &operator=(vk_handle<T> &&move)
+	vk_handle &operator=(const vk_handle &) = delete;
+	vk_handle &operator=(vk_handle &&move)
 	{
 		_object = move._object;
 		_device = move._device;
@@ -67,14 +86,14 @@ struct vk_handle
 	}
 
 	bool operator==(T rhs) const { return _object == rhs; }
-	bool operator==(const vk_handle<T> &rhs) const { return _object == rhs._object; }
-	friend bool operator==(T lhs, const vk_handle<T> &rhs) { return rhs.operator==(lhs); }
+	bool operator==(const vk_handle &rhs) const { return _object == rhs._object; }
+	friend bool operator==(T lhs, const vk_handle &rhs) { return rhs.operator==(lhs); }
 	bool operator!=(T rhs) const { return _object != rhs; }
-	bool operator!=(const vk_handle<T> &rhs) const { return _object != rhs._object; }
-	friend bool operator!=(T lhs, const vk_handle<T> &rhs) { return rhs.operator!=(lhs); }
+	bool operator!=(const vk_handle &rhs) const { return _object != rhs._object; }
+	friend bool operator!=(T lhs, const vk_handle &rhs) { return rhs.operator!=(lhs); }
 
 	// Default operator used for sorting
-	friend bool operator< (const vk_handle<T> &lhs, const vk_handle<T> &rhs) { return lhs._object < rhs._object; }
+	friend bool operator< (const vk_handle &lhs, const vk_handle &rhs) { return lhs._object < rhs._object; }
 
 private:
 	T _object;
