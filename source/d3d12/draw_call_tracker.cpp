@@ -157,7 +157,6 @@ namespace reshade::d3d12
 		if (!check_depth_texture_format(format_index, depthstencil))
 			return;
 
-
 		if (_counters_per_used_depthstencil[depthstencil].depthstencil == nullptr)
 			_counters_per_used_depthstencil[depthstencil].depthstencil = depthstencil;
 	}

@@ -1487,7 +1487,7 @@ void reshade::d3d12::runtime_d3d12::draw_debug_menu()
 			return;
 		}
 
-		modified |= ImGui::Checkbox("Copy depth before clearing", &depth_buffer_before_clear);
+		// modified |= ImGui::Checkbox("Copy depth before clearing", &depth_buffer_before_clear);
 
 		if (depth_buffer_before_clear)
 		{
