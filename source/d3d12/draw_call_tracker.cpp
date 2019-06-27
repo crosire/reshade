@@ -2,6 +2,9 @@
 #include "log.hpp"
 #include "dxgi/format_utils.hpp"
 #include <math.h>
+#include <mutex>
+
+std::mutex _counters_per_used_depthstencil_mutex;
 
 namespace reshade::d3d12
 {
@@ -156,6 +159,8 @@ namespace reshade::d3d12
 
 		if (!check_depth_texture_format(format_index, depthstencil))
 			return;
+
+		std::lock_guard lock(_counters_per_used_depthstencil_mutex);
 
 		if (_counters_per_used_depthstencil[depthstencil].depthstencil == nullptr)
 			_counters_per_used_depthstencil[depthstencil].depthstencil = depthstencil;

@@ -118,14 +118,14 @@ void D3D12Device::track_active_rendertargets(ID3D12GraphicsCommandList *pcmdList
 
 	const auto runtime = _runtimes.front();
 
-	// Retrieve texture from depth stencil
-	com_ptr<ID3D12Resource> depthstencil = _draw_call_tracker.retrieve_depthstencil_from_handle(pDepthStencilView);
-
-	if (depthstencil == nullptr)
-		return;
-
 	if (const auto it = d3d12_current_device.find(pcmdList); it != d3d12_current_device.end())
 	{
+		// Retrieve texture from depth stencil
+		com_ptr<ID3D12Resource> depthstencil = it->second->_draw_call_tracker.retrieve_depthstencil_from_handle(pDepthStencilView);
+
+		if (depthstencil == nullptr)
+			return;
+
 		it->second->_draw_call_tracker.track_rendertargets(runtime->depth_buffer_texture_format, depthstencil.get());
 
 		save_depth_texture(it->second, pDepthStencilView, false);
