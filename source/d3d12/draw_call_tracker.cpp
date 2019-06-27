@@ -191,8 +191,6 @@ namespace reshade::d3d12
 		const float aspect_ratio = float(width) / float(height);
 		intermediate_snapshot_info best_snapshot;
 
-		std::lock_guard lock(_counters_per_used_depthstencil_mutex);
-
 		for (auto &[depthstencil, snapshot] : _counters_per_used_depthstencil)
 		{
 			if (snapshot.stats.drawcalls == 0 || snapshot.stats.vertices == 0)
