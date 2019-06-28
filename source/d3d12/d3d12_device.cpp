@@ -406,13 +406,12 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommandList(UINT nodeMask, D3D12_CO
 
 	if (riid == __uuidof(ID3D12GraphicsCommandList) || riid == __uuidof(ID3D12GraphicsCommandList1))
 	{
-		ID3D12CommandList *pcmdList = reinterpret_cast<ID3D12CommandList *>(*ppCommandList);
-		const std::lock_guard<std::mutex> lock(d3d12_current_device_mutex);
-		const auto it = d3d12_current_device.find(pcmdList);
-		if (it == d3d12_current_device.end())
-			d3d12_current_device.emplace(pcmdList, this);
-
 		ID3D12GraphicsCommandList *const cmdList = static_cast<ID3D12GraphicsCommandList *>(*ppCommandList);
+		const std::lock_guard<std::mutex> lock(d3d12_current_device_mutex);
+		const auto it = d3d12_current_device.find(cmdList);
+		if (it == d3d12_current_device.end())
+			d3d12_current_device.emplace(cmdList, this);
+
 		// hook ID3D12GrapgicsCommandList methods
 		reshade::hooks::install("ID3D12GraphicsCommandList::Close", vtable_from_instance(cmdList), 9, reinterpret_cast<reshade::hook::address>(&ID3D12GraphicsCommandList_Close));
 		reshade::hooks::install("ID3D12GraphicsCommandList::DrawInstanced", vtable_from_instance(cmdList), 12, reinterpret_cast<reshade::hook::address>(&ID3D12GraphicsCommandList_DrawInstanced));
