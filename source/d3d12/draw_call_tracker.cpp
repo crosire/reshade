@@ -99,6 +99,7 @@ namespace reshade::d3d12
 			// This is a draw call with no depth stencil
 			return;
 
+		_counters_per_used_depthstencil_mutex.lock();
 		if (const auto intermediate_snapshot = _counters_per_used_depthstencil.find(depthstencil); intermediate_snapshot != _counters_per_used_depthstencil.end())
 		{
 			intermediate_snapshot->second.stats.vertices += vertices;
@@ -123,6 +124,7 @@ namespace reshade::d3d12
 				}
 			}*/
 		}
+		_counters_per_used_depthstencil_mutex.unlock();
 #endif
 	}
 

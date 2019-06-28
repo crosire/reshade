@@ -24,7 +24,7 @@ void D3D12Device::add_commandlist_trackers(ID3D12CommandList *command_list, resh
 {
 	assert(command_list != nullptr);
 
-	const std::lock_guard<std::mutex> lock(_trackers_per_commandlist_mutex);
+	_trackers_per_commandlist_mutex.lock();
 
 	// Merges the counters in counters_source in the counters_per_commandlist for the command list specified
 	const auto it = _trackers_per_commandlist.find(command_list);
@@ -33,13 +33,13 @@ void D3D12Device::add_commandlist_trackers(ID3D12CommandList *command_list, resh
 	else
 		it->second.merge(tracker_source);
 
+	_trackers_per_commandlist_mutex.unlock();
+
 	tracker_source.reset();
 }
 void D3D12Device::merge_commandlist_trackers(ID3D12CommandList* command_list, reshade::d3d12::draw_call_tracker &tracker_destination)
 {
 	assert(command_list != nullptr);
-
-	const std::lock_guard<std::mutex> lock(_trackers_per_commandlist_mutex);
 
 	// Merges the counters logged for the specified command list in the counters destination tracker specified
 	const auto it = _trackers_per_commandlist.find(command_list);
@@ -130,11 +130,12 @@ void D3D12Device::track_active_rendertargets(ID3D12GraphicsCommandList *pcmdList
 
 		save_depth_texture(it->second, pDepthStencilView, false);
 
-		std::lock_guard lock(_trackers_per_commandlist_mutex);
+		_trackers_per_commandlist_mutex.lock();
 		if (&it->second->_trackers_per_commandlist[pcmdList] == nullptr)
 			return;
 
 		it->second->_trackers_per_commandlist[pcmdList].current_depthstencil = depthstencil;
+		_trackers_per_commandlist_mutex.unlock();
 	}
 }
 
@@ -155,9 +156,10 @@ HRESULT STDMETHODCALLTYPE ID3D12GraphicsCommandList_Close(
 
 	if (SUCCEEDED(hr) && pcmdList != nullptr)
 	{
-		std::lock_guard lock(d3d12_current_device_mutex);
+		d3d12_current_device_mutex.lock();
 		if (const auto it = d3d12_current_device.find(pcmdList); it != d3d12_current_device.end())
 			it->second->add_commandlist_trackers(pcmdList, cmd_list_tracker);
+		d3d12_current_device_mutex.unlock();
 	}
 
 	return hr;
@@ -174,9 +176,10 @@ void STDMETHODCALLTYPE ID3D12GraphicsCommandList_DrawInstanced(
 
 	if (const auto it = d3d12_current_device.find(pcmdList); it != d3d12_current_device.end())
 	{
-		std::lock_guard lock(it->second->_trackers_per_commandlist_mutex);
+		it->second->_trackers_per_commandlist_mutex.lock();
 		if (&it->second->_trackers_per_commandlist[pcmdList] == nullptr)
 			return;
+		it->second->_trackers_per_commandlist_mutex.unlock();
 
 		it->second->_trackers_per_commandlist[pcmdList].on_draw(it->second, VertexCountPerInstance * InstanceCount);
 	}
@@ -194,9 +197,10 @@ void STDMETHODCALLTYPE ID3D12GraphicsCommandList_DrawIndexedInstanced(
 
 	if (const auto it = d3d12_current_device.find(pcmdList); it != d3d12_current_device.end())
 	{
-		std::lock_guard lock(it->second->_trackers_per_commandlist_mutex);
+		it->second->_trackers_per_commandlist_mutex.lock();
 		if (&it->second->_trackers_per_commandlist[pcmdList] == nullptr)
 			return;
+		it->second->_trackers_per_commandlist_mutex.unlock();
 
 		it->second->_trackers_per_commandlist[pcmdList].on_draw(it->second, IndexCountPerInstance * InstanceCount);
 	}
@@ -211,9 +215,10 @@ void STDMETHODCALLTYPE ID3D12GraphicsCommandList_OMSetRenderTargets(
 {
 	if (pDepthStencilDescriptor != nullptr)
 	{
-		std::lock_guard lock(d3d12_current_device_mutex);
+		d3d12_current_device_mutex.lock();
 		if (const auto it = d3d12_current_device.find(pcmdList); it != d3d12_current_device.end())
 			it->second->track_active_rendertargets(pcmdList, *pDepthStencilDescriptor);
+		d3d12_current_device_mutex.unlock();
 	}
 
 	reshade::hooks::call(ID3D12GraphicsCommandList_OMSetRenderTargets, vtable_from_instance(pcmdList) + 46)(pcmdList, NumRenderTargetDescriptors, pRenderTargetDescriptors, RTsSingleHandleToDescriptorRange, pDepthStencilDescriptor);
@@ -249,9 +254,11 @@ D3D12Device::D3D12Device(ID3D12Device *original) :
 void D3D12Device::clear_drawcall_stats(bool all)
 {
 	_draw_call_tracker.reset(all);
-	std::lock_guard<std::mutex> lock(_trackers_per_commandlist_mutex);
 
+	_trackers_per_commandlist_mutex.lock();
 	_trackers_per_commandlist.clear();
+	_trackers_per_commandlist_mutex.unlock();
+
 	_clear_DSV_iter = 1;
 }
 
@@ -407,10 +414,11 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommandList(UINT nodeMask, D3D12_CO
 	if (riid == __uuidof(ID3D12GraphicsCommandList) || riid == __uuidof(ID3D12GraphicsCommandList1))
 	{
 		ID3D12GraphicsCommandList *const cmdList = static_cast<ID3D12GraphicsCommandList *>(*ppCommandList);
-		const std::lock_guard<std::mutex> lock(d3d12_current_device_mutex);
+		d3d12_current_device_mutex.lock();
 		const auto it = d3d12_current_device.find(cmdList);
 		if (it == d3d12_current_device.end())
 			d3d12_current_device.emplace(cmdList, this);
+		d3d12_current_device_mutex.unlock();
 
 		// hook ID3D12GrapgicsCommandList methods
 		reshade::hooks::install("ID3D12GraphicsCommandList::Close", vtable_from_instance(cmdList), 9, reinterpret_cast<reshade::hook::address>(&ID3D12GraphicsCommandList_Close));
