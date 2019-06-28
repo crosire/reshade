@@ -17,7 +17,8 @@ namespace reshade::d3d12
 			return;
 
 #if RESHADE_DX12_CAPTURE_DEPTH_BUFFERS
-		if(_counters_per_used_depthstencil[source.current_depthstencil].depthstencil != nullptr)
+		std::lock_guard lock(_counters_per_used_depthstencil_mutex);
+		if (_counters_per_used_depthstencil[source.current_depthstencil].depthstencil != nullptr)
 		{
 			_counters_per_used_depthstencil[source.current_depthstencil].stats.vertices += source.total_vertices();
 			_counters_per_used_depthstencil[source.current_depthstencil].stats.drawcalls += source.total_drawcalls();
@@ -34,6 +35,7 @@ namespace reshade::d3d12
 		_global_counter.drawcalls = 0;
 		current_depthstencil.reset();
 #if RESHADE_DX12_CAPTURE_DEPTH_BUFFERS
+		std::lock_guard lock(_counters_per_used_depthstencil_mutex);
 		_counters_per_used_depthstencil.clear();
 		_cleared_depth_textures.clear();
 #endif
@@ -81,7 +83,7 @@ namespace reshade::d3d12
 	{
 		return _depthstencil_resources_by_handle[depthstencilView.ptr];
 	}
-	
+
 	void draw_call_tracker::on_draw(ID3D12Device *device, UINT vertices)
 	{
 		UNREFERENCED_PARAMETER(device);
@@ -127,6 +129,7 @@ namespace reshade::d3d12
 #if RESHADE_DX12_CAPTURE_DEPTH_BUFFERS
 	bool draw_call_tracker::check_depthstencil(ID3D12Resource *depthstencil) const
 	{
+		std::lock_guard lock(_counters_per_used_depthstencil_mutex);
 		return _counters_per_used_depthstencil.find(depthstencil) != _counters_per_used_depthstencil.end();
 	}
 	bool draw_call_tracker::check_depth_texture_format(int formatIdx, ID3D12Resource *depthstencil)
