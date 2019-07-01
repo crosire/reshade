@@ -32,8 +32,6 @@ void D3D12Device::add_commandlist_trackers(ID3D12CommandList *command_list, resh
 		_trackers_per_commandlist.emplace(command_list, tracker_source);
 	else
 		it->second.merge(tracker_source);
-
-	tracker_source.reset();
 }
 void D3D12Device::merge_commandlist_trackers(ID3D12CommandList* command_list, reshade::d3d12::draw_call_tracker &tracker_destination)
 {
@@ -48,12 +46,12 @@ void D3D12Device::merge_commandlist_trackers(ID3D12CommandList* command_list, re
 }
 
 #if RESHADE_DX12_CAPTURE_DEPTH_BUFFERS
-bool D3D12Device::save_depth_texture(D3D12Device *device, D3D12_CPU_DESCRIPTOR_HANDLE pDepthStencilView, bool cleared)
+bool D3D12Device::save_depth_texture(D3D12_CPU_DESCRIPTOR_HANDLE pDepthStencilView, bool cleared)
 {
-	if (device->_runtimes.empty())
+	if (_runtimes.empty())
 		return false;
 
-	const auto runtime = device->_runtimes.front();
+	const auto runtime = _runtimes.front();
 
 	if (!runtime->depth_buffer_before_clear)
 		return false;
@@ -63,7 +61,7 @@ bool D3D12Device::save_depth_texture(D3D12Device *device, D3D12_CPU_DESCRIPTOR_H
 	assert(&pDepthStencilView != nullptr);
 
 	// Retrieve texture from depth stencil
-	com_ptr<ID3D12Resource> depthstencil = device->_draw_call_tracker.retrieve_depthstencil_from_handle(pDepthStencilView);
+	com_ptr<ID3D12Resource> depthstencil = _draw_call_tracker.retrieve_depthstencil_from_handle(pDepthStencilView);
 
 	if (depthstencil == nullptr)
 		return false;
@@ -97,13 +95,13 @@ bool D3D12Device::save_depth_texture(D3D12Device *device, D3D12_CPU_DESCRIPTOR_H
 		runtime->copy_depth_stencil(depth_texture_save, depthstencil);
 
 		// Store the saved texture in the ordered map.
-		device->_draw_call_tracker.track_depth_texture(runtime->depth_buffer_texture_format, _clear_DSV_iter, depthstencil.get(), depthstencil.get(), depth_texture_save, cleared);
+		_draw_call_tracker.track_depth_texture(runtime->depth_buffer_texture_format, _clear_DSV_iter, depthstencil.get(), depthstencil.get(), depth_texture_save, cleared);
 	}
 	else
 	{
 		// Store a null depth texture in the ordered map in order to display it even if the user chose a previous cleared texture.
 		// This way the texture will still be visible in the depth buffer selection window and the user can choose it.
-		device->_draw_call_tracker.track_depth_texture(runtime->depth_buffer_texture_format, _clear_DSV_iter, depthstencil.get(), depthstencil.get(), nullptr, cleared);
+		_draw_call_tracker.track_depth_texture(runtime->depth_buffer_texture_format, _clear_DSV_iter, depthstencil.get(), depthstencil.get(), nullptr, cleared);
 	}
 
 	// TODO: This is unsafe if multiple device contexts are used on multiple threads
@@ -118,24 +116,21 @@ void D3D12Device::track_active_rendertargets(ID3D12GraphicsCommandList *pcmdList
 
 	const auto runtime = _runtimes.front();
 
-	if (const auto it = d3d12_current_device.find(pcmdList); it != d3d12_current_device.end())
-	{
-		// Retrieve texture from depth stencil
-		com_ptr<ID3D12Resource> depthstencil = it->second->_draw_call_tracker.retrieve_depthstencil_from_handle(pDepthStencilView);
+	// Retrieve texture from depth stencil
+	com_ptr<ID3D12Resource> depthstencil = _draw_call_tracker.retrieve_depthstencil_from_handle(pDepthStencilView);
 
-		if (depthstencil == nullptr)
-			return;
+	if (depthstencil == nullptr)
+		return;
 
-		it->second->_draw_call_tracker.track_rendertargets(runtime->depth_buffer_texture_format, depthstencil.get());
+	_draw_call_tracker.track_rendertargets(runtime->depth_buffer_texture_format, depthstencil.get());
 
-		save_depth_texture(it->second, pDepthStencilView, false);
+	save_depth_texture(pDepthStencilView, false);
 
-		std::lock_guard lock(_trackers_per_commandlist_mutex);
-		if (&it->second->_trackers_per_commandlist[pcmdList] == nullptr)
-			return;
+	std::lock_guard lock(_trackers_per_commandlist_mutex);
+	if (&_trackers_per_commandlist[pcmdList] == nullptr)
+		return;
 
-		it->second->_trackers_per_commandlist[pcmdList].current_depthstencil = depthstencil;
-	}
+	_trackers_per_commandlist[pcmdList].current_depthstencil = depthstencil;
 }
 
 void D3D12Device::track_cleared_depthstencil(D3D12_CPU_DESCRIPTOR_HANDLE pDepthStencilView)
