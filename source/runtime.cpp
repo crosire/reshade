@@ -1277,7 +1277,7 @@ void reshade::runtime::set_current_preset(std::filesystem::path path)
 		if (const std::wstring extension(path.extension()); extension == L".ini" || extension == L".txt")
 			if (!std::filesystem::exists(reshade_container_path / path, ec))
 				path_state = path_state::valid;
-			else if (const reshade::ini_file preset(reshade_container_path / path); preset.has("", "TechniqueSorting"))
+			else if (const reshade::ini_file preset(reshade_container_path / path); preset.has("", "Techniques"))
 				path_state = path_state::valid;
 
 	// Select a default preset file if none exists yet or not own

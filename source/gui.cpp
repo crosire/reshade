@@ -2169,7 +2169,7 @@ void reshade::runtime::draw_preset_explorer()
 			for (const auto &entry : preset_container)
 				if (!entry.is_directory())
 					if (const std::wstring extension(entry.path().extension()); extension == L".ini" || extension == L".txt")
-						if (const reshade::ini_file preset(entry); preset.has("", "TechniqueSorting"))
+						if (const reshade::ini_file preset(entry); preset.has("", "Techniques"))
 							preset_paths.push_back(entry);
 
 			if (preset_paths.begin() == preset_paths.end())
@@ -2248,7 +2248,7 @@ void reshade::runtime::draw_preset_explorer()
 	}
 
 	if (condition == condition::select)
-		if (const reshade::ini_file preset(reshade_container_path / _current_browse_path); !preset.has("", "TechniqueSorting"))
+		if (const reshade::ini_file preset(reshade_container_path / _current_browse_path); !preset.has("", "Techniques"))
 			condition = condition::pass;
 
 	if (condition == condition::popup_add)
@@ -2275,7 +2275,7 @@ void reshade::runtime::draw_preset_explorer()
 					condition = condition::pass;
 				else if (file_type == std::filesystem::file_type::not_found)
 					condition = condition::create;
-				else if (const reshade::ini_file preset(reshade_container_path / _current_browse_path / input_preset_path); preset.has("", "TechniqueSorting"))
+				else if (const reshade::ini_file preset(reshade_container_path / _current_browse_path / input_preset_path); preset.has("", "Techniques"))
 					condition = condition::select;
 				else
 					condition = condition::pass;
