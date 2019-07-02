@@ -1374,7 +1374,7 @@ void reshade::d3d10::runtime_d3d10::draw_debug_menu()
 			ImGui::Spacing();
 			ImGui::Spacing();
 
-			if (ImGui::Checkbox("make less copy (can help preserve perfs at the expense of the depth buffer access)", &depth_buffer_less_copies))
+			if (ImGui::Checkbox("make less copies (can help preserve perfs at the expense of the depth buffer access)", &depth_buffer_less_copies))
 			{
 				cleared_depth_buffer_index = 0;
 				modified = true;
