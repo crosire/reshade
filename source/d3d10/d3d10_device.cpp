@@ -313,7 +313,7 @@ void    STDMETHODCALLTYPE D3D10Device::ClearDepthStencilView(ID3D10DepthStencilV
 	runtime->on_clear_depthstencil_view(pDepthStencilView);
 
 #if RESHADE_DX10_CAPTURE_DEPTH_BUFFERS
-	if (ClearFlags & D3D10_CLEAR_DEPTH)
+	if (ClearFlags & D3D10_CLEAR_DEPTH || (!runtime->depth_buffer_less_copies && ClearFlags & D3D10_CLEAR_STENCIL))
 		track_cleared_depthstencil(pDepthStencilView);
 #endif
 	_orig->ClearDepthStencilView(pDepthStencilView, ClearFlags, Depth, Stencil);

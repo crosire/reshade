@@ -70,12 +70,14 @@ reshade::d3d11::runtime_d3d11::runtime_d3d11(ID3D11Device *device, IDXGISwapChai
 	subscribe_to_load_config([this](const ini_file &config) {
 		config.get("DX11_BUFFER_DETECTION", "DepthBufferRetrievalMode", depth_buffer_before_clear);
 		config.get("DX11_BUFFER_DETECTION", "DepthBufferTextureFormat", depth_buffer_texture_format);
+		config.get("DX11_BUFFER_DETECTION", "DepthBufferLessCopies", depth_buffer_less_copies);
 		config.get("DX11_BUFFER_DETECTION", "ExtendedDepthBufferDetection", extended_depth_buffer_detection);
 		config.get("DX11_BUFFER_DETECTION", "DepthBufferClearingNumber", cleared_depth_buffer_index);
 	});
 	subscribe_to_save_config([this](ini_file &config) {
 		config.set("DX11_BUFFER_DETECTION", "DepthBufferRetrievalMode", depth_buffer_before_clear);
 		config.set("DX11_BUFFER_DETECTION", "DepthBufferTextureFormat", depth_buffer_texture_format);
+		config.set("DX11_BUFFER_DETECTION", "DepthBufferLessCopies", depth_buffer_less_copies);
 		config.set("DX11_BUFFER_DETECTION", "ExtendedDepthBufferDetection", extended_depth_buffer_detection);
 		config.set("DX11_BUFFER_DETECTION", "DepthBufferClearingNumber", cleared_depth_buffer_index);
 	});
@@ -362,14 +364,14 @@ void reshade::d3d11::runtime_d3d11::on_present(draw_call_tracker &tracker)
 }
 void reshade::d3d11::runtime_d3d11::on_set_depthstencil_view(ID3D11DepthStencilView *&depthstencil)
 {
-	if (_depthstencil_texture_desc_changed && _depthstencil_replacement != nullptr && depthstencil == _depthstencil)
+	if (_depthstencil_replacement != nullptr && depthstencil == _depthstencil)
 	{
 		depthstencil = _depthstencil_replacement.get();
 	}
 }
 void reshade::d3d11::runtime_d3d11::on_get_depthstencil_view(ID3D11DepthStencilView *&depthstencil)
 {
-	if (_depthstencil_texture_desc_changed && _depthstencil_replacement != nullptr && depthstencil == _depthstencil_replacement)
+	if (_depthstencil_replacement != nullptr && depthstencil == _depthstencil_replacement)
 	{
 		depthstencil->Release();
 
@@ -380,7 +382,7 @@ void reshade::d3d11::runtime_d3d11::on_get_depthstencil_view(ID3D11DepthStencilV
 }
 void reshade::d3d11::runtime_d3d11::on_clear_depthstencil_view(ID3D11DepthStencilView *&depthstencil)
 {
-	if (_depthstencil_texture_desc_changed && _depthstencil_replacement != nullptr && depthstencil == _depthstencil)
+	if (_depthstencil_replacement != nullptr && depthstencil == _depthstencil)
 	{
 		depthstencil = _depthstencil_replacement.get();
 	}
@@ -1367,7 +1369,7 @@ void reshade::d3d11::runtime_d3d11::draw_debug_menu()
 		modified |= ImGui::Combo("Depth Texture Format", &depth_buffer_texture_format, "All\0D16\0D32F\0D24S8\0D32FS8\0");
 		
 		ImGui::Spacing();
-		modified |= ImGui::Checkbox("Copy depth before clearing", &depth_buffer_before_clear);
+		modified |= ImGui::Checkbox("Copy depth just before it is cleared", &depth_buffer_before_clear);
 
 		if (modified)
 		{
@@ -1379,6 +1381,18 @@ void reshade::d3d11::runtime_d3d11::draw_debug_menu()
 		
 		if (depth_buffer_before_clear)
 		{
+			ImGui::Spacing();
+			ImGui::Spacing();
+
+			if (ImGui::Checkbox("make less copy (can help preserve perfs at the expense of the depth buffer access)", &depth_buffer_less_copies))
+			{
+				cleared_depth_buffer_index = 0;
+				modified = true;
+			}
+
+			ImGui::Spacing();
+			ImGui::Spacing();
+
 			if (ImGui::Checkbox("Extended depth buffer detection", &extended_depth_buffer_detection))
 			{
 				cleared_depth_buffer_index = 0;
@@ -1531,8 +1545,6 @@ bool reshade::d3d11::runtime_d3d11::create_depthstencil_replacement(ID3D11DepthS
 	if (!depth_buffer_before_clear && depthstencil == _depthstencil)
 		return false;
 
-	_depthstencil_texture_desc_changed = false;
-
 	_depthstencil.reset();
 	_depthstencil_replacement.reset();
 	_depthstencil_texture.reset();
@@ -1549,9 +1561,7 @@ bool reshade::d3d11::runtime_d3d11::create_depthstencil_replacement(ID3D11DepthS
 
 		HRESULT hr = S_OK;
 
-		_depthstencil_texture_desc_changed = ((tex_desc.BindFlags & D3D11_BIND_SHADER_RESOURCE) == 0);
-
-		if (_depthstencil_texture_desc_changed)
+		if ((tex_desc.BindFlags & D3D11_BIND_SHADER_RESOURCE) == 0)
 		{
 			_depthstencil_texture.reset();
 

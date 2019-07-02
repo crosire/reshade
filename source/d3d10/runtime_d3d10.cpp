@@ -68,12 +68,14 @@ reshade::d3d10::runtime_d3d10::runtime_d3d10(ID3D10Device1 *device, IDXGISwapCha
 	subscribe_to_load_config([this](const ini_file &config) {
 		config.get("DX10_BUFFER_DETECTION", "DepthBufferRetrievalMode", depth_buffer_before_clear);
 		config.get("DX10_BUFFER_DETECTION", "DepthBufferTextureFormat", depth_buffer_texture_format);
+		config.get("DX10_BUFFER_DETECTION", "DepthBufferLessCopies", depth_buffer_less_copies);
 		config.get("DX10_BUFFER_DETECTION", "ExtendedDepthBufferDetection", extended_depth_buffer_detection);
 		config.get("DX10_BUFFER_DETECTION", "DepthBufferClearingNumber", cleared_depth_buffer_index);
 	});
 	subscribe_to_save_config([this](ini_file &config) {
 		config.set("DX10_BUFFER_DETECTION", "DepthBufferRetrievalMode", depth_buffer_before_clear);
 		config.set("DX10_BUFFER_DETECTION", "DepthBufferTextureFormat", depth_buffer_texture_format);
+		config.set("DX10_BUFFER_DETECTION", "DepthBufferLessCopies", depth_buffer_less_copies);
 		config.set("DX10_BUFFER_DETECTION", "ExtendedDepthBufferDetection", extended_depth_buffer_detection);
 		config.set("DX10_BUFFER_DETECTION", "DepthBufferClearingNumber", cleared_depth_buffer_index);
 	});
@@ -352,14 +354,14 @@ void reshade::d3d10::runtime_d3d10::on_present(draw_call_tracker &tracker)
 }
 void reshade::d3d10::runtime_d3d10::on_set_depthstencil_view(ID3D10DepthStencilView *&depthstencil)
 {
-	if (_depthstencil_texture_desc_changed && _depthstencil_replacement != nullptr && depthstencil == _depthstencil)
+	if (_depthstencil_replacement != nullptr && depthstencil == _depthstencil)
 	{
 		depthstencil = _depthstencil_replacement.get();
 	}
 }
 void reshade::d3d10::runtime_d3d10::on_get_depthstencil_view(ID3D10DepthStencilView *&depthstencil)
 {
-	if (_depthstencil_texture_desc_changed && _depthstencil_replacement != nullptr && depthstencil == _depthstencil_replacement)
+	if (_depthstencil_replacement != nullptr && depthstencil == _depthstencil_replacement)
 	{
 		depthstencil->Release();
 
@@ -370,7 +372,7 @@ void reshade::d3d10::runtime_d3d10::on_get_depthstencil_view(ID3D10DepthStencilV
 }
 void reshade::d3d10::runtime_d3d10::on_clear_depthstencil_view(ID3D10DepthStencilView *&depthstencil)
 {
-	if (_depthstencil_texture_desc_changed && _depthstencil_replacement != nullptr && depthstencil == _depthstencil)
+	if (_depthstencil_replacement != nullptr && depthstencil == _depthstencil)
 	{
 		depthstencil = _depthstencil_replacement.get();
 	}
@@ -1372,6 +1374,15 @@ void reshade::d3d10::runtime_d3d10::draw_debug_menu()
 			ImGui::Spacing();
 			ImGui::Spacing();
 
+			if (ImGui::Checkbox("make less copy (can help preserve perfs at the expense of the depth buffer access)", &depth_buffer_less_copies))
+			{
+				cleared_depth_buffer_index = 0;
+				modified = true;
+			}
+
+			ImGui::Spacing();
+			ImGui::Spacing();
+
 			if (ImGui::Checkbox("Extended depth buffer detection", &extended_depth_buffer_detection))
 			{
 				cleared_depth_buffer_index = 0;
@@ -1524,8 +1535,6 @@ bool reshade::d3d10::runtime_d3d10::create_depthstencil_replacement(ID3D10DepthS
 	if (!depth_buffer_before_clear && depthstencil == _depthstencil)
 		return false;
 
-	_depthstencil_texture_desc_changed = false;
-
 	_depthstencil.reset();
 	_depthstencil_replacement.reset();
 	_depthstencil_texture.reset();	
@@ -1542,9 +1551,7 @@ bool reshade::d3d10::runtime_d3d10::create_depthstencil_replacement(ID3D10DepthS
 
 		HRESULT hr = S_OK;
 
-		_depthstencil_texture_desc_changed = ((tex_desc.BindFlags & D3D10_BIND_SHADER_RESOURCE) == 0);
-
-		if (_depthstencil_texture_desc_changed)
+		if ((tex_desc.BindFlags & D3D10_BIND_SHADER_RESOURCE) == 0)
 		{
 			_depthstencil_texture.reset();
 

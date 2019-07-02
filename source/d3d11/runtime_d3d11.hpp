@@ -35,6 +35,7 @@ namespace reshade::d3d11
 #endif
 
 		bool depth_buffer_before_clear = false;
+		bool depth_buffer_less_copies = true;
 		bool extended_depth_buffer_detection = false;
 		unsigned int cleared_depth_buffer_index = 0;
 		int depth_buffer_texture_format = 0; // No depth buffer texture format filter by default
@@ -116,8 +117,6 @@ namespace reshade::d3d11
 		com_ptr<ID3D11BlendState> _imgui_blend_state;
 		com_ptr<ID3D11DepthStencilState> _imgui_depthstencil_state;
 		draw_call_tracker *_current_tracker = nullptr;
-
-		bool _depthstencil_texture_desc_changed = false;
 
 		HMODULE _d3d_compiler = nullptr;
 	};
