@@ -1369,7 +1369,7 @@ void reshade::d3d11::runtime_d3d11::draw_debug_menu()
 		modified |= ImGui::Combo("Depth Texture Format", &depth_buffer_texture_format, "All\0D16\0D32F\0D24S8\0D32FS8\0");
 		
 		ImGui::Spacing();
-		modified |= ImGui::Checkbox("Copy depth just before it is cleared", &depth_buffer_before_clear);
+		modified |= ImGui::Checkbox("Copy depth buffer just before it is cleared", &depth_buffer_before_clear);
 
 		if (modified)
 		{
