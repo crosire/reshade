@@ -70,14 +70,14 @@ reshade::d3d11::runtime_d3d11::runtime_d3d11(ID3D11Device *device, IDXGISwapChai
 	subscribe_to_load_config([this](const ini_file &config) {
 		config.get("DX11_BUFFER_DETECTION", "DepthBufferRetrievalMode", depth_buffer_before_clear);
 		config.get("DX11_BUFFER_DETECTION", "DepthBufferTextureFormat", depth_buffer_texture_format);
-		config.get("DX11_BUFFER_DETECTION", "DepthBufferLessCopies", depth_buffer_less_copies);
+		config.get("DX11_BUFFER_DETECTION", "DepthBufferMoreCopies", depth_buffer_more_copies);
 		config.get("DX11_BUFFER_DETECTION", "ExtendedDepthBufferDetection", extended_depth_buffer_detection);
 		config.get("DX11_BUFFER_DETECTION", "DepthBufferClearingNumber", cleared_depth_buffer_index);
 	});
 	subscribe_to_save_config([this](ini_file &config) {
 		config.set("DX11_BUFFER_DETECTION", "DepthBufferRetrievalMode", depth_buffer_before_clear);
 		config.set("DX11_BUFFER_DETECTION", "DepthBufferTextureFormat", depth_buffer_texture_format);
-		config.set("DX11_BUFFER_DETECTION", "DepthBufferLessCopies", depth_buffer_less_copies);
+		config.set("DX11_BUFFER_DETECTION", "DepthBufferMoreCopies", depth_buffer_more_copies);
 		config.set("DX11_BUFFER_DETECTION", "ExtendedDepthBufferDetection", extended_depth_buffer_detection);
 		config.set("DX11_BUFFER_DETECTION", "DepthBufferClearingNumber", cleared_depth_buffer_index);
 	});
@@ -1384,7 +1384,7 @@ void reshade::d3d11::runtime_d3d11::draw_debug_menu()
 			ImGui::Spacing();
 			ImGui::Spacing();
 
-			if (ImGui::Checkbox("make less copies (can help preserve perfs at the expense of the depth buffer access)", &depth_buffer_less_copies))
+			if (ImGui::Checkbox("Make more copies (can help if not retrieving the depth buffer in the current copies)", &depth_buffer_more_copies))
 			{
 				cleared_depth_buffer_index = 0;
 				modified = true;

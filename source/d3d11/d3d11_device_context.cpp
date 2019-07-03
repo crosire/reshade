@@ -439,7 +439,7 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::ClearDepthStencilView(ID3D11DepthS
 	runtime->on_clear_depthstencil_view(pDepthStencilView);
 
 #if RESHADE_DX11_CAPTURE_DEPTH_BUFFERS
-	if (ClearFlags & D3D11_CLEAR_DEPTH || (!runtime->depth_buffer_less_copies && ClearFlags & D3D11_CLEAR_STENCIL))
+	if (ClearFlags & D3D11_CLEAR_DEPTH || (runtime->depth_buffer_more_copies && ClearFlags & D3D11_CLEAR_STENCIL))
 		track_cleared_depthstencil(pDepthStencilView);
 #endif
 	_orig->ClearDepthStencilView(pDepthStencilView, ClearFlags, Depth, Stencil);
