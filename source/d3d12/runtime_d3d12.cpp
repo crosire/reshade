@@ -98,12 +98,14 @@ reshade::d3d12::runtime_d3d12::runtime_d3d12(ID3D12Device *device, ID3D12Command
 	subscribe_to_load_config([this](const ini_file &config) {
 		config.get("DX12_BUFFER_DETECTION", "DepthBufferRetrievalMode", depth_buffer_before_clear);
 		config.get("DX12_BUFFER_DETECTION", "DepthBufferTextureFormat", depth_buffer_texture_format);
+		config.get("DX12_BUFFER_DETECTION", "DepthBufferMoreCopies", depth_buffer_more_copies);
 		config.get("DX12_BUFFER_DETECTION", "ExtendedDepthBufferDetection", extended_depth_buffer_detection);
 		config.get("DX12_BUFFER_DETECTION", "DepthBufferClearingNumber", cleared_depth_buffer_index);
 	});
 	subscribe_to_save_config([this](ini_file &config) {
 		config.set("DX12_BUFFER_DETECTION", "DepthBufferRetrievalMode", depth_buffer_before_clear);
 		config.set("DX12_BUFFER_DETECTION", "DepthBufferTextureFormat", depth_buffer_texture_format);
+		config.set("DX12_BUFFER_DETECTION", "DepthBufferMoreCopies", depth_buffer_more_copies);
 		config.set("DX12_BUFFER_DETECTION", "ExtendedDepthBufferDetection", extended_depth_buffer_detection);
 		config.set("DX12_BUFFER_DETECTION", "DepthBufferClearingNumber", cleared_depth_buffer_index);
 	});
@@ -328,6 +330,8 @@ void reshade::d3d12::runtime_d3d12::on_reset()
 	_mipmap_pipeline.reset();
 	_mipmap_signature.reset();
 
+	clear_DSV_iter = 1;
+
 #if RESHADE_GUI
 	for (unsigned int resource_index = 0; resource_index < 3; ++resource_index)
 	{
@@ -371,22 +375,32 @@ void reshade::d3d12::runtime_d3d12::on_present(draw_call_tracker &tracker)
 	runtime::on_present();
 
 	_commandqueue->Signal(_fence[_swap_index].get(), ++_fence_value[_swap_index]);
+	clear_DSV_iter = 1;
 }
 
 void reshade::d3d12::runtime_d3d12::copy_depth_stencil(com_ptr<ID3D12Resource> src, com_ptr<ID3D12Resource> dest)
 {
-	const com_ptr<ID3D12GraphicsCommandList> cmd_list = create_command_list();
-	if (cmd_list == nullptr)
+	com_ptr<ID3D12CommandQueue> copyQueue;
+	com_ptr<ID3D12CommandAllocator> copyAllocator;
+	com_ptr<ID3D12GraphicsCommandList> copyList;
+	HANDLE fenceEvent = nullptr;
+	com_ptr<ID3D12Fence> fence;
+
+	D3D12_COMMAND_QUEUE_DESC descCopyQueue = {};
+	descCopyQueue.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
+	descCopyQueue.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
+	_device->CreateCommandQueue(&descCopyQueue, IID_PPV_ARGS(&copyQueue));
+	_device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&copyAllocator));
+
+	if (FAILED(_device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_COPY, copyAllocator.get(), nullptr, IID_PPV_ARGS(&copyList))))
 		return;
 
-	transition_state(cmd_list, dest, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_COPY_DEST);
-	transition_state(cmd_list, src, D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_COPY_SOURCE);
-	cmd_list->CopyResource(dest.get(), src.get());
-	transition_state(cmd_list, dest, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-	transition_state(cmd_list, src, D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_DEPTH_WRITE);
+	transition_state(copyList, dest, D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_COPY_DEST);
+	copyList->CopyResource(dest.get(), src.get());
+	transition_state(copyList, dest, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_COMMON);
 
-	execute_command_list(cmd_list);
-	wait_for_command_queue();
+	ID3D12CommandList *const copyLists[] = { copyList.get() };
+	copyQueue->ExecuteCommandLists(ARRAYSIZE(copyLists), copyLists);
 }
 
 void reshade::d3d12::runtime_d3d12::capture_screenshot(uint8_t *buffer) const
@@ -1487,10 +1501,22 @@ void reshade::d3d12::runtime_d3d12::draw_debug_menu()
 			return;
 		}
 
-		// modified |= ImGui::Checkbox("Copy depth before clearing", &depth_buffer_before_clear);
+		modified |= ImGui::Checkbox("Copy depth buffer just before it is cleared", &depth_buffer_before_clear);
 
 		if (depth_buffer_before_clear)
 		{
+			ImGui::Spacing();
+			ImGui::Spacing();
+
+			if (ImGui::Checkbox("Make more copies (can help if not retrieving the depth buffer in the current copies)", &depth_buffer_more_copies))
+			{
+				cleared_depth_buffer_index = 0;
+				modified = true;
+			}
+
+			ImGui::Spacing();
+			ImGui::Spacing();
+
 			if (ImGui::Checkbox("Extended depth buffer detection", &extended_depth_buffer_detection))
 			{
 				cleared_depth_buffer_index = 0;

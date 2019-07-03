@@ -5,6 +5,7 @@
 #include <mutex>
 
 std::mutex _counters_per_used_depthstencil_mutex;
+std::mutex _cleared_depth_textures_mutex;
 
 namespace reshade::d3d12
 {
@@ -17,12 +18,15 @@ namespace reshade::d3d12
 			return;
 
 #if RESHADE_DX12_CAPTURE_DEPTH_BUFFERS
-		std::lock_guard lock(_counters_per_used_depthstencil_mutex);
+		std::lock(_counters_per_used_depthstencil_mutex, _cleared_depth_textures_mutex);
+		std::lock_guard lock1(_counters_per_used_depthstencil_mutex, std::adopt_lock);
 		if (_counters_per_used_depthstencil[source.current_depthstencil].depthstencil != nullptr)
 		{
 			_counters_per_used_depthstencil[source.current_depthstencil].stats.vertices += source.total_vertices();
 			_counters_per_used_depthstencil[source.current_depthstencil].stats.drawcalls += source.total_drawcalls();
 		}
+
+		std::lock_guard lock2(_cleared_depth_textures_mutex, std::adopt_lock);
 
 		for (const auto &[index, depth_texture_save_info] : source._cleared_depth_textures)
 			_cleared_depth_textures[index] = depth_texture_save_info;
@@ -35,7 +39,9 @@ namespace reshade::d3d12
 		_global_counter.drawcalls = 0;
 		current_depthstencil.reset();
 #if RESHADE_DX12_CAPTURE_DEPTH_BUFFERS
-		std::lock_guard lock(_counters_per_used_depthstencil_mutex);
+		std::lock(_counters_per_used_depthstencil_mutex, _cleared_depth_textures_mutex);
+		std::lock_guard lock1(_counters_per_used_depthstencil_mutex, std::adopt_lock);
+		std::lock_guard lock2(_cleared_depth_textures_mutex, std::adopt_lock);
 		_counters_per_used_depthstencil.clear();
 		_cleared_depth_textures.clear();
 #endif
@@ -182,6 +188,8 @@ namespace reshade::d3d12
 		// check if it is really a depth texture
 		assert((src_texture_desc.Flags & D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL) != 0);
 
+		std::lock_guard lock(_cleared_depth_textures_mutex);
+
 		// fill the ordered map with the saved depth texture
 		_cleared_depth_textures[index] = depth_texture_save_info { src_texture, src_depthstencil, src_texture_desc, dest_texture, cleared };
 	}
@@ -223,6 +231,7 @@ namespace reshade::d3d12
 
 	void draw_call_tracker::keep_cleared_depth_textures()
 	{
+		std::lock_guard lock(_cleared_depth_textures_mutex);
 		// Function that keeps only the depth textures that has been retrieved before the last depth stencil clearance
 		std::map<UINT, depth_texture_save_info>::reverse_iterator it = _cleared_depth_textures.rbegin();
 
