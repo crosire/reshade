@@ -118,8 +118,13 @@ void reshadefx::preprocessor::push(std::string input, const std::string &name)
 	input_level level = {};
 	level.name = name;
 	level.lexer.reset(new lexer(std::move(input), true, false, false, false, true, false));
-	level.parent = _input_stack.empty() ? nullptr : &_input_stack.top();
 	level.next_token.id = tokenid::unknown;
+
+	if (!_input_stack.empty())
+	{
+		level.parent = &_input_stack.top();
+		level.hidden_macros = level.parent->hidden_macros;
+	}
 
 	if (name.empty())
 	{
@@ -913,8 +918,8 @@ bool reshadefx::preprocessor::evaluate_identifier_as_macro()
 	}
 
 	const auto it = _macros.find(_token.literal_as_string);
-
-	if (it == _macros.end())
+	if (it == _macros.end() ||
+		_input_stack.top().hidden_macros.find(it->first) != _input_stack.top().hidden_macros.end())
 		return false;
 
 	const auto &macro = it->second;
@@ -959,6 +964,8 @@ bool reshadefx::preprocessor::evaluate_identifier_as_macro()
 	std::string input;
 	expand_macro(it->second, arguments, input);
 	push(std::move(input));
+
+	_input_stack.top().hidden_macros.insert(it->first);
 
 	return true;
 }
