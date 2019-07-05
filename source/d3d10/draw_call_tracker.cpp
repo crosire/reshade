@@ -15,6 +15,7 @@ namespace reshade::d3d10
 		{
 			_counters_per_used_depthstencil[depthstencil].stats.vertices += snapshot.stats.vertices;
 			_counters_per_used_depthstencil[depthstencil].stats.drawcalls += snapshot.stats.drawcalls;
+			_counters_per_used_depthstencil[depthstencil].depthstencil = snapshot.depthstencil;
 		}
 
 		for (const auto &[index, depth_texture_save_info] : source._cleared_depth_textures)

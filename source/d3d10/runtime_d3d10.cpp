@@ -1535,6 +1535,14 @@ bool reshade::d3d10::runtime_d3d10::create_depthstencil_replacement(ID3D10DepthS
 	if (!depth_buffer_before_clear && depthstencil == _depthstencil)
 		return false;
 
+	if (texture == nullptr && depthstencil != nullptr)
+	{
+		com_ptr<ID3D10Resource> resource;
+		depthstencil->GetResource(&resource);
+
+		resource->QueryInterface(&texture);
+	}
+
 	_depthstencil.reset();
 	_depthstencil_replacement.reset();
 	_depthstencil_texture.reset();	
