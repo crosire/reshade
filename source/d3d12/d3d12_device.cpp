@@ -92,7 +92,9 @@ bool D3D12Device::save_depth_texture(ID3D12GraphicsCommandList *pcmdList, D3D12_
 
 		// Copy the depth texture. This is necessary because the content of the depth texture is cleared.
 		// This way, we can retrieve this content in the final rendering stage
-		pcmdList->CopyResource(depth_texture_save.get(), depthstencil.get());
+		// pcmdList->CopyResource(depth_texture_save.get(), depthstencil.get());
+		depth_texture_save.reset();
+		depth_texture_save = depthstencil;
 
 		// Store the saved texture in the ordered map.
 		_draw_call_tracker.track_depth_texture(runtime->depth_buffer_texture_format, runtime->clear_DSV_iter, depthstencil.get(), depthstencil.get(), depth_texture_save, cleared);
