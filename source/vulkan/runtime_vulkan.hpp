@@ -16,13 +16,20 @@ namespace reshade::vulkan
 	class runtime_vulkan : public runtime
 	{
 	public:
-		runtime_vulkan(VkDevice device, VkPhysicalDevice physical_device);
+		runtime_vulkan(VkDevice device, VkPhysicalDevice physical_device, const vk_device_table &table);
 
 		bool on_init(VkSwapchainKHR swapchain, const VkSwapchainCreateInfoKHR &desc, HWND hwnd);
 		void on_reset();
 		void on_present(uint32_t swapchain_image_index);
 
 		void capture_screenshot(uint8_t *buffer) const override;
+
+		VkDevice _device;
+		VkPhysicalDevice _physical_device;
+		VkPhysicalDeviceMemoryProperties _memory_props;
+		VkSwapchainKHR _swapchain;
+
+		vk_device_table _funcs;
 
 	private:
 		bool init_texture(texture &texture);
@@ -52,9 +59,9 @@ namespace reshade::vulkan
 		void execute_command_list(VkCommandBuffer cmd_list) const;
 		void execute_command_list_async(VkCommandBuffer cmd_list) const;
 
-		VkDevice _device;
-		VkPhysicalDevice _physical_device;
-		VkSwapchainKHR _swapchain;
+		void transition_layout(
+			VkCommandBuffer cmd_list, VkImage image, VkImageLayout old_layout, VkImageLayout new_layout,
+			VkImageSubresourceRange subresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, VK_REMAINING_MIP_LEVELS, 0, VK_REMAINING_ARRAY_LAYERS }) const;
 
 		VkFence _wait_fence = VK_NULL_HANDLE;
 		VkQueue _current_queue = VK_NULL_HANDLE;
@@ -79,9 +86,6 @@ namespace reshade::vulkan
 		VkDescriptorSetLayout _effect_ubo_layout = VK_NULL_HANDLE;
 		std::vector<struct vulkan_effect_data> _effect_data;
 		std::unordered_map<size_t, VkSampler> _effect_sampler_states;
-
-		PFN_vkCmdPushDescriptorSetKHR vkCmdPushDescriptorSetKHR = nullptr;
-		PFN_vkDebugMarkerSetObjectNameEXT vkDebugMarkerSetObjectNameEXT = nullptr;
 
 #if RESHADE_GUI
 		unsigned int _imgui_index_buffer_size = 0;

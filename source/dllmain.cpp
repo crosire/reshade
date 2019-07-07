@@ -37,9 +37,6 @@ static inline std::filesystem::path get_module_path(HMODULE module)
 #include "opengl/runtime_opengl.hpp"
 #include "vulkan/runtime_vulkan.hpp"
 
-#define HCHECK(exp) assert(SUCCEEDED(exp))
-#define VKCHECK(exp) assert((exp) == VK_SUCCESS)
-
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow)
 {
 	using namespace reshade;
@@ -94,6 +91,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 	MSG msg = {};
 
 	#pragma region D3D9 Implementation
+#define HCHECK(exp) assert(SUCCEEDED(exp))
+
 	if (strstr(lpCmdLine, "-d3d9"))
 	{
 		hooks::register_module("d3d9.dll");
@@ -357,9 +356,15 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 	#pragma endregion
 
 	#pragma region Vulkan Implementation
+#define VK_CHECK(exp) assert((exp) == VK_SUCCESS)
+#define VK_CALL_CMD(name, device, ...) reinterpret_cast<PFN_##name>(vkGetDeviceProcAddr(device, #name))(__VA_ARGS__)
+#define VK_CALL_DEV(name, device, ...) reinterpret_cast<PFN_##name>(vkGetDeviceProcAddr(device, #name))(device, __VA_ARGS__)
+#define VK_CALL_INS(name, instance, ...) reinterpret_cast<PFN_##name>(vkGetInstanceProcAddr(instance, #name))(__VA_ARGS__)
+
 	if (strstr(lpCmdLine, "-vulkan"))
 	{
 		hooks::register_module("vulkan-1.dll");
+		const auto vulkan_module = LoadLibrary(TEXT("vulkan-1.dll"));
 
 		VkDevice device = VK_NULL_HANDLE;
 		VkInstance instance = VK_NULL_HANDLE;
@@ -392,18 +397,18 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 			create_info.enabledExtensionCount = ARRAYSIZE(enabled_extensions);
 			create_info.ppEnabledExtensionNames = enabled_extensions;
 
-			VKCHECK(vkCreateInstance(&create_info, nullptr, &instance));
+			VK_CHECK(VK_CALL_INS(vkCreateInstance, VK_NULL_HANDLE, &create_info, nullptr, &instance));
 		}
 
 		// Pick the first physical device.
 		uint32_t num_physical_devices = 1;
-		VKCHECK(vkEnumeratePhysicalDevices(instance, &num_physical_devices, &physical_device));
+		VK_CHECK(VK_CALL_INS(vkEnumeratePhysicalDevices, instance, instance, &num_physical_devices, &physical_device));
 
 		// Pick the first queue with graphics support.
 		uint32_t queue_family_index = 0, num_queue_families = 0;
-		vkGetPhysicalDeviceQueueFamilyProperties(physical_device, &num_queue_families, nullptr);
+		VK_CALL_INS(vkGetPhysicalDeviceQueueFamilyProperties, instance, physical_device, &num_queue_families, nullptr);
 		std::vector<VkQueueFamilyProperties> queue_families(num_queue_families);
-		vkGetPhysicalDeviceQueueFamilyProperties(physical_device, &num_queue_families, queue_families.data());
+		VK_CALL_INS(vkGetPhysicalDeviceQueueFamilyProperties, instance, physical_device, &num_queue_families, queue_families.data());
 		for (uint32_t index = 0; index < num_queue_families && (queue_families[index].queueFlags & VK_QUEUE_GRAPHICS_BIT) == 0; ++index)
 			queue_family_index = index;
 
@@ -432,42 +437,42 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 			create_info.enabledExtensionCount = ARRAYSIZE(enabled_extensions);
 			create_info.ppEnabledExtensionNames = enabled_extensions;
 
-			VKCHECK(vkCreateDevice(physical_device, &create_info, nullptr, &device));
+			VK_CHECK(VK_CALL_INS(vkCreateDevice, instance, physical_device, &create_info, nullptr, &device));
 		}
 
 		{   VkWin32SurfaceCreateInfoKHR create_info { VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR };
 			create_info.hinstance = hInstance;
 			create_info.hwnd = window_handle;
 
-			VKCHECK(vkCreateWin32SurfaceKHR(instance, &create_info, nullptr, &surface));
+			VK_CHECK(VK_CALL_INS(vkCreateWin32SurfaceKHR, instance, instance, &create_info, nullptr, &surface));
 
 			// Check presentation support to make validation layers happy
 			VkBool32 supported = VK_FALSE;
-			VKCHECK(vkGetPhysicalDeviceSurfaceSupportKHR(physical_device, queue_family_index, surface, &supported));
+			VK_CHECK(VK_CALL_INS(vkGetPhysicalDeviceSurfaceSupportKHR, instance, physical_device, queue_family_index, surface, &supported));
 			assert(VK_FALSE != supported);
 		}
 
 		VkQueue queue = VK_NULL_HANDLE;
-		vkGetDeviceQueue(device, queue_family_index, 0, &queue);
+		VK_CALL_DEV(vkGetDeviceQueue, device, queue_family_index, 0, &queue);
 		VkCommandPool cmd_alloc = VK_NULL_HANDLE;
 		std::vector<VkCommandBuffer> cmd_list;
 
 		{   VkCommandPoolCreateInfo create_info { VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO };
 			create_info.queueFamilyIndex = queue_family_index;
 
-			VKCHECK(vkCreateCommandPool(device, &create_info, nullptr, &cmd_alloc));
+			VK_CHECK(VK_CALL_DEV(vkCreateCommandPool, device, &create_info, nullptr, &cmd_alloc));
 		}
 
 		const auto resize_swapchain = [&](VkSwapchainKHR old_swapchain = VK_NULL_HANDLE) {
 			uint32_t num_present_modes = 0, num_surface_formats = 0;
-			vkGetPhysicalDeviceSurfaceFormatsKHR(physical_device, surface, &num_surface_formats, nullptr);
-			vkGetPhysicalDeviceSurfacePresentModesKHR(physical_device, surface, &num_present_modes, nullptr);
+			VK_CALL_INS(vkGetPhysicalDeviceSurfaceFormatsKHR, instance, physical_device, surface, &num_surface_formats, nullptr);
+			VK_CALL_INS(vkGetPhysicalDeviceSurfacePresentModesKHR, instance, physical_device, surface, &num_present_modes, nullptr);
 			std::vector<VkPresentModeKHR> present_modes(num_present_modes);
 			std::vector<VkSurfaceFormatKHR> surface_formats(num_surface_formats);
-			vkGetPhysicalDeviceSurfaceFormatsKHR(physical_device, surface, &num_surface_formats, surface_formats.data());
-			vkGetPhysicalDeviceSurfacePresentModesKHR(physical_device, surface, &num_present_modes, present_modes.data());
+			VK_CALL_INS(vkGetPhysicalDeviceSurfaceFormatsKHR, instance, physical_device, surface, &num_surface_formats, surface_formats.data());
+			VK_CALL_INS(vkGetPhysicalDeviceSurfacePresentModesKHR, instance, physical_device, surface, &num_present_modes, present_modes.data());
 			VkSurfaceCapabilitiesKHR capabilities = {};
-			vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physical_device, surface, &capabilities);
+			VK_CALL_INS(vkGetPhysicalDeviceSurfaceCapabilitiesKHR, instance, physical_device, surface, &capabilities);
 
 			VkSwapchainCreateInfoKHR create_info { VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR };
 			create_info.surface = surface;
@@ -484,16 +489,16 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 			create_info.clipped = VK_TRUE;
 			create_info.oldSwapchain = old_swapchain;
 
-			VKCHECK(vkCreateSwapchainKHR(device, &create_info, nullptr, &swapchain));
+			VK_CHECK(VK_CALL_DEV(vkCreateSwapchainKHR, device, &create_info, nullptr, &swapchain));
 
 			if (old_swapchain != VK_NULL_HANDLE)
-				vkDestroySwapchainKHR(device, old_swapchain, nullptr);
-			vkFreeCommandBuffers(device, cmd_alloc, uint32_t(cmd_list.size()), cmd_list.data());
+				VK_CALL_DEV(vkDestroySwapchainKHR, device, old_swapchain, nullptr);
+			VK_CALL_DEV(vkFreeCommandBuffers, device, cmd_alloc, uint32_t(cmd_list.size()), cmd_list.data());
 
 			uint32_t num_swapchain_images = 0;
-			VKCHECK(vkGetSwapchainImagesKHR(device, swapchain, &num_swapchain_images, nullptr));
+			VK_CHECK(VK_CALL_DEV(vkGetSwapchainImagesKHR, device, swapchain, &num_swapchain_images, nullptr));
 			std::vector<VkImage> swapchain_images(num_swapchain_images);
-			VKCHECK(vkGetSwapchainImagesKHR(device, swapchain, &num_swapchain_images, swapchain_images.data()));
+			VK_CHECK(VK_CALL_DEV(vkGetSwapchainImagesKHR, device, swapchain, &num_swapchain_images, swapchain_images.data()));
 
 			cmd_list.resize(num_swapchain_images);
 
@@ -502,14 +507,14 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 				alloc_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
 				alloc_info.commandBufferCount = num_swapchain_images;
 
-				VKCHECK(vkAllocateCommandBuffers(device, &alloc_info, cmd_list.data()));
+				VK_CHECK(VK_CALL_DEV(vkAllocateCommandBuffers, device, &alloc_info, cmd_list.data()));
 			}
 
 			for (uint32_t i = 0; i < num_swapchain_images; ++i)
 			{
 				VkCommandBufferBeginInfo begin_info { VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO };
 				begin_info.flags = VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
-				VKCHECK(vkBeginCommandBuffer(cmd_list[i], &begin_info));
+				VK_CHECK(VK_CALL_CMD(vkBeginCommandBuffer, device, cmd_list[i], &begin_info));
 
 				const VkImageSubresourceRange range = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
 
@@ -522,18 +527,18 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 				transition.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 				transition.image = swapchain_images[i];
 				transition.subresourceRange = range;
-				vkCmdPipelineBarrier(cmd_list[i], VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, 0, 0, nullptr, 0, nullptr, 1, &transition);
+				VK_CALL_CMD(vkCmdPipelineBarrier, device, cmd_list[i], VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, 0, 0, nullptr, 0, nullptr, 1, &transition);
 
 				const VkClearColorValue color = { 0.5f, 0.5f, 0.5f, 1.0f };
-				vkCmdClearColorImage(cmd_list[i], swapchain_images[i], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &color, 1, &range);
+				VK_CALL_CMD(vkCmdClearColorImage, device, cmd_list[i], swapchain_images[i], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &color, 1, &range);
 
 				transition.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
 				transition.dstAccessMask = 0;
 				transition.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
 				transition.newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-				vkCmdPipelineBarrier(cmd_list[i], VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, 0, 0, nullptr, 0, nullptr, 1, &transition);
+				VK_CALL_CMD(vkCmdPipelineBarrier, device, cmd_list[i], VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, 0, 0, nullptr, 0, nullptr, 1, &transition);
 
-				VKCHECK(vkEndCommandBuffer(cmd_list[i]));
+				VK_CHECK(VK_CALL_CMD(vkEndCommandBuffer, device, cmd_list[i]));
 			}
 		};
 
@@ -542,8 +547,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 		VkSemaphore sem_acquire = VK_NULL_HANDLE;
 		VkSemaphore sem_present = VK_NULL_HANDLE;
 		{   VkSemaphoreCreateInfo create_info { VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO };
-			VKCHECK(vkCreateSemaphore(device, &create_info, nullptr, &sem_acquire));
-			VKCHECK(vkCreateSemaphore(device, &create_info, nullptr, &sem_present));
+			VK_CHECK(VK_CALL_DEV(vkCreateSemaphore, device, &create_info, nullptr, &sem_acquire));
+			VK_CHECK(VK_CALL_DEV(vkCreateSemaphore, device, &create_info, nullptr, &sem_present));
 		}
 
 		while (true)
@@ -562,7 +567,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 			}
 
 			uint32_t swapchain_image_index = 0;
-			VKCHECK(vkAcquireNextImageKHR(device, swapchain, UINT64_MAX, sem_acquire, VK_NULL_HANDLE, &swapchain_image_index));
+			VK_CHECK(VK_CALL_DEV(vkAcquireNextImageKHR, device, swapchain, UINT64_MAX, sem_acquire, VK_NULL_HANDLE, &swapchain_image_index));
 
 			VkSubmitInfo submit_info { VK_STRUCTURE_TYPE_SUBMIT_INFO };
 			submit_info.waitSemaphoreCount = 1;
@@ -574,7 +579,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 			submit_info.signalSemaphoreCount = 1;
 			submit_info.pSignalSemaphores = &sem_present;
 
-			VKCHECK(vkQueueSubmit(queue, 1, &submit_info, VK_NULL_HANDLE));
+			VK_CHECK(VK_CALL_CMD(vkQueueSubmit, device, queue, 1, &submit_info, VK_NULL_HANDLE));
 
 			VkPresentInfoKHR present_info { VK_STRUCTURE_TYPE_PRESENT_INFO_KHR };
 			present_info.waitSemaphoreCount = 1;
@@ -583,22 +588,24 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 			present_info.pSwapchains = &swapchain;
 			present_info.pImageIndices = &swapchain_image_index;
 
-			VKCHECK(vkQueuePresentKHR(queue, &present_info));
+			VK_CHECK(VK_CALL_CMD(vkQueuePresentKHR, device, queue, &present_info));
 		}
 
 		// Wait for all GPU work to finish before destroying objects
-		vkDeviceWaitIdle(device);
+		VK_CALL_DEV(vkDeviceWaitIdle, device);
 
-		vkDestroySemaphore(device, sem_acquire, nullptr);
-		vkDestroySemaphore(device, sem_present, nullptr);
-		vkFreeCommandBuffers(device, cmd_alloc, uint32_t(cmd_list.size()), cmd_list.data());
-		vkDestroyCommandPool(device, cmd_alloc, nullptr);
-		vkDestroySwapchainKHR(device, swapchain, nullptr);
-		vkDestroySurfaceKHR(instance, surface, nullptr);
-		vkDestroyDevice(device, nullptr);
-		vkDestroyInstance(instance, nullptr);
+		VK_CALL_DEV(vkDestroySemaphore, device, sem_acquire, nullptr);
+		VK_CALL_DEV(vkDestroySemaphore, device, sem_present, nullptr);
+		VK_CALL_DEV(vkFreeCommandBuffers, device, cmd_alloc, uint32_t(cmd_list.size()), cmd_list.data());
+		VK_CALL_DEV(vkDestroyCommandPool, device, cmd_alloc, nullptr);
+		VK_CALL_DEV(vkDestroySwapchainKHR, device, swapchain, nullptr);
+		VK_CALL_INS(vkDestroySurfaceKHR, instance, instance, surface, nullptr);
+		VK_CALL_INS(vkDestroyDevice, instance, device, nullptr);
+		VK_CALL_INS(vkDestroyInstance, instance, instance, nullptr);
 
 		reshade::hooks::uninstall();
+
+		FreeLibrary(vulkan_module);
 
 		return static_cast<int>(msg.wParam);
 	}

@@ -394,8 +394,8 @@
     <ClCompile Include="source\resource_loading.cpp" />
     <ClCompile Include="source\runtime.cpp" />
     <ClCompile Include="source\update_check.cpp" />
-    <ClCompile Include="source\vulkan\vulkan.cpp" />
     <ClCompile Include="source\vulkan\runtime_vulkan.cpp" />
+    <ClCompile Include="source\vulkan\vulkan.cpp" />
     <ClCompile Include="source\windows\user32.cpp" />
     <ClCompile Include="source\windows\ws2_32.cpp" />
   </ItemGroup>
@@ -439,6 +439,7 @@
     <ClInclude Include="source\runtime_objects.hpp" />
     <ClInclude Include="source\vulkan\runtime_vulkan.hpp" />
     <ClInclude Include="source\vulkan\vk_handle.hpp" />
+    <ClInclude Include="source\vulkan\vulkan.hpp" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="res\resource.rc" />

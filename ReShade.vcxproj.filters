@@ -168,10 +168,10 @@
     <ClCompile Include="source\opengl\state_block.cpp">
       <Filter>hooks\opengl</Filter>
     </ClCompile>
-    <ClCompile Include="source\vulkan\vulkan.cpp">
+    <ClCompile Include="source\vulkan\runtime_vulkan.cpp">
       <Filter>hooks\vulkan</Filter>
     </ClCompile>
-    <ClCompile Include="source\vulkan\runtime_vulkan.cpp">
+    <ClCompile Include="source\vulkan\vulkan.cpp">
       <Filter>hooks\vulkan</Filter>
     </ClCompile>
     <ClCompile Include="source\windows\user32.cpp">
@@ -291,6 +291,9 @@
       <Filter>hooks\vulkan</Filter>
     </ClInclude>
     <ClInclude Include="source\vulkan\vk_handle.hpp">
+      <Filter>hooks\vulkan</Filter>
+    </ClInclude>
+    <ClInclude Include="source\vulkan\vulkan.hpp">
       <Filter>hooks\vulkan</Filter>
     </ClInclude>
     <ClInclude Include="res\resource.h">

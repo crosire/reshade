@@ -12,7 +12,10 @@
 	url = https://github.com/skaslev/gl3w.git
 [submodule "utfcpp"]
 	path = deps/utfcpp
-	url = https://github.com/nemtrif/utfcpp
+	url = https://github.com/nemtrif/utfcpp.git
 [submodule "spirv"]
 	path = deps/spirv
-	url = https://github.com/KhronosGroup/SPIRV-Headers/
+	url = https://github.com/KhronosGroup/SPIRV-Headers.git
+[submodule "vulkan"]
+	path = deps/vulkan
+	url = https://github.com/KhronosGroup/Vulkan-Headers.git

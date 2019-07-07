@@ -5,8 +5,8 @@
 
 #pragma once
 
+#include "vulkan.hpp"
 #include <assert.h>
-#include <vulkan/vulkan.h>
 
 template <VkObjectType type>
 struct vk_handle_traits;
@@ -14,31 +14,31 @@ template <>
 struct vk_handle_traits<VK_OBJECT_TYPE_IMAGE>
 {
 	using T = VkImage;
-	static inline void destroy(VkDevice device, T obj) { vkDestroyImage(device, obj, nullptr); }
+	static inline void destroy(VkDevice device, const vk_device_table &table, T obj) { table.vkDestroyImage(device, obj, nullptr); }
 };
 template <>
 struct vk_handle_traits<VK_OBJECT_TYPE_IMAGE_VIEW>
 {
 	using T = VkImageView;
-	static inline void destroy(VkDevice device, T obj) { vkDestroyImageView(device, obj, nullptr); }
+	static inline void destroy(VkDevice device, const vk_device_table &table, T obj) { table.vkDestroyImageView(device, obj, nullptr); }
 };
 template <>
 struct vk_handle_traits<VK_OBJECT_TYPE_BUFFER>
 {
 	using T = VkBuffer;
-	static inline void destroy(VkDevice device, T obj) { vkDestroyBuffer(device, obj, nullptr); }
+	static inline void destroy(VkDevice device, const vk_device_table &table, T obj) { table.vkDestroyBuffer(device, obj, nullptr); }
 };
 template <>
 struct vk_handle_traits<VK_OBJECT_TYPE_SHADER_MODULE>
 {
 	using T = VkShaderModule;
-	static inline void destroy(VkDevice device, T obj) { vkDestroyShaderModule(device, obj, nullptr); }
+	static inline void destroy(VkDevice device, const vk_device_table &table, T obj) { table.vkDestroyShaderModule(device, obj, nullptr); }
 };
 template <>
 struct vk_handle_traits<VK_OBJECT_TYPE_DEVICE_MEMORY>
 {
 	using T = VkDeviceMemory;
-	static inline void destroy(VkDevice device, T obj) { vkFreeMemory(device, obj, nullptr); }
+	static inline void destroy(VkDevice device, const vk_device_table &table, T obj) { table.vkFreeMemory(device, obj, nullptr); }
 };
 
 template <VkObjectType type>
@@ -46,14 +46,14 @@ struct vk_handle
 {
 	using T = typename vk_handle_traits<type>::T;
 
-	explicit vk_handle(VkDevice device)
-		: _object(VK_NULL_HANDLE), _device(device) {}
-	vk_handle(VkDevice device, T object)
-		: _object(object), _device(device) {}
+	vk_handle(VkDevice device, const vk_device_table &table)
+		: _object(VK_NULL_HANDLE), _device(device), _dtable(&table) {}
+	vk_handle(VkDevice device, const vk_device_table &table, T object)
+		: _object(object), _device(device), _dtable(&table) {}
 	vk_handle(const vk_handle &other) = delete;
 	vk_handle(vk_handle &&other) { operator=(other); }
 	~vk_handle() {
-		vk_handle_traits<type>::destroy(_device, _object);
+		vk_handle_traits<type>::destroy(_device, *_dtable, _object);
 	}
 
 	operator T() const { return _object; }
@@ -81,6 +81,7 @@ struct vk_handle
 	{
 		_object = move._object;
 		_device = move._device;
+		_dtable = move._dtable;
 		move._object = VK_NULL_HANDLE;
 		return *this;
 	}
@@ -98,4 +99,5 @@ struct vk_handle
 private:
 	T _object;
 	VkDevice _device;
+	const vk_device_table *_dtable;
 };

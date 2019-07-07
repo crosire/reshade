@@ -417,6 +417,7 @@ EXPORTS
 	vkQueuePresentKHR
 	vkGetDeviceProcAddr
 	vkGetInstanceProcAddr
+	vkEnumeratePhysicalDevices
 
 	; user32.dll
 	RegisterClassA = HookRegisterClassA
