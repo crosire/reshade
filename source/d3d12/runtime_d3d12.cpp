@@ -251,6 +251,7 @@ bool reshade::d3d12::runtime_d3d12::on_init(const DXGI_SWAP_CHAIN_DESC &desc)
 	_window_width = window_rect.right - window_rect.left;
 	_window_height = window_rect.bottom - window_rect.top;
 	_backbuffer_format = desc.BufferDesc.Format;
+	_backbuffer_color_depth = dxgi_format_color_depth(_backbuffer_format);
 
 	// Create multiple command allocators to buffer for multiple frames
 	_cmd_alloc.resize(desc.BufferCount);
