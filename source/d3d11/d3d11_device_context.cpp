@@ -65,8 +65,8 @@ bool D3D11DeviceContext::save_depth_texture(ID3D11DepthStencilView *pDepthStenci
 	texture->GetDesc(&desc);
 
 	// Check if aspect ratio is similar to the back buffer one
-	const float width_factor = desc.Width != runtime->frame_width() ? float(runtime->frame_width()) / desc.Width : 1.0f;
-	const float height_factor = desc.Height != runtime->frame_height() ? float(runtime->frame_height()) / desc.Height : 1.0f;
+	const float width_factor = float(runtime->frame_width()) / float(desc.Width);
+	const float height_factor = float(runtime->frame_height()) / float(desc.Height);
 	const float aspect_ratio = float(runtime->frame_width()) / float(runtime->frame_height());
 	const float texture_aspect_ratio = float(desc.Width) / float(desc.Height);
 
@@ -338,12 +338,11 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::OMSetRenderTargets(UINT NumViews, 
 	track_active_rendertargets(NumViews, ppRenderTargetViews, pDepthStencilView);
 #endif
 
-	if (_device->_runtimes.empty())
-		return;
-
-	const auto runtime = _device->_runtimes.front();
-
-	runtime->on_set_depthstencil_view(pDepthStencilView);
+	if (!_device->_runtimes.empty())
+	{
+		const auto runtime = _device->_runtimes.front();
+		runtime->on_set_depthstencil_view(pDepthStencilView);
+	}
 
 	_orig->OMSetRenderTargets(NumViews, ppRenderTargetViews, pDepthStencilView);
 }
@@ -431,17 +430,17 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::ClearUnorderedAccessViewFloat(ID3D
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::ClearDepthStencilView(ID3D11DepthStencilView *pDepthStencilView, UINT ClearFlags, FLOAT Depth, UINT8 Stencil)
 {
-	if (_device->_runtimes.empty())
-		return;
-
-	const auto runtime = _device->_runtimes.front();
-
-	runtime->on_clear_depthstencil_view(pDepthStencilView);
-
 #if RESHADE_DX11_CAPTURE_DEPTH_BUFFERS
-	if (ClearFlags & D3D11_CLEAR_DEPTH || (runtime->depth_buffer_more_copies && ClearFlags & D3D11_CLEAR_STENCIL))
-		track_cleared_depthstencil(pDepthStencilView);
+	if (!_device->_runtimes.empty())
+	{
+		const auto runtime = _device->_runtimes.front();
+		runtime->on_clear_depthstencil_view(pDepthStencilView);
+
+		if (ClearFlags & D3D11_CLEAR_DEPTH || (runtime->depth_buffer_more_copies && ClearFlags & D3D11_CLEAR_STENCIL))
+			track_cleared_depthstencil(pDepthStencilView);
+	}
 #endif
+
 	_orig->ClearDepthStencilView(pDepthStencilView, ClearFlags, Depth, Stencil);
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::GenerateMips(ID3D11ShaderResourceView *pShaderResourceView)
