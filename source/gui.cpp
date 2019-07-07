@@ -1769,6 +1769,10 @@ void reshade::runtime::draw_overlay_variable_editor()
 		if (current_category_is_closed)
 			continue;
 
+		// Add spacing before variable widget
+		for (int i = 0, spacing = variable.annotation_as_int("ui_spacing"); i < spacing; ++i)
+			ImGui::Spacing();
+
 		bool modified = false;
 		std::string_view label = variable.annotation_as_string("ui_label");
 		if (label.empty()) label = variable.name;
