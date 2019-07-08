@@ -23,14 +23,18 @@ namespace reshade::d3d10
 		bool on_init(const DXGI_SWAP_CHAIN_DESC &desc);
 		void on_reset();
 		void on_present(draw_call_tracker& tracker);
+		void on_set_depthstencil_view(ID3D10DepthStencilView *&depthstencil);
+		void on_get_depthstencil_view(ID3D10DepthStencilView *&depthstencil);
+		void on_clear_depthstencil_view(ID3D10DepthStencilView *&depthstencil);
 
 		void capture_screenshot(uint8_t *buffer) const override;
 
 #if RESHADE_DX10_CAPTURE_DEPTH_BUFFERS
-		com_ptr<ID3D10Texture2D> select_depth_texture_save(D3D10_TEXTURE2D_DESC &texture_desc);
+		com_ptr<ID3D10Texture2D> select_depth_texture_save(D3D10_TEXTURE2D_DESC texture_desc);
 #endif
 
 		bool depth_buffer_before_clear = false;
+		bool depth_buffer_more_copies = false;
 		bool extended_depth_buffer_detection = false;
 		unsigned int cleared_depth_buffer_index = 0;
 		int depth_buffer_texture_format = 0; // No depth buffer texture format filter by default
@@ -89,7 +93,7 @@ namespace reshade::d3d10
 		state_block _app_state;
 		com_ptr<ID3D10Texture2D> _backbuffer, _backbuffer_resolved;
 		com_ptr<ID3D10DepthStencilView> _depthstencil, _depthstencil_replacement;
-		ID3D10DepthStencilView *_best_depth_stencil_overwrite = nullptr;
+		ID3D10DepthStencilView *_best_depthstencil_overwrite = nullptr;
 		com_ptr<ID3D10Texture2D> _depthstencil_texture;
 		com_ptr<ID3D10DepthStencilView> _default_depthstencil;
 		com_ptr<ID3D10VertexShader> _copy_vertex_shader;
