@@ -151,7 +151,7 @@ int main(int argc, char *argv[])
 	else if (print_hlsl)
 		backend.reset(reshadefx::create_codegen_hlsl(shader_model, debug_info, false));
 	else
-		backend.reset(reshadefx::create_codegen_spirv(debug_info, false));
+		backend.reset(reshadefx::create_codegen_spirv(true, debug_info, false));
 
 	if (!parser.parse(pp.output(), backend.get()))
 	{

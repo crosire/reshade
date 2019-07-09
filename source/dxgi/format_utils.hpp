@@ -7,6 +7,26 @@
 
 #include <dxgi.h>
 
+inline UINT dxgi_format_color_depth(DXGI_FORMAT format)
+{
+	switch (format)
+	{
+	default:
+		return 0;
+	case DXGI_FORMAT_R8G8B8A8_TYPELESS:
+	case DXGI_FORMAT_R8G8B8A8_UNORM:
+	case DXGI_FORMAT_R8G8B8A8_UNORM_SRGB:
+	case DXGI_FORMAT_R8G8B8A8_UINT:
+	case DXGI_FORMAT_R8G8B8A8_SNORM:
+	case DXGI_FORMAT_R8G8B8A8_SINT:
+		return 8;
+	case DXGI_FORMAT_R10G10B10A2_TYPELESS:
+	case DXGI_FORMAT_R10G10B10A2_UNORM:
+	case DXGI_FORMAT_R10G10B10A2_UINT:
+		return 10;
+	}
+}
+
 inline DXGI_FORMAT make_dxgi_format_dsv(DXGI_FORMAT format)
 {
 	switch (format)

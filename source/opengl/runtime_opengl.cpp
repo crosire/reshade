@@ -111,13 +111,29 @@ bool reshade::opengl::runtime_opengl::on_init(HWND hwnd, unsigned int width, uns
 	RECT window_rect = {};
 	GetClientRect(hwnd, &window_rect);
 
+	const HDC hdc = GetDC(hwnd);
+	PIXELFORMATDESCRIPTOR pfd = { sizeof(pfd) };
+	DescribePixelFormat(hdc, GetPixelFormat(hdc), sizeof(pfd), &pfd);
+
 	_width = width;
 	_height = height;
 	_window_width = window_rect.right - window_rect.left;
 	_window_height = window_rect.bottom - window_rect.top;
+	_backbuffer_color_depth = pfd.cRedBits;
+
+	GLint depth_format = GL_NONE;
+	switch (pfd.cDepthBits)
+	{
+	case 16: depth_format = GL_DEPTH_COMPONENT16;
+		break;
+	case 24: depth_format = pfd.cStencilBits ? GL_DEPTH24_STENCIL8 : GL_DEPTH_COMPONENT24;
+		break;
+	case 32: depth_format = pfd.cStencilBits ? GL_DEPTH32F_STENCIL8 : GL_DEPTH_COMPONENT32;
+		break;
+	}
 
 	// Initialize information for the default depth buffer
-	_depth_source_table[0] = { _width, _height, 0, GL_DEPTH24_STENCIL8 };
+	_depth_source_table[0] = { _width, _height, 0, depth_format };
 
 	// Capture and later restore so that the resource creation code below does not affect the application state
 	_app_state.capture();
@@ -520,7 +536,7 @@ bool reshade::opengl::runtime_opengl::compile_effect(effect_data &effect)
 #if 0
 	std::vector<GLuint> spec_constants;
 	std::vector<GLuint> spec_constant_values;
-	for (const auto &constant : module.spec_constants)
+	for (const auto &constant : effect.module.spec_constants)
 	{
 		spec_constants.push_back(constant.offset);
 		spec_constant_values.push_back(constant.initializer_value.as_uint[0]);
@@ -538,7 +554,7 @@ bool reshade::opengl::runtime_opengl::compile_effect(effect_data &effect)
 		entry_points[entry_point.first] = shader_id;
 
 #if 0
-		glShaderBinary(1, &shader_id, GL_SHADER_BINARY_FORMAT_SPIR_V, module.spirv.data(), module.spirv.size() * sizeof(uint32_t));
+		glShaderBinary(1, &shader_id, GL_SHADER_BINARY_FORMAT_SPIR_V, effect.module.spirv.data(), effect.module.spirv.size() * sizeof(uint32_t));
 		glSpecializeShader(shader_id, entry_point.first.c_str(), GLuint(spec_constants.size()), spec_constants.data(), spec_constant_values.data());
 #else
 		std::string defines = effect.preamble;

@@ -268,6 +268,7 @@ bool reshade::d3d12::runtime_d3d12::on_init(const DXGI_SWAP_CHAIN_DESC &desc)
 	_window_height = window_rect.bottom - window_rect.top;
 	_backbuffer_format = desc.BufferDesc.Format;
 	_is_multisampling_enabled = desc.SampleDesc.Count > 1;
+	_backbuffer_color_depth = dxgi_format_color_depth(_backbuffer_format);
 	_srv_handle_size = _device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 	_rtv_handle_size = _device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 	_dsv_handle_size = _device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
@@ -429,7 +430,7 @@ void reshade::d3d12::runtime_d3d12::capture_screenshot(uint8_t *buffer) const
 		return;
 
 	transition_state(cmd_list, _backbuffers[_swap_index], D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_COPY_SOURCE, 0);
-	{ // Copy data from upload buffer into target texture
+	{
 		D3D12_TEXTURE_COPY_LOCATION src_location = { _backbuffers[_swap_index].get() };
 		src_location.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
 		src_location.SubresourceIndex = 0;
@@ -589,6 +590,7 @@ bool reshade::d3d12::runtime_d3d12::init_texture(texture &info)
 }
 void reshade::d3d12::runtime_d3d12::upload_texture(texture &texture, const uint8_t *pixels)
 {
+	assert(pixels != nullptr);
 	assert(texture.impl_reference == texture_reference::none);
 
 	const uint32_t data_pitch = texture.width * 4;
@@ -644,8 +646,6 @@ void reshade::d3d12::runtime_d3d12::upload_texture(texture &texture, const uint8
 	intermediate->Unmap(0, nullptr);
 
 	const auto texture_impl = texture.impl->as<d3d12_tex_data>();
-
-	assert(pixels != nullptr);
 	assert(texture_impl != nullptr);
 
 	const com_ptr<ID3D12GraphicsCommandList> cmd_list = create_command_list();
@@ -865,8 +865,6 @@ bool reshade::d3d12::runtime_d3d12::compile_effect(effect_data &effect)
 		effect_data.sampler_gpu_base = effect_data.sampler_heap->GetGPUDescriptorHandleForHeapStart();
 	}
 
-	bool success = true;
-
 	for (const reshadefx::sampler_info &info : effect.module.samplers)
 	{
 		if (info.binding >= D3D12_COMMONSHADER_SAMPLER_SLOT_COUNT)
@@ -941,9 +939,11 @@ bool reshade::d3d12::runtime_d3d12::compile_effect(effect_data &effect)
 		}
 	}
 
+	bool success = true;
+
 	for (technique &technique : _techniques)
 		if (technique.impl == nullptr && technique.effect_index == effect.index)
-			success &= init_technique(technique, effect_data, entry_points);
+			success &= init_technique(technique, entry_points);
 
 	return success;
 }
@@ -957,9 +957,11 @@ void reshade::d3d12::runtime_d3d12::unload_effects()
 	_effect_data.clear();
 }
 
-bool reshade::d3d12::runtime_d3d12::init_technique(technique &technique, const d3d12_effect_data &effect_data, const std::unordered_map<std::string, com_ptr<ID3DBlob>> &entry_points)
+bool reshade::d3d12::runtime_d3d12::init_technique(technique &technique, const std::unordered_map<std::string, com_ptr<ID3DBlob>> &entry_points)
 {
 	technique.impl = std::make_unique<d3d12_technique_data>();
+
+	const d3d12_effect_data &effect_data = _effect_data[technique.effect_index];
 
 	for (size_t pass_index = 0; pass_index < technique.passes.size(); ++pass_index)
 	{

@@ -83,6 +83,7 @@
     <Import Project="deps\ImGui.props" />
     <Import Project="deps\utfcpp.props" />
     <Import Project="deps\SPIRV.props" />
+    <Import Project="deps\Vulkan.props" />
   </ImportGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -395,6 +396,8 @@
     <ClCompile Include="source\resource_loading.cpp" />
     <ClCompile Include="source\runtime.cpp" />
     <ClCompile Include="source\update_check.cpp" />
+    <ClCompile Include="source\vulkan\runtime_vulkan.cpp" />
+    <ClCompile Include="source\vulkan\vulkan.cpp" />
     <ClCompile Include="source\windows\user32.cpp" />
     <ClCompile Include="source\windows\ws2_32.cpp" />
   </ItemGroup>
@@ -438,6 +441,9 @@
     <ClInclude Include="source\resource_loading.hpp" />
     <ClInclude Include="source\runtime.hpp" />
     <ClInclude Include="source\runtime_objects.hpp" />
+    <ClInclude Include="source\vulkan\runtime_vulkan.hpp" />
+    <ClInclude Include="source\vulkan\vk_handle.hpp" />
+    <ClInclude Include="source\vulkan\vulkan.hpp" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="res\resource.rc" />
@@ -448,7 +454,9 @@
     <None Include="res\shader_copy_ps.cso" />
     <None Include="res\shader_fullscreen_vs.cso" />
     <None Include="res\shader_imgui_ps.cso" />
+    <None Include="res\shader_imgui_ps.spv" />
     <None Include="res\shader_imgui_vs.cso" />
+    <None Include="res\shader_imgui_vs.spv" />
     <None Include="res\shader_mipmap_cs.cso" />
   </ItemGroup>
   <ItemGroup>
@@ -468,6 +476,18 @@
       <ShaderType>Compute</ShaderType>
       <ShaderModel>5.0</ShaderModel>
     </FxCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="res\shader_imgui_ps.glsl">
+      <FileType>Document</FileType>
+      <Command>glslangValidator.exe -V -S frag res\shader_imgui_ps.glsl -o res\shader_imgui_ps.spv</Command>
+      <Outputs>res\shader_imgui_ps.spv</Outputs>
+    </CustomBuild>
+    <CustomBuild Include="res\shader_imgui_vs.glsl">
+      <FileType>Document</FileType>
+      <Command>glslangValidator.exe -V -S vert res\shader_imgui_vs.glsl -o res\shader_imgui_vs.spv</Command>
+      <Outputs>res\shader_imgui_vs.spv</Outputs>
+    </CustomBuild>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
 </Project>

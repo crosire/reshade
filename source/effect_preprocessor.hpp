@@ -8,6 +8,7 @@
 #include <stack>
 #include <vector>
 #include <unordered_map>
+#include <unordered_set>
 #include <memory>
 #include <filesystem>
 #include "effect_lexer.hpp"
@@ -85,6 +86,7 @@ namespace reshadefx
 			std::unique_ptr<lexer> lexer;
 			token next_token;
 			std::stack<if_level> if_stack;
+			std::unordered_set<std::string> hidden_macros;
 			input_level *parent;
 		};
 

@@ -48,11 +48,13 @@ bool D3D10Device::save_depth_texture(ID3D10DepthStencilView *pDepthStencilView, 
 	texture->GetDesc(&desc);
 
 	// Check if aspect ratio is similar to the back buffer one
-	const float screen_aspect_ratio = float(runtime->frame_width()) / float(runtime->frame_height());
+	const float width_factor = float(runtime->frame_width()) / float(desc.Width);
+	const float height_factor = float(runtime->frame_height()) / float(desc.Height);
+	const float aspect_ratio = float(runtime->frame_width()) / float(runtime->frame_height());
 	const float texture_aspect_ratio = float(desc.Width) / float(desc.Height);
 
-	if (fabs(texture_aspect_ratio - screen_aspect_ratio) > 0.1f || desc.Width > runtime->frame_width())
-		return false;
+	if (fabs(texture_aspect_ratio - aspect_ratio) > 0.1f || width_factor > 2.0f || height_factor > 2.0f || width_factor < 0.5f || height_factor < 0.5f)
+		return false; // No match, not a good fit
 
 	// In case the depth texture is retrieved, we make a copy of it and store it in an ordered map to use it later in the final rendering stage.
 	if ((runtime->cleared_depth_buffer_index == 0 && cleared) || (_clear_DSV_iter <= runtime->cleared_depth_buffer_index))
@@ -246,6 +248,13 @@ void    STDMETHODCALLTYPE D3D10Device::OMSetRenderTargets(UINT NumViews, ID3D10R
 #if RESHADE_DX10_CAPTURE_DEPTH_BUFFERS
 	track_active_rendertargets(NumViews, ppRenderTargetViews, pDepthStencilView);
 #endif
+
+	if (!_runtimes.empty())
+	{
+		const auto runtime = _runtimes.front();
+		runtime->on_set_depthstencil_view(pDepthStencilView);
+	}
+
 	_orig->OMSetRenderTargets(NumViews, ppRenderTargetViews, pDepthStencilView);
 }
 void    STDMETHODCALLTYPE D3D10Device::OMSetBlendState(ID3D10BlendState *pBlendState, const FLOAT BlendFactor[4], UINT SampleMask)
@@ -296,9 +305,16 @@ void    STDMETHODCALLTYPE D3D10Device::ClearRenderTargetView(ID3D10RenderTargetV
 void    STDMETHODCALLTYPE D3D10Device::ClearDepthStencilView(ID3D10DepthStencilView *pDepthStencilView, UINT ClearFlags, FLOAT Depth, UINT8 Stencil)
 {
 #if RESHADE_DX10_CAPTURE_DEPTH_BUFFERS
-	if (ClearFlags & D3D10_CLEAR_DEPTH)
-		track_cleared_depthstencil(pDepthStencilView);
+	if (!_runtimes.empty())
+	{
+		const auto runtime = _runtimes.front();
+		runtime->on_clear_depthstencil_view(pDepthStencilView);
+
+		if (ClearFlags & D3D10_CLEAR_DEPTH || (runtime->depth_buffer_more_copies && ClearFlags & D3D10_CLEAR_STENCIL))
+			track_cleared_depthstencil(pDepthStencilView);
+	}
 #endif
+
 	_orig->ClearDepthStencilView(pDepthStencilView, ClearFlags, Depth, Stencil);
 }
 void    STDMETHODCALLTYPE D3D10Device::GenerateMips(ID3D10ShaderResourceView *pShaderResourceView)
@@ -380,6 +396,14 @@ void    STDMETHODCALLTYPE D3D10Device::GSGetSamplers(UINT StartSlot, UINT NumSam
 void    STDMETHODCALLTYPE D3D10Device::OMGetRenderTargets(UINT NumViews, ID3D10RenderTargetView **ppRenderTargetViews, ID3D10DepthStencilView **ppDepthStencilView)
 {
 	_orig->OMGetRenderTargets(NumViews, ppRenderTargetViews, ppDepthStencilView);
+
+	if (_runtimes.empty())
+		return;
+
+	const auto runtime = _runtimes.front();
+
+	if (ppDepthStencilView != nullptr)
+		runtime->on_get_depthstencil_view(*ppDepthStencilView);
 }
 void    STDMETHODCALLTYPE D3D10Device::OMGetBlendState(ID3D10BlendState **ppBlendState, FLOAT BlendFactor[4], UINT *pSampleMask)
 {

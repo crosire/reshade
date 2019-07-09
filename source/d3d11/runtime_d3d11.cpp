@@ -70,12 +70,14 @@ reshade::d3d11::runtime_d3d11::runtime_d3d11(ID3D11Device *device, IDXGISwapChai
 	subscribe_to_load_config([this](const ini_file &config) {
 		config.get("DX11_BUFFER_DETECTION", "DepthBufferRetrievalMode", depth_buffer_before_clear);
 		config.get("DX11_BUFFER_DETECTION", "DepthBufferTextureFormat", depth_buffer_texture_format);
+		config.get("DX11_BUFFER_DETECTION", "DepthBufferMoreCopies", depth_buffer_more_copies);
 		config.get("DX11_BUFFER_DETECTION", "ExtendedDepthBufferDetection", extended_depth_buffer_detection);
 		config.get("DX11_BUFFER_DETECTION", "DepthBufferClearingNumber", cleared_depth_buffer_index);
 	});
 	subscribe_to_save_config([this](ini_file &config) {
 		config.set("DX11_BUFFER_DETECTION", "DepthBufferRetrievalMode", depth_buffer_before_clear);
 		config.set("DX11_BUFFER_DETECTION", "DepthBufferTextureFormat", depth_buffer_texture_format);
+		config.set("DX11_BUFFER_DETECTION", "DepthBufferMoreCopies", depth_buffer_more_copies);
 		config.set("DX11_BUFFER_DETECTION", "ExtendedDepthBufferDetection", extended_depth_buffer_detection);
 		config.set("DX11_BUFFER_DETECTION", "DepthBufferClearingNumber", cleared_depth_buffer_index);
 	});
@@ -244,6 +246,7 @@ bool reshade::d3d11::runtime_d3d11::on_init(const DXGI_SWAP_CHAIN_DESC &desc)
 	_window_width = window_rect.right - window_rect.left;
 	_window_height = window_rect.bottom - window_rect.top;
 	_backbuffer_format = desc.BufferDesc.Format;
+	_backbuffer_color_depth = dxgi_format_color_depth(_backbuffer_format);
 	_is_multisampling_enabled = desc.SampleDesc.Count > 1;
 
 	if (!init_backbuffer_texture() ||
@@ -321,6 +324,10 @@ void reshade::d3d11::runtime_d3d11::on_present(draw_call_tracker &tracker)
 	if (_backbuffer_resolved != _backbuffer)
 		_immediate_context->ResolveSubresource(_backbuffer_resolved.get(), 0, _backbuffer.get(), 0, _backbuffer_format);
 
+	// Setup real back buffer
+	auto rtv = _backbuffer_rtv[0].get();
+	_immediate_context->OMSetRenderTargets(1, &rtv, nullptr);
+
 	update_and_render_effects();
 	runtime::on_present();
 
@@ -355,6 +362,31 @@ void reshade::d3d11::runtime_d3d11::on_present(draw_call_tracker &tracker)
 
 	// Apply previous state from application
 	_app_state.apply_and_release();
+}
+void reshade::d3d11::runtime_d3d11::on_set_depthstencil_view(ID3D11DepthStencilView *&depthstencil)
+{
+	if (_depthstencil_replacement != nullptr && depthstencil == _depthstencil)
+	{
+		depthstencil = _depthstencil_replacement.get();
+	}
+}
+void reshade::d3d11::runtime_d3d11::on_get_depthstencil_view(ID3D11DepthStencilView *&depthstencil)
+{
+	if (_depthstencil_replacement != nullptr && depthstencil == _depthstencil_replacement)
+	{
+		depthstencil->Release();
+
+		depthstencil = _depthstencil.get();
+
+		depthstencil->AddRef();
+	}
+}
+void reshade::d3d11::runtime_d3d11::on_clear_depthstencil_view(ID3D11DepthStencilView *&depthstencil)
+{
+	if (_depthstencil_replacement != nullptr && depthstencil == _depthstencil)
+	{
+		depthstencil = _depthstencil_replacement.get();
+	}
 }
 
 void reshade::d3d11::runtime_d3d11::capture_screenshot(uint8_t *buffer) const
@@ -1336,6 +1368,9 @@ void reshade::d3d11::runtime_d3d11::draw_debug_menu()
 	{
 		bool modified = false;
 		modified |= ImGui::Combo("Depth Texture Format", &depth_buffer_texture_format, "All\0D16\0D32F\0D24S8\0D32FS8\0");
+		
+		ImGui::Spacing();
+		modified |= ImGui::Checkbox("Copy depth buffer just before it is cleared", &depth_buffer_before_clear);
 
 		if (modified)
 		{
@@ -1344,11 +1379,21 @@ void reshade::d3d11::runtime_d3d11::draw_debug_menu()
 			create_depthstencil_replacement(nullptr, nullptr);
 			return;
 		}
-
-		modified |= ImGui::Checkbox("Copy depth before clearing", &depth_buffer_before_clear);
-
+		
 		if (depth_buffer_before_clear)
 		{
+			ImGui::Spacing();
+			ImGui::Spacing();
+
+			if (ImGui::Checkbox("Make more copies (can help if not retrieving the depth buffer in the current copies)", &depth_buffer_more_copies))
+			{
+				cleared_depth_buffer_index = 0;
+				modified = true;
+			}
+
+			ImGui::Spacing();
+			ImGui::Spacing();
+
 			if (ImGui::Checkbox("Extended depth buffer detection", &extended_depth_buffer_detection))
 			{
 				cleared_depth_buffer_index = 0;
@@ -1397,21 +1442,21 @@ void reshade::d3d11::runtime_d3d11::draw_debug_menu()
 				char label[512] = "";
 				sprintf_s(label, "%s0x%p", (depthstencil == _depthstencil ? "> " : "  "), depthstencil.get());
 
-				if (bool value = _best_depth_stencil_overwrite == depthstencil; ImGui::Checkbox(label, &value))
+				if (bool value = _best_depthstencil_overwrite == depthstencil; ImGui::Checkbox(label, &value))
 				{
-					_best_depth_stencil_overwrite = value ? depthstencil.get() : nullptr;
+					_best_depthstencil_overwrite = value ? depthstencil.get() : nullptr;
 
 					com_ptr<ID3D11Texture2D> texture = snapshot.texture;
 
-					if (texture == nullptr && _best_depth_stencil_overwrite != nullptr)
+					if (texture == nullptr && _best_depthstencil_overwrite != nullptr)
 					{
 						com_ptr<ID3D11Resource> resource;
-						_best_depth_stencil_overwrite->GetResource(&resource);
+						_best_depthstencil_overwrite->GetResource(&resource);
 
 						resource->QueryInterface(&texture);
 					}
 
-					create_depthstencil_replacement(_best_depth_stencil_overwrite, texture.get());
+					create_depthstencil_replacement(_best_depthstencil_overwrite, texture.get());
 				}
 
 				ImGui::SameLine();
@@ -1466,9 +1511,9 @@ void reshade::d3d11::runtime_d3d11::draw_debug_menu()
 void reshade::d3d11::runtime_d3d11::detect_depth_source(draw_call_tracker &tracker)
 {
 	if (depth_buffer_before_clear)
-		_best_depth_stencil_overwrite = nullptr;
+		_best_depthstencil_overwrite = nullptr;
 
-	if (_is_multisampling_enabled || _best_depth_stencil_overwrite != nullptr || (_framecount % 30 && !depth_buffer_before_clear))
+	if (_is_multisampling_enabled || _best_depthstencil_overwrite != nullptr || (_framecount % 30 && !depth_buffer_before_clear))
 		return;
 
 	if (_has_high_network_activity)
@@ -1485,11 +1530,12 @@ void reshade::d3d11::runtime_d3d11::detect_depth_source(draw_call_tracker &track
 		// For the moment, the best we can do is retrieve all the depth textures that has been cleared in the rendering pipeline, then select one of them (by default, the last one)
 		// In the future, maybe we could find a way to retrieve depth texture statistics (number of draw calls and number of vertices), so ReShade could automatically select the best one
 		ID3D11Texture2D *const best_match_texture = tracker.find_best_cleared_depth_buffer_texture(cleared_depth_buffer_index);
+		_best_depthstencil_overwrite = nullptr;
 		if (best_match_texture != nullptr)
 			create_depthstencil_replacement(_default_depthstencil.get(), best_match_texture);
 		return;
 	}
-
+	
 	const auto best_snapshot = tracker.find_best_snapshot(_width, _height);
 	if (best_snapshot.depthstencil != nullptr)
 		create_depthstencil_replacement(best_snapshot.depthstencil, best_snapshot.texture.get());
@@ -1497,6 +1543,9 @@ void reshade::d3d11::runtime_d3d11::detect_depth_source(draw_call_tracker &track
 
 bool reshade::d3d11::runtime_d3d11::create_depthstencil_replacement(ID3D11DepthStencilView *depthstencil, ID3D11Texture2D *texture)
 {
+	if (!depth_buffer_before_clear && depthstencil == _depthstencil)
+		return false;
+
 	_depthstencil.reset();
 	_depthstencil_replacement.reset();
 	_depthstencil_texture.reset();
@@ -1562,7 +1611,7 @@ bool reshade::d3d11::runtime_d3d11::create_depthstencil_replacement(ID3D11DepthS
 	return true;
 }
 
-com_ptr<ID3D11Texture2D> reshade::d3d11::runtime_d3d11::select_depth_texture_save(D3D11_TEXTURE2D_DESC &texture_desc)
+com_ptr<ID3D11Texture2D> reshade::d3d11::runtime_d3d11::select_depth_texture_save(D3D11_TEXTURE2D_DESC texture_desc)
 {
 	// Function that selects the appropriate texture where we want to save the depth texture before it is cleared
 	// If this texture is null, create it according to the dimensions and the format of the depth texture

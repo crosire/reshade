@@ -705,10 +705,10 @@ void reshade::runtime::draw_overlay_menu_home()
 				std::stable_sort(it, _techniques.end(), [](const reshade::technique &lhs, const reshade::technique &rhs) {
 						std::string lhs_label(lhs.annotation_as_string("ui_label"));
 						if (lhs_label.empty()) lhs_label = lhs.name;
-						std::transform(lhs_label.begin(), lhs_label.end(), lhs_label.begin(), tolower);
+						std::transform(lhs_label.begin(), lhs_label.end(), lhs_label.begin(), [](char c) { return static_cast<char>(toupper(c)); });
 						std::string rhs_label(rhs.annotation_as_string("ui_label"));
 						if (rhs_label.empty()) rhs_label = rhs.name;
-						std::transform(rhs_label.begin(), rhs_label.end(), rhs_label.begin(), tolower);
+						std::transform(rhs_label.begin(), rhs_label.end(), rhs_label.begin(), [](char c) { return static_cast<char>(toupper(c)); });
 						return lhs_label < rhs_label;
 					});
 			}
@@ -866,6 +866,7 @@ void reshade::runtime::draw_overlay_menu_settings()
 		modified |= imgui_directory_input_box("Screenshot Path", _screenshot_path, _file_selection_path);
 		modified |= ImGui::Combo("Screenshot Format", &_screenshot_format, "Bitmap (*.bmp)\0Portable Network Graphics (*.png)\0");
 		modified |= ImGui::Checkbox("Include Current Preset", &_screenshot_include_preset);
+		modified |= ImGui::Checkbox("Save Before and After", &_screenshot_save_before);
 	}
 
 	if (ImGui::CollapsingHeader("User Interface", ImGuiTreeNodeFlags_DefaultOpen))
@@ -1768,6 +1769,10 @@ void reshade::runtime::draw_overlay_variable_editor()
 		if (current_category_is_closed)
 			continue;
 
+		// Add spacing before variable widget
+		for (int i = 0, spacing = variable.annotation_as_int("ui_spacing"); i < spacing; ++i)
+			ImGui::Spacing();
+
 		bool modified = false;
 		std::string_view label = variable.annotation_as_string("ui_label");
 		if (label.empty()) label = variable.name;
@@ -2168,7 +2173,7 @@ void reshade::runtime::draw_preset_explorer()
 			for (const auto &entry : preset_container)
 				if (!entry.is_directory())
 					if (const std::wstring extension(entry.path().extension()); extension == L".ini" || extension == L".txt")
-						if (const reshade::ini_file preset(entry); preset.has("", "TechniqueSorting"))
+						if (const reshade::ini_file preset(entry); preset.has("", "Techniques"))
 							preset_paths.push_back(entry);
 
 			if (preset_paths.begin() == preset_paths.end())
@@ -2247,7 +2252,7 @@ void reshade::runtime::draw_preset_explorer()
 	}
 
 	if (condition == condition::select)
-		if (const reshade::ini_file preset(reshade_container_path / _current_browse_path); !preset.has("", "TechniqueSorting"))
+		if (const reshade::ini_file preset(reshade_container_path / _current_browse_path); !preset.has("", "Techniques"))
 			condition = condition::pass;
 
 	if (condition == condition::popup_add)
@@ -2274,7 +2279,7 @@ void reshade::runtime::draw_preset_explorer()
 					condition = condition::pass;
 				else if (file_type == std::filesystem::file_type::not_found)
 					condition = condition::create;
-				else if (const reshade::ini_file preset(reshade_container_path / _current_browse_path / input_preset_path); preset.has("", "TechniqueSorting"))
+				else if (const reshade::ini_file preset(reshade_container_path / _current_browse_path / input_preset_path); preset.has("", "Techniques"))
 					condition = condition::select;
 				else
 					condition = condition::pass;

@@ -5,7 +5,7 @@ This is a generic post-processing injector for games and video software. It expo
 
 ## Building
 
-You'll need both Git and Visual Studio 2017 or higher to build ReShade. Latter is required since the project makes use of several C++14 and C++17 features. Additionally a Python 2.7.9 or later (Python 3 is supported as well) installation is necessary for the `gl3w` dependency to build.
+You'll need Visual Studio 2017 or higher to build ReShade and a Python 2.7.9 or later installation (Python 3 is supported as well) for the `gl3w` dependency.
 
 1. Clone this repository including all Git submodules
 2. Open the Visual Studio solution

@@ -34,6 +34,9 @@
     <Filter Include="hooks\opengl">
       <UniqueIdentifier>{78832e2a-8fda-4ae5-aecb-a4e0f5a0df02}</UniqueIdentifier>
     </Filter>
+    <Filter Include="hooks\vulkan">
+      <UniqueIdentifier>{40ae025e-f912-4ebf-9a43-69d7c1a96d3e}</UniqueIdentifier>
+    </Filter>
     <Filter Include="hooks\windows">
       <UniqueIdentifier>{ab5a23b3-e97e-4a41-99a1-89c6f1d54b16}</UniqueIdentifier>
     </Filter>
@@ -165,6 +168,12 @@
     <ClCompile Include="source\opengl\state_block.cpp">
       <Filter>hooks\opengl</Filter>
     </ClCompile>
+    <ClCompile Include="source\vulkan\runtime_vulkan.cpp">
+      <Filter>hooks\vulkan</Filter>
+    </ClCompile>
+    <ClCompile Include="source\vulkan\vulkan.cpp">
+      <Filter>hooks\vulkan</Filter>
+    </ClCompile>
     <ClCompile Include="source\windows\user32.cpp">
       <Filter>hooks\windows</Filter>
     </ClCompile>
@@ -287,6 +296,15 @@
     <ClInclude Include="source\opengl\state_block.hpp">
       <Filter>hooks\opengl</Filter>
     </ClInclude>
+    <ClInclude Include="source\vulkan\runtime_vulkan.hpp">
+      <Filter>hooks\vulkan</Filter>
+    </ClInclude>
+    <ClInclude Include="source\vulkan\vk_handle.hpp">
+      <Filter>hooks\vulkan</Filter>
+    </ClInclude>
+    <ClInclude Include="source\vulkan\vulkan.hpp">
+      <Filter>hooks\vulkan</Filter>
+    </ClInclude>
     <ClInclude Include="res\resource.h">
       <Filter>resources</Filter>
     </ClInclude>
@@ -316,7 +334,13 @@
     <None Include="res\shader_imgui_ps.cso">
       <Filter>resources</Filter>
     </None>
+    <None Include="res\shader_imgui_ps.spv">
+      <Filter>resources</Filter>
+    </None>
     <None Include="res\shader_imgui_vs.cso">
+      <Filter>resources</Filter>
+    </None>
+    <None Include="res\shader_imgui_vs.spv">
       <Filter>resources</Filter>
     </None>
     <None Include="res\shader_mipmap_cs.cso">
@@ -339,6 +363,14 @@
     <FxCompile Include="res\shader_mipmap_cs.hlsl">
       <Filter>resources</Filter>
     </FxCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="res\shader_imgui_vs.glsl">
+      <Filter>resources</Filter>
+    </CustomBuild>
+    <CustomBuild Include="res\shader_imgui_ps.glsl">
+      <Filter>resources</Filter>
+    </CustomBuild>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="res\resource.rc">

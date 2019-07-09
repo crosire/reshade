@@ -168,7 +168,7 @@ void reshade::runtime::on_present()
 			_effects_enabled = !_effects_enabled;
 
 		if (_input->is_key_pressed(_screenshot_key_data))
-			save_screenshot();
+			_should_save_screenshot = true;
 	}
 
 #if RESHADE_GUI
@@ -228,6 +228,7 @@ void reshade::runtime::load_effect(const std::filesystem::path &path, size_t &ou
 		pp.add_macro_definition("BUFFER_HEIGHT", std::to_string(_height));
 		pp.add_macro_definition("BUFFER_RCP_WIDTH", "(1.0 / BUFFER_WIDTH)");
 		pp.add_macro_definition("BUFFER_RCP_HEIGHT", "(1.0 / BUFFER_HEIGHT)");
+		pp.add_macro_definition("BUFFER_COLOR_DEPTH", std::to_string(_backbuffer_color_depth));
 
 		std::vector<std::string> preprocessor_definitions = _global_preprocessor_definitions;
 		preprocessor_definitions.insert(preprocessor_definitions.end(), _preset_preprocessor_definitions.begin(), _preset_preprocessor_definitions.end());
@@ -270,7 +271,7 @@ void reshade::runtime::load_effect(const std::filesystem::path &path, size_t &ou
 		else if (_renderer_id < 0x20000)
 			codegen.reset(reshadefx::create_codegen_glsl(true, _performance_mode));
 		else // Vulkan uses SPIR-V input
-			codegen.reset(reshadefx::create_codegen_spirv(true, _performance_mode));
+			codegen.reset(reshadefx::create_codegen_spirv(true, true, _performance_mode));
 
 		reshadefx::parser parser;
 
@@ -653,9 +654,15 @@ void reshade::runtime::update_and_render_effects()
 	// TODO: This does not catch input happening between now and 'on_present'
 	const auto input_lock = _input->lock();
 
+	if (_should_save_screenshot && (_screenshot_save_before || !_effects_enabled))
+		save_screenshot(_effects_enabled ? L"-original" : std::wstring(), !_effects_enabled);
+
 	// Nothing to do here if effects are disabled globally
 	if (!_effects_enabled)
+	{
+		_should_save_screenshot = false;
 		return;
+	}
 
 	// Update special uniform variables
 	for (uniform &variable : _uniforms)
@@ -773,6 +780,12 @@ void reshade::runtime::update_and_render_effects()
 		const auto time_technique_finished = std::chrono::high_resolution_clock::now();
 		technique.average_cpu_duration.append(std::chrono::duration_cast<std::chrono::nanoseconds>(time_technique_finished - time_technique_started).count());
 	}
+
+	if (_should_save_screenshot)
+	{
+		save_screenshot(std::wstring(), true);
+		_should_save_screenshot = false;
+	}
 }
 
 void reshade::runtime::enable_technique(technique &technique)
@@ -840,6 +853,7 @@ void reshade::runtime::load_config()
 	config.get("GENERAL", "ScreenshotPath", _screenshot_path);
 	config.get("GENERAL", "ScreenshotFormat", _screenshot_format);
 	config.get("GENERAL", "ScreenshotIncludePreset", _screenshot_include_preset);
+	config.get("GENERAL", "ScreenshotSaveBefore", _screenshot_save_before);
 	config.get("GENERAL", "NoReloadOnInit", _no_reload_on_init);
 
 	if (current_preset_path.empty())
@@ -878,6 +892,7 @@ void reshade::runtime::save_config(const std::filesystem::path &path) const
 	config.set("GENERAL", "ScreenshotPath", _screenshot_path);
 	config.set("GENERAL", "ScreenshotFormat", _screenshot_format);
 	config.set("GENERAL", "ScreenshotIncludePreset", _screenshot_include_preset);
+	config.set("GENERAL", "ScreenshotSaveBefore", _screenshot_save_before);
 	config.set("GENERAL", "NoReloadOnInit", _no_reload_on_init);
 
 	for (const auto &callback : _save_config_callables)
@@ -1022,7 +1037,7 @@ void reshade::runtime::save_current_preset() const
 	save_preset(_current_preset_path);
 }
 
-void reshade::runtime::save_screenshot()
+void reshade::runtime::save_screenshot(const std::wstring &postfix, const bool should_save_preset)
 {
 	std::vector<uint8_t> data(_width * _height * 4);
 	capture_screenshot(data.data());
@@ -1035,7 +1050,7 @@ void reshade::runtime::save_screenshot()
 	sprintf_s(filename, " %.4d-%.2d-%.2d %.2d-%.2d-%.2d", _date[0], _date[1], _date[2], hour, minute, seconds);
 
 	const std::wstring least = (_screenshot_path.is_relative() ? g_target_executable_path.parent_path() / _screenshot_path : _screenshot_path) / g_target_executable_path.stem().concat(filename);
-	const std::wstring screenshot_path = least + (_screenshot_format == 0 ? L".bmp" : L".png");
+	const std::wstring screenshot_path = least + postfix + (_screenshot_format == 0 ? L".bmp" : L".png");
 
 	LOG(INFO) << "Saving screenshot to " << screenshot_path << " ...";
 
@@ -1067,7 +1082,7 @@ void reshade::runtime::save_screenshot()
 	{
 		LOG(ERROR) << "Failed to write screenshot to " << screenshot_path << '!';
 	}
-	else if (_screenshot_include_preset)
+	else if (_screenshot_include_preset && should_save_preset)
 	{
 		save_preset(least + L".ini");
 	}
@@ -1262,7 +1277,7 @@ void reshade::runtime::set_current_preset(std::filesystem::path path)
 		if (const std::wstring extension(path.extension()); extension == L".ini" || extension == L".txt")
 			if (!std::filesystem::exists(reshade_container_path / path, ec))
 				path_state = path_state::valid;
-			else if (const reshade::ini_file preset(reshade_container_path / path); preset.has("", "TechniqueSorting"))
+			else if (const reshade::ini_file preset(reshade_container_path / path); preset.has("", "Techniques"))
 				path_state = path_state::valid;
 
 	// Select a default preset file if none exists yet or not own
