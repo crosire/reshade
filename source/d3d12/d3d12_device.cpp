@@ -32,6 +32,8 @@ void D3D12Device::add_commandlist_trackers(ID3D12CommandList *command_list, resh
 		_trackers_per_commandlist.emplace(command_list, tracker_source);
 	else
 		it->second.merge(tracker_source);
+
+	tracker_source.reset();
 }
 void D3D12Device::merge_commandlist_trackers(ID3D12CommandList* command_list, reshade::d3d12::draw_call_tracker &tracker_destination)
 {
@@ -74,8 +76,8 @@ bool D3D12Device::save_depth_texture(ID3D12GraphicsCommandList *pcmdList, D3D12_
 		return hr;
 
 	// Check if aspect ratio is similar to the back buffer one
-	const float width_factor = desc.Width != runtime->frame_width() ? float(runtime->frame_width()) / desc.Width : 1.0f;
-	const float height_factor = desc.Height != runtime->frame_height() ? float(runtime->frame_height()) / desc.Height : 1.0f;
+	const float width_factor = float(runtime->frame_width()) / float(desc.Width);
+	const float height_factor = float(runtime->frame_height()) / float(desc.Height);
 	const float aspect_ratio = float(runtime->frame_width()) / float(runtime->frame_height());
 	const float texture_aspect_ratio = float(desc.Width) / float(desc.Height);
 
@@ -92,9 +94,7 @@ bool D3D12Device::save_depth_texture(ID3D12GraphicsCommandList *pcmdList, D3D12_
 
 		// Copy the depth texture. This is necessary because the content of the depth texture is cleared.
 		// This way, we can retrieve this content in the final rendering stage
-		// pcmdList->CopyResource(depth_texture_save.get(), depthstencil.get());
-		depth_texture_save.reset();
-		depth_texture_save = depthstencil;
+		runtime->copy_depth_stencil(depthstencil, depth_texture_save);
 
 		// Store the saved texture in the ordered map.
 		_draw_call_tracker.track_depth_texture(runtime->depth_buffer_texture_format, runtime->clear_DSV_iter, depthstencil.get(), depthstencil.get(), depth_texture_save, cleared);
@@ -106,7 +106,6 @@ bool D3D12Device::save_depth_texture(ID3D12GraphicsCommandList *pcmdList, D3D12_
 		_draw_call_tracker.track_depth_texture(runtime->depth_buffer_texture_format, runtime->clear_DSV_iter, depthstencil.get(), depthstencil.get(), nullptr, cleared);
 	}
 
-	const std::lock_guard<std::mutex> lock(_clear_DSV_iter_mutex);
 	runtime->clear_DSV_iter++;
 	return true;
 }
@@ -118,12 +117,12 @@ void D3D12Device::track_active_rendertargets(ID3D12GraphicsCommandList *pcmdList
 	const auto runtime = _runtimes.front();
 
 	// Retrieve texture from depth stencil
-	com_ptr<ID3D12Resource> depthstencil = _draw_call_tracker.retrieve_depthstencil_from_handle(pDepthStencilView);
+	current_depthstencil = _draw_call_tracker.retrieve_depthstencil_from_handle(pDepthStencilView);
 
-	if (depthstencil == nullptr)
+	if (current_depthstencil == nullptr)
 		return;
 
-	_draw_call_tracker.track_rendertargets(runtime->depth_buffer_texture_format, depthstencil.get());
+	_draw_call_tracker.track_rendertargets(runtime->depth_buffer_texture_format, current_depthstencil.get());
 
 	save_depth_texture(pcmdList, pDepthStencilView, false);
 
@@ -131,7 +130,7 @@ void D3D12Device::track_active_rendertargets(ID3D12GraphicsCommandList *pcmdList
 	if (&_trackers_per_commandlist[pcmdList] == nullptr)
 		return;
 
-	_trackers_per_commandlist[pcmdList].current_depthstencil = depthstencil;
+	_trackers_per_commandlist[pcmdList].depthstencil = current_depthstencil;
 }
 
 void D3D12Device::track_cleared_depthstencil(ID3D12GraphicsCommandList *pcmdList, D3D12_CLEAR_FLAGS ClearFlags, D3D12_CPU_DESCRIPTOR_HANDLE pDepthStencilView)
@@ -177,7 +176,7 @@ void STDMETHODCALLTYPE ID3D12GraphicsCommandList_DrawInstanced(
 		if (&it->second->_trackers_per_commandlist[pcmdList] == nullptr)
 			return;
 
-		it->second->_trackers_per_commandlist[pcmdList].on_draw(it->second, VertexCountPerInstance * InstanceCount);
+		it->second->_trackers_per_commandlist[pcmdList].on_draw(it->second->current_depthstencil, VertexCountPerInstance * InstanceCount);
 	}
 }
 
@@ -197,7 +196,7 @@ void STDMETHODCALLTYPE ID3D12GraphicsCommandList_DrawIndexedInstanced(
 		if (&it->second->_trackers_per_commandlist[pcmdList] == nullptr)
 			return;
 
-		it->second->_trackers_per_commandlist[pcmdList].on_draw(it->second, IndexCountPerInstance * InstanceCount);
+		it->second->_trackers_per_commandlist[pcmdList].on_draw(it->second->current_depthstencil, IndexCountPerInstance * InstanceCount);
 	}
 }
 

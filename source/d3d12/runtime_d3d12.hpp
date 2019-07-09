@@ -29,7 +29,6 @@ namespace reshade::d3d12
 		void on_present(draw_call_tracker& tracker);
 		void copy_depth_stencil(com_ptr<ID3D12Resource> src, com_ptr<ID3D12Resource> dest);
 
-
 		void capture_screenshot(uint8_t *buffer) const override;
 
 #if RESHADE_DX12_CAPTURE_DEPTH_BUFFERS
@@ -41,7 +40,7 @@ namespace reshade::d3d12
 		bool extended_depth_buffer_detection = false;
 		unsigned int cleared_depth_buffer_index = 0;
 		int depth_buffer_texture_format = 0; // No depth buffer texture format filter by default
-		unsigned int clear_DSV_iter = 1;
+		std::atomic<unsigned int> clear_DSV_iter = 1;
 
 	private:
 		bool init_backbuffer_textures(UINT num_buffers);

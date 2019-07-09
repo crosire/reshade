@@ -380,27 +380,14 @@ void reshade::d3d12::runtime_d3d12::on_present(draw_call_tracker &tracker)
 
 void reshade::d3d12::runtime_d3d12::copy_depth_stencil(com_ptr<ID3D12Resource> src, com_ptr<ID3D12Resource> dest)
 {
-	com_ptr<ID3D12CommandQueue> copyQueue;
-	com_ptr<ID3D12CommandAllocator> copyAllocator;
-	com_ptr<ID3D12GraphicsCommandList> copyList;
-	HANDLE fenceEvent = nullptr;
-	com_ptr<ID3D12Fence> fence;
-
-	D3D12_COMMAND_QUEUE_DESC descCopyQueue = {};
-	descCopyQueue.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
-	descCopyQueue.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
-	_device->CreateCommandQueue(&descCopyQueue, IID_PPV_ARGS(&copyQueue));
-	_device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&copyAllocator));
-
-	if (FAILED(_device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_COPY, copyAllocator.get(), nullptr, IID_PPV_ARGS(&copyList))))
+	const com_ptr<ID3D12GraphicsCommandList> cmd_list = create_command_list();
+	if (cmd_list == nullptr)
 		return;
 
-	transition_state(copyList, dest, D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_COPY_DEST);
-	copyList->CopyResource(dest.get(), src.get());
-	transition_state(copyList, dest, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_COMMON);
-
-	ID3D12CommandList *const copyLists[] = { copyList.get() };
-	copyQueue->ExecuteCommandLists(ARRAYSIZE(copyLists), copyLists);
+	transition_state(cmd_list, dest, D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_COPY_DEST);
+	cmd_list->CopyResource(dest.get(), src.get());
+	transition_state(cmd_list, dest, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_COMMON);
+	execute_command_list(cmd_list);
 }
 
 void reshade::d3d12::runtime_d3d12::capture_screenshot(uint8_t *buffer) const
@@ -565,9 +552,8 @@ bool reshade::d3d12::runtime_d3d12::init_texture(texture &info)
 	texture_data->resource->SetName(debug_name.c_str());
 #endif
 
-	{
-		D3D12_DESCRIPTOR_HEAP_DESC heap_desc = { D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV };
-		heap_desc.NumDescriptors = info.levels /* SRV */ + info.levels - 1 /* UAV */;
+	{	D3D12_DESCRIPTOR_HEAP_DESC heap_desc = { D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV };
+	heap_desc.NumDescriptors = info.levels /* SRV */ + info.levels - 1 /* UAV */;
 		heap_desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 
 		if (FAILED(_device->CreateDescriptorHeap(&heap_desc, IID_PPV_ARGS(&texture_data->descriptors))))
@@ -1562,47 +1548,43 @@ void reshade::d3d12::runtime_d3d12::draw_debug_menu()
 
 			for (const auto &[depthstencil, snapshot] : _current_tracker->depth_buffer_counters())
 			{
-				if (snapshot.stats.drawcalls > 10)
+				char label[512] = "";
+				sprintf_s(label, "%s0x%p", (depthstencil == _depthstencil ? "> " : "  "), depthstencil.get());
+
+				if (bool value = _best_depth_stencil_overwrite == depthstencil; ImGui::Checkbox(label, &value))
 				{
-					char label[512] = "";
-					sprintf_s(label, "%s0x%p", (depthstencil == _depthstencil ? "> " : "  "), depthstencil.get());
+					_best_depth_stencil_overwrite = value ? depthstencil.get() : nullptr;
 
-					if (bool value = _best_depth_stencil_overwrite == depthstencil; ImGui::Checkbox(label, &value))
+					if (_best_depth_stencil_overwrite != nullptr)
 					{
-						_best_depth_stencil_overwrite = value ? depthstencil.get() : nullptr;
-
-						com_ptr<ID3D12Resource> texture = snapshot.texture;
-
-						if (texture == nullptr && _best_depth_stencil_overwrite != nullptr)
-						{
-							_best_depth_stencil_overwrite->QueryInterface(&texture);
-							create_depthstencil_replacement(_best_depth_stencil_overwrite, texture.get());
-							load_effects();
-						}
+						com_ptr<ID3D12Resource> texture;
+						_best_depth_stencil_overwrite->QueryInterface(&texture);
+						create_depthstencil_replacement(_best_depth_stencil_overwrite, texture.get());
+						load_effects();
 					}
-
-					ImGui::SameLine();
-
-					std::string additional_view_label;
-
-					if (!snapshot.additional_views.empty())
-					{
-						additional_view_label += '(';
-
-						for (auto const &[view, stats] : snapshot.additional_views)
-							additional_view_label += std::to_string(stats.drawcalls) + ", ";
-
-						// Remove last ", " from string
-						additional_view_label.pop_back();
-						additional_view_label.pop_back();
-
-						additional_view_label += ')';
-					}
-
-					D3D12_RESOURCE_DESC desc = depthstencil->GetDesc();
-
-					ImGui::Text("| %ux%u| %5u draw calls ==> %8u vertices, %2u additional render target%c %s", desc.Width, desc.Height, snapshot.stats.drawcalls, snapshot.stats.vertices, snapshot.additional_views.size(), snapshot.additional_views.size() != 1 ? 's' : ' ', additional_view_label.c_str());
 				}
+
+				ImGui::SameLine();
+
+				std::string additional_view_label;
+
+				if (!snapshot.additional_views.empty())
+				{
+					additional_view_label += '(';
+
+					for (auto const &[view, stats] : snapshot.additional_views)
+						additional_view_label += std::to_string(stats.drawcalls) + ", ";
+
+					// Remove last ", " from string
+					additional_view_label.pop_back();
+					additional_view_label.pop_back();
+
+					additional_view_label += ')';
+				}
+
+				D3D12_RESOURCE_DESC desc = depthstencil->GetDesc();
+
+				ImGui::Text("| %ux%u| %5u draw calls ==> %8u vertices, %2u additional render target%c %s", desc.Width, desc.Height, snapshot.stats.drawcalls, snapshot.stats.vertices, snapshot.additional_views.size(), snapshot.additional_views.size() != 1 ? 's' : ' ', additional_view_label.c_str());
 			}
 		}
 
@@ -1639,9 +1621,11 @@ void reshade::d3d12::runtime_d3d12::detect_depth_source(draw_call_tracker &track
 		// For the moment, the best we can do is retrieve all the depth textures that has been cleared in the rendering pipeline, then select one of them (by default, the last one)
 		// In the future, maybe we could find a way to retrieve depth texture statistics (number of draw calls and number of vertices), so ReShade could automatically select the best one
 		const auto best_match_texture = tracker.find_best_cleared_depth_buffer_texture(cleared_depth_buffer_index);
-		if (best_match_texture != nullptr)	
+		if (best_match_texture != nullptr)
+		{
 			create_depthstencil_replacement(_default_depthstencil.get(), best_match_texture);
-		return;
+			return;
+		}
 	}
 
 	const auto best_snapshot = tracker.find_best_snapshot(_width, _height);

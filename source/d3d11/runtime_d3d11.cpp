@@ -1548,6 +1548,13 @@ bool reshade::d3d11::runtime_d3d11::create_depthstencil_replacement(ID3D11DepthS
 			LOG(ERROR) << "Failed to create depth stencil replacement resource view! HRESULT is '" << std::hex << hr << std::dec << "'.";
 			return false;
 		}
+
+		// Update auto depth stencil
+		com_ptr<ID3D11DepthStencilView> current_depthstencil;
+		com_ptr<ID3D11RenderTargetView> targets[D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT];
+		_immediate_context->OMGetRenderTargets(D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT, reinterpret_cast<ID3D11RenderTargetView **>(targets), &current_depthstencil);
+		if (current_depthstencil != nullptr && current_depthstencil == _depthstencil)
+			_immediate_context->OMSetRenderTargets(D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT, reinterpret_cast<ID3D11RenderTargetView *const *>(targets), _depthstencil_replacement.get());
 	}
 
 	update_texture_references(texture_reference::depth_buffer);

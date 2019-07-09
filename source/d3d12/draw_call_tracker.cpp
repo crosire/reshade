@@ -14,16 +14,17 @@ namespace reshade::d3d12
 		_global_counter.vertices += source.total_vertices();
 		_global_counter.drawcalls += source.total_drawcalls();
 
-		if (source.current_depthstencil == nullptr)
+		if (source.depthstencil == nullptr)
 			return;
 
 #if RESHADE_DX12_CAPTURE_DEPTH_BUFFERS
 		std::lock(_counters_per_used_depthstencil_mutex, _cleared_depth_textures_mutex);
 		std::lock_guard lock1(_counters_per_used_depthstencil_mutex, std::adopt_lock);
-		if (_counters_per_used_depthstencil[source.current_depthstencil].depthstencil != nullptr)
+		for (const auto &[depthstencil, snapshot] : source._counters_per_used_depthstencil)
 		{
-			_counters_per_used_depthstencil[source.current_depthstencil].stats.vertices += source.total_vertices();
-			_counters_per_used_depthstencil[source.current_depthstencil].stats.drawcalls += source.total_drawcalls();
+			_counters_per_used_depthstencil[source.depthstencil].stats.vertices += snapshot.stats.vertices;
+			_counters_per_used_depthstencil[source.depthstencil].stats.drawcalls += snapshot.stats.drawcalls;
+			_counters_per_used_depthstencil[source.depthstencil].texture = snapshot.texture.get();
 		}
 
 		std::lock_guard lock2(_cleared_depth_textures_mutex, std::adopt_lock);
@@ -37,7 +38,7 @@ namespace reshade::d3d12
 	{
 		_global_counter.vertices = 0;
 		_global_counter.drawcalls = 0;
-		current_depthstencil.reset();
+		depthstencil.reset();
 #if RESHADE_DX12_CAPTURE_DEPTH_BUFFERS
 		std::lock(_counters_per_used_depthstencil_mutex, _cleared_depth_textures_mutex);
 		std::lock_guard lock1(_counters_per_used_depthstencil_mutex, std::adopt_lock);
@@ -90,22 +91,24 @@ namespace reshade::d3d12
 		return _depthstencil_resources_by_handle[depthstencilView.ptr];
 	}
 
-	void draw_call_tracker::on_draw(ID3D12Device *device, UINT vertices)
+	void draw_call_tracker::on_draw(com_ptr<ID3D12Resource> current_depthstencil, UINT vertices)
 	{
-		UNREFERENCED_PARAMETER(device);
-
 		_global_counter.vertices += vertices;
 		_global_counter.drawcalls += 1;
 
 #if RESHADE_DX12_CAPTURE_DEPTH_BUFFERS
 		com_ptr<ID3D12Resource> targets[D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT];
-		com_ptr<ID3D12Resource> depthstencil = current_depthstencil;
 
-		if (depthstencil == nullptr)
+		if (current_depthstencil == nullptr)
 			// This is a draw call with no depth stencil
 			return;
 
-		if (const auto intermediate_snapshot = _counters_per_used_depthstencil.find(depthstencil); intermediate_snapshot != _counters_per_used_depthstencil.end())
+		std::lock_guard lock(_counters_per_used_depthstencil_mutex);
+
+		if (_counters_per_used_depthstencil[current_depthstencil].depthstencil == nullptr)
+			_counters_per_used_depthstencil[current_depthstencil].depthstencil = current_depthstencil.get();
+
+		if (const auto intermediate_snapshot = _counters_per_used_depthstencil.find(current_depthstencil); intermediate_snapshot != _counters_per_used_depthstencil.end())
 		{
 			intermediate_snapshot->second.stats.vertices += vertices;
 			intermediate_snapshot->second.stats.drawcalls += 1;
@@ -215,8 +218,8 @@ namespace reshade::d3d12
 			assert((desc.Flags & D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL) != 0);
 
 			// Check aspect ratio
-			const float width_factor = desc.Width != width ? float(width) / desc.Width : 1.0f;
-			const float height_factor = desc.Height != height ? float(height) / desc.Height : 1.0f;
+			const float width_factor = float(width) / float(desc.Width);
+			const float height_factor = float(height) / float(desc.Height);
 			const float texture_aspect_ratio = float(desc.Width) / float(desc.Height);
 
 			if (fabs(texture_aspect_ratio - aspect_ratio) > 0.1f || width_factor > 2.0f || height_factor > 2.0f || width_factor < 0.5f || height_factor < 0.5f)

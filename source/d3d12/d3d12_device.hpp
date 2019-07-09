@@ -117,5 +117,6 @@ struct __declspec(uuid("2523AFF4-978B-4939-BA16-8EE876A4CB2A")) D3D12Device : ID
 	std::unordered_map<ID3D12CommandList *, reshade::d3d12::draw_call_tracker> _trackers_per_commandlist;
 	std::mutex _trackers_per_commandlist_mutex;
 	reshade::d3d12::draw_call_tracker _draw_call_tracker;
-	std::mutex _clear_DSV_iter_mutex;
+
+	com_ptr<ID3D12Resource> current_depthstencil;
 };

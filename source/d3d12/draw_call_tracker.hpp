@@ -55,9 +55,9 @@ namespace reshade::d3d12
 		void reset(bool all = false);
 
 		void on_map(ID3D12Resource *pResource);
-		void on_draw(ID3D12Device *device, UINT vertices);
+		void on_draw(com_ptr<ID3D12Resource> current_depthstencil, UINT vertices);
 
-		com_ptr<ID3D12Resource> current_depthstencil;
+		com_ptr<ID3D12Resource> depthstencil;
 
 #if RESHADE_DX12_CAPTURE_DEPTH_BUFFERS
 		void track_dsv_heap_handles(com_ptr<ID3D12DescriptorHeap> heap, UINT dsvHandleSize);
