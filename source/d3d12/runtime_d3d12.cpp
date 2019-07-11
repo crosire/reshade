@@ -379,18 +379,6 @@ void reshade::d3d12::runtime_d3d12::on_present(draw_call_tracker &tracker)
 	clear_DSV_iter = 1;
 }
 
-void reshade::d3d12::runtime_d3d12::copy_depth_stencil(com_ptr<ID3D12Resource> src, com_ptr<ID3D12Resource> dest)
-{
-	const com_ptr<ID3D12GraphicsCommandList> cmd_list = create_command_list();
-	if (cmd_list == nullptr)
-		return;
-
-	transition_state(cmd_list, dest, D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_COPY_DEST);
-	cmd_list->CopyResource(dest.get(), src.get());
-	transition_state(cmd_list, dest, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_COMMON);
-	execute_command_list(cmd_list);
-}
-
 void reshade::d3d12::runtime_d3d12::capture_screenshot(uint8_t *buffer) const
 {
 	if (_backbuffer_format != DXGI_FORMAT_R8G8B8A8_UNORM &&
@@ -1460,16 +1448,6 @@ void reshade::d3d12::runtime_d3d12::draw_debug_menu()
 	ImGui::Text("MSAA is %s", _is_multisampling_enabled ? "active" : "inactive");
 	ImGui::Spacing();
 
-	/*ImGui::Text("depthstencil_infos_by_heap:");
-	for (const auto it : _current_tracker->depthstencil_resources_by_handle())
-	{
-		if (it.second == nullptr)
-			continue;
-
-		D3D12_RESOURCE_DESC desc = it.second->GetDesc();
-		ImGui::Text("=> depthstencilView descriptor = > %u | depthstencilView => 0%p | %ux%u", it.first, it.second, desc.Width, desc.Height);
-	}*/
-
 	ImGui::Spacing();
 	ImGui::Spacing();
 
@@ -1590,6 +1568,19 @@ void reshade::d3d12::runtime_d3d12::draw_debug_menu()
 			}
 		}
 
+		/*ImGui::Spacing();
+		ImGui::Spacing();
+
+		ImGui::Text("depthstencil_infos_by_heap:");
+		for (const auto it : _current_tracker->depthstencil_resources_by_handle())
+		{
+			if (it.second == nullptr)
+				continue;
+
+			D3D12_RESOURCE_DESC desc = it.second->GetDesc();
+			ImGui::Text("=> depthstencilView descriptor = > %u | depthstencilView => 0%p | %ux%u", it.first, it.second, desc.Width, desc.Height);
+		}*/
+
 		if (modified)
 		{
 			runtime::save_config();
@@ -1624,10 +1615,8 @@ void reshade::d3d12::runtime_d3d12::detect_depth_source(draw_call_tracker &track
 		// In the future, maybe we could find a way to retrieve depth texture statistics (number of draw calls and number of vertices), so ReShade could automatically select the best one
 		const auto best_match_texture = tracker.find_best_cleared_depth_buffer_texture(cleared_depth_buffer_index);
 		if (best_match_texture != nullptr)
-		{
 			create_depthstencil_replacement(_default_depthstencil.get(), best_match_texture);
-			return;
-		}
+		return;
 	}
 
 	const auto best_snapshot = tracker.find_best_snapshot(_width, _height);
@@ -1725,7 +1714,7 @@ com_ptr<ID3D12Resource> reshade::d3d12::runtime_d3d12::select_depth_texture_save
 	textureDesc.Format = make_dxgi_format_typeless(textureDesc.Format);
 
 	// Create an unique index based on the texture format and dimensions
-	UINT idx = textureDesc.Format * textureDesc.Width * textureDesc.Height;
+	UINT64 idx = textureDesc.Format * textureDesc.Width * textureDesc.Height;
 
 	if (const auto it = _depth_texture_saves.find(idx); it != _depth_texture_saves.end())
 		return it->second;

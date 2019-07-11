@@ -103,11 +103,11 @@ struct __declspec(uuid("2523AFF4-978B-4939-BA16-8EE876A4CB2A")) D3D12Device : ID
 
 	bool check_and_upgrade_interface(REFIID riid);
 	void clear_drawcall_stats(bool all = false);
-	void track_active_rendertargets(ID3D12GraphicsCommandList *pcmdList, D3D12_CPU_DESCRIPTOR_HANDLE pDepthStencilView);
+	void track_active_rendertargets(ID3D12GraphicsCommandList * cmdList, reshade::d3d12::draw_call_tracker &draw_call_tracker, D3D12_CPU_DESCRIPTOR_HANDLE pDepthStencilView);
 
 #if RESHADE_DX12_CAPTURE_DEPTH_BUFFERS
-	bool save_depth_texture(ID3D12GraphicsCommandList *pcmdList, D3D12_CPU_DESCRIPTOR_HANDLE pDepthStencilView, bool cleared);
-	void track_cleared_depthstencil(ID3D12GraphicsCommandList *pcmdList, D3D12_CLEAR_FLAGS ClearFlags, D3D12_CPU_DESCRIPTOR_HANDLE pDepthStencilView);
+	bool save_depth_texture(ID3D12GraphicsCommandList * cmdList, reshade::d3d12::draw_call_tracker &draw_call_tracker, D3D12_CPU_DESCRIPTOR_HANDLE pDepthStencilView, bool cleared);
+	void track_cleared_depthstencil(ID3D12GraphicsCommandList * cmdList, reshade::d3d12::draw_call_tracker &draw_call_tracker, D3D12_CLEAR_FLAGS ClearFlags, D3D12_CPU_DESCRIPTOR_HANDLE pDepthStencilView);
 #endif
 	
 	LONG _ref = 1;

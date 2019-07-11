@@ -108,7 +108,7 @@ namespace reshade::d3d12
 		ID3D12Resource *_best_depth_stencil_overwrite = nullptr;
 
 		std::map<UINT, depth_texture_save_info> _displayed_depth_textures;
-		std::unordered_map<UINT, com_ptr<ID3D12Resource>> _depth_texture_saves;
+		std::unordered_map<UINT64, com_ptr<ID3D12Resource>> _depth_texture_saves;
 
 		com_ptr<ID3D12Resource> _backbuffer_texture;
 

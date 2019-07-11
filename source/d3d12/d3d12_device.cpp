@@ -20,6 +20,20 @@ extern reshade::log::message &operator<<(reshade::log::message &m, REFIID riid);
 std::unordered_map<ID3D12CommandList *, D3D12Device *> d3d12_current_device;
 std::mutex d3d12_current_device_mutex;
 
+static void transition_state(
+	const com_ptr<ID3D12GraphicsCommandList> &list,
+	const com_ptr<ID3D12Resource> &res,
+	D3D12_RESOURCE_STATES from, D3D12_RESOURCE_STATES to,
+	UINT subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES)
+{
+	D3D12_RESOURCE_BARRIER transition = { D3D12_RESOURCE_BARRIER_TYPE_TRANSITION };
+	transition.Transition.pResource = res.get();
+	transition.Transition.Subresource = subresource;
+	transition.Transition.StateBefore = from;
+	transition.Transition.StateAfter = to;
+	list->ResourceBarrier(1, &transition);
+}
+
 void D3D12Device::add_commandlist_trackers(ID3D12CommandList *command_list, reshade::d3d12::draw_call_tracker &tracker_source)
 {
 	assert(command_list != nullptr);
@@ -48,7 +62,7 @@ void D3D12Device::merge_commandlist_trackers(ID3D12CommandList* command_list, re
 }
 
 #if RESHADE_DX12_CAPTURE_DEPTH_BUFFERS
-bool D3D12Device::save_depth_texture(ID3D12GraphicsCommandList *pcmdList, D3D12_CPU_DESCRIPTOR_HANDLE pDepthStencilView, bool cleared)
+bool D3D12Device::save_depth_texture(ID3D12GraphicsCommandList * cmdList, reshade::d3d12::draw_call_tracker &draw_call_tracker, D3D12_CPU_DESCRIPTOR_HANDLE pDepthStencilView, bool cleared)
 {
 	if (_runtimes.empty())
 		return false;
@@ -94,22 +108,24 @@ bool D3D12Device::save_depth_texture(ID3D12GraphicsCommandList *pcmdList, D3D12_
 
 		// Copy the depth texture. This is necessary because the content of the depth texture is cleared.
 		// This way, we can retrieve this content in the final rendering stage
-		runtime->copy_depth_stencil(depthstencil, depth_texture_save);
+		transition_state(cmdList, depth_texture_save, D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_COPY_DEST);
+		cmdList->CopyResource(depth_texture_save.get(), depthstencil.get());
+		transition_state(cmdList, depth_texture_save, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_COMMON);
 
 		// Store the saved texture in the ordered map.
-		_draw_call_tracker.track_depth_texture(runtime->depth_buffer_texture_format, runtime->clear_DSV_iter, depthstencil.get(), depthstencil.get(), depth_texture_save, cleared);
+		draw_call_tracker.track_depth_texture(runtime->depth_buffer_texture_format, runtime->clear_DSV_iter, depthstencil.get(), depthstencil.get(), depth_texture_save, cleared);
 	}
 	else
 	{
 		// Store a null depth texture in the ordered map in order to display it even if the user chose a previous cleared texture.
 		// This way the texture will still be visible in the depth buffer selection window and the user can choose it.
-		_draw_call_tracker.track_depth_texture(runtime->depth_buffer_texture_format, runtime->clear_DSV_iter, depthstencil.get(), depthstencil.get(), nullptr, cleared);
+		draw_call_tracker.track_depth_texture(runtime->depth_buffer_texture_format, runtime->clear_DSV_iter, depthstencil.get(), depthstencil.get(), nullptr, cleared);
 	}
 
 	runtime->clear_DSV_iter++;
 	return true;
 }
-void D3D12Device::track_active_rendertargets(ID3D12GraphicsCommandList *pcmdList, D3D12_CPU_DESCRIPTOR_HANDLE pDepthStencilView)
+void D3D12Device::track_active_rendertargets(ID3D12GraphicsCommandList * cmdList, reshade::d3d12::draw_call_tracker &draw_call_tracker, D3D12_CPU_DESCRIPTOR_HANDLE pDepthStencilView)
 {
 	if (pDepthStencilView.ptr == 0 || _runtimes.empty())
 		return;
@@ -117,23 +133,32 @@ void D3D12Device::track_active_rendertargets(ID3D12GraphicsCommandList *pcmdList
 	const auto runtime = _runtimes.front();
 
 	// Retrieve texture from depth stencil
-	current_depthstencil = _draw_call_tracker.retrieve_depthstencil_from_handle(pDepthStencilView);
+	com_ptr<ID3D12Resource> depthstencil = _draw_call_tracker.retrieve_depthstencil_from_handle(pDepthStencilView);
 
-	if (current_depthstencil == nullptr)
+	if (depthstencil == nullptr)
 		return;
 
-	_draw_call_tracker.track_rendertargets(runtime->depth_buffer_texture_format, current_depthstencil.get());
+	D3D12_RESOURCE_DESC desc = depthstencil->GetDesc();
 
-	save_depth_texture(pcmdList, pDepthStencilView, false);
+	// Check if aspect ratio is similar to the back buffer one
+	const float width_factor = float(runtime->frame_width()) / float(desc.Width);
+	const float height_factor = float(runtime->frame_height()) / float(desc.Height);
+	const float aspect_ratio = float(runtime->frame_width()) / float(runtime->frame_height());
+	const float texture_aspect_ratio = float(desc.Width) / float(desc.Height);
 
-	std::lock_guard lock(_trackers_per_commandlist_mutex);
-	if (&_trackers_per_commandlist[pcmdList] == nullptr)
-		return;
+	if (fabs(texture_aspect_ratio - aspect_ratio) > 0.1f || width_factor > 2.0f || height_factor > 2.0f || width_factor < 0.5f || height_factor < 0.5f)
+		return; // No match, not a good fit
 
-	_trackers_per_commandlist[pcmdList].depthstencil = current_depthstencil;
+	current_depthstencil = depthstencil;
+
+	draw_call_tracker.track_rendertargets(runtime->depth_buffer_texture_format, current_depthstencil.get(), pDepthStencilView);
+
+	save_depth_texture(cmdList, draw_call_tracker, pDepthStencilView, false);
+
+	draw_call_tracker.depthstencil = current_depthstencil;
 }
 
-void D3D12Device::track_cleared_depthstencil(ID3D12GraphicsCommandList *pcmdList, D3D12_CLEAR_FLAGS ClearFlags, D3D12_CPU_DESCRIPTOR_HANDLE pDepthStencilView)
+void D3D12Device::track_cleared_depthstencil(ID3D12GraphicsCommandList * cmdList, reshade::d3d12::draw_call_tracker &draw_call_tracker, D3D12_CLEAR_FLAGS ClearFlags, D3D12_CPU_DESCRIPTOR_HANDLE pDepthStencilView)
 {
 	if (_runtimes.empty() || &pDepthStencilView == nullptr)
 		return;
@@ -141,7 +166,7 @@ void D3D12Device::track_cleared_depthstencil(ID3D12GraphicsCommandList *pcmdList
 	const auto runtime = _runtimes.front();
 
 	if (ClearFlags & D3D12_CLEAR_FLAG_DEPTH || (runtime->depth_buffer_more_copies && ClearFlags & D3D12_CLEAR_FLAG_STENCIL))
-		save_depth_texture(pcmdList, pDepthStencilView, true);
+		save_depth_texture(cmdList, draw_call_tracker, pDepthStencilView, true);
 }
 #endif
 
@@ -173,10 +198,8 @@ void STDMETHODCALLTYPE ID3D12GraphicsCommandList_DrawInstanced(
 	if (const auto it = d3d12_current_device.find(pcmdList); it != d3d12_current_device.end())
 	{
 		std::lock_guard lock(it->second->_trackers_per_commandlist_mutex);
-		if (&it->second->_trackers_per_commandlist[pcmdList] == nullptr)
-			return;
-
-		it->second->_trackers_per_commandlist[pcmdList].on_draw(it->second->current_depthstencil, VertexCountPerInstance * InstanceCount);
+		if (&it->second->_trackers_per_commandlist[pcmdList] != nullptr)
+			it->second->_trackers_per_commandlist[pcmdList].on_draw(it->second->current_depthstencil, VertexCountPerInstance * InstanceCount);
 	}
 }
 
@@ -193,10 +216,8 @@ void STDMETHODCALLTYPE ID3D12GraphicsCommandList_DrawIndexedInstanced(
 	if (const auto it = d3d12_current_device.find(pcmdList); it != d3d12_current_device.end())
 	{
 		std::lock_guard lock(it->second->_trackers_per_commandlist_mutex);
-		if (&it->second->_trackers_per_commandlist[pcmdList] == nullptr)
-			return;
-
-		it->second->_trackers_per_commandlist[pcmdList].on_draw(it->second->current_depthstencil, IndexCountPerInstance * InstanceCount);
+		if (&it->second->_trackers_per_commandlist[pcmdList] != nullptr)
+			it->second->_trackers_per_commandlist[pcmdList].on_draw(it->second->current_depthstencil, IndexCountPerInstance * InstanceCount);
 	}
 }
 
@@ -207,14 +228,17 @@ void STDMETHODCALLTYPE ID3D12GraphicsCommandList_OMSetRenderTargets(
 	BOOL RTsSingleHandleToDescriptorRange,
 	const D3D12_CPU_DESCRIPTOR_HANDLE *pDepthStencilDescriptor)
 {
+	reshade::hooks::call(ID3D12GraphicsCommandList_OMSetRenderTargets, vtable_from_instance(pcmdList) + 46)(pcmdList, NumRenderTargetDescriptors, pRenderTargetDescriptors, RTsSingleHandleToDescriptorRange, pDepthStencilDescriptor);
+
 	if (pDepthStencilDescriptor != nullptr)
 	{
-		std::lock_guard lock(d3d12_current_device_mutex);
 		if (const auto it = d3d12_current_device.find(pcmdList); it != d3d12_current_device.end())
-			it->second->track_active_rendertargets(pcmdList, *pDepthStencilDescriptor);
+		{
+			std::lock_guard<std::mutex> lock(it->second->_trackers_per_commandlist_mutex);
+			if (&it->second->_trackers_per_commandlist[pcmdList] != nullptr)
+				it->second->track_active_rendertargets(pcmdList, it->second->_trackers_per_commandlist[pcmdList], *pDepthStencilDescriptor);
+		}
 	}
-
-	reshade::hooks::call(ID3D12GraphicsCommandList_OMSetRenderTargets, vtable_from_instance(pcmdList) + 46)(pcmdList, NumRenderTargetDescriptors, pRenderTargetDescriptors, RTsSingleHandleToDescriptorRange, pDepthStencilDescriptor);
 }
 
 void STDMETHODCALLTYPE ID3D12GraphicsCommandList_ClearDepthStencilView(
@@ -229,7 +253,11 @@ void STDMETHODCALLTYPE ID3D12GraphicsCommandList_ClearDepthStencilView(
 
 #if RESHADE_DX12_CAPTURE_DEPTH_BUFFERS
 	if (const auto it = d3d12_current_device.find(pcmdList); it != d3d12_current_device.end())
-		it->second->track_cleared_depthstencil(pcmdList, ClearFlags, DepthStencilView);
+	{
+		std::lock_guard<std::mutex> lock(it->second->_trackers_per_commandlist_mutex);
+		if (&it->second->_trackers_per_commandlist[pcmdList] != nullptr)
+			it->second->track_cleared_depthstencil(pcmdList, it->second->_trackers_per_commandlist[pcmdList], ClearFlags, DepthStencilView);
+	}
 #endif
 
 	reshade::hooks::call(ID3D12GraphicsCommandList_ClearDepthStencilView, vtable_from_instance(pcmdList) + 47)(pcmdList, DepthStencilView, ClearFlags, Depth, Stencil, NumRects, pRects);
@@ -422,12 +450,7 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CheckFeatureSupport(D3D12_FEATURE Feature
 }
 HRESULT STDMETHODCALLTYPE D3D12Device::CreateDescriptorHeap(const D3D12_DESCRIPTOR_HEAP_DESC *pDescriptorHeapDesc, REFIID riid, void **ppvHeap)
 {
-	HRESULT hr = _orig->CreateDescriptorHeap(pDescriptorHeapDesc, riid, ppvHeap);
-
-	if (pDescriptorHeapDesc->Type == D3D12_DESCRIPTOR_HEAP_TYPE_DSV)
-		_draw_call_tracker.track_dsv_heap_handles(reinterpret_cast<ID3D12DescriptorHeap *>(*ppvHeap), GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV));
-
-	return hr;
+	return  _orig->CreateDescriptorHeap(pDescriptorHeapDesc, riid, ppvHeap);
 }
 UINT    STDMETHODCALLTYPE D3D12Device::GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE DescriptorHeapType)
 {

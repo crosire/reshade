@@ -22,9 +22,10 @@ namespace reshade::d3d12
 		std::lock_guard lock1(_counters_per_used_depthstencil_mutex, std::adopt_lock);
 		for (const auto &[depthstencil, snapshot] : source._counters_per_used_depthstencil)
 		{
-			_counters_per_used_depthstencil[source.depthstencil].stats.vertices += snapshot.stats.vertices;
-			_counters_per_used_depthstencil[source.depthstencil].stats.drawcalls += snapshot.stats.drawcalls;
-			_counters_per_used_depthstencil[source.depthstencil].texture = snapshot.texture.get();
+			_counters_per_used_depthstencil[depthstencil].stats.vertices += snapshot.stats.vertices;
+			_counters_per_used_depthstencil[depthstencil].stats.drawcalls += snapshot.stats.drawcalls;
+			_counters_per_used_depthstencil[depthstencil].depthstencil = snapshot.depthstencil;
+			_counters_per_used_depthstencil[depthstencil].texture = snapshot.texture.get();
 		}
 
 		std::lock_guard lock2(_cleared_depth_textures_mutex, std::adopt_lock);
@@ -49,19 +50,8 @@ namespace reshade::d3d12
 
 		if (all)
 		{
-			_dsv_heap_handles.clear();
 			_depthstencil_resources_by_handle.clear();
 		}
-	}
-
-	void draw_call_tracker::track_dsv_heap_handles(com_ptr<ID3D12DescriptorHeap> dsvHeap, UINT dsvHandleSize)
-	{
-		D3D12_DESCRIPTOR_HEAP_DESC heapDesc = dsvHeap->GetDesc();
-		D3D12_CPU_DESCRIPTOR_HANDLE hdl = dsvHeap->GetCPUDescriptorHandleForHeapStart();
-		_dsv_heap_handles.push_back(hdl);
-
-		for (unsigned int i = 0; i < heapDesc.NumDescriptors; i++)
-			_dsv_heap_handles.push_back(D3D12_CPU_DESCRIPTOR_HANDLE{ hdl.ptr + i * dsvHandleSize });
 	}
 
 	void draw_call_tracker::track_depthstencil_resource_by_handle(D3D12_CPU_DESCRIPTOR_HANDLE pDescriptor, com_ptr<ID3D12Resource> pDepthStencil)
@@ -69,21 +59,8 @@ namespace reshade::d3d12
 		if (pDepthStencil == nullptr)
 			return;
 
-		if (retrieve_descriptor_handle(pDescriptor).ptr != 0 && pDepthStencil != nullptr)
+		if (pDescriptor.ptr != 0 && pDepthStencil != nullptr)
 			_depthstencil_resources_by_handle[pDescriptor.ptr] = pDepthStencil;
-	}
-
-	D3D12_CPU_DESCRIPTOR_HANDLE draw_call_tracker::retrieve_descriptor_handle(D3D12_CPU_DESCRIPTOR_HANDLE descHandle)
-	{
-		D3D12_CPU_DESCRIPTOR_HANDLE result = D3D12_CPU_DESCRIPTOR_HANDLE{ 0 };
-
-		for (size_t i = 0; i < _dsv_heap_handles.size(); ++i)
-		{
-			if (_dsv_heap_handles[i].ptr == descHandle.ptr)
-				return _dsv_heap_handles[i];
-		}
-
-		return result;
 	}
 
 	com_ptr<ID3D12Resource> draw_call_tracker::retrieve_depthstencil_from_handle(D3D12_CPU_DESCRIPTOR_HANDLE depthstencilView)
@@ -104,9 +81,6 @@ namespace reshade::d3d12
 			return;
 
 		std::lock_guard lock(_counters_per_used_depthstencil_mutex);
-
-		if (_counters_per_used_depthstencil[current_depthstencil].depthstencil == nullptr)
-			_counters_per_used_depthstencil[current_depthstencil].depthstencil = current_depthstencil.get();
 
 		if (const auto intermediate_snapshot = _counters_per_used_depthstencil.find(current_depthstencil); intermediate_snapshot != _counters_per_used_depthstencil.end())
 		{
@@ -165,7 +139,7 @@ namespace reshade::d3d12
 		return make_dxgi_format_typeless(desc.Format) == depth_texture_formats[formatIdx];
 	}
 
-	void draw_call_tracker::track_rendertargets(int format_index, ID3D12Resource *depthstencil)
+	void draw_call_tracker::track_rendertargets(int format_index, ID3D12Resource *depthstencil, D3D12_CPU_DESCRIPTOR_HANDLE pDepthStencilView)
 	{
 		assert(depthstencil != nullptr);
 
@@ -225,7 +199,7 @@ namespace reshade::d3d12
 			if (fabs(texture_aspect_ratio - aspect_ratio) > 0.1f || width_factor > 2.0f || height_factor > 2.0f || width_factor < 0.5f || height_factor < 0.5f)
 				continue; // No match, not a good fit
 
-			if (snapshot.stats.drawcalls >= best_snapshot.stats.drawcalls)
+			if (snapshot.stats.vertices >= best_snapshot.stats.vertices)
 				best_snapshot = snapshot;
 		}
 

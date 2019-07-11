@@ -44,7 +44,6 @@ namespace reshade::d3d12
 		UINT total_vertices() const { return _global_counter.vertices; }
 		UINT total_drawcalls() const { return _global_counter.drawcalls; }
 		const auto &depthstencil_resources_by_handle() const { return _depthstencil_resources_by_handle; }
-		const auto &dsv_heap_handles() const { return _dsv_heap_handles; }
 
 #if RESHADE_DX12_CAPTURE_DEPTH_BUFFERS
 		const auto &depth_buffer_counters() const { return _counters_per_used_depthstencil; }
@@ -60,14 +59,12 @@ namespace reshade::d3d12
 		com_ptr<ID3D12Resource> depthstencil;
 
 #if RESHADE_DX12_CAPTURE_DEPTH_BUFFERS
-		void track_dsv_heap_handles(com_ptr<ID3D12DescriptorHeap> heap, UINT dsvHandleSize);
 		void track_depthstencil_resource_by_handle(D3D12_CPU_DESCRIPTOR_HANDLE pDescriptor, com_ptr<ID3D12Resource> pDepthStencil);
-		void track_rendertargets(int formatIdx, ID3D12Resource *depthstencil);
+		void track_rendertargets(int formatIdx, ID3D12Resource *depthstencil, D3D12_CPU_DESCRIPTOR_HANDLE pDepthStencilView);
 		void track_depth_texture(int formatIdx, UINT index, com_ptr<ID3D12Resource> srcTexture, com_ptr<ID3D12Resource> srcDepthstencil, com_ptr<ID3D12Resource> destTexture, bool cleared);
 
 		void keep_cleared_depth_textures();
 
-		D3D12_CPU_DESCRIPTOR_HANDLE retrieve_descriptor_handle(D3D12_CPU_DESCRIPTOR_HANDLE descHandle);
 		com_ptr<ID3D12Resource> retrieve_depthstencil_from_handle(D3D12_CPU_DESCRIPTOR_HANDLE depthstencilView);
 		intermediate_snapshot_info find_best_snapshot(UINT width, UINT height);
 		ID3D12Resource *find_best_cleared_depth_buffer_texture(UINT clearIdx);
@@ -91,7 +88,6 @@ namespace reshade::d3d12
 		draw_stats _global_counter;
 #if RESHADE_DX12_CAPTURE_DEPTH_BUFFERS
 		std::map<size_t, com_ptr<ID3D12Resource>> _depthstencil_resources_by_handle;
-		std::vector<D3D12_CPU_DESCRIPTOR_HANDLE> _dsv_heap_handles;
 
 		// Use "std::map" instead of "std::unordered_map" so that the iteration order is guaranteed
 		std::map<com_ptr<ID3D12Resource>, intermediate_snapshot_info> _counters_per_used_depthstencil;
