@@ -54,10 +54,7 @@ namespace reshade::d3d12
 
 	void draw_call_tracker::track_depthstencil_resource_by_handle(D3D12_CPU_DESCRIPTOR_HANDLE pDescriptor, com_ptr<ID3D12Resource> pDepthStencil)
 	{
-		if (pDepthStencil == nullptr)
-			return;
-
-		if (pDescriptor.ptr != 0 && pDepthStencil != nullptr)
+		if (pDepthStencil != nullptr)
 			_depthstencil_resources_by_handle[pDescriptor.ptr] = pDepthStencil;
 	}
 
@@ -146,7 +143,7 @@ namespace reshade::d3d12
 
 		std::lock_guard lock(_counters_per_used_depthstencil_mutex);
 
-		if (&_counters_per_used_depthstencil[depthstencil] != nullptr)
+		if (_counters_per_used_depthstencil[depthstencil].depthstencil == nullptr)
 			_counters_per_used_depthstencil[depthstencil].depthstencil = depthstencil;
 	}
 	void draw_call_tracker::track_depth_texture(int format_index, UINT index, com_ptr<ID3D12Resource> src_texture, com_ptr<ID3D12Resource> src_depthstencil, com_ptr<ID3D12Resource> dest_texture, bool cleared)
