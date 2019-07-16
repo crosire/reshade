@@ -149,6 +149,9 @@ void D3D12Device::track_active_rendertargets(ID3D12GraphicsCommandList * cmdList
 	if (fabs(texture_aspect_ratio - aspect_ratio) > 0.1f || width_factor > 2.0f || height_factor > 2.0f || width_factor < 0.5f || height_factor < 0.5f)
 		return; // No match, not a good fit
 
+	if (desc.SampleDesc.Count > 1)
+		return;
+
 	current_depthstencil = depthstencil;
 
 	draw_call_tracker.track_rendertargets(runtime->depth_buffer_texture_format, current_depthstencil.get(), pDepthStencilView);

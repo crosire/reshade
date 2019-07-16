@@ -46,6 +46,7 @@ namespace reshade::d3d12
 		D3D12_CPU_DESCRIPTOR_HANDLE rtv_cpu_base;
 		D3D12_CPU_DESCRIPTOR_HANDLE sampler_cpu_base;
 		D3D12_GPU_DESCRIPTOR_HANDLE sampler_gpu_base;
+		D3D12_CPU_DESCRIPTOR_HANDLE depth_texture_hdl;
 	};
 
 	static uint32_t float_as_uint(float value)
@@ -356,10 +357,6 @@ void reshade::d3d12::runtime_d3d12::on_present(draw_call_tracker &tracker)
 	_drawcalls = tracker.total_drawcalls();
 	_current_tracker = &tracker;
 
-#if RESHADE_DX12_CAPTURE_DEPTH_BUFFERS
-	detect_depth_source(tracker);
-#endif
-
 	_swap_index = _swapchain->GetCurrentBackBufferIndex();
 
 	// Make sure all commands for this command allocator have finished executing before reseting it
@@ -373,6 +370,11 @@ void reshade::d3d12::runtime_d3d12::on_present(draw_call_tracker &tracker)
 	_cmd_alloc[_swap_index]->Reset();
 
 	update_and_render_effects();
+
+#if RESHADE_DX12_CAPTURE_DEPTH_BUFFERS
+	detect_depth_source(tracker);
+#endif
+
 	runtime::on_present();
 
 	_commandqueue->Signal(_fence[_swap_index].get(), ++_fence_value[_swap_index]);
@@ -744,7 +746,7 @@ bool reshade::d3d12::runtime_d3d12::compile_effect(effect_data &effect)
 
 	const std::string hlsl = effect.preamble + effect.module.hlsl;
 	std::unordered_map<std::string, com_ptr<ID3DBlob>> entry_points;
-
+		
 	// Compile the generated HLSL source code to DX byte code
 	for (const auto &entry_point : effect.module.entry_points)
 	{
@@ -902,6 +904,9 @@ bool reshade::d3d12::runtime_d3d12::compile_effect(effect_data &effect)
 			srv_handle.ptr += info.texture_binding * _srv_handle_size;
 
 			_device->CreateShaderResourceView(resource.get(), &desc, srv_handle);
+			// keep track of the depth buffer texture handle
+			if (existing_texture->impl_reference == texture_reference::depth_buffer)
+				effect_data.depth_texture_hdl = srv_handle;
 		}
 
 		// Only initialize sampler if it has not been created before
@@ -1540,7 +1545,6 @@ void reshade::d3d12::runtime_d3d12::draw_debug_menu()
 						com_ptr<ID3D12Resource> texture;
 						_best_depth_stencil_overwrite->QueryInterface(&texture);
 						create_depthstencil_replacement(_best_depth_stencil_overwrite, texture.get());
-						load_effects();
 					}
 				}
 
@@ -1584,7 +1588,6 @@ void reshade::d3d12::runtime_d3d12::draw_debug_menu()
 		if (modified)
 		{
 			runtime::save_config();
-			load_effects();
 		}
 	}
 #endif
@@ -1623,7 +1626,6 @@ void reshade::d3d12::runtime_d3d12::detect_depth_source(draw_call_tracker &track
 	if (best_snapshot.depthstencil != nullptr && best_snapshot.depthstencil != _depthstencil)
 	{
 		create_depthstencil_replacement(best_snapshot.depthstencil, best_snapshot.texture.get());
-		load_effects();
 	}
 }
 
@@ -1656,7 +1658,7 @@ bool reshade::d3d12::runtime_d3d12::create_depthstencil_replacement(ID3D12Resour
 		{
 			if (tex.impl != nullptr && tex.impl_reference == texture_reference::depth_buffer)
 			{
-				const auto texture_data = tex.impl->as<d3d12_tex_data>();
+				auto texture_data = tex.impl->as<d3d12_tex_data>();
 
 				if (texture_data->descriptors == nullptr)
 				{
@@ -1670,32 +1672,30 @@ bool reshade::d3d12::runtime_d3d12::create_depthstencil_replacement(ID3D12Resour
 					}
 				}
 
-				D3D12_CPU_DESCRIPTOR_HANDLE srv_cpu_handle = texture_data->descriptors->GetCPUDescriptorHandleForHeapStart();
+				tex.width = frame_width();
+				tex.height = frame_height();
+
+				texture_data->resource.reset();
+				texture_data->resource = _depthstencil_texture;
 
 				for (const auto &technique : _techniques)
 				{
-					if (_effect_data.size() >= technique.effect_index)
+					if (_effect_data.size() < technique.effect_index)
 						continue;
 
 					d3d12_effect_data &effect_data = _effect_data[technique.effect_index];
 
-					tex.width = frame_width();
-					tex.height = frame_height();
-
-					texture_data->resource.reset();
-					texture_data->resource = _depthstencil_texture;
+					if (effect_data.depth_texture_hdl.ptr == std::numeric_limits<size_t>::max())
+						continue;
 
 					{   D3D12_SHADER_RESOURCE_VIEW_DESC desc = {};
 					desc.Format = make_dxgi_format_normal(texture_data->resource->GetDesc().Format);
 					desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
 					desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-					desc.Texture2D.MipLevels = 1;
+					desc.Texture2D.MipLevels = tex.levels;
 
-					// D3D12_CPU_DESCRIPTOR_HANDLE srv_handle = effect_data.srv_cpu_base;
-					D3D12_CPU_DESCRIPTOR_HANDLE srv_cpu_handle = texture_data->descriptors->GetCPUDescriptorHandleForHeapStart();
-					// srv_cpu_handle.ptr += _srv_handle_size;
-
-					_device->CreateShaderResourceView(texture_data->resource.get(), &desc, srv_cpu_handle);
+					if(effect_data.depth_texture_hdl.ptr != 0)
+						_device->CreateShaderResourceView(texture_data->resource.get(), &desc, effect_data.depth_texture_hdl);
 					}
 				}
 			}
