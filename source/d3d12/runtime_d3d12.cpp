@@ -381,6 +381,12 @@ void reshade::d3d12::runtime_d3d12::on_present(draw_call_tracker &tracker)
 	clear_DSV_iter = 1;
 }
 
+void reshade::d3d12::runtime_d3d12::on_create_depthstencil_view(ID3D12Resource *pResource)
+{
+	if (_depthstencil_texture == nullptr)
+		_depthstencil_texture = pResource;
+}
+
 void reshade::d3d12::runtime_d3d12::capture_screenshot(uint8_t *buffer) const
 {
 	if (_backbuffer_format != DXGI_FORMAT_R8G8B8A8_UNORM &&
@@ -1682,21 +1688,16 @@ bool reshade::d3d12::runtime_d3d12::create_depthstencil_replacement(ID3D12Resour
 
 					d3d12_effect_data &effect_data = _effect_data[technique.effect_index];
 
-					if (effect_data.depth_texture_hdl.ptr == std::numeric_limits<size_t>::max())
+					if (effect_data.depth_texture_hdl.ptr == 0 || effect_data.depth_texture_hdl.ptr == std::numeric_limits<size_t>::max())
 						continue;
 
-					if (effect_data.depth_texture_hdl.ptr == 0)
-						load_effects();
-					else
-					{
-						{   D3D12_SHADER_RESOURCE_VIEW_DESC desc = {};
-						desc.Format = make_dxgi_format_normal(texture_data->resource->GetDesc().Format);
-						desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-						desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-						desc.Texture2D.MipLevels = tex.levels;
+					{   D3D12_SHADER_RESOURCE_VIEW_DESC desc = {};
+					desc.Format = make_dxgi_format_normal(texture_data->resource->GetDesc().Format);
+					desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+					desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+					desc.Texture2D.MipLevels = tex.levels;
 
-						_device->CreateShaderResourceView(texture_data->resource.get(), &desc, effect_data.depth_texture_hdl);
-						}
+					_device->CreateShaderResourceView(texture_data->resource.get(), &desc, effect_data.depth_texture_hdl);
 					}
 				}
 			}

@@ -483,8 +483,12 @@ void    STDMETHODCALLTYPE D3D12Device::CreateDepthStencilView(ID3D12Resource *pR
 {
 	_orig->CreateDepthStencilView(pResource, pDesc, DestDescriptor);
 
-	if (pResource != nullptr)
+	if (pResource != nullptr && !_runtimes.empty())
+	{
+		const auto runtime = _runtimes.front();
 		_draw_call_tracker.track_depthstencil_resource_by_handle(DestDescriptor, pResource);
+		runtime->on_create_depthstencil_view(pResource);
+	}
 }
 void    STDMETHODCALLTYPE D3D12Device::CreateSampler(const D3D12_SAMPLER_DESC *pDesc, D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptor)
 {

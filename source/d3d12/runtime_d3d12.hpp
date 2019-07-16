@@ -27,7 +27,7 @@ namespace reshade::d3d12
 		bool on_init(const DXGI_SWAP_CHAIN_DESC &desc);
 		void on_reset();
 		void on_present(draw_call_tracker& tracker);
-		void copy_depth_stencil(com_ptr<ID3D12Resource> src, com_ptr<ID3D12Resource> dest);
+		void on_create_depthstencil_view(ID3D12Resource *pResource);
 
 		void capture_screenshot(uint8_t *buffer) const override;
 
