@@ -1624,9 +1624,7 @@ void reshade::d3d12::runtime_d3d12::detect_depth_source(draw_call_tracker &track
 
 	const auto best_snapshot = tracker.find_best_snapshot(_width, _height);
 	if (best_snapshot.depthstencil != nullptr && best_snapshot.depthstencil != _depthstencil)
-	{
 		create_depthstencil_replacement(best_snapshot.depthstencil, best_snapshot.texture.get());
-	}
 }
 
 bool reshade::d3d12::runtime_d3d12::create_depthstencil_replacement(ID3D12Resource *depthstencil, ID3D12Resource *texture)
@@ -1662,8 +1660,7 @@ bool reshade::d3d12::runtime_d3d12::create_depthstencil_replacement(ID3D12Resour
 
 				if (texture_data->descriptors == nullptr)
 				{
-					{
-						D3D12_DESCRIPTOR_HEAP_DESC heap_desc = { D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV };
+					{	D3D12_DESCRIPTOR_HEAP_DESC heap_desc = { D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV };
 						heap_desc.NumDescriptors = 1;
 						heap_desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 
@@ -1688,14 +1685,18 @@ bool reshade::d3d12::runtime_d3d12::create_depthstencil_replacement(ID3D12Resour
 					if (effect_data.depth_texture_hdl.ptr == std::numeric_limits<size_t>::max())
 						continue;
 
-					{   D3D12_SHADER_RESOURCE_VIEW_DESC desc = {};
-					desc.Format = make_dxgi_format_normal(texture_data->resource->GetDesc().Format);
-					desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-					desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-					desc.Texture2D.MipLevels = tex.levels;
+					if (effect_data.depth_texture_hdl.ptr == 0)
+						load_effects();
+					else
+					{
+						{   D3D12_SHADER_RESOURCE_VIEW_DESC desc = {};
+						desc.Format = make_dxgi_format_normal(texture_data->resource->GetDesc().Format);
+						desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+						desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+						desc.Texture2D.MipLevels = tex.levels;
 
-					if(effect_data.depth_texture_hdl.ptr != 0)
 						_device->CreateShaderResourceView(texture_data->resource.get(), &desc, effect_data.depth_texture_hdl);
+						}
 					}
 				}
 			}
