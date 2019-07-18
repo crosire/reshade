@@ -323,7 +323,7 @@ void reshade::runtime::draw_ui()
 
 	if (_show_menu && !_ignore_shortcuts && !_imgui_context->IO.NavVisible && _input->is_key_pressed(0x1B /* VK_ESCAPE */))
 		_show_menu = false; // Close when pressing the escape button and not currently navigating with the keyboard
-	else if (!_ignore_shortcuts && _input->is_key_pressed(_menu_key_data) && !ImGui::IsAnyItemActive())
+	else if (!_ignore_shortcuts && _input->is_key_pressed(_menu_key_data) && _imgui_context->ActiveId == 0)
 		_show_menu = !_show_menu;
 
 	_ignore_shortcuts = false;
