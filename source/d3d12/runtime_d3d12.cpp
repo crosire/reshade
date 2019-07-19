@@ -1683,7 +1683,7 @@ bool reshade::d3d12::runtime_d3d12::create_depthstencil_replacement(ID3D12Resour
 
 				for (const auto &technique : _techniques)
 				{
-					if (_effect_data.size() < technique.effect_index)
+					if (_effect_data.size() <= technique.effect_index)
 						continue;
 
 					d3d12_effect_data &effect_data = _effect_data[technique.effect_index];
