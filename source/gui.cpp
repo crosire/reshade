@@ -1169,13 +1169,17 @@ void reshade::runtime::draw_overlay_menu_statistics()
 				if (ImGui::MenuItem("HLSL/GLSL"))
 					condition = condition::input, selected_index = 0;
 
-				ImGui::Separator();
+				if (effect.rendering != 0)
+				{
+					ImGui::Separator();
 
-				for (size_t i = 0; effect.module.entry_points.size() > i; ++i)
-					if (ImGui::MenuItem(effect.module.entry_points[i].name.c_str()))
-						condition = condition::output, selected_index = i;
+					for (size_t i = 0; effect.module.entry_points.size() > i; ++i)
+						if (const auto &entry_point = effect.module.entry_points[i];
+							ImGui::MenuItem(entry_point.name.c_str(), nullptr, false, !entry_point.assembly.empty()))
+							condition = condition::output, selected_index = i;
+				}
 
-				if (selected_index != -1)
+				if (condition != condition::pass)
 				{
 					std::string source_code;
 					if (condition == condition::input)

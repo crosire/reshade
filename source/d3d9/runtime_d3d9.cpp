@@ -746,7 +746,7 @@ bool reshade::d3d9::runtime_d3d9::compile_effect(effect_data &effect)
 			return false;
 
 		if (com_ptr<ID3DBlob> d3d_disassembled; SUCCEEDED(D3DDisassemble(compiled->GetBufferPointer(), compiled->GetBufferSize(), 0, nullptr, &d3d_disassembled)))
-			entry_point.assembly = std::string((const char *)d3d_disassembled->GetBufferPointer());
+			entry_point.assembly = std::string(static_cast<const char *>(d3d_disassembled->GetBufferPointer()));
 		else
 			entry_point.assembly.clear();
 

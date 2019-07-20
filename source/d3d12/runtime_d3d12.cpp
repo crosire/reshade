@@ -702,12 +702,13 @@ bool reshade::d3d12::runtime_d3d12::compile_effect(effect_data &effect)
 	}
 
 	const auto D3DCompile = reinterpret_cast<pD3DCompile>(GetProcAddress(_d3d_compiler, "D3DCompile"));
+	const auto D3DDisassemble = reinterpret_cast<pD3DDisassemble>(GetProcAddress(_d3d_compiler, "D3DDisassemble"));
 
 	const std::string hlsl = effect.preamble + effect.module.hlsl;
 	std::unordered_map<std::string, com_ptr<ID3DBlob>> entry_points;
 
 	// Compile the generated HLSL source code to DX byte code
-	for (const auto &entry_point : effect.module.entry_points)
+	for (auto &entry_point : effect.module.entry_points)
 	{
 		com_ptr<ID3DBlob> d3d_errors;
 
@@ -725,6 +726,11 @@ bool reshade::d3d12::runtime_d3d12::compile_effect(effect_data &effect)
 		// No need to setup resources if any of the shaders failed to compile
 		if (FAILED(hr))
 			return false;
+
+		if (com_ptr<ID3DBlob> d3d_disassembled; SUCCEEDED(D3DDisassemble(entry_points[entry_point.name]->GetBufferPointer(), entry_points[entry_point.name]->GetBufferSize(), 0, nullptr, &d3d_disassembled)))
+			entry_point.assembly = std::string(static_cast<const char *>(d3d_disassembled->GetBufferPointer()));
+		else
+			entry_point.assembly.clear();
 	}
 
 	if (_effect_data.size() <= effect.index)
