@@ -550,16 +550,16 @@ bool reshade::opengl::runtime_opengl::compile_effect(effect_data &effect)
 	// Compile all entry points
 	for (const auto &entry_point : effect.module.entry_points)
 	{
-		GLuint shader_id = glCreateShader(entry_point.second ? GL_FRAGMENT_SHADER : GL_VERTEX_SHADER);
-		entry_points[entry_point.first] = shader_id;
+		GLuint shader_id = glCreateShader(entry_point.is_pixel_shader ? GL_FRAGMENT_SHADER : GL_VERTEX_SHADER);
+		entry_points[entry_point.name] = shader_id;
 
 #if 0
 		glShaderBinary(1, &shader_id, GL_SHADER_BINARY_FORMAT_SPIR_V, effect.module.spirv.data(), effect.module.spirv.size() * sizeof(uint32_t));
 		glSpecializeShader(shader_id, entry_point.first.c_str(), GLuint(spec_constants.size()), spec_constants.data(), spec_constant_values.data());
 #else
 		std::string defines = effect.preamble;
-		defines += "#define ENTRY_POINT_" + entry_point.first + " 1\n";
-		if (!entry_point.second) // OpenGL does not allow using 'discard' in the vertex shader profile
+		defines += "#define ENTRY_POINT_" + entry_point.name + " 1\n";
+		if (!entry_point.is_pixel_shader) // OpenGL does not allow using 'discard' in the vertex shader profile
 			defines += "#define discard\n"
 				"#define dFdx(x) x\n" // 'dFdx', 'dFdx' and 'fwidth' too are only available in fragment shaders
 				"#define dFdy(y) y\n"

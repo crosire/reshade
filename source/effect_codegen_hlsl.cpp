@@ -517,10 +517,10 @@ private:
 	void define_entry_point(const function_info &func, bool is_ps) override
 	{
 		if (const auto it = std::find_if(_module.entry_points.begin(), _module.entry_points.end(),
-			[&func](const auto &ep) { return ep.first == func.unique_name; }); it != _module.entry_points.end())
+			[&func](const auto &ep) { return ep.name == func.unique_name; }); it != _module.entry_points.end())
 			return;
 
-		_module.entry_points.push_back({ func.unique_name, is_ps });
+		_module.entry_points.push_back(entry_point_info { func.unique_name, is_ps });
 
 		// Only have to rewrite the entry point function signature in shader model 3
 		if (_shader_model >= 40)

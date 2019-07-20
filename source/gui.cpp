@@ -1157,24 +1157,49 @@ void reshade::runtime::draw_overlay_menu_statistics()
 			}
 
 			ImGui::SameLine(0, button_spacing);
-			if (ImGui::Button("Show HLSL/GLSL", ImVec2(120, 0)))
-			{
-				const std::string source_code = effect.preamble + effect.module.hlsl;
 
-				// Act as a toggle when already showing the generated code
-				if (_show_code_editor
-					&& _selected_effect == std::numeric_limits<size_t>::max()
-					&& _editor.get_text() == source_code)
+			if (ImGui::Button("Show Results..", ImVec2(120, 0)))
+				ImGui::OpenPopup("##result_selector");
+
+			if (ImGui::BeginPopup("##result_selector"))
+			{
+				enum class condition { pass, input, output } condition = condition::pass;
+				int selected_index = -1;
+
+				if (ImGui::MenuItem("HLSL/GLSL"))
+					condition = condition::input, selected_index = 0;
+
+				ImGui::Separator();
+
+				for (size_t i = 0; effect.module.entry_points.size() > i; ++i)
+					if (ImGui::MenuItem(effect.module.entry_points[i].name.c_str()))
+						condition = condition::output, selected_index = i;
+
+				if (selected_index != -1)
 				{
-					_show_code_editor = false;
+					std::string source_code;
+					if (condition == condition::input)
+						source_code = effect.preamble + effect.module.hlsl;
+					else if (condition == condition::output)
+						source_code = effect.module.entry_points[selected_index].assembly;
+
+					// Act as a toggle when already showing the generated code
+					if (_show_code_editor
+						&& _selected_effect == std::numeric_limits<size_t>::max()
+						&& _editor.get_text() == source_code)
+					{
+						_show_code_editor = false;
+					}
+					else
+					{
+						_editor.set_text(source_code);
+						_selected_effect = std::numeric_limits<size_t>::max();
+						_selected_effect_changed = false; // Prevent editor from being cleared, since we already set the text here
+						_show_code_editor = true;
+					}
 				}
-				else
-				{
-					_editor.set_text(source_code);
-					_selected_effect = std::numeric_limits<size_t>::max();
-					_selected_effect_changed = false; // Prevent editor from being cleared, since we already set the text here
-					_show_code_editor = true;
-				}
+
+				ImGui::EndPopup();
 			}
 
 			if (tree_open)

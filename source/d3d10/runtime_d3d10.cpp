@@ -632,14 +632,15 @@ bool reshade::d3d10::runtime_d3d10::compile_effect(effect_data &effect)
 	}
 
 	const auto D3DCompile = reinterpret_cast<pD3DCompile>(GetProcAddress(_d3d_compiler, "D3DCompile"));
+	const auto D3DDisassemble = reinterpret_cast<pD3DDisassemble>(GetProcAddress(_d3d_compiler, "D3DDisassemble"));
 
 	const std::string hlsl = effect.preamble + effect.module.hlsl;
 	std::unordered_map<std::string, com_ptr<IUnknown>> entry_points;
 
 	// Compile the generated HLSL source code to DX byte code
-	for (const auto &entry_point : effect.module.entry_points)
+	for (auto &entry_point : effect.module.entry_points)
 	{
-		std::string profile = entry_point.second ? "ps" : "vs";
+		std::string profile = entry_point.is_pixel_shader ? "ps" : "vs";
 
 		switch (_renderer_id)
 		{
@@ -664,7 +665,7 @@ bool reshade::d3d10::runtime_d3d10::compile_effect(effect_data &effect)
 		HRESULT hr = D3DCompile(
 			hlsl.c_str(), hlsl.size(),
 			nullptr, nullptr, nullptr,
-			entry_point.first.c_str(),
+			entry_point.name.c_str(),
 			profile.c_str(),
 			D3DCOMPILE_ENABLE_STRICTNESS | D3DCOMPILE_OPTIMIZATION_LEVEL3, 0,
 			&d3d_compiled, &d3d_errors);
@@ -676,15 +677,20 @@ bool reshade::d3d10::runtime_d3d10::compile_effect(effect_data &effect)
 		if (FAILED(hr))
 			return false;
 
-		// Create runtime shader objects from the compiled DX byte code
-		if (entry_point.second)
-			hr = _device->CreatePixelShader(d3d_compiled->GetBufferPointer(), d3d_compiled->GetBufferSize(), reinterpret_cast<ID3D10PixelShader **>(&entry_points[entry_point.first]));
+		if (com_ptr<ID3DBlob> d3d_disassembled; SUCCEEDED(D3DDisassemble(d3d_compiled->GetBufferPointer(), d3d_compiled->GetBufferSize(), 0, nullptr, &d3d_disassembled)))
+			entry_point.assembly = std::string((const char *)d3d_disassembled->GetBufferPointer());
 		else
-			hr = _device->CreateVertexShader(d3d_compiled->GetBufferPointer(), d3d_compiled->GetBufferSize(), reinterpret_cast<ID3D10VertexShader **>(&entry_points[entry_point.first]));
+			entry_point.assembly.clear();
+
+		// Create runtime shader objects from the compiled DX byte code
+		if (entry_point.is_pixel_shader)
+			hr = _device->CreatePixelShader(d3d_compiled->GetBufferPointer(), d3d_compiled->GetBufferSize(), reinterpret_cast<ID3D10PixelShader **>(&entry_points[entry_point.name]));
+		else
+			hr = _device->CreateVertexShader(d3d_compiled->GetBufferPointer(), d3d_compiled->GetBufferSize(), reinterpret_cast<ID3D10VertexShader **>(&entry_points[entry_point.name]));
 
 		if (FAILED(hr))
 		{
-			LOG(ERROR) << "Failed to create shader for entry point '" << entry_point.first << "'. "
+			LOG(ERROR) << "Failed to create shader for entry point '" << entry_point.name << "'. "
 				"HRESULT is '" << std::hex << hr << std::dec << "'.";
 			return false;
 		}
