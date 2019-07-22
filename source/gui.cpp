@@ -1166,7 +1166,7 @@ void reshade::runtime::draw_overlay_menu_statistics()
 				enum class condition { pass, input, output } condition = condition::pass;
 				int selected_index = -1;
 
-				if (ImGui::MenuItem("HLSL/GLSL"))
+				if (ImGui::MenuItem("Generated HLSL/GLSL"))
 					condition = condition::input, selected_index = 0;
 
 				if (effect.rendering != 0)
