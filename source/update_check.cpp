@@ -31,12 +31,15 @@ bool reshade::runtime::check_for_update(unsigned long latest_version[3])
 	if (request == nullptr)
 		return false;
 
-	CHAR response_data[32];
-	DWORD response_length = 0;
+	// Set some timeouts to avoid stalling startup because of a broken internet connection
+	DWORD timeout = 2000; // 2 seconds
+	InternetSetOption(request, INTERNET_OPTION_CONNECT_TIMEOUT, &timeout, sizeof(timeout));
+	InternetSetOption(request, INTERNET_OPTION_RECEIVE_TIMEOUT, &timeout, sizeof(timeout));
 
-	if (InternetReadFile(request, response_data, sizeof(response_data) - 1, &response_length) && response_length > 0)
+	char response_data[32];
+	if (DWORD len = 0; InternetReadFile(request, response_data, sizeof(response_data) - 1, &len) && len > 0)
 	{
-		response_data[response_length] = '\0';
+		response_data[len] = '\0';
 
 		const char *version_major_offset = std::strchr(response_data, 'v');
 		if (version_major_offset == nullptr) return false; else version_major_offset++;
