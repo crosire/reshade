@@ -1158,52 +1158,56 @@ void reshade::runtime::draw_overlay_menu_statistics()
 
 			ImGui::SameLine(0, button_spacing);
 
-			if (ImGui::Button("Show Results..", ImVec2(120, 0)))
-				ImGui::OpenPopup("##result_selector");
+			enum class condition { pass, input, output } condition = condition::pass;
+			int selected_index = -1;
 
-			if (ImGui::BeginPopup("##result_selector"))
+			if ((_renderer_id & 0xF0000) == 0 && effect.rendering != 0)
 			{
-				enum class condition { pass, input, output } condition = condition::pass;
-				int selected_index = -1;
+				if (ImGui::Button("Show Results..", ImVec2(120, 0)))
+					ImGui::OpenPopup("##result_selector");
 
-				if (ImGui::MenuItem("Generated HLSL/GLSL"))
-					condition = condition::input, selected_index = 0;
-
-				if (effect.rendering != 0)
+				if (ImGui::BeginPopup("##result_selector"))
 				{
+					if (ImGui::MenuItem("Generated HLSL/GLSL"))
+						condition = condition::input, selected_index = 0;
+
 					ImGui::Separator();
 
 					for (size_t i = 0; effect.module.entry_points.size() > i; ++i)
 						if (const auto &entry_point = effect.module.entry_points[i];
 							ImGui::MenuItem(entry_point.name.c_str(), nullptr, false, !entry_point.assembly.empty()))
 							condition = condition::output, selected_index = i;
-				}
 
-				if (condition != condition::pass)
+					ImGui::EndPopup();
+				}
+			}
+			else if (ImGui::Button("Show HLSL/GLSL", ImVec2(120, 0)))
+			{
+				condition = condition::input, selected_index = 0;
+			}
+
+			if (condition != condition::pass)
+			{
+				std::string source_code;
+				if (condition == condition::input)
+					source_code = effect.preamble + effect.module.hlsl;
+				else if (condition == condition::output)
+					source_code = effect.module.entry_points[selected_index].assembly;
+
+				// Act as a toggle when already showing the generated code
+				if (_show_code_editor
+					&& _selected_effect == std::numeric_limits<size_t>::max()
+					&& _editor.get_text() == source_code)
 				{
-					std::string source_code;
-					if (condition == condition::input)
-						source_code = effect.preamble + effect.module.hlsl;
-					else if (condition == condition::output)
-						source_code = effect.module.entry_points[selected_index].assembly;
-
-					// Act as a toggle when already showing the generated code
-					if (_show_code_editor
-						&& _selected_effect == std::numeric_limits<size_t>::max()
-						&& _editor.get_text() == source_code)
-					{
-						_show_code_editor = false;
-					}
-					else
-					{
-						_editor.set_text(source_code);
-						_selected_effect = std::numeric_limits<size_t>::max();
-						_selected_effect_changed = false; // Prevent editor from being cleared, since we already set the text here
-						_show_code_editor = true;
-					}
+					_show_code_editor = false;
 				}
-
-				ImGui::EndPopup();
+				else
+				{
+					_editor.set_text(source_code);
+					_selected_effect = std::numeric_limits<size_t>::max();
+					_selected_effect_changed = false; // Prevent editor from being cleared, since we already set the text here
+					_show_code_editor = true;
+				}
 			}
 
 			if (tree_open)
