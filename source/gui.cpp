@@ -1175,8 +1175,7 @@ void reshade::runtime::draw_overlay_menu_statistics()
 					ImGui::Separator();
 
 					for (size_t i = 0; effect.module.entry_points.size() > i; ++i)
-						if (const auto &entry_point = effect.module.entry_points[i];
-							ImGui::MenuItem(entry_point.name.c_str()))
+						if (ImGui::MenuItem(effect.module.entry_points[i].name.c_str()))
 							condition = condition::output, selected_index = i;
 
 					ImGui::EndPopup();
