@@ -1161,7 +1161,8 @@ void reshade::runtime::draw_overlay_menu_statistics()
 			enum class condition { pass, input, output } condition = condition::pass;
 			int selected_index = -1;
 
-			if ((_renderer_id & 0xF0000) == 0 && effect.rendering != 0)
+			if ((_renderer_id & 0xF0000) == 0
+				&& std::any_of(effect.module.entry_points.begin(), effect.module.entry_points.end(), [](const auto &p) { return !p.assembly.empty(); }))
 			{
 				if (ImGui::Button("Show Results..", ImVec2(120, 0)))
 					ImGui::OpenPopup("##result_selector");
@@ -1175,16 +1176,14 @@ void reshade::runtime::draw_overlay_menu_statistics()
 
 					for (size_t i = 0; effect.module.entry_points.size() > i; ++i)
 						if (const auto &entry_point = effect.module.entry_points[i];
-							ImGui::MenuItem(entry_point.name.c_str(), nullptr, false, !entry_point.assembly.empty()))
+							ImGui::MenuItem(entry_point.name.c_str()))
 							condition = condition::output, selected_index = i;
 
 					ImGui::EndPopup();
 				}
 			}
 			else if (ImGui::Button("Show HLSL/GLSL", ImVec2(120, 0)))
-			{
 				condition = condition::input, selected_index = 0;
-			}
 
 			if (condition != condition::pass)
 			{
