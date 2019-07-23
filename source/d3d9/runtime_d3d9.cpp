@@ -726,9 +726,10 @@ bool reshade::d3d9::runtime_d3d9::compile_effect(effect_data &effect)
 	// Compile the generated HLSL source code to DX byte code
 	for (auto &entry_point : effect.module.entry_points)
 	{
-		const std::string &hlsl = entry_point.is_pixel_shader ? hlsl_ps : hlsl_vs;
+		entry_point.assembly.clear();
 
 		com_ptr<ID3DBlob> compiled, d3d_errors;
+		const std::string &hlsl = entry_point.is_pixel_shader ? hlsl_ps : hlsl_vs;
 
 		HRESULT hr = D3DCompile(
 			hlsl.c_str(), hlsl.size(),
@@ -747,8 +748,6 @@ bool reshade::d3d9::runtime_d3d9::compile_effect(effect_data &effect)
 
 		if (com_ptr<ID3DBlob> d3d_disassembled; SUCCEEDED(D3DDisassemble(compiled->GetBufferPointer(), compiled->GetBufferSize(), 0, nullptr, &d3d_disassembled)))
 			entry_point.assembly = std::string(static_cast<const char *>(d3d_disassembled->GetBufferPointer()));
-		else
-			entry_point.assembly.clear();
 
 		// Create runtime shader objects from the compiled DX byte code
 		if (entry_point.is_pixel_shader)

@@ -710,6 +710,7 @@ bool reshade::d3d12::runtime_d3d12::compile_effect(effect_data &effect)
 	// Compile the generated HLSL source code to DX byte code
 	for (auto &entry_point : effect.module.entry_points)
 	{
+		entry_point.assembly.clear();
 		com_ptr<ID3DBlob> d3d_errors;
 
 		const HRESULT hr = D3DCompile(
@@ -729,8 +730,6 @@ bool reshade::d3d12::runtime_d3d12::compile_effect(effect_data &effect)
 
 		if (com_ptr<ID3DBlob> d3d_disassembled; SUCCEEDED(D3DDisassemble(entry_points[entry_point.name]->GetBufferPointer(), entry_points[entry_point.name]->GetBufferSize(), 0, nullptr, &d3d_disassembled)))
 			entry_point.assembly = std::string(static_cast<const char *>(d3d_disassembled->GetBufferPointer()));
-		else
-			entry_point.assembly.clear();
 	}
 
 	if (_effect_data.size() <= effect.index)
