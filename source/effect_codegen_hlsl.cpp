@@ -173,6 +173,14 @@ private:
 				s += std::to_string(data.as_uint[i]);
 				break;
 			case type::t_float:
+				if (std::isnan(data.as_float[i])) {
+					s += "-1.#IND";
+					break;
+				}
+				if (std::isinf(data.as_float[i])) {
+					s += std::signbit(data.as_float[i]) ? "1.#INF" : "-1.#INF";
+					break;
+				}
 				std::string temp(_scprintf("%.8f", data.as_float[i]), '\0');
 				sprintf_s(temp.data(), temp.size() + 1, "%.8f", data.as_float[i]);
 				s += temp;
