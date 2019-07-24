@@ -49,6 +49,7 @@ namespace reshade
 		size_t index = std::numeric_limits<size_t>::max();
 		unsigned int rendering = 0;
 		bool compile_sucess = false;
+		bool runtime_loaded = false;
 		std::string errors;
 		std::string preamble;
 		reshadefx::module module;
