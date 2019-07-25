@@ -469,9 +469,28 @@ void reshade::vulkan::runtime_vulkan::capture_screenshot(uint8_t *buffer) const
 
 	for (uint32_t y = 0; y < _height; y++, buffer += data_pitch, mapped_data += download_pitch)
 	{
-		memcpy(buffer, mapped_data, data_pitch);
-		for (uint32_t x = 0; x < data_pitch; x += 4)
-			buffer[x + 3] = 0xFF; // Clear alpha channel
+		if (_backbuffer_format == VK_FORMAT_A2R10G10B10_UNORM_PACK32 ||
+			_backbuffer_format == VK_FORMAT_A2R10G10B10_SNORM_PACK32 ||
+			_backbuffer_format == VK_FORMAT_A2R10G10B10_USCALED_PACK32 ||
+			_backbuffer_format == VK_FORMAT_A2R10G10B10_SSCALED_PACK32)
+		{
+			for (uint32_t x = 0; x < data_pitch; x += 4)
+			{
+				const uint32_t rgba = *reinterpret_cast<const uint32_t *>(mapped_data + x);
+				// Divide by 4 to get 10-bit range (0-1023) into 8-bit range (0-255)
+				buffer[x + 0] = ((rgba & 0x3FF) / 4) & 0xFF;
+				buffer[x + 1] = (((rgba & 0xFFC00) >> 10) / 4) & 0xFF;
+				buffer[x + 2] = (((rgba & 0x3FF00000) >> 20) / 4) & 0xFF;
+				buffer[x + 3] = 0xFF;
+			}
+		}
+		else
+		{
+			memcpy(buffer, mapped_data, data_pitch);
+
+			for (uint32_t x = 0; x < data_pitch; x += 4)
+				buffer[x + 3] = 0xFF; // Clear alpha channel
+		}
 	}
 
 	_funcs.vkUnmapMemory(_device, intermediate_mem);
