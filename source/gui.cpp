@@ -1697,7 +1697,7 @@ void reshade::runtime::draw_overlay_variable_editor()
 					ImGui::PushID(static_cast<int>(i));
 
 					ImGui::PushItemWidth(ImGui::GetWindowContentRegionWidth() * 0.66666666f - (button_spacing));
-					modified |= ImGui::InputText("##name", name, sizeof(name));
+					modified |= ImGui::InputText("##name", name, sizeof(name), ImGuiInputTextFlags_CharsNoBlank);
 					ImGui::PopItemWidth();
 
 					ImGui::SameLine(0, button_spacing);
@@ -1744,7 +1744,7 @@ void reshade::runtime::draw_overlay_variable_editor()
 					ImGui::PushID(static_cast<int>(i));
 
 					ImGui::PushItemWidth(ImGui::GetWindowContentRegionWidth() * 0.66666666f - (button_spacing));
-					modified |= ImGui::InputText("##name", name, sizeof(name));
+					modified |= ImGui::InputText("##name", name, sizeof(name), ImGuiInputTextFlags_CharsNoBlank);
 					ImGui::PopItemWidth();
 
 					ImGui::SameLine(0, button_spacing);

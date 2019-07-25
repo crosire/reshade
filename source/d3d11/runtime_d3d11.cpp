@@ -1535,7 +1535,7 @@ void reshade::d3d11::runtime_d3d11::detect_depth_source(draw_call_tracker &track
 			create_depthstencil_replacement(_default_depthstencil.get(), best_match_texture);
 		return;
 	}
-	
+
 	const auto best_snapshot = tracker.find_best_snapshot(_width, _height);
 	if (best_snapshot.depthstencil != nullptr)
 		create_depthstencil_replacement(best_snapshot.depthstencil, best_snapshot.texture.get());
