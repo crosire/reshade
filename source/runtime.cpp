@@ -391,13 +391,20 @@ void reshade::runtime::load_effect(const std::filesystem::path &path, size_t &ou
 			[&info](const auto &item) { return item.unique_name == info.unique_name; });
 			existing_texture != _textures.end())
 		{
-			if (info.semantic.empty() && (
-				existing_texture->width != info.width ||
-				existing_texture->height != info.height ||
-				existing_texture->levels != info.levels ||
-				existing_texture->format != info.format))
+			// Cannot share texture if this is a normal one, but the existing one is a reference and vice versa
+			if (info.semantic.empty() != (existing_texture->impl_reference == texture_reference::none))
 			{
-				effect.errors += "warning: " + info.unique_name + ": another effect already created a texture with the same name but different dimensions; textures are shared across all effects, so either rename the variable or adjust the dimensions so they match\n";
+				effect.errors += "error: " + info.unique_name + ": another effect (";
+				effect.errors += _loaded_effects[existing_texture->effect_index].source_file.filename().u8string();
+				effect.errors += ") already created a texture with the same name but different usage; rename the variable to fix this error\n";
+				effect.compile_sucess = false;
+			}
+			else if (info.semantic.empty() && (existing_texture->width != info.width || existing_texture->height != info.height ||
+				existing_texture->levels != info.levels || existing_texture->format != info.format))
+			{
+				effect.errors += "warning: " + info.unique_name + ": another effect (";
+				effect.errors += _loaded_effects[existing_texture->effect_index].source_file.filename().u8string();
+				effect.errors += ") already created a texture with the same name but different dimensions; textures are shared across all effects, so either rename the variable or adjust the dimensions so they match\n";
 			}
 
 			existing_texture->shared = true;
