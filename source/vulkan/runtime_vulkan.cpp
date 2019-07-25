@@ -528,15 +528,22 @@ bool reshade::vulkan::runtime_vulkan::init_texture(texture &info)
 		break;
 	}
 
+	// Need TRANSFER_DST for texture data upload
+	VkImageUsageFlags usage_flags = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+	// Add required TRANSFER_SRC flag for mipmap generation
+	if (info.levels > 1)
+		usage_flags |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+
 	VkImageCreateFlags image_flags = 0;
-	if (VK_FORMAT_UNDEFINED == impl->formats[1])
-		impl->formats[1] = impl->formats[0];
-	else
+	// Add mutable format flag required to create a SRGB view of the image
+	if (impl->formats[1] != VK_FORMAT_UNDEFINED)
 		image_flags = VK_IMAGE_CREATE_MUTABLE_FORMAT_BIT;
+	else
+		impl->formats[1] = impl->formats[0];
 
 	impl->image = create_image(
 		info.width, info.height, info.levels, impl->formats[0],
-		VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+		usage_flags,
 		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
 		image_flags);
 	if (impl->image == VK_NULL_HANDLE)
