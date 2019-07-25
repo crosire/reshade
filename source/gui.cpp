@@ -524,10 +524,11 @@ void reshade::runtime::draw_ui()
 
 			ImGui::Spacing();
 
+			ImGui::ProgressBar(1.0f - _reload_remaining_effects / float(_reload_total_effects), ImVec2(-1, 0), "");
+			ImGui::SameLine(15);
+
 			if (_reload_remaining_effects != 0 && _reload_remaining_effects != std::numeric_limits<size_t>::max())
 			{
-				ImGui::ProgressBar(1.0f - _reload_remaining_effects / float(_reload_total_effects), ImVec2(-1, 0), "");
-				ImGui::SameLine(15);
 				ImGui::Text(
 					"Loading (%zu effects remaining) ... "
 					"This might take a while. The application could become unresponsive for some time.",
@@ -535,8 +536,6 @@ void reshade::runtime::draw_ui()
 			}
 			else if (!_reload_compile_queue.empty())
 			{
-				ImGui::ProgressBar(1.0f - _reload_compile_queue.size() / float(_reload_total_effects), ImVec2(-1, 0), "");
-				ImGui::SameLine(15);
 				ImGui::Text(
 					"Compiling (%zu effects remaining) ... "
 					"This might take a while. The application could become unresponsive for some time.",
@@ -551,7 +550,6 @@ void reshade::runtime::draw_ui()
 			{
 				ImGui::Text(
 					"Press '%s' to open the configuration menu.", input::key_name(_menu_key_data).c_str());
-				ImGui::Dummy(ImVec2(0, _imgui_context->Style.FramePadding.y - 1.0f)); // Add small offset to align with progress bar from reload screen
 			}
 
 			if (!_last_reload_successful)
@@ -1451,7 +1449,7 @@ void reshade::runtime::draw_code_editor()
 		}
 	};
 
-	if (_selected_effect < _loaded_effects.size() && (ImGui::Button("Save & Compile (Ctrl + S)") || _input->is_key_pressed('S', true, false, false)))
+	if (_selected_effect < _loaded_effects.size() && (ImGui::Button("Save") || _input->is_key_pressed('S', true, false, false)))
 	{
 		// Hide splash bar during compile
 		_show_splash = false;
