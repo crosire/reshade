@@ -601,14 +601,21 @@ void reshade::runtime::update_and_render_effects()
 			// Create textures now, since they are referenced when building samplers in the 'compile_effect' call below
 			bool success = true;
 			for (texture &texture : _textures)
+			{
 				if (texture.impl == nullptr && (texture.effect_index == effect_index || texture.shared))
-					success &= init_texture(texture);
+				{
+					if (!init_texture(texture))
+					{
+						success = false;
+						effect.errors += "Failed to create texture " + texture.unique_name;
+						break;
+					}
+				}
+			}
 
 			// Compile the effect with the back-end implementation
 			if (success && !compile_effect(effect))
 			{
-				success = false;
-
 				// De-duplicate error lines (D3DCompiler sometimes repeats the same error multiple times)
 				for (size_t cur_line_offset = 0, next_line_offset, end_offset;
 					(next_line_offset = effect.errors.find('\n', cur_line_offset)) != std::string::npos && (end_offset = effect.errors.find('\n', next_line_offset + 1)) != std::string::npos; cur_line_offset = next_line_offset + 1)
@@ -624,6 +631,8 @@ void reshade::runtime::update_and_render_effects()
 				}
 
 				LOG(ERROR) << "Failed to compile " << effect.source_file << ":\n" << effect.errors;
+
+				success = false;
 			}
 
 			if (!success)
