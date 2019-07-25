@@ -2068,13 +2068,16 @@ void reshade::runtime::draw_overlay_technique_editor()
 
 		ImGui::PushID(static_cast<int>(index));
 
+		// Look up effect that contains this technique
+		const effect_data &effect = _loaded_effects[technique.effect_index];
+
 		// Draw border around the item if it is selected
 		const bool draw_border = _selected_technique == index;
 		if (draw_border)
 			ImGui::Separator();
 
 		const bool clicked = _imgui_context->IO.MouseClicked[0];
-		const bool compile_success = _loaded_effects[technique.effect_index].compile_sucess;
+		const bool compile_success = effect.compile_sucess;
 		assert(compile_success || !technique.enabled);
 
 		// Prevent user from enabling the technique when the effect failed to compile
@@ -2085,7 +2088,7 @@ void reshade::runtime::draw_overlay_technique_editor()
 		std::string_view ui_label = technique.annotation_as_string("ui_label");
 		if (ui_label.empty() || !compile_success) ui_label = technique.name;
 		std::string label(ui_label.data(), ui_label.size());
-		label += " [" + _loaded_effects[technique.effect_index].source_file.filename().u8string() + ']' + (!compile_success ? " (failed to compile)" : "");
+		label += " [" + effect.source_file.filename().u8string() + ']' + (!compile_success ? " (failed to compile)" : "");
 
 		if (bool status = technique.enabled; ImGui::Checkbox(label.data(), &status))
 		{
@@ -2107,7 +2110,7 @@ void reshade::runtime::draw_overlay_technique_editor()
 			hovered_technique_index = index;
 
 		// Display tooltip
-		if (const std::string_view tooltip = compile_success ? technique.annotation_as_string("ui_tooltip") : _loaded_effects[technique.effect_index].errors;
+		if (const std::string_view tooltip = compile_success ? technique.annotation_as_string("ui_tooltip") : effect.errors;
 			!tooltip.empty() && ImGui::IsItemHovered())
 		{
 			ImGui::BeginTooltip();
@@ -2120,11 +2123,12 @@ void reshade::runtime::draw_overlay_technique_editor()
 		// Create context menu
 		if (ImGui::BeginPopupContextItem("##context"))
 		{
-			if (imgui_key_input("Toggle Key", technique.toggle_key_data, *_input))
+			ImGui::TextUnformatted(technique.name.c_str());
+			ImGui::Separator();
+
+			if (imgui_key_input("##toggle_key", technique.toggle_key_data, *_input))
 				save_current_preset();
 			_ignore_shortcuts |= ImGui::IsItemActive();
-
-			ImGui::Separator();
 
 			const bool is_not_top = index > 0;
 			const bool is_not_bottom = index < _techniques.size() - 1;
@@ -2155,6 +2159,29 @@ void reshade::runtime::draw_overlay_technique_editor()
 				_techniques.push_back(std::move(_techniques[index]));
 				_techniques.erase(_techniques.begin() + index);
 				save_current_preset();
+				ImGui::CloseCurrentPopup();
+			}
+
+			ImGui::Separator();
+
+			std::string edit_label = "Edit " + effect.source_file.filename().u8string() + "##edit";
+
+			if (ImGui::Button(edit_label.c_str(), ImVec2(button_width, 0)))
+			{
+				_selected_effect = technique.effect_index;
+				_selected_effect_changed = true;
+				_show_code_editor = true;
+				ImGui::CloseCurrentPopup();
+			}
+
+			if (ImGui::Button("Show HLSL/GLSL", ImVec2(button_width, 0)))
+			{
+				const std::string source_code = effect.preamble + effect.module.hlsl;
+
+				_editor.set_text(source_code);
+				_selected_effect = std::numeric_limits<size_t>::max();
+				_selected_effect_changed = false; // Prevent editor from being cleared, since we already set the text here
+				_show_code_editor = true;
 				ImGui::CloseCurrentPopup();
 			}
 
