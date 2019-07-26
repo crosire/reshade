@@ -2108,7 +2108,6 @@ void reshade::runtime::draw_overlay_technique_editor()
 				_selected_effect = std::numeric_limits<size_t>::max();
 				_selected_effect_changed = false; // Prevent editor from being cleared, since we already set the text here
 				_show_code_editor = true;
-
 				ImGui::CloseCurrentPopup();
 			}
 
