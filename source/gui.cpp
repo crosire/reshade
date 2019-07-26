@@ -2071,9 +2071,38 @@ void reshade::runtime::draw_overlay_technique_editor()
 				ImGui::CloseCurrentPopup();
 			}
 
-			if (ImGui::Button("Show HLSL/GLSL", ImVec2(button_width, 0)))
+			enum class condition { pass, input, output } condition = condition::pass;
+			int selected_index = -1;
+
+			if (effect.runtime_loaded && (_renderer_id & 0xF0000) == 0)
 			{
-				const std::string source_code = effect.preamble + effect.module.hlsl;
+				if (ImGui::Button("Show Results..", ImVec2(button_width, 0)))
+					ImGui::OpenPopup("##result_selector");
+
+				if (ImGui::BeginPopup("##result_selector"))
+				{
+					if (ImGui::MenuItem("Generated HLSL/GLSL"))
+						condition = condition::input, selected_index = 0;
+
+					ImGui::Separator();
+
+					for (size_t i = 0; effect.module.entry_points.size() > i; ++i)
+						if (ImGui::MenuItem(effect.module.entry_points[i].name.c_str()))
+							condition = condition::output, selected_index = i;
+
+					ImGui::EndPopup();
+				}
+			}
+			else if (ImGui::Button("Show HLSL/GLSL", ImVec2(button_width, 0)))
+				condition = condition::input, selected_index = 0;
+
+			if (condition != condition::pass)
+			{
+				std::string source_code;
+				if (condition == condition::input)
+					source_code = effect.preamble + effect.module.hlsl;
+				else if (condition == condition::output)
+					source_code = effect.module.entry_points[selected_index].assembly;
 
 				_editor.set_text(source_code);
 				_selected_effect = std::numeric_limits<size_t>::max();

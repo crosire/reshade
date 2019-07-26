@@ -710,22 +710,24 @@ bool reshade::d3d12::runtime_d3d12::compile_effect(effect_data &effect)
 	}
 
 	const auto D3DCompile = reinterpret_cast<pD3DCompile>(GetProcAddress(_d3d_compiler, "D3DCompile"));
+	const auto D3DDisassemble = reinterpret_cast<pD3DDisassemble>(GetProcAddress(_d3d_compiler, "D3DDisassemble"));
 
 	const std::string hlsl = effect.preamble + effect.module.hlsl;
 	std::unordered_map<std::string, com_ptr<ID3DBlob>> entry_points;
 
 	// Compile the generated HLSL source code to DX byte code
-	for (const auto &entry_point : effect.module.entry_points)
+	for (auto &entry_point : effect.module.entry_points)
 	{
+		entry_point.assembly.clear();
 		com_ptr<ID3DBlob> d3d_errors;
 
 		const HRESULT hr = D3DCompile(
 			hlsl.c_str(), hlsl.size(),
 			nullptr, nullptr, nullptr,
-			entry_point.first.c_str(),
-			entry_point.second ? "ps_5_0" : "vs_5_0",
+			entry_point.name.c_str(),
+			entry_point.is_pixel_shader ? "ps_5_0" : "vs_5_0",
 			D3DCOMPILE_ENABLE_STRICTNESS | D3DCOMPILE_OPTIMIZATION_LEVEL3, 0,
-			&entry_points[entry_point.first], &d3d_errors);
+			&entry_points[entry_point.name], &d3d_errors);
 
 		if (d3d_errors != nullptr) // Append warnings to the output error string as well
 			effect.errors.append(static_cast<const char *>(d3d_errors->GetBufferPointer()), d3d_errors->GetBufferSize() - 1); // Subtracting one to not append the null-terminator as well
@@ -733,6 +735,9 @@ bool reshade::d3d12::runtime_d3d12::compile_effect(effect_data &effect)
 		// No need to setup resources if any of the shaders failed to compile
 		if (FAILED(hr))
 			return false;
+
+		if (com_ptr<ID3DBlob> d3d_disassembled; SUCCEEDED(D3DDisassemble(entry_points[entry_point.name]->GetBufferPointer(), entry_points[entry_point.name]->GetBufferSize(), 0, nullptr, &d3d_disassembled)))
+			entry_point.assembly = std::string(static_cast<const char *>(d3d_disassembled->GetBufferPointer()));
 	}
 
 	if (_effect_data.size() <= effect.index)

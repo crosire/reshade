@@ -362,6 +362,12 @@ namespace reshadefx
 		std::unordered_map<std::string, std::pair<type, constant>> annotations;
 	};
 
+	struct entry_point_info
+	{
+		std::string name;
+		bool is_pixel_shader;
+		std::string assembly;
+	};
 
 	/// <summary>
 	/// In-memory representation of an effect file.
@@ -374,7 +380,7 @@ namespace reshadefx
 		std::vector<sampler_info> samplers;
 		std::vector<uniform_info> uniforms, spec_constants;
 		std::vector<technique_info> techniques;
-		std::vector<std::pair<std::string, bool>> entry_points;
+		std::vector<entry_point_info> entry_points;
 		uint32_t num_sampler_bindings = 0;
 		uint32_t num_texture_bindings = 0;
 	};

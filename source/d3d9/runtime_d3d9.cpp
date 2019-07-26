@@ -717,6 +717,7 @@ bool reshade::d3d9::runtime_d3d9::compile_effect(effect_data &effect)
 	}
 
 	const auto D3DCompile = reinterpret_cast<pD3DCompile>(GetProcAddress(_d3d_compiler, "D3DCompile"));
+	const auto D3DDisassemble = reinterpret_cast<pD3DDisassemble>(GetProcAddress(_d3d_compiler, "D3DDisassemble"));
 
 	// Add specialization constant defines to source code
 	effect.preamble += "#define COLOR_PIXEL_SIZE " + std::to_string(1.0f / _width) + ", " + std::to_string(1.0f / _height) + "\n"
@@ -730,17 +731,18 @@ bool reshade::d3d9::runtime_d3d9::compile_effect(effect_data &effect)
 	std::unordered_map<std::string, com_ptr<IUnknown>> entry_points;
 
 	// Compile the generated HLSL source code to DX byte code
-	for (const auto &entry_point : effect.module.entry_points)
+	for (auto &entry_point : effect.module.entry_points)
 	{
-		const std::string &hlsl = entry_point.second ? hlsl_ps : hlsl_vs;
+		entry_point.assembly.clear();
 
 		com_ptr<ID3DBlob> compiled, d3d_errors;
+		const std::string &hlsl = entry_point.is_pixel_shader ? hlsl_ps : hlsl_vs;
 
 		HRESULT hr = D3DCompile(
 			hlsl.c_str(), hlsl.size(),
 			nullptr, nullptr, nullptr,
-			entry_point.first.c_str(),
-			entry_point.second ? "ps_3_0" : "vs_3_0",
+			entry_point.name.c_str(),
+			entry_point.is_pixel_shader ? "ps_3_0" : "vs_3_0",
 			D3DCOMPILE_OPTIMIZATION_LEVEL3, 0,
 			&compiled, &d3d_errors);
 
@@ -751,15 +753,18 @@ bool reshade::d3d9::runtime_d3d9::compile_effect(effect_data &effect)
 		if (FAILED(hr))
 			return false;
 
+		if (com_ptr<ID3DBlob> d3d_disassembled; SUCCEEDED(D3DDisassemble(compiled->GetBufferPointer(), compiled->GetBufferSize(), 0, nullptr, &d3d_disassembled)))
+			entry_point.assembly = std::string(static_cast<const char *>(d3d_disassembled->GetBufferPointer()));
+
 		// Create runtime shader objects from the compiled DX byte code
-		if (entry_point.second)
-			hr = _device->CreatePixelShader(static_cast<const DWORD *>(compiled->GetBufferPointer()), reinterpret_cast<IDirect3DPixelShader9 **>(&entry_points[entry_point.first]));
+		if (entry_point.is_pixel_shader)
+			hr = _device->CreatePixelShader(static_cast<const DWORD *>(compiled->GetBufferPointer()), reinterpret_cast<IDirect3DPixelShader9 **>(&entry_points[entry_point.name]));
 		else
-			hr = _device->CreateVertexShader(static_cast<const DWORD *>(compiled->GetBufferPointer()), reinterpret_cast<IDirect3DVertexShader9 **>(&entry_points[entry_point.first]));
+			hr = _device->CreateVertexShader(static_cast<const DWORD *>(compiled->GetBufferPointer()), reinterpret_cast<IDirect3DVertexShader9 **>(&entry_points[entry_point.name]));
 
 		if (FAILED(hr))
 		{
-			LOG(ERROR) << "Failed to create shader for entry point '" << entry_point.first << "'. "
+			LOG(ERROR) << "Failed to create shader for entry point '" << entry_point.name << "'. "
 				"HRESULT is '" << std::hex << hr << std::dec << "'.";
 			return false;
 		}

@@ -647,6 +647,7 @@ void reshade::runtime::update_and_render_effects()
 				_last_reload_successful = false;
 			}
 
+			effect.runtime_loaded = success;
 			// An effect has changed, need to reload textures
 			_textures_loaded = false;
 		}
