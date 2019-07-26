@@ -14,7 +14,7 @@ namespace reshade::d3d12
 		_global_counter.vertices += source.total_vertices();
 		_global_counter.drawcalls += source.total_drawcalls();
 
-		if (source.depthstencil == nullptr)
+		if (source._depthstencil == nullptr)
 			return;
 
 #if RESHADE_DX12_CAPTURE_DEPTH_BUFFERS
@@ -39,7 +39,7 @@ namespace reshade::d3d12
 	{
 		_global_counter.vertices = 0;
 		_global_counter.drawcalls = 0;
-		depthstencil.reset();
+		_depthstencil.reset();
 #if RESHADE_DX12_CAPTURE_DEPTH_BUFFERS
 		std::lock(_counters_per_used_depthstencil_mutex, _cleared_depth_textures_mutex);
 		std::lock_guard lock1(_counters_per_used_depthstencil_mutex, std::adopt_lock);
@@ -81,25 +81,6 @@ namespace reshade::d3d12
 		{
 			intermediate_snapshot->second.stats.vertices += vertices;
 			intermediate_snapshot->second.stats.drawcalls += 1;
-
-			// Find the render targets, if they exist, and update their counts
-			/*for (UINT i = 0; i < D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT; i++)
-			{
-				// Ignore empty slots
-				if (targets[i] == nullptr)
-					continue;
-
-				if (const auto it = intermediate_snapshot->second.additional_views.find(targets[i].get()); it != intermediate_snapshot->second.additional_views.end())
-				{
-					it->second.vertices += vertices;
-					it->second.drawcalls += 1;
-				}
-				else
-				{
-					// This shouldn't happen - it means somehow someone has called 'on_draw' with a render target without calling 'track_rendertargets' first
-					assert(false);
-				}
-			}*/
 		}
 #endif
 	}

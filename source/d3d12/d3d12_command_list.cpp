@@ -389,6 +389,7 @@ void STDMETHODCALLTYPE D3D12CommandList::ExecuteIndirect(ID3D12CommandSignature 
 {
 	_orig->ExecuteIndirect(pCommandSignature, MaxCommandCount, pArgumentBuffer, ArgumentBufferOffset, pCountBuffer, CountBufferOffset);
 }
+
 void STDMETHODCALLTYPE D3D12CommandList::AtomicCopyBufferUINT(ID3D12Resource *pDstBuffer, UINT64 DstOffset, ID3D12Resource *pSrcBuffer, UINT64 SrcOffset, UINT Dependencies, ID3D12Resource *const *ppDependentResources, const D3D12_SUBRESOURCE_RANGE_UINT64 *pDependentSubresourceRanges)
 {
 	assert(_interface_version >= 1);
@@ -419,16 +420,19 @@ void STDMETHODCALLTYPE D3D12CommandList::SetViewInstanceMask(UINT Mask)
 	assert(_interface_version >= 1);
 	static_cast<ID3D12GraphicsCommandList1 *>(_orig)->SetViewInstanceMask(Mask);
 }
+
 void STDMETHODCALLTYPE D3D12CommandList::WriteBufferImmediate(UINT Count, const D3D12_WRITEBUFFERIMMEDIATE_PARAMETER *pParams, const D3D12_WRITEBUFFERIMMEDIATE_MODE *pModes)
 {
 	assert(_interface_version >= 2);
 	static_cast<ID3D12GraphicsCommandList2 *>(_orig)->WriteBufferImmediate(Count, pParams, pModes);
 }
+
 void STDMETHODCALLTYPE D3D12CommandList::SetProtectedResourceSession(ID3D12ProtectedResourceSession *pProtectedResourceSession)
 {
 	assert(_interface_version >= 3);
 	static_cast<ID3D12GraphicsCommandList3 *>(_orig)->SetProtectedResourceSession(pProtectedResourceSession);
 }
+
 void STDMETHODCALLTYPE D3D12CommandList::BeginRenderPass(UINT NumRenderTargets, const D3D12_RENDER_PASS_RENDER_TARGET_DESC *pRenderTargets, const D3D12_RENDER_PASS_DEPTH_STENCIL_DESC *pDepthStencil, D3D12_RENDER_PASS_FLAGS Flags)
 {
 	assert(_interface_version >= 4);
@@ -474,6 +478,7 @@ void STDMETHODCALLTYPE D3D12CommandList::DispatchRays(const D3D12_DISPATCH_RAYS_
 	assert(_interface_version >= 4);
 	static_cast<ID3D12GraphicsCommandList4 *>(_orig)->DispatchRays(pDesc);
 }
+
 void STDMETHODCALLTYPE D3D12CommandList::RSSetShadingRate(D3D12_SHADING_RATE baseShadingRate, const D3D12_SHADING_RATE_COMBINER *combiners)
 {
 	assert(_interface_version >= 5);

@@ -158,7 +158,7 @@ void D3D12Device::track_active_rendertargets(ID3D12GraphicsCommandList * cmdList
 
 	save_depth_texture(cmdList, draw_call_tracker, pDepthStencilView, false);
 
-	draw_call_tracker.depthstencil = current_depthstencil;
+	draw_call_tracker._depthstencil = current_depthstencil;
 }
 
 void D3D12Device::track_cleared_depthstencil(ID3D12GraphicsCommandList * cmdList, reshade::d3d12::draw_call_tracker &draw_call_tracker, D3D12_CLEAR_FLAGS ClearFlags, D3D12_CPU_DESCRIPTOR_HANDLE pDepthStencilView)

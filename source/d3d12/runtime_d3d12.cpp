@@ -4,6 +4,7 @@
  */
 
 #include "log.hpp"
+#include "ini_file.hpp"
 #include "hook_manager.hpp"
 #include "runtime_d3d12.hpp"
 #include "runtime_objects.hpp"
@@ -525,7 +526,7 @@ bool reshade::d3d12::runtime_d3d12::init_texture(texture &info)
 
 	D3D12_HEAP_PROPERTIES props = { D3D12_HEAP_TYPE_DEFAULT };
 
-	// Render targets are always either cleared to zero or not cleared at all (see 'ClearRenderTargets' pass state), so we can set the optimized clear value here to zero
+	// Render targets are always either cleared to zero or not cleared at all (see 'ClearRenderTargets' pass state), so can set the optimized clear value here to zero
 	D3D12_CLEAR_VALUE clear_value = {};
 	clear_value.Format = make_dxgi_format_normal(desc.Format);
 
@@ -752,7 +753,7 @@ bool reshade::d3d12::runtime_d3d12::compile_effect(effect_data &effect)
 
 	const std::string hlsl = effect.preamble + effect.module.hlsl;
 	std::unordered_map<std::string, com_ptr<ID3DBlob>> entry_points;
-		
+
 	// Compile the generated HLSL source code to DX byte code
 	for (const auto &entry_point : effect.module.entry_points)
 	{
@@ -1666,7 +1667,7 @@ bool reshade::d3d12::runtime_d3d12::create_depthstencil_replacement(ID3D12Resour
 
 				if (texture_data->descriptors == nullptr)
 				{
-					{	D3D12_DESCRIPTOR_HEAP_DESC heap_desc = { D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV };
+					{   D3D12_DESCRIPTOR_HEAP_DESC heap_desc = { D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV };
 						heap_desc.NumDescriptors = 1;
 						heap_desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 
@@ -1692,12 +1693,12 @@ bool reshade::d3d12::runtime_d3d12::create_depthstencil_replacement(ID3D12Resour
 						continue;
 
 					{   D3D12_SHADER_RESOURCE_VIEW_DESC desc = {};
-					desc.Format = make_dxgi_format_normal(texture_data->resource->GetDesc().Format);
-					desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-					desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-					desc.Texture2D.MipLevels = tex.levels;
+						desc.Format = make_dxgi_format_normal(texture_data->resource->GetDesc().Format);
+						desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+						desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+						desc.Texture2D.MipLevels = tex.levels;
 
-					_device->CreateShaderResourceView(texture_data->resource.get(), &desc, effect_data.depth_texture_hdl);
+						_device->CreateShaderResourceView(texture_data->resource.get(), &desc, effect_data.depth_texture_hdl);
 					}
 				}
 			}

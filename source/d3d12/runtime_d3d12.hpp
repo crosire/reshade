@@ -5,7 +5,6 @@
 
 #pragma once
 
-#include "ini_file.hpp"
 #include "runtime.hpp"
 #include "com_ptr.hpp"
 #include "draw_call_tracker.hpp"

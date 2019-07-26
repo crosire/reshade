@@ -16,7 +16,6 @@ struct __declspec(uuid("479B29E3-9A2C-11D0-B696-00A0C903487A")) D3D12CommandList
 	D3D12CommandList(D3D12Device *device, UINT nodeMask, D3D12_COMMAND_LIST_TYPE type, ID3D12CommandAllocator *pCommandAllocator, ID3D12PipelineState *pInitialState, ID3D12GraphicsCommandList4 *original);
 	D3D12CommandList(D3D12Device *device, UINT nodeMask, D3D12_COMMAND_LIST_TYPE type, ID3D12CommandAllocator *pCommandAllocator, ID3D12PipelineState *pInitialState, ID3D12GraphicsCommandList5 *original);
 
-
 	D3D12CommandList(const D3D12CommandList &) = delete;
 	D3D12CommandList &operator=(const D3D12CommandList &) = delete;
 
@@ -24,24 +23,25 @@ struct __declspec(uuid("479B29E3-9A2C-11D0-B696-00A0C903487A")) D3D12CommandList
 	ULONG   STDMETHODCALLTYPE AddRef() override;
 	ULONG   STDMETHODCALLTYPE Release() override;
 
-#pragma region ID3D12Object
+	#pragma region ID3D12Object
 	HRESULT STDMETHODCALLTYPE GetPrivateData(REFGUID guid, UINT *pDataSize, void *pData) override;
 	HRESULT STDMETHODCALLTYPE SetPrivateData(REFGUID guid, UINT DataSize, const void *pData) override;
 	HRESULT STDMETHODCALLTYPE SetPrivateDataInterface(REFGUID guid, const IUnknown *pData) override;
 	HRESULT STDMETHODCALLTYPE SetName(LPCWSTR Name) override;
-#pragma region ID3D12DeviceChild
+	#pragma endregion
+	#pragma region ID3D12DeviceChild
 	HRESULT STDMETHODCALLTYPE GetDevice(REFIID riid, void **ppvDevice) override;
-#pragma endregion
-#pragma region ID3D12CommandList
+	#pragma endregion
+	#pragma region ID3D12CommandList
 	D3D12_COMMAND_LIST_TYPE STDMETHODCALLTYPE GetType(void) override;
-#pragma endregion
-#pragma endregion ID3D12GraphicsCommandList
+	#pragma endregion
+	#pragma endregion ID3D12GraphicsCommandList
 	HRESULT STDMETHODCALLTYPE Close() override;
 	HRESULT STDMETHODCALLTYPE Reset(ID3D12CommandAllocator *pAllocator,	ID3D12PipelineState *pInitialState) override;
 	void STDMETHODCALLTYPE ClearState(ID3D12PipelineState *pPipelineState) override;
 	void STDMETHODCALLTYPE DrawInstanced(UINT VertexCountPerInstance, UINT InstanceCount,	UINT StartVertexLocation,	UINT StartInstanceLocation) override;
 	void STDMETHODCALLTYPE DrawIndexedInstanced(UINT IndexCountPerInstance, UINT InstanceCount,	UINT StartIndexLocation, INT BaseVertexLocation, UINT StartInstanceLocation) override;
-    void STDMETHODCALLTYPE Dispatch(UINT ThreadGroupCountX, UINT ThreadGroupCountY,	UINT ThreadGroupCountZ) override;
+	void STDMETHODCALLTYPE Dispatch(UINT ThreadGroupCountX, UINT ThreadGroupCountY,	UINT ThreadGroupCountZ) override;
 	void STDMETHODCALLTYPE CopyBufferRegion(ID3D12Resource *pDstBuffer,	UINT64 DstOffset, ID3D12Resource *pSrcBuffer, UINT64 SrcOffset,	UINT64 NumBytes) override;
 	void STDMETHODCALLTYPE CopyTextureRegion(const D3D12_TEXTURE_COPY_LOCATION *pDst, UINT DstX, UINT DstY,	UINT DstZ, const D3D12_TEXTURE_COPY_LOCATION *pSrc,	const D3D12_BOX *pSrcBox) override;
 	void STDMETHODCALLTYPE CopyResource(ID3D12Resource *pDstResource, ID3D12Resource *pSrcResource) override;
@@ -87,22 +87,22 @@ struct __declspec(uuid("479B29E3-9A2C-11D0-B696-00A0C903487A")) D3D12CommandList
 	void STDMETHODCALLTYPE BeginEvent(UINT Metadata, const void *pData,	UINT Size) override;
 	void STDMETHODCALLTYPE EndEvent() override;
 	void STDMETHODCALLTYPE ExecuteIndirect(ID3D12CommandSignature *pCommandSignature, UINT MaxCommandCount,	ID3D12Resource *pArgumentBuffer, UINT64 ArgumentBufferOffset, ID3D12Resource *pCountBuffer,	UINT64 CountBufferOffset) override;
-#pragma endregion
-#pragma region ID3D12GraphicsCommandList1
+	#pragma endregion
+	#pragma region ID3D12GraphicsCommandList1
 	void STDMETHODCALLTYPE AtomicCopyBufferUINT(ID3D12Resource *pDstBuffer, UINT64 DstOffset, ID3D12Resource *pSrcBuffer, UINT64 SrcOffset,	UINT Dependencies, ID3D12Resource *const *ppDependentResources, const D3D12_SUBRESOURCE_RANGE_UINT64 *pDependentSubresourceRanges) override;
 	void STDMETHODCALLTYPE AtomicCopyBufferUINT64(ID3D12Resource *pDstBuffer, UINT64 DstOffset, ID3D12Resource *pSrcBuffer, UINT64 SrcOffset, UINT Dependencies, ID3D12Resource *const *ppDependentResources, const D3D12_SUBRESOURCE_RANGE_UINT64 *pDependentSubresourceRanges) override;
 	void STDMETHODCALLTYPE OMSetDepthBounds(FLOAT Min, FLOAT Max) override;
 	void STDMETHODCALLTYPE SetSamplePositions(UINT NumSamplesPerPixel, UINT NumPixels, D3D12_SAMPLE_POSITION *pSamplePositions) override;
 	void STDMETHODCALLTYPE ResolveSubresourceRegion(ID3D12Resource *pDstResource, UINT DstSubresource, UINT DstX, UINT DstY, ID3D12Resource *pSrcResource, UINT SrcSubresource, D3D12_RECT *pSrcRect, DXGI_FORMAT Format, D3D12_RESOLVE_MODE ResolveMode) override;
 	void STDMETHODCALLTYPE SetViewInstanceMask(UINT Mask) override;
-#pragma endregion
-#pragma region ID3D12GraphicsCommandList2
+	#pragma endregion
+	#pragma region ID3D12GraphicsCommandList2
 	void STDMETHODCALLTYPE WriteBufferImmediate(UINT Count, const D3D12_WRITEBUFFERIMMEDIATE_PARAMETER *pParams, const D3D12_WRITEBUFFERIMMEDIATE_MODE *pModes) override;
-#pragma endregion
-#pragma region ID3D12GraphicsCommandList3
+	#pragma endregion
+	#pragma region ID3D12GraphicsCommandList3
 	void STDMETHODCALLTYPE SetProtectedResourceSession(ID3D12ProtectedResourceSession *pProtectedResourceSession) override;
-#pragma endregion
-#pragma region ID3D12GraphicsCommandList4
+	#pragma endregion
+	#pragma region ID3D12GraphicsCommandList4
 	void STDMETHODCALLTYPE BeginRenderPass(UINT NumRenderTargets, const D3D12_RENDER_PASS_RENDER_TARGET_DESC *pRenderTargets, const D3D12_RENDER_PASS_DEPTH_STENCIL_DESC *pDepthStencil, D3D12_RENDER_PASS_FLAGS Flags) override;
 	void STDMETHODCALLTYPE EndRenderPass(void) override;
 	void STDMETHODCALLTYPE InitializeMetaCommand(ID3D12MetaCommand *pMetaCommand, const void *pInitializationParametersData, SIZE_T InitializationParametersDataSizeInBytes) override;
@@ -112,11 +112,11 @@ struct __declspec(uuid("479B29E3-9A2C-11D0-B696-00A0C903487A")) D3D12CommandList
 	void STDMETHODCALLTYPE CopyRaytracingAccelerationStructure(D3D12_GPU_VIRTUAL_ADDRESS DestAccelerationStructureData, D3D12_GPU_VIRTUAL_ADDRESS SourceAccelerationStructureData, D3D12_RAYTRACING_ACCELERATION_STRUCTURE_COPY_MODE Mode) override;
 	void STDMETHODCALLTYPE SetPipelineState1(ID3D12StateObject *pStateObject) override;
 	void STDMETHODCALLTYPE DispatchRays(const D3D12_DISPATCH_RAYS_DESC *pDesc) override;
-#pragma endregion
-#pragma region ID3D12GraphicsCommandList5
+	#pragma endregion
+	#pragma region ID3D12GraphicsCommandList5
 	void STDMETHODCALLTYPE RSSetShadingRate(D3D12_SHADING_RATE baseShadingRate, const D3D12_SHADING_RATE_COMBINER *combiners) override;
 	void STDMETHODCALLTYPE RSSetShadingRateImage(ID3D12Resource *shadingRateImage) override;
-#pragma endregion
+	#pragma endregion
 
 	bool check_and_upgrade_interface(REFIID riid);
 
