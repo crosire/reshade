@@ -469,9 +469,28 @@ void reshade::vulkan::runtime_vulkan::capture_screenshot(uint8_t *buffer) const
 
 	for (uint32_t y = 0; y < _height; y++, buffer += data_pitch, mapped_data += download_pitch)
 	{
-		memcpy(buffer, mapped_data, data_pitch);
-		for (uint32_t x = 0; x < data_pitch; x += 4)
-			buffer[x + 3] = 0xFF; // Clear alpha channel
+		if (_backbuffer_format == VK_FORMAT_A2R10G10B10_UNORM_PACK32 ||
+			_backbuffer_format == VK_FORMAT_A2R10G10B10_SNORM_PACK32 ||
+			_backbuffer_format == VK_FORMAT_A2R10G10B10_USCALED_PACK32 ||
+			_backbuffer_format == VK_FORMAT_A2R10G10B10_SSCALED_PACK32)
+		{
+			for (uint32_t x = 0; x < data_pitch; x += 4)
+			{
+				const uint32_t rgba = *reinterpret_cast<const uint32_t *>(mapped_data + x);
+				// Divide by 4 to get 10-bit range (0-1023) into 8-bit range (0-255)
+				buffer[x + 0] = ((rgba & 0x3FF) / 4) & 0xFF;
+				buffer[x + 1] = (((rgba & 0xFFC00) >> 10) / 4) & 0xFF;
+				buffer[x + 2] = (((rgba & 0x3FF00000) >> 20) / 4) & 0xFF;
+				buffer[x + 3] = 0xFF;
+			}
+		}
+		else
+		{
+			memcpy(buffer, mapped_data, data_pitch);
+
+			for (uint32_t x = 0; x < data_pitch; x += 4)
+				buffer[x + 3] = 0xFF; // Clear alpha channel
+		}
 	}
 
 	_funcs.vkUnmapMemory(_device, intermediate_mem);
@@ -528,15 +547,22 @@ bool reshade::vulkan::runtime_vulkan::init_texture(texture &info)
 		break;
 	}
 
+	// Need TRANSFER_DST for texture data upload
+	VkImageUsageFlags usage_flags = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+	// Add required TRANSFER_SRC flag for mipmap generation
+	if (info.levels > 1)
+		usage_flags |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+
 	VkImageCreateFlags image_flags = 0;
-	if (VK_FORMAT_UNDEFINED == impl->formats[1])
-		impl->formats[1] = impl->formats[0];
-	else
+	// Add mutable format flag required to create a SRGB view of the image
+	if (impl->formats[1] != VK_FORMAT_UNDEFINED)
 		image_flags = VK_IMAGE_CREATE_MUTABLE_FORMAT_BIT;
+	else
+		impl->formats[1] = impl->formats[0];
 
 	impl->image = create_image(
 		info.width, info.height, info.levels, impl->formats[0],
-		VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+		usage_flags,
 		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
 		image_flags);
 	if (impl->image == VK_NULL_HANDLE)

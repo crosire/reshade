@@ -391,13 +391,20 @@ void reshade::runtime::load_effect(const std::filesystem::path &path, size_t &ou
 			[&info](const auto &item) { return item.unique_name == info.unique_name; });
 			existing_texture != _textures.end())
 		{
-			if (info.semantic.empty() && (
-				existing_texture->width != info.width ||
-				existing_texture->height != info.height ||
-				existing_texture->levels != info.levels ||
-				existing_texture->format != info.format))
+			// Cannot share texture if this is a normal one, but the existing one is a reference and vice versa
+			if (info.semantic.empty() != (existing_texture->impl_reference == texture_reference::none))
 			{
-				effect.errors += "warning: " + info.unique_name + ": another effect already created a texture with the same name but different dimensions; textures are shared across all effects, so either rename the variable or adjust the dimensions so they match\n";
+				effect.errors += "error: " + info.unique_name + ": another effect (";
+				effect.errors += _loaded_effects[existing_texture->effect_index].source_file.filename().u8string();
+				effect.errors += ") already created a texture with the same name but different usage; rename the variable to fix this error\n";
+				effect.compile_sucess = false;
+			}
+			else if (info.semantic.empty() && (existing_texture->width != info.width || existing_texture->height != info.height ||
+				existing_texture->levels != info.levels || existing_texture->format != info.format))
+			{
+				effect.errors += "warning: " + info.unique_name + ": another effect (";
+				effect.errors += _loaded_effects[existing_texture->effect_index].source_file.filename().u8string();
+				effect.errors += ") already created a texture with the same name but different dimensions; textures are shared across all effects, so either rename the variable or adjust the dimensions so they match\n";
 			}
 
 			existing_texture->shared = true;
@@ -541,11 +548,6 @@ void reshade::runtime::unload_effect(size_t id)
 		[id](const auto &it) { return it.effect_index == id; }), _techniques.end());
 
 	_loaded_effects[id].source_file.clear();
-
-#if RESHADE_GUI
-	// Remove all texture preview windows since some may no longer be valid
-	_texture_previews.clear();
-#endif
 }
 void reshade::runtime::unload_effects()
 {
@@ -562,11 +564,6 @@ void reshade::runtime::unload_effects()
 	_uniform_data_storage.clear();
 
 	_textures_loaded = false;
-
-#if RESHADE_GUI
-	// Remove all texture preview windows since those textures were deleted above
-	_texture_previews.clear();
-#endif
 }
 
 void reshade::runtime::update_and_render_effects()
@@ -601,14 +598,21 @@ void reshade::runtime::update_and_render_effects()
 			// Create textures now, since they are referenced when building samplers in the 'compile_effect' call below
 			bool success = true;
 			for (texture &texture : _textures)
+			{
 				if (texture.impl == nullptr && (texture.effect_index == effect_index || texture.shared))
-					success &= init_texture(texture);
+				{
+					if (!init_texture(texture))
+					{
+						success = false;
+						effect.errors += "Failed to create texture " + texture.unique_name;
+						break;
+					}
+				}
+			}
 
 			// Compile the effect with the back-end implementation
 			if (success && !compile_effect(effect))
 			{
-				success = false;
-
 				// De-duplicate error lines (D3DCompiler sometimes repeats the same error multiple times)
 				for (size_t cur_line_offset = 0, next_line_offset, end_offset;
 					(next_line_offset = effect.errors.find('\n', cur_line_offset)) != std::string::npos && (end_offset = effect.errors.find('\n', next_line_offset + 1)) != std::string::npos; cur_line_offset = next_line_offset + 1)
@@ -624,6 +628,8 @@ void reshade::runtime::update_and_render_effects()
 				}
 
 				LOG(ERROR) << "Failed to compile " << effect.source_file << ":\n" << effect.errors;
+
+				success = false;
 			}
 
 			if (!success)

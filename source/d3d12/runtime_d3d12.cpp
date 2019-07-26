@@ -342,15 +342,6 @@ void reshade::d3d12::runtime_d3d12::on_present()
 
 void reshade::d3d12::runtime_d3d12::capture_screenshot(uint8_t *buffer) const
 {
-	if (_backbuffer_format != DXGI_FORMAT_R8G8B8A8_UNORM &&
-		_backbuffer_format != DXGI_FORMAT_R8G8B8A8_UNORM_SRGB &&
-		_backbuffer_format != DXGI_FORMAT_B8G8R8A8_UNORM &&
-		_backbuffer_format != DXGI_FORMAT_B8G8R8A8_UNORM_SRGB)
-	{
-		LOG(WARN) << "Screenshots are not supported for back buffer format " << _backbuffer_format << '.';
-		return;
-	}
-
 	const uint32_t data_pitch = _width * 4;
 	const uint32_t download_pitch = (data_pitch + D3D12_TEXTURE_DATA_PITCH_ALIGNMENT - 1u) & ~(D3D12_TEXTURE_DATA_PITCH_ALIGNMENT - 1u);
 
@@ -407,9 +398,26 @@ void reshade::d3d12::runtime_d3d12::capture_screenshot(uint8_t *buffer) const
 
 	for (uint32_t y = 0; y < _height; y++, buffer += data_pitch, mapped_data += download_pitch)
 	{
-		memcpy(buffer, mapped_data, data_pitch);
-		for (uint32_t x = 0; x < data_pitch; x += 4)
-			buffer[x + 3] = 0xFF; // Clear alpha channel
+		if (_backbuffer_format == DXGI_FORMAT_R10G10B10A2_UNORM ||
+			_backbuffer_format == DXGI_FORMAT_R10G10B10A2_UINT)
+		{
+			for (uint32_t x = 0; x < data_pitch; x += 4)
+			{
+				const uint32_t rgba = *reinterpret_cast<const uint32_t *>(mapped_data + x);
+				// Divide by 4 to get 10-bit range (0-1023) into 8-bit range (0-255)
+				buffer[x + 0] = ((rgba & 0x3FF) / 4) & 0xFF;
+				buffer[x + 1] = (((rgba & 0xFFC00) >> 10) / 4) & 0xFF;
+				buffer[x + 2] = (((rgba & 0x3FF00000) >> 20) / 4) & 0xFF;
+				buffer[x + 3] = 0xFF;
+			}
+		}
+		else
+		{
+			memcpy(buffer, mapped_data, data_pitch);
+
+			for (uint32_t x = 0; x < data_pitch; x += 4)
+				buffer[x + 3] = 0xFF; // Clear alpha channel
+		}
 	}
 
 	intermediate->Unmap(0, nullptr);

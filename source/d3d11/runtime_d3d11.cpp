@@ -391,15 +391,6 @@ void reshade::d3d11::runtime_d3d11::on_clear_depthstencil_view(ID3D11DepthStenci
 
 void reshade::d3d11::runtime_d3d11::capture_screenshot(uint8_t *buffer) const
 {
-	if (_backbuffer_format != DXGI_FORMAT_R8G8B8A8_UNORM &&
-		_backbuffer_format != DXGI_FORMAT_R8G8B8A8_UNORM_SRGB &&
-		_backbuffer_format != DXGI_FORMAT_B8G8R8A8_UNORM &&
-		_backbuffer_format != DXGI_FORMAT_B8G8R8A8_UNORM_SRGB)
-	{
-		LOG(WARN) << "Screenshots are not supported for back buffer format " << _backbuffer_format << '.';
-		return;
-	}
-
 	// Create a texture in system memory, copy back buffer data into it and map it for reading
 	D3D11_TEXTURE2D_DESC desc = {};
 	desc.Width = _width;
@@ -423,17 +414,34 @@ void reshade::d3d11::runtime_d3d11::capture_screenshot(uint8_t *buffer) const
 	D3D11_MAPPED_SUBRESOURCE mapped;
 	if (FAILED(_immediate_context->Map(intermediate.get(), 0, D3D11_MAP_READ, 0, &mapped)))
 		return;
-	auto mapped_data = static_cast<uint8_t *>(mapped.pData);
+	auto mapped_data = static_cast<const uint8_t *>(mapped.pData);
 
 	for (uint32_t y = 0, pitch = _width * 4; y < _height; y++, buffer += pitch, mapped_data += mapped.RowPitch)
 	{
-		memcpy(buffer, mapped_data, pitch);
-
-		for (uint32_t x = 0; x < pitch; x += 4)
+		if (_backbuffer_format == DXGI_FORMAT_R10G10B10A2_UNORM ||
+			_backbuffer_format == DXGI_FORMAT_R10G10B10A2_UINT)
 		{
-			buffer[x + 3] = 0xFF; // Clear alpha channel
-			if (_backbuffer_format == DXGI_FORMAT_B8G8R8A8_UNORM || _backbuffer_format == DXGI_FORMAT_B8G8R8A8_UNORM_SRGB)
-				std::swap(buffer[x + 0], buffer[x + 2]); // Format is BGRA, but output should be RGBA, so flip channels
+			for (uint32_t x = 0; x < pitch; x += 4)
+			{
+				const uint32_t rgba = *reinterpret_cast<const uint32_t *>(mapped_data + x);
+				// Divide by 4 to get 10-bit range (0-1023) into 8-bit range (0-255)
+				buffer[x + 0] = ((rgba & 0x3FF) / 4) & 0xFF;
+				buffer[x + 1] = (((rgba & 0xFFC00) >> 10) / 4) & 0xFF;
+				buffer[x + 2] = (((rgba & 0x3FF00000) >> 20) / 4) & 0xFF;
+				buffer[x + 3] = 0xFF;
+			}
+		}
+		else
+		{
+			memcpy(buffer, mapped_data, pitch);
+
+			for (uint32_t x = 0; x < pitch; x += 4)
+			{
+				buffer[x + 3] = 0xFF; // Clear alpha channel
+				if (_backbuffer_format == DXGI_FORMAT_B8G8R8A8_UNORM ||
+					_backbuffer_format == DXGI_FORMAT_B8G8R8A8_UNORM_SRGB)
+					std::swap(buffer[x + 0], buffer[x + 2]); // Format is BGRA, but output should be RGBA, so flip channels
+			}
 		}
 	}
 
@@ -1540,7 +1548,7 @@ void reshade::d3d11::runtime_d3d11::detect_depth_source(draw_call_tracker &track
 			create_depthstencil_replacement(_default_depthstencil.get(), best_match_texture);
 		return;
 	}
-	
+
 	const auto best_snapshot = tracker.find_best_snapshot(_width, _height);
 	if (best_snapshot.depthstencil != nullptr)
 		create_depthstencil_replacement(best_snapshot.depthstencil, best_snapshot.texture.get());

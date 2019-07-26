@@ -23,10 +23,10 @@ public:
 private:
 	enum class naming
 	{
-		// Will be numbered when clashing with another name
-		general,
 		// Name should already be unique, so no additional steps are taken
 		unique,
+		// Will be numbered when clashing with another name
+		general,
 	};
 
 	std::string _cbuffer_block;
@@ -173,6 +173,14 @@ private:
 				s += std::to_string(data.as_uint[i]);
 				break;
 			case type::t_float:
+				if (std::isnan(data.as_float[i])) {
+					s += "-1.#IND";
+					break;
+				}
+				if (std::isinf(data.as_float[i])) {
+					s += std::signbit(data.as_float[i]) ? "1.#INF" : "-1.#INF";
+					break;
+				}
 				std::string temp(_scprintf("%.8f", data.as_float[i]), '\0');
 				sprintf_s(temp.data(), temp.size() + 1, "%.8f", data.as_float[i]);
 				s += temp;
@@ -1089,12 +1097,15 @@ private:
 	}
 	void emit_loop(const location &loc, id condition_value, id prev_block, id header_block, id condition_block, id loop_block, id continue_block, unsigned int flags) override
 	{
-		assert(condition_value != 0 && prev_block != 0 && header_block != 0 && loop_block != 0 && continue_block != 0);
+		assert(prev_block != 0 && header_block != 0 && loop_block != 0 && continue_block != 0);
 
 		std::string &code = _blocks.at(_current_block);
 
 		std::string &loop_data = _blocks.at(loop_block);
 		std::string &continue_data = _blocks.at(continue_block);
+
+		// Condition value can be missing in infinite loop constructs like "for (;;)"
+		const std::string condition_name = condition_value != 0 ? id_to_name(condition_value) : "true";
 
 		increase_indentation_level(loop_data);
 		increase_indentation_level(loop_data);
@@ -1103,7 +1114,7 @@ private:
 		code += _blocks.at(prev_block);
 
 		if (condition_block == 0)
-			code += "\tbool " + id_to_name(condition_value) + ";\n";
+			code += "\tbool " + condition_name + ";\n";
 		else
 			code += _blocks.at(condition_block);
 
@@ -1117,7 +1128,7 @@ private:
 		if (condition_block == 0)
 		{
 			// Convert variable initializer to assignment statement
-			auto pos_assign = continue_data.rfind(id_to_name(condition_value));
+			auto pos_assign = continue_data.rfind(condition_name);
 			auto pos_prev_assign = continue_data.rfind('\t', pos_assign);
 			continue_data.erase(pos_prev_assign + 1, pos_assign - pos_prev_assign - 1);
 
@@ -1130,7 +1141,7 @@ private:
 			code += loop_data; // Encapsulate loop body into another scope, so not to confuse any local variables with the current iteration variable accessed in the continue block below
 			code += "\t\t}\n";
 			code += continue_data;
-			code += "\t}\n\twhile (" + id_to_name(condition_value) + ");\n";
+			code += "\t}\n\twhile (" + condition_name + ");\n";
 		}
 		else
 		{
@@ -1139,7 +1150,7 @@ private:
 			increase_indentation_level(condition_data);
 
 			// Convert variable initializer to assignment statement
-			auto pos_assign = condition_data.rfind(id_to_name(condition_value));
+			auto pos_assign = condition_data.rfind(condition_name);
 			auto pos_prev_assign = condition_data.rfind('\t', pos_assign);
 			condition_data.erase(pos_prev_assign + 1, pos_assign - pos_prev_assign - 1);
 
@@ -1147,7 +1158,7 @@ private:
 			for (size_t offset = 0; (offset = loop_data.find(continue_id, offset)) != std::string::npos; offset += continue_data.size())
 				loop_data.replace(offset, continue_id.size(), continue_data + condition_data);
 
-			code += "while (" + id_to_name(condition_value) + ")\n\t{\n\t\t{\n";
+			code += "while (" + condition_name + ")\n\t{\n\t\t{\n";
 			code += loop_data;
 			code += "\t\t}\n";
 			code += continue_data;

@@ -323,7 +323,6 @@ namespace reshade
 		void draw_overlay_technique_editor();
 		void draw_preset_explorer();
 
-		std::vector<const texture *> _texture_previews;
 		std::vector<std::pair<std::string, std::function<void()>>> _menu_callables;
 		std::unique_ptr<texture> _imgui_font_atlas;
 		ImGuiContext *_imgui_context = nullptr;
@@ -352,7 +351,6 @@ namespace reshade
 		bool _selected_effect_changed = false;
 		bool _rebuild_font_atlas = false;
 		bool _was_preprocessor_popup_edited = false;
-		bool _statistics_effects_show_enabled = false;
 		float _fps_col[4] = { 1.0f, 1.0f, 0.784314f, 1.0f };
 		float _fps_scale = 1.0f;
 		float _variable_editor_height = 0.0f;

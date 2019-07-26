@@ -16,7 +16,7 @@ namespace reshade::opengl
 		~opengl_tex_data()
 		{
 			if (should_delete)
-				glDeleteTextures(2, id);
+				glDeleteTextures(id[0] != id[1] ? 2 : 1, id);
 		}
 
 		bool should_delete = false;
@@ -368,46 +368,46 @@ bool reshade::opengl::runtime_opengl::init_texture(texture &texture)
 	if (texture.impl_reference != texture_reference::none)
 		return update_texture_reference(texture);
 
-	GLenum internalformat = GL_RGBA8, internalformat_srgb = GL_SRGB8_ALPHA8;
+	GLenum internalformat = GL_RGBA8, internalformat_srgb = GL_NONE;
 
 	switch (texture.format)
 	{
 	case reshadefx::texture_format::r8:
-		internalformat = internalformat_srgb = GL_R8;
+		internalformat = GL_R8;
 		break;
 	case reshadefx::texture_format::r16f:
-		internalformat = internalformat_srgb = GL_R16F;
+		internalformat = GL_R16F;
 		break;
 	case reshadefx::texture_format::r32f:
-		internalformat = internalformat_srgb = GL_R32F;
+		internalformat = GL_R32F;
 		break;
 	case reshadefx::texture_format::rg8:
-		internalformat = internalformat_srgb = GL_RG8;
+		internalformat = GL_RG8;
 		break;
 	case reshadefx::texture_format::rg16:
-		internalformat = internalformat_srgb = GL_RG16;
+		internalformat = GL_RG16;
 		break;
 	case reshadefx::texture_format::rg16f:
-		internalformat = internalformat_srgb = GL_RG16F;
+		internalformat = GL_RG16F;
 		break;
 	case reshadefx::texture_format::rg32f:
-		internalformat = internalformat_srgb = GL_RG32F;
+		internalformat = GL_RG32F;
 		break;
 	case reshadefx::texture_format::rgba8:
 		internalformat = GL_RGBA8;
 		internalformat_srgb = GL_SRGB8_ALPHA8;
 		break;
 	case reshadefx::texture_format::rgba16:
-		internalformat = internalformat_srgb = GL_RGBA16;
+		internalformat = GL_RGBA16;
 		break;
 	case reshadefx::texture_format::rgba16f:
-		internalformat = internalformat_srgb = GL_RGBA16F;
+		internalformat = GL_RGBA16F;
 		break;
 	case reshadefx::texture_format::rgba32f:
-		internalformat = internalformat_srgb = GL_RGBA32F;
+		internalformat = GL_RGBA32F;
 		break;
 	case reshadefx::texture_format::rgb10a2:
-		internalformat = internalformat_srgb = GL_RGB10_A2;
+		internalformat = GL_RGB10_A2;
 		break;
 	}
 
@@ -422,7 +422,14 @@ bool reshade::opengl::runtime_opengl::init_texture(texture &texture)
 	glGenTextures(2, texture_data->id);
 	glBindTexture(GL_TEXTURE_2D, texture_data->id[0]);
 	glTexStorage2D(GL_TEXTURE_2D, texture.levels, internalformat, texture.width, texture.height);
-	glTextureView(texture_data->id[1], GL_TEXTURE_2D, texture_data->id[0], internalformat_srgb, 0, texture.levels, 0, 1);
+
+	// Only create SRGB texture view if necessary
+	if (internalformat_srgb != GL_NONE) {
+		glTextureView(texture_data->id[1], GL_TEXTURE_2D, texture_data->id[0], internalformat_srgb, 0, texture.levels, 0, 1);
+	}
+	else {
+		texture_data->id[1] = texture_data->id[0];
+	}
 
 	// Clear texture to black since by default its contents are undefined
 	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, _fbo[FBO_BLIT]);

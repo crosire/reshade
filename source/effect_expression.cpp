@@ -298,17 +298,25 @@ bool reshadefx::expression::evaluate_constant_expression(reshadefx::tokenid op, 
 	case tokenid::percent:
 		if (type.is_floating_point()) {
 			for (unsigned int i = 0; i < type.components(); ++i)
-				if (rhs.as_float[i] != 0)
+				// Floating point modulo with zero is defined and results NaN
+				if (rhs.as_float[i] == 0)
+					constant.as_float[i] = std::numeric_limits<float>::quiet_NaN();
+				else
 					constant.as_float[i] = fmodf(constant.as_float[i], rhs.as_float[i]);
 		}
 		else if (type.is_signed()) {
 			for (unsigned int i = 0; i < type.components(); ++i)
-				if (rhs.as_int[i] != 0)
+				// Integer modulo with zero on the other hand is not defined, so do not fold this expression in that case
+				if (rhs.as_int[i] == 0)
+					return false;
+				else
 					constant.as_int[i] %= rhs.as_int[i];
 		}
 		else {
 			for (unsigned int i = 0; i < type.components(); ++i)
-				if (rhs.as_uint[i] != 0)
+				if (rhs.as_uint[i] == 0)
+					return false;
+				else
 					constant.as_uint[i] %= rhs.as_uint[i];
 		}
 		break;
@@ -339,17 +347,22 @@ bool reshadefx::expression::evaluate_constant_expression(reshadefx::tokenid op, 
 	case tokenid::slash:
 		if (type.is_floating_point()) {
 			for (unsigned int i = 0; i < type.components(); ++i)
-				if (rhs.as_float[i] != 0) // TODO: Maybe throw an error on divide by zero?
-					constant.as_float[i] /= rhs.as_float[i];
+				// Floating point division by zero is well defined and results in infinity or NaN
+				constant.as_float[i] /= rhs.as_float[i];
 		}
 		else if (type.is_signed()) {
 			for (unsigned int i = 0; i < type.components(); ++i)
-				if (rhs.as_int[i] != 0)
+				// Integer division by zero on the other hand is not defined, so do not fold this expression in that case
+				if (rhs.as_int[i] == 0)
+					return false;
+				else
 					constant.as_int[i] /= rhs.as_int[i];
 		}
 		else {
 			for (unsigned int i = 0; i < type.components(); ++i)
-				if (rhs.as_uint[i] != 0)
+				if (rhs.as_uint[i] == 0)
+					return false;
+				else
 					constant.as_uint[i] /= rhs.as_uint[i];
 		}
 		break;

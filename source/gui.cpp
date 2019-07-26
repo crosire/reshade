@@ -176,6 +176,110 @@ void reshade::runtime::init_ui()
 			colors[ImGuiCol_PlotHistogramHovered] = ImVec4(0.392157f, 0.588235f, 0.941176f, 1.00f);
 			colors[ImGuiCol_TextSelectedBg] = ImVec4(0.392157f, 0.588235f, 0.941176f, 0.43f);
 			break;
+		case 5:
+			colors[ImGuiCol_Text] = ImColor(0xff969483);
+			colors[ImGuiCol_TextDisabled] = ImColor(0xff756e58);
+			colors[ImGuiCol_WindowBg] = ImColor(0xff362b00);
+			colors[ImGuiCol_ChildBg] = ImColor();
+			colors[ImGuiCol_PopupBg] = ImColor(0xfc362b00); // Customized
+			colors[ImGuiCol_Border] = ImColor(0xff423607);
+			colors[ImGuiCol_BorderShadow] = ImColor();
+			colors[ImGuiCol_FrameBg] = ImColor(0xfc423607); // Customized
+			colors[ImGuiCol_FrameBgHovered] = ImColor(0xff423607);
+			colors[ImGuiCol_FrameBgActive] = ImColor(0xff423607);
+			colors[ImGuiCol_TitleBg] = ImColor(0xff362b00);
+			colors[ImGuiCol_TitleBgActive] = ImColor(0xff362b00);
+			colors[ImGuiCol_TitleBgCollapsed] = ImColor(0xff362b00);
+			colors[ImGuiCol_MenuBarBg] = ImColor(0xff423607);
+			colors[ImGuiCol_ScrollbarBg] = ImColor(0xff362b00);
+			colors[ImGuiCol_ScrollbarGrab] = ImColor(0xff423607);
+			colors[ImGuiCol_ScrollbarGrabHovered] = ImColor(0xff423607);
+			colors[ImGuiCol_ScrollbarGrabActive] = ImColor(0xff423607);
+			colors[ImGuiCol_CheckMark] = ImColor(0xff756e58);
+			colors[ImGuiCol_SliderGrab] = ImColor(0xff5e5025); // Customized
+			colors[ImGuiCol_SliderGrabActive] = ImColor(0xff5e5025); // Customized
+			colors[ImGuiCol_Button] = ImColor(0xff423607);
+			colors[ImGuiCol_ButtonHovered] = ImColor(0xff423607);
+			colors[ImGuiCol_ButtonActive] = ImColor(0xff362b00);
+			colors[ImGuiCol_Header] = ImColor(0xff423607);
+			colors[ImGuiCol_HeaderHovered] = ImColor(0xff423607);
+			colors[ImGuiCol_HeaderActive] = ImColor(0xff423607);
+			colors[ImGuiCol_Separator] = ImColor(0xff423607);
+			colors[ImGuiCol_SeparatorHovered] = ImColor(0xff423607);
+			colors[ImGuiCol_SeparatorActive] = ImColor(0xff423607);
+			colors[ImGuiCol_ResizeGrip] = ImColor(0xff423607);
+			colors[ImGuiCol_ResizeGripHovered] = ImColor(0xff423607);
+			colors[ImGuiCol_ResizeGripActive] = ImColor(0xff756e58);
+			colors[ImGuiCol_Tab] = ImColor(0xff362b00);
+			colors[ImGuiCol_TabHovered] = ImColor(0xff423607);
+			colors[ImGuiCol_TabActive] = ImColor(0xff423607);
+			colors[ImGuiCol_TabUnfocused] = ImColor(0xff362b00);
+			colors[ImGuiCol_TabUnfocusedActive] = ImColor(0xff423607);
+			colors[ImGuiCol_DockingPreview] = ImColor(0xee837b65); // Customized
+			colors[ImGuiCol_DockingEmptyBg] = ImColor();
+			colors[ImGuiCol_PlotLines] = ImColor(0xff756e58);
+			colors[ImGuiCol_PlotLinesHovered] = ImColor(0xff756e58);
+			colors[ImGuiCol_PlotHistogram] = ImColor(0xff756e58);
+			colors[ImGuiCol_PlotHistogramHovered] = ImColor(0xff756e58);
+			colors[ImGuiCol_TextSelectedBg] = ImColor(0xff756e58);
+			colors[ImGuiCol_DragDropTarget] = ImColor(0xff756e58);
+			colors[ImGuiCol_NavHighlight] = ImColor();
+			colors[ImGuiCol_NavWindowingHighlight] = ImColor(0xee969483); // Customized
+			colors[ImGuiCol_NavWindowingDimBg] = ImColor(0x20e3f6fd); // Customized
+			colors[ImGuiCol_ModalWindowDimBg] = ImColor(0x20e3f6fd); // Customized
+			break;
+		case 6:
+			colors[ImGuiCol_Text] = ImColor(0xff837b65);
+			colors[ImGuiCol_TextDisabled] = ImColor(0xffa1a193);
+			colors[ImGuiCol_WindowBg] = ImColor(0xffe3f6fd);
+			colors[ImGuiCol_ChildBg] = ImColor();
+			colors[ImGuiCol_PopupBg] = ImColor(0xfce3f6fd); // Customized
+			colors[ImGuiCol_Border] = ImColor(0xffd5e8ee);
+			colors[ImGuiCol_BorderShadow] = ImColor();
+			colors[ImGuiCol_FrameBg] = ImColor(0xfcd5e8ee); // Customized
+			colors[ImGuiCol_FrameBgHovered] = ImColor(0xffd5e8ee);
+			colors[ImGuiCol_FrameBgActive] = ImColor(0xffd5e8ee);
+			colors[ImGuiCol_TitleBg] = ImColor(0xffe3f6fd);
+			colors[ImGuiCol_TitleBgActive] = ImColor(0xffe3f6fd);
+			colors[ImGuiCol_TitleBgCollapsed] = ImColor(0xffe3f6fd);
+			colors[ImGuiCol_MenuBarBg] = ImColor(0xffd5e8ee);
+			colors[ImGuiCol_ScrollbarBg] = ImColor(0xffe3f6fd);
+			colors[ImGuiCol_ScrollbarGrab] = ImColor(0xffd5e8ee);
+			colors[ImGuiCol_ScrollbarGrabHovered] = ImColor(0xffd5e8ee);
+			colors[ImGuiCol_ScrollbarGrabActive] = ImColor(0xffd5e8ee);
+			colors[ImGuiCol_CheckMark] = ImColor(0xffa1a193);
+			colors[ImGuiCol_SliderGrab] = ImColor(0xffc3d3d9); // Customized
+			colors[ImGuiCol_SliderGrabActive] = ImColor(0xffc3d3d9); // Customized
+			colors[ImGuiCol_Button] = ImColor(0xffd5e8ee);
+			colors[ImGuiCol_ButtonHovered] = ImColor(0xffd5e8ee);
+			colors[ImGuiCol_ButtonActive] = ImColor(0xffe3f6fd);
+			colors[ImGuiCol_Header] = ImColor(0xffd5e8ee);
+			colors[ImGuiCol_HeaderHovered] = ImColor(0xffd5e8ee);
+			colors[ImGuiCol_HeaderActive] = ImColor(0xffd5e8ee);
+			colors[ImGuiCol_Separator] = ImColor(0xffd5e8ee);
+			colors[ImGuiCol_SeparatorHovered] = ImColor(0xffd5e8ee);
+			colors[ImGuiCol_SeparatorActive] = ImColor(0xffd5e8ee);
+			colors[ImGuiCol_ResizeGrip] = ImColor(0xffd5e8ee);
+			colors[ImGuiCol_ResizeGripHovered] = ImColor(0xffd5e8ee);
+			colors[ImGuiCol_ResizeGripActive] = ImColor(0xffa1a193);
+			colors[ImGuiCol_Tab] = ImColor(0xffe3f6fd);
+			colors[ImGuiCol_TabHovered] = ImColor(0xffd5e8ee);
+			colors[ImGuiCol_TabActive] = ImColor(0xffd5e8ee);
+			colors[ImGuiCol_TabUnfocused] = ImColor(0xffe3f6fd);
+			colors[ImGuiCol_TabUnfocusedActive] = ImColor(0xffd5e8ee);
+			colors[ImGuiCol_DockingPreview] = ImColor(0xeea1a193); // Customized
+			colors[ImGuiCol_DockingEmptyBg] = ImColor();
+			colors[ImGuiCol_PlotLines] = ImColor(0xffa1a193);
+			colors[ImGuiCol_PlotLinesHovered] = ImColor(0xffa1a193);
+			colors[ImGuiCol_PlotHistogram] = ImColor(0xffa1a193);
+			colors[ImGuiCol_PlotHistogramHovered] = ImColor(0xffa1a193);
+			colors[ImGuiCol_TextSelectedBg] = ImColor(0xffa1a193);
+			colors[ImGuiCol_DragDropTarget] = ImColor(0xffa1a193);
+			colors[ImGuiCol_NavHighlight] = ImColor();
+			colors[ImGuiCol_NavWindowingHighlight] = ImColor(0xee837b65); // Customized
+			colors[ImGuiCol_NavWindowingDimBg] = ImColor(0x20362b00); // Customized
+			colors[ImGuiCol_ModalWindowDimBg] = ImColor(0x20362b00); // Customized
+			break;
 		default:
 			for (ImGuiCol i = 0; i < ImGuiCol_COUNT; i++)
 				config.get("STYLE", ImGui::GetStyleColorName(i), (float(&)[4])colors[i]);
@@ -196,7 +300,20 @@ void reshade::runtime::init_ui()
 				0xff606010, 0xffc040a0, 0xff205020, 0xff405020, 0xffffffff, 0xff000000, 0x80600000,
 				0xa00010ff, 0x8000ffff, 0xff505000, 0x40000000, 0x40808080, 0x40000000 });
 			break;
+		case 3:
+			_editor.set_palette({ // Solarized Dark
+				0xff969483, 0xff0089b5, 0xff98a12a, 0xff98a12a, 0xff969483, 0xff164bcb, 0xff969483,
+				0xff969483, 0xffc4716c, 0xff756e58, 0xff756e58, 0xff362b00, 0xff969483, 0xA0756e58,
+				0x7f2f32dc, 0x7f0089b5, 0xff756e58, 0x7f423607, 0x7f423607, 0x7f423607 });
+			break;
+		case 4:
+			_editor.set_palette({ // Solarized Light
+				0xff837b65, 0xff0089b5, 0xff98a12a, 0xff98a12a, 0xff756e58, 0xff164bcb, 0xff837b65,
+				0xff837b65, 0xffc4716c, 0xffa1a193, 0xffa1a193, 0xffe3f6fd, 0xff837b65, 0x60a1a193,
+				0x7f2f32dc, 0x7f0089b5, 0xffa1a193, 0x7fd5e8ee, 0x7fd5e8ee, 0x7fd5e8ee });
+			break;
 		default:
+		case 2:
 			ImVec4 value; // Note: This expects that all colors exist in the config
 			for (ImGuiCol i = 0; i < imgui_code_editor::color_palette_max; i++)
 				config.get("STYLE", imgui_code_editor::get_palette_color_name(i), (float(&)[4])value),
@@ -323,7 +440,7 @@ void reshade::runtime::draw_ui()
 
 	if (_show_menu && !_ignore_shortcuts && !_imgui_context->IO.NavVisible && _input->is_key_pressed(0x1B /* VK_ESCAPE */))
 		_show_menu = false; // Close when pressing the escape button and not currently navigating with the keyboard
-	else if (!_ignore_shortcuts && _input->is_key_pressed(_menu_key_data))
+	else if (!_ignore_shortcuts && _input->is_key_pressed(_menu_key_data) && _imgui_context->ActiveId == 0)
 		_show_menu = !_show_menu;
 
 	_ignore_shortcuts = false;
@@ -407,10 +524,11 @@ void reshade::runtime::draw_ui()
 
 			ImGui::Spacing();
 
+			ImGui::ProgressBar(1.0f - _reload_remaining_effects / float(_reload_total_effects), ImVec2(-1, 0), "");
+			ImGui::SameLine(15);
+
 			if (_reload_remaining_effects != 0 && _reload_remaining_effects != std::numeric_limits<size_t>::max())
 			{
-				ImGui::ProgressBar(1.0f - _reload_remaining_effects / float(_reload_total_effects), ImVec2(-1, 0), "");
-				ImGui::SameLine(15);
 				ImGui::Text(
 					"Loading (%zu effects remaining) ... "
 					"This might take a while. The application could become unresponsive for some time.",
@@ -418,8 +536,6 @@ void reshade::runtime::draw_ui()
 			}
 			else if (!_reload_compile_queue.empty())
 			{
-				ImGui::ProgressBar(1.0f - _reload_compile_queue.size() / float(_reload_total_effects), ImVec2(-1, 0), "");
-				ImGui::SameLine(15);
 				ImGui::Text(
 					"Compiling (%zu effects remaining) ... "
 					"This might take a while. The application could become unresponsive for some time.",
@@ -434,15 +550,13 @@ void reshade::runtime::draw_ui()
 			{
 				ImGui::Text(
 					"Press '%s' to open the configuration menu.", input::key_name(_menu_key_data).c_str());
-				ImGui::Dummy(ImVec2(0, _imgui_context->Style.FramePadding.y - 1.0f)); // Add small offset to align with progress bar from reload screen
 			}
 
 			if (!_last_reload_successful)
 			{
 				ImGui::Spacing();
 				ImGui::TextColored(COLOR_RED,
-					"There were errors compiling some shaders. "
-					"Open the configuration menu and switch to the 'Statistics' tab for more details.");
+					"There were errors compiling some shaders. Check the log for more details.");
 			}
 		}
 
@@ -565,23 +679,6 @@ void reshade::runtime::draw_ui()
 			if (ImGui::Begin(title.c_str(), &_show_code_editor))
 				draw_code_editor();
 			ImGui::End();
-		}
-
-		for (auto it = _texture_previews.begin(); it != _texture_previews.end();)
-		{
-			const texture *texture = *it;
-
-			bool open = true;
-			char window_name[64];
-			sprintf_s(window_name, "%s##%p", texture->unique_name.c_str(), *it);
-
-			ImGui::Begin(window_name, &open, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoDocking);
-			imgui_image_with_checkerboard_background(texture->impl.get(), ImVec2(std::max(texture->width * 0.5f, 500.0f), std::max(texture->height * 0.5f, texture->height * 500.0f / texture->width)));
-			ImGui::End();
-
-			if (!open) // Close window by removing it from the list so it is not rendered next frame
-				it = _texture_previews.erase(it);
-			else ++it;
 		}
 	}
 
@@ -883,7 +980,7 @@ void reshade::runtime::draw_overlay_menu_settings()
 		modified |= ImGui::Checkbox("Group effect files with tabs instead of a tree", &_variable_editor_tabs);
 
 		#pragma region Style
-		if (ImGui::Combo("Style", &_style_index, "Dark\0Light\0Default\0Custom Simple\0Custom Advanced\0"))
+		if (ImGui::Combo("Style", &_style_index, "Dark\0Light\0Default\0Custom Simple\0Custom Advanced\0Solarized Dark\0Solarized Light\0"))
 		{
 			modified = true;
 			reload_style = true;
@@ -970,7 +1067,7 @@ void reshade::runtime::draw_overlay_menu_settings()
 		#pragma endregion
 
 		#pragma region Editor Style
-		if (ImGui::Combo("Editor Style", &_editor_style_index, "Dark\0Light\0Custom\0"))
+		if (ImGui::Combo("Editor Style", &_editor_style_index, "Dark\0Light\0Custom\0Solarized Dark\0Solarized Light\0"))
 		{
 			modified = true;
 			reload_style = true;
@@ -1038,12 +1135,15 @@ void reshade::runtime::draw_overlay_menu_settings()
 
 void reshade::runtime::draw_overlay_menu_statistics()
 {
+	unsigned int cpu_digits = 1;
 	uint64_t post_processing_time_cpu = 0;
+	unsigned int gpu_digits = 1;
 	uint64_t post_processing_time_gpu = 0;
-
 	for (const auto &technique : _techniques)
 	{
+		cpu_digits = std::max(cpu_digits, technique.average_cpu_duration >= 100'000'000 ? 3u : technique.average_cpu_duration >= 10'000'000 ? 2u : 1u);
 		post_processing_time_cpu += technique.average_cpu_duration;
+		gpu_digits = std::max(gpu_digits, technique.average_gpu_duration >= 100'000'000 ? 3u : technique.average_gpu_duration >= 10'000'000 ? 2u : 1u);
 		post_processing_time_gpu += technique.average_gpu_duration;
 	}
 
@@ -1061,262 +1161,146 @@ void reshade::runtime::draw_overlay_menu_statistics()
 
 		ImGui::BeginGroup();
 
+		ImGui::TextUnformatted("Hardware:");
 		ImGui::TextUnformatted("Application:");
-		ImGui::TextUnformatted("Date:");
-		ImGui::TextUnformatted("Device:");
-		ImGui::TextUnformatted("FPS:");
-		ImGui::TextUnformatted("Post-Processing:");
-		ImGui::TextUnformatted("Draw Calls:");
-		ImGui::Text("Frame %llu:", _framecount + 1);
-		ImGui::TextUnformatted("Timer:");
+		ImGui::TextUnformatted("Time:");
 		ImGui::TextUnformatted("Network:");
+		ImGui::Text("Frame %llu:", _framecount + 1);
+		ImGui::NewLine();
+		ImGui::TextUnformatted("Post-Processing:");
 
 		ImGui::EndGroup();
 		ImGui::SameLine(ImGui::GetWindowWidth() * 0.33333333f);
 		ImGui::BeginGroup();
 
-		ImGui::Text("%X", std::hash<std::string>()(g_target_executable_path.stem().u8string()));
+		ImGui::Text("VEN_%X", _vendor_id);
+		ImGui::TextUnformatted(g_target_executable_path.filename().u8string().c_str());
 		ImGui::Text("%d-%d-%d %d", _date[0], _date[1], _date[2], _date[3]);
-		ImGui::Text("%X %d", _vendor_id, _device_id);
-		ImGui::Text("%.2f", _imgui_context->IO.Framerate);
-		ImGui::Text("%f ms (CPU)", post_processing_time_cpu * 1e-6f);
-		ImGui::Text("%u (%u vertices)", _drawcalls, _vertices);
-		ImGui::Text("%f ms", _last_frame_duration.count() * 1e-6f);
-		ImGui::Text("%f ms", std::chrono::duration_cast<std::chrono::nanoseconds>(_last_present_time - _start_time).count() * 1e-6f);
 		ImGui::Text("%u B", g_network_traffic);
+		ImGui::Text("%.2f fps", _imgui_context->IO.Framerate);
+		ImGui::Text("%u draw calls", _drawcalls);
+		ImGui::Text("%*.3f ms (CPU)", cpu_digits + 4, post_processing_time_cpu * 1e-6f);
 
 		ImGui::EndGroup();
 		ImGui::SameLine(ImGui::GetWindowWidth() * 0.66666666f);
 		ImGui::BeginGroup();
 
+		ImGui::Text("DEV_%X", _device_id);
+		ImGui::Text("%X", std::hash<std::string>()(g_target_executable_path.stem().u8string()));
+		ImGui::Text("%.0f ms", std::chrono::duration_cast<std::chrono::nanoseconds>(_last_present_time - _start_time).count() * 1e-6f);
 		ImGui::NewLine();
-		ImGui::NewLine();
-		ImGui::NewLine();
-		ImGui::NewLine();
+		ImGui::Text("%*.3f ms", gpu_digits + 4, _last_frame_duration.count() * 1e-6f);
+		ImGui::Text("%u vertices", _vertices);
 		if (post_processing_time_gpu != 0)
-			ImGui::Text("%f ms (GPU)", (post_processing_time_gpu * 1e-6f));
+			ImGui::Text("%*.3f ms (GPU)", gpu_digits + 4, (post_processing_time_gpu * 1e-6f));
 
 		ImGui::EndGroup();
 	}
 
-	if (ImGui::CollapsingHeader("Effects", ImGuiTreeNodeFlags_DefaultOpen))
+	if (ImGui::CollapsingHeader("Techniques", ImGuiTreeNodeFlags_DefaultOpen))
 	{
-		std::vector<const texture *> current_textures;
-		current_textures.reserve(_textures.size());
-		std::vector<const technique *> current_techniques;
-		current_techniques.reserve(_techniques.size());
+		ImGui::BeginGroup();
 
-		ImGui::Checkbox("Show only active techniques", &_statistics_effects_show_enabled);
-
-		for (size_t index = 0; index < _loaded_effects.size(); ++index)
+		for (const auto &technique : _techniques)
 		{
-			const effect_data &effect = _loaded_effects[index];
-
-			// Ignore unloaded effects, filter for active effects if enabled
-			if (effect.source_file.empty() || (_statistics_effects_show_enabled && effect.rendering == 0))
+			if (!technique.enabled)
 				continue;
 
-			ImGui::PushID(static_cast<int>(index));
-
-			ImGui::AlignTextToFramePadding();
-
-			if (_selected_effect == index && _show_code_editor)
-			{
-				ImGui::TextUnformatted(">");
-				ImGui::SameLine();
-			}
-
-			const float button_spacing = _imgui_context->Style.ItemInnerSpacing.x;
-			const float button_offset = ImGui::GetWindowContentRegionWidth() - (50 + button_spacing + 120);
-
-			auto tree_id = ImGui::GetID("tree_open");
-			bool tree_open = ImGui::GetStateStorage()->GetInt(tree_id, true);
-			bool tree_toggle = false;
-
-			// Hide parent path if window is small
-			if (ImGui::CalcTextSize(effect.source_file.u8string().c_str()).x < button_offset)
-			{
-				ImGui::TextDisabled("%s%lc", effect.source_file.parent_path().u8string().c_str(), std::filesystem::path::preferred_separator);
-				tree_toggle = ImGui::IsItemClicked();
-				ImGui::SameLine(0, 0);
-			}
-
-			ImGui::TextUnformatted(effect.source_file.filename().u8string().c_str());
-			tree_toggle |= ImGui::IsItemClicked();
-
-			// Update tree state
-			if (tree_toggle)
-				ImGui::GetStateStorage()->SetInt(tree_id, tree_open = !tree_open);
-
-			ImGui::SameLine(button_offset + _imgui_context->Style.ItemSpacing.x, 0);
-			if (ImGui::Button("Edit", ImVec2(50, 0)))
-			{
-				_selected_effect = index;
-				_selected_effect_changed = true;
-				_show_code_editor = true;
-			}
-
-			ImGui::SameLine(0, button_spacing);
-
-			enum class condition { pass, input, output } condition = condition::pass;
-			int selected_index = -1;
-
-			if (effect.runtime_loaded && (_renderer_id & 0xF0000) == 0)
-			{
-				if (ImGui::Button("Show Results..", ImVec2(120, 0)))
-					ImGui::OpenPopup("##result_selector");
-
-				if (ImGui::BeginPopup("##result_selector"))
-				{
-					if (ImGui::MenuItem("Generated HLSL/GLSL"))
-						condition = condition::input, selected_index = 0;
-
-					ImGui::Separator();
-
-					for (size_t i = 0; effect.module.entry_points.size() > i; ++i)
-						if (ImGui::MenuItem(effect.module.entry_points[i].name.c_str()))
-							condition = condition::output, selected_index = i;
-
-					ImGui::EndPopup();
-				}
-			}
-			else if (ImGui::Button("Show HLSL/GLSL", ImVec2(120, 0)))
-				condition = condition::input, selected_index = 0;
-
-			if (condition != condition::pass)
-			{
-				std::string source_code;
-				if (condition == condition::input)
-					source_code = effect.preamble + effect.module.hlsl;
-				else if (condition == condition::output)
-					source_code = effect.module.entry_points[selected_index].assembly;
-
-				// Act as a toggle when already showing the generated code
-				if (_show_code_editor
-					&& _selected_effect == std::numeric_limits<size_t>::max()
-					&& _editor.get_text() == source_code)
-				{
-					_show_code_editor = false;
-				}
-				else
-				{
-					_editor.set_text(source_code);
-					_selected_effect = std::numeric_limits<size_t>::max();
-					_selected_effect_changed = false; // Prevent editor from being cleared, since we already set the text here
-					_show_code_editor = true;
-				}
-			}
-
-			if (tree_open)
-			{
-				if (!effect.errors.empty())
-				{
-					ImGui::PushStyleColor(ImGuiCol_Text, effect.errors.find("error") != std::string::npos ? COLOR_RED : COLOR_YELLOW);
-					ImGui::PushTextWrapPos();
-					ImGui::TextUnformatted(effect.errors.c_str());
-					ImGui::PopTextWrapPos();
-					ImGui::PopStyleColor();
-					ImGui::Spacing();
-				}
-
-				#pragma region Techniques
-				current_techniques.clear();
-				for (const auto &technique : _techniques)
-					if (technique.effect_index == index && technique.impl != nullptr)
-						current_techniques.push_back(&technique);
-
-				if (!current_techniques.empty())
-				{
-					if (ImGui::BeginChild("Techniques", ImVec2(0, current_techniques.size() * ImGui::GetTextLineHeightWithSpacing() + _imgui_context->Style.FramePadding.y * 4), true, ImGuiWindowFlags_NoScrollWithMouse))
-					{
-						ImGui::BeginGroup();
-
-						for (const auto &technique : current_techniques)
-						{
-							ImGui::PushStyleColor(ImGuiCol_Text, _imgui_context->Style.Colors[technique->enabled ? ImGuiCol_Text : ImGuiCol_TextDisabled]);
-
-							if (technique->passes.size() > 1)
-								ImGui::Text("%s (%zu passes)", technique->name.c_str(), technique->passes.size());
-							else
-								ImGui::TextUnformatted(technique->name.c_str());
-
-							ImGui::PopStyleColor();
-						}
-
-						ImGui::EndGroup();
-						ImGui::SameLine(ImGui::GetWindowWidth() * 0.33333333f);
-						ImGui::BeginGroup();
-
-						for (const technique *technique : current_techniques)
-							if (technique->enabled)
-								ImGui::Text("%f ms (CPU) (%.0f%%)", technique->average_cpu_duration * 1e-6f, 100 * (technique->average_cpu_duration * 1e-6f) / (post_processing_time_cpu * 1e-6f));
-							else
-								ImGui::NewLine();
-
-						ImGui::EndGroup();
-						ImGui::SameLine(ImGui::GetWindowWidth() * 0.66666666f);
-						ImGui::BeginGroup();
-
-						for (const technique *technique : current_techniques)
-							if (technique->enabled && technique->average_gpu_duration != 0)
-								ImGui::Text("%f ms (GPU) (%.0f%%)", technique->average_gpu_duration * 1e-6f, 100 * (technique->average_gpu_duration * 1e-6f) / (post_processing_time_gpu * 1e-6f));
-							else
-								ImGui::NewLine();
-
-						ImGui::EndGroup();
-					} ImGui::EndChild();
-				}
-				#pragma endregion
-
-				#pragma region Textures
-				current_textures.clear();
-				for (const auto &texture : _textures)
-					if (texture.effect_index == index && texture.impl != nullptr && texture.impl_reference == texture_reference::none)
-						current_textures.push_back(&texture);
-
-				if (!current_textures.empty())
-				{
-					if (ImGui::BeginChild("Textures", ImVec2(0, current_textures.size() * ImGui::GetTextLineHeightWithSpacing() + _imgui_context->Style.FramePadding.y * 4), true, ImGuiWindowFlags_NoScrollWithMouse))
-					{
-						const char *texture_formats[] = {
-							"unknown",
-							"R8", "R16F", "R32F", "RG8", "RG16", "RG16F", "RG32F", "RGBA8", "RGBA16", "RGBA16F", "RGBA32F", "RGB10A2"
-						};
-
-						static_assert(_countof(texture_formats) - 1 == static_cast<unsigned int>(reshadefx::texture_format::rgb10a2));
-
-						for (const texture *texture : current_textures)
-						{
-							ImGui::Text("%s (%ux%u +%u %s)", texture->unique_name.c_str(), texture->width, texture->height, (texture->levels - 1), texture_formats[static_cast<unsigned int>(texture->format)]);
-
-							if (std::find(_texture_previews.begin(), _texture_previews.end(), texture) != _texture_previews.end())
-								continue;
-
-							if (ImGui::IsItemClicked())
-							{
-								_texture_previews.push_back(texture);
-							}
-							else if (ImGui::IsItemHovered())
-							{
-								ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
-								ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
-								ImGui::PushStyleColor(ImGuiCol_PopupBg, IM_COL32(204, 204, 204, 255));
-								ImGui::BeginTooltip();
-								imgui_image_with_checkerboard_background(texture->impl.get(), ImVec2(std::max(texture->width * 0.5f, 500.0f), std::max(texture->height * 0.5f, texture->height * 500.0f / texture->width)));
-								ImGui::EndTooltip();
-								ImGui::PopStyleColor();
-								ImGui::PopStyleVar(2);
-							}
-						}
-					} ImGui::EndChild();
-				}
-				#pragma endregion
-			}
-
-			ImGui::PopID();
-
-			ImGui::Spacing();
+			if (technique.passes.size() > 1)
+				ImGui::Text("%s (%zu passes)", technique.name.c_str(), technique.passes.size());
+			else
+				ImGui::TextUnformatted(technique.name.c_str());
 		}
+
+		ImGui::EndGroup();
+		ImGui::SameLine(ImGui::GetWindowWidth() * 0.33333333f);
+		ImGui::BeginGroup();
+
+		for (const auto &technique : _techniques)
+		{
+			if (!technique.enabled)
+				continue;
+
+			ImGui::Text("%*.3f ms (CPU) (%.0f%%)", cpu_digits + 4, technique.average_cpu_duration * 1e-6f, 100 * (technique.average_cpu_duration * 1e-6f) / (post_processing_time_cpu * 1e-6f));
+		}
+
+		ImGui::EndGroup();
+		ImGui::SameLine(ImGui::GetWindowWidth() * 0.66666666f);
+		ImGui::BeginGroup();
+
+		for (const auto &technique : _techniques)
+		{
+			if (!technique.enabled)
+				continue;
+
+			// GPU timings are not available for all APIs
+			if (technique.average_gpu_duration != 0)
+				ImGui::Text("%*.3f ms (GPU) (%.0f%%)", gpu_digits + 4, technique.average_gpu_duration * 1e-6f, 100 * (technique.average_gpu_duration * 1e-6f) / (post_processing_time_gpu * 1e-6f));
+			else
+				ImGui::NewLine();
+		}
+
+		ImGui::EndGroup();
+	}
+
+	if (ImGui::CollapsingHeader("Render Targets & Textures", ImGuiTreeNodeFlags_DefaultOpen))
+	{
+		const char *texture_formats[] = {
+			"unknown",
+			"R8", "R16F", "R32F", "RG8", "RG16", "RG16F", "RG32F", "RGBA8", "RGBA16", "RGBA16F", "RGBA32F", "RGB10A2"
+		};
+		const unsigned int pixel_sizes[] = {
+			0,
+			1 /*R8*/, 2 /*R16F*/, 4 /*R32F*/, 2 /*RG8*/, 4 /*RG16*/, 4 /*RG16F*/, 8 /*RG32F*/, 4 /*RGBA8*/, 8 /*RGBA16*/, 8 /*RGBA16F*/, 16 /*RGBA32F*/, 4 /*RGB10A2*/
+		};
+
+		static_assert(_countof(texture_formats) - 1 == static_cast<unsigned int>(reshadefx::texture_format::rgb10a2));
+
+		const float total_width = ImGui::GetWindowContentRegionWidth();
+		unsigned int texture_index = 0;
+		const unsigned int num_columns = static_cast<unsigned int>(std::ceilf(total_width / 500.0f));
+		const float single_image_width = (total_width / num_columns) - 5.0f;
+
+		for (const auto &texture : _textures)
+		{
+			if (!_loaded_effects[texture.effect_index].rendering || texture.impl == nullptr || texture.impl_reference != texture_reference::none)
+				continue;
+
+			ImGui::BeginGroup();
+
+			uint32_t memory_size = 0;
+			const char *memory_size_unit = "B";
+
+			for (uint32_t level = 0, width = texture.width, height = texture.height; level < texture.levels; ++level, width /= 2, height /= 2)
+				memory_size += width * height * pixel_sizes[static_cast<unsigned int>(texture.format)];
+
+			if (memory_size > 5000) {
+				memory_size /= 1000;
+				memory_size_unit = "kB";
+			}
+			if (memory_size > 5000) {
+				memory_size /= 1000;
+				memory_size_unit = "MB";
+			}
+
+			ImGui::TextUnformatted(texture.unique_name.c_str());
+			ImGui::Text("%ux%u +%u %s %u%s",
+				texture.width,
+				texture.height,
+				texture.levels - 1,
+				texture_formats[static_cast<unsigned int>(texture.format)],
+				memory_size, memory_size_unit);
+
+			const float aspect_ratio = static_cast<float>(texture.width) / static_cast<float>(texture.height);
+			imgui_image_with_checkerboard_background(texture.impl.get(), ImVec2(single_image_width, single_image_width / aspect_ratio));
+
+			ImGui::EndGroup();
+
+			if ((texture_index++ % num_columns) != (num_columns - 1))
+				ImGui::SameLine(0.0f, 5.0f);
+		}
+
+		ImGui::NewLine(); // Reset ImGui::SameLine() so the following starts on a new line
 	}
 }
 
@@ -1437,6 +1421,28 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 	{
 		ImGui::TextUnformatted("Jonathan \"lonesock\" Dummer");
 	}
+	if (ImGui::CollapsingHeader("Solarized"))
+	{
+		ImGui::TextUnformatted(R"(Copyright (c) 2011 Ethan Schoonover
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.)");
+	}
 
 	ImGui::PopTextWrapPos();
 }
@@ -1469,7 +1475,7 @@ void reshade::runtime::draw_code_editor()
 		}
 	};
 
-	if (_selected_effect < _loaded_effects.size() && (ImGui::Button("Save & Compile (Ctrl + S)") || _input->is_key_pressed('S', true, false, false)))
+	if (_selected_effect < _loaded_effects.size() && (ImGui::Button("Save") || _input->is_key_pressed('S', true, false, false)))
 	{
 		// Hide splash bar during compile
 		_show_splash = false;
@@ -1588,7 +1594,7 @@ void reshade::runtime::draw_overlay_variable_editor()
 					ImGui::PushID(static_cast<int>(i));
 
 					ImGui::PushItemWidth(ImGui::GetWindowContentRegionWidth() * 0.66666666f - (button_spacing));
-					modified |= ImGui::InputText("##name", name, sizeof(name));
+					modified |= ImGui::InputText("##name", name, sizeof(name), ImGuiInputTextFlags_CharsNoBlank);
 					ImGui::PopItemWidth();
 
 					ImGui::SameLine(0, button_spacing);
@@ -1635,7 +1641,7 @@ void reshade::runtime::draw_overlay_variable_editor()
 					ImGui::PushID(static_cast<int>(i));
 
 					ImGui::PushItemWidth(ImGui::GetWindowContentRegionWidth() * 0.66666666f - (button_spacing));
-					modified |= ImGui::InputText("##name", name, sizeof(name));
+					modified |= ImGui::InputText("##name", name, sizeof(name), ImGuiInputTextFlags_CharsNoBlank);
 					ImGui::PopItemWidth();
 
 					ImGui::SameLine(0, button_spacing);
@@ -1959,13 +1965,16 @@ void reshade::runtime::draw_overlay_technique_editor()
 
 		ImGui::PushID(static_cast<int>(index));
 
+		// Look up effect that contains this technique
+		const effect_data &effect = _loaded_effects[technique.effect_index];
+
 		// Draw border around the item if it is selected
 		const bool draw_border = _selected_technique == index;
 		if (draw_border)
 			ImGui::Separator();
 
 		const bool clicked = _imgui_context->IO.MouseClicked[0];
-		const bool compile_success = _loaded_effects[technique.effect_index].compile_sucess;
+		const bool compile_success = effect.compile_sucess;
 		assert(compile_success || !technique.enabled);
 
 		// Prevent user from enabling the technique when the effect failed to compile
@@ -1976,7 +1985,7 @@ void reshade::runtime::draw_overlay_technique_editor()
 		std::string_view ui_label = technique.annotation_as_string("ui_label");
 		if (ui_label.empty() || !compile_success) ui_label = technique.name;
 		std::string label(ui_label.data(), ui_label.size());
-		label += " [" + _loaded_effects[technique.effect_index].source_file.filename().u8string() + ']' + (!compile_success ? " (failed to compile)" : "");
+		label += " [" + effect.source_file.filename().u8string() + ']' + (!compile_success ? " (failed to compile)" : "");
 
 		if (bool status = technique.enabled; ImGui::Checkbox(label.data(), &status))
 		{
@@ -1998,7 +2007,7 @@ void reshade::runtime::draw_overlay_technique_editor()
 			hovered_technique_index = index;
 
 		// Display tooltip
-		if (const std::string_view tooltip = compile_success ? technique.annotation_as_string("ui_tooltip") : _loaded_effects[technique.effect_index].errors;
+		if (const std::string_view tooltip = compile_success ? technique.annotation_as_string("ui_tooltip") : effect.errors;
 			!tooltip.empty() && ImGui::IsItemHovered())
 		{
 			ImGui::BeginTooltip();
@@ -2011,11 +2020,12 @@ void reshade::runtime::draw_overlay_technique_editor()
 		// Create context menu
 		if (ImGui::BeginPopupContextItem("##context"))
 		{
-			if (imgui_key_input("Toggle Key", technique.toggle_key_data, *_input))
+			ImGui::TextUnformatted(technique.name.c_str());
+			ImGui::Separator();
+
+			if (imgui_key_input("##toggle_key", technique.toggle_key_data, *_input))
 				save_current_preset();
 			_ignore_shortcuts |= ImGui::IsItemActive();
-
-			ImGui::Separator();
 
 			const bool is_not_top = index > 0;
 			const bool is_not_bottom = index < _techniques.size() - 1;
@@ -2046,6 +2056,59 @@ void reshade::runtime::draw_overlay_technique_editor()
 				_techniques.push_back(std::move(_techniques[index]));
 				_techniques.erase(_techniques.begin() + index);
 				save_current_preset();
+				ImGui::CloseCurrentPopup();
+			}
+
+			ImGui::Separator();
+
+			std::string edit_label = "Edit " + effect.source_file.filename().u8string() + "##edit";
+
+			if (ImGui::Button(edit_label.c_str(), ImVec2(button_width, 0)))
+			{
+				_selected_effect = technique.effect_index;
+				_selected_effect_changed = true;
+				_show_code_editor = true;
+				ImGui::CloseCurrentPopup();
+			}
+
+			enum class condition { pass, input, output } condition = condition::pass;
+			int selected_index = -1;
+
+			if (effect.runtime_loaded && (_renderer_id & 0xF0000) == 0)
+			{
+				if (ImGui::Button("Show Results..", ImVec2(button_width, 0)))
+					ImGui::OpenPopup("##result_selector");
+
+				if (ImGui::BeginPopup("##result_selector"))
+				{
+					if (ImGui::MenuItem("Generated HLSL/GLSL"))
+						condition = condition::input, selected_index = 0;
+
+					ImGui::Separator();
+
+					for (size_t i = 0; effect.module.entry_points.size() > i; ++i)
+						if (ImGui::MenuItem(effect.module.entry_points[i].name.c_str()))
+							condition = condition::output, selected_index = i;
+
+					ImGui::EndPopup();
+				}
+			}
+			else if (ImGui::Button("Show HLSL/GLSL", ImVec2(button_width, 0)))
+				condition = condition::input, selected_index = 0;
+
+			if (condition != condition::pass)
+			{
+				std::string source_code;
+				if (condition == condition::input)
+					source_code = effect.preamble + effect.module.hlsl;
+				else if (condition == condition::output)
+					source_code = effect.module.entry_points[selected_index].assembly;
+
+				_editor.set_text(source_code);
+				_selected_effect = std::numeric_limits<size_t>::max();
+				_selected_effect_changed = false; // Prevent editor from being cleared, since we already set the text here
+				_show_code_editor = true;
+
 				ImGui::CloseCurrentPopup();
 			}
 

@@ -446,15 +446,6 @@ void reshade::d3d9::runtime_d3d9::on_clear_depthstencil_surface(IDirect3DSurface
 
 void reshade::d3d9::runtime_d3d9::capture_screenshot(uint8_t *buffer) const
 {
-	if (_backbuffer_format != D3DFMT_X8R8G8B8 &&
-		_backbuffer_format != D3DFMT_X8B8G8R8 &&
-		_backbuffer_format != D3DFMT_A8R8G8B8 &&
-		_backbuffer_format != D3DFMT_A8B8G8R8)
-	{
-		LOG(WARN) << "Screenshots are not supported for back buffer format " << _backbuffer_format << '.';
-		return;
-	}
-
 	// Create a surface in system memory, copy back buffer data into it and lock it for reading
 	com_ptr<IDirect3DSurface9> intermediate;
 	if (FAILED(_device->CreateOffscreenPlainSurface(_width, _height, _backbuffer_format, D3DPOOL_SYSTEMMEM, &intermediate, nullptr)))
@@ -468,17 +459,33 @@ void reshade::d3d9::runtime_d3d9::capture_screenshot(uint8_t *buffer) const
 	D3DLOCKED_RECT mapped;
 	if (FAILED(intermediate->LockRect(&mapped, nullptr, D3DLOCK_READONLY)))
 		return;
-	auto mapped_data = static_cast<uint8_t *>(mapped.pBits);
+	auto mapped_data = static_cast<const uint8_t *>(mapped.pBits);
 
 	for (uint32_t y = 0, pitch = _width * 4; y < _height; y++, buffer += pitch, mapped_data += mapped.Pitch)
 	{
-		std::memcpy(buffer, mapped_data, pitch);
-
-		for (uint32_t x = 0; x < pitch; x += 4)
+		if (_backbuffer_format == D3DFMT_A2R10G10B10 ||
+			_backbuffer_format == D3DFMT_A2B10G10R10)
 		{
-			buffer[x + 3] = 0xFF; // Clear alpha channel
-			if (_backbuffer_format == D3DFMT_A8R8G8B8 || _backbuffer_format == D3DFMT_X8R8G8B8)
-				std::swap(buffer[x + 0], buffer[x + 2]); // Format is BGRA, but output should be RGBA, so flip channels
+			for (uint32_t x = 0; x < pitch; x += 4)
+			{
+				const uint32_t rgba = *reinterpret_cast<const uint32_t *>(mapped_data + x);
+				// Divide by 4 to get 10-bit range (0-1023) into 8-bit range (0-255)
+				buffer[x + 0] = ((rgba & 0x3FF) / 4) & 0xFF;
+				buffer[x + 1] = (((rgba & 0xFFC00) >> 10) / 4) & 0xFF;
+				buffer[x + 2] = (((rgba & 0x3FF00000) >> 20) / 4) & 0xFF;
+				buffer[x + 3] = 0xFF;
+			}
+		}
+		else
+		{
+			memcpy(buffer, mapped_data, pitch);
+
+			for (uint32_t x = 0; x < pitch; x += 4)
+			{
+				buffer[x + 3] = 0xFF; // Clear alpha channel
+				if (_backbuffer_format == D3DFMT_A8R8G8B8 || _backbuffer_format == D3DFMT_X8R8G8B8)
+					std::swap(buffer[x + 0], buffer[x + 2]); // Format is BGRA, but output should be RGBA, so flip channels
+			}
 		}
 	}
 
