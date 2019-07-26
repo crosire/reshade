@@ -102,7 +102,7 @@ bool D3D12Device::save_depth_texture(ID3D12GraphicsCommandList * cmdList, reshad
 	if ((runtime->cleared_depth_buffer_index == 0 && cleared) || (runtime->clear_DSV_iter <= runtime->cleared_depth_buffer_index))
 	{
 		// Select an appropriate destination texture
-		com_ptr<ID3D12Resource> depth_texture_save = runtime->select_depth_texture_save(desc, &heapProps, &heapFlags);
+		com_ptr<ID3D12Resource> depth_texture_save = runtime->select_depth_texture_save(desc, &heapProps);
 		if (depth_texture_save == nullptr)
 			return false;
 
@@ -154,7 +154,7 @@ void D3D12Device::track_active_rendertargets(ID3D12GraphicsCommandList * cmdList
 
 	current_depthstencil = depthstencil;
 
-	draw_call_tracker.track_rendertargets(runtime->depth_buffer_texture_format, current_depthstencil.get(), pDepthStencilView);
+	draw_call_tracker.track_rendertargets(runtime->depth_buffer_texture_format, current_depthstencil.get());
 
 	save_depth_texture(cmdList, draw_call_tracker, pDepthStencilView, false);
 

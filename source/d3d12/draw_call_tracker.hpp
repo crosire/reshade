@@ -60,7 +60,7 @@ namespace reshade::d3d12
 
 #if RESHADE_DX12_CAPTURE_DEPTH_BUFFERS
 		void track_depthstencil_resource_by_handle(D3D12_CPU_DESCRIPTOR_HANDLE pDescriptor, com_ptr<ID3D12Resource> pDepthStencil);
-		void track_rendertargets(int formatIdx, ID3D12Resource *depthstencil, D3D12_CPU_DESCRIPTOR_HANDLE pDepthStencilView);
+		void track_rendertargets(int formatIdx, ID3D12Resource *depthstencil);
 		void track_depth_texture(int formatIdx, UINT index, com_ptr<ID3D12Resource> srcTexture, com_ptr<ID3D12Resource> srcDepthstencil, com_ptr<ID3D12Resource> destTexture, bool cleared);
 
 		void keep_cleared_depth_textures();

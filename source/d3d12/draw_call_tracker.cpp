@@ -115,7 +115,7 @@ namespace reshade::d3d12
 		return make_dxgi_format_typeless(desc.Format) == depth_texture_formats[formatIdx];
 	}
 
-	void draw_call_tracker::track_rendertargets(int format_index, ID3D12Resource *depthstencil, D3D12_CPU_DESCRIPTOR_HANDLE pDepthStencilView)
+	void draw_call_tracker::track_rendertargets(int format_index, ID3D12Resource *depthstencil)
 	{
 		assert(depthstencil != nullptr);
 

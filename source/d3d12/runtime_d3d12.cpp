@@ -1721,7 +1721,7 @@ bool reshade::d3d12::runtime_d3d12::create_depthstencil_replacement(ID3D12Resour
 	return true;
 }
 
-com_ptr<ID3D12Resource> reshade::d3d12::runtime_d3d12::select_depth_texture_save(D3D12_RESOURCE_DESC &textureDesc, const D3D12_HEAP_PROPERTIES *props, D3D12_HEAP_FLAGS *heapFlags)
+com_ptr<ID3D12Resource> reshade::d3d12::runtime_d3d12::select_depth_texture_save(D3D12_RESOURCE_DESC &textureDesc, const D3D12_HEAP_PROPERTIES *props)
 {
 	// Function that selects the appropriate texture where we want to save the depth texture before it is cleared
 	// If this texture is null, create it according to the dimensions and the format of the depth texture
