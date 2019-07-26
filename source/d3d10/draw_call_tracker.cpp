@@ -131,7 +131,7 @@ namespace reshade::d3d10
 		assert(depthstencil != nullptr);
 
 		// Do not check format if all formats are allowed (index zero is DXGI_FORMAT_UNKNOWN)
-		if (format_index == 0)
+		if (format_index == DXGI_FORMAT_UNKNOWN)
 			return true;
 
 		// Retrieve texture from depth stencil
@@ -152,7 +152,7 @@ namespace reshade::d3d10
 			DXGI_FORMAT_R32G8X24_TYPELESS
 		};
 
-		assert(format_index > 0 && format_index < ARRAYSIZE(depth_texture_formats));
+		assert(format_index > DXGI_FORMAT_UNKNOWN && format_index < ARRAYSIZE(depth_texture_formats));
 
 		return make_dxgi_format_typeless(desc.Format) == depth_texture_formats[format_index];
 	}

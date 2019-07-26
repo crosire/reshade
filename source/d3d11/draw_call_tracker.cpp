@@ -20,7 +20,7 @@ namespace reshade::d3d11
 		}
 
 		for (const auto &[index, depth_texture_save_info] : source._cleared_depth_textures)
-			_cleared_depth_textures[index]= depth_texture_save_info;
+			_cleared_depth_textures[index] = depth_texture_save_info;
 #endif
 #if RESHADE_DX11_CAPTURE_CONSTANT_BUFFERS
 		for (const auto &[buffer, snapshot] : source._counters_per_constant_buffer)
@@ -131,7 +131,7 @@ namespace reshade::d3d11
 		assert(depthstencil != nullptr);
 
 		// Do not check format if all formats are allowed (index zero is DXGI_FORMAT_UNKNOWN)
-		if (format_index == 0)
+		if (format_index == DXGI_FORMAT_UNKNOWN)
 			return true;
 
 		// Retrieve texture from depth stencil
@@ -152,7 +152,7 @@ namespace reshade::d3d11
 			DXGI_FORMAT_R32G8X24_TYPELESS
 		};
 
-		assert(format_index > 0 && format_index < ARRAYSIZE(depth_texture_formats));
+		assert(format_index > DXGI_FORMAT_UNKNOWN && format_index < ARRAYSIZE(depth_texture_formats));
 
 		return make_dxgi_format_typeless(desc.Format) == depth_texture_formats[format_index];
 	}

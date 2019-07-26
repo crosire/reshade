@@ -180,6 +180,12 @@
     <ClCompile Include="source\windows\ws2_32.cpp">
       <Filter>hooks\windows</Filter>
     </ClCompile>
+    <ClCompile Include="source\d3d12\draw_call_tracker.cpp">
+      <Filter>hooks\d3d12</Filter>
+    </ClCompile>
+    <ClCompile Include="source\d3d12\d3d12_command_list.cpp">
+      <Filter>hooks\d3d12</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="source\hook.hpp">
@@ -260,6 +266,9 @@
     <ClInclude Include="source\d3d12\d3d12_command_queue.hpp">
       <Filter>hooks\d3d12</Filter>
     </ClInclude>
+    <ClInclude Include="source\d3d12\d3d12_command_list.hpp">
+      <Filter>hooks\d3d12</Filter>
+    </ClInclude>
     <ClInclude Include="source\d3d12\d3d12_device.hpp">
       <Filter>hooks\d3d12</Filter>
     </ClInclude>
@@ -301,6 +310,12 @@
     </ClInclude>
     <ClInclude Include="res\version.h">
       <Filter>resources</Filter>
+    </ClInclude>
+    <ClInclude Include="source\d3d12\draw_call_tracker.hpp">
+      <Filter>hooks\d3d12</Filter>
+    </ClInclude>
+    <ClInclude Include="source\d3d12\d3d12_command_list.hpp">
+      <Filter>hooks\d3d12</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

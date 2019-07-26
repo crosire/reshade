@@ -116,6 +116,8 @@ static void init_reshade_runtime_d3d(T *&swapchain, com_ptr<D3D10Device> &device
 			if (!runtime->on_init(desc))
 				LOG(ERROR) << "Failed to initialize Direct3D 12 runtime environment on runtime " << runtime.get() << '.';
 
+			command_queue_d3d12->_device->_runtimes.push_back(runtime);
+
 			swapchain = new DXGISwapChain(command_queue_d3d12->_device, swapchain3.get(), runtime);
 		}
 		else
