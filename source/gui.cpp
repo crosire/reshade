@@ -1249,6 +1249,11 @@ void reshade::runtime::draw_overlay_menu_statistics()
 			"unknown",
 			"R8", "R16F", "R32F", "RG8", "RG16", "RG16F", "RG32F", "RGBA8", "RGBA16", "RGBA16F", "RGBA32F", "RGB10A2"
 		};
+		const unsigned int pixel_sizes[] = {
+			0,
+			1 /*R8*/, 2 /*R16F*/, 4 /*R32F*/, 2 /*RG8*/, 4 /*RG16*/, 4 /*RG16F*/, 8 /*RG32F*/, 4 /*RGBA8*/, 8 /*RGBA16*/, 8 /*RGBA16F*/, 16 /*RGBA32F*/, 4 /*RGB10A2*/
+		};
+
 		static_assert(_countof(texture_formats) - 1 == static_cast<unsigned int>(reshadefx::texture_format::rgb10a2));
 
 		const float total_width = ImGui::GetWindowContentRegionWidth();
@@ -1263,7 +1268,28 @@ void reshade::runtime::draw_overlay_menu_statistics()
 
 			ImGui::BeginGroup();
 
-			ImGui::Text("%s (%ux%u +%u %s)", texture.unique_name.c_str(), texture.width, texture.height, (texture.levels - 1), texture_formats[static_cast<unsigned int>(texture.format)]);
+			uint32_t memory_size = 0;
+			const char *memory_size_unit = "B";
+
+			for (uint32_t level = 0, width = texture.width, height = texture.height; level < texture.levels; ++level, width /= 2, height /= 2)
+				memory_size += width * height * pixel_sizes[static_cast<unsigned int>(texture.format)];
+
+			if (memory_size > 5000) {
+				memory_size /= 1000;
+				memory_size_unit = "kB";
+			}
+			if (memory_size > 5000) {
+				memory_size /= 1000;
+				memory_size_unit = "MB";
+			}
+
+			ImGui::TextUnformatted(texture.unique_name.c_str());
+			ImGui::Text("%ux%u +%u %s %u%s",
+				texture.width,
+				texture.height,
+				texture.levels - 1,
+				texture_formats[static_cast<unsigned int>(texture.format)],
+				memory_size, memory_size_unit);
 
 			const float aspect_ratio = static_cast<float>(texture.width) / static_cast<float>(texture.height);
 			imgui_image_with_checkerboard_background(texture.impl.get(), ImVec2(single_image_width, single_image_width / aspect_ratio));
