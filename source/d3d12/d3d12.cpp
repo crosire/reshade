@@ -37,7 +37,6 @@ HOOK_EXPORT HRESULT WINAPI D3D12CreateDevice(
 #if RESHADE_VERBOSE_LOG
 	LOG(DEBUG) << "Returning ID3D12Device" << device_proxy->_interface_version << " object " << device_proxy << '.';
 #endif
-
 	return hr;
 }
 
