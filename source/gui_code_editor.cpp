@@ -365,11 +365,6 @@ void imgui_code_editor::render(const char *title, bool border)
 			}
 		}
 
-		// Draw line number (right aligned)
-		snprintf(buf, 16, "%zu  ", line_no + 1);
-
-		draw_list->AddText(ImVec2(text_screen_pos.x - ImGui::CalcTextSize(buf).x, line_screen_pos.y), _palette[color_line_number], buf);
-
 		// Highlight the current line (where the cursor is)
 		if (_cursor_pos.line == line_no)
 		{
@@ -395,6 +390,11 @@ void imgui_code_editor::render(const char *title, bool border)
 				draw_list->AddRectFilled(beg, end, _palette[color_cursor]);
 			}
 		}
+
+		// Draw line number (right aligned)
+		snprintf(buf, 16, "%zu  ", line_no + 1);
+
+		draw_list->AddText(ImVec2(text_screen_pos.x - ImGui::CalcTextSize(buf).x, line_screen_pos.y), _palette[color_line_number], buf);
 
 		// Nothing to draw if the line is empty, so continue on
 		if (line.empty())
