@@ -27,8 +27,8 @@ inline void *get_dispatch_key(const void *dispatchable_handle)
 
 VkResult VKAPI_CALL vkCreateInstance(const VkInstanceCreateInfo *pCreateInfo, const VkAllocationCallbacks *pAllocator, VkInstance *pInstance)
 {
-	PFN_vkCreateInstance trampoline;
-	PFN_vkGetInstanceProcAddr get_instance_proc;
+	PFN_vkCreateInstance trampoline = nullptr;
+	PFN_vkGetInstanceProcAddr get_instance_proc = nullptr;
 
 	LOG(INFO) << "Redirecting vkCreateInstance" << '(' << pCreateInfo << ", " << pAllocator << ", " << pInstance << ')' << " ...";
 
@@ -47,11 +47,13 @@ VkResult VKAPI_CALL vkCreateInstance(const VkInstanceCreateInfo *pCreateInfo, co
 		// Advance the link info for the next element of the chain
 		link_info->u.pLayerInfo = link_info->u.pLayerInfo->pNext;
 	}
+#ifdef RESHADE_TEST_APPLICATION
 	else
 	{
 		trampoline = reshade::hooks::call(vkCreateInstance);
 		get_instance_proc = reshade::hooks::call(vkGetInstanceProcAddr);
 	}
+#endif
 
 	if (trampoline == nullptr) // Unable to resolve next 'vkCreateInstance' function in the call chain
 		return VK_ERROR_INITIALIZATION_FAILED;
@@ -168,9 +170,9 @@ void     VKAPI_CALL vkDestroySurfaceKHR(VkInstance instance, VkSurfaceKHR surfac
 
 VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDeviceCreateInfo *pCreateInfo, const VkAllocationCallbacks *pAllocator, VkDevice *pDevice)
 {
-	PFN_vkCreateDevice trampoline;
-	PFN_vkGetDeviceProcAddr get_device_proc;
-	PFN_vkGetInstanceProcAddr get_instance_proc;
+	PFN_vkCreateDevice trampoline = nullptr;
+	PFN_vkGetDeviceProcAddr get_device_proc = nullptr;
+	PFN_vkGetInstanceProcAddr get_instance_proc = nullptr;
 
 	LOG(INFO) << "Redirecting vkCreateDevice" << '(' << physicalDevice << ", " << pCreateInfo << ", " << pAllocator << ", " << pDevice << ')' << " ...";
 
@@ -190,12 +192,14 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 		// Advance the link info for the next element on the chain
 		link_info->u.pLayerInfo = link_info->u.pLayerInfo->pNext;
 	}
+#ifdef RESHADE_TEST_APPLICATION
 	else
 	{
 		trampoline = reshade::hooks::call(vkCreateDevice);
 		get_device_proc = reshade::hooks::call(vkGetDeviceProcAddr);
 		get_instance_proc = reshade::hooks::call(vkGetInstanceProcAddr);
 	}
+#endif
 
 	if (trampoline == nullptr) // Unable to resolve next 'vkCreateDevice' function in the call chain
 		return VK_ERROR_INITIALIZATION_FAILED;
@@ -474,7 +478,7 @@ VK_LAYER_EXPORT PFN_vkVoidFunction VKAPI_CALL vkGetDeviceProcAddr(VkDevice devic
 	if (device == VK_NULL_HANDLE)
 		return nullptr;
 
-	// Guard access to device data map
+	// Guard access to device dispatch table
 	const std::lock_guard<std::mutex> lock(s_mutex);
 
 	PFN_vkGetDeviceProcAddr trampoline = s_device_dispatch.at(
@@ -503,7 +507,7 @@ VK_LAYER_EXPORT PFN_vkVoidFunction VKAPI_CALL vkGetInstanceProcAddr(VkInstance i
 	if (instance == VK_NULL_HANDLE)
 		return nullptr;
 
-	// Guard access to instance data map
+	// Guard access to instance dispatch table
 	const std::lock_guard<std::mutex> lock(s_mutex);
 
 	PFN_vkGetInstanceProcAddr trampoline = s_instance_dispatch.at(
