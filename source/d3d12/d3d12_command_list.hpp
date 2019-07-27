@@ -7,7 +7,7 @@
 
 #include <d3d12.h>
 
-struct DECLSPEC_UUID("479B29E3-9A2C-11D0-B696-00A0C903487A") D3D12CommandList : ID3D12GraphicsCommandList5
+struct DECLSPEC_UUID("479B29E3-9A2C-11D0-B696-00A0C903487A") D3D12CommandList : ID3D12GraphicsCommandList4
 {
 	D3D12CommandList(D3D12Device *device, ID3D12GraphicsCommandList *original);
 
@@ -107,10 +107,6 @@ struct DECLSPEC_UUID("479B29E3-9A2C-11D0-B696-00A0C903487A") D3D12CommandList : 
 	void    STDMETHODCALLTYPE CopyRaytracingAccelerationStructure(D3D12_GPU_VIRTUAL_ADDRESS DestAccelerationStructureData, D3D12_GPU_VIRTUAL_ADDRESS SourceAccelerationStructureData, D3D12_RAYTRACING_ACCELERATION_STRUCTURE_COPY_MODE Mode) override;
 	void    STDMETHODCALLTYPE SetPipelineState1(ID3D12StateObject *pStateObject) override;
 	void    STDMETHODCALLTYPE DispatchRays(const D3D12_DISPATCH_RAYS_DESC *pDesc) override;
-	#pragma endregion
-	#pragma region ID3D12GraphicsCommandList5
-	void    STDMETHODCALLTYPE RSSetShadingRate(D3D12_SHADING_RATE baseShadingRate, const D3D12_SHADING_RATE_COMBINER *combiners) override;
-	void    STDMETHODCALLTYPE RSSetShadingRateImage(ID3D12Resource *shadingRateImage) override;
 	#pragma endregion
 
 	bool check_and_upgrade_interface(REFIID riid);

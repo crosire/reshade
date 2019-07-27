@@ -2072,7 +2072,7 @@ void reshade::runtime::draw_overlay_technique_editor()
 			}
 
 			enum class condition { pass, input, output } condition = condition::pass;
-			int selected_index = -1;
+			size_t selected_index = 0;
 
 			if (effect.runtime_loaded && (_renderer_id & 0xF0000) == 0)
 			{

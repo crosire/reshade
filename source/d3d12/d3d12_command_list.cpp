@@ -29,7 +29,6 @@ bool D3D12CommandList::check_and_upgrade_interface(REFIID riid)
 		__uuidof(ID3D12GraphicsCommandList2),
 		__uuidof(ID3D12GraphicsCommandList3),
 		__uuidof(ID3D12GraphicsCommandList4),
-		__uuidof(ID3D12GraphicsCommandList5),
 	};
 
 	for (unsigned int version = 0; version < ARRAYSIZE(iid_lookup); ++version)
@@ -416,15 +415,4 @@ void STDMETHODCALLTYPE D3D12CommandList::DispatchRays(const D3D12_DISPATCH_RAYS_
 {
 	assert(_interface_version >= 4);
 	static_cast<ID3D12GraphicsCommandList4 *>(_orig)->DispatchRays(pDesc);
-}
-
-void STDMETHODCALLTYPE D3D12CommandList::RSSetShadingRate(D3D12_SHADING_RATE baseShadingRate, const D3D12_SHADING_RATE_COMBINER *combiners)
-{
-	assert(_interface_version >= 5);
-	static_cast<ID3D12GraphicsCommandList5 *>(_orig)->RSSetShadingRate(baseShadingRate, combiners);
-}
-void STDMETHODCALLTYPE D3D12CommandList::RSSetShadingRateImage(ID3D12Resource *shadingRateImage)
-{
-	assert(_interface_version >= 5);
-	static_cast<ID3D12GraphicsCommandList5 *>(_orig)->RSSetShadingRateImage(shadingRateImage);
 }
