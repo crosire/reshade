@@ -8,23 +8,15 @@
 #include "runtime_vk.hpp"
 #include "vk_layer.h"
 #include "vk_layer_dispatch_table.h"
+#include <mutex>
 #include <memory>
 #include <unordered_map>
 
-struct vk_layer_device_data
-{
-	VkInstance instance;
-	VkPhysicalDevice physical_device;
-	VkLayerDispatchTable dispatch_table;
-};
-struct vk_layer_instance_data
-{
-	VkLayerInstanceDispatchTable dispatch_table;
-};
-
-static std::unordered_map<void *, vk_layer_device_data> s_device_data;
-static std::unordered_map<void *, vk_layer_instance_data> s_instance_data;
+static std::mutex s_mutex;
+static std::unordered_map<void *, VkLayerDispatchTable> s_device_dispatch;
+static std::unordered_map<void *, VkLayerInstanceDispatchTable> s_instance_dispatch;
 static std::unordered_map<VkSurfaceKHR, HWND> s_surface_windows;
+static std::unordered_map<VkDevice, VkPhysicalDevice> s_device_mapping;
 static std::unordered_map<VkPhysicalDevice, VkInstance> s_instance_mapping;
 static std::unordered_map<VkSwapchainKHR, std::shared_ptr<reshade::vulkan::runtime_vk>> s_runtimes;
 
@@ -35,7 +27,7 @@ inline void *get_dispatch_key(const void *dispatchable_handle)
 
 VkResult VKAPI_CALL vkCreateInstance(const VkInstanceCreateInfo *pCreateInfo, const VkAllocationCallbacks *pAllocator, VkInstance *pInstance)
 {
-	PFN_vkCreateInstance create_func;
+	PFN_vkCreateInstance trampoline;
 	PFN_vkGetInstanceProcAddr get_instance_proc;
 
 	LOG(INFO) << "Redirecting vkCreateInstance" << '(' << pCreateInfo << ", " << pAllocator << ", " << pInstance << ')' << " ...";
@@ -50,22 +42,22 @@ VkResult VKAPI_CALL vkCreateInstance(const VkInstanceCreateInfo *pCreateInfo, co
 		assert(link_info->u.pLayerInfo != nullptr);
 		// Look up functions in layer info
 		get_instance_proc = link_info->u.pLayerInfo->pfnNextGetInstanceProcAddr;
-		create_func = (PFN_vkCreateInstance)get_instance_proc(nullptr, "vkCreateInstance");
+		trampoline = (PFN_vkCreateInstance)get_instance_proc(nullptr, "vkCreateInstance");
 
 		// Advance the link info for the next element of the chain
 		link_info->u.pLayerInfo = link_info->u.pLayerInfo->pNext;
 	}
 	else
 	{
-		create_func = reshade::hooks::call(vkCreateInstance);
+		trampoline = reshade::hooks::call(vkCreateInstance);
 		get_instance_proc = reshade::hooks::call(vkGetInstanceProcAddr);
 	}
 
-	if (create_func == nullptr) // Unable to resolve next 'vkCreateInstance' function in the call chain
+	if (trampoline == nullptr) // Unable to resolve next 'vkCreateInstance' function in the call chain
 		return VK_ERROR_INITIALIZATION_FAILED;
 
 	// Continue call down the chain
-	const VkResult result = create_func(pCreateInfo, pAllocator, pInstance);
+	const VkResult result = trampoline(pCreateInfo, pAllocator, pInstance);
 	if (result != VK_SUCCESS)
 	{
 		LOG(WARN) << "> vkCreateInstance failed with error code " << result << '!';
@@ -73,10 +65,8 @@ VkResult VKAPI_CALL vkCreateInstance(const VkInstanceCreateInfo *pCreateInfo, co
 	}
 
 	VkInstance instance = *pInstance;
-	vk_layer_instance_data &instance_data = s_instance_data[get_dispatch_key(instance)];
-
 	// Initialize the instance dispatch table
-	VkLayerInstanceDispatchTable &dispatch_table = instance_data.dispatch_table;
+	VkLayerInstanceDispatchTable dispatch_table = {};
 	dispatch_table.GetInstanceProcAddr = get_instance_proc;
 
 	dispatch_table.DestroyInstance = (PFN_vkDestroyInstance)get_instance_proc(instance, "vkDestroyInstance");
@@ -85,30 +75,41 @@ VkResult VKAPI_CALL vkCreateInstance(const VkInstanceCreateInfo *pCreateInfo, co
 	dispatch_table.DestroySurfaceKHR = (PFN_vkDestroySurfaceKHR)get_instance_proc(instance, "vkDestroySurfaceKHR");
 	dispatch_table.GetPhysicalDeviceMemoryProperties = (PFN_vkGetPhysicalDeviceMemoryProperties)get_instance_proc(instance, "vkGetPhysicalDeviceMemoryProperties");
 
+	{ const std::lock_guard<std::mutex> lock(s_mutex);
+		s_instance_dispatch[get_dispatch_key(instance)] = dispatch_table;
+	}
+
 	return VK_SUCCESS;
 }
 void     VKAPI_CALL vkDestroyInstance(VkInstance instance, const VkAllocationCallbacks *pAllocator)
 {
+	PFN_vkDestroyInstance trampoline;
+
 	LOG(INFO) << "Redirecting vkDestroyInstance" << '(' << instance << ", " << pAllocator << ')' << " ...";
 
-	const vk_layer_instance_data &instance_data = s_instance_data.at(get_dispatch_key(instance));
+	{ const std::lock_guard<std::mutex> lock(s_mutex);
+		trampoline = s_instance_dispatch.at(get_dispatch_key(instance)).DestroyInstance;
+		assert(trampoline != nullptr);
 
-	// Continue call down the chain
-	assert(instance_data.dispatch_table.DestroyInstance != nullptr);
-	instance_data.dispatch_table.DestroyInstance(instance, pAllocator);
+		// Remove instance dispatch table since this instance is being destroyed
+		s_instance_dispatch.erase(get_dispatch_key(instance));
+	}
 
-	s_instance_data.erase(get_dispatch_key(instance));
+	trampoline(instance, pAllocator);
 }
 
 VkResult VKAPI_CALL vkEnumeratePhysicalDevices(VkInstance instance, uint32_t *pPhysicalDeviceCount, VkPhysicalDevice *pPhysicalDevices)
 {
+	PFN_vkEnumeratePhysicalDevices trampoline;
+
 	LOG(INFO) << "Redirecting vkEnumeratePhysicalDevices" << '(' << instance << ", " << pPhysicalDeviceCount << ", " << pPhysicalDevices << ')' << " ...";
 
-	const vk_layer_instance_data &instance_data = s_instance_data.at(get_dispatch_key(instance));
+	{ const std::lock_guard<std::mutex> lock(s_mutex);
+		trampoline = s_instance_dispatch.at(get_dispatch_key(instance)).EnumeratePhysicalDevices;
+		assert(trampoline != nullptr);
+	}
 
-	// Continue call down the chain
-	assert(instance_data.dispatch_table.EnumeratePhysicalDevices != nullptr);
-	const VkResult result = instance_data.dispatch_table.EnumeratePhysicalDevices(instance, pPhysicalDeviceCount, pPhysicalDevices);
+	const VkResult result = trampoline(instance, pPhysicalDeviceCount, pPhysicalDevices);
 	if (result != VK_SUCCESS && result != VK_INCOMPLETE)
 	{
 		LOG(WARN) << "> vkEnumeratePhysicalDevices failed with error code " << result << '!';
@@ -116,47 +117,59 @@ VkResult VKAPI_CALL vkEnumeratePhysicalDevices(VkInstance instance, uint32_t *pP
 	}
 
 	if (pPhysicalDevices != nullptr)
+	{
+		const std::lock_guard<std::mutex> lock(s_mutex);
 		for (uint32_t i = 0; i < *pPhysicalDeviceCount; ++i)
 			s_instance_mapping[pPhysicalDevices[i]] = instance;
+	}
 
 	return result;
 }
 
 VkResult VKAPI_CALL vkCreateWin32SurfaceKHR(VkInstance instance, const VkWin32SurfaceCreateInfoKHR *pCreateInfo, const VkAllocationCallbacks *pAllocator, VkSurfaceKHR *pSurface)
 {
+	PFN_vkCreateWin32SurfaceKHR trampoline;
+
 	LOG(INFO) << "Redirecting vkCreateWin32SurfaceKHR" << '(' << instance << ", " << pCreateInfo << ", " << pAllocator << ", " << pSurface << ')' << " ...";
 
-	const vk_layer_instance_data &instance_data = s_instance_data.at(get_dispatch_key(instance));
+	{ const std::lock_guard<std::mutex> lock(s_mutex);
+		trampoline = s_instance_dispatch.at(get_dispatch_key(instance)).CreateWin32SurfaceKHR;
+		assert(trampoline != nullptr);
+	}
 
-	// Continue call down the chain
-	assert(instance_data.dispatch_table.CreateWin32SurfaceKHR != nullptr);
-	const VkResult result = instance_data.dispatch_table.CreateWin32SurfaceKHR(instance, pCreateInfo, pAllocator, pSurface);
+	const VkResult result = trampoline(instance, pCreateInfo, pAllocator, pSurface);
 	if (result != VK_SUCCESS)
 	{
 		LOG(WARN) << "> vkCreateWin32SurfaceKHR failed with error code " << result << '!';
 		return result;
 	}
 
-	s_surface_windows[*pSurface] = pCreateInfo->hwnd;
+	{ const std::lock_guard<std::mutex> lock(s_mutex);
+		s_surface_windows[*pSurface] = pCreateInfo->hwnd;
+	}
 
 	return VK_SUCCESS;
 }
 void     VKAPI_CALL vkDestroySurfaceKHR(VkInstance instance, VkSurfaceKHR surface, const VkAllocationCallbacks *pAllocator)
 {
+	PFN_vkDestroySurfaceKHR trampoline;
+
 	LOG(INFO) << "Redirecting vkDestroySurfaceKHR" << '(' << instance << ", " << surface << ", " << pAllocator << ')' << " ...";
 
-	const vk_layer_instance_data &instance_data = s_instance_data.at(get_dispatch_key(instance));
+	{ const std::lock_guard<std::mutex> lock(s_mutex);
+		trampoline = s_instance_dispatch.at(get_dispatch_key(instance)).DestroySurfaceKHR;
+		assert(trampoline != nullptr);
 
-	s_surface_windows.erase(surface);
+		// Remove surface since this surface is being destroyed
+		s_surface_windows.erase(surface);
+	}
 
-	// Continue call down the chain
-	assert(instance_data.dispatch_table.DestroySurfaceKHR != nullptr);
-	instance_data.dispatch_table.DestroySurfaceKHR(instance, surface, pAllocator);
+	trampoline(instance, surface, pAllocator);
 }
 
 VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDeviceCreateInfo *pCreateInfo, const VkAllocationCallbacks *pAllocator, VkDevice *pDevice)
 {
-	PFN_vkCreateDevice create_func;
+	PFN_vkCreateDevice trampoline;
 	PFN_vkGetDeviceProcAddr get_device_proc;
 	PFN_vkGetInstanceProcAddr get_instance_proc;
 
@@ -173,19 +186,19 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 		// Look up functions in layer info
 		get_device_proc = link_info->u.pLayerInfo->pfnNextGetDeviceProcAddr;
 		get_instance_proc = link_info->u.pLayerInfo->pfnNextGetInstanceProcAddr;
-		create_func = (PFN_vkCreateDevice)get_instance_proc(nullptr, "vkCreateDevice");
+		trampoline = (PFN_vkCreateDevice)get_instance_proc(nullptr, "vkCreateDevice");
 
 		// Advance the link info for the next element on the chain
 		link_info->u.pLayerInfo = link_info->u.pLayerInfo->pNext;
 	}
 	else
 	{
+		trampoline = reshade::hooks::call(vkCreateDevice);
 		get_device_proc = reshade::hooks::call(vkGetDeviceProcAddr);
 		get_instance_proc = reshade::hooks::call(vkGetInstanceProcAddr);
-		create_func = reshade::hooks::call(vkCreateDevice);
 	}
 
-	if (create_func == nullptr) // Unable to resolve next 'vkCreateDevice' function in the call chain
+	if (trampoline == nullptr) // Unable to resolve next 'vkCreateDevice' function in the call chain
 		return VK_ERROR_INITIALIZATION_FAILED;
 
 	std::vector<const char *> enabled_extensions;
@@ -201,7 +214,7 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	create_info.ppEnabledExtensionNames = enabled_extensions.data();
 
 	// Continue call down the chain
-	const VkResult result = create_func(physicalDevice, &create_info, pAllocator, pDevice);
+	const VkResult result = trampoline(physicalDevice, &create_info, pAllocator, pDevice);
 	if (result != VK_SUCCESS)
 	{
 		LOG(WARN) << "> vkCreateDevice failed with error code " << result << '!';
@@ -209,12 +222,8 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	}
 
 	VkDevice device = *pDevice;
-	vk_layer_device_data &device_data = s_device_data[get_dispatch_key(device)];
-	device_data.instance = s_instance_mapping.at(physicalDevice);
-	device_data.physical_device = physicalDevice;
-
 	// Initialize the device dispatch table
-	VkLayerDispatchTable &dispatch_table = device_data.dispatch_table;
+	VkLayerDispatchTable dispatch_table = {};
 	dispatch_table.GetDeviceProcAddr = get_device_proc;
 
 	dispatch_table.DestroyDevice = (PFN_vkDestroyDevice)get_device_proc(device, "vkDestroyDevice");
@@ -294,60 +303,91 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	dispatch_table.CmdPipelineBarrier = (PFN_vkCmdPipelineBarrier)get_device_proc(device, "vkCmdPipelineBarrier");
 	dispatch_table.DebugMarkerSetObjectNameEXT = (PFN_vkDebugMarkerSetObjectNameEXT)get_device_proc(device, "vkDebugMarkerSetObjectNameEXT");
 
+	{ const std::lock_guard<std::mutex> lock(s_mutex);
+		s_device_mapping[device] = physicalDevice;
+		s_device_dispatch[get_dispatch_key(device)] = dispatch_table;
+	}
+
 	return VK_SUCCESS;
 }
 void     VKAPI_CALL vkDestroyDevice(VkDevice device, const VkAllocationCallbacks *pAllocator)
 {
+	PFN_vkDestroyDevice trampoline;
+
 	LOG(INFO) << "Redirecting vkDestroyDevice" << '(' << device << ", " << pAllocator << ')' << " ...";
 
-	const vk_layer_device_data &device_data = s_device_data.at(get_dispatch_key(device));
+	{ const std::lock_guard<std::mutex> lock(s_mutex);
+		trampoline = s_device_dispatch.at(get_dispatch_key(device)).DestroyDevice;
+		assert(trampoline != nullptr);
 
-	// Continue call down the chain
-	assert(device_data.dispatch_table.DestroyDevice != nullptr);
-	device_data.dispatch_table.DestroyDevice(device, pAllocator);
+		s_device_mapping.erase(device);
 
-	s_device_data.erase(get_dispatch_key(device));
+		// Remove device dispatch table since this device is being destroyed
+		s_device_dispatch.erase(get_dispatch_key(device));
+	}
+
+	trampoline(device, pAllocator);
 }
 
 void     VKAPI_CALL vkGetDeviceQueue(VkDevice device, uint32_t queueFamilyIndex, uint32_t queueIndex, VkQueue *pQueue)
 {
-	const vk_layer_device_data &device_data = s_device_data.at(get_dispatch_key(device));
+	PFN_vkGetDeviceQueue trampoline;
 
-	// Continue call down the chain
-	assert(device_data.dispatch_table.GetDeviceQueue != nullptr);
-	device_data.dispatch_table.GetDeviceQueue(device, queueFamilyIndex, queueIndex, pQueue);
+	{ const std::lock_guard<std::mutex> lock(s_mutex);
+		trampoline = s_device_dispatch.at(get_dispatch_key(device)).GetDeviceQueue;
+		assert(trampoline != nullptr);
+	}
 
-	s_device_data[get_dispatch_key(*pQueue)] = device_data;
+	trampoline(device, queueFamilyIndex, queueIndex, pQueue);
+
+	{ const std::lock_guard<std::mutex> lock(s_mutex);
+		// Copy dispatch table for queue
+		VkLayerDispatchTable dispatch_table = s_device_dispatch.at(get_dispatch_key(device));
+		s_device_dispatch[get_dispatch_key(*pQueue)] = dispatch_table;
+	}
 }
 void     VKAPI_CALL vkGetDeviceQueue2(VkDevice device, const VkDeviceQueueInfo2 *pQueueInfo, VkQueue *pQueue)
 {
-	const vk_layer_device_data &device_data = s_device_data.at(get_dispatch_key(device));
+	PFN_vkGetDeviceQueue2 trampoline;
 
-	// Continue call down the chain
-	assert(device_data.dispatch_table.GetDeviceQueue2 != nullptr);
-	device_data.dispatch_table.GetDeviceQueue2(device, pQueueInfo, pQueue);
+	{ const std::lock_guard<std::mutex> lock(s_mutex);
+		trampoline = s_device_dispatch.at(get_dispatch_key(device)).GetDeviceQueue2;
+		assert(trampoline != nullptr);
+	}
 
-	s_device_data[get_dispatch_key(*pQueue)] = device_data;
+	trampoline(device, pQueueInfo, pQueue);
+
+	{ const std::lock_guard<std::mutex> lock(s_mutex);
+		// Copy dispatch table for queue
+		VkLayerDispatchTable device_data = s_device_dispatch.at(get_dispatch_key(device));
+		s_device_dispatch[get_dispatch_key(*pQueue)] = device_data;
+	}
 }
 
 VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreateInfoKHR *pCreateInfo, const VkAllocationCallbacks *pAllocator, VkSwapchainKHR *pSwapchain)
 {
-	LOG(INFO) << "Redirecting vkCreateSwapchainKHR" << '(' << device << ", " << pCreateInfo << ", " << pAllocator << ", " << pSwapchain << ')' << " ...";
+	PFN_vkCreateSwapchainKHR trampoline;
 
-	const vk_layer_device_data &device_data = s_device_data.at(get_dispatch_key(device));
+	LOG(INFO) << "Redirecting vkCreateSwapchainKHR" << '(' << device << ", " << pCreateInfo << ", " << pAllocator << ", " << pSwapchain << ')' << " ...";
 
 	// Add required usage flags to create info
 	VkSwapchainCreateInfoKHR create_info = *pCreateInfo;
 	create_info.imageUsage |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
 
-	// Continue call down the chain
-	assert(device_data.dispatch_table.CreateSwapchainKHR != nullptr);
-	const VkResult result = device_data.dispatch_table.CreateSwapchainKHR(device, &create_info, pAllocator, pSwapchain);
+	{ const std::lock_guard<std::mutex> lock(s_mutex);
+		trampoline = s_device_dispatch.at(get_dispatch_key(device)).CreateSwapchainKHR;
+		assert(trampoline != nullptr);
+	}
+
+	const VkResult result = trampoline(device, &create_info, pAllocator, pSwapchain);
 	if (result != VK_SUCCESS)
 	{
 		LOG(WARN) << "> vkCreateSwapchainKHR failed with error code " << result << '!';
 		return result;
 	}
+
+	// Guard access to runtime map
+	const std::lock_guard<std::mutex> lock(s_mutex);
 
 	std::shared_ptr<reshade::vulkan::runtime_vk> runtime;
 	if (const auto it = s_runtimes.find(pCreateInfo->oldSwapchain); it != s_runtimes.end())
@@ -365,11 +405,12 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 	}
 	else
 	{
+		const VkPhysicalDevice physical_device = s_device_mapping.at(device);
+		const VkInstance instance = s_instance_mapping.at(physical_device);
+
 		runtime = std::make_shared<reshade::vulkan::runtime_vk>(
-			device,
-			device_data.physical_device,
-			s_instance_data.at(get_dispatch_key(device_data.instance)).dispatch_table,
-			device_data.dispatch_table);
+			device, physical_device,
+			s_instance_dispatch.at(get_dispatch_key(instance)), s_device_dispatch.at(get_dispatch_key(device)));
 	}
 
 	if (!runtime->on_init(*pSwapchain, *pCreateInfo, s_surface_windows.at(pCreateInfo->surface)))
@@ -381,38 +422,43 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 }
 void     VKAPI_CALL vkDestroySwapchainKHR(VkDevice device, VkSwapchainKHR swapchain, const VkAllocationCallbacks *pAllocator)
 {
+	PFN_vkDestroySwapchainKHR trampoline;
+
 	LOG(INFO) << "Redirecting vkDestroySwapchainKHR" << '(' << device << ", " << swapchain << ", " << pAllocator << ')' << " ...";
 
-	const vk_layer_device_data &device_data = s_device_data.at(get_dispatch_key(device));
+	{ const std::lock_guard<std::mutex> lock(s_mutex);
+		trampoline = s_device_dispatch.at(get_dispatch_key(device)).DestroySwapchainKHR;
+		assert(trampoline != nullptr);
 
-	if (const auto it = s_runtimes.find(swapchain); it != s_runtimes.end())
-	{
-		it->second->on_reset();
+		if (const auto it = s_runtimes.find(swapchain); it != s_runtimes.end())
+		{
+			it->second->on_reset();
 
-		s_runtimes.erase(it);
+			s_runtimes.erase(it);
+		}
 	}
 
-	// Continue call down the chain
-	assert(device_data.dispatch_table.DestroySwapchainKHR != nullptr);
-	device_data.dispatch_table.DestroySwapchainKHR(device, swapchain, pAllocator);
+	trampoline(device, swapchain, pAllocator);
 }
 
 VkResult VKAPI_CALL vkQueuePresentKHR(VkQueue queue, const VkPresentInfoKHR *pPresentInfo)
 {
-	const vk_layer_device_data &device_data = s_device_data.at(get_dispatch_key(queue));
+	PFN_vkQueuePresentKHR trampoline;
 
-	assert(pPresentInfo != nullptr);
+	{ const std::lock_guard<std::mutex> lock(s_mutex);
+		trampoline = s_device_dispatch.at(get_dispatch_key(queue)).QueuePresentKHR;
+		assert(trampoline != nullptr);
+		assert(pPresentInfo != nullptr);
 
-	for (uint32_t i = 0; i < pPresentInfo->swapchainCount; ++i)
-	{
-		const auto it = s_runtimes.find(pPresentInfo->pSwapchains[i]);
-		if (it != s_runtimes.end())
-			it->second->on_present(pPresentInfo->pImageIndices[i]);
+		for (uint32_t i = 0; i < pPresentInfo->swapchainCount; ++i)
+		{
+			const auto it = s_runtimes.find(pPresentInfo->pSwapchains[i]);
+			if (it != s_runtimes.end())
+				it->second->on_present(pPresentInfo->pImageIndices[i]);
+		}
 	}
 
-	// Continue call down the chain
-	assert(device_data.dispatch_table.QueuePresentKHR != nullptr);
-	return device_data.dispatch_table.QueuePresentKHR(queue, pPresentInfo);
+	return trampoline(queue, pPresentInfo);
 }
 
 VK_LAYER_EXPORT PFN_vkVoidFunction VKAPI_CALL vkGetDeviceProcAddr(VkDevice device, const char *pName)
@@ -431,10 +477,14 @@ VK_LAYER_EXPORT PFN_vkVoidFunction VKAPI_CALL vkGetDeviceProcAddr(VkDevice devic
 	if (device == VK_NULL_HANDLE)
 		return nullptr;
 
-	const vk_layer_device_data &device_data = s_device_data.at(get_dispatch_key(device));
+	// Guard access to device data map
+	const std::lock_guard<std::mutex> lock(s_mutex);
 
-	assert(device_data.dispatch_table.GetDeviceProcAddr != nullptr);
-	return device_data.dispatch_table.GetDeviceProcAddr(device, pName);
+	PFN_vkGetDeviceProcAddr trampoline = s_device_dispatch.at(
+		get_dispatch_key(device)).GetDeviceProcAddr;
+
+	assert(trampoline != nullptr);
+	return trampoline(device, pName);
 }
 VK_LAYER_EXPORT PFN_vkVoidFunction VKAPI_CALL vkGetInstanceProcAddr(VkInstance instance, const char *pName)
 {
@@ -456,8 +506,12 @@ VK_LAYER_EXPORT PFN_vkVoidFunction VKAPI_CALL vkGetInstanceProcAddr(VkInstance i
 	if (instance == VK_NULL_HANDLE)
 		return nullptr;
 
-	const vk_layer_instance_data &instance_data = s_instance_data.at(get_dispatch_key(instance));
+	// Guard access to instance data map
+	const std::lock_guard<std::mutex> lock(s_mutex);
 
-	assert(instance_data.dispatch_table.GetInstanceProcAddr != nullptr);
-	return instance_data.dispatch_table.GetInstanceProcAddr(instance, pName);
+	PFN_vkGetInstanceProcAddr trampoline = s_instance_dispatch.at(
+		get_dispatch_key(instance)).GetInstanceProcAddr;
+
+	assert(trampoline != nullptr);
+	return trampoline(instance, pName);
 }
