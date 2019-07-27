@@ -13,10 +13,10 @@ namespace reshadefx { struct sampler_info; }
 
 namespace reshade::vulkan
 {
-	class runtime_vulkan : public runtime
+	class runtime_vk : public runtime
 	{
 	public:
-		runtime_vulkan(VkDevice device, VkPhysicalDevice physical_device, const vk_device_table &table);
+		runtime_vk(VkDevice device, VkPhysicalDevice physical_device, const vk_device_table &table);
 
 		bool on_init(VkSwapchainKHR swapchain, const VkSwapchainCreateInfoKHR &desc, HWND hwnd);
 		void on_reset();

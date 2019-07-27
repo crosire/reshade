@@ -34,8 +34,8 @@ static inline std::filesystem::path get_module_path(HMODULE module)
 #include "d3d9/runtime_d3d9.hpp"
 #include "d3d11/runtime_d3d11.hpp"
 #include "d3d12/runtime_d3d12.hpp"
-#include "opengl/runtime_opengl.hpp"
-#include "vulkan/runtime_vulkan.hpp"
+#include "opengl/runtime_gl.hpp"
+#include "vulkan/runtime_vk.hpp"
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow)
 {

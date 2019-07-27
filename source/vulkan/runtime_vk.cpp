@@ -4,7 +4,7 @@
  */
 
 #include "log.hpp"
-#include "runtime_vulkan.hpp"
+#include "runtime_vk.hpp"
 #include "runtime_objects.hpp"
 #include "resource_loading.hpp"
 #include <imgui.h>
@@ -33,7 +33,7 @@ namespace reshade::vulkan
 		VkImage image = VK_NULL_HANDLE;
 		VkImageView view[4] = {};
 		VkImageLayout layout = VK_IMAGE_LAYOUT_UNDEFINED;
-		runtime_vulkan *runtime = nullptr;
+		runtime_vk *runtime = nullptr;
 	};
 
 	struct vulkan_effect_data
@@ -67,7 +67,7 @@ namespace reshade::vulkan
 	}
 }
 
-reshade::vulkan::runtime_vulkan::runtime_vulkan(VkDevice device, VkPhysicalDevice physical_device, const vk_device_table &table) :
+reshade::vulkan::runtime_vk::runtime_vk(VkDevice device, VkPhysicalDevice physical_device, const vk_device_table &table) :
 	_device(device), _physical_device(physical_device), _funcs(table)
 {
 	_renderer_id = 0x20000;
@@ -75,7 +75,7 @@ reshade::vulkan::runtime_vulkan::runtime_vulkan(VkDevice device, VkPhysicalDevic
 	table.vkGetPhysicalDeviceMemoryProperties(physical_device, &_memory_props);
 }
 
-VkImage reshade::vulkan::runtime_vulkan::create_image(uint32_t width, uint32_t height, uint32_t levels, VkFormat format, VkImageUsageFlags usage_flags, VkMemoryPropertyFlags mem_flags, VkImageCreateFlags flags)
+VkImage reshade::vulkan::runtime_vk::create_image(uint32_t width, uint32_t height, uint32_t levels, VkFormat format, VkImageUsageFlags usage_flags, VkMemoryPropertyFlags mem_flags, VkImageCreateFlags flags)
 {
 	VkImageCreateInfo create_info { VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO };
 	create_info.flags = flags;
@@ -115,7 +115,7 @@ VkImage reshade::vulkan::runtime_vulkan::create_image(uint32_t width, uint32_t h
 
 	return res.release();
 }
-VkBuffer reshade::vulkan::runtime_vulkan::create_buffer(VkDeviceSize size, VkBufferUsageFlags usage_flags, VkMemoryPropertyFlags mem_flags)
+VkBuffer reshade::vulkan::runtime_vk::create_buffer(VkDeviceSize size, VkBufferUsageFlags usage_flags, VkMemoryPropertyFlags mem_flags)
 {
 	VkBufferCreateInfo create_info { VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO };
 	create_info.size = size;
@@ -147,7 +147,7 @@ VkBuffer reshade::vulkan::runtime_vulkan::create_buffer(VkDeviceSize size, VkBuf
 
 	return res.release();
 }
-VkImageView reshade::vulkan::runtime_vulkan::create_image_view(VkImage image, VkFormat format, uint32_t levels)
+VkImageView reshade::vulkan::runtime_vk::create_image_view(VkImage image, VkFormat format, uint32_t levels)
 {
 	VkImageAspectFlags aspect = VK_IMAGE_ASPECT_COLOR_BIT;
 	if (format >= VK_FORMAT_D16_UNORM_S8_UINT && format <= VK_FORMAT_D32_SFLOAT_S8_UINT)
@@ -166,7 +166,7 @@ VkImageView reshade::vulkan::runtime_vulkan::create_image_view(VkImage image, Vk
 	return res.release();
 }
 
-void reshade::vulkan::runtime_vulkan::set_object_name(uint64_t handle, VkDebugReportObjectTypeEXT type, const char *name) const
+void reshade::vulkan::runtime_vk::set_object_name(uint64_t handle, VkDebugReportObjectTypeEXT type, const char *name) const
 {
 #ifdef _DEBUG
 	if (_funcs.vkDebugMarkerSetObjectNameEXT == nullptr)
@@ -181,7 +181,7 @@ void reshade::vulkan::runtime_vulkan::set_object_name(uint64_t handle, VkDebugRe
 #endif
 }
 
-bool reshade::vulkan::runtime_vulkan::on_init(VkSwapchainKHR swapchain, const VkSwapchainCreateInfoKHR &desc, HWND hwnd)
+bool reshade::vulkan::runtime_vk::on_init(VkSwapchainKHR swapchain, const VkSwapchainCreateInfoKHR &desc, HWND hwnd)
 {
 	// Update swapchain to the new one
 	_swapchain = swapchain;
@@ -334,7 +334,7 @@ bool reshade::vulkan::runtime_vulkan::on_init(VkSwapchainKHR swapchain, const Vk
 
 	return runtime::on_init(hwnd);
 }
-void reshade::vulkan::runtime_vulkan::on_reset()
+void reshade::vulkan::runtime_vk::on_reset()
 {
 	runtime::on_reset();
 
@@ -389,7 +389,7 @@ void reshade::vulkan::runtime_vulkan::on_reset()
 	_allocations.clear();
 }
 
-void reshade::vulkan::runtime_vulkan::on_present(uint32_t swapchain_image_index)
+void reshade::vulkan::runtime_vk::on_present(uint32_t swapchain_image_index)
 {
 	_swap_index = swapchain_image_index;
 
@@ -400,7 +400,7 @@ void reshade::vulkan::runtime_vulkan::on_present(uint32_t swapchain_image_index)
 	runtime::on_present();
 }
 
-void reshade::vulkan::runtime_vulkan::capture_screenshot(uint8_t *buffer) const
+void reshade::vulkan::runtime_vk::capture_screenshot(uint8_t *buffer) const
 {
 	vk_handle<VK_OBJECT_TYPE_IMAGE> intermediate(_device, _funcs);
 	vk_handle<VK_OBJECT_TYPE_DEVICE_MEMORY> intermediate_mem(_device, _funcs);
@@ -496,7 +496,7 @@ void reshade::vulkan::runtime_vulkan::capture_screenshot(uint8_t *buffer) const
 	_funcs.vkUnmapMemory(_device, intermediate_mem);
 }
 
-bool reshade::vulkan::runtime_vulkan::init_texture(texture &info)
+bool reshade::vulkan::runtime_vk::init_texture(texture &info)
 {
 	info.impl = std::make_unique<vulkan_tex_data>();
 	auto impl = info.impl->as<vulkan_tex_data>();
@@ -592,7 +592,7 @@ bool reshade::vulkan::runtime_vulkan::init_texture(texture &info)
 
 	return true;
 }
-void reshade::vulkan::runtime_vulkan::upload_texture(texture &texture, const uint8_t *pixels)
+void reshade::vulkan::runtime_vk::upload_texture(texture &texture, const uint8_t *pixels)
 {
 	assert(pixels != nullptr);
 	assert(texture.impl_reference == texture_reference::none);
@@ -668,7 +668,7 @@ void reshade::vulkan::runtime_vulkan::upload_texture(texture &texture, const uin
 	execute_command_list(cmd_list);
 }
 
-void reshade::vulkan::runtime_vulkan::generate_mipmaps(const VkCommandBuffer cmd_list, texture &texture)
+void reshade::vulkan::runtime_vk::generate_mipmaps(const VkCommandBuffer cmd_list, texture &texture)
 {
 	if (texture.levels <= 1)
 		return; // No need to generate mipmaps when texture does not have any
@@ -697,7 +697,7 @@ void reshade::vulkan::runtime_vulkan::generate_mipmaps(const VkCommandBuffer cmd
 	}
 }
 
-VkCommandBuffer reshade::vulkan::runtime_vulkan::create_command_list(VkCommandBufferLevel level) const
+VkCommandBuffer reshade::vulkan::runtime_vk::create_command_list(VkCommandBufferLevel level) const
 {
 	VkCommandBuffer cmd_list = VK_NULL_HANDLE;
 	VkCommandBufferAllocateInfo alloc_info { VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO };
@@ -714,7 +714,7 @@ VkCommandBuffer reshade::vulkan::runtime_vulkan::create_command_list(VkCommandBu
 
 	return cmd_list;
 }
-void reshade::vulkan::runtime_vulkan::execute_command_list(VkCommandBuffer cmd_list) const
+void reshade::vulkan::runtime_vk::execute_command_list(VkCommandBuffer cmd_list) const
 {
 	check_result(_funcs.vkEndCommandBuffer(cmd_list));
 
@@ -730,7 +730,7 @@ void reshade::vulkan::runtime_vulkan::execute_command_list(VkCommandBuffer cmd_l
 	res = _funcs.vkResetFences(_device, 1, &_wait_fence);
 	assert(res == VK_SUCCESS);
 }
-void reshade::vulkan::runtime_vulkan::execute_command_list_async(VkCommandBuffer cmd_list) const
+void reshade::vulkan::runtime_vk::execute_command_list_async(VkCommandBuffer cmd_list) const
 {
 	check_result(_funcs.vkEndCommandBuffer(cmd_list));
 
@@ -743,7 +743,7 @@ void reshade::vulkan::runtime_vulkan::execute_command_list_async(VkCommandBuffer
 	assert(res == VK_SUCCESS);
 }
 
-void reshade::vulkan::runtime_vulkan::transition_layout(VkCommandBuffer cmd_list, VkImage image, VkImageLayout old_layout, VkImageLayout new_layout, VkImageSubresourceRange subresource) const
+void reshade::vulkan::runtime_vk::transition_layout(VkCommandBuffer cmd_list, VkImage image, VkImageLayout old_layout, VkImageLayout new_layout, VkImageSubresourceRange subresource) const
 {
 	const auto layout_to_access = [](VkImageLayout layout) -> VkAccessFlags {
 		switch (layout)
@@ -791,7 +791,7 @@ void reshade::vulkan::runtime_vulkan::transition_layout(VkCommandBuffer cmd_list
 	_funcs.vkCmdPipelineBarrier(cmd_list, layout_to_stage(old_layout), layout_to_stage(new_layout), 0, 0, nullptr, 0, nullptr, 1, &transition);
 }
 
-bool reshade::vulkan::runtime_vulkan::compile_effect(effect_data &effect)
+bool reshade::vulkan::runtime_vk::compile_effect(effect_data &effect)
 {
 	vk_handle<VK_OBJECT_TYPE_SHADER_MODULE> module(_device, _funcs);
 
@@ -993,7 +993,7 @@ bool reshade::vulkan::runtime_vulkan::compile_effect(effect_data &effect)
 
 	return success;
 }
-void reshade::vulkan::runtime_vulkan::unload_effects()
+void reshade::vulkan::runtime_vk::unload_effects()
 {
 	// Wait for all GPU operations to finish so resources are no longer referenced
 	_funcs.vkDeviceWaitIdle(_device);
@@ -1013,7 +1013,7 @@ void reshade::vulkan::runtime_vulkan::unload_effects()
 	_effect_data.clear();
 }
 
-bool reshade::vulkan::runtime_vulkan::init_technique(technique &info, VkShaderModule module, const VkSpecializationInfo &spec_info)
+bool reshade::vulkan::runtime_vk::init_technique(technique &info, VkShaderModule module, const VkSpecializationInfo &spec_info)
 {
 	info.impl = std::make_unique<vulkan_technique_data>();
 
@@ -1272,7 +1272,7 @@ bool reshade::vulkan::runtime_vulkan::init_technique(technique &info, VkShaderMo
 	return true;
 }
 
-void reshade::vulkan::runtime_vulkan::render_technique(technique &technique)
+void reshade::vulkan::runtime_vk::render_technique(technique &technique)
 {
 	vulkan_effect_data &effect_data = _effect_data[technique.effect_index];
 
@@ -1352,7 +1352,7 @@ void reshade::vulkan::runtime_vulkan::render_technique(technique &technique)
 }
 
 #if RESHADE_GUI
-bool reshade::vulkan::runtime_vulkan::init_imgui_resources()
+bool reshade::vulkan::runtime_vk::init_imgui_resources()
 {
 	vk_handle<VK_OBJECT_TYPE_SHADER_MODULE> vs_module(_device, _funcs);
 	vk_handle<VK_OBJECT_TYPE_SHADER_MODULE> fs_module(_device, _funcs);
@@ -1505,7 +1505,7 @@ bool reshade::vulkan::runtime_vulkan::init_imgui_resources()
 	return true;
 }
 
-void reshade::vulkan::runtime_vulkan::render_imgui_draw_data(ImDrawData *draw_data)
+void reshade::vulkan::runtime_vk::render_imgui_draw_data(ImDrawData *draw_data)
 {
 	bool resize_mem = false;
 

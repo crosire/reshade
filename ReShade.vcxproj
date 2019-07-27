@@ -391,12 +391,12 @@
     <ClCompile Include="source\dllmain.cpp" />
     <ClCompile Include="source\opengl\opengl_hooks.cpp" />
     <ClCompile Include="source\opengl\opengl_hooks_wgl.cpp" />
-    <ClCompile Include="source\opengl\runtime_opengl.cpp" />
+    <ClCompile Include="source\opengl\runtime_gl.cpp" />
     <ClCompile Include="source\opengl\state_block.cpp" />
     <ClCompile Include="source\resource_loading.cpp" />
     <ClCompile Include="source\runtime.cpp" />
     <ClCompile Include="source\update_check.cpp" />
-    <ClCompile Include="source\vulkan\runtime_vulkan.cpp" />
+    <ClCompile Include="source\vulkan\runtime_vk.cpp" />
     <ClCompile Include="source\vulkan\vulkan_hooks.cpp" />
     <ClCompile Include="source\windows\user32.cpp" />
     <ClCompile Include="source\windows\ws2_32.cpp" />
@@ -436,12 +436,12 @@
     <ClInclude Include="source\moving_average.hpp" />
     <ClInclude Include="source\opengl\opengl.hpp" />
     <ClInclude Include="source\opengl\opengl_hooks.hpp" />
-    <ClInclude Include="source\opengl\runtime_opengl.hpp" />
+    <ClInclude Include="source\opengl\runtime_gl.hpp" />
     <ClInclude Include="source\opengl\state_block.hpp" />
     <ClInclude Include="source\resource_loading.hpp" />
     <ClInclude Include="source\runtime.hpp" />
     <ClInclude Include="source\runtime_objects.hpp" />
-    <ClInclude Include="source\vulkan\runtime_vulkan.hpp" />
+    <ClInclude Include="source\vulkan\runtime_vk.hpp" />
     <ClInclude Include="source\vulkan\vk_handle.hpp" />
     <ClInclude Include="source\vulkan\vulkan.hpp" />
   </ItemGroup>

@@ -14,10 +14,10 @@ namespace reshadefx { struct sampler_info; }
 
 namespace reshade::opengl
 {
-	class runtime_opengl : public runtime
+	class runtime_gl : public runtime
 	{
 	public:
-		runtime_opengl();
+		runtime_gl();
 
 		bool on_init(HWND hwnd, unsigned int width, unsigned int height);
 		void on_reset();

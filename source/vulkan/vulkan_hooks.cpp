@@ -5,7 +5,7 @@
 
 #include "log.hpp"
 #include "hook_manager.hpp"
-#include "runtime_vulkan.hpp"
+#include "runtime_vk.hpp"
 #include <assert.h>
 #include <memory>
 #include <unordered_map>
@@ -13,7 +13,7 @@
 static std::unordered_map<VkSurfaceKHR, HWND> s_surface_windows;
 static std::unordered_map<VkDevice, VkPhysicalDevice> s_device_mapping;
 static std::unordered_map<VkPhysicalDevice, VkInstance> s_instance_mapping;
-static std::unordered_map<VkSwapchainKHR, std::shared_ptr<reshade::vulkan::runtime_vulkan>> s_runtimes;
+static std::unordered_map<VkSwapchainKHR, std::shared_ptr<reshade::vulkan::runtime_vk>> s_runtimes;
 
 HOOK_EXPORT VkResult VKAPI_CALL vkEnumeratePhysicalDevices(VkInstance instance, uint32_t *pPhysicalDeviceCount, VkPhysicalDevice *pPhysicalDevices)
 {
@@ -108,7 +108,7 @@ HOOK_EXPORT VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSw
 		return result;
 	}
 
-	std::shared_ptr<reshade::vulkan::runtime_vulkan> runtime;
+	std::shared_ptr<reshade::vulkan::runtime_vk> runtime;
 	if (const auto it = s_runtimes.find(pCreateInfo->oldSwapchain); it != s_runtimes.end())
 	{
 		assert(pCreateInfo->oldSwapchain != VK_NULL_HANDLE);
@@ -202,7 +202,7 @@ HOOK_EXPORT VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSw
 		table.vkDebugMarkerSetObjectNameEXT = reinterpret_cast<PFN_vkDebugMarkerSetObjectNameEXT>(get_device_proc_addr(device, "vkDebugMarkerSetObjectNameEXT"));
 		table.vkGetPhysicalDeviceMemoryProperties = reinterpret_cast<PFN_vkGetPhysicalDeviceMemoryProperties>(get_instance_proc_addr(instance, "vkGetPhysicalDeviceMemoryProperties"));
 
-		runtime = std::make_shared<reshade::vulkan::runtime_vulkan>(device, physical_device, table);
+		runtime = std::make_shared<reshade::vulkan::runtime_vk>(device, physical_device, table);
 	}
 
 	if (!runtime->on_init(*pSwapchain, *pCreateInfo, s_surface_windows.at(pCreateInfo->surface)))

@@ -5,11 +5,11 @@
 
 #include "log.hpp"
 #include "hook_manager.hpp"
-#include "runtime_opengl.hpp"
+#include "runtime_gl.hpp"
 #include "opengl_hooks.hpp"
 #include <numeric>
 
-extern thread_local reshade::opengl::runtime_opengl *g_current_runtime;
+extern thread_local reshade::opengl::runtime_gl *g_current_runtime;
 
 HOOK_EXPORT void WINAPI glAccum(GLenum op, GLfloat value)
 {

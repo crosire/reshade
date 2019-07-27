@@ -1592,23 +1592,8 @@ void reshade::d3d12::runtime_d3d12::draw_debug_menu()
 			}
 		}
 
-		/*ImGui::Spacing();
-		ImGui::Spacing();
-
-		ImGui::Text("depthstencil_infos_by_heap:");
-		for (const auto it : _current_tracker->depthstencil_resources_by_handle())
-		{
-			if (it.second == nullptr)
-				continue;
-
-			D3D12_RESOURCE_DESC desc = it.second->GetDesc();
-			ImGui::Text("=> depthstencilView descriptor = > %u | depthstencilView => 0%p | %ux%u", it.first, it.second, desc.Width, desc.Height);
-		}*/
-
 		if (modified)
-		{
 			runtime::save_config();
-		}
 	}
 #endif
 }

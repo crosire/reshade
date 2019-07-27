@@ -5,7 +5,7 @@
 
 #include "log.hpp"
 #include "hook_manager.hpp"
-#include "runtime_opengl.hpp"
+#include "runtime_gl.hpp"
 #include "opengl_hooks.hpp"
 #include <assert.h>
 #include <mutex>
@@ -18,8 +18,8 @@ DECLARE_HANDLE(HPBUFFERARB);
 static std::mutex s_mutex;
 static std::unordered_set<HDC> s_pbuffer_device_contexts;
 static std::unordered_map<HGLRC, HGLRC> s_shared_contexts;
-static std::unordered_map<HGLRC, reshade::opengl::runtime_opengl *> s_opengl_runtimes;
-thread_local reshade::opengl::runtime_opengl *g_current_runtime = nullptr;
+static std::unordered_map<HGLRC, reshade::opengl::runtime_gl *> s_opengl_runtimes;
+thread_local reshade::opengl::runtime_gl *g_current_runtime = nullptr;
 
 HOOK_EXPORT int   WINAPI wglChoosePixelFormat(HDC hdc, const PIXELFORMATDESCRIPTOR *ppfd)
 {
@@ -656,7 +656,7 @@ HOOK_EXPORT BOOL  WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 
 		if (gl3wIsSupported(4, 3))
 		{
-			const auto runtime = new reshade::opengl::runtime_opengl();
+			const auto runtime = new reshade::opengl::runtime_gl();
 			runtime->_hdcs.insert(hdc);
 
 			g_current_runtime = s_opengl_runtimes[hglrc] = runtime;
@@ -823,7 +823,7 @@ HOOK_EXPORT BOOL  WINAPI wglSwapBuffers(HDC hdc)
 
 	// Find the runtime that is associated with this device context
 	const auto it = std::find_if(s_opengl_runtimes.begin(), s_opengl_runtimes.end(),
-		[hdc](const std::pair<HGLRC, reshade::opengl::runtime_opengl *> &it) { return it.second->_hdcs.count(hdc); });
+		[hdc](const std::pair<HGLRC, reshade::opengl::runtime_gl *> &it) { return it.second->_hdcs.count(hdc); });
 
 	// The window handle can be invalid if the window was already destroyed
 	if (hwnd != nullptr && it != s_opengl_runtimes.end())

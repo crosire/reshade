@@ -4,7 +4,7 @@
  */
 
 #include "log.hpp"
-#include "runtime_opengl.hpp"
+#include "runtime_gl.hpp"
 #include "runtime_objects.hpp"
 #include "ini_file.hpp"
 #include <imgui.h>
@@ -73,7 +73,7 @@ namespace reshade::opengl
 	};
 }
 
-reshade::opengl::runtime_opengl::runtime_opengl()
+reshade::opengl::runtime_gl::runtime_gl()
 {
 	GLint major = 0, minor = 0;
 	glGetIntegerv(GL_MAJOR_VERSION, &major);
@@ -113,7 +113,7 @@ reshade::opengl::runtime_opengl::runtime_opengl()
 	});
 }
 
-bool reshade::opengl::runtime_opengl::on_init(HWND hwnd, unsigned int width, unsigned int height)
+bool reshade::opengl::runtime_gl::on_init(HWND hwnd, unsigned int width, unsigned int height)
 {
 	RECT window_rect = {};
 	GetClientRect(hwnd, &window_rect);
@@ -185,7 +185,7 @@ bool reshade::opengl::runtime_opengl::on_init(HWND hwnd, unsigned int width, uns
 
 	return runtime::on_init(hwnd);
 }
-void reshade::opengl::runtime_opengl::on_reset()
+void reshade::opengl::runtime_gl::on_reset()
 {
 	runtime::on_reset();
 
@@ -210,7 +210,7 @@ void reshade::opengl::runtime_opengl::on_reset()
 #endif
 }
 
-void reshade::opengl::runtime_opengl::on_present()
+void reshade::opengl::runtime_gl::on_present()
 {
 	if (!_is_initialized)
 		return;
@@ -254,7 +254,7 @@ void reshade::opengl::runtime_opengl::on_present()
 	_app_state.apply();
 }
 
-void reshade::opengl::runtime_opengl::on_draw_call(unsigned int vertices)
+void reshade::opengl::runtime_gl::on_draw_call(unsigned int vertices)
 {
 	_vertices += vertices;
 	_drawcalls += 1;
@@ -275,7 +275,7 @@ void reshade::opengl::runtime_opengl::on_draw_call(unsigned int vertices)
 		it->second.num_drawcalls = _drawcalls;
 	}
 }
-void reshade::opengl::runtime_opengl::on_fbo_attachment(GLenum attachment, GLenum target, GLuint object, GLint level)
+void reshade::opengl::runtime_gl::on_fbo_attachment(GLenum attachment, GLenum target, GLuint object, GLint level)
 {
 	if (object == 0 || (attachment != GL_DEPTH_ATTACHMENT && attachment != GL_DEPTH_STENCIL_ATTACHMENT))
 		return;
@@ -344,7 +344,7 @@ void reshade::opengl::runtime_opengl::on_fbo_attachment(GLenum attachment, GLenu
 	_depth_source_table.emplace(id, info);
 }
 
-void reshade::opengl::runtime_opengl::capture_screenshot(uint8_t *buffer) const
+void reshade::opengl::runtime_gl::capture_screenshot(uint8_t *buffer) const
 {
 	glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
 	glReadBuffer(GL_BACK);
@@ -368,7 +368,7 @@ void reshade::opengl::runtime_opengl::capture_screenshot(uint8_t *buffer) const
 	}
 }
 
-bool reshade::opengl::runtime_opengl::init_texture(texture &texture)
+bool reshade::opengl::runtime_gl::init_texture(texture &texture)
 {
 	texture.impl = std::make_unique<opengl_tex_data>();
 
@@ -453,7 +453,7 @@ bool reshade::opengl::runtime_opengl::init_texture(texture &texture)
 
 	return true;
 }
-void reshade::opengl::runtime_opengl::upload_texture(texture &texture, const uint8_t *pixels)
+void reshade::opengl::runtime_gl::upload_texture(texture &texture, const uint8_t *pixels)
 {
 	assert(texture.impl_reference == texture_reference::none && pixels != nullptr);
 
@@ -501,7 +501,7 @@ void reshade::opengl::runtime_opengl::upload_texture(texture &texture, const uin
 	// Apply previous state from application
 	glBindTexture(GL_TEXTURE_2D, previous_tex);
 }
-bool reshade::opengl::runtime_opengl::update_texture_reference(texture &texture)
+bool reshade::opengl::runtime_gl::update_texture_reference(texture &texture)
 {
 	GLuint new_reference[2] = {};
 
@@ -535,14 +535,14 @@ bool reshade::opengl::runtime_opengl::update_texture_reference(texture &texture)
 
 	return true;
 }
-void reshade::opengl::runtime_opengl::update_texture_references(texture_reference type)
+void reshade::opengl::runtime_gl::update_texture_references(texture_reference type)
 {
 	for (auto &tex : _textures)
 		if (tex.impl != nullptr && tex.impl_reference == type)
 			update_texture_reference(tex);
 }
 
-bool reshade::opengl::runtime_opengl::compile_effect(effect_data &effect)
+bool reshade::opengl::runtime_gl::compile_effect(effect_data &effect)
 {
 	assert(_app_state.has_state); // Make sure all binds below are reset later when application state is restored
 
@@ -632,7 +632,7 @@ bool reshade::opengl::runtime_opengl::compile_effect(effect_data &effect)
 
 	return success;
 }
-void reshade::opengl::runtime_opengl::unload_effects()
+void reshade::opengl::runtime_gl::unload_effects()
 {
 	runtime::unload_effects();
 
@@ -645,7 +645,7 @@ void reshade::opengl::runtime_opengl::unload_effects()
 	_effect_sampler_states.clear();
 }
 
-bool reshade::opengl::runtime_opengl::add_sampler(const reshadefx::sampler_info &info, opengl_technique_data &technique_init)
+bool reshade::opengl::runtime_gl::add_sampler(const reshadefx::sampler_info &info, opengl_technique_data &technique_init)
 {
 	const auto existing_texture = std::find_if(_textures.begin(), _textures.end(),
 		[&texture_name = info.texture_name](const auto &item) {
@@ -748,7 +748,7 @@ bool reshade::opengl::runtime_opengl::add_sampler(const reshadefx::sampler_info 
 
 	return true;
 }
-bool reshade::opengl::runtime_opengl::init_technique(technique &technique, const opengl_technique_data &impl_init, const std::unordered_map<std::string, GLuint> &entry_points, std::string &errors)
+bool reshade::opengl::runtime_gl::init_technique(technique &technique, const opengl_technique_data &impl_init, const std::unordered_map<std::string, GLuint> &entry_points, std::string &errors)
 {
 	assert(_app_state.has_state);
 
@@ -918,7 +918,7 @@ bool reshade::opengl::runtime_opengl::init_technique(technique &technique, const
 	return true;
 }
 
-void reshade::opengl::runtime_opengl::render_technique(technique &technique)
+void reshade::opengl::runtime_gl::render_technique(technique &technique)
 {
 	assert(_app_state.has_state);
 
@@ -1049,7 +1049,7 @@ void reshade::opengl::runtime_opengl::render_technique(technique &technique)
 }
 
 #if RESHADE_GUI
-void reshade::opengl::runtime_opengl::init_imgui_resources()
+void reshade::opengl::runtime_gl::init_imgui_resources()
 {
 	assert(_app_state.has_state);
 
@@ -1110,7 +1110,7 @@ void reshade::opengl::runtime_opengl::init_imgui_resources()
 	glVertexAttribPointer(attrib_col, 4, GL_UNSIGNED_BYTE, GL_TRUE, sizeof(ImDrawVert), reinterpret_cast<GLvoid *>(offsetof(ImDrawVert, col)));
 }
 
-void reshade::opengl::runtime_opengl::render_imgui_draw_data(ImDrawData *draw_data)
+void reshade::opengl::runtime_gl::render_imgui_draw_data(ImDrawData *draw_data)
 {
 	assert(_app_state.has_state);
 
@@ -1179,7 +1179,7 @@ void reshade::opengl::runtime_opengl::render_imgui_draw_data(ImDrawData *draw_da
 	}
 }
 
-void reshade::opengl::runtime_opengl::draw_debug_menu()
+void reshade::opengl::runtime_gl::draw_debug_menu()
 {
 	if (ImGui::Checkbox("Force default depth buffer", &_force_main_depth_buffer) && _force_main_depth_buffer)
 	{
@@ -1189,7 +1189,7 @@ void reshade::opengl::runtime_opengl::draw_debug_menu()
 }
 #endif
 
-void reshade::opengl::runtime_opengl::detect_depth_source()
+void reshade::opengl::runtime_gl::detect_depth_source()
 {
 	if (_framecount % 30)
 		return; // Only execute detection heuristic every 30 frames to avoid too frequent changes
