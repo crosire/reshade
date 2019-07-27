@@ -105,7 +105,7 @@
     </Link>
     <FxCompile>
       <ShaderModel>4.0</ShaderModel>
-      <ObjectFileOutput>$(SolutionDir)res\%(Filename).cso</ObjectFileOutput>
+      <ObjectFileOutput>$(SolutionDir)res\shaders\%(Filename).cso</ObjectFileOutput>
     </FxCompile>
     <ResourceCompile>
       <PreprocessorDefinitions>WIN32;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
@@ -134,7 +134,7 @@
     </Link>
     <FxCompile>
       <ShaderModel>4.0</ShaderModel>
-      <ObjectFileOutput>$(SolutionDir)res\%(Filename).cso</ObjectFileOutput>
+      <ObjectFileOutput>$(SolutionDir)res\shaders\%(Filename).cso</ObjectFileOutput>
     </FxCompile>
     <ResourceCompile>
       <PreprocessorDefinitions>WIN64;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
@@ -163,7 +163,7 @@
     </Link>
     <FxCompile>
       <ShaderModel>4.0</ShaderModel>
-      <ObjectFileOutput>$(SolutionDir)res\%(Filename).cso</ObjectFileOutput>
+      <ObjectFileOutput>$(SolutionDir)res\shaders\%(Filename).cso</ObjectFileOutput>
     </FxCompile>
     <ResourceCompile>
       <PreprocessorDefinitions>WIN32;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
@@ -192,7 +192,7 @@
     </Link>
     <FxCompile>
       <ShaderModel>4.0</ShaderModel>
-      <ObjectFileOutput>$(SolutionDir)res\%(Filename).cso</ObjectFileOutput>
+      <ObjectFileOutput>$(SolutionDir)res\shaders\%(Filename).cso</ObjectFileOutput>
     </FxCompile>
     <ResourceCompile>
       <PreprocessorDefinitions>WIN64;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
@@ -225,7 +225,7 @@
     </Link>
     <FxCompile>
       <ShaderModel>4.0</ShaderModel>
-      <ObjectFileOutput>$(SolutionDir)res\%(Filename).cso</ObjectFileOutput>
+      <ObjectFileOutput>$(SolutionDir)res\shaders\%(Filename).cso</ObjectFileOutput>
     </FxCompile>
     <ResourceCompile>
       <PreprocessorDefinitions>WIN32;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
@@ -261,7 +261,7 @@
     </Link>
     <FxCompile>
       <ShaderModel>4.0</ShaderModel>
-      <ObjectFileOutput>$(SolutionDir)res\%(Filename).cso</ObjectFileOutput>
+      <ObjectFileOutput>$(SolutionDir)res\shaders\%(Filename).cso</ObjectFileOutput>
     </FxCompile>
     <ResourceCompile>
       <PreprocessorDefinitions>WIN64;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
@@ -298,7 +298,7 @@
     </Link>
     <FxCompile>
       <ShaderModel>4.0</ShaderModel>
-      <ObjectFileOutput>$(SolutionDir)res\%(Filename).cso</ObjectFileOutput>
+      <ObjectFileOutput>$(SolutionDir)res\shaders\%(Filename).cso</ObjectFileOutput>
     </FxCompile>
     <ResourceCompile>
       <PreprocessorDefinitions>WIN32;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
@@ -329,7 +329,7 @@
     </Link>
     <FxCompile>
       <ShaderModel>4.0</ShaderModel>
-      <ObjectFileOutput>$(SolutionDir)res\%(Filename).cso</ObjectFileOutput>
+      <ObjectFileOutput>$(SolutionDir)res\shaders\%(Filename).cso</ObjectFileOutput>
     </FxCompile>
     <ResourceCompile>
       <PreprocessorDefinitions>WIN64;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
@@ -453,33 +453,33 @@
     <None Include="res\resource.rc2" />
   </ItemGroup>
   <ItemGroup>
-    <FxCompile Include="res\shader_copy_ps.hlsl">
+    <FxCompile Include="res\shaders\copy_ps.hlsl">
       <ShaderType>Pixel</ShaderType>
     </FxCompile>
-    <FxCompile Include="res\shader_fullscreen_vs.hlsl">
+    <FxCompile Include="res\shaders\fullscreen_vs.hlsl">
       <ShaderType>Vertex</ShaderType>
     </FxCompile>
-    <FxCompile Include="res\shader_imgui_ps.hlsl">
+    <FxCompile Include="res\shaders\imgui_ps.hlsl">
       <ShaderType>Pixel</ShaderType>
     </FxCompile>
-    <FxCompile Include="res\shader_imgui_vs.hlsl">
+    <FxCompile Include="res\shaders\imgui_vs.hlsl">
       <ShaderType>Vertex</ShaderType>
     </FxCompile>
-    <FxCompile Include="res\shader_mipmap_cs.hlsl">
+    <FxCompile Include="res\shaders\mipmap_cs.hlsl">
       <ShaderType>Compute</ShaderType>
       <ShaderModel>5.0</ShaderModel>
     </FxCompile>
   </ItemGroup>
   <ItemGroup>
-    <CustomBuild Include="res\shader_imgui_ps.glsl">
+    <CustomBuild Include="res\shaders\imgui_ps.glsl">
       <FileType>Document</FileType>
-      <Command>glslangValidator.exe -V -S frag res\shader_imgui_ps.glsl -o res\shader_imgui_ps.spv</Command>
-      <Outputs>res\shader_imgui_ps.spv</Outputs>
+      <Command>glslangValidator.exe -V -S frag "%(FullPath)" -o "$(SolutionDir)res\shaders\%(Filename).spv"</Command>
+      <Outputs>$(SolutionDir)res\shaders\%(Filename).spv</Outputs>
     </CustomBuild>
-    <CustomBuild Include="res\shader_imgui_vs.glsl">
+    <CustomBuild Include="res\shaders\imgui_vs.glsl">
       <FileType>Document</FileType>
-      <Command>glslangValidator.exe -V -S vert res\shader_imgui_vs.glsl -o res\shader_imgui_vs.spv</Command>
-      <Outputs>res\shader_imgui_vs.spv</Outputs>
+      <Command>glslangValidator.exe -V -S vert "%(FullPath)" -o "$(SolutionDir)res\shaders\%(Filename).spv"</Command>
+      <Outputs>$(SolutionDir)res\shaders\%(Filename).spv</Outputs>
     </CustomBuild>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

@@ -43,6 +43,9 @@
     <Filter Include="resources">
       <UniqueIdentifier>{7f3f7a66-aeb1-4c44-abb4-d7eff03a1247}</UniqueIdentifier>
     </Filter>
+    <Filter Include="resources\shaders">
+      <UniqueIdentifier>{9232c43b-559d-4435-b309-c8bbf4e6477b}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="source\dllmain.cpp">
@@ -329,28 +332,28 @@
     </None>
   </ItemGroup>
   <ItemGroup>
-    <FxCompile Include="res\shader_copy_ps.hlsl">
-      <Filter>resources</Filter>
+    <FxCompile Include="res\shaders\copy_ps.hlsl">
+      <Filter>resources\shaders</Filter>
     </FxCompile>
-    <FxCompile Include="res\shader_fullscreen_vs.hlsl">
-      <Filter>resources</Filter>
+    <FxCompile Include="res\shaders\fullscreen_vs.hlsl">
+      <Filter>resources\shaders</Filter>
     </FxCompile>
-    <FxCompile Include="res\shader_imgui_ps.hlsl">
-      <Filter>resources</Filter>
+    <FxCompile Include="res\shaders\imgui_ps.hlsl">
+      <Filter>resources\shaders</Filter>
     </FxCompile>
-    <FxCompile Include="res\shader_imgui_vs.hlsl">
-      <Filter>resources</Filter>
+    <FxCompile Include="res\shaders\imgui_vs.hlsl">
+      <Filter>resources\shaders</Filter>
     </FxCompile>
-    <FxCompile Include="res\shader_mipmap_cs.hlsl">
-      <Filter>resources</Filter>
+    <FxCompile Include="res\shaders\mipmap_cs.hlsl">
+      <Filter>resources\shaders</Filter>
     </FxCompile>
   </ItemGroup>
   <ItemGroup>
-    <CustomBuild Include="res\shader_imgui_vs.glsl">
-      <Filter>resources</Filter>
+    <CustomBuild Include="res\shaders\imgui_ps.glsl">
+      <Filter>resources\shaders</Filter>
     </CustomBuild>
-    <CustomBuild Include="res\shader_imgui_ps.glsl">
-      <Filter>resources</Filter>
+    <CustomBuild Include="res\shaders\imgui_vs.glsl">
+      <Filter>resources\shaders</Filter>
     </CustomBuild>
   </ItemGroup>
 </Project>
