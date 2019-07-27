@@ -3,10 +3,10 @@
 	"layer" : {
 		"name": "VK_LAYER_reshade_overlay",
 		"type": "GLOBAL",
-		"library_path": ".\\ReShade64.dll",
+		"library_path": ".\\ReShade32.dll",
 		"api_version": "1.1.73",
 		"implementation_version": "1",
-		"description": "crosire's ReShade post-processing injector",
+		"description": "crosire's ReShade post-processing injector for 32-bit",
 		"enable_environment": {
 			"ENABLE_VK_LAYER_reshade_overlay_1": "1"
 		},

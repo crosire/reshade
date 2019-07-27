@@ -242,10 +242,10 @@ namespace ReShade.Setup
 			{
 				using (ZipArchive zip = ExtractArchive())
 				{
-					if (zip.Entries.Count != 2)
+					if (zip.Entries.Count != 4)
 						throw new FileFormatException("Expected ReShade archive to contain ReShade DLLs");
 
-					using (Stream input = zip.Entries[_targetPEInfo.Type == PEInfo.BinaryType.IMAGE_FILE_MACHINE_AMD64 ? 1 : 0].Open())
+					using (Stream input = zip.Entries[_targetPEInfo.Type == PEInfo.BinaryType.IMAGE_FILE_MACHINE_AMD64 ? 2 : 0].Open())
 						using (FileStream output = File.Create(pathModule))
 							input.CopyTo(output);
 				}

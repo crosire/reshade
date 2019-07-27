@@ -43,6 +43,9 @@
     <Filter Include="resources">
       <UniqueIdentifier>{7f3f7a66-aeb1-4c44-abb4-d7eff03a1247}</UniqueIdentifier>
     </Filter>
+    <Filter Include="resources\layers">
+      <UniqueIdentifier>{381be222-68b2-465f-9e77-4bf69f3a87e8}</UniqueIdentifier>
+    </Filter>
     <Filter Include="resources\shaders">
       <UniqueIdentifier>{9232c43b-559d-4435-b309-c8bbf4e6477b}</UniqueIdentifier>
     </Filter>
@@ -326,6 +329,12 @@
   <ItemGroup>
     <None Include="res\exports.def">
       <Filter>resources</Filter>
+    </None>
+    <None Include="res\layers\ReShade32.json">
+      <Filter>resources\layers</Filter>
+    </None>
+    <None Include="res\layers\ReShade64.json">
+      <Filter>resources\layers</Filter>
     </None>
     <None Include="res\resource.rc2">
       <Filter>resources</Filter>

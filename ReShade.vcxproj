@@ -450,6 +450,8 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="res\exports.def" />
+    <None Include="res\layers\ReShade32.json" />
+    <None Include="res\layers\ReShade64.json" />
     <None Include="res\resource.rc2" />
   </ItemGroup>
   <ItemGroup>

@@ -150,7 +150,7 @@ foreach (var item in filesToCleanup)
   <PropertyGroup>
     <PostBuildEvent>
 echo Compressing ReShade DLLs ...
-"$(SolutionDir)tools\7za" a -y "$(TargetDir)ReShade.zip" "$(SolutionDir)bin\Win32\Release\ReShade32.dll" "$(SolutionDir)bin\x64\Release\ReShade64.dll"
+"$(SolutionDir)tools\7za" a -y "$(TargetDir)ReShade.zip" "$(SolutionDir)bin\Win32\Release\ReShade32.dll" "$(SolutionDir)res\layers\ReShade32.json" "$(SolutionDir)bin\x64\Release\ReShade64.dll" "$(SolutionDir)res\layers\ReShade64.json"
 
 echo Appending archive to setup executable ...
 copy /b "$(TargetPath)" + "$(TargetDir)ReShade.zip" "$(TargetPath)"
