@@ -1074,8 +1074,9 @@ bool reshade::vulkan::runtime_vk::init_technique(technique &info, VkShaderModule
 			  pass_info.viewport_height ? pass_info.viewport_height : frame_height() }
 		};
 		const VkViewport viewport_rect = {
-			0.0f, 0.0f,
-			static_cast<float>(scissor_rect.extent.width), static_cast<float>(scissor_rect.extent.height),
+			// TODO: Why does the viewport have to be upside down for things to render right?
+			0.0f, static_cast<float>(scissor_rect.extent.height),
+			static_cast<float>(scissor_rect.extent.width), -static_cast<float>(scissor_rect.extent.height),
 			0.0f, 1.0f
 		};
 
