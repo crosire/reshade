@@ -17,7 +17,6 @@ D3D10Device::D3D10Device(IDXGIDevice1 *dxgi_device, ID3D10Device1 *original) :
 void D3D10Device::clear_drawcall_stats()
 {
 	_draw_call_tracker.reset();
-	_active_depthstencil.reset();
 	_clear_DSV_iter = 1;
 }
 
@@ -103,14 +102,22 @@ void D3D10Device::track_cleared_depthstencil(ID3D10DepthStencilView *pDepthStenc
 }
 #endif
 
+bool D3D10Device::check_and_upgrade_interface(REFIID riid)
+{
+	if (riid == __uuidof(this) ||
+		riid == __uuidof(ID3D10Device) ||
+		riid == __uuidof(ID3D10Device1))
+		return true;
+
+	return false;
+}
+
 HRESULT STDMETHODCALLTYPE D3D10Device::QueryInterface(REFIID riid, void **ppvObj)
 {
 	if (ppvObj == nullptr)
 		return E_POINTER;
 
-	if (riid == __uuidof(this) ||
-		riid == __uuidof(ID3D10Device) ||
-		riid == __uuidof(ID3D10Device1))
+	if (check_and_upgrade_interface(riid))
 	{
 		AddRef();
 		*ppvObj = this;
@@ -140,8 +147,8 @@ ULONG   STDMETHODCALLTYPE D3D10Device::Release()
 {
 	--_ref;
 
+	// Decrease internal reference count and verify it against our own count
 	const ULONG ref = _orig->Release();
-
 	if (ref != 0 || _ref != 0)
 		return ref;
 	else if (ref != 0)
@@ -152,6 +159,7 @@ ULONG   STDMETHODCALLTYPE D3D10Device::Release()
 	LOG(DEBUG) << "Destroyed ID3D10Device1 object " << this << '.';
 #endif
 	delete this;
+
 	return 0;
 }
 

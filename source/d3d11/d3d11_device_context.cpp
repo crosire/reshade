@@ -123,6 +123,11 @@ void D3D11DeviceContext::track_cleared_depthstencil(ID3D11DepthStencilView *pDep
 
 bool D3D11DeviceContext::check_and_upgrade_interface(REFIID riid)
 {
+	if (riid == __uuidof(this) ||
+		riid == __uuidof(IUnknown) ||
+		riid == __uuidof(ID3D11DeviceChild))
+		return true;
+
 	static const IID iid_lookup[] = {
 		__uuidof(ID3D11DeviceContext),
 		__uuidof(ID3D11DeviceContext1),
@@ -131,24 +136,28 @@ bool D3D11DeviceContext::check_and_upgrade_interface(REFIID riid)
 		__uuidof(ID3D11DeviceContext4),
 	};
 
-	for (unsigned int new_version = _interface_version + 1; new_version < ARRAYSIZE(iid_lookup); ++new_version)
+	for (unsigned int version = 0; version < ARRAYSIZE(iid_lookup); ++version)
 	{
-		if (riid == iid_lookup[new_version])
+		if (riid != iid_lookup[version])
+			continue;
+
+		if (version > _interface_version)
 		{
 			IUnknown *new_interface = nullptr;
 			if (FAILED(_orig->QueryInterface(riid, reinterpret_cast<void **>(&new_interface))))
 				return false;
 #if RESHADE_VERBOSE_LOG
-			LOG(DEBUG) << "Upgraded ID3D11DeviceContext" << _interface_version << " object " << this << " to ID3D11DeviceContext" << new_version << '.';
+			LOG(DEBUG) << "Upgraded ID3D11DeviceContext" << _interface_version << " object " << this << " to ID3D11DeviceContext" << version << '.';
 #endif
 			_orig->Release();
 			_orig = static_cast<ID3D11DeviceContext *>(new_interface);
-			_interface_version = new_version;
-			break;
+			_interface_version = version;
 		}
+
+		return true;
 	}
 
-	return true;
+	return false;
 }
 
 HRESULT STDMETHODCALLTYPE D3D11DeviceContext::QueryInterface(REFIID riid, void **ppvObj)
@@ -156,18 +165,8 @@ HRESULT STDMETHODCALLTYPE D3D11DeviceContext::QueryInterface(REFIID riid, void *
 	if (ppvObj == nullptr)
 		return E_POINTER;
 
-	if (riid == __uuidof(this) ||
-		riid == __uuidof(IUnknown) ||
-		riid == __uuidof(ID3D11DeviceChild) ||
-		riid == __uuidof(ID3D11DeviceContext) ||
-		riid == __uuidof(ID3D11DeviceContext1) ||
-		riid == __uuidof(ID3D11DeviceContext2) ||
-		riid == __uuidof(ID3D11DeviceContext3) ||
-		riid == __uuidof(ID3D11DeviceContext4))
+	if (check_and_upgrade_interface(riid))
 	{
-		if (!check_and_upgrade_interface(riid))
-			return E_NOINTERFACE;
-
 		AddRef();
 		*ppvObj = this;
 		return S_OK;
@@ -185,8 +184,8 @@ ULONG   STDMETHODCALLTYPE D3D11DeviceContext::Release()
 {
 	--_ref;
 
+	// Decrease internal reference count and verify it against our own count
 	const ULONG ref = _orig->Release();
-
 	if (ref != 0 && _ref != 0)
 		return ref;
 	else if (ref != 0)
@@ -197,6 +196,7 @@ ULONG   STDMETHODCALLTYPE D3D11DeviceContext::Release()
 	LOG(DEBUG) << "Destroyed ID3D11DeviceContext" << _interface_version << " object " << this << '.';
 #endif
 	delete this;
+
 	return 0;
 }
 
@@ -701,7 +701,6 @@ UINT    STDMETHODCALLTYPE D3D11DeviceContext::GetContextFlags()
 HRESULT STDMETHODCALLTYPE D3D11DeviceContext::FinishCommandList(BOOL RestoreDeferredContextState, ID3D11CommandList **ppCommandList)
 {
 	const HRESULT hr = _orig->FinishCommandList(RestoreDeferredContextState, ppCommandList);
-
 	if (SUCCEEDED(hr) && ppCommandList != nullptr)
 		_device->add_commandlist_trackers(*ppCommandList, _draw_call_tracker);
 

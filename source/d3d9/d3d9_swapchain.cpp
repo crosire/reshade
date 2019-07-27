@@ -12,27 +12,38 @@ Direct3DSwapChain9::Direct3DSwapChain9(Direct3DDevice9 *device, IDirect3DSwapCha
 	_orig(original),
 	_extended_interface(0),
 	_device(device),
-	_runtime(runtime) {}
+	_runtime(runtime) {
+	assert(original != nullptr);
+}
 Direct3DSwapChain9::Direct3DSwapChain9(Direct3DDevice9 *device, IDirect3DSwapChain9Ex *original, const std::shared_ptr<reshade::d3d9::runtime_d3d9> &runtime) :
 	_orig(original),
 	_extended_interface(1),
 	_device(device),
-	_runtime(runtime) {}
+	_runtime(runtime) {
+	assert(original != nullptr);
+}
 
 bool Direct3DSwapChain9::check_and_upgrade_interface(REFIID riid)
 {
-	if (_extended_interface || riid != __uuidof(IDirect3DSwapChain9Ex))
+	if (riid == __uuidof(this) ||
+		riid == __uuidof(IUnknown) ||
+		riid == __uuidof(IDirect3DSwapChain9))
 		return true;
-
-	IDirect3DSwapChain9Ex *new_interface = nullptr;
-	if (FAILED(_orig->QueryInterface(IID_PPV_ARGS(&new_interface))))
+	if (riid != __uuidof(IDirect3DSwapChain9Ex))
 		return false;
+
+	if (!_extended_interface)
+	{
+		IDirect3DSwapChain9Ex *new_interface = nullptr;
+		if (FAILED(_orig->QueryInterface(IID_PPV_ARGS(&new_interface))))
+			return false;
 #if RESHADE_VERBOSE_LOG
-	LOG(DEBUG) << "Upgraded IDirect3DSwapChain9 object " << this << " to IDirect3DSwapChain9Ex.";
+		LOG(DEBUG) << "Upgraded IDirect3DSwapChain9 object " << this << " to IDirect3DSwapChain9Ex.";
 #endif
-	_orig->Release();
-	_orig = new_interface;
-	_extended_interface = true;
+		_orig->Release();
+		_orig = new_interface;
+		_extended_interface = true;
+	}
 
 	return true;
 }
@@ -42,14 +53,8 @@ HRESULT STDMETHODCALLTYPE Direct3DSwapChain9::QueryInterface(REFIID riid, void *
 	if (ppvObj == nullptr)
 		return E_POINTER;
 
-	if (riid == __uuidof(this) ||
-		riid == __uuidof(IUnknown) ||
-		riid == __uuidof(IDirect3DSwapChain9) ||
-		riid == __uuidof(IDirect3DSwapChain9Ex))
+	if (check_and_upgrade_interface(riid))
 	{
-		if (!check_and_upgrade_interface(riid))
-			return E_NOINTERFACE;
-
 		AddRef();
 		*ppvObj = this;
 		return S_OK;
@@ -79,8 +84,8 @@ ULONG   STDMETHODCALLTYPE Direct3DSwapChain9::Release()
 		}
 	}
 
+	// Decrease internal reference count and verify it against our own count
 	const ULONG ref = _orig->Release();
-
 	if (ref != 0 && _ref != 0)
 		return ref;
 	else if (ref != 0)
@@ -91,6 +96,7 @@ ULONG   STDMETHODCALLTYPE Direct3DSwapChain9::Release()
 	LOG(DEBUG) << "Destroyed IDirect3DSwapChain9" << (_extended_interface ? "Ex" : "") << " object " << this << '.';
 #endif
 	delete this;
+
 	return 0;
 }
 

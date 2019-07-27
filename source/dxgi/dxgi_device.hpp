@@ -7,7 +7,7 @@
 
 #include <dxgi1_5.h>
 
-struct __declspec(uuid("CB285C3B-3677-4332-98C7-D6339B9782B1")) DXGIDevice : IDXGIDevice4
+struct DECLSPEC_UUID("CB285C3B-3677-4332-98C7-D6339B9782B1") DXGIDevice : IDXGIDevice4
 {
 	DXGIDevice(IDXGIDevice1 *original, IUnknown *direct3d_device);
 

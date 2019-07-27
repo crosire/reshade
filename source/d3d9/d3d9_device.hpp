@@ -7,14 +7,16 @@
 
 #include <d3d9.h>
 #include "com_ptr.hpp"
+#include <memory>
 #include <vector>
 
 struct Direct3DSwapChain9;
+namespace reshade::d3d9 { class runtime_d3d9; }
 
-struct __declspec(uuid("F1006E9A-1C51-4AF4-ACEF-3605D2D4C8EE")) Direct3DDevice9 : IDirect3DDevice9Ex
+struct DECLSPEC_UUID("F1006E9A-1C51-4AF4-ACEF-3605D2D4C8EE") Direct3DDevice9 : IDirect3DDevice9Ex
 {
-	explicit Direct3DDevice9(IDirect3DDevice9   *original);
-	explicit Direct3DDevice9(IDirect3DDevice9Ex *original);
+	Direct3DDevice9(IDirect3DDevice9   *original, IDirect3DSwapChain9 *implicit_swapchain, const std::shared_ptr<reshade::d3d9::runtime_d3d9> &runtime, bool use_software_rendering);
+	Direct3DDevice9(IDirect3DDevice9Ex *original, IDirect3DSwapChain9 *implicit_swapchain, const std::shared_ptr<reshade::d3d9::runtime_d3d9> &runtime, bool use_software_rendering);
 
 	Direct3DDevice9(const Direct3DDevice9 &) = delete;
 	Direct3DDevice9 &operator=(const Direct3DDevice9 &) = delete;
@@ -164,8 +166,8 @@ struct __declspec(uuid("F1006E9A-1C51-4AF4-ACEF-3605D2D4C8EE")) Direct3DDevice9 
 	LONG _ref = 1;
 	IDirect3DDevice9 *_orig;
 	bool _extended_interface;
-	Direct3DSwapChain9 *_implicit_swapchain = nullptr;
+	bool _use_software_rendering;
+	Direct3DSwapChain9 *_implicit_swapchain;
 	std::vector<Direct3DSwapChain9 *> _additional_swapchains;
 	com_ptr<IDirect3DSurface9> _auto_depthstencil;
-	bool _use_software_rendering = false;
 };

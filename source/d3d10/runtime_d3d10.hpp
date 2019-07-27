@@ -23,6 +23,7 @@ namespace reshade::d3d10
 		bool on_init(const DXGI_SWAP_CHAIN_DESC &desc);
 		void on_reset();
 		void on_present(draw_call_tracker& tracker);
+
 		void on_set_depthstencil_view(ID3D10DepthStencilView *&depthstencil);
 		void on_get_depthstencil_view(ID3D10DepthStencilView *&depthstencil);
 		void on_clear_depthstencil_view(ID3D10DepthStencilView *&depthstencil);

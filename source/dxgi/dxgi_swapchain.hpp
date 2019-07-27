@@ -14,7 +14,7 @@ struct D3D11Device;
 struct D3D12Device;
 namespace reshade { class runtime; }
 
-struct __declspec(uuid("1F445F9F-9887-4C4C-9055-4E3BADAFCCA8")) DXGISwapChain : IDXGISwapChain4
+struct DECLSPEC_UUID("1F445F9F-9887-4C4C-9055-4E3BADAFCCA8") DXGISwapChain : IDXGISwapChain4
 {
 	DXGISwapChain(D3D10Device *device, IDXGISwapChain  *original, const std::shared_ptr<reshade::runtime> &runtime);
 	DXGISwapChain(D3D10Device *device, IDXGISwapChain1 *original, const std::shared_ptr<reshade::runtime> &runtime);
@@ -82,7 +82,9 @@ struct __declspec(uuid("1F445F9F-9887-4C4C-9055-4E3BADAFCCA8")) DXGISwapChain : 
 	HRESULT STDMETHODCALLTYPE SetHDRMetaData(DXGI_HDR_METADATA_TYPE Type, UINT Size, void *pMetaData) override;
 	#pragma endregion
 
-	void perform_present(UINT PresentFlags);
+	void runtime_reset();
+	void runtime_resize();
+	void runtime_present(UINT flags);
 
 	bool check_and_upgrade_interface(REFIID riid);
 

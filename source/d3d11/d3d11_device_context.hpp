@@ -8,7 +8,7 @@
 #include <d3d11_4.h>
 #include "draw_call_tracker.hpp"
 
-struct __declspec(uuid("27B0246B-2152-4D42-AD11-32489472238F")) D3D11DeviceContext : ID3D11DeviceContext4
+struct DECLSPEC_UUID("27B0246B-2152-4D42-AD11-32489472238F") D3D11DeviceContext : ID3D11DeviceContext4
 {
 	D3D11DeviceContext(D3D11Device *device, ID3D11DeviceContext  *original);
 	D3D11DeviceContext(D3D11Device *device, ID3D11DeviceContext1 *original);

@@ -70,11 +70,7 @@ static void init_runtime_d3d(T *&device, D3DDEVTYPE device_type, D3DPRESENT_PARA
 	if (!runtime->on_init(pp))
 		LOG(ERROR) << "Failed to initialize Direct3D 9 runtime environment on runtime " << runtime.get() << '.';
 
-	const auto device_proxy = new Direct3DDevice9(device);
-	const auto swapchain_proxy = new Direct3DSwapChain9(device_proxy, swapchain, runtime);
-
-	device_proxy->_implicit_swapchain = swapchain_proxy;
-	device_proxy->_use_software_rendering = use_software_rendering;
+	const auto device_proxy = new Direct3DDevice9(device, swapchain, runtime, use_software_rendering);
 
 	// Get and set depth stencil surface so that the depth detection callbacks are called with the auto depth stencil surface
 	if (pp.EnableAutoDepthStencil)

@@ -1536,17 +1536,15 @@ bool reshade::d3d9::runtime_d3d9::create_depthstencil_replacement(const com_ptr<
 				desc.Format != D3DFMT_DF16 &&
 				desc.Format != D3DFMT_DF24))
 		{
-			D3DDISPLAYMODE displaymode;
-			_swapchain->GetDisplayMode(&displaymode);
-			D3DDEVICE_CREATION_PARAMETERS creation_params;
-			_device->GetCreationParameters(&creation_params);
+			D3DDEVICE_CREATION_PARAMETERS cp;
+			_device->GetCreationParameters(&cp);
 
 			desc.Format = D3DFMT_UNKNOWN;
 			const D3DFORMAT formats[] = { D3DFMT_INTZ, D3DFMT_DF24, D3DFMT_DF16 };
 
 			for (const auto format : formats)
 			{
-				if (SUCCEEDED(_d3d->CheckDeviceFormat(creation_params.AdapterOrdinal, creation_params.DeviceType, displaymode.Format, D3DUSAGE_DEPTHSTENCIL, D3DRTYPE_TEXTURE, format)))
+				if (SUCCEEDED(_d3d->CheckDeviceFormat(cp.AdapterOrdinal, cp.DeviceType, D3DFMT_X8R8G8B8, D3DUSAGE_DEPTHSTENCIL, D3DRTYPE_TEXTURE, format)))
 				{
 					desc.Format = format;
 					break;

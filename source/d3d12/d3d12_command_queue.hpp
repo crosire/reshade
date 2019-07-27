@@ -7,7 +7,7 @@
 
 #include <d3d12.h>
 
-struct __declspec(uuid("2C576D2A-0C1C-4D1D-AD7C-BC4FAEC15ABC")) D3D12CommandQueue : ID3D12CommandQueue
+struct DECLSPEC_UUID("2C576D2A-0C1C-4D1D-AD7C-BC4FAEC15ABC") D3D12CommandQueue : ID3D12CommandQueue
 {
 	D3D12CommandQueue(D3D12Device *device, ID3D12CommandQueue *original);
 
@@ -41,7 +41,10 @@ struct __declspec(uuid("2C576D2A-0C1C-4D1D-AD7C-BC4FAEC15ABC")) D3D12CommandQueu
 	D3D12_COMMAND_QUEUE_DESC STDMETHODCALLTYPE GetDesc() override;
 	#pragma endregion
 
+	bool check_and_upgrade_interface(REFIID riid);
+
 	ULONG _ref = 1;
-	ID3D12CommandQueue *const _orig;
+	ID3D12CommandQueue *_orig;
+	unsigned int _interface_version;
 	D3D12Device *const _device;
 };

@@ -10,8 +10,46 @@
 
 D3D12CommandQueue::D3D12CommandQueue(D3D12Device *device, ID3D12CommandQueue *original) :
 	_orig(original),
+	_interface_version(0),
 	_device(device) {
 	assert(original != nullptr);
+}
+
+bool D3D12CommandQueue::check_and_upgrade_interface(REFIID riid)
+{
+	if (riid == __uuidof(this) ||
+		riid == __uuidof(IUnknown) ||
+		riid == __uuidof(ID3D12Object) ||
+		riid == __uuidof(ID3D12DeviceChild) ||
+		riid == __uuidof(ID3D12Pageable))
+		return true;
+
+	static const IID iid_lookup[] = {
+		__uuidof(ID3D12CommandQueue),
+	};
+
+	for (unsigned int version = 0; version < ARRAYSIZE(iid_lookup); ++version)
+	{
+		if (riid != iid_lookup[version])
+			continue;
+
+		if (version > _interface_version)
+		{
+			IUnknown *new_interface = nullptr;
+			if (FAILED(_orig->QueryInterface(riid, reinterpret_cast<void **>(&new_interface))))
+				return false;
+#if RESHADE_VERBOSE_LOG
+			LOG(DEBUG) << "Upgraded ID3D12CommandQueue" << _interface_version << " object " << this << " to ID3D12CommandQueue" << version << '.';
+#endif
+			_orig->Release();
+			_orig = static_cast<ID3D12CommandQueue *>(new_interface);
+			_interface_version = version;
+		}
+
+		return true;
+	}
+
+	return false;
 }
 
 HRESULT STDMETHODCALLTYPE D3D12CommandQueue::QueryInterface(REFIID riid, void **ppvObj)
@@ -19,12 +57,7 @@ HRESULT STDMETHODCALLTYPE D3D12CommandQueue::QueryInterface(REFIID riid, void **
 	if (ppvObj == nullptr)
 		return E_POINTER;
 
-	if (riid == __uuidof(this) ||
-		riid == __uuidof(IUnknown) ||
-		riid == __uuidof(ID3D12Object) ||
-		riid == __uuidof(ID3D12DeviceChild) ||
-		riid == __uuidof(ID3D12Pageable) ||
-		riid == __uuidof(ID3D12CommandQueue))
+	if (check_and_upgrade_interface(riid))
 	{
 		AddRef();
 		*ppvObj = this;
@@ -43,8 +76,8 @@ ULONG   STDMETHODCALLTYPE D3D12CommandQueue::Release()
 {
 	--_ref;
 
+	// Decrease internal reference count and verify it against our own count
 	const ULONG ref = _orig->Release();
-
 	if (ref != 0 && _ref != 0)
 		return ref;
 	else if (ref != 0)
@@ -55,6 +88,7 @@ ULONG   STDMETHODCALLTYPE D3D12CommandQueue::Release()
 	LOG(DEBUG) << "Destroyed ID3D12CommandQueue object " << this << ".";
 #endif
 	delete this;
+
 	return 0;
 }
 

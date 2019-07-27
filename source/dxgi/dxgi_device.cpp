@@ -17,6 +17,11 @@ DXGIDevice::DXGIDevice(IDXGIDevice1 *original, IUnknown *direct3d_device) :
 
 bool DXGIDevice::check_and_upgrade_interface(REFIID riid)
 {
+	if (riid == __uuidof(this) ||
+		riid == __uuidof(IUnknown) || // This is the IID_IUnknown identity object
+		riid == __uuidof(IDXGIObject))
+		return true;
+
 	static const IID iid_lookup[] = {
 		__uuidof(IDXGIDevice ),
 		__uuidof(IDXGIDevice1),
@@ -25,24 +30,28 @@ bool DXGIDevice::check_and_upgrade_interface(REFIID riid)
 		__uuidof(IDXGIDevice4),
 	};
 
-	for (unsigned int new_version = _interface_version + 1; new_version < ARRAYSIZE(iid_lookup); ++new_version)
+	for (unsigned int version = 0; version < ARRAYSIZE(iid_lookup); ++version)
 	{
-		if (riid == iid_lookup[new_version])
+		if (riid != iid_lookup[version])
+			continue;
+
+		if (version > _interface_version)
 		{
 			IUnknown *new_interface = nullptr;
 			if (FAILED(_orig->QueryInterface(riid, reinterpret_cast<void **>(&new_interface))))
 				return false;
 #if RESHADE_VERBOSE_LOG
-			LOG(DEBUG) << "Upgraded IDXGIDevice" << _interface_version << " object " << this << " to IDXGIDevice" << new_version << '.';
+			LOG(DEBUG) << "Upgraded IDXGIDevice" << _interface_version << " object " << this << " to IDXGIDevice" << version << '.';
 #endif
 			_orig->Release();
 			_orig = static_cast<IDXGIDevice1 *>(new_interface);
-			_interface_version = new_version;
-			break;
+			_interface_version = version;
 		}
+
+		return true;
 	}
 
-	return true;
+	return false;
 }
 
 HRESULT STDMETHODCALLTYPE DXGIDevice::QueryInterface(REFIID riid, void **ppvObj)
@@ -50,18 +59,8 @@ HRESULT STDMETHODCALLTYPE DXGIDevice::QueryInterface(REFIID riid, void **ppvObj)
 	if (ppvObj == nullptr)
 		return E_POINTER;
 
-	if (riid == __uuidof(this) ||
-		riid == __uuidof(IUnknown) || // This is the IID_IUnknown identity object
-		riid == __uuidof(IDXGIObject) ||
-		riid == __uuidof(IDXGIDevice) ||
-		riid == __uuidof(IDXGIDevice1) ||
-		riid == __uuidof(IDXGIDevice2) ||
-		riid == __uuidof(IDXGIDevice3) ||
-		riid == __uuidof(IDXGIDevice4))
+	if (check_and_upgrade_interface(riid))
 	{
-		if (!check_and_upgrade_interface(riid))
-			return E_NOINTERFACE;
-
 		AddRef();
 		*ppvObj = this;
 		return S_OK;
@@ -79,6 +78,7 @@ ULONG   STDMETHODCALLTYPE DXGIDevice::Release()
 {
 	--_ref;
 
+	// Decrease internal reference count and verify it against our own count
 	const ULONG ref = _orig->Release();
 
 	// The D3D device still holds a reference, so check reference count against one instead of zero
@@ -92,6 +92,7 @@ ULONG   STDMETHODCALLTYPE DXGIDevice::Release()
 	LOG(DEBUG) << "Destroyed IDXGIDevice" << _interface_version << " object " << this << '.';
 #endif
 	delete this;
+
 	return 0;
 }
 

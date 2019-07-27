@@ -282,6 +282,11 @@ void D3D12Device::clear_drawcall_stats(bool all)
 
 bool D3D12Device::check_and_upgrade_interface(REFIID riid)
 {
+	if (riid == __uuidof(this) ||
+		riid == __uuidof(IUnknown) ||
+		riid == __uuidof(ID3D12Object))
+		return true;
+
 	static const IID iid_lookup[] = {
 		__uuidof(ID3D12Device),
 		__uuidof(ID3D12Device1),
@@ -291,24 +296,28 @@ bool D3D12Device::check_and_upgrade_interface(REFIID riid)
 		__uuidof(ID3D12Device5),
 	};
 
-	for (unsigned int new_version = _interface_version + 1; new_version < ARRAYSIZE(iid_lookup); ++new_version)
+	for (unsigned int version = 0; version < ARRAYSIZE(iid_lookup); ++version)
 	{
-		if (riid == iid_lookup[new_version])
+		if (riid != iid_lookup[version])
+			continue;
+
+		if (version > _interface_version)
 		{
 			IUnknown *new_interface = nullptr;
 			if (FAILED(_orig->QueryInterface(riid, reinterpret_cast<void **>(&new_interface))))
 				return false;
 #if RESHADE_VERBOSE_LOG
-			LOG(DEBUG) << "Upgraded ID3D12Device" << _interface_version << " object " << this << " to ID3D12Device" << new_version << '.';
+			LOG(DEBUG) << "Upgraded ID3D12Device" << _interface_version << " object " << this << " to ID3D12Device" << version << '.';
 #endif
 			_orig->Release();
 			_orig = static_cast<ID3D12Device *>(new_interface);
-			_interface_version = new_version;
-			break;
+			_interface_version = version;
 		}
+
+		return true;
 	}
 
-	return true;
+	return false;
 }
 
 HRESULT STDMETHODCALLTYPE D3D12Device::QueryInterface(REFIID riid, void **ppvObj)
@@ -316,19 +325,8 @@ HRESULT STDMETHODCALLTYPE D3D12Device::QueryInterface(REFIID riid, void **ppvObj
 	if (ppvObj == nullptr)
 		return E_POINTER;
 
-	if (riid == __uuidof(this) ||
-		riid == __uuidof(IUnknown) ||
-		riid == __uuidof(ID3D12Object) ||
-		riid == __uuidof(ID3D12Device) ||
-		riid == __uuidof(ID3D12Device1) ||
-		riid == __uuidof(ID3D12Device2) ||
-		riid == __uuidof(ID3D12Device3) ||
-		riid == __uuidof(ID3D12Device4) ||
-		riid == __uuidof(ID3D12Device5))
+	if (check_and_upgrade_interface(riid))
 	{
-		if (!check_and_upgrade_interface(riid))
-			return E_NOINTERFACE;
-
 		AddRef();
 		*ppvObj = this;
 		return S_OK;
@@ -346,8 +344,8 @@ ULONG   STDMETHODCALLTYPE D3D12Device::Release()
 {
 	--_ref;
 
+	// Decrease internal reference count and verify it against our own count
 	const ULONG ref = _orig->Release();
-
 	if (ref != 0 && _ref != 0)
 		return ref;
 	else if (ref != 0)
@@ -358,6 +356,7 @@ ULONG   STDMETHODCALLTYPE D3D12Device::Release()
 	LOG(DEBUG) << "Destroyed ID3D12Device" << _interface_version << " object " << this << ".";
 #endif
 	delete this;
+
 	return 0;
 }
 
@@ -390,17 +389,20 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommandQueue(const D3D12_COMMAND_QU
 		return E_INVALIDARG;
 
 	const HRESULT hr = _orig->CreateCommandQueue(pDesc, riid, ppCommandQueue);
-
 	if (FAILED(hr))
 	{
 		LOG(WARN) << "> 'ID3D12Device::CreateCommandQueue' failed with error code " << std::hex << hr << std::dec << "!";
 		return hr;
 	}
 
-	if (riid == __uuidof(ID3D12CommandQueue))
-	{
-		*ppCommandQueue = new D3D12CommandQueue(this, static_cast<ID3D12CommandQueue *>(*ppCommandQueue));
-	}
+	// The returned object should alway implement the 'ID3D12CommandQueue' base interface
+	const auto command_queue_proxy = new D3D12CommandQueue(this, static_cast<ID3D12CommandQueue *>(*ppCommandQueue));
+
+	// Upgrade to the actual interface version requested here
+	if (command_queue_proxy->check_and_upgrade_interface(riid))
+		*ppCommandQueue = command_queue_proxy;
+	else // Do not hook object if we do not support the requested interface
+		delete command_queue_proxy;
 
 #if RESHADE_VERBOSE_LOG
 	LOG(DEBUG) << "Returning ID3D12CommandQueue object " << *ppCommandQueue << '.';
@@ -422,7 +424,6 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateComputePipelineState(const D3D12_CO
 HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommandList(UINT nodeMask, D3D12_COMMAND_LIST_TYPE type, ID3D12CommandAllocator *pCommandAllocator, ID3D12PipelineState *pInitialState, REFIID riid, void **ppCommandList)
 {
 	const HRESULT hr = _orig->CreateCommandList(nodeMask, type, pCommandAllocator, pInitialState, riid, ppCommandList);
-
 	if (FAILED(hr))
 	{
 		LOG(WARN) << "> 'ID3D12Device::CreateCommandList' failed with error code " << std::hex << hr << std::dec << "!";

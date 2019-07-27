@@ -46,37 +46,90 @@ DXGISwapChain::DXGISwapChain(D3D12Device *device, IDXGISwapChain3 *original, con
 	_direct3d_version(12),
 	_runtime(runtime) {}
 
-void DXGISwapChain::perform_present(UINT PresentFlags)
+void DXGISwapChain::runtime_reset()
+{
+	switch (_direct3d_version)
+	{
+	case 10:
+		assert(_runtime != nullptr);
+		static_cast<D3D10Device *>(_direct3d_device.get())->clear_drawcall_stats();
+		std::static_pointer_cast<reshade::d3d10::runtime_d3d10>(_runtime)->on_reset();
+		break;
+	case 11:
+		assert(_runtime != nullptr);
+		static_cast<D3D11Device *>(_direct3d_device.get())->clear_drawcall_stats();
+		std::static_pointer_cast<reshade::d3d11::runtime_d3d11>(_runtime)->on_reset();
+		break;
+	case 12:
+		assert(_runtime != nullptr);
+		std::static_pointer_cast<reshade::d3d12::runtime_d3d12>(_runtime)->on_reset();
+		break;
+	}
+}
+void DXGISwapChain::runtime_resize()
+{
+	DXGI_SWAP_CHAIN_DESC desc;
+	_orig->GetDesc(&desc);
+
+	bool initialized = false;
+	switch (_direct3d_version)
+	{
+	case 10:
+		assert(_runtime != nullptr);
+		std::static_pointer_cast<reshade::d3d10::runtime_d3d10>(_runtime)->on_init(desc);
+		break;
+	case 11:
+		assert(_runtime != nullptr);
+		std::static_pointer_cast<reshade::d3d11::runtime_d3d11>(_runtime)->on_init(desc);
+		break;
+	case 12:
+		assert(_runtime != nullptr);
+		std::static_pointer_cast<reshade::d3d12::runtime_d3d12>(_runtime)->on_init(desc);
+		break;
+	}
+
+	if (!initialized)
+		LOG(ERROR) << "Failed to recreate Direct3D " << _direct3d_version << " runtime environment on runtime " << _runtime.get() << '.';
+}
+void DXGISwapChain::runtime_present(UINT flags)
 {
 	// Some D3D11 games test presentation for timing and composition purposes.
 	// These calls are not rendering related, but rather a status request for the D3D runtime and as such should be ignored.
-	if (PresentFlags & DXGI_PRESENT_TEST)
+	if (flags & DXGI_PRESENT_TEST)
 		return;
-
-	assert(_runtime != nullptr);
 
 	switch (_direct3d_version)
 	{
 	case 10: {
 		const auto device = static_cast<D3D10Device *>(_direct3d_device.get());
+		assert(_runtime != nullptr);
 		std::static_pointer_cast<reshade::d3d10::runtime_d3d10>(_runtime)->on_present(device->_draw_call_tracker);
 		device->clear_drawcall_stats();
 		break; }
 	case 11: {
 		const auto device = static_cast<D3D11Device *>(_direct3d_device.get());
+		assert(_runtime != nullptr);
 		std::static_pointer_cast<reshade::d3d11::runtime_d3d11>(_runtime)->on_present(device->_immediate_context->_draw_call_tracker);
 		device->clear_drawcall_stats();
 		break; }
-	case 12:
+	case 12: {
 		const auto device = static_cast<D3D12Device *>(_direct3d_device.get());
+		assert(_runtime != nullptr);
+		assert(_interface_version >= 3);
 		std::static_pointer_cast<reshade::d3d12::runtime_d3d12>(_runtime)->on_present(device->_draw_call_tracker);
 		device->clear_drawcall_stats();
-		break;
+		break; }
 	}
 }
 
 bool DXGISwapChain::check_and_upgrade_interface(REFIID riid)
 {
+	if (riid == __uuidof(this) ||
+		riid == __uuidof(IUnknown) ||
+		riid == __uuidof(IDXGIObject) ||
+		riid == __uuidof(IDXGIDeviceSubObject))
+		return true;
+
 	static const IID iid_lookup[] = {
 		__uuidof(IDXGISwapChain),
 		__uuidof(IDXGISwapChain1),
@@ -85,24 +138,28 @@ bool DXGISwapChain::check_and_upgrade_interface(REFIID riid)
 		__uuidof(IDXGISwapChain4),
 	};
 
-	for (unsigned int new_version = _interface_version + 1; new_version < ARRAYSIZE(iid_lookup); ++new_version)
+	for (unsigned int version = 0; version < ARRAYSIZE(iid_lookup); ++version)
 	{
-		if (riid == iid_lookup[new_version])
+		if (riid != iid_lookup[version])
+			continue;
+
+		if (version > _interface_version)
 		{
 			IUnknown *new_interface = nullptr;
 			if (FAILED(_orig->QueryInterface(riid, reinterpret_cast<void **>(&new_interface))))
 				return false;
+#if RESHADE_VERBOSE_LOG
+			LOG(DEBUG) << "Upgraded IDXGISwapChain" << _interface_version << " object " << this << " to IDXGISwapChain" << version << '.';
+#endif
 			_orig->Release();
 			_orig = static_cast<IDXGISwapChain *>(new_interface);
-			_interface_version = new_version;
-#if RESHADE_VERBOSE_LOG
-			LOG(DEBUG) << "Upgraded IDXGISwapChain" << _interface_version << " object " << this << " to IDXGISwapChain" << new_version << '.';
-#endif
-			break;
+			_interface_version = version;
 		}
+
+		return true;
 	}
 
-	return true;
+	return false;
 }
 
 HRESULT STDMETHODCALLTYPE DXGISwapChain::QueryInterface(REFIID riid, void **ppvObj)
@@ -110,19 +167,8 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::QueryInterface(REFIID riid, void **ppvO
 	if (ppvObj == nullptr)
 		return E_POINTER;
 
-	if (riid == __uuidof(this) ||
-		riid == __uuidof(IUnknown) ||
-		riid == __uuidof(IDXGIObject) ||
-		riid == __uuidof(IDXGIDeviceSubObject) ||
-		riid == __uuidof(IDXGISwapChain) ||
-		riid == __uuidof(IDXGISwapChain1) ||
-		riid == __uuidof(IDXGISwapChain2) ||
-		riid == __uuidof(IDXGISwapChain3) ||
-		riid == __uuidof(IDXGISwapChain4))
+	if (check_and_upgrade_interface(riid))
 	{
-		if (!check_and_upgrade_interface(riid))
-			return E_NOINTERFACE;
-
 		AddRef();
 		*ppvObj = this;
 		return S_OK;
@@ -171,8 +217,8 @@ ULONG   STDMETHODCALLTYPE DXGISwapChain::Release()
 		_direct3d_device.reset();
 	}
 
+	// Decrease internal reference count and verify it against our own count
 	const ULONG ref = _orig->Release();
-
 	if (ref != 0 && _ref != 0)
 		return ref;
 	else if (ref != 0)
@@ -183,6 +229,7 @@ ULONG   STDMETHODCALLTYPE DXGISwapChain::Release()
 	LOG(DEBUG) << "Destroyed IDXGISwapChain" << _interface_version << " object " << this << '.';
 #endif
 	delete this;
+
 	return 0;
 }
 
@@ -210,7 +257,8 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::GetDevice(REFIID riid, void **ppDevice)
 
 HRESULT STDMETHODCALLTYPE DXGISwapChain::Present(UINT SyncInterval, UINT Flags)
 {
-	perform_present(Flags);
+	runtime_present(Flags);
+
 	return _orig->Present(SyncInterval, Flags);
 }
 HRESULT STDMETHODCALLTYPE DXGISwapChain::GetBuffer(UINT Buffer, REFIID riid, void **ppSurface)
@@ -235,26 +283,9 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers(UINT BufferCount, UINT Wi
 {
 	LOG(INFO) << "Redirecting IDXGISwapChain::ResizeBuffers" << '(' << this << ", " << BufferCount << ", " << Width << ", " << Height << ", " << NewFormat << ", " << std::hex << SwapChainFlags << std::dec << ')' << " ...";
 
-	switch (_direct3d_version)
-	{
-	case 10:
-		assert(_runtime != nullptr);
-		static_cast<D3D10Device *>(_direct3d_device.get())->clear_drawcall_stats();
-		std::static_pointer_cast<reshade::d3d10::runtime_d3d10>(_runtime)->on_reset();
-		break;
-	case 11:
-		assert(_runtime != nullptr);
-		static_cast<D3D11Device *>(_direct3d_device.get())->clear_drawcall_stats();
-		std::static_pointer_cast<reshade::d3d11::runtime_d3d11>(_runtime)->on_reset();
-		break;
-	case 12:
-		assert(_runtime != nullptr);
-		std::static_pointer_cast<reshade::d3d12::runtime_d3d12>(_runtime)->on_reset();
-		break;
-	}
+	runtime_reset();
 
 	const HRESULT hr = _orig->ResizeBuffers(BufferCount, Width, Height, NewFormat, SwapChainFlags);
-
 	if (hr == DXGI_ERROR_INVALID_CALL) // Ignore invalid call errors since the device is still in a usable state afterwards
 	{
 		LOG(WARN) << "> IDXGISwapChain::ResizeBuffers failed with 'DXGI_ERROR_INVALID_CALL'!";
@@ -265,28 +296,7 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers(UINT BufferCount, UINT Wi
 		return hr;
 	}
 
-	DXGI_SWAP_CHAIN_DESC desc;
-	_orig->GetDesc(&desc);
-
-	bool initialized = false;
-	switch (_direct3d_version)
-	{
-	case 10:
-		assert(_runtime != nullptr);
-		initialized = std::static_pointer_cast<reshade::d3d10::runtime_d3d10>(_runtime)->on_init(desc);
-		break;
-	case 11:
-		assert(_runtime != nullptr);
-		initialized = std::static_pointer_cast<reshade::d3d11::runtime_d3d11>(_runtime)->on_init(desc);
-		break;
-	case 12:
-		assert(_runtime != nullptr);
-		initialized = std::static_pointer_cast<reshade::d3d12::runtime_d3d12>(_runtime)->on_init(desc);
-		break;
-	}
-
-	if (!initialized)
-		LOG(ERROR) << "Failed to recreate Direct3D " << _direct3d_version << " runtime environment on runtime " << _runtime.get() << '.';
+	runtime_resize();
 
 	return hr;
 }
@@ -329,8 +339,9 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::GetCoreWindow(REFIID refiid, void **ppU
 }
 HRESULT STDMETHODCALLTYPE DXGISwapChain::Present1(UINT SyncInterval, UINT PresentFlags, const DXGI_PRESENT_PARAMETERS *pPresentParameters)
 {
+	runtime_present(PresentFlags);
+
 	assert(_interface_version >= 1);
-	perform_present(PresentFlags);
 	return static_cast<IDXGISwapChain1 *>(_orig)->Present1(SyncInterval, PresentFlags, pPresentParameters);
 }
 BOOL    STDMETHODCALLTYPE DXGISwapChain::IsTemporaryMonoSupported()
@@ -417,30 +428,12 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::SetColorSpace1(DXGI_COLOR_SPACE_TYPE Co
 }
 HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers1(UINT BufferCount, UINT Width, UINT Height, DXGI_FORMAT Format, UINT SwapChainFlags, const UINT *pCreationNodeMask, IUnknown *const *ppPresentQueue)
 {
-	assert(_interface_version >= 3);
-
 	LOG(INFO) << "Redirecting IDXGISwapChain3::ResizeBuffers1" << '(' << this << ", " << BufferCount << ", " << Width << ", " << Height << ", " << Format << ", " << std::hex << SwapChainFlags << std::dec << ", " << pCreationNodeMask << ", " << ppPresentQueue << ')' << " ...";
 
-	switch (_direct3d_version)
-	{
-	case 10:
-		assert(_runtime != nullptr);
-		static_cast<D3D10Device *>(_direct3d_device.get())->clear_drawcall_stats();
-		std::static_pointer_cast<reshade::d3d10::runtime_d3d10>(_runtime)->on_reset();
-		break;
-	case 11:
-		assert(_runtime != nullptr);
-		static_cast<D3D11Device *>(_direct3d_device.get())->clear_drawcall_stats();
-		std::static_pointer_cast<reshade::d3d11::runtime_d3d11>(_runtime)->on_reset();
-		break;
-	case 12:
-		assert(_runtime != nullptr);
-		std::static_pointer_cast<reshade::d3d12::runtime_d3d12>(_runtime)->on_reset();
-		break;
-	}
+	runtime_reset();
 
+	assert(_interface_version >= 3);
 	const HRESULT hr = static_cast<IDXGISwapChain3 *>(_orig)->ResizeBuffers1(BufferCount, Width, Height, Format, SwapChainFlags, pCreationNodeMask, ppPresentQueue);
-
 	if (hr == DXGI_ERROR_INVALID_CALL)
 	{
 		LOG(WARN) << "> IDXGISwapChain3::ResizeBuffers1 failed with 'DXGI_ERROR_INVALID_CALL'!";
@@ -451,28 +444,7 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers1(UINT BufferCount, UINT W
 		return hr;
 	}
 
-	DXGI_SWAP_CHAIN_DESC desc;
-	_orig->GetDesc(&desc);
-
-	bool initialized = false;
-	switch (_direct3d_version)
-	{
-	case 10:
-		assert(_runtime != nullptr);
-		initialized = std::static_pointer_cast<reshade::d3d10::runtime_d3d10>(_runtime)->on_init(desc);
-		break;
-	case 11:
-		assert(_runtime != nullptr);
-		initialized = std::static_pointer_cast<reshade::d3d11::runtime_d3d11>(_runtime)->on_init(desc);
-		break;
-	case 12:
-		assert(_runtime != nullptr);
-		initialized = std::static_pointer_cast<reshade::d3d12::runtime_d3d12>(_runtime)->on_init(desc);
-		break;
-	}
-
-	if (!initialized)
-		LOG(ERROR) << "Failed to recreate Direct3D " << _direct3d_version << " runtime environment on runtime " << _runtime.get() << '.';
+	runtime_resize();
 
 	return hr;
 }

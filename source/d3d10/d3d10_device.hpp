@@ -11,7 +11,7 @@
 struct DXGIDevice;
 namespace reshade::d3d10 { class runtime_d3d10; }
 
-struct __declspec(uuid("88399375-734F-4892-A95F-70DD42CE7CDD")) D3D10Device : ID3D10Device1
+struct DECLSPEC_UUID("88399375-734F-4892-A95F-70DD42CE7CDD") D3D10Device : ID3D10Device1
 {
 	D3D10Device(IDXGIDevice1 *dxgi_device, ID3D10Device1 *original);
 
@@ -134,11 +134,12 @@ struct __declspec(uuid("88399375-734F-4892-A95F-70DD42CE7CDD")) D3D10Device : ID
 	void track_cleared_depthstencil(ID3D10DepthStencilView* pDepthStencilView);
 #endif
 
+	bool check_and_upgrade_interface(REFIID riid);
+
 	LONG _ref = 1;
 	ID3D10Device1 *_orig;
 	DXGIDevice *const _dxgi_device;
 	std::vector<std::shared_ptr<reshade::d3d10::runtime_d3d10>> _runtimes;
-	com_ptr<ID3D10DepthStencilView> _active_depthstencil;
 	reshade::d3d10::draw_call_tracker _draw_call_tracker;
 	unsigned int _clear_DSV_iter = 1;
 };

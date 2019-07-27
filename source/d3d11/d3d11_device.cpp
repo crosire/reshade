@@ -54,6 +54,9 @@ void D3D11Device::clear_drawcall_stats()
 
 bool D3D11Device::check_and_upgrade_interface(REFIID riid)
 {
+	if (riid == __uuidof(this))
+		return true;
+
 	static const IID iid_lookup[] = {
 		__uuidof(ID3D11Device),
 		__uuidof(ID3D11Device1),
@@ -63,24 +66,28 @@ bool D3D11Device::check_and_upgrade_interface(REFIID riid)
 		__uuidof(ID3D11Device5),
 	};
 
-	for (unsigned int new_version = _interface_version + 1; new_version < ARRAYSIZE(iid_lookup); ++new_version)
+	for (unsigned int version = 0; version < ARRAYSIZE(iid_lookup); ++version)
 	{
-		if (riid == iid_lookup[new_version])
+		if (riid != iid_lookup[version])
+			continue;
+
+		if (version > _interface_version)
 		{
 			IUnknown *new_interface = nullptr;
 			if (FAILED(_orig->QueryInterface(riid, reinterpret_cast<void **>(&new_interface))))
 				return false;
 #if RESHADE_VERBOSE_LOG
-			LOG(DEBUG) << "Upgraded ID3D11Device" << _interface_version << " object " << this << " to ID3D11Device" << new_version << '.';
+			LOG(DEBUG) << "Upgraded ID3D11Device" << _interface_version << " object " << this << " to ID3D11Device" << version << '.';
 #endif
 			_orig->Release();
 			_orig = static_cast<ID3D11Device *>(new_interface);
-			_interface_version = new_version;
-			break;
+			_interface_version = version;
 		}
+
+		return true;
 	}
 
-	return true;
+	return false;
 }
 
 HRESULT STDMETHODCALLTYPE D3D11Device::QueryInterface(REFIID riid, void **ppvObj)
@@ -88,17 +95,8 @@ HRESULT STDMETHODCALLTYPE D3D11Device::QueryInterface(REFIID riid, void **ppvObj
 	if (ppvObj == nullptr)
 		return E_POINTER;
 
-	if (riid == __uuidof(this) ||
-		riid == __uuidof(ID3D11Device) ||
-		riid == __uuidof(ID3D11Device1) ||
-		riid == __uuidof(ID3D11Device2) ||
-		riid == __uuidof(ID3D11Device3) ||
-		riid == __uuidof(ID3D11Device4) ||
-		riid == __uuidof(ID3D11Device5))
+	if (check_and_upgrade_interface(riid))
 	{
-		if (!check_and_upgrade_interface(riid))
-			return E_NOINTERFACE;
-
 		AddRef();
 		*ppvObj = this;
 		return S_OK;
@@ -121,6 +119,7 @@ ULONG   STDMETHODCALLTYPE D3D11Device::AddRef()
 {
 	++_ref;
 
+	// Add references to other objects that are coupled with the device
 	_dxgi_device->AddRef();
 	_immediate_context->AddRef();
 
@@ -130,11 +129,12 @@ ULONG   STDMETHODCALLTYPE D3D11Device::Release()
 {
 	--_ref;
 
+	// Release references to other objects that are coupled with the device
 	_dxgi_device->Release();
 	_immediate_context->Release();
 
+	// Decrease internal reference count and verify it against our own count
 	const ULONG ref = _orig->Release();
-
 	if (ref != 0 && _ref != 0)
 		return ref;
 	else if (ref != 0)
@@ -145,6 +145,7 @@ ULONG   STDMETHODCALLTYPE D3D11Device::Release()
 	LOG(DEBUG) << "Destroyed ID3D11Device" << _interface_version << " object " << this << '.';
 #endif
 	delete this;
+
 	return 0;
 }
 
@@ -252,7 +253,6 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateDeferredContext(UINT ContextFlags, 
 		return E_INVALIDARG;
 
 	const HRESULT hr = _orig->CreateDeferredContext(ContextFlags, ppDeferredContext);
-
 	if (FAILED(hr))
 	{
 		LOG(WARN) << "> ID3D11Device::CreateDeferredContext failed with error code " << std::hex << hr << std::dec << '!';
@@ -352,7 +352,6 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateDeferredContext1(UINT ContextFlags,
 	assert(_interface_version >= 1);
 
 	const HRESULT hr = static_cast<ID3D11Device1 *>(_orig)->CreateDeferredContext1(ContextFlags, ppDeferredContext);
-
 	if (FAILED(hr))
 	{
 		LOG(WARN) << "> ID3D11Device1::CreateDeferredContext1 failed with error code " << std::hex << hr << std::dec << '!';
@@ -392,7 +391,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::OpenSharedResourceByName(LPCWSTR lpName, 
 	return static_cast<ID3D11Device1 *>(_orig)->OpenSharedResourceByName(lpName, dwDesiredAccess, returnedInterface, ppResource);
 }
 
-   void STDMETHODCALLTYPE D3D11Device::GetImmediateContext2(ID3D11DeviceContext2 **ppImmediateContext)
+void    STDMETHODCALLTYPE D3D11Device::GetImmediateContext2(ID3D11DeviceContext2 **ppImmediateContext)
 {
 	assert(_interface_version >= 2);
 	static_cast<ID3D11Device2 *>(_orig)->GetImmediateContext2(ppImmediateContext);
