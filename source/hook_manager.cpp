@@ -161,10 +161,10 @@ static bool install_internal(HMODULE target_module, HMODULE replacement_module, 
 				return std::strcmp(moduleexport.name, symbol.name) == 0;
 			});
 
-		// Filter uninteresting functions
+		// Filter out uninteresting functions
 		if (it != replacement_exports.cend() &&
-			std::strcmp(symbol.name, "DXGIReportAdapterConfiguration") != 0 &&
-			std::strcmp(symbol.name, "DXGIDumpJournal") != 0)
+			std::strcmp(symbol.name, "DXGIDumpJournal") != 0 &&
+			std::strcmp(symbol.name, "DXGIReportAdapterConfiguration") != 0)
 		{
 #if RESHADE_VERBOSE_LOG
 			LOG(DEBUG) << "  | 0x" << std::setw(16) << symbol.address << " | " << std::setw(7) << symbol.ordinal << " | " << std::setw(50) << symbol.name << " |";

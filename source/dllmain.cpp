@@ -645,7 +645,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 		hooks::register_module(get_system_path() / "d3d12.dll");
 		hooks::register_module(get_system_path() / "dxgi.dll");
 		hooks::register_module(get_system_path() / "opengl32.dll");
-		hooks::register_module(get_system_path() / "vulkan-1.dll");
+		// Do not register Vulkan hooks, since we use Vulkan layering mechanism instead
 
 		LOG(INFO) << "Initialized.";
 		break;
