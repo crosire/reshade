@@ -409,15 +409,9 @@ EXPORTS
 
 	; vulkan-1.dll
 	vkCreateDevice
-	vkCreateSwapchainKHR
-	vkCreateWin32SurfaceKHR
-	vkDestroyDevice
-	vkDestroySurfaceKHR
-	vkDestroySwapchainKHR
-	vkQueuePresentKHR
+	vkCreateInstance
 	vkGetDeviceProcAddr
 	vkGetInstanceProcAddr
-	vkEnumeratePhysicalDevices
 
 	; user32.dll
 	RegisterClassA = HookRegisterClassA

@@ -19,14 +19,14 @@ namespace reshade::vulkan
 	{
 		~vulkan_tex_data()
 		{
-			runtime->_funcs.vkDestroyImage(runtime->_device, image, nullptr);
-			runtime->_funcs.vkDestroyImageView(runtime->_device, view[0], nullptr);
+			runtime->vk.DestroyImage(runtime->_device, image, nullptr);
+			runtime->vk.DestroyImageView(runtime->_device, view[0], nullptr);
 			if (view[1] != view[0])
-				runtime->_funcs.vkDestroyImageView(runtime->_device, view[1], nullptr);
+				runtime->vk.DestroyImageView(runtime->_device, view[1], nullptr);
 			if (view[2] != view[0])
-				runtime->_funcs.vkDestroyImageView(runtime->_device, view[2], nullptr);
+				runtime->vk.DestroyImageView(runtime->_device, view[2], nullptr);
 			if (view[3] != view[2] && view[3] != view[1])
-				runtime->_funcs.vkDestroyImageView(runtime->_device, view[3], nullptr);
+				runtime->vk.DestroyImageView(runtime->_device, view[3], nullptr);
 		}
 
 		VkFormat formats[2] = {};
@@ -67,12 +67,12 @@ namespace reshade::vulkan
 	}
 }
 
-reshade::vulkan::runtime_vk::runtime_vk(VkDevice device, VkPhysicalDevice physical_device, const vk_device_table &table) :
-	_device(device), _physical_device(physical_device), _funcs(table)
+reshade::vulkan::runtime_vk::runtime_vk(VkDevice device, VkPhysicalDevice physical_device, const VkLayerInstanceDispatchTable &instance_table, const VkLayerDispatchTable &device_table) :
+	_device(device), _physical_device(physical_device), vk(device_table)
 {
 	_renderer_id = 0x20000;
 
-	table.vkGetPhysicalDeviceMemoryProperties(physical_device, &_memory_props);
+	instance_table.GetPhysicalDeviceMemoryProperties(physical_device, &_memory_props);
 }
 
 VkImage reshade::vulkan::runtime_vk::create_image(uint32_t width, uint32_t height, uint32_t levels, VkFormat format, VkImageUsageFlags usage_flags, VkMemoryPropertyFlags mem_flags, VkImageCreateFlags flags)
@@ -90,13 +90,13 @@ VkImage reshade::vulkan::runtime_vk::create_image(uint32_t width, uint32_t heigh
 	create_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 	create_info.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 
-	vk_handle<VK_OBJECT_TYPE_IMAGE> res(_device, _funcs);
-	check_result(_funcs.vkCreateImage(_device, &create_info, nullptr, &res)) VK_NULL_HANDLE;
+	vk_handle<VK_OBJECT_TYPE_IMAGE> res(_device, vk);
+	check_result(vk.CreateImage(_device, &create_info, nullptr, &res)) VK_NULL_HANDLE;
 
 	if (mem_flags != 0)
 	{
 		VkMemoryRequirements reqs = {};
-		_funcs.vkGetImageMemoryRequirements(_device, res, &reqs);
+		vk.GetImageMemoryRequirements(_device, res, &reqs);
 
 		// TODO: Implement memory allocator. Shouldn't put everything in dedicated allocations, but eh.
 		VkMemoryAllocateInfo alloc_info { VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO };
@@ -106,9 +106,9 @@ VkImage reshade::vulkan::runtime_vk::create_image(uint32_t width, uint32_t heigh
 		alloc_info.pNext = &dedicated_info;
 		dedicated_info.image = res;
 
-		vk_handle<VK_OBJECT_TYPE_DEVICE_MEMORY> mem(_device, _funcs);
-		check_result(_funcs.vkAllocateMemory(_device, &alloc_info, nullptr, &mem)) VK_NULL_HANDLE;
-		check_result(_funcs.vkBindImageMemory(_device, res, mem, 0)) VK_NULL_HANDLE;
+		vk_handle<VK_OBJECT_TYPE_DEVICE_MEMORY> mem(_device, vk);
+		check_result(vk.AllocateMemory(_device, &alloc_info, nullptr, &mem)) VK_NULL_HANDLE;
+		check_result(vk.BindImageMemory(_device, res, mem, 0)) VK_NULL_HANDLE;
 
 		_allocations.push_back(mem.release());
 	}
@@ -122,13 +122,13 @@ VkBuffer reshade::vulkan::runtime_vk::create_buffer(VkDeviceSize size, VkBufferU
 	create_info.usage = usage_flags;
 	create_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
-	vk_handle<VK_OBJECT_TYPE_BUFFER> res(_device, _funcs);
-	check_result(_funcs.vkCreateBuffer(_device, &create_info, nullptr, &res)) VK_NULL_HANDLE;
+	vk_handle<VK_OBJECT_TYPE_BUFFER> res(_device, vk);
+	check_result(vk.CreateBuffer(_device, &create_info, nullptr, &res)) VK_NULL_HANDLE;
 
 	if (mem_flags != 0)
 	{
 		VkMemoryRequirements reqs = {};
-		_funcs.vkGetBufferMemoryRequirements(_device, res, &reqs);
+		vk.GetBufferMemoryRequirements(_device, res, &reqs);
 
 		// TODO: Implement memory allocator. Shouldn't put everything in dedicated allocations, but eh.
 		VkMemoryAllocateInfo alloc_info { VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO };
@@ -138,9 +138,9 @@ VkBuffer reshade::vulkan::runtime_vk::create_buffer(VkDeviceSize size, VkBufferU
 		alloc_info.pNext = &dedicated_info;
 		dedicated_info.buffer = res;
 
-		vk_handle<VK_OBJECT_TYPE_DEVICE_MEMORY> mem(_device, _funcs);
-		check_result(_funcs.vkAllocateMemory(_device, &alloc_info, nullptr, &mem)) VK_NULL_HANDLE;
-		check_result(_funcs.vkBindBufferMemory(_device, res, mem, 0)) VK_NULL_HANDLE;
+		vk_handle<VK_OBJECT_TYPE_DEVICE_MEMORY> mem(_device, vk);
+		check_result(vk.AllocateMemory(_device, &alloc_info, nullptr, &mem)) VK_NULL_HANDLE;
+		check_result(vk.BindBufferMemory(_device, res, mem, 0)) VK_NULL_HANDLE;
 
 		_allocations.push_back(mem.release());
 	}
@@ -160,8 +160,8 @@ VkImageView reshade::vulkan::runtime_vk::create_image_view(VkImage image, VkForm
 	create_info.components = { VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY };
 	create_info.subresourceRange = { aspect, 0, levels, 0, 1 };
 
-	vk_handle<VK_OBJECT_TYPE_IMAGE_VIEW> res(_device, _funcs);
-	check_result(_funcs.vkCreateImageView(_device, &create_info, nullptr, &res)) VK_NULL_HANDLE;
+	vk_handle<VK_OBJECT_TYPE_IMAGE_VIEW> res(_device, vk);
+	check_result(vk.CreateImageView(_device, &create_info, nullptr, &res)) VK_NULL_HANDLE;
 
 	return res.release();
 }
@@ -169,7 +169,7 @@ VkImageView reshade::vulkan::runtime_vk::create_image_view(VkImage image, VkForm
 void reshade::vulkan::runtime_vk::set_object_name(uint64_t handle, VkDebugReportObjectTypeEXT type, const char *name) const
 {
 #ifdef _DEBUG
-	if (_funcs.vkDebugMarkerSetObjectNameEXT == nullptr)
+	if (vk.DebugMarkerSetObjectNameEXT == nullptr)
 		return;
 
 	VkDebugMarkerObjectNameInfoEXT name_info { VK_STRUCTURE_TYPE_DEBUG_MARKER_OBJECT_NAME_INFO_EXT };
@@ -177,7 +177,7 @@ void reshade::vulkan::runtime_vk::set_object_name(uint64_t handle, VkDebugReport
 	name_info.objectType = type;
 	name_info.pObjectName = name;
 
-	_funcs.vkDebugMarkerSetObjectNameEXT(_device, &name_info);
+	vk.DebugMarkerSetObjectNameEXT(_device, &name_info);
 #endif
 }
 
@@ -197,7 +197,7 @@ bool reshade::vulkan::runtime_vk::on_init(VkSwapchainKHR swapchain, const VkSwap
 	_backbuffer_color_depth = _backbuffer_format >= VK_FORMAT_A2R10G10B10_UNORM_PACK32 && _backbuffer_format <= VK_FORMAT_A2B10G10R10_SINT_PACK32 ? 10 : 8;
 
 	const uint32_t queue_family_index = 0; // TODO
-	_funcs.vkGetDeviceQueue(_device, queue_family_index, 0, &_current_queue);
+	vk.GetDeviceQueue(_device, queue_family_index, 0, &_current_queue);
 
 	_backbuffer_texture = create_image(
 		_width, _height, 1, _backbuffer_format,
@@ -261,13 +261,13 @@ bool reshade::vulkan::runtime_vk::on_init(VkSwapchainKHR swapchain, const VkSwap
 		create_info.dependencyCount = 1;
 		create_info.pDependencies = &subdep;
 
-		check_result(_funcs.vkCreateRenderPass(_device, &create_info, nullptr, &_default_render_pass)) false;
+		check_result(vk.CreateRenderPass(_device, &create_info, nullptr, &_default_render_pass)) false;
 	}
 
 	uint32_t num_images = 0;
-	check_result(_funcs.vkGetSwapchainImagesKHR(_device, _swapchain, &num_images, nullptr)) false;
+	check_result(vk.GetSwapchainImagesKHR(_device, _swapchain, &num_images, nullptr)) false;
 	_swapchain_images.resize(num_images);
-	check_result(_funcs.vkGetSwapchainImagesKHR(_device, _swapchain, &num_images, _swapchain_images.data())) false;
+	check_result(vk.GetSwapchainImagesKHR(_device, _swapchain, &num_images, _swapchain_images.data())) false;
 
 	assert(desc.imageUsage & VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT);
 
@@ -291,19 +291,19 @@ bool reshade::vulkan::runtime_vk::on_init(VkSwapchainKHR swapchain, const VkSwap
 			create_info.height = desc.imageExtent.height;
 			create_info.layers = 1;
 
-			check_result(_funcs.vkCreateFramebuffer(_device, &create_info, nullptr, &_swapchain_frames[i])) false;
+			check_result(vk.CreateFramebuffer(_device, &create_info, nullptr, &_swapchain_frames[i])) false;
 		}
 
 		{   VkCommandPoolCreateInfo create_info { VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO };
 			create_info.queueFamilyIndex = queue_family_index;
 
-			check_result(_funcs.vkCreateCommandPool(_device, &create_info, nullptr, &_cmd_pool[i])) false;
+			check_result(vk.CreateCommandPool(_device, &create_info, nullptr, &_cmd_pool[i])) false;
 		}
 	}
 
 	{   VkFenceCreateInfo create_info { VK_STRUCTURE_TYPE_FENCE_CREATE_INFO };
 
-		check_result(_funcs.vkCreateFence(_device, &create_info, nullptr, &_wait_fence)) false;
+		check_result(vk.CreateFence(_device, &create_info, nullptr, &_wait_fence)) false;
 	}
 
 	{   const VkDescriptorPoolSize pool_sizes[] = {
@@ -316,7 +316,7 @@ bool reshade::vulkan::runtime_vk::on_init(VkSwapchainKHR swapchain, const VkSwap
 		create_info.poolSizeCount = _countof(pool_sizes);
 		create_info.pPoolSizes = pool_sizes;
 
-		check_result(_funcs.vkCreateDescriptorPool(_device, &create_info, nullptr, &_effect_descriptor_pool)) false;
+		check_result(vk.CreateDescriptorPool(_device, &create_info, nullptr, &_effect_descriptor_pool)) false;
 	}
 
 	{   const VkDescriptorSetLayoutBinding bindings = { 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_ALL_GRAPHICS };
@@ -324,7 +324,7 @@ bool reshade::vulkan::runtime_vk::on_init(VkSwapchainKHR swapchain, const VkSwap
 		create_info.bindingCount = 1;
 		create_info.pBindings = &bindings;
 
-		check_result(_funcs.vkCreateDescriptorSetLayout(_device, &create_info, nullptr, &_effect_ubo_layout)) false;
+		check_result(vk.CreateDescriptorSetLayout(_device, &create_info, nullptr, &_effect_ubo_layout)) false;
 	}
 
 #if RESHADE_GUI
@@ -338,54 +338,54 @@ void reshade::vulkan::runtime_vk::on_reset()
 {
 	runtime::on_reset();
 
-	_funcs.vkDeviceWaitIdle(_device);
+	vk.DeviceWaitIdle(_device);
 
-	_funcs.vkDestroyDescriptorSetLayout(_device, _effect_ubo_layout, nullptr);
-	_funcs.vkDestroyDescriptorPool(_device, _effect_descriptor_pool, nullptr);
+	vk.DestroyDescriptorSetLayout(_device, _effect_ubo_layout, nullptr);
+	vk.DestroyDescriptorPool(_device, _effect_descriptor_pool, nullptr);
 
-	_funcs.vkDestroyImageView(_device, _backbuffer_texture_view, nullptr);
-	_funcs.vkDestroyImageView(_device, _default_depthstencil_view, nullptr);
-	_funcs.vkDestroyImage(_device, _backbuffer_texture, nullptr);
-	_funcs.vkDestroyImage(_device, _default_depthstencil, nullptr);
+	vk.DestroyImageView(_device, _backbuffer_texture_view, nullptr);
+	vk.DestroyImageView(_device, _default_depthstencil_view, nullptr);
+	vk.DestroyImage(_device, _backbuffer_texture, nullptr);
+	vk.DestroyImage(_device, _default_depthstencil, nullptr);
 
-	_funcs.vkDestroyRenderPass(_device, _default_render_pass, nullptr);
+	vk.DestroyRenderPass(_device, _default_render_pass, nullptr);
 	_default_render_pass = VK_NULL_HANDLE;
 	for (VkImageView view : _swapchain_views)
-		_funcs.vkDestroyImageView(_device, view, nullptr);
+		vk.DestroyImageView(_device, view, nullptr);
 	_swapchain_views.clear();
 	for (VkFramebuffer frame : _swapchain_frames)
-		_funcs.vkDestroyFramebuffer(_device, frame, nullptr);
+		vk.DestroyFramebuffer(_device, frame, nullptr);
 	_swapchain_frames.clear();
 	_swapchain_images.clear();
 
-	_funcs.vkDestroyFence(_device, _wait_fence, nullptr);
+	vk.DestroyFence(_device, _wait_fence, nullptr);
 	_wait_fence = VK_NULL_HANDLE;
 	for (VkCommandPool pool : _cmd_pool)
-		_funcs.vkDestroyCommandPool(_device, pool, nullptr);
+		vk.DestroyCommandPool(_device, pool, nullptr);
 	_cmd_pool.clear();
 
 #if RESHADE_GUI
-	_funcs.vkDestroyPipeline(_device, _imgui_pipeline, nullptr);
+	vk.DestroyPipeline(_device, _imgui_pipeline, nullptr);
 	_imgui_pipeline = VK_NULL_HANDLE;
-	_funcs.vkDestroyPipelineLayout(_device, _imgui_pipeline_layout, nullptr);
+	vk.DestroyPipelineLayout(_device, _imgui_pipeline_layout, nullptr);
 	_imgui_pipeline_layout = VK_NULL_HANDLE;
-	_funcs.vkDestroyDescriptorSetLayout(_device, _imgui_descriptor_set_layout, nullptr);
+	vk.DestroyDescriptorSetLayout(_device, _imgui_descriptor_set_layout, nullptr);
 	_imgui_descriptor_set_layout = VK_NULL_HANDLE;
 
-	_funcs.vkDestroySampler(_device, _imgui_font_sampler, nullptr);
+	vk.DestroySampler(_device, _imgui_font_sampler, nullptr);
 	_imgui_font_sampler = VK_NULL_HANDLE;
-	_funcs.vkDestroyBuffer(_device, _imgui_index_buffer, nullptr);
+	vk.DestroyBuffer(_device, _imgui_index_buffer, nullptr);
 	_imgui_index_buffer = VK_NULL_HANDLE;
 	_imgui_index_buffer_size = 0;
-	_funcs.vkDestroyBuffer(_device, _imgui_vertex_buffer, nullptr);
+	vk.DestroyBuffer(_device, _imgui_vertex_buffer, nullptr);
 	_imgui_vertex_buffer = VK_NULL_HANDLE;
 	_imgui_vertex_buffer_size = 0;
-	_funcs.vkFreeMemory(_device, _imgui_vertex_mem, nullptr);
+	vk.FreeMemory(_device, _imgui_vertex_mem, nullptr);
 	_imgui_vertex_mem = VK_NULL_HANDLE;
 #endif
 
 	for (VkDeviceMemory allocation : _allocations)
-		_funcs.vkFreeMemory(_device, allocation, nullptr);
+		vk.FreeMemory(_device, allocation, nullptr);
 	_allocations.clear();
 }
 
@@ -393,8 +393,8 @@ void reshade::vulkan::runtime_vk::on_present(uint32_t swapchain_image_index)
 {
 	_swap_index = swapchain_image_index;
 
-	_funcs.vkQueueWaitIdle(_current_queue); // TOOD
-	_funcs.vkResetCommandPool(_device, _cmd_pool[swapchain_image_index], 0);
+	vk.QueueWaitIdle(_current_queue); // TOOD
+	vk.ResetCommandPool(_device, _cmd_pool[swapchain_image_index], 0);
 
 	update_and_render_effects();
 	runtime::on_present();
@@ -402,8 +402,8 @@ void reshade::vulkan::runtime_vk::on_present(uint32_t swapchain_image_index)
 
 void reshade::vulkan::runtime_vk::capture_screenshot(uint8_t *buffer) const
 {
-	vk_handle<VK_OBJECT_TYPE_IMAGE> intermediate(_device, _funcs);
-	vk_handle<VK_OBJECT_TYPE_DEVICE_MEMORY> intermediate_mem(_device, _funcs);
+	vk_handle<VK_OBJECT_TYPE_IMAGE> intermediate(_device, vk);
+	vk_handle<VK_OBJECT_TYPE_DEVICE_MEMORY> intermediate_mem(_device, vk);
 
 	{   VkImageCreateInfo create_info { VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO };
 		create_info.imageType = VK_IMAGE_TYPE_2D;
@@ -417,19 +417,19 @@ void reshade::vulkan::runtime_vk::capture_screenshot(uint8_t *buffer) const
 		create_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 		create_info.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 
-		check_result(_funcs.vkCreateImage(_device, &create_info, nullptr, &intermediate));
+		check_result(vk.CreateImage(_device, &create_info, nullptr, &intermediate));
 
 		VkMemoryRequirements reqs = {};
-		_funcs.vkGetImageMemoryRequirements(_device, intermediate, &reqs);
+		vk.GetImageMemoryRequirements(_device, intermediate, &reqs);
 
 		VkMemoryAllocateInfo alloc_info { VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO };
 		alloc_info.allocationSize = reqs.size;
 		alloc_info.memoryTypeIndex = find_memory_type_index(_memory_props,
 			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, reqs.memoryTypeBits);
 
-		vk_handle<VK_OBJECT_TYPE_DEVICE_MEMORY> mem(_device, _funcs);
-		check_result(_funcs.vkAllocateMemory(_device, &alloc_info, nullptr, &intermediate_mem));
-		check_result(_funcs.vkBindImageMemory(_device, intermediate, intermediate_mem, 0));
+		vk_handle<VK_OBJECT_TYPE_DEVICE_MEMORY> mem(_device, vk);
+		check_result(vk.AllocateMemory(_device, &alloc_info, nullptr, &intermediate_mem));
+		check_result(vk.BindImageMemory(_device, intermediate, intermediate_mem, 0));
 	}
 
 	const VkCommandBuffer cmd_list = create_command_list();
@@ -447,7 +447,7 @@ void reshade::vulkan::runtime_vk::capture_screenshot(uint8_t *buffer) const
 		blit.dstOffsets[1] = { int32_t(_width), int32_t(_height), 1 };
 		blit.dstSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 };
 
-		_funcs.vkCmdBlitImage(cmd_list, _swapchain_images[_swap_index], VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, intermediate, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &blit, VK_FILTER_NEAREST);
+		vk.CmdBlitImage(cmd_list, _swapchain_images[_swap_index], VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, intermediate, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &blit, VK_FILTER_NEAREST);
 	}
 	transition_layout(cmd_list, intermediate, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL);
 	transition_layout(cmd_list, _swapchain_images[_swap_index], VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
@@ -458,11 +458,11 @@ void reshade::vulkan::runtime_vk::capture_screenshot(uint8_t *buffer) const
 	// Get data layout of the intermediate image
 	VkImageSubresource subresource { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0 };
 	VkSubresourceLayout subresource_layout = {};
-	_funcs.vkGetImageSubresourceLayout(_device, intermediate, &subresource, &subresource_layout);
+	vk.GetImageSubresourceLayout(_device, intermediate, &subresource, &subresource_layout);
 
 	// Copy data from intermediate image into output buffer
 	uint8_t *mapped_data;
-	check_result(_funcs.vkMapMemory(_device, intermediate_mem, 0, VK_WHOLE_SIZE, 0, reinterpret_cast<void **>(&mapped_data)));
+	check_result(vk.MapMemory(_device, intermediate_mem, 0, VK_WHOLE_SIZE, 0, reinterpret_cast<void **>(&mapped_data)));
 
 	const size_t data_pitch = _width * 4;
 	const VkDeviceSize download_pitch = subresource_layout.rowPitch;
@@ -493,7 +493,7 @@ void reshade::vulkan::runtime_vk::capture_screenshot(uint8_t *buffer) const
 		}
 	}
 
-	_funcs.vkUnmapMemory(_device, intermediate_mem);
+	vk.UnmapMemory(_device, intermediate_mem);
 }
 
 bool reshade::vulkan::runtime_vk::init_texture(texture &info)
@@ -597,32 +597,32 @@ void reshade::vulkan::runtime_vk::upload_texture(texture &texture, const uint8_t
 	assert(pixels != nullptr);
 	assert(texture.impl_reference == texture_reference::none);
 
-	vk_handle<VK_OBJECT_TYPE_BUFFER> intermediate(_device, _funcs);
-	vk_handle<VK_OBJECT_TYPE_DEVICE_MEMORY> intermediate_mem(_device, _funcs);
+	vk_handle<VK_OBJECT_TYPE_BUFFER> intermediate(_device, vk);
+	vk_handle<VK_OBJECT_TYPE_DEVICE_MEMORY> intermediate_mem(_device, vk);
 
 	{   VkBufferCreateInfo create_info { VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO };
 		create_info.size = texture.width * texture.height * 4;
 		create_info.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
 		create_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
-		check_result(_funcs.vkCreateBuffer(_device, &create_info, nullptr, &intermediate));
+		check_result(vk.CreateBuffer(_device, &create_info, nullptr, &intermediate));
 	}
 
 	// Allocate host memory for upload
 	{   VkMemoryRequirements reqs = {};
-		_funcs.vkGetBufferMemoryRequirements(_device, intermediate, &reqs);
+		vk.GetBufferMemoryRequirements(_device, intermediate, &reqs);
 
 		VkMemoryAllocateInfo alloc_info { VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO };
 		alloc_info.allocationSize = reqs.size;
 		alloc_info.memoryTypeIndex = find_memory_type_index(_memory_props, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, reqs.memoryTypeBits);
 
-		check_result(_funcs.vkAllocateMemory(_device, &alloc_info, nullptr, &intermediate_mem));
-		check_result(_funcs.vkBindBufferMemory(_device, intermediate, intermediate_mem, 0));
+		check_result(vk.AllocateMemory(_device, &alloc_info, nullptr, &intermediate_mem));
+		check_result(vk.BindBufferMemory(_device, intermediate, intermediate_mem, 0));
 	}
 
 	// Fill upload buffer with pixel data
 	uint8_t *mapped_data;
-	check_result(_funcs.vkMapMemory(_device, intermediate_mem, 0, VK_WHOLE_SIZE, 0, reinterpret_cast<void **>(&mapped_data)));
+	check_result(vk.MapMemory(_device, intermediate_mem, 0, VK_WHOLE_SIZE, 0, reinterpret_cast<void **>(&mapped_data)));
 
 	switch (texture.format)
 	{
@@ -646,7 +646,7 @@ void reshade::vulkan::runtime_vk::upload_texture(texture &texture, const uint8_t
 		break;
 	}
 
-	_funcs.vkUnmapMemory(_device, intermediate_mem);
+	vk.UnmapMemory(_device, intermediate_mem);
 
 	auto impl = texture.impl->as<vulkan_tex_data>();
 	assert(impl != nullptr);
@@ -659,7 +659,7 @@ void reshade::vulkan::runtime_vk::upload_texture(texture &texture, const uint8_t
 		copy_region.imageExtent = { texture.width, texture.height, 1u };
 		copy_region.imageSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 };
 
-		_funcs.vkCmdCopyBufferToImage(cmd_list, intermediate, impl->image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copy_region);
+		vk.CmdCopyBufferToImage(cmd_list, intermediate, impl->image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copy_region);
 	}
 	transition_layout(cmd_list, impl->image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, impl->layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
@@ -691,7 +691,7 @@ void reshade::vulkan::runtime_vk::generate_mipmaps(const VkCommandBuffer cmd_lis
 
 		transition_layout(cmd_list, impl->image, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, { VK_IMAGE_ASPECT_COLOR_BIT, level - 1, 1, 0, 1 });
 		transition_layout(cmd_list, impl->image, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, { VK_IMAGE_ASPECT_COLOR_BIT, level, 1, 0, 1 });
-		_funcs.vkCmdBlitImage(cmd_list, impl->image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, impl->image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &blit, VK_FILTER_LINEAR);
+		vk.CmdBlitImage(cmd_list, impl->image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, impl->image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &blit, VK_FILTER_LINEAR);
 		transition_layout(cmd_list, impl->image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, { VK_IMAGE_ASPECT_COLOR_BIT, level - 1, 1, 0, 1 });
 		transition_layout(cmd_list, impl->image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, { VK_IMAGE_ASPECT_COLOR_BIT, level, 1, 0, 1 });
 	}
@@ -705,41 +705,41 @@ VkCommandBuffer reshade::vulkan::runtime_vk::create_command_list(VkCommandBuffer
 	alloc_info.level = level;
 	alloc_info.commandBufferCount = 1;
 
-	check_result(_funcs.vkAllocateCommandBuffers(_device, &alloc_info, &cmd_list)) VK_NULL_HANDLE;
+	check_result(vk.AllocateCommandBuffers(_device, &alloc_info, &cmd_list)) VK_NULL_HANDLE;
 
 	VkCommandBufferBeginInfo begin_info { VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO };
 	begin_info.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
 
-	check_result(_funcs.vkBeginCommandBuffer(cmd_list, &begin_info)) VK_NULL_HANDLE;
+	check_result(vk.BeginCommandBuffer(cmd_list, &begin_info)) VK_NULL_HANDLE;
 
 	return cmd_list;
 }
 void reshade::vulkan::runtime_vk::execute_command_list(VkCommandBuffer cmd_list) const
 {
-	check_result(_funcs.vkEndCommandBuffer(cmd_list));
+	check_result(vk.EndCommandBuffer(cmd_list));
 
 	VkSubmitInfo submit_info { VK_STRUCTURE_TYPE_SUBMIT_INFO };
 	submit_info.commandBufferCount = 1;
 	submit_info.pCommandBuffers = &cmd_list;
 
 	assert(_current_queue != VK_NULL_HANDLE);
-	VkResult res = _funcs.vkQueueSubmit(_current_queue, 1, &submit_info, _wait_fence);
+	VkResult res = vk.QueueSubmit(_current_queue, 1, &submit_info, _wait_fence);
 	assert(res == VK_SUCCESS);
-	res = _funcs.vkWaitForFences(_device, 1, &_wait_fence, VK_TRUE, UINT64_MAX);
+	res = vk.WaitForFences(_device, 1, &_wait_fence, VK_TRUE, UINT64_MAX);
 	assert(res == VK_SUCCESS);
-	res = _funcs.vkResetFences(_device, 1, &_wait_fence);
+	res = vk.ResetFences(_device, 1, &_wait_fence);
 	assert(res == VK_SUCCESS);
 }
 void reshade::vulkan::runtime_vk::execute_command_list_async(VkCommandBuffer cmd_list) const
 {
-	check_result(_funcs.vkEndCommandBuffer(cmd_list));
+	check_result(vk.EndCommandBuffer(cmd_list));
 
 	VkSubmitInfo submit_info { VK_STRUCTURE_TYPE_SUBMIT_INFO };
 	submit_info.commandBufferCount = 1;
 	submit_info.pCommandBuffers = &cmd_list;
 
 	assert(_current_queue != VK_NULL_HANDLE);
-	VkResult res = _funcs.vkQueueSubmit(_current_queue, 1, &submit_info, VK_NULL_HANDLE);
+	VkResult res = vk.QueueSubmit(_current_queue, 1, &submit_info, VK_NULL_HANDLE);
 	assert(res == VK_SUCCESS);
 }
 
@@ -788,19 +788,19 @@ void reshade::vulkan::runtime_vk::transition_layout(VkCommandBuffer cmd_list, Vk
 	transition.oldLayout = old_layout;
 	transition.newLayout = new_layout;
 
-	_funcs.vkCmdPipelineBarrier(cmd_list, layout_to_stage(old_layout), layout_to_stage(new_layout), 0, 0, nullptr, 0, nullptr, 1, &transition);
+	vk.CmdPipelineBarrier(cmd_list, layout_to_stage(old_layout), layout_to_stage(new_layout), 0, 0, nullptr, 0, nullptr, 1, &transition);
 }
 
 bool reshade::vulkan::runtime_vk::compile_effect(effect_data &effect)
 {
-	vk_handle<VK_OBJECT_TYPE_SHADER_MODULE> module(_device, _funcs);
+	vk_handle<VK_OBJECT_TYPE_SHADER_MODULE> module(_device, vk);
 
 	// Load shader module
 	{   VkShaderModuleCreateInfo create_info { VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO };
 		create_info.codeSize = effect.module.spirv.size() * sizeof(uint32_t);
 		create_info.pCode = effect.module.spirv.data();
 
-		const VkResult res = _funcs.vkCreateShaderModule(_device, &create_info, nullptr, &module);
+		const VkResult res = vk.CreateShaderModule(_device, &create_info, nullptr, &module);
 		if (res != VK_SUCCESS)
 		{
 			effect.errors += "Failed to create shader module. Vulkan error code " + std::to_string(res) + ".";
@@ -825,7 +825,7 @@ bool reshade::vulkan::runtime_vk::compile_effect(effect_data &effect)
 		create_info.bindingCount = uint32_t(bindings.size());
 		create_info.pBindings = bindings.data();
 
-		check_result(_funcs.vkCreateDescriptorSetLayout(_device, &create_info, nullptr, &effect_data.set_layout)) false;
+		check_result(vk.CreateDescriptorSetLayout(_device, &create_info, nullptr, &effect_data.set_layout)) false;
 	}
 
 	const VkDescriptorSetLayout set_layouts[2] = { _effect_ubo_layout, effect_data.set_layout };
@@ -834,7 +834,7 @@ bool reshade::vulkan::runtime_vk::compile_effect(effect_data &effect)
 		create_info.setLayoutCount = 2; // [0] = Global UBO, [1] = Samplers
 		create_info.pSetLayouts = set_layouts;
 
-		check_result(_funcs.vkCreatePipelineLayout(_device, &create_info, nullptr, &effect_data.pipeline_layout)) false;
+		check_result(vk.CreatePipelineLayout(_device, &create_info, nullptr, &effect_data.pipeline_layout)) false;
 	}
 
 	// Create global uniform buffer object
@@ -940,7 +940,7 @@ bool reshade::vulkan::runtime_vk::compile_effect(effect_data &effect)
 		if (it == _effect_sampler_states.end())
 		{
 			VkSampler sampler = VK_NULL_HANDLE;
-			check_result(_funcs.vkCreateSampler(_device, &create_info, nullptr, &sampler)) false;
+			check_result(vk.CreateSampler(_device, &create_info, nullptr, &sampler)) false;
 			it = _effect_sampler_states.emplace(desc_hash, sampler).first;
 		}
 
@@ -952,7 +952,7 @@ bool reshade::vulkan::runtime_vk::compile_effect(effect_data &effect)
 		alloc_info.descriptorSetCount = 2;
 		alloc_info.pSetLayouts = set_layouts;
 
-		check_result(_funcs.vkAllocateDescriptorSets(_device, &alloc_info, effect_data.set)) false;
+		check_result(vk.AllocateDescriptorSets(_device, &alloc_info, effect_data.set)) false;
 
 		VkWriteDescriptorSet writes[2];
 		writes[0] = { VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
@@ -971,7 +971,7 @@ bool reshade::vulkan::runtime_vk::compile_effect(effect_data &effect)
 		writes[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 		writes[1].pImageInfo = image_bindings.data();
 
-		_funcs.vkUpdateDescriptorSets(_device, 2, writes, 0, nullptr);
+		vk.UpdateDescriptorSets(_device, 2, writes, 0, nullptr);
 	}
 
 	bool success = true;
@@ -996,18 +996,18 @@ bool reshade::vulkan::runtime_vk::compile_effect(effect_data &effect)
 void reshade::vulkan::runtime_vk::unload_effects()
 {
 	// Wait for all GPU operations to finish so resources are no longer referenced
-	_funcs.vkDeviceWaitIdle(_device);
+	vk.DeviceWaitIdle(_device);
 
 	runtime::unload_effects();
 
-	_funcs.vkResetDescriptorPool(_device, _effect_descriptor_pool, 0);
+	vk.ResetDescriptorPool(_device, _effect_descriptor_pool, 0);
 
 	for (const vulkan_effect_data &data : _effect_data)
 	{
-		_funcs.vkDestroyPipelineLayout(_device, data.pipeline_layout, nullptr);
-		_funcs.vkDestroyDescriptorSetLayout(_device, data.set_layout, nullptr);
-		_funcs.vkDestroyBuffer(_device, data.ubo, nullptr);
-		_funcs.vkFreeMemory(_device, data.ubo_mem, nullptr);
+		vk.DestroyPipelineLayout(_device, data.pipeline_layout, nullptr);
+		vk.DestroyDescriptorSetLayout(_device, data.set_layout, nullptr);
+		vk.DestroyBuffer(_device, data.ubo, nullptr);
+		vk.FreeMemory(_device, data.ubo_mem, nullptr);
 	}
 
 	_effect_data.clear();
@@ -1185,7 +1185,7 @@ bool reshade::vulkan::runtime_vk::init_technique(technique &info, VkShaderModule
 				create_info.dependencyCount = 1;
 				create_info.pDependencies = &subdep;
 
-				check_result(_funcs.vkCreateRenderPass(_device, &create_info, nullptr, &pass_data.begin_info.renderPass)) false;
+				check_result(vk.CreateRenderPass(_device, &create_info, nullptr, &pass_data.begin_info.renderPass)) false;
 			}
 
 			{   VkFramebufferCreateInfo create_info { VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO };
@@ -1196,7 +1196,7 @@ bool reshade::vulkan::runtime_vk::init_technique(technique &info, VkShaderModule
 				create_info.height = scissor_rect.extent.height;
 				create_info.layers = 1;
 
-				check_result(_funcs.vkCreateFramebuffer(_device, &create_info, nullptr, &pass_data.begin_info.framebuffer)) false;
+				check_result(vk.CreateFramebuffer(_device, &create_info, nullptr, &pass_data.begin_info.framebuffer)) false;
 			}
 		}
 
@@ -1266,7 +1266,7 @@ bool reshade::vulkan::runtime_vk::init_technique(technique &info, VkShaderModule
 		create_info.layout = _effect_data[info.effect_index].pipeline_layout;
 		create_info.renderPass = pass_data.begin_info.renderPass;
 
-		check_result(_funcs.vkCreateGraphicsPipelines(_device, VK_NULL_HANDLE, 1, &create_info, nullptr, &pass_data.pipeline)) false;
+		check_result(vk.CreateGraphicsPipelines(_device, VK_NULL_HANDLE, 1, &create_info, nullptr, &pass_data.pipeline)) false;
 	}
 
 	return true;
@@ -1280,17 +1280,17 @@ void reshade::vulkan::runtime_vk::render_technique(technique &technique)
 	if (cmd_list == VK_NULL_HANDLE)
 		return;
 
-	_funcs.vkCmdBindDescriptorSets(cmd_list, VK_PIPELINE_BIND_POINT_GRAPHICS, effect_data.pipeline_layout, 0, 2, effect_data.set, 0, nullptr);
+	vk.CmdBindDescriptorSets(cmd_list, VK_PIPELINE_BIND_POINT_GRAPHICS, effect_data.pipeline_layout, 0, 2, effect_data.set, 0, nullptr);
 
 	// Setup shader constants
 	if (effect_data.storage_size != 0)
-		_funcs.vkCmdUpdateBuffer(cmd_list, effect_data.ubo, 0, effect_data.storage_size, _uniform_data_storage.data() + effect_data.storage_offset);
+		vk.CmdUpdateBuffer(cmd_list, effect_data.ubo, 0, effect_data.storage_size, _uniform_data_storage.data() + effect_data.storage_offset);
 
 	// Clear default depth stencil
 	const VkImageSubresourceRange clear_range = { VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT, 0, 1, 0, 1 };
 	const VkClearDepthStencilValue clear_value = { 1.0f, 0 };
 	transition_layout(cmd_list, _default_depthstencil, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, { VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT, 0, 1, 0, 1 });
-	_funcs.vkCmdClearDepthStencilImage(cmd_list, _default_depthstencil, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &clear_value, 1, &clear_range);
+	vk.CmdClearDepthStencilImage(cmd_list, _default_depthstencil, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &clear_value, 1, &clear_range);
 	transition_layout(cmd_list, _default_depthstencil, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_STENCIL_ATTACHMENT_OPTIMAL, { VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT, 0, 1, 0, 1 });
 
 	for (size_t i = 0; i < technique.passes.size(); ++i)
@@ -1318,23 +1318,23 @@ void reshade::vulkan::runtime_vk::render_technique(technique &technique)
 		};
 		transition_layout(cmd_list, _backbuffer_texture, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 		transition_layout(cmd_list, _swapchain_images[_swap_index], VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
-		_funcs.vkCmdCopyImage(cmd_list, _swapchain_images[_swap_index], VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, _backbuffer_texture, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copy_range);
+		vk.CmdCopyImage(cmd_list, _swapchain_images[_swap_index], VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, _backbuffer_texture, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copy_range);
 		transition_layout(cmd_list, _backbuffer_texture, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 		transition_layout(cmd_list, _swapchain_images[_swap_index], VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
 
 		VkRenderPassBeginInfo begin_info = pass_data.begin_info;
 		if (begin_info.framebuffer == VK_NULL_HANDLE)
 			begin_info.framebuffer = _swapchain_frames[_swap_index];
-		_funcs.vkCmdBeginRenderPass(cmd_list, &begin_info, VK_SUBPASS_CONTENTS_INLINE);
+		vk.CmdBeginRenderPass(cmd_list, &begin_info, VK_SUBPASS_CONTENTS_INLINE);
 
 		// Setup states
-		_funcs.vkCmdBindPipeline(cmd_list, VK_PIPELINE_BIND_POINT_GRAPHICS, pass_data.pipeline);
+		vk.CmdBindPipeline(cmd_list, VK_PIPELINE_BIND_POINT_GRAPHICS, pass_data.pipeline);
 
 		// Draw triangle
-		_funcs.vkCmdDraw(cmd_list, 3, 1, 0, 0);
+		vk.CmdDraw(cmd_list, 3, 1, 0, 0);
 		_vertices += 3; _drawcalls += 1;
 
-		_funcs.vkCmdEndRenderPass(cmd_list);
+		vk.CmdEndRenderPass(cmd_list);
 
 		// Generate mipmaps
 		for (unsigned int k = 0; k < 8 && !pass_info.render_target_names[k].empty(); ++k)
@@ -1354,8 +1354,8 @@ void reshade::vulkan::runtime_vk::render_technique(technique &technique)
 #if RESHADE_GUI
 bool reshade::vulkan::runtime_vk::init_imgui_resources()
 {
-	vk_handle<VK_OBJECT_TYPE_SHADER_MODULE> vs_module(_device, _funcs);
-	vk_handle<VK_OBJECT_TYPE_SHADER_MODULE> fs_module(_device, _funcs);
+	vk_handle<VK_OBJECT_TYPE_SHADER_MODULE> vs_module(_device, vk);
+	vk_handle<VK_OBJECT_TYPE_SHADER_MODULE> fs_module(_device, vk);
 
 	VkPipelineShaderStageCreateInfo stages[2];
 	stages[0] = { VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO };
@@ -1370,13 +1370,13 @@ bool reshade::vulkan::runtime_vk::init_imgui_resources()
 		const resources::data_resource vs = resources::load_data_resource(IDR_IMGUI_VS_SPIRV);
 		create_info.codeSize = vs.data_size;
 		create_info.pCode = static_cast<const uint32_t *>(vs.data);
-		check_result(_funcs.vkCreateShaderModule(_device, &create_info, nullptr, &vs_module)) false;
+		check_result(vk.CreateShaderModule(_device, &create_info, nullptr, &vs_module)) false;
 		stages[0].module = vs_module;
 
 		const resources::data_resource ps = resources::load_data_resource(IDR_IMGUI_PS_SPIRV);
 		create_info.codeSize = ps.data_size;
 		create_info.pCode = static_cast<const uint32_t *>(ps.data);
-		check_result(_funcs.vkCreateShaderModule(_device, &create_info, nullptr, &fs_module)) false;
+		check_result(vk.CreateShaderModule(_device, &create_info, nullptr, &fs_module)) false;
 		stages[1].module = fs_module;
 	}
 
@@ -1390,7 +1390,7 @@ bool reshade::vulkan::runtime_vk::init_imgui_resources()
 		create_info.minLod = -1000;
 		create_info.maxLod = +1000;
 
-		check_result(_funcs.vkCreateSampler(_device, &create_info, nullptr, &_imgui_font_sampler)) false;
+		check_result(vk.CreateSampler(_device, &create_info, nullptr, &_imgui_font_sampler)) false;
 	}
 
 	{   VkDescriptorSetLayoutBinding bindings[1] = {};
@@ -1404,7 +1404,7 @@ bool reshade::vulkan::runtime_vk::init_imgui_resources()
 		create_info.bindingCount = _countof(bindings);
 		create_info.pBindings = bindings;
 
-		check_result(_funcs.vkCreateDescriptorSetLayout(_device, &create_info, nullptr, &_imgui_descriptor_set_layout)) false;
+		check_result(vk.CreateDescriptorSetLayout(_device, &create_info, nullptr, &_imgui_descriptor_set_layout)) false;
 	}
 
 	{   const VkPushConstantRange push_constants[] = {
@@ -1420,7 +1420,7 @@ bool reshade::vulkan::runtime_vk::init_imgui_resources()
 		create_info.pushConstantRangeCount = _countof(push_constants);
 		create_info.pPushConstantRanges = push_constants;
 
-		check_result(_funcs.vkCreatePipelineLayout(_device, &create_info, nullptr, &_imgui_pipeline_layout)) false;
+		check_result(vk.CreatePipelineLayout(_device, &create_info, nullptr, &_imgui_pipeline_layout)) false;
 	}
 
 	VkVertexInputBindingDescription binding_desc[1] = {};
@@ -1500,7 +1500,7 @@ bool reshade::vulkan::runtime_vk::init_imgui_resources()
 	create_info.layout = _imgui_pipeline_layout;
 	create_info.renderPass = _default_render_pass;
 
-	check_result(_funcs.vkCreateGraphicsPipelines(_device, VK_NULL_HANDLE, 1, &create_info, nullptr, &_imgui_pipeline)) false;
+	check_result(vk.CreateGraphicsPipelines(_device, VK_NULL_HANDLE, 1, &create_info, nullptr, &_imgui_pipeline)) false;
 
 	return true;
 }
@@ -1540,15 +1540,15 @@ void reshade::vulkan::runtime_vk::render_imgui_draw_data(ImDrawData *draw_data)
 	if (resize_mem)
 	{
 		VkMemoryRequirements index_reqs = {};
-		_funcs.vkGetBufferMemoryRequirements(_device, _imgui_index_buffer, &index_reqs);
+		vk.GetBufferMemoryRequirements(_device, _imgui_index_buffer, &index_reqs);
 		VkMemoryRequirements vertex_reqs = {};
-		_funcs.vkGetBufferMemoryRequirements(_device, _imgui_vertex_buffer, &vertex_reqs);
+		vk.GetBufferMemoryRequirements(_device, _imgui_vertex_buffer, &vertex_reqs);
 
 		VkMemoryAllocateInfo alloc_info { VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO };
 		alloc_info.allocationSize = index_reqs.size + vertex_reqs.size;
 		alloc_info.memoryTypeIndex = find_memory_type_index(_memory_props, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, index_reqs.memoryTypeBits & vertex_reqs.memoryTypeBits);
 
-		check_result(_funcs.vkAllocateMemory(_device, &alloc_info, nullptr, &_imgui_vertex_mem));
+		check_result(vk.AllocateMemory(_device, &alloc_info, nullptr, &_imgui_vertex_mem));
 
 		VkBindBufferMemoryInfo bind_infos[2];
 		bind_infos[0] = { VK_STRUCTURE_TYPE_BIND_BUFFER_MEMORY_INFO };
@@ -1560,11 +1560,11 @@ void reshade::vulkan::runtime_vk::render_imgui_draw_data(ImDrawData *draw_data)
 		bind_infos[1].memory = _imgui_vertex_mem;
 		bind_infos[1].memoryOffset = _imgui_vertex_mem_offset = index_reqs.size;
 
-		check_result(_funcs.vkBindBufferMemory2(_device, _countof(bind_infos), bind_infos));
+		check_result(vk.BindBufferMemory2(_device, _countof(bind_infos), bind_infos));
 	}
 
 	ImDrawIdx *idx_dst; ImDrawVert *vtx_dst;
-	check_result(_funcs.vkMapMemory(_device, _imgui_vertex_mem, 0, VK_WHOLE_SIZE, 0, reinterpret_cast<void **>(&idx_dst)));
+	check_result(vk.MapMemory(_device, _imgui_vertex_mem, 0, VK_WHOLE_SIZE, 0, reinterpret_cast<void **>(&idx_dst)));
 	vtx_dst = reinterpret_cast<ImDrawVert *>(reinterpret_cast<uint8_t *>(idx_dst) + _imgui_vertex_mem_offset);
 
 	for (int n = 0; n < draw_data->CmdListsCount; n++)
@@ -1576,7 +1576,7 @@ void reshade::vulkan::runtime_vk::render_imgui_draw_data(ImDrawData *draw_data)
 		vtx_dst += draw_list->VtxBuffer.Size;
 	}
 
-	_funcs.vkUnmapMemory(_device, _imgui_vertex_mem);
+	vk.UnmapMemory(_device, _imgui_vertex_mem);
 
 	const VkCommandBuffer cmd_list = create_command_list();
 
@@ -1584,7 +1584,7 @@ void reshade::vulkan::runtime_vk::render_imgui_draw_data(ImDrawData *draw_data)
 		begin_info.renderPass = _default_render_pass;
 		begin_info.framebuffer = _swapchain_frames[_swap_index];
 		begin_info.renderArea.extent = _render_area;
-		_funcs.vkCmdBeginRenderPass(cmd_list, &begin_info, VK_SUBPASS_CONTENTS_INLINE);
+		vk.CmdBeginRenderPass(cmd_list, &begin_info, VK_SUBPASS_CONTENTS_INLINE);
 	}
 
 	// Setup orthographic projection matrix
@@ -1596,16 +1596,16 @@ void reshade::vulkan::runtime_vk::render_imgui_draw_data(ImDrawData *draw_data)
 		-1.0f - draw_data->DisplayPos.x * scale[0],
 		-1.0f - draw_data->DisplayPos.y * scale[1]
 	};
-	_funcs.vkCmdPushConstants(cmd_list, _imgui_pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT, sizeof(float) * 0, sizeof(float) * 2, scale);
-	_funcs.vkCmdPushConstants(cmd_list, _imgui_pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT, sizeof(float) * 2, sizeof(float) * 2, translate);
+	vk.CmdPushConstants(cmd_list, _imgui_pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT, sizeof(float) * 0, sizeof(float) * 2, scale);
+	vk.CmdPushConstants(cmd_list, _imgui_pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT, sizeof(float) * 2, sizeof(float) * 2, translate);
 
 	// Setup render state and render draw lists
-	_funcs.vkCmdBindIndexBuffer(cmd_list, _imgui_index_buffer, 0, sizeof(ImDrawIdx) == 2 ? VK_INDEX_TYPE_UINT16 : VK_INDEX_TYPE_UINT32);
+	vk.CmdBindIndexBuffer(cmd_list, _imgui_index_buffer, 0, sizeof(ImDrawIdx) == 2 ? VK_INDEX_TYPE_UINT16 : VK_INDEX_TYPE_UINT32);
 	const VkDeviceSize offset = 0;
-	_funcs.vkCmdBindVertexBuffers(cmd_list, 0, 1, &_imgui_vertex_buffer, &offset);
+	vk.CmdBindVertexBuffers(cmd_list, 0, 1, &_imgui_vertex_buffer, &offset);
 	const VkViewport viewport = { 0.0f, 0.0f, draw_data->DisplaySize.x, draw_data->DisplaySize.y, 0.0f, 1.0f };
-	_funcs.vkCmdSetViewport(cmd_list, 0, 1, &viewport);
-	_funcs.vkCmdBindPipeline(cmd_list, VK_PIPELINE_BIND_POINT_GRAPHICS, _imgui_pipeline);
+	vk.CmdSetViewport(cmd_list, 0, 1, &viewport);
+	vk.CmdBindPipeline(cmd_list, VK_PIPELINE_BIND_POINT_GRAPHICS, _imgui_pipeline);
 
 	uint32_t vtx_offset = 0, idx_offset = 0;
 	for (int n = 0; n < draw_data->CmdListsCount; ++n)
@@ -1625,7 +1625,7 @@ void reshade::vulkan::runtime_vk::render_imgui_draw_data(ImDrawData *draw_data)
 				{ static_cast<uint32_t>(cmd.ClipRect.z - cmd.ClipRect.x),
 				  static_cast<uint32_t>(cmd.ClipRect.w - cmd.ClipRect.y) }
 			};
-			_funcs.vkCmdSetScissor(cmd_list, 0, 1, &scissor_rect);
+			vk.CmdSetScissor(cmd_list, 0, 1, &scissor_rect);
 
 			auto tex_data = static_cast<const vulkan_tex_data *>(cmd.TextureId);
 			// TODO: Transition resource state of the user texture?
@@ -1637,9 +1637,9 @@ void reshade::vulkan::runtime_vk::render_imgui_draw_data(ImDrawData *draw_data)
 			write.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 			const VkDescriptorImageInfo image_info { _imgui_font_sampler, tex_data->view[0], VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL };
 			write.pImageInfo = &image_info;
-			_funcs.vkCmdPushDescriptorSetKHR(cmd_list, VK_PIPELINE_BIND_POINT_GRAPHICS, _imgui_pipeline_layout, 0, 1, &write);
+			vk.CmdPushDescriptorSetKHR(cmd_list, VK_PIPELINE_BIND_POINT_GRAPHICS, _imgui_pipeline_layout, 0, 1, &write);
 
-			_funcs.vkCmdDrawIndexed(cmd_list, cmd.ElemCount, 1, idx_offset, vtx_offset, 0);
+			vk.CmdDrawIndexed(cmd_list, cmd.ElemCount, 1, idx_offset, vtx_offset, 0);
 
 			idx_offset += cmd.ElemCount;
 		}
@@ -1647,7 +1647,7 @@ void reshade::vulkan::runtime_vk::render_imgui_draw_data(ImDrawData *draw_data)
 		vtx_offset += draw_list->VtxBuffer.Size;
 	}
 
-	_funcs.vkCmdEndRenderPass(cmd_list);
+	vk.CmdEndRenderPass(cmd_list);
 
 	execute_command_list_async(cmd_list);
 }

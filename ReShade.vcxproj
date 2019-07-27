@@ -443,7 +443,7 @@
     <ClInclude Include="source\runtime_objects.hpp" />
     <ClInclude Include="source\vulkan\runtime_vk.hpp" />
     <ClInclude Include="source\vulkan\vk_handle.hpp" />
-    <ClInclude Include="source\vulkan\vulkan.hpp" />
+    <ClInclude Include="source\vulkan\vk_layer_dispatch_table.h" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="res\resource.rc" />

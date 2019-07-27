@@ -16,7 +16,7 @@ namespace reshade::vulkan
 	class runtime_vk : public runtime
 	{
 	public:
-		runtime_vk(VkDevice device, VkPhysicalDevice physical_device, const vk_device_table &table);
+		runtime_vk(VkDevice device, VkPhysicalDevice physical_device, const VkLayerInstanceDispatchTable &instance_table, const VkLayerDispatchTable &device_table);
 
 		bool on_init(VkSwapchainKHR swapchain, const VkSwapchainCreateInfoKHR &desc, HWND hwnd);
 		void on_reset();
@@ -29,7 +29,7 @@ namespace reshade::vulkan
 		VkPhysicalDeviceMemoryProperties _memory_props;
 		VkSwapchainKHR _swapchain;
 
-		vk_device_table _funcs;
+		VkLayerDispatchTable vk;
 
 	private:
 		bool init_texture(texture &texture);
