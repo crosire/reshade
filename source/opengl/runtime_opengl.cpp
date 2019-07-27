@@ -99,10 +99,17 @@ reshade::opengl::runtime_opengl::runtime_opengl()
 		}
 	}
 
+#if RESHADE_GUI
+	subscribe_to_ui("OpenGL", [this]() { draw_debug_menu(); });
+#endif
 	subscribe_to_load_config([this](const ini_file &config) {
 		size_t num_reserve_texture_names = 0;
 		config.get("OPENGL", "ReserveTextureNames", num_reserve_texture_names);
 		_reserved_texture_names.resize(num_reserve_texture_names);
+		config.get("OPENGL", "ForceMainDepthBuffer", _force_main_depth_buffer);
+	});
+	subscribe_to_save_config([this](ini_file &config) {
+		config.set("OPENGL", "ForceMainDepthBuffer", _force_main_depth_buffer);
 	});
 }
 
@@ -1171,6 +1178,15 @@ void reshade::opengl::runtime_opengl::render_imgui_draw_data(ImDrawData *draw_da
 		}
 	}
 }
+
+void reshade::opengl::runtime_opengl::draw_debug_menu()
+{
+	if (ImGui::Checkbox("Force default depth buffer", &_force_main_depth_buffer) && _force_main_depth_buffer)
+	{
+		_depth_source = 0;
+		update_texture_references(texture_reference::depth_buffer);
+	}
+}
 #endif
 
 void reshade::opengl::runtime_opengl::detect_depth_source()
@@ -1192,22 +1208,25 @@ void reshade::opengl::runtime_opengl::detect_depth_source()
 	GLuint best_match = 0;
 	depth_source_info best_info = _depth_source_table.at(0); // Always fall back to default depth buffer if no better match is found
 
-	for (auto &it : _depth_source_table)
+	if (!_force_main_depth_buffer)
 	{
-		if (it.second.num_drawcalls == 0)
-			continue; // Skip candidates that were not used during rendering
-
-		// Detection heuristic based on dimensions and usage
-		if (((it.second.width > _width * 0.95 && it.second.width < _width * 1.05) && (it.second.height > _height * 0.95 && it.second.height < _height * 1.05)) &&
-			((it.second.num_vertices * (1.2f - float(it.second.num_drawcalls) / _drawcalls)) >= (best_info.num_vertices * (1.2f - float(best_info.num_drawcalls) / _drawcalls))))
+		for (auto &it : _depth_source_table)
 		{
-			best_info = it.second;
-			best_match = it.first;
-		}
+			if (it.second.num_drawcalls == 0)
+				continue; // Skip candidates that were not used during rendering
 
-		// Reset statistics for next frame
-		it.second.num_vertices = 0;
-		it.second.num_drawcalls = 0;
+			// Detection heuristic based on dimensions and usage
+			if (((it.second.width > _width * 0.95 && it.second.width < _width * 1.05) && (it.second.height > _height * 0.95 && it.second.height < _height * 1.05)) &&
+				((it.second.num_vertices * (1.2f - float(it.second.num_drawcalls) / _drawcalls)) >= (best_info.num_vertices * (1.2f - float(best_info.num_drawcalls) / _drawcalls))))
+			{
+				best_info = it.second;
+				best_match = it.first;
+			}
+
+			// Reset statistics for next frame
+			it.second.num_vertices = 0;
+			it.second.num_drawcalls = 0;
+		}
 	}
 
 	if (_depth_source != best_match || !_tex[TEX_DEPTH])

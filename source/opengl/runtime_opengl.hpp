@@ -55,6 +55,7 @@ namespace reshade::opengl
 #if RESHADE_GUI
 		void init_imgui_resources();
 		void render_imgui_draw_data(ImDrawData *data) override;
+		void draw_debug_menu();
 #endif
 
 		void detect_depth_source();
@@ -113,5 +114,6 @@ namespace reshade::opengl
 		std::vector<GLuint> _reserved_texture_names;
 		std::unordered_map<size_t, GLuint> _effect_sampler_states;
 		std::vector<std::pair<GLuint, GLsizeiptr>> _effect_ubos;
+		bool _force_main_depth_buffer = false;
 	};
 }
