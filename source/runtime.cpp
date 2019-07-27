@@ -86,7 +86,12 @@ reshade::runtime::runtime() :
 
 	_configuration_path = g_reshade_dll_path;
 	_configuration_path.replace_extension(".ini");
+	// First look for an API-named configuration file
 	if (std::error_code ec; !std::filesystem::exists(_configuration_path, ec))
+		// On failure check for a "ReShade.ini" in the application directory
+		_configuration_path = g_target_executable_path.parent_path() / "ReShade.ini";
+	if (std::error_code ec; !std::filesystem::exists(_configuration_path, ec))
+		// If neither exist create a "ReShade.ini" in the ReShade DLL directory
 		_configuration_path = g_reshade_dll_path.parent_path() / "ReShade.ini";
 
 	_needs_update = check_for_update(_latest_version);
