@@ -574,6 +574,9 @@ void imgui_code_editor::insert_text(const std::string &text)
 }
 void imgui_code_editor::insert_character(char c, bool auto_indent)
 {
+	if (_readonly)
+		return;
+
 	undo_record u;
 
 	if (has_selection())
@@ -727,6 +730,9 @@ std::string imgui_code_editor::get_selected_text() const
 
 void imgui_code_editor::undo(unsigned int steps)
 {
+	if (_readonly)
+		return;
+
 	// Reset selection
 	_select_beg = _select_end = _cursor_pos;
 	_interactive_beg = _interactive_end = _cursor_pos;
@@ -755,6 +761,9 @@ void imgui_code_editor::undo(unsigned int steps)
 }
 void imgui_code_editor::redo(unsigned int steps)
 {
+	if (_readonly)
+		return;
+
 	// Reset selection
 	_select_beg = _select_end = _cursor_pos;
 	_interactive_beg = _interactive_end = _cursor_pos;
@@ -794,6 +803,9 @@ void imgui_code_editor::record_undo(undo_record &&record)
 
 void imgui_code_editor::delete_next()
 {
+	if (_readonly)
+		return;
+
 	if (has_selection())
 	{
 		delete_selection();
@@ -842,6 +854,9 @@ void imgui_code_editor::delete_next()
 }
 void imgui_code_editor::delete_previous()
 {
+	if (_readonly)
+		return;
+
 	if (has_selection())
 	{
 		delete_selection();
@@ -893,6 +908,9 @@ void imgui_code_editor::delete_previous()
 }
 void imgui_code_editor::delete_selection()
 {
+	if (_readonly)
+		return;
+
 	if (!has_selection())
 		return;
 
@@ -940,6 +958,9 @@ void imgui_code_editor::delete_selection()
 }
 void imgui_code_editor::delete_lines(size_t first_line, size_t last_line)
 {
+	if (_readonly)
+		return;
+
 	// Move all error markers after the deleted lines down
 	std::unordered_map<size_t, std::pair<std::string, bool>> errors;
 	errors.reserve(_errors.size());
@@ -977,6 +998,9 @@ void imgui_code_editor::clipboard_cut()
 }
 void imgui_code_editor::clipboard_paste()
 {
+	if (_readonly)
+		return;
+
 	const char *const text = ImGui::GetClipboardText();
 
 	if (text == nullptr || *text == '\0')
@@ -1292,7 +1316,7 @@ void imgui_code_editor::move_end(bool selection)
 }
 void imgui_code_editor::move_lines_up()
 {
-	if (_select_beg.line == 0)
+	if (_select_beg.line == 0 || _readonly)
 		return;
 
 	for (size_t line = _select_beg.line; line <= _select_end.line; ++line)
@@ -1304,7 +1328,7 @@ void imgui_code_editor::move_lines_up()
 }
 void imgui_code_editor::move_lines_down()
 {
-	if (_select_end.line + 1 >= _lines.size())
+	if (_select_end.line + 1 >= _lines.size() || _readonly)
 		return;
 
 	for (size_t line = _select_end.line; line >= _select_beg.line && line < _lines.size(); --line)

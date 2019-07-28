@@ -1561,6 +1561,8 @@ void reshade::runtime::draw_code_editor()
 
 	if (_selected_effect_changed)
 	{
+		_editor.set_readonly(false);
+
 		if (_selected_effect < _loaded_effects.size())
 		{
 			const auto &effect = _loaded_effects[_selected_effect];
@@ -2140,6 +2142,7 @@ void reshade::runtime::draw_overlay_technique_editor()
 					source_code = effect.module.entry_points[selected_index].assembly;
 
 				_editor.set_text(source_code);
+				_editor.set_readonly(true);
 				_selected_effect = std::numeric_limits<size_t>::max();
 				_selected_effect_changed = false; // Prevent editor from being cleared, since we already set the text here
 				_show_code_editor = true;

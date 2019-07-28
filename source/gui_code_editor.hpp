@@ -84,6 +84,7 @@ public:
 	void add_error(size_t line, const std::string &message, bool warning = false) { _errors.insert({ line, { message, warning } }); }
 	void clear_errors() { _errors.clear(); }
 
+	void set_readonly(bool state) { _readonly = state; }
 	void set_tab_size(unsigned int size) { _tab_size = size; }
 	void set_left_margin(float margin) { _left_margin = margin; }
 	void set_line_spacing(float spacing) { _line_spacing = spacing; }
@@ -138,6 +139,7 @@ private:
 	float _left_margin = 10.0f;
 	float _line_spacing = 1.0f;
 	unsigned int _tab_size = 4;
+	bool _readonly = false;
 	bool _overwrite = false;
 	bool _scroll_to_cursor = false;
 	float _cursor_anim = 0.0f;
