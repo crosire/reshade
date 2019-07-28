@@ -1187,7 +1187,10 @@ void reshade::runtime::draw_overlay_menu_statistics()
 		ImGui::SameLine(ImGui::GetWindowWidth() * 0.33333333f);
 		ImGui::BeginGroup();
 
-		ImGui::Text("VEN_%X", _vendor_id);
+		if (_vendor_id != 0)
+			ImGui::Text("VEN_%X", _vendor_id);
+		else
+			ImGui::TextUnformatted("Unknown");
 		ImGui::TextUnformatted(g_target_executable_path.filename().u8string().c_str());
 		ImGui::Text("%d-%d-%d %d", _date[0], _date[1], _date[2], _date[3]);
 		ImGui::Text("%u B", g_network_traffic);
@@ -1199,7 +1202,10 @@ void reshade::runtime::draw_overlay_menu_statistics()
 		ImGui::SameLine(ImGui::GetWindowWidth() * 0.66666666f);
 		ImGui::BeginGroup();
 
-		ImGui::Text("DEV_%X", _device_id);
+		if (_device_id != 0)
+			ImGui::Text("DEV_%X", _device_id);
+		else
+			ImGui::TextUnformatted("Unknown");
 		ImGui::Text("%X", std::hash<std::string>()(g_target_executable_path.stem().u8string()));
 		ImGui::Text("%.0f ms", std::chrono::duration_cast<std::chrono::nanoseconds>(_last_present_time - _start_time).count() * 1e-6f);
 		ImGui::NewLine();
