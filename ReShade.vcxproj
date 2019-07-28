@@ -85,6 +85,9 @@
     <Import Project="deps\SPIRV.props" />
     <Import Project="deps\Vulkan.props" />
   </ImportGroup>
+  <PropertyGroup>
+    <ExecutablePath>$(SolutionDir)tools;$(ExecutablePath)</ExecutablePath>
+  </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
       <WarningLevel>Level4</WarningLevel>
