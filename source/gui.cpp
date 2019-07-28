@@ -1144,11 +1144,13 @@ void reshade::runtime::draw_overlay_menu_settings()
 void reshade::runtime::draw_overlay_menu_statistics()
 {
 	unsigned int cpu_digits = 1;
-	uint64_t post_processing_time_cpu = 0;
 	unsigned int gpu_digits = 1;
+	uint64_t post_processing_time_cpu = 0;
 	uint64_t post_processing_time_gpu = 0;
+	uint32_t post_processing_memory_size = 0;
 
-	if (_reload_remaining_effects == std::numeric_limits<size_t>::max())
+	const bool has_finished_reloading = _reload_remaining_effects == std::numeric_limits<size_t>::max();
+	if (has_finished_reloading)
 	{
 		for (const auto &technique : _techniques)
 		{
@@ -1209,8 +1211,7 @@ void reshade::runtime::draw_overlay_menu_statistics()
 		ImGui::EndGroup();
 	}
 
-	if (ImGui::CollapsingHeader("Techniques", ImGuiTreeNodeFlags_DefaultOpen) &&
-		_reload_remaining_effects == std::numeric_limits<size_t>::max())
+	if (ImGui::CollapsingHeader("Techniques", ImGuiTreeNodeFlags_DefaultOpen) && has_finished_reloading)
 	{
 		ImGui::BeginGroup();
 
@@ -1256,8 +1257,7 @@ void reshade::runtime::draw_overlay_menu_statistics()
 		ImGui::EndGroup();
 	}
 
-	if (ImGui::CollapsingHeader("Render Targets & Textures", ImGuiTreeNodeFlags_DefaultOpen) &&
-		_reload_remaining_effects == std::numeric_limits<size_t>::max())
+	if (ImGui::CollapsingHeader("Render Targets & Textures", ImGuiTreeNodeFlags_DefaultOpen) && has_finished_reloading)
 	{
 		const char *texture_formats[] = {
 			"unknown",
@@ -1288,6 +1288,8 @@ void reshade::runtime::draw_overlay_menu_statistics()
 			for (uint32_t level = 0, width = texture.width, height = texture.height; level < texture.levels; ++level, width /= 2, height /= 2)
 				memory_size += width * height * pixel_sizes[static_cast<unsigned int>(texture.format)];
 
+			post_processing_memory_size += memory_size;
+
 			if (memory_size > 5000) {
 				memory_size /= 1000;
 				memory_size_unit = "kB";
@@ -1315,6 +1317,20 @@ void reshade::runtime::draw_overlay_menu_statistics()
 		}
 
 		ImGui::NewLine(); // Reset ImGui::SameLine() so the following starts on a new line
+		ImGui::Separator();
+
+		// Show total memory size
+		const char *memory_size_unit = "B";
+		if (post_processing_memory_size > 5000) {
+			post_processing_memory_size /= 1000;
+			memory_size_unit = "kB";
+		}
+		if (post_processing_memory_size > 5000) {
+			post_processing_memory_size /= 1000;
+			memory_size_unit = "MB";
+		}
+
+		ImGui::Text("Total memory usage: %u%s", post_processing_memory_size, memory_size_unit);
 	}
 }
 
