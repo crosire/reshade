@@ -612,7 +612,7 @@ void reshade::runtime::draw_ui()
 		ImGui::PopStyleColor();
 	}
 
-	if (_show_menu && _reload_remaining_effects == std::numeric_limits<size_t>::max())
+	if (_show_menu)
 	{
 		// Change font size if user presses the control key and moves the mouse wheel
 		if (imgui_io.KeyCtrl && imgui_io.MouseWheel != 0 && !_no_font_scaling)
@@ -671,7 +671,7 @@ void reshade::runtime::draw_ui()
 			ImGui::End();
 		}
 
-		if (_show_code_editor)
+		if (_show_code_editor && _reload_remaining_effects == std::numeric_limits<size_t>::max())
 		{
 			const std::string title = _selected_effect < _loaded_effects.size() ?
 				"Editing " + _loaded_effects[_selected_effect].source_file.filename().u8string() + " ###editor" : "Viewing code###editor";
@@ -696,6 +696,14 @@ void reshade::runtime::draw_ui()
 
 void reshade::runtime::draw_overlay_menu_home()
 {
+	if (_reload_remaining_effects != std::numeric_limits<size_t>::max())
+	{
+		const char *const loading_message = "Loading ...";
+		ImGui::SetCursorPos(ImGui::GetWindowSize() * 0.5f - ImGui::CalcTextSize(loading_message) * 0.5f);
+		ImGui::Text(loading_message);
+		return;
+	}
+
 	if (!_effects_enabled)
 		ImGui::Text("Effects are disabled. Press '%s' to enable them again.", input::key_name(_effects_key_data).c_str());
 
@@ -1139,12 +1147,16 @@ void reshade::runtime::draw_overlay_menu_statistics()
 	uint64_t post_processing_time_cpu = 0;
 	unsigned int gpu_digits = 1;
 	uint64_t post_processing_time_gpu = 0;
-	for (const auto &technique : _techniques)
+
+	if (_reload_remaining_effects == std::numeric_limits<size_t>::max())
 	{
-		cpu_digits = std::max(cpu_digits, technique.average_cpu_duration >= 100'000'000 ? 3u : technique.average_cpu_duration >= 10'000'000 ? 2u : 1u);
-		post_processing_time_cpu += technique.average_cpu_duration;
-		gpu_digits = std::max(gpu_digits, technique.average_gpu_duration >= 100'000'000 ? 3u : technique.average_gpu_duration >= 10'000'000 ? 2u : 1u);
-		post_processing_time_gpu += technique.average_gpu_duration;
+		for (const auto &technique : _techniques)
+		{
+			cpu_digits = std::max(cpu_digits, technique.average_cpu_duration >= 100'000'000 ? 3u : technique.average_cpu_duration >= 10'000'000 ? 2u : 1u);
+			post_processing_time_cpu += technique.average_cpu_duration;
+			gpu_digits = std::max(gpu_digits, technique.average_gpu_duration >= 100'000'000 ? 3u : technique.average_gpu_duration >= 10'000'000 ? 2u : 1u);
+			post_processing_time_gpu += technique.average_gpu_duration;
+		}
 	}
 
 	if (ImGui::CollapsingHeader("General", ImGuiTreeNodeFlags_DefaultOpen))
@@ -1197,7 +1209,8 @@ void reshade::runtime::draw_overlay_menu_statistics()
 		ImGui::EndGroup();
 	}
 
-	if (ImGui::CollapsingHeader("Techniques", ImGuiTreeNodeFlags_DefaultOpen))
+	if (ImGui::CollapsingHeader("Techniques", ImGuiTreeNodeFlags_DefaultOpen) &&
+		_reload_remaining_effects == std::numeric_limits<size_t>::max())
 	{
 		ImGui::BeginGroup();
 
@@ -1243,7 +1256,8 @@ void reshade::runtime::draw_overlay_menu_statistics()
 		ImGui::EndGroup();
 	}
 
-	if (ImGui::CollapsingHeader("Render Targets & Textures", ImGuiTreeNodeFlags_DefaultOpen))
+	if (ImGui::CollapsingHeader("Render Targets & Textures", ImGuiTreeNodeFlags_DefaultOpen) &&
+		_reload_remaining_effects == std::numeric_limits<size_t>::max())
 	{
 		const char *texture_formats[] = {
 			"unknown",
