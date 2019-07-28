@@ -970,16 +970,16 @@ void reshade::runtime::draw_overlay_menu_settings()
 
 		modified |= imgui_directory_input_box("Screenshot Path", _screenshot_path, _file_selection_path);
 		modified |= ImGui::Combo("Screenshot Format", &_screenshot_format, "Bitmap (*.bmp)\0Portable Network Graphics (*.png)\0");
-		modified |= ImGui::Checkbox("Include Current Preset", &_screenshot_include_preset);
-		modified |= ImGui::Checkbox("Save Before and After", &_screenshot_save_before);
+		modified |= ImGui::Checkbox("Include current preset", &_screenshot_include_preset);
+		modified |= ImGui::Checkbox("Save before and after images", &_screenshot_save_before);
 	}
 
 	if (ImGui::CollapsingHeader("User Interface", ImGuiTreeNodeFlags_DefaultOpen))
 	{
-		modified |= ImGui::Checkbox("Show Screenshot Message", &_show_screenshot_message);
+		modified |= ImGui::Checkbox("Show screenshot message", &_show_screenshot_message);
 
 		bool save_imgui_window_state = _imgui_context->IO.IniFilename != nullptr;
-		if (ImGui::Checkbox("Save Window State (ReShadeGUI.ini)", &save_imgui_window_state))
+		if (ImGui::Checkbox("Save window state (ReShadeGUI.ini)", &save_imgui_window_state))
 		{
 			modified = true;
 			_imgui_context->IO.IniFilename = save_imgui_window_state ? g_reshadegui_ini_path : nullptr;
