@@ -1150,7 +1150,7 @@ void reshade::runtime::draw_overlay_menu_statistics()
 	uint32_t post_processing_memory_size = 0;
 
 	const bool has_finished_reloading = _reload_remaining_effects == std::numeric_limits<size_t>::max();
-	if (has_finished_reloading)
+	if (has_finished_reloading && _effects_enabled)
 	{
 		for (const auto &technique : _techniques)
 		{
@@ -1211,7 +1211,7 @@ void reshade::runtime::draw_overlay_menu_statistics()
 		ImGui::EndGroup();
 	}
 
-	if (ImGui::CollapsingHeader("Techniques", ImGuiTreeNodeFlags_DefaultOpen) && has_finished_reloading)
+	if (ImGui::CollapsingHeader("Techniques", ImGuiTreeNodeFlags_DefaultOpen) && has_finished_reloading && _effects_enabled)
 	{
 		ImGui::BeginGroup();
 
@@ -1235,7 +1235,10 @@ void reshade::runtime::draw_overlay_menu_statistics()
 			if (!technique.enabled)
 				continue;
 
-			ImGui::Text("%*.3f ms (CPU) (%.0f%%)", cpu_digits + 4, technique.average_cpu_duration * 1e-6f, 100 * (technique.average_cpu_duration * 1e-6f) / (post_processing_time_cpu * 1e-6f));
+			if (technique.average_cpu_duration != 0)
+				ImGui::Text("%*.3f ms (CPU) (%.0f%%)", cpu_digits + 4, technique.average_cpu_duration * 1e-6f, 100 * (technique.average_cpu_duration * 1e-6f) / (post_processing_time_cpu * 1e-6f));
+			else
+				ImGui::NewLine();
 		}
 
 		ImGui::EndGroup();
@@ -1316,7 +1319,9 @@ void reshade::runtime::draw_overlay_menu_statistics()
 				ImGui::SameLine(0.0f, 5.0f);
 		}
 
-		ImGui::NewLine(); // Reset ImGui::SameLine() so the following starts on a new line
+		if ((texture_index % num_columns) != 0)
+			ImGui::NewLine(); // Reset ImGui::SameLine() so the following starts on a new line
+
 		ImGui::Separator();
 
 		// Show total memory size
