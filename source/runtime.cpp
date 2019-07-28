@@ -478,9 +478,26 @@ void reshade::runtime::load_effects()
 	_reload_total_effects = effect_files.size();
 	_reload_remaining_effects = _reload_total_effects;
 
+	if (_reload_total_effects == 0)
+		return;
+
 	// Now that we have a list of files, load them in parallel
-	for (const std::filesystem::path &file : effect_files)
-		_worker_threads.emplace_back([this, file]() { size_t id; load_effect(file, id); }); // Keep track of the spawned threads, so the runtime cannot be destroyed while they are still running
+	// Split workload into batches instead of launching a thread for every file to avoid launch overhead and stutters due to too many threads being in flight
+	const size_t num_splits = 6;
+	const size_t split_size = (effect_files.size() + num_splits - 1) / num_splits;
+
+	for (size_t i = 0; i < num_splits; ++i)
+	{
+		const size_t split_beg = i * split_size;
+		const size_t split_end = std::min((i + 1) * split_size, effect_files.size());
+
+		// Keep track of the spawned threads, so the runtime cannot be destroyed while they are still running
+		_worker_threads.emplace_back([this, work = std::vector<std::filesystem::path>(effect_files.data() + split_beg, effect_files.data() + split_end)]() {
+			for (std::filesystem::path file : work) {
+				size_t id; load_effect(file, id);
+			}
+		});
+	}
 }
 void reshade::runtime::load_textures()
 {
