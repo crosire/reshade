@@ -46,6 +46,13 @@ static bool read_file(const std::filesystem::path &path, std::string &data)
 	return true;
 }
 
+static std::string escape_string(std::string s)
+{
+	for (size_t offset = 0; (offset = s.find('\\', offset)) != std::string::npos; offset += 2)
+		s.insert(offset, "\\", 1);
+	return s;
+}
+
 void reshadefx::preprocessor::add_include_path(const std::filesystem::path &path)
 {
 	assert(!path.empty());
@@ -915,6 +922,17 @@ bool reshadefx::preprocessor::evaluate_identifier_as_macro()
 	{
 		error(_token.location, "macro recursion too high");
 		return false;
+	}
+
+	if (_token.literal_as_string == "__FILE__")
+	{
+		push('\"' + escape_string(_token.location.source) + '\"');
+		return true;
+	}
+	if (_token.literal_as_string == "__LINE__")
+	{
+		push(std::to_string(_token.location.line));
+		return true;
 	}
 
 	const auto it = _macros.find(_token.literal_as_string);
