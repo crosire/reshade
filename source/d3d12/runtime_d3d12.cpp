@@ -960,6 +960,13 @@ bool reshade::d3d12::runtime_d3d12::compile_effect(effect_data &effect)
 
 	return success;
 }
+void reshade::d3d12::runtime_d3d12::unload_effect(size_t id)
+{
+	// Wait for all GPU operations to finish so resources are no longer referenced
+	wait_for_command_queue();
+
+	runtime::unload_effect(id);
+}
 void reshade::d3d12::runtime_d3d12::unload_effects()
 {
 	// Wait for all GPU operations to finish so resources are no longer referenced
@@ -1138,9 +1145,15 @@ void reshade::d3d12::runtime_d3d12::render_technique(technique &technique)
 	if (effect_data.storage_size != 0)
 	{
 		void *mapped;
-		effect_data.cb->Map(0, nullptr, &mapped);
-		memcpy(mapped, _uniform_data_storage.data() + effect_data.storage_offset, effect_data.storage_size);
-		effect_data.cb->Unmap(0, nullptr);
+		if (const HRESULT hr = effect_data.cb->Map(0, nullptr, &mapped); SUCCEEDED(hr))
+		{
+			memcpy(mapped, _uniform_data_storage.data() + effect_data.storage_offset, effect_data.storage_size);
+			effect_data.cb->Unmap(0, nullptr);
+		}
+		else
+		{
+			LOG(ERROR) << "Failed to map constant buffer! HRESULT is '" << std::hex << hr << std::dec << "'!";
+		}
 
 		cmd_list->SetGraphicsRootConstantBufferView(0, effect_data.cbv_gpu_address);
 	}

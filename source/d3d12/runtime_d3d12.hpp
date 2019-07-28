@@ -50,6 +50,7 @@ namespace reshade::d3d12
 		void upload_texture(texture &texture, const uint8_t *pixels) override;
 
 		bool compile_effect(effect_data &effect) override;
+		void unload_effect(size_t id) override;
 		void unload_effects() override;
 
 		bool init_technique(technique &technique, const std::unordered_map<std::string, com_ptr<ID3DBlob>> &entry_points);

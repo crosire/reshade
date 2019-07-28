@@ -41,6 +41,7 @@ namespace reshade::vulkan
 		void upload_texture(texture &texture, const uint8_t *pixels);
 
 		bool compile_effect(effect_data &effect);
+		void unload_effect(size_t id);
 		void unload_effects();
 
 		bool init_technique(technique &info, VkShaderModule module, const VkSpecializationInfo &spec_info);

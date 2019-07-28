@@ -1012,6 +1012,13 @@ bool reshade::vulkan::runtime_vk::compile_effect(effect_data &effect)
 
 	return success;
 }
+void reshade::vulkan::runtime_vk::unload_effect(size_t id)
+{
+	// Wait for all GPU operations to finish so resources are no longer referenced
+	vk.DeviceWaitIdle(_device);
+
+	runtime::unload_effect(id);
+}
 void reshade::vulkan::runtime_vk::unload_effects()
 {
 	// Wait for all GPU operations to finish so resources are no longer referenced

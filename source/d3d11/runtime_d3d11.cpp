@@ -1067,14 +1067,11 @@ void reshade::d3d11::runtime_d3d11::render_technique(technique &technique)
 	if (technique_data.uniform_storage_index >= 0)
 	{
 		const auto constant_buffer = _constant_buffers[technique_data.uniform_storage_index].get();
+
 		D3D11_MAPPED_SUBRESOURCE mapped;
-
-		const HRESULT hr = _immediate_context->Map(constant_buffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped);
-
-		if (SUCCEEDED(hr))
+		if (const HRESULT hr = _immediate_context->Map(constant_buffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped); SUCCEEDED(hr))
 		{
 			memcpy(mapped.pData, _uniform_data_storage.data() + technique_data.uniform_storage_offset, mapped.RowPitch);
-
 			_immediate_context->Unmap(constant_buffer, 0);
 		}
 		else

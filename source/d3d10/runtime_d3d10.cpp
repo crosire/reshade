@@ -1059,17 +1059,15 @@ void reshade::d3d10::runtime_d3d10::render_technique(technique &technique)
 	// Setup shader constants
 	if (technique_data.uniform_storage_index >= 0)
 	{
-		void *data = nullptr;
-		D3D10_BUFFER_DESC desc = {};
 		const auto constant_buffer = _constant_buffers[technique_data.uniform_storage_index].get();
 
+		D3D10_BUFFER_DESC desc = {};
 		constant_buffer->GetDesc(&desc);
-		const HRESULT hr = constant_buffer->Map(D3D10_MAP_WRITE_DISCARD, 0, &data);
-
-		if (SUCCEEDED(hr))
+		
+		void *mapped;
+		if (const HRESULT hr = constant_buffer->Map(D3D10_MAP_WRITE_DISCARD, 0, &mapped); SUCCEEDED(hr))
 		{
-			memcpy(data, _uniform_data_storage.data() + technique_data.uniform_storage_offset, desc.ByteWidth);
-
+			memcpy(mapped, _uniform_data_storage.data() + technique_data.uniform_storage_offset, desc.ByteWidth);
 			constant_buffer->Unmap();
 		}
 		else

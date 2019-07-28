@@ -135,9 +135,20 @@ namespace reshade
 		void on_present();
 
 		/// <summary>
+		/// Compile effect from the specified source file and initialize textures, uniforms and techniques.
+		/// </summary>
+		/// <param name="path">The path to an effect source code file.</param>
+		/// <param name="out_id">The ID of the effect.</param>
+		void load_effect(const std::filesystem::path &path, size_t &out_id);
+		/// <summary>
 		/// Load all effects found in the effect search paths.
 		/// </summary>
 		virtual void load_effects();
+		/// <summary>
+		/// Unload the specified effect.
+		/// </summary>
+		/// <param name="id">The ID of the effect.</param>
+		virtual void unload_effect(size_t id);
 		/// <summary>
 		/// Unload all effects currently loaded.
 		/// </summary>
@@ -195,18 +206,6 @@ namespace reshade
 		/// <param name="latest_version">Contains the latest version after this function returned.</param>
 		/// <returns><c>true</c> if an update is available, <c>false</c> otherwise</returns>
 		static bool check_for_update(unsigned long latest_version[3]);
-
-		/// <summary>
-		/// Compile effect from the specified source file and initialize textures, uniforms and techniques.
-		/// </summary>
-		/// <param name="path">The path to an effect source code file.</param>
-		/// <param name="out_id">The ID of the effect.</param>
-		void load_effect(const std::filesystem::path &path, size_t &out_id);
-		/// <summary>
-		/// Unload the specified effect.
-		/// </summary>
-		/// <param name="id">The ID of the effect.</param>
-		void unload_effect(size_t id);
 
 		/// <summary>
 		/// Enable a technique so it is rendered.
