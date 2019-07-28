@@ -60,7 +60,7 @@ namespace reshade
 	struct texture final : reshadefx::texture_info
 	{
 		texture() {}
-		texture(const reshadefx::texture_info &init) : texture_info(init) { }
+		texture(const reshadefx::texture_info &init) : texture_info(init) {}
 
 		int annotation_as_int(const char *ann_name, size_t i = 0) const
 		{
@@ -79,6 +79,11 @@ namespace reshade
 			const auto it = annotations.find(ann_name);
 			if (it == annotations.end()) return std::string_view();
 			return it->second.second.string_data;
+		}
+
+		bool matches_description(const reshadefx::texture_info &desc) const
+		{
+			return width == desc.width && height == desc.height && levels == desc.levels && format == desc.format;
 		}
 
 		size_t effect_index = std::numeric_limits<size_t>::max();

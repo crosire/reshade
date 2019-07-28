@@ -403,9 +403,9 @@ void reshade::runtime::load_effect(const std::filesystem::path &path, size_t &ou
 				effect.errors += _loaded_effects[existing_texture->effect_index].source_file.filename().u8string();
 				effect.errors += ") already created a texture with the same name but different usage; rename the variable to fix this error\n";
 				effect.compile_sucess = false;
+				break;
 			}
-			else if (info.semantic.empty() && (existing_texture->width != info.width || existing_texture->height != info.height ||
-				existing_texture->levels != info.levels || existing_texture->format != info.format))
+			else if (info.semantic.empty() && !existing_texture->matches_description(info))
 			{
 				effect.errors += "warning: " + info.unique_name + ": another effect (";
 				effect.errors += _loaded_effects[existing_texture->effect_index].source_file.filename().u8string();
