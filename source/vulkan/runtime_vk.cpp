@@ -1035,6 +1035,7 @@ void reshade::vulkan::runtime_vk::unload_effects()
 	}
 
 	_effect_data.clear();
+	_effect_sampler_states.clear();
 }
 
 bool reshade::vulkan::runtime_vk::init_technique(technique &info, VkShaderModule module, const VkSpecializationInfo &spec_info)
