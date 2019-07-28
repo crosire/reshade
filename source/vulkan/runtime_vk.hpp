@@ -15,6 +15,11 @@ namespace reshade::vulkan
 {
 	class runtime_vk : public runtime
 	{
+		friend struct vulkan_tex_data;
+		friend struct vulkan_technique_data;
+		friend struct vulkan_pass_data;
+		friend struct vulkan_effect_data;
+
 	public:
 		runtime_vk(VkDevice device, VkPhysicalDevice physical_device, const VkLayerInstanceDispatchTable &instance_table, const VkLayerDispatchTable &device_table);
 

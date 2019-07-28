@@ -32,7 +32,27 @@ namespace reshade::vulkan
 		VkFormat formats[2] = {};
 		VkImage image = VK_NULL_HANDLE;
 		VkImageView view[4] = {};
-		VkImageLayout layout = VK_IMAGE_LAYOUT_UNDEFINED;
+		runtime_vk *runtime = nullptr;
+	};
+
+	struct vulkan_technique_data : base_object
+	{
+	};
+
+	struct vulkan_pass_data : base_object
+	{
+		~vulkan_pass_data()
+		{
+			if (begin_info.renderPass != runtime->_default_render_pass)
+				runtime->vk.DestroyRenderPass(runtime->_device, begin_info.renderPass, nullptr);
+			if (begin_info.framebuffer != VK_NULL_HANDLE)
+				runtime->vk.DestroyFramebuffer(runtime->_device, begin_info.framebuffer, nullptr);
+			runtime->vk.DestroyPipeline(runtime->_device, pipeline, nullptr);
+		}
+
+		VkPipeline pipeline = VK_NULL_HANDLE;
+		VkClearValue clear_values[8] = {};
+		VkRenderPassBeginInfo begin_info = { VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO };
 		runtime_vk *runtime = nullptr;
 	};
 
@@ -45,17 +65,6 @@ namespace reshade::vulkan
 		VkDeviceMemory ubo_mem = VK_NULL_HANDLE;
 		VkDeviceSize storage_size = 0;
 		VkDeviceSize storage_offset = 0;
-	};
-
-	struct vulkan_technique_data : base_object
-	{
-	};
-
-	struct vulkan_pass_data : base_object
-	{
-		VkPipeline pipeline = VK_NULL_HANDLE;
-		VkClearValue clear_values[8] = {};
-		VkRenderPassBeginInfo begin_info = { VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO };
 	};
 
 	static uint32_t find_memory_type_index(const VkPhysicalDeviceMemoryProperties &props, VkMemoryPropertyFlags flags, uint32_t type_bits)
@@ -237,15 +246,17 @@ bool reshade::vulkan::runtime_vk::on_init(VkSwapchainKHR swapchain, const VkSwap
 		attachment_descs[1].samples = VK_SAMPLE_COUNT_1_BIT;
 		attachment_descs[1].loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
 		attachment_descs[1].storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-		attachment_descs[1].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
+		attachment_descs[1].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE; //VK_ATTACHMENT_LOAD_OP_LOAD;
 		attachment_descs[1].stencilStoreOp = VK_ATTACHMENT_STORE_OP_STORE;
-		attachment_descs[1].initialLayout = VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_STENCIL_ATTACHMENT_OPTIMAL;
+		attachment_descs[1].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;//VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_STENCIL_ATTACHMENT_OPTIMAL;
 		attachment_descs[1].finalLayout = VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_STENCIL_ATTACHMENT_OPTIMAL;
 
 		VkSubpassDependency subdep = {};
 		subdep.srcSubpass = VK_SUBPASS_EXTERNAL;
+		subdep.dstSubpass = 0;
 		subdep.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-		subdep.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+		subdep.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+		subdep.srcAccessMask = 0;
 		subdep.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
 		VkSubpassDescription subpass = {};
 		subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
@@ -391,6 +402,9 @@ void reshade::vulkan::runtime_vk::on_reset()
 
 void reshade::vulkan::runtime_vk::on_present(uint32_t swapchain_image_index)
 {
+	if (!_is_initialized)
+		return;
+
 	_swap_index = swapchain_image_index;
 
 	vk.QueueWaitIdle(_current_queue); // TOOD
@@ -590,6 +604,11 @@ bool reshade::vulkan::runtime_vk::init_texture(texture &info)
 		impl->view[3] = impl->view[1];
 	}
 
+	// Transition to shader read image layout
+	const VkCommandBuffer cmd_list = create_command_list();
+	transition_layout(cmd_list, impl->image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+	execute_command_list(cmd_list);
+
 	return true;
 }
 void reshade::vulkan::runtime_vk::upload_texture(texture &texture, const uint8_t *pixels)
@@ -653,7 +672,7 @@ void reshade::vulkan::runtime_vk::upload_texture(texture &texture, const uint8_t
 
 	const VkCommandBuffer cmd_list = create_command_list();
 
-	transition_layout(cmd_list, impl->image, impl->layout, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+	transition_layout(cmd_list, impl->image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 	{ // Copy data from upload buffer into target texture
 		VkBufferImageCopy copy_region = {};
 		copy_region.imageExtent = { texture.width, texture.height, 1u };
@@ -661,7 +680,7 @@ void reshade::vulkan::runtime_vk::upload_texture(texture &texture, const uint8_t
 
 		vk.CmdCopyBufferToImage(cmd_list, intermediate, impl->image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copy_region);
 	}
-	transition_layout(cmd_list, impl->image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, impl->layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+	transition_layout(cmd_list, impl->image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
 	generate_mipmaps(cmd_list, texture);
 
@@ -1010,6 +1029,11 @@ void reshade::vulkan::runtime_vk::unload_effects()
 		vk.FreeMemory(_device, data.ubo_mem, nullptr);
 	}
 
+	for (auto &[hash, sampler] : _effect_sampler_states)
+	{
+		vk.DestroySampler(_device, sampler, nullptr);
+	}
+
 	_effect_data.clear();
 }
 
@@ -1023,6 +1047,8 @@ bool reshade::vulkan::runtime_vk::init_technique(technique &info, VkShaderModule
 
 		auto &pass_data = *info.passes_data.back()->as<vulkan_pass_data>();
 		const auto &pass_info = info.passes[pass_index];
+
+		pass_data.runtime = this;
 
 		const auto literal_to_comp_func = [](unsigned int value) -> VkCompareOp {
 			switch (value)
@@ -1126,8 +1152,8 @@ bool reshade::vulkan::runtime_vk::init_technique(technique &info, VkShaderModule
 			attachment_desc.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
 			attachment_desc.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
 			attachment_desc.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-			attachment_desc.initialLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-			attachment_desc.finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+			attachment_desc.initialLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+			attachment_desc.finalLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 		}
 
 		if (pass_info.clear_render_targets)
@@ -1299,25 +1325,12 @@ void reshade::vulkan::runtime_vk::render_technique(technique &technique)
 		const auto &pass_info = technique.passes[i];
 		const auto &pass_data = *technique.passes_data[i]->as<vulkan_pass_data>();
 
-		// Transition render targets
-		for (unsigned int k = 0; k < 8 && !pass_info.render_target_names[k].empty(); ++k)
-		{
-			const auto texture_impl = std::find_if(_textures.begin(), _textures.end(),
-				[&render_target = pass_info.render_target_names[k]](const auto &item) {
-				return item.unique_name == render_target;
-			})->impl->as<vulkan_tex_data>();
-
-			if (texture_impl->layout != VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL)
-				transition_layout(cmd_list, texture_impl->image, texture_impl->layout, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-			texture_impl->layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-		}
-
 		// Save back buffer of previous pass
 		const VkImageCopy copy_range = {
 			{ VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 }, { 0, 0, 0 },
 			{ VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 }, { 0, 0, 0 }, { _width, _height, 1 }
 		};
-		transition_layout(cmd_list, _backbuffer_texture, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+		transition_layout(cmd_list, _backbuffer_texture, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 		transition_layout(cmd_list, _swapchain_images[_swap_index], VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
 		vk.CmdCopyImage(cmd_list, _swapchain_images[_swap_index], VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, _backbuffer_texture, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copy_range);
 		transition_layout(cmd_list, _backbuffer_texture, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
@@ -1513,33 +1526,38 @@ void reshade::vulkan::runtime_vk::render_imgui_draw_data(ImDrawData *draw_data)
 	// Create and grow vertex/index buffers if needed
 	if (_imgui_index_buffer_size < uint32_t(draw_data->TotalIdxCount))
 	{
-		const uint32_t new_size = draw_data->TotalIdxCount + 10000;
-		_imgui_index_buffer = create_buffer(
-			new_size * sizeof(ImDrawIdx),
-			VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
-			0);
-		if (_imgui_index_buffer == VK_NULL_HANDLE)
-			return;
-
 		resize_mem = true;
-		_imgui_index_buffer_size = new_size;
+		_imgui_index_buffer_size = draw_data->TotalIdxCount + 10000;
 	}
 	if (_imgui_vertex_buffer_size < uint32_t(draw_data->TotalVtxCount))
 	{
-		const uint32_t new_size = draw_data->TotalVtxCount + 5000;
-		_imgui_vertex_buffer = create_buffer(
-			new_size * sizeof(ImDrawVert),
-			VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-			0);
-		if (_imgui_vertex_buffer == VK_NULL_HANDLE)
-			return;
-
 		resize_mem = true;
-		_imgui_vertex_buffer_size = new_size;
+		_imgui_vertex_buffer_size = draw_data->TotalVtxCount + 5000;
 	}
 
 	if (resize_mem)
 	{
+		if (_imgui_index_buffer != VK_NULL_HANDLE)
+			vk.DestroyBuffer(_device, _imgui_index_buffer, nullptr);
+		if (_imgui_vertex_buffer != VK_NULL_HANDLE)
+			vk.DestroyBuffer(_device, _imgui_vertex_buffer, nullptr);
+		if (_imgui_vertex_mem != VK_NULL_HANDLE)
+			vk.FreeMemory(_device, _imgui_vertex_mem, nullptr);
+		_imgui_vertex_mem = VK_NULL_HANDLE;
+
+		_imgui_index_buffer = create_buffer(
+			_imgui_index_buffer_size * sizeof(ImDrawIdx),
+			VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
+			0);
+		_imgui_vertex_buffer = create_buffer(
+			_imgui_vertex_buffer_size * sizeof(ImDrawVert),
+			VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+			0);
+
+		if (_imgui_index_buffer == VK_NULL_HANDLE ||
+			_imgui_vertex_buffer == VK_NULL_HANDLE)
+			return;
+
 		VkMemoryRequirements index_reqs = {};
 		vk.GetBufferMemoryRequirements(_device, _imgui_index_buffer, &index_reqs);
 		VkMemoryRequirements vertex_reqs = {};
@@ -1629,8 +1647,6 @@ void reshade::vulkan::runtime_vk::render_imgui_draw_data(ImDrawData *draw_data)
 			vk.CmdSetScissor(cmd_list, 0, 1, &scissor_rect);
 
 			auto tex_data = static_cast<const vulkan_tex_data *>(cmd.TextureId);
-			// TODO: Transition resource state of the user texture?
-			assert(tex_data->layout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
 			VkWriteDescriptorSet write { VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
 			write.dstBinding = 0;
