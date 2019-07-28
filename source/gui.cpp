@@ -2119,12 +2119,9 @@ void reshade::runtime::draw_overlay_technique_editor()
 
 			if (effect.runtime_loaded && (_renderer_id & 0xF0000) == 0)
 			{
-				if (ImGui::Button("Show Results..", ImVec2(button_width, 0)))
-					ImGui::OpenPopup("##result_selector");
-
-				if (ImGui::BeginPopup("##result_selector"))
+				if (imgui_popup_button("Show Results..", button_width))
 				{
-					if (ImGui::MenuItem("Generated HLSL/GLSL"))
+					if (ImGui::MenuItem("Generated HLSL"))
 						condition = condition::input, selected_index = 0;
 
 					ImGui::Separator();
@@ -2136,8 +2133,11 @@ void reshade::runtime::draw_overlay_technique_editor()
 					ImGui::EndPopup();
 				}
 			}
-			else if (ImGui::Button("Show HLSL/GLSL", ImVec2(button_width, 0)))
-				condition = condition::input, selected_index = 0;
+			else if (ImGui::Button("Show Results..", ImVec2(button_width, 0)))
+			{
+				condition = condition::input;
+				selected_index = 0;
+			}
 
 			if (condition != condition::pass)
 			{
