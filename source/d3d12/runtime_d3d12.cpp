@@ -1445,12 +1445,14 @@ void reshade::d3d12::runtime_d3d12::render_imgui_draw_data(ImDrawData *draw_data
 			};
 			cmd_list->RSSetScissorRects(1, &scissor_rect);
 
-			const auto tex_data = static_cast<const d3d12_tex_data *>(cmd.TextureId);
-			// TODO: Transition resource state of the user texture?
-			assert(tex_data->state == D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+			const auto texture_impl = static_cast<d3d12_tex_data *>(cmd.TextureId);
+
+			if (texture_impl->state != D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE)
+				transition_state(cmd_list, texture_impl->resource, texture_impl->state, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+			texture_impl->state = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
 
 			// First descriptor in resource-specific descriptor heap is SRV to top-most mipmap level
-			ID3D12DescriptorHeap *const descriptor_heap = { tex_data->descriptors.get() };
+			ID3D12DescriptorHeap *const descriptor_heap = { texture_impl->descriptors.get() };
 			cmd_list->SetDescriptorHeaps(1, &descriptor_heap);
 			cmd_list->SetGraphicsRootDescriptorTable(1, descriptor_heap->GetGPUDescriptorHandleForHeapStart());
 
