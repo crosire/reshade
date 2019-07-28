@@ -9,7 +9,6 @@
 	WindowStartupLocation="CenterOwner">
 	<DockPanel LastChildFill="True">
 		<Label Content="Select which effect files you want to install:" DockPanel.Dock="Top" Margin="5,5,5,0" />
-		<Label Content="It is recommended to choose as few as possible!" DockPanel.Dock="Top" Margin="5,0,5,0"/>
 		<DockPanel DockPanel.Dock="Bottom" Margin="10,5,10,10">
 			<Button Content="Uncheck All" Width="100" HorizontalAlignment="Left" Click="ChangeChecked" />
 			<Button Content="OK" Width="100" HorizontalAlignment="Right" Click="ConfirmSelection" />
