@@ -2738,51 +2738,51 @@ bool reshadefx::parser::parse_technique_pass(pass_info &info)
 			const symbol symbol = find_symbol(identifier, scope, exclusive);
 
 			// Ignore invalid symbols that were added during error recovery
-			if (symbol.id == 0xFFFFFFFF)
-				return consume_until('}'), false;
-
-			if (is_shader_state)
+			if (symbol.id != 0xFFFFFFFF)
 			{
-				if (!symbol.id)
-					return error(location, 3501, "undeclared identifier '" + identifier + "', expected function name"), consume_until('}'), false;
-				else if (!symbol.type.is_function())
-					return error(location, 3020, "type mismatch, expected function name"), consume_until('}'), false;
+				if (is_shader_state)
+				{
+					if (!symbol.id)
+						return error(location, 3501, "undeclared identifier '" + identifier + "', expected function name"), consume_until('}'), false;
+					else if (!symbol.type.is_function())
+						return error(location, 3020, "type mismatch, expected function name"), consume_until('}'), false;
 
-				const bool is_vs = state[0] == 'V';
-				const bool is_ps = state[0] == 'P';
+					const bool is_vs = state[0] == 'V';
+					const bool is_ps = state[0] == 'P';
 
-				// Look up the matching function info for this function definition
-				function_info &function_info = _codegen->find_function(symbol.id);
+					// Look up the matching function info for this function definition
+					function_info &function_info = _codegen->find_function(symbol.id);
 
-				// We potentially need to generate a special entry point function which translates between function parameters and input/output variables
-				_codegen->define_entry_point(function_info, is_ps);
+					// We potentially need to generate a special entry point function which translates between function parameters and input/output variables
+					_codegen->define_entry_point(function_info, is_ps);
 
-				if (is_vs)
-					info.vs_entry_point = function_info.unique_name;
-				if (is_ps)
-					info.ps_entry_point = function_info.unique_name;
-			}
-			else
-			{
-				assert(is_texture_state);
+					if (is_vs)
+						info.vs_entry_point = function_info.unique_name;
+					if (is_ps)
+						info.ps_entry_point = function_info.unique_name;
+				}
+				else
+				{
+					assert(is_texture_state);
 
-				if (!symbol.id)
-					return error(location, 3004, "undeclared identifier '" + identifier + "', expected texture name"), consume_until('}'), false;
-				else if (!symbol.type.is_texture())
-					return error(location, 3020, "type mismatch, expected texture name"), consume_until('}'), false;
+					if (!symbol.id)
+						return error(location, 3004, "undeclared identifier '" + identifier + "', expected texture name"), consume_until('}'), false;
+					else if (!symbol.type.is_texture())
+						return error(location, 3020, "type mismatch, expected texture name"), consume_until('}'), false;
 
-				const texture_info &target_info = _codegen->find_texture(symbol.id);
+					const texture_info &target_info = _codegen->find_texture(symbol.id);
 
-				// Verify that all render targets in this pass have the same dimensions
-				if (info.viewport_width != 0 && info.viewport_height != 0 && (target_info.width != info.viewport_width || target_info.height != info.viewport_height))
-					return error(location, 4545, "cannot use multiple render targets with different texture dimensions (is " + std::to_string(target_info.width) + 'x' + std::to_string(target_info.height) + ", but expected " + std::to_string(info.viewport_width) + 'x' + std::to_string(info.viewport_height) + ')'), false;
+					// Verify that all render targets in this pass have the same dimensions
+					if (info.viewport_width != 0 && info.viewport_height != 0 && (target_info.width != info.viewport_width || target_info.height != info.viewport_height))
+						return error(location, 4545, "cannot use multiple render targets with different texture dimensions (is " + std::to_string(target_info.width) + 'x' + std::to_string(target_info.height) + ", but expected " + std::to_string(info.viewport_width) + 'x' + std::to_string(info.viewport_height) + ')'), false;
 
-				info.viewport_width = target_info.width;
-				info.viewport_height = target_info.height;
+					info.viewport_width = target_info.width;
+					info.viewport_height = target_info.height;
 
-				const size_t target_index = state.size() > 12 ? (state[12] - '0') : 0;
+					const size_t target_index = state.size() > 12 ? (state[12] - '0') : 0;
 
-				info.render_target_names[target_index] = target_info.unique_name;
+					info.render_target_names[target_index] = target_info.unique_name;
+				}
 			}
 		}
 		else // Handle the rest of the pass states
