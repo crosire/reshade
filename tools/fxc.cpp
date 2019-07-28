@@ -11,7 +11,7 @@
 #include <fstream>
 #include <iostream>
 
-void print_usage(const char *path)
+static void print_usage(const char *path)
 {
 	printf(R"(usage: %s [options] <filename>
 
@@ -30,6 +30,9 @@ Options:
   --hlsl                    Print HLSL code for the previously specified entry point.
   --shader-model <value>    HLSL shader model version. Can be 30, 40, 41, 50, ...
 
+  --width                   Value of the 'BUFFER_WIDTH' preprocessor macro.
+  --height                  Value of the 'BUFFER_HEIGHT' preprocessor macro.
+
   -Zi                       Enable debug information.
 	)", path);
 }
@@ -40,6 +43,8 @@ int main(int argc, char *argv[])
 	const char *preprocess = nullptr;
 	const char *errorfile = nullptr;
 	const char *objectfile = nullptr;
+	const char *buffer_width = "800";
+	const char *buffer_height = "600";
 	bool print_glsl = false;
 	bool print_hlsl = false;
 	bool debug_info = false;
@@ -49,10 +54,6 @@ int main(int argc, char *argv[])
 	reshadefx::preprocessor pp;
 	pp.add_macro_definition("__RESHADE__", std::to_string(VERSION_MAJOR * 10000 + VERSION_MINOR * 100 + VERSION_REVISION));
 	pp.add_macro_definition("__RESHADE_PERFORMANCE_MODE__", "0");
-	pp.add_macro_definition("BUFFER_WIDTH", "800");
-	pp.add_macro_definition("BUFFER_HEIGHT", "600");
-	pp.add_macro_definition("BUFFER_RCP_WIDTH", "(1.0 / BUFFER_WIDTH)");
-	pp.add_macro_definition("BUFFER_RCP_HEIGHT", "(1.0 / BUFFER_HEIGHT)");
 
 	// Parse command-line arguments
 	for (int i = 1; i < argc; ++i)
@@ -64,50 +65,48 @@ int main(int argc, char *argv[])
 				print_usage(argv[0]);
 				return 0;
 			}
-			else if (0 == strcmp(arg, "--version"))
+			if (0 == strcmp(arg, "--version"))
 			{
 				printf("%s\n", VERSION_STRING_PRODUCT);
 				return 0;
 			}
-			else if (0 == strcmp(arg, "-D"))
+
+			if (0 == strcmp(arg, "-D"))
 			{
 				char *macro = argv[++i];
 				char *value = strchr(macro, '=');
 				if (value) *value++ = '\0';
 				pp.add_macro_definition(macro, value ? value : "1");
+				continue;
 			}
-			else if (0 == strcmp(arg, "-I"))
+
+			if (0 == strcmp(arg, "-I"))
 			{
 				pp.add_include_path(argv[++i]);
+				continue;
 			}
-			else if (0 == strcmp(arg, "-P"))
-			{
-				preprocess = argv[++i];
-			}
-			else if (0 == strcmp(arg, "-Fe"))
-			{
-				errorfile = argv[++i];
-			}
-			else if (0 == strcmp(arg, "-Fo"))
-			{
-				objectfile = argv[++i];
-			}
-			else if (0 == strcmp(arg, "-Zi"))
-			{
+
+			if (0 == strcmp(arg, "-Zi"))
 				debug_info = true;
-			}
 			else if (0 == strcmp(arg, "--glsl"))
-			{
 				print_glsl = true;
-			}
 			else if (0 == strcmp(arg, "--hlsl"))
-			{
 				print_hlsl = true;
-			}
+
+			if (i + 1 >= argc)
+				break;
+			else if (0 == strcmp(arg, "-P"))
+				preprocess = argv[++i];
+			else if (0 == strcmp(arg, "-Fe"))
+				errorfile = argv[++i];
+			else if (0 == strcmp(arg, "-Fo"))
+				objectfile = argv[++i];
 			else if (0 == strcmp(arg, "--shader-model"))
-			{
 				shader_model = std::strtol(argv[++i], nullptr, 10);
-			}
+			else if (0 == strcmp(arg, "--width"))
+				buffer_width = argv[++i];
+			else if (0 == strcmp(arg, "--height"))
+				buffer_height = argv[++i];
 		}
 		else
 		{
@@ -126,6 +125,11 @@ int main(int argc, char *argv[])
 		print_usage(argv[0]);
 		return 1;
 	}
+
+	pp.add_macro_definition("BUFFER_WIDTH", buffer_width);
+	pp.add_macro_definition("BUFFER_HEIGHT", buffer_height);
+	pp.add_macro_definition("BUFFER_RCP_WIDTH", "(1.0 / BUFFER_WIDTH)");
+	pp.add_macro_definition("BUFFER_RCP_HEIGHT", "(1.0 / BUFFER_HEIGHT)");
 
 	if (!pp.append_file(filename))
 	{
