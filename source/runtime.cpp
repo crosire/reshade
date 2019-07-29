@@ -483,12 +483,11 @@ void reshade::runtime::load_effects()
 
 	// Now that we have a list of files, load them in parallel
 	// Split workload into batches instead of launching a thread for every file to avoid launch overhead and stutters due to too many threads being in flight
-	const size_t num_splits = std::min(effect_files.size(), std::max(std::max(std::thread::hardware_concurrency(), 1u) - 1u, 1u));
-	const size_t split_size = (effect_files.size() + num_splits - 1) / num_splits;
+	std::vector<std::vector<std::filesystem::path>> thread_files;
+	thread_files.resize(std::min(effect_files.size(), std::max(std::max(std::thread::hardware_concurrency(), 1u) - 1u, 1u)));
 
-	std::vector<std::vector<std::filesystem::path>> thread_files(num_splits);
 	for (size_t i = 0; i < effect_files.size(); ++i)
-		thread_files[std::lrintf(-0.5f + static_cast<float>(i) * num_splits / effect_files.size())].push_back(effect_files[i]);
+		thread_files[std::lrintf(static_cast<float>(i * thread_files.size()) / effect_files.size() - 0.5f)].push_back(effect_files[i]);
 
 	// Keep track of the spawned threads, so the runtime cannot be destroyed while they are still running
 	for (size_t i = 0; i < thread_files.size(); ++i)
