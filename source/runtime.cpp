@@ -487,7 +487,7 @@ void reshade::runtime::load_effects()
 	thread_files.resize(std::min(effect_files.size(), std::max(std::max(std::thread::hardware_concurrency(), 1u) - 1u, 1u)));
 
 	for (size_t i = 0; i < effect_files.size(); ++i)
-		thread_files[static_cast<size_t>(static_cast<float>(i * thread_files.size()) / effect_files.size())].push_back(effect_files[i]);
+		thread_files[i * thread_files.size() / effect_files.size()].push_back(effect_files[i]);
 
 	// Keep track of the spawned threads, so the runtime cannot be destroyed while they are still running
 	for (size_t i = 0; i < thread_files.size(); ++i)
