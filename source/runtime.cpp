@@ -488,7 +488,7 @@ void reshade::runtime::load_effects()
 
 	std::vector<std::vector<std::filesystem::path>> thread_files(num_splits);
 	for (size_t i = 0; i < effect_files.size(); ++i)
-		thread_files[std::lrint(-0.5 + static_cast<double>(i) * num_splits / effect_files.size())].push_back(effect_files[i]);
+		thread_files[std::lrintf(-0.5f + static_cast<float>(i) * num_splits / effect_files.size())].push_back(effect_files[i]);
 
 	// Keep track of the spawned threads, so the runtime cannot be destroyed while they are still running
 	for (size_t i = 0; i < thread_files.size(); ++i)
