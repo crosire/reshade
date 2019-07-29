@@ -483,21 +483,20 @@ void reshade::runtime::load_effects()
 
 	// Now that we have a list of files, load them in parallel
 	// Split workload into batches instead of launching a thread for every file to avoid launch overhead and stutters due to too many threads being in flight
-	const size_t num_splits = std::min(effect_files.size(), std::max<size_t>(1, static_cast<int>(std::thread::hardware_concurrency()) - 1));
+	const size_t num_splits = std::min(effect_files.size(), std::max(std::max(std::thread::hardware_concurrency(), 1u) - 1u, 1u));
 	const size_t split_size = (effect_files.size() + num_splits - 1) / num_splits;
 
-	for (size_t i = 0; i < num_splits; ++i)
-	{
-		const size_t split_beg = i * split_size;
-		const size_t split_end = std::min((i + 1) * split_size, effect_files.size());
+	std::vector<std::vector<std::filesystem::path>> thread_files(num_splits);
+	for (size_t i = 0; i < effect_files.size(); ++i)
+		thread_files[std::lrint(-0.5 + static_cast<double>(i) * num_splits / effect_files.size())].push_back(effect_files[i]);
 
-		// Keep track of the spawned threads, so the runtime cannot be destroyed while they are still running
-		_worker_threads.emplace_back([this, work = std::vector<std::filesystem::path>(effect_files.data() + split_beg, effect_files.data() + split_end)]() {
-			for (std::filesystem::path file : work) {
+	// Keep track of the spawned threads, so the runtime cannot be destroyed while they are still running
+	for (size_t i = 0; i < thread_files.size(); ++i)
+		_worker_threads.emplace_back([this, files = thread_files[i]]() {
+			for (std::filesystem::path file : files) {
 				size_t id; load_effect(file, id);
 			}
 		});
-	}
 }
 void reshade::runtime::load_textures()
 {
