@@ -490,9 +490,9 @@ void reshade::runtime::load_effects()
 		thread_files[i * thread_files.size() / effect_files.size()].push_back(effect_files[i]);
 
 	// Keep track of the spawned threads, so the runtime cannot be destroyed while they are still running
-	for (size_t i = 0; i < thread_files.size(); ++i)
-		_worker_threads.emplace_back([this, files = thread_files[i]]() {
-			for (std::filesystem::path file : files) {
+	for (const std::vector<std::filesystem::path> &files : thread_files)
+		_worker_threads.emplace_back([this, files]() {
+			for (const std::filesystem::path &file : files) {
 				size_t id; load_effect(file, id);
 			}
 		});
