@@ -37,7 +37,6 @@ namespace reshade::vulkan
 		unsigned int cleared_depth_buffer_index = 0;
 		int depth_buffer_texture_format = 0; // No depth buffer texture format filter by default
 		std::atomic<unsigned int> clear_DSV_iter = 1;
-		VkExtent2D _render_area = {};
 
 		VkDevice _device;
 		VkPhysicalDevice _physical_device;
@@ -92,6 +91,7 @@ namespace reshade::vulkan
 		std::vector<VkImageView> _swapchain_views;
 		std::vector<VkFramebuffer> _swapchain_frames;
 		VkRenderPass _default_render_pass = VK_NULL_HANDLE;
+		VkExtent2D _render_area = {};
 		VkFormat _backbuffer_format = VK_FORMAT_UNDEFINED;
 
 		VkImage _backbuffer_texture = VK_NULL_HANDLE;

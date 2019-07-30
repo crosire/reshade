@@ -536,8 +536,7 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 	if (!runtime->on_init(*pSwapchain, *pCreateInfo, s_surface_windows.at(pCreateInfo->surface)))
 		LOG(ERROR) << "Failed to initialize Vulkan runtime environment on runtime " << runtime.get() << '.';
 
-	if (const auto it = s_device_runtimes.find(device); it == s_device_runtimes.end())
-		s_device_runtimes[device] = runtime;
+	s_device_runtimes[device] = runtime;
 	s_runtimes[*pSwapchain] = runtime;
 
 	return VK_SUCCESS;
@@ -772,9 +771,9 @@ void VKAPI_CALL vkCmdBeginRenderPass(VkCommandBuffer commandBuffer, const VkRend
 		{
 			// retrieve the current depth stencil image view
 			// Check if aspect ratio is similar to the back buffer one
-			const float width_factor = float(runtime->_render_area.width) / float(it->second.image_view_data.image_data.extent.width);
-			const float height_factor = float(runtime->_render_area.height) / float(it->second.image_view_data.image_data.extent.height);
-			const float aspect_ratio = float(runtime->_render_area.width) / float(runtime->_render_area.height);
+			const float width_factor = float(runtime->frame_width()) / float(it->second.image_view_data.image_data.extent.width);
+			const float height_factor = float(runtime->frame_height()) / float(it->second.image_view_data.image_data.extent.height);
+			const float aspect_ratio = float(runtime->frame_width()) / float(runtime->frame_height());
 			const float texture_aspect_ratio = float(it->second.image_view_data.image_data.extent.width) / float(it->second.image_view_data.image_data.extent.height);
 
 			if (fabs(texture_aspect_ratio - aspect_ratio) > 0.1f || width_factor > 2.0f || height_factor > 2.0f || width_factor < 0.5f || height_factor < 0.5f)
@@ -797,18 +796,14 @@ void vkCmdDraw(VkCommandBuffer commandBuffer, uint32_t vertexCount, uint32_t ins
 
 	VkDevice device = s_command_buffer_mapping.at(commandBuffer);
 
-	{ const std::lock_guard<std::mutex> lock(s_mutex);
 	trampoline = s_device_dispatch.at(get_dispatch_key(device)).CmdDraw;
 	assert(trampoline != nullptr);
-	}
 
 	trampoline(commandBuffer, vertexCount, instanceCount, firstVertex, firstInstance);
 
-	{ const std::lock_guard<std::mutex> lock(s_trackers_per_command_buffer_mutex);
-		// retrieve the current depth stencil image view
-		reshade::vulkan::draw_call_tracker *command_buffer_tracker = &s_trackers_per_command_buffer.at(commandBuffer);
-		command_buffer_tracker->on_draw(command_buffer_tracker->_depthstencil, vertexCount * instanceCount);
-	}
+	// retrieve the current depth stencil image view
+	reshade::vulkan::draw_call_tracker *command_buffer_tracker = &s_trackers_per_command_buffer.at(commandBuffer);
+	command_buffer_tracker->on_draw(command_buffer_tracker->_depthstencil, vertexCount * instanceCount);
 }
 
 void vkCmdDrawIndexed(VkCommandBuffer commandBuffer, uint32_t indexCount, uint32_t instanceCount, uint32_t firstIndex, int32_t vertexOffset, uint32_t firstInstance)
@@ -821,18 +816,14 @@ void vkCmdDrawIndexed(VkCommandBuffer commandBuffer, uint32_t indexCount, uint32
 
 	VkDevice device = s_command_buffer_mapping.at(commandBuffer);
 
-	{ const std::lock_guard<std::mutex> lock(s_mutex);
 	trampoline = s_device_dispatch.at(get_dispatch_key(device)).CmdDrawIndexed;
 	assert(trampoline != nullptr);
-	}
 
 	trampoline(commandBuffer, indexCount, instanceCount, firstIndex, vertexOffset, firstInstance);
 
-	{ const std::lock_guard<std::mutex> lock(s_trackers_per_command_buffer_mutex);
-		// retrieve the current depth stencil image view
-		reshade::vulkan::draw_call_tracker *command_buffer_tracker = &s_trackers_per_command_buffer.at(commandBuffer);
-		command_buffer_tracker->on_draw(command_buffer_tracker->_depthstencil, indexCount * instanceCount);
-	}
+	// retrieve the current depth stencil image view
+	reshade::vulkan::draw_call_tracker *command_buffer_tracker = &s_trackers_per_command_buffer.at(commandBuffer);
+	command_buffer_tracker->on_draw(command_buffer_tracker->_depthstencil, indexCount * instanceCount);
 }
 
 void vkCmdDrawIndexedIndirect(VkCommandBuffer commandBuffer, VkBuffer buffer, VkDeviceSize offset, uint32_t drawCount, uint32_t stride)
@@ -845,10 +836,8 @@ void vkCmdDrawIndexedIndirect(VkCommandBuffer commandBuffer, VkBuffer buffer, Vk
 
 	VkDevice device = s_command_buffer_mapping.at(commandBuffer);
 
-	{ const std::lock_guard<std::mutex> lock(s_mutex);
 	trampoline = s_device_dispatch.at(get_dispatch_key(device)).CmdDrawIndexedIndirect;
 	assert(trampoline != nullptr);
-	}
 
 	trampoline(commandBuffer, buffer, offset, drawCount, stride);
 
