@@ -6,6 +6,7 @@
 #include "log.hpp"
 #include "runtime_vk.hpp"
 #include "runtime_objects.hpp"
+#include "ini_file.hpp"
 #include "resource_loading.hpp"
 #include <imgui.h>
 
@@ -82,6 +83,24 @@ reshade::vulkan::runtime_vk::runtime_vk(VkDevice device, VkPhysicalDevice physic
 	_renderer_id = 0x20000;
 
 	instance_table.GetPhysicalDeviceMemoryProperties(physical_device, &_memory_props);
+
+#if RESHADE_GUI
+	subscribe_to_ui("Vulkan", [this]() { draw_debug_menu(); });
+#endif
+	subscribe_to_load_config([this](const ini_file &config) {
+		config.get("VULKAN_BUFFER_DETECTION", "DepthBufferRetrievalMode", depth_buffer_before_clear);
+		config.get("VULKAN_BUFFER_DETECTION", "DepthBufferTextureFormat", depth_buffer_texture_format);
+		config.get("VULKAN_BUFFER_DETECTION", "DepthBufferMoreCopies", depth_buffer_more_copies);
+		config.get("VULKAN_BUFFER_DETECTION", "ExtendedDepthBufferDetection", extended_depth_buffer_detection);
+		config.get("VULKAN_BUFFER_DETECTION", "DepthBufferClearingNumber", cleared_depth_buffer_index);
+	});
+	subscribe_to_save_config([this](ini_file &config) {
+		config.set("VULKAN_BUFFER_DETECTION", "DepthBufferRetrievalMode", depth_buffer_before_clear);
+		config.set("VULKAN_BUFFER_DETECTION", "DepthBufferTextureFormat", depth_buffer_texture_format);
+		config.set("VULKAN_BUFFER_DETECTION", "DepthBufferMoreCopies", depth_buffer_more_copies);
+		config.set("VULKAN_BUFFER_DETECTION", "ExtendedDepthBufferDetection", extended_depth_buffer_detection);
+		config.set("VULKAN_BUFFER_DETECTION", "DepthBufferClearingNumber", cleared_depth_buffer_index);
+	});
 }
 
 VkImage reshade::vulkan::runtime_vk::create_image(uint32_t width, uint32_t height, uint32_t levels, VkFormat format, VkImageUsageFlags usage_flags, VkMemoryPropertyFlags mem_flags, VkImageCreateFlags flags)
@@ -398,12 +417,18 @@ void reshade::vulkan::runtime_vk::on_reset()
 	for (VkDeviceMemory allocation : _allocations)
 		vk.FreeMemory(_device, allocation, nullptr);
 	_allocations.clear();
+
+	_is_multisampling_enabled = false;
 }
 
-void reshade::vulkan::runtime_vk::on_present(uint32_t swapchain_image_index)
+void reshade::vulkan::runtime_vk::on_present(uint32_t swapchain_image_index, draw_call_tracker &tracker)
 {
 	if (!_is_initialized)
 		return;
+
+	_vertices = tracker.total_vertices();
+	_drawcalls = tracker.total_drawcalls();
+	_current_tracker = &tracker;
 
 	_swap_index = swapchain_image_index;
 
@@ -412,6 +437,12 @@ void reshade::vulkan::runtime_vk::on_present(uint32_t swapchain_image_index)
 
 	update_and_render_effects();
 	runtime::on_present();
+}
+
+void reshade::vulkan::runtime_vk::on_create_graphics_pipelines(const VkGraphicsPipelineCreateInfo* pCreateInfos)
+{
+	if (pCreateInfos->sType == VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO)
+		_is_multisampling_enabled = true;
 }
 
 void reshade::vulkan::runtime_vk::capture_screenshot(uint8_t *buffer) const
@@ -1675,5 +1706,14 @@ void reshade::vulkan::runtime_vk::render_imgui_draw_data(ImDrawData *draw_data)
 	vk.CmdEndRenderPass(cmd_list);
 
 	execute_command_list_async(cmd_list);
+}
+
+void reshade::vulkan::runtime_vk::draw_debug_menu()
+{
+	ImGui::Text("MSAA is %s", _is_multisampling_enabled ? "active" : "inactive");
+	ImGui::Spacing();
+
+	ImGui::Spacing();
+	ImGui::Spacing();
 }
 #endif

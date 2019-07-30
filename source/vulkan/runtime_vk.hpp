@@ -7,6 +7,7 @@
 
 #include "runtime.hpp"
 #include "vk_handle.hpp"
+#include "draw_call_tracker.hpp"
 
 namespace reshade { enum class texture_reference; }
 namespace reshadefx { struct sampler_info; }
@@ -25,9 +26,17 @@ namespace reshade::vulkan
 
 		bool on_init(VkSwapchainKHR swapchain, const VkSwapchainCreateInfoKHR &desc, HWND hwnd);
 		void on_reset();
-		void on_present(uint32_t swapchain_image_index);
+		void on_present(uint32_t swapchain_image_index, draw_call_tracker &tracker);
+		void on_create_graphics_pipelines(const VkGraphicsPipelineCreateInfo* pCreateInfos);
 
 		void capture_screenshot(uint8_t *buffer) const override;
+
+		bool depth_buffer_before_clear = false;
+		bool depth_buffer_more_copies = false;
+		bool extended_depth_buffer_detection = false;
+		unsigned int cleared_depth_buffer_index = 0;
+		int depth_buffer_texture_format = 0; // No depth buffer texture format filter by default
+		std::atomic<unsigned int> clear_DSV_iter = 1;
 
 		VkDevice _device;
 		VkPhysicalDevice _physical_device;
@@ -51,6 +60,7 @@ namespace reshade::vulkan
 #if RESHADE_GUI
 		bool init_imgui_resources();
 		void render_imgui_draw_data(ImDrawData *draw_data) override;
+		void draw_debug_menu();
 #endif
 
 		VkImage create_image(uint32_t width, uint32_t height, uint32_t levels, VkFormat format, VkImageUsageFlags usage, VkMemoryPropertyFlags mem = 0, VkImageCreateFlags = 0);
@@ -75,6 +85,8 @@ namespace reshade::vulkan
 
 		std::vector<VkCommandPool> _cmd_pool;
 
+		bool _is_multisampling_enabled = false;
+
 		std::vector<VkImage> _swapchain_images;
 		std::vector<VkImageView> _swapchain_views;
 		std::vector<VkFramebuffer> _swapchain_frames;
@@ -92,6 +104,8 @@ namespace reshade::vulkan
 		VkDescriptorSetLayout _effect_ubo_layout = VK_NULL_HANDLE;
 		std::vector<struct vulkan_effect_data> _effect_data;
 		std::unordered_map<size_t, VkSampler> _effect_sampler_states;
+
+		draw_call_tracker *_current_tracker = nullptr;
 
 #if RESHADE_GUI
 		unsigned int _imgui_index_buffer_size = 0;

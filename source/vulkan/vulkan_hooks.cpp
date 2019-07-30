@@ -17,7 +17,10 @@ static std::unordered_map<void *, VkLayerDispatchTable> s_device_dispatch;
 static std::unordered_map<void *, VkLayerInstanceDispatchTable> s_instance_dispatch;
 static std::unordered_map<VkSurfaceKHR, HWND> s_surface_windows;
 static std::unordered_map<VkDevice, VkPhysicalDevice> s_device_mapping;
+static std::unordered_map<VkDevice, reshade::vulkan::draw_call_tracker> s_device_tracker;
 static std::unordered_map<VkPhysicalDevice, VkInstance> s_instance_mapping;
+static std::unordered_map<VkQueue, VkDevice> s_queue_mapping;
+static std::unordered_map<VkDevice, std::shared_ptr<reshade::vulkan::runtime_vk>> s_device_runtimes;
 static std::unordered_map<VkSwapchainKHR, std::shared_ptr<reshade::vulkan::runtime_vk>> s_runtimes;
 
 inline void *get_dispatch_key(const void *dispatchable_handle)
@@ -236,7 +239,6 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	dispatch_table.QueuePresentKHR = (PFN_vkQueuePresentKHR)get_device_proc(device, "vkQueuePresentKHR");
 	dispatch_table.QueueWaitIdle = (PFN_vkQueueWaitIdle)get_device_proc(device, "vkQueueWaitIdle");
 	dispatch_table.DeviceWaitIdle = (PFN_vkDeviceWaitIdle)get_device_proc(device, "vkDeviceWaitIdle");
-	dispatch_table.GetDeviceQueue = (PFN_vkGetDeviceQueue)get_device_proc(device, "vkGetDeviceQueue");
 	dispatch_table.GetSwapchainImagesKHR = (PFN_vkGetSwapchainImagesKHR)get_device_proc(device, "vkGetSwapchainImagesKHR");
 	dispatch_table.QueueSubmit = (PFN_vkQueueSubmit)get_device_proc(device, "vkQueueSubmit");
 	dispatch_table.CreateFence = (PFN_vkCreateFence)get_device_proc(device, "vkCreateFence");
@@ -304,9 +306,26 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	dispatch_table.CmdPipelineBarrier = (PFN_vkCmdPipelineBarrier)get_device_proc(device, "vkCmdPipelineBarrier");
 	dispatch_table.DebugMarkerSetObjectNameEXT = (PFN_vkDebugMarkerSetObjectNameEXT)get_device_proc(device, "vkDebugMarkerSetObjectNameEXT");
 
+	Sleep(5000);
+
 	{ const std::lock_guard<std::mutex> lock(s_mutex);
 		s_device_mapping[device] = physicalDevice;
 		s_device_dispatch[get_dispatch_key(device)] = dispatch_table;
+		reshade::vulkan::draw_call_tracker device_tracker;
+		s_device_tracker[device] = device_tracker;
+	}
+
+	// retrieve the associated command queues
+	for (uint32_t i = 0; i < pCreateInfo->queueCreateInfoCount; i++)
+	{
+		VkDeviceQueueCreateInfo queueInfo = pCreateInfo->pQueueCreateInfos[i];
+
+		for (uint32_t j = 0; j < queueInfo.queueCount; j++)
+		{
+			VkQueue queue = VK_NULL_HANDLE;
+			vkGetDeviceQueue(device, queueInfo.queueFamilyIndex, j, &queue);
+			s_queue_mapping[queue] = device;
+		}
 	}
 
 	return VK_SUCCESS;
@@ -316,12 +335,31 @@ void     VKAPI_CALL vkDestroyDevice(VkDevice device, const VkAllocationCallbacks
 	PFN_vkDestroyDevice trampoline;
 
 	LOG(INFO) << "Redirecting vkDestroyDevice" << '(' << device << ", " << pAllocator << ')' << " ...";
-
+	
 	{ const std::lock_guard<std::mutex> lock(s_mutex);
 		trampoline = s_device_dispatch.at(get_dispatch_key(device)).DestroyDevice;
 		assert(trampoline != nullptr);
 
+		if (const auto it = s_device_runtimes.find(device); it != s_device_runtimes.end())
+		{
+			it->second->on_reset();
+
+			s_device_runtimes.erase(it);
+		}
+
 		s_device_mapping.erase(device);
+		s_device_tracker.erase(device);
+
+		for (auto it = s_queue_mapping.begin(); it != s_queue_mapping.end();)
+		{
+			if (it->second == device)
+			{
+				s_queue_mapping.erase(it->first);
+				continue;
+			}
+
+			++it;
+		}
 
 		// Remove device dispatch table since this device is being destroyed
 		s_device_dispatch.erase(get_dispatch_key(device));
@@ -417,6 +455,8 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 	if (!runtime->on_init(*pSwapchain, *pCreateInfo, s_surface_windows.at(pCreateInfo->surface)))
 		LOG(ERROR) << "Failed to initialize Vulkan runtime environment on runtime " << runtime.get() << '.';
 
+	if (const auto it = s_device_runtimes.find(device); it == s_device_runtimes.end())
+		s_device_runtimes[device] = runtime;
 	s_runtimes[*pSwapchain] = runtime;
 
 	return VK_SUCCESS;
@@ -454,12 +494,31 @@ VkResult VKAPI_CALL vkQueuePresentKHR(VkQueue queue, const VkPresentInfoKHR *pPr
 		for (uint32_t i = 0; i < pPresentInfo->swapchainCount; ++i)
 		{
 			const auto it = s_runtimes.find(pPresentInfo->pSwapchains[i]);
-			if (it != s_runtimes.end())
-				it->second->on_present(pPresentInfo->pImageIndices[i]);
+			const auto it2 = s_queue_mapping.find(queue);
+			if (it != s_runtimes.end() && it2 != s_queue_mapping.end())
+			{
+				it->second->on_present(pPresentInfo->pImageIndices[i], s_device_tracker.at(it2->second));
+			}
 		}
 	}
 
 	return trampoline(queue, pPresentInfo);
+}
+
+VkResult VKAPI_CALL vkCreateGraphicsPipelines(VkDevice device, VkPipelineCache pipelineCache, uint32_t createInfoCount, const VkGraphicsPipelineCreateInfo* pCreateInfos, const VkAllocationCallbacks* pAllocator, VkPipeline* pPipelines)
+{
+	PFN_vkCreateGraphicsPipelines trampoline = nullptr;
+
+	{ const std::lock_guard<std::mutex> lock(s_mutex);
+		trampoline = s_device_dispatch.at(get_dispatch_key(device)).CreateGraphicsPipelines;
+		assert(trampoline != nullptr);
+
+		const auto it = s_device_runtimes.find(device);
+		if (it != s_device_runtimes.end())
+			it->second->on_create_graphics_pipelines(pCreateInfos);
+	}
+
+	return trampoline(device, pipelineCache, createInfoCount, pCreateInfos, pAllocator, pPipelines);
 }
 
 VK_LAYER_EXPORT PFN_vkVoidFunction VKAPI_CALL vkGetDeviceProcAddr(VkDevice device, const char *pName)
@@ -474,6 +533,8 @@ VK_LAYER_EXPORT PFN_vkVoidFunction VKAPI_CALL vkGetDeviceProcAddr(VkDevice devic
 		return reinterpret_cast<PFN_vkVoidFunction>(vkDestroySwapchainKHR);
 	if (0 == strcmp(pName, "vkQueuePresentKHR"))
 		return reinterpret_cast<PFN_vkVoidFunction>(vkQueuePresentKHR);
+	if (0 == strcmp(pName, "vkCreateGraphicsPipelines"))
+		return reinterpret_cast<PFN_vkVoidFunction>(vkCreateGraphicsPipelines);
 
 	if (device == VK_NULL_HANDLE)
 		return nullptr;
