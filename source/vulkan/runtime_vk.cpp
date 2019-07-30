@@ -1715,5 +1715,124 @@ void reshade::vulkan::runtime_vk::draw_debug_menu()
 
 	ImGui::Spacing();
 	ImGui::Spacing();
+
+#if RESHADE_VULKAN_CAPTURE_DEPTH_BUFFERS
+	if (ImGui::CollapsingHeader("Depth and Intermediate Buffers", ImGuiTreeNodeFlags_DefaultOpen))
+	{
+		bool modified = false;
+		modified |= ImGui::Combo("Depth Texture Format", &depth_buffer_texture_format, "All\0D16\0D32F\0D24S8\0D32FS8\0");
+
+		if (modified)
+		{
+			runtime::save_config();
+			_current_tracker->reset();
+			// create_depthstencil_replacement(nullptr, nullptr);
+			return;
+		}
+
+		modified |= ImGui::Checkbox("Copy depth buffer just before it is cleared", &depth_buffer_before_clear);
+
+		if (depth_buffer_before_clear)
+		{
+			ImGui::Spacing();
+			ImGui::Spacing();
+
+			if (ImGui::Checkbox("Make more copies (can help if not retrieving the depth buffer in the current copies)", &depth_buffer_more_copies))
+			{
+				cleared_depth_buffer_index = 0;
+				modified = true;
+			}
+
+			ImGui::Spacing();
+			ImGui::Spacing();
+
+			if (ImGui::Checkbox("Extended depth buffer detection", &extended_depth_buffer_detection))
+			{
+				cleared_depth_buffer_index = 0;
+				modified = true;
+			}
+
+			// _current_tracker->keep_cleared_depth_textures();
+
+			ImGui::Spacing();
+			ImGui::TextUnformatted("Depth Buffers:");
+
+			unsigned int current_index = 1;
+
+			for (const auto &it : _current_tracker->cleared_depth_textures())
+			{
+				char label[512] = "";
+				sprintf_s(label, "%s%2u", (current_index == cleared_depth_buffer_index ? "> " : "  "), current_index);
+
+				if (bool value = cleared_depth_buffer_index == current_index; ImGui::Checkbox(label, &value))
+				{
+					cleared_depth_buffer_index = value ? current_index : 0;
+					modified = true;
+				}
+
+				ImGui::SameLine();
+
+				ImGui::Text("=> 0x%p | 0x%p | %ux%u", it.second.src_depthstencil, it.second.src_image, it.second.src_image_extent.width, it.second.src_image_extent.height);
+
+				if (it.second.dest_image != nullptr)
+				{
+					ImGui::SameLine();
+
+					ImGui::Text("=> %p", it.second.dest_image);
+				}
+
+				current_index++;
+			}
+		}
+		else if (!_current_tracker->depth_buffer_counters().empty())
+		{
+			ImGui::Spacing();
+			ImGui::TextUnformatted("Depth Buffers: (intermediate buffer draw calls in parentheses)");
+
+			for (const auto &[depthstencil, snapshot] : _current_tracker->depth_buffer_counters())
+			{
+				char label[512] = "";
+				sprintf_s(label, "%s0x%p", (depthstencil == _depthstencil ? "> " : "  "), depthstencil);
+
+				if (bool value = _best_depth_stencil_overwrite == depthstencil; ImGui::Checkbox(label, &value))
+				{
+					_best_depth_stencil_overwrite = value ? depthstencil : nullptr;
+
+					if (_best_depth_stencil_overwrite != nullptr)
+					{
+						VkImage image;
+						// _best_depth_stencil_overwrite->QueryInterface(&texture);
+						// create_depthstencil_replacement(_best_depth_stencil_overwrite, image);
+					}
+				}
+
+				ImGui::SameLine();
+
+				std::string additional_view_label;
+
+				if (!snapshot.additional_views.empty())
+				{
+					additional_view_label += '(';
+
+					for (auto const &[view, stats] : snapshot.additional_views)
+						additional_view_label += std::to_string(stats.drawcalls) + ", ";
+
+					// Remove last ", " from string
+					additional_view_label.pop_back();
+					additional_view_label.pop_back();
+
+					additional_view_label += ')';
+				}
+
+				VkExtent3D extent = snapshot.image_extent;
+
+				ImGui::Text("| %ux%u| %5u draw calls ==> %8u vertices, %2u additional render target%c %s", extent.width, extent.height, snapshot.stats.drawcalls, snapshot.stats.vertices, snapshot.additional_views.size(), snapshot.additional_views.size() != 1 ? 's' : ' ', additional_view_label.c_str());
+			}
+		}
+
+		if (modified)
+			runtime::save_config();
+	}
+#endif
 }
 #endif
