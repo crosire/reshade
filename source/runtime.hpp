@@ -208,6 +208,11 @@ namespace reshade
 		static bool check_for_update(unsigned long latest_version[3]);
 
 		/// <summary>
+		/// Checks whether runtime is currently loading effects.
+		/// </summary>
+		bool is_loading() const { return _reload_remaining_effects != std::numeric_limits<size_t>::max(); }
+
+		/// <summary>
 		/// Enable a technique so it is rendered.
 		/// </summary>
 		/// <param name="technique"></param>

@@ -435,7 +435,7 @@ void reshade::runtime::destroy_font_atlas()
 
 void reshade::runtime::draw_ui()
 {
-	const bool show_splash = _show_splash && (_reload_remaining_effects != std::numeric_limits<size_t>::max() || !_reload_compile_queue.empty() || (_last_present_time - _last_reload_time) < std::chrono::seconds(5));
+	const bool show_splash = _show_splash && (is_loading() || !_reload_compile_queue.empty() || (_last_present_time - _last_reload_time) < std::chrono::seconds(5));
 	const bool show_screenshot_message = _show_screenshot_message && _last_present_time - _last_screenshot_time < std::chrono::seconds(_screenshot_save_success ? 3 : 5);
 
 	if (_show_menu && !_ignore_shortcuts && !_imgui_context->IO.NavVisible && _input->is_key_pressed(0x1B /* VK_ESCAPE */))
@@ -671,7 +671,7 @@ void reshade::runtime::draw_ui()
 			ImGui::End();
 		}
 
-		if (_show_code_editor && _reload_remaining_effects == std::numeric_limits<size_t>::max())
+		if (_show_code_editor && !is_loading())
 		{
 			const std::string title = _selected_effect < _loaded_effects.size() ?
 				"Editing " + _loaded_effects[_selected_effect].source_file.filename().u8string() + " ###editor" : "Viewing code###editor";
@@ -696,7 +696,7 @@ void reshade::runtime::draw_ui()
 
 void reshade::runtime::draw_overlay_menu_home()
 {
-	if (_reload_remaining_effects != std::numeric_limits<size_t>::max())
+	if (is_loading())
 	{
 		const char *const loading_message = "Loading ...";
 		ImGui::SetCursorPos(ImGui::GetWindowSize() * 0.5f - ImGui::CalcTextSize(loading_message) * 0.5f);
@@ -1149,8 +1149,7 @@ void reshade::runtime::draw_overlay_menu_statistics()
 	uint64_t post_processing_time_gpu = 0;
 	uint32_t post_processing_memory_size = 0;
 
-	const bool has_finished_reloading = _reload_remaining_effects == std::numeric_limits<size_t>::max();
-	if (has_finished_reloading && _effects_enabled)
+	if (!is_loading() && _effects_enabled)
 	{
 		for (const auto &technique : _techniques)
 		{
@@ -1217,7 +1216,7 @@ void reshade::runtime::draw_overlay_menu_statistics()
 		ImGui::EndGroup();
 	}
 
-	if (ImGui::CollapsingHeader("Techniques", ImGuiTreeNodeFlags_DefaultOpen) && has_finished_reloading && _effects_enabled)
+	if (ImGui::CollapsingHeader("Techniques", ImGuiTreeNodeFlags_DefaultOpen) && !is_loading() && _effects_enabled)
 	{
 		ImGui::BeginGroup();
 
@@ -1266,7 +1265,7 @@ void reshade::runtime::draw_overlay_menu_statistics()
 		ImGui::EndGroup();
 	}
 
-	if (ImGui::CollapsingHeader("Render Targets & Textures", ImGuiTreeNodeFlags_DefaultOpen) && has_finished_reloading)
+	if (ImGui::CollapsingHeader("Render Targets & Textures", ImGuiTreeNodeFlags_DefaultOpen) && !is_loading())
 	{
 		const char *texture_formats[] = {
 			"unknown",

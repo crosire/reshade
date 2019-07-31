@@ -166,7 +166,7 @@ void reshade::runtime::on_present()
 	// Handle keyboard shortcuts
 	if (!_ignore_shortcuts)
 	{
-		if (_input->is_key_pressed(_reload_key_data) && _reload_remaining_effects == std::numeric_limits<size_t>::max() && _reload_compile_queue.empty())
+		if (_input->is_key_pressed(_reload_key_data) && !is_loading() && _reload_compile_queue.empty())
 			load_effects();
 
 		if (_input->is_key_pressed(_effects_key_data))
@@ -483,7 +483,7 @@ void reshade::runtime::load_effects()
 
 	// Now that we have a list of files, load them in parallel
 	// Split workload into batches instead of launching a thread for every file to avoid launch overhead and stutters due to too many threads being in flight
-	const size_t num_splits = std::min(effect_files.size(), std::max(std::thread::hardware_concurrency(), 2u) - 1);
+	const size_t num_splits = std::min<size_t>(effect_files.size(), std::max<size_t>(std::thread::hardware_concurrency(), 2u) - 1);
 
 	// Keep track of the spawned threads, so the runtime cannot be destroyed while they are still running
 	for (size_t n = 0; n < num_splits; ++n)
