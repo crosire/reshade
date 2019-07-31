@@ -363,6 +363,7 @@ namespace reshade
 		char _effect_filter_buffer[64] = {};
 		std::filesystem::path _file_selection_path;
 		imgui_code_editor _editor;
+		void *_preview_texture = nullptr;
 
 		// used by preset explorer
 		bool _browse_path_is_input_mode = false;

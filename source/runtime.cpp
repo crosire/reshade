@@ -556,6 +556,13 @@ void reshade::runtime::load_textures()
 
 void reshade::runtime::unload_effect(size_t id)
 {
+#if RESHADE_GUI
+	_selected_effect = std::numeric_limits<size_t>::max();
+	_selected_effect_changed = true; // Force editor to clear text after effects where reloaded
+	_preview_texture = nullptr;
+	_effect_filter_buffer[0] = '\0'; // And reset filter too, since the list of techniques might have changed
+#endif
+
 	_uniforms.erase(std::remove_if(_uniforms.begin(), _uniforms.end(),
 		[id](const auto &it) { return it.effect_index == id; }), _uniforms.end());
 	_textures.erase(std::remove_if(_textures.begin(), _textures.end(),
@@ -567,6 +574,13 @@ void reshade::runtime::unload_effect(size_t id)
 }
 void reshade::runtime::unload_effects()
 {
+#if RESHADE_GUI
+	_selected_effect = std::numeric_limits<size_t>::max();
+	_selected_effect_changed = true; // Force editor to clear text after effects where reloaded
+	_preview_texture = nullptr;
+	_effect_filter_buffer[0] = '\0'; // And reset filter too, since the list of techniques might have changed
+#endif
+
 	// Make sure no threads are still accessing effect data
 	for (std::thread &thread : _worker_threads)
 		thread.join();

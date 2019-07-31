@@ -448,10 +448,6 @@ void reshade::runtime::draw_ui()
 
 	if (_rebuild_font_atlas)
 		build_font_atlas();
-	if (_reload_remaining_effects != std::numeric_limits<size_t>::max())
-		_selected_effect = std::numeric_limits<size_t>::max(),
-		_selected_effect_changed = true, // Force editor to clear text after effects where reloaded
-		_effect_filter_buffer[0] = '\0'; // And reset filter too, since the list of techniques might have changed
 
 	ImGui::SetCurrentContext(_imgui_context);
 	auto &imgui_io = _imgui_context->IO;
@@ -680,6 +676,9 @@ void reshade::runtime::draw_ui()
 				draw_code_editor();
 			ImGui::End();
 		}
+
+		if (_preview_texture != nullptr && !is_loading() && _reload_compile_queue.empty())
+			ImGui::FindWindowByName("Viewport")->DrawList->AddImage(_preview_texture, ImVec2(0, 0), imgui_io.DisplaySize);
 	}
 
 	// Render ImGui widgets and windows
@@ -1288,6 +1287,7 @@ void reshade::runtime::draw_overlay_menu_statistics()
 			if (!_loaded_effects[texture.effect_index].rendering || texture.impl == nullptr || texture.impl_reference != texture_reference::none)
 				continue;
 
+			ImGui::PushID(texture_index);
 			ImGui::BeginGroup();
 
 			uint32_t memory_size = 0;
@@ -1315,10 +1315,14 @@ void reshade::runtime::draw_overlay_menu_statistics()
 				texture_formats[static_cast<unsigned int>(texture.format)],
 				memory_size, memory_size_unit);
 
+			if (bool check = _preview_texture == texture.impl.get(); ImGui::RadioButton("Show fullscreen", check))
+				_preview_texture = !check ? texture.impl.get() : nullptr;
+
 			const float aspect_ratio = static_cast<float>(texture.width) / static_cast<float>(texture.height);
 			imgui_image_with_checkerboard_background(texture.impl.get(), ImVec2(single_image_width, single_image_width / aspect_ratio));
 
 			ImGui::EndGroup();
+			ImGui::PopID();
 
 			if ((texture_index++ % num_columns) != (num_columns - 1))
 				ImGui::SameLine(0.0f, 5.0f);
