@@ -166,7 +166,7 @@ void reshade::runtime::on_present()
 	// Handle keyboard shortcuts
 	if (!_ignore_shortcuts)
 	{
-		if (_input->is_key_pressed(_reload_key_data))
+		if (_input->is_key_pressed(_reload_key_data) && _reload_remaining_effects == std::numeric_limits<size_t>::max() && _reload_compile_queue.empty())
 			load_effects();
 
 		if (_input->is_key_pressed(_effects_key_data))
