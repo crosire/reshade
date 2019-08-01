@@ -878,7 +878,7 @@ private:
 	}
 	id   emit_ternary_op(const location &loc, tokenid op, const type &res_type, id condition, id true_value, id false_value) override
 	{
-		assert(op == tokenid::question);
+		assert(op == tokenid::question); /* unreferened parameter */ op;
 
 		const id res = make_id();
 
@@ -899,8 +899,10 @@ private:
 	}
 	id   emit_call(const location &loc, id function, const type &res_type, const std::vector<expression> &args) override
 	{
+#ifndef NDEBUG
 		for (const auto &arg : args)
 			assert(arg.chain.empty() && arg.base != 0);
+#endif
 
 		const id res = make_id();
 
@@ -937,8 +939,10 @@ private:
 	}
 	id   emit_call_intrinsic(const location &loc, id intrinsic, const type &res_type, const std::vector<expression> &args) override
 	{
+#ifndef NDEBUG
 		for (const auto &arg : args)
 			assert(arg.chain.empty() && arg.base != 0);
+#endif
 
 		const id res = make_id();
 
@@ -980,8 +984,10 @@ private:
 	}
 	id   emit_construct(const location &loc, const type &type, const std::vector<expression> &args) override
 	{
+#ifndef NDEBUG
 		for (const auto &arg : args)
 			assert((arg.type.is_scalar() || type.is_array()) && arg.chain.empty() && arg.base != 0);
+#endif
 
 		const id res = make_id();
 
