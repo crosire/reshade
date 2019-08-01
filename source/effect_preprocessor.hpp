@@ -73,6 +73,11 @@ namespace reshadefx
 		std::string &output() { return _output; }
 		const std::string &output() const { return _output; }
 
+		/// <summary>
+		/// Get a list of all included files.
+		/// </summary>
+		std::vector<std::filesystem::path> included_files() const;
+
 	private:
 		struct if_level
 		{

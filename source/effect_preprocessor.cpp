@@ -97,6 +97,15 @@ bool reshadefx::preprocessor::append_string(const std::string &source_code)
 	return _success;
 }
 
+std::vector<std::filesystem::path> reshadefx::preprocessor::included_files() const
+{
+	std::vector<std::filesystem::path> files;
+	files.reserve(_filecache.size());
+	for (const auto &it : _filecache)
+		files.push_back(std::filesystem::u8path(it.first));
+	return files;
+}
+
 void reshadefx::preprocessor::error(const location &location, const std::string &message)
 {
 	_errors += location.source + '(' + std::to_string(location.line) + ", " + std::to_string(location.column) + ')' + ": preprocessor error: " + message + '\n';
