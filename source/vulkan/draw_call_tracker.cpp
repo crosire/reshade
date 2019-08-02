@@ -46,7 +46,7 @@ namespace reshade::vulkan
 		std::lock(_vk_counters_per_used_depthstencil_mutex, _vk_cleared_depth_images_mutex);
 		std::lock_guard lock1(_vk_counters_per_used_depthstencil_mutex, std::adopt_lock);
 		std::lock_guard lock2(_vk_cleared_depth_images_mutex, std::adopt_lock);
-		// _counters_per_used_depthstencil.clear();
+		_counters_per_used_depthstencil.clear();
 		_cleared_depth_images.clear();
 #endif
 	}
