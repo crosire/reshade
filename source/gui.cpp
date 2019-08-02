@@ -2282,8 +2282,23 @@ void reshade::runtime::draw_preset_explorer()
 				}
 			}
 		}
+		else if (_browse_path_filter_active)
+		{
+			char buf[_MAX_PATH]{};
+			_presets_filter_text.u8string().copy(buf, sizeof(buf) - 1);
+
+			if (ImGui::InputTextEx("##filter", buf, sizeof(buf), ImVec2(root_window_width - (button_spacing + button_size) * 3, 0), ImGuiInputTextFlags_None))
+				_presets_filter_text = buf;
+			else if (!ImGui::IsItemActive())
+				_browse_path_filter_active = false;
+			else if (ImGui::IsItemActivated())
+				_imgui_context->InputTextState.ClearSelection();
+		}
 		else
 		{
+			if (const std::wstring &ch = _input->text_input(); !ch.empty() && L'~' >= ch[0] && ch[0] >= L'!')
+				ImGui::ActivateItem(ImGui::GetID("##filter")), _presets_filter_text = ch, _browse_path_filter_active = true;
+
 			ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2(0.0f, 0.5f));
 			if (ImGui::ButtonEx(_current_preset_path.stem().u8string().c_str(), ImVec2(root_window_width - (button_spacing + button_size) * 3, 0), ImGuiButtonFlags_NoNavFocus))
 				if (_imgui_context->IO.KeyCtrl)
@@ -2375,8 +2390,16 @@ void reshade::runtime::draw_preset_explorer()
 				for (const auto &entry : preset_paths)
 				{
 					const bool is_current_preset = std::filesystem::equivalent(entry, _current_preset_path, ec);
+					
+					bool is_preset_visible = true;
+					if (_browse_path_filter_active)
+						if (const std::wstring name1 = entry.path().stem(), name2 = _presets_filter_text.wstring();
+							std::search(name1.begin(), name1.end(), name2.begin(), name2.end(), [](auto c1, auto c2) { return tolower(c1) == tolower(c2); }) != name1.end())
+							is_preset_visible = true;
+						else
+							is_preset_visible = is_current_preset;
 
-					if (ImGui::Selectable(entry.path().filename().u8string().c_str(), static_cast<bool>(is_current_preset)))
+					if (is_preset_visible && ImGui::Selectable(entry.path().filename().u8string().c_str(), static_cast<bool>(is_current_preset)))
 						condition = condition::select, _current_browse_path = entry.path().lexically_proximate(reshade_container_path);
 
 					if (is_current_preset)

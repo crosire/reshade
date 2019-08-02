@@ -366,9 +366,11 @@ namespace reshade
 		void *_preview_texture = nullptr;
 
 		// used by preset explorer
+		bool _browse_path_filter_active = false;
 		bool _browse_path_is_input_mode = false;
 		bool _current_preset_is_covered = true;
 		std::filesystem::path _current_browse_path;
+		std::filesystem::path _presets_filter_text;
 #endif
 	};
 }
