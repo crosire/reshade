@@ -14,7 +14,7 @@ namespace reshade::vulkan
 		_global_counter.vertices += source.total_vertices();
 		_global_counter.drawcalls += source.total_drawcalls();
 
-		if (source._depthstencil == nullptr)
+		if (source._depthstencil == VK_NULL_HANDLE)
 			return;
 
 #if RESHADE_VULKAN_CAPTURE_DEPTH_BUFFERS
@@ -26,8 +26,9 @@ namespace reshade::vulkan
 			_counters_per_used_depthstencil[depthstencil].stats.drawcalls += snapshot.stats.drawcalls;
 			_counters_per_used_depthstencil[depthstencil].depthstencil = snapshot.depthstencil;
 			_counters_per_used_depthstencil[depthstencil].image = snapshot.image;
-			_counters_per_used_depthstencil[depthstencil].image_format = snapshot.image_format;
-			_counters_per_used_depthstencil[depthstencil].image_extent = snapshot.image_extent;
+			_counters_per_used_depthstencil[depthstencil].image_info.format = snapshot.image_info.format;
+			_counters_per_used_depthstencil[depthstencil].image_info.extent = snapshot.image_info.extent;
+			_counters_per_used_depthstencil[depthstencil].image_info.usage = snapshot.image_info.usage;
 		}
 
 		std::lock_guard lock2(_vk_cleared_depth_images_mutex, std::adopt_lock);
@@ -45,7 +46,7 @@ namespace reshade::vulkan
 		std::lock(_vk_counters_per_used_depthstencil_mutex, _vk_cleared_depth_images_mutex);
 		std::lock_guard lock1(_vk_counters_per_used_depthstencil_mutex, std::adopt_lock);
 		std::lock_guard lock2(_vk_cleared_depth_images_mutex, std::adopt_lock);
-		_counters_per_used_depthstencil.clear();
+		// _counters_per_used_depthstencil.clear();
 		_cleared_depth_images.clear();
 #endif
 	}
@@ -57,7 +58,7 @@ namespace reshade::vulkan
 
 #if RESHADE_VULKAN_CAPTURE_DEPTH_BUFFERS
 
-		if (current_depthstencil == nullptr)
+		if (current_depthstencil == VK_NULL_HANDLE)
 			// This is a draw call with no depth stencil
 			return;
 
@@ -77,66 +78,60 @@ namespace reshade::vulkan
 		std::lock_guard lock(_vk_counters_per_used_depthstencil_mutex);
 		return _counters_per_used_depthstencil.find(depthstencil) != _counters_per_used_depthstencil.end();
 	}
-	bool draw_call_tracker::check_depth_texture_format(int formatIdx, VkImageView depthstencil)
+	bool draw_call_tracker::check_depth_texture_format(int formatIdx, VkFormat format)
 	{
-		assert(depthstencil != nullptr);
+		assert(format != VK_NULL_HANDLE);
 
 		// Do not check format if all formats are allowed (index zero is DXGI_FORMAT_UNKNOWN)
-		if (formatIdx == DXGI_FORMAT_UNKNOWN)
+		if (formatIdx == VK_FORMAT_UNDEFINED)
 			return true;
 
 		// Retrieve texture associated with depth stencil
-		/*D3D12_RESOURCE_DESC desc = depthstencil->GetDesc();
-
-		const DXGI_FORMAT depth_texture_formats[] = {
-			DXGI_FORMAT_UNKNOWN,
-			DXGI_FORMAT_R16_TYPELESS,
-			DXGI_FORMAT_R32_TYPELESS,
-			DXGI_FORMAT_R24G8_TYPELESS,
-			DXGI_FORMAT_R32G8X24_TYPELESS
+		const VkFormat depth_texture_formats[] = {
+			VK_FORMAT_UNDEFINED,
+			VK_FORMAT_D32_SFLOAT,
+			VK_FORMAT_D32_SFLOAT_S8_UINT,
+			VK_FORMAT_D24_UNORM_S8_UINT
 		};
 
-		assert(formatIdx > DXGI_FORMAT_UNKNOWN && formatIdx < ARRAYSIZE(depth_texture_formats));
+		assert(formatIdx > VK_FORMAT_UNDEFINED && formatIdx < ARRAYSIZE(depth_texture_formats));
 
-		return make_dxgi_format_typeless(desc.Format) == depth_texture_formats[formatIdx];*/
-		return true;
+		return format == depth_texture_formats[formatIdx];
 	}
 
-	void draw_call_tracker::track_renderpasses(int formatIdx, VkImageView depthstencil, VkImage image, VkFormat image_format, VkExtent3D image_extent)
+	void draw_call_tracker::track_renderpasses(int formatIdx, VkImageView depthstencil, VkImage image, VkImageCreateInfo imageInfo)
 	{
-		assert(depthstencil != nullptr);
+		assert(depthstencil != VK_NULL_HANDLE);
 
-		if (!check_depth_texture_format(formatIdx, depthstencil))
+		if (!check_depth_texture_format(formatIdx, imageInfo.format))
 			return;
 
 		std::lock_guard lock(_vk_counters_per_used_depthstencil_mutex);
 
-		if (_counters_per_used_depthstencil[depthstencil].depthstencil == nullptr)
+		if (_counters_per_used_depthstencil[depthstencil].depthstencil == VK_NULL_HANDLE)
 		{
 			_counters_per_used_depthstencil[depthstencil].depthstencil = depthstencil;
 			_counters_per_used_depthstencil[depthstencil].image = image;
-			_counters_per_used_depthstencil[depthstencil].image_format = image_format;
-			_counters_per_used_depthstencil[depthstencil].image_extent = image_extent;
+			_counters_per_used_depthstencil[depthstencil].image_info.format = imageInfo.format;
+			_counters_per_used_depthstencil[depthstencil].image_info.extent = imageInfo.extent;
+			_counters_per_used_depthstencil[depthstencil].image_info.usage = imageInfo.usage;
 		}
 	}
-	/*void draw_call_tracker::track_depth_texture(int format_index, UINT index, com_ptr<ID3D12Resource> src_texture, com_ptr<ID3D12Resource> src_depthstencil, com_ptr<ID3D12Resource> dest_texture, bool cleared)
+	void draw_call_tracker::track_depth_image(int formatIdx, UINT index, VkImage srcImage, VkImageCreateInfo srcImageInfo, VkImageView srcDepthstencil, VkImageViewCreateInfo srcDepthstencilInfo, VkImage destImage, bool cleared)
 	{
 		// Function that keeps track of a cleared depth texture in an ordered map in order to retrieve it at the final rendering stage
-		assert(src_texture != nullptr);
+		assert(srcImage != VK_NULL_HANDLE);
 
-		if (!check_depth_texture_format(format_index, src_depthstencil.get()))
+		if (!check_depth_texture_format(formatIdx, srcImageInfo.format))
 			return;
 
-		// Gather some extra info for later display
-		D3D12_RESOURCE_DESC src_texture_desc = src_depthstencil->GetDesc();
-
 		// check if it is really a depth texture
-		assert((src_texture_desc.Flags & D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL) != 0);
+		assert((srcImageInfo.usage & VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT) != 0);
 
-		std::lock_guard lock(_cleared_depth_textures_mutex);
+		std::lock_guard lock(_vk_cleared_depth_images_mutex);
 
 		// fill the ordered map with the saved depth texture
-		_cleared_depth_textures[index] = depth_texture_save_info { src_texture, src_depthstencil, src_texture_desc, dest_texture, cleared };
+		_cleared_depth_images[index] = depth_texture_save_info { srcImage, srcDepthstencil, srcImageInfo, srcDepthstencilInfo, destImage, cleared };
 	}
 
 	draw_call_tracker::intermediate_snapshot_info draw_call_tracker::find_best_snapshot(UINT width, UINT height)
@@ -149,20 +144,17 @@ namespace reshade::vulkan
 			if (snapshot.stats.drawcalls == 0 || snapshot.stats.vertices == 0)
 				continue;
 
-			if (snapshot.texture == nullptr)
+			if (snapshot.image == VK_NULL_HANDLE)
 			{
-				com_ptr<ID3D12Resource> resource;
-				snapshot.texture = depthstencil.get();
+				snapshot.depthstencil = depthstencil;
 			}
 
-			D3D12_RESOURCE_DESC desc = depthstencil->GetDesc();
-
-			assert((desc.Flags & D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL) != 0);
+			assert((snapshot.image_info.usage & VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT) != 0);
 
 			// Check aspect ratio
-			const float width_factor = float(width) / float(desc.Width);
-			const float height_factor = float(height) / float(desc.Height);
-			const float texture_aspect_ratio = float(desc.Width) / float(desc.Height);
+			const float width_factor = float(width) / float(snapshot.image_info.extent.width);
+			const float height_factor = float(height) / float(snapshot.image_info.extent.height);
+			const float texture_aspect_ratio = float(snapshot.image_info.extent.width) / float(snapshot.image_info.extent.height);
 
 			if (fabs(texture_aspect_ratio - aspect_ratio) > 0.1f || width_factor > 2.0f || height_factor > 2.0f || width_factor < 0.5f || height_factor < 0.5f)
 				continue; // No match, not a good fit
@@ -174,7 +166,7 @@ namespace reshade::vulkan
 		return best_snapshot;
 	}
 
-	void draw_call_tracker::keep_cleared_depth_textures()
+	/*void draw_call_tracker::keep_cleared_depth_textures()
 	{
 		std::lock_guard lock(_cleared_depth_textures_mutex);
 		// Function that keeps only the depth textures that has been retrieved before the last depth stencil clearance
@@ -190,25 +182,25 @@ namespace reshade::vulkan
 			// Remove the depth texture if it was retrieved after the last clearance of the depth stencil
 			it = std::map<UINT, depth_texture_save_info>::reverse_iterator(_cleared_depth_textures.erase(std::next(it).base()));
 		}
-	}
+	}*/
 
-	ID3D12Resource *draw_call_tracker::find_best_cleared_depth_buffer_texture(UINT clear_index)
+	draw_call_tracker::intermediate_cleared_depthstencil_info draw_call_tracker::find_best_cleared_depth_buffer_image(UINT clear_index)
 	{
 		// Function that selects the best cleared depth texture according to the clearing number defined in the configuration settings
-		ID3D12Resource *best_match = nullptr;
+		intermediate_cleared_depthstencil_info best_match = { VK_NULL_HANDLE, VK_NULL_HANDLE };
 
 		// Ensure to work only on the depth textures retrieved before the last depth stencil clearance
-		keep_cleared_depth_textures();
+		// keep_cleared_depth_textures();
 
-		for (const auto &it : _cleared_depth_textures)
+		for (const auto &it : _cleared_depth_images)
 		{
 			UINT i = it.first;
-			auto &texture_counter_info = it.second;
+			auto &image_counter_info = it.second;
 
-			com_ptr<ID3D12Resource> texture;
-			if (texture_counter_info.dest_texture == nullptr)
+			VkImage image;
+			if (image_counter_info.dest_image == VK_NULL_HANDLE)
 				continue;
-			texture = texture_counter_info.dest_texture;
+			image = image_counter_info.dest_image;
 
 			if (clear_index != 0 && i > clear_index)
 				continue;
@@ -217,10 +209,12 @@ namespace reshade::vulkan
 			// if clear_index == 0, the auto select mode is defined, so the last cleared depth texture is retrieved
 			// if the user selects a clearing number and the number of cleared depth textures is greater or equal than it, the texture corresponding to this number is retrieved
 			// if the user selects a clearing number and the number of cleared depth textures is lower than it, the last cleared depth texture is retrieved
-			best_match = texture.get();
+			best_match.image = image;
+			best_match.src_depthstencil = image_counter_info.src_depthstencil;
+			best_match.image_info = image_counter_info.src_image_info;
 		}
 
 		return best_match;
-	}*/
+	}
 #endif
 }

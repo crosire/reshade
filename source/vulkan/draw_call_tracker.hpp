@@ -23,20 +23,27 @@ namespace reshade::vulkan
 		struct depthstencil_infos
 		{
 			VkImage image = nullptr;
-			VkFormat image_format;
-			VkExtent3D image_extent;
-			VkImageView depthstencilView;
+			VkImageCreateInfo image_info;
+			VkImageViewCreateInfo image_view_info;
 		};
 
 #if RESHADE_VULKAN_CAPTURE_DEPTH_BUFFERS
 		struct intermediate_snapshot_info
 		{
-			VkImageView depthstencil = nullptr;
+			VkImageView depthstencil = VK_NULL_HANDLE;
 			draw_stats stats;
 			VkImage image;
-			VkFormat image_format;
-			VkExtent3D image_extent;
+			VkImageCreateInfo image_info;
+			VkImageViewCreateInfo image_view_info;
 			std::map<VkImageView, draw_stats> additional_views;
+		};
+
+		struct intermediate_cleared_depthstencil_info
+		{
+			VkImage image;
+			VkImageView src_depthstencil;
+			VkImageCreateInfo image_info;
+			VkImageViewCreateInfo image_view_info;
 		};
 #endif
 
@@ -57,14 +64,13 @@ namespace reshade::vulkan
 		VkImageView _depthstencil;
 
 #if RESHADE_VULKAN_CAPTURE_DEPTH_BUFFERS
-		void track_renderpasses(int formatIdx, VkImageView depthstencil, VkImage image, VkFormat image_format, VkExtent3D image_extent);
-		// void track_depth_texture(int formatIdx, UINT index, com_ptr<ID3D12Resource> srcTexture, com_ptr<ID3D12Resource> srcDepthstencil, com_ptr<ID3D12Resource> destTexture, bool cleared);
+		void track_renderpasses(int formatIdx, VkImageView depthstencil, VkImage image, VkImageCreateInfo imageInfo);
+		void track_depth_image(int formatIdx, UINT index, VkImage srcImage, VkImageCreateInfo srcImageInfo, VkImageView srcDepthstencil, VkImageViewCreateInfo srcDepthstencilInfo, VkImage destImage, bool cleared);
 
 		void keep_cleared_depth_textures();
 
-		// com_ptr<ID3D12Resource> retrieve_depthstencil_from_handle(D3D12_CPU_DESCRIPTOR_HANDLE depthstencilView);
 		intermediate_snapshot_info find_best_snapshot(UINT width, UINT height);
-		// ID3D12Resource *find_best_cleared_depth_buffer_texture(UINT clearIdx);
+		intermediate_cleared_depthstencil_info find_best_cleared_depth_buffer_image(UINT clearIdx);
 #endif
 		
 	private:
@@ -72,15 +78,15 @@ namespace reshade::vulkan
 		{
 			VkImage src_image;
 			VkImageView src_depthstencil;
-			VkFormat src_image_format;
-			VkExtent3D src_image_extent;
+			VkImageCreateInfo src_image_info;
+			VkImageViewCreateInfo src_image_view_info;
 			VkImage dest_image;
 			bool cleared = false;
 		};
 
 #if RESHADE_VULKAN_CAPTURE_DEPTH_BUFFERS
 		bool check_depthstencil(VkImageView) const;
-		bool check_depth_texture_format(int formatIdx, VkImageView depthstencil);
+		bool check_depth_texture_format(int formatIdx, VkFormat format);
 #endif
 
 		draw_stats _global_counter;
