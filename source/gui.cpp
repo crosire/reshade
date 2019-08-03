@@ -2289,8 +2289,6 @@ void reshade::runtime::draw_preset_explorer()
 
 			if (ImGui::InputTextEx("##filter", buf, sizeof(buf), ImVec2(root_window_width - (button_spacing + button_size) * 3, 0), ImGuiInputTextFlags_None))
 				_presets_filter_text = buf;
-			else if (!ImGui::IsItemActive())
-				_browse_path_filter_active = false;
 			else if (ImGui::IsItemActivated())
 				_imgui_context->InputTextState.ClearSelection();
 		}
@@ -2332,20 +2330,16 @@ void reshade::runtime::draw_preset_explorer()
 
 			if (preset_paths.begin() == preset_paths.end())
 				condition = condition::pass;
-			else
-			{
-				const std::filesystem::path &current_preset_path = _current_preset_path;
-				if (auto it = std::find_if(preset_paths.begin(), preset_paths.end(), [&ec, &current_preset_path](const std::filesystem::directory_entry &entry) { return std::filesystem::equivalent(entry, current_preset_path, ec); }); it == preset_paths.end())
-					if (condition == condition::backward)
-						_current_preset_path = _current_browse_path = preset_paths.back();
-					else
-						_current_preset_path = _current_browse_path = preset_paths.front();
+			else if (auto it = std::find_if(preset_paths.begin(), preset_paths.end(), [this, &ec](const std::filesystem::directory_entry &entry) { return std::filesystem::equivalent(entry, _current_preset_path, ec); }); it == preset_paths.end())
+				if (condition == condition::backward)
+					_current_preset_path = _current_browse_path = preset_paths.back();
 				else
-					if (condition == condition::backward)
-						_current_preset_path = _current_browse_path = it == preset_paths.begin() ? preset_paths.back() : *--it;
-					else
-						_current_preset_path = _current_browse_path = it == preset_paths.end() - 1 ? preset_paths.front() : *++it;
-			}
+					_current_preset_path = _current_browse_path = preset_paths.front();
+			else
+				if (condition == condition::backward)
+					_current_preset_path = _current_browse_path = it == preset_paths.begin() ? preset_paths.back() : *--it;
+				else
+					_current_preset_path = _current_browse_path = it == preset_paths.end() - 1 ? preset_paths.front() : *++it;
 		}
 
 		if (is_explore_open)
@@ -2456,6 +2450,9 @@ void reshade::runtime::draw_preset_explorer()
 
 		ImGui::EndPopup();
 	}
+
+	if (_browse_path_filter_active && (condition != condition::pass || _presets_filter_text.empty()))
+		_browse_path_filter_active = false;
 
 	if (condition != condition::pass)
 	{
