@@ -2293,7 +2293,7 @@ void reshade::runtime::draw_preset_explorer()
 			_presets_filter_text.u8string().copy(buf, sizeof(buf) - 1);
 
 			if (ImGui::InputTextEx("##filter", buf, sizeof(buf), ImVec2(root_window_width - (button_spacing + button_size) * 3, 0), ImGuiInputTextFlags_None))
-				_presets_filter_text = buf;
+				_presets_filter_text = std::filesystem::u8path(buf);
 			else if (ImGui::IsItemActivated())
 				_imgui_context->InputTextState.ClearSelection();
 		}
