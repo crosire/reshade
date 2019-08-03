@@ -2191,6 +2191,9 @@ void reshade::runtime::draw_overlay_technique_editor()
 
 void reshade::runtime::draw_preset_explorer()
 {
+	struct preset_container_item { bool is_current; std::filesystem::directory_entry entry; };
+	enum class condition { pass, select, popup_add, create, backward, forward, reload, cancel };
+
 	static const std::filesystem::path reshade_container_path = g_reshade_dll_path.parent_path();
 	const ImVec2 cursor_pos = ImGui::GetCursorScreenPos();
 	const float button_size = ImGui::GetFrameHeight();
@@ -2198,8 +2201,6 @@ void reshade::runtime::draw_preset_explorer()
 	const float root_window_width = ImGui::GetWindowContentRegionWidth();
 
 	std::error_code ec;
-
-	enum class condition { pass, select, popup_add, create, backward, forward, reload, cancel };
 	condition condition = condition::pass;
 
 	if (ImGui::ButtonEx("<", ImVec2(button_size, 0), ImGuiButtonFlags_NoNavFocus))
@@ -2221,6 +2222,10 @@ void reshade::runtime::draw_preset_explorer()
 
 	ImGui::SetNextWindowPos(cursor_pos - _imgui_context->Style.WindowPadding);
 	const bool is_explore_open = ImGui::BeginPopup("##explore");
+
+	if (_browse_path_filter_active && (!is_explore_open || _presets_filter_text.empty()))
+		_browse_path_filter_active = false;
+
 	if (is_explore_open)
 	{
 		if (ImGui::ButtonEx("<", ImVec2(button_size, 0), ImGuiButtonFlags_NoNavFocus))
@@ -2315,18 +2320,23 @@ void reshade::runtime::draw_preset_explorer()
 		if (!std::filesystem::is_directory(preset_container_path, ec) && preset_container_path.has_filename())
 			preset_container_path = preset_container_path.parent_path();
 
-		std::vector<std::filesystem::directory_entry> preset_container;
+		std::vector<preset_container_item> preset_container;
 		for (const auto &entry : std::filesystem::directory_iterator(preset_container_path, std::filesystem::directory_options::skip_permission_denied, ec))
-			preset_container.push_back(entry);
+			if (const bool is_current_preset = std::filesystem::equivalent(entry, _current_preset_path, ec);
+				is_current_preset || !_browse_path_filter_active)
+				preset_container.push_back({ is_current_preset, entry });
+			else if (const std::wstring name1 = entry.path().stem(), name2 = _presets_filter_text.wstring();
+				std::search(name1.begin(), name1.end(), name2.begin(), name2.end(), [](auto c1, auto c2) { return tolower(c1) == tolower(c2); }) != name1.end())
+				preset_container.push_back({ is_current_preset, entry });
 
 		if (condition == condition::backward || condition == condition::forward)
 		{
 			std::vector<std::filesystem::directory_entry> preset_paths;
-			for (const auto &entry : preset_container)
-				if (!entry.is_directory())
-					if (const std::wstring extension(entry.path().extension()); extension == L".ini" || extension == L".txt")
-						if (const reshade::ini_file preset(entry); preset.has("", "Techniques"))
-							preset_paths.push_back(entry);
+			for (const preset_container_item &item : preset_container)
+				if (!item.entry.is_directory())
+					if (const std::wstring extension(item.entry.path().extension()); extension == L".ini" || extension == L".txt")
+						if (const reshade::ini_file preset(item.entry); preset.has("", "Techniques"))
+							preset_paths.push_back(item.entry);
 
 			if (preset_paths.begin() == preset_paths.end())
 				condition = condition::pass;
@@ -2367,36 +2377,26 @@ void reshade::runtime::draw_preset_explorer()
 						_current_browse_path = _current_browse_path.lexically_proximate(reshade_container_path);
 				}
 
-				std::vector<std::filesystem::directory_entry> preset_paths;
-				for (const auto &entry : preset_container)
-					if (const std::filesystem::file_type file_type = entry.status(ec).type(); file_type == std::filesystem::file_type::directory)
-						if (ImGui::Selectable(("<DIR> " + entry.path().filename().u8string()).c_str()))
-							if (std::filesystem::equivalent(reshade_container_path, entry))
+				std::vector<preset_container_item> preset_paths;
+				for (const preset_container_item &item : preset_container)
+					if (const std::filesystem::file_type file_type = item.entry.status(ec).type(); file_type == std::filesystem::file_type::directory)
+						if (ImGui::Selectable(("<DIR> " + item.entry.path().filename().u8string()).c_str()))
+							if (std::filesystem::equivalent(reshade_container_path, item.entry))
 								_current_browse_path = L".";
-							else if (std::equal(reshade_container_path.begin(), reshade_container_path.end(), entry.path().begin()))
-								_current_browse_path = entry.path().lexically_proximate(reshade_container_path);
+							else if (std::equal(reshade_container_path.begin(), reshade_container_path.end(), item.entry.path().begin()))
+								_current_browse_path = item.entry.path().lexically_proximate(reshade_container_path);
 							else
-								_current_browse_path = entry;
+								_current_browse_path = item.entry;
 						else {}
-					else if (const std::wstring extension(entry.path().extension()); extension == L".ini" || extension == L".txt")
-						preset_paths.push_back(entry);
+					else if (const std::wstring extension(item.entry.path().extension()); extension == L".ini" || extension == L".txt")
+						preset_paths.push_back(item);
 
-				for (const auto &entry : preset_paths)
+				for (const preset_container_item &item : preset_paths)
 				{
-					const bool is_current_preset = std::filesystem::equivalent(entry, _current_preset_path, ec);
-					
-					bool is_preset_visible = true;
-					if (_browse_path_filter_active)
-						if (const std::wstring name1 = entry.path().stem(), name2 = _presets_filter_text.wstring();
-							std::search(name1.begin(), name1.end(), name2.begin(), name2.end(), [](auto c1, auto c2) { return tolower(c1) == tolower(c2); }) != name1.end())
-							is_preset_visible = true;
-						else
-							is_preset_visible = is_current_preset;
+					if (ImGui::Selectable(item.entry.path().filename().u8string().c_str(), static_cast<bool>(item.is_current)))
+						condition = condition::select, _current_browse_path = item.entry.path().lexically_proximate(reshade_container_path);
 
-					if (is_preset_visible && ImGui::Selectable(entry.path().filename().u8string().c_str(), static_cast<bool>(is_current_preset)))
-						condition = condition::select, _current_browse_path = entry.path().lexically_proximate(reshade_container_path);
-
-					if (is_current_preset)
+					if (item.is_current)
 						if (_current_preset_is_covered && !ImGui::IsWindowAppearing())
 							_current_preset_is_covered = false, ImGui::SetScrollHereY();
 						else if (condition == condition::backward || condition == condition::forward)
@@ -2450,9 +2450,6 @@ void reshade::runtime::draw_preset_explorer()
 
 		ImGui::EndPopup();
 	}
-
-	if (_browse_path_filter_active && (condition != condition::pass || _presets_filter_text.empty()))
-		_browse_path_filter_active = false;
 
 	if (condition != condition::pass)
 	{
