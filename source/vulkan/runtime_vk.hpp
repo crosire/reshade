@@ -27,7 +27,6 @@ namespace reshade::vulkan
 		bool on_init(VkSwapchainKHR swapchain, const VkSwapchainCreateInfoKHR &desc, HWND hwnd);
 		void on_reset();
 		void on_present(uint32_t swapchain_image_index, draw_call_tracker &tracker);
-		void on_create_graphics_pipelines(const VkGraphicsPipelineCreateInfo* pCreateInfos);
 
 		void capture_screenshot(uint8_t *buffer) const override;
 

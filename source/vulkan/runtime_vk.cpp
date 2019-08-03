@@ -179,7 +179,9 @@ VkImageView reshade::vulkan::runtime_vk::create_image_view(VkImage image, VkForm
 {
 	VkImageAspectFlags aspect = VK_IMAGE_ASPECT_COLOR_BIT;
 	if (format >= VK_FORMAT_D16_UNORM_S8_UINT && format <= VK_FORMAT_D32_SFLOAT_S8_UINT)
-		aspect = VK_IMAGE_ASPECT_STENCIL_BIT | VK_IMAGE_ASPECT_DEPTH_BIT;
+		aspect = VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT;
+	else if (format == VK_FORMAT_D16_UNORM || format == VK_FORMAT_D32_SFLOAT)
+		aspect = VK_IMAGE_ASPECT_DEPTH_BIT;
 
 	VkImageViewCreateInfo create_info { VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO };
 	create_info.image = image;
@@ -447,12 +449,6 @@ void reshade::vulkan::runtime_vk::on_present(uint32_t swapchain_image_index, dra
 
 	clear_DSV_iter = 1;
 	_current_tracker->reset();
-}
-
-void reshade::vulkan::runtime_vk::on_create_graphics_pipelines(const VkGraphicsPipelineCreateInfo* pCreateInfos)
-{
-	if (pCreateInfos->sType == VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO)
-		_is_multisampling_enabled = true;
 }
 
 void reshade::vulkan::runtime_vk::capture_screenshot(uint8_t *buffer) const
@@ -1395,7 +1391,7 @@ void reshade::vulkan::runtime_vk::render_technique(technique &technique)
 			begin_info.framebuffer = _swapchain_frames[_swap_index];
 		vk.CmdBeginRenderPass(cmd_list, &begin_info, VK_SUBPASS_CONTENTS_INLINE);
 
-		// Setup states		
+		// Setup states
 		vk.CmdBindPipeline(cmd_list, VK_PIPELINE_BIND_POINT_GRAPHICS, pass_data.pipeline);
 
 		// Draw triangle

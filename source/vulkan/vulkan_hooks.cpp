@@ -498,6 +498,12 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 		for (uint32_t j = 0; j < queueInfo.queueCount; j++)
 		{
 			VkQueue queue = VK_NULL_HANDLE;
+			PFN_vkGetDeviceQueue trampoline;
+			{ const std::lock_guard<std::mutex> lock(s_mutex);
+			trampoline = s_device_dispatch.at(get_dispatch_key(device)).GetDeviceQueue;
+			assert(trampoline != nullptr);
+			}
+
 			vkGetDeviceQueue(device, queueInfo.queueFamilyIndex, j, &queue);
 			s_queue_mapping[queue] = device;
 		}
@@ -726,22 +732,6 @@ VkResult VKAPI_CALL vkQueueSubmit(VkQueue queue, uint32_t submitCount, const VkS
 	return trampoline(queue, submitCount, pSubmits, fence);
 }
 
-VkResult VKAPI_CALL vkCreateGraphicsPipelines(VkDevice device, VkPipelineCache pipelineCache, uint32_t createInfoCount, const VkGraphicsPipelineCreateInfo* pCreateInfos, const VkAllocationCallbacks* pAllocator, VkPipeline* pPipelines)
-{
-	PFN_vkCreateGraphicsPipelines trampoline = nullptr;
-
-	{ const std::lock_guard<std::mutex> lock(s_mutex);
-		trampoline = s_device_dispatch.at(get_dispatch_key(device)).CreateGraphicsPipelines;
-		assert(trampoline != nullptr);
-
-		const auto it = s_device_runtimes.find(device);
-		if (it != s_device_runtimes.end())
-			it->second->on_create_graphics_pipelines(pCreateInfos);
-	}
-
-	return trampoline(device, pipelineCache, createInfoCount, pCreateInfos, pAllocator, pPipelines);
-}
-
 VkResult VKAPI_CALL vkCreateImage(VkDevice device, const VkImageCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkImage* pImage)
 {
 	PFN_vkCreateImage trampoline = nullptr;
@@ -964,36 +954,6 @@ void vkCmdDrawIndexed(VkCommandBuffer commandBuffer, uint32_t indexCount, uint32
 	command_buffer_tracker->on_draw(command_buffer_tracker->_depthstencil, indexCount * instanceCount);
 }
 
-void vkCmdDrawIndexedIndirect(VkCommandBuffer commandBuffer, VkBuffer buffer, VkDeviceSize offset, uint32_t drawCount, uint32_t stride)
-{
-	PFN_vkCmdDrawIndexedIndirect trampoline = nullptr;
-
-	// no device associated (this cannot happen normally)
-	if (const auto it = s_command_buffer_mapping.find(commandBuffer); it == s_command_buffer_mapping.end())
-		return;
-
-	VkDevice device = s_command_buffer_mapping.at(commandBuffer);
-
-	trampoline = s_device_dispatch.at(get_dispatch_key(device)).CmdDrawIndexedIndirect;
-	assert(trampoline != nullptr);
-
-	trampoline(commandBuffer, buffer, offset, drawCount, stride);
-
-	/*{ const std::lock_guard<std::mutex> lock(s_trackers_per_command_buffer_mutex);
-		// retrieve the current depth stencil image view
-		reshade::vulkan::draw_call_tracker *command_buffer_tracker = &s_trackers_per_command_buffer.at(commandBuffer);
-		uint64_t cur_offset = offset;
-		VkDrawIndexedIndirectCommand cmd = reinterpret_cast<VkDrawIndexedIndirectCommand *>(buffer)[cur_offset];
-		if(drawCount > 1)
-			for (uint32_t i = 1; i < drawCount; i++)
-			{
-				cur_offset = offset + i * sizeof(VkDrawIndexedIndirectCommand);
-				cmd = reinterpret_cast<VkDrawIndexedIndirectCommand *>(buffer)[cur_offset];
-				command_buffer_tracker->on_draw(command_buffer_tracker->_depthstencil, cmd.indexCount);
-			}
-	}*/
-}
-
 void vkCmdClearDepthStencilImage(VkCommandBuffer commandBuffer, VkImage image, VkImageLayout imageLayout, const VkClearDepthStencilValue* pDepthStencil, uint32_t rangeCount, const VkImageSubresourceRange* pRanges)
 {
 	PFN_vkCmdClearDepthStencilImage trampoline = nullptr;
@@ -1145,8 +1105,6 @@ VK_LAYER_EXPORT PFN_vkVoidFunction VKAPI_CALL vkGetDeviceProcAddr(VkDevice devic
 		return reinterpret_cast<PFN_vkVoidFunction>(vkQueuePresentKHR);
 	if (0 == strcmp(pName, "vkQueueSubmit"))
 		return reinterpret_cast<PFN_vkVoidFunction>(vkQueueSubmit);
-	if (0 == strcmp(pName, "vkCreateGraphicsPipelines"))
-		return reinterpret_cast<PFN_vkVoidFunction>(vkCreateGraphicsPipelines);
 	if (0 == strcmp(pName, "vkAllocateCommandBuffers"))
 		return reinterpret_cast<PFN_vkVoidFunction>(vkAllocateCommandBuffers);
 	if (0 == strcmp(pName, "vkCreateRenderPass"))
@@ -1157,8 +1115,6 @@ VK_LAYER_EXPORT PFN_vkVoidFunction VKAPI_CALL vkGetDeviceProcAddr(VkDevice devic
 		return reinterpret_cast<PFN_vkVoidFunction>(vkCmdDraw);
 	if (0 == strcmp(pName, "vkCmdDrawIndexed"))
 		return reinterpret_cast<PFN_vkVoidFunction>(vkCmdDrawIndexed);
-	if (0 == strcmp(pName, "vkCmdDrawIndexedIndirect"))
-		return reinterpret_cast<PFN_vkVoidFunction>(vkCmdDrawIndexedIndirect);
 	if (0 == strcmp(pName, "vkCmdClearDepthStencilImage"))
 		return reinterpret_cast<PFN_vkVoidFunction>(vkCmdClearDepthStencilImage);
 	if (0 == strcmp(pName, "vkCmdClearAttachments"))

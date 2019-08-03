@@ -192,6 +192,9 @@
     <ClCompile Include="source\vulkan\draw_call_tracker.cpp">
       <Filter>hooks\vulkan</Filter>
     </ClCompile>
+    <ClCompile Include="source\d3d12\d3d12_command_list.cpp">
+      <Filter>hooks\d3d12</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="source\hook.hpp">
@@ -319,6 +322,9 @@
     </ClInclude>
     <ClInclude Include="source\vulkan\draw_call_tracker.hpp">
       <Filter>hooks\vulkan</Filter>
+    </ClInclude>
+    <ClInclude Include="source\d3d12\d3d12_command_list.hpp">
+      <Filter>hooks\d3d12</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
