@@ -2321,7 +2321,7 @@ void reshade::runtime::draw_preset_explorer()
 			preset_container_path = preset_container_path.parent_path();
 
 		std::vector<preset_container_item> preset_container;
-		for (const auto &entry : std::filesystem::directory_iterator(preset_container_path, std::filesystem::directory_options::skip_permission_denied, ec))
+		for (const std::filesystem::directory_entry &entry : std::filesystem::directory_iterator(preset_container_path, std::filesystem::directory_options::skip_permission_denied, ec))
 			if (entry.is_directory())
 				preset_container.push_back({ false, entry });
 			else if (const bool is_current_preset = std::filesystem::equivalent(entry, _current_preset_path, ec);
