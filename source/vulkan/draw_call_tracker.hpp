@@ -22,7 +22,7 @@ namespace reshade::vulkan
 
 		struct depthstencil_infos
 		{
-			VkImage image = nullptr;
+			VkImage image = VK_NULL_HANDLE;
 			VkImageCreateInfo image_info;
 			VkImageViewCreateInfo image_view_info;
 		};

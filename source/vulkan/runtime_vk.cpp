@@ -1782,7 +1782,7 @@ void reshade::vulkan::runtime_vk::draw_debug_menu()
 
 				ImGui::Text("=> 0x%p | 0x%p | %ux%u", it.second.src_depthstencil, it.second.src_image, it.second.src_image_info.extent.width, it.second.src_image_info.extent.height);
 
-				if (it.second.dest_image != nullptr)
+				if (it.second.dest_image != VK_NULL_HANDLE)
 				{
 					ImGui::SameLine();
 
@@ -1804,9 +1804,9 @@ void reshade::vulkan::runtime_vk::draw_debug_menu()
 
 				if (bool value = _best_depth_stencil_overwrite == depthstencil; ImGui::Checkbox(label, &value))
 				{
-					_best_depth_stencil_overwrite = value ? depthstencil : nullptr;
+					_best_depth_stencil_overwrite = value ? depthstencil : VK_NULL_HANDLE;
 
-					if (_best_depth_stencil_overwrite != nullptr)
+					if (_best_depth_stencil_overwrite != VK_NULL_HANDLE)
 					{
 						VkImage image;
 						create_depthstencil_replacement(_best_depth_stencil_overwrite, snapshot.image, snapshot.image_info.format, snapshot.image_info.usage);

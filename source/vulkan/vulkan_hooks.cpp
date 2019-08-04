@@ -65,7 +65,7 @@ inline void *get_dispatch_key(const void *dispatchable_handle)
 
 static void add_command_buffer_trackers(VkCommandBuffer command_buffer, reshade::vulkan::draw_call_tracker &tracker_source)
 {
-	assert(command_buffer != nullptr);
+	assert(command_buffer != VK_NULL_HANDLE);
 
 	const std::lock_guard<std::mutex> lock(s_trackers_per_command_buffer_mutex);
 
@@ -78,7 +78,7 @@ static void add_command_buffer_trackers(VkCommandBuffer command_buffer, reshade:
 }
 static void merge_command_buffer_trackers(VkCommandBuffer command_buffer, reshade::vulkan::draw_call_tracker &tracker_destination)
 {
-	assert(command_buffer != nullptr);
+	assert(command_buffer != VK_NULL_HANDLE);
 
 	const std::lock_guard<std::mutex> lock(s_trackers_per_command_buffer_mutex);
 
@@ -159,7 +159,7 @@ static bool save_depth_image(VkCommandBuffer commandBuffer, VkDevice device, res
 	{
 		// Store a null depth texture in the ordered map in order to display it even if the user chose a previous cleared texture.
 		// This way the texture will still be visible in the depth buffer selection window and the user can choose it.
-		draw_call_tracker.track_depth_image(runtime->depth_buffer_texture_format, runtime->clear_DSV_iter, depthstencil, imageViewData.image_data.image_info, pDepthStencilView, imageViewData.image_view_info, nullptr, cleared);
+		draw_call_tracker.track_depth_image(runtime->depth_buffer_texture_format, runtime->clear_DSV_iter, depthstencil, imageViewData.image_data.image_info, pDepthStencilView, imageViewData.image_view_info, VK_NULL_HANDLE, cleared);
 	}
 
 	runtime->clear_DSV_iter++;
@@ -914,9 +914,9 @@ void VKAPI_CALL vkCmdBeginRenderPass(VkCommandBuffer commandBuffer, const VkRend
 	trampoline(commandBuffer, pRenderPassBegin, contents);
 }
 
-void vkCmdDraw(VkCommandBuffer commandBuffer, uint32_t vertexCount, uint32_t instanceCount, uint32_t firstVertex, uint32_t firstInstance)
+void     VKAPI_CALL vkCmdDraw(VkCommandBuffer commandBuffer, uint32_t vertexCount, uint32_t instanceCount, uint32_t firstVertex, uint32_t firstInstance)
 {
-	PFN_vkCmdDraw trampoline = nullptr;
+	PFN_vkCmdDraw trampoline;
 
 	// no device associated (this cannot happen normally)
 	if (const auto it = s_command_buffer_mapping.find(commandBuffer); it == s_command_buffer_mapping.end())
@@ -934,9 +934,9 @@ void vkCmdDraw(VkCommandBuffer commandBuffer, uint32_t vertexCount, uint32_t ins
 	command_buffer_tracker->on_draw(command_buffer_tracker->_depthstencil, vertexCount * instanceCount);
 }
 
-void vkCmdDrawIndexed(VkCommandBuffer commandBuffer, uint32_t indexCount, uint32_t instanceCount, uint32_t firstIndex, int32_t vertexOffset, uint32_t firstInstance)
+void     VKAPI_CALL vkCmdDrawIndexed(VkCommandBuffer commandBuffer, uint32_t indexCount, uint32_t instanceCount, uint32_t firstIndex, int32_t vertexOffset, uint32_t firstInstance)
 {
-	PFN_vkCmdDrawIndexed trampoline = nullptr;
+	PFN_vkCmdDrawIndexed trampoline;
 
 	// no device associated (this cannot happen normally)
 	if (const auto it = s_command_buffer_mapping.find(commandBuffer); it == s_command_buffer_mapping.end())
@@ -954,9 +954,9 @@ void vkCmdDrawIndexed(VkCommandBuffer commandBuffer, uint32_t indexCount, uint32
 	command_buffer_tracker->on_draw(command_buffer_tracker->_depthstencil, indexCount * instanceCount);
 }
 
-void vkCmdClearDepthStencilImage(VkCommandBuffer commandBuffer, VkImage image, VkImageLayout imageLayout, const VkClearDepthStencilValue* pDepthStencil, uint32_t rangeCount, const VkImageSubresourceRange* pRanges)
+void     VKAPI_CALL vkCmdClearDepthStencilImage(VkCommandBuffer commandBuffer, VkImage image, VkImageLayout imageLayout, const VkClearDepthStencilValue* pDepthStencil, uint32_t rangeCount, const VkImageSubresourceRange* pRanges)
 {
-	PFN_vkCmdClearDepthStencilImage trampoline = nullptr;
+	PFN_vkCmdClearDepthStencilImage trampoline;
 
 	// no device associated (this cannot happen normally)
 	if (const auto it = s_command_buffer_mapping.find(commandBuffer); it == s_command_buffer_mapping.end())
@@ -983,9 +983,9 @@ void vkCmdClearDepthStencilImage(VkCommandBuffer commandBuffer, VkImage image, V
 	trampoline(commandBuffer, image, imageLayout, pDepthStencil, rangeCount, pRanges);
 }
 
-void vkCmdClearAttachments(VkCommandBuffer commandBuffer, uint32_t attachmentCount, const VkClearAttachment* pAttachments, uint32_t rectCount, const VkClearRect* pRects)
+void     VKAPI_CALL vkCmdClearAttachments(VkCommandBuffer commandBuffer, uint32_t attachmentCount, const VkClearAttachment* pAttachments, uint32_t rectCount, const VkClearRect* pRects)
 {
-	PFN_vkCmdClearAttachments trampoline = nullptr;
+	PFN_vkCmdClearAttachments trampoline;
 
 	// no device associated (this cannot happen normally)
 	if (const auto it = s_command_buffer_mapping.find(commandBuffer); it == s_command_buffer_mapping.end())
@@ -1015,9 +1015,9 @@ void vkCmdClearAttachments(VkCommandBuffer commandBuffer, uint32_t attachmentCou
 	trampoline(commandBuffer, attachmentCount, pAttachments, rectCount, pRects);
 }
 
-VkResult vkEndCommandBuffer(VkCommandBuffer commandBuffer)
+VkResult VKAPI_CALL vkEndCommandBuffer(VkCommandBuffer commandBuffer)
 {
-	PFN_vkEndCommandBuffer trampoline;
+	PFN_vkEndCommandBuffer trampoline = nullptr;
 
 	// no device associated (this cannot happen normally)
 	if (const auto it = s_command_buffer_mapping.find(commandBuffer); it == s_command_buffer_mapping.end())
