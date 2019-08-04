@@ -76,15 +76,15 @@ void DXGISwapChain::runtime_resize()
 	{
 	case 10:
 		assert(_runtime != nullptr);
-		std::static_pointer_cast<reshade::d3d10::runtime_d3d10>(_runtime)->on_init(desc);
+		initialized = std::static_pointer_cast<reshade::d3d10::runtime_d3d10>(_runtime)->on_init(desc);
 		break;
 	case 11:
 		assert(_runtime != nullptr);
-		std::static_pointer_cast<reshade::d3d11::runtime_d3d11>(_runtime)->on_init(desc);
+		initialized = std::static_pointer_cast<reshade::d3d11::runtime_d3d11>(_runtime)->on_init(desc);
 		break;
 	case 12:
 		assert(_runtime != nullptr);
-		std::static_pointer_cast<reshade::d3d12::runtime_d3d12>(_runtime)->on_init(desc);
+		initialized = std::static_pointer_cast<reshade::d3d12::runtime_d3d12>(_runtime)->on_init(desc);
 		break;
 	}
 
