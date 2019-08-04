@@ -1222,10 +1222,7 @@ bool reshade::vulkan::runtime_vk::init_technique(technique &info, VkShaderModule
 				num_depth_attachments = 1;
 				const uint32_t attach_idx = num_color_attachments;
 
-				if (_depthstencil_image_view == VK_NULL_HANDLE)
-					attachment_views[attach_idx] = _default_depthstencil_view;
-				else
-					attachment_views[attach_idx] = _depthstencil_image_view;
+				attachment_views[attach_idx] = _default_depthstencil_view;
 
 				VkAttachmentReference &attachment_ref = attachment_refs[attach_idx];
 				attachment_ref.attachment = attach_idx;
