@@ -6,66 +6,23 @@
 #include "log.hpp"
 #include "d3d12_device.hpp"
 #include "d3d12_command_list.hpp"
-#include <assert.h>
-#include "runtime_d3d12.hpp"
 
-D3D12CommandList::D3D12CommandList(D3D12Device *device, UINT nodeMask, D3D12_COMMAND_LIST_TYPE type, ID3D12CommandAllocator *pCommandAllocator, ID3D12PipelineState *pInitialState, ID3D12GraphicsCommandList *original) :
+D3D12CommandList::D3D12CommandList(D3D12Device *device, ID3D12GraphicsCommandList *original) :
 	_orig(original),
 	_interface_version(0),
-	_device(device),
-	_nodeMask(nodeMask),
-	_type(type),
-	_commandAllocator(pCommandAllocator),
-	_initialState(pInitialState) {
-	assert(original != nullptr);
-}
-
-D3D12CommandList::D3D12CommandList(D3D12Device *device, UINT nodeMask, D3D12_COMMAND_LIST_TYPE type, ID3D12CommandAllocator *pCommandAllocator, ID3D12PipelineState *pInitialState, ID3D12GraphicsCommandList1 *original) :
-	_orig(original),
-	_interface_version(1),
-	_device(device),
-	_nodeMask(nodeMask),
-	_type(type),
-	_commandAllocator(pCommandAllocator),
-	_initialState(pInitialState) {
-	assert(original != nullptr);
-}
-
-D3D12CommandList::D3D12CommandList(D3D12Device *device, UINT nodeMask, D3D12_COMMAND_LIST_TYPE type, ID3D12CommandAllocator *pCommandAllocator, ID3D12PipelineState *pInitialState, ID3D12GraphicsCommandList2 *original) :
-	_orig(original),
-	_interface_version(2),
-	_device(device),
-	_nodeMask(nodeMask),
-	_type(type),
-	_commandAllocator(pCommandAllocator),
-	_initialState(pInitialState) {
-	assert(original != nullptr);
-}
-
-D3D12CommandList::D3D12CommandList(D3D12Device *device, UINT nodeMask, D3D12_COMMAND_LIST_TYPE type, ID3D12CommandAllocator *pCommandAllocator, ID3D12PipelineState *pInitialState, ID3D12GraphicsCommandList3 *original) :
-	_orig(original),
-	_interface_version(3),
-	_device(device),
-	_nodeMask(nodeMask),
-	_type(type),
-	_commandAllocator(pCommandAllocator),
-	_initialState(pInitialState) {
-	assert(original != nullptr);
-}
-
-D3D12CommandList::D3D12CommandList(D3D12Device *device, UINT nodeMask, D3D12_COMMAND_LIST_TYPE type, ID3D12CommandAllocator *pCommandAllocator, ID3D12PipelineState *pInitialState, ID3D12GraphicsCommandList4 *original) :
-	_orig(original),
-	_interface_version(4),
-	_device(device),
-	_nodeMask(nodeMask),
-	_type(type),
-	_commandAllocator(pCommandAllocator),
-	_initialState(pInitialState) {
+	_device(device) {
 	assert(original != nullptr);
 }
 
 bool D3D12CommandList::check_and_upgrade_interface(REFIID riid)
 {
+	if (riid == __uuidof(this) ||
+		riid == __uuidof(IUnknown) ||
+		riid == __uuidof(ID3D12Object) ||
+		riid == __uuidof(ID3D12DeviceChild) ||
+		riid == __uuidof(ID3D12CommandList))
+		return true;
+
 	static const IID iid_lookup[] = {
 		__uuidof(ID3D12GraphicsCommandList),
 		__uuidof(ID3D12GraphicsCommandList1),
@@ -74,24 +31,28 @@ bool D3D12CommandList::check_and_upgrade_interface(REFIID riid)
 		__uuidof(ID3D12GraphicsCommandList4),
 	};
 
-	for (unsigned int new_version = _interface_version + 1; new_version < ARRAYSIZE(iid_lookup); ++new_version)
+	for (unsigned int version = 0; version < ARRAYSIZE(iid_lookup); ++version)
 	{
-		if (riid == iid_lookup[new_version])
+		if (riid != iid_lookup[version])
+			continue;
+
+		if (version > _interface_version)
 		{
 			IUnknown *new_interface = nullptr;
 			if (FAILED(_orig->QueryInterface(riid, reinterpret_cast<void **>(&new_interface))))
 				return false;
 #if RESHADE_VERBOSE_LOG
-			LOG(DEBUG) << "Upgraded ID3D12GraphicsCommandList" << _interface_version << " object " << this << " to ID3D12GraphicsCommandList" << new_version << '.';
+			LOG(DEBUG) << "Upgraded ID3D12GraphicsCommandList" << _interface_version << " object " << this << " to ID3D12GraphicsCommandList" << version << '.';
 #endif
 			_orig->Release();
 			_orig = static_cast<ID3D12GraphicsCommandList *>(new_interface);
-			_interface_version = new_version;
-			break;
+			_interface_version = version;
 		}
+
+		return true;
 	}
 
-	return true;
+	return false;
 }
 
 HRESULT STDMETHODCALLTYPE D3D12CommandList::QueryInterface(REFIID riid, void **ppvObj)
@@ -99,20 +60,8 @@ HRESULT STDMETHODCALLTYPE D3D12CommandList::QueryInterface(REFIID riid, void **p
 	if (ppvObj == nullptr)
 		return E_POINTER;
 
-	if (riid == __uuidof(this) ||
-		riid == __uuidof(IUnknown) ||
-		riid == __uuidof(ID3D12Object) ||
-		riid == __uuidof(ID3D12DeviceChild) ||
-		riid == __uuidof(ID3D12CommandList) ||
-		riid == __uuidof(ID3D12GraphicsCommandList) ||
-		riid == __uuidof(ID3D12GraphicsCommandList1) ||
-		riid == __uuidof(ID3D12GraphicsCommandList2) ||
-		riid == __uuidof(ID3D12GraphicsCommandList3) ||
-		riid == __uuidof(ID3D12GraphicsCommandList4))
+	if (check_and_upgrade_interface(riid))
 	{
-		if (!check_and_upgrade_interface(riid))
-			return E_NOINTERFACE;
-
 		AddRef();
 		*ppvObj = this;
 		return S_OK;
@@ -120,18 +69,18 @@ HRESULT STDMETHODCALLTYPE D3D12CommandList::QueryInterface(REFIID riid, void **p
 
 	return _orig->QueryInterface(riid, ppvObj);
 }
-ULONG STDMETHODCALLTYPE D3D12CommandList::AddRef()
+ULONG   STDMETHODCALLTYPE D3D12CommandList::AddRef()
 {
 	++_ref;
 
 	return _orig->AddRef();
 }
-ULONG STDMETHODCALLTYPE D3D12CommandList::Release()
+ULONG   STDMETHODCALLTYPE D3D12CommandList::Release()
 {
 	--_ref;
 
+	// Decrease internal reference count and verify it against our own count
 	const ULONG ref = _orig->Release();
-
 	if (ref != 0 && _ref != 0)
 		return ref;
 	else if (ref != 0)
@@ -142,6 +91,7 @@ ULONG STDMETHODCALLTYPE D3D12CommandList::Release()
 	LOG(DEBUG) << "Destroyed ID3D12GraphicsCommandList" << _interface_version << " object " << this << '.';
 #endif
 	delete this;
+
 	return 0;
 }
 
@@ -167,7 +117,7 @@ HRESULT STDMETHODCALLTYPE D3D12CommandList::GetDevice(REFIID riid, void **ppvDev
 	return _device->QueryInterface(riid, ppvDevice);
 }
 
-D3D12_COMMAND_LIST_TYPE __stdcall D3D12CommandList::GetType(void)
+D3D12_COMMAND_LIST_TYPE STDMETHODCALLTYPE D3D12CommandList::GetType()
 {
 	return _orig->GetType();
 }
@@ -180,6 +130,7 @@ HRESULT STDMETHODCALLTYPE D3D12CommandList::Reset(ID3D12CommandAllocator *pAlloc
 {
 	return _orig->Reset(pAllocator, pInitialState);
 }
+
 void STDMETHODCALLTYPE D3D12CommandList::ClearState(ID3D12PipelineState *pPipelineState)
 {
 	_orig->ClearState(pPipelineState);
