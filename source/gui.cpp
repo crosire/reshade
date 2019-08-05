@@ -2416,7 +2416,7 @@ void reshade::runtime::draw_preset_explorer()
 						_presets_filter_text += ch;
 					else
 						_presets_filter_text = ch;
-				else if (activate = ImGui::IsKeyPressedMap(ImGuiKey_Backspace, false))
+				else if (activate = ImGui::IsKeyPressedMap(ImGuiKey_Backspace, false); activate)
 					_presets_filter_text = _presets_filter_text.native().substr(0, _presets_filter_text.native().size() - 1);
 
 			if (activate)
