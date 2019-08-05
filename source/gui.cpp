@@ -2328,7 +2328,7 @@ void reshade::runtime::draw_preset_explorer()
 				is_current_preset || !_browse_path_filter_active)
 				preset_container.push_back({ is_current_preset, entry });
 			else if (const std::wstring preset_name = entry.path().stem(), &filter_text = _presets_filter_text.native();
-				std::search(preset_name.begin(), preset_name.end(), filter_text.begin(), filter_text.end(), [](auto c1, auto c2) { return tolower(c1) == tolower(c2); }) != preset_name.end())
+				std::search(preset_name.begin(), preset_name.end(), filter_text.begin(), filter_text.end(), [](const wchar_t c1, const wchar_t c2) { return towlower(c1) == towlower(c2); }) != preset_name.end())
 				preset_container.push_back({ is_current_preset, entry });
 
 		if (condition == condition::backward || condition == condition::forward)
