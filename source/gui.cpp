@@ -2226,6 +2226,7 @@ void reshade::runtime::draw_preset_explorer()
 	if (_browse_path_filter_active && (!is_explore_open || _presets_filter_text.empty()))
 		_browse_path_filter_active = false;
 
+	bool browse_path_filter_editing = false;
 	if (is_explore_open)
 	{
 		if (ImGui::ButtonEx("<", ImVec2(button_size, 0), ImGuiButtonFlags_NoNavFocus))
@@ -2296,12 +2297,11 @@ void reshade::runtime::draw_preset_explorer()
 				_presets_filter_text = std::filesystem::u8path(buf);
 			else if (ImGui::IsItemActivated())
 				_imgui_context->InputTextState.ClearSelection();
+
+			browse_path_filter_editing = ImGui::IsItemActive();
 		}
 		else
 		{
-			if (const std::wstring &ch = _input->text_input(); !ch.empty() && L'~' >= ch[0] && ch[0] >= L'!')
-				ImGui::ActivateItem(ImGui::GetID("##filter")), _presets_filter_text = ch, _browse_path_filter_active = true;
-
 			ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2(0.0f, 0.5f));
 			if (ImGui::ButtonEx(_current_preset_path.stem().u8string().c_str(), ImVec2(root_window_width - (button_spacing + button_size) * 3, 0), ImGuiButtonFlags_NoNavFocus))
 				if (_imgui_context->IO.KeyCtrl)
@@ -2405,7 +2405,24 @@ void reshade::runtime::draw_preset_explorer()
 							ImGui::SetScrollHereY();
 				}
 			}
+
+			const bool paths_window_focused = ImGui::IsWindowFocused();
 			ImGui::EndChild();
+
+			if (paths_window_focused || !browse_path_filter_editing)
+			{
+				bool activate = true;
+				if (const std::wstring &ch = _input->text_input(); !ch.empty() && L'~' >= ch[0] && ch[0] >= L'!')
+					if (_browse_path_filter_active)
+						_presets_filter_text += ch;
+					else
+						_presets_filter_text = ch;
+				else if (activate = ImGui::IsKeyPressedMap(ImGuiKey_Backspace, false))
+					_presets_filter_text = _presets_filter_text.native().substr(0, _presets_filter_text.native().size() - 1);
+
+				if (activate)
+					ImGui::ActivateItem(ImGui::GetID("##filter")), _browse_path_filter_active = true;
+			}
 		}
 	}
 
