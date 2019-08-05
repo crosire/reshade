@@ -1312,7 +1312,7 @@ void reshade::runtime::set_current_preset(std::filesystem::path path)
 	path_state path_state = path_state::invalid;
 
 	if (path.has_filename())
-		if (const std::wstring extension(path.extension()); extension == L".ini" || extension == L".txt")
+		if (const std::filesystem::path::string_type &extension = path.extension(); extension == L".ini" || extension == L".txt")
 			if (!std::filesystem::exists(reshade_container_path / path, ec))
 				path_state = path_state::valid;
 			else if (const reshade::ini_file preset(reshade_container_path / path); preset.has("", "Techniques"))
@@ -1320,7 +1320,7 @@ void reshade::runtime::set_current_preset(std::filesystem::path path)
 
 	// Select a default preset file if none exists yet or not own
 	if (path_state == path_state::invalid)
-		path = "DefaultPreset.ini";
+		path = L"DefaultPreset.ini";
 	else if (const std::filesystem::path preset_canonical_path = std::filesystem::weakly_canonical(reshade_container_path / path, ec);
 		std::equal(reshade_container_path.begin(), reshade_container_path.end(), preset_canonical_path.begin()))
 		path = preset_canonical_path.lexically_proximate(reshade_container_path);
