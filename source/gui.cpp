@@ -2364,7 +2364,7 @@ void reshade::runtime::draw_preset_explorer()
 			if (ImGui::IsWindowAppearing() || condition == condition::backward || condition == condition::forward)
 				ImGui::SetNextWindowFocus();
 
-			if (ImGui::BeginChild("##paths", ImVec2(0, 300), true))
+			if (ImGui::BeginChild("##paths", ImVec2(0, 300), true, ImGuiWindowFlags_NavFlattened))
 			{
 				if (ImGui::Selectable(".."))
 				{
