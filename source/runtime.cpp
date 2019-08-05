@@ -1305,10 +1305,10 @@ void reshade::runtime::set_current_preset()
 }
 void reshade::runtime::set_current_preset(std::filesystem::path path)
 {
-	std::error_code ec;
-	std::filesystem::path reshade_container_path = g_reshade_dll_path.parent_path();
-
 	enum class path_state { invalid, valid };
+	static const std::filesystem::path reshade_container_path = g_reshade_dll_path.parent_path();
+
+	std::error_code ec;
 	path_state path_state = path_state::invalid;
 
 	if (path.has_filename())
