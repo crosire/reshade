@@ -2390,7 +2390,7 @@ void reshade::runtime::draw_preset_explorer()
 							else
 								_current_browse_path = item.entry;
 						else {}
-					else if (const std::filesystem::path::string_type extension(item.entry.path().extension()); extension == L".ini" || extension == L".txt")
+					else if (const std::filesystem::path::string_type extension = item.entry.path().extension(); extension == L".ini" || extension == L".txt")
 						preset_paths.push_back(item);
 
 				for (const preset_container_item &item : preset_paths)
