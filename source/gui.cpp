@@ -2409,9 +2409,8 @@ void reshade::runtime::draw_preset_explorer()
 			const bool paths_window_focused = ImGui::IsWindowFocused();
 			ImGui::EndChild();
 
+			bool activate = true;
 			if (paths_window_focused || !browse_path_filter_editing)
-			{
-				bool activate = true;
 				if (const std::wstring &ch = _input->text_input(); !ch.empty() && L'~' >= ch[0] && ch[0] >= L'!')
 					if (_browse_path_filter_active)
 						_presets_filter_text += ch;
@@ -2420,9 +2419,8 @@ void reshade::runtime::draw_preset_explorer()
 				else if (activate = ImGui::IsKeyPressedMap(ImGuiKey_Backspace, false))
 					_presets_filter_text = _presets_filter_text.native().substr(0, _presets_filter_text.native().size() - 1);
 
-				if (activate)
-					ImGui::ActivateItem(ImGui::GetID("##filter")), _browse_path_filter_active = true;
-			}
+			if (activate)
+				ImGui::ActivateItem(ImGui::GetID("##filter")), _browse_path_filter_active = true;
 		}
 	}
 
