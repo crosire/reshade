@@ -2314,7 +2314,6 @@ void reshade::runtime::draw_preset_explorer()
 		}
 	}
 
-	bool paths_window_focused = false;
 	if (is_explore_open || condition == condition::backward || condition == condition::forward)
 	{
 		std::filesystem::path preset_container_path = std::filesystem::absolute(reshade_container_path / _current_browse_path);
@@ -2406,7 +2405,6 @@ void reshade::runtime::draw_preset_explorer()
 							ImGui::SetScrollHereY();
 				}
 			}
-			paths_window_focused = ImGui::IsWindowFocused();
 			ImGui::EndChild();
 		}
 	}
@@ -2454,7 +2452,7 @@ void reshade::runtime::draw_preset_explorer()
 
 		ImGui::EndPopup();
 	}
-	else if (paths_window_focused || !browse_path_filter_editing)
+	else if (!browse_path_filter_editing)
 	{
 		bool activate = true;
 
