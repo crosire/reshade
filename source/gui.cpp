@@ -2314,6 +2314,7 @@ void reshade::runtime::draw_preset_explorer()
 		}
 	}
 
+	bool paths_window_focused = false;
 	if (is_explore_open || condition == condition::backward || condition == condition::forward)
 	{
 		std::filesystem::path preset_container_path = std::filesystem::absolute(reshade_container_path / _current_browse_path);
@@ -2405,25 +2406,8 @@ void reshade::runtime::draw_preset_explorer()
 							ImGui::SetScrollHereY();
 				}
 			}
-
-			const bool paths_window_focused = ImGui::IsWindowFocused();
+			paths_window_focused = ImGui::IsWindowFocused();
 			ImGui::EndChild();
-
-			if (paths_window_focused || !browse_path_filter_editing)
-			{
-				bool activate = true;
-
-				if (const std::wstring &ch = _input->text_input(); !ch.empty() && L'~' >= ch[0] && ch[0] >= L'!')
-					if (_browse_path_filter_active)
-						_presets_filter_text += ch;
-					else
-						_presets_filter_text = ch;
-				else if (activate = ImGui::IsKeyPressedMap(ImGuiKey_Backspace, false); activate)
-					_presets_filter_text = _presets_filter_text.native().substr(0, _presets_filter_text.native().size() - 1);
-
-				if (activate)
-					ImGui::ActivateItem(ImGui::GetID("##filter")), _browse_path_filter_active = true;
-			}
 		}
 	}
 
@@ -2469,6 +2453,21 @@ void reshade::runtime::draw_preset_explorer()
 			ImGui::CloseCurrentPopup();
 
 		ImGui::EndPopup();
+	}
+	else if (paths_window_focused || !browse_path_filter_editing)
+	{
+		bool activate = true;
+
+		if (const std::wstring &ch = _input->text_input(); !ch.empty() && L'~' >= ch[0] && ch[0] >= L'!')
+			if (_browse_path_filter_active)
+				_presets_filter_text += ch;
+			else
+				_presets_filter_text = ch;
+		else if (activate = ImGui::IsKeyPressedMap(ImGuiKey_Backspace, false); activate)
+			_presets_filter_text = _presets_filter_text.native().substr(0, _presets_filter_text.native().size() - 1);
+
+		if (activate)
+			ImGui::ActivateItem(ImGui::GetID("##filter")), _browse_path_filter_active = true;
 	}
 
 	if (condition != condition::pass)
