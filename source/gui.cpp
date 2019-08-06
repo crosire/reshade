@@ -2269,7 +2269,7 @@ void reshade::runtime::draw_preset_explorer()
 					else
 					{
 						if (_current_browse_path.has_filename())
-							if (const std::filesystem::path::string_type &extension = _current_browse_path.extension(); extension != L".ini" && extension != L".txt")
+							if (const std::wstring extension(_current_browse_path.extension()); extension != L".ini" && extension != L".txt")
 								_current_browse_path += L".ini",
 								file_type = std::filesystem::status(reshade_container_path / _current_browse_path, ec).type();
 
@@ -2327,7 +2327,7 @@ void reshade::runtime::draw_preset_explorer()
 			else if (const bool is_current_preset = std::filesystem::equivalent(entry, _current_preset_path, ec);
 				is_current_preset || !_browse_path_filter_active)
 				preset_container.push_back({ is_current_preset, entry });
-			else if (const std::filesystem::path::string_type &preset_name = entry.path().stem(), &filter_text = _presets_filter_text.native();
+			else if (const std::wstring preset_name(entry.path().stem()), &filter_text = _presets_filter_text.native();
 				std::search(preset_name.begin(), preset_name.end(), filter_text.begin(), filter_text.end(), [](const wchar_t c1, const wchar_t c2) { return towlower(c1) == towlower(c2); }) != preset_name.end())
 				preset_container.push_back({ is_current_preset, entry });
 
@@ -2336,7 +2336,7 @@ void reshade::runtime::draw_preset_explorer()
 			std::vector<std::filesystem::directory_entry> preset_paths;
 			for (const preset_container_item &item : preset_container)
 				if (!item.entry.is_directory())
-					if (const std::filesystem::path::string_type &extension = item.entry.path().extension(); extension == L".ini" || extension == L".txt")
+					if (const std::wstring extension(item.entry.path().extension()); extension == L".ini" || extension == L".txt")
 						if (const reshade::ini_file preset(item.entry); preset.has("", "Techniques"))
 							preset_paths.push_back(item.entry);
 
@@ -2390,7 +2390,7 @@ void reshade::runtime::draw_preset_explorer()
 							else
 								_current_browse_path = item.entry;
 						else {}
-					else if (const std::filesystem::path::string_type &extension = item.entry.path().extension(); extension == L".ini" || extension == L".txt")
+					else if (const std::wstring extension(item.entry.path().extension()); extension == L".ini" || extension == L".txt")
 						preset_paths.push_back(item);
 
 				for (const preset_container_item &item : preset_paths)
@@ -2409,8 +2409,10 @@ void reshade::runtime::draw_preset_explorer()
 			const bool paths_window_focused = ImGui::IsWindowFocused();
 			ImGui::EndChild();
 
-			bool activate = true;
 			if (paths_window_focused || !browse_path_filter_editing)
+			{
+				bool activate = true;
+
 				if (const std::wstring &ch = _input->text_input(); !ch.empty() && L'~' >= ch[0] && ch[0] >= L'!')
 					if (_browse_path_filter_active)
 						_presets_filter_text += ch;
@@ -2419,8 +2421,9 @@ void reshade::runtime::draw_preset_explorer()
 				else if (activate = ImGui::IsKeyPressedMap(ImGuiKey_Backspace, false); activate)
 					_presets_filter_text = _presets_filter_text.native().substr(0, _presets_filter_text.native().size() - 1);
 
-			if (activate)
-				ImGui::ActivateItem(ImGui::GetID("##filter")), _browse_path_filter_active = true;
+				if (activate)
+					ImGui::ActivateItem(ImGui::GetID("##filter")), _browse_path_filter_active = true;
+			}
 		}
 	}
 
@@ -2444,7 +2447,7 @@ void reshade::runtime::draw_preset_explorer()
 		{
 			if (std::filesystem::path input_preset_path = std::filesystem::u8path(filename); input_preset_path.has_filename())
 			{
-				if (const std::filesystem::path::string_type &extension = input_preset_path.extension(); extension != L".ini" && extension != L".txt")
+				if (const std::wstring extension(input_preset_path.extension()); extension != L".ini" && extension != L".txt")
 					input_preset_path += L".ini";
 				if (const std::filesystem::file_type file_type = std::filesystem::status(reshade_container_path / _current_browse_path / input_preset_path, ec).type(); ec.value() == 0x7b) // 0x7b: ERROR_INVALID_NAME
 					condition = condition::pass;
