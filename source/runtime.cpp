@@ -1330,6 +1330,6 @@ void reshade::runtime::set_current_preset(std::filesystem::path path)
 	else
 		path = preset_canonical_path;
 
-	_current_browse_path = path;
+	_current_browse_path = path.parent_path();
 	_current_preset_path = reshade_container_path / path;
 }
