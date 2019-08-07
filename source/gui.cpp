@@ -2223,7 +2223,7 @@ void reshade::runtime::draw_preset_explorer()
 	ImGui::SetNextWindowPos(cursor_pos - _imgui_context->Style.WindowPadding);
 	const bool is_explore_open = ImGui::BeginPopup("##explore");
 
-	if (_browse_path_is_input_mode && (!is_explore_open || _current_browse_path.empty()))
+	if (_browse_path_is_input_mode && !is_explore_open)
 		_browse_path_is_input_mode = false;
 
 	bool browse_path_is_editing = false;
@@ -2259,7 +2259,8 @@ void reshade::runtime::draw_preset_explorer()
 				std::filesystem::file_type file_type = std::filesystem::status(focus_preset_path, ec).type();
 
 				if (is_edited && ec.value() != 0x7b) // 0x7b: ERROR_INVALID_NAME
-					_current_browse_path = std::move(input_preset_path);
+					if (_current_browse_path = std::move(input_preset_path); buf[0] == '\0')
+						_browse_path_is_input_mode = false;
 
 				if (is_returned)
 				{
@@ -2463,7 +2464,7 @@ void reshade::runtime::draw_preset_explorer()
 				_current_browse_path += L'\\' + ch;
 			else
 				_current_browse_path += ch;
-		else if (activate = ImGui::IsKeyPressedMap(ImGuiKey_Backspace, false); activate)
+		else if (activate = (!_current_browse_path.empty() && ImGui::IsKeyPressedMap(ImGuiKey_Backspace, false)); activate)
 			if (!std::filesystem::is_directory(reshade_container_path / _current_browse_path, ec))
 				_current_browse_path = _current_browse_path.native().substr(0, _current_browse_path.native().size() - 1);
 
