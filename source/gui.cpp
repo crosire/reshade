@@ -2427,7 +2427,9 @@ void reshade::runtime::draw_preset_explorer()
 		char filename[_MAX_PATH]{};
 		ImGui::InputText("Name", filename, sizeof(filename));
 
-		if (const bool is_returned = ImGui::IsKeyPressedMap(ImGuiKey_Enter); is_returned)
+		if (filename[0] == '\0' && ImGui::IsKeyPressedMap(ImGuiKey_Backspace))
+			ImGui::CloseCurrentPopup();
+		else if (ImGui::IsKeyPressedMap(ImGuiKey_Enter))
 		{
 			if (filename[0] == '\0')
 				ImGui::SetKeyboardFocusHere();
@@ -2447,15 +2449,9 @@ void reshade::runtime::draw_preset_explorer()
 					condition = condition::pass;
 
 				if (condition != condition::pass)
-					_current_browse_path /= input_preset_path;
+					ImGui::CloseCurrentPopup(), _current_browse_path /= input_preset_path;
 			}
 		}
-		else if (filename[0] == '\0' && ImGui::IsKeyPressedMap(ImGuiKey_Backspace))
-			ImGui::CloseCurrentPopup();
-
-		if (condition != condition::pass)
-			ImGui::CloseCurrentPopup();
-
 		ImGui::EndPopup();
 	}
 	else if (is_explore_open && (!_browse_path_is_input_mode || !browse_path_is_editing))
