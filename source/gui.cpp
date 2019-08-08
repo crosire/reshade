@@ -2163,7 +2163,7 @@ void reshade::runtime::draw_overlay_technique_editor()
 
 		if (technique.toggle_key_data[0] != 0 && compile_success)
 		{
-			ImGui::SameLine(ImGui::GetWindowContentRegionWidth() * 0.75f);
+			ImGui::SameLine(ImGui::GetWindowContentRegionWidth() - 180);
 			ImGui::TextDisabled("%s", reshade::input::key_name(technique.toggle_key_data).c_str());
 		}
 

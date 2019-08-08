@@ -12,10 +12,14 @@ bool imgui_key_input(const char *name, unsigned int key_data[4], const reshade::
 {
 	bool res = false;
 
-	char buf[48] = "";
-	reshade::input::key_name(key_data).copy(buf, sizeof(buf) - 1);
+	char buf[48] = "Click to set key shortcut";
+	if (key_data[0] || key_data[1] || key_data[2] || key_data[3])
+	{
+		memset(buf, 0, sizeof(buf)); // Clear existing key data
+		reshade::input::key_name(key_data).copy(buf, sizeof(buf) - 1);
+	}
 
-	ImGui::InputText(name, buf, sizeof(buf), ImGuiInputTextFlags_ReadOnly);
+	ImGui::InputText(name, buf, sizeof(buf), ImGuiInputTextFlags_ReadOnly | ImGuiInputTextFlags_NoUndoRedo | ImGuiInputTextFlags_NoHorizontalScroll);
 
 	if (ImGui::IsItemActive())
 	{
