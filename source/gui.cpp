@@ -2214,7 +2214,8 @@ void reshade::runtime::draw_preset_explorer()
 	if (ImGui::SameLine(0, button_spacing);
 		ImGui::ButtonEx(_current_preset_path.stem().u8string().c_str(), ImVec2(root_window_width - (button_spacing + button_size) * 3, 0), ImGuiButtonFlags_NoNavFocus))
 		if (ImGui::OpenPopup("##explore"), _imgui_context->IO.KeyCtrl)
-			_browse_path_is_input_mode = true;
+			if (_browse_path_is_input_mode = true; _current_browse_path.has_filename() && std::filesystem::is_directory(reshade_container_path / _current_browse_path, ec))
+				_current_browse_path += L'\\';
 	ImGui::PopStyleVar();
 
 	if (ImGui::SameLine(0, button_spacing); ImGui::ButtonEx("+", ImVec2(button_size, 0), ImGuiButtonFlags_PressedOnClick | ImGuiButtonFlags_NoNavFocus))
@@ -2223,7 +2224,7 @@ void reshade::runtime::draw_preset_explorer()
 	ImGui::SetNextWindowPos(cursor_pos - _imgui_context->Style.WindowPadding);
 	const bool is_explore_open = ImGui::BeginPopup("##explore");
 
-	if (_browse_path_is_input_mode && !is_explore_open)
+	if (!is_explore_open)
 		_browse_path_is_input_mode = false;
 
 	bool browse_path_is_editing = false;
@@ -2302,8 +2303,10 @@ void reshade::runtime::draw_preset_explorer()
 			ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2(0.0f, 0.5f));
 			if (ImGui::ButtonEx(_current_preset_path.stem().u8string().c_str(), ImVec2(root_window_width - (button_spacing + button_size) * 3, 0), ImGuiButtonFlags_NoNavFocus))
 				if (_imgui_context->IO.KeyCtrl)
-					if (ImGui::ActivateItem(ImGui::GetID("##path")), _browse_path_is_input_mode = true; _current_browse_path.has_filename())
+					if (ImGui::ActivateItem(ImGui::GetID("##path")), _browse_path_is_input_mode = true;
+						_current_browse_path.has_filename() && std::filesystem::is_directory(reshade_container_path / _current_browse_path, ec))
 						_current_browse_path += L'\\';
+					else {}
 				else
 					condition = condition::cancel;
 			else if (ImGui::IsKeyPressedMap(ImGuiKey_Enter))
@@ -2314,7 +2317,7 @@ void reshade::runtime::draw_preset_explorer()
 
 	if (is_explore_open || condition == condition::backward || condition == condition::forward)
 	{
-		std::filesystem::path preset_container_path = std::filesystem::absolute(reshade_container_path / _current_browse_path);
+		std::filesystem::path preset_container_path = std::filesystem::absolute(reshade_container_path / _current_browse_path, ec);
 		std::filesystem::path presets_filter_text = _current_browse_path.filename();
 
 		if (const std::filesystem::file_type file_type = std::filesystem::status(preset_container_path, ec).type();
@@ -2372,12 +2375,12 @@ void reshade::runtime::draw_preset_explorer()
 			{
 				if (ImGui::Selectable(".."))
 				{
-					for (_current_browse_path = std::filesystem::absolute(reshade_container_path / _current_browse_path);
+					for (_current_browse_path = std::filesystem::absolute(reshade_container_path / _current_browse_path, ec);
 						!std::filesystem::is_directory(_current_browse_path, ec) && _current_browse_path.parent_path() != _current_browse_path;)
 						_current_browse_path = _current_browse_path.parent_path();
 					_current_browse_path = _current_browse_path.parent_path();
 
-					if (std::filesystem::equivalent(reshade_container_path, _current_browse_path))
+					if (std::filesystem::equivalent(reshade_container_path, _current_browse_path, ec))
 						_current_browse_path = L".";
 					else if (std::equal(reshade_container_path.begin(), reshade_container_path.end(), _current_browse_path.begin()))
 						_current_browse_path = _current_browse_path.lexically_proximate(reshade_container_path);
@@ -2387,7 +2390,7 @@ void reshade::runtime::draw_preset_explorer()
 				for (const preset_container_item &item : preset_container)
 					if (const std::filesystem::file_type file_type = item.entry.status(ec).type(); file_type == std::filesystem::file_type::directory)
 						if (ImGui::Selectable(("<DIR> " + item.entry.path().filename().u8string()).c_str()))
-							if (std::filesystem::equivalent(reshade_container_path, item.entry))
+							if (std::filesystem::equivalent(reshade_container_path, item.entry, ec))
 								_current_browse_path = L".";
 							else if (std::equal(reshade_container_path.begin(), reshade_container_path.end(), item.entry.path().begin()))
 								_current_browse_path = item.entry.path().lexically_proximate(reshade_container_path);
