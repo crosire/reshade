@@ -369,6 +369,7 @@ namespace reshade
 		bool _browse_path_is_input_mode = false;
 		bool _current_preset_is_covered = true;
 		std::filesystem::path _current_browse_path;
+		std::filesystem::path _onshown_preset_path;
 #endif
 	};
 }

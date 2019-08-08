@@ -2213,9 +2213,8 @@ void reshade::runtime::draw_preset_explorer()
 	ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2(0.0f, 0.5f));
 	if (ImGui::SameLine(0, button_spacing);
 		ImGui::ButtonEx(_current_preset_path.stem().u8string().c_str(), ImVec2(root_window_width - (button_spacing + button_size) * 3, 0), ImGuiButtonFlags_NoNavFocus))
-		if (ImGui::OpenPopup("##explore"), _imgui_context->IO.KeyCtrl)
-			if (_browse_path_is_input_mode = true; _current_browse_path.has_filename() && std::filesystem::is_directory(reshade_container_path / _current_browse_path, ec))
-				_current_browse_path += L'\\';
+		ImGui::OpenPopup("##explore"),_browse_path_is_input_mode = _imgui_context->IO.KeyCtrl,
+		_current_browse_path = _onshown_preset_path;
 	ImGui::PopStyleVar();
 
 	if (ImGui::SameLine(0, button_spacing); ImGui::ButtonEx("+", ImVec2(button_size, 0), ImGuiButtonFlags_PressedOnClick | ImGuiButtonFlags_NoNavFocus))
@@ -2223,6 +2222,7 @@ void reshade::runtime::draw_preset_explorer()
 
 	ImGui::SetNextWindowPos(cursor_pos - _imgui_context->Style.WindowPadding);
 	const bool is_explore_open = ImGui::BeginPopup("##explore");
+	const bool is_popup_open = ImGui::IsPopupOpen("##name");
 
 	if (!is_explore_open)
 		_browse_path_is_input_mode = false;
@@ -2240,20 +2240,21 @@ void reshade::runtime::draw_preset_explorer()
 		ImGui::SameLine(0, button_spacing);
 		if (_browse_path_is_input_mode)
 		{
+			if (ImGui::IsWindowAppearing())
+				ImGui::SetKeyboardFocusHere();
+
 			char buf[_MAX_PATH]{};
 			_current_browse_path.u8string().copy(buf, sizeof(buf) - 1);
 
 			const bool is_edited = ImGui::InputTextEx("##path", buf, sizeof(buf), ImVec2(root_window_width - (button_spacing + button_size) * 3, 0), ImGuiInputTextFlags_None);
 			const bool is_returned = ImGui::IsKeyPressedMap(ImGuiKey_Enter);
 
-			if (ImGui::IsWindowAppearing())
-				ImGui::SetKeyboardFocusHere();
-			else if (ImGui::IsItemActivated())
+			if (ImGui::IsItemActivated())
 				_imgui_context->InputTextState.ClearSelection();
 
 			browse_path_is_editing = ImGui::IsItemActive();
 
-			if (is_edited || is_returned)
+			if (!is_popup_open &&(is_edited || is_returned))
 			{
 				std::filesystem::path input_preset_path = std::filesystem::u8path(buf);
 				std::filesystem::path focus_preset_path = reshade_container_path / input_preset_path;
@@ -2302,9 +2303,8 @@ void reshade::runtime::draw_preset_explorer()
 		{
 			ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2(0.0f, 0.5f));
 			if (ImGui::ButtonEx(_current_preset_path.stem().u8string().c_str(), ImVec2(root_window_width - (button_spacing + button_size) * 3, 0), ImGuiButtonFlags_NoNavFocus))
-				if (_imgui_context->IO.KeyCtrl)
-					if (ImGui::ActivateItem(ImGui::GetID("##path")), _browse_path_is_input_mode = true;
-						_current_browse_path.has_filename() && std::filesystem::is_directory(reshade_container_path / _current_browse_path, ec))
+				if (ImGui::ActivateItem(ImGui::GetID("##path")); _browse_path_is_input_mode = _imgui_context->IO.KeyCtrl)
+					if (_current_browse_path.has_filename() && std::filesystem::is_directory(reshade_container_path / _current_browse_path, ec))
 						_current_browse_path += L'\\';
 					else {}
 				else
@@ -2312,6 +2312,23 @@ void reshade::runtime::draw_preset_explorer()
 			else if (ImGui::IsKeyPressedMap(ImGuiKey_Enter))
 				condition = condition::reload, _current_browse_path = _current_preset_path;
 			ImGui::PopStyleVar();
+		}
+
+		if (!is_popup_open && (!_browse_path_is_input_mode || !browse_path_is_editing))
+		{
+			bool activate = true;
+
+			if (const std::wstring &ch = _input->text_input(); !ch.empty() && L'~' >= ch[0] && ch[0] >= L'!')
+				if (ch[0] != L'\\' && ch[0] != L'/' && _current_browse_path.has_filename() && std::filesystem::is_directory(reshade_container_path / _current_browse_path, ec))
+					_current_browse_path += L'\\' + ch;
+				else
+					_current_browse_path += ch;
+			else if (activate = (!_current_browse_path.empty() && ImGui::IsKeyPressedMap(ImGuiKey_Backspace, false)); activate)
+				if (!std::filesystem::is_directory(reshade_container_path / _current_browse_path, ec))
+					_current_browse_path = _current_browse_path.native().substr(0, _current_browse_path.native().size() - 1);
+
+			if (activate)
+				ImGui::ActivateItem(ImGui::GetID("##path")), _browse_path_is_input_mode = true;
 		}
 	}
 
@@ -2381,7 +2398,7 @@ void reshade::runtime::draw_preset_explorer()
 					_current_browse_path = _current_browse_path.parent_path();
 
 					if (std::filesystem::equivalent(reshade_container_path, _current_browse_path, ec))
-						_current_browse_path = L".";
+						_current_browse_path = L"";
 					else if (std::equal(reshade_container_path.begin(), reshade_container_path.end(), _current_browse_path.begin()))
 						_current_browse_path = _current_browse_path.lexically_proximate(reshade_container_path);
 				}
@@ -2425,19 +2442,16 @@ void reshade::runtime::draw_preset_explorer()
 	ImGui::SetNextWindowPos(cursor_pos + ImVec2(root_window_width + button_size - 230, button_size));
 	if (ImGui::BeginPopup("##name"))
 	{
-		if (ImGui::IsWindowAppearing())
-			ImGui::SetKeyboardFocusHere();
-
 		char filename[_MAX_PATH]{};
 		ImGui::InputText("Name", filename, sizeof(filename));
 
 		if (filename[0] == '\0' && ImGui::IsKeyPressedMap(ImGuiKey_Backspace))
 			ImGui::CloseCurrentPopup();
+		else if (ImGui::IsWindowAppearing())
+			ImGui::SetKeyboardFocusHere();
 		else if (ImGui::IsKeyPressedMap(ImGuiKey_Enter))
 		{
-			if (filename[0] == '\0')
-				ImGui::SetKeyboardFocusHere();
-			else if (std::filesystem::path input_preset_path = std::filesystem::u8path(filename); input_preset_path.has_filename())
+			if (std::filesystem::path input_preset_path = std::filesystem::u8path(filename); input_preset_path.has_filename())
 			{
 				if (const std::wstring extension(input_preset_path.extension()); extension != L".ini" && extension != L".txt")
 					input_preset_path += L".ini";
@@ -2455,24 +2469,9 @@ void reshade::runtime::draw_preset_explorer()
 				if (condition != condition::pass)
 					ImGui::CloseCurrentPopup(), _current_browse_path /= input_preset_path;
 			}
+			else ImGui::SetKeyboardFocusHere();
 		}
 		ImGui::EndPopup();
-	}
-	else if (is_explore_open && (!_browse_path_is_input_mode || !browse_path_is_editing))
-	{
-		bool activate = true;
-
-		if (const std::wstring &ch = _input->text_input(); !ch.empty() && L'~' >= ch[0] && ch[0] >= L'!')
-			if (ch[0] != L'\\' && ch[0] != L'/' && _current_browse_path.has_filename() && std::filesystem::is_directory(reshade_container_path / _current_browse_path, ec))
-				_current_browse_path += L'\\' + ch;
-			else
-				_current_browse_path += ch;
-		else if (activate = (!_current_browse_path.empty() && ImGui::IsKeyPressedMap(ImGuiKey_Backspace, false)); activate)
-			if (!std::filesystem::is_directory(reshade_container_path / _current_browse_path, ec))
-				_current_browse_path = _current_browse_path.native().substr(0, _current_browse_path.native().size() - 1);
-
-		if (activate)
-			ImGui::ActivateItem(ImGui::GetID("##path")), _browse_path_is_input_mode = true;
 	}
 
 	if (condition != condition::pass)
