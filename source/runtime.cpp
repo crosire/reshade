@@ -1311,12 +1311,16 @@ void reshade::runtime::set_current_preset(std::filesystem::path path)
 	std::error_code ec;
 	path_state path_state = path_state::invalid;
 
-	if (path.has_filename())
-		if (const std::wstring extension(path.extension()); extension == L".ini" || extension == L".txt")
-			if (!std::filesystem::exists(reshade_container_path / path, ec))
-				path_state = path_state::valid;
-			else if (const reshade::ini_file preset(reshade_container_path / path); preset.has("", "Techniques"))
-				path_state = path_state::valid;
+	if (const std::filesystem::file_type file_type = std::filesystem::status(reshade_container_path / path, ec).type(); ec.value() == 0x7b) // 0x7b: ERROR_INVALID_NAME
+		path_state = path_state::invalid;
+	else if (file_type == std::filesystem::file_type::directory)
+		path_state = path_state::invalid;
+	else if (const std::wstring extension(path.extension()); extension != L".ini" && extension != L".txt")
+		path_state = path_state::invalid;
+	else if (file_type == std::filesystem::file_type::not_found)
+		path_state = path_state::valid;
+	else if (reshade::ini_file(reshade_container_path / path).has("", "Techniques"))
+		path_state = path_state::valid;
 
 	// Select a default preset file if none exists yet or not own
 	if (path_state == path_state::invalid)
