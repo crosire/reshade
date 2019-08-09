@@ -2213,8 +2213,14 @@ void reshade::runtime::draw_preset_explorer()
 	ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2(0.0f, 0.5f));
 	if (ImGui::SameLine(0, button_spacing);
 		ImGui::ButtonEx(_current_preset_path.stem().u8string().c_str(), ImVec2(root_window_width - (button_spacing + button_size) * 3, 0), ImGuiButtonFlags_NoNavFocus))
-		ImGui::OpenPopup("##explore"),_browse_path_is_input_mode = _imgui_context->IO.KeyCtrl,
-		_current_browse_path = _onshown_preset_path;
+	{
+		for (ImGui::OpenPopup("##explore"), _browse_path_is_input_mode = _imgui_context->IO.KeyCtrl;
+			!std::filesystem::is_directory(reshade_container_path / _current_browse_path, ec) && _current_browse_path.parent_path() != _current_browse_path;
+			_current_browse_path = _current_browse_path.parent_path());
+
+		if (_current_browse_path.has_filename())
+			_current_browse_path += L'\\';
+	}
 	ImGui::PopStyleVar();
 
 	if (ImGui::SameLine(0, button_spacing); ImGui::ButtonEx("+", ImVec2(button_size, 0), ImGuiButtonFlags_PressedOnClick | ImGuiButtonFlags_NoNavFocus))
@@ -2274,9 +2280,9 @@ void reshade::runtime::draw_preset_explorer()
 						condition = condition::popup_add;
 					else
 					{
-						if (focus_preset_path.has_filename())
-							if (const std::wstring extension(focus_preset_path.extension()); extension != L".ini" && extension != L".txt")
-								_current_browse_path += L".ini", focus_preset_path += L".ini",
+						if (_current_browse_path.has_filename())
+							if (const std::wstring extension(_current_browse_path.extension()); extension != L".ini" && extension != L".txt")
+								focus_preset_path += L".ini",
 								file_type = std::filesystem::status(focus_preset_path, ec).type();
 
 						if (ec.value() == 0x7b) // 0x7b: ERROR_INVALID_NAME
@@ -2284,8 +2290,8 @@ void reshade::runtime::draw_preset_explorer()
 						else if (file_type == std::filesystem::file_type::directory)
 							condition = condition::popup_add;
 						else if (file_type == std::filesystem::file_type::not_found)
-							if (focus_preset_path.has_filename())
-								condition = condition::create;
+							if (_current_browse_path.has_filename())
+								condition = condition::create, _current_browse_path = focus_preset_path;
 							else
 								condition = condition::popup_add;
 						else if (const reshade::ini_file preset(focus_preset_path); preset.has("", "Techniques"))
@@ -2304,9 +2310,13 @@ void reshade::runtime::draw_preset_explorer()
 			ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2(0.0f, 0.5f));
 			if (ImGui::ButtonEx(_current_preset_path.stem().u8string().c_str(), ImVec2(root_window_width - (button_spacing + button_size) * 3, 0), ImGuiButtonFlags_NoNavFocus))
 				if (ImGui::ActivateItem(ImGui::GetID("##path")); _browse_path_is_input_mode = _imgui_context->IO.KeyCtrl)
-					if (_current_browse_path.has_filename() && std::filesystem::is_directory(reshade_container_path / _current_browse_path, ec))
+				{
+					while (!std::filesystem::is_directory(reshade_container_path / _current_browse_path, ec) && _current_browse_path.parent_path() != _current_browse_path)
+						_current_browse_path = _current_browse_path.parent_path();
+
+					if (_current_browse_path.has_filename())
 						_current_browse_path += L'\\';
-					else {}
+				}
 				else
 					condition = condition::cancel;
 			else if (ImGui::IsKeyPressedMap(ImGuiKey_Enter))
@@ -2392,8 +2402,10 @@ void reshade::runtime::draw_preset_explorer()
 			{
 				if (ImGui::Selectable(".."))
 				{
-					for (_current_browse_path = std::filesystem::absolute(reshade_container_path / _current_browse_path, ec);
-						!std::filesystem::is_directory(_current_browse_path, ec) && _current_browse_path.parent_path() != _current_browse_path;)
+					if (_current_browse_path = std::filesystem::absolute(reshade_container_path / _current_browse_path, ec); !_current_browse_path.has_filename())
+						_current_browse_path = _current_browse_path.parent_path();
+
+					while (!std::filesystem::is_directory(_current_browse_path, ec) && _current_browse_path.parent_path() != _current_browse_path)
 						_current_browse_path = _current_browse_path.parent_path();
 					_current_browse_path = _current_browse_path.parent_path();
 
@@ -2408,7 +2420,7 @@ void reshade::runtime::draw_preset_explorer()
 					if (const std::filesystem::file_type file_type = item.entry.status(ec).type(); file_type == std::filesystem::file_type::directory)
 						if (ImGui::Selectable(("<DIR> " + item.entry.path().filename().u8string()).c_str()))
 							if (std::filesystem::equivalent(reshade_container_path, item.entry, ec))
-								_current_browse_path = L".";
+								_current_browse_path = L"";
 							else if (std::equal(reshade_container_path.begin(), reshade_container_path.end(), item.entry.path().begin()))
 								_current_browse_path = item.entry.path().lexically_proximate(reshade_container_path);
 							else
