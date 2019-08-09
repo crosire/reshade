@@ -2260,7 +2260,7 @@ void reshade::runtime::draw_preset_explorer()
 
 			browse_path_is_editing = ImGui::IsItemActive();
 
-			if (!is_popup_open &&(is_edited || is_returned))
+			if (!is_popup_open && (is_edited || is_returned))
 			{
 				std::filesystem::path input_preset_path = std::filesystem::u8path(buf);
 				std::filesystem::path focus_preset_path = reshade_container_path / input_preset_path;
@@ -2278,30 +2278,31 @@ void reshade::runtime::draw_preset_explorer()
 						condition = condition::pass;
 					else if (file_type == std::filesystem::file_type::directory)
 						condition = condition::popup_add;
-					else
-					{
-						if (_current_browse_path.has_filename())
-							if (const std::wstring extension(_current_browse_path.extension()); extension != L".ini" && extension != L".txt")
-								focus_preset_path += L".ini",
-								file_type = std::filesystem::status(focus_preset_path, ec).type();
-
-						if (ec.value() == 0x7b) // 0x7b: ERROR_INVALID_NAME
-							condition = condition::pass;
-						else if (file_type == std::filesystem::file_type::directory)
-							condition = condition::popup_add;
-						else if (file_type == std::filesystem::file_type::not_found)
-							if (_current_browse_path.has_filename())
-								condition = condition::create, _current_browse_path = focus_preset_path;
-							else
-								condition = condition::popup_add;
-						else if (const reshade::ini_file preset(focus_preset_path); preset.has("", "Techniques"))
-							condition = condition::select, _current_browse_path = focus_preset_path;
+					else if (_current_browse_path.extension() == L".ini" || _current_browse_path.extension() == L".txt")
+						if (file_type == std::filesystem::file_type::not_found)
+							condition = condition::create;
 						else
-							condition = condition::pass;
-					}
+							condition = condition::select;
+					else if (focus_preset_path += L".ini", file_type = std::filesystem::status(focus_preset_path, ec).type(); ec.value() == 0x7b) // 0x7b: ERROR_INVALID_NAME
+						condition = condition::pass;
+					else if (file_type == std::filesystem::file_type::directory)
+						condition = condition::popup_add;
+					else if (file_type != std::filesystem::file_type::not_found)
+						condition = condition::select;
+					else if (_current_browse_path.has_filename())
+						condition = condition::create;
+					else
+						condition = condition::popup_add;
 
 					if (condition == condition::pass)
 						ImGui::ActivateItem(ImGui::GetID("##path"));
+					else if (condition == condition::create || condition == condition::popup_add)
+						_current_browse_path = focus_preset_path;
+					else if (condition == condition::select)
+						if (const reshade::ini_file preset(focus_preset_path); preset.has("", "Techniques"))
+							_current_browse_path = focus_preset_path;
+						else
+							condition = condition::pass;
 				}
 			}
 		}
