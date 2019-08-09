@@ -2228,7 +2228,6 @@ void reshade::runtime::draw_preset_explorer()
 
 	ImGui::SetNextWindowPos(cursor_pos - _imgui_context->Style.WindowPadding);
 	const bool is_explore_open = ImGui::BeginPopup("##explore");
-	const bool is_popup_open = ImGui::IsPopupOpen("##name");
 
 	if (!is_explore_open)
 		_browse_path_is_input_mode = false;
@@ -2236,6 +2235,8 @@ void reshade::runtime::draw_preset_explorer()
 	bool browse_path_is_editing = false;
 	if (is_explore_open)
 	{
+		const bool is_popup_open = ImGui::IsPopupOpen("##name");
+
 		if (ImGui::ButtonEx("<", ImVec2(button_size, 0), ImGuiButtonFlags_NoNavFocus))
 			condition = condition::backward;
 
@@ -2268,7 +2269,7 @@ void reshade::runtime::draw_preset_explorer()
 
 				if (is_edited && ec.value() != 0x7b) // 0x7b: ERROR_INVALID_NAME
 					if (_current_browse_path = std::move(input_preset_path); buf[0] == '\0')
-						_browse_path_is_input_mode = false;
+						_browse_path_is_input_mode = false, _current_browse_path = _current_preset_path.parent_path();
 
 				if (is_returned)
 				{
