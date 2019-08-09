@@ -2204,11 +2204,11 @@ void reshade::runtime::draw_preset_explorer()
 	condition condition = condition::pass;
 
 	if (ImGui::ButtonEx("<", ImVec2(button_size, 0), ImGuiButtonFlags_NoNavFocus))
-		condition = condition::backward, _current_browse_path = _current_preset_path;
+		condition = condition::backward, _current_browse_path = _current_preset_path.parent_path();
 
 	if (ImGui::SameLine(0, button_spacing);
 		ImGui::ButtonEx(">", ImVec2(button_size, 0), ImGuiButtonFlags_NoNavFocus))
-		condition = condition::forward, _current_browse_path = _current_preset_path;
+		condition = condition::forward, _current_browse_path = _current_preset_path.parent_path();
 
 	ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2(0.0f, 0.5f));
 	if (ImGui::SameLine(0, button_spacing);
@@ -2237,11 +2237,11 @@ void reshade::runtime::draw_preset_explorer()
 	if (is_explore_open)
 	{
 		if (ImGui::ButtonEx("<", ImVec2(button_size, 0), ImGuiButtonFlags_NoNavFocus))
-			condition = condition::backward, _current_browse_path = _current_preset_path;
+			condition = condition::backward;
 
 		if (ImGui::SameLine(0, button_spacing);
 			ImGui::ButtonEx(">", ImVec2(button_size, 0), ImGuiButtonFlags_NoNavFocus))
-			condition = condition::forward, _current_browse_path = _current_preset_path;
+			condition = condition::forward;
 
 		ImGui::SameLine(0, button_spacing);
 		if (_browse_path_is_input_mode)
@@ -2294,15 +2294,16 @@ void reshade::runtime::draw_preset_explorer()
 					else
 						condition = condition::popup_add;
 
-					if (condition == condition::pass)
-						ImGui::ActivateItem(ImGui::GetID("##path"));
-					else if (condition == condition::create || condition == condition::popup_add)
-						_current_browse_path = focus_preset_path;
-					else if (condition == condition::select)
+					if (condition == condition::select)
 						if (const reshade::ini_file preset(focus_preset_path); preset.has("", "Techniques"))
-							_current_browse_path = focus_preset_path;
+							_current_preset_path = focus_preset_path;
 						else
 							condition = condition::pass;
+					else if (condition == condition::create || condition == condition::popup_add)
+						_current_preset_path = focus_preset_path;
+
+					if (condition == condition::pass)
+						ImGui::ActivateItem(ImGui::GetID("##path"));
 				}
 			}
 		}
@@ -2321,7 +2322,7 @@ void reshade::runtime::draw_preset_explorer()
 				else
 					condition = condition::cancel;
 			else if (ImGui::IsKeyPressedMap(ImGuiKey_Enter))
-				condition = condition::reload, _current_browse_path = _current_preset_path;
+				condition = condition::reload;
 			ImGui::PopStyleVar();
 		}
 
@@ -2334,9 +2335,8 @@ void reshade::runtime::draw_preset_explorer()
 					_current_browse_path += L'\\' + ch;
 				else
 					_current_browse_path += ch;
-			else if (activate = (!_current_browse_path.empty() && ImGui::IsKeyPressedMap(ImGuiKey_Backspace, false)); activate)
-				if (!std::filesystem::is_directory(reshade_container_path / _current_browse_path, ec))
-					_current_browse_path = _current_browse_path.native().substr(0, _current_browse_path.native().size() - 1);
+			else
+				activate = !_current_browse_path.empty() && ImGui::IsKeyPressedMap(ImGuiKey_Backspace, false);
 
 			if (activate)
 				ImGui::ActivateItem(ImGui::GetID("##path")), _browse_path_is_input_mode = true;
@@ -2348,11 +2348,10 @@ void reshade::runtime::draw_preset_explorer()
 		std::filesystem::path preset_container_path = std::filesystem::absolute(reshade_container_path / _current_browse_path, ec);
 		std::filesystem::path presets_filter_text = _current_browse_path.filename();
 
-		if (const std::filesystem::file_type file_type = std::filesystem::status(preset_container_path, ec).type();
-			file_type != std::filesystem::file_type::directory && !presets_filter_text.empty())
-			preset_container_path = preset_container_path.parent_path();
-		else if (file_type == std::filesystem::file_type::directory)
+		if (std::filesystem::is_directory(preset_container_path, ec))
 			presets_filter_text.clear();
+		else if (!presets_filter_text.empty())
+			preset_container_path = preset_container_path.parent_path();
 
 		std::vector<preset_container_item> preset_container;
 		for (const std::filesystem::directory_entry &entry : std::filesystem::directory_iterator(preset_container_path, std::filesystem::directory_options::skip_permission_denied, ec))
@@ -2378,14 +2377,14 @@ void reshade::runtime::draw_preset_explorer()
 				condition = condition::pass;
 			else if (auto it = std::find_if(preset_paths.begin(), preset_paths.end(), [this, &ec](const std::filesystem::directory_entry &entry) { return std::filesystem::equivalent(entry, _current_preset_path, ec); }); it == preset_paths.end())
 				if (condition == condition::backward)
-					_current_preset_path = _current_browse_path = preset_paths.back();
+					_current_preset_path = preset_paths.back();
 				else
-					_current_preset_path = _current_browse_path = preset_paths.front();
+					_current_preset_path = preset_paths.front();
 			else
 				if (condition == condition::backward)
-					_current_preset_path = _current_browse_path = it == preset_paths.begin() ? preset_paths.back() : *--it;
+					_current_preset_path = it == preset_paths.begin() ? preset_paths.back() : *--it;
 				else
-					_current_preset_path = _current_browse_path = it == preset_paths.end() - 1 ? preset_paths.front() : *++it;
+					_current_preset_path = it == preset_paths.end() - 1 ? preset_paths.front() : *++it;
 		}
 
 		if (is_explore_open)
@@ -2434,7 +2433,7 @@ void reshade::runtime::draw_preset_explorer()
 				{
 					if (ImGui::Selectable(item.entry.path().filename().u8string().c_str(), static_cast<bool>(item.is_current)))
 						if (const reshade::ini_file preset(item.entry); preset.has("", "Techniques"))
-							condition = condition::select, _current_browse_path = item.entry.path();
+							condition = condition::select, _current_preset_path = item.entry.path();
 						else
 							condition = condition::pass;
 
@@ -2468,19 +2467,24 @@ void reshade::runtime::draw_preset_explorer()
 			{
 				if (const std::wstring extension(input_preset_path.extension()); extension != L".ini" && extension != L".txt")
 					input_preset_path += L".ini";
-				if (const std::filesystem::file_type file_type = std::filesystem::status(reshade_container_path / _current_browse_path / input_preset_path, ec).type(); ec.value() == 0x7b) // 0x7b: ERROR_INVALID_NAME
+
+				const std::filesystem::path focus_preset_path = reshade_container_path / _current_browse_path / input_preset_path;
+
+				if (const std::filesystem::file_type file_type = std::filesystem::status(focus_preset_path, ec).type(); ec.value() == 0x7b) // 0x7b: ERROR_INVALID_NAME
 					condition = condition::pass;
 				else if (file_type == std::filesystem::file_type::directory)
 					condition = condition::pass;
 				else if (file_type == std::filesystem::file_type::not_found)
-					condition = condition::create;
-				else if (const reshade::ini_file preset(reshade_container_path / _current_browse_path / input_preset_path); preset.has("", "Techniques"))
-					condition = condition::select;
+					condition = condition::create, _current_preset_path = focus_preset_path;
+				else if (const reshade::ini_file preset(focus_preset_path); preset.has("", "Techniques"))
+					condition = condition::select, _current_preset_path = focus_preset_path;
 				else
 					condition = condition::pass;
 
-				if (condition != condition::pass)
-					ImGui::CloseCurrentPopup(), _current_browse_path /= input_preset_path;
+				if (condition == condition::pass)
+					ImGui::SetKeyboardFocusHere();
+				else
+					ImGui::CloseCurrentPopup();
 			}
 			else ImGui::SetKeyboardFocusHere();
 		}
@@ -2491,11 +2495,18 @@ void reshade::runtime::draw_preset_explorer()
 	{
 		if (condition != condition::cancel)
 		{
+			const std::filesystem::path presets_filter_text = _current_browse_path.filename();
+
 			_show_splash = true;
 			set_current_preset();
 
 			save_config();
 			load_current_preset();
+
+			if (condition == condition::backward || condition == condition::forward)
+				if (const std::wstring preset_name(_current_browse_path.filename()), &filter_text = presets_filter_text.native();
+					std::search(preset_name.begin(), preset_name.end(), filter_text.begin(), filter_text.end(), [](const wchar_t c1, const wchar_t c2) { return towlower(c1) == towlower(c2); }) == preset_name.end())
+					_current_browse_path /= presets_filter_text;
 		}
 		if (is_explore_open && condition != condition::backward && condition != condition::forward)
 			ImGui::CloseCurrentPopup();

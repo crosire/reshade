@@ -1301,7 +1301,7 @@ void reshade::runtime::reset_uniform_value(uniform &variable)
 
 void reshade::runtime::set_current_preset()
 {
-	set_current_preset(_current_browse_path);
+	set_current_preset(_current_preset_path);
 }
 void reshade::runtime::set_current_preset(std::filesystem::path path)
 {
