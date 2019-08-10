@@ -2229,13 +2229,13 @@ void reshade::runtime::draw_preset_explorer()
 	ImGui::SetNextWindowPos(cursor_pos - _imgui_context->Style.WindowPadding);
 	const bool is_explore_open = ImGui::BeginPopup("##explore");
 
-	if (!is_explore_open)
+	if (_browse_path_is_input_mode && !is_explore_open)
 		_browse_path_is_input_mode = false;
 
-	bool browse_path_is_editing = false;
 	if (is_explore_open)
 	{
 		const bool is_popup_open = ImGui::IsPopupOpen("##name");
+		bool browse_path_is_editing = false;
 
 		if (ImGui::ButtonEx("<", ImVec2(button_size, 0), ImGuiButtonFlags_NoNavFocus))
 			condition = condition::backward;
@@ -2288,12 +2288,10 @@ void reshade::runtime::draw_preset_explorer()
 						condition = condition::pass;
 					else if (file_type == std::filesystem::file_type::directory)
 						condition = condition::popup_add;
-					else if (file_type != std::filesystem::file_type::not_found)
-						condition = condition::select;
-					else if (_current_browse_path.has_filename())
+					else if (file_type == std::filesystem::file_type::not_found)
 						condition = condition::create;
 					else
-						condition = condition::popup_add;
+						condition = condition::select;
 
 					if (condition == condition::select)
 						if (reshade::ini_file(focus_preset_path).has("", "Techniques"))
@@ -2464,30 +2462,28 @@ void reshade::runtime::draw_preset_explorer()
 			ImGui::SetKeyboardFocusHere();
 		else if (ImGui::IsKeyPressedMap(ImGuiKey_Enter))
 		{
-			if (std::filesystem::path input_preset_path = std::filesystem::u8path(filename); input_preset_path.has_filename())
-			{
-				if (const std::wstring extension(input_preset_path.extension()); extension != L".ini" && extension != L".txt")
-					input_preset_path += L".ini";
+			std::filesystem::path focus_preset_path = reshade_container_path / _current_browse_path / std::filesystem::u8path(filename);
 
-				const std::filesystem::path focus_preset_path = reshade_container_path / _current_browse_path / input_preset_path;
+			if (focus_preset_path.extension() != L".ini" && focus_preset_path.extension() != L".txt")
+				focus_preset_path += L".ini";
 
-				if (const std::filesystem::file_type file_type = std::filesystem::status(focus_preset_path, ec).type(); ec.value() == 0x7b) // 0x7b: ERROR_INVALID_NAME
-					condition = condition::pass;
-				else if (file_type == std::filesystem::file_type::directory)
-					condition = condition::pass;
-				else if (file_type == std::filesystem::file_type::not_found)
-					condition = condition::create, _current_preset_path = focus_preset_path;
-				else if (reshade::ini_file(focus_preset_path).has("", "Techniques"))
-					condition = condition::select, _current_preset_path = focus_preset_path;
-				else
-					condition = condition::pass;
+			if (!focus_preset_path.has_stem())
+				condition = condition::pass;
+			else if (const std::filesystem::file_type file_type = std::filesystem::status(focus_preset_path, ec).type(); ec.value() == 0x7b) // 0x7b: ERROR_INVALID_NAME
+				condition = condition::pass;
+			else if (file_type == std::filesystem::file_type::directory)
+				condition = condition::pass;
+			else if (file_type == std::filesystem::file_type::not_found)
+				condition = condition::create, _current_preset_path = focus_preset_path;
+			else if (reshade::ini_file(focus_preset_path).has("", "Techniques"))
+				condition = condition::select, _current_preset_path = focus_preset_path;
+			else
+				condition = condition::pass;
 
-				if (condition == condition::pass)
-					ImGui::SetKeyboardFocusHere();
-				else
-					ImGui::CloseCurrentPopup();
-			}
-			else ImGui::SetKeyboardFocusHere();
+			if (condition == condition::pass)
+				ImGui::SetKeyboardFocusHere();
+			else
+				ImGui::CloseCurrentPopup();
 		}
 		ImGui::EndPopup();
 	}

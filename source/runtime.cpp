@@ -1315,7 +1315,7 @@ void reshade::runtime::set_current_preset(std::filesystem::path path)
 		path_state = path_state::invalid;
 	else if (file_type == std::filesystem::file_type::directory)
 		path_state = path_state::invalid;
-	else if (const std::wstring extension(path.extension()); extension != L".ini" && extension != L".txt")
+	else if (path.extension() != L".ini" && path.extension() != L".txt")
 		path_state = path_state::invalid;
 	else if (file_type == std::filesystem::file_type::not_found)
 		path_state = path_state::valid;
