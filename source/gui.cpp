@@ -2310,7 +2310,7 @@ void reshade::runtime::draw_preset_explorer()
 		{
 			ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2(0.0f, 0.5f));
 			if (ImGui::ButtonEx(_current_preset_path.stem().u8string().c_str(), ImVec2(root_window_width - (button_spacing + button_size) * 3, 0), ImGuiButtonFlags_NoNavFocus))
-				if (ImGui::ActivateItem(ImGui::GetID("##path")); _browse_path_is_input_mode = _imgui_context->IO.KeyCtrl)
+				if (ImGui::ActivateItem(ImGui::GetID("##path")), _browse_path_is_input_mode = _imgui_context->IO.KeyCtrl; _browse_path_is_input_mode)
 				{
 					while (!std::filesystem::is_directory(reshade_container_path / _current_browse_path, ec) && _current_browse_path.parent_path() != _current_browse_path)
 						_current_browse_path = _current_browse_path.parent_path();
