@@ -82,7 +82,7 @@ namespace reshade::vulkan
 	{
 		assert(format != VK_NULL_HANDLE);
 
-		// Do not check format if all formats are allowed (index zero is DXGI_FORMAT_UNKNOWN)
+		// Do not check format if all formats are allowed (index zero is VK_FORMAT_UNDEFINED)
 		if (formatIdx == VK_FORMAT_UNDEFINED)
 			return true;
 
@@ -90,10 +90,10 @@ namespace reshade::vulkan
 		const VkFormat depth_texture_formats[] = {
 			VK_FORMAT_UNDEFINED,
 			VK_FORMAT_D16_UNORM,
-			VK_FORMAT_D32_SFLOAT,
-			VK_FORMAT_D32_SFLOAT_S8_UINT,
 			VK_FORMAT_D16_UNORM_S8_UINT,
-			VK_FORMAT_D24_UNORM_S8_UINT
+			VK_FORMAT_D24_UNORM_S8_UINT,
+			VK_FORMAT_D32_SFLOAT,
+			VK_FORMAT_D32_SFLOAT_S8_UINT
 		};
 
 		assert(formatIdx > VK_FORMAT_UNDEFINED && formatIdx < ARRAYSIZE(depth_texture_formats));

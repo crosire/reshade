@@ -1728,13 +1728,13 @@ void reshade::vulkan::runtime_vk::draw_debug_menu()
 	if (ImGui::CollapsingHeader("Depth and Intermediate Buffers", ImGuiTreeNodeFlags_DefaultOpen))
 	{
 		bool modified = false;
-		modified |= ImGui::Combo("Depth Texture Format", &depth_buffer_texture_format, "All\0D16\0D32F\0D24S8\0D32FS8\0");
+		modified |= ImGui::Combo("Depth Texture Format", &depth_buffer_texture_format, "All\0D16\0D16S8\0D24S8\0D32F\0D32FS8\0");
 
 		if (modified)
 		{
 			runtime::save_config();
 			_current_tracker->reset();
-			// create_depthstencil_replacement(nullptr, nullptr);
+			create_depthstencil_replacement(VK_NULL_HANDLE, VK_NULL_HANDLE, VK_FORMAT_UNDEFINED, VK_NULL_HANDLE);
 			return;
 		}
 
@@ -1914,18 +1914,7 @@ bool reshade::vulkan::runtime_vk::create_depthstencil_replacement(VkImageView de
 				tex.height = frame_height();
 
 				// texture_data->image = _depthstencil_image;
-
-				/*VkImageAspectFlags aspect = VK_IMAGE_ASPECT_STENCIL_BIT | VK_IMAGE_ASPECT_DEPTH_BIT;
-
-				VkImageViewCreateInfo create_info{ VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO };
-				create_info.image = _depthstencil_image;
-				create_info.viewType = VK_IMAGE_VIEW_TYPE_2D;
-				create_info.format = image_format;
-				create_info.components = { VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY };
-				create_info.subresourceRange = { aspect, 0, 0, 0, 1 };
-
-				vk_handle<VK_OBJECT_TYPE_IMAGE_VIEW> res(_device, vk);
-				check_result(vk.CreateImageView(_device, &create_info, nullptr, &_depthstencil_image_view)) VK_NULL_HANDLE;*/
+				// _depthstencil_image_view = create_image_view(_depthstencil_image, image_format, 1);
 			}
 		}
 	}

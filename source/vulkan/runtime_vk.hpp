@@ -43,7 +43,7 @@ namespace reshade::vulkan
 		bool depth_buffer_more_copies = false;
 		bool extended_depth_buffer_detection = false;
 		unsigned int cleared_depth_buffer_index = 0;
-		int depth_buffer_texture_format = 0; // No depth buffer texture format filter by default
+		int depth_buffer_texture_format = VK_FORMAT_UNDEFINED; // No depth buffer texture format filter by default
 		std::atomic<unsigned int> clear_DSV_iter = 1;
 
 		VkDevice _device;
