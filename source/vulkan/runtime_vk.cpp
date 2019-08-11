@@ -66,6 +66,8 @@ namespace reshade::vulkan
 		VkDeviceMemory ubo_mem = VK_NULL_HANDLE;
 		VkDeviceSize storage_size = 0;
 		VkDeviceSize storage_offset = 0;
+		reshadefx::module module;
+		std::vector<VkDescriptorImageInfo> image_bindings;
 	};
 
 	static uint32_t find_memory_type_index(const VkPhysicalDeviceMemoryProperties &props, VkMemoryPropertyFlags flags, uint32_t type_bits)
@@ -870,6 +872,7 @@ bool reshade::vulkan::runtime_vk::compile_effect(effect_data &effect)
 	vulkan_effect_data &effect_data = _effect_data[effect.index];
 	effect_data.storage_size = effect.storage_size;
 	effect_data.storage_offset = effect.storage_offset;
+	effect_data.module = effect.module;
 
 	// Initialize pipeline layout
 	{   std::vector<VkDescriptorSetLayoutBinding> bindings;
@@ -1004,6 +1007,8 @@ bool reshade::vulkan::runtime_vk::compile_effect(effect_data &effect)
 
 		image_binding.sampler = it->second;
 	}
+
+	effect_data.image_bindings = image_bindings;
 
 	{   VkDescriptorSetAllocateInfo alloc_info { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO };
 		alloc_info.descriptorPool = _effect_descriptor_pool;
@@ -1734,7 +1739,7 @@ void reshade::vulkan::runtime_vk::draw_debug_menu()
 		{
 			runtime::save_config();
 			_current_tracker->reset();
-			create_depthstencil_replacement(VK_NULL_HANDLE, VK_NULL_HANDLE, VK_FORMAT_UNDEFINED, VK_NULL_HANDLE);
+				create_depthstencil_replacement(VK_NULL_HANDLE, VK_NULL_HANDLE, VK_FORMAT_UNDEFINED, VK_NULL_HANDLE);
 			return;
 		}
 
@@ -1807,11 +1812,7 @@ void reshade::vulkan::runtime_vk::draw_debug_menu()
 					_best_depth_stencil_overwrite = value ? depthstencil : VK_NULL_HANDLE;
 
 					if (_best_depth_stencil_overwrite != VK_NULL_HANDLE)
-					{
-						VkImage image;
 						create_depthstencil_replacement(_best_depth_stencil_overwrite, snapshot.image, snapshot.image_info.format, snapshot.image_info.usage);
-						load_effects();
-					}
 				}
 
 				ImGui::SameLine();
@@ -1908,13 +1909,55 @@ bool reshade::vulkan::runtime_vk::create_depthstencil_replacement(VkImageView de
 		{
 			if (tex.impl != nullptr && tex.impl_reference == texture_reference::depth_buffer)
 			{
-				auto texture_data = tex.impl->as<vulkan_tex_data>();
-
 				tex.width = frame_width();
 				tex.height = frame_height();
 
 				// texture_data->image = _depthstencil_image;
 				// _depthstencil_image_view = create_image_view(_depthstencil_image, image_format, 1);
+
+				for (const auto &technique : _techniques)
+				{
+					if (_effect_data.size() <= technique.effect_index)
+						continue;
+
+					vulkan_effect_data &effect_data = _effect_data[technique.effect_index];
+
+					// Initialize image and sampler bindings
+					std::vector<VkDescriptorImageInfo> &image_bindings = effect_data.image_bindings;
+
+					for (const reshadefx::sampler_info &info : effect_data.module.samplers)
+					{
+						const auto existing_texture = std::find_if(_textures.begin(), _textures.end(),
+							[&texture_name = info.texture_name](const auto &item) {
+							return item.unique_name == texture_name && item.impl != nullptr;
+						});
+						if (existing_texture == _textures.end())
+							return false;
+
+						VkDescriptorImageInfo &image_binding = image_bindings[info.binding];
+						image_binding.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+
+						if (existing_texture->impl_reference == texture_reference::depth_buffer)
+							image_binding.imageView = _depthstencil_image_view;
+					}
+
+					const VkDescriptorSetLayout set_layouts[2] = { _effect_ubo_layout, effect_data.set_layout };
+
+					if (effect_data.set[0] == VK_NULL_HANDLE || effect_data.set[1] == VK_NULL_HANDLE)
+						continue;
+
+					{  VkWriteDescriptorSet writes[1];
+						writes[0] = { VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
+						writes[0].dstSet = effect_data.set[1];
+						writes[0].dstBinding = 0;
+						writes[0].descriptorCount = uint32_t(image_bindings.size());
+						writes[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+						writes[0].pImageInfo = image_bindings.data();
+
+						vk.UpdateDescriptorSets(_device, 1, writes, 0, nullptr);
+					}
+				}
+
 			}
 		}
 	}
