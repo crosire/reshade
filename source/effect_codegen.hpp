@@ -97,8 +97,9 @@ namespace reshadefx
 		/// Resolve the access chain and add a load operation to the output.
 		/// </summary>
 		/// <param name="chain">The access chain pointing to the variable to load from.</param>
+		/// <param name="force_new_id">Set to <c>true</c> to force this to return a new SSA ID for l-value loads.</param>
 		/// <returns>New SSA ID with the loaded value.</returns>
-		virtual id emit_load(const expression &chain) = 0;
+		virtual id emit_load(const expression &chain, bool force_new_id = false) = 0;
 		/// <summary>
 		/// Resolve the access chain and add a store operation to the output.
 		/// </summary>

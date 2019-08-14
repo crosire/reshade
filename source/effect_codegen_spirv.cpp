@@ -992,7 +992,7 @@ private:
 				.add(spv::ExecutionModeOriginUpperLeft);
 	}
 
-	id   emit_load(const expression &exp) override
+	id   emit_load(const expression &exp, bool) override
 	{
 		if (exp.is_constant) // Constant expressions do not have a complex access chain
 			return emit_constant(exp.type, exp.constant);

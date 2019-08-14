@@ -618,11 +618,11 @@ private:
 		leave_function();
 	}
 
-	id   emit_load(const expression &exp) override
+	id   emit_load(const expression &exp, bool force_new_id) override
 	{
 		if (exp.is_constant)
 			return emit_constant(exp.type, exp.constant);
-		else if (exp.chain.empty()) // Can refer to values without access chain directly
+		else if (exp.chain.empty() && !force_new_id) // Can refer to values without access chain directly
 			return exp.base;
 
 		const id res = make_id();

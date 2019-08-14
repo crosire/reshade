@@ -914,14 +914,14 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 			for (unsigned int i = 0; i < exp.type.components(); ++i)
 				if (exp.type.is_floating_point()) one.as_float[i] = 1.0f; else one.as_uint[i] = 1u;
 
-			const auto value = _codegen->emit_load(exp);
+			const auto value = _codegen->emit_load(exp, true);
 			const auto result = _codegen->emit_binary_op(location, _token.id, exp.type, value, _codegen->emit_constant(exp.type, one));
 
 			// The "++" and "--" operands modify the source variable, so store result back into it
 			_codegen->emit_store(exp, result);
 
 			// All postfix operators return a r-value rather than a l-value to the variable
-			exp.reset_to_rvalue(location, result, exp.type);
+			exp.reset_to_rvalue(location, value, exp.type);
 		}
 		else if (accept('.'))
 		{
