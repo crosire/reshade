@@ -2298,8 +2298,10 @@ void reshade::runtime::draw_preset_explorer()
 							_current_preset_path = focus_preset_path;
 						else
 							condition = condition::pass;
-					else if (condition == condition::create || condition == condition::popup_add)
+					else if (condition == condition::create)
 						_current_preset_path = focus_preset_path;
+					else if (condition == condition::popup_add)
+						_current_browse_path = focus_preset_path;
 
 					if (condition == condition::pass)
 						ImGui::ActivateItem(ImGui::GetID("##path"));
