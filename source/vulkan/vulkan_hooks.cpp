@@ -856,11 +856,30 @@ VkResult VKAPI_CALL vkAllocateCommandBuffers(VkDevice device, const VkCommandBuf
 VkResult VKAPI_CALL vkCreateRenderPass(VkDevice device, const VkRenderPassCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkRenderPass* pRenderPass)
 {
 	PFN_vkCreateRenderPass trampoline = nullptr;
+	// uint32_t depthstencil_idx = 99999;
 
 	{ const std::lock_guard<std::mutex> lock(s_mutex);
 	trampoline = s_device_dispatch.at(get_dispatch_key(device)).CreateRenderPass;
 	assert(trampoline != nullptr);
 	}
+
+	/*VkRenderPassCreateInfo create_info = *pCreateInfo;
+
+	for (uint32_t i = 0; i < create_info.subpassCount; i++)
+	{
+		VkSubpassDescription subpass = create_info.pSubpasses[i];
+
+		const VkAttachmentReference *depthstencilAttachment = subpass.pDepthStencilAttachment;
+		if (depthstencilAttachment != nullptr)
+			depthstencil_idx = depthstencilAttachment->attachment;
+	}
+
+	if (depthstencil_idx < create_info.attachmentCount)
+	{
+		VkAttachmentDescription attachment_description = create_info.pAttachments[depthstencil_idx];
+		attachment_description.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
+		attachment_description.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+	}*/
 
 	return trampoline(device, pCreateInfo, pAllocator, pRenderPass);
 }

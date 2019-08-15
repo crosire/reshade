@@ -1739,7 +1739,7 @@ void reshade::vulkan::runtime_vk::draw_debug_menu()
 		{
 			runtime::save_config();
 			_current_tracker->reset();
-				create_depthstencil_replacement(VK_NULL_HANDLE, VK_NULL_HANDLE, VK_FORMAT_UNDEFINED, VK_NULL_HANDLE);
+			create_depthstencil_replacement(VK_NULL_HANDLE, VK_NULL_HANDLE, VK_FORMAT_UNDEFINED, VK_NULL_HANDLE);
 			return;
 		}
 
