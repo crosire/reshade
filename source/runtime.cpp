@@ -79,6 +79,8 @@ reshade::runtime::runtime() :
 	_reload_key_data(),
 	_effects_key_data(),
 	_screenshot_key_data(),
+	_previous_preset_key_data(),
+	_next_preset_key_data(),
 	_screenshot_path(g_target_executable_path.parent_path())
 {
 	// Default shortcut PrtScrn
@@ -174,6 +176,16 @@ void reshade::runtime::on_present()
 
 		if (_input->is_key_pressed(_screenshot_key_data))
 			_should_save_screenshot = true;
+
+		bool bPreviousPresetKeyPressed = _input->is_key_pressed(_previous_preset_key_data);
+		bool bNextPresetKeyPressed = _input->is_key_pressed(_next_preset_key_data);
+		if (bPreviousPresetKeyPressed || bNextPresetKeyPressed)
+			if(switch_current_preset(bNextPresetKeyPressed))
+			{
+				set_current_preset();
+				save_config();
+				load_current_preset();
+			}
 	}
 
 #if RESHADE_GUI
@@ -882,6 +894,8 @@ void reshade::runtime::load_config()
 	config.get("INPUT", "KeyReload", _reload_key_data);
 	config.get("INPUT", "KeyEffects", _effects_key_data);
 	config.get("INPUT", "KeyScreenshot", _screenshot_key_data);
+	config.get("INPUT", "KeyPreviousPreset", _previous_preset_key_data);
+	config.get("INPUT", "KeyNextPreset", _next_preset_key_data);
 
 	config.get("GENERAL", "PerformanceMode", _performance_mode);
 	config.get("GENERAL", "EffectSearchPaths", _effect_search_paths);
@@ -921,6 +935,8 @@ void reshade::runtime::save_config(const std::filesystem::path &path) const
 	config.set("INPUT", "KeyReload", _reload_key_data);
 	config.set("INPUT", "KeyEffects", _effects_key_data);
 	config.set("INPUT", "KeyScreenshot", _screenshot_key_data);
+	config.set("INPUT", "KeyPreviousPreset", _previous_preset_key_data);
+	config.set("INPUT", "KeyNextPreset", _next_preset_key_data);
 
 	config.set("GENERAL", "PerformanceMode", _performance_mode);
 	config.set("GENERAL", "EffectSearchPaths", _effect_search_paths);
