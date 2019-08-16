@@ -272,8 +272,6 @@ namespace reshade
 		unsigned int _reload_key_data[4];
 		unsigned int _effects_key_data[4];
 		unsigned int _screenshot_key_data[4];
-		unsigned int _previous_preset_key_data[4];
-		unsigned int _next_preset_key_data[4];
 		int _screenshot_format = 1;
 		std::filesystem::path _screenshot_path;
 		std::filesystem::path _configuration_path;
@@ -328,9 +326,6 @@ namespace reshade
 		void draw_overlay_variable_editor();
 		void draw_overlay_technique_editor();
 		void draw_preset_explorer();
-
-		void get_preset_container(std::vector<std::filesystem::directory_entry> &preset_container);
-		bool switch_current_preset(bool bToNext);
 
 		std::vector<std::pair<std::string, std::function<void()>>> _menu_callables;
 		std::unique_ptr<texture> _imgui_font_atlas;
