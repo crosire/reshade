@@ -2472,14 +2472,16 @@ bool reshade::runtime::switch_current_preset(bool bToNext)
 				if (it != preset_paths.end() - 1)
 					_current_preset_path = _current_browse_path = *++it;
 				else
-					return false;
+					_current_preset_path = _current_browse_path = preset_paths.front();
+//					return false; // this line must  be used istead of the above one for not going round and round through presets
 			}
 			else
 			{
 				if (it != preset_paths.begin())
 					_current_preset_path = _current_browse_path = *--it;
 				else
-					return false;
+					_current_preset_path = _current_browse_path = preset_paths.back();
+//					return false; // this line must  be used istead of the above one for not going round and round through presets
 			}
 	}
 	return true;
