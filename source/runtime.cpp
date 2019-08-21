@@ -182,11 +182,15 @@ void reshade::runtime::on_present()
 		if (bPreviousPresetKeyPressed || bNextPresetKeyPressed)
 			if(switch_current_preset(bNextPresetKeyPressed))
 			{
+				_last_preset_switching_time = current_time;
+				_is_in_between_presets_transition = true;
 				set_current_preset();
 				save_config();
-				load_current_preset();
 			}
 	}
+
+	if (_is_in_between_presets_transition)
+		load_current_preset();
 
 #if RESHADE_GUI
 	// Draw overlay
@@ -896,6 +900,7 @@ void reshade::runtime::load_config()
 	config.get("INPUT", "KeyScreenshot", _screenshot_key_data);
 	config.get("INPUT", "KeyPreviousPreset", _previous_preset_key_data);
 	config.get("INPUT", "KeyNextPreset", _next_preset_key_data);
+	config.get("INPUT", "PresetTransitionDelay", _preset_transition_delay);
 
 	config.get("GENERAL", "PerformanceMode", _performance_mode);
 	config.get("GENERAL", "EffectSearchPaths", _effect_search_paths);
@@ -937,6 +942,7 @@ void reshade::runtime::save_config(const std::filesystem::path &path) const
 	config.set("INPUT", "KeyScreenshot", _screenshot_key_data);
 	config.set("INPUT", "KeyPreviousPreset", _previous_preset_key_data);
 	config.set("INPUT", "KeyNextPreset", _next_preset_key_data);
+	config.set("INPUT", "PresetTransitionDelay", _preset_transition_delay);
 
 	config.set("GENERAL", "PerformanceMode", _performance_mode);
 	config.set("GENERAL", "EffectSearchPaths", _effect_search_paths);
@@ -984,26 +990,68 @@ void reshade::runtime::load_preset(const std::filesystem::path &path)
 			       (std::find(sorted_technique_list.begin(), sorted_technique_list.end(), rhs.name) - sorted_technique_list.begin());
 		});
 
+	// compute times since the transition has started and how much left till it should end
+	auto nMicrosecondsPassed = std::chrono::duration_cast<std::chrono::microseconds>(_last_present_time - _last_preset_switching_time).count();
+	auto nMilisecondsLeft = _preset_transition_delay - nMicrosecondsPassed / 1000;
+	auto nMilisecondsLeftFromLastFrame = nMilisecondsLeft + +std::chrono::duration_cast<std::chrono::microseconds>(_last_frame_duration).count() / 1000;
+
+	if (_is_in_between_presets_transition && nMilisecondsLeft <= 0)
+		_is_in_between_presets_transition = false;
+
 	for (uniform &variable : _uniforms)
 	{
+		reshadefx::constant values_old;
 		reshadefx::constant values;
 
 		switch (variable.type.base)
 		{
 		case reshadefx::type::t_int:
 			get_uniform_value(variable, values.as_int, 16);
+			values_old = values;
 			preset.get(_loaded_effects[variable.effect_index].source_file.filename().u8string(), variable.name, values.as_int);
+			if (_is_in_between_presets_transition)
+			{
+				for (int i = 0; i < 16; i++)
+				{
+					if (abs(values.as_int[i] - values_old.as_int[i]) > 1)
+					{
+						auto fRatio = static_cast<float>(values.as_int[i] - values_old.as_int[i]) / nMilisecondsLeftFromLastFrame;
+						values.as_int[i] = static_cast<int32_t>(values.as_int[i] - fRatio * nMilisecondsLeft);
+					}
+				}
+			}
 			set_uniform_value(variable, values.as_int, 16);
 			break;
 		case reshadefx::type::t_bool:
 		case reshadefx::type::t_uint:
 			get_uniform_value(variable, values.as_uint, 16);
+			values_old = values;
 			preset.get(_loaded_effects[variable.effect_index].source_file.filename().u8string(), variable.name, values.as_uint);
+			if (_is_in_between_presets_transition)
+			{
+				for (int i = 0; i < 16; i++)
+				{
+					if (abs(static_cast<float>(values.as_uint[i]) - values_old.as_uint[i]) > 1)
+					{
+						auto fRatio = (static_cast<float>(values.as_uint[i]) - values_old.as_uint[i]) / nMilisecondsLeftFromLastFrame;
+						values.as_uint[i] = static_cast<uint32_t>(values.as_uint[i] - fRatio * nMilisecondsLeft);
+					}
+				}
+			}
 			set_uniform_value(variable, values.as_uint, 16);
 			break;
 		case reshadefx::type::t_float:
 			get_uniform_value(variable, values.as_float, 16);
+			values_old = values;
 			preset.get(_loaded_effects[variable.effect_index].source_file.filename().u8string(), variable.name, values.as_float);
+			if (_is_in_between_presets_transition)
+			{
+				for (int i = 0; i < 16; i++)
+				{
+					auto fRatio = static_cast<float>(values.as_float[i] - values_old.as_float[i]) / nMilisecondsLeftFromLastFrame;
+					values.as_float[i] = static_cast<float>(values.as_float[i] - fRatio * nMilisecondsLeft);
+				}
+			}
 			set_uniform_value(variable, values.as_float, 16);
 			break;
 		}
