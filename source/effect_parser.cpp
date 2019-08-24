@@ -1782,7 +1782,7 @@ bool reshadefx::parser::parse_statement(bool scoped)
 			{ // Begin loop block
 				_codegen->enter_block(header_label);
 
-				_codegen->leave_block_and_branch(loop_block);
+				_codegen->leave_block_and_branch(condition_block);
 			}
 
 			{ // Parse condition block
