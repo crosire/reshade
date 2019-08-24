@@ -283,7 +283,7 @@ void reshade::runtime::load_effect(const std::filesystem::path &path, size_t &ou
 		// Compile the pre-processed source code (try the compile even if the preprocessor step failed to get additional error information)
 		if (!parser.parse(std::move(pp.output()), codegen.get()))
 		{
-			LOG(ERROR) << "Failed to compile " << path << ":\n" << parser.errors();
+			LOG(ERROR) << "Failed to compile " << path << ":\n" << pp.errors() << parser.errors();
 			effect.compile_sucess = false;
 		}
 
