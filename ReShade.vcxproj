@@ -444,6 +444,7 @@
     <ClInclude Include="source\resource_loading.hpp" />
     <ClInclude Include="source\runtime.hpp" />
     <ClInclude Include="source\runtime_objects.hpp" />
+    <ClInclude Include="source\vulkan\format_utils.hpp" />
     <ClInclude Include="source\vulkan\runtime_vk.hpp" />
     <ClInclude Include="source\vulkan\vk_handle.hpp" />
     <ClInclude Include="source\vulkan\vk_layer_dispatch_table.h" />
