@@ -252,50 +252,50 @@ bool reshade::vulkan::runtime_vk::on_init(VkSwapchainKHR swapchain, const VkSwap
 		return false;
 
 	{   VkAttachmentReference attachment_refs[2] = {};
-		attachment_refs[0].attachment = 0;
-		attachment_refs[0].layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-		attachment_refs[1].attachment = 1;
-		attachment_refs[1].layout = VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_STENCIL_ATTACHMENT_OPTIMAL;
-		VkAttachmentDescription attachment_descs[2] = {};
-		attachment_descs[0].format = _backbuffer_format;
-		attachment_descs[0].samples = VK_SAMPLE_COUNT_1_BIT;
-		attachment_descs[0].loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
-		attachment_descs[0].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-		attachment_descs[0].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-		attachment_descs[0].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-		attachment_descs[0].initialLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-		attachment_descs[0].finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-		attachment_descs[1].format = VK_FORMAT_D24_UNORM_S8_UINT;
-		attachment_descs[1].samples = VK_SAMPLE_COUNT_1_BIT;
-		attachment_descs[1].loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-		attachment_descs[1].storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-		attachment_descs[1].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE; //VK_ATTACHMENT_LOAD_OP_LOAD;
-		attachment_descs[1].stencilStoreOp = VK_ATTACHMENT_STORE_OP_STORE;
-		attachment_descs[1].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;//VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_STENCIL_ATTACHMENT_OPTIMAL;
-		attachment_descs[1].finalLayout = VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_STENCIL_ATTACHMENT_OPTIMAL;
+	attachment_refs[0].attachment = 0;
+	attachment_refs[0].layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+	attachment_refs[1].attachment = 1;
+	attachment_refs[1].layout = VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_STENCIL_ATTACHMENT_OPTIMAL;
+	VkAttachmentDescription attachment_descs[2] = {};
+	attachment_descs[0].format = _backbuffer_format;
+	attachment_descs[0].samples = VK_SAMPLE_COUNT_1_BIT;
+	attachment_descs[0].loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
+	attachment_descs[0].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+	attachment_descs[0].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+	attachment_descs[0].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+	attachment_descs[0].initialLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+	attachment_descs[0].finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+	attachment_descs[1].format = VK_FORMAT_D24_UNORM_S8_UINT;
+	attachment_descs[1].samples = VK_SAMPLE_COUNT_1_BIT;
+	attachment_descs[1].loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+	attachment_descs[1].storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+	attachment_descs[1].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE; //VK_ATTACHMENT_LOAD_OP_LOAD;
+	attachment_descs[1].stencilStoreOp = VK_ATTACHMENT_STORE_OP_STORE;
+	attachment_descs[1].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;//VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_STENCIL_ATTACHMENT_OPTIMAL;
+	attachment_descs[1].finalLayout = VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_STENCIL_ATTACHMENT_OPTIMAL;
 
-		VkSubpassDependency subdep = {};
-		subdep.srcSubpass = VK_SUBPASS_EXTERNAL;
-		subdep.dstSubpass = 0;
-		subdep.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-		subdep.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
-		subdep.srcAccessMask = 0;
-		subdep.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-		VkSubpassDescription subpass = {};
-		subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-		subpass.colorAttachmentCount = 1;
-		subpass.pColorAttachments = &attachment_refs[0];
-		subpass.pDepthStencilAttachment = &attachment_refs[1];
+	VkSubpassDependency subdep = {};
+	subdep.srcSubpass = VK_SUBPASS_EXTERNAL;
+	subdep.dstSubpass = 0;
+	subdep.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+	subdep.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+	subdep.srcAccessMask = 0;
+	subdep.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+	VkSubpassDescription subpass = {};
+	subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+	subpass.colorAttachmentCount = 1;
+	subpass.pColorAttachments = &attachment_refs[0];
+	subpass.pDepthStencilAttachment = &attachment_refs[1];
 
-		VkRenderPassCreateInfo create_info { VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO };
-		create_info.attachmentCount = 2;
-		create_info.pAttachments = attachment_descs;
-		create_info.subpassCount = 1;
-		create_info.pSubpasses = &subpass;
-		create_info.dependencyCount = 1;
-		create_info.pDependencies = &subdep;
+	VkRenderPassCreateInfo create_info { VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO };
+	create_info.attachmentCount = 2;
+	create_info.pAttachments = attachment_descs;
+	create_info.subpassCount = 1;
+	create_info.pSubpasses = &subpass;
+	create_info.dependencyCount = 1;
+	create_info.pDependencies = &subdep;
 
-		check_result(vk.CreateRenderPass(_device, &create_info, nullptr, &_default_render_pass)) false;
+	check_result(vk.CreateRenderPass(_device, &create_info, nullptr, &_default_render_pass)) false;
 	}
 
 	uint32_t num_images = 0;
@@ -318,47 +318,47 @@ bool reshade::vulkan::runtime_vk::on_init(VkSwapchainKHR swapchain, const VkSwap
 		const VkImageView attachment_views[2] = { _swapchain_views[i], _default_depthstencil_view };
 
 		{   VkFramebufferCreateInfo create_info { VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO };
-			create_info.renderPass = _default_render_pass;
-			create_info.attachmentCount = 2;
-			create_info.pAttachments = attachment_views;
-			create_info.width = desc.imageExtent.width;
-			create_info.height = desc.imageExtent.height;
-			create_info.layers = 1;
+		create_info.renderPass = _default_render_pass;
+		create_info.attachmentCount = 2;
+		create_info.pAttachments = attachment_views;
+		create_info.width = desc.imageExtent.width;
+		create_info.height = desc.imageExtent.height;
+		create_info.layers = 1;
 
-			check_result(vk.CreateFramebuffer(_device, &create_info, nullptr, &_swapchain_frames[i])) false;
+		check_result(vk.CreateFramebuffer(_device, &create_info, nullptr, &_swapchain_frames[i])) false;
 		}
 
 		{   VkCommandPoolCreateInfo create_info { VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO };
-			create_info.queueFamilyIndex = queue_family_index;
+		create_info.queueFamilyIndex = queue_family_index;
 
-			check_result(vk.CreateCommandPool(_device, &create_info, nullptr, &_cmd_pool[i])) false;
+		check_result(vk.CreateCommandPool(_device, &create_info, nullptr, &_cmd_pool[i])) false;
 		}
 	}
 
 	{   VkFenceCreateInfo create_info { VK_STRUCTURE_TYPE_FENCE_CREATE_INFO };
 
-		check_result(vk.CreateFence(_device, &create_info, nullptr, &_wait_fence)) false;
+	check_result(vk.CreateFence(_device, &create_info, nullptr, &_wait_fence)) false;
 	}
 
 	{   const VkDescriptorPoolSize pool_sizes[] = {
 			{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1 }, // Only need one global UBO per set
 			{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 128 } // Limit to 128 image bindings per set for now
-		};
+	};
 
-		VkDescriptorPoolCreateInfo create_info { VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO };
-		create_info.maxSets = 100; // Limit to 100 effects for now
-		create_info.poolSizeCount = _countof(pool_sizes);
-		create_info.pPoolSizes = pool_sizes;
+	VkDescriptorPoolCreateInfo create_info { VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO };
+	create_info.maxSets = 100; // Limit to 100 effects for now
+	create_info.poolSizeCount = _countof(pool_sizes);
+	create_info.pPoolSizes = pool_sizes;
 
-		check_result(vk.CreateDescriptorPool(_device, &create_info, nullptr, &_effect_descriptor_pool)) false;
+	check_result(vk.CreateDescriptorPool(_device, &create_info, nullptr, &_effect_descriptor_pool)) false;
 	}
 
 	{   const VkDescriptorSetLayoutBinding bindings = { 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_ALL_GRAPHICS };
-		VkDescriptorSetLayoutCreateInfo create_info { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO };
-		create_info.bindingCount = 1;
-		create_info.pBindings = &bindings;
+	VkDescriptorSetLayoutCreateInfo create_info { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO };
+	create_info.bindingCount = 1;
+	create_info.pBindings = &bindings;
 
-		check_result(vk.CreateDescriptorSetLayout(_device, &create_info, nullptr, &_effect_ubo_layout)) false;
+	check_result(vk.CreateDescriptorSetLayout(_device, &create_info, nullptr, &_effect_ubo_layout)) false;
 	}
 
 #if RESHADE_GUI
@@ -438,9 +438,6 @@ void reshade::vulkan::runtime_vk::on_present(uint32_t swapchain_image_index, dra
 
 	_swap_index = swapchain_image_index;
 
-	vk.QueueWaitIdle(_current_queue); // TOOD
-	vk.ResetCommandPool(_device, _cmd_pool[swapchain_image_index], 0);
-
 	update_and_render_effects();
 
 #if RESHADE_VULKAN_CAPTURE_DEPTH_BUFFERS
@@ -451,6 +448,11 @@ void reshade::vulkan::runtime_vk::on_present(uint32_t swapchain_image_index, dra
 
 	clear_DSV_iter = 1;
 	_current_tracker->reset();
+
+	if (_framecount % 5000)
+		return;
+
+	vk.ResetCommandPool(_device, _cmd_pool[swapchain_image_index], 0);
 }
 
 void reshade::vulkan::runtime_vk::capture_screenshot(uint8_t *buffer) const
@@ -459,30 +461,30 @@ void reshade::vulkan::runtime_vk::capture_screenshot(uint8_t *buffer) const
 	vk_handle<VK_OBJECT_TYPE_DEVICE_MEMORY> intermediate_mem(_device, vk);
 
 	{   VkImageCreateInfo create_info { VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO };
-		create_info.imageType = VK_IMAGE_TYPE_2D;
-		create_info.format = _backbuffer_format;
-		create_info.extent = { _width, _height, 1u };
-		create_info.mipLevels = 1;
-		create_info.arrayLayers = 1;
-		create_info.samples = VK_SAMPLE_COUNT_1_BIT;
-		create_info.tiling = VK_IMAGE_TILING_LINEAR;
-		create_info.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT;
-		create_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-		create_info.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+	create_info.imageType = VK_IMAGE_TYPE_2D;
+	create_info.format = _backbuffer_format;
+	create_info.extent = { _width, _height, 1u };
+	create_info.mipLevels = 1;
+	create_info.arrayLayers = 1;
+	create_info.samples = VK_SAMPLE_COUNT_1_BIT;
+	create_info.tiling = VK_IMAGE_TILING_LINEAR;
+	create_info.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+	create_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+	create_info.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 
-		check_result(vk.CreateImage(_device, &create_info, nullptr, &intermediate));
+	check_result(vk.CreateImage(_device, &create_info, nullptr, &intermediate));
 
-		VkMemoryRequirements reqs = {};
-		vk.GetImageMemoryRequirements(_device, intermediate, &reqs);
+	VkMemoryRequirements reqs = {};
+	vk.GetImageMemoryRequirements(_device, intermediate, &reqs);
 
-		VkMemoryAllocateInfo alloc_info { VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO };
-		alloc_info.allocationSize = reqs.size;
-		alloc_info.memoryTypeIndex = find_memory_type_index(_memory_props,
-			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, reqs.memoryTypeBits);
+	VkMemoryAllocateInfo alloc_info { VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO };
+	alloc_info.allocationSize = reqs.size;
+	alloc_info.memoryTypeIndex = find_memory_type_index(_memory_props,
+		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, reqs.memoryTypeBits);
 
-		vk_handle<VK_OBJECT_TYPE_DEVICE_MEMORY> mem(_device, vk);
-		check_result(vk.AllocateMemory(_device, &alloc_info, nullptr, &intermediate_mem));
-		check_result(vk.BindImageMemory(_device, intermediate, intermediate_mem, 0));
+	vk_handle<VK_OBJECT_TYPE_DEVICE_MEMORY> mem(_device, vk);
+	check_result(vk.AllocateMemory(_device, &alloc_info, nullptr, &intermediate_mem));
+	check_result(vk.BindImageMemory(_device, intermediate, intermediate_mem, 0));
 	}
 
 	const VkCommandBuffer cmd_list = create_command_list();
@@ -659,23 +661,23 @@ void reshade::vulkan::runtime_vk::upload_texture(texture &texture, const uint8_t
 	vk_handle<VK_OBJECT_TYPE_DEVICE_MEMORY> intermediate_mem(_device, vk);
 
 	{   VkBufferCreateInfo create_info { VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO };
-		create_info.size = texture.width * texture.height * 4;
-		create_info.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
-		create_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+	create_info.size = texture.width * texture.height * 4;
+	create_info.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+	create_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
-		check_result(vk.CreateBuffer(_device, &create_info, nullptr, &intermediate));
+	check_result(vk.CreateBuffer(_device, &create_info, nullptr, &intermediate));
 	}
 
 	// Allocate host memory for upload
 	{   VkMemoryRequirements reqs = {};
-		vk.GetBufferMemoryRequirements(_device, intermediate, &reqs);
+	vk.GetBufferMemoryRequirements(_device, intermediate, &reqs);
 
-		VkMemoryAllocateInfo alloc_info { VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO };
-		alloc_info.allocationSize = reqs.size;
-		alloc_info.memoryTypeIndex = find_memory_type_index(_memory_props, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, reqs.memoryTypeBits);
+	VkMemoryAllocateInfo alloc_info { VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO };
+	alloc_info.allocationSize = reqs.size;
+	alloc_info.memoryTypeIndex = find_memory_type_index(_memory_props, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, reqs.memoryTypeBits);
 
-		check_result(vk.AllocateMemory(_device, &alloc_info, nullptr, &intermediate_mem));
-		check_result(vk.BindBufferMemory(_device, intermediate, intermediate_mem, 0));
+	check_result(vk.AllocateMemory(_device, &alloc_info, nullptr, &intermediate_mem));
+	check_result(vk.BindBufferMemory(_device, intermediate, intermediate_mem, 0));
 	}
 
 	// Fill upload buffer with pixel data
@@ -855,15 +857,15 @@ bool reshade::vulkan::runtime_vk::compile_effect(effect_data &effect)
 
 	// Load shader module
 	{   VkShaderModuleCreateInfo create_info { VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO };
-		create_info.codeSize = effect.module.spirv.size() * sizeof(uint32_t);
-		create_info.pCode = effect.module.spirv.data();
+	create_info.codeSize = effect.module.spirv.size() * sizeof(uint32_t);
+	create_info.pCode = effect.module.spirv.data();
 
-		const VkResult res = vk.CreateShaderModule(_device, &create_info, nullptr, &module);
-		if (res != VK_SUCCESS)
-		{
-			effect.errors += "Failed to create shader module. Vulkan error code " + std::to_string(res) + ".";
-			return false;
-		}
+	const VkResult res = vk.CreateShaderModule(_device, &create_info, nullptr, &module);
+	if (res != VK_SUCCESS)
+	{
+		effect.errors += "Failed to create shader module. Vulkan error code " + std::to_string(res) + ".";
+		return false;
+	}
 	}
 
 	if (_effect_data.size() <= effect.index)
@@ -876,24 +878,24 @@ bool reshade::vulkan::runtime_vk::compile_effect(effect_data &effect)
 
 	// Initialize pipeline layout
 	{   std::vector<VkDescriptorSetLayoutBinding> bindings;
-		bindings.reserve(effect.module.num_sampler_bindings);
-		for (uint32_t i = 0; i < effect.module.num_sampler_bindings; ++i)
-			bindings.push_back({ i, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_ALL_GRAPHICS });
+	bindings.reserve(effect.module.num_sampler_bindings);
+	for (uint32_t i = 0; i < effect.module.num_sampler_bindings; ++i)
+		bindings.push_back({ i, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_ALL_GRAPHICS });
 
-		VkDescriptorSetLayoutCreateInfo create_info { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO };
-		create_info.bindingCount = uint32_t(bindings.size());
-		create_info.pBindings = bindings.data();
+	VkDescriptorSetLayoutCreateInfo create_info { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO };
+	create_info.bindingCount = uint32_t(bindings.size());
+	create_info.pBindings = bindings.data();
 
-		check_result(vk.CreateDescriptorSetLayout(_device, &create_info, nullptr, &effect_data.set_layout)) false;
+	check_result(vk.CreateDescriptorSetLayout(_device, &create_info, nullptr, &effect_data.set_layout)) false;
 	}
 
 	const VkDescriptorSetLayout set_layouts[2] = { _effect_ubo_layout, effect_data.set_layout };
 
 	{   VkPipelineLayoutCreateInfo create_info { VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO };
-		create_info.setLayoutCount = 2; // [0] = Global UBO, [1] = Samplers
-		create_info.pSetLayouts = set_layouts;
+	create_info.setLayoutCount = 2; // [0] = Global UBO, [1] = Samplers
+	create_info.pSetLayouts = set_layouts;
 
-		check_result(vk.CreatePipelineLayout(_device, &create_info, nullptr, &effect_data.pipeline_layout)) false;
+	check_result(vk.CreatePipelineLayout(_device, &create_info, nullptr, &effect_data.pipeline_layout)) false;
 	}
 
 	// Create global uniform buffer object
@@ -1011,30 +1013,30 @@ bool reshade::vulkan::runtime_vk::compile_effect(effect_data &effect)
 	effect_data.image_bindings = image_bindings;
 
 	{   VkDescriptorSetAllocateInfo alloc_info { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO };
-		alloc_info.descriptorPool = _effect_descriptor_pool;
-		alloc_info.descriptorSetCount = 2;
-		alloc_info.pSetLayouts = set_layouts;
+	alloc_info.descriptorPool = _effect_descriptor_pool;
+	alloc_info.descriptorSetCount = 2;
+	alloc_info.pSetLayouts = set_layouts;
 
-		check_result(vk.AllocateDescriptorSets(_device, &alloc_info, effect_data.set)) false;
+	check_result(vk.AllocateDescriptorSets(_device, &alloc_info, effect_data.set)) false;
 
-		VkWriteDescriptorSet writes[2];
-		writes[0] = { VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
-		writes[0].dstSet = effect_data.set[0];
-		writes[0].dstBinding = 0;
-		writes[0].descriptorCount = 1;
-		writes[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-		const VkDescriptorBufferInfo ubo_info = {
-			effect_data.ubo, 0, effect.storage_size };
-		writes[0].pBufferInfo = &ubo_info;
+	VkWriteDescriptorSet writes[2];
+	writes[0] = { VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
+	writes[0].dstSet = effect_data.set[0];
+	writes[0].dstBinding = 0;
+	writes[0].descriptorCount = 1;
+	writes[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	const VkDescriptorBufferInfo ubo_info = {
+		effect_data.ubo, 0, effect.storage_size };
+	writes[0].pBufferInfo = &ubo_info;
 
-		writes[1] = { VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
-		writes[1].dstSet = effect_data.set[1];
-		writes[1].dstBinding = 0;
-		writes[1].descriptorCount = uint32_t(image_bindings.size());
-		writes[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-		writes[1].pImageInfo = image_bindings.data();
+	writes[1] = { VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
+	writes[1].dstSet = effect_data.set[1];
+	writes[1].dstBinding = 0;
+	writes[1].descriptorCount = uint32_t(image_bindings.size());
+	writes[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+	writes[1].pImageInfo = image_bindings.data();
 
-		vk.UpdateDescriptorSets(_device, 2, writes, 0, nullptr);
+	vk.UpdateDescriptorSets(_device, 2, writes, 0, nullptr);
 	}
 
 	bool success = true;
@@ -1245,37 +1247,37 @@ bool reshade::vulkan::runtime_vk::init_technique(technique &info, VkShaderModule
 			}
 
 			{   VkSubpassDependency subdep = {};
-				subdep.srcSubpass = VK_SUBPASS_EXTERNAL;
-				subdep.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-				subdep.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-				subdep.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+			subdep.srcSubpass = VK_SUBPASS_EXTERNAL;
+			subdep.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+			subdep.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+			subdep.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
 
-				VkSubpassDescription subpass = {};
-				subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-				subpass.colorAttachmentCount = num_color_attachments;
-				subpass.pColorAttachments = attachment_refs;
-				subpass.pDepthStencilAttachment = num_depth_attachments ? &attachment_refs[num_color_attachments] : nullptr;
+			VkSubpassDescription subpass = {};
+			subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+			subpass.colorAttachmentCount = num_color_attachments;
+			subpass.pColorAttachments = attachment_refs;
+			subpass.pDepthStencilAttachment = num_depth_attachments ? &attachment_refs[num_color_attachments] : nullptr;
 
-				VkRenderPassCreateInfo create_info { VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO };
-				create_info.attachmentCount = num_color_attachments + num_depth_attachments;
-				create_info.pAttachments = attachment_descs;
-				create_info.subpassCount = 1;
-				create_info.pSubpasses = &subpass;
-				create_info.dependencyCount = 1;
-				create_info.pDependencies = &subdep;
+			VkRenderPassCreateInfo create_info { VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO };
+			create_info.attachmentCount = num_color_attachments + num_depth_attachments;
+			create_info.pAttachments = attachment_descs;
+			create_info.subpassCount = 1;
+			create_info.pSubpasses = &subpass;
+			create_info.dependencyCount = 1;
+			create_info.pDependencies = &subdep;
 
-				check_result(vk.CreateRenderPass(_device, &create_info, nullptr, &pass_data.begin_info.renderPass)) false;
+			check_result(vk.CreateRenderPass(_device, &create_info, nullptr, &pass_data.begin_info.renderPass)) false;
 			}
 
 			{   VkFramebufferCreateInfo create_info { VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO };
-				create_info.renderPass = pass_data.begin_info.renderPass;
-				create_info.attachmentCount = num_color_attachments + num_depth_attachments;
-				create_info.pAttachments = attachment_views;
-				create_info.width = scissor_rect.extent.width;
-				create_info.height = scissor_rect.extent.height;
-				create_info.layers = 1;
+			create_info.renderPass = pass_data.begin_info.renderPass;
+			create_info.attachmentCount = num_color_attachments + num_depth_attachments;
+			create_info.pAttachments = attachment_views;
+			create_info.width = scissor_rect.extent.width;
+			create_info.height = scissor_rect.extent.height;
+			create_info.layers = 1;
 
-				check_result(vk.CreateFramebuffer(_device, &create_info, nullptr, &pass_data.begin_info.framebuffer)) false;
+			check_result(vk.CreateFramebuffer(_device, &create_info, nullptr, &pass_data.begin_info.framebuffer)) false;
 			}
 		}
 
@@ -1433,60 +1435,60 @@ bool reshade::vulkan::runtime_vk::init_imgui_resources()
 
 	{   VkShaderModuleCreateInfo create_info { VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO };
 
-		const resources::data_resource vs = resources::load_data_resource(IDR_IMGUI_VS_SPIRV);
-		create_info.codeSize = vs.data_size;
-		create_info.pCode = static_cast<const uint32_t *>(vs.data);
-		check_result(vk.CreateShaderModule(_device, &create_info, nullptr, &vs_module)) false;
-		stages[0].module = vs_module;
+	const resources::data_resource vs = resources::load_data_resource(IDR_IMGUI_VS_SPIRV);
+	create_info.codeSize = vs.data_size;
+	create_info.pCode = static_cast<const uint32_t *>(vs.data);
+	check_result(vk.CreateShaderModule(_device, &create_info, nullptr, &vs_module)) false;
+	stages[0].module = vs_module;
 
-		const resources::data_resource ps = resources::load_data_resource(IDR_IMGUI_PS_SPIRV);
-		create_info.codeSize = ps.data_size;
-		create_info.pCode = static_cast<const uint32_t *>(ps.data);
-		check_result(vk.CreateShaderModule(_device, &create_info, nullptr, &fs_module)) false;
-		stages[1].module = fs_module;
+	const resources::data_resource ps = resources::load_data_resource(IDR_IMGUI_PS_SPIRV);
+	create_info.codeSize = ps.data_size;
+	create_info.pCode = static_cast<const uint32_t *>(ps.data);
+	check_result(vk.CreateShaderModule(_device, &create_info, nullptr, &fs_module)) false;
+	stages[1].module = fs_module;
 	}
 
 	{   VkSamplerCreateInfo create_info { VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO };
-		create_info.magFilter = VK_FILTER_LINEAR;
-		create_info.minFilter = VK_FILTER_LINEAR;
-		create_info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
-		create_info.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-		create_info.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-		create_info.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-		create_info.minLod = -1000;
-		create_info.maxLod = +1000;
+	create_info.magFilter = VK_FILTER_LINEAR;
+	create_info.minFilter = VK_FILTER_LINEAR;
+	create_info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+	create_info.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+	create_info.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+	create_info.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+	create_info.minLod = -1000;
+	create_info.maxLod = +1000;
 
-		check_result(vk.CreateSampler(_device, &create_info, nullptr, &_imgui_font_sampler)) false;
+	check_result(vk.CreateSampler(_device, &create_info, nullptr, &_imgui_font_sampler)) false;
 	}
 
 	{   VkDescriptorSetLayoutBinding bindings[1] = {};
-		bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-		bindings[0].descriptorCount = 1;
-		bindings[0].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-		bindings[0].pImmutableSamplers = &_imgui_font_sampler;
+	bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+	bindings[0].descriptorCount = 1;
+	bindings[0].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+	bindings[0].pImmutableSamplers = &_imgui_font_sampler;
 
-		VkDescriptorSetLayoutCreateInfo create_info { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO };
-		create_info.flags = VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT_KHR;
-		create_info.bindingCount = _countof(bindings);
-		create_info.pBindings = bindings;
+	VkDescriptorSetLayoutCreateInfo create_info { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO };
+	create_info.flags = VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT_KHR;
+	create_info.bindingCount = _countof(bindings);
+	create_info.pBindings = bindings;
 
-		check_result(vk.CreateDescriptorSetLayout(_device, &create_info, nullptr, &_imgui_descriptor_set_layout)) false;
+	check_result(vk.CreateDescriptorSetLayout(_device, &create_info, nullptr, &_imgui_descriptor_set_layout)) false;
 	}
 
 	{   const VkPushConstantRange push_constants[] = {
 			{ VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(float) * 4 }
-		};
-		const VkDescriptorSetLayout descriptor_layouts[] = {
-			_imgui_descriptor_set_layout
-		};
+	};
+	const VkDescriptorSetLayout descriptor_layouts[] = {
+		_imgui_descriptor_set_layout
+	};
 
-		VkPipelineLayoutCreateInfo create_info { VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO };
-		create_info.setLayoutCount = _countof(descriptor_layouts);
-		create_info.pSetLayouts = descriptor_layouts;
-		create_info.pushConstantRangeCount = _countof(push_constants);
-		create_info.pPushConstantRanges = push_constants;
+	VkPipelineLayoutCreateInfo create_info { VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO };
+	create_info.setLayoutCount = _countof(descriptor_layouts);
+	create_info.pSetLayouts = descriptor_layouts;
+	create_info.pushConstantRangeCount = _countof(push_constants);
+	create_info.pPushConstantRanges = push_constants;
 
-		check_result(vk.CreatePipelineLayout(_device, &create_info, nullptr, &_imgui_pipeline_layout)) false;
+	check_result(vk.CreatePipelineLayout(_device, &create_info, nullptr, &_imgui_pipeline_layout)) false;
 	}
 
 	VkVertexInputBindingDescription binding_desc[1] = {};
@@ -1502,7 +1504,7 @@ bool reshade::vulkan::runtime_vk::init_imgui_resources()
 	attribute_desc[1].location = 1;
 	attribute_desc[1].binding = binding_desc[0].binding;
 	attribute_desc[1].format = VK_FORMAT_R32G32_SFLOAT;
-	attribute_desc[1].offset = offsetof(ImDrawVert, uv );
+	attribute_desc[1].offset = offsetof(ImDrawVert, uv);
 	attribute_desc[2].location = 2;
 	attribute_desc[2].binding = binding_desc[0].binding;
 	attribute_desc[2].format = VK_FORMAT_R8G8B8A8_UNORM;
@@ -1652,10 +1654,10 @@ void reshade::vulkan::runtime_vk::render_imgui_draw_data(ImDrawData *draw_data)
 	const VkCommandBuffer cmd_list = create_command_list();
 
 	{   VkRenderPassBeginInfo begin_info { VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO };
-		begin_info.renderPass = _default_render_pass;
-		begin_info.framebuffer = _swapchain_frames[_swap_index];
-		begin_info.renderArea.extent = _render_area;
-		vk.CmdBeginRenderPass(cmd_list, &begin_info, VK_SUBPASS_CONTENTS_INLINE);
+	begin_info.renderPass = _default_render_pass;
+	begin_info.framebuffer = _swapchain_frames[_swap_index];
+	begin_info.renderArea.extent = _render_area;
+	vk.CmdBeginRenderPass(cmd_list, &begin_info, VK_SUBPASS_CONTENTS_INLINE);
 	}
 
 	// Setup orthographic projection matrix
@@ -1692,9 +1694,9 @@ void reshade::vulkan::runtime_vk::render_imgui_draw_data(ImDrawData *draw_data)
 				// Offset
 				{ static_cast<int32_t>(cmd.ClipRect.x - draw_data->DisplayPos.x),
 				  static_cast<int32_t>(cmd.ClipRect.y - draw_data->DisplayPos.y) },
-				// Extent
-				{ static_cast<uint32_t>(cmd.ClipRect.z - cmd.ClipRect.x),
-				  static_cast<uint32_t>(cmd.ClipRect.w - cmd.ClipRect.y) }
+				  // Extent
+				  { static_cast<uint32_t>(cmd.ClipRect.z - cmd.ClipRect.x),
+					static_cast<uint32_t>(cmd.ClipRect.w - cmd.ClipRect.y) }
 			};
 			vk.CmdSetScissor(cmd_list, 0, 1, &scissor_rect);
 
@@ -1947,14 +1949,14 @@ bool reshade::vulkan::runtime_vk::create_depthstencil_replacement(VkImageView de
 						continue;
 
 					{  VkWriteDescriptorSet writes[1];
-						writes[0] = { VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
-						writes[0].dstSet = effect_data.set[1];
-						writes[0].dstBinding = 0;
-						writes[0].descriptorCount = uint32_t(image_bindings.size());
-						writes[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-						writes[0].pImageInfo = image_bindings.data();
+					writes[0] = { VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
+					writes[0].dstSet = effect_data.set[1];
+					writes[0].dstBinding = 0;
+					writes[0].descriptorCount = uint32_t(image_bindings.size());
+					writes[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+					writes[0].pImageInfo = image_bindings.data();
 
-						vk.UpdateDescriptorSets(_device, 1, writes, 0, nullptr);
+					vk.UpdateDescriptorSets(_device, 1, writes, 0, nullptr);
 					}
 				}
 

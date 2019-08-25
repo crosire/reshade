@@ -26,9 +26,8 @@ namespace reshade::vulkan
 			_counters_per_used_depthstencil[depthstencil].stats.drawcalls += snapshot.stats.drawcalls;
 			_counters_per_used_depthstencil[depthstencil].depthstencil = snapshot.depthstencil;
 			_counters_per_used_depthstencil[depthstencil].image = snapshot.image;
-			_counters_per_used_depthstencil[depthstencil].image_info.format = snapshot.image_info.format;
-			_counters_per_used_depthstencil[depthstencil].image_info.extent = snapshot.image_info.extent;
-			_counters_per_used_depthstencil[depthstencil].image_info.usage = snapshot.image_info.usage;
+			_counters_per_used_depthstencil[depthstencil].image_info = snapshot.image_info;
+			_counters_per_used_depthstencil[depthstencil].image_view_info = snapshot.image_view_info;
 		}
 
 		std::lock_guard lock2(_vk_cleared_depth_images_mutex, std::adopt_lock);
@@ -101,7 +100,7 @@ namespace reshade::vulkan
 		return format == depth_texture_formats[formatIdx];
 	}
 
-	void draw_call_tracker::track_renderpasses(int formatIdx, VkImageView depthstencil, VkImage image, VkImageCreateInfo imageInfo)
+	void draw_call_tracker::track_renderpasses(int formatIdx, VkImageView depthstencil, VkImage image, VkImageCreateInfo imageInfo, VkImageViewCreateInfo imageViewInfo)
 	{
 		assert(depthstencil != VK_NULL_HANDLE);
 
@@ -114,9 +113,8 @@ namespace reshade::vulkan
 		{
 			_counters_per_used_depthstencil[depthstencil].depthstencil = depthstencil;
 			_counters_per_used_depthstencil[depthstencil].image = image;
-			_counters_per_used_depthstencil[depthstencil].image_info.format = imageInfo.format;
-			_counters_per_used_depthstencil[depthstencil].image_info.extent = imageInfo.extent;
-			_counters_per_used_depthstencil[depthstencil].image_info.usage = imageInfo.usage;
+			_counters_per_used_depthstencil[depthstencil].image_info = imageInfo;
+			_counters_per_used_depthstencil[depthstencil].image_view_info = imageViewInfo;
 		}
 	}
 	void draw_call_tracker::track_depth_image(int formatIdx, UINT index, VkImage srcImage, VkImageCreateInfo srcImageInfo, VkImageView srcDepthstencil, VkImageViewCreateInfo srcDepthstencilInfo, VkImage destImage, bool cleared)

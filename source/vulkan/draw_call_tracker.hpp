@@ -64,7 +64,7 @@ namespace reshade::vulkan
 		VkImageView _depthstencil;
 
 #if RESHADE_VULKAN_CAPTURE_DEPTH_BUFFERS
-		void track_renderpasses(int formatIdx, VkImageView depthstencil, VkImage image, VkImageCreateInfo imageInfo);
+		void track_renderpasses(int formatIdx, VkImageView depthstencil, VkImage image, VkImageCreateInfo imageInfo, VkImageViewCreateInfo imageViewInfo);
 		void track_depth_image(int formatIdx, UINT index, VkImage srcImage, VkImageCreateInfo srcImageInfo, VkImageView srcDepthstencil, VkImageViewCreateInfo srcDepthstencilInfo, VkImage destImage, bool cleared);
 
 		void keep_cleared_depth_textures();
@@ -72,7 +72,7 @@ namespace reshade::vulkan
 		intermediate_snapshot_info find_best_snapshot(UINT width, UINT height);
 		intermediate_cleared_depthstencil_info find_best_cleared_depth_buffer_image(UINT clearIdx);
 #endif
-		
+
 	private:
 		struct depth_texture_save_info
 		{
