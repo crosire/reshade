@@ -283,7 +283,7 @@ void reshade::runtime::load_effect(const std::filesystem::path &path, size_t &ou
 		// Compile the pre-processed source code (try the compile even if the preprocessor step failed to get additional error information)
 		if (!parser.parse(std::move(pp.output()), codegen.get()))
 		{
-			LOG(ERROR) << "Failed to compile " << path << ":\n" << parser.errors();
+			LOG(ERROR) << "Failed to compile " << path << ":\n" << pp.errors() << parser.errors();
 			effect.compile_sucess = false;
 		}
 
@@ -1301,26 +1301,30 @@ void reshade::runtime::reset_uniform_value(uniform &variable)
 
 void reshade::runtime::set_current_preset()
 {
-	set_current_preset(_current_browse_path);
+	set_current_preset(_current_preset_path);
 }
 void reshade::runtime::set_current_preset(std::filesystem::path path)
 {
-	std::error_code ec;
-	std::filesystem::path reshade_container_path = g_reshade_dll_path.parent_path();
-
 	enum class path_state { invalid, valid };
+	static const std::filesystem::path reshade_container_path = g_reshade_dll_path.parent_path();
+
+	std::error_code ec;
 	path_state path_state = path_state::invalid;
 
-	if (path.has_filename())
-		if (const std::wstring extension(path.extension()); extension == L".ini" || extension == L".txt")
-			if (!std::filesystem::exists(reshade_container_path / path, ec))
-				path_state = path_state::valid;
-			else if (const reshade::ini_file preset(reshade_container_path / path); preset.has("", "Techniques"))
-				path_state = path_state::valid;
+	if (const std::filesystem::file_type file_type = std::filesystem::status(reshade_container_path / path, ec).type(); ec.value() == 0x7b) // 0x7b: ERROR_INVALID_NAME
+		path_state = path_state::invalid;
+	else if (file_type == std::filesystem::file_type::directory)
+		path_state = path_state::invalid;
+	else if (path.extension() != L".ini" && path.extension() != L".txt")
+		path_state = path_state::invalid;
+	else if (file_type == std::filesystem::file_type::not_found)
+		path_state = path_state::valid;
+	else if (reshade::ini_file(reshade_container_path / path).has("", "Techniques"))
+		path_state = path_state::valid;
 
 	// Select a default preset file if none exists yet or not own
 	if (path_state == path_state::invalid)
-		path = "DefaultPreset.ini";
+		path = L"DefaultPreset.ini";
 	else if (const std::filesystem::path preset_canonical_path = std::filesystem::weakly_canonical(reshade_container_path / path, ec);
 		std::equal(reshade_container_path.begin(), reshade_container_path.end(), preset_canonical_path.begin()))
 		path = preset_canonical_path.lexically_proximate(reshade_container_path);
@@ -1330,6 +1334,8 @@ void reshade::runtime::set_current_preset(std::filesystem::path path)
 	else
 		path = preset_canonical_path;
 
-	_current_browse_path = path;
+#if RESHADE_GUI
+	_current_browse_path = path.parent_path();
+#endif
 	_current_preset_path = reshade_container_path / path;
 }
