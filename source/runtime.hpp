@@ -260,8 +260,11 @@ namespace reshade
 		void get_uniform_value(const uniform &variable, uint8_t *data, size_t size) const;
 		void set_uniform_value(uniform &variable, const uint8_t *data, size_t size);
 
-		void set_current_preset();
-		void set_current_preset(std::filesystem::path path);
+		void set_current_preset(bool partial = false);
+		void set_current_preset(std::filesystem::path path, bool partial = false);
+		bool switch_to_next_preset(bool reversed = false, bool partial = false);
+
+		std::filesystem::path reshade::runtime::convert_browse_path(std::filesystem::path path) const;
 
 		bool _needs_update = false;
 		unsigned long _latest_version[3] = {};
