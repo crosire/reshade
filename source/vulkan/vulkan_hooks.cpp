@@ -23,6 +23,7 @@ struct image_view_data
 	VkImage image;
 	VkImageViewCreateInfo image_view_info;
 	image_data image_data;
+	VkImageView replacement;
 };
 
 struct attachment_data
@@ -182,7 +183,7 @@ static void track_active_renderpass(VkCommandBuffer commandBuffer, VkDevice devi
 
 	{ const std::lock_guard<std::mutex> lock(s_trackers_per_command_buffer_mutex);
 	reshade::vulkan::draw_call_tracker *command_buffer_tracker = &s_trackers_per_command_buffer.at(commandBuffer);
-	command_buffer_tracker->track_renderpasses(runtime->depth_buffer_texture_format, attachmentData.imageView, attachmentData.image_view_data.image, attachmentData.image_view_data.image_data.image_info, attachmentData.image_view_data.image_view_info);
+	command_buffer_tracker->track_renderpasses(runtime->depth_buffer_texture_format, attachmentData.imageView, attachmentData.image_view_data.image, attachmentData.image_view_data.image_data.image_info, attachmentData.image_view_data.image_view_info, attachmentData.image_view_data.replacement);
 
 	save_depth_image(commandBuffer, device, *command_buffer_tracker, attachmentData.imageView, attachmentData.image_view_data, false);
 
@@ -769,13 +770,9 @@ VkResult VKAPI_CALL vkCreateImageView(VkDevice device, const VkImageViewCreateIn
 	trampoline = s_device_dispatch.at(get_dispatch_key(device)).CreateImageView;
 	assert(trampoline != nullptr);
 	}
-
-	// create an image view where depth buffer is displayable in the shaders
-	VkImageViewCreateInfo createInfo = *pCreateInfo;
-	createInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
-
+	
 	// create the original image view
-	VkResult result = trampoline(device, &createInfo, pAllocator, pView);
+	VkResult result = trampoline(device, pCreateInfo, pAllocator, pView);
 	if (result != VK_SUCCESS)
 	{
 		LOG(WARN) << "> vkCreateImageView failed with error code " << result << '!';
@@ -783,25 +780,24 @@ VkResult VKAPI_CALL vkCreateImageView(VkDevice device, const VkImageViewCreateIn
 	}
 
 #if RESHADE_VULKAN_CAPTURE_DEPTH_BUFFERS
-	/*
 	// create an image view where depth buffer is displayable in the shaders
 	VkImageViewCreateInfo createInfo = *pCreateInfo;
 	createInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
 
-	VkImageView pdepthBufferView = VK_NULL_HANDLE;
-	result = trampoline(device, &createInfo, nullptr, &pdepthBufferView);
+	VkImageView pViewReplacement = VK_NULL_HANDLE;
+	result = trampoline(device, &createInfo, nullptr, &pViewReplacement);
 	if (result != VK_SUCCESS)
 	{
 		LOG(WARN) << "> vkCreateImageView failed with error code " << result << '!';
 		return result;
-	}*/
+	}
 
 	// Guard access to the map
 	const std::lock_guard<std::mutex> lock(s_mutex);
 
 	const auto it = s_depth_stencil_buffer_images.find(createInfo.image);
 	if (it != s_depth_stencil_buffer_images.end())
-		s_depth_stencil_buffer_imageViews[*pView] = { it->first, createInfo, it->second };
+		s_depth_stencil_buffer_imageViews[*pView] = { it->first, createInfo, it->second, pViewReplacement };
 #endif
 
 	return result;
@@ -1084,8 +1080,8 @@ void     VKAPI_CALL vkDestroyImageView(VkDevice device, VkImageView imageView, c
 
 	// Remove surface since this surface is being destroyed
 	s_depth_stencil_buffer_imageViews.erase(imageView);
-	}
-
+	}		
+		
 	trampoline(device, imageView, pAllocator);
 }
 

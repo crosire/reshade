@@ -73,7 +73,7 @@ namespace reshade::vulkan
 
 #if RESHADE_VULKAN_CAPTURE_DEPTH_BUFFERS
 		void detect_depth_source(draw_call_tracker& tracker);
-		bool create_depthstencil_replacement(VkImageView depthstencil, VkImage  image, VkFormat image_format, VkImageUsageFlags image_usage);
+		bool create_depthstencil_replacement(VkImageView depthstencil, VkImageView depthstencil_replacement, VkImage  image, VkFormat image_format, VkImageUsageFlags image_usage);
 
 		struct depth_texture_save_info
 		{

@@ -28,6 +28,7 @@ namespace reshade::vulkan
 			_counters_per_used_depthstencil[depthstencil].image = snapshot.image;
 			_counters_per_used_depthstencil[depthstencil].image_info = snapshot.image_info;
 			_counters_per_used_depthstencil[depthstencil].image_view_info = snapshot.image_view_info;
+			_counters_per_used_depthstencil[depthstencil].depthstencil_replacement = snapshot.depthstencil_replacement;
 		}
 
 		std::lock_guard lock2(_vk_cleared_depth_images_mutex, std::adopt_lock);
@@ -100,7 +101,7 @@ namespace reshade::vulkan
 		return format == depth_texture_formats[formatIdx];
 	}
 
-	void draw_call_tracker::track_renderpasses(int formatIdx, VkImageView depthstencil, VkImage image, VkImageCreateInfo imageInfo, VkImageViewCreateInfo imageViewInfo)
+	void draw_call_tracker::track_renderpasses(int formatIdx, VkImageView depthstencil, VkImage image, VkImageCreateInfo imageInfo, VkImageViewCreateInfo imageViewInfo, VkImageView replacement)
 	{
 		assert(depthstencil != VK_NULL_HANDLE);
 
@@ -115,6 +116,7 @@ namespace reshade::vulkan
 			_counters_per_used_depthstencil[depthstencil].image = image;
 			_counters_per_used_depthstencil[depthstencil].image_info = imageInfo;
 			_counters_per_used_depthstencil[depthstencil].image_view_info = imageViewInfo;
+			_counters_per_used_depthstencil[depthstencil].depthstencil_replacement = replacement;
 		}
 	}
 	void draw_call_tracker::track_depth_image(int formatIdx, UINT index, VkImage srcImage, VkImageCreateInfo srcImageInfo, VkImageView srcDepthstencil, VkImageViewCreateInfo srcDepthstencilInfo, VkImage destImage, bool cleared)

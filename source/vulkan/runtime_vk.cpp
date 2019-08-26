@@ -450,6 +450,8 @@ void reshade::vulkan::runtime_vk::on_present(uint32_t swapchain_image_index, dra
 
 	_swap_index = swapchain_image_index;
 
+	// vk.QueueWaitIdle(_current_queue); // TODO
+
 	update_and_render_effects();
 
 #if RESHADE_VULKAN_CAPTURE_DEPTH_BUFFERS
@@ -1753,7 +1755,7 @@ void reshade::vulkan::runtime_vk::draw_debug_menu()
 		{
 			runtime::save_config();
 			_current_tracker->reset();
-			create_depthstencil_replacement(VK_NULL_HANDLE, VK_NULL_HANDLE, VK_FORMAT_UNDEFINED, VK_NULL_HANDLE);
+			create_depthstencil_replacement(VK_NULL_HANDLE, VK_NULL_HANDLE, VK_NULL_HANDLE, VK_FORMAT_UNDEFINED, VK_NULL_HANDLE);
 			return;
 		}
 
@@ -1825,8 +1827,8 @@ void reshade::vulkan::runtime_vk::draw_debug_menu()
 				{
 					_best_depth_stencil_overwrite = value ? depthstencil : VK_NULL_HANDLE;
 
-					if (_best_depth_stencil_overwrite != VK_NULL_HANDLE)
-						create_depthstencil_replacement(_best_depth_stencil_overwrite, snapshot.image, snapshot.image_info.format, snapshot.image_info.usage);
+					if (_best_depth_stencil_overwrite != VK_NULL_HANDLE && snapshot.depthstencil_replacement != VK_NULL_HANDLE)
+						create_depthstencil_replacement(_best_depth_stencil_overwrite, snapshot.depthstencil_replacement, snapshot.image, snapshot.image_info.format, snapshot.image_info.usage);
 				}
 
 				ImGui::SameLine();
@@ -1871,7 +1873,7 @@ void reshade::vulkan::runtime_vk::detect_depth_source(draw_call_tracker &tracker
 
 	if (_has_high_network_activity)
 	{
-		create_depthstencil_replacement(VK_NULL_HANDLE, VK_NULL_HANDLE, VK_FORMAT_UNDEFINED, VK_NULL_HANDLE);
+		create_depthstencil_replacement(VK_NULL_HANDLE, VK_NULL_HANDLE, VK_NULL_HANDLE, VK_FORMAT_UNDEFINED, VK_NULL_HANDLE);
 		return;
 	}
 
@@ -1884,16 +1886,16 @@ void reshade::vulkan::runtime_vk::detect_depth_source(draw_call_tracker &tracker
 		// In the future, maybe we could find a way to retrieve depth texture statistics (number of draw calls and number of vertices), so ReShade could automatically select the best one
 		const auto best_match = tracker.find_best_cleared_depth_buffer_image(cleared_depth_buffer_index);
 		if (best_match.image != VK_NULL_HANDLE)
-			create_depthstencil_replacement(best_match.src_depthstencil, best_match.image, best_match.image_info.format, best_match.image_info.usage);
+			create_depthstencil_replacement(best_match.src_depthstencil, best_match.src_depthstencil, best_match.image, best_match.image_info.format, best_match.image_info.usage);
 		return;
 	}
 
 	const auto best_snapshot = tracker.find_best_snapshot(_width, _height);
-	if (best_snapshot.depthstencil != VK_NULL_HANDLE && best_snapshot.depthstencil != _depthstencil)
-		create_depthstencil_replacement(best_snapshot.depthstencil, best_snapshot.image, best_snapshot.image_info.format, best_snapshot.image_info.usage);
+	if (best_snapshot.depthstencil != VK_NULL_HANDLE && best_snapshot.depthstencil_replacement != VK_NULL_HANDLE && best_snapshot.depthstencil != _depthstencil)
+		create_depthstencil_replacement(best_snapshot.depthstencil, best_snapshot.depthstencil_replacement, best_snapshot.image, best_snapshot.image_info.format, best_snapshot.image_info.usage);
 }
 
-bool reshade::vulkan::runtime_vk::create_depthstencil_replacement(VkImageView depthstencil, VkImage image, VkFormat image_format, VkImageUsageFlags image_usage)
+bool reshade::vulkan::runtime_vk::create_depthstencil_replacement(VkImageView depthstencil, VkImageView depthstencil_replacement, VkImage image, VkFormat image_format, VkImageUsageFlags image_usage)
 {
 	_depthstencil = VK_NULL_HANDLE;
 	_depthstencil_replacement = VK_NULL_HANDLE;
@@ -1903,7 +1905,8 @@ bool reshade::vulkan::runtime_vk::create_depthstencil_replacement(VkImageView de
 	if (depthstencil != VK_NULL_HANDLE)
 	{
 		assert(image != VK_NULL_HANDLE);
-		_depthstencil_image_view = depthstencil;
+		_depthstencil = depthstencil;
+		_depthstencil_image_view = depthstencil_replacement;
 		_depthstencil_image = image;
 		_depthstencil_format = image_format;
 		_depthstencil_usage = image_usage;
