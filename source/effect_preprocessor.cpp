@@ -1015,7 +1015,7 @@ void reshadefx::preprocessor::expand_macro(const std::string &name, const macro 
 			continue;
 
 		const auto index = *++it;
-		if (index >= arguments.size())
+		if (static_cast<size_t>(index) >= arguments.size())
 		{
 			warning(_token.location, "not enough arguments for function-like macro invocation '" + name + "'");
 			continue;
