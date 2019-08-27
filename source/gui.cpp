@@ -2363,7 +2363,7 @@ void reshade::runtime::draw_preset_explorer()
 	}
 
 	if (condition == condition::backward || condition == condition::forward)
-		if (!switch_to_next_preset(condition == condition::backward, true))
+		if (!switch_to_next_preset(condition == condition::backward))
 			condition = condition::pass;
 
 	if (is_explore_open)
