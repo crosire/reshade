@@ -272,9 +272,6 @@ namespace reshade
 		unsigned int _reload_key_data[4];
 		unsigned int _effects_key_data[4];
 		unsigned int _screenshot_key_data[4];
-		unsigned int _previous_preset_key_data[4];
-		unsigned int _next_preset_key_data[4];
-		int _preset_transition_delay = 1000; //miliseconds
 		int _screenshot_format = 1;
 		std::filesystem::path _screenshot_path;
 		std::filesystem::path _configuration_path;
@@ -295,7 +292,6 @@ namespace reshade
 		bool _no_reload_on_init = false;
 		bool _last_reload_successful = true;
 		bool _should_save_screenshot = false;
-		bool _is_in_between_presets_transition = false;
 		std::mutex _reload_mutex;
 		size_t _reload_total_effects = 1;
 		std::vector<size_t> _reload_compile_queue;
@@ -309,7 +305,6 @@ namespace reshade
 		std::chrono::high_resolution_clock::time_point _last_reload_time;
 		std::chrono::high_resolution_clock::time_point _last_present_time;
 		std::chrono::high_resolution_clock::time_point _last_screenshot_time;
-		std::chrono::high_resolution_clock::time_point _last_preset_switching_time;
 
 		std::vector<std::function<void(ini_file &)>> _save_config_callables;
 		std::vector<std::function<void(const ini_file &)>> _load_config_callables;
@@ -331,9 +326,6 @@ namespace reshade
 		void draw_overlay_variable_editor();
 		void draw_overlay_technique_editor();
 		void draw_preset_explorer();
-
-		void get_preset_container(std::vector<std::filesystem::directory_entry> &preset_container);
-		bool switch_current_preset(bool bToNext);
 
 		std::vector<std::pair<std::string, std::function<void()>>> _menu_callables;
 		std::unique_ptr<texture> _imgui_font_atlas;
