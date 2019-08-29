@@ -182,12 +182,12 @@ static void track_active_renderpass(VkCommandBuffer commandBuffer, VkDevice devi
 		// return; // No match, not a good fit
 
 	{ const std::lock_guard<std::mutex> lock(s_trackers_per_command_buffer_mutex);
-	reshade::vulkan::draw_call_tracker *command_buffer_tracker = &s_trackers_per_command_buffer.at(commandBuffer);
-	command_buffer_tracker->track_renderpasses(runtime->depth_buffer_texture_format, attachmentData.imageView, attachmentData.image_view_data.image, attachmentData.image_view_data.image_data.image_info, attachmentData.image_view_data.image_view_info, attachmentData.image_view_data.replacement);
+		reshade::vulkan::draw_call_tracker *command_buffer_tracker = &s_trackers_per_command_buffer.at(commandBuffer);
+		command_buffer_tracker->track_renderpasses(runtime->depth_buffer_texture_format, attachmentData.imageView, attachmentData.image_view_data.image, attachmentData.image_view_data.image_data.image_info, attachmentData.image_view_data.image_view_info, attachmentData.image_view_data.replacement);
 
-	save_depth_image(commandBuffer, device, *command_buffer_tracker, attachmentData.imageView, attachmentData.image_view_data, false);
+		save_depth_image(commandBuffer, device, *command_buffer_tracker, attachmentData.imageView, attachmentData.image_view_data, false);
 
-	command_buffer_tracker->_depthstencil = attachmentData.imageView;
+		command_buffer_tracker->_depthstencil = attachmentData.imageView;
 	}
 }
 static void track_cleared_depthstencil(VkCommandBuffer commandBuffer, VkDevice device, reshade::vulkan::draw_call_tracker &draw_call_tracker, VkImageView pDepthStencilView, image_view_data imageViewData)
@@ -253,7 +253,7 @@ VkResult VKAPI_CALL vkCreateInstance(const VkInstanceCreateInfo *pCreateInfo, co
 	dispatch_table.GetPhysicalDeviceMemoryProperties = (PFN_vkGetPhysicalDeviceMemoryProperties)get_instance_proc(instance, "vkGetPhysicalDeviceMemoryProperties");
 
 	{ const std::lock_guard<std::mutex> lock(s_mutex);
-	s_instance_dispatch[get_dispatch_key(instance)] = dispatch_table;
+		s_instance_dispatch[get_dispatch_key(instance)] = dispatch_table;
 	}
 
 	return VK_SUCCESS;
@@ -265,11 +265,11 @@ void     VKAPI_CALL vkDestroyInstance(VkInstance instance, const VkAllocationCal
 	LOG(INFO) << "Redirecting vkDestroyInstance" << '(' << instance << ", " << pAllocator << ')' << " ...";
 
 	{ const std::lock_guard<std::mutex> lock(s_mutex);
-	trampoline = s_instance_dispatch.at(get_dispatch_key(instance)).DestroyInstance;
-	assert(trampoline != nullptr);
+		trampoline = s_instance_dispatch.at(get_dispatch_key(instance)).DestroyInstance;
+		assert(trampoline != nullptr);
 
-	// Remove instance dispatch table since this instance is being destroyed
-	s_instance_dispatch.erase(get_dispatch_key(instance));
+		// Remove instance dispatch table since this instance is being destroyed
+		s_instance_dispatch.erase(get_dispatch_key(instance));
 	}
 
 	trampoline(instance, pAllocator);
@@ -282,8 +282,8 @@ VkResult VKAPI_CALL vkEnumeratePhysicalDevices(VkInstance instance, uint32_t *pP
 	LOG(INFO) << "Redirecting vkEnumeratePhysicalDevices" << '(' << instance << ", " << pPhysicalDeviceCount << ", " << pPhysicalDevices << ')' << " ...";
 
 	{ const std::lock_guard<std::mutex> lock(s_mutex);
-	trampoline = s_instance_dispatch.at(get_dispatch_key(instance)).EnumeratePhysicalDevices;
-	assert(trampoline != nullptr);
+		trampoline = s_instance_dispatch.at(get_dispatch_key(instance)).EnumeratePhysicalDevices;
+		assert(trampoline != nullptr);
 	}
 
 	const VkResult result = trampoline(instance, pPhysicalDeviceCount, pPhysicalDevices);
@@ -310,8 +310,8 @@ VkResult VKAPI_CALL vkCreateWin32SurfaceKHR(VkInstance instance, const VkWin32Su
 	LOG(INFO) << "Redirecting vkCreateWin32SurfaceKHR" << '(' << instance << ", " << pCreateInfo << ", " << pAllocator << ", " << pSurface << ')' << " ...";
 
 	{ const std::lock_guard<std::mutex> lock(s_mutex);
-	trampoline = s_instance_dispatch.at(get_dispatch_key(instance)).CreateWin32SurfaceKHR;
-	assert(trampoline != nullptr);
+		trampoline = s_instance_dispatch.at(get_dispatch_key(instance)).CreateWin32SurfaceKHR;
+		assert(trampoline != nullptr);
 	}
 
 	const VkResult result = trampoline(instance, pCreateInfo, pAllocator, pSurface);
@@ -322,7 +322,7 @@ VkResult VKAPI_CALL vkCreateWin32SurfaceKHR(VkInstance instance, const VkWin32Su
 	}
 
 	{ const std::lock_guard<std::mutex> lock(s_mutex);
-	s_surface_windows[*pSurface] = pCreateInfo->hwnd;
+		s_surface_windows[*pSurface] = pCreateInfo->hwnd;
 	}
 
 	return VK_SUCCESS;
@@ -334,11 +334,11 @@ void     VKAPI_CALL vkDestroySurfaceKHR(VkInstance instance, VkSurfaceKHR surfac
 	LOG(INFO) << "Redirecting vkDestroySurfaceKHR" << '(' << instance << ", " << surface << ", " << pAllocator << ')' << " ...";
 
 	{ const std::lock_guard<std::mutex> lock(s_mutex);
-	trampoline = s_instance_dispatch.at(get_dispatch_key(instance)).DestroySurfaceKHR;
-	assert(trampoline != nullptr);
+		trampoline = s_instance_dispatch.at(get_dispatch_key(instance)).DestroySurfaceKHR;
+		assert(trampoline != nullptr);
 
-	// Remove surface since this surface is being destroyed
-	s_surface_windows.erase(surface);
+		// Remove surface since this surface is being destroyed
+		s_surface_windows.erase(surface);
 	}
 
 	trampoline(instance, surface, pAllocator);
@@ -482,10 +482,10 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	dispatch_table.DebugMarkerSetObjectNameEXT = (PFN_vkDebugMarkerSetObjectNameEXT)get_device_proc(device, "vkDebugMarkerSetObjectNameEXT");
 
 	{ const std::lock_guard<std::mutex> lock(s_mutex);
-	s_device_mapping[device] = physicalDevice;
-	s_device_dispatch[get_dispatch_key(device)] = dispatch_table;
-	reshade::vulkan::draw_call_tracker device_tracker;
-	s_device_tracker[device] = device_tracker;
+		s_device_mapping[device] = physicalDevice;
+		s_device_dispatch[get_dispatch_key(device)] = dispatch_table;
+		reshade::vulkan::draw_call_tracker device_tracker;
+		s_device_tracker[device] = device_tracker;
 	}
 
 	// retrieve the associated command queues
@@ -499,8 +499,8 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 			PFN_vkGetDeviceQueue trampoline;
 			
 			{ const std::lock_guard<std::mutex> lock(s_mutex);
-			trampoline = s_device_dispatch.at(get_dispatch_key(device)).GetDeviceQueue;
-			assert(trampoline != nullptr);
+				trampoline = s_device_dispatch.at(get_dispatch_key(device)).GetDeviceQueue;
+				assert(trampoline != nullptr);
 			}
 
 			trampoline(device, queueInfo.queueFamilyIndex, j, &queue);
@@ -517,52 +517,52 @@ void     VKAPI_CALL vkDestroyDevice(VkDevice device, const VkAllocationCallbacks
 	LOG(INFO) << "Redirecting vkDestroyDevice" << '(' << device << ", " << pAllocator << ')' << " ...";
 
 	{ const std::lock_guard<std::mutex> lock(s_mutex);
-	trampoline = s_device_dispatch.at(get_dispatch_key(device)).DestroyDevice;
-	assert(trampoline != nullptr);
+		trampoline = s_device_dispatch.at(get_dispatch_key(device)).DestroyDevice;
+		assert(trampoline != nullptr);
 
-	if (const auto it = s_device_runtimes.find(device); it != s_device_runtimes.end())
-	{
-		it->second->on_reset();
-
-		s_device_runtimes.erase(it);
-	}
-
-	s_device_mapping.erase(device);
-	s_device_tracker.erase(device);
-
-	for (auto it = s_queue_mapping.begin(); it != s_queue_mapping.end();)
-	{
-		if (it->second == device)
+		if (const auto it = s_device_runtimes.find(device); it != s_device_runtimes.end())
 		{
-			s_queue_mapping.erase(it->first);
-			continue;
+			it->second->on_reset();
+
+			s_device_runtimes.erase(it);
 		}
 
-		++it;
-	}
+		s_device_mapping.erase(device);
+		s_device_tracker.erase(device);
 
-	for (auto it = s_command_buffer_mapping.begin(); it != s_command_buffer_mapping.end();)
-	{
-		if (it->second == device)
+		for (auto it = s_queue_mapping.begin(); it != s_queue_mapping.end();)
 		{
-			// command buffer found
-			s_command_buffer_mapping.erase(it->first);
-
-			if (const auto it2 = s_trackers_per_command_buffer.find(it->first); it2 != s_trackers_per_command_buffer.end())
+			if (it->second == device)
 			{
-				// draw call tracker found. Reset it
-				it2->second.reset();
-				s_trackers_per_command_buffer.erase(it->first);
-				s_framebuffer_per_command_buffer.erase(it->first);
+				s_queue_mapping.erase(it->first);
+				continue;
 			}
-			continue;
+
+			++it;
 		}
 
-		++it;
-	}
+		for (auto it = s_command_buffer_mapping.begin(); it != s_command_buffer_mapping.end();)
+		{
+			if (it->second == device)
+			{
+				// command buffer found
+				s_command_buffer_mapping.erase(it->first);
 
-	// Remove device dispatch table since this device is being destroyed
-	s_device_dispatch.erase(get_dispatch_key(device));
+				if (const auto it2 = s_trackers_per_command_buffer.find(it->first); it2 != s_trackers_per_command_buffer.end())
+				{
+					// draw call tracker found. Reset it
+					it2->second.reset();
+					s_trackers_per_command_buffer.erase(it->first);
+					s_framebuffer_per_command_buffer.erase(it->first);
+				}
+				continue;
+			}
+
+			++it;
+		}
+
+		// Remove device dispatch table since this device is being destroyed
+		s_device_dispatch.erase(get_dispatch_key(device));
 	}
 
 	trampoline(device, pAllocator);
@@ -573,16 +573,16 @@ void     VKAPI_CALL vkGetDeviceQueue(VkDevice device, uint32_t queueFamilyIndex,
 	PFN_vkGetDeviceQueue trampoline;
 
 	{ const std::lock_guard<std::mutex> lock(s_mutex);
-	trampoline = s_device_dispatch.at(get_dispatch_key(device)).GetDeviceQueue;
-	assert(trampoline != nullptr);
+		trampoline = s_device_dispatch.at(get_dispatch_key(device)).GetDeviceQueue;
+		assert(trampoline != nullptr);
 	}
 
 	trampoline(device, queueFamilyIndex, queueIndex, pQueue);
 
 	{ const std::lock_guard<std::mutex> lock(s_mutex);
-	// Copy dispatch table for queue
-	VkLayerDispatchTable dispatch_table = s_device_dispatch.at(get_dispatch_key(device));
-	s_device_dispatch[get_dispatch_key(*pQueue)] = dispatch_table;
+		// Copy dispatch table for queue
+		VkLayerDispatchTable dispatch_table = s_device_dispatch.at(get_dispatch_key(device));
+		s_device_dispatch[get_dispatch_key(*pQueue)] = dispatch_table;
 	}
 }
 void     VKAPI_CALL vkGetDeviceQueue2(VkDevice device, const VkDeviceQueueInfo2 *pQueueInfo, VkQueue *pQueue)
@@ -590,16 +590,16 @@ void     VKAPI_CALL vkGetDeviceQueue2(VkDevice device, const VkDeviceQueueInfo2 
 	PFN_vkGetDeviceQueue2 trampoline;
 
 	{ const std::lock_guard<std::mutex> lock(s_mutex);
-	trampoline = s_device_dispatch.at(get_dispatch_key(device)).GetDeviceQueue2;
-	assert(trampoline != nullptr);
+		trampoline = s_device_dispatch.at(get_dispatch_key(device)).GetDeviceQueue2;
+		assert(trampoline != nullptr);
 	}
 
 	trampoline(device, pQueueInfo, pQueue);
 
 	{ const std::lock_guard<std::mutex> lock(s_mutex);
-	// Copy dispatch table for queue
-	VkLayerDispatchTable device_data = s_device_dispatch.at(get_dispatch_key(device));
-	s_device_dispatch[get_dispatch_key(*pQueue)] = device_data;
+		// Copy dispatch table for queue
+		VkLayerDispatchTable device_data = s_device_dispatch.at(get_dispatch_key(device));
+		s_device_dispatch[get_dispatch_key(*pQueue)] = device_data;
 	}
 }
 
@@ -614,8 +614,8 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 	create_info.imageUsage |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
 
 	{ const std::lock_guard<std::mutex> lock(s_mutex);
-	trampoline = s_device_dispatch.at(get_dispatch_key(device)).CreateSwapchainKHR;
-	assert(trampoline != nullptr);
+		trampoline = s_device_dispatch.at(get_dispatch_key(device)).CreateSwapchainKHR;
+		assert(trampoline != nullptr);
 	}
 
 	const VkResult result = trampoline(device, &create_info, pAllocator, pSwapchain);
@@ -667,15 +667,15 @@ void     VKAPI_CALL vkDestroySwapchainKHR(VkDevice device, VkSwapchainKHR swapch
 	LOG(INFO) << "Redirecting vkDestroySwapchainKHR" << '(' << device << ", " << swapchain << ", " << pAllocator << ')' << " ...";
 
 	{ const std::lock_guard<std::mutex> lock(s_mutex);
-	trampoline = s_device_dispatch.at(get_dispatch_key(device)).DestroySwapchainKHR;
-	assert(trampoline != nullptr);
+		trampoline = s_device_dispatch.at(get_dispatch_key(device)).DestroySwapchainKHR;
+		assert(trampoline != nullptr);
 
-	if (const auto it = s_runtimes.find(swapchain); it != s_runtimes.end())
-	{
-		it->second->on_reset();
+		if (const auto it = s_runtimes.find(swapchain); it != s_runtimes.end())
+		{
+			it->second->on_reset();
 
-		s_runtimes.erase(it);
-	}
+			s_runtimes.erase(it);
+		}
 	}
 
 	trampoline(device, swapchain, pAllocator);
@@ -686,20 +686,20 @@ VkResult VKAPI_CALL vkQueuePresentKHR(VkQueue queue, const VkPresentInfoKHR *pPr
 	PFN_vkQueuePresentKHR trampoline;
 
 	{ const std::lock_guard<std::mutex> lock(s_mutex);
-	trampoline = s_device_dispatch.at(get_dispatch_key(queue)).QueuePresentKHR;
-	assert(trampoline != nullptr);
-	assert(pPresentInfo != nullptr);
+		trampoline = s_device_dispatch.at(get_dispatch_key(queue)).QueuePresentKHR;
+		assert(trampoline != nullptr);
+		assert(pPresentInfo != nullptr);
 
-	for (uint32_t i = 0; i < pPresentInfo->swapchainCount; ++i)
-	{
-		const auto it = s_runtimes.find(pPresentInfo->pSwapchains[i]);
-		const auto it2 = s_queue_mapping.find(queue);
-		if (it != s_runtimes.end() && it2 != s_queue_mapping.end())
+		for (uint32_t i = 0; i < pPresentInfo->swapchainCount; ++i)
 		{
-			it->second->on_present(pPresentInfo->pImageIndices[i], s_device_tracker.at(it2->second));
-			s_device_tracker.at(it2->second).reset();
+			const auto it = s_runtimes.find(pPresentInfo->pSwapchains[i]);
+			const auto it2 = s_queue_mapping.find(queue);
+			if (it != s_runtimes.end() && it2 != s_queue_mapping.end())
+			{
+				it->second->on_present(pPresentInfo->pImageIndices[i], s_device_tracker.at(it2->second));
+				s_device_tracker.at(it2->second).reset();
+			}
 		}
-	}
 	}
 
 	return trampoline(queue, pPresentInfo);
@@ -710,22 +710,22 @@ VkResult VKAPI_CALL vkQueueSubmit(VkQueue queue, uint32_t submitCount, const VkS
 	PFN_vkQueueSubmit trampoline;
 
 	{ const std::lock_guard<std::mutex> lock(s_mutex);
-	trampoline = s_device_dispatch.at(get_dispatch_key(queue)).QueueSubmit;
-	assert(trampoline != nullptr);
-	assert(pSubmits != nullptr);
+		trampoline = s_device_dispatch.at(get_dispatch_key(queue)).QueueSubmit;
+		assert(trampoline != nullptr);
+		assert(pSubmits != nullptr);
 
-	for (uint32_t i = 0; i < submitCount; ++i)
-	{
-		VkSubmitInfo pSubmit = pSubmits[i];
-		for (uint32_t j = 0; j < pSubmit.commandBufferCount; ++j)
+		for (uint32_t i = 0; i < submitCount; ++i)
 		{
-			VkCommandBuffer commandBuffer = pSubmits->pCommandBuffers[j];
-			const auto it = s_trackers_per_command_buffer.find(commandBuffer);
-			const auto it2 = s_queue_mapping.find(queue);
-			if (it != s_trackers_per_command_buffer.end() && it2 != s_queue_mapping.end())
-				merge_command_buffer_trackers(commandBuffer, s_device_tracker.at(it2->second));
+			VkSubmitInfo pSubmit = pSubmits[i];
+			for (uint32_t j = 0; j < pSubmit.commandBufferCount; ++j)
+			{
+				VkCommandBuffer commandBuffer = pSubmits->pCommandBuffers[j];
+				const auto it = s_trackers_per_command_buffer.find(commandBuffer);
+				const auto it2 = s_queue_mapping.find(queue);
+				if (it != s_trackers_per_command_buffer.end() && it2 != s_queue_mapping.end())
+					merge_command_buffer_trackers(commandBuffer, s_device_tracker.at(it2->second));
+			}
 		}
-	}
 	}
 
 	return trampoline(queue, submitCount, pSubmits, fence);
@@ -736,8 +736,8 @@ VkResult VKAPI_CALL vkCreateImage(VkDevice device, const VkImageCreateInfo* pCre
 	PFN_vkCreateImage trampoline = nullptr;
 
 	{ const std::lock_guard<std::mutex> lock(s_mutex);
-	trampoline = s_device_dispatch.at(get_dispatch_key(device)).CreateImage;
-	assert(trampoline != nullptr);
+		trampoline = s_device_dispatch.at(get_dispatch_key(device)).CreateImage;
+		assert(trampoline != nullptr);
 	}
 
 	VkImageCreateInfo createInfo = *pCreateInfo;
@@ -768,8 +768,8 @@ VkResult VKAPI_CALL vkCreateImageView(VkDevice device, const VkImageViewCreateIn
 	PFN_vkCreateImageView trampoline = nullptr;
 
 	{ const std::lock_guard<std::mutex> lock(s_mutex);
-	trampoline = s_device_dispatch.at(get_dispatch_key(device)).CreateImageView;
-	assert(trampoline != nullptr);
+		trampoline = s_device_dispatch.at(get_dispatch_key(device)).CreateImageView;
+		assert(trampoline != nullptr);
 	}
 	
 	// create the original image view
@@ -809,8 +809,8 @@ VkResult VKAPI_CALL vkCreateFramebuffer(VkDevice device, const VkFramebufferCrea
 	PFN_vkCreateFramebuffer trampoline = nullptr;
 
 	{ const std::lock_guard<std::mutex> lock(s_mutex);
-	trampoline = s_device_dispatch.at(get_dispatch_key(device)).CreateFramebuffer;
-	assert(trampoline != nullptr);
+		trampoline = s_device_dispatch.at(get_dispatch_key(device)).CreateFramebuffer;
+		assert(trampoline != nullptr);
 	}
 
 	const VkResult result = trampoline(device, pCreateInfo, pAllocator, pFramebuffer);
@@ -841,8 +841,8 @@ VkResult VKAPI_CALL vkAllocateCommandBuffers(VkDevice device, const VkCommandBuf
 	PFN_vkAllocateCommandBuffers trampoline = nullptr;
 
 	{ const std::lock_guard<std::mutex> lock(s_mutex);
-	trampoline = s_device_dispatch.at(get_dispatch_key(device)).AllocateCommandBuffers;
-	assert(trampoline != nullptr);
+		trampoline = s_device_dispatch.at(get_dispatch_key(device)).AllocateCommandBuffers;
+		assert(trampoline != nullptr);
 	}
 
 	const VkResult result = trampoline(device, pAllocateInfo, pCommandBuffers);
@@ -872,8 +872,8 @@ VkResult VKAPI_CALL vkCreateRenderPass(VkDevice device, const VkRenderPassCreate
 	PFN_vkCreateRenderPass trampoline = nullptr;
 
 	{ const std::lock_guard<std::mutex> lock(s_mutex);
-	trampoline = s_device_dispatch.at(get_dispatch_key(device)).CreateRenderPass;
-	assert(trampoline != nullptr);
+		trampoline = s_device_dispatch.at(get_dispatch_key(device)).CreateRenderPass;
+		assert(trampoline != nullptr);
 	}
 
 	return trampoline(device, pCreateInfo, pAllocator, pRenderPass);
@@ -884,8 +884,8 @@ void VKAPI_CALL vkCmdBeginRenderPass(VkCommandBuffer commandBuffer, const VkRend
 	PFN_vkCmdBeginRenderPass trampoline = nullptr;
 
 	{ const std::lock_guard<std::mutex> lock(s_mutex);
-	trampoline = s_device_dispatch.at(get_dispatch_key(commandBuffer)).CmdBeginRenderPass;
-	assert(trampoline != nullptr);
+		trampoline = s_device_dispatch.at(get_dispatch_key(commandBuffer)).CmdBeginRenderPass;
+		assert(trampoline != nullptr);
 	}
 
 	trampoline(commandBuffer, pRenderPassBegin, contents);
@@ -938,8 +938,8 @@ void     VKAPI_CALL vkCmdClearDepthStencilImage(VkCommandBuffer commandBuffer, V
 	PFN_vkCmdClearDepthStencilImage trampoline;
 
 	{ const std::lock_guard<std::mutex> lock(s_mutex);
-	trampoline = s_device_dispatch.at(get_dispatch_key(commandBuffer)).CmdClearDepthStencilImage;
-	assert(trampoline != nullptr);
+		trampoline = s_device_dispatch.at(get_dispatch_key(commandBuffer)).CmdClearDepthStencilImage;
+		assert(trampoline != nullptr);
 	}
 
 	// no device associated (this cannot happen normally)
@@ -952,11 +952,11 @@ void     VKAPI_CALL vkCmdClearDepthStencilImage(VkCommandBuffer commandBuffer, V
 			if (image == image_view_data.image)
 			{
 				{ const std::lock_guard<std::mutex> lock(s_mutex);
-				// retrieve the current depth stencil image view
-				reshade::vulkan::draw_call_tracker *command_buffer_tracker = &s_trackers_per_command_buffer.at(commandBuffer);
-				if (image_view_data.image_data.image_info.usage & VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT)
-					track_cleared_depthstencil(commandBuffer, device, *command_buffer_tracker, depthstencil, image_view_data);
-				}
+					// retrieve the current depth stencil image view
+					reshade::vulkan::draw_call_tracker *command_buffer_tracker = &s_trackers_per_command_buffer.at(commandBuffer);
+					if (image_view_data.image_data.image_info.usage & VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT)
+						track_cleared_depthstencil(commandBuffer, device, *command_buffer_tracker, depthstencil, image_view_data);
+					}
 			}
 		}
 	}
@@ -970,8 +970,8 @@ void     VKAPI_CALL vkCmdClearAttachments(VkCommandBuffer commandBuffer, uint32_
 	PFN_vkCmdClearAttachments trampoline;
 
 	{ const std::lock_guard<std::mutex> lock(s_mutex);
-	trampoline = s_device_dispatch.at(get_dispatch_key(commandBuffer)).CmdClearAttachments;
-	assert(trampoline != nullptr);
+		trampoline = s_device_dispatch.at(get_dispatch_key(commandBuffer)).CmdClearAttachments;
+		assert(trampoline != nullptr);
 	}
 
 	// no device associated (this cannot happen normally)
@@ -984,12 +984,12 @@ void     VKAPI_CALL vkCmdClearAttachments(VkCommandBuffer commandBuffer, uint32_
 		if (it2 != s_depth_stencil_buffer_frameBuffers.end())
 		{
 			{ const std::lock_guard<std::mutex> lock(s_mutex);
-			// retrieve the current depth stencil image view
-			reshade::vulkan::draw_call_tracker *command_buffer_tracker = &s_trackers_per_command_buffer.at(commandBuffer);
-			image_view_data image_view_data = it2->second.image_view_data;
-			VkImageView depthstencil = it2->second.imageView;
-			if (image_view_data.image_data.image_info.usage & VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT)
-				track_cleared_depthstencil(commandBuffer, device, *command_buffer_tracker, depthstencil, image_view_data);
+				// retrieve the current depth stencil image view
+				reshade::vulkan::draw_call_tracker *command_buffer_tracker = &s_trackers_per_command_buffer.at(commandBuffer);
+				image_view_data image_view_data = it2->second.image_view_data;
+				VkImageView depthstencil = it2->second.imageView;
+				if (image_view_data.image_data.image_info.usage & VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT)
+					track_cleared_depthstencil(commandBuffer, device, *command_buffer_tracker, depthstencil, image_view_data);
 			}
 		}
 	}
@@ -1003,8 +1003,8 @@ VkResult VKAPI_CALL vkEndCommandBuffer(VkCommandBuffer commandBuffer)
 	PFN_vkEndCommandBuffer trampoline = nullptr;
 
 	{ const std::lock_guard<std::mutex> lock(s_mutex);
-	trampoline = s_device_dispatch.at(get_dispatch_key(commandBuffer)).EndCommandBuffer;
-	assert(trampoline != nullptr);
+		trampoline = s_device_dispatch.at(get_dispatch_key(commandBuffer)).EndCommandBuffer;
+		assert(trampoline != nullptr);
 	}
 
 	const VkResult result = trampoline(commandBuffer);
@@ -1024,11 +1024,11 @@ void     VKAPI_CALL vkDestroyImage(VkDevice device, VkImage image, const VkAlloc
 	// LOG(INFO) << "Redirecting vkDestroyImage" << '(' << device << ", " << image << ", " << pAllocator << ')' << " ...";
 
 	{ const std::lock_guard<std::mutex> lock(s_mutex);
-	trampoline = s_device_dispatch.at(get_dispatch_key(device)).DestroyImage;
-	assert(trampoline != nullptr);
+		trampoline = s_device_dispatch.at(get_dispatch_key(device)).DestroyImage;
+		assert(trampoline != nullptr);
 
-	// Remove surface since this surface is being destroyed
-	s_depth_stencil_buffer_images.erase(image);
+		// Remove surface since this surface is being destroyed
+		s_depth_stencil_buffer_images.erase(image);
 	}
 
 	trampoline(device, image, pAllocator);
@@ -1039,11 +1039,11 @@ void     VKAPI_CALL vkDestroyImageView(VkDevice device, VkImageView imageView, c
 	PFN_vkDestroyImageView trampoline;
 
 	{ const std::lock_guard<std::mutex> lock(s_mutex);
-	trampoline = s_device_dispatch.at(get_dispatch_key(device)).DestroyImageView;
-	assert(trampoline != nullptr);
+		trampoline = s_device_dispatch.at(get_dispatch_key(device)).DestroyImageView;
+		assert(trampoline != nullptr);
 
-	// Remove surface since this surface is being destroyed
-	s_depth_stencil_buffer_imageViews.erase(imageView);
+		// Remove surface since this surface is being destroyed
+		s_depth_stencil_buffer_imageViews.erase(imageView);
 	}		
 		
 	trampoline(device, imageView, pAllocator);
@@ -1054,11 +1054,11 @@ void     VKAPI_CALL vkDestroyFramebuffer(VkDevice device, VkFramebuffer framebuf
 	PFN_vkDestroyFramebuffer trampoline;
 
 	{ const std::lock_guard<std::mutex> lock(s_mutex);
-	trampoline = s_device_dispatch.at(get_dispatch_key(device)).DestroyFramebuffer;
-	assert(trampoline != nullptr);
+		trampoline = s_device_dispatch.at(get_dispatch_key(device)).DestroyFramebuffer;
+		assert(trampoline != nullptr);
 
-	// Remove surface since this surface is being destroyed
-	s_depth_stencil_buffer_frameBuffers.erase(framebuffer);
+		// Remove surface since this surface is being destroyed
+		s_depth_stencil_buffer_frameBuffers.erase(framebuffer);
 	}
 
 	trampoline(device, framebuffer, pAllocator);
