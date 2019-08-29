@@ -497,12 +497,13 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 		{
 			VkQueue queue = VK_NULL_HANDLE;
 			PFN_vkGetDeviceQueue trampoline;
+			
 			{ const std::lock_guard<std::mutex> lock(s_mutex);
 			trampoline = s_device_dispatch.at(get_dispatch_key(device)).GetDeviceQueue;
 			assert(trampoline != nullptr);
 			}
 
-			vkGetDeviceQueue(device, queueInfo.queueFamilyIndex, j, &queue);
+			trampoline(device, queueInfo.queueFamilyIndex, j, &queue);
 			s_queue_mapping[queue] = device;
 		}
 	}
@@ -882,62 +883,33 @@ void VKAPI_CALL vkCmdBeginRenderPass(VkCommandBuffer commandBuffer, const VkRend
 {
 	PFN_vkCmdBeginRenderPass trampoline = nullptr;
 
+	{ const std::lock_guard<std::mutex> lock(s_mutex);
+	trampoline = s_device_dispatch.at(get_dispatch_key(commandBuffer)).CmdBeginRenderPass;
+	assert(trampoline != nullptr);
+	}
+
+	trampoline(commandBuffer, pRenderPassBegin, contents);
+
 	// no device associated (this cannot happen normally)
 	if (const auto it = s_command_buffer_mapping.find(commandBuffer); it == s_command_buffer_mapping.end())
 		return;
 
 	VkDevice device = s_command_buffer_mapping.at(commandBuffer);
 
-	{ const std::lock_guard<std::mutex> lock(s_mutex);
-	trampoline = s_device_dispatch.at(get_dispatch_key(device)).CmdBeginRenderPass;
-	assert(trampoline != nullptr);
-	}
+	// Guard access to the map
+	const std::lock_guard<std::mutex> lock(s_mutex);
 
-	{ const std::lock_guard<std::mutex> lock(s_mutex);
 	s_framebuffer_per_command_buffer[commandBuffer] = pRenderPassBegin->framebuffer;
 	const auto it = s_depth_stencil_buffer_frameBuffers.find(pRenderPassBegin->framebuffer);
 	if (it != s_depth_stencil_buffer_frameBuffers.end())
 		track_active_renderpass(commandBuffer, device, pRenderPassBegin, it->second);
-	}
-
-	bool depthstencilCleared = false;
-
-	for(uint32_t i = 0; i < pRenderPassBegin->clearValueCount; i++)
-	{
-		VkClearValue clearValue = pRenderPassBegin->pClearValues[i];
-		if (clearValue.depthStencil.depth > 0)
-			depthstencilCleared = true;
-	}
-
-	if(depthstencilCleared)
-	{ const std::lock_guard<std::mutex> lock(s_mutex);
-		s_framebuffer_per_command_buffer[commandBuffer] = pRenderPassBegin->framebuffer;
-		const auto it = s_depth_stencil_buffer_frameBuffers.find(pRenderPassBegin->framebuffer);
-		if (it != s_depth_stencil_buffer_frameBuffers.end())
-		{
-			// retrieve the current depth stencil image view
-			reshade::vulkan::draw_call_tracker *command_buffer_tracker = &s_trackers_per_command_buffer.at(commandBuffer);
-			image_view_data image_view_data = it->second.image_view_data;
-			VkImageView depthstencil = it->second.imageView;
-			if (image_view_data.image_data.image_info.usage & VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT)
-				track_cleared_depthstencil(commandBuffer, device, *command_buffer_tracker, depthstencil, image_view_data);
-		}
-	}
-
-	trampoline(commandBuffer, pRenderPassBegin, contents);
 }
 
 void     VKAPI_CALL vkCmdDraw(VkCommandBuffer commandBuffer, uint32_t vertexCount, uint32_t instanceCount, uint32_t firstVertex, uint32_t firstInstance)
 {
 	PFN_vkCmdDraw trampoline;
 
-	// no device associated (this cannot happen normally)
-	if (const auto it = s_command_buffer_mapping.find(commandBuffer); it == s_command_buffer_mapping.end())
-		return;
-
-	VkDevice device = s_command_buffer_mapping.at(commandBuffer);
-
-	trampoline = s_device_dispatch.at(get_dispatch_key(device)).CmdDraw;
+	trampoline = s_device_dispatch.at(get_dispatch_key(commandBuffer)).CmdDraw;
 	assert(trampoline != nullptr);
 
 	trampoline(commandBuffer, vertexCount, instanceCount, firstVertex, firstInstance);
@@ -951,13 +923,7 @@ void     VKAPI_CALL vkCmdDrawIndexed(VkCommandBuffer commandBuffer, uint32_t ind
 {
 	PFN_vkCmdDrawIndexed trampoline;
 
-	// no device associated (this cannot happen normally)
-	if (const auto it = s_command_buffer_mapping.find(commandBuffer); it == s_command_buffer_mapping.end())
-		return;
-
-	VkDevice device = s_command_buffer_mapping.at(commandBuffer);
-
-	trampoline = s_device_dispatch.at(get_dispatch_key(device)).CmdDrawIndexed;
+	trampoline = s_device_dispatch.at(get_dispatch_key(commandBuffer)).CmdDrawIndexed;
 	assert(trampoline != nullptr);
 
 	trampoline(commandBuffer, indexCount, instanceCount, firstIndex, vertexOffset, firstInstance);
@@ -971,28 +937,31 @@ void     VKAPI_CALL vkCmdClearDepthStencilImage(VkCommandBuffer commandBuffer, V
 {
 	PFN_vkCmdClearDepthStencilImage trampoline;
 
-	// no device associated (this cannot happen normally)
-	if (const auto it = s_command_buffer_mapping.find(commandBuffer); it == s_command_buffer_mapping.end())
-		return;
-
-	VkDevice device = s_command_buffer_mapping.at(commandBuffer);
-
-	trampoline = s_device_dispatch.at(get_dispatch_key(device)).CmdClearDepthStencilImage;
+	{ const std::lock_guard<std::mutex> lock(s_mutex);
+	trampoline = s_device_dispatch.at(get_dispatch_key(commandBuffer)).CmdClearDepthStencilImage;
 	assert(trampoline != nullptr);
+	}
 
-	for (auto &[depthstencil, image_view_data] : s_depth_stencil_buffer_imageViews)
+	// no device associated (this cannot happen normally)
+	if (const auto it = s_command_buffer_mapping.find(commandBuffer); it != s_command_buffer_mapping.end())
 	{
-		if (image == image_view_data.image)
+		VkDevice device = s_command_buffer_mapping.at(commandBuffer);
+
+		for (auto &[depthstencil, image_view_data] : s_depth_stencil_buffer_imageViews)
 		{
-			{ const std::lock_guard<std::mutex> lock(s_mutex);
-			// retrieve the current depth stencil image view
-			reshade::vulkan::draw_call_tracker *command_buffer_tracker = &s_trackers_per_command_buffer.at(commandBuffer);
-			if (image_view_data.image_data.image_info.usage & VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT)
-				track_cleared_depthstencil(commandBuffer, device, *command_buffer_tracker, depthstencil, image_view_data);
+			if (image == image_view_data.image)
+			{
+				{ const std::lock_guard<std::mutex> lock(s_mutex);
+				// retrieve the current depth stencil image view
+				reshade::vulkan::draw_call_tracker *command_buffer_tracker = &s_trackers_per_command_buffer.at(commandBuffer);
+				if (image_view_data.image_data.image_info.usage & VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT)
+					track_cleared_depthstencil(commandBuffer, device, *command_buffer_tracker, depthstencil, image_view_data);
+				}
 			}
 		}
 	}
 
+	// important: the trampoline method must be executed after the depth buffer image saving
 	trampoline(commandBuffer, image, imageLayout, pDepthStencil, rangeCount, pRanges);
 }
 
@@ -1000,31 +969,32 @@ void     VKAPI_CALL vkCmdClearAttachments(VkCommandBuffer commandBuffer, uint32_
 {
 	PFN_vkCmdClearAttachments trampoline;
 
-	// no device associated (this cannot happen normally)
-	if (const auto it = s_command_buffer_mapping.find(commandBuffer); it == s_command_buffer_mapping.end())
-		return;
-
-	VkDevice device = s_command_buffer_mapping.at(commandBuffer);
-
-	trampoline = s_device_dispatch.at(get_dispatch_key(device)).CmdClearAttachments;
+	{ const std::lock_guard<std::mutex> lock(s_mutex);
+	trampoline = s_device_dispatch.at(get_dispatch_key(commandBuffer)).CmdClearAttachments;
 	assert(trampoline != nullptr);
+	}
 
-	VkFramebuffer framebuffer = s_framebuffer_per_command_buffer.at(commandBuffer);
-
-	const auto it = s_depth_stencil_buffer_frameBuffers.find(framebuffer);
-	if (it != s_depth_stencil_buffer_frameBuffers.end())
+	// no device associated (this cannot happen normally)
+	if (const auto it = s_command_buffer_mapping.find(commandBuffer); it != s_command_buffer_mapping.end())
 	{
-		{ const std::lock_guard<std::mutex> lock(s_mutex);
-		// retrieve the current depth stencil image view
-		reshade::vulkan::draw_call_tracker *command_buffer_tracker = &s_trackers_per_command_buffer.at(commandBuffer);
-		image_view_data image_view_data = it->second.image_view_data;
-		VkImageView depthstencil = it->second.imageView;
-		if (image_view_data.image_data.image_info.usage & VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT)
-			track_cleared_depthstencil(commandBuffer, device, *command_buffer_tracker, depthstencil, image_view_data);
+		VkDevice device = s_command_buffer_mapping.at(commandBuffer);
+		VkFramebuffer framebuffer = s_framebuffer_per_command_buffer.at(commandBuffer);
+
+		const auto it2 = s_depth_stencil_buffer_frameBuffers.find(framebuffer);
+		if (it2 != s_depth_stencil_buffer_frameBuffers.end())
+		{
+			{ const std::lock_guard<std::mutex> lock(s_mutex);
+			// retrieve the current depth stencil image view
+			reshade::vulkan::draw_call_tracker *command_buffer_tracker = &s_trackers_per_command_buffer.at(commandBuffer);
+			image_view_data image_view_data = it2->second.image_view_data;
+			VkImageView depthstencil = it2->second.imageView;
+			if (image_view_data.image_data.image_info.usage & VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT)
+				track_cleared_depthstencil(commandBuffer, device, *command_buffer_tracker, depthstencil, image_view_data);
+			}
 		}
 	}
 
-
+	// important: the trampoline method must be executed after the depth buffer image saving
 	trampoline(commandBuffer, attachmentCount, pAttachments, rectCount, pRects);
 }
 
@@ -1032,14 +1002,8 @@ VkResult VKAPI_CALL vkEndCommandBuffer(VkCommandBuffer commandBuffer)
 {
 	PFN_vkEndCommandBuffer trampoline = nullptr;
 
-	// no device associated (this cannot happen normally)
-	if (const auto it = s_command_buffer_mapping.find(commandBuffer); it == s_command_buffer_mapping.end())
-		return VK_SUCCESS;
-
-	VkDevice device = s_command_buffer_mapping.at(commandBuffer);
-
 	{ const std::lock_guard<std::mutex> lock(s_mutex);
-	trampoline = s_device_dispatch.at(get_dispatch_key(device)).EndCommandBuffer;
+	trampoline = s_device_dispatch.at(get_dispatch_key(commandBuffer)).EndCommandBuffer;
 	assert(trampoline != nullptr);
 	}
 
