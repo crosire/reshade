@@ -231,6 +231,9 @@ private:
 	template <naming naming = naming::general>
 	void define_name(const id id, std::string name)
 	{
+		assert(!name.empty());
+		if (name[0] == '_')
+			return; // Filter out names that may clash with automatic ones
 		if constexpr (naming != naming::reserved)
 			escape_name(name);
 		if constexpr (naming == naming::general)

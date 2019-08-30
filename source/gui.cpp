@@ -1204,7 +1204,7 @@ void reshade::runtime::draw_overlay_menu_statistics()
 			ImGui::Text("DEV_%X", _device_id);
 		else
 			ImGui::TextUnformatted("Unknown");
-		ImGui::Text("%X", std::hash<std::string>()(g_target_executable_path.stem().u8string()));
+		ImGui::Text("0x%X", std::hash<std::string>()(g_target_executable_path.stem().u8string()) & 0xFFFFFFFF);
 		ImGui::Text("%.0f ms", std::chrono::duration_cast<std::chrono::nanoseconds>(_last_present_time - _start_time).count() * 1e-6f);
 		ImGui::NewLine();
 		ImGui::Text("%*.3f ms", gpu_digits + 4, _last_frame_duration.count() * 1e-6f);
@@ -1538,6 +1538,9 @@ void reshade::runtime::draw_code_editor()
 		unload_effect(_selected_effect);
 		load_effect(source_file, _selected_effect);
 		assert(_reload_remaining_effects == 0);
+
+		// Reloading an effect file invalidates all textures, but the statistics window may already have drawn references to those, so need to reset it
+		ImGui::FindWindowByName("Statistics")->DrawList->CmdBuffer.clear();
 
 		parse_errors(_loaded_effects[_selected_effect].errors);
 	}
@@ -2136,7 +2139,7 @@ void reshade::runtime::draw_overlay_technique_editor()
 					ImGui::EndPopup();
 				}
 			}
-			else if (ImGui::Button("Show Results..", ImVec2(button_width, 0)))
+			else if ((_renderer_id & 0x10000) && ImGui::Button("Show Results..", ImVec2(button_width, 0)))
 			{
 				condition = condition::input;
 				selected_index = 0;
