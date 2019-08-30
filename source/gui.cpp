@@ -1539,6 +1539,9 @@ void reshade::runtime::draw_code_editor()
 		load_effect(source_file, _selected_effect);
 		assert(_reload_remaining_effects == 0);
 
+		// Reloading an effect file invalidates all textures, but the statistics window may already have drawn references to those, so need to reset it
+		ImGui::FindWindowByName("Statistics")->DrawList->CmdBuffer.clear();
+
 		parse_errors(_loaded_effects[_selected_effect].errors);
 	}
 
