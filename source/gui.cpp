@@ -2139,7 +2139,7 @@ void reshade::runtime::draw_overlay_technique_editor()
 					ImGui::EndPopup();
 				}
 			}
-			else if (ImGui::Button("Show Results..", ImVec2(button_width, 0)))
+			else if ((_renderer_id & 0x10000) && ImGui::Button("Show Results..", ImVec2(button_width, 0)))
 			{
 				condition = condition::input;
 				selected_index = 0;
