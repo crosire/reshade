@@ -168,23 +168,23 @@ namespace reshade::vulkan
 		return best_snapshot;
 	}
 
-	/*void draw_call_tracker::keep_cleared_depth_textures()
+	void draw_call_tracker::keep_cleared_depth_textures()
 	{
-		std::lock_guard lock(_cleared_depth_textures_mutex);
+		std::lock_guard lock(_vk_cleared_depth_images_mutex);
 		// Function that keeps only the depth textures that has been retrieved before the last depth stencil clearance
-		std::map<UINT, depth_texture_save_info>::reverse_iterator it = _cleared_depth_textures.rbegin();
+		std::map<UINT, depth_texture_save_info>::reverse_iterator it = _cleared_depth_images.rbegin();
 
 		// Reverse loop on the cleared depth textures map
-		while (it != _cleared_depth_textures.rend())
+		while (it != _cleared_depth_images.rend())
 		{
 			// Exit if the last cleared depth stencil is found
 			if (it->second.cleared)
 				return;
 
 			// Remove the depth texture if it was retrieved after the last clearance of the depth stencil
-			it = std::map<UINT, depth_texture_save_info>::reverse_iterator(_cleared_depth_textures.erase(std::next(it).base()));
+			it = std::map<UINT, depth_texture_save_info>::reverse_iterator(_cleared_depth_images.erase(std::next(it).base()));
 		}
-	}*/
+	}
 
 	draw_call_tracker::intermediate_cleared_depthstencil_info draw_call_tracker::find_best_cleared_depth_buffer_image(UINT clear_index)
 	{
@@ -192,7 +192,7 @@ namespace reshade::vulkan
 		intermediate_cleared_depthstencil_info best_match = { VK_NULL_HANDLE, VK_NULL_HANDLE };
 
 		// Ensure to work only on the depth textures retrieved before the last depth stencil clearance
-		// keep_cleared_depth_textures();
+		keep_cleared_depth_textures();
 
 		for (const auto &it : _cleared_depth_images)
 		{

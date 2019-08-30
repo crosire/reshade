@@ -1781,7 +1781,7 @@ void reshade::vulkan::runtime_vk::draw_debug_menu()
 				modified = true;
 			}
 
-			// _current_tracker->keep_cleared_depth_textures();
+			_current_tracker->keep_cleared_depth_textures();
 
 			ImGui::Spacing();
 			ImGui::TextUnformatted("Depth Buffers:");

@@ -903,6 +903,28 @@ void VKAPI_CALL vkCmdBeginRenderPass(VkCommandBuffer commandBuffer, const VkRend
 	const auto it = s_depth_stencil_buffer_frameBuffers.find(pRenderPassBegin->framebuffer);
 	if (it != s_depth_stencil_buffer_frameBuffers.end())
 		track_active_renderpass(commandBuffer, device, pRenderPassBegin, it->second);
+
+	bool depthstencilCleared = false;
+
+	for (uint32_t i = 0; i < pRenderPassBegin->clearValueCount; i++)
+	{
+		VkClearValue clearValue = pRenderPassBegin->pClearValues[i];
+		if (clearValue.depthStencil.depth > 0)
+			depthstencilCleared = true;
+	}
+
+	if (!depthstencilCleared)
+		return;
+
+	if (it != s_depth_stencil_buffer_frameBuffers.end())
+	{
+		// retrieve the current depth stencil image view
+		reshade::vulkan::draw_call_tracker *command_buffer_tracker = &s_trackers_per_command_buffer.at(commandBuffer);
+		image_view_data image_view_data = it->second.image_view_data;
+		VkImageView depthstencil = it->second.imageView;
+		if (image_view_data.image_data.image_info.usage & VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT)
+			track_cleared_depthstencil(commandBuffer, device, *command_buffer_tracker, depthstencil, image_view_data);
+	}
 }
 
 void     VKAPI_CALL vkCmdDraw(VkCommandBuffer commandBuffer, uint32_t vertexCount, uint32_t instanceCount, uint32_t firstVertex, uint32_t firstInstance)
