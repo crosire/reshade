@@ -235,17 +235,14 @@ private:
 		if (name[0] == '_')
 			return; // Filter out names that may clash with automatic ones
 		if constexpr (naming != naming::reserved)
-			escape_name(name);
+			name = escape_name(name);
 		if constexpr (naming == naming::general)
 			if (std::find_if(_names.begin(), _names.end(), [&name](const auto &it) { return it.second == name; }) != _names.end())
 				name += '_' + std::to_string(id);
-		// Remove double underscore symbols from name which can occur due to namespaces but are not allowed in GLSL
-		for (size_t pos = 0; (pos = name.find("__", pos)) != std::string::npos; pos += 3)
-			name.replace(pos, 2, "_US");
 		_names[id] = std::move(name);
 	}
 
-	static void escape_name(std::string &name)
+	static std::string escape_name(std::string name)
 	{
 		static const std::unordered_set<std::string> s_reserverd_names = {
 			"common", "partition", "input", "output", "active", "filter", "superp", "invariant",
@@ -259,8 +256,15 @@ private:
 			"faceforward", "textureLod", "textureLodOffset", "texelFetch", "main"
 		};
 
+		// Append underscore to reserved names
 		if (name.compare(0, 3, "gl_") == 0 || s_reserverd_names.count(name))
 			name += '_';
+
+		// Remove double underscore symbols from name which can occur due to namespaces but are not allowed in GLSL
+		for (size_t pos = 0; (pos = name.find("__", pos)) != std::string::npos; pos += 3)
+			name.replace(pos, 2, "_US");
+
+		return name;
 	}
 
 	static void increase_indentation_level(std::string &block)
@@ -291,7 +295,8 @@ private:
 		{
 			code += '\t';
 			write_type(code, member.type); // GLSL does not allow interpolation attributes on struct members
-			code += ' ' + member.name;
+			code += ' ';
+			code += escape_name(member.name);
 			if (member.type.is_array())
 				code += '[' + std::to_string(member.type.array_length) + ']';
 			code += ";\n";
@@ -466,7 +471,8 @@ private:
 		function_info entry_point;
 		entry_point.return_type = { type::t_void };
 
-		const auto is_color_semantic = [](const std::string &semantic) { return semantic.compare(0, 9, "SV_TARGET") == 0 || semantic.compare(0, 5, "COLOR") == 0; };
+		const auto is_color_semantic = [](const std::string &semantic) {
+			return semantic.compare(0, 9, "SV_TARGET") == 0 || semantic.compare(0, 5, "COLOR") == 0; };
 
 		const auto escape_name_with_builtins = [this, is_ps](std::string name, const std::string &semantic) -> std::string
 		{
@@ -476,11 +482,10 @@ private:
 				return is_ps ? "gl_FragCoord" : "gl_Position";
 			else if (semantic == "SV_DEPTH" || semantic == "DEPTH")
 				return "gl_FragDepth";
-
-			escape_name(name);
-			return name;
+			return escape_name(name);
 		};
-		const auto visit_shader_param = [this, is_ps, &escape_name_with_builtins](type type, unsigned int quals, const std::string &name, const std::string &semantic) {
+
+		const auto create_shader_param = [this, is_ps, &escape_name_with_builtins](type type, unsigned int quals, const std::string &name, const std::string &semantic) {
 			type.qualifiers = quals;
 
 			// OpenGL does not allow varying of type boolean
@@ -504,26 +509,35 @@ private:
 
 				code += "layout(location = " + std::to_string(location + i) + ") ";
 				write_type<false, false, true>(code, type);
-				code += ' ' + name;
+				code += ' ';
 				if (type.is_array())
-					code += std::to_string(i);
+					code += escape_name(name + '_' + std::to_string(i));
+				else
+					code += escape_name(name);
 				code += ";\n";
 			}
 		};
 
+		const size_t num_params = func.parameter_list.size();
+
 		// Translate function parameters to input/output variables
 		if (func.return_type.is_struct())
 			for (const auto &member : find_struct(func.return_type.definition).member_list)
-				visit_shader_param(member.type, type::q_out, "_return_" + member.name, member.semantic);
+				create_shader_param(member.type, type::q_out, "_return_" + member.name, member.semantic);
 		else if (!func.return_type.is_void())
-			visit_shader_param(func.return_type, type::q_out, "_return", func.return_semantic);
+			create_shader_param(func.return_type, type::q_out, "_return", func.return_semantic);
 
-		for (const auto &param : func.parameter_list)
-			if (param.type.is_struct())
-				for (const auto &member : find_struct(param.type.definition).member_list)
-					visit_shader_param(member.type, param.type.qualifiers | member.type.qualifiers, "_param_" + param.name + '_' + member.name, member.semantic);
+		for (size_t i = 0; i < num_params; ++i)
+		{
+			const auto &param_type = func.parameter_list[i].type;
+			const std::string param_name = "_param" + std::to_string(i);
+
+			if (param_type.is_struct())
+				for (const auto &member : find_struct(param_type.definition).member_list)
+					create_shader_param(member.type, param_type.qualifiers | member.type.qualifiers, param_name + '_' + member.name, member.semantic);
 			else
-				visit_shader_param(param.type, param.type.qualifiers, "_param_" + param.name, param.semantic);
+				create_shader_param(param_type, param_type.qualifiers, param_name, func.parameter_list[i].semantic);
+		}
 
 		define_function({}, entry_point, true);
 		enter_block(create_block());
@@ -531,25 +545,38 @@ private:
 		std::string &code = _blocks.at(_current_block);
 
 		// Handle input parameters
-		for (const auto &param : func.parameter_list)
+		for (size_t i = 0; i < num_params; ++i)
 		{
-			for (int i = 0, array_length = std::max(1, param.type.array_length); i < array_length; i++)
+			const auto &param_type = func.parameter_list[i].type;
+			const std::string param_name = "_param" + std::to_string(i);
+
+			for (int a = 0, array_length = std::max(1, param_type.array_length); a < array_length; a++)
 			{
 				// Build struct from separate member input variables
-				if (param.type.is_struct())
+				if (param_type.is_struct())
 				{
 					code += '\t';
-					write_type<false, true>(code, param.type);
-					code += " _param_" + param.name;
-					if (param.type.is_array())
-						code += std::to_string(i);
+					write_type<false, true>(code, param_type);
+					code += ' ';
+					if (param_type.is_array())
+						code += escape_name(param_name + '_' + std::to_string(a));
+					else
+						code += escape_name(param_name);
 					code += " = ";
-					write_type<false, false>(code, param.type);
+					write_type<false, false>(code, param_type);
 					code += '(';
 
-					for (const auto &member : find_struct(param.type.definition).member_list)
-						code += escape_name_with_builtins("_param_" + param.name + '_' + member.name + (param.type.is_array() ? std::to_string(i) : std::string()), member.semantic) + ", ";
+					for (const auto &member : find_struct(param_type.definition).member_list)
+					{
+						if (param_type.is_array())
+							code += escape_name_with_builtins(param_name + '_' + member.name + '_' + std::to_string(a), member.semantic);
+						else
+							code += escape_name_with_builtins(param_name + '_' + member.name, member.semantic);
 
+						code += ", ";
+					}
+
+					// There can be no empty structs, so can assume that the last two characters are always ", "
 					code.pop_back();
 					code.pop_back();
 
@@ -557,18 +584,21 @@ private:
 				}
 			}
 
-			if (param.type.is_array())
+			if (param_type.is_array())
 			{
 				code += '\t';
-				write_type<false, true>(code, param.type);
-				code += " _param_" + param.name + "[] = ";
-				write_type<false, false>(code, param.type);
+				write_type<false, true>(code, param_type);
+				code += ' ';
+				code += escape_name(param_name);
+				code += "[] = ";
+				write_type<false, false>(code, param_type);
 				code += "[](";
 
-				for (int i = 0; i < param.type.array_length; ++i)
+				for (int a = 0; a < param_type.array_length; ++a)
 				{
-					code += "_param_" + param.name + std::to_string(i);
-					if (i < param.type.array_length - 1)
+					code += escape_name(param_name + '_' + std::to_string(a));
+
+					if (a < param_type.array_length - 1)
 						code += ", ";
 				}
 
@@ -587,9 +617,9 @@ private:
 		// Call the function this entry point refers to
 		code += id_to_name(func.definition) + '(';
 
-		for (size_t i = 0, num_params = func.parameter_list.size(); i < num_params; ++i)
+		for (size_t i = 0; i < num_params; ++i)
 		{
-			code += escape_name_with_builtins("_param_" + func.parameter_list[i].name, func.parameter_list[i].semantic);
+			code += escape_name_with_builtins("_param" + std::to_string(i), func.parameter_list[i].semantic);
 
 			if (i < num_params - 1)
 				code += ", ";
@@ -598,27 +628,56 @@ private:
 		code += ");\n";
 
 		// Handle output parameters
-		for (const auto &param : func.parameter_list)
+		for (size_t i = 0; i < num_params; ++i)
 		{
-			if (!param.type.has(type::q_out))
+			const auto &param_type = func.parameter_list[i].type;
+			if (!param_type.has(type::q_out))
 				continue;
 
-			for (int i = 0; i < param.type.array_length; i++)
-				code += "\t_param_" + param.name + std::to_string(i) + " = _param_" + param.name + '[' + std::to_string(i) + "];\n";
+			const std::string param_name = "_param" + std::to_string(i);
 
-			for (int i = 0; i < std::max(1, param.type.array_length); i++)
-				if (param.type.is_struct())
-					for (const auto &member : find_struct(param.type.definition).member_list)
-						if (param.type.is_array())
-							code += "\t_param_" + param.name + '_' + member.name + std::to_string(i) + " = _param_" + param.name + '.' + member.name + '[' + std::to_string(i) + "];\n";
-						else
-							code += "\t_param_" + param.name + '_' + member.name + " = _param_" + param.name + '.' + member.name + ";\n";
+			for (int a = 0; a < param_type.array_length; a++)
+			{
+				code += '\t';
+				code += escape_name(param_name + '_' + std::to_string(a));
+				code += " = ";
+				code += escape_name(param_name);
+				code += '[' + std::to_string(a) + "];\n";
+			}
+
+			for (int a = 0; a < std::max(1, param_type.array_length); a++)
+			{
+				if (!param_type.is_struct())
+					continue;
+
+				for (const auto &member : find_struct(param_type.definition).member_list)
+				{
+					code += '\t';
+					if (param_type.is_array())
+						code += escape_name(param_name + '_' + member.name + '_' + std::to_string(a));
+					else
+						code += escape_name(param_name + '_' + member.name);
+					code += " = ";
+					code += escape_name(param_name);
+					code += '.';
+					code += escape_name(member.name);
+					if (param_type.is_array())
+						code += '[' + std::to_string(a) + ']';
+					code += ";\n";
+				}
+			}
 		}
 
 		// Handle return struct output variables
 		if (func.return_type.is_struct())
+		{
 			for (const auto &member : find_struct(func.return_type.definition).member_list)
-				code += '\t' + escape_name_with_builtins("_return_" + member.name, member.semantic) + " = _return." + member.name + ";\n";
+			{
+				code += '\t';
+				code += escape_name_with_builtins("_return_" + member.name, member.semantic);
+				code += " = _return." + escape_name(member.name) + ";\n";
+			}
+		}
 
 		leave_block_and_return(0);
 		leave_function();
@@ -660,7 +719,7 @@ private:
 				break;
 			case expression::operation::op_member:
 				newcode += '.';
-				newcode += find_struct(op.from.definition).member_list[op.index].name;
+				newcode += escape_name(find_struct(op.from.definition).member_list[op.index].name);
 				break;
 			case expression::operation::op_dynamic_index:
 				newcode += '[' + id_to_name(op.index) + ']';
@@ -720,7 +779,7 @@ private:
 			{
 			case expression::operation::op_member:
 				code += '.';
-				code += find_struct(op.from.definition).member_list[op.index].name;
+				code += escape_name(find_struct(op.from.definition).member_list[op.index].name);
 				break;
 			case expression::operation::op_dynamic_index:
 				code += '[' + id_to_name(op.index) + ']';
