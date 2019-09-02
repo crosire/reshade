@@ -262,8 +262,6 @@ namespace reshade
 
 		bool switch_to_next_preset(bool reversed = false);
 
-		std::filesystem::path reshade::runtime::convert_browse_path(std::filesystem::path path) const;
-
 		bool _needs_update = false;
 		unsigned long _latest_version[3] = {};
 		std::shared_ptr<class input> _input;
