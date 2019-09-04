@@ -1321,10 +1321,17 @@ void reshade::runtime::reset_uniform_value(uniform &variable)
 
 bool reshade::runtime::switch_to_next_preset(bool reversed)
 {
-	std::filesystem::path preset_container_path = (g_reshade_dll_path.parent_path() / _current_browse_path).lexically_normal();
-	std::filesystem::path presets_filter_text = _current_browse_path.filename();
-
 	std::error_code ec;
+
+	std::filesystem::path preset_container_path;
+	std::filesystem::path presets_filter_text;
+
+#if RESHADE_GUI
+	preset_container_path = (g_reshade_dll_path.parent_path() / _current_browse_path).lexically_normal();
+	presets_filter_text = _current_browse_path.filename();
+#else
+	preset_container_path = _current_preset_path.parent_path();
+#endif
 
 	if (std::filesystem::is_directory(preset_container_path, ec))
 		presets_filter_text.clear();
