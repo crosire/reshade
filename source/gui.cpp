@@ -1842,7 +1842,11 @@ void reshade::runtime::draw_overlay_variable_editor()
 					for (float x = 0, space_x = ImGui::CalcTextSize(" ").x, width = (ImGui::CalcItemWidth() - ImGui::CalcTextSize(label.data()).x - 45) / 2; x < width; x += space_x)
 						label.insert(0, " ");
 
-				current_category_is_closed = !ImGui::TreeNodeEx(label.c_str(), ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_NoTreePushOnOpen);
+				ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_NoTreePushOnOpen;
+				if (!variable.annotation_as_int("ui_category_closed"))
+					flags |= ImGuiTreeNodeFlags_DefaultOpen;
+
+				current_category_is_closed = !ImGui::TreeNodeEx(label.c_str(), flags);
 			}
 			else
 			{
