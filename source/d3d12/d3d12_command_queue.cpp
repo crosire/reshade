@@ -6,6 +6,7 @@
 #include "log.hpp"
 #include "d3d12_device.hpp"
 #include "d3d12_command_queue.hpp"
+#include "d3d12_command_queue_downlevel.hpp"
 #include <assert.h>
 
 D3D12CommandQueue::D3D12CommandQueue(D3D12Device *device, ID3D12CommandQueue *original) :
@@ -64,6 +65,23 @@ HRESULT STDMETHODCALLTYPE D3D12CommandQueue::QueryInterface(REFIID riid, void **
 		return S_OK;
 	}
 
+#if RESHADE_D3D12ON7
+	// Special case for d3d12on7
+	if (riid == __uuidof(ID3D12CommandQueueDownlevel))
+	{
+		if (ID3D12CommandQueueDownlevel *downlevel = nullptr;
+			_downlevel == nullptr && SUCCEEDED(_orig->QueryInterface(&downlevel)))
+		{
+			_downlevel = new D3D12CommandQueueDownlevel(this, downlevel);
+		}
+
+		if (_downlevel != nullptr)
+		{
+			return _downlevel->QueryInterface(riid, ppvObj);
+		}
+	}
+#endif
+
 	return _orig->QueryInterface(riid, ppvObj);
 }
 ULONG   STDMETHODCALLTYPE D3D12CommandQueue::AddRef()
@@ -74,7 +92,12 @@ ULONG   STDMETHODCALLTYPE D3D12CommandQueue::AddRef()
 }
 ULONG   STDMETHODCALLTYPE D3D12CommandQueue::Release()
 {
-	--_ref;
+	if (--_ref == 0)
+	{
+#if RESHADE_D3D12ON7
+		_downlevel->Release(); _downlevel = nullptr;
+#endif
+	}
 
 	// Decrease internal reference count and verify it against our own count
 	const ULONG ref = _orig->Release();
