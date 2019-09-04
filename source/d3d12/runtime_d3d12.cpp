@@ -75,12 +75,11 @@ reshade::d3d12::runtime_d3d12::runtime_d3d12(ID3D12Device *device, ID3D12Command
 {
 	assert(queue != nullptr);
 	assert(device != nullptr);
-	assert(swapchain != nullptr);
 
 	_renderer_id = D3D_FEATURE_LEVEL_12_0;
 
 	if (com_ptr<IDXGIFactory4> factory;
-		SUCCEEDED(swapchain->GetParent(IID_PPV_ARGS(&factory))))
+		swapchain != nullptr && SUCCEEDED(swapchain->GetParent(IID_PPV_ARGS(&factory))))
 	{
 		const LUID luid = device->GetAdapterLuid();
 
@@ -141,8 +140,10 @@ bool reshade::d3d12::runtime_d3d12::init_backbuffer_textures(UINT num_buffers)
 
 	for (unsigned int i = 0; i < num_buffers; ++i)
 	{
-		if (FAILED(_swapchain->GetBuffer(i, IID_PPV_ARGS(&_backbuffers[i]))))
+		if (_swapchain != nullptr && FAILED(_swapchain->GetBuffer(i, IID_PPV_ARGS(&_backbuffers[i]))))
 			return false;
+
+		assert(_backbuffers[i] != nullptr);
 #ifdef _DEBUG
 		_backbuffers[i]->SetName(L"Backbuffer");
 #endif
@@ -259,7 +260,11 @@ bool reshade::d3d12::runtime_d3d12::init_mipmap_pipeline()
 	return true;
 }
 
-bool reshade::d3d12::runtime_d3d12::on_init(const DXGI_SWAP_CHAIN_DESC &desc)
+bool reshade::d3d12::runtime_d3d12::on_init(const DXGI_SWAP_CHAIN_DESC &desc
+#if RESHADE_D3D12ON7
+	, ID3D12Resource *backbuffer
+#endif
+	)
 {
 	RECT window_rect = {};
 	GetClientRect(desc.OutputWindow, &window_rect);
@@ -274,6 +279,12 @@ bool reshade::d3d12::runtime_d3d12::on_init(const DXGI_SWAP_CHAIN_DESC &desc)
 	_srv_handle_size = _device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 	_rtv_handle_size = _device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 	_dsv_handle_size = _device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
+
+#if RESHADE_D3D12ON7
+	if (_width == 0) _width = _window_width;
+	if (_height == 0) _height = _window_height;
+	_backbuffers.resize(1); _backbuffers[0] = backbuffer;
+#endif
 
 	// Create multiple command allocators to buffer for multiple frames
 	_cmd_alloc.resize(desc.BufferCount);
@@ -358,7 +369,9 @@ void reshade::d3d12::runtime_d3d12::on_present(draw_call_tracker &tracker)
 	_drawcalls = tracker.total_drawcalls();
 	_current_tracker = &tracker;
 
-	_swap_index = _swapchain->GetCurrentBackBufferIndex();
+	// There is no swap chain for d3d12on7
+	if (_swapchain != nullptr)
+		_swap_index = _swapchain->GetCurrentBackBufferIndex();
 
 	// Make sure all commands for this command allocator have finished executing before reseting it
 	if (_fence[_swap_index]->GetCompletedValue() < _fence_value[_swap_index])

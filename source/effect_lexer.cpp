@@ -402,6 +402,7 @@ next_token:
 	tok.offset = _cur - _input.data();
 	tok.length = 1;
 	tok.literal_as_double = 0;
+	tok.literal_as_string.clear();
 
 	// Do a character type lookup for the current character
 	switch (type_lookup[static_cast<uint8_t>(*_cur)])

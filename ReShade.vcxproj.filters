@@ -147,6 +147,9 @@
     <ClCompile Include="source\d3d12\d3d12_command_queue.cpp">
       <Filter>hooks\d3d12</Filter>
     </ClCompile>
+    <ClCompile Include="source\d3d12\d3d12_command_queue_downlevel.cpp">
+      <Filter>hooks\d3d12</Filter>
+    </ClCompile>
     <ClCompile Include="source\d3d12\d3d12_device.cpp">
       <Filter>hooks\d3d12</Filter>
     </ClCompile>
@@ -275,6 +278,9 @@
     <ClInclude Include="source\d3d12\d3d12_command_queue.hpp">
       <Filter>hooks\d3d12</Filter>
     </ClInclude>
+    <ClInclude Include="source\d3d12\d3d12_command_queue_downlevel.hpp">
+      <Filter>hooks\d3d12</Filter>
+    </ClInclude>
     <ClInclude Include="source\d3d12\d3d12_device.hpp">
       <Filter>hooks\d3d12</Filter>
     </ClInclude>
@@ -304,6 +310,9 @@
     </ClInclude>
     <ClInclude Include="source\opengl\state_block.hpp">
       <Filter>hooks\opengl</Filter>
+    </ClInclude>
+    <ClInclude Include="source\vulkan\format_utils.hpp">
+      <Filter>hooks\vulkan</Filter>
     </ClInclude>
     <ClInclude Include="source\vulkan\runtime_vk.hpp">
       <Filter>hooks\vulkan</Filter>

@@ -260,8 +260,7 @@ namespace reshade
 		void get_uniform_value(const uniform &variable, uint8_t *data, size_t size) const;
 		void set_uniform_value(uniform &variable, const uint8_t *data, size_t size);
 
-		void set_current_preset();
-		void set_current_preset(std::filesystem::path path);
+		bool switch_to_next_preset(bool reversed = false);
 
 		bool _needs_update = false;
 		unsigned long _latest_version[3] = {};
@@ -331,9 +330,6 @@ namespace reshade
 		void draw_overlay_variable_editor();
 		void draw_overlay_technique_editor();
 		void draw_preset_explorer();
-
-		void get_preset_container(std::vector<std::filesystem::directory_entry> &preset_container);
-		bool switch_current_preset(bool bToNext);
 
 		std::vector<std::pair<std::string, std::function<void()>>> _menu_callables;
 		std::unique_ptr<texture> _imgui_font_atlas;

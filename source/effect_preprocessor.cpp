@@ -79,7 +79,8 @@ bool reshadefx::preprocessor::append_file(const std::filesystem::path &path)
 	if (!read_file(path, data))
 		return false;
 
-	_success = true;
+	_success = true; // Clear success flag before parsing a new file
+
 	push(std::move(data), path.u8string());
 	parse();
 
@@ -90,7 +91,8 @@ bool reshadefx::preprocessor::append_string(const std::string &source_code)
 	// Enforce all input strings to end with a line feed
 	assert(!source_code.empty() && source_code.back() == '\n');
 
-	_success = true;
+	_success = true; // Clear success flag before parsing a new string
+
 	push(source_code);
 	parse();
 
@@ -109,7 +111,7 @@ std::vector<std::filesystem::path> reshadefx::preprocessor::included_files() con
 void reshadefx::preprocessor::error(const location &location, const std::string &message)
 {
 	_errors += location.source + '(' + std::to_string(location.line) + ", " + std::to_string(location.column) + ')' + ": preprocessor error: " + message + '\n';
-	_success = false;
+	_success = false; // Unset success flag
 }
 void reshadefx::preprocessor::warning(const location &location, const std::string &message)
 {
@@ -989,7 +991,7 @@ bool reshadefx::preprocessor::evaluate_identifier_as_macro()
 	}
 
 	std::string input;
-	expand_macro(it->second, arguments, input);
+	expand_macro(it->first, it->second, arguments, input);
 	push(std::move(input));
 
 	_input_stack.top().hidden_macros.insert(it->first);
@@ -997,7 +999,7 @@ bool reshadefx::preprocessor::evaluate_identifier_as_macro()
 	return true;
 }
 
-void reshadefx::preprocessor::expand_macro(const macro &macro, const std::vector<std::string> &arguments, std::string &out)
+void reshadefx::preprocessor::expand_macro(const std::string &name, const macro &macro, const std::vector<std::string> &arguments, std::string &out)
 {
 	for (auto it = macro.replacement_list.begin(); it != macro.replacement_list.end(); ++it)
 	{
@@ -1007,15 +1009,27 @@ void reshadefx::preprocessor::expand_macro(const macro &macro, const std::vector
 			continue;
 		}
 
-		switch (*++it)
-		{
-		case macro_replacement_concat:
+		// This is a special replacement sequence
+		const auto type = *++it;
+		if (type == macro_replacement_concat)
 			continue;
+
+		const auto index = *++it;
+		if (static_cast<size_t>(index) >= arguments.size())
+		{
+			warning(_token.location, "not enough arguments for function-like macro invocation '" + name + "'");
+			continue;
+		}
+
+		switch (type)
+		{
 		case macro_replacement_stringize:
-			out += '"' + arguments.at(*++it) + '"';
+			out += '"';
+			out += arguments[index];
+			out += '"';
 			break;
 		case macro_replacement_argument:
-			push(arguments.at(*++it) + static_cast<char>(macro_replacement_argument));
+			push(arguments[index] + static_cast<char>(macro_replacement_argument));
 			while (!accept(tokenid::unknown))
 			{
 				consume();

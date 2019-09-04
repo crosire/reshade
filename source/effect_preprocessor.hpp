@@ -24,8 +24,9 @@ namespace reshadefx
 		struct macro
 		{
 			std::string replacement_list;
-			bool is_function_like = false, is_variadic = false;
 			std::vector<std::string> parameters;
+			bool is_variadic = false;
+			bool is_function_like = false;
 		};
 
 		/// <summary>
@@ -126,7 +127,7 @@ namespace reshadefx
 		bool evaluate_expression();
 		bool evaluate_identifier_as_macro();
 
-		void expand_macro(const macro &macro, const std::vector<std::string> &arguments, std::string &out);
+		void expand_macro(const std::string &name, const macro &macro, const std::vector<std::string> &arguments, std::string &out);
 		void create_macro_replacement_list(macro &macro);
 
 		bool _success = true;

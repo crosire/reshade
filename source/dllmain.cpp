@@ -37,6 +37,10 @@ static inline std::filesystem::path get_module_path(HMODULE module)
 #include "opengl/runtime_gl.hpp"
 #include "vulkan/runtime_vk.hpp"
 
+#if RESHADE_D3D12ON7
+	#include <D3D12Downlevel.h>
+#endif
+
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow)
 {
 	using namespace reshade;
@@ -207,10 +211,10 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 		hooks::register_module("d3d12.dll");
 		const auto d3d12_module = LoadLibrary(TEXT("d3d12.dll"));
 
-		// Enable D3D debug layer
+		// Enable D3D debug layer if it is available
 		{   com_ptr<ID3D12Debug> debug_iface;
-			HCHECK(D3D12GetDebugInterface(IID_PPV_ARGS(&debug_iface)));
-			debug_iface->EnableDebugLayer();
+			if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&debug_iface))))
+				debug_iface->EnableDebugLayer();
 		}
 
 		// Initialize Direct3D 12
@@ -224,15 +228,29 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 
 		HCHECK(D3D12CreateDevice(nullptr, D3D_FEATURE_LEVEL_12_0, IID_PPV_ARGS(&device)));
 
+#if RESHADE_D3D12ON7
+		// Check if this device was created using d3d12on7 on Windows 7
+		// See https://microsoft.github.io/DirectX-Specs/d3d/D3D12onWin7.html for more information
+		com_ptr<ID3D12DeviceDownlevel> downlevel;
+		const bool is_d3d12on7 = SUCCEEDED(device->QueryInterface(&downlevel));
+#else
+		const bool is_d3d12on7 = false;
+#endif
+
 		{   D3D12_COMMAND_QUEUE_DESC desc = { D3D12_COMMAND_LIST_TYPE_DIRECT };
 			HCHECK(device->CreateCommandQueue(&desc, IID_PPV_ARGS(&command_queue)));
 		}
 
-		{   DXGI_SWAP_CHAIN_DESC1 desc = {};
+		const UINT num_buffers = is_d3d12on7 ? 1 : ARRAYSIZE(backbuffers);
+
+		if (!is_d3d12on7)
+		{
+			// DXGI has not been updated for d3d12on7, so cannot use swap chain created from D3D12 device there
+			DXGI_SWAP_CHAIN_DESC1 desc = {};
 			desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
 			desc.SampleDesc = { 1, 0 };
 			desc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-			desc.BufferCount = ARRAYSIZE(backbuffers);
+			desc.BufferCount = num_buffers;
 			desc.Scaling = DXGI_SCALING_STRETCH;
 			desc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
 
@@ -244,7 +262,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 		}
 
 		{   D3D12_DESCRIPTOR_HEAP_DESC desc = { D3D12_DESCRIPTOR_HEAP_TYPE_RTV };
-			desc.NumDescriptors = ARRAYSIZE(backbuffers);
+			desc.NumDescriptors = num_buffers;
 			HCHECK(device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&rtv_heap)));
 		}
 
@@ -253,9 +271,29 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 
 		HCHECK(device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&cmd_alloc)));
 
-		for (UINT i = 0; i < ARRAYSIZE(backbuffers); ++i, rtv_handle.ptr += rtv_handle_size)
+		for (UINT i = 0; i < num_buffers; ++i, rtv_handle.ptr += rtv_handle_size)
 		{
-			HCHECK(swapchain->GetBuffer(i, IID_PPV_ARGS(&backbuffers[i])));
+			if (!is_d3d12on7)
+			{
+				HCHECK(swapchain->GetBuffer(i, IID_PPV_ARGS(&backbuffers[i])));
+			}
+			else
+			{
+				RECT window_rect = {};
+				GetClientRect(window_handle, &window_rect);
+
+				D3D12_RESOURCE_DESC desc = { D3D12_RESOURCE_DIMENSION_TEXTURE2D };
+				desc.Width = window_rect.right - window_rect.left;
+				desc.Height = window_rect.bottom - window_rect.top;
+				desc.DepthOrArraySize = desc.MipLevels = 1;
+				desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+				desc.SampleDesc = { 1, 0 };
+				desc.Flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
+
+				D3D12_HEAP_PROPERTIES props = { D3D12_HEAP_TYPE_DEFAULT };
+				// Create a fake back buffer resource for d3d12on7
+				HCHECK(device->CreateCommittedResource(&props, D3D12_HEAP_FLAG_NONE, &desc, D3D12_RESOURCE_STATE_COMMON, nullptr, IID_PPV_ARGS(&backbuffers[i])));
+			}
 
 			device->CreateRenderTargetView(backbuffers[i].get(), nullptr, rtv_handle);
 
@@ -284,13 +322,28 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 				PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE))
 				DispatchMessage(&msg);
 
-			const UINT swap_index = swapchain->GetCurrentBackBufferIndex();
+			const UINT swap_index = is_d3d12on7 ? 0 : swapchain->GetCurrentBackBufferIndex();
 
 			ID3D12CommandList *const cmd_list = cmd_lists[swap_index].get();
 			command_queue->ExecuteCommandLists(1, &cmd_list);
 
-			// Synchronization is handled in "runtime_d3d12::on_present"
-			swapchain->Present(1, 0);
+#if RESHADE_D3D12ON7
+			if (is_d3d12on7)
+			{
+				// Create a dummy list to pass into present
+				com_ptr<ID3D12GraphicsCommandList> dummy_list;
+				HCHECK(device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, cmd_alloc.get(), nullptr, IID_PPV_ARGS(&dummy_list)));
+
+				com_ptr<ID3D12CommandQueueDownlevel> queue_downlevel;
+				HCHECK(command_queue->QueryInterface(&queue_downlevel));
+
+				// Windows 7 present path does not have a DXGI swap chain
+				HCHECK(queue_downlevel->Present(dummy_list.get(), backbuffers[swap_index].get(), window_handle, D3D12_DOWNLEVEL_PRESENT_FLAG_WAIT_FOR_VBLANK));
+			}
+			else
+#endif
+				// Synchronization is handled in "runtime_d3d12::on_present"
+				HCHECK(swapchain->Present(1, 0));
 		}
 
 		reshade::hooks::uninstall();
