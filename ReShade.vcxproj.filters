@@ -144,6 +144,9 @@
     <ClCompile Include="source\d3d12\d3d12_command_queue.cpp">
       <Filter>hooks\d3d12</Filter>
     </ClCompile>
+    <ClCompile Include="source\d3d12\d3d12_command_queue_downlevel.cpp">
+      <Filter>hooks\d3d12</Filter>
+    </ClCompile>
     <ClCompile Include="source\d3d12\d3d12_device.cpp">
       <Filter>hooks\d3d12</Filter>
     </ClCompile>
@@ -273,6 +276,9 @@
       <Filter>hooks\d3d11</Filter>
     </ClInclude>
     <ClInclude Include="source\d3d12\d3d12_command_queue.hpp">
+      <Filter>hooks\d3d12</Filter>
+    </ClInclude>
+    <ClInclude Include="source\d3d12\d3d12_command_queue_downlevel.hpp">
       <Filter>hooks\d3d12</Filter>
     </ClInclude>
     <ClInclude Include="source\d3d12\d3d12_device.hpp">
