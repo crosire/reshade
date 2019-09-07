@@ -1302,8 +1302,8 @@ void reshade::runtime::draw_overlay_menu_statistics()
 
 			post_processing_memory_size += memory_size;
 
-			if (memory_size > 1024 * 1024) {
-				memory_view = std::ldiv(memory_size, 1024 * 1024);
+			if (memory_size > 1048576) {
+				memory_view = std::ldiv(memory_size, 1048576);
 				memory_view.rem /= 1000;
 				memory_size_unit = "MB";
 			}
@@ -1338,8 +1338,8 @@ void reshade::runtime::draw_overlay_menu_statistics()
 
 		ImGui::Separator();
 
-		if (post_processing_memory_size > 1024 * 1024) {
-			post_processing_memory_view = std::ldiv(post_processing_memory_size, 1024 * 1024);
+		if (post_processing_memory_size > 1048576) {
+			post_processing_memory_view = std::ldiv(post_processing_memory_size, 1048576);
 			post_processing_memory_view.rem /= 1000;
 			memory_size_unit = "MB";
 		}
