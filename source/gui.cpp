@@ -1147,6 +1147,10 @@ void reshade::runtime::draw_overlay_menu_statistics()
 	uint64_t post_processing_time_cpu = 0;
 	uint64_t post_processing_time_gpu = 0;
 	uint32_t post_processing_memory_size = 0;
+	ldiv_t post_processing_memory_view{};
+
+	// Show total memory size
+	const char *memory_size_unit;
 
 	if (!is_loading() && _effects_enabled)
 	{
@@ -1291,29 +1295,30 @@ void reshade::runtime::draw_overlay_menu_statistics()
 			ImGui::BeginGroup();
 
 			uint32_t memory_size = 0;
-			const char *memory_size_unit = "B";
+			ldiv_t memory_view{};
 
 			for (uint32_t level = 0, width = texture.width, height = texture.height; level < texture.levels; ++level, width /= 2, height /= 2)
 				memory_size += width * height * pixel_sizes[static_cast<unsigned int>(texture.format)];
 
 			post_processing_memory_size += memory_size;
 
-			if (memory_size > 5000) {
-				memory_size /= 1000;
-				memory_size_unit = "kB";
-			}
-			if (memory_size > 5000) {
-				memory_size /= 1000;
+			if (memory_size > 1024 * 1024) {
+				memory_view = std::ldiv(memory_size, 1024 * 1024);
+				memory_view.rem /= 1000;
 				memory_size_unit = "MB";
+			}
+			else {
+				memory_view = std::ldiv(memory_size, 1024);
+				memory_size_unit = "KB";
 			}
 
 			ImGui::TextUnformatted(texture.unique_name.c_str());
-			ImGui::Text("%ux%u +%u %s %u%s",
+			ImGui::Text("%ux%u +%u %s %ld.%03ld %s",
 				texture.width,
 				texture.height,
 				texture.levels - 1,
 				texture_formats[static_cast<unsigned int>(texture.format)],
-				memory_size, memory_size_unit);
+				memory_view.quot, memory_view.rem, memory_size_unit);
 
 			if (bool check = _preview_texture == texture.impl.get(); ImGui::RadioButton("Show fullscreen", check))
 				_preview_texture = !check ? texture.impl.get() : nullptr;
@@ -1333,18 +1338,17 @@ void reshade::runtime::draw_overlay_menu_statistics()
 
 		ImGui::Separator();
 
-		// Show total memory size
-		const char *memory_size_unit = "B";
-		if (post_processing_memory_size > 5000) {
-			post_processing_memory_size /= 1000;
-			memory_size_unit = "kB";
-		}
-		if (post_processing_memory_size > 5000) {
-			post_processing_memory_size /= 1000;
+		if (post_processing_memory_size > 1024 * 1024) {
+			post_processing_memory_view = std::ldiv(post_processing_memory_size, 1024 * 1024);
+			post_processing_memory_view.rem /= 1000;
 			memory_size_unit = "MB";
 		}
+		else {
+			post_processing_memory_view = std::ldiv(post_processing_memory_size, 1024);
+			memory_size_unit = "KB";
+		}
 
-		ImGui::Text("Total memory usage: %u%s", post_processing_memory_size, memory_size_unit);
+		ImGui::Text("Total memory usage: %ld.%03ld %s", post_processing_memory_view.quot, post_processing_memory_view.rem, memory_size_unit);
 	}
 }
 
