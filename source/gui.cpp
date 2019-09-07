@@ -1313,7 +1313,7 @@ void reshade::runtime::draw_overlay_menu_statistics()
 			}
 
 			ImGui::TextUnformatted(texture.unique_name.c_str());
-			ImGui::Text("%ux%u +%u %s %ld.%03ld %s",
+			ImGui::Text("%ux%u +%u %s %ld.%03ld%s",
 				texture.width,
 				texture.height,
 				texture.levels - 1,
@@ -1348,7 +1348,7 @@ void reshade::runtime::draw_overlay_menu_statistics()
 			memory_size_unit = "KiB";
 		}
 
-		ImGui::Text("Total memory usage: %ld.%03ld %s", post_processing_memory_view.quot, post_processing_memory_view.rem, memory_size_unit);
+		ImGui::Text("Total memory usage: %ld.%03ld%s", post_processing_memory_view.quot, post_processing_memory_view.rem, memory_size_unit);
 	}
 }
 
