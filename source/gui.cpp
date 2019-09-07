@@ -1302,14 +1302,14 @@ void reshade::runtime::draw_overlay_menu_statistics()
 
 			post_processing_memory_size += memory_size;
 
-			if (memory_size >= 1048576) {
-				memory_view = std::ldiv(memory_size, 1048576);
+			if (memory_size >= 1024 * 1024) {
+				memory_view = std::ldiv(memory_size, 1024 * 1024);
 				memory_view.rem /= 1000;
-				memory_size_unit = "MB";
+				memory_size_unit = "MiB";
 			}
 			else {
 				memory_view = std::ldiv(memory_size, 1024);
-				memory_size_unit = "KB";
+				memory_size_unit = "KiB";
 			}
 
 			ImGui::TextUnformatted(texture.unique_name.c_str());
@@ -1338,14 +1338,14 @@ void reshade::runtime::draw_overlay_menu_statistics()
 
 		ImGui::Separator();
 
-		if (post_processing_memory_size >= 1048576) {
-			post_processing_memory_view = std::ldiv(post_processing_memory_size, 1048576);
+		if (post_processing_memory_size >= 1024 * 1024) {
+			post_processing_memory_view = std::ldiv(post_processing_memory_size, 1024 * 1024);
 			post_processing_memory_view.rem /= 1000;
-			memory_size_unit = "MB";
+			memory_size_unit = "MiB";
 		}
 		else {
 			post_processing_memory_view = std::ldiv(post_processing_memory_size, 1024);
-			memory_size_unit = "KB";
+			memory_size_unit = "KiB";
 		}
 
 		ImGui::Text("Total memory usage: %ld.%03ld %s", post_processing_memory_view.quot, post_processing_memory_view.rem, memory_size_unit);
