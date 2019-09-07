@@ -1338,7 +1338,7 @@ void reshade::runtime::draw_overlay_menu_statistics()
 
 		ImGui::Separator();
 
-		if (post_processing_memory_size > 1048576) {
+		if (post_processing_memory_size >= 1048576) {
 			post_processing_memory_view = std::ldiv(post_processing_memory_size, 1048576);
 			post_processing_memory_view.rem /= 1000;
 			memory_size_unit = "MB";
