@@ -518,7 +518,7 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommittedResource(const D3D12_HEAP_
 {
 	D3D12_RESOURCE_DESC new_desc = *pResourceDesc;
 	new_desc.Flags = new_desc.Flags & ~D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE;
-	return _orig->CreateCommittedResource(pHeapProperties, HeapFlags, pResourceDesc, InitialResourceState, pOptimizedClearValue, riidResource, ppvResource);
+	return _orig->CreateCommittedResource(pHeapProperties, HeapFlags, &new_desc, InitialResourceState, pOptimizedClearValue, riidResource, ppvResource);
 }
 HRESULT STDMETHODCALLTYPE D3D12Device::CreateHeap(const D3D12_HEAP_DESC *pDesc, REFIID riid, void **ppvHeap)
 {
