@@ -2321,7 +2321,7 @@ void reshade::runtime::draw_preset_explorer()
 						condition = condition::select;
 
 					if (condition == condition::select)
-						if (reshade::ini_file(reshade_container_path / input_preset_path).has("", "Techniques"))
+						if (reshade::ini_file::load_cache(reshade_container_path / input_preset_path).has("", "Techniques"))
 							_current_preset_path = reshade_container_path / input_preset_path;
 						else
 							condition = condition::pass;
@@ -2438,7 +2438,7 @@ void reshade::runtime::draw_preset_explorer()
 						continue;
 
 				if (ImGui::Selectable(entry.path().filename().u8string().c_str(), static_cast<bool>(is_current_preset)))
-					if (reshade::ini_file(entry).has("", "Techniques"))
+					if (reshade::ini_file::load_cache(entry).has("", "Techniques"))
 						condition = condition::select, _current_preset_path = entry;
 					else
 						condition = condition::pass;
@@ -2487,7 +2487,7 @@ void reshade::runtime::draw_preset_explorer()
 				condition = condition::pass;
 			else if (file_type == std::filesystem::file_type::not_found)
 				condition = condition::create, _current_preset_path = focus_preset_path;
-			else if (reshade::ini_file(focus_preset_path).has("", "Techniques"))
+			else if (reshade::ini_file::load_cache(focus_preset_path).has("", "Techniques"))
 				condition = condition::select, _current_preset_path = focus_preset_path;
 			else
 				condition = condition::pass;
