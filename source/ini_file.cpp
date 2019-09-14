@@ -98,9 +98,17 @@ void reshade::ini_file::save()
 	if (!_modified)
 		return;
 
+	std::error_code ec;
+	if (const auto modified_at = std::filesystem::last_write_time(_path, ec); ec.value() == 0 && _modified_at < modified_at)
+	{
+		_modified = false;
+		return;
+	}
 	std::ofstream file(_save_path);
-	file.imbue(std::locale("en-us.UTF-8"));
+	if (file.fail())
+		return;
 
+	file.imbue(std::locale("en-us.UTF-8"));
 	const auto it = _sections.find("");
 
 	if (it != _sections.end())
@@ -187,7 +195,7 @@ void reshade::ini_file::save()
 	file.close();
 	_modified = false;
 
-	if (std::error_code ec; std::filesystem::equivalent(_path, _save_path, ec))
+	if (std::filesystem::equivalent(_path, _save_path, ec))
 		if (const auto modified_at = std::filesystem::last_write_time(_path, ec); ec.value() == 0)
 			_modified_at = modified_at;
 }
