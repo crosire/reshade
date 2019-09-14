@@ -204,6 +204,6 @@ void reshade::ini_file::save_cache(const bool force)
 {
 	const auto now = std::filesystem::file_time_type::clock::now();
 	for (auto &file : g_ini_cache)
-		if (file.second._modified && (force || now - file.second._modified_at > std::chrono::seconds(2)))
+		if (file.second._modified && (force || now - file.second._modified_at > std::chrono::seconds(1)))
 			file.second.save();
 }
