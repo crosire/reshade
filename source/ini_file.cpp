@@ -192,7 +192,9 @@ void reshade::ini_file::save()
 		file << '\n';
 	}
 
-	file.close();
+	if (file.close(); file.fail())
+		return;
+
 	_modified = false;
 
 	if (std::filesystem::equivalent(_path, _save_path, ec))
