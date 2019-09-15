@@ -104,6 +104,7 @@ void reshade::ini_file::save()
 		_modified = false;
 		return;
 	}
+
 	std::ofstream file(_save_path);
 	if (file.fail())
 		return;
