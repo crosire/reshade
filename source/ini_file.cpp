@@ -38,16 +38,24 @@ reshade::ini_file::~ini_file()
 
 void reshade::ini_file::load()
 {
-	std::ifstream file(_path);
-	if (file.fail())
-		return;
-
 	std::error_code ec;
-	if (const auto modified_at = std::filesystem::last_write_time(_path, ec); ec.value() == 0 && modified_at > _modified_at)
-		_modified_at = modified_at;
-	else
+	std::ifstream file;
+
+	if (std::filesystem::exists(_path, ec))
+		if (file.open(_path); file.fail())
+			return;
+
+	_sections.clear();
+	_modified = false;
+
+	if (!file.is_open())
 		return;
 
+	std::filesystem::file_time_type modified_at = std::filesystem::last_write_time(_path, ec);
+	if (_modified_at >= modified_at)
+		return;
+
+	_modified_at = modified_at;
 	file.imbue(std::locale("en-us.UTF-8"));
 
 	// Remove BOM (0xefbbbf means 0xfeff)
@@ -55,10 +63,6 @@ void reshade::ini_file::load()
 		file.seekg(0, std::ios::beg);
 
 	std::string line, section;
-
-	_sections.clear();
-	_modified = false;
-
 	while (std::getline(file, line))
 	{
 		trim(line);
@@ -112,8 +116,8 @@ void reshade::ini_file::save()
 		return;
 	}
 
-	std::ofstream file(_save_path);
-	if (file.fail())
+	std::ofstream file;
+	if (file.open(_save_path); file.fail())
 		return;
 
 	file.imbue(std::locale("en-us.UTF-8"));
