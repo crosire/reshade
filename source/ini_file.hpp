@@ -130,7 +130,7 @@ namespace reshade
 		}
 
 		static reshade::ini_file &reshade::ini_file::load_cache(const std::filesystem::path &path);
-		static void reshade::ini_file::save_cache(const bool force = false);
+		static void reshade::ini_file::cache_loop();
 
 	private:
 		void load();

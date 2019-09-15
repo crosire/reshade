@@ -184,8 +184,8 @@ void reshade::runtime::on_present()
 	// Reset input status
 	_input->next_frame();
 
-	// To delay saving .ini files
-	ini_file::save_cache();
+	// Save .ini files
+	ini_file::cache_loop();
 
 	static int cooldown = 0, traffic = 0;
 
