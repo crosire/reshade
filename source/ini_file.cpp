@@ -38,19 +38,26 @@ reshade::ini_file::~ini_file()
 
 void reshade::ini_file::load()
 {
+	std::ifstream file(_path);
+	if (file.fail())
+		return;
+
 	std::error_code ec;
 	if (const auto modified_at = std::filesystem::last_write_time(_path, ec); ec.value() == 0 && modified_at > _modified_at)
 		_modified_at = modified_at;
 	else
 		return;
 
-	std::string line, section;
-	std::ifstream file(_path);
 	file.imbue(std::locale("en-us.UTF-8"));
 
 	// Remove BOM (0xefbbbf means 0xfeff)
 	if (file.get() != 0xef || file.get() != 0xbb || file.get() != 0xbf)
 		file.seekg(0, std::ios::beg);
+
+	std::string line, section;
+
+	_sections.clear();
+	_modified = false;
 
 	while (std::getline(file, line))
 	{
