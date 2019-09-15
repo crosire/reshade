@@ -41,18 +41,28 @@ void reshade::ini_file::load()
 	std::error_code ec;
 	std::ifstream file;
 
-	if (std::filesystem::exists(_path, ec))
+	enum class condition { none, open, not_found, blocked, unknown };
+	condition condition = condition::none;
+
+	const std::filesystem::file_time_type modified_at = std::filesystem::last_write_time(_path, ec);
+	if (ec.value() == 0)
+		condition = condition::open;
+	else if (ec.value() == 0x2 || ec.value() == 0x3) // 0x2: ERROR_FILE_NOT_FOUND, 0x3: ERROR_PATH_NOT_FOUND
+		condition = condition::not_found;
+	else
+		condition = condition::unknown;
+
+	if (condition == condition::open)
 		if (file.open(_path); file.fail())
-			return;
+			condition = condition::blocked;
+
+	if (condition == condition::blocked || condition == condition::unknown)
+		return;
 
 	_sections.clear();
 	_modified = false;
 
-	if (!file.is_open())
-		return;
-
-	std::filesystem::file_time_type modified_at = std::filesystem::last_write_time(_path, ec);
-	if (_modified_at >= modified_at)
+	if (condition == condition::not_found)
 		return;
 
 	_modified_at = modified_at;
