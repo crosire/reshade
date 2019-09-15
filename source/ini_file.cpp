@@ -99,7 +99,7 @@ void reshade::ini_file::save()
 		return;
 
 	std::error_code ec;
-	if (const auto modified_at = std::filesystem::last_write_time(_path, ec); ec.value() == 0 && _modified_at < modified_at)
+	if (const auto modified_at = std::filesystem::last_write_time(_path, ec); ec.value() == 0 && modified_at > _modified_at)
 	{
 		_modified = false;
 		return;
