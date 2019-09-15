@@ -109,41 +109,8 @@ void reshade::ini_file::save()
 		return;
 
 	file.imbue(std::locale("en-us.UTF-8"));
-	const auto it = _sections.find("");
+	std::vector<std::string> section_names, key_names;
 
-	if (it != _sections.end())
-	{
-		std::vector<std::string> key_names;
-		for (const auto &key : it->second)
-			key_names.push_back(key.first);
-
-		std::sort(key_names.begin(), key_names.end(), [](std::string a, std::string b) {
-			std::transform(a.begin(), a.end(), a.begin(), [](std::string::value_type c) { return static_cast<std::string::value_type>(toupper(c)); });
-			std::transform(b.begin(), b.end(), b.begin(), [](std::string::value_type c) { return static_cast<std::string::value_type>(toupper(c)); });
-			return a < b;
-			});
-
-		for (const auto &key_name : key_names)
-		{
-			file << key_name << '=';
-
-			size_t i = 0;
-
-			for (const auto &item : it->second.at(key_name))
-			{
-				if (i++ != 0)
-					file << ',';
-
-				file << item;
-			}
-
-			file << '\n';
-		}
-
-		file << '\n';
-	}
-
-	std::vector<std::string> section_names;
 	for (const auto &section : _sections)
 		section_names.push_back(section.first);
 
@@ -155,12 +122,8 @@ void reshade::ini_file::save()
 
 	for (const auto &section_name : section_names)
 	{
-		if (section_name.empty())
-			continue;
-
 		const auto &keys = _sections.at(section_name);
 
-		std::vector<std::string> key_names;
 		for (const auto &key : keys)
 			key_names.push_back(key.first);
 
@@ -170,7 +133,8 @@ void reshade::ini_file::save()
 			return a < b;
 			});
 
-		file << '[' << section_name << ']' << '\n';
+		if (!section_name.empty())
+			file << '[' << section_name << ']' << '\n';
 
 		for (const auto &key_name : key_names)
 		{
@@ -190,6 +154,7 @@ void reshade::ini_file::save()
 		}
 
 		file << '\n';
+		key_names.clear();
 	}
 
 	if (file.close(); file.fail())
