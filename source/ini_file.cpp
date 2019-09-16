@@ -37,11 +37,11 @@ reshade::ini_file::~ini_file()
 
 void reshade::ini_file::load()
 {
-	std::error_code ec;
-	std::ifstream file;
-
 	enum class condition { none, open, not_found, blocked, unknown };
 	condition condition = condition::none;
+
+	std::error_code ec;
+	std::ifstream file;
 
 	const std::filesystem::file_time_type modified_at = std::filesystem::last_write_time(_path, ec);
 	if (ec.value() == 0)
@@ -118,11 +118,11 @@ void reshade::ini_file::save()
 	if (!_modified)
 		return;
 
-	std::error_code ec;
-	std::ofstream file;
-
 	enum class condition { none, open, create, blocked, unknown };
 	condition condition = condition::none;
+
+	std::error_code ec;
+	std::ofstream file;
 
 	std::filesystem::file_time_type modified_at = std::filesystem::last_write_time(_path, ec);
 	if (ec.value() == 0)
