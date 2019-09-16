@@ -119,14 +119,30 @@ void reshade::ini_file::save()
 		return;
 
 	std::error_code ec;
-	if (const auto modified_at = std::filesystem::last_write_time(_path, ec); ec.value() == 0 && modified_at > _modified_at)
-	{
-		_modified = false;
-		return;
-	}
-
 	std::ofstream file;
-	if (file.open(_save_path); file.fail())
+
+	enum class condition { none, open, create, blocked, unknown };
+	condition condition = condition::none;
+
+	std::filesystem::file_time_type modified_at = std::filesystem::last_write_time(_path, ec);
+	if (ec.value() == 0)
+		condition = condition::open;
+	else if (ec.value() == 0x2 || ec.value() == 0x3) // 0x2: ERROR_FILE_NOT_FOUND, 0x3: ERROR_PATH_NOT_FOUND
+		condition = condition::create;
+	else
+		condition = condition::unknown;
+
+	if (condition == condition::open || condition == condition::create)
+		if (file.open(_path); file.fail())
+			if (condition == condition::open)
+				condition = condition::blocked;
+			else
+				condition = condition::unknown;
+
+	if (condition != condition::open && condition != condition::create)
+		return;
+
+	if (_modified &= _modified_at > modified_at; !_modified)
 		return;
 
 	file.imbue(std::locale("en-us.UTF-8"));
@@ -184,7 +200,7 @@ void reshade::ini_file::save()
 	_modified = false;
 
 	if (std::filesystem::equivalent(_path, _save_path, ec))
-		if (const auto modified_at = std::filesystem::last_write_time(_path, ec); ec.value() == 0)
+		if (modified_at = std::filesystem::last_write_time(_path, ec); ec.value() == 0)
 			_modified_at = modified_at;
 }
 
