@@ -15,7 +15,7 @@ namespace reshade
 	class ini_file
 	{
 	public:
-		explicit ini_file(const std::filesystem::path &path, const bool leave_open = false);
+		explicit ini_file(const std::filesystem::path &path);
 		ini_file(const std::filesystem::path &path, const std::filesystem::path &save_path);
 		~ini_file();
 
@@ -194,7 +194,7 @@ namespace reshade
 			return i < values.size() ? std::filesystem::u8path(values[i]) : std::filesystem::path();
 		}
 
-		bool _modified = false, _leave_open = false;
+		bool _modified = false;
 		std::filesystem::path _path;
 		std::filesystem::path _save_path;
 		using value = std::vector<std::string>;

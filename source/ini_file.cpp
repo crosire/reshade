@@ -20,8 +20,8 @@ static inline std::string trim(const std::string &str, const char *chars = " \t"
 	return res;
 }
 
-reshade::ini_file::ini_file(const std::filesystem::path &path, const bool leave_open)
-	: _path(path), _save_path(path), _leave_open(leave_open)
+reshade::ini_file::ini_file(const std::filesystem::path &path)
+	: _path(path), _save_path(path)
 {
 	load();
 }
@@ -32,8 +32,7 @@ reshade::ini_file::ini_file(const std::filesystem::path &path, const std::filesy
 }
 reshade::ini_file::~ini_file()
 {
-	if (!_leave_open)
-		save();
+	save();
 }
 
 void reshade::ini_file::load()
@@ -191,7 +190,7 @@ void reshade::ini_file::save()
 
 reshade::ini_file &reshade::ini_file::load_cache(const std::filesystem::path &path)
 {
-	if (const auto it = g_ini_cache.try_emplace(path, path, true); it.second)
+	if (const auto it = g_ini_cache.try_emplace(path, path); it.second)
 		return it.first->second;
 	else
 		return it.first->second.load(), it.first->second;
