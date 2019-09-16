@@ -177,10 +177,10 @@ void reshade::runtime::on_present()
 		if (_input->is_key_pressed(_screenshot_key_data))
 			_should_save_screenshot = true;
 
-		bool bPreviousPresetKeyPressed = _input->is_key_pressed(_previous_preset_key_data);
-		bool bNextPresetKeyPressed = _input->is_key_pressed(_next_preset_key_data);
-		if (bPreviousPresetKeyPressed || bNextPresetKeyPressed)
-			if(switch_to_next_preset(bPreviousPresetKeyPressed))
+		bool is_previous_preset_key_pressed = _input->is_key_pressed(_previous_preset_key_data);
+		bool is_next_preset_key_pressed = _input->is_key_pressed(_next_preset_key_data);
+		if (is_previous_preset_key_pressed || is_next_preset_key_pressed)
+			if(switch_to_next_preset(is_next_preset_key_pressed))
 			{
 				_last_preset_switching_time = current_time;
 				_is_in_between_presets_transition = true;
@@ -1010,12 +1010,12 @@ void reshade::runtime::load_preset(const std::filesystem::path &path)
 			       (std::find(sorted_technique_list.begin(), sorted_technique_list.end(), rhs.name) - sorted_technique_list.begin());
 		});
 
-	// compute time since the transition has started and how much is left till it should end
-	auto nMicrosecondsPassed = std::chrono::duration_cast<std::chrono::microseconds>(_last_present_time - _last_preset_switching_time).count();
-	auto nMilisecondsLeft = _preset_transition_delay - nMicrosecondsPassed / 1000;
-	auto nMilisecondsLeftFromLastFrame = nMilisecondsLeft + +std::chrono::duration_cast<std::chrono::microseconds>(_last_frame_duration).count() / 1000;
+	// compute times since the transition has started and how much left till it should end
+	auto n_microseconds_passed = std::chrono::duration_cast<std::chrono::microseconds>(_last_present_time - _last_preset_switching_time).count();
+	auto n_miliseconds_left = _preset_transition_delay - n_microseconds_passed / 1000;
+	auto n_miliseconds_left_from_last_frame = n_miliseconds_left + +std::chrono::duration_cast<std::chrono::microseconds>(_last_frame_duration).count() / 1000;
 
-	if (_is_in_between_presets_transition && nMilisecondsLeft <= 0)
+	if (_is_in_between_presets_transition && n_miliseconds_left <= 0)
 		_is_in_between_presets_transition = false;
 
 	for (uniform &variable : _uniforms)
@@ -1035,8 +1035,8 @@ void reshade::runtime::load_preset(const std::filesystem::path &path)
 				{
 					if (abs(values.as_int[i] - values_old.as_int[i]) > 1)
 					{
-						auto fRatio = static_cast<float>(values.as_int[i] - values_old.as_int[i]) / nMilisecondsLeftFromLastFrame;
-						values.as_int[i] = static_cast<int32_t>(values.as_int[i] - fRatio * nMilisecondsLeft);
+						auto f_ratio = static_cast<float>(values.as_int[i] - values_old.as_int[i]) / n_miliseconds_left_from_last_frame;
+						values.as_int[i] = static_cast<int32_t>(values.as_int[i] - f_ratio * n_miliseconds_left);
 					}
 				}
 			}
@@ -1053,8 +1053,8 @@ void reshade::runtime::load_preset(const std::filesystem::path &path)
 				{
 					if (abs(static_cast<float>(values.as_uint[i]) - values_old.as_uint[i]) > 1)
 					{
-						auto fRatio = (static_cast<float>(values.as_uint[i]) - values_old.as_uint[i]) / nMilisecondsLeftFromLastFrame;
-						values.as_uint[i] = static_cast<uint32_t>(values.as_uint[i] - fRatio * nMilisecondsLeft);
+						auto f_ratio = (static_cast<float>(values.as_uint[i]) - values_old.as_uint[i]) / n_miliseconds_left_from_last_frame;
+						values.as_uint[i] = static_cast<uint32_t>(values.as_uint[i] - f_ratio * n_miliseconds_left);
 					}
 				}
 			}
@@ -1068,8 +1068,8 @@ void reshade::runtime::load_preset(const std::filesystem::path &path)
 			{
 				for (int i = 0; i < 16; i++)
 				{
-					auto fRatio = static_cast<float>(values.as_float[i] - values_old.as_float[i]) / nMilisecondsLeftFromLastFrame;
-					values.as_float[i] = static_cast<float>(values.as_float[i] - fRatio * nMilisecondsLeft);
+					auto f_ratio = static_cast<float>(values.as_float[i] - values_old.as_float[i]) / n_miliseconds_left_from_last_frame;
+					values.as_float[i] = static_cast<float>(values.as_float[i] - f_ratio * n_miliseconds_left);
 				}
 			}
 			set_uniform_value(variable, values.as_float, 16);
