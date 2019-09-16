@@ -139,7 +139,7 @@ void reshade::ini_file::save()
 			else
 				condition = condition::unknown;
 
-	if (condition != condition::open && condition != condition::create)
+	if (condition == condition::blocked || condition == condition::unknown)
 		return;
 
 	if (_modified &= _modified_at > modified_at; !_modified)
