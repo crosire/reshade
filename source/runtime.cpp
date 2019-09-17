@@ -177,15 +177,27 @@ void reshade::runtime::on_present()
 		if (_input->is_key_pressed(_screenshot_key_data))
 			_should_save_screenshot = true;
 
-		bool is_previous_preset_key_pressed = _input->is_key_pressed(_previous_preset_key_data);
-		bool is_next_preset_key_pressed = _input->is_key_pressed(_next_preset_key_data);
-		if (is_previous_preset_key_pressed || is_next_preset_key_pressed)
-			if(switch_to_next_preset(is_next_preset_key_pressed))
+		if (!_is_previous_preset_key_pressed && !_is_next_preset_key_pressed)
+		{
+			_is_previous_preset_key_pressed = _input->is_key_pressed(_previous_preset_key_data);
+			_is_next_preset_key_pressed = _input->is_key_pressed(_next_preset_key_data);
+			if (_is_previous_preset_key_pressed  || _is_next_preset_key_pressed)
 			{
-				_last_preset_switching_time = current_time;
-				_is_in_between_presets_transition = true;
-				save_config();
+				if (switch_to_next_preset(_is_previous_preset_key_pressed))
+				{
+					_last_preset_switching_time = current_time;
+					_is_in_between_presets_transition = true;
+					save_config();
+				}
 			}
+		}
+		if ((_is_previous_preset_key_pressed && _input->is_key_released(_previous_preset_key_data[0])) ||
+			(_is_next_preset_key_pressed && _input->is_key_released(_next_preset_key_data[0])))
+		{
+			// Ok, the preset shortcut key was released, so reset everything so to be prepared for a new transition
+			_is_previous_preset_key_pressed = false;
+			_is_next_preset_key_pressed = false;
+		}
 	}
 
 	if (_is_in_between_presets_transition)
@@ -945,6 +957,10 @@ void reshade::runtime::load_config()
 		_current_preset_path = g_reshade_dll_path.parent_path() / L"DefaultPreset.ini";
 	else
 		_current_preset_path = g_reshade_dll_path.parent_path() / current_preset_path;
+
+#if RESHADE_GUI
+	_current_browse_path = _current_preset_path.parent_path();
+#endif
 
 	for (const auto &callback : _load_config_callables)
 		callback(config);

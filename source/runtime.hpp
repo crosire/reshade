@@ -294,6 +294,8 @@ namespace reshade
 		bool _no_reload_on_init = false;
 		bool _last_reload_successful = true;
 		bool _should_save_screenshot = false;
+		bool _is_previous_preset_key_pressed = false;
+		bool _is_next_preset_key_pressed = false;
 		bool _is_in_between_presets_transition = false;
 		std::mutex _reload_mutex;
 		size_t _reload_total_effects = 1;
