@@ -18,6 +18,8 @@ namespace reshade
 		explicit ini_file(const std::filesystem::path &path);
 		~ini_file();
 
+		inline operator std::filesystem::path() const { return _path; }
+
 		bool has(const std::string &section, const std::string &key) const
 		{
 			const auto it1 = _sections.find(section);

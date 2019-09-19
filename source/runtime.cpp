@@ -955,10 +955,8 @@ void reshade::runtime::save_config() const
 		callback(config);
 }
 
-void reshade::runtime::load_preset(const std::filesystem::path &path)
+void reshade::runtime::load_preset(const reshade::ini_file &preset)
 {
-	const ini_file &preset = ini_file::load_cache(path);
-
 	std::vector<std::string> technique_list;
 	preset.get("", "Techniques", technique_list);
 	std::vector<std::string> sorted_technique_list;
@@ -970,7 +968,7 @@ void reshade::runtime::load_preset(const std::filesystem::path &path)
 	if (_reload_remaining_effects != 0 && // ... unless this is the 'load_current_preset' call in 'update_and_render_effects'
 		(_performance_mode || preset_preprocessor_definitions != _preset_preprocessor_definitions))
 	{
-		assert(path == _current_preset_path);
+		assert(preset == _current_preset_path);
 		_preset_preprocessor_definitions = std::move(preset_preprocessor_definitions);
 		load_effects();
 		return; // Preset values are loaded in 'update_and_render_effects' during effect loading
@@ -1027,12 +1025,10 @@ void reshade::runtime::load_preset(const std::filesystem::path &path)
 }
 void reshade::runtime::load_current_preset()
 {
-	load_preset(_current_preset_path);
+	load_preset(ini_file::load_cache(_current_preset_path));
 }
-void reshade::runtime::save_preset(const std::filesystem::path &path) const
+void reshade::runtime::save_preset(reshade::ini_file &preset) const
 {
-	ini_file &preset = ini_file::load_cache(path);
-
 	std::vector<size_t> effect_list;
 	std::vector<std::string> technique_list;
 	std::vector<std::string> sorted_technique_list;
@@ -1090,7 +1086,7 @@ void reshade::runtime::save_preset(const std::filesystem::path &path) const
 }
 void reshade::runtime::save_current_preset() const
 {
-	save_preset(_current_preset_path);
+	save_preset(ini_file::load_cache(_current_preset_path));
 }
 
 void reshade::runtime::save_screenshot(const std::wstring &postfix, const bool should_save_preset)
@@ -1140,7 +1136,8 @@ void reshade::runtime::save_screenshot(const std::wstring &postfix, const bool s
 	}
 	else if (_screenshot_include_preset && should_save_preset)
 	{
-		save_preset(least + L".ini");
+		ini_file preset(least + L".ini");
+		save_preset(preset);
 	}
 }
 

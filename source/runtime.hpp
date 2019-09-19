@@ -227,17 +227,12 @@ namespace reshade
 		/// Load user configuration from disk.
 		/// </summary>
 		void load_config();
-		/// <summary>
-		/// Save user configuration to the specified file on disk.
-		/// </summary>
-		/// <param name="path">Output configuration path.</param>
-		void save_config(const std::filesystem::path &path) const;
 
 		/// <summary>
 		/// Load a preset from the specified file and apply it.
 		/// </summary>
-		/// <param name="path">The preset file to load.</param>
-		void load_preset(const std::filesystem::path &path);
+		/// <param name="preset">The preset file to load.</param>
+		void load_preset(const reshade::ini_file &preset);
 		/// <summary>
 		/// Load the selected preset and apply it.
 		/// </summary>
@@ -245,8 +240,8 @@ namespace reshade
 		/// <summary>
 		/// Save the current value configuration as a preset to the specified file.
 		/// </summary>
-		/// <param name="path">The preset file to save to.</param>
-		void save_preset(const std::filesystem::path &path) const;
+		/// <param name="preset">The preset file to save to.</param>
+		void save_preset(reshade::ini_file &preset) const;
 		/// <summary>
 		/// Save the current value configuration to the currently selected preset.
 		/// </summary>
