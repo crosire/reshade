@@ -16,7 +16,6 @@ namespace reshade
 	{
 	public:
 		explicit ini_file(const std::filesystem::path &path);
-		ini_file(const std::filesystem::path &path, const std::filesystem::path &save_path);
 		~ini_file();
 
 		bool has(const std::string &section, const std::string &key) const
@@ -196,7 +195,6 @@ namespace reshade
 
 		bool _modified = false;
 		std::filesystem::path _path;
-		std::filesystem::path _save_path;
 		using value = std::vector<std::string>;
 		using section = std::unordered_map<std::string, value>;
 		std::unordered_map<std::string, section> _sections;

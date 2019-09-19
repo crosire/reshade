@@ -21,12 +21,7 @@ static inline std::string trim(const std::string &str, const char *chars = " \t"
 }
 
 reshade::ini_file::ini_file(const std::filesystem::path &path)
-	: _path(path), _save_path(path)
-{
-	load();
-}
-reshade::ini_file::ini_file(const std::filesystem::path &path, const std::filesystem::path &save_path)
-	: _path(path), _save_path(save_path)
+	: _path(path)
 {
 	load();
 }
@@ -199,9 +194,8 @@ void reshade::ini_file::save()
 
 	_modified = false;
 
-	if (std::filesystem::equivalent(_path, _save_path, ec))
-		if (modified_at = std::filesystem::last_write_time(_path, ec); ec.value() == 0)
-			_modified_at = modified_at;
+	if (modified_at = std::filesystem::last_write_time(_path, ec); ec.value() == 0)
+		_modified_at = modified_at;
 }
 
 reshade::ini_file &reshade::ini_file::load_cache(const std::filesystem::path &path)
