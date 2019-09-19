@@ -229,19 +229,9 @@ namespace reshade
 		void load_config();
 
 		/// <summary>
-		/// Load a preset from the specified file and apply it.
-		/// </summary>
-		/// <param name="preset">The preset file to load.</param>
-		void load_preset(const reshade::ini_file &preset);
-		/// <summary>
 		/// Load the selected preset and apply it.
 		/// </summary>
 		void load_current_preset();
-		/// <summary>
-		/// Save the current value configuration as a preset to the specified file.
-		/// </summary>
-		/// <param name="preset">The preset file to save to.</param>
-		void save_preset(reshade::ini_file &preset) const;
 		/// <summary>
 		/// Save the current value configuration to the currently selected preset.
 		/// </summary>

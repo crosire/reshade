@@ -27,7 +27,7 @@ reshade::ini_file::ini_file(const std::filesystem::path &path)
 }
 reshade::ini_file::~ini_file()
 {
-	save();
+	flush();
 }
 
 void reshade::ini_file::load()
@@ -108,10 +108,10 @@ void reshade::ini_file::load()
 		}
 	}
 }
-void reshade::ini_file::save()
+bool reshade::ini_file::flush()
 {
 	if (!_modified)
-		return;
+		return true;
 
 	enum class condition { none, open, create, blocked, unknown };
 	condition condition = condition::none;
@@ -135,10 +135,10 @@ void reshade::ini_file::save()
 				condition = condition::unknown;
 
 	if (condition == condition::blocked || condition == condition::unknown)
-		return;
+		return false;
 
 	if (_modified &= _modified_at > modified_at; !_modified)
-		return;
+		return true;
 
 	file.imbue(std::locale("en-us.UTF-8"));
 	std::vector<std::string> section_names, key_names;
@@ -190,12 +190,14 @@ void reshade::ini_file::save()
 	}
 
 	if (file.close(); file.fail())
-		return;
+		return false;
 
 	_modified = false;
 
 	if (modified_at = std::filesystem::last_write_time(_path, ec); ec.value() == 0)
 		_modified_at = modified_at;
+
+	return true;
 }
 
 reshade::ini_file &reshade::ini_file::load_cache(const std::filesystem::path &path)
@@ -211,5 +213,5 @@ void reshade::ini_file::cache_loop()
 	const auto now = std::filesystem::file_time_type::clock::now();
 	for (auto &file : g_ini_cache)
 		if (file.second._modified && now - file.second._modified_at > std::chrono::seconds(1))
-			file.second.save();
+			file.second.flush();
 }

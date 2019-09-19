@@ -955,8 +955,10 @@ void reshade::runtime::save_config() const
 		callback(config);
 }
 
-void reshade::runtime::load_preset(const reshade::ini_file &preset)
+void reshade::runtime::load_current_preset()
 {
+	const reshade::ini_file &preset = ini_file::load_cache(_current_preset_path);
+
 	std::vector<std::string> technique_list;
 	preset.get("", "Techniques", technique_list);
 	std::vector<std::string> sorted_technique_list;
@@ -1023,12 +1025,10 @@ void reshade::runtime::load_preset(const reshade::ini_file &preset)
 		preset.get("", "Key" + technique.name, technique.toggle_key_data);
 	}
 }
-void reshade::runtime::load_current_preset()
+void reshade::runtime::save_current_preset() const
 {
-	load_preset(ini_file::load_cache(_current_preset_path));
-}
-void reshade::runtime::save_preset(reshade::ini_file &preset) const
-{
+	reshade::ini_file &preset = ini_file::load_cache(_current_preset_path);
+
 	std::vector<size_t> effect_list;
 	std::vector<std::string> technique_list;
 	std::vector<std::string> sorted_technique_list;
@@ -1084,10 +1084,6 @@ void reshade::runtime::save_preset(reshade::ini_file &preset) const
 		}
 	}
 }
-void reshade::runtime::save_current_preset() const
-{
-	save_preset(ini_file::load_cache(_current_preset_path));
-}
 
 void reshade::runtime::save_screenshot(const std::wstring &postfix, const bool should_save_preset)
 {
@@ -1136,8 +1132,12 @@ void reshade::runtime::save_screenshot(const std::wstring &postfix, const bool s
 	}
 	else if (_screenshot_include_preset && should_save_preset)
 	{
-		ini_file preset(least + L".ini");
-		save_preset(preset);
+		std::error_code ec;
+
+		if (ini_file::load_cache(_current_preset_path).flush())
+		{
+			std::filesystem::copy_file(_current_preset_path, least + L".ini", std::filesystem::copy_options::overwrite_existing, ec);
+		}
 	}
 }
 
