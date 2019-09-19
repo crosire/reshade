@@ -18,8 +18,6 @@ namespace reshade
 		explicit ini_file(const std::filesystem::path &path);
 		~ini_file();
 
-		inline operator std::filesystem::path() const { return _path; }
-
 		bool has(const std::string &section, const std::string &key) const
 		{
 			const auto it1 = _sections.find(section);
@@ -129,6 +127,8 @@ namespace reshade
 			_modified = true;
 			_modified_at = std::filesystem::file_time_type::clock::now();
 		}
+
+		const std::filesystem::path& path() const { return _path; }
 
 		static reshade::ini_file &reshade::ini_file::load_cache(const std::filesystem::path &path);
 		static void reshade::ini_file::cache_loop();
