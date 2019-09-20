@@ -195,10 +195,10 @@ bool reshade::ini_file::flush()
 	if (file.close(); file.fail())
 		return false;
 
-	_modified = false;
-
 	if (modified_at = std::filesystem::last_write_time(_path, ec); ec.value() == 0)
 		_modified_at = modified_at;
+
+	_modified = false;
 
 	return true;
 }
