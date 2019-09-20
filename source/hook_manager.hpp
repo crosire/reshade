@@ -6,7 +6,6 @@
 #pragma once
 
 #include "hook.hpp"
-#include <filesystem>
 
 #define HOOK_EXPORT extern "C"
 

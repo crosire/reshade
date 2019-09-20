@@ -9,6 +9,12 @@
 #include <assert.h>
 #include <Windows.h>
 
+std::string upperCase(std::string input) {
+	for (std::string::iterator it = input.begin(); it != input.end(); ++it)
+		*it = toupper((unsigned char)*it);
+	return input;
+}
+
 HOOK_EXPORT ATOM WINAPI HookRegisterClassA(const WNDCLASSA *lpWndClass)
 {
 	assert(lpWndClass != nullptr);
@@ -33,10 +39,13 @@ HOOK_EXPORT ATOM WINAPI HookRegisterClassW(const WNDCLASSW *lpWndClass)
 {
 	assert(lpWndClass != nullptr);
 
-	auto wndclass = *lpWndClass;
+	/*auto wndclass = *lpWndClass;
 
 	if (wndclass.hInstance == GetModuleHandle(nullptr))
 	{
+		std::wstring ws(wndclass.lpszClassName);
+		std::string myVarS = std::string(ws.begin(), ws.end());
+		
 		LOG(INFO) << "Redirecting RegisterClassW" << '(' << lpWndClass << " { " << wndclass.lpszClassName << " }" << ')' << " ...";
 
 		if ((wndclass.style & CS_OWNDC) == 0)
@@ -45,9 +54,9 @@ HOOK_EXPORT ATOM WINAPI HookRegisterClassW(const WNDCLASSW *lpWndClass)
 
 			wndclass.style |= CS_OWNDC;
 		}
-	}
+	}*/
 
-	return reshade::hooks::call(HookRegisterClassW)(&wndclass);
+	return reshade::hooks::call(HookRegisterClassW)(lpWndClass);
 }
 HOOK_EXPORT ATOM WINAPI HookRegisterClassExA(const WNDCLASSEXA *lpWndClassEx)
 {

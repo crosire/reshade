@@ -21,6 +21,7 @@ struct DECLSPEC_UUID("1F445F9F-9887-4C4C-9055-4E3BADAFCCA8") DXGISwapChain : IDX
 	DXGISwapChain(D3D11Device *device, IDXGISwapChain  *original, const std::shared_ptr<reshade::runtime> &runtime);
 	DXGISwapChain(D3D11Device *device, IDXGISwapChain1 *original, const std::shared_ptr<reshade::runtime> &runtime);
 	DXGISwapChain(D3D12Device *device, IDXGISwapChain3 *original, const std::shared_ptr<reshade::runtime> &runtime);
+	DXGISwapChain(D3D12Device *device, IDXGISwapChain4 *original, const std::shared_ptr<reshade::runtime> &runtime);
 
 	DXGISwapChain(const DXGISwapChain &) = delete;
 	DXGISwapChain &operator=(const DXGISwapChain &) = delete;

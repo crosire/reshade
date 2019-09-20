@@ -141,7 +141,11 @@ bool reshade::runtime::on_init(input::window_handle window)
 {
 	LOG(INFO) << "Recreated runtime environment on runtime " << this << '.';
 
-	_input = input::register_window(window);
+	if (window != nullptr)
+	{
+		_input = input::register_window(window);
+		LOG(INFO) << "Input registered on Window " << window << '.';
+	}
 
 	// Reset frame count to zero so effects are loaded in 'update_and_render_effects'
 	_framecount = 0;

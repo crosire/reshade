@@ -4,9 +4,12 @@
  */
 
 #pragma once
+#include <filesystem>
 
 namespace reshade
 {
+	static std::filesystem::path s_export_hook_path;
+
 	struct hook
 	{
 		/// <summary>

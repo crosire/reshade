@@ -45,6 +45,12 @@ DXGISwapChain::DXGISwapChain(D3D12Device *device, IDXGISwapChain3 *original, con
 	_direct3d_device(device, false),
 	_direct3d_version(12),
 	_runtime(runtime) {}
+DXGISwapChain::DXGISwapChain(D3D12Device *device, IDXGISwapChain4 *original, const std::shared_ptr<reshade::runtime> &runtime) :
+	_orig(original),
+	_interface_version(4),
+	_direct3d_device(device, false),
+	_direct3d_version(12),
+	_runtime(runtime) {}
 
 void DXGISwapChain::runtime_reset()
 {
@@ -85,7 +91,7 @@ void DXGISwapChain::runtime_resize()
 		break;
 	case 12:
 		assert(_runtime != nullptr);
-		initialized = std::static_pointer_cast<reshade::d3d12::runtime_d3d12>(_runtime)->on_init(desc);
+		initialized = std::static_pointer_cast<reshade::d3d12::runtime_d3d12>(_runtime)->on_init(desc, desc.OutputWindow);
 		break;
 	}
 
@@ -282,7 +288,7 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::GetDesc(DXGI_SWAP_CHAIN_DESC *pDesc)
 }
 HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers(UINT BufferCount, UINT Width, UINT Height, DXGI_FORMAT NewFormat, UINT SwapChainFlags)
 {
-	LOG(INFO) << "Redirecting IDXGISwapChain::ResizeBuffers" << '(' << this << ", " << BufferCount << ", " << Width << ", " << Height << ", " << NewFormat << ", " << std::hex << SwapChainFlags << std::dec << ')' << " ...";
+	/*LOG(INFO) << "Redirecting IDXGISwapChain::ResizeBuffers" << '(' << this << ", " << BufferCount << ", " << Width << ", " << Height << ", " << NewFormat << ", " << std::hex << SwapChainFlags << std::dec << ')' << " ...";
 
 	runtime_reset();
 
@@ -297,9 +303,9 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers(UINT BufferCount, UINT Wi
 		return hr;
 	}
 
-	runtime_resize();
+	runtime_resize();*/
 
-	return hr;
+	return S_OK;
 }
 HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeTarget(const DXGI_MODE_DESC *pNewTargetParameters)
 {

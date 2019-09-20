@@ -29,7 +29,6 @@ struct module_export
 
 extern HMODULE g_module_handle;
 extern std::filesystem::path g_reshade_dll_path;
-static std::filesystem::path s_export_hook_path;
 static std::vector<std::filesystem::path> s_delayed_hook_paths;
 static std::vector<std::tuple<const char *, reshade::hook, hook_method>> s_hooks;
 static std::mutex s_mutex_hooks;
@@ -444,8 +443,6 @@ reshade::hook::address reshade::hooks::call(hook::address target, hook::address 
 
 			install_internal(handle, g_module_handle, hook_method::export_hook);
 
-			s_export_hook_path.clear();
-
 			return call(replacement);
 		}
 		else
@@ -454,7 +451,7 @@ reshade::hook::address reshade::hooks::call(hook::address target, hook::address 
 		}
 	}
 
-	LOG(ERROR) << "Unable to resolve hook for 0x" << replacement << '!';
+	LOG(ERROR) << "Unable to resolve hook for 0x" << replacement << " " << s_export_hook_path << '!';
 
 	return nullptr;
 }

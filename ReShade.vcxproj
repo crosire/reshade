@@ -249,7 +249,7 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <AdditionalIncludeDirectories>$(SolutionDir)res;$(SolutionDir)source;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>RESHADE_GUI;WIN32_LEAN_AND_MEAN;NOMINMAX;_SILENCE_ALL_CXX17_DEPRECATION_WARNINGS;_GDI32_;WINSOCK_API_LINKAGE=;WIN64;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>RESHADE_GUI;WIN32_LEAN_AND_MEAN;NOMINMAX;_SILENCE_ALL_CXX17_DEPRECATION_WARNINGS;_GDI32_;WINSOCK_API_LINKAGE=;DPSAPI_VERSION=1;WIN64;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <DisableSpecificWarnings>4351;%(DisableSpecificWarnings)</DisableSpecificWarnings>
       <ObjectFileName>$(IntDir)%(RelativeDir)</ObjectFileName>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>

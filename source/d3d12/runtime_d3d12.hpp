@@ -23,11 +23,11 @@ namespace reshade::d3d12
 		runtime_d3d12(ID3D12Device *device, ID3D12CommandQueue *queue, IDXGISwapChain3 *swapchain);
 		~runtime_d3d12();
 
-		bool on_init(const DXGI_SWAP_CHAIN_DESC &desc
+		bool on_init(const DXGI_SWAP_CHAIN_DESC &desc, HWND window
 #if RESHADE_D3D12ON7
 			, ID3D12Resource *backbuffer = nullptr
 #endif
-			);
+		);
 		void on_reset();
 		void on_present(draw_call_tracker& tracker);
 		void on_create_depthstencil_view(ID3D12Resource *pResource);

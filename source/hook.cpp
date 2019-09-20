@@ -46,6 +46,8 @@ reshade::hook::status reshade::hook::uninstall()
 	if (!valid())
 		return hook::status::unsupported_function;
 
+	s_export_hook_path.clear();
+
 	const MH_STATUS statuscode = MH_RemoveHook(target);
 
 	if (statuscode == MH_ERROR_NOT_CREATED)

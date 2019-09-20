@@ -437,6 +437,8 @@ void reshade::runtime::draw_ui()
 	const bool show_splash = _show_splash && (is_loading() || !_reload_compile_queue.empty() || (_last_present_time - _last_reload_time) < std::chrono::seconds(5));
 	const bool show_screenshot_message = _show_screenshot_message && _last_present_time - _last_screenshot_time < std::chrono::seconds(_screenshot_save_success ? 3 : 5);
 
+	_show_menu = !show_splash;
+
 	if (_show_menu && !_ignore_shortcuts && !_imgui_context->IO.NavVisible && _input->is_key_pressed(0x1B /* VK_ESCAPE */))
 		_show_menu = false; // Close when pressing the escape button and not currently navigating with the keyboard
 	else if (!_ignore_shortcuts && _input->is_key_pressed(_menu_key_data) && _imgui_context->ActiveId == 0)
