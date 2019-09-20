@@ -680,9 +680,6 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 		g_module_handle = hModule;
 		g_reshade_dll_path = get_module_path(hModule);
 		g_target_executable_path = get_module_path(nullptr);
-		// g_target_executable_path = get_system_path() / "ApplicationFrameHost.exe";
-
-		Sleep(5000);
 
 		log::open(std::filesystem::path(g_reshade_dll_path).replace_extension(".log"));
 
