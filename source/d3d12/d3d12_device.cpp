@@ -513,8 +513,11 @@ D3D12_HEAP_PROPERTIES STDMETHODCALLTYPE D3D12Device::GetCustomHeapProperties(UIN
 }
 HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommittedResource(const D3D12_HEAP_PROPERTIES *pHeapProperties, D3D12_HEAP_FLAGS HeapFlags, const D3D12_RESOURCE_DESC *pResourceDesc, D3D12_RESOURCE_STATES InitialResourceState, const D3D12_CLEAR_VALUE *pOptimizedClearValue, REFIID riidResource, void **ppvResource)
 {
+	// Remove D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE flag so that we can access depth stencil resources in post-processing shaders.
+	// The flag is only valid in combination with D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL anyway (see https://docs.microsoft.com/en-us/windows/win32/api/d3d12/ne-d3d12-d3d12_resource_flags), so can always remove it.
 	D3D12_RESOURCE_DESC new_desc = *pResourceDesc;
-	new_desc.Flags = new_desc.Flags & ~D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE;
+	new_desc.Flags &= ~D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE;
+
 	return _orig->CreateCommittedResource(pHeapProperties, HeapFlags, &new_desc, InitialResourceState, pOptimizedClearValue, riidResource, ppvResource);
 }
 HRESULT STDMETHODCALLTYPE D3D12Device::CreateHeap(const D3D12_HEAP_DESC *pDesc, REFIID riid, void **ppvHeap)
