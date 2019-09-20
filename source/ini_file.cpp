@@ -53,6 +53,9 @@ void reshade::ini_file::load()
 	if (condition == condition::blocked || condition == condition::unknown)
 		return;
 
+	if (condition == condition::open && _modified_at >= modified_at)
+		return;
+
 	_sections.clear();
 	_modified = false;
 
