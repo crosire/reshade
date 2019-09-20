@@ -52,7 +52,7 @@ bool D3D10Device::save_depth_texture(ID3D10DepthStencilView *pDepthStencilView, 
 	const float aspect_ratio = float(runtime->frame_width()) / float(runtime->frame_height());
 	const float texture_aspect_ratio = float(desc.Width) / float(desc.Height);
 
-	if (fabs(texture_aspect_ratio - aspect_ratio) > 0.1f || width_factor > 2.0f || height_factor > 2.0f || width_factor < 0.5f || height_factor < 0.5f)
+	if (fabs(texture_aspect_ratio - aspect_ratio) > 0.1f || width_factor > 1.85f || height_factor > 1.85f || width_factor < 0.5f || height_factor < 0.5f)
 		return false; // No match, not a good fit
 
 	// In case the depth texture is retrieved, we make a copy of it and store it in an ordered map to use it later in the final rendering stage.

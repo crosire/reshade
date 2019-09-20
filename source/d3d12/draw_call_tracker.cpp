@@ -172,7 +172,7 @@ namespace reshade::d3d12
 			const float height_factor = float(height) / float(desc.Height);
 			const float texture_aspect_ratio = float(desc.Width) / float(desc.Height);
 
-			if (fabs(texture_aspect_ratio - aspect_ratio) > 0.1f || width_factor > 2.0f || height_factor > 2.0f || width_factor < 0.5f || height_factor < 0.5f)
+			if (fabs(texture_aspect_ratio - aspect_ratio) > 0.1f || width_factor > 1.85f || height_factor > 1.85f || width_factor < 0.5f || height_factor < 0.5f)
 				continue; // No match, not a good fit
 
 			if (snapshot.stats.vertices >= best_snapshot.stats.vertices)
