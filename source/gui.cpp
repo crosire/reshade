@@ -684,7 +684,15 @@ void reshade::runtime::draw_ui()
 		}
 
 		if (_preview_texture != nullptr && !is_loading() && _reload_compile_queue.empty())
-			ImGui::FindWindowByName("Viewport")->DrawList->AddImage(_preview_texture, ImVec2(0, 0), imgui_io.DisplaySize);
+		{
+			ImVec2 preview_size = imgui_io.DisplaySize;
+			if (_preview_size[0])
+				preview_size.x = static_cast<float>(_preview_size[0]);
+			if (_preview_size[1])
+				preview_size.y = static_cast<float>(_preview_size[1]);
+
+			ImGui::FindWindowByName("Viewport")->DrawList->AddImage(_preview_texture, ImVec2(0, 0), preview_size);
+		}
 	}
 
 	// Render ImGui widgets and windows
@@ -1352,8 +1360,17 @@ void reshade::runtime::draw_overlay_menu_statistics()
 
 			ImGui::TextUnformatted(target_info.c_str());
 
-			if (bool check = _preview_texture == texture.impl.get(); ImGui::RadioButton("Show fullscreen", check))
+			if (bool check = _preview_texture == texture.impl.get() && _preview_size[0] == 0; ImGui::RadioButton("Preview scaled", check)) {
+				_preview_size[0] = 0;
+				_preview_size[1] = 0;
 				_preview_texture = !check ? texture.impl.get() : nullptr;
+			}
+			ImGui::SameLine();
+			if (bool check = _preview_texture == texture.impl.get() && _preview_size[0] != 0; ImGui::RadioButton("Preview original", check)) {
+				_preview_size[0] = texture.width;
+				_preview_size[1] = texture.height;
+				_preview_texture = !check ? texture.impl.get() : nullptr;
+			}
 
 			const float aspect_ratio = static_cast<float>(texture.width) / static_cast<float>(texture.height);
 			imgui_image_with_checkerboard_background(texture.impl.get(), ImVec2(single_image_width, single_image_width / aspect_ratio));
