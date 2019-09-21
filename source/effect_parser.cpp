@@ -2860,6 +2860,8 @@ bool reshadefx::parser::parse_technique_pass(pass_info &info)
 				info.stencil_op_fail = value;
 			else if (state == "StencilZFail" || state == "StencilDepthFail" || state == "StencilDepthFailOp")
 				info.stencil_op_depth_fail = value;
+			else if (state == "VertexCount")
+				info.num_vertices = value;
 			else
 				return error(location, 3004, "unrecognized pass state '" + state + '\''), consume_until('}'), false;
 		}

@@ -28,7 +28,6 @@ namespace reshade::d3d9
 		com_ptr<IDirect3DVertexShader9> vertex_shader;
 		com_ptr<IDirect3DPixelShader9> pixel_shader;
 		com_ptr<IDirect3DStateBlock9> stateblock;
-		bool clear_render_targets = false;
 		IDirect3DSurface9 *render_targets[8] = {};
 		IDirect3DTexture9 *sampler_textures[16] = {};
 	};
@@ -836,7 +835,6 @@ bool reshade::d3d9::runtime_d3d9::init_technique(technique &technique, const d3d
 		entry_points.at(pass_info.vs_entry_point)->QueryInterface(&pass.vertex_shader);
 
 		pass.render_targets[0] = _backbuffer_resolved.get();
-		pass.clear_render_targets = pass_info.clear_render_targets;
 
 		for (size_t k = 0; k < ARRAYSIZE(pass.sampler_textures); ++k)
 			pass.sampler_textures[k] = technique_data->sampler_textures[k];
@@ -1014,12 +1012,13 @@ void reshade::d3d9::runtime_d3d9::render_technique(technique &technique)
 		_device->SetVertexShaderConstantF(0, uniform_storage_data, technique_data.constant_register_count);
 	}
 
-	for (const auto &pass_object : technique.passes_data)
+	for (size_t i = 0; i < technique.passes.size(); ++i)
 	{
-		const d3d9_pass_data &pass = *pass_object->as<d3d9_pass_data>();
+		const auto &pass_info = technique.passes[i];
+		const auto &pass_data = *technique.passes_data[i]->as<d3d9_pass_data>();
 
 		// Setup states
-		pass.stateblock->Apply();
+		pass_data.stateblock->Apply();
 
 		// Save back buffer of previous pass
 		_device->StretchRect(_backbuffer_resolved.get(), nullptr, _backbuffer_texture_surface.get(), nullptr, D3DTEXF_NONE);
@@ -1027,7 +1026,7 @@ void reshade::d3d9::runtime_d3d9::render_technique(technique &technique)
 		// Setup shader resources
 		for (DWORD s = 0; s < technique_data.num_samplers; s++)
 		{
-			_device->SetTexture(s, pass.sampler_textures[s]);
+			_device->SetTexture(s, pass_data.sampler_textures[s]);
 
 			for (DWORD state = D3DSAMP_ADDRESSU; state <= D3DSAMP_SRGBTEXTURE; state++)
 				_device->SetSamplerState(s, static_cast<D3DSAMPLERSTATETYPE>(state), technique_data.sampler_states[s][state]);
@@ -1035,7 +1034,7 @@ void reshade::d3d9::runtime_d3d9::render_technique(technique &technique)
 
 		// Setup render targets
 		for (DWORD target = 0; target < _num_simultaneous_rendertargets; target++)
-			_device->SetRenderTarget(target, pass.render_targets[target]);
+			_device->SetRenderTarget(target, pass_data.render_targets[target]);
 
 		D3DVIEWPORT9 viewport;
 		_device->GetViewport(&viewport);
@@ -1051,21 +1050,24 @@ void reshade::d3d9::runtime_d3d9::render_technique(technique &technique)
 		{
 			is_default_depthstencil_cleared = true;
 
-			_device->Clear(0, nullptr, (pass.clear_render_targets ? D3DCLEAR_TARGET : 0) | D3DCLEAR_ZBUFFER | D3DCLEAR_STENCIL, 0, 1.0f, 0);
+			_device->Clear(0, nullptr, (pass_info.clear_render_targets ? D3DCLEAR_TARGET : 0) | D3DCLEAR_ZBUFFER | D3DCLEAR_STENCIL, 0, 1.0f, 0);
 		}
-		else if (pass.clear_render_targets)
+		else if (pass_info.clear_render_targets)
 		{
 			_device->Clear(0, nullptr, D3DCLEAR_TARGET, 0, 0.0f, 0);
 		}
 
 		// Draw triangle
-		_device->DrawPrimitive(D3DPT_TRIANGLELIST, 0, 1);
+		if (pass_info.num_vertices % 3)
+			_device->DrawPrimitive(D3DPT_POINTLIST, 0, pass_info.num_vertices);
+		else
+			_device->DrawPrimitive(D3DPT_TRIANGLELIST, 0, pass_info.num_vertices / 3);
 
-		_vertices += 3;
+		_vertices += pass_info.num_vertices;
 		_drawcalls += 1;
 
 		// Update shader resources
-		for (const auto target : pass.render_targets)
+		for (const auto target : pass_data.render_targets)
 		{
 			if (target == nullptr || target == _backbuffer_resolved)
 				continue;
