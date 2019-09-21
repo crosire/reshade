@@ -539,13 +539,19 @@ void reshade::runtime::draw_ui()
 			}
 			else if (_tutorial_index == 0)
 			{
-				ImGui::Text(
-					"ReShade is now installed successfully! Press '%s' to start the tutorial.", input::key_name(_menu_key_data).c_str());
+				ImGui::TextUnformatted("ReShade is now installed successfully! Press '");
+				ImGui::SameLine(0.0f, 0.0f);
+				ImGui::TextColored(ImVec4(1, 1, 1, 1), "%s", input::key_name(_menu_key_data).c_str());
+				ImGui::SameLine(0.0f, 0.0f);
+				ImGui::TextUnformatted("' to start the tutorial.");
 			}
 			else
 			{
-				ImGui::Text(
-					"Press '%s' to open the configuration menu.", input::key_name(_menu_key_data).c_str());
+				ImGui::TextUnformatted("Press '");
+				ImGui::SameLine(0.0f, 0.0f);
+				ImGui::TextColored(ImVec4(1, 1, 1, 1), "%s", input::key_name(_menu_key_data).c_str());
+				ImGui::SameLine(0.0f, 0.0f);
+				ImGui::TextUnformatted("' to open the configuration menu.");
 			}
 
 			if (!_last_reload_successful)
