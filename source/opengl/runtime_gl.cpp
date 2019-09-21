@@ -103,7 +103,9 @@ reshade::opengl::runtime_gl::runtime_gl()
 	subscribe_to_ui("OpenGL", [this]() { draw_debug_menu(); });
 #endif
 	subscribe_to_load_config([this](const ini_file &config) {
-		size_t num_reserve_texture_names = 0;
+		// Reserve a fixed amount of texture names by default to work around issues in old OpenGL games
+		// This hopefully should not affect performance much in other games
+		size_t num_reserve_texture_names = 512;
 		config.get("OPENGL", "ReserveTextureNames", num_reserve_texture_names);
 		_reserved_texture_names.resize(num_reserve_texture_names);
 		config.get("OPENGL", "ForceMainDepthBuffer", _force_main_depth_buffer);
