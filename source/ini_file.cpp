@@ -36,7 +36,6 @@ void reshade::ini_file::load()
 	condition condition = condition::none;
 
 	std::error_code ec;
-	std::ifstream file;
 
 	const std::filesystem::file_time_type modified_at = std::filesystem::last_write_time(_path, ec);
 	if (ec.value() == 0)
@@ -46,14 +45,16 @@ void reshade::ini_file::load()
 	else
 		condition = condition::unknown;
 
+	if (condition == condition::open && _modified_at >= modified_at)
+		return;
+
+	std::ifstream file;
+
 	if (condition == condition::open)
 		if (file.open(_path); file.fail())
 			condition = condition::blocked;
 
 	if (condition == condition::blocked || condition == condition::unknown)
-		return;
-
-	if (condition == condition::open && _modified_at >= modified_at)
 		return;
 
 	_sections.clear();
@@ -120,7 +121,6 @@ bool reshade::ini_file::flush()
 	condition condition = condition::none;
 
 	std::error_code ec;
-	std::ofstream file;
 
 	std::filesystem::file_time_type modified_at = std::filesystem::last_write_time(_path, ec);
 	if (ec.value() == 0)
@@ -129,6 +129,11 @@ bool reshade::ini_file::flush()
 		condition = condition::create;
 	else
 		condition = condition::unknown;
+
+	if (condition == condition::open && modified_at >= _modified_at)
+		return _modified = false, true;
+
+	std::ofstream file;
 
 	if (condition == condition::open || condition == condition::create)
 		if (file.open(_path); file.fail())
@@ -139,9 +144,6 @@ bool reshade::ini_file::flush()
 
 	if (condition == condition::blocked || condition == condition::unknown)
 		return false;
-
-	if (_modified &= _modified_at > modified_at; !_modified)
-		return true;
 
 	file.imbue(std::locale("en-us.UTF-8"));
 	std::vector<std::string> section_names, key_names;
