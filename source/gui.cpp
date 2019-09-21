@@ -1155,11 +1155,11 @@ void reshade::runtime::draw_overlay_menu_statistics()
 	unsigned int gpu_digits = 1;
 	uint64_t post_processing_time_cpu = 0;
 	uint64_t post_processing_time_gpu = 0;
-	uint32_t post_processing_memory_size = 0;
-	ldiv_t post_processing_memory_view{};
 
-	// Show total memory size
+	// Variables used to calculate memory size of textures
+	ldiv_t memory_view;
 	const char *memory_size_unit;
+	uint32_t post_processing_memory_size = 0;
 
 	if (!is_loading() && _effects_enabled)
 	{
@@ -1304,8 +1304,6 @@ void reshade::runtime::draw_overlay_menu_statistics()
 			ImGui::BeginGroup();
 
 			uint32_t memory_size = 0;
-			ldiv_t memory_view{};
-
 			for (uint32_t level = 0, width = texture.width, height = texture.height; level < texture.levels; ++level, width /= 2, height /= 2)
 				memory_size += width * height * pixel_sizes[static_cast<unsigned int>(texture.format)];
 
@@ -1321,13 +1319,38 @@ void reshade::runtime::draw_overlay_menu_statistics()
 				memory_size_unit = "KiB";
 			}
 
-			ImGui::TextUnformatted(texture.unique_name.c_str());
-			ImGui::Text("%ux%u +%u %s %ld.%03ld%s",
+			ImGui::TextColored(ImVec4(1, 1, 1, 1), texture.unique_name.c_str());
+			ImGui::Text("%ux%u | %u mipmap(s) | %s | %ld.%03ld%s",
 				texture.width,
 				texture.height,
 				texture.levels - 1,
 				texture_formats[static_cast<unsigned int>(texture.format)],
 				memory_view.quot, memory_view.rem, memory_size_unit);
+
+			std::string target_info = "Read only texture";
+			for (const auto &technique : _techniques)
+			{
+				if (technique.effect_index != texture.effect_index)
+					continue;
+
+				for (size_t pass_index = 0; pass_index < technique.passes.size(); ++pass_index)
+				{
+					for (const auto &target : technique.passes[pass_index].render_target_names)
+					{
+						if (target == texture.unique_name)
+						{
+							if (target_info[0] != 'W') // Check if this texture was written by another pass already
+								target_info = "Written in " + technique.name + " pass ";
+							else
+								target_info += " and pass ";
+
+							target_info += std::to_string(pass_index);
+						}
+					}
+				}
+			}
+
+			ImGui::TextUnformatted(target_info.c_str());
 
 			if (bool check = _preview_texture == texture.impl.get(); ImGui::RadioButton("Show fullscreen", check))
 				_preview_texture = !check ? texture.impl.get() : nullptr;
@@ -1340,6 +1363,8 @@ void reshade::runtime::draw_overlay_menu_statistics()
 
 			if ((texture_index++ % num_columns) != (num_columns - 1))
 				ImGui::SameLine(0.0f, 5.0f);
+			else
+				ImGui::Spacing();
 		}
 
 		if ((texture_index % num_columns) != 0)
@@ -1348,16 +1373,16 @@ void reshade::runtime::draw_overlay_menu_statistics()
 		ImGui::Separator();
 
 		if (post_processing_memory_size >= 1024 * 1024) {
-			post_processing_memory_view = std::ldiv(post_processing_memory_size, 1024 * 1024);
-			post_processing_memory_view.rem /= 1000;
+			memory_view = std::ldiv(post_processing_memory_size, 1024 * 1024);
+			memory_view.rem /= 1000;
 			memory_size_unit = "MiB";
 		}
 		else {
-			post_processing_memory_view = std::ldiv(post_processing_memory_size, 1024);
+			memory_view = std::ldiv(post_processing_memory_size, 1024);
 			memory_size_unit = "KiB";
 		}
 
-		ImGui::Text("Total memory usage: %ld.%03ld%s", post_processing_memory_view.quot, post_processing_memory_view.rem, memory_size_unit);
+		ImGui::Text("Total memory usage: %ld.%03ld%s", memory_view.quot, memory_view.rem, memory_size_unit);
 	}
 }
 
@@ -2127,8 +2152,7 @@ void reshade::runtime::draw_overlay_technique_editor()
 
 			ImGui::Separator();
 
-			std::string edit_label = "Edit " + effect.source_file.filename().u8string() + "##edit";
-
+			const std::string edit_label = "Edit " + effect.source_file.filename().u8string() + "##edit";
 			if (ImGui::Button(edit_label.c_str(), ImVec2(button_width, 0)))
 			{
 				_selected_effect = technique.effect_index;
