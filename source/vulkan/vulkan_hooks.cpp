@@ -51,14 +51,6 @@ static std::unordered_map<VkImage, image_data> s_depth_stencil_buffer_images;
 static std::unordered_map<VkImageView, image_view_data> s_depth_stencil_buffer_imageViews;
 static std::unordered_map<VkFramebuffer, attachment_data> s_depth_stencil_buffer_frameBuffers;
 
-static uint32_t find_memory_type_index(const VkPhysicalDeviceMemoryProperties &props, VkMemoryPropertyFlags flags, uint32_t type_bits)
-{
-	for (uint32_t i = 0; i < props.memoryTypeCount; i++)
-		if ((props.memoryTypes[i].propertyFlags & flags) == flags && type_bits & (1 << i))
-			return i;
-	return std::numeric_limits<uint32_t>::max();
-}
-
 inline void *get_dispatch_key(const void *dispatchable_handle)
 {
 	return *(void **)dispatchable_handle;
@@ -867,18 +859,6 @@ VkResult VKAPI_CALL vkAllocateCommandBuffers(VkDevice device, const VkCommandBuf
 	return result;
 }
 
-VkResult VKAPI_CALL vkCreateRenderPass(VkDevice device, const VkRenderPassCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkRenderPass* pRenderPass)
-{
-	PFN_vkCreateRenderPass trampoline = nullptr;
-
-	{ const std::lock_guard<std::mutex> lock(s_mutex);
-		trampoline = s_device_dispatch.at(get_dispatch_key(device)).CreateRenderPass;
-		assert(trampoline != nullptr);
-	}
-
-	return trampoline(device, pCreateInfo, pAllocator, pRenderPass);
-}
-
 void VKAPI_CALL vkCmdBeginRenderPass(VkCommandBuffer commandBuffer, const VkRenderPassBeginInfo* pRenderPassBegin, VkSubpassContents contents)
 {
 	PFN_vkCmdBeginRenderPass trampoline = nullptr;
@@ -1020,25 +1000,6 @@ void     VKAPI_CALL vkCmdClearAttachments(VkCommandBuffer commandBuffer, uint32_
 	trampoline(commandBuffer, attachmentCount, pAttachments, rectCount, pRects);
 }
 
-VkResult VKAPI_CALL vkEndCommandBuffer(VkCommandBuffer commandBuffer)
-{
-	PFN_vkEndCommandBuffer trampoline = nullptr;
-
-	{ const std::lock_guard<std::mutex> lock(s_mutex);
-		trampoline = s_device_dispatch.at(get_dispatch_key(commandBuffer)).EndCommandBuffer;
-		assert(trampoline != nullptr);
-	}
-
-	const VkResult result = trampoline(commandBuffer);
-	if (result != VK_SUCCESS)
-	{
-		LOG(WARN) << "> vkEndCommandBuffer failed with error code " << result << '!';
-		return result;
-	}
-
-	return result;
-}
-
 void     VKAPI_CALL vkDestroyImage(VkDevice device, VkImage image, const VkAllocationCallbacks* pAllocator)
 {
 	PFN_vkDestroyImage trampoline;
@@ -1102,8 +1063,6 @@ VK_LAYER_EXPORT PFN_vkVoidFunction VKAPI_CALL vkGetDeviceProcAddr(VkDevice devic
 		return reinterpret_cast<PFN_vkVoidFunction>(vkQueueSubmit);
 	if (0 == strcmp(pName, "vkAllocateCommandBuffers"))
 		return reinterpret_cast<PFN_vkVoidFunction>(vkAllocateCommandBuffers);
-	if (0 == strcmp(pName, "vkCreateRenderPass"))
-		return reinterpret_cast<PFN_vkVoidFunction>(vkCreateRenderPass);
 	if (0 == strcmp(pName, "vkCmdBeginRenderPass"))
 		return reinterpret_cast<PFN_vkVoidFunction>(vkCmdBeginRenderPass);
 	if (0 == strcmp(pName, "vkCmdDraw"))
@@ -1114,8 +1073,6 @@ VK_LAYER_EXPORT PFN_vkVoidFunction VKAPI_CALL vkGetDeviceProcAddr(VkDevice devic
 		return reinterpret_cast<PFN_vkVoidFunction>(vkCmdClearDepthStencilImage);
 	if (0 == strcmp(pName, "vkCmdClearAttachments"))
 		return reinterpret_cast<PFN_vkVoidFunction>(vkCmdClearAttachments);
-	if (0 == strcmp(pName, "vkEndCommandBuffer"))
-		return reinterpret_cast<PFN_vkVoidFunction>(vkEndCommandBuffer);
 	if (0 == strcmp(pName, "vkCreateImage"))
 		return reinterpret_cast<PFN_vkVoidFunction>(vkCreateImage);
 	if (0 == strcmp(pName, "vkCreateImageView"))

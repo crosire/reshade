@@ -942,6 +942,7 @@ bool reshade::vulkan::runtime_vk::compile_effect(effect_data &effect)
 			image_binding.imageView = _backbuffer_texture_view[info.srgb];
 			break;
 		case texture_reference::depth_buffer:
+			// set to a depthstencil view to make validation layers happy
 			if(_depthstencil_image_view == VK_NULL_HANDLE)
 				image_binding.imageView = _default_depthstencil_view;
 			else
