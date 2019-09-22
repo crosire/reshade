@@ -1248,9 +1248,9 @@ void reshade::d3d12::runtime_d3d12::render_technique(technique &technique)
 		cmd_list->RSSetScissorRects(1, &scissor_rect);
 
 		// Draw triangle
-		cmd_list->DrawInstanced(3, 1, 0, 0);
+		cmd_list->DrawInstanced(pass_info.num_vertices, 1, 0, 0);
 
-		_vertices += 3;
+		_vertices += pass_info.num_vertices;
 		_drawcalls += 1;
 
 		// Generate mipmaps

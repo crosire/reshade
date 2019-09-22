@@ -1414,8 +1414,10 @@ void reshade::vulkan::runtime_vk::render_technique(technique &technique)
 		vk.CmdBindPipeline(cmd_list, VK_PIPELINE_BIND_POINT_GRAPHICS, pass_data.pipeline);
 
 		// Draw triangle
-		vk.CmdDraw(cmd_list, 3, 1, 0, 0);
-		_vertices += 3; _drawcalls += 1;
+		vk.CmdDraw(cmd_list, pass_info.num_vertices, 1, 0, 0);
+
+		_vertices += pass_info.num_vertices;
+		_drawcalls += 1;
 
 		vk.CmdEndRenderPass(cmd_list);
 

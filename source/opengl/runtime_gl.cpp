@@ -103,7 +103,9 @@ reshade::opengl::runtime_gl::runtime_gl()
 	subscribe_to_ui("OpenGL", [this]() { draw_debug_menu(); });
 #endif
 	subscribe_to_load_config([this](const ini_file &config) {
-		size_t num_reserve_texture_names = 0;
+		// Reserve a fixed amount of texture names by default to work around issues in old OpenGL games
+		// This hopefully should not affect performance much in other games
+		size_t num_reserve_texture_names = 512;
 		config.get("OPENGL", "ReserveTextureNames", num_reserve_texture_names);
 		_reserved_texture_names.resize(num_reserve_texture_names);
 		config.get("OPENGL", "ForceMainDepthBuffer", _force_main_depth_buffer);
@@ -965,8 +967,8 @@ void reshade::opengl::runtime_gl::render_technique(technique &technique)
 
 	for (size_t i = 0; i < technique.passes.size(); ++i)
 	{
-		const auto &pass = *technique.passes_data[i]->as<opengl_pass_data>();
 		const auto &pass_info = technique.passes[i];
+		const auto &pass_data = *technique.passes_data[i]->as<opengl_pass_data>();
 
 		// Copy back buffer of previous pass to texture
 		glDisable(GL_FRAMEBUFFER_SRGB);
@@ -977,15 +979,15 @@ void reshade::opengl::runtime_gl::render_technique(technique &technique)
 		glBlitFramebuffer(0, 0, _width, _height, 0, 0, _width, _height, GL_COLOR_BUFFER_BIT, GL_NEAREST);
 
 		// Set up pass specific state
-		glViewport(0, 0, pass.viewport_width, pass.viewport_height);
-		glUseProgram(pass.program);
-		glBindFramebuffer(GL_FRAMEBUFFER, pass.fbo);
-		glDrawBuffers(8, pass.draw_targets);
+		glViewport(0, 0, pass_data.viewport_width, pass_data.viewport_height);
+		glUseProgram(pass_data.program);
+		glBindFramebuffer(GL_FRAMEBUFFER, pass_data.fbo);
+		glDrawBuffers(8, pass_data.draw_targets);
 
 		if (pass_info.blend_enable) {
 			glEnable(GL_BLEND);
-			glBlendFuncSeparate(pass.blend_src, pass.blend_dest, pass.blend_src_alpha, pass.blend_dest_alpha);
-			glBlendEquationSeparate(pass.blend_eq_color, pass.blend_eq_alpha);
+			glBlendFuncSeparate(pass_data.blend_src, pass_data.blend_dest, pass_data.blend_src_alpha, pass_data.blend_dest_alpha);
+			glBlendEquationSeparate(pass_data.blend_eq_color, pass_data.blend_eq_alpha);
 		}
 		else {
 			glDisable(GL_BLEND);
@@ -993,9 +995,9 @@ void reshade::opengl::runtime_gl::render_technique(technique &technique)
 
 		if (pass_info.stencil_enable) {
 			glEnable(GL_STENCIL_TEST);
-			glStencilOp(pass.stencil_op_fail, pass.stencil_op_z_fail, pass.stencil_op_z_pass);
+			glStencilOp(pass_data.stencil_op_fail, pass_data.stencil_op_z_fail, pass_data.stencil_op_z_pass);
 			glStencilMask(pass_info.stencil_write_mask);
-			glStencilFunc(pass.stencil_func, pass_info.stencil_reference_value, pass_info.stencil_read_mask);
+			glStencilFunc(pass_data.stencil_func, pass_info.stencil_reference_value, pass_info.stencil_read_mask);
 		}
 		else {
 			glDisable(GL_STENCIL_TEST);
@@ -1016,19 +1018,19 @@ void reshade::opengl::runtime_gl::render_technique(technique &technique)
 		if (pass_info.clear_render_targets)
 			for (GLuint k = 0; k < 8; k++)
 			{
-				if (pass.draw_targets[k] == GL_NONE)
+				if (pass_data.draw_targets[k] == GL_NONE)
 					continue; // Ignore unbound render targets
 				const GLfloat color[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
 				glClearBufferfv(GL_COLOR, k, color);
 			}
 
-		glDrawArrays(GL_TRIANGLES, 0, 3);
+		glDrawArrays(GL_TRIANGLES, 0, pass_info.num_vertices);
 
-		_vertices += 3;
+		_vertices += pass_info.num_vertices;
 		_drawcalls += 1;
 
 		// Regenerate mipmaps of any textures bound as render target
-		for (GLuint texture_id : pass.draw_textures)
+		for (GLuint texture_id : pass_data.draw_textures)
 		{
 			for (size_t k = 0; k < technique_data.samplers.size(); ++k)
 			{

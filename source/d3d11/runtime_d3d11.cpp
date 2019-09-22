@@ -26,8 +26,6 @@ namespace reshade::d3d11
 		com_ptr<ID3D11PixelShader> pixel_shader;
 		com_ptr<ID3D11BlendState> blend_state;
 		com_ptr<ID3D11DepthStencilState> depth_stencil_state;
-		UINT stencil_reference;
-		bool clear_render_targets;
 		com_ptr<ID3D11RenderTargetView> render_targets[D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT];
 		com_ptr<ID3D11ShaderResourceView> render_target_resources[D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT];
 		D3D11_VIEWPORT viewport;
@@ -855,7 +853,6 @@ bool reshade::d3d11::runtime_d3d11::init_technique(technique &technique, const d
 		pass.viewport.Height = static_cast<FLOAT>(pass_info.viewport_height);
 
 		pass.shader_resources = technique_data->texture_bindings;
-		pass.clear_render_targets = pass_info.clear_render_targets;
 
 		const int target_index = pass_info.srgb_write_enable ? 1 : 0;
 		pass.render_targets[0] = _backbuffer_rtv[target_index];
@@ -991,8 +988,6 @@ bool reshade::d3d11::runtime_d3d11::init_technique(technique &technique, const d
 					"HRESULT is '" << std::hex << hr << std::dec << "'.";
 				return false;
 			}
-
-			pass.stencil_reference = pass_info.stencil_reference_value;
 		}
 
 		for (auto &srv : pass.shader_resources)
@@ -1088,28 +1083,29 @@ void reshade::d3d11::runtime_d3d11::render_technique(technique &technique)
 	_immediate_context->DSSetShader(nullptr, nullptr, 0);
 	_immediate_context->GSSetShader(nullptr, nullptr, 0);
 
-	for (const auto &pass_object : technique.passes_data)
+	for (size_t i = 0; i < technique.passes.size(); ++i)
 	{
-		const d3d11_pass_data &pass = *pass_object->as<d3d11_pass_data>();
+		const auto &pass_info = technique.passes[i];
+		const auto &pass_data = *technique.passes_data[i]->as<d3d11_pass_data>();
 
 		// Setup states
-		_immediate_context->VSSetShader(pass.vertex_shader.get(), nullptr, 0);
-		_immediate_context->PSSetShader(pass.pixel_shader.get(), nullptr, 0);
+		_immediate_context->VSSetShader(pass_data.vertex_shader.get(), nullptr, 0);
+		_immediate_context->PSSetShader(pass_data.pixel_shader.get(), nullptr, 0);
 
-		_immediate_context->OMSetBlendState(pass.blend_state.get(), nullptr, D3D11_DEFAULT_SAMPLE_MASK);
-		_immediate_context->OMSetDepthStencilState(pass.depth_stencil_state.get(), pass.stencil_reference);
+		_immediate_context->OMSetBlendState(pass_data.blend_state.get(), nullptr, D3D11_DEFAULT_SAMPLE_MASK);
+		_immediate_context->OMSetDepthStencilState(pass_data.depth_stencil_state.get(), pass_info.stencil_reference_value);
 
 		// Save back buffer of previous pass
 		_immediate_context->CopyResource(_backbuffer_texture.get(), _backbuffer_resolved.get());
 
 		// Setup shader resources
-		_immediate_context->VSSetShaderResources(0, static_cast<UINT>(pass.shader_resources.size()), reinterpret_cast<ID3D11ShaderResourceView *const *>(pass.shader_resources.data()));
-		_immediate_context->PSSetShaderResources(0, static_cast<UINT>(pass.shader_resources.size()), reinterpret_cast<ID3D11ShaderResourceView *const *>(pass.shader_resources.data()));
+		_immediate_context->VSSetShaderResources(0, static_cast<UINT>(pass_data.shader_resources.size()), reinterpret_cast<ID3D11ShaderResourceView *const *>(pass_data.shader_resources.data()));
+		_immediate_context->PSSetShaderResources(0, static_cast<UINT>(pass_data.shader_resources.size()), reinterpret_cast<ID3D11ShaderResourceView *const *>(pass_data.shader_resources.data()));
 
 		// Setup render targets
-		if (static_cast<UINT>(pass.viewport.Width) == _width && static_cast<UINT>(pass.viewport.Height) == _height)
+		if (static_cast<UINT>(pass_data.viewport.Width) == _width && static_cast<UINT>(pass_data.viewport.Height) == _height)
 		{
-			_immediate_context->OMSetRenderTargets(D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT, reinterpret_cast<ID3D11RenderTargetView *const *>(pass.render_targets), _default_depthstencil.get());
+			_immediate_context->OMSetRenderTargets(D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT, reinterpret_cast<ID3D11RenderTargetView *const *>(pass_data.render_targets), _default_depthstencil.get());
 
 			if (!is_default_depthstencil_cleared)
 			{
@@ -1120,14 +1116,14 @@ void reshade::d3d11::runtime_d3d11::render_technique(technique &technique)
 		}
 		else
 		{
-			_immediate_context->OMSetRenderTargets(D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT, reinterpret_cast<ID3D11RenderTargetView *const *>(pass.render_targets), nullptr);
+			_immediate_context->OMSetRenderTargets(D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT, reinterpret_cast<ID3D11RenderTargetView *const *>(pass_data.render_targets), nullptr);
 		}
 
-		_immediate_context->RSSetViewports(1, &pass.viewport);
+		_immediate_context->RSSetViewports(1, &pass_data.viewport);
 
-		if (pass.clear_render_targets)
+		if (pass_info.clear_render_targets)
 		{
-			for (const auto &target : pass.render_targets)
+			for (const auto &target : pass_data.render_targets)
 			{
 				if (target != nullptr)
 				{
@@ -1138,9 +1134,9 @@ void reshade::d3d11::runtime_d3d11::render_technique(technique &technique)
 		}
 
 		// Draw triangle
-		_immediate_context->Draw(3, 0);
+		_immediate_context->Draw(pass_info.num_vertices, 0);
 
-		_vertices += 3;
+		_vertices += pass_info.num_vertices;
 		_drawcalls += 1;
 
 		// Reset render targets
@@ -1148,11 +1144,11 @@ void reshade::d3d11::runtime_d3d11::render_technique(technique &technique)
 
 		// Reset shader resources
 		ID3D11ShaderResourceView *null_srv[D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT] = { nullptr };
-		_immediate_context->VSSetShaderResources(0, static_cast<UINT>(pass.shader_resources.size()), null_srv);
-		_immediate_context->PSSetShaderResources(0, static_cast<UINT>(pass.shader_resources.size()), null_srv);
+		_immediate_context->VSSetShaderResources(0, static_cast<UINT>(pass_data.shader_resources.size()), null_srv);
+		_immediate_context->PSSetShaderResources(0, static_cast<UINT>(pass_data.shader_resources.size()), null_srv);
 
 		// Update shader resources
-		for (const auto &resource : pass.render_target_resources)
+		for (const auto &resource : pass_data.render_target_resources)
 		{
 			if (resource == nullptr)
 				continue;
