@@ -84,7 +84,7 @@ static void merge_command_buffer_trackers(VkCommandBuffer command_buffer, reshad
 }
 
 #if RESHADE_VULKAN_CAPTURE_DEPTH_BUFFERS
-static bool save_depth_image(VkCommandBuffer commandBuffer, VkDevice device, reshade::vulkan::draw_call_tracker &draw_call_tracker, VkImageView pDepthStencilView, image_view_data imageViewData, bool cleared)
+static bool save_depth_image(VkCommandBuffer, VkDevice device, reshade::vulkan::draw_call_tracker &draw_call_tracker, VkImageView pDepthStencilView, image_view_data imageViewData, bool cleared)
 {
 	if (const auto it = s_device_runtimes.find(device); it == s_device_runtimes.end())
 		return false;
@@ -156,7 +156,7 @@ static bool save_depth_image(VkCommandBuffer commandBuffer, VkDevice device, res
 	runtime->clear_DSV_iter++;
 	return true;
 }
-static void track_active_renderpass(VkCommandBuffer commandBuffer, VkDevice device, const VkRenderPassBeginInfo *pRenderPassBegin, attachment_data attachmentData)
+static void track_active_renderpass(VkCommandBuffer commandBuffer, VkDevice device, attachment_data attachmentData)
 {
 	if (const auto it = s_device_runtimes.find(device); it == s_device_runtimes.end())
 		return;
@@ -488,14 +488,14 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 		for (uint32_t j = 0; j < queueInfo.queueCount; j++)
 		{
 			VkQueue queue = VK_NULL_HANDLE;
-			PFN_vkGetDeviceQueue trampoline;
+			PFN_vkGetDeviceQueue get_device_queue;
 			
 			{ const std::lock_guard<std::mutex> lock(s_mutex);
-				trampoline = s_device_dispatch.at(get_dispatch_key(device)).GetDeviceQueue;
-				assert(trampoline != nullptr);
+				get_device_queue = s_device_dispatch.at(get_dispatch_key(device)).GetDeviceQueue;
+				assert(get_device_queue != nullptr);
 			}
 
-			trampoline(device, queueInfo.queueFamilyIndex, j, &queue);
+			get_device_queue(device, queueInfo.queueFamilyIndex, j, &queue);
 			s_queue_mapping[queue] = device;
 		}
 	}
@@ -884,7 +884,7 @@ void VKAPI_CALL vkCmdBeginRenderPass(VkCommandBuffer commandBuffer, const VkRend
 	s_framebuffer_per_command_buffer[commandBuffer] = pRenderPassBegin->framebuffer;
 	const auto it = s_depth_stencil_buffer_frameBuffers.find(pRenderPassBegin->framebuffer);
 	if (it != s_depth_stencil_buffer_frameBuffers.end())
-		track_active_renderpass(commandBuffer, device, pRenderPassBegin, it->second);
+		track_active_renderpass(commandBuffer, device, it->second);
 
 	bool depthstencilCleared = false;
 
