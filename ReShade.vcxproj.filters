@@ -183,6 +183,9 @@
     <ClCompile Include="source\opengl\state_block.cpp">
       <Filter>hooks\opengl</Filter>
     </ClCompile>
+    <ClInclude Include="source\vulkan\draw_call_tracker.cpp">
+      <Filter>hooks\vulkan</Filter>
+    </ClInclude>
     <ClCompile Include="source\vulkan\runtime_vk.cpp">
       <Filter>hooks\vulkan</Filter>
     </ClCompile>
@@ -310,6 +313,9 @@
     </ClInclude>
     <ClInclude Include="source\opengl\state_block.hpp">
       <Filter>hooks\opengl</Filter>
+    </ClInclude>
+    <ClInclude Include="source\vulkan\draw_call_tracker.hpp">
+      <Filter>hooks\vulkan</Filter>
     </ClInclude>
     <ClInclude Include="source\vulkan\format_utils.hpp">
       <Filter>hooks\vulkan</Filter>

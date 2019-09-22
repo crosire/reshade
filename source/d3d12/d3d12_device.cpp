@@ -58,7 +58,10 @@ void D3D12Device::merge_commandlist_trackers(ID3D12CommandList* command_list, re
 	// Merges the counters logged for the specified command list in the counters destination tracker specified
 	const auto it = _trackers_per_commandlist.find(command_list);
 	if (it != _trackers_per_commandlist.end())
+	{
 		tracker_destination.merge(it->second);
+		it->second.reset();
+	}
 }
 
 #if RESHADE_DX12_CAPTURE_DEPTH_BUFFERS

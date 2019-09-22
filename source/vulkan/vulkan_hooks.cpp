@@ -12,18 +12,186 @@
 #include <memory>
 #include <unordered_map>
 
+struct image_data
+{
+	VkImageCreateInfo image_info;
+	VkDevice device;
+};
+
+struct image_view_data
+{
+	VkImage image;
+	VkImageViewCreateInfo image_view_info;
+	image_data image_data;
+	VkImageView replacement;
+};
+
+struct attachment_data
+{
+	VkImageView imageView;
+	image_view_data image_view_data;
+};
+
 static std::mutex s_mutex;
+static std::mutex s_trackers_per_command_buffer_mutex;
+static std::unordered_map<void *, VkLayerDispatchTable> s_command_buffer_dispatch;
 static std::unordered_map<void *, VkLayerDispatchTable> s_device_dispatch;
 static std::unordered_map<void *, VkLayerInstanceDispatchTable> s_instance_dispatch;
 static std::unordered_map<VkSurfaceKHR, HWND> s_surface_windows;
 static std::unordered_map<VkDevice, VkPhysicalDevice> s_device_mapping;
+static std::unordered_map<VkDevice, reshade::vulkan::draw_call_tracker> s_device_tracker;
+static std::unordered_map<VkCommandBuffer, reshade::vulkan::draw_call_tracker> s_trackers_per_command_buffer;
+static std::unordered_map<VkCommandBuffer, VkFramebuffer> s_framebuffer_per_command_buffer;
 static std::unordered_map<VkPhysicalDevice, VkInstance> s_instance_mapping;
+static std::unordered_map<VkQueue, VkDevice> s_queue_mapping;
+static std::unordered_map<VkCommandBuffer, VkDevice> s_command_buffer_mapping;
+static std::unordered_map<VkDevice, std::shared_ptr<reshade::vulkan::runtime_vk>> s_device_runtimes;
 static std::unordered_map<VkSwapchainKHR, std::shared_ptr<reshade::vulkan::runtime_vk>> s_runtimes;
+static std::unordered_map<VkImage, image_data> s_depth_stencil_buffer_images;
+static std::unordered_map<VkImageView, image_view_data> s_depth_stencil_buffer_image_views;
+static std::unordered_map<VkFramebuffer, attachment_data> s_depth_stencil_buffer_frameBuffers;
 
 inline void *get_dispatch_key(const void *dispatchable_handle)
 {
 	return *(void **)dispatchable_handle;
 }
+
+static void add_command_buffer_trackers(VkCommandBuffer command_buffer, reshade::vulkan::draw_call_tracker &tracker_source)
+{
+	assert(command_buffer != VK_NULL_HANDLE);
+
+	const std::lock_guard<std::mutex> lock(s_trackers_per_command_buffer_mutex);
+
+	// Merges the counters in counters_source in the s_counters_per_command_buffer for the command buffer specified
+	const auto it = s_trackers_per_command_buffer.find(command_buffer);
+	if (it == s_trackers_per_command_buffer.end())
+		s_trackers_per_command_buffer.emplace(command_buffer, tracker_source);
+	else
+		it->second.merge(tracker_source);
+}
+static void merge_command_buffer_trackers(VkCommandBuffer command_buffer, reshade::vulkan::draw_call_tracker &tracker_destination)
+{
+	assert(command_buffer != VK_NULL_HANDLE);
+
+	const std::lock_guard<std::mutex> lock(s_trackers_per_command_buffer_mutex);
+
+	// Merges the counters logged for the specified command buffer in the counters destination tracker specified
+	const auto it = s_trackers_per_command_buffer.find(command_buffer);
+	if (it != s_trackers_per_command_buffer.end())
+		tracker_destination.merge(it->second);
+
+	it->second.reset();
+}
+
+#if RESHADE_VULKAN_CAPTURE_DEPTH_BUFFERS
+static bool save_depth_image(VkCommandBuffer, VkDevice device, reshade::vulkan::draw_call_tracker &draw_call_tracker, VkImageView pDepthStencilView, image_view_data imageViewData, bool cleared)
+{
+	if (const auto it = s_device_runtimes.find(device); it == s_device_runtimes.end())
+		return false;
+
+	std::shared_ptr<reshade::vulkan::runtime_vk> runtime = s_device_runtimes.at(device);
+
+	if (!runtime->depth_buffer_before_clear)
+		return false;
+	if (!cleared && !runtime->extended_depth_buffer_detection)
+		return false;
+
+	VkImage depthstencil = imageViewData.image;
+
+	assert(pDepthStencilView != VK_NULL_HANDLE);
+
+	// Check if aspect ratio is similar to the back buffer one
+	const float width_factor = float(runtime->frame_width()) / float(imageViewData.image_data.image_info.extent.width);
+	const float height_factor = float(runtime->frame_height()) / float(imageViewData.image_data.image_info.extent.height);
+	const float aspect_ratio = float(runtime->frame_width()) / float(runtime->frame_height());
+	const float texture_aspect_ratio = float(imageViewData.image_data.image_info.extent.width) / float(imageViewData.image_data.image_info.extent.height);
+
+	if (fabs(texture_aspect_ratio - aspect_ratio) > 0.1f || width_factor > 1.85f || height_factor > 1.85f || width_factor < 0.5f || height_factor < 0.5f)
+		return false; // No match, not a good fit
+
+	// In case the depth texture is retrieved, we make a copy of it and store it in an ordered map to use it later in the final rendering stage.
+	// TODO: revert to this test when bugs will be fixed and depth buffer swithc will no longer require reloading of the effects
+	// if ((runtime->cleared_depth_buffer_index == 0 && cleared) || (runtime->clear_DSV_iter <= runtime->cleared_depth_buffer_index))
+	if (runtime->clear_DSV_iter == runtime->cleared_depth_buffer_index)
+	{
+		VkDevice imageDevice = imageViewData.image_data.device;
+		VkImageView newdepthstencilView = VK_NULL_HANDLE;
+		const VkCommandBuffer cmd_list = runtime->create_command_list();
+		// Select an appropriate destination texture
+		// VkImage depth_image_save = runtime->select_depth_image_save(imageViewData.image_data.image_info);
+		VkImage depth_image_save;
+		s_device_dispatch.at(get_dispatch_key(imageDevice)).CreateImage(imageDevice, &imageViewData.image_data.image_info, nullptr, &depth_image_save);
+		if (depth_image_save == VK_NULL_HANDLE)
+			return false;
+
+		s_device_dispatch.at(get_dispatch_key(imageDevice)).CreateImageView(imageDevice, &imageViewData.image_view_info, nullptr, &newdepthstencilView);
+
+		// Save depth buffer
+		const VkImageCopy copy_range = {
+			{ VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 }, { 0, 0, 0 },
+			{ VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 }, { 0, 0, 0 }, { imageViewData.image_data.image_info.extent.width, imageViewData.image_data.image_info.extent.height, 1 }
+		};
+
+		// Copy the depth texture. This is necessary because the content of the depth texture is cleared.
+		// This way, we can retrieve this content in the final rendering stage
+		// TODO: keep_track of the device
+		runtime->transition_layout(cmd_list, depth_image_save, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+		runtime->transition_layout(cmd_list, depthstencil, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
+		s_device_dispatch.at(get_dispatch_key(imageDevice)).CmdCopyImage(cmd_list, depthstencil, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, depth_image_save, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copy_range);
+		runtime->transition_layout(cmd_list, depth_image_save, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+		runtime->transition_layout(cmd_list, depthstencil, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
+
+		runtime->execute_command_list_async(cmd_list);
+
+		// Store the saved texture in the ordered map.
+		draw_call_tracker.track_depth_image(runtime->depth_buffer_texture_format, runtime->clear_DSV_iter, depthstencil, imageViewData.image_data.image_info, newdepthstencilView, imageViewData.image_view_info, depth_image_save, cleared);
+	}
+	else
+	{
+		// Store a null depth texture in the ordered map in order to display it even if the user chose a previous cleared texture.
+		// This way the texture will still be visible in the depth buffer selection window and the user can choose it.
+		draw_call_tracker.track_depth_image(runtime->depth_buffer_texture_format, runtime->clear_DSV_iter, depthstencil, imageViewData.image_data.image_info, pDepthStencilView, imageViewData.image_view_info, VK_NULL_HANDLE, cleared);
+	}
+
+	runtime->clear_DSV_iter++;
+	return true;
+}
+static void track_active_renderpass(VkCommandBuffer commandBuffer, VkDevice device, attachment_data attachmentData)
+{
+	if (const auto it = s_device_runtimes.find(device); it == s_device_runtimes.end())
+		return;
+
+	std::shared_ptr<reshade::vulkan::runtime_vk> runtime = s_device_runtimes.at(device);
+
+	// Check if aspect ratio is similar to the back buffer one
+	const float width_factor = float(runtime->frame_width()) / float(attachmentData.image_view_data.image_data.image_info.extent.width);
+	const float height_factor = float(runtime->frame_height()) / float(attachmentData.image_view_data.image_data.image_info.extent.height);
+	const float aspect_ratio = float(runtime->frame_width()) / float(runtime->frame_height());
+	const float texture_aspect_ratio = float(attachmentData.image_view_data.image_data.image_info.extent.width) / float(attachmentData.image_view_data.image_data.image_info.extent.height);
+
+	// TODO: restore this dimension filter when all is OK
+	// if (fabs(texture_aspect_ratio - aspect_ratio) > 0.1f || width_factor > 1.85f || height_factor > 1.85f || width_factor < 0.5f || height_factor < 0.5f)
+		// return; // No match, not a good fit
+
+	{ const std::lock_guard<std::mutex> lock(s_trackers_per_command_buffer_mutex);
+		reshade::vulkan::draw_call_tracker *command_buffer_tracker = &s_trackers_per_command_buffer.at(commandBuffer);
+		command_buffer_tracker->track_renderpasses(runtime->depth_buffer_texture_format, attachmentData.imageView, attachmentData.image_view_data.image, attachmentData.image_view_data.image_data.image_info, attachmentData.image_view_data.image_view_info, attachmentData.image_view_data.replacement);
+
+		save_depth_image(commandBuffer, device, *command_buffer_tracker, attachmentData.imageView, attachmentData.image_view_data, false);
+
+		command_buffer_tracker->_depthstencil = attachmentData.imageView;
+	}
+}
+static void track_cleared_depthstencil(VkCommandBuffer commandBuffer, VkDevice device, reshade::vulkan::draw_call_tracker &draw_call_tracker, VkImageView pDepthStencilView, image_view_data imageViewData)
+{
+	if (const auto it = s_device_runtimes.find(device); it == s_device_runtimes.end())
+		return;
+
+	std::shared_ptr<reshade::vulkan::runtime_vk> runtime = s_device_runtimes.at(device);
+
+	save_depth_image(commandBuffer, device, draw_call_tracker, pDepthStencilView, imageViewData, true);
+}
+#endif
 
 VkResult VKAPI_CALL vkCreateInstance(const VkInstanceCreateInfo *pCreateInfo, const VkAllocationCallbacks *pAllocator, VkInstance *pInstance)
 {
@@ -236,7 +404,6 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	dispatch_table.QueuePresentKHR = (PFN_vkQueuePresentKHR)get_device_proc(device, "vkQueuePresentKHR");
 	dispatch_table.QueueWaitIdle = (PFN_vkQueueWaitIdle)get_device_proc(device, "vkQueueWaitIdle");
 	dispatch_table.DeviceWaitIdle = (PFN_vkDeviceWaitIdle)get_device_proc(device, "vkDeviceWaitIdle");
-	dispatch_table.GetDeviceQueue = (PFN_vkGetDeviceQueue)get_device_proc(device, "vkGetDeviceQueue");
 	dispatch_table.GetSwapchainImagesKHR = (PFN_vkGetSwapchainImagesKHR)get_device_proc(device, "vkGetSwapchainImagesKHR");
 	dispatch_table.QueueSubmit = (PFN_vkQueueSubmit)get_device_proc(device, "vkQueueSubmit");
 	dispatch_table.CreateFence = (PFN_vkCreateFence)get_device_proc(device, "vkCreateFence");
@@ -292,6 +459,7 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	dispatch_table.CmdPushConstants = (PFN_vkCmdPushConstants)get_device_proc(device, "vkCmdPushConstants");
 	dispatch_table.CmdPushDescriptorSetKHR = (PFN_vkCmdPushDescriptorSetKHR)get_device_proc(device, "vkCmdPushDescriptorSetKHR");
 	dispatch_table.CmdClearDepthStencilImage = (PFN_vkCmdClearDepthStencilImage)get_device_proc(device, "vkCmdClearDepthStencilImage");
+	dispatch_table.CmdClearAttachments = (PFN_vkCmdClearAttachments)get_device_proc(device, "vkCmdClearAttachments");
 	dispatch_table.CmdEndRenderPass = (PFN_vkCmdEndRenderPass)get_device_proc(device, "vkCmdEndRenderPass");
 	dispatch_table.CmdBeginRenderPass = (PFN_vkCmdBeginRenderPass)get_device_proc(device, "vkCmdBeginRenderPass");
 	dispatch_table.CmdBindPipeline = (PFN_vkCmdBindPipeline)get_device_proc(device, "vkCmdBindPipeline");
@@ -301,12 +469,35 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	dispatch_table.CmdSetViewport = (PFN_vkCmdSetViewport)get_device_proc(device, "vkCmdSetViewport");
 	dispatch_table.CmdDraw = (PFN_vkCmdDraw)get_device_proc(device, "vkCmdDraw");
 	dispatch_table.CmdDrawIndexed = (PFN_vkCmdDrawIndexed)get_device_proc(device, "vkCmdDrawIndexed");
+	dispatch_table.CmdDrawIndexedIndirect = (PFN_vkCmdDrawIndexedIndirect)get_device_proc(device, "vkCmdDrawIndexedIndirect");
 	dispatch_table.CmdPipelineBarrier = (PFN_vkCmdPipelineBarrier)get_device_proc(device, "vkCmdPipelineBarrier");
 	dispatch_table.DebugMarkerSetObjectNameEXT = (PFN_vkDebugMarkerSetObjectNameEXT)get_device_proc(device, "vkDebugMarkerSetObjectNameEXT");
 
 	{ const std::lock_guard<std::mutex> lock(s_mutex);
 		s_device_mapping[device] = physicalDevice;
 		s_device_dispatch[get_dispatch_key(device)] = dispatch_table;
+		reshade::vulkan::draw_call_tracker device_tracker;
+		s_device_tracker[device] = device_tracker;
+	}
+
+	// retrieve the associated command queues
+	for (uint32_t i = 0; i < pCreateInfo->queueCreateInfoCount; i++)
+	{
+		VkDeviceQueueCreateInfo queueInfo = pCreateInfo->pQueueCreateInfos[i];
+
+		for (uint32_t j = 0; j < queueInfo.queueCount; j++)
+		{
+			VkQueue queue = VK_NULL_HANDLE;
+			PFN_vkGetDeviceQueue get_device_queue;
+			
+			{ const std::lock_guard<std::mutex> lock(s_mutex);
+				get_device_queue = s_device_dispatch.at(get_dispatch_key(device)).GetDeviceQueue;
+				assert(get_device_queue != nullptr);
+			}
+
+			get_device_queue(device, queueInfo.queueFamilyIndex, j, &queue);
+			s_queue_mapping[queue] = device;
+		}
 	}
 
 	return VK_SUCCESS;
@@ -321,7 +512,46 @@ void     VKAPI_CALL vkDestroyDevice(VkDevice device, const VkAllocationCallbacks
 		trampoline = s_device_dispatch.at(get_dispatch_key(device)).DestroyDevice;
 		assert(trampoline != nullptr);
 
+		if (const auto it = s_device_runtimes.find(device); it != s_device_runtimes.end())
+		{
+			it->second->on_reset();
+
+			s_device_runtimes.erase(it);
+		}
+
 		s_device_mapping.erase(device);
+		s_device_tracker.erase(device);
+
+		for (auto it = s_queue_mapping.begin(); it != s_queue_mapping.end();)
+		{
+			if (it->second == device)
+			{
+				s_queue_mapping.erase(it->first);
+				continue;
+			}
+
+			++it;
+		}
+
+		for (auto it = s_command_buffer_mapping.begin(); it != s_command_buffer_mapping.end();)
+		{
+			if (it->second == device)
+			{
+				// command buffer found
+				s_command_buffer_mapping.erase(it->first);
+
+				if (const auto it2 = s_trackers_per_command_buffer.find(it->first); it2 != s_trackers_per_command_buffer.end())
+				{
+					// draw call tracker found. Reset it
+					it2->second.reset();
+					s_trackers_per_command_buffer.erase(it->first);
+					s_framebuffer_per_command_buffer.erase(it->first);
+				}
+				continue;
+			}
+
+			++it;
+		}
 
 		// Remove device dispatch table since this device is being destroyed
 		s_device_dispatch.erase(get_dispatch_key(device));
@@ -417,6 +647,7 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 	if (!runtime->on_init(*pSwapchain, *pCreateInfo, s_surface_windows.at(pCreateInfo->surface)))
 		LOG(ERROR) << "Failed to initialize Vulkan runtime environment on runtime " << runtime.get() << '.';
 
+	s_device_runtimes[device] = runtime;
 	s_runtimes[*pSwapchain] = runtime;
 
 	return VK_SUCCESS;
@@ -454,12 +685,368 @@ VkResult VKAPI_CALL vkQueuePresentKHR(VkQueue queue, const VkPresentInfoKHR *pPr
 		for (uint32_t i = 0; i < pPresentInfo->swapchainCount; ++i)
 		{
 			const auto it = s_runtimes.find(pPresentInfo->pSwapchains[i]);
-			if (it != s_runtimes.end())
-				it->second->on_present(pPresentInfo->pImageIndices[i]);
+			const auto it2 = s_queue_mapping.find(queue);
+			if (it != s_runtimes.end() && it2 != s_queue_mapping.end())
+			{
+				it->second->on_present(pPresentInfo->pImageIndices[i], s_device_tracker.at(it2->second));
+				s_device_tracker.at(it2->second).reset();
+			}
 		}
 	}
 
 	return trampoline(queue, pPresentInfo);
+}
+
+VkResult VKAPI_CALL vkQueueSubmit(VkQueue queue, uint32_t submitCount, const VkSubmitInfo* pSubmits, VkFence fence)
+{
+	PFN_vkQueueSubmit trampoline;
+
+	{ const std::lock_guard<std::mutex> lock(s_mutex);
+		trampoline = s_device_dispatch.at(get_dispatch_key(queue)).QueueSubmit;
+		assert(trampoline != nullptr);
+		assert(pSubmits != nullptr);
+
+		for (uint32_t i = 0; i < submitCount; ++i)
+		{
+			VkSubmitInfo pSubmit = pSubmits[i];
+			for (uint32_t j = 0; j < pSubmit.commandBufferCount; ++j)
+			{
+				VkCommandBuffer commandBuffer = pSubmits->pCommandBuffers[j];
+				const auto it = s_trackers_per_command_buffer.find(commandBuffer);
+				const auto it2 = s_queue_mapping.find(queue);
+				if (it != s_trackers_per_command_buffer.end() && it2 != s_queue_mapping.end())
+					merge_command_buffer_trackers(commandBuffer, s_device_tracker.at(it2->second));
+			}
+		}
+	}
+
+	return trampoline(queue, submitCount, pSubmits, fence);
+}
+
+VkResult VKAPI_CALL vkCreateImage(VkDevice device, const VkImageCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkImage* pImage)
+{
+	PFN_vkCreateImage trampoline = nullptr;
+
+	{ const std::lock_guard<std::mutex> lock(s_mutex);
+		trampoline = s_device_dispatch.at(get_dispatch_key(device)).CreateImage;
+		assert(trampoline != nullptr);
+	}
+
+	VkImageCreateInfo createInfo = *pCreateInfo;
+
+	// check if it is a depth stencil buffer
+	if (pCreateInfo->usage & VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT)
+		createInfo.usage |= VK_IMAGE_USAGE_SAMPLED_BIT;
+
+	const VkResult result = trampoline(device, &createInfo, pAllocator, pImage);
+	if (result != VK_SUCCESS)
+	{
+		LOG(WARN) << "> vkCreateImage failed with error code " << result << '!';
+		return result;
+	}
+
+	// Guard access to the map
+	const std::lock_guard<std::mutex> lock(s_mutex);
+
+	// check if it is a depth stencil buffer
+	if (pCreateInfo->usage & VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT && pCreateInfo->usage & VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT)
+		s_depth_stencil_buffer_images[*pImage] = { *pCreateInfo, device };
+
+	return result;
+}
+
+VkResult VKAPI_CALL vkCreateImageView(VkDevice device, const VkImageViewCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkImageView* pView)
+{
+	PFN_vkCreateImageView trampoline = nullptr;
+
+	{ const std::lock_guard<std::mutex> lock(s_mutex);
+		trampoline = s_device_dispatch.at(get_dispatch_key(device)).CreateImageView;
+		assert(trampoline != nullptr);
+	}
+	
+	// create the original image view
+	VkResult result = trampoline(device, pCreateInfo, pAllocator, pView);
+	if (result != VK_SUCCESS)
+	{
+		LOG(WARN) << "> vkCreateImageView failed with error code " << result << '!';
+		return result;
+	}
+
+#if RESHADE_VULKAN_CAPTURE_DEPTH_BUFFERS
+	// Guard access to the map
+	const std::lock_guard<std::mutex> lock(s_mutex);
+
+	const auto it = s_depth_stencil_buffer_images.find(pCreateInfo->image);
+	if (it != s_depth_stencil_buffer_images.end())
+	{
+		// create an image view where depth buffer is displayable in the shaders
+		VkImageViewCreateInfo create_info = *pCreateInfo;
+		create_info.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
+
+		VkImageView view_replacement = VK_NULL_HANDLE;
+		result = trampoline(device, &create_info, nullptr, &view_replacement);
+		if (result != VK_SUCCESS)
+		{
+			LOG(WARN) << "> vkCreateImageView failed with error code " << result << '!';
+			return result;
+		}
+
+		s_depth_stencil_buffer_image_views[*pView] = { it->first, create_info, it->second, view_replacement };
+	}
+#endif
+
+	return result;
+}
+
+VkResult VKAPI_CALL vkCreateFramebuffer(VkDevice device, const VkFramebufferCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkFramebuffer* pFramebuffer)
+{
+	PFN_vkCreateFramebuffer trampoline = nullptr;
+
+	{ const std::lock_guard<std::mutex> lock(s_mutex);
+		trampoline = s_device_dispatch.at(get_dispatch_key(device)).CreateFramebuffer;
+		assert(trampoline != nullptr);
+	}
+
+	const VkResult result = trampoline(device, pCreateInfo, pAllocator, pFramebuffer);
+	if (result != VK_SUCCESS)
+	{
+		LOG(WARN) << "> vkCreateFramebuffer failed with error code " << result << '!';
+		return result;
+	}
+
+	// Guard access to the map
+	const std::lock_guard<std::mutex> lock(s_mutex);
+
+	const VkImageView *pAttachments = pCreateInfo->pAttachments;
+	for (uint32_t i = 0; i < pCreateInfo->attachmentCount; i++)
+	{
+		VkImageView imageView = pAttachments[i];
+
+		const auto it = s_depth_stencil_buffer_image_views.find(imageView);
+		if (it != s_depth_stencil_buffer_image_views.end())
+			s_depth_stencil_buffer_frameBuffers[*pFramebuffer] = { it->first, it->second };
+	}
+
+	return result;
+}
+
+VkResult VKAPI_CALL vkAllocateCommandBuffers(VkDevice device, const VkCommandBufferAllocateInfo* pAllocateInfo, VkCommandBuffer* pCommandBuffers)
+{
+	PFN_vkAllocateCommandBuffers trampoline = nullptr;
+
+	{ const std::lock_guard<std::mutex> lock(s_mutex);
+		trampoline = s_device_dispatch.at(get_dispatch_key(device)).AllocateCommandBuffers;
+		assert(trampoline != nullptr);
+	}
+
+	const VkResult result = trampoline(device, pAllocateInfo, pCommandBuffers);
+	if (result != VK_SUCCESS)
+	{
+		LOG(WARN) << "> vkAllocateCommandBuffers failed with error code " << result << '!';
+		return result;
+	}
+
+	// Guard access to the map
+	const std::lock_guard<std::mutex> lock(s_mutex);
+
+	for (uint32_t i = 0; i < pAllocateInfo->commandBufferCount; i++)
+	{
+		VkCommandBuffer commandBuffer = pCommandBuffers[i];
+		s_command_buffer_mapping[commandBuffer] = device;
+
+		reshade::vulkan::draw_call_tracker command_buffer_tracker;
+		add_command_buffer_trackers(commandBuffer, command_buffer_tracker);
+	}
+
+	return result;
+}
+
+void VKAPI_CALL vkCmdBeginRenderPass(VkCommandBuffer commandBuffer, const VkRenderPassBeginInfo* pRenderPassBegin, VkSubpassContents contents)
+{
+	PFN_vkCmdBeginRenderPass trampoline = nullptr;
+
+	{ const std::lock_guard<std::mutex> lock(s_mutex);
+		trampoline = s_device_dispatch.at(get_dispatch_key(commandBuffer)).CmdBeginRenderPass;
+		assert(trampoline != nullptr);
+	}
+
+	trampoline(commandBuffer, pRenderPassBegin, contents);
+
+	// no device associated (this cannot happen normally)
+	if (const auto it = s_command_buffer_mapping.find(commandBuffer); it == s_command_buffer_mapping.end())
+		return;
+
+	VkDevice device = s_command_buffer_mapping.at(commandBuffer);
+
+	// Guard access to the map
+	const std::lock_guard<std::mutex> lock(s_mutex);
+
+	s_framebuffer_per_command_buffer[commandBuffer] = pRenderPassBegin->framebuffer;
+	const auto it = s_depth_stencil_buffer_frameBuffers.find(pRenderPassBegin->framebuffer);
+	if (it != s_depth_stencil_buffer_frameBuffers.end())
+		track_active_renderpass(commandBuffer, device, it->second);
+
+	bool depthstencilCleared = false;
+
+	for (uint32_t i = 0; i < pRenderPassBegin->clearValueCount; i++)
+	{
+		VkClearValue clearValue = pRenderPassBegin->pClearValues[i];
+		if (clearValue.depthStencil.depth > 0)
+			depthstencilCleared = true;
+	}
+
+	if (!depthstencilCleared)
+		return;
+
+	if (it != s_depth_stencil_buffer_frameBuffers.end())
+	{
+		// retrieve the current depth stencil image view
+		reshade::vulkan::draw_call_tracker *command_buffer_tracker = &s_trackers_per_command_buffer.at(commandBuffer);
+		image_view_data image_view_data = it->second.image_view_data;
+		VkImageView depthstencil = it->second.imageView;
+		if (image_view_data.image_data.image_info.usage & VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT)
+			track_cleared_depthstencil(commandBuffer, device, *command_buffer_tracker, depthstencil, image_view_data);
+	}
+}
+
+void     VKAPI_CALL vkCmdDraw(VkCommandBuffer commandBuffer, uint32_t vertexCount, uint32_t instanceCount, uint32_t firstVertex, uint32_t firstInstance)
+{
+	PFN_vkCmdDraw trampoline;
+
+	trampoline = s_device_dispatch.at(get_dispatch_key(commandBuffer)).CmdDraw;
+	assert(trampoline != nullptr);
+
+	trampoline(commandBuffer, vertexCount, instanceCount, firstVertex, firstInstance);
+
+	// retrieve the current depth stencil image view
+	reshade::vulkan::draw_call_tracker *command_buffer_tracker = &s_trackers_per_command_buffer.at(commandBuffer);
+	command_buffer_tracker->on_draw(command_buffer_tracker->_depthstencil, vertexCount * instanceCount);
+}
+
+void     VKAPI_CALL vkCmdDrawIndexed(VkCommandBuffer commandBuffer, uint32_t indexCount, uint32_t instanceCount, uint32_t firstIndex, int32_t vertexOffset, uint32_t firstInstance)
+{
+	PFN_vkCmdDrawIndexed trampoline;
+
+	trampoline = s_device_dispatch.at(get_dispatch_key(commandBuffer)).CmdDrawIndexed;
+	assert(trampoline != nullptr);
+
+	trampoline(commandBuffer, indexCount, instanceCount, firstIndex, vertexOffset, firstInstance);
+
+	// retrieve the current depth stencil image view
+	reshade::vulkan::draw_call_tracker *command_buffer_tracker = &s_trackers_per_command_buffer.at(commandBuffer);
+	command_buffer_tracker->on_draw(command_buffer_tracker->_depthstencil, indexCount * instanceCount);
+}
+
+void     VKAPI_CALL vkCmdClearDepthStencilImage(VkCommandBuffer commandBuffer, VkImage image, VkImageLayout imageLayout, const VkClearDepthStencilValue* pDepthStencil, uint32_t rangeCount, const VkImageSubresourceRange* pRanges)
+{
+	PFN_vkCmdClearDepthStencilImage trampoline;
+
+	{ const std::lock_guard<std::mutex> lock(s_mutex);
+		trampoline = s_device_dispatch.at(get_dispatch_key(commandBuffer)).CmdClearDepthStencilImage;
+		assert(trampoline != nullptr);
+	}
+
+	// no device associated (this cannot happen normally)
+	if (const auto it = s_command_buffer_mapping.find(commandBuffer); it != s_command_buffer_mapping.end())
+	{
+		VkDevice device = s_command_buffer_mapping.at(commandBuffer);
+
+		for (auto &[depthstencil, image_view_data] : s_depth_stencil_buffer_image_views)
+		{
+			if (image == image_view_data.image)
+			{
+				{ const std::lock_guard<std::mutex> lock(s_mutex);
+					// retrieve the current depth stencil image view
+					reshade::vulkan::draw_call_tracker *command_buffer_tracker = &s_trackers_per_command_buffer.at(commandBuffer);
+					if (image_view_data.image_data.image_info.usage & VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT)
+						track_cleared_depthstencil(commandBuffer, device, *command_buffer_tracker, depthstencil, image_view_data);
+					}
+			}
+		}
+	}
+
+	// important: the trampoline method must be executed after the depth buffer image saving
+	trampoline(commandBuffer, image, imageLayout, pDepthStencil, rangeCount, pRanges);
+}
+
+void     VKAPI_CALL vkCmdClearAttachments(VkCommandBuffer commandBuffer, uint32_t attachmentCount, const VkClearAttachment* pAttachments, uint32_t rectCount, const VkClearRect* pRects)
+{
+	PFN_vkCmdClearAttachments trampoline;
+
+	{ const std::lock_guard<std::mutex> lock(s_mutex);
+		trampoline = s_device_dispatch.at(get_dispatch_key(commandBuffer)).CmdClearAttachments;
+		assert(trampoline != nullptr);
+	}
+
+	// no device associated (this cannot happen normally)
+	if (const auto it = s_command_buffer_mapping.find(commandBuffer); it != s_command_buffer_mapping.end())
+	{
+		VkDevice device = s_command_buffer_mapping.at(commandBuffer);
+		VkFramebuffer framebuffer = s_framebuffer_per_command_buffer.at(commandBuffer);
+
+		const auto it2 = s_depth_stencil_buffer_frameBuffers.find(framebuffer);
+		if (it2 != s_depth_stencil_buffer_frameBuffers.end())
+		{
+			{ const std::lock_guard<std::mutex> lock(s_mutex);
+				// retrieve the current depth stencil image view
+				reshade::vulkan::draw_call_tracker *command_buffer_tracker = &s_trackers_per_command_buffer.at(commandBuffer);
+				image_view_data image_view_data = it2->second.image_view_data;
+				VkImageView depthstencil = it2->second.imageView;
+				if (image_view_data.image_data.image_info.usage & VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT)
+					track_cleared_depthstencil(commandBuffer, device, *command_buffer_tracker, depthstencil, image_view_data);
+			}
+		}
+	}
+
+	// important: the trampoline method must be executed after the depth buffer image saving
+	trampoline(commandBuffer, attachmentCount, pAttachments, rectCount, pRects);
+}
+
+void     VKAPI_CALL vkDestroyImage(VkDevice device, VkImage image, const VkAllocationCallbacks* pAllocator)
+{
+	PFN_vkDestroyImage trampoline;
+
+	// LOG(INFO) << "Redirecting vkDestroyImage" << '(' << device << ", " << image << ", " << pAllocator << ')' << " ...";
+
+	{ const std::lock_guard<std::mutex> lock(s_mutex);
+		trampoline = s_device_dispatch.at(get_dispatch_key(device)).DestroyImage;
+		assert(trampoline != nullptr);
+
+		// Remove surface since this surface is being destroyed
+		s_depth_stencil_buffer_images.erase(image);
+	}
+
+	trampoline(device, image, pAllocator);
+}
+
+void     VKAPI_CALL vkDestroyImageView(VkDevice device, VkImageView imageView, const VkAllocationCallbacks* pAllocator)
+{
+	PFN_vkDestroyImageView trampoline;
+
+	{ const std::lock_guard<std::mutex> lock(s_mutex);
+		trampoline = s_device_dispatch.at(get_dispatch_key(device)).DestroyImageView;
+		assert(trampoline != nullptr);
+
+		// Remove surface since this surface is being destroyed
+		s_depth_stencil_buffer_image_views.erase(imageView);
+	}		
+		
+	trampoline(device, imageView, pAllocator);
+}
+
+void     VKAPI_CALL vkDestroyFramebuffer(VkDevice device, VkFramebuffer framebuffer, const VkAllocationCallbacks* pAllocator)
+{
+	PFN_vkDestroyFramebuffer trampoline;
+
+	{ const std::lock_guard<std::mutex> lock(s_mutex);
+		trampoline = s_device_dispatch.at(get_dispatch_key(device)).DestroyFramebuffer;
+		assert(trampoline != nullptr);
+
+		// Remove surface since this surface is being destroyed
+		s_depth_stencil_buffer_frameBuffers.erase(framebuffer);
+	}
+
+	trampoline(device, framebuffer, pAllocator);
 }
 
 VK_LAYER_EXPORT PFN_vkVoidFunction VKAPI_CALL vkGetDeviceProcAddr(VkDevice device, const char *pName)
@@ -474,6 +1061,32 @@ VK_LAYER_EXPORT PFN_vkVoidFunction VKAPI_CALL vkGetDeviceProcAddr(VkDevice devic
 		return reinterpret_cast<PFN_vkVoidFunction>(vkDestroySwapchainKHR);
 	if (0 == strcmp(pName, "vkQueuePresentKHR"))
 		return reinterpret_cast<PFN_vkVoidFunction>(vkQueuePresentKHR);
+	if (0 == strcmp(pName, "vkQueueSubmit"))
+		return reinterpret_cast<PFN_vkVoidFunction>(vkQueueSubmit);
+	if (0 == strcmp(pName, "vkAllocateCommandBuffers"))
+		return reinterpret_cast<PFN_vkVoidFunction>(vkAllocateCommandBuffers);
+	if (0 == strcmp(pName, "vkCmdBeginRenderPass"))
+		return reinterpret_cast<PFN_vkVoidFunction>(vkCmdBeginRenderPass);
+	if (0 == strcmp(pName, "vkCmdDraw"))
+		return reinterpret_cast<PFN_vkVoidFunction>(vkCmdDraw);
+	if (0 == strcmp(pName, "vkCmdDrawIndexed"))
+		return reinterpret_cast<PFN_vkVoidFunction>(vkCmdDrawIndexed);
+	if (0 == strcmp(pName, "vkCmdClearDepthStencilImage"))
+		return reinterpret_cast<PFN_vkVoidFunction>(vkCmdClearDepthStencilImage);
+	if (0 == strcmp(pName, "vkCmdClearAttachments"))
+		return reinterpret_cast<PFN_vkVoidFunction>(vkCmdClearAttachments);
+	if (0 == strcmp(pName, "vkCreateImage"))
+		return reinterpret_cast<PFN_vkVoidFunction>(vkCreateImage);
+	if (0 == strcmp(pName, "vkCreateImageView"))
+		return reinterpret_cast<PFN_vkVoidFunction>(vkCreateImageView);
+	if (0 == strcmp(pName, "vkCreateFramebuffer"))
+		return reinterpret_cast<PFN_vkVoidFunction>(vkCreateFramebuffer);
+	if (0 == strcmp(pName, "vkDestroyImage"))
+		return reinterpret_cast<PFN_vkVoidFunction>(vkDestroyImage);
+	if (0 == strcmp(pName, "vkDestroyImageView"))
+		return reinterpret_cast<PFN_vkVoidFunction>(vkDestroyImageView);
+	if (0 == strcmp(pName, "vkDestroyFramebuffer"))
+		return reinterpret_cast<PFN_vkVoidFunction>(vkDestroyFramebuffer);
 
 	if (device == VK_NULL_HANDLE)
 		return nullptr;
