@@ -30,9 +30,8 @@ static bool find_file(const std::vector<std::filesystem::path> &search_paths, st
 	if (path.is_relative())
 		for (const auto &search_path : search_paths)
 		{
-			std::filesystem::path canonical_search_path = search_path;
-			if (search_path.is_relative())
-				canonical_search_path = std::filesystem::canonical(g_reshade_dll_path.parent_path() / search_path, ec);
+			const std::filesystem::path canonical_search_path = std::filesystem::canonical(g_reshade_dll_path.parent_path() / search_path, ec);
+
 			if (ec || canonical_search_path.empty())
 				continue;
 
