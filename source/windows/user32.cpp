@@ -53,7 +53,7 @@ HOOK_EXPORT ATOM WINAPI HookRegisterClassW(const WNDCLASSW *lpWndClass)
 		}
 	}
 
-	return reshade::hooks::call(HookRegisterClassW)(lpWndClass);
+	return reshade::hooks::call(HookRegisterClassW)(&wndclass);
 }
 HOOK_EXPORT ATOM WINAPI HookRegisterClassExA(const WNDCLASSEXA *lpWndClassEx)
 {
