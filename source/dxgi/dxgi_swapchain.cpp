@@ -91,7 +91,7 @@ void DXGISwapChain::runtime_resize()
 		break;
 	case 12:
 		assert(_runtime != nullptr);
-		initialized = std::static_pointer_cast<reshade::d3d12::runtime_d3d12>(_runtime)->on_init(desc, desc.OutputWindow);
+		initialized = std::static_pointer_cast<reshade::d3d12::runtime_d3d12>(_runtime)->on_init(desc);
 		break;
 	}
 
@@ -300,12 +300,12 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers(UINT BufferCount, UINT Wi
 	else if (FAILED(hr))
 	{
 		LOG(ERROR) << "> IDXGISwapChain::ResizeBuffers failed with error code " << std::hex << hr << std::dec << '!';
-		return hr;
+		return S_OK;
 	}
 
 	runtime_resize();
 
-	return S_OK;
+	return hr;
 }
 HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeTarget(const DXGI_MODE_DESC *pNewTargetParameters)
 {

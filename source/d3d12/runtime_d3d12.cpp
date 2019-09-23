@@ -260,14 +260,14 @@ bool reshade::d3d12::runtime_d3d12::init_mipmap_pipeline()
 	return true;
 }
 
-bool reshade::d3d12::runtime_d3d12::on_init(const DXGI_SWAP_CHAIN_DESC &desc, HWND window 
+bool reshade::d3d12::runtime_d3d12::on_init(const DXGI_SWAP_CHAIN_DESC &desc
 #if RESHADE_D3D12ON7
 	, ID3D12Resource *backbuffer
 #endif
 	)
 {
 	RECT window_rect = {};
-	GetClientRect(window, &window_rect);
+	GetClientRect(desc.OutputWindow, &window_rect);
 
 	_width = desc.BufferDesc.Width;
 	_height = desc.BufferDesc.Height;
@@ -314,7 +314,7 @@ bool reshade::d3d12::runtime_d3d12::on_init(const DXGI_SWAP_CHAIN_DESC &desc, HW
 		)
 		return false;
 
-	return runtime::on_init(window);
+	return runtime::on_init(desc.OutputWindow);
 }
 void reshade::d3d12::runtime_d3d12::on_reset()
 {
