@@ -51,9 +51,9 @@ static std::vector<std::filesystem::path> find_files(const std::vector<std::file
 	std::vector<std::filesystem::path> files;
 	for (const auto &search_path : search_paths)
 	{
-		std::filesystem::path canonical_search_path = search_path;
-		if (search_path.is_relative()) // Ignore the working directory and instead start relative paths at the DLL location
-			canonical_search_path = std::filesystem::canonical(g_reshade_dll_path.parent_path() / search_path, ec);
+		// Ignore the working directory and instead start relative paths at the DLL location
+		const std::filesystem::path canonical_search_path = std::filesystem::canonical(g_reshade_dll_path.parent_path() / search_path, ec);
+
 		if (ec || canonical_search_path.empty())
 			continue; // Failed to find a valid directory matching the search path
 
