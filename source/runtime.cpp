@@ -960,10 +960,6 @@ void reshade::runtime::load_config()
 	else
 		_current_preset_path = g_reshade_dll_path.parent_path() / current_preset_path;
 
-#if RESHADE_GUI
-	_current_browse_path = _current_preset_path.parent_path();
-#endif
-
 	for (const auto &callback : _load_config_callables)
 		callback(config);
 }
@@ -1038,8 +1034,7 @@ void reshade::runtime::load_preset(const std::filesystem::path &path)
 
 	for (uniform &variable : _uniforms)
 	{
-		reshadefx::constant values_old;
-		reshadefx::constant values;
+		reshadefx::constant values, values_old;
 
 		switch (variable.type.base)
 		{
