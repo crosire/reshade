@@ -78,6 +78,8 @@ reshade::runtime::runtime() :
 	_reload_key_data(),
 	_effects_key_data(),
 	_screenshot_key_data(),
+	_previous_preset_key_data(),
+	_next_preset_key_data(),
 	_screenshot_path(g_target_executable_path.parent_path())
 {
 	// Default shortcut PrtScrn
@@ -173,8 +175,35 @@ void reshade::runtime::on_present()
 
 		if (_input->is_key_pressed(_screenshot_key_data))
 			_should_save_screenshot = true;
-	}
 
+		if (!is_loading() && _reload_compile_queue.empty())
+		{
+			if (!_is_previous_preset_key_pressed && !_is_next_preset_key_pressed)
+			{
+				_is_previous_preset_key_pressed = _input->is_key_pressed(_previous_preset_key_data);
+				_is_next_preset_key_pressed = _input->is_key_pressed(_next_preset_key_data);
+				if (_is_previous_preset_key_pressed || _is_next_preset_key_pressed)
+				{
+					if (switch_to_next_preset(_is_previous_preset_key_pressed))
+					{
+						_last_preset_switching_time = current_time;
+						_is_in_between_presets_transition = true;
+						save_config();
+					}
+				}
+			}
+			if ((_is_previous_preset_key_pressed && _input->is_key_released(_previous_preset_key_data[0])) ||
+				(_is_next_preset_key_pressed && _input->is_key_released(_next_preset_key_data[0])))
+			{
+				// Ok, the preset shortcut key was released, so reset everything so to be prepared for a new transition
+				_is_previous_preset_key_pressed = false;
+				_is_next_preset_key_pressed = false;
+			}
+		}
+
+		if (_is_in_between_presets_transition)
+			load_current_preset();
+	}
 #if RESHADE_GUI
 	// Draw overlay
 	draw_ui();
@@ -882,6 +911,9 @@ void reshade::runtime::load_config()
 	config.get("INPUT", "KeyReload", _reload_key_data);
 	config.get("INPUT", "KeyEffects", _effects_key_data);
 	config.get("INPUT", "KeyScreenshot", _screenshot_key_data);
+	config.get("INPUT", "KeyPreviousPreset", _previous_preset_key_data);
+	config.get("INPUT", "KeyNextPreset", _next_preset_key_data);
+	config.get("INPUT", "PresetTransitionDelay", _preset_transition_delay);
 
 	config.get("GENERAL", "PerformanceMode", _performance_mode);
 	config.get("GENERAL", "EffectSearchPaths", _effect_search_paths);
@@ -941,6 +973,9 @@ void reshade::runtime::save_config(const std::filesystem::path &path) const
 	config.set("INPUT", "KeyReload", _reload_key_data);
 	config.set("INPUT", "KeyEffects", _effects_key_data);
 	config.set("INPUT", "KeyScreenshot", _screenshot_key_data);
+	config.set("INPUT", "KeyPreviousPreset", _previous_preset_key_data);
+	config.set("INPUT", "KeyNextPreset", _next_preset_key_data);
+	config.set("INPUT", "PresetTransitionDelay", _preset_transition_delay);
 
 	config.set("GENERAL", "PerformanceMode", _performance_mode);
 	config.set("GENERAL", "EffectSearchPaths", _effect_search_paths);
@@ -988,9 +1023,17 @@ void reshade::runtime::load_preset(const std::filesystem::path &path)
 			       (std::find(sorted_technique_list.begin(), sorted_technique_list.end(), rhs.name) - sorted_technique_list.begin());
 		});
 
+	// compute times since the transition has started and how much left till it should end
+	auto n_microseconds_passed = std::chrono::duration_cast<std::chrono::microseconds>(_last_present_time - _last_preset_switching_time).count();
+	auto n_miliseconds_left = _preset_transition_delay - n_microseconds_passed / 1000;
+	auto n_miliseconds_left_from_last_frame = n_miliseconds_left + +std::chrono::duration_cast<std::chrono::microseconds>(_last_frame_duration).count() / 1000;
+
+	if (_is_in_between_presets_transition && n_miliseconds_left <= 0)
+		_is_in_between_presets_transition = false;
+
 	for (uniform &variable : _uniforms)
 	{
-		reshadefx::constant values;
+		reshadefx::constant values, values_old;
 
 		switch (variable.type.base)
 		{
@@ -1007,7 +1050,16 @@ void reshade::runtime::load_preset(const std::filesystem::path &path)
 			break;
 		case reshadefx::type::t_float:
 			get_uniform_value(variable, values.as_float, 16);
+			values_old = values;
 			preset.get(_loaded_effects[variable.effect_index].source_file.filename().u8string(), variable.name, values.as_float);
+			if (_is_in_between_presets_transition)
+			{
+				for (int i = 0; i < 16; i++)
+				{
+					auto f_ratio = static_cast<float>(values.as_float[i] - values_old.as_float[i]) / n_miliseconds_left_from_last_frame;
+					values.as_float[i] = static_cast<float>(values.as_float[i] - f_ratio * n_miliseconds_left);
+				}
+			}
 			set_uniform_value(variable, values.as_float, 16);
 			break;
 		}

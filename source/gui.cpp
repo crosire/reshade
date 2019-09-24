@@ -967,6 +967,15 @@ void reshade::runtime::draw_overlay_menu_settings()
 		modified |= imgui_key_input("Effect Toggle Key", _effects_key_data, *_input);
 		_ignore_shortcuts |= ImGui::IsItemActive();
 
+		modified |= imgui_key_input("Previous Preset Key", _previous_preset_key_data, *_input);
+		_ignore_shortcuts |= ImGui::IsItemActive();
+		modified |= imgui_key_input("Next Preset Key", _next_preset_key_data, *_input);
+		_ignore_shortcuts |= ImGui::IsItemActive();
+
+		modified |= ImGui::SliderInt("Preset transition\ndelay (ms)", &_preset_transition_delay, 0, 10 * 1000);
+		if (ImGui::IsItemHovered())
+			ImGui::SetTooltip("%s", "Makes a smooth transition, but only for floating point values.\nRecommended for multiple presets that contain the same shaders, otherwise set this to 0");
+
 		modified |= ImGui::Combo("Input Processing", &_input_processing_mode,
 			"Pass on all input\0"
 			"Block input when cursor is on overlay\0"
