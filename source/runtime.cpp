@@ -177,32 +177,34 @@ void reshade::runtime::on_present()
 		if (_input->is_key_pressed(_screenshot_key_data))
 			_should_save_screenshot = true;
 
-		if (!_is_previous_preset_key_pressed && !_is_next_preset_key_pressed)
+		if (!is_loading() && _reload_compile_queue.empty())
 		{
-			_is_previous_preset_key_pressed = _input->is_key_pressed(_previous_preset_key_data);
-			_is_next_preset_key_pressed = _input->is_key_pressed(_next_preset_key_data);
-			if (_is_previous_preset_key_pressed  || _is_next_preset_key_pressed)
+			if (!_is_previous_preset_key_pressed && !_is_next_preset_key_pressed)
 			{
-				if (switch_to_next_preset(_is_previous_preset_key_pressed))
+				_is_previous_preset_key_pressed = _input->is_key_pressed(_previous_preset_key_data);
+				_is_next_preset_key_pressed = _input->is_key_pressed(_next_preset_key_data);
+				if (_is_previous_preset_key_pressed || _is_next_preset_key_pressed)
 				{
-					_last_preset_switching_time = current_time;
-					_is_in_between_presets_transition = true;
-					save_config();
+					if (switch_to_next_preset(_is_previous_preset_key_pressed))
+					{
+						_last_preset_switching_time = current_time;
+						_is_in_between_presets_transition = true;
+						save_config();
+					}
 				}
 			}
+			if ((_is_previous_preset_key_pressed && _input->is_key_released(_previous_preset_key_data[0])) ||
+				(_is_next_preset_key_pressed && _input->is_key_released(_next_preset_key_data[0])))
+			{
+				// Ok, the preset shortcut key was released, so reset everything so to be prepared for a new transition
+				_is_previous_preset_key_pressed = false;
+				_is_next_preset_key_pressed = false;
+			}
 		}
-		if ((_is_previous_preset_key_pressed && _input->is_key_released(_previous_preset_key_data[0])) ||
-			(_is_next_preset_key_pressed && _input->is_key_released(_next_preset_key_data[0])))
-		{
-			// Ok, the preset shortcut key was released, so reset everything so to be prepared for a new transition
-			_is_previous_preset_key_pressed = false;
-			_is_next_preset_key_pressed = false;
-		}
+
+		if (_is_in_between_presets_transition)
+			load_current_preset();
 	}
-
-	if (_is_in_between_presets_transition)
-		load_current_preset();
-
 #if RESHADE_GUI
 	// Draw overlay
 	draw_ui();
@@ -1043,37 +1045,13 @@ void reshade::runtime::load_preset(const std::filesystem::path &path)
 		{
 		case reshadefx::type::t_int:
 			get_uniform_value(variable, values.as_int, 16);
-			values_old = values;
 			preset.get(_loaded_effects[variable.effect_index].source_file.filename().u8string(), variable.name, values.as_int);
-			if (_is_in_between_presets_transition)
-			{
-				for (int i = 0; i < 16; i++)
-				{
-					if (abs(values.as_int[i] - values_old.as_int[i]) > 1)
-					{
-						auto f_ratio = static_cast<float>(values.as_int[i] - values_old.as_int[i]) / n_miliseconds_left_from_last_frame;
-						values.as_int[i] = static_cast<int32_t>(values.as_int[i] - f_ratio * n_miliseconds_left);
-					}
-				}
-			}
 			set_uniform_value(variable, values.as_int, 16);
 			break;
 		case reshadefx::type::t_bool:
 		case reshadefx::type::t_uint:
 			get_uniform_value(variable, values.as_uint, 16);
-			values_old = values;
 			preset.get(_loaded_effects[variable.effect_index].source_file.filename().u8string(), variable.name, values.as_uint);
-			if (_is_in_between_presets_transition)
-			{
-				for (int i = 0; i < 16; i++)
-				{
-					if (abs(static_cast<float>(values.as_uint[i]) - values_old.as_uint[i]) > 1)
-					{
-						auto f_ratio = (static_cast<float>(values.as_uint[i]) - values_old.as_uint[i]) / n_miliseconds_left_from_last_frame;
-						values.as_uint[i] = static_cast<uint32_t>(values.as_uint[i] - f_ratio * n_miliseconds_left);
-					}
-				}
-			}
 			set_uniform_value(variable, values.as_uint, 16);
 			break;
 		case reshadefx::type::t_float:
