@@ -520,7 +520,7 @@ void     VKAPI_CALL vkDestroyDevice(VkDevice device, const VkAllocationCallbacks
 		{
 			if (it->second == device)
 			{
-				s_queue_mapping.erase(it->first);
+				it = s_queue_mapping.erase(it);
 				continue;
 			}
 
@@ -532,8 +532,6 @@ void     VKAPI_CALL vkDestroyDevice(VkDevice device, const VkAllocationCallbacks
 			if (it->second == device)
 			{
 				// command buffer found
-				s_command_buffer_mapping.erase(it->first);
-
 				if (const auto it2 = s_trackers_per_command_buffer.find(it->first); it2 != s_trackers_per_command_buffer.end())
 				{
 					// draw call tracker found. Reset it
@@ -541,6 +539,8 @@ void     VKAPI_CALL vkDestroyDevice(VkDevice device, const VkAllocationCallbacks
 					s_trackers_per_command_buffer.erase(it->first);
 					s_framebuffer_per_command_buffer.erase(it->first);
 				}
+
+				it = s_command_buffer_mapping.erase(it);
 				continue;
 			}
 
