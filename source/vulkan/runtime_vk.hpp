@@ -104,7 +104,7 @@ namespace reshade::vulkan
 		std::vector<VkImage> _swapchain_images;
 		std::vector<VkImageView> _swapchain_views;
 		std::vector<VkFramebuffer> _swapchain_frames;
-		VkRenderPass _default_render_pass = VK_NULL_HANDLE;
+		VkRenderPass _default_render_pass[2] = {};
 		VkExtent2D _render_area = {};
 		VkFormat _backbuffer_format = VK_FORMAT_UNDEFINED;
 

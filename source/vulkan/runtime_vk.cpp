@@ -45,7 +45,8 @@ namespace reshade::vulkan
 	{
 		~vulkan_pass_data()
 		{
-			if (begin_info.renderPass != runtime->_default_render_pass)
+			if (begin_info.renderPass != runtime->_default_render_pass[0] &&
+				begin_info.renderPass != runtime->_default_render_pass[1])
 				runtime->vk.DestroyRenderPass(runtime->_device, begin_info.renderPass, nullptr);
 			if (begin_info.framebuffer != VK_NULL_HANDLE)
 				runtime->vk.DestroyFramebuffer(runtime->_device, begin_info.framebuffer, nullptr);
@@ -235,7 +236,7 @@ bool reshade::vulkan::runtime_vk::on_init(VkSwapchainKHR swapchain, const VkSwap
 	_backbuffer_texture = create_image(
 		_width, _height, 1, _backbuffer_format,
 		VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
-		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_IMAGE_CREATE_MUTABLE_FORMAT_BIT);
 	if (_backbuffer_texture == VK_NULL_HANDLE)
 		return false;
 
@@ -256,13 +257,15 @@ bool reshade::vulkan::runtime_vk::on_init(VkSwapchainKHR swapchain, const VkSwap
 	if (_default_depthstencil_view == VK_NULL_HANDLE)
 		return false;
 
-	{   VkAttachmentReference attachment_refs[2] = {};
+	for (uint32_t k = 0; k < 2; ++k)
+	{
+		VkAttachmentReference attachment_refs[2] = {};
 		attachment_refs[0].attachment = 0;
 		attachment_refs[0].layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 		attachment_refs[1].attachment = 1;
 		attachment_refs[1].layout = VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_STENCIL_ATTACHMENT_OPTIMAL;
 		VkAttachmentDescription attachment_descs[2] = {};
-		attachment_descs[0].format = _backbuffer_format;
+		attachment_descs[0].format = k == 0 ? make_format_normal(_backbuffer_format) : make_format_srgb(_backbuffer_format);
 		attachment_descs[0].samples = VK_SAMPLE_COUNT_1_BIT;
 		attachment_descs[0].loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
 		attachment_descs[0].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
@@ -300,7 +303,7 @@ bool reshade::vulkan::runtime_vk::on_init(VkSwapchainKHR swapchain, const VkSwap
 		create_info.dependencyCount = 1;
 		create_info.pDependencies = &subdep;
 
-		check_result(vk.CreateRenderPass(_device, &create_info, nullptr, &_default_render_pass)) false;
+		check_result(vk.CreateRenderPass(_device, &create_info, nullptr, &_default_render_pass[k])) false;
 	}
 
 	uint32_t num_images = 0;
@@ -318,6 +321,7 @@ bool reshade::vulkan::runtime_vk::on_init(VkSwapchainKHR swapchain, const VkSwap
 
 	for (uint32_t i = 0, k = 0; i < num_images; ++i, k += 2)
 	{
+		// TODO: This is technically illegal, since swapchain images are not created with VK_IMAGE_CREATE_MUTABLE_FORMAT_BIT, but it seems to work for now
 		_swapchain_views[k + 0] = create_image_view(_swapchain_images[i], make_format_normal(desc.imageFormat));
 		_swapchain_views[k + 1] = create_image_view(_swapchain_images[i], make_format_srgb(desc.imageFormat));
 
@@ -325,7 +329,7 @@ bool reshade::vulkan::runtime_vk::on_init(VkSwapchainKHR swapchain, const VkSwap
 		const VkImageView attachment_views_srgb[2] = { _swapchain_views[k + 1], _default_depthstencil_view };
 
 		{   VkFramebufferCreateInfo create_info { VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO };
-			create_info.renderPass = _default_render_pass;
+			create_info.renderPass = _default_render_pass[0];
 			create_info.attachmentCount = 2;
 			create_info.pAttachments = attachment_views;
 			create_info.width = desc.imageExtent.width;
@@ -334,6 +338,7 @@ bool reshade::vulkan::runtime_vk::on_init(VkSwapchainKHR swapchain, const VkSwap
 
 			check_result(vk.CreateFramebuffer(_device, &create_info, nullptr, &_swapchain_frames[k + 0])) false;
 
+			create_info.renderPass = _default_render_pass[1];
 			create_info.pAttachments = attachment_views_srgb;
 
 			check_result(vk.CreateFramebuffer(_device, &create_info, nullptr, &_swapchain_frames[k + 1])) false;
@@ -401,8 +406,10 @@ void reshade::vulkan::runtime_vk::on_reset()
 	vk.DestroyImage(_device, _default_depthstencil, nullptr);
 	_default_depthstencil = VK_NULL_HANDLE;
 
-	vk.DestroyRenderPass(_device, _default_render_pass, nullptr);
-	_default_render_pass = VK_NULL_HANDLE;
+	vk.DestroyRenderPass(_device, _default_render_pass[0], nullptr);
+	_default_render_pass[0] = VK_NULL_HANDLE;
+	vk.DestroyRenderPass(_device, _default_render_pass[1], nullptr);
+	_default_render_pass[1] = VK_NULL_HANDLE;
 	for (VkImageView view : _swapchain_views)
 		vk.DestroyImageView(_device, view, nullptr);
 	_swapchain_views.clear();
@@ -949,9 +956,10 @@ bool reshade::vulkan::runtime_vk::compile_effect(effect_data &effect)
 			image_binding.imageView = _backbuffer_texture_view[info.srgb];
 			break;
 		case texture_reference::depth_buffer:
-			// set to a depthstencil view to make validation layers happy
-			if(_depthstencil_image_view == VK_NULL_HANDLE)
-				image_binding.imageView = _default_depthstencil_view;
+			if (_depthstencil_image_view == VK_NULL_HANDLE)
+				// Set to a default view to avoid crash because of this being null
+				// TODO: Back buffer is not really a great choice here ...
+				image_binding.imageView = _backbuffer_texture_view[0];
 			else
 				image_binding.imageView = _depthstencil_image_view;
 			break;
@@ -1241,7 +1249,7 @@ bool reshade::vulkan::runtime_vk::init_technique(technique &info, VkShaderModule
 		if (num_color_attachments == 0)
 		{
 			num_color_attachments = 1;
-			pass_data.begin_info.renderPass = _default_render_pass;
+			pass_data.begin_info.renderPass = _default_render_pass[pass_info.srgb_write_enable];
 			pass_data.begin_info.framebuffer = VK_NULL_HANDLE; // Select the correct swapchain frame buffer during rendering
 		}
 		else
@@ -1590,7 +1598,7 @@ bool reshade::vulkan::runtime_vk::init_imgui_resources()
 	create_info.pColorBlendState = &blend_info;
 	create_info.pDynamicState = &dynamic_state;
 	create_info.layout = _imgui_pipeline_layout;
-	create_info.renderPass = _default_render_pass;
+	create_info.renderPass = _default_render_pass[0];
 
 	check_result(vk.CreateGraphicsPipelines(_device, VK_NULL_HANDLE, 1, &create_info, nullptr, &_imgui_pipeline)) false;
 
@@ -1678,7 +1686,7 @@ void reshade::vulkan::runtime_vk::render_imgui_draw_data(ImDrawData *draw_data)
 	const VkCommandBuffer cmd_list = create_command_list();
 
 	{   VkRenderPassBeginInfo begin_info { VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO };
-		begin_info.renderPass = _default_render_pass;
+		begin_info.renderPass = _default_render_pass[0];
 		begin_info.framebuffer = _swapchain_frames[_swap_index * 2];
 		begin_info.renderArea.extent = _render_area;
 		vk.CmdBeginRenderPass(cmd_list, &begin_info, VK_SUBPASS_CONTENTS_INLINE);
@@ -1973,15 +1981,15 @@ bool reshade::vulkan::runtime_vk::create_depthstencil_replacement(VkImageView de
 					if (effect_data.set[0] == VK_NULL_HANDLE || effect_data.set[1] == VK_NULL_HANDLE)
 						continue;
 
-					{  VkWriteDescriptorSet writes[1];
-					writes[0] = { VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
-					writes[0].dstSet = effect_data.set[1];
-					writes[0].dstBinding = 0;
-					writes[0].descriptorCount = uint32_t(image_bindings.size());
-					writes[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-					writes[0].pImageInfo = image_bindings.data();
+					{   VkWriteDescriptorSet writes[1];
+						writes[0] = { VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
+						writes[0].dstSet = effect_data.set[1];
+						writes[0].dstBinding = 0;
+						writes[0].descriptorCount = uint32_t(image_bindings.size());
+						writes[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+						writes[0].pImageInfo = image_bindings.data();
 
-					vk.UpdateDescriptorSets(_device, 1, writes, 0, nullptr);
+						vk.UpdateDescriptorSets(_device, 1, writes, 0, nullptr);
 					}
 				}
 
