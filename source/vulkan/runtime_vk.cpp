@@ -386,13 +386,20 @@ void reshade::vulkan::runtime_vk::on_reset()
 	vk.DeviceWaitIdle(_device);
 
 	vk.DestroyDescriptorSetLayout(_device, _effect_ubo_layout, nullptr);
+	_effect_ubo_layout = VK_NULL_HANDLE;
 	vk.DestroyDescriptorPool(_device, _effect_descriptor_pool, nullptr);
+	_effect_descriptor_pool = VK_NULL_HANDLE;
 
 	vk.DestroyImageView(_device, _backbuffer_texture_view[0], nullptr);
+	_backbuffer_texture_view[0] = VK_NULL_HANDLE;
 	vk.DestroyImageView(_device, _backbuffer_texture_view[1], nullptr);
+	_backbuffer_texture_view[1] = VK_NULL_HANDLE;
 	vk.DestroyImageView(_device, _default_depthstencil_view, nullptr);
+	_default_depthstencil_view = VK_NULL_HANDLE;
 	vk.DestroyImage(_device, _backbuffer_texture, nullptr);
+	_backbuffer_texture = VK_NULL_HANDLE;
 	vk.DestroyImage(_device, _default_depthstencil, nullptr);
+	_default_depthstencil = VK_NULL_HANDLE;
 
 	vk.DestroyRenderPass(_device, _default_render_pass, nullptr);
 	_default_render_pass = VK_NULL_HANDLE;

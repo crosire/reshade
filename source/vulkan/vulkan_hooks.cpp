@@ -512,15 +512,9 @@ void     VKAPI_CALL vkDestroyDevice(VkDevice device, const VkAllocationCallbacks
 		trampoline = s_device_dispatch.at(get_dispatch_key(device)).DestroyDevice;
 		assert(trampoline != nullptr);
 
-		if (const auto it = s_device_runtimes.find(device); it != s_device_runtimes.end())
-		{
-			it->second->on_reset();
-
-			s_device_runtimes.erase(it);
-		}
-
 		s_device_mapping.erase(device);
 		s_device_tracker.erase(device);
+		s_device_runtimes.erase(device);
 
 		for (auto it = s_queue_mapping.begin(); it != s_queue_mapping.end();)
 		{
