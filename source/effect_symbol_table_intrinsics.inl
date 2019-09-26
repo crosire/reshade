@@ -671,10 +671,10 @@ DEFINE_INTRINSIC(log10, 0, float2, float2)
 DEFINE_INTRINSIC(log10, 0, float3, float3)
 DEFINE_INTRINSIC(log10, 0, float4, float4)
 IMPLEMENT_INTRINSIC_GLSL(log10, 0, {
-	code += "(log2(" + id_to_name(args[0].base) + ") / 2.302585093)";
+	code += "(log2(" + id_to_name(args[0].base) + ") / log2(10.0))";
 	})
 IMPLEMENT_INTRINSIC_HLSL(log10, 0, {
-	code += "(log2(" + id_to_name(args[0].base) + ") / 2.302585093)";
+	code += "(log2(" + id_to_name(args[0].base) + ") / log2(10.0))";
 	})
 IMPLEMENT_INTRINSIC_SPIRV(log10, 0, {
 	const spv::Id log2 = add_instruction(spv::OpExtInst, convert_type(res_type))
@@ -683,8 +683,8 @@ IMPLEMENT_INTRINSIC_SPIRV(log10, 0, {
 		.add(args[0].base)
 		.result;
 
-	const spv::Id log10 = emit_constant(args[0].type,
-		{ 2.302585093f, 2.302585093f, 2.302585093f, 2.302585093f });
+	const spv::Id log10 = emit_constant(args[0].type, /* log2(10) */
+		{ 3.321928f, 3.321928f, 3.321928f, 3.321928f });
 
 	return add_instruction(spv::OpFDiv, convert_type(res_type))
 		.add(log2)
