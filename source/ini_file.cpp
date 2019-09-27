@@ -207,7 +207,8 @@ bool reshade::ini_file::flush()
 
 reshade::ini_file &reshade::ini_file::load_cache(const std::filesystem::path &path)
 {
-	if (const auto it = g_ini_cache.try_emplace(path, path); it.second)
+	const auto it = g_ini_cache.try_emplace(path, path);
+	if (it.second || std::chrono::seconds(1) > std::filesystem::file_time_type::clock::now() - it.first->second._modified_at)
 		return it.first->second;
 	else
 		return it.first->second.load(), it.first->second;
@@ -215,8 +216,7 @@ reshade::ini_file &reshade::ini_file::load_cache(const std::filesystem::path &pa
 
 void reshade::ini_file::cache_loop()
 {
-	const auto now = std::filesystem::file_time_type::clock::now();
 	for (auto &file : g_ini_cache)
-		if (file.second._modified && now - file.second._modified_at > std::chrono::seconds(1))
+		if (file.second._modified && std::filesystem::file_time_type::clock::now() - file.second._modified_at > std::chrono::seconds(1))
 			file.second.flush();
 }
