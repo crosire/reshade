@@ -132,8 +132,8 @@ namespace reshade
 
 		const std::filesystem::path& path() const { return _path; }
 
-		static reshade::ini_file &reshade::ini_file::load_cache(const std::filesystem::path &path);
-		static void reshade::ini_file::cache_loop();
+		static reshade::ini_file &load_cache(const std::filesystem::path &path);
+		static void cache_loop();
 
 	private:
 		void load();
