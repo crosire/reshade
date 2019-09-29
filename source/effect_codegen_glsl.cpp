@@ -30,6 +30,8 @@ private:
 		general,
 		// This is a special name that is not modified and should be unique
 		reserved,
+		// Replace name with a code snippet
+		expression,
 	};
 
 	std::string _ubo_block;
@@ -232,8 +234,9 @@ private:
 	void define_name(const id id, std::string name)
 	{
 		assert(!name.empty());
-		if (name[0] == '_')
-			return; // Filter out names that may clash with automatic ones
+		if constexpr (naming != naming::expression)
+			if (name[0] == '_')
+				return; // Filter out names that may clash with automatic ones
 		if constexpr (naming != naming::reserved)
 			name = escape_name(name);
 		if constexpr (naming == naming::general)
@@ -694,20 +697,7 @@ private:
 
 		const id res = make_id();
 
-		std::string &code = _blocks.at(_current_block);
-
-		write_location(code, exp.location);
-
-		code += '\t';
-		write_type(code, exp.type);
-		code += ' ' + id_to_name(res);
-
-		if (exp.type.is_array())
-			code += '[' + std::to_string(exp.type.array_length) + ']';
-
-		code += " = ";
-
-		std::string newcode = id_to_name(exp.base);
+		std::string code = id_to_name(exp.base);
 
 		for (const auto &op : exp.chain)
 		{
@@ -715,17 +705,17 @@ private:
 			{
 			case expression::operation::op_cast:
 				{ std::string type; write_type<false, false>(type, op.to);
-				newcode = type + '(' + newcode + ')'; }
+				code = type + '(' + code + ')'; }
 				break;
 			case expression::operation::op_member:
-				newcode += '.';
-				newcode += escape_name(find_struct(op.from.definition).member_list[op.index].name);
+				code += '.';
+				code += escape_name(find_struct(op.from.definition).member_list[op.index].name);
 				break;
 			case expression::operation::op_dynamic_index:
-				newcode += '[' + id_to_name(op.index) + ']';
+				code += '[' + id_to_name(op.index) + ']';
 				break;
 			case expression::operation::op_constant_index:
-				newcode += '[' + std::to_string(op.index) + ']';
+				code += '[' + std::to_string(op.index) + ']';
 				break;
 			case expression::operation::op_swizzle:
 				if (op.from.is_matrix())
@@ -735,7 +725,7 @@ private:
 						const unsigned int row = op.swizzle[0] % 4;
 						const unsigned int col = (op.swizzle[0] - row) / 4;
 
-						newcode += '[' + std::to_string(row) + "][" + std::to_string(col) + ']';
+						code += '[' + std::to_string(row) + "][" + std::to_string(col) + ']';
 					}
 					else
 					{
@@ -745,16 +735,16 @@ private:
 				}
 				else
 				{
-					newcode += '.';
+					code += '.';
 					for (unsigned int i = 0; i < 4 && op.swizzle[i] >= 0; ++i)
-						newcode += "xyzw"[op.swizzle[i]];
+						code += "xyzw"[op.swizzle[i]];
 				}
 				break;
 			}
 		}
 
-		code += newcode;
-		code += ";\n";
+		// Avoid excessive variable definitions by instancing simple load operations in code every time
+		define_name<naming::expression>(res, std::move(code));
 
 		return res;
 	}
@@ -820,27 +810,32 @@ private:
 	{
 		const id res = make_id();
 
-		std::string &code = _blocks.at(_current_block);
-
-		// Struct initialization is not supported right now
-		if (type.is_struct())
+		if (type.is_array() || type.is_struct())
 		{
-			code += '\t';
+			std::string &code = _blocks.at(_current_block);
+
+			// Array constants need to be stored in a constant variable as they cannot be used in-place
+			code += "\tconst ";
 			write_type(code, type);
-			code += ' ' + id_to_name(res) + ";\n";
+			code += ' ' + id_to_name(res);
+
+			if (type.is_array())
+				code += '[' + std::to_string(type.array_length) + ']';
+
+			// Struct initialization is not supported right now
+			if (!type.is_struct())
+			{
+				code += " = ";
+				write_constant(code, type, data);
+			}
+
+			code += ";\n";
 			return res;
 		}
 
-		code += "\tconst ";
-		write_type(code, type);
-		code += ' ' + id_to_name(res);
-
-		if (type.is_array())
-			code += '[' + std::to_string(type.array_length) + ']';
-
-		code += " = ";
+		std::string code;
 		write_constant(code, type, data);
-		code += ";\n";
+		define_name<naming::expression>(res, std::move(code));
 
 		return res;
 	}
