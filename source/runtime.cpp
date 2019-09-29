@@ -212,6 +212,9 @@ void reshade::runtime::on_present()
 	// Reset input status
 	_input->next_frame();
 
+	// Save .ini files
+	ini_file::flush_cache();
+
 	static int cooldown = 0, traffic = 0;
 
 	if (cooldown-- > 0)
@@ -496,7 +499,7 @@ void reshade::runtime::load_effects()
 	{
 		_preset_preprocessor_definitions.clear();
 
-		const ini_file preset(_current_preset_path);
+		const ini_file &preset = ini_file::load_cache(_current_preset_path);
 		preset.get("", "PreprocessorDefinitions", _preset_preprocessor_definitions);
 	}
 
@@ -891,20 +894,18 @@ void reshade::runtime::subscribe_to_load_config(std::function<void(const ini_fil
 {
 	_load_config_callables.push_back(function);
 
-	const ini_file config(_configuration_path);
-	function(config);
+	function(ini_file::load_cache(_configuration_path));
 }
 void reshade::runtime::subscribe_to_save_config(std::function<void(ini_file &)> function)
 {
 	_save_config_callables.push_back(function);
 
-	ini_file config(_configuration_path);
-	function(config);
+	function(ini_file::load_cache(_configuration_path));
 }
 
 void reshade::runtime::load_config()
 {
-	const ini_file config(_configuration_path);
+	const ini_file &config = ini_file::load_cache(_configuration_path);
 
 	std::filesystem::path current_preset_path;
 
@@ -950,7 +951,7 @@ void reshade::runtime::load_config()
 		path_state = path_state::invalid;
 	else if (file_type == std::filesystem::file_type::not_found)
 		path_state = path_state::valid;
-	else if (reshade::ini_file(g_reshade_dll_path.parent_path() / current_preset_path).has("", "Techniques"))
+	else if (reshade::ini_file::load_cache(g_reshade_dll_path.parent_path() / current_preset_path).has("", "Techniques"))
 		path_state = path_state::valid;
 
 	// Select a default preset file if none exists yet or not own
@@ -964,11 +965,7 @@ void reshade::runtime::load_config()
 }
 void reshade::runtime::save_config() const
 {
-	save_config(_configuration_path);
-}
-void reshade::runtime::save_config(const std::filesystem::path &path) const
-{
-	ini_file config(_configuration_path, path);
+	ini_file &config = ini_file::load_cache(_configuration_path);
 
 	config.set("INPUT", "KeyReload", _reload_key_data);
 	config.set("INPUT", "KeyEffects", _effects_key_data);
@@ -992,9 +989,9 @@ void reshade::runtime::save_config(const std::filesystem::path &path) const
 		callback(config);
 }
 
-void reshade::runtime::load_preset(const std::filesystem::path &path)
+void reshade::runtime::load_current_preset()
 {
-	const ini_file preset(path);
+	const reshade::ini_file &preset = ini_file::load_cache(_current_preset_path);
 
 	std::vector<std::string> technique_list;
 	preset.get("", "Techniques", technique_list);
@@ -1007,7 +1004,6 @@ void reshade::runtime::load_preset(const std::filesystem::path &path)
 	if (_reload_remaining_effects != 0 && // ... unless this is the 'load_current_preset' call in 'update_and_render_effects'
 		(_performance_mode || preset_preprocessor_definitions != _preset_preprocessor_definitions))
 	{
-		assert(path == _current_preset_path);
 		_preset_preprocessor_definitions = std::move(preset_preprocessor_definitions);
 		load_effects();
 		return; // Preset values are loaded in 'update_and_render_effects' during effect loading
@@ -1079,13 +1075,9 @@ void reshade::runtime::load_preset(const std::filesystem::path &path)
 		preset.get("", "Key" + technique.name, technique.toggle_key_data);
 	}
 }
-void reshade::runtime::load_current_preset()
+void reshade::runtime::save_current_preset() const
 {
-	load_preset(_current_preset_path);
-}
-void reshade::runtime::save_preset(const std::filesystem::path &path) const
-{
-	ini_file preset(path);
+	reshade::ini_file &preset = ini_file::load_cache(_current_preset_path);
 
 	std::vector<size_t> effect_list;
 	std::vector<std::string> technique_list;
@@ -1142,10 +1134,6 @@ void reshade::runtime::save_preset(const std::filesystem::path &path) const
 		}
 	}
 }
-void reshade::runtime::save_current_preset() const
-{
-	save_preset(_current_preset_path);
-}
 
 void reshade::runtime::save_screenshot(const std::wstring &postfix, const bool should_save_preset)
 {
@@ -1192,9 +1180,11 @@ void reshade::runtime::save_screenshot(const std::wstring &postfix, const bool s
 	{
 		LOG(ERROR) << "Failed to write screenshot to " << screenshot_path << '!';
 	}
-	else if (_screenshot_include_preset && should_save_preset)
+	else if (_screenshot_include_preset && should_save_preset
+		&& ini_file::flush_cache(_current_preset_path))
 	{
-		save_preset(least + L".ini");
+		std::error_code ec;
+		std::filesystem::copy_file(_current_preset_path, least + L".ini", std::filesystem::copy_options::overwrite_existing, ec);
 	}
 }
 
@@ -1395,7 +1385,7 @@ bool reshade::runtime::switch_to_next_preset(bool reversed)
 
 	for (const std::filesystem::directory_entry &entry : std::filesystem::directory_iterator(preset_container_path, std::filesystem::directory_options::skip_permission_denied, ec))
 		if (!entry.is_directory(ec) && (entry.path().extension() == L".ini" || entry.path().extension() == L".txt"))
-			if (reshade::ini_file(entry).has("", "Techniques"))
+			if (reshade::ini_file::load_cache(entry).has("", "Techniques"))
 				if (std::filesystem::equivalent(entry, _current_preset_path, ec))
 					current_preset_index = preset_paths.size(),
 					preset_paths.push_back(entry);

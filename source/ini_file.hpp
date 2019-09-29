@@ -16,7 +16,6 @@ namespace reshade
 	{
 	public:
 		explicit ini_file(const std::filesystem::path &path);
-		ini_file(const std::filesystem::path &path, const std::filesystem::path &save_path);
 		~ini_file();
 
 		bool has(const std::string &section, const std::string &key) const
@@ -83,6 +82,7 @@ namespace reshade
 			auto &v = _sections[section][key];
 			v.assign(1, value);
 			_modified = true;
+			_modified_at = std::filesystem::file_time_type::clock::now();
 		}
 		template <>
 		void set(const std::string &section, const std::string &key, const std::filesystem::path &value)
@@ -97,6 +97,7 @@ namespace reshade
 			for (size_t i = 0; i < size; ++i)
 				v[i] = std::to_string(values[i]);
 			_modified = true;
+			_modified_at = std::filesystem::file_time_type::clock::now();
 		}
 		template <typename T>
 		void set(const std::string &section, const std::string &key, const std::vector<T> &values)
@@ -106,6 +107,7 @@ namespace reshade
 			for (size_t i = 0; i < values.size(); ++i)
 				v[i] = std::to_string(values[i]);
 			_modified = true;
+			_modified_at = std::filesystem::file_time_type::clock::now();
 		}
 		template <>
 		void set(const std::string &section, const std::string &key, const std::vector<std::string> &values)
@@ -113,6 +115,7 @@ namespace reshade
 			auto &v = _sections[section][key];
 			v = values;
 			_modified = true;
+			_modified_at = std::filesystem::file_time_type::clock::now();
 		}
 		template <>
 		void set(const std::string &section, const std::string &key, const std::vector<std::filesystem::path> &values)
@@ -122,11 +125,17 @@ namespace reshade
 			for (size_t i = 0; i < values.size(); ++i)
 				v[i] = values[i].u8string();
 			_modified = true;
+			_modified_at = std::filesystem::file_time_type::clock::now();
 		}
+
+		static reshade::ini_file &load_cache(const std::filesystem::path &path);
+
+		static void flush_cache();
+		static bool flush_cache(const std::filesystem::path &path);
 
 	private:
 		void load();
-		void save() const;
+		bool save();
 
 		template <typename T>
 		static const T convert(const std::vector<std::string> &values, size_t i) = delete;
@@ -188,9 +197,9 @@ namespace reshade
 
 		bool _modified = false;
 		std::filesystem::path _path;
-		std::filesystem::path _save_path;
 		using value = std::vector<std::string>;
 		using section = std::unordered_map<std::string, value>;
 		std::unordered_map<std::string, section> _sections;
+		std::filesystem::file_time_type _modified_at;
 	};
 }
