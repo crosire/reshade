@@ -185,7 +185,7 @@ void reshade::runtime::on_present()
 	_input->next_frame();
 
 	// Save .ini files
-	ini_file::cache_loop();
+	ini_file::flush_cache();
 
 	static int cooldown = 0, traffic = 0;
 
@@ -1129,14 +1129,11 @@ void reshade::runtime::save_screenshot(const std::wstring &postfix, const bool s
 	{
 		LOG(ERROR) << "Failed to write screenshot to " << screenshot_path << '!';
 	}
-	else if (_screenshot_include_preset && should_save_preset)
+	else if (_screenshot_include_preset && should_save_preset
+		&& ini_file::flush_cache(_current_preset_path))
 	{
 		std::error_code ec;
-
-		if (ini_file::load_cache(_current_preset_path).flush())
-		{
-			std::filesystem::copy_file(_current_preset_path, least + L".ini", std::filesystem::copy_options::overwrite_existing, ec);
-		}
+		std::filesystem::copy_file(_current_preset_path, least + L".ini", std::filesystem::copy_options::overwrite_existing, ec);
 	}
 }
 

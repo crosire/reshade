@@ -27,7 +27,7 @@ reshade::ini_file::ini_file(const std::filesystem::path &path)
 }
 reshade::ini_file::~ini_file()
 {
-	flush();
+	save();
 }
 
 void reshade::ini_file::load()
@@ -112,7 +112,7 @@ void reshade::ini_file::load()
 		}
 	}
 }
-bool reshade::ini_file::flush()
+bool reshade::ini_file::save()
 {
 	if (!_modified)
 		return true;
@@ -214,9 +214,16 @@ reshade::ini_file &reshade::ini_file::load_cache(const std::filesystem::path &pa
 		return it.first->second.load(), it.first->second;
 }
 
-void reshade::ini_file::cache_loop()
+void reshade::ini_file::flush_cache()
 {
 	for (auto &file : g_ini_cache)
 		if (file.second._modified && std::filesystem::file_time_type::clock::now() - file.second._modified_at > std::chrono::seconds(1))
-			file.second.flush();
+			file.second.save();
+}
+bool reshade::ini_file::flush_cache(const std::filesystem::path &path)
+{
+	if (const auto it = g_ini_cache.find(path); it == g_ini_cache.end())
+		return false;
+	else
+		return it->second.save();
 }

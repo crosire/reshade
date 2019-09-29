@@ -18,8 +18,6 @@ namespace reshade
 		explicit ini_file(const std::filesystem::path &path);
 		~ini_file();
 
-		bool flush();
-
 		bool has(const std::string &section, const std::string &key) const
 		{
 			const auto it1 = _sections.find(section);
@@ -131,10 +129,13 @@ namespace reshade
 		}
 
 		static reshade::ini_file &load_cache(const std::filesystem::path &path);
-		static void cache_loop();
+
+		static void flush_cache();
+		static bool flush_cache(const std::filesystem::path &path);
 
 	private:
 		void load();
+		bool save();
 
 		template <typename T>
 		static const T convert(const std::vector<std::string> &values, size_t i) = delete;
