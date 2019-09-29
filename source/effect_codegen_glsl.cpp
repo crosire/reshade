@@ -814,17 +814,21 @@ private:
 		{
 			std::string &code = _blocks.at(_current_block);
 
-			// Array constants need to be stored in a constant variable as they cannot be used in-place
-			code += "\tconst ";
+			code += '\t';
+
+			// GLSL requires constants to be initialized
+			if (!type.is_struct())
+				code += "const ";
+
 			write_type(code, type);
 			code += ' ' + id_to_name(res);
 
+			// Array constants need to be stored in a constant variable as they cannot be used in-place
 			if (type.is_array())
 				code += '[' + std::to_string(type.array_length) + ']';
 
 			// Struct initialization is not supported right now
-			if (!type.is_struct())
-			{
+			if (!type.is_struct()) {
 				code += " = ";
 				write_constant(code, type, data);
 			}
