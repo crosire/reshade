@@ -970,7 +970,6 @@ void reshade::runtime::load_current_preset()
 	if (_reload_remaining_effects != 0 && // ... unless this is the 'load_current_preset' call in 'update_and_render_effects'
 		(_performance_mode || preset_preprocessor_definitions != _preset_preprocessor_definitions))
 	{
-		assert(preset.path() == _current_preset_path);
 		_preset_preprocessor_definitions = std::move(preset_preprocessor_definitions);
 		load_effects();
 		return; // Preset values are loaded in 'update_and_render_effects' during effect loading

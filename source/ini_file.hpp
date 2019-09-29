@@ -130,8 +130,6 @@ namespace reshade
 			_modified_at = std::filesystem::file_time_type::clock::now();
 		}
 
-		const std::filesystem::path& path() const { return _path; }
-
 		static reshade::ini_file &load_cache(const std::filesystem::path &path);
 		static void cache_loop();
 
