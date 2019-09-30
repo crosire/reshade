@@ -14,6 +14,7 @@
 #include "d3d12/d3d12_device.hpp"
 #include "d3d12/d3d12_command_queue.hpp"
 #include "d3d12/runtime_d3d12.hpp"
+#include <CoreWindow.h>
 
 static void dump_swapchain_desc(const DXGI_SWAP_CHAIN_DESC &desc)
 {
@@ -90,7 +91,7 @@ static unsigned int query_device(IUnknown *&device, com_ptr<IUnknown> &device_pr
 }
 
 template <typename T>
-static void init_reshade_runtime_d3d(T *&swapchain, unsigned int direct3d_version, const com_ptr<IUnknown> &device_proxy)
+static void init_reshade_runtime_d3d(T *&swapchain, unsigned int direct3d_version, const com_ptr<IUnknown> &device_proxy, HWND hwnd = nullptr)
 {
 	DXGI_SWAP_CHAIN_DESC desc;
 	if (FAILED(swapchain->GetDesc(&desc)))
@@ -129,6 +130,10 @@ static void init_reshade_runtime_d3d(T *&swapchain, unsigned int direct3d_versio
 		if (com_ptr<IDXGISwapChain3> swapchain3; SUCCEEDED(swapchain->QueryInterface(&swapchain3)))
 		{
 			const com_ptr<D3D12CommandQueue> &command_queue = reinterpret_cast<const com_ptr<D3D12CommandQueue> &>(device_proxy);
+
+			// Update window handle in swapchain description for UWP applications
+			if (hwnd != nullptr)
+				desc.OutputWindow = hwnd;
 
 			const auto runtime = std::make_shared<reshade::d3d12::runtime_d3d12>(command_queue->_device->_orig, command_queue->_orig, swapchain3.get());
 			if (!runtime->on_init(desc))
@@ -207,7 +212,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForHwnd(IDXGIFactory2 *pF
 		return hr;
 	}
 
-	init_reshade_runtime_d3d(*ppSwapChain, direct3d_version, device_proxy);
+	init_reshade_runtime_d3d(*ppSwapChain, direct3d_version, device_proxy, hWnd);
 
 	return hr;
 }
@@ -232,7 +237,12 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForCoreWindow(IDXGIFactor
 		return hr;
 	}
 
-	init_reshade_runtime_d3d(*ppSwapChain, direct3d_version, device_proxy);
+	// Get window handle of the core window
+	HWND hwnd = nullptr;
+	if (com_ptr<ICoreWindowInterop> window_interop; SUCCEEDED(pWindow->QueryInterface(&window_interop)))
+		window_interop->get_WindowHandle(&hwnd);
+
+	init_reshade_runtime_d3d(*ppSwapChain, direct3d_version, device_proxy, hwnd);
 
 	return hr;
 }
