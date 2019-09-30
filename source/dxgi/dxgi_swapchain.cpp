@@ -300,7 +300,7 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers(UINT BufferCount, UINT Wi
 	else if (FAILED(hr))
 	{
 		LOG(ERROR) << "> IDXGISwapChain::ResizeBuffers failed with error code " << std::hex << hr << std::dec << '!';
-		return S_OK;
+		return hr;
 	}
 
 	runtime_resize();

@@ -41,6 +41,7 @@ namespace reshade::d3d12
 		bool depth_buffer_before_clear = false;
 		bool depth_buffer_more_copies = false;
 		bool extended_depth_buffer_detection = false;
+		bool is_multisampling_enabled = false;
 		unsigned int cleared_depth_buffer_index = 0;
 		int depth_buffer_texture_format = 0; // No depth buffer texture format filter by default
 
@@ -98,7 +99,6 @@ namespace reshade::d3d12
 		com_ptr<ID3D12GraphicsCommandList> _cmd_list;
 		std::vector<com_ptr<ID3D12CommandAllocator>> _cmd_alloc;
 
-		bool _is_multisampling_enabled = false;
 		DXGI_FORMAT _backbuffer_format = DXGI_FORMAT_UNKNOWN;
 		com_ptr<ID3D12DescriptorHeap> _backbuffer_rtvs;
 		com_ptr<ID3D12DescriptorHeap> _depthstencil_dsvs;
