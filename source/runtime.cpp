@@ -24,39 +24,46 @@ extern volatile long g_network_traffic;
 extern std::filesystem::path g_reshade_dll_path;
 extern std::filesystem::path g_target_executable_path;
 
+static inline std::filesystem::path absolute_path(std::filesystem::path path)
+{
+	std::error_code ec;
+	// First convert path to an absolute path
+	path = std::filesystem::absolute(g_reshade_dll_path.parent_path() / path, ec);
+	// Finally try to canonicalize the path too (this may fail though, so it is optional)
+	if (const auto canonical_path = std::filesystem::canonical(path, ec); !ec)
+		path = std::move(canonical_path);
+	return path;
+}
+
 static bool find_file(const std::vector<std::filesystem::path> &search_paths, std::filesystem::path &path)
 {
 	std::error_code ec;
-	if (path.is_relative())
-		for (const auto &search_path : search_paths)
-		{
-			const std::filesystem::path canonical_search_path = std::filesystem::canonical(g_reshade_dll_path.parent_path() / search_path, ec);
+	if (path.is_absolute())
+		return std::filesystem::exists(path, ec);
 
-			if (ec || canonical_search_path.empty())
-				continue;
+	for (std::filesystem::path search_path : search_paths)
+	{
+		// Append relative file path to absolute search path
+		search_path = absolute_path(std::move(search_path)) / path;
 
-			if (std::filesystem::path result = canonical_search_path / path; std::filesystem::exists(result, ec))
-			{
-				path = std::move(result);
-				return true;
-			}
+		if (std::filesystem::exists(search_path, ec)) {
+			path = std::move(search_path);
+			return true;
 		}
-	return std::filesystem::exists(path, ec);
+	}
+	return false;
 }
 
 static std::vector<std::filesystem::path> find_files(const std::vector<std::filesystem::path> &search_paths, std::initializer_list<const char *> extensions)
 {
 	std::error_code ec;
 	std::vector<std::filesystem::path> files;
-	for (const auto &search_path : search_paths)
+	for (std::filesystem::path search_path : search_paths)
 	{
 		// Ignore the working directory and instead start relative paths at the DLL location
-		const std::filesystem::path canonical_search_path = std::filesystem::canonical(g_reshade_dll_path.parent_path() / search_path, ec);
+		search_path = absolute_path(std::move(search_path));
 
-		if (ec || canonical_search_path.empty())
-			continue; // Failed to find a valid directory matching the search path
-
-		for (const auto &entry : std::filesystem::directory_iterator(canonical_search_path, ec))
+		for (const auto &entry : std::filesystem::directory_iterator(search_path, ec))
 			for (auto ext : extensions)
 				if (entry.path().extension() == ext)
 					files.push_back(entry.path());
@@ -243,15 +250,11 @@ void reshade::runtime::load_effect(const std::filesystem::path &path, size_t &ou
 		if (path.is_absolute())
 			pp.add_include_path(path.parent_path());
 
-		for (const auto &include_path : _effect_search_paths)
+		for (std::filesystem::path include_path : _effect_search_paths)
 		{
-			std::error_code ec;
-			std::filesystem::path canonical_include_path = include_path;
-			if (include_path.is_relative()) // Ignore the working directory and instead start relative paths at the DLL location
-				canonical_include_path = std::filesystem::canonical(g_reshade_dll_path.parent_path() / include_path, ec);
-
-			if (!ec && !canonical_include_path.empty())
-				pp.add_include_path(canonical_include_path);
+			include_path = absolute_path(include_path);
+			if (!include_path.empty())
+				pp.add_include_path(include_path);
 		}
 
 		pp.add_macro_definition("__RESHADE__", std::to_string(VERSION_MAJOR * 10000 + VERSION_MINOR * 100 + VERSION_REVISION));
