@@ -394,7 +394,7 @@ private:
 
 		define_name<naming::unique>(res, "_Globals_" + info.name);
 
-		if (_uniforms_to_spec_constants && info.has_initializer_value)
+		if ((_uniforms_to_spec_constants || (info.type.has(type::q_const) && info.type.has(type::q_uniform))) && info.has_initializer_value)
 		{
 			std::string &code = _blocks.at(_current_block);
 
@@ -409,7 +409,7 @@ private:
 
 			_module.spec_constants.push_back(info);
 		}
-		else
+		if (info.type.has(type::q_const) && info.type.has(type::q_uniform))
 		{
 			const unsigned int size = info.type.rows * info.type.cols * std::max(1, info.type.array_length) * 4;
 			const unsigned int alignment = 16 - (_current_cbuffer_size % 16);
@@ -419,27 +419,30 @@ private:
 			info.size = size;
 			info.offset = _current_cbuffer_size - size;
 
-			write_location<true>(_cbuffer_block, loc);
-
-			if (_shader_model < 40)
+			if (!info.type.has(type::q_const) && !info.type.has(type::q_uniform))
 			{
-				type type = info.type;
-				// The HLSL compiler tries to evaluate boolean values with temporary registers, which breaks branches, so force it to use constant float registers
-				if (type.is_boolean())
-					type.base = type::t_float;
+				write_location<true>(_cbuffer_block, loc);
 
-				// Simply put each uniform into a separate constant register in shader model 3 for now
-				info.offset *= 4;
+				if (_shader_model < 40)
+				{
+					type type = info.type;
+					// The HLSL compiler tries to evaluate boolean values with temporary registers, which breaks branches, so force it to use constant float registers
+					if (type.is_boolean())
+						type.base = type::t_float;
 
-				// Every constant register is 16 bytes wide, so divide memory offset by 16 to get the constant register index
-				write_type(_cbuffer_block, type);
-				_cbuffer_block += ' ' + id_to_name(res) + " : register(c" + std::to_string(info.offset / 16) + ");\n";
-			}
-			else
-			{
-				_cbuffer_block += '\t';
-				write_type(_cbuffer_block, info.type);
-				_cbuffer_block += ' ' + id_to_name(res) + ";\n";
+					// Simply put each uniform into a separate constant register in shader model 3 for now
+					info.offset *= 4;
+
+					// Every constant register is 16 bytes wide, so divide memory offset by 16 to get the constant register index
+					write_type(_cbuffer_block, type);
+					_cbuffer_block += ' ' + id_to_name(res) + " : register(c" + std::to_string(info.offset / 16) + ");\n";
+				}
+				else
+				{
+					_cbuffer_block += '\t';
+					write_type(_cbuffer_block, info.type);
+					_cbuffer_block += ' ' + id_to_name(res) + ";\n";
+				}
 			}
 
 			_module.uniforms.push_back(info);

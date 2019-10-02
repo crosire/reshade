@@ -2367,10 +2367,6 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 
 			// Global variables that are not 'static' are always 'extern' and 'uniform'
 			type.qualifiers |= type::q_extern | type::q_uniform;
-
-			// It is invalid to make 'uniform' variables constant, since they can be modified externally
-			if (type.has(type::q_const))
-				return error(location, 3035, '\'' + name + "': variables which are 'uniform' cannot be declared 'const'"), false;
 		}
 	}
 	else
@@ -2570,7 +2566,7 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 
 	symbol symbol;
 
-	if (type.is_numeric() && type.has(type::q_const) && initializer.is_constant) // Variables with a constant initializer and constant type are named constants
+	if (type.is_numeric() && (type.has(type::q_const) && !type.has(type::q_uniform)) && initializer.is_constant) // Variables with a constant initializer and constant type are named constants
 	{
 		// Named constants are special symbols
 		symbol = { symbol_type::constant, 0, type, initializer.constant };

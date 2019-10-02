@@ -2047,7 +2047,22 @@ void reshade::runtime::draw_overlay_variable_editor()
 
 		// A value has changed, so save the current preset
 		if (modified)
+		{
 			save_current_preset();
+
+			if (variable.type.has(reshadefx::type::q_const))
+			{
+				const std::filesystem::path source_file = _loaded_effects[variable.effect_index].source_file;
+
+				// Reload effect file
+				_textures_loaded = false;
+				_reload_total_effects = 1;
+				_reload_remaining_effects = 1;
+				unload_effect(variable.effect_index);
+				load_effect(source_file, variable.effect_index);
+				assert(_reload_remaining_effects == 0);
+			}
+		}
 	}
 
 	ImGui::PopItemWidth();
