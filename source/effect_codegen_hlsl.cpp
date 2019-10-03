@@ -409,7 +409,7 @@ private:
 
 			_module.spec_constants.push_back(info);
 		}
-		if (info.type.has(type::q_const) && info.type.has(type::q_uniform))
+		if (!_uniforms_to_spec_constants)
 		{
 			const unsigned int size = info.type.rows * info.type.cols * std::max(1, info.type.array_length) * 4;
 			const unsigned int alignment = 16 - (_current_cbuffer_size % 16);
@@ -418,8 +418,13 @@ private:
 
 			info.size = size;
 			info.offset = _current_cbuffer_size - size;
+			if (_shader_model < 40)
+			{
+				// Simply put each uniform into a separate constant register in shader model 3 for now
+				info.offset *= 4;
+			}
 
-			if (!info.type.has(type::q_const) && !info.type.has(type::q_uniform))
+			if (!(info.type.has(type::q_const) && info.type.has(type::q_uniform)))
 			{
 				write_location<true>(_cbuffer_block, loc);
 
@@ -429,9 +434,6 @@ private:
 					// The HLSL compiler tries to evaluate boolean values with temporary registers, which breaks branches, so force it to use constant float registers
 					if (type.is_boolean())
 						type.base = type::t_float;
-
-					// Simply put each uniform into a separate constant register in shader model 3 for now
-					info.offset *= 4;
 
 					// Every constant register is 16 bytes wide, so divide memory offset by 16 to get the constant register index
 					write_type(_cbuffer_block, type);
