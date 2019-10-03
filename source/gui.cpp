@@ -2052,6 +2052,8 @@ void reshade::runtime::draw_overlay_variable_editor()
 
 			if (variable.type.has(reshadefx::type::q_const))
 			{
+				ini_file::flush_cache(_current_preset_path);
+
 				const std::filesystem::path source_file = _loaded_effects[variable.effect_index].source_file;
 
 				// Reload effect file

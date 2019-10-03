@@ -329,7 +329,7 @@ void reshade::runtime::load_effect(const std::filesystem::path &path, size_t &ou
 	// Fill all specialization constants with values from the current preset
 	if (!_current_preset_path.empty() && effect.compile_sucess)
 	{
-		const ini_file &preset = ini_file::load_cache(_current_preset_path); // TODO: Require thread safety
+		const ini_file preset(_current_preset_path);
 		const std::string section(path.filename().u8string());
 
 		for (reshadefx::uniform_info &constant : effect.module.spec_constants)
