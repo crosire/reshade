@@ -85,6 +85,15 @@ namespace reshade
 			_modified = true;
 			_modified_at = std::filesystem::file_time_type::clock::now();
 		}
+		inline
+		void set(const std::string &section, const std::string &key, std::string &&value)
+		{
+			auto &v = _sections[section][key];
+			v.resize(1);
+			v[0] = std::forward<std::string>(value);
+			_modified = true;
+			_modified_at = std::filesystem::file_time_type::clock::now();
+		}
 		template <>
 		void set(const std::string &section, const std::string &key, const std::filesystem::path &value)
 		{
@@ -99,16 +108,6 @@ namespace reshade
 			v.resize(size);
 			for (size_t i = 0; i < size; ++i)
 				v[i] = std::to_string(values[i]);
-			_modified = true;
-			_modified_at = std::filesystem::file_time_type::clock::now();
-		}
-		template <typename T>
-		void set(const std::string &section, const std::string &key, const std::vector<T> &values)
-		{
-			auto &v = _sections[section][key];
-			v.resize(values.size());
-			for (size_t i = 0; i < values.size(); ++i)
-				v.emplace(i, std::to_string, values[i]);
 			_modified = true;
 			_modified_at = std::filesystem::file_time_type::clock::now();
 		}
