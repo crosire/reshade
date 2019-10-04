@@ -26,7 +26,7 @@ namespace reshade::opengl
 		void on_draw_call(unsigned int vertices);
 		void on_fbo_attachment(GLenum attachment, GLenum target, GLuint object, GLint level);
 
-		void capture_screenshot(uint8_t *buffer) const override;
+		bool capture_screenshot(uint8_t *buffer) const override;
 
 		GLuint _current_vertex_count = 0; // Used to calculate vertex count inside glBegin/glEnd pairs
 		std::unordered_set<HDC> _hdcs;

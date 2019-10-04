@@ -1144,9 +1144,6 @@ void reshade::runtime::save_current_preset() const
 
 void reshade::runtime::save_screenshot(const std::wstring &postfix, const bool should_save_preset)
 {
-	std::vector<uint8_t> data(_width * _height * 4);
-	capture_screenshot(data.data());
-
 	const int hour = _date[3] / 3600;
 	const int minute = (_date[3] - hour * 3600) / 60;
 	const int seconds = _date[3] - hour * 3600 - minute * 60;
@@ -1161,23 +1158,26 @@ void reshade::runtime::save_screenshot(const std::wstring &postfix, const bool s
 
 	_screenshot_save_success = false; // Default to a save failure unless it is reported to succeed below
 
-	if (FILE *file; _wfopen_s(&file, screenshot_path.c_str(), L"wb") == 0)
+	if (std::vector<uint8_t> data(_width * _height * 4); capture_screenshot(data.data()))
 	{
-		const auto write_callback = [](void *context, void *data, int size) {
-			fwrite(data, 1, size, static_cast<FILE *>(context));
-		};
-
-		switch (_screenshot_format)
+		if (FILE *file; _wfopen_s(&file, screenshot_path.c_str(), L"wb") == 0)
 		{
-		case 0:
-			_screenshot_save_success = stbi_write_bmp_to_func(write_callback, file, _width, _height, 4, data.data()) != 0;
-			break;
-		case 1:
-			_screenshot_save_success = stbi_write_png_to_func(write_callback, file, _width, _height, 4, data.data(), 0) != 0;
-			break;
-		}
+			const auto write_callback = [](void *context, void *data, int size) {
+				fwrite(data, 1, size, static_cast<FILE *>(context));
+			};
 
-		fclose(file);
+			switch (_screenshot_format)
+			{
+			case 0:
+				_screenshot_save_success = stbi_write_bmp_to_func(write_callback, file, _width, _height, 4, data.data()) != 0;
+				break;
+			case 1:
+				_screenshot_save_success = stbi_write_png_to_func(write_callback, file, _width, _height, 4, data.data(), 0) != 0;
+				break;
+			}
+
+			fclose(file);
+		}
 	}
 
 	_last_screenshot_file = screenshot_path;

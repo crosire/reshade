@@ -28,7 +28,7 @@ namespace reshade::d3d10
 		void on_get_depthstencil_view(ID3D10DepthStencilView *&depthstencil);
 		void on_clear_depthstencil_view(ID3D10DepthStencilView *&depthstencil);
 
-		void capture_screenshot(uint8_t *buffer) const override;
+		bool capture_screenshot(uint8_t *buffer) const override;
 
 #if RESHADE_DX10_CAPTURE_DEPTH_BUFFERS
 		com_ptr<ID3D10Texture2D> select_depth_texture_save(D3D10_TEXTURE2D_DESC texture_desc);

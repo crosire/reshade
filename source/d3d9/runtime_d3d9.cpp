@@ -443,21 +443,21 @@ void reshade::d3d9::runtime_d3d9::on_clear_depthstencil_surface(IDirect3DSurface
 	_device->SetDepthStencilSurface(_depthstencil.get());
 }
 
-void reshade::d3d9::runtime_d3d9::capture_screenshot(uint8_t *buffer) const
+bool reshade::d3d9::runtime_d3d9::capture_screenshot(uint8_t *buffer) const
 {
 	// Create a surface in system memory, copy back buffer data into it and lock it for reading
 	com_ptr<IDirect3DSurface9> intermediate;
 	if (FAILED(_device->CreateOffscreenPlainSurface(_width, _height, _backbuffer_format, D3DPOOL_SYSTEMMEM, &intermediate, nullptr)))
 	{
 		LOG(ERROR) << "Failed to create system memory texture for screenshot capture!";
-		return;
+		return false;
 	}
 
 	_device->GetRenderTargetData(_backbuffer_resolved.get(), intermediate.get());
 
 	D3DLOCKED_RECT mapped;
 	if (FAILED(intermediate->LockRect(&mapped, nullptr, D3DLOCK_READONLY)))
-		return;
+		return false;
 	auto mapped_data = static_cast<const uint8_t *>(mapped.pBits);
 
 	for (uint32_t y = 0, pitch = _width * 4; y < _height; y++, buffer += pitch, mapped_data += mapped.Pitch)
@@ -489,6 +489,8 @@ void reshade::d3d9::runtime_d3d9::capture_screenshot(uint8_t *buffer) const
 	}
 
 	intermediate->UnlockRect();
+
+	return true;
 }
 
 bool reshade::d3d9::runtime_d3d9::init_texture(texture &texture)

@@ -483,7 +483,7 @@ void reshade::vulkan::runtime_vk::on_present(uint32_t swapchain_image_index, dra
 	vk.ResetCommandPool(_device, _cmd_pool[swapchain_image_index], 0);
 }
 
-void reshade::vulkan::runtime_vk::capture_screenshot(uint8_t *buffer) const
+bool reshade::vulkan::runtime_vk::capture_screenshot(uint8_t *buffer) const
 {
 	vk_handle<VK_OBJECT_TYPE_IMAGE> intermediate(_device, vk);
 	vk_handle<VK_OBJECT_TYPE_DEVICE_MEMORY> intermediate_mem(_device, vk);
@@ -500,7 +500,7 @@ void reshade::vulkan::runtime_vk::capture_screenshot(uint8_t *buffer) const
 		create_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 		create_info.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 
-		check_result(vk.CreateImage(_device, &create_info, nullptr, &intermediate));
+		check_result(vk.CreateImage(_device, &create_info, nullptr, &intermediate)) false;
 
 		VkMemoryRequirements reqs = {};
 		vk.GetImageMemoryRequirements(_device, intermediate, &reqs);
@@ -511,13 +511,13 @@ void reshade::vulkan::runtime_vk::capture_screenshot(uint8_t *buffer) const
 			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, reqs.memoryTypeBits);
 
 		vk_handle<VK_OBJECT_TYPE_DEVICE_MEMORY> mem(_device, vk);
-		check_result(vk.AllocateMemory(_device, &alloc_info, nullptr, &intermediate_mem));
-		check_result(vk.BindImageMemory(_device, intermediate, intermediate_mem, 0));
+		check_result(vk.AllocateMemory(_device, &alloc_info, nullptr, &intermediate_mem)) false;
+		check_result(vk.BindImageMemory(_device, intermediate, intermediate_mem, 0)) false;
 	}
 
 	const VkCommandBuffer cmd_list = create_command_list();
 	if (cmd_list == VK_NULL_HANDLE)
-		return;
+		return false;
 
 	transition_layout(cmd_list, intermediate, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 	transition_layout(cmd_list, _swapchain_images[_swap_index], VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
@@ -545,7 +545,7 @@ void reshade::vulkan::runtime_vk::capture_screenshot(uint8_t *buffer) const
 
 	// Copy data from intermediate image into output buffer
 	uint8_t *mapped_data;
-	check_result(vk.MapMemory(_device, intermediate_mem, 0, VK_WHOLE_SIZE, 0, reinterpret_cast<void **>(&mapped_data)));
+	check_result(vk.MapMemory(_device, intermediate_mem, 0, VK_WHOLE_SIZE, 0, reinterpret_cast<void **>(&mapped_data))) false;
 
 	const size_t data_pitch = _width * 4;
 	const VkDeviceSize download_pitch = subresource_layout.rowPitch;
@@ -577,6 +577,8 @@ void reshade::vulkan::runtime_vk::capture_screenshot(uint8_t *buffer) const
 	}
 
 	vk.UnmapMemory(_device, intermediate_mem);
+
+	return true;
 }
 
 bool reshade::vulkan::runtime_vk::init_texture(texture &info)

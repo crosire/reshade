@@ -388,7 +388,7 @@ void reshade::d3d11::runtime_d3d11::on_clear_depthstencil_view(ID3D11DepthStenci
 	}
 }
 
-void reshade::d3d11::runtime_d3d11::capture_screenshot(uint8_t *buffer) const
+bool reshade::d3d11::runtime_d3d11::capture_screenshot(uint8_t *buffer) const
 {
 	// Create a texture in system memory, copy back buffer data into it and map it for reading
 	D3D11_TEXTURE2D_DESC desc = {};
@@ -405,14 +405,14 @@ void reshade::d3d11::runtime_d3d11::capture_screenshot(uint8_t *buffer) const
 	if (FAILED(_device->CreateTexture2D(&desc, nullptr, &intermediate)))
 	{
 		LOG(ERROR) << "Failed to create system memory texture for screenshot capture!";
-		return;
+		return false;
 	}
 
 	_immediate_context->CopyResource(intermediate.get(), _backbuffer_resolved.get());
 
 	D3D11_MAPPED_SUBRESOURCE mapped;
 	if (FAILED(_immediate_context->Map(intermediate.get(), 0, D3D11_MAP_READ, 0, &mapped)))
-		return;
+		return false;
 	auto mapped_data = static_cast<const uint8_t *>(mapped.pData);
 
 	for (uint32_t y = 0, pitch = _width * 4; y < _height; y++, buffer += pitch, mapped_data += mapped.RowPitch)
@@ -445,6 +445,8 @@ void reshade::d3d11::runtime_d3d11::capture_screenshot(uint8_t *buffer) const
 	}
 
 	_immediate_context->Unmap(intermediate.get(), 0);
+
+	return true;
 }
 
 bool reshade::d3d11::runtime_d3d11::init_texture(texture &info)

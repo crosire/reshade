@@ -401,7 +401,7 @@ void reshade::d3d12::runtime_d3d12::on_create_depthstencil_view(ID3D12Resource *
 		_depthstencil_texture = pResource;
 }
 
-void reshade::d3d12::runtime_d3d12::capture_screenshot(uint8_t *buffer) const
+bool reshade::d3d12::runtime_d3d12::capture_screenshot(uint8_t *buffer) const
 {
 	const uint32_t data_pitch = _width * 4;
 	const uint32_t download_pitch = (data_pitch + D3D12_TEXTURE_DATA_PITCH_ALIGNMENT - 1u) & ~(D3D12_TEXTURE_DATA_PITCH_ALIGNMENT - 1u);
@@ -419,7 +419,7 @@ void reshade::d3d12::runtime_d3d12::capture_screenshot(uint8_t *buffer) const
 	if (FAILED(_device->CreateCommittedResource(&props, D3D12_HEAP_FLAG_NONE, &desc, D3D12_RESOURCE_STATE_COPY_DEST, nullptr, IID_PPV_ARGS(&intermediate))))
 	{
 		LOG(ERROR) << "Failed to create system memory texture for screenshot capture!";
-		return;
+		return false;
 	}
 
 #ifdef _DEBUG
@@ -428,7 +428,7 @@ void reshade::d3d12::runtime_d3d12::capture_screenshot(uint8_t *buffer) const
 
 	const com_ptr<ID3D12GraphicsCommandList> cmd_list = create_command_list();
 	if (cmd_list == nullptr)
-		return;
+		return false;
 
 	transition_state(cmd_list, _backbuffers[_swap_index], D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_COPY_SOURCE, 0);
 	{
@@ -455,7 +455,7 @@ void reshade::d3d12::runtime_d3d12::capture_screenshot(uint8_t *buffer) const
 	// Copy data from system memory texture into output buffer
 	uint8_t *mapped_data;
 	if (FAILED(intermediate->Map(0, nullptr, reinterpret_cast<void **>(&mapped_data))))
-		return;
+		return false;
 
 	for (uint32_t y = 0; y < _height; y++, buffer += data_pitch, mapped_data += download_pitch)
 	{
@@ -482,6 +482,8 @@ void reshade::d3d12::runtime_d3d12::capture_screenshot(uint8_t *buffer) const
 	}
 
 	intermediate->Unmap(0, nullptr);
+
+	return true;
 }
 
 bool reshade::d3d12::runtime_d3d12::init_texture(texture &info)

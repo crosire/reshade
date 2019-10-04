@@ -47,7 +47,7 @@ namespace reshade
 		/// Create a copy of the current frame image in system memory.
 		/// </summary>
 		/// <param name="buffer">The 32bpp RGBA buffer to save the screenshot to.</param>
-		virtual void capture_screenshot(uint8_t *buffer) const = 0;
+		virtual bool capture_screenshot(uint8_t *buffer) const = 0;
 
 		/// <summary>
 		/// Save user configuration to disk.

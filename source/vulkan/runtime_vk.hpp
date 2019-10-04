@@ -28,7 +28,7 @@ namespace reshade::vulkan
 		void on_reset();
 		void on_present(uint32_t swapchain_image_index, draw_call_tracker &tracker);
 
-		void capture_screenshot(uint8_t *buffer) const override;
+		bool capture_screenshot(uint8_t *buffer) const override;
 
 		void transition_layout(
 			VkCommandBuffer cmd_list, VkImage image, VkImageLayout old_layout, VkImageLayout new_layout,

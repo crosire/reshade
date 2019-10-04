@@ -346,7 +346,7 @@ void reshade::opengl::runtime_gl::on_fbo_attachment(GLenum attachment, GLenum ta
 	_depth_source_table.emplace(id, info);
 }
 
-void reshade::opengl::runtime_gl::capture_screenshot(uint8_t *buffer) const
+bool reshade::opengl::runtime_gl::capture_screenshot(uint8_t *buffer) const
 {
 	glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
 	glReadBuffer(GL_BACK);
@@ -368,6 +368,8 @@ void reshade::opengl::runtime_gl::capture_screenshot(uint8_t *buffer) const
 			std::swap(buffer[i1 + x + 2], buffer[i2 + x + 2]);
 		}
 	}
+
+	return true;
 }
 
 bool reshade::opengl::runtime_gl::init_texture(texture &texture)

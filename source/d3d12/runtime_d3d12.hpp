@@ -32,7 +32,7 @@ namespace reshade::d3d12
 		void on_present(draw_call_tracker& tracker);
 		void on_create_depthstencil_view(ID3D12Resource *pResource);
 
-		void capture_screenshot(uint8_t *buffer) const override;
+		bool capture_screenshot(uint8_t *buffer) const override;
 
 #if RESHADE_DX12_CAPTURE_DEPTH_BUFFERS
 		com_ptr<ID3D12Resource> select_depth_texture_save(D3D12_RESOURCE_DESC &texture_desc, const D3D12_HEAP_PROPERTIES *props);
