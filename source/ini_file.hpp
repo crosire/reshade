@@ -124,7 +124,7 @@ namespace reshade
 		void set(const std::string &section, const std::string &key, std::vector<std::string> &&values)
 		{
 			auto &v = _sections[section][key];
-			v = std::move(values);
+			v = std::forward<std::vector<std::string>>(values);
 			_modified = true;
 			_modified_at = std::filesystem::file_time_type::clock::now();
 		}
