@@ -238,14 +238,20 @@ namespace reshade
 		void save_current_preset() const;
 
 		/// <summary>
+		/// Find next preset is the directory and switch to it.
+		/// </summary>
+		/// <param name="filter_path">Directory base to search in and/or an optional filter to skip preset files.</param>
+		/// <param name="reversed">Set to <c>true</c> to switch to previous instead of next preset.</param>
+		/// <returns><c>true</c> if there was another preset to switch to, <c>false</c> if not and therefore no changes were made.</returns>
+		bool switch_to_next_preset(const std::filesystem::path &filter_path, bool reversed = false);
+
+		/// <summary>
 		/// Create a copy of the current frame and write it to an image file on disk.
 		/// </summary>
 		void save_screenshot(const std::wstring &postfix = std::wstring(), bool should_save_preset = false);
 
 		void get_uniform_value(const uniform &variable, uint8_t *data, size_t size) const;
 		void set_uniform_value(uniform &variable, const uint8_t *data, size_t size);
-
-		bool switch_to_next_preset(bool reversed = false);
 
 		bool _needs_update = false;
 		unsigned long _latest_version[3] = {};
@@ -258,7 +264,7 @@ namespace reshade
 		unsigned int _screenshot_key_data[4];
 		unsigned int _previous_preset_key_data[4];
 		unsigned int _next_preset_key_data[4];
-		int _preset_transition_delay = 1000; //miliseconds
+		int _preset_transition_delay = 1000; // milliseconds
 		int _screenshot_format = 1;
 		std::filesystem::path _screenshot_path;
 		std::filesystem::path _configuration_path;
@@ -279,8 +285,6 @@ namespace reshade
 		bool _no_reload_on_init = false;
 		bool _last_reload_successful = true;
 		bool _should_save_screenshot = false;
-		bool _is_previous_preset_key_pressed = false;
-		bool _is_next_preset_key_pressed = false;
 		bool _is_in_between_presets_transition = false;
 		std::mutex _reload_mutex;
 		size_t _reload_total_effects = 1;
@@ -357,7 +361,7 @@ namespace reshade
 		unsigned int _preview_size[2] = {};
 		void *_preview_texture = nullptr;
 
-		// used by preset explorer
+		// Used by preset explorer
 		bool _browse_path_is_input_mode = false;
 		bool _current_preset_is_covered = true;
 		std::filesystem::path _current_browse_path;

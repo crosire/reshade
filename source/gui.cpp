@@ -377,7 +377,7 @@ void reshade::runtime::build_font_atlas()
 	ImGui::SetCurrentContext(_imgui_context);
 
 	const auto atlas = _imgui_context->IO.Fonts;
-
+	// Remove any existing fonts from atlas first
 	atlas->Clear();
 
 	for (unsigned int i = 0; i < 2; ++i)
@@ -386,7 +386,6 @@ void reshade::runtime::build_font_atlas()
 		cfg.SizePixels = static_cast<float>(i == 0 ? _font_size : _editor_font_size);
 
 		const std::filesystem::path &font_path = i == 0 ? _font : _editor_font;
-
 		if (std::error_code ec; !std::filesystem::is_regular_file(font_path, ec) || !atlas->AddFontFromFileTTF(font_path.u8string().c_str(), cfg.SizePixels))
 			atlas->AddFontDefault(&cfg); // Use default font if custom font failed to load or does not exist
 	}
@@ -405,7 +404,6 @@ void reshade::runtime::build_font_atlas()
 			cfg.SizePixels = static_cast<float>(i == 0 ? _font_size : _editor_font_size);
 
 			atlas->AddFontDefault(&cfg);
-			atlas->AddFontDefault(&cfg);
 		}
 	}
 
@@ -420,6 +418,7 @@ void reshade::runtime::build_font_atlas()
 
 	ImGui::SetCurrentContext(nullptr);
 
+	// Create font atlas texture and upload it
 	_imgui_font_atlas = std::make_unique<texture>();
 	_imgui_font_atlas->width = width;
 	_imgui_font_atlas->height = height;
@@ -755,7 +754,7 @@ void reshade::runtime::draw_overlay_menu_home()
 		const char *const loading_message = "Loading ...";
 		ImGui::SetCursorPos((ImGui::GetWindowSize() - ImGui::CalcTextSize(loading_message)) * 0.5f);
 		ImGui::TextUnformatted(loading_message);
-		return;
+		return; // Cannot show techniques and variables while effects are loading, since they are being modified in other different threads during that time
 	}
 
 	if (_tutorial_index > 1)
@@ -967,9 +966,9 @@ void reshade::runtime::draw_overlay_menu_settings()
 		modified |= imgui_key_input("Effect Toggle Key", _effects_key_data, *_input);
 		_ignore_shortcuts |= ImGui::IsItemActive();
 
-		modified |= imgui_key_input("Previous Preset Key", _previous_preset_key_data, *_input);
-		_ignore_shortcuts |= ImGui::IsItemActive();
 		modified |= imgui_key_input("Next Preset Key", _next_preset_key_data, *_input);
+		_ignore_shortcuts |= ImGui::IsItemActive();
+		modified |= imgui_key_input("Previous Preset Key", _previous_preset_key_data, *_input);
 		_ignore_shortcuts |= ImGui::IsItemActive();
 
 		modified |= ImGui::SliderInt("Preset transition\ndelay (ms)", &_preset_transition_delay, 0, 10 * 1000);
@@ -1337,7 +1336,7 @@ void reshade::runtime::draw_overlay_menu_statistics()
 			}
 
 			ImGui::TextColored(ImVec4(1, 1, 1, 1), texture.unique_name.c_str());
-			ImGui::Text("%ux%u | %u mipmap(s) | %s | %ld.%03ld%s",
+			ImGui::Text("%ux%u | %u mipmap(s) | %s | %ld.%03ld %s",
 				texture.width,
 				texture.height,
 				texture.levels - 1,
@@ -1408,7 +1407,7 @@ void reshade::runtime::draw_overlay_menu_statistics()
 			memory_size_unit = "KiB";
 		}
 
-		ImGui::Text("Total memory usage: %ld.%03ld%s", memory_view.quot, memory_view.rem, memory_size_unit);
+		ImGui::Text("Total memory usage: %ld.%03ld %s", memory_view.quot, memory_view.rem, memory_size_unit);
 	}
 }
 
@@ -2431,7 +2430,7 @@ void reshade::runtime::draw_preset_explorer()
 	}
 
 	if (condition == condition::backward || condition == condition::forward)
-		if (!switch_to_next_preset(condition == condition::backward))
+		if (!switch_to_next_preset(_current_browse_path, condition == condition::backward))
 			condition = condition::pass;
 
 	if (is_explore_open)

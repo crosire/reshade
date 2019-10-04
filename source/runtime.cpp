@@ -30,9 +30,27 @@ static inline std::filesystem::path absolute_path(std::filesystem::path path)
 	// First convert path to an absolute path
 	path = std::filesystem::absolute(g_reshade_dll_path.parent_path() / path, ec);
 	// Finally try to canonicalize the path too (this may fail though, so it is optional)
-	if (const auto canonical_path = std::filesystem::canonical(path, ec); !ec)
+	if (auto canonical_path = std::filesystem::canonical(path, ec); !ec)
 		path = std::move(canonical_path);
 	return path;
+}
+
+static inline bool check_preset_path(std::filesystem::path preset_path)
+{
+	// First make sure the extension matches, before diving into the file system
+	if (preset_path.extension() != L".ini" && preset_path.extension() != L".txt")
+		return false;
+
+	preset_path = absolute_path(preset_path);
+
+	std::error_code ec;
+	const std::filesystem::file_type file_type = std::filesystem::status(preset_path, ec).type();
+	if (file_type == std::filesystem::file_type::directory || ec.value() == 0x7b) // 0x7b: ERROR_INVALID_NAME
+		return false;
+	if (file_type == std::filesystem::file_type::not_found)
+		return true; // A non-existent path is valid for a new preset
+
+	return reshade::ini_file::load_cache(preset_path).has("", "Techniques");
 }
 
 static bool find_file(const std::vector<std::filesystem::path> &search_paths, std::filesystem::path &path)
@@ -101,10 +119,6 @@ reshade::runtime::runtime() :
 	if (std::error_code ec; !std::filesystem::exists(_configuration_path, ec))
 		// If neither exist create a "ReShade.ini" in the ReShade DLL directory
 		_configuration_path = g_reshade_dll_path.parent_path() / "ReShade.ini";
-
-#if RESHADE_GUI
-	_current_browse_path = _current_preset_path.parent_path();
-#endif
 
 	_needs_update = check_for_update(_latest_version);
 
@@ -178,43 +192,38 @@ void reshade::runtime::on_present()
 	// Handle keyboard shortcuts
 	if (!_ignore_shortcuts)
 	{
-		if (_input->is_key_pressed(_reload_key_data) && !is_loading() && _reload_compile_queue.empty())
-			load_effects();
-
 		if (_input->is_key_pressed(_effects_key_data))
 			_effects_enabled = !_effects_enabled;
 
 		if (_input->is_key_pressed(_screenshot_key_data))
-			_should_save_screenshot = true;
+			_should_save_screenshot = true; // Notify 'update_and_render_effects' that we want to save a screenshot
 
+		// Do not allow the next shortcuts while effects are being loaded or compiled (since they affect that state)
 		if (!is_loading() && _reload_compile_queue.empty())
 		{
-			if (!_is_previous_preset_key_pressed && !_is_next_preset_key_pressed)
+			if (_input->is_key_pressed(_reload_key_data))
+				load_effects();
+
+			const bool is_next_preset_key_pressed = _input->is_key_pressed(_next_preset_key_data);
+			const bool is_previous_preset_key_pressed = _input->is_key_pressed(_previous_preset_key_data);
+
+			if (is_next_preset_key_pressed || is_previous_preset_key_pressed)
 			{
-				_is_previous_preset_key_pressed = _input->is_key_pressed(_previous_preset_key_data);
-				_is_next_preset_key_pressed = _input->is_key_pressed(_next_preset_key_data);
-				if (_is_previous_preset_key_pressed || _is_next_preset_key_pressed)
+				// The preset shortcut key was pressed down, so start the transition
+				if (switch_to_next_preset({}, is_previous_preset_key_pressed))
 				{
-					if (switch_to_next_preset(_is_previous_preset_key_pressed))
-					{
-						_last_preset_switching_time = current_time;
-						_is_in_between_presets_transition = true;
-						save_config();
-					}
+					_last_preset_switching_time = current_time;
+					_is_in_between_presets_transition = true;
+					save_config();
 				}
 			}
-			if ((_is_previous_preset_key_pressed && _input->is_key_released(_previous_preset_key_data[0])) ||
-				(_is_next_preset_key_pressed && _input->is_key_released(_next_preset_key_data[0])))
-			{
-				// Ok, the preset shortcut key was released, so reset everything so to be prepared for a new transition
-				_is_previous_preset_key_pressed = false;
-				_is_next_preset_key_pressed = false;
-			}
-		}
 
-		if (_is_in_between_presets_transition)
-			load_current_preset();
+			// Continuously update preset values while a transition is in progress
+			if (_is_in_between_presets_transition)
+				load_current_preset();
+		}
 	}
+
 #if RESHADE_GUI
 	// Draw overlay
 	draw_ui();
@@ -223,11 +232,11 @@ void reshade::runtime::on_present()
 	// Reset input status
 	_input->next_frame();
 
-	// Save .ini files
+	// Save modified INI files
 	ini_file::flush_cache();
 
+	// Detect high network traffic
 	static int cooldown = 0, traffic = 0;
-
 	if (cooldown-- > 0)
 	{
 		traffic += g_network_traffic > 0;
@@ -239,6 +248,7 @@ void reshade::runtime::on_present()
 		cooldown = 30;
 	}
 
+	// Reset frame statistics
 	g_network_traffic = 0;
 	_drawcalls = _vertices = 0;
 }
@@ -298,13 +308,13 @@ void reshade::runtime::load_effect(const std::filesystem::path &path, size_t &ou
 		}
 
 		unsigned shader_model;
-		if (_renderer_id == 0x9000)
+		if (_renderer_id == 0x9000)     // D3D9
 			shader_model = 30;
-		else if (_renderer_id < 0xa100)
+		else if (_renderer_id < 0xa100) // D3D10
 			shader_model = 40;
-		else if (_renderer_id < 0xb000)
+		else if (_renderer_id < 0xb000) // D3D11
 			shader_model = 41;
-		else if (_renderer_id < 0xc000)
+		else if (_renderer_id < 0xc000) // D3D12
 			shader_model = 50;
 		else
 			shader_model = 60;
@@ -518,7 +528,7 @@ void reshade::runtime::load_effects()
 	_reload_remaining_effects = _reload_total_effects;
 
 	if (_reload_total_effects == 0)
-		return;
+		return; // No effect files found, so nothing more to do
 
 	// Now that we have a list of files, load them in parallel
 	// Split workload into batches instead of launching a thread for every file to avoid launch overhead and stutters due to too many threads being in flight
@@ -574,6 +584,7 @@ void reshade::runtime::load_textures()
 			continue;
 		}
 
+		// Need to potentially resize image data to the texture dimensions
 		if (texture.width != uint32_t(width) || texture.height != uint32_t(height))
 		{
 			LOG(INFO) << "> Resizing image data for texture '" << texture.unique_name << "' from " << width << "x" << height << " to " << texture.width << "x" << texture.height << " ...";
@@ -701,7 +712,7 @@ void reshade::runtime::update_and_render_effects()
 				success = false;
 			}
 
-			if (!success)
+			if (!success) // Something went wrong, do clean up
 			{
 				// Destroy all textures belonging to this effect
 				for (texture &texture : _textures)
@@ -722,6 +733,7 @@ void reshade::runtime::update_and_render_effects()
 		}
 		else if (!_textures_loaded)
 		{
+			// Now that all effects were compiled, load all textures
 			load_textures();
 		}
 	}
@@ -936,6 +948,7 @@ void reshade::runtime::load_config()
 
 	if (current_preset_path.empty())
 	{
+		// Convert legacy preset index to new preset path
 		size_t preset_index = 0;
 		std::vector<std::filesystem::path> preset_files;
 		config.get("GENERAL", "PresetFiles", preset_files);
@@ -945,27 +958,10 @@ void reshade::runtime::load_config()
 			current_preset_path = preset_files[preset_index];
 	}
 
-	enum class path_state { invalid, valid };
-	path_state path_state = path_state::invalid;
-
-	std::error_code ec;
-
-	if (const std::filesystem::file_type file_type = std::filesystem::status(g_reshade_dll_path.parent_path() / current_preset_path, ec).type(); ec.value() == 0x7b) // 0x7b: ERROR_INVALID_NAME
-		path_state = path_state::invalid;
-	else if (file_type == std::filesystem::file_type::directory)
-		path_state = path_state::invalid;
-	else if (current_preset_path.extension() != L".ini" && current_preset_path.extension() != L".txt")
-		path_state = path_state::invalid;
-	else if (file_type == std::filesystem::file_type::not_found)
-		path_state = path_state::valid;
-	else if (reshade::ini_file::load_cache(g_reshade_dll_path.parent_path() / current_preset_path).has("", "Techniques"))
-		path_state = path_state::valid;
-
-	// Select a default preset file if none exists yet or not own
-	if (path_state == path_state::invalid)
-		_current_preset_path = g_reshade_dll_path.parent_path() / L"DefaultPreset.ini";
-	else
+	if (check_preset_path(current_preset_path))
 		_current_preset_path = g_reshade_dll_path.parent_path() / current_preset_path;
+	else // Select a default preset file if none exists yet
+		_current_preset_path = g_reshade_dll_path.parent_path() / L"DefaultPreset.ini";
 
 	for (const auto &callback : _load_config_callables)
 		callback(config);
@@ -1026,12 +1022,12 @@ void reshade::runtime::load_current_preset()
 			       (std::find(sorted_technique_list.begin(), sorted_technique_list.end(), rhs.name) - sorted_technique_list.begin());
 		});
 
-	// compute times since the transition has started and how much left till it should end
-	auto n_microseconds_passed = std::chrono::duration_cast<std::chrono::microseconds>(_last_present_time - _last_preset_switching_time).count();
-	auto n_miliseconds_left = _preset_transition_delay - n_microseconds_passed / 1000;
-	auto n_miliseconds_left_from_last_frame = n_miliseconds_left + +std::chrono::duration_cast<std::chrono::microseconds>(_last_frame_duration).count() / 1000;
+	// Compute times since the transition has started and how much is left till it should end
+	auto transition_time = std::chrono::duration_cast<std::chrono::microseconds>(_last_present_time - _last_preset_switching_time).count();
+	auto transition_ms_left = _preset_transition_delay - transition_time / 1000;
+	auto transition_ms_left_from_last_frame = transition_ms_left + std::chrono::duration_cast<std::chrono::microseconds>(_last_frame_duration).count() / 1000;
 
-	if (_is_in_between_presets_transition && n_miliseconds_left <= 0)
+	if (_is_in_between_presets_transition && transition_ms_left <= 0)
 		_is_in_between_presets_transition = false;
 
 	for (uniform &variable : _uniforms)
@@ -1057,10 +1053,11 @@ void reshade::runtime::load_current_preset()
 			preset.get(_loaded_effects[variable.effect_index].source_file.filename().u8string(), variable.name, values.as_float);
 			if (_is_in_between_presets_transition)
 			{
+				// Perform smooth transition on floating point values
 				for (int i = 0; i < 16; i++)
 				{
-					auto f_ratio = static_cast<float>(values.as_float[i] - values_old.as_float[i]) / n_miliseconds_left_from_last_frame;
-					values.as_float[i] = static_cast<float>(values.as_float[i] - f_ratio * n_miliseconds_left);
+					const auto transition_ratio = (values.as_float[i] - values_old.as_float[i]) / transition_ms_left_from_last_frame;
+					values.as_float[i] = values.as_float[i] - transition_ratio * transition_ms_left;
 				}
 			}
 			set_uniform_value(variable, values.as_float, 16);
@@ -1078,7 +1075,7 @@ void reshade::runtime::load_current_preset()
 			disable_technique(technique);
 
 		// Reset toggle key first, since it may not exist in the preset
-		std::fill_n(technique.toggle_key_data, _countof(technique.toggle_key_data), 0);
+		memset(technique.toggle_key_data, 0, sizeof(technique.toggle_key_data));
 		preset.get("", "Key" + technique.name, technique.toggle_key_data);
 	}
 }
@@ -1086,9 +1083,13 @@ void reshade::runtime::save_current_preset() const
 {
 	reshade::ini_file &preset = ini_file::load_cache(_current_preset_path);
 
+	// Build list of active techniques and effects
 	std::vector<size_t> effect_list;
 	std::vector<std::string> technique_list;
 	std::vector<std::string> sorted_technique_list;
+	effect_list.reserve(_techniques.size());
+	technique_list.reserve(_techniques.size());
+	sorted_technique_list.reserve(_techniques.size());
 
 	for (const technique &technique : _techniques)
 	{
@@ -1142,6 +1143,64 @@ void reshade::runtime::save_current_preset() const
 	}
 }
 
+bool reshade::runtime::switch_to_next_preset(const std::filesystem::path &filter_path, bool reversed)
+{
+	std::error_code ec; // This is here to ignore file system errors below
+
+	std::filesystem::path filter_text = filter_path.filename();
+	std::filesystem::path search_path = absolute_path(filter_path);
+
+	if (std::filesystem::is_directory(search_path, ec))
+		filter_text.clear();
+	else if (!filter_text.empty())
+		search_path = search_path.parent_path();
+
+	size_t current_preset_index = std::numeric_limits<size_t>::max();
+	std::vector<std::filesystem::path> preset_paths;
+
+	for (const auto &entry : std::filesystem::directory_iterator(search_path, std::filesystem::directory_options::skip_permission_denied, ec))
+	{
+		// Skip anything that is not a valid preset file
+		if (!check_preset_path(entry.path()))
+			continue;
+
+		// Keep track of the index of the current preset in the list of found preset files that is being build
+		if (std::filesystem::equivalent(entry, _current_preset_path, ec)) {
+			current_preset_index = preset_paths.size();
+			preset_paths.push_back(entry);
+			continue;
+		}
+
+		const std::wstring preset_name = entry.path().stem();
+		// Only add those files that are matching the filter text
+		if (filter_text.empty() || std::search(preset_name.begin(), preset_name.end(), filter_text.native().begin(), filter_text.native().end(),
+			[](wchar_t c1, wchar_t c2) { return towlower(c1) == towlower(c2); }) != preset_name.end())
+			preset_paths.push_back(entry);
+	}
+
+	if (preset_paths.begin() == preset_paths.end())
+		return false; // No valid preset files were found, so nothing more to do
+
+	if (current_preset_index == std::numeric_limits<size_t>::max())
+	{
+		// Current preset was not in the container path, so just use the first or last file
+		if (reversed)
+			_current_preset_path = preset_paths.back();
+		else
+			_current_preset_path = preset_paths.front();
+	}
+	else
+	{
+		// Current preset was found in the container path, so use the file before or after it
+		if (auto it = std::next(preset_paths.begin(), current_preset_index); reversed)
+			_current_preset_path = it == preset_paths.begin() ? preset_paths.back() : *--it;
+		else
+			_current_preset_path = it == std::prev(preset_paths.end()) ? preset_paths.front() : *++it;
+	}
+
+	return true;
+}
+
 void reshade::runtime::save_screenshot(const std::wstring &postfix, const bool should_save_preset)
 {
 	const int hour = _date[3] / 3600;
@@ -1187,9 +1246,9 @@ void reshade::runtime::save_screenshot(const std::wstring &postfix, const bool s
 	{
 		LOG(ERROR) << "Failed to write screenshot to " << screenshot_path << '!';
 	}
-	else if (_screenshot_include_preset && should_save_preset
-		&& ini_file::flush_cache(_current_preset_path))
+	else if (_screenshot_include_preset && should_save_preset && ini_file::flush_cache(_current_preset_path))
 	{
+		// Preset was flushed to disk, so can just copy it over to the new location
 		std::error_code ec;
 		std::filesystem::copy_file(_current_preset_path, least + L".ini", std::filesystem::copy_options::overwrite_existing, ec);
 	}
@@ -1343,77 +1402,28 @@ void reshade::runtime::reset_uniform_value(uniform &variable)
 		return;
 	}
 
-	if (_renderer_id != 0x9000)
+	if (_renderer_id == 0x9000)
 	{
-		memcpy(_uniform_data_storage.data() + variable.storage_offset, variable.initializer_value.as_uint, variable.size);
-		return;
-	}
-
-	// Force all uniforms to floating-point in D3D9
-	for (size_t i = 0; i < variable.size / sizeof(float); i++)
-	{
-		switch (variable.type.base)
+		// Force all uniforms to floating-point in D3D9
+		for (size_t i = 0; i < variable.size / sizeof(float); i++)
 		{
-		case reshadefx::type::t_int:
-			reinterpret_cast<float *>(_uniform_data_storage.data() + variable.storage_offset)[i] = static_cast<float>(variable.initializer_value.as_int[i]);
-			break;
-		case reshadefx::type::t_bool:
-		case reshadefx::type::t_uint:
-			reinterpret_cast<float *>(_uniform_data_storage.data() + variable.storage_offset)[i] = static_cast<float>(variable.initializer_value.as_uint[i]);
-			break;
-		case reshadefx::type::t_float:
-			reinterpret_cast<float *>(_uniform_data_storage.data() + variable.storage_offset)[i] = variable.initializer_value.as_float[i];
-			break;
+			switch (variable.type.base)
+			{
+			case reshadefx::type::t_int:
+				reinterpret_cast<float *>(_uniform_data_storage.data() + variable.storage_offset)[i] = static_cast<float>(variable.initializer_value.as_int[i]);
+				break;
+			case reshadefx::type::t_bool:
+			case reshadefx::type::t_uint:
+				reinterpret_cast<float *>(_uniform_data_storage.data() + variable.storage_offset)[i] = static_cast<float>(variable.initializer_value.as_uint[i]);
+				break;
+			case reshadefx::type::t_float:
+				reinterpret_cast<float *>(_uniform_data_storage.data() + variable.storage_offset)[i] = variable.initializer_value.as_float[i];
+				break;
+			}
 		}
 	}
-}
-
-bool reshade::runtime::switch_to_next_preset(bool reversed)
-{
-	std::error_code ec;
-
-	std::filesystem::path preset_container_path;
-	std::filesystem::path presets_filter_text;
-
-#if RESHADE_GUI
-	preset_container_path = (g_reshade_dll_path.parent_path() / _current_browse_path).lexically_normal();
-	presets_filter_text = _current_browse_path.filename();
-#else
-	preset_container_path = _current_preset_path.parent_path();
-#endif
-
-	if (std::filesystem::is_directory(preset_container_path, ec))
-		presets_filter_text.clear();
-	else if (!presets_filter_text.empty())
-		preset_container_path = preset_container_path.parent_path();
-
-	size_t current_preset_index = std::numeric_limits<size_t>::max();
-	std::vector<std::filesystem::directory_entry> preset_paths;
-
-	for (const std::filesystem::directory_entry &entry : std::filesystem::directory_iterator(preset_container_path, std::filesystem::directory_options::skip_permission_denied, ec))
-		if (!entry.is_directory(ec) && (entry.path().extension() == L".ini" || entry.path().extension() == L".txt"))
-			if (reshade::ini_file::load_cache(entry).has("", "Techniques"))
-				if (std::filesystem::equivalent(entry, _current_preset_path, ec))
-					current_preset_index = preset_paths.size(),
-					preset_paths.push_back(entry);
-				else if (presets_filter_text.empty())
-					preset_paths.push_back(entry);
-				else if (const std::wstring preset_name(entry.path().stem()), &filter_text = presets_filter_text.native();
-					std::search(preset_name.begin(), preset_name.end(), filter_text.begin(), filter_text.end(), [](wchar_t c1, wchar_t c2) { return towlower(c1) == towlower(c2); }) != preset_name.end())
-					preset_paths.push_back(entry);
-
-	if (preset_paths.begin() == preset_paths.end())
-		return false;
-	else if (current_preset_index == std::numeric_limits<size_t>::max())
-		if (reversed)
-			_current_preset_path = preset_paths.back();
-		else
-			_current_preset_path = preset_paths.front();
 	else
-		if (auto it = preset_paths.begin() + current_preset_index; reversed)
-			_current_preset_path = it == preset_paths.begin() ? preset_paths.back() : *--it;
-		else
-			_current_preset_path = it == preset_paths.end() - 1 ? preset_paths.front() : *++it;
-
-	return true;
+	{
+		memcpy(_uniform_data_storage.data() + variable.storage_offset, variable.initializer_value.as_uint, variable.size);
+	}
 }
