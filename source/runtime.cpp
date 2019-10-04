@@ -102,10 +102,6 @@ reshade::runtime::runtime() :
 		// If neither exist create a "ReShade.ini" in the ReShade DLL directory
 		_configuration_path = g_reshade_dll_path.parent_path() / "ReShade.ini";
 
-#if RESHADE_GUI
-	_current_browse_path = _current_preset_path.parent_path();
-#endif
-
 	_needs_update = check_for_update(_latest_version);
 
 #if RESHADE_GUI
@@ -966,6 +962,10 @@ void reshade::runtime::load_config()
 		_current_preset_path = g_reshade_dll_path.parent_path() / L"DefaultPreset.ini";
 	else
 		_current_preset_path = g_reshade_dll_path.parent_path() / current_preset_path;
+
+#if RESHADE_GUI
+	_current_browse_path = _current_preset_path.parent_path();
+#endif
 
 	for (const auto &callback : _load_config_callables)
 		callback(config);
