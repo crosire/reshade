@@ -69,6 +69,8 @@ namespace reshade::opengl
 #if RESHADE_GUI
 			VBO_IMGUI,
 			IBO_IMGUI,
+#else
+			BUF_DUMMY,
 #endif
 				NUM_BUF
 		};
