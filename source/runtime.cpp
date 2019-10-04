@@ -102,6 +102,10 @@ reshade::runtime::runtime() :
 		// If neither exist create a "ReShade.ini" in the ReShade DLL directory
 		_configuration_path = g_reshade_dll_path.parent_path() / "ReShade.ini";
 
+#if RESHADE_GUI
+	_current_browse_path = _current_preset_path.parent_path();
+#endif
+
 	_needs_update = check_for_update(_latest_version);
 
 #if RESHADE_GUI
