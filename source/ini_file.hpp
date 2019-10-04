@@ -5,6 +5,7 @@
 
 #pragma once
 
+#include <assert.h>
 #include <filesystem>
 #include <vector>
 #include <string>
@@ -69,7 +70,7 @@ namespace reshade
 		template <typename T>
 		void set(const std::string &section, const std::string &key, const T &value)
 		{
-			set<std::string>(section, key, std::to_string(value));
+			set(section, key, std::to_string(value));
 		}
 		template <>
 		void set(const std::string &section, const std::string &key, const bool &value)
@@ -84,27 +85,28 @@ namespace reshade
 			_modified = true;
 			_modified_at = std::filesystem::file_time_type::clock::now();
 		}
-		template <>
-		void set(const std::string &section, const std::string &key, const std::filesystem::path &value)
-		{
-			set<std::string>(section, key, value.u8string());
-		}
-		template <typename T, size_t SIZE>
-		void set(const std::string &section, const std::string &key, const T(&values)[SIZE], size_t size = SIZE)
+		inline
+		void set(const std::string &section, const std::string &key, std::string &&value)
 		{
 			auto &v = _sections[section][key];
-			v.resize(size);
-			for (size_t i = 0; i < size; ++i)
-				v[i] = std::to_string(values[i]);
+			v.resize(1);
+			v[0] = std::forward<std::string>(value);
 			_modified = true;
 			_modified_at = std::filesystem::file_time_type::clock::now();
 		}
-		template <typename T>
-		void set(const std::string &section, const std::string &key, const std::vector<T> &values)
+		template <>
+		void set(const std::string &section, const std::string &key, const std::filesystem::path &value)
 		{
+			set(section, key, value.u8string());
+		}
+		template <typename T, size_t SIZE>
+		void set(const std::string &section, const std::string &key, const T(&values)[SIZE], const size_t size = SIZE)
+		{
+			assert(0 <= size && size <= SIZE);
+
 			auto &v = _sections[section][key];
-			v.resize(values.size());
-			for (size_t i = 0; i < values.size(); ++i)
+			v.resize(size);
+			for (size_t i = 0; i < size; ++i)
 				v[i] = std::to_string(values[i]);
 			_modified = true;
 			_modified_at = std::filesystem::file_time_type::clock::now();
@@ -114,6 +116,14 @@ namespace reshade
 		{
 			auto &v = _sections[section][key];
 			v = values;
+			_modified = true;
+			_modified_at = std::filesystem::file_time_type::clock::now();
+		}
+		inline
+		void set(const std::string &section, const std::string &key, std::vector<std::string> &&values)
+		{
+			auto &v = _sections[section][key];
+			v = std::forward<std::vector<std::string>>(values);
 			_modified = true;
 			_modified_at = std::filesystem::file_time_type::clock::now();
 		}
