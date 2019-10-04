@@ -46,12 +46,14 @@ static void init_runtime_d3d(T *&device, D3DDEVTYPE device_type, D3DPRESENT_PARA
 	if (use_software_rendering)
 		device->SetSoftwareVertexProcessing(TRUE);
 
+#if 0
 	// TODO: Make this configurable, since it prevents ReShade from being applied to video players.
 	if (pp.Flags & D3DPRESENTFLAG_VIDEO)
 	{
 		LOG(WARN) << "> Skipping device due to video swapchain.";
 		return;
 	}
+#endif
 
 	if (device_type == D3DDEVTYPE_NULLREF)
 	{
