@@ -377,7 +377,7 @@ private:
 			code += "static const __sampler2D " + id_to_name(info.id) + " = { __" + info.unique_name + "_s, float2(";
 
 			if (texture->semantic.empty())
-				code += std::to_string(1.0f / texture->width) + ", " + std::to_string(1.0f / texture->height);
+				code += "1.0 / " + std::to_string(texture->width) + ", 1.0 / " + std::to_string(texture->height);
 			else
 				code += texture->semantic + "_PIXEL_SIZE"; // Expect application to set inverse texture size via a define if it is not known here
 
