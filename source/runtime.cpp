@@ -14,6 +14,8 @@
 #include "ini_file.hpp"
 #include <assert.h>
 #include <thread>
+#include <fstream>
+#include <sstream>
 #include <algorithm>
 #include <stb_image.h>
 #include <stb_image_dds.h>
@@ -669,7 +671,7 @@ void reshade::runtime::update_and_render_effects()
 
 			if (success)
 			{
-
+				effect.preamble;
 			}
 
 			// Compile the effect with the back-end implementation
@@ -857,6 +859,45 @@ void reshade::runtime::update_and_render_effects()
 		save_screenshot(std::wstring(), true);
 		_should_save_screenshot = false;
 	}
+}
+
+bool reshade::runtime::load_shader_cache(const std::string &renderer, const std::string &hlsl, const std::string &attributes, std::vector<uint8_t> &cso)
+{
+	std::hash<std::string> hasher;
+	std::stringstream ss;
+
+	ss << renderer;
+	ss << '-';
+	ss << sizeof(size_t) * 8;
+	ss << '-';
+	ss << std::setfill('0');
+	ss << std::setw(sizeof(size_t) * 2);
+	ss << std::hex << (hasher(hlsl) ^ hasher(attributes));
+	ss << ".cso";
+
+	std::ifstream file(g_reshade_dll_path.parent_path() / L"reshade-shaders" / L"Intermediate" / ss.str(), std::ios::in | std::ios::binary);
+	std::copy(std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>(), std::back_inserter(cso));
+
+	return file.is_open();
+}
+bool reshade::runtime::save_shader_cache(const std::string &renderer, const std::string &hlsl, const std::string &attributes, std::vector<uint8_t> &cso)
+{
+	std::hash<std::string> hasher;
+	std::stringstream ss;
+
+	ss << renderer;
+	ss << '-';
+	ss << sizeof(size_t) * 8;
+	ss << '-';
+	ss << std::setfill('0');
+	ss << std::setw(sizeof(size_t) * 2);
+	ss << std::hex << (hasher(hlsl) ^ hasher(attributes));
+	ss << ".cso";
+
+	std::ofstream file(g_reshade_dll_path.parent_path() / L"reshade-shaders" / L"Intermediate" / ss.str(), std::ios::out | std::ios::binary);
+	file.write(reinterpret_cast<const char *>(cso.data()), cso.size());
+
+	return file.is_open();
 }
 
 void reshade::runtime::enable_technique(technique &technique)

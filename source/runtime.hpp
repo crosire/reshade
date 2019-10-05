@@ -168,6 +168,10 @@ namespace reshade
 		/// Apply post-processing effects to the frame.
 		/// </summary>
 		void update_and_render_effects();
+
+		bool load_shader_cache(const std::string &renderer, const std::string &hlsl, const std::string &attributes, std::vector<uint8_t> &cso);
+		bool save_shader_cache(const std::string &renderer, const std::string &hlsl, const std::string &attributes, std::vector<uint8_t> &cso);
+
 		/// <summary>
 		/// Render all passes in a technique.
 		/// </summary>
