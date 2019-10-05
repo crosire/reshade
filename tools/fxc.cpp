@@ -151,11 +151,11 @@ int main(int argc, char *argv[])
 
 	std::unique_ptr<reshadefx::codegen> backend;
 	if (print_glsl)
-		backend.reset(reshadefx::create_codegen_glsl(debug_info, false));
+		backend.reset(reshadefx::create_codegen_glsl(debug_info));
 	else if (print_hlsl)
-		backend.reset(reshadefx::create_codegen_hlsl(shader_model, debug_info, false));
+		backend.reset(reshadefx::create_codegen_hlsl(shader_model, debug_info));
 	else
-		backend.reset(reshadefx::create_codegen_spirv(true, debug_info, false));
+		backend.reset(reshadefx::create_codegen_spirv(true, debug_info));
 
 	if (!parser.parse(pp.output(), backend.get()))
 	{

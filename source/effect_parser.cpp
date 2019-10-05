@@ -2570,12 +2570,7 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 
 	symbol symbol;
 
-	if (type.is_numeric() && type.has(type::q_const) && initializer.is_constant) // Variables with a constant initializer and constant type are named constants
-	{
-		// Named constants are special symbols
-		symbol = { symbol_type::constant, 0, type, initializer.constant };
-	}
-	else if (type.is_texture())
+	if (type.is_texture())
 	{
 		assert(global);
 
@@ -2615,8 +2610,15 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 		uniform_info.initializer_value = std::move(initializer.constant);
 		uniform_info.has_initializer_value = initializer.is_constant;
 
+		_effect_parser_injector.emit_uniform_definition(uniform_info);
+
 		symbol = { symbol_type::variable, 0, type };
 		symbol.id = _codegen->define_uniform(location, uniform_info);
+	}
+	else if (type.is_numeric() && type.has(type::q_const) && initializer.is_constant) // Variables with a constant initializer and constant type are named constants
+	{
+		// Named constants are special symbols
+		symbol = { symbol_type::constant, 0, type, initializer.constant };
 	}
 	else // All other variables are separate entities
 	{

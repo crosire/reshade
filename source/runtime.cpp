@@ -321,13 +321,40 @@ void reshade::runtime::load_effect(const std::filesystem::path &path, size_t &ou
 
 		std::unique_ptr<reshadefx::codegen> codegen;
 		if ((_renderer_id & 0xF0000) == 0)
-			codegen.reset(reshadefx::create_codegen_hlsl(shader_model, true, _performance_mode));
+			codegen.reset(reshadefx::create_codegen_hlsl(shader_model, true));
 		else if (_renderer_id < 0x20000)
-			codegen.reset(reshadefx::create_codegen_glsl(true, _performance_mode));
+			codegen.reset(reshadefx::create_codegen_glsl(true));
 		else // Vulkan uses SPIR-V input
-			codegen.reset(reshadefx::create_codegen_spirv(true, true, _performance_mode));
+			codegen.reset(reshadefx::create_codegen_spirv(true, true));
 
 		reshadefx::parser parser;
+		reshadefx::effect_parser_injector injector;
+
+		const ini_file preset(_current_preset_path);
+		const std::string section(path.filename().u8string());
+
+		// For fill all specialization constants with values from the current preset
+		injector.subscribe_uniform_definition([this, &preset, &section](reshadefx::uniform_info &uniform_info) {
+			if (_performance_mode)
+			{
+				uniform_info.type.qualifiers |= reshadefx::type::q_const;
+				switch (uniform_info.type.base)
+				{
+				case reshadefx::type::t_int:
+					preset.get(section, uniform_info.name, uniform_info.initializer_value.as_int);
+					break;
+				case reshadefx::type::t_bool:
+				case reshadefx::type::t_uint:
+					preset.get(section, uniform_info.name, uniform_info.initializer_value.as_uint);
+					break;
+				case reshadefx::type::t_float:
+					preset.get(section, uniform_info.name, uniform_info.initializer_value.as_float);
+					break;
+				}
+			}});
+
+		// Set all subscribers
+		parser.set_injector(injector);
 
 		// Compile the pre-processed source code (try the compile even if the preprocessor step failed to get additional error information)
 		if (!parser.parse(std::move(pp.output()), codegen.get()))
@@ -341,56 +368,6 @@ void reshade::runtime::load_effect(const std::filesystem::path &path, size_t &ou
 
 		// Write result to effect module
 		codegen->write_result(effect.module);
-	}
-
-	// Fill all specialization constants with values from the current preset
-	if (_performance_mode && !_current_preset_path.empty() && effect.compile_sucess)
-	{
-		const ini_file preset(_current_preset_path);
-		const std::string section(path.filename().u8string());
-
-		for (reshadefx::uniform_info &constant : effect.module.spec_constants)
-		{
-			effect.preamble += "#define SPEC_CONSTANT_" + constant.name + ' ';
-
-			switch (constant.type.base)
-			{
-			case reshadefx::type::t_int:
-				preset.get(section, constant.name, constant.initializer_value.as_int);
-				break;
-			case reshadefx::type::t_bool:
-			case reshadefx::type::t_uint:
-				preset.get(section, constant.name, constant.initializer_value.as_uint);
-				break;
-			case reshadefx::type::t_float:
-				preset.get(section, constant.name, constant.initializer_value.as_float);
-				break;
-			}
-
-			for (unsigned int i = 0; i < constant.type.components(); ++i)
-			{
-				switch (constant.type.base)
-				{
-				case reshadefx::type::t_bool:
-					effect.preamble += constant.initializer_value.as_uint[i] ? "true" : "false";
-					break;
-				case reshadefx::type::t_int:
-					effect.preamble += std::to_string(constant.initializer_value.as_int[i]);
-					break;
-				case reshadefx::type::t_uint:
-					effect.preamble += std::to_string(constant.initializer_value.as_uint[i]);
-					break;
-				case reshadefx::type::t_float:
-					effect.preamble += std::to_string(constant.initializer_value.as_float[i]);
-					break;
-				}
-
-				if (i + 1 < constant.type.components())
-					effect.preamble += ", ";
-			}
-
-			effect.preamble += '\n';
-		}
 	}
 
 	// Guard access to shared variables
@@ -688,6 +665,11 @@ void reshade::runtime::update_and_render_effects()
 						break;
 					}
 				}
+			}
+
+			if (success)
+			{
+
 			}
 
 			// Compile the effect with the back-end implementation

@@ -12,8 +12,8 @@ using namespace reshadefx;
 class codegen_hlsl final : public codegen
 {
 public:
-	codegen_hlsl(unsigned int shader_model, bool debug_info, bool uniforms_to_spec_constants)
-		: _shader_model(shader_model), _debug_info(debug_info), _uniforms_to_spec_constants(uniforms_to_spec_constants)
+	codegen_hlsl(unsigned int shader_model, bool debug_info)
+		: _shader_model(shader_model), _debug_info(debug_info)
 	{
 		// Create default block and reserve a memory block to avoid frequent reallocations
 		std::string &block = _blocks.emplace(0, std::string()).first->second;
@@ -36,7 +36,6 @@ private:
 	std::unordered_map<id, std::string> _names;
 	std::unordered_map<id, std::string> _blocks;
 	bool _debug_info = false;
-	bool _uniforms_to_spec_constants = false;
 	unsigned int _shader_model = 0;
 	unsigned int _current_cbuffer_size = 0;
 
@@ -394,7 +393,7 @@ private:
 
 		define_name<naming::unique>(res, "_Globals_" + info.name);
 
-		if (_uniforms_to_spec_constants && info.has_initializer_value)
+		if (info.type.has(type::q_const) && info.has_initializer_value)
 		{
 			std::string &code = _blocks.at(_current_block);
 
@@ -403,9 +402,8 @@ private:
 			code += "static const ";
 			write_type(code, info.type);
 			code += ' ' + id_to_name(res) + " = ";
-			if (!info.type.is_scalar())
-				write_type<false, false>(code, info.type);
-			code += "(SPEC_CONSTANT_" + info.name + ");\n";
+			write_constant(code, info.type, info.initializer_value);
+			code += ";\n";
 
 			_module.spec_constants.push_back(info);
 		}
@@ -1365,7 +1363,7 @@ private:
 	}
 };
 
-codegen *reshadefx::create_codegen_hlsl(unsigned int shader_model, bool debug_info, bool uniforms_to_spec_constants)
+codegen *reshadefx::create_codegen_hlsl(unsigned int shader_model, bool debug_info)
 {
-	return new codegen_hlsl(shader_model, debug_info, uniforms_to_spec_constants);
+	return new codegen_hlsl(shader_model, debug_info);
 }

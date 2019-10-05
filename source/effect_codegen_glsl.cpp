@@ -13,8 +13,8 @@ using namespace reshadefx;
 class codegen_glsl final : public codegen
 {
 public:
-	codegen_glsl(bool debug_info, bool uniforms_to_spec_constants)
-		: _debug_info(debug_info), _uniforms_to_spec_constants(uniforms_to_spec_constants)
+	codegen_glsl(bool debug_info)
+		: _debug_info(debug_info)
 	{
 		// Create default block and reserve a memory block to avoid frequent reallocations
 		std::string &block = _blocks.emplace(0, std::string()).first->second;
@@ -38,7 +38,6 @@ private:
 	std::unordered_map<id, std::string> _names;
 	std::unordered_map<id, std::string> _blocks;
 	bool _debug_info = false;
-	bool _uniforms_to_spec_constants = false;
 	unsigned int _current_ubo_offset = 0;
 	std::unordered_map<id, id> _remapped_sampler_variables;
 
@@ -343,7 +342,7 @@ private:
 
 		define_name<naming::unique>(res, "_Globals_" + info.name);
 
-		if (_uniforms_to_spec_constants && info.has_initializer_value)
+		if (info.type.has(type::q_const) && info.has_initializer_value)
 		{
 			std::string &code = _blocks.at(_current_block);
 
@@ -1437,7 +1436,7 @@ private:
 	}
 };
 
-codegen *reshadefx::create_codegen_glsl(bool debug_info, bool uniforms_to_spec_constants)
+codegen *reshadefx::create_codegen_glsl(bool debug_info)
 {
-	return new codegen_glsl(debug_info, uniforms_to_spec_constants);
+	return new codegen_glsl(debug_info);
 }

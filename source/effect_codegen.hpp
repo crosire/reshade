@@ -306,20 +306,17 @@ namespace reshadefx
 	/// Create a back-end implementation for GLSL code generation.
 	/// </summary>
 	/// <param name="debug_info">Whether to append debug information like line directives to the generated code.</param>
-	/// <param name="uniforms_to_spec_constants">Whether to convert uniform variables to specialization constants.</param>
-	codegen *create_codegen_glsl(bool debug_info, bool uniforms_to_spec_constants);
+	codegen *create_codegen_glsl(bool debug_info);
 	/// <summary>
 	/// Create a back-end implementation for HLSL code generation.
 	/// </summary>
 	/// <param name="shader_model">The HLSL shader model version (e.g. 30, 41, 50, 60, ...)</param>
 	/// <param name="debug_info">Whether to append debug information like line directives to the generated code.</param>
-	/// <param name="uniforms_to_spec_constants">Whether to convert uniform variables to specialization constants.</param>
-	codegen *create_codegen_hlsl(unsigned int shader_model, bool debug_info, bool uniforms_to_spec_constants);
+	codegen *create_codegen_hlsl(unsigned int shader_model, bool debug_info);
 	/// <summary>
 	/// Create a back-end implementation for SPIR-V code generation.
 	/// </summary>
 	/// <param name="vulkan_semantics">Generate SPIR-V for OpenGL or for Vulkan.</param>
 	/// <param name="debug_info">Whether to append debug information like line directives to the generated code.</param>
-	/// <param name="uniforms_to_spec_constants">Whether to convert uniform variables to specialization constants.</param>
-	codegen *create_codegen_spirv(bool vulkan_semantics, bool debug_info, bool uniforms_to_spec_constants);
+	codegen *create_codegen_spirv(bool vulkan_semantics, bool debug_info);
 }

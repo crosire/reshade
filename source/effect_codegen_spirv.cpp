@@ -114,8 +114,8 @@ struct spirv_basic_block
 class codegen_spirv final : public codegen
 {
 public:
-	codegen_spirv(bool vulkan_semantics, bool debug_info, bool uniforms_to_spec_constants)
-		: _debug_info(debug_info), _vulkan_semantics(vulkan_semantics), _uniforms_to_spec_constants(uniforms_to_spec_constants)
+	codegen_spirv(bool vulkan_semantics, bool debug_info)
+		: _debug_info(debug_info), _vulkan_semantics(vulkan_semantics)
 	{
 		_glsl_ext = make_id();
 	}
@@ -599,7 +599,7 @@ private:
 	}
 	id   define_uniform(const location &, uniform_info &info) override
 	{
-		if (_uniforms_to_spec_constants && info.type.is_scalar() && info.has_initializer_value)
+		if (info.type.has(type::q_const) && info.type.is_scalar() && info.has_initializer_value)
 		{
 			const id res = emit_constant(info.type, info.initializer_value, true);
 
@@ -1939,7 +1939,7 @@ private:
 	}
 };
 
-codegen *reshadefx::create_codegen_spirv(bool vulkan_semantics, bool debug_info, bool uniforms_to_spec_constants)
+codegen *reshadefx::create_codegen_spirv(bool vulkan_semantics, bool debug_info)
 {
-	return new codegen_spirv(vulkan_semantics, debug_info, uniforms_to_spec_constants);
+	return new codegen_spirv(vulkan_semantics, debug_info);
 }

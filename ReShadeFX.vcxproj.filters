@@ -15,6 +15,7 @@
     <ClInclude Include="source\effect_expression.hpp" />
     <ClInclude Include="source\effect_lexer.hpp" />
     <ClInclude Include="source\effect_parser.hpp" />
+    <ClInclude Include="source\effect_parser_injector.hpp" />
     <ClInclude Include="source\effect_preprocessor.hpp" />
     <ClInclude Include="source\effect_symbol_table.hpp" />
   </ItemGroup>

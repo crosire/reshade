@@ -6,6 +6,7 @@
 #pragma once
 
 #include "effect_lexer.hpp"
+#include "effect_parser_injector.hpp"
 #include "effect_symbol_table.hpp"
 #include <memory>
 
@@ -30,6 +31,8 @@ namespace reshadefx
 		/// </summary>
 		std::string &errors() { return _errors; }
 		const std::string &errors() const { return _errors; }
+
+		void set_injector(const reshadefx::effect_parser_injector &effect_parser_injector) { _effect_parser_injector = effect_parser_injector; }
 
 	private:
 		void error(const location &location, unsigned int code, const std::string &message);
@@ -85,5 +88,7 @@ namespace reshadefx
 		std::vector<uint32_t> _loop_break_target_stack;
 		std::vector<uint32_t> _loop_continue_target_stack;
 		type _current_return_type;
+
+		reshadefx::effect_parser_injector _effect_parser_injector;
 	};
 }
