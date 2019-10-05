@@ -1,9 +1,7 @@
 ﻿using System;
 using System.Globalization;
 using System.IO;
-using System.Linq;
 using System.Windows;
-using System.Windows.Controls;
 using System.Windows.Data;
 using System.Windows.Markup;
 using Microsoft.Win32;
@@ -13,8 +11,6 @@ namespace ReShade.Setup
 {
 	public partial class SettingsWindow
 	{
-		private const string IniSectionName = "GENERAL";
-
 		private readonly string _configFilePath;
 
 		public SettingsWindow(string configPath)
@@ -29,59 +25,54 @@ namespace ReShade.Setup
 			Load();
 		}
 
-		private void WriteValue(string key, string value)
-		{
-			IniFile.WriteValue(_configFilePath, IniSectionName, key, NullIfBlank(value));
-		}
-
-		private string ReadValue(string key, string defaultValue = null)
-		{
-			string value = IniFile.ReadValue(_configFilePath, IniSectionName, key, defaultValue);
-			return NullIfBlank(value) ?? defaultValue;
-		}
-
 		private void Save()
 		{
-			WriteValue("CurrentPresetPath", Preset.Text);
-			WriteValue("EffectSearchPaths", EffectsPath.Text);
-			WriteValue("TextureSearchPaths", TexturesPath.Text);
-			WriteValue("ScreenshotPath", ScreenshotsPath.Text);
+			var iniFile = new IniFile(_configFilePath);
 
-			WriteValue("PerformanceMode", CheckboxValue(PerformanceMode.IsChecked));
-			WriteValue("ShowFPS", CheckboxValue(ShowFps.IsChecked));
-			WriteValue("ShowClock", CheckboxValue(ShowClock.IsChecked));
+			iniFile.SetValue("GENERAL", "CurrentPresetPath", Preset.Text);
+			iniFile.SetValue("GENERAL", "EffectSearchPaths", EffectsPath.Text);
+			iniFile.SetValue("GENERAL", "TextureSearchPaths", TexturesPath.Text);
+			iniFile.SetValue("GENERAL", "ScreenshotPath", ScreenshotsPath.Text);
 
-			string tutProgress = ReadValue("TutorialProgress", "0");
+			iniFile.SetValue("GENERAL", "PerformanceMode", CheckboxValue(PerformanceMode.IsChecked));
+			iniFile.SetValue("GENERAL", "ShowFPS", CheckboxValue(ShowFps.IsChecked));
+			iniFile.SetValue("GENERAL", "ShowClock", CheckboxValue(ShowClock.IsChecked));
+
+			string tutProgress = iniFile.GetValue("GENERAL", "TutorialProgress", "0");
 			var skipTut = SkipTut.IsChecked;
-			WriteValue("TutorialProgress", skipTut.HasValue ? (skipTut.Value ? "4" : "0") : tutProgress);
+			iniFile.SetValue("GENERAL", "TutorialProgress", skipTut.HasValue ? (skipTut.Value ? "4" : "0") : tutProgress);
+
+			iniFile.Save();
 		}
 
 		private void Load()
 		{
-			if (File.Exists(_configFilePath))
+			if (!File.Exists(_configFilePath))
+				return;
+
+			var iniFile = new IniFile(_configFilePath);
+
+			Preset.Text = iniFile.GetValue("GENERAL", "CurrentPresetPath");
+			EffectsPath.Text = iniFile.GetValue("GENERAL", "EffectSearchPaths");
+			TexturesPath.Text = iniFile.GetValue("GENERAL", "TextureSearchPaths");
+			ScreenshotsPath.Text = iniFile.GetValue("GENERAL", "ScreenshotPath");
+
+			PerformanceMode.IsChecked = iniFile.GetValue("GENERAL", "PerformanceMode") == "1";
+			ShowFps.IsChecked = iniFile.GetValue("GENERAL", "ShowFPS") == "1";
+			ShowClock.IsChecked = iniFile.GetValue("GENERAL", "ShowClock") == "1";
+
+			string tutProgress = iniFile.GetValue("GENERAL", "TutorialProgress", "0");
+			if (tutProgress == "0" || tutProgress == "4")
 			{
-				Preset.Text = ReadValue("CurrentPresetPath");
-				EffectsPath.Text = ReadValue("EffectSearchPaths");
-				TexturesPath.Text = ReadValue("TextureSearchPaths");
-				ScreenshotsPath.Text = ReadValue("ScreenshotPath");
-
-				PerformanceMode.IsChecked = ReadValue("PerformanceMode") == "1";
-				ShowFps.IsChecked = ReadValue("ShowFPS") == "1";
-				ShowClock.IsChecked = ReadValue("ShowClock") == "1";
-
-				string tutProgress = ReadValue("TutorialProgress", "0");
-				if (tutProgress == "0" || tutProgress == "4")
-				{
-					SkipTut.IsThreeState = false;
-					SkipTut.IsChecked = tutProgress == "4";
-					SkipTut.ToolTip = null;
-				}
-				else
-				{
-					SkipTut.IsThreeState = true;
-					SkipTut.IsChecked = null;
-					SkipTut.ToolTip = "Neutral means keep pre-existing progress";
-				}
+				SkipTut.IsThreeState = false;
+				SkipTut.IsChecked = tutProgress == "4";
+				SkipTut.ToolTip = null;
+			}
+			else
+			{
+				SkipTut.IsThreeState = true;
+				SkipTut.IsChecked = null;
+				SkipTut.ToolTip = "Neutral means keep pre-existing progress";
 			}
 		}
 
