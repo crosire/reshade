@@ -714,7 +714,7 @@ extern "C"  void WINAPI glFramebufferTextureLayer(GLenum target, GLenum attachme
 	static const auto trampoline = reshade::hooks::call(glFramebufferTextureLayer);
 	trampoline(target, attachment, texture, level, layer);
 
-	if (g_current_runtime) g_current_runtime->on_fbo_attachment(attachment, GL_TEXTURE_2D, texture, level);
+	if (g_current_runtime) g_current_runtime->on_fbo_attachment(attachment, target, texture, level);
 }
 extern "C"  void WINAPI glFramebufferTextureLayerARB(GLenum target, GLenum attachment, GLuint texture, GLint level, GLint layer)
 {
@@ -1958,7 +1958,20 @@ HOOK_EXPORT void WINAPI glTexParameteriv(GLenum target, GLenum pname, const GLin
 	static const auto trampoline = reshade::hooks::call(glTexParameteriv);
 	trampoline(target, pname, params);
 }
+HOOK_EXPORT void WINAPI glTexStorage2D(GLenum target, GLsizei levels, GLenum internalformat, GLsizei width, GLsizei height)
+{
+	if (g_current_runtime) g_current_runtime->on_dimensions_sizing((GLfloat)0, width, height);
 
+	static const auto trampoline = reshade::hooks::call(glTexStorage2D);
+	trampoline(target, levels, internalformat, width, height);
+}
+HOOK_EXPORT void WINAPI glTexStorage3D(GLenum target, GLsizei levels, GLenum internalformat, GLsizei width, GLsizei height, GLsizei depth)
+{
+	if (g_current_runtime) g_current_runtime->on_dimensions_sizing((GLfloat)0, width, height);
+
+	static const auto trampoline = reshade::hooks::call(glTexStorage3D);
+	trampoline(target, levels, internalformat, width, height, depth);
+}
 HOOK_EXPORT void WINAPI glTexSubImage1D(GLenum target, GLint level, GLint xoffset, GLsizei width, GLenum format, GLenum type, const GLvoid *pixels)
 {
 	static const auto trampoline = reshade::hooks::call(glTexSubImage1D);
@@ -2158,6 +2171,16 @@ HOOK_EXPORT void WINAPI glVertexPointer(GLint size, GLenum type, GLsizei stride,
 
 HOOK_EXPORT void WINAPI glViewport(GLint x, GLint y, GLsizei width, GLsizei height)
 {
+	if (g_current_runtime) g_current_runtime->on_dimensions_sizing((GLfloat)y, width, height);
+
 	static const auto trampoline = reshade::hooks::call(glViewport);
 	trampoline(x, y, width, height);
+}
+
+HOOK_EXPORT void WINAPI glViewportIndexedf(GLuint index, GLfloat x, GLfloat y, GLfloat w, GLfloat h)
+{
+	if (g_current_runtime) g_current_runtime->on_dimensions_sizing(y, (GLsizei)w, (GLsizei)h);
+
+	static const auto trampoline = reshade::hooks::call(glViewportIndexedf);
+	trampoline(index, x, y, w, h);
 }

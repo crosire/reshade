@@ -56,6 +56,7 @@ namespace reshade::opengl
 		GLuint draw_textures[8] = {};
 		GLsizei viewport_width = 0;
 		GLsizei viewport_height = 0;
+		GLint offsetY = 0;
 	};
 
 	struct opengl_technique_data : base_object
@@ -93,6 +94,8 @@ reshade::opengl::runtime_gl::runtime_gl()
 			if (id.length() > 20)
 			{
 				_vendor_id = std::stoi(id.substr(8, 4), nullptr, 16);
+				// vendor id used for branching to specific code later on
+				_runtime_vendor_id = _vendor_id;
 				_device_id = std::stoi(id.substr(17, 4), nullptr, 16);
 			}
 			break;
@@ -109,10 +112,25 @@ reshade::opengl::runtime_gl::runtime_gl()
 		config.get("OPENGL", "ReserveTextureNames", num_reserve_texture_names);
 		_reserved_texture_names.resize(num_reserve_texture_names);
 		config.get("OPENGL", "ForceMainDepthBuffer", _force_main_depth_buffer);
+		config.get("OPENGL", "IsUpscaled", _isUpscaled);
+		config.get("OPENGL", "AltDetection", _altDetection);
+		config.get("OPENGL", "SelectedDepthBuffer", _selectedDepthBuffer);
+		config.get("OPENGL", "AppName", _AppName);
+		config.get("OPENGL", "AppMode", _AppMode);
+		config.get("OPENGL", "AppWidth", _AppWidth);
+		config.get("OPENGL", "AppHeight", _AppHeight);
 	});
 	subscribe_to_save_config([this](ini_file &config) {
 		config.set("OPENGL", "ForceMainDepthBuffer", _force_main_depth_buffer);
+		config.set("OPENGL", "IsUpscaled", _isUpscaled);
+		config.set("OPENGL", "AltDetection", _altDetection);
+		config.set("OPENGL", "SelectedDepthBuffer", _selectedDepthBuffer);
+		config.set("OPENGL", "AppName", _AppName);
+		config.set("OPENGL", "AppMode", _AppMode);
+		config.set("OPENGL", "AppWidth", _AppWidth);
+		config.set("OPENGL", "AppHeight", _AppHeight);
 	});
+	setAppName(_AppName);
 }
 
 bool reshade::opengl::runtime_gl::on_init(HWND hwnd, unsigned int width, unsigned int height)
@@ -138,6 +156,8 @@ bool reshade::opengl::runtime_gl::on_init(HWND hwnd, unsigned int width, unsigne
 	case 24: depth_format = pfd.cStencilBits ? GL_DEPTH24_STENCIL8 : GL_DEPTH_COMPONENT24;
 		break;
 	case 32: depth_format = pfd.cStencilBits ? GL_DEPTH32F_STENCIL8 : GL_DEPTH_COMPONENT32;
+		break;
+	default: depth_format = GL_DEPTH24_STENCIL8;
 		break;
 	}
 
@@ -179,6 +199,32 @@ bool reshade::opengl::runtime_gl::on_init(HWND hwnd, unsigned int width, unsigne
 	glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, _tex[TEX_BACK_SRGB], 0);
 	assert(glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
 
+	// "Handle upscaled internal resolution" option
+	if (_AppWidth != 0 && _AppHeight != 0) {
+		glBindFramebuffer(GL_FRAMEBUFFER, _fbo[FBO_BLIT_WIDE_DEPTH]);
+		glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, _tex[TEX_DEPTH], 0);
+		assert(glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
+
+		_newSrcWidth = _AppWidth;
+		_newSrcHeight = _AppHeight;
+		_newDstWidth = _AppWidth;
+		_newDstHeight = _AppHeight;
+
+		if (_EnumAppName == APP_PCSX2) {
+			if (_AppMode == 4) {
+				// (PCSX2) Calculates a new height for games that output at 640x480
+				_newSrcHeight = static_cast<GLsizei>(512 * (_AppWidth / 640));
+			}
+			else if (_AppMode == 5) {
+				// (PCSX2) For Fatal Frame games
+				GLsizei newHeight = static_cast<GLsizei>(224 * (_AppWidth / 640));
+				_newSrcHeight = newHeight;
+				_newDstHeight = newHeight;
+			}
+		}
+		_isUpscaleInitDone = true;
+	}
+
 #if RESHADE_GUI
 	init_imgui_resources();
 #endif
@@ -187,7 +233,7 @@ bool reshade::opengl::runtime_gl::on_init(HWND hwnd, unsigned int width, unsigne
 
 	return runtime::on_init(hwnd);
 }
-void reshade::opengl::runtime_gl::on_reset()
+void reshade::opengl::runtime_gl::on_reset(bool isFrame)
 {
 	runtime::on_reset();
 
@@ -204,7 +250,15 @@ void reshade::opengl::runtime_gl::on_reset()
 	memset(_fbo, 0, sizeof(_fbo));
 	memset(_rbo, 0, sizeof(_rbo));
 
+	_AppWidthFBO = 0;
 	_depth_source = 0;
+	// Redream fills up the _depth_source_table after each call to wglSwapBuffers
+	// So let's clean it up now that we are sure we are fed with the right buffers
+	if (isFrame) {
+		if (_EnumAppName == APP_REDREAM)
+			_depth_source_table.clear();
+	}
+	runtime::save_config();
 
 #if RESHADE_GUI
 	glDeleteProgram(_imgui_program);
@@ -232,8 +286,17 @@ void reshade::opengl::runtime_gl::on_present()
 
 	// Copy depth from FBO to depth texture
 	glBindFramebuffer(GL_READ_FRAMEBUFFER, _depth_source != 0 ? _fbo[FBO_DEPTH] : 0);
-	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, _fbo[FBO_BLIT]);
-	glBlitFramebuffer(0, 0, _width, _height, 0, 0, _width, _height, GL_DEPTH_BUFFER_BIT, GL_NEAREST);
+
+	if (_isUpscaleInitDone) {
+		// Bind internal large texture (ie. 2048x1792 instead of say 1080p) to our "wide" framebuffer
+		// We had to create that extra "wide" framebuffer because -on NVIDIA only- the depth buffer size needs to match backbuffer size
+		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, _fbo[FBO_BLIT_WIDE_DEPTH]);
+		glBlitFramebuffer(0, 0, _newSrcWidth, _newSrcHeight, 0, 0, _newDstWidth, _newDstHeight, GL_DEPTH_BUFFER_BIT, GL_NEAREST);
+	}
+	else {
+		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, _fbo[FBO_BLIT]);
+		glBlitFramebuffer(0, 0, _width, _height, 0, 0, _width, _height, GL_DEPTH_BUFFER_BIT, GL_NEAREST);
+	}
 
 	// Set clip space to something consistent
 	if (gl3wProcs.gl.ClipControl != nullptr)
@@ -275,6 +338,10 @@ void reshade::opengl::runtime_gl::on_draw_call(unsigned int vertices)
 	{
 		it->second.num_vertices += vertices;
 		it->second.num_drawcalls = _drawcalls;
+		if (_altDetection && object != 0)
+			// Used for auto-detection of the depth buffer : this is what the renderer is writing to
+			// (not necessarilly the right buffer but 99% of the time, yes)
+			_currentDepthBuffer = object;
 	}
 }
 void reshade::opengl::runtime_gl::on_fbo_attachment(GLenum attachment, GLenum target, GLuint object, GLint level)
@@ -335,15 +402,121 @@ void reshade::opengl::runtime_gl::on_fbo_attachment(GLenum attachment, GLenum ta
 		glGetIntegerv(target_to_binding(target), &previous_tex);
 
 		// Get depth stencil parameters from texture
-		glBindTexture(target, object);
-		glGetTexLevelParameteriv(target, level, GL_TEXTURE_WIDTH, reinterpret_cast<int *>(&info.width));
-		glGetTexLevelParameteriv(target, level, GL_TEXTURE_HEIGHT, reinterpret_cast<int *>(&info.height));
-		glGetTexLevelParameteriv(target, level, GL_TEXTURE_INTERNAL_FORMAT, &info.format);
+		// NB : it might be a bit of a wide assumption to think that every call to a GL_FRAMEBUFFER_EXT target addresses a GL_TEXTURE_2D_ARRAY object)
+		// But it's required for Dolphin : previous code systematically passed GL_TEXTURE_2D as a target which is not what Dolphin expects here
+		// EDIT : added branching here for extra safety
+		if (_EnumAppName == APP_DOLPHIN) {
+			glBindTexture(target == 36160 || target == 36009 ? GL_TEXTURE_2D_ARRAY : target, object);
+			glGetTexLevelParameteriv(target == 36160 || target == 36009 ? GL_TEXTURE_2D_ARRAY : target, level, GL_TEXTURE_WIDTH, reinterpret_cast<int *>(&info.width));
+			glGetTexLevelParameteriv(target == 36160 || target == 36009 ? GL_TEXTURE_2D_ARRAY : target, level, GL_TEXTURE_HEIGHT, reinterpret_cast<int *>(&info.height));
+			glGetTexLevelParameteriv(target == 36160 || target == 36009 ? GL_TEXTURE_2D_ARRAY : target, level, GL_TEXTURE_INTERNAL_FORMAT, &info.format);
 
-		glBindTexture(target, previous_tex);
+			glBindTexture(target == 36160 || target == 36009 ? GL_TEXTURE_2D_ARRAY : target, previous_tex);
+		}
+		else {
+			glBindTexture(target, object);
+			glGetTexLevelParameteriv(target, level, GL_TEXTURE_WIDTH, reinterpret_cast<int *>(&info.width));
+			glGetTexLevelParameteriv(target, level, GL_TEXTURE_HEIGHT, reinterpret_cast<int *>(&info.height));
+			glGetTexLevelParameteriv(target, level, GL_TEXTURE_INTERNAL_FORMAT, &info.format);
+
+			glBindTexture(target, previous_tex);
+		}
 	}
 
 	_depth_source_table.emplace(id, info);
+}
+
+void reshade::opengl::runtime_gl::on_dimensions_sizing(GLfloat y, GLsizei width, GLsizei height)
+{
+	if (!_isUpscaled || width == 0 && height == 0)
+		return;
+
+	bool isStoreInfo = false;
+	GLsizei newWidth = 0;
+	GLsizei newHeight = 0;
+	// Cemu
+	if (_EnumAppName == APP_CEMU) {
+		if (_AppWidth == 0 && _AppHeight == 0) {
+			if (width >= (GLint)_width && height >= (GLint)_height) {
+				newWidth = width;
+				newHeight = height;
+				isStoreInfo = true;
+			}
+		}
+	}
+	// Dolphin (native res -> from 640x480 to... many res...)
+	// We store the width & height & offset as these will be used in init_technique() to calculate adjusted dimensions
+	if (_EnumAppName == APP_DOLPHIN) {
+		if (width % 640 == 0 && height % 528 == 0 || (width == (GLsizei)_width && y > 1)) {
+			newWidth = width;
+			if (width == (GLsizei)_width && y > 0)
+				newHeight = height + (GLsizei)y;
+			else
+				newHeight = height;
+			isStoreInfo = true;
+		}
+		if (_AppWidthFBO == 0) {
+			if (width >= (GLint)_width) {
+				if ((width % 720 == 0 || width % 640 == 0 || width % 608 == 0 || width % 512 == 0) &&
+					(height % 480 == 0 || height % 464 == 0 || height % 456 == 0 || height % 448 == 0) ||
+					(width == (GLsizei)_width && y > 1)) {
+					_AppWidthFBO = width;
+					_AppHeightFBO = height;
+					_AppOffsetYFBO = y;
+				}
+			}
+		}
+	}
+	// Pcsx2 (native res -> 512x448 or 512x416)
+	if (_EnumAppName == APP_PCSX2) {
+		if (_AppWidth == 0 && _AppHeight == 0 || width <= _AppWidth) {
+			if (_width != 0 && width > (GLint)_width * 0.9 && height > (GLint)_height * 0.9) {
+				float arImage = static_cast<float>(width) / height;
+				if (arImage >= 1 && arImage < 1.26) {
+					newWidth = width;
+					newHeight = height;
+					isStoreInfo = true;
+				}
+			}
+		}
+	}
+	// Ppsspp (native res -> 480x272)
+	if (_EnumAppName == APP_PPSSPP) {
+		if (width >= (GLint)_width && _width > (UINT)_AppWidth && height >= (GLint)_height && _height > (UINT)_AppHeight &&
+			width % 480 == 0 && height % 272 == 0) {
+			newWidth = width;
+			newHeight = height;
+			isStoreInfo = true;
+		}
+	}
+	// Redream (native res -> 640x480)
+	if (_EnumAppName == APP_REDREAM) {
+		if (width % 640 == 0 && height % 480 == 0) {
+			newWidth = static_cast<GLsizei>(width * 0.5);
+			newHeight = height;
+			isStoreInfo = true;
+		}
+	}
+	// Rpcs3 (720p)
+	if (_EnumAppName == APP_RPCS3) {
+		if (_AppWidth == 0 && _AppHeight == 0 || width > _AppWidth) {
+			if (width >= (GLint)_width && height >= (GLint)_height) {
+				float ar169 = static_cast<float>(16) / 9;
+				float arImage = static_cast<float>(width) / height;
+				if (arImage == ar169) {
+					newWidth = width;
+					newHeight = height;
+					isStoreInfo = true;
+				}
+			}
+		}
+	}
+	// We store the dimensions of the depth texture (should be done for every emu but
+	// for some of them (ie. Pcsx2) it is already too late at this point to store and use these)
+	if (isStoreInfo) {
+		_AppWidth = newWidth;
+		_AppHeight = newHeight;
+	}
 }
 
 bool reshade::opengl::runtime_gl::capture_screenshot(uint8_t *buffer) const
@@ -579,9 +752,9 @@ bool reshade::opengl::runtime_gl::compile_effect(effect_data &effect)
 		defines += "#define ENTRY_POINT_" + entry_point.name + " 1\n";
 		if (!entry_point.is_pixel_shader) // OpenGL does not allow using 'discard' in the vertex shader profile
 			defines += "#define discard\n"
-				"#define dFdx(x) x\n" // 'dFdx', 'dFdx' and 'fwidth' too are only available in fragment shaders
-				"#define dFdy(y) y\n"
-				"#define fwidth(p) p\n";
+			"#define dFdx(x) x\n" // 'dFdx', 'dFdx' and 'fwidth' too are only available in fragment shaders
+			"#define dFdy(y) y\n"
+			"#define fwidth(p) p\n";
 
 		GLsizei lengths[] = { static_cast<GLsizei>(defines.size()), static_cast<GLsizei>(effect.module.hlsl.size()) };
 		const GLchar *sources[] = { defines.c_str(), effect.module.hlsl.c_str() };
@@ -756,6 +929,25 @@ bool reshade::opengl::runtime_gl::init_technique(technique &technique, const ope
 {
 	assert(_app_state.has_state);
 
+	GLint offsetWidth = _width;
+	GLint offsetHeight = _height;
+	GLint offsetY = 0;
+	// Adjust the dimensions of the viewport with the info gathered in on_dimensions_sizing()
+	GLint WidthFixed = 0;
+	GLint HeightFixed = 0;
+	if (_EnumAppName == APP_DOLPHIN && _AppWidthFBO != 0 && _AppHeightFBO != 0) {
+		WidthFixed = (_width * (_AppWidth - _AppWidthFBO)) / _AppWidthFBO;
+		HeightFixed = (_height * (GLint)_AppOffsetYFBO) / _AppHeightFBO;
+		offsetWidth = _width + WidthFixed;
+		offsetHeight = _height + HeightFixed;
+		offsetY = HeightFixed;
+	}
+	else if (_EnumAppName == APP_PCSX2 && _AppMode == 6) {
+		HeightFixed = (_height * (GLint)((_AppWidth - _AppHeight) * 0.5)) / _AppHeight;
+		offsetHeight = _height + HeightFixed;
+		offsetY = HeightFixed;
+	}
+
 	// Copy construct new technique implementation instead of move because effect may contain multiple techniques
 	technique.impl = std::make_unique<opengl_technique_data>(impl_init);
 
@@ -882,10 +1074,18 @@ bool reshade::opengl::runtime_gl::init_technique(technique &technique, const ope
 			pass.viewport_height = pass_info.viewport_height;
 		}
 
+		// New calculated dimensions for "PS_ResizeDepth"
+		if (offsetHeight != 0 && pass_info.ps_entry_point == "F__PS_ResizeDepth") {
+			pass.viewport_width = offsetWidth;
+			pass.viewport_height = offsetHeight;
+			pass.offsetY = offsetY;
+		}
+
 		assert(pass.viewport_width != 0);
 		assert(pass.viewport_height != 0);
 
-		if (pass.viewport_width == GLsizei(_width) && pass.viewport_height == GLsizei(_height))
+		if (pass.viewport_width == GLsizei(_width) || (offsetWidth != 0 && pass.viewport_width == GLsizei(offsetWidth)) &&
+			pass.viewport_height == GLsizei(_height) || (offsetHeight != 0 && pass.viewport_height == GLsizei(offsetHeight)))
 		{
 			// Only attach depth-stencil when viewport matches back buffer or else the frame buffer will always be resized to those dimensions
 			glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, _rbo[RBO_DEPTH]);
@@ -981,7 +1181,7 @@ void reshade::opengl::runtime_gl::render_technique(technique &technique)
 		glBlitFramebuffer(0, 0, _width, _height, 0, 0, _width, _height, GL_COLOR_BUFFER_BIT, GL_NEAREST);
 
 		// Set up pass specific state
-		glViewport(0, 0, pass_data.viewport_width, pass_data.viewport_height);
+		glViewport(0, -pass_data.offsetY, pass_data.viewport_width, pass_data.viewport_height);
 		glUseProgram(pass_data.program);
 		glBindFramebuffer(GL_FRAMEBUFFER, pass_data.fbo);
 		glDrawBuffers(8, pass_data.draw_targets);
@@ -1185,18 +1385,161 @@ void reshade::opengl::runtime_gl::render_imgui_draw_data(ImDrawData *draw_data)
 
 void reshade::opengl::runtime_gl::draw_debug_menu()
 {
-	if (ImGui::Checkbox("Force default depth buffer", &_force_main_depth_buffer) && _force_main_depth_buffer)
-	{
-		_depth_source = 0;
-		update_texture_references(texture_reference::depth_buffer);
+#pragma region imgui_opengl_debug menu
+
+	bool modified = false;
+	if (ImGui::CollapsingHeader("General", ImGuiTreeNodeFlags_DefaultOpen)) {
+		// Force default depth buffer
+		if (ImGui::Checkbox("Force default depth buffer", &_force_main_depth_buffer) && _force_main_depth_buffer)
+		{
+			_depth_source = 0;
+			glDeleteTextures(1, &_tex[TEX_DEPTH]);
+			_tex[TEX_DEPTH] = 0;
+			update_texture_references(texture_reference::depth_buffer);
+			_isUpscaleInitDone = false;
+		}
+		if (ImGui::IsItemHovered())
+			ImGui::SetTooltip("Forces Reshade to read from default depth buffer "
+				"(aka main framebuffer, or fbo 0) instead of the last (non-zero) framebuffer retrieved\n"
+				"glideN64 need this (also hopefully PCSX2, one day :))\n"
+				"Switch to fullscreen / windowed to apply changes");
+		// Handle upscaled internal resolution
+		if (_EnumAppName != APP_DEFAULT) _isUpscaled = true;
+		if (ImGui::Checkbox("Handle upscaled internal resolution", &_isUpscaled)) {
+			if (_isUpscaled) {
+				_isUpscaleInitDone = false;
+				runtime::save_config();
+			}
+		}
+		if (ImGui::IsItemHovered())
+			ImGui::SetTooltip("Typically emulators (but not only ?) upscale internal resolution :\n"
+				"If this is on, Reshade will no longer only rely on plain backbuffer size\n"
+				"but on the internal width & height shown below.\n"
+				"Switch to fullscreen / windowed to apply changes");
+		// Alt. depth buffer detection method
+		if (_EnumAppName != APP_DEFAULT && !_manualDetection) _altDetection = true;
+		if (ImGui::Checkbox("Alt. depth buffer detection method", &_altDetection)) {
+			if (_altDetection) {
+				_manualDetection = false;
+				runtime::save_config();
+			}
+		}
+		if (ImGui::IsItemHovered())
+			ImGui::SetTooltip("Checked : Reshade bypasses dimensions and usage and retrieve the last buffer written\n"
+				"Unchecked : Reshade uses detection heuristic based on dimensions and usage");
+		// Manual depth buffer detection method
+		if (ImGui::Checkbox("Manual depth buffer detection method", &_manualDetection)) {
+			if (_manualDetection) {
+				runtime::save_config();
+			}
+		}
+		if (ImGui::IsItemHovered())
+			ImGui::SetTooltip("Manual selection from a range of depth buffers\n");
+		if (_manualDetection) {
+			ImGui::Spacing();
+			ImGui::TextUnformatted("Depth Buffers: ");
+			for (auto &it : _depth_source_table)
+			{
+				if (it.first == 0) // Skip default depth buffer (there is an option for that now)
+					continue;
+
+				char label[512] = "";
+				sprintf_s(label, "%s%11d", (it.first == _selectedDepthBuffer ? "> " : "  "), it.first);
+
+				if (bool value = _selectedDepthBuffer == it.first; ImGui::Checkbox(label, &value)) {
+					_selectedDepthBuffer = value ? it.first : 0;
+					_altDetection = false;
+					runtime::save_config();
+				}
+				ImGui::SameLine();
+				ImGui::Text("| %5u draw calls ==> %8u vertices", it.second.num_drawcalls, it.second.num_vertices);
+			}
+		}
 	}
+	ImGui::Spacing();
+
+	if (ImGui::CollapsingHeader("Hacks for custom apps", ImGuiTreeNodeFlags_DefaultOpen))
+	{
+		const char* items[] = { "none", "cemu", "dolphin", "pcsx2", "ppsspp", "redream", "rpcs3" };
+		static const char* current_item = const_cast<char*>(_AppName.c_str());
+		// Application name
+		if (ImGui::BeginCombo("Application", current_item))
+		{
+			for (int n = 0; n < IM_ARRAYSIZE(items); n++)
+			{
+				bool is_selected = (current_item == items[n]);
+				if (ImGui::Selectable(items[n], is_selected)) {
+					current_item = items[n];
+					is_selected = (current_item == items[n]);
+				}
+				if (is_selected) {
+					ImGui::SetItemDefaultFocus();
+					_AppName = current_item;
+					setAppName(_AppName);
+					runtime::save_config();
+				}
+			}
+			ImGui::EndCombo();
+		}
+		if (ImGui::IsItemHovered())
+			ImGui::SetTooltip("Applications that take special care\n"
+				"Switch to fullscreen/windowed to apply changes");
+		// Width & Height
+		if (_isUpscaled) {
+			modified |= ImGui::InputInt("Internal Width", &_AppWidth);
+			if (_AppWidth > 9999) _AppWidth = 9999;
+			if (ImGui::IsItemHovered())
+				ImGui::SetTooltip("Internal width of the depth buffer texture\n"
+					"Reshade tries to auto-detect these parameters "
+					"but if it cannot, please adjust them here\nSwitch to fullscreen/windowed to apply changes");
+			modified |= ImGui::InputInt("Internal Height", &_AppHeight);
+			if (_AppHeight > 9999) _AppHeight = 9999;
+			if (ImGui::IsItemHovered())
+				ImGui::SetTooltip("Internal height of the depth buffer texture\n"
+					"Reshade tries to auto-detect these parameters "
+					"but if it cannot, please adjust them here\nSwitch to fullscreen/windowed to apply changes");
+			// (Pcsx2) Stretch mode
+			if (_EnumAppName == APP_PCSX2) {
+				modified |= ImGui::InputInt("Stretch mode", &_AppMode);
+				if (ImGui::IsItemHovered())
+					ImGui::SetTooltip("(only for PCSX2) Stretch and resize deph texture mode :\n"
+						"1 = Internal resolution only (no resize)\n"
+						"2 = 416 multiple height (Kindgom Hearts 1...)\n"
+						"3 = 384 multiple height (Kindgom Hearts 2...)\n"
+						"4 = 640 multiple width (Valkyria Profile...)\n"
+						"5 = 224 multiple height (Fatal Frame...)\n"
+						"6 = 480 multiple height (Silent Hill 2/3...)\n"
+						"Switch to fullscreen / windowed to apply changes");
+			}
+			ImGui::Spacing();
+			if (ImGui::Button("Reset & auto-detect upscale settings")) {
+				_AppWidth = 0;
+				_AppHeight = 0;
+				_AppMode = 1;
+				_selectedDepthBuffer = _currentDepthBuffer;
+				runtime::save_config();
+			}
+			if (ImGui::IsItemHovered())
+				ImGui::SetTooltip("Reset settings");
+		}
+	}
+	if (modified)
+		runtime::save_config();
+
+#pragma endregion imgui_opengl_debug menu
 }
 #endif
 
 void reshade::opengl::runtime_gl::detect_depth_source()
 {
-	if (_framecount % 30)
-		return; // Only execute detection heuristic every 30 frames to avoid too frequent changes
+	if (_EnumAppName == APP_REDREAM) {
+		if (_framecount % 2)
+			return;
+	}
+	else if (_EnumAppName != APP_PPSSPP) {
+		if (_framecount % 30)
+			return; // Only execute detection heuristic every 30 frames to avoid too frequent changes
+	}
 
 	if (_has_high_network_activity)
 	{
@@ -1214,23 +1557,31 @@ void reshade::opengl::runtime_gl::detect_depth_source()
 
 	if (!_force_main_depth_buffer)
 	{
+		bool foundDepthBuffer = false;
+		_selectedDepthBuffer = _selectedDepthBuffer == 0 ? _currentDepthBuffer : _selectedDepthBuffer;
+
 		for (auto &it : _depth_source_table)
 		{
-			if (it.second.num_drawcalls == 0)
-				continue; // Skip candidates that were not used during rendering
-
-			// Detection heuristic based on dimensions and usage
-			if (((it.second.width > _width * 0.95 && it.second.width < _width * 1.05) && (it.second.height > _height * 0.95 && it.second.height < _height * 1.05)) &&
-				((it.second.num_vertices * (1.2f - float(it.second.num_drawcalls) / _drawcalls)) >= (best_info.num_vertices * (1.2f - float(best_info.num_drawcalls) / _drawcalls))))
+			// Auto-detect Depth Buffer or pick selected one
+			if (_altDetection && it.first == _currentDepthBuffer || _manualDetection && it.first == _selectedDepthBuffer) {
+				foundDepthBuffer = true;
+				best_info = it.second;
+				best_match = it.first;
+			}
+			if (!_altDetection &&
+				// Detection heuristic based on dimensions and usage
+				(((it.second.width > _width * 0.95 && it.second.width < _width * 1.05) && (it.second.height > _height * 0.95 && it.second.height < _height * 1.05)) &&
+				((it.second.num_vertices * (1.2f - float(it.second.num_drawcalls) / _drawcalls)) >= (best_info.num_vertices * (1.2f - float(best_info.num_drawcalls) / _drawcalls)))))
 			{
 				best_info = it.second;
 				best_match = it.first;
 			}
-
 			// Reset statistics for next frame
 			it.second.num_vertices = 0;
 			it.second.num_drawcalls = 0;
 		}
+		if (!foundDepthBuffer)
+			_selectedDepthBuffer = 0;
 	}
 
 	if (_depth_source != best_match || !_tex[TEX_DEPTH])
@@ -1245,12 +1596,33 @@ void reshade::opengl::runtime_gl::detect_depth_source()
 
 			// Recreate depth texture name (since the storage is immutable after the first call to glTexStorage)
 			glDeleteTextures(1, &_tex[TEX_DEPTH]); glGenTextures(1, &_tex[TEX_DEPTH]);
-
 			glBindTexture(GL_TEXTURE_2D, _tex[TEX_DEPTH]);
-			glTexStorage2D(GL_TEXTURE_2D, 1, best_info.format, best_info.width, best_info.height);
+
+			if (_isUpscaleInitDone && _AppWidth != 0 && _AppHeight != 0) {
+				GLsizei newWidth = _AppWidth;
+				GLsizei newHeight = _AppHeight;
+
+				// (PCSX2) Pcsx2 is a weird beast and needs all kinds of adjustements
+				if (_AppMode == 2)
+					newHeight = static_cast<GLsizei>(384 * (_AppWidth / 512));
+				if (_AppMode == 3)
+					newHeight = static_cast<GLsizei>(416 * (_AppWidth / 512));
+				else if (_AppMode == 4)
+					newWidth = static_cast<GLsizei>(512 * (_AppWidth / 640));
+				else if (_AppMode == 5)
+					newHeight = static_cast<GLsizei>(224 * (_AppWidth / 640));
+				else if (_AppMode == 6)
+					newHeight = static_cast<GLsizei>(480 * (_AppWidth / 512));
+
+				glTexStorage2D(GL_TEXTURE_2D, 1, best_info.format, newWidth, newHeight);
+				glBindFramebuffer(GL_FRAMEBUFFER, _fbo[FBO_BLIT_WIDE_DEPTH]);
+			}
+			else {
+				glTexStorage2D(GL_TEXTURE_2D, 1, best_info.format, best_info.width, best_info.height);
+				glBindFramebuffer(GL_FRAMEBUFFER, _fbo[FBO_BLIT]);
+			}
 
 			// Update FBO attachment
-			glBindFramebuffer(GL_FRAMEBUFFER, _fbo[FBO_BLIT]);
 			glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, _tex[TEX_DEPTH], 0);
 			assert(glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
 
@@ -1272,4 +1644,14 @@ void reshade::opengl::runtime_gl::detect_depth_source()
 			assert(glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
 		}
 	}
+}
+
+void reshade::opengl::runtime_gl::setAppName(std::string &appName) {
+	if (appName == "cemu")          _EnumAppName = APP_CEMU;
+	else if (appName == "dolphin")  _EnumAppName = APP_DOLPHIN;
+	else if (appName == "pcsx2")    _EnumAppName = APP_PCSX2;
+	else if (appName == "ppsspp")   _EnumAppName = APP_PPSSPP;
+	else if (appName == "redream")  _EnumAppName = APP_REDREAM;
+	else if (appName == "rpcs3")    _EnumAppName = APP_RPCS3;
+	else                            _EnumAppName = APP_DEFAULT;
 }

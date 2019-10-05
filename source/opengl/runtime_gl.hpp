@@ -20,16 +20,32 @@ namespace reshade::opengl
 		runtime_gl();
 
 		bool on_init(HWND hwnd, unsigned int width, unsigned int height);
-		void on_reset();
+		void on_reset(bool isFrame = false);
 		void on_present();
 
 		void on_draw_call(unsigned int vertices);
 		void on_fbo_attachment(GLenum attachment, GLenum target, GLuint object, GLint level);
+		void on_dimensions_sizing(GLfloat y, GLsizei width, GLsizei height);
 
 		bool capture_screenshot(uint8_t *buffer) const override;
 
 		GLuint _current_vertex_count = 0; // Used to calculate vertex count inside glBegin/glEnd pairs
 		std::unordered_set<HDC> _hdcs;
+
+		std::string _AppName = "none";
+		unsigned int _runtime_vendor_id = 0;
+
+		int _EnumAppName;
+		enum APPNAME
+		{
+			APP_DEFAULT,
+			APP_CEMU,
+			APP_DOLPHIN,
+			APP_PCSX2,
+			APP_PPSSPP,
+			APP_REDREAM,
+			APP_RPCS3
+		};
 
 	private:
 		struct depth_source_info
@@ -59,9 +75,25 @@ namespace reshade::opengl
 #endif
 
 		void detect_depth_source();
+		void setAppName(std::string &appName);
 
 		state_block _app_state;
 		GLuint _depth_source = 0;
+		GLuint _currentDepthBuffer;
+		GLuint _selectedDepthBuffer;
+
+		int _AppMode = 1;
+		GLsizei _newSrcWidth = 0;
+		GLsizei _newSrcHeight = 0;
+		GLsizei _newDstWidth = 0;
+		GLsizei _newDstHeight = 0;
+
+		GLsizei _AppWidth = 0;
+		GLsizei _AppHeight = 0;
+		GLsizei _AppWidthFBO = 0;
+		GLsizei _AppHeightFBO = 0;
+		GLfloat _AppOffsetYFBO = 0;
+
 		std::unordered_map<GLuint, depth_source_info> _depth_source_table;
 
 		enum BUF
@@ -72,14 +104,14 @@ namespace reshade::opengl
 #else
 			BUF_DUMMY,
 #endif
-				NUM_BUF
+			NUM_BUF
 		};
 		enum TEX
 		{
 			TEX_BACK,
 			TEX_BACK_SRGB,
 			TEX_DEPTH,
-				NUM_TEX
+			NUM_TEX
 		};
 		enum VAO
 		{
@@ -87,20 +119,21 @@ namespace reshade::opengl
 #if RESHADE_GUI
 			VAO_IMGUI,
 #endif
-				NUM_VAO
+			NUM_VAO
 		};
 		enum FBO
 		{
 			FBO_BACK,
 			FBO_DEPTH,
 			FBO_BLIT,
-				NUM_FBO
+			FBO_BLIT_WIDE_DEPTH,
+			NUM_FBO
 		};
 		enum RBO
 		{
 			RBO_COLOR,
 			RBO_DEPTH,
-				NUM_RBO
+			NUM_RBO
 		};
 
 		GLuint _buf[NUM_BUF] = {};
@@ -116,6 +149,11 @@ namespace reshade::opengl
 		std::vector<GLuint> _reserved_texture_names;
 		std::unordered_map<size_t, GLuint> _effect_sampler_states;
 		std::vector<std::pair<GLuint, GLsizeiptr>> _effect_ubos;
+
 		bool _force_main_depth_buffer = false;
+		bool _isUpscaled = false;
+		bool _altDetection = false;
+		bool _manualDetection = false;
+		bool _isUpscaleInitDone = false;
 	};
 }

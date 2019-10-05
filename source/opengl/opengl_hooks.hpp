@@ -187,9 +187,15 @@ extern "C" void WINAPI glTexParameterfv(GLenum target, GLenum pname, const GLflo
 extern "C" void WINAPI glTexParameteri(GLenum target, GLenum pname, GLint param);
 #undef glTexParameteriv
 extern "C" void WINAPI glTexParameteriv(GLenum target, GLenum pname, const GLint *params);
+#undef glTexStorage2D
+extern "C" void WINAPI glTexStorage2D(GLenum target, GLsizei levels, GLenum internalformat, GLsizei width, GLsizei height);
+#undef glTexStorage3D
+extern "C" void WINAPI glTexStorage3D(GLenum target, GLsizei levels, GLenum internalformat, GLsizei width, GLsizei height, GLsizei depth);
 #undef glTexSubImage1D
 extern "C" void WINAPI glTexSubImage1D(GLenum target, GLint level, GLint xoffset, GLsizei width, GLenum format, GLenum type, const GLvoid *pixels);
 #undef glTexSubImage2D
 extern "C" void WINAPI glTexSubImage2D(GLenum target, GLint level, GLint xoffset, GLint yoffset, GLsizei width, GLsizei height, GLenum format, GLenum type, const GLvoid *pixels);
 #undef glViewport
 extern "C" void WINAPI glViewport(GLint x, GLint y, GLsizei width, GLsizei height);
+#undef glViewportIndexedf
+extern "C" void WINAPI glViewportIndexedf(GLuint index, GLfloat x, GLfloat y, GLfloat w, GLfloat h);
