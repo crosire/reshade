@@ -1599,7 +1599,7 @@ void reshade::runtime::draw_code_editor()
 		_reload_total_effects = 1;
 		_reload_remaining_effects = 1;
 		unload_effect(_selected_effect);
-		load_effect(source_file, _selected_effect);
+		load_effect(ini_file::load_cache(_current_preset_path), source_file, _selected_effect); // Copy is not required because this is runs synchronously.
 		assert(_reload_remaining_effects == 0);
 
 		// Reloading an effect file invalidates all textures, but the statistics window may already have drawn references to those, so need to reset it

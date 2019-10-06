@@ -255,36 +255,40 @@ void reshade::runtime::on_present()
 	_drawcalls = _vertices = 0;
 }
 
-void reshade::runtime::load_effect(const std::filesystem::path &path, size_t &out_id)
+void reshade::runtime::load_effect(const reshade::ini_file &preset, const std::filesystem::path &path, size_t &out_id)
 {
+	std::error_code ec;
+
 	effect_data effect;
 	effect.source_file = path;
 	effect.compile_sucess = true;
 
 	{ // Load, pre-process and compile the source file
-		reshadefx::preprocessor pp;
+		std::vector<std::filesystem::path> includes;
 		if (path.is_absolute())
-			pp.add_include_path(path.parent_path());
+			includes.push_back(path.parent_path());
 
 		for (std::filesystem::path include_path : _effect_search_paths)
 		{
 			include_path = absolute_path(include_path);
 			if (!include_path.empty())
-				pp.add_include_path(include_path);
+				includes.push_back(include_path);
 		}
 
-		pp.add_macro_definition("__RESHADE__", std::to_string(VERSION_MAJOR * 10000 + VERSION_MINOR * 100 + VERSION_REVISION));
-		pp.add_macro_definition("__RESHADE_PERFORMANCE_MODE__", _performance_mode ? "1" : "0");
-		pp.add_macro_definition("__VENDOR__", std::to_string(_vendor_id));
-		pp.add_macro_definition("__DEVICE__", std::to_string(_device_id));
-		pp.add_macro_definition("__RENDERER__", std::to_string(_renderer_id));
+		std::vector<std::pair<std::string, std::string>> macros;
+
+		macros.emplace_back("__RESHADE__", std::to_string(VERSION_MAJOR * 10000 + VERSION_MINOR * 100 + VERSION_REVISION));
+		macros.emplace_back("__RESHADE_PERFORMANCE_MODE__", _performance_mode ? "1" : "0");
+		macros.emplace_back("__VENDOR__", std::to_string(_vendor_id));
+		macros.emplace_back("__DEVICE__", std::to_string(_device_id));
+		macros.emplace_back("__RENDERER__", std::to_string(_renderer_id));
 		// Truncate hash to 32-bit, since lexer currently only supports 32-bit numbers anyway
-		pp.add_macro_definition("__APPLICATION__", std::to_string(std::hash<std::string>()(g_target_executable_path.stem().u8string()) & 0xFFFFFFFF));
-		pp.add_macro_definition("BUFFER_WIDTH", std::to_string(_width));
-		pp.add_macro_definition("BUFFER_HEIGHT", std::to_string(_height));
-		pp.add_macro_definition("BUFFER_RCP_WIDTH", "(1.0 / BUFFER_WIDTH)");
-		pp.add_macro_definition("BUFFER_RCP_HEIGHT", "(1.0 / BUFFER_HEIGHT)");
-		pp.add_macro_definition("BUFFER_COLOR_DEPTH", std::to_string(_backbuffer_color_depth));
+		macros.emplace_back("__APPLICATION__", std::to_string(std::hash<std::string>()(g_target_executable_path.stem().u8string()) & 0xFFFFFFFF));
+		macros.emplace_back("BUFFER_WIDTH", std::to_string(_width));
+		macros.emplace_back("BUFFER_HEIGHT", std::to_string(_height));
+		macros.emplace_back("BUFFER_RCP_WIDTH", "(1.0 / BUFFER_WIDTH)");
+		macros.emplace_back("BUFFER_RCP_HEIGHT", "(1.0 / BUFFER_HEIGHT)");
+		macros.emplace_back("BUFFER_COLOR_DEPTH", std::to_string(_backbuffer_color_depth));
 
 		std::vector<std::string> preprocessor_definitions = _global_preprocessor_definitions;
 		preprocessor_definitions.insert(preprocessor_definitions.end(), _preset_preprocessor_definitions.begin(), _preset_preprocessor_definitions.end());
@@ -296,17 +300,46 @@ void reshade::runtime::load_effect(const std::filesystem::path &path, size_t &ou
 
 			const size_t equals_index = definition.find('=');
 			if (equals_index != std::string::npos)
-				pp.add_macro_definition(
-					definition.substr(0, equals_index),
-					definition.substr(equals_index + 1));
+				macros.emplace_back(std::string(definition,0,equals_index), std::string(definition, equals_index + 1));
 			else
-				pp.add_macro_definition(definition);
+				macros.emplace_back(definition, "1");
 		}
 
-		if (!pp.append_file(path))
+		reshadefx::preprocessor pp;
+
+		std::string attributes;
+		for (const auto &include : includes)
 		{
-			LOG(ERROR) << "Failed to load " << path << ":\n" << pp.errors();
-			effect.compile_sucess = false;
+			attributes += include.u8string() + '=';
+			for (const auto &entry : std::filesystem::directory_iterator(include, ec))
+				if (const auto filename = entry.path().filename(); filename.extension() == L".fx" || filename.extension() == L".fxh")
+					attributes += filename.u8string() + '?' + std::to_string(entry.last_write_time(ec).time_since_epoch().count()) + ',';
+
+			attributes.resize(attributes.size() - 1);
+			attributes += ';';
+
+			pp.add_include_path(include);
+		}
+
+		for (const auto &macro : macros)
+		{
+			attributes += macro.first + '=' + macro.second + ';';
+			pp.add_macro_definition(macro.first, macro.second);
+		}
+
+		std::string source;
+		if (!load_source_cache(path, attributes, source))
+		{
+			if (pp.append_file(path))
+			{
+				source = std::move(pp.output());
+				save_source_cache(path, attributes, source);
+			}
+			else
+			{
+				LOG(ERROR) << "Failed to load " << path << ":\n" << pp.errors();
+				effect.compile_sucess = false;
+			}
 		}
 
 		unsigned shader_model;
@@ -332,11 +365,8 @@ void reshade::runtime::load_effect(const std::filesystem::path &path, size_t &ou
 		reshadefx::parser parser;
 		reshadefx::effect_parser_injector injector;
 
-		const ini_file preset(_current_preset_path);
-		const std::string section(path.filename().u8string());
-
 		// For fill all specialization constants with values from the current preset
-		injector.subscribe_uniform_definition([this, &preset, &section](reshadefx::uniform_info &uniform_info) {
+		injector.subscribe_uniform_definition([this, &preset, section = path.filename().u8string()](reshadefx::uniform_info &uniform_info) {
 			if (_performance_mode)
 			{
 				uniform_info.type.qualifiers |= reshadefx::type::q_const;
@@ -359,7 +389,7 @@ void reshade::runtime::load_effect(const std::filesystem::path &path, size_t &ou
 		parser.set_injector(injector);
 
 		// Compile the pre-processed source code (try the compile even if the preprocessor step failed to get additional error information)
-		if (!parser.parse(std::move(pp.output()), codegen.get()))
+		if (!parser.parse(source, codegen.get()))
 		{
 			LOG(ERROR) << "Failed to compile " << path << ":\n" << pp.errors() << parser.errors();
 			effect.compile_sucess = false;
@@ -491,13 +521,11 @@ void reshade::runtime::load_effects()
 	_last_reload_successful = true;
 
 	// Reload preprocessor definitions from current preset before compiling
-	if (!_current_preset_path.empty())
-	{
-		_preset_preprocessor_definitions.clear();
+	_preset_preprocessor_definitions.clear();
 
-		const ini_file &preset = ini_file::load_cache(_current_preset_path);
-		preset.get("", "PreprocessorDefinitions", _preset_preprocessor_definitions);
-	}
+	// Copy is required because load_effect is runs asynchronously.
+	const ini_file preset = ini_file::load_cache(_current_preset_path);
+	preset.get("", "PreprocessorDefinitions", _preset_preprocessor_definitions);
 
 	// Build a list of effect files by walking through the effect search paths
 	const std::vector<std::filesystem::path> effect_files =
@@ -515,10 +543,10 @@ void reshade::runtime::load_effects()
 
 	// Keep track of the spawned threads, so the runtime cannot be destroyed while they are still running
 	for (size_t n = 0; n < num_splits; ++n)
-		_worker_threads.emplace_back([this, effect_files, num_splits, n]() {
+		_worker_threads.emplace_back([this, &preset, effect_files, num_splits, n]() {
 			for (size_t id, i = 0; i < effect_files.size(); ++i)
 				if (i * num_splits / effect_files.size() == n)
-					load_effect(effect_files[i], id);
+					load_effect(preset, effect_files[i], id);
 		});
 }
 void reshade::runtime::load_textures()
@@ -861,43 +889,58 @@ void reshade::runtime::update_and_render_effects()
 	}
 }
 
-bool reshade::runtime::load_shader_cache(const std::string &renderer, const std::string &hlsl, const std::string &attributes, std::vector<uint8_t> &cso)
+bool reshade::runtime::load_source_cache(const std::filesystem::path &effect, const std::string &attributes, std::string &source)
 {
 	std::hash<std::string> hasher;
-	std::stringstream ss;
+	std::error_code ec;
 
-	ss << renderer;
-	ss << '-';
-	ss << sizeof(size_t) * 8;
-	ss << '-';
-	ss << std::setfill('0');
-	ss << std::setw(sizeof(size_t) * 2);
-	ss << std::hex << (hasher(hlsl) ^ hasher(attributes));
-	ss << ".cso";
+	std::filesystem::path path = g_reshade_dll_path.parent_path() / L"reshade-shaders" / L"Intermediate" / effect.stem();
+	path += "-" + std::to_string(hasher(attributes)) + ".hlsl";
 
-	std::ifstream file(g_reshade_dll_path.parent_path() / L"reshade-shaders" / L"Intermediate" / ss.str(), std::ios::in | std::ios::binary);
-	std::copy(std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>(), std::back_inserter(cso));
+	if (const uintmax_t size = std::filesystem::file_size(path, ec); ec.value() == 0)
+		if (std::ifstream file(path, std::ios::in | std::ios::binary); file.is_open())
+			return source.resize(static_cast<size_t>(size)), file.read(source.data(), source.size()), true;
 
-	return file.is_open();
+	return false;
 }
-bool reshade::runtime::save_shader_cache(const std::string &renderer, const std::string &hlsl, const std::string &attributes, std::vector<uint8_t> &cso)
+bool reshade::runtime::save_source_cache(const std::filesystem::path &effect, const std::string &attributes, const std::string &source)
 {
 	std::hash<std::string> hasher;
-	std::stringstream ss;
 
-	ss << renderer;
-	ss << '-';
-	ss << sizeof(size_t) * 8;
-	ss << '-';
-	ss << std::setfill('0');
-	ss << std::setw(sizeof(size_t) * 2);
-	ss << std::hex << (hasher(hlsl) ^ hasher(attributes));
-	ss << ".cso";
+	std::filesystem::path path = g_reshade_dll_path.parent_path() / L"reshade-shaders" / L"Intermediate" / effect.stem();
+	path += "-" + std::to_string(hasher(attributes)) + ".hlsl";
 
-	std::ofstream file(g_reshade_dll_path.parent_path() / L"reshade-shaders" / L"Intermediate" / ss.str(), std::ios::out | std::ios::binary);
-	file.write(reinterpret_cast<const char *>(cso.data()), cso.size());
+	if (std::ofstream file(path, std::ios::out | std::ios::binary); file.is_open())
+		return file.write(source.data(), source.size()), true;
 
-	return file.is_open();
+	return false;
+}
+
+bool reshade::runtime::load_shader_cache(const std::string &renderer, const reshade::effect_data &effect, const std::string &entry_point, const std::string &hlsl, const std::string &attributes, std::vector<char> &cso)
+{
+	std::hash<std::string> hasher;
+	std::error_code ec;
+
+	std::filesystem::path path = g_reshade_dll_path.parent_path() / L"reshade-shaders" / L"Intermediate";
+	path /= renderer + '-' + effect.source_file.stem().u8string() + '-' + entry_point + '-' + std::to_string(hasher(hlsl) ^ hasher(attributes)) + ".cso";
+
+	if (const uintmax_t size = std::filesystem::file_size(path, ec); ec.value() == 0)
+		if (std::ifstream file(path, std::ios::in | std::ios::binary); file.is_open())
+			return cso.resize(static_cast<size_t>(size)), file.read(cso.data(), cso.size()), true;
+
+	return false;
+}
+bool reshade::runtime::save_shader_cache(const std::string &renderer, const reshade::effect_data &effect, const std::string &entry_point, const std::string &hlsl, const std::string &attributes, const std::vector<char> &cso)
+{
+	std::hash<std::string> hasher;
+
+	std::filesystem::path path = g_reshade_dll_path.parent_path() / L"reshade-shaders" / L"Intermediate";
+	path /= renderer + '-' + effect.source_file.stem().u8string() + '-' + entry_point + '-' + std::to_string(hasher(hlsl) ^ hasher(attributes)) + ".cso";
+
+	if (std::ofstream file(path, std::ios::out | std::ios::binary); file.is_open())
+		return file.write(cso.data(), cso.size()), true;
+
+	return false;
 }
 
 void reshade::runtime::enable_technique(technique &technique)
