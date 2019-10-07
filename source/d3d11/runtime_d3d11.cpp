@@ -653,7 +653,6 @@ bool reshade::d3d11::runtime_d3d11::compile_effect(effect_data &effect)
 	const auto D3DCompile = reinterpret_cast<pD3DCompile>(GetProcAddress(_d3d_compiler, "D3DCompile"));
 	const auto D3DDisassemble = reinterpret_cast<pD3DDisassemble>(GetProcAddress(_d3d_compiler, "D3DDisassemble"));
 
-	const std::string hlsl = effect.preamble + effect.module.hlsl;
 	std::unordered_map<std::string, com_ptr<IUnknown>> entry_points;
 
 	// Compile the generated HLSL source code to DX byte code
@@ -697,7 +696,7 @@ bool reshade::d3d11::runtime_d3d11::compile_effect(effect_data &effect)
 		size_t buffer_size = 0;
 
 		std::vector<char> cso;
-		if (load_shader_cache("D3D11", effect, entry_point.name, hlsl, attributes, cso))
+		if (load_shader_cache("D3D11", effect, entry_point.name, effect.module.hlsl, attributes, cso))
 		{
 			buffer_pointer = cso.data();
 			buffer_size = cso.size();
@@ -705,7 +704,7 @@ bool reshade::d3d11::runtime_d3d11::compile_effect(effect_data &effect)
 		else
 		{
 			HRESULT hr = D3DCompile(
-				hlsl.c_str(), hlsl.size(),
+				effect.module.hlsl.c_str(), effect.module.hlsl.size(),
 				nullptr, nullptr, nullptr,
 				entry_point.name.c_str(),
 				profile.c_str(),
@@ -725,7 +724,7 @@ bool reshade::d3d11::runtime_d3d11::compile_effect(effect_data &effect)
 			cso.resize(buffer_size);
 			std::memcpy(cso.data(), buffer_pointer, buffer_size);
 
-			save_shader_cache("D3D11", effect, entry_point.name, hlsl, attributes, cso);
+			save_shader_cache("D3D11", effect, entry_point.name, effect.module.hlsl, attributes, cso);
 		}
 
 		if (com_ptr<ID3DBlob> d3d_disassembled; SUCCEEDED(D3DDisassemble(buffer_pointer, buffer_size, 0, nullptr, &d3d_disassembled)))

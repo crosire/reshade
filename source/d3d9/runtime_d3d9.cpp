@@ -721,13 +721,13 @@ bool reshade::d3d9::runtime_d3d9::compile_effect(effect_data &effect)
 	const auto D3DDisassemble = reinterpret_cast<pD3DDisassemble>(GetProcAddress(_d3d_compiler, "D3DDisassemble"));
 
 	// Add specialization constant defines to source code
-	effect.preamble += "#define COLOR_PIXEL_SIZE 1.0 / " + std::to_string(_width) + ", 1.0 / " + std::to_string(_height) + "\n"
+	const std::string defines = "#define COLOR_PIXEL_SIZE 1.0 / " + std::to_string(_width) + ", 1.0 / " + std::to_string(_height) + "\n"
 		"#define DEPTH_PIXEL_SIZE COLOR_PIXEL_SIZE\n"
 		"#define SV_TARGET_PIXEL_SIZE COLOR_PIXEL_SIZE\n"
 		"#define SV_DEPTH_PIXEL_SIZE COLOR_PIXEL_SIZE\n";
 
-	const std::string hlsl_vs = effect.preamble + effect.module.hlsl;
-	const std::string hlsl_ps = effect.preamble + "#define POSITION VPOS\n" + effect.module.hlsl;
+	const std::string hlsl_vs = defines + effect.module.hlsl;
+	const std::string hlsl_ps = defines + "#define POSITION VPOS\n" + effect.module.hlsl;
 
 	std::unordered_map<std::string, com_ptr<IUnknown>> entry_points;
 

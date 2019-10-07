@@ -255,18 +255,14 @@ void reshade::runtime::on_present()
 	_drawcalls = _vertices = 0;
 }
 
-void reshade::runtime::load_effect(const reshade::ini_file &preset, const std::filesystem::path &path, size_t &out_id)
+void reshade::runtime::load_effect(const reshade::ini_file &preset, reshade::effect_data &effect, size_t &out_id)
 {
 	std::error_code ec;
 
-	effect_data effect;
-	effect.source_file = path;
-	effect.compile_sucess = true;
-
 	{ // Load, pre-process and compile the source file
 		std::vector<std::filesystem::path> includes;
-		if (path.is_absolute())
-			includes.push_back(path.parent_path());
+		if (effect.source_file.is_absolute())
+			includes.push_back(effect.source_file.parent_path());
 
 		for (std::filesystem::path include_path : _effect_search_paths)
 		{
@@ -312,7 +308,7 @@ void reshade::runtime::load_effect(const reshade::ini_file &preset, const std::f
 		{
 			attributes += include.u8string() + '=';
 			for (const auto &entry : std::filesystem::directory_iterator(include, ec))
-				if (const auto filename = entry.path().filename(); filename.extension() == L".fxh" || (filename.extension() == L".fx" && std::filesystem::equivalent(entry, path, ec)))
+				if (const auto filename = entry.path().filename(); filename.extension() == L".fxh" || (filename.extension() == L".fx" && std::filesystem::equivalent(entry, effect.source_file, ec)))
 					attributes += filename.u8string() + '?' + std::to_string(entry.last_write_time(ec).time_since_epoch().count()) + ',';
 
 			attributes.resize(attributes.size() - 1);
@@ -327,79 +323,94 @@ void reshade::runtime::load_effect(const reshade::ini_file &preset, const std::f
 			pp.add_macro_definition(macro.first, macro.second);
 		}
 
-		std::string source;
-		if (!load_source_cache(path, attributes, source))
+		if (const size_t cache_id = std::hash<std::string>()(attributes); effect.cache_id == cache_id)
 		{
-			if (pp.append_file(path))
+			auto a = 0;
+			a = 1;
+		}
+		else
+		{
+			std::string source;
+			if (load_source_cache(effect.source_file, cache_id, source))
 			{
-				source = std::move(pp.output());
-				save_source_cache(path, attributes, source);
+				effect.cache_id = cache_id;
 			}
 			else
 			{
-				LOG(ERROR) << "Failed to load " << path << ":\n" << pp.errors();
+				if (pp.append_file(effect.source_file))
+				{
+					source = std::move(pp.output());
+					effect.cache_id = cache_id;
+					save_source_cache(effect.source_file, cache_id, source);
+				}
+				else
+				{
+					LOG(ERROR) << "Failed to load " << effect.source_file << ":\n" << pp.errors();
+					effect.compile_sucess = false;
+					effect.cache_id = 0;
+				}
+			}
+
+			unsigned shader_model;
+			if (_renderer_id == 0x9000)     // D3D9
+				shader_model = 30;
+			else if (_renderer_id < 0xa100) // D3D10
+				shader_model = 40;
+			else if (_renderer_id < 0xb000) // D3D11
+				shader_model = 41;
+			else if (_renderer_id < 0xc000) // D3D12
+				shader_model = 50;
+			else
+				shader_model = 60;
+
+			std::unique_ptr<reshadefx::codegen> codegen;
+			if ((_renderer_id & 0xF0000) == 0)
+				codegen.reset(reshadefx::create_codegen_hlsl(shader_model, true));
+			else if (_renderer_id < 0x20000)
+				codegen.reset(reshadefx::create_codegen_glsl(true));
+			else // Vulkan uses SPIR-V input
+				codegen.reset(reshadefx::create_codegen_spirv(true, true));
+
+			reshadefx::parser parser;
+			reshadefx::effect_parser_injector injector;
+
+			// For fill all specialization constants with values from the current preset
+			injector.subscribe_uniform_definition([this, &preset, section = effect.source_file.filename().u8string()](reshadefx::uniform_info &uniform_info) {
+				if (_performance_mode)
+				{
+					uniform_info.type.qualifiers |= reshadefx::type::q_const;
+					switch (uniform_info.type.base)
+					{
+					case reshadefx::type::t_int:
+						preset.get(section, uniform_info.name, uniform_info.initializer_value.as_int);
+						break;
+					case reshadefx::type::t_bool:
+					case reshadefx::type::t_uint:
+						preset.get(section, uniform_info.name, uniform_info.initializer_value.as_uint);
+						break;
+					case reshadefx::type::t_float:
+						preset.get(section, uniform_info.name, uniform_info.initializer_value.as_float);
+						break;
+					}
+				}});
+
+			// Set all subscribers
+			parser.set_injector(injector);
+
+			// Compile the pre-processed source code (try the compile even if the preprocessor step failed to get additional error information)
+			effect.compile_sucess = parser.parse(source, codegen.get());
+			if (!effect.compile_sucess)
+			{
+				LOG(ERROR) << "Failed to compile " << effect.source_file << ":\n" << pp.errors() << parser.errors();
 				effect.compile_sucess = false;
 			}
+
+			// Append preprocessor and parser errors to the error list
+			effect.errors = std::move(pp.errors()) + std::move(parser.errors());
+
+			// Write result to effect module
+			codegen->write_result(effect.module);
 		}
-
-		unsigned shader_model;
-		if (_renderer_id == 0x9000)     // D3D9
-			shader_model = 30;
-		else if (_renderer_id < 0xa100) // D3D10
-			shader_model = 40;
-		else if (_renderer_id < 0xb000) // D3D11
-			shader_model = 41;
-		else if (_renderer_id < 0xc000) // D3D12
-			shader_model = 50;
-		else
-			shader_model = 60;
-
-		std::unique_ptr<reshadefx::codegen> codegen;
-		if ((_renderer_id & 0xF0000) == 0)
-			codegen.reset(reshadefx::create_codegen_hlsl(shader_model, true));
-		else if (_renderer_id < 0x20000)
-			codegen.reset(reshadefx::create_codegen_glsl(true));
-		else // Vulkan uses SPIR-V input
-			codegen.reset(reshadefx::create_codegen_spirv(true, true));
-
-		reshadefx::parser parser;
-		reshadefx::effect_parser_injector injector;
-
-		// For fill all specialization constants with values from the current preset
-		injector.subscribe_uniform_definition([this, &preset, section = path.filename().u8string()](reshadefx::uniform_info &uniform_info) {
-			if (_performance_mode)
-			{
-				uniform_info.type.qualifiers |= reshadefx::type::q_const;
-				switch (uniform_info.type.base)
-				{
-				case reshadefx::type::t_int:
-					preset.get(section, uniform_info.name, uniform_info.initializer_value.as_int);
-					break;
-				case reshadefx::type::t_bool:
-				case reshadefx::type::t_uint:
-					preset.get(section, uniform_info.name, uniform_info.initializer_value.as_uint);
-					break;
-				case reshadefx::type::t_float:
-					preset.get(section, uniform_info.name, uniform_info.initializer_value.as_float);
-					break;
-				}
-			}});
-
-		// Set all subscribers
-		parser.set_injector(injector);
-
-		// Compile the pre-processed source code (try the compile even if the preprocessor step failed to get additional error information)
-		if (!parser.parse(source, codegen.get()))
-		{
-			LOG(ERROR) << "Failed to compile " << path << ":\n" << pp.errors() << parser.errors();
-			effect.compile_sucess = false;
-		}
-
-		// Append preprocessor and parser errors to the error list
-		effect.errors = std::move(pp.errors()) + std::move(parser.errors());
-
-		// Write result to effect module
-		codegen->write_result(effect.module);
 	}
 
 	// Guard access to shared variables
@@ -506,13 +517,14 @@ void reshade::runtime::load_effect(const reshade::ini_file &preset, const std::f
 
 	if (effect.compile_sucess)
 		if (effect.errors.empty())
-			LOG(INFO) << "Successfully loaded " << path << '.';
+			LOG(INFO) << "Successfully loaded " << effect.source_file << '.';
 		else
-			LOG(WARN) << "Successfully loaded " << path << " with warnings:\n" << effect.errors;
+			LOG(WARN) << "Successfully loaded " << effect.source_file << " with warnings:\n" << effect.errors;
 
 	_reload_remaining_effects--;
 	_last_reload_successful &= effect.compile_sucess;
 }
+
 void reshade::runtime::load_effects()
 {
 	// Clear out any previous effects
@@ -528,8 +540,9 @@ void reshade::runtime::load_effects()
 	preset.get("", "PreprocessorDefinitions", _preset_preprocessor_definitions);
 
 	// Build a list of effect files by walking through the effect search paths
-	const std::vector<std::filesystem::path> effect_files =
-		find_files(_effect_search_paths, { ".fx" });
+	std::vector<reshade::effect_data> effect_files;
+	for (auto &file : find_files(_effect_search_paths, { ".fx" }))
+		effect_files.emplace_back(std::move(_recent_effects[file])).source_file = std::move(file);
 
 	_reload_total_effects = effect_files.size();
 	_reload_remaining_effects = _reload_total_effects;
@@ -543,7 +556,7 @@ void reshade::runtime::load_effects()
 
 	// Keep track of the spawned threads, so the runtime cannot be destroyed while they are still running
 	for (size_t n = 0; n < num_splits; ++n)
-		_worker_threads.emplace_back([this, &preset, effect_files, num_splits, n]() {
+		_worker_threads.emplace_back([this, &preset, effect_files, num_splits, n]() mutable {
 			for (size_t id, i = 0; i < effect_files.size(); ++i)
 				if (i * num_splits / effect_files.size() == n)
 					load_effect(preset, effect_files[i], id);
@@ -626,8 +639,6 @@ void reshade::runtime::unload_effect(size_t id)
 		[id](const auto &it) { return it.effect_index == id; }), _textures.end());
 	_techniques.erase(std::remove_if(_techniques.begin(), _techniques.end(),
 		[id](const auto &it) { return it.effect_index == id; }), _techniques.end());
-
-	_loaded_effects[id].source_file.clear();
 }
 void reshade::runtime::unload_effects()
 {
@@ -646,6 +657,16 @@ void reshade::runtime::unload_effects()
 	_uniforms.clear();
 	_textures.clear();
 	_techniques.clear();
+
+	_recent_effects.clear();
+	for (auto &recent_data : _loaded_effects)
+	{
+		reshade::effect_data &effect_data = _recent_effects[recent_data.source_file];
+		effect_data.cache_id = recent_data.cache_id;
+		effect_data.compile_sucess = recent_data.compile_sucess;
+		effect_data.module = std::move(recent_data.module);
+		effect_data.source_file = std::move(recent_data.source_file);
+	}
 
 	_loaded_effects.clear();
 	_uniform_data_storage.clear();
@@ -695,11 +716,6 @@ void reshade::runtime::update_and_render_effects()
 						break;
 					}
 				}
-			}
-
-			if (success)
-			{
-				effect.preamble;
 			}
 
 			// Compile the effect with the back-end implementation
@@ -889,13 +905,12 @@ void reshade::runtime::update_and_render_effects()
 	}
 }
 
-bool reshade::runtime::load_source_cache(const std::filesystem::path &effect, const std::string &attributes, std::string &source)
+bool reshade::runtime::load_source_cache(const std::filesystem::path &effect, const size_t hash, std::string &source)
 {
-	std::hash<std::string> hasher;
 	std::error_code ec;
 
 	std::filesystem::path path = g_reshade_dll_path.parent_path() / L"reshade-shaders" / L"Intermediate" / effect.stem();
-	path += "-" + std::to_string(hasher(attributes)) + ".hlsl";
+	path += "-" + std::to_string(hash) + ".hlsl";
 
 	if (const uintmax_t size = std::filesystem::file_size(path, ec); ec.value() == 0)
 		if (std::ifstream file(path, std::ios::in | std::ios::binary); file.is_open())
@@ -903,12 +918,10 @@ bool reshade::runtime::load_source_cache(const std::filesystem::path &effect, co
 
 	return false;
 }
-bool reshade::runtime::save_source_cache(const std::filesystem::path &effect, const std::string &attributes, const std::string &source)
+bool reshade::runtime::save_source_cache(const std::filesystem::path &effect, const size_t hash, const std::string &source)
 {
-	std::hash<std::string> hasher;
-
 	std::filesystem::path path = g_reshade_dll_path.parent_path() / L"reshade-shaders" / L"Intermediate" / effect.stem();
-	path += "-" + std::to_string(hasher(attributes)) + ".hlsl";
+	path += "-" + std::to_string(hash) + ".hlsl";
 
 	if (std::ofstream file(path, std::ios::out | std::ios::binary); file.is_open())
 		return file.write(source.data(), source.size()), true;

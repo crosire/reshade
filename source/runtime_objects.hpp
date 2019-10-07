@@ -51,9 +51,9 @@ namespace reshade
 		bool compile_sucess = false;
 		bool runtime_loaded = false;
 		std::string errors;
-		std::string preamble;
 		reshadefx::module module;
 		std::filesystem::path source_file;
+		size_t cache_id = 0;
 		size_t storage_offset = 0, storage_size = 0;
 	};
 

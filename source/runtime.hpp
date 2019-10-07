@@ -137,10 +137,10 @@ namespace reshade
 		/// <summary>
 		/// Compile effect from the specified source file and initialize textures, uniforms and techniques.
 		/// </summary>
-		/// <param name="path">Current preset for compilation.</param>
-		/// <param name="path">The path to an effect source code file.</param>
+		/// <param name="preset">Current preset for compilation.</param>
+		/// <param name="effect">The path to an effect source code file.</param>
 		/// <param name="out_id">The ID of the effect.</param>
-		void load_effect(const reshade::ini_file &preset, const std::filesystem::path &path, size_t &out_id);
+		void load_effect(const reshade::ini_file &preset, reshade::effect_data &effect, size_t &out_id);
 		/// <summary>
 		/// Load all effects found in the effect search paths.
 		/// </summary>
@@ -170,8 +170,8 @@ namespace reshade
 		/// </summary>
 		void update_and_render_effects();
 
-		bool load_source_cache(const std::filesystem::path &effect, const std::string &attributes, std::string &source);
-		bool save_source_cache(const std::filesystem::path &effect, const std::string &attributes, const std::string &source);
+		bool load_source_cache(const std::filesystem::path &effect, const size_t hash, std::string &source);
+		bool save_source_cache(const std::filesystem::path &effect, const size_t hash, const std::string &source);
 
 		bool load_shader_cache(const std::string &renderer, const reshade::effect_data &effect, const std::string &entry_point, const std::string &hlsl, const std::string &attributes, std::vector<char> &cso);
 		bool save_shader_cache(const std::string &renderer, const reshade::effect_data &effect, const std::string &entry_point, const std::string &hlsl, const std::string &attributes, const std::vector<char> &cso);
@@ -299,6 +299,7 @@ namespace reshade
 		std::vector<size_t> _reload_compile_queue;
 		std::atomic<size_t> _reload_remaining_effects = 0;
 		std::vector<effect_data> _loaded_effects;
+		std::unordered_map<std::wstring, effect_data> _recent_effects;
 		std::vector<std::thread> _worker_threads;
 
 		int _date[4] = {};

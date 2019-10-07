@@ -559,8 +559,6 @@ bool reshade::opengl::runtime_gl::compile_effect(effect_data &effect)
 		spec_constants.push_back(constant.offset);
 		spec_constant_values.push_back(constant.initializer_value.as_uint[0]);
 	}
-#else
-	effect.preamble = "#version 430\n" + effect.preamble;
 #endif
 
 	std::unordered_map<std::string, GLuint> entry_points;
@@ -575,8 +573,7 @@ bool reshade::opengl::runtime_gl::compile_effect(effect_data &effect)
 		glShaderBinary(1, &shader_id, GL_SHADER_BINARY_FORMAT_SPIR_V, effect.module.spirv.data(), effect.module.spirv.size() * sizeof(uint32_t));
 		glSpecializeShader(shader_id, entry_point.first.c_str(), GLuint(spec_constants.size()), spec_constants.data(), spec_constant_values.data());
 #else
-		std::string defines = effect.preamble;
-		defines += "#define ENTRY_POINT_" + entry_point.name + " 1\n";
+		std::string defines = "#version 430\n#define ENTRY_POINT_" + entry_point.name + " 1\n";
 		if (!entry_point.is_pixel_shader) // OpenGL does not allow using 'discard' in the vertex shader profile
 			defines += "#define discard\n"
 				"#define dFdx(x) x\n" // 'dFdx', 'dFdx' and 'fwidth' too are only available in fragment shaders

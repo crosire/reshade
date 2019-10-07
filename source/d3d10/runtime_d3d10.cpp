@@ -642,7 +642,6 @@ bool reshade::d3d10::runtime_d3d10::compile_effect(effect_data &effect)
 	const auto D3DCompile = reinterpret_cast<pD3DCompile>(GetProcAddress(_d3d_compiler, "D3DCompile"));
 	const auto D3DDisassemble = reinterpret_cast<pD3DDisassemble>(GetProcAddress(_d3d_compiler, "D3DDisassemble"));
 
-	const std::string hlsl = effect.preamble + effect.module.hlsl;
 	std::unordered_map<std::string, com_ptr<IUnknown>> entry_points;
 
 	// Compile the generated HLSL source code to DX byte code
@@ -672,7 +671,7 @@ bool reshade::d3d10::runtime_d3d10::compile_effect(effect_data &effect)
 		}
 
 		HRESULT hr = D3DCompile(
-			hlsl.c_str(), hlsl.size(),
+			effect.module.hlsl.c_str(), effect.module.hlsl.size(),
 			nullptr, nullptr, nullptr,
 			entry_point.name.c_str(),
 			profile.c_str(),
