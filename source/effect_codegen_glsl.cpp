@@ -351,9 +351,8 @@ private:
 			code += "const ";
 			write_type(code, info.type);
 			code += ' ' + id_to_name(res) + " = ";
-			if (!info.type.is_scalar())
-				write_type<false, false>(code, info.type);
-			code += "(SPEC_CONSTANT_" + info.name + ");\n";
+			write_constant(code, info.type, info.initializer_value);
+			code += ";\n";
 
 			_module.spec_constants.push_back(info);
 		}

@@ -323,12 +323,7 @@ void reshade::runtime::load_effect(const reshade::ini_file &preset, reshade::eff
 			pp.add_macro_definition(macro.first, macro.second);
 		}
 
-		if (const size_t cache_id = std::hash<std::string>()(attributes); effect.cache_id == cache_id)
-		{
-			auto a = 0;
-			a = 1;
-		}
-		else
+		if (const size_t cache_id = std::hash<std::string>()(attributes); effect.cache_id != cache_id)
 		{
 			std::string source;
 			if (load_source_cache(effect.source_file, cache_id, source))
@@ -909,8 +904,8 @@ bool reshade::runtime::load_source_cache(const std::filesystem::path &effect, co
 {
 	std::error_code ec;
 
-	std::filesystem::path path = g_reshade_dll_path.parent_path() / L"reshade-shaders" / L"Intermediate" / effect.stem();
-	path += "-" + std::to_string(hash) + ".hlsl";
+	std::filesystem::path path = g_reshade_dll_path.parent_path() / L"reshade-shaders" / L"Intermediate";
+	path /= _renderer_name + '-' + effect.stem().u8string() + '-' + std::to_string(hash) + ".hlsl";
 
 	if (const uintmax_t size = std::filesystem::file_size(path, ec); ec.value() == 0)
 		if (std::ifstream file(path, std::ios::in | std::ios::binary); file.is_open())
@@ -920,8 +915,8 @@ bool reshade::runtime::load_source_cache(const std::filesystem::path &effect, co
 }
 bool reshade::runtime::save_source_cache(const std::filesystem::path &effect, const size_t hash, const std::string &source)
 {
-	std::filesystem::path path = g_reshade_dll_path.parent_path() / L"reshade-shaders" / L"Intermediate" / effect.stem();
-	path += "-" + std::to_string(hash) + ".hlsl";
+	std::filesystem::path path = g_reshade_dll_path.parent_path() / L"reshade-shaders" / "Intermediate";
+	path /= _renderer_name + '-' + effect.stem().u8string() + '-'+ std::to_string(hash) + ".hlsl";
 
 	if (std::ofstream file(path, std::ios::out | std::ios::binary); file.is_open())
 		return file.write(source.data(), source.size()), true;
@@ -929,13 +924,13 @@ bool reshade::runtime::save_source_cache(const std::filesystem::path &effect, co
 	return false;
 }
 
-bool reshade::runtime::load_shader_cache(const std::string &renderer, const reshade::effect_data &effect, const std::string &entry_point, const std::string &hlsl, const std::string &attributes, std::vector<char> &cso)
+bool reshade::runtime::load_shader_cache(const std::filesystem::path &effect, const std::string &entry_point, const std::string &hlsl, const std::string &attributes, std::vector<char> &cso)
 {
 	std::hash<std::string> hasher;
 	std::error_code ec;
 
 	std::filesystem::path path = g_reshade_dll_path.parent_path() / L"reshade-shaders" / L"Intermediate";
-	path /= renderer + '-' + effect.source_file.stem().u8string() + '-' + entry_point + '-' + std::to_string(hasher(hlsl) ^ hasher(attributes)) + ".cso";
+	path /= _renderer_name + '-' + effect.stem().u8string() + '-' + entry_point + '-' + std::to_string(hasher(hlsl) ^ hasher(attributes)) + ".cso";
 
 	if (const uintmax_t size = std::filesystem::file_size(path, ec); ec.value() == 0)
 		if (std::ifstream file(path, std::ios::in | std::ios::binary); file.is_open())
@@ -943,12 +938,12 @@ bool reshade::runtime::load_shader_cache(const std::string &renderer, const resh
 
 	return false;
 }
-bool reshade::runtime::save_shader_cache(const std::string &renderer, const reshade::effect_data &effect, const std::string &entry_point, const std::string &hlsl, const std::string &attributes, const std::vector<char> &cso)
+bool reshade::runtime::save_shader_cache(const std::filesystem::path &effect, const std::string &entry_point, const std::string &hlsl, const std::string &attributes, const std::vector<char> &cso)
 {
 	std::hash<std::string> hasher;
 
 	std::filesystem::path path = g_reshade_dll_path.parent_path() / L"reshade-shaders" / L"Intermediate";
-	path /= renderer + '-' + effect.source_file.stem().u8string() + '-' + entry_point + '-' + std::to_string(hasher(hlsl) ^ hasher(attributes)) + ".cso";
+	path /= _renderer_name + '-' + effect.stem().u8string() + '-' + entry_point + '-' + std::to_string(hasher(hlsl) ^ hasher(attributes)) + ".cso";
 
 	if (std::ofstream file(path, std::ios::out | std::ios::binary); file.is_open())
 		return file.write(cso.data(), cso.size()), true;

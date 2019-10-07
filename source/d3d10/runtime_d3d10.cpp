@@ -57,6 +57,7 @@ reshade::d3d10::runtime_d3d10::runtime_d3d10(ID3D10Device1 *device, IDXGISwapCha
 	dxgi_device->GetAdapter(&dxgi_adapter);
 
 	_renderer_id = device->GetFeatureLevel();
+	_renderer_name = "DX10";
 	if (DXGI_ADAPTER_DESC desc; SUCCEEDED(dxgi_adapter->GetDesc(&desc)))
 		_vendor_id = desc.VendorId, _device_id = desc.DeviceId;
 
@@ -670,29 +671,58 @@ bool reshade::d3d10::runtime_d3d10::compile_effect(effect_data &effect)
 			break;
 		}
 
-		HRESULT hr = D3DCompile(
-			effect.module.hlsl.c_str(), effect.module.hlsl.size(),
-			nullptr, nullptr, nullptr,
-			entry_point.name.c_str(),
-			profile.c_str(),
-			D3DCOMPILE_ENABLE_STRICTNESS | D3DCOMPILE_OPTIMIZATION_LEVEL3, 0,
-			&d3d_compiled, &d3d_errors);
+		std::string attributes;
+		attributes += "func=D3DCompile;";
+		attributes += "name=(null);defines=(null);include=(null);";
+		attributes += "entrypoint=" + entry_point.name + ';';
+		attributes += "profile=" + profile + ';';
+		attributes += "compile=" + std::to_string(D3DCOMPILE_ENABLE_STRICTNESS | D3DCOMPILE_OPTIMIZATION_LEVEL3) + ';';
+		attributes += "effect=0;";
 
-		if (d3d_errors != nullptr) // Append warnings to the output error string as well
-			effect.errors.append(static_cast<const char *>(d3d_errors->GetBufferPointer()), d3d_errors->GetBufferSize() - 1); // Subtracting one to not append the null-terminator as well
+		const void *buffer_pointer = nullptr;
+		size_t buffer_size = 0;
 
-		// No need to setup resources if any of the shaders failed to compile
-		if (FAILED(hr))
-			return false;
+		std::vector<char> cso;
+		if (load_shader_cache(effect.source_file, entry_point.name, effect.module.hlsl, attributes, cso))
+		{
+			buffer_pointer = cso.data();
+			buffer_size = cso.size();
+		}
+		else
+		{
+			HRESULT hr = D3DCompile(
+				effect.module.hlsl.c_str(), effect.module.hlsl.size(),
+				nullptr, nullptr, nullptr,
+				entry_point.name.c_str(),
+				profile.c_str(),
+				D3DCOMPILE_ENABLE_STRICTNESS | D3DCOMPILE_OPTIMIZATION_LEVEL3, 0,
+				&d3d_compiled, &d3d_errors);
 
-		if (com_ptr<ID3DBlob> d3d_disassembled; SUCCEEDED(D3DDisassemble(d3d_compiled->GetBufferPointer(), d3d_compiled->GetBufferSize(), 0, nullptr, &d3d_disassembled)))
+			if (d3d_errors != nullptr) // Append warnings to the output error string as well
+				effect.errors.append(static_cast<const char *>(d3d_errors->GetBufferPointer()), d3d_errors->GetBufferSize() - 1); // Subtracting one to not append the null-terminator as well
+
+			// No need to setup resources if any of the shaders failed to compile
+			if (FAILED(hr))
+				return false;
+
+			buffer_pointer = d3d_compiled->GetBufferPointer();
+			buffer_size = d3d_compiled->GetBufferSize();
+
+			cso.resize(buffer_size);
+			std::memcpy(cso.data(), buffer_pointer, buffer_size);
+
+			save_shader_cache(effect.source_file, entry_point.name, effect.module.hlsl, attributes, cso);
+		}
+
+		if (com_ptr<ID3DBlob> d3d_disassembled; SUCCEEDED(D3DDisassemble(buffer_pointer, buffer_size, 0, nullptr, &d3d_disassembled)))
 			entry_point.assembly = std::string(static_cast<const char *>(d3d_disassembled->GetBufferPointer()));
 
 		// Create runtime shader objects from the compiled DX byte code
+		HRESULT hr;
 		if (entry_point.is_pixel_shader)
-			hr = _device->CreatePixelShader(d3d_compiled->GetBufferPointer(), d3d_compiled->GetBufferSize(), reinterpret_cast<ID3D10PixelShader **>(&entry_points[entry_point.name]));
+			hr = _device->CreatePixelShader(buffer_pointer, buffer_size, reinterpret_cast<ID3D10PixelShader **>(&entry_points[entry_point.name]));
 		else
-			hr = _device->CreateVertexShader(d3d_compiled->GetBufferPointer(), d3d_compiled->GetBufferSize(), reinterpret_cast<ID3D10VertexShader **>(&entry_points[entry_point.name]));
+			hr = _device->CreateVertexShader(buffer_pointer, buffer_size, reinterpret_cast<ID3D10VertexShader **>(&entry_points[entry_point.name]));
 
 		if (FAILED(hr))
 		{

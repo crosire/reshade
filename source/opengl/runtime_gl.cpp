@@ -79,6 +79,7 @@ reshade::opengl::runtime_gl::runtime_gl()
 	glGetIntegerv(GL_MAJOR_VERSION, &major);
 	glGetIntegerv(GL_MAJOR_VERSION, &minor);
 	_renderer_id = 0x10000 | (major << 12) | (minor << 8);
+	_renderer_name = "OpenGL";
 
 	// Query vendor and device ID from Windows assuming we are running on the primary display device
 	// This is done because the information reported by OpenGL is not always reflecting the actual rendering device (e.g. on NVIDIA Optimus laptops)

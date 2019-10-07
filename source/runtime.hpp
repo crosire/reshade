@@ -173,8 +173,8 @@ namespace reshade
 		bool load_source_cache(const std::filesystem::path &effect, const size_t hash, std::string &source);
 		bool save_source_cache(const std::filesystem::path &effect, const size_t hash, const std::string &source);
 
-		bool load_shader_cache(const std::string &renderer, const reshade::effect_data &effect, const std::string &entry_point, const std::string &hlsl, const std::string &attributes, std::vector<char> &cso);
-		bool save_shader_cache(const std::string &renderer, const reshade::effect_data &effect, const std::string &entry_point, const std::string &hlsl, const std::string &attributes, const std::vector<char> &cso);
+		bool load_shader_cache(const std::filesystem::path &effect, const std::string &entry_point, const std::string &hlsl, const std::string &attributes, std::vector<char> &cso);
+		bool save_shader_cache(const std::filesystem::path &effect, const std::string &entry_point, const std::string &hlsl, const std::string &attributes, const std::vector<char> &cso);
 
 		/// <summary>
 		/// Render all passes in a technique.
@@ -198,6 +198,7 @@ namespace reshade
 		unsigned int _vendor_id = 0;
 		unsigned int _device_id = 0;
 		unsigned int _renderer_id = 0;
+		std::string _renderer_name;
 		unsigned int _backbuffer_color_depth = 8;
 		uint64_t _framecount = 0;
 		unsigned int _vertices = 0;

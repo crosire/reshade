@@ -85,6 +85,7 @@ reshade::vulkan::runtime_vk::runtime_vk(VkDevice device, VkPhysicalDevice physic
 	_device(device), _physical_device(physical_device), vk(device_table)
 {
 	_renderer_id = 0x20000;
+	_renderer_name = "Vulkan";
 
 	instance_table.GetPhysicalDeviceMemoryProperties(physical_device, &_memory_props);
 

@@ -77,6 +77,7 @@ reshade::d3d12::runtime_d3d12::runtime_d3d12(ID3D12Device *device, ID3D12Command
 	assert(device != nullptr);
 
 	_renderer_id = D3D_FEATURE_LEVEL_12_0;
+	_renderer_name = "DX12";
 
 	if (com_ptr<IDXGIFactory4> factory;
 		swapchain != nullptr && SUCCEEDED(swapchain->GetParent(IID_PPV_ARGS(&factory))))
@@ -783,22 +784,50 @@ bool reshade::d3d12::runtime_d3d12::compile_effect(effect_data &effect)
 		entry_point.assembly.clear();
 		com_ptr<ID3DBlob> d3d_errors;
 
-		const HRESULT hr = D3DCompile(
-			effect.module.hlsl.c_str(), effect.module.hlsl.size(),
-			nullptr, nullptr, nullptr,
-			entry_point.name.c_str(),
-			entry_point.is_pixel_shader ? "ps_5_0" : "vs_5_0",
-			D3DCOMPILE_ENABLE_STRICTNESS | D3DCOMPILE_OPTIMIZATION_LEVEL3, 0,
-			&entry_points[entry_point.name], &d3d_errors);
+		std::string attributes;
+		attributes += "func=D3DCompile;";
+		attributes += "name=(null);defines=(null);include=(null);";
+		attributes += "entrypoint=" + entry_point.name + ';';
+		attributes += "profile=" + entry_point.is_pixel_shader ? "ps_5_0;" : "vs_5_0;";
+		attributes += "compile=" + std::to_string(D3DCOMPILE_ENABLE_STRICTNESS | D3DCOMPILE_OPTIMIZATION_LEVEL3) + ';';
+		attributes += "effect=0;";
 
-		if (d3d_errors != nullptr) // Append warnings to the output error string as well
-			effect.errors.append(static_cast<const char *>(d3d_errors->GetBufferPointer()), d3d_errors->GetBufferSize() - 1); // Subtracting one to not append the null-terminator as well
+		const void *buffer_pointer = nullptr;
+		size_t buffer_size = 0;
 
-		// No need to setup resources if any of the shaders failed to compile
-		if (FAILED(hr))
-			return false;
+		std::vector<char> cso;
+		if (load_shader_cache(effect.source_file, entry_point.name, effect.module.hlsl, attributes, cso))
+		{
+			buffer_pointer = cso.data();
+			buffer_size = cso.size();
+		}
+		else
+		{
+			const HRESULT hr = D3DCompile(
+				effect.module.hlsl.c_str(), effect.module.hlsl.size(),
+				nullptr, nullptr, nullptr,
+				entry_point.name.c_str(),
+				entry_point.is_pixel_shader ? "ps_5_0" : "vs_5_0",
+				D3DCOMPILE_ENABLE_STRICTNESS | D3DCOMPILE_OPTIMIZATION_LEVEL3, 0,
+				&entry_points[entry_point.name], &d3d_errors);
 
-		if (com_ptr<ID3DBlob> d3d_disassembled; SUCCEEDED(D3DDisassemble(entry_points[entry_point.name]->GetBufferPointer(), entry_points[entry_point.name]->GetBufferSize(), 0, nullptr, &d3d_disassembled)))
+			if (d3d_errors != nullptr) // Append warnings to the output error string as well
+				effect.errors.append(static_cast<const char *>(d3d_errors->GetBufferPointer()), d3d_errors->GetBufferSize() - 1); // Subtracting one to not append the null-terminator as well
+
+			// No need to setup resources if any of the shaders failed to compile
+			if (FAILED(hr))
+				return false;
+
+			buffer_pointer = entry_points[entry_point.name]->GetBufferPointer();
+			buffer_size = entry_points[entry_point.name]->GetBufferSize();
+
+			cso.resize(buffer_size);
+			std::memcpy(cso.data(), buffer_pointer, buffer_size);
+
+			save_shader_cache(effect.source_file, entry_point.name, effect.module.hlsl, attributes, cso);
+		}
+
+		if (com_ptr<ID3DBlob> d3d_disassembled; SUCCEEDED(D3DDisassemble(buffer_pointer, buffer_size, 0, nullptr, &d3d_disassembled)))
 			entry_point.assembly = std::string(static_cast<const char *>(d3d_disassembled->GetBufferPointer()));
 	}
 
