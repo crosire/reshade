@@ -312,7 +312,7 @@ void reshade::runtime::load_effect(const reshade::ini_file &preset, const std::f
 		{
 			attributes += include.u8string() + '=';
 			for (const auto &entry : std::filesystem::directory_iterator(include, ec))
-				if (const auto filename = entry.path().filename(); filename.extension() == L".fx" || filename.extension() == L".fxh")
+				if (const auto filename = entry.path().filename(); filename.extension() == L".fxh" || (filename.extension() == L".fx" && std::filesystem::equivalent(entry, path, ec)))
 					attributes += filename.u8string() + '?' + std::to_string(entry.last_write_time(ec).time_since_epoch().count()) + ',';
 
 			attributes.resize(attributes.size() - 1);
