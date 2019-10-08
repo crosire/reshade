@@ -547,7 +547,7 @@ void reshade::runtime::load_effects()
 
 	// Keep track of the spawned threads, so the runtime cannot be destroyed while they are still running
 	for (size_t n = 0; n < num_splits; ++n)
-		_worker_threads.emplace_back([this, &preset, effect_files, num_splits, n]() mutable {
+		_worker_threads.emplace_back([this, preset, effect_files, num_splits, n]() mutable {
 			for (size_t id, i = 0; i < effect_files.size(); ++i)
 				if (i * num_splits / effect_files.size() == n)
 					load_effect(preset, effect_files[i], id);
