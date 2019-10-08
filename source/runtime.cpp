@@ -323,88 +323,84 @@ void reshade::runtime::load_effect(const reshade::ini_file &preset, reshade::eff
 			pp.add_macro_definition(macro.first, macro.second);
 		}
 
-		if (const size_t cache_id = std::hash<std::string>()(attributes); effect.cache_id != cache_id)
+		if (const size_t cache_id = std::hash<std::string>()(attributes); effect.source_id != cache_id)
 		{
+			effect.source_id = cache_id;
+
 			std::string source;
-			if (load_source_cache(effect.source_file, cache_id, source))
+			if (effect.compile_sucess = load_source_cache(effect.source_file, cache_id, source); !effect.compile_sucess)
 			{
-				effect.cache_id = cache_id;
-			}
-			else
-			{
-				if (pp.append_file(effect.source_file))
+				if (effect.compile_sucess = pp.append_file(effect.source_file))
 				{
 					source = std::move(pp.output());
-					effect.cache_id = cache_id;
 					save_source_cache(effect.source_file, cache_id, source);
 				}
 				else
 				{
 					LOG(ERROR) << "Failed to load " << effect.source_file << ":\n" << pp.errors();
-					effect.compile_sucess = false;
-					effect.cache_id = 0;
 				}
 			}
 
-			unsigned shader_model;
-			if (_renderer_id == 0x9000)     // D3D9
-				shader_model = 30;
-			else if (_renderer_id < 0xa100) // D3D10
-				shader_model = 40;
-			else if (_renderer_id < 0xb000) // D3D11
-				shader_model = 41;
-			else if (_renderer_id < 0xc000) // D3D12
-				shader_model = 50;
-			else
-				shader_model = 60;
-
-			std::unique_ptr<reshadefx::codegen> codegen;
-			if ((_renderer_id & 0xF0000) == 0)
-				codegen.reset(reshadefx::create_codegen_hlsl(shader_model, true));
-			else if (_renderer_id < 0x20000)
-				codegen.reset(reshadefx::create_codegen_glsl(true));
-			else // Vulkan uses SPIR-V input
-				codegen.reset(reshadefx::create_codegen_spirv(true, true));
-
-			reshadefx::parser parser;
-			reshadefx::effect_parser_injector injector;
-
-			// For fill all specialization constants with values from the current preset
-			injector.subscribe_uniform_definition([this, &preset, section = effect.source_file.filename().u8string()](reshadefx::uniform_info &uniform_info) {
-				if (_performance_mode)
-				{
-					uniform_info.type.qualifiers |= reshadefx::type::q_const;
-					switch (uniform_info.type.base)
-					{
-					case reshadefx::type::t_int:
-						preset.get(section, uniform_info.name, uniform_info.initializer_value.as_int);
-						break;
-					case reshadefx::type::t_bool:
-					case reshadefx::type::t_uint:
-						preset.get(section, uniform_info.name, uniform_info.initializer_value.as_uint);
-						break;
-					case reshadefx::type::t_float:
-						preset.get(section, uniform_info.name, uniform_info.initializer_value.as_float);
-						break;
-					}
-				}});
-
-			// Set all subscribers
-			parser.set_injector(injector);
-
-			// Compile the pre-processed source code (try the compile even if the preprocessor step failed to get additional error information)
-			effect.compile_sucess = parser.parse(source, codegen.get());
-			if (!effect.compile_sucess)
+			if (effect.compile_sucess)
 			{
-				LOG(ERROR) << "Failed to compile " << effect.source_file << ":\n" << pp.errors() << parser.errors();
-				effect.compile_sucess = false;
+				unsigned shader_model;
+				if (_renderer_id == 0x9000)     // D3D9
+					shader_model = 30;
+				else if (_renderer_id < 0xa100) // D3D10
+					shader_model = 40;
+				else if (_renderer_id < 0xb000) // D3D11
+					shader_model = 41;
+				else if (_renderer_id < 0xc000) // D3D12
+					shader_model = 50;
+				else
+					shader_model = 60;
+
+				std::unique_ptr<reshadefx::codegen> codegen;
+				if ((_renderer_id & 0xF0000) == 0)
+					codegen.reset(reshadefx::create_codegen_hlsl(shader_model, true));
+				else if (_renderer_id < 0x20000)
+					codegen.reset(reshadefx::create_codegen_glsl(true));
+				else // Vulkan uses SPIR-V input
+					codegen.reset(reshadefx::create_codegen_spirv(true, true));
+
+				reshadefx::parser parser;
+				reshadefx::effect_parser_injector injector;
+
+				// For fill all specialization constants with values from the current preset
+				injector.subscribe_uniform_definition([this, &preset, section = effect.source_file.filename().u8string()](reshadefx::uniform_info &uniform_info) {
+					if (_performance_mode)
+					{
+						uniform_info.type.qualifiers |= reshadefx::type::q_const;
+						switch (uniform_info.type.base)
+						{
+						case reshadefx::type::t_int:
+							preset.get(section, uniform_info.name, uniform_info.initializer_value.as_int);
+							break;
+						case reshadefx::type::t_bool:
+						case reshadefx::type::t_uint:
+							preset.get(section, uniform_info.name, uniform_info.initializer_value.as_uint);
+							break;
+						case reshadefx::type::t_float:
+							preset.get(section, uniform_info.name, uniform_info.initializer_value.as_float);
+							break;
+						}
+					}});
+
+				// Set all subscribers
+				parser.set_injector(injector);
+
+				// Compile the pre-processed source code (try the compile even if the preprocessor step failed to get additional error information)
+				if (effect.compile_sucess = parser.parse(source, codegen.get()); !effect.compile_sucess)
+				{
+					LOG(ERROR) << "Failed to compile " << effect.source_file << ":\n" << pp.errors() << parser.errors();
+				}
+
+				// Append preprocessor and parser errors to the error list
+				effect.errors = std::move(pp.errors()) + std::move(parser.errors());
+
+				// Write result to effect module
+				codegen->write_result(effect.module);
 			}
-
-			// Append preprocessor and parser errors to the error list
-			effect.errors = std::move(pp.errors()) + std::move(parser.errors());
-
-			// Write result to effect module
-			codegen->write_result(effect.module);
 		}
 	}
 
@@ -657,7 +653,7 @@ void reshade::runtime::unload_effects()
 	for (auto &recent_data : _loaded_effects)
 	{
 		reshade::effect_data &effect_data = _recent_effects[recent_data.source_file];
-		effect_data.cache_id = recent_data.cache_id;
+		effect_data.source_id = recent_data.source_id;
 		effect_data.compile_sucess = recent_data.compile_sucess;
 		effect_data.module = std::move(recent_data.module);
 		effect_data.source_file = std::move(recent_data.source_file);
@@ -926,11 +922,10 @@ bool reshade::runtime::save_source_cache(const std::filesystem::path &effect, co
 
 bool reshade::runtime::load_shader_cache(const std::filesystem::path &effect, const std::string &entry_point, const std::string &hlsl, const std::string &attributes, std::vector<char> &cso)
 {
-	std::hash<std::string> hasher;
 	std::error_code ec;
 
 	std::filesystem::path path = g_reshade_dll_path.parent_path() / L"reshade-shaders" / L"Intermediate";
-	path /= _renderer_name + '-' + effect.stem().u8string() + '-' + entry_point + '-' + std::to_string(hasher(hlsl) ^ hasher(attributes)) + ".cso";
+	path /= _renderer_name + '-' + effect.stem().u8string() + '-' + entry_point + '-' + std::to_string(std::hash<std::string>()(hlsl) ^ std::hash<std::string>()(attributes)) + ".cso";
 
 	if (const uintmax_t size = std::filesystem::file_size(path, ec); ec.value() == 0)
 		if (std::ifstream file(path, std::ios::in | std::ios::binary); file.is_open())
@@ -940,10 +935,8 @@ bool reshade::runtime::load_shader_cache(const std::filesystem::path &effect, co
 }
 bool reshade::runtime::save_shader_cache(const std::filesystem::path &effect, const std::string &entry_point, const std::string &hlsl, const std::string &attributes, const std::vector<char> &cso)
 {
-	std::hash<std::string> hasher;
-
 	std::filesystem::path path = g_reshade_dll_path.parent_path() / L"reshade-shaders" / L"Intermediate";
-	path /= _renderer_name + '-' + effect.stem().u8string() + '-' + entry_point + '-' + std::to_string(hasher(hlsl) ^ hasher(attributes)) + ".cso";
+	path /= _renderer_name + '-' + effect.stem().u8string() + '-' + entry_point + '-' + std::to_string(std::hash<std::string>()(hlsl) ^ std::hash<std::string>()(attributes)) + ".cso";
 
 	if (std::ofstream file(path, std::ios::out | std::ios::binary); file.is_open())
 		return file.write(cso.data(), cso.size()), true;

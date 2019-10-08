@@ -53,7 +53,7 @@ namespace reshade
 		std::string errors;
 		reshadefx::module module;
 		std::filesystem::path source_file;
-		size_t cache_id = 0;
+		size_t source_id = 0;
 		size_t storage_offset = 0, storage_size = 0;
 	};
 

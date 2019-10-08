@@ -776,7 +776,7 @@ bool reshade::d3d12::runtime_d3d12::compile_effect(effect_data &effect)
 	const auto D3DCompile = reinterpret_cast<pD3DCompile>(GetProcAddress(_d3d_compiler, "D3DCompile"));
 	const auto D3DDisassemble = reinterpret_cast<pD3DDisassemble>(GetProcAddress(_d3d_compiler, "D3DDisassemble"));
 
-	std::unordered_map<std::string, com_ptr<ID3DBlob>> entry_points;
+	std::unordered_map<std::string, std::vector<char>> entry_points;
 
 	// Compile the generated HLSL source code to DX byte code
 	for (auto &entry_point : effect.module.entry_points)
@@ -792,24 +792,17 @@ bool reshade::d3d12::runtime_d3d12::compile_effect(effect_data &effect)
 		attributes += "compile=" + std::to_string(D3DCOMPILE_ENABLE_STRICTNESS | D3DCOMPILE_OPTIMIZATION_LEVEL3) + ';';
 		attributes += "effect=0;";
 
-		const void *buffer_pointer = nullptr;
-		size_t buffer_size = 0;
-
-		std::vector<char> cso;
-		if (load_shader_cache(effect.source_file, entry_point.name, effect.module.hlsl, attributes, cso))
+		std::vector<char> &cso = entry_points[entry_point.name];
+		if (!load_shader_cache(effect.source_file, entry_point.name, effect.module.hlsl, attributes, cso))
 		{
-			buffer_pointer = cso.data();
-			buffer_size = cso.size();
-		}
-		else
-		{
+			com_ptr<ID3DBlob> d3d_compiled;
 			const HRESULT hr = D3DCompile(
 				effect.module.hlsl.c_str(), effect.module.hlsl.size(),
 				nullptr, nullptr, nullptr,
 				entry_point.name.c_str(),
 				entry_point.is_pixel_shader ? "ps_5_0" : "vs_5_0",
 				D3DCOMPILE_ENABLE_STRICTNESS | D3DCOMPILE_OPTIMIZATION_LEVEL3, 0,
-				&entry_points[entry_point.name], &d3d_errors);
+				&d3d_compiled, &d3d_errors);
 
 			if (d3d_errors != nullptr) // Append warnings to the output error string as well
 				effect.errors.append(static_cast<const char *>(d3d_errors->GetBufferPointer()), d3d_errors->GetBufferSize() - 1); // Subtracting one to not append the null-terminator as well
@@ -818,16 +811,13 @@ bool reshade::d3d12::runtime_d3d12::compile_effect(effect_data &effect)
 			if (FAILED(hr))
 				return false;
 
-			buffer_pointer = entry_points[entry_point.name]->GetBufferPointer();
-			buffer_size = entry_points[entry_point.name]->GetBufferSize();
+			cso.resize(d3d_compiled->GetBufferSize());
+			std::memcpy(cso.data(), d3d_compiled->GetBufferPointer(), cso.size());
 
-			cso.resize(buffer_size);
-			std::memcpy(cso.data(), buffer_pointer, buffer_size);
-
-			save_shader_cache(effect.source_file, entry_point.name, effect.module.hlsl, attributes, cso);
+			save_shader_cache(effect, entry_point.name, effect.module.hlsl, attributes, cso);
 		}
 
-		if (com_ptr<ID3DBlob> d3d_disassembled; SUCCEEDED(D3DDisassemble(buffer_pointer, buffer_size, 0, nullptr, &d3d_disassembled)))
+		if (com_ptr<ID3DBlob> d3d_disassembled; SUCCEEDED(D3DDisassemble(cso.data(), cso.size(), 0, nullptr, &d3d_disassembled)))
 			entry_point.assembly = std::string(static_cast<const char *>(d3d_disassembled->GetBufferPointer()));
 	}
 
@@ -1020,7 +1010,7 @@ void reshade::d3d12::runtime_d3d12::unload_effects()
 	_effect_data.clear();
 }
 
-bool reshade::d3d12::runtime_d3d12::init_technique(technique &technique, const std::unordered_map<std::string, com_ptr<ID3DBlob>> &entry_points)
+bool reshade::d3d12::runtime_d3d12::init_technique(technique &technique, const std::unordered_map<std::string, std::vector<char>> &entry_points)
 {
 	technique.impl = std::make_unique<d3d12_technique_data>();
 
@@ -1037,9 +1027,9 @@ bool reshade::d3d12::runtime_d3d12::init_technique(technique &technique, const s
 		pso_desc.pRootSignature = _effect_data[technique.effect_index].signature.get();
 
 		const auto &VS = entry_points.at(pass_info.vs_entry_point);
-		pso_desc.VS = { VS->GetBufferPointer(), VS->GetBufferSize() };
+		pso_desc.VS = { VS.data(), VS.size() };
 		const auto &PS = entry_points.at(pass_info.ps_entry_point);
-		pso_desc.PS = { PS->GetBufferPointer(), PS->GetBufferSize() };
+		pso_desc.PS = { PS.data(), PS.size() };
 
 		pass_data.viewport.Width = pass_info.viewport_width ? FLOAT(pass_info.viewport_width) : FLOAT(frame_width());
 		pass_data.viewport.Height = pass_info.viewport_height ? FLOAT(pass_info.viewport_height) : FLOAT(frame_height());

@@ -57,7 +57,7 @@ namespace reshade::d3d12
 		void unload_effect(size_t id) override;
 		void unload_effects() override;
 
-		bool init_technique(technique &technique, const std::unordered_map<std::string, com_ptr<ID3DBlob>> &entry_points);
+		bool init_technique(technique &technique, const std::unordered_map<std::string, std::vector<char>> &entry_points);
 
 		void render_technique(technique &technique) override;
 
