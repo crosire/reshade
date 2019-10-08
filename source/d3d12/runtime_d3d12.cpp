@@ -814,7 +814,7 @@ bool reshade::d3d12::runtime_d3d12::compile_effect(effect_data &effect)
 			cso.resize(d3d_compiled->GetBufferSize());
 			std::memcpy(cso.data(), d3d_compiled->GetBufferPointer(), cso.size());
 
-			save_shader_cache(effect, entry_point.name, effect.module.hlsl, attributes, cso);
+			save_shader_cache(effect.source_file, entry_point.name, effect.module.hlsl, attributes, cso);
 		}
 
 		if (com_ptr<ID3DBlob> d3d_disassembled; SUCCEEDED(D3DDisassemble(cso.data(), cso.size(), 0, nullptr, &d3d_disassembled)))
