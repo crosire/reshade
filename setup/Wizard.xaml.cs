@@ -133,14 +133,28 @@ namespace ReShade.Setup
 		}
 		void WriteSearchPaths(string targetPathShaders, string targetPathTextures)
 		{
-			var effectSearchPaths = IniFile.ReadValue(_configPath, "GENERAL", "EffectSearchPaths").Split(',').Where(x => x.Length != 0).ToList();
-			var textureSearchPaths = IniFile.ReadValue(_configPath, "GENERAL", "TextureSearchPaths").Split(',').Where(x => x.Length != 0).ToList();
+			var iniFile = new IniFile(_configPath);
+			var paths = default(List<string>);
 
-			AddSearchPath(effectSearchPaths, targetPathShaders);
-			AddSearchPath(textureSearchPaths, targetPathTextures);
+			iniFile.TryGetValue("GENERAL", "EffectSearchPaths", out var effectSearchPaths);
 
-			IniFile.WriteValue(_configPath, "GENERAL", "EffectSearchPaths", string.Join(",", effectSearchPaths));
-			IniFile.WriteValue(_configPath, "GENERAL", "TextureSearchPaths", string.Join(",", textureSearchPaths));
+			paths = new List<string>(effectSearchPaths ?? new string[0]);
+			paths.RemoveAll(string.IsNullOrWhiteSpace);
+			{
+				AddSearchPath(paths, targetPathShaders);
+				iniFile.SetValue("GENERAL", "EffectSearchPaths", paths.ToArray());
+			}
+
+			iniFile.TryGetValue("GENERAL", "TextureSearchPaths", out var textureSearchPaths);
+
+			paths = new List<string>(textureSearchPaths ?? new string[0]);
+			paths.RemoveAll(string.IsNullOrWhiteSpace);
+			{
+				AddSearchPath(paths, targetPathTextures);
+				iniFile.SetValue("GENERAL", "TextureSearchPaths", paths.ToArray());
+			}
+
+			iniFile.Save();
 		}
 
 		void InstallationStep0()
