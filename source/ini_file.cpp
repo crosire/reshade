@@ -5,6 +5,7 @@
 
 #include "ini_file.hpp"
 #include <fstream>
+#include <sstream>
 
 static std::unordered_map<std::wstring, reshade::ini_file> g_ini_cache;
 
@@ -62,6 +63,8 @@ void reshade::ini_file::load()
 
 	if (condition == condition::not_found)
 		return;
+
+	assert(std::filesystem::file_size(_path, ec) > 0);
 
 	_modified_at = modified_at;
 	file.imbue(std::locale("en-us.UTF-8"));
@@ -133,19 +136,8 @@ bool reshade::ini_file::save()
 	if (condition == condition::open && modified_at >= _modified_at)
 		return _modified = false, true;
 
-	std::ofstream file;
-
-	if (condition == condition::open || condition == condition::create)
-		if (file.open(_path); file.fail())
-			if (condition == condition::open)
-				condition = condition::blocked;
-			else
-				condition = condition::unknown;
-
-	if (condition == condition::blocked || condition == condition::unknown)
-		return false;
-
-	file.imbue(std::locale("en-us.UTF-8"));
+	std::string str;
+	std::stringstream data;
 	std::vector<std::string> section_names, key_names;
 
 	for (const auto &section : _sections)
@@ -171,36 +163,55 @@ bool reshade::ini_file::save()
 			});
 
 		if (!section_name.empty())
-			file << '[' << section_name << ']' << '\n';
+			data << '[' << section_name << ']' << '\n';
 
 		for (const auto &key_name : key_names)
 		{
-			file << key_name << '=';
+			data << key_name << '=';
 
 			size_t i = 0;
 
 			for (const auto &item : keys.at(key_name))
 			{
 				if (i++ != 0)
-					file << ',';
+					data << ',';
 
-				file << item;
+				data << item;
 			}
 
-			file << '\n';
+			data << '\n';
 		}
 
-		file << '\n';
+		data << '\n';
 		key_names.clear();
 	}
 
-	if (file.close(); file.fail())
+	str = data.str();
+
+	std::ofstream file;
+	std::locale locale("en-us.UTF-8");
+
+	if (condition == condition::open || condition == condition::create)
+		if (file.open(_path); file.fail())
+			if (condition == condition::open)
+				condition = condition::blocked;
+			else
+				condition = condition::unknown;
+
+	if (condition == condition::blocked || condition == condition::unknown)
 		return false;
 
-	if (modified_at = std::filesystem::last_write_time(_path, ec); ec.value() == 0)
+	file.rdbuf()->pubsetbuf(nullptr, 0);
+
+	file.imbue(locale);
+	file.write(str.data(), str.size());
+
+	if (_modified = file.fail(); _modified)
+		std::filesystem::last_write_time(_path, modified_at, ec);
+	else if (modified_at = std::filesystem::last_write_time(_path, ec); ec.value() == 0)
 		_modified_at = modified_at;
 
-	_modified = false;
+	assert(std::filesystem::file_size(_path, ec) > 0);
 
 	return true;
 }
