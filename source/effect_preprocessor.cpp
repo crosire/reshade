@@ -122,13 +122,13 @@ reshadefx::lexer &reshadefx::preprocessor::current_lexer()
 {
 	assert(!_input_stack.empty());
 
-	return *_input_stack.top().lexer;
+	return *_input_stack.back().lexer;
 }
 std::stack<reshadefx::preprocessor::if_level> &reshadefx::preprocessor::current_if_stack()
 {
 	assert(!_input_stack.empty());
 
-	return _input_stack.top().if_stack;
+	return _input_stack.back().if_stack;
 }
 
 void reshadefx::preprocessor::push(std::string input, const std::string &name)
@@ -140,7 +140,7 @@ void reshadefx::preprocessor::push(std::string input, const std::string &name)
 
 	if (!_input_stack.empty())
 	{
-		level.parent = &_input_stack.top();
+		level.parent = &_input_stack.back();
 		level.hidden_macros = level.parent->hidden_macros;
 	}
 
@@ -156,7 +156,7 @@ void reshadefx::preprocessor::push(std::string input, const std::string &name)
 		_output += "#line 1 \"" + name + "\"\n";
 	}
 
-	_input_stack.push(std::move(level));
+	_input_stack.push_back(std::move(level));
 
 	consume();
 }
@@ -165,13 +165,13 @@ bool reshadefx::preprocessor::peek(tokenid token) const
 {
 	assert(!_input_stack.empty());
 
-	return _input_stack.top().next_token == token;
+	return _input_stack.back().next_token == token;
 }
 void reshadefx::preprocessor::consume()
 {
 	assert(!_input_stack.empty());
 
-	auto &input_level = _input_stack.top();
+	auto &input_level = _input_stack.back();
 	const auto &input_string = input_level.lexer->input_string();
 
 	_token = std::move(input_level.next_token);
@@ -183,17 +183,17 @@ void reshadefx::preprocessor::consume()
 		input_level.lexer->lex();
 
 	// Pop input level if lexical analysis has reached the end of it
-	while (_input_stack.top().next_token == tokenid::end_of_file)
+	while (_input_stack.back().next_token == tokenid::end_of_file)
 	{
 		if (!current_if_stack().empty())
 			error(current_if_stack().top().token.location, "unterminated #if");
 
-		_input_stack.pop();
+		_input_stack.pop_back();
 
 		if (_input_stack.empty())
 			break;
 
-		const auto &top = _input_stack.top();
+		const auto &top = _input_stack.back();
 
 		if (top.name != _output_location.source)
 		{
@@ -233,7 +233,7 @@ bool reshadefx::preprocessor::expect(tokenid token)
 	{
 		assert(!_input_stack.empty());
 
-		auto actual_token = _input_stack.top().next_token;
+		auto actual_token = _input_stack.back().next_token;
 		actual_token.location.source = _output_location.source;
 
 		error(actual_token.location, "syntax error: unexpected token '" + current_lexer().input_string().substr(actual_token.offset, actual_token.length) + "'");
@@ -562,22 +562,32 @@ void reshadefx::preprocessor::parse_include()
 			if (std::filesystem::exists(filepath = include_path / filename, ec))
 				break;
 
-	auto it = _filecache.find(filepath.u8string());
+	const std::string filepath_string = filepath.u8string();
+
+	// Detect recursive include and abort to avoid infinite loop
+	if (std::find_if(_input_stack.begin(), _input_stack.end(),
+		[&filepath_string](const auto &level) { return level.name == filepath_string; }) != _input_stack.end())
+	{
+		error(_token.location, "recursive #include");
+		return;
+	}
+
+	auto it = _filecache.find(filepath_string);
 
 	if (it == _filecache.end())
 	{
 		std::string data;
 		if (!read_file(filepath, data))
 		{
-			error(keyword_location, "could not open included file '" + filepath.u8string() + "'");
+			error(keyword_location, "could not open included file '" + filepath_string + "'");
 			consume_until(tokenid::end_of_line);
 			return;
 		}
 
-		it = _filecache.emplace(filepath.u8string(), std::move(data)).first;
+		it = _filecache.emplace(filepath_string, std::move(data)).first;
 	}
 
-	push(it->second, filepath.u8string());
+	push(it->second, filepath_string);
 }
 
 bool reshadefx::preprocessor::evaluate_expression()
@@ -946,9 +956,11 @@ bool reshadefx::preprocessor::evaluate_identifier_as_macro()
 		return true;
 	}
 
+	auto &hidden_macros = _input_stack.back().hidden_macros;
+
 	const auto it = _macros.find(_token.literal_as_string);
 	if (it == _macros.end() ||
-		_input_stack.top().hidden_macros.find(it->first) != _input_stack.top().hidden_macros.end())
+		hidden_macros.find(it->first) != hidden_macros.end())
 		return false;
 
 	const auto &macro = it->second;
@@ -994,7 +1006,7 @@ bool reshadefx::preprocessor::evaluate_identifier_as_macro()
 	expand_macro(it->first, it->second, arguments, input);
 	push(std::move(input));
 
-	_input_stack.top().hidden_macros.insert(it->first);
+	_input_stack.back().hidden_macros.insert(it->first);
 
 	return true;
 }

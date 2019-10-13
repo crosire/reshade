@@ -180,7 +180,7 @@ bool reshade::input::handle_window_message(const void *message_data)
 		assert(details.wParam < _countof(input->_keys));
 		// Only update state if the key is actually down
 		// This filters out invalid keyboard messages in Assetto Corsa
-		if (GetAsyncKeyState(details.wParam))
+		if (GetAsyncKeyState(static_cast<int>(details.wParam)))
 			input->_keys[details.wParam] = 0x88;
 		break;
 	case WM_KEYUP:
