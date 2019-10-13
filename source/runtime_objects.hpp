@@ -94,7 +94,7 @@ namespace reshade
 
 	struct uniform final : reshadefx::uniform_info
 	{
-		uniform(const reshadefx::uniform_info &init) : uniform_info(init) {}
+		uniform(const reshadefx::uniform_info &init) : uniform_info(init), toggle_key_data() {}
 
 		int annotation_as_int(const char *ann_name, size_t i = 0) const
 		{
@@ -118,6 +118,7 @@ namespace reshade
 		size_t effect_index = std::numeric_limits<size_t>::max();
 		size_t storage_offset = 0;
 		special_uniform special = special_uniform::none;
+		uint32_t toggle_key_data[4];
 	};
 
 	struct technique final : reshadefx::technique_info
