@@ -236,15 +236,15 @@ void reshade::runtime::on_present()
 	ini_file::flush_cache();
 
 	// Detect high network traffic
-	static int cooldown = 0, traffic = 0;
+	static int cooldown = 0;
 	if (cooldown-- > 0)
 	{
-		traffic += g_network_traffic > 0;
+		_network_traffic += g_network_traffic > 0;
 	}
 	else
 	{
-		_has_high_network_activity = traffic > 10;
-		traffic = 0;
+		_has_high_network_activity = _network_traffic > 10;
+		_network_traffic = 0;
 		cooldown = 30;
 
 		if (!_high_network_activity_detected)
