@@ -246,6 +246,10 @@ void reshade::runtime::on_present()
 		_has_high_network_activity = traffic > 10;
 		traffic = 0;
 		cooldown = 30;
+
+		if (!_high_network_activity_detected)
+			if (_high_network_activity_detected |= _has_high_network_activity; _high_network_activity_detected)
+				LOG(WARN) << "High network activity detected! ReShade disables some effects.";
 	}
 
 	// Reset frame statistics

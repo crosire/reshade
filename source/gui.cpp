@@ -1220,7 +1220,7 @@ void reshade::runtime::draw_overlay_menu_statistics()
 			ImGui::TextUnformatted("Unknown");
 		ImGui::TextUnformatted(g_target_executable_path.filename().u8string().c_str());
 		ImGui::Text("%d-%d-%d %d", _date[0], _date[1], _date[2], _date[3]);
-		ImGui::Text("%u B", g_network_traffic);
+		ImGui::TextColored(_has_high_network_activity ? COLOR_RED : ImGui::GetStyleColorVec4(ImGuiCol_Text), "%u B", g_network_traffic);
 		ImGui::Text("%.2f fps", _imgui_context->IO.Framerate);
 		ImGui::Text("%u draw calls", _drawcalls);
 		ImGui::Text("%*.3f ms (CPU)", cpu_digits + 4, post_processing_time_cpu * 1e-6f);
