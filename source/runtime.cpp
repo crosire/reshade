@@ -755,6 +755,34 @@ void reshade::runtime::update_and_render_effects()
 	// Update special uniform variables
 	for (uniform &variable : _uniforms)
 	{
+		// change to next value if the associated shortcut key was pressesed
+		if (!_ignore_shortcuts && variable.toggle_key_data[0] != 0 && _input->is_key_pressed(variable.toggle_key_data))
+		{
+			assert(is_uniform_with_shortcut(variable));
+			switch (variable.type.base)
+			{
+			case reshadefx::type::t_bool: {
+				bool data;
+				get_uniform_value(variable, &data, 1);
+				set_uniform_value(variable, !data);
+				break; }
+			case reshadefx::type::t_int:
+			case reshadefx::type::t_uint: {
+				assert(const std::string_view ui_type = variable.annotation_as_string("ui_type");
+				ui_type == "list" || ui_type == "combo" || ui_type == "radio");
+				int data[4];
+				get_uniform_value(variable, data, 4);
+				const std::string_view ui_items = variable.annotation_as_string("ui_items");
+				size_t n = 0;
+				for (size_t offset = 0, next; (next = ui_items.find('\0', offset)) != std::string::npos; offset = next + 1)
+					n++;
+				data[0] = (data[0] + 1 >= n) ? 0 : data[0] + 1;
+				set_uniform_value(variable, data, 4);
+				break; }
+			}
+			save_current_preset();
+		}
+
 		switch (variable.special)
 		{
 		case special_uniform::frame_time:
@@ -1034,6 +1062,13 @@ void reshade::runtime::load_current_preset()
 	{
 		reshadefx::constant values, values_old;
 
+		if (is_uniform_with_shortcut(variable))
+		{
+			// load shortcut key, but first reset it, since it may not exist in the preset file
+			std::fill_n(variable.toggle_key_data, _countof(variable.toggle_key_data), 0);
+			preset.get(_loaded_effects[variable.effect_index].source_file.filename().u8string(), "Key" + variable.name, variable.toggle_key_data);
+		}
+
 		switch (variable.type.base)
 		{
 		case reshadefx::type::t_int:
@@ -1123,6 +1158,15 @@ void reshade::runtime::save_current_preset() const
 		reshadefx::constant values;
 
 		assert(variable.type.components() <= 16);
+
+		if (is_uniform_with_shortcut(variable))
+		{
+			// save the shortcut key into the preset files
+			if (variable.toggle_key_data[0] != 0)
+				preset.set(section, "Key" + variable.name, variable.toggle_key_data);
+			else if (int value = 0; preset.get(section, "Key" + variable.name, value), value != 0)
+				preset.set(section, "Key" + variable.name, 0); // Clear toggle key data
+		}
 
 		switch (variable.type.base)
 		{
@@ -1426,4 +1470,16 @@ void reshade::runtime::reset_uniform_value(uniform &variable)
 	{
 		memcpy(_uniform_data_storage.data() + variable.storage_offset, variable.initializer_value.as_uint, variable.size);
 	}
+}
+
+bool reshade::runtime::is_uniform_with_shortcut(const uniform& variable) const
+{
+	if (variable.type.base == reshadefx::type::t_bool)
+		return true;
+	const std::string_view ui_type = variable.annotation_as_string("ui_type");
+	if (variable.type.base != reshadefx::type::t_int && variable.type.base != reshadefx::type::t_uint)
+		return false;
+	if (ui_type == "list" || ui_type == "combo" || ui_type == "radio")
+		return true;
+	return false;
 }

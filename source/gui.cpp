@@ -2032,6 +2032,9 @@ void reshade::runtime::draw_overlay_variable_editor()
 		// Create context menu
 		if (ImGui::BeginPopupContextItem("##context"))
 		{
+			if (is_uniform_with_shortcut(variable))
+				if (imgui_key_input("##toggle_key", variable.toggle_key_data, *_input))
+					save_current_preset();
 			if (ImGui::Button("Reset to default", ImVec2(200, 0)))
 			{
 				modified = true;
@@ -2040,6 +2043,12 @@ void reshade::runtime::draw_overlay_variable_editor()
 			}
 
 			ImGui::EndPopup();
+		}
+
+		if (variable.toggle_key_data[0] != 0)
+		{
+			ImGui::SameLine(ImGui::GetWindowContentRegionWidth() - 80);
+			ImGui::TextDisabled(" [%s]", reshade::input::key_name(variable.toggle_key_data).c_str());
 		}
 
 		ImGui::PopID();
