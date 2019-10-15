@@ -322,8 +322,6 @@ namespace reshade
 		void draw_overlay_technique_editor();
 		void draw_preset_explorer();
 
-		bool is_uniform_with_shortcut(const uniform& variable) const;
-
 		std::vector<std::pair<std::string, std::function<void()>>> _menu_callables;
 		std::unique_ptr<texture> _imgui_font_atlas;
 		ImGuiContext *_imgui_context = nullptr;

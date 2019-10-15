@@ -94,7 +94,7 @@ namespace reshade
 
 	struct uniform final : reshadefx::uniform_info
 	{
-		uniform(const reshadefx::uniform_info &init) : uniform_info(init), toggle_key_data() {}
+		uniform(const reshadefx::uniform_info &init) : uniform_info(init) {}
 
 		int annotation_as_int(const char *ann_name, size_t i = 0) const
 		{
@@ -115,10 +115,20 @@ namespace reshade
 			return it->second.second.string_data;
 		}
 
+		bool supports_toggle_key() const
+		{
+			if (type.base == reshadefx::type::t_bool)
+				return true;
+			if (type.base != reshadefx::type::t_int && type.base != reshadefx::type::t_uint)
+				return false;
+			const std::string_view ui_type = annotation_as_string("ui_type");
+			return ui_type == "list" || ui_type == "combo" || ui_type == "radio";
+		}
+
 		size_t effect_index = std::numeric_limits<size_t>::max();
 		size_t storage_offset = 0;
 		special_uniform special = special_uniform::none;
-		uint32_t toggle_key_data[4];
+		uint32_t toggle_key_data[4] = {};
 	};
 
 	struct technique final : reshadefx::technique_info
@@ -150,7 +160,7 @@ namespace reshade
 		bool enabled = false;
 		int32_t timeout = 0;
 		int64_t timeleft = 0;
-		uint32_t toggle_key_data[4];
+		uint32_t toggle_key_data[4] = {};
 		moving_average<uint64_t, 60> average_cpu_duration;
 		moving_average<uint64_t, 60> average_gpu_duration;
 		std::unique_ptr<base_object> impl;
