@@ -77,7 +77,7 @@ reshade::opengl::runtime_gl::runtime_gl()
 {
 	GLint major = 0, minor = 0;
 	glGetIntegerv(GL_MAJOR_VERSION, &major);
-	glGetIntegerv(GL_MAJOR_VERSION, &minor);
+	glGetIntegerv(GL_MINOR_VERSION, &minor);
 	_renderer_id = 0x10000 | (major << 12) | (minor << 8);
 
 	// Query vendor and device ID from Windows assuming we are running on the primary display device
