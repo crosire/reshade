@@ -1051,24 +1051,33 @@ bool reshade::vulkan::runtime_vk::compile_effect(effect_data &effect)
 
 		check_result(vk.AllocateDescriptorSets(_device, &alloc_info, effect_data.set)) false;
 
+		uint32_t num_writes = 0;
 		VkWriteDescriptorSet writes[2];
-		writes[0] = { VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
-		writes[0].dstSet = effect_data.set[0];
-		writes[0].dstBinding = 0;
-		writes[0].descriptorCount = 1;
-		writes[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-		const VkDescriptorBufferInfo ubo_info = {
-			effect_data.ubo, 0, effect.storage_size };
-		writes[0].pBufferInfo = &ubo_info;
+		const VkDescriptorBufferInfo ubo_info = { effect_data.ubo, 0, effect.storage_size };
 
-		writes[1] = { VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
-		writes[1].dstSet = effect_data.set[1];
-		writes[1].dstBinding = 0;
-		writes[1].descriptorCount = uint32_t(image_bindings.size());
-		writes[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-		writes[1].pImageInfo = image_bindings.data();
+		if (effect_data.ubo != VK_NULL_HANDLE)
+		{
+			writes[num_writes] = { VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
+			writes[num_writes].dstSet = effect_data.set[0];
+			writes[num_writes].dstBinding = 0;
+			writes[num_writes].descriptorCount = 1;
+			writes[num_writes].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+			writes[num_writes].pBufferInfo = &ubo_info;
+			++num_writes;
+		}
 
-		vk.UpdateDescriptorSets(_device, 2, writes, 0, nullptr);
+		if (!image_bindings.empty())
+		{
+			writes[num_writes] = { VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
+			writes[num_writes].dstSet = effect_data.set[1];
+			writes[num_writes].dstBinding = 0;
+			writes[num_writes].descriptorCount = uint32_t(image_bindings.size());
+			writes[num_writes].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+			writes[num_writes].pImageInfo = image_bindings.data();
+			++num_writes;
+		}
+
+		vk.UpdateDescriptorSets(_device, num_writes, writes, 0, nullptr);
 	}
 
 	bool success = true;
