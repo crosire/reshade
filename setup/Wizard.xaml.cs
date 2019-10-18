@@ -322,6 +322,9 @@ namespace ReShade.Setup
 
 			_tempDownloadPath = Path.GetTempFileName();
 
+			// Add support for TLS 1.2, so that HTTPS connection to GitHub succeeds
+			ServicePointManager.SecurityProtocol |= SecurityProtocolType.Tls12;
+
 			var client = new WebClient();
 
 			client.DownloadFileCompleted += (object sender, System.ComponentModel.AsyncCompletedEventArgs e) => {
