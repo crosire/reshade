@@ -19,6 +19,7 @@ reshade::resources::data_resource reshade::resources::load_data_resource(unsigne
 
 	return result;
 }
+
 reshade::resources::image_resource reshade::resources::load_image_resource(unsigned int id)
 {
 	DIBSECTION dib = {};

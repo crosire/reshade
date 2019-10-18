@@ -16,6 +16,7 @@ namespace reshade
 
 		/// <summary>
 		/// Enumeration of status codes returned by the hook installation functions.
+		/// These match the values of the <see cref="MH_STATUS"/> enumeration.
 		/// </summary>
 		enum class status
 		{
