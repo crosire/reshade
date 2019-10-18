@@ -60,7 +60,7 @@ HOOK_EXPORT int   WINAPI wglChoosePixelFormat(HDC hdc, const PIXELFORMATDESCRIPT
 
 	return format;
 }
-BOOL  WINAPI wglChoosePixelFormatARB(HDC hdc, const int *piAttribIList, const FLOAT *pfAttribFList, UINT nMaxFormats, int *piFormats, UINT *nNumFormats)
+			BOOL  WINAPI wglChoosePixelFormatARB(HDC hdc, const int *piAttribIList, const FLOAT *pfAttribFList, UINT nMaxFormats, int *piFormats, UINT *nNumFormats)
 {
 	LOG(INFO) << "Redirecting wglChoosePixelFormatARB" << '(' << hdc << ", " << piAttribIList << ", " << pfAttribFList << ", " << nMaxFormats << ", " << piFormats << ", " << nNumFormats << ')' << " ...";
 
@@ -259,7 +259,7 @@ HOOK_EXPORT int   WINAPI wglGetPixelFormat(HDC hdc)
 {
 	return reshade::hooks::call(wglGetPixelFormat)(hdc);
 }
-BOOL  WINAPI wglGetPixelFormatAttribivARB(HDC hdc, int iPixelFormat, int iLayerPlane, UINT nAttributes, const int *piAttributes, int *piValues)
+			BOOL  WINAPI wglGetPixelFormatAttribivARB(HDC hdc, int iPixelFormat, int iLayerPlane, UINT nAttributes, const int *piAttributes, int *piValues)
 {
 	if (iLayerPlane != 0)
 	{
@@ -272,7 +272,7 @@ BOOL  WINAPI wglGetPixelFormatAttribivARB(HDC hdc, int iPixelFormat, int iLayerP
 
 	return reshade::hooks::call(wglGetPixelFormatAttribivARB)(hdc, iPixelFormat, 0, nAttributes, piAttributes, piValues);
 }
-BOOL  WINAPI wglGetPixelFormatAttribfvARB(HDC hdc, int iPixelFormat, int iLayerPlane, UINT nAttributes, const int *piAttributes, FLOAT *pfValues)
+			BOOL  WINAPI wglGetPixelFormatAttribfvARB(HDC hdc, int iPixelFormat, int iLayerPlane, UINT nAttributes, const int *piAttributes, FLOAT *pfValues)
 {
 	if (iLayerPlane != 0)
 	{
@@ -354,7 +354,7 @@ HOOK_EXPORT HGLRC WINAPI wglCreateContext(HDC hdc)
 
 	return wglCreateLayerContext(hdc, 0);
 }
-HGLRC WINAPI wglCreateContextAttribsARB(HDC hdc, HGLRC hShareContext, const int *piAttribList)
+			HGLRC WINAPI wglCreateContextAttribsARB(HDC hdc, HGLRC hShareContext, const int *piAttribList)
 {
 	LOG(INFO) << "Redirecting wglCreateContextAttribsARB" << '(' << hdc << ", " << hShareContext << ", " << piAttribList << ')' << " ...";
 
@@ -450,18 +450,18 @@ HGLRC WINAPI wglCreateContextAttribsARB(HDC hdc, HGLRC hShareContext, const int 
 	}
 
 	{ const std::lock_guard<std::mutex> lock(s_mutex);
-	s_shared_contexts.emplace(hglrc, hShareContext);
+		s_shared_contexts.emplace(hglrc, hShareContext);
 
-	if (hShareContext != nullptr)
-	{
-		// Find root share context
-		auto it = s_shared_contexts.find(hShareContext);
-
-		while (it != s_shared_contexts.end() && it->second != nullptr)
+		if (hShareContext != nullptr)
 		{
-			it = s_shared_contexts.find(s_shared_contexts.at(hglrc) = it->second);
+			// Find root share context
+			auto it = s_shared_contexts.find(hShareContext);
+
+			while (it != s_shared_contexts.end() && it->second != nullptr)
+			{
+				it = s_shared_contexts.find(s_shared_contexts.at(hglrc) = it->second);
+			}
 		}
-	}
 	}
 
 	LOG(INFO) << "> Returning OpenGL context " << hglrc << '.';
@@ -491,7 +491,7 @@ HOOK_EXPORT HGLRC WINAPI wglCreateLayerContext(HDC hdc, int iLayerPlane)
 	}
 
 	{ const std::lock_guard<std::mutex> lock(s_mutex);
-	s_shared_contexts.emplace(hglrc, nullptr);
+		s_shared_contexts.emplace(hglrc, nullptr);
 	}
 
 	LOG(INFO) << "> Returning OpenGL context " << hglrc << '.';
@@ -529,20 +529,20 @@ HOOK_EXPORT BOOL  WINAPI wglDeleteContext(HGLRC hglrc)
 	}
 
 	{ const std::lock_guard<std::mutex> lock(s_mutex);
-	for (auto it = s_shared_contexts.begin(); it != s_shared_contexts.end();)
-	{
-		if (it->first == hglrc)
+		for (auto it = s_shared_contexts.begin(); it != s_shared_contexts.end();)
 		{
-			it = s_shared_contexts.erase(it);
-			continue;
-		}
-		else if (it->second == hglrc)
-		{
-			it->second = nullptr;
-		}
+			if (it->first == hglrc)
+			{
+				it = s_shared_contexts.erase(it);
+				continue;
+			}
+			else if (it->second == hglrc)
+			{
+				it->second = nullptr;
+			}
 
-		++it;
-	}
+			++it;
+		}
 	}
 
 	if (!reshade::hooks::call(wglDeleteContext)(hglrc))
@@ -567,7 +567,7 @@ HOOK_EXPORT BOOL  WINAPI wglShareLists(HGLRC hglrc1, HGLRC hglrc2)
 	}
 
 	{ const std::lock_guard<std::mutex> lock(s_mutex);
-	s_shared_contexts[hglrc2] = hglrc1;
+		s_shared_contexts[hglrc2] = hglrc1;
 	}
 
 	return TRUE;
@@ -687,7 +687,7 @@ HOOK_EXPORT HGLRC WINAPI wglGetCurrentContext()
 	return trampoline();
 }
 
-HPBUFFERARB WINAPI wglCreatePbufferARB(HDC hdc, int iPixelFormat, int iWidth, int iHeight, const int *piAttribList)
+	  HPBUFFERARB WINAPI wglCreatePbufferARB(HDC hdc, int iPixelFormat, int iWidth, int iHeight, const int *piAttribList)
 {
 	LOG(INFO) << "Redirecting wglCreatePbufferARB" << '(' << hdc << ", " << iPixelFormat << ", " << iWidth << ", " << iHeight << ", " << piAttribList << ')' << " ...";
 
@@ -747,7 +747,7 @@ HPBUFFERARB WINAPI wglCreatePbufferARB(HDC hdc, int iPixelFormat, int iWidth, in
 
 	return hpbuffer;
 }
-BOOL  WINAPI wglDestroyPbufferARB(HPBUFFERARB hPbuffer)
+			BOOL  WINAPI wglDestroyPbufferARB(HPBUFFERARB hPbuffer)
 {
 	LOG(INFO) << "Redirecting wglDestroyPbufferARB" << '(' << hPbuffer << ')' << " ...";
 
@@ -759,11 +759,11 @@ BOOL  WINAPI wglDestroyPbufferARB(HPBUFFERARB hPbuffer)
 
 	return TRUE;
 }
-BOOL  WINAPI wglQueryPbufferARB(HPBUFFERARB hPbuffer, int iAttribute, int *piValue)
+			BOOL  WINAPI wglQueryPbufferARB(HPBUFFERARB hPbuffer, int iAttribute, int *piValue)
 {
 	return reshade::hooks::call(wglQueryPbufferARB)(hPbuffer, iAttribute, piValue);
 }
-HDC   WINAPI wglGetPbufferDCARB(HPBUFFERARB hPbuffer)
+			HDC   WINAPI wglGetPbufferDCARB(HPBUFFERARB hPbuffer)
 {
 	LOG(INFO) << "Redirecting wglGetPbufferDCARB" << '(' << hPbuffer << ')' << " ...";
 
@@ -786,7 +786,7 @@ HDC   WINAPI wglGetPbufferDCARB(HPBUFFERARB hPbuffer)
 
 	return hdc;
 }
-int   WINAPI wglReleasePbufferDCARB(HPBUFFERARB hPbuffer, HDC hdc)
+			int   WINAPI wglReleasePbufferDCARB(HPBUFFERARB hPbuffer, HDC hdc)
 {
 	LOG(INFO) << "Redirecting wglReleasePbufferDCARB" << '(' << hPbuffer << ')' << " ...";
 
@@ -804,12 +804,12 @@ int   WINAPI wglReleasePbufferDCARB(HPBUFFERARB hPbuffer, HDC hdc)
 	return TRUE;
 }
 
-BOOL  WINAPI wglSwapIntervalEXT(int interval)
+			BOOL  WINAPI wglSwapIntervalEXT(int interval)
 {
 	static const auto trampoline = reshade::hooks::call(wglSwapIntervalEXT);
 	return trampoline(interval);
 }
-int   WINAPI wglGetSwapIntervalEXT()
+			int   WINAPI wglGetSwapIntervalEXT()
 {
 	static const auto trampoline = reshade::hooks::call(wglGetSwapIntervalEXT);
 	return trampoline();

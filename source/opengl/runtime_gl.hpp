@@ -104,14 +104,14 @@ namespace reshade::opengl
 #else
 			BUF_DUMMY,
 #endif
-			NUM_BUF
+				NUM_BUF
 		};
 		enum TEX
 		{
 			TEX_BACK,
 			TEX_BACK_SRGB,
 			TEX_DEPTH,
-			NUM_TEX
+				NUM_TEX
 		};
 		enum VAO
 		{
@@ -119,7 +119,7 @@ namespace reshade::opengl
 #if RESHADE_GUI
 			VAO_IMGUI,
 #endif
-			NUM_VAO
+				NUM_VAO
 		};
 		enum FBO
 		{
@@ -127,13 +127,13 @@ namespace reshade::opengl
 			FBO_DEPTH,
 			FBO_BLIT,
 			FBO_BLIT_WIDE_DEPTH,
-			NUM_FBO
+				NUM_FBO
 		};
 		enum RBO
 		{
 			RBO_COLOR,
 			RBO_DEPTH,
-			NUM_RBO
+				NUM_RBO
 		};
 
 		GLuint _buf[NUM_BUF] = {};
