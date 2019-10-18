@@ -20,7 +20,7 @@ namespace reshade::opengl
 		runtime_gl();
 
 		bool on_init(HWND hwnd, unsigned int width, unsigned int height);
-		void on_reset(bool isFrame = false);
+		void on_reset(bool is_frame = false);
 		void on_present();
 
 		void on_draw_call(unsigned int vertices);
@@ -75,12 +75,12 @@ namespace reshade::opengl
 #endif
 
 		void detect_depth_source();
-		void set_app_name(std::string &appName);
+		void set_app_name(std::string &app_name);
 
 		state_block _app_state;
 		GLuint _depth_source = 0;
-		GLuint _currentDepthBuffer;
-		GLuint _selectedDepthBuffer;
+		GLuint _current_depth_buffer;
+		GLuint _selected_depth_buffer;
 
 		int _app_mode = 1;
 		GLsizei _new_src_width = 0;

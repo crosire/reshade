@@ -114,7 +114,7 @@ reshade::opengl::runtime_gl::runtime_gl()
 		config.get("OPENGL", "ForceMainDepthBuffer", _force_main_depth_buffer);
 		config.get("OPENGL", "IsUpscaled", _is_upscaled);
 		config.get("OPENGL", "AltDetection", _alt_detection);
-		config.get("OPENGL", "SelectedDepthBuffer", _selectedDepthBuffer);
+		config.get("OPENGL", "SelectedDepthBuffer", _selected_depth_buffer);
 		config.get("OPENGL", "AppName", _app_name);
 		config.get("OPENGL", "AppMode", _app_mode);
 		config.get("OPENGL", "AppWidth", _app_width);
@@ -124,7 +124,7 @@ reshade::opengl::runtime_gl::runtime_gl()
 		config.set("OPENGL", "ForceMainDepthBuffer", _force_main_depth_buffer);
 		config.set("OPENGL", "IsUpscaled", _is_upscaled);
 		config.set("OPENGL", "AltDetection", _alt_detection);
-		config.set("OPENGL", "SelectedDepthBuffer", _selectedDepthBuffer);
+		config.set("OPENGL", "SelectedDepthBuffer", _selected_depth_buffer);
 		config.set("OPENGL", "AppName", _app_name);
 		config.set("OPENGL", "AppMode", _app_mode);
 		config.set("OPENGL", "AppWidth", _app_width);
@@ -233,7 +233,7 @@ bool reshade::opengl::runtime_gl::on_init(HWND hwnd, unsigned int width, unsigne
 
 	return runtime::on_init(hwnd);
 }
-void reshade::opengl::runtime_gl::on_reset(bool isFrame)
+void reshade::opengl::runtime_gl::on_reset(bool is_frame)
 {
 	runtime::on_reset();
 
@@ -254,7 +254,7 @@ void reshade::opengl::runtime_gl::on_reset(bool isFrame)
 	_depth_source = 0;
 	// Redream fills up the _depth_source_table after each call to wglSwapBuffers
 	// So let's clean it up now that we are sure we are fed with the right buffers
-	if (isFrame) {
+	if (is_frame) {
 		if (_enum_app_name == APP_REDREAM)
 			_depth_source_table.clear();
 	}
@@ -341,7 +341,7 @@ void reshade::opengl::runtime_gl::on_draw_call(unsigned int vertices)
 		if (_alt_detection && object != 0)
 			// Used for auto-detection of the depth buffer : this is what the renderer is writing to
 			// (not necessarilly the right buffer but 99% of the time, yes)
-			_currentDepthBuffer = object;
+			_current_depth_buffer = object;
 	}
 }
 void reshade::opengl::runtime_gl::on_fbo_attachment(GLenum attachment, GLenum target, GLuint object, GLint level)
@@ -1431,10 +1431,10 @@ void reshade::opengl::runtime_gl::draw_debug_menu()
 					continue;
 
 				char label[512] = "";
-				sprintf_s(label, "%s%11d", (it.first == _selectedDepthBuffer ? "> " : "  "), it.first);
+				sprintf_s(label, "%s%11d", (it.first == _selected_depth_buffer ? "> " : "  "), it.first);
 
-				if (bool value = _selectedDepthBuffer == it.first; ImGui::Checkbox(label, &value)) {
-					_selectedDepthBuffer = value ? it.first : 0;
+				if (bool value = _selected_depth_buffer == it.first; ImGui::Checkbox(label, &value)) {
+					_selected_depth_buffer = value ? it.first : 0;
 					_alt_detection = false;
 					runtime::save_config();
 				}
@@ -1503,7 +1503,7 @@ void reshade::opengl::runtime_gl::draw_debug_menu()
 				_app_width = 0;
 				_app_height = 0;
 				_app_mode = 1;
-				_selectedDepthBuffer = _currentDepthBuffer;
+				_selected_depth_buffer = _current_depth_buffer;
 				runtime::save_config();
 			}
 			if (ImGui::IsItemHovered())
@@ -1544,14 +1544,14 @@ void reshade::opengl::runtime_gl::detect_depth_source()
 
 	if (!_force_main_depth_buffer)
 	{
-		bool foundDepthBuffer = false;
-		_selectedDepthBuffer = _selectedDepthBuffer == 0 ? _currentDepthBuffer : _selectedDepthBuffer;
+		bool found_depth_buffer = false;
+		_selected_depth_buffer = _selected_depth_buffer == 0 ? _current_depth_buffer : _selected_depth_buffer;
 
 		for (auto &it : _depth_source_table)
 		{
 			// Auto-detect Depth Buffer or pick selected one
-			if (_alt_detection && it.first == _currentDepthBuffer || _manual_detection && it.first == _selectedDepthBuffer) {
-				foundDepthBuffer = true;
+			if (_alt_detection && it.first == _current_depth_buffer || _manual_detection && it.first == _selected_depth_buffer) {
+				found_depth_buffer = true;
 				best_info = it.second;
 				best_match = it.first;
 			}
@@ -1563,12 +1563,13 @@ void reshade::opengl::runtime_gl::detect_depth_source()
 				best_info = it.second;
 				best_match = it.first;
 			}
+
 			// Reset statistics for next frame
 			it.second.num_vertices = 0;
 			it.second.num_drawcalls = 0;
 		}
-		if (!foundDepthBuffer)
-			_selectedDepthBuffer = 0;
+		if (!found_depth_buffer)
+			_selected_depth_buffer = 0;
 	}
 
 	if (_depth_source != best_match || !_tex[TEX_DEPTH])
@@ -1633,12 +1634,12 @@ void reshade::opengl::runtime_gl::detect_depth_source()
 	}
 }
 
-void reshade::opengl::runtime_gl::set_app_name(std::string &appName) {
-	if (appName == "cemu")          _enum_app_name = APP_CEMU;
-	else if (appName == "dolphin")  _enum_app_name = APP_DOLPHIN;
-	else if (appName == "pcsx2")    _enum_app_name = APP_PCSX2;
-	else if (appName == "ppsspp")   _enum_app_name = APP_PPSSPP;
-	else if (appName == "redream")  _enum_app_name = APP_REDREAM;
-	else if (appName == "rpcs3")    _enum_app_name = APP_RPCS3;
+void reshade::opengl::runtime_gl::set_app_name(std::string &app_name) {
+	if (app_name == "cemu")         _enum_app_name = APP_CEMU;
+	else if (app_name == "dolphin") _enum_app_name = APP_DOLPHIN;
+	else if (app_name == "pcsx2")   _enum_app_name = APP_PCSX2;
+	else if (app_name == "ppsspp")  _enum_app_name = APP_PPSSPP;
+	else if (app_name == "redream") _enum_app_name = APP_REDREAM;
+	else if (app_name == "rpcs3")   _enum_app_name = APP_RPCS3;
 	else                            _enum_app_name = APP_DEFAULT;
 }

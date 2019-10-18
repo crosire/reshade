@@ -777,7 +777,7 @@ HOOK_EXPORT HGLRC WINAPI wglGetCurrentContext()
 	}
 
 	{ const std::lock_guard<std::mutex> lock(s_mutex);
-	s_pbuffer_device_contexts.insert(hdc);
+		s_pbuffer_device_contexts.insert(hdc);
 	}
 
 #if RESHADE_VERBOSE_LOG
@@ -798,7 +798,7 @@ HOOK_EXPORT HGLRC WINAPI wglGetCurrentContext()
 	}
 
 	{ const std::lock_guard<std::mutex> lock(s_mutex);
-	s_pbuffer_device_contexts.erase(hdc);
+		s_pbuffer_device_contexts.erase(hdc);
 	}
 
 	return TRUE;
