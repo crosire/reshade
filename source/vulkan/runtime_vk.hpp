@@ -73,7 +73,7 @@ namespace reshade::vulkan
 
 #if RESHADE_VULKAN_CAPTURE_DEPTH_BUFFERS
 		void detect_depth_source(draw_call_tracker& tracker);
-		bool create_depthstencil_replacement(VkImageView depthstencil, VkImageView depthstencil_replacement, VkImage  image, VkFormat image_format, VkImageUsageFlags image_usage);
+		void update_depthstencil_image(VkImageView depthstencil, VkImageView depthstencil_replacement, VkImage  image, VkFormat image_format);
 
 		struct depth_texture_save_info
 		{
@@ -112,14 +112,12 @@ namespace reshade::vulkan
 		VkImageView _backbuffer_texture_view[2] = {};
 		VkImage _default_depthstencil = VK_NULL_HANDLE;
 		VkImageView _depthstencil = VK_NULL_HANDLE;
-		VkImageView _depthstencil_replacement = VK_NULL_HANDLE;
 		VkImageView _default_depthstencil_view = VK_NULL_HANDLE;
 		VkImageView _depthstencil_image_view = VK_NULL_HANDLE;
 		VkImage _depthstencil_image = VK_NULL_HANDLE;
 		VkImageView _best_depth_stencil_overwrite = VK_NULL_HANDLE;
 		std::vector<VkDeviceMemory> _allocations;
 		VkFormat _depthstencil_format = VK_FORMAT_UNDEFINED;
-		VkImageUsageFlags _depthstencil_usage = VK_NULL_HANDLE;
 
 		VkDescriptorPool _effect_descriptor_pool = VK_NULL_HANDLE;
 		VkDescriptorSetLayout _effect_ubo_layout = VK_NULL_HANDLE;

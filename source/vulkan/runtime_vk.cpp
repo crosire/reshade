@@ -970,6 +970,8 @@ bool reshade::vulkan::runtime_vk::compile_effect(effect_data &effect)
 			break;
 		}
 
+		assert(image_binding.imageView != VK_NULL_HANDLE);
+
 		VkSamplerCreateInfo create_info { VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO };
 		create_info.addressModeU = static_cast<VkSamplerAddressMode>(static_cast<uint32_t>(info.address_u) - 1);
 		create_info.addressModeV = static_cast<VkSamplerAddressMode>(static_cast<uint32_t>(info.address_v) - 1);
@@ -1784,7 +1786,7 @@ void reshade::vulkan::runtime_vk::draw_debug_menu()
 		{
 			runtime::save_config();
 			_current_tracker->reset();
-			create_depthstencil_replacement(VK_NULL_HANDLE, VK_NULL_HANDLE, VK_NULL_HANDLE, VK_FORMAT_UNDEFINED, VK_NULL_HANDLE);
+			update_depthstencil_image(VK_NULL_HANDLE, VK_NULL_HANDLE, VK_NULL_HANDLE, VK_FORMAT_UNDEFINED);
 			return;
 		}
 
@@ -1857,7 +1859,7 @@ void reshade::vulkan::runtime_vk::draw_debug_menu()
 					_best_depth_stencil_overwrite = value ? depthstencil : VK_NULL_HANDLE;
 
 					if (_best_depth_stencil_overwrite != VK_NULL_HANDLE && snapshot.depthstencil_replacement != VK_NULL_HANDLE)
-						create_depthstencil_replacement(_best_depth_stencil_overwrite, snapshot.depthstencil_replacement, snapshot.image, snapshot.image_info.format, snapshot.image_info.usage);
+						update_depthstencil_image(_best_depth_stencil_overwrite, snapshot.depthstencil_replacement, snapshot.image, snapshot.image_info.format);
 				}
 
 				ImGui::SameLine();
@@ -1902,7 +1904,7 @@ void reshade::vulkan::runtime_vk::detect_depth_source(draw_call_tracker &tracker
 
 	if (_has_high_network_activity)
 	{
-		create_depthstencil_replacement(VK_NULL_HANDLE, VK_NULL_HANDLE, VK_NULL_HANDLE, VK_FORMAT_UNDEFINED, VK_NULL_HANDLE);
+		update_depthstencil_image(VK_NULL_HANDLE, VK_NULL_HANDLE, VK_NULL_HANDLE, VK_FORMAT_UNDEFINED);
 		return;
 	}
 
@@ -1915,99 +1917,68 @@ void reshade::vulkan::runtime_vk::detect_depth_source(draw_call_tracker &tracker
 		// In the future, maybe we could find a way to retrieve depth texture statistics (number of draw calls and number of vertices), so ReShade could automatically select the best one
 		const auto best_match = tracker.find_best_cleared_depth_buffer_image(cleared_depth_buffer_index);
 		if (best_match.image != VK_NULL_HANDLE)
-			create_depthstencil_replacement(best_match.src_depthstencil, best_match.src_depthstencil, best_match.image, best_match.image_info.format, best_match.image_info.usage);
-		return;
+			update_depthstencil_image(best_match.src_depthstencil, best_match.src_depthstencil, best_match.image, best_match.image_info.format);
 	}
-
-	const auto best_snapshot = tracker.find_best_snapshot(_width, _height);
-	if (best_snapshot.depthstencil != VK_NULL_HANDLE && best_snapshot.depthstencil_replacement != VK_NULL_HANDLE && best_snapshot.depthstencil != _depthstencil)
-		create_depthstencil_replacement(best_snapshot.depthstencil, best_snapshot.depthstencil_replacement, best_snapshot.image, best_snapshot.image_info.format, best_snapshot.image_info.usage);
+	else
+	{
+		const auto best_snapshot = tracker.find_best_snapshot(_width, _height);
+		if (best_snapshot.depthstencil != VK_NULL_HANDLE && best_snapshot.depthstencil_replacement != VK_NULL_HANDLE && best_snapshot.depthstencil != _depthstencil)
+			update_depthstencil_image(best_snapshot.depthstencil, best_snapshot.depthstencil_replacement, best_snapshot.image, best_snapshot.image_info.format);
+	}
 }
 
-bool reshade::vulkan::runtime_vk::create_depthstencil_replacement(VkImageView depthstencil, VkImageView depthstencil_replacement, VkImage image, VkFormat image_format, VkImageUsageFlags image_usage)
+void reshade::vulkan::runtime_vk::update_depthstencil_image(VkImageView depth_view, VkImageView image_view, VkImage image, VkFormat image_format)
 {
-	_depthstencil = VK_NULL_HANDLE;
-	_depthstencil_replacement = VK_NULL_HANDLE;
-	_depthstencil_image_view = VK_NULL_HANDLE;
-	_depthstencil_image = VK_NULL_HANDLE;
+	_depthstencil = depth_view;
+	_depthstencil_image = image;
+	_depthstencil_image_view = image_view;
+	_depthstencil_format = image_format;
 
-	if (depthstencil != VK_NULL_HANDLE)
+	if (image == VK_NULL_HANDLE)
+		return;
+
+	for (texture &tex : _textures)
 	{
-		assert(image != VK_NULL_HANDLE);
-		_depthstencil = depthstencil;
-		_depthstencil_image_view = depthstencil_replacement;
-		_depthstencil_image = image;
-		_depthstencil_format = image_format;
-		_depthstencil_usage = image_usage;
-
-		HRESULT hr = S_OK;
-
-		if (FAILED(hr))
+		if (tex.impl != nullptr && tex.impl_reference == texture_reference::depth_buffer)
 		{
-			LOG(ERROR) << "Failed to create depth stencil replacement texture! HRESULT is '" << std::hex << hr << std::dec << "'.";
-			return false;
+			tex.width = frame_width();
+			tex.height = frame_height();
 		}
+	}
 
-		if (_depthstencil_image == VK_NULL_HANDLE)
-			return false;
+	// Update image bindings
+	VkDescriptorImageInfo image_binding = { VK_NULL_HANDLE, _depthstencil_image_view, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL };
+	std::vector<VkWriteDescriptorSet> writes;
 
-		for (auto &tex : _textures)
+	for (vulkan_effect_data &effect_data : _effect_data)
+	{
+		if (effect_data.set[1] == VK_NULL_HANDLE)
+			continue; // Skip effects without image bindings
+
+		for (const reshadefx::sampler_info &info : effect_data.module.samplers)
 		{
-			if (tex.impl != nullptr && tex.impl_reference == texture_reference::depth_buffer)
+			const auto existing_texture = std::find_if(_textures.begin(), _textures.end(),
+				[&texture_name = info.texture_name](const auto &item) {
+				return item.unique_name == texture_name && item.impl != nullptr;
+			});
+
+			// Find first binding which references the depth buffer and update it
+			if (existing_texture != _textures.end() &&
+				existing_texture->impl_reference == texture_reference::depth_buffer)
 			{
-				tex.width = frame_width();
-				tex.height = frame_height();
+				VkWriteDescriptorSet write{ VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
+				write.dstSet = effect_data.set[1];
+				write.dstBinding = info.binding;
+				write.descriptorCount = 1;
+				write.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+				write.pImageInfo = &image_binding;
 
-				// texture_data->image = _depthstencil_image;
-				// _depthstencil_image_view = create_image_view(_depthstencil_image, image_format, 1);
-
-				for (const auto &technique : _techniques)
-				{
-					if (_effect_data.size() <= technique.effect_index)
-						continue;
-
-					vulkan_effect_data &effect_data = _effect_data[technique.effect_index];
-
-					// Initialize image and sampler bindings
-					std::vector<VkDescriptorImageInfo> &image_bindings = effect_data.image_bindings;
-
-					for (const reshadefx::sampler_info &info : effect_data.module.samplers)
-					{
-						const auto existing_texture = std::find_if(_textures.begin(), _textures.end(),
-							[&texture_name = info.texture_name](const auto &item) {
-							return item.unique_name == texture_name && item.impl != nullptr;
-						});
-						if (existing_texture == _textures.end())
-							return false;
-
-						VkDescriptorImageInfo &image_binding = image_bindings[info.binding];
-						image_binding.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-
-						if (existing_texture->impl_reference == texture_reference::depth_buffer)
-							image_binding.imageView = _depthstencil_image_view;
-					}
-
-					const VkDescriptorSetLayout set_layouts[2] = { _effect_ubo_layout, effect_data.set_layout };
-
-					if (effect_data.set[0] == VK_NULL_HANDLE || effect_data.set[1] == VK_NULL_HANDLE)
-						continue;
-
-					{   VkWriteDescriptorSet writes[1];
-						writes[0] = { VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
-						writes[0].dstSet = effect_data.set[1];
-						writes[0].dstBinding = 0;
-						writes[0].descriptorCount = uint32_t(image_bindings.size());
-						writes[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-						writes[0].pImageInfo = image_bindings.data();
-
-						vk.UpdateDescriptorSets(_device, 1, writes, 0, nullptr);
-					}
-				}
-
+				writes.push_back(std::move(write));
+				break;
 			}
 		}
 	}
 
-	return true;
+	vk.UpdateDescriptorSets(_device, uint32_t(writes.size()), writes.data(), 0, nullptr);
 }
 #endif
