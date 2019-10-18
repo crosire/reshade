@@ -32,10 +32,10 @@ namespace reshade::opengl
 		GLuint _current_vertex_count = 0; // Used to calculate vertex count inside glBegin/glEnd pairs
 		std::unordered_set<HDC> _hdcs;
 
-		std::string _AppName = "none";
+		std::string _app_name = "none";
 		unsigned int _runtime_vendor_id = 0;
 
-		int _EnumAppName;
+		int _enum_app_name;
 		enum APPNAME
 		{
 			APP_DEFAULT,
@@ -75,24 +75,24 @@ namespace reshade::opengl
 #endif
 
 		void detect_depth_source();
-		void setAppName(std::string &appName);
+		void set_app_name(std::string &appName);
 
 		state_block _app_state;
 		GLuint _depth_source = 0;
 		GLuint _currentDepthBuffer;
 		GLuint _selectedDepthBuffer;
 
-		int _AppMode = 1;
-		GLsizei _newSrcWidth = 0;
-		GLsizei _newSrcHeight = 0;
-		GLsizei _newDstWidth = 0;
-		GLsizei _newDstHeight = 0;
+		int _app_mode = 1;
+		GLsizei _new_src_width = 0;
+		GLsizei _new_src_height = 0;
+		GLsizei _new_dst_width = 0;
+		GLsizei _new_dst_height = 0;
 
-		GLsizei _AppWidth = 0;
-		GLsizei _AppHeight = 0;
-		GLsizei _AppWidthFBO = 0;
-		GLsizei _AppHeightFBO = 0;
-		GLfloat _AppOffsetYFBO = 0;
+		GLsizei _app_width = 0;
+		GLsizei _app_height = 0;
+		GLsizei _app_width_fbo = 0;
+		GLsizei _app_height_fbo = 0;
+		GLfloat _app_offset_y_fbo = 0;
 
 		std::unordered_map<GLuint, depth_source_info> _depth_source_table;
 
@@ -151,9 +151,9 @@ namespace reshade::opengl
 		std::vector<std::pair<GLuint, GLsizeiptr>> _effect_ubos;
 
 		bool _force_main_depth_buffer = false;
-		bool _isUpscaled = false;
-		bool _altDetection = false;
-		bool _manualDetection = false;
-		bool _isUpscaleInitDone = false;
+		bool _is_upscaled = false;
+		bool _alt_detection = false;
+		bool _manual_detection = false;
+		bool _is_upscale_init_done = false;
 	};
 }

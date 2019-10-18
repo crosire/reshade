@@ -823,7 +823,7 @@ HOOK_EXPORT BOOL  WINAPI wglSwapBuffers(HDC hdc)
 
 	// Find the runtime that is associated with this device context
 	HGLRC currentHglrc = 0;
-	if (g_current_runtime->_EnumAppName == g_current_runtime->APP_REDREAM && g_current_runtime->_runtime_vendor_id != 4318) {
+	if (g_current_runtime->_enum_app_name == g_current_runtime->APP_REDREAM && g_current_runtime->_runtime_vendor_id != 4318) {
 		// redream use "second" context on AMD (and on AMD only)
 		// vendor id -> NVIDIA : 4318, AMD : 4098, Intel : 8086
 		currentHglrc = HGLRC(0x0000000000010002);
