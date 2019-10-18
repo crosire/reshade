@@ -7,7 +7,7 @@
 #include "runtime_vk.hpp"
 #include "runtime_objects.hpp"
 #include "ini_file.hpp"
-#include "resource_loading.hpp"
+#include "resources.hpp"
 #include "format_utils.hpp"
 #include <imgui.h>
 

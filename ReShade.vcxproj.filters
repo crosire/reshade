@@ -78,10 +78,10 @@
     <ClCompile Include="source\ini_file.cpp">
       <Filter>core\utility</Filter>
     </ClCompile>
-    <ClCompile Include="source\resource_loading.cpp">
+    <ClCompile Include="source\log.cpp">
       <Filter>core\utility</Filter>
     </ClCompile>
-    <ClCompile Include="source\log.cpp">
+    <ClCompile Include="source\resources.cpp">
       <Filter>core\utility</Filter>
     </ClCompile>
     <ClCompile Include="source\update_check.cpp">
@@ -183,9 +183,9 @@
     <ClCompile Include="source\opengl\state_block.cpp">
       <Filter>hooks\opengl</Filter>
     </ClCompile>
-    <ClInclude Include="source\vulkan\draw_call_tracker.cpp">
+    <ClCompile Include="source\vulkan\draw_call_tracker.cpp">
       <Filter>hooks\vulkan</Filter>
-    </ClInclude>
+    </ClCompile>
     <ClCompile Include="source\vulkan\runtime_vk.cpp">
       <Filter>hooks\vulkan</Filter>
     </ClCompile>
@@ -221,19 +221,19 @@
     <ClInclude Include="source\runtime_objects.hpp">
       <Filter>core\runtime</Filter>
     </ClInclude>
-    <ClInclude Include="source\moving_average.hpp">
-      <Filter>core\utility</Filter>
-    </ClInclude>
     <ClInclude Include="source\com_ptr.hpp">
-      <Filter>core\utility</Filter>
-    </ClInclude>
-    <ClInclude Include="source\resource_loading.hpp">
       <Filter>core\utility</Filter>
     </ClInclude>
     <ClInclude Include="source\ini_file.hpp">
       <Filter>core\utility</Filter>
     </ClInclude>
     <ClInclude Include="source\log.hpp">
+      <Filter>core\utility</Filter>
+    </ClInclude>
+    <ClInclude Include="source\moving_average.hpp">
+      <Filter>core\utility</Filter>
+    </ClInclude>
+    <ClInclude Include="source\resources.hpp">
       <Filter>core\utility</Filter>
     </ClInclude>
     <ClInclude Include="source\d3d9\d3d9_device.hpp">

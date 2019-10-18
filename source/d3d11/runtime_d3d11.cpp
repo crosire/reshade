@@ -7,7 +7,7 @@
 #include "ini_file.hpp"
 #include "runtime_d3d11.hpp"
 #include "runtime_objects.hpp"
-#include "resource_loading.hpp"
+#include "resources.hpp"
 #include "dxgi/format_utils.hpp"
 #include <imgui.h>
 #include <d3dcompiler.h>
