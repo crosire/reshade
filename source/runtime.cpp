@@ -181,10 +181,10 @@ void reshade::runtime::on_present()
 	_date[2] = tm.tm_mday;
 	_date[3] = tm.tm_hour * 3600 + tm.tm_min * 60 + tm.tm_sec;
 
-	// Advance various statistics
 	_framecount++;
 	const auto current_time = std::chrono::high_resolution_clock::now();
-	_last_frame_duration = current_time - _last_present_time; _last_present_time = current_time;
+	_last_frame_duration = current_time - _last_present_time;
+	_last_present_time = current_time;
 
 	// Lock input so it cannot be modified by other threads while we are reading it here
 	const auto input_lock = _input->lock();
@@ -1292,8 +1292,7 @@ void reshade::runtime::save_screenshot(const std::wstring &postfix, const bool s
 	else if (_screenshot_include_preset && should_save_preset && ini_file::flush_cache(_current_preset_path))
 	{
 		// Preset was flushed to disk, so can just copy it over to the new location
-		std::error_code ec;
-		std::filesystem::copy_file(_current_preset_path, least + L".ini", std::filesystem::copy_options::overwrite_existing, ec);
+		std::error_code ec; std::filesystem::copy_file(_current_preset_path, least + L".ini", std::filesystem::copy_options::overwrite_existing, ec);
 	}
 }
 
