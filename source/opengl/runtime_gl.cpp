@@ -128,7 +128,7 @@ bool reshade::opengl::runtime_gl::on_init(HWND hwnd, unsigned int width, unsigne
 	_height = height;
 	_window_width = window_rect.right - window_rect.left;
 	_window_height = window_rect.bottom - window_rect.top;
-	_backbuffer_color_depth = pfd.cRedBits;
+	_color_bit_depth = pfd.cRedBits;
 
 	GLint depth_format = GL_NONE;
 	switch (pfd.cDepthBits)

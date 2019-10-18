@@ -228,7 +228,7 @@ bool reshade::vulkan::runtime_vk::on_init(VkSwapchainKHR swapchain, const VkSwap
 	_window_width = window_rect.right - window_rect.left;
 	_window_height = window_rect.bottom - window_rect.top;
 	_backbuffer_format = desc.imageFormat;
-	_backbuffer_color_depth = _backbuffer_format >= VK_FORMAT_A2R10G10B10_UNORM_PACK32 && _backbuffer_format <= VK_FORMAT_A2B10G10R10_SINT_PACK32 ? 10 : 8;
+	_color_bit_depth = _backbuffer_format >= VK_FORMAT_A2R10G10B10_UNORM_PACK32 && _backbuffer_format <= VK_FORMAT_A2B10G10R10_SINT_PACK32 ? 10 : 8;
 
 	const uint32_t queue_family_index = 0; // TODO
 	vk.GetDeviceQueue(_device, queue_family_index, 0, &_current_queue);
