@@ -651,6 +651,7 @@ extern "C"  void WINAPI glFramebufferTexture(GLenum target, GLenum attachment, G
 	static const auto trampoline = reshade::hooks::call(glFramebufferTexture);
 	trampoline(target, attachment, texture, level);
 
+	// No way to figure out the texture binding from the texture name alone, so default to the most likely case of 'GL_TEXTURE_2D'
 	if (g_current_runtime) g_current_runtime->on_fbo_attachment(attachment, GL_TEXTURE_2D, texture, level);
 }
 extern "C"  void WINAPI glFramebufferTextureARB(GLenum target, GLenum attachment, GLuint texture, GLint level)
@@ -714,21 +715,22 @@ extern "C"  void WINAPI glFramebufferTextureLayer(GLenum target, GLenum attachme
 	static const auto trampoline = reshade::hooks::call(glFramebufferTextureLayer);
 	trampoline(target, attachment, texture, level, layer);
 
-	if (g_current_runtime) g_current_runtime->on_fbo_attachment(attachment, GL_TEXTURE_2D, texture, level);
+	// No way to figure out the texture binding from the texture name alone, so default to the most likely case of 'GL_TEXTURE_2D_ARRAY' (since this accepts a layered texture)
+	if (g_current_runtime) g_current_runtime->on_fbo_attachment(attachment, GL_TEXTURE_2D_ARRAY, texture, level);
 }
 extern "C"  void WINAPI glFramebufferTextureLayerARB(GLenum target, GLenum attachment, GLuint texture, GLint level, GLint layer)
 {
 	static const auto trampoline = reshade::hooks::call(glFramebufferTextureLayerARB);
 	trampoline(target, attachment, texture, level, layer);
 
-	if (g_current_runtime) g_current_runtime->on_fbo_attachment(attachment, GL_TEXTURE_2D, texture, level);
+	if (g_current_runtime) g_current_runtime->on_fbo_attachment(attachment, GL_TEXTURE_2D_ARRAY, texture, level);
 }
 extern "C"  void WINAPI glFramebufferTextureLayerEXT(GLenum target, GLenum attachment, GLuint texture, GLint level, GLint layer)
 {
 	static const auto trampoline = reshade::hooks::call(glFramebufferTextureLayerEXT);
 	trampoline(target, attachment, texture, level, layer);
 
-	if (g_current_runtime) g_current_runtime->on_fbo_attachment(attachment, GL_TEXTURE_2D, texture, level);
+	if (g_current_runtime) g_current_runtime->on_fbo_attachment(attachment, GL_TEXTURE_2D_ARRAY, texture, level);
 }
 
 HOOK_EXPORT void WINAPI glFrontFace(GLenum mode)
