@@ -31,7 +31,7 @@ bool reshade::runtime::check_for_update(unsigned long latest_version[3])
 	if (request == nullptr)
 		return false;
 
-	// Set some timeouts to avoid stalling startup because of a broken internet connection
+	// Set some timeouts to avoid stalling startup because of a broken Internet connection
 	DWORD timeout = 2000; // 2 seconds
 	InternetSetOption(request, INTERNET_OPTION_CONNECT_TIMEOUT, &timeout, sizeof(timeout));
 	InternetSetOption(request, INTERNET_OPTION_RECEIVE_TIMEOUT, &timeout, sizeof(timeout));

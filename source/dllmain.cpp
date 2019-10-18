@@ -17,11 +17,12 @@ extern std::filesystem::path get_system_path()
 {
 	static std::filesystem::path system_path;
 	if (!system_path.empty())
-		return system_path;
+		return system_path; // Return the cached system path
 	TCHAR buf[MAX_PATH] = {};
 	GetSystemDirectory(buf, ARRAYSIZE(buf));
 	return system_path = buf;
 }
+
 static inline std::filesystem::path get_module_path(HMODULE module)
 {
 	TCHAR buf[MAX_PATH] = {};
@@ -29,7 +30,7 @@ static inline std::filesystem::path get_module_path(HMODULE module)
 	return buf;
 }
 
-#if defined(RESHADE_TEST_APPLICATION)
+#ifdef RESHADE_TEST_APPLICATION
 
 #include "d3d9/runtime_d3d9.hpp"
 #include "d3d11/runtime_d3d11.hpp"
@@ -698,7 +699,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 		hooks::register_module(get_system_path() / "d3d12.dll");
 		hooks::register_module(get_system_path() / "dxgi.dll");
 		hooks::register_module(get_system_path() / "opengl32.dll");
-		// Do not register Vulkan hooks, since we use Vulkan layering mechanism instead
+		// Do not register Vulkan hooks, since Vulkan layering mechanism is used instead
 
 		LOG(INFO) << "Initialized.";
 		break;

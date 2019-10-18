@@ -50,7 +50,7 @@ static inline bool check_preset_path(std::filesystem::path preset_path)
 	if (file_type == std::filesystem::file_type::not_found)
 		return true; // A non-existent path is valid for a new preset
 
-	return reshade::ini_file::load_cache(preset_path).has("", "Techniques");
+	return reshade::ini_file::load_cache(preset_path).has({}, "Techniques");
 }
 
 static bool find_file(const std::vector<std::filesystem::path> &search_paths, std::filesystem::path &path)
@@ -181,10 +181,10 @@ void reshade::runtime::on_present()
 	_date[2] = tm.tm_mday;
 	_date[3] = tm.tm_hour * 3600 + tm.tm_min * 60 + tm.tm_sec;
 
-	// Advance various statistics
 	_framecount++;
 	const auto current_time = std::chrono::high_resolution_clock::now();
-	_last_frame_duration = current_time - _last_present_time; _last_present_time = current_time;
+	_last_frame_duration = current_time - _last_present_time;
+	_last_present_time = current_time;
 
 	// Lock input so it cannot be modified by other threads while we are reading it here
 	const auto input_lock = _input->lock();
@@ -282,7 +282,7 @@ void reshade::runtime::load_effect(const std::filesystem::path &path, size_t &ou
 		pp.add_macro_definition("BUFFER_HEIGHT", std::to_string(_height));
 		pp.add_macro_definition("BUFFER_RCP_WIDTH", "(1.0 / BUFFER_WIDTH)");
 		pp.add_macro_definition("BUFFER_RCP_HEIGHT", "(1.0 / BUFFER_HEIGHT)");
-		pp.add_macro_definition("BUFFER_COLOR_DEPTH", std::to_string(_backbuffer_color_depth));
+		pp.add_macro_definition("BUFFER_COLOR_BIT_DEPTH", std::to_string(_color_bit_depth));
 
 		std::vector<std::string> preprocessor_definitions = _global_preprocessor_definitions;
 		preprocessor_definitions.insert(preprocessor_definitions.end(), _preset_preprocessor_definitions.begin(), _preset_preprocessor_definitions.end());
@@ -517,7 +517,7 @@ void reshade::runtime::load_effects()
 		_preset_preprocessor_definitions.clear();
 
 		const ini_file &preset = ini_file::load_cache(_current_preset_path);
-		preset.get("", "PreprocessorDefinitions", _preset_preprocessor_definitions);
+		preset.get({}, "PreprocessorDefinitions", _preset_preprocessor_definitions);
 	}
 
 	// Build a list of effect files by walking through the effect search paths
@@ -755,6 +755,33 @@ void reshade::runtime::update_and_render_effects()
 	// Update special uniform variables
 	for (uniform &variable : _uniforms)
 	{
+		if (!_ignore_shortcuts && variable.toggle_key_data[0] != 0 && _input->is_key_pressed(variable.toggle_key_data))
+		{
+			assert(variable.supports_toggle_key());
+
+			// Change to next value if the associated shortcut key was pressed
+			switch (variable.type.base)
+			{
+			case reshadefx::type::t_bool: {
+				bool data;
+				get_uniform_value(variable, &data, 1);
+				set_uniform_value(variable, !data);
+				break; }
+			case reshadefx::type::t_int:
+			case reshadefx::type::t_uint: {
+				int data[4];
+				get_uniform_value(variable, data, 4);
+				const std::string_view ui_items = variable.annotation_as_string("ui_items");
+				size_t num_items = 0;
+				for (size_t offset = 0, next; (next = ui_items.find('\0', offset)) != std::string::npos; offset = next + 1)
+					num_items++;
+				data[0] = (data[0] + 1 >= num_items) ? 0 : data[0] + 1;
+				set_uniform_value(variable, data, 4);
+				break; }
+			}
+			save_current_preset();
+		}
+
 		switch (variable.special)
 		{
 		case special_uniform::frame_time:
@@ -997,11 +1024,11 @@ void reshade::runtime::load_current_preset()
 	const reshade::ini_file &preset = ini_file::load_cache(_current_preset_path);
 
 	std::vector<std::string> technique_list;
-	preset.get("", "Techniques", technique_list);
+	preset.get({}, "Techniques", technique_list);
 	std::vector<std::string> sorted_technique_list;
-	preset.get("", "TechniqueSorting", sorted_technique_list);
+	preset.get({}, "TechniqueSorting", sorted_technique_list);
 	std::vector<std::string> preset_preprocessor_definitions;
-	preset.get("", "PreprocessorDefinitions", preset_preprocessor_definitions);
+	preset.get({}, "PreprocessorDefinitions", preset_preprocessor_definitions);
 
 	// Recompile effects if preprocessor definitions have changed or running in performance mode (in which case all preset values are compile-time constants)
 	if (_reload_remaining_effects != 0 && // ... unless this is the 'load_current_preset' call in 'update_and_render_effects'
@@ -1032,29 +1059,37 @@ void reshade::runtime::load_current_preset()
 
 	for (uniform &variable : _uniforms)
 	{
+		const std::string section = _loaded_effects[variable.effect_index].source_file.filename().u8string();
 		reshadefx::constant values, values_old;
+
+		if (variable.supports_toggle_key())
+		{
+			// Load shortcut key, but first reset it, since it may not exist in the preset file
+			memset(variable.toggle_key_data, 0, sizeof(variable.toggle_key_data));
+			preset.get(section, "Key" + variable.name, variable.toggle_key_data);
+		}
 
 		switch (variable.type.base)
 		{
 		case reshadefx::type::t_int:
 			get_uniform_value(variable, values.as_int, 16);
-			preset.get(_loaded_effects[variable.effect_index].source_file.filename().u8string(), variable.name, values.as_int);
+			preset.get(section, variable.name, values.as_int);
 			set_uniform_value(variable, values.as_int, 16);
 			break;
 		case reshadefx::type::t_bool:
 		case reshadefx::type::t_uint:
 			get_uniform_value(variable, values.as_uint, 16);
-			preset.get(_loaded_effects[variable.effect_index].source_file.filename().u8string(), variable.name, values.as_uint);
+			preset.get(section, variable.name, values.as_uint);
 			set_uniform_value(variable, values.as_uint, 16);
 			break;
 		case reshadefx::type::t_float:
 			get_uniform_value(variable, values.as_float, 16);
 			values_old = values;
-			preset.get(_loaded_effects[variable.effect_index].source_file.filename().u8string(), variable.name, values.as_float);
+			preset.get(section, variable.name, values.as_float);
 			if (_is_in_between_presets_transition)
 			{
 				// Perform smooth transition on floating point values
-				for (int i = 0; i < 16; i++)
+				for (unsigned int i = 0; i < 16; i++)
 				{
 					const auto transition_ratio = (values.as_float[i] - values_old.as_float[i]) / transition_ms_left_from_last_frame;
 					values.as_float[i] = values.as_float[i] - transition_ratio * transition_ms_left;
@@ -1076,7 +1111,7 @@ void reshade::runtime::load_current_preset()
 
 		// Reset toggle key first, since it may not exist in the preset
 		memset(technique.toggle_key_data, 0, sizeof(technique.toggle_key_data));
-		preset.get("", "Key" + technique.name, technique.toggle_key_data);
+		preset.get({}, "Key" + technique.name, technique.toggle_key_data);
 	}
 }
 void reshade::runtime::save_current_preset() const
@@ -1102,14 +1137,14 @@ void reshade::runtime::save_current_preset() const
 		sorted_technique_list.push_back(technique.name);
 
 		if (technique.toggle_key_data[0] != 0)
-			preset.set("", "Key" + technique.name, technique.toggle_key_data);
-		else if (int value = 0; preset.get("", "Key" + technique.name, value), value != 0)
-			preset.set("", "Key" + technique.name, 0); // Clear toggle key data
+			preset.set({}, "Key" + technique.name, technique.toggle_key_data);
+		else if (int value = 0; preset.get({}, "Key" + technique.name, value), value != 0)
+			preset.set({}, "Key" + technique.name, 0); // Clear toggle key data
 	}
 
-	preset.set("", "Techniques", std::move(technique_list));
-	preset.set("", "TechniqueSorting", std::move(sorted_technique_list));
-	preset.set("", "PreprocessorDefinitions", _preset_preprocessor_definitions);
+	preset.set({}, "Techniques", std::move(technique_list));
+	preset.set({}, "TechniqueSorting", std::move(sorted_technique_list));
+	preset.set({}, "PreprocessorDefinitions", _preset_preprocessor_definitions);
 
 	// TODO: Do we want to save spec constants here too? The preset will be rather empty in performance mode otherwise.
 	for (const uniform &variable : _uniforms)
@@ -1118,11 +1153,19 @@ void reshade::runtime::save_current_preset() const
 			|| std::find(effect_list.begin(), effect_list.end(), variable.effect_index) == effect_list.end())
 			continue;
 
-		const std::string section =
-			_loaded_effects[variable.effect_index].source_file.filename().u8string();
+		assert(variable.type.components() <= 16);
+
+		const std::string section = _loaded_effects[variable.effect_index].source_file.filename().u8string();
 		reshadefx::constant values;
 
-		assert(variable.type.components() <= 16);
+		if (variable.supports_toggle_key())
+		{
+			// save the shortcut key into the preset files
+			if (variable.toggle_key_data[0] != 0)
+				preset.set(section, "Key" + variable.name, variable.toggle_key_data);
+			else if (int value = 0; preset.get(section, "Key" + variable.name, value), value != 0)
+				preset.set(section, "Key" + variable.name, 0); // Clear toggle key data
+		}
 
 		switch (variable.type.base)
 		{
@@ -1249,8 +1292,7 @@ void reshade::runtime::save_screenshot(const std::wstring &postfix, const bool s
 	else if (_screenshot_include_preset && should_save_preset && ini_file::flush_cache(_current_preset_path))
 	{
 		// Preset was flushed to disk, so can just copy it over to the new location
-		std::error_code ec;
-		std::filesystem::copy_file(_current_preset_path, least + L".ini", std::filesystem::copy_options::overwrite_existing, ec);
+		std::error_code ec; std::filesystem::copy_file(_current_preset_path, least + L".ini", std::filesystem::copy_options::overwrite_existing, ec);
 	}
 }
 

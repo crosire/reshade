@@ -5,6 +5,7 @@
 
 #include "ini_file.hpp"
 #include <fstream>
+#include <sstream>
 
 static std::unordered_map<std::wstring, reshade::ini_file> g_ini_cache;
 
@@ -63,6 +64,8 @@ void reshade::ini_file::load()
 	if (condition == condition::not_found)
 		return;
 
+	assert(std::filesystem::file_size(_path, ec) > 0);
+
 	_modified_at = modified_at;
 	file.imbue(std::locale("en-us.UTF-8"));
 
@@ -118,7 +121,7 @@ bool reshade::ini_file::save()
 		return true;
 
 	enum class condition { none, open, create, blocked, unknown };
-	condition condition = condition::none;
+	auto condition = condition::none;
 
 	std::error_code ec;
 
@@ -131,10 +134,68 @@ bool reshade::ini_file::save()
 		condition = condition::unknown;
 
 	if (condition == condition::open && modified_at >= _modified_at)
-		return _modified = false, true;
+	{
+		_modified = false;
+		return true; // File was modified on disk and may have different data, so cannot save
+	}
+
+	std::string str;
+	std::stringstream data;
+	std::vector<std::string> section_names, key_names;
+
+	section_names.reserve(_sections.size());
+	for (const auto &section : _sections)
+		section_names.push_back(section.first);
+
+	// Sort sections to generate consistent files
+	std::sort(section_names.begin(), section_names.end(), [](std::string a, std::string b) {
+		std::transform(a.begin(), a.end(), a.begin(), [](std::string::value_type c) { return static_cast<std::string::value_type>(toupper(c)); });
+		std::transform(b.begin(), b.end(), b.begin(), [](std::string::value_type c) { return static_cast<std::string::value_type>(toupper(c)); });
+		return a < b;
+		});
+
+	for (const std::string &section_name : section_names)
+	{
+		const auto &keys = _sections.at(section_name);
+
+		key_names.reserve(keys.size());
+		for (const auto &key : keys)
+			key_names.push_back(key.first);
+
+		std::sort(key_names.begin(), key_names.end(), [](std::string a, std::string b) {
+			std::transform(a.begin(), a.end(), a.begin(), [](std::string::value_type c) { return static_cast<std::string::value_type>(toupper(c)); });
+			std::transform(b.begin(), b.end(), b.begin(), [](std::string::value_type c) { return static_cast<std::string::value_type>(toupper(c)); });
+			return a < b;
+			});
+
+		// Empty section should have been sorted to the top, so do not need to append it before keys
+		if (!section_name.empty())
+			data << '[' << section_name << ']' << '\n';
+
+		for (const std::string &key_name : key_names)
+		{
+			data << key_name << '=';
+
+			size_t i = 0;
+
+			for (const std::string &item : keys.at(key_name))
+			{
+				if (i++ != 0) // Separate multiple values with a comma
+					data << ',';
+
+				data << item;
+			}
+
+			data << '\n';
+		}
+
+		data << '\n';
+		key_names.clear();
+	}
+
+	str = data.str();
 
 	std::ofstream file;
-
 	if (condition == condition::open || condition == condition::create)
 		if (file.open(_path); file.fail())
 			if (condition == condition::open)
@@ -145,62 +206,17 @@ bool reshade::ini_file::save()
 	if (condition == condition::blocked || condition == condition::unknown)
 		return false;
 
+	file.rdbuf()->pubsetbuf(nullptr, 0);
+
 	file.imbue(std::locale("en-us.UTF-8"));
-	std::vector<std::string> section_names, key_names;
+	file.write(str.data(), str.size());
 
-	for (const auto &section : _sections)
-		section_names.push_back(section.first);
-
-	std::sort(section_names.begin(), section_names.end(), [](std::string a, std::string b) {
-		std::transform(a.begin(), a.end(), a.begin(), [](std::string::value_type c) { return static_cast<std::string::value_type>(toupper(c)); });
-		std::transform(b.begin(), b.end(), b.begin(), [](std::string::value_type c) { return static_cast<std::string::value_type>(toupper(c)); });
-		return a < b;
-		});
-
-	for (const auto &section_name : section_names)
-	{
-		const auto &keys = _sections.at(section_name);
-
-		for (const auto &key : keys)
-			key_names.push_back(key.first);
-
-		std::sort(key_names.begin(), key_names.end(), [](std::string a, std::string b) {
-			std::transform(a.begin(), a.end(), a.begin(), [](std::string::value_type c) { return static_cast<std::string::value_type>(toupper(c)); });
-			std::transform(b.begin(), b.end(), b.begin(), [](std::string::value_type c) { return static_cast<std::string::value_type>(toupper(c)); });
-			return a < b;
-			});
-
-		if (!section_name.empty())
-			file << '[' << section_name << ']' << '\n';
-
-		for (const auto &key_name : key_names)
-		{
-			file << key_name << '=';
-
-			size_t i = 0;
-
-			for (const auto &item : keys.at(key_name))
-			{
-				if (i++ != 0)
-					file << ',';
-
-				file << item;
-			}
-
-			file << '\n';
-		}
-
-		file << '\n';
-		key_names.clear();
-	}
-
-	if (file.close(); file.fail())
-		return false;
-
-	if (modified_at = std::filesystem::last_write_time(_path, ec); ec.value() == 0)
+	if (_modified = file.fail(); _modified)
+		std::filesystem::last_write_time(_path, modified_at, ec);
+	else if (modified_at = std::filesystem::last_write_time(_path, ec); ec.value() == 0)
 		_modified_at = modified_at;
 
-	_modified = false;
+	assert(std::filesystem::file_size(_path, ec) > 0);
 
 	return true;
 }
@@ -208,22 +224,23 @@ bool reshade::ini_file::save()
 reshade::ini_file &reshade::ini_file::load_cache(const std::filesystem::path &path)
 {
 	const auto it = g_ini_cache.try_emplace(path, path);
-	if (it.second || std::chrono::seconds(1) > std::filesystem::file_time_type::clock::now() - it.first->second._modified_at)
-		return it.first->second;
+	if (it.second || (std::filesystem::file_time_type::clock::now() - it.first->second._modified_at) < std::chrono::seconds(1))
+		return it.first->second; // Don't need to reload file when it was just loaded or there are still modifications pending
 	else
 		return it.first->second.load(), it.first->second;
 }
 
 void reshade::ini_file::flush_cache()
 {
+	const std::filesystem::file_time_type now = std::filesystem::file_time_type::clock::now();
+	// Save all files that were modified in one second intervals
 	for (auto &file : g_ini_cache)
-		if (file.second._modified && std::filesystem::file_time_type::clock::now() - file.second._modified_at > std::chrono::seconds(1))
+		if (file.second._modified && (now - file.second._modified_at) > std::chrono::seconds(1))
 			file.second.save();
 }
 bool reshade::ini_file::flush_cache(const std::filesystem::path &path)
 {
-	if (const auto it = g_ini_cache.find(path); it == g_ini_cache.end())
-		return false;
-	else
+	if (const auto it = g_ini_cache.find(path); it != g_ini_cache.end())
 		return it->second.save();
+	return false;
 }

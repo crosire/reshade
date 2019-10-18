@@ -3,7 +3,7 @@
  * License: https://github.com/crosire/reshade#license
  */
 
-#include "resource_loading.hpp"
+#include "resources.hpp"
 #include <Windows.h>
 
 extern HMODULE g_module_handle;
@@ -19,6 +19,7 @@ reshade::resources::data_resource reshade::resources::load_data_resource(unsigne
 
 	return result;
 }
+
 reshade::resources::image_resource reshade::resources::load_image_resource(unsigned int id)
 {
 	DIBSECTION dib = {};

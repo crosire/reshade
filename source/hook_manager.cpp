@@ -37,35 +37,32 @@ static std::mutex s_mutex_delayed_hook_paths;
 
 std::vector<module_export> get_module_exports(HMODULE handle)
 {
-	const auto imagebase = reinterpret_cast<const BYTE *>(handle);
-	const auto imageheader = reinterpret_cast<const IMAGE_NT_HEADERS *>(imagebase +
-		reinterpret_cast<const IMAGE_DOS_HEADER *>(imagebase)->e_lfanew);
+	const auto image_base = reinterpret_cast<const BYTE *>(handle);
+	const auto image_header = reinterpret_cast<const IMAGE_NT_HEADERS *>(image_base +
+		reinterpret_cast<const IMAGE_DOS_HEADER *>(image_base)->e_lfanew);
 
-	if (imageheader->Signature != IMAGE_NT_SIGNATURE ||
-		imageheader->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT].Size == 0)
+	if (image_header->Signature != IMAGE_NT_SIGNATURE ||
+		image_header->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT].Size == 0)
 		return {};
 
-	const auto exportdir = reinterpret_cast<const IMAGE_EXPORT_DIRECTORY *>(imagebase +
-		imageheader->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT].VirtualAddress);
-	const auto exportbase = static_cast<WORD>(exportdir->Base);
+	const auto export_dir = reinterpret_cast<const IMAGE_EXPORT_DIRECTORY *>(image_base +
+		image_header->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT].VirtualAddress);
+	const auto export_base = static_cast<WORD>(export_dir->Base);
 
-	if (exportdir->NumberOfFunctions == 0)
+	if (export_dir->NumberOfFunctions == 0)
 		return {};
 
 	std::vector<module_export> exports;
-	exports.reserve(exportdir->NumberOfNames);
+	exports.reserve(export_dir->NumberOfNames);
 
 	for (size_t i = 0; i < exports.capacity(); i++)
 	{
-		module_export symbol;
-		symbol.ordinal = reinterpret_cast<const WORD *>(imagebase +
-			exportdir->AddressOfNameOrdinals)[i] + exportbase;
-		symbol.name = reinterpret_cast<const char *>(imagebase +
-			reinterpret_cast<const DWORD *>(imagebase + exportdir->AddressOfNames)[i]);
-		symbol.address = const_cast<void *>(reinterpret_cast<const void *>(imagebase +
-			reinterpret_cast<const DWORD *>(imagebase + exportdir->AddressOfFunctions)[symbol.ordinal - exportbase]));
-
-		exports.push_back(std::move(symbol));
+		module_export &symbol = exports.emplace_back();
+		symbol.ordinal = reinterpret_cast<const WORD *>(image_base + export_dir->AddressOfNameOrdinals)[i] + export_base;
+		symbol.name = reinterpret_cast<const char *>(image_base +
+			reinterpret_cast<const DWORD *>(image_base + export_dir->AddressOfNames)[i]);
+		symbol.address = const_cast<void *>(reinterpret_cast<const void *>(image_base +
+			reinterpret_cast<const DWORD *>(image_base + export_dir->AddressOfFunctions)[symbol.ordinal - export_base]));
 	}
 
 	return exports;
@@ -436,7 +433,7 @@ reshade::hook::address reshade::hooks::call(hook::address target, hook::address 
 	}
 	else if (!s_export_hook_path.empty()) // If the hook does not exist yet, delay-load export hooks and try again
 	{
-		// Note: Could use LoadLibraryExW with LOAD_LIBRARY_SEARCH_SYSTEM32 here, but absolute paths should to the trick as well
+		// Note: Could use LoadLibraryExW with LOAD_LIBRARY_SEARCH_SYSTEM32 here, but absolute paths should do the trick as well
 		const HMODULE handle = LoadLibraryW(s_export_hook_path.wstring().c_str());
 
 		LOG(INFO) << "Installing export hooks for " << s_export_hook_path << " ...";

@@ -398,7 +398,7 @@
     <ClCompile Include="source\opengl\opengl_hooks_wgl.cpp" />
     <ClCompile Include="source\opengl\runtime_gl.cpp" />
     <ClCompile Include="source\opengl\state_block.cpp" />
-    <ClCompile Include="source\resource_loading.cpp" />
+    <ClCompile Include="source\resources.cpp" />
     <ClCompile Include="source\runtime.cpp" />
     <ClCompile Include="source\update_check.cpp" />
     <ClCompile Include="source\vulkan\draw_call_tracker.cpp" />
@@ -445,7 +445,7 @@
     <ClInclude Include="source\opengl\opengl_hooks.hpp" />
     <ClInclude Include="source\opengl\runtime_gl.hpp" />
     <ClInclude Include="source\opengl\state_block.hpp" />
-    <ClInclude Include="source\resource_loading.hpp" />
+    <ClInclude Include="source\resources.hpp" />
     <ClInclude Include="source\runtime.hpp" />
     <ClInclude Include="source\runtime_objects.hpp" />
     <ClInclude Include="source\vulkan\draw_call_tracker.hpp" />

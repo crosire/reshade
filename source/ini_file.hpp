@@ -16,6 +16,10 @@ namespace reshade
 	class ini_file
 	{
 	public:
+		/// <summary>
+		/// Opens the INI file at the specified <paramref name="path"/>.
+		/// </summary>
+		/// <param name="path">The path to the INI file to access.</param>
 		explicit ini_file(const std::filesystem::path &path);
 		~ini_file();
 
@@ -138,6 +142,11 @@ namespace reshade
 			_modified_at = std::filesystem::file_time_type::clock::now();
 		}
 
+		/// <summary>
+		/// Gets the specified INI file from cache or opens it when it was not cached yet.
+		/// </summary>
+		/// <param name="path">The path to the INI file to access.</param>
+		/// <returns>A reference to the cached data. This reference is valid until the next call to <see cref="load_cache"/>.</returns>
 		static reshade::ini_file &load_cache(const std::filesystem::path &path);
 
 		static void flush_cache();
@@ -205,11 +214,18 @@ namespace reshade
 			return i < values.size() ? std::filesystem::u8path(values[i]) : std::filesystem::path();
 		}
 
+		/// <summary>
+		/// Describes a single value in an INI file.
+		/// </summary>
+		using value = std::vector<std::string>;
+		/// <summary>
+		/// Describes a section of multiple key/value pairs in an INI file.
+		/// </summary>
+		using section = std::unordered_map<std::string, value>;
+
 		bool _modified = false;
 		std::filesystem::path _path;
-		using value = std::vector<std::string>;
-		using section = std::unordered_map<std::string, value>;
-		std::unordered_map<std::string, section> _sections;
 		std::filesystem::file_time_type _modified_at;
+		std::unordered_map<std::string, section> _sections;
 	};
 }

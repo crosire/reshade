@@ -132,7 +132,7 @@ namespace reshadefx
 
 		bool _success = true;
 		token _token;
-		std::stack<input_level> _input_stack;
+		std::vector<input_level> _input_stack;
 		location _output_location;
 		std::string _output, _errors, _current_token_raw_data;
 		int _recursion_count = 0;

@@ -21,7 +21,7 @@ struct ImGuiContext;
 
 namespace reshade
 {
-	class ini_file; // Some forward declarations to keep number of includes small
+	class ini_file; // Forward declarations to avoid excessive #include
 	struct uniform;
 	struct texture;
 	struct technique;
@@ -190,7 +190,7 @@ namespace reshade
 		unsigned int _vendor_id = 0;
 		unsigned int _device_id = 0;
 		unsigned int _renderer_id = 0;
-		unsigned int _backbuffer_color_depth = 8;
+		unsigned int _color_bit_depth = 8;
 		uint64_t _framecount = 0;
 		unsigned int _vertices = 0;
 		unsigned int _drawcalls = 0;

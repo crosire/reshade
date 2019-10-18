@@ -183,7 +183,7 @@ bool reshade::d3d9::runtime_d3d9::on_init(const D3DPRESENT_PARAMETERS &pp)
 	_window_width = window_rect.right - window_rect.left;
 	_window_height = window_rect.bottom - window_rect.top;
 	_backbuffer_format = pp.BackBufferFormat;
-	_backbuffer_color_depth = _backbuffer_format == D3DFMT_A2B10G10R10 || _backbuffer_format == D3DFMT_A2R10G10B10 ? 10 : 8;
+	_color_bit_depth = _backbuffer_format == D3DFMT_A2B10G10R10 || _backbuffer_format == D3DFMT_A2R10G10B10 ? 10 : 8;
 	_is_multisampling_enabled = pp.MultiSampleType != D3DMULTISAMPLE_NONE;
 
 	if (!_app_state.init_state_block() ||

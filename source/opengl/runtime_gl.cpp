@@ -146,7 +146,7 @@ bool reshade::opengl::runtime_gl::on_init(HWND hwnd, unsigned int width, unsigne
 	_height = height;
 	_window_width = window_rect.right - window_rect.left;
 	_window_height = window_rect.bottom - window_rect.top;
-	_backbuffer_color_depth = pfd.cRedBits;
+	_color_bit_depth = pfd.cRedBits;
 
 	GLint depth_format = GL_NONE;
 	switch (pfd.cDepthBits)
@@ -402,25 +402,12 @@ void reshade::opengl::runtime_gl::on_fbo_attachment(GLenum attachment, GLenum ta
 		glGetIntegerv(target_to_binding(target), &previous_tex);
 
 		// Get depth stencil parameters from texture
-		// NB : it might be a bit of a wide assumption to think that every call to a GL_FRAMEBUFFER_EXT target addresses a GL_TEXTURE_2D_ARRAY object)
-		// But it's required for Dolphin : previous code systematically passed GL_TEXTURE_2D as a target which is not what Dolphin expects here
-		// EDIT : added branching here for extra safety
-		if (_enum_app_name == APP_DOLPHIN) {
-			glBindTexture(target == 36160 || target == 36009 ? GL_TEXTURE_2D_ARRAY : target, object);
-			glGetTexLevelParameteriv(target == 36160 || target == 36009 ? GL_TEXTURE_2D_ARRAY : target, level, GL_TEXTURE_WIDTH, reinterpret_cast<int *>(&info.width));
-			glGetTexLevelParameteriv(target == 36160 || target == 36009 ? GL_TEXTURE_2D_ARRAY : target, level, GL_TEXTURE_HEIGHT, reinterpret_cast<int *>(&info.height));
-			glGetTexLevelParameteriv(target == 36160 || target == 36009 ? GL_TEXTURE_2D_ARRAY : target, level, GL_TEXTURE_INTERNAL_FORMAT, &info.format);
+		glBindTexture(target, object);
+		glGetTexLevelParameteriv(target, level, GL_TEXTURE_WIDTH, reinterpret_cast<int *>(&info.width));
+		glGetTexLevelParameteriv(target, level, GL_TEXTURE_HEIGHT, reinterpret_cast<int *>(&info.height));
+		glGetTexLevelParameteriv(target, level, GL_TEXTURE_INTERNAL_FORMAT, &info.format);
 
-			glBindTexture(target == 36160 || target == 36009 ? GL_TEXTURE_2D_ARRAY : target, previous_tex);
-		}
-		else {
-			glBindTexture(target, object);
-			glGetTexLevelParameteriv(target, level, GL_TEXTURE_WIDTH, reinterpret_cast<int *>(&info.width));
-			glGetTexLevelParameteriv(target, level, GL_TEXTURE_HEIGHT, reinterpret_cast<int *>(&info.height));
-			glGetTexLevelParameteriv(target, level, GL_TEXTURE_INTERNAL_FORMAT, &info.format);
-
-			glBindTexture(target, previous_tex);
-		}
+		glBindTexture(target, previous_tex);
 	}
 
 	_depth_source_table.emplace(id, info);

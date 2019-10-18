@@ -559,11 +559,17 @@ private:
 		for (spv::Id type_id : member_types)
 			instruction.add(type_id);
 
-		// Special handling for when this is called from 'create_global_ubo'
-		if (info.definition == _global_ubo_type.definition)
+		// Special handling for when this is called during global UBO creation (in 'write_result')
+		if (_global_ubo_type.definition != 0 &&
+			info.definition == _global_ubo_type.definition)
+		{
 			instruction.result = info.definition;
+		}
 		else
-			assert(info.definition == 0), info.definition = instruction.result;
+		{
+			assert(info.definition == 0);
+			info.definition = instruction.result;
+		}
 
 		if (!info.unique_name.empty())
 			add_name(info.definition, info.unique_name.c_str());

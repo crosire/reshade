@@ -14,6 +14,7 @@ namespace reshade::resources
 		size_t data_size;
 		const void *data;
 	};
+
 	struct image_resource : public data_resource
 	{
 		unsigned int width, height, bits_per_pixel;

@@ -56,7 +56,7 @@ reshade::hook::status reshade::hook::uninstall()
 	trampoline = nullptr;
 
 	if (--s_reference_count == 0)
-		MH_Uninitialize(); // If this was the last active hook, MinHook can now be uninialized, since no more are active
+		MH_Uninitialize(); // If this was the last active hook, MinHook can now be uninitialized, since no more are active
 
 	return hook::status::success;
 }
