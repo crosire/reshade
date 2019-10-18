@@ -1618,7 +1618,8 @@ bool reshade::vulkan::runtime_vk::init_imgui_resources()
 
 void reshade::vulkan::runtime_vk::render_imgui_draw_data(ImDrawData *draw_data)
 {
-	bool resize_mem = false;
+	// Attempt to allocate memory if it failed previously
+	bool resize_mem = _imgui_vertex_mem == VK_NULL_HANDLE;
 
 	// Create and grow vertex/index buffers if needed
 	if (_imgui_index_buffer_size < uint32_t(draw_data->TotalIdxCount))
@@ -1637,20 +1638,16 @@ void reshade::vulkan::runtime_vk::render_imgui_draw_data(ImDrawData *draw_data)
 		// Make sure the previous frame has finished using the buffers before freeing them
 		vk.QueueWaitIdle(_current_queue);
 
-		vk.DestroyBuffer(_device, _imgui_index_buffer, nullptr);
-		vk.DestroyBuffer(_device, _imgui_vertex_buffer, nullptr);
-		// Free allocated buffer memory after deleting the buffer objects
+		// Free allocated memory associated with vertex/index buffers
 		vk.FreeMemory(_device, _imgui_vertex_mem, nullptr);
 		_imgui_vertex_mem = VK_NULL_HANDLE;
 
-		_imgui_index_buffer = create_buffer(
-			_imgui_index_buffer_size * sizeof(ImDrawIdx),
-			VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
-			0);
-		_imgui_vertex_buffer = create_buffer(
-			_imgui_vertex_buffer_size * sizeof(ImDrawVert),
-			VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-			0);
+		// Re-create the buffer objects
+		vk.DestroyBuffer(_device, _imgui_index_buffer, nullptr);
+		vk.DestroyBuffer(_device, _imgui_vertex_buffer, nullptr);
+
+		_imgui_index_buffer = create_buffer(_imgui_index_buffer_size * sizeof(ImDrawIdx), VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
+		_imgui_vertex_buffer = create_buffer(_imgui_vertex_buffer_size * sizeof(ImDrawVert), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
 
 		if (_imgui_index_buffer == VK_NULL_HANDLE ||
 			_imgui_vertex_buffer == VK_NULL_HANDLE)
@@ -1696,6 +1693,8 @@ void reshade::vulkan::runtime_vk::render_imgui_draw_data(ImDrawData *draw_data)
 	vk.UnmapMemory(_device, _imgui_vertex_mem);
 
 	const VkCommandBuffer cmd_list = create_command_list();
+	if (cmd_list == VK_NULL_HANDLE)
+		return;
 
 	{   VkRenderPassBeginInfo begin_info { VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO };
 		begin_info.renderPass = _default_render_pass[0];
