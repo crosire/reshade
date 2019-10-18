@@ -1634,12 +1634,13 @@ void reshade::vulkan::runtime_vk::render_imgui_draw_data(ImDrawData *draw_data)
 
 	if (resize_mem)
 	{
-		if (_imgui_index_buffer != VK_NULL_HANDLE)
-			vk.DestroyBuffer(_device, _imgui_index_buffer, nullptr);
-		if (_imgui_vertex_buffer != VK_NULL_HANDLE)
-			vk.DestroyBuffer(_device, _imgui_vertex_buffer, nullptr);
-		if (_imgui_vertex_mem != VK_NULL_HANDLE)
-			vk.FreeMemory(_device, _imgui_vertex_mem, nullptr);
+		// Make sure the previous frame has finished using the buffers before freeing them
+		vk.QueueWaitIdle(_current_queue);
+
+		vk.DestroyBuffer(_device, _imgui_index_buffer, nullptr);
+		vk.DestroyBuffer(_device, _imgui_vertex_buffer, nullptr);
+		// Free allocated buffer memory after deleting the buffer objects
+		vk.FreeMemory(_device, _imgui_vertex_mem, nullptr);
 		_imgui_vertex_mem = VK_NULL_HANDLE;
 
 		_imgui_index_buffer = create_buffer(
