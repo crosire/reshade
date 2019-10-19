@@ -260,19 +260,32 @@ bool reshade::d3d12::runtime_d3d12::init_mipmap_pipeline()
 	return true;
 }
 
-bool reshade::d3d12::runtime_d3d12::on_init(const DXGI_SWAP_CHAIN_DESC &desc
+bool reshade::d3d12::runtime_d3d12::on_init(const DXGI_SWAP_CHAIN_DESC& desc
 #if RESHADE_D3D12ON7
-	, ID3D12Resource *backbuffer
+	, ID3D12Resource* backbuffer
 #endif
-	)
+)
 {
+	_width = desc.BufferDesc.Width;
+	_height = desc.BufferDesc.Height;
+
 	RECT window_rect = {};
 	GetClientRect(desc.OutputWindow, &window_rect);
 
-	_width = desc.BufferDesc.Width;
-	_height = desc.BufferDesc.Height;
 	_window_width = window_rect.right - window_rect.left;
 	_window_height = window_rect.bottom - window_rect.top;
+
+	if (_window_width == 0 || _window_height == 0)
+	{
+		_window_width = desc.BufferDesc.Width;
+		_window_height = desc.BufferDesc.Height;
+	}
+
+	LOG(INFO) << "desc.BufferDesc.Width => " << desc.BufferDesc.Width;
+	LOG(INFO) << "desc.BufferDesc.Height => " << desc.BufferDesc.Height;
+
+	LOG(INFO) << "_window_width => " << _window_width;
+	LOG(INFO) << "_window_height => " << _window_height;
 	_backbuffer_format = desc.BufferDesc.Format;
 	_is_multisampling_enabled = desc.SampleDesc.Count > 1;
 	_color_bit_depth = dxgi_format_color_depth(_backbuffer_format);
