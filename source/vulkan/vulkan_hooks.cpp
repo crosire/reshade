@@ -567,6 +567,27 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 	VkSwapchainCreateInfoKHR create_info = *pCreateInfo;
 	create_info.imageUsage |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
 
+	LOG(INFO) << "> Dumping swap chain description:";
+	LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
+	LOG(INFO) << "  | Parameter                               | Value                                   |";
+	LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
+	LOG(INFO) << "  | flags                                   | " << std::setw(39) << std::hex << create_info.flags << std::dec << " |";
+	LOG(INFO) << "  | surface                                 | " << std::setw(39) << create_info.surface << " |";
+	LOG(INFO) << "  | minImageCount                           | " << std::setw(39) << create_info.minImageCount << " |";
+	LOG(INFO) << "  | imageFormat                             | " << std::setw(39) << create_info.imageFormat << " |";
+	LOG(INFO) << "  | imageColorSpace                         | " << std::setw(39) << create_info.imageColorSpace << " |";
+	LOG(INFO) << "  | imageExtent                             | " << std::setw(19) << create_info.imageExtent.width << ' ' << std::setw(19) << create_info.imageExtent.height << " |";
+	LOG(INFO) << "  | imageArrayLayers                        | " << std::setw(39) << create_info.imageArrayLayers << " |";
+	LOG(INFO) << "  | imageUsage                              | " << std::setw(39) << std::hex << create_info.imageUsage << std::dec << " |";
+	LOG(INFO) << "  | imageSharingMode                        | " << std::setw(39) << create_info.imageSharingMode << " |";
+	LOG(INFO) << "  | queueFamilyIndexCount                   | " << std::setw(39) << create_info.queueFamilyIndexCount << " |";
+	LOG(INFO) << "  | preTransform                            | " << std::setw(39) << std::hex << create_info.preTransform << std::dec << " |";
+	LOG(INFO) << "  | compositeAlpha                          | " << std::setw(39) << std::hex << create_info.compositeAlpha << std::dec << " |";
+	LOG(INFO) << "  | presentMode                             | " << std::setw(39) << create_info.presentMode << " |";
+	LOG(INFO) << "  | clipped                                 | " << std::setw(39) << (create_info.clipped ? "true" : "false") << " |";
+	LOG(INFO) << "  | oldSwapchain                            | " << std::setw(39) << create_info.oldSwapchain << " |";
+	LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
+
 	GET_DEVICE_DISPATCH_PTR(CreateSwapchainKHR, device);
 	const VkResult result = trampoline(device, &create_info, pAllocator, pSwapchain);
 	if (result != VK_SUCCESS)
