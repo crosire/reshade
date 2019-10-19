@@ -632,7 +632,7 @@ void reshade::runtime::draw_ui()
 		if (init_window_layout)
 		{
 			// Add the root node
-			ImGui::DockBuilderAddNode(root_space_id, ImGuiDockNodeFlags_Dockspace);
+			ImGui::DockBuilderAddNode(root_space_id, ImGuiDockNodeFlags_DockSpace);
 			ImGui::DockBuilderSetNodeSize(root_space_id, viewport->Size);
 
 			// Split root node into two spaces
@@ -662,7 +662,7 @@ void reshade::runtime::draw_ui()
 			ImGuiWindowFlags_NoFocusOnAppearing |
 			ImGuiWindowFlags_NoBringToFrontOnFocus |
 			ImGuiWindowFlags_NoBackground);
-		ImGui::DockSpace(root_space_id, ImVec2(0, 0), ImGuiDockNodeFlags_PassthruDockspace);
+		ImGui::DockSpace(root_space_id, ImVec2(0, 0), ImGuiDockNodeFlags_PassthruCentralNode);
 		ImGui::End();
 
 		for (const auto &widget : _menu_callables)
@@ -867,7 +867,7 @@ void reshade::runtime::draw_overlay_menu_home()
 	if (_tutorial_index > 2 && !_performance_mode)
 	{
 		ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(0, 0));
-		ImGui::ButtonEx("##splitter", ImVec2(ImGui::GetContentRegionAvailWidth(), 5));
+		ImGui::ButtonEx("##splitter", ImVec2(ImGui::GetContentRegionAvail().x, 5));
 		ImGui::PopStyleVar();
 
 		if (ImGui::IsItemHovered())
@@ -926,7 +926,7 @@ void reshade::runtime::draw_overlay_menu_home()
 		ImGui::TextWrapped(tutorial_text);
 		ImGui::EndChildFrame();
 
-		const float max_button_width = ImGui::GetContentRegionAvailWidth();
+		const float max_button_width = ImGui::GetContentRegionAvail().x;
 
 		if (ImGui::Button(_tutorial_index == 3 ? "Finish" : "Continue", ImVec2(max_button_width * 0.66666666f, 0)))
 		{
@@ -1190,7 +1190,7 @@ void reshade::runtime::draw_overlay_menu_statistics()
 
 	if (ImGui::CollapsingHeader("General", ImGuiTreeNodeFlags_DefaultOpen))
 	{
-		ImGui::PushItemWidth(ImGui::GetContentRegionAvailWidth());
+		ImGui::PushItemWidth(ImGui::GetContentRegionAvail().x);
 		ImGui::PlotLines("##framerate",
 			_imgui_context->FramerateSecPerFrame, 120,
 			_imgui_context->FramerateSecPerFrameIdx,
@@ -1610,7 +1610,7 @@ void reshade::runtime::draw_code_editor()
 
 	ImGui::SameLine();
 
-	ImGui::PushItemWidth(ImGui::GetContentRegionAvailWidth());
+	ImGui::PushItemWidth(ImGui::GetContentRegionAvail().x);
 
 	if (ImGui::BeginCombo("##file", _selected_effect < _loaded_effects.size() ? _loaded_effects[_selected_effect].source_file.u8string().c_str() : "", ImGuiComboFlags_HeightLarge))
 	{
@@ -1677,7 +1677,7 @@ void reshade::runtime::draw_overlay_variable_editor()
 {
 	const ImVec2 popup_pos = ImGui::GetCursorScreenPos() + ImVec2(std::max(0.f, ImGui::GetWindowContentRegionWidth() * 0.5f - 200.0f), ImGui::GetFrameHeightWithSpacing());
 
-	if (imgui_popup_button("Edit global preprocessor definitions", ImGui::GetContentRegionAvailWidth(), ImGuiWindowFlags_NoMove))
+	if (imgui_popup_button("Edit global preprocessor definitions", ImGui::GetContentRegionAvail().x, ImGuiWindowFlags_NoMove))
 	{
 		ImGui::SetWindowPos(popup_pos);
 
@@ -1854,7 +1854,7 @@ void reshade::runtime::draw_overlay_variable_editor()
 					ImGui::TreePop();
 
 				if (is_focused || _effects_expanded_state & 1)
-					ImGui::SetNextTreeNodeOpen(is_focused || (_effects_expanded_state >> 1) != 0);
+					ImGui::SetNextItemOpen(is_focused || (_effects_expanded_state >> 1) != 0);
 
 				current_tree_is_open = ImGui::TreeNodeEx(filename.c_str(), ImGuiTreeNodeFlags_DefaultOpen);
 			}
@@ -1868,11 +1868,11 @@ void reshade::runtime::draw_overlay_variable_editor()
 			if (current_tree_is_open)
 			{
 				ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(_imgui_context->Style.FramePadding.x, 0));
-				if (imgui_popup_button("Reset all to default", _variable_editor_tabs ? ImGui::GetContentRegionAvailWidth() : ImGui::CalcItemWidth()))
+				if (imgui_popup_button("Reset all to default", _variable_editor_tabs ? ImGui::GetContentRegionAvail().x : ImGui::CalcItemWidth()))
 				{
 					ImGui::Text("Do you really want to reset all values in '%s' to their defaults?", filename.c_str());
 
-					if (ImGui::Button("Yes", ImVec2(ImGui::GetContentRegionAvailWidth(), 0)))
+					if (ImGui::Button("Yes", ImVec2(ImGui::GetContentRegionAvail().x, 0)))
 					{
 						for (uniform &reset_variable : _uniforms)
 							if (reset_variable.effect_index == current_effect)
@@ -2345,7 +2345,7 @@ void reshade::runtime::draw_preset_explorer()
 			char buf[_MAX_PATH]{};
 			_current_browse_path.u8string().copy(buf, sizeof(buf) - 1);
 
-			const bool is_edited = ImGui::InputTextEx("##path", buf, sizeof(buf), ImVec2(root_window_width - (button_spacing + button_size) * 3, 0), ImGuiInputTextFlags_None);
+			const bool is_edited = ImGui::InputTextEx("##path", nullptr, buf, sizeof(buf), ImVec2(root_window_width - (button_spacing + button_size) * 3, 0), ImGuiInputTextFlags_None);
 			const bool is_returned = ImGui::IsKeyPressedMap(ImGuiKey_Enter);
 
 			if (ImGui::IsItemActivated())
