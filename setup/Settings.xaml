@@ -25,9 +25,9 @@
 			<TextBox Name="TexturesPath" Text="{Binding Tag, ElementName=BtnTextures, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Width="394" />
 		</DockPanel>
 		<DockPanel LastChildFill="True" Margin="0,5">
-			<Label Content="Screenshots Path" />
+			<Label Content="Screenshot Path" />
 			<Button Name="BtnScreenshots" Content="..." Padding="5,0" DockPanel.Dock="Right" Click="ChooseFolderDialog" />
-			<TextBox Name="ScreenshotsPath" Text="{Binding Tag, ElementName=BtnScreenshots, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Width="375" />
+			<TextBox Name="ScreenshotPath" Text="{Binding Tag, ElementName=BtnScreenshots, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Width="375" />
 		</DockPanel>
 		<Grid Margin="0,5">
 			<Grid.ColumnDefinitions>

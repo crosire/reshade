@@ -298,7 +298,7 @@ bool reshadefx::expression::evaluate_constant_expression(reshadefx::tokenid op, 
 	case tokenid::percent:
 		if (type.is_floating_point()) {
 			for (unsigned int i = 0; i < type.components(); ++i)
-				// Floating point modulo with zero is defined and results NaN
+				// Floating point modulo with zero is defined and results in NaN
 				if (rhs.as_float[i] == 0)
 					constant.as_float[i] = std::numeric_limits<float>::quiet_NaN();
 				else

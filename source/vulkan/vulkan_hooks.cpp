@@ -205,9 +205,6 @@ static void track_cleared_depthstencil(VkCommandBuffer commandBuffer, VkDevice d
 
 VkResult VKAPI_CALL vkCreateInstance(const VkInstanceCreateInfo *pCreateInfo, const VkAllocationCallbacks *pAllocator, VkInstance *pInstance)
 {
-	PFN_vkCreateInstance trampoline = nullptr;
-	PFN_vkGetInstanceProcAddr get_instance_proc = nullptr;
-
 	LOG(INFO) << "Redirecting vkCreateInstance" << '(' << pCreateInfo << ", " << pAllocator << ", " << pInstance << ')' << " ...";
 
 	// Look for layer link info if installed as a layer (provided by the Vulkan loader)
@@ -215,11 +212,17 @@ VkResult VKAPI_CALL vkCreateInstance(const VkInstanceCreateInfo *pCreateInfo, co
 	while (link_info != nullptr && !(link_info->sType == VK_STRUCTURE_TYPE_LOADER_INSTANCE_CREATE_INFO && link_info->function == VK_LAYER_LINK_INFO))
 		link_info = (VkLayerInstanceCreateInfo *)link_info->pNext;
 
+	// Get trampoline function pointers
+	PFN_vkGetInstanceProcAddr gipa = nullptr;
+	PFN_vkCreateInstance trampoline = nullptr;
+
 	if (link_info != nullptr) {
 		assert(link_info->u.pLayerInfo != nullptr);
+		assert(link_info->u.pLayerInfo->pfnNextGetInstanceProcAddr != nullptr);
+
 		// Look up functions in layer info
-		get_instance_proc = link_info->u.pLayerInfo->pfnNextGetInstanceProcAddr;
-		trampoline = (PFN_vkCreateInstance)get_instance_proc(nullptr, "vkCreateInstance");
+		gipa = link_info->u.pLayerInfo->pfnNextGetInstanceProcAddr;
+		trampoline = reinterpret_cast<PFN_vkCreateInstance>(gipa(nullptr, "vkCreateInstance"));
 
 		// Advance the link info for the next element of the chain
 		link_info->u.pLayerInfo = link_info->u.pLayerInfo->pNext;
@@ -227,8 +230,8 @@ VkResult VKAPI_CALL vkCreateInstance(const VkInstanceCreateInfo *pCreateInfo, co
 #ifdef RESHADE_TEST_APPLICATION
 	else
 	{
+		gipa = reshade::hooks::call(vkGetInstanceProcAddr);
 		trampoline = reshade::hooks::call(vkCreateInstance);
-		get_instance_proc = reshade::hooks::call(vkGetInstanceProcAddr);
 	}
 #endif
 
@@ -246,15 +249,15 @@ VkResult VKAPI_CALL vkCreateInstance(const VkInstanceCreateInfo *pCreateInfo, co
 	VkInstance instance = *pInstance;
 	// Initialize the instance dispatch table
 	VkLayerInstanceDispatchTable dispatch_table = {};
-	dispatch_table.GetInstanceProcAddr = get_instance_proc;
 	// ---- Core 1_0 commands
-	dispatch_table.DestroyInstance = (PFN_vkDestroyInstance)get_instance_proc(instance, "vkDestroyInstance");
-	dispatch_table.EnumeratePhysicalDevices = (PFN_vkEnumeratePhysicalDevices)get_instance_proc(instance, "vkEnumeratePhysicalDevices");
-	dispatch_table.GetPhysicalDeviceMemoryProperties = (PFN_vkGetPhysicalDeviceMemoryProperties)get_instance_proc(instance, "vkGetPhysicalDeviceMemoryProperties");
+	dispatch_table.DestroyInstance = (PFN_vkDestroyInstance)gipa(instance, "vkDestroyInstance");
+	dispatch_table.EnumeratePhysicalDevices = (PFN_vkEnumeratePhysicalDevices)gipa(instance, "vkEnumeratePhysicalDevices");
+	dispatch_table.GetPhysicalDeviceMemoryProperties = (PFN_vkGetPhysicalDeviceMemoryProperties)gipa(instance, "vkGetPhysicalDeviceMemoryProperties");
+	dispatch_table.GetInstanceProcAddr = gipa;
 	// ---- VK_KHR_surface extension commands
-	dispatch_table.DestroySurfaceKHR = (PFN_vkDestroySurfaceKHR)get_instance_proc(instance, "vkDestroySurfaceKHR");
+	dispatch_table.DestroySurfaceKHR = (PFN_vkDestroySurfaceKHR)gipa(instance, "vkDestroySurfaceKHR");
 	// ---- VK_KHR_win32_surface extension commands
-	dispatch_table.CreateWin32SurfaceKHR = (PFN_vkCreateWin32SurfaceKHR)get_instance_proc(instance, "vkCreateWin32SurfaceKHR");
+	dispatch_table.CreateWin32SurfaceKHR = (PFN_vkCreateWin32SurfaceKHR)gipa(instance, "vkCreateWin32SurfaceKHR");
 
 	{ const std::lock_guard<std::mutex> lock(s_mutex);
 		s_instance_dispatch[get_dispatch_key(instance)] = dispatch_table;
@@ -330,10 +333,6 @@ void     VKAPI_CALL vkDestroySurfaceKHR(VkInstance instance, VkSurfaceKHR surfac
 
 VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDeviceCreateInfo *pCreateInfo, const VkAllocationCallbacks *pAllocator, VkDevice *pDevice)
 {
-	PFN_vkCreateDevice trampoline = nullptr;
-	PFN_vkGetDeviceProcAddr get_device_proc = nullptr;
-	PFN_vkGetInstanceProcAddr get_instance_proc = nullptr;
-
 	LOG(INFO) << "Redirecting vkCreateDevice" << '(' << physicalDevice << ", " << pCreateInfo << ", " << pAllocator << ", " << pDevice << ')' << " ...";
 
 	// Look for layer link info if installed as a layer (provided by the Vulkan loader)
@@ -341,12 +340,20 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	while (link_info != nullptr && !(link_info->sType == VK_STRUCTURE_TYPE_LOADER_DEVICE_CREATE_INFO && link_info->function == VK_LAYER_LINK_INFO))
 		link_info = (VkLayerDeviceCreateInfo *)link_info->pNext;
 
+	// Get trampoline function pointers
+	PFN_vkGetDeviceProcAddr gdpa = nullptr;
+	PFN_vkGetInstanceProcAddr gipa = nullptr;
+	PFN_vkCreateDevice trampoline = nullptr;
+
 	if (link_info != nullptr) {
 		assert(link_info->u.pLayerInfo != nullptr);
+		assert(link_info->u.pLayerInfo->pfnNextGetDeviceProcAddr != nullptr);
+		assert(link_info->u.pLayerInfo->pfnNextGetInstanceProcAddr != nullptr);
+
 		// Look up functions in layer info
-		get_device_proc = link_info->u.pLayerInfo->pfnNextGetDeviceProcAddr;
-		get_instance_proc = link_info->u.pLayerInfo->pfnNextGetInstanceProcAddr;
-		trampoline = (PFN_vkCreateDevice)get_instance_proc(nullptr, "vkCreateDevice");
+		gdpa = link_info->u.pLayerInfo->pfnNextGetDeviceProcAddr;
+		gipa = link_info->u.pLayerInfo->pfnNextGetInstanceProcAddr;
+		trampoline = reinterpret_cast<PFN_vkCreateDevice>(gipa(nullptr, "vkCreateDevice"));
 
 		// Advance the link info for the next element on the chain
 		link_info->u.pLayerInfo = link_info->u.pLayerInfo->pNext;
@@ -354,9 +361,9 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 #ifdef RESHADE_TEST_APPLICATION
 	else
 	{
+		gdpa = reshade::hooks::call(vkGetDeviceProcAddr);
+		gipa = reshade::hooks::call(vkGetInstanceProcAddr);
 		trampoline = reshade::hooks::call(vkCreateDevice);
-		get_device_proc = reshade::hooks::call(vkGetDeviceProcAddr);
-		get_instance_proc = reshade::hooks::call(vkGetInstanceProcAddr);
 	}
 #endif
 
@@ -395,90 +402,90 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	VkDevice device = *pDevice;
 	// Initialize the device dispatch table
 	VkLayerDispatchTable dispatch_table = {};
-	dispatch_table.GetDeviceProcAddr = get_device_proc;
 	// ---- Core 1_0 commands
-	dispatch_table.DestroyDevice = (PFN_vkDestroyDevice)get_device_proc(device, "vkDestroyDevice");
-	dispatch_table.GetDeviceQueue = (PFN_vkGetDeviceQueue)get_device_proc(device, "vkGetDeviceQueue");
-	dispatch_table.QueueSubmit = (PFN_vkQueueSubmit)get_device_proc(device, "vkQueueSubmit");
-	dispatch_table.QueueWaitIdle = (PFN_vkQueueWaitIdle)get_device_proc(device, "vkQueueWaitIdle");
-	dispatch_table.DeviceWaitIdle = (PFN_vkDeviceWaitIdle)get_device_proc(device, "vkDeviceWaitIdle");
-	dispatch_table.AllocateMemory = (PFN_vkAllocateMemory)get_device_proc(device, "vkAllocateMemory");
-	dispatch_table.FreeMemory = (PFN_vkFreeMemory)get_device_proc(device, "vkFreeMemory");
-	dispatch_table.MapMemory = (PFN_vkMapMemory)get_device_proc(device, "vkMapMemory");
-	dispatch_table.UnmapMemory = (PFN_vkUnmapMemory)get_device_proc(device, "vkUnmapMemory");
-	dispatch_table.BindBufferMemory = (PFN_vkBindBufferMemory)get_device_proc(device, "vkBindBufferMemory");
-	dispatch_table.BindImageMemory = (PFN_vkBindImageMemory)get_device_proc(device, "vkBindImageMemory");
-	dispatch_table.GetBufferMemoryRequirements = (PFN_vkGetBufferMemoryRequirements)get_device_proc(device, "vkGetBufferMemoryRequirements");
-	dispatch_table.GetImageMemoryRequirements = (PFN_vkGetImageMemoryRequirements)get_device_proc(device, "vkGetImageMemoryRequirements");
-	dispatch_table.CreateFence = (PFN_vkCreateFence)get_device_proc(device, "vkCreateFence");
-	dispatch_table.DestroyFence = (PFN_vkDestroyFence)get_device_proc(device, "vkDestroyFence");
-	dispatch_table.ResetFences = (PFN_vkResetFences)get_device_proc(device, "vkResetFences");
-	dispatch_table.WaitForFences = (PFN_vkWaitForFences)get_device_proc(device, "vkWaitForFences");
-	dispatch_table.CreateBuffer = (PFN_vkCreateBuffer)get_device_proc(device, "vkCreateBuffer");
-	dispatch_table.DestroyBuffer = (PFN_vkDestroyBuffer)get_device_proc(device, "vkDestroyBuffer");
-	dispatch_table.CreateImage = (PFN_vkCreateImage)get_device_proc(device, "vkCreateImage");
-	dispatch_table.DestroyImage = (PFN_vkDestroyImage)get_device_proc(device, "vkDestroyImage");
-	dispatch_table.GetImageSubresourceLayout = (PFN_vkGetImageSubresourceLayout)get_device_proc(device, "vkGetImageSubresourceLayout");
-	dispatch_table.CreateImageView = (PFN_vkCreateImageView)get_device_proc(device, "vkCreateImageView");
-	dispatch_table.DestroyImageView = (PFN_vkDestroyImageView)get_device_proc(device, "vkDestroyImageView");
-	dispatch_table.CreateShaderModule = (PFN_vkCreateShaderModule)get_device_proc(device, "vkCreateShaderModule");
-	dispatch_table.DestroyShaderModule = (PFN_vkDestroyShaderModule)get_device_proc(device, "vkDestroyShaderModule");
-	dispatch_table.CreateGraphicsPipelines = (PFN_vkCreateGraphicsPipelines)get_device_proc(device, "vkCreateGraphicsPipelines");
-	dispatch_table.DestroyPipeline = (PFN_vkDestroyPipeline)get_device_proc(device, "vkDestroyPipeline");
-	dispatch_table.CreatePipelineLayout = (PFN_vkCreatePipelineLayout)get_device_proc(device, "vkCreatePipelineLayout");
-	dispatch_table.DestroyPipelineLayout = (PFN_vkDestroyPipelineLayout)get_device_proc(device, "vkDestroyPipelineLayout");
-	dispatch_table.CreateSampler = (PFN_vkCreateSampler)get_device_proc(device, "vkCreateSampler");
-	dispatch_table.DestroySampler = (PFN_vkDestroySampler)get_device_proc(device, "vkDestroySampler");
-	dispatch_table.CreateDescriptorSetLayout = (PFN_vkCreateDescriptorSetLayout)get_device_proc(device, "vkCreateDescriptorSetLayout");
-	dispatch_table.DestroyDescriptorSetLayout = (PFN_vkDestroyDescriptorSetLayout)get_device_proc(device, "vkDestroyDescriptorSetLayout");
-	dispatch_table.CreateDescriptorPool = (PFN_vkCreateDescriptorPool)get_device_proc(device, "vkCreateDescriptorPool");
-	dispatch_table.DestroyDescriptorPool = (PFN_vkDestroyDescriptorPool)get_device_proc(device, "vkDestroyDescriptorPool");
-	dispatch_table.ResetDescriptorPool = (PFN_vkResetDescriptorPool)get_device_proc(device, "vkResetDescriptorPool");
-	dispatch_table.AllocateDescriptorSets = (PFN_vkAllocateDescriptorSets)get_device_proc(device, "vkAllocateDescriptorSets");
-	dispatch_table.FreeDescriptorSets = (PFN_vkFreeDescriptorSets)get_device_proc(device, "vkFreeDescriptorSets");
-	dispatch_table.UpdateDescriptorSets = (PFN_vkUpdateDescriptorSets)get_device_proc(device, "vkUpdateDescriptorSets");
-	dispatch_table.CreateFramebuffer = (PFN_vkCreateFramebuffer)get_device_proc(device, "vkCreateFramebuffer");
-	dispatch_table.DestroyFramebuffer = (PFN_vkDestroyFramebuffer)get_device_proc(device, "vkDestroyFramebuffer");
-	dispatch_table.CreateRenderPass = (PFN_vkCreateRenderPass)get_device_proc(device, "vkCreateRenderPass");
-	dispatch_table.DestroyRenderPass = (PFN_vkDestroyRenderPass)get_device_proc(device, "vkDestroyRenderPass");
-	dispatch_table.CreateCommandPool = (PFN_vkCreateCommandPool)get_device_proc(device, "vkCreateCommandPool");
-	dispatch_table.DestroyCommandPool = (PFN_vkDestroyCommandPool)get_device_proc(device, "vkDestroyCommandPool");
-	dispatch_table.ResetCommandPool = (PFN_vkResetCommandPool)get_device_proc(device, "vkResetCommandPool");
-	dispatch_table.AllocateCommandBuffers = (PFN_vkAllocateCommandBuffers)get_device_proc(device, "vkAllocateCommandBuffers");
-	dispatch_table.FreeCommandBuffers = (PFN_vkFreeCommandBuffers)get_device_proc(device, "vkFreeCommandBuffers");
-	dispatch_table.BeginCommandBuffer = (PFN_vkBeginCommandBuffer)get_device_proc(device, "vkBeginCommandBuffer");
-	dispatch_table.EndCommandBuffer = (PFN_vkEndCommandBuffer)get_device_proc(device, "vkEndCommandBuffer");
-	dispatch_table.ResetCommandBuffer = (PFN_vkResetCommandBuffer)get_device_proc(device, "vkResetCommandBuffer");
-	dispatch_table.CmdBindPipeline = (PFN_vkCmdBindPipeline)get_device_proc(device, "vkCmdBindPipeline");
-	dispatch_table.CmdSetViewport = (PFN_vkCmdSetViewport)get_device_proc(device, "vkCmdSetViewport");
-	dispatch_table.CmdSetScissor = (PFN_vkCmdSetScissor)get_device_proc(device, "vkCmdSetScissor");
-	dispatch_table.CmdBindDescriptorSets = (PFN_vkCmdBindDescriptorSets)get_device_proc(device, "vkCmdBindDescriptorSets");
-	dispatch_table.CmdBindIndexBuffer = (PFN_vkCmdBindIndexBuffer)get_device_proc(device, "vkCmdBindIndexBuffer");
-	dispatch_table.CmdBindVertexBuffers = (PFN_vkCmdBindVertexBuffers)get_device_proc(device, "vkCmdBindVertexBuffers");
-	dispatch_table.CmdDraw = (PFN_vkCmdDraw)get_device_proc(device, "vkCmdDraw");
-	dispatch_table.CmdDrawIndexed = (PFN_vkCmdDrawIndexed)get_device_proc(device, "vkCmdDrawIndexed");
-	dispatch_table.CmdCopyImage = (PFN_vkCmdCopyImage)get_device_proc(device, "vkCmdCopyImage");
-	dispatch_table.CmdBlitImage = (PFN_vkCmdBlitImage)get_device_proc(device, "vkCmdBlitImage");
-	dispatch_table.CmdCopyBufferToImage = (PFN_vkCmdCopyBufferToImage)get_device_proc(device, "vkCmdCopyBufferToImage");
-	dispatch_table.CmdUpdateBuffer = (PFN_vkCmdUpdateBuffer)get_device_proc(device, "vkCmdUpdateBuffer");
-	dispatch_table.CmdClearDepthStencilImage = (PFN_vkCmdClearDepthStencilImage)get_device_proc(device, "vkCmdClearDepthStencilImage");
-	dispatch_table.CmdClearAttachments = (PFN_vkCmdClearAttachments)get_device_proc(device, "vkCmdClearAttachments");
-	dispatch_table.CmdPipelineBarrier = (PFN_vkCmdPipelineBarrier)get_device_proc(device, "vkCmdPipelineBarrier");
-	dispatch_table.CmdPushConstants = (PFN_vkCmdPushConstants)get_device_proc(device, "vkCmdPushConstants");
-	dispatch_table.CmdBeginRenderPass = (PFN_vkCmdBeginRenderPass)get_device_proc(device, "vkCmdBeginRenderPass");
-	dispatch_table.CmdEndRenderPass = (PFN_vkCmdEndRenderPass)get_device_proc(device, "vkCmdEndRenderPass");
+	dispatch_table.GetDeviceProcAddr = gdpa;
+	dispatch_table.DestroyDevice = (PFN_vkDestroyDevice)gdpa(device, "vkDestroyDevice");
+	dispatch_table.GetDeviceQueue = (PFN_vkGetDeviceQueue)gdpa(device, "vkGetDeviceQueue");
+	dispatch_table.QueueSubmit = (PFN_vkQueueSubmit)gdpa(device, "vkQueueSubmit");
+	dispatch_table.QueueWaitIdle = (PFN_vkQueueWaitIdle)gdpa(device, "vkQueueWaitIdle");
+	dispatch_table.DeviceWaitIdle = (PFN_vkDeviceWaitIdle)gdpa(device, "vkDeviceWaitIdle");
+	dispatch_table.AllocateMemory = (PFN_vkAllocateMemory)gdpa(device, "vkAllocateMemory");
+	dispatch_table.FreeMemory = (PFN_vkFreeMemory)gdpa(device, "vkFreeMemory");
+	dispatch_table.MapMemory = (PFN_vkMapMemory)gdpa(device, "vkMapMemory");
+	dispatch_table.UnmapMemory = (PFN_vkUnmapMemory)gdpa(device, "vkUnmapMemory");
+	dispatch_table.BindBufferMemory = (PFN_vkBindBufferMemory)gdpa(device, "vkBindBufferMemory");
+	dispatch_table.BindImageMemory = (PFN_vkBindImageMemory)gdpa(device, "vkBindImageMemory");
+	dispatch_table.GetBufferMemoryRequirements = (PFN_vkGetBufferMemoryRequirements)gdpa(device, "vkGetBufferMemoryRequirements");
+	dispatch_table.GetImageMemoryRequirements = (PFN_vkGetImageMemoryRequirements)gdpa(device, "vkGetImageMemoryRequirements");
+	dispatch_table.CreateFence = (PFN_vkCreateFence)gdpa(device, "vkCreateFence");
+	dispatch_table.DestroyFence = (PFN_vkDestroyFence)gdpa(device, "vkDestroyFence");
+	dispatch_table.ResetFences = (PFN_vkResetFences)gdpa(device, "vkResetFences");
+	dispatch_table.WaitForFences = (PFN_vkWaitForFences)gdpa(device, "vkWaitForFences");
+	dispatch_table.CreateBuffer = (PFN_vkCreateBuffer)gdpa(device, "vkCreateBuffer");
+	dispatch_table.DestroyBuffer = (PFN_vkDestroyBuffer)gdpa(device, "vkDestroyBuffer");
+	dispatch_table.CreateImage = (PFN_vkCreateImage)gdpa(device, "vkCreateImage");
+	dispatch_table.DestroyImage = (PFN_vkDestroyImage)gdpa(device, "vkDestroyImage");
+	dispatch_table.GetImageSubresourceLayout = (PFN_vkGetImageSubresourceLayout)gdpa(device, "vkGetImageSubresourceLayout");
+	dispatch_table.CreateImageView = (PFN_vkCreateImageView)gdpa(device, "vkCreateImageView");
+	dispatch_table.DestroyImageView = (PFN_vkDestroyImageView)gdpa(device, "vkDestroyImageView");
+	dispatch_table.CreateShaderModule = (PFN_vkCreateShaderModule)gdpa(device, "vkCreateShaderModule");
+	dispatch_table.DestroyShaderModule = (PFN_vkDestroyShaderModule)gdpa(device, "vkDestroyShaderModule");
+	dispatch_table.CreateGraphicsPipelines = (PFN_vkCreateGraphicsPipelines)gdpa(device, "vkCreateGraphicsPipelines");
+	dispatch_table.DestroyPipeline = (PFN_vkDestroyPipeline)gdpa(device, "vkDestroyPipeline");
+	dispatch_table.CreatePipelineLayout = (PFN_vkCreatePipelineLayout)gdpa(device, "vkCreatePipelineLayout");
+	dispatch_table.DestroyPipelineLayout = (PFN_vkDestroyPipelineLayout)gdpa(device, "vkDestroyPipelineLayout");
+	dispatch_table.CreateSampler = (PFN_vkCreateSampler)gdpa(device, "vkCreateSampler");
+	dispatch_table.DestroySampler = (PFN_vkDestroySampler)gdpa(device, "vkDestroySampler");
+	dispatch_table.CreateDescriptorSetLayout = (PFN_vkCreateDescriptorSetLayout)gdpa(device, "vkCreateDescriptorSetLayout");
+	dispatch_table.DestroyDescriptorSetLayout = (PFN_vkDestroyDescriptorSetLayout)gdpa(device, "vkDestroyDescriptorSetLayout");
+	dispatch_table.CreateDescriptorPool = (PFN_vkCreateDescriptorPool)gdpa(device, "vkCreateDescriptorPool");
+	dispatch_table.DestroyDescriptorPool = (PFN_vkDestroyDescriptorPool)gdpa(device, "vkDestroyDescriptorPool");
+	dispatch_table.ResetDescriptorPool = (PFN_vkResetDescriptorPool)gdpa(device, "vkResetDescriptorPool");
+	dispatch_table.AllocateDescriptorSets = (PFN_vkAllocateDescriptorSets)gdpa(device, "vkAllocateDescriptorSets");
+	dispatch_table.FreeDescriptorSets = (PFN_vkFreeDescriptorSets)gdpa(device, "vkFreeDescriptorSets");
+	dispatch_table.UpdateDescriptorSets = (PFN_vkUpdateDescriptorSets)gdpa(device, "vkUpdateDescriptorSets");
+	dispatch_table.CreateFramebuffer = (PFN_vkCreateFramebuffer)gdpa(device, "vkCreateFramebuffer");
+	dispatch_table.DestroyFramebuffer = (PFN_vkDestroyFramebuffer)gdpa(device, "vkDestroyFramebuffer");
+	dispatch_table.CreateRenderPass = (PFN_vkCreateRenderPass)gdpa(device, "vkCreateRenderPass");
+	dispatch_table.DestroyRenderPass = (PFN_vkDestroyRenderPass)gdpa(device, "vkDestroyRenderPass");
+	dispatch_table.CreateCommandPool = (PFN_vkCreateCommandPool)gdpa(device, "vkCreateCommandPool");
+	dispatch_table.DestroyCommandPool = (PFN_vkDestroyCommandPool)gdpa(device, "vkDestroyCommandPool");
+	dispatch_table.ResetCommandPool = (PFN_vkResetCommandPool)gdpa(device, "vkResetCommandPool");
+	dispatch_table.AllocateCommandBuffers = (PFN_vkAllocateCommandBuffers)gdpa(device, "vkAllocateCommandBuffers");
+	dispatch_table.FreeCommandBuffers = (PFN_vkFreeCommandBuffers)gdpa(device, "vkFreeCommandBuffers");
+	dispatch_table.BeginCommandBuffer = (PFN_vkBeginCommandBuffer)gdpa(device, "vkBeginCommandBuffer");
+	dispatch_table.EndCommandBuffer = (PFN_vkEndCommandBuffer)gdpa(device, "vkEndCommandBuffer");
+	dispatch_table.ResetCommandBuffer = (PFN_vkResetCommandBuffer)gdpa(device, "vkResetCommandBuffer");
+	dispatch_table.CmdBindPipeline = (PFN_vkCmdBindPipeline)gdpa(device, "vkCmdBindPipeline");
+	dispatch_table.CmdSetViewport = (PFN_vkCmdSetViewport)gdpa(device, "vkCmdSetViewport");
+	dispatch_table.CmdSetScissor = (PFN_vkCmdSetScissor)gdpa(device, "vkCmdSetScissor");
+	dispatch_table.CmdBindDescriptorSets = (PFN_vkCmdBindDescriptorSets)gdpa(device, "vkCmdBindDescriptorSets");
+	dispatch_table.CmdBindIndexBuffer = (PFN_vkCmdBindIndexBuffer)gdpa(device, "vkCmdBindIndexBuffer");
+	dispatch_table.CmdBindVertexBuffers = (PFN_vkCmdBindVertexBuffers)gdpa(device, "vkCmdBindVertexBuffers");
+	dispatch_table.CmdDraw = (PFN_vkCmdDraw)gdpa(device, "vkCmdDraw");
+	dispatch_table.CmdDrawIndexed = (PFN_vkCmdDrawIndexed)gdpa(device, "vkCmdDrawIndexed");
+	dispatch_table.CmdCopyImage = (PFN_vkCmdCopyImage)gdpa(device, "vkCmdCopyImage");
+	dispatch_table.CmdBlitImage = (PFN_vkCmdBlitImage)gdpa(device, "vkCmdBlitImage");
+	dispatch_table.CmdCopyBufferToImage = (PFN_vkCmdCopyBufferToImage)gdpa(device, "vkCmdCopyBufferToImage");
+	dispatch_table.CmdUpdateBuffer = (PFN_vkCmdUpdateBuffer)gdpa(device, "vkCmdUpdateBuffer");
+	dispatch_table.CmdClearDepthStencilImage = (PFN_vkCmdClearDepthStencilImage)gdpa(device, "vkCmdClearDepthStencilImage");
+	dispatch_table.CmdClearAttachments = (PFN_vkCmdClearAttachments)gdpa(device, "vkCmdClearAttachments");
+	dispatch_table.CmdPipelineBarrier = (PFN_vkCmdPipelineBarrier)gdpa(device, "vkCmdPipelineBarrier");
+	dispatch_table.CmdPushConstants = (PFN_vkCmdPushConstants)gdpa(device, "vkCmdPushConstants");
+	dispatch_table.CmdBeginRenderPass = (PFN_vkCmdBeginRenderPass)gdpa(device, "vkCmdBeginRenderPass");
+	dispatch_table.CmdEndRenderPass = (PFN_vkCmdEndRenderPass)gdpa(device, "vkCmdEndRenderPass");
 	// ---- Core 1_1 commands
-	dispatch_table.BindBufferMemory2 = (PFN_vkBindBufferMemory2)get_device_proc(device, "vkBindBufferMemory2");
-	dispatch_table.GetDeviceQueue2 = (PFN_vkGetDeviceQueue2)get_device_proc(device, "vkGetDeviceQueue2");
+	dispatch_table.BindBufferMemory2 = (PFN_vkBindBufferMemory2)gdpa(device, "vkBindBufferMemory2");
+	dispatch_table.GetDeviceQueue2 = (PFN_vkGetDeviceQueue2)gdpa(device, "vkGetDeviceQueue2");
 	// ---- VK_KHR_swapchain extension commands
-	dispatch_table.CreateSwapchainKHR = (PFN_vkCreateSwapchainKHR)get_device_proc(device, "vkCreateSwapchainKHR");
-	dispatch_table.DestroySwapchainKHR = (PFN_vkDestroySwapchainKHR)get_device_proc(device, "vkDestroySwapchainKHR");
-	dispatch_table.GetSwapchainImagesKHR = (PFN_vkGetSwapchainImagesKHR)get_device_proc(device, "vkGetSwapchainImagesKHR");
-	dispatch_table.QueuePresentKHR = (PFN_vkQueuePresentKHR)get_device_proc(device, "vkQueuePresentKHR");
+	dispatch_table.CreateSwapchainKHR = (PFN_vkCreateSwapchainKHR)gdpa(device, "vkCreateSwapchainKHR");
+	dispatch_table.DestroySwapchainKHR = (PFN_vkDestroySwapchainKHR)gdpa(device, "vkDestroySwapchainKHR");
+	dispatch_table.GetSwapchainImagesKHR = (PFN_vkGetSwapchainImagesKHR)gdpa(device, "vkGetSwapchainImagesKHR");
+	dispatch_table.QueuePresentKHR = (PFN_vkQueuePresentKHR)gdpa(device, "vkQueuePresentKHR");
 	// ---- VK_KHR_push_descriptor extension commands
-	dispatch_table.CmdPushDescriptorSetKHR = (PFN_vkCmdPushDescriptorSetKHR)get_device_proc(device, "vkCmdPushDescriptorSetKHR");
+	dispatch_table.CmdPushDescriptorSetKHR = (PFN_vkCmdPushDescriptorSetKHR)gdpa(device, "vkCmdPushDescriptorSetKHR");
 	// ---- VK_EXT_debug_marker extension commands
-	dispatch_table.DebugMarkerSetObjectNameEXT = (PFN_vkDebugMarkerSetObjectNameEXT)get_device_proc(device, "vkDebugMarkerSetObjectNameEXT");
+	dispatch_table.DebugMarkerSetObjectNameEXT = (PFN_vkDebugMarkerSetObjectNameEXT)gdpa(device, "vkDebugMarkerSetObjectNameEXT");
 
 	{ const std::lock_guard<std::mutex> lock(s_mutex);
 		s_device_mapping[device] = physicalDevice;
@@ -599,7 +606,7 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 			LOG(ERROR) << "Failed to initialize Vulkan runtime environment on runtime " << runtime.get() << '.';
 
 		s_runtimes[*pSwapchain] = runtime;
-		s_device_runtimes[device] = runtime;
+		s_device_runtimes[device] = runtime; // TODO: This is incorrect, since a device may have multiple swap chains
 	}
 
 	return VK_SUCCESS;
@@ -670,8 +677,10 @@ VkResult VKAPI_CALL vkQueuePresentKHR(VkQueue queue, const VkPresentInfoKHR *pPr
 	return trampoline(queue, pPresentInfo);
 }
 
-VkResult VKAPI_CALL vkCreateImage(VkDevice device, const VkImageCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkImage* pImage)
+VkResult VKAPI_CALL vkCreateImage(VkDevice device, const VkImageCreateInfo *pCreateInfo, const VkAllocationCallbacks *pAllocator, VkImage *pImage)
 {
+	assert(pCreateInfo != nullptr);
+
 	VkImageCreateInfo create_info = *pCreateInfo;
 	// Allow shader access to images that are used as depth stencil attachments
 	const bool is_depth_stencil_image = create_info.usage & VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
@@ -693,7 +702,7 @@ VkResult VKAPI_CALL vkCreateImage(VkDevice device, const VkImageCreateInfo* pCre
 
 	return result;
 }
-void     VKAPI_CALL vkDestroyImage(VkDevice device, VkImage image, const VkAllocationCallbacks* pAllocator)
+void     VKAPI_CALL vkDestroyImage(VkDevice device, VkImage image, const VkAllocationCallbacks *pAllocator)
 {
 	{ const std::lock_guard<std::mutex> lock(s_mutex);
 		// Remove surface since this surface is being destroyed
@@ -704,7 +713,7 @@ void     VKAPI_CALL vkDestroyImage(VkDevice device, VkImage image, const VkAlloc
 	trampoline(device, image, pAllocator);
 }
 
-VkResult VKAPI_CALL vkCreateImageView(VkDevice device, const VkImageViewCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkImageView* pView)
+VkResult VKAPI_CALL vkCreateImageView(VkDevice device, const VkImageViewCreateInfo *pCreateInfo, const VkAllocationCallbacks *pAllocator, VkImageView *pView)
 {
 	GET_DEVICE_DISPATCH_PTR(CreateImageView, device);
 	VkResult result = trampoline(device, pCreateInfo, pAllocator, pView);
@@ -733,7 +742,7 @@ VkResult VKAPI_CALL vkCreateImageView(VkDevice device, const VkImageViewCreateIn
 
 	return result;
 }
-void     VKAPI_CALL vkDestroyImageView(VkDevice device, VkImageView imageView, const VkAllocationCallbacks* pAllocator)
+void     VKAPI_CALL vkDestroyImageView(VkDevice device, VkImageView imageView, const VkAllocationCallbacks *pAllocator)
 {
 	{ const std::lock_guard<std::mutex> lock(s_mutex);
 		// Remove surface since this surface is being destroyed
@@ -744,7 +753,7 @@ void     VKAPI_CALL vkDestroyImageView(VkDevice device, VkImageView imageView, c
 	trampoline(device, imageView, pAllocator);
 }
 
-VkResult VKAPI_CALL vkCreateFramebuffer(VkDevice device, const VkFramebufferCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkFramebuffer* pFramebuffer)
+VkResult VKAPI_CALL vkCreateFramebuffer(VkDevice device, const VkFramebufferCreateInfo* pCreateInfo, const VkAllocationCallbacks *pAllocator, VkFramebuffer *pFramebuffer)
 {
 	GET_DEVICE_DISPATCH_PTR(CreateFramebuffer, device);
 	const VkResult result = trampoline(device, pCreateInfo, pAllocator, pFramebuffer);
@@ -768,7 +777,7 @@ VkResult VKAPI_CALL vkCreateFramebuffer(VkDevice device, const VkFramebufferCrea
 
 	return result;
 }
-void     VKAPI_CALL vkDestroyFramebuffer(VkDevice device, VkFramebuffer framebuffer, const VkAllocationCallbacks* pAllocator)
+void     VKAPI_CALL vkDestroyFramebuffer(VkDevice device, VkFramebuffer framebuffer, const VkAllocationCallbacks *pAllocator)
 {
 	{ const std::lock_guard<std::mutex> lock(s_mutex);
 		// Remove surface since this surface is being destroyed
@@ -813,7 +822,7 @@ void     VKAPI_CALL vkFreeCommandBuffers(VkDevice device, VkCommandPool commandP
 	trampoline(device, commandPool, commandBufferCount, pCommandBuffers);
 }
 
-void     VKAPI_CALL vkCmdBeginRenderPass(VkCommandBuffer commandBuffer, const VkRenderPassBeginInfo* pRenderPassBegin, VkSubpassContents contents)
+void     VKAPI_CALL vkCmdBeginRenderPass(VkCommandBuffer commandBuffer, const VkRenderPassBeginInfo *pRenderPassBegin, VkSubpassContents contents)
 {
 	GET_DEVICE_DISPATCH_PTR(CmdBeginRenderPass, commandBuffer);
 	trampoline(commandBuffer, pRenderPassBegin, contents);
@@ -869,7 +878,7 @@ void     VKAPI_CALL vkCmdDrawIndexed(VkCommandBuffer commandBuffer, uint32_t ind
 	}
 }
 
-void     VKAPI_CALL vkCmdClearAttachments(VkCommandBuffer commandBuffer, uint32_t attachmentCount, const VkClearAttachment* pAttachments, uint32_t rectCount, const VkClearRect* pRects)
+void     VKAPI_CALL vkCmdClearAttachments(VkCommandBuffer commandBuffer, uint32_t attachmentCount, const VkClearAttachment *pAttachments, uint32_t rectCount, const VkClearRect *pRects)
 {
 	{ const std::lock_guard<std::mutex> lock(s_mutex);
 
@@ -895,7 +904,7 @@ void     VKAPI_CALL vkCmdClearAttachments(VkCommandBuffer commandBuffer, uint32_
 	GET_DEVICE_DISPATCH_PTR(CmdClearAttachments, commandBuffer);
 	trampoline(commandBuffer, attachmentCount, pAttachments, rectCount, pRects);
 }
-void     VKAPI_CALL vkCmdClearDepthStencilImage(VkCommandBuffer commandBuffer, VkImage image, VkImageLayout imageLayout, const VkClearDepthStencilValue* pDepthStencil, uint32_t rangeCount, const VkImageSubresourceRange* pRanges)
+void     VKAPI_CALL vkCmdClearDepthStencilImage(VkCommandBuffer commandBuffer, VkImage image, VkImageLayout imageLayout, const VkClearDepthStencilValue *pDepthStencil, uint32_t rangeCount, const VkImageSubresourceRange *pRanges)
 {
 	{ const std::lock_guard<std::mutex> lock(s_mutex);
 

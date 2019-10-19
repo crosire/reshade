@@ -59,7 +59,6 @@ namespace reshade::vulkan
 		void merge(const draw_call_tracker &source);
 		void reset();
 
-		// void on_map(ID3D12Resource *pResource);
 		void on_draw(VkImageView current_depthstencil, UINT vertices);
 
 		VkImageView _depthstencil;

@@ -32,7 +32,7 @@ namespace ReShade.Setup
 			iniFile.SetValue("GENERAL", "CurrentPresetPath", Preset.Text);
 			iniFile.SetValue("GENERAL", "EffectSearchPaths", EffectsPath.Text);
 			iniFile.SetValue("GENERAL", "TextureSearchPaths", TexturesPath.Text);
-			iniFile.SetValue("GENERAL", "ScreenshotPath", ScreenshotsPath.Text);
+			iniFile.SetValue("GENERAL", "ScreenshotPath", ScreenshotPath.Text);
 
 			iniFile.SetValue("GENERAL", "PerformanceMode", CheckboxValue(PerformanceMode.IsChecked));
 			iniFile.SetValue("GENERAL", "ShowFPS", CheckboxValue(ShowFps.IsChecked));
@@ -55,7 +55,7 @@ namespace ReShade.Setup
 			Preset.Text = iniFile.GetValue("GENERAL", "CurrentPresetPath");
 			EffectsPath.Text = iniFile.GetValue("GENERAL", "EffectSearchPaths");
 			TexturesPath.Text = iniFile.GetValue("GENERAL", "TextureSearchPaths");
-			ScreenshotsPath.Text = iniFile.GetValue("GENERAL", "ScreenshotPath");
+			ScreenshotPath.Text = iniFile.GetValue("GENERAL", "ScreenshotPath");
 
 			PerformanceMode.IsChecked = iniFile.GetValue("GENERAL", "PerformanceMode") == "1";
 			ShowFps.IsChecked = iniFile.GetValue("GENERAL", "ShowFPS") == "1";
