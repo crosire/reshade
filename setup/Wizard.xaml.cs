@@ -296,7 +296,7 @@ namespace ReShade.Setup
 				// Create a batch file to launch the game with correct environment variables set for Vulkan
 				File.WriteAllText(Path.Combine(targetDir, Path.GetFileNameWithoutExtension(_targetPath) + "_with_reshade.bat"),
 					"set VK_LAYER_PATH=" + targetDir + ";%VK_LAYER_PATH%\r\n" +
-					"set VK_INSTANCE_LAYERS=VK_LAYER_reshade_overlay\r\n" +
+					"set VK_INSTANCE_LAYERS=VK_LAYER_reshade\r\n" +
 					"@start \"\" \"" + _targetPath + "\"");
 			}
 

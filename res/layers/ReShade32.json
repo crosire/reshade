@@ -1,17 +1,17 @@
 {
 	"file_format_version" : "1.0.0",
 	"layer" : {
-		"name": "VK_LAYER_reshade_overlay",
+		"name": "VK_LAYER_reshade",
 		"type": "GLOBAL",
 		"library_path": ".\\ReShade32.dll",
 		"api_version": "1.1.73",
 		"implementation_version": "1",
 		"description": "crosire's ReShade post-processing injector for 32-bit",
 		"enable_environment": {
-			"ENABLE_VK_LAYER_reshade_overlay_1": "1"
+			"ENABLE_VK_LAYER_reshade_1": "1"
 		},
 		"disable_environment": {
-			"DISABLE_VK_LAYER_reshade_overlay_1": "1"
+			"DISABLE_VK_LAYER_reshade_1": "1"
 		}
 	}
 }
