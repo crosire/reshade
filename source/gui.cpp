@@ -2531,11 +2531,8 @@ void reshade::runtime::draw_preset_explorer()
 					else
 						condition = condition::pass;
 
-				if (is_current_preset)
-					if (_current_preset_is_covered && !ImGui::IsWindowAppearing())
-						_current_preset_is_covered = false, ImGui::SetScrollHereY();
-					else if (condition == condition::backward || condition == condition::forward)
-						ImGui::SetScrollHereY();
+				if (is_current_preset && (ImGui::IsWindowAppearing() || condition == condition::backward || condition == condition::forward))
+					ImGui::SetScrollHereY();
 			}
 
 			if (is_loading())
@@ -2603,8 +2600,6 @@ void reshade::runtime::draw_preset_explorer()
 
 	if (is_explore_open)
 		ImGui::EndPopup();
-	else if (!_current_preset_is_covered)
-		_current_preset_is_covered = true;
 }
 
 #endif

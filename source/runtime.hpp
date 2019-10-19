@@ -364,7 +364,6 @@ namespace reshade
 
 		// Used by preset explorer
 		bool _browse_path_is_input_mode = false;
-		bool _current_preset_is_covered = true;
 		std::filesystem::path _current_browse_path;
 #endif
 	};
