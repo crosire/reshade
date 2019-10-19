@@ -39,15 +39,24 @@ HOOK_EXPORT HRESULT WINAPI D3D11CreateDeviceAndSwapChain(IDXGIAdapter *pAdapter,
 	if (ppDevice == nullptr)
 		return hr;
 
-	const auto device = *ppDevice;
-
+	auto device = *ppDevice;
 	// Query for the DXGI device and immediate device context since we need to reference them in the hooked device
 	IDXGIDevice1 *dxgi_device = nullptr;
 	device->QueryInterface(&dxgi_device);
 	ID3D11DeviceContext *device_context = nullptr;
 	device->GetImmediateContext(&device_context);
 
-	const auto device_proxy = new D3D11Device(dxgi_device, device, device_context);
+	// Create device proxy unless this is a software device (used by D2D for example)
+	D3D11Device *device_proxy = nullptr;
+	if (DriverType == D3D_DRIVER_TYPE_WARP || DriverType == D3D_DRIVER_TYPE_REFERENCE)
+	{
+		LOG(WARN) << "> Skipping device due to driver type being 'D3D_DRIVER_TYPE_WARP' or 'D3D_DRIVER_TYPE_REFERENCE'.";
+	}
+	else
+	{
+		// Change device to proxy for swap chain creation below
+		device = device_proxy = new D3D11Device(dxgi_device, device, device_context);
+	}
 
 	// Swap chain creation is piped through the 'IDXGIFactory::CreateSwapChain' function hook
 	if (pSwapChainDesc != nullptr)
@@ -69,29 +78,30 @@ HOOK_EXPORT HRESULT WINAPI D3D11CreateDeviceAndSwapChain(IDXGIAdapter *pAdapter,
 
 		LOG(INFO) << "> Calling IDXGIFactory::CreateSwapChain:";
 
-		hr = factory->CreateSwapChain(device_proxy, const_cast<DXGI_SWAP_CHAIN_DESC *>(pSwapChainDesc), ppSwapChain);
+		hr = factory->CreateSwapChain(device, const_cast<DXGI_SWAP_CHAIN_DESC *>(pSwapChainDesc), ppSwapChain);
 	}
 
 	if (SUCCEEDED(hr))
 	{
+		if (device_proxy != nullptr)
+		{
 #if RESHADE_VERBOSE_LOG
-		LOG(DEBUG) << "Returning IDXGIDevice1 object " << device_proxy->_dxgi_device << " and ID3D11Device object " << device_proxy << '.';
+			LOG(DEBUG) << "Returning IDXGIDevice1 object " << device_proxy->_dxgi_device << " and ID3D11Device object " << device_proxy << '.';
 #endif
-		*ppDevice = device_proxy;
+			*ppDevice = device_proxy;
+		}
 
 		if (ppImmediateContext != nullptr)
 		{
-#if RESHADE_VERBOSE_LOG
-			LOG(DEBUG) << "Returning ID3D11DeviceContext object " << device_proxy->_immediate_context << '.';
-#endif
-			device_proxy->_immediate_context->AddRef(); // D3D11CreateDeviceAndSwapChain increases the reference count on the returned object
-			*ppImmediateContext = device_proxy->_immediate_context;
+			// D3D11CreateDeviceAndSwapChain increases the reference count on the returned object, so can just call this:
+			device->GetImmediateContext(ppImmediateContext);
 		}
 	}
 	else
 	{
+		*ppDevice = nullptr;
 		// Swap chain creation failed, so do clean up
-		device_proxy->Release();
+		device->Release();
 	}
 
 	return hr;

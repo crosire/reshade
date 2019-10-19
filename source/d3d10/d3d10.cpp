@@ -51,13 +51,22 @@ HOOK_EXPORT HRESULT WINAPI D3D10CreateDeviceAndSwapChain1(IDXGIAdapter *pAdapter
 	if (ppDevice == nullptr)
 		return hr;
 
-	const auto device = *ppDevice;
-
+	auto device = *ppDevice;
 	// Query for the DXGI device since we need to reference it in the hooked device
 	IDXGIDevice1 *dxgi_device = nullptr;
 	device->QueryInterface(&dxgi_device);
 
-	const auto device_proxy = new D3D10Device(dxgi_device, device);
+	// Create device proxy unless this is a software device
+	D3D10Device *device_proxy = nullptr;
+	if (DriverType == D3D_DRIVER_TYPE_WARP || DriverType == D3D_DRIVER_TYPE_REFERENCE)
+	{
+		LOG(WARN) << "> Skipping device due to driver type being 'D3D_DRIVER_TYPE_WARP' or 'D3D_DRIVER_TYPE_REFERENCE'.";
+	}
+	else
+	{
+		// Change device to proxy for swap chain creation below
+		device = device_proxy = new D3D10Device(dxgi_device, device);
+	}
 
 	// Swap chain creation is piped through the 'IDXGIFactory::CreateSwapChain' function hook
 	if (pSwapChainDesc != nullptr)
@@ -84,15 +93,19 @@ HOOK_EXPORT HRESULT WINAPI D3D10CreateDeviceAndSwapChain1(IDXGIAdapter *pAdapter
 
 	if (SUCCEEDED(hr))
 	{
+		if (device_proxy != nullptr)
+		{
 #if RESHADE_VERBOSE_LOG
-		LOG(DEBUG) << "Returning IDXGIDevice1 object " << device_proxy->_dxgi_device << " and ID3D10Device1 object " << device_proxy << '.';
+			LOG(DEBUG) << "Returning IDXGIDevice1 object " << device_proxy->_dxgi_device << " and ID3D10Device1 object " << device_proxy << '.';
 #endif
-		*ppDevice = device_proxy;
+			*ppDevice = device_proxy;
+		}
 	}
 	else
 	{
+		*ppDevice = nullptr;
 		// Swap chain creation failed, so do clean up
-		device_proxy->Release();
+		device->Release();
 	}
 
 	return hr;

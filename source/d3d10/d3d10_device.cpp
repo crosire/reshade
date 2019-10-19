@@ -132,7 +132,8 @@ HRESULT STDMETHODCALLTYPE D3D10Device::QueryInterface(REFIID riid, void **ppvObj
 		riid == __uuidof(IDXGIDevice) ||
 		riid == __uuidof(IDXGIDevice1) ||
 		riid == __uuidof(IDXGIDevice2) ||
-		riid == __uuidof(IDXGIDevice3))
+		riid == __uuidof(IDXGIDevice3) ||
+		riid == __uuidof(IDXGIDevice4))
 		return _dxgi_device->QueryInterface(riid, ppvObj);
 
 	return _orig->QueryInterface(riid, ppvObj);
