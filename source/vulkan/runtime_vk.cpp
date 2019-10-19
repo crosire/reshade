@@ -1966,6 +1966,10 @@ void reshade::vulkan::runtime_vk::update_depthstencil_image(VkImageView depth_vi
 			if (existing_texture != _textures.end() &&
 				existing_texture->impl_reference == texture_reference::depth_buffer)
 			{
+				// Set sampler handle, which should be the same for all writes
+				assert(image_binding.sampler == VK_NULL_HANDLE || image_binding.sampler == effect_data.image_bindings[info.binding].sampler);
+				image_binding.sampler = effect_data.image_bindings[info.binding].sampler;
+
 				VkWriteDescriptorSet write{ VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
 				write.dstSet = effect_data.set[1];
 				write.dstBinding = info.binding;
