@@ -50,14 +50,14 @@ static void init_runtime_d3d(T *&device, D3DDEVTYPE device_type, D3DPRESENT_PARA
 	// TODO: Make this configurable, since it prevents ReShade from being applied to video players.
 	if (pp.Flags & D3DPRESENTFLAG_VIDEO)
 	{
-		LOG(WARN) << "> Skipping device due to video swapchain.";
+		LOG(WARN) << "> Skipping device because it uses a video swapchain.";
 		return;
 	}
 #endif
 
 	if (device_type == D3DDEVTYPE_NULLREF)
 	{
-		LOG(WARN) << "> Skipping device due to device type being 'D3DDEVTYPE_NULLREF'.";
+		LOG(WARN) << "> Skipping device because the device type is 'D3DDEVTYPE_NULLREF'.";
 		return;
 	}
 

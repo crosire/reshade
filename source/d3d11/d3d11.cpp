@@ -50,7 +50,13 @@ HOOK_EXPORT HRESULT WINAPI D3D11CreateDeviceAndSwapChain(IDXGIAdapter *pAdapter,
 	D3D11Device *device_proxy = nullptr;
 	if (DriverType == D3D_DRIVER_TYPE_WARP || DriverType == D3D_DRIVER_TYPE_REFERENCE)
 	{
-		LOG(WARN) << "> Skipping device due to driver type being 'D3D_DRIVER_TYPE_WARP' or 'D3D_DRIVER_TYPE_REFERENCE'.";
+		LOG(WARN) << "> Skipping device because the driver type is 'D3D_DRIVER_TYPE_WARP' or 'D3D_DRIVER_TYPE_REFERENCE'.";
+	}
+	else if (DXGI_ADAPTER_DESC adapter_desc;
+		pAdapter != nullptr && SUCCEEDED(pAdapter->GetDesc(&adapter_desc)) &&
+		adapter_desc.VendorId == 0x1414 /* Microsoft */ && adapter_desc.DeviceId == 0x8C /* Microsoft Basic Render Driver */)
+	{
+		LOG(WARN) << "> Skipping device because it uses the Microsoft Basic Render Driver.";
 	}
 	else
 	{
