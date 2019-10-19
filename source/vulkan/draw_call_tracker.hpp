@@ -1,8 +1,8 @@
 #pragma once
 
 #include <map>
-#include "com_ptr.hpp"
 #include <vulkan.h>
+#include "com_ptr.hpp"
 
 #define RESHADE_VULKAN_CAPTURE_DEPTH_BUFFERS 1
 
@@ -18,13 +18,6 @@ namespace reshade::vulkan
 			UINT mapped = 0;
 			UINT vs_uses = 0;
 			UINT ps_uses = 0;
-		};
-
-		struct depthstencil_infos
-		{
-			VkImage image = VK_NULL_HANDLE;
-			VkImageCreateInfo image_info;
-			VkImageViewCreateInfo image_view_info;
 		};
 
 #if RESHADE_VULKAN_CAPTURE_DEPTH_BUFFERS

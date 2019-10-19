@@ -43,7 +43,6 @@ namespace reshade::d3d12
 		bool extended_depth_buffer_detection = false;
 		unsigned int cleared_depth_buffer_index = 0;
 		int depth_buffer_texture_format = 0; // No depth buffer texture format filter by default
-		std::atomic<unsigned int> clear_DSV_iter = 1;
 
 	private:
 		bool init_backbuffer_textures(UINT num_buffers);
@@ -69,7 +68,7 @@ namespace reshade::d3d12
 
 #if RESHADE_DX12_CAPTURE_DEPTH_BUFFERS
 		void detect_depth_source(draw_call_tracker& tracker);
-		bool create_depthstencil_replacement(ID3D12Resource *depthstencil, ID3D12Resource *texture);
+		bool update_depthstencil_texture(ID3D12Resource *texture);
 
 		struct depth_texture_save_info
 		{
@@ -104,10 +103,7 @@ namespace reshade::d3d12
 		com_ptr<ID3D12DescriptorHeap> _backbuffer_rtvs;
 		com_ptr<ID3D12DescriptorHeap> _depthstencil_dsvs;
 		std::vector<com_ptr<ID3D12Resource>> _backbuffers;
-		com_ptr<ID3D12Resource> _depthstencil, _depthstencil_replacement;
 		com_ptr<ID3D12Resource> _default_depthstencil;
-		com_ptr<ID3D12DescriptorHeap> _depthstencil_texture_srv;
-		com_ptr<ID3D12DescriptorHeap> _depthstencil_texture_dsv;
 		com_ptr<ID3D12Resource> _depthstencil_texture;
 		ID3D12Resource *_best_depth_stencil_overwrite = nullptr;
 

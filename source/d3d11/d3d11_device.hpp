@@ -8,6 +8,7 @@
 #include <d3d11_4.h>
 #include "draw_call_tracker.hpp"
 #include <mutex>
+#include <atomic>
 
 struct DXGIDevice;
 struct D3D11DeviceContext;
@@ -103,8 +104,8 @@ struct DECLSPEC_UUID("72299288-2C68-4AD8-945D-2BFB5AA9C609") D3D11Device : ID3D1
 	HRESULT STDMETHODCALLTYPE CreateFence(UINT64 InitialValue, D3D11_FENCE_FLAG Flags, REFIID ReturnedInterface, void **ppFence) override;
 	#pragma endregion
 
-	void add_commandlist_trackers(ID3D11CommandList* command_list, const reshade::d3d11::draw_call_tracker &tracker_source);
-	void merge_commandlist_trackers(ID3D11CommandList* command_list, reshade::d3d11::draw_call_tracker &tracker_destination);
+	void add_commandlist_trackers(ID3D11CommandList *command_list, const reshade::d3d11::draw_call_tracker &tracker_source);
+	void merge_commandlist_trackers(ID3D11CommandList *command_list, reshade::d3d11::draw_call_tracker &tracker_destination);
 
 	void clear_drawcall_stats();
 
@@ -118,5 +119,5 @@ struct DECLSPEC_UUID("72299288-2C68-4AD8-945D-2BFB5AA9C609") D3D11Device : ID3D1
 	std::vector<std::shared_ptr<reshade::d3d11::runtime_d3d11>> _runtimes;
 	std::unordered_map<ID3D11CommandList *, reshade::d3d11::draw_call_tracker> _trackers_per_commandlist;
 	std::mutex _trackers_per_commandlist_mutex;
-	unsigned int _clear_DSV_iter = 1;
+	std::atomic<unsigned int> _clear_DSV_iter = 1;
 };

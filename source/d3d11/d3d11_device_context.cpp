@@ -33,11 +33,6 @@ D3D11DeviceContext::D3D11DeviceContext(D3D11Device *device, ID3D11DeviceContext3
 	assert(original != nullptr);
 }
 
-void D3D11DeviceContext::clear_drawcall_stats()
-{
-	_draw_call_tracker.reset();
-}
-
 #if RESHADE_DX11_CAPTURE_DEPTH_BUFFERS
 bool D3D11DeviceContext::save_depth_texture(ID3D11DepthStencilView *pDepthStencilView, bool cleared)
 {
@@ -95,7 +90,6 @@ bool D3D11DeviceContext::save_depth_texture(ID3D11DepthStencilView *pDepthStenci
 		_draw_call_tracker.track_depth_texture(runtime->depth_buffer_texture_format, _device->_clear_DSV_iter, texture.get(), pDepthStencilView, nullptr, cleared);
 	}
 
-	// TODO: This is unsafe if multiple device contexts are used on multiple threads
 	_device->_clear_DSV_iter++;
 
 	return true;
@@ -112,12 +106,15 @@ void D3D11DeviceContext::track_active_rendertargets(UINT NumViews, ID3D11RenderT
 
 	save_depth_texture(pDepthStencilView, false);
 }
-void D3D11DeviceContext::track_cleared_depthstencil(ID3D11DepthStencilView *pDepthStencilView)
+void D3D11DeviceContext::track_cleared_depthstencil(UINT ClearFlags, ID3D11DepthStencilView *pDepthStencilView)
 {
-	if (pDepthStencilView == nullptr)
+	if (pDepthStencilView == nullptr || _device->_runtimes.empty())
 		return;
 
-	save_depth_texture(pDepthStencilView, true);
+	const auto runtime = _device->_runtimes.front();
+
+	if (ClearFlags & D3D11_CLEAR_DEPTH || (runtime->depth_buffer_more_copies && ClearFlags & D3D11_CLEAR_STENCIL))
+		save_depth_texture(pDepthStencilView, true);
 }
 #endif
 
@@ -351,6 +348,7 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::OMSetRenderTargetsAndUnorderedAcce
 #if RESHADE_DX11_CAPTURE_DEPTH_BUFFERS
 	track_active_rendertargets(NumRTVs, ppRenderTargetViews, pDepthStencilView);
 #endif
+
 	_orig->OMSetRenderTargetsAndUnorderedAccessViews(NumRTVs, ppRenderTargetViews, pDepthStencilView, UAVStartSlot, NumUAVs, ppUnorderedAccessViews, pUAVInitialCounts);
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::OMSetBlendState(ID3D11BlendState *pBlendState, const FLOAT BlendFactor[4], UINT SampleMask)
@@ -431,15 +429,14 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::ClearUnorderedAccessViewFloat(ID3D
 void    STDMETHODCALLTYPE D3D11DeviceContext::ClearDepthStencilView(ID3D11DepthStencilView *pDepthStencilView, UINT ClearFlags, FLOAT Depth, UINT8 Stencil)
 {
 #if RESHADE_DX11_CAPTURE_DEPTH_BUFFERS
+	track_cleared_depthstencil(ClearFlags, pDepthStencilView);
+#endif
+
 	if (!_device->_runtimes.empty())
 	{
 		const auto runtime = _device->_runtimes.front();
 		runtime->on_clear_depthstencil_view(pDepthStencilView);
-
-		if (ClearFlags & D3D11_CLEAR_DEPTH || (runtime->depth_buffer_more_copies && ClearFlags & D3D11_CLEAR_STENCIL))
-			track_cleared_depthstencil(pDepthStencilView);
 	}
-#endif
 
 	_orig->ClearDepthStencilView(pDepthStencilView, ClearFlags, Depth, Stencil);
 }

@@ -7,9 +7,10 @@
 
 #include "log.hpp"
 #include "d3d12_device.hpp"
+#include "d3d12_command_list.hpp"
 #include "d3d12_command_queue.hpp"
 #include "d3d12_command_queue_downlevel.hpp"
-#include <assert.h>
+#include "runtime_d3d12.hpp"
 
 D3D12CommandQueueDownlevel::D3D12CommandQueueDownlevel(D3D12CommandQueue *queue, ID3D12CommandQueueDownlevel *original) :
 	_orig(original),
@@ -90,7 +91,13 @@ HRESULT STDMETHODCALLTYPE D3D12CommandQueueDownlevel::Present(ID3D12GraphicsComm
 
 	_runtime->on_present(_device->_draw_call_tracker);
 
+	// Clear current frame stats
 	_device->clear_drawcall_stats();
+
+	// Get original command list pointer from proxy object
+	if (com_ptr<D3D12GraphicsCommandList> command_list_proxy;
+		SUCCEEDED(pOpenCommandList->QueryInterface(&command_list_proxy)))
+		pOpenCommandList = command_list_proxy->_orig;
 
 	return _orig->Present(pOpenCommandList, pSourceTex2D, hWindow, Flags);
 }

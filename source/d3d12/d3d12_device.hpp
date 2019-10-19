@@ -6,7 +6,9 @@
 #pragma once
 
 #include <d3d12.h>
-#include "runtime_d3d12.hpp"
+#include "draw_call_tracker.hpp"
+#include <mutex>
+#include <atomic>
 
 namespace reshade::d3d12 { class runtime_d3d12; }
 
@@ -98,25 +100,16 @@ struct __declspec(uuid("2523AFF4-978B-4939-BA16-8EE876A4CB2A")) D3D12Device : ID
 	D3D12_DRIVER_MATCHING_IDENTIFIER_STATUS STDMETHODCALLTYPE CheckDriverMatchingIdentifier(D3D12_SERIALIZED_DATA_TYPE SerializedDataType, const D3D12_SERIALIZED_DATA_DRIVER_MATCHING_IDENTIFIER *pIdentifierToCheck) override;
 	#pragma endregion
 
-	void add_commandlist_trackers(ID3D12CommandList* command_list, reshade::d3d12::draw_call_tracker &tracker_source);
-	void merge_commandlist_trackers(ID3D12CommandList* command_list, reshade::d3d12::draw_call_tracker &tracker_destination);
+	void clear_drawcall_stats(bool all = false);
 
 	bool check_and_upgrade_interface(REFIID riid);
-	void clear_drawcall_stats(bool all = false);
-	void track_active_rendertargets(ID3D12GraphicsCommandList * cmdList, reshade::d3d12::draw_call_tracker &draw_call_tracker, D3D12_CPU_DESCRIPTOR_HANDLE pDepthStencilView);
 
-#if RESHADE_DX12_CAPTURE_DEPTH_BUFFERS
-	bool save_depth_texture(ID3D12GraphicsCommandList * cmdList, reshade::d3d12::draw_call_tracker &draw_call_tracker, D3D12_CPU_DESCRIPTOR_HANDLE pDepthStencilView, bool cleared);
-	void track_cleared_depthstencil(ID3D12GraphicsCommandList * cmdList, reshade::d3d12::draw_call_tracker &draw_call_tracker, D3D12_CLEAR_FLAGS ClearFlags, D3D12_CPU_DESCRIPTOR_HANDLE pDepthStencilView);
-#endif
-	
 	LONG _ref = 1;
 	ID3D12Device *_orig;
 	unsigned int _interface_version;
 	std::vector<std::shared_ptr<reshade::d3d12::runtime_d3d12>> _runtimes;
-	std::unordered_map<ID3D12CommandList *, reshade::d3d12::draw_call_tracker> _trackers_per_commandlist;
-	std::mutex _trackers_per_commandlist_mutex;
+	std::atomic<unsigned int> _clear_DSV_iter = 1;
 	reshade::d3d12::draw_call_tracker _draw_call_tracker;
-
-	com_ptr<ID3D12Resource> current_depthstencil;
+	std::map<SIZE_T, com_ptr<ID3D12Resource>> _depthstencil_resources_by_handle;
+	std::mutex _device_global_mutex;
 };

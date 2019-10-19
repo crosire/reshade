@@ -2,10 +2,6 @@
 #include "log.hpp"
 #include "dxgi/format_utils.hpp"
 #include <math.h>
-#include <mutex>
-
-std::mutex _counters_per_used_depthstencil_mutex;
-std::mutex _cleared_depth_textures_mutex;
 
 namespace reshade::d3d12
 {
@@ -14,70 +10,41 @@ namespace reshade::d3d12
 		_global_counter.vertices += source.total_vertices();
 		_global_counter.drawcalls += source.total_drawcalls();
 
-		if (source._depthstencil == nullptr)
-			return;
-
 #if RESHADE_DX12_CAPTURE_DEPTH_BUFFERS
-		std::lock(_counters_per_used_depthstencil_mutex, _cleared_depth_textures_mutex);
-		std::lock_guard lock1(_counters_per_used_depthstencil_mutex, std::adopt_lock);
 		for (const auto &[depthstencil, snapshot] : source._counters_per_used_depthstencil)
 		{
 			_counters_per_used_depthstencil[depthstencil].stats.vertices += snapshot.stats.vertices;
 			_counters_per_used_depthstencil[depthstencil].stats.drawcalls += snapshot.stats.drawcalls;
 			_counters_per_used_depthstencil[depthstencil].depthstencil = snapshot.depthstencil;
-			_counters_per_used_depthstencil[depthstencil].texture = snapshot.texture.get();
 		}
-
-		std::lock_guard lock2(_cleared_depth_textures_mutex, std::adopt_lock);
 
 		for (const auto &[index, depth_texture_save_info] : source._cleared_depth_textures)
 			_cleared_depth_textures[index] = depth_texture_save_info;
 #endif
 	}
 
-	void draw_call_tracker::reset(bool all)
+	void draw_call_tracker::reset()
 	{
 		_global_counter.vertices = 0;
 		_global_counter.drawcalls = 0;
-		_depthstencil.reset();
+		_current_depthstencil.reset();
 #if RESHADE_DX12_CAPTURE_DEPTH_BUFFERS
-		std::lock(_counters_per_used_depthstencil_mutex, _cleared_depth_textures_mutex);
-		std::lock_guard lock1(_counters_per_used_depthstencil_mutex, std::adopt_lock);
-		std::lock_guard lock2(_cleared_depth_textures_mutex, std::adopt_lock);
 		_counters_per_used_depthstencil.clear();
 		_cleared_depth_textures.clear();
 #endif
-
-		if (all)
-			_depthstencil_resources_by_handle.clear();
 	}
 
-	void draw_call_tracker::track_depthstencil_resource_by_handle(D3D12_CPU_DESCRIPTOR_HANDLE pDescriptor, com_ptr<ID3D12Resource> pDepthStencil)
-	{
-		if (pDepthStencil != nullptr)
-			_depthstencil_resources_by_handle[pDescriptor.ptr] = pDepthStencil;
-	}
-
-	com_ptr<ID3D12Resource> draw_call_tracker::retrieve_depthstencil_from_handle(D3D12_CPU_DESCRIPTOR_HANDLE depthstencilView)
-	{
-		return _depthstencil_resources_by_handle[depthstencilView.ptr];
-	}
-
-	void draw_call_tracker::on_draw(com_ptr<ID3D12Resource> current_depthstencil, UINT vertices)
+	void draw_call_tracker::on_draw(UINT vertices)
 	{
 		_global_counter.vertices += vertices;
 		_global_counter.drawcalls += 1;
 
 #if RESHADE_DX12_CAPTURE_DEPTH_BUFFERS
-		com_ptr<ID3D12Resource> targets[D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT];
-
-		if (current_depthstencil == nullptr)
+		if (_current_depthstencil == nullptr)
 			// This is a draw call with no depth stencil
 			return;
 
-		std::lock_guard lock(_counters_per_used_depthstencil_mutex);
-
-		if (const auto intermediate_snapshot = _counters_per_used_depthstencil.find(current_depthstencil); intermediate_snapshot != _counters_per_used_depthstencil.end())
+		if (const auto intermediate_snapshot = _counters_per_used_depthstencil.find(_current_depthstencil); intermediate_snapshot != _counters_per_used_depthstencil.end())
 		{
 			intermediate_snapshot->second.stats.vertices += vertices;
 			intermediate_snapshot->second.stats.drawcalls += 1;
@@ -88,19 +55,18 @@ namespace reshade::d3d12
 #if RESHADE_DX12_CAPTURE_DEPTH_BUFFERS
 	bool draw_call_tracker::check_depthstencil(ID3D12Resource *depthstencil) const
 	{
-		std::lock_guard lock(_counters_per_used_depthstencil_mutex);
 		return _counters_per_used_depthstencil.find(depthstencil) != _counters_per_used_depthstencil.end();
 	}
-	bool draw_call_tracker::check_depth_texture_format(int formatIdx, ID3D12Resource *depthstencil)
+	bool draw_call_tracker::check_depth_texture_format(int format_index, ID3D12Resource *depthstencil)
 	{
 		assert(depthstencil != nullptr);
 
 		// Do not check format if all formats are allowed (index zero is DXGI_FORMAT_UNKNOWN)
-		if (formatIdx == DXGI_FORMAT_UNKNOWN)
+		if (format_index == DXGI_FORMAT_UNKNOWN)
 			return true;
 
 		// Retrieve texture associated with depth stencil
-		D3D12_RESOURCE_DESC desc = depthstencil->GetDesc();
+		const D3D12_RESOURCE_DESC desc = depthstencil->GetDesc();
 
 		const DXGI_FORMAT depth_texture_formats[] = {
 			DXGI_FORMAT_UNKNOWN,
@@ -110,9 +76,9 @@ namespace reshade::d3d12
 			DXGI_FORMAT_R32G8X24_TYPELESS
 		};
 
-		assert(formatIdx > DXGI_FORMAT_UNKNOWN && formatIdx < ARRAYSIZE(depth_texture_formats));
+		assert(format_index > DXGI_FORMAT_UNKNOWN && format_index < ARRAYSIZE(depth_texture_formats));
 
-		return make_dxgi_format_typeless(desc.Format) == depth_texture_formats[formatIdx];
+		return make_dxgi_format_typeless(desc.Format) == depth_texture_formats[format_index];
 	}
 
 	void draw_call_tracker::track_rendertargets(int format_index, ID3D12Resource *depthstencil)
@@ -122,29 +88,25 @@ namespace reshade::d3d12
 		if (!check_depth_texture_format(format_index, depthstencil))
 			return;
 
-		std::lock_guard lock(_counters_per_used_depthstencil_mutex);
-
 		if (_counters_per_used_depthstencil[depthstencil].depthstencil == nullptr)
 			_counters_per_used_depthstencil[depthstencil].depthstencil = depthstencil;
 	}
-	void draw_call_tracker::track_depth_texture(int format_index, UINT index, com_ptr<ID3D12Resource> src_texture, com_ptr<ID3D12Resource> src_depthstencil, com_ptr<ID3D12Resource> dest_texture, bool cleared)
+	void draw_call_tracker::track_depth_texture(int format_index, UINT index, com_ptr<ID3D12Resource> src_texture, com_ptr<ID3D12Resource> dest_texture, bool cleared)
 	{
 		// Function that keeps track of a cleared depth texture in an ordered map in order to retrieve it at the final rendering stage
 		assert(src_texture != nullptr);
 
-		if (!check_depth_texture_format(format_index, src_depthstencil.get()))
+		if (!check_depth_texture_format(format_index, src_texture.get()))
 			return;
 
 		// Gather some extra info for later display
-		D3D12_RESOURCE_DESC src_texture_desc = src_depthstencil->GetDesc();
+		const D3D12_RESOURCE_DESC src_texture_desc = src_texture->GetDesc();
 
-		// check if it is really a depth texture
+		// Check if it is really a depth texture
 		assert((src_texture_desc.Flags & D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL) != 0);
 
-		std::lock_guard lock(_cleared_depth_textures_mutex);
-
-		// fill the ordered map with the saved depth texture
-		_cleared_depth_textures[index] = depth_texture_save_info { src_texture, src_depthstencil, src_texture_desc, dest_texture, cleared };
+		// Fill the ordered map with the saved depth texture
+		_cleared_depth_textures[index] = depth_texture_save_info { src_texture, src_texture_desc, dest_texture, cleared };
 	}
 
 	draw_call_tracker::intermediate_snapshot_info draw_call_tracker::find_best_snapshot(UINT width, UINT height)
@@ -157,13 +119,7 @@ namespace reshade::d3d12
 			if (snapshot.stats.drawcalls == 0 || snapshot.stats.vertices == 0)
 				continue;
 
-			if (snapshot.texture == nullptr)
-			{
-				com_ptr<ID3D12Resource> resource;
-				snapshot.texture = depthstencil.get();
-			}
-
-			D3D12_RESOURCE_DESC desc = depthstencil->GetDesc();
+			const D3D12_RESOURCE_DESC desc = depthstencil->GetDesc();
 
 			assert((desc.Flags & D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL) != 0);
 
@@ -184,7 +140,6 @@ namespace reshade::d3d12
 
 	void draw_call_tracker::keep_cleared_depth_textures()
 	{
-		std::lock_guard lock(_cleared_depth_textures_mutex);
 		// Function that keeps only the depth textures that has been retrieved before the last depth stencil clearance
 		std::map<UINT, depth_texture_save_info>::reverse_iterator it = _cleared_depth_textures.rbegin();
 

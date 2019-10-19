@@ -62,6 +62,7 @@ void DXGISwapChain::runtime_reset()
 		break;
 	case 12:
 		assert(_runtime != nullptr);
+		static_cast<D3D12Device *>(_direct3d_device.get())->clear_drawcall_stats();
 		std::static_pointer_cast<reshade::d3d12::runtime_d3d12>(_runtime)->on_reset();
 		break;
 	}
@@ -201,7 +202,7 @@ ULONG   STDMETHODCALLTYPE DXGISwapChain::Release()
 			const auto device = static_cast<D3D11Device *>(_direct3d_device.get());
 			const auto runtime = std::static_pointer_cast<reshade::d3d11::runtime_d3d11>(_runtime);
 			runtime->on_reset();
-			device->clear_drawcall_stats(); // Release any live references to depth buffers etc.
+			device->clear_drawcall_stats();
 			device->_runtimes.erase(std::remove(device->_runtimes.begin(), device->_runtimes.end(), runtime), device->_runtimes.end());
 			break; }
 		case 12: {

@@ -183,10 +183,10 @@ namespace reshade::d3d10
 		D3D10_TEXTURE2D_DESC src_texture_desc;
 		src_texture->GetDesc(&src_texture_desc);
 
-		// check if it is really a depth texture
+		// Check if it is really a depth texture
 		assert((src_texture_desc.BindFlags & D3D10_BIND_DEPTH_STENCIL) != 0);
 
-		// fill the ordered map with the saved depth texture
+		// Fill the ordered map with the saved depth texture
 		_cleared_depth_textures[index] = depth_texture_save_info{ src_texture, src_depthstencil, src_texture_desc, dest_texture, cleared };
 	}
 

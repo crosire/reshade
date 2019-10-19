@@ -181,13 +181,11 @@ struct DECLSPEC_UUID("27B0246B-2152-4D42-AD11-32489472238F") D3D11DeviceContext 
 	HRESULT STDMETHODCALLTYPE Wait(ID3D11Fence *pFence, UINT64 Value) override;
 	#pragma endregion
 
-	void clear_drawcall_stats();
-
 #if RESHADE_DX11_CAPTURE_DEPTH_BUFFERS
 	bool save_depth_texture(ID3D11DepthStencilView *pDepthStencilView, bool cleared);
 
 	void track_active_rendertargets(UINT NumViews, ID3D11RenderTargetView *const *ppRenderTargetViews, ID3D11DepthStencilView *pDepthStencilView);
-	void track_cleared_depthstencil(ID3D11DepthStencilView* pDepthStencilView);
+	void track_cleared_depthstencil(UINT ClearFlags, ID3D11DepthStencilView *pDepthStencilView);
 #endif
 
 	bool check_and_upgrade_interface(REFIID riid);

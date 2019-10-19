@@ -47,7 +47,7 @@ namespace reshade::d3d12
 		D3D12_CPU_DESCRIPTOR_HANDLE rtv_cpu_base;
 		D3D12_CPU_DESCRIPTOR_HANDLE sampler_cpu_base;
 		D3D12_GPU_DESCRIPTOR_HANDLE sampler_gpu_base;
-		D3D12_CPU_DESCRIPTOR_HANDLE depth_texture_hdl;
+		D3D12_CPU_DESCRIPTOR_HANDLE depth_texture_binding = {};
 	};
 
 	static uint32_t float_as_uint(float value)
@@ -333,18 +333,12 @@ void reshade::d3d12::runtime_d3d12::on_reset()
 	_depthstencil_dsvs.reset();
 	_default_depthstencil.reset();
 
-	_depthstencil.reset();
-	_depthstencil_replacement.reset();
 	_depthstencil_texture.reset();
-	_depthstencil_texture_srv.reset();
-	_depthstencil_texture_dsv.reset();
 
 	_depth_texture_saves.clear();
 
 	_mipmap_pipeline.reset();
 	_mipmap_signature.reset();
-
-	clear_DSV_iter = 1;
 
 #if RESHADE_GUI
 	for (unsigned int resource_index = 0; resource_index < 3; ++resource_index)
@@ -392,13 +386,6 @@ void reshade::d3d12::runtime_d3d12::on_present(draw_call_tracker &tracker)
 	runtime::on_present();
 
 	_commandqueue->Signal(_fence[_swap_index].get(), ++_fence_value[_swap_index]);
-	clear_DSV_iter = 1;
-}
-
-void reshade::d3d12::runtime_d3d12::on_create_depthstencil_view(ID3D12Resource *pResource)
-{
-	if (_depthstencil_texture == nullptr)
-		_depthstencil_texture = pResource;
 }
 
 bool reshade::d3d12::runtime_d3d12::capture_screenshot(uint8_t *buffer) const
@@ -574,7 +561,7 @@ bool reshade::d3d12::runtime_d3d12::init_texture(texture &info)
 #endif
 
 	{	D3D12_DESCRIPTOR_HEAP_DESC heap_desc = { D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV };
-	heap_desc.NumDescriptors = info.levels /* SRV */ + info.levels - 1 /* UAV */;
+		heap_desc.NumDescriptors = info.levels /* SRV */ + info.levels - 1 /* UAV */;
 		heap_desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 
 		if (FAILED(_device->CreateDescriptorHeap(&heap_desc, IID_PPV_ARGS(&texture_data->descriptors))))
@@ -939,9 +926,10 @@ bool reshade::d3d12::runtime_d3d12::compile_effect(effect_data &effect)
 			srv_handle.ptr += info.texture_binding * _srv_handle_size;
 
 			_device->CreateShaderResourceView(resource.get(), &desc, srv_handle);
-			// keep track of the depth buffer texture handle
+
+			// Keep track of the depth buffer texture descriptor to simplify updating it
 			if (existing_texture->impl_reference == texture_reference::depth_buffer)
-				effect_data.depth_texture_hdl = srv_handle;
+				effect_data.depth_texture_binding = srv_handle;
 		}
 
 		// Only initialize sampler if it has not been created before
@@ -1518,7 +1506,7 @@ void reshade::d3d12::runtime_d3d12::draw_debug_menu()
 		{
 			runtime::save_config();
 			_current_tracker->reset();
-			create_depthstencil_replacement(nullptr, nullptr);
+			update_depthstencil_texture(nullptr);
 			return;
 		}
 
@@ -1564,7 +1552,7 @@ void reshade::d3d12::runtime_d3d12::draw_debug_menu()
 
 				ImGui::SameLine();
 
-				ImGui::Text("=> 0x%p | 0x%p | %ux%u", it.second.src_depthstencil.get(), it.second.src_texture.get(), it.second.src_texture_desc.Width, it.second.src_texture_desc.Height);
+				ImGui::Text("=> 0x%p | %ux%u", it.second.src_texture.get(), it.second.src_texture_desc.Width, it.second.src_texture_desc.Height);
 
 				if (it.second.dest_texture != nullptr)
 				{
@@ -1584,7 +1572,7 @@ void reshade::d3d12::runtime_d3d12::draw_debug_menu()
 			for (const auto &[depthstencil, snapshot] : _current_tracker->depth_buffer_counters())
 			{
 				char label[512] = "";
-				sprintf_s(label, "%s0x%p", (depthstencil == _depthstencil ? "> " : "  "), depthstencil.get());
+				sprintf_s(label, "%s0x%p", (depthstencil == _depthstencil_texture ? "> " : "  "), depthstencil.get());
 
 				if (bool value = _best_depth_stencil_overwrite == depthstencil; ImGui::Checkbox(label, &value))
 				{
@@ -1592,9 +1580,7 @@ void reshade::d3d12::runtime_d3d12::draw_debug_menu()
 
 					if (_best_depth_stencil_overwrite != nullptr)
 					{
-						com_ptr<ID3D12Resource> texture;
-						_best_depth_stencil_overwrite->QueryInterface(&texture);
-						create_depthstencil_replacement(_best_depth_stencil_overwrite, texture.get());
+						update_depthstencil_texture(_best_depth_stencil_overwrite);
 					}
 				}
 
@@ -1640,7 +1626,7 @@ void reshade::d3d12::runtime_d3d12::detect_depth_source(draw_call_tracker &track
 
 	if (_has_high_network_activity)
 	{
-		create_depthstencil_replacement(nullptr, nullptr);
+		update_depthstencil_texture(nullptr);
 		return;
 	}
 
@@ -1653,84 +1639,43 @@ void reshade::d3d12::runtime_d3d12::detect_depth_source(draw_call_tracker &track
 		// In the future, maybe we could find a way to retrieve depth texture statistics (number of draw calls and number of vertices), so ReShade could automatically select the best one
 		const auto best_match_texture = tracker.find_best_cleared_depth_buffer_texture(cleared_depth_buffer_index);
 		if (best_match_texture != nullptr)
-			create_depthstencil_replacement(_default_depthstencil.get(), best_match_texture);
+			update_depthstencil_texture(best_match_texture);
 		return;
 	}
 
 	const auto best_snapshot = tracker.find_best_snapshot(_width, _height);
-	if (best_snapshot.depthstencil != nullptr && best_snapshot.depthstencil != _depthstencil)
-		create_depthstencil_replacement(best_snapshot.depthstencil, best_snapshot.texture.get());
+	if (best_snapshot.depthstencil != nullptr && best_snapshot.depthstencil != _depthstencil_texture)
+		update_depthstencil_texture(best_snapshot.depthstencil);
 }
 
-bool reshade::d3d12::runtime_d3d12::create_depthstencil_replacement(ID3D12Resource *depthstencil, ID3D12Resource *texture)
+bool reshade::d3d12::runtime_d3d12::update_depthstencil_texture(ID3D12Resource *texture)
 {
-	_depthstencil.reset();
-	_depthstencil_replacement.reset();
-	_depthstencil_texture.reset();
-	_depthstencil_texture_srv.reset();
-	_depthstencil_texture_dsv.reset();
+	_depthstencil_texture = texture;
 
-	if (depthstencil != nullptr)
+	if (texture == nullptr)
+		return true;
+
+	for (auto &tex : _textures)
 	{
-		assert(texture != nullptr);
-		_depthstencil = depthstencil;
-		_depthstencil_texture = texture;
-
-		HRESULT hr = S_OK;
-
-		if (FAILED(hr))
+		if (tex.impl != nullptr && tex.impl_reference == texture_reference::depth_buffer)
 		{
-			LOG(ERROR) << "Failed to create depth stencil replacement texture! HRESULT is '" << std::hex << hr << std::dec << "'.";
-			return false;
+			tex.width = frame_width();
+			tex.height = frame_height();
 		}
+	}
 
-		if (_depthstencil_texture == nullptr)
-			return false;
+	for (d3d12_effect_data &effect_data : _effect_data)
+	{
+		if (effect_data.depth_texture_binding.ptr == 0)
+			continue; // Skip effects that do not have a depth buffer binding
 
-		for (auto &tex : _textures)
-		{
-			if (tex.impl != nullptr && tex.impl_reference == texture_reference::depth_buffer)
-			{
-				auto texture_data = tex.impl->as<d3d12_tex_data>();
+		D3D12_SHADER_RESOURCE_VIEW_DESC desc = {};
+		desc.Format = make_dxgi_format_normal(texture->GetDesc().Format);
+		desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+		desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+		desc.Texture2D.MipLevels = texture->GetDesc().MipLevels;
 
-				if (texture_data->descriptors == nullptr)
-				{
-					{   D3D12_DESCRIPTOR_HEAP_DESC heap_desc = { D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV };
-						heap_desc.NumDescriptors = 1;
-						heap_desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
-
-						if (FAILED(_device->CreateDescriptorHeap(&heap_desc, IID_PPV_ARGS(&texture_data->descriptors))))
-							return false;
-					}
-				}
-
-				tex.width = frame_width();
-				tex.height = frame_height();
-
-				texture_data->resource.reset();
-				texture_data->resource = _depthstencil_texture;
-
-				for (const auto &technique : _techniques)
-				{
-					if (_effect_data.size() <= technique.effect_index)
-						continue;
-
-					d3d12_effect_data &effect_data = _effect_data[technique.effect_index];
-
-					if (effect_data.depth_texture_hdl.ptr == 0 || effect_data.depth_texture_hdl.ptr == std::numeric_limits<size_t>::max())
-						continue;
-
-					{   D3D12_SHADER_RESOURCE_VIEW_DESC desc = {};
-						desc.Format = make_dxgi_format_normal(texture_data->resource->GetDesc().Format);
-						desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-						desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-						desc.Texture2D.MipLevels = tex.levels;
-
-						_device->CreateShaderResourceView(texture_data->resource.get(), &desc, effect_data.depth_texture_hdl);
-					}
-				}
-			}
-		}
+		_device->CreateShaderResourceView(texture, &desc, effect_data.depth_texture_binding);
 	}
 
 	return true;

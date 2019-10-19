@@ -61,8 +61,6 @@ namespace reshade::d3d11
 
 	void draw_call_tracker::on_draw(ID3D11DeviceContext *context, UINT vertices)
 	{
-		UNREFERENCED_PARAMETER(context);
-
 		_global_counter.vertices += vertices;
 		_global_counter.drawcalls += 1;
 
@@ -183,10 +181,10 @@ namespace reshade::d3d11
 		D3D11_TEXTURE2D_DESC src_texture_desc;
 		src_texture->GetDesc(&src_texture_desc);
 
-		// check if it is really a depth texture
+		// Check if it is really a depth texture
 		assert((src_texture_desc.BindFlags & D3D11_BIND_DEPTH_STENCIL) != 0);
 
-		// fill the ordered map with the saved depth texture
+		// Fill the ordered map with the saved depth texture
 		_cleared_depth_textures[index] = depth_texture_save_info{ src_texture, src_depthstencil, src_texture_desc, dest_texture, cleared };
 	}
 
@@ -221,7 +219,7 @@ namespace reshade::d3d11
 			if (fabs(texture_aspect_ratio - aspect_ratio) > 0.1f || width_factor > 1.85f || height_factor > 1.85f || width_factor < 0.5f || height_factor < 0.5f)
 				continue; // No match, not a good fit
 
-			if (snapshot.stats.drawcalls >= best_snapshot.stats.drawcalls)
+			if (snapshot.stats.vertices >= best_snapshot.stats.vertices)
 				best_snapshot = snapshot;
 		}
 

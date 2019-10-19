@@ -6,13 +6,14 @@
 #pragma once
 
 #include <d3d12.h>
+#include "draw_call_tracker.hpp"
 
-struct DECLSPEC_UUID("479B29E3-9A2C-11D0-B696-00A0C903487A") D3D12CommandList : ID3D12GraphicsCommandList4
+struct DECLSPEC_UUID("479B29E3-9A2C-11D0-B696-00A0C903487A") D3D12GraphicsCommandList : ID3D12GraphicsCommandList4
 {
-	D3D12CommandList(D3D12Device *device, ID3D12GraphicsCommandList *original);
+	D3D12GraphicsCommandList(D3D12Device *device, ID3D12GraphicsCommandList *original);
 
-	D3D12CommandList(const D3D12CommandList &) = delete;
-	D3D12CommandList &operator=(const D3D12CommandList &) = delete;
+	D3D12GraphicsCommandList(const D3D12GraphicsCommandList &) = delete;
+	D3D12GraphicsCommandList &operator=(const D3D12GraphicsCommandList &) = delete;
 
 	HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void **ppvObj) override;
 	ULONG   STDMETHODCALLTYPE AddRef() override;
@@ -109,10 +110,18 @@ struct DECLSPEC_UUID("479B29E3-9A2C-11D0-B696-00A0C903487A") D3D12CommandList : 
 	void    STDMETHODCALLTYPE DispatchRays(const D3D12_DISPATCH_RAYS_DESC *pDesc) override;
 	#pragma endregion
 
+#if RESHADE_DX12_CAPTURE_DEPTH_BUFFERS
+	bool save_depth_texture(D3D12_CPU_DESCRIPTOR_HANDLE pDepthStencilView, bool cleared);
+
+	void track_active_rendertargets(const D3D12_CPU_DESCRIPTOR_HANDLE *pDepthStencilView);
+	void track_cleared_depthstencil(D3D12_CLEAR_FLAGS ClearFlags, D3D12_CPU_DESCRIPTOR_HANDLE pDepthStencilView);
+#endif
+
 	bool check_and_upgrade_interface(REFIID riid);
 
 	ULONG _ref = 1;
 	ID3D12GraphicsCommandList *_orig;
 	unsigned int _interface_version;
 	D3D12Device *const _device;
+	reshade::d3d12::draw_call_tracker _draw_call_tracker;
 };

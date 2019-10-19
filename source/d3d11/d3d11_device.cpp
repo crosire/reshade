@@ -17,7 +17,7 @@ D3D11Device::D3D11Device(IDXGIDevice1 *dxgi_device, ID3D11Device *original, ID3D
 	assert(original != nullptr);
 }
 
-void D3D11Device::add_commandlist_trackers(ID3D11CommandList* command_list, const reshade::d3d11::draw_call_tracker &tracker_source)
+void D3D11Device::add_commandlist_trackers(ID3D11CommandList *command_list, const reshade::d3d11::draw_call_tracker &tracker_source)
 {
 	assert(command_list != nullptr);
 
@@ -30,7 +30,7 @@ void D3D11Device::add_commandlist_trackers(ID3D11CommandList* command_list, cons
 	else
 		it->second.merge(tracker_source);
 }
-void D3D11Device::merge_commandlist_trackers(ID3D11CommandList* command_list, reshade::d3d11::draw_call_tracker &tracker_destination)
+void D3D11Device::merge_commandlist_trackers(ID3D11CommandList *command_list, reshade::d3d11::draw_call_tracker &tracker_destination)
 {
 	assert(command_list != nullptr);
 
@@ -44,12 +44,12 @@ void D3D11Device::merge_commandlist_trackers(ID3D11CommandList* command_list, re
 
 void D3D11Device::clear_drawcall_stats()
 {
-	_immediate_context->clear_drawcall_stats();
+	_clear_DSV_iter = 1;
+	_immediate_context->_draw_call_tracker.reset();
 
 	const std::lock_guard<std::mutex> lock(_trackers_per_commandlist_mutex);
 
 	_trackers_per_commandlist.clear();
-	_clear_DSV_iter = 1;
 }
 
 bool D3D11Device::check_and_upgrade_interface(REFIID riid)

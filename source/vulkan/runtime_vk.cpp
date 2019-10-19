@@ -70,6 +70,7 @@ namespace reshade::vulkan
 		VkDeviceSize storage_offset = 0;
 		reshadefx::module module;
 		std::vector<VkDescriptorImageInfo> image_bindings;
+		uint32_t depth_image_binding = std::numeric_limits<uint32_t>::max();
 	};
 
 	static uint32_t find_memory_type_index(const VkPhysicalDeviceMemoryProperties &props, VkMemoryPropertyFlags flags, uint32_t type_bits)
@@ -964,6 +965,8 @@ bool reshade::vulkan::runtime_vk::compile_effect(effect_data &effect)
 				image_binding.imageView = _backbuffer_texture_view[0];
 			else
 				image_binding.imageView = _depthstencil_image_view;
+			// Keep track of the depth buffer texture descriptor to simplify updating it
+			effect_data.depth_image_binding = info.binding;
 			break;
 		default:
 			image_binding.imageView = existing_texture->impl->as<vulkan_tex_data>()->view[info.srgb];
@@ -1937,7 +1940,7 @@ void reshade::vulkan::runtime_vk::update_depthstencil_image(VkImageView depth_vi
 	if (image == VK_NULL_HANDLE)
 		return;
 
-	for (texture &tex : _textures)
+	for (auto &tex : _textures)
 	{
 		if (tex.impl != nullptr && tex.impl_reference == texture_reference::depth_buffer)
 		{
@@ -1954,33 +1957,21 @@ void reshade::vulkan::runtime_vk::update_depthstencil_image(VkImageView depth_vi
 	{
 		if (effect_data.set[1] == VK_NULL_HANDLE)
 			continue; // Skip effects without image bindings
+		if (effect_data.depth_image_binding == std::numeric_limits<uint32_t>::max())
+			continue; // Skip effects that do not have a depth buffer binding
 
-		for (const reshadefx::sampler_info &info : effect_data.module.samplers)
-		{
-			const auto existing_texture = std::find_if(_textures.begin(), _textures.end(),
-				[&texture_name = info.texture_name](const auto &item) {
-				return item.unique_name == texture_name && item.impl != nullptr;
-			});
+		// Set sampler handle, which should be the same for all writes
+		assert(image_binding.sampler == VK_NULL_HANDLE || image_binding.sampler == effect_data.image_bindings[effect_data.depth_image_binding].sampler);
+		image_binding.sampler = effect_data.image_bindings[effect_data.depth_image_binding].sampler;
 
-			// Find first binding which references the depth buffer and update it
-			if (existing_texture != _textures.end() &&
-				existing_texture->impl_reference == texture_reference::depth_buffer)
-			{
-				// Set sampler handle, which should be the same for all writes
-				assert(image_binding.sampler == VK_NULL_HANDLE || image_binding.sampler == effect_data.image_bindings[info.binding].sampler);
-				image_binding.sampler = effect_data.image_bindings[info.binding].sampler;
+		VkWriteDescriptorSet write{ VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
+		write.dstSet = effect_data.set[1];
+		write.dstBinding = effect_data.depth_image_binding;
+		write.descriptorCount = 1;
+		write.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+		write.pImageInfo = &image_binding;
 
-				VkWriteDescriptorSet write{ VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
-				write.dstSet = effect_data.set[1];
-				write.dstBinding = info.binding;
-				write.descriptorCount = 1;
-				write.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-				write.pImageInfo = &image_binding;
-
-				writes.push_back(std::move(write));
-				break;
-			}
-		}
+		writes.push_back(std::move(write));
 	}
 
 	vk.UpdateDescriptorSets(_device, uint32_t(writes.size()), writes.data(), 0, nullptr);

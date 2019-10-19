@@ -16,8 +16,8 @@ D3D10Device::D3D10Device(IDXGIDevice1 *dxgi_device, ID3D10Device1 *original) :
 
 void D3D10Device::clear_drawcall_stats()
 {
-	_draw_call_tracker.reset();
 	_clear_DSV_iter = 1;
+	_draw_call_tracker.reset();
 }
 
 #if RESHADE_DX10_CAPTURE_DEPTH_BUFFERS

@@ -5,9 +5,9 @@
 
 #include "log.hpp"
 #include "d3d12_device.hpp"
+#include "d3d12_command_list.hpp"
 #include "d3d12_command_queue.hpp"
 #include "d3d12_command_queue_downlevel.hpp"
-#include <assert.h>
 
 D3D12CommandQueue::D3D12CommandQueue(D3D12Device *device, ID3D12CommandQueue *original) :
 	_orig(original),
@@ -71,14 +71,9 @@ HRESULT STDMETHODCALLTYPE D3D12CommandQueue::QueryInterface(REFIID riid, void **
 	{
 		if (ID3D12CommandQueueDownlevel *downlevel = nullptr;
 			_downlevel == nullptr && SUCCEEDED(_orig->QueryInterface(&downlevel)))
-		{
 			_downlevel = new D3D12CommandQueueDownlevel(this, downlevel);
-		}
-
 		if (_downlevel != nullptr)
-		{
 			return _downlevel->QueryInterface(riid, ppvObj);
-		}
 	}
 #endif
 
@@ -147,11 +142,29 @@ void    STDMETHODCALLTYPE D3D12CommandQueue::CopyTileMappings(ID3D12Resource *pD
 }
 void    STDMETHODCALLTYPE D3D12CommandQueue::ExecuteCommandLists(UINT NumCommandLists, ID3D12CommandList *const *ppCommandLists)
 {
-	if (ppCommandLists != nullptr)
-		for (UINT i = 0; i < NumCommandLists; i++)
-		_device->merge_commandlist_trackers(ppCommandLists[i], _device->_draw_call_tracker);
+	std::vector<ID3D12CommandList *> command_lists(NumCommandLists);
+	for (UINT i = 0; i < NumCommandLists; i++)
+	{
+		assert(ppCommandLists[i] != nullptr);
 
-	_orig->ExecuteCommandLists(NumCommandLists, ppCommandLists);
+		if (com_ptr<D3D12GraphicsCommandList> command_list_proxy;
+			SUCCEEDED(ppCommandLists[i]->QueryInterface(&command_list_proxy)))
+		{
+			const std::lock_guard<std::mutex> lock(_device->_device_global_mutex);
+
+			// Merge command list trackers into device one
+			_device->_draw_call_tracker.merge(command_list_proxy->_draw_call_tracker);
+
+			// Get original command list pointer from proxy object
+			command_lists[i] = command_list_proxy->_orig;
+		}
+		else
+		{
+			command_lists[i] = ppCommandLists[i];
+		}
+	}
+
+	_orig->ExecuteCommandLists(NumCommandLists, command_lists.data());
 }
 void    STDMETHODCALLTYPE D3D12CommandQueue::SetMarker(UINT Metadata, const void *pData, UINT Size)
 {
