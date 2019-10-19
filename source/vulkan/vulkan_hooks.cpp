@@ -962,6 +962,11 @@ VK_LAYER_EXPORT PFN_vkVoidFunction VKAPI_CALL vkGetDeviceProcAddr(VkDevice devic
 	if (0 == strcmp(pName, "vkCmdClearDepthStencilImage"))
 		return reinterpret_cast<PFN_vkVoidFunction>(vkCmdClearDepthStencilImage);
 
+	// Need to self-intercept as well, since some layers rely on this (e.g. Steam overlay)
+	// See also https://github.com/KhronosGroup/Vulkan-Loader/blob/master/loader/LoaderAndLayerInterface.md#layer-conventions-and-rules
+	if (0 == strcmp(pName, "vkGetDeviceProcAddr"))
+		return reinterpret_cast<PFN_vkVoidFunction>(vkGetDeviceProcAddr);
+
 	if (device == VK_NULL_HANDLE)
 		return nullptr;
 
@@ -984,6 +989,10 @@ VK_LAYER_EXPORT PFN_vkVoidFunction VKAPI_CALL vkGetInstanceProcAddr(VkInstance i
 		return reinterpret_cast<PFN_vkVoidFunction>(vkCreateWin32SurfaceKHR);
 	if (0 == strcmp(pName, "vkDestroySurfaceKHR"))
 		return reinterpret_cast<PFN_vkVoidFunction>(vkDestroySurfaceKHR);
+
+	// Not required, but self-intercept here as well to stay consistent 
+	if (0 == strcmp(pName, "vkGetInstanceProcAddr"))
+		return reinterpret_cast<PFN_vkVoidFunction>(vkGetInstanceProcAddr);
 
 	if (instance == VK_NULL_HANDLE)
 		return nullptr;
