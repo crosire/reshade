@@ -64,8 +64,6 @@ namespace reshade::d3d12
 		if (format_index == DXGI_FORMAT_UNKNOWN)
 			return true;
 
-		const D3D12_RESOURCE_DESC desc = depthstencil->GetDesc();
-
 		const DXGI_FORMAT depth_texture_formats[] = {
 			DXGI_FORMAT_UNKNOWN,
 			DXGI_FORMAT_R16_TYPELESS,
@@ -76,7 +74,7 @@ namespace reshade::d3d12
 
 		assert(format_index > DXGI_FORMAT_UNKNOWN && format_index < ARRAYSIZE(depth_texture_formats));
 
-		return make_dxgi_format_typeless(desc.Format) == depth_texture_formats[format_index];
+		return make_dxgi_format_typeless(depthstencil->GetDesc().Format) == depth_texture_formats[format_index];
 	}
 
 	void draw_call_tracker::track_rendertargets(int format_index, ID3D12Resource *depthstencil)

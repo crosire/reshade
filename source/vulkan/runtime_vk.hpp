@@ -30,11 +30,17 @@ namespace reshade::vulkan
 
 		bool capture_screenshot(uint8_t *buffer) const override;
 
+#if RESHADE_VULKAN_CAPTURE_DEPTH_BUFFERS
+		VkImage select_depth_texture_save(const VkImageCreateInfo &create_info);
+#endif
+
 		void transition_layout(
 			VkCommandBuffer cmd_list, VkImage image, VkImageLayout old_layout, VkImageLayout new_layout,
 			VkImageSubresourceRange subresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, VK_REMAINING_MIP_LEVELS, 0, VK_REMAINING_ARRAY_LAYERS }) const;
 
-		VkImageView create_image_view(VkImage image, VkFormat format, uint32_t levels = 1);
+		VkImage create_image(uint32_t width, uint32_t height, uint32_t levels, VkFormat format, VkImageUsageFlags usage, VkMemoryPropertyFlags mem = 0, VkImageCreateFlags = 0);
+		VkImageView create_image_view(VkImage image, VkFormat format, uint32_t levels, VkImageAspectFlags aspect);
+		VkBuffer create_buffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags mem = 0);
 		VkCommandBuffer create_command_list(VkCommandBufferLevel level = VK_COMMAND_BUFFER_LEVEL_PRIMARY) const;
 		void execute_command_list(VkCommandBuffer cmd_list) const;
 		void execute_command_list_async(VkCommandBuffer cmd_list) const;
@@ -72,8 +78,8 @@ namespace reshade::vulkan
 #endif
 
 #if RESHADE_VULKAN_CAPTURE_DEPTH_BUFFERS
-		void detect_depth_source(draw_call_tracker& tracker);
-		void update_depthstencil_image(VkImageView depthstencil, VkImageView depthstencil_replacement, VkImage image, VkFormat image_format);
+		void detect_depth_source(draw_call_tracker &tracker);
+		void update_depthstencil_image(VkImage depthstencil, VkImageLayout layout, VkFormat image_format);
 
 		struct depth_texture_save_info
 		{
@@ -85,9 +91,6 @@ namespace reshade::vulkan
 			bool cleared = false;
 		};
 #endif
-
-		VkImage create_image(uint32_t width, uint32_t height, uint32_t levels, VkFormat format, VkImageUsageFlags usage, VkMemoryPropertyFlags mem = 0, VkImageCreateFlags = 0);
-		VkBuffer create_buffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags mem = 0);
 
 		void set_object_name(uint64_t handle, VkDebugReportObjectTypeEXT type, const char *name) const;
 
@@ -108,16 +111,19 @@ namespace reshade::vulkan
 		VkExtent2D _render_area = {};
 		VkFormat _backbuffer_format = VK_FORMAT_UNDEFINED;
 
+		std::vector<VkDeviceMemory> _allocations;
+
 		VkImage _backbuffer_texture = VK_NULL_HANDLE;
 		VkImageView _backbuffer_texture_view[2] = {};
 		VkImage _default_depthstencil = VK_NULL_HANDLE;
-		VkImageView _depthstencil = VK_NULL_HANDLE;
 		VkImageView _default_depthstencil_view = VK_NULL_HANDLE;
-		VkImageView _depthstencil_image_view = VK_NULL_HANDLE;
+		VkImageView _depthstencil_shader_view = VK_NULL_HANDLE;
 		VkImage _depthstencil_image = VK_NULL_HANDLE;
-		VkImageView _best_depth_stencil_overwrite = VK_NULL_HANDLE;
-		std::vector<VkDeviceMemory> _allocations;
-		VkFormat _depthstencil_format = VK_FORMAT_UNDEFINED;
+		VkImage _best_depth_stencil_overwrite = VK_NULL_HANDLE;
+		VkImageLayout _depthstencil_layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+		VkImageAspectFlags _depthstencil_aspect = VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT;
+
+		std::unordered_map<uint64_t, VkImage> _depth_texture_saves;
 
 		VkDescriptorPool _effect_descriptor_pool = VK_NULL_HANDLE;
 		VkDescriptorSetLayout _effect_ubo_layout = VK_NULL_HANDLE;
