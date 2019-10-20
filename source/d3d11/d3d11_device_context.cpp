@@ -6,6 +6,7 @@
 #include "log.hpp"
 #include "d3d11_device.hpp"
 #include "d3d11_device_context.hpp"
+#include "d3d11_command_list.hpp"
 #include "runtime_d3d11.hpp"
 
 D3D11DeviceContext::D3D11DeviceContext(D3D11Device *device, ID3D11DeviceContext  *original) :
@@ -458,8 +459,17 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::ResolveSubresource(ID3D11Resource 
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::ExecuteCommandList(ID3D11CommandList *pCommandList, BOOL RestoreContextState)
 {
-	if (pCommandList != nullptr)
-		_device->merge_commandlist_trackers(pCommandList, _draw_call_tracker);
+	assert(pCommandList != nullptr);
+
+	if (com_ptr<D3D11CommandList> command_list_proxy;
+		SUCCEEDED(pCommandList->QueryInterface(&command_list_proxy)))
+	{
+		// Merge command list trackers into device one
+		_draw_call_tracker.merge(command_list_proxy->_draw_call_tracker);
+
+		// Get original command list pointer from proxy object
+		pCommandList = command_list_proxy->_orig;
+	}
 
 	_orig->ExecuteCommandList(pCommandList, RestoreContextState);
 }
@@ -699,7 +709,12 @@ HRESULT STDMETHODCALLTYPE D3D11DeviceContext::FinishCommandList(BOOL RestoreDefe
 {
 	const HRESULT hr = _orig->FinishCommandList(RestoreDeferredContextState, ppCommandList);
 	if (SUCCEEDED(hr) && ppCommandList != nullptr)
-		_device->add_commandlist_trackers(*ppCommandList, _draw_call_tracker);
+	{
+		const auto command_list_proxy = new D3D11CommandList(_device, *ppCommandList);
+		command_list_proxy->_draw_call_tracker = _draw_call_tracker;
+
+		*ppCommandList = command_list_proxy;
+	}
 
 	_draw_call_tracker.reset();
 

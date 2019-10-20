@@ -123,6 +123,9 @@
     <ClCompile Include="source\d3d11\d3d11.cpp">
       <Filter>hooks\d3d11</Filter>
     </ClCompile>
+    <ClCompile Include="source\d3d11\d3d11_command_list.cpp">
+      <Filter>hooks\d3d11</Filter>
+    </ClCompile>
     <ClCompile Include="source\d3d11\d3d11_device.cpp">
       <Filter>hooks\d3d11</Filter>
     </ClCompile>
@@ -259,6 +262,9 @@
     </ClInclude>
     <ClInclude Include="source\d3d10\state_block.hpp">
       <Filter>hooks\d3d10</Filter>
+    </ClInclude>
+    <ClInclude Include="source\d3d11\d3d11_command_list.hpp">
+      <Filter>hooks\d3d11</Filter>
     </ClInclude>
     <ClInclude Include="source\d3d11\d3d11_device.hpp">
       <Filter>hooks\d3d11</Filter>
