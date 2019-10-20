@@ -105,6 +105,7 @@ void D3D10Device::track_cleared_depthstencil(ID3D10DepthStencilView *pDepthStenc
 bool D3D10Device::check_and_upgrade_interface(REFIID riid)
 {
 	if (riid == __uuidof(this) ||
+		// IUnknown is handled by DXGIDevice
 		riid == __uuidof(ID3D10Device) ||
 		riid == __uuidof(ID3D10Device1))
 		return true;
@@ -126,15 +127,12 @@ HRESULT STDMETHODCALLTYPE D3D10Device::QueryInterface(REFIID riid, void **ppvObj
 
 	// Note: Objects must have an identity, so use DXGIDevice for IID_IUnknown
 	// See https://docs.microsoft.com/en-us/windows/desktop/com/rules-for-implementing-queryinterface
-	if (riid == __uuidof(IUnknown) ||
-		riid == __uuidof(DXGIDevice) ||
-		riid == __uuidof(IDXGIObject) ||
-		riid == __uuidof(IDXGIDevice) ||
-		riid == __uuidof(IDXGIDevice1) ||
-		riid == __uuidof(IDXGIDevice2) ||
-		riid == __uuidof(IDXGIDevice3) ||
-		riid == __uuidof(IDXGIDevice4))
-		return _dxgi_device->QueryInterface(riid, ppvObj);
+	if (_dxgi_device->check_and_upgrade_interface(riid))
+	{
+		_dxgi_device->AddRef();
+		*ppvObj = _dxgi_device;
+		return S_OK;
+	}
 
 	return _orig->QueryInterface(riid, ppvObj);
 }

@@ -54,7 +54,8 @@ HOOK_EXPORT HRESULT WINAPI D3D10CreateDeviceAndSwapChain1(IDXGIAdapter *pAdapter
 	auto device = *ppDevice;
 	// Query for the DXGI device since we need to reference it in the hooked device
 	IDXGIDevice1 *dxgi_device = nullptr;
-	device->QueryInterface(&dxgi_device);
+	hr = device->QueryInterface(&dxgi_device);
+	assert(SUCCEEDED(hr));
 
 	// Create device proxy unless this is a software device
 	D3D10Device *device_proxy = nullptr;

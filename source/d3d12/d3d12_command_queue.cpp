@@ -69,7 +69,7 @@ HRESULT STDMETHODCALLTYPE D3D12CommandQueue::QueryInterface(REFIID riid, void **
 	// Special case for d3d12on7
 	if (riid == __uuidof(ID3D12CommandQueueDownlevel))
 	{
-		if (ID3D12CommandQueueDownlevel *downlevel = nullptr;
+		if (ID3D12CommandQueueDownlevel *downlevel = nullptr; // Not a 'com_ptr' since D3D12CommandQueueDownlevel will take ownership
 			_downlevel == nullptr && SUCCEEDED(_orig->QueryInterface(&downlevel)))
 			_downlevel = new D3D12CommandQueueDownlevel(this, downlevel);
 		if (_downlevel != nullptr)

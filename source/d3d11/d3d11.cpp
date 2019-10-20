@@ -42,7 +42,8 @@ HOOK_EXPORT HRESULT WINAPI D3D11CreateDeviceAndSwapChain(IDXGIAdapter *pAdapter,
 	auto device = *ppDevice;
 	// Query for the DXGI device and immediate device context since we need to reference them in the hooked device
 	IDXGIDevice1 *dxgi_device = nullptr;
-	device->QueryInterface(&dxgi_device);
+	hr = device->QueryInterface(&dxgi_device);
+	assert(SUCCEEDED(hr));
 	ID3D11DeviceContext *device_context = nullptr;
 	device->GetImmediateContext(&device_context);
 
