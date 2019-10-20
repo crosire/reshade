@@ -1,5 +1,4 @@
 #include "draw_call_tracker.hpp"
-#include "log.hpp"
 #include "dxgi/format_utils.hpp"
 #include <math.h>
 
@@ -214,14 +213,14 @@ namespace reshade::d3d10
 			assert((desc.BindFlags & D3D10_BIND_DEPTH_STENCIL) != 0);
 
 			// Check aspect ratio
-			const float width_factor = desc.Width != width ? float(width) / desc.Width : 1.0f;
-			const float height_factor = desc.Height != height ? float(height) / desc.Height : 1.0f;
+			const float width_factor = float(width) / float(desc.Width);
+			const float height_factor = float(height) / float(desc.Height);
 			const float texture_aspect_ratio = float(desc.Width) / float(desc.Height);
 
 			if (fabs(texture_aspect_ratio - aspect_ratio) > 0.1f || width_factor > 1.85f || height_factor > 1.85f || width_factor < 0.5f || height_factor < 0.5f)
 				continue; // No match, not a good fit
 
-			if (snapshot.stats.drawcalls >= best_snapshot.stats.drawcalls)
+			if (snapshot.stats.vertices >= best_snapshot.stats.vertices)
 				best_snapshot = snapshot;
 		}
 

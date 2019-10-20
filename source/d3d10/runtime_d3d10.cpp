@@ -427,7 +427,8 @@ bool reshade::d3d10::runtime_d3d10::capture_screenshot(uint8_t *buffer) const
 			for (uint32_t x = 0; x < pitch; x += 4)
 			{
 				buffer[x + 3] = 0xFF; // Clear alpha channel
-				if (_backbuffer_format == DXGI_FORMAT_B8G8R8A8_UNORM || _backbuffer_format == DXGI_FORMAT_B8G8R8A8_UNORM_SRGB)
+				if (_backbuffer_format == DXGI_FORMAT_B8G8R8A8_UNORM ||
+					_backbuffer_format == DXGI_FORMAT_B8G8R8A8_UNORM_SRGB)
 					std::swap(buffer[x + 0], buffer[x + 2]); // Format is BGRA, but output should be RGBA, so flip channels
 			}
 		}
@@ -710,7 +711,7 @@ bool reshade::d3d10::runtime_d3d10::compile_effect(effect_data &effect)
 		const D3D10_BUFFER_DESC desc = { static_cast<UINT>(effect.storage_size), D3D10_USAGE_DYNAMIC, D3D10_BIND_CONSTANT_BUFFER, D3D10_CPU_ACCESS_WRITE };
 		const D3D10_SUBRESOURCE_DATA init_data = { _uniform_data_storage.data() + effect.storage_offset, static_cast<UINT>(effect.storage_size) };
 
-		if (HRESULT hr = _device->CreateBuffer(&desc, &init_data, &cbuffer); FAILED(hr))
+		if (const HRESULT hr = _device->CreateBuffer(&desc, &init_data, &cbuffer); FAILED(hr))
 		{
 			LOG(ERROR) << "Failed to create constant buffer for effect file " << effect.source_file << ". "
 				"HRESULT is '" << std::hex << hr << std::dec << "'.";
@@ -1076,7 +1077,7 @@ void reshade::d3d10::runtime_d3d10::render_technique(technique &technique)
 		_device->PSSetConstantBuffers(0, 1, &constant_buffer);
 	}
 
-	// Disable unused shader stages
+	// Disable unused pipeline stages
 	_device->GSSetShader(nullptr);
 
 	for (size_t i = 0; i < technique.passes.size(); ++i)
@@ -1289,7 +1290,7 @@ void reshade::d3d10::runtime_d3d10::render_imgui_draw_data(ImDrawData *draw_data
 		FAILED(_imgui_vertex_buffer->Map(D3D10_MAP_WRITE_DISCARD, 0, reinterpret_cast<void **>(&vtx_dst))))
 		return;
 
-	for (int n = 0; n < draw_data->CmdListsCount; n++)
+	for (int n = 0; n < draw_data->CmdListsCount; ++n)
 	{
 		const ImDrawList *const draw_list = draw_data->CmdLists[n];
 		memcpy(idx_dst, draw_list->IdxBuffer.Data, draw_list->IdxBuffer.Size * sizeof(ImDrawIdx));
@@ -1489,7 +1490,7 @@ void reshade::d3d10::runtime_d3d10::draw_debug_menu()
 #if RESHADE_DX10_CAPTURE_CONSTANT_BUFFERS
 	if (ImGui::CollapsingHeader("Constant Buffers", ImGuiTreeNodeFlags_DefaultOpen))
 	{
-		for (const auto &[buffer, counter] : _current_tracker.constant_buffer_counters())
+		for (const auto &[buffer, counter] : _current_tracker->constant_buffer_counters())
 		{
 			bool likely_camera_transform_buffer = false;
 

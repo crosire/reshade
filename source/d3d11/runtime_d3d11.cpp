@@ -1290,7 +1290,7 @@ void reshade::d3d11::runtime_d3d11::render_imgui_draw_data(ImDrawData *draw_data
 			return;
 	}
 
-	D3D11_MAPPED_SUBRESOURCE vtx_resource, idx_resource;
+	D3D11_MAPPED_SUBRESOURCE idx_resource, vtx_resource;
 	if (FAILED(_immediate_context->Map(_imgui_index_buffer.get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &idx_resource)) ||
 		FAILED(_immediate_context->Map(_imgui_vertex_buffer.get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &vtx_resource)))
 		return;
@@ -1377,7 +1377,7 @@ void reshade::d3d11::runtime_d3d11::draw_debug_menu()
 	{
 		bool modified = false;
 		modified |= ImGui::Combo("Depth Texture Format", &depth_buffer_texture_format, "All\0D16\0D32F\0D24S8\0D32FS8\0");
-		
+
 		ImGui::Spacing();
 		modified |= ImGui::Checkbox("Copy depth buffer just before it is cleared", &depth_buffer_before_clear);
 
@@ -1388,7 +1388,7 @@ void reshade::d3d11::runtime_d3d11::draw_debug_menu()
 			create_depthstencil_replacement(nullptr, nullptr);
 			return;
 		}
-		
+
 		if (depth_buffer_before_clear)
 		{
 			ImGui::Spacing();

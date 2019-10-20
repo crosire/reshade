@@ -93,12 +93,15 @@ void D3D10Device::track_active_rendertargets(UINT NumViews, ID3D10RenderTargetVi
 
 	save_depth_texture(pDepthStencilView, false);
 }
-void D3D10Device::track_cleared_depthstencil(ID3D10DepthStencilView *pDepthStencilView)
+void D3D10Device::track_cleared_depthstencil(UINT ClearFlags, ID3D10DepthStencilView *pDepthStencilView)
 {
-	if (pDepthStencilView == nullptr)
+	if (pDepthStencilView == nullptr || _runtimes.empty())
 		return;
 
-	save_depth_texture(pDepthStencilView, true);
+	const auto runtime = _runtimes.front();
+
+	if (ClearFlags & D3D10_CLEAR_DEPTH || (runtime->depth_buffer_more_copies && ClearFlags & D3D10_CLEAR_STENCIL))
+		save_depth_texture(pDepthStencilView, true);
 }
 #endif
 
@@ -148,7 +151,7 @@ ULONG   STDMETHODCALLTYPE D3D10Device::Release()
 
 	// Decrease internal reference count and verify it against our own count
 	const ULONG ref = _orig->Release();
-	if (ref != 0 || _ref != 0)
+	if (ref != 0 && _ref != 0)
 		return ref;
 	else if (ref != 0)
 		LOG(WARN) << "Reference count for ID3D10Device1 object " << this << " is inconsistent: " << ref << ", but expected 0.";
@@ -312,15 +315,14 @@ void    STDMETHODCALLTYPE D3D10Device::ClearRenderTargetView(ID3D10RenderTargetV
 void    STDMETHODCALLTYPE D3D10Device::ClearDepthStencilView(ID3D10DepthStencilView *pDepthStencilView, UINT ClearFlags, FLOAT Depth, UINT8 Stencil)
 {
 #if RESHADE_DX10_CAPTURE_DEPTH_BUFFERS
+	track_cleared_depthstencil(ClearFlags, pDepthStencilView);
+#endif
+
 	if (!_runtimes.empty())
 	{
 		const auto runtime = _runtimes.front();
 		runtime->on_clear_depthstencil_view(pDepthStencilView);
-
-		if (ClearFlags & D3D10_CLEAR_DEPTH || (runtime->depth_buffer_more_copies && ClearFlags & D3D10_CLEAR_STENCIL))
-			track_cleared_depthstencil(pDepthStencilView);
 	}
-#endif
 
 	_orig->ClearDepthStencilView(pDepthStencilView, ClearFlags, Depth, Stencil);
 }

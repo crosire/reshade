@@ -1,5 +1,4 @@
 #include "draw_call_tracker.hpp"
-#include "log.hpp"
 #include "dxgi/format_utils.hpp"
 #include <math.h>
 
@@ -65,7 +64,6 @@ namespace reshade::d3d12
 		if (format_index == DXGI_FORMAT_UNKNOWN)
 			return true;
 
-		// Retrieve texture associated with depth stencil
 		const D3D12_RESOURCE_DESC desc = depthstencil->GetDesc();
 
 		const DXGI_FORMAT depth_texture_formats[] = {
