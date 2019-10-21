@@ -16,6 +16,8 @@ static std::mutex s_windows_mutex;
 static std::unordered_map<HWND, unsigned int> s_raw_input_windows;
 static std::unordered_map<HWND, std::weak_ptr<reshade::input>> s_windows;
 
+extern bool g_isUWP;
+
 reshade::input::input(window_handle window)
 	: _window(window)
 {
@@ -127,7 +129,10 @@ bool reshade::input::handle_window_message(const void *message_data)
 		case RIM_TYPEMOUSE:
 			is_mouse_message = true;
 
-			/*if (raw_input_window == s_raw_input_windows.end() || (raw_input_window->second & 0x2) == 0)
+			if (raw_input_window == s_raw_input_windows.end())
+				break;
+
+			if (!g_isUWP && (raw_input_window->second & 0x2) == 0)
 				break; // Input is already handled (since legacy mouse messages are enabled), so nothing to do here*/
 
 			if (raw_data.data.mouse.usButtonFlags & RI_MOUSE_LEFT_BUTTON_DOWN)

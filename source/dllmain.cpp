@@ -13,6 +13,8 @@ HMODULE g_module_handle = nullptr;
 std::filesystem::path g_reshade_dll_path;
 std::filesystem::path g_target_executable_path;
 
+bool g_isUWP = false;
+
 extern std::filesystem::path get_system_path()
 {
 	static std::filesystem::path system_path;

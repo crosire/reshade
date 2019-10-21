@@ -16,6 +16,8 @@
 #include "d3d12/runtime_d3d12.hpp"
 #include <CoreWindow.h>
 
+extern bool g_isUWP;
+
 static void dump_swapchain_desc(const DXGI_SWAP_CHAIN_DESC &desc)
 {
 	LOG(INFO) << "> Dumping swap chain description:";
@@ -242,6 +244,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForCoreWindow(IDXGIFactor
 	if (com_ptr<ICoreWindowInterop> window_interop; SUCCEEDED(pWindow->QueryInterface(&window_interop)))
 		window_interop->get_WindowHandle(&hwnd);
 
+	g_isUWP = hwnd != nullptr;
 	init_reshade_runtime_d3d(*ppSwapChain, direct3d_version, device_proxy, hwnd);
 
 	return hr;

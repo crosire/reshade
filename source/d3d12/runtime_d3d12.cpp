@@ -13,6 +13,8 @@
 #include <imgui.h>
 #include <d3dcompiler.h>
 
+extern bool g_isUWP;
+
 namespace reshade::d3d12
 {
 	struct d3d12_tex_data : base_object
@@ -275,17 +277,12 @@ bool reshade::d3d12::runtime_d3d12::on_init(const DXGI_SWAP_CHAIN_DESC& desc
 	_window_width = window_rect.right - window_rect.left;
 	_window_height = window_rect.bottom - window_rect.top;
 
-	if (_window_width == 0 || _window_height == 0)
+	if (g_isUWP)
 	{
 		_window_width = desc.BufferDesc.Width;
 		_window_height = desc.BufferDesc.Height;
 	}
 
-	LOG(INFO) << "desc.BufferDesc.Width => " << desc.BufferDesc.Width;
-	LOG(INFO) << "desc.BufferDesc.Height => " << desc.BufferDesc.Height;
-
-	LOG(INFO) << "_window_width => " << _window_width;
-	LOG(INFO) << "_window_height => " << _window_height;
 	_backbuffer_format = desc.BufferDesc.Format;
 	is_multisampling_enabled = desc.SampleDesc.Count > 1;
 	_color_bit_depth = dxgi_format_color_depth(_backbuffer_format);
