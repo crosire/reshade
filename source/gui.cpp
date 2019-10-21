@@ -77,11 +77,11 @@ void reshade::runtime::init_ui()
 
 	ImGui::SetCurrentContext(nullptr);
 
-	/*subscribe_to_ui("Home", [this]() { draw_overlay_menu_home(); });
+	subscribe_to_ui("Home", [this]() { draw_overlay_menu_home(); });
 	subscribe_to_ui("Settings", [this]() { draw_overlay_menu_settings(); });
 	subscribe_to_ui("Statistics", [this]() { draw_overlay_menu_statistics(); });
 	subscribe_to_ui("Log", [this]() { draw_overlay_menu_log(); });
-	subscribe_to_ui("About", [this]() { draw_overlay_menu_about(); });*/
+	subscribe_to_ui("About", [this]() { draw_overlay_menu_about(); });
 
 	_load_config_callables.push_back([this](const ini_file &config) {
 		bool save_imgui_window_state = false;

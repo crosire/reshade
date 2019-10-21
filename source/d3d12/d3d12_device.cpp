@@ -7,6 +7,7 @@
 #include "d3d12_device.hpp"
 #include "d3d12_command_list.hpp"
 #include "d3d12_command_queue.hpp"
+#include "runtime_d3d12.hpp"
 
 extern reshade::log::message &operator<<(reshade::log::message &m, REFIID riid);
 
@@ -263,7 +264,17 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommittedResource(const D3D12_HEAP_
 	D3D12_RESOURCE_DESC new_desc = *pResourceDesc;
 	new_desc.Flags &= ~D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE;
 
-	return _orig->CreateCommittedResource(pHeapProperties, HeapFlags, &new_desc, InitialResourceState, pOptimizedClearValue, riidResource, ppvResource);
+	const HRESULT hr = _orig->CreateCommittedResource(pHeapProperties, HeapFlags, &new_desc, InitialResourceState, pOptimizedClearValue, riidResource, ppvResource);
+
+	if (_runtimes.empty())
+		return hr;
+
+	const auto runtime = _runtimes.front();
+
+	if (new_desc.SampleDesc.Count > 1)
+		runtime->is_multisampling_enabled = true;
+
+	return hr;
 }
 HRESULT STDMETHODCALLTYPE D3D12Device::CreateHeap(const D3D12_HEAP_DESC *pDesc, REFIID riid, void **ppvHeap)
 {

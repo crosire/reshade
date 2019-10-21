@@ -287,7 +287,7 @@ bool reshade::d3d12::runtime_d3d12::on_init(const DXGI_SWAP_CHAIN_DESC& desc
 	LOG(INFO) << "_window_width => " << _window_width;
 	LOG(INFO) << "_window_height => " << _window_height;
 	_backbuffer_format = desc.BufferDesc.Format;
-	_is_multisampling_enabled = desc.SampleDesc.Count > 1;
+	is_multisampling_enabled = desc.SampleDesc.Count > 1;
 	_color_bit_depth = dxgi_format_color_depth(_backbuffer_format);
 	_srv_handle_size = _device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 	_rtv_handle_size = _device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
@@ -1501,7 +1501,7 @@ void reshade::d3d12::runtime_d3d12::render_imgui_draw_data(ImDrawData *draw_data
 
 void reshade::d3d12::runtime_d3d12::draw_debug_menu()
 {
-	ImGui::Text("MSAA is %s", _is_multisampling_enabled ? "active" : "inactive");
+	ImGui::Text("MSAA is %s", is_multisampling_enabled ? "active" : "inactive");
 	ImGui::Spacing();
 
 	ImGui::Spacing();
@@ -1634,7 +1634,7 @@ void reshade::d3d12::runtime_d3d12::detect_depth_source(draw_call_tracker &track
 	if (depth_buffer_before_clear)
 		_best_depth_stencil_overwrite = nullptr;
 
-	if (_is_multisampling_enabled || _best_depth_stencil_overwrite != nullptr || (_framecount % 30 && !depth_buffer_before_clear))
+	if (is_multisampling_enabled || _best_depth_stencil_overwrite != nullptr || (_framecount % 30 && !depth_buffer_before_clear))
 		return;
 
 	if (_has_high_network_activity)
