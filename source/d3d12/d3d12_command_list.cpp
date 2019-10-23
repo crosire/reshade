@@ -316,7 +316,12 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::ResourceBarrier(UINT NumBarrier
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::ExecuteBundle(ID3D12GraphicsCommandList *pCommandList)
 {
-	_orig->ExecuteBundle(pCommandList);
+	assert(pCommandList != nullptr);
+
+	// Get original command list pointer from proxy object
+	const auto command_list_proxy = static_cast<D3D12GraphicsCommandList *>(pCommandList);
+
+	_orig->ExecuteBundle(command_list_proxy->_orig);
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetDescriptorHeaps(UINT NumDescriptorHeaps, ID3D12DescriptorHeap *const *ppDescriptorHeaps)
 {
