@@ -229,7 +229,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForCoreWindow(IDXGIFactor
 	const unsigned int direct3d_version =
 		query_device(pDevice, device_proxy);
 
-	const HRESULT hr = reshade::hooks::call(IDXGIFactory2_CreateSwapChainForCoreWindow, vtable_from_instance(pFactory + 16))(pFactory, pDevice, pWindow, pDesc, pRestrictToOutput, ppSwapChain);
+	const HRESULT hr = reshade::hooks::call(IDXGIFactory2_CreateSwapChainForCoreWindow, vtable_from_instance(pFactory) + 16)(pFactory, pDevice, pWindow, pDesc, pRestrictToOutput, ppSwapChain);
 
 	if (FAILED(hr))
 	{
