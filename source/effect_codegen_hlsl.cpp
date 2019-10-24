@@ -640,7 +640,7 @@ private:
 			"_m30", "_m31", "_m32", "_m33"
 		};
 
-		std::string code = id_to_name(exp.base);
+		std::string expr_code = id_to_name(exp.base);
 
 		for (const auto &op : exp.chain)
 		{
@@ -648,31 +648,42 @@ private:
 			{
 			case expression::operation::op_cast:
 				{ std::string type; write_type<false, false>(type, op.to);
-				code = "((" + type + ')' + code + ')'; } // Cast in parentheses so that a subsequent operation operates on the casted value
+				expr_code = "((" + type + ')' + expr_code + ')'; } // Cast in parentheses so that a subsequent operation operates on the casted value
 				break;
 			case expression::operation::op_member:
-				code += '.';
-				code += find_struct(op.from.definition).member_list[op.index].name;
-				break;
-			case expression::operation::op_constant_index:
-				code += '[' + std::to_string(op.index) + ']';
+				expr_code += '.';
+				expr_code += find_struct(op.from.definition).member_list[op.index].name;
 				break;
 			case expression::operation::op_dynamic_index:
-				code += '[' + id_to_name(op.index) + ']';
+				expr_code += '[' + id_to_name(op.index) + ']';
+				break;
+			case expression::operation::op_constant_index:
+				expr_code += '[' + std::to_string(op.index) + ']';
 				break;
 			case expression::operation::op_swizzle:
-				code += '.';
+				expr_code += '.';
 				for (unsigned int i = 0; i < 4 && op.swizzle[i] >= 0; ++i)
 					if (op.from.is_matrix())
-						code += s_matrix_swizzles[op.swizzle[i]];
+						expr_code += s_matrix_swizzles[op.swizzle[i]];
 					else
-						code += "xyzw"[op.swizzle[i]];
+						expr_code += "xyzw"[op.swizzle[i]];
 				break;
 			}
 		}
 
-		// Avoid excessive variable definitions by instancing simple load operations in code every time
-		define_name<naming::expression>(res, std::move(code));
+		if (force_new_id)
+		{
+			// Need to store value in a new variable to comply with request for a new ID
+			std::string &code = _blocks.at(_current_block);
+
+			write_type(code, exp.type);
+			code += ' ' + id_to_name(res) + " = " + expr_code + ";\n";
+		}
+		else
+		{
+			// Avoid excessive variable definitions by instancing simple load operations in code every time
+			define_name<naming::expression>(res, std::move(expr_code));
+		}
 
 		return res;
 	}

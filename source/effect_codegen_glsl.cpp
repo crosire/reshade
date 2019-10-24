@@ -697,7 +697,7 @@ private:
 
 		const id res = make_id();
 
-		std::string code = id_to_name(exp.base);
+		std::string expr_code = id_to_name(exp.base);
 
 		for (const auto &op : exp.chain)
 		{
@@ -705,17 +705,17 @@ private:
 			{
 			case expression::operation::op_cast:
 				{ std::string type; write_type<false, false>(type, op.to);
-				code = type + '(' + code + ')'; }
+				expr_code = type + '(' + expr_code + ')'; }
 				break;
 			case expression::operation::op_member:
-				code += '.';
-				code += escape_name(find_struct(op.from.definition).member_list[op.index].name);
+				expr_code += '.';
+				expr_code += escape_name(find_struct(op.from.definition).member_list[op.index].name);
 				break;
 			case expression::operation::op_dynamic_index:
-				code += '[' + id_to_name(op.index) + ']';
+				expr_code += '[' + id_to_name(op.index) + ']';
 				break;
 			case expression::operation::op_constant_index:
-				code += '[' + std::to_string(op.index) + ']';
+				expr_code += '[' + std::to_string(op.index) + ']';
 				break;
 			case expression::operation::op_swizzle:
 				if (op.from.is_matrix())
@@ -725,7 +725,7 @@ private:
 						const unsigned int row = op.swizzle[0] % 4;
 						const unsigned int col = (op.swizzle[0] - row) / 4;
 
-						code += '[' + std::to_string(row) + "][" + std::to_string(col) + ']';
+						expr_code += '[' + std::to_string(row) + "][" + std::to_string(col) + ']';
 					}
 					else
 					{
@@ -735,16 +735,27 @@ private:
 				}
 				else
 				{
-					code += '.';
+					expr_code += '.';
 					for (unsigned int i = 0; i < 4 && op.swizzle[i] >= 0; ++i)
-						code += "xyzw"[op.swizzle[i]];
+						expr_code += "xyzw"[op.swizzle[i]];
 				}
 				break;
 			}
 		}
 
-		// Avoid excessive variable definitions by instancing simple load operations in code every time
-		define_name<naming::expression>(res, std::move(code));
+		if (force_new_id)
+		{
+			// Need to store value in a new variable to comply with request for a new ID
+			std::string &code = _blocks.at(_current_block);
+
+			write_type(code, exp.type);
+			code += ' ' + id_to_name(res) + " = " + expr_code + ";\n";
+		}
+		else
+		{
+			// Avoid excessive variable definitions by instancing simple load operations in code every time
+			define_name<naming::expression>(res, std::move(expr_code));
+		}
 
 		return res;
 	}
