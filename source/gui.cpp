@@ -2196,45 +2196,29 @@ void reshade::runtime::draw_overlay_technique_editor()
 				ImGui::CloseCurrentPopup();
 			}
 
-			enum class condition { pass, input, output } condition = condition::pass;
-			size_t selected_index = 0;
-
-			if (effect.runtime_loaded && (_renderer_id & 0xF0000) == 0)
-			{
-				if (imgui_popup_button("Show Results..", button_width))
-				{
-					if (ImGui::MenuItem("Generated HLSL"))
-						condition = condition::input, selected_index = 0;
-
-					ImGui::Separator();
-
-					for (size_t i = 0; effect.module.entry_points.size() > i; ++i)
-						if (ImGui::MenuItem(effect.module.entry_points[i].name.c_str()))
-							condition = condition::output, selected_index = i;
-
-					ImGui::EndPopup();
-				}
-			}
-			else if ((_renderer_id & 0x10000) && ImGui::Button("Show Results..", ImVec2(button_width, 0)))
-			{
-				condition = condition::input;
-				selected_index = 0;
-			}
-
-			if (condition != condition::pass)
+			if (imgui_popup_button("Show compiled results", button_width))
 			{
 				std::string source_code;
-				if (condition == condition::input)
+				if (ImGui::MenuItem("Generated code"))
 					source_code = effect.preamble + effect.module.hlsl;
-				else if (condition == condition::output)
-					source_code = effect.module.entry_points[selected_index].assembly;
 
-				_editor.set_text(source_code);
-				_editor.set_readonly(true);
-				_selected_effect = std::numeric_limits<size_t>::max();
-				_selected_effect_changed = false; // Prevent editor from being cleared, since we already set the text here
-				_show_code_editor = true;
-				ImGui::CloseCurrentPopup();
+				ImGui::Separator();
+
+				for (const auto &entry_point : effect.module.entry_points)
+					if (ImGui::MenuItem(entry_point.name.c_str()))
+						source_code = entry_point.assembly;
+
+				ImGui::EndPopup();
+
+				if (!source_code.empty())
+				{
+					_editor.set_text(source_code);
+					_editor.set_readonly(true);
+					_selected_effect = std::numeric_limits<size_t>::max();
+					_selected_effect_changed = false; // Prevent editor from being cleared, since we already set the text here
+					_show_code_editor = true;
+					ImGui::CloseCurrentPopup();
+				}
 			}
 
 			ImGui::EndPopup();
