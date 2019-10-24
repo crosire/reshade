@@ -135,6 +135,10 @@ VkImage reshade::vulkan::runtime_vk::create_image(uint32_t width, uint32_t heigh
 		VkMemoryAllocateInfo alloc_info { VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO };
 		alloc_info.allocationSize = reqs.size;
 		alloc_info.memoryTypeIndex = find_memory_type_index(_memory_props, mem_flags, reqs.memoryTypeBits);
+
+		if (alloc_info.memoryTypeIndex == std::numeric_limits<uint32_t>::max())
+			return VK_NULL_HANDLE;
+
 		VkMemoryDedicatedAllocateInfo dedicated_info { VK_STRUCTURE_TYPE_MEMORY_DEDICATED_ALLOCATE_INFO };
 		alloc_info.pNext = &dedicated_info;
 		dedicated_info.image = res;
@@ -167,6 +171,10 @@ VkBuffer reshade::vulkan::runtime_vk::create_buffer(VkDeviceSize size, VkBufferU
 		VkMemoryAllocateInfo alloc_info { VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO };
 		alloc_info.allocationSize = reqs.size;
 		alloc_info.memoryTypeIndex = find_memory_type_index(_memory_props, mem_flags, reqs.memoryTypeBits);
+
+		if (alloc_info.memoryTypeIndex == std::numeric_limits<uint32_t>::max())
+			return false;
+
 		VkMemoryDedicatedAllocateInfo dedicated_info { VK_STRUCTURE_TYPE_MEMORY_DEDICATED_ALLOCATE_INFO };
 		alloc_info.pNext = &dedicated_info;
 		dedicated_info.buffer = res;
@@ -487,72 +495,60 @@ void reshade::vulkan::runtime_vk::on_present(uint32_t swapchain_image_index, dra
 
 bool reshade::vulkan::runtime_vk::capture_screenshot(uint8_t *buffer) const
 {
-	vk_handle<VK_OBJECT_TYPE_IMAGE> intermediate(_device, vk);
+	const size_t data_pitch = _width * 4;
+
+	vk_handle<VK_OBJECT_TYPE_BUFFER> intermediate(_device, vk);
 	vk_handle<VK_OBJECT_TYPE_DEVICE_MEMORY> intermediate_mem(_device, vk);
 
-	{   VkImageCreateInfo create_info { VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO };
-		create_info.imageType = VK_IMAGE_TYPE_2D;
-		create_info.format = _backbuffer_format;
-		create_info.extent = { _width, _height, 1u };
-		create_info.mipLevels = 1;
-		create_info.arrayLayers = 1;
-		create_info.samples = VK_SAMPLE_COUNT_1_BIT;
-		create_info.tiling = VK_IMAGE_TILING_LINEAR;
+	{   VkBufferCreateInfo create_info { VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO };
+		create_info.size = _width * _height * 4;
 		create_info.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT;
 		create_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-		create_info.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 
-		check_result(vk.CreateImage(_device, &create_info, nullptr, &intermediate)) false;
+		check_result(vk.CreateBuffer(_device, &create_info, nullptr, &intermediate)) false;
 
 		VkMemoryRequirements reqs = {};
-		vk.GetImageMemoryRequirements(_device, intermediate, &reqs);
+		vk.GetBufferMemoryRequirements(_device, intermediate, &reqs);
 
 		VkMemoryAllocateInfo alloc_info { VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO };
 		alloc_info.allocationSize = reqs.size;
 		alloc_info.memoryTypeIndex = find_memory_type_index(_memory_props,
 			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, reqs.memoryTypeBits);
 
+		if (alloc_info.memoryTypeIndex == std::numeric_limits<uint32_t>::max())
+			return false;
+
 		vk_handle<VK_OBJECT_TYPE_DEVICE_MEMORY> mem(_device, vk);
 		check_result(vk.AllocateMemory(_device, &alloc_info, nullptr, &intermediate_mem)) false;
-		check_result(vk.BindImageMemory(_device, intermediate, intermediate_mem, 0)) false;
+		check_result(vk.BindBufferMemory(_device, intermediate, intermediate_mem, 0)) false;
 	}
 
 	const VkCommandBuffer cmd_list = create_command_list();
 	if (cmd_list == VK_NULL_HANDLE)
 		return false;
 
-	transition_layout(cmd_list, intermediate, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 	transition_layout(cmd_list, _swapchain_images[_swap_index], VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
 	{
-		VkImageBlit blit;
-		blit.srcOffsets[0] = { 0, 0, 0 };
-		blit.srcOffsets[1] = { int32_t(_width), int32_t(_height), 1 };
-		blit.srcSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 };
-		blit.dstOffsets[0] = { 0, 0, 0 };
-		blit.dstOffsets[1] = { int32_t(_width), int32_t(_height), 1 };
-		blit.dstSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 };
+		VkBufferImageCopy copy;
+		copy.bufferOffset = 0;
+		copy.bufferRowLength = _width;
+		copy.bufferImageHeight = _height;
+		copy.imageOffset = { 0, 0, 0 };
+		copy.imageExtent = { _width, _height, 1 };
+		copy.imageSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 };
 
-		vk.CmdBlitImage(cmd_list, _swapchain_images[_swap_index], VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, intermediate, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &blit, VK_FILTER_NEAREST);
+		vk.CmdCopyImageToBuffer(cmd_list, _swapchain_images[_swap_index], VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, intermediate, 1, &copy);
 	}
-	transition_layout(cmd_list, intermediate, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL);
 	transition_layout(cmd_list, _swapchain_images[_swap_index], VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
 
 	// Execute and wait for completion
 	execute_command_list(cmd_list);
 
-	// Get data layout of the intermediate image
-	VkImageSubresource subresource { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0 };
-	VkSubresourceLayout subresource_layout = {};
-	vk.GetImageSubresourceLayout(_device, intermediate, &subresource, &subresource_layout);
-
 	// Copy data from intermediate image into output buffer
 	uint8_t *mapped_data;
 	check_result(vk.MapMemory(_device, intermediate_mem, 0, VK_WHOLE_SIZE, 0, reinterpret_cast<void **>(&mapped_data))) false;
 
-	const size_t data_pitch = _width * 4;
-	const VkDeviceSize download_pitch = subresource_layout.rowPitch;
-
-	for (uint32_t y = 0; y < _height; y++, buffer += data_pitch, mapped_data += download_pitch)
+	for (uint32_t y = 0; y < _height; y++, buffer += data_pitch, mapped_data += data_pitch)
 	{
 		if (_backbuffer_format == VK_FORMAT_A2R10G10B10_UNORM_PACK32 ||
 			_backbuffer_format == VK_FORMAT_A2R10G10B10_SNORM_PACK32 ||
@@ -574,7 +570,11 @@ bool reshade::vulkan::runtime_vk::capture_screenshot(uint8_t *buffer) const
 			memcpy(buffer, mapped_data, data_pitch);
 
 			for (uint32_t x = 0; x < data_pitch; x += 4)
+			{
 				buffer[x + 3] = 0xFF; // Clear alpha channel
+				if (_backbuffer_format >= VK_FORMAT_B8G8R8A8_UNORM && _backbuffer_format <= VK_FORMAT_B8G8R8A8_SRGB)
+					std::swap(buffer[x + 0], buffer[x + 2]); // Format is BGRA, but output should be RGBA, so flip channels
+			}
 		}
 	}
 
@@ -706,7 +706,11 @@ void reshade::vulkan::runtime_vk::upload_texture(texture &texture, const uint8_t
 
 		VkMemoryAllocateInfo alloc_info { VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO };
 		alloc_info.allocationSize = reqs.size;
-		alloc_info.memoryTypeIndex = find_memory_type_index(_memory_props, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, reqs.memoryTypeBits);
+		alloc_info.memoryTypeIndex = find_memory_type_index(_memory_props,
+			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, reqs.memoryTypeBits);
+
+		if (alloc_info.memoryTypeIndex == std::numeric_limits<uint32_t>::max())
+			return;
 
 		check_result(vk.AllocateMemory(_device, &alloc_info, nullptr, &intermediate_mem));
 		check_result(vk.BindBufferMemory(_device, intermediate, intermediate_mem, 0));
@@ -1685,7 +1689,11 @@ void reshade::vulkan::runtime_vk::render_imgui_draw_data(ImDrawData *draw_data)
 
 		VkMemoryAllocateInfo alloc_info { VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO };
 		alloc_info.allocationSize = index_reqs.size + vertex_reqs.size;
-		alloc_info.memoryTypeIndex = find_memory_type_index(_memory_props, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, index_reqs.memoryTypeBits & vertex_reqs.memoryTypeBits);
+		alloc_info.memoryTypeIndex = find_memory_type_index(_memory_props,
+			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, index_reqs.memoryTypeBits & vertex_reqs.memoryTypeBits);
+
+		if (alloc_info.memoryTypeIndex == std::numeric_limits<uint32_t>::max())
+			return;
 
 		check_result(vk.AllocateMemory(_device, &alloc_info, nullptr, &_imgui_vertex_mem));
 
