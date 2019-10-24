@@ -341,7 +341,7 @@ private:
 	{
 		const id res = make_id();
 
-		define_name<naming::unique>(res, "_Globals_" + info.name);
+		define_name<naming::unique>(res, info.name);
 
 		if (_uniforms_to_spec_constants && info.has_initializer_value)
 		{
