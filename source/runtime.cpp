@@ -321,11 +321,11 @@ void reshade::runtime::load_effect(const std::filesystem::path &path, size_t &ou
 
 		std::unique_ptr<reshadefx::codegen> codegen;
 		if ((_renderer_id & 0xF0000) == 0)
-			codegen.reset(reshadefx::create_codegen_hlsl(shader_model, true, _performance_mode));
+			codegen.reset(reshadefx::create_codegen_hlsl(shader_model, !_no_debug_info, _performance_mode));
 		else if (_renderer_id < 0x20000)
-			codegen.reset(reshadefx::create_codegen_glsl(true, _performance_mode));
+			codegen.reset(reshadefx::create_codegen_glsl(!_no_debug_info, _performance_mode));
 		else // Vulkan uses SPIR-V input
-			codegen.reset(reshadefx::create_codegen_spirv(true, true, _performance_mode));
+			codegen.reset(reshadefx::create_codegen_spirv(true, !_no_debug_info, _performance_mode));
 
 		reshadefx::parser parser;
 
@@ -968,8 +968,10 @@ void reshade::runtime::load_config()
 	config.get("GENERAL", "CurrentPresetPath", current_preset_path);
 	config.get("GENERAL", "ScreenshotPath", _screenshot_path);
 	config.get("GENERAL", "ScreenshotFormat", _screenshot_format);
-	config.get("GENERAL", "ScreenshotIncludePreset", _screenshot_include_preset);
 	config.get("GENERAL", "ScreenshotSaveBefore", _screenshot_save_before);
+	config.get("GENERAL", "ScreenshotIncludePreset", _screenshot_include_preset);
+
+	config.get("GENERAL", "NoDebugInfo", _no_debug_info);
 	config.get("GENERAL", "NoReloadOnInit", _no_reload_on_init);
 
 	if (current_preset_path.empty())
@@ -1010,8 +1012,10 @@ void reshade::runtime::save_config() const
 	config.set("GENERAL", "CurrentPresetPath", _current_preset_path);
 	config.set("GENERAL", "ScreenshotPath", _screenshot_path);
 	config.set("GENERAL", "ScreenshotFormat", _screenshot_format);
-	config.set("GENERAL", "ScreenshotIncludePreset", _screenshot_include_preset);
 	config.set("GENERAL", "ScreenshotSaveBefore", _screenshot_save_before);
+	config.set("GENERAL", "ScreenshotIncludePreset", _screenshot_include_preset);
+
+	config.set("GENERAL", "NoDebugInfo", _no_debug_info);
 	config.set("GENERAL", "NoReloadOnInit", _no_reload_on_init);
 
 	for (const auto &callback : _save_config_callables)

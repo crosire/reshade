@@ -282,6 +282,7 @@ namespace reshade
 
 		bool _textures_loaded = false;
 		bool _performance_mode = false;
+		bool _no_debug_info = 0;
 		bool _no_reload_on_init = false;
 		bool _last_reload_successful = true;
 		bool _should_save_screenshot = false;
