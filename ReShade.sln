@@ -200,13 +200,16 @@ Global
 		{723BDEF8-4A39-4961-BDAB-54074012FF47}.Release|64-bit.ActiveCfg = Release|x64
 		{723BDEF8-4A39-4961-BDAB-54074012FF47}.Release|64-bit.Build.0 = Release|x64
 	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{09C0D610-9B82-40D8-B37E-0D26E3BFF77F} = {11B78243-91C3-4357-9FDD-4EAFBF4EE52B}
 		{9A62233B-0B70-4B48-91E8-35AA666BC32E} = {11B78243-91C3-4357-9FDD-4EAFBF4EE52B}
 		{783FEDFB-5124-4F8C-87BC-70AA8490266B} = {11B78243-91C3-4357-9FDD-4EAFBF4EE52B}
 		{723BDEF8-4A39-4961-BDAB-54074012FF47} = {11B78243-91C3-4357-9FDD-4EAFBF4EE52B}
 	EndGlobalSection
-		GlobalSection(SolutionProperties) = preSolution
-		HideSolutionNode = FALSE
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {D62E660A-3A0C-4026-8DCB-D3B7959E0951}
 	EndGlobalSection
 EndGlobal
