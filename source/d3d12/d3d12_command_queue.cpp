@@ -160,6 +160,7 @@ void    STDMETHODCALLTYPE D3D12CommandQueue::ExecuteCommandLists(UINT NumCommand
 		}
 		else
 		{
+			// This can be a compute command list too, which have no proxy object
 			command_lists[i] = ppCommandLists[i];
 		}
 	}

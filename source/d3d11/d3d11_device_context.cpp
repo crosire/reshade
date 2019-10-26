@@ -461,17 +461,15 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::ExecuteCommandList(ID3D11CommandLi
 {
 	assert(pCommandList != nullptr);
 
-	if (com_ptr<D3D11CommandList> command_list_proxy;
-		SUCCEEDED(pCommandList->QueryInterface(&command_list_proxy)))
-	{
-		// Merge command list trackers into device one
-		_draw_call_tracker.merge(command_list_proxy->_draw_call_tracker);
+	// The only way to create a command list is through 'FinishCommandList', so can always assume a proxy object here
+	D3D11CommandList *const command_list_proxy =
+		static_cast<D3D11CommandList *>(pCommandList);
 
-		// Get original command list pointer from proxy object
-		pCommandList = command_list_proxy->_orig;
-	}
+	// Merge command list trackers into device one
+	_draw_call_tracker.merge(command_list_proxy->_draw_call_tracker);
 
-	_orig->ExecuteCommandList(pCommandList, RestoreContextState);
+	// Get original command list pointer from proxy object and execute with it
+	_orig->ExecuteCommandList(command_list_proxy->_orig, RestoreContextState);
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::HSSetShaderResources(UINT StartSlot, UINT NumViews, ID3D11ShaderResourceView *const *ppShaderResourceViews)
 {
