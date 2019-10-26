@@ -29,7 +29,6 @@ struct device_data
 
 struct command_buffer_data
 {
-	VkDevice device = VK_NULL_HANDLE;
 	VkCommandBuffer cmd_list = VK_NULL_HANDLE;
 	std::weak_ptr<reshade::vulkan::runtime_vk> main_runtime;
 
@@ -142,8 +141,7 @@ static std::unordered_map<void *, VkLayerInstanceDispatchTable> s_instance_dispa
 static std::mutex s_device_global_mutex;
 static std::unordered_map<VkSurfaceKHR, std::pair<VkInstance, HWND>> s_surface_windows;
 static std::unordered_map<VkSwapchainKHR, std::shared_ptr<reshade::vulkan::runtime_vk>> s_runtimes;
-static std::unordered_map<VkQueue, VkDevice> s_queue_mapping;
-static std::unordered_map<VkDevice, device_data> s_device_data;
+static std::unordered_map<void *, device_data> s_device_data;
 static std::unordered_map<VkCommandBuffer, command_buffer_data> s_command_buffer_data;
 static std::unordered_map<VkImage, VkImageCreateInfo> s_image_data;
 static std::unordered_map<VkImageView, VkImage> s_image_view_data;
@@ -152,6 +150,8 @@ static std::unordered_map<VkFramebuffer, std::vector<VkImage>> s_framebuffer_dat
 
 static inline void *dispatch_key_from_handle(const void *dispatch_handle)
 {
+	// The Vulkan loader writes the dispatch table pointer right to the start of the object, so use that as a key for lookup
+	// This ensures that all objects of a specific level (device or instance) will use the same dispatch table
 	return *(void **)dispatch_handle;
 }
 
@@ -437,7 +437,7 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	}
 
 	{ const std::lock_guard<std::mutex> lock(s_device_global_mutex);
-		s_device_data[device].physical_device = physicalDevice;
+		s_device_data[dispatch_key_from_handle(device)].physical_device = physicalDevice;
 	}
 
 	return VK_SUCCESS;
@@ -450,20 +450,9 @@ void     VKAPI_CALL vkDestroyDevice(VkDevice device, const VkAllocationCallbacks
 	GET_DEVICE_DISPATCH_PTR(DestroyDevice, device);
 
 	{ const std::lock_guard<std::mutex> lock(s_device_global_mutex);
-		s_device_data.erase(device);
-
-		for (auto it = s_command_buffer_data.begin(); it != s_command_buffer_data.end();)
-		{
-			if (it->second.device == device)
-			{
-				it->second.draw_call_tracker.reset();
-
-				it = s_command_buffer_data.erase(it);
-				continue;
-			}
-
-			++it;
-		}
+		s_device_data.erase(dispatch_key_from_handle(device));
+		// Simply clear out command buffer data here, since it is uncommon for there to be more than one device anyway
+		s_command_buffer_data.clear();
 	}
 
 	{ const std::lock_guard<std::mutex> lock(s_dispatch_mutex);
@@ -472,37 +461,6 @@ void     VKAPI_CALL vkDestroyDevice(VkDevice device, const VkAllocationCallbacks
 	}
 
 	trampoline(device, pAllocator);
-}
-
-void     VKAPI_CALL vkGetDeviceQueue(VkDevice device, uint32_t queueFamilyIndex, uint32_t queueIndex, VkQueue *pQueue)
-{
-	GET_DEVICE_DISPATCH_PTR(GetDeviceQueue, device);
-	trampoline(device, queueFamilyIndex, queueIndex, pQueue);
-
-	{ const std::lock_guard<std::mutex> lock(s_dispatch_mutex);
-		// Copy dispatch table for queue
-		VkLayerDispatchTable dispatch_table = s_device_dispatch.at(dispatch_key_from_handle(device));
-		s_device_dispatch[dispatch_key_from_handle(*pQueue)] = dispatch_table;
-	}
-
-	{ const std::lock_guard<std::mutex> lock(s_device_global_mutex);
-		s_queue_mapping.insert({ *pQueue, device });
-	}
-}
-void     VKAPI_CALL vkGetDeviceQueue2(VkDevice device, const VkDeviceQueueInfo2 *pQueueInfo, VkQueue *pQueue)
-{
-	GET_DEVICE_DISPATCH_PTR(GetDeviceQueue2, device);
-	trampoline(device, pQueueInfo, pQueue);
-
-	{ const std::lock_guard<std::mutex> lock(s_dispatch_mutex);
-		// Copy dispatch table for queue
-		VkLayerDispatchTable device_data = s_device_dispatch.at(dispatch_key_from_handle(device));
-		s_device_dispatch[dispatch_key_from_handle(*pQueue)] = device_data;
-	}
-
-	{ const std::lock_guard<std::mutex> lock(s_device_global_mutex);
-		s_queue_mapping.insert({ *pQueue, device });
-	}
 }
 
 VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreateInfoKHR *pCreateInfo, const VkAllocationCallbacks *pAllocator, VkSwapchainKHR *pSwapchain)
@@ -562,7 +520,7 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 		else
 		{
 			const VkInstance instance = s_surface_windows.at(pCreateInfo->surface).first;
-			const VkPhysicalDevice physical_device = s_device_data.at(device).physical_device;
+			const VkPhysicalDevice physical_device = s_device_data.at(dispatch_key_from_handle(device)).physical_device;
 
 			const std::lock_guard<std::mutex> dispatch_lock(s_dispatch_mutex); // Need to lock dispatch mutex too, because accessing the dispatch tables below
 
@@ -577,7 +535,7 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 		s_runtimes[*pSwapchain] = runtime;
 
 		// Add runtime to device list
-		auto &runtimes = s_device_data.at(device).runtimes;
+		auto &runtimes = s_device_data.at(dispatch_key_from_handle(device)).runtimes;
 		runtimes.push_back(runtime);
 	}
 
@@ -595,7 +553,7 @@ void     VKAPI_CALL vkDestroySwapchainKHR(VkDevice device, VkSwapchainKHR swapch
 			it->second->on_reset();
 
 			// Remove runtime from device list
-			auto &runtimes = s_device_data.at(device).runtimes;
+			auto &runtimes = s_device_data.at(dispatch_key_from_handle(device)).runtimes;
 			runtimes.erase(std::remove(runtimes.begin(), runtimes.end(), it->second), runtimes.end());
 
 			// Remove runtime from global list
@@ -613,7 +571,7 @@ VkResult VKAPI_CALL vkQueueSubmit(VkQueue queue, uint32_t submitCount, const VkS
 
 	{ const std::lock_guard<std::mutex> lock(s_device_global_mutex);
 
-		auto &device_data = s_device_data.at(s_queue_mapping.at(queue));
+		auto &device_data = s_device_data.at(dispatch_key_from_handle(queue));
 
 		for (uint32_t i = 0; i < submitCount; ++i)
 		{
@@ -632,6 +590,8 @@ VkResult VKAPI_CALL vkQueueSubmit(VkQueue queue, uint32_t submitCount, const VkS
 		}
 	}
 
+	// The loader uses the same dispatch table for queues and devices, so can use queue to perform lookup here
+	// See also comment in 'dispatch_key_from_handle'
 	GET_DEVICE_DISPATCH_PTR(QueueSubmit, queue);
 	return trampoline(queue, submitCount, pSubmits, fence);
 }
@@ -641,7 +601,7 @@ VkResult VKAPI_CALL vkQueuePresentKHR(VkQueue queue, const VkPresentInfoKHR *pPr
 
 	{ const std::lock_guard<std::mutex> lock(s_device_global_mutex);
 
-		auto &device_data = s_device_data.at(s_queue_mapping.at(queue));
+		auto &device_data = s_device_data.at(dispatch_key_from_handle(queue));
 
 		for (uint32_t i = 0; i < pPresentInfo->swapchainCount; ++i)
 		{
@@ -658,6 +618,7 @@ VkResult VKAPI_CALL vkQueuePresentKHR(VkQueue queue, const VkPresentInfoKHR *pPr
 	GET_DEVICE_DISPATCH_PTR(QueuePresentKHR, queue);
 	return trampoline(queue, pPresentInfo);
 }
+
 
 VkResult VKAPI_CALL vkCreateImage(VkDevice device, const VkImageCreateInfo *pCreateInfo, const VkAllocationCallbacks *pAllocator, VkImage *pImage)
 {
@@ -822,7 +783,6 @@ VkResult VKAPI_CALL vkAllocateCommandBuffers(VkDevice device, const VkCommandBuf
 			assert(pCommandBuffers[i] != VK_NULL_HANDLE);
 
 			auto &data = s_command_buffer_data[pCommandBuffers[i]];
-			data.device = device;
 			data.cmd_list = pCommandBuffers[i];
 		}
 	}
@@ -861,7 +821,7 @@ void     VKAPI_CALL vkCmdBeginRenderPass(VkCommandBuffer commandBuffer, const Vk
 			const VkImageCreateInfo create_info = s_image_data[depthstencil];
 
 			// Update runtime reference
-			if (const auto it = s_device_data.find(data.device); it != s_device_data.end() && !it->second.runtimes.empty())
+			if (const auto it = s_device_data.find(dispatch_key_from_handle(commandBuffer)); it != s_device_data.end() && !it->second.runtimes.empty())
 				data.main_runtime = it->second.runtimes.front();
 
 			data.track_active_renderpass(depthstencil, renderpass_data.initial_depthstencil_layout, create_info);
@@ -977,12 +937,9 @@ void     VKAPI_CALL vkCmdClearDepthStencilImage(VkCommandBuffer commandBuffer, V
 	trampoline(commandBuffer, image, imageLayout, pDepthStencil, rangeCount, pRanges);
 }
 
+
 VK_LAYER_EXPORT PFN_vkVoidFunction VKAPI_CALL vkGetDeviceProcAddr(VkDevice device, const char *pName)
 {
-	if (0 == strcmp(pName, "vkGetDeviceQueue"))
-		return reinterpret_cast<PFN_vkVoidFunction>(vkGetDeviceQueue);
-	if (0 == strcmp(pName, "vkGetDeviceQueue2"))
-		return reinterpret_cast<PFN_vkVoidFunction>(vkGetDeviceQueue2);
 	if (0 == strcmp(pName, "vkCreateSwapchainKHR"))
 		return reinterpret_cast<PFN_vkVoidFunction>(vkCreateSwapchainKHR);
 	if (0 == strcmp(pName, "vkDestroySwapchainKHR"))
@@ -991,6 +948,7 @@ VK_LAYER_EXPORT PFN_vkVoidFunction VKAPI_CALL vkGetDeviceProcAddr(VkDevice devic
 		return reinterpret_cast<PFN_vkVoidFunction>(vkQueueSubmit);
 	if (0 == strcmp(pName, "vkQueuePresentKHR"))
 		return reinterpret_cast<PFN_vkVoidFunction>(vkQueuePresentKHR);
+
 	if (0 == strcmp(pName, "vkCreateImage"))
 		return reinterpret_cast<PFN_vkVoidFunction>(vkCreateImage);
 	if (0 == strcmp(pName, "vkDestroyImage"))
