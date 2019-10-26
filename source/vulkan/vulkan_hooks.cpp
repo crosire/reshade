@@ -140,8 +140,7 @@ static std::unordered_map<void *, VkLayerDispatchTable> s_device_dispatch;
 static std::unordered_map<void *, VkLayerInstanceDispatchTable> s_instance_dispatch;
 
 static std::mutex s_device_global_mutex;
-static std::unordered_map<VkSurfaceKHR, HWND> s_surface_windows;
-static std::unordered_map<VkPhysicalDevice, VkInstance> s_instance_mapping;
+static std::unordered_map<VkSurfaceKHR, std::pair<VkInstance, HWND>> s_surface_windows;
 static std::unordered_map<VkSwapchainKHR, std::shared_ptr<reshade::vulkan::runtime_vk>> s_runtimes;
 static std::unordered_map<VkQueue, VkDevice> s_queue_mapping;
 static std::unordered_map<VkDevice, device_data> s_device_data;
@@ -246,27 +245,6 @@ void     VKAPI_CALL vkDestroyInstance(VkInstance instance, const VkAllocationCal
 	trampoline(instance, pAllocator);
 }
 
-VkResult VKAPI_CALL vkEnumeratePhysicalDevices(VkInstance instance, uint32_t *pPhysicalDeviceCount, VkPhysicalDevice *pPhysicalDevices)
-{
-	LOG(INFO) << "Redirecting vkEnumeratePhysicalDevices" << '(' << instance << ", " << pPhysicalDeviceCount << ", " << pPhysicalDevices << ')' << " ...";
-
-	GET_INSTANCE_DISPATCH_PTR(EnumeratePhysicalDevices, instance);
-	const VkResult result = trampoline(instance, pPhysicalDeviceCount, pPhysicalDevices);
-	if (result != VK_SUCCESS && result != VK_INCOMPLETE)
-	{
-		LOG(WARN) << "> vkEnumeratePhysicalDevices failed with error code " << result << '!';
-		return result;
-	}
-
-	if (pPhysicalDevices != nullptr)
-	{ const std::lock_guard<std::mutex> lock(s_device_global_mutex);
-		for (uint32_t i = 0; i < *pPhysicalDeviceCount; ++i)
-			s_instance_mapping[pPhysicalDevices[i]] = instance;
-	}
-
-	return result;
-}
-
 VkResult VKAPI_CALL vkCreateWin32SurfaceKHR(VkInstance instance, const VkWin32SurfaceCreateInfoKHR *pCreateInfo, const VkAllocationCallbacks *pAllocator, VkSurfaceKHR *pSurface)
 {
 	LOG(INFO) << "Redirecting vkCreateWin32SurfaceKHR" << '(' << instance << ", " << pCreateInfo << ", " << pAllocator << ", " << pSurface << ')' << " ...";
@@ -280,7 +258,7 @@ VkResult VKAPI_CALL vkCreateWin32SurfaceKHR(VkInstance instance, const VkWin32Su
 	}
 
 	{ const std::lock_guard<std::mutex> lock(s_device_global_mutex);
-		s_surface_windows.insert({ *pSurface, pCreateInfo->hwnd });
+		s_surface_windows.insert({ *pSurface, { instance, pCreateInfo->hwnd } });
 	}
 
 	return VK_SUCCESS;
@@ -583,8 +561,8 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 		}
 		else
 		{
+			const VkInstance instance = s_surface_windows.at(pCreateInfo->surface).first;
 			const VkPhysicalDevice physical_device = s_device_data.at(device).physical_device;
-			const VkInstance instance = s_instance_mapping.at(physical_device);
 
 			const std::lock_guard<std::mutex> dispatch_lock(s_dispatch_mutex); // Need to lock dispatch mutex too, because accessing the dispatch tables below
 
@@ -593,7 +571,7 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 				s_instance_dispatch.at(dispatch_key_from_handle(instance)), s_device_dispatch.at(dispatch_key_from_handle(device)));
 		}
 
-		if (!runtime->on_init(*pSwapchain, *pCreateInfo, s_surface_windows.at(pCreateInfo->surface)))
+		if (!runtime->on_init(*pSwapchain, *pCreateInfo, s_surface_windows.at(pCreateInfo->surface).second))
 			LOG(ERROR) << "Failed to initialize Vulkan runtime environment on runtime " << runtime.get() << '.';
 
 		s_runtimes[*pSwapchain] = runtime;
@@ -1065,8 +1043,6 @@ VK_LAYER_EXPORT PFN_vkVoidFunction VKAPI_CALL vkGetInstanceProcAddr(VkInstance i
 		return reinterpret_cast<PFN_vkVoidFunction>(vkCreateInstance);
 	if (0 == strcmp(pName, "vkDestroyInstance"))
 		return reinterpret_cast<PFN_vkVoidFunction>(vkDestroyInstance);
-	if (0 == strcmp(pName, "vkEnumeratePhysicalDevices"))
-		return reinterpret_cast<PFN_vkVoidFunction>(vkEnumeratePhysicalDevices);
 	if (0 == strcmp(pName, "vkCreateDevice"))
 		return reinterpret_cast<PFN_vkVoidFunction>(vkCreateDevice);
 	if (0 == strcmp(pName, "vkDestroyDevice"))
