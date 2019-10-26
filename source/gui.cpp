@@ -969,19 +969,21 @@ void reshade::runtime::draw_overlay_menu_settings()
 		modified |= imgui_key_input("Effect Toggle Key", _effects_key_data, *_input);
 		_ignore_shortcuts |= ImGui::IsItemActive();
 
+		modified |= imgui_key_input("Previous Preset Key", _prev_preset_key_data, *_input);
+		_ignore_shortcuts |= ImGui::IsItemActive();
 		modified |= imgui_key_input("Next Preset Key", _next_preset_key_data, *_input);
 		_ignore_shortcuts |= ImGui::IsItemActive();
-		modified |= imgui_key_input("Previous Preset Key", _previous_preset_key_data, *_input);
-		_ignore_shortcuts |= ImGui::IsItemActive();
 
-		modified |= ImGui::SliderInt("Transition delay (ms)", &_preset_transition_delay, 0, 10 * 1000);
+		modified |= ImGui::SliderInt("Preset transition", &_preset_transition_delay, 0, 10 * 1000);
 		if (ImGui::IsItemHovered())
-			ImGui::SetTooltip("%s", "Makes a smooth transition, but only for floating point values.\nRecommended for multiple presets that contain the same shaders, otherwise set this to 0");
+			ImGui::SetTooltip("Makes a smooth transition, but only for floating point values.\nRecommended for multiple presets that contain the same shaders, otherwise set this to zero.\nValues are in milliseconds.");
 
 		modified |= ImGui::Combo("Input processing", &_input_processing_mode,
 			"Pass on all input\0"
 			"Block input when cursor is on overlay\0"
 			"Block all input when overlay is visible\0");
+
+		ImGui::Spacing();
 
 		modified |= imgui_path_list("Effect search paths", _effect_search_paths, _file_selection_path, g_reshade_dll_path.parent_path());
 		modified |= imgui_path_list("Texture search paths", _texture_search_paths, _file_selection_path, g_reshade_dll_path.parent_path());

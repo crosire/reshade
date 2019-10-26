@@ -262,9 +262,9 @@ namespace reshade
 		unsigned int _reload_key_data[4];
 		unsigned int _effects_key_data[4];
 		unsigned int _screenshot_key_data[4];
-		unsigned int _previous_preset_key_data[4];
+		unsigned int _prev_preset_key_data[4];
 		unsigned int _next_preset_key_data[4];
-		int _preset_transition_delay = 1000; // milliseconds
+		int _preset_transition_delay = 1000;
 		int _screenshot_format = 1;
 		std::filesystem::path _screenshot_path;
 		std::filesystem::path _configuration_path;
