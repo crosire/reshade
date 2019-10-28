@@ -437,23 +437,25 @@ void reshade::vulkan::runtime_vk::on_reset()
 	clear_DSV_iter = 1;
 
 #if RESHADE_GUI
+	vk.FreeMemory(_device, _imgui_index_mem, nullptr);
+	_imgui_index_mem = VK_NULL_HANDLE;
+	vk.DestroyBuffer(_device, _imgui_index_buffer, nullptr);
+	_imgui_index_buffer = VK_NULL_HANDLE;
+	_imgui_index_buffer_size = 0;
+	vk.FreeMemory(_device, _imgui_vertex_mem, nullptr);
+	_imgui_vertex_mem = VK_NULL_HANDLE;
+	vk.DestroyBuffer(_device, _imgui_vertex_buffer, nullptr);
+	_imgui_vertex_buffer = VK_NULL_HANDLE;
+	_imgui_vertex_buffer_size = 0;
+
 	vk.DestroyPipeline(_device, _imgui_pipeline, nullptr);
 	_imgui_pipeline = VK_NULL_HANDLE;
 	vk.DestroyPipelineLayout(_device, _imgui_pipeline_layout, nullptr);
 	_imgui_pipeline_layout = VK_NULL_HANDLE;
 	vk.DestroyDescriptorSetLayout(_device, _imgui_descriptor_set_layout, nullptr);
 	_imgui_descriptor_set_layout = VK_NULL_HANDLE;
-
 	vk.DestroySampler(_device, _imgui_font_sampler, nullptr);
 	_imgui_font_sampler = VK_NULL_HANDLE;
-	vk.DestroyBuffer(_device, _imgui_index_buffer, nullptr);
-	_imgui_index_buffer = VK_NULL_HANDLE;
-	_imgui_index_buffer_size = 0;
-	vk.DestroyBuffer(_device, _imgui_vertex_buffer, nullptr);
-	_imgui_vertex_buffer = VK_NULL_HANDLE;
-	_imgui_vertex_buffer_size = 0;
-	vk.FreeMemory(_device, _imgui_vertex_mem, nullptr);
-	_imgui_vertex_mem = VK_NULL_HANDLE;
 #endif
 
 	for (VkDeviceMemory allocation : _allocations)
@@ -1647,19 +1649,23 @@ bool reshade::vulkan::runtime_vk::init_imgui_resources()
 
 void reshade::vulkan::runtime_vk::render_imgui_draw_data(ImDrawData *draw_data)
 {
+	// Need to multi-buffer vertex data so not to modify data below when the previous frame is still in flight
+	const unsigned int buffer_count = 3;
+	const unsigned int buffer_index = _framecount % buffer_count;
+
 	// Attempt to allocate memory if it failed previously
-	bool resize_mem = _imgui_vertex_mem == VK_NULL_HANDLE;
+	bool resize_mem = _imgui_index_buffer == VK_NULL_HANDLE || _imgui_vertex_buffer == VK_NULL_HANDLE;
 
 	// Create and grow vertex/index buffers if needed
-	if (_imgui_index_buffer_size < uint32_t(draw_data->TotalIdxCount))
+	if (_imgui_index_buffer_size < draw_data->TotalIdxCount * sizeof(ImDrawIdx))
 	{
 		resize_mem = true;
-		_imgui_index_buffer_size = draw_data->TotalIdxCount + 10000;
+		_imgui_index_buffer_size = (draw_data->TotalIdxCount + 10000) * sizeof(ImDrawIdx);
 	}
-	if (_imgui_vertex_buffer_size < uint32_t(draw_data->TotalVtxCount))
+	if (_imgui_vertex_buffer_size < draw_data->TotalVtxCount * sizeof(ImDrawVert))
 	{
 		resize_mem = true;
-		_imgui_vertex_buffer_size = draw_data->TotalVtxCount + 5000;
+		_imgui_vertex_buffer_size = (draw_data->TotalVtxCount + 5000) * sizeof(ImDrawVert);
 	}
 
 	if (resize_mem)
@@ -1667,52 +1673,30 @@ void reshade::vulkan::runtime_vk::render_imgui_draw_data(ImDrawData *draw_data)
 		// Make sure the previous frame has finished using the buffers before freeing them
 		vk.QueueWaitIdle(_current_queue);
 
-		// Free allocated memory associated with vertex/index buffers
+		vk.FreeMemory(_device, _imgui_index_mem, nullptr);
+		_imgui_index_mem = VK_NULL_HANDLE;
+		vk.DestroyBuffer(_device, _imgui_index_buffer, nullptr);
+		_imgui_index_buffer = create_buffer(_imgui_index_buffer_size * buffer_count, VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
+		if (_imgui_index_buffer == VK_NULL_HANDLE)
+			return;
+		_imgui_index_mem = _allocations.back();
+		_allocations.pop_back();
+
 		vk.FreeMemory(_device, _imgui_vertex_mem, nullptr);
 		_imgui_vertex_mem = VK_NULL_HANDLE;
-
-		// Re-create the buffer objects
-		vk.DestroyBuffer(_device, _imgui_index_buffer, nullptr);
 		vk.DestroyBuffer(_device, _imgui_vertex_buffer, nullptr);
-
-		_imgui_index_buffer = create_buffer(_imgui_index_buffer_size * sizeof(ImDrawIdx), VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
-		_imgui_vertex_buffer = create_buffer(_imgui_vertex_buffer_size * sizeof(ImDrawVert), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
-
-		if (_imgui_index_buffer == VK_NULL_HANDLE ||
-			_imgui_vertex_buffer == VK_NULL_HANDLE)
+		_imgui_vertex_buffer = create_buffer(_imgui_vertex_buffer_size * buffer_count, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
+		if (_imgui_vertex_buffer == VK_NULL_HANDLE)
 			return;
-
-		VkMemoryRequirements index_reqs = {};
-		vk.GetBufferMemoryRequirements(_device, _imgui_index_buffer, &index_reqs);
-		VkMemoryRequirements vertex_reqs = {};
-		vk.GetBufferMemoryRequirements(_device, _imgui_vertex_buffer, &vertex_reqs);
-
-		VkMemoryAllocateInfo alloc_info { VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO };
-		alloc_info.allocationSize = index_reqs.size + vertex_reqs.size;
-		alloc_info.memoryTypeIndex = find_memory_type_index(_memory_props,
-			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, index_reqs.memoryTypeBits & vertex_reqs.memoryTypeBits);
-
-		if (alloc_info.memoryTypeIndex == std::numeric_limits<uint32_t>::max())
-			return;
-
-		check_result(vk.AllocateMemory(_device, &alloc_info, nullptr, &_imgui_vertex_mem));
-
-		VkBindBufferMemoryInfo bind_infos[2];
-		bind_infos[0] = { VK_STRUCTURE_TYPE_BIND_BUFFER_MEMORY_INFO };
-		bind_infos[0].buffer = _imgui_index_buffer;
-		bind_infos[0].memory = _imgui_vertex_mem;
-		bind_infos[0].memoryOffset = 0;
-		bind_infos[1] = { VK_STRUCTURE_TYPE_BIND_BUFFER_MEMORY_INFO };
-		bind_infos[1].buffer = _imgui_vertex_buffer;
-		bind_infos[1].memory = _imgui_vertex_mem;
-		bind_infos[1].memoryOffset = _imgui_vertex_mem_offset = index_reqs.size;
-
-		check_result(vk.BindBufferMemory2(_device, _countof(bind_infos), bind_infos));
+		_imgui_vertex_mem = _allocations.back();
+		_allocations.pop_back();
 	}
 
+	// Map only the memory portion associated with the current frame
 	ImDrawIdx *idx_dst; ImDrawVert *vtx_dst;
-	check_result(vk.MapMemory(_device, _imgui_vertex_mem, 0, VK_WHOLE_SIZE, 0, reinterpret_cast<void **>(&idx_dst)));
-	vtx_dst = reinterpret_cast<ImDrawVert *>(reinterpret_cast<uint8_t *>(idx_dst) + _imgui_vertex_mem_offset);
+	// TODO: Index buffer is never unmapped in case of failure when mapping vertex buffer
+	check_result(vk.MapMemory(_device, _imgui_index_mem, _imgui_index_buffer_size * buffer_index, _imgui_index_buffer_size, 0, reinterpret_cast<void **>(&idx_dst)));
+	check_result(vk.MapMemory(_device, _imgui_vertex_mem, _imgui_vertex_buffer_size * buffer_index, _imgui_vertex_buffer_size, 0, reinterpret_cast<void **>(&vtx_dst)));
 
 	for (int n = 0; n < draw_data->CmdListsCount; n++)
 	{
@@ -1723,6 +1707,7 @@ void reshade::vulkan::runtime_vk::render_imgui_draw_data(ImDrawData *draw_data)
 		vtx_dst += draw_list->VtxBuffer.Size;
 	}
 
+	vk.UnmapMemory(_device, _imgui_index_mem);
 	vk.UnmapMemory(_device, _imgui_vertex_mem);
 
 	const VkCommandBuffer cmd_list = create_command_list();
@@ -1749,9 +1734,11 @@ void reshade::vulkan::runtime_vk::render_imgui_draw_data(ImDrawData *draw_data)
 	vk.CmdPushConstants(cmd_list, _imgui_pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT, sizeof(float) * 2, sizeof(float) * 2, translate);
 
 	// Setup render state and render draw lists
-	vk.CmdBindIndexBuffer(cmd_list, _imgui_index_buffer, 0, sizeof(ImDrawIdx) == 2 ? VK_INDEX_TYPE_UINT16 : VK_INDEX_TYPE_UINT32);
-	const VkDeviceSize offset = 0;
-	vk.CmdBindVertexBuffers(cmd_list, 0, 1, &_imgui_vertex_buffer, &offset);
+	const VkDeviceSize index_offset = buffer_index * _imgui_index_buffer_size;
+	const VkDeviceSize vertex_offset = buffer_index * _imgui_vertex_buffer_size;
+	vk.CmdBindIndexBuffer(cmd_list, _imgui_index_buffer, index_offset, sizeof(ImDrawIdx) == 2 ? VK_INDEX_TYPE_UINT16 : VK_INDEX_TYPE_UINT32);
+	vk.CmdBindVertexBuffers(cmd_list, 0, 1, &_imgui_vertex_buffer, &vertex_offset);
+
 	const VkViewport viewport = { 0.0f, 0.0f, draw_data->DisplaySize.x, draw_data->DisplaySize.y, 0.0f, 1.0f };
 	vk.CmdSetViewport(cmd_list, 0, 1, &viewport);
 	vk.CmdBindPipeline(cmd_list, VK_PIPELINE_BIND_POINT_GRAPHICS, _imgui_pipeline);

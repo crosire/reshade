@@ -135,14 +135,14 @@ namespace reshade::vulkan
 #if RESHADE_GUI
 		unsigned int _imgui_index_buffer_size = 0;
 		VkBuffer _imgui_index_buffer = VK_NULL_HANDLE;
+		VkDeviceMemory _imgui_index_mem = VK_NULL_HANDLE;
 		unsigned int _imgui_vertex_buffer_size = 0;
 		VkBuffer _imgui_vertex_buffer = VK_NULL_HANDLE;
+		VkDeviceMemory _imgui_vertex_mem = VK_NULL_HANDLE;
 		VkSampler _imgui_font_sampler = VK_NULL_HANDLE;
 		VkPipeline _imgui_pipeline = VK_NULL_HANDLE;
 		VkPipelineLayout _imgui_pipeline_layout = VK_NULL_HANDLE;
 		VkDescriptorSetLayout _imgui_descriptor_set_layout = VK_NULL_HANDLE;
-		VkDeviceSize _imgui_vertex_mem_offset = 0;
-		VkDeviceMemory _imgui_vertex_mem = VK_NULL_HANDLE;
 #endif
 	};
 }

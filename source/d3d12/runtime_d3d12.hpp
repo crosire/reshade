@@ -127,10 +127,11 @@ namespace reshade::d3d12
 		draw_call_tracker *_current_tracker = nullptr;
 
 #if RESHADE_GUI
-		unsigned int _imgui_index_buffer_size[3] = {};
-		com_ptr<ID3D12Resource> _imgui_index_buffer[3];
-		unsigned int _imgui_vertex_buffer_size[3] = {};
-		com_ptr<ID3D12Resource> _imgui_vertex_buffer[3];
+		static const unsigned int IMGUI_BUFFER_COUNT = 3;
+		unsigned int _imgui_index_buffer_size[IMGUI_BUFFER_COUNT] = {};
+		com_ptr<ID3D12Resource> _imgui_index_buffer[IMGUI_BUFFER_COUNT];
+		unsigned int _imgui_vertex_buffer_size[IMGUI_BUFFER_COUNT] = {};
+		com_ptr<ID3D12Resource> _imgui_vertex_buffer[IMGUI_BUFFER_COUNT];
 		com_ptr<ID3D12PipelineState> _imgui_pipeline;
 		com_ptr<ID3D12RootSignature> _imgui_signature;
 #endif

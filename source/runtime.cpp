@@ -771,7 +771,7 @@ void reshade::runtime::update_and_render_effects()
 				int data[4];
 				get_uniform_value(variable, data, 4);
 				const std::string_view ui_items = variable.annotation_as_string("ui_items");
-				size_t num_items = 0;
+				int num_items = 0;
 				for (size_t offset = 0, next; (next = ui_items.find('\0', offset)) != std::string::npos; offset = next + 1)
 					num_items++;
 				data[0] = (data[0] + 1 >= num_items) ? 0 : data[0] + 1;
