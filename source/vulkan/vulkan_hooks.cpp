@@ -349,6 +349,7 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	dispatch_table.CreateFence = (PFN_vkCreateFence)gdpa(device, "vkCreateFence");
 	dispatch_table.DestroyFence = (PFN_vkDestroyFence)gdpa(device, "vkDestroyFence");
 	dispatch_table.ResetFences = (PFN_vkResetFences)gdpa(device, "vkResetFences");
+	dispatch_table.GetFenceStatus = (PFN_vkGetFenceStatus)gdpa(device, "vkGetFenceStatus");
 	dispatch_table.WaitForFences = (PFN_vkWaitForFences)gdpa(device, "vkWaitForFences");
 	dispatch_table.CreateBuffer = (PFN_vkCreateBuffer)gdpa(device, "vkCreateBuffer");
 	dispatch_table.DestroyBuffer = (PFN_vkDestroyBuffer)gdpa(device, "vkDestroyBuffer");

@@ -318,7 +318,6 @@ bool reshade::vulkan::runtime_vk::on_init(VkSwapchainKHR swapchain, const VkSwap
 
 	_render_area = desc.imageExtent;
 
-	_cmd_pool.resize(num_images);
 	_swapchain_views.resize(num_images * 2);
 	_swapchain_frames.resize(num_images * 2);
 
@@ -345,6 +344,19 @@ bool reshade::vulkan::runtime_vk::on_init(VkSwapchainKHR swapchain, const VkSwap
 			create_info.pAttachments = attachment_views_srgb;
 
 			check_result(vk.CreateFramebuffer(_device, &create_info, nullptr, &_swapchain_frames[k + 1])) false;
+		}
+	}
+
+	const size_t NUM_COMMAND_FRAMES = 6;
+	_cmd_pool.resize(NUM_COMMAND_FRAMES);
+	_cmd_fences.resize(NUM_COMMAND_FRAMES);
+
+	for (size_t i = 0; i < NUM_COMMAND_FRAMES; ++i)
+	{
+		{   VkFenceCreateInfo create_info { VK_STRUCTURE_TYPE_FENCE_CREATE_INFO };
+			create_info.flags = VK_FENCE_CREATE_SIGNALED_BIT; // Create signaled so first status check in 'on_present' succeeds
+
+			check_result(vk.CreateFence(_device, &create_info, nullptr, &_cmd_fences[i])) false;
 		}
 
 		{   VkCommandPoolCreateInfo create_info { VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO };
@@ -391,7 +403,7 @@ void reshade::vulkan::runtime_vk::on_reset()
 {
 	runtime::on_reset();
 
-	vk.DeviceWaitIdle(_device);
+	wait_for_finish();
 
 	vk.DestroyDescriptorSetLayout(_device, _effect_ubo_layout, nullptr);
 	_effect_ubo_layout = VK_NULL_HANDLE;
@@ -430,9 +442,13 @@ void reshade::vulkan::runtime_vk::on_reset()
 
 	vk.DestroyFence(_device, _wait_fence, nullptr);
 	_wait_fence = VK_NULL_HANDLE;
+	for (VkFence fence : _cmd_fences)
+		vk.DestroyFence(_device, fence, nullptr);
+	_cmd_fences.clear();
 	for (VkCommandPool pool : _cmd_pool)
 		vk.DestroyCommandPool(_device, pool, nullptr);
 	_cmd_pool.clear();
+	_cmd_buffers.clear();
 
 	clear_DSV_iter = 1;
 
@@ -475,8 +491,18 @@ void reshade::vulkan::runtime_vk::on_present(uint32_t swapchain_image_index, dra
 	_current_tracker = &tracker;
 
 	_swap_index = swapchain_image_index;
+	_pool_index = _framecount % _cmd_fences.size();
+	const VkFence fence = _cmd_fences[_pool_index];
 
-	// vk.QueueWaitIdle(_current_queue); // TODO
+	// Make sure all buffers from the command pool used this frame have finished before resetting it
+	if (vk.GetFenceStatus(_device, fence) != VK_SUCCESS)
+	{
+		LOG(WARN) << "Command pool still has buffers in flight. Skipping frame ...";
+		return;
+	}
+
+	vk.ResetFences(_device, 1, &fence);
+	vk.ResetCommandPool(_device, _cmd_pool[_pool_index], 0);
 
 	update_and_render_effects();
 
@@ -486,13 +512,18 @@ void reshade::vulkan::runtime_vk::on_present(uint32_t swapchain_image_index, dra
 
 	runtime::on_present();
 
+	// Submit all asynchronous command buffers in one batch
+	{   VkSubmitInfo submit_info { VK_STRUCTURE_TYPE_SUBMIT_INFO };
+		submit_info.commandBufferCount = uint32_t(_cmd_buffers.size());
+		submit_info.pCommandBuffers = _cmd_buffers.data();
+
+		vk.QueueSubmit(_current_queue, 1, &submit_info, fence);
+
+		_cmd_buffers.clear();
+	}
+
 	clear_DSV_iter = 1;
 	_current_tracker->reset();
-
-	if (_framecount % 5000)
-		return;
-
-	vk.ResetCommandPool(_device, _cmd_pool[swapchain_image_index], 0);
 }
 
 bool reshade::vulkan::runtime_vk::capture_screenshot(uint8_t *buffer) const
@@ -799,7 +830,7 @@ VkCommandBuffer reshade::vulkan::runtime_vk::create_command_list(VkCommandBuffer
 {
 	VkCommandBuffer cmd_list = VK_NULL_HANDLE;
 	VkCommandBufferAllocateInfo alloc_info { VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO };
-	alloc_info.commandPool = _cmd_pool[_swap_index];
+	alloc_info.commandPool = _cmd_pool[_pool_index];
 	alloc_info.level = level;
 	alloc_info.commandBufferCount = 1;
 
@@ -819,31 +850,32 @@ VkCommandBuffer reshade::vulkan::runtime_vk::create_command_list(VkCommandBuffer
 }
 void reshade::vulkan::runtime_vk::execute_command_list(VkCommandBuffer cmd_list) const
 {
-	check_result(vk.EndCommandBuffer(cmd_list));
+	execute_command_list_async(cmd_list);
 
+	// Submit all current command buffers in one batch
 	VkSubmitInfo submit_info { VK_STRUCTURE_TYPE_SUBMIT_INFO };
-	submit_info.commandBufferCount = 1;
-	submit_info.pCommandBuffers = &cmd_list;
+	submit_info.commandBufferCount = uint32_t(_cmd_buffers.size());
+	submit_info.pCommandBuffers = _cmd_buffers.data();
 
-	assert(_current_queue != VK_NULL_HANDLE);
 	VkResult res = vk.QueueSubmit(_current_queue, 1, &submit_info, _wait_fence);
 	assert(res == VK_SUCCESS);
 	res = vk.WaitForFences(_device, 1, &_wait_fence, VK_TRUE, UINT64_MAX);
 	assert(res == VK_SUCCESS);
 	res = vk.ResetFences(_device, 1, &_wait_fence);
 	assert(res == VK_SUCCESS);
+
+	_cmd_buffers.clear();
 }
 void reshade::vulkan::runtime_vk::execute_command_list_async(VkCommandBuffer cmd_list) const
 {
 	check_result(vk.EndCommandBuffer(cmd_list));
 
-	VkSubmitInfo submit_info { VK_STRUCTURE_TYPE_SUBMIT_INFO };
-	submit_info.commandBufferCount = 1;
-	submit_info.pCommandBuffers = &cmd_list;
-
-	assert(_current_queue != VK_NULL_HANDLE);
-	VkResult res = vk.QueueSubmit(_current_queue, 1, &submit_info, VK_NULL_HANDLE);
-	assert(res == VK_SUCCESS);
+	_cmd_buffers.push_back(cmd_list);
+}
+void reshade::vulkan::runtime_vk::wait_for_finish()
+{
+	// Wait for all command buffers currently in flight to finish
+	vk.QueueWaitIdle(_current_queue);
 }
 
 void reshade::vulkan::runtime_vk::transition_layout(VkCommandBuffer cmd_list, VkImage image, VkImageLayout old_layout, VkImageLayout new_layout, VkImageSubresourceRange subresource) const
@@ -1118,19 +1150,18 @@ bool reshade::vulkan::runtime_vk::compile_effect(effect_data &effect)
 }
 void reshade::vulkan::runtime_vk::unload_effect(size_t id)
 {
-	// Wait for all GPU operations to finish so resources are no longer referenced
-	vk.DeviceWaitIdle(_device);
+	wait_for_finish();
 
 	runtime::unload_effect(id);
 }
 void reshade::vulkan::runtime_vk::unload_effects()
 {
-	// Wait for all GPU operations to finish so resources are no longer referenced
-	vk.DeviceWaitIdle(_device);
+	wait_for_finish();
 
 	runtime::unload_effects();
 
-	vk.ResetDescriptorPool(_device, _effect_descriptor_pool, 0);
+	if (_effect_descriptor_pool != VK_NULL_HANDLE)
+		vk.ResetDescriptorPool(_device, _effect_descriptor_pool, 0);
 
 	for (const vulkan_effect_data &data : _effect_data)
 	{
@@ -1670,8 +1701,7 @@ void reshade::vulkan::runtime_vk::render_imgui_draw_data(ImDrawData *draw_data)
 
 	if (resize_mem)
 	{
-		// Make sure the previous frame has finished using the buffers before freeing them
-		vk.QueueWaitIdle(_current_queue);
+		wait_for_finish();
 
 		vk.FreeMemory(_device, _imgui_index_mem, nullptr);
 		_imgui_index_mem = VK_NULL_HANDLE;
@@ -1938,7 +1968,7 @@ void reshade::vulkan::runtime_vk::update_depthstencil_image(VkImage depthstencil
 	_depthstencil_aspect = aspect_flags_from_format(image_format);
 
 	// Make sure the previous frame has finished before freeing the image view and updating descriptors (since they may be in use otherwise)
-	vk.QueueWaitIdle(_current_queue);
+	wait_for_finish();
 
 	vk.DestroyImageView(_device, _depthstencil_shader_view, nullptr);
 	_depthstencil_shader_view = VK_NULL_HANDLE;

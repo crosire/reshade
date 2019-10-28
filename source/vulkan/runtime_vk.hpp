@@ -44,6 +44,7 @@ namespace reshade::vulkan
 		VkCommandBuffer create_command_list(VkCommandBufferLevel level = VK_COMMAND_BUFFER_LEVEL_PRIMARY) const;
 		void execute_command_list(VkCommandBuffer cmd_list) const;
 		void execute_command_list_async(VkCommandBuffer cmd_list) const;
+		void wait_for_finish();
 
 		bool depth_buffer_before_clear = false;
 		bool depth_buffer_more_copies = false;
@@ -99,8 +100,11 @@ namespace reshade::vulkan
 		VkFence _wait_fence = VK_NULL_HANDLE;
 		VkQueue _current_queue = VK_NULL_HANDLE;
 		uint32_t _swap_index = 0;
+		uint32_t _pool_index = 0;
 
+		std::vector<VkFence> _cmd_fences;
 		std::vector<VkCommandPool> _cmd_pool;
+		mutable std::vector<VkCommandBuffer> _cmd_buffers;
 
 		bool _is_multisampling_enabled = false;
 
