@@ -5,7 +5,7 @@ This is a generic post-processing injector for games and video software. It expo
 
 ## Building
 
-You'll need Visual Studio 2017 or higher to build ReShade and a Python 2.7.9 or later installation (Python 3 is supported as well) for the `gl3w` dependency.
+You'll need Visual Studio 2017 or higher to build ReShade and Python for the `gl3w` dependency. The [Vulkan SDK](https://vulkan.lunarg.com/sdk/home#windows) is required if building with Vulkan support.
 
 1. Clone this repository including all Git submodules
 2. Open the Visual Studio solution
