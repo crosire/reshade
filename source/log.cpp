@@ -11,7 +11,7 @@
 std::ofstream reshade::log::stream;
 std::ostringstream reshade::log::linestream;
 std::vector<std::string> reshade::log::lines;
-static std::mutex s_mutex;
+static std::mutex s_message_mutex;
 
 reshade::log::message::message(level level)
 {
@@ -22,7 +22,7 @@ reshade::log::message::message(level level)
 	assert(static_cast<unsigned int>(level) - 1 < _countof(level_names));
 
 	// Lock the stream until the message is complete
-	s_mutex.lock();
+	s_message_mutex.lock();
 
 	// Start a new line
 	linestream.str("");
@@ -52,7 +52,7 @@ reshade::log::message::~message()
 	lines.push_back(linestream.str());
 
 	// The message is finished, we can unlock the stream
-	s_mutex.unlock();
+	s_message_mutex.unlock();
 }
 
 bool reshade::log::open(const std::filesystem::path &path)

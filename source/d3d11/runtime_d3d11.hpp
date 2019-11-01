@@ -8,7 +8,6 @@
 #include "runtime.hpp"
 #include "state_block.hpp"
 #include "draw_call_tracker.hpp"
-#include <mutex>
 
 namespace reshade { enum class texture_reference; }
 namespace reshadefx { struct sampler_info; }
@@ -23,7 +22,7 @@ namespace reshade::d3d11
 
 		bool on_init(const DXGI_SWAP_CHAIN_DESC &desc);
 		void on_reset();
-		void on_present(draw_call_tracker& tracker);
+		void on_present(draw_call_tracker &tracker);
 
 		void on_set_depthstencil_view(ID3D11DepthStencilView *&depthstencil);
 		void on_get_depthstencil_view(ID3D11DepthStencilView *&depthstencil);
@@ -102,7 +101,6 @@ namespace reshade::d3d11
 		com_ptr<ID3D11VertexShader> _copy_vertex_shader;
 		com_ptr<ID3D11PixelShader> _copy_pixel_shader;
 		com_ptr<ID3D11SamplerState> _copy_sampler;
-		std::mutex _mutex;
 		com_ptr<ID3D11RasterizerState> _effect_rasterizer_state;
 
 		int _imgui_index_buffer_size = 0;
