@@ -1,8 +1,8 @@
 #pragma once
 
 #include <map>
+#include <mutex>
 #include <vulkan.h>
-#include "com_ptr.hpp"
 
 #define RESHADE_VULKAN_CAPTURE_DEPTH_BUFFERS 1
 
@@ -48,7 +48,7 @@ namespace reshade::vulkan
 		void merge(const draw_call_tracker &source);
 		void reset();
 
-		void on_draw(UINT vertices);
+		void on_draw(UINT vertices, VkImage current_depthstencil);
 
 #if RESHADE_VULKAN_CAPTURE_DEPTH_BUFFERS
 		void track_renderpass(int format_index, VkImage depthstencil, VkImageLayout layout, const VkImageCreateInfo &depthstencil_create_info);
@@ -59,8 +59,6 @@ namespace reshade::vulkan
 		intermediate_snapshot_info find_best_snapshot(uint32_t width, uint32_t height);
 		intermediate_cleared_depthstencil_info find_best_cleared_depth_buffer_image(uint32_t clear_index);
 #endif
-
-		VkImage _current_depthstencil;
 
 	private:
 		struct depth_texture_save_info
@@ -73,12 +71,12 @@ namespace reshade::vulkan
 
 #if RESHADE_VULKAN_CAPTURE_DEPTH_BUFFERS
 		bool check_depthstencil(VkImage depthstencil) const;
-		bool check_depth_texture_format(int format_index, VkFormat format);
+		static bool check_depth_texture_format(int format_index, VkFormat format);
 #endif
 
+		static std::mutex s_mutex;
 		draw_stats _global_counter;
 #if RESHADE_VULKAN_CAPTURE_DEPTH_BUFFERS
-
 		// Use "std::map" instead of "std::unordered_map" so that the iteration order is guaranteed
 		std::map<VkImage, intermediate_snapshot_info> _counters_per_used_depthstencil;
 		std::map<uint32_t, depth_texture_save_info> _cleared_depth_images;

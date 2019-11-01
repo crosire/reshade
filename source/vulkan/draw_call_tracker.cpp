@@ -1,11 +1,15 @@
 #include "draw_call_tracker.hpp"
-#include "dxgi/format_utils.hpp"
 #include <math.h>
+#include <assert.h>
 
 namespace reshade::vulkan
 {
-	void draw_call_tracker::merge(const draw_call_tracker& source)
+	std::mutex draw_call_tracker::s_mutex;
+
+	void draw_call_tracker::merge(const draw_call_tracker &source)
 	{
+		const std::lock_guard<std::mutex> lock(s_mutex);
+
 		_global_counter.vertices += source.total_vertices();
 		_global_counter.drawcalls += source.total_drawcalls();
 
@@ -26,26 +30,29 @@ namespace reshade::vulkan
 
 	void draw_call_tracker::reset()
 	{
+		const std::lock_guard<std::mutex> lock(s_mutex);
+
 		_global_counter.vertices = 0;
 		_global_counter.drawcalls = 0;
-		_current_depthstencil = VK_NULL_HANDLE;
 #if RESHADE_VULKAN_CAPTURE_DEPTH_BUFFERS
 		_counters_per_used_depthstencil.clear();
 		_cleared_depth_images.clear();
 #endif
 	}
 
-	void draw_call_tracker::on_draw(UINT vertices)
+	void draw_call_tracker::on_draw(UINT vertices, VkImage current_depthstencil)
 	{
+		const std::lock_guard<std::mutex> lock(s_mutex);
+
 		_global_counter.vertices += vertices;
 		_global_counter.drawcalls += 1;
 
 #if RESHADE_VULKAN_CAPTURE_DEPTH_BUFFERS
-		if (_current_depthstencil == VK_NULL_HANDLE)
+		if (current_depthstencil == VK_NULL_HANDLE)
 			// This is a draw call with no depth stencil
 			return;
 
-		if (const auto intermediate_snapshot = _counters_per_used_depthstencil.find(_current_depthstencil); intermediate_snapshot != _counters_per_used_depthstencil.end())
+		if (const auto intermediate_snapshot = _counters_per_used_depthstencil.find(current_depthstencil); intermediate_snapshot != _counters_per_used_depthstencil.end())
 		{
 			intermediate_snapshot->second.stats.vertices += vertices;
 			intermediate_snapshot->second.stats.drawcalls += 1;
@@ -56,6 +63,8 @@ namespace reshade::vulkan
 #if RESHADE_VULKAN_CAPTURE_DEPTH_BUFFERS
 	bool draw_call_tracker::check_depthstencil(VkImage depthstencil) const
 	{
+		const std::lock_guard<std::mutex> lock(s_mutex);
+
 		return _counters_per_used_depthstencil.find(depthstencil) != _counters_per_used_depthstencil.end();
 	}
 	bool draw_call_tracker::check_depth_texture_format(int format_index, VkFormat format)
@@ -89,6 +98,8 @@ namespace reshade::vulkan
 		if (!check_depth_texture_format(format_index, depthstencil_create_info.format))
 			return;
 
+		const std::lock_guard<std::mutex> lock(s_mutex);
+
 		if (_counters_per_used_depthstencil[depthstencil].depthstencil == VK_NULL_HANDLE)
 		{
 			_counters_per_used_depthstencil[depthstencil].depthstencil = depthstencil;
@@ -104,6 +115,8 @@ namespace reshade::vulkan
 		if (!check_depth_texture_format(format_index, src_image_info.format))
 			return;
 
+		const std::lock_guard<std::mutex> lock(s_mutex);
+
 		// check if it is really a depth texture
 		assert((src_image_info.usage & VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT) != 0);
 
@@ -113,6 +126,8 @@ namespace reshade::vulkan
 
 	draw_call_tracker::intermediate_snapshot_info draw_call_tracker::find_best_snapshot(uint32_t width, uint32_t height)
 	{
+		const std::lock_guard<std::mutex> lock(s_mutex);
+
 		const float aspect_ratio = float(width) / float(height);
 		intermediate_snapshot_info best_snapshot;
 
@@ -141,6 +156,8 @@ namespace reshade::vulkan
 
 	void draw_call_tracker::keep_cleared_depth_textures()
 	{
+		const std::lock_guard<std::mutex> lock(s_mutex);
+
 		// Function that keeps only the depth textures that has been retrieved before the last depth stencil clearance
 		std::map<uint32_t, depth_texture_save_info>::reverse_iterator it = _cleared_depth_images.rbegin();
 
@@ -163,6 +180,8 @@ namespace reshade::vulkan
 
 		// Ensure to work only on the depth textures retrieved before the last depth stencil clearance
 		keep_cleared_depth_textures();
+
+		const std::lock_guard<std::mutex> lock(s_mutex);
 
 		for (const auto &it : _cleared_depth_images)
 		{

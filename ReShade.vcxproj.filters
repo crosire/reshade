@@ -326,6 +326,9 @@
     <ClInclude Include="source\vulkan\format_utils.hpp">
       <Filter>hooks\vulkan</Filter>
     </ClInclude>
+    <ClInclude Include="source\vulkan\lockfree_table.hpp">
+      <Filter>hooks\vulkan</Filter>
+    </ClInclude>
     <ClInclude Include="source\vulkan\runtime_vk.hpp">
       <Filter>hooks\vulkan</Filter>
     </ClInclude>
