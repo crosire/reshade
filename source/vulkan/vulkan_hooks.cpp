@@ -591,11 +591,8 @@ VkResult VKAPI_CALL vkCreateImage(VkDevice device, const VkImageCreateInfo *pCre
 		return result;
 	}
 
-	// Keep track of image information (only care about depth-stencil images though)
-	if (is_depth_stencil_image)
-	{
-		s_image_data.emplace(*pImage, *pCreateInfo);
-	}
+	// Keep track of image information
+	s_image_data.emplace(*pImage, *pCreateInfo);
 
 	return VK_SUCCESS;
 }
