@@ -273,7 +273,9 @@ void reshade::d3d10::runtime_d3d10::on_reset()
 	_depthstencil_texture.reset();
 	_depthstencil_texture_srv.reset();
 
+#if RESHADE_DX10_CAPTURE_DEPTH_BUFFERS
 	_depth_texture_saves.clear();
+#endif
 
 	_default_depthstencil.reset();
 	_copy_vertex_shader.reset();
@@ -282,6 +284,7 @@ void reshade::d3d10::runtime_d3d10::on_reset()
 
 	_effect_rasterizer_state.reset();
 
+#if RESHADE_GUI
 	_imgui_index_buffer_size = 0;
 	_imgui_index_buffer.reset();
 	_imgui_vertex_buffer_size = 0;
@@ -294,6 +297,7 @@ void reshade::d3d10::runtime_d3d10::on_reset()
 	_imgui_rasterizer_state.reset();
 	_imgui_blend_state.reset();
 	_imgui_depthstencil_state.reset();
+#endif
 }
 
 void reshade::d3d10::runtime_d3d10::on_present(draw_call_tracker &tracker)

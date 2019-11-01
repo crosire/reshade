@@ -126,7 +126,7 @@ reshade::vulkan::runtime_vk::runtime_vk(VkDevice device, VkPhysicalDevice physic
 	});
 }
 
-VkImage reshade::vulkan::runtime_vk::create_image(uint32_t width, uint32_t height, uint32_t levels, VkFormat format, VkImageUsageFlags usage_flags, VkMemoryPropertyFlags mem_flags, VkImageCreateFlags flags)
+auto reshade::vulkan::runtime_vk::create_image(uint32_t width, uint32_t height, uint32_t levels, VkFormat format, VkImageUsageFlags usage_flags, VkMemoryPropertyFlags mem_flags, VkImageCreateFlags flags) -> VkImage
 {
 	VkImageCreateInfo create_info { VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO };
 	create_info.flags = flags;
@@ -170,7 +170,21 @@ VkImage reshade::vulkan::runtime_vk::create_image(uint32_t width, uint32_t heigh
 
 	return res.release();
 }
-VkBuffer reshade::vulkan::runtime_vk::create_buffer(VkDeviceSize size, VkBufferUsageFlags usage_flags, VkMemoryPropertyFlags mem_flags)
+auto reshade::vulkan::runtime_vk::create_image_view(VkImage image, VkFormat format, uint32_t levels, VkImageAspectFlags aspect) -> VkImageView
+{
+	VkImageViewCreateInfo create_info { VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO };
+	create_info.image = image;
+	create_info.viewType = VK_IMAGE_VIEW_TYPE_2D;
+	create_info.format = format;
+	create_info.components = { VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY };
+	create_info.subresourceRange = { aspect, 0, levels, 0, 1 };
+
+	vk_handle<VK_OBJECT_TYPE_IMAGE_VIEW> res(_device, vk);
+	check_result(vk.CreateImageView(_device, &create_info, nullptr, &res)) VK_NULL_HANDLE;
+
+	return res.release();
+}
+auto reshade::vulkan::runtime_vk::create_buffer(VkDeviceSize size, VkBufferUsageFlags usage_flags, VkMemoryPropertyFlags mem_flags) -> VkBuffer
 {
 	VkBufferCreateInfo create_info { VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO };
 	create_info.size = size;
@@ -206,34 +220,53 @@ VkBuffer reshade::vulkan::runtime_vk::create_buffer(VkDeviceSize size, VkBufferU
 
 	return res.release();
 }
-VkImageView reshade::vulkan::runtime_vk::create_image_view(VkImage image, VkFormat format, uint32_t levels, VkImageAspectFlags aspect)
+
+void reshade::vulkan::runtime_vk::transition_layout(VkCommandBuffer cmd_list, VkImage image, VkImageLayout old_layout, VkImageLayout new_layout, VkImageSubresourceRange subresource) const
 {
-	VkImageViewCreateInfo create_info { VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO };
-	create_info.image = image;
-	create_info.viewType = VK_IMAGE_VIEW_TYPE_2D;
-	create_info.format = format;
-	create_info.components = { VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY };
-	create_info.subresourceRange = { aspect, 0, levels, 0, 1 };
+	const auto layout_to_access = [](VkImageLayout layout) -> VkAccessFlags {
+		switch (layout)
+		{
+		case VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL:
+			return VK_ACCESS_TRANSFER_READ_BIT;
+		case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL:
+			return VK_ACCESS_TRANSFER_WRITE_BIT;
+		case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:
+			return VK_ACCESS_SHADER_READ_BIT;
+		case VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL:
+			return VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT;
+		case VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL:
+		case VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_STENCIL_ATTACHMENT_OPTIMAL:
+		case VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_STENCIL_READ_ONLY_OPTIMAL:
+			return VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+		}
+		return 0;
+	};
+	const auto layout_to_stage = [](VkImageLayout layout) -> VkPipelineStageFlags {
+		switch (layout)
+		{
+		case VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL:
+		case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL:
+			return VK_PIPELINE_STAGE_TRANSFER_BIT;
+		case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:
+			return VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+		case VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL:
+		case VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL:
+		case VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_STENCIL_ATTACHMENT_OPTIMAL:
+		case VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_STENCIL_READ_ONLY_OPTIMAL:
+			return VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
+		}
+		return VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
+	};
 
-	vk_handle<VK_OBJECT_TYPE_IMAGE_VIEW> res(_device, vk);
-	check_result(vk.CreateImageView(_device, &create_info, nullptr, &res)) VK_NULL_HANDLE;
+	VkImageMemoryBarrier transition{ VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };
+	transition.image = image;
+	transition.subresourceRange = subresource;
+	transition.srcAccessMask = layout_to_access(old_layout);
+	transition.dstAccessMask = layout_to_access(new_layout);
+	transition.oldLayout = old_layout;
+	transition.newLayout = new_layout;
 
-	return res.release();
-}
-
-void reshade::vulkan::runtime_vk::set_object_name(uint64_t handle, VkDebugReportObjectTypeEXT type, const char *name) const
-{
-#ifdef _DEBUG
-	if (vk.DebugMarkerSetObjectNameEXT == nullptr)
-		return;
-
-	VkDebugMarkerObjectNameInfoEXT name_info { VK_STRUCTURE_TYPE_DEBUG_MARKER_OBJECT_NAME_INFO_EXT };
-	name_info.object = handle;
-	name_info.objectType = type;
-	name_info.pObjectName = name;
-
-	vk.DebugMarkerSetObjectNameEXT(_device, &name_info);
-#endif
+	vk.CmdPipelineBarrier(cmd_list, layout_to_stage(old_layout), layout_to_stage(new_layout), 0, 0, nullptr, 0, nullptr, 1, &transition);
 }
 
 bool reshade::vulkan::runtime_vk::on_init(VkSwapchainKHR swapchain, const VkSwapchainCreateInfoKHR &desc, HWND hwnd)
@@ -418,7 +451,7 @@ void reshade::vulkan::runtime_vk::on_reset()
 {
 	runtime::on_reset();
 
-	wait_for_finish(); // Make sure none of the resources below are currently in use
+	wait_for_command_queue(); // Make sure none of the resources below are currently in use
 
 	vk.DestroyDescriptorSetLayout(_device, _effect_ubo_layout, nullptr);
 	_effect_ubo_layout = VK_NULL_HANDLE;
@@ -439,9 +472,11 @@ void reshade::vulkan::runtime_vk::on_reset()
 	vk.DestroyImageView(_device, _depthstencil_shader_view, nullptr);
 	_depthstencil_shader_view = VK_NULL_HANDLE;
 
+#if RESHADE_VULKAN_CAPTURE_DEPTH_BUFFERS
 	for (const auto &it : _depth_texture_saves)
 		vk.DestroyImage(_device, it.second, nullptr);
 	_depth_texture_saves.clear();
+#endif
 
 	vk.DestroyRenderPass(_device, _default_render_pass[0], nullptr);
 	_default_render_pass[0] = VK_NULL_HANDLE;
@@ -490,8 +525,6 @@ void reshade::vulkan::runtime_vk::on_reset()
 	for (VkDeviceMemory allocation : _allocations)
 		vk.FreeMemory(_device, allocation, nullptr);
 	_allocations.clear();
-
-	_is_multisampling_enabled = false;
 }
 
 void reshade::vulkan::runtime_vk::on_present(VkQueue queue, uint32_t swapchain_image_index, draw_call_tracker &tracker)
@@ -701,7 +734,17 @@ bool reshade::vulkan::runtime_vk::init_texture(texture &info)
 	if (impl->image == VK_NULL_HANDLE)
 		return false;
 
-	set_object_name((uint64_t)impl->image, VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_EXT, info.unique_name.c_str());
+#ifdef _DEBUG
+	if (vk.DebugMarkerSetObjectNameEXT != nullptr)
+	{
+		VkDebugMarkerObjectNameInfoEXT name_info{ VK_STRUCTURE_TYPE_DEBUG_MARKER_OBJECT_NAME_INFO_EXT };
+		name_info.object = (uint64_t)impl->image;
+		name_info.objectType = VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_EXT;
+		name_info.pObjectName = info.unique_name.c_str();
+
+		vk.DebugMarkerSetObjectNameEXT(_device, &name_info);
+	}
+#endif
 
 	// Create shader views
 	impl->view[0] = create_image_view(impl->image, impl->formats[0], VK_REMAINING_MIP_LEVELS, VK_IMAGE_ASPECT_COLOR_BIT);
@@ -891,7 +934,7 @@ void reshade::vulkan::runtime_vk::execute_command_list_async(VkCommandBuffer cmd
 
 	_cmd_buffers.push_back(cmd_list);
 }
-void reshade::vulkan::runtime_vk::wait_for_finish()
+void reshade::vulkan::runtime_vk::wait_for_command_queue()
 {
 #if 1
 	vk.QueueWaitIdle(_main_queue);
@@ -906,54 +949,6 @@ void reshade::vulkan::runtime_vk::wait_for_finish()
 	// Wait on all remaining fences (with a timeout of 1 second to be safe)
 	vk.WaitForFences(_device, uint32_t(pending_fences.size()), pending_fences.data(), VK_TRUE, 1'000'000'000);
 #endif
-}
-
-void reshade::vulkan::runtime_vk::transition_layout(VkCommandBuffer cmd_list, VkImage image, VkImageLayout old_layout, VkImageLayout new_layout, VkImageSubresourceRange subresource) const
-{
-	const auto layout_to_access = [](VkImageLayout layout) -> VkAccessFlags {
-		switch (layout)
-		{
-		case VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL:
-			return VK_ACCESS_TRANSFER_READ_BIT;
-		case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL:
-			return VK_ACCESS_TRANSFER_WRITE_BIT;
-		case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:
-			return VK_ACCESS_SHADER_READ_BIT;
-		case VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL:
-			return VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT;
-		case VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL:
-		case VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_STENCIL_ATTACHMENT_OPTIMAL:
-		case VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_STENCIL_READ_ONLY_OPTIMAL:
-			return VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
-		}
-		return 0;
-	};
-	const auto layout_to_stage = [](VkImageLayout layout) -> VkPipelineStageFlags {
-		switch (layout)
-		{
-		case VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL:
-		case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL:
-			return VK_PIPELINE_STAGE_TRANSFER_BIT;
-		case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:
-			return VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
-		case VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL:
-		case VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL:
-		case VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_STENCIL_ATTACHMENT_OPTIMAL:
-		case VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_STENCIL_READ_ONLY_OPTIMAL:
-			return VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
-		}
-		return VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
-	};
-
-	VkImageMemoryBarrier transition { VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };
-	transition.image = image;
-	transition.subresourceRange = subresource;
-	transition.srcAccessMask = layout_to_access(old_layout);
-	transition.dstAccessMask = layout_to_access(new_layout);
-	transition.oldLayout = old_layout;
-	transition.newLayout = new_layout;
-
-	vk.CmdPipelineBarrier(cmd_list, layout_to_stage(old_layout), layout_to_stage(new_layout), 0, 0, nullptr, 0, nullptr, 1, &transition);
 }
 
 bool reshade::vulkan::runtime_vk::compile_effect(effect_data &effect)
@@ -1180,13 +1175,13 @@ bool reshade::vulkan::runtime_vk::compile_effect(effect_data &effect)
 }
 void reshade::vulkan::runtime_vk::unload_effect(size_t id)
 {
-	wait_for_finish(); // Make sure no effect resources are currently in use
+	wait_for_command_queue(); // Make sure no effect resources are currently in use
 
 	runtime::unload_effect(id);
 }
 void reshade::vulkan::runtime_vk::unload_effects()
 {
-	wait_for_finish(); // Make sure no effect resources are currently in use
+	wait_for_command_queue(); // Make sure no effect resources are currently in use
 
 	runtime::unload_effects();
 
@@ -1732,7 +1727,7 @@ void reshade::vulkan::runtime_vk::render_imgui_draw_data(ImDrawData *draw_data)
 
 	if (resize_mem)
 	{
-		wait_for_finish(); // Make sure memory is not currently in use before freeing it
+		wait_for_command_queue(); // Make sure memory is not currently in use before freeing it
 
 		vk.FreeMemory(_device, _imgui_index_mem, nullptr);
 		_imgui_index_mem = VK_NULL_HANDLE;
@@ -1849,12 +1844,6 @@ void reshade::vulkan::runtime_vk::render_imgui_draw_data(ImDrawData *draw_data)
 
 void reshade::vulkan::runtime_vk::draw_debug_menu()
 {
-	ImGui::Text("MSAA is %s", _is_multisampling_enabled ? "active" : "inactive");
-	ImGui::Spacing();
-
-	ImGui::Spacing();
-	ImGui::Spacing();
-
 #if RESHADE_VULKAN_CAPTURE_DEPTH_BUFFERS
 	if (ImGui::CollapsingHeader("Depth and Intermediate Buffers", ImGuiTreeNodeFlags_DefaultOpen))
 	{
@@ -1962,7 +1951,7 @@ void reshade::vulkan::runtime_vk::detect_depth_source(draw_call_tracker &tracker
 	if (depth_buffer_before_clear)
 		_best_depth_stencil_overwrite = VK_NULL_HANDLE;
 
-	if (_is_multisampling_enabled || _best_depth_stencil_overwrite != VK_NULL_HANDLE || (_framecount % 30 && !depth_buffer_before_clear))
+	if (_best_depth_stencil_overwrite != VK_NULL_HANDLE || (_framecount % 30 && !depth_buffer_before_clear))
 		return;
 
 	if (_has_high_network_activity)
@@ -1999,7 +1988,7 @@ void reshade::vulkan::runtime_vk::update_depthstencil_image(VkImage depthstencil
 	_depthstencil_aspect = aspect_flags_from_format(image_format);
 
 	// Make sure all previous frames have finished before freeing the image view and updating descriptors (since they may be in use otherwise)
-	wait_for_finish();
+	wait_for_command_queue();
 
 	vk.DestroyImageView(_device, _depthstencil_shader_view, nullptr);
 	_depthstencil_shader_view = VK_NULL_HANDLE;

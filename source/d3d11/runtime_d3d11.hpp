@@ -67,18 +67,12 @@ namespace reshade::d3d11
 		void detect_depth_source(draw_call_tracker& tracker);
 		bool create_depthstencil_replacement(ID3D11DepthStencilView *depthstencil, ID3D11Texture2D *texture);
 
-		struct depth_texture_save_info
-		{
-			com_ptr<ID3D11Texture2D> src_texture;
-			D3D11_TEXTURE2D_DESC src_texture_desc;
-			com_ptr<ID3D11Texture2D> dest_texture;
-			bool cleared = false;
-		};
+		std::unordered_map<UINT, com_ptr<ID3D11Texture2D>> _depth_texture_saves;
 #endif
 
-		com_ptr<ID3D11Device> _device;
+		const com_ptr<ID3D11Device> _device;
 		com_ptr<ID3D11DeviceContext> _immediate_context;
-		com_ptr<IDXGISwapChain> _swapchain;
+		const com_ptr<IDXGISwapChain> _swapchain;
 
 		com_ptr<ID3D11Texture2D> _backbuffer_texture;
 		com_ptr<ID3D11RenderTargetView> _backbuffer_rtv[3];
@@ -86,9 +80,6 @@ namespace reshade::d3d11
 		com_ptr<ID3D11ShaderResourceView> _depthstencil_texture_srv;
 		std::unordered_map<size_t, com_ptr<ID3D11SamplerState>> _effect_sampler_states;
 		std::vector<com_ptr<ID3D11Buffer>> _constant_buffers;
-
-		std::map<UINT, depth_texture_save_info> _displayed_depth_textures;
-		std::unordered_map<UINT, com_ptr<ID3D11Texture2D>> _depth_texture_saves;
 
 		bool _is_multisampling_enabled = false;
 		DXGI_FORMAT _backbuffer_format = DXGI_FORMAT_UNKNOWN;
@@ -103,6 +94,11 @@ namespace reshade::d3d11
 		com_ptr<ID3D11SamplerState> _copy_sampler;
 		com_ptr<ID3D11RasterizerState> _effect_rasterizer_state;
 
+		HMODULE _d3d_compiler = nullptr;
+
+		draw_call_tracker *_current_tracker = nullptr;
+
+#if RESHADE_GUI
 		int _imgui_index_buffer_size = 0;
 		com_ptr<ID3D11Buffer> _imgui_index_buffer;
 		int _imgui_vertex_buffer_size = 0;
@@ -115,8 +111,6 @@ namespace reshade::d3d11
 		com_ptr<ID3D11RasterizerState> _imgui_rasterizer_state;
 		com_ptr<ID3D11BlendState> _imgui_blend_state;
 		com_ptr<ID3D11DepthStencilState> _imgui_depthstencil_state;
-		draw_call_tracker *_current_tracker = nullptr;
-
-		HMODULE _d3d_compiler = nullptr;
+#endif
 	};
 }

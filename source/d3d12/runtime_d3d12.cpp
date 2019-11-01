@@ -330,13 +330,15 @@ void reshade::d3d12::runtime_d3d12::on_reset()
 	_backbuffers.clear();
 	_backbuffer_rtvs.reset();
 	_backbuffer_texture.reset();
-	_depthstencil_dsvs.reset();
-	_default_depthstencil.reset();
 
+	_depthstencil_dsvs.reset();
 	_depthstencil_texture.reset();
 
+#if RESHADE_DX12_CAPTURE_DEPTH_BUFFERS
 	_depth_texture_saves.clear();
+#endif
 
+	_default_depthstencil.reset();
 	_mipmap_pipeline.reset();
 	_mipmap_signature.reset();
 

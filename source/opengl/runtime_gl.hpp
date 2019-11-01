@@ -60,9 +60,11 @@ namespace reshade::opengl
 
 		void detect_depth_source();
 
-		state_block _app_state;
+		bool _force_main_depth_buffer = false;
 		GLuint _depth_source = 0;
 		std::unordered_map<GLuint, depth_source_info> _depth_source_table;
+
+		state_block _app_state;
 
 		enum BUF
 		{
@@ -116,6 +118,5 @@ namespace reshade::opengl
 		std::vector<GLuint> _reserved_texture_names;
 		std::unordered_map<size_t, GLuint> _effect_sampler_states;
 		std::vector<std::pair<GLuint, GLsizeiptr>> _effect_ubos;
-		bool _force_main_depth_buffer = false;
 	};
 }

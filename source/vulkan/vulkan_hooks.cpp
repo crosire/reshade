@@ -710,17 +710,17 @@ void     VKAPI_CALL vkCmdBeginRenderPass(VkCommandBuffer commandBuffer, const Vk
 	const auto &framebuffer_data = s_framebuffer_data.at(data.current_framebuffer);
 	if (renderpass_data.depthstencil_attachment_index < framebuffer_data.size())
 	{
+		data.current_depthstencil = framebuffer_data[renderpass_data.depthstencil_attachment_index];
+
+#if RESHADE_VULKAN_CAPTURE_DEPTH_BUFFERS
 		auto &device_data = s_device_data.at(dispatch_key_from_handle(commandBuffer));
+		const auto &create_info = s_image_data.at(data.current_depthstencil);
 
-		const VkImage depthstencil = framebuffer_data[renderpass_data.depthstencil_attachment_index];
-		const VkImageCreateInfo &create_info = s_image_data.at(depthstencil);
-
-		data.current_depthstencil = depthstencil;
-
-		data.track_active_renderpass(device_data, commandBuffer, depthstencil, renderpass_data.initial_depthstencil_layout, create_info);
+		data.track_active_renderpass(device_data, commandBuffer, data.current_depthstencil, renderpass_data.initial_depthstencil_layout, create_info);
 
 		if (renderpass_data.clear_flags)
-			data.track_cleared_depthstencil(device_data, commandBuffer, renderpass_data.clear_flags, depthstencil, renderpass_data.initial_depthstencil_layout, create_info);
+			data.track_cleared_depthstencil(device_data, commandBuffer, renderpass_data.clear_flags, data.current_depthstencil, renderpass_data.initial_depthstencil_layout, create_info);
+#endif
 	}
 
 	GET_DEVICE_DISPATCH_PTR(CmdBeginRenderPass, commandBuffer);
@@ -738,9 +738,7 @@ void     VKAPI_CALL vkCmdNextSubpass(VkCommandBuffer commandBuffer, VkSubpassCon
 	const auto &framebuffer_data = s_framebuffer_data.at(data.current_framebuffer);
 	if (renderpass_data.depthstencil_attachment_index < framebuffer_data.size())
 	{
-		const VkImage depthstencil = framebuffer_data[renderpass_data.depthstencil_attachment_index];
-
-		data.current_depthstencil = depthstencil;
+		data.current_depthstencil = framebuffer_data[renderpass_data.depthstencil_attachment_index];
 	}
 	else
 	{
@@ -778,34 +776,37 @@ void     VKAPI_CALL vkCmdDrawIndexed(VkCommandBuffer commandBuffer, uint32_t ind
 
 void     VKAPI_CALL vkCmdClearAttachments(VkCommandBuffer commandBuffer, uint32_t attachmentCount, const VkClearAttachment *pAttachments, uint32_t rectCount, const VkClearRect *pRects)
 {
+#if RESHADE_VULKAN_CAPTURE_DEPTH_BUFFERS
 	// Find the depth-stencil clear attachment
-	uint32_t depth_stencil_attachment = std::numeric_limits<uint32_t>::max();
+	uint32_t depthstencil_attachment = std::numeric_limits<uint32_t>::max();
 	for (uint32_t i = 0; i < attachmentCount; ++i)
 		if (pAttachments[i].aspectMask & (VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT))
-			depth_stencil_attachment = i;
+			depthstencil_attachment = i;
 
 	auto &data = s_command_buffer_data[commandBuffer];
 	const auto &renderpass_data = s_renderpass_data.at(data.current_renderpass)[data.current_subpass];
 	const auto &framebuffer_data = s_framebuffer_data.at(data.current_framebuffer);
-	if (depth_stencil_attachment < attachmentCount &&
+	if (depthstencil_attachment < attachmentCount &&
 		renderpass_data.depthstencil_attachment_index < framebuffer_data.size())
 	{
-		const VkImage depthstencil = framebuffer_data[renderpass_data.depthstencil_attachment_index];
+		const VkImage image = framebuffer_data[renderpass_data.depthstencil_attachment_index];
 
 		data.track_cleared_depthstencil(
 			s_device_data.at(dispatch_key_from_handle(commandBuffer)),
 			commandBuffer,
-			pAttachments[depth_stencil_attachment].aspectMask,
-			depthstencil,
+			pAttachments[depthstencil_attachment].aspectMask,
+			image,
 			renderpass_data.initial_depthstencil_layout,
-			s_image_data.at(depthstencil));
+			s_image_data.at(image));
 	}
+#endif
 
 	GET_DEVICE_DISPATCH_PTR(CmdClearAttachments, commandBuffer);
 	trampoline(commandBuffer, attachmentCount, pAttachments, rectCount, pRects);
 }
 void     VKAPI_CALL vkCmdClearDepthStencilImage(VkCommandBuffer commandBuffer, VkImage image, VkImageLayout imageLayout, const VkClearDepthStencilValue *pDepthStencil, uint32_t rangeCount, const VkImageSubresourceRange *pRanges)
 {
+#if RESHADE_VULKAN_CAPTURE_DEPTH_BUFFERS
 	// Merge clear flags from all ranges
 	VkImageAspectFlags clear_flags = 0;
 	for (uint32_t i = 0; i < rangeCount; ++i)
@@ -818,6 +819,7 @@ void     VKAPI_CALL vkCmdClearDepthStencilImage(VkCommandBuffer commandBuffer, V
 		image,
 		imageLayout,
 		s_image_data.at(image));
+#endif
 
 	GET_DEVICE_DISPATCH_PTR(CmdClearDepthStencilImage, commandBuffer);
 	trampoline(commandBuffer, image, imageLayout, pDepthStencil, rangeCount, pRanges);

@@ -6,12 +6,8 @@
 #pragma once
 
 #include "runtime.hpp"
-#include "com_ptr.hpp"
 #include "draw_call_tracker.hpp"
-#include <d3d12.h>
 #include <dxgi1_5.h>
-
-#define RESHADE_DX12_CAPTURE_DEPTH_BUFFERS 1
 
 namespace reshadefx { struct sampler_info; }
 
@@ -52,6 +48,13 @@ namespace reshade::d3d12
 		bool init_texture(texture &info) override;
 		void upload_texture(texture &texture, const uint8_t *pixels) override;
 
+		void generate_mipmaps(const com_ptr<ID3D12GraphicsCommandList> &list, texture &texture);
+
+		com_ptr<ID3D12RootSignature> create_root_signature(const D3D12_ROOT_SIGNATURE_DESC &desc) const;
+		com_ptr<ID3D12GraphicsCommandList> create_command_list(const com_ptr<ID3D12PipelineState> &state = nullptr) const;
+		void execute_command_list(const com_ptr<ID3D12GraphicsCommandList> &list) const;
+		void wait_for_command_queue() const;
+
 		bool compile_effect(effect_data &effect) override;
 		void unload_effect(size_t id) override;
 		void unload_effects() override;
@@ -70,25 +73,12 @@ namespace reshade::d3d12
 		void detect_depth_source(draw_call_tracker& tracker);
 		bool update_depthstencil_texture(ID3D12Resource *texture);
 
-		struct depth_texture_save_info
-		{
-			com_ptr<ID3D12Resource> src_texture;
-			D3D12_RESOURCE_DESC src_texture_desc;
-			com_ptr<ID3D12Resource> dest_texture;
-			bool cleared = false;
-		};
+		std::unordered_map<UINT64, com_ptr<ID3D12Resource>> _depth_texture_saves;
 #endif
 
-		void generate_mipmaps(const com_ptr<ID3D12GraphicsCommandList> &list, texture &texture);
-
-		com_ptr<ID3D12RootSignature> create_root_signature(const D3D12_ROOT_SIGNATURE_DESC &desc) const;
-		com_ptr<ID3D12GraphicsCommandList> create_command_list(const com_ptr<ID3D12PipelineState> &state = nullptr) const;
-		void execute_command_list(const com_ptr<ID3D12GraphicsCommandList> &list) const;
-		void wait_for_command_queue() const;
-
-		com_ptr<ID3D12Device> _device;
-		com_ptr<ID3D12CommandQueue> _commandqueue;
-		com_ptr<IDXGISwapChain3> _swapchain;
+		const com_ptr<ID3D12Device> _device;
+		const com_ptr<ID3D12CommandQueue> _commandqueue;
+		const com_ptr<IDXGISwapChain3> _swapchain;
 
 		UINT _swap_index = 0;
 		HANDLE _fence_event = nullptr;
@@ -106,9 +96,6 @@ namespace reshade::d3d12
 		com_ptr<ID3D12Resource> _default_depthstencil;
 		com_ptr<ID3D12Resource> _depthstencil_texture;
 		ID3D12Resource *_best_depth_stencil_overwrite = nullptr;
-
-		std::map<UINT, depth_texture_save_info> _displayed_depth_textures;
-		std::unordered_map<UINT64, com_ptr<ID3D12Resource>> _depth_texture_saves;
 
 		com_ptr<ID3D12Resource> _backbuffer_texture;
 
