@@ -139,6 +139,7 @@ namespace reshade::vulkan
 		draw_call_tracker *_current_tracker = nullptr;
 
 #if RESHADE_GUI
+		static const unsigned int IMGUI_BUFFER_COUNT = 5;
 		unsigned int _imgui_index_buffer_size = 0;
 		VkBuffer _imgui_index_buffer = VK_NULL_HANDLE;
 		VkDeviceMemory _imgui_index_mem = VK_NULL_HANDLE;

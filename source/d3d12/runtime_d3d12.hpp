@@ -127,7 +127,7 @@ namespace reshade::d3d12
 		draw_call_tracker *_current_tracker = nullptr;
 
 #if RESHADE_GUI
-		static const unsigned int IMGUI_BUFFER_COUNT = 3;
+		static const unsigned int IMGUI_BUFFER_COUNT = 5;
 		unsigned int _imgui_index_buffer_size[IMGUI_BUFFER_COUNT] = {};
 		com_ptr<ID3D12Resource> _imgui_index_buffer[IMGUI_BUFFER_COUNT];
 		unsigned int _imgui_vertex_buffer_size[IMGUI_BUFFER_COUNT] = {};

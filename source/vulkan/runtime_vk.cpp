@@ -362,7 +362,7 @@ bool reshade::vulkan::runtime_vk::on_init(VkSwapchainKHR swapchain, const VkSwap
 		}
 	}
 
-	const size_t NUM_COMMAND_FRAMES = 6;
+	const size_t NUM_COMMAND_FRAMES = 5;
 	_cmd_pool.resize(NUM_COMMAND_FRAMES);
 	_cmd_fences.resize(NUM_COMMAND_FRAMES);
 
@@ -1713,8 +1713,7 @@ bool reshade::vulkan::runtime_vk::init_imgui_resources()
 void reshade::vulkan::runtime_vk::render_imgui_draw_data(ImDrawData *draw_data)
 {
 	// Need to multi-buffer vertex data so not to modify data below when the previous frame is still in flight
-	const unsigned int buffer_count = 3;
-	const unsigned int buffer_index = _framecount % buffer_count;
+	const unsigned int buffer_index = _framecount % IMGUI_BUFFER_COUNT;
 
 	// Attempt to allocate memory if it failed previously
 	bool resize_mem = _imgui_index_buffer == VK_NULL_HANDLE || _imgui_vertex_buffer == VK_NULL_HANDLE;
@@ -1738,7 +1737,7 @@ void reshade::vulkan::runtime_vk::render_imgui_draw_data(ImDrawData *draw_data)
 		vk.FreeMemory(_device, _imgui_index_mem, nullptr);
 		_imgui_index_mem = VK_NULL_HANDLE;
 		vk.DestroyBuffer(_device, _imgui_index_buffer, nullptr);
-		_imgui_index_buffer = create_buffer(_imgui_index_buffer_size * buffer_count, VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
+		_imgui_index_buffer = create_buffer(_imgui_index_buffer_size * IMGUI_BUFFER_COUNT, VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
 		if (_imgui_index_buffer == VK_NULL_HANDLE)
 			return;
 		_imgui_index_mem = _allocations.back();
@@ -1747,7 +1746,7 @@ void reshade::vulkan::runtime_vk::render_imgui_draw_data(ImDrawData *draw_data)
 		vk.FreeMemory(_device, _imgui_vertex_mem, nullptr);
 		_imgui_vertex_mem = VK_NULL_HANDLE;
 		vk.DestroyBuffer(_device, _imgui_vertex_buffer, nullptr);
-		_imgui_vertex_buffer = create_buffer(_imgui_vertex_buffer_size * buffer_count, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
+		_imgui_vertex_buffer = create_buffer(_imgui_vertex_buffer_size * IMGUI_BUFFER_COUNT, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
 		if (_imgui_vertex_buffer == VK_NULL_HANDLE)
 			return;
 		_imgui_vertex_mem = _allocations.back();
