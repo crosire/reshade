@@ -38,7 +38,7 @@ namespace ReShade.Setup
 			iniFile.SetValue("GENERAL", "ShowFPS", CheckboxValue(ShowFps.IsChecked));
 			iniFile.SetValue("GENERAL", "ShowClock", CheckboxValue(ShowClock.IsChecked));
 
-			string tutProgress = iniFile.GetValue("GENERAL", "TutorialProgress", "0");
+			string tutProgress = iniFile.GetString("GENERAL", "TutorialProgress", "0");
 			var skipTut = SkipTut.IsChecked;
 			iniFile.SetValue("GENERAL", "TutorialProgress", skipTut.HasValue ? (skipTut.Value ? "4" : "0") : tutProgress);
 
@@ -52,16 +52,16 @@ namespace ReShade.Setup
 
 			var iniFile = new IniFile(_configFilePath);
 
-			Preset.Text = iniFile.GetValue("GENERAL", "CurrentPresetPath");
-			EffectsPath.Text = iniFile.GetValue("GENERAL", "EffectSearchPaths");
-			TexturesPath.Text = iniFile.GetValue("GENERAL", "TextureSearchPaths");
-			ScreenshotPath.Text = iniFile.GetValue("GENERAL", "ScreenshotPath");
+			Preset.Text = iniFile.GetString("GENERAL", "CurrentPresetPath");
+			EffectsPath.Text = iniFile.GetString("GENERAL", "EffectSearchPaths");
+			TexturesPath.Text = iniFile.GetString("GENERAL", "TextureSearchPaths");
+			ScreenshotPath.Text = iniFile.GetString("GENERAL", "ScreenshotPath");
 
-			PerformanceMode.IsChecked = iniFile.GetValue("GENERAL", "PerformanceMode") == "1";
-			ShowFps.IsChecked = iniFile.GetValue("GENERAL", "ShowFPS") == "1";
-			ShowClock.IsChecked = iniFile.GetValue("GENERAL", "ShowClock") == "1";
+			PerformanceMode.IsChecked = iniFile.GetString("GENERAL", "PerformanceMode") == "1";
+			ShowFps.IsChecked = iniFile.GetString("GENERAL", "ShowFPS") == "1";
+			ShowClock.IsChecked = iniFile.GetString("GENERAL", "ShowClock") == "1";
 
-			string tutProgress = iniFile.GetValue("GENERAL", "TutorialProgress", "0");
+			string tutProgress = iniFile.GetString("GENERAL", "TutorialProgress", "0");
 			if (tutProgress == "0" || tutProgress == "4")
 			{
 				SkipTut.IsThreeState = false;

@@ -19,6 +19,7 @@ public static class Glass
 	private static extern int DwmIsCompositionEnabled(out bool enabled);
 	[DllImport("dwmapi.dll")]
 	private static extern int DwmExtendFrameIntoClientArea(IntPtr hwnd, ref MARGINS pMarInset);
+
 	[DllImport("user32.dll")]
 	private static extern int GetWindowLong(IntPtr hwnd, int index);
 	[DllImport("user32.dll")]
@@ -32,9 +33,7 @@ public static class Glass
 	{
 		get
 		{
-			bool enabled = false;
-			DwmIsCompositionEnabled(out enabled);
-
+			DwmIsCompositionEnabled(out bool enabled);
 			return enabled;
 		}
 	}

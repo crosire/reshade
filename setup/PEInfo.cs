@@ -55,9 +55,9 @@ public unsafe class PEInfo
 	{
 		#region union
 		[FieldOffset(0)]
-		public UInt32 Characteristics;
+		public uint Characteristics;
 		[FieldOffset(0)]
-		public UInt32 OriginalFirstThunk;
+		public uint OriginalFirstThunk;
 		#endregion
 
 		[FieldOffset(4)]
@@ -77,39 +77,38 @@ public unsafe class PEInfo
 	[DllImport("imagehlp.dll"), SuppressUnmanagedCodeSecurity]
 	private static extern bool MapAndLoad(string imageName, string dllPath, out LOADED_IMAGE loadedImage, bool dotDll, bool readOnly);
 
-	private readonly BinaryType _binaryType = BinaryType.IMAGE_FILE_MACHINE_UNKNOWN;
-	private readonly List<string> _modules = new List<string>();
-
 	// Adapted from http://stackoverflow.com/a/4696857/2055880
 	public PEInfo(string path)
 	{
-		uint size;
-		LOADED_IMAGE image;
+		var modules = new List<string>();
 
-		if (MapAndLoad(path, null, out image, true, true) && image.MappedAddress != IntPtr.Zero)
+		if (MapAndLoad(path, null, out LOADED_IMAGE image, true, true) && image.MappedAddress != IntPtr.Zero)
 		{
-			var imports = (IMAGE_IMPORT_DESCRIPTOR*)ImageDirectoryEntryToData((void*)image.MappedAddress, false, 1, out size);
+			var imports = (IMAGE_IMPORT_DESCRIPTOR*)ImageDirectoryEntryToData((void*)image.MappedAddress, false, 1, out uint size);
 
 			if (imports != null)
 			{
 				while (imports->OriginalFirstThunk != 0)
 				{
-					_modules.Add(Marshal.PtrToStringAnsi(ImageRvaToVa(image.FileHeader, image.MappedAddress, imports->Name, IntPtr.Zero)));
+					modules.Add(Marshal.PtrToStringAnsi(ImageRvaToVa(image.FileHeader, image.MappedAddress, imports->Name, IntPtr.Zero)));
 
 					++imports;
 				}
 			}
 
-			_binaryType = ((IMAGE_NT_HEADERS*)image.FileHeader)->FileHeader.Machine;
+			Type = ((IMAGE_NT_HEADERS*)image.FileHeader)->FileHeader.Machine;
 		}
+
+		Modules = modules;
 	}
 
 	public BinaryType Type
 	{
-		get { return _binaryType; }
+		get;
 	}
+
 	public IEnumerable<string> Modules
 	{
-		get { return _modules; }
+		get;
 	}
 }

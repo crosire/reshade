@@ -3,6 +3,7 @@
  * License: https://github.com/crosire/reshade#license
  */
 
+using Microsoft.Win32;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -13,18 +14,16 @@ using System.Net;
 using System.Reflection;
 using System.Windows;
 using System.Windows.Input;
-using Microsoft.Win32;
 
 namespace ReShade.Setup
 {
 	public partial class WizardWindow
 	{
+		bool _is64Bit = false;
 		bool _isHeadless = false;
 		bool _isElevated = false;
 		string _configPath = null;
 		string _targetPath = null;
-		string _targetModulePath = null;
-		PEInfo _targetPEInfo = null;
 		string _tempDownloadPath = null;
 
 		public WizardWindow()
@@ -105,6 +104,7 @@ namespace ReShade.Setup
 			MessageDescription.Text = description;
 
 		}
+
 		void RestartAsAdmin()
 		{
 			Process.Start(new ProcessStartInfo { Verb = "runas", FileName = Assembly.GetExecutingAssembly().Location, Arguments = $"\"{_targetPath}\" --elevated --left {Left} --top {Top}" });
@@ -129,14 +129,16 @@ namespace ReShade.Setup
 			}
 
 			if (!pathExists)
+			{
 				searchPaths.Add(newPath);
+			}
 		}
 		void WriteSearchPaths(string targetPathShaders, string targetPathTextures)
 		{
 			var iniFile = new IniFile(_configPath);
-			var paths = default(List<string>);
+			List<string> paths = null;
 
-			iniFile.TryGetValue("GENERAL", "EffectSearchPaths", out var effectSearchPaths);
+			iniFile.GetValue("GENERAL", "EffectSearchPaths", out var effectSearchPaths);
 
 			paths = new List<string>(effectSearchPaths ?? new string[0]);
 			paths.RemoveAll(string.IsNullOrWhiteSpace);
@@ -145,7 +147,7 @@ namespace ReShade.Setup
 				iniFile.SetValue("GENERAL", "EffectSearchPaths", paths.ToArray());
 			}
 
-			iniFile.TryGetValue("GENERAL", "TextureSearchPaths", out var textureSearchPaths);
+			iniFile.GetValue("GENERAL", "TextureSearchPaths", out var textureSearchPaths);
 
 			paths = new List<string>(textureSearchPaths ?? new string[0]);
 			paths.RemoveAll(string.IsNullOrWhiteSpace);
@@ -160,9 +162,13 @@ namespace ReShade.Setup
 		void InstallationStep0()
 		{
 			if (!_isElevated && !IsWritable(Path.GetDirectoryName(_targetPath)))
+			{
 				RestartAsAdmin();
+			}
 			else
+			{
 				InstallationStep1();
+			}
 		}
 		void InstallationStep1()
 		{
@@ -171,11 +177,13 @@ namespace ReShade.Setup
 
 			var info = FileVersionInfo.GetVersionInfo(_targetPath);
 			string name = !string.IsNullOrEmpty(info.ProductName) ? info.ProductName : Path.GetFileNameWithoutExtension(_targetPath);
-			_targetPEInfo = new PEInfo(_targetPath);
+			var peInfo = new PEInfo(_targetPath);
 
 			ShowMessage("Working on " + name + " ...", "Analyzing " + name + " ...");
 
-			string nameModule = _targetPEInfo.Modules.FirstOrDefault(s =>
+			_is64Bit = peInfo.Type == PEInfo.BinaryType.IMAGE_FILE_MACHINE_AMD64;
+
+			string nameModule = peInfo.Modules.FirstOrDefault(s =>
 				s.StartsWith("d3d8", StringComparison.OrdinalIgnoreCase) ||
 				s.StartsWith("d3d9", StringComparison.OrdinalIgnoreCase) ||
 				s.StartsWith("dxgi", StringComparison.OrdinalIgnoreCase) ||
@@ -210,20 +218,33 @@ namespace ReShade.Setup
 			string nameModule = null;
 			ApiGroup.IsEnabled = false;
 			if (ApiDirect3D9.IsChecked == true)
+			{
 				nameModule = "d3d9.dll";
+			}
+
 			if (ApiDirectXGI.IsChecked == true)
+			{
 				nameModule = "dxgi.dll";
+			}
+
 			if (ApiOpenGL.IsChecked == true)
+			{
 				nameModule = "opengl32.dll";
+			}
+
 			if (ApiVulkan.IsChecked == true)
-				nameModule = _targetPEInfo.Type == PEInfo.BinaryType.IMAGE_FILE_MACHINE_AMD64 ? "ReShade64.dll" : "ReShade32.dll";
+			{
+				nameModule = _is64Bit ? "ReShade64.dll" : "ReShade32.dll";
+			}
 
 			string targetDir = Path.GetDirectoryName(_targetPath);
-			string pathModule = _targetModulePath = Path.Combine(targetDir, nameModule);
+			string pathModule = Path.Combine(targetDir, nameModule);
 
 			_configPath = Path.ChangeExtension(pathModule, ".ini");
 			if (!File.Exists(_configPath))
+			{
 				_configPath = Path.Combine(targetDir, "ReShade.ini");
+			}
 
 			if (File.Exists(pathModule) && !_isHeadless)
 			{
@@ -235,11 +256,19 @@ namespace ReShade.Setup
 					{
 						File.Delete(pathModule);
 						if (File.Exists(_configPath))
+						{
 							File.Delete(_configPath);
+						}
+
 						if (File.Exists(Path.ChangeExtension(pathModule, ".log")))
+						{
 							File.Delete(Path.ChangeExtension(pathModule, ".log"));
+						}
+
 						if (Directory.Exists(Path.Combine(targetDir, "reshade-shaders")))
+						{
 							Directory.Delete(Path.Combine(targetDir, "reshade-shaders"), true);
+						}
 					}
 					catch (Exception ex)
 					{
@@ -262,11 +291,17 @@ namespace ReShade.Setup
 				using (ZipArchive zip = ExtractArchive())
 				{
 					if (zip.Entries.Count != 4)
+					{
 						throw new FileFormatException("Expected ReShade archive to contain ReShade DLLs");
+					}
 
-					using (Stream input = zip.Entries[_targetPEInfo.Type == PEInfo.BinaryType.IMAGE_FILE_MACHINE_AMD64 ? 2 : 0].Open())
-						using (FileStream output = File.Create(pathModule))
-							input.CopyTo(output);
+					// 0: ReShade32.dll
+					// 2: ReShade64.dll
+					using (Stream input = zip.Entries[_is64Bit ? 2 : 0].Open())
+					using (FileStream output = File.Create(pathModule))
+					{
+						input.CopyTo(output);
+					}
 				}
 			}
 			catch (Exception ex)
@@ -278,18 +313,25 @@ namespace ReShade.Setup
 			// Vulkan requires some more consideration, since ReShade acts as a layer there
 			if (ApiVulkan.IsChecked == true)
 			{
+				string pathManifest = Path.ChangeExtension(pathModule, ".json");
+
 				// Install layer manifest
 				try
 				{
-					int idx = _targetPEInfo.Type == PEInfo.BinaryType.IMAGE_FILE_MACHINE_AMD64 ? 3 : 1;
 					using (ZipArchive zip = ExtractArchive())
-						using (Stream input = zip.Entries[idx].Open())
-							using (FileStream output = File.Create(Path.Combine(targetDir, zip.Entries[idx].Name)))
-								input.CopyTo(output);
+					{
+						// 1: ReShade32.json
+						// 3: ReShade64.json
+						using (Stream input = zip.Entries[_is64Bit ? 3 : 1].Open())
+						using (FileStream output = File.Create(pathManifest))
+						{
+							input.CopyTo(output);
+						}
+					}
 				}
 				catch (Exception ex)
 				{
-					ShowMessage("Failed!", "Unable to write file \"" + pathModule + "\".", ex.Message, true, 1);
+					ShowMessage("Failed!", "Unable to write file \"" + pathManifest + "\".", ex.Message, true, 1);
 					return;
 				}
 
@@ -329,9 +371,13 @@ namespace ReShade.Setup
 
 			client.DownloadFileCompleted += (object sender, System.ComponentModel.AsyncCompletedEventArgs e) => {
 				if (e.Error != null)
+				{
 					ShowMessage("Failed!", "Unable to download archive.", e.Error.Message, true, 1);
+				}
 				else
+				{
 					InstallationStep4();
+				}
 			};
 
 			client.DownloadProgressChanged += (object sender, DownloadProgressChangedEventArgs e) => {
@@ -368,7 +414,9 @@ namespace ReShade.Setup
 			try
 			{
 				if (Directory.Exists(tempPath)) // Delete existing directories since extraction fails if the target is not empty
+				{
 					Directory.Delete(tempPath, true);
+				}
 
 				ZipFile.ExtractToDirectory(_tempDownloadPath, Path.GetTempPath());
 
@@ -485,7 +533,9 @@ namespace ReShade.Setup
 				InstallationStep1();
 
 				if (hasApi)
+				{
 					InstallationStep2();
+				}
 			}
 		}
 
@@ -500,7 +550,9 @@ namespace ReShade.Setup
 				try
 				{
 					using (ZipArchive zip = ExtractArchive())
+					{
 						zip.ExtractToDirectory(".");
+					}
 				}
 				catch (Exception ex)
 				{
@@ -521,7 +573,9 @@ namespace ReShade.Setup
 				"Steam", "steamapps", "common");
 
 			if (Directory.Exists(steamPath))
+			{
 				dlg.InitialDirectory = steamPath;
+			}
 
 			if (dlg.ShowDialog(this) == true)
 			{
