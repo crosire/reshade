@@ -450,8 +450,6 @@ void reshade::vulkan::runtime_vk::on_reset()
 	_cmd_pool.clear();
 	_cmd_buffers.clear();
 
-	clear_DSV_iter = 1;
-
 #if RESHADE_GUI
 	vk.FreeMemory(_device, _imgui_index_mem, nullptr);
 	_imgui_index_mem = VK_NULL_HANDLE;
@@ -491,7 +489,7 @@ void reshade::vulkan::runtime_vk::on_present(uint32_t swapchain_image_index, dra
 	_current_tracker = &tracker;
 
 	_swap_index = swapchain_image_index;
-	_pool_index = _framecount % _cmd_fences.size();
+	_pool_index = static_cast<uint32_t>(_framecount % _cmd_fences.size());
 	const VkFence fence = _cmd_fences[_pool_index];
 
 	// Make sure all buffers from the command pool used this frame have finished before resetting it
@@ -522,8 +520,6 @@ void reshade::vulkan::runtime_vk::on_present(uint32_t swapchain_image_index, dra
 		_cmd_buffers.clear();
 	}
 
-	clear_DSV_iter = 1;
-	_current_tracker->reset();
 }
 
 bool reshade::vulkan::runtime_vk::capture_screenshot(uint8_t *buffer) const
@@ -850,14 +846,18 @@ VkCommandBuffer reshade::vulkan::runtime_vk::create_command_list(VkCommandBuffer
 }
 void reshade::vulkan::runtime_vk::execute_command_list(VkCommandBuffer cmd_list) const
 {
-	execute_command_list_async(cmd_list);
+	check_result(vk.EndCommandBuffer(cmd_list));
+
+	_cmd_buffers.push_back(cmd_list);
 
 	// Submit all current command buffers in one batch
 	VkSubmitInfo submit_info { VK_STRUCTURE_TYPE_SUBMIT_INFO };
 	submit_info.commandBufferCount = uint32_t(_cmd_buffers.size());
 	submit_info.pCommandBuffers = _cmd_buffers.data();
 
-	VkResult res = vk.QueueSubmit(_current_queue, 1, &submit_info, _wait_fence);
+	// Can use the main queue here, since it is immediately synchronized with the host again anyway
+	VkResult res;
+	res = vk.QueueSubmit(_current_queue, 1, &submit_info, _wait_fence);
 	assert(res == VK_SUCCESS);
 	res = vk.WaitForFences(_device, 1, &_wait_fence, VK_TRUE, UINT64_MAX);
 	assert(res == VK_SUCCESS);
@@ -1967,7 +1967,7 @@ void reshade::vulkan::runtime_vk::update_depthstencil_image(VkImage depthstencil
 	_depthstencil_layout = layout;
 	_depthstencil_aspect = aspect_flags_from_format(image_format);
 
-	// Make sure the previous frame has finished before freeing the image view and updating descriptors (since they may be in use otherwise)
+	// Make sure all previous frames have finished before freeing the image view and updating descriptors (since they may be in use otherwise)
 	wait_for_finish();
 
 	vk.DestroyImageView(_device, _depthstencil_shader_view, nullptr);

@@ -41,21 +41,15 @@ namespace reshade::vulkan
 		VkImage create_image(uint32_t width, uint32_t height, uint32_t levels, VkFormat format, VkImageUsageFlags usage, VkMemoryPropertyFlags mem = 0, VkImageCreateFlags = 0);
 		VkImageView create_image_view(VkImage image, VkFormat format, uint32_t levels, VkImageAspectFlags aspect);
 		VkBuffer create_buffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags mem = 0);
-		VkCommandBuffer create_command_list(VkCommandBufferLevel level = VK_COMMAND_BUFFER_LEVEL_PRIMARY) const;
-		void execute_command_list(VkCommandBuffer cmd_list) const;
-		void execute_command_list_async(VkCommandBuffer cmd_list) const;
-		void wait_for_finish();
 
 		bool depth_buffer_before_clear = false;
 		bool depth_buffer_more_copies = false;
 		bool extended_depth_buffer_detection = false;
 		unsigned int cleared_depth_buffer_index = 0;
 		int depth_buffer_texture_format = VK_FORMAT_UNDEFINED; // No depth buffer texture format filter by default
-		std::atomic<unsigned int> clear_DSV_iter = 1;
 
 		VkDevice _device;
 		VkPhysicalDevice _physical_device;
-		VkPhysicalDeviceMemoryProperties _memory_props;
 		VkSwapchainKHR _swapchain;
 
 		VkLayerDispatchTable vk;
@@ -93,9 +87,16 @@ namespace reshade::vulkan
 		};
 #endif
 
+		VkCommandBuffer create_command_list(VkCommandBufferLevel level = VK_COMMAND_BUFFER_LEVEL_PRIMARY) const;
+		void execute_command_list(VkCommandBuffer cmd_list) const;
+		void execute_command_list_async(VkCommandBuffer cmd_list) const;
+		void wait_for_finish();
+
 		void set_object_name(uint64_t handle, VkDebugReportObjectTypeEXT type, const char *name) const;
 
 		void generate_mipmaps(const VkCommandBuffer cmd_list, texture &texture);
+
+		VkPhysicalDeviceMemoryProperties _memory_props = {};
 
 		VkFence _wait_fence = VK_NULL_HANDLE;
 		VkQueue _current_queue = VK_NULL_HANDLE;

@@ -18,6 +18,13 @@ struct device_data
 	VkPhysicalDevice physical_device;
 	reshade::vulkan::draw_call_tracker draw_call_tracker;
 	std::vector<std::shared_ptr<reshade::vulkan::runtime_vk>> runtimes;
+	unsigned int clear_DSV_iter = 1;
+
+	void clear_drawcall_stats()
+	{
+		clear_DSV_iter = 1;
+		draw_call_tracker.reset();
+	}
 };
 
 struct render_pass_data
@@ -29,8 +36,6 @@ struct render_pass_data
 
 struct command_buffer_data
 {
-	std::weak_ptr<reshade::vulkan::runtime_vk> main_runtime;
-
 	// State tracking
 	uint32_t current_subpass = std::numeric_limits<uint32_t>::max();
 	VkRenderPass current_renderpass = VK_NULL_HANDLE;
@@ -38,12 +43,11 @@ struct command_buffer_data
 	reshade::vulkan::draw_call_tracker draw_call_tracker;
 
 #if RESHADE_VULKAN_CAPTURE_DEPTH_BUFFERS
-	bool save_depth_image(VkCommandBuffer cmd_list, VkImage depthstencil, VkImageLayout layout, const VkImageCreateInfo &create_info, bool cleared)
+	bool save_depth_image(device_data &device, VkCommandBuffer cmd_list, VkImage depthstencil, VkImageLayout layout, const VkImageCreateInfo &create_info, bool cleared)
 	{
-		if (main_runtime.expired())
+		if (device.runtimes.empty())
 			return false;
-
-		const auto runtime = main_runtime.lock();
+		const auto runtime = device.runtimes.front();
 
 		if (!runtime->depth_buffer_before_clear)
 			return false;
@@ -62,7 +66,7 @@ struct command_buffer_data
 			return false; // No match, not a good fit
 
 		// In case the depth texture is retrieved, we make a copy of it and store it in an ordered map to use it later in the final rendering stage.
-		if ((runtime->cleared_depth_buffer_index == 0 && cleared) || (runtime->clear_DSV_iter <= runtime->cleared_depth_buffer_index))
+		if ((runtime->cleared_depth_buffer_index == 0 && cleared) || (device.clear_DSV_iter <= runtime->cleared_depth_buffer_index))
 		{
 			VkImage depth_image_save = runtime->select_depth_texture_save(create_info);
 			if (depth_image_save == VK_NULL_HANDLE)
@@ -72,8 +76,7 @@ struct command_buffer_data
 
 			const VkImageAspectFlags aspect_mask = aspect_flags_from_format(create_info.format);
 
-			// TODO: It is invalid for the below to be called in a render pass (which is the case when called from vkCmdClearAttachments).
-			// Need to find a solution.
+			// TODO: It is invalid for the below to be called in a render pass (which is the case when called from vkCmdClearAttachments). Need to find a solution.
 
 			// Copy the depth texture. This is necessary because the content of the depth texture is cleared.
 			// This way, we can retrieve this content in the final rendering stage
@@ -90,27 +93,25 @@ struct command_buffer_data
 			runtime->transition_layout(cmd_list, depthstencil, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, layout, { aspect_mask, 0, 1, 0, 1 });
 
 			// Store the saved texture in the ordered map.
-			draw_call_tracker.track_depth_image(runtime->depth_buffer_texture_format, runtime->clear_DSV_iter, depthstencil, create_info, depth_image_save, cleared);
+			draw_call_tracker.track_depth_image(runtime->depth_buffer_texture_format, device.clear_DSV_iter, depthstencil, create_info, depth_image_save, cleared);
 		}
 		else
 		{
 			// Store a null depth texture in the ordered map in order to display it even if the user chose a previous cleared texture.
 			// This way the texture will still be visible in the depth buffer selection window and the user can choose it.
-			draw_call_tracker.track_depth_image(runtime->depth_buffer_texture_format, runtime->clear_DSV_iter, depthstencil, create_info, VK_NULL_HANDLE, cleared);
+			draw_call_tracker.track_depth_image(runtime->depth_buffer_texture_format, device.clear_DSV_iter, depthstencil, create_info, VK_NULL_HANDLE, cleared);
 		}
 
-		runtime->clear_DSV_iter++;
+		device.clear_DSV_iter++;
 
 		return true;
 	}
 
-	void track_active_renderpass(VkCommandBuffer cmd_list, VkImage depthstencil, VkImageLayout layout, const VkImageCreateInfo &create_info)
+	void track_active_renderpass(device_data &device, VkCommandBuffer cmd_list, VkImage depthstencil, VkImageLayout layout, const VkImageCreateInfo &create_info)
 	{
-		// Reset current depth stencil binding
-		draw_call_tracker._current_depthstencil = VK_NULL_HANDLE;
-
-		if (main_runtime.expired())
+		if (device.runtimes.empty())
 			return;
+		const auto runtime = device.runtimes.front();
 
 		// Update current depth stencil binding
 		draw_call_tracker._current_depthstencil = depthstencil;
@@ -118,17 +119,18 @@ struct command_buffer_data
 		// TODO: Technically the image layout stored here is not the one the image ends up in, but the likelihood is high
 		if (layout == VK_IMAGE_LAYOUT_UNDEFINED) // Do some trickery to make sure it is valid
 			layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-		draw_call_tracker.track_renderpass(main_runtime.lock()->depth_buffer_texture_format, depthstencil, layout, create_info);
+		draw_call_tracker.track_renderpass(runtime->depth_buffer_texture_format, depthstencil, layout, create_info);
 
-		save_depth_image(cmd_list, depthstencil, layout, create_info, false);
+		save_depth_image(device, cmd_list, depthstencil, layout, create_info, false);
 	}
-	void track_cleared_depthstencil(VkCommandBuffer cmd_list, VkImageAspectFlags clear_flags, VkImage depthstencil, VkImageLayout layout, const VkImageCreateInfo &create_info)
+	void track_cleared_depthstencil(device_data &device, VkCommandBuffer cmd_list, VkImageAspectFlags clear_flags, VkImage depthstencil, VkImageLayout layout, const VkImageCreateInfo &create_info)
 	{
-		if (main_runtime.expired())
+		if (device.runtimes.empty())
 			return;
+		const auto runtime = device.runtimes.front();
 
-		if (clear_flags & VK_IMAGE_ASPECT_DEPTH_BIT || (main_runtime.lock()->depth_buffer_more_copies && clear_flags & VK_IMAGE_ASPECT_STENCIL_BIT))
-			save_depth_image(cmd_list, depthstencil, layout, create_info, true);
+		if (clear_flags & VK_IMAGE_ASPECT_DEPTH_BIT || (runtime->depth_buffer_more_copies && clear_flags & VK_IMAGE_ASPECT_STENCIL_BIT))
+			save_depth_image(device, cmd_list, depthstencil, layout, create_info, true);
 	}
 #endif
 };
@@ -584,15 +586,16 @@ VkResult VKAPI_CALL vkQueuePresentKHR(VkQueue queue, const VkPresentInfoKHR *pPr
 				it != s_runtimes.end())
 			{
 				it->second->on_present(pPresentInfo->pImageIndices[i], device_data.draw_call_tracker);
-
-				device_data.draw_call_tracker.reset();
 			}
 		}
+
+		device_data.clear_drawcall_stats();
 
 		// Reset command buffer data like draw call trackers
 		s_command_buffer_data.clear();
 	}
 
+	// TODO: It may be necessary to add a wait semaphore to the present info
 	GET_DEVICE_DISPATCH_PTR(QueuePresentKHR, queue);
 	return trampoline(queue, pPresentInfo);
 }
@@ -754,25 +757,22 @@ void     VKAPI_CALL vkCmdBeginRenderPass(VkCommandBuffer commandBuffer, const Vk
 		data.current_renderpass = pRenderPassBegin->renderPass;
 		data.current_framebuffer = pRenderPassBegin->framebuffer;
 
+		// Reset current depth stencil binding
+		data.draw_call_tracker._current_depthstencil = VK_NULL_HANDLE;
+
 		const auto &renderpass_data = s_renderpass_data[data.current_renderpass][data.current_subpass];
 		const auto &framebuffer_data = s_framebuffer_data[data.current_framebuffer];
-		if (renderpass_data.depthstencil_attachment_index < framebuffer_data.size())
+		if (const auto it = s_device_data.find(dispatch_key_from_handle(commandBuffer));
+			it != s_device_data.end() &&
+			renderpass_data.depthstencil_attachment_index < framebuffer_data.size())
 		{
 			const VkImage depthstencil = framebuffer_data[renderpass_data.depthstencil_attachment_index];
-			const VkImageCreateInfo create_info = s_image_data[depthstencil];
+			const VkImageCreateInfo create_info = s_image_data.at(depthstencil);
 
-			// Update runtime reference
-			if (const auto it = s_device_data.find(dispatch_key_from_handle(commandBuffer)); it != s_device_data.end() && !it->second.runtimes.empty())
-				data.main_runtime = it->second.runtimes.front();
-
-			data.track_active_renderpass(commandBuffer, depthstencil, renderpass_data.initial_depthstencil_layout, create_info);
+			data.track_active_renderpass(it->second, commandBuffer, depthstencil, renderpass_data.initial_depthstencil_layout, create_info);
 
 			if (renderpass_data.clear_flags)
-				data.track_cleared_depthstencil(commandBuffer, renderpass_data.clear_flags, depthstencil, renderpass_data.initial_depthstencil_layout, create_info);
-		}
-		else
-		{
-			data.draw_call_tracker._current_depthstencil = VK_NULL_HANDLE;
+				data.track_cleared_depthstencil(it->second, commandBuffer, renderpass_data.clear_flags, depthstencil, renderpass_data.initial_depthstencil_layout, create_info);
 		}
 	}
 
@@ -814,6 +814,8 @@ void     VKAPI_CALL vkCmdEndRenderPass(VkCommandBuffer commandBuffer)
 		data.current_subpass = std::numeric_limits<uint32_t>::max();
 		data.current_renderpass = VK_NULL_HANDLE;
 		data.current_framebuffer = VK_NULL_HANDLE;
+
+		// Reset current depth stencil binding
 		data.draw_call_tracker._current_depthstencil = VK_NULL_HANDLE;
 	}
 }
@@ -849,11 +851,14 @@ void     VKAPI_CALL vkCmdClearAttachments(VkCommandBuffer commandBuffer, uint32_
 				auto &data = s_command_buffer_data[commandBuffer];
 				const auto &renderpass_data = s_renderpass_data[data.current_renderpass][data.current_subpass];
 				const auto &framebuffer_data = s_framebuffer_data[data.current_framebuffer];
-				assert(renderpass_data.depthstencil_attachment_index < framebuffer_data.size());
+				if (const auto it = s_device_data.find(dispatch_key_from_handle(commandBuffer));
+					it != s_device_data.end() &&
+					renderpass_data.depthstencil_attachment_index < framebuffer_data.size())
+				{
+					const VkImage depthstencil = framebuffer_data[renderpass_data.depthstencil_attachment_index];
 
-				const VkImage depthstencil = framebuffer_data[renderpass_data.depthstencil_attachment_index];
-
-				data.track_cleared_depthstencil(commandBuffer, pAttachments[i].aspectMask, depthstencil, renderpass_data.initial_depthstencil_layout, s_image_data[depthstencil]);
+					data.track_cleared_depthstencil(it->second, commandBuffer, pAttachments[i].aspectMask, depthstencil, renderpass_data.initial_depthstencil_layout, s_image_data[depthstencil]);
+				}
 				break; // There can only be a single depth-stencil attachment
 			}
 		}
@@ -866,12 +871,15 @@ void     VKAPI_CALL vkCmdClearDepthStencilImage(VkCommandBuffer commandBuffer, V
 {
 	{ const std::lock_guard<std::mutex> lock(s_device_global_mutex);
 
-		// Merge clear flags from all ranges
-		VkImageAspectFlags clear_flags = 0;
-		for (uint32_t i = 0; i < rangeCount; ++i)
-			clear_flags |= pRanges[i].aspectMask;
+		if (const auto it = s_device_data.find(dispatch_key_from_handle(commandBuffer)); it != s_device_data.end())
+		{
+			// Merge clear flags from all ranges
+			VkImageAspectFlags clear_flags = 0;
+			for (uint32_t i = 0; i < rangeCount; ++i)
+				clear_flags |= pRanges[i].aspectMask;
 
-		s_command_buffer_data[commandBuffer].track_cleared_depthstencil(commandBuffer, clear_flags, image, imageLayout, s_image_data[image]);
+			s_command_buffer_data[commandBuffer].track_cleared_depthstencil(it->second, commandBuffer, clear_flags, image, imageLayout, s_image_data[image]);
+		}
 	}
 
 	GET_DEVICE_DISPATCH_PTR(CmdClearDepthStencilImage, commandBuffer);
