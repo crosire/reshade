@@ -26,7 +26,7 @@ namespace reshade::vulkan
 
 		bool on_init(VkSwapchainKHR swapchain, const VkSwapchainCreateInfoKHR &desc, HWND hwnd);
 		void on_reset();
-		void on_present(uint32_t swapchain_image_index, draw_call_tracker &tracker);
+		void on_present(VkQueue queue, uint32_t swapchain_image_index, draw_call_tracker &tracker);
 
 		bool capture_screenshot(uint8_t *buffer) const override;
 
@@ -96,10 +96,11 @@ namespace reshade::vulkan
 
 		void generate_mipmaps(const VkCommandBuffer cmd_list, texture &texture);
 
+		VkQueue _main_queue = VK_NULL_HANDLE;
+		uint32_t _queue_family_index = 0; // Default to first queue family index
 		VkPhysicalDeviceMemoryProperties _memory_props = {};
 
 		VkFence _wait_fence = VK_NULL_HANDLE;
-		VkQueue _current_queue = VK_NULL_HANDLE;
 		uint32_t _swap_index = 0;
 		uint32_t _pool_index = 0;
 

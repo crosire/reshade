@@ -212,6 +212,7 @@ VkResult VKAPI_CALL vkCreateInstance(const VkInstanceCreateInfo *pCreateInfo, co
 	dispatch_table.DestroyInstance = (PFN_vkDestroyInstance)gipa(instance, "vkDestroyInstance");
 	dispatch_table.EnumeratePhysicalDevices = (PFN_vkEnumeratePhysicalDevices)gipa(instance, "vkEnumeratePhysicalDevices");
 	dispatch_table.GetPhysicalDeviceMemoryProperties = (PFN_vkGetPhysicalDeviceMemoryProperties)gipa(instance, "vkGetPhysicalDeviceMemoryProperties");
+	dispatch_table.GetPhysicalDeviceQueueFamilyProperties = (PFN_vkGetPhysicalDeviceQueueFamilyProperties)gipa(instance, "vkGetPhysicalDeviceQueueFamilyProperties");
 	dispatch_table.GetInstanceProcAddr = gipa;
 	// ---- VK_KHR_surface extension commands
 	dispatch_table.DestroySurfaceKHR = (PFN_vkDestroySurfaceKHR)gipa(instance, "vkDestroySurfaceKHR");
@@ -316,6 +317,8 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 
 	// Enable extensions that ReShade requires
 	enabled_extensions.push_back(VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME);
+
+	// TODO: Make sure a graphics queue exists
 
 	VkDeviceCreateInfo create_info = *pCreateInfo;
 	create_info.enabledExtensionCount = uint32_t(enabled_extensions.size());
@@ -585,7 +588,7 @@ VkResult VKAPI_CALL vkQueuePresentKHR(VkQueue queue, const VkPresentInfoKHR *pPr
 			if (const auto it = s_runtimes.find(pPresentInfo->pSwapchains[i]);
 				it != s_runtimes.end())
 			{
-				it->second->on_present(pPresentInfo->pImageIndices[i], device_data.draw_call_tracker);
+				it->second->on_present(queue, pPresentInfo->pImageIndices[i], device_data.draw_call_tracker);
 			}
 		}
 
@@ -757,8 +760,7 @@ void     VKAPI_CALL vkCmdBeginRenderPass(VkCommandBuffer commandBuffer, const Vk
 		data.current_renderpass = pRenderPassBegin->renderPass;
 		data.current_framebuffer = pRenderPassBegin->framebuffer;
 
-		// Reset current depth stencil binding
-		data.draw_call_tracker._current_depthstencil = VK_NULL_HANDLE;
+		assert(data.draw_call_tracker._current_depthstencil == VK_NULL_HANDLE);
 
 		const auto &renderpass_data = s_renderpass_data[data.current_renderpass][data.current_subpass];
 		const auto &framebuffer_data = s_framebuffer_data[data.current_framebuffer];
