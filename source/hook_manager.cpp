@@ -434,7 +434,7 @@ reshade::hook::address reshade::hooks::call(hook::address target, hook::address 
 	else if (!s_export_hook_path.empty()) // If the hook does not exist yet, delay-load export hooks and try again
 	{
 		// Note: Could use LoadLibraryExW with LOAD_LIBRARY_SEARCH_SYSTEM32 here, but absolute paths should do the trick as well
-		const HMODULE handle = LoadLibraryW(s_export_hook_path.wstring().c_str());
+		const HMODULE handle = LoadLibraryW(s_export_hook_path.c_str());
 
 		LOG(INFO) << "Installing export hooks for " << s_export_hook_path << " ...";
 
