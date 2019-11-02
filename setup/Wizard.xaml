@@ -18,10 +18,11 @@
 			IsEnabled="False"
 			VerticalAlignment="Top"
 			Margin="5,0,5,5"
-			BorderThickness="1"
-			CornerRadius="3"
 			Padding="5"
-			BorderBrush="White">
+			Background="{DynamicResource {x:Static SystemColors.WindowBrushKey}}"
+			BorderBrush="#FF707070"
+			CornerRadius="3"
+			BorderThickness="1">
 			<StackPanel
 				Orientation="Horizontal"
 				HorizontalAlignment="Center">
