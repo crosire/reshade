@@ -51,6 +51,10 @@ reshade::log::message::~message()
 
 	lines.push_back(linestream.str());
 
+#ifdef _DEBUG
+	OutputDebugStringA(linestream.str().c_str());
+#endif
+
 	// The message is finished, we can unlock the stream
 	s_message_mutex.unlock();
 }
