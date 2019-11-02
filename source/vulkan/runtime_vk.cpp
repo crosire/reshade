@@ -394,6 +394,9 @@ bool reshade::vulkan::runtime_vk::on_init(VkSwapchainKHR swapchain, const VkSwap
 		}
 	}
 
+	// Reset pool index since a few command lists are created during initialization
+	_pool_index = 0;
+
 	const size_t NUM_COMMAND_FRAMES = 5;
 	_cmd_pool.resize(NUM_COMMAND_FRAMES);
 	_cmd_fences.resize(NUM_COMMAND_FRAMES);
@@ -439,6 +442,18 @@ bool reshade::vulkan::runtime_vk::on_init(VkSwapchainKHR swapchain, const VkSwap
 		check_result(vk.CreateDescriptorSetLayout(_device, &create_info, nullptr, &_effect_ubo_layout)) false;
 	}
 
+	_empty_depth_image = create_image(1, 1, 1, VK_FORMAT_R16_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+	if (_empty_depth_image == VK_NULL_HANDLE)
+		return false;
+	_empty_depth_image_view = create_image_view(_empty_depth_image, VK_FORMAT_R16_UNORM, 1, VK_IMAGE_ASPECT_COLOR_BIT);
+	if (_empty_depth_image_view == VK_NULL_HANDLE)
+		return false;
+	if (VkCommandBuffer cmd_list = create_command_list(); cmd_list != VK_NULL_HANDLE)
+	{
+		transition_layout(cmd_list, _empty_depth_image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+		execute_command_list(cmd_list);
+	}
+
 #if RESHADE_GUI
 	if (!init_imgui_resources())
 		return false;
@@ -467,6 +482,11 @@ void reshade::vulkan::runtime_vk::on_reset()
 	_backbuffer_texture = VK_NULL_HANDLE;
 	vk.DestroyImage(_device, _default_depthstencil, nullptr);
 	_default_depthstencil = VK_NULL_HANDLE;
+
+	vk.DestroyImageView(_device, _empty_depth_image_view, nullptr);
+	_empty_depth_image_view = VK_NULL_HANDLE;
+	vk.DestroyImage(_device, _empty_depth_image, nullptr);
+	_empty_depth_image = VK_NULL_HANDLE;
 
 	vk.DestroyImageView(_device, _depth_image_view, nullptr);
 	_depth_image_view = VK_NULL_HANDLE;
@@ -1029,12 +1049,10 @@ bool reshade::vulkan::runtime_vk::compile_effect(effect_data &effect)
 			image_binding.imageView = _backbuffer_texture_view[info.srgb];
 			break;
 		case texture_reference::depth_buffer:
-			if (_depth_image_view == VK_NULL_HANDLE)
-				// Set to a default view to avoid crash because of this being null
-				// TODO: Back buffer is not really a great choice here ...
-				image_binding.imageView = _backbuffer_texture_view[0];
-			else
+			if (_depth_image_view != VK_NULL_HANDLE)
 				image_binding.imageView = _depth_image_view;
+			else // Set to a default view to avoid crash because of this being null
+				image_binding.imageView = _empty_depth_image_view;
 			// Keep track of the depth buffer texture descriptor to simplify updating it
 			effect_data.depth_image_binding = info.binding;
 			break;
@@ -1983,8 +2001,7 @@ void reshade::vulkan::runtime_vk::update_depthstencil_image(VkImage image, VkIma
 	}
 	else
 	{
-		// TODO: As above, this should be something else
-		image_binding.imageView = _backbuffer_texture_view[0];
+		image_binding.imageView = _empty_depth_image_view;
 	}
 
 	// Update image bindings

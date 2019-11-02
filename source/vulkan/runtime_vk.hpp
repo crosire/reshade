@@ -101,6 +101,8 @@ namespace reshade::vulkan
 
 		VkImage _backbuffer_texture = VK_NULL_HANDLE;
 		VkImageView _backbuffer_texture_view[2] = {};
+		VkImage _empty_depth_image = VK_NULL_HANDLE;
+		VkImageView _empty_depth_image_view = VK_NULL_HANDLE;
 		VkImage _default_depthstencil = VK_NULL_HANDLE;
 		VkImageView _default_depthstencil_view = VK_NULL_HANDLE;
 
