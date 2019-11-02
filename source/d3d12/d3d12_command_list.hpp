@@ -110,13 +110,6 @@ struct DECLSPEC_UUID("479B29E3-9A2C-11D0-B696-00A0C903487A") D3D12GraphicsComman
 	void    STDMETHODCALLTYPE DispatchRays(const D3D12_DISPATCH_RAYS_DESC *pDesc) override;
 	#pragma endregion
 
-#if RESHADE_DX12_CAPTURE_DEPTH_BUFFERS
-	bool save_depth_texture(D3D12_CPU_DESCRIPTOR_HANDLE pDepthStencilView, bool cleared);
-
-	void track_active_rendertargets(const D3D12_CPU_DESCRIPTOR_HANDLE *pDepthStencilView);
-	void track_cleared_depthstencil(D3D12_CLEAR_FLAGS ClearFlags, D3D12_CPU_DESCRIPTOR_HANDLE pDepthStencilView);
-#endif
-
 	bool check_and_upgrade_interface(REFIID riid);
 
 	ULONG _ref = 1;

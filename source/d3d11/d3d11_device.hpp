@@ -113,5 +113,5 @@ struct DECLSPEC_UUID("72299288-2C68-4AD8-945D-2BFB5AA9C609") D3D11Device : ID3D1
 	DXGIDevice *const _dxgi_device;
 	D3D11DeviceContext *const _immediate_context;
 	std::vector<std::shared_ptr<reshade::d3d11::runtime_d3d11>> _runtimes;
-	std::atomic<unsigned int> _clear_DSV_iter = 1;
+	std::atomic_uint _current_dsv_clear_index = 1;
 };

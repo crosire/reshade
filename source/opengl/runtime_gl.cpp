@@ -1185,7 +1185,7 @@ void reshade::opengl::runtime_gl::render_imgui_draw_data(ImDrawData *draw_data)
 
 void reshade::opengl::runtime_gl::draw_debug_menu()
 {
-	if (ImGui::Checkbox("Force default depth buffer", &_force_main_depth_buffer) && _force_main_depth_buffer)
+	if (ImGui::Checkbox("Always use depth buffer from swap chain", &_force_main_depth_buffer) && _force_main_depth_buffer)
 	{
 		_depth_source = 0;
 		update_texture_references(texture_reference::depth_buffer);

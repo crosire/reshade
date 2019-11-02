@@ -7,7 +7,6 @@
 #include "d3d11_device.hpp"
 #include "d3d11_device_context.hpp"
 #include "d3d11_command_list.hpp"
-#include "runtime_d3d11.hpp"
 
 D3D11DeviceContext::D3D11DeviceContext(D3D11Device *device, ID3D11DeviceContext  *original) :
 	_orig(original),
@@ -33,91 +32,6 @@ D3D11DeviceContext::D3D11DeviceContext(D3D11Device *device, ID3D11DeviceContext3
 	_device(device) {
 	assert(original != nullptr);
 }
-
-#if RESHADE_DX11_CAPTURE_DEPTH_BUFFERS
-bool D3D11DeviceContext::save_depth_texture(ID3D11DepthStencilView *pDepthStencilView, bool cleared)
-{
-	if (_device->_runtimes.empty())
-		return false;
-
-	const auto runtime = _device->_runtimes.front();
-
-	if (!runtime->depth_buffer_before_clear)
-		return false;
-	if (!cleared && !runtime->extended_depth_buffer_detection)
-		return false;
-
-	assert(pDepthStencilView != nullptr);
-
-	// Retrieve texture from depth stencil
-	com_ptr<ID3D11Resource> resource;
-	pDepthStencilView->GetResource(&resource);
-
-	com_ptr<ID3D11Texture2D> texture;
-	if (FAILED(resource->QueryInterface(&texture)))
-		return false;
-
-	D3D11_TEXTURE2D_DESC desc;
-	texture->GetDesc(&desc);
-
-	// Check if aspect ratio is similar to the back buffer one
-	const float width_factor = float(runtime->frame_width()) / float(desc.Width);
-	const float height_factor = float(runtime->frame_height()) / float(desc.Height);
-	const float aspect_ratio = float(runtime->frame_width()) / float(runtime->frame_height());
-	const float texture_aspect_ratio = float(desc.Width) / float(desc.Height);
-
-	if (fabs(texture_aspect_ratio - aspect_ratio) > 0.1f || width_factor > 1.85f || height_factor > 1.85f || width_factor < 0.5f || height_factor < 0.5f)
-		return false; // No match, not a good fit
-
-	// In case the depth texture is retrieved, we make a copy of it and store it in an ordered map to use it later in the final rendering stage.
-	if ((runtime->cleared_depth_buffer_index == 0 && cleared) || (_device->_clear_DSV_iter <= runtime->cleared_depth_buffer_index))
-	{
-		// Select an appropriate destination texture
-		com_ptr<ID3D11Texture2D> depth_texture_save = runtime->select_depth_texture_save(desc);
-		if (depth_texture_save == nullptr)
-			return false;
-
-		// Copy the depth texture. This is necessary because the content of the depth texture is cleared.
-		// This way, we can retrieve this content in the final rendering stage
-		this->CopyResource(depth_texture_save.get(), texture.get());
-
-		// Store the saved texture in the ordered map.
-		_draw_call_tracker.track_depth_texture(runtime->depth_buffer_texture_format, _device->_clear_DSV_iter, texture.get(), pDepthStencilView, depth_texture_save, cleared);
-	}
-	else
-	{
-		// Store a null depth texture in the ordered map in order to display it even if the user chose a previous cleared texture.
-		// This way the texture will still be visible in the depth buffer selection window and the user can choose it.
-		_draw_call_tracker.track_depth_texture(runtime->depth_buffer_texture_format, _device->_clear_DSV_iter, texture.get(), pDepthStencilView, nullptr, cleared);
-	}
-
-	_device->_clear_DSV_iter++;
-
-	return true;
-}
-
-void D3D11DeviceContext::track_active_rendertargets(UINT NumViews, ID3D11RenderTargetView *const *ppRenderTargetViews, ID3D11DepthStencilView *pDepthStencilView)
-{
-	if (pDepthStencilView == nullptr || _device->_runtimes.empty())
-		return;
-
-	const auto runtime = _device->_runtimes.front();
-
-	_draw_call_tracker.track_rendertargets(runtime->depth_buffer_texture_format, pDepthStencilView, NumViews, ppRenderTargetViews);
-
-	save_depth_texture(pDepthStencilView, false);
-}
-void D3D11DeviceContext::track_cleared_depthstencil(UINT ClearFlags, ID3D11DepthStencilView *pDepthStencilView)
-{
-	if (pDepthStencilView == nullptr || _device->_runtimes.empty())
-		return;
-
-	const auto runtime = _device->_runtimes.front();
-
-	if (ClearFlags & D3D11_CLEAR_DEPTH || (runtime->depth_buffer_more_copies && ClearFlags & D3D11_CLEAR_STENCIL))
-		save_depth_texture(pDepthStencilView, true);
-}
-#endif
 
 bool D3D11DeviceContext::check_and_upgrade_interface(REFIID riid)
 {
@@ -333,23 +247,15 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::GSSetSamplers(UINT StartSlot, UINT
 void    STDMETHODCALLTYPE D3D11DeviceContext::OMSetRenderTargets(UINT NumViews, ID3D11RenderTargetView *const *ppRenderTargetViews, ID3D11DepthStencilView *pDepthStencilView)
 {
 #if RESHADE_DX11_CAPTURE_DEPTH_BUFFERS
-	track_active_rendertargets(NumViews, ppRenderTargetViews, pDepthStencilView);
+	_draw_call_tracker.track_render_targets(NumViews, ppRenderTargetViews, pDepthStencilView);
 #endif
-
-	if (!_device->_runtimes.empty())
-	{
-		const auto runtime = _device->_runtimes.front();
-		runtime->on_set_depthstencil_view(pDepthStencilView);
-	}
-
 	_orig->OMSetRenderTargets(NumViews, ppRenderTargetViews, pDepthStencilView);
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::OMSetRenderTargetsAndUnorderedAccessViews(UINT NumRTVs, ID3D11RenderTargetView *const *ppRenderTargetViews, ID3D11DepthStencilView *pDepthStencilView, UINT UAVStartSlot, UINT NumUAVs, ID3D11UnorderedAccessView *const *ppUnorderedAccessViews, const UINT *pUAVInitialCounts)
 {
 #if RESHADE_DX11_CAPTURE_DEPTH_BUFFERS
-	track_active_rendertargets(NumRTVs, ppRenderTargetViews, pDepthStencilView);
+	_draw_call_tracker.track_render_targets(NumRTVs, ppRenderTargetViews, pDepthStencilView);
 #endif
-
 	_orig->OMSetRenderTargetsAndUnorderedAccessViews(NumRTVs, ppRenderTargetViews, pDepthStencilView, UAVStartSlot, NumUAVs, ppUnorderedAccessViews, pUAVInitialCounts);
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::OMSetBlendState(ID3D11BlendState *pBlendState, const FLOAT BlendFactor[4], UINT SampleMask)
@@ -430,15 +336,9 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::ClearUnorderedAccessViewFloat(ID3D
 void    STDMETHODCALLTYPE D3D11DeviceContext::ClearDepthStencilView(ID3D11DepthStencilView *pDepthStencilView, UINT ClearFlags, FLOAT Depth, UINT8 Stencil)
 {
 #if RESHADE_DX11_CAPTURE_DEPTH_BUFFERS
-	track_cleared_depthstencil(ClearFlags, pDepthStencilView);
-#endif
-
 	if (!_device->_runtimes.empty())
-	{
-		const auto runtime = _device->_runtimes.front();
-		runtime->on_clear_depthstencil_view(pDepthStencilView);
-	}
-
+		_draw_call_tracker.track_cleared_depthstencil(this, ClearFlags, pDepthStencilView, _device->_current_dsv_clear_index++, _device->_runtimes.front().get());
+#endif
 	_orig->ClearDepthStencilView(pDepthStencilView, ClearFlags, Depth, Stencil);
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::GenerateMips(ID3D11ShaderResourceView *pShaderResourceView)
@@ -594,26 +494,10 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::GSGetSamplers(UINT StartSlot, UINT
 void    STDMETHODCALLTYPE D3D11DeviceContext::OMGetRenderTargets(UINT NumViews, ID3D11RenderTargetView **ppRenderTargetViews, ID3D11DepthStencilView **ppDepthStencilView)
 {
 	_orig->OMGetRenderTargets(NumViews, ppRenderTargetViews, ppDepthStencilView);
-
-	if (_device->_runtimes.empty())
-		return;
-
-	const auto runtime = _device->_runtimes.front();
-
-	if (ppDepthStencilView != nullptr)
-		runtime->on_get_depthstencil_view(*ppDepthStencilView);
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::OMGetRenderTargetsAndUnorderedAccessViews(UINT NumRTVs, ID3D11RenderTargetView **ppRenderTargetViews, ID3D11DepthStencilView **ppDepthStencilView, UINT UAVStartSlot, UINT NumUAVs, ID3D11UnorderedAccessView **ppUnorderedAccessViews)
 {
 	_orig->OMGetRenderTargetsAndUnorderedAccessViews(NumRTVs, ppRenderTargetViews, ppDepthStencilView, UAVStartSlot, NumUAVs, ppUnorderedAccessViews);
-
-	if (_device->_runtimes.empty())
-		return;
-
-	const auto runtime = _device->_runtimes.front();
-
-	if (ppDepthStencilView != nullptr)
-		runtime->on_get_depthstencil_view(*ppDepthStencilView);
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::OMGetBlendState(ID3D11BlendState **ppBlendState, FLOAT BlendFactor[4], UINT *pSampleMask)
 {
@@ -714,6 +598,7 @@ HRESULT STDMETHODCALLTYPE D3D11DeviceContext::FinishCommandList(BOOL RestoreDefe
 		*ppCommandList = command_list_proxy;
 	}
 
+	// All statistics are now stored in the command list tracker, so reset current tracker here
 	_draw_call_tracker.reset();
 
 	return hr;

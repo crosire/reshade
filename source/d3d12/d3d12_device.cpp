@@ -16,15 +16,22 @@ D3D12Device::D3D12Device(ID3D12Device *original) :
 	assert(original != nullptr);
 }
 
-void D3D12Device::clear_drawcall_stats(bool all)
+void D3D12Device::clear_drawcall_stats(bool release_resources)
 {
 	const std::lock_guard<std::mutex> lock(_device_global_mutex);
 
-	_clear_DSV_iter = 1;
 	_draw_call_tracker.reset();
+	_current_dsv_clear_index = 1;
 
-	if (all)
+	if (release_resources)
 		_depthstencil_resources_by_handle.clear();
+}
+
+com_ptr<ID3D12Resource> D3D12Device::resource_from_handle(D3D12_CPU_DESCRIPTOR_HANDLE handle)
+{
+	const std::lock_guard<std::mutex> lock(_device_global_mutex);
+
+	return _depthstencil_resources_by_handle[handle.ptr];
 }
 
 bool D3D12Device::check_and_upgrade_interface(REFIID riid)
@@ -258,6 +265,8 @@ D3D12_HEAP_PROPERTIES STDMETHODCALLTYPE D3D12Device::GetCustomHeapProperties(UIN
 }
 HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommittedResource(const D3D12_HEAP_PROPERTIES *pHeapProperties, D3D12_HEAP_FLAGS HeapFlags, const D3D12_RESOURCE_DESC *pResourceDesc, D3D12_RESOURCE_STATES InitialResourceState, const D3D12_CLEAR_VALUE *pOptimizedClearValue, REFIID riidResource, void **ppvResource)
 {
+	assert(pResourceDesc != nullptr);
+
 	// Remove D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE flag so that we can access depth stencil resources in post-processing shaders.
 	// The flag is only valid in combination with D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL anyway (see https://docs.microsoft.com/en-us/windows/win32/api/d3d12/ne-d3d12-d3d12_resource_flags), so can always remove it.
 	D3D12_RESOURCE_DESC new_desc = *pResourceDesc;

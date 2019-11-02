@@ -26,19 +26,12 @@ namespace reshade::d3d12
 			);
 		void on_reset();
 		void on_present(draw_call_tracker& tracker);
-		void on_create_depthstencil_view(ID3D12Resource *pResource);
 
 		bool capture_screenshot(uint8_t *buffer) const override;
 
 #if RESHADE_DX12_CAPTURE_DEPTH_BUFFERS
-		com_ptr<ID3D12Resource> select_depth_texture_save(D3D12_RESOURCE_DESC &texture_desc, const D3D12_HEAP_PROPERTIES *props);
+		com_ptr<ID3D12Resource> create_compatible_texture(D3D12_RESOURCE_DESC desc);
 #endif
-
-		bool depth_buffer_before_clear = false;
-		bool depth_buffer_more_copies = false;
-		bool extended_depth_buffer_detection = false;
-		unsigned int cleared_depth_buffer_index = 0;
-		int depth_buffer_texture_format = 0; // No depth buffer texture format filter by default
 
 	private:
 		bool init_backbuffer_textures(UINT num_buffers);
@@ -70,10 +63,10 @@ namespace reshade::d3d12
 #endif
 
 #if RESHADE_DX12_CAPTURE_DEPTH_BUFFERS
-		void detect_depth_source(draw_call_tracker& tracker);
-		bool update_depthstencil_texture(ID3D12Resource *texture);
+		void update_depthstencil_texture(com_ptr<ID3D12Resource> texture);
 
-		std::unordered_map<UINT64, com_ptr<ID3D12Resource>> _depth_texture_saves;
+		ID3D12Resource *_depth_texture_override = nullptr;
+		std::unordered_map<UINT64, com_ptr<ID3D12Resource>> _saved_depth_textures;
 #endif
 
 		const com_ptr<ID3D12Device> _device;
@@ -94,8 +87,7 @@ namespace reshade::d3d12
 		com_ptr<ID3D12DescriptorHeap> _depthstencil_dsvs;
 		std::vector<com_ptr<ID3D12Resource>> _backbuffers;
 		com_ptr<ID3D12Resource> _default_depthstencil;
-		com_ptr<ID3D12Resource> _depthstencil_texture;
-		ID3D12Resource *_best_depth_stencil_overwrite = nullptr;
+		com_ptr<ID3D12Resource> _depth_texture;
 
 		com_ptr<ID3D12Resource> _backbuffer_texture;
 

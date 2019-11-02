@@ -24,21 +24,11 @@ namespace reshade::d3d10
 		void on_reset();
 		void on_present(draw_call_tracker &tracker);
 
-		void on_set_depthstencil_view(ID3D10DepthStencilView *&depthstencil);
-		void on_get_depthstencil_view(ID3D10DepthStencilView *&depthstencil);
-		void on_clear_depthstencil_view(ID3D10DepthStencilView *&depthstencil);
-
 		bool capture_screenshot(uint8_t *buffer) const override;
 
 #if RESHADE_DX10_CAPTURE_DEPTH_BUFFERS
-		com_ptr<ID3D10Texture2D> select_depth_texture_save(D3D10_TEXTURE2D_DESC texture_desc);
+		com_ptr<ID3D10Texture2D> create_compatible_texture(D3D10_TEXTURE2D_DESC desc);
 #endif
-
-		bool depth_buffer_before_clear = false;
-		bool depth_buffer_more_copies = false;
-		bool extended_depth_buffer_detection = false;
-		unsigned int cleared_depth_buffer_index = 0;
-		int depth_buffer_texture_format = 0; // No depth buffer texture format filter by default
 
 	private:
 		bool init_backbuffer_texture();
@@ -64,10 +54,10 @@ namespace reshade::d3d10
 #endif
 
 #if RESHADE_DX10_CAPTURE_DEPTH_BUFFERS
-		void detect_depth_source(draw_call_tracker& tracker);
-		bool create_depthstencil_replacement(ID3D10DepthStencilView *depthstencil, ID3D10Texture2D *texture);
+		void update_depthstencil_texture(com_ptr<ID3D10Texture2D> texture);
 
-		std::unordered_map<UINT, com_ptr<ID3D10Texture2D>> _depth_texture_saves;
+		ID3D10Texture2D *_depth_texture_override = nullptr;
+		std::unordered_map<UINT, com_ptr<ID3D10Texture2D>> _saved_depth_textures;
 #endif
 
 		const com_ptr<ID3D10Device1> _device;
@@ -76,7 +66,7 @@ namespace reshade::d3d10
 		com_ptr<ID3D10Texture2D> _backbuffer_texture;
 		com_ptr<ID3D10RenderTargetView> _backbuffer_rtv[3];
 		com_ptr<ID3D10ShaderResourceView> _backbuffer_texture_srv[2];
-		com_ptr<ID3D10ShaderResourceView> _depthstencil_texture_srv;
+		com_ptr<ID3D10ShaderResourceView> _depth_texture_srv;
 		std::unordered_map<size_t, com_ptr<ID3D10SamplerState>> _effect_sampler_states;
 		std::vector<com_ptr<ID3D10Buffer>> _constant_buffers;
 
@@ -84,9 +74,7 @@ namespace reshade::d3d10
 		DXGI_FORMAT _backbuffer_format = DXGI_FORMAT_UNKNOWN;
 		state_block _app_state;
 		com_ptr<ID3D10Texture2D> _backbuffer, _backbuffer_resolved;
-		com_ptr<ID3D10DepthStencilView> _depthstencil, _depthstencil_replacement;
-		ID3D10DepthStencilView *_best_depthstencil_overwrite = nullptr;
-		com_ptr<ID3D10Texture2D> _depthstencil_texture;
+		com_ptr<ID3D10Texture2D> _depth_texture;
 		com_ptr<ID3D10DepthStencilView> _default_depthstencil;
 		com_ptr<ID3D10VertexShader> _copy_vertex_shader;
 		com_ptr<ID3D10PixelShader> _copy_pixel_shader;

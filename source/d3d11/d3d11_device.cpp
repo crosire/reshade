@@ -19,8 +19,8 @@ D3D11Device::D3D11Device(IDXGIDevice1 *dxgi_device, ID3D11Device *original, ID3D
 
 void D3D11Device::clear_drawcall_stats()
 {
-	_clear_DSV_iter = 1;
 	_immediate_context->_draw_call_tracker.reset();
+	_current_dsv_clear_index = 1;
 }
 
 bool D3D11Device::check_and_upgrade_interface(REFIID riid)
@@ -129,7 +129,14 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateTexture1D(const D3D11_TEXTURE1D_DES
 }
 HRESULT STDMETHODCALLTYPE D3D11Device::CreateTexture2D(const D3D11_TEXTURE2D_DESC *pDesc, const D3D11_SUBRESOURCE_DATA *pInitialData, ID3D11Texture2D **ppTexture2D)
 {
-	return _orig->CreateTexture2D(pDesc, pInitialData, ppTexture2D);
+	assert(pDesc != nullptr);
+
+	// Add D3D11_BIND_SHADER_RESOURCE flag to all depth stencil textures so that we can access them in post-processing shaders.
+	D3D11_TEXTURE2D_DESC new_desc = *pDesc;
+	if (0 != (new_desc.BindFlags & D3D11_BIND_DEPTH_STENCIL))
+		new_desc.BindFlags |= D3D11_BIND_SHADER_RESOURCE;
+
+	return _orig->CreateTexture2D(&new_desc, pInitialData, ppTexture2D);
 }
 HRESULT STDMETHODCALLTYPE D3D11Device::CreateTexture3D(const D3D11_TEXTURE3D_DESC *pDesc, const D3D11_SUBRESOURCE_DATA *pInitialData, ID3D11Texture3D **ppTexture3D)
 {

@@ -21,19 +21,27 @@ namespace reshade::d3d12
 		};
 
 #if RESHADE_DX12_CAPTURE_DEPTH_BUFFERS
+		struct cleared_depthstencil_info
+		{
+			com_ptr<ID3D12Resource> dsv_texture;
+			com_ptr<ID3D12Resource> backup_texture;
+		};
 		struct intermediate_snapshot_info
 		{
-			ID3D12Resource *depthstencil = nullptr; // No need to use a 'com_ptr' here since '_counters_per_used_depthstencil' already keeps a reference
 			draw_stats stats;
-			std::map<ID3D12Resource *, draw_stats> additional_views;
 		};
+
+		static bool preserve_depth_buffers;
+		static bool preserve_stencil_buffers;
+		static unsigned int depth_stencil_clear_index;
+		static unsigned int filter_depth_texture_format;
 #endif
 
 		UINT total_vertices() const { return _global_counter.vertices; }
 		UINT total_drawcalls() const { return _global_counter.drawcalls; }
 
 #if RESHADE_DX12_CAPTURE_DEPTH_BUFFERS
-		const auto &depth_buffer_counters() const { return _counters_per_used_depthstencil; }
+		const auto &depth_buffer_counters() const { return _counters_per_used_depth_texture; }
 		const auto &cleared_depth_textures() const { return _cleared_depth_textures; }
 #endif
 
@@ -43,36 +51,22 @@ namespace reshade::d3d12
 		void on_draw(UINT vertices);
 
 #if RESHADE_DX12_CAPTURE_DEPTH_BUFFERS
-		void track_rendertargets(int format_index, ID3D12Resource *depthstencil);
-		void track_depth_texture(int format_index, UINT index, com_ptr<ID3D12Resource> src_texture, com_ptr<ID3D12Resource> dest_texture, bool cleared);
+		void track_render_targets(com_ptr<ID3D12Resource> depthstencil);
+		void track_cleared_depthstencil(ID3D12GraphicsCommandList *cmd_list, D3D12_CLEAR_FLAGS clear_flags, com_ptr<ID3D12Resource> depthstencil, UINT clear_index, class runtime_d3d12 *runtime);
 
-		void keep_cleared_depth_textures();
+		static bool check_aspect_ratio(const D3D12_RESOURCE_DESC &desc, UINT width, UINT height);
+		static bool check_texture_format(const D3D12_RESOURCE_DESC &desc);
 
-		intermediate_snapshot_info find_best_snapshot(UINT width, UINT height);
-		ID3D12Resource *find_best_cleared_depth_buffer_texture(UINT clear_index);
+		com_ptr<ID3D12Resource> find_best_depth_texture(UINT width, UINT height);
 #endif
-
-		com_ptr<ID3D12Resource> _current_depthstencil;
 		
 	private:
-		struct depth_texture_save_info
-		{
-			com_ptr<ID3D12Resource> src_texture;
-			D3D12_RESOURCE_DESC src_texture_desc;
-			com_ptr<ID3D12Resource> dest_texture;
-			bool cleared = false;
-		};
-
-#if RESHADE_DX12_CAPTURE_DEPTH_BUFFERS
-		bool check_depthstencil(ID3D12Resource *depthstencil) const;
-		bool check_depth_texture_format(int format_index, ID3D12Resource *depthstencil);
-#endif
-
 		draw_stats _global_counter;
 #if RESHADE_DX12_CAPTURE_DEPTH_BUFFERS
+		com_ptr<ID3D12Resource> _current_depthstencil;
+		std::map<UINT, cleared_depthstencil_info> _cleared_depth_textures;
 		// Use "std::map" instead of "std::unordered_map" so that the iteration order is guaranteed
-		std::map<com_ptr<ID3D12Resource>, intermediate_snapshot_info> _counters_per_used_depthstencil;
-		std::map<UINT, depth_texture_save_info> _cleared_depth_textures;
+		std::map<com_ptr<ID3D12Resource>, intermediate_snapshot_info> _counters_per_used_depth_texture;
 #endif
 	};
 }
