@@ -205,6 +205,7 @@ void reshade::opengl::runtime_gl::on_reset()
 	memset(_rbo, 0, sizeof(_rbo));
 
 	_depth_source = 0;
+	_depth_source_table.clear();
 
 #if RESHADE_GUI
 	glDeleteProgram(_imgui_program);
