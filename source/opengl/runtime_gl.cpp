@@ -109,9 +109,11 @@ reshade::opengl::runtime_gl::runtime_gl()
 		config.get("OPENGL", "ReserveTextureNames", num_reserve_texture_names);
 		_reserved_texture_names.resize(num_reserve_texture_names);
 		config.get("OPENGL", "ForceMainDepthBuffer", _force_main_depth_buffer);
+		config.get("OPENGL", "UseAspectRatioHeuristics", _use_aspect_ratio_heuristics);
 	});
 	subscribe_to_save_config([this](ini_file &config) {
 		config.set("OPENGL", "ForceMainDepthBuffer", _force_main_depth_buffer);
+		config.set("OPENGL", "UseAspectRatioHeuristics", _use_aspect_ratio_heuristics);
 	});
 }
 
@@ -1186,10 +1188,40 @@ void reshade::opengl::runtime_gl::render_imgui_draw_data(ImDrawData *draw_data)
 
 void reshade::opengl::runtime_gl::draw_debug_menu()
 {
-	if (ImGui::Checkbox("Always use depth buffer from swap chain", &_force_main_depth_buffer) && _force_main_depth_buffer)
+	if (ImGui::CollapsingHeader("Depth Buffers", ImGuiTreeNodeFlags_DefaultOpen))
 	{
-		_depth_source = 0;
-		update_texture_references(texture_reference::depth_buffer);
+		bool modified = false;
+		modified |= ImGui::Checkbox("Always use depth buffer from swap chain", &_force_main_depth_buffer);
+
+		if (_force_main_depth_buffer)
+		{
+			if (modified) // Option to force main depth buffer was just enabled, so update depth source
+			{
+				_depth_source = 0;
+				update_texture_references(texture_reference::depth_buffer);
+			}
+		}
+		else
+		{
+			modified |= ImGui::Checkbox("Use aspect ratio heuristics", &_use_aspect_ratio_heuristics);
+
+			ImGui::Spacing();
+			ImGui::Separator();
+			ImGui::Spacing();
+
+			for (const auto &[depth_source, snapshot] : _depth_source_table)
+			{
+				ImGui::Text("%s0x%08x | %4ux%-4u | %5u draw calls ==> %8u vertices |",
+					(depth_source == _depth_source ? "> " : "  "), depth_source, snapshot.width, snapshot.height, snapshot.num_drawcalls, snapshot.num_vertices);
+			}
+
+			ImGui::Spacing();
+			ImGui::Separator();
+			ImGui::Spacing();
+		}
+
+		if (modified)
+			runtime::save_config();
 	}
 }
 #endif
@@ -1220,9 +1252,14 @@ void reshade::opengl::runtime_gl::detect_depth_source()
 			if (it.second.num_drawcalls == 0)
 				continue; // Skip candidates that were not used during rendering
 
+			bool candidate = true;
 			// Detection heuristic based on dimensions and usage
-			if (((it.second.width > _width * 0.95 && it.second.width < _width * 1.05) && (it.second.height > _height * 0.95 && it.second.height < _height * 1.05)) &&
-				((it.second.num_vertices * (1.2f - float(it.second.num_drawcalls) / _drawcalls)) >= (best_info.num_vertices * (1.2f - float(best_info.num_drawcalls) / _drawcalls))))
+			if (_use_aspect_ratio_heuristics)
+				candidate = (it.second.width > _width * 0.95 && it.second.width < _width * 1.05) && (it.second.height > _height * 0.95 && it.second.height < _height * 1.05);
+			if (candidate)
+				candidate = (it.second.num_vertices * (1.2f - float(it.second.num_drawcalls) / _drawcalls)) >= (best_info.num_vertices * (1.2f - float(best_info.num_drawcalls) / _drawcalls));
+
+			if (candidate)
 			{
 				best_info = it.second;
 				best_match = it.first;

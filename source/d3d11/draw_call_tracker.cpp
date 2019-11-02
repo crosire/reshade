@@ -134,6 +134,7 @@ namespace reshade::d3d11
 	}
 
 #if RESHADE_DX11_CAPTURE_DEPTH_BUFFERS
+	bool draw_call_tracker::filter_aspect_ratio = true;
 	bool draw_call_tracker::preserve_depth_buffers = false;
 	bool draw_call_tracker::preserve_stencil_buffers = false;
 	unsigned int draw_call_tracker::depth_stencil_clear_index = 0;
@@ -191,6 +192,9 @@ namespace reshade::d3d11
 
 	bool draw_call_tracker::check_aspect_ratio(const D3D11_TEXTURE2D_DESC &desc, UINT width, UINT height)
 	{
+		if (!filter_aspect_ratio)
+			return true;
+
 		const float aspect_ratio = float(width) / float(height);
 		const float texture_aspect_ratio = float(desc.Width) / float(desc.Height);
 

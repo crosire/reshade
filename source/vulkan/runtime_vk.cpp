@@ -116,12 +116,14 @@ reshade::vulkan::runtime_vk::runtime_vk(VkDevice device, VkPhysicalDevice physic
 		config.get("VULKAN_BUFFER_DETECTION", "DepthBufferTextureFormat", draw_call_tracker::filter_depth_texture_format);
 		config.get("VULKAN_BUFFER_DETECTION", "DepthBufferMoreCopies", draw_call_tracker::preserve_stencil_buffers);
 		config.get("VULKAN_BUFFER_DETECTION", "DepthBufferClearingNumber", draw_call_tracker::depth_stencil_clear_index);
+		config.get("VULKAN_BUFFER_DETECTION", "UseAspectRatioHeuristics", draw_call_tracker::filter_aspect_ratio);
 	});
 	subscribe_to_save_config([this](ini_file &config) {
 		config.set("VULKAN_BUFFER_DETECTION", "DepthBufferRetrievalMode", draw_call_tracker::preserve_depth_buffers);
 		config.set("VULKAN_BUFFER_DETECTION", "DepthBufferTextureFormat", draw_call_tracker::filter_depth_texture_format);
 		config.set("VULKAN_BUFFER_DETECTION", "DepthBufferMoreCopies", draw_call_tracker::preserve_stencil_buffers);
 		config.set("VULKAN_BUFFER_DETECTION", "DepthBufferClearingNumber", draw_call_tracker::depth_stencil_clear_index);
+		config.set("VULKAN_BUFFER_DETECTION", "UseAspectRatioHeuristics", draw_call_tracker::filter_aspect_ratio);
 	});
 }
 
@@ -1868,8 +1870,7 @@ void reshade::vulkan::runtime_vk::draw_debug_menu()
 	{
 		bool modified = false;
 		modified |= ImGui::Combo("Depth texture format", (int*)&draw_call_tracker::filter_depth_texture_format, "All\0D16\0D16S8\0D24S8\0D32F\0D32FS8\0");
-
-		ImGui::Spacing();
+		modified |= ImGui::Checkbox("Use aspect ratio heuristics", &draw_call_tracker::filter_aspect_ratio);
 		modified |= ImGui::Checkbox("Copy depth buffers before clear operation", &draw_call_tracker::preserve_depth_buffers);
 
 		if (modified) // Detection settings have changed, reset override
@@ -1907,7 +1908,7 @@ void reshade::vulkan::runtime_vk::draw_debug_menu()
 				}
 
 				ImGui::SameLine();
-				ImGui::Text("=> 0x%0llx | %4ux%-4u |", (uint64_t)snapshot.src_image, snapshot.image_info.extent.width, snapshot.image_info.extent.height);
+				ImGui::Text("=> 0x%016llx | %4ux%-4u |", (uint64_t)snapshot.src_image, snapshot.image_info.extent.width, snapshot.image_info.extent.height);
 			}
 		}
 		else
@@ -1919,7 +1920,7 @@ void reshade::vulkan::runtime_vk::draw_debug_menu()
 			for (const auto &[depthstencil, snapshot] : _current_tracker->depth_buffer_counters())
 			{
 				char label[512] = "";
-				sprintf_s(label, "%s0x%0llx", (depthstencil == _depth_image ? "> " : "  "), (uint64_t)depthstencil);
+				sprintf_s(label, "%s0x%016llx", (depthstencil == _depth_image ? "> " : "  "), (uint64_t)depthstencil);
 
 				const bool disabled = snapshot.image_info.samples != VK_SAMPLE_COUNT_1_BIT || !draw_call_tracker::check_texture_format(snapshot.image_info);
 				if (disabled) // Disable widget for MSAA textures

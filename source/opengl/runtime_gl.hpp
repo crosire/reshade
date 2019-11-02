@@ -61,6 +61,7 @@ namespace reshade::opengl
 		void detect_depth_source();
 
 		bool _force_main_depth_buffer = false;
+		bool _use_aspect_ratio_heuristics = true;
 		GLuint _depth_source = 0;
 		std::unordered_map<GLuint, depth_source_info> _depth_source_table;
 

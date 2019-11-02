@@ -206,6 +206,9 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::ExecuteBundle(ID3D12GraphicsCom
 	// Get original command list pointer from proxy object
 	const auto command_list_proxy = static_cast<D3D12GraphicsCommandList *>(pCommandList);
 
+	// Merge bundle command list trackers into the current one
+	_draw_call_tracker.merge(command_list_proxy->_draw_call_tracker);
+
 	_orig->ExecuteBundle(command_list_proxy->_orig);
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetDescriptorHeaps(UINT NumDescriptorHeaps, ID3D12DescriptorHeap *const *ppDescriptorHeaps)

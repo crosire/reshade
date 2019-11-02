@@ -86,6 +86,7 @@ namespace reshade::d3d9
 		unsigned int _num_simultaneous_rendertargets;
 		unsigned int _behavior_flags;
 		bool _disable_intz = false;
+		bool _use_aspect_ratio_heuristics = true;
 		bool _preserve_depth_buffers = false;
 		bool _auto_preserve = true;
 		size_t _preserve_starting_index = 0;

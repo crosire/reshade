@@ -33,6 +33,7 @@ namespace reshade::d3d10
 			std::map<ID3D10RenderTargetView *, draw_stats> additional_views;
 		};
 
+		static bool filter_aspect_ratio;
 		static bool preserve_depth_buffers;
 		static bool preserve_stencil_buffers;
 		static unsigned int depth_stencil_clear_index;

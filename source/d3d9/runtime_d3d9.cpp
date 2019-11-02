@@ -1265,28 +1265,12 @@ void reshade::d3d9::runtime_d3d9::draw_debug_menu()
 
 	if (ImGui::CollapsingHeader("Depth Buffers", ImGuiTreeNodeFlags_DefaultOpen))
 	{
-		if (ImGui::Checkbox("Copy depth buffers before clear operation", &_preserve_depth_buffers))
-		{
-			runtime::save_config();
-
-			// Force depth-stencil replacement recreation
-			_depthstencil = _default_depthstencil;
-			// Force depth source table recreation
-			_depth_buffer_table.clear();
-			_depth_source_table.clear();
-			_depthstencil_replacement.reset();
-			_init_depthbuffer_detection = true;
-
-			if (_preserve_depth_buffers)
-				_disable_intz = false;
-		}
+		bool modified = false;
+		modified |= ImGui::Checkbox("Use aspect ratio heuristics", &_use_aspect_ratio_heuristics);
+		modified |= ImGui::Checkbox("Copy depth buffers before clear operation", &_preserve_depth_buffers);
 
 		if (_preserve_depth_buffers)
 		{
-			ImGui::Spacing();
-
-			bool modified = false;
-
 			if (ImGui::Checkbox("Auto preserve", &_auto_preserve))
 			{
 				modified = true;
@@ -1294,6 +1278,8 @@ void reshade::d3d9::runtime_d3d9::draw_debug_menu()
 				_adjusted_preserve_starting_index = _depth_buffer_table.size() - 1;
 			}
 
+			ImGui::Spacing();
+			ImGui::Separator();
 			ImGui::Spacing();
 
 			for (size_t i = 0; i < _depth_buffer_table.size(); ++i)
@@ -1327,56 +1313,27 @@ void reshade::d3d9::runtime_d3d9::draw_debug_menu()
 			}
 
 			ImGui::Spacing();
+			ImGui::Separator();
 			ImGui::Spacing();
 
 			// this feature can help resolving source_engine wrong depth buffer detection
-			if (ImGui::Checkbox("Fix for source engine games", &_source_engine_fix))
-			{
-				modified = true;
-			}
-			ImGui::Text("Tip: in source engine games, the background can have more vertices than the main scene, so it leads to select the wrong depth buffer in auto preserve mode");
+			modified |= ImGui::Checkbox("Fix for source engine games", &_source_engine_fix);
+			ImGui::SetTooltip("Tip: in source engine games, the background can have more vertices than the main scene, so it leads to select the wrong depth buffer in auto preserve mode");
 
 			// this feature can help resolving user weapon or cockpit not appearing in the depth buffer
-			if (ImGui::Checkbox("Fix for user weapon or cockpit", &_brute_force_fix))
-			{
-				modified = true;
-			}
-			ImGui::Text("Tip: in some games, can help display user weapon or cockpit correctly in the depth buffer");
+			modified |= ImGui::Checkbox("Fix for user weapon or cockpit", &_brute_force_fix);
+			ImGui::SetTooltip("Tip: in some games, can help display user weapon or cockpit correctly in the depth buffer");
 
 			ImGui::Spacing();
 			ImGui::Spacing();
 
 			// this feature can help resolving weapons or cockpits not appearing in the depth buffer
-			if (ImGui::Checkbox("Focus on the best original depthstencil source", &_focus_on_best_original_depthstencil_source))
-			{
-				modified = true;
-			}
-			ImGui::Text("Tip: in some games, can help remove undesired UI elements from the depth buffer");
-			
-			if (modified)
-			{
-				runtime::save_config();
-
-				// Force depth-stencil replacement recreation
-				_depthstencil = _default_depthstencil;
-				// Force depth source table recreation
-				_depth_buffer_table.clear();
-				_depth_source_table.clear();
-				_depthstencil_replacement.reset();
-				_init_depthbuffer_detection = true;
-			}
+			modified |= ImGui::Checkbox("Focus on the best original depthstencil source", &_focus_on_best_original_depthstencil_source);
+			ImGui::SetTooltip("Tip: in some games, can help remove undesired UI elements from the depth buffer");
 		}
 		else
 		{
-			if (ImGui::Checkbox("Disable replacement with INTZ format", &_disable_intz))
-			{
-				runtime::save_config();
-
-				// Force depth-stencil replacement recreation
-				_depthstencil = _default_depthstencil;
-				// Force depth source table recreation
-				_depth_source_table.clear();
-			}
+			modified |= ImGui::Checkbox("Disable replacement with INTZ format", &_disable_intz);
 
 			ImGui::Spacing();
 			ImGui::Separator();
@@ -1387,6 +1344,24 @@ void reshade::d3d9::runtime_d3d9::draw_debug_menu()
 				ImGui::Text("%s0x%p | %5u draw calls ==> %8u vertices |",
 					(depthstencil == _depthstencil ? "> " : "  "), depthstencil.get(), snapshot.drawcall_count, snapshot.vertices_count);
 			}
+
+			ImGui::Spacing();
+			ImGui::Separator();
+			ImGui::Spacing();
+		}
+
+		if (modified)
+		{
+			runtime::save_config();
+
+			// Force replacement recreation
+			_depthstencil = _default_depthstencil;
+			// Force depth source table recreation
+			_depth_buffer_table.clear();
+			_depth_source_table.clear();
+			_depthstencil_replacement.reset();
+
+			_init_depthbuffer_detection = true;
 		}
 	}
 }
@@ -1491,6 +1466,9 @@ bool reshade::d3d9::runtime_d3d9::check_depthstencil_size(const D3DSURFACE_DESC 
 	if (desc.MultiSampleType != D3DMULTISAMPLE_NONE)
 		return false; // MSAA depth buffers are not supported since they would have to be moved into a plain surface before attaching to a shader slot
 
+	if (!_use_aspect_ratio_heuristics)
+		return true;
+
 	if (_disable_depth_buffer_size_restriction)
 	{
 		// Allow depth buffers with greater dimensions than the viewport (e.g. in games like Vanquish)
@@ -1502,11 +1480,13 @@ bool reshade::d3d9::runtime_d3d9::check_depthstencil_size(const D3DSURFACE_DESC 
 			&& (desc.Height >= floor(_height * 0.95) && desc.Height <= ceil(_height * 1.05));
 	}
 }
-
 bool reshade::d3d9::runtime_d3d9::check_depthstencil_size(const D3DSURFACE_DESC &desc, const D3DSURFACE_DESC &compared_desc)
 {
 	if (desc.MultiSampleType != D3DMULTISAMPLE_NONE)
 		return false; // MSAA depth buffers are not supported since they would have to be moved into a plain surface before attaching to a shader slot
+
+	if (!_use_aspect_ratio_heuristics)
+		return true;
 
 	if (_disable_depth_buffer_size_restriction)
 	{

@@ -102,12 +102,14 @@ reshade::d3d12::runtime_d3d12::runtime_d3d12(ID3D12Device *device, ID3D12Command
 		config.get("DX12_BUFFER_DETECTION", "DepthBufferTextureFormat", draw_call_tracker::filter_depth_texture_format);
 		config.get("DX12_BUFFER_DETECTION", "DepthBufferMoreCopies", draw_call_tracker::preserve_stencil_buffers);
 		config.get("DX12_BUFFER_DETECTION", "DepthBufferClearingNumber", draw_call_tracker::depth_stencil_clear_index);
+		config.get("DX12_BUFFER_DETECTION", "UseAspectRatioHeuristics", draw_call_tracker::filter_aspect_ratio);
 	});
 	subscribe_to_save_config([this](ini_file &config) {
 		config.set("DX12_BUFFER_DETECTION", "DepthBufferRetrievalMode", draw_call_tracker::preserve_depth_buffers);
 		config.set("DX12_BUFFER_DETECTION", "DepthBufferTextureFormat", draw_call_tracker::filter_depth_texture_format);
 		config.set("DX12_BUFFER_DETECTION", "DepthBufferMoreCopies", draw_call_tracker::preserve_stencil_buffers);
 		config.set("DX12_BUFFER_DETECTION", "DepthBufferClearingNumber", draw_call_tracker::depth_stencil_clear_index);
+		config.set("DX12_BUFFER_DETECTION", "UseAspectRatioHeuristics", draw_call_tracker::filter_aspect_ratio);
 	});
 }
 reshade::d3d12::runtime_d3d12::~runtime_d3d12()
@@ -1501,8 +1503,7 @@ void reshade::d3d12::runtime_d3d12::draw_debug_menu()
 	{
 		bool modified = false;
 		modified |= ImGui::Combo("Depth texture format", (int*)&draw_call_tracker::filter_depth_texture_format, "All\0D16\0D32F\0D24S8\0D32FS8\0");
-
-		ImGui::Spacing();
+		modified |= ImGui::Checkbox("Use aspect ratio heuristics", &draw_call_tracker::filter_aspect_ratio);
 		modified |= ImGui::Checkbox("Copy depth buffers before clear operation", &draw_call_tracker::preserve_depth_buffers);
 
 		if (modified) // Detection settings have changed, reset override
