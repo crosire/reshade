@@ -79,6 +79,7 @@ namespace reshade::vulkan
 			return;
 
 		assert(layout != VK_IMAGE_LAYOUT_UNDEFINED);
+		assert((create_info.usage & VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT) != 0);
 
 		const std::lock_guard<std::mutex> lock(s_global_mutex);
 
@@ -86,8 +87,6 @@ namespace reshade::vulkan
 
 		if (VK_NULL_HANDLE == counters.image)
 		{
-			assert((create_info.usage & VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT) != 0);
-
 			// This is a new entry in the map, so update data
 			counters.image = depthstencil;
 			counters.image_info = create_info;
@@ -100,9 +99,6 @@ namespace reshade::vulkan
 	}
 	void draw_call_tracker::track_cleared_depthstencil(VkCommandBuffer cmd_list, VkImageAspectFlags clear_flags, VkImage depthstencil, VkImageLayout layout, const VkImageCreateInfo &create_info, uint32_t clear_index, runtime_vk *runtime)
 	{
-		assert(depthstencil != VK_NULL_HANDLE);
-		assert(layout != VK_IMAGE_LAYOUT_UNDEFINED);
-
 		if (!(preserve_depth_buffers && (clear_flags & VK_IMAGE_ASPECT_DEPTH_BIT)) &&
 			!(preserve_stencil_buffers && (clear_flags & VK_IMAGE_ASPECT_STENCIL_BIT)))
 			return;
@@ -110,7 +106,8 @@ namespace reshade::vulkan
 		const std::lock_guard<std::mutex> lock(s_global_mutex);
 
 		assert(depthstencil != VK_NULL_HANDLE);
-		assert(0 != (create_info.usage & VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT));
+		assert(layout != VK_IMAGE_LAYOUT_UNDEFINED);
+		assert((create_info.usage & VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT) != 0);
 
 		if (create_info.samples != VK_SAMPLE_COUNT_1_BIT)
 			return; // Ignore MSAA textures

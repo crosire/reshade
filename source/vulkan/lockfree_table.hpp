@@ -48,6 +48,7 @@ public:
 			}
 		}
 
+		assert(false);
 		return _default; // Fall back if table is key does not exist
 	}
 
@@ -77,6 +78,7 @@ public:
 			}
 		}
 
+		assert(false);
 		return _default; // Fall back if table is full
 	}
 	/// <summary>
@@ -106,6 +108,7 @@ public:
 			}
 		}
 
+		assert(false);
 		return _default; // Fall back if table is full
 	}
 
@@ -192,19 +195,6 @@ public:
 				delete old_value;
 			}
 		}
-	}
-
-	/// <summary>
-	/// Gets or adds a value for the specified <paramref name="key"/>, depending on whether it already exists or not.
-	/// </summary>
-	/// <param name="key">The key to look up.</param>
-	/// <returns>A reference to the associated value.</returns>
-	inline TValue &operator[](TKey key)
-	{
-		TValue *const value = &at(key);
-		if (value != &_default)
-			return *value;
-		return emplace(key);
 	}
 
 private:

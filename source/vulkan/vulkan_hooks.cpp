@@ -49,7 +49,7 @@ static lockfree_table<VkSwapchainKHR, std::shared_ptr<reshade::vulkan::runtime_v
 static lockfree_table<VkImage, VkImageCreateInfo, 2048> s_image_data;
 static lockfree_table<VkImageView, VkImage, 2048> s_image_view_mapping;
 static lockfree_table<VkFramebuffer, std::vector<VkImage>, 128> s_framebuffer_data;
-static lockfree_table<VkCommandBuffer, command_buffer_data, 128> s_command_buffer_data;
+static lockfree_table<VkCommandBuffer, command_buffer_data, 2048> s_command_buffer_data;
 static lockfree_table<VkRenderPass, std::vector<render_pass_data>, 2048> s_renderpass_data;
 
 static inline void *dispatch_key_from_handle(const void *dispatch_handle)
@@ -310,6 +310,7 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	dispatch_table.CmdPushConstants = (PFN_vkCmdPushConstants)gdpa(device, "vkCmdPushConstants");
 	dispatch_table.CmdBeginRenderPass = (PFN_vkCmdBeginRenderPass)gdpa(device, "vkCmdBeginRenderPass");
 	dispatch_table.CmdEndRenderPass = (PFN_vkCmdEndRenderPass)gdpa(device, "vkCmdEndRenderPass");
+	dispatch_table.CmdExecuteCommands = (PFN_vkCmdExecuteCommands)gdpa(device, "vkCmdExecuteCommands");
 	// ---- Core 1_1 commands
 	dispatch_table.BindBufferMemory2 = (PFN_vkBindBufferMemory2)gdpa(device, "vkBindBufferMemory2");
 	dispatch_table.GetDeviceQueue2 = (PFN_vkGetDeviceQueue2)gdpa(device, "vkGetDeviceQueue2");
@@ -447,12 +448,10 @@ VkResult VKAPI_CALL vkQueueSubmit(VkQueue queue, uint32_t submitCount, const VkS
 
 			// Merge command list trackers into device one
 			device_data.draw_call_tracker.merge(command_buffer_data.draw_call_tracker);
-
-			command_buffer_data.draw_call_tracker.reset();
 		}
 	}
 
-	// The loader uses the same dispatch table for queues and devices, so can use queue to perform lookup here
+	// The loader uses the same dispatch table pointer for queues and devices, so can use queue to perform lookup here
 	GET_DEVICE_DISPATCH_PTR(QueueSubmit, queue);
 	return trampoline(queue, submitCount, pSubmits, fence);
 }
@@ -471,9 +470,6 @@ VkResult VKAPI_CALL vkQueuePresentKHR(VkQueue queue, const VkPresentInfoKHR *pPr
 	}
 
 	device_data.clear_drawcall_stats();
-
-	// Reset command buffer data like draw call trackers
-	s_command_buffer_data.clear();
 
 	// TODO: It may be necessary to add a wait semaphore to the present info
 	GET_DEVICE_DISPATCH_PTR(QueuePresentKHR, queue);
@@ -605,10 +601,43 @@ void     VKAPI_CALL vkDestroyFramebuffer(VkDevice device, VkFramebuffer framebuf
 	trampoline(device, framebuffer, pAllocator);
 }
 
+VkResult VKAPI_CALL vkAllocateCommandBuffers(VkDevice device, const VkCommandBufferAllocateInfo *pAllocateInfo, VkCommandBuffer *pCommandBuffers)
+{
+	GET_DEVICE_DISPATCH_PTR(AllocateCommandBuffers, device);
+	const VkResult result = trampoline(device, pAllocateInfo, pCommandBuffers);
+	if (result != VK_SUCCESS)
+	{
+		LOG(WARN) << "> vkAllocateCommandBuffers failed with error code " << result << '!';
+		return result;
+	}
+
+	for (uint32_t i = 0; i < pAllocateInfo->commandBufferCount; ++i)
+		s_command_buffer_data.emplace(pCommandBuffers[i]);
+
+	return VK_SUCCESS;
+}
+void     VKAPI_CALL vkFreeCommandBuffers(VkDevice device, VkCommandPool commandPool, uint32_t commandBufferCount, const VkCommandBuffer *pCommandBuffers)
+{
+	for (uint32_t i = 0; i < commandBufferCount; ++i)
+		s_command_buffer_data.erase(pCommandBuffers[i]);
+
+	GET_DEVICE_DISPATCH_PTR(FreeCommandBuffers, device);
+	trampoline(device, commandPool, commandBufferCount, pCommandBuffers);
+}
+VkResult VKAPI_CALL vkBeginCommandBuffer(VkCommandBuffer commandBuffer, const VkCommandBufferBeginInfo *pBeginInfo)
+{
+	// Begin does perform an implicit reset
+	auto &data = s_command_buffer_data.at(commandBuffer);
+	data.draw_call_tracker.reset();
+
+	GET_DEVICE_DISPATCH_PTR(BeginCommandBuffer, commandBuffer);
+	return trampoline(commandBuffer, pBeginInfo);
+}
 
 void     VKAPI_CALL vkCmdBeginRenderPass(VkCommandBuffer commandBuffer, const VkRenderPassBeginInfo *pRenderPassBegin, VkSubpassContents contents)
 {
-	auto &data = s_command_buffer_data[commandBuffer];
+#if RESHADE_VULKAN_CAPTURE_DEPTH_BUFFERS
+	auto &data = s_command_buffer_data.at(commandBuffer);
 	data.current_subpass = 0;
 	data.current_renderpass = pRenderPassBegin->renderPass;
 	data.current_framebuffer = pRenderPassBegin->framebuffer;
@@ -618,12 +647,16 @@ void     VKAPI_CALL vkCmdBeginRenderPass(VkCommandBuffer commandBuffer, const Vk
 	const auto &framebuffer_data = s_framebuffer_data.at(data.current_framebuffer);
 	if (renderpass_data.depthstencil_attachment_index < framebuffer_data.size() && !device_data.runtimes.empty())
 	{
-		VkImage depthstencil = framebuffer_data[renderpass_data.depthstencil_attachment_index];
+		const VkImage depthstencil = framebuffer_data[renderpass_data.depthstencil_attachment_index];
+		VkImageLayout depthstencil_layout = renderpass_data.initial_depthstencil_layout;
 
-#if RESHADE_VULKAN_CAPTURE_DEPTH_BUFFERS
+		// TODO: Technically the image layout stored here is not the one the image ends up in, but the likelihood is high
+		if (VK_IMAGE_LAYOUT_UNDEFINED == depthstencil_layout) // Do some trickery to make sure it is valid
+			depthstencil_layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
 		data.draw_call_tracker.track_render_pass(
 			depthstencil,
-			renderpass_data.initial_depthstencil_layout,
+			depthstencil_layout,
 			s_image_data.at(depthstencil));
 
 		if (renderpass_data.clear_flags)
@@ -631,12 +664,12 @@ void     VKAPI_CALL vkCmdBeginRenderPass(VkCommandBuffer commandBuffer, const Vk
 				commandBuffer,
 				renderpass_data.clear_flags,
 				depthstencil,
-				renderpass_data.initial_depthstencil_layout,
+				depthstencil_layout,
 				s_image_data.at(depthstencil),
 				device_data.current_dsv_clear_index++,
 				device_data.runtimes.front().get());
-#endif
 	}
+#endif
 
 	GET_DEVICE_DISPATCH_PTR(CmdBeginRenderPass, commandBuffer);
 	trampoline(commandBuffer, pRenderPassBegin, contents);
@@ -646,7 +679,8 @@ void     VKAPI_CALL vkCmdNextSubpass(VkCommandBuffer commandBuffer, VkSubpassCon
 	GET_DEVICE_DISPATCH_PTR(CmdNextSubpass, commandBuffer);
 	trampoline(commandBuffer, contents);
 
-	auto &data = s_command_buffer_data[commandBuffer];
+#if RESHADE_VULKAN_CAPTURE_DEPTH_BUFFERS
+	auto &data = s_command_buffer_data.at(commandBuffer);
 	data.current_subpass++;
 
 	const auto &renderpass_data = s_renderpass_data.at(data.current_renderpass)[data.current_subpass];
@@ -659,18 +693,35 @@ void     VKAPI_CALL vkCmdNextSubpass(VkCommandBuffer commandBuffer, VkSubpassCon
 	{
 		data.draw_call_tracker.track_next_depthstencil(VK_NULL_HANDLE);
 	}
+#endif
 }
 void     VKAPI_CALL vkCmdEndRenderPass(VkCommandBuffer commandBuffer)
 {
 	GET_DEVICE_DISPATCH_PTR(CmdEndRenderPass, commandBuffer);
 	trampoline(commandBuffer);
 
-	auto &data = s_command_buffer_data[commandBuffer];
+#if RESHADE_VULKAN_CAPTURE_DEPTH_BUFFERS
+	auto &data = s_command_buffer_data.at(commandBuffer);
 	data.current_subpass = std::numeric_limits<uint32_t>::max();
 	data.current_renderpass = VK_NULL_HANDLE;
 	data.current_framebuffer = VK_NULL_HANDLE;
 
 	data.draw_call_tracker.track_next_depthstencil(VK_NULL_HANDLE);
+#endif
+}
+
+void     VKAPI_CALL vkCmdExecuteCommands(VkCommandBuffer commandBuffer, uint32_t commandBufferCount, const VkCommandBuffer *pCommandBuffers)
+{
+	auto &data = s_command_buffer_data.at(commandBuffer);
+
+	for (uint32_t i = 0; i < commandBufferCount; ++i)
+	{
+		// Merge secondary command list trackers into the current primary one
+		data.draw_call_tracker.merge(s_command_buffer_data.at(pCommandBuffers[i]).draw_call_tracker);
+	}
+
+	GET_DEVICE_DISPATCH_PTR(CmdExecuteCommands, commandBuffer);
+	trampoline(commandBuffer, commandBufferCount, pCommandBuffers);
 }
 
 void     VKAPI_CALL vkCmdDraw(VkCommandBuffer commandBuffer, uint32_t vertexCount, uint32_t instanceCount, uint32_t firstVertex, uint32_t firstInstance)
@@ -678,7 +729,7 @@ void     VKAPI_CALL vkCmdDraw(VkCommandBuffer commandBuffer, uint32_t vertexCoun
 	GET_DEVICE_DISPATCH_PTR(CmdDraw, commandBuffer);
 	trampoline(commandBuffer, vertexCount, instanceCount, firstVertex, firstInstance);
 
-	auto &data = s_command_buffer_data[commandBuffer];
+	auto &data = s_command_buffer_data.at(commandBuffer);
 	data.draw_call_tracker.on_draw(vertexCount * instanceCount);
 }
 void     VKAPI_CALL vkCmdDrawIndexed(VkCommandBuffer commandBuffer, uint32_t indexCount, uint32_t instanceCount, uint32_t firstIndex, int32_t vertexOffset, uint32_t firstInstance)
@@ -686,7 +737,7 @@ void     VKAPI_CALL vkCmdDrawIndexed(VkCommandBuffer commandBuffer, uint32_t ind
 	GET_DEVICE_DISPATCH_PTR(CmdDrawIndexed, commandBuffer);
 	trampoline(commandBuffer, indexCount, instanceCount, firstIndex, vertexOffset, firstInstance);
 
-	auto &data = s_command_buffer_data[commandBuffer];
+	auto &data = s_command_buffer_data.at(commandBuffer);
 	data.draw_call_tracker.on_draw(indexCount * instanceCount);
 }
 
@@ -699,7 +750,7 @@ void     VKAPI_CALL vkCmdClearAttachments(VkCommandBuffer commandBuffer, uint32_
 		if (pAttachments[i].aspectMask & (VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT))
 			depthstencil_attachment = i;
 
-	auto &data = s_command_buffer_data[commandBuffer];
+	auto &data = s_command_buffer_data.at(commandBuffer);
 	auto &device_data = s_device_data.at(dispatch_key_from_handle(commandBuffer));
 	const auto &renderpass_data = s_renderpass_data.at(data.current_renderpass)[data.current_subpass];
 	const auto &framebuffer_data = s_framebuffer_data.at(data.current_framebuffer);
@@ -709,12 +760,16 @@ void     VKAPI_CALL vkCmdClearAttachments(VkCommandBuffer commandBuffer, uint32_
 		!device_data.runtimes.empty())
 	{
 		const VkImage image = framebuffer_data[renderpass_data.depthstencil_attachment_index];
+		VkImageLayout image_layout = renderpass_data.initial_depthstencil_layout;
+
+		if (VK_IMAGE_LAYOUT_UNDEFINED == image_layout)
+			image_layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
 		data.draw_call_tracker.track_cleared_depthstencil(
 			commandBuffer,
 			pAttachments[depthstencil_attachment].aspectMask,
 			image,
-			renderpass_data.initial_depthstencil_layout,
+			image_layout,
 			s_image_data.at(image),
 			device_data.current_dsv_clear_index++,
 			device_data.runtimes.front().get());
@@ -727,6 +782,7 @@ void     VKAPI_CALL vkCmdClearAttachments(VkCommandBuffer commandBuffer, uint32_
 void     VKAPI_CALL vkCmdClearDepthStencilImage(VkCommandBuffer commandBuffer, VkImage image, VkImageLayout imageLayout, const VkClearDepthStencilValue *pDepthStencil, uint32_t rangeCount, const VkImageSubresourceRange *pRanges)
 {
 #if RESHADE_VULKAN_CAPTURE_DEPTH_BUFFERS
+	auto &data = s_command_buffer_data.at(commandBuffer);
 	auto &device_data = s_device_data.at(dispatch_key_from_handle(commandBuffer));
 
 	if (!device_data.runtimes.empty())
@@ -736,7 +792,6 @@ void     VKAPI_CALL vkCmdClearDepthStencilImage(VkCommandBuffer commandBuffer, V
 		for (uint32_t i = 0; i < rangeCount; ++i)
 			clear_flags |= pRanges[i].aspectMask;
 
-		auto &data = s_command_buffer_data[commandBuffer];
 		data.draw_call_tracker.track_cleared_depthstencil(
 			commandBuffer,
 			clear_flags,
@@ -780,12 +835,22 @@ VK_LAYER_EXPORT PFN_vkVoidFunction VKAPI_CALL vkGetDeviceProcAddr(VkDevice devic
 		return reinterpret_cast<PFN_vkVoidFunction>(vkCreateFramebuffer);
 	if (0 == strcmp(pName, "vkDestroyFramebuffer"))
 		return reinterpret_cast<PFN_vkVoidFunction>(vkDestroyFramebuffer);
+
+	if (0 == strcmp(pName, "vkAllocateCommandBuffers"))
+		return reinterpret_cast<PFN_vkVoidFunction>(vkAllocateCommandBuffers);
+	if (0 == strcmp(pName, "vkFreeCommandBuffers"))
+		return reinterpret_cast<PFN_vkVoidFunction>(vkFreeCommandBuffers);
+	if (0 == strcmp(pName, "vkBeginCommandBuffer"))
+		return reinterpret_cast<PFN_vkVoidFunction>(vkBeginCommandBuffer);
+
 	if (0 == strcmp(pName, "vkCmdBeginRenderPass"))
 		return reinterpret_cast<PFN_vkVoidFunction>(vkCmdBeginRenderPass);
 	if (0 == strcmp(pName, "vkCmdNextSubpass"))
 		return reinterpret_cast<PFN_vkVoidFunction>(vkCmdNextSubpass);
 	if (0 == strcmp(pName, "vkCmdEndRenderPass"))
 		return reinterpret_cast<PFN_vkVoidFunction>(vkCmdEndRenderPass);
+	if (0 == strcmp(pName, "vkCmdExecuteCommands"))
+		return reinterpret_cast<PFN_vkVoidFunction>(vkCmdExecuteCommands);
 	if (0 == strcmp(pName, "vkCmdDraw"))
 		return reinterpret_cast<PFN_vkVoidFunction>(vkCmdDraw);
 	if (0 == strcmp(pName, "vkCmdDrawIndexed"))
