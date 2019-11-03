@@ -13,6 +13,7 @@ Direct3DSwapChain9::Direct3DSwapChain9(Direct3DDevice9 *device, IDirect3DSwapCha
 	_extended_interface(0),
 	_device(device),
 	_runtime(runtime) {
+	assert(device != nullptr);
 	assert(original != nullptr);
 }
 Direct3DSwapChain9::Direct3DSwapChain9(Direct3DDevice9 *device, IDirect3DSwapChain9Ex *original, const std::shared_ptr<reshade::d3d9::runtime_d3d9> &runtime) :
@@ -20,6 +21,7 @@ Direct3DSwapChain9::Direct3DSwapChain9(Direct3DDevice9 *device, IDirect3DSwapCha
 	_extended_interface(1),
 	_device(device),
 	_runtime(runtime) {
+	assert(device != nullptr);
 	assert(original != nullptr);
 }
 
@@ -99,7 +101,8 @@ ULONG   STDMETHODCALLTYPE Direct3DSwapChain9::Release()
 HRESULT STDMETHODCALLTYPE Direct3DSwapChain9::Present(const RECT *pSourceRect, const RECT *pDestRect, HWND hDestWindowOverride, const RGNDATA *pDirtyRegion, DWORD dwFlags)
 {
 	assert(_runtime != nullptr);
-	_runtime->on_present();
+	_runtime->on_present(_device->_draw_call_tracker);
+	_device->clear_drawcall_stats();
 
 	return _orig->Present(pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion, dwFlags);
 }
