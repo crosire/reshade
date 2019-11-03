@@ -1631,6 +1631,13 @@ void reshade::d3d12::runtime_d3d12::update_depthstencil_texture(com_ptr<ID3D12Re
 		view_desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
 		view_desc.Texture2D.MipLevels = desc.MipLevels;
 	}
+	else
+	{
+		// Need to provide a description so descriptor type can be determined
+		// See https://docs.microsoft.com/en-us/windows/win32/api/d3d12/nf-d3d12-id3d12device-createshaderresourceview
+		view_desc.Format = DXGI_FORMAT_D16_UNORM;
+		view_desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+	}
 
 	for (d3d12_effect_data &effect_data : _effect_data)
 	{
