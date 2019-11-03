@@ -553,7 +553,7 @@ bool reshade::d3d12::runtime_d3d12::init_texture(texture &info)
 			"Width = " << desc.Width << ", "
 			"Height = " << desc.Height << ", "
 			"Format = " << desc.Format << ")! "
-			"HRESULT is '" << std::hex << hr << std::dec << "'.";
+			"HRESULT is " << hr << '.';
 		return false;
 	}
 
@@ -1125,7 +1125,7 @@ bool reshade::d3d12::runtime_d3d12::init_technique(technique &technique, const s
 		if (HRESULT hr = _device->CreateGraphicsPipelineState(&pso_desc, IID_PPV_ARGS(&pass_data.pipeline)); FAILED(hr))
 		{
 			LOG(ERROR) << "Failed to create pipeline for pass " << pass_index << " in technique '" << technique.name << "'! "
-				"HRESULT is '" << std::hex << hr << std::dec << "'.";
+				"HRESULT is " << hr << '.';
 			return false;
 		}
 	}
@@ -1152,14 +1152,14 @@ void reshade::d3d12::runtime_d3d12::render_technique(technique &technique)
 	if (effect_data.storage_size != 0)
 	{
 		void *mapped;
-		if (const HRESULT hr = effect_data.cb->Map(0, nullptr, &mapped); SUCCEEDED(hr))
+		if (HRESULT hr = effect_data.cb->Map(0, nullptr, &mapped); SUCCEEDED(hr))
 		{
 			memcpy(mapped, _uniform_data_storage.data() + effect_data.storage_offset, effect_data.storage_size);
 			effect_data.cb->Unmap(0, nullptr);
 		}
 		else
 		{
-			LOG(ERROR) << "Failed to map constant buffer! HRESULT is '" << std::hex << hr << std::dec << "'!";
+			LOG(ERROR) << "Failed to map constant buffer! HRESULT is " << hr << '.';
 		}
 
 		cmd_list->SetGraphicsRootConstantBufferView(0, effect_data.cbv_gpu_address);
@@ -1663,7 +1663,7 @@ com_ptr<ID3D12Resource> reshade::d3d12::runtime_d3d12::create_compatible_texture
 
 	if (HRESULT hr = _device->CreateCommittedResource(&heap_props, D3D12_HEAP_FLAG_NONE, &desc, D3D12_RESOURCE_STATE_DEPTH_WRITE, &clear_value, IID_PPV_ARGS(&texture)); FAILED(hr))
 	{
-		LOG(ERROR) << "Failed to create depth texture copy! HRESULT is '" << std::hex << hr << std::dec << "'.";
+		LOG(ERROR) << "Failed to create depth stencil texture! HRESULT is " << hr << '.';
 		return nullptr;
 	}
 

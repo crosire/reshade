@@ -268,7 +268,7 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::GetBuffer(UINT Buffer, REFIID riid, voi
 }
 HRESULT STDMETHODCALLTYPE DXGISwapChain::SetFullscreenState(BOOL Fullscreen, IDXGIOutput *pTarget)
 {
-	LOG(INFO) << "Redirecting IDXGISwapChain::SetFullscreenState" << '(' << this << ", " << (Fullscreen != FALSE ? "TRUE" : "FALSE") << ", " << pTarget << ')' << " ...";
+	LOG(INFO) << "Redirecting IDXGISwapChain::SetFullscreenState" << '(' << "this = " << this << ", Fullscreen = " << (Fullscreen ? "TRUE" : "FALSE") << ", pTarget = " << pTarget << ')' << " ...";
 
 	return _orig->SetFullscreenState(Fullscreen, pTarget);
 }
@@ -282,18 +282,25 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::GetDesc(DXGI_SWAP_CHAIN_DESC *pDesc)
 }
 HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers(UINT BufferCount, UINT Width, UINT Height, DXGI_FORMAT NewFormat, UINT SwapChainFlags)
 {
-	LOG(INFO) << "Redirecting IDXGISwapChain::ResizeBuffers" << '(' << this << ", " << BufferCount << ", " << Width << ", " << Height << ", " << NewFormat << ", " << std::hex << SwapChainFlags << std::dec << ')' << " ...";
+	LOG(INFO) << "Redirecting IDXGISwapChain::ResizeBuffers" << '('
+		<<   "this = " << this
+		<< ", BufferCount = " << BufferCount
+		<< ", Width = " << Width
+		<< ", Height = " << Height
+		<< ", NewFormat = " << NewFormat
+		<< ", SwapChainFlags = " << std::hex << SwapChainFlags << std::dec
+		<< ')' << " ...";
 
 	runtime_reset();
 
 	const HRESULT hr = _orig->ResizeBuffers(BufferCount, Width, Height, NewFormat, SwapChainFlags);
 	if (hr == DXGI_ERROR_INVALID_CALL) // Ignore invalid call errors since the device is still in a usable state afterwards
 	{
-		LOG(WARN) << "> IDXGISwapChain::ResizeBuffers failed with 'DXGI_ERROR_INVALID_CALL'!";
+		LOG(WARN) << "> IDXGISwapChain::ResizeBuffers failed with error code DXGI_ERROR_INVALID_CALL!";
 	}
 	else if (FAILED(hr))
 	{
-		LOG(ERROR) << "> IDXGISwapChain::ResizeBuffers failed with error code " << std::hex << hr << std::dec << '!';
+		LOG(ERROR) << "> IDXGISwapChain::ResizeBuffers failed with error code " << hr << '!';
 		return hr;
 	}
 
@@ -429,7 +436,16 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::SetColorSpace1(DXGI_COLOR_SPACE_TYPE Co
 }
 HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers1(UINT BufferCount, UINT Width, UINT Height, DXGI_FORMAT Format, UINT SwapChainFlags, const UINT *pCreationNodeMask, IUnknown *const *ppPresentQueue)
 {
-	LOG(INFO) << "Redirecting IDXGISwapChain3::ResizeBuffers1" << '(' << this << ", " << BufferCount << ", " << Width << ", " << Height << ", " << Format << ", " << std::hex << SwapChainFlags << std::dec << ", " << pCreationNodeMask << ", " << ppPresentQueue << ')' << " ...";
+	LOG(INFO) << "Redirecting IDXGISwapChain3::ResizeBuffers1" << '('
+		<<   "this = " << this
+		<< ", BufferCount = " << BufferCount
+		<< ", Width = " << Width
+		<< ", Height = " << Height
+		<< ", Format = " << Format
+		<< ", SwapChainFlags = " << std::hex << SwapChainFlags << std::dec
+		<< ", pCreationNodeMask = " << pCreationNodeMask
+		<< ", ppPresentQueue = " << ppPresentQueue
+		<< ')' << " ...";
 
 	runtime_reset();
 
@@ -437,11 +453,11 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers1(UINT BufferCount, UINT W
 	const HRESULT hr = static_cast<IDXGISwapChain3 *>(_orig)->ResizeBuffers1(BufferCount, Width, Height, Format, SwapChainFlags, pCreationNodeMask, ppPresentQueue);
 	if (hr == DXGI_ERROR_INVALID_CALL)
 	{
-		LOG(WARN) << "> IDXGISwapChain3::ResizeBuffers1 failed with 'DXGI_ERROR_INVALID_CALL'!";
+		LOG(WARN) << "> IDXGISwapChain3::ResizeBuffers1 failed with error code DXGI_ERROR_INVALID_CALL!";
 	}
 	else if (FAILED(hr))
 	{
-		LOG(ERROR) << "> IDXGISwapChain3::ResizeBuffers1 failed with error code " << std::hex << hr << std::dec << '!';
+		LOG(ERROR) << "> IDXGISwapChain3::ResizeBuffers1 failed with error code " << hr << '!';
 		return hr;
 	}
 

@@ -9,7 +9,14 @@
 
 HOOK_EXPORT HRESULT WINAPI D3D10CreateDevice(IDXGIAdapter *pAdapter, D3D10_DRIVER_TYPE DriverType, HMODULE Software, UINT Flags, UINT SDKVersion, ID3D10Device **ppDevice)
 {
-	LOG(INFO) << "Redirecting D3D10CreateDevice" << '(' << pAdapter << ", " << DriverType << ", " << Software << ", " << std::hex << Flags << std::dec << ", " << SDKVersion << ", " << ppDevice << ')' << " ...";
+	LOG(INFO) << "Redirecting D3D10CreateDevice" << '('
+		<<   "pAdapter = " << pAdapter
+		<< ", DriverType = " << DriverType
+		<< ", Software = " << Software
+		<< ", Flags = " << std::hex << Flags << std::dec
+		<< ", SDKVersion = " << SDKVersion
+		<< ", ppDevice = " << ppDevice
+		<< ')' << " ...";
 	LOG(INFO) << "> Passing on to D3D10CreateDeviceAndSwapChain1:";
 
 	// Only 'd3d10.dll' is guaranteed to be loaded at this point, but the 'D3D10CreateDeviceAndSwapChain1' entry point is in 'd3d10_1.dll', so load that now to make sure hooks can be resolved
@@ -20,7 +27,15 @@ HOOK_EXPORT HRESULT WINAPI D3D10CreateDevice(IDXGIAdapter *pAdapter, D3D10_DRIVE
 
 HOOK_EXPORT HRESULT WINAPI D3D10CreateDevice1(IDXGIAdapter *pAdapter, D3D10_DRIVER_TYPE DriverType, HMODULE Software, UINT Flags, D3D10_FEATURE_LEVEL1 HardwareLevel, UINT SDKVersion, ID3D10Device1 **ppDevice)
 {
-	LOG(INFO) << "Redirecting D3D10CreateDevice1" << '(' << pAdapter << ", " << DriverType << ", " << Software << ", " << std::hex << Flags << std::dec << ", " << HardwareLevel << ", " << SDKVersion << ", " << ppDevice << ')' << " ...";
+	LOG(INFO) << "Redirecting D3D10CreateDevice1" << '('
+		<<   "pAdapter = " << pAdapter
+		<< ", DriverType = " << DriverType
+		<< ", Software = " << Software
+		<< ", Flags = " << std::hex << Flags
+		<< ", HardwareLevel = " << HardwareLevel << std::dec
+		<< ", SDKVersion = " << SDKVersion
+		<< ", ppDevice = " << ppDevice
+		<< ')' << " ...";
 	LOG(INFO) << "> Passing on to D3D10CreateDeviceAndSwapChain1:";
 
 	return D3D10CreateDeviceAndSwapChain1(pAdapter, DriverType, Software, Flags, HardwareLevel, SDKVersion, nullptr, nullptr, ppDevice);
@@ -28,7 +43,16 @@ HOOK_EXPORT HRESULT WINAPI D3D10CreateDevice1(IDXGIAdapter *pAdapter, D3D10_DRIV
 
 HOOK_EXPORT HRESULT WINAPI D3D10CreateDeviceAndSwapChain(IDXGIAdapter *pAdapter, D3D10_DRIVER_TYPE DriverType, HMODULE Software, UINT Flags, UINT SDKVersion, DXGI_SWAP_CHAIN_DESC *pSwapChainDesc, IDXGISwapChain **ppSwapChain, ID3D10Device **ppDevice)
 {
-	LOG(INFO) << "Redirecting D3D10CreateDeviceAndSwapChain" << '(' << pAdapter << ", " << DriverType << ", " << Software << ", " << std::hex << Flags << std::dec << ", " << SDKVersion << ", " << pSwapChainDesc << ", " << ppSwapChain << ", " << ppDevice << ')' << " ...";
+	LOG(INFO) << "Redirecting D3D10CreateDeviceAndSwapChain" << '('
+		<<   "pAdapter = " << pAdapter
+		<< ", DriverType = " << DriverType
+		<< ", Software = " << Software
+		<< ", Flags = " << std::hex << Flags << std::dec
+		<< ", SDKVersion = " << SDKVersion
+		<< ", pSwapChainDesc = " << pSwapChainDesc
+		<< ", ppSwapChain = " << ppSwapChain
+		<< ", ppDevice = " << ppDevice
+		<< ')' << " ...";
 	LOG(INFO) << "> Passing on to D3D10CreateDeviceAndSwapChain1:";
 
 	LoadLibraryW(L"d3d10_1.dll");
@@ -38,12 +62,22 @@ HOOK_EXPORT HRESULT WINAPI D3D10CreateDeviceAndSwapChain(IDXGIAdapter *pAdapter,
 
 HOOK_EXPORT HRESULT WINAPI D3D10CreateDeviceAndSwapChain1(IDXGIAdapter *pAdapter, D3D10_DRIVER_TYPE DriverType, HMODULE Software, UINT Flags, D3D10_FEATURE_LEVEL1 HardwareLevel, UINT SDKVersion, DXGI_SWAP_CHAIN_DESC *pSwapChainDesc, IDXGISwapChain **ppSwapChain, ID3D10Device1 **ppDevice)
 {
-	LOG(INFO) << "Redirecting D3D10CreateDeviceAndSwapChain1" << '(' << pAdapter << ", " << DriverType << ", " << Software << ", " << std::hex << Flags << ", " << HardwareLevel << std::dec << ", " << SDKVersion << ", " << pSwapChainDesc << ", " << ppSwapChain << ", " << ppDevice << ')' << " ...";
+	LOG(INFO) << "Redirecting D3D10CreateDeviceAndSwapChain1" << '('
+		<<   "pAdapter = " << pAdapter
+		<< ", DriverType = " << DriverType
+		<< ", Software = " << Software
+		<< ", Flags = " << std::hex << Flags
+		<< ", HardwareLevel = " << HardwareLevel << std::dec
+		<< ", SDKVersion = " << SDKVersion
+		<< ", pSwapChainDesc = " << pSwapChainDesc
+		<< ", ppSwapChain = " << ppSwapChain
+		<< ", ppDevice = " << ppDevice
+		<< ')' << " ...";
 
 	HRESULT hr = reshade::hooks::call(D3D10CreateDeviceAndSwapChain1)(pAdapter, DriverType, Software, Flags, HardwareLevel, SDKVersion, nullptr, nullptr, ppDevice);
 	if (FAILED(hr))
 	{
-		LOG(WARN) << "> D3D10CreateDeviceAndSwapChain1 failed with error code " << std::hex << hr << std::dec << '!';
+		LOG(WARN) << "> D3D10CreateDeviceAndSwapChain1 failed with error code " << hr << '!';
 		return hr;
 	}
 

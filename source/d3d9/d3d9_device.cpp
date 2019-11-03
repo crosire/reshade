@@ -145,7 +145,7 @@ BOOL    STDMETHODCALLTYPE Direct3DDevice9::ShowCursor(BOOL bShow)
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateAdditionalSwapChain(D3DPRESENT_PARAMETERS *pPresentationParameters, IDirect3DSwapChain9 **ppSwapChain)
 {
-	LOG(INFO) << "Redirecting IDirect3DDevice9::CreateAdditionalSwapChain" << '(' << this << ", " << pPresentationParameters << ", " << ppSwapChain << ')' << " ...";
+	LOG(INFO) << "Redirecting IDirect3DDevice9::CreateAdditionalSwapChain" << '(' << "this = " << this << ", pPresentationParameters = " << pPresentationParameters << ", ppSwapChain = " << ppSwapChain << ')' << " ...";
 
 	if (pPresentationParameters == nullptr)
 		return D3DERR_INVALIDCALL;
@@ -153,10 +153,9 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateAdditionalSwapChain(D3DPRESENT_
 	dump_present_parameters(*pPresentationParameters);
 
 	const HRESULT hr = _orig->CreateAdditionalSwapChain(pPresentationParameters, ppSwapChain);
-
 	if (FAILED(hr))
 	{
-		LOG(WARN) << "> IDirect3DDevice9::CreateAdditionalSwapChain failed with error code " << std::hex << hr << std::dec << '!';
+		LOG(WARN) << "> IDirect3DDevice9::CreateAdditionalSwapChain failed with error code " << hr << '!';
 		return hr;
 	}
 
@@ -207,7 +206,7 @@ UINT    STDMETHODCALLTYPE Direct3DDevice9::GetNumberOfSwapChains()
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::Reset(D3DPRESENT_PARAMETERS *pPresentationParameters)
 {
-	LOG(INFO) << "Redirecting IDirect3DDevice9::Reset" << '(' << this << ", " << pPresentationParameters << ')' << " ...";
+	LOG(INFO) << "Redirecting IDirect3DDevice9::Reset" << '(' << "this = " << this << ", pPresentationParameters = " << pPresentationParameters << ')' << " ...";
 
 	if (pPresentationParameters == nullptr)
 		return D3DERR_INVALIDCALL;
@@ -224,7 +223,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::Reset(D3DPRESENT_PARAMETERS *pPresent
 	const HRESULT hr = _orig->Reset(pPresentationParameters);
 	if (FAILED(hr))
 	{
-		LOG(ERROR) << "> IDirect3DDevice9::Reset failed with error code " << std::hex << hr << std::dec << '!';
+		LOG(ERROR) << "> IDirect3DDevice9::Reset failed with error code " << hr << '!';
 		return hr;
 	}
 
@@ -855,7 +854,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateDepthStencilSurfaceEx(UINT Widt
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::ResetEx(D3DPRESENT_PARAMETERS *pPresentationParameters, D3DDISPLAYMODEEX *pFullscreenDisplayMode)
 {
-	LOG(INFO) << "Redirecting IDirect3DDevice9Ex::ResetEx" << '(' << this << ", " << pPresentationParameters << ", " << pFullscreenDisplayMode << ')' << " ...";
+	LOG(INFO) << "Redirecting IDirect3DDevice9Ex::ResetEx" << '(' << "this = " << this << ", pPresentationParameters = " << pPresentationParameters << ", pFullscreenDisplayMode = " << pFullscreenDisplayMode << ')' << " ...";
 
 	if (pPresentationParameters == nullptr)
 		return D3DERR_INVALIDCALL;
@@ -873,7 +872,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::ResetEx(D3DPRESENT_PARAMETERS *pPrese
 	const HRESULT hr = static_cast<IDirect3DDevice9Ex *>(_orig)->ResetEx(pPresentationParameters, pFullscreenDisplayMode);
 	if (FAILED(hr))
 	{
-		LOG(ERROR) << "> IDirect3DDevice9Ex::ResetEx failed with error code " << std::hex << hr << std::dec << '!';
+		LOG(ERROR) << "> IDirect3DDevice9Ex::ResetEx failed with error code " << hr << '!';
 		return hr;
 	}
 

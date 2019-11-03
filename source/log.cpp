@@ -5,13 +5,14 @@
 
 #include "log.hpp"
 #include <mutex>
+#include <fstream>
 #include <assert.h>
 #include <Windows.h>
 
-std::ofstream reshade::log::stream;
-std::ostringstream reshade::log::linestream;
+std::ostringstream reshade::log::line;
 std::vector<std::string> reshade::log::lines;
 static std::mutex s_message_mutex;
+static std::ofstream s_file_stream;
 
 reshade::log::message::message(level level)
 {
@@ -25,10 +26,10 @@ reshade::log::message::message(level level)
 	s_message_mutex.lock();
 
 	// Start a new line
-	linestream.str("");
-	linestream.clear();
+	line.str("");
+	line.clear();
 
-	stream << std::right << std::setfill('0')
+	line << std::right << std::setfill('0')
 #if RESHADE_VERBOSE_LOG
 		<< std::setw(4) << time.wYear << '-'
 		<< std::setw(2) << time.wMonth << '-'
@@ -40,19 +41,21 @@ reshade::log::message::message(level level)
 		<< std::setw(3) << time.wMilliseconds << ' '
 		<< '[' << std::setw(5) << GetCurrentThreadId() << ']' << std::setfill(' ') << " | "
 		<< level_names[static_cast<unsigned int>(level) - 1] << " | " << std::left;
-	linestream
-		<< level_names[static_cast<unsigned int>(level) - 1] << " | ";
 }
 reshade::log::message::~message()
 {
 	// Finish the line
-	stream << std::endl;
-	linestream << std::endl;
+	line << std::endl;
 
-	lines.push_back(linestream.str());
+	std::string line_string = line.str();
+	lines.push_back(line_string);
+
+	// Write line to the log file
+	s_file_stream << line_string;
 
 #ifdef _DEBUG
-	OutputDebugStringA(linestream.str().c_str());
+	// Write line to the debug output log
+	OutputDebugStringA(line_string.c_str());
 #endif
 
 	// The message is finished, we can unlock the stream
@@ -61,17 +64,14 @@ reshade::log::message::~message()
 
 bool reshade::log::open(const std::filesystem::path &path)
 {
-	stream.open(path, std::ios::out | std::ios::trunc);
+	line.setf(std::ios::left);
+	line.setf(std::ios::showbase);
 
-	if (!stream.is_open())
-		return false;
+	s_file_stream.open(path, std::ios::out | std::ios::trunc);
 
-	stream.setf(std::ios::left);
-	stream.setf(std::ios::showbase);
-	stream.flush();
+	s_file_stream.setf(std::ios::left);
+	s_file_stream.setf(std::ios::showbase);
+	s_file_stream.flush();
 
-	linestream.setf(std::ios::left);
-	linestream.setf(std::ios::showbase);
-
-	return true;
+	return s_file_stream.is_open();
 }

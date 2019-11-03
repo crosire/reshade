@@ -95,7 +95,15 @@ static void init_runtime_d3d(T *&device, D3DDEVTYPE device_type, D3DPRESENT_PARA
 
 HRESULT STDMETHODCALLTYPE IDirect3D9_CreateDevice(IDirect3D9 *pD3D, UINT Adapter, D3DDEVTYPE DeviceType, HWND hFocusWindow, DWORD BehaviorFlags, D3DPRESENT_PARAMETERS *pPresentationParameters, IDirect3DDevice9 **ppReturnedDeviceInterface)
 {
-	LOG(INFO) << "Redirecting IDirect3D9::CreateDevice" << '(' << pD3D << ", " << Adapter << ", " << DeviceType << ", " << hFocusWindow << ", " << std::hex << BehaviorFlags << std::dec << ", " << pPresentationParameters << ", " << ppReturnedDeviceInterface << ')' << " ...";
+	LOG(INFO) << "Redirecting IDirect3D9::CreateDevice" << '('
+		<<   "this = " << pD3D
+		<< ", pAdapter = " << Adapter
+		<< ", DeviceType = " << DeviceType
+		<< ", hFocusWindow = " << hFocusWindow
+		<< ", BehaviorFlags = " << std::hex << BehaviorFlags << std::dec
+		<< ", pPresentationParameters = " << pPresentationParameters
+		<< ", ppReturnedDeviceInterface = " << ppReturnedDeviceInterface
+		<< ')' << " ...";
 
 	if (pPresentationParameters == nullptr)
 		return D3DERR_INVALIDCALL;
@@ -116,10 +124,9 @@ HRESULT STDMETHODCALLTYPE IDirect3D9_CreateDevice(IDirect3D9 *pD3D, UINT Adapter
 	}
 
 	const HRESULT hr = reshade::hooks::call(IDirect3D9_CreateDevice, vtable_from_instance(pD3D) + 16)(pD3D, Adapter, DeviceType, hFocusWindow, BehaviorFlags, pPresentationParameters, ppReturnedDeviceInterface);
-
 	if (FAILED(hr))
 	{
-		LOG(WARN) << "> IDirect3D9::CreateDevice failed with error code " << std::hex << hr << std::dec << '!';
+		LOG(WARN) << "> IDirect3D9::CreateDevice failed with error code " << hr << '!';
 		return hr;
 	}
 
@@ -130,7 +137,16 @@ HRESULT STDMETHODCALLTYPE IDirect3D9_CreateDevice(IDirect3D9 *pD3D, UINT Adapter
 
 HRESULT STDMETHODCALLTYPE IDirect3D9Ex_CreateDeviceEx(IDirect3D9Ex *pD3D, UINT Adapter, D3DDEVTYPE DeviceType, HWND hFocusWindow, DWORD BehaviorFlags, D3DPRESENT_PARAMETERS *pPresentationParameters, D3DDISPLAYMODEEX *pFullscreenDisplayMode, IDirect3DDevice9Ex **ppReturnedDeviceInterface)
 {
-	LOG(INFO) << "Redirecting IDirect3D9Ex::CreateDeviceEx" << '(' << pD3D << ", " << Adapter << ", " << DeviceType << ", " << hFocusWindow << ", " << std::hex << BehaviorFlags << std::dec << ", " << pPresentationParameters << ", " << pFullscreenDisplayMode << ", " << ppReturnedDeviceInterface << ')' << " ...";
+	LOG(INFO) << "Redirecting IDirect3D9Ex::CreateDeviceEx" << '('
+		<<   "this = " << pD3D
+		<< ", Adapter = " << Adapter
+		<< ", DeviceType = " << DeviceType
+		<< ", hFocusWindow = " << hFocusWindow
+		<< ", BehaviorFlags = " << std::hex << BehaviorFlags << std::dec
+		<< ", pPresentationParameters = " << pPresentationParameters
+		<< ", pFullscreenDisplayMode = " << pFullscreenDisplayMode
+		<< ", ppReturnedDeviceInterface = " << ppReturnedDeviceInterface
+		<< ')' << " ...";
 
 	if (pPresentationParameters == nullptr)
 		return D3DERR_INVALIDCALL;
@@ -151,10 +167,9 @@ HRESULT STDMETHODCALLTYPE IDirect3D9Ex_CreateDeviceEx(IDirect3D9Ex *pD3D, UINT A
 	}
 
 	const HRESULT hr = reshade::hooks::call(IDirect3D9Ex_CreateDeviceEx, vtable_from_instance(pD3D) + 20)(pD3D, Adapter, DeviceType, hFocusWindow, BehaviorFlags, pPresentationParameters, pFullscreenDisplayMode, ppReturnedDeviceInterface);
-
 	if (FAILED(hr))
 	{
-		LOG(WARN) << "> IDirect3D9Ex::CreateDeviceEx failed with error code " << std::hex << hr << std::dec << '!';
+		LOG(WARN) << "> IDirect3D9Ex::CreateDeviceEx failed with error code " << hr << '!';
 		return hr;
 	}
 
@@ -165,10 +180,9 @@ HRESULT STDMETHODCALLTYPE IDirect3D9Ex_CreateDeviceEx(IDirect3D9Ex *pD3D, UINT A
 
 HOOK_EXPORT IDirect3D9 *WINAPI Direct3DCreate9(UINT SDKVersion)
 {
-	LOG(INFO) << "Redirecting Direct3DCreate9" << '(' << SDKVersion << ')' << " ...";
+	LOG(INFO) << "Redirecting Direct3DCreate9" << '(' << "SDKVersion = " << SDKVersion << ')' << " ...";
 
 	IDirect3D9 *const res = reshade::hooks::call(Direct3DCreate9)(SDKVersion);
-
 	if (res == nullptr)
 	{
 		LOG(WARN) << "> Direct3DCreate9 failed!";
@@ -185,13 +199,12 @@ HOOK_EXPORT IDirect3D9 *WINAPI Direct3DCreate9(UINT SDKVersion)
 
 HOOK_EXPORT HRESULT WINAPI Direct3DCreate9Ex(UINT SDKVersion, IDirect3D9Ex **ppD3D)
 {
-	LOG(INFO) << "Redirecting Direct3DCreate9Ex" << '(' << SDKVersion << ", " << ppD3D << ')' << " ...";
+	LOG(INFO) << "Redirecting Direct3DCreate9Ex" << '(' << "SDKVersion = " << SDKVersion << ", ppD3D = " << ppD3D << ')' << " ...";
 
 	const HRESULT hr = reshade::hooks::call(Direct3DCreate9Ex)(SDKVersion, ppD3D);
-
 	if (FAILED(hr))
 	{
-		LOG(WARN) << "> Direct3DCreate9Ex failed with error code " << std::hex << hr << std::dec << '!';
+		LOG(WARN) << "> Direct3DCreate9Ex failed with error code " << hr << '!';
 		return hr;
 	}
 

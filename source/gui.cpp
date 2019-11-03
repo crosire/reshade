@@ -13,6 +13,7 @@
 #include "ini_file.hpp"
 #include "gui_widgets.hpp"
 #include <assert.h>
+#include <fstream>
 #include <algorithm>
 #include <imgui.h>
 #include <imgui_internal.h>

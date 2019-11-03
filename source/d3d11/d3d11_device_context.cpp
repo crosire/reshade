@@ -590,8 +590,10 @@ UINT    STDMETHODCALLTYPE D3D11DeviceContext::GetContextFlags()
 HRESULT STDMETHODCALLTYPE D3D11DeviceContext::FinishCommandList(BOOL RestoreDeferredContextState, ID3D11CommandList **ppCommandList)
 {
 	const HRESULT hr = _orig->FinishCommandList(RestoreDeferredContextState, ppCommandList);
-	if (SUCCEEDED(hr) && ppCommandList != nullptr)
+	if (SUCCEEDED(hr))
 	{
+		assert(ppCommandList != nullptr);
+
 		const auto command_list_proxy = new D3D11CommandList(_device, *ppCommandList);
 		command_list_proxy->_draw_call_tracker = _draw_call_tracker;
 

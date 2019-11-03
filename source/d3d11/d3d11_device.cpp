@@ -224,7 +224,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateCounter(const D3D11_COUNTER_DESC *p
 }
 HRESULT STDMETHODCALLTYPE D3D11Device::CreateDeferredContext(UINT ContextFlags, ID3D11DeviceContext **ppDeferredContext)
 {
-	LOG(INFO) << "Redirecting ID3D11Device::CreateDeferredContext" << '(' << this << ", " << ContextFlags << ", " << ppDeferredContext << ')' << " ...";
+	LOG(INFO) << "Redirecting ID3D11Device::CreateDeferredContext" << '(' << "this = " << this << ", ContextFlags = " << ContextFlags << ", ppDeferredContext = " << ppDeferredContext << ')' << " ...";
 
 	if (ppDeferredContext == nullptr)
 		return E_INVALIDARG;
@@ -232,7 +232,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateDeferredContext(UINT ContextFlags, 
 	const HRESULT hr = _orig->CreateDeferredContext(ContextFlags, ppDeferredContext);
 	if (FAILED(hr))
 	{
-		LOG(WARN) << "> ID3D11Device::CreateDeferredContext failed with error code " << std::hex << hr << std::dec << '!';
+		LOG(WARN) << "> ID3D11Device::CreateDeferredContext failed with error code " << hr << '!';
 		return hr;
 	}
 
@@ -321,7 +321,7 @@ void    STDMETHODCALLTYPE D3D11Device::GetImmediateContext1(ID3D11DeviceContext1
 }
 HRESULT STDMETHODCALLTYPE D3D11Device::CreateDeferredContext1(UINT ContextFlags, ID3D11DeviceContext1 **ppDeferredContext)
 {
-	LOG(INFO) << "Redirecting ID3D11Device1::CreateDeferredContext1" << '(' << this << ", " << ContextFlags << ", " << ppDeferredContext << ')' << " ...";
+	LOG(INFO) << "Redirecting ID3D11Device1::CreateDeferredContext1" << '(' << "this = " << this << ", ContextFlags = " << ContextFlags << ", ppDeferredContext = " << ppDeferredContext << ')' << " ...";
 
 	if (ppDeferredContext == nullptr)
 		return E_INVALIDARG;
@@ -331,7 +331,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateDeferredContext1(UINT ContextFlags,
 	const HRESULT hr = static_cast<ID3D11Device1 *>(_orig)->CreateDeferredContext1(ContextFlags, ppDeferredContext);
 	if (FAILED(hr))
 	{
-		LOG(WARN) << "> ID3D11Device1::CreateDeferredContext1 failed with error code " << std::hex << hr << std::dec << '!';
+		LOG(WARN) << "> ID3D11Device1::CreateDeferredContext1 failed with error code " << hr << '!';
 		return hr;
 	}
 

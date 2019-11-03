@@ -115,7 +115,7 @@ bool reshade::d3d9::runtime_d3d9::init_backbuffer_texture()
 
 		if (hr = _device->CreateRenderTarget(_width, _height, _backbuffer_format, D3DMULTISAMPLE_NONE, 0, FALSE, &_backbuffer_resolved, nullptr); FAILED(hr))
 		{
-			LOG(ERROR) << "Failed to create back buffer resolve texture! HRESULT is '" << std::hex << hr << std::dec << "'.";
+			LOG(ERROR) << "Failed to create back buffer resolve texture! HRESULT is " << hr << '.';
 			return false;
 		}
 	}
@@ -127,7 +127,7 @@ bool reshade::d3d9::runtime_d3d9::init_backbuffer_texture()
 	// Create back buffer shader texture
 	if (hr = _device->CreateTexture(_width, _height, 1, D3DUSAGE_RENDERTARGET, _backbuffer_format, D3DPOOL_DEFAULT, &_backbuffer_texture, nullptr); FAILED(hr))
 	{
-		LOG(ERROR) << "Failed to create back buffer texture! HRESULT is '" << std::hex << hr << std::dec << "'.";
+		LOG(ERROR) << "Failed to create back buffer texture! HRESULT is " << hr << '.';
 		return false;
 	}
 
@@ -139,7 +139,7 @@ bool reshade::d3d9::runtime_d3d9::init_default_depth_stencil()
 {
 	if (HRESULT hr = _device->CreateDepthStencilSurface(_width, _height, D3DFMT_D24S8, D3DMULTISAMPLE_NONE, 0, FALSE, &_default_depthstencil, nullptr); FAILED(hr))
 	{
-		LOG(ERROR) << "Failed to create default depth stencil! HRESULT is '" << std::hex << hr << std::dec << "'.";
+		LOG(ERROR) << "Failed to create default depth stencil! HRESULT is " << hr << '.';
 		return false;
 	}
 
@@ -149,7 +149,7 @@ bool reshade::d3d9::runtime_d3d9::init_fullscreen_triangle_resources()
 {
 	if (HRESULT hr = _device->CreateVertexBuffer(3 * sizeof(float), D3DUSAGE_WRITEONLY, 0, D3DPOOL_DEFAULT, &_effect_triangle_buffer, nullptr); FAILED(hr))
 	{
-		LOG(ERROR) << "Failed to create effect vertex buffer! HRESULT is '" << std::hex << hr << std::dec << "'.";
+		LOG(ERROR) << "Failed to create effect vertex buffer! HRESULT is " << hr << '.';
 		return false;
 	}
 
@@ -166,7 +166,7 @@ bool reshade::d3d9::runtime_d3d9::init_fullscreen_triangle_resources()
 
 	if (HRESULT hr = _device->CreateVertexDeclaration(declaration, &_effect_triangle_layout); FAILED(hr))
 	{
-		LOG(ERROR) << "Failed to create effect vertex declaration! HRESULT is '" << std::hex << hr << std::dec << "'.";
+		LOG(ERROR) << "Failed to create effect vertex declaration! HRESULT is " << hr << '.';
 		return false;
 	}
 
@@ -576,7 +576,7 @@ bool reshade::d3d9::runtime_d3d9::init_texture(texture &texture)
 			"Levels = " << levels << ", "
 			"Usage = " << usage << ", "
 			"Format = " << format << ")! "
-			"HRESULT is '" << std::hex << hr << std::dec << "'.";
+			"HRESULT is " << hr << '.';
 		return false;
 	}
 
@@ -640,7 +640,7 @@ void reshade::d3d9::runtime_d3d9::upload_texture(texture &texture, const uint8_t
 
 	if (HRESULT hr = _device->UpdateTexture(intermediate.get(), texture_impl->texture.get()); FAILED(hr))
 	{
-		LOG(ERROR) << "Failed to update texture from system memory texture! HRESULT is '" << std::hex << hr << std::dec << "'.";
+		LOG(ERROR) << "Failed to update texture from system memory texture! HRESULT is " << hr << '.';
 		return;
 	}
 }
@@ -766,7 +766,7 @@ bool reshade::d3d9::runtime_d3d9::compile_effect(effect_data &effect)
 		if (FAILED(hr))
 		{
 			LOG(ERROR) << "Failed to create shader for entry point '" << entry_point.name << "'. "
-				"HRESULT is '" << std::hex << hr << std::dec << "'.";
+				"HRESULT is " << hr << '.';
 			return false;
 		}
 	}
@@ -957,7 +957,7 @@ bool reshade::d3d9::runtime_d3d9::init_technique(technique &technique, const d3d
 		if (FAILED(hr))
 		{
 			LOG(ERROR) << "Failed to create state block for pass " << pass_index << " in technique '" << technique.name << "'. "
-				"HRESULT is '" << std::hex << hr << std::dec << "'.";
+				"HRESULT is " << hr << '.';
 			return false;
 		}
 
@@ -1134,7 +1134,7 @@ bool reshade::d3d9::runtime_d3d9::init_imgui_resources()
 
 	if (FAILED(hr))
 	{
-		LOG(ERROR) << "Failed to create state block! HRESULT is '" << std::hex << hr << std::dec << "'.";
+		LOG(ERROR) << "Failed to create state block! HRESULT is " << hr << '.';
 		return false;
 	}
 
@@ -1545,7 +1545,7 @@ bool reshade::d3d9::runtime_d3d9::create_depthstencil_replacement(const com_ptr<
 
 			if (HRESULT hr = _device->CreateTexture(width, height, 1, D3DUSAGE_DEPTHSTENCIL, desc.Format, D3DPOOL_DEFAULT, &_depthstencil_texture, nullptr); FAILED(hr))
 			{
-				LOG(ERROR) << "Failed to create depth replacement texture! HRESULT is '" << std::hex << hr << std::dec << "'.";
+				LOG(ERROR) << "Failed to create depth replacement texture! HRESULT is " << hr << std::dec << '.';
 				return false;
 			}
 
@@ -1564,7 +1564,7 @@ bool reshade::d3d9::runtime_d3d9::create_depthstencil_replacement(const com_ptr<
 
 			if (HRESULT hr = _depthstencil_replacement->GetContainer(IID_PPV_ARGS(&_depthstencil_texture)); FAILED(hr))
 			{
-				LOG(ERROR) << "Failed to retrieve texture from depth surface! HRESULT is '" << std::hex << hr << std::dec << "'.";
+				LOG(ERROR) << "Failed to retrieve texture from depth surface! HRESULT is " << hr << ". Make sure you have the 'Disable replacement with INTZ format' option unchecked.";
 				return false;
 			}
 		}

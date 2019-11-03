@@ -10,7 +10,18 @@
 
 HOOK_EXPORT HRESULT WINAPI D3D11CreateDevice(IDXGIAdapter *pAdapter, D3D_DRIVER_TYPE DriverType, HMODULE Software, UINT Flags, const D3D_FEATURE_LEVEL *pFeatureLevels, UINT FeatureLevels, UINT SDKVersion, ID3D11Device **ppDevice, D3D_FEATURE_LEVEL *pFeatureLevel, ID3D11DeviceContext **ppImmediateContext)
 {
-	LOG(INFO) << "Redirecting D3D11CreateDevice" << '(' << pAdapter << ", " << DriverType << ", " << Software << ", " << std::hex << Flags << std::dec << ", " << pFeatureLevels << ", " << FeatureLevels << ", " << SDKVersion << ", " << ppDevice << ", " << pFeatureLevel << ", " << ppImmediateContext << ')' << " ...";
+	LOG(INFO) << "Redirecting D3D11CreateDevice" << '('
+		<<   "pAdapter = " << pAdapter
+		<< ", DriverType = " << DriverType
+		<< ", Software = " << Software
+		<< ", Flags = " << std::hex << Flags << std::dec
+		<< ", pFeatureLevels = " << pFeatureLevels
+		<< ", FeatureLevels = " << FeatureLevels
+		<< ", SDKVersion = " << SDKVersion
+		<< ", ppDevice = " << ppDevice
+		<< ", pFeatureLevel = " << pFeatureLevel
+		<< ", ppImmediateContext = " << ppImmediateContext
+		<< ')' << " ...";
 	LOG(INFO) << "> Passing on to D3D11CreateDeviceAndSwapChain:";
 
 	return D3D11CreateDeviceAndSwapChain(pAdapter, DriverType, Software, Flags, pFeatureLevels, FeatureLevels, SDKVersion, nullptr, nullptr, ppDevice, pFeatureLevel, ppImmediateContext);
@@ -18,7 +29,20 @@ HOOK_EXPORT HRESULT WINAPI D3D11CreateDevice(IDXGIAdapter *pAdapter, D3D_DRIVER_
 
 HOOK_EXPORT HRESULT WINAPI D3D11CreateDeviceAndSwapChain(IDXGIAdapter *pAdapter, D3D_DRIVER_TYPE DriverType, HMODULE Software, UINT Flags, const D3D_FEATURE_LEVEL *pFeatureLevels, UINT FeatureLevels, UINT SDKVersion, const DXGI_SWAP_CHAIN_DESC *pSwapChainDesc, IDXGISwapChain **ppSwapChain, ID3D11Device **ppDevice, D3D_FEATURE_LEVEL *pFeatureLevel, ID3D11DeviceContext **ppImmediateContext)
 {
-	LOG(INFO) << "Redirecting D3D11CreateDeviceAndSwapChain" << '(' << pAdapter << ", " << DriverType << ", " << Software << ", " << std::hex << Flags << std::dec << ", " << pFeatureLevels << ", " << FeatureLevels << ", " << SDKVersion << ", " << pSwapChainDesc << ", " << ppSwapChain << ", " << ppDevice << ", " << pFeatureLevel << ", " << ppImmediateContext << ')' << " ...";
+	LOG(INFO) << "Redirecting D3D11CreateDeviceAndSwapChain" << '('
+		<<   "pAdapter = " << pAdapter
+		<< ", DriverType = " << DriverType
+		<< ", Software = " << Software
+		<< ", Flags = " << std::hex << Flags << std::dec
+		<< ", pFeatureLevels = " << pFeatureLevels
+		<< ", FeatureLevels = " << FeatureLevels
+		<< ", SDKVersion = " << SDKVersion
+		<< ", pSwapChainDesc = " << pSwapChainDesc
+		<< ", ppSwapChain = " << ppSwapChain
+		<< ", ppDevice = " << ppDevice
+		<< ", pFeatureLevel = " << pFeatureLevel
+		<< ", ppImmediateContext = " << ppImmediateContext
+		<< ')' << " ...";
 
 	// Use local feature level variable in case the application did not pass one in
 	D3D_FEATURE_LEVEL FeatureLevel = D3D_FEATURE_LEVEL_11_0;
@@ -26,7 +50,7 @@ HOOK_EXPORT HRESULT WINAPI D3D11CreateDeviceAndSwapChain(IDXGIAdapter *pAdapter,
 	HRESULT hr = reshade::hooks::call(D3D11CreateDeviceAndSwapChain)(pAdapter, DriverType, Software, Flags, pFeatureLevels, FeatureLevels, SDKVersion, nullptr, nullptr, ppDevice, &FeatureLevel, nullptr);
 	if (FAILED(hr))
 	{
-		LOG(WARN) << "> D3D11CreateDeviceAndSwapChain failed with error code " << std::hex << hr << std::dec << '!';
+		LOG(WARN) << "> D3D11CreateDeviceAndSwapChain failed with error code " << hr << '!';
 		return hr;
 	}
 

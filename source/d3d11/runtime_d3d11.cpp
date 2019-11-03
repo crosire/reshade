@@ -116,7 +116,8 @@ bool reshade::d3d11::runtime_d3d11::init_backbuffer_texture()
 			LOG(ERROR) << "Failed to create back buffer resolve texture ("
 				"Width = " << tex_desc.Width << ", "
 				"Height = " << tex_desc.Height << ", "
-				"Format = " << tex_desc.Format << ")! HRESULT is '" << std::hex << hr << std::dec << "'.";
+				"Format = " << tex_desc.Format << ")! "
+				"HRESULT is " << hr << '.';
 			return false;
 		}
 
@@ -142,7 +143,8 @@ bool reshade::d3d11::runtime_d3d11::init_backbuffer_texture()
 			hr = _device->CreateShaderResourceView(_backbuffer_texture.get(), &srv_desc, &_backbuffer_texture_srv[0]);
 		else
 			LOG(ERROR) << "Failed to create back buffer texture resource view ("
-				"Format = " << srv_desc.Format << ")! HRESULT is '" << std::hex << hr << std::dec << "'.";
+				"Format = " << srv_desc.Format << ")! "
+				"HRESULT is " << hr << '.';
 
 		srv_desc.Format = make_dxgi_format_srgb(tex_desc.Format);
 
@@ -150,14 +152,16 @@ bool reshade::d3d11::runtime_d3d11::init_backbuffer_texture()
 			hr = _device->CreateShaderResourceView(_backbuffer_texture.get(), &srv_desc, &_backbuffer_texture_srv[1]);
 		else
 			LOG(ERROR) << "Failed to create back buffer SRGB texture resource view ("
-				"Format = " << srv_desc.Format << ")! HRESULT is '" << std::hex << hr << std::dec << "'.";
+				"Format = " << srv_desc.Format << ")! "
+				"HRESULT is " << hr << '.';
 	}
 	else
 	{
 		LOG(ERROR) << "Failed to create back buffer texture ("
 			"Width = " << tex_desc.Width << ", "
 			"Height = " << tex_desc.Height << ", "
-			"Format = " << tex_desc.Format << ")! HRESULT is '" << std::hex << hr << std::dec << "'.";
+			"Format = " << tex_desc.Format << ")! "
+			"HRESULT is " << hr << '.';
 	}
 
 	if (FAILED(hr))
@@ -170,7 +174,8 @@ bool reshade::d3d11::runtime_d3d11::init_backbuffer_texture()
 	if (hr = _device->CreateRenderTargetView(_backbuffer_resolved.get(), &rtv_desc, &_backbuffer_rtv[0]); FAILED(hr))
 	{
 		LOG(ERROR) << "Failed to create back buffer render target ("
-			"Format = " << rtv_desc.Format << ")! HRESULT is '" << std::hex << hr << std::dec << "'.";
+			"Format = " << rtv_desc.Format << ")! "
+			"HRESULT is " << hr << '.';
 		return false;
 	}
 
@@ -179,7 +184,8 @@ bool reshade::d3d11::runtime_d3d11::init_backbuffer_texture()
 	if (hr = _device->CreateRenderTargetView(_backbuffer_resolved.get(), &rtv_desc, &_backbuffer_rtv[1]); FAILED(hr))
 	{
 		LOG(ERROR) << "Failed to create back buffer SRGB render target ("
-			"Format = " << rtv_desc.Format << ")! HRESULT is '" << std::hex << hr << std::dec << "'.";
+			"Format = " << rtv_desc.Format << ")! "
+			"HRESULT is " << hr << '.';
 		return false;
 	}
 
@@ -225,10 +231,11 @@ bool reshade::d3d11::runtime_d3d11::init_default_depth_stencil()
 
 	if (HRESULT hr = _device->CreateTexture2D(&tex_desc, nullptr, &depth_stencil_texture); FAILED(hr))
 	{
-		LOG(ERROR) << "Failed to create depth stencil texture ("
+		LOG(ERROR) << "Failed to create default depth stencil texture ("
 			"Width = " << tex_desc.Width << ", "
 			"Height = " << tex_desc.Height << ", "
-			"Format = " << tex_desc.Format << ")! HRESULT is '" << std::hex << hr << std::dec << "'.";
+			"Format = " << tex_desc.Format << ")! "
+			"HRESULT is " << hr << '.';
 		return false;
 	}
 
@@ -493,7 +500,7 @@ bool reshade::d3d11::runtime_d3d11::init_texture(texture &info)
 			"Width = " << desc.Width << ", "
 			"Height = " << desc.Height << ", "
 			"Format = " << desc.Format << ")! "
-			"HRESULT is '" << std::hex << hr << std::dec << "'.";
+			"HRESULT is " << hr << '.';
 		return false;
 	}
 
@@ -506,7 +513,7 @@ bool reshade::d3d11::runtime_d3d11::init_texture(texture &info)
 	{
 		LOG(ERROR) << "Failed to create shader resource view for texture '" << info.unique_name << "' ("
 			"Format = " << srv_desc.Format << ")! "
-			"HRESULT is '" << std::hex << hr << std::dec << "'.";
+			"HRESULT is " << hr << '.';
 		return false;
 	}
 
@@ -518,7 +525,7 @@ bool reshade::d3d11::runtime_d3d11::init_texture(texture &info)
 		{
 			LOG(ERROR) << "Failed to create shader resource view for texture '" << info.unique_name << "' ("
 				"Format = " << srv_desc.Format << ")! "
-				"HRESULT is '" << std::hex << hr << std::dec << "'.";
+				"HRESULT is " << hr << '.';
 			return false;
 		}
 	}
@@ -691,7 +698,7 @@ bool reshade::d3d11::runtime_d3d11::compile_effect(effect_data &effect)
 		if (FAILED(hr))
 		{
 			LOG(ERROR) << "Failed to create shader for entry point '" << entry_point.name << "'. "
-				"HRESULT is '" << std::hex << hr << std::dec << "'.";
+				"HRESULT is " << hr << '.';
 			return false;
 		}
 	}
@@ -703,10 +710,10 @@ bool reshade::d3d11::runtime_d3d11::compile_effect(effect_data &effect)
 		const D3D11_BUFFER_DESC desc = { static_cast<UINT>(effect.storage_size), D3D11_USAGE_DYNAMIC, D3D11_BIND_CONSTANT_BUFFER, D3D11_CPU_ACCESS_WRITE };
 		const D3D11_SUBRESOURCE_DATA init_data = { _uniform_data_storage.data() + effect.storage_offset, static_cast<UINT>(effect.storage_size) };
 
-		if (const HRESULT hr = _device->CreateBuffer(&desc, &init_data, &cbuffer); FAILED(hr))
+		if (HRESULT hr = _device->CreateBuffer(&desc, &init_data, &cbuffer); FAILED(hr))
 		{
 			LOG(ERROR) << "Failed to create constant buffer for effect file " << effect.source_file << ". "
-				"HRESULT is '" << std::hex << hr << std::dec << "'.";
+				"HRESULT is " << hr << '.';
 			return false;
 		}
 
@@ -778,9 +785,7 @@ bool reshade::d3d11::runtime_d3d11::add_sampler(const reshadefx::sampler_info &i
 	{
 		com_ptr<ID3D11SamplerState> sampler;
 
-		HRESULT hr = _device->CreateSamplerState(&desc, &sampler);
-
-		if (FAILED(hr))
+		if (HRESULT hr = _device->CreateSamplerState(&desc, &sampler); FAILED(hr))
 		{
 			LOG(ERROR) << "Failed to create sampler state for sampler '" << info.unique_name << "' ("
 				"Filter = " << desc.Filter << ", "
@@ -790,7 +795,7 @@ bool reshade::d3d11::runtime_d3d11::add_sampler(const reshadefx::sampler_info &i
 				"MipLODBias = " << desc.MipLODBias << ", "
 				"MinLOD = " << desc.MinLOD << ", "
 				"MaxLOD = " << desc.MaxLOD << ")! "
-				"HRESULT is '" << std::hex << hr << std::dec << "'.";
+				"HRESULT is " << hr << '.';
 			return false;
 		}
 
@@ -863,13 +868,15 @@ bool reshade::d3d11::runtime_d3d11::init_technique(technique &technique, const d
 			rtv_desc.ViewDimension = desc.SampleDesc.Count > 1 ? D3D11_RTV_DIMENSION_TEXTURE2DMS : D3D11_RTV_DIMENSION_TEXTURE2D;
 
 			if (texture_impl->rtv[target_index] == nullptr)
+			{
 				if (HRESULT hr = _device->CreateRenderTargetView(texture_impl->texture.get(), &rtv_desc, &texture_impl->rtv[target_index]); FAILED(hr))
 				{
 					LOG(ERROR) << "Failed to create render target view for texture '" << render_target_texture->unique_name << "' ("
 						"Format = " << rtv_desc.Format << ")! "
-						"HRESULT is '" << std::hex << hr << std::dec << "'.";
+						"HRESULT is " << hr << '.';
 					return false;
 				}
+			}
 
 			pass.render_targets[k] = texture_impl->rtv[target_index];
 			pass.render_target_resources[k] = texture_impl->srv[target_index];
@@ -920,7 +927,7 @@ bool reshade::d3d11::runtime_d3d11::init_technique(technique &technique, const d
 			if (HRESULT hr = _device->CreateBlendState(&desc, &pass.blend_state); FAILED(hr))
 			{
 				LOG(ERROR) << "Failed to create blend state for pass " << pass_index << " in technique '" << technique.name << "'! "
-					"HRESULT is '" << std::hex << hr << std::dec << "'.";
+					"HRESULT is " << hr << '.';
 				return false;
 			}
 		}
@@ -966,7 +973,7 @@ bool reshade::d3d11::runtime_d3d11::init_technique(technique &technique, const d
 			if (HRESULT hr = _device->CreateDepthStencilState(&desc, &pass.depth_stencil_state); FAILED(hr))
 			{
 				LOG(ERROR) << "Failed to create depth stencil state for pass " << pass_index << " in technique '" << technique.name << "'! "
-					"HRESULT is '" << std::hex << hr << std::dec << "'.";
+					"HRESULT is " << hr << '.';
 				return false;
 			}
 		}
@@ -1045,14 +1052,14 @@ void reshade::d3d11::runtime_d3d11::render_technique(technique &technique)
 		const auto constant_buffer = _constant_buffers[technique_data.uniform_storage_index].get();
 
 		D3D11_MAPPED_SUBRESOURCE mapped;
-		if (const HRESULT hr = _immediate_context->Map(constant_buffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped); SUCCEEDED(hr))
+		if (HRESULT hr = _immediate_context->Map(constant_buffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped); SUCCEEDED(hr))
 		{
 			memcpy(mapped.pData, _uniform_data_storage.data() + technique_data.uniform_storage_offset, mapped.RowPitch);
 			_immediate_context->Unmap(constant_buffer, 0);
 		}
 		else
 		{
-			LOG(ERROR) << "Failed to map constant buffer! HRESULT is '" << std::hex << hr << std::dec << "'!";
+			LOG(ERROR) << "Failed to map constant buffer! HRESULT is " << hr << '.';
 		}
 
 		_immediate_context->VSSetConstantBuffers(0, 1, &constant_buffer);
@@ -1498,7 +1505,7 @@ void reshade::d3d11::runtime_d3d11::update_depthstencil_texture(com_ptr<ID3D11Te
 
 		if (HRESULT hr = _device->CreateShaderResourceView(_depth_texture.get(), &srv_desc, &_depth_texture_srv); FAILED(hr))
 		{
-			LOG(ERROR) << "Failed to create depth stencil resource view! HRESULT is '" << std::hex << hr << std::dec << "'.";
+			LOG(ERROR) << "Failed to create depth stencil resource view! HRESULT is " << hr << '.';
 			return;
 		}
 	}
@@ -1521,7 +1528,7 @@ com_ptr<ID3D11Texture2D> reshade::d3d11::runtime_d3d11::create_compatible_textur
 
 	if (HRESULT hr = _device->CreateTexture2D(&desc, nullptr, &texture); FAILED(hr))
 	{
-		LOG(ERROR) << "Failed to create depth texture copy! HRESULT is '" << std::hex << hr << std::dec << "'.";
+		LOG(ERROR) << "Failed to create depth stencil texture! HRESULT is " << hr << '.';
 		return nullptr;
 	}
 
