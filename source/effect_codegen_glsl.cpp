@@ -259,13 +259,13 @@ private:
 			"faceforward", "textureLod", "textureLodOffset", "texelFetch", "main"
 		};
 
-		// Append underscore to reserved names
+		// Append something to reserved names so that they do not fail to compile
 		if (name.compare(0, 3, "gl_") == 0 || s_reserverd_names.count(name))
-			name += '_';
+			name += "_RESERVED"; // Do not append an underscore at the end, since another one may get added in 'define_name'
 
 		// Remove double underscore symbols from name which can occur due to namespaces but are not allowed in GLSL
 		for (size_t pos = 0; (pos = name.find("__", pos)) != std::string::npos; pos += 3)
-			name.replace(pos, 2, "_US");
+			name.replace(pos, 2, "_UNDERSCORE");
 
 		return name;
 	}
