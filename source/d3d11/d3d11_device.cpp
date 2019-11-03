@@ -7,7 +7,7 @@
 #include "d3d11_device.hpp"
 #include "d3d11_device_context.hpp"
 #include "../dxgi/dxgi_device.hpp"
-#include "draw_call_tracker.hpp"
+#include "../dxgi/format_utils.hpp"
 
 D3D11Device::D3D11Device(IDXGIDevice1 *dxgi_device, ID3D11Device *original, ID3D11DeviceContext *immediate_context) :
 	_orig(original),
@@ -131,12 +131,21 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateTexture2D(const D3D11_TEXTURE2D_DES
 {
 	assert(pDesc != nullptr);
 
-	// Add D3D11_BIND_SHADER_RESOURCE flag to all depth stencil textures so that we can access them in post-processing shaders.
+	// Add D3D11_BIND_SHADER_RESOURCE flag to all depth stencil textures so that we can access them in post-processing shaders
 	D3D11_TEXTURE2D_DESC new_desc = *pDesc;
 	if (0 != (new_desc.BindFlags & D3D11_BIND_DEPTH_STENCIL))
+	{
+		new_desc.Format = make_dxgi_format_typeless(new_desc.Format);
 		new_desc.BindFlags |= D3D11_BIND_SHADER_RESOURCE;
+	}
 
-	return _orig->CreateTexture2D(&new_desc, pInitialData, ppTexture2D);
+	const HRESULT hr = _orig->CreateTexture2D(&new_desc, pInitialData, ppTexture2D);
+	if (FAILED(hr))
+	{
+		LOG(WARN) << "ID3D11Device::CreateTexture2D failed with error code " << hr << '.';
+	}
+
+	return hr;
 }
 HRESULT STDMETHODCALLTYPE D3D11Device::CreateTexture3D(const D3D11_TEXTURE3D_DESC *pDesc, const D3D11_SUBRESOURCE_DATA *pInitialData, ID3D11Texture3D **ppTexture3D)
 {
@@ -144,7 +153,32 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateTexture3D(const D3D11_TEXTURE3D_DES
 }
 HRESULT STDMETHODCALLTYPE D3D11Device::CreateShaderResourceView(ID3D11Resource *pResource, const D3D11_SHADER_RESOURCE_VIEW_DESC *pDesc, ID3D11ShaderResourceView **ppSRView)
 {
-	return _orig->CreateShaderResourceView(pResource, pDesc, ppSRView);
+	D3D11_SHADER_RESOURCE_VIEW_DESC new_desc;
+
+	if (com_ptr<ID3D11Texture2D> texture; // A view cannot be created with a typeless format (which was set 'CreateTexture2D'), so fix it
+		pDesc == nullptr && SUCCEEDED(pResource->QueryInterface(&texture)))
+	{
+		D3D11_TEXTURE2D_DESC texture_desc;
+		texture->GetDesc(&texture_desc);
+
+		if (0 != (texture_desc.BindFlags & D3D11_BIND_DEPTH_STENCIL))
+		{
+			new_desc.Format = make_dxgi_format_normal(texture_desc.Format);
+			new_desc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+			new_desc.Texture2D.MipLevels = texture_desc.MipLevels;
+			new_desc.Texture2D.MostDetailedMip = 0;
+
+			pDesc = &new_desc;
+		}
+	}
+
+	const HRESULT hr = _orig->CreateShaderResourceView(pResource, pDesc, ppSRView);
+	if (FAILED(hr))
+	{
+		LOG(WARN) << "ID3D11Device::CreateTexture3D failed with error code " << hr << '.';
+	}
+
+	return hr;
 }
 HRESULT STDMETHODCALLTYPE D3D11Device::CreateUnorderedAccessView(ID3D11Resource *pResource, const D3D11_UNORDERED_ACCESS_VIEW_DESC *pDesc, ID3D11UnorderedAccessView **ppUAView)
 {
@@ -156,7 +190,29 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateRenderTargetView(ID3D11Resource *pR
 }
 HRESULT STDMETHODCALLTYPE D3D11Device::CreateDepthStencilView(ID3D11Resource *pResource, const D3D11_DEPTH_STENCIL_VIEW_DESC *pDesc, ID3D11DepthStencilView **ppDepthStencilView)
 {
-	return _orig->CreateDepthStencilView(pResource, pDesc, ppDepthStencilView);
+	D3D11_DEPTH_STENCIL_VIEW_DESC new_desc;
+
+	if (com_ptr<ID3D11Texture2D> texture; // A view cannot be created with a typeless format (which was set in 'CreateTexture2D'), so fix it
+		pDesc == nullptr && SUCCEEDED(pResource->QueryInterface(&texture)))
+	{
+		D3D11_TEXTURE2D_DESC texture_desc;
+		texture->GetDesc(&texture_desc);
+
+		new_desc.Format = make_dxgi_format_dsv(texture_desc.Format);
+		new_desc.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D;
+		new_desc.Flags = 0;
+		new_desc.Texture2D.MipSlice = 0;
+
+		pDesc = &new_desc;
+	}
+
+	const HRESULT hr = _orig->CreateDepthStencilView(pResource, pDesc, ppDepthStencilView);
+	if (FAILED(hr))
+	{
+		LOG(WARN) << "ID3D11Device::CreateDepthStencilView failed with error code " << hr << '.';
+	}
+
+	return hr;
 }
 HRESULT STDMETHODCALLTYPE D3D11Device::CreateInputLayout(const D3D11_INPUT_ELEMENT_DESC *pInputElementDescs, UINT NumElements, const void *pShaderBytecodeWithInputSignature, SIZE_T BytecodeLength, ID3D11InputLayout **ppInputLayout)
 {

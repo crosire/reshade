@@ -6,6 +6,7 @@
 #include "log.hpp"
 #include "d3d10_device.hpp"
 #include "../dxgi/dxgi_device.hpp"
+#include "../dxgi/format_utils.hpp"
 
 D3D10Device::D3D10Device(IDXGIDevice1 *dxgi_device, ID3D10Device1 *original) :
 	_orig(original),
@@ -375,12 +376,21 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateTexture2D(const D3D10_TEXTURE2D_DES
 {
 	assert(pDesc != nullptr);
 
-	// Add D3D10_BIND_SHADER_RESOURCE flag to all depth stencil textures so that we can access them in post-processing shaders.
+	// Add D3D10_BIND_SHADER_RESOURCE flag to all depth stencil textures so that we can access them in post-processing shaders
 	D3D10_TEXTURE2D_DESC new_desc = *pDesc;
 	if (0 != (new_desc.BindFlags & D3D10_BIND_DEPTH_STENCIL))
+	{
+		new_desc.Format = make_dxgi_format_typeless(new_desc.Format);
 		new_desc.BindFlags |= D3D10_BIND_SHADER_RESOURCE;
+	}
 
-	return _orig->CreateTexture2D(&new_desc, pInitialData, ppTexture2D);
+	const HRESULT hr = _orig->CreateTexture2D(&new_desc, pInitialData, ppTexture2D);
+	if (FAILED(hr))
+	{
+		LOG(WARN) << "ID3D10Device::CreateTexture2D failed with error code " << hr << '.';
+	}
+
+	return hr;
 }
 HRESULT STDMETHODCALLTYPE D3D10Device::CreateTexture3D(const D3D10_TEXTURE3D_DESC *pDesc, const D3D10_SUBRESOURCE_DATA *pInitialData, ID3D10Texture3D **ppTexture3D)
 {
@@ -388,7 +398,32 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateTexture3D(const D3D10_TEXTURE3D_DES
 }
 HRESULT STDMETHODCALLTYPE D3D10Device::CreateShaderResourceView(ID3D10Resource *pResource, const D3D10_SHADER_RESOURCE_VIEW_DESC *pDesc, ID3D10ShaderResourceView **ppSRView)
 {
-	return _orig->CreateShaderResourceView(pResource, pDesc, ppSRView);
+	D3D10_SHADER_RESOURCE_VIEW_DESC new_desc;
+
+	if (com_ptr<ID3D10Texture2D> texture; // A view cannot be created with a typeless format (which was set 'CreateTexture2D'), so fix it
+		pDesc == nullptr && SUCCEEDED(pResource->QueryInterface(&texture)))
+	{
+		D3D10_TEXTURE2D_DESC texture_desc;
+		texture->GetDesc(&texture_desc);
+
+		if (0 != (texture_desc.BindFlags & D3D10_BIND_DEPTH_STENCIL))
+		{
+			new_desc.Format = make_dxgi_format_normal(texture_desc.Format);
+			new_desc.ViewDimension = D3D10_SRV_DIMENSION_TEXTURE2D;
+			new_desc.Texture2D.MipLevels = texture_desc.MipLevels;
+			new_desc.Texture2D.MostDetailedMip = 0;
+
+			pDesc = &new_desc;
+		}
+	}
+
+	const HRESULT hr = _orig->CreateShaderResourceView(pResource, pDesc, ppSRView);
+	if (FAILED(hr))
+	{
+		LOG(WARN) << "ID3D10Device::CreateShaderResourceView failed with error code " << hr << '.';
+	}
+
+	return hr;
 }
 HRESULT STDMETHODCALLTYPE D3D10Device::CreateRenderTargetView(ID3D10Resource *pResource, const D3D10_RENDER_TARGET_VIEW_DESC *pDesc, ID3D10RenderTargetView **ppRTView)
 {
@@ -396,7 +431,28 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateRenderTargetView(ID3D10Resource *pR
 }
 HRESULT STDMETHODCALLTYPE D3D10Device::CreateDepthStencilView(ID3D10Resource *pResource, const D3D10_DEPTH_STENCIL_VIEW_DESC *pDesc, ID3D10DepthStencilView **ppDepthStencilView)
 {
-	return _orig->CreateDepthStencilView(pResource, pDesc, ppDepthStencilView);
+	D3D10_DEPTH_STENCIL_VIEW_DESC new_desc;
+
+	if (com_ptr<ID3D10Texture2D> texture; // A view cannot be created with a typeless format (which was set in 'CreateTexture2D'), so fix it
+		pDesc == nullptr && SUCCEEDED(pResource->QueryInterface(&texture)))
+	{
+		D3D10_TEXTURE2D_DESC texture_desc;
+		texture->GetDesc(&texture_desc);
+
+		new_desc.Format = make_dxgi_format_dsv(texture_desc.Format);
+		new_desc.ViewDimension = D3D10_DSV_DIMENSION_TEXTURE2D;
+		new_desc.Texture2D.MipSlice = 0;
+
+		pDesc = &new_desc;
+	}
+
+	const HRESULT hr = _orig->CreateDepthStencilView(pResource, pDesc, ppDepthStencilView);
+	if (FAILED(hr))
+	{
+		LOG(WARN) << "ID3D10Device::CreateDepthStencilView failed with error code " << hr << '.';
+	}
+
+	return hr;
 }
 HRESULT STDMETHODCALLTYPE D3D10Device::CreateInputLayout(const D3D10_INPUT_ELEMENT_DESC *pInputElementDescs, UINT NumElements, const void *pShaderBytecodeWithInputSignature, SIZE_T BytecodeLength, ID3D10InputLayout **ppInputLayout)
 {

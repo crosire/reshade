@@ -5,9 +5,8 @@
 
 #pragma once
 
-#include <d3d11_4.h>
-#include "draw_call_tracker.hpp"
 #include <atomic>
+#include <d3d11_4.h>
 
 struct DXGIDevice;
 struct D3D11DeviceContext;
