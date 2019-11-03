@@ -204,13 +204,11 @@ void reshade::runtime::on_present()
 			if (_input->is_key_pressed(_reload_key_data))
 				load_effects();
 
-			const bool is_next_preset_key_pressed = _input->is_key_pressed(_next_preset_key_data);
-			const bool is_previous_preset_key_pressed = _input->is_key_pressed(_prev_preset_key_data);
-
-			if (is_next_preset_key_pressed || is_previous_preset_key_pressed)
+			if (const bool reversed = _input->is_key_pressed(_prev_preset_key_data);
+				_input->is_key_pressed(_next_preset_key_data) || reversed)
 			{
 				// The preset shortcut key was pressed down, so start the transition
-				if (switch_to_next_preset({}, is_previous_preset_key_pressed))
+				if (switch_to_next_preset({}, reversed))
 				{
 					_last_preset_switching_time = current_time;
 					_is_in_between_presets_transition = true;
@@ -1063,7 +1061,6 @@ void reshade::runtime::load_current_preset()
 	for (uniform &variable : _uniforms)
 	{
 		const std::string section = _loaded_effects[variable.effect_index].source_file.filename().u8string();
-		reshadefx::constant values, values_old;
 
 		if (variable.supports_toggle_key())
 		{
@@ -1071,6 +1068,12 @@ void reshade::runtime::load_current_preset()
 			memset(variable.toggle_key_data, 0, sizeof(variable.toggle_key_data));
 			preset.get(section, "Key" + variable.name, variable.toggle_key_data);
 		}
+
+		if (!_is_in_between_presets_transition)
+			// Reset values to defaults before loading from a new preset
+			reset_uniform_value(variable);
+
+		reshadefx::constant values, values_old;
 
 		switch (variable.type.base)
 		{
