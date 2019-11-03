@@ -685,17 +685,46 @@ void reshade::runtime::draw_ui()
 				draw_code_editor();
 			ImGui::End();
 		}
+	}
 
-		if (_preview_texture != nullptr && !is_loading() && _reload_compile_queue.empty())
+	if (_preview_texture != nullptr)
+	{
+		if (!_show_menu)
 		{
-			ImVec2 preview_size = imgui_io.DisplaySize;
-			if (_preview_size[0])
-				preview_size.x = static_cast<float>(_preview_size[0]);
-			if (_preview_size[1])
-				preview_size.y = static_cast<float>(_preview_size[1]);
-
-			ImGui::FindWindowByName("Viewport")->DrawList->AddImage(_preview_texture, ImVec2(0, 0), preview_size);
+			// Create a temporary viewport window to attach image to when menu is not open
+			ImGui::SetNextWindowPos(ImVec2(0, 0));
+			ImGui::SetNextWindowSize(ImVec2(_width, _height));
+			ImGui::Begin("Viewport", nullptr,
+				ImGuiWindowFlags_NoDecoration |
+				ImGuiWindowFlags_NoNav |
+				ImGuiWindowFlags_NoMove |
+				ImGuiWindowFlags_NoDocking |
+				ImGuiWindowFlags_NoFocusOnAppearing |
+				ImGuiWindowFlags_NoBringToFrontOnFocus |
+				ImGuiWindowFlags_NoBackground);
+			ImGui::End();
 		}
+
+		// The preview texture is unset in 'unload_effects', so should not be able to reach this while loading
+		assert(!is_loading() && _reload_compile_queue.empty());
+
+		// Scale image to fill the entire viewport by default
+		ImVec2 preview_min = ImVec2(0, 0);
+		ImVec2 preview_max = imgui_io.DisplaySize;
+
+		// Positing image in the middle of the viewport when using original size
+		if (_preview_size[0])
+		{
+			preview_min.x = (preview_max.x * 0.5f) - (_preview_size[0] * 0.5f);
+			preview_max.x = (preview_max.x * 0.5f) + (_preview_size[0] * 0.5f);
+		}
+		if (_preview_size[1])
+		{
+			preview_min.y = (preview_max.y * 0.5f) - (_preview_size[1] * 0.5f);
+			preview_max.y = (preview_max.y * 0.5f) + (_preview_size[1] * 0.5f);
+		}
+
+		ImGui::FindWindowByName("Viewport")->DrawList->AddImage(_preview_texture, preview_min, preview_max);
 	}
 
 	// Render ImGui widgets and windows
