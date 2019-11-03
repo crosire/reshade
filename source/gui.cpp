@@ -693,7 +693,7 @@ void reshade::runtime::draw_ui()
 		{
 			// Create a temporary viewport window to attach image to when menu is not open
 			ImGui::SetNextWindowPos(ImVec2(0, 0));
-			ImGui::SetNextWindowSize(ImVec2(_width, _height));
+			ImGui::SetNextWindowSize(ImVec2(imgui_io.DisplaySize.x, imgui_io.DisplaySize.y));
 			ImGui::Begin("Viewport", nullptr,
 				ImGuiWindowFlags_NoDecoration |
 				ImGuiWindowFlags_NoNav |
