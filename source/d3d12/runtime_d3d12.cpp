@@ -1606,7 +1606,7 @@ void reshade::d3d12::runtime_d3d12::update_depthstencil_texture(com_ptr<ID3D12Re
 	else if (_depth_texture_override != nullptr && texture != _depth_texture_override)
 		return;
 
-	if (texture == _depth_texture)
+	if (texture == _depth_texture && texture != nullptr)
 		return;
 
 	_depth_texture = std::move(texture);
