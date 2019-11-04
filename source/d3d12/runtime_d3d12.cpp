@@ -1639,6 +1639,9 @@ void reshade::d3d12::runtime_d3d12::update_depthstencil_texture(com_ptr<ID3D12Re
 		view_desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
 	}
 
+	if (_depth_texture == nullptr)
+		return;
+
 	for (d3d12_effect_data &effect_data : _effect_data)
 	{
 		if (effect_data.depth_texture_binding.ptr == 0)
