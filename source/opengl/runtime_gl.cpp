@@ -351,8 +351,10 @@ void reshade::opengl::runtime_gl::on_fbo_attachment(GLenum attachment, GLenum ta
 
 bool reshade::opengl::runtime_gl::capture_screenshot(uint8_t *buffer) const
 {
-	glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
-	glReadBuffer(GL_BACK);
+	assert(_app_state.has_state); // Can only call this while rendering to FBO_BACK
+
+	glBindFramebuffer(GL_READ_FRAMEBUFFER, _fbo[FBO_BACK]);
+	glReadBuffer(GL_COLOR_ATTACHMENT0);
 	glReadPixels(0, 0, GLsizei(_width), GLsizei(_height), GL_RGBA, GL_UNSIGNED_BYTE, buffer);
 
 	// Flip image horizontally
