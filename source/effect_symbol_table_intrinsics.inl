@@ -429,7 +429,10 @@ IMPLEMENT_INTRINSIC_GLSL(floor, 0, {
 	code += "floor(" + id_to_name(args[0].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_HLSL(floor, 0, {
-	code += "floor(" + id_to_name(args[0].base) + ')';
+	if (_shader_model >= 40u)
+		code += "floor(" + id_to_name(args[0].base) + ')';
+	else // Using the floor intrinsic sometimes causes the SM3 D3DCompiler to generate wrong code, so replace it with a custom implementation
+		code += id_to_name(args[0].base) + " - frac(" + id_to_name(args[0].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_SPIRV(floor, 0, {
 	return add_instruction(spv::OpExtInst, convert_type(res_type))
@@ -1444,7 +1447,7 @@ IMPLEMENT_INTRINSIC_GLSL(tex2D, 0, {
 	code += "texture(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + " * vec2(1.0, -1.0) + vec2(0.0, 1.0))";
 	})
 IMPLEMENT_INTRINSIC_HLSL(tex2D, 0, {
-	if (_shader_model >= 40u)
+	if (_shader_model >= 40u) // SM4 and higher use a more object-oriented programming model for textures
 		code += id_to_name(args[0].base) + ".t.Sample(" + id_to_name(args[0].base) + ".s, " + id_to_name(args[1].base) + ')';
 	else
 		code += "tex2D(" + id_to_name(args[0].base) + ".s, " + id_to_name(args[1].base) + ')';
@@ -1560,7 +1563,8 @@ IMPLEMENT_INTRINSIC_HLSL(tex2Dsize, 0, {
 	})
 IMPLEMENT_INTRINSIC_HLSL(tex2Dsize, 1, {
 	if (_shader_model >= 40u)
-		code += "uint temp" + std::to_string(res) + "; " + id_to_name(args[0].base) + ".t.GetDimensions(" + id_to_name(args[1].base) + ", " + id_to_name(res) + ".x, " + id_to_name(res) + ".y, temp" + std::to_string(res) + ')';
+		code += "uint temp" + std::to_string(res) + "; " + // Don't need the LOD value, so output that to a dummy variable
+			id_to_name(args[0].base) + ".t.GetDimensions(" + id_to_name(args[1].base) + ", " + id_to_name(res) + ".x, " + id_to_name(res) + ".y, temp" + std::to_string(res) + ')';
 	else
 		code += "int2(1.0 / " + id_to_name(args[0].base) + ".pixelsize) / exp2(" + id_to_name(args[1].base) + ')';
 	})
@@ -1591,12 +1595,12 @@ IMPLEMENT_INTRINSIC_SPIRV(tex2Dsize, 1, {
 // ret tex2Dfetch(s, coords)
 DEFINE_INTRINSIC(tex2Dfetch, 0, float4, sampler, int4)
 IMPLEMENT_INTRINSIC_GLSL(tex2Dfetch, 0, {
-	code += "texelFetch(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ".xy - ivec2(vec2(0, 1.0 - 1.0 / exp2(float(" + id_to_name(args[1].base) + ".w))) * textureSize(" + id_to_name(args[0].base) + ", 0)), " + id_to_name(args[1].base) + ".w)";
+		code += "texelFetch(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ".xy - ivec2(vec2(0, 1.0 - 1.0 / exp2(float(" + id_to_name(args[1].base) + ".w))) * textureSize(" + id_to_name(args[0].base) + ", 0)), " + id_to_name(args[1].base) + ".w)";
 	})
 IMPLEMENT_INTRINSIC_HLSL(tex2Dfetch, 0, {
 	if (_shader_model >= 40u)
 		code += id_to_name(args[0].base) + ".t.Load(" + id_to_name(args[1].base) + ".xyw)";
-	else
+	else // SM3 does not have a fetch intrinsic, so emulate it by transforming coordinates into texture space ones
 		code += "tex2Dlod(" + id_to_name(args[0].base) + ".s, float4((" + id_to_name(args[1].base) + ".xy * exp2(" + id_to_name(args[1].base) + ".w) + 0.5 /* half-pixel offset */) * " + id_to_name(args[0].base) + ".pixelsize, 0, " + id_to_name(args[1].base) + ".w))";
 	})
 IMPLEMENT_INTRINSIC_SPIRV(tex2Dfetch, 0, {
@@ -1635,7 +1639,7 @@ IMPLEMENT_INTRINSIC_HLSL(tex2Dgather, 0, {
 		const char *const names[4] = { "GatherRed" COMMA "GatherGreen" COMMA "GatherBlue" COMMA "GatherAlpha" };
 		for (unsigned int c = 0; c < 4; ++c)
 			code += id_to_name(args[2].base) + " == " + std::to_string(c) + " ? " + id_to_name(args[0].base) + ".t." + names[c] + '(' + id_to_name(args[0].base) + ".s, " + id_to_name(args[1].base) + ") : ";
-	} else if (_shader_model >= 40u) {
+	} else if (_shader_model >= 40u) { // Emulate texture gather intrinsic by sampling each location separately
 		for (unsigned int c = 0; c < 4; ++c)
 			code += id_to_name(args[2].base) + " == " + std::to_string(c) + " ? float4(" +
 				id_to_name(args[0].base) + ".t.SampleLevel(" + id_to_name(args[0].base) + ".s, " + id_to_name(args[1].base) + ", 0, int2(0, 0))." + "rgba"[c] + ", " +

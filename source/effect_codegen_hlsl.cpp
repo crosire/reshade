@@ -1198,7 +1198,6 @@ private:
 
 		code += _blocks.at(selector_block);
 
-		// Switch statements do not work correctly in shader model 3 if a constant is used as selector value (this is a D3DCompiler bug), so replace them with if statements instead there
 		if (_shader_model >= 40)
 		{
 			write_location(code, loc);
@@ -1238,7 +1237,7 @@ private:
 
 			code += "\t}\n";
 		}
-		else
+		else // Switch statements do not work correctly in SM3 if a constant is used as selector value (this is a D3DCompiler bug), so replace them with if statements
 		{
 			write_location(code, loc);
 
