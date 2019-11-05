@@ -105,7 +105,13 @@ bool reshade::input::handle_window_message(const void *message_data)
 	lock.unlock();
 
 	// Prevent input threads from modifying input while it is accessed elsewhere
-	std::lock_guard<std::mutex> input_lock(input->_mutex);
+#ifdef _DEBUG
+	std::unique_lock<std::mutex> input_lock(input->_mutex, std::try_to_lock);
+	if (!input_lock.owns_lock())
+		return false; // Avoid recursive lock when message box is open
+#else
+	const std::lock_guard<std::mutex> input_lock = input->lock();
+#endif
 
 	// Calculate window client mouse position
 	ScreenToClient(static_cast<HWND>(input->_window), &details.pt);
