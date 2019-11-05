@@ -1461,6 +1461,7 @@ void reshade::runtime::draw_overlay_menu_log()
 	if (ImGui::BeginChild("log", ImVec2(0, 0), true, _log_wordwrap ? 0 : ImGuiWindowFlags_AlwaysHorizontalScrollbar))
 	{
 		std::vector<std::string> lines;
+		lines.reserve(reshade::log::lines.size());
 		for (auto &line : reshade::log::lines)
 			if (filter.PassFilter(line.c_str()))
 				lines.push_back(line);

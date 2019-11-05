@@ -44,17 +44,15 @@ reshade::log::message::message(level level)
 }
 reshade::log::message::~message()
 {
-	// Finish the line
-	line << std::endl;
-
 	std::string line_string = line.str();
 	lines.push_back(line_string);
 
-	// Write line to the log file
-	s_file_stream << line_string;
+	// Write line to the log file and flush it
+	s_file_stream << line_string << std::endl;
 
 #ifdef _DEBUG
-	// Write line to the debug output log
+	// Write line to the debug output
+	line_string += '\n';
 	OutputDebugStringA(line_string.c_str());
 #endif
 
