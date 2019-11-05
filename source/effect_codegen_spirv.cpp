@@ -1145,9 +1145,9 @@ private:
 				assert(false);
 				break;
 			case expression::operation::op_constant_index:
-				if (op.from.is_vector())
+				if (op.from.is_vector() || op.from.is_matrix())
 				{
-					assert(result != 0 && op.to.is_scalar());
+					assert(result != 0);
 					result = add_instruction(spv::OpCompositeExtract, convert_type(op.to))
 						.add(result)
 						.add(op.index) // Literal Index

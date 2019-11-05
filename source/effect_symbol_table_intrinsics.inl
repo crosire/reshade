@@ -1370,9 +1370,9 @@ IMPLEMENT_INTRINSIC_HLSL(mul, 4, {
 	code += "mul(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_SPIRV(mul, 4, {
-	return add_instruction(spv::OpVectorTimesMatrix, convert_type(res_type))
+	return add_instruction(spv::OpMatrixTimesVector, convert_type(res_type))
+		.add(args[1].base) // Flip inputs
 		.add(args[0].base)
-		.add(args[1].base)
 		.result;
 	})
 DEFINE_INTRINSIC(mul, 5, float2, float2x2, float2)
@@ -1385,9 +1385,9 @@ IMPLEMENT_INTRINSIC_HLSL(mul, 5, {
 	code += "mul(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_SPIRV(mul, 5, {
-	return add_instruction(spv::OpMatrixTimesVector, convert_type(res_type))
-		.add(args[0].base)
+	return add_instruction(spv::OpVectorTimesMatrix, convert_type(res_type))
 		.add(args[1].base)
+		.add(args[0].base)
 		.result;
 	})
 
@@ -1402,8 +1402,8 @@ IMPLEMENT_INTRINSIC_HLSL(mul, 6, {
 	})
 IMPLEMENT_INTRINSIC_SPIRV(mul, 6, {
 	return add_instruction(spv::OpMatrixTimesMatrix, convert_type(res_type))
-		.add(args[0].base)
 		.add(args[1].base)
+		.add(args[0].base)
 		.result;
 	})
 
