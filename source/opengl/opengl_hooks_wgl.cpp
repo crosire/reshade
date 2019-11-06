@@ -605,7 +605,7 @@ HOOK_EXPORT BOOL  WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 		}
 
 		// Keep track of all device contexts that were used with this render context
-		// Do this outside the above if statement since the game may change the device context without changing the render context and thus the current runtime
+		// Do this outside the above if statement since the application may change the device context without changing the render context and thus the current runtime
 		it->second->_hdcs.insert(hdc);
 	}
 	else

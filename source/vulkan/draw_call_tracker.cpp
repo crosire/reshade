@@ -245,7 +245,7 @@ namespace reshade::vulkan
 				if (!check_texture_format(snapshot.image_info))
 					continue;
 
-				if (snapshot.stats.vertices >= best_snapshot.stats.vertices)
+				if (snapshot.stats.drawcalls >= best_snapshot.stats.drawcalls)
 					best_snapshot = snapshot;
 			}
 		}

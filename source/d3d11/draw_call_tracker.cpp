@@ -266,7 +266,8 @@ namespace reshade::d3d11
 				if (!check_texture_format(desc))
 					continue;
 
-				if (snapshot.stats.vertices >= best_snapshot.stats.vertices)
+				// Choose snapshot with the most draw calls, since vertices may not be accurate if application is using indirect draw calls
+				if (snapshot.stats.drawcalls >= best_snapshot.stats.drawcalls)
 				{
 					best_texture = dsv_texture;
 					best_snapshot = snapshot;

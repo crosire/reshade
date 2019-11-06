@@ -233,6 +233,7 @@ namespace reshade::d3d10
 				if (!check_texture_format(desc))
 					continue;
 
+				// Choose snapshot with the most vertices, since that is likely to contain the main scene
 				if (snapshot.stats.vertices >= best_snapshot.stats.vertices)
 				{
 					best_texture = dsv_texture;
