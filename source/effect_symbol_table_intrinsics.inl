@@ -1617,9 +1617,9 @@ IMPLEMENT_INTRINSIC_HLSL(tex2Dfetch, 0, {
 	else
 		// SM3 does not have a fetch intrinsic, so emulate it by transforming coordinates into texture space ones
 		// Also add a half-pixel offset to align texels with pixels
-		//   (coords * exp2(lod) + 0.5) / size
+		//   (coords + 0.5) / size
 		code += "tex2Dlod(" + id_to_name(args[0].base) + ".s, float4((" +
-			id_to_name(args[1].base) + ".xy * exp2(" + id_to_name(args[1].base) + ".w) + 0.5) * " + id_to_name(args[0].base) + ".pixelsize, 0, " +
+			id_to_name(args[1].base) + ".xy + 0.5) * " + id_to_name(args[0].base) + ".pixelsize * exp2(" + id_to_name(args[1].base) + ".w), 0, " +
 			id_to_name(args[1].base) + ".w))";
 	})
 IMPLEMENT_INTRINSIC_SPIRV(tex2Dfetch, 0, {
