@@ -1280,14 +1280,31 @@ void reshade::opengl::runtime_gl::detect_depth_source()
 		// Resize depth texture if it dimensions have changed
 		if (best_info.width != previous_info.width || best_info.height != previous_info.height || best_info.format != previous_info.format || !_tex[TEX_DEPTH])
 		{
-			if (best_info.format == GL_DEPTH_STENCIL)
-				best_info.format = GL_UNSIGNED_INT_24_8;
+			// Convert depth formats to internal texture formats
+			switch (best_info.format)
+			{
+			case GL_DEPTH_STENCIL:
+				best_info.format = GL_DEPTH24_STENCIL8;
+				break;
+			case GL_DEPTH_COMPONENT:
+				best_info.format = GL_DEPTH_COMPONENT24;
+				break;
+			}
 
 			// Recreate depth texture name (since the storage is immutable after the first call to glTexStorage)
-			glDeleteTextures(1, &_tex[TEX_DEPTH]); glGenTextures(1, &_tex[TEX_DEPTH]);
+			glDeleteTextures(1, &_tex[TEX_DEPTH]);
+			glGenTextures(1, &_tex[TEX_DEPTH]);
 
 			glBindTexture(GL_TEXTURE_2D, _tex[TEX_DEPTH]);
 			glTexStorage2D(GL_TEXTURE_2D, 1, best_info.format, best_info.width, best_info.height);
+
+			if (GLenum err = glGetError(); err != GL_NO_ERROR)
+			{
+				glDeleteTextures(1, &_tex[TEX_DEPTH]);
+				_tex[TEX_DEPTH] = 0;
+
+				LOG(ERROR) << "Failed to create depth texture of format " << std::hex << best_info.format << " with error code " << err << std::dec << '.';
+			}
 
 			// Update FBO attachment
 			glBindFramebuffer(GL_FRAMEBUFFER, _fbo[FBO_BLIT]);
