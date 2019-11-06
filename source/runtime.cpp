@@ -557,7 +557,7 @@ void reshade::runtime::load_textures()
 
 		// Search for image file using the provided search paths unless the path provided is already absolute
 		if (!find_file(_texture_search_paths, source_path)) {
-			LOG(ERROR) << "> Source " << source_path << " for texture '" << texture.unique_name << "' could not be found in any of the texture search paths.";
+			LOG(ERROR) << "Source " << source_path << " for texture '" << texture.unique_name << "' could not be found in any of the texture search paths.";
 			continue;
 		}
 
@@ -578,14 +578,14 @@ void reshade::runtime::load_textures()
 		}
 
 		if (filedata == nullptr) {
-			LOG(ERROR) << "> Source " << source_path << " for texture '" << texture.unique_name << "' could not be loaded! Make sure it is of a compatible file format.";
+			LOG(ERROR) << "Source " << source_path << " for texture '" << texture.unique_name << "' could not be loaded! Make sure it is of a compatible file format.";
 			continue;
 		}
 
 		// Need to potentially resize image data to the texture dimensions
 		if (texture.width != uint32_t(width) || texture.height != uint32_t(height))
 		{
-			LOG(INFO) << "> Resizing image data for texture '" << texture.unique_name << "' from " << width << "x" << height << " to " << texture.width << "x" << texture.height << " ...";
+			LOG(INFO) << "Resizing image data for texture '" << texture.unique_name << "' from " << width << "x" << height << " to " << texture.width << "x" << texture.height << " ...";
 
 			std::vector<uint8_t> resized(texture.width * texture.height * 4);
 			stbir_resize_uint8(filedata, width, height, 0, resized.data(), texture.width, texture.height, 0, 4);

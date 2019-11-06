@@ -39,24 +39,21 @@ HOOK_EXPORT int   WINAPI wglChoosePixelFormat(HDC hdc, const PIXELFORMATDESCRIPT
 
 	if (ppfd->iLayerType != PFD_MAIN_PLANE || ppfd->bReserved != 0)
 	{
-		LOG(ERROR) << "> Layered OpenGL contexts of type " << static_cast<int>(ppfd->iLayerType) << " are not supported.";
-
+		LOG(ERROR) << "Layered OpenGL contexts of type " << static_cast<int>(ppfd->iLayerType) << " are not supported.";
 		SetLastError(ERROR_INVALID_PARAMETER);
-
 		return 0;
 	}
 	else if ((ppfd->dwFlags & PFD_DOUBLEBUFFER) == 0)
 	{
-		LOG(WARN) << "> Single buffered OpenGL contexts are not supported.";
+		LOG(WARN) << "Single buffered OpenGL contexts are not supported.";
 	}
 
 	// Note: Windows calls into 'wglDescribePixelFormat' repeatedly from this, so make sure it reports correct results
 	const int format = reshade::hooks::call(wglChoosePixelFormat)(hdc, ppfd);
-
 	if (format != 0)
-		LOG(INFO) << "> Returned format: " << format;
+		LOG(INFO) << "> Returning format: " << format;
 	else
-		LOG(WARN) << "> wglChoosePixelFormat failed with error code " << (GetLastError() & 0xFFFF) << '!';
+		LOG(WARN) << "wglChoosePixelFormat failed with error code " << (GetLastError() & 0xFFFF) << '!';
 
 	return format;
 }
@@ -219,21 +216,18 @@ HOOK_EXPORT int   WINAPI wglChoosePixelFormat(HDC hdc, const PIXELFORMATDESCRIPT
 
 	if (layerplanes)
 	{
-		LOG(ERROR) << "> Layered OpenGL contexts are not supported.";
-
+		LOG(ERROR) << "Layered OpenGL contexts are not supported.";
 		SetLastError(ERROR_INVALID_PARAMETER);
-
 		return FALSE;
 	}
 	else if (!doublebuffered)
 	{
-		LOG(WARN) << "> Single buffered OpenGL contexts are not supported.";
+		LOG(WARN) << "Single buffered OpenGL contexts are not supported.";
 	}
 
 	if (!reshade::hooks::call(wglChoosePixelFormatARB)(hdc, piAttribIList, pfAttribFList, nMaxFormats, piFormats, nNumFormats))
 	{
-		LOG(WARN) << "> wglChoosePixelFormatARB failed with error code " << (GetLastError() & 0xFFFF) << '!';
-
+		LOG(WARN) << "wglChoosePixelFormatARB failed with error code " << (GetLastError() & 0xFFFF) << '!';
 		return FALSE;
 	}
 
@@ -243,15 +237,13 @@ HOOK_EXPORT int   WINAPI wglChoosePixelFormat(HDC hdc, const PIXELFORMATDESCRIPT
 		nMaxFormats = *nNumFormats;
 
 	std::string formats;
-
 	for (UINT i = 0; i < nMaxFormats; ++i)
 	{
 		assert(piFormats[i] != 0);
-
 		formats += " " + std::to_string(piFormats[i]);
 	}
 
-	LOG(INFO) << "> Returned format(s):" << formats;
+	LOG(INFO) << "> Returning format(s):" << formats;
 
 	return TRUE;
 }
@@ -264,9 +256,7 @@ HOOK_EXPORT int   WINAPI wglGetPixelFormat(HDC hdc)
 	if (iLayerPlane != 0)
 	{
 		LOG(WARN) << "Access to layer plane at index " << iLayerPlane << " is unsupported.";
-
 		SetLastError(ERROR_INVALID_PARAMETER);
-
 		return FALSE;
 	}
 
@@ -277,9 +267,7 @@ HOOK_EXPORT int   WINAPI wglGetPixelFormat(HDC hdc)
 	if (iLayerPlane != 0)
 	{
 		LOG(WARN) << "Access to layer plane at index " << iLayerPlane << " is unsupported.";
-
 		SetLastError(ERROR_INVALID_PARAMETER);
-
 		return FALSE;
 	}
 
@@ -291,14 +279,13 @@ HOOK_EXPORT BOOL  WINAPI wglSetPixelFormat(HDC hdc, int iPixelFormat, const PIXE
 
 	if (!reshade::hooks::call(wglSetPixelFormat)(hdc, iPixelFormat, ppfd))
 	{
-		LOG(WARN) << "> wglSetPixelFormat failed with error code " << (GetLastError() & 0xFFFF) << '!';
-
+		LOG(WARN) << "wglSetPixelFormat failed with error code " << (GetLastError() & 0xFFFF) << '!';
 		return FALSE;
 	}
 
 	if (GetPixelFormat(hdc) == 0)
 	{
-		LOG(WARN) << "> Application mistakenly called wglSetPixelFormat directly. Passing on to SetPixelFormat:";
+		LOG(WARN) << "Application mistakenly called wglSetPixelFormat directly. Passing on to SetPixelFormat ...";
 
 		SetPixelFormat(hdc, iPixelFormat, ppfd);
 	}
@@ -316,7 +303,6 @@ HOOK_EXPORT BOOL  WINAPI wglDescribeLayerPlane(HDC hdc, int iPixelFormat, int iL
 	LOG(WARN) << "Access to layer plane at index " << iLayerPlane << " is unsupported.";
 
 	SetLastError(ERROR_NOT_SUPPORTED);
-
 	return FALSE;
 }
 HOOK_EXPORT BOOL  WINAPI wglRealizeLayerPalette(HDC hdc, int iLayerPlane, BOOL b)
@@ -325,7 +311,6 @@ HOOK_EXPORT BOOL  WINAPI wglRealizeLayerPalette(HDC hdc, int iLayerPlane, BOOL b
 	LOG(WARN) << "Access to layer plane at index " << iLayerPlane << " is unsupported.";
 
 	SetLastError(ERROR_NOT_SUPPORTED);
-
 	return FALSE;
 }
 HOOK_EXPORT int   WINAPI wglGetLayerPaletteEntries(HDC hdc, int iLayerPlane, int iStart, int cEntries, COLORREF *pcr)
@@ -334,7 +319,6 @@ HOOK_EXPORT int   WINAPI wglGetLayerPaletteEntries(HDC hdc, int iLayerPlane, int
 	LOG(WARN) << "Access to layer plane at index " << iLayerPlane << " is unsupported.";
 
 	SetLastError(ERROR_NOT_SUPPORTED);
-
 	return 0;
 }
 HOOK_EXPORT int   WINAPI wglSetLayerPaletteEntries(HDC hdc, int iLayerPlane, int iStart, int cEntries, const COLORREF *pcr)
@@ -343,7 +327,6 @@ HOOK_EXPORT int   WINAPI wglSetLayerPaletteEntries(HDC hdc, int iLayerPlane, int
 	LOG(WARN) << "Access to layer plane at index " << iLayerPlane << " is unsupported.";
 
 	SetLastError(ERROR_NOT_SUPPORTED);
-
 	return 0;
 }
 
@@ -379,7 +362,7 @@ HOOK_EXPORT HGLRC WINAPI wglCreateContext(HDC hdc)
 
 	int i = 0, major = 1, minor = 0, flags = 0;
 	bool core = true, compatibility = false;
-	attribute attribs[8] = { };
+	attribute attribs[8] = {};
 
 	for (const int *attrib = piAttribList; attrib != nullptr && *attrib != 0 && i < 5; attrib += 2, ++i)
 	{
@@ -421,7 +404,7 @@ HOOK_EXPORT HGLRC WINAPI wglCreateContext(HDC hdc)
 
 	if (major < 4 || minor < 3)
 	{
-		LOG(WARN) << "> Replacing requested version with 4.3 ...";
+		LOG(INFO) << "> Replacing requested version with 4.3 ...";
 
 		for (int k = 0; k < i; ++k)
 		{
@@ -441,11 +424,9 @@ HOOK_EXPORT HGLRC WINAPI wglCreateContext(HDC hdc)
 	}
 
 	const HGLRC hglrc = reshade::hooks::call(wglCreateContextAttribsARB)(hdc, hShareContext, reinterpret_cast<const int *>(attribs));
-
 	if (hglrc == nullptr)
 	{
-		LOG(WARN) << "> wglCreateContextAttribsARB failed with error code " << (GetLastError() & 0xFFFF) << '!';
-
+		LOG(WARN) << "wglCreateContextAttribsARB failed with error code " << (GetLastError() & 0xFFFF) << '!';
 		return nullptr;
 	}
 
@@ -464,8 +445,9 @@ HOOK_EXPORT HGLRC WINAPI wglCreateContext(HDC hdc)
 		}
 	}
 
+#if RESHADE_VERBOSE_LOG
 	LOG(INFO) << "> Returning OpenGL context " << hglrc << '.';
-
+#endif
 	return hglrc;
 }
 HOOK_EXPORT HGLRC WINAPI wglCreateLayerContext(HDC hdc, int iLayerPlane)
@@ -475,18 +457,14 @@ HOOK_EXPORT HGLRC WINAPI wglCreateLayerContext(HDC hdc, int iLayerPlane)
 	if (iLayerPlane != 0)
 	{
 		LOG(WARN) << "Access to layer plane at index " << iLayerPlane << " is unsupported.";
-
 		SetLastError(ERROR_INVALID_PARAMETER);
-
 		return nullptr;
 	}
 
 	const HGLRC hglrc = reshade::hooks::call(wglCreateLayerContext)(hdc, iLayerPlane);
-
 	if (hglrc == nullptr)
 	{
-		LOG(WARN) << "> wglCreateLayerContext failed with error code " << (GetLastError() & 0xFFFF) << '!';
-
+		LOG(WARN) << "wglCreateLayerContext failed with error code " << (GetLastError() & 0xFFFF) << '!';
 		return nullptr;
 	}
 
@@ -494,8 +472,9 @@ HOOK_EXPORT HGLRC WINAPI wglCreateLayerContext(HDC hdc, int iLayerPlane)
 		s_shared_contexts.emplace(hglrc, nullptr);
 	}
 
+#if RESHADE_VERBOSE_LOG
 	LOG(INFO) << "> Returning OpenGL context " << hglrc << '.';
-
+#endif
 	return hglrc;
 }
 HOOK_EXPORT BOOL  WINAPI wglCopyContext(HGLRC hglrcSrc, HGLRC hglrcDst, UINT mask)
@@ -508,7 +487,9 @@ HOOK_EXPORT BOOL  WINAPI wglDeleteContext(HGLRC hglrc)
 
 	if (const auto it = s_opengl_runtimes.find(hglrc); it != s_opengl_runtimes.end())
 	{
-		LOG(INFO) << "> Cleaning up runtime " << it->second << " ...";
+#if RESHADE_VERBOSE_LOG
+		LOG(DEBUG) << "> Cleaning up runtime " << it->second << " ...";
+#endif
 
 		// Choose a random device context to make current with (and hope that is still alive)
 		const HDC hdc = *it->second->_hdcs.begin();
@@ -522,7 +503,7 @@ HOOK_EXPORT BOOL  WINAPI wglDeleteContext(HGLRC hglrc)
 		}
 		else
 		{
-			LOG(WARN) << "> Unable to make context current, leaking resources ...";
+			LOG(WARN) << "Unable to make context current, leaking resources ...";
 		}
 
 		s_opengl_runtimes.erase(it);
@@ -547,8 +528,7 @@ HOOK_EXPORT BOOL  WINAPI wglDeleteContext(HGLRC hglrc)
 
 	if (!reshade::hooks::call(wglDeleteContext)(hglrc))
 	{
-		LOG(WARN) << "> wglDeleteContext failed with error code " << (GetLastError() & 0xFFFF) << '!';
-
+		LOG(WARN) << "wglDeleteContext failed with error code " << (GetLastError() & 0xFFFF) << '!';
 		return FALSE;
 	}
 
@@ -561,8 +541,7 @@ HOOK_EXPORT BOOL  WINAPI wglShareLists(HGLRC hglrc1, HGLRC hglrc2)
 
 	if (!reshade::hooks::call(wglShareLists)(hglrc1, hglrc2))
 	{
-		LOG(WARN) << "> wglShareLists failed with error code " << (GetLastError() & 0xFFFF) << '!';
-
+		LOG(WARN) << "wglShareLists failed with error code " << (GetLastError() & 0xFFFF) << '!';
 		return FALSE;
 	}
 
@@ -586,7 +565,7 @@ HOOK_EXPORT BOOL  WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 	if (!trampoline(hdc, hglrc))
 	{
 #if RESHADE_VERBOSE_LOG
-		LOG(WARN) << "> wglMakeCurrent failed with error code " << (GetLastError() & 0xFFFF) << '!';
+		LOG(WARN) << "wglMakeCurrent failed with error code " << (GetLastError() & 0xFFFF) << '!';
 #endif
 		return FALSE;
 	}
@@ -636,7 +615,6 @@ HOOK_EXPORT BOOL  WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 		if (hwnd == nullptr || s_pbuffer_device_contexts.find(hdc) != s_pbuffer_device_contexts.end())
 		{
 			LOG(WARN) << "Skipping render context " << hglrc << " because there is no window associated with its device context " << hdc << '.';
-
 			return TRUE;
 		}
 		else if ((GetClassLongPtr(hwnd, GCL_STYLE) & CS_OWNDC) == 0)
@@ -733,18 +711,15 @@ HOOK_EXPORT HGLRC WINAPI wglGetCurrentContext()
 	LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
 
 	const HPBUFFERARB hpbuffer = reshade::hooks::call(wglCreatePbufferARB)(hdc, iPixelFormat, iWidth, iHeight, piAttribList);
-
 	if (hpbuffer == nullptr)
 	{
-		LOG(WARN) << "> wglCreatePbufferARB failed with error code " << (GetLastError() & 0xFFFF) << '!';
-
+		LOG(WARN) << "wglCreatePbufferARB failed with error code " << (GetLastError() & 0xFFFF) << '!';
 		return nullptr;
 	}
 
 #if RESHADE_VERBOSE_LOG
-	LOG(DEBUG) << "> Returning pixel buffer " << hpbuffer << '.';
+	LOG(INFO) << "> Returning pixel buffer " << hpbuffer << '.';
 #endif
-
 	return hpbuffer;
 }
 			BOOL  WINAPI wglDestroyPbufferARB(HPBUFFERARB hPbuffer)
@@ -753,7 +728,7 @@ HOOK_EXPORT HGLRC WINAPI wglGetCurrentContext()
 
 	if (!reshade::hooks::call(wglDestroyPbufferARB)(hPbuffer))
 	{
-		LOG(WARN) << "> wglDestroyPbufferARB failed with error code " << (GetLastError() & 0xFFFF) << '!';
+		LOG(WARN) << "wglDestroyPbufferARB failed with error code " << (GetLastError() & 0xFFFF) << '!';
 		return FALSE;
 	}
 
@@ -768,11 +743,9 @@ HOOK_EXPORT HGLRC WINAPI wglGetCurrentContext()
 	LOG(INFO) << "Redirecting wglGetPbufferDCARB" << '(' << "hPbuffer = " << hPbuffer << ')' << " ...";
 
 	const HDC hdc = reshade::hooks::call(wglGetPbufferDCARB)(hPbuffer);
-
 	if (hdc == nullptr)
 	{
-		LOG(WARN) << "> wglGetPbufferDCARB failed with error code " << (GetLastError() & 0xFFFF) << '!';
-
+		LOG(WARN) << "wglGetPbufferDCARB failed with error code " << (GetLastError() & 0xFFFF) << '!';
 		return nullptr;
 	}
 
@@ -781,9 +754,8 @@ HOOK_EXPORT HGLRC WINAPI wglGetCurrentContext()
 	}
 
 #if RESHADE_VERBOSE_LOG
-	LOG(DEBUG) << "> Returning pixel buffer device context " << hdc << '.';
+	LOG(INFO) << "> Returning pixel buffer device context " << hdc << '.';
 #endif
-
 	return hdc;
 }
 			int   WINAPI wglReleasePbufferDCARB(HPBUFFERARB hPbuffer, HDC hdc)
@@ -792,8 +764,7 @@ HOOK_EXPORT HGLRC WINAPI wglGetCurrentContext()
 
 	if (!reshade::hooks::call(wglReleasePbufferDCARB)(hPbuffer, hdc))
 	{
-		LOG(WARN) << "> wglReleasePbufferDCARB failed with error code " << (GetLastError() & 0xFFFF) << '!';
-
+		LOG(WARN) << "wglReleasePbufferDCARB failed with error code " << (GetLastError() & 0xFFFF) << '!';
 		return FALSE;
 	}
 
@@ -860,7 +831,6 @@ HOOK_EXPORT BOOL  WINAPI wglSwapLayerBuffers(HDC hdc, UINT i)
 		LOG(WARN) << "Access to layer plane at index " << index << " is unsupported.";
 
 		SetLastError(ERROR_INVALID_PARAMETER);
-
 		return FALSE;
 	}
 

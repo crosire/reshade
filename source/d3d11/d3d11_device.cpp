@@ -288,14 +288,14 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateDeferredContext(UINT ContextFlags, 
 	const HRESULT hr = _orig->CreateDeferredContext(ContextFlags, ppDeferredContext);
 	if (FAILED(hr))
 	{
-		LOG(WARN) << "> ID3D11Device::CreateDeferredContext failed with error code " << hr << '!';
+		LOG(WARN) << "ID3D11Device::CreateDeferredContext failed with error code " << hr << '!';
 		return hr;
 	}
 
 	*ppDeferredContext = new D3D11DeviceContext(this, *ppDeferredContext);
 
 #if RESHADE_VERBOSE_LOG
-	LOG(DEBUG) << "Returning ID3D11DeviceContext object " << *ppDeferredContext << '.';
+	LOG(INFO) << "> Returning ID3D11DeviceContext object " << *ppDeferredContext << '.';
 #endif
 	return hr;
 }
@@ -387,14 +387,14 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateDeferredContext1(UINT ContextFlags,
 	const HRESULT hr = static_cast<ID3D11Device1 *>(_orig)->CreateDeferredContext1(ContextFlags, ppDeferredContext);
 	if (FAILED(hr))
 	{
-		LOG(WARN) << "> ID3D11Device1::CreateDeferredContext1 failed with error code " << hr << '!';
+		LOG(WARN) << "ID3D11Device1::CreateDeferredContext1 failed with error code " << hr << '!';
 		return hr;
 	}
 
 	*ppDeferredContext = new D3D11DeviceContext(this, *ppDeferredContext);
 
 #if RESHADE_VERBOSE_LOG
-	LOG(DEBUG) << "Returning ID3D11DeviceContext1 object " << *ppDeferredContext << '.';
+	LOG(INFO) << "> Returning ID3D11DeviceContext1 object " << *ppDeferredContext << '.';
 #endif
 	return hr;
 }

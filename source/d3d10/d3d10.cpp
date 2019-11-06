@@ -77,7 +77,7 @@ HOOK_EXPORT HRESULT WINAPI D3D10CreateDeviceAndSwapChain1(IDXGIAdapter *pAdapter
 	HRESULT hr = reshade::hooks::call(D3D10CreateDeviceAndSwapChain1)(pAdapter, DriverType, Software, Flags, HardwareLevel, SDKVersion, nullptr, nullptr, ppDevice);
 	if (FAILED(hr))
 	{
-		LOG(WARN) << "> D3D10CreateDeviceAndSwapChain1 failed with error code " << hr << '!';
+		LOG(WARN) << "D3D10CreateDeviceAndSwapChain1 failed with error code " << hr << '!';
 		return hr;
 	}
 
@@ -95,7 +95,7 @@ HOOK_EXPORT HRESULT WINAPI D3D10CreateDeviceAndSwapChain1(IDXGIAdapter *pAdapter
 	D3D10Device *device_proxy = nullptr;
 	if (DriverType == D3D_DRIVER_TYPE_WARP || DriverType == D3D_DRIVER_TYPE_REFERENCE)
 	{
-		LOG(WARN) << "> Skipping device because the driver type is 'D3D_DRIVER_TYPE_WARP' or 'D3D_DRIVER_TYPE_REFERENCE'.";
+		LOG(WARN) << "Skipping device because the driver type is 'D3D_DRIVER_TYPE_WARP' or 'D3D_DRIVER_TYPE_REFERENCE'.";
 	}
 	else
 	{
@@ -131,7 +131,7 @@ HOOK_EXPORT HRESULT WINAPI D3D10CreateDeviceAndSwapChain1(IDXGIAdapter *pAdapter
 		if (device_proxy != nullptr)
 		{
 #if RESHADE_VERBOSE_LOG
-			LOG(DEBUG) << "Returning IDXGIDevice1 object " << device_proxy->_dxgi_device << " and ID3D10Device1 object " << device_proxy << '.';
+			LOG(INFO) << "Returning IDXGIDevice1 object " << device_proxy->_dxgi_device << " and ID3D10Device1 object " << device_proxy << '.';
 #endif
 			*ppDevice = device_proxy;
 		}

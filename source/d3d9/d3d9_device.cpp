@@ -155,7 +155,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateAdditionalSwapChain(D3DPRESENT_
 	const HRESULT hr = _orig->CreateAdditionalSwapChain(pPresentationParameters, ppSwapChain);
 	if (FAILED(hr))
 	{
-		LOG(WARN) << "> IDirect3DDevice9::CreateAdditionalSwapChain failed with error code " << hr << '!';
+		LOG(WARN) << "IDirect3DDevice9::CreateAdditionalSwapChain failed with error code " << hr << '!';
 		return hr;
 	}
 
@@ -179,7 +179,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateAdditionalSwapChain(D3DPRESENT_
 	*ppSwapChain = swapchain_proxy;
 
 #if RESHADE_VERBOSE_LOG
-	LOG(DEBUG) << "Returning IDirect3DSwapChain9 object: " << swapchain_proxy << '.';
+	LOG(INFO) << "Returning IDirect3DSwapChain9 object: " << swapchain_proxy << '.';
 #endif
 	return D3D_OK;
 }
@@ -223,7 +223,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::Reset(D3DPRESENT_PARAMETERS *pPresent
 	const HRESULT hr = _orig->Reset(pPresentationParameters);
 	if (FAILED(hr))
 	{
-		LOG(ERROR) << "> IDirect3DDevice9::Reset failed with error code " << hr << '!';
+		LOG(ERROR) << "IDirect3DDevice9::Reset failed with error code " << hr << '!';
 		return hr;
 	}
 
@@ -872,7 +872,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::ResetEx(D3DPRESENT_PARAMETERS *pPrese
 	const HRESULT hr = static_cast<IDirect3DDevice9Ex *>(_orig)->ResetEx(pPresentationParameters, pFullscreenDisplayMode);
 	if (FAILED(hr))
 	{
-		LOG(ERROR) << "> IDirect3DDevice9Ex::ResetEx failed with error code " << hr << '!';
+		LOG(ERROR) << "IDirect3DDevice9Ex::ResetEx failed with error code " << hr << '!';
 		return hr;
 	}
 
