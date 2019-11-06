@@ -470,6 +470,8 @@ private:
 		_module.entry_points.push_back(entry_point_info { func.unique_name, is_ps });
 
 		_blocks.at(0) += "#ifdef ENTRY_POINT_" + func.unique_name + '\n';
+		if (is_ps)
+			_blocks.at(0) += "layout(origin_upper_left) in vec4 gl_FragCoord;\n";
 
 		function_info entry_point;
 		entry_point.return_type = { type::t_void };
