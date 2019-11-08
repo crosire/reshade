@@ -362,7 +362,7 @@ bool imgui_drag_with_buttons(const char *label, T *v, int components, T v_speed,
 	bool value_changed = ImGui::DragScalarN("##v", data_type, v, components, static_cast<float>(v_speed), &v_min, &v_max, format);
 	ImGui::PopItemWidth();
 
-	ImGui::SameLine(0, 0);
+	ImGui::SameLine(0, button_spacing);
 	if (ImGui::ButtonEx("<", ImVec2(button_size, 0), ImGuiButtonFlags_PressedOnClick | ImGuiButtonFlags_Repeat) && v[0] > v_min)
 	{
 		for (int c = 0; c < components; ++c)
@@ -421,7 +421,7 @@ bool imgui_slider_with_buttons(const char *label, T *v, int components, T v_spee
 	bool value_changed = ImGui::SliderScalarN("##v", data_type, v, components, &v_min, &v_max, format);
 	ImGui::PopItemWidth();
 
-	ImGui::SameLine(0, 0);
+	ImGui::SameLine(0, button_spacing);
 	if (ImGui::ButtonEx("<", ImVec2(button_size, 0), ImGuiButtonFlags_PressedOnClick | ImGuiButtonFlags_Repeat) && v[0] > v_min)
 	{
 		for (int c = 0; c < components; ++c)
