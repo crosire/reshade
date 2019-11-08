@@ -746,10 +746,10 @@ void reshade::runtime::draw_overlay_menu_home()
 
 	const char *tutorial_text =
 		"Welcome! Since this is the first time you start ReShade, we'll go through a quick tutorial covering the most important features.\n\n"
-		"Before we continue: If you have difficulties reading this text, press the 'Ctrl' key and adjust the font size with your mouse wheel. "
-		"The window size is variable as well, just grab the bottom right corner and move it around.\n\n"
+		"If you have difficulties reading this text, press the 'Ctrl' key and adjust the font size with your mouse wheel. "
+		"The window size is variable as well, just grab the right edge and move it around.\n\n"
 		"You can also use the keyboard for navigation in case mouse input does not work. Use the arrow keys to navigate, space bar to confirm an action or enter a control and the 'Esc' key to leave a control. "
-		"Press 'Ctrl + Tab' to switch between tabs and windows.\n\n"
+		"Press 'Ctrl + Tab' to switch between tabs and windows (use this to focus this page in case the other navigation keys do not work at first).\n\n"
 		"Click on the 'Continue' button to continue the tutorial.";
 
 	// It is not possible to follow some of the tutorial steps while performance mode is active, so skip them
@@ -761,8 +761,8 @@ void reshade::runtime::draw_overlay_menu_home()
 		if (_tutorial_index == 1)
 		{
 			tutorial_text =
-				"This is the preset selection. All changes will be saved to the selected file.\n\n"
-				"Click on the '+' button to name and add a new one.\n"
+				"This is the preset selection. All changes will be saved to the selected preset file.\n\n"
+				"Click on the '+' button to name and add a new one.\n\n"
 				"Make sure you always have a preset selected here before starting to tweak any values later, or else your changes won't be saved!";
 
 			ImGui::PushStyleColor(ImGuiCol_FrameBg, COLOR_RED);
@@ -877,7 +877,7 @@ void reshade::runtime::draw_overlay_menu_home()
 		if (_tutorial_index == 2)
 		{
 			tutorial_text =
-				"This is the list of techniques. It contains all techniques in the effect files (*.fx) that were found in the effect search paths as specified in the settings.\n"
+				"This is the list of effects. It contains all techniques found in the effect files (*.fx) from the effect search paths as specified in the settings.\n\n"
 				"Enter text in the box at the top to filter it and search for specific techniques.\n\n"
 				"Click on a technique to enable or disable it or drag it to a new location in the list to change the order in which the effects are applied.\n"
 				"Use the right mouse button and click on an item to open the context menu with additional options.\n\n";
@@ -911,8 +911,9 @@ void reshade::runtime::draw_overlay_menu_home()
 		if (_tutorial_index == 3)
 		{
 			tutorial_text =
-				"This is the list of variables. It contains all tweakable options the effects expose. All values here apply in real-time. Press 'Ctrl' and click on a widget to manually edit the value.\n\n"
+				"This is the list of variables. It contains all tweakable options the active effects expose. Values here apply in real-time.\n\n"
 				"Enter text in the box at the top to filter it and search for specific variables.\n\n"
+				"Press 'Ctrl' and click on a widget to manually edit the value.\n"
 				"Use the right mouse button and click on an item to open the context menu with additional options.\n\n"
 				"Once you have finished tweaking your preset, be sure to enable the 'Performance Mode' check box. "
 				"This will recompile all shaders into a more optimal representation that can give a performance boost, but will disable variable tweaking and this list.";
@@ -961,23 +962,39 @@ void reshade::runtime::draw_overlay_menu_home()
 
 		const float max_button_width = ImGui::GetContentRegionAvail().x;
 
-		if (ImGui::Button(_tutorial_index == 3 ? "Finish" : "Continue", ImVec2(max_button_width * 0.66666666f, 0)))
+		if (_tutorial_index == 0)
 		{
-			// Disable font scaling after tutorial
-			if (_tutorial_index++ == 3)
+			if (ImGui::Button("Continue", ImVec2(max_button_width * 0.66666666f, 0)))
+			{
+				_tutorial_index++;
+
+				save_config();
+			}
+
+			ImGui::SameLine();
+
+			if (ImGui::Button("Skip Tutorial", ImVec2(max_button_width * 0.33333333f - _imgui_context->Style.ItemSpacing.x, 0)))
+			{
+				_tutorial_index = 4;
 				_no_font_scaling = true;
 
-			save_config();
+				save_config();
+			}
 		}
-
-		ImGui::SameLine();
-
-		if (ImGui::Button("Skip Tutorial", ImVec2(max_button_width * 0.33333333f - _imgui_context->Style.ItemSpacing.x, 0)))
+		else
 		{
-			_tutorial_index = 4;
-			_no_font_scaling = true;
+			if (ImGui::Button(_tutorial_index == 3 ? "Finish" : "Continue", ImVec2(max_button_width, 0)))
+			{
+				_tutorial_index++;
 
-			save_config();
+				if (_tutorial_index == 4)
+				{
+					// Disable font scaling after tutorial
+					_no_font_scaling = true;
+
+					save_config();
+				}
+			}
 		}
 	}
 }
