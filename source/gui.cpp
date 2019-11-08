@@ -687,7 +687,7 @@ void reshade::runtime::draw_ui()
 		}
 	}
 
-	if (_preview_texture != nullptr)
+	if (_preview_texture != nullptr && _effects_enabled)
 	{
 		if (!_show_menu)
 		{
