@@ -153,29 +153,39 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateTexture3D(const D3D11_TEXTURE3D_DES
 }
 HRESULT STDMETHODCALLTYPE D3D11Device::CreateShaderResourceView(ID3D11Resource *pResource, const D3D11_SHADER_RESOURCE_VIEW_DESC *pDesc, ID3D11ShaderResourceView **ppSRView)
 {
-	D3D11_SHADER_RESOURCE_VIEW_DESC new_desc;
+	D3D11_SHADER_RESOURCE_VIEW_DESC new_desc =
+		pDesc != nullptr ? *pDesc : D3D11_SHADER_RESOURCE_VIEW_DESC {};
 
-	if (com_ptr<ID3D11Texture2D> texture; // A view cannot be created with a typeless format (which was set 'CreateTexture2D'), so fix it
-		pDesc == nullptr && SUCCEEDED(pResource->QueryInterface(&texture)))
+	// A view cannot be created with a typeless format (which was set 'CreateTexture2D'), so fix it
+	if (pDesc == nullptr || pDesc->Format == DXGI_FORMAT_UNKNOWN)
 	{
 		D3D11_TEXTURE2D_DESC texture_desc;
-		texture->GetDesc(&texture_desc);
-
-		if (0 != (texture_desc.BindFlags & D3D11_BIND_DEPTH_STENCIL))
+		if (com_ptr<ID3D11Texture2D> texture;
+			SUCCEEDED(pResource->QueryInterface(&texture)))
 		{
-			new_desc.Format = make_dxgi_format_normal(texture_desc.Format);
-			new_desc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
-			new_desc.Texture2D.MipLevels = texture_desc.MipLevels;
-			new_desc.Texture2D.MostDetailedMip = 0;
+			texture->GetDesc(&texture_desc);
 
-			pDesc = &new_desc;
+			// Only textures with the depth stencil bind flag where modified, so skip all others
+			if (0 != (texture_desc.BindFlags & D3D11_BIND_DEPTH_STENCIL))
+			{
+				new_desc.Format = make_dxgi_format_normal(texture_desc.Format);
+
+				if (pDesc == nullptr) // Only need to set the rest of the fields if the application did not pass in a valid description already
+				{
+					new_desc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+					new_desc.Texture2D.MipLevels = static_cast<UINT>(-1); // All the mipmap levels from 'MostDetailedMip' on down to least detailed
+					new_desc.Texture2D.MostDetailedMip = 0;
+				}
+
+				pDesc = &new_desc;
+			}
 		}
 	}
 
 	const HRESULT hr = _orig->CreateShaderResourceView(pResource, pDesc, ppSRView);
 	if (FAILED(hr))
 	{
-		LOG(WARN) << "ID3D11Device::CreateTexture3D failed with error code " << hr << '.';
+		LOG(WARN) << "ID3D11Device::CreateShaderResourceView failed with error code " << hr << '.';
 	}
 
 	return hr;
@@ -190,20 +200,28 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateRenderTargetView(ID3D11Resource *pR
 }
 HRESULT STDMETHODCALLTYPE D3D11Device::CreateDepthStencilView(ID3D11Resource *pResource, const D3D11_DEPTH_STENCIL_VIEW_DESC *pDesc, ID3D11DepthStencilView **ppDepthStencilView)
 {
-	D3D11_DEPTH_STENCIL_VIEW_DESC new_desc;
+	D3D11_DEPTH_STENCIL_VIEW_DESC new_desc =
+		pDesc != nullptr ? *pDesc : D3D11_DEPTH_STENCIL_VIEW_DESC {};
 
-	if (com_ptr<ID3D11Texture2D> texture; // A view cannot be created with a typeless format (which was set in 'CreateTexture2D'), so fix it
-		pDesc == nullptr && SUCCEEDED(pResource->QueryInterface(&texture)))
+	// A view cannot be created with a typeless format (which was set in 'CreateTexture2D'), so fix it
+	if (pDesc == nullptr || pDesc->Format == DXGI_FORMAT_UNKNOWN)
 	{
 		D3D11_TEXTURE2D_DESC texture_desc;
-		texture->GetDesc(&texture_desc);
+		if (com_ptr<ID3D11Texture2D> texture;
+			SUCCEEDED(pResource->QueryInterface(&texture)))
+		{
+			texture->GetDesc(&texture_desc);
 
-		new_desc.Format = make_dxgi_format_dsv(texture_desc.Format);
-		new_desc.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D;
-		new_desc.Flags = 0;
-		new_desc.Texture2D.MipSlice = 0;
+			new_desc.Format = make_dxgi_format_dsv(texture_desc.Format);
 
-		pDesc = &new_desc;
+			if (pDesc == nullptr) // Only need to set the rest of the fields if the application did not pass in a valid description already
+			{
+				new_desc.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D;
+				new_desc.Texture2D.MipSlice = 0;
+			}
+
+			pDesc = &new_desc;
+		}
 	}
 
 	const HRESULT hr = _orig->CreateDepthStencilView(pResource, pDesc, ppDepthStencilView);
@@ -447,8 +465,23 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CheckMultisampleQualityLevels1(DXGI_FORMA
 
 HRESULT STDMETHODCALLTYPE D3D11Device::CreateTexture2D1(const D3D11_TEXTURE2D_DESC1 *pDesc1, const D3D11_SUBRESOURCE_DATA *pInitialData, ID3D11Texture2D1 **ppTexture2D)
 {
+	assert(pDesc1 != nullptr);
+
+	D3D11_TEXTURE2D_DESC1 new_desc = *pDesc1;
+	if (0 != (new_desc.BindFlags & D3D11_BIND_DEPTH_STENCIL))
+	{
+		new_desc.Format = make_dxgi_format_typeless(new_desc.Format);
+		new_desc.BindFlags |= D3D11_BIND_SHADER_RESOURCE;
+	}
+
 	assert(_interface_version >= 3);
-	return static_cast<ID3D11Device3 *>(_orig)->CreateTexture2D1(pDesc1, pInitialData, ppTexture2D);
+	const HRESULT hr = static_cast<ID3D11Device3 *>(_orig)->CreateTexture2D1(pDesc1, pInitialData, ppTexture2D);
+	if (FAILED(hr))
+	{
+		LOG(WARN) << "ID3D11Device3::CreateTexture2D1 failed with error code " << hr << '.';
+	}
+
+	return hr;
 }
 HRESULT STDMETHODCALLTYPE D3D11Device::CreateTexture3D1(const D3D11_TEXTURE3D_DESC1 *pDesc1, const D3D11_SUBRESOURCE_DATA *pInitialData, ID3D11Texture3D1 **ppTexture3D)
 {
@@ -462,8 +495,42 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateRasterizerState2(const D3D11_RASTER
 }
 HRESULT STDMETHODCALLTYPE D3D11Device::CreateShaderResourceView1(ID3D11Resource *pResource, const D3D11_SHADER_RESOURCE_VIEW_DESC1 *pDesc1, ID3D11ShaderResourceView1 **ppSRView1)
 {
+	D3D11_SHADER_RESOURCE_VIEW_DESC1 new_desc =
+		pDesc1 != nullptr ? *pDesc1 : D3D11_SHADER_RESOURCE_VIEW_DESC1 {};
+
+	if (pDesc1 == nullptr || pDesc1->Format == DXGI_FORMAT_UNKNOWN)
+	{
+		D3D11_TEXTURE2D_DESC texture_desc;
+		if (com_ptr<ID3D11Texture2D> texture;
+			SUCCEEDED(pResource->QueryInterface(&texture)))
+		{
+			texture->GetDesc(&texture_desc);
+
+			if (0 != (texture_desc.BindFlags & D3D11_BIND_DEPTH_STENCIL))
+			{
+				new_desc.Format = make_dxgi_format_normal(texture_desc.Format);
+
+				if (pDesc1 == nullptr)
+				{
+					new_desc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+					new_desc.Texture2D.MipLevels = static_cast<UINT>(-1);
+					new_desc.Texture2D.MostDetailedMip = 0;
+					new_desc.Texture2D.PlaneSlice = 0;
+				}
+
+				pDesc1 = &new_desc;
+			}
+		}
+	}
+
 	assert(_interface_version >= 3);
-	return static_cast<ID3D11Device3 *>(_orig)->CreateShaderResourceView1(pResource, pDesc1, ppSRView1);
+	const HRESULT hr = static_cast<ID3D11Device3 *>(_orig)->CreateShaderResourceView1(pResource, pDesc1, ppSRView1);
+	if (FAILED(hr))
+	{
+		LOG(WARN) << "ID3D11Device3::CreateShaderResourceView1 failed with error code " << hr << '.';
+	}
+
+	return hr;
 }
 HRESULT STDMETHODCALLTYPE D3D11Device::CreateUnorderedAccessView1(ID3D11Resource *pResource, const D3D11_UNORDERED_ACCESS_VIEW_DESC1 *pDesc1, ID3D11UnorderedAccessView1 **ppUAView1)
 {

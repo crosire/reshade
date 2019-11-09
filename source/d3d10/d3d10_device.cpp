@@ -398,22 +398,32 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateTexture3D(const D3D10_TEXTURE3D_DES
 }
 HRESULT STDMETHODCALLTYPE D3D10Device::CreateShaderResourceView(ID3D10Resource *pResource, const D3D10_SHADER_RESOURCE_VIEW_DESC *pDesc, ID3D10ShaderResourceView **ppSRView)
 {
-	D3D10_SHADER_RESOURCE_VIEW_DESC new_desc;
+	D3D10_SHADER_RESOURCE_VIEW_DESC new_desc =
+		pDesc != nullptr ? *pDesc : D3D10_SHADER_RESOURCE_VIEW_DESC {};
 
-	if (com_ptr<ID3D10Texture2D> texture; // A view cannot be created with a typeless format (which was set 'CreateTexture2D'), so fix it
-		pDesc == nullptr && SUCCEEDED(pResource->QueryInterface(&texture)))
+	// A view cannot be created with a typeless format (which was set 'CreateTexture2D'), so fix it
+	if (pDesc == nullptr || pDesc->Format == DXGI_FORMAT_UNKNOWN)
 	{
 		D3D10_TEXTURE2D_DESC texture_desc;
-		texture->GetDesc(&texture_desc);
-
-		if (0 != (texture_desc.BindFlags & D3D10_BIND_DEPTH_STENCIL))
+		if (com_ptr<ID3D10Texture2D> texture;
+			SUCCEEDED(pResource->QueryInterface(&texture)))
 		{
-			new_desc.Format = make_dxgi_format_normal(texture_desc.Format);
-			new_desc.ViewDimension = D3D10_SRV_DIMENSION_TEXTURE2D;
-			new_desc.Texture2D.MipLevels = texture_desc.MipLevels;
-			new_desc.Texture2D.MostDetailedMip = 0;
+			texture->GetDesc(&texture_desc);
 
-			pDesc = &new_desc;
+			// Only textures with the depth stencil bind flag where modified, so skip all others
+			if (0 != (texture_desc.BindFlags & D3D10_BIND_DEPTH_STENCIL))
+			{
+				new_desc.Format = make_dxgi_format_normal(texture_desc.Format);
+
+				if (pDesc == nullptr) // Only need to set the rest of the fields if the application did not pass in a valid description already
+				{
+					new_desc.ViewDimension = D3D10_SRV_DIMENSION_TEXTURE2D;
+					new_desc.Texture2D.MipLevels = texture_desc.MipLevels;
+					new_desc.Texture2D.MostDetailedMip = 0;
+				}
+
+				pDesc = &new_desc;
+			}
 		}
 	}
 
@@ -431,19 +441,28 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateRenderTargetView(ID3D10Resource *pR
 }
 HRESULT STDMETHODCALLTYPE D3D10Device::CreateDepthStencilView(ID3D10Resource *pResource, const D3D10_DEPTH_STENCIL_VIEW_DESC *pDesc, ID3D10DepthStencilView **ppDepthStencilView)
 {
-	D3D10_DEPTH_STENCIL_VIEW_DESC new_desc;
+	D3D10_DEPTH_STENCIL_VIEW_DESC new_desc =
+		pDesc != nullptr ? *pDesc : D3D10_DEPTH_STENCIL_VIEW_DESC {};
 
-	if (com_ptr<ID3D10Texture2D> texture; // A view cannot be created with a typeless format (which was set in 'CreateTexture2D'), so fix it
-		pDesc == nullptr && SUCCEEDED(pResource->QueryInterface(&texture)))
+	// A view cannot be created with a typeless format (which was set in 'CreateTexture2D'), so fix it
+	if (pDesc == nullptr || pDesc->Format == DXGI_FORMAT_UNKNOWN)
 	{
 		D3D10_TEXTURE2D_DESC texture_desc;
-		texture->GetDesc(&texture_desc);
+		if (com_ptr<ID3D10Texture2D> texture;
+			SUCCEEDED(pResource->QueryInterface(&texture)))
+		{
+			texture->GetDesc(&texture_desc);
 
-		new_desc.Format = make_dxgi_format_dsv(texture_desc.Format);
-		new_desc.ViewDimension = D3D10_DSV_DIMENSION_TEXTURE2D;
-		new_desc.Texture2D.MipSlice = 0;
+			new_desc.Format = make_dxgi_format_dsv(texture_desc.Format);
 
-		pDesc = &new_desc;
+			if (pDesc == nullptr) // Only need to set the rest of the fields if the application did not pass in a valid description already
+			{
+				new_desc.ViewDimension = D3D10_DSV_DIMENSION_TEXTURE2D;
+				new_desc.Texture2D.MipSlice = 0;
+			}
+
+			pDesc = &new_desc;
+		}
 	}
 
 	const HRESULT hr = _orig->CreateDepthStencilView(pResource, pDesc, ppDepthStencilView);
@@ -537,7 +556,40 @@ void    STDMETHODCALLTYPE D3D10Device::GetTextFilterSize(UINT *pWidth, UINT *pHe
 
 HRESULT STDMETHODCALLTYPE D3D10Device::CreateShaderResourceView1(ID3D10Resource *pResource, const D3D10_SHADER_RESOURCE_VIEW_DESC1 *pDesc, ID3D10ShaderResourceView1 **ppSRView)
 {
-	return _orig->CreateShaderResourceView1(pResource, pDesc, ppSRView);
+	D3D10_SHADER_RESOURCE_VIEW_DESC1 new_desc =
+		pDesc != nullptr ? *pDesc : D3D10_SHADER_RESOURCE_VIEW_DESC1 {};
+
+	if (pDesc == nullptr || pDesc->Format == DXGI_FORMAT_UNKNOWN)
+	{
+		D3D10_TEXTURE2D_DESC texture_desc;
+		if (com_ptr<ID3D10Texture2D> texture;
+			SUCCEEDED(pResource->QueryInterface(&texture)))
+		{
+			texture->GetDesc(&texture_desc);
+
+			if (0 != (texture_desc.BindFlags & D3D10_BIND_DEPTH_STENCIL))
+			{
+				new_desc.Format = make_dxgi_format_normal(texture_desc.Format);
+
+				if (pDesc == nullptr)
+				{
+					new_desc.ViewDimension = D3D10_1_SRV_DIMENSION_TEXTURE2D;
+					new_desc.Texture2D.MipLevels = texture_desc.MipLevels;
+					new_desc.Texture2D.MostDetailedMip = 0;
+				}
+
+				pDesc = &new_desc;
+			}
+		}
+	}
+
+	const HRESULT hr = _orig->CreateShaderResourceView1(pResource, pDesc, ppSRView);
+	if (FAILED(hr))
+	{
+		LOG(WARN) << "ID3D10Device1::CreateShaderResourceView1 failed with error code " << hr << '.';
+	}
+
+	return hr;
 }
 HRESULT STDMETHODCALLTYPE D3D10Device::CreateBlendState1(const D3D10_BLEND_DESC1 *pBlendStateDesc, ID3D10BlendState1 **ppBlendState)
 {
