@@ -384,7 +384,8 @@ bool reshade::opengl::runtime_gl::init_texture(texture &texture)
 	if (texture.impl_reference != texture_reference::none)
 		return update_texture_reference(texture);
 
-	GLenum internalformat = GL_RGBA8, internalformat_srgb = GL_NONE;
+	GLenum internalformat = GL_RGBA8;
+	GLenum internalformat_srgb = GL_NONE;
 
 	switch (texture.format)
 	{
@@ -430,11 +431,15 @@ bool reshade::opengl::runtime_gl::init_texture(texture &texture)
 	const auto texture_data = texture.impl->as<opengl_tex_data>();
 	texture_data->should_delete = true;
 
+	// Get current state
 	GLint previous_tex = 0;
+	GLint previous_draw_buffer = 0;
+	GLint previous_frame_buffer = 0;
 	glGetIntegerv(GL_TEXTURE_BINDING_2D, &previous_tex);
-	GLint previous_fbo = 0;
-	glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &previous_fbo);
+	glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &previous_frame_buffer);
+	glGetIntegerv(GL_DRAW_BUFFER, &previous_draw_buffer);
 
+	// Allocate texture storage
 	glGenTextures(2, texture_data->id);
 	glBindTexture(GL_TEXTURE_2D, texture_data->id[0]);
 	glTexStorage2D(GL_TEXTURE_2D, texture.levels, internalformat, texture.width, texture.height);
@@ -456,9 +461,10 @@ bool reshade::opengl::runtime_gl::init_texture(texture &texture)
 	glClearBufferuiv(GL_COLOR, 0, clear_color);
 	glFramebufferTexture(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, 0, 0);
 
-	// Apply previous state from application
+	// Restore previous state from application
 	glBindTexture(GL_TEXTURE_2D, previous_tex);
-	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, previous_fbo);
+	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, previous_frame_buffer);
+	glDrawBuffer(previous_draw_buffer);
 
 	return true;
 }
@@ -484,7 +490,29 @@ void reshade::opengl::runtime_gl::upload_texture(texture &texture, const uint8_t
 	const auto texture_impl = texture.impl->as<opengl_tex_data>();
 	assert(texture_impl != nullptr);
 
-	// Unset any existing unpack buffer so pointer is not interpreted as offset
+	// Get current state
+	GLint previous_tex = 0;
+	GLint previous_unpack = 0;
+	GLint previous_unpack_lsb = GL_FALSE;
+	GLint previous_unpack_swap = GL_FALSE;
+	GLint previous_unpack_alignment = 0;
+	GLint previous_unpack_row_length = 0;
+	GLint previous_unpack_image_height = 0;
+	GLint previous_unpack_skip_rows = 0;
+	GLint previous_unpack_skip_pixels = 0;
+	GLint previous_unpack_skip_images = 0;
+	glGetIntegerv(GL_TEXTURE_BINDING_2D, &previous_tex);
+	glGetIntegerv(GL_PIXEL_UNPACK_BUFFER_BINDING, &previous_unpack);
+	glGetIntegerv(GL_UNPACK_LSB_FIRST, &previous_unpack_lsb);
+	glGetIntegerv(GL_UNPACK_SWAP_BYTES, &previous_unpack_swap);
+	glGetIntegerv(GL_UNPACK_ALIGNMENT, &previous_unpack_alignment);
+	glGetIntegerv(GL_UNPACK_ROW_LENGTH, &previous_unpack_row_length);
+	glGetIntegerv(GL_UNPACK_IMAGE_HEIGHT, &previous_unpack_image_height);
+	glGetIntegerv(GL_UNPACK_SKIP_ROWS, &previous_unpack_skip_rows);
+	glGetIntegerv(GL_UNPACK_SKIP_PIXELS, &previous_unpack_skip_pixels);
+	glGetIntegerv(GL_UNPACK_SKIP_IMAGES, &previous_unpack_skip_images);
+
+	// Unset any existing unpack buffer so pointer is not interpreted as an offset
 	glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
 
 	// Clear pixel storage modes to defaults (texture uploads can break otherwise)
@@ -497,18 +525,24 @@ void reshade::opengl::runtime_gl::upload_texture(texture &texture, const uint8_t
 	glPixelStorei(GL_UNPACK_SKIP_PIXELS, 0);
 	glPixelStorei(GL_UNPACK_SKIP_IMAGES, 0);
 
-	// Bind and update texture
-	GLint previous_tex = 0;
-	glGetIntegerv(GL_TEXTURE_BINDING_2D, &previous_tex);
-
+	// Bind and upload texture data
 	glBindTexture(GL_TEXTURE_2D, texture_impl->id[0]);
 	glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, texture.width, texture.height, GL_RGBA, GL_UNSIGNED_BYTE, data_flipped.data());
 
 	if (texture.levels > 1)
 		glGenerateMipmap(GL_TEXTURE_2D);
 
-	// Apply previous state from application
+	// Restore previous state from application
 	glBindTexture(GL_TEXTURE_2D, previous_tex);
+	glBindBuffer(GL_PIXEL_UNPACK_BUFFER, previous_unpack);
+	glPixelStorei(GL_UNPACK_LSB_FIRST, previous_unpack_lsb);
+	glPixelStorei(GL_UNPACK_SWAP_BYTES, previous_unpack_swap);
+	glPixelStorei(GL_UNPACK_ALIGNMENT, previous_unpack_alignment);
+	glPixelStorei(GL_UNPACK_ROW_LENGTH, previous_unpack_row_length);
+	glPixelStorei(GL_UNPACK_IMAGE_HEIGHT, previous_unpack_image_height);
+	glPixelStorei(GL_UNPACK_SKIP_ROWS, previous_unpack_skip_rows);
+	glPixelStorei(GL_UNPACK_SKIP_PIXELS, previous_unpack_skip_pixels);
+	glPixelStorei(GL_UNPACK_SKIP_IMAGES, previous_unpack_skip_images);
 }
 bool reshade::opengl::runtime_gl::update_texture_reference(texture &texture)
 {

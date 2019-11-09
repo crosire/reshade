@@ -44,11 +44,13 @@ namespace reshade::opengl
 		GLint _stencil_read_mask, _stencil_mask;
 		GLint _polygon_mode, _frontface;
 		GLint _cullface, _cullface_mode;
-		GLint _fbo;
+		GLint _read_fbo;
+		GLint _draw_fbo;
 		GLint _srgb;
 		GLint clip_origin;
 		GLint clip_depthmode;
 		GLboolean _color_mask[4];
-		GLenum _drawbuffers[8];
+		GLint _read_buffer;
+		GLint _draw_buffers[8];
 	};
 }
