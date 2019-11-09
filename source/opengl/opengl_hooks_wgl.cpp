@@ -584,16 +584,18 @@ HOOK_EXPORT BOOL  WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 
 	const std::lock_guard<std::mutex> lock(s_mutex);
 
-	if (s_shared_contexts.at(hglrc) != nullptr)
+	if (const auto it = s_shared_contexts.find(hglrc);
+		it != s_shared_contexts.end() && it->second != nullptr)
 	{
-		hglrc = s_shared_contexts.at(hglrc);
+		hglrc = it->second;
 
 #if RESHADE_VERBOSE_LOG
 		LOG(DEBUG) << "> Using shared OpenGL context " << hglrc << '.';
 #endif
 	}
 
-	if (const auto it = s_opengl_runtimes.find(hglrc); it != s_opengl_runtimes.end())
+	if (const auto it = s_opengl_runtimes.find(hglrc);
+		it != s_opengl_runtimes.end())
 	{
 		if (it->second != g_current_runtime)
 		{
