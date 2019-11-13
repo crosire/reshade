@@ -7,9 +7,6 @@
 		"api_version": "1.1.73",
 		"implementation_version": "1",
 		"description": "crosire's ReShade post-processing injector for 32-bit",
-		"enable_environment": {
-			"ENABLE_VK_LAYER_reshade_1": "1"
-		},
 		"disable_environment": {
 			"DISABLE_VK_LAYER_reshade_1": "1"
 		}
