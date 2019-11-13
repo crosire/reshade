@@ -1,6 +1,6 @@
 root = true
 
-[*]
+[*.{c,cpp,h,hpp,inl,glsl,hlsl}]
 indent_size = 4
 indent_style = tab
 insert_final_newline = true

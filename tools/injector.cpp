@@ -59,6 +59,7 @@ static void update_acl_for_uwp(LPWSTR path)
 		SetNamedSecurityInfo(path, SE_FILE_OBJECT, siInfo, NULL, NULL, new_acl, NULL);
 		LocalFree(new_acl);
 	}
+
 	LocalFree(sid);
 }
 

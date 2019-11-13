@@ -378,8 +378,8 @@ void reshade::d3d9::runtime_d3d9::on_draw_call(D3DPRIMITIVETYPE type, UINT verti
 		// check that the drawcall is done on the best original depthstencil source (the one from which the depthstencil_replaceent was created)
 		if (_focus_on_best_original_depthstencil_source && !_is_best_original_depthstencil_source)
 			return;
-			
-		_current_db_vertices += vertices,
+
+		_current_db_vertices += vertices;
 		_current_db_drawcalls += 1;
 
 		if (_depthstencil_replacement != depthstencil && _depth_buffer_table.size() <= _adjusted_preserve_starting_index)
@@ -1292,7 +1292,7 @@ void reshade::d3d9::runtime_d3d9::draw_debug_menu()
 					if (bool value = (_preserve_starting_index == i && !_auto_preserve); ImGui::Checkbox(label, &value))
 					{
 						_adjusted_preserve_starting_index = _preserve_starting_index = value ? i : std::numeric_limits<size_t>::max();
-						if(_preserve_starting_index == std::numeric_limits<size_t>::max())
+						if (_preserve_starting_index == std::numeric_limits<size_t>::max())
 							_adjusted_preserve_starting_index = _depth_buffer_table.size() - 1;
 						modified = true;
 					}
