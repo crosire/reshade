@@ -1387,6 +1387,15 @@ private:
 
 		code += "\tdiscard;\n";
 
+		const auto &return_type = _functions.back()->return_type;
+		if (!return_type.is_void())
+		{
+			// Add a return statement to exit functions in case discard is the last control flow statement
+			code += "\treturn ";
+			write_constant(code, return_type, constant());
+			code += ";\n";
+		}
+
 		return set_block(0);
 	}
 	id   leave_block_and_return(id value) override
