@@ -42,16 +42,16 @@ struct command_buffer_data
 	reshade::vulkan::draw_call_tracker draw_call_tracker;
 };
 
-static lockfree_table<void *, device_data, 16> s_device_data;
-static lockfree_table<void *, VkLayerDispatchTable, 16> s_device_dispatch;
-static lockfree_table<void *, VkLayerInstanceDispatchTable, 16> s_instance_dispatch;
-static lockfree_table<VkSurfaceKHR, std::pair<VkInstance, HWND>, 16> s_surface_windows;
+static lockfree_table<void *, device_data, 32> s_device_data;
+static lockfree_table<void *, VkLayerDispatchTable, 32> s_device_dispatch;
+static lockfree_table<void *, VkLayerInstanceDispatchTable, 32> s_instance_dispatch;
+static lockfree_table<VkSurfaceKHR, std::pair<VkInstance, HWND>, 32> s_surface_windows;
 static lockfree_table<VkSwapchainKHR, std::shared_ptr<reshade::vulkan::runtime_vk>, 16> s_runtimes;
-static lockfree_table<VkImage, VkImageCreateInfo, 4096> s_image_data;
-static lockfree_table<VkImageView, VkImage, 4096> s_image_view_mapping;
-static lockfree_table<VkFramebuffer, std::vector<VkImage>, 128> s_framebuffer_data;
-static lockfree_table<VkCommandBuffer, command_buffer_data, 2048> s_command_buffer_data;
-static lockfree_table<VkRenderPass, std::vector<render_pass_data>, 2048> s_renderpass_data;
+static lockfree_table<VkImage, VkImageCreateInfo, 32768> s_image_data;
+static lockfree_table<VkImageView, VkImage, 32768> s_image_view_mapping;
+static lockfree_table<VkFramebuffer, std::vector<VkImage>, 256> s_framebuffer_data;
+static lockfree_table<VkCommandBuffer, command_buffer_data, 4096> s_command_buffer_data;
+static lockfree_table<VkRenderPass, std::vector<render_pass_data>, 4096> s_renderpass_data;
 
 static inline void *dispatch_key_from_handle(const void *dispatch_handle)
 {
