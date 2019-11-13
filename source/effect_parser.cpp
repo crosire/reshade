@@ -837,6 +837,9 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 			{
 				const auto &param_type = symbol.function->parameter_list[i].type;
 
+				if (param_type.has(type::q_out) && (arguments[i].type.has(type::q_const) || arguments[i].type.has(type::q_uniform) || !arguments[i].is_lvalue))
+					return error(arguments[i].location, 3025, "l-value specifies const object for an 'out' parameter"), false;
+
 				if (arguments[i].type.components() > param_type.components())
 					warning(arguments[i].location, 3206, "implicit truncation of vector type");
 
