@@ -328,6 +328,10 @@ namespace ReShade.Setup
 							input.CopyTo(output);
 						}
 					}
+
+					string text = File.ReadAllText(pathManifest);
+					text = text.Replace("VK_LAYER_reshade", "VK_LAYER_reshade_" + Path.GetFileNameWithoutExtension(_targetPath));
+					File.WriteAllText(pathManifest, text);
 				}
 				catch (Exception ex)
 				{
@@ -335,11 +339,15 @@ namespace ReShade.Setup
 					return;
 				}
 
-				// Create a batch file to launch the game with correct environment variables set for Vulkan
-				File.WriteAllText(Path.Combine(targetDir, Path.GetFileNameWithoutExtension(_targetPath) + "_with_reshade.bat"),
-					"set VK_LAYER_PATH=" + targetDir + ";%VK_LAYER_PATH%\r\n" +
-					"set VK_INSTANCE_LAYERS=VK_LAYER_reshade\r\n" +
-					"@start \"\" \"" + _targetPath + "\"");
+				RegistryKey rk = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(@"Software", true);
+				rk = rk.CreateSubKey("Khronos").CreateSubKey("Vulkan").CreateSubKey("ImplicitLayers");
+				rk.SetValue(pathManifest, 0x00000000, RegistryValueKind.DWord);
+
+				if (rk == null)
+				{
+					ShowMessage("Failed!", "The vulkan implicit layers regitry key does not exist in your system.", null, true, 1);
+					return;
+				}
 			}
 
 			if (_isHeadless || MessageBox.Show(this, "Do you wish to download a collection of standard effects from https://github.com/crosire/reshade-shaders?", string.Empty, MessageBoxButton.YesNo) == MessageBoxResult.Yes)
