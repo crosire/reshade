@@ -1,6 +1,6 @@
 /**
- * Copyright (C) 2018 Patrick Mours
  * Copyright (C) 2017 BalazsJako
+ * Copyright (C) 2018 Patrick Mours
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal

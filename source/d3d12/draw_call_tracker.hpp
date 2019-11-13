@@ -1,3 +1,8 @@
+/**
+ * Copyright (C) 2014 Patrick Mours. All rights reserved.
+ * License: https://github.com/crosire/reshade#license
+ */
+
 #pragma once
 
 #include <map>
@@ -60,7 +65,7 @@ namespace reshade::d3d12
 
 		com_ptr<ID3D12Resource> find_best_depth_texture(UINT width, UINT height);
 #endif
-		
+
 	private:
 		draw_stats _global_counter;
 #if RESHADE_DX12_CAPTURE_DEPTH_BUFFERS

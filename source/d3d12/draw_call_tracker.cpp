@@ -1,3 +1,8 @@
+/**
+ * Copyright (C) 2014 Patrick Mours. All rights reserved.
+ * License: https://github.com/crosire/reshade#license
+ */
+
 #include "draw_call_tracker.hpp"
 #include "dxgi/format_utils.hpp"
 #include "runtime_d3d12.hpp"
