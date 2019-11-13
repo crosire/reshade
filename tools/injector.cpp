@@ -1,4 +1,4 @@
-#include <iostream>
+#include <stdio.h>
 #include <Windows.h>
 #include <sddl.h>
 #include <AclAPI.h>
@@ -24,7 +24,7 @@ struct scoped_handle
 	const HANDLE *operator&() const { return &handle; }
 };
 
-void update_acl_for_uwp(LPWSTR path)
+static void update_acl_for_uwp(LPWSTR path)
 {
 	PACL old_acl = nullptr, new_acl = nullptr;
 	PSECURITY_DESCRIPTOR sd = nullptr;
@@ -61,11 +61,11 @@ int wmain(int argc, wchar_t *argv[])
 {
 	if (argc != 2)
 	{
-		std::wcout << "usage: " << argv[0] << " <exe name>";
+		wprintf(L"usage: %s <exe name>\n", argv[0]);
 		return 0;
 	}
 
-	std::wcout << "Waiting for a '" << argv[1] << "' process to spawn ..." << std::endl;
+	wprintf(L"Waiting for a '%s' process to spawn ...\n", argv[1]);
 
 	DWORD pid = 0;
 
@@ -87,7 +87,7 @@ int wmain(int argc, wchar_t *argv[])
 		Sleep(1); // Sleep a bit to not overburden the CPU
 	}
 
-	std::cout << "Found a matching process with PID " << pid << "! Injecting ReShade ..." << std::endl;
+	printf("Found a matching process with PID %d! Injecting ReShade ...\n", pid);
 
 	// Wait just a little bit for the application to initialize
 	Sleep(500);
@@ -98,7 +98,7 @@ int wmain(int argc, wchar_t *argv[])
 
 	if (remote_process == nullptr)
 	{
-		std::cout << "Failed to open target application process!" << std::endl;
+		printf("Failed to open target application process!\n");
 		return GetLastError();
 	}
 
@@ -107,7 +107,7 @@ int wmain(int argc, wchar_t *argv[])
 
 	WCHAR load_path[MAX_PATH] = L"";
 	GetCurrentDirectoryW(MAX_PATH, load_path);
-	wsprintfW(load_path, L"%s\\%s", load_path, remote_is_wow64 ? L"ReShade32.dll" : L"ReShade64.dll");
+	swprintf(load_path, MAX_PATH, L"%s\\%s", load_path, remote_is_wow64 ? L"ReShade32.dll" : L"ReShade64.dll");
 
 	// Make sure the DLL has permissions set up for "ALL_APPLICATION_PACKAGES"
 	update_acl_for_uwp(load_path);
@@ -117,7 +117,7 @@ int wmain(int argc, wchar_t *argv[])
 	// Write 'LoadLibrary' call argument to target application
 	if (load_param == nullptr || !WriteProcessMemory(remote_process, load_param, load_path, MAX_PATH, nullptr))
 	{
-		std::cout << "Failed to allocate and write 'LoadLibrary' argument in target application!" << std::endl;
+		printf("Failed to allocate and write 'LoadLibrary' argument in target application!\n");
 		return GetLastError();
 	}
 
@@ -126,7 +126,7 @@ int wmain(int argc, wchar_t *argv[])
 
 	if (load_thread == nullptr)
 	{
-		std::cout << "Failed to execute 'LoadLibrary' in target application!" << std::endl;
+		printf("Failed to execute 'LoadLibrary' in target application!\n");
 		return GetLastError();
 	}
 
