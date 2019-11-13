@@ -8,6 +8,7 @@
 #include "runtime_vk.hpp"
 #include "vk_layer.h"
 #include "vk_layer_dispatch_table.h"
+#include "format_utils.hpp"
 #include "lockfree_table.hpp"
 #include <memory>
 
@@ -511,8 +512,9 @@ VkResult VKAPI_CALL vkCreateImage(VkDevice device, const VkImageCreateInfo *pCre
 		return result;
 	}
 
-	// Keep track of image information
-	s_image_data.emplace(*pImage, *pCreateInfo);
+	// Keep track of image information (only care about depth stencil images currently)
+	if (is_depth_stencil_image)
+		s_image_data.emplace(*pImage, *pCreateInfo);
 
 	return VK_SUCCESS;
 }
@@ -537,8 +539,9 @@ VkResult VKAPI_CALL vkCreateImageView(VkDevice device, const VkImageViewCreateIn
 		return result;
 	}
 
-	// Keep track of image view information
-	s_image_view_mapping.emplace(*pView, pCreateInfo->image);
+	// Keep track of image view information (only care about depth stencil image views currently)
+	if (aspect_flags_from_format(pCreateInfo->format) != VK_IMAGE_ASPECT_COLOR_BIT)
+		s_image_view_mapping.emplace(*pView, pCreateInfo->image);
 
 	return VK_SUCCESS;
 }
@@ -562,7 +565,7 @@ VkResult VKAPI_CALL vkCreateRenderPass(VkDevice device, const VkRenderPassCreate
 
 	auto &renderpass_data = s_renderpass_data.emplace(*pRenderPass);
 
-	// Search for the first pass using a depth-stencil attachment
+	// Search for the first pass using a depth stencil attachment
 	for (uint32_t subpass = 0; subpass < pCreateInfo->subpassCount; ++subpass)
 	{
 		auto &subpass_data = renderpass_data.emplace_back();
@@ -600,11 +603,15 @@ VkResult VKAPI_CALL vkCreateFramebuffer(VkDevice device, const VkFramebufferCrea
 		return result;
 	}
 
-	auto &framebuffer_data = s_framebuffer_data.emplace(*pFramebuffer);
+	// Look up the depth stencil images associated with their image views
+	std::vector<VkImage> attachment_images(pCreateInfo->attachmentCount);
+	for (const auto &subpass_data : s_renderpass_data.at(pCreateInfo->renderPass))
+		if (subpass_data.depthstencil_attachment_index < pCreateInfo->attachmentCount)
+			attachment_images[subpass_data.depthstencil_attachment_index] = s_image_view_mapping.at(
+				pCreateInfo->pAttachments[subpass_data.depthstencil_attachment_index]);
 
-	framebuffer_data.reserve(pCreateInfo->attachmentCount);
-	for (uint32_t i = 0; i < pCreateInfo->attachmentCount; i++)
-		framebuffer_data.push_back(s_image_view_mapping.at(pCreateInfo->pAttachments[i]));
+	// Keep track of depth stencil image in this frame buffer
+	s_framebuffer_data.emplace(*pFramebuffer, std::move(attachment_images));
 
 	return VK_SUCCESS;
 }
@@ -759,7 +766,7 @@ void     VKAPI_CALL vkCmdDrawIndexed(VkCommandBuffer commandBuffer, uint32_t ind
 void     VKAPI_CALL vkCmdClearAttachments(VkCommandBuffer commandBuffer, uint32_t attachmentCount, const VkClearAttachment *pAttachments, uint32_t rectCount, const VkClearRect *pRects)
 {
 #if RESHADE_VULKAN_CAPTURE_DEPTH_BUFFERS
-	// Find the depth-stencil clear attachment
+	// Find the depth stencil clear attachment
 	uint32_t depthstencil_attachment = std::numeric_limits<uint32_t>::max();
 	for (uint32_t i = 0; i < attachmentCount; ++i)
 		if (pAttachments[i].aspectMask & (VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT))
