@@ -77,6 +77,7 @@ reshade::d3d9::runtime_d3d9::runtime_d3d9(IDirect3DDevice9 *device, IDirect3DSwa
 		config.get("DX9_BUFFER_DETECTION", "SourceEngineFix", _source_engine_fix);
 		config.get("DX9_BUFFER_DETECTION", "FocusOnBestOriginalDepthstencilSource", _focus_on_best_original_depthstencil_source);
 		config.get("DX9_BUFFER_DETECTION", "BruteForceFix", _brute_force_fix);
+		config.get("DX9_BUFFER_DETECTION", "UseAspectRatioHeuristics", _use_aspect_ratio_heuristics);
 	});
 	subscribe_to_save_config([this](ini_file &config) {
 		config.set("DX9_BUFFER_DETECTION", "DisableINTZ", _disable_intz);
@@ -86,6 +87,7 @@ reshade::d3d9::runtime_d3d9::runtime_d3d9(IDirect3DDevice9 *device, IDirect3DSwa
 		config.set("DX9_BUFFER_DETECTION", "SourceEngineFix", _source_engine_fix);
 		config.set("DX9_BUFFER_DETECTION", "FocusOnBestOriginalDepthstencilSource", _focus_on_best_original_depthstencil_source);
 		config.set("DX9_BUFFER_DETECTION", "BruteForceFix", _brute_force_fix);
+		config.set("DX9_BUFFER_DETECTION", "UseAspectRatioHeuristics", _use_aspect_ratio_heuristics);
 	});
 }
 reshade::d3d9::runtime_d3d9::~runtime_d3d9()
