@@ -238,10 +238,10 @@ private:
 			if (name[0] == '_')
 				return; // Filter out names that may clash with automatic ones
 		if constexpr (naming != naming::reserved)
-			name = escape_name(name);
+			name = escape_name(std::move(name));
 		if constexpr (naming == naming::general)
 			if (std::find_if(_names.begin(), _names.end(), [&name](const auto &it) { return it.second == name; }) != _names.end())
-				name += '_' + std::to_string(id);
+				name += '_' + std::to_string(id); // Append a numbered suffix if the name already exists
 		_names[id] = std::move(name);
 	}
 

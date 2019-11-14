@@ -235,9 +235,10 @@ private:
 		if constexpr (naming != naming::expression)
 			if (name[0] == '_')
 				return; // Filter out names that may clash with automatic ones
+		name = escape_name(std::move(name));
 		if constexpr (naming == naming::general)
 			if (std::find_if(_names.begin(), _names.end(), [&name](const auto &it) { return it.second == name; }) != _names.end())
-				name += '_' + std::to_string(id);
+				name += '_' + std::to_string(id); // Append a numbered suffix if the name already exists
 		_names[id] = std::move(name);
 	}
 
@@ -267,6 +268,16 @@ private:
 		}
 
 		return semantic;
+	}
+
+	static std::string escape_name(std::string name)
+	{
+		// HLSL compiler complains about "technique" and "pass" names in strict mode (no matter the casing)
+		if (_stricmp(name.c_str(), "pass") == 0 ||
+			_stricmp(name.c_str(), "technique") == 0)
+			name += "_RESERVED";
+
+		return name;
 	}
 
 	static void increase_indentation_level(std::string &block)
