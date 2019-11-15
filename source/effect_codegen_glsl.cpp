@@ -617,7 +617,7 @@ private:
 			write_type(code, func.return_type), code += " _return = ";
 		// All other output types can write to the output variable directly
 		else if (!func.return_type.is_void())
-			code += "_return = ";
+			code += escape_name_with_builtins("_return", func.return_semantic) + " = ";
 
 		// Call the function this entry point refers to
 		code += id_to_name(func.definition) + '(';
