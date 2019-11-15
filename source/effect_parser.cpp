@@ -1367,8 +1367,9 @@ bool reshadefx::parser::parse_expression_assignment(expression &lhs)
 		const tokenid op = _token.id;
 
 		// Parse right hand side of the assignment expression
+		// This may be another assignment expression to support chains like "a = b = c = 0;"
 		expression rhs;
-		if (!parse_expression_multary(rhs))
+		if (!parse_expression_assignment(rhs))
 			return false;
 
 		// Check if the assignment is valid
