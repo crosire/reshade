@@ -539,6 +539,7 @@ private:
 
 		return info.definition;
 	}
+
 	void define_entry_point(const function_info &func, bool is_ps) override
 	{
 		if (const auto it = std::find_if(_module.entry_points.begin(), _module.entry_points.end(),

@@ -442,10 +442,13 @@ private:
 	{
 		info.definition = make_id();
 
-		if (is_entry_point)
-			define_name<naming::reserved>(info.definition, "main");
-		else
+		// Name is used in other places like the "ENTRY_POINT" defines, so escape it here
+		info.unique_name = escape_name(info.unique_name);
+
+		if (!is_entry_point)
 			define_name<naming::unique>(info.definition, info.unique_name);
+		else
+			define_name<naming::reserved>(info.definition, "main");
 
 		std::string &code = _blocks.at(_current_block);
 
@@ -482,6 +485,7 @@ private:
 
 		return info.definition;
 	}
+
 	void define_entry_point(const function_info &func, bool is_ps) override
 	{
 		if (const auto it = std::find_if(_module.entry_points.begin(), _module.entry_points.end(),
