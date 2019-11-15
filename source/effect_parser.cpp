@@ -2243,49 +2243,81 @@ bool reshadefx::parser::parse_function(type type, std::string name)
 	info.return_type = type;
 	_current_return_type = info.return_type;
 
+	bool parse_success = true;
+	bool expect_parenthesis = true;
+
 	// Enter function scope
 	enter_scope(); on_scope_exit _([this]() { leave_scope(); _codegen->leave_function(); });
 
 	while (!peek(')'))
 	{
 		if (!info.parameter_list.empty() && !expect(','))
-			return false;
+		{
+			parse_success = false;
+			expect_parenthesis = false;
+			consume_until(')');
+			break;
+		}
 
 		struct_member_info param;
 
 		if (!parse_type(param.type))
-			return error(_token_next.location, 3000, "syntax error: unexpected '" + token::id_to_name(_token_next.id) + "', expected parameter type"), false;
+		{
+			error(_token_next.location, 3000, "syntax error: unexpected '" + token::id_to_name(_token_next.id) + "', expected parameter type");
+			parse_success = false;
+			expect_parenthesis = false;
+			consume_until(')');
+			break;
+		}
 
 		if (!expect(tokenid::identifier))
-			return false;
+		{
+			parse_success = false;
+			expect_parenthesis = false;
+			consume_until(')');
+			break;
+		}
 
 		param.name = std::move(_token.literal_as_string);
 		param.location = std::move(_token.location);
 
 		if (param.type.is_void())
-			return error(param.location, 3038, '\'' + param.name + "': function parameters cannot be void"), false;
+			parse_success = false, error(param.location, 3038, '\'' + param.name + "': function parameters cannot be void");
 		if (param.type.has(type::q_extern))
-			return error(param.location, 3006, '\'' + param.name + "': function parameters cannot be declared 'extern'"), false;
+			parse_success = false, error(param.location, 3006, '\'' + param.name + "': function parameters cannot be declared 'extern'");
 		if (param.type.has(type::q_static))
-			return error(param.location, 3007, '\'' + param.name + "': function parameters cannot be declared 'static'"), false;
+			parse_success = false, error(param.location, 3007, '\'' + param.name + "': function parameters cannot be declared 'static'");
 		if (param.type.has(type::q_uniform))
-			return error(param.location, 3047, '\'' + param.name + "': function parameters cannot be declared 'uniform', consider placing in global scope instead"), false;
+			parse_success = false, error(param.location, 3047, '\'' + param.name + "': function parameters cannot be declared 'uniform', consider placing in global scope instead");
 
 		if (param.type.has(type::q_out) && param.type.has(type::q_const))
-			return error(param.location, 3046, '\'' + param.name + "': output parameters cannot be declared 'const'"), false;
+			parse_success = false, error(param.location, 3046, '\'' + param.name + "': output parameters cannot be declared 'const'");
 		else if (!param.type.has(type::q_out))
 			param.type.qualifiers |= type::q_in; // Function parameters are implicitly 'in' if not explicitly defined as 'out'
 
 		if (!parse_array_size(param.type))
-			return false;
+		{
+			parse_success = false;
+			expect_parenthesis = false;
+			consume_until(')');
+			break;
+		}
 		else if (param.type.array_length < 0)
-			return error(param.location, 3072, '\'' + param.name + "': array dimensions of function parameters must be explicit"), false;
+		{
+			error(param.location, 3072, '\'' + param.name + "': array dimensions of function parameters must be explicit");
+			parse_success = false;
+		}
 
 		// Handle parameter type semantic
 		if (accept(':'))
 		{
 			if (!expect(tokenid::identifier))
-				return false;
+			{
+				parse_success = false;
+				expect_parenthesis = false;
+				consume_until(')');
+				break;
+			}
 
 			param.semantic = std::move(_token.literal_as_string);
 			// Make semantic upper case to simplify comparison later on
@@ -2295,7 +2327,7 @@ bool reshadefx::parser::parse_function(type type, std::string name)
 		info.parameter_list.push_back(std::move(param));
 	}
 
-	if (!expect(')'))
+	if (expect_parenthesis && !expect(')'))
 		return false;
 
 	// Handle return type semantic
@@ -2332,7 +2364,7 @@ bool reshadefx::parser::parse_function(type type, std::string name)
 	// A function has to start with a new block
 	_codegen->enter_block(_codegen->create_block());
 
-	const bool parse_success = parse_statement_block(false);
+	parse_success = parse_statement_block(false) && parse_success;
 
 	// Add implicit return statement to the end of functions
 	if (_codegen->is_in_block())
