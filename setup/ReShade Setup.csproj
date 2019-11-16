@@ -160,6 +160,6 @@ copy /b "$(TargetPath)" + "$(TargetDir)ReShade.zip" "$(TargetPath)"
 echo Cleaning up and deleting temporary archive ...
 del "$(TargetDir)ReShade.zip"
     </PostBuildEvent>
-    <RunPostBuildEvent>OnOutputUpdated</RunPostBuildEvent>
+    <RunPostBuildEvent>OnBuildSuccess</RunPostBuildEvent>
   </PropertyGroup>
 </Project>

@@ -401,6 +401,8 @@ private:
 	}
 	id   define_uniform(const location &loc, uniform_info &info) override
 	{
+		info.size = info.type.rows * info.type.cols * std::max(1, info.type.array_length) * 4;
+
 		const id res = make_id();
 
 		define_name<naming::unique>(res, info.name);
@@ -422,13 +424,10 @@ private:
 		}
 		else
 		{
-			const unsigned int size = info.type.rows * info.type.cols * std::max(1, info.type.array_length) * 4;
-			const unsigned int alignment = 16 - (_current_cbuffer_size % 16);
-
-			_current_cbuffer_size += (size > alignment && (alignment != 16 || size <= 16)) ? size + alignment : size;
-
-			info.size = size;
-			info.offset = _current_cbuffer_size - size;
+			const uint32_t alignment = 16 - (_current_cbuffer_size % 16);
+			const uint32_t alignment_size = (info.size > alignment && (alignment != 16 || info.size <= 16)) ? info.size + alignment : info.size;
+			_current_cbuffer_size += alignment_size;
+			info.offset = _current_cbuffer_size - info.size; // Alignment is prepended to the offset 
 
 			write_location<true>(_cbuffer_block, loc);
 
@@ -539,6 +538,7 @@ private:
 
 		return info.definition;
 	}
+
 	void define_entry_point(const function_info &func, bool is_ps) override
 	{
 		if (const auto it = std::find_if(_module.entry_points.begin(), _module.entry_points.end(),

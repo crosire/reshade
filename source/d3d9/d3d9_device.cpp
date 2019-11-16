@@ -66,28 +66,24 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::QueryInterface(REFIID riid, void **pp
 }
 ULONG   STDMETHODCALLTYPE Direct3DDevice9::AddRef()
 {
-	++_ref;
-
-	return _orig->AddRef();
+	_orig->AddRef();
+	return InterlockedIncrement(&_ref);
 }
 ULONG   STDMETHODCALLTYPE Direct3DDevice9::Release()
 {
-	if (--_ref == 0)
-	{
-		// Release remaining references to this device
-		_auto_depthstencil.reset();
-		assert(_implicit_swapchain != nullptr);
-		_implicit_swapchain->Release();
-	}
+	const ULONG ref = InterlockedDecrement(&_ref);
+	if (ref != 0)
+		return _orig->Release(), ref;
 
-	// Decrease internal reference count and verify it against our own count
-	const ULONG ref = _orig->Release();
-	if (ref != 0 && _ref != 0)
-		return ref;
-	else if (ref != 0)
-		LOG(WARN) << "Reference count for IDirect3DDevice9" << (_extended_interface ? "Ex" : "") << " object " << this << " is inconsistent: " << ref << ", but expected 0.";
+	// Release remaining references to this device
+	_auto_depthstencil.reset();
+	assert(_implicit_swapchain != nullptr);
+	_implicit_swapchain->Release();
 
-	assert(_ref <= 0);
+	const ULONG ref_orig = _orig->Release();
+	if (ref_orig != 0) // Verify internal reference count
+		LOG(WARN) << "Reference count for IDirect3DDevice9" << (_extended_interface ? "Ex" : "") << " object " << this << " is inconsistent.";
+
 #if RESHADE_VERBOSE_LOG
 	LOG(DEBUG) << "Destroyed IDirect3DDevice9" << (_extended_interface ? "Ex" : "") << " object " << this << '.';
 #endif

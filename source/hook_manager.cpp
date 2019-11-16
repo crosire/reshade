@@ -179,7 +179,12 @@ static bool install_internal(HMODULE target_module, HMODULE replacement_module, 
 	for (const auto &match : matches)
 	{
 		reshade::hook hook;
+#ifdef RESHADE_TEST_APPLICATION
+		// RenderDoc hooks the IAT, so get an updated function pointer via its GetProcAddress hook
+		hook.target = GetProcAddress(target_module, std::get<0>(match));
+#else
 		hook.target = std::get<1>(match);
+#endif
 		hook.trampoline = hook.target;
 		hook.replacement = std::get<2>(match);
 
@@ -383,10 +388,12 @@ void reshade::hooks::uninstall()
 
 void reshade::hooks::register_module(const std::filesystem::path &target_path)
 {
+#ifndef RESHADE_TEST_APPLICATION
 	install("LoadLibraryA", reinterpret_cast<hook::address>(&LoadLibraryA), reinterpret_cast<hook::address>(&HookLoadLibraryA), true);
 	install("LoadLibraryExA", reinterpret_cast<hook::address>(&LoadLibraryExA), reinterpret_cast<hook::address>(&HookLoadLibraryExA), true);
 	install("LoadLibraryW", reinterpret_cast<hook::address>(&LoadLibraryW), reinterpret_cast<hook::address>(&HookLoadLibraryW), true);
 	install("LoadLibraryExW", reinterpret_cast<hook::address>(&LoadLibraryExW), reinterpret_cast<hook::address>(&HookLoadLibraryExW), true);
+#endif
 
 	// Install all "LoadLibrary" hooks in one go immediately
 	hook::apply_queued_actions();

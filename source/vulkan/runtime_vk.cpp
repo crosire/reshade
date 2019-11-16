@@ -1181,10 +1181,11 @@ bool reshade::vulkan::runtime_vk::compile_effect(effect_data &effect)
 	std::vector<VkSpecializationMapEntry> spec_map;
 	for (uint32_t spec_id = 0; spec_id < uint32_t(effect.module.spec_constants.size()); ++spec_id)
 	{
-		const auto &constant = effect.module.spec_constants[spec_id];
-		spec_map.push_back({ spec_id, constant.offset, constant.size });
-		spec_data.resize(spec_data.size() + constant.size);
-		memcpy(spec_data.data() + spec_data.size() - constant.size, &constant.initializer_value.as_uint[0], constant.size);
+		const size_t offset = spec_data.size();
+		const reshadefx::uniform_info &constant = effect.module.spec_constants[spec_id];
+		spec_map.push_back({ spec_id, static_cast<uint32_t>(offset), constant.size });
+		spec_data.resize(offset + constant.size);
+		memcpy(spec_data.data() + offset, &constant.initializer_value.as_uint[0], constant.size);
 	}
 
 	for (technique &technique : _techniques)

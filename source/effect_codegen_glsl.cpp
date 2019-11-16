@@ -42,18 +42,39 @@ private:
 	unsigned int _current_ubo_offset = 0;
 	std::unordered_map<id, id> _remapped_sampler_variables;
 
+	// Only write compatibility intrinsics to result if they are actually in use
+	bool _uses_fmod = false;
+	bool _uses_componentwise_or = false;
+	bool _uses_componentwise_and = false;
+	bool _uses_componentwise_cond = false;
+
 	void write_result(module &module) override
 	{
 		module = std::move(_module);
 
-		module.hlsl +=
-			"float hlsl_fmod(float x, float y) { return x - y * trunc(x / y); }\n"
-			" vec2 hlsl_fmod( vec2 x,  vec2 y) { return x - y * trunc(x / y); }\n"
-			" vec3 hlsl_fmod( vec3 x,  vec3 y) { return x - y * trunc(x / y); }\n"
-			" vec4 hlsl_fmod( vec4 x,  vec4 y) { return x - y * trunc(x / y); }\n"
-			" mat2 hlsl_fmod( mat2 x,  mat2 y) { return x - matrixCompMult(y, mat2(trunc(x[0] / y[0]), trunc(x[1] / y[1]))); }\n"
-			" mat3 hlsl_fmod( mat3 x,  mat3 y) { return x - matrixCompMult(y, mat3(trunc(x[0] / y[0]), trunc(x[1] / y[1]), trunc(x[2] / y[2]))); }\n"
-			" mat4 hlsl_fmod( mat4 x,  mat4 y) { return x - matrixCompMult(y, mat4(trunc(x[0] / y[0]), trunc(x[1] / y[1]), trunc(x[2] / y[2]), trunc(x[3] / y[3]))); }\n";
+		if (_uses_fmod)
+			module.hlsl += "float fmodHLSL(float x, float y) { return x - y * trunc(x / y); }\n"
+				"vec2 fmodHLSL(vec2 x, vec2 y) { return x - y * trunc(x / y); }\n"
+				"vec3 fmodHLSL(vec3 x, vec3 y) { return x - y * trunc(x / y); }\n"
+				"vec4 fmodHLSL(vec4 x, vec4 y) { return x - y * trunc(x / y); }\n"
+				"mat2 fmodHLSL(mat2 x, mat2 y) { return x - matrixCompMult(y, mat2(trunc(x[0] / y[0]), trunc(x[1] / y[1]))); }\n"
+				"mat3 fmodHLSL(mat3 x, mat3 y) { return x - matrixCompMult(y, mat3(trunc(x[0] / y[0]), trunc(x[1] / y[1]), trunc(x[2] / y[2]))); }\n"
+				"mat4 fmodHLSL(mat4 x, mat4 y) { return x - matrixCompMult(y, mat4(trunc(x[0] / y[0]), trunc(x[1] / y[1]), trunc(x[2] / y[2]), trunc(x[3] / y[3]))); }\n";
+		if (_uses_componentwise_or)
+			module.hlsl +=
+				"bvec2 compOr(bvec2 a, bvec2 b) { return bvec2(a.x || b.x, a.y || b.y); }\n"
+				"bvec3 compOr(bvec3 a, bvec3 b) { return bvec3(a.x || b.x, a.y || b.y, a.z || b.z); }\n"
+				"bvec4 compOr(bvec4 a, bvec4 b) { return bvec4(a.x || b.x, a.y || b.y, a.z || b.z, a.w || b.w); }\n";
+		if (_uses_componentwise_and)
+			module.hlsl +=
+				"bvec2 compAnd(bvec2 a, bvec2 b) { return bvec2(a.x && b.x, a.y && b.y); }\n"
+				"bvec3 compAnd(bvec3 a, bvec3 b) { return bvec3(a.x && b.x, a.y && b.y, a.z && b.z); }\n"
+				"bvec4 compAnd(bvec4 a, bvec4 b) { return bvec4(a.x && b.x, a.y && b.y, a.z && b.z, a.w && b.w); }\n";
+		if (_uses_componentwise_cond)
+			module.hlsl +=
+				"vec2 compCond(bvec2 cond, vec2 a, vec2 b) { return vec2(cond.x ? a.x : b.x, cond.y ? a.y : b.y); }\n"
+				"vec3 compCond(bvec3 cond, vec3 a, vec3 b) { return vec3(cond.x ? a.x : b.x, cond.y ? a.y : b.y, cond.z ? a.z : b.z); }\n"
+				"vec4 compCond(bvec4 cond, vec4 a, vec4 b) { return vec4(cond.x ? a.x : b.x, cond.y ? a.y : b.y, cond.z ? a.z : b.z, cond.w ? a.w : b.w); }\n";
 
 		if (!_ubo_block.empty())
 			module.hlsl += "layout(std140, binding = 0) uniform _Globals {\n" + _ubo_block + "};\n";
@@ -339,6 +360,12 @@ private:
 	}
 	id   define_uniform(const location &loc, uniform_info &info) override
 	{
+		// GLSL specification on std140 layout:
+		// 1. If the member is a scalar consuming N basic machine units, the base alignment is N.
+		// 2. If the member is a two- or four-component vector with components consuming N basic machine units, the base alignment is 2N or 4N, respectively.
+		// 3. If the member is a three-component vector with components consuming N basic machine units, the base alignment is 4N.
+		info.size = 4 * (info.type.rows == 3 ? 4 : info.type.rows) * info.type.cols * std::max(1, info.type.array_length);
+
 		const id res = make_id();
 
 		define_name<naming::unique>(res, info.name);
@@ -360,15 +387,9 @@ private:
 		}
 		else
 		{
-			// GLSL specification on std140 layout:
-			// 1. If the member is a scalar consuming N basic machine units, the base alignment is N.
-			// 2. If the member is a two- or four-component vector with components consuming N basic machine units, the base alignment is 2N or 4N, respectively.
-			// 3. If the member is a three-component vector with components consuming N basic machine units, the base alignment is 4N.
-			const unsigned int size = 4 * info.type.rows * info.type.cols * std::max(1, info.type.array_length);
-			const unsigned int alignment = 4 * (info.type.rows == 3 ? 4 : info.type.rows) * info.type.cols * std::max(1, info.type.array_length);
-
-			info.size = size;
-			info.offset = (_current_ubo_offset % alignment != 0) ? _current_ubo_offset + alignment - _current_ubo_offset % alignment : _current_ubo_offset;
+			const uint32_t alignment = info.size;
+			const uint32_t alignment_remain = _current_ubo_offset % alignment;
+			info.offset = (alignment_remain != 0) ? _current_ubo_offset + alignment - alignment_remain : _current_ubo_offset;
 			_current_ubo_offset = info.offset + info.size;
 
 			write_location(_ubo_block, loc);
@@ -421,10 +442,13 @@ private:
 	{
 		info.definition = make_id();
 
-		if (is_entry_point)
-			define_name<naming::reserved>(info.definition, "main");
-		else
+		// Name is used in other places like the "ENTRY_POINT" defines, so escape it here
+		info.unique_name = escape_name(info.unique_name);
+
+		if (!is_entry_point)
 			define_name<naming::unique>(info.definition, info.unique_name);
+		else
+			define_name<naming::reserved>(info.definition, "main");
 
 		std::string &code = _blocks.at(_current_block);
 
@@ -461,6 +485,7 @@ private:
 
 		return info.definition;
 	}
+
 	void define_entry_point(const function_info &func, bool is_ps) override
 	{
 		if (const auto it = std::find_if(_module.entry_points.begin(), _module.entry_points.end(),
@@ -617,7 +642,7 @@ private:
 			write_type(code, func.return_type), code += " _return = ";
 		// All other output types can write to the output variable directly
 		else if (!func.return_type.is_void())
-			code += "_return = ";
+			code += escape_name_with_builtins("_return", func.return_semantic) + " = ";
 
 		// Call the function this entry point refers to
 		code += id_to_name(func.definition) + '(';
@@ -931,7 +956,8 @@ private:
 		case tokenid::percent:
 		case tokenid::percent_equal:
 			if (type.is_floating_point())
-				intrinsic = "hlsl_fmod";
+				intrinsic = "fmodHLSL",
+				_uses_fmod = true;
 			else
 				operator_code = '%';
 			break;
@@ -956,10 +982,18 @@ private:
 			operator_code = ">>";
 			break;
 		case tokenid::pipe_pipe:
-			operator_code = "||";
+			if (type.is_vector())
+				intrinsic = "compOr",
+				_uses_componentwise_or = true;
+			else
+				operator_code = "||";
 			break;
 		case tokenid::ampersand_ampersand:
-			operator_code = "&&";
+			if (type.is_vector())
+				intrinsic = "compAnd",
+				_uses_componentwise_and = true;
+			else
+				operator_code = "&&";
 			break;
 		case tokenid::less:
 			if (type.is_vector())
@@ -1029,13 +1063,11 @@ private:
 
 		code += " = ";
 
-		// GLSL requires the selection first expression to be a scalar boolean
-		if (!res_type.is_scalar())
-			code += "all(" + id_to_name(condition) + ')';
-		else
-			code += id_to_name(condition);
-
-		code += " ? " + id_to_name(true_value) + " : " + id_to_name(false_value) + ";\n";
+		if (res_type.is_vector())
+			code += "compCond(" + id_to_name(condition) + ", " + id_to_name(true_value) + ", " + id_to_name(false_value) + ");\n",
+			_uses_componentwise_cond = true;
+		else // GLSL requires the conditional expression to be a scalar boolean
+			code += id_to_name(condition) + " ? " + id_to_name(true_value) + " : " + id_to_name(false_value) + ";\n";
 
 		return res;
 	}

@@ -36,29 +36,25 @@ HRESULT STDMETHODCALLTYPE D3D12CommandQueueDownlevel::QueryInterface(REFIID riid
 }
 ULONG   STDMETHODCALLTYPE D3D12CommandQueueDownlevel::AddRef()
 {
-	++_ref;
-
-	return _orig->AddRef();
+	_orig->AddRef();
+	return InterlockedIncrement(&_ref);
 }
 ULONG   STDMETHODCALLTYPE D3D12CommandQueueDownlevel::Release()
 {
-	if (--_ref == 0)
-	{
-		_runtime->on_reset();
-		_device->clear_drawcall_stats(true); // Release any live references to depth buffers etc.
-		_device->_runtimes.erase(std::remove(_device->_runtimes.begin(), _device->_runtimes.end(), _runtime), _device->_runtimes.end());
+	const ULONG ref = InterlockedDecrement(&_ref);
+	if (ref != 0)
+		return _orig->Release(), ref;
 
-		_runtime.reset();
-	}
+	_runtime->on_reset();
+	_device->clear_drawcall_stats(true); // Release any live references to depth buffers etc.
+	_device->_runtimes.erase(std::remove(_device->_runtimes.begin(), _device->_runtimes.end(), _runtime), _device->_runtimes.end());
 
-	// Decrease internal reference count and verify it against our own count
-	const ULONG ref = _orig->Release();
-	if (ref != 0 && _ref != 0)
-		return ref;
-	else if (ref != 0)
-		LOG(WARN) << "Reference count for ID3D12CommandQueueDownlevel object " << this << " is inconsistent: " << ref << ", but expected 0.";
+	_runtime.reset();
 
-	assert(_ref <= 0);
+	const ULONG ref_orig = _orig->Release();
+	if (ref_orig != 0)
+		LOG(WARN) << "Reference count for ID3D12CommandQueueDownlevel object " << this << " is inconsistent.";
+
 #if RESHADE_VERBOSE_LOG
 	LOG(DEBUG) << "Destroyed ID3D12CommandQueueDownlevel object " << this << ".";
 #endif

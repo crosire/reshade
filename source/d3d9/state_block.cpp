@@ -25,22 +25,26 @@ void reshade::d3d9::state_block::capture()
 {
 	_state_block->Capture();
 
+#ifndef RESHADE_TEST_APPLICATION // Avoid errors from the D3D9 debug runtime because these return D3DERR_NOTFOUND with the test application
 	_device->GetViewport(&_viewport);
 
 	for (DWORD target = 0; target < _num_simultaneous_rendertargets; target++)
 		_device->GetRenderTarget(target, &_render_targets[target]);
 	_device->GetDepthStencilSurface(&_depth_stencil);
+#endif
 }
 void reshade::d3d9::state_block::apply_and_release()
 {
 	_state_block->Apply();
 
+#ifndef RESHADE_TEST_APPLICATION
 	for (DWORD target = 0; target < _num_simultaneous_rendertargets; target++)
 		_device->SetRenderTarget(target, _render_targets[target].get());
 	_device->SetDepthStencilSurface(_depth_stencil.get());
 
 	// Set viewport after render targets have been set, since 'SetRenderTarget' causes the viewport to be set to the full size of the render target
 	_device->SetViewport(&_viewport);
+#endif
 
 	release_all_device_objects();
 }

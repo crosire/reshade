@@ -64,34 +64,30 @@ HRESULT STDMETHODCALLTYPE Direct3DSwapChain9::QueryInterface(REFIID riid, void *
 }
 ULONG   STDMETHODCALLTYPE Direct3DSwapChain9::AddRef()
 {
-	++_ref;
-
-	return _orig->AddRef();
+	_orig->AddRef();
+	return InterlockedIncrement(&_ref);
 }
 ULONG   STDMETHODCALLTYPE Direct3DSwapChain9::Release()
 {
-	if (--_ref == 0)
-	{
-		assert(_runtime != nullptr);
-		_runtime->on_reset();
-		_runtime.reset();
+	const ULONG ref = InterlockedDecrement(&_ref);
+	if (ref != 0)
+		return _orig->Release(), ref;
 
-		const auto it = std::find(_device->_additional_swapchains.begin(), _device->_additional_swapchains.end(), this);
-		if (it != _device->_additional_swapchains.end())
-		{
-			_device->_additional_swapchains.erase(it);
-			_device->Release(); // Remove the reference that was added in 'Direct3DDevice9::CreateAdditionalSwapChain'
-		}
+	assert(_runtime != nullptr);
+	_runtime->on_reset();
+	_runtime.reset();
+
+	const auto it = std::find(_device->_additional_swapchains.begin(), _device->_additional_swapchains.end(), this);
+	if (it != _device->_additional_swapchains.end())
+	{
+		_device->_additional_swapchains.erase(it);
+		_device->Release(); // Remove the reference that was added in 'Direct3DDevice9::CreateAdditionalSwapChain'
 	}
 
-	// Decrease internal reference count and verify it against our own count
-	const ULONG ref = _orig->Release();
-	if (ref != 0 && _ref != 0)
-		return ref;
-	else if (ref != 0)
-		LOG(WARN) << "Reference count for IDirect3DSwapChain9" << (_extended_interface ? "Ex" : "") << " object " << this << " is inconsistent: " << ref << ", but expected 0.";
+	const ULONG ref_orig = _orig->Release();
+	if (ref_orig != 0) // Verify internal reference count
+		LOG(WARN) << "Reference count for IDirect3DSwapChain9" << (_extended_interface ? "Ex" : "") << " object " << this << " is inconsistent.";
 
-	assert(_ref <= 0);
 #if RESHADE_VERBOSE_LOG
 	LOG(DEBUG) << "Destroyed IDirect3DSwapChain9" << (_extended_interface ? "Ex" : "") << " object " << this << '.';
 #endif
