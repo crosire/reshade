@@ -27,12 +27,15 @@ bool reshadefx::parser::parse(std::string input, codegen *backend)
 
 	consume();
 
-	bool success = true;
-	while (!peek(tokenid::end_of_file))
-		if (!parse_top())
-			success = false;
+	bool parse_success = true;
 
-	return success;
+	while (!peek(tokenid::end_of_file))
+	{
+		if (!parse_top())
+			parse_success = false;
+	}
+
+	return parse_success;
 }
 
 // -- Error Handling -- //
@@ -1433,7 +1436,8 @@ bool reshadefx::parser::parse_annotations(std::unordered_map<std::string, std::p
 		else if (expression.is_constant)
 			annotations[name] = { expression.type, expression.constant };
 		else // Continue parsing annotations despite this not being a constant, since the syntax is still correct
-			error(expression.location, 3011, "value must be a literal expression"), parse_success = false;
+			parse_success = false,
+			error(expression.location, 3011, "value must be a literal expression");
 	}
 
 	return expect('>') && parse_success;
@@ -1563,7 +1567,7 @@ bool reshadefx::parser::parse_statement(bool scoped)
 			_loop_break_target_stack.push_back(merge_block);
 			on_scope_exit _([this]() { _loop_break_target_stack.pop_back(); });
 
-			bool success = true;
+			bool parse_success = true;
 			codegen::id default_label = merge_block; // The default case jumps to the end of the switch statement if not overwritten
 			std::vector<codegen::id> case_literal_and_labels;
 			size_t last_case_label_index = 0;
@@ -1588,8 +1592,8 @@ bool reshadefx::parser::parse_statement(bool scoped)
 						{
 							if (case_literal_and_labels[i] == case_label.constant.as_uint[0])
 							{
+								parse_success = false;
 								error(case_label.location, 3532, "duplicate case " + std::to_string(case_label.constant.as_uint[0]));
-								success = false;
 								break;
 							}
 						}
@@ -1602,8 +1606,8 @@ bool reshadefx::parser::parse_statement(bool scoped)
 						// Check if the default label was already changed by a previous 'default' statement
 						if (default_label != merge_block)
 						{
+							parse_success = false;
 							error(_token.location, 3532, "duplicate default in switch statement");
-							success = false;
 						}
 
 						default_label = 0; // This is set to the actual block below
@@ -1624,8 +1628,8 @@ bool reshadefx::parser::parse_statement(bool scoped)
 				{
 					if (_codegen->is_in_block()) // Disallow fall-through for now
 					{
+						parse_success = false;
 						error(_token_next.location, 3533, "non-empty case statements must have break or return");
-						success = false;
 					}
 
 					const codegen::id next_block = end_of_switch ? merge_block : _codegen->create_block();
@@ -1654,7 +1658,7 @@ bool reshadefx::parser::parse_statement(bool scoped)
 			// Emit structured control flow for a switch statement and connect all basic blocks
 			_codegen->emit_switch(location, selector_value, selector_block, default_label, case_literal_and_labels, selection_control);
 
-			return expect('}') && success;
+			return expect('}') && parse_success;
 		}
 		#pragma endregion
 
@@ -2078,15 +2082,18 @@ bool reshadefx::parser::parse_top()
 
 		enter_namespace(name);
 
-		bool success = true;
+		bool parse_success = true;
+
 		// Recursively parse top level statements until the namespace is closed again
 		while (!peek('}')) // Empty namespaces are valid
+		{
 			if (!parse_top())
-				success = false; // Continue parsing even after encountering an error
+				parse_success = false; // Continue parsing even after encountering an error
+		}
 
 		leave_namespace();
 
-		return expect('}') && success;
+		return expect('}') && parse_success;
 	}
 	else if (accept(tokenid::struct_)) // Structure keyword found, parse the structure definition
 	{
@@ -2282,16 +2289,21 @@ bool reshadefx::parser::parse_function(type type, std::string name)
 		param.location = std::move(_token.location);
 
 		if (param.type.is_void())
-			parse_success = false, error(param.location, 3038, '\'' + param.name + "': function parameters cannot be void");
+			parse_success = false,
+			error(param.location, 3038, '\'' + param.name + "': function parameters cannot be void");
 		if (param.type.has(type::q_extern))
-			parse_success = false, error(param.location, 3006, '\'' + param.name + "': function parameters cannot be declared 'extern'");
+			parse_success = false,
+			error(param.location, 3006, '\'' + param.name + "': function parameters cannot be declared 'extern'");
 		if (param.type.has(type::q_static))
-			parse_success = false, error(param.location, 3007, '\'' + param.name + "': function parameters cannot be declared 'static'");
+			parse_success = false,
+			error(param.location, 3007, '\'' + param.name + "': function parameters cannot be declared 'static'");
 		if (param.type.has(type::q_uniform))
-			parse_success = false, error(param.location, 3047, '\'' + param.name + "': function parameters cannot be declared 'uniform', consider placing in global scope instead");
+			parse_success = false,
+			error(param.location, 3047, '\'' + param.name + "': function parameters cannot be declared 'uniform', consider placing in global scope instead");
 
 		if (param.type.has(type::q_out) && param.type.has(type::q_const))
-			parse_success = false, error(param.location, 3046, '\'' + param.name + "': output parameters cannot be declared 'const'");
+			parse_success = false,
+			error(param.location, 3046, '\'' + param.name + "': output parameters cannot be declared 'const'");
 		else if (!param.type.has(type::q_out))
 			param.type.qualifiers |= type::q_in; // Function parameters are implicitly 'in' if not explicitly defined as 'out'
 
@@ -2304,8 +2316,8 @@ bool reshadefx::parser::parse_function(type type, std::string name)
 		}
 		else if (param.type.array_length < 0)
 		{
-			error(param.location, 3072, '\'' + param.name + "': array dimensions of function parameters must be explicit");
 			parse_success = false;
+			error(param.location, 3072, '\'' + param.name + "': array dimensions of function parameters must be explicit");
 		}
 
 		// Handle parameter type semantic
@@ -2364,7 +2376,8 @@ bool reshadefx::parser::parse_function(type type, std::string name)
 	// A function has to start with a new block
 	_codegen->enter_block(_codegen->create_block());
 
-	parse_success = parse_statement_block(false) && parse_success;
+	if (!parse_statement_block(false))
+		parse_success = false;
 
 	// Add implicit return statement to the end of functions
 	if (_codegen->is_in_block())
@@ -2703,17 +2716,22 @@ bool reshadefx::parser::parse_technique()
 	if (!parse_annotations(info.annotations) || !expect('{'))
 		return false;
 
+	bool parse_success = true;
+
 	while (!peek('}'))
 	{
 		if (pass_info pass; parse_technique_pass(pass))
 			info.passes.push_back(std::move(pass));
-		else if (!peek(tokenid::pass)) // If there is another pass definition following, try to parse that despite the error
-			return consume_until('}'), false;
+		else {
+			parse_success = false;
+			if (!peek(tokenid::pass)) // If there is another pass definition following, try to parse that despite the error
+				return consume_until('}'), false;
+		}
 	}
 
 	_codegen->define_technique(info);
 
-	return expect('}');
+	return expect('}') && parse_success;
 }
 
 bool reshadefx::parser::parse_technique_pass(pass_info &info)
