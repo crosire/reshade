@@ -179,53 +179,49 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::QueryInterface(REFIID riid, void **ppvO
 }
 ULONG   STDMETHODCALLTYPE DXGISwapChain::AddRef()
 {
-	++_ref;
-
-	return _orig->AddRef();
+	_orig->AddRef();
+	return InterlockedIncrement(&_ref);
 }
 ULONG   STDMETHODCALLTYPE DXGISwapChain::Release()
 {
-	if (--_ref == 0)
-	{
-		switch (_direct3d_version)
-		{
-		case 10: {
-			assert(_runtime != nullptr);
-			const auto device = static_cast<D3D10Device *>(_direct3d_device.get());
-			const auto runtime = std::static_pointer_cast<reshade::d3d10::runtime_d3d10>(_runtime);
-			runtime->on_reset();
-			device->clear_drawcall_stats();
-			device->_runtimes.erase(std::remove(device->_runtimes.begin(), device->_runtimes.end(), runtime), device->_runtimes.end());
-			break; }
-		case 11: {
-			assert(_runtime != nullptr);
-			const auto device = static_cast<D3D11Device *>(_direct3d_device.get());
-			const auto runtime = std::static_pointer_cast<reshade::d3d11::runtime_d3d11>(_runtime);
-			runtime->on_reset();
-			device->clear_drawcall_stats();
-			device->_runtimes.erase(std::remove(device->_runtimes.begin(), device->_runtimes.end(), runtime), device->_runtimes.end());
-			break; }
-		case 12: {
-			const auto device = static_cast<D3D12Device *>(_direct3d_device.get());
-			const auto runtime = std::static_pointer_cast<reshade::d3d12::runtime_d3d12>(_runtime);
-			runtime->on_reset();
-			device->clear_drawcall_stats(true); // Release any live references to depth buffers etc.
-			device->_runtimes.erase(std::remove(device->_runtimes.begin(), device->_runtimes.end(), runtime), device->_runtimes.end());
-			break; }
-		}
+	const ULONG ref = InterlockedDecrement(&_ref);
+	if (ref != 0)
+		return _orig->Release(), ref;
 
-		_runtime.reset();
-		_direct3d_device.reset();
+	switch (_direct3d_version)
+	{
+	case 10: {
+		assert(_runtime != nullptr);
+		const auto device = static_cast<D3D10Device *>(_direct3d_device.get());
+		const auto runtime = std::static_pointer_cast<reshade::d3d10::runtime_d3d10>(_runtime);
+		runtime->on_reset();
+		device->clear_drawcall_stats();
+		device->_runtimes.erase(std::remove(device->_runtimes.begin(), device->_runtimes.end(), runtime), device->_runtimes.end());
+		break; }
+	case 11: {
+		assert(_runtime != nullptr);
+		const auto device = static_cast<D3D11Device *>(_direct3d_device.get());
+		const auto runtime = std::static_pointer_cast<reshade::d3d11::runtime_d3d11>(_runtime);
+		runtime->on_reset();
+		device->clear_drawcall_stats();
+		device->_runtimes.erase(std::remove(device->_runtimes.begin(), device->_runtimes.end(), runtime), device->_runtimes.end());
+		break; }
+	case 12: {
+		const auto device = static_cast<D3D12Device *>(_direct3d_device.get());
+		const auto runtime = std::static_pointer_cast<reshade::d3d12::runtime_d3d12>(_runtime);
+		runtime->on_reset();
+		device->clear_drawcall_stats(true); // Release any live references to depth buffers etc.
+		device->_runtimes.erase(std::remove(device->_runtimes.begin(), device->_runtimes.end(), runtime), device->_runtimes.end());
+		break; }
 	}
 
-	// Decrease internal reference count and verify it against our own count
-	const ULONG ref = _orig->Release();
-	if (ref != 0 && _ref != 0)
-		return ref;
-	else if (ref != 0)
-		LOG(WARN) << "Reference count for IDXGISwapChain" << _interface_version << " object " << this << " is inconsistent: " << ref << ", but expected 0.";
+	_runtime.reset();
+	_direct3d_device.reset();
 
-	assert(_ref <= 0);
+	const ULONG ref_orig = _orig->Release();
+	if (ref_orig != 0) // Verify internal reference count
+		LOG(WARN) << "Reference count for IDXGISwapChain" << _interface_version << " object " << this << " is inconsistent.";
+
 #if RESHADE_VERBOSE_LOG
 	LOG(DEBUG) << "Destroyed IDXGISwapChain" << _interface_version << " object " << this << '.';
 #endif
