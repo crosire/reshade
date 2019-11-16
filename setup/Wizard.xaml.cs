@@ -99,10 +99,9 @@ namespace ReShade.Setup
 			Glass.HideSystemMenu(this, !done);
 
 			Title = title;
-			Message.Text = message == null ? string.Empty : message;
+			Message.Text = message ?? string.Empty;
 			MessageDescription.Visibility = string.IsNullOrEmpty(description) ? Visibility.Collapsed : Visibility.Visible;
 			MessageDescription.Text = description;
-
 		}
 
 		void RestartAsAdmin()
@@ -208,8 +207,8 @@ namespace ReShade.Setup
 
 			Message.Text = "Select the rendering API the game uses:";
 			ApiGroup.IsEnabled = true;
-			ApiDirect3D9.IsChecked = isApiD3D9;
-			ApiDirectXGI.IsChecked = isApiDXGI;
+			ApiD3D9.IsChecked = isApiD3D9;
+			ApiDXGI.IsChecked = isApiDXGI;
 			ApiOpenGL.IsChecked = isApiOpenGL;
 			ApiVulkan.IsChecked = isApiVulkan;
 		}
@@ -217,12 +216,12 @@ namespace ReShade.Setup
 		{
 			string nameModule = null;
 			ApiGroup.IsEnabled = false;
-			if (ApiDirect3D9.IsChecked == true)
+			if (ApiD3D9.IsChecked == true)
 			{
 				nameModule = "d3d9.dll";
 			}
 
-			if (ApiDirectXGI.IsChecked == true)
+			if (ApiDXGI.IsChecked == true)
 			{
 				nameModule = "dxgi.dll";
 			}
@@ -502,8 +501,8 @@ namespace ReShade.Setup
 						hasApi = true;
 
 						string api = args[++i];
-						ApiDirect3D9.IsChecked = api == "d3d9";
-						ApiDirectXGI.IsChecked = api == "dxgi" || api == "d3d10" || api == "d3d11";
+						ApiD3D9.IsChecked = api == "d3d9";
+						ApiDXGI.IsChecked = api == "dxgi" || api == "d3d10" || api == "d3d11";
 						ApiOpenGL.IsChecked = api == "opengl";
 						continue;
 					}
