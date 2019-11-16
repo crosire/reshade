@@ -900,7 +900,6 @@ bool reshade::d3d9::runtime_d3d9::init_technique(technique &technique, const d3d
 			};
 
 			_device->SetRenderState(D3DRS_ZENABLE, false);
-			_device->SetRenderState(D3DRS_SPECULARENABLE, false);
 			_device->SetRenderState(D3DRS_FILLMODE, D3DFILL_SOLID);
 			_device->SetRenderState(D3DRS_SHADEMODE, D3DSHADE_GOURAUD);
 			_device->SetRenderState(D3DRS_ZWRITEENABLE, true);
@@ -908,50 +907,61 @@ bool reshade::d3d9::runtime_d3d9::init_technique(technique &technique, const d3d
 			_device->SetRenderState(D3DRS_LASTPIXEL, true);
 			_device->SetRenderState(D3DRS_SRCBLEND, literal_to_blend_func(pass_info.src_blend));
 			_device->SetRenderState(D3DRS_DESTBLEND, literal_to_blend_func(pass_info.dest_blend));
+			_device->SetRenderState(D3DRS_CULLMODE, D3DCULL_NONE);
+			_device->SetRenderState(D3DRS_ZFUNC, D3DCMP_ALWAYS);
 			_device->SetRenderState(D3DRS_ALPHAREF, 0);
 			_device->SetRenderState(D3DRS_ALPHAFUNC, D3DCMP_ALWAYS);
 			_device->SetRenderState(D3DRS_DITHERENABLE, false);
-			_device->SetRenderState(D3DRS_FOGSTART, 0);
-			_device->SetRenderState(D3DRS_FOGEND, 1);
-			_device->SetRenderState(D3DRS_FOGDENSITY, 1);
 			_device->SetRenderState(D3DRS_ALPHABLENDENABLE, pass_info.blend_enable);
-			_device->SetRenderState(D3DRS_DEPTHBIAS, 0);
+			_device->SetRenderState(D3DRS_FOGENABLE, false);
+			_device->SetRenderState(D3DRS_SPECULARENABLE, false);
 			_device->SetRenderState(D3DRS_STENCILENABLE, pass_info.stencil_enable);
-			_device->SetRenderState(D3DRS_STENCILPASS, literal_to_stencil_op(pass_info.stencil_op_pass));
 			_device->SetRenderState(D3DRS_STENCILFAIL, literal_to_stencil_op(pass_info.stencil_op_fail));
 			_device->SetRenderState(D3DRS_STENCILZFAIL, literal_to_stencil_op(pass_info.stencil_op_depth_fail));
+			_device->SetRenderState(D3DRS_STENCILPASS, literal_to_stencil_op(pass_info.stencil_op_pass));
 			_device->SetRenderState(D3DRS_STENCILFUNC, static_cast<D3DCMPFUNC>(pass_info.stencil_comparison_func));
 			_device->SetRenderState(D3DRS_STENCILREF, pass_info.stencil_reference_value);
 			_device->SetRenderState(D3DRS_STENCILMASK, pass_info.stencil_read_mask);
 			_device->SetRenderState(D3DRS_STENCILWRITEMASK, pass_info.stencil_write_mask);
 			_device->SetRenderState(D3DRS_TEXTUREFACTOR, 0xFFFFFFFF);
+			_device->SetRenderState(D3DRS_CLIPPING, false);
+			_device->SetRenderState(D3DRS_LIGHTING, false);
+			_device->SetRenderState(D3DRS_COLORVERTEX, false);
 			_device->SetRenderState(D3DRS_LOCALVIEWER, true);
-			_device->SetRenderState(D3DRS_EMISSIVEMATERIALSOURCE, D3DMCS_MATERIAL);
-			_device->SetRenderState(D3DRS_AMBIENTMATERIALSOURCE, D3DMCS_MATERIAL);
+			_device->SetRenderState(D3DRS_NORMALIZENORMALS, false);
 			_device->SetRenderState(D3DRS_DIFFUSEMATERIALSOURCE, D3DMCS_COLOR1);
 			_device->SetRenderState(D3DRS_SPECULARMATERIALSOURCE, D3DMCS_COLOR2);
+			_device->SetRenderState(D3DRS_AMBIENTMATERIALSOURCE, D3DMCS_MATERIAL);
+			_device->SetRenderState(D3DRS_EMISSIVEMATERIALSOURCE, D3DMCS_MATERIAL);
+			_device->SetRenderState(D3DRS_VERTEXBLEND, D3DVBF_DISABLE);
+			_device->SetRenderState(D3DRS_CLIPPLANEENABLE, D3DRS_CLIPPLANEENABLE);
+			// D3DRS_POINTSIZE
+			// D3DRS_POINTSPRITEENABLE
+			// D3DRS_POINTSCALEENABLE
+			// D3DRS_MULTISAMPLEANTIALIAS
+			// D3DRS_MULTISAMPLEMASK
 			_device->SetRenderState(D3DRS_COLORWRITEENABLE, pass_info.color_write_mask);
+			_device->SetRenderState(D3DRS_TWEENFACTOR, 0);
 			_device->SetRenderState(D3DRS_BLENDOP, static_cast<D3DBLENDOP>(pass_info.blend_op));
 			_device->SetRenderState(D3DRS_SCISSORTESTENABLE, false);
 			_device->SetRenderState(D3DRS_SLOPESCALEDEPTHBIAS, 0);
 			_device->SetRenderState(D3DRS_ANTIALIASEDLINEENABLE, false);
+			_device->SetRenderState(D3DRS_ENABLEADAPTIVETESSELLATION, false);
 			_device->SetRenderState(D3DRS_TWOSIDEDSTENCILMODE, false);
 			_device->SetRenderState(D3DRS_CCW_STENCILFAIL, D3DSTENCILOP_KEEP);
 			_device->SetRenderState(D3DRS_CCW_STENCILZFAIL, D3DSTENCILOP_KEEP);
 			_device->SetRenderState(D3DRS_CCW_STENCILPASS, D3DSTENCILOP_KEEP);
 			_device->SetRenderState(D3DRS_CCW_STENCILFUNC, D3DCMP_ALWAYS);
-			_device->SetRenderState(D3DRS_COLORWRITEENABLE1, pass_info.color_write_mask);
+			_device->SetRenderState(D3DRS_COLORWRITEENABLE1, pass_info.color_write_mask); // See https://docs.microsoft.com/en-us/windows/win32/direct3d9/multiple-render-targets
 			_device->SetRenderState(D3DRS_COLORWRITEENABLE2, pass_info.color_write_mask);
 			_device->SetRenderState(D3DRS_COLORWRITEENABLE3, pass_info.color_write_mask);
 			_device->SetRenderState(D3DRS_BLENDFACTOR, 0xFFFFFFFF);
 			_device->SetRenderState(D3DRS_SRGBWRITEENABLE, pass_info.srgb_write_enable);
+			_device->SetRenderState(D3DRS_DEPTHBIAS, 0);
 			_device->SetRenderState(D3DRS_SEPARATEALPHABLENDENABLE, false);
 			_device->SetRenderState(D3DRS_SRCBLENDALPHA, literal_to_blend_func(pass_info.src_blend_alpha));
 			_device->SetRenderState(D3DRS_DESTBLENDALPHA, literal_to_blend_func(pass_info.dest_blend_alpha));
 			_device->SetRenderState(D3DRS_BLENDOPALPHA, static_cast<D3DBLENDOP>(pass_info.blend_op_alpha));
-			_device->SetRenderState(D3DRS_FOGENABLE, false);
-			_device->SetRenderState(D3DRS_CULLMODE, D3DCULL_NONE);
-			_device->SetRenderState(D3DRS_LIGHTING, false);
 
 			hr = _device->EndStateBlock(&pass.stateblock);
 		}
