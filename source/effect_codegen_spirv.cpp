@@ -605,6 +605,12 @@ private:
 	}
 	id   define_uniform(const location &, uniform_info &info) override
 	{
+		// GLSL specification on std140 layout:
+		// 1. If the member is a scalar consuming N basic machine units, the base alignment is N.
+		// 2. If the member is a two- or four-component vector with components consuming N basic machine units, the base alignment is 2N or 4N, respectively.
+		// 3. If the member is a three-component vector with components consuming N basic machine units, the base alignment is 4N.
+		info.size = 4 * (info.type.rows == 3 ? 4 : info.type.rows) * info.type.cols * std::max(1, info.type.array_length);
+
 		if (_uniforms_to_spec_constants && info.type.is_scalar() && info.has_initializer_value)
 		{
 			const id res = emit_constant(info.type, info.initializer_value, true);
@@ -636,16 +642,10 @@ private:
 				add_decoration(_global_ubo_variable, spv::DecorationDescriptorSet, { 0 });
 			}
 
-			// GLSL specification on std140 layout:
-			// 1. If the member is a scalar consuming N basic machine units, the base alignment is N.
-			// 2. If the member is a two- or four-component vector with components consuming N basic machine units, the base alignment is 2N or 4N, respectively.
-			// 3. If the member is a three-component vector with components consuming N basic machine units, the base alignment is 4N.
-			const unsigned int size = 4 * (info.type.rows == 3 ? 4 : info.type.rows) * info.type.cols * std::max(1, info.type.array_length);
-			const unsigned int alignment = size;
-
-			info.size = size;
-			info.offset = (_global_ubo_offset % alignment != 0) ? _global_ubo_offset + alignment - _global_ubo_offset % alignment : _global_ubo_offset;
-			_global_ubo_offset = info.offset + size;
+			const uint32_t alignment = info.size;
+			const uint32_t alignment_remain = _global_ubo_offset % alignment;
+			info.offset = (alignment_remain != 0) ? _global_ubo_offset + alignment - alignment_remain : _global_ubo_offset;
+			_global_ubo_offset = info.offset + info.size;
 
 			_module.uniforms.push_back(info);
 

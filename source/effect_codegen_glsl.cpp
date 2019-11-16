@@ -360,6 +360,12 @@ private:
 	}
 	id   define_uniform(const location &loc, uniform_info &info) override
 	{
+		// GLSL specification on std140 layout:
+		// 1. If the member is a scalar consuming N basic machine units, the base alignment is N.
+		// 2. If the member is a two- or four-component vector with components consuming N basic machine units, the base alignment is 2N or 4N, respectively.
+		// 3. If the member is a three-component vector with components consuming N basic machine units, the base alignment is 4N.
+		info.size = 4 * (info.type.rows == 3 ? 4 : info.type.rows) * info.type.cols * std::max(1, info.type.array_length);
+
 		const id res = make_id();
 
 		define_name<naming::unique>(res, info.name);
@@ -381,15 +387,9 @@ private:
 		}
 		else
 		{
-			// GLSL specification on std140 layout:
-			// 1. If the member is a scalar consuming N basic machine units, the base alignment is N.
-			// 2. If the member is a two- or four-component vector with components consuming N basic machine units, the base alignment is 2N or 4N, respectively.
-			// 3. If the member is a three-component vector with components consuming N basic machine units, the base alignment is 4N.
-			const unsigned int size = 4 * info.type.rows * info.type.cols * std::max(1, info.type.array_length);
-			const unsigned int alignment = 4 * (info.type.rows == 3 ? 4 : info.type.rows) * info.type.cols * std::max(1, info.type.array_length);
-
-			info.size = size;
-			info.offset = (_current_ubo_offset % alignment != 0) ? _current_ubo_offset + alignment - _current_ubo_offset % alignment : _current_ubo_offset;
+			const uint32_t alignment = info.size;
+			const uint32_t alignment_remain = _current_ubo_offset % alignment;
+			info.offset = (alignment_remain != 0) ? _current_ubo_offset + alignment - alignment_remain : _current_ubo_offset;
 			_current_ubo_offset = info.offset + info.size;
 
 			write_location(_ubo_block, loc);
