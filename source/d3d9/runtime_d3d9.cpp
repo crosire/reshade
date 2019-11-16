@@ -940,9 +940,9 @@ bool reshade::d3d9::runtime_d3d9::init_technique(technique &technique, const d3d
 			_device->SetRenderState(D3DRS_CCW_STENCILZFAIL, D3DSTENCILOP_KEEP);
 			_device->SetRenderState(D3DRS_CCW_STENCILPASS, D3DSTENCILOP_KEEP);
 			_device->SetRenderState(D3DRS_CCW_STENCILFUNC, D3DCMP_ALWAYS);
-			_device->SetRenderState(D3DRS_COLORWRITEENABLE1, 0x0000000F);
-			_device->SetRenderState(D3DRS_COLORWRITEENABLE2, 0x0000000F);
-			_device->SetRenderState(D3DRS_COLORWRITEENABLE3, 0x0000000F);
+			_device->SetRenderState(D3DRS_COLORWRITEENABLE1, pass_info.color_write_mask);
+			_device->SetRenderState(D3DRS_COLORWRITEENABLE2, pass_info.color_write_mask);
+			_device->SetRenderState(D3DRS_COLORWRITEENABLE3, pass_info.color_write_mask);
 			_device->SetRenderState(D3DRS_BLENDFACTOR, 0xFFFFFFFF);
 			_device->SetRenderState(D3DRS_SRGBWRITEENABLE, pass_info.srgb_write_enable);
 			_device->SetRenderState(D3DRS_SEPARATEALPHABLENDENABLE, false);
