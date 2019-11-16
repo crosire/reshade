@@ -402,6 +402,7 @@ bool reshade::vulkan::runtime_vk::on_init(VkSwapchainKHR swapchain, const VkSwap
 	const size_t NUM_COMMAND_FRAMES = 5;
 	_cmd_pool.resize(NUM_COMMAND_FRAMES);
 	_cmd_fences.resize(NUM_COMMAND_FRAMES);
+	_cmd_buffers_to_free.resize(NUM_COMMAND_FRAMES);
 
 	for (size_t i = 0; i < NUM_COMMAND_FRAMES; ++i)
 	{
@@ -512,6 +513,10 @@ void reshade::vulkan::runtime_vk::on_reset()
 	_swapchain_frames.clear();
 	_swapchain_images.clear();
 
+	for (size_t pool_index = 0; pool_index < _cmd_buffers_to_free.size(); ++pool_index)
+		vk.FreeCommandBuffers(_device, _cmd_pool[pool_index], uint32_t(_cmd_buffers_to_free[pool_index].size()), _cmd_buffers_to_free[pool_index].data());
+	_cmd_buffers_to_free.clear();
+
 	vk.DestroyFence(_device, _wait_fence, nullptr);
 	_wait_fence = VK_NULL_HANDLE;
 	for (VkFence fence : _cmd_fences)
@@ -571,6 +576,9 @@ void reshade::vulkan::runtime_vk::on_present(VkQueue queue, uint32_t swapchain_i
 
 	vk.ResetFences(_device, 1, &fence);
 	vk.ResetCommandPool(_device, _cmd_pool[_pool_index], 0);
+
+	vk.FreeCommandBuffers(_device, _cmd_pool[_pool_index], uint32_t(_cmd_buffers_to_free[_pool_index].size()), _cmd_buffers_to_free[_pool_index].data());
+	_cmd_buffers_to_free[_pool_index].clear();
 
 #if RESHADE_VULKAN_CAPTURE_DEPTH_BUFFERS
 	const auto best_snapshot = tracker.find_best_depth_texture(_width, _height);
@@ -916,6 +924,8 @@ VkCommandBuffer reshade::vulkan::runtime_vk::create_command_list(VkCommandBuffer
 	alloc_info.commandBufferCount = 1;
 
 	check_result(vk.AllocateCommandBuffers(_device, &alloc_info, &cmd_list)) VK_NULL_HANDLE;
+
+	_cmd_buffers_to_free[_pool_index].push_back(cmd_list);
 
 #ifdef _DEBUG
 	// The validation layers expect the loader to have set the dispatch pointer, but this does not happen when calling down the chain, so fix it here
