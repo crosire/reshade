@@ -59,7 +59,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 	// Register window class
 	WNDCLASS wc = { sizeof(wc) };
 	wc.hInstance = hInstance;
-	wc.style = CS_HREDRAW | CS_VREDRAW;
+	wc.style = CS_HREDRAW | CS_VREDRAW | CS_OWNDC;
 	wc.lpszClassName = TEXT("Test");
 	wc.lpfnWndProc =
 		[](HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam) -> LRESULT {
@@ -100,8 +100,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 
 	if (strstr(lpCmdLine, "-d3d9"))
 	{
-		hooks::register_module("d3d9.dll");
 		const auto d3d9_module = LoadLibrary(TEXT("d3d9.dll"));
+		hooks::register_module("d3d9.dll");
 
 		D3DPRESENT_PARAMETERS pp = {};
 		pp.SwapEffect = D3DSWAPEFFECT_DISCARD;
@@ -146,9 +146,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 	#pragma region D3D11 Implementation
 	if (strstr(lpCmdLine, "-d3d11"))
 	{
+		const auto d3d11_module = LoadLibrary(TEXT("d3d11.dll"));
 		hooks::register_module("dxgi.dll");
 		hooks::register_module("d3d11.dll");
-		const auto d3d11_module = LoadLibrary(TEXT("d3d11.dll"));
 
 		// Initialize Direct3D 11
 		com_ptr<ID3D11Device> device;
@@ -208,9 +208,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 	#pragma region D3D12 Implementation
 	if (strstr(lpCmdLine, "-d3d12"))
 	{
+		const auto d3d12_module = LoadLibrary(TEXT("d3d12.dll"));
 		hooks::register_module("dxgi.dll");
 		hooks::register_module("d3d12.dll");
-		const auto d3d12_module = LoadLibrary(TEXT("d3d12.dll"));
 
 		// Enable D3D debug layer if it is available
 		{   com_ptr<ID3D12Debug> debug_iface;
@@ -358,8 +358,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 	#pragma region OpenGL Implementation
 	if (strstr(lpCmdLine, "-opengl"))
 	{
-		hooks::register_module("opengl32.dll");
 		const auto opengl_module = LoadLibrary(TEXT("opengl32.dll"));
+		hooks::register_module("opengl32.dll");
 
 		// Initialize OpenGL
 		const HDC hdc = GetDC(window_handle);
@@ -370,14 +370,29 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 		pfd.iPixelType = PFD_TYPE_RGBA;
 		pfd.cColorBits = 32;
 
-		const int pf = ChoosePixelFormat(hdc, &pfd);
-		SetPixelFormat(hdc, pf, &pfd);
+		SetPixelFormat(hdc, ChoosePixelFormat(hdc, &pfd), &pfd);
 
-		const HGLRC hglrc = wglCreateContext(hdc);
-		if (hglrc == nullptr)
+		const HGLRC hglrc1 = wglCreateContext(hdc);
+		if (hglrc1 == nullptr)
 			return 0;
 
-		wglMakeCurrent(hdc, hglrc);
+		wglMakeCurrent(hdc, hglrc1);
+
+		// Create an OpenGL 4.3 context
+		const int attribs[] = {
+			0x2091 /*WGL_CONTEXT_MAJOR_VERSION_ARB*/, 4,
+			0x2092 /*WGL_CONTEXT_MINOR_VERSION_ARB*/, 3,
+			0 // Terminate list
+		};
+
+		const HGLRC hglrc2 = reinterpret_cast<HGLRC(WINAPI*)(HDC, HGLRC, const int *)>(
+			wglGetProcAddress("wglCreateContextAttribsARB"))(hdc, nullptr, attribs);
+		if (hglrc2 == nullptr)
+			return 0;
+
+		wglMakeCurrent(nullptr, nullptr);
+		wglDeleteContext(hglrc1);
+		wglMakeCurrent(hdc, hglrc2);
 
 		while (msg.message != WM_QUIT)
 		{
@@ -395,11 +410,11 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 			glClearColor(0.5f, 0.5f, 0.5f, 1.0f);
 			glClear(GL_COLOR_BUFFER_BIT);
 
-			SwapBuffers(hdc);
+			wglSwapLayerBuffers(hdc, WGL_SWAP_MAIN_PLANE);
 		}
 
 		wglMakeCurrent(nullptr, nullptr);
-		wglDeleteContext(hglrc);
+		wglDeleteContext(hglrc2);
 
 		reshade::hooks::uninstall();
 
@@ -417,8 +432,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 
 	if (strstr(lpCmdLine, "-vulkan"))
 	{
-		hooks::register_module("vulkan-1.dll");
 		const auto vulkan_module = LoadLibrary(TEXT("vulkan-1.dll"));
+		hooks::register_module("vulkan-1.dll");
 
 		VkDevice device = VK_NULL_HANDLE;
 		VkInstance instance = VK_NULL_HANDLE;
