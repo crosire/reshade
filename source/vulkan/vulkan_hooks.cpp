@@ -45,7 +45,7 @@ struct command_buffer_data
 static lockfree_table<void *, device_data, 16> s_device_data;
 static lockfree_table<void *, VkLayerDispatchTable, 16> s_device_dispatch;
 static lockfree_table<void *, VkLayerInstanceDispatchTable, 16> s_instance_dispatch;
-static lockfree_table<VkSurfaceKHR, std::pair<VkInstance, HWND>, 16> s_surface_windows;
+static lockfree_table<VkSurfaceKHR, HWND, 16> s_surface_windows;
 static lockfree_table<VkSwapchainKHR, std::shared_ptr<reshade::vulkan::runtime_vk>, 16> s_runtimes;
 static lockfree_table<VkImage, VkImageCreateInfo, 4096> s_image_data;
 static lockfree_table<VkImageView, VkImage, 4096> s_image_view_mapping;
@@ -155,7 +155,7 @@ VkResult VKAPI_CALL vkCreateWin32SurfaceKHR(VkInstance instance, const VkWin32Su
 		return result;
 	}
 
-	s_surface_windows.emplace(*pSurface, { instance, pCreateInfo->hwnd });
+	s_surface_windows.emplace(*pSurface, pCreateInfo->hwnd);
 
 	return VK_SUCCESS;
 }
@@ -396,7 +396,6 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 	}
 
 	auto &device_data = s_device_data.at(dispatch_key_from_handle(device));
-	const auto &surface_info = s_surface_windows.at(pCreateInfo->surface);
 
 	std::shared_ptr<reshade::vulkan::runtime_vk> runtime;
 	// Remove old swapchain from the list so that a call to 'vkDestroySwapchainKHR' won't reset the runtime again
@@ -411,10 +410,13 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 	{
 		runtime = std::make_shared<reshade::vulkan::runtime_vk>(
 			device, device_data.physical_device,
-			s_instance_dispatch.at(dispatch_key_from_handle(surface_info.first)), s_device_dispatch.at(dispatch_key_from_handle(device)));
+			s_instance_dispatch.at(dispatch_key_from_handle(device_data.physical_device)), s_device_dispatch.at(dispatch_key_from_handle(device)));
 	}
 
-	if (!runtime->on_init(*pSwapchain, *pCreateInfo, surface_info.second))
+	// Look up window handle from surface
+	const HWND hwnd = s_surface_windows.at(pCreateInfo->surface);
+
+	if (!runtime->on_init(*pSwapchain, *pCreateInfo, hwnd))
 		LOG(ERROR) << "Failed to initialize Vulkan runtime environment on runtime " << runtime.get() << '.';
 
 	s_runtimes.emplace(*pSwapchain, runtime);
@@ -513,7 +515,7 @@ VkResult VKAPI_CALL vkCreateImage(VkDevice device, const VkImageCreateInfo *pCre
 	}
 
 	// Keep track of image information (only care about depth stencil images currently)
-	if (is_depth_stencil_image)
+	if (aspect_flags_from_format(pCreateInfo->format) != VK_IMAGE_ASPECT_COLOR_BIT)
 		s_image_data.emplace(*pImage, *pCreateInfo);
 
 	return VK_SUCCESS;
@@ -704,17 +706,13 @@ void     VKAPI_CALL vkCmdNextSubpass(VkCommandBuffer commandBuffer, VkSubpassCon
 #if RESHADE_VULKAN_CAPTURE_DEPTH_BUFFERS
 	auto &data = s_command_buffer_data.at(commandBuffer);
 	data.current_subpass++;
+	assert(data.current_renderpass != VK_NULL_HANDLE);
+	assert(data.current_framebuffer != VK_NULL_HANDLE);
 
 	const auto &renderpass_data = s_renderpass_data.at(data.current_renderpass)[data.current_subpass];
 	const auto &framebuffer_data = s_framebuffer_data.at(data.current_framebuffer);
-	if (renderpass_data.depthstencil_attachment_index < framebuffer_data.size())
-	{
-		data.draw_call_tracker.track_next_depthstencil(framebuffer_data[renderpass_data.depthstencil_attachment_index]);
-	}
-	else
-	{
-		data.draw_call_tracker.track_next_depthstencil(VK_NULL_HANDLE);
-	}
+	data.draw_call_tracker.track_next_depthstencil(renderpass_data.depthstencil_attachment_index < framebuffer_data.size() ?
+		framebuffer_data[renderpass_data.depthstencil_attachment_index] : VK_NULL_HANDLE);
 #endif
 }
 void     VKAPI_CALL vkCmdEndRenderPass(VkCommandBuffer commandBuffer)
@@ -738,8 +736,10 @@ void     VKAPI_CALL vkCmdExecuteCommands(VkCommandBuffer commandBuffer, uint32_t
 
 	for (uint32_t i = 0; i < commandBufferCount; ++i)
 	{
+		const auto &secondary_data = s_command_buffer_data.at(pCommandBuffers[i]);
+
 		// Merge secondary command list trackers into the current primary one
-		data.draw_call_tracker.merge(s_command_buffer_data.at(pCommandBuffers[i]).draw_call_tracker);
+		data.draw_call_tracker.merge(secondary_data.draw_call_tracker);
 	}
 
 	GET_DEVICE_DISPATCH_PTR(CmdExecuteCommands, commandBuffer);

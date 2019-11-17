@@ -40,11 +40,17 @@ public:
 		{
 			if (_data[i].first == key)
 			{
-				TValue *const value = _data[i].second;
+				TValue *value = _data[i].second;
 				if (value == nullptr)
-					continue; // Other thread may have created this entry, but not set the value yet
-				else
-					return *value;
+				{
+					// Other thread may have created this entry, but not set the value yet, so wait a tiny little bit and try again
+					Sleep(1);
+					value = _data[i].second;
+					if (value == nullptr)
+						break;
+				}
+
+				return *value;
 			}
 		}
 
@@ -70,6 +76,8 @@ public:
 			if (TKey test_value = 0;
 				_data[i].first.compare_exchange_strong(test_value, key))
 			{
+				assert(_data[i].second == nullptr);
+
 				// Create a pointer to the new value
 				TValue *new_value = new TValue();
 				// Atomically store pointer in this entry and return it
@@ -100,6 +108,8 @@ public:
 			if (TKey test_value = 0;
 				_data[i].first.compare_exchange_strong(test_value, key))
 			{
+				assert(_data[i].second == nullptr);
+
 				// Create a pointer to the new value
 				TValue *new_value = new TValue(value);
 				// Atomically store pointer in this entry and return it
