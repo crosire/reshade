@@ -10,27 +10,9 @@
 
 D3D12Device::D3D12Device(ID3D12Device *original) :
 	_orig(original),
-	_interface_version(0) {
+	_interface_version(0),
+	_draw_call_tracker(original, &_draw_call_tracker) {
 	assert(original != nullptr);
-}
-
-void D3D12Device::clear_drawcall_stats(bool release_resources)
-{
-	const std::lock_guard<std::mutex> lock(_device_global_mutex);
-
-	_draw_call_tracker.reset();
-	_current_dsv_clear_index = 1;
-
-	if (release_resources)
-		_depthstencil_resources_by_handle.clear();
-}
-
-com_ptr<ID3D12Resource> D3D12Device::resource_from_handle(D3D12_CPU_DESCRIPTOR_HANDLE handle)
-{
-	assert(handle.ptr != 0);
-
-	const std::lock_guard<std::mutex> lock(_device_global_mutex);
-	return _depthstencil_resources_by_handle[handle.ptr];
 }
 
 bool D3D12Device::check_and_upgrade_interface(REFIID riid)
@@ -233,10 +215,7 @@ void    STDMETHODCALLTYPE D3D12Device::CreateDepthStencilView(ID3D12Resource *pR
 	_orig->CreateDepthStencilView(pResource, pDesc, DestDescriptor);
 
 	if (pResource != nullptr)
-	{
-		const std::lock_guard<std::mutex> lock(_device_global_mutex);
-		_depthstencil_resources_by_handle[DestDescriptor.ptr] = pResource;
-	}
+		_draw_call_tracker.on_create_dsv(pResource, DestDescriptor);
 }
 void    STDMETHODCALLTYPE D3D12Device::CreateSampler(const D3D12_SAMPLER_DESC *pDesc, D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptor)
 {

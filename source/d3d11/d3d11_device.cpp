@@ -17,12 +17,6 @@ D3D11Device::D3D11Device(IDXGIDevice1 *dxgi_device, ID3D11Device *original, ID3D
 	assert(original != nullptr);
 }
 
-void D3D11Device::clear_drawcall_stats()
-{
-	_immediate_context->_draw_call_tracker.reset();
-	_current_dsv_clear_index = 1;
-}
-
 bool D3D11Device::check_and_upgrade_interface(REFIID riid)
 {
 	if (riid == __uuidof(this))

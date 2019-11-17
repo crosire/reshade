@@ -46,7 +46,7 @@ ULONG   STDMETHODCALLTYPE D3D12CommandQueueDownlevel::Release()
 		return _orig->Release(), ref;
 
 	_runtime->on_reset();
-	_device->clear_drawcall_stats(true); // Release any live references to depth buffers etc.
+	_device->_draw_call_tracker.reset(true); // Release any live references to depth buffers etc.
 	_device->_runtimes.erase(std::remove(_device->_runtimes.begin(), _device->_runtimes.end(), _runtime), _device->_runtimes.end());
 
 	_runtime.reset();
@@ -88,7 +88,7 @@ HRESULT STDMETHODCALLTYPE D3D12CommandQueueDownlevel::Present(ID3D12GraphicsComm
 	_runtime->on_present(_device->_draw_call_tracker);
 
 	// Clear current frame stats
-	_device->clear_drawcall_stats();
+	_device->_draw_call_tracker.reset(false);
 
 	// Get original command list pointer from proxy object
 	if (com_ptr<D3D12GraphicsCommandList> command_list_proxy;

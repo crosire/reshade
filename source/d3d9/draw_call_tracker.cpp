@@ -99,7 +99,6 @@ namespace reshade::d3d9
 	bool draw_call_tracker::disable_intz = false;
 	bool draw_call_tracker::filter_aspect_ratio = true;
 	bool draw_call_tracker::preserve_depth_buffers = false;
-	unsigned int draw_call_tracker::depth_stencil_clear_index = 0;
 
 	void draw_call_tracker::on_set_depthstencil(IDirect3DSurface9 *&depthstencil)
 	{
@@ -153,7 +152,7 @@ namespace reshade::d3d9
 		}
 	}
 
-	void draw_call_tracker::update_depthstencil_replacement(com_ptr<IDirect3DSurface9> depthstencil)
+	bool draw_call_tracker::update_depthstencil_replacement(com_ptr<IDirect3DSurface9> depthstencil)
 	{
 		_depthstencil_original.reset();
 		com_ptr<IDirect3DSurface9> current_replacement =
@@ -161,16 +160,16 @@ namespace reshade::d3d9
 		_depthstencil_replacement.reset();
 
 		if (depthstencil == nullptr)
-			return; // Abort early if this update just destroyed the existing replacement
+			return true; // Abort early if this update just destroyed the existing replacement
 
 		D3DSURFACE_DESC desc;
 		depthstencil->GetDesc(&desc);
 
 		if (check_texture_format(desc))
-			return; // Format already support shader access, so no need to replace
+			return true; // Format already support shader access, so no need to replace
 		else if (disable_intz)
 			// Disable replacement with a texture of the INTZ format (which can have lower precision)
-			return;
+			return false;
 
 		_depthstencil_original = std::move(depthstencil);
 
@@ -183,7 +182,7 @@ namespace reshade::d3d9
 			{
 				// Replacement already matches dimensions, so can re-use
 				_depthstencil_replacement = std::move(current_replacement);
-				return;
+				return true;
 			}
 			else
 			{
@@ -211,7 +210,7 @@ namespace reshade::d3d9
 		if (desc.Format == D3DFMT_UNKNOWN)
 		{
 			LOG(ERROR) << "Your graphics card is missing support for at least one of the 'INTZ', 'DF24' or 'DF16' texture formats. Cannot create depth replacement texture.";
-			return;
+			return false;
 		}
 
 		com_ptr<IDirect3DTexture9> texture;
@@ -219,7 +218,7 @@ namespace reshade::d3d9
 		if (HRESULT hr = _device->CreateTexture(desc.Width, desc.Height, 1, D3DUSAGE_DEPTHSTENCIL, desc.Format, D3DPOOL_DEFAULT, &texture, nullptr); FAILED(hr))
 		{
 			LOG(ERROR) << "Failed to create depth texture replacement! HRESULT is " << hr << '.';
-			return;
+			return false;
 		}
 
 		// The surface holds a reference to the texture, so it is safe to let that go out of scope
@@ -230,6 +229,8 @@ namespace reshade::d3d9
 		_device->GetDepthStencilSurface(&current_depthstencil);
 		if (current_depthstencil == _depthstencil_original)
 			_device->SetDepthStencilSurface(_depthstencil_replacement.get());
+
+		return true;
 	}
 
 	bool draw_call_tracker::check_aspect_ratio(const D3DSURFACE_DESC &desc, UINT width, UINT height)
@@ -246,7 +247,7 @@ namespace reshade::d3d9
 		return desc.Format == D3DFMT_INTZ || desc.Format == D3DFMT_DF16 || desc.Format == D3DFMT_DF24;
 	}
 
-	com_ptr<IDirect3DSurface9> draw_call_tracker::find_best_depth_surface(UINT width, UINT height, com_ptr<IDirect3DSurface9> override)
+	com_ptr<IDirect3DSurface9> draw_call_tracker::find_best_depth_surface(UINT width, UINT height, com_ptr<IDirect3DSurface9> override, UINT clear_index_override)
 	{
 		bool no_replacement = true;
 		depthstencil_info best_snapshot;
@@ -254,8 +255,10 @@ namespace reshade::d3d9
 
 		if (override != nullptr)
 		{
-			best_match = override;
-			best_snapshot = _counters_per_used_depth_surface[override];
+			best_match = std::move(override);
+			best_snapshot = _counters_per_used_depth_surface[best_match];
+
+			// Always replace when there is an override surface
 			no_replacement = false;
 		}
 		else
@@ -299,9 +302,9 @@ namespace reshade::d3d9
 
 			_depthstencil_clear_index = std::numeric_limits<UINT>::max();
 
-			if (depth_stencil_clear_index != 0 && depth_stencil_clear_index <= best_snapshot.clears.size())
+			if (clear_index_override != 0 && clear_index_override <= best_snapshot.clears.size())
 			{
-				_depthstencil_clear_index = depth_stencil_clear_index;
+				_depthstencil_clear_index = clear_index_override;
 			}
 			else
 			{

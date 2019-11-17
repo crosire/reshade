@@ -6,6 +6,7 @@
 #pragma once
 
 #include <map>
+#include <unordered_map>
 #include <d3d12.h>
 #include "com_ptr.hpp"
 
@@ -16,63 +17,73 @@ namespace reshade::d3d12
 	class draw_call_tracker
 	{
 	public:
-		struct draw_stats
-		{
-			UINT vertices = 0;
-			UINT drawcalls = 0;
-			UINT mapped = 0;
-			UINT vs_uses = 0;
-			UINT ps_uses = 0;
-		};
-
 #if RESHADE_DX12_CAPTURE_DEPTH_BUFFERS
-		struct cleared_depthstencil_info
-		{
-			com_ptr<ID3D12Resource> dsv_texture;
-			com_ptr<ID3D12Resource> backup_texture;
-		};
-		struct intermediate_snapshot_info
-		{
-			draw_stats stats;
-		};
-
 		static bool filter_aspect_ratio;
 		static bool preserve_depth_buffers;
-		static bool preserve_stencil_buffers;
-		static unsigned int depth_stencil_clear_index;
 		static unsigned int filter_depth_texture_format;
 #endif
 
-		UINT total_vertices() const { return _global_counter.vertices; }
-		UINT total_drawcalls() const { return _global_counter.drawcalls; }
+		draw_call_tracker(ID3D12Device *device, draw_call_tracker *tracker) :
+			_device(device), _device_tracker(tracker) {}
+
+		UINT total_vertices() const { return _stats.vertices; }
+		UINT total_drawcalls() const { return _stats.drawcalls; }
 
 #if RESHADE_DX12_CAPTURE_DEPTH_BUFFERS
+		UINT current_clear_index() const { return _depthstencil_clear_index.second; }
+		ID3D12Resource *current_depth_texture() const { return _depthstencil_clear_index.first; }
 		const auto &depth_buffer_counters() const { return _counters_per_used_depth_texture; }
-		const auto &cleared_depth_textures() const { return _cleared_depth_textures; }
 #endif
 
+		void reset(bool release_resources);
+
 		void merge(const draw_call_tracker &source);
-		void reset();
 
 		void on_draw(UINT vertices);
 
 #if RESHADE_DX12_CAPTURE_DEPTH_BUFFERS
-		void track_render_targets(com_ptr<ID3D12Resource> depthstencil);
-		void track_cleared_depthstencil(ID3D12GraphicsCommandList *cmd_list, D3D12_CLEAR_FLAGS clear_flags, com_ptr<ID3D12Resource> depthstencil, UINT clear_index, class runtime_d3d12 *runtime);
+		void on_create_dsv(ID3D12Resource *dsv_texture, D3D12_CPU_DESCRIPTOR_HANDLE handle);
+
+		void track_render_targets(D3D12_CPU_DESCRIPTOR_HANDLE dsv);
+		void track_cleared_depthstencil(ID3D12GraphicsCommandList *cmd_list, D3D12_CLEAR_FLAGS clear_flags, D3D12_CPU_DESCRIPTOR_HANDLE dsv);
+
+		bool update_depthstencil_clear_texture(D3D12_RESOURCE_DESC desc);
 
 		static bool check_aspect_ratio(const D3D12_RESOURCE_DESC &desc, UINT width, UINT height);
 		static bool check_texture_format(const D3D12_RESOURCE_DESC &desc);
 
-		com_ptr<ID3D12Resource> find_best_depth_texture(UINT width, UINT height);
+		com_ptr<ID3D12Resource> find_best_depth_texture(UINT width, UINT height,
+			com_ptr<ID3D12Resource> override = nullptr, UINT clear_index_override = 0);
 #endif
 
 	private:
-		draw_stats _global_counter;
+		struct draw_stats
+		{
+			UINT vertices = 0;
+			UINT drawcalls = 0;
+		};
+		struct depthstencil_info
+		{
+			draw_stats stats;
+			std::vector<draw_stats> clears;
+		};
+
 #if RESHADE_DX12_CAPTURE_DEPTH_BUFFERS
+		com_ptr<ID3D12Resource> resource_from_handle(D3D12_CPU_DESCRIPTOR_HANDLE handle);
+#endif
+
+		ID3D12Device *const _device;
+		draw_call_tracker *const _device_tracker;
+		draw_stats _stats;
+#if RESHADE_DX12_CAPTURE_DEPTH_BUFFERS
+		draw_stats _clear_stats;
 		com_ptr<ID3D12Resource> _current_depthstencil;
-		std::map<UINT, cleared_depthstencil_info> _cleared_depth_textures;
+		com_ptr<ID3D12Resource> _depthstencil_clear_texture;
+		std::pair<ID3D12Resource *, UINT> _depthstencil_clear_index = { nullptr, std::numeric_limits<UINT>::max() };
+		// Do not hold a reference to the resources here
+		std::unordered_map<SIZE_T, ID3D12Resource *> _depthstencil_resources_by_handle;
 		// Use "std::map" instead of "std::unordered_map" so that the iteration order is guaranteed
-		std::map<com_ptr<ID3D12Resource>, intermediate_snapshot_info> _counters_per_used_depth_texture;
+		std::map<com_ptr<ID3D12Resource>, depthstencil_info> _counters_per_used_depth_texture;
 #endif
 	};
 }

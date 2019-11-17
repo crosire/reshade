@@ -5,7 +5,6 @@
 
 #pragma once
 
-#include <atomic>
 #include <d3d11_4.h>
 
 struct DXGIDevice;
@@ -102,8 +101,6 @@ struct DECLSPEC_UUID("72299288-2C68-4AD8-945D-2BFB5AA9C609") D3D11Device : ID3D1
 	HRESULT STDMETHODCALLTYPE CreateFence(UINT64 InitialValue, D3D11_FENCE_FLAG Flags, REFIID ReturnedInterface, void **ppFence) override;
 	#pragma endregion
 
-	void clear_drawcall_stats();
-
 	bool check_and_upgrade_interface(REFIID riid);
 
 	LONG _ref = 1;
@@ -112,5 +109,4 @@ struct DECLSPEC_UUID("72299288-2C68-4AD8-945D-2BFB5AA9C609") D3D11Device : ID3D1
 	DXGIDevice *const _dxgi_device;
 	D3D11DeviceContext *const _immediate_context;
 	std::vector<std::shared_ptr<reshade::d3d11::runtime_d3d11>> _runtimes;
-	std::atomic_uint _current_dsv_clear_index = 1;
 };

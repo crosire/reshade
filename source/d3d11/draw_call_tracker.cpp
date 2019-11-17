@@ -5,14 +5,11 @@
 
 #include "draw_call_tracker.hpp"
 #include "dxgi/format_utils.hpp"
-#include "runtime_d3d11.hpp"
-#include <mutex>
+#include "log.hpp"
 #include <math.h>
 
 namespace reshade::d3d11
 {
-	static std::mutex s_global_mutex;
-
 	static inline com_ptr<ID3D11Texture2D> texture_from_dsv(ID3D11DepthStencilView *dsv)
 	{
 		if (dsv == nullptr)
@@ -24,21 +21,46 @@ namespace reshade::d3d11
 		return texture;
 	}
 
+	void draw_call_tracker::reset(bool release_resources)
+	{
+		_stats.vertices = 0;
+		_stats.drawcalls = 0;
+#if RESHADE_DX11_CAPTURE_DEPTH_BUFFERS
+		_clear_stats.vertices = 0;
+		_clear_stats.drawcalls = 0;
+		_counters_per_used_depth_texture.clear();
+
+		if (release_resources)
+		{
+			assert(this == _device_tracker);
+
+			_depthstencil_clear_texture.reset();
+		}
+#endif
+#if RESHADE_DX11_CAPTURE_CONSTANT_BUFFERS
+		_counters_per_constant_buffer.clear();
+#endif
+	}
+
 	void draw_call_tracker::merge(const draw_call_tracker &source)
 	{
-		_global_counter.vertices += source.total_vertices();
-		_global_counter.drawcalls += source.total_drawcalls();
+		_stats.vertices += source.total_vertices();
+		_stats.drawcalls += source.total_drawcalls();
 
 #if RESHADE_DX11_CAPTURE_DEPTH_BUFFERS
-		for (const auto &[clear_index, snapshot] : source._cleared_depth_textures)
-		{
-			_cleared_depth_textures[clear_index] = snapshot;
-		}
+		_clear_stats.vertices += source._clear_stats.vertices;
+		_clear_stats.drawcalls += source._clear_stats.drawcalls;
+
+		_depthstencil_clear_index = source._depthstencil_clear_index;
+		_depthstencil_clear_texture = source._depthstencil_clear_texture;
 
 		for (const auto &[dsv_texture, snapshot] : source._counters_per_used_depth_texture)
 		{
-			_counters_per_used_depth_texture[dsv_texture].stats.vertices += snapshot.stats.vertices;
-			_counters_per_used_depth_texture[dsv_texture].stats.drawcalls += snapshot.stats.drawcalls;
+			auto &target_snapshot = _counters_per_used_depth_texture[dsv_texture];
+			target_snapshot.stats.vertices += snapshot.stats.vertices;
+			target_snapshot.stats.drawcalls += snapshot.stats.drawcalls;
+
+			target_snapshot.clears.insert(target_snapshot.clears.end(), snapshot.clears.begin(), snapshot.clears.end());
 		}
 #endif
 #if RESHADE_DX11_CAPTURE_CONSTANT_BUFFERS
@@ -49,19 +71,6 @@ namespace reshade::d3d11
 			_counters_per_constant_buffer[buffer].ps_uses += snapshot.ps_uses;
 			_counters_per_constant_buffer[buffer].vs_uses += snapshot.vs_uses;
 		}
-#endif
-	}
-
-	void draw_call_tracker::reset()
-	{
-		_global_counter.vertices = 0;
-		_global_counter.drawcalls = 0;
-#if RESHADE_DX11_CAPTURE_DEPTH_BUFFERS
-		_cleared_depth_textures.clear();
-		_counters_per_used_depth_texture.clear();
-#endif
-#if RESHADE_DX11_CAPTURE_CONSTANT_BUFFERS
-		_counters_per_constant_buffer.clear();
 #endif
 	}
 
@@ -78,15 +87,18 @@ namespace reshade::d3d11
 #endif
 	}
 
-	void draw_call_tracker::on_draw(ID3D11DeviceContext *context, UINT vertices)
+	void draw_call_tracker::on_draw(UINT vertices)
 	{
-		_global_counter.vertices += vertices;
-		_global_counter.drawcalls += 1;
+		_stats.vertices += vertices;
+		_stats.drawcalls += 1;
 
 #if RESHADE_DX11_CAPTURE_DEPTH_BUFFERS
+		_clear_stats.vertices += vertices;
+		_clear_stats.drawcalls += 1;
+
 		com_ptr<ID3D11RenderTargetView> targets[D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT];
 		com_ptr<ID3D11DepthStencilView> depthstencil;
-		context->OMGetRenderTargets(D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT, reinterpret_cast<ID3D11RenderTargetView **>(targets), &depthstencil);
+		_context->OMGetRenderTargets(D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT, reinterpret_cast<ID3D11RenderTargetView **>(targets), &depthstencil);
 
 		const auto dsv_texture = texture_from_dsv(depthstencil.get());
 		if (dsv_texture == nullptr)
@@ -121,7 +133,7 @@ namespace reshade::d3d11
 #if RESHADE_DX11_CAPTURE_CONSTANT_BUFFERS
 		// Capture constant buffers that are used when depth stencils are drawn
 		com_ptr<ID3D11Buffer> vscbuffers[D3D11_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT];
-		context->VSGetConstantBuffers(0, ARRAYSIZE(vscbuffers), reinterpret_cast<ID3D11Buffer **>(vscbuffers));
+		_context->VSGetConstantBuffers(0, ARRAYSIZE(vscbuffers), reinterpret_cast<ID3D11Buffer **>(vscbuffers));
 
 		for (UINT i = 0; i < ARRAYSIZE(vscbuffers); i++)
 			// Uses the default drawcalls = 0 the first time around.
@@ -129,7 +141,7 @@ namespace reshade::d3d11
 				_counters_per_constant_buffer[vscbuffers[i]].vs_uses += 1;
 
 		com_ptr<ID3D11Buffer> pscbuffers[D3D11_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT];
-		context->PSGetConstantBuffers(0, ARRAYSIZE(pscbuffers), reinterpret_cast<ID3D11Buffer **>(pscbuffers));
+		_context->PSGetConstantBuffers(0, ARRAYSIZE(pscbuffers), reinterpret_cast<ID3D11Buffer **>(pscbuffers));
 
 		for (UINT i = 0; i < ARRAYSIZE(pscbuffers); i++)
 			// Uses the default drawcalls = 0 the first time around.
@@ -141,8 +153,6 @@ namespace reshade::d3d11
 #if RESHADE_DX11_CAPTURE_DEPTH_BUFFERS
 	bool draw_call_tracker::filter_aspect_ratio = true;
 	bool draw_call_tracker::preserve_depth_buffers = false;
-	bool draw_call_tracker::preserve_stencil_buffers = false;
-	unsigned int draw_call_tracker::depth_stencil_clear_index = 0;
 	unsigned int draw_call_tracker::filter_depth_texture_format = 0;
 
 	void draw_call_tracker::track_render_targets(UINT num_views, ID3D11RenderTargetView *const *views, ID3D11DepthStencilView *dsv)
@@ -160,39 +170,59 @@ namespace reshade::d3d11
 			counters.additional_views[views[i]].drawcalls += 1;
 		}
 	}
-	void draw_call_tracker::track_cleared_depthstencil(ID3D11DeviceContext *context, UINT clear_flags, ID3D11DepthStencilView *dsv, UINT clear_index, runtime_d3d11 *runtime)
+	void draw_call_tracker::track_cleared_depthstencil(UINT clear_flags, ID3D11DepthStencilView *dsv)
 	{
-		if (!(preserve_depth_buffers && (clear_flags & D3D11_CLEAR_DEPTH)) &&
-			!(preserve_stencil_buffers && (clear_flags & D3D11_CLEAR_STENCIL)))
+		// Reset draw call stats for clears
+		auto current_stats = _clear_stats;
+		_clear_stats.vertices = 0;
+		_clear_stats.drawcalls = 0;
+
+		if (!(preserve_depth_buffers && (clear_flags & D3D11_CLEAR_DEPTH)))
 			return;
 
 		com_ptr<ID3D11Texture2D> dsv_texture = texture_from_dsv(dsv);
-		com_ptr<ID3D11Texture2D> backup_texture;
-		if (dsv_texture == nullptr)
+		if (dsv_texture == nullptr || dsv_texture != _depthstencil_clear_index.first)
 			return;
 
-		D3D11_TEXTURE2D_DESC desc;
-		dsv_texture->GetDesc(&desc);
-		assert((desc.BindFlags & D3D11_BIND_DEPTH_STENCIL) != 0);
+		auto &clears = _counters_per_used_depth_texture[dsv_texture].clears;
+		clears.push_back(current_stats);
 
-		if (desc.SampleDesc.Count > 1)
-			return; // Ignore MSAA textures
-		if (!check_texture_format(desc))
-			return;
-
-		// Make a backup copy of depth textures that are cleared by the application
-		if ((depth_stencil_clear_index == 0) || (clear_index == depth_stencil_clear_index))
+		// Make a backup copy of the depth texture before it is cleared
+		if (clears.size() == _depthstencil_clear_index.second)
 		{
-			const std::lock_guard<std::mutex> lock(s_global_mutex);
+			_context->CopyResource(_depthstencil_clear_texture.get(), dsv_texture.get());
+		}
+	}
 
-			backup_texture = runtime->create_compatible_texture(desc);
-			if (backup_texture == nullptr)
-				return;
+	bool draw_call_tracker::update_depthstencil_clear_texture(D3D11_TEXTURE2D_DESC desc)
+	{
+		// This cannot be called on a command list draw call tracker instance
+		assert(_context != nullptr && this == _device_tracker);
 
-			context->CopyResource(backup_texture.get(), dsv_texture.get());
+		if (_depthstencil_clear_texture != nullptr)
+		{
+			D3D11_TEXTURE2D_DESC existing_desc;
+			_depthstencil_clear_texture->GetDesc(&existing_desc);
+
+			if (desc.Width == existing_desc.Width && desc.Height == existing_desc.Height && desc.Format == existing_desc.Format)
+				return true; // Texture already matches dimensions, so can re-use
+			else
+				_depthstencil_clear_texture.reset();
 		}
 
-		_cleared_depth_textures.insert({ clear_index, { std::move(dsv_texture), std::move(backup_texture) } });
+		desc.Format = make_dxgi_format_typeless(desc.Format);
+		desc.BindFlags = D3D11_BIND_DEPTH_STENCIL | D3D11_BIND_SHADER_RESOURCE;
+
+		com_ptr<ID3D11Device> device;
+		_context->GetDevice(&device);
+
+		if (HRESULT hr = device->CreateTexture2D(&desc, nullptr, &_depthstencil_clear_texture); FAILED(hr))
+		{
+			LOG(ERROR) << "Failed to create depth stencil texture! HRESULT is " << hr << '.';
+			return false;
+		}
+
+		return true;
 	}
 
 	bool draw_call_tracker::check_aspect_ratio(const D3D11_TEXTURE2D_DESC &desc, UINT width, UINT height)
@@ -225,36 +255,18 @@ namespace reshade::d3d11
 		return make_dxgi_format_typeless(desc.Format) == depth_texture_formats[filter_depth_texture_format];
 	}
 
-	com_ptr<ID3D11Texture2D> draw_call_tracker::find_best_depth_texture(UINT width, UINT height)
+	com_ptr<ID3D11Texture2D> draw_call_tracker::find_best_depth_texture(UINT width, UINT height, com_ptr<ID3D11Texture2D> override, UINT clear_index_override)
 	{
+		depthstencil_info best_snapshot;
 		com_ptr<ID3D11Texture2D> best_match;
 
-		if (preserve_depth_buffers || preserve_stencil_buffers)
+		if (override != nullptr)
 		{
-			if (const auto it = _cleared_depth_textures.find(depth_stencil_clear_index);
-				depth_stencil_clear_index != 0 && it != _cleared_depth_textures.end())
-				return it->second.backup_texture;
-
-			for (const auto &[clear_index, snapshot] : _cleared_depth_textures)
-			{
-				assert(snapshot.dsv_texture != nullptr);
-
-				if (snapshot.backup_texture == nullptr)
-					continue;
-
-				D3D11_TEXTURE2D_DESC desc;
-				snapshot.dsv_texture->GetDesc(&desc);
-
-				if (!check_aspect_ratio(desc, width, height))
-					continue;
-
-				best_match = snapshot.backup_texture;
-			}
+			best_match = std::move(override);
+			best_snapshot = _counters_per_used_depth_texture[best_match];
 		}
 		else
 		{
-			intermediate_snapshot_info best_snapshot;
-
 			for (auto &[dsv_texture, snapshot] : _counters_per_used_depth_texture)
 			{
 				if (snapshot.stats.drawcalls == 0 || snapshot.stats.vertices == 0)
@@ -277,6 +289,43 @@ namespace reshade::d3d11
 					best_match = dsv_texture;
 					best_snapshot = snapshot;
 				}
+			}
+		}
+
+		if (preserve_depth_buffers && best_match != nullptr)
+		{
+			_depthstencil_clear_index = { best_match.get(), std::numeric_limits<UINT>::max() };
+
+			if (clear_index_override != 0 && clear_index_override <= best_snapshot.clears.size())
+			{
+				_depthstencil_clear_index.second = clear_index_override;
+			}
+			else
+			{
+				UINT last_vertices = 0;
+
+				for (UINT clear_index = 0; clear_index < best_snapshot.clears.size(); ++clear_index)
+				{
+					const auto &snapshot = best_snapshot.clears[clear_index];
+
+					if (snapshot.vertices >= last_vertices)
+					{
+						last_vertices = snapshot.vertices;
+						_depthstencil_clear_index.second = clear_index + 1;
+					}
+				}
+			}
+
+			D3D11_TEXTURE2D_DESC desc;
+			best_match->GetDesc(&desc);
+
+			if (update_depthstencil_clear_texture(desc))
+			{
+				return _depthstencil_clear_texture;
+			}
+			else
+			{
+				_depthstencil_clear_index = { nullptr, std::numeric_limits<UINT>::max() };
 			}
 		}
 

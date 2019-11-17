@@ -52,6 +52,7 @@ namespace reshade::d3d9
 #if RESHADE_DX9_CAPTURE_DEPTH_BUFFERS
 		void update_depthstencil_texture(com_ptr<IDirect3DSurface9> depthstencil);
 
+		UINT _depth_clear_index_override = 0;
 		IDirect3DSurface9 *_depthstencil_override = nullptr;
 #endif
 

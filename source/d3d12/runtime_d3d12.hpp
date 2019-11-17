@@ -29,10 +29,6 @@ namespace reshade::d3d12
 
 		bool capture_screenshot(uint8_t *buffer) const override;
 
-#if RESHADE_DX12_CAPTURE_DEPTH_BUFFERS
-		com_ptr<ID3D12Resource> create_compatible_texture(D3D12_RESOURCE_DESC desc);
-#endif
-
 	private:
 		bool init_backbuffer_textures(UINT num_buffers);
 		bool init_default_depth_stencil();
@@ -65,8 +61,8 @@ namespace reshade::d3d12
 #if RESHADE_DX12_CAPTURE_DEPTH_BUFFERS
 		void update_depthstencil_texture(com_ptr<ID3D12Resource> texture);
 
+		UINT _depth_clear_index_override = 0;
 		ID3D12Resource *_depth_texture_override = nullptr;
-		std::unordered_map<UINT64, com_ptr<ID3D12Resource>> _saved_depth_textures;
 #endif
 
 		const com_ptr<ID3D12Device> _device;

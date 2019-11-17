@@ -26,10 +26,6 @@ namespace reshade::d3d10
 
 		bool capture_screenshot(uint8_t *buffer) const override;
 
-#if RESHADE_DX10_CAPTURE_DEPTH_BUFFERS
-		com_ptr<ID3D10Texture2D> create_compatible_texture(D3D10_TEXTURE2D_DESC desc);
-#endif
-
 	private:
 		bool init_backbuffer_texture();
 		bool init_default_depth_stencil();
@@ -56,8 +52,8 @@ namespace reshade::d3d10
 #if RESHADE_DX10_CAPTURE_DEPTH_BUFFERS
 		void update_depthstencil_texture(com_ptr<ID3D10Texture2D> texture);
 
+		UINT _depth_clear_index_override = 0;
 		ID3D10Texture2D *_depth_texture_override = nullptr;
-		std::unordered_map<UINT, com_ptr<ID3D10Texture2D>> _saved_depth_textures;
 #endif
 
 		const com_ptr<ID3D10Device1> _device;

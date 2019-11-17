@@ -10,7 +10,8 @@
 D3D12GraphicsCommandList::D3D12GraphicsCommandList(D3D12Device *device, ID3D12GraphicsCommandList *original) :
 	_orig(original),
 	_interface_version(0),
-	_device(device) {
+	_device(device),
+	_draw_call_tracker(nullptr, &_device->_draw_call_tracker) {
 	assert(original != nullptr);
 }
 
@@ -124,7 +125,7 @@ HRESULT STDMETHODCALLTYPE D3D12GraphicsCommandList::Close()
 }
 HRESULT STDMETHODCALLTYPE D3D12GraphicsCommandList::Reset(ID3D12CommandAllocator *pAllocator, ID3D12PipelineState *pInitialState)
 {
-	_draw_call_tracker.reset();
+	_draw_call_tracker.reset(false);
 
 	return _orig->Reset(pAllocator, pInitialState);
 }
@@ -283,15 +284,14 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::OMSetRenderTargets(UINT NumRend
 {
 #if RESHADE_DX12_CAPTURE_DEPTH_BUFFERS
 	_draw_call_tracker.track_render_targets(
-		pDepthStencilDescriptor != nullptr ? _device->resource_from_handle(*pDepthStencilDescriptor) : nullptr);
+		pDepthStencilDescriptor != nullptr ? *pDepthStencilDescriptor : D3D12_CPU_DESCRIPTOR_HANDLE { 0 });
 #endif
 	_orig->OMSetRenderTargets(NumRenderTargetDescriptors, pRenderTargetDescriptors, RTsSingleHandleToDescriptorRange, pDepthStencilDescriptor);
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::ClearDepthStencilView(D3D12_CPU_DESCRIPTOR_HANDLE DepthStencilView, D3D12_CLEAR_FLAGS ClearFlags, FLOAT Depth, UINT8 Stencil, UINT NumRects, const D3D12_RECT *pRects)
 {
 #if RESHADE_DX12_CAPTURE_DEPTH_BUFFERS
-	if (!_device->_runtimes.empty())
-		_draw_call_tracker.track_cleared_depthstencil(this, ClearFlags, _device->resource_from_handle(DepthStencilView), _device->_current_dsv_clear_index++, _device->_runtimes.front().get());
+	_draw_call_tracker.track_cleared_depthstencil(this, ClearFlags, DepthStencilView);
 #endif
 	_orig->ClearDepthStencilView(DepthStencilView, ClearFlags, Depth, Stencil, NumRects, pRects);
 }

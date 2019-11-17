@@ -18,10 +18,8 @@ namespace reshade::d3d9
 	public:
 #if RESHADE_DX9_CAPTURE_DEPTH_BUFFERS
 		static bool disable_intz;
-		static bool brute_force_fix;
 		static bool filter_aspect_ratio;
 		static bool preserve_depth_buffers;
-		static unsigned int depth_stencil_clear_index;
 #endif
 
 		explicit draw_call_tracker(IDirect3DDevice9 *device) : _device(device) {}
@@ -46,12 +44,13 @@ namespace reshade::d3d9
 
 		void on_clear_depthstencil(UINT clear_flags);
 
-		void update_depthstencil_replacement(com_ptr<IDirect3DSurface9> depthstencil);
+		bool update_depthstencil_replacement(com_ptr<IDirect3DSurface9> depthstencil);
 
 		static bool check_aspect_ratio(const D3DSURFACE_DESC &desc, UINT width, UINT height);
 		static bool check_texture_format(const D3DSURFACE_DESC &desc);
 
-		com_ptr<IDirect3DSurface9> find_best_depth_surface(UINT width, UINT height, com_ptr<IDirect3DSurface9> override = nullptr);
+		com_ptr<IDirect3DSurface9> find_best_depth_surface(UINT width, UINT height,
+			com_ptr<IDirect3DSurface9> override = nullptr, UINT clear_index_override = 0);
 #endif
 
 	private:
@@ -66,7 +65,7 @@ namespace reshade::d3d9
 			std::vector<draw_stats> clears;
 		};
 
-		IDirect3DDevice9 *_device;
+		IDirect3DDevice9 *const _device;
 		draw_stats _stats;
 #if RESHADE_DX9_CAPTURE_DEPTH_BUFFERS
 		draw_stats _clear_stats;

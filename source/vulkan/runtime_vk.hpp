@@ -33,10 +33,6 @@ namespace reshade::vulkan
 		auto create_image_view(VkImage image, VkFormat format, uint32_t levels, VkImageAspectFlags aspect) -> VkImageView;
 		auto create_buffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags mem = 0) -> VkBuffer;
 
-#if RESHADE_VULKAN_CAPTURE_DEPTH_BUFFERS
-		VkImage create_compatible_image(const VkImageCreateInfo &create_info);
-#endif
-
 		const VkLayerDispatchTable vk;
 
 	private:
@@ -70,7 +66,7 @@ namespace reshade::vulkan
 		void update_depthstencil_image(VkImage depthstencil, VkImageLayout layout, VkFormat image_format);
 
 		VkImage _depth_image_override = VK_NULL_HANDLE;
-		std::unordered_map<uint32_t, VkImage> _saved_depth_textures;
+		uint32_t _depth_clear_index_override = 0;
 #endif
 
 		const VkDevice _device;

@@ -69,15 +69,13 @@ reshade::d3d11::runtime_d3d11::runtime_d3d11(ID3D11Device *device, IDXGISwapChai
 	subscribe_to_load_config([this](const ini_file &config) {
 		config.get("DX11_BUFFER_DETECTION", "DepthBufferRetrievalMode", draw_call_tracker::preserve_depth_buffers);
 		config.get("DX11_BUFFER_DETECTION", "DepthBufferTextureFormat", draw_call_tracker::filter_depth_texture_format);
-		config.get("DX11_BUFFER_DETECTION", "DepthBufferMoreCopies", draw_call_tracker::preserve_stencil_buffers);
-		config.get("DX11_BUFFER_DETECTION", "DepthBufferClearingNumber", draw_call_tracker::depth_stencil_clear_index);
+		config.get("DX11_BUFFER_DETECTION", "DepthBufferClearingNumber", _depth_clear_index_override);
 		config.get("DX11_BUFFER_DETECTION", "UseAspectRatioHeuristics", draw_call_tracker::filter_aspect_ratio);
 	});
 	subscribe_to_save_config([this](ini_file &config) {
 		config.set("DX11_BUFFER_DETECTION", "DepthBufferRetrievalMode", draw_call_tracker::preserve_depth_buffers);
 		config.set("DX11_BUFFER_DETECTION", "DepthBufferTextureFormat", draw_call_tracker::filter_depth_texture_format);
-		config.set("DX11_BUFFER_DETECTION", "DepthBufferMoreCopies", draw_call_tracker::preserve_stencil_buffers);
-		config.set("DX11_BUFFER_DETECTION", "DepthBufferClearingNumber", draw_call_tracker::depth_stencil_clear_index);
+		config.set("DX11_BUFFER_DETECTION", "DepthBufferClearingNumber", _depth_clear_index_override);
 		config.set("DX11_BUFFER_DETECTION", "UseAspectRatioHeuristics", draw_call_tracker::filter_aspect_ratio);
 	});
 }
@@ -289,7 +287,6 @@ void reshade::d3d11::runtime_d3d11::on_reset()
 
 #if RESHADE_DX11_CAPTURE_DEPTH_BUFFERS
 	_depth_texture_override = nullptr;
-	_saved_depth_textures.clear();
 #endif
 
 	_default_depthstencil.reset();
@@ -325,7 +322,8 @@ void reshade::d3d11::runtime_d3d11::on_present(draw_call_tracker &tracker)
 	_current_tracker = &tracker;
 
 #if RESHADE_DX11_CAPTURE_DEPTH_BUFFERS
-	update_depthstencil_texture(tracker.find_best_depth_texture(_width, _height));
+	update_depthstencil_texture(_has_high_network_activity ? nullptr :
+		tracker.find_best_depth_texture(_width, _height, _depth_texture_override, _depth_clear_index_override));
 #endif
 
 	_app_state.capture(_immediate_context.get());
@@ -1369,83 +1367,56 @@ void reshade::d3d11::runtime_d3d11::draw_debug_menu()
 		if (modified) // Detection settings have changed, reset override
 			_depth_texture_override = nullptr;
 
-		if (draw_call_tracker::preserve_depth_buffers)
+		ImGui::Spacing();
+		ImGui::Separator();
+		ImGui::Spacing();
+
+		for (const auto &[dsv_texture, snapshot] : _current_tracker->depth_buffer_counters())
 		{
-			if (ImGui::Checkbox("Copy depth buffers before stencil clear operation too", &draw_call_tracker::preserve_stencil_buffers))
+			char label[512] = "";
+			sprintf_s(label, "%s0x%p", (dsv_texture == _depth_texture ? "> " : "  "), dsv_texture.get());
+
+			D3D11_TEXTURE2D_DESC desc;
+			dsv_texture->GetDesc(&desc);
+
+			const bool disabled = desc.SampleDesc.Count > 1 || !draw_call_tracker::check_texture_format(desc);
+			if (disabled) // Disable widget for MSAA textures
 			{
-				draw_call_tracker::depth_stencil_clear_index = 0;
-				modified = true;
+				ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
+				ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyle().Colors[ImGuiCol_TextDisabled]);
 			}
 
-			ImGui::Spacing();
-			ImGui::Separator();
-			ImGui::Spacing();
+			if (bool value = _depth_texture_override == dsv_texture;
+				ImGui::Checkbox(label, &value))
+				_depth_texture_override = value ? dsv_texture.get() : nullptr;
 
-			unsigned int current_clear_index = draw_call_tracker::depth_stencil_clear_index;
-			if (current_clear_index == 0)
-				// The current clear index corresponds to the last matching cleared depth texture
-				for (const auto &[clear_index, snapshot] : _current_tracker->cleared_depth_textures())
-					if (snapshot.backup_texture == _depth_texture)
-						current_clear_index = clear_index;
+			ImGui::SameLine();
+			ImGui::Text("| %4ux%-4u | %5u draw calls ==> %8u vertices | %2zu render target(s) |%s",
+				desc.Width, desc.Height, snapshot.stats.drawcalls, snapshot.stats.vertices, snapshot.additional_views.size(), (desc.SampleDesc.Count > 1 ? " MSAA" : ""));
 
-			for (const auto &[clear_index, snapshot] : _current_tracker->cleared_depth_textures())
+			if (draw_call_tracker::preserve_depth_buffers && dsv_texture == _current_tracker->current_depth_texture())
 			{
-				char label[512] = "";
-				sprintf_s(label, "%s%2u", (clear_index == current_clear_index ? "> " : "  "), clear_index);
-
-				if (bool value = draw_call_tracker::depth_stencil_clear_index == clear_index;
-					ImGui::Checkbox(label, &value))
+				for (UINT clear_index = 1; clear_index <= snapshot.clears.size(); ++clear_index)
 				{
-					draw_call_tracker::depth_stencil_clear_index = value ? clear_index : 0;
-					modified = true;
+					sprintf_s(label, "%s  CLEAR %2u", (clear_index == _current_tracker->current_clear_index() ? "> " : "  "), clear_index);
+
+					if (bool value = (_depth_clear_index_override == clear_index);
+						ImGui::Checkbox(label, &value))
+					{
+						_depth_clear_index_override = value ? clear_index : 0;
+						modified = true;
+					}
+
+					ImGui::SameLine();
+					ImGui::Text("|           | %5u draw calls ==> %8u vertices |",
+						snapshot.clears[clear_index - 1].drawcalls, snapshot.clears[clear_index - 1].vertices);
 				}
-
-				D3D11_TEXTURE2D_DESC desc;
-				snapshot.dsv_texture->GetDesc(&desc);
-
-				ImGui::SameLine();
-				ImGui::Text("=> 0x%p | %4ux%-4u |", snapshot.dsv_texture.get(), desc.Width, desc.Height);
 			}
-		}
-		else
-		{
-			ImGui::Spacing();
-			ImGui::Separator();
-			ImGui::Spacing();
 
-			for (const auto &[dsv_texture, snapshot] : _current_tracker->depth_buffer_counters())
+			if (disabled)
 			{
-				char label[512] = "";
-				sprintf_s(label, "%s0x%p", (dsv_texture == _depth_texture ? "> " : "  "), dsv_texture.get());
-
-				D3D11_TEXTURE2D_DESC desc;
-				dsv_texture->GetDesc(&desc);
-
-				const bool disabled = desc.SampleDesc.Count > 1 || !draw_call_tracker::check_texture_format(desc);
-				if (disabled) // Disable widget for MSAA textures
-				{
-					ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
-					ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyle().Colors[ImGuiCol_TextDisabled]);
-				}
-
-				if (bool value = _depth_texture_override == dsv_texture;
-					ImGui::Checkbox(label, &value))
-				{
-					_depth_texture_override = value ? dsv_texture.get() : nullptr;
-
-					if (value)
-						update_depthstencil_texture(dsv_texture);
-				}
-
-				ImGui::SameLine();
-				ImGui::Text("| %4ux%-4u | %5u draw calls ==> %8u vertices | %2zu render target(s) |%s",
-					desc.Width, desc.Height, snapshot.stats.drawcalls, snapshot.stats.vertices, snapshot.additional_views.size(), (desc.SampleDesc.Count > 1 ? " MSAA" : ""));
-
-				if (disabled)
-				{
-					ImGui::PopStyleColor();
-					ImGui::PopItemFlag();
-				}
+				ImGui::PopStyleColor();
+				ImGui::PopItemFlag();
 			}
 		}
 
@@ -1480,11 +1451,6 @@ void reshade::d3d11::runtime_d3d11::draw_debug_menu()
 #if RESHADE_DX11_CAPTURE_DEPTH_BUFFERS
 void reshade::d3d11::runtime_d3d11::update_depthstencil_texture(com_ptr<ID3D11Texture2D> texture)
 {
-	if (_has_high_network_activity)
-		texture = nullptr;
-	else if (_depth_texture_override != nullptr && texture != _depth_texture_override)
-		return;
-
 	if (texture == _depth_texture)
 		return;
 
@@ -1511,29 +1477,5 @@ void reshade::d3d11::runtime_d3d11::update_depthstencil_texture(com_ptr<ID3D11Te
 	}
 
 	update_texture_references(texture_reference::depth_buffer);
-}
-
-com_ptr<ID3D11Texture2D> reshade::d3d11::runtime_d3d11::create_compatible_texture(D3D11_TEXTURE2D_DESC desc)
-{
-	desc.Format = make_dxgi_format_typeless(desc.Format);
-	desc.BindFlags = D3D11_BIND_DEPTH_STENCIL | D3D11_BIND_SHADER_RESOURCE;
-
-	// Create an unique index based on the texture format and dimensions
-	const UINT hash = desc.Format * desc.Width * desc.Height;
-
-	if (const auto it = _saved_depth_textures.find(hash); it != _saved_depth_textures.end())
-		return it->second;
-
-	com_ptr<ID3D11Texture2D> texture;
-
-	if (HRESULT hr = _device->CreateTexture2D(&desc, nullptr, &texture); FAILED(hr))
-	{
-		LOG(ERROR) << "Failed to create depth stencil texture! HRESULT is " << hr << '.';
-		return nullptr;
-	}
-
-	_saved_depth_textures.emplace(hash, texture);
-
-	return texture;
 }
 #endif

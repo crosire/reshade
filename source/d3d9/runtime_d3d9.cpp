@@ -67,13 +67,13 @@ reshade::d3d9::runtime_d3d9::runtime_d3d9(IDirect3DDevice9 *device, IDirect3DSwa
 	subscribe_to_load_config([this](const ini_file &config) {
 		config.get("DX9_BUFFER_DETECTION", "DisableINTZ", draw_call_tracker::disable_intz);
 		config.get("DX9_BUFFER_DETECTION", "PreserveDepthBuffer", draw_call_tracker::preserve_depth_buffers);
-		config.get("DX9_BUFFER_DETECTION", "PreserveDepthBufferIndex", draw_call_tracker::depth_stencil_clear_index);
+		config.get("DX9_BUFFER_DETECTION", "PreserveDepthBufferIndex", _depth_clear_index_override);
 		config.get("DX9_BUFFER_DETECTION", "UseAspectRatioHeuristics", draw_call_tracker::filter_aspect_ratio);
 	});
 	subscribe_to_save_config([this](ini_file &config) {
 		config.set("DX9_BUFFER_DETECTION", "DisableINTZ", draw_call_tracker::disable_intz);
 		config.set("DX9_BUFFER_DETECTION", "PreserveDepthBuffer", draw_call_tracker::preserve_depth_buffers);
-		config.set("DX9_BUFFER_DETECTION", "PreserveDepthBufferIndex", draw_call_tracker::depth_stencil_clear_index);
+		config.set("DX9_BUFFER_DETECTION", "PreserveDepthBufferIndex", _depth_clear_index_override);
 		config.set("DX9_BUFFER_DETECTION", "UseAspectRatioHeuristics", draw_call_tracker::filter_aspect_ratio);
 	});
 }
@@ -228,7 +228,7 @@ void reshade::d3d9::runtime_d3d9::on_present(draw_call_tracker &tracker)
 
 #if RESHADE_DX9_CAPTURE_DEPTH_BUFFERS
 	update_depthstencil_texture(_has_high_network_activity ? nullptr :
-		tracker.find_best_depth_surface(_width, _height, _depthstencil_override));
+		tracker.find_best_depth_surface(_width, _height, _depthstencil_override, _depth_clear_index_override));
 #endif
 
 	_app_state.capture();
@@ -1131,9 +1131,7 @@ void reshade::d3d9::runtime_d3d9::draw_debug_menu()
 
 			if (bool value = _depthstencil_override == ds_surface;
 				ImGui::Checkbox(label, &value))
-			{
 				_depthstencil_override = value ? ds_surface.get() : nullptr;
-			}
 
 			ImGui::SameLine();
 			ImGui::Text("| %4ux%-4u | %5u draw calls ==> %8u vertices |%s",
@@ -1145,10 +1143,10 @@ void reshade::d3d9::runtime_d3d9::draw_debug_menu()
 				{
 					sprintf_s(label, "%s  CLEAR %2u", (clear_index == _current_tracker->current_clear_index() ? "> " : "  "), clear_index);
 
-					if (bool value = (draw_call_tracker::depth_stencil_clear_index == clear_index);
+					if (bool value = (_depth_clear_index_override == clear_index);
 						ImGui::Checkbox(label, &value))
 					{
-						draw_call_tracker::depth_stencil_clear_index = value ? clear_index : 0;
+						_depth_clear_index_override = value ? clear_index : 0;
 						modified = true;
 					}
 
