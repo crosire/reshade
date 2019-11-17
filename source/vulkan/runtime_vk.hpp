@@ -89,6 +89,7 @@ namespace reshade::vulkan
 		std::vector<VkFence> _cmd_fences;
 		std::vector<VkCommandPool> _cmd_pool;
 		mutable std::vector<VkCommandBuffer> _cmd_buffers;
+		mutable std::vector<std::vector<VkCommandBuffer>> _cmd_buffers_to_free;
 
 		std::vector<VkImage> _swapchain_images;
 		std::vector<VkImageView> _swapchain_views;

@@ -569,7 +569,7 @@ namespace ReShade.Setup
 
 			if (Environment.Is64BitOperatingSystem)
 			{
-				using (RegistryKey key = Registry.CurrentUser.CreateSubKey(@"Software\Khronos\Vulkan\ImplicitLayers", true))
+				using (RegistryKey key = Registry.CurrentUser.CreateSubKey(@"Software\Khronos\Vulkan\ImplicitLayers"))
 				{
 					if (enable)
 						key.SetValue(Path.Combine(_commonPath, "ReShade64.json"), 0, RegistryValueKind.DWord);
@@ -578,7 +578,7 @@ namespace ReShade.Setup
 				}
 			}
 
-			using (RegistryKey key = Registry.CurrentUser.CreateSubKey(Environment.Is64BitOperatingSystem ? @"Software\Wow6432Node\Khronos\Vulkan\ImplicitLayers" : @"Software\Khronos\Vulkan\ImplicitLayers", true))
+			using (RegistryKey key = Registry.CurrentUser.CreateSubKey(Environment.Is64BitOperatingSystem ? @"Software\Wow6432Node\Khronos\Vulkan\ImplicitLayers" : @"Software\Khronos\Vulkan\ImplicitLayers"))
 			{
 				if (enable)
 					key.SetValue(Path.Combine(_commonPath, "ReShade32.json"), 0, RegistryValueKind.DWord);

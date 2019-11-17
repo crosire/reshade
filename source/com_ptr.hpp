@@ -24,7 +24,7 @@ public:
 	com_ptr(const com_ptr<T> &ptr)
 		: _object(nullptr) { reset(ptr._object); }
 	com_ptr(com_ptr<T> &&ptr)
-		: _object(nullptr) { operator=(ptr); }
+		: _object(nullptr) { operator=(std::move(ptr)); }
 	~com_ptr() { reset(); }
 
 	/// <summary>

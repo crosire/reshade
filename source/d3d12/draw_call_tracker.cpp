@@ -158,7 +158,7 @@ namespace reshade::d3d12
 
 	com_ptr<ID3D12Resource> draw_call_tracker::find_best_depth_texture(UINT width, UINT height)
 	{
-		com_ptr<ID3D12Resource> best_texture;
+		com_ptr<ID3D12Resource> best_match;
 
 		if (preserve_depth_buffers || preserve_stencil_buffers)
 		{
@@ -178,7 +178,7 @@ namespace reshade::d3d12
 				if (!check_aspect_ratio(desc, width, height))
 					continue;
 
-				best_texture = snapshot.backup_texture;
+				best_match = snapshot.backup_texture;
 			}
 		}
 		else
@@ -203,13 +203,13 @@ namespace reshade::d3d12
 				// Choose snapshot with the most draw calls, since vertices may not be accurate if application is using indirect draw calls
 				if (snapshot.stats.drawcalls >= best_snapshot.stats.drawcalls)
 				{
-					best_texture = dsv_texture;
+					best_match = dsv_texture;
 					best_snapshot = snapshot;
 				}
 			}
 		}
 
-		return best_texture;
+		return best_match;
 	}
 #endif
 }
