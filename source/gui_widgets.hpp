@@ -18,9 +18,13 @@ bool imgui_directory_input_box(const char *name, std::filesystem::path &path, st
 
 bool imgui_path_list(const char *label, std::vector<std::filesystem::path> &paths, std::filesystem::path &dialog_path, const std::filesystem::path &default_path = std::filesystem::path());
 
+bool imgui_radio_list(const char *label, const std::string_view ui_items, int &v);
+
 bool imgui_popup_button(const char *label, float width = 0.0f, ImGuiWindowFlags flags = 0);
 
 bool imgui_list_with_buttons(const char *label, const std::string_view ui_items, int &v);
+
+bool imgui_combo_with_buttons(const char *label, const std::string_view ui_items, int &v);
 
 bool imgui_drag_with_buttons(const char *label, ImGuiDataType data_type, void *v, int components, const void *v_speed, const void *v_min, const void *v_max, const char *format = nullptr);
 
