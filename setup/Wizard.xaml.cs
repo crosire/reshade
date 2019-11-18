@@ -114,7 +114,7 @@ namespace ReShade.Setup
 
 		void AddSearchPath(List<string> searchPaths, string newPath)
 		{
-			string basePath = Path.GetDirectoryName(_targetPath);
+			string basePath = Path.GetDirectoryName(ApiVulkan.IsChecked == true ? _commonPath : _targetPath);
 			Directory.SetCurrentDirectory(basePath);
 
 			bool pathExists = false;
