@@ -6,7 +6,7 @@
 #pragma once
 
 #include <atomic>
-#include <vector>
+#include <utility>
 
 /// <summary>
 /// A simple lock-free linear search table.
@@ -22,6 +22,15 @@ public:
 	}
 
 	/// <summary>
+	/// Special key indicating that the entry is empty.
+	/// </summary>
+	static constexpr TKey no_value = (TKey)0;
+	/// <summary>
+	/// Special key indicating that the entry is currently being updated.
+	/// </summary>
+	static constexpr TKey update_value = (TKey)1;
+
+	/// <summary>
 	/// Gets the value associated with the specified <paramref name="key"/>.
 	/// This is a weak look up and may fail if another thread is erasing a value at the same time.
 	/// </summary>
@@ -29,7 +38,7 @@ public:
 	/// <returns>A reference to the associated value.</returns>
 	TValue &at(TKey key) const
 	{
-		assert(key != 0);
+		assert(key != no_value && key != update_value);
 
 		size_t start_index = 0;
 		// If the table is really big, reduce search time by using hash as start index
@@ -38,19 +47,10 @@ public:
 
 		for (size_t i = start_index; i < MAX_ENTRIES; ++i)
 		{
-			if (_data[i].first == key)
+			if (_data[i].first.load(std::memory_order_relaxed) == key)
 			{
-				TValue *value = _data[i].second;
-				if (value == nullptr)
-				{
-					// Other thread may have created this entry, but not set the value yet, so wait a tiny little bit and try again
-					Sleep(1);
-					value = _data[i].second;
-					if (value == nullptr)
-						break;
-				}
-
-				return *value;
+				// The pointer is guaranteed to be value at this point, or else key would have been in update mode
+				return *_data[i].second;
 			}
 		}
 
@@ -65,26 +65,32 @@ public:
 	/// <returns>A reference to the newly added value.</returns>
 	TValue &emplace(TKey key)
 	{
-		assert(key != 0);
+		assert(key != no_value && key != update_value);
 
 		size_t start_index = 0;
 		if constexpr (MAX_ENTRIES > 512)
 			start_index = std::hash<TKey>()(key) % (MAX_ENTRIES / 2);
 
+		// Create a pointer to the new value
+		TValue *new_value = new TValue();
+
 		for (size_t i = start_index; i < MAX_ENTRIES; ++i)
 		{
-			if (TKey test_value = 0;
-				_data[i].first.compare_exchange_strong(test_value, key))
+			// Load and check before doing an expensive CAS
+			if (TKey test_key = _data[i].first.load(std::memory_order_relaxed);
+				test_key == no_value && // Check if the entry is empty and then do the CAS to occupy it
+				_data[i].first.compare_exchange_strong(test_key, update_value, std::memory_order_relaxed))
 			{
-				assert(_data[i].second == nullptr);
-
-				// Create a pointer to the new value
-				TValue *new_value = new TValue();
-				// Atomically store pointer in this entry and return it
 				_data[i].second = new_value;
+
+				// Now that the new value is stored, make this entry available
+				_data[i].first.store(key, std::memory_order_release);
+
 				return *new_value;
 			}
 		}
+
+		delete new_value;
 
 		assert(false);
 		return _default; // Fall back if table is full
@@ -97,26 +103,30 @@ public:
 	/// <returns>A reference to the newly added value.</returns>
 	TValue &emplace(TKey key, const TValue &value)
 	{
-		assert(key != 0);
+		assert(key != no_value && key != update_value);
 
 		size_t start_index = 0;
 		if constexpr (MAX_ENTRIES > 512)
 			start_index = std::hash<TKey>()(key) % (MAX_ENTRIES / 2);
 
+		// Create a pointer to the new value using copy construction
+		TValue *new_value = new TValue(value);
+
 		for (size_t i = start_index; i < MAX_ENTRIES; ++i)
 		{
-			if (TKey test_value = 0;
-				_data[i].first.compare_exchange_strong(test_value, key))
+			if (TKey test_key = _data[i].first.load(std::memory_order_relaxed);
+				test_key == no_value &&
+				_data[i].first.compare_exchange_strong(test_key, update_value, std::memory_order_relaxed))
 			{
-				assert(_data[i].second == nullptr);
-
-				// Create a pointer to the new value
-				TValue *new_value = new TValue(value);
-				// Atomically store pointer in this entry and return it
 				_data[i].second = new_value;
+
+				_data[i].first.store(key, std::memory_order_release);
+
 				return *new_value;
 			}
 		}
+
+		delete new_value;
 
 		assert(false);
 		return _default; // Fall back if table is full
@@ -129,7 +139,7 @@ public:
 	/// <returns><c>true</c> if the key existed and was removed, <c>false</c> otherwise.</returns>
 	bool erase(TKey key)
 	{
-		if (key == 0) // Zero has a special meaning, so cannot remove it
+		if (key == no_value || key == update_value) // Cannot remove special keys
 			return false;
 
 		size_t start_index = 0;
@@ -138,16 +148,19 @@ public:
 
 		for (size_t i = start_index; i < MAX_ENTRIES; ++i)
 		{
-			TValue *const old_value = _data[i].second.exchange(nullptr);
-
-			if (TKey test_value = key;
-				_data[i].first.compare_exchange_strong(test_value, 0))
+			// Load and check before doing an expensive CAS
+			if (TKey test_key = _data[i].first.load(std::memory_order_relaxed);
+				test_key == key)
 			{
-				delete old_value;
-				return true;
-			}
+				// Get the value before freeing the entry up for other threads to fill again
+				TValue *const old_value = _data[i].second;
 
-			_data[i].second = old_value;
+				if (_data[i].first.compare_exchange_strong(test_key, no_value, std::memory_order_relaxed))
+				{
+					delete old_value;
+					return true;
+				}
+			}
 		}
 
 		return false;
@@ -160,7 +173,7 @@ public:
 	/// <returns><c>true</c> if the key existed and was removed, <c>false</c> otherwise.</returns>
 	bool erase(TKey key, TValue &value)
 	{
-		if (key == 0) // Zero has a special meaning, so cannot remove it
+		if (key == no_value || key == update_value)
 			return false;
 
 		size_t start_index = 0;
@@ -169,20 +182,20 @@ public:
 
 		for (size_t i = start_index; i < MAX_ENTRIES; ++i)
 		{
-			// Fetch current value before doing CAS below, since other thread may be using this entry to store new data immediately
-			TValue *const old_value = _data[i].second.exchange(nullptr);
-
-			if (TKey test_value = key;
-				_data[i].first.compare_exchange_strong(test_value, 0))
+			if (TKey test_key = _data[i].first.load(std::memory_order_relaxed);
+				test_key == key)
 			{
-				// Move value to output argument
-				value = std::move(*old_value);
-				// Then delete pointer to old value and return
-				delete old_value;
-				return true;
-			}
+				TValue *const old_value = _data[i].second;
 
-			_data[i].second = old_value;
+				if (_data[i].first.compare_exchange_strong(test_key, no_value, std::memory_order_relaxed))
+				{
+					// Move value to output argument and delete its pointer (which is no longer in use now)
+					value = std::move(*old_value);
+
+					delete old_value;
+					return true;
+				}
+			}
 		}
 
 		return false;
@@ -196,10 +209,11 @@ public:
 	{
 		for (size_t i = 0; i < MAX_ENTRIES; ++i)
 		{
-			TValue *const old_value = _data[i].second.exchange(nullptr);
+			TValue *const old_value = _data[i].second;
 
 			// Clear this entry so it can be used again
-			if (_data[i].first.exchange(0))
+			if (TKey current_key = _data[i].first.exchange(no_value);
+				current_key != no_value && current_key != update_value) // If this in update mode, we can assume the thread updating will reset the key to its intended value
 			{
 				// Delete any value attached to the entry, but only if there was one to begin with
 				delete old_value;
@@ -209,5 +223,5 @@ public:
 
 private:
 	mutable TValue _default = {};
-	std::pair<std::atomic<TKey>, std::atomic<TValue *>> _data[MAX_ENTRIES];
+	std::pair<std::atomic<TKey>, TValue *> _data[MAX_ENTRIES];
 };
