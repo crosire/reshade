@@ -1431,8 +1431,8 @@ bool reshadefx::parser::parse_annotations(std::unordered_map<std::string, std::p
 
 		const auto name = std::move(_token.literal_as_string);
 
-		if (expression expression; !expect('=') || !parse_expression_unary(expression) || !expect(';'))
-			return consume_until('>'), false; // Probably a syntax error, so abort parsing
+		if (expression expression; !expect('=') || !parse_expression_multary(expression) || !expect(';'))
+			return error(_token_next.location, 3000, "syntax error: unexpected '" + token::id_to_name(_token_next.id) + "', expected expression"), consume_until('}'), false;
 		else if (expression.is_constant)
 			annotations[name] = { expression.type, expression.constant };
 		else // Continue parsing annotations despite this not being a constant, since the syntax is still correct
