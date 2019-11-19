@@ -47,7 +47,7 @@ public:
 
 		for (size_t i = start_index; i < MAX_ENTRIES; ++i)
 		{
-			if (_data[i].first.load(std::memory_order_relaxed) == key)
+			if (_data[i].first.load(std::memory_order_acquire) == key)
 			{
 				// The pointer is guaranteed to be value at this point, or else key would have been in update mode
 				return *_data[i].second;
