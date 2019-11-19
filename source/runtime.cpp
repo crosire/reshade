@@ -614,7 +614,7 @@ void reshade::runtime::unload_effect(size_t id)
 	_uniforms.erase(std::remove_if(_uniforms.begin(), _uniforms.end(),
 		[id](const auto &it) { return it.effect_index == id; }), _uniforms.end());
 	_textures.erase(std::remove_if(_textures.begin(), _textures.end(),
-		[id](const auto &it) { return it.effect_index == id; }), _textures.end());
+		[id](const auto &it) { return it.effect_index == id && !it.shared; }), _textures.end());
 	_techniques.erase(std::remove_if(_techniques.begin(), _techniques.end(),
 		[id](const auto &it) { return it.effect_index == id; }), _techniques.end());
 
