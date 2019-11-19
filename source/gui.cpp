@@ -1987,94 +1987,88 @@ void reshade::runtime::draw_overlay_variable_editor()
 
 		switch (variable.type.base)
 		{
-		case reshadefx::type::t_bool: {
-			bool data;
-			get_uniform_value(variable, &data, 1);
-
-			if (ui_type == "combo")
+			case reshadefx::type::t_bool:
 			{
-				int current_item = data ? 1 : 0;
-				modified = ImGui::Combo(label.data(), &current_item, "Off\0On\0");
-				data = current_item != 0;
+				bool data;
+				get_uniform_value(variable, &data, 1);
+
+				if (ui_type == "combo")
+				{
+					int current_item = data ? 1 : 0;
+					modified = imgui_combo_with_buttons(label.data(), "Off\0On\0", current_item);
+					data = current_item != 0;
+				}
+				else
+				{
+					modified = ImGui::Checkbox(label.data(), &data);
+				}
+
+				if (modified)
+					set_uniform_value(variable, &data, 1);
+				break;
 			}
-			else
+			case reshadefx::type::t_int:
+			case reshadefx::type::t_uint:
 			{
-				modified = ImGui::Checkbox(label.data(), &data);
+				int data[4];
+				get_uniform_value(variable, data, 4);
+
+				const auto ui_min_val = variable.annotation_as_int("ui_min");
+				const auto ui_max_val = variable.annotation_as_int("ui_max");
+				const auto ui_stp_val = std::max(1, variable.annotation_as_int("ui_step"));
+
+				if (ui_type == "slider")
+					modified = imgui_slider_with_buttons(label.data(), variable.type.is_signed() ? ImGuiDataType_S32 : ImGuiDataType_U32, data, variable.type.rows, &ui_stp_val, &ui_min_val, &ui_max_val);
+				else if (ui_type == "drag")
+					modified = variable.annotations.find("ui_step") == variable.annotations.end() ?
+						ImGui::DragScalarN(label.data(), variable.type.is_signed() ? ImGuiDataType_S32 : ImGuiDataType_U32, data, variable.type.rows, 1.0f, &ui_min_val, &ui_max_val) :
+						imgui_drag_with_buttons(label.data(), variable.type.is_signed() ? ImGuiDataType_S32 : ImGuiDataType_U32, data, variable.type.rows, &ui_stp_val, &ui_min_val, &ui_max_val);
+				else if (ui_type == "list")
+					modified = imgui_list_with_buttons(label.data(), variable.annotation_as_string("ui_items"), data[0]);
+				else if (ui_type == "combo")
+					modified = imgui_combo_with_buttons(label.data(), variable.annotation_as_string("ui_items"), data[0]);
+				else if (ui_type == "radio")
+					modified = imgui_radio_list(label.data(), variable.annotation_as_string("ui_items"), data[0]);
+				else
+					modified = ImGui::InputScalarN(label.data(), variable.type.is_signed() ? ImGuiDataType_S32 : ImGuiDataType_U32, data, variable.type.rows);
+
+				if (modified)
+					set_uniform_value(variable, data, 4);
+				break;
 			}
+			case reshadefx::type::t_float:
+			{
+				float data[4];
+				get_uniform_value(variable, data, 4);
 
-			if (modified)
-				set_uniform_value(variable, &data, 1);
-			break; }
-		case reshadefx::type::t_int:
-		case reshadefx::type::t_uint: {
-			int data[4];
-			get_uniform_value(variable, data, 4);
+				const auto ui_min_val = variable.annotation_as_float("ui_min");
+				const auto ui_max_val = variable.annotation_as_float("ui_max");
+				const auto ui_stp_val = std::max(0.001f, variable.annotation_as_float("ui_step"));
 
-			const auto ui_min_val = variable.annotation_as_int("ui_min");
-			const auto ui_max_val = variable.annotation_as_int("ui_max");
-			const auto ui_stp_val = std::max(1, variable.annotation_as_int("ui_step"));
+				// Calculate display precision based on step value
+				char precision_format[] = "%.0f";
+				for (float x = ui_stp_val; x < 1.0f && precision_format[2] < '9'; x *= 10.0f)
+					++precision_format[2]; // This changes the text to "%.1f", "%.2f", "%.3f", ...
 
-			if (ui_type == "slider")
-				modified = imgui_slider_with_buttons(label.data(), variable.type.is_signed() ? ImGuiDataType_S32 : ImGuiDataType_U32, data, variable.type.rows, &ui_stp_val, &ui_min_val, &ui_max_val);
-			else if (ui_type == "drag")
-				modified = variable.annotations.find("ui_step") == variable.annotations.end() ?
-					ImGui::DragScalarN(label.data(), variable.type.is_signed() ? ImGuiDataType_S32 : ImGuiDataType_U32, data, variable.type.rows, 1.0f, &ui_min_val, &ui_max_val) :
-					imgui_drag_with_buttons(label.data(), variable.type.is_signed() ? ImGuiDataType_S32 : ImGuiDataType_U32, data, variable.type.rows, &ui_stp_val, &ui_min_val, &ui_max_val);
-			else if (ui_type == "list")
-				modified = imgui_list_with_buttons(label.data(), variable.annotation_as_string("ui_items"), data[0]);
-			else if (ui_type == "combo") {
-				const std::string_view ui_items = variable.annotation_as_string("ui_items");
-				std::string items(ui_items.data(), ui_items.size());
-				// Make sure list is terminated with a zero in case user forgot so no invalid memory is read accidentally
-				if (ui_items.empty() || ui_items.back() != '\0')
-					items.push_back('\0');
+				if (ui_type == "slider")
+					modified = imgui_slider_with_buttons(label.data(), ImGuiDataType_Float, data, variable.type.rows, &ui_stp_val, &ui_min_val, &ui_max_val, precision_format);
+				else if (ui_type == "drag")
+					modified = variable.annotations.find("ui_step") == variable.annotations.end() ?
+						ImGui::DragScalarN(label.data(), ImGuiDataType_Float, data, variable.type.rows, ui_stp_val, &ui_min_val, &ui_max_val, precision_format) :
+						imgui_drag_with_buttons(label.data(), ImGuiDataType_Float, data, variable.type.rows, &ui_stp_val, &ui_min_val, &ui_max_val, precision_format);
+				else if (ui_type == "color" && variable.type.rows == 1)
+					modified = imgui_slider_for_alpha(label.data(), data);
+				else if (ui_type == "color" && variable.type.rows == 3)
+					modified = ImGui::ColorEdit3(label.data(), data, ImGuiColorEditFlags_NoOptions);
+				else if (ui_type == "color" && variable.type.rows == 4)
+					modified = ImGui::ColorEdit4(label.data(), data, ImGuiColorEditFlags_NoOptions | ImGuiColorEditFlags_AlphaPreview | ImGuiColorEditFlags_AlphaBar);
+				else
+					modified = ImGui::InputScalarN(label.data(), ImGuiDataType_Float, data, variable.type.rows);
 
-				modified = ImGui::Combo(label.data(), data, items.c_str());
+				if (modified)
+					set_uniform_value(variable, data, 4);
+				break;
 			}
-			else if (ui_type == "radio") {
-				const std::string_view ui_items = variable.annotation_as_string("ui_items");
-				ImGui::BeginGroup();
-				for (size_t offset = 0, next, i = 0; (next = ui_items.find('\0', offset)) != std::string::npos; offset = next + 1, ++i)
-					modified |= ImGui::RadioButton(ui_items.data() + offset, data, static_cast<int>(i));
-				ImGui::EndGroup();
-			}
-			else
-				modified = ImGui::InputScalarN(label.data(), variable.type.is_signed() ? ImGuiDataType_S32 : ImGuiDataType_U32, data, variable.type.rows);
-
-			if (modified)
-				set_uniform_value(variable, data, 4);
-			break; }
-		case reshadefx::type::t_float: {
-			float data[4];
-			get_uniform_value(variable, data, 4);
-
-			const auto ui_min_val = variable.annotation_as_float("ui_min");
-			const auto ui_max_val = variable.annotation_as_float("ui_max");
-			const auto ui_stp_val = std::max(0.001f, variable.annotation_as_float("ui_step"));
-
-			// Calculate display precision based on step value
-			char precision_format[] = "%.0f";
-			for (float x = ui_stp_val; x < 1.0f && precision_format[2] < '9'; x *= 10.0f)
-				++precision_format[2]; // This changes the text to "%.1f", "%.2f", "%.3f", ...
-
-			if (ui_type == "slider")
-				modified = imgui_slider_with_buttons(label.data(), ImGuiDataType_Float, data, variable.type.rows, &ui_stp_val, &ui_min_val, &ui_max_val, precision_format);
-			else if (ui_type == "drag")
-				modified = variable.annotations.find("ui_step") == variable.annotations.end() ?
-					ImGui::DragScalarN(label.data(), ImGuiDataType_Float, data, variable.type.rows, ui_stp_val, &ui_min_val, &ui_max_val, precision_format) :
-					imgui_drag_with_buttons(label.data(), ImGuiDataType_Float, data, variable.type.rows, &ui_stp_val, &ui_min_val, &ui_max_val, precision_format);
-			else if (ui_type == "color" && variable.type.rows == 1)
-				modified = imgui_slider_for_alpha(label.data(), data);
-			else if (ui_type == "color" && variable.type.rows == 3)
-				modified = ImGui::ColorEdit3(label.data(), data, ImGuiColorEditFlags_NoOptions);
-			else if (ui_type == "color" && variable.type.rows == 4)
-				modified = ImGui::ColorEdit4(label.data(), data, ImGuiColorEditFlags_NoOptions | ImGuiColorEditFlags_AlphaPreview | ImGuiColorEditFlags_AlphaBar);
-			else
-				modified = ImGui::InputScalarN(label.data(), ImGuiDataType_Float, data, variable.type.rows);
-
-			if (modified)
-				set_uniform_value(variable, data, 4);
-			break; }
 		}
 
 		// Display tooltip

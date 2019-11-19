@@ -260,6 +260,24 @@ bool imgui_path_list(const char *label, std::vector<std::filesystem::path> &path
 	return res;
 }
 
+bool imgui_radio_list(const char *label, const std::string_view ui_items, int &v)
+{
+	bool modified = false;
+	const float item_width = ImGui::CalcItemWidth();
+
+	ImGui::BeginGroup();
+
+	for (size_t offset = 0, next, i = 0; (next = ui_items.find('\0', offset)) != std::string::npos; offset = next + 1, ++i)
+		modified |= ImGui::RadioButton(ui_items.data() + offset, &v, static_cast<int>(i));
+
+	ImGui::EndGroup();
+
+	ImGui::SameLine(ImGui::GetCursorPosX() + item_width, ImGui::GetStyle().ItemInnerSpacing.x);
+	ImGui::TextUnformatted(label);
+
+	return modified;
+}
+
 bool imgui_popup_button(const char *label, float width, ImGuiWindowFlags flags)
 {
 	if (ImGui::Button(label, ImVec2(width, 0)))
@@ -308,16 +326,14 @@ bool imgui_list_with_buttons(const char *label, const std::string_view ui_items,
 	if (ImGui::ButtonEx("<", ImVec2(button_size, 0), items.size() > 0 ? 0 : ImGuiButtonFlags_Disabled))
 	{
 		modified = true;
-		if (v == 0) v = static_cast<int>(items.size() - 1);
-		else --v;
+		v = (v == 0) ? static_cast<int>(items.size() - 1) : v - 1;
 	}
 
 	ImGui::SameLine(0, button_spacing);
 	if (ImGui::ButtonEx(">", ImVec2(button_size, 0), items.size() > 0 ? 0 : ImGuiButtonFlags_Disabled))
 	{
 		modified = true;
-		if (v == static_cast<int>(items.size()) - 1) v = 0;
-		else ++v;
+		v = (v == static_cast<int>(items.size() - 1)) ? 0 : v + 1;
 	}
 
 	ImGui::EndGroup();
@@ -345,6 +361,50 @@ bool imgui_list_with_buttons(const char *label, const std::string_view ui_items,
 
 		ImGui::End();
 	}
+
+	return modified;
+}
+
+bool imgui_combo_with_buttons(const char *label, const std::string_view ui_items, int &v)
+{
+	const auto imgui_context = ImGui::GetCurrentContext();
+
+	size_t num_items = 0;
+	std::string items;
+	items.reserve(ui_items.size());
+	for (size_t offset = 0, next; (next = ui_items.find('\0', offset)) != std::string::npos; offset = next + 1, ++num_items)
+		items += ui_items.data() + offset,
+		items += '\0';
+
+	ImGui::BeginGroup();
+
+	const float button_size = ImGui::GetFrameHeight();
+	const float button_spacing = imgui_context->Style.ItemInnerSpacing.x;
+
+	ImGui::PushItemWidth(ImGui::CalcItemWidth() - (button_spacing * 2 + button_size * 2));
+
+	bool modified = ImGui::Combo("##v", &v, items.c_str());
+
+	ImGui::PopItemWidth();
+
+	ImGui::SameLine(0, button_spacing);
+	if (ImGui::ButtonEx("<", ImVec2(button_size, 0), num_items > 0 ? 0 : ImGuiButtonFlags_Disabled))
+	{
+		modified = true;
+		v = (v == 0) ? static_cast<int>(num_items - 1) : v - 1;
+	}
+
+	ImGui::SameLine(0, button_spacing);
+	if (ImGui::ButtonEx(">", ImVec2(button_size, 0), num_items > 0 ? 0 : ImGuiButtonFlags_Disabled))
+	{
+		modified = true;
+		v = (v == static_cast<int>(num_items - 1)) ? 0 : v + 1;
+	}
+
+	ImGui::EndGroup();
+
+	ImGui::SameLine(0, button_spacing);
+	ImGui::TextUnformatted(label);
 
 	return modified;
 }
