@@ -66,7 +66,6 @@ namespace reshade::vulkan
 		void update_depthstencil_image(VkImage depthstencil, VkImageLayout layout, VkFormat image_format);
 
 		VkImage _depth_image_override = VK_NULL_HANDLE;
-		uint32_t _depth_clear_index_override = 0;
 #endif
 
 		const VkDevice _device;

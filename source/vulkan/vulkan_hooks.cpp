@@ -22,7 +22,6 @@ struct device_data
 struct render_pass_data
 {
 	uint32_t depthstencil_attachment_index = std::numeric_limits<uint32_t>::max();
-	VkImageAspectFlags clear_flags = 0;
 	VkImageLayout initial_depthstencil_layout = VK_IMAGE_LAYOUT_UNDEFINED;
 };
 
@@ -340,9 +339,6 @@ void     VKAPI_CALL vkDestroyDevice(VkDevice device, const VkAllocationCallbacks
 {
 	LOG(INFO) << "Redirecting vkDestroyDevice" << '(' << "device = " << device << ", pAllocator = " << pAllocator << ')' << " ...";
 
-	auto &device_data = s_device_data.at(dispatch_key_from_handle(device));
-	device_data.draw_call_tracker.reset(true);
-
 	s_device_data.erase(dispatch_key_from_handle(device));
 	s_command_buffer_data.clear(); // Reset all command buffer data
 
@@ -479,13 +475,14 @@ VkResult VKAPI_CALL vkQueuePresentKHR(VkQueue queue, const VkPresentInfoKHR *pPr
 
 	for (uint32_t i = 0; i < pPresentInfo->swapchainCount; ++i)
 	{
-		if (const auto runtime = s_runtimes.at(pPresentInfo->pSwapchains[i]); runtime != nullptr)
+		if (const auto runtime = s_runtimes.at(pPresentInfo->pSwapchains[i]);
+			runtime != nullptr)
 		{
 			runtime->on_present(queue, pPresentInfo->pImageIndices[i], device_data.draw_call_tracker);
 		}
 	}
 
-	device_data.draw_call_tracker.reset(false);
+	device_data.draw_call_tracker.reset();
 
 	// TODO: It may be necessary to add a wait semaphore to the present info
 	GET_DEVICE_DISPATCH_PTR(QueuePresentKHR, queue);
@@ -495,8 +492,7 @@ VkResult VKAPI_CALL vkQueuePresentKHR(VkQueue queue, const VkPresentInfoKHR *pPr
 
 VkResult VKAPI_CALL vkCreateImage(VkDevice device, const VkImageCreateInfo *pCreateInfo, const VkAllocationCallbacks *pAllocator, VkImage *pImage)
 {
-	assert(pImage != nullptr);
-	assert(pCreateInfo != nullptr);
+	assert(pCreateInfo != nullptr && pImage != nullptr);
 
 	VkImageCreateInfo create_info = *pCreateInfo;
 	// Allow shader access to images that are used as depth stencil attachments
@@ -528,8 +524,7 @@ void     VKAPI_CALL vkDestroyImage(VkDevice device, VkImage image, const VkAlloc
 
 VkResult VKAPI_CALL vkCreateImageView(VkDevice device, const VkImageViewCreateInfo *pCreateInfo, const VkAllocationCallbacks *pAllocator, VkImageView *pView)
 {
-	assert(pView != nullptr);
-	assert(pCreateInfo != nullptr);
+	assert(pCreateInfo != nullptr && pView != nullptr);
 
 	GET_DEVICE_DISPATCH_PTR(CreateImageView, device);
 	const VkResult result = trampoline(device, pCreateInfo, pAllocator, pView);
@@ -555,6 +550,8 @@ void     VKAPI_CALL vkDestroyImageView(VkDevice device, VkImageView imageView, c
 
 VkResult VKAPI_CALL vkCreateRenderPass(VkDevice device, const VkRenderPassCreateInfo *pCreateInfo, const VkAllocationCallbacks *pAllocator, VkRenderPass *pRenderPass)
 {
+	assert(pCreateInfo != nullptr && pRenderPass != nullptr);
+
 	GET_DEVICE_DISPATCH_PTR(CreateRenderPass, device);
 	const VkResult result = trampoline(device, pCreateInfo, pAllocator, pRenderPass);
 	if (result != VK_SUCCESS)
@@ -570,16 +567,12 @@ VkResult VKAPI_CALL vkCreateRenderPass(VkDevice device, const VkRenderPassCreate
 	{
 		auto &subpass_data = renderpass_data.emplace_back();
 
-		const VkAttachmentReference *const depthstencil_reference = pCreateInfo->pSubpasses[subpass].pDepthStencilAttachment;
-		if (depthstencil_reference != nullptr && depthstencil_reference->attachment != VK_ATTACHMENT_UNUSED)
+		const VkAttachmentReference *const ds_reference = pCreateInfo->pSubpasses[subpass].pDepthStencilAttachment;
+		if (ds_reference != nullptr && ds_reference->attachment != VK_ATTACHMENT_UNUSED)
 		{
-			const VkAttachmentDescription &depthstencil_attachment = pCreateInfo->pAttachments[depthstencil_reference->attachment];
-			if (depthstencil_attachment.loadOp == VK_ATTACHMENT_LOAD_OP_CLEAR)
-				subpass_data.clear_flags |= VK_IMAGE_ASPECT_DEPTH_BIT;
-			if (depthstencil_attachment.stencilLoadOp == VK_ATTACHMENT_LOAD_OP_CLEAR)
-				subpass_data.clear_flags |= VK_IMAGE_ASPECT_STENCIL_BIT;
-			subpass_data.initial_depthstencil_layout = depthstencil_attachment.initialLayout;
-			subpass_data.depthstencil_attachment_index = depthstencil_reference->attachment;
+			const VkAttachmentDescription &ds_attachment = pCreateInfo->pAttachments[ds_reference->attachment];
+			subpass_data.initial_depthstencil_layout = ds_attachment.initialLayout;
+			subpass_data.depthstencil_attachment_index = ds_reference->attachment;
 		}
 	}
 
@@ -649,11 +642,12 @@ void     VKAPI_CALL vkFreeCommandBuffers(VkDevice device, VkCommandPool commandP
 	GET_DEVICE_DISPATCH_PTR(FreeCommandBuffers, device);
 	trampoline(device, commandPool, commandBufferCount, pCommandBuffers);
 }
+
 VkResult VKAPI_CALL vkBeginCommandBuffer(VkCommandBuffer commandBuffer, const VkCommandBufferBeginInfo *pBeginInfo)
 {
-	// Begin does perform an implicit reset
+	// Begin does perform an implicit reset if command pool was created with VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT
 	auto &data = s_command_buffer_data.at(commandBuffer);
-	data.draw_call_tracker.reset(false);
+	data.draw_call_tracker.reset();
 
 	GET_DEVICE_DISPATCH_PTR(BeginCommandBuffer, commandBuffer);
 	return trampoline(commandBuffer, pBeginInfo);
@@ -678,21 +672,14 @@ void     VKAPI_CALL vkCmdBeginRenderPass(VkCommandBuffer commandBuffer, const Vk
 		if (VK_IMAGE_LAYOUT_UNDEFINED == depthstencil_layout) // Do some trickery to make sure it is valid
 			depthstencil_layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
-		data.draw_call_tracker.track_render_pass(
+		data.draw_call_tracker.track_depthstencil(
 			depthstencil,
 			depthstencil_layout,
 			s_image_data.at(depthstencil));
-
-		if (renderpass_data.clear_flags)
-			data.draw_call_tracker.track_cleared_depthstencil(
-				commandBuffer,
-				renderpass_data.clear_flags,
-				depthstencil,
-				depthstencil_layout);
 	}
 	else
 	{
-		data.draw_call_tracker.track_next_depthstencil(VK_NULL_HANDLE);
+		data.draw_call_tracker.track_depthstencil(VK_NULL_HANDLE, VK_IMAGE_LAYOUT_UNDEFINED, {});
 	}
 #endif
 
@@ -712,8 +699,20 @@ void     VKAPI_CALL vkCmdNextSubpass(VkCommandBuffer commandBuffer, VkSubpassCon
 
 	const auto &renderpass_data = s_renderpass_data.at(data.current_renderpass)[data.current_subpass];
 	const auto &framebuffer_data = s_framebuffer_data.at(data.current_framebuffer);
-	data.draw_call_tracker.track_next_depthstencil(renderpass_data.depthstencil_attachment_index < framebuffer_data.size() ?
-		framebuffer_data[renderpass_data.depthstencil_attachment_index] : VK_NULL_HANDLE);
+	if (renderpass_data.depthstencil_attachment_index < framebuffer_data.size())
+	{
+		const VkImage depthstencil = framebuffer_data[renderpass_data.depthstencil_attachment_index];
+		VkImageLayout depthstencil_layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+		data.draw_call_tracker.track_depthstencil(
+			depthstencil,
+			depthstencil_layout,
+			s_image_data.at(depthstencil));
+	}
+	else
+	{
+		data.draw_call_tracker.track_depthstencil(VK_NULL_HANDLE, VK_IMAGE_LAYOUT_UNDEFINED, {});
+	}
 #endif
 }
 void     VKAPI_CALL vkCmdEndRenderPass(VkCommandBuffer commandBuffer)
@@ -727,7 +726,7 @@ void     VKAPI_CALL vkCmdEndRenderPass(VkCommandBuffer commandBuffer)
 	data.current_renderpass = VK_NULL_HANDLE;
 	data.current_framebuffer = VK_NULL_HANDLE;
 
-	data.draw_call_tracker.track_next_depthstencil(VK_NULL_HANDLE);
+	data.draw_call_tracker.track_depthstencil(VK_NULL_HANDLE, VK_IMAGE_LAYOUT_UNDEFINED, {});
 #endif
 }
 
@@ -762,61 +761,6 @@ void     VKAPI_CALL vkCmdDrawIndexed(VkCommandBuffer commandBuffer, uint32_t ind
 
 	auto &data = s_command_buffer_data.at(commandBuffer);
 	data.draw_call_tracker.on_draw(indexCount * instanceCount);
-}
-
-void     VKAPI_CALL vkCmdClearAttachments(VkCommandBuffer commandBuffer, uint32_t attachmentCount, const VkClearAttachment *pAttachments, uint32_t rectCount, const VkClearRect *pRects)
-{
-#if RESHADE_VULKAN_CAPTURE_DEPTH_BUFFERS && 0
-	// Find the depth stencil clear attachment
-	uint32_t depthstencil_attachment = std::numeric_limits<uint32_t>::max();
-	for (uint32_t i = 0; i < attachmentCount; ++i)
-		if (pAttachments[i].aspectMask & (VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT))
-			depthstencil_attachment = i;
-
-	if (depthstencil_attachment < attachmentCount)
-	{
-		auto &data = s_command_buffer_data.at(commandBuffer);
-
-		const auto &renderpass_data = s_renderpass_data.at(data.current_renderpass)[data.current_subpass];
-		const auto &framebuffer_data = s_framebuffer_data.at(data.current_framebuffer);
-		if (renderpass_data.depthstencil_attachment_index < framebuffer_data.size())
-		{
-			const VkImage image = framebuffer_data[renderpass_data.depthstencil_attachment_index];
-			VkImageLayout image_layout = renderpass_data.initial_depthstencil_layout;
-
-			if (VK_IMAGE_LAYOUT_UNDEFINED == image_layout)
-				image_layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-
-			data.draw_call_tracker.track_cleared_depthstencil(
-				commandBuffer,
-				pAttachments[depthstencil_attachment].aspectMask,
-				image,
-				image_layout);
-		}
-	}
-#endif
-
-	GET_DEVICE_DISPATCH_PTR(CmdClearAttachments, commandBuffer);
-	trampoline(commandBuffer, attachmentCount, pAttachments, rectCount, pRects);
-}
-void     VKAPI_CALL vkCmdClearDepthStencilImage(VkCommandBuffer commandBuffer, VkImage image, VkImageLayout imageLayout, const VkClearDepthStencilValue *pDepthStencil, uint32_t rangeCount, const VkImageSubresourceRange *pRanges)
-{
-#if RESHADE_VULKAN_CAPTURE_DEPTH_BUFFERS
-	// Merge clear flags from all ranges
-	VkImageAspectFlags clear_flags = 0;
-	for (uint32_t i = 0; i < rangeCount; ++i)
-		clear_flags |= pRanges[i].aspectMask;
-
-	auto &data = s_command_buffer_data.at(commandBuffer);
-	data.draw_call_tracker.track_cleared_depthstencil(
-		commandBuffer,
-		clear_flags,
-		image,
-		imageLayout);
-#endif
-
-	GET_DEVICE_DISPATCH_PTR(CmdClearDepthStencilImage, commandBuffer);
-	trampoline(commandBuffer, image, imageLayout, pDepthStencil, rangeCount, pRanges);
 }
 
 
@@ -867,10 +811,6 @@ VK_LAYER_EXPORT PFN_vkVoidFunction VKAPI_CALL vkGetDeviceProcAddr(VkDevice devic
 		return reinterpret_cast<PFN_vkVoidFunction>(vkCmdDraw);
 	if (0 == strcmp(pName, "vkCmdDrawIndexed"))
 		return reinterpret_cast<PFN_vkVoidFunction>(vkCmdDrawIndexed);
-	if (0 == strcmp(pName, "vkCmdClearAttachments"))
-		return reinterpret_cast<PFN_vkVoidFunction>(vkCmdClearAttachments);
-	if (0 == strcmp(pName, "vkCmdClearDepthStencilImage"))
-		return reinterpret_cast<PFN_vkVoidFunction>(vkCmdClearDepthStencilImage);
 
 	// Need to self-intercept as well, since some layers rely on this (e.g. Steam overlay)
 	// See also https://github.com/KhronosGroup/Vulkan-Loader/blob/master/loader/LoaderAndLayerInterface.md#layer-conventions-and-rules

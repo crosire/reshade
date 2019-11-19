@@ -112,15 +112,11 @@ reshade::vulkan::runtime_vk::runtime_vk(VkDevice device, VkPhysicalDevice physic
 	subscribe_to_ui("Vulkan", [this]() { draw_debug_menu(); });
 #endif
 	subscribe_to_load_config([this](const ini_file &config) {
-		config.get("VULKAN_BUFFER_DETECTION", "DepthBufferRetrievalMode", draw_call_tracker::preserve_depth_buffers);
 		config.get("VULKAN_BUFFER_DETECTION", "DepthBufferTextureFormat", draw_call_tracker::filter_depth_texture_format);
-		config.get("VULKAN_BUFFER_DETECTION", "DepthBufferClearingNumber", _depth_clear_index_override);
 		config.get("VULKAN_BUFFER_DETECTION", "UseAspectRatioHeuristics", draw_call_tracker::filter_aspect_ratio);
 	});
 	subscribe_to_save_config([this](ini_file &config) {
-		config.set("VULKAN_BUFFER_DETECTION", "DepthBufferRetrievalMode", draw_call_tracker::preserve_depth_buffers);
 		config.set("VULKAN_BUFFER_DETECTION", "DepthBufferTextureFormat", draw_call_tracker::filter_depth_texture_format);
-		config.set("VULKAN_BUFFER_DETECTION", "DepthBufferClearingNumber", _depth_clear_index_override);
 		config.set("VULKAN_BUFFER_DETECTION", "UseAspectRatioHeuristics", draw_call_tracker::filter_aspect_ratio);
 	});
 }
@@ -580,7 +576,7 @@ void reshade::vulkan::runtime_vk::on_present(VkQueue queue, uint32_t swapchain_i
 	}
 
 #if RESHADE_VULKAN_CAPTURE_DEPTH_BUFFERS
-	const auto best_snapshot = tracker.find_best_depth_texture(_width, _height, _depth_image_override, _depth_clear_index_override);
+	const auto best_snapshot = tracker.find_best_depth_texture(_width, _height, _depth_image_override);
 	update_depthstencil_image(_has_high_network_activity ? VK_NULL_HANDLE : best_snapshot.image, best_snapshot.image_layout, best_snapshot.image_info.format);
 #endif
 
@@ -1890,7 +1886,6 @@ void reshade::vulkan::runtime_vk::draw_debug_menu()
 		bool modified = false;
 		modified |= ImGui::Combo("Depth texture format", (int*)&draw_call_tracker::filter_depth_texture_format, "All\0D16\0D16S8\0D24S8\0D32F\0D32FS8\0");
 		modified |= ImGui::Checkbox("Use aspect ratio heuristics", &draw_call_tracker::filter_aspect_ratio);
-		modified |= ImGui::Checkbox("Copy depth buffers before clear operation", &draw_call_tracker::preserve_depth_buffers);
 
 		if (modified) // Detection settings have changed, reset override
 			_depth_image_override = VK_NULL_HANDLE;
@@ -1918,25 +1913,6 @@ void reshade::vulkan::runtime_vk::draw_debug_menu()
 			ImGui::SameLine();
 			ImGui::Text("| %4ux%-4u | %5u draw calls ==> %8u vertices |%s",
 				snapshot.image_info.extent.width, snapshot.image_info.extent.height, snapshot.stats.drawcalls, snapshot.stats.vertices, (snapshot.image_info.samples != VK_SAMPLE_COUNT_1_BIT ? " MSAA" : ""));
-
-			if (draw_call_tracker::preserve_depth_buffers && depth_image == _current_tracker->current_depth_image())
-			{
-				for (uint32_t clear_index = 1; clear_index <= snapshot.clears.size(); ++clear_index)
-				{
-					sprintf_s(label, "%s  CLEAR %2u", (clear_index == _current_tracker->current_clear_index() ? "> " : "  "), clear_index);
-
-					if (bool value = _depth_clear_index_override == clear_index;
-						ImGui::Checkbox(label, &value))
-					{
-						_depth_clear_index_override = value ? clear_index : 0;
-						modified = true;
-					}
-
-					ImGui::SameLine();
-					ImGui::Text("        |           | %5u draw calls ==> %8u vertices |",
-						snapshot.clears[clear_index - 1].drawcalls, snapshot.clears[clear_index - 1].vertices);
-				}
-			}
 
 			if (disabled)
 			{
