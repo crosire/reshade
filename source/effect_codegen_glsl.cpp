@@ -185,13 +185,7 @@ private:
 		assert(type.is_numeric());
 
 		if (!type.is_scalar())
-		{
-			if (type.is_matrix())
-				s += "transpose(";
-
-			write_type<false, false>(s, type);
-			s += '(';
-		}
+			write_type<false, false>(s, type), s += '(';
 
 		for (unsigned int i = 0, components = type.components(); i < components; ++i)
 		{
@@ -226,12 +220,7 @@ private:
 		}
 
 		if (!type.is_scalar())
-		{
-			if (type.is_matrix())
-				s += ')';
-
 			s += ')';
-		}
 	}
 	void write_location(std::string &s, const location &loc) const
 	{
@@ -724,21 +713,22 @@ private:
 
 		const id res = make_id();
 
-		std::string expr_code = id_to_name(exp.base);
+		std::string type, expr_code = id_to_name(exp.base);
 
 		for (const auto &op : exp.chain)
 		{
 			switch (op.op)
 			{
 			case expression::operation::op_cast:
-				{ std::string type; write_type<false, false>(type, op.to);
-				expr_code = type + '(' + expr_code + ')'; }
+				write_type<false, false>(type, op.to);
+				expr_code = type + '(' + expr_code + ')';
 				break;
 			case expression::operation::op_member:
 				expr_code += '.';
 				expr_code += escape_name(find_struct(op.from.definition).member_list[op.index].name);
 				break;
 			case expression::operation::op_dynamic_index:
+				// For matrices this will extract a column, but that is fine, since they are initialized column-wise too
 				expr_code += '[' + id_to_name(op.index) + ']';
 				break;
 			case expression::operation::op_constant_index:
@@ -1172,9 +1162,6 @@ private:
 
 		code += " = ";
 
-		if (!type.is_array() && type.is_matrix())
-			code += "transpose(";
-
 		write_type<false, false>(code, type);
 
 		if (type.is_array())
@@ -1189,9 +1176,6 @@ private:
 			if (i < num_args - 1)
 				code += ", ";
 		}
-
-		if (!type.is_array() && type.is_matrix())
-			code += ')';
 
 		code += ");\n";
 

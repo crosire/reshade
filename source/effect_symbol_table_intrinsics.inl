@@ -1364,14 +1364,15 @@ DEFINE_INTRINSIC(mul, 4, float2, float2, float2x2)
 DEFINE_INTRINSIC(mul, 4, float3, float3, float3x3)
 DEFINE_INTRINSIC(mul, 4, float4, float4, float4x4)
 IMPLEMENT_INTRINSIC_GLSL(mul, 4, {
-	code += '(' + id_to_name(args[0].base) + " * " + id_to_name(args[1].base) + ')';
+	// Flip inputs because matrices are column-wise
+	code += '(' + id_to_name(args[1].base) + " * " + id_to_name(args[0].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_HLSL(mul, 4, {
 	code += "mul(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_SPIRV(mul, 4, {
 	return add_instruction(spv::OpMatrixTimesVector, convert_type(res_type))
-		.add(args[1].base) // Flip inputs
+		.add(args[1].base) // Flip inputs because matrices are column-wise
 		.add(args[0].base)
 		.result;
 	})
@@ -1379,7 +1380,7 @@ DEFINE_INTRINSIC(mul, 5, float2, float2x2, float2)
 DEFINE_INTRINSIC(mul, 5, float3, float3x3, float3)
 DEFINE_INTRINSIC(mul, 5, float4, float4x4, float4)
 IMPLEMENT_INTRINSIC_GLSL(mul, 5, {
-	code += '(' + id_to_name(args[0].base) + " * " + id_to_name(args[1].base) + ')';
+	code += '(' + id_to_name(args[1].base) + " * " + id_to_name(args[0].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_HLSL(mul, 5, {
 	code += "mul(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ')';
@@ -1395,7 +1396,7 @@ DEFINE_INTRINSIC(mul, 6, float2x2, float2x2, float2x2)
 DEFINE_INTRINSIC(mul, 6, float3x3, float3x3, float3x3)
 DEFINE_INTRINSIC(mul, 6, float4x4, float4x4, float4x4)
 IMPLEMENT_INTRINSIC_GLSL(mul, 6, {
-	code += '(' + id_to_name(args[0].base) + " * " + id_to_name(args[1].base) + ')';
+	code += '(' + id_to_name(args[1].base) + " * " + id_to_name(args[0].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_HLSL(mul, 6, {
 	code += "mul(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ')';

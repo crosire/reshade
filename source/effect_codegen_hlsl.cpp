@@ -156,10 +156,7 @@ private:
 		assert(type.is_numeric());
 
 		if (!type.is_scalar())
-		{
-			write_type<false, false>(s, type);
-			s += '(';
-		}
+			write_type<false, false>(s, type), s += '(';
 
 		for (unsigned int i = 0, components = type.components(); i < components; ++i)
 		{
@@ -194,9 +191,7 @@ private:
 		}
 
 		if (!type.is_scalar())
-		{
 			s += ')';
-		}
 	}
 	template <bool force_source = false>
 	void write_location(std::string &s, const location &loc)
@@ -651,15 +646,16 @@ private:
 			"_m30", "_m31", "_m32", "_m33"
 		};
 
-		std::string expr_code = id_to_name(exp.base);
+		std::string type, expr_code = id_to_name(exp.base);
 
 		for (const auto &op : exp.chain)
 		{
 			switch (op.op)
 			{
 			case expression::operation::op_cast:
-				{ std::string type; write_type<false, false>(type, op.to);
-				expr_code = "((" + type + ')' + expr_code + ')'; } // Cast in parentheses so that a subsequent operation operates on the casted value
+				write_type<false, false>(type, op.to);
+				// Cast is in parentheses so that a subsequent operation operates on the casted value
+				expr_code = "((" + type + ')' + expr_code + ')';
 				break;
 			case expression::operation::op_member:
 				expr_code += '.';
