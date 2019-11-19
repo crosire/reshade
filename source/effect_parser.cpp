@@ -1428,12 +1428,12 @@ bool reshadefx::parser::parse_annotations(std::unordered_map<std::string, std::p
 			warning(_token.location, 4717, "type prefixes for annotations are deprecated and ignored");
 
 		if (!expect(tokenid::identifier))
-			return false;
+			return consume_until('>'), false;
 
 		const auto name = std::move(_token.literal_as_string);
 
 		if (expression expression; !expect('=') || !parse_expression_multary(expression) || !expect(';'))
-			return consume_until('}'), false;
+			return consume_until('>'), false;
 		else if (expression.is_constant)
 			annotations[name] = { expression.type, expression.constant };
 		else // Continue parsing annotations despite this not being a constant, since the syntax is still correct
@@ -2435,6 +2435,7 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 	if (!parse_array_size(type))
 		return false;
 
+	bool parse_success = true;
 	expression initializer;
 	texture_info texture_info;
 	sampler_info sampler_info;
@@ -2456,7 +2457,7 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 	{
 		// Global variables can have optional annotations
 		if (global && !parse_annotations(texture_info.annotations))
-			return false;
+			parse_success = false;
 
 		// Variables without a semantic may have an optional initializer
 		if (accept('='))
@@ -2700,7 +2701,7 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 	if (!insert_symbol(name, symbol, global))
 		return error(location, 3003, "redefinition of '" + name + '\''), false;
 
-	return true;
+	return parse_success;
 }
 
 bool reshadefx::parser::parse_technique()
@@ -2711,10 +2712,10 @@ bool reshadefx::parser::parse_technique()
 	technique_info info;
 	info.name = std::move(_token.literal_as_string);
 
-	if (!parse_annotations(info.annotations) || !expect('{'))
-		return false;
+	bool parse_success = parse_annotations(info.annotations);
 
-	bool parse_success = true;
+	if (!expect('{'))
+		return false;
 
 	while (!peek('}'))
 	{
