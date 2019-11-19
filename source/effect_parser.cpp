@@ -775,7 +775,8 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 		if (exclusive ? expect(tokenid::identifier) : accept(tokenid::identifier))
 			identifier = std::move(_token.literal_as_string);
 		else
-			return false; // Warning: This may leave the expression path without issuing an error, so need to catch that at the call side!
+			// No token should come through here, since all possible prefix expressions should have been handled above, so this is an error in the syntax
+			return error(_token_next.location, 3000, "syntax error: unexpected '" + token::id_to_name(_token_next.id) + '\''), false;
 
 		// Can concatenate multiple '::' to force symbol search for a specific namespace level
 		while (accept(tokenid::colon_colon))
@@ -1432,7 +1433,7 @@ bool reshadefx::parser::parse_annotations(std::unordered_map<std::string, std::p
 		const auto name = std::move(_token.literal_as_string);
 
 		if (expression expression; !expect('=') || !parse_expression_multary(expression) || !expect(';'))
-			return error(_token_next.location, 3000, "syntax error: unexpected '" + token::id_to_name(_token_next.id) + "', expected expression"), consume_until('}'), false;
+			return consume_until('}'), false;
 		else if (expression.is_constant)
 			annotations[name] = { expression.type, expression.constant };
 		else // Continue parsing annotations despite this not being a constant, since the syntax is still correct
@@ -1940,7 +1941,7 @@ bool reshadefx::parser::parse_statement(bool scoped)
 			{
 				expression expression;
 				if (!parse_expression(expression))
-					return error(_token_next.location, 3000, "syntax error: unexpected '" + token::id_to_name(_token_next.id) + "', expected expression"), consume_until(';'), false;
+					return consume_until(';'), false;
 
 				// Cannot return to void
 				if (ret_type.is_void())
@@ -2011,9 +2012,6 @@ bool reshadefx::parser::parse_statement(bool scoped)
 	// Handle expression statements
 	if (expression expression; parse_expression(expression))
 		return expect(';'); // A statement has to be terminated with a semicolon
-
-	// No token should come through here, since all statements and expressions should have been handled above, so this is an error in the syntax
-	error(_token_next.location, 3000, "syntax error: unexpected '" + token::id_to_name(_token_next.id) + '\'');
 
 	// Gracefully consume any remaining characters until the statement would usually end, so that parsing may continue despite the error
 	consume_until(';');
@@ -2464,7 +2462,7 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 		if (accept('='))
 		{
 			if (!parse_expression_assignment(initializer))
-				return error(_token_next.location, 3000, "syntax error: unexpected '" + token::id_to_name(_token_next.id) + "', expected expression"), false;
+				return false;
 
 			if (global && !initializer.is_constant) // TODO: This could be resolved by initializing these at the beginning of the entry point
 				return error(initializer.location, 3011, '\'' + name + "': initial value must be a literal expression"), false;
@@ -2550,7 +2548,7 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 
 				// Parse right hand side as normal expression if no special enumeration name was matched already
 				if (!expression.is_constant && !parse_expression_multary(expression))
-					return error(_token_next.location, 3000, "syntax error: unexpected '" + token::id_to_name(_token_next.id) + "', expected expression"), consume_until('}'), false;
+					return consume_until('}'), false;
 
 				if (property_name == "Texture")
 				{
@@ -2870,7 +2868,7 @@ bool reshadefx::parser::parse_technique_pass(pass_info &info)
 
 			// Parse right hand side as normal expression if no special enumeration name was matched already
 			if (!expression.is_constant && !parse_expression_multary(expression))
-				return error(_token_next.location, 3000, "syntax error: unexpected '" + token::id_to_name(_token_next.id) + "', expected expression"), consume_until('}'), false;
+				return consume_until('}'), false;
 			else if (!expression.is_constant || !expression.type.is_scalar())
 				return error(expression.location, 3011, "pass state value must be a literal scalar expression"), consume_until('}'), false;
 
