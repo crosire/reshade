@@ -974,11 +974,16 @@ void reshade::vulkan::runtime_vk::execute_command_buffer() const
 }
 void reshade::vulkan::runtime_vk::wait_for_command_buffers()
 {
+	if (_cmd_index < NUM_COMMAND_FRAMES &&
+		_cmd_buffers[_cmd_index].second)
+		// Make sure any pending work gets executed here, so it is not enqueued later in 'on_present' (at which point the referenced objects may have been destroyed by the code calling this)
+		execute_command_buffer();
+
 #if 1
 	vk.QueueWaitIdle(_main_queue);
 #else
 	std::vector<VkFence> pending_fences = _cmd_fences;
-	if (_cmd_index != std::numeric_limits<uint32_t>::max())
+	if (_cmd_index < NUM_COMMAND_FRAMES)
 	{
 		// The current fence cannot be signaled at this point, since it is enqueued later in 'on_present', so remove it from the list of fences to wait on
 		pending_fences.erase(pending_fences.begin() + _cmd_index);
