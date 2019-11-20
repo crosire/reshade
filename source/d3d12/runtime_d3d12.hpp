@@ -6,7 +6,7 @@
 #pragma once
 
 #include "runtime.hpp"
-#include "draw_call_tracker.hpp"
+#include "buffer_detection.hpp"
 #include <dxgi1_5.h>
 
 namespace reshadefx { struct sampler_info; }
@@ -25,7 +25,7 @@ namespace reshade::d3d12
 #endif
 			);
 		void on_reset();
-		void on_present(draw_call_tracker& tracker);
+		void on_present(buffer_detection& tracker);
 
 		bool capture_screenshot(uint8_t *buffer) const override;
 
@@ -99,7 +99,7 @@ namespace reshade::d3d12
 
 		HMODULE _d3d_compiler = nullptr;
 
-		draw_call_tracker *_current_tracker = nullptr;
+		buffer_detection *_current_tracker = nullptr;
 
 #if RESHADE_GUI
 		static const unsigned int IMGUI_BUFFER_COUNT = 5;

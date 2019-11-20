@@ -65,16 +65,16 @@ reshade::d3d9::runtime_d3d9::runtime_d3d9(IDirect3DDevice9 *device, IDirect3DSwa
 	subscribe_to_ui("DX9", [this]() { draw_debug_menu(); });
 #endif
 	subscribe_to_load_config([this](const ini_file &config) {
-		config.get("DX9_BUFFER_DETECTION", "DisableINTZ", draw_call_tracker::disable_intz);
-		config.get("DX9_BUFFER_DETECTION", "PreserveDepthBuffer", draw_call_tracker::preserve_depth_buffers);
+		config.get("DX9_BUFFER_DETECTION", "DisableINTZ", buffer_detection::disable_intz);
+		config.get("DX9_BUFFER_DETECTION", "PreserveDepthBuffer", buffer_detection::preserve_depth_buffers);
 		config.get("DX9_BUFFER_DETECTION", "PreserveDepthBufferIndex", _depth_clear_index_override);
-		config.get("DX9_BUFFER_DETECTION", "UseAspectRatioHeuristics", draw_call_tracker::filter_aspect_ratio);
+		config.get("DX9_BUFFER_DETECTION", "UseAspectRatioHeuristics", buffer_detection::filter_aspect_ratio);
 	});
 	subscribe_to_save_config([this](ini_file &config) {
-		config.set("DX9_BUFFER_DETECTION", "DisableINTZ", draw_call_tracker::disable_intz);
-		config.set("DX9_BUFFER_DETECTION", "PreserveDepthBuffer", draw_call_tracker::preserve_depth_buffers);
+		config.set("DX9_BUFFER_DETECTION", "DisableINTZ", buffer_detection::disable_intz);
+		config.set("DX9_BUFFER_DETECTION", "PreserveDepthBuffer", buffer_detection::preserve_depth_buffers);
 		config.set("DX9_BUFFER_DETECTION", "PreserveDepthBufferIndex", _depth_clear_index_override);
-		config.set("DX9_BUFFER_DETECTION", "UseAspectRatioHeuristics", draw_call_tracker::filter_aspect_ratio);
+		config.set("DX9_BUFFER_DETECTION", "UseAspectRatioHeuristics", buffer_detection::filter_aspect_ratio);
 	});
 }
 reshade::d3d9::runtime_d3d9::~runtime_d3d9()
@@ -217,7 +217,7 @@ void reshade::d3d9::runtime_d3d9::on_reset()
 #endif
 }
 
-void reshade::d3d9::runtime_d3d9::on_present(draw_call_tracker &tracker)
+void reshade::d3d9::runtime_d3d9::on_present(buffer_detection &tracker)
 {
 	if (!_is_initialized || FAILED(_device->BeginScene()))
 		return;
@@ -1097,10 +1097,10 @@ void reshade::d3d9::runtime_d3d9::draw_debug_menu()
 	if (ImGui::CollapsingHeader("Depth Buffers", ImGuiTreeNodeFlags_DefaultOpen))
 	{
 		bool modified = false;
-		modified |= ImGui::Checkbox("Disable replacement with INTZ format", &draw_call_tracker::disable_intz);
+		modified |= ImGui::Checkbox("Disable replacement with INTZ format", &buffer_detection::disable_intz);
 
-		modified |= ImGui::Checkbox("Use aspect ratio heuristics", &draw_call_tracker::filter_aspect_ratio);
-		modified |= ImGui::Checkbox("Copy depth buffers before clear operation", &draw_call_tracker::preserve_depth_buffers);
+		modified |= ImGui::Checkbox("Use aspect ratio heuristics", &buffer_detection::filter_aspect_ratio);
+		modified |= ImGui::Checkbox("Copy depth buffers before clear operation", &buffer_detection::preserve_depth_buffers);
 
 		if (modified) // Detection settings have changed, reset override
 		{
@@ -1137,7 +1137,7 @@ void reshade::d3d9::runtime_d3d9::draw_debug_menu()
 			ImGui::Text("| %4ux%-4u | %5u draw calls ==> %8u vertices |%s",
 				desc.Width, desc.Height, snapshot.stats.drawcalls, snapshot.stats.vertices, (msaa ? " MSAA" : ""));
 
-			if (draw_call_tracker::preserve_depth_buffers && ds_surface == _current_tracker->current_depth_surface())
+			if (buffer_detection::preserve_depth_buffers && ds_surface == _current_tracker->current_depth_surface())
 			{
 				for (UINT clear_index = 1; clear_index <= snapshot.clears.size(); ++clear_index)
 				{

@@ -7,7 +7,7 @@
 
 #include "runtime.hpp"
 #include "state_block.hpp"
-#include "draw_call_tracker.hpp"
+#include "buffer_detection.hpp"
 
 namespace reshade { enum class texture_reference; }
 namespace reshadefx { struct sampler_info; }
@@ -22,7 +22,7 @@ namespace reshade::d3d9
 
 		bool on_init(const D3DPRESENT_PARAMETERS &pp);
 		void on_reset();
-		void on_present(draw_call_tracker &tracker);
+		void on_present(buffer_detection &tracker);
 
 		bool capture_screenshot(uint8_t *buffer) const override;
 
@@ -80,7 +80,7 @@ namespace reshade::d3d9
 
 		HMODULE _d3d_compiler = nullptr;
 
-		draw_call_tracker *_current_tracker = nullptr;
+		buffer_detection *_current_tracker = nullptr;
 
 #if RESHADE_GUI
 		com_ptr<IDirect3DStateBlock9> _imgui_state;

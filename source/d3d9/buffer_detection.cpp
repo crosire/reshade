@@ -3,8 +3,8 @@
  * License: https://github.com/crosire/reshade#license
  */
 
-#include "draw_call_tracker.hpp"
 #include "log.hpp"
+#include "buffer_detection.hpp"
 #include <math.h>
 
 namespace reshade::d3d9
@@ -13,7 +13,7 @@ namespace reshade::d3d9
 	constexpr auto D3DFMT_DF16 = static_cast<D3DFORMAT>(MAKEFOURCC('D', 'F', '1', '6'));
 	constexpr auto D3DFMT_DF24 = static_cast<D3DFORMAT>(MAKEFOURCC('D', 'F', '2', '4'));
 
-	void draw_call_tracker::reset(bool release_resources)
+	void buffer_detection::reset(bool release_resources)
 	{
 		_stats.vertices = 0;
 		_stats.drawcalls = 0;
@@ -41,7 +41,7 @@ namespace reshade::d3d9
 #endif
 	}
 
-	void draw_call_tracker::on_draw(D3DPRIMITIVETYPE type, UINT vertices)
+	void buffer_detection::on_draw(D3DPRIMITIVETYPE type, UINT vertices)
 	{
 		switch (type)
 		{
@@ -96,11 +96,11 @@ namespace reshade::d3d9
 	}
 
 #if RESHADE_DX9_CAPTURE_DEPTH_BUFFERS
-	bool draw_call_tracker::disable_intz = false;
-	bool draw_call_tracker::filter_aspect_ratio = true;
-	bool draw_call_tracker::preserve_depth_buffers = false;
+	bool buffer_detection::disable_intz = false;
+	bool buffer_detection::filter_aspect_ratio = true;
+	bool buffer_detection::preserve_depth_buffers = false;
 
-	void draw_call_tracker::on_set_depthstencil(IDirect3DSurface9 *&depthstencil)
+	void buffer_detection::on_set_depthstencil(IDirect3DSurface9 *&depthstencil)
 	{
 		if (_depthstencil_replacement != nullptr && depthstencil == _depthstencil_original &&
 			// Do not replace surface after targeted clear, so that all draw calls from then on end up in the original surface
@@ -110,7 +110,7 @@ namespace reshade::d3d9
 			depthstencil = _depthstencil_replacement.get();
 		}
 	}
-	void draw_call_tracker::on_get_depthstencil(IDirect3DSurface9 *&depthstencil)
+	void buffer_detection::on_get_depthstencil(IDirect3DSurface9 *&depthstencil)
 	{
 		if (_depthstencil_replacement != nullptr && depthstencil == _depthstencil_replacement)
 		{
@@ -123,7 +123,7 @@ namespace reshade::d3d9
 		}
 	}
 
-	void draw_call_tracker::on_clear_depthstencil(UINT clear_flags)
+	void buffer_detection::on_clear_depthstencil(UINT clear_flags)
 	{
 		// Reset draw call stats for clears
 		auto current_stats = _clear_stats;
@@ -152,7 +152,7 @@ namespace reshade::d3d9
 		}
 	}
 
-	bool draw_call_tracker::update_depthstencil_replacement(com_ptr<IDirect3DSurface9> depthstencil)
+	bool buffer_detection::update_depthstencil_replacement(com_ptr<IDirect3DSurface9> depthstencil)
 	{
 		_depthstencil_original.reset();
 		com_ptr<IDirect3DSurface9> current_replacement =
@@ -233,7 +233,7 @@ namespace reshade::d3d9
 		return true;
 	}
 
-	bool draw_call_tracker::check_aspect_ratio(const D3DSURFACE_DESC &desc, UINT width, UINT height)
+	bool buffer_detection::check_aspect_ratio(const D3DSURFACE_DESC &desc, UINT width, UINT height)
 	{
 		if (!filter_aspect_ratio)
 			return true; // Allow depth buffers with greater dimensions than the viewport (e.g. in games like Vanquish)
@@ -241,13 +241,13 @@ namespace reshade::d3d9
 		return (desc.Width >= floor(width * 0.95f) && desc.Width <= ceil(width * 1.05f))
 			&& (desc.Height >= floor(height * 0.95f) && desc.Height <= ceil(height * 1.05f));
 	}
-	bool draw_call_tracker::check_texture_format(const D3DSURFACE_DESC &desc)
+	bool buffer_detection::check_texture_format(const D3DSURFACE_DESC &desc)
 	{
 		// Binding a depth-stencil surface as a texture to a shader is only supported on the following custom formats:
 		return desc.Format == D3DFMT_INTZ || desc.Format == D3DFMT_DF16 || desc.Format == D3DFMT_DF24;
 	}
 
-	com_ptr<IDirect3DSurface9> draw_call_tracker::find_best_depth_surface(UINT width, UINT height, com_ptr<IDirect3DSurface9> override, UINT clear_index_override)
+	com_ptr<IDirect3DSurface9> buffer_detection::find_best_depth_surface(UINT width, UINT height, com_ptr<IDirect3DSurface9> override, UINT clear_index_override)
 	{
 		bool no_replacement = true;
 		depthstencil_info best_snapshot;

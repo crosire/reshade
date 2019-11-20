@@ -3,9 +3,9 @@
  * License: https://github.com/crosire/reshade#license
  */
 
-#include "draw_call_tracker.hpp"
-#include "format_utils.hpp"
 #include "log.hpp"
+#include "buffer_detection.hpp"
+#include "format_utils.hpp"
 #include <math.h>
 #include <assert.h>
 
@@ -13,7 +13,7 @@ namespace reshade::vulkan
 {
 	extern uint32_t find_memory_type_index(const VkPhysicalDeviceMemoryProperties &props, VkMemoryPropertyFlags flags, uint32_t type_bits);
 
-	void draw_call_tracker::init(VkDevice device, VkPhysicalDevice physical_device, const VkLayerInstanceDispatchTable &instance_table, const VkLayerDispatchTable &device_table, draw_call_tracker *tracker)
+	void buffer_detection::init(VkDevice device, VkPhysicalDevice physical_device, const VkLayerInstanceDispatchTable &instance_table, const VkLayerDispatchTable &device_table, buffer_detection *tracker)
 	{
 		if (physical_device != VK_NULL_HANDLE)
 			instance_table.GetPhysicalDeviceMemoryProperties(physical_device, &_memory_props);
@@ -22,7 +22,7 @@ namespace reshade::vulkan
 		_device = device;
 		_device_tracker = tracker;
 	}
-	void draw_call_tracker::reset()
+	void buffer_detection::reset()
 	{
 		_stats.vertices = 0;
 		_stats.drawcalls = 0;
@@ -31,7 +31,7 @@ namespace reshade::vulkan
 #endif
 	}
 
-	void draw_call_tracker::merge(const draw_call_tracker &source)
+	void buffer_detection::merge(const buffer_detection &source)
 	{
 		_stats.vertices += source.total_vertices();
 		_stats.drawcalls += source.total_drawcalls();
@@ -50,7 +50,7 @@ namespace reshade::vulkan
 #endif
 	}
 
-	void draw_call_tracker::on_draw(uint32_t vertices)
+	void buffer_detection::on_draw(uint32_t vertices)
 	{
 		_stats.vertices += vertices;
 		_stats.drawcalls += 1;
@@ -70,10 +70,10 @@ namespace reshade::vulkan
 	}
 
 #if RESHADE_VULKAN_CAPTURE_DEPTH_BUFFERS
-	bool draw_call_tracker::filter_aspect_ratio = true;
-	unsigned int draw_call_tracker::filter_depth_texture_format = 0;
+	bool buffer_detection::filter_aspect_ratio = true;
+	unsigned int buffer_detection::filter_depth_texture_format = 0;
 
-	void draw_call_tracker::track_depthstencil(VkImage depthstencil, VkImageLayout layout, const VkImageCreateInfo &create_info)
+	void buffer_detection::track_depthstencil(VkImage depthstencil, VkImageLayout layout, const VkImageCreateInfo &create_info)
 	{
 		_current_depthstencil = depthstencil;
 
@@ -94,7 +94,7 @@ namespace reshade::vulkan
 		}
 	}
 
-	bool draw_call_tracker::check_aspect_ratio(const VkImageCreateInfo &create_info, uint32_t width, uint32_t height)
+	bool buffer_detection::check_aspect_ratio(const VkImageCreateInfo &create_info, uint32_t width, uint32_t height)
 	{
 		if (!filter_aspect_ratio)
 			return true;
@@ -107,7 +107,7 @@ namespace reshade::vulkan
 
 		return !(fabs(texture_aspect_ratio - aspect_ratio) > 0.1f || width_factor > 1.85f || height_factor > 1.85f || width_factor < 0.5f || height_factor < 0.5f);
 	}
-	bool draw_call_tracker::check_texture_format(const VkImageCreateInfo &create_info)
+	bool buffer_detection::check_texture_format(const VkImageCreateInfo &create_info)
 	{
 		const VkFormat depth_texture_formats[] = {
 			VK_FORMAT_UNDEFINED,
@@ -125,7 +125,7 @@ namespace reshade::vulkan
 		return create_info.format == depth_texture_formats[filter_depth_texture_format];
 	}
 
-	draw_call_tracker::depthstencil_info draw_call_tracker::find_best_depth_texture(uint32_t width, uint32_t height, VkImage override)
+	buffer_detection::depthstencil_info buffer_detection::find_best_depth_texture(uint32_t width, uint32_t height, VkImage override)
 	{
 		depthstencil_info best_snapshot;
 

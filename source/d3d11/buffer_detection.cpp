@@ -3,9 +3,9 @@
  * License: https://github.com/crosire/reshade#license
  */
 
-#include "draw_call_tracker.hpp"
-#include "dxgi/format_utils.hpp"
 #include "log.hpp"
+#include "buffer_detection.hpp"
+#include "../dxgi/format_utils.hpp"
 #include <math.h>
 
 namespace reshade::d3d11
@@ -21,7 +21,7 @@ namespace reshade::d3d11
 		return texture;
 	}
 
-	void draw_call_tracker::reset(bool release_resources)
+	void buffer_detection::reset(bool release_resources)
 	{
 		_stats.vertices = 0;
 		_stats.drawcalls = 0;
@@ -42,7 +42,7 @@ namespace reshade::d3d11
 #endif
 	}
 
-	void draw_call_tracker::merge(const draw_call_tracker &source)
+	void buffer_detection::merge(const buffer_detection &source)
 	{
 		_stats.vertices += source.total_vertices();
 		_stats.drawcalls += source.total_drawcalls();
@@ -74,7 +74,7 @@ namespace reshade::d3d11
 #endif
 	}
 
-	void draw_call_tracker::on_map(ID3D11Resource *resource)
+	void buffer_detection::on_map(ID3D11Resource *resource)
 	{
 		UNREFERENCED_PARAMETER(resource);
 
@@ -87,7 +87,7 @@ namespace reshade::d3d11
 #endif
 	}
 
-	void draw_call_tracker::on_draw(UINT vertices)
+	void buffer_detection::on_draw(UINT vertices)
 	{
 		_stats.vertices += vertices;
 		_stats.drawcalls += 1;
@@ -151,11 +151,11 @@ namespace reshade::d3d11
 	}
 
 #if RESHADE_DX11_CAPTURE_DEPTH_BUFFERS
-	bool draw_call_tracker::filter_aspect_ratio = true;
-	bool draw_call_tracker::preserve_depth_buffers = false;
-	unsigned int draw_call_tracker::filter_depth_texture_format = 0;
+	bool buffer_detection::filter_aspect_ratio = true;
+	bool buffer_detection::preserve_depth_buffers = false;
+	unsigned int buffer_detection::filter_depth_texture_format = 0;
 
-	void draw_call_tracker::track_render_targets(UINT num_views, ID3D11RenderTargetView *const *views, ID3D11DepthStencilView *dsv)
+	void buffer_detection::track_render_targets(UINT num_views, ID3D11RenderTargetView *const *views, ID3D11DepthStencilView *dsv)
 	{
 		const auto dsv_texture = texture_from_dsv(dsv);
 		if (dsv_texture == nullptr)
@@ -170,7 +170,7 @@ namespace reshade::d3d11
 			counters.additional_views[views[i]].drawcalls += 1;
 		}
 	}
-	void draw_call_tracker::track_cleared_depthstencil(UINT clear_flags, ID3D11DepthStencilView *dsv)
+	void buffer_detection::track_cleared_depthstencil(UINT clear_flags, ID3D11DepthStencilView *dsv)
 	{
 		// Reset draw call stats for clears
 		auto current_stats = _clear_stats;
@@ -194,7 +194,7 @@ namespace reshade::d3d11
 		}
 	}
 
-	bool draw_call_tracker::update_depthstencil_clear_texture(D3D11_TEXTURE2D_DESC desc)
+	bool buffer_detection::update_depthstencil_clear_texture(D3D11_TEXTURE2D_DESC desc)
 	{
 		// This cannot be called on a command list draw call tracker instance
 		assert(_context != nullptr && this == _device_tracker);
@@ -225,7 +225,7 @@ namespace reshade::d3d11
 		return true;
 	}
 
-	bool draw_call_tracker::check_aspect_ratio(const D3D11_TEXTURE2D_DESC &desc, UINT width, UINT height)
+	bool buffer_detection::check_aspect_ratio(const D3D11_TEXTURE2D_DESC &desc, UINT width, UINT height)
 	{
 		if (!filter_aspect_ratio)
 			return true;
@@ -238,7 +238,7 @@ namespace reshade::d3d11
 
 		return !(fabs(texture_aspect_ratio - aspect_ratio) > 0.1f || width_factor > 1.85f || height_factor > 1.85f || width_factor < 0.5f || height_factor < 0.5f);
 	}
-	bool draw_call_tracker::check_texture_format(const D3D11_TEXTURE2D_DESC &desc)
+	bool buffer_detection::check_texture_format(const D3D11_TEXTURE2D_DESC &desc)
 	{
 		const DXGI_FORMAT depth_texture_formats[] = {
 			DXGI_FORMAT_UNKNOWN,
@@ -255,7 +255,7 @@ namespace reshade::d3d11
 		return make_dxgi_format_typeless(desc.Format) == depth_texture_formats[filter_depth_texture_format];
 	}
 
-	com_ptr<ID3D11Texture2D> draw_call_tracker::find_best_depth_texture(UINT width, UINT height, com_ptr<ID3D11Texture2D> override, UINT clear_index_override)
+	com_ptr<ID3D11Texture2D> buffer_detection::find_best_depth_texture(UINT width, UINT height, com_ptr<ID3D11Texture2D> override, UINT clear_index_override)
 	{
 		depthstencil_info best_snapshot;
 		com_ptr<ID3D11Texture2D> best_match;

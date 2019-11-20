@@ -14,7 +14,7 @@
 
 namespace reshade::d3d10
 {
-	class draw_call_tracker
+	class buffer_detection
 	{
 	public:
 #if RESHADE_DX10_CAPTURE_DEPTH_BUFFERS
@@ -23,7 +23,7 @@ namespace reshade::d3d10
 		static unsigned int filter_depth_texture_format;
 #endif
 
-		explicit draw_call_tracker(ID3D10Device *device) : _device(device) {}
+		explicit buffer_detection(ID3D10Device *device) : _device(device) {}
 
 		UINT total_vertices() const { return _stats.vertices; }
 		UINT total_drawcalls() const { return _stats.drawcalls; }

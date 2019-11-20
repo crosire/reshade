@@ -14,7 +14,7 @@
 
 namespace reshade::d3d11
 {
-	class draw_call_tracker
+	class buffer_detection
 	{
 	public:
 #if RESHADE_DX11_CAPTURE_DEPTH_BUFFERS
@@ -23,7 +23,7 @@ namespace reshade::d3d11
 		static unsigned int filter_depth_texture_format;
 #endif
 
-		draw_call_tracker(ID3D11DeviceContext *context, draw_call_tracker *tracker) :
+		buffer_detection(ID3D11DeviceContext *context, buffer_detection *tracker) :
 			_context(context), _device_tracker(tracker) {}
 
 		UINT total_vertices() const { return _stats.vertices; }
@@ -40,7 +40,7 @@ namespace reshade::d3d11
 
 		void reset(bool release_resources);
 
-		void merge(const draw_call_tracker &source);
+		void merge(const buffer_detection &source);
 
 		void on_map(ID3D11Resource *pResource);
 		void on_draw(UINT vertices);
@@ -74,7 +74,7 @@ namespace reshade::d3d11
 			std::map<ID3D11RenderTargetView *, draw_stats> additional_views;
 		};
 
-		draw_call_tracker *const _device_tracker;
+		buffer_detection *const _device_tracker;
 		ID3D11DeviceContext *const _context;
 		draw_stats _stats;
 #if RESHADE_DX11_CAPTURE_DEPTH_BUFFERS

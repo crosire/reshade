@@ -7,7 +7,7 @@
 
 #include "runtime.hpp"
 #include "vk_handle.hpp"
-#include "draw_call_tracker.hpp"
+#include "buffer_detection.hpp"
 
 namespace reshadefx { struct sampler_info; }
 
@@ -25,7 +25,7 @@ namespace reshade::vulkan
 
 		bool on_init(VkSwapchainKHR swapchain, const VkSwapchainCreateInfoKHR &desc, HWND hwnd);
 		void on_reset();
-		void on_present(VkQueue queue, uint32_t swapchain_image_index, draw_call_tracker &tracker);
+		void on_present(VkQueue queue, uint32_t swapchain_image_index, buffer_detection &tracker);
 
 		bool capture_screenshot(uint8_t *buffer) const override;
 
@@ -112,7 +112,7 @@ namespace reshade::vulkan
 		std::vector<struct vulkan_effect_data> _effect_data;
 		std::unordered_map<size_t, VkSampler> _effect_sampler_states;
 
-		draw_call_tracker *_current_tracker = nullptr;
+		buffer_detection *_current_tracker = nullptr;
 
 #if RESHADE_GUI
 		unsigned int _imgui_index_buffer_size = 0;

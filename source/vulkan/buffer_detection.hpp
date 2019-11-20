@@ -14,7 +14,7 @@
 
 namespace reshade::vulkan
 {
-	class draw_call_tracker
+	class buffer_detection
 	{
 	public:
 		struct draw_stats
@@ -42,10 +42,10 @@ namespace reshade::vulkan
 		const auto &depth_buffer_counters() const { return _counters_per_used_depth_image; }
 #endif
 
-		void init(VkDevice device, VkPhysicalDevice physical_device, const VkLayerInstanceDispatchTable &instance_table, const VkLayerDispatchTable &dispatch_table, draw_call_tracker *tracker);
+		void init(VkDevice device, VkPhysicalDevice physical_device, const VkLayerInstanceDispatchTable &instance_table, const VkLayerDispatchTable &dispatch_table, buffer_detection *tracker);
 		void reset();
 
-		void merge(const draw_call_tracker &source);
+		void merge(const buffer_detection &source);
 
 		void on_draw(uint32_t vertices);
 
@@ -61,7 +61,7 @@ namespace reshade::vulkan
 
 	private:
 		VkDevice _device = VK_NULL_HANDLE;
-		draw_call_tracker *_device_tracker = nullptr;
+		buffer_detection *_device_tracker = nullptr;
 		const VkLayerDispatchTable *_vk = nullptr;
 		VkPhysicalDeviceMemoryProperties _memory_props = {};
 		draw_stats _stats;

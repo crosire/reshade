@@ -6,7 +6,7 @@
 #pragma once
 
 #include <d3d12.h>
-#include "draw_call_tracker.hpp"
+#include "buffer_detection.hpp"
 
 namespace reshade::d3d12 { class runtime_d3d12; }
 
@@ -104,5 +104,5 @@ struct __declspec(uuid("2523AFF4-978B-4939-BA16-8EE876A4CB2A")) D3D12Device : ID
 	ID3D12Device *_orig;
 	unsigned int _interface_version;
 	std::vector<std::shared_ptr<reshade::d3d12::runtime_d3d12>> _runtimes;
-	reshade::d3d12::draw_call_tracker _draw_call_tracker;
+	reshade::d3d12::buffer_detection _buffer_detection;
 };

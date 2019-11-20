@@ -11,7 +11,7 @@
 D3D12Device::D3D12Device(ID3D12Device *original) :
 	_orig(original),
 	_interface_version(0),
-	_draw_call_tracker(original, &_draw_call_tracker) {
+	_buffer_detection(original, &_buffer_detection) {
 	assert(original != nullptr);
 }
 
@@ -215,7 +215,7 @@ void    STDMETHODCALLTYPE D3D12Device::CreateDepthStencilView(ID3D12Resource *pR
 	_orig->CreateDepthStencilView(pResource, pDesc, DestDescriptor);
 
 	if (pResource != nullptr)
-		_draw_call_tracker.on_create_dsv(pResource, DestDescriptor);
+		_buffer_detection.on_create_dsv(pResource, DestDescriptor);
 }
 void    STDMETHODCALLTYPE D3D12Device::CreateSampler(const D3D12_SAMPLER_DESC *pDesc, D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptor)
 {

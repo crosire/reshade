@@ -6,7 +6,7 @@
 #pragma once
 
 #include <d3d10_1.h>
-#include "draw_call_tracker.hpp"
+#include "buffer_detection.hpp"
 
 struct DXGIDevice;
 namespace reshade::d3d10 { class runtime_d3d10; }
@@ -131,5 +131,5 @@ struct DECLSPEC_UUID("88399375-734F-4892-A95F-70DD42CE7CDD") D3D10Device : ID3D1
 	ID3D10Device1 *_orig;
 	DXGIDevice *const _dxgi_device;
 	std::vector<std::shared_ptr<reshade::d3d10::runtime_d3d10>> _runtimes;
-	reshade::d3d10::draw_call_tracker _draw_call_tracker;
+	reshade::d3d10::buffer_detection _buffer_detection;
 };

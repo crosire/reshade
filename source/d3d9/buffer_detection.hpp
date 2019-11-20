@@ -13,7 +13,7 @@
 
 namespace reshade::d3d9
 {
-	class draw_call_tracker
+	class buffer_detection
 	{
 	public:
 #if RESHADE_DX9_CAPTURE_DEPTH_BUFFERS
@@ -22,7 +22,7 @@ namespace reshade::d3d9
 		static bool preserve_depth_buffers;
 #endif
 
-		explicit draw_call_tracker(IDirect3DDevice9 *device) : _device(device) {}
+		explicit buffer_detection(IDirect3DDevice9 *device) : _device(device) {}
 
 		UINT total_vertices() const { return _stats.vertices; }
 		UINT total_drawcalls() const { return _stats.drawcalls; }

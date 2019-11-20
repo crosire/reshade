@@ -3,9 +3,9 @@
  * License: https://github.com/crosire/reshade#license
  */
 
-#include "draw_call_tracker.hpp"
-#include "dxgi/format_utils.hpp"
 #include "log.hpp"
+#include "buffer_detection.hpp"
+#include "../dxgi/format_utils.hpp"
 #include <mutex>
 #include <math.h>
 
@@ -13,7 +13,7 @@ namespace reshade::d3d12
 {
 	static std::mutex s_global_mutex;
 
-	void draw_call_tracker::reset(bool release_resources)
+	void buffer_detection::reset(bool release_resources)
 	{
 		_stats.vertices = 0;
 		_stats.drawcalls = 0;
@@ -33,7 +33,7 @@ namespace reshade::d3d12
 #endif
 	}
 
-	void draw_call_tracker::merge(const draw_call_tracker &source)
+	void buffer_detection::merge(const buffer_detection &source)
 	{
 		_stats.vertices += source.total_vertices();
 		_stats.drawcalls += source.total_drawcalls();
@@ -56,7 +56,7 @@ namespace reshade::d3d12
 #endif
 	}
 
-	void draw_call_tracker::on_draw(UINT vertices)
+	void buffer_detection::on_draw(UINT vertices)
 	{
 		_stats.vertices += vertices;
 		_stats.drawcalls += 1;
@@ -79,16 +79,16 @@ namespace reshade::d3d12
 	}
 
 #if RESHADE_DX12_CAPTURE_DEPTH_BUFFERS
-	bool draw_call_tracker::filter_aspect_ratio = true;
-	bool draw_call_tracker::preserve_depth_buffers = false;
-	unsigned int draw_call_tracker::filter_depth_texture_format = 0;
+	bool buffer_detection::filter_aspect_ratio = true;
+	bool buffer_detection::preserve_depth_buffers = false;
+	unsigned int buffer_detection::filter_depth_texture_format = 0;
 
-	void draw_call_tracker::on_create_dsv(ID3D12Resource *dsv_texture, D3D12_CPU_DESCRIPTOR_HANDLE handle)
+	void buffer_detection::on_create_dsv(ID3D12Resource *dsv_texture, D3D12_CPU_DESCRIPTOR_HANDLE handle)
 	{
 		const std::lock_guard<std::mutex> lock(s_global_mutex);
 		_depthstencil_resources_by_handle[handle.ptr] = dsv_texture;
 	}
-	com_ptr<ID3D12Resource> draw_call_tracker::resource_from_handle(D3D12_CPU_DESCRIPTOR_HANDLE handle)
+	com_ptr<ID3D12Resource> buffer_detection::resource_from_handle(D3D12_CPU_DESCRIPTOR_HANDLE handle)
 	{
 		if (handle.ptr == 0)
 			return nullptr;
@@ -97,7 +97,7 @@ namespace reshade::d3d12
 		return _depthstencil_resources_by_handle[handle.ptr];
 	}
 
-	void draw_call_tracker::track_render_targets(D3D12_CPU_DESCRIPTOR_HANDLE dsv)
+	void buffer_detection::track_render_targets(D3D12_CPU_DESCRIPTOR_HANDLE dsv)
 	{
 		const auto dsv_texture = resource_from_handle(dsv);
 
@@ -109,7 +109,7 @@ namespace reshade::d3d12
 		// Add new entry for this DSV
 		_counters_per_used_depth_texture[dsv_texture];
 	}
-	void draw_call_tracker::track_cleared_depthstencil(ID3D12GraphicsCommandList *cmd_list, D3D12_CLEAR_FLAGS clear_flags, D3D12_CPU_DESCRIPTOR_HANDLE dsv)
+	void buffer_detection::track_cleared_depthstencil(ID3D12GraphicsCommandList *cmd_list, D3D12_CLEAR_FLAGS clear_flags, D3D12_CPU_DESCRIPTOR_HANDLE dsv)
 	{
 		// Reset draw call stats for clears
 		auto current_stats = _clear_stats;
@@ -144,7 +144,7 @@ namespace reshade::d3d12
 		}
 	}
 
-	bool draw_call_tracker::update_depthstencil_clear_texture(D3D12_RESOURCE_DESC desc)
+	bool buffer_detection::update_depthstencil_clear_texture(D3D12_RESOURCE_DESC desc)
 	{
 		// This cannot be called on a command list draw call tracker instance
 		assert(_device != nullptr && this == _device_tracker);
@@ -176,7 +176,7 @@ namespace reshade::d3d12
 		return true;
 	}
 
-	bool draw_call_tracker::check_aspect_ratio(const D3D12_RESOURCE_DESC &desc, UINT width, UINT height)
+	bool buffer_detection::check_aspect_ratio(const D3D12_RESOURCE_DESC &desc, UINT width, UINT height)
 	{
 		if (!filter_aspect_ratio)
 			return true;
@@ -189,7 +189,7 @@ namespace reshade::d3d12
 
 		return !(fabs(texture_aspect_ratio - aspect_ratio) > 0.1f || width_factor > 1.85f || height_factor > 1.85f || width_factor < 0.5f || height_factor < 0.5f);
 	}
-	bool draw_call_tracker::check_texture_format(const D3D12_RESOURCE_DESC &desc)
+	bool buffer_detection::check_texture_format(const D3D12_RESOURCE_DESC &desc)
 	{
 		const DXGI_FORMAT depth_texture_formats[] = {
 			DXGI_FORMAT_UNKNOWN,
@@ -206,7 +206,7 @@ namespace reshade::d3d12
 		return make_dxgi_format_typeless(desc.Format) == depth_texture_formats[filter_depth_texture_format];
 	}
 
-	com_ptr<ID3D12Resource> draw_call_tracker::find_best_depth_texture(UINT width, UINT height, com_ptr<ID3D12Resource> override, UINT clear_index_override)
+	com_ptr<ID3D12Resource> buffer_detection::find_best_depth_texture(UINT width, UINT height, com_ptr<ID3D12Resource> override, UINT clear_index_override)
 	{
 		depthstencil_info best_snapshot;
 		com_ptr<ID3D12Resource> best_match;
