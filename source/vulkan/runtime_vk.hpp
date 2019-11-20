@@ -9,8 +9,6 @@
 #include "vk_handle.hpp"
 #include "buffer_detection.hpp"
 
-namespace reshadefx { struct sampler_info; }
-
 namespace reshade::vulkan
 {
 	class runtime_vk : public runtime

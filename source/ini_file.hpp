@@ -89,7 +89,6 @@ namespace reshade
 			_modified = true;
 			_modified_at = std::filesystem::file_time_type::clock::now();
 		}
-		inline
 		void set(const std::string &section, const std::string &key, std::string &&value)
 		{
 			auto &v = _sections[section][key];
@@ -123,7 +122,6 @@ namespace reshade
 			_modified = true;
 			_modified_at = std::filesystem::file_time_type::clock::now();
 		}
-		inline
 		void set(const std::string &section, const std::string &key, std::vector<std::string> &&values)
 		{
 			auto &v = _sections[section][key];

@@ -27,7 +27,7 @@ struct render_pass_data
 
 struct command_buffer_data
 {
-	// State tracking
+	// State tracking for render passes
 	uint32_t current_subpass = std::numeric_limits<uint32_t>::max();
 	VkRenderPass current_renderpass = VK_NULL_HANDLE;
 	VkFramebuffer current_framebuffer = VK_NULL_HANDLE;

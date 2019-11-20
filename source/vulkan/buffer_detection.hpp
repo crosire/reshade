@@ -6,7 +6,6 @@
 #pragma once
 
 #include <map>
-#include <vector>
 #include <vulkan.h>
 #include "vk_layer_dispatch_table.h"
 

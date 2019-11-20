@@ -436,6 +436,7 @@ bool reshade::vulkan::runtime_vk::on_init(VkSwapchainKHR swapchain, const VkSwap
 		};
 
 		VkDescriptorPoolCreateInfo create_info { VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO };
+		// No VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT set, so that all descriptors can be reset in one go via vkResetDescriptorPool
 		create_info.maxSets = 100; // TODO: Limit to 100 effects for now
 		create_info.poolSizeCount = _countof(pool_sizes);
 		create_info.pPoolSizes = pool_sizes;
@@ -1225,7 +1226,7 @@ void reshade::vulkan::runtime_vk::unload_effects()
 
 	if (_effect_descriptor_pool != VK_NULL_HANDLE)
 	{
-		//vk.ResetDescriptorPool(_device, _effect_descriptor_pool, 0);
+		vk.ResetDescriptorPool(_device, _effect_descriptor_pool, 0);
 	}
 
 	for (const vulkan_effect_data &data : _effect_data)

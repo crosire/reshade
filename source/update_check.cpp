@@ -25,14 +25,12 @@ bool reshade::runtime::check_for_update(unsigned long latest_version[3])
 
 #if !defined(_DEBUG)
 	const scoped_handle handle = InternetOpen(L"reshade", INTERNET_OPEN_TYPE_PRECONFIG, nullptr, nullptr, 0);
-
 	if (handle == nullptr)
 		return false;
 
 	constexpr auto api_url = TEXT("https://api.github.com/repos/crosire/reshade/tags");
 
 	const scoped_handle request = InternetOpenUrl(handle, api_url, nullptr, 0, INTERNET_FLAG_RELOAD | INTERNET_FLAG_PRAGMA_NOCACHE | INTERNET_FLAG_NO_CACHE_WRITE, 0);
-
 	if (request == nullptr)
 		return false;
 
