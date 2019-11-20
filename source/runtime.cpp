@@ -614,7 +614,7 @@ void reshade::runtime::unload_effect(size_t id)
 	_uniforms.erase(std::remove_if(_uniforms.begin(), _uniforms.end(),
 		[id](const auto &it) { return it.effect_index == id; }), _uniforms.end());
 	_textures.erase(std::remove_if(_textures.begin(), _textures.end(),
-		[id](const auto &it) { return it.effect_index == id; }), _textures.end());
+		[id](const auto &it) { return it.effect_index == id && !it.shared; }), _textures.end());
 	_techniques.erase(std::remove_if(_techniques.begin(), _techniques.end(),
 		[id](const auto &it) { return it.effect_index == id; }), _techniques.end());
 
@@ -759,110 +759,139 @@ void reshade::runtime::update_and_render_effects()
 			// Change to next value if the associated shortcut key was pressed
 			switch (variable.type.base)
 			{
-			case reshadefx::type::t_bool: {
-				bool data;
-				get_uniform_value(variable, &data, 1);
-				set_uniform_value(variable, !data);
-				break; }
-			case reshadefx::type::t_int:
-			case reshadefx::type::t_uint: {
-				int data[4];
-				get_uniform_value(variable, data, 4);
-				const std::string_view ui_items = variable.annotation_as_string("ui_items");
-				int num_items = 0;
-				for (size_t offset = 0, next; (next = ui_items.find('\0', offset)) != std::string::npos; offset = next + 1)
-					num_items++;
-				data[0] = (data[0] + 1 >= num_items) ? 0 : data[0] + 1;
-				set_uniform_value(variable, data, 4);
-				break; }
+				case reshadefx::type::t_bool:
+				{
+					bool data;
+					get_uniform_value(variable, &data, 1);
+					set_uniform_value(variable, !data);
+					break;
+				}
+				case reshadefx::type::t_int:
+				case reshadefx::type::t_uint:
+				{
+					int data[4];
+					get_uniform_value(variable, data, 4);
+					const std::string_view ui_items = variable.annotation_as_string("ui_items");
+					int num_items = 0;
+					for (size_t offset = 0, next; (next = ui_items.find('\0', offset)) != std::string::npos; offset = next + 1)
+						num_items++;
+					data[0] = (data[0] + 1 >= num_items) ? 0 : data[0] + 1;
+					set_uniform_value(variable, data, 4);
+					break;
+				}
 			}
 			save_current_preset();
 		}
 
 		switch (variable.special)
 		{
-		case special_uniform::frame_time:
-			set_uniform_value(variable, _last_frame_duration.count() * 1e-6f, 0.0f, 0.0f, 0.0f);
-			break;
-		case special_uniform::frame_count:
-			if (variable.type.is_boolean())
-				set_uniform_value(variable, (_framecount % 2) == 0);
-			else
-				set_uniform_value(variable, static_cast<unsigned int>(_framecount % UINT_MAX));
-			break;
-		case special_uniform::random: {
-			const int min = variable.annotation_as_int("min");
-			const int max = variable.annotation_as_int("max");
-			set_uniform_value(variable, min + (std::rand() % (max - min + 1)));
-			break; }
-		case special_uniform::ping_pong: {
-			const float min = variable.annotation_as_float("min");
-			const float max = variable.annotation_as_float("max");
-			const float step_min = variable.annotation_as_float("step", 0);
-			const float step_max = variable.annotation_as_float("step", 1);
-			float increment = step_max == 0 ? step_min : (step_min + std::fmodf(static_cast<float>(std::rand()), step_max - step_min + 1));
-			const float smoothing = variable.annotation_as_float("smoothing");
-
-			float value[2] = { 0, 0 };
-			get_uniform_value(variable, value, 2);
-			if (value[1] >= 0)
+			case special_uniform::frame_time:
 			{
-				increment = std::max(increment - std::max(0.0f, smoothing - (max - value[0])), 0.05f);
-				increment *= _last_frame_duration.count() * 1e-9f;
-
-				if ((value[0] += increment) >= max)
-					value[0] = max, value[1] = -1;
+				set_uniform_value(variable, _last_frame_duration.count() * 1e-6f, 0.0f, 0.0f, 0.0f);
+				break;
 			}
-			else
+			case special_uniform::frame_count:
 			{
-				increment = std::max(increment - std::max(0.0f, smoothing - (value[0] - min)), 0.05f);
-				increment *= _last_frame_duration.count() * 1e-9f;
-
-				if ((value[0] -= increment) <= min)
-					value[0] = min, value[1] = +1;
+				if (variable.type.is_boolean())
+					set_uniform_value(variable, (_framecount % 2) == 0);
+				else
+					set_uniform_value(variable, static_cast<unsigned int>(_framecount % UINT_MAX));
+				break;
 			}
-			set_uniform_value(variable, value, 2);
-			break; }
-		case special_uniform::date:
-			set_uniform_value(variable, _date, 4);
-			break;
-		case special_uniform::timer:
-			set_uniform_value(variable, static_cast<unsigned int>(std::chrono::duration_cast<std::chrono::milliseconds>(_last_present_time - _start_time).count()));
-			break;
-		case special_uniform::key:
-			if (const int keycode = variable.annotation_as_int("keycode");
-				keycode > 7 && keycode < 256)
-				if (const std::string_view mode = variable.annotation_as_string("mode");
-					mode == "toggle" || variable.annotation_as_int("toggle")) {
-					bool current_value = false;
-					get_uniform_value(variable, &current_value, 1);
-					if (_input->is_key_pressed(keycode))
-						set_uniform_value(variable, !current_value);
-				} else if (mode == "press")
-					set_uniform_value(variable, _input->is_key_pressed(keycode));
+			case special_uniform::random:
+			{
+				const int min = variable.annotation_as_int("min");
+				const int max = variable.annotation_as_int("max");
+				set_uniform_value(variable, min + (std::rand() % (max - min + 1)));
+				break;
+			}
+			case special_uniform::ping_pong:
+			{
+				const float min = variable.annotation_as_float("min");
+				const float max = variable.annotation_as_float("max");
+				const float step_min = variable.annotation_as_float("step", 0);
+				const float step_max = variable.annotation_as_float("step", 1);
+				float increment = step_max == 0 ? step_min : (step_min + std::fmodf(static_cast<float>(std::rand()), step_max - step_min + 1));
+				const float smoothing = variable.annotation_as_float("smoothing");
+
+				float value[2] = { 0, 0 };
+				get_uniform_value(variable, value, 2);
+				if (value[1] >= 0)
+				{
+					increment = std::max(increment - std::max(0.0f, smoothing - (max - value[0])), 0.05f);
+					increment *= _last_frame_duration.count() * 1e-9f;
+
+					if ((value[0] += increment) >= max)
+						value[0] = max, value[1] = -1;
+				}
 				else
-					set_uniform_value(variable, _input->is_key_down(keycode));
-			break;
-		case special_uniform::mouse_point:
-			set_uniform_value(variable, _input->mouse_position_x(), _input->mouse_position_y());
-			break;
-		case special_uniform::mouse_delta:
-			set_uniform_value(variable, _input->mouse_movement_delta_x(), _input->mouse_movement_delta_y());
-			break;
-		case special_uniform::mouse_button:
-			if (const int keycode = variable.annotation_as_int("keycode");
-				keycode >= 0 && keycode < 5)
-				if (const std::string_view mode = variable.annotation_as_string("mode");
-					mode == "toggle" || variable.annotation_as_int("toggle")) {
-					bool current_value = false;
-					get_uniform_value(variable, &current_value, 1);
-					if (_input->is_mouse_button_pressed(keycode))
-						set_uniform_value(variable, !current_value);
-				} else if (mode == "press")
-					set_uniform_value(variable, _input->is_mouse_button_pressed(keycode));
-				else
-					set_uniform_value(variable, _input->is_mouse_button_down(keycode));
-			break;
+				{
+					increment = std::max(increment - std::max(0.0f, smoothing - (value[0] - min)), 0.05f);
+					increment *= _last_frame_duration.count() * 1e-9f;
+
+					if ((value[0] -= increment) <= min)
+						value[0] = min, value[1] = +1;
+				}
+				set_uniform_value(variable, value, 2);
+				break;
+			}
+			case special_uniform::date:
+			{
+				set_uniform_value(variable, _date, 4);
+				break;
+			}
+			case special_uniform::timer:
+			{
+				set_uniform_value(variable, static_cast<unsigned int>(
+					std::chrono::duration_cast<std::chrono::milliseconds>(_last_present_time - _start_time).count()));
+				break;
+			}
+			case special_uniform::key:
+			{
+				if (const int keycode = variable.annotation_as_int("keycode");
+					keycode > 7 && keycode < 256)
+				{
+					if (const std::string_view mode = variable.annotation_as_string("mode");
+						mode == "toggle" || variable.annotation_as_int("toggle"))
+					{
+						bool current_value = false;
+						get_uniform_value(variable, &current_value, 1);
+						if (_input->is_key_pressed(keycode))
+							set_uniform_value(variable, !current_value);
+					}
+					else if (mode == "press")
+						set_uniform_value(variable, _input->is_key_pressed(keycode));
+					else
+						set_uniform_value(variable, _input->is_key_down(keycode));
+				}
+				break;
+				}
+			case special_uniform::mouse_point:
+				set_uniform_value(variable, _input->mouse_position_x(), _input->mouse_position_y());
+				break;
+			case special_uniform::mouse_delta:
+				set_uniform_value(variable, _input->mouse_movement_delta_x(), _input->mouse_movement_delta_y());
+				break;
+			case special_uniform::mouse_button:
+			{
+				if (const int keycode = variable.annotation_as_int("keycode");
+					keycode >= 0 && keycode < 5)
+				{
+					if (const std::string_view mode = variable.annotation_as_string("mode");
+						mode == "toggle" || variable.annotation_as_int("toggle"))
+					{
+						bool current_value = false;
+						get_uniform_value(variable, &current_value, 1);
+						if (_input->is_mouse_button_pressed(keycode))
+							set_uniform_value(variable, !current_value);
+					}
+					else if (mode == "press")
+						set_uniform_value(variable, _input->is_mouse_button_pressed(keycode));
+					else
+						set_uniform_value(variable, _input->is_mouse_button_down(keycode));
+				}
+				break;
+			}
 		}
 	}
 

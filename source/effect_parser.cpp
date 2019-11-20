@@ -775,7 +775,8 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 		if (exclusive ? expect(tokenid::identifier) : accept(tokenid::identifier))
 			identifier = std::move(_token.literal_as_string);
 		else
-			return false; // Warning: This may leave the expression path without issuing an error, so need to catch that at the call side!
+			// No token should come through here, since all possible prefix expressions should have been handled above, so this is an error in the syntax
+			return error(_token_next.location, 3000, "syntax error: unexpected '" + token::id_to_name(_token_next.id) + '\''), false;
 
 		// Can concatenate multiple '::' to force symbol search for a specific namespace level
 		while (accept(tokenid::colon_colon))
@@ -1427,12 +1428,12 @@ bool reshadefx::parser::parse_annotations(std::unordered_map<std::string, std::p
 			warning(_token.location, 4717, "type prefixes for annotations are deprecated and ignored");
 
 		if (!expect(tokenid::identifier))
-			return false;
+			return consume_until('>'), false;
 
 		const auto name = std::move(_token.literal_as_string);
 
-		if (expression expression; !expect('=') || !parse_expression_unary(expression) || !expect(';'))
-			return consume_until('>'), false; // Probably a syntax error, so abort parsing
+		if (expression expression; !expect('=') || !parse_expression_multary(expression) || !expect(';'))
+			return consume_until('>'), false;
 		else if (expression.is_constant)
 			annotations[name] = { expression.type, expression.constant };
 		else // Continue parsing annotations despite this not being a constant, since the syntax is still correct
@@ -1940,7 +1941,7 @@ bool reshadefx::parser::parse_statement(bool scoped)
 			{
 				expression expression;
 				if (!parse_expression(expression))
-					return error(_token_next.location, 3000, "syntax error: unexpected '" + token::id_to_name(_token_next.id) + "', expected expression"), consume_until(';'), false;
+					return consume_until(';'), false;
 
 				// Cannot return to void
 				if (ret_type.is_void())
@@ -2011,9 +2012,6 @@ bool reshadefx::parser::parse_statement(bool scoped)
 	// Handle expression statements
 	if (expression expression; parse_expression(expression))
 		return expect(';'); // A statement has to be terminated with a semicolon
-
-	// No token should come through here, since all statements and expressions should have been handled above, so this is an error in the syntax
-	error(_token_next.location, 3000, "syntax error: unexpected '" + token::id_to_name(_token_next.id) + '\'');
 
 	// Gracefully consume any remaining characters until the statement would usually end, so that parsing may continue despite the error
 	consume_until(';');
@@ -2437,6 +2435,7 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 	if (!parse_array_size(type))
 		return false;
 
+	bool parse_success = true;
 	expression initializer;
 	texture_info texture_info;
 	sampler_info sampler_info;
@@ -2458,13 +2457,13 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 	{
 		// Global variables can have optional annotations
 		if (global && !parse_annotations(texture_info.annotations))
-			return false;
+			parse_success = false;
 
 		// Variables without a semantic may have an optional initializer
 		if (accept('='))
 		{
 			if (!parse_expression_assignment(initializer))
-				return error(_token_next.location, 3000, "syntax error: unexpected '" + token::id_to_name(_token_next.id) + "', expected expression"), false;
+				return false;
 
 			if (global && !initializer.is_constant) // TODO: This could be resolved by initializing these at the beginning of the entry point
 				return error(initializer.location, 3011, '\'' + name + "': initial value must be a literal expression"), false;
@@ -2550,7 +2549,7 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 
 				// Parse right hand side as normal expression if no special enumeration name was matched already
 				if (!expression.is_constant && !parse_expression_multary(expression))
-					return error(_token_next.location, 3000, "syntax error: unexpected '" + token::id_to_name(_token_next.id) + "', expected expression"), consume_until('}'), false;
+					return consume_until('}'), false;
 
 				if (property_name == "Texture")
 				{
@@ -2702,7 +2701,7 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 	if (!insert_symbol(name, symbol, global))
 		return error(location, 3003, "redefinition of '" + name + '\''), false;
 
-	return true;
+	return parse_success;
 }
 
 bool reshadefx::parser::parse_technique()
@@ -2713,10 +2712,10 @@ bool reshadefx::parser::parse_technique()
 	technique_info info;
 	info.name = std::move(_token.literal_as_string);
 
-	if (!parse_annotations(info.annotations) || !expect('{'))
-		return false;
+	bool parse_success = parse_annotations(info.annotations);
 
-	bool parse_success = true;
+	if (!expect('{'))
+		return false;
 
 	while (!peek('}'))
 	{
@@ -2724,7 +2723,7 @@ bool reshadefx::parser::parse_technique()
 			info.passes.push_back(std::move(pass));
 		else {
 			parse_success = false;
-			if (!peek(tokenid::pass)) // If there is another pass definition following, try to parse that despite the error
+			if (!peek(tokenid::pass) && !peek('}')) // If there is another pass definition following, try to parse that despite the error
 				return consume_until('}'), false;
 		}
 	}
@@ -2739,8 +2738,12 @@ bool reshadefx::parser::parse_technique_pass(pass_info &info)
 	if (!expect(tokenid::pass))
 		return false;
 
+	const auto pass_location = std::move(_token.location);
+
 	// Passes can have an optional name, so consume and ignore that if it exists
 	accept(tokenid::identifier);
+
+	bool parse_success = true;
 
 	if (!expect('{'))
 		return false;
@@ -2797,9 +2800,11 @@ bool reshadefx::parser::parse_technique_pass(pass_info &info)
 				if (is_shader_state)
 				{
 					if (!symbol.id)
-						return error(location, 3501, "undeclared identifier '" + identifier + "', expected function name"), consume_until('}'), false;
+						parse_success = false,
+						error(location, 3501, "undeclared identifier '" + identifier + "', expected function name");
 					else if (!symbol.type.is_function())
-						return error(location, 3020, "type mismatch, expected function name"), consume_until('}'), false;
+						parse_success = false,
+						error(location, 3020, "type mismatch, expected function name");
 
 					const bool is_vs = state[0] == 'V';
 					const bool is_ps = state[0] == 'P';
@@ -2820,21 +2825,23 @@ bool reshadefx::parser::parse_technique_pass(pass_info &info)
 					assert(is_texture_state);
 
 					if (!symbol.id)
-						return error(location, 3004, "undeclared identifier '" + identifier + "', expected texture name"), consume_until('}'), false;
+						parse_success = false,
+						error(location, 3004, "undeclared identifier '" + identifier + "', expected texture name");
 					else if (!symbol.type.is_texture())
-						return error(location, 3020, "type mismatch, expected texture name"), consume_until('}'), false;
+						parse_success = false,
+						error(location, 3020, "type mismatch, expected texture name");
 
 					const texture_info &target_info = _codegen->find_texture(symbol.id);
 
 					// Verify that all render targets in this pass have the same dimensions
 					if (info.viewport_width != 0 && info.viewport_height != 0 && (target_info.width != info.viewport_width || target_info.height != info.viewport_height))
-						return error(location, 4545, "cannot use multiple render targets with different texture dimensions (is " + std::to_string(target_info.width) + 'x' + std::to_string(target_info.height) + ", but expected " + std::to_string(info.viewport_width) + 'x' + std::to_string(info.viewport_height) + ')'), false;
+						parse_success = false,
+						error(location, 4545, "cannot use multiple render targets with different texture dimensions (is " + std::to_string(target_info.width) + 'x' + std::to_string(target_info.height) + ", but expected " + std::to_string(info.viewport_width) + 'x' + std::to_string(info.viewport_height) + ')');
 
 					info.viewport_width = target_info.width;
 					info.viewport_height = target_info.height;
 
-					const size_t target_index = state.size() > 12 ? (state[12] - '0') : 0;
-
+					const auto target_index = state.size() > 12 ? (state[12] - '0') : 0;
 					info.render_target_names[target_index] = target_info.unique_name;
 				}
 			}
@@ -2870,9 +2877,10 @@ bool reshadefx::parser::parse_technique_pass(pass_info &info)
 
 			// Parse right hand side as normal expression if no special enumeration name was matched already
 			if (!expression.is_constant && !parse_expression_multary(expression))
-				return error(_token_next.location, 3000, "syntax error: unexpected '" + token::id_to_name(_token_next.id) + "', expected expression"), consume_until('}'), false;
+				return consume_until('}'), false;
 			else if (!expression.is_constant || !expression.type.is_scalar())
-				return error(expression.location, 3011, "pass state value must be a literal scalar expression"), consume_until('}'), false;
+				parse_success = false,
+				error(expression.location, 3011, "pass state value must be a literal scalar expression");
 
 			// All states below expect the value to be of an unsigned integer type
 			expression.add_cast_operation({ type::t_uint, 1, 1 });
@@ -2917,12 +2925,21 @@ bool reshadefx::parser::parse_technique_pass(pass_info &info)
 			else if (state == "VertexCount")
 				info.num_vertices = value;
 			else
-				return error(location, 3004, "unrecognized pass state '" + state + '\''), consume_until('}'), false;
+				parse_success = false,
+				error(location, 3004, "unrecognized pass state '" + state + '\'');
 		}
 
 		if (!expect(';'))
 			return consume_until('}'), false;
 	}
 
-	return expect('}');
+	// Verify pass states
+	if (info.vs_entry_point.empty())
+		parse_success = false,
+		error(pass_location, 3012, "pass is missing 'VertexShader' property");
+	if (info.ps_entry_point.empty())
+		parse_success = false,
+		error(pass_location, 3012, "pass is missing 'PixelShader' property");
+
+	return expect('}') && parse_success;
 }

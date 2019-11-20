@@ -48,10 +48,9 @@ namespace reshade::vulkan
 		void transition_layout(VkCommandBuffer cmd_list, VkImage image, VkImageLayout old_layout, VkImageLayout new_layout,
 			VkImageSubresourceRange subresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, VK_REMAINING_MIP_LEVELS, 0, VK_REMAINING_ARRAY_LAYERS }) const;
 
-		VkCommandBuffer create_command_list(VkCommandBufferLevel level = VK_COMMAND_BUFFER_LEVEL_PRIMARY) const;
-		void execute_command_list(VkCommandBuffer cmd_list) const;
-		void execute_command_list_async(VkCommandBuffer cmd_list) const;
-		void wait_for_command_queue();
+		bool begin_command_buffer() const;
+		void execute_command_buffer() const;
+		void wait_for_command_buffers();
 
 		bool compile_effect(effect_data &effect);
 		void unload_effect(size_t id);
@@ -78,18 +77,19 @@ namespace reshade::vulkan
 		const VkPhysicalDevice _physical_device;
 		VkSwapchainKHR _swapchain;
 
+		static const uint32_t NUM_IMGUI_BUFFERS = 5;
+		static const uint32_t NUM_COMMAND_FRAMES = 5;
+
 		VkQueue _main_queue = VK_NULL_HANDLE;
 		uint32_t _queue_family_index = 0; // Default to first queue family index
 		VkPhysicalDeviceMemoryProperties _memory_props = {};
 
-		VkFence _wait_fence = VK_NULL_HANDLE;
+		uint32_t _cmd_index = 0;
 		uint32_t _swap_index = 0;
-		uint32_t _pool_index = 0;
 
-		std::vector<VkFence> _cmd_fences;
-		std::vector<VkCommandPool> _cmd_pool;
-		mutable std::vector<VkCommandBuffer> _cmd_buffers;
-		mutable std::vector<std::vector<VkCommandBuffer>> _cmd_buffers_to_free;
+		VkCommandPool _cmd_pool = VK_NULL_HANDLE;
+		VkFence _cmd_fences[NUM_COMMAND_FRAMES];
+		mutable std::pair<VkCommandBuffer, bool> _cmd_buffers[NUM_COMMAND_FRAMES];
 
 		std::vector<VkImage> _swapchain_images;
 		std::vector<VkImageView> _swapchain_views;
@@ -120,7 +120,6 @@ namespace reshade::vulkan
 		draw_call_tracker *_current_tracker = nullptr;
 
 #if RESHADE_GUI
-		static const unsigned int IMGUI_BUFFER_COUNT = 5;
 		unsigned int _imgui_index_buffer_size = 0;
 		VkBuffer _imgui_index_buffer = VK_NULL_HANDLE;
 		VkDeviceMemory _imgui_index_mem = VK_NULL_HANDLE;
