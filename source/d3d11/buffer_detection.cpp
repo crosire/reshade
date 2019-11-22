@@ -184,6 +184,9 @@ void reshade::d3d11::buffer_detection::track_cleared_depthstencil(UINT clear_fla
 	_clear_stats.vertices = 0;
 	_clear_stats.drawcalls = 0;
 
+	if (current_stats.vertices == 0 || current_stats.drawcalls == 0)
+		return; // Ignore clears when there was no meaningful workload since the last one
+
 	if ((clear_flags & D3D11_CLEAR_DEPTH) == 0)
 		return;
 
@@ -195,7 +198,7 @@ void reshade::d3d11::buffer_detection::track_cleared_depthstencil(UINT clear_fla
 	clears.push_back(current_stats);
 
 	// Make a backup copy of the depth texture before it is cleared
-	// TODO: This is not correct, since clears may accumulate over multiple command lists
+	// This is not really correct, since clears may accumulate over multiple command lists, but it's unlikely that the same depth stencil is used in more than one
 	if (clears.size() == _context->_depthstencil_clear_index.second)
 	{
 		_device->CopyResource(_context->_depthstencil_clear_texture.get(), dsv_texture.get());
