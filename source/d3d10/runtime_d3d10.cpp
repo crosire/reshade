@@ -69,6 +69,10 @@ reshade::d3d10::runtime_d3d10::runtime_d3d10(ID3D10Device1 *device, IDXGISwapCha
 		config.get("DX10_BUFFER_DETECTION", "DepthBufferRetrievalMode", _preserve_depth_buffers);
 		config.get("DX10_BUFFER_DETECTION", "DepthBufferClearingNumber", _depth_clear_index_override);
 		config.get("DX10_BUFFER_DETECTION", "UseAspectRatioHeuristics", _filter_aspect_ratio);
+
+		if (_depth_clear_index_override == 0)
+			// Zero is not a valid clear index, since it disables depth buffer preservation
+			_depth_clear_index_override = std::numeric_limits<UINT>::max();
 	});
 	subscribe_to_save_config([this](ini_file &config) {
 		config.set("DX10_BUFFER_DETECTION", "DepthBufferRetrievalMode", _preserve_depth_buffers);
@@ -314,6 +318,7 @@ void reshade::d3d10::runtime_d3d10::on_present(buffer_detection &tracker)
 	_current_tracker = &tracker;
 
 #if RESHADE_DX10_CAPTURE_DEPTH_BUFFERS
+	assert(_depth_clear_index_override != 0);
 	update_depthstencil_texture(_has_high_network_activity ? nullptr :
 		tracker.find_best_depth_texture(_filter_aspect_ratio ? _width : 0, _height, _depth_texture_override, _preserve_depth_buffers ? _depth_clear_index_override : 0));
 #endif
