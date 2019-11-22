@@ -23,7 +23,7 @@ namespace reshade::vulkan
 
 		bool on_init(VkSwapchainKHR swapchain, const VkSwapchainCreateInfoKHR &desc, HWND hwnd);
 		void on_reset();
-		void on_present(VkQueue queue, uint32_t swapchain_image_index, buffer_detection &tracker);
+		void on_present(VkQueue queue, uint32_t swapchain_image_index, buffer_detection_context &tracker);
 
 		bool capture_screenshot(uint8_t *buffer) const override;
 
@@ -63,6 +63,7 @@ namespace reshade::vulkan
 #if RESHADE_VULKAN_CAPTURE_DEPTH_BUFFERS
 		void update_depthstencil_image(VkImage depthstencil, VkImageLayout layout, VkFormat image_format);
 
+		bool _filter_aspect_ratio = true;
 		VkImage _depth_image_override = VK_NULL_HANDLE;
 #endif
 
@@ -110,7 +111,7 @@ namespace reshade::vulkan
 		std::vector<struct vulkan_effect_data> _effect_data;
 		std::unordered_map<size_t, VkSampler> _effect_sampler_states;
 
-		buffer_detection *_current_tracker = nullptr;
+		buffer_detection_context *_current_tracker = nullptr;
 
 #if RESHADE_GUI
 		unsigned int _imgui_index_buffer_size = 0;

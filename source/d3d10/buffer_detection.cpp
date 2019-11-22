@@ -8,6 +8,7 @@
 #include "../dxgi/format_utils.hpp"
 #include <math.h>
 
+#if RESHADE_DX10_CAPTURE_DEPTH_BUFFERS
 static inline com_ptr<ID3D10Texture2D> texture_from_dsv(ID3D10DepthStencilView *dsv)
 {
 	if (dsv == nullptr)
@@ -18,6 +19,7 @@ static inline com_ptr<ID3D10Texture2D> texture_from_dsv(ID3D10DepthStencilView *
 	resource->QueryInterface(&texture);
 	return texture;
 }
+#endif
 
 void reshade::d3d10::buffer_detection::reset(bool release_resources)
 {
@@ -57,16 +59,16 @@ void reshade::d3d10::buffer_detection::on_draw(UINT vertices)
 	_stats.drawcalls += 1;
 
 #if RESHADE_DX10_CAPTURE_DEPTH_BUFFERS
-	_clear_stats.vertices += vertices;
-	_clear_stats.drawcalls += 1;
-
 	com_ptr<ID3D10RenderTargetView> targets[D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT];
 	com_ptr<ID3D10DepthStencilView> depthstencil;
 	_device->OMGetRenderTargets(D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT, reinterpret_cast<ID3D10RenderTargetView **>(targets), &depthstencil);
 
 	const auto dsv_texture = texture_from_dsv(depthstencil.get());
 	if (dsv_texture == nullptr)
-		return; // This is a draw call with no depth stencil
+		return; // This is a draw call with no depth stencil bound
+
+	_clear_stats.vertices += vertices;
+	_clear_stats.drawcalls += 1;
 
 	if (const auto intermediate_snapshot = _counters_per_used_depth_texture.find(dsv_texture);
 		intermediate_snapshot != _counters_per_used_depth_texture.end())
@@ -115,10 +117,6 @@ void reshade::d3d10::buffer_detection::on_draw(UINT vertices)
 }
 
 #if RESHADE_DX10_CAPTURE_DEPTH_BUFFERS
-bool reshade::d3d10::buffer_detection::filter_aspect_ratio = true;
-bool reshade::d3d10::buffer_detection::preserve_depth_buffers = false;
-unsigned int reshade::d3d10::buffer_detection::filter_depth_texture_format = 0;
-
 void reshade::d3d10::buffer_detection::track_render_targets(UINT num_views, ID3D10RenderTargetView *const *views, ID3D10DepthStencilView *dsv)
 {
 	com_ptr<ID3D10Texture2D> dsv_texture = texture_from_dsv(dsv);
@@ -141,7 +139,7 @@ void reshade::d3d10::buffer_detection::track_cleared_depthstencil(UINT clear_fla
 	_clear_stats.vertices = 0;
 	_clear_stats.drawcalls = 0;
 
-	if (!(preserve_depth_buffers && (clear_flags & D3D10_CLEAR_DEPTH)))
+	if ((clear_flags & D3D10_CLEAR_DEPTH) == 0)
 		return;
 
 	com_ptr<ID3D10Texture2D> dsv_texture = texture_from_dsv(dsv);
@@ -183,36 +181,6 @@ bool reshade::d3d10::buffer_detection::update_depthstencil_clear_texture(D3D10_T
 	return true;
 }
 
-bool reshade::d3d10::buffer_detection::check_aspect_ratio(const D3D10_TEXTURE2D_DESC &desc, UINT width, UINT height)
-{
-	if (!filter_aspect_ratio)
-		return true;
-
-	const float aspect_ratio = float(width) / float(height);
-	const float texture_aspect_ratio = float(desc.Width) / float(desc.Height);
-
-	const float width_factor = float(width) / float(desc.Width);
-	const float height_factor = float(height) / float(desc.Height);
-
-	return !(fabs(texture_aspect_ratio - aspect_ratio) > 0.1f || width_factor > 1.85f || height_factor > 1.85f || width_factor < 0.5f || height_factor < 0.5f);
-}
-bool reshade::d3d10::buffer_detection::check_texture_format(const D3D10_TEXTURE2D_DESC &desc)
-{
-	const DXGI_FORMAT depth_texture_formats[] = {
-		DXGI_FORMAT_UNKNOWN,
-		DXGI_FORMAT_R16_TYPELESS,
-		DXGI_FORMAT_R32_TYPELESS,
-		DXGI_FORMAT_R24G8_TYPELESS,
-		DXGI_FORMAT_R32G8X24_TYPELESS
-	};
-
-	if (filter_depth_texture_format == 0 ||
-		filter_depth_texture_format >= ARRAYSIZE(depth_texture_formats))
-		return true; // All formats are allowed
-
-	return make_dxgi_format_typeless(desc.Format) == depth_texture_formats[filter_depth_texture_format];
-}
-
 com_ptr<ID3D10Texture2D> reshade::d3d10::buffer_detection::find_best_depth_texture(UINT width, UINT height, com_ptr<ID3D10Texture2D> override, UINT clear_index_override)
 {
 	depthstencil_info best_snapshot;
@@ -236,10 +204,18 @@ com_ptr<ID3D10Texture2D> reshade::d3d10::buffer_detection::find_best_depth_textu
 
 			if (desc.SampleDesc.Count > 1)
 				continue; // Ignore MSAA textures, since they would need to be resolved first
-			if (!check_aspect_ratio(desc, width, height))
-				continue; // Not a good fit
-			if (!check_texture_format(desc))
-				continue;
+
+			if (width != 0 && height != 0)
+			{
+				const float aspect_ratio = float(width) / float(height);
+				const float texture_aspect_ratio = float(desc.Width) / float(desc.Height);
+
+				const float width_factor = float(width) / float(desc.Width);
+				const float height_factor = float(height) / float(desc.Height);
+
+				if (fabs(texture_aspect_ratio - aspect_ratio) > 0.1f || width_factor > 1.85f || height_factor > 1.85f || width_factor < 0.5f || height_factor < 0.5f)
+					continue; // Not a good fit
+			}
 
 			// Choose snapshot with the most vertices, since that is likely to contain the main scene
 			if (snapshot.stats.vertices >= best_snapshot.stats.vertices)
@@ -250,11 +226,11 @@ com_ptr<ID3D10Texture2D> reshade::d3d10::buffer_detection::find_best_depth_textu
 		}
 	}
 
-	if (preserve_depth_buffers && best_match != nullptr)
+	if (clear_index_override != 0 && best_match != nullptr)
 	{
 		_depthstencil_clear_index = { best_match.get(), std::numeric_limits<UINT>::max() };
 
-		if (clear_index_override != 0 && clear_index_override <= best_snapshot.clears.size())
+		if (clear_index_override <= best_snapshot.clears.size())
 		{
 			_depthstencil_clear_index.second = clear_index_override;
 		}
@@ -281,11 +257,9 @@ com_ptr<ID3D10Texture2D> reshade::d3d10::buffer_detection::find_best_depth_textu
 		{
 			return _depthstencil_clear_texture;
 		}
-		else
-		{
-			_depthstencil_clear_index = { nullptr, std::numeric_limits<UINT>::max() };
-		}
 	}
+
+	_depthstencil_clear_index = { nullptr, std::numeric_limits<UINT>::max() };
 
 	return best_match;
 }

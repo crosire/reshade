@@ -52,7 +52,9 @@ namespace reshade::d3d10
 #if RESHADE_DX10_CAPTURE_DEPTH_BUFFERS
 		void update_depthstencil_texture(com_ptr<ID3D10Texture2D> texture);
 
-		UINT _depth_clear_index_override = 0;
+		bool _filter_aspect_ratio = true;
+		bool _preserve_depth_buffers = false;
+		UINT _depth_clear_index_override = std::numeric_limits<UINT>::max();
 		ID3D10Texture2D *_depth_texture_override = nullptr;
 #endif
 

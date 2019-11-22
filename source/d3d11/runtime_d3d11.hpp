@@ -22,7 +22,7 @@ namespace reshade::d3d11
 
 		bool on_init(const DXGI_SWAP_CHAIN_DESC &desc);
 		void on_reset();
-		void on_present(buffer_detection &tracker);
+		void on_present(buffer_detection_context &tracker);
 
 		bool capture_screenshot(uint8_t *buffer) const override;
 
@@ -52,7 +52,9 @@ namespace reshade::d3d11
 #if RESHADE_DX11_CAPTURE_DEPTH_BUFFERS
 		void update_depthstencil_texture(com_ptr<ID3D11Texture2D> texture);
 
-		UINT _depth_clear_index_override = 0;
+		bool _filter_aspect_ratio = true;
+		bool _preserve_depth_buffers = false;
+		UINT _depth_clear_index_override = std::numeric_limits<UINT>::max();
 		ID3D11Texture2D *_depth_texture_override = nullptr;
 #endif
 
@@ -80,7 +82,7 @@ namespace reshade::d3d11
 
 		HMODULE _d3d_compiler = nullptr;
 
-		buffer_detection *_current_tracker = nullptr;
+		buffer_detection_context *_current_tracker = nullptr;
 
 #if RESHADE_GUI
 		int _imgui_index_buffer_size = 0;

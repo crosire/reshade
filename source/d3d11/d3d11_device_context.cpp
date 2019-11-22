@@ -12,29 +12,28 @@ D3D11DeviceContext::D3D11DeviceContext(D3D11Device *device, ID3D11DeviceContext 
 	_orig(original),
 	_interface_version(0),
 	_device(device),
-	// TODO: This is a nullptr access for the immediate context itself
-	_buffer_detection(original, &device->_immediate_context->_buffer_detection) {
+	_buffer_detection(original) {
 	assert(original != nullptr);
 }
 D3D11DeviceContext::D3D11DeviceContext(D3D11Device *device, ID3D11DeviceContext1 *original) :
 	_orig(original),
 	_interface_version(1),
 	_device(device),
-	_buffer_detection(original, &device->_immediate_context->_buffer_detection) {
+	_buffer_detection(original) {
 	assert(original != nullptr);
 }
 D3D11DeviceContext::D3D11DeviceContext(D3D11Device *device, ID3D11DeviceContext2 *original) :
 	_orig(original),
 	_interface_version(2),
 	_device(device),
-	_buffer_detection(original, &device->_immediate_context->_buffer_detection) {
+	_buffer_detection(original) {
 	assert(original != nullptr);
 }
 D3D11DeviceContext::D3D11DeviceContext(D3D11Device *device, ID3D11DeviceContext3 *original) :
 	_orig(original),
 	_interface_version(3),
 	_device(device),
-	_buffer_detection(original, &device->_immediate_context->_buffer_detection) {
+	_buffer_detection(original) {
 	assert(original != nullptr);
 }
 

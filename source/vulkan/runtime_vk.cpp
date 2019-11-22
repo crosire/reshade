@@ -111,14 +111,14 @@ reshade::vulkan::runtime_vk::runtime_vk(VkDevice device, VkPhysicalDevice physic
 #if RESHADE_GUI
 	subscribe_to_ui("Vulkan", [this]() { draw_debug_menu(); });
 #endif
+#if RESHADE_VULKAN_CAPTURE_DEPTH_BUFFERS
 	subscribe_to_load_config([this](const ini_file &config) {
-		config.get("VULKAN_BUFFER_DETECTION", "DepthBufferTextureFormat", buffer_detection::filter_depth_texture_format);
-		config.get("VULKAN_BUFFER_DETECTION", "UseAspectRatioHeuristics", buffer_detection::filter_aspect_ratio);
+		config.get("VULKAN_BUFFER_DETECTION", "UseAspectRatioHeuristics", _filter_aspect_ratio);
 	});
 	subscribe_to_save_config([this](ini_file &config) {
-		config.set("VULKAN_BUFFER_DETECTION", "DepthBufferTextureFormat", buffer_detection::filter_depth_texture_format);
-		config.set("VULKAN_BUFFER_DETECTION", "UseAspectRatioHeuristics", buffer_detection::filter_aspect_ratio);
+		config.set("VULKAN_BUFFER_DETECTION", "UseAspectRatioHeuristics", _filter_aspect_ratio);
 	});
+#endif
 }
 
 auto reshade::vulkan::runtime_vk::create_image(uint32_t width, uint32_t height, uint32_t levels, VkFormat format, VkImageUsageFlags usage_flags, VkMemoryPropertyFlags mem_flags, VkImageCreateFlags flags) -> VkImage
@@ -556,7 +556,7 @@ void reshade::vulkan::runtime_vk::on_reset()
 	_allocations.clear();
 }
 
-void reshade::vulkan::runtime_vk::on_present(VkQueue queue, uint32_t swapchain_image_index, buffer_detection &tracker)
+void reshade::vulkan::runtime_vk::on_present(VkQueue queue, uint32_t swapchain_image_index, buffer_detection_context &tracker)
 {
 	if (!_is_initialized)
 		return;
@@ -577,7 +577,7 @@ void reshade::vulkan::runtime_vk::on_present(VkQueue queue, uint32_t swapchain_i
 	}
 
 #if RESHADE_VULKAN_CAPTURE_DEPTH_BUFFERS
-	const auto best_snapshot = tracker.find_best_depth_texture(_width, _height, _depth_image_override);
+	const auto best_snapshot = tracker.find_best_depth_texture(_filter_aspect_ratio ? _width : 0, _height, _depth_image_override);
 	update_depthstencil_image(_has_high_network_activity ? VK_NULL_HANDLE : best_snapshot.image, best_snapshot.image_layout, best_snapshot.image_info.format);
 #endif
 
@@ -1885,8 +1885,7 @@ void reshade::vulkan::runtime_vk::draw_debug_menu()
 	if (ImGui::CollapsingHeader("Depth Buffers", ImGuiTreeNodeFlags_DefaultOpen))
 	{
 		bool modified = false;
-		modified |= ImGui::Combo("Depth texture format", (int*)&buffer_detection::filter_depth_texture_format, "All\0D16\0D16S8\0D24S8\0D32F\0D32FS8\0");
-		modified |= ImGui::Checkbox("Use aspect ratio heuristics", &buffer_detection::filter_aspect_ratio);
+		modified |= ImGui::Checkbox("Use aspect ratio heuristics", &_filter_aspect_ratio);
 
 		if (modified) // Detection settings have changed, reset override
 			_depth_image_override = VK_NULL_HANDLE;
@@ -1900,8 +1899,8 @@ void reshade::vulkan::runtime_vk::draw_debug_menu()
 			char label[512] = "";
 			sprintf_s(label, "%s0x%016llx", (depth_image == _depth_image ? "> " : "  "), (uint64_t)depth_image);
 
-			const bool disabled = snapshot.image_info.samples != VK_SAMPLE_COUNT_1_BIT || !buffer_detection::check_texture_format(snapshot.image_info);
-			if (disabled) // Disable widget for MSAA textures
+			const bool msaa = snapshot.image_info.samples != VK_SAMPLE_COUNT_1_BIT;
+			if (msaa) // Disable widget for MSAA textures
 			{
 				ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
 				ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyle().Colors[ImGuiCol_TextDisabled]);
@@ -1913,9 +1912,9 @@ void reshade::vulkan::runtime_vk::draw_debug_menu()
 
 			ImGui::SameLine();
 			ImGui::Text("| %4ux%-4u | %5u draw calls ==> %8u vertices |%s",
-				snapshot.image_info.extent.width, snapshot.image_info.extent.height, snapshot.stats.drawcalls, snapshot.stats.vertices, (snapshot.image_info.samples != VK_SAMPLE_COUNT_1_BIT ? " MSAA" : ""));
+				snapshot.image_info.extent.width, snapshot.image_info.extent.height, snapshot.stats.drawcalls, snapshot.stats.vertices, (msaa ? " MSAA" : ""));
 
-			if (disabled)
+			if (msaa)
 			{
 				ImGui::PopStyleColor();
 				ImGui::PopItemFlag();

@@ -16,7 +16,7 @@ struct device_data
 {
 	VkPhysicalDevice physical_device;
 	std::vector<std::shared_ptr<reshade::vulkan::runtime_vk>> runtimes;
-	reshade::vulkan::buffer_detection buffer_detection;
+	reshade::vulkan::buffer_detection_context buffer_detection;
 };
 
 struct render_pass_data
@@ -328,8 +328,6 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	auto &device_data = s_device_data.emplace(dispatch_key_from_handle(device));
 	device_data.physical_device = physicalDevice;
 
-	device_data.buffer_detection.init(device, physicalDevice, s_instance_dispatch.at(dispatch_key_from_handle(physicalDevice)), dispatch_table, &device_data.buffer_detection);
-
 #if RESHADE_VERBOSE_LOG
 	LOG(INFO) << "> Returning Vulkan device " << device << '.';
 #endif
@@ -627,10 +625,7 @@ VkResult VKAPI_CALL vkAllocateCommandBuffers(VkDevice device, const VkCommandBuf
 	}
 
 	for (uint32_t i = 0; i < pAllocateInfo->commandBufferCount; ++i)
-	{
-		auto &data = s_command_buffer_data.emplace(pCommandBuffers[i]);
-		data.buffer_detection.init(device, VK_NULL_HANDLE, {}, s_device_dispatch.at(dispatch_key_from_handle(device)), &s_device_data.at(dispatch_key_from_handle(device)).buffer_detection);
-	}
+		s_command_buffer_data.emplace(pCommandBuffers[i]);
 
 	return VK_SUCCESS;
 }

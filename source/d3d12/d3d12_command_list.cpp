@@ -10,8 +10,7 @@
 D3D12GraphicsCommandList::D3D12GraphicsCommandList(D3D12Device *device, ID3D12GraphicsCommandList *original) :
 	_orig(original),
 	_interface_version(0),
-	_device(device),
-	_buffer_detection(nullptr, &_device->_buffer_detection) {
+	_device(device) {
 	assert(original != nullptr);
 }
 
@@ -125,7 +124,7 @@ HRESULT STDMETHODCALLTYPE D3D12GraphicsCommandList::Close()
 }
 HRESULT STDMETHODCALLTYPE D3D12GraphicsCommandList::Reset(ID3D12CommandAllocator *pAllocator, ID3D12PipelineState *pInitialState)
 {
-	_buffer_detection.reset(false);
+	_buffer_detection.reset();
 
 	return _orig->Reset(pAllocator, pInitialState);
 }

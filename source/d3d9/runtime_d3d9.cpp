@@ -64,18 +64,20 @@ reshade::d3d9::runtime_d3d9::runtime_d3d9(IDirect3DDevice9 *device, IDirect3DSwa
 #if RESHADE_GUI
 	subscribe_to_ui("DX9", [this]() { draw_debug_menu(); });
 #endif
+#if RESHADE_DX9_CAPTURE_DEPTH_BUFFERS
 	subscribe_to_load_config([this](const ini_file &config) {
-		config.get("DX9_BUFFER_DETECTION", "DisableINTZ", buffer_detection::disable_intz);
-		config.get("DX9_BUFFER_DETECTION", "PreserveDepthBuffer", buffer_detection::preserve_depth_buffers);
+		config.get("DX9_BUFFER_DETECTION", "DisableINTZ", _disable_intz);
+		config.get("DX9_BUFFER_DETECTION", "PreserveDepthBuffer", _preserve_depth_buffers);
 		config.get("DX9_BUFFER_DETECTION", "PreserveDepthBufferIndex", _depth_clear_index_override);
-		config.get("DX9_BUFFER_DETECTION", "UseAspectRatioHeuristics", buffer_detection::filter_aspect_ratio);
+		config.get("DX9_BUFFER_DETECTION", "UseAspectRatioHeuristics", _filter_aspect_ratio);
 	});
 	subscribe_to_save_config([this](ini_file &config) {
-		config.set("DX9_BUFFER_DETECTION", "DisableINTZ", buffer_detection::disable_intz);
-		config.set("DX9_BUFFER_DETECTION", "PreserveDepthBuffer", buffer_detection::preserve_depth_buffers);
+		config.set("DX9_BUFFER_DETECTION", "DisableINTZ", _disable_intz);
+		config.set("DX9_BUFFER_DETECTION", "PreserveDepthBuffer", _preserve_depth_buffers);
 		config.set("DX9_BUFFER_DETECTION", "PreserveDepthBufferIndex", _depth_clear_index_override);
-		config.set("DX9_BUFFER_DETECTION", "UseAspectRatioHeuristics", buffer_detection::filter_aspect_ratio);
+		config.set("DX9_BUFFER_DETECTION", "UseAspectRatioHeuristics", _filter_aspect_ratio);
 	});
+#endif
 }
 reshade::d3d9::runtime_d3d9::~runtime_d3d9()
 {
@@ -227,8 +229,10 @@ void reshade::d3d9::runtime_d3d9::on_present(buffer_detection &tracker)
 	_current_tracker = &tracker;
 
 #if RESHADE_DX9_CAPTURE_DEPTH_BUFFERS
+	tracker.disable_intz = _disable_intz;
+
 	update_depthstencil_texture(_has_high_network_activity ? nullptr :
-		tracker.find_best_depth_surface(_width, _height, _depthstencil_override, _depth_clear_index_override));
+		tracker.find_best_depth_surface(_filter_aspect_ratio ? _width : 0, _height, _depthstencil_override, _preserve_depth_buffers ? _depth_clear_index_override : 0));
 #endif
 
 	_app_state.capture();
@@ -1097,15 +1101,15 @@ void reshade::d3d9::runtime_d3d9::draw_debug_menu()
 	if (ImGui::CollapsingHeader("Depth Buffers", ImGuiTreeNodeFlags_DefaultOpen))
 	{
 		bool modified = false;
-		modified |= ImGui::Checkbox("Disable replacement with INTZ format", &buffer_detection::disable_intz);
+		modified |= ImGui::Checkbox("Disable replacement with INTZ format", &_disable_intz);
 
-		modified |= ImGui::Checkbox("Use aspect ratio heuristics", &buffer_detection::filter_aspect_ratio);
-		modified |= ImGui::Checkbox("Copy depth buffers before clear operation", &buffer_detection::preserve_depth_buffers);
+		modified |= ImGui::Checkbox("Use aspect ratio heuristics", &_filter_aspect_ratio);
+		modified |= ImGui::Checkbox("Copy depth buffers before clear operation", &_preserve_depth_buffers);
 
 		if (modified) // Detection settings have changed, reset override
 		{
 			_depthstencil_override = nullptr;
-			_current_tracker->update_depthstencil_replacement(nullptr);
+			_current_tracker->reset(true);
 		}
 
 		ImGui::Spacing();
@@ -1137,7 +1141,7 @@ void reshade::d3d9::runtime_d3d9::draw_debug_menu()
 			ImGui::Text("| %4ux%-4u | %5u draw calls ==> %8u vertices |%s",
 				desc.Width, desc.Height, snapshot.stats.drawcalls, snapshot.stats.vertices, (msaa ? " MSAA" : ""));
 
-			if (buffer_detection::preserve_depth_buffers && ds_surface == _current_tracker->current_depth_surface())
+			if (_preserve_depth_buffers && ds_surface == _current_tracker->current_depth_surface())
 			{
 				for (UINT clear_index = 1; clear_index <= snapshot.clears.size(); ++clear_index)
 				{
@@ -1146,7 +1150,7 @@ void reshade::d3d9::runtime_d3d9::draw_debug_menu()
 					if (bool value = (_depth_clear_index_override == clear_index);
 						ImGui::Checkbox(label, &value))
 					{
-						_depth_clear_index_override = value ? clear_index : 0;
+						_depth_clear_index_override = value ? clear_index : std::numeric_limits<UINT>::max();
 						modified = true;
 					}
 

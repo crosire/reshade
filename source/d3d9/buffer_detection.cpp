@@ -25,7 +25,7 @@ void reshade::d3d9::buffer_detection::reset(bool release_resources)
 		_depthstencil_original.reset();
 		_depthstencil_replacement.reset();
 	}
-	else if (preserve_depth_buffers && _depthstencil_replacement != nullptr)
+	else if (_preserve_depth_buffers && _depthstencil_replacement != nullptr)
 	{
 		com_ptr<IDirect3DSurface9> depthstencil;
 		_device->GetDepthStencilSurface(&depthstencil);
@@ -73,7 +73,7 @@ void reshade::d3d9::buffer_detection::on_draw(D3DPRIMITIVETYPE type, UINT vertic
 		counters.stats.drawcalls += 1;
 	}
 
-	if (preserve_depth_buffers && _depthstencil_replacement != nullptr)
+	if (_preserve_depth_buffers && _depthstencil_replacement != nullptr)
 	{
 		D3DVIEWPORT9 viewport;
 		_device->GetViewport(&viewport);
@@ -94,10 +94,6 @@ void reshade::d3d9::buffer_detection::on_draw(D3DPRIMITIVETYPE type, UINT vertic
 }
 
 #if RESHADE_DX9_CAPTURE_DEPTH_BUFFERS
-bool reshade::d3d9::buffer_detection::disable_intz = false;
-bool reshade::d3d9::buffer_detection::filter_aspect_ratio = true;
-bool reshade::d3d9::buffer_detection::preserve_depth_buffers = false;
-
 void reshade::d3d9::buffer_detection::on_set_depthstencil(IDirect3DSurface9 *&depthstencil)
 {
 	if (_depthstencil_replacement != nullptr && depthstencil == _depthstencil_original &&
@@ -128,10 +124,10 @@ void reshade::d3d9::buffer_detection::on_clear_depthstencil(UINT clear_flags)
 	_clear_stats.vertices = 0;
 	_clear_stats.drawcalls = 0;
 
-	if (current_stats.vertices <= 4 || current_stats.drawcalls <= 20)
+	if (current_stats.vertices <= 4 || current_stats.drawcalls <= 20) // Also triggers when '_preserve_depth_buffers' is false, since no clear stats are recorded then
 		return; // Ignore clears when there was no meaningful workload since the last one
 
-	if (!(preserve_depth_buffers && (clear_flags & D3DCLEAR_ZBUFFER)))
+	if ((clear_flags & D3DCLEAR_ZBUFFER) == 0)
 		return; // Ignore clears that do not affect the depth buffer (e.g. color or stencil clears)
 
 	com_ptr<IDirect3DSurface9> depthstencil;
@@ -233,9 +229,6 @@ bool reshade::d3d9::buffer_detection::update_depthstencil_replacement(com_ptr<ID
 
 bool reshade::d3d9::buffer_detection::check_aspect_ratio(const D3DSURFACE_DESC &desc, UINT width, UINT height)
 {
-	if (!filter_aspect_ratio)
-		return true; // Allow depth buffers with greater dimensions than the viewport (e.g. in games like Vanquish)
-
 	return (desc.Width >= floor(width * 0.95f) && desc.Width <= ceil(width * 1.05f))
 		&& (desc.Height >= floor(height * 0.95f) && desc.Height <= ceil(height * 1.05f));
 }
@@ -271,7 +264,7 @@ com_ptr<IDirect3DSurface9> reshade::d3d9::buffer_detection::find_best_depth_surf
 
 			if (desc.MultiSampleType != D3DMULTISAMPLE_NONE)
 				continue; // MSAA depth buffers are not supported since they would have to be moved into a plain surface before attaching to a shader slot
-			if (!check_aspect_ratio(desc, width, height))
+			if (width != 0 && height != 0 && !check_aspect_ratio(desc, width, height))
 				continue; // Not a good fit
 
 #if 1
@@ -293,14 +286,17 @@ com_ptr<IDirect3DSurface9> reshade::d3d9::buffer_detection::find_best_depth_surf
 		}
 	}
 
-	if (preserve_depth_buffers && best_match != nullptr)
+	_preserve_depth_buffers = false;
+
+	if (clear_index_override != 0 && best_match != nullptr)
 	{
 		// Always need to replace if preserving on clears
 		no_replacement = false;
 
+		_preserve_depth_buffers = true;
 		_depthstencil_clear_index = std::numeric_limits<UINT>::max();
 
-		if (clear_index_override != 0 && clear_index_override <= best_snapshot.clears.size())
+		if (clear_index_override <= best_snapshot.clears.size())
 		{
 			_depthstencil_clear_index = clear_index_override;
 		}

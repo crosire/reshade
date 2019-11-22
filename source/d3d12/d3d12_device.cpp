@@ -11,7 +11,7 @@
 D3D12Device::D3D12Device(ID3D12Device *original) :
 	_orig(original),
 	_interface_version(0),
-	_buffer_detection(original, &_buffer_detection) {
+	_buffer_detection(original) {
 	assert(original != nullptr);
 }
 
@@ -169,6 +169,8 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommandList(UINT nodeMask, D3D12_CO
 	// Upgrade to the actual interface version requested here (and only hook graphics command lists)
 	if (command_list_proxy->check_and_upgrade_interface(riid))
 	{
+		command_list_proxy->_buffer_detection.init(_orig, &_buffer_detection);
+
 		*ppCommandList = command_list_proxy;
 	}
 	else // Do not hook object if we do not support the requested interface or this is a compute command list
@@ -213,9 +215,10 @@ void    STDMETHODCALLTYPE D3D12Device::CreateRenderTargetView(ID3D12Resource *pR
 void    STDMETHODCALLTYPE D3D12Device::CreateDepthStencilView(ID3D12Resource *pResource, const D3D12_DEPTH_STENCIL_VIEW_DESC *pDesc, D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptor)
 {
 	_orig->CreateDepthStencilView(pResource, pDesc, DestDescriptor);
-
+#if RESHADE_DX12_CAPTURE_DEPTH_BUFFERS
 	if (pResource != nullptr)
 		_buffer_detection.on_create_dsv(pResource, DestDescriptor);
+#endif
 }
 void    STDMETHODCALLTYPE D3D12Device::CreateSampler(const D3D12_SAMPLER_DESC *pDesc, D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptor)
 {
@@ -376,6 +379,8 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommandList1(UINT NodeMask, D3D12_C
 	// Upgrade to the actual interface version requested here (and only hook graphics command lists)
 	if (command_list_proxy->check_and_upgrade_interface(riid))
 	{
+		command_list_proxy->_buffer_detection.init(_orig, &_buffer_detection);
+
 		*ppCommandList = command_list_proxy;
 	}
 	else // Do not hook object if we do not support the requested interface or this is a compute command list

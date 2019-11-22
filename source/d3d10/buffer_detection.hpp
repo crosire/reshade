@@ -17,25 +17,10 @@ namespace reshade::d3d10
 	class buffer_detection
 	{
 	public:
-#if RESHADE_DX10_CAPTURE_DEPTH_BUFFERS
-		static bool filter_aspect_ratio;
-		static bool preserve_depth_buffers;
-		static unsigned int filter_depth_texture_format;
-#endif
-
 		explicit buffer_detection(ID3D10Device *device) : _device(device) {}
 
 		UINT total_vertices() const { return _stats.vertices; }
 		UINT total_drawcalls() const { return _stats.drawcalls; }
-
-#if RESHADE_DX10_CAPTURE_DEPTH_BUFFERS
-		UINT current_clear_index() const { return _depthstencil_clear_index.second; }
-		ID3D10Texture2D *current_depth_texture() const { return _depthstencil_clear_index.first; }
-		const auto &depth_buffer_counters() const { return _counters_per_used_depth_texture; }
-#endif
-#if RESHADE_DX10_CAPTURE_CONSTANT_BUFFERS
-		const auto &constant_buffer_counters() const { return _counters_per_constant_buffer; }
-#endif
 
 		void reset(bool release_resources);
 
@@ -43,16 +28,19 @@ namespace reshade::d3d10
 		void on_draw(UINT vertices);
 
 #if RESHADE_DX10_CAPTURE_DEPTH_BUFFERS
+		UINT current_clear_index() const { return _depthstencil_clear_index.second; }
+		ID3D10Texture2D *current_depth_texture() const { return _depthstencil_clear_index.first; }
+		const auto &depth_buffer_counters() const { return _counters_per_used_depth_texture; }
+
 		void track_render_targets(UINT num_views, ID3D10RenderTargetView *const *views, ID3D10DepthStencilView *dsv);
 		void track_cleared_depthstencil(UINT clear_flags, ID3D10DepthStencilView *dsv);
 
-		bool update_depthstencil_clear_texture(D3D10_TEXTURE2D_DESC desc);
-
-		static bool check_aspect_ratio(const D3D10_TEXTURE2D_DESC &desc, UINT width, UINT height);
-		static bool check_texture_format(const D3D10_TEXTURE2D_DESC &desc);
-
 		com_ptr<ID3D10Texture2D> find_best_depth_texture(UINT width, UINT height,
 			com_ptr<ID3D10Texture2D> override = nullptr, UINT clear_index_override = 0);
+#endif
+
+#if RESHADE_DX10_CAPTURE_CONSTANT_BUFFERS
+		const auto &constant_buffer_counters() const { return _counters_per_constant_buffer; }
 #endif
 
 	private:
@@ -70,6 +58,10 @@ namespace reshade::d3d10
 			std::vector<draw_stats> clears;
 			std::map<ID3D10RenderTargetView *, draw_stats> additional_views;
 		};
+
+#if RESHADE_DX10_CAPTURE_DEPTH_BUFFERS
+		bool update_depthstencil_clear_texture(D3D10_TEXTURE2D_DESC desc);
+#endif
 
 		ID3D10Device *const _device;
 		draw_stats _stats;

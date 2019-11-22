@@ -97,18 +97,18 @@ reshade::d3d12::runtime_d3d12::runtime_d3d12(ID3D12Device *device, ID3D12Command
 #if RESHADE_GUI
 	subscribe_to_ui("DX12", [this]() { draw_debug_menu(); });
 #endif
+#if RESHADE_DX12_CAPTURE_DEPTH_BUFFERS
 	subscribe_to_load_config([this](const ini_file &config) {
-		config.get("DX12_BUFFER_DETECTION", "DepthBufferRetrievalMode", buffer_detection::preserve_depth_buffers);
-		config.get("DX12_BUFFER_DETECTION", "DepthBufferTextureFormat", buffer_detection::filter_depth_texture_format);
+		config.get("DX12_BUFFER_DETECTION", "DepthBufferRetrievalMode", _preserve_depth_buffers);
 		config.get("DX12_BUFFER_DETECTION", "DepthBufferClearingNumber", _depth_clear_index_override);
-		config.get("DX12_BUFFER_DETECTION", "UseAspectRatioHeuristics", buffer_detection::filter_aspect_ratio);
+		config.get("DX12_BUFFER_DETECTION", "UseAspectRatioHeuristics", _filter_aspect_ratio);
 	});
 	subscribe_to_save_config([this](ini_file &config) {
-		config.set("DX12_BUFFER_DETECTION", "DepthBufferRetrievalMode", buffer_detection::preserve_depth_buffers);
-		config.set("DX12_BUFFER_DETECTION", "DepthBufferTextureFormat", buffer_detection::filter_depth_texture_format);
+		config.set("DX12_BUFFER_DETECTION", "DepthBufferRetrievalMode", _preserve_depth_buffers);
 		config.set("DX12_BUFFER_DETECTION", "DepthBufferClearingNumber", _depth_clear_index_override);
-		config.set("DX12_BUFFER_DETECTION", "UseAspectRatioHeuristics", buffer_detection::filter_aspect_ratio);
+		config.set("DX12_BUFFER_DETECTION", "UseAspectRatioHeuristics", _filter_aspect_ratio);
 	});
+#endif
 }
 reshade::d3d12::runtime_d3d12::~runtime_d3d12()
 {
@@ -355,7 +355,7 @@ void reshade::d3d12::runtime_d3d12::on_reset()
 #endif
 }
 
-void reshade::d3d12::runtime_d3d12::on_present(buffer_detection &tracker)
+void reshade::d3d12::runtime_d3d12::on_present(buffer_detection_context &tracker)
 {
 	if (!_is_initialized)
 		return;
@@ -380,7 +380,7 @@ void reshade::d3d12::runtime_d3d12::on_present(buffer_detection &tracker)
 
 #if RESHADE_DX12_CAPTURE_DEPTH_BUFFERS
 	update_depthstencil_texture(_has_high_network_activity ? nullptr :
-		tracker.find_best_depth_texture(_width, _height, _depth_texture_override, _depth_clear_index_override));
+		tracker.find_best_depth_texture(_filter_aspect_ratio ? _width : 0, _height, _depth_texture_override, _preserve_depth_buffers ? _depth_clear_index_override : 0));
 #endif
 
 	update_and_render_effects();
@@ -1500,12 +1500,14 @@ void reshade::d3d12::runtime_d3d12::draw_debug_menu()
 	if (ImGui::CollapsingHeader("Depth Buffers", ImGuiTreeNodeFlags_DefaultOpen))
 	{
 		bool modified = false;
-		modified |= ImGui::Combo("Depth texture format", (int*)&buffer_detection::filter_depth_texture_format, "All\0D16\0D32F\0D24S8\0D32FS8\0");
-		modified |= ImGui::Checkbox("Use aspect ratio heuristics", &buffer_detection::filter_aspect_ratio);
-		modified |= ImGui::Checkbox("Copy depth buffers before clear operation", &buffer_detection::preserve_depth_buffers);
+		modified |= ImGui::Checkbox("Use aspect ratio heuristics", &_filter_aspect_ratio);
+		modified |= ImGui::Checkbox("Copy depth buffers before clear operation", &_preserve_depth_buffers);
 
 		if (modified) // Detection settings have changed, reset override
+		{
 			_depth_texture_override = nullptr;
+			_current_tracker->reset(true);
+		}
 
 		ImGui::Spacing();
 		ImGui::Separator();
@@ -1518,8 +1520,8 @@ void reshade::d3d12::runtime_d3d12::draw_debug_menu()
 
 			const D3D12_RESOURCE_DESC desc = dsv_texture->GetDesc();
 
-			const bool disabled = desc.SampleDesc.Count > 1 || !buffer_detection::check_texture_format(desc);
-			if (disabled) // Disable widget for MSAA textures
+			const bool msaa = desc.SampleDesc.Count > 1;
+			if (msaa) // Disable widget for MSAA textures
 			{
 				ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
 				ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyle().Colors[ImGuiCol_TextDisabled]);
@@ -1531,9 +1533,9 @@ void reshade::d3d12::runtime_d3d12::draw_debug_menu()
 
 			ImGui::SameLine();
 			ImGui::Text("| %4ux%-4u | %5u draw calls ==> %8u vertices |%s",
-				desc.Width, desc.Height, snapshot.stats.drawcalls, snapshot.stats.vertices, (desc.SampleDesc.Count > 1 ? " MSAA" : ""));
+				desc.Width, desc.Height, snapshot.stats.drawcalls, snapshot.stats.vertices, (msaa ? " MSAA" : ""));
 
-			if (buffer_detection::preserve_depth_buffers && dsv_texture == _current_tracker->current_depth_texture())
+			if (_preserve_depth_buffers && dsv_texture == _current_tracker->current_depth_texture())
 			{
 				for (UINT clear_index = 1; clear_index <= snapshot.clears.size(); ++clear_index)
 				{
@@ -1542,7 +1544,7 @@ void reshade::d3d12::runtime_d3d12::draw_debug_menu()
 					if (bool value = _depth_clear_index_override == clear_index;
 						ImGui::Checkbox(label, &value))
 					{
-						_depth_clear_index_override = value ? clear_index : 0;
+						_depth_clear_index_override = value ? clear_index : std::numeric_limits<UINT>::max();
 						modified = true;
 					}
 
@@ -1552,7 +1554,7 @@ void reshade::d3d12::runtime_d3d12::draw_debug_menu()
 				}
 			}
 
-			if (disabled)
+			if (msaa)
 			{
 				ImGui::PopStyleColor();
 				ImGui::PopItemFlag();

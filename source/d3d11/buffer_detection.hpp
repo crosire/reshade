@@ -17,28 +17,8 @@ namespace reshade::d3d11
 	class buffer_detection
 	{
 	public:
-#if RESHADE_DX11_CAPTURE_DEPTH_BUFFERS
-		static bool filter_aspect_ratio;
-		static bool preserve_depth_buffers;
-		static unsigned int filter_depth_texture_format;
-#endif
-
-		buffer_detection(ID3D11DeviceContext *context, buffer_detection *tracker) :
-			_context(context), _device_tracker(tracker) {}
-
-		UINT total_vertices() const { return _stats.vertices; }
-		UINT total_drawcalls() const { return _stats.drawcalls; }
-
-#if RESHADE_DX11_CAPTURE_DEPTH_BUFFERS
-		UINT current_clear_index() const { return _depthstencil_clear_index.second; }
-		ID3D11Texture2D *current_depth_texture() const { return _depthstencil_clear_index.first; }
-		const auto &depth_buffer_counters() const { return _counters_per_used_depth_texture; }
-#endif
-#if RESHADE_DX11_CAPTURE_CONSTANT_BUFFERS
-		const auto &constant_buffer_counters() const { return _counters_per_constant_buffer; }
-#endif
-
-		void reset(bool release_resources);
+		void init(ID3D11DeviceContext *device, const class buffer_detection_context *context = nullptr);
+		void reset();
 
 		void merge(const buffer_detection &source);
 
@@ -48,17 +28,9 @@ namespace reshade::d3d11
 #if RESHADE_DX11_CAPTURE_DEPTH_BUFFERS
 		void track_render_targets(UINT num_views, ID3D11RenderTargetView *const *views, ID3D11DepthStencilView *dsv);
 		void track_cleared_depthstencil(UINT clear_flags, ID3D11DepthStencilView *dsv);
-
-		bool update_depthstencil_clear_texture(D3D11_TEXTURE2D_DESC desc);
-
-		static bool check_aspect_ratio(const D3D11_TEXTURE2D_DESC &desc, UINT width, UINT height);
-		static bool check_texture_format(const D3D11_TEXTURE2D_DESC &desc);
-
-		com_ptr<ID3D11Texture2D> find_best_depth_texture(UINT width, UINT height,
-			com_ptr<ID3D11Texture2D> override = nullptr, UINT clear_index_override = 0);
 #endif
 
-	private:
+	protected:
 		struct draw_stats
 		{
 			UINT vertices = 0;
@@ -74,18 +46,50 @@ namespace reshade::d3d11
 			std::map<ID3D11RenderTargetView *, draw_stats> additional_views;
 		};
 
-		buffer_detection *const _device_tracker;
-		ID3D11DeviceContext *const _context;
+		ID3D11DeviceContext *_device = nullptr;
+		const buffer_detection_context *_context = nullptr;
 		draw_stats _stats;
 #if RESHADE_DX11_CAPTURE_DEPTH_BUFFERS
 		draw_stats _clear_stats;
-		com_ptr<ID3D11Texture2D> _depthstencil_clear_texture;
-		std::pair<ID3D11Texture2D *, UINT> _depthstencil_clear_index = { nullptr, std::numeric_limits<UINT>::max() };
 		// Use "std::map" instead of "std::unordered_map" so that the iteration order is guaranteed
 		std::map<com_ptr<ID3D11Texture2D>, depthstencil_info> _counters_per_used_depth_texture;
 #endif
 #if RESHADE_DX11_CAPTURE_CONSTANT_BUFFERS
 		std::map<com_ptr<ID3D11Buffer>, draw_stats> _counters_per_constant_buffer;
+#endif
+	};
+
+	class buffer_detection_context : public buffer_detection
+	{
+		friend class buffer_detection;
+
+	public:
+		explicit buffer_detection_context(ID3D11DeviceContext *context) { init(context); }
+
+		UINT total_vertices() const { return _stats.vertices; }
+		UINT total_drawcalls() const { return _stats.drawcalls; }
+
+		void reset(bool release_resources);
+
+#if RESHADE_DX11_CAPTURE_DEPTH_BUFFERS
+		UINT current_clear_index() const { return _depthstencil_clear_index.second; }
+		const auto &depth_buffer_counters() const { return _counters_per_used_depth_texture; }
+		ID3D11Texture2D *current_depth_texture() const { return _depthstencil_clear_index.first; }
+
+		com_ptr<ID3D11Texture2D> find_best_depth_texture(UINT width, UINT height,
+			com_ptr<ID3D11Texture2D> override = nullptr, UINT clear_index_override = 0);
+#endif
+
+#if RESHADE_DX11_CAPTURE_CONSTANT_BUFFERS
+		const auto &constant_buffer_counters() const { return _counters_per_constant_buffer; }
+#endif
+
+	private:
+#if RESHADE_DX11_CAPTURE_DEPTH_BUFFERS
+		bool update_depthstencil_clear_texture(D3D11_TEXTURE2D_DESC desc);
+
+		com_ptr<ID3D11Texture2D> _depthstencil_clear_texture;
+		std::pair<ID3D11Texture2D *, UINT> _depthstencil_clear_index = { nullptr, std::numeric_limits<UINT>::max() };
 #endif
 	};
 }
