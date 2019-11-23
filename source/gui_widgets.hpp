@@ -22,6 +22,8 @@ bool imgui_radio_list(const char *label, const std::string_view ui_items, int &v
 
 bool imgui_popup_button(const char *label, float width = 0.0f, ImGuiWindowFlags flags = 0);
 
+bool imgui_toggle_button(const char *label, bool &toggle);
+
 bool imgui_list_with_buttons(const char *label, const std::string_view ui_items, int &v);
 
 bool imgui_combo_with_buttons(const char *label, const std::string_view ui_items, int &v);
