@@ -431,9 +431,19 @@ bool reshade::d3d10::runtime_d3d10::capture_screenshot(uint8_t *buffer) const
 bool reshade::d3d10::runtime_d3d10::init_texture(texture &info)
 {
 	info.impl = std::make_unique<d3d10_tex_data>();
+	const auto texture_data = info.impl->as<d3d10_tex_data>();
 
-	if (info.impl_reference != texture_reference::none)
-		return update_texture_reference(info);
+	switch (info.impl_reference)
+	{
+	case texture_reference::back_buffer:
+		texture_data->srv[0] = _backbuffer_texture_srv[0];
+		texture_data->srv[1] = _backbuffer_texture_srv[1];
+		return true;
+	case texture_reference::depth_buffer:
+		texture_data->srv[0] = _depth_texture_srv;
+		texture_data->srv[1] = _depth_texture_srv;
+		return true;
+	}
 
 	D3D10_TEXTURE2D_DESC desc = {};
 	desc.Width = info.width;
@@ -484,8 +494,6 @@ bool reshade::d3d10::runtime_d3d10::init_texture(texture &info)
 		desc.Format = DXGI_FORMAT_R10G10B10A2_UNORM;
 		break;
 	}
-
-	const auto texture_data = info.impl->as<d3d10_tex_data>();
 
 	if (HRESULT hr = _device->CreateTexture2D(&desc, nullptr, &texture_data->texture); FAILED(hr))
 	{
@@ -568,52 +576,6 @@ void reshade::d3d10::runtime_d3d10::upload_texture(texture &texture, const uint8
 
 	if (texture.levels > 1)
 		_device->GenerateMips(texture_impl->srv[0].get());
-}
-bool reshade::d3d10::runtime_d3d10::update_texture_reference(texture &texture)
-{
-	com_ptr<ID3D10ShaderResourceView> new_reference[2];
-
-	switch (texture.impl_reference)
-	{
-	case texture_reference::back_buffer:
-		new_reference[0] = _backbuffer_texture_srv[0];
-		new_reference[1] = _backbuffer_texture_srv[1];
-		break;
-	case texture_reference::depth_buffer:
-		new_reference[0] = _depth_texture_srv;
-		new_reference[1] = _depth_texture_srv;
-		break;
-	default:
-		return false;
-	}
-
-	const auto texture_impl = texture.impl->as<d3d10_tex_data>();
-	assert(texture_impl != nullptr);
-
-	if (new_reference[0] == texture_impl->srv[0] &&
-		new_reference[1] == texture_impl->srv[1])
-		return true;
-
-	// Update references in technique list
-	for (const auto &technique : _techniques)
-		for (const auto &pass : technique.passes_data)
-			for (auto &srv : pass->as<d3d10_pass_data>()->shader_resources)
-				if (srv == texture_impl->srv[0]) srv = new_reference[0];
-				else if (srv == texture_impl->srv[1]) srv = new_reference[1];
-
-	texture.width = frame_width();
-	texture.height = frame_height();
-
-	texture_impl->srv[0] = new_reference[0];
-	texture_impl->srv[1] = new_reference[1];
-
-	return true;
-}
-void reshade::d3d10::runtime_d3d10::update_texture_references(texture_reference type)
-{
-	for (auto &tex : _textures)
-		if (tex.impl != nullptr && tex.impl_reference == type)
-			update_texture_reference(tex);
 }
 
 bool reshade::d3d10::runtime_d3d10::compile_effect(effect_data &effect)
@@ -1471,6 +1433,24 @@ void reshade::d3d10::runtime_d3d10::update_depthstencil_texture(com_ptr<ID3D10Te
 		}
 	}
 
-	update_texture_references(texture_reference::depth_buffer);
+	// Update all references to the new texture
+	for (auto &tex : _textures)
+	{
+		if (tex.impl != nullptr && tex.impl_reference == texture_reference::depth_buffer)
+		{
+			const auto texture_impl = tex.impl->as<d3d10_tex_data>();
+			assert(texture_impl != nullptr);
+
+			// Update references in technique list
+			for (const auto &technique : _techniques)
+				for (const auto &pass : technique.passes_data)
+					for (auto &srv : pass->as<d3d10_pass_data>()->shader_resources)
+						if (srv == texture_impl->srv[0] || srv == texture_impl->srv[1])
+							srv = _depth_texture_srv;
+
+			texture_impl->srv[0] = _depth_texture_srv;
+			texture_impl->srv[1] = _depth_texture_srv;
+		}
+	}
 }
 #endif

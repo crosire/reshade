@@ -318,11 +318,19 @@ bool reshade::d3d9::runtime_d3d9::capture_screenshot(uint8_t *buffer) const
 bool reshade::d3d9::runtime_d3d9::init_texture(texture &texture)
 {
 	texture.impl = std::make_unique<d3d9_tex_data>();
-
 	const auto texture_data = texture.impl->as<d3d9_tex_data>();
 
-	if (texture.impl_reference != texture_reference::none)
-		return update_texture_reference(texture);
+	switch (texture.impl_reference)
+	{
+	case texture_reference::back_buffer:
+		texture_data->texture = _backbuffer_texture;
+		texture_data->surface = _backbuffer_texture_surface;
+		return true;
+	case texture_reference::depth_buffer:
+		texture_data->texture = _depthstencil_texture;
+		texture_data->surface = _depthstencil;
+		return true;
+	}
 
 	UINT levels = texture.levels;
 	DWORD usage = 0;
@@ -465,65 +473,6 @@ void reshade::d3d9::runtime_d3d9::upload_texture(texture &texture, const uint8_t
 		LOG(ERROR) << "Failed to update texture from system memory texture! HRESULT is " << hr << '.';
 		return;
 	}
-}
-bool reshade::d3d9::runtime_d3d9::update_texture_reference(texture &texture)
-{
-	com_ptr<IDirect3DTexture9> new_reference;
-
-	switch (texture.impl_reference)
-	{
-	case texture_reference::back_buffer:
-		new_reference = _backbuffer_texture;
-		break;
-	case texture_reference::depth_buffer:
-		new_reference = _depthstencil_texture;
-		break;
-	default:
-		return false;
-	}
-
-	const auto texture_impl = texture.impl->as<d3d9_tex_data>();
-	assert(texture_impl != nullptr);
-
-	if (new_reference == texture_impl->texture)
-		return true;
-
-	// Update references in technique list
-	for (const auto &technique : _techniques)
-		for (const auto &pass : technique.passes_data)
-			for (auto &tex : pass->as<d3d9_pass_data>()->sampler_textures)
-				if (tex == texture_impl->texture) tex = new_reference.get();
-
-	texture_impl->surface.reset();
-
-	if (new_reference == nullptr)
-	{
-		texture_impl->texture.reset();
-
-		texture.width = texture.height = texture.levels = 0;
-		texture.format = reshadefx::texture_format::unknown;
-	}
-	else
-	{
-		texture_impl->texture = new_reference;
-		new_reference->GetSurfaceLevel(0, &texture_impl->surface);
-
-		D3DSURFACE_DESC desc;
-		texture_impl->surface->GetDesc(&desc);
-
-		texture.width = desc.Width;
-		texture.height = desc.Height;
-		texture.format = reshadefx::texture_format::unknown;
-		texture.levels = static_cast<uint16_t>(new_reference->GetLevelCount());
-	}
-
-	return true;
-}
-void reshade::d3d9::runtime_d3d9::update_texture_references(texture_reference type)
-{
-	for (auto &tex : _textures)
-		if (tex.impl != nullptr && tex.impl_reference == type)
-			update_texture_reference(tex);
 }
 
 bool reshade::d3d9::runtime_d3d9::compile_effect(effect_data &effect)
@@ -1200,6 +1149,23 @@ void reshade::d3d9::runtime_d3d9::update_depthstencil_texture(com_ptr<IDirect3DS
 		}
 	}
 
-	update_texture_references(texture_reference::depth_buffer);
+	// Update all references to the new texture
+	for (auto &tex : _textures)
+	{
+		if (tex.impl != nullptr && tex.impl_reference == texture_reference::depth_buffer)
+		{
+			const auto texture_impl = tex.impl->as<d3d9_tex_data>();
+			assert(texture_impl != nullptr);
+
+			// Update references in technique list
+			for (const auto &technique : _techniques)
+				for (const auto &pass : technique.passes_data)
+					for (auto &tex : pass->as<d3d9_pass_data>()->sampler_textures)
+						if (tex == texture_impl->texture) tex = _depthstencil_texture.get();
+
+			texture_impl->surface = _depthstencil;
+			texture_impl->texture = _depthstencil_texture;
+		}
+	}
 }
 #endif

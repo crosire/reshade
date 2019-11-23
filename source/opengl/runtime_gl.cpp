@@ -310,9 +310,19 @@ bool reshade::opengl::runtime_gl::capture_screenshot(uint8_t *buffer) const
 bool reshade::opengl::runtime_gl::init_texture(texture &texture)
 {
 	texture.impl = std::make_unique<opengl_tex_data>();
+	const auto texture_data = texture.impl->as<opengl_tex_data>();
 
-	if (texture.impl_reference != texture_reference::none)
-		return update_texture_reference(texture);
+	switch (texture.impl_reference)
+	{
+	case texture_reference::back_buffer:
+		texture_data->id[0] = _tex[TEX_BACK];
+		texture_data->id[1] = _tex[TEX_BACK_SRGB];
+		return true;
+	case texture_reference::depth_buffer:
+		texture_data->id[0] = _tex[TEX_DEPTH];
+		texture_data->id[1] = _tex[TEX_DEPTH];
+		return true;
+	}
 
 	GLenum internalformat = GL_RGBA8;
 	GLenum internalformat_srgb = GL_NONE;
@@ -358,7 +368,6 @@ bool reshade::opengl::runtime_gl::init_texture(texture &texture)
 		break;
 	}
 
-	const auto texture_data = texture.impl->as<opengl_tex_data>();
 	texture_data->should_delete = true;
 
 	// Get current state
@@ -473,46 +482,6 @@ void reshade::opengl::runtime_gl::upload_texture(texture &texture, const uint8_t
 	glPixelStorei(GL_UNPACK_SKIP_ROWS, previous_unpack_skip_rows);
 	glPixelStorei(GL_UNPACK_SKIP_PIXELS, previous_unpack_skip_pixels);
 	glPixelStorei(GL_UNPACK_SKIP_IMAGES, previous_unpack_skip_images);
-}
-bool reshade::opengl::runtime_gl::update_texture_reference(texture &texture)
-{
-	GLuint new_reference[2] = {};
-
-	switch (texture.impl_reference)
-	{
-	case texture_reference::back_buffer:
-		new_reference[0] = _tex[TEX_BACK];
-		new_reference[1] = _tex[TEX_BACK_SRGB];
-		break;
-	case texture_reference::depth_buffer:
-		new_reference[0] = _tex[TEX_DEPTH];
-		new_reference[1] = _tex[TEX_DEPTH];
-		break;
-	default:
-		return false;
-	}
-
-	const auto texture_impl = texture.impl->as<opengl_tex_data>();
-	assert(texture_impl != nullptr);
-
-	if (texture_impl->id[0] == new_reference[0] &&
-		texture_impl->id[1] == new_reference[1])
-		return true;
-
-	if (texture_impl->should_delete)
-		glDeleteTextures(2, texture_impl->id);
-
-	texture_impl->id[0] = new_reference[0];
-	texture_impl->id[1] = new_reference[1];
-	texture_impl->should_delete = false;
-
-	return true;
-}
-void reshade::opengl::runtime_gl::update_texture_references(texture_reference type)
-{
-	for (auto &tex : _textures)
-		if (tex.impl != nullptr && tex.impl_reference == type)
-			update_texture_reference(tex);
 }
 
 bool reshade::opengl::runtime_gl::compile_effect(effect_data &effect)
@@ -1193,9 +1162,23 @@ void reshade::opengl::runtime_gl::update_depthstencil_texture(GLuint source, GLu
 	if (_has_high_network_activity)
 	{
 		_depth_source = 0;
-		glDeleteTextures(1, &_tex[TEX_DEPTH]);
-		_tex[TEX_DEPTH] = 0;
-		update_texture_references(texture_reference::depth_buffer);
+
+		if (_tex[TEX_DEPTH])
+		{
+			glDeleteTextures(1, &_tex[TEX_DEPTH]);
+			_tex[TEX_DEPTH] = 0;
+
+			for (auto &tex : _textures)
+			{
+				if (tex.impl != nullptr && tex.impl_reference == texture_reference::depth_buffer)
+				{
+					const auto texture_impl = tex.impl->as<opengl_tex_data>();
+					assert(texture_impl != nullptr && !texture_impl->should_delete);
+					texture_impl->id[0] = 0;
+					texture_impl->id[1] = 0;
+				}
+			}
+		}
 		return;
 	}
 
@@ -1235,7 +1218,6 @@ void reshade::opengl::runtime_gl::update_depthstencil_texture(GLuint source, GLu
 			_tex[TEX_DEPTH] = 0;
 
 			LOG(ERROR) << "Failed to create depth texture of format " << std::hex << format << " with error code " << err << std::dec << '.';
-			return;
 		}
 
 		_depth_source_width = width;
@@ -1247,7 +1229,17 @@ void reshade::opengl::runtime_gl::update_depthstencil_texture(GLuint source, GLu
 		glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, _tex[TEX_DEPTH], 0);
 		assert(glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
 
-		update_texture_references(texture_reference::depth_buffer);
+		// Update all references to the new texture
+		for (auto &tex : _textures)
+		{
+			if (tex.impl != nullptr && tex.impl_reference == texture_reference::depth_buffer)
+			{
+				const auto texture_impl = tex.impl->as<opengl_tex_data>();
+				assert(texture_impl != nullptr && !texture_impl->should_delete);
+				texture_impl->id[0] = _tex[TEX_DEPTH];
+				texture_impl->id[1] = _tex[TEX_DEPTH];
+			}
+		}
 	}
 
 	if (source != 0)
