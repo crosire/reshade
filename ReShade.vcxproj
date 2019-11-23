@@ -398,6 +398,7 @@
     <ClCompile Include="source\input.cpp" />
     <ClCompile Include="source\log.cpp" />
     <ClCompile Include="source\dllmain.cpp" />
+    <ClCompile Include="source\opengl\buffer_detection.cpp" />
     <ClCompile Include="source\opengl\opengl_hooks.cpp" />
     <ClCompile Include="source\opengl\opengl_hooks_wgl.cpp" />
     <ClCompile Include="source\opengl\runtime_gl.cpp" />
@@ -447,6 +448,7 @@
     <ClInclude Include="source\input.hpp" />
     <ClInclude Include="source\log.hpp" />
     <ClInclude Include="source\moving_average.hpp" />
+    <ClInclude Include="source\opengl\buffer_detection.hpp" />
     <ClInclude Include="source\opengl\opengl.hpp" />
     <ClInclude Include="source\opengl\opengl_hooks.hpp" />
     <ClInclude Include="source\opengl\runtime_gl.hpp" />

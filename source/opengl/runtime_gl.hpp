@@ -7,6 +7,7 @@
 
 #include "runtime.hpp"
 #include "state_block.hpp"
+#include "buffer_detection.hpp"
 #include <unordered_set>
 
 namespace reshade { enum class texture_reference; }
@@ -23,22 +24,12 @@ namespace reshade::opengl
 		void on_reset();
 		void on_present();
 
-		void on_draw_call(unsigned int vertices);
-		void on_fbo_attachment(GLenum attachment, GLenum target, GLuint object, GLint level);
-
 		bool capture_screenshot(uint8_t *buffer) const override;
 
-		GLuint _current_vertex_count = 0; // Used to calculate vertex count inside glBegin/glEnd pairs
 		std::unordered_set<HDC> _hdcs;
+		buffer_detection _buffer_detection;
 
 	private:
-		struct depth_source_info
-		{
-			unsigned int width, height;
-			GLint level, format;
-			unsigned int num_drawcalls, num_vertices;
-		};
-
 		bool init_texture(texture &info) override;
 		void upload_texture(texture &texture, const uint8_t *data) override;
 		bool update_texture_reference(texture &texture);
@@ -58,12 +49,17 @@ namespace reshade::opengl
 		void draw_debug_menu();
 #endif
 
-		void detect_depth_source();
+#if RESHADE_OPENGL_CAPTURE_DEPTH_BUFFERS
+		void update_depthstencil_texture(GLuint source, GLuint width, GLuint height, GLuint level, GLenum format);
 
-		bool _force_main_depth_buffer = false;
 		bool _use_aspect_ratio_heuristics = true;
 		GLuint _depth_source = 0;
-		std::unordered_map<GLuint, depth_source_info> _depth_source_table;
+		GLuint _depth_source_width = 0;
+		GLuint _depth_source_height = 0;
+		GLenum _depth_source_format = 0;
+		GLuint _depth_source_override = std::numeric_limits<GLuint>::max();
+		GLenum _default_depth_format = GL_NONE;
+#endif
 
 		state_block _app_state;
 

@@ -177,6 +177,9 @@
     <ClCompile Include="source\dxgi\dxgi_swapchain.cpp">
       <Filter>hooks\dxgi</Filter>
     </ClCompile>
+    <ClCompile Include="source\opengl\buffer_detection.cpp">
+      <Filter>hooks\opengl</Filter>
+    </ClCompile>
     <ClCompile Include="source\opengl\opengl_hooks.cpp">
       <Filter>hooks\opengl</Filter>
     </ClCompile>
@@ -313,6 +316,9 @@
     </ClInclude>
     <ClInclude Include="source\dxgi\format_utils.hpp">
       <Filter>hooks\dxgi</Filter>
+    </ClInclude>
+    <ClInclude Include="source\opengl\buffer_detection.hpp">
+      <Filter>hooks\opengl</Filter>
     </ClInclude>
     <ClInclude Include="source\opengl\opengl.hpp">
       <Filter>hooks\opengl</Filter>
