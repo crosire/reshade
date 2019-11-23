@@ -436,25 +436,25 @@ void reshade::runtime::load_effect(const std::filesystem::path &path, size_t &ou
 	effect.storage_size = (_uniform_data_storage.size() - effect.storage_offset + 15) & ~15;
 	_uniform_data_storage.resize(effect.storage_offset + effect.storage_size);
 
-	for (const reshadefx::texture_info &info : effect.module.textures)
+	for (texture texture : effect.module.textures)
 	{
 		// Try to share textures with the same name across effects
 		if (const auto existing_texture = std::find_if(_textures.begin(), _textures.end(),
-			[&info](const auto &item) { return item.unique_name == info.unique_name; });
+			[&texture](const auto &item) { return item.unique_name == texture.unique_name; });
 			existing_texture != _textures.end())
 		{
 			// Cannot share texture if this is a normal one, but the existing one is a reference and vice versa
-			if (info.semantic.empty() != (existing_texture->impl_reference == texture_reference::none))
+			if (texture.semantic.empty() != (existing_texture->impl_reference == texture_reference::none))
 			{
-				effect.errors += "error: " + info.unique_name + ": another effect (";
+				effect.errors += "error: " + texture.unique_name + ": another effect (";
 				effect.errors += _loaded_effects[existing_texture->effect_index].source_file.filename().u8string();
 				effect.errors += ") already created a texture with the same name but different usage; rename the variable to fix this error\n";
 				effect.compile_sucess = false;
 				break;
 			}
-			else if (info.semantic.empty() && !existing_texture->matches_description(info))
+			else if (texture.semantic.empty() && !existing_texture->matches_description(texture))
 			{
-				effect.errors += "warning: " + info.unique_name + ": another effect (";
+				effect.errors += "warning: " + texture.unique_name + ": another effect (";
 				effect.errors += _loaded_effects[existing_texture->effect_index].source_file.filename().u8string();
 				effect.errors += ") already created a texture with the same name but different dimensions; textures are shared across all effects, so either rename the variable or adjust the dimensions so they match\n";
 			}
@@ -463,22 +463,45 @@ void reshade::runtime::load_effect(const std::filesystem::path &path, size_t &ou
 			continue;
 		}
 
-		texture &texture = _textures.emplace_back(info);
 		texture.effect_index = effect.index;
 
-		if (info.semantic == "COLOR")
+		if (texture.annotation_as_int("pooled"))
+		{
+			// Try to find another pooled texture to share with
+			if (const auto existing_texture = std::find_if(_textures.begin(), _textures.end(),
+				[&texture](const auto &item) { return item.annotation_as_int("pooled") && item.matches_description(texture); });
+				existing_texture != _textures.end())
+			{
+				// Overwrite referenced texture in samplers with the pooled one
+				for (auto &sampler_info : effect.module.samplers)
+					if (sampler_info.texture_name == texture.unique_name)
+						sampler_info.texture_name = existing_texture->unique_name;
+				// Overwrite referenced texture in render targets with the pooled one
+				for (auto &technique_info : effect.module.techniques)
+					for (auto &pass_info : technique_info.passes)
+						for (auto &target_name : pass_info.render_target_names)
+							if (target_name == texture.unique_name)
+								target_name = existing_texture->unique_name;
+
+				existing_texture->shared = true;
+				continue;
+			}
+		}
+
+		if (texture.semantic == "COLOR")
 			texture.impl_reference = texture_reference::back_buffer;
-		else if (info.semantic == "DEPTH")
+		else if (texture.semantic == "DEPTH")
 			texture.impl_reference = texture_reference::depth_buffer;
-		else if (!info.semantic.empty())
-			effect.errors += "warning: " + info.unique_name + ": unknown semantic '" + info.semantic + "'\n";
+		else if (!texture.semantic.empty())
+			effect.errors += "warning: " + texture.unique_name + ": unknown semantic '" + texture.semantic + "'\n";
+
+		_textures.emplace_back(std::move(texture));
 	}
 
 	_loaded_effects.push_back(effect); // The 'enable_technique' call below needs to access this, so append the effect now
 
-	for (const reshadefx::technique_info &info : effect.module.techniques)
+	for (technique technique : effect.module.techniques)
 	{
-		technique &technique = _techniques.emplace_back(info);
 		technique.effect_index = effect.index;
 
 		technique.hidden = technique.annotation_as_int("hidden") != 0;
@@ -491,6 +514,8 @@ void reshade::runtime::load_effect(const std::filesystem::path &path, size_t &ou
 
 		if (technique.annotation_as_int("enabled"))
 			enable_technique(technique);
+
+		_techniques.emplace_back(std::move(technique));
 	}
 
 	if (effect.compile_sucess)

@@ -1387,7 +1387,7 @@ void reshade::runtime::draw_overlay_menu_statistics()
 				memory_size_unit = "KiB";
 			}
 
-			ImGui::TextColored(ImVec4(1, 1, 1, 1), texture.unique_name.c_str());
+			ImGui::TextColored(ImVec4(1, 1, 1, 1), "%s%s", texture.unique_name.c_str(), texture.shared ? " (Shared)" : "");
 			ImGui::Text("%ux%u | %u mipmap(s) | %s | %ld.%03ld %s",
 				texture.width,
 				texture.height,
