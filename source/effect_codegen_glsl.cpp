@@ -720,6 +720,7 @@ private:
 			switch (op.op)
 			{
 			case expression::operation::op_cast:
+				type.clear();
 				write_type<false, false>(type, op.to);
 				expr_code = type + '(' + expr_code + ')';
 				break;
