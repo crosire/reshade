@@ -778,12 +778,15 @@ void reshade::d3d9::runtime_d3d9::render_technique(technique &technique)
 
 			// Need to bind textures to vertex shader samplers too
 			// See https://docs.microsoft.com/de-de/windows/win32/direct3d9/vertex-textures-in-vs-3-0
-			_device->SetTexture(D3DVERTEXTEXTURESAMPLER0 + s, pass_data.sampler_textures[s]);
+			if (s < 4)
+				_device->SetTexture(D3DVERTEXTEXTURESAMPLER0 + s, pass_data.sampler_textures[s]);
 
 			for (DWORD state = D3DSAMP_ADDRESSU; state <= D3DSAMP_SRGBTEXTURE; state++)
 			{
 				_device->SetSamplerState(s, static_cast<D3DSAMPLERSTATETYPE>(state), technique_data.sampler_states[s][state]);
-				_device->SetSamplerState(D3DVERTEXTEXTURESAMPLER0 + s, static_cast<D3DSAMPLERSTATETYPE>(state), technique_data.sampler_states[s][state]);
+
+				if (s < 4) // vs_3_0 supports up to four samplers in vertex shaders
+					_device->SetSamplerState(D3DVERTEXTEXTURESAMPLER0 + s, static_cast<D3DSAMPLERSTATETYPE>(state), technique_data.sampler_states[s][state]);
 			}
 		}
 
