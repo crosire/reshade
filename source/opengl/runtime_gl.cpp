@@ -222,7 +222,7 @@ void reshade::opengl::runtime_gl::on_reset()
 	_depth_source_width = 0;
 	_depth_source_height = 0;
 	_depth_source_format = 0;
-	_depth_source_override = 0;
+	_depth_source_override = std::numeric_limits<GLuint>::max();
 	_default_depth_format = GL_NONE;
 #endif
 }
