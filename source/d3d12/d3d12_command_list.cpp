@@ -83,9 +83,6 @@ ULONG   STDMETHODCALLTYPE D3D12GraphicsCommandList::Release()
 	if (ref_orig != 0)
 		LOG(WARN) << "Reference count for ID3D12GraphicsCommandList" << _interface_version << " object " << this << " is inconsistent.";
 
-#if RESHADE_VERBOSE_LOG
-	LOG(DEBUG) << "Destroyed ID3D12GraphicsCommandList" << _interface_version << " object " << this << '.';
-#endif
 	delete this;
 
 	return 0;
