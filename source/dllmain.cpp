@@ -268,9 +268,10 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 		}
 
 		const UINT rtv_handle_size = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
-		D3D12_CPU_DESCRIPTOR_HANDLE rtv_handle = rtv_heap->GetCPUDescriptorHandleForHeapStart();
-
 		HCHECK(device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&cmd_alloc)));
+
+	resize_buffers:
+		D3D12_CPU_DESCRIPTOR_HANDLE rtv_handle = rtv_heap->GetCPUDescriptorHandleForHeapStart();
 
 		for (UINT i = 0; i < num_buffers; ++i, rtv_handle.ptr += rtv_handle_size)
 		{
@@ -322,6 +323,22 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 			while (msg.message != WM_QUIT &&
 				PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE))
 				DispatchMessage(&msg);
+
+			if (s_resize_w != 0)
+			{
+				// Clean up current resources referencing the back buffer
+				for (auto &ptr : cmd_lists)
+					ptr.reset();
+				for (auto &ptr : backbuffers)
+					ptr.reset();
+
+				if (!is_d3d12on7)
+					HCHECK(swapchain->ResizeBuffers(num_buffers, s_resize_w, s_resize_h, DXGI_FORMAT_UNKNOWN, 0));
+
+				s_resize_w = s_resize_h = 0;
+
+				goto resize_buffers; // Re-create command lists
+			}
 
 			const UINT swap_index = is_d3d12on7 ? 0 : swapchain->GetCurrentBackBufferIndex();
 
