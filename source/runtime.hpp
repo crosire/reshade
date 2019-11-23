@@ -145,6 +145,11 @@ namespace reshade
 		/// </summary>
 		virtual void load_effects();
 		/// <summary>
+		/// Compile and initialize effect from the specified effect module.
+		/// </summary>
+		/// <param name="effect">The effect module to compile.</param>
+		virtual bool init_effect(effect_data &effect) = 0;
+		/// <summary>
 		/// Unload the specified effect.
 		/// </summary>
 		/// <param name="id">The ID of the effect.</param>
@@ -153,16 +158,11 @@ namespace reshade
 		/// Unload all effects currently loaded.
 		/// </summary>
 		virtual void unload_effects();
+
 		/// <summary>
 		/// Load image files and update textures with image data.
 		/// </summary>
 		void load_textures();
-
-		/// <summary>
-		/// Compile effect from the specified effect module.
-		/// </summary>
-		/// <param name="effect">The effect module to compile.</param>
-		virtual bool compile_effect(effect_data &effect) = 0;
 
 		/// <summary>
 		/// Apply post-processing effects to the frame.
