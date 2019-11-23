@@ -105,16 +105,17 @@ reshade::opengl::runtime_gl::runtime_gl()
 	subscribe_to_load_config([this](const ini_file &config) {
 		// Reserve a fixed amount of texture names by default to work around issues in old OpenGL games
 		// This hopefully should not affect performance much in other games
-		size_t num_reserve_texture_names = 512;
+		auto num_reserve_texture_names = 512u;
 		config.get("OPENGL", "ReserveTextureNames", num_reserve_texture_names);
 		_reserved_texture_names.resize(num_reserve_texture_names);
+
 #if RESHADE_OPENGL_CAPTURE_DEPTH_BUFFERS
-		bool force_swapchain_depth_source_override = false;
-		config.get("OPENGL", "ForceMainDepthBuffer", force_swapchain_depth_source_override);
+		auto force_default_depth_override = false;
+		config.get("OPENGL", "ForceMainDepthBuffer", force_default_depth_override);
 		config.get("OPENGL", "UseAspectRatioHeuristics", _use_aspect_ratio_heuristics);
 
-		if (force_swapchain_depth_source_override)
-			_depth_source_override = 0; // Zero has a special meaning and corresponds to the swapchain depth buffer
+		if (force_default_depth_override)
+			_depth_source_override = 0; // Zero has a special meaning and corresponds to the default depth buffer
 	});
 	subscribe_to_save_config([this](ini_file &config) {
 		config.set("OPENGL", "ForceMainDepthBuffer", _depth_source_override == 0);
@@ -1156,11 +1157,8 @@ void reshade::opengl::runtime_gl::draw_debug_menu()
 #if RESHADE_OPENGL_CAPTURE_DEPTH_BUFFERS
 	if (ImGui::CollapsingHeader("Depth Buffers", ImGuiTreeNodeFlags_DefaultOpen))
 	{
-		bool modified = false;
-		modified |= ImGui::Checkbox("Use aspect ratio heuristics", &_use_aspect_ratio_heuristics);
-
-		if (modified) // Detection settings have changed, reset override
-			_depth_source_override = std::numeric_limits<GLuint>::max();
+		if (ImGui::Checkbox("Use aspect ratio heuristics", &_use_aspect_ratio_heuristics))
+			runtime::save_config();
 
 		ImGui::Spacing();
 		ImGui::Separator();
@@ -1176,16 +1174,14 @@ void reshade::opengl::runtime_gl::draw_debug_menu()
 				_depth_source_override = value ? depth_source : std::numeric_limits<GLuint>::max();
 
 			ImGui::SameLine();
-			ImGui::Text("| %4ux%-4u | %5u draw calls ==> %8u vertices |",
-				snapshot.width, snapshot.height, snapshot.stats.drawcalls, snapshot.stats.vertices);
+			ImGui::Text("| %4ux%-4u | %5u draw calls ==> %8u vertices |%f",
+				snapshot.width, snapshot.height, snapshot.stats.drawcalls, snapshot.stats.vertices,
+				depth_source & 0x80000000 ? " RBO" : depth_source != 0 ? " FBO" : "");
 		}
 
 		ImGui::Spacing();
 		ImGui::Separator();
 		ImGui::Spacing();
-
-		if (modified)
-			runtime::save_config();
 	}
 #endif
 }

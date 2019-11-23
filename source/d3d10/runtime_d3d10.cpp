@@ -1350,20 +1350,17 @@ void reshade::d3d10::runtime_d3d10::draw_debug_menu()
 	ImGui::Text("MSAA is %s", _is_multisampling_enabled ? "active" : "inactive");
 	ImGui::Spacing();
 
+#if RESHADE_DX10_CAPTURE_DEPTH_BUFFERS
 	assert(_current_tracker != nullptr);
 
-#if RESHADE_DX10_CAPTURE_DEPTH_BUFFERS
 	if (ImGui::CollapsingHeader("Depth Buffers", ImGuiTreeNodeFlags_DefaultOpen))
 	{
 		bool modified = false;
 		modified |= ImGui::Checkbox("Use aspect ratio heuristics", &_filter_aspect_ratio);
 		modified |= ImGui::Checkbox("Copy depth buffers before clear operation", &_preserve_depth_buffers);
 
-		if (modified) // Detection settings have changed, reset override
-		{
-			_depth_texture_override = nullptr;
+		if (modified) // Detection settings have changed, reset heuristic
 			_current_tracker->reset(true);
-		}
 
 		ImGui::Spacing();
 		ImGui::Separator();

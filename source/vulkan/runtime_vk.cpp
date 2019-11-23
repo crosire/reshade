@@ -113,10 +113,10 @@ reshade::vulkan::runtime_vk::runtime_vk(VkDevice device, VkPhysicalDevice physic
 #endif
 #if RESHADE_VULKAN_CAPTURE_DEPTH_BUFFERS
 	subscribe_to_load_config([this](const ini_file &config) {
-		config.get("VULKAN_BUFFER_DETECTION", "UseAspectRatioHeuristics", _filter_aspect_ratio);
+		config.get("VULKAN_BUFFER_DETECTION", "UseAspectRatioHeuristics", _use_aspect_ratio_heuristics);
 	});
 	subscribe_to_save_config([this](ini_file &config) {
-		config.set("VULKAN_BUFFER_DETECTION", "UseAspectRatioHeuristics", _filter_aspect_ratio);
+		config.set("VULKAN_BUFFER_DETECTION", "UseAspectRatioHeuristics", _use_aspect_ratio_heuristics);
 	});
 #endif
 }
@@ -577,7 +577,7 @@ void reshade::vulkan::runtime_vk::on_present(VkQueue queue, uint32_t swapchain_i
 	}
 
 #if RESHADE_VULKAN_CAPTURE_DEPTH_BUFFERS
-	const auto best_snapshot = tracker.find_best_depth_texture(_filter_aspect_ratio ? _width : 0, _height, _depth_image_override);
+	const auto best_snapshot = tracker.find_best_depth_texture(_use_aspect_ratio_heuristics ? _width : 0, _height, _depth_image_override);
 	update_depthstencil_image(_has_high_network_activity ? VK_NULL_HANDLE : best_snapshot.image, best_snapshot.image_layout, best_snapshot.image_info.format);
 #endif
 
@@ -1884,11 +1884,8 @@ void reshade::vulkan::runtime_vk::draw_debug_menu()
 #if RESHADE_VULKAN_CAPTURE_DEPTH_BUFFERS
 	if (ImGui::CollapsingHeader("Depth Buffers", ImGuiTreeNodeFlags_DefaultOpen))
 	{
-		bool modified = false;
-		modified |= ImGui::Checkbox("Use aspect ratio heuristics", &_filter_aspect_ratio);
-
-		if (modified) // Detection settings have changed, reset override
-			_depth_image_override = VK_NULL_HANDLE;
+		if (ImGui::Checkbox("Use aspect ratio heuristics", &_use_aspect_ratio_heuristics))
+			runtime::save_config();
 
 		ImGui::Spacing();
 		ImGui::Separator();
@@ -1924,9 +1921,6 @@ void reshade::vulkan::runtime_vk::draw_debug_menu()
 		ImGui::Spacing();
 		ImGui::Separator();
 		ImGui::Spacing();
-
-		if (modified)
-			runtime::save_config();
 	}
 #endif
 }
