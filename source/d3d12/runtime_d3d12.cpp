@@ -142,9 +142,11 @@ bool reshade::d3d12::runtime_d3d12::on_init(const DXGI_SWAP_CHAIN_DESC &swap_des
 	_sampler_handle_size = _device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER);
 
 #if RESHADE_D3D12ON7
-	if (_width == 0) _width = _window_width;
-	if (_height == 0) _height = _window_height;
-	_backbuffers.resize(1); _backbuffers[0] = backbuffer;
+	if (backbuffer != nullptr)
+	{
+		_backbuffers.resize(1);
+		_backbuffers[0] = backbuffer;
+	}
 #endif
 
 	// Create multiple command allocators to buffer for multiple frames
@@ -834,6 +836,9 @@ void reshade::d3d12::runtime_d3d12::unload_effect(size_t id)
 }
 void reshade::d3d12::runtime_d3d12::unload_effects()
 {
+	if (!_is_initialized)
+		return;
+
 	// Wait for all GPU operations to finish so resources are no longer referenced
 	wait_for_command_queue();
 
