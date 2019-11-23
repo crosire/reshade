@@ -16,7 +16,7 @@ D3D12CommandQueue::D3D12CommandQueue(D3D12Device *device, ID3D12CommandQueue *or
 	_orig(original),
 	_interface_version(0),
 	_device(device) {
-	assert(original != nullptr);
+	assert(_orig != nullptr && _device != nullptr);
 }
 
 bool D3D12CommandQueue::check_and_upgrade_interface(REFIID riid)

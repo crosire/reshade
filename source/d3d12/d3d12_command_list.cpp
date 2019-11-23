@@ -11,7 +11,7 @@ D3D12GraphicsCommandList::D3D12GraphicsCommandList(D3D12Device *device, ID3D12Gr
 	_orig(original),
 	_interface_version(0),
 	_device(device) {
-	assert(original != nullptr);
+	assert(_orig != nullptr && _device != nullptr);
 }
 
 bool D3D12GraphicsCommandList::check_and_upgrade_interface(REFIID riid)

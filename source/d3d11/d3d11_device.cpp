@@ -14,7 +14,7 @@ D3D11Device::D3D11Device(IDXGIDevice1 *dxgi_device, ID3D11Device *original, ID3D
 	_interface_version(0),
 	_dxgi_device(new DXGIDevice(dxgi_device, this)),
 	_immediate_context(new D3D11DeviceContext(this, immediate_context)) {
-	assert(original != nullptr);
+	assert(_orig != nullptr);
 	_immediate_context->_buffer_detection.init(immediate_context, &_immediate_context->_buffer_detection);
 }
 

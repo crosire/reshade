@@ -20,46 +20,53 @@ DXGISwapChain::DXGISwapChain(D3D10Device *device, IDXGISwapChain  *original, con
 	_interface_version(0),
 	_direct3d_device(device, false), // Explicitly add a reference to the device
 	_direct3d_version(10),
-	_runtime(runtime) {}
+	_runtime(runtime) {
+	assert(_orig != nullptr && _direct3d_device != nullptr && _runtime != nullptr);
+}
 DXGISwapChain::DXGISwapChain(D3D10Device *device, IDXGISwapChain1 *original, const std::shared_ptr<reshade::runtime> &runtime) :
 	_orig(original),
 	_interface_version(1),
 	_direct3d_device(device, false),
 	_direct3d_version(10),
-	_runtime(runtime) {}
+	_runtime(runtime) {
+	assert(_orig != nullptr && _direct3d_device != nullptr && _runtime != nullptr);
+}
 DXGISwapChain::DXGISwapChain(D3D11Device *device, IDXGISwapChain  *original, const std::shared_ptr<reshade::runtime> &runtime) :
 	_orig(original),
 	_interface_version(0),
 	_direct3d_device(device, false),
 	_direct3d_version(11),
-	_runtime(runtime) {}
+	_runtime(runtime) {
+	assert(_orig != nullptr && _direct3d_device != nullptr && _runtime != nullptr);
+}
 DXGISwapChain::DXGISwapChain(D3D11Device *device, IDXGISwapChain1 *original, const std::shared_ptr<reshade::runtime> &runtime) :
 	_orig(original),
 	_interface_version(1),
 	_direct3d_device(device, false),
 	_direct3d_version(11),
-	_runtime(runtime) {}
+	_runtime(runtime) {
+	assert(_orig != nullptr && _direct3d_device != nullptr && _runtime != nullptr);
+}
 DXGISwapChain::DXGISwapChain(D3D12Device *device, IDXGISwapChain3 *original, const std::shared_ptr<reshade::runtime> &runtime) :
 	_orig(original),
 	_interface_version(3),
 	_direct3d_device(device, false),
 	_direct3d_version(12),
-	_runtime(runtime) {}
+	_runtime(runtime) {
+	assert(_orig != nullptr && _direct3d_device != nullptr && _runtime != nullptr);
+}
 
 void DXGISwapChain::runtime_reset()
 {
 	switch (_direct3d_version)
 	{
 	case 10:
-		assert(_runtime != nullptr);
 		std::static_pointer_cast<reshade::d3d10::runtime_d3d10>(_runtime)->on_reset();
 		break;
 	case 11:
-		assert(_runtime != nullptr);
 		std::static_pointer_cast<reshade::d3d11::runtime_d3d11>(_runtime)->on_reset();
 		break;
 	case 12:
-		assert(_runtime != nullptr);
 		std::static_pointer_cast<reshade::d3d12::runtime_d3d12>(_runtime)->on_reset();
 		break;
 	}
@@ -67,21 +74,19 @@ void DXGISwapChain::runtime_reset()
 void DXGISwapChain::runtime_resize()
 {
 	DXGI_SWAP_CHAIN_DESC desc;
+	// Get description from IDXGISwapChain interface, since later versions are slightly different
 	_orig->GetDesc(&desc);
 
 	bool initialized = false;
 	switch (_direct3d_version)
 	{
 	case 10:
-		assert(_runtime != nullptr);
 		initialized = std::static_pointer_cast<reshade::d3d10::runtime_d3d10>(_runtime)->on_init(desc);
 		break;
 	case 11:
-		assert(_runtime != nullptr);
 		initialized = std::static_pointer_cast<reshade::d3d11::runtime_d3d11>(_runtime)->on_init(desc);
 		break;
 	case 12:
-		assert(_runtime != nullptr);
 		initialized = std::static_pointer_cast<reshade::d3d12::runtime_d3d12>(_runtime)->on_init(desc);
 		break;
 	}
@@ -100,20 +105,16 @@ void DXGISwapChain::runtime_present(UINT flags)
 	{
 	case 10: {
 		const auto device = static_cast<D3D10Device *>(_direct3d_device.get());
-		assert(_runtime != nullptr);
 		std::static_pointer_cast<reshade::d3d10::runtime_d3d10>(_runtime)->on_present(device->_buffer_detection);
 		device->_buffer_detection.reset(false);
 		break; }
 	case 11: {
 		const auto device = static_cast<D3D11Device *>(_direct3d_device.get());
-		assert(_runtime != nullptr);
 		std::static_pointer_cast<reshade::d3d11::runtime_d3d11>(_runtime)->on_present(device->_immediate_context->_buffer_detection);
 		device->_immediate_context->_buffer_detection.reset(false);
 		break; }
 	case 12: {
 		const auto device = static_cast<D3D12Device *>(_direct3d_device.get());
-		assert(_runtime != nullptr);
-		assert(_interface_version >= 3);
 		std::static_pointer_cast<reshade::d3d12::runtime_d3d12>(_runtime)->on_present(device->_buffer_detection);
 		device->_buffer_detection.reset(false);
 		break; }
@@ -187,29 +188,18 @@ ULONG   STDMETHODCALLTYPE DXGISwapChain::Release()
 
 	switch (_direct3d_version)
 	{
-	case 10: {
-		assert(_runtime != nullptr);
-		const auto device = static_cast<D3D10Device *>(_direct3d_device.get());
-		const auto runtime = std::static_pointer_cast<reshade::d3d10::runtime_d3d10>(_runtime);
-		runtime->on_reset();
-		device->_buffer_detection.reset(true);
-		device->_runtimes.erase(std::remove(device->_runtimes.begin(), device->_runtimes.end(), runtime), device->_runtimes.end());
-		break; }
-	case 11: {
-		assert(_runtime != nullptr);
-		const auto device = static_cast<D3D11Device *>(_direct3d_device.get());
-		const auto runtime = std::static_pointer_cast<reshade::d3d11::runtime_d3d11>(_runtime);
-		runtime->on_reset();
-		device->_immediate_context->_buffer_detection.reset(true);
-		device->_runtimes.erase(std::remove(device->_runtimes.begin(), device->_runtimes.end(), runtime), device->_runtimes.end());
-		break; }
-	case 12: {
-		const auto device = static_cast<D3D12Device *>(_direct3d_device.get());
-		const auto runtime = std::static_pointer_cast<reshade::d3d12::runtime_d3d12>(_runtime);
-		runtime->on_reset();
-		device->_buffer_detection.reset(true); // Release any live references to depth buffers etc.
-		device->_runtimes.erase(std::remove(device->_runtimes.begin(), device->_runtimes.end(), runtime), device->_runtimes.end());
-		break; }
+	case 10:
+		std::static_pointer_cast<reshade::d3d10::runtime_d3d10>(_runtime)->on_reset();
+		static_cast<D3D10Device *>(_direct3d_device.get())->_buffer_detection.reset(true);
+		break; 
+	case 11:
+		std::static_pointer_cast<reshade::d3d11::runtime_d3d11>(_runtime)->on_reset();
+		static_cast<D3D11Device *>(_direct3d_device.get())->_immediate_context->_buffer_detection.reset(true);
+		break;
+	case 12:
+		std::static_pointer_cast<reshade::d3d12::runtime_d3d12>(_runtime)->on_reset();
+		static_cast<D3D12Device *>(_direct3d_device.get())->_buffer_detection.reset(true); // Release any live references to depth buffers etc.
+		break;
 	}
 
 	_runtime.reset();

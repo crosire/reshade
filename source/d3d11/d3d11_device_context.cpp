@@ -13,28 +13,28 @@ D3D11DeviceContext::D3D11DeviceContext(D3D11Device *device, ID3D11DeviceContext 
 	_interface_version(0),
 	_device(device),
 	_buffer_detection(original) {
-	assert(original != nullptr);
+	assert(_orig != nullptr && _device != nullptr);
 }
 D3D11DeviceContext::D3D11DeviceContext(D3D11Device *device, ID3D11DeviceContext1 *original) :
 	_orig(original),
 	_interface_version(1),
 	_device(device),
 	_buffer_detection(original) {
-	assert(original != nullptr);
+	assert(_orig != nullptr && _device != nullptr);
 }
 D3D11DeviceContext::D3D11DeviceContext(D3D11Device *device, ID3D11DeviceContext2 *original) :
 	_orig(original),
 	_interface_version(2),
 	_device(device),
 	_buffer_detection(original) {
-	assert(original != nullptr);
+	assert(_orig != nullptr && _device != nullptr);
 }
 D3D11DeviceContext::D3D11DeviceContext(D3D11Device *device, ID3D11DeviceContext3 *original) :
 	_orig(original),
 	_interface_version(3),
 	_device(device),
 	_buffer_detection(original) {
-	assert(original != nullptr);
+	assert(_orig != nullptr && _device != nullptr);
 }
 
 bool D3D11DeviceContext::check_and_upgrade_interface(REFIID riid)

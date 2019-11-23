@@ -15,11 +15,8 @@
 D3D12CommandQueueDownlevel::D3D12CommandQueueDownlevel(D3D12CommandQueue *queue, ID3D12CommandQueueDownlevel *original) :
 	_orig(original),
 	_device(queue->_device) {
-	assert(original != nullptr);
-
-	_runtime = std::make_shared<reshade::d3d12::runtime_d3d12>(_device->_orig, queue->_orig, nullptr);
-
-	_device->_runtimes.push_back(_runtime);
+	assert(_orig != nullptr);
+	_runtime = std::make_unique<reshade::d3d12::runtime_d3d12>(_device->_orig, queue->_orig, nullptr);
 }
 
 HRESULT STDMETHODCALLTYPE D3D12CommandQueueDownlevel::QueryInterface(REFIID riid, void **ppvObj)
@@ -50,8 +47,9 @@ ULONG   STDMETHODCALLTYPE D3D12CommandQueueDownlevel::Release()
 		return _orig->Release(), ref;
 
 	_runtime->on_reset();
-	_device->_buffer_detection.reset(true); // Release any live references to depth buffers etc.
-	_device->_runtimes.erase(std::remove(_device->_runtimes.begin(), _device->_runtimes.end(), _runtime), _device->_runtimes.end());
+
+	// Release any live references to depth buffers etc.
+	_device->_buffer_detection.reset(true);
 
 	const ULONG ref_orig = _orig->Release();
 	if (ref_orig != 0)
