@@ -7,7 +7,7 @@
 
 #include "runtime.hpp"
 #include "state_block.hpp"
-#include "draw_call_tracker.hpp"
+#include "buffer_detection.hpp"
 
 namespace reshade { enum class texture_reference; }
 namespace reshadefx { struct sampler_info; }
@@ -22,13 +22,9 @@ namespace reshade::d3d10
 
 		bool on_init(const DXGI_SWAP_CHAIN_DESC &desc);
 		void on_reset();
-		void on_present(draw_call_tracker &tracker);
+		void on_present(buffer_detection &tracker);
 
 		bool capture_screenshot(uint8_t *buffer) const override;
-
-#if RESHADE_DX10_CAPTURE_DEPTH_BUFFERS
-		com_ptr<ID3D10Texture2D> create_compatible_texture(D3D10_TEXTURE2D_DESC desc);
-#endif
 
 	private:
 		bool init_backbuffer_texture();
@@ -56,8 +52,10 @@ namespace reshade::d3d10
 #if RESHADE_DX10_CAPTURE_DEPTH_BUFFERS
 		void update_depthstencil_texture(com_ptr<ID3D10Texture2D> texture);
 
+		bool _filter_aspect_ratio = true;
+		bool _preserve_depth_buffers = false;
+		UINT _depth_clear_index_override = std::numeric_limits<UINT>::max();
 		ID3D10Texture2D *_depth_texture_override = nullptr;
-		std::unordered_map<UINT, com_ptr<ID3D10Texture2D>> _saved_depth_textures;
 #endif
 
 		const com_ptr<ID3D10Device1> _device;
@@ -83,7 +81,7 @@ namespace reshade::d3d10
 
 		HMODULE _d3d_compiler = nullptr;
 
-		draw_call_tracker *_current_tracker = nullptr;
+		buffer_detection *_current_tracker = nullptr;
 
 #if RESHADE_GUI
 		int _imgui_index_buffer_size = 0;

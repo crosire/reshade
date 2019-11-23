@@ -58,6 +58,7 @@ namespace reshade::log
 			StringFromGUID2(riid, riid_string, ARRAYSIZE(riid_string));
 			return *this << riid_string;
 		}
+
 		template <>
 		message &operator<<(const HRESULT &hresult) // Note: HRESULT is just an alias for long, so this falsely catches all long values too
 		{
@@ -89,6 +90,7 @@ namespace reshade::log
 
 			return *this;
 		}
+
 		template <>
 		message &operator<<(const std::wstring &message)
 		{
@@ -98,18 +100,20 @@ namespace reshade::log
 			utf8::unchecked::utf16to8(message.begin(), message.end(), std::back_inserter(utf8_message));
 			return operator<<(utf8_message);
 		}
+
 		template <>
 		message &operator<<(const std::filesystem::path &path)
 		{
 			return operator<<('"' + path.u8string() + '"');
 		}
 
-		message &operator<<(const char *message)
+		inline message &operator<<(const char *message)
 		{
 			line << message;
 			return *this;
 		}
-		message &operator<<(const wchar_t *message)
+
+		inline message &operator<<(const wchar_t *message)
 		{
 			static_assert(sizeof(wchar_t) == sizeof(uint16_t), "expected 'wchar_t' to use UTF-16 encoding");
 			std::string utf8_message;

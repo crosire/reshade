@@ -14,11 +14,25 @@ namespace reshade
 	class input
 	{
 	public:
+		/// <summary>
+		/// Abstraction of a window handle.
+		/// </summary>
 		using window_handle = void *;
 
 		explicit input(window_handle window);
 
+		/// <summary>
+		/// Registers a window using raw input with the input manager.
+		/// </summary>
+		/// <param name="window">The window handle.</param>
+		/// <param name="no_legacy_keyboard"><c>true</c> if 'RIDEV_NOLEGACY' is set for the keyboard device, <c>false</c> otherwise.</param>
+		/// <param name="no_legacy_mouse"><c>true</c> if 'RIDEV_NOLEGACY' is set for the mouse device, <c>false</c> otherwise.</param>
 		static void register_window_with_raw_input(window_handle window, bool no_legacy_keyboard, bool no_legacy_mouse);
+		/// <summary>
+		/// Registers a window using normal input window messages with the input manager.
+		/// </summary>
+		/// <param name="window">The window handle.</param>
+		/// <returns>A pointer to the input manager for the <paramref name="window"/>.</returns>
 		static std::shared_ptr<input> register_window(window_handle window);
 
 		bool is_key_down(unsigned int keycode) const;
@@ -42,20 +56,52 @@ namespace reshade
 		int mouse_movement_delta_y() const { return _mouse_position[1] - _last_mouse_position[1]; }
 		unsigned int mouse_position_x() const { return _mouse_position[0]; }
 		unsigned int mouse_position_y() const { return _mouse_position[1]; }
+
+		/// <summary>
+		/// Character input as captured by 'WM_CHAR' for the current frame.
+		/// </summary>
 		const std::wstring &text_input() const { return _text_input; }
 
+		/// <summary>
+		/// Set to <c>true</c> to prevent mouse input window messages from reaching the application.
+		/// </summary>
 		void block_mouse_input(bool enable);
+		/// <summary>
+		/// Set to <c>true</c> to prevent keyboard input window messages from reaching the application.
+		/// </summary>
 		void block_keyboard_input(bool enable);
 
 		bool is_blocking_mouse_input() const { return _block_mouse; }
 		bool is_blocking_keyboard_input() const { return _block_keyboard; }
 
+		/// <summary>
+		/// Locks access to the input data to the current thread.
+		/// </summary>
+		/// <returns>A RAII object holding the lock, which releases it after going out of scope.</returns>
 		auto lock() { return std::lock_guard<std::mutex>(_mutex); }
+
+		/// <summary>
+		/// Notifies the input manager to advance a frame.
+		/// This updates input state to e.g. track whether a key was pressed this frame or before.
+		/// </summary>
 		void next_frame();
 
+		/// <summary>
+		/// Generates a human-friendly text representation of the specified <paramref name="keycode"/>.
+		/// </summary>
+		/// <param name="keycode">The virtual key code to use.</param>
 		static std::string key_name(unsigned int keycode);
+		/// <summary>
+		/// Generates a human-friendly text representation of the specified <paramref name="key"/> shortcut.
+		/// </summary>
+		/// <param name="key">The shortcut, consisting of the [virtual key code, Ctrl, Shift, Alt].</param>
 		static std::string key_name(const unsigned int key[4]);
 
+		/// <summary>
+		/// Internal window message procedure. This looks for input messages and updates state for the corresponding windows accordingly.
+		/// </summary>
+		/// <param name="message_data">A pointer to a <see cref="MSG"/> with the message data.</param>
+		/// <returns><c>true</c> if the called should ignore this message, or <c>false</c> if it should pass it on to the application.</returns>
 		static bool handle_window_message(const void *message_data);
 
 	private:

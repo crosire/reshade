@@ -64,18 +64,24 @@ reshade::d3d9::runtime_d3d9::runtime_d3d9(IDirect3DDevice9 *device, IDirect3DSwa
 #if RESHADE_GUI
 	subscribe_to_ui("DX9", [this]() { draw_debug_menu(); });
 #endif
+#if RESHADE_DX9_CAPTURE_DEPTH_BUFFERS
 	subscribe_to_load_config([this](const ini_file &config) {
-		config.get("DX9_BUFFER_DETECTION", "DisableINTZ", draw_call_tracker::disable_intz);
-		config.get("DX9_BUFFER_DETECTION", "PreserveDepthBuffer", draw_call_tracker::preserve_depth_buffers);
-		config.get("DX9_BUFFER_DETECTION", "PreserveDepthBufferIndex", draw_call_tracker::depth_stencil_clear_index);
-		config.get("DX9_BUFFER_DETECTION", "UseAspectRatioHeuristics", draw_call_tracker::filter_aspect_ratio);
+		config.get("DX9_BUFFER_DETECTION", "DisableINTZ", _disable_intz);
+		config.get("DX9_BUFFER_DETECTION", "PreserveDepthBuffer", _preserve_depth_buffers);
+		config.get("DX9_BUFFER_DETECTION", "PreserveDepthBufferIndex", _depth_clear_index_override);
+		config.get("DX9_BUFFER_DETECTION", "UseAspectRatioHeuristics", _filter_aspect_ratio);
+
+		if (_depth_clear_index_override == 0)
+			// Zero is not a valid clear index, since it disables depth buffer preservation
+			_depth_clear_index_override = std::numeric_limits<UINT>::max();
 	});
 	subscribe_to_save_config([this](ini_file &config) {
-		config.set("DX9_BUFFER_DETECTION", "DisableINTZ", draw_call_tracker::disable_intz);
-		config.set("DX9_BUFFER_DETECTION", "PreserveDepthBuffer", draw_call_tracker::preserve_depth_buffers);
-		config.set("DX9_BUFFER_DETECTION", "PreserveDepthBufferIndex", draw_call_tracker::depth_stencil_clear_index);
-		config.set("DX9_BUFFER_DETECTION", "UseAspectRatioHeuristics", draw_call_tracker::filter_aspect_ratio);
+		config.set("DX9_BUFFER_DETECTION", "DisableINTZ", _disable_intz);
+		config.set("DX9_BUFFER_DETECTION", "PreserveDepthBuffer", _preserve_depth_buffers);
+		config.set("DX9_BUFFER_DETECTION", "PreserveDepthBufferIndex", _depth_clear_index_override);
+		config.set("DX9_BUFFER_DETECTION", "UseAspectRatioHeuristics", _filter_aspect_ratio);
 	});
+#endif
 }
 reshade::d3d9::runtime_d3d9::~runtime_d3d9()
 {
@@ -217,7 +223,7 @@ void reshade::d3d9::runtime_d3d9::on_reset()
 #endif
 }
 
-void reshade::d3d9::runtime_d3d9::on_present(draw_call_tracker &tracker)
+void reshade::d3d9::runtime_d3d9::on_present(buffer_detection &tracker)
 {
 	if (!_is_initialized || FAILED(_device->BeginScene()))
 		return;
@@ -227,8 +233,11 @@ void reshade::d3d9::runtime_d3d9::on_present(draw_call_tracker &tracker)
 	_current_tracker = &tracker;
 
 #if RESHADE_DX9_CAPTURE_DEPTH_BUFFERS
+	tracker.disable_intz = _disable_intz;
+
+	assert(_depth_clear_index_override != 0);
 	update_depthstencil_texture(_has_high_network_activity ? nullptr :
-		tracker.find_best_depth_surface(_width, _height, _depthstencil_override));
+		tracker.find_best_depth_surface(_filter_aspect_ratio ? _width : 0, _height, _depthstencil_override, _preserve_depth_buffers ? _depth_clear_index_override : 0));
 #endif
 
 	_app_state.capture();
@@ -1097,15 +1106,15 @@ void reshade::d3d9::runtime_d3d9::draw_debug_menu()
 	if (ImGui::CollapsingHeader("Depth Buffers", ImGuiTreeNodeFlags_DefaultOpen))
 	{
 		bool modified = false;
-		modified |= ImGui::Checkbox("Disable replacement with INTZ format", &draw_call_tracker::disable_intz);
+		modified |= ImGui::Checkbox("Disable replacement with INTZ format", &_disable_intz);
 
-		modified |= ImGui::Checkbox("Use aspect ratio heuristics", &draw_call_tracker::filter_aspect_ratio);
-		modified |= ImGui::Checkbox("Copy depth buffers before clear operation", &draw_call_tracker::preserve_depth_buffers);
+		modified |= ImGui::Checkbox("Use aspect ratio heuristics", &_filter_aspect_ratio);
+		modified |= ImGui::Checkbox("Copy depth buffers before clear operation", &_preserve_depth_buffers);
 
 		if (modified) // Detection settings have changed, reset override
 		{
 			_depthstencil_override = nullptr;
-			_current_tracker->update_depthstencil_replacement(nullptr);
+			_current_tracker->reset(true);
 		}
 
 		ImGui::Spacing();
@@ -1131,24 +1140,22 @@ void reshade::d3d9::runtime_d3d9::draw_debug_menu()
 
 			if (bool value = _depthstencil_override == ds_surface;
 				ImGui::Checkbox(label, &value))
-			{
 				_depthstencil_override = value ? ds_surface.get() : nullptr;
-			}
 
 			ImGui::SameLine();
 			ImGui::Text("| %4ux%-4u | %5u draw calls ==> %8u vertices |%s",
 				desc.Width, desc.Height, snapshot.stats.drawcalls, snapshot.stats.vertices, (msaa ? " MSAA" : ""));
 
-			if (draw_call_tracker::preserve_depth_buffers && ds_surface == _current_tracker->current_depth_surface())
+			if (_preserve_depth_buffers && ds_surface == _current_tracker->current_depth_surface())
 			{
 				for (UINT clear_index = 1; clear_index <= snapshot.clears.size(); ++clear_index)
 				{
 					sprintf_s(label, "%s  CLEAR %2u", (clear_index == _current_tracker->current_clear_index() ? "> " : "  "), clear_index);
 
-					if (bool value = (draw_call_tracker::depth_stencil_clear_index == clear_index);
+					if (bool value = (_depth_clear_index_override == clear_index);
 						ImGui::Checkbox(label, &value))
 					{
-						draw_call_tracker::depth_stencil_clear_index = value ? clear_index : 0;
+						_depth_clear_index_override = value ? clear_index : std::numeric_limits<UINT>::max();
 						modified = true;
 					}
 

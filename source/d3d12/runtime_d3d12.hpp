@@ -6,7 +6,7 @@
 #pragma once
 
 #include "runtime.hpp"
-#include "draw_call_tracker.hpp"
+#include "buffer_detection.hpp"
 #include <dxgi1_5.h>
 
 namespace reshadefx { struct sampler_info; }
@@ -25,13 +25,9 @@ namespace reshade::d3d12
 #endif
 			);
 		void on_reset();
-		void on_present(draw_call_tracker& tracker);
+		void on_present(buffer_detection_context &tracker);
 
 		bool capture_screenshot(uint8_t *buffer) const override;
-
-#if RESHADE_DX12_CAPTURE_DEPTH_BUFFERS
-		com_ptr<ID3D12Resource> create_compatible_texture(D3D12_RESOURCE_DESC desc);
-#endif
 
 	private:
 		bool init_backbuffer_textures(UINT num_buffers);
@@ -65,8 +61,10 @@ namespace reshade::d3d12
 #if RESHADE_DX12_CAPTURE_DEPTH_BUFFERS
 		void update_depthstencil_texture(com_ptr<ID3D12Resource> texture);
 
+		bool _filter_aspect_ratio = true;
+		bool _preserve_depth_buffers = false;
+		UINT _depth_clear_index_override = std::numeric_limits<UINT>::max();
 		ID3D12Resource *_depth_texture_override = nullptr;
-		std::unordered_map<UINT64, com_ptr<ID3D12Resource>> _saved_depth_textures;
 #endif
 
 		const com_ptr<ID3D12Device> _device;
@@ -103,7 +101,7 @@ namespace reshade::d3d12
 
 		HMODULE _d3d_compiler = nullptr;
 
-		draw_call_tracker *_current_tracker = nullptr;
+		buffer_detection_context *_current_tracker = nullptr;
 
 #if RESHADE_GUI
 		static const unsigned int IMGUI_BUFFER_COUNT = 5;

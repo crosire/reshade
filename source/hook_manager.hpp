@@ -7,6 +7,7 @@
 
 #include "hook.hpp"
 #include <filesystem>
+#include <type_traits>
 
 #define HOOK_EXPORT extern "C"
 

@@ -10,27 +10,9 @@
 
 D3D12Device::D3D12Device(ID3D12Device *original) :
 	_orig(original),
-	_interface_version(0) {
+	_interface_version(0),
+	_buffer_detection(original) {
 	assert(original != nullptr);
-}
-
-void D3D12Device::clear_drawcall_stats(bool release_resources)
-{
-	const std::lock_guard<std::mutex> lock(_device_global_mutex);
-
-	_draw_call_tracker.reset();
-	_current_dsv_clear_index = 1;
-
-	if (release_resources)
-		_depthstencil_resources_by_handle.clear();
-}
-
-com_ptr<ID3D12Resource> D3D12Device::resource_from_handle(D3D12_CPU_DESCRIPTOR_HANDLE handle)
-{
-	assert(handle.ptr != 0);
-
-	const std::lock_guard<std::mutex> lock(_device_global_mutex);
-	return _depthstencil_resources_by_handle[handle.ptr];
 }
 
 bool D3D12Device::check_and_upgrade_interface(REFIID riid)
@@ -187,6 +169,8 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommandList(UINT nodeMask, D3D12_CO
 	// Upgrade to the actual interface version requested here (and only hook graphics command lists)
 	if (command_list_proxy->check_and_upgrade_interface(riid))
 	{
+		command_list_proxy->_buffer_detection.init(_orig, &_buffer_detection);
+
 		*ppCommandList = command_list_proxy;
 	}
 	else // Do not hook object if we do not support the requested interface or this is a compute command list
@@ -231,12 +215,10 @@ void    STDMETHODCALLTYPE D3D12Device::CreateRenderTargetView(ID3D12Resource *pR
 void    STDMETHODCALLTYPE D3D12Device::CreateDepthStencilView(ID3D12Resource *pResource, const D3D12_DEPTH_STENCIL_VIEW_DESC *pDesc, D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptor)
 {
 	_orig->CreateDepthStencilView(pResource, pDesc, DestDescriptor);
-
+#if RESHADE_DX12_CAPTURE_DEPTH_BUFFERS
 	if (pResource != nullptr)
-	{
-		const std::lock_guard<std::mutex> lock(_device_global_mutex);
-		_depthstencil_resources_by_handle[DestDescriptor.ptr] = pResource;
-	}
+		_buffer_detection.on_create_dsv(pResource, DestDescriptor);
+#endif
 }
 void    STDMETHODCALLTYPE D3D12Device::CreateSampler(const D3D12_SAMPLER_DESC *pDesc, D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptor)
 {
@@ -397,6 +379,8 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommandList1(UINT NodeMask, D3D12_C
 	// Upgrade to the actual interface version requested here (and only hook graphics command lists)
 	if (command_list_proxy->check_and_upgrade_interface(riid))
 	{
+		command_list_proxy->_buffer_detection.init(_orig, &_buffer_detection);
+
 		*ppCommandList = command_list_proxy;
 	}
 	else // Do not hook object if we do not support the requested interface or this is a compute command list

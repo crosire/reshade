@@ -101,7 +101,7 @@ ULONG   STDMETHODCALLTYPE Direct3DSwapChain9::Release()
 HRESULT STDMETHODCALLTYPE Direct3DSwapChain9::Present(const RECT *pSourceRect, const RECT *pDestRect, HWND hDestWindowOverride, const RGNDATA *pDirtyRegion, DWORD dwFlags)
 {
 	assert(_runtime != nullptr);
-	_runtime->on_present(_device->_draw_call_tracker);
+	_runtime->on_present(_device->_buffer_detection);
 	_device->clear_drawcall_stats();
 
 	return _orig->Present(pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion, dwFlags);

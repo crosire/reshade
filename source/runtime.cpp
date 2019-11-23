@@ -208,7 +208,7 @@ void reshade::runtime::on_present()
 				_input->is_key_pressed(_next_preset_key_data) || reversed)
 			{
 				// The preset shortcut key was pressed down, so start the transition
-				if (switch_to_next_preset({}, reversed))
+				if (switch_to_next_preset(_current_preset_path.parent_path(), reversed))
 				{
 					_last_preset_switching_time = current_time;
 					_is_in_between_presets_transition = true;

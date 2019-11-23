@@ -7,9 +7,7 @@
 
 #include "runtime.hpp"
 #include "vk_handle.hpp"
-#include "draw_call_tracker.hpp"
-
-namespace reshadefx { struct sampler_info; }
+#include "buffer_detection.hpp"
 
 namespace reshade::vulkan
 {
@@ -25,17 +23,13 @@ namespace reshade::vulkan
 
 		bool on_init(VkSwapchainKHR swapchain, const VkSwapchainCreateInfoKHR &desc, HWND hwnd);
 		void on_reset();
-		void on_present(VkQueue queue, uint32_t swapchain_image_index, draw_call_tracker &tracker);
+		void on_present(VkQueue queue, uint32_t swapchain_image_index, buffer_detection_context &tracker);
 
 		bool capture_screenshot(uint8_t *buffer) const override;
 
 		auto create_image(uint32_t width, uint32_t height, uint32_t levels, VkFormat format, VkImageUsageFlags usage, VkMemoryPropertyFlags mem = 0, VkImageCreateFlags = 0) -> VkImage;
 		auto create_image_view(VkImage image, VkFormat format, uint32_t levels, VkImageAspectFlags aspect) -> VkImageView;
 		auto create_buffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags mem = 0) -> VkBuffer;
-
-#if RESHADE_VULKAN_CAPTURE_DEPTH_BUFFERS
-		VkImage create_compatible_image(const VkImageCreateInfo &create_info);
-#endif
 
 		const VkLayerDispatchTable vk;
 
@@ -69,8 +63,8 @@ namespace reshade::vulkan
 #if RESHADE_VULKAN_CAPTURE_DEPTH_BUFFERS
 		void update_depthstencil_image(VkImage depthstencil, VkImageLayout layout, VkFormat image_format);
 
+		bool _filter_aspect_ratio = true;
 		VkImage _depth_image_override = VK_NULL_HANDLE;
-		std::unordered_map<uint32_t, VkImage> _saved_depth_textures;
 #endif
 
 		const VkDevice _device;
@@ -117,7 +111,7 @@ namespace reshade::vulkan
 		std::vector<struct vulkan_effect_data> _effect_data;
 		std::unordered_map<size_t, VkSampler> _effect_sampler_states;
 
-		draw_call_tracker *_current_tracker = nullptr;
+		buffer_detection_context *_current_tracker = nullptr;
 
 #if RESHADE_GUI
 		unsigned int _imgui_index_buffer_size = 0;

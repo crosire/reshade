@@ -20,7 +20,7 @@ reshade::log::message::message(level level)
 	GetLocalTime(&time);
 
 	const char level_names[][6] = { "ERROR", "WARN ", "INFO ", "DEBUG" };
-	assert(static_cast<unsigned int>(level) - 1 < _countof(level_names));
+	assert(static_cast<unsigned int>(level) - 1 < ARRAYSIZE(level_names));
 
 	// Lock the stream until the message is complete
 	s_message_mutex.lock();

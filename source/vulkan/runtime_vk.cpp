@@ -74,7 +74,7 @@ namespace reshade::vulkan
 		uint32_t depth_image_binding = std::numeric_limits<uint32_t>::max();
 	};
 
-	static uint32_t find_memory_type_index(const VkPhysicalDeviceMemoryProperties &props, VkMemoryPropertyFlags flags, uint32_t type_bits)
+	uint32_t find_memory_type_index(const VkPhysicalDeviceMemoryProperties &props, VkMemoryPropertyFlags flags, uint32_t type_bits)
 	{
 		for (uint32_t i = 0; i < props.memoryTypeCount; i++)
 			if ((props.memoryTypes[i].propertyFlags & flags) == flags && type_bits & (1 << i))
@@ -111,20 +111,14 @@ reshade::vulkan::runtime_vk::runtime_vk(VkDevice device, VkPhysicalDevice physic
 #if RESHADE_GUI
 	subscribe_to_ui("Vulkan", [this]() { draw_debug_menu(); });
 #endif
+#if RESHADE_VULKAN_CAPTURE_DEPTH_BUFFERS
 	subscribe_to_load_config([this](const ini_file &config) {
-		config.get("VULKAN_BUFFER_DETECTION", "DepthBufferRetrievalMode", draw_call_tracker::preserve_depth_buffers);
-		config.get("VULKAN_BUFFER_DETECTION", "DepthBufferTextureFormat", draw_call_tracker::filter_depth_texture_format);
-		config.get("VULKAN_BUFFER_DETECTION", "DepthBufferMoreCopies", draw_call_tracker::preserve_stencil_buffers);
-		config.get("VULKAN_BUFFER_DETECTION", "DepthBufferClearingNumber", draw_call_tracker::depth_stencil_clear_index);
-		config.get("VULKAN_BUFFER_DETECTION", "UseAspectRatioHeuristics", draw_call_tracker::filter_aspect_ratio);
+		config.get("VULKAN_BUFFER_DETECTION", "UseAspectRatioHeuristics", _filter_aspect_ratio);
 	});
 	subscribe_to_save_config([this](ini_file &config) {
-		config.set("VULKAN_BUFFER_DETECTION", "DepthBufferRetrievalMode", draw_call_tracker::preserve_depth_buffers);
-		config.set("VULKAN_BUFFER_DETECTION", "DepthBufferTextureFormat", draw_call_tracker::filter_depth_texture_format);
-		config.set("VULKAN_BUFFER_DETECTION", "DepthBufferMoreCopies", draw_call_tracker::preserve_stencil_buffers);
-		config.set("VULKAN_BUFFER_DETECTION", "DepthBufferClearingNumber", draw_call_tracker::depth_stencil_clear_index);
-		config.set("VULKAN_BUFFER_DETECTION", "UseAspectRatioHeuristics", draw_call_tracker::filter_aspect_ratio);
+		config.set("VULKAN_BUFFER_DETECTION", "UseAspectRatioHeuristics", _filter_aspect_ratio);
 	});
+#endif
 }
 
 auto reshade::vulkan::runtime_vk::create_image(uint32_t width, uint32_t height, uint32_t levels, VkFormat format, VkImageUsageFlags usage_flags, VkMemoryPropertyFlags mem_flags, VkImageCreateFlags flags) -> VkImage
@@ -239,6 +233,9 @@ void reshade::vulkan::runtime_vk::transition_layout(VkCommandBuffer cmd_list, Vk
 		case VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_STENCIL_ATTACHMENT_OPTIMAL:
 		case VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_STENCIL_READ_ONLY_OPTIMAL:
 			return VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+		case VK_IMAGE_LAYOUT_PRESENT_SRC_KHR:
+		case VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL:
+			return VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
 		}
 		return 0;
 	};
@@ -255,6 +252,8 @@ void reshade::vulkan::runtime_vk::transition_layout(VkCommandBuffer cmd_list, Vk
 		case VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_STENCIL_ATTACHMENT_OPTIMAL:
 		case VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_STENCIL_READ_ONLY_OPTIMAL:
 			return VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
+		case VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL:
+			return VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
 		}
 		return VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
 	};
@@ -437,6 +436,7 @@ bool reshade::vulkan::runtime_vk::on_init(VkSwapchainKHR swapchain, const VkSwap
 		};
 
 		VkDescriptorPoolCreateInfo create_info { VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO };
+		// No VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT set, so that all descriptors can be reset in one go via vkResetDescriptorPool
 		create_info.maxSets = 100; // TODO: Limit to 100 effects for now
 		create_info.poolSizeCount = _countof(pool_sizes);
 		create_info.pPoolSizes = pool_sizes;
@@ -505,9 +505,6 @@ void reshade::vulkan::runtime_vk::on_reset()
 
 #if RESHADE_VULKAN_CAPTURE_DEPTH_BUFFERS
 	_depth_image_override = VK_NULL_HANDLE;
-	for (const auto &it : _saved_depth_textures)
-		vk.DestroyImage(_device, it.second, nullptr);
-	_saved_depth_textures.clear();
 #endif
 
 	vk.DestroyRenderPass(_device, _default_render_pass[0], nullptr);
@@ -559,7 +556,7 @@ void reshade::vulkan::runtime_vk::on_reset()
 	_allocations.clear();
 }
 
-void reshade::vulkan::runtime_vk::on_present(VkQueue queue, uint32_t swapchain_image_index, draw_call_tracker &tracker)
+void reshade::vulkan::runtime_vk::on_present(VkQueue queue, uint32_t swapchain_image_index, buffer_detection_context &tracker)
 {
 	if (!_is_initialized)
 		return;
@@ -580,8 +577,8 @@ void reshade::vulkan::runtime_vk::on_present(VkQueue queue, uint32_t swapchain_i
 	}
 
 #if RESHADE_VULKAN_CAPTURE_DEPTH_BUFFERS
-	const auto best_snapshot = tracker.find_best_depth_texture(_width, _height);
-	update_depthstencil_image(best_snapshot.image, best_snapshot.image_layout, best_snapshot.image_info.format);
+	const auto best_snapshot = tracker.find_best_depth_texture(_filter_aspect_ratio ? _width : 0, _height, _depth_image_override);
+	update_depthstencil_image(_has_high_network_activity ? VK_NULL_HANDLE : best_snapshot.image, best_snapshot.image_layout, best_snapshot.image_info.format);
 #endif
 
 	update_and_render_effects();
@@ -1888,84 +1885,39 @@ void reshade::vulkan::runtime_vk::draw_debug_menu()
 	if (ImGui::CollapsingHeader("Depth Buffers", ImGuiTreeNodeFlags_DefaultOpen))
 	{
 		bool modified = false;
-		modified |= ImGui::Combo("Depth texture format", (int*)&draw_call_tracker::filter_depth_texture_format, "All\0D16\0D16S8\0D24S8\0D32F\0D32FS8\0");
-		modified |= ImGui::Checkbox("Use aspect ratio heuristics", &draw_call_tracker::filter_aspect_ratio);
-		modified |= ImGui::Checkbox("Copy depth buffers before clear operation", &draw_call_tracker::preserve_depth_buffers);
+		modified |= ImGui::Checkbox("Use aspect ratio heuristics", &_filter_aspect_ratio);
 
 		if (modified) // Detection settings have changed, reset override
 			_depth_image_override = VK_NULL_HANDLE;
 
-		if (draw_call_tracker::preserve_depth_buffers)
+		ImGui::Spacing();
+		ImGui::Separator();
+		ImGui::Spacing();
+
+		for (const auto &[depth_image, snapshot] : _current_tracker->depth_buffer_counters())
 		{
-			if (ImGui::Checkbox("Copy depth buffers before stencil clear operation too", &draw_call_tracker::preserve_stencil_buffers))
+			char label[512] = "";
+			sprintf_s(label, "%s0x%016llx", (depth_image == _depth_image ? "> " : "  "), (uint64_t)depth_image);
+
+			const bool msaa = snapshot.image_info.samples != VK_SAMPLE_COUNT_1_BIT;
+			if (msaa) // Disable widget for MSAA textures
 			{
-				draw_call_tracker::depth_stencil_clear_index = 0;
-				modified = true;
+				ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
+				ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyle().Colors[ImGuiCol_TextDisabled]);
 			}
 
-			ImGui::Spacing();
-			ImGui::Separator();
-			ImGui::Spacing();
+			if (bool value = _depth_image_override == depth_image;
+				ImGui::Checkbox(label, &value))
+				_depth_image_override = value ? depth_image : VK_NULL_HANDLE;
 
-			unsigned int current_clear_index = draw_call_tracker::depth_stencil_clear_index;
-			if (current_clear_index == 0)
-				// The current clear index corresponds to the last matching cleared depth texture
-				for (const auto &[clear_index, snapshot] : _current_tracker->cleared_depth_images())
-					if (snapshot.backup_image == _depth_image)
-						current_clear_index = clear_index;
+			ImGui::SameLine();
+			ImGui::Text("| %4ux%-4u | %5u draw calls ==> %8u vertices |%s",
+				snapshot.image_info.extent.width, snapshot.image_info.extent.height, snapshot.stats.drawcalls, snapshot.stats.vertices, (msaa ? " MSAA" : ""));
 
-			for (const auto &[clear_index, snapshot] : _current_tracker->cleared_depth_images())
+			if (msaa)
 			{
-				char label[512] = "";
-				sprintf_s(label, "%s%2u", (clear_index == current_clear_index ? "> " : "  "), clear_index);
-
-				if (bool value = draw_call_tracker::depth_stencil_clear_index == clear_index;
-					ImGui::Checkbox(label, &value))
-				{
-					draw_call_tracker::depth_stencil_clear_index = value ? clear_index : 0;
-					modified = true;
-				}
-
-				ImGui::SameLine();
-				ImGui::Text("=> 0x%016llx | %4ux%-4u |", (uint64_t)snapshot.src_image, snapshot.image_info.extent.width, snapshot.image_info.extent.height);
-			}
-		}
-		else
-		{
-			ImGui::Spacing();
-			ImGui::Separator();
-			ImGui::Spacing();
-
-			for (const auto &[depthstencil, snapshot] : _current_tracker->depth_buffer_counters())
-			{
-				char label[512] = "";
-				sprintf_s(label, "%s0x%016llx", (depthstencil == _depth_image ? "> " : "  "), (uint64_t)depthstencil);
-
-				const bool disabled = snapshot.image_info.samples != VK_SAMPLE_COUNT_1_BIT || !draw_call_tracker::check_texture_format(snapshot.image_info);
-				if (disabled) // Disable widget for MSAA textures
-				{
-					ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
-					ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyle().Colors[ImGuiCol_TextDisabled]);
-				}
-
-				if (bool value = _depth_image_override == depthstencil;
-					ImGui::Checkbox(label, &value))
-				{
-					_depth_image_override = value ? depthstencil : VK_NULL_HANDLE;
-
-					if (value)
-						update_depthstencil_image(depthstencil, snapshot.image_layout, snapshot.image_info.format);
-				}
-
-				ImGui::SameLine();
-				ImGui::Text("| %4ux%-4u | %5u draw calls ==> %8u vertices |%s",
-					snapshot.image_info.extent.width, snapshot.image_info.extent.height, snapshot.stats.drawcalls, snapshot.stats.vertices, (snapshot.image_info.samples != VK_SAMPLE_COUNT_1_BIT ? " MSAA" : ""));
-
-				if (disabled)
-				{
-					ImGui::PopStyleColor();
-					ImGui::PopItemFlag();
-				}
+				ImGui::PopStyleColor();
+				ImGui::PopItemFlag();
 			}
 		}
 
@@ -1983,11 +1935,6 @@ void reshade::vulkan::runtime_vk::draw_debug_menu()
 #if RESHADE_VULKAN_CAPTURE_DEPTH_BUFFERS
 void reshade::vulkan::runtime_vk::update_depthstencil_image(VkImage image, VkImageLayout layout, VkFormat image_format)
 {
-	if (_has_high_network_activity)
-		image = VK_NULL_HANDLE;
-	else if (_depth_image_override != VK_NULL_HANDLE && image != _depth_image_override)
-		return;
-
 	if (image == _depth_image)
 		return;
 
@@ -2049,25 +1996,5 @@ void reshade::vulkan::runtime_vk::update_depthstencil_image(VkImage image, VkIma
 	}
 
 	vk.UpdateDescriptorSets(_device, uint32_t(writes.size()), writes.data(), 0, nullptr);
-}
-
-VkImage reshade::vulkan::runtime_vk::create_compatible_image(const VkImageCreateInfo &create_info)
-{
-	// Create an unique index based on the texture format and dimensions
-	const uint32_t hash = create_info.format * create_info.extent.width * create_info.extent.height;
-
-	if (const auto it = _saved_depth_textures.find(hash); it != _saved_depth_textures.end())
-		return it->second;
-
-	VkImage image = create_image(create_info.extent.width, create_info.extent.height, 1, create_info.format, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-	if (image == VK_NULL_HANDLE)
-	{
-		LOG(ERROR) << "Failed to create depth texture copy!";
-		return VK_NULL_HANDLE;
-	}
-
-	_saved_depth_textures.emplace(hash, image);
-
-	return image;
 }
 #endif
