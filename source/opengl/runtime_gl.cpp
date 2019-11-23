@@ -99,21 +99,28 @@ reshade::opengl::runtime_gl::runtime_gl()
 		}
 	}
 
-#if RESHADE_GUI
-	subscribe_to_ui("OpenGL", [this]() { draw_debug_menu(); });
+#if RESHADE_GUI && RESHADE_OPENGL_CAPTURE_DEPTH_BUFFERS
+	subscribe_to_ui("OpenGL", [this]() { draw_depth_debug_menu(); });
 #endif
 	subscribe_to_load_config([this](const ini_file &config) {
 		// Reserve a fixed amount of texture names by default to work around issues in old OpenGL games
 		// This hopefully should not affect performance much in other games
-		size_t num_reserve_texture_names = 512;
+		auto num_reserve_texture_names = 512u;
 		config.get("OPENGL", "ReserveTextureNames", num_reserve_texture_names);
 		_reserved_texture_names.resize(num_reserve_texture_names);
-		config.get("OPENGL", "ForceMainDepthBuffer", _force_main_depth_buffer);
+
+#if RESHADE_OPENGL_CAPTURE_DEPTH_BUFFERS
+		auto force_default_depth_override = false;
+		config.get("OPENGL", "ForceMainDepthBuffer", force_default_depth_override);
 		config.get("OPENGL", "UseAspectRatioHeuristics", _use_aspect_ratio_heuristics);
+
+		if (force_default_depth_override)
+			_depth_source_override = 0; // Zero has a special meaning and corresponds to the default depth buffer
 	});
 	subscribe_to_save_config([this](ini_file &config) {
-		config.set("OPENGL", "ForceMainDepthBuffer", _force_main_depth_buffer);
+		config.set("OPENGL", "ForceMainDepthBuffer", _depth_source_override == 0);
 		config.set("OPENGL", "UseAspectRatioHeuristics", _use_aspect_ratio_heuristics);
+#endif
 	});
 }
 
@@ -132,19 +139,18 @@ bool reshade::opengl::runtime_gl::on_init(HWND hwnd, unsigned int width, unsigne
 	_window_height = window_rect.bottom - window_rect.top;
 	_color_bit_depth = pfd.cRedBits;
 
-	GLint depth_format = GL_NONE;
 	switch (pfd.cDepthBits)
 	{
-	case 16: depth_format = GL_DEPTH_COMPONENT16;
+	case 16: _default_depth_format = GL_DEPTH_COMPONENT16;
 		break;
-	case 24: depth_format = pfd.cStencilBits ? GL_DEPTH24_STENCIL8 : GL_DEPTH_COMPONENT24;
+	case 24: _default_depth_format = pfd.cStencilBits ? GL_DEPTH24_STENCIL8 : GL_DEPTH_COMPONENT24;
 		break;
-	case 32: depth_format = pfd.cStencilBits ? GL_DEPTH32F_STENCIL8 : GL_DEPTH_COMPONENT32;
+	case 32: _default_depth_format = pfd.cStencilBits ? GL_DEPTH32F_STENCIL8 : GL_DEPTH_COMPONENT32;
 		break;
 	}
 
-	// Initialize information for the default depth buffer
-	_depth_source_table[0] = { _width, _height, 0, depth_format };
+	// Initialize default depth buffer information
+	_buffer_detection.reset(_width, _height, _default_depth_format);
 
 	// Capture and later restore so that the resource creation code below does not affect the application state
 	_app_state.capture();
@@ -206,12 +212,18 @@ void reshade::opengl::runtime_gl::on_reset()
 	memset(_fbo, 0, sizeof(_fbo));
 	memset(_rbo, 0, sizeof(_rbo));
 
-	_depth_source = 0;
-	_depth_source_table.clear();
-
 #if RESHADE_GUI
 	glDeleteProgram(_imgui_program);
 	_imgui_program = 0;
+#endif
+
+#if RESHADE_OPENGL_CAPTURE_DEPTH_BUFFERS
+	_depth_source = 0;
+	_depth_source_width = 0;
+	_depth_source_height = 0;
+	_depth_source_format = 0;
+	_depth_source_override = std::numeric_limits<GLuint>::max();
+	_default_depth_format = GL_NONE;
 #endif
 }
 
@@ -220,9 +232,15 @@ void reshade::opengl::runtime_gl::on_present()
 	if (!_is_initialized)
 		return;
 
+	_vertices = _buffer_detection.total_vertices();
+	_drawcalls = _buffer_detection.total_drawcalls();
+
 	_app_state.capture();
 
-	detect_depth_source();
+#if RESHADE_OPENGL_CAPTURE_DEPTH_BUFFERS
+	const auto snapshot = _buffer_detection.find_best_depth_texture(_width, _height, _depth_source_override);
+	update_depthstencil_texture(snapshot.handle, snapshot.width, snapshot.height, snapshot.level, snapshot.format);
+#endif
 
 	// Copy back buffer to RBO
 	glDisable(GL_SCISSOR_TEST);
@@ -255,98 +273,12 @@ void reshade::opengl::runtime_gl::on_present()
 
 	runtime::on_present();
 
+#if RESHADE_OPENGL_CAPTURE_DEPTH_BUFFERS
+	_buffer_detection.reset(_width, _height, _default_depth_format);
+#endif
+
 	// Apply previous state from application
 	_app_state.apply();
-}
-
-void reshade::opengl::runtime_gl::on_draw_call(unsigned int vertices)
-{
-	_vertices += vertices;
-	_drawcalls += 1;
-
-	GLint object = 0;
-	GLint target = GL_NONE;
-	glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &object);
-	if (object != 0) { // Zero is valid too, in which case the default depth buffer is referenced, instead of a FBO
-		glGetFramebufferAttachmentParameteriv(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_FRAMEBUFFER_ATTACHMENT_OBJECT_TYPE, &target);
-		if (target == GL_NONE) return;
-		glGetFramebufferAttachmentParameteriv(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_FRAMEBUFFER_ATTACHMENT_OBJECT_NAME, &object);
-	}
-
-	const auto it = _depth_source_table.find(object | (target == GL_RENDERBUFFER ? 0x80000000 : 0));
-	if (it != _depth_source_table.end())
-	{
-		it->second.num_vertices += vertices;
-		it->second.num_drawcalls = _drawcalls;
-	}
-}
-void reshade::opengl::runtime_gl::on_fbo_attachment(GLenum attachment, GLenum target, GLuint object, GLint level)
-{
-	if (object == 0 || (attachment != GL_DEPTH_ATTACHMENT && attachment != GL_DEPTH_STENCIL_ATTACHMENT))
-		return;
-
-	const GLuint id = object | (target == GL_RENDERBUFFER ? 0x80000000 : 0);
-
-	if (_depth_source_table.find(id) != _depth_source_table.end())
-		return;
-
-	depth_source_info info = { 0, 0, level, GL_NONE };
-
-	if (target == GL_RENDERBUFFER)
-	{
-		GLint previous_rbo = 0;
-		glGetIntegerv(GL_RENDERBUFFER_BINDING, &previous_rbo);
-
-		// Get depth stencil parameters from RBO
-		glBindRenderbuffer(GL_RENDERBUFFER, object);
-		glGetRenderbufferParameteriv(GL_RENDERBUFFER, GL_RENDERBUFFER_WIDTH, reinterpret_cast<int *>(&info.width));
-		glGetRenderbufferParameteriv(GL_RENDERBUFFER, GL_RENDERBUFFER_HEIGHT, reinterpret_cast<int *>(&info.height));
-		glGetRenderbufferParameteriv(GL_RENDERBUFFER, GL_RENDERBUFFER_INTERNAL_FORMAT, &info.format);
-
-		glBindRenderbuffer(GL_RENDERBUFFER, previous_rbo);
-	}
-	else
-	{
-		const auto target_to_binding = [](GLenum target) -> GLenum {
-			switch (target)
-			{
-			default:
-			case GL_TEXTURE_2D:
-				return GL_TEXTURE_BINDING_2D;
-			case GL_TEXTURE_2D_ARRAY:
-				return GL_TEXTURE_BINDING_2D_ARRAY;
-			case GL_TEXTURE_2D_MULTISAMPLE:
-				return GL_TEXTURE_BINDING_2D_MULTISAMPLE;
-			case GL_TEXTURE_2D_MULTISAMPLE_ARRAY:
-				return GL_TEXTURE_BINDING_2D_MULTISAMPLE_ARRAY;
-			case GL_TEXTURE_3D:
-				return GL_TEXTURE_BINDING_3D;
-			case GL_TEXTURE_CUBE_MAP:
-			case GL_TEXTURE_CUBE_MAP_NEGATIVE_X:
-			case GL_TEXTURE_CUBE_MAP_NEGATIVE_Y:
-			case GL_TEXTURE_CUBE_MAP_NEGATIVE_Z:
-			case GL_TEXTURE_CUBE_MAP_POSITIVE_X:
-			case GL_TEXTURE_CUBE_MAP_POSITIVE_Y:
-			case GL_TEXTURE_CUBE_MAP_POSITIVE_Z:
-				return GL_TEXTURE_BINDING_CUBE_MAP;
-			case GL_TEXTURE_CUBE_MAP_ARRAY:
-				return GL_TEXTURE_BINDING_CUBE_MAP_ARRAY;
-			}
-		};
-
-		GLint previous_tex = 0;
-		glGetIntegerv(target_to_binding(target), &previous_tex);
-
-		// Get depth stencil parameters from texture
-		glBindTexture(target, object);
-		glGetTexLevelParameteriv(target, level, GL_TEXTURE_WIDTH, reinterpret_cast<int *>(&info.width));
-		glGetTexLevelParameteriv(target, level, GL_TEXTURE_HEIGHT, reinterpret_cast<int *>(&info.height));
-		glGetTexLevelParameteriv(target, level, GL_TEXTURE_INTERNAL_FORMAT, &info.format);
-
-		glBindTexture(target, previous_tex);
-	}
-
-	_depth_source_table.emplace(id, info);
 }
 
 bool reshade::opengl::runtime_gl::capture_screenshot(uint8_t *buffer) const
@@ -377,12 +309,391 @@ bool reshade::opengl::runtime_gl::capture_screenshot(uint8_t *buffer) const
 	return true;
 }
 
+bool reshade::opengl::runtime_gl::init_effect(effect_data &effect)
+{
+	assert(_app_state.has_state); // Make sure all binds below are reset later when application state is restored
+
+	// Add specialization constant defines to source code
+#if 0
+	std::vector<GLuint> spec_constants;
+	std::vector<GLuint> spec_constant_values;
+	for (const auto &constant : effect.module.spec_constants)
+	{
+		spec_constants.push_back(constant.offset);
+		spec_constant_values.push_back(constant.initializer_value.as_uint[0]);
+	}
+#else
+	effect.preamble = "#version 430\n" + effect.preamble;
+#endif
+
+	std::unordered_map<std::string, GLuint> entry_points;
+
+	// Compile all entry points
+	for (const auto &entry_point : effect.module.entry_points)
+	{
+		GLuint shader_id = glCreateShader(entry_point.is_pixel_shader ? GL_FRAGMENT_SHADER : GL_VERTEX_SHADER);
+		entry_points[entry_point.name] = shader_id;
+
+#if 0
+		glShaderBinary(1, &shader_id, GL_SHADER_BINARY_FORMAT_SPIR_V, effect.module.spirv.data(), effect.module.spirv.size() * sizeof(uint32_t));
+		glSpecializeShader(shader_id, entry_point.first.c_str(), GLuint(spec_constants.size()), spec_constants.data(), spec_constant_values.data());
+#else
+		std::string defines = effect.preamble;
+		defines += "#define ENTRY_POINT_" + entry_point.name + " 1\n";
+		if (!entry_point.is_pixel_shader) // OpenGL does not allow using 'discard' in the vertex shader profile
+			defines += "#define discard\n"
+				"#define dFdx(x) x\n" // 'dFdx', 'dFdx' and 'fwidth' too are only available in fragment shaders
+				"#define dFdy(y) y\n"
+				"#define fwidth(p) p\n";
+
+		GLsizei lengths[] = { static_cast<GLsizei>(defines.size()), static_cast<GLsizei>(effect.module.hlsl.size()) };
+		const GLchar *sources[] = { defines.c_str(), effect.module.hlsl.c_str() };
+		glShaderSource(shader_id, 2, sources, lengths);
+		glCompileShader(shader_id);
+#endif
+
+		GLint status = GL_FALSE;
+		glGetShaderiv(shader_id, GL_COMPILE_STATUS, &status);
+		if (GL_FALSE == status)
+		{
+			GLint log_size = 0;
+			glGetShaderiv(shader_id, GL_INFO_LOG_LENGTH, &log_size);
+			std::string log(log_size, '\0');
+			glGetShaderInfoLog(shader_id, log_size, nullptr, log.data());
+
+			effect.errors += log;
+
+			for (auto &it : entry_points)
+				glDeleteShader(it.second);
+
+			// No need to setup resources if any of the shaders failed to compile
+			return false;
+		}
+	}
+
+	if (effect.storage_size != 0)
+	{
+		GLuint ubo = 0;
+		glGenBuffers(1, &ubo);
+		glBindBuffer(GL_UNIFORM_BUFFER, ubo);
+		glBufferData(GL_UNIFORM_BUFFER, effect.storage_size, _uniform_data_storage.data() + effect.storage_offset, GL_DYNAMIC_DRAW);
+
+		_effect_ubos.emplace_back(ubo, effect.storage_size);
+	}
+
+	bool success = true;
+
+	opengl_technique_data technique_init;
+	technique_init.uniform_storage_index = _effect_ubos.size() - 1;
+	technique_init.uniform_storage_offset = effect.storage_offset;
+
+	for (const reshadefx::sampler_info &info : effect.module.samplers)
+	{
+		const auto existing_texture = std::find_if(_textures.begin(), _textures.end(),
+			[&texture_name = info.texture_name](const auto &item) {
+			return item.unique_name == texture_name && item.impl != nullptr;
+		});
+		if (existing_texture == _textures.end())
+		{
+			success = false;
+			continue;
+		}
+
+		// Hash sampler state to avoid duplicated sampler objects
+		size_t hash = 2166136261;
+		hash = (hash * 16777619) ^ static_cast<uint32_t>(info.address_u);
+		hash = (hash * 16777619) ^ static_cast<uint32_t>(info.address_v);
+		hash = (hash * 16777619) ^ static_cast<uint32_t>(info.address_w);
+		hash = (hash * 16777619) ^ static_cast<uint32_t>(info.filter);
+		hash = (hash * 16777619) ^ reinterpret_cast<const uint32_t &>(info.lod_bias);
+		hash = (hash * 16777619) ^ reinterpret_cast<const uint32_t &>(info.min_lod);
+		hash = (hash * 16777619) ^ reinterpret_cast<const uint32_t &>(info.max_lod);
+
+		auto it = _effect_sampler_states.find(hash);
+
+		if (it == _effect_sampler_states.end())
+		{
+			GLenum minfilter = GL_NONE, magfilter = GL_NONE;
+
+			switch (info.filter)
+			{
+			case reshadefx::texture_filter::min_mag_mip_point:
+				minfilter = GL_NEAREST_MIPMAP_NEAREST;
+				magfilter = GL_NEAREST;
+				break;
+			case reshadefx::texture_filter::min_mag_point_mip_linear:
+				minfilter = GL_NEAREST_MIPMAP_LINEAR;
+				magfilter = GL_NEAREST;
+				break;
+			case reshadefx::texture_filter::min_point_mag_linear_mip_point:
+				minfilter = GL_NEAREST_MIPMAP_NEAREST;
+				magfilter = GL_LINEAR;
+				break;
+			case reshadefx::texture_filter::min_point_mag_mip_linear:
+				minfilter = GL_NEAREST_MIPMAP_LINEAR;
+				magfilter = GL_LINEAR;
+				break;
+			case reshadefx::texture_filter::min_linear_mag_mip_point:
+				minfilter = GL_LINEAR_MIPMAP_NEAREST;
+				magfilter = GL_NEAREST;
+				break;
+			case reshadefx::texture_filter::min_linear_mag_point_mip_linear:
+				minfilter = GL_LINEAR_MIPMAP_LINEAR;
+				magfilter = GL_NEAREST;
+				break;
+			case reshadefx::texture_filter::min_mag_linear_mip_point:
+				minfilter = GL_LINEAR_MIPMAP_NEAREST;
+				magfilter = GL_LINEAR;
+				break;
+			case reshadefx::texture_filter::min_mag_mip_linear:
+				minfilter = GL_LINEAR_MIPMAP_LINEAR;
+				magfilter = GL_LINEAR;
+				break;
+			}
+
+			const auto convert_address_mode = [](reshadefx::texture_address_mode value) {
+				switch (value)
+				{
+				case reshadefx::texture_address_mode::wrap:
+					return GL_REPEAT;
+				case reshadefx::texture_address_mode::mirror:
+					return GL_MIRRORED_REPEAT;
+				case reshadefx::texture_address_mode::clamp:
+					return GL_CLAMP_TO_EDGE;
+				case reshadefx::texture_address_mode::border:
+					return GL_CLAMP_TO_BORDER;
+				default:
+					return GL_NONE;
+				}
+			};
+
+			GLuint sampler_id = 0;
+			glGenSamplers(1, &sampler_id);
+			glSamplerParameteri(sampler_id, GL_TEXTURE_WRAP_S, convert_address_mode(info.address_u));
+			glSamplerParameteri(sampler_id, GL_TEXTURE_WRAP_T, convert_address_mode(info.address_v));
+			glSamplerParameteri(sampler_id, GL_TEXTURE_WRAP_R, convert_address_mode(info.address_w));
+			glSamplerParameteri(sampler_id, GL_TEXTURE_MAG_FILTER, magfilter);
+			glSamplerParameteri(sampler_id, GL_TEXTURE_MIN_FILTER, minfilter);
+			glSamplerParameterf(sampler_id, GL_TEXTURE_LOD_BIAS, info.lod_bias);
+			glSamplerParameterf(sampler_id, GL_TEXTURE_MIN_LOD, info.min_lod);
+			glSamplerParameterf(sampler_id, GL_TEXTURE_MAX_LOD, info.max_lod);
+
+			it = _effect_sampler_states.emplace(hash, sampler_id).first;
+		}
+
+		opengl_sampler_data sampler;
+		sampler.id = it->second;
+		sampler.texture = existing_texture->impl->as<opengl_tex_data>();
+		sampler.is_srgb = info.srgb;
+		sampler.has_mipmaps = existing_texture->levels > 1;
+
+		technique_init.samplers.resize(std::max(technique_init.samplers.size(), size_t(info.binding + 1)));
+
+		technique_init.samplers[info.binding] = std::move(sampler);
+	}
+
+	for (technique &technique : _techniques)
+	{
+		if (technique.impl != nullptr || technique.effect_index != effect.index)
+			continue;
+
+		// Copy construct new technique implementation instead of move because effect may contain multiple techniques
+		technique.impl = std::make_unique<opengl_technique_data>(technique_init);
+		const auto technique_data = technique.impl->as<opengl_technique_data>();
+
+		glGenQueries(1, &technique_data->query);
+
+		for (size_t i = 0; i < technique.passes.size(); ++i)
+		{
+			technique.passes_data.push_back(std::make_unique<opengl_pass_data>());
+
+			auto &pass = *technique.passes_data.back()->as<opengl_pass_data>();
+			const auto &pass_info = technique.passes[i];
+
+			const auto literal_to_blend_eq = [](unsigned int value) -> GLenum {
+				switch (value)
+				{
+				default:
+				case 1: return GL_FUNC_ADD;
+				case 2: return GL_FUNC_SUBTRACT;
+				case 3: return GL_FUNC_REVERSE_SUBTRACT;
+				case 4: return GL_MIN;
+				case 5: return GL_MAX;
+				}
+			};
+			const auto literal_to_blend_func = [](unsigned int value) -> GLenum {
+				switch (value)
+				{
+				default:
+				case 0: return GL_ZERO;
+				case 1: return GL_ONE;
+				case 2: return GL_SRC_COLOR;
+				case 3: return GL_SRC_ALPHA;
+				case 4: return GL_ONE_MINUS_SRC_COLOR;
+				case 5: return GL_ONE_MINUS_SRC_ALPHA;
+				case 8: return GL_DST_COLOR;
+				case 6: return GL_DST_ALPHA;
+				case 9: return GL_ONE_MINUS_DST_COLOR;
+				case 7: return GL_ONE_MINUS_DST_ALPHA;
+				}
+			};
+			const auto literal_to_comp_func = [](unsigned int value) -> GLenum {
+				switch (value)
+				{
+				default:
+				case 8: return GL_ALWAYS;
+				case 1: return GL_NEVER;
+				case 3: return GL_EQUAL;
+				case 6: return GL_NOTEQUAL;
+				case 2: return GL_LESS;
+				case 4: return GL_LEQUAL;
+				case 5: return GL_GREATER;
+				case 7: return GL_GEQUAL;
+				}
+			};
+			const auto literal_to_stencil_op = [](unsigned int value) -> GLenum {
+				switch (value)
+				{
+				default:
+				case 1: return GL_KEEP;
+				case 0: return GL_ZERO;
+				case 3: return GL_REPLACE;
+				case 7: return GL_INCR_WRAP;
+				case 4: return GL_INCR;
+				case 8: return GL_DECR_WRAP;
+				case 5: return GL_DECR;
+				case 6: return GL_INVERT;
+				}
+			};
+
+			pass.blend_eq_color = literal_to_blend_eq(pass_info.blend_op);
+			pass.blend_eq_alpha = literal_to_blend_eq(pass_info.blend_op_alpha);
+			pass.blend_src = literal_to_blend_func(pass_info.src_blend);
+			pass.blend_dest = literal_to_blend_func(pass_info.dest_blend);
+			pass.blend_src_alpha = literal_to_blend_func(pass_info.src_blend_alpha);
+			pass.blend_dest_alpha = literal_to_blend_func(pass_info.dest_blend_alpha);
+			pass.stencil_func = literal_to_comp_func(pass_info.stencil_comparison_func);
+			pass.stencil_op_z_pass = literal_to_stencil_op(pass_info.stencil_op_pass);
+			pass.stencil_op_fail = literal_to_stencil_op(pass_info.stencil_op_fail);
+			pass.stencil_op_z_fail = literal_to_stencil_op(pass_info.stencil_op_depth_fail);
+
+			glGenFramebuffers(1, &pass.fbo);
+			glBindFramebuffer(GL_FRAMEBUFFER, pass.fbo);
+
+			bool backbuffer_fbo = true;
+
+			for (unsigned int k = 0; k < 8; ++k)
+			{
+				if (pass_info.render_target_names[k].empty())
+					continue; // Skip unbound render targets
+
+				const auto render_target_texture = std::find_if(_textures.begin(), _textures.end(),
+					[&render_target = pass_info.render_target_names[k]](const auto &item) {
+					return item.unique_name == render_target;
+				});
+				assert(render_target_texture != _textures.end());
+
+				backbuffer_fbo = false;
+
+				const auto texture_impl = render_target_texture->impl->as<opengl_tex_data>();
+				assert(texture_impl != nullptr);
+
+				glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + k, texture_impl->id[pass_info.srgb_write_enable], 0);
+
+				pass.draw_targets[k] = GL_COLOR_ATTACHMENT0 + k;
+				pass.draw_textures[k] = texture_impl->id[pass_info.srgb_write_enable];
+			}
+
+			if (backbuffer_fbo)
+			{
+				glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, _rbo[RBO_COLOR]);
+
+				pass.draw_targets[0] = GL_COLOR_ATTACHMENT0;
+				pass.draw_textures[0] = _tex[TEX_BACK_SRGB];
+
+				pass.viewport_width = static_cast<GLsizei>(_width);
+				pass.viewport_height = static_cast<GLsizei>(_height);
+			}
+			else
+			{
+				// Effect compiler sets the viewport to the render target dimensions
+				pass.viewport_width = pass_info.viewport_width;
+				pass.viewport_height = pass_info.viewport_height;
+			}
+
+			assert(pass.viewport_width != 0);
+			assert(pass.viewport_height != 0);
+
+			if (pass.viewport_width == GLsizei(_width) && pass.viewport_height == GLsizei(_height))
+			{
+				// Only attach depth-stencil when viewport matches back buffer or else the frame buffer will always be resized to those dimensions
+				glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, _rbo[RBO_DEPTH]);
+			}
+
+			assert(glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
+
+			// Link program from input shaders
+			pass.program = glCreateProgram();
+			const GLuint vs_shader_id = entry_points.at(pass_info.vs_entry_point);
+			const GLuint fs_shader_id = entry_points.at(pass_info.ps_entry_point);
+			glAttachShader(pass.program, vs_shader_id);
+			glAttachShader(pass.program, fs_shader_id);
+			glLinkProgram(pass.program);
+			glDetachShader(pass.program, vs_shader_id);
+			glDetachShader(pass.program, fs_shader_id);
+
+			GLint status = GL_FALSE;
+			glGetProgramiv(pass.program, GL_LINK_STATUS, &status);
+			if (GL_FALSE == status)
+			{
+				GLint log_size = 0;
+				glGetProgramiv(pass.program, GL_INFO_LOG_LENGTH, &log_size);
+				std::string log(log_size, '\0');
+				glGetProgramInfoLog(pass.program, log_size, nullptr, log.data());
+
+				effect.errors += log;
+
+				LOG(ERROR) << "Failed to link program for pass " << i << " in technique '" << technique.name << "'.";
+				success = false;
+				break;
+			}
+		}
+	}
+
+	for (auto &it : entry_points)
+		glDeleteShader(it.second);
+
+	return success;
+}
+void reshade::opengl::runtime_gl::unload_effects()
+{
+	runtime::unload_effects();
+
+	for (const auto &info : _effect_ubos)
+		glDeleteBuffers(1, &info.first);
+	_effect_ubos.clear();
+
+	for (const auto &info : _effect_sampler_states)
+		glDeleteSamplers(1, &info.second);
+	_effect_sampler_states.clear();
+}
+
 bool reshade::opengl::runtime_gl::init_texture(texture &texture)
 {
 	texture.impl = std::make_unique<opengl_tex_data>();
+	const auto texture_data = texture.impl->as<opengl_tex_data>();
 
-	if (texture.impl_reference != texture_reference::none)
-		return update_texture_reference(texture);
+	switch (texture.impl_reference)
+	{
+	case texture_reference::back_buffer:
+		texture_data->id[0] = _tex[TEX_BACK];
+		texture_data->id[1] = _tex[TEX_BACK_SRGB];
+		return true;
+	case texture_reference::depth_buffer:
+		texture_data->id[0] = _tex[TEX_DEPTH];
+		texture_data->id[1] = _tex[TEX_DEPTH];
+		return true;
+	}
 
 	GLenum internalformat = GL_RGBA8;
 	GLenum internalformat_srgb = GL_NONE;
@@ -428,7 +739,6 @@ bool reshade::opengl::runtime_gl::init_texture(texture &texture)
 		break;
 	}
 
-	const auto texture_data = texture.impl->as<opengl_tex_data>();
 	texture_data->should_delete = true;
 
 	// Get current state
@@ -543,422 +853,6 @@ void reshade::opengl::runtime_gl::upload_texture(texture &texture, const uint8_t
 	glPixelStorei(GL_UNPACK_SKIP_ROWS, previous_unpack_skip_rows);
 	glPixelStorei(GL_UNPACK_SKIP_PIXELS, previous_unpack_skip_pixels);
 	glPixelStorei(GL_UNPACK_SKIP_IMAGES, previous_unpack_skip_images);
-}
-bool reshade::opengl::runtime_gl::update_texture_reference(texture &texture)
-{
-	GLuint new_reference[2] = {};
-
-	switch (texture.impl_reference)
-	{
-	case texture_reference::back_buffer:
-		new_reference[0] = _tex[TEX_BACK];
-		new_reference[1] = _tex[TEX_BACK_SRGB];
-		break;
-	case texture_reference::depth_buffer:
-		new_reference[0] = _tex[TEX_DEPTH];
-		new_reference[1] = _tex[TEX_DEPTH];
-		break;
-	default:
-		return false;
-	}
-
-	const auto texture_impl = texture.impl->as<opengl_tex_data>();
-	assert(texture_impl != nullptr);
-
-	if (texture_impl->id[0] == new_reference[0] &&
-		texture_impl->id[1] == new_reference[1])
-		return true;
-
-	if (texture_impl->should_delete)
-		glDeleteTextures(2, texture_impl->id);
-
-	texture_impl->id[0] = new_reference[0];
-	texture_impl->id[1] = new_reference[1];
-	texture_impl->should_delete = false;
-
-	return true;
-}
-void reshade::opengl::runtime_gl::update_texture_references(texture_reference type)
-{
-	for (auto &tex : _textures)
-		if (tex.impl != nullptr && tex.impl_reference == type)
-			update_texture_reference(tex);
-}
-
-bool reshade::opengl::runtime_gl::compile_effect(effect_data &effect)
-{
-	assert(_app_state.has_state); // Make sure all binds below are reset later when application state is restored
-
-	// Add specialization constant defines to source code
-#if 0
-	std::vector<GLuint> spec_constants;
-	std::vector<GLuint> spec_constant_values;
-	for (const auto &constant : effect.module.spec_constants)
-	{
-		spec_constants.push_back(constant.offset);
-		spec_constant_values.push_back(constant.initializer_value.as_uint[0]);
-	}
-#else
-	effect.preamble = "#version 430\n" + effect.preamble;
-#endif
-
-	std::unordered_map<std::string, GLuint> entry_points;
-
-	// Compile all entry points
-	for (const auto &entry_point : effect.module.entry_points)
-	{
-		GLuint shader_id = glCreateShader(entry_point.is_pixel_shader ? GL_FRAGMENT_SHADER : GL_VERTEX_SHADER);
-		entry_points[entry_point.name] = shader_id;
-
-#if 0
-		glShaderBinary(1, &shader_id, GL_SHADER_BINARY_FORMAT_SPIR_V, effect.module.spirv.data(), effect.module.spirv.size() * sizeof(uint32_t));
-		glSpecializeShader(shader_id, entry_point.first.c_str(), GLuint(spec_constants.size()), spec_constants.data(), spec_constant_values.data());
-#else
-		std::string defines = effect.preamble;
-		defines += "#define ENTRY_POINT_" + entry_point.name + " 1\n";
-		if (!entry_point.is_pixel_shader) // OpenGL does not allow using 'discard' in the vertex shader profile
-			defines += "#define discard\n"
-				"#define dFdx(x) x\n" // 'dFdx', 'dFdx' and 'fwidth' too are only available in fragment shaders
-				"#define dFdy(y) y\n"
-				"#define fwidth(p) p\n";
-
-		GLsizei lengths[] = { static_cast<GLsizei>(defines.size()), static_cast<GLsizei>(effect.module.hlsl.size()) };
-		const GLchar *sources[] = { defines.c_str(), effect.module.hlsl.c_str() };
-		glShaderSource(shader_id, 2, sources, lengths);
-		glCompileShader(shader_id);
-#endif
-
-		GLint status = GL_FALSE;
-		glGetShaderiv(shader_id, GL_COMPILE_STATUS, &status);
-		if (GL_FALSE == status)
-		{
-			GLint log_size = 0;
-			glGetShaderiv(shader_id, GL_INFO_LOG_LENGTH, &log_size);
-			std::string log(log_size, '\0');
-			glGetShaderInfoLog(shader_id, log_size, nullptr, log.data());
-
-			effect.errors += log;
-
-			for (auto &it : entry_points)
-				glDeleteShader(it.second);
-
-			// No need to setup resources if any of the shaders failed to compile
-			return false;
-		}
-	}
-
-	if (effect.storage_size != 0)
-	{
-		GLuint ubo = 0;
-		glGenBuffers(1, &ubo);
-		glBindBuffer(GL_UNIFORM_BUFFER, ubo);
-		glBufferData(GL_UNIFORM_BUFFER, effect.storage_size, _uniform_data_storage.data() + effect.storage_offset, GL_DYNAMIC_DRAW);
-
-		_effect_ubos.emplace_back(ubo, effect.storage_size);
-	}
-
-	bool success = true;
-
-	opengl_technique_data technique_init;
-	technique_init.uniform_storage_index = _effect_ubos.size() - 1;
-	technique_init.uniform_storage_offset = effect.storage_offset;
-
-	for (const reshadefx::sampler_info &info : effect.module.samplers)
-		success &= add_sampler(info, technique_init);
-
-	for (technique &technique : _techniques)
-		if (technique.impl == nullptr && technique.effect_index == effect.index)
-			success &= init_technique(technique, technique_init, entry_points, effect.errors);
-
-	for (auto &it : entry_points)
-		glDeleteShader(it.second);
-
-	return success;
-}
-void reshade::opengl::runtime_gl::unload_effects()
-{
-	runtime::unload_effects();
-
-	for (const auto &info : _effect_ubos)
-		glDeleteBuffers(1, &info.first);
-	_effect_ubos.clear();
-
-	for (const auto &info : _effect_sampler_states)
-		glDeleteSamplers(1, &info.second);
-	_effect_sampler_states.clear();
-}
-
-bool reshade::opengl::runtime_gl::add_sampler(const reshadefx::sampler_info &info, opengl_technique_data &technique_init)
-{
-	const auto existing_texture = std::find_if(_textures.begin(), _textures.end(),
-		[&texture_name = info.texture_name](const auto &item) {
-		return item.unique_name == texture_name && item.impl != nullptr;
-	});
-	if (existing_texture == _textures.end())
-		return false;
-
-	// Hash sampler state to avoid duplicated sampler objects
-	size_t hash = 2166136261;
-	hash = (hash * 16777619) ^ static_cast<uint32_t>(info.address_u);
-	hash = (hash * 16777619) ^ static_cast<uint32_t>(info.address_v);
-	hash = (hash * 16777619) ^ static_cast<uint32_t>(info.address_w);
-	hash = (hash * 16777619) ^ static_cast<uint32_t>(info.filter);
-	hash = (hash * 16777619) ^ reinterpret_cast<const uint32_t &>(info.lod_bias);
-	hash = (hash * 16777619) ^ reinterpret_cast<const uint32_t &>(info.min_lod);
-	hash = (hash * 16777619) ^ reinterpret_cast<const uint32_t &>(info.max_lod);
-
-	auto it = _effect_sampler_states.find(hash);
-
-	if (it == _effect_sampler_states.end())
-	{
-		GLenum minfilter = GL_NONE, magfilter = GL_NONE;
-
-		switch (info.filter)
-		{
-		case reshadefx::texture_filter::min_mag_mip_point:
-			minfilter = GL_NEAREST_MIPMAP_NEAREST;
-			magfilter = GL_NEAREST;
-			break;
-		case reshadefx::texture_filter::min_mag_point_mip_linear:
-			minfilter = GL_NEAREST_MIPMAP_LINEAR;
-			magfilter = GL_NEAREST;
-			break;
-		case reshadefx::texture_filter::min_point_mag_linear_mip_point:
-			minfilter = GL_NEAREST_MIPMAP_NEAREST;
-			magfilter = GL_LINEAR;
-			break;
-		case reshadefx::texture_filter::min_point_mag_mip_linear:
-			minfilter = GL_NEAREST_MIPMAP_LINEAR;
-			magfilter = GL_LINEAR;
-			break;
-		case reshadefx::texture_filter::min_linear_mag_mip_point:
-			minfilter = GL_LINEAR_MIPMAP_NEAREST;
-			magfilter = GL_NEAREST;
-			break;
-		case reshadefx::texture_filter::min_linear_mag_point_mip_linear:
-			minfilter = GL_LINEAR_MIPMAP_LINEAR;
-			magfilter = GL_NEAREST;
-			break;
-		case reshadefx::texture_filter::min_mag_linear_mip_point:
-			minfilter = GL_LINEAR_MIPMAP_NEAREST;
-			magfilter = GL_LINEAR;
-			break;
-		case reshadefx::texture_filter::min_mag_mip_linear:
-			minfilter = GL_LINEAR_MIPMAP_LINEAR;
-			magfilter = GL_LINEAR;
-			break;
-		}
-
-		const auto convert_address_mode = [](reshadefx::texture_address_mode value) {
-			switch (value)
-			{
-			case reshadefx::texture_address_mode::wrap:
-				return GL_REPEAT;
-			case reshadefx::texture_address_mode::mirror:
-				return GL_MIRRORED_REPEAT;
-			case reshadefx::texture_address_mode::clamp:
-				return GL_CLAMP_TO_EDGE;
-			case reshadefx::texture_address_mode::border:
-				return GL_CLAMP_TO_BORDER;
-			default:
-				return GL_NONE;
-			}
-		};
-
-		GLuint sampler_id = 0;
-		glGenSamplers(1, &sampler_id);
-		glSamplerParameteri(sampler_id, GL_TEXTURE_WRAP_S, convert_address_mode(info.address_u));
-		glSamplerParameteri(sampler_id, GL_TEXTURE_WRAP_T, convert_address_mode(info.address_v));
-		glSamplerParameteri(sampler_id, GL_TEXTURE_WRAP_R, convert_address_mode(info.address_w));
-		glSamplerParameteri(sampler_id, GL_TEXTURE_MAG_FILTER, magfilter);
-		glSamplerParameteri(sampler_id, GL_TEXTURE_MIN_FILTER, minfilter);
-		glSamplerParameterf(sampler_id, GL_TEXTURE_LOD_BIAS, info.lod_bias);
-		glSamplerParameterf(sampler_id, GL_TEXTURE_MIN_LOD, info.min_lod);
-		glSamplerParameterf(sampler_id, GL_TEXTURE_MAX_LOD, info.max_lod);
-
-		it = _effect_sampler_states.emplace(hash, sampler_id).first;
-	}
-
-	opengl_sampler_data sampler;
-	sampler.id = it->second;
-	sampler.texture = existing_texture->impl->as<opengl_tex_data>();
-	sampler.is_srgb = info.srgb;
-	sampler.has_mipmaps = existing_texture->levels > 1;
-
-	technique_init.samplers.resize(std::max(technique_init.samplers.size(), size_t(info.binding + 1)));
-
-	technique_init.samplers[info.binding] = std::move(sampler);
-
-	return true;
-}
-bool reshade::opengl::runtime_gl::init_technique(technique &technique, const opengl_technique_data &impl_init, const std::unordered_map<std::string, GLuint> &entry_points, std::string &errors)
-{
-	assert(_app_state.has_state);
-
-	// Copy construct new technique implementation instead of move because effect may contain multiple techniques
-	technique.impl = std::make_unique<opengl_technique_data>(impl_init);
-
-	const auto technique_data = technique.impl->as<opengl_technique_data>();
-
-	glGenQueries(1, &technique_data->query);
-
-	for (size_t i = 0; i < technique.passes.size(); ++i)
-	{
-		technique.passes_data.push_back(std::make_unique<opengl_pass_data>());
-
-		auto &pass = *technique.passes_data.back()->as<opengl_pass_data>();
-		const auto &pass_info = technique.passes[i];
-
-		const auto literal_to_blend_eq = [](unsigned int value) -> GLenum {
-			switch (value)
-			{
-			default:
-			case 1: return GL_FUNC_ADD;
-			case 2: return GL_FUNC_SUBTRACT;
-			case 3: return GL_FUNC_REVERSE_SUBTRACT;
-			case 4: return GL_MIN;
-			case 5: return GL_MAX;
-			}
-		};
-		const auto literal_to_blend_func = [](unsigned int value) -> GLenum {
-			switch (value)
-			{
-			default:
-			case 0: return GL_ZERO;
-			case 1: return GL_ONE;
-			case 2: return GL_SRC_COLOR;
-			case 3: return GL_SRC_ALPHA;
-			case 4: return GL_ONE_MINUS_SRC_COLOR;
-			case 5: return GL_ONE_MINUS_SRC_ALPHA;
-			case 8: return GL_DST_COLOR;
-			case 6: return GL_DST_ALPHA;
-			case 9: return GL_ONE_MINUS_DST_COLOR;
-			case 7: return GL_ONE_MINUS_DST_ALPHA;
-			}
-		};
-		const auto literal_to_comp_func = [](unsigned int value) -> GLenum {
-			switch (value)
-			{
-			default:
-			case 8: return GL_ALWAYS;
-			case 1: return GL_NEVER;
-			case 3: return GL_EQUAL;
-			case 6: return GL_NOTEQUAL;
-			case 2: return GL_LESS;
-			case 4: return GL_LEQUAL;
-			case 5: return GL_GREATER;
-			case 7: return GL_GEQUAL;
-			}
-		};
-		const auto literal_to_stencil_op = [](unsigned int value) -> GLenum {
-			switch (value)
-			{
-			default:
-			case 1: return GL_KEEP;
-			case 0: return GL_ZERO;
-			case 3: return GL_REPLACE;
-			case 7: return GL_INCR_WRAP;
-			case 4: return GL_INCR;
-			case 8: return GL_DECR_WRAP;
-			case 5: return GL_DECR;
-			case 6: return GL_INVERT;
-			}
-		};
-
-		pass.blend_eq_color = literal_to_blend_eq(pass_info.blend_op);
-		pass.blend_eq_alpha = literal_to_blend_eq(pass_info.blend_op_alpha);
-		pass.blend_src = literal_to_blend_func(pass_info.src_blend);
-		pass.blend_dest = literal_to_blend_func(pass_info.dest_blend);
-		pass.blend_src_alpha = literal_to_blend_func(pass_info.src_blend_alpha);
-		pass.blend_dest_alpha = literal_to_blend_func(pass_info.dest_blend_alpha);
-		pass.stencil_func = literal_to_comp_func(pass_info.stencil_comparison_func);
-		pass.stencil_op_z_pass = literal_to_stencil_op(pass_info.stencil_op_pass);
-		pass.stencil_op_fail = literal_to_stencil_op(pass_info.stencil_op_fail);
-		pass.stencil_op_z_fail = literal_to_stencil_op(pass_info.stencil_op_depth_fail);
-
-		glGenFramebuffers(1, &pass.fbo);
-		glBindFramebuffer(GL_FRAMEBUFFER, pass.fbo);
-
-		bool backbuffer_fbo = true;
-
-		for (unsigned int k = 0; k < 8; ++k)
-		{
-			if (pass_info.render_target_names[k].empty())
-				continue; // Skip unbound render targets
-
-			const auto render_target_texture = std::find_if(_textures.begin(), _textures.end(),
-				[&render_target = pass_info.render_target_names[k]](const auto &item) {
-				return item.unique_name == render_target;
-			});
-			if (render_target_texture == _textures.end())
-				return assert(false), false;
-
-			backbuffer_fbo = false;
-
-			const auto texture_impl = render_target_texture->impl->as<opengl_tex_data>();
-			assert(texture_impl != nullptr);
-
-			glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + k, texture_impl->id[pass_info.srgb_write_enable], 0);
-
-			pass.draw_targets[k] = GL_COLOR_ATTACHMENT0 + k;
-			pass.draw_textures[k] = texture_impl->id[pass_info.srgb_write_enable];
-		}
-
-		if (backbuffer_fbo)
-		{
-			glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, _rbo[RBO_COLOR]);
-
-			pass.draw_targets[0] = GL_COLOR_ATTACHMENT0;
-			pass.draw_textures[0] = _tex[TEX_BACK_SRGB];
-
-			pass.viewport_width = static_cast<GLsizei>(_width);
-			pass.viewport_height = static_cast<GLsizei>(_height);
-		}
-		else
-		{
-			// Effect compiler sets the viewport to the render target dimensions
-			pass.viewport_width = pass_info.viewport_width;
-			pass.viewport_height = pass_info.viewport_height;
-		}
-
-		assert(pass.viewport_width != 0);
-		assert(pass.viewport_height != 0);
-
-		if (pass.viewport_width == GLsizei(_width) && pass.viewport_height == GLsizei(_height))
-		{
-			// Only attach depth-stencil when viewport matches back buffer or else the frame buffer will always be resized to those dimensions
-			glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, _rbo[RBO_DEPTH]);
-		}
-
-		assert(glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
-
-		// Link program from input shaders
-		pass.program = glCreateProgram();
-		const GLuint vs_shader_id = entry_points.at(pass_info.vs_entry_point);
-		const GLuint fs_shader_id = entry_points.at(pass_info.ps_entry_point);
-		glAttachShader(pass.program, vs_shader_id);
-		glAttachShader(pass.program, fs_shader_id);
-		glLinkProgram(pass.program);
-		glDetachShader(pass.program, vs_shader_id);
-		glDetachShader(pass.program, fs_shader_id);
-
-		GLint status = GL_FALSE;
-		glGetProgramiv(pass.program, GL_LINK_STATUS, &status);
-		if (GL_FALSE == status)
-		{
-			GLint log_size = 0;
-			glGetProgramiv(pass.program, GL_INFO_LOG_LENGTH, &log_size);
-			std::string log(log_size, '\0');
-			glGetProgramInfoLog(pass.program, log_size, nullptr, log.data());
-
-			errors += log;
-
-			LOG(ERROR) << "Failed to link program for pass " << i << " in technique '" << technique.name << "'.";
-			return false;
-		}
-	}
-
-	return true;
 }
 
 void reshade::opengl::runtime_gl::render_technique(technique &technique)
@@ -1221,146 +1115,138 @@ void reshade::opengl::runtime_gl::render_imgui_draw_data(ImDrawData *draw_data)
 		}
 	}
 }
+#endif
 
-void reshade::opengl::runtime_gl::draw_debug_menu()
+#if RESHADE_OPENGL_CAPTURE_DEPTH_BUFFERS
+void reshade::opengl::runtime_gl::draw_depth_debug_menu()
 {
 	if (ImGui::CollapsingHeader("Depth Buffers", ImGuiTreeNodeFlags_DefaultOpen))
 	{
-		bool modified = false;
-		modified |= ImGui::Checkbox("Always use depth buffer from swap chain", &_force_main_depth_buffer);
-
-		if (_force_main_depth_buffer)
-		{
-			if (modified) // Option to force main depth buffer was just enabled, so update depth source
-			{
-				_depth_source = 0;
-				update_texture_references(texture_reference::depth_buffer);
-			}
-		}
-		else
-		{
-			modified |= ImGui::Checkbox("Use aspect ratio heuristics", &_use_aspect_ratio_heuristics);
-
-			ImGui::Spacing();
-			ImGui::Separator();
-			ImGui::Spacing();
-
-			for (const auto &[depth_source, snapshot] : _depth_source_table)
-			{
-				ImGui::Text("%s0x%08x | %4ux%-4u | %5u draw calls ==> %8u vertices |",
-					(depth_source == _depth_source ? "> " : "  "), depth_source, snapshot.width, snapshot.height, snapshot.num_drawcalls, snapshot.num_vertices);
-			}
-
-			ImGui::Spacing();
-			ImGui::Separator();
-			ImGui::Spacing();
-		}
-
-		if (modified)
+		if (ImGui::Checkbox("Use aspect ratio heuristics", &_use_aspect_ratio_heuristics))
 			runtime::save_config();
+
+		ImGui::Spacing();
+		ImGui::Separator();
+		ImGui::Spacing();
+
+		for (const auto &[depth_source, snapshot] : _buffer_detection.depth_buffer_counters())
+		{
+			char label[512] = "";
+			sprintf_s(label, "%s0x%08x", (depth_source == _depth_source ? "> " : "  "), depth_source);
+
+			if (bool value = _depth_source_override == depth_source;
+				ImGui::Checkbox(label, &value))
+				_depth_source_override = value ? depth_source : std::numeric_limits<GLuint>::max();
+
+			ImGui::SameLine();
+			ImGui::Text("| %4ux%-4u | %5u draw calls ==> %8u vertices |%f",
+				snapshot.width, snapshot.height, snapshot.stats.drawcalls, snapshot.stats.vertices,
+				depth_source & 0x80000000 ? " RBO" : depth_source != 0 ? " FBO" : "");
+		}
+
+		ImGui::Spacing();
+		ImGui::Separator();
+		ImGui::Spacing();
 	}
 }
-#endif
 
-void reshade::opengl::runtime_gl::detect_depth_source()
+void reshade::opengl::runtime_gl::update_depthstencil_texture(GLuint source, GLuint width, GLuint height, GLuint level, GLenum format)
 {
-	if (_framecount % 30)
-		return; // Only execute detection heuristic every 30 frames to avoid too frequent changes
-
 	if (_has_high_network_activity)
 	{
 		_depth_source = 0;
-		glDeleteTextures(1, &_tex[TEX_DEPTH]);
-		_tex[TEX_DEPTH] = 0;
-		update_texture_references(texture_reference::depth_buffer);
+
+		if (_tex[TEX_DEPTH])
+		{
+			glDeleteTextures(1, &_tex[TEX_DEPTH]);
+			_tex[TEX_DEPTH] = 0;
+
+			for (auto &tex : _textures)
+			{
+				if (tex.impl != nullptr && tex.impl_reference == texture_reference::depth_buffer)
+				{
+					const auto texture_impl = tex.impl->as<opengl_tex_data>();
+					assert(texture_impl != nullptr && !texture_impl->should_delete);
+					texture_impl->id[0] = 0;
+					texture_impl->id[1] = 0;
+				}
+			}
+		}
 		return;
+	}
+
+	if (_tex[TEX_DEPTH] &&
+		source == _depth_source)
+		return;
+
+	_depth_source = source;
+
+	// Convert depth formats to internal texture formats
+	switch (format)
+	{
+	case GL_DEPTH_STENCIL:
+		format = GL_DEPTH24_STENCIL8;
+		break;
+	case GL_DEPTH_COMPONENT:
+		format = GL_DEPTH_COMPONENT24;
+		break;
 	}
 
 	assert(_app_state.has_state);
 
-	GLuint best_match = 0;
-	depth_source_info best_info = _depth_source_table.at(0); // Always fall back to default depth buffer if no better match is found
-
-	if (!_force_main_depth_buffer)
+	// Resize depth texture if dimensions have changed
+	if (_tex[TEX_DEPTH] == 0 ||
+		_depth_source_width != width || _depth_source_height != height || _depth_source_format != format)
 	{
-		for (auto &it : _depth_source_table)
+		// Recreate depth texture (since the storage is immutable after the first call to glTexStorage)
+		glDeleteTextures(1, &_tex[TEX_DEPTH]);
+		glGenTextures(1, &_tex[TEX_DEPTH]);
+
+		glBindTexture(GL_TEXTURE_2D, _tex[TEX_DEPTH]);
+		glTexStorage2D(GL_TEXTURE_2D, 1, format, width, height);
+
+		if (GLenum err = glGetError(); err != GL_NO_ERROR)
 		{
-			if (it.second.num_drawcalls == 0)
-				continue; // Skip candidates that were not used during rendering
+			glDeleteTextures(1, &_tex[TEX_DEPTH]);
+			_tex[TEX_DEPTH] = 0;
 
-			bool candidate = true;
-			// Detection heuristic based on dimensions and usage
-			if (_use_aspect_ratio_heuristics)
-				candidate = (it.second.width > _width * 0.95 && it.second.width < _width * 1.05) && (it.second.height > _height * 0.95 && it.second.height < _height * 1.05);
-			if (candidate)
-				candidate = (it.second.num_vertices * (1.2f - float(it.second.num_drawcalls) / _drawcalls)) >= (best_info.num_vertices * (1.2f - float(best_info.num_drawcalls) / _drawcalls));
+			LOG(ERROR) << "Failed to create depth texture of format " << std::hex << format << " with error code " << err << std::dec << '.';
+		}
 
-			if (candidate)
+		_depth_source_width = width;
+		_depth_source_height = height;
+		_depth_source_format = format;
+
+		// Update FBO attachment
+		glBindFramebuffer(GL_FRAMEBUFFER, _fbo[FBO_BLIT]);
+		glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, _tex[TEX_DEPTH], 0);
+		assert(glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
+
+		// Update all references to the new texture
+		for (auto &tex : _textures)
+		{
+			if (tex.impl != nullptr && tex.impl_reference == texture_reference::depth_buffer)
 			{
-				best_info = it.second;
-				best_match = it.first;
+				const auto texture_impl = tex.impl->as<opengl_tex_data>();
+				assert(texture_impl != nullptr && !texture_impl->should_delete);
+				texture_impl->id[0] = _tex[TEX_DEPTH];
+				texture_impl->id[1] = _tex[TEX_DEPTH];
 			}
-
-			// Reset statistics for next frame
-			it.second.num_vertices = 0;
-			it.second.num_drawcalls = 0;
 		}
 	}
 
-	if (_depth_source != best_match || !_tex[TEX_DEPTH])
+	if (source != 0)
 	{
-		const auto &previous_info = _depth_source_table.at(_depth_source);
+		glBindFramebuffer(GL_FRAMEBUFFER, _fbo[FBO_DEPTH]);
 
-		// Resize depth texture if it dimensions have changed
-		if (best_info.width != previous_info.width || best_info.height != previous_info.height || best_info.format != previous_info.format || !_tex[TEX_DEPTH])
-		{
-			// Convert depth formats to internal texture formats
-			switch (best_info.format)
-			{
-			case GL_DEPTH_STENCIL:
-				best_info.format = GL_DEPTH24_STENCIL8;
-				break;
-			case GL_DEPTH_COMPONENT:
-				best_info.format = GL_DEPTH_COMPONENT24;
-				break;
-			}
-
-			// Recreate depth texture name (since the storage is immutable after the first call to glTexStorage)
-			glDeleteTextures(1, &_tex[TEX_DEPTH]);
-			glGenTextures(1, &_tex[TEX_DEPTH]);
-
-			glBindTexture(GL_TEXTURE_2D, _tex[TEX_DEPTH]);
-			glTexStorage2D(GL_TEXTURE_2D, 1, best_info.format, best_info.width, best_info.height);
-
-			if (GLenum err = glGetError(); err != GL_NO_ERROR)
-			{
-				glDeleteTextures(1, &_tex[TEX_DEPTH]);
-				_tex[TEX_DEPTH] = 0;
-
-				LOG(ERROR) << "Failed to create depth texture of format " << std::hex << best_info.format << " with error code " << err << std::dec << '.';
-			}
-
-			// Update FBO attachment
-			glBindFramebuffer(GL_FRAMEBUFFER, _fbo[FBO_BLIT]);
-			glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, _tex[TEX_DEPTH], 0);
-			assert(glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
-
-			update_texture_references(texture_reference::depth_buffer);
+		if ((source & 0x80000000) == 0) {
+			glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, source, level);
+		}
+		else {
+			glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, source ^ 0x80000000);
 		}
 
-		_depth_source = best_match;
-
-		if (best_match != 0)
-		{
-			glBindFramebuffer(GL_FRAMEBUFFER, _fbo[FBO_DEPTH]);
-
-			if ((best_match & 0x80000000) == 0) {
-				glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, best_match, best_info.level);
-			} else {
-				glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, best_match ^ 0x80000000);
-			}
-
-			assert(glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
-		}
+		assert(glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
 	}
 }
+#endif

@@ -15,7 +15,8 @@
 D3D12CommandQueueDownlevel::D3D12CommandQueueDownlevel(D3D12CommandQueue *queue, ID3D12CommandQueueDownlevel *original) :
 	_orig(original),
 	_device(queue->_device) {
-	assert(original != nullptr);
+	assert(_orig != nullptr);
+	_runtime = std::make_unique<reshade::d3d12::runtime_d3d12>(_device->_orig, queue->_orig, nullptr);
 }
 
 HRESULT STDMETHODCALLTYPE D3D12CommandQueueDownlevel::QueryInterface(REFIID riid, void **ppvObj)
@@ -46,10 +47,9 @@ ULONG   STDMETHODCALLTYPE D3D12CommandQueueDownlevel::Release()
 		return _orig->Release(), ref;
 
 	_runtime->on_reset();
-	_device->_buffer_detection.reset(true); // Release any live references to depth buffers etc.
-	_device->_runtimes.erase(std::remove(_device->_runtimes.begin(), _device->_runtimes.end(), _runtime), _device->_runtimes.end());
 
-	_runtime.reset();
+	// Release any live references to depth buffers etc.
+	_device->_buffer_detection.reset(true);
 
 	const ULONG ref_orig = _orig->Release();
 	if (ref_orig != 0)
@@ -65,24 +65,25 @@ ULONG   STDMETHODCALLTYPE D3D12CommandQueueDownlevel::Release()
 
 HRESULT STDMETHODCALLTYPE D3D12CommandQueueDownlevel::Present(ID3D12GraphicsCommandList *pOpenCommandList, ID3D12Resource *pSourceTex2D, HWND hWindow, D3D12_DOWNLEVEL_PRESENT_FLAGS Flags)
 {
-	// Create runtime on first call to present (since we need to know which window it presents to)
-	if (_runtime == nullptr)
+	assert(pSourceTex2D != nullptr);
+
+	// Reinitialize runtime when the source texture changes
+	if (pSourceTex2D != _last_source_tex)
 	{
-		DXGI_SWAP_CHAIN_DESC desc = {};
-		desc.BufferCount = 1; // There is only one fake back buffer texture
-		desc.BufferDesc.Format = pSourceTex2D->GetDesc().Format;
-		desc.OutputWindow = hWindow;
+		_last_source_tex = pSourceTex2D;
 
-		com_ptr<ID3D12CommandQueue> queue;
-		_orig->QueryInterface(&queue);
+		_runtime->on_reset();
 
-		const auto runtime = std::make_shared<reshade::d3d12::runtime_d3d12>(_device->_orig, queue.get(), nullptr);
-		if (!runtime->on_init(desc, pSourceTex2D))
-			LOG(ERROR) << "Failed to initialize Direct3D 12 runtime environment on runtime " << runtime.get() << '.';
+		DXGI_SWAP_CHAIN_DESC swap_desc = {};
+		swap_desc.BufferCount = 1; // There is only one fake back buffer texture
+		const D3D12_RESOURCE_DESC source_desc = pSourceTex2D->GetDesc();
+		swap_desc.BufferDesc.Width = static_cast<UINT>(source_desc.Width);
+		swap_desc.BufferDesc.Height = source_desc.Height;
+		swap_desc.BufferDesc.Format = source_desc.Format;
+		swap_desc.OutputWindow = hWindow;
 
-		_device->_runtimes.push_back(runtime);
-
-		_runtime = std::move(runtime);
+		if (!_runtime->on_init(swap_desc, pSourceTex2D))
+			LOG(ERROR) << "Failed to initialize Direct3D 12 runtime environment on runtime " << _runtime.get() << '.';
 	}
 
 	_runtime->on_present(_device->_buffer_detection);

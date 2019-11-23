@@ -15,7 +15,6 @@
 struct device_data
 {
 	VkPhysicalDevice physical_device;
-	std::vector<std::shared_ptr<reshade::vulkan::runtime_vk>> runtimes;
 	reshade::vulkan::buffer_detection_context buffer_detection;
 };
 
@@ -413,10 +412,6 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 
 	s_runtimes.emplace(*pSwapchain, runtime);
 
-	// Add runtime to device list
-	// Not locking here since it is unlikely for any other Vulkan function to be called in parallel to this
-	device_data.runtimes.push_back(runtime);
-
 #if RESHADE_VERBOSE_LOG
 	LOG(INFO) << "> Returning Vulkan swapchain " << *pSwapchain << '.';
 #endif
@@ -426,15 +421,11 @@ void     VKAPI_CALL vkDestroySwapchainKHR(VkDevice device, VkSwapchainKHR swapch
 {
 	LOG(INFO) << "Redirecting vkDestroySwapchainKHR" << '(' << device << ", " << swapchain << ", " << pAllocator << ')' << " ...";
 
-	std::shared_ptr<reshade::vulkan::runtime_vk> runtime;
 	// Remove runtime from global list
-	if (s_runtimes.erase(swapchain, runtime))
+	if (std::shared_ptr<reshade::vulkan::runtime_vk> runtime;
+		s_runtimes.erase(swapchain, runtime))
 	{
 		runtime->on_reset();
-
-		// Remove runtime from device list
-		auto &runtimes = s_device_data.at(dispatch_key_from_handle(device)).runtimes;
-		runtimes.erase(std::remove(runtimes.begin(), runtimes.end(), runtime), runtimes.end());
 	}
 
 	GET_DEVICE_DISPATCH_PTR(DestroySwapchainKHR, device);

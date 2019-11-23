@@ -12,7 +12,7 @@
 D3D11CommandList::D3D11CommandList(D3D11Device *device, ID3D11CommandList *original) :
 	_orig(original),
 	_device(device) {
-	assert(original != nullptr);
+	assert(_orig != nullptr && _device != nullptr);
 }
 
 bool D3D11CommandList::check_and_upgrade_interface(REFIID riid)

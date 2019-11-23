@@ -16,7 +16,7 @@ Direct3DDevice9::Direct3DDevice9(IDirect3DDevice9   *original, IDirect3DSwapChai
 	_use_software_rendering(use_software_rendering),
 	_implicit_swapchain(new Direct3DSwapChain9(this, implicit_swapchain, runtime)),
 	_buffer_detection(original) {
-	assert(original != nullptr);
+	assert(_orig != nullptr);
 }
 Direct3DDevice9::Direct3DDevice9(IDirect3DDevice9Ex *original, IDirect3DSwapChain9 *implicit_swapchain, const std::shared_ptr<reshade::d3d9::runtime_d3d9> &runtime, bool use_software_rendering) :
 	_orig(original),
@@ -24,12 +24,7 @@ Direct3DDevice9::Direct3DDevice9(IDirect3DDevice9Ex *original, IDirect3DSwapChai
 	_use_software_rendering(use_software_rendering),
 	_implicit_swapchain(new Direct3DSwapChain9(this, implicit_swapchain, runtime)),
 	_buffer_detection(original) {
-	assert(original != nullptr);
-}
-
-void Direct3DDevice9::clear_drawcall_stats(bool release_resources)
-{
-	_buffer_detection.reset(release_resources);
+	assert(_orig != nullptr);
 }
 
 bool Direct3DDevice9::check_and_upgrade_interface(REFIID riid)
@@ -213,12 +208,10 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::Reset(D3DPRESENT_PARAMETERS *pPresent
 
 	dump_present_parameters(*pPresentationParameters);
 
-	clear_drawcall_stats(true);
-
-	assert(_implicit_swapchain->_runtime != nullptr);
 	const auto runtime = _implicit_swapchain->_runtime;
 	runtime->on_reset();
 
+	_buffer_detection.reset(true);
 	_auto_depthstencil.reset();
 
 	const HRESULT hr = _orig->Reset(pPresentationParameters);
@@ -245,9 +238,8 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::Reset(D3DPRESENT_PARAMETERS *pPresent
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::Present(const RECT *pSourceRect, const RECT *pDestRect, HWND hDestWindowOverride, const RGNDATA *pDirtyRegion)
 {
-	assert(_implicit_swapchain->_runtime != nullptr);
 	_implicit_swapchain->_runtime->on_present(_buffer_detection);
-	clear_drawcall_stats();
+	_buffer_detection.reset(false);
 
 	return _orig->Present(pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion);
 }
@@ -728,9 +720,8 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::ComposeRects(IDirect3DSurface9 *pSrc,
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::PresentEx(const RECT *pSourceRect, const RECT *pDestRect, HWND hDestWindowOverride, const RGNDATA *pDirtyRegion, DWORD dwFlags)
 {
-	assert(_implicit_swapchain->_runtime != nullptr);
 	_implicit_swapchain->_runtime->on_present(_buffer_detection);
-	clear_drawcall_stats();
+	_buffer_detection.reset(false);
 
 	assert(_extended_interface);
 	return static_cast<IDirect3DDevice9Ex *>(_orig)->PresentEx(pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion, dwFlags);
@@ -800,12 +791,10 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::ResetEx(D3DPRESENT_PARAMETERS *pPrese
 
 	dump_present_parameters(*pPresentationParameters);
 
-	clear_drawcall_stats(true);
-
-	assert(_implicit_swapchain->_runtime != nullptr);
 	const auto runtime = _implicit_swapchain->_runtime;
 	runtime->on_reset();
 
+	_buffer_detection.reset(true);
 	_auto_depthstencil.reset();
 
 	assert(_extended_interface);

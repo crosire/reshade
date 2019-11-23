@@ -673,7 +673,7 @@ void reshade::runtime::update_and_render_effects()
 
 			effect_data &effect = _loaded_effects[effect_index];
 
-			// Create textures now, since they are referenced when building samplers in the 'compile_effect' call below
+			// Create textures now, since they are referenced when building samplers in the 'init_effect' call below
 			bool success = true;
 			for (texture &texture : _textures)
 			{
@@ -689,7 +689,7 @@ void reshade::runtime::update_and_render_effects()
 			}
 
 			// Compile the effect with the back-end implementation
-			if (success && !compile_effect(effect))
+			if (success && !init_effect(effect))
 			{
 				// De-duplicate error lines (D3DCompiler sometimes repeats the same error multiple times)
 				for (size_t cur_line_offset = 0, next_line_offset, end_offset;
