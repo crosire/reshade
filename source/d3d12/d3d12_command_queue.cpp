@@ -94,7 +94,8 @@ ULONG   STDMETHODCALLTYPE D3D12CommandQueue::Release()
 		return _orig->Release(), ref;
 
 #if RESHADE_D3D12ON7
-	_downlevel->Release();
+	if (_downlevel != nullptr)
+		_downlevel->Release();
 #endif
 
 	const ULONG ref_orig = _orig->Release();
