@@ -101,6 +101,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 	if (strstr(lpCmdLine, "-d3d9"))
 	{
 		const auto d3d9_module = LoadLibrary(TEXT("d3d9.dll"));
+		assert(d3d9_module != nullptr);
 		hooks::register_module("d3d9.dll");
 
 		D3DPRESENT_PARAMETERS pp = {};
@@ -147,6 +148,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 	if (strstr(lpCmdLine, "-d3d11"))
 	{
 		const auto d3d11_module = LoadLibrary(TEXT("d3d11.dll"));
+		assert(d3d11_module != nullptr);
 		hooks::register_module("dxgi.dll");
 		hooks::register_module("d3d11.dll");
 
@@ -209,6 +211,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 	if (strstr(lpCmdLine, "-d3d12"))
 	{
 		const auto d3d12_module = LoadLibrary(TEXT("d3d12.dll"));
+		assert(d3d12_module != nullptr);
 		hooks::register_module("dxgi.dll");
 		hooks::register_module("d3d12.dll");
 
@@ -376,6 +379,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 	if (strstr(lpCmdLine, "-opengl"))
 	{
 		const auto opengl_module = LoadLibrary(TEXT("opengl32.dll"));
+		assert(opengl_module != nullptr);
 		hooks::register_module("opengl32.dll");
 
 		// Initialize OpenGL
@@ -450,6 +454,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 	if (strstr(lpCmdLine, "-vulkan"))
 	{
 		const auto vulkan_module = LoadLibrary(TEXT("vulkan-1.dll"));
+		assert(vulkan_module != nullptr);
 		hooks::register_module("vulkan-1.dll");
 
 		VkDevice device = VK_NULL_HANDLE;
