@@ -39,7 +39,6 @@ private:
 	std::unordered_map<id, std::string> _blocks;
 	bool _debug_info = false;
 	bool _uniforms_to_spec_constants = false;
-	unsigned int _current_ubo_offset = 0;
 	std::unordered_map<id, id> _remapped_sampler_variables;
 
 	// Only write compatibility intrinsics to result if they are actually in use
@@ -377,9 +376,9 @@ private:
 		else
 		{
 			const uint32_t alignment = info.size;
-			const uint32_t alignment_remain = _current_ubo_offset % alignment;
-			info.offset = (alignment_remain != 0) ? _current_ubo_offset + alignment - alignment_remain : _current_ubo_offset;
-			_current_ubo_offset = info.offset + info.size;
+			const uint32_t alignment_remain = _module.total_uniform_size % alignment;
+			info.offset = (alignment_remain != 0) ? _module.total_uniform_size + alignment - alignment_remain : _module.total_uniform_size;
+			_module.total_uniform_size = info.offset + info.size;
 
 			write_location(_ubo_block, loc);
 

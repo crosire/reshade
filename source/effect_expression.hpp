@@ -382,6 +382,7 @@ namespace reshadefx
 		std::vector<uniform_info> uniforms, spec_constants;
 		std::vector<technique_info> techniques;
 		std::vector<entry_point_info> entry_points;
+		uint32_t total_uniform_size = 0;
 		uint32_t num_sampler_bindings = 0;
 		uint32_t num_texture_bindings = 0;
 	};

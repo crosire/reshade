@@ -1087,11 +1087,11 @@ bool reshade::vulkan::runtime_vk::init_effect(effect_data &effect)
 
 	return success;
 }
-void reshade::vulkan::runtime_vk::unload_effect(size_t id)
+void reshade::vulkan::runtime_vk::unload_effect(size_t index)
 {
 	wait_for_command_buffers(); // Make sure no effect resources are currently in use
 
-	runtime::unload_effect(id);
+	runtime::unload_effect(index);
 }
 void reshade::vulkan::runtime_vk::unload_effects()
 {

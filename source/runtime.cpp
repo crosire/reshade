@@ -251,9 +251,10 @@ void reshade::runtime::on_present()
 	_drawcalls = _vertices = 0;
 }
 
-void reshade::runtime::load_effect(const std::filesystem::path &path, size_t &out_id)
+void reshade::runtime::load_effect(const std::filesystem::path &path, size_t index)
 {
-	effect_data effect;
+	effect_data &effect = _loaded_effects[index]; // Safe to access this multi-threaded, since this is the only call working on this effect
+	effect.index = index;
 	effect.source_file = path;
 	effect.compile_sucess = true;
 
@@ -274,8 +275,8 @@ void reshade::runtime::load_effect(const std::filesystem::path &path, size_t &ou
 		pp.add_macro_definition("__VENDOR__", std::to_string(_vendor_id));
 		pp.add_macro_definition("__DEVICE__", std::to_string(_device_id));
 		pp.add_macro_definition("__RENDERER__", std::to_string(_renderer_id));
-		// Truncate hash to 32-bit, since lexer currently only supports 32-bit numbers anyway
-		pp.add_macro_definition("__APPLICATION__", std::to_string(std::hash<std::string>()(g_target_executable_path.stem().u8string()) & 0xFFFFFFFF));
+		pp.add_macro_definition("__APPLICATION__", std::to_string( // Truncate hash to 32-bit, since lexer currently only supports 32-bit numbers anyway
+			std::hash<std::string>()(g_target_executable_path.stem().u8string()) & 0xFFFFFFFF));
 		pp.add_macro_definition("BUFFER_WIDTH", std::to_string(_width));
 		pp.add_macro_definition("BUFFER_HEIGHT", std::to_string(_height));
 		pp.add_macro_definition("BUFFER_RCP_WIDTH", "(1.0 / BUFFER_WIDTH)");
@@ -391,82 +392,91 @@ void reshade::runtime::load_effect(const std::filesystem::path &path, size_t &ou
 		}
 	}
 
-	// Guard access to shared variables
-	const std::lock_guard<std::mutex> lock(_reload_mutex);
+	{	const std::lock_guard<std::mutex> lock(_reload_mutex);
+		effect.storage_size = (effect.module.total_uniform_size + 15) & ~15; // Align to 16 bytes
+		effect.storage_offset = _uniform_data_storage.size();
 
-	effect.index = out_id = _loaded_effects.size();
-	effect.storage_offset = _uniform_data_storage.size();
-
-	for (const reshadefx::uniform_info &info : effect.module.uniforms)
-	{
-		uniform &variable = _uniforms.emplace_back(info);
-		variable.effect_index = effect.index;
-
-		variable.storage_offset = effect.storage_offset + variable.offset;
-		// Create space for the new variable in the storage area and fill it with the initializer value
-		_uniform_data_storage.resize(variable.storage_offset + variable.size);
-
-		// Copy initial data into uniform storage area
-		reset_uniform_value(variable);
-
-		const std::string_view special = variable.annotation_as_string("source");
-		if (special.empty()) /* Ignore if annotation is missing */;
-		else if (special == "frametime")
-			variable.special = special_uniform::frame_time;
-		else if (special == "framecount")
-			variable.special = special_uniform::frame_count;
-		else if (special == "random")
-			variable.special = special_uniform::random;
-		else if (special == "pingpong")
-			variable.special = special_uniform::ping_pong;
-		else if (special == "date")
-			variable.special = special_uniform::date;
-		else if (special == "timer")
-			variable.special = special_uniform::timer;
-		else if (special == "key")
-			variable.special = special_uniform::key;
-		else if (special == "mousepoint")
-			variable.special = special_uniform::mouse_point;
-		else if (special == "mousedelta")
-			variable.special = special_uniform::mouse_delta;
-		else if (special == "mousebutton")
-			variable.special = special_uniform::mouse_button;
+		// Create space for all variables in the uniform storage area
+		_uniform_data_storage.resize(effect.storage_offset + effect.storage_size);
 	}
 
-	effect.storage_size = (_uniform_data_storage.size() - effect.storage_offset + 15) & ~15;
-	_uniform_data_storage.resize(effect.storage_offset + effect.storage_size);
+	std::vector<uniform> new_uniforms;
+	new_uniforms.reserve(effect.module.uniforms.size());
+	std::vector<texture> new_textures;
+	new_textures.reserve(effect.module.textures.size());
+	std::vector<technique> new_techniques;
+	new_techniques.reserve(effect.module.techniques.size());
+
+	for (uniform var : effect.module.uniforms)
+	{
+		var.effect_index = index;
+		var.storage_offset = effect.storage_offset + var.offset;
+
+		// Copy initial data into uniform storage area
+		reset_uniform_value(var);
+
+		const std::string_view special = var.annotation_as_string("source");
+		if (special.empty()) /* Ignore if annotation is missing */;
+		else if (special == "frametime")
+			var.special = special_uniform::frame_time;
+		else if (special == "framecount")
+			var.special = special_uniform::frame_count;
+		else if (special == "random")
+			var.special = special_uniform::random;
+		else if (special == "pingpong")
+			var.special = special_uniform::ping_pong;
+		else if (special == "date")
+			var.special = special_uniform::date;
+		else if (special == "timer")
+			var.special = special_uniform::timer;
+		else if (special == "key")
+			var.special = special_uniform::key;
+		else if (special == "mousepoint")
+			var.special = special_uniform::mouse_point;
+		else if (special == "mousedelta")
+			var.special = special_uniform::mouse_delta;
+		else if (special == "mousebutton")
+			var.special = special_uniform::mouse_button;
+
+		new_uniforms.push_back(std::move(var));
+	}
 
 	for (texture texture : effect.module.textures)
 	{
-		// Try to share textures with the same name across effects
-		if (const auto existing_texture = std::find_if(_textures.begin(), _textures.end(),
-			[&texture](const auto &item) { return item.unique_name == texture.unique_name; });
-			existing_texture != _textures.end())
-		{
-			// Cannot share texture if this is a normal one, but the existing one is a reference and vice versa
-			if (texture.semantic.empty() != (existing_texture->impl_reference == texture_reference::none))
-			{
-				effect.errors += "error: " + texture.unique_name + ": another effect (";
-				effect.errors += _loaded_effects[existing_texture->effect_index].source_file.filename().u8string();
-				effect.errors += ") already created a texture with the same name but different usage; rename the variable to fix this error\n";
-				effect.compile_sucess = false;
-				break;
-			}
-			else if (texture.semantic.empty() && !existing_texture->matches_description(texture))
-			{
-				effect.errors += "warning: " + texture.unique_name + ": another effect (";
-				effect.errors += _loaded_effects[existing_texture->effect_index].source_file.filename().u8string();
-				effect.errors += ") already created a texture with the same name but different dimensions; textures are shared across all effects, so either rename the variable or adjust the dimensions so they match\n";
-			}
+		texture.effect_index = index;
 
-			existing_texture->shared = true;
-			continue;
+		{	const std::lock_guard<std::mutex> lock(_reload_mutex); // Protect access to global texture list
+
+			// Try to share textures with the same name across effects
+			if (const auto existing_texture = std::find_if(_textures.begin(), _textures.end(),
+				[&texture](const auto &item) { return item.unique_name == texture.unique_name; });
+				existing_texture != _textures.end())
+			{
+				// Cannot share texture if this is a normal one, but the existing one is a reference and vice versa
+				if (texture.semantic.empty() != (existing_texture->impl_reference == texture_reference::none))
+				{
+					effect.errors += "error: " + texture.unique_name + ": another effect (";
+					effect.errors += _loaded_effects[existing_texture->effect_index].source_file.filename().u8string();
+					effect.errors += ") already created a texture with the same name but different usage; rename the variable to fix this error\n";
+					effect.compile_sucess = false;
+					break;
+				}
+				else if (texture.semantic.empty() && !existing_texture->matches_description(texture))
+				{
+					effect.errors += "warning: " + texture.unique_name + ": another effect (";
+					effect.errors += _loaded_effects[existing_texture->effect_index].source_file.filename().u8string();
+					effect.errors += ") already created a texture with the same name but different dimensions; textures are shared across all effects, so either rename the variable or adjust the dimensions so they match\n";
+				}
+
+				existing_texture->shared = true;
+				continue;
+			}
 		}
-
-		texture.effect_index = effect.index;
 
 		if (texture.annotation_as_int("pooled"))
 		{
+			const std::lock_guard<std::mutex> lock(_reload_mutex);
+
 			// Try to find another pooled texture to share with
 			if (const auto existing_texture = std::find_if(_textures.begin(), _textures.end(),
 				[&texture](const auto &item) { return item.annotation_as_int("pooled") && item.matches_description(texture); });
@@ -495,15 +505,12 @@ void reshade::runtime::load_effect(const std::filesystem::path &path, size_t &ou
 		else if (!texture.semantic.empty())
 			effect.errors += "warning: " + texture.unique_name + ": unknown semantic '" + texture.semantic + "'\n";
 
-		_textures.emplace_back(std::move(texture));
+		new_textures.push_back(std::move(texture));
 	}
-
-	_loaded_effects.push_back(effect); // The 'enable_technique' call below needs to access this, so append the effect now
 
 	for (technique technique : effect.module.techniques)
 	{
-		technique.effect_index = effect.index;
-
+		technique.effect_index = index;
 		technique.hidden = technique.annotation_as_int("hidden") != 0;
 		technique.timeout = technique.annotation_as_int("timeout");
 		technique.timeleft = technique.timeout;
@@ -515,7 +522,7 @@ void reshade::runtime::load_effect(const std::filesystem::path &path, size_t &ou
 		if (technique.annotation_as_int("enabled"))
 			enable_technique(technique);
 
-		_techniques.emplace_back(std::move(technique));
+		new_techniques.push_back(std::move(technique));
 	}
 
 	if (effect.compile_sucess)
@@ -524,8 +531,14 @@ void reshade::runtime::load_effect(const std::filesystem::path &path, size_t &ou
 		else
 			LOG(WARN) << "Successfully loaded " << path << " with warnings:\n" << effect.errors;
 
-	_reload_remaining_effects--;
-	_last_reload_successful &= effect.compile_sucess;
+	{	const std::lock_guard<std::mutex> lock(_reload_mutex);
+		std::move(new_uniforms.begin(), new_uniforms.end(), std::back_inserter(_uniforms));
+		std::move(new_textures.begin(), new_textures.end(), std::back_inserter(_textures));
+		std::move(new_techniques.begin(), new_techniques.end(), std::back_inserter(_techniques));
+
+		_last_reload_successful &= effect.compile_sucess;
+		_reload_remaining_effects--;
+	}
 }
 void reshade::runtime::load_effects()
 {
@@ -553,6 +566,9 @@ void reshade::runtime::load_effects()
 	if (_reload_total_effects == 0)
 		return; // No effect files found, so nothing more to do
 
+	// Allocate space for effects which are placed in this array during the 'load_effect' call
+	_loaded_effects.resize(_reload_total_effects);
+
 	// Now that we have a list of files, load them in parallel
 	// Split workload into batches instead of launching a thread for every file to avoid launch overhead and stutters due to too many threads being in flight
 	const size_t num_splits = std::min<size_t>(effect_files.size(), std::max<size_t>(std::thread::hardware_concurrency(), 2u) - 1);
@@ -560,9 +576,9 @@ void reshade::runtime::load_effects()
 	// Keep track of the spawned threads, so the runtime cannot be destroyed while they are still running
 	for (size_t n = 0; n < num_splits; ++n)
 		_worker_threads.emplace_back([this, effect_files, num_splits, n]() {
-			for (size_t id, i = 0; i < effect_files.size(); ++i)
+			for (size_t i = 0; i < effect_files.size(); ++i)
 				if (i * num_splits / effect_files.size() == n)
-					load_effect(effect_files[i], id);
+					load_effect(effect_files[i], i);
 		});
 }
 void reshade::runtime::load_textures()
@@ -627,23 +643,23 @@ void reshade::runtime::load_textures()
 	_textures_loaded = true;
 }
 
-void reshade::runtime::unload_effect(size_t id)
+void reshade::runtime::unload_effect(size_t index)
 {
 #if RESHADE_GUI
-	_selected_effect = std::numeric_limits<size_t>::max();
-	_selected_effect_changed = true; // Force editor to clear text after effects where reloaded
 	_preview_texture = nullptr;
-	_effect_filter_buffer[0] = '\0'; // And reset filter too, since the list of techniques might have changed
 #endif
 
-	_uniforms.erase(std::remove_if(_uniforms.begin(), _uniforms.end(),
-		[id](const auto &it) { return it.effect_index == id; }), _uniforms.end());
-	_textures.erase(std::remove_if(_textures.begin(), _textures.end(),
-		[id](const auto &it) { return it.effect_index == id && !it.shared; }), _textures.end());
-	_techniques.erase(std::remove_if(_techniques.begin(), _techniques.end(),
-		[id](const auto &it) { return it.effect_index == id; }), _techniques.end());
+	// Lock here to be safe in case another effect is still loading
+	const std::lock_guard<std::mutex> lock(_reload_mutex);
 
-	_loaded_effects[id].source_file.clear();
+	_uniforms.erase(std::remove_if(_uniforms.begin(), _uniforms.end(),
+		[index](const auto &it) { return it.effect_index == index; }), _uniforms.end());
+	_textures.erase(std::remove_if(_textures.begin(), _textures.end(),
+		[index](const auto &it) { return it.effect_index == index && !it.shared; }), _textures.end());
+	_techniques.erase(std::remove_if(_techniques.begin(), _techniques.end(),
+		[index](const auto &it) { return it.effect_index == index; }), _techniques.end());
+
+	_loaded_effects[index].source_file.clear();
 }
 void reshade::runtime::unload_effects()
 {
@@ -677,6 +693,11 @@ void reshade::runtime::update_and_render_effects()
 
 	if (_reload_remaining_effects == 0)
 	{
+		// Clear the thread list now that they all have finished
+		for (std::thread &thread : _worker_threads)
+			thread.join(); // Threads have exited, but still need to join them prior destruction
+		_worker_threads.clear();
+
 		// Finished loading effects, so apply preset to figure out which ones need compiling
 		load_current_preset();
 

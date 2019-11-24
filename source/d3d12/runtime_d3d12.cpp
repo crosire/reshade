@@ -827,12 +827,12 @@ bool reshade::d3d12::runtime_d3d12::init_effect(effect_data &effect)
 
 	return success;
 }
-void reshade::d3d12::runtime_d3d12::unload_effect(size_t id)
+void reshade::d3d12::runtime_d3d12::unload_effect(size_t index)
 {
 	// Wait for all GPU operations to finish so resources are no longer referenced
 	wait_for_command_queue();
 
-	runtime::unload_effect(id);
+	runtime::unload_effect(index);
 }
 void reshade::d3d12::runtime_d3d12::unload_effects()
 {

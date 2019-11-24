@@ -138,8 +138,8 @@ namespace reshade
 		/// Compile effect from the specified source file and initialize textures, uniforms and techniques.
 		/// </summary>
 		/// <param name="path">The path to an effect source code file.</param>
-		/// <param name="out_id">The ID of the effect.</param>
-		void load_effect(const std::filesystem::path &path, size_t &out_id);
+		/// <param name="index">The ID of the effect.</param>
+		void load_effect(const std::filesystem::path &path, size_t index);
 		/// <summary>
 		/// Load all effects found in the effect search paths.
 		/// </summary>
@@ -152,8 +152,8 @@ namespace reshade
 		/// <summary>
 		/// Unload the specified effect.
 		/// </summary>
-		/// <param name="id">The ID of the effect.</param>
-		virtual void unload_effect(size_t id);
+		/// <param name="index">The ID of the effect.</param>
+		virtual void unload_effect(size_t index);
 		/// <summary>
 		/// Unload all effects currently loaded.
 		/// </summary>
