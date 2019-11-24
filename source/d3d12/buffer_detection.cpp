@@ -97,11 +97,6 @@ void reshade::d3d12::buffer_detection::track_cleared_depthstencil(ID3D12Graphics
 {
 	assert(_context != nullptr);
 
-	// Reset draw call stats for clears
-	auto current_stats = _clear_stats;
-	_clear_stats.vertices = 0;
-	_clear_stats.drawcalls = 0;
-
 	if ((clear_flags & D3D12_CLEAR_FLAG_DEPTH) == 0)
 		return;
 
@@ -109,7 +104,15 @@ void reshade::d3d12::buffer_detection::track_cleared_depthstencil(ID3D12Graphics
 	if (dsv_texture == nullptr || dsv_texture != _context->_depthstencil_clear_index.first)
 		return;
 
-	auto &clears = _counters_per_used_depth_texture[dsv_texture].clears;
+	if (_counters_per_used_depth_texture[dsv_texture].stats.vertices == 0 || _counters_per_used_depth_texture[dsv_texture].stats.drawcalls == 0)
+		return; // Ignore clears when there was no meaningful workload since the last one
+
+	// Reset draw call stats for clears
+	auto current_stats = _clear_stats;
+	_clear_stats.vertices = 0;
+	_clear_stats.drawcalls = 0;
+
+	auto& clears = _counters_per_used_depth_texture[dsv_texture].clears;
 	clears.push_back(current_stats);
 
 	// Make a backup copy of the depth texture before it is cleared

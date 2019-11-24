@@ -179,17 +179,20 @@ void reshade::d3d11::buffer_detection::track_cleared_depthstencil(UINT clear_fla
 {
 	assert(_context != nullptr);
 
-	// Reset draw call stats for clears
-	auto current_stats = _clear_stats;
-	_clear_stats.vertices = 0;
-	_clear_stats.drawcalls = 0;
-
 	if ((clear_flags & D3D11_CLEAR_DEPTH) == 0)
 		return;
 
 	com_ptr<ID3D11Texture2D> dsv_texture = texture_from_dsv(dsv);
 	if (dsv_texture == nullptr || dsv_texture != _context->_depthstencil_clear_index.first)
 		return;
+
+	if (_counters_per_used_depth_texture[dsv_texture].stats.vertices == 0 || _counters_per_used_depth_texture[dsv_texture].stats.drawcalls == 0)
+		return; // Ignore clears when there was no meaningful workload since the last one
+
+	// Reset draw call stats for clears
+	auto current_stats = _clear_stats;
+	_clear_stats.vertices = 0;
+	_clear_stats.drawcalls = 0;
 
 	auto &clears = _counters_per_used_depth_texture[dsv_texture].clears;
 	clears.push_back(current_stats);
