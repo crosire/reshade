@@ -143,7 +143,7 @@ namespace reshade
 		/// <summary>
 		/// Load all effects found in the effect search paths.
 		/// </summary>
-		virtual void load_effects();
+		void load_effects();
 		/// <summary>
 		/// Compile and initialize effect from the specified effect module.
 		/// </summary>
