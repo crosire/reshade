@@ -44,9 +44,8 @@ namespace reshade
 		const T *as() const { return dynamic_cast<const T *>(this); }
 	};
 
-	struct effect_data
+	struct effect final
 	{
-		size_t index = std::numeric_limits<size_t>::max();
 		unsigned int rendering = 0;
 		bool compile_sucess = false;
 		std::string errors;

@@ -2847,6 +2847,10 @@ bool reshadefx::parser::parse_technique_pass(pass_info &info)
 					}
 				}
 			}
+			else
+			{
+				parse_success = false;
+			}
 		}
 		else // Handle the rest of the pass states
 		{
@@ -2935,13 +2939,16 @@ bool reshadefx::parser::parse_technique_pass(pass_info &info)
 			return consume_until('}'), false;
 	}
 
-	// Verify pass states
-	if (info.vs_entry_point.empty())
-		parse_success = false,
-		error(pass_location, 3012, "pass is missing 'VertexShader' property");
-	if (info.ps_entry_point.empty())
-		parse_success = false,
-		error(pass_location, 3012, "pass is missing 'PixelShader' property");
+	if (parse_success)
+	{
+		// Verify pass states
+		if (info.vs_entry_point.empty())
+			parse_success = false,
+			error(pass_location, 3012, "pass is missing 'VertexShader' property");
+		if (info.ps_entry_point.empty())
+			parse_success = false,
+			error(pass_location, 3012, "pass is missing 'PixelShader' property");
+	}
 
 	return expect('}') && parse_success;
 }

@@ -27,7 +27,7 @@ namespace reshade::d3d9
 		bool capture_screenshot(uint8_t *buffer) const override;
 
 	private:
-		bool init_effect(effect_data &effect) override;
+		bool init_effect(size_t index) override;
 
 		bool init_texture(texture &info) override;
 		void upload_texture(texture &texture, const uint8_t *pixels) override;

@@ -102,9 +102,6 @@ void reshade::d3d12::buffer_detection::track_cleared_depthstencil(ID3D12Graphics
 	_clear_stats.vertices = 0;
 	_clear_stats.drawcalls = 0;
 
-	if (current_stats.vertices == 0 || current_stats.drawcalls == 0)
-		return; // Ignore clears when there was no meaningful workload since the last one
-
 	if ((clear_flags & D3D12_CLEAR_FLAG_DEPTH) == 0)
 		return;
 

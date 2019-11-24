@@ -1011,9 +1011,9 @@ void reshade::runtime::draw_overlay_menu_settings()
 		modified |= imgui_key_input("Overlay Key", _menu_key_data, *_input);
 		_ignore_shortcuts |= ImGui::IsItemActive();
 
-		modified |= imgui_key_input("Effect Reload Key", _reload_key_data, *_input);
-		_ignore_shortcuts |= ImGui::IsItemActive();
 		modified |= imgui_key_input("Effect Toggle Key", _effects_key_data, *_input);
+		_ignore_shortcuts |= ImGui::IsItemActive();
+		modified |= imgui_key_input("Effect Reload Key", _reload_key_data, *_input);
 		_ignore_shortcuts |= ImGui::IsItemActive();
 
 		modified |= imgui_key_input("Previous Preset Key", _prev_preset_key_data, *_input);
@@ -2150,7 +2150,7 @@ void reshade::runtime::draw_overlay_technique_editor()
 		ImGui::PushID(static_cast<int>(index));
 
 		// Look up effect that contains this technique
-		const effect_data &effect = _loaded_effects[technique.effect_index];
+		const effect &effect = _loaded_effects[technique.effect_index];
 
 		// Draw border around the item if it is selected
 		const bool draw_border = _selected_technique == index;

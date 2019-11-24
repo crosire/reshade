@@ -32,11 +32,11 @@ namespace reshade::d3d12
 		bool capture_screenshot(uint8_t *buffer) const override;
 
 	private:
-		bool init_effect(effect_data &effect) override;
-		void unload_effect(size_t id) override;
+		bool init_effect(size_t index) override;
+		void unload_effect(size_t index) override;
 		void unload_effects() override;
 
-		bool init_texture(texture &info) override;
+		bool init_texture(texture &texture) override;
 		void upload_texture(texture &texture, const uint8_t *pixels) override;
 		void generate_mipmaps(texture &texture);
 

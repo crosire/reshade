@@ -33,8 +33,8 @@ namespace reshade::vulkan
 		const VkLayerDispatchTable vk;
 
 	private:
-		bool init_effect(effect_data &effect);
-		void unload_effect(size_t id);
+		bool init_effect(size_t index);
+		void unload_effect(size_t index);
 		void unload_effects();
 
 		bool init_texture(texture &texture);

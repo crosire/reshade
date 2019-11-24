@@ -290,7 +290,7 @@ bool reshade::d3d9::runtime_d3d9::capture_screenshot(uint8_t *buffer) const
 	return true;
 }
 
-bool reshade::d3d9::runtime_d3d9::init_effect(effect_data &effect)
+bool reshade::d3d9::runtime_d3d9::init_effect(size_t index)
 {
 	if (_d3d_compiler == nullptr)
 		_d3d_compiler = LoadLibraryW(L"d3dcompiler_47.dll");
@@ -302,6 +302,8 @@ bool reshade::d3d9::runtime_d3d9::init_effect(effect_data &effect)
 		LOG(ERROR) << "Unable to load HLSL compiler (\"d3dcompiler_47.dll\"). Make sure you have the DirectX end-user runtime (June 2010) installed or a newer version of the library in the application directory.";
 		return false;
 	}
+
+	effect &effect = _loaded_effects[index];
 
 	const auto D3DCompile = reinterpret_cast<pD3DCompile>(GetProcAddress(_d3d_compiler, "D3DCompile"));
 	const auto D3DDisassemble = reinterpret_cast<pD3DDisassemble>(GetProcAddress(_d3d_compiler, "D3DDisassemble"));
@@ -396,7 +398,7 @@ bool reshade::d3d9::runtime_d3d9::init_effect(effect_data &effect)
 
 	for (technique &technique : _techniques)
 	{
-		if (technique.impl != nullptr || technique.effect_index != effect.index)
+		if (technique.impl != nullptr || technique.effect_index != index)
 			continue;
 
 		// Copy construct new technique implementation instead of move because effect may contain multiple techniques

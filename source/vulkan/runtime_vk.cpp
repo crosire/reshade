@@ -607,8 +607,10 @@ bool reshade::vulkan::runtime_vk::capture_screenshot(uint8_t *buffer) const
 	return true;
 }
 
-bool reshade::vulkan::runtime_vk::init_effect(effect_data &effect)
+bool reshade::vulkan::runtime_vk::init_effect(size_t index)
 {
+	effect &effect = _loaded_effects[index];
+
 	vk_handle<VK_OBJECT_TYPE_SHADER_MODULE> module(_device, vk);
 
 	// Load shader module
@@ -624,10 +626,10 @@ bool reshade::vulkan::runtime_vk::init_effect(effect_data &effect)
 		}
 	}
 
-	if (_effect_data.size() <= effect.index)
-		_effect_data.resize(effect.index + 1);
+	if (_effect_data.size() <= index)
+		_effect_data.resize(index + 1);
 
-	vulkan_effect_data &effect_data = _effect_data[effect.index];
+	vulkan_effect_data &effect_data = _effect_data[index];
 	effect_data.storage_size = effect.storage_size;
 	effect_data.storage_offset = effect.storage_offset;
 	effect_data.module = effect.module;
@@ -823,7 +825,7 @@ bool reshade::vulkan::runtime_vk::init_effect(effect_data &effect)
 
 	for (technique &technique : _techniques)
 	{
-		if (technique.impl != nullptr || technique.effect_index != effect.index)
+		if (technique.impl != nullptr || technique.effect_index != index)
 			continue;
 
 		technique.impl = std::make_unique<vulkan_technique_data>();
@@ -1087,11 +1089,11 @@ bool reshade::vulkan::runtime_vk::init_effect(effect_data &effect)
 
 	return success;
 }
-void reshade::vulkan::runtime_vk::unload_effect(size_t id)
+void reshade::vulkan::runtime_vk::unload_effect(size_t index)
 {
 	wait_for_command_buffers(); // Make sure no effect resources are currently in use
 
-	runtime::unload_effect(id);
+	runtime::unload_effect(index);
 }
 void reshade::vulkan::runtime_vk::unload_effects()
 {
@@ -1121,17 +1123,17 @@ void reshade::vulkan::runtime_vk::unload_effects()
 	_effect_sampler_states.clear();
 }
 
-bool reshade::vulkan::runtime_vk::init_texture(texture &info)
+bool reshade::vulkan::runtime_vk::init_texture(texture &texture)
 {
-	info.impl = std::make_unique<vulkan_tex_data>();
-	auto impl = info.impl->as<vulkan_tex_data>();
+	texture.impl = std::make_unique<vulkan_tex_data>();
+	auto impl = texture.impl->as<vulkan_tex_data>();
 	impl->runtime = this;
 
 	// Do not create resource if it is a reference, it is set in 'render_technique'
-	if (info.impl_reference != texture_reference::none)
+	if (texture.impl_reference != texture_reference::none)
 		return true;
 
-	switch (info.format)
+	switch (texture.format)
 	{
 	case reshadefx::texture_format::r8:
 		impl->formats[0] = VK_FORMAT_R8_UNORM;
@@ -1175,7 +1177,7 @@ bool reshade::vulkan::runtime_vk::init_texture(texture &info)
 	// Need TRANSFER_DST for texture data upload
 	VkImageUsageFlags usage_flags = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
 	// Add required TRANSFER_SRC flag for mipmap generation
-	if (info.levels > 1)
+	if (texture.levels > 1)
 		usage_flags |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
 
 	VkImageCreateFlags image_flags = 0;
@@ -1186,7 +1188,7 @@ bool reshade::vulkan::runtime_vk::init_texture(texture &info)
 		impl->formats[1] = impl->formats[0];
 
 	impl->image = create_image(
-		info.width, info.height, info.levels, impl->formats[0],
+		texture.width, texture.height, texture.levels, impl->formats[0],
 		usage_flags,
 		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
 		image_flags);
@@ -1199,7 +1201,7 @@ bool reshade::vulkan::runtime_vk::init_texture(texture &info)
 		VkDebugMarkerObjectNameInfoEXT name_info{ VK_STRUCTURE_TYPE_DEBUG_MARKER_OBJECT_NAME_INFO_EXT };
 		name_info.object = (uint64_t)impl->image;
 		name_info.objectType = VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_EXT;
-		name_info.pObjectName = info.unique_name.c_str();
+		name_info.pObjectName = texture.unique_name.c_str();
 
 		vk.DebugMarkerSetObjectNameEXT(_device, &name_info);
 	}
@@ -1212,7 +1214,7 @@ bool reshade::vulkan::runtime_vk::init_texture(texture &info)
 		impl->view[0];
 
 	// Create render target views (with a single level)
-	if (info.levels > 1)
+	if (texture.levels > 1)
 	{
 		impl->view[2] = create_image_view(impl->image, impl->formats[0], 1, VK_IMAGE_ASPECT_COLOR_BIT);
 		impl->view[3] = impl->formats[0] != impl->formats[1] ?
