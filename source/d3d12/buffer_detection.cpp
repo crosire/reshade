@@ -93,7 +93,7 @@ void reshade::d3d12::buffer_detection::track_render_targets(D3D12_CPU_DESCRIPTOR
 	// Add new entry for this DSV
 	_counters_per_used_depth_texture[_current_depthstencil];
 }
-void reshade::d3d12::buffer_detection::track_cleared_depthstencil(ID3D12GraphicsCommandList* cmd_list, D3D12_CLEAR_FLAGS clear_flags, D3D12_CPU_DESCRIPTOR_HANDLE dsv)
+void reshade::d3d12::buffer_detection::track_cleared_depthstencil(ID3D12GraphicsCommandList *cmd_list, D3D12_CLEAR_FLAGS clear_flags, D3D12_CPU_DESCRIPTOR_HANDLE dsv)
 {
 	assert(_context != nullptr);
 
