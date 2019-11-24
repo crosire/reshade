@@ -2150,7 +2150,7 @@ void reshade::runtime::draw_overlay_technique_editor()
 		ImGui::PushID(static_cast<int>(index));
 
 		// Look up effect that contains this technique
-		const effect_data &effect = _loaded_effects[technique.effect_index];
+		const effect &effect = _loaded_effects[technique.effect_index];
 
 		// Draw border around the item if it is selected
 		const bool draw_border = _selected_technique == index;

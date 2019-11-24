@@ -253,8 +253,7 @@ void reshade::runtime::on_present()
 
 void reshade::runtime::load_effect(const std::filesystem::path &path, size_t index)
 {
-	effect_data &effect = _loaded_effects[index]; // Safe to access this multi-threaded, since this is the only call working on this effect
-	effect.index = index;
+	effect &effect = _loaded_effects[index]; // Safe to access this multi-threaded, since this is the only call working on this effect
 	effect.source_file = path;
 	effect.compile_sucess = true;
 
@@ -714,10 +713,9 @@ void reshade::runtime::update_and_render_effects()
 		if (!_reload_compile_queue.empty())
 		{
 			// Pop an effect from the queue
-			size_t effect_index = _reload_compile_queue.back();
+			const size_t effect_index = _reload_compile_queue.back();
 			_reload_compile_queue.pop_back();
-
-			effect_data &effect = _loaded_effects[effect_index];
+			effect &effect = _loaded_effects[effect_index];
 
 			// Create textures now, since they are referenced when building samplers in the 'init_effect' call below
 			bool success = true;
@@ -735,7 +733,7 @@ void reshade::runtime::update_and_render_effects()
 			}
 
 			// Compile the effect with the back-end implementation
-			if (success && !init_effect(effect))
+			if (success && !init_effect(effect_index))
 			{
 				// De-duplicate error lines (D3DCompiler sometimes repeats the same error multiple times)
 				for (size_t cur_line_offset = 0, next_line_offset, end_offset;

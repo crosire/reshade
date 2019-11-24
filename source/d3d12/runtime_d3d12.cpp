@@ -468,7 +468,7 @@ bool reshade::d3d12::runtime_d3d12::capture_screenshot(uint8_t *buffer) const
 	return true;
 }
 
-bool reshade::d3d12::runtime_d3d12::init_effect(effect_data &effect)
+bool reshade::d3d12::runtime_d3d12::init_effect(size_t index)
 {
 	if (_d3d_compiler == nullptr)
 		_d3d_compiler = LoadLibraryW(L"d3dcompiler_47.dll");
@@ -478,6 +478,8 @@ bool reshade::d3d12::runtime_d3d12::init_effect(effect_data &effect)
 		LOG(ERROR) << "Unable to load HLSL compiler (\"d3dcompiler_47.dll\").";
 		return false;
 	}
+
+	effect &effect = _loaded_effects[index];
 
 	const auto D3DCompile = reinterpret_cast<pD3DCompile>(GetProcAddress(_d3d_compiler, "D3DCompile"));
 	const auto D3DDisassemble = reinterpret_cast<pD3DDisassemble>(GetProcAddress(_d3d_compiler, "D3DDisassemble"));
@@ -510,10 +512,10 @@ bool reshade::d3d12::runtime_d3d12::init_effect(effect_data &effect)
 			entry_point.assembly = std::string(static_cast<const char *>(d3d_disassembled->GetBufferPointer()));
 	}
 
-	if (_effect_data.size() <= effect.index)
-		_effect_data.resize(effect.index + 1);
+	if (_effect_data.size() <= index)
+		_effect_data.resize(index + 1);
 
-	d3d12_effect_data &effect_data = _effect_data[effect.index];
+	d3d12_effect_data &effect_data = _effect_data[index];
 	effect_data.storage_size = effect.storage_size;
 	effect_data.storage_offset = effect.storage_offset;
 
@@ -679,7 +681,7 @@ bool reshade::d3d12::runtime_d3d12::init_effect(effect_data &effect)
 
 	for (technique &technique : _techniques)
 	{
-		if (technique.impl != nullptr || technique.effect_index != effect.index)
+		if (technique.impl != nullptr || technique.effect_index != index)
 			continue;
 
 		technique.impl = std::make_unique<d3d12_technique_data>();
@@ -847,28 +849,28 @@ void reshade::d3d12::runtime_d3d12::unload_effects()
 	_effect_data.clear();
 }
 
-bool reshade::d3d12::runtime_d3d12::init_texture(texture &info)
+bool reshade::d3d12::runtime_d3d12::init_texture(texture &texture)
 {
-	info.impl = std::make_unique<d3d12_tex_data>();
+	texture.impl = std::make_unique<d3d12_tex_data>();
 
 	// Do not create resource if it is a reference, it is set in 'render_technique'
-	if (info.impl_reference != texture_reference::none)
+	if (texture.impl_reference != texture_reference::none)
 		return true;
 
 	D3D12_RESOURCE_DESC desc = { D3D12_RESOURCE_DIMENSION_TEXTURE2D };
-	desc.Width = info.width;
-	desc.Height = info.height;
+	desc.Width = texture.width;
+	desc.Height = texture.height;
 	desc.DepthOrArraySize = 1;
-	desc.MipLevels = static_cast<UINT16>(info.levels);
+	desc.MipLevels = static_cast<UINT16>(texture.levels);
 	desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
 	desc.SampleDesc = { 1, 0 };
 	desc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
 	desc.Flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET; // Textures may be bound as render target
 
-	if (info.levels > 1) // Need UAV for mipmap generation
+	if (texture.levels > 1) // Need UAV for mipmap generation
 		desc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
 
-	switch (info.format)
+	switch (texture.format)
 	{
 	case reshadefx::texture_format::r8:
 		desc.Format = DXGI_FORMAT_R8_UNORM;
@@ -914,12 +916,12 @@ bool reshade::d3d12::runtime_d3d12::init_texture(texture &info)
 	D3D12_CLEAR_VALUE clear_value = {};
 	clear_value.Format = make_dxgi_format_normal(desc.Format);
 
-	const auto texture_data = info.impl->as<d3d12_tex_data>();
+	const auto texture_data = texture.impl->as<d3d12_tex_data>();
 	texture_data->state = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
 
 	if (HRESULT hr = _device->CreateCommittedResource(&props, D3D12_HEAP_FLAG_NONE, &desc, texture_data->state, &clear_value, IID_PPV_ARGS(&texture_data->resource)); FAILED(hr))
 	{
-		LOG(ERROR) << "Failed to create texture '" << info.unique_name << "' ("
+		LOG(ERROR) << "Failed to create texture '" << texture.unique_name << "' ("
 			"Width = " << desc.Width << ", "
 			"Height = " << desc.Height << ", "
 			"Format = " << desc.Format << ")! "
@@ -929,13 +931,13 @@ bool reshade::d3d12::runtime_d3d12::init_texture(texture &info)
 
 #ifdef _DEBUG
 	std::wstring debug_name;
-	debug_name.reserve(info.unique_name.size());
-	utf8::unchecked::utf8to16(info.unique_name.begin(), info.unique_name.end(), std::back_inserter(debug_name));
+	debug_name.reserve(texture.unique_name.size());
+	utf8::unchecked::utf8to16(texture.unique_name.begin(), texture.unique_name.end(), std::back_inserter(debug_name));
 	texture_data->resource->SetName(debug_name.c_str());
 #endif
 
 	{	D3D12_DESCRIPTOR_HEAP_DESC heap_desc = { D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV };
-		heap_desc.NumDescriptors = info.levels /* SRV */ + info.levels - 1 /* UAV */;
+		heap_desc.NumDescriptors = texture.levels /* SRV */ + texture.levels - 1 /* UAV */;
 		heap_desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 
 		if (FAILED(_device->CreateDescriptorHeap(&heap_desc, IID_PPV_ARGS(&texture_data->descriptors))))
@@ -944,7 +946,7 @@ bool reshade::d3d12::runtime_d3d12::init_texture(texture &info)
 
 	D3D12_CPU_DESCRIPTOR_HANDLE srv_cpu_handle = texture_data->descriptors->GetCPUDescriptorHandleForHeapStart();
 
-	for (uint32_t level = 0; level < info.levels; ++level, srv_cpu_handle.ptr += _srv_handle_size)
+	for (uint32_t level = 0; level < texture.levels; ++level, srv_cpu_handle.ptr += _srv_handle_size)
 	{
 		D3D12_SHADER_RESOURCE_VIEW_DESC srv_desc = {};
 		srv_desc.Format = make_dxgi_format_normal(desc.Format);
@@ -957,7 +959,7 @@ bool reshade::d3d12::runtime_d3d12::init_texture(texture &info)
 	}
 
 	// Generate UAVs for mipmap generation
-	for (uint32_t level = 1; level < info.levels; ++level, srv_cpu_handle.ptr += _srv_handle_size)
+	for (uint32_t level = 1; level < texture.levels; ++level, srv_cpu_handle.ptr += _srv_handle_size)
 	{
 		D3D12_UNORDERED_ACCESS_VIEW_DESC uav_desc = {};
 		uav_desc.Format = make_dxgi_format_normal(desc.Format);

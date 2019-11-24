@@ -309,9 +309,11 @@ bool reshade::opengl::runtime_gl::capture_screenshot(uint8_t *buffer) const
 	return true;
 }
 
-bool reshade::opengl::runtime_gl::init_effect(effect_data &effect)
+bool reshade::opengl::runtime_gl::init_effect(size_t index)
 {
 	assert(_app_state.has_state); // Make sure all binds below are reset later when application state is restored
+
+	effect &effect = _loaded_effects[index];
 
 	// Add specialization constant defines to source code
 #if 0
@@ -494,7 +496,7 @@ bool reshade::opengl::runtime_gl::init_effect(effect_data &effect)
 
 	for (technique &technique : _techniques)
 	{
-		if (technique.impl != nullptr || technique.effect_index != effect.index)
+		if (technique.impl != nullptr || technique.effect_index != index)
 			continue;
 
 		// Copy construct new technique implementation instead of move because effect may contain multiple techniques

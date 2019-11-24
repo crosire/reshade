@@ -30,10 +30,10 @@ namespace reshade::opengl
 		buffer_detection _buffer_detection;
 
 	private:
-		bool init_effect(effect_data &effect) override;
+		bool init_effect(size_t index) override;
 		void unload_effects() override;
 
-		bool init_texture(texture &info) override;
+		bool init_texture(texture &texture) override;
 		void upload_texture(texture &texture, const uint8_t *data) override;
 
 		void render_technique(technique &technique) override;

@@ -372,7 +372,7 @@ bool reshade::d3d11::runtime_d3d11::capture_screenshot(uint8_t *buffer) const
 	return true;
 }
 
-bool reshade::d3d11::runtime_d3d11::init_effect(effect_data &effect)
+bool reshade::d3d11::runtime_d3d11::init_effect(size_t index)
 {
 	if (_d3d_compiler == nullptr)
 		_d3d_compiler = LoadLibraryW(L"d3dcompiler_47.dll");
@@ -384,6 +384,8 @@ bool reshade::d3d11::runtime_d3d11::init_effect(effect_data &effect)
 		LOG(ERROR) << "Unable to load HLSL compiler (\"d3dcompiler_47.dll\"). Make sure you have the DirectX end-user runtime (June 2010) installed or a newer version of the library in the application directory.";
 		return false;
 	}
+
+	effect &effect = _loaded_effects[index];
 
 	const auto D3DCompile = reinterpret_cast<pD3DCompile>(GetProcAddress(_d3d_compiler, "D3DCompile"));
 	const auto D3DDisassemble = reinterpret_cast<pD3DDisassemble>(GetProcAddress(_d3d_compiler, "D3DDisassemble"));
@@ -540,7 +542,7 @@ bool reshade::d3d11::runtime_d3d11::init_effect(effect_data &effect)
 
 	for (technique &technique : _techniques)
 	{
-		if (technique.impl != nullptr || technique.effect_index != effect.index)
+		if (technique.impl != nullptr || technique.effect_index != index)
 			continue;
 
 		// Copy construct new technique implementation instead of move because effect may contain multiple techniques
@@ -744,12 +746,12 @@ void reshade::d3d11::runtime_d3d11::unload_effects()
 	_effect_constant_buffers.clear();
 }
 
-bool reshade::d3d11::runtime_d3d11::init_texture(texture &info)
+bool reshade::d3d11::runtime_d3d11::init_texture(texture &texture)
 {
-	info.impl = std::make_unique<d3d11_tex_data>();
-	const auto texture_data = info.impl->as<d3d11_tex_data>();
+	texture.impl = std::make_unique<d3d11_tex_data>();
+	const auto texture_data = texture.impl->as<d3d11_tex_data>();
 
-	switch (info.impl_reference)
+	switch (texture.impl_reference)
 	{
 	case texture_reference::back_buffer:
 		texture_data->srv[0] = _backbuffer_texture_srv[0];
@@ -762,16 +764,16 @@ bool reshade::d3d11::runtime_d3d11::init_texture(texture &info)
 	}
 
 	D3D11_TEXTURE2D_DESC desc = {};
-	desc.Width = info.width;
-	desc.Height = info.height;
-	desc.MipLevels = info.levels;
+	desc.Width = texture.width;
+	desc.Height = texture.height;
+	desc.MipLevels = texture.levels;
 	desc.ArraySize = 1;
 	desc.SampleDesc = { 1, 0 };
 	desc.Usage = D3D11_USAGE_DEFAULT;
 	desc.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET;
 	desc.MiscFlags = D3D11_RESOURCE_MISC_GENERATE_MIPS;
 
-	switch (info.format)
+	switch (texture.format)
 	{
 	case reshadefx::texture_format::r8:
 		desc.Format = DXGI_FORMAT_R8_UNORM;
@@ -813,7 +815,7 @@ bool reshade::d3d11::runtime_d3d11::init_texture(texture &info)
 
 	if (HRESULT hr = _device->CreateTexture2D(&desc, nullptr, &texture_data->texture); FAILED(hr))
 	{
-		LOG(ERROR) << "Failed to create texture '" << info.unique_name << "' ("
+		LOG(ERROR) << "Failed to create texture '" << texture.unique_name << "' ("
 			"Width = " << desc.Width << ", "
 			"Height = " << desc.Height << ", "
 			"Format = " << desc.Format << ")! "
@@ -828,7 +830,7 @@ bool reshade::d3d11::runtime_d3d11::init_texture(texture &info)
 
 	if (HRESULT hr = _device->CreateShaderResourceView(texture_data->texture.get(), &srv_desc, &texture_data->srv[0]); FAILED(hr))
 	{
-		LOG(ERROR) << "Failed to create shader resource view for texture '" << info.unique_name << "' ("
+		LOG(ERROR) << "Failed to create shader resource view for texture '" << texture.unique_name << "' ("
 			"Format = " << srv_desc.Format << ")! "
 			"HRESULT is " << hr << '.';
 		return false;
@@ -840,7 +842,7 @@ bool reshade::d3d11::runtime_d3d11::init_texture(texture &info)
 	{
 		if (HRESULT hr = _device->CreateShaderResourceView(texture_data->texture.get(), &srv_desc, &texture_data->srv[1]); FAILED(hr))
 		{
-			LOG(ERROR) << "Failed to create shader resource view for texture '" << info.unique_name << "' ("
+			LOG(ERROR) << "Failed to create shader resource view for texture '" << texture.unique_name << "' ("
 				"Format = " << srv_desc.Format << ")! "
 				"HRESULT is " << hr << '.';
 			return false;
