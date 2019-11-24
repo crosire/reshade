@@ -231,6 +231,7 @@ namespace reshadefx
 		reshadefx::type return_type;
 		std::string return_semantic;
 		std::vector<struct_member_info> parameter_list;
+		int numthreads[3];
 	};
 
 	/// <summary>

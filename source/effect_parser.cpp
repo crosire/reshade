@@ -332,6 +332,8 @@ bool reshadefx::parser::accept_type_qualifiers(type &type)
 		qualifiers |= type::q_volatile;
 	if (accept(tokenid::precise))
 		qualifiers |= type::q_precise;
+	if (accept(tokenid::groupshared))
+		qualifiers |= type::q_groupshared;
 
 	if (accept(tokenid::in))
 		qualifiers |= type::q_in;
@@ -2161,45 +2163,78 @@ bool reshadefx::parser::parse_top()
 		if (!parse_technique())
 			return false;
 	}
-	else if (type type; parse_type(type)) // Type found, this can be either a variable or a function declaration
+	else
 	{
-		if (!expect(tokenid::identifier))
-			return false;
+		int numthreads[3] = { 1, 1, 1 };
 
-		if (peek('('))
+		if (accept('['))
 		{
-			const auto name = std::move(_token.literal_as_string);
-			// This is definitely a function declaration, so parse it
-			if (!parse_function(type, name)) {
-				// Insert dummy function into symbol table, so later references can be resolved despite the error
-				insert_symbol(name, { symbol_type::function, ~0u, { type::t_function } }, true);
+			if (!expect(tokenid::identifier))
 				return false;
+
+			if (_token.literal_as_string == "numthreads")
+			{
+				expression x, y, z;
+				if (!expect('(') || !parse_expression_multary(x) || !expect(',') || !parse_expression_multary(y) || !expect(',') || !parse_expression_multary(z) || !expect(')'))
+					return false;
+				if (!x.is_constant)
+					error(x.location, 3011, "value must be a literal expression");
+				if (!y.is_constant)
+					error(x.location, 3011, "value must be a literal expression");
+				if (!z.is_constant)
+					error(x.location, 3011, "value must be a literal expression");
+				x.add_cast_operation({ type::t_int, 1, 1 });
+				y.add_cast_operation({ type::t_int, 1, 1 });
+				z.add_cast_operation({ type::t_int, 1, 1 });
+				numthreads[0] = x.constant.as_int[0];
+				numthreads[1] = y.constant.as_int[0];
+				numthreads[2] = z.constant.as_int[0];
+			}
+
+			if (!expect(']'))
+				return false;
+		}
+
+		if (type type; parse_type(type)) // Type found, this can be either a variable or a function declaration
+		{
+			if (!expect(tokenid::identifier))
+				return false;
+
+			if (peek('('))
+			{
+				const auto name = std::move(_token.literal_as_string);
+				// This is definitely a function declaration, so parse it
+				if (!parse_function(type, name, numthreads)) {
+					// Insert dummy function into symbol table, so later references can be resolved despite the error
+					insert_symbol(name, { symbol_type::function, ~0u, { type::t_function } }, true);
+					return false;
+				}
+			}
+			else
+			{
+				// There may be multiple variable names after the type, handle them all
+				unsigned int count = 0;
+				do {
+					if (count++ > 0 && !(expect(',') && expect(tokenid::identifier)))
+						return false;
+					const auto name = std::move(_token.literal_as_string);
+					if (!parse_variable(type, name, true)) {
+						// Insert dummy variable into symbol table, so later references can be resolved despite the error
+						insert_symbol(name, { symbol_type::variable, ~0u, type }, true);
+						return consume_until(';'), false; // Skip the rest of the statement in case of an error
+					}
+				} while (!peek(';'));
+
+				if (!expect(';')) // Variable declarations are terminated with a semicolon
+					return false;
 			}
 		}
-		else
+		else if (!accept(';')) // Ignore single semicolons in the source
 		{
-			// There may be multiple variable names after the type, handle them all
-			unsigned int count = 0;
-			do {
-				if (count++ > 0 && !(expect(',') && expect(tokenid::identifier)))
-					return false;
-				const auto name = std::move(_token.literal_as_string);
-				if (!parse_variable(type, name, true)) {
-					// Insert dummy variable into symbol table, so later references can be resolved despite the error
-					insert_symbol(name, { symbol_type::variable, ~0u, type }, true);
-					return consume_until(';'), false; // Skip the rest of the statement in case of an error
-				}
-			} while (!peek(';'));
-
-			if (!expect(';')) // Variable declarations are terminated with a semicolon
-				return false;
+			consume(); // Unexpected token in source stream, consume and report an error about it
+			error(_token.location, 3000, "syntax error: unexpected '" + token::id_to_name(_token.id) + '\'');
+			return false;
 		}
-	}
-	else if (!accept(';')) // Ignore single semicolons in the source
-	{
-		consume(); // Unexpected token in source stream, consume and report an error about it
-		error(_token.location, 3000, "syntax error: unexpected '" + token::id_to_name(_token.id) + '\'');
-		return false;
 	}
 
 	return true;
@@ -2289,7 +2324,7 @@ bool reshadefx::parser::parse_struct()
 	return expect('}');
 }
 
-bool reshadefx::parser::parse_function(type type, std::string name)
+bool reshadefx::parser::parse_function(type type, std::string name, int numthreads[3])
 {
 	const auto location = std::move(_token.location);
 
@@ -2305,6 +2340,8 @@ bool reshadefx::parser::parse_function(type type, std::string name)
 
 	info.return_type = type;
 	_current_return_type = info.return_type;
+
+	std::copy_n(numthreads, 3, info.numthreads);
 
 	bool parse_success = true;
 	bool expect_parenthesis = true;

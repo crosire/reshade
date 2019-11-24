@@ -34,6 +34,7 @@ namespace reshadefx
 			q_uniform = 1 << 2,
 			q_volatile = 1 << 3,
 			q_precise = 1 << 4,
+			q_groupshared = 1 << 14,
 			q_in = 1 << 5,
 			q_out = 1 << 6,
 			q_inout = q_in | q_out,

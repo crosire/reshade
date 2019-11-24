@@ -121,6 +121,7 @@ namespace reshadefx
 		uniform_,
 		volatile_,
 		precise,
+		groupshared,
 		in,
 		out,
 		inout,

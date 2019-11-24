@@ -116,6 +116,7 @@ static const std::unordered_map<tokenid, std::string> token_lookup = {
 	{ tokenid::uniform_, "uniform" },
 	{ tokenid::volatile_, "volatile" },
 	{ tokenid::precise, "precise" },
+	{ tokenid::groupshared, "groupshared" },
 	{ tokenid::in, "in" },
 	{ tokenid::out, "out" },
 	{ tokenid::inout, "inout" },
