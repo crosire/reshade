@@ -567,7 +567,7 @@ bool imgui_slider_for_alpha(const char *label, float *v)
 
 }
 
-void imgui_image_with_checkerboard_background(ImTextureID user_texture_id, const ImVec2 &size)
+void imgui_image_with_checkerboard_background(ImTextureID user_texture_id, const ImVec2 &size, ImU32 tint_col)
 {
 	const auto draw_list = ImGui::GetWindowDrawList();
 
@@ -586,5 +586,5 @@ void imgui_image_with_checkerboard_background(ImTextureID user_texture_id, const
 	}
 
 	// Add image on top
-	ImGui::Image(user_texture_id, size);
+	ImGui::Image(user_texture_id, size, ImVec2(0, 0), ImVec2(1, 1), ImColor(tint_col));
 }

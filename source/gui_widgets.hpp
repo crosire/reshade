@@ -34,4 +34,4 @@ bool imgui_slider_with_buttons(const char *label, ImGuiDataType data_type, void 
 
 bool imgui_slider_for_alpha(const char *label, float *v);
 
-void imgui_image_with_checkerboard_background(ImTextureID user_texture_id, const ImVec2 &size);
+void imgui_image_with_checkerboard_background(ImTextureID user_texture_id, const ImVec2 &size, ImU32 tint_col = 0xFFFFFFFF);
