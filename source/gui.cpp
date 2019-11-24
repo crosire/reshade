@@ -724,7 +724,7 @@ void reshade::runtime::draw_ui()
 			preview_max.y = (preview_max.y * 0.5f) + (_preview_size[1] * 0.5f);
 		}
 
-		ImGui::FindWindowByName("Viewport")->DrawList->AddImage(_preview_texture, preview_min, preview_max);
+		ImGui::FindWindowByName("Viewport")->DrawList->AddImage(_preview_texture, preview_min, preview_max, ImVec2(0, 0), ImVec2(1, 1), _preview_size[2]);
 	}
 
 	// Render ImGui widgets and windows
@@ -1387,7 +1387,7 @@ void reshade::runtime::draw_overlay_menu_statistics()
 				memory_size_unit = "KiB";
 			}
 
-			ImGui::TextColored(ImVec4(1, 1, 1, 1), texture.unique_name.c_str());
+			ImGui::TextColored(ImVec4(1, 1, 1, 1), "%s%s", texture.unique_name.c_str(), texture.shared ? " (Shared)" : "");
 			ImGui::Text("%ux%u | %u mipmap(s) | %s | %ld.%03ld %s",
 				texture.width,
 				texture.height,
@@ -1432,8 +1432,19 @@ void reshade::runtime::draw_overlay_menu_statistics()
 				_preview_texture = !check ? texture.impl.get() : nullptr;
 			}
 
+			bool r = (_preview_size[2] & 0x000000FF) != 0;
+			bool g = (_preview_size[2] & 0x0000FF00) != 0;
+			bool b = (_preview_size[2] & 0x00FF0000) != 0;
+			ImGui::SameLine();
+			imgui_toggle_button("R", r);
+			ImGui::SameLine(0, 1);
+			imgui_toggle_button("G", g);
+			ImGui::SameLine(0, 1);
+			imgui_toggle_button("B", b);
+			_preview_size[2] = (r ? 0x000000FF : 0) | (g ? 0x0000FF00 : 0) | (b ? 0x00FF0000 : 0) | 0xFF000000;
+
 			const float aspect_ratio = static_cast<float>(texture.width) / static_cast<float>(texture.height);
-			imgui_image_with_checkerboard_background(texture.impl.get(), ImVec2(single_image_width, single_image_width / aspect_ratio));
+			imgui_image_with_checkerboard_background(texture.impl.get(), ImVec2(single_image_width, single_image_width / aspect_ratio), _preview_size[2]);
 
 			ImGui::EndGroup();
 			ImGui::PopID();
