@@ -134,17 +134,20 @@ void reshade::d3d10::buffer_detection::track_render_targets(UINT num_views, ID3D
 }
 void reshade::d3d10::buffer_detection::track_cleared_depthstencil(UINT clear_flags, ID3D10DepthStencilView *dsv)
 {
-	// Reset draw call stats for clears
-	auto current_stats = _clear_stats;
-	_clear_stats.vertices = 0;
-	_clear_stats.drawcalls = 0;
-
 	if ((clear_flags & D3D10_CLEAR_DEPTH) == 0)
 		return;
 
 	com_ptr<ID3D10Texture2D> dsv_texture = texture_from_dsv(dsv);
 	if (dsv_texture == nullptr || dsv_texture != _depthstencil_clear_index.first)
 		return;
+
+	if (_counters_per_used_depth_texture[dsv_texture].stats.vertices == 0 || _counters_per_used_depth_texture[dsv_texture].stats.drawcalls == 0)
+		return; // Ignore clears when there was no meaningful workload since the last one
+
+	// Reset draw call stats for clears
+	auto current_stats = _clear_stats;
+	_clear_stats.vertices = 0;
+	_clear_stats.drawcalls = 0;
 
 	auto &clears = _counters_per_used_depth_texture[dsv_texture].clears;
 	clears.push_back(current_stats);
