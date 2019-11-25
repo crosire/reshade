@@ -285,6 +285,20 @@ bool imgui_popup_button(const char *label, float width, ImGuiWindowFlags flags)
 	return ImGui::BeginPopup(label, flags);
 }
 
+bool imgui_toggle_button(const char *label, bool &toggle)
+{
+	if (toggle)
+		ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyle().Colors[ImGuiCol_ButtonActive]);
+	const bool modified = ImGui::SmallButton(label);
+	if (toggle)
+		ImGui::PopStyleColor();
+
+	if (modified)
+		toggle = !toggle;
+
+	return modified;
+}
+
 bool imgui_list_with_buttons(const char *label, const std::string_view ui_items, int &v)
 {
 	const auto imgui_context = ImGui::GetCurrentContext();
@@ -553,7 +567,7 @@ bool imgui_slider_for_alpha(const char *label, float *v)
 
 }
 
-void imgui_image_with_checkerboard_background(ImTextureID user_texture_id, const ImVec2 &size)
+void imgui_image_with_checkerboard_background(ImTextureID user_texture_id, const ImVec2 &size, ImU32 tint_col)
 {
 	const auto draw_list = ImGui::GetWindowDrawList();
 
@@ -572,5 +586,5 @@ void imgui_image_with_checkerboard_background(ImTextureID user_texture_id, const
 	}
 
 	// Add image on top
-	ImGui::Image(user_texture_id, size);
+	ImGui::Image(user_texture_id, size, ImVec2(0, 0), ImVec2(1, 1), ImColor(tint_col));
 }

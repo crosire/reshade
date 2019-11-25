@@ -20,6 +20,12 @@ namespace reshade::resources
 		unsigned int width, height, bits_per_pixel;
 	};
 
+	/// <summary>
+	/// Loads the raw data associated with the specified <paramref name="id"/> from the DLL resources.
+	/// </summary>
 	data_resource load_data_resource(unsigned int id);
+	/// <summary>
+	/// Loads the bitmap data associated with the specified <paramref name="id"/> from the DLL resources.
+	/// </summary>
 	image_resource load_image_resource(unsigned int id);
 }

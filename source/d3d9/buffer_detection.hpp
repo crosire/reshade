@@ -13,45 +13,33 @@
 
 namespace reshade::d3d9
 {
-	class draw_call_tracker
+	class buffer_detection
 	{
 	public:
-#if RESHADE_DX9_CAPTURE_DEPTH_BUFFERS
-		static bool disable_intz;
-		static bool brute_force_fix;
-		static bool filter_aspect_ratio;
-		static bool preserve_depth_buffers;
-		static unsigned int depth_stencil_clear_index;
-#endif
-
-		explicit draw_call_tracker(IDirect3DDevice9 *device) : _device(device) {}
+		explicit buffer_detection(IDirect3DDevice9 *device) : _device(device) {}
 
 		UINT total_vertices() const { return _stats.vertices; }
 		UINT total_drawcalls() const { return _stats.drawcalls; }
-
-#if RESHADE_DX9_CAPTURE_DEPTH_BUFFERS
-		UINT current_clear_index() const { return _depthstencil_clear_index; }
-		IDirect3DSurface9 *current_depth_surface() const { return _depthstencil_original.get(); }
-		IDirect3DSurface9 *current_depth_replacement() const { return _depthstencil_replacement.get(); }
-		const auto &depth_buffer_counters() const { return _counters_per_used_depth_surface; }
-#endif
 
 		void reset(bool release_resources);
 
 		void on_draw(D3DPRIMITIVETYPE type, UINT primitives);
 
 #if RESHADE_DX9_CAPTURE_DEPTH_BUFFERS
+		bool disable_intz = false;
+
+		UINT current_clear_index() const { return _depthstencil_clear_index; }
+		const auto &depth_buffer_counters() const { return _counters_per_used_depth_surface; }
+		IDirect3DSurface9 *current_depth_surface() const { return _depthstencil_original.get(); }
+		IDirect3DSurface9 *current_depth_replacement() const { return _depthstencil_replacement.get(); }
+
 		void on_set_depthstencil(IDirect3DSurface9 *&depthstencil);
 		void on_get_depthstencil(IDirect3DSurface9 *&depthstencil);
 
 		void on_clear_depthstencil(UINT clear_flags);
 
-		void update_depthstencil_replacement(com_ptr<IDirect3DSurface9> depthstencil);
-
-		static bool check_aspect_ratio(const D3DSURFACE_DESC &desc, UINT width, UINT height);
-		static bool check_texture_format(const D3DSURFACE_DESC &desc);
-
-		com_ptr<IDirect3DSurface9> find_best_depth_surface(UINT width, UINT height, com_ptr<IDirect3DSurface9> override = nullptr);
+		com_ptr<IDirect3DSurface9> find_best_depth_surface(UINT width, UINT height,
+			com_ptr<IDirect3DSurface9> override = nullptr, UINT clear_index_override = 0);
 #endif
 
 	private:
@@ -66,9 +54,17 @@ namespace reshade::d3d9
 			std::vector<draw_stats> clears;
 		};
 
-		IDirect3DDevice9 *_device;
+#if RESHADE_DX9_CAPTURE_DEPTH_BUFFERS
+		bool check_aspect_ratio(const D3DSURFACE_DESC &desc, UINT width, UINT height);
+		bool check_texture_format(const D3DSURFACE_DESC &desc);
+
+		bool update_depthstencil_replacement(com_ptr<IDirect3DSurface9> depthstencil);
+#endif
+
+		IDirect3DDevice9 *const _device;
 		draw_stats _stats;
 #if RESHADE_DX9_CAPTURE_DEPTH_BUFFERS
+		bool _preserve_depth_buffers = false;
 		draw_stats _clear_stats;
 		UINT _depthstencil_clear_index = std::numeric_limits<UINT>::max();
 		com_ptr<IDirect3DSurface9> _depthstencil_original;

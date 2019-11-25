@@ -5,7 +5,6 @@
 
 #include "log.hpp"
 #include "hook_manager.hpp"
-#include "input.hpp"
 #include <assert.h>
 #include <Windows.h>
 

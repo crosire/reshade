@@ -30,6 +30,13 @@ struct vk_handle_traits<VK_OBJECT_TYPE_BUFFER>
 	static inline void destroy(VkDevice device, const VkLayerDispatchTable &vk, T obj) { vk.DestroyBuffer(device, obj, nullptr); }
 };
 template <>
+struct vk_handle_traits<VK_OBJECT_TYPE_BUFFER_VIEW>
+{
+	using T = VkBufferView;
+	static inline void destroy(VkDevice device, const VkLayerDispatchTable &vk, T obj) { vk.DestroyBufferView(device, obj, nullptr); }
+};
+
+template <>
 struct vk_handle_traits<VK_OBJECT_TYPE_SHADER_MODULE>
 {
 	using T = VkShaderModule;

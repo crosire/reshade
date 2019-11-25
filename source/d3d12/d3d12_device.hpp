@@ -6,9 +6,7 @@
 #pragma once
 
 #include <d3d12.h>
-#include "draw_call_tracker.hpp"
-#include <mutex>
-#include <atomic>
+#include "buffer_detection.hpp"
 
 namespace reshade::d3d12 { class runtime_d3d12; }
 
@@ -100,18 +98,10 @@ struct __declspec(uuid("2523AFF4-978B-4939-BA16-8EE876A4CB2A")) D3D12Device : ID
 	D3D12_DRIVER_MATCHING_IDENTIFIER_STATUS STDMETHODCALLTYPE CheckDriverMatchingIdentifier(D3D12_SERIALIZED_DATA_TYPE SerializedDataType, const D3D12_SERIALIZED_DATA_DRIVER_MATCHING_IDENTIFIER *pIdentifierToCheck) override;
 	#pragma endregion
 
-	void clear_drawcall_stats(bool release_resources = false);
-
 	bool check_and_upgrade_interface(REFIID riid);
-
-	com_ptr<ID3D12Resource> resource_from_handle(D3D12_CPU_DESCRIPTOR_HANDLE handle);
 
 	LONG _ref = 1;
 	ID3D12Device *_orig;
 	unsigned int _interface_version;
-	std::vector<std::shared_ptr<reshade::d3d12::runtime_d3d12>> _runtimes;
-	reshade::d3d12::draw_call_tracker _draw_call_tracker;
-	std::atomic_uint _current_dsv_clear_index = 1;
-	std::map<SIZE_T, com_ptr<ID3D12Resource>> _depthstencil_resources_by_handle;
-	std::mutex _device_global_mutex;
+	reshade::d3d12::buffer_detection_context _buffer_detection;
 };

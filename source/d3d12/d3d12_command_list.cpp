@@ -11,7 +11,7 @@ D3D12GraphicsCommandList::D3D12GraphicsCommandList(D3D12Device *device, ID3D12Gr
 	_orig(original),
 	_interface_version(0),
 	_device(device) {
-	assert(original != nullptr);
+	assert(_orig != nullptr && _device != nullptr);
 }
 
 bool D3D12GraphicsCommandList::check_and_upgrade_interface(REFIID riid)
@@ -83,9 +83,6 @@ ULONG   STDMETHODCALLTYPE D3D12GraphicsCommandList::Release()
 	if (ref_orig != 0)
 		LOG(WARN) << "Reference count for ID3D12GraphicsCommandList" << _interface_version << " object " << this << " is inconsistent.";
 
-#if RESHADE_VERBOSE_LOG
-	LOG(DEBUG) << "Destroyed ID3D12GraphicsCommandList" << _interface_version << " object " << this << '.';
-#endif
 	delete this;
 
 	return 0;
@@ -124,7 +121,7 @@ HRESULT STDMETHODCALLTYPE D3D12GraphicsCommandList::Close()
 }
 HRESULT STDMETHODCALLTYPE D3D12GraphicsCommandList::Reset(ID3D12CommandAllocator *pAllocator, ID3D12PipelineState *pInitialState)
 {
-	_draw_call_tracker.reset();
+	_buffer_detection.reset();
 
 	return _orig->Reset(pAllocator, pInitialState);
 }
@@ -136,12 +133,12 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::ClearState(ID3D12PipelineState 
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::DrawInstanced(UINT VertexCountPerInstance, UINT InstanceCount, UINT StartVertexLocation, UINT StartInstanceLocation)
 {
 	_orig->DrawInstanced(VertexCountPerInstance, InstanceCount, StartVertexLocation, StartInstanceLocation);
-	_draw_call_tracker.on_draw(VertexCountPerInstance * InstanceCount);
+	_buffer_detection.on_draw(VertexCountPerInstance * InstanceCount);
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::DrawIndexedInstanced(UINT IndexCountPerInstance, UINT InstanceCount, UINT StartIndexLocation, INT BaseVertexLocation, UINT StartInstanceLocation)
 {
 	_orig->DrawIndexedInstanced(IndexCountPerInstance, InstanceCount, StartIndexLocation, BaseVertexLocation, StartInstanceLocation);
-	_draw_call_tracker.on_draw(IndexCountPerInstance * InstanceCount);
+	_buffer_detection.on_draw(IndexCountPerInstance * InstanceCount);
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::Dispatch(UINT ThreadGroupCountX, UINT ThreadGroupCountY, UINT ThreadGroupCountZ)
 {
@@ -203,7 +200,7 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::ExecuteBundle(ID3D12GraphicsCom
 	const auto command_list_proxy = static_cast<D3D12GraphicsCommandList *>(pCommandList);
 
 	// Merge bundle command list trackers into the current one
-	_draw_call_tracker.merge(command_list_proxy->_draw_call_tracker);
+	_buffer_detection.merge(command_list_proxy->_buffer_detection);
 
 	_orig->ExecuteBundle(command_list_proxy->_orig);
 }
@@ -282,16 +279,15 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::SOSetTargets(UINT StartSlot, UI
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::OMSetRenderTargets(UINT NumRenderTargetDescriptors, const D3D12_CPU_DESCRIPTOR_HANDLE *pRenderTargetDescriptors, BOOL RTsSingleHandleToDescriptorRange, D3D12_CPU_DESCRIPTOR_HANDLE const *pDepthStencilDescriptor)
 {
 #if RESHADE_DX12_CAPTURE_DEPTH_BUFFERS
-	_draw_call_tracker.track_render_targets(
-		pDepthStencilDescriptor != nullptr ? _device->resource_from_handle(*pDepthStencilDescriptor) : nullptr);
+	_buffer_detection.track_render_targets(
+		pDepthStencilDescriptor != nullptr ? *pDepthStencilDescriptor : D3D12_CPU_DESCRIPTOR_HANDLE { 0 });
 #endif
 	_orig->OMSetRenderTargets(NumRenderTargetDescriptors, pRenderTargetDescriptors, RTsSingleHandleToDescriptorRange, pDepthStencilDescriptor);
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::ClearDepthStencilView(D3D12_CPU_DESCRIPTOR_HANDLE DepthStencilView, D3D12_CLEAR_FLAGS ClearFlags, FLOAT Depth, UINT8 Stencil, UINT NumRects, const D3D12_RECT *pRects)
 {
 #if RESHADE_DX12_CAPTURE_DEPTH_BUFFERS
-	if (!_device->_runtimes.empty())
-		_draw_call_tracker.track_cleared_depthstencil(this, ClearFlags, _device->resource_from_handle(DepthStencilView), _device->_current_dsv_clear_index++, _device->_runtimes.front().get());
+	_buffer_detection.track_cleared_depthstencil(this, ClearFlags, DepthStencilView);
 #endif
 	_orig->ClearDepthStencilView(DepthStencilView, ClearFlags, Depth, Stencil, NumRects, pRects);
 }

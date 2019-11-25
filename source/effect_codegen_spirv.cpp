@@ -173,9 +173,8 @@ private:
 	bool _vulkan_semantics = false;
 	bool _uniforms_to_spec_constants = false;
 	id _glsl_ext = 0;
-	struct_info _global_ubo_type;
 	id _global_ubo_variable = 0;
-	uint32_t _global_ubo_offset = 0;
+	struct_info _global_ubo_type;
 	function_blocks *_current_function = nullptr;
 
 	inline void add_location(const location &loc, spirv_basic_block &block)
@@ -643,9 +642,9 @@ private:
 			}
 
 			const uint32_t alignment = info.size;
-			const uint32_t alignment_remain = _global_ubo_offset % alignment;
-			info.offset = (alignment_remain != 0) ? _global_ubo_offset + alignment - alignment_remain : _global_ubo_offset;
-			_global_ubo_offset = info.offset + info.size;
+			const uint32_t alignment_remain = _module.total_uniform_size % alignment;
+			info.offset = (alignment_remain != 0) ? _module.total_uniform_size + alignment - alignment_remain : _module.total_uniform_size;
+			_module.total_uniform_size = info.offset + info.size;
 
 			_module.uniforms.push_back(info);
 

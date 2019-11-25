@@ -38,7 +38,6 @@ private:
 	bool _debug_info = false;
 	bool _uniforms_to_spec_constants = false;
 	unsigned int _shader_model = 0;
-	unsigned int _current_cbuffer_size = 0;
 
 	void write_result(module &module) override
 	{
@@ -57,6 +56,9 @@ private:
 
 			if (!_cbuffer_block.empty())
 				module.hlsl += _cbuffer_block;
+
+			// Offsets were multiplied in 'define_uniform', so adjust total size here accordingly
+			module.total_uniform_size *= 4;
 		}
 
 		module.hlsl += _blocks.at(0);
@@ -419,10 +421,10 @@ private:
 		}
 		else
 		{
-			const uint32_t alignment = 16 - (_current_cbuffer_size % 16);
+			const uint32_t alignment = 16 - (_module.total_uniform_size % 16);
 			const uint32_t alignment_size = (info.size > alignment && (alignment != 16 || info.size <= 16)) ? info.size + alignment : info.size;
-			_current_cbuffer_size += alignment_size;
-			info.offset = _current_cbuffer_size - info.size; // Alignment is prepended to the offset 
+			_module.total_uniform_size += alignment_size;
+			info.offset = _module.total_uniform_size - info.size; // Alignment is prepended to the offset 
 
 			write_location<true>(_cbuffer_block, loc);
 
@@ -653,6 +655,7 @@ private:
 			switch (op.op)
 			{
 			case expression::operation::op_cast:
+				type.clear();
 				write_type<false, false>(type, op.to);
 				// Cast is in parentheses so that a subsequent operation operates on the casted value
 				expr_code = "((" + type + ')' + expr_code + ')';

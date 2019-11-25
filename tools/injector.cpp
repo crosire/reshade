@@ -31,6 +31,12 @@ struct scoped_handle
 
 static void update_acl_for_uwp(LPWSTR path)
 {
+	OSVERSIONINFOEX verinfo_windows7 = { sizeof(OSVERSIONINFOEX), 6, 1 };
+	const bool is_windows7 = VerifyVersionInfo(&verinfo_windows7, VER_MAJORVERSION | VER_MINORVERSION,
+		VerSetConditionMask(VerSetConditionMask(0, VER_MAJORVERSION, VER_EQUAL), VER_MINORVERSION, VER_EQUAL)) != FALSE;
+	if (is_windows7)
+		return; // There is no UWP on Windows 7, so no need to update DACL
+
 	PACL old_acl = nullptr, new_acl = nullptr;
 	PSECURITY_DESCRIPTOR sd = nullptr;
 	SECURITY_INFORMATION siInfo = DACL_SECURITY_INFORMATION;
@@ -96,11 +102,11 @@ int wmain(int argc, wchar_t *argv[])
 	printf("Found a matching process with PID %d! Injecting ReShade ...\n", pid);
 
 	// Wait just a little bit for the application to initialize
-	Sleep(500);
+	Sleep(50);
 
 	// Open target application process
 	const HANDLE local_process = GetCurrentProcess();
-	const scoped_handle remote_process = OpenProcess(PROCESS_CREATE_THREAD | PROCESS_VM_OPERATION | PROCESS_VM_READ | PROCESS_VM_WRITE | PROCESS_DUP_HANDLE | PROCESS_QUERY_INFORMATION, FALSE, pid);
+	const scoped_handle remote_process = OpenProcess(PROCESS_CREATE_THREAD | PROCESS_VM_OPERATION | PROCESS_VM_READ | PROCESS_VM_WRITE | PROCESS_QUERY_INFORMATION, FALSE, pid);
 
 	if (remote_process == nullptr)
 	{
@@ -118,17 +124,18 @@ int wmain(int argc, wchar_t *argv[])
 	// Make sure the DLL has permissions set up for "ALL_APPLICATION_PACKAGES"
 	update_acl_for_uwp(load_path);
 
-	const auto load_param = VirtualAllocEx(remote_process, nullptr, MAX_PATH, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+	const auto load_param = VirtualAllocEx(remote_process, nullptr, sizeof(load_path), MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
 
 	// Write 'LoadLibrary' call argument to target application
-	if (load_param == nullptr || !WriteProcessMemory(remote_process, load_param, load_path, MAX_PATH, nullptr))
+	if (load_param == nullptr || !WriteProcessMemory(remote_process, load_param, load_path, sizeof(load_path), nullptr))
 	{
 		printf("Failed to allocate and write 'LoadLibrary' argument in target application!\n");
 		return GetLastError();
 	}
 
 	// Execute 'LoadLibrary' in target application
-	const scoped_handle load_thread = CreateRemoteThread(remote_process, nullptr, 0, reinterpret_cast<LPTHREAD_START_ROUTINE>(&LoadLibraryW), load_param, 0, nullptr);
+	// This happens to work because kernel32.dll is always loaded to the same base address, so the address of 'LoadLibrary' is the same in the target application and the current one
+	const scoped_handle load_thread = CreateRemoteThread(remote_process, nullptr, 0, reinterpret_cast<LPTHREAD_START_ROUTINE>(LoadLibraryW), load_param, 0, nullptr);
 
 	if (load_thread == nullptr)
 	{

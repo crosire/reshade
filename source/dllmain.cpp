@@ -101,6 +101,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 	if (strstr(lpCmdLine, "-d3d9"))
 	{
 		const auto d3d9_module = LoadLibrary(TEXT("d3d9.dll"));
+		assert(d3d9_module != nullptr);
 		hooks::register_module("d3d9.dll");
 
 		D3DPRESENT_PARAMETERS pp = {};
@@ -147,6 +148,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 	if (strstr(lpCmdLine, "-d3d11"))
 	{
 		const auto d3d11_module = LoadLibrary(TEXT("d3d11.dll"));
+		assert(d3d11_module != nullptr);
 		hooks::register_module("dxgi.dll");
 		hooks::register_module("d3d11.dll");
 
@@ -209,6 +211,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 	if (strstr(lpCmdLine, "-d3d12"))
 	{
 		const auto d3d12_module = LoadLibrary(TEXT("d3d12.dll"));
+		assert(d3d12_module != nullptr);
 		hooks::register_module("dxgi.dll");
 		hooks::register_module("d3d12.dll");
 
@@ -268,9 +271,10 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 		}
 
 		const UINT rtv_handle_size = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
-		D3D12_CPU_DESCRIPTOR_HANDLE rtv_handle = rtv_heap->GetCPUDescriptorHandleForHeapStart();
-
 		HCHECK(device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&cmd_alloc)));
+
+	resize_buffers:
+		D3D12_CPU_DESCRIPTOR_HANDLE rtv_handle = rtv_heap->GetCPUDescriptorHandleForHeapStart();
 
 		for (UINT i = 0; i < num_buffers; ++i, rtv_handle.ptr += rtv_handle_size)
 		{
@@ -323,6 +327,22 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 				PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE))
 				DispatchMessage(&msg);
 
+			if (s_resize_w != 0)
+			{
+				// Clean up current resources referencing the back buffer
+				for (auto &ptr : cmd_lists)
+					ptr.reset();
+				for (auto &ptr : backbuffers)
+					ptr.reset();
+
+				if (!is_d3d12on7)
+					HCHECK(swapchain->ResizeBuffers(num_buffers, s_resize_w, s_resize_h, DXGI_FORMAT_UNKNOWN, 0));
+
+				s_resize_w = s_resize_h = 0;
+
+				goto resize_buffers; // Re-create command lists
+			}
+
 			const UINT swap_index = is_d3d12on7 ? 0 : swapchain->GetCurrentBackBufferIndex();
 
 			ID3D12CommandList *const cmd_list = cmd_lists[swap_index].get();
@@ -359,6 +379,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 	if (strstr(lpCmdLine, "-opengl"))
 	{
 		const auto opengl_module = LoadLibrary(TEXT("opengl32.dll"));
+		assert(opengl_module != nullptr);
 		hooks::register_module("opengl32.dll");
 
 		// Initialize OpenGL
@@ -433,6 +454,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 	if (strstr(lpCmdLine, "-vulkan"))
 	{
 		const auto vulkan_module = LoadLibrary(TEXT("vulkan-1.dll"));
+		assert(vulkan_module != nullptr);
 		hooks::register_module("vulkan-1.dll");
 
 		VkDevice device = VK_NULL_HANDLE;

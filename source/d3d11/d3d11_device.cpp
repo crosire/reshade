@@ -14,13 +14,8 @@ D3D11Device::D3D11Device(IDXGIDevice1 *dxgi_device, ID3D11Device *original, ID3D
 	_interface_version(0),
 	_dxgi_device(new DXGIDevice(dxgi_device, this)),
 	_immediate_context(new D3D11DeviceContext(this, immediate_context)) {
-	assert(original != nullptr);
-}
-
-void D3D11Device::clear_drawcall_stats()
-{
-	_immediate_context->_draw_call_tracker.reset();
-	_current_dsv_clear_index = 1;
+	assert(_orig != nullptr);
+	_immediate_context->_buffer_detection.init(immediate_context, &_immediate_context->_buffer_detection);
 }
 
 bool D3D11Device::check_and_upgrade_interface(REFIID riid)
@@ -307,7 +302,10 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateDeferredContext(UINT ContextFlags, 
 		return hr;
 	}
 
-	*ppDeferredContext = new D3D11DeviceContext(this, *ppDeferredContext);
+	const auto device_context_proxy = new D3D11DeviceContext(this, *ppDeferredContext);
+	device_context_proxy->_buffer_detection.init(*ppDeferredContext, &_immediate_context->_buffer_detection);
+
+	 *ppDeferredContext = device_context_proxy;
 
 #if RESHADE_VERBOSE_LOG
 	LOG(INFO) << "> Returning ID3D11DeviceContext object " << *ppDeferredContext << '.';
@@ -406,7 +404,10 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateDeferredContext1(UINT ContextFlags,
 		return hr;
 	}
 
-	*ppDeferredContext = new D3D11DeviceContext(this, *ppDeferredContext);
+	const auto device_context_proxy = new D3D11DeviceContext(this, *ppDeferredContext);
+	device_context_proxy->_buffer_detection.init(*ppDeferredContext, &_immediate_context->_buffer_detection);
+
+	*ppDeferredContext = device_context_proxy;
 
 #if RESHADE_VERBOSE_LOG
 	LOG(INFO) << "> Returning ID3D11DeviceContext1 object " << *ppDeferredContext << '.';
@@ -446,8 +447,29 @@ void    STDMETHODCALLTYPE D3D11Device::GetImmediateContext2(ID3D11DeviceContext2
 }
 HRESULT STDMETHODCALLTYPE D3D11Device::CreateDeferredContext2(UINT ContextFlags, ID3D11DeviceContext2 **ppDeferredContext)
 {
+	LOG(INFO) << "Redirecting ID3D11Device2::CreateDeferredContext2" << '(' << "this = " << this << ", ContextFlags = " << ContextFlags << ", ppDeferredContext = " << ppDeferredContext << ')' << " ...";
+
+	if (ppDeferredContext == nullptr)
+		return E_INVALIDARG;
+
 	assert(_interface_version >= 2);
-	return static_cast<ID3D11Device2 *>(_orig)->CreateDeferredContext2(ContextFlags, ppDeferredContext);
+
+	const HRESULT hr = static_cast<ID3D11Device2 *>(_orig)->CreateDeferredContext2(ContextFlags, ppDeferredContext);
+	if (FAILED(hr))
+	{
+		LOG(WARN) << "ID3D11Device1::CreateDeferredContext2 failed with error code " << hr << '!';
+		return hr;
+	}
+
+	const auto device_context_proxy = new D3D11DeviceContext(this, *ppDeferredContext);
+	device_context_proxy->_buffer_detection.init(*ppDeferredContext, &_immediate_context->_buffer_detection);
+
+	*ppDeferredContext = device_context_proxy;
+
+#if RESHADE_VERBOSE_LOG
+	LOG(INFO) << "> Returning ID3D11DeviceContext2 object " << *ppDeferredContext << '.';
+#endif
+	return hr;
 }
 void    STDMETHODCALLTYPE D3D11Device::GetResourceTiling(ID3D11Resource *pTiledResource, UINT *pNumTilesForEntireResource, D3D11_PACKED_MIP_DESC *pPackedMipDesc, D3D11_TILE_SHAPE *pStandardTileShapeForNonPackedMips, UINT *pNumSubresourceTilings, UINT FirstSubresourceTilingToGet, D3D11_SUBRESOURCE_TILING *pSubresourceTilingsForNonPackedMips)
 {
@@ -551,8 +573,29 @@ void    STDMETHODCALLTYPE D3D11Device::GetImmediateContext3(ID3D11DeviceContext3
 }
 HRESULT STDMETHODCALLTYPE D3D11Device::CreateDeferredContext3(UINT ContextFlags, ID3D11DeviceContext3 **ppDeferredContext)
 {
+	LOG(INFO) << "Redirecting ID3D11Device3::CreateDeferredContext3" << '(' << "this = " << this << ", ContextFlags = " << ContextFlags << ", ppDeferredContext = " << ppDeferredContext << ')' << " ...";
+
+	if (ppDeferredContext == nullptr)
+		return E_INVALIDARG;
+
 	assert(_interface_version >= 3);
-	return static_cast<ID3D11Device3 *>(_orig)->CreateDeferredContext3(ContextFlags, ppDeferredContext);
+
+	const HRESULT hr = static_cast<ID3D11Device3 *>(_orig)->CreateDeferredContext3(ContextFlags, ppDeferredContext);
+	if (FAILED(hr))
+	{
+		LOG(WARN) << "ID3D11Device1::CreateDeferredContext3 failed with error code " << hr << '!';
+		return hr;
+	}
+
+	const auto device_context_proxy = new D3D11DeviceContext(this, *ppDeferredContext);
+	device_context_proxy->_buffer_detection.init(*ppDeferredContext, &_immediate_context->_buffer_detection);
+
+	*ppDeferredContext = device_context_proxy;
+
+#if RESHADE_VERBOSE_LOG
+	LOG(INFO) << "> Returning ID3D11DeviceContext3 object " << *ppDeferredContext << '.';
+#endif
+	return hr;
 }
 void    STDMETHODCALLTYPE D3D11Device::WriteToSubresource(ID3D11Resource *pDstResource, UINT DstSubresource, const D3D11_BOX *pDstBox, const void *pSrcData, UINT SrcRowPitch, UINT SrcDepthPitch)
 {
