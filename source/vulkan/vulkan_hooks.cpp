@@ -658,14 +658,14 @@ void     VKAPI_CALL vkCmdBeginRenderPass(VkCommandBuffer commandBuffer, const Vk
 		if (VK_IMAGE_LAYOUT_UNDEFINED == depthstencil_layout) // Do some trickery to make sure it is valid
 			depthstencil_layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
-		data.buffer_detection.track_depthstencil(
+		data.buffer_detection.on_set_depthstencil(
 			depthstencil,
 			depthstencil_layout,
 			s_image_data.at(depthstencil));
 	}
 	else
 	{
-		data.buffer_detection.track_depthstencil(VK_NULL_HANDLE, VK_IMAGE_LAYOUT_UNDEFINED, {});
+		data.buffer_detection.on_set_depthstencil(VK_NULL_HANDLE, VK_IMAGE_LAYOUT_UNDEFINED, {});
 	}
 #endif
 
@@ -690,14 +690,14 @@ void     VKAPI_CALL vkCmdNextSubpass(VkCommandBuffer commandBuffer, VkSubpassCon
 		const VkImage depthstencil = framebuffer_data[renderpass_data.depthstencil_attachment_index];
 		VkImageLayout depthstencil_layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
-		data.buffer_detection.track_depthstencil(
+		data.buffer_detection.on_set_depthstencil(
 			depthstencil,
 			depthstencil_layout,
 			s_image_data.at(depthstencil));
 	}
 	else
 	{
-		data.buffer_detection.track_depthstencil(VK_NULL_HANDLE, VK_IMAGE_LAYOUT_UNDEFINED, {});
+		data.buffer_detection.on_set_depthstencil(VK_NULL_HANDLE, VK_IMAGE_LAYOUT_UNDEFINED, {});
 	}
 #endif
 }
@@ -712,7 +712,7 @@ void     VKAPI_CALL vkCmdEndRenderPass(VkCommandBuffer commandBuffer)
 	data.current_renderpass = VK_NULL_HANDLE;
 	data.current_framebuffer = VK_NULL_HANDLE;
 
-	data.buffer_detection.track_depthstencil(VK_NULL_HANDLE, VK_IMAGE_LAYOUT_UNDEFINED, {});
+	data.buffer_detection.on_set_depthstencil(VK_NULL_HANDLE, VK_IMAGE_LAYOUT_UNDEFINED, {});
 #endif
 }
 

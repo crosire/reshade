@@ -25,8 +25,8 @@ namespace reshade::d3d12
 		void on_draw(UINT vertices);
 
 #if RESHADE_DX12_CAPTURE_DEPTH_BUFFERS
-		void track_render_targets(D3D12_CPU_DESCRIPTOR_HANDLE dsv);
-		void track_cleared_depthstencil(ID3D12GraphicsCommandList *cmd_list, D3D12_CLEAR_FLAGS clear_flags, D3D12_CPU_DESCRIPTOR_HANDLE dsv);
+		void on_set_depthstencil(D3D12_CPU_DESCRIPTOR_HANDLE dsv);
+		void on_clear_depthstencil(ID3D12GraphicsCommandList *cmd_list, D3D12_CLEAR_FLAGS clear_flags, D3D12_CPU_DESCRIPTOR_HANDLE dsv);
 #endif
 
 	protected:
@@ -37,7 +37,8 @@ namespace reshade::d3d12
 		};
 		struct depthstencil_info
 		{
-			draw_stats stats;
+			draw_stats total_stats;
+			draw_stats current_stats; // Stats since last clear
 			std::vector<draw_stats> clears;
 		};
 
@@ -45,7 +46,6 @@ namespace reshade::d3d12
 		const buffer_detection_context *_context = nullptr;
 		draw_stats _stats;
 #if RESHADE_DX12_CAPTURE_DEPTH_BUFFERS
-		draw_stats _clear_stats;
 		com_ptr<ID3D12Resource> _current_depthstencil;
 		// Use "std::map" instead of "std::unordered_map" so that the iteration order is guaranteed
 		std::map<com_ptr<ID3D12Resource>, depthstencil_info> _counters_per_used_depth_texture;

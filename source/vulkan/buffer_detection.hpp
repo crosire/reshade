@@ -22,7 +22,7 @@ namespace reshade::vulkan
 		void on_draw(uint32_t vertices);
 
 #if RESHADE_VULKAN_CAPTURE_DEPTH_BUFFERS
-		void track_depthstencil(VkImage depthstencil, VkImageLayout layout, const VkImageCreateInfo &create_info);
+		void on_set_depthstencil(VkImage depthstencil, VkImageLayout layout, const VkImageCreateInfo &create_info);
 #endif
 
 	protected:
