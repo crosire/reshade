@@ -156,6 +156,8 @@ bool reshade::d3d12::buffer_detection_context::update_depthstencil_clear_texture
 			_depthstencil_clear_texture.reset();
 	}
 
+	assert(_device != nullptr);
+
 	desc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
 	desc.Format = make_dxgi_format_typeless(desc.Format);
 

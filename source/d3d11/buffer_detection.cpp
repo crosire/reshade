@@ -177,6 +177,8 @@ bool reshade::d3d11::buffer_detection_context::update_depthstencil_clear_texture
 			_depthstencil_clear_texture.reset();
 	}
 
+	assert(_device != nullptr);
+
 	desc.Format = make_dxgi_format_typeless(desc.Format);
 	desc.BindFlags = D3D11_BIND_DEPTH_STENCIL | D3D11_BIND_SHADER_RESOURCE;
 
