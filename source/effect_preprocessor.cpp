@@ -79,6 +79,13 @@ bool reshadefx::preprocessor::add_displayable_macro_definition(const std::string
 
 	return _displayable_macros.emplace(name, macro).second;
 }
+bool reshadefx::preprocessor::add_displayable_macro_definition(const std::string& name, std::string value)
+{
+	macro macro;
+	macro.replacement_list = std::move(value);
+
+	return add_displayable_macro_definition(name, macro);
+}
 
 bool reshadefx::preprocessor::append_file(const std::filesystem::path &path)
 {
@@ -400,7 +407,8 @@ void reshadefx::preprocessor::parse_def()
 	if (!add_macro_definition(macro_name, m))
 		return error(location, "redefinition of '" + macro_name + "'");
 
-	add_displayable_macro_definition(macro_name, m);
+	if (const auto it = _displayable_macros.find(macro_name); it != _displayable_macros.end())
+		_displayable_macros[macro_name] = m;
 }
 void reshadefx::preprocessor::parse_undef()
 {
@@ -449,6 +457,9 @@ void reshadefx::preprocessor::parse_ifndef()
 	level.value = _macros.find(_token.literal_as_string) == _macros.end();
 	level.parent = current_if_stack().empty() ? nullptr : &current_if_stack().top();
 	level.skipping = (level.parent != nullptr && level.parent->skipping) || !level.value;
+
+	if(!level.skipping)
+		add_displayable_macro_definition(_token.literal_as_string);
 
 	current_if_stack().push(level);
 }

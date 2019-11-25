@@ -57,6 +57,13 @@ namespace reshadefx
 		/// <param name="macro">The definition of the macro function or value.</param>
 		/// <returns></returns>
 		bool add_displayable_macro_definition(const std::string& name, const macro& macro);
+		/// <summary>
+		/// Add a new macro value definition. This is equal to appending '#define name macro' to this preprocessor instance.
+		/// </summary>
+		/// <param name="name">The name of the macro to define.</param>
+		/// <param name="value">The value to define that macro to.</param>
+		/// <returns></returns>
+		bool add_displayable_macro_definition(const std::string& name, std::string value = "1");
 
 		/// <summary>
 		/// Open the specified file, parse its contents and append them to the output.
