@@ -1013,9 +1013,13 @@ bool reshadefx::preprocessor::evaluate_identifier_as_macro()
 
 	std::string input;
 	expand_macro(it->first, it->second, arguments, input);
-	push(std::move(input));
 
-	_input_stack.back().hidden_macros.insert(it->first);
+	if (!input.empty())
+	{
+		push(std::move(input));
+
+		_input_stack.back().hidden_macros.insert(it->first);
+	}
 
 	return true;
 }

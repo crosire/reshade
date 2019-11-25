@@ -20,9 +20,9 @@ namespace reshade::d3d9
 	};
 	struct d3d9_pass_data : base_object
 	{
-		com_ptr<IDirect3DVertexShader9> vertex_shader;
-		com_ptr<IDirect3DPixelShader9> pixel_shader;
 		com_ptr<IDirect3DStateBlock9> stateblock;
+		com_ptr<IDirect3DPixelShader9> pixel_shader;
+		com_ptr<IDirect3DVertexShader9> vertex_shader;
 		IDirect3DSurface9 *render_targets[8] = {};
 		IDirect3DTexture9 *sampler_textures[16] = {};
 	};
@@ -61,105 +61,32 @@ reshade::d3d9::runtime_d3d9::runtime_d3d9(IDirect3DDevice9 *device, IDirect3DSwa
 	_num_simultaneous_rendertargets = std::min(caps.NumSimultaneousRTs, DWORD(8));
 	_behavior_flags = creation_params.BehaviorFlags;
 
-#if RESHADE_GUI
-	subscribe_to_ui("DX9", [this]() { draw_debug_menu(); });
+#if RESHADE_GUI && RESHADE_DX9_CAPTURE_DEPTH_BUFFERS
+	subscribe_to_ui("DX9", [this]() { draw_depth_debug_menu(); });
 #endif
+#if RESHADE_DX9_CAPTURE_DEPTH_BUFFERS
 	subscribe_to_load_config([this](const ini_file &config) {
-		config.get("DX9_BUFFER_DETECTION", "DisableINTZ", draw_call_tracker::disable_intz);
-		config.get("DX9_BUFFER_DETECTION", "PreserveDepthBuffer", draw_call_tracker::preserve_depth_buffers);
-		config.get("DX9_BUFFER_DETECTION", "PreserveDepthBufferIndex", draw_call_tracker::depth_stencil_clear_index);
-		config.get("DX9_BUFFER_DETECTION", "UseAspectRatioHeuristics", draw_call_tracker::filter_aspect_ratio);
+		config.get("DX9_BUFFER_DETECTION", "DisableINTZ", _disable_intz);
+		config.get("DX9_BUFFER_DETECTION", "PreserveDepthBuffer", _preserve_depth_buffers);
+		config.get("DX9_BUFFER_DETECTION", "PreserveDepthBufferIndex", _depth_clear_index_override);
+		config.get("DX9_BUFFER_DETECTION", "UseAspectRatioHeuristics", _filter_aspect_ratio);
+
+		if (_depth_clear_index_override == 0)
+			// Zero is not a valid clear index, since it disables depth buffer preservation
+			_depth_clear_index_override = std::numeric_limits<UINT>::max();
 	});
 	subscribe_to_save_config([this](ini_file &config) {
-		config.set("DX9_BUFFER_DETECTION", "DisableINTZ", draw_call_tracker::disable_intz);
-		config.set("DX9_BUFFER_DETECTION", "PreserveDepthBuffer", draw_call_tracker::preserve_depth_buffers);
-		config.set("DX9_BUFFER_DETECTION", "PreserveDepthBufferIndex", draw_call_tracker::depth_stencil_clear_index);
-		config.set("DX9_BUFFER_DETECTION", "UseAspectRatioHeuristics", draw_call_tracker::filter_aspect_ratio);
+		config.set("DX9_BUFFER_DETECTION", "DisableINTZ", _disable_intz);
+		config.set("DX9_BUFFER_DETECTION", "PreserveDepthBuffer", _preserve_depth_buffers);
+		config.set("DX9_BUFFER_DETECTION", "PreserveDepthBufferIndex", _depth_clear_index_override);
+		config.set("DX9_BUFFER_DETECTION", "UseAspectRatioHeuristics", _filter_aspect_ratio);
 	});
+#endif
 }
 reshade::d3d9::runtime_d3d9::~runtime_d3d9()
 {
 	if (_d3d_compiler != nullptr)
 		FreeLibrary(_d3d_compiler);
-}
-
-bool reshade::d3d9::runtime_d3d9::init_backbuffer_texture()
-{
-	// Get back buffer surface
-	HRESULT hr = _swapchain->GetBackBuffer(0, D3DBACKBUFFER_TYPE_MONO, &_backbuffer);
-	assert(SUCCEEDED(hr));
-
-	if (_is_multisampling_enabled ||
-		(_backbuffer_format == D3DFMT_X8R8G8B8 || _backbuffer_format == D3DFMT_X8B8G8R8))
-	{
-		switch (_backbuffer_format)
-		{
-		case D3DFMT_X8R8G8B8:
-			_backbuffer_format = D3DFMT_A8R8G8B8;
-			break;
-		case D3DFMT_X8B8G8R8:
-			_backbuffer_format = D3DFMT_A8B8G8R8;
-			break;
-		}
-
-		if (hr = _device->CreateRenderTarget(_width, _height, _backbuffer_format, D3DMULTISAMPLE_NONE, 0, FALSE, &_backbuffer_resolved, nullptr); FAILED(hr))
-		{
-			LOG(ERROR) << "Failed to create back buffer resolve texture! HRESULT is " << hr << '.';
-			return false;
-		}
-	}
-	else
-	{
-		_backbuffer_resolved = _backbuffer;
-	}
-
-	// Create back buffer shader texture
-	if (hr = _device->CreateTexture(_width, _height, 1, D3DUSAGE_RENDERTARGET, _backbuffer_format, D3DPOOL_DEFAULT, &_backbuffer_texture, nullptr); FAILED(hr))
-	{
-		LOG(ERROR) << "Failed to create back buffer texture! HRESULT is " << hr << '.';
-		return false;
-	}
-
-	_backbuffer_texture->GetSurfaceLevel(0, &_backbuffer_texture_surface);
-
-	return true;
-}
-bool reshade::d3d9::runtime_d3d9::init_default_depth_stencil()
-{
-	if (HRESULT hr = _device->CreateDepthStencilSurface(_width, _height, D3DFMT_D24S8, D3DMULTISAMPLE_NONE, 0, FALSE, &_default_depthstencil, nullptr); FAILED(hr))
-	{
-		LOG(ERROR) << "Failed to create default depth stencil! HRESULT is " << hr << '.';
-		return false;
-	}
-
-	return true;
-}
-bool reshade::d3d9::runtime_d3d9::init_fullscreen_triangle_resources()
-{
-	if (HRESULT hr = _device->CreateVertexBuffer(3 * sizeof(float), D3DUSAGE_WRITEONLY, 0, D3DPOOL_DEFAULT, &_effect_triangle_buffer, nullptr); FAILED(hr))
-	{
-		LOG(ERROR) << "Failed to create effect vertex buffer! HRESULT is " << hr << '.';
-		return false;
-	}
-
-	float *data = nullptr;
-	_effect_triangle_buffer->Lock(0, 3 * sizeof(float), reinterpret_cast<void **>(&data), 0);
-	for (unsigned int i = 0; i < 3; i++)
-		data[i] = static_cast<float>(i);
-	_effect_triangle_buffer->Unlock();
-
-	const D3DVERTEXELEMENT9 declaration[] = {
-		{ 0, 0, D3DDECLTYPE_FLOAT1, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_TEXCOORD, 0 },
-		D3DDECL_END()
-	};
-
-	if (HRESULT hr = _device->CreateVertexDeclaration(declaration, &_effect_triangle_layout); FAILED(hr))
-	{
-		LOG(ERROR) << "Failed to create effect vertex declaration! HRESULT is " << hr << '.';
-		return false;
-	}
-
-	return true;
 }
 
 bool reshade::d3d9::runtime_d3d9::on_init(const D3DPRESENT_PARAMETERS &pp)
@@ -171,19 +98,73 @@ bool reshade::d3d9::runtime_d3d9::on_init(const D3DPRESENT_PARAMETERS &pp)
 	_height = pp.BackBufferHeight;
 	_window_width = window_rect.right - window_rect.left;
 	_window_height = window_rect.bottom - window_rect.top;
+	_color_bit_depth = pp.BackBufferFormat == D3DFMT_A2B10G10R10 || pp.BackBufferFormat == D3DFMT_A2R10G10B10 ? 10 : 8;
 	_backbuffer_format = pp.BackBufferFormat;
-	_color_bit_depth = _backbuffer_format == D3DFMT_A2B10G10R10 || _backbuffer_format == D3DFMT_A2R10G10B10 ? 10 : 8;
-	_is_multisampling_enabled = pp.MultiSampleType != D3DMULTISAMPLE_NONE;
 
-	if (!_app_state.init_state_block() ||
-		!init_backbuffer_texture() ||
-		!init_default_depth_stencil() ||
-		!init_fullscreen_triangle_resources()
-#if RESHADE_GUI
-		|| !init_imgui_resources()
-#endif
-		)
+	// Get back buffer surface
+	HRESULT hr = _swapchain->GetBackBuffer(0, D3DBACKBUFFER_TYPE_MONO, &_backbuffer);
+	assert(SUCCEEDED(hr));
+
+	if (pp.MultiSampleType != D3DMULTISAMPLE_NONE || (pp.BackBufferFormat == D3DFMT_X8R8G8B8 || pp.BackBufferFormat == D3DFMT_X8B8G8R8))
+	{
+		switch (_backbuffer_format)
+		{
+		case D3DFMT_X8R8G8B8:
+			_backbuffer_format = D3DFMT_A8R8G8B8;
+			break;
+		case D3DFMT_X8B8G8R8:
+			_backbuffer_format = D3DFMT_A8B8G8R8;
+			break;
+		}
+
+		if (FAILED(_device->CreateRenderTarget(_width, _height, _backbuffer_format, D3DMULTISAMPLE_NONE, 0, FALSE, &_backbuffer_resolved, nullptr)))
+			return false;
+	}
+	else
+	{
+		_backbuffer_resolved = _backbuffer;
+	}
+
+	// Create back buffer shader texture
+	if (FAILED(_device->CreateTexture(_width, _height, 1, D3DUSAGE_RENDERTARGET, _backbuffer_format, D3DPOOL_DEFAULT, &_backbuffer_texture, nullptr)))
 		return false;
+
+	hr = _backbuffer_texture->GetSurfaceLevel(0, &_backbuffer_texture_surface);
+	assert(SUCCEEDED(hr));
+
+	// Create effect depth stencil surface
+	if (FAILED(_device->CreateDepthStencilSurface(_width, _height, D3DFMT_D24S8, D3DMULTISAMPLE_NONE, 0, FALSE, &_effect_depthstencil, nullptr)))
+		return false;
+
+	// Create vertex buffer which holds vertex indices
+	// TODO: Need to increase this for when users sets the "VertexCount" pass state to something greater than 3
+	if (FAILED(_device->CreateVertexBuffer(3 * sizeof(float), D3DUSAGE_WRITEONLY, 0, D3DPOOL_DEFAULT, &_effect_triangle_buffer, nullptr)))
+		return false;
+	if (float *data; SUCCEEDED(_effect_triangle_buffer->Lock(0, 3 * sizeof(float), reinterpret_cast<void **>(&data), 0)))
+	{
+		for (unsigned int i = 0; i < 3; i++)
+			data[i] = static_cast<float>(i);
+		_effect_triangle_buffer->Unlock();
+	}
+	else
+		return false;
+
+	const D3DVERTEXELEMENT9 declaration[] = {
+		{ 0, 0, D3DDECLTYPE_FLOAT1, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_TEXCOORD, 0 },
+		D3DDECL_END()
+	};
+
+	if (FAILED(_device->CreateVertexDeclaration(declaration, &_effect_triangle_layout)))
+		return false;
+
+	// Create state block object
+	if (!_app_state.init_state_block())
+		return false;
+
+#if RESHADE_GUI
+	if (!init_imgui_resources())
+		return false;
+#endif
 
 	return runtime::on_init(pp.hDeviceWindow);
 }
@@ -197,14 +178,10 @@ void reshade::d3d9::runtime_d3d9::on_reset()
 	_backbuffer_resolved.reset();
 	_backbuffer_texture.reset();
 	_backbuffer_texture_surface.reset();
-#if RESHADE_DX9_CAPTURE_DEPTH_BUFFERS
 	_depthstencil.reset();
 	_depthstencil_texture.reset();
-	_depthstencil_override = nullptr;
-#endif
 
-	_default_depthstencil.reset();
-
+	_effect_depthstencil.reset();
 	_effect_triangle_buffer.reset();
 	_effect_triangle_layout.reset();
 
@@ -215,9 +192,13 @@ void reshade::d3d9::runtime_d3d9::on_reset()
 	_imgui_index_buffer_size = 0;
 	_imgui_vertex_buffer_size = 0;
 #endif
+
+#if RESHADE_DX9_CAPTURE_DEPTH_BUFFERS
+	_depthstencil_override = nullptr;
+#endif
 }
 
-void reshade::d3d9::runtime_d3d9::on_present(draw_call_tracker &tracker)
+void reshade::d3d9::runtime_d3d9::on_present(buffer_detection &tracker)
 {
 	if (!_is_initialized || FAILED(_device->BeginScene()))
 		return;
@@ -227,8 +208,11 @@ void reshade::d3d9::runtime_d3d9::on_present(draw_call_tracker &tracker)
 	_current_tracker = &tracker;
 
 #if RESHADE_DX9_CAPTURE_DEPTH_BUFFERS
+	tracker.disable_intz = _disable_intz;
+
+	assert(_depth_clear_index_override != 0);
 	update_depthstencil_texture(_has_high_network_activity ? nullptr :
-		tracker.find_best_depth_surface(_width, _height, _depthstencil_override));
+		tracker.find_best_depth_surface(_filter_aspect_ratio ? _width : 0, _height, _depthstencil_override, _preserve_depth_buffers ? _depth_clear_index_override : 0));
 #endif
 
 	_app_state.capture();
@@ -306,14 +290,316 @@ bool reshade::d3d9::runtime_d3d9::capture_screenshot(uint8_t *buffer) const
 	return true;
 }
 
+bool reshade::d3d9::runtime_d3d9::init_effect(size_t index)
+{
+	if (_d3d_compiler == nullptr)
+		_d3d_compiler = LoadLibraryW(L"d3dcompiler_47.dll");
+	if (_d3d_compiler == nullptr)
+		_d3d_compiler = LoadLibraryW(L"d3dcompiler_43.dll");
+
+	if (_d3d_compiler == nullptr)
+	{
+		LOG(ERROR) << "Unable to load HLSL compiler (\"d3dcompiler_47.dll\"). Make sure you have the DirectX end-user runtime (June 2010) installed or a newer version of the library in the application directory.";
+		return false;
+	}
+
+	effect &effect = _loaded_effects[index];
+
+	const auto D3DCompile = reinterpret_cast<pD3DCompile>(GetProcAddress(_d3d_compiler, "D3DCompile"));
+	const auto D3DDisassemble = reinterpret_cast<pD3DDisassemble>(GetProcAddress(_d3d_compiler, "D3DDisassemble"));
+
+	// Add specialization constant defines to source code
+	effect.preamble += "#define COLOR_PIXEL_SIZE 1.0 / " + std::to_string(_width) + ", 1.0 / " + std::to_string(_height) + "\n"
+		"#define DEPTH_PIXEL_SIZE COLOR_PIXEL_SIZE\n"
+		"#define SV_TARGET_PIXEL_SIZE COLOR_PIXEL_SIZE\n"
+		"#define SV_DEPTH_PIXEL_SIZE COLOR_PIXEL_SIZE\n";
+
+	const std::string hlsl_vs = effect.preamble + effect.module.hlsl;
+	const std::string hlsl_ps = effect.preamble + "#define POSITION VPOS\n" + effect.module.hlsl;
+
+	std::unordered_map<std::string, com_ptr<IUnknown>> entry_points;
+
+	// Compile the generated HLSL source code to DX byte code
+	for (auto &entry_point : effect.module.entry_points)
+	{
+		entry_point.assembly.clear();
+
+		com_ptr<ID3DBlob> compiled, d3d_errors;
+		const std::string &hlsl = entry_point.is_pixel_shader ? hlsl_ps : hlsl_vs;
+
+		HRESULT hr = D3DCompile(
+			hlsl.c_str(), hlsl.size(),
+			nullptr, nullptr, nullptr,
+			entry_point.name.c_str(),
+			entry_point.is_pixel_shader ? "ps_3_0" : "vs_3_0",
+			D3DCOMPILE_OPTIMIZATION_LEVEL3, 0,
+			&compiled, &d3d_errors);
+
+		if (d3d_errors != nullptr) // Append warnings to the output error string as well
+			effect.errors.append(static_cast<const char *>(d3d_errors->GetBufferPointer()), d3d_errors->GetBufferSize() - 1); // Subtracting one to not append the null-terminator as well
+
+		// No need to setup resources if any of the shaders failed to compile
+		if (FAILED(hr))
+			return false;
+
+		if (com_ptr<ID3DBlob> d3d_disassembled; SUCCEEDED(D3DDisassemble(compiled->GetBufferPointer(), compiled->GetBufferSize(), 0, nullptr, &d3d_disassembled)))
+			entry_point.assembly = std::string(static_cast<const char *>(d3d_disassembled->GetBufferPointer()));
+
+		// Create runtime shader objects from the compiled DX byte code
+		if (entry_point.is_pixel_shader)
+			hr = _device->CreatePixelShader(static_cast<const DWORD *>(compiled->GetBufferPointer()), reinterpret_cast<IDirect3DPixelShader9 **>(&entry_points[entry_point.name]));
+		else
+			hr = _device->CreateVertexShader(static_cast<const DWORD *>(compiled->GetBufferPointer()), reinterpret_cast<IDirect3DVertexShader9 **>(&entry_points[entry_point.name]));
+
+		if (FAILED(hr))
+		{
+			LOG(ERROR) << "Failed to create shader for entry point '" << entry_point.name << "'. "
+				"HRESULT is " << hr << '.';
+			return false;
+		}
+	}
+
+	d3d9_technique_data technique_init;
+	technique_init.constant_register_count = static_cast<DWORD>((effect.storage_size + 15) / 16);
+	technique_init.uniform_storage_offset = effect.storage_offset;
+
+	for (const reshadefx::sampler_info &info : effect.module.samplers)
+	{
+		if (info.binding > ARRAYSIZE(technique_init.sampler_states))
+			return false;
+
+		const auto existing_texture = std::find_if(_textures.begin(), _textures.end(),
+			[&texture_name = info.texture_name](const auto &item) {
+			return item.unique_name == texture_name && item.impl != nullptr;
+		});
+		if (existing_texture == _textures.end())
+			return false;
+
+		// Since textures with auto-generated mipmap levels do not have a mipmap maximum, limit the bias here so this is not as obvious
+		assert(existing_texture->levels > 0);
+		const float lod_bias = std::min(existing_texture->levels - 1.0f, info.lod_bias);
+
+		technique_init.num_samplers = std::max(technique_init.num_samplers, DWORD(info.binding + 1));
+
+		technique_init.sampler_states[info.binding][D3DSAMP_ADDRESSU] = static_cast<D3DTEXTUREADDRESS>(info.address_u);
+		technique_init.sampler_states[info.binding][D3DSAMP_ADDRESSV] = static_cast<D3DTEXTUREADDRESS>(info.address_v);
+		technique_init.sampler_states[info.binding][D3DSAMP_ADDRESSW] = static_cast<D3DTEXTUREADDRESS>(info.address_w);
+		technique_init.sampler_states[info.binding][D3DSAMP_BORDERCOLOR] = 0;
+		technique_init.sampler_states[info.binding][D3DSAMP_MAGFILTER] = 1 + ((static_cast<unsigned int>(info.filter) & 0x0C) >> 2);
+		technique_init.sampler_states[info.binding][D3DSAMP_MINFILTER] = 1 + ((static_cast<unsigned int>(info.filter) & 0x30) >> 4);
+		technique_init.sampler_states[info.binding][D3DSAMP_MIPFILTER] = 1 + ((static_cast<unsigned int>(info.filter) & 0x03));
+		technique_init.sampler_states[info.binding][D3DSAMP_MIPMAPLODBIAS] = *reinterpret_cast<const DWORD *>(&lod_bias);
+		technique_init.sampler_states[info.binding][D3DSAMP_MAXMIPLEVEL] = static_cast<DWORD>(std::max(0.0f, info.min_lod));
+		technique_init.sampler_states[info.binding][D3DSAMP_MAXANISOTROPY] = 1;
+		technique_init.sampler_states[info.binding][D3DSAMP_SRGBTEXTURE] = info.srgb;
+
+		technique_init.sampler_textures[info.binding] = existing_texture->impl->as<d3d9_tex_data>()->texture.get();
+	}
+
+	for (technique &technique : _techniques)
+	{
+		if (technique.impl != nullptr || technique.effect_index != index)
+			continue;
+
+		// Copy construct new technique implementation instead of move because effect may contain multiple techniques
+		technique.impl = std::make_unique<d3d9_technique_data>(technique_init);
+		const auto technique_data = technique.impl->as<d3d9_technique_data>();
+
+		for (size_t pass_index = 0; pass_index < technique.passes.size(); ++pass_index)
+		{
+			technique.passes_data.push_back(std::make_unique<d3d9_pass_data>());
+
+			auto &pass = *technique.passes_data.back()->as<d3d9_pass_data>();
+			const auto &pass_info = technique.passes[pass_index];
+
+			entry_points.at(pass_info.ps_entry_point)->QueryInterface(&pass.pixel_shader);
+			entry_points.at(pass_info.vs_entry_point)->QueryInterface(&pass.vertex_shader);
+
+			pass.render_targets[0] = _backbuffer_resolved.get();
+
+			for (size_t k = 0; k < ARRAYSIZE(pass.sampler_textures); ++k)
+				pass.sampler_textures[k] = technique_data->sampler_textures[k];
+
+			HRESULT hr = _device->BeginStateBlock();
+
+			if (SUCCEEDED(hr))
+			{
+				_device->SetVertexShader(pass.vertex_shader.get());
+				_device->SetPixelShader(pass.pixel_shader.get());
+
+				const auto literal_to_blend_func = [](unsigned int value) {
+					switch (value)
+					{
+					case 0:
+						return D3DBLEND_ZERO;
+					default:
+					case 1:
+						return D3DBLEND_ONE;
+					case 2:
+						return D3DBLEND_SRCCOLOR;
+					case 4:
+						return D3DBLEND_INVSRCCOLOR;
+					case 3:
+						return D3DBLEND_SRCALPHA;
+					case 5:
+						return D3DBLEND_INVSRCALPHA;
+					case 6:
+						return D3DBLEND_DESTALPHA;
+					case 7:
+						return D3DBLEND_INVDESTALPHA;
+					case 8:
+						return D3DBLEND_DESTCOLOR;
+					case 9:
+						return D3DBLEND_INVDESTCOLOR;
+					}
+				};
+				const auto literal_to_stencil_op = [](unsigned int value) {
+					switch (value)
+					{
+					default:
+					case 1:
+						return D3DSTENCILOP_KEEP;
+					case 0:
+						return D3DSTENCILOP_ZERO;
+					case 3:
+						return D3DSTENCILOP_REPLACE;
+					case 4:
+						return D3DSTENCILOP_INCRSAT;
+					case 5:
+						return D3DSTENCILOP_DECRSAT;
+					case 6:
+						return D3DSTENCILOP_INVERT;
+					case 7:
+						return D3DSTENCILOP_INCR;
+					case 8:
+						return D3DSTENCILOP_DECR;
+					}
+				};
+
+				_device->SetRenderState(D3DRS_ZENABLE, false);
+				_device->SetRenderState(D3DRS_FILLMODE, D3DFILL_SOLID);
+				_device->SetRenderState(D3DRS_SHADEMODE, D3DSHADE_GOURAUD);
+				_device->SetRenderState(D3DRS_ZWRITEENABLE, true);
+				_device->SetRenderState(D3DRS_ALPHATESTENABLE, false);
+				_device->SetRenderState(D3DRS_LASTPIXEL, true);
+				_device->SetRenderState(D3DRS_SRCBLEND, literal_to_blend_func(pass_info.src_blend));
+				_device->SetRenderState(D3DRS_DESTBLEND, literal_to_blend_func(pass_info.dest_blend));
+				_device->SetRenderState(D3DRS_CULLMODE, D3DCULL_NONE);
+				_device->SetRenderState(D3DRS_ZFUNC, D3DCMP_ALWAYS);
+				_device->SetRenderState(D3DRS_ALPHAREF, 0);
+				_device->SetRenderState(D3DRS_ALPHAFUNC, D3DCMP_ALWAYS);
+				_device->SetRenderState(D3DRS_DITHERENABLE, false);
+				_device->SetRenderState(D3DRS_ALPHABLENDENABLE, pass_info.blend_enable);
+				_device->SetRenderState(D3DRS_FOGENABLE, false);
+				_device->SetRenderState(D3DRS_SPECULARENABLE, false);
+				_device->SetRenderState(D3DRS_STENCILENABLE, pass_info.stencil_enable);
+				_device->SetRenderState(D3DRS_STENCILFAIL, literal_to_stencil_op(pass_info.stencil_op_fail));
+				_device->SetRenderState(D3DRS_STENCILZFAIL, literal_to_stencil_op(pass_info.stencil_op_depth_fail));
+				_device->SetRenderState(D3DRS_STENCILPASS, literal_to_stencil_op(pass_info.stencil_op_pass));
+				_device->SetRenderState(D3DRS_STENCILFUNC, static_cast<D3DCMPFUNC>(pass_info.stencil_comparison_func));
+				_device->SetRenderState(D3DRS_STENCILREF, pass_info.stencil_reference_value);
+				_device->SetRenderState(D3DRS_STENCILMASK, pass_info.stencil_read_mask);
+				_device->SetRenderState(D3DRS_STENCILWRITEMASK, pass_info.stencil_write_mask);
+				_device->SetRenderState(D3DRS_TEXTUREFACTOR, 0xFFFFFFFF);
+				_device->SetRenderState(D3DRS_CLIPPING, false);
+				_device->SetRenderState(D3DRS_LIGHTING, false);
+				_device->SetRenderState(D3DRS_COLORVERTEX, false);
+				_device->SetRenderState(D3DRS_LOCALVIEWER, true);
+				_device->SetRenderState(D3DRS_NORMALIZENORMALS, false);
+				_device->SetRenderState(D3DRS_DIFFUSEMATERIALSOURCE, D3DMCS_COLOR1);
+				_device->SetRenderState(D3DRS_SPECULARMATERIALSOURCE, D3DMCS_COLOR2);
+				_device->SetRenderState(D3DRS_AMBIENTMATERIALSOURCE, D3DMCS_MATERIAL);
+				_device->SetRenderState(D3DRS_EMISSIVEMATERIALSOURCE, D3DMCS_MATERIAL);
+				_device->SetRenderState(D3DRS_VERTEXBLEND, D3DVBF_DISABLE);
+				_device->SetRenderState(D3DRS_CLIPPLANEENABLE, D3DRS_CLIPPLANEENABLE);
+				// D3DRS_POINTSIZE
+				// D3DRS_POINTSPRITEENABLE
+				// D3DRS_POINTSCALEENABLE
+				// D3DRS_MULTISAMPLEANTIALIAS
+				// D3DRS_MULTISAMPLEMASK
+				_device->SetRenderState(D3DRS_COLORWRITEENABLE, pass_info.color_write_mask);
+				_device->SetRenderState(D3DRS_TWEENFACTOR, 0);
+				_device->SetRenderState(D3DRS_BLENDOP, static_cast<D3DBLENDOP>(pass_info.blend_op));
+				_device->SetRenderState(D3DRS_SCISSORTESTENABLE, false);
+				_device->SetRenderState(D3DRS_SLOPESCALEDEPTHBIAS, 0);
+				_device->SetRenderState(D3DRS_ANTIALIASEDLINEENABLE, false);
+				_device->SetRenderState(D3DRS_ENABLEADAPTIVETESSELLATION, false);
+				_device->SetRenderState(D3DRS_TWOSIDEDSTENCILMODE, false);
+				_device->SetRenderState(D3DRS_CCW_STENCILFAIL, D3DSTENCILOP_KEEP);
+				_device->SetRenderState(D3DRS_CCW_STENCILZFAIL, D3DSTENCILOP_KEEP);
+				_device->SetRenderState(D3DRS_CCW_STENCILPASS, D3DSTENCILOP_KEEP);
+				_device->SetRenderState(D3DRS_CCW_STENCILFUNC, D3DCMP_ALWAYS);
+				_device->SetRenderState(D3DRS_COLORWRITEENABLE1, pass_info.color_write_mask); // See https://docs.microsoft.com/en-us/windows/win32/direct3d9/multiple-render-targets
+				_device->SetRenderState(D3DRS_COLORWRITEENABLE2, pass_info.color_write_mask);
+				_device->SetRenderState(D3DRS_COLORWRITEENABLE3, pass_info.color_write_mask);
+				_device->SetRenderState(D3DRS_BLENDFACTOR, 0xFFFFFFFF);
+				_device->SetRenderState(D3DRS_SRGBWRITEENABLE, pass_info.srgb_write_enable);
+				_device->SetRenderState(D3DRS_DEPTHBIAS, 0);
+				_device->SetRenderState(D3DRS_SEPARATEALPHABLENDENABLE, false);
+				_device->SetRenderState(D3DRS_SRCBLENDALPHA, literal_to_blend_func(pass_info.src_blend_alpha));
+				_device->SetRenderState(D3DRS_DESTBLENDALPHA, literal_to_blend_func(pass_info.dest_blend_alpha));
+				_device->SetRenderState(D3DRS_BLENDOPALPHA, static_cast<D3DBLENDOP>(pass_info.blend_op_alpha));
+
+				hr = _device->EndStateBlock(&pass.stateblock);
+			}
+
+			if (FAILED(hr))
+			{
+				LOG(ERROR) << "Failed to create state block for pass " << pass_index << " in technique '" << technique.name << "'. "
+					"HRESULT is " << hr << '.';
+				return false;
+			}
+
+			for (unsigned int k = 0; k < 8; ++k)
+			{
+				if (pass_info.render_target_names[k].empty())
+					continue; // Skip unbound render targets
+
+				if (k > _num_simultaneous_rendertargets)
+				{
+					LOG(WARN) << "Device only supports " << _num_simultaneous_rendertargets << " simultaneous render targets, but pass " << pass_index << " in technique '" << technique.name << "' uses more, which are ignored";
+					break;
+				}
+
+				const auto render_target_texture = std::find_if(_textures.begin(), _textures.end(),
+					[&render_target = pass_info.render_target_names[k]](const auto &item) {
+					return item.unique_name == render_target;
+				});
+				if (render_target_texture == _textures.end())
+					return false;
+
+				const auto texture_impl = render_target_texture->impl->as<d3d9_tex_data>();
+				assert(texture_impl != nullptr);
+
+				// Unset textures that are used as render target
+				for (DWORD s = 0; s < technique_data->num_samplers; ++s)
+					if (pass.sampler_textures[s] == texture_impl->texture)
+						pass.sampler_textures[s] = nullptr;
+
+				pass.render_targets[k] = texture_impl->surface.get();
+			}
+		}
+	}
+
+	return true;
+}
+
 bool reshade::d3d9::runtime_d3d9::init_texture(texture &texture)
 {
 	texture.impl = std::make_unique<d3d9_tex_data>();
-
 	const auto texture_data = texture.impl->as<d3d9_tex_data>();
 
-	if (texture.impl_reference != texture_reference::none)
-		return update_texture_reference(texture);
+	switch (texture.impl_reference)
+	{
+	case texture_reference::back_buffer:
+		texture_data->texture = _backbuffer_texture;
+		texture_data->surface = _backbuffer_texture_surface;
+		return true;
+	case texture_reference::depth_buffer:
+		texture_data->texture = _depthstencil_texture;
+		texture_data->surface = _depthstencil;
+		return true;
+	}
 
 	UINT levels = texture.levels;
 	DWORD usage = 0;
@@ -457,367 +743,6 @@ void reshade::d3d9::runtime_d3d9::upload_texture(texture &texture, const uint8_t
 		return;
 	}
 }
-bool reshade::d3d9::runtime_d3d9::update_texture_reference(texture &texture)
-{
-	com_ptr<IDirect3DTexture9> new_reference;
-
-	switch (texture.impl_reference)
-	{
-	case texture_reference::back_buffer:
-		new_reference = _backbuffer_texture;
-		break;
-	case texture_reference::depth_buffer:
-		new_reference = _depthstencil_texture;
-		break;
-	default:
-		return false;
-	}
-
-	const auto texture_impl = texture.impl->as<d3d9_tex_data>();
-	assert(texture_impl != nullptr);
-
-	if (new_reference == texture_impl->texture)
-		return true;
-
-	// Update references in technique list
-	for (const auto &technique : _techniques)
-		for (const auto &pass : technique.passes_data)
-			for (auto &tex : pass->as<d3d9_pass_data>()->sampler_textures)
-				if (tex == texture_impl->texture) tex = new_reference.get();
-
-	texture_impl->surface.reset();
-
-	if (new_reference == nullptr)
-	{
-		texture_impl->texture.reset();
-
-		texture.width = texture.height = texture.levels = 0;
-		texture.format = reshadefx::texture_format::unknown;
-	}
-	else
-	{
-		texture_impl->texture = new_reference;
-		new_reference->GetSurfaceLevel(0, &texture_impl->surface);
-
-		D3DSURFACE_DESC desc;
-		texture_impl->surface->GetDesc(&desc);
-
-		texture.width = desc.Width;
-		texture.height = desc.Height;
-		texture.format = reshadefx::texture_format::unknown;
-		texture.levels = static_cast<uint16_t>(new_reference->GetLevelCount());
-	}
-
-	return true;
-}
-void reshade::d3d9::runtime_d3d9::update_texture_references(texture_reference type)
-{
-	for (auto &tex : _textures)
-		if (tex.impl != nullptr && tex.impl_reference == type)
-			update_texture_reference(tex);
-}
-
-bool reshade::d3d9::runtime_d3d9::compile_effect(effect_data &effect)
-{
-	if (_d3d_compiler == nullptr)
-		_d3d_compiler = LoadLibraryW(L"d3dcompiler_47.dll");
-	if (_d3d_compiler == nullptr)
-		_d3d_compiler = LoadLibraryW(L"d3dcompiler_43.dll");
-
-	if (_d3d_compiler == nullptr)
-	{
-		LOG(ERROR) << "Unable to load HLSL compiler (\"d3dcompiler_47.dll\"). Make sure you have the DirectX end-user runtime (June 2010) installed or a newer version of the library in the application directory.";
-		return false;
-	}
-
-	const auto D3DCompile = reinterpret_cast<pD3DCompile>(GetProcAddress(_d3d_compiler, "D3DCompile"));
-	const auto D3DDisassemble = reinterpret_cast<pD3DDisassemble>(GetProcAddress(_d3d_compiler, "D3DDisassemble"));
-
-	// Add specialization constant defines to source code
-	effect.preamble += "#define COLOR_PIXEL_SIZE 1.0 / " + std::to_string(_width) + ", 1.0 / " + std::to_string(_height) + "\n"
-		"#define DEPTH_PIXEL_SIZE COLOR_PIXEL_SIZE\n"
-		"#define SV_TARGET_PIXEL_SIZE COLOR_PIXEL_SIZE\n"
-		"#define SV_DEPTH_PIXEL_SIZE COLOR_PIXEL_SIZE\n";
-
-	const std::string hlsl_vs = effect.preamble + effect.module.hlsl;
-	const std::string hlsl_ps = effect.preamble + "#define POSITION VPOS\n" + effect.module.hlsl;
-
-	std::unordered_map<std::string, com_ptr<IUnknown>> entry_points;
-
-	// Compile the generated HLSL source code to DX byte code
-	for (auto &entry_point : effect.module.entry_points)
-	{
-		entry_point.assembly.clear();
-
-		com_ptr<ID3DBlob> compiled, d3d_errors;
-		const std::string &hlsl = entry_point.is_pixel_shader ? hlsl_ps : hlsl_vs;
-
-		HRESULT hr = D3DCompile(
-			hlsl.c_str(), hlsl.size(),
-			nullptr, nullptr, nullptr,
-			entry_point.name.c_str(),
-			entry_point.is_pixel_shader ? "ps_3_0" : "vs_3_0",
-			D3DCOMPILE_OPTIMIZATION_LEVEL3, 0,
-			&compiled, &d3d_errors);
-
-		if (d3d_errors != nullptr) // Append warnings to the output error string as well
-			effect.errors.append(static_cast<const char *>(d3d_errors->GetBufferPointer()), d3d_errors->GetBufferSize() - 1); // Subtracting one to not append the null-terminator as well
-
-		// No need to setup resources if any of the shaders failed to compile
-		if (FAILED(hr))
-			return false;
-
-		if (com_ptr<ID3DBlob> d3d_disassembled; SUCCEEDED(D3DDisassemble(compiled->GetBufferPointer(), compiled->GetBufferSize(), 0, nullptr, &d3d_disassembled)))
-			entry_point.assembly = std::string(static_cast<const char *>(d3d_disassembled->GetBufferPointer()));
-
-		// Create runtime shader objects from the compiled DX byte code
-		if (entry_point.is_pixel_shader)
-			hr = _device->CreatePixelShader(static_cast<const DWORD *>(compiled->GetBufferPointer()), reinterpret_cast<IDirect3DPixelShader9 **>(&entry_points[entry_point.name]));
-		else
-			hr = _device->CreateVertexShader(static_cast<const DWORD *>(compiled->GetBufferPointer()), reinterpret_cast<IDirect3DVertexShader9 **>(&entry_points[entry_point.name]));
-
-		if (FAILED(hr))
-		{
-			LOG(ERROR) << "Failed to create shader for entry point '" << entry_point.name << "'. "
-				"HRESULT is " << hr << '.';
-			return false;
-		}
-	}
-
-	bool success = true;
-
-	d3d9_technique_data technique_init;
-	technique_init.constant_register_count = static_cast<DWORD>((effect.storage_size + 15) / 16);
-	technique_init.uniform_storage_offset = effect.storage_offset;
-
-	for (const reshadefx::sampler_info &info : effect.module.samplers)
-		success &= add_sampler(info, technique_init);
-
-	for (technique &technique : _techniques)
-		if (technique.impl == nullptr && technique.effect_index == effect.index)
-			success &= init_technique(technique, technique_init, entry_points);
-
-	return success;
-}
-
-bool reshade::d3d9::runtime_d3d9::add_sampler(const reshadefx::sampler_info &info, d3d9_technique_data &technique_init)
-{
-	const auto existing_texture = std::find_if(_textures.begin(), _textures.end(),
-		[&texture_name = info.texture_name](const auto &item) {
-		return item.unique_name == texture_name && item.impl != nullptr;
-	});
-
-	if (existing_texture == _textures.end() || info.binding > ARRAYSIZE(technique_init.sampler_states))
-		return false;
-
-	// Since textures with auto-generated mipmap levels do not have a mipmap maximum, limit the bias here so this is not as obvious
-	assert(existing_texture->levels > 0);
-	const float lod_bias = std::min(existing_texture->levels - 1.0f, info.lod_bias);
-
-	technique_init.num_samplers = std::max(technique_init.num_samplers, DWORD(info.binding + 1));
-
-	technique_init.sampler_states[info.binding][D3DSAMP_ADDRESSU] = static_cast<D3DTEXTUREADDRESS>(info.address_u);
-	technique_init.sampler_states[info.binding][D3DSAMP_ADDRESSV] = static_cast<D3DTEXTUREADDRESS>(info.address_v);
-	technique_init.sampler_states[info.binding][D3DSAMP_ADDRESSW] = static_cast<D3DTEXTUREADDRESS>(info.address_w);
-	technique_init.sampler_states[info.binding][D3DSAMP_BORDERCOLOR] = 0;
-	technique_init.sampler_states[info.binding][D3DSAMP_MAGFILTER] = 1 + ((static_cast<unsigned int>(info.filter) & 0x0C) >> 2);
-	technique_init.sampler_states[info.binding][D3DSAMP_MINFILTER] = 1 + ((static_cast<unsigned int>(info.filter) & 0x30) >> 4);
-	technique_init.sampler_states[info.binding][D3DSAMP_MIPFILTER] = 1 + ((static_cast<unsigned int>(info.filter) & 0x03));
-	technique_init.sampler_states[info.binding][D3DSAMP_MIPMAPLODBIAS] = *reinterpret_cast<const DWORD *>(&lod_bias);
-	technique_init.sampler_states[info.binding][D3DSAMP_MAXMIPLEVEL] = static_cast<DWORD>(std::max(0.0f, info.min_lod));
-	technique_init.sampler_states[info.binding][D3DSAMP_MAXANISOTROPY] = 1;
-	technique_init.sampler_states[info.binding][D3DSAMP_SRGBTEXTURE] = info.srgb;
-
-	technique_init.sampler_textures[info.binding] = existing_texture->impl->as<d3d9_tex_data>()->texture.get();
-
-	return true;
-}
-bool reshade::d3d9::runtime_d3d9::init_technique(technique &technique, const d3d9_technique_data &impl_init, const std::unordered_map<std::string, com_ptr<IUnknown>> &entry_points)
-{
-	// Copy construct new technique implementation instead of move because effect may contain multiple techniques
-	technique.impl = std::make_unique<d3d9_technique_data>(impl_init);
-
-	const auto technique_data = technique.impl->as<d3d9_technique_data>();
-
-	for (size_t pass_index = 0; pass_index < technique.passes.size(); ++pass_index)
-	{
-		technique.passes_data.push_back(std::make_unique<d3d9_pass_data>());
-
-		auto &pass = *technique.passes_data.back()->as<d3d9_pass_data>();
-		const auto &pass_info = technique.passes[pass_index];
-
-		entry_points.at(pass_info.ps_entry_point)->QueryInterface(&pass.pixel_shader);
-		entry_points.at(pass_info.vs_entry_point)->QueryInterface(&pass.vertex_shader);
-
-		pass.render_targets[0] = _backbuffer_resolved.get();
-
-		for (size_t k = 0; k < ARRAYSIZE(pass.sampler_textures); ++k)
-			pass.sampler_textures[k] = technique_data->sampler_textures[k];
-
-		HRESULT hr = _device->BeginStateBlock();
-
-		if (SUCCEEDED(hr))
-		{
-			_device->SetVertexShader(pass.vertex_shader.get());
-			_device->SetPixelShader(pass.pixel_shader.get());
-
-			const auto literal_to_blend_func = [](unsigned int value) {
-				switch (value)
-				{
-				case 0:
-					return D3DBLEND_ZERO;
-				default:
-				case 1:
-					return D3DBLEND_ONE;
-				case 2:
-					return D3DBLEND_SRCCOLOR;
-				case 4:
-					return D3DBLEND_INVSRCCOLOR;
-				case 3:
-					return D3DBLEND_SRCALPHA;
-				case 5:
-					return D3DBLEND_INVSRCALPHA;
-				case 6:
-					return D3DBLEND_DESTALPHA;
-				case 7:
-					return D3DBLEND_INVDESTALPHA;
-				case 8:
-					return D3DBLEND_DESTCOLOR;
-				case 9:
-					return D3DBLEND_INVDESTCOLOR;
-				}
-			};
-			const auto literal_to_stencil_op = [](unsigned int value) {
-				switch (value)
-				{
-				default:
-				case 1:
-					return D3DSTENCILOP_KEEP;
-				case 0:
-					return D3DSTENCILOP_ZERO;
-				case 3:
-					return D3DSTENCILOP_REPLACE;
-				case 4:
-					return D3DSTENCILOP_INCRSAT;
-				case 5:
-					return D3DSTENCILOP_DECRSAT;
-				case 6:
-					return D3DSTENCILOP_INVERT;
-				case 7:
-					return D3DSTENCILOP_INCR;
-				case 8:
-					return D3DSTENCILOP_DECR;
-				}
-			};
-
-			_device->SetRenderState(D3DRS_ZENABLE, false);
-			_device->SetRenderState(D3DRS_FILLMODE, D3DFILL_SOLID);
-			_device->SetRenderState(D3DRS_SHADEMODE, D3DSHADE_GOURAUD);
-			_device->SetRenderState(D3DRS_ZWRITEENABLE, true);
-			_device->SetRenderState(D3DRS_ALPHATESTENABLE, false);
-			_device->SetRenderState(D3DRS_LASTPIXEL, true);
-			_device->SetRenderState(D3DRS_SRCBLEND, literal_to_blend_func(pass_info.src_blend));
-			_device->SetRenderState(D3DRS_DESTBLEND, literal_to_blend_func(pass_info.dest_blend));
-			_device->SetRenderState(D3DRS_CULLMODE, D3DCULL_NONE);
-			_device->SetRenderState(D3DRS_ZFUNC, D3DCMP_ALWAYS);
-			_device->SetRenderState(D3DRS_ALPHAREF, 0);
-			_device->SetRenderState(D3DRS_ALPHAFUNC, D3DCMP_ALWAYS);
-			_device->SetRenderState(D3DRS_DITHERENABLE, false);
-			_device->SetRenderState(D3DRS_ALPHABLENDENABLE, pass_info.blend_enable);
-			_device->SetRenderState(D3DRS_FOGENABLE, false);
-			_device->SetRenderState(D3DRS_SPECULARENABLE, false);
-			_device->SetRenderState(D3DRS_STENCILENABLE, pass_info.stencil_enable);
-			_device->SetRenderState(D3DRS_STENCILFAIL, literal_to_stencil_op(pass_info.stencil_op_fail));
-			_device->SetRenderState(D3DRS_STENCILZFAIL, literal_to_stencil_op(pass_info.stencil_op_depth_fail));
-			_device->SetRenderState(D3DRS_STENCILPASS, literal_to_stencil_op(pass_info.stencil_op_pass));
-			_device->SetRenderState(D3DRS_STENCILFUNC, static_cast<D3DCMPFUNC>(pass_info.stencil_comparison_func));
-			_device->SetRenderState(D3DRS_STENCILREF, pass_info.stencil_reference_value);
-			_device->SetRenderState(D3DRS_STENCILMASK, pass_info.stencil_read_mask);
-			_device->SetRenderState(D3DRS_STENCILWRITEMASK, pass_info.stencil_write_mask);
-			_device->SetRenderState(D3DRS_TEXTUREFACTOR, 0xFFFFFFFF);
-			_device->SetRenderState(D3DRS_CLIPPING, false);
-			_device->SetRenderState(D3DRS_LIGHTING, false);
-			_device->SetRenderState(D3DRS_COLORVERTEX, false);
-			_device->SetRenderState(D3DRS_LOCALVIEWER, true);
-			_device->SetRenderState(D3DRS_NORMALIZENORMALS, false);
-			_device->SetRenderState(D3DRS_DIFFUSEMATERIALSOURCE, D3DMCS_COLOR1);
-			_device->SetRenderState(D3DRS_SPECULARMATERIALSOURCE, D3DMCS_COLOR2);
-			_device->SetRenderState(D3DRS_AMBIENTMATERIALSOURCE, D3DMCS_MATERIAL);
-			_device->SetRenderState(D3DRS_EMISSIVEMATERIALSOURCE, D3DMCS_MATERIAL);
-			_device->SetRenderState(D3DRS_VERTEXBLEND, D3DVBF_DISABLE);
-			_device->SetRenderState(D3DRS_CLIPPLANEENABLE, D3DRS_CLIPPLANEENABLE);
-			// D3DRS_POINTSIZE
-			// D3DRS_POINTSPRITEENABLE
-			// D3DRS_POINTSCALEENABLE
-			// D3DRS_MULTISAMPLEANTIALIAS
-			// D3DRS_MULTISAMPLEMASK
-			_device->SetRenderState(D3DRS_COLORWRITEENABLE, pass_info.color_write_mask);
-			_device->SetRenderState(D3DRS_TWEENFACTOR, 0);
-			_device->SetRenderState(D3DRS_BLENDOP, static_cast<D3DBLENDOP>(pass_info.blend_op));
-			_device->SetRenderState(D3DRS_SCISSORTESTENABLE, false);
-			_device->SetRenderState(D3DRS_SLOPESCALEDEPTHBIAS, 0);
-			_device->SetRenderState(D3DRS_ANTIALIASEDLINEENABLE, false);
-			_device->SetRenderState(D3DRS_ENABLEADAPTIVETESSELLATION, false);
-			_device->SetRenderState(D3DRS_TWOSIDEDSTENCILMODE, false);
-			_device->SetRenderState(D3DRS_CCW_STENCILFAIL, D3DSTENCILOP_KEEP);
-			_device->SetRenderState(D3DRS_CCW_STENCILZFAIL, D3DSTENCILOP_KEEP);
-			_device->SetRenderState(D3DRS_CCW_STENCILPASS, D3DSTENCILOP_KEEP);
-			_device->SetRenderState(D3DRS_CCW_STENCILFUNC, D3DCMP_ALWAYS);
-			_device->SetRenderState(D3DRS_COLORWRITEENABLE1, pass_info.color_write_mask); // See https://docs.microsoft.com/en-us/windows/win32/direct3d9/multiple-render-targets
-			_device->SetRenderState(D3DRS_COLORWRITEENABLE2, pass_info.color_write_mask);
-			_device->SetRenderState(D3DRS_COLORWRITEENABLE3, pass_info.color_write_mask);
-			_device->SetRenderState(D3DRS_BLENDFACTOR, 0xFFFFFFFF);
-			_device->SetRenderState(D3DRS_SRGBWRITEENABLE, pass_info.srgb_write_enable);
-			_device->SetRenderState(D3DRS_DEPTHBIAS, 0);
-			_device->SetRenderState(D3DRS_SEPARATEALPHABLENDENABLE, false);
-			_device->SetRenderState(D3DRS_SRCBLENDALPHA, literal_to_blend_func(pass_info.src_blend_alpha));
-			_device->SetRenderState(D3DRS_DESTBLENDALPHA, literal_to_blend_func(pass_info.dest_blend_alpha));
-			_device->SetRenderState(D3DRS_BLENDOPALPHA, static_cast<D3DBLENDOP>(pass_info.blend_op_alpha));
-
-			hr = _device->EndStateBlock(&pass.stateblock);
-		}
-
-		if (FAILED(hr))
-		{
-			LOG(ERROR) << "Failed to create state block for pass " << pass_index << " in technique '" << technique.name << "'. "
-				"HRESULT is " << hr << '.';
-			return false;
-		}
-
-		for (unsigned int k = 0; k < 8; ++k)
-		{
-			if (pass_info.render_target_names[k].empty())
-				continue; // Skip unbound render targets
-
-			if (k > _num_simultaneous_rendertargets)
-			{
-				LOG(WARN) << "Device only supports " << _num_simultaneous_rendertargets << " simultaneous render targets, but pass " << pass_index << " in technique '" << technique.name << "' uses more, which are ignored";
-				break;
-			}
-
-			const auto render_target_texture = std::find_if(_textures.begin(), _textures.end(),
-				[&render_target = pass_info.render_target_names[k]](const auto &item) {
-				return item.unique_name == render_target;
-			});
-
-			if (render_target_texture == _textures.end())
-				return assert(false), false;
-
-			const auto texture_impl = render_target_texture->impl->as<d3d9_tex_data>();
-
-			assert(texture_impl != nullptr);
-
-			// Unset textures that are used as render target
-			for (DWORD s = 0; s < technique_data->num_samplers; ++s)
-				if (pass.sampler_textures[s] == texture_impl->texture)
-					pass.sampler_textures[s] = nullptr;
-
-			pass.render_targets[k] = texture_impl->surface.get();
-		}
-	}
-
-	return true;
-}
 
 void reshade::d3d9::runtime_d3d9::render_technique(technique &technique)
 {
@@ -855,12 +780,15 @@ void reshade::d3d9::runtime_d3d9::render_technique(technique &technique)
 
 			// Need to bind textures to vertex shader samplers too
 			// See https://docs.microsoft.com/de-de/windows/win32/direct3d9/vertex-textures-in-vs-3-0
-			_device->SetTexture(D3DVERTEXTEXTURESAMPLER0 + s, pass_data.sampler_textures[s]);
+			if (s < 4)
+				_device->SetTexture(D3DVERTEXTEXTURESAMPLER0 + s, pass_data.sampler_textures[s]);
 
 			for (DWORD state = D3DSAMP_ADDRESSU; state <= D3DSAMP_SRGBTEXTURE; state++)
 			{
 				_device->SetSamplerState(s, static_cast<D3DSAMPLERSTATETYPE>(state), technique_data.sampler_states[s][state]);
-				_device->SetSamplerState(D3DVERTEXTEXTURESAMPLER0 + s, static_cast<D3DSAMPLERSTATETYPE>(state), technique_data.sampler_states[s][state]);
+
+				if (s < 4) // vs_3_0 supports up to four samplers in vertex shaders
+					_device->SetSamplerState(D3DVERTEXTEXTURESAMPLER0 + s, static_cast<D3DSAMPLERSTATETYPE>(state), technique_data.sampler_states[s][state]);
 			}
 		}
 
@@ -876,7 +804,7 @@ void reshade::d3d9::runtime_d3d9::render_technique(technique &technique)
 
 		const bool is_viewport_sized = viewport.Width == _width && viewport.Height == _height;
 
-		_device->SetDepthStencilSurface(is_viewport_sized ? _default_depthstencil.get() : nullptr);
+		_device->SetDepthStencilSurface(is_viewport_sized ? _effect_depthstencil.get() : nullptr);
 
 		if (is_viewport_sized && !is_default_depthstencil_cleared)
 		{
@@ -1087,26 +1015,23 @@ void reshade::d3d9::runtime_d3d9::render_imgui_draw_data(ImDrawData *draw_data)
 		vtx_offset += draw_list->VtxBuffer.size();
 	}
 }
-
-void reshade::d3d9::runtime_d3d9::draw_debug_menu()
-{
-	ImGui::Text("MSAA is %s", _is_multisampling_enabled ? "active" : "inactive");
-	ImGui::Spacing();
+#endif
 
 #if RESHADE_DX9_CAPTURE_DEPTH_BUFFERS
+void reshade::d3d9::runtime_d3d9::draw_depth_debug_menu()
+{
 	if (ImGui::CollapsingHeader("Depth Buffers", ImGuiTreeNodeFlags_DefaultOpen))
 	{
+		assert(_current_tracker != nullptr);
+
 		bool modified = false;
-		modified |= ImGui::Checkbox("Disable replacement with INTZ format", &draw_call_tracker::disable_intz);
+		modified |= ImGui::Checkbox("Disable replacement with INTZ format", &_disable_intz);
 
-		modified |= ImGui::Checkbox("Use aspect ratio heuristics", &draw_call_tracker::filter_aspect_ratio);
-		modified |= ImGui::Checkbox("Copy depth buffers before clear operation", &draw_call_tracker::preserve_depth_buffers);
+		modified |= ImGui::Checkbox("Use aspect ratio heuristics", &_filter_aspect_ratio);
+		modified |= ImGui::Checkbox("Copy depth buffers before clear operation", &_preserve_depth_buffers);
 
-		if (modified) // Detection settings have changed, reset override
-		{
-			_depthstencil_override = nullptr;
-			_current_tracker->update_depthstencil_replacement(nullptr);
-		}
+		if (modified) // Detection settings have changed, reset heuristic
+			_current_tracker->reset(true);
 
 		ImGui::Spacing();
 		ImGui::Separator();
@@ -1131,24 +1056,22 @@ void reshade::d3d9::runtime_d3d9::draw_debug_menu()
 
 			if (bool value = _depthstencil_override == ds_surface;
 				ImGui::Checkbox(label, &value))
-			{
 				_depthstencil_override = value ? ds_surface.get() : nullptr;
-			}
 
 			ImGui::SameLine();
 			ImGui::Text("| %4ux%-4u | %5u draw calls ==> %8u vertices |%s",
 				desc.Width, desc.Height, snapshot.stats.drawcalls, snapshot.stats.vertices, (msaa ? " MSAA" : ""));
 
-			if (draw_call_tracker::preserve_depth_buffers && ds_surface == _current_tracker->current_depth_surface())
+			if (_preserve_depth_buffers && ds_surface == _current_tracker->current_depth_surface())
 			{
 				for (UINT clear_index = 1; clear_index <= snapshot.clears.size(); ++clear_index)
 				{
 					sprintf_s(label, "%s  CLEAR %2u", (clear_index == _current_tracker->current_clear_index() ? "> " : "  "), clear_index);
 
-					if (bool value = (draw_call_tracker::depth_stencil_clear_index == clear_index);
+					if (bool value = (_depth_clear_index_override == clear_index);
 						ImGui::Checkbox(label, &value))
 					{
-						draw_call_tracker::depth_stencil_clear_index = value ? clear_index : 0;
+						_depth_clear_index_override = value ? clear_index : std::numeric_limits<UINT>::max();
 						modified = true;
 					}
 
@@ -1172,11 +1095,8 @@ void reshade::d3d9::runtime_d3d9::draw_debug_menu()
 		if (modified)
 			runtime::save_config();
 	}
-#endif
 }
-#endif
 
-#if RESHADE_DX9_CAPTURE_DEPTH_BUFFERS
 void reshade::d3d9::runtime_d3d9::update_depthstencil_texture(com_ptr<IDirect3DSurface9> depthstencil)
 {
 	if (depthstencil == _depthstencil)
@@ -1194,6 +1114,24 @@ void reshade::d3d9::runtime_d3d9::update_depthstencil_texture(com_ptr<IDirect3DS
 		}
 	}
 
-	update_texture_references(texture_reference::depth_buffer);
+	// Update all references to the new texture
+	for (auto &tex : _textures)
+	{
+		if (tex.impl != nullptr && tex.impl_reference == texture_reference::depth_buffer)
+		{
+			const auto texture_impl = tex.impl->as<d3d9_tex_data>();
+			assert(texture_impl != nullptr);
+
+			// Update references in technique list
+			for (const auto &technique : _techniques)
+				for (const auto &pass : technique.passes_data)
+					for (auto &sampler_tex : pass->as<d3d9_pass_data>()->sampler_textures)
+						if (sampler_tex == texture_impl->texture)
+							sampler_tex = _depthstencil_texture.get();
+
+			texture_impl->surface = _depthstencil;
+			texture_impl->texture = _depthstencil_texture;
+		}
+	}
 }
 #endif

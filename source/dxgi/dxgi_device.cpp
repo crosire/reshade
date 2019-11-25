@@ -12,7 +12,7 @@ DXGIDevice::DXGIDevice(IDXGIDevice1 *original, IUnknown *direct3d_device) :
 	_orig(original),
 	_interface_version(1),
 	_direct3d_device(direct3d_device) {
-	assert(original != nullptr);
+	assert(_orig != nullptr && _direct3d_device != nullptr);
 }
 
 bool DXGIDevice::check_and_upgrade_interface(REFIID riid)

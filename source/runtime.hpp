@@ -22,10 +22,10 @@ struct ImGuiContext;
 namespace reshade
 {
 	class ini_file; // Forward declarations to avoid excessive #include
+	struct effect;
 	struct uniform;
 	struct texture;
 	struct technique;
-	struct effect_data;
 
 	/// <summary>
 	/// Platform independent base class for the main ReShade runtime.
@@ -138,31 +138,31 @@ namespace reshade
 		/// Compile effect from the specified source file and initialize textures, uniforms and techniques.
 		/// </summary>
 		/// <param name="path">The path to an effect source code file.</param>
-		/// <param name="out_id">The ID of the effect.</param>
-		void load_effect(const std::filesystem::path &path, size_t &out_id);
+		/// <param name="index">The ID of the effect.</param>
+		void load_effect(const std::filesystem::path &path, size_t index);
 		/// <summary>
 		/// Load all effects found in the effect search paths.
 		/// </summary>
-		virtual void load_effects();
+		void load_effects();
+		/// <summary>
+		/// Initialize resources for the effect and load the effect module.
+		/// </summary>
+		/// <param name="index">The ID of the effect.</param>
+		virtual bool init_effect(size_t index) = 0;
 		/// <summary>
 		/// Unload the specified effect.
 		/// </summary>
-		/// <param name="id">The ID of the effect.</param>
-		virtual void unload_effect(size_t id);
+		/// <param name="index">The ID of the effect.</param>
+		virtual void unload_effect(size_t index);
 		/// <summary>
 		/// Unload all effects currently loaded.
 		/// </summary>
 		virtual void unload_effects();
+
 		/// <summary>
 		/// Load image files and update textures with image data.
 		/// </summary>
 		void load_textures();
-
-		/// <summary>
-		/// Compile effect from the specified effect module.
-		/// </summary>
-		/// <param name="effect">The effect module to compile.</param>
-		virtual bool compile_effect(effect_data &effect) = 0;
 
 		/// <summary>
 		/// Apply post-processing effects to the frame.
@@ -194,6 +194,7 @@ namespace reshade
 		uint64_t _framecount = 0;
 		unsigned int _vertices = 0;
 		unsigned int _drawcalls = 0;
+		std::vector<effect> _loaded_effects;
 		std::vector<texture> _textures;
 		std::vector<uniform> _uniforms;
 		std::vector<technique> _techniques;
@@ -291,7 +292,6 @@ namespace reshade
 		size_t _reload_total_effects = 1;
 		std::vector<size_t> _reload_compile_queue;
 		std::atomic<size_t> _reload_remaining_effects = 0;
-		std::vector<effect_data> _loaded_effects;
 		std::vector<std::thread> _worker_threads;
 
 		int _date[4] = {};
@@ -359,7 +359,7 @@ namespace reshade
 		char _effect_filter_buffer[64] = {};
 		std::filesystem::path _file_selection_path;
 		imgui_code_editor _editor;
-		unsigned int _preview_size[2] = {};
+		unsigned int _preview_size[3] = { 0, 0, 0xFFFFFFFF };
 		void *_preview_texture = nullptr;
 
 		// Used by preset explorer

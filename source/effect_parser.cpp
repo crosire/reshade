@@ -2805,20 +2805,21 @@ bool reshadefx::parser::parse_technique_pass(pass_info &info)
 					else if (!symbol.type.is_function())
 						parse_success = false,
 						error(location, 3020, "type mismatch, expected function name");
+					else {
+						const bool is_vs = state[0] == 'V';
+						const bool is_ps = state[0] == 'P';
 
-					const bool is_vs = state[0] == 'V';
-					const bool is_ps = state[0] == 'P';
+						// Look up the matching function info for this function definition
+						function_info &function_info = _codegen->find_function(symbol.id);
 
-					// Look up the matching function info for this function definition
-					function_info &function_info = _codegen->find_function(symbol.id);
+						// We potentially need to generate a special entry point function which translates between function parameters and input/output variables
+						_codegen->define_entry_point(function_info, is_ps);
 
-					// We potentially need to generate a special entry point function which translates between function parameters and input/output variables
-					_codegen->define_entry_point(function_info, is_ps);
-
-					if (is_vs)
-						info.vs_entry_point = function_info.unique_name;
-					if (is_ps)
-						info.ps_entry_point = function_info.unique_name;
+						if (is_vs)
+							info.vs_entry_point = function_info.unique_name;
+						if (is_ps)
+							info.ps_entry_point = function_info.unique_name;
+					}
 				}
 				else
 				{
@@ -2830,20 +2831,25 @@ bool reshadefx::parser::parse_technique_pass(pass_info &info)
 					else if (!symbol.type.is_texture())
 						parse_success = false,
 						error(location, 3020, "type mismatch, expected texture name");
+					else {
+						const texture_info &target_info = _codegen->find_texture(symbol.id);
 
-					const texture_info &target_info = _codegen->find_texture(symbol.id);
+						// Verify that all render targets in this pass have the same dimensions
+						if (info.viewport_width != 0 && info.viewport_height != 0 && (target_info.width != info.viewport_width || target_info.height != info.viewport_height))
+							parse_success = false,
+							error(location, 4545, "cannot use multiple render targets with different texture dimensions (is " + std::to_string(target_info.width) + 'x' + std::to_string(target_info.height) + ", but expected " + std::to_string(info.viewport_width) + 'x' + std::to_string(info.viewport_height) + ')');
 
-					// Verify that all render targets in this pass have the same dimensions
-					if (info.viewport_width != 0 && info.viewport_height != 0 && (target_info.width != info.viewport_width || target_info.height != info.viewport_height))
-						parse_success = false,
-						error(location, 4545, "cannot use multiple render targets with different texture dimensions (is " + std::to_string(target_info.width) + 'x' + std::to_string(target_info.height) + ", but expected " + std::to_string(info.viewport_width) + 'x' + std::to_string(info.viewport_height) + ')');
+						info.viewport_width = target_info.width;
+						info.viewport_height = target_info.height;
 
-					info.viewport_width = target_info.width;
-					info.viewport_height = target_info.height;
-
-					const auto target_index = state.size() > 12 ? (state[12] - '0') : 0;
-					info.render_target_names[target_index] = target_info.unique_name;
+						const auto target_index = state.size() > 12 ? (state[12] - '0') : 0;
+						info.render_target_names[target_index] = target_info.unique_name;
+					}
 				}
+			}
+			else
+			{
+				parse_success = false;
 			}
 		}
 		else // Handle the rest of the pass states
@@ -2933,13 +2939,16 @@ bool reshadefx::parser::parse_technique_pass(pass_info &info)
 			return consume_until('}'), false;
 	}
 
-	// Verify pass states
-	if (info.vs_entry_point.empty())
-		parse_success = false,
-		error(pass_location, 3012, "pass is missing 'VertexShader' property");
-	if (info.ps_entry_point.empty())
-		parse_success = false,
-		error(pass_location, 3012, "pass is missing 'PixelShader' property");
+	if (parse_success)
+	{
+		// Verify pass states
+		if (info.vs_entry_point.empty())
+			parse_success = false,
+			error(pass_location, 3012, "pass is missing 'VertexShader' property");
+		if (info.ps_entry_point.empty())
+			parse_success = false,
+			error(pass_location, 3012, "pass is missing 'PixelShader' property");
+	}
 
 	return expect('}') && parse_success;
 }
