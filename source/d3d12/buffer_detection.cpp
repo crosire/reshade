@@ -33,6 +33,8 @@ void reshade::d3d12::buffer_detection_context::reset(bool release_resources)
 #if RESHADE_DX12_CAPTURE_DEPTH_BUFFERS
 	if (release_resources)
 	{
+		assert(_context == this);
+
 		_depthstencil_clear_texture.reset();
 		_depthstencil_resources_by_handle.clear();
 	}
@@ -45,6 +47,9 @@ void reshade::d3d12::buffer_detection::merge(const buffer_detection &source)
 	_stats.drawcalls += source._stats.drawcalls;
 
 #if RESHADE_DX12_CAPTURE_DEPTH_BUFFERS
+	// Executing a command list in a different command list inherits state
+	_current_depthstencil = source._current_depthstencil;
+
 	for (const auto &[dsv_texture, snapshot] : source._counters_per_used_depth_texture)
 	{
 		auto &target_snapshot = _counters_per_used_depth_texture[dsv_texture];
@@ -240,11 +245,9 @@ com_ptr<ID3D12Resource> reshade::d3d12::buffer_detection_context::find_best_dept
 		{
 			return _depthstencil_clear_texture;
 		}
-		else
-		{
-			_depthstencil_clear_index = { nullptr, std::numeric_limits<UINT>::max() };
-		}
 	}
+
+	_depthstencil_clear_index = { nullptr, std::numeric_limits<UINT>::max() };
 
 	return best_match;
 }
