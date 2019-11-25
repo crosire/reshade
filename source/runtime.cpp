@@ -305,6 +305,11 @@ void reshade::runtime::load_effect(const std::filesystem::path &path, size_t &ou
 			effect.compile_sucess = false;
 		}
 
+		for (const auto& definition : pp.displayable_macros())
+		{
+			_preset_preprocessor_definitions.emplace_back(definition.first + "=" + definition.second.replacement_list);
+		}
+
 		unsigned shader_model;
 		if (_renderer_id == 0x9000)     // D3D9
 			shader_model = 30;

@@ -73,6 +73,13 @@ bool reshadefx::preprocessor::add_macro_definition(const std::string &name, std:
 	return add_macro_definition(name, macro);
 }
 
+bool reshadefx::preprocessor::add_displayable_macro_definition(const std::string& name, const macro& macro)
+{
+	assert(!name.empty());
+
+	return _displayable_macros.emplace(name, macro).second;
+}
+
 bool reshadefx::preprocessor::append_file(const std::filesystem::path &path)
 {
 	std::string data;
@@ -392,6 +399,8 @@ void reshadefx::preprocessor::parse_def()
 
 	if (!add_macro_definition(macro_name, m))
 		return error(location, "redefinition of '" + macro_name + "'");
+
+	add_displayable_macro_definition(macro_name, m);
 }
 void reshadefx::preprocessor::parse_undef()
 {

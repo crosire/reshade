@@ -51,6 +51,14 @@ namespace reshadefx
 		bool add_macro_definition(const std::string &name, std::string value = "1");
 
 		/// <summary>
+		/// Add a new macro definition. This is equal to appending '#define name macro' to this preprocessor instance.
+		/// </summary>
+		/// <param name="name">The name of the macro to define.</param>
+		/// <param name="macro">The definition of the macro function or value.</param>
+		/// <returns></returns>
+		bool add_displayable_macro_definition(const std::string& name, const macro& macro);
+
+		/// <summary>
 		/// Open the specified file, parse its contents and append them to the output.
 		/// </summary>
 		/// <param name="path">The path to the file to parse.</param>
@@ -78,6 +86,11 @@ namespace reshadefx
 		/// Get a list of all included files.
 		/// </summary>
 		std::vector<std::filesystem::path> included_files() const;
+
+		/// <summary>
+		/// Get a list of the macros that can be displayed in the UI
+		/// </summary>
+		std::unordered_map<std::string, macro> displayable_macros() const { return _displayable_macros; }
 
 	private:
 		struct if_level
@@ -137,6 +150,7 @@ namespace reshadefx
 		std::string _output, _errors, _current_token_raw_data;
 		int _recursion_count = 0;
 		std::unordered_map<std::string, macro> _macros;
+		std::unordered_map<std::string, macro> _displayable_macros;
 		std::vector<std::filesystem::path> _include_paths;
 		std::unordered_map<std::string, std::string> _filecache;
 	};
