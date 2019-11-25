@@ -1921,7 +1921,7 @@ void reshade::vulkan::runtime_vk::draw_depth_debug_menu()
 				ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyle().Colors[ImGuiCol_TextDisabled]);
 			}
 
-			if (bool value = _depth_image_override == depth_image;
+			if (bool value = (_depth_image_override == depth_image);
 				ImGui::Checkbox(label, &value))
 				_depth_image_override = value ? depth_image : VK_NULL_HANDLE;
 

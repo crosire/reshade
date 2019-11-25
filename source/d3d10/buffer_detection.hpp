@@ -32,8 +32,7 @@ namespace reshade::d3d10
 		ID3D10Texture2D *current_depth_texture() const { return _depthstencil_clear_index.first; }
 		const auto &depth_buffer_counters() const { return _counters_per_used_depth_texture; }
 
-		void track_render_targets(UINT num_views, ID3D10RenderTargetView *const *views, ID3D10DepthStencilView *dsv);
-		void track_cleared_depthstencil(UINT clear_flags, ID3D10DepthStencilView *dsv);
+		void on_clear_depthstencil(UINT clear_flags, ID3D10DepthStencilView *dsv);
 
 		com_ptr<ID3D10Texture2D> find_best_depth_texture(UINT width, UINT height,
 			com_ptr<ID3D10Texture2D> override = nullptr, UINT clear_index_override = 0);
@@ -54,9 +53,9 @@ namespace reshade::d3d10
 		};
 		struct depthstencil_info
 		{
-			draw_stats stats;
+			draw_stats total_stats;
+			draw_stats current_stats; // Stats since last clear
 			std::vector<draw_stats> clears;
-			std::map<ID3D10RenderTargetView *, draw_stats> additional_views;
 		};
 
 #if RESHADE_DX10_CAPTURE_DEPTH_BUFFERS
@@ -66,7 +65,6 @@ namespace reshade::d3d10
 		ID3D10Device *const _device;
 		draw_stats _stats;
 #if RESHADE_DX10_CAPTURE_DEPTH_BUFFERS
-		draw_stats _clear_stats;
 		com_ptr<ID3D10Texture2D> _depthstencil_clear_texture;
 		std::pair<ID3D10Texture2D *, UINT> _depthstencil_clear_index = { nullptr, std::numeric_limits<UINT>::max() };
 		// Use "std::map" instead of "std::unordered_map" so that the iteration order is guaranteed
