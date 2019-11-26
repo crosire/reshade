@@ -337,6 +337,10 @@ void reshade::runtime::load_effect(const std::filesystem::path &path, size_t ind
 		// Append preprocessor and parser errors to the error list
 		effect.errors = std::move(pp.errors()) + std::move(parser.errors());
 
+		// Keep track of included files
+		effect.included_files = pp.included_files();
+		std::sort(effect.included_files.begin(), effect.included_files.end()); // Sort file names alphabetically
+
 		// Write result to effect module
 		codegen->write_result(effect.module);
 	}
@@ -669,8 +673,8 @@ void reshade::runtime::unload_effect(size_t index)
 void reshade::runtime::unload_effects()
 {
 #if RESHADE_GUI
-	_selected_effect = std::numeric_limits<size_t>::max();
-	_selected_effect_changed = true; // Force editor to clear text after effects where reloaded
+	// Force editor to clear text after effects where reloaded
+	open_file_in_editor(std::numeric_limits<size_t>::max(), {});
 	_preview_texture = nullptr;
 	_effect_filter_buffer[0] = '\0'; // And reset filter too, since the list of techniques might have changed
 #endif

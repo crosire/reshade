@@ -678,9 +678,7 @@ void reshade::runtime::draw_ui()
 
 		if (_show_code_editor && !is_loading())
 		{
-			const std::string title = _selected_effect < _loaded_effects.size() ?
-				"Editing " + _loaded_effects[_selected_effect].source_file.filename().u8string() + " ###editor" : "Viewing code###editor";
-
+			const std::string title = !_editor_file.empty() ? "Editing " + _editor_file.filename().u8string() + " ###editor" : "Viewing code###editor";
 			if (ImGui::Begin(title.c_str(), &_show_code_editor))
 				draw_code_editor();
 			ImGui::End();
@@ -1620,48 +1618,21 @@ THE SOFTWARE.)");
 
 void reshade::runtime::draw_code_editor()
 {
-	const auto parse_errors = [this](const std::string &errors) {
-		_editor.clear_errors();
-
-		for (size_t offset = 0, next; offset != std::string::npos; offset = next)
-		{
-			const size_t pos_error = errors.find(": ", offset);
-			const size_t pos_error_line = errors.rfind('(', pos_error); // Paths can contain '(', but no ": ", so search backwards from th error location to find the line info
-			if (pos_error == std::string::npos || pos_error_line == std::string::npos)
-				break;
-
-			const size_t pos_linefeed = errors.find('\n', pos_error);
-
-			next = pos_linefeed != std::string::npos ? pos_linefeed + 1 : std::string::npos;
-
-			// Ignore errors that aren't in the main source file
-			if (const std::string_view error_file(errors.c_str() + offset, pos_error_line - offset);
-				error_file != _loaded_effects[_selected_effect].source_file.u8string())
-				continue;
-
-			const int error_line = std::strtol(errors.c_str() + pos_error_line + 1, nullptr, 10);
-			const std::string error_text = errors.substr(pos_error + 2 /* skip space */, pos_linefeed - pos_error - 2);
-
-			_editor.add_error(error_line, error_text, error_text.find("warning") != std::string::npos);
-		}
-	};
-
-	if (_selected_effect < _loaded_effects.size() && (ImGui::Button("Save") || _input->is_key_pressed('S', true, false, false)))
+	if (_selected_effect < _loaded_effects.size() && (
+		ImGui::Button("Save", ImVec2(ImGui::GetContentRegionAvail().x, 0)) || _input->is_key_pressed('S', true, false, false)))
 	{
 		// Hide splash bar during compile
 		_show_splash = false;
 
+		// Write current editor text to file
 		const std::string text = _editor.get_text();
-
-		const std::filesystem::path source_file = _loaded_effects[_selected_effect].source_file;
-
-		// Write editor text to file
-		std::ofstream(source_file, std::ios::trunc).write(text.c_str(), text.size());
+		std::ofstream(_editor_file, std::ios::trunc).write(text.c_str(), text.size());
 
 		// Reload effect file
 		_textures_loaded = false;
 		_reload_total_effects = 1;
 		_reload_remaining_effects = 1;
+		const std::filesystem::path source_file = _loaded_effects[_selected_effect].source_file;
 		unload_effect(_selected_effect);
 		load_effect(source_file, _selected_effect);
 		assert(_reload_remaining_effects == 0);
@@ -1669,54 +1640,7 @@ void reshade::runtime::draw_code_editor()
 		// Reloading an effect file invalidates all textures, but the statistics window may already have drawn references to those, so need to reset it
 		ImGui::FindWindowByName("Statistics")->DrawList->CmdBuffer.clear();
 
-		parse_errors(_loaded_effects[_selected_effect].errors);
-	}
-
-	ImGui::SameLine();
-
-	ImGui::PushItemWidth(ImGui::GetContentRegionAvail().x);
-
-	if (ImGui::BeginCombo("##file", _selected_effect < _loaded_effects.size() ? _loaded_effects[_selected_effect].source_file.u8string().c_str() : "", ImGuiComboFlags_HeightLarge))
-	{
-		for (size_t i = 0; i < _loaded_effects.size(); ++i)
-		{
-			const auto &effect = _loaded_effects[i];
-
-			// Ignore unloaded effects
-			if (effect.source_file.empty())
-				continue;
-
-			if (ImGui::Selectable(effect.source_file.u8string().c_str(), _selected_effect == i))
-			{
-				_selected_effect = i;
-				_selected_effect_changed = true;
-			}
-		}
-
-		ImGui::EndCombo();
-	}
-
-	ImGui::PopItemWidth();
-
-	if (_selected_effect_changed)
-	{
-		_editor.set_readonly(false);
-
-		if (_selected_effect < _loaded_effects.size())
-		{
-			const auto &effect = _loaded_effects[_selected_effect];
-
-			// Load file to string and update editor text
-			_editor.set_text(std::string(std::istreambuf_iterator<char>(std::ifstream(effect.source_file).rdbuf()), std::istreambuf_iterator<char>()));
-
-			parse_errors(effect.errors);
-		}
-		else
-		{
-			_editor.clear_text();
-		}
-
-		_selected_effect_changed = false;
+		open_file_in_editor(_selected_effect, _editor_file);
 	}
 
 	// Select editor font
@@ -2215,19 +2139,6 @@ void reshade::runtime::draw_overlay_technique_editor()
 			const bool is_not_bottom = index < _techniques.size() - 1;
 			const float button_width = ImGui::CalcItemWidth();
 
-			if (is_not_top && ImGui::Button("Move up", ImVec2(button_width, 0)))
-			{
-				std::swap(_techniques[index], _techniques[index - 1]);
-				save_current_preset();
-				ImGui::CloseCurrentPopup();
-			}
-			if (is_not_bottom && ImGui::Button("Move down", ImVec2(button_width, 0)))
-			{
-				std::swap(_techniques[index], _techniques[index + 1]);
-				save_current_preset();
-				ImGui::CloseCurrentPopup();
-			}
-
 			if (is_not_top && ImGui::Button("Move to top", ImVec2(button_width, 0)))
 			{
 				_techniques.insert(_techniques.begin(), std::move(_techniques[index]));
@@ -2245,13 +2156,25 @@ void reshade::runtime::draw_overlay_technique_editor()
 
 			ImGui::Separator();
 
-			const std::string edit_label = "Edit " + effect.source_file.filename().u8string() + "##edit";
-			if (ImGui::Button(edit_label.c_str(), ImVec2(button_width, 0)))
+			if (imgui_popup_button("Edit source code", button_width))
 			{
-				_selected_effect = technique.effect_index;
-				_selected_effect_changed = true;
-				_show_code_editor = true;
-				ImGui::CloseCurrentPopup();
+				std::filesystem::path source_file;
+				if (ImGui::MenuItem(effect.source_file.filename().u8string().c_str()))
+					source_file = effect.source_file;
+
+				ImGui::Separator();
+
+				for (const auto &included_file : effect.included_files)
+					if (ImGui::MenuItem(included_file.filename().u8string().c_str()))
+						source_file = included_file;
+
+				ImGui::EndPopup();
+
+				if (!source_file.empty())
+				{
+					open_file_in_editor(technique.effect_index, source_file);
+					ImGui::CloseCurrentPopup();
+				}
 			}
 
 			if (imgui_popup_button("Show compiled results", button_width))
@@ -2270,11 +2193,7 @@ void reshade::runtime::draw_overlay_technique_editor()
 
 				if (!source_code.empty())
 				{
-					_editor.set_text(source_code);
-					_editor.set_readonly(true);
-					_selected_effect = std::numeric_limits<size_t>::max();
-					_selected_effect_changed = false; // Prevent editor from being cleared, since we already set the text here
-					_show_code_editor = true;
+					open_text_in_editor(source_code);
 					ImGui::CloseCurrentPopup();
 				}
 			}
@@ -2623,6 +2542,55 @@ void reshade::runtime::draw_preset_explorer()
 
 	if (is_explore_open)
 		ImGui::EndPopup();
+}
+
+void reshade::runtime::open_text_in_editor(const std::string &text)
+{
+	_editor.set_text(text);
+	_editor.clear_errors();
+	_editor.set_readonly(true);
+	_editor_file.clear();
+	_selected_effect = std::numeric_limits<size_t>::max();
+	_show_code_editor = true;
+}
+void reshade::runtime::open_file_in_editor(size_t effect_index, const std::filesystem::path &path)
+{
+	_editor.clear_errors();
+	_editor.set_readonly(false);
+	_editor_file = path;
+	_selected_effect = effect_index;
+
+	if (effect_index >= _loaded_effects.size())
+		return;
+
+	_show_code_editor = true;
+
+	// Load file to string and update editor text
+	_editor.set_text(std::string(std::istreambuf_iterator<char>(std::ifstream(path).rdbuf()), std::istreambuf_iterator<char>()));
+
+	const std::string &errors = _loaded_effects[effect_index].errors;
+
+	for (size_t offset = 0, next; offset != std::string::npos; offset = next)
+	{
+		const size_t pos_error = errors.find(": ", offset);
+		const size_t pos_error_line = errors.rfind('(', pos_error); // Paths can contain '(', but no ": ", so search backwards from th error location to find the line info
+		if (pos_error == std::string::npos || pos_error_line == std::string::npos)
+			break;
+
+		const size_t pos_linefeed = errors.find('\n', pos_error);
+
+		next = pos_linefeed != std::string::npos ? pos_linefeed + 1 : std::string::npos;
+
+		// Ignore errors that aren't in the current source file
+		if (const std::string_view error_file(errors.c_str() + offset, pos_error_line - offset);
+			error_file != path.u8string())
+			continue;
+
+		const int error_line = std::strtol(errors.c_str() + pos_error_line + 1, nullptr, 10);
+		const std::string error_text = errors.substr(pos_error + 2 /* skip space */, pos_linefeed - pos_error - 2);
+
+		_editor.add_error(error_line, error_text, error_text.find("warning") != std::string::npos);
+	}
 }
 
 #endif
