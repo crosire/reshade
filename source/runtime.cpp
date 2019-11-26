@@ -658,7 +658,13 @@ void reshade::runtime::unload_effect(size_t index)
 	_techniques.erase(std::remove_if(_techniques.begin(), _techniques.end(),
 		[index](const auto &it) { return it.effect_index == index; }), _techniques.end());
 
-	_loaded_effects[index].source_file.clear();
+	effect &effect = _loaded_effects[index];;
+	effect.rendering = false;
+	effect.compile_sucess = false;
+	effect.errors.clear();
+	effect.preamble.clear();
+	effect.source_file.clear();
+	effect.included_files.clear();
 }
 void reshade::runtime::unload_effects()
 {
