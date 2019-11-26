@@ -81,7 +81,7 @@ bool reshadefx::preprocessor::append_file(const std::filesystem::path &path)
 
 	_success = true; // Clear success flag before parsing a new file
 
-	push(std::move(data), path.u8string());
+	push(std::move(data), path.string());
 	parse();
 
 	return _success;
@@ -104,7 +104,7 @@ std::vector<std::filesystem::path> reshadefx::preprocessor::included_files() con
 	std::vector<std::filesystem::path> files;
 	files.reserve(_filecache.size());
 	for (const auto &it : _filecache)
-		files.push_back(std::filesystem::u8path(it.first));
+		files.push_back(std::filesystem::path(it.first));
 	return files;
 }
 
@@ -551,10 +551,10 @@ void reshadefx::preprocessor::parse_include()
 		return;
 	}
 
-	const std::filesystem::path filename = std::filesystem::u8path(_token.literal_as_string);
+	const std::filesystem::path filename = std::filesystem::path(_token.literal_as_string);
 
 	std::error_code ec;
-	std::filesystem::path filepath = std::filesystem::u8path(_output_location.source);
+	std::filesystem::path filepath = std::filesystem::path(_output_location.source);
 	filepath.replace_filename(filename);
 
 	if (!std::filesystem::exists(filepath, ec))
@@ -562,7 +562,7 @@ void reshadefx::preprocessor::parse_include()
 			if (std::filesystem::exists(filepath = include_path / filename, ec))
 				break;
 
-	const std::string filepath_string = filepath.u8string();
+	const std::string filepath_string = filepath.string();
 
 	// Detect recursive include and abort to avoid infinite loop
 	if (std::find_if(_input_stack.begin(), _input_stack.end(),
@@ -781,13 +781,13 @@ bool reshadefx::preprocessor::evaluate_expression()
 					if (!expect(tokenid::string_literal))
 						return false;
 
-					const std::filesystem::path filename = std::filesystem::u8path(_token.literal_as_string);
+					const std::filesystem::path filename = std::filesystem::path(_token.literal_as_string);
 
 					if (has_parentheses && !expect(tokenid::parenthesis_close))
 						return false;
 
 					std::error_code ec;
-					std::filesystem::path filepath = std::filesystem::u8path(_output_location.source);
+					std::filesystem::path filepath = std::filesystem::path(_output_location.source);
 					filepath.replace_filename(filename);
 
 					if (!std::filesystem::exists(filepath, ec))

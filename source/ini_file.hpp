@@ -100,7 +100,7 @@ namespace reshade
 		template <>
 		void set(const std::string &section, const std::string &key, const std::filesystem::path &value)
 		{
-			set(section, key, value.u8string());
+			set(section, key, value.string());
 		}
 		template <typename T, size_t SIZE>
 		void set(const std::string &section, const std::string &key, const T(&values)[SIZE], const size_t size = SIZE)
@@ -135,7 +135,7 @@ namespace reshade
 			auto &v = _sections[section][key];
 			v.resize(values.size());
 			for (size_t i = 0; i < values.size(); ++i)
-				v[i] = values[i].u8string();
+				v[i] = values[i].string();
 			_modified = true;
 			_modified_at = std::filesystem::file_time_type::clock::now();
 		}
@@ -209,7 +209,7 @@ namespace reshade
 		template <>
 		static const std::filesystem::path convert(const std::vector<std::string> &values, size_t i)
 		{
-			return i < values.size() ? std::filesystem::u8path(values[i]) : std::filesystem::path();
+			return i < values.size() ? std::filesystem::path(values[i]) : std::filesystem::path();
 		}
 
 		/// <summary>

@@ -104,7 +104,7 @@ namespace reshade::log
 		template <>
 		message &operator<<(const std::filesystem::path &path)
 		{
-			return operator<<('"' + path.u8string() + '"');
+			return operator<<('"' + path.string() + '"');
 		}
 
 		inline message &operator<<(const char *message)

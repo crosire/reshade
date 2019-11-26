@@ -28,7 +28,7 @@ const ImVec4 COLOR_YELLOW = ImColor(204, 204, 0);
 
 void reshade::runtime::init_ui()
 {
-	(g_reshade_dll_path.parent_path() / "ReShadeGUI.ini").u8string()
+	(g_reshade_dll_path.parent_path() / "ReShadeGUI.ini").string()
 		.copy(g_reshadegui_ini_path, sizeof(g_reshadegui_ini_path));
 
 	// Default shortcut: Home
@@ -387,7 +387,7 @@ void reshade::runtime::build_font_atlas()
 		cfg.SizePixels = static_cast<float>(i == 0 ? _font_size : _editor_font_size);
 
 		const std::filesystem::path &font_path = i == 0 ? _font : _editor_font;
-		if (std::error_code ec; !std::filesystem::is_regular_file(font_path, ec) || !atlas->AddFontFromFileTTF(font_path.u8string().c_str(), cfg.SizePixels))
+		if (std::error_code ec; !std::filesystem::is_regular_file(font_path, ec) || !atlas->AddFontFromFileTTF(font_path.string().c_str(), cfg.SizePixels))
 			atlas->AddFontDefault(&cfg); // Use default font if custom font failed to load or does not exist
 	}
 
@@ -502,9 +502,9 @@ void reshade::runtime::draw_ui()
 				if (std::error_code ec; std::filesystem::exists(_screenshot_path, ec))
 					ImGui::TextColored(COLOR_RED, "Unable to save screenshot because of an internal error (the format may not be supported).");
 				else
-					ImGui::TextColored(COLOR_RED, "Unable to save screenshot because path doesn't exist: %s.", _screenshot_path.u8string().c_str());
+					ImGui::TextColored(COLOR_RED, "Unable to save screenshot because path doesn't exist: %s.", _screenshot_path.string().c_str());
 			else
-				ImGui::Text("Screenshot successfully saved to %s", _last_screenshot_file.u8string().c_str());
+				ImGui::Text("Screenshot successfully saved to %s", _last_screenshot_file.string().c_str());
 		}
 		else
 		{
@@ -678,7 +678,7 @@ void reshade::runtime::draw_ui()
 
 		if (_show_code_editor && !is_loading())
 		{
-			const std::string title = !_editor_file.empty() ? "Editing " + _editor_file.filename().u8string() + " ###editor" : "Viewing code###editor";
+			const std::string title = !_editor_file.empty() ? "Editing " + _editor_file.filename().string() + " ###editor" : "Viewing code###editor";
 			if (ImGui::Begin(title.c_str(), &_show_code_editor))
 				draw_code_editor();
 			ImGui::End();
@@ -810,7 +810,7 @@ void reshade::runtime::draw_overlay_menu_home()
 				for (technique &technique : _techniques)
 					technique.hidden = technique.annotation_as_int("hidden") != 0 ||
 						std::search(technique.name.begin(), technique.name.end(), filter.begin(), filter.end(),
-							[](auto c1, auto c2) { return tolower(c1) == tolower(c2); }) == technique.name.end() && _loaded_effects[technique.effect_index].source_file.filename().u8string().find(filter) == std::string::npos;
+							[](auto c1, auto c2) { return tolower(c1) == tolower(c2); }) == technique.name.end() && _loaded_effects[technique.effect_index].source_file.filename().string().find(filter) == std::string::npos;
 			}
 		}
 		else if (!ImGui::IsItemActive() && _effect_filter_buffer[0] == '\0')
@@ -1268,7 +1268,7 @@ void reshade::runtime::draw_overlay_menu_statistics()
 			ImGui::Text("VEN_%X", _vendor_id);
 		else
 			ImGui::TextUnformatted("Unknown");
-		ImGui::TextUnformatted(g_target_executable_path.filename().u8string().c_str());
+		ImGui::TextUnformatted(g_target_executable_path.filename().string().c_str());
 		ImGui::Text("%d-%d-%d %d", _date[0], _date[1], _date[2], _date[3]);
 		ImGui::Text("%u B", g_network_traffic);
 		ImGui::Text("%.2f fps", _imgui_context->IO.Framerate);
@@ -1283,7 +1283,7 @@ void reshade::runtime::draw_overlay_menu_statistics()
 			ImGui::Text("DEV_%X", _device_id);
 		else
 			ImGui::TextUnformatted("Unknown");
-		ImGui::Text("0x%X", std::hash<std::string>()(g_target_executable_path.stem().u8string()) & 0xFFFFFFFF);
+		ImGui::Text("0x%X", std::hash<std::string>()(g_target_executable_path.stem().string()) & 0xFFFFFFFF);
 		ImGui::Text("%.0f ms", std::chrono::duration_cast<std::chrono::nanoseconds>(_last_present_time - _start_time).count() * 1e-6f);
 		ImGui::NewLine();
 		ImGui::Text("%*.3f ms", gpu_digits + 4, _last_frame_duration.count() * 1e-6f);
@@ -1827,7 +1827,7 @@ void reshade::runtime::draw_overlay_variable_editor()
 
 			const bool is_focused = _focused_effect == variable.effect_index;
 
-			const std::string filename = _loaded_effects[current_effect].source_file.filename().u8string();
+			const std::string filename = _loaded_effects[current_effect].source_file.filename().string();
 
 			if (_variable_editor_tabs)
 			{
@@ -2093,7 +2093,7 @@ void reshade::runtime::draw_overlay_technique_editor()
 		std::string_view ui_label = technique.annotation_as_string("ui_label");
 		if (ui_label.empty() || !compile_success) ui_label = technique.name;
 		std::string label(ui_label.data(), ui_label.size());
-		label += " [" + effect.source_file.filename().u8string() + ']' + (!compile_success ? " (failed to compile)" : "");
+		label += " [" + effect.source_file.filename().string() + ']' + (!compile_success ? " (failed to compile)" : "");
 
 		if (bool status = technique.enabled; ImGui::Checkbox(label.data(), &status))
 		{
@@ -2159,13 +2159,13 @@ void reshade::runtime::draw_overlay_technique_editor()
 			if (imgui_popup_button("Edit source code", button_width))
 			{
 				std::filesystem::path source_file;
-				if (ImGui::MenuItem(effect.source_file.filename().u8string().c_str()))
+				if (ImGui::MenuItem(effect.source_file.filename().string().c_str()))
 					source_file = effect.source_file;
 
 				ImGui::Separator();
 
 				for (const auto &included_file : effect.included_files)
-					if (ImGui::MenuItem(included_file.filename().u8string().c_str()))
+					if (ImGui::MenuItem(included_file.filename().string().c_str()))
 						source_file = included_file;
 
 				ImGui::EndPopup();
@@ -2261,7 +2261,7 @@ void reshade::runtime::draw_preset_explorer()
 
 	ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2(0.0f, 0.5f));
 	if (ImGui::SameLine(0, button_spacing);
-		ImGui::ButtonEx(_current_preset_path.stem().u8string().c_str(), ImVec2(root_window_width - (button_spacing + button_size) * 3, 0), ImGuiButtonFlags_NoNavFocus))
+		ImGui::ButtonEx(_current_preset_path.stem().string().c_str(), ImVec2(root_window_width - (button_spacing + button_size) * 3, 0), ImGuiButtonFlags_NoNavFocus))
 		if (ImGui::OpenPopup("##explore"), _browse_path_is_input_mode = _imgui_context->IO.KeyCtrl,
 			_current_browse_path = _current_preset_path.parent_path().lexically_proximate(reshade_container_path);
 			_current_browse_path == L".")
@@ -2304,7 +2304,7 @@ void reshade::runtime::draw_preset_explorer()
 				ImGui::SetKeyboardFocusHere();
 
 			char buf[_MAX_PATH]{};
-			_current_browse_path.u8string().copy(buf, sizeof(buf) - 1);
+			_current_browse_path.string().copy(buf, sizeof(buf) - 1);
 
 			const bool is_edited = ImGui::InputTextEx("##path", nullptr, buf, sizeof(buf), ImVec2(root_window_width - (button_spacing + button_size) * 3, 0), ImGuiInputTextFlags_None);
 			const bool is_returned = ImGui::IsKeyPressedMap(ImGuiKey_Enter);
@@ -2316,7 +2316,7 @@ void reshade::runtime::draw_preset_explorer()
 
 			if (!is_popup_open && (is_edited || is_returned))
 			{
-				std::filesystem::path input_preset_path = std::filesystem::u8path(buf);
+				std::filesystem::path input_preset_path = std::filesystem::path(buf);
 				std::filesystem::file_type file_type = std::filesystem::status(reshade_container_path / input_preset_path, ec).type();
 
 				if (is_edited && ec.value() != 0x7b) // 0x7b: ERROR_INVALID_NAME
@@ -2368,7 +2368,7 @@ void reshade::runtime::draw_preset_explorer()
 		else
 		{
 			ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2(0.0f, 0.5f));
-			if (ImGui::ButtonEx(_current_preset_path.stem().u8string().c_str(), ImVec2(root_window_width - (button_spacing + button_size) * 3, 0), ImGuiButtonFlags_NoNavFocus))
+			if (ImGui::ButtonEx(_current_preset_path.stem().string().c_str(), ImVec2(root_window_width - (button_spacing + button_size) * 3, 0), ImGuiButtonFlags_NoNavFocus))
 				if (ImGui::ActivateItem(ImGui::GetID("##path")), _browse_path_is_input_mode = _imgui_context->IO.KeyCtrl; _browse_path_is_input_mode)
 					if (_current_browse_path.has_filename() && std::filesystem::is_directory(reshade_container_path / _current_browse_path, ec))
 						_current_browse_path += L'\\';
@@ -2443,7 +2443,7 @@ void reshade::runtime::draw_preset_explorer()
 			std::vector<std::filesystem::directory_entry> preset_paths;
 			for (const std::filesystem::directory_entry &entry : std::filesystem::directory_iterator(preset_container_path, std::filesystem::directory_options::skip_permission_denied, ec))
 				if (entry.is_directory(ec))
-					if (ImGui::Selectable(("<DIR> " + entry.path().filename().u8string()).c_str()))
+					if (ImGui::Selectable(("<DIR> " + entry.path().filename().string()).c_str()))
 						if (std::filesystem::equivalent(reshade_container_path, entry, ec))
 							_current_browse_path.clear();
 						else if (std::equal(reshade_container_path.begin(), reshade_container_path.end(), entry.path().begin()))
@@ -2467,7 +2467,7 @@ void reshade::runtime::draw_preset_explorer()
 						std::search(preset_name.begin(), preset_name.end(), filter_text.begin(), filter_text.end(), [](const wchar_t c1, const wchar_t c2) { return towlower(c1) == towlower(c2); }) == preset_name.end())
 						continue;
 
-				if (ImGui::Selectable(entry.path().filename().u8string().c_str(), static_cast<bool>(is_current_preset)))
+				if (ImGui::Selectable(entry.path().filename().string().c_str(), static_cast<bool>(is_current_preset)))
 					if (reshade::ini_file::load_cache(entry).has("", "Techniques"))
 						condition = condition::select, _current_preset_path = entry;
 					else
@@ -2499,7 +2499,7 @@ void reshade::runtime::draw_preset_explorer()
 			ImGui::SetKeyboardFocusHere();
 		else if (ImGui::IsKeyPressedMap(ImGuiKey_Enter))
 		{
-			std::filesystem::path focus_preset_path = reshade_container_path / _current_browse_path / std::filesystem::u8path(filename);
+			std::filesystem::path focus_preset_path = reshade_container_path / _current_browse_path / std::filesystem::path(filename);
 
 			if (focus_preset_path.extension() != L".ini" && focus_preset_path.extension() != L".txt")
 				focus_preset_path += L".ini";
@@ -2583,7 +2583,7 @@ void reshade::runtime::open_file_in_editor(size_t effect_index, const std::files
 
 		// Ignore errors that aren't in the current source file
 		if (const std::string_view error_file(errors.c_str() + offset, pos_error_line - offset);
-			error_file != path.u8string())
+			error_file != path.string())
 			continue;
 
 		const int error_line = std::strtol(errors.c_str() + pos_error_line + 1, nullptr, 10);

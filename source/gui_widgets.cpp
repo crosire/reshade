@@ -65,13 +65,13 @@ bool imgui_font_select(const char *name, std::filesystem::path &path, int &size)
 	if (path.empty())
 		strcpy(buf, "ProggyClean.ttf");
 	else
-		path.u8string().copy(buf, sizeof(buf) - 1);
+		path.string().copy(buf, sizeof(buf) - 1);
 
 	ImGui::PushItemWidth(ImGui::CalcItemWidth() - spacing - 80);
 	if (ImGui::InputText("##font", buf, sizeof(buf)))
 	{
 		std::error_code ec;
-		const std::filesystem::path new_path = std::filesystem::u8path(buf);
+		const std::filesystem::path new_path = std::filesystem::path(buf);
 
 		if ((new_path.empty() || new_path == "ProggyClean.ttf") || (std::filesystem::is_regular_file(new_path, ec) && new_path.extension() == ".ttf"))
 		{
@@ -105,11 +105,11 @@ bool imgui_directory_dialog(const char *name, std::filesystem::path &path)
 		return false;
 
 	char buf[_MAX_PATH] = "";
-	path.u8string().copy(buf, sizeof(buf) - 1);
+	path.string().copy(buf, sizeof(buf) - 1);
 
 	ImGui::PushItemWidth(400);
 	if (ImGui::InputText("##path", buf, sizeof(buf)))
-		path = std::filesystem::u8path(buf);
+		path = std::filesystem::path(buf);
 	ImGui::PopItemWidth();
 
 	ImGui::SameLine();
@@ -140,7 +140,7 @@ bool imgui_directory_dialog(const char *name, std::filesystem::path &path)
 		if (!entry.is_directory(ec))
 			continue; // Only show directories
 
-		std::string label = entry.path().filename().u8string();
+		std::string label = entry.path().filename().string();
 		label = "<DIR> " + label;
 
 		if (ImGui::Selectable(label.c_str(), entry.path() == path))
@@ -170,11 +170,11 @@ bool imgui_directory_input_box(const char *name, std::filesystem::path &path, st
 	ImGui::BeginGroup();
 
 	char buf[_MAX_PATH] = "";
-	path.u8string().copy(buf, sizeof(buf) - 1);
+	path.string().copy(buf, sizeof(buf) - 1);
 
 	ImGui::PushItemWidth(ImGui::CalcItemWidth() - (button_spacing + button_size));
 	if (ImGui::InputText("##path", buf, sizeof(buf)))
-		path = std::filesystem::u8path(buf), res = true;
+		path = std::filesystem::path(buf), res = true;
 	ImGui::PopItemWidth();
 
 	ImGui::SameLine(0, button_spacing);
@@ -213,13 +213,13 @@ bool imgui_path_list(const char *label, std::vector<std::filesystem::path> &path
 			ImGui::PushID(static_cast<int>(i));
 
 			memset(buf, 0, sizeof(buf));
-			paths[i].u8string().copy(buf, sizeof(buf) - 1);
+			paths[i].string().copy(buf, sizeof(buf) - 1);
 
 			ImGui::PushItemWidth(ImGui::GetWindowContentRegionWidth() - (button_spacing + button_size));
 			if (ImGui::InputText("##path", buf, sizeof(buf)))
 			{
 				res = true;
-				paths[i] = std::filesystem::u8path(buf);
+				paths[i] = std::filesystem::path(buf);
 			}
 			ImGui::PopItemWidth();
 

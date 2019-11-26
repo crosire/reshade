@@ -275,7 +275,7 @@ void reshade::runtime::load_effect(const std::filesystem::path &path, size_t ind
 		pp.add_macro_definition("__DEVICE__", std::to_string(_device_id));
 		pp.add_macro_definition("__RENDERER__", std::to_string(_renderer_id));
 		pp.add_macro_definition("__APPLICATION__", std::to_string( // Truncate hash to 32-bit, since lexer currently only supports 32-bit numbers anyway
-			std::hash<std::string>()(g_target_executable_path.stem().u8string()) & 0xFFFFFFFF));
+			std::hash<std::string>()(g_target_executable_path.stem().string()) & 0xFFFFFFFF));
 		pp.add_macro_definition("BUFFER_WIDTH", std::to_string(_width));
 		pp.add_macro_definition("BUFFER_HEIGHT", std::to_string(_height));
 		pp.add_macro_definition("BUFFER_RCP_WIDTH", "(1.0 / BUFFER_WIDTH)");
@@ -349,7 +349,7 @@ void reshade::runtime::load_effect(const std::filesystem::path &path, size_t ind
 	if (_performance_mode && !_current_preset_path.empty() && effect.compile_sucess)
 	{
 		const ini_file preset(_current_preset_path);
-		const std::string section(path.filename().u8string());
+		const std::string section(path.filename().string());
 
 		for (reshadefx::uniform_info &constant : effect.module.spec_constants)
 		{
@@ -459,7 +459,7 @@ void reshade::runtime::load_effect(const std::filesystem::path &path, size_t ind
 				if (texture.semantic.empty() != (existing_texture->impl_reference == texture_reference::none))
 				{
 					effect.errors += "error: " + texture.unique_name + ": another effect (";
-					effect.errors += _loaded_effects[existing_texture->effect_index].source_file.filename().u8string();
+					effect.errors += _loaded_effects[existing_texture->effect_index].source_file.filename().string();
 					effect.errors += ") already created a texture with the same name but different usage; rename the variable to fix this error\n";
 					effect.compile_sucess = false;
 					break;
@@ -467,7 +467,7 @@ void reshade::runtime::load_effect(const std::filesystem::path &path, size_t ind
 				else if (texture.semantic.empty() && !existing_texture->matches_description(texture))
 				{
 					effect.errors += "warning: " + texture.unique_name + ": another effect (";
-					effect.errors += _loaded_effects[existing_texture->effect_index].source_file.filename().u8string();
+					effect.errors += _loaded_effects[existing_texture->effect_index].source_file.filename().string();
 					effect.errors += ") already created a texture with the same name but different dimensions; textures are shared across all effects, so either rename the variable or adjust the dimensions so they match\n";
 				}
 
@@ -593,7 +593,7 @@ void reshade::runtime::load_textures()
 		if (texture.impl == nullptr || texture.impl_reference != texture_reference::none)
 			continue; // Ignore textures that are not created yet and those that are handled in the runtime implementation
 
-		std::filesystem::path source_path = std::filesystem::u8path(
+		std::filesystem::path source_path = std::filesystem::path(
 			texture.annotation_as_string("source"));
 		// Ignore textures that have no image file attached to them (e.g. plain render targets)
 		if (source_path.empty())
@@ -1143,7 +1143,7 @@ void reshade::runtime::load_current_preset()
 
 	for (uniform &variable : _uniforms)
 	{
-		const std::string section = _loaded_effects[variable.effect_index].source_file.filename().u8string();
+		const std::string section = _loaded_effects[variable.effect_index].source_file.filename().string();
 
 		if (variable.supports_toggle_key())
 		{
@@ -1244,7 +1244,7 @@ void reshade::runtime::save_current_preset() const
 
 		assert(variable.type.components() <= 16);
 
-		const std::string section = _loaded_effects[variable.effect_index].source_file.filename().u8string();
+		const std::string section = _loaded_effects[variable.effect_index].source_file.filename().string();
 		reshadefx::constant values;
 
 		if (variable.supports_toggle_key())
