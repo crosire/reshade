@@ -8,6 +8,8 @@
 #include "version.h"
 #include <Windows.h>
 
+#include <cstdlib>
+
 HMODULE g_module_handle = nullptr;
 
 std::filesystem::path g_reshade_dll_path;
@@ -18,9 +20,18 @@ extern std::filesystem::path get_system_path()
 	static std::filesystem::path system_path;
 	if (!system_path.empty())
 		return system_path; // Return the cached system path
-	TCHAR buf[MAX_PATH] = {};
-	GetSystemDirectory(buf, ARRAYSIZE(buf));
-	return system_path = buf;
+
+	const char* override_path = std::getenv("RESHADE_MODULE_PATH_OVERRIDE");
+
+	if (!override_path || !*override_path) {
+		TCHAR buf[MAX_PATH] = {};
+		GetSystemDirectory(buf, ARRAYSIZE(buf));
+		system_path = buf;
+	}
+	else
+		system_path = override_path;
+
+	return system_path;
 }
 
 static inline std::filesystem::path get_module_path(HMODULE module)
