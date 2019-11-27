@@ -10,6 +10,7 @@
 #include <filesystem>
 #include <utf8/unchecked.h>
 #include <combaseapi.h> // Included for REFIID and HRESULT
+#include <cassert>
 
 #define LOG(LEVEL) LOG_##LEVEL()
 #define LOG_INFO() reshade::log::message(reshade::log::level::info)
@@ -55,7 +56,7 @@ namespace reshade::log
 		message &operator<<(REFIID riid)
 		{
 			OLECHAR riid_string[40];
-			StringFromGUID2(riid, riid_string, ARRAYSIZE(riid_string));
+			assert(StringFromGUID2(riid, riid_string, ARRAYSIZE(riid_string)));
 			return *this << riid_string;
 		}
 
