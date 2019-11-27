@@ -93,7 +93,7 @@ HOOK_EXPORT HRESULT WINAPI D3D10CreateDeviceAndSwapChain1(IDXGIAdapter *pAdapter
 
 	// Create device proxy unless this is a software device
 	D3D10Device *device_proxy = nullptr;
-	if (DriverType == D3D_DRIVER_TYPE_WARP || DriverType == D3D_DRIVER_TYPE_REFERENCE)
+	if (DriverType == D3D10_DRIVER_TYPE_WARP || DriverType == D3D10_DRIVER_TYPE_REFERENCE)
 	{
 		LOG(WARN) << "Skipping device because the driver type is 'D3D_DRIVER_TYPE_WARP' or 'D3D_DRIVER_TYPE_REFERENCE'.";
 	}
