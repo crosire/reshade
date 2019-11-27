@@ -40,6 +40,7 @@ namespace reshade::vulkan
 
 	struct vulkan_technique_data : base_object
 	{
+		uint32_t query_index = 0;
 	};
 
 	struct vulkan_pass_data : base_object
@@ -62,6 +63,7 @@ namespace reshade::vulkan
 
 	struct vulkan_effect_data
 	{
+		VkQueryPool query_pool = VK_NULL_HANDLE;
 		VkDescriptorSet set[2] = {};
 		VkPipelineLayout pipeline_layout = VK_NULL_HANDLE;
 		VkDescriptorSetLayout set_layout = VK_NULL_HANDLE;
@@ -634,6 +636,14 @@ bool reshade::vulkan::runtime_vk::init_effect(size_t index)
 	effect_data.storage_offset = effect.storage_offset;
 	effect_data.module = effect.module;
 
+	// Create query pool for time measurements
+	{   VkQueryPoolCreateInfo create_info { VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO };
+		create_info.queryType = VK_QUERY_TYPE_TIMESTAMP;
+		create_info.queryCount = static_cast<uint32_t>(effect.module.techniques.size() * 2 * NUM_COMMAND_FRAMES);
+
+		check_result(vk.CreateQueryPool(_device, &create_info, nullptr, &effect_data.query_pool)) false;
+	}
+
 	// Initialize pipeline layout
 	{   std::vector<VkDescriptorSetLayoutBinding> bindings;
 		bindings.reserve(effect.module.num_sampler_bindings);
@@ -823,12 +833,16 @@ bool reshade::vulkan::runtime_vk::init_effect(size_t index)
 		memcpy(spec_data.data() + offset, &constant.initializer_value.as_uint[0], constant.size);
 	}
 
+	uint32_t technique_index = 0;
 	for (technique &technique : _techniques)
 	{
 		if (technique.impl != nullptr || technique.effect_index != index)
 			continue;
 
 		technique.impl = std::make_unique<vulkan_technique_data>();
+		auto &technique_data = *technique.impl->as<vulkan_technique_data>();
+		// Offset index so that a query exists for each command frame and two subsequent ones are used for before/after stamps
+		technique_data.query_index = technique_index++ * 2 * NUM_COMMAND_FRAMES;
 
 		for (size_t pass_index = 0; pass_index < technique.passes.size(); ++pass_index)
 		{
@@ -1108,6 +1122,7 @@ void reshade::vulkan::runtime_vk::unload_effects()
 
 	for (const vulkan_effect_data &data : _effect_data)
 	{
+		vk.DestroyQueryPool(_device, data.query_pool, nullptr);
 		vk.DestroyPipelineLayout(_device, data.pipeline_layout, nullptr);
 		vk.DestroyDescriptorSetLayout(_device, data.set_layout, nullptr);
 		vk.DestroyBuffer(_device, data.ubo, nullptr);
@@ -1350,10 +1365,24 @@ void reshade::vulkan::runtime_vk::generate_mipmaps(texture &texture)
 void reshade::vulkan::runtime_vk::render_technique(technique &technique)
 {
 	vulkan_effect_data &effect_data = _effect_data[technique.effect_index];
+	vulkan_technique_data &technique_data = *technique.impl->as<vulkan_technique_data>();
+
+	// Evaluate queries from oldest frame in queue
+	if (uint64_t timestamps[2];
+		vk.GetQueryPoolResults(_device, effect_data.query_pool,
+			technique_data.query_index + ((_cmd_index + 1) % NUM_COMMAND_FRAMES) * 2, 2,
+		sizeof(timestamps), timestamps, sizeof(uint64_t), VK_QUERY_RESULT_64_BIT) == VK_SUCCESS)
+	{
+		technique.average_gpu_duration.append(timestamps[1] - timestamps[0]);
+	}
 
 	if (!begin_command_buffer())
 		return;
 	const VkCommandBuffer cmd_list = _cmd_buffers[_cmd_index].first;
+
+	// Reset current queries and then write time stamp value
+	vk.CmdResetQueryPool(cmd_list, effect_data.query_pool, technique_data.query_index + _cmd_index * 2, 2);
+	vk.CmdWriteTimestamp(cmd_list, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, effect_data.query_pool, technique_data.query_index + _cmd_index * 2);
 
 	vk.CmdBindDescriptorSets(cmd_list, VK_PIPELINE_BIND_POINT_GRAPHICS, effect_data.pipeline_layout, 0, 2, effect_data.set, 0, nullptr);
 
@@ -1425,6 +1454,8 @@ void reshade::vulkan::runtime_vk::render_technique(technique &technique)
 		// Reset image layout of depth stencil image
 		transition_layout(vk, cmd_list, _depth_image, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, _depth_image_layout, { _depth_image_aspect, 0, 1, 0, 1 });
 	}
+
+	vk.CmdWriteTimestamp(cmd_list, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, effect_data.query_pool, technique_data.query_index + _cmd_index * 2 + 1);
 }
 
 bool reshade::vulkan::runtime_vk::begin_command_buffer() const
@@ -1921,7 +1952,7 @@ void reshade::vulkan::runtime_vk::draw_depth_debug_menu()
 				ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyle().Colors[ImGuiCol_TextDisabled]);
 			}
 
-			if (bool value = _depth_image_override == depth_image;
+			if (bool value = (_depth_image_override == depth_image);
 				ImGui::Checkbox(label, &value))
 				_depth_image_override = value ? depth_image : VK_NULL_HANDLE;
 

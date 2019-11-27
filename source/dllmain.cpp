@@ -147,7 +147,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 	#pragma region D3D11 Implementation
 	if (strstr(lpCmdLine, "-d3d11"))
 	{
+		const auto dxgi_module = LoadLibrary(TEXT("dxgi.dll"));
 		const auto d3d11_module = LoadLibrary(TEXT("d3d11.dll"));
+		assert(dxgi_module != nullptr);
 		assert(d3d11_module != nullptr);
 		hooks::register_module("dxgi.dll");
 		hooks::register_module("d3d11.dll");
@@ -201,6 +203,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 
 		reshade::hooks::uninstall();
 
+		FreeLibrary(dxgi_module);
 		FreeLibrary(d3d11_module);
 
 		return static_cast<int>(msg.wParam);
@@ -210,7 +213,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 	#pragma region D3D12 Implementation
 	if (strstr(lpCmdLine, "-d3d12"))
 	{
+		const auto dxgi_module = LoadLibrary(TEXT("dxgi.dll"));
 		const auto d3d12_module = LoadLibrary(TEXT("d3d12.dll"));
+		assert(dxgi_module != nullptr);
 		assert(d3d12_module != nullptr);
 		hooks::register_module("dxgi.dll");
 		hooks::register_module("d3d12.dll");
@@ -369,6 +374,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 
 		reshade::hooks::uninstall();
 
+		FreeLibrary(dxgi_module);
 		FreeLibrary(d3d12_module);
 
 		return static_cast<int>(msg.wParam);

@@ -46,17 +46,14 @@ void reshade::vulkan::buffer_detection::on_draw(uint32_t vertices)
 		// This is a draw call with no depth stencil bound
 		return;
 
-	if (const auto intermediate_snapshot = _counters_per_used_depth_image.find(_current_depthstencil);
-		intermediate_snapshot != _counters_per_used_depth_image.end())
-	{
-		intermediate_snapshot->second.stats.vertices += vertices;
-		intermediate_snapshot->second.stats.drawcalls += 1;
-	}
+	auto &counters = _counters_per_used_depth_image[_current_depthstencil];
+	counters.stats.vertices += vertices;
+	counters.stats.drawcalls += 1;
 #endif
 }
 
 #if RESHADE_VULKAN_CAPTURE_DEPTH_BUFFERS
-void reshade::vulkan::buffer_detection::track_depthstencil(VkImage depthstencil, VkImageLayout layout, const VkImageCreateInfo &create_info)
+void reshade::vulkan::buffer_detection::on_set_depthstencil(VkImage depthstencil, VkImageLayout layout, const VkImageCreateInfo &create_info)
 {
 	_current_depthstencil = depthstencil;
 
@@ -91,6 +88,8 @@ reshade::vulkan::buffer_detection::depthstencil_info reshade::vulkan::buffer_det
 		{
 			if (snapshot.stats.drawcalls == 0 || snapshot.stats.vertices == 0)
 				continue; // Skip unused
+
+			assert(snapshot.image != VK_NULL_HANDLE);
 
 			if (snapshot.image_info.samples != VK_SAMPLE_COUNT_1_BIT)
 				continue; // Ignore MSAA textures, since they would need to be resolved first

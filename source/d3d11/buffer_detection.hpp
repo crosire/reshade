@@ -26,8 +26,7 @@ namespace reshade::d3d11
 		void on_draw(UINT vertices);
 
 #if RESHADE_DX11_CAPTURE_DEPTH_BUFFERS
-		void track_render_targets(UINT num_views, ID3D11RenderTargetView *const *views, ID3D11DepthStencilView *dsv);
-		void track_cleared_depthstencil(UINT clear_flags, ID3D11DepthStencilView *dsv);
+		void on_clear_depthstencil(UINT clear_flags, ID3D11DepthStencilView *dsv);
 #endif
 
 	protected:
@@ -41,16 +40,15 @@ namespace reshade::d3d11
 		};
 		struct depthstencil_info
 		{
-			draw_stats stats;
+			draw_stats total_stats;
+			draw_stats current_stats; // Stats since last clear
 			std::vector<draw_stats> clears;
-			std::map<ID3D11RenderTargetView *, draw_stats> additional_views;
 		};
 
 		ID3D11DeviceContext *_device = nullptr;
 		const buffer_detection_context *_context = nullptr;
 		draw_stats _stats;
 #if RESHADE_DX11_CAPTURE_DEPTH_BUFFERS
-		draw_stats _clear_stats;
 		// Use "std::map" instead of "std::unordered_map" so that the iteration order is guaranteed
 		std::map<com_ptr<ID3D11Texture2D>, depthstencil_info> _counters_per_used_depth_texture;
 #endif

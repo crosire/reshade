@@ -26,8 +26,6 @@ void reshade::d3d10::buffer_detection::reset(bool release_resources)
 	_stats.vertices = 0;
 	_stats.drawcalls = 0;
 #if RESHADE_DX10_CAPTURE_DEPTH_BUFFERS
-	_clear_stats.vertices = 0;
-	_clear_stats.drawcalls = 0;
 	_counters_per_used_depth_texture.clear();
 
 	if (release_resources)
@@ -59,42 +57,18 @@ void reshade::d3d10::buffer_detection::on_draw(UINT vertices)
 	_stats.drawcalls += 1;
 
 #if RESHADE_DX10_CAPTURE_DEPTH_BUFFERS
-	com_ptr<ID3D10RenderTargetView> targets[D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT];
 	com_ptr<ID3D10DepthStencilView> depthstencil;
-	_device->OMGetRenderTargets(D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT, reinterpret_cast<ID3D10RenderTargetView **>(targets), &depthstencil);
+	_device->OMGetRenderTargets(0, nullptr, &depthstencil);
 
 	const auto dsv_texture = texture_from_dsv(depthstencil.get());
 	if (dsv_texture == nullptr)
 		return; // This is a draw call with no depth stencil bound
 
-	_clear_stats.vertices += vertices;
-	_clear_stats.drawcalls += 1;
-
-	if (const auto intermediate_snapshot = _counters_per_used_depth_texture.find(dsv_texture);
-		intermediate_snapshot != _counters_per_used_depth_texture.end())
-	{
-		intermediate_snapshot->second.stats.vertices += vertices;
-		intermediate_snapshot->second.stats.drawcalls += 1;
-
-		// Find the render targets, if they exist, and update their counts
-		for (UINT i = 0; i < D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT; i++)
-		{
-			if (targets[i] == nullptr)
-				continue; // Ignore empty slots
-
-			if (const auto it = intermediate_snapshot->second.additional_views.find(targets[i].get());
-				it != intermediate_snapshot->second.additional_views.end())
-			{
-				it->second.vertices += vertices;
-				it->second.drawcalls += 1;
-			}
-			else
-			{
-				// This shouldn't happen - it means somehow 'on_draw' was called with a render target without calling 'track_render_targets' on it first
-				assert(false);
-			}
-		}
-	}
+	auto &counters = _counters_per_used_depth_texture[dsv_texture];
+	counters.total_stats.vertices += vertices;
+	counters.total_stats.drawcalls += 1;
+	counters.current_stats.vertices += vertices;
+	counters.current_stats.drawcalls += 1;
 #endif
 #if RESHADE_DX10_CAPTURE_CONSTANT_BUFFERS
 	// Capture constant buffers that are used when depth stencils are drawn
@@ -117,22 +91,7 @@ void reshade::d3d10::buffer_detection::on_draw(UINT vertices)
 }
 
 #if RESHADE_DX10_CAPTURE_DEPTH_BUFFERS
-void reshade::d3d10::buffer_detection::track_render_targets(UINT num_views, ID3D10RenderTargetView *const *views, ID3D10DepthStencilView *dsv)
-{
-	com_ptr<ID3D10Texture2D> dsv_texture = texture_from_dsv(dsv);
-	if (dsv_texture == nullptr)
-		return;
-
-	// Add new entry for this DSV
-	auto &counters = _counters_per_used_depth_texture[dsv_texture];
-
-	for (UINT i = 0; i < num_views; i++)
-	{
-		// If the render target isn't being tracked, this will create it
-		counters.additional_views[views[i]].drawcalls += 1;
-	}
-}
-void reshade::d3d10::buffer_detection::track_cleared_depthstencil(UINT clear_flags, ID3D10DepthStencilView *dsv)
+void reshade::d3d10::buffer_detection::on_clear_depthstencil(UINT clear_flags, ID3D10DepthStencilView *dsv)
 {
 	if ((clear_flags & D3D10_CLEAR_DEPTH) == 0)
 		return;
@@ -144,14 +103,14 @@ void reshade::d3d10::buffer_detection::track_cleared_depthstencil(UINT clear_fla
 	auto &counters = _counters_per_used_depth_texture[dsv_texture];
 
 	// Ignore clears when there was no meaningful workload
-	if (counters.stats.drawcalls == 0)
+	if (counters.current_stats.drawcalls == 0)
 		return;
 
-	counters.clears.push_back(_clear_stats);
+	counters.clears.push_back(counters.current_stats);
 
 	// Reset draw call stats for clears
-	_clear_stats.vertices = 0;
-	_clear_stats.drawcalls = 0;
+	counters.current_stats.vertices = 0;
+	counters.current_stats.drawcalls = 0;
 
 	// Make a backup copy of the depth texture before it is cleared
 	if (counters.clears.size() == _depthstencil_clear_index.second)
@@ -199,7 +158,7 @@ com_ptr<ID3D10Texture2D> reshade::d3d10::buffer_detection::find_best_depth_textu
 	{
 		for (auto &[dsv_texture, snapshot] : _counters_per_used_depth_texture)
 		{
-			if (snapshot.stats.drawcalls == 0 || snapshot.stats.vertices == 0)
+			if (snapshot.total_stats.drawcalls == 0)
 				continue; // Skip unused
 
 			D3D10_TEXTURE2D_DESC desc;
@@ -222,7 +181,7 @@ com_ptr<ID3D10Texture2D> reshade::d3d10::buffer_detection::find_best_depth_textu
 			}
 
 			// Choose snapshot with the most vertices, since that is likely to contain the main scene
-			if (snapshot.stats.vertices >= best_snapshot.stats.vertices)
+			if (snapshot.total_stats.vertices >= best_snapshot.total_stats.vertices)
 			{
 				best_match = dsv_texture;
 				best_snapshot = snapshot;

@@ -325,6 +325,9 @@ namespace reshade
 		void draw_overlay_technique_editor();
 		void draw_preset_explorer();
 
+		void open_text_in_editor(const std::string &text);
+		void open_file_in_editor(size_t effect_index, const std::filesystem::path &path);
+
 		std::vector<std::pair<std::string, std::function<void()>>> _menu_callables;
 		std::unique_ptr<texture> _imgui_font_atlas;
 		ImGuiContext *_imgui_context = nullptr;
@@ -351,7 +354,6 @@ namespace reshade
 		bool _no_font_scaling = false;
 		bool _log_wordwrap = false;
 		bool _variable_editor_tabs = false;
-		bool _selected_effect_changed = false;
 		bool _rebuild_font_atlas = false;
 		bool _was_preprocessor_popup_edited = false;
 		float _fps_col[4] = { 1.0f, 1.0f, 0.784314f, 1.0f };
@@ -360,6 +362,7 @@ namespace reshade
 		unsigned int _tutorial_index = 0;
 		unsigned int _effects_expanded_state = 2;
 		char _effect_filter_buffer[64] = {};
+		std::filesystem::path _editor_file;
 		std::filesystem::path _file_selection_path;
 		imgui_code_editor _editor;
 		unsigned int _preview_size[3] = { 0, 0, 0xFFFFFFFF };

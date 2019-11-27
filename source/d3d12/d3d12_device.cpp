@@ -13,6 +13,7 @@ D3D12Device::D3D12Device(ID3D12Device *original) :
 	_interface_version(0),
 	_buffer_detection(original) {
 	assert(_orig != nullptr);
+	_buffer_detection.init(_orig, &_buffer_detection);
 }
 
 bool D3D12Device::check_and_upgrade_interface(REFIID riid)
