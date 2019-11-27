@@ -24,6 +24,7 @@ namespace reshade
 		mouse_point,
 		mouse_delta,
 		mouse_button,
+		effect_preprocessor,
 	};
 
 	enum class texture_reference
@@ -50,9 +51,16 @@ namespace reshade
 		bool compile_sucess = false;
 		std::string errors;
 		std::string preamble;
+		std::vector<std::string> macros;
 		reshadefx::module module;
 		std::filesystem::path source_file;
 		size_t storage_offset = 0, storage_size = 0;
+	};
+
+	struct macro final : reshadefx::macro_info
+	{
+		macro() {}
+		macro(const reshadefx::macro_info& init) : macro_info(init) {}
 	};
 
 	struct texture final : reshadefx::texture_info

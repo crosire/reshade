@@ -21,14 +21,6 @@ namespace reshadefx
 	class preprocessor
 	{
 	public:
-		struct macro
-		{
-			std::string replacement_list;
-			std::vector<std::string> parameters;
-			bool is_variadic = false;
-			bool is_function_like = false;
-		};
-
 		/// <summary>
 		/// Add an include directory to the list of search paths used when resolving #include directives.
 		/// </summary>
@@ -41,7 +33,7 @@ namespace reshadefx
 		/// <param name="name">The name of the macro to define.</param>
 		/// <param name="macro">The definition of the macro function or value.</param>
 		/// <returns></returns>
-		bool add_macro_definition(const std::string &name, const macro &macro);
+		bool add_macro_definition(const std::string &name, const macro_info &macro);
 		/// <summary>
 		/// Add a new macro value definition. This is equal to appending '#define name macro' to this preprocessor instance.
 		/// </summary>
@@ -56,7 +48,7 @@ namespace reshadefx
 		/// <param name="name">The name of the macro to define.</param>
 		/// <param name="macro">The definition of the macro function or value.</param>
 		/// <returns></returns>
-		bool add_displayable_macro_definition(const std::string& name, const macro& macro);
+		bool add_displayable_macro_definition(const std::string& name, const macro_info& macro);
 		/// <summary>
 		/// Add a new macro value definition. This is equal to appending '#define name macro' to this preprocessor instance.
 		/// </summary>
@@ -97,7 +89,7 @@ namespace reshadefx
 		/// <summary>
 		/// Get a list of the macros that can be displayed in the UI
 		/// </summary>
-		std::unordered_map<std::string, macro> displayable_macros() const { return _displayable_macros; }
+		std::unordered_map<std::string, macro_info> displayable_macros() const { return _displayable_macros; }
 
 	private:
 		struct if_level
@@ -147,8 +139,8 @@ namespace reshadefx
 		bool evaluate_expression();
 		bool evaluate_identifier_as_macro();
 
-		void expand_macro(const std::string &name, const macro &macro, const std::vector<std::string> &arguments, std::string &out);
-		void create_macro_replacement_list(macro &macro);
+		void expand_macro(const std::string &name, const macro_info &macro, const std::vector<std::string> &arguments, std::string &out);
+		void create_macro_replacement_list(macro_info &macro);
 
 		bool _success = true;
 		token _token;
@@ -156,8 +148,8 @@ namespace reshadefx
 		location _output_location;
 		std::string _output, _errors, _current_token_raw_data;
 		int _recursion_count = 0;
-		std::unordered_map<std::string, macro> _macros;
-		std::unordered_map<std::string, macro> _displayable_macros;
+		std::unordered_map<std::string, macro_info> _macros;
+		std::unordered_map<std::string, macro_info> _displayable_macros;
 		std::vector<std::filesystem::path> _include_paths;
 		std::unordered_map<std::string, std::string> _filecache;
 	};

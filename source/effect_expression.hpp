@@ -370,6 +370,14 @@ namespace reshadefx
 		std::string assembly;
 	};
 
+	struct macro_info
+	{
+		std::string replacement_list;
+		std::vector<std::string> parameters;
+		bool is_variadic = false;
+		bool is_function_like = false;
+	};
+
 	/// <summary>
 	/// In-memory representation of an effect file.
 	/// </summary>

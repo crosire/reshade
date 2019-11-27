@@ -24,6 +24,7 @@ namespace reshade
 	class ini_file; // Forward declarations to avoid excessive #include
 	struct effect;
 	struct uniform;
+	struct macro;
 	struct texture;
 	struct technique;
 
@@ -197,6 +198,7 @@ namespace reshade
 		std::vector<effect> _loaded_effects;
 		std::vector<texture> _textures;
 		std::vector<uniform> _uniforms;
+		std::vector<macro> _macros;
 		std::vector<technique> _techniques;
 		std::vector<unsigned char> _uniform_data_storage;
 
@@ -343,6 +345,7 @@ namespace reshade
 		bool _show_fps = false;
 		bool _show_frametime = false;
 		bool _show_splash = true;
+		bool _show_single_effect_splash = false;
 		bool _show_code_editor = false;
 		bool _show_screenshot_message = true;
 		bool _no_font_scaling = false;

@@ -24,6 +24,19 @@ extern volatile long g_network_traffic;
 extern std::filesystem::path g_reshade_dll_path;
 extern std::filesystem::path g_target_executable_path;
 
+static inline void trim(std::string& str, const char* chars = " \t")
+{
+	str.erase(0, str.find_first_not_of(chars));
+	str.erase(str.find_last_not_of(chars) + 1);
+}
+static inline std::string trim(const std::string& str, const char* chars = " \t")
+{
+	std::string res(str);
+	trim(res, chars);
+	return res;
+}
+
+
 static inline std::filesystem::path absolute_path(std::filesystem::path path)
 {
 	std::error_code ec;
@@ -256,6 +269,7 @@ void reshade::runtime::load_effect(const std::filesystem::path &path, size_t ind
 	effect &effect = _loaded_effects[index]; // Safe to access this multi-threaded, since this is the only call working on this effect
 	effect.source_file = path;
 	effect.compile_sucess = true;
+	std::unordered_map<std::string, reshadefx::macro_info> displayable_macros;
 
 	{ // Load, pre-process and compile the source file
 		reshadefx::preprocessor pp;
@@ -305,10 +319,7 @@ void reshade::runtime::load_effect(const std::filesystem::path &path, size_t ind
 			effect.compile_sucess = false;
 		}
 
-		for (const auto& definition : pp.displayable_macros())
-		{
-			_preset_preprocessor_definitions.emplace_back(definition.first + "=" + definition.second.replacement_list);
-		}
+		displayable_macros = pp.displayable_macros();
 
 		unsigned shader_model;
 		if (_renderer_id == 0x9000)     // D3D9
@@ -403,6 +414,34 @@ void reshade::runtime::load_effect(const std::filesystem::path &path, size_t ind
 		// Create space for all variables in the uniform storage area
 		_uniform_data_storage.resize(effect.storage_offset + effect.storage_size);
 	}
+	   
+	for (const auto& definition : displayable_macros)
+	{
+		reshadefx::uniform_info preprocessor_uniform;
+		preprocessor_uniform.name = definition.first;
+		reshadefx::constant preprocessor_constant = {};
+		preprocessor_constant.string_data = "Effect preprocessors";
+		std::pair<reshadefx::type, reshadefx::constant> annotation_info;
+		reshadefx::type type = {};
+		type.rows = type.cols = 0;
+		type.base = reshadefx::type::t_string;
+		reshadefx::constant constant = {};
+		constant.string_data = "Effect Preprocessor definitions";
+		annotation_info.first = type;
+		annotation_info.second = constant;
+		preprocessor_uniform.annotations.emplace("ui_category", annotation_info);
+		constant.string_data = "effect preprocessor";
+		annotation_info.first = type;
+		annotation_info.second = constant;
+		preprocessor_uniform.annotations.emplace("source", annotation_info);
+		preprocessor_uniform.has_initializer_value = true;
+		preprocessor_uniform.type = type;
+		constant = {};
+		constant.string_data = trim(definition.second.replacement_list);
+		preprocessor_uniform.initializer_value = constant;
+		effect.module.uniforms.push_back(preprocessor_uniform);
+		// std::rotate(effect.module.uniforms.rbegin(), effect.module.uniforms.rbegin() + 1, effect.module.uniforms.rend());
+	}
 
 	std::vector<uniform> new_uniforms;
 	new_uniforms.reserve(effect.module.uniforms.size());
@@ -441,6 +480,8 @@ void reshade::runtime::load_effect(const std::filesystem::path &path, size_t ind
 			var.special = special_uniform::mouse_delta;
 		else if (special == "mousebutton")
 			var.special = special_uniform::mouse_button;
+		else if (special == "effect preprocessor")
+			var.special = special_uniform::effect_preprocessor;
 
 		new_uniforms.push_back(std::move(var));
 	}

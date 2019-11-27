@@ -59,7 +59,7 @@ void reshadefx::preprocessor::add_include_path(const std::filesystem::path &path
 
 	_include_paths.push_back(path);
 }
-bool reshadefx::preprocessor::add_macro_definition(const std::string &name, const macro &macro)
+bool reshadefx::preprocessor::add_macro_definition(const std::string &name, const macro_info &macro)
 {
 	assert(!name.empty());
 
@@ -67,13 +67,13 @@ bool reshadefx::preprocessor::add_macro_definition(const std::string &name, cons
 }
 bool reshadefx::preprocessor::add_macro_definition(const std::string &name, std::string value)
 {
-	macro macro;
+	macro_info macro;
 	macro.replacement_list = std::move(value);
 
 	return add_macro_definition(name, macro);
 }
 
-bool reshadefx::preprocessor::add_displayable_macro_definition(const std::string& name, const macro& macro)
+bool reshadefx::preprocessor::add_displayable_macro_definition(const std::string& name, const macro_info& macro)
 {
 	assert(!name.empty());
 
@@ -81,7 +81,7 @@ bool reshadefx::preprocessor::add_displayable_macro_definition(const std::string
 }
 bool reshadefx::preprocessor::add_displayable_macro_definition(const std::string& name, std::string value)
 {
-	macro macro;
+	macro_info macro;
 	macro.replacement_list = std::move(value);
 
 	return add_displayable_macro_definition(name, macro);
@@ -92,6 +92,9 @@ bool reshadefx::preprocessor::append_file(const std::filesystem::path &path)
 	std::string data;
 	if (!read_file(path, data))
 		return false;
+
+	// init _displayable_macros definition
+	_displayable_macros.clear();
 
 	_success = true; // Clear success flag before parsing a new file
 
@@ -369,7 +372,7 @@ void reshadefx::preprocessor::parse_def()
 	else if (_token.literal_as_string == "defined")
 		return warning(_token.location, "macro name 'defined' is reserved");
 
-	macro m;
+	macro_info m;
 	const auto location = std::move(_token.location);
 	const auto macro_name = std::move(_token.literal_as_string);
 	const auto macro_name_end_offset = _token.offset + _token.length;
@@ -1035,7 +1038,7 @@ bool reshadefx::preprocessor::evaluate_identifier_as_macro()
 	return true;
 }
 
-void reshadefx::preprocessor::expand_macro(const std::string &name, const macro &macro, const std::vector<std::string> &arguments, std::string &out)
+void reshadefx::preprocessor::expand_macro(const std::string &name, const macro_info &macro, const std::vector<std::string> &arguments, std::string &out)
 {
 	for (auto it = macro.replacement_list.begin(); it != macro.replacement_list.end(); ++it)
 	{
@@ -1078,7 +1081,7 @@ void reshadefx::preprocessor::expand_macro(const std::string &name, const macro 
 		}
 	}
 }
-void reshadefx::preprocessor::create_macro_replacement_list(macro &macro)
+void reshadefx::preprocessor::create_macro_replacement_list(macro_info &macro)
 {
 	// Since the number of parameters is encoded in the string, it may not exceed the available size of a char
 	if (macro.parameters.size() >= std::numeric_limits<unsigned char>::max())
