@@ -18,8 +18,10 @@ extern std::filesystem::path get_system_path()
 	static std::filesystem::path system_path;
 	if (!system_path.empty())
 		return system_path; // Return the cached system path
-	TCHAR buf[MAX_PATH] = {};
-	GetSystemDirectory(buf, ARRAYSIZE(buf));
+	TCHAR buf[MAX_PATH] = TEXT("");
+	if (!GetEnvironmentVariable(TEXT("RESHADE_MODULE_PATH_OVERRIDE"), buf, ARRAYSIZE(buf))
+		|| *buf == TEXT('\0')) // Empty string
+		GetSystemDirectory(buf, ARRAYSIZE(buf)); // First try environment variable, use system directory if it does not exist
 	return system_path = buf;
 }
 
