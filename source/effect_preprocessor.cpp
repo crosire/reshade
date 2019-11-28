@@ -465,7 +465,7 @@ void reshadefx::preprocessor::parse_ifndef()
 	level.skipping = (level.parent != nullptr && level.parent->skipping) || !level.value;
 
 	if(!level.skipping && _displayable_macros.find(_token.literal_as_string) == _displayable_macros.end())
-		add_displayable_macro_definition(_token.literal_as_string);
+		add_displayable_macro_definition(_token.literal_as_string, "");
 
 	current_if_stack().push(level);
 }
