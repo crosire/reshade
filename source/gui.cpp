@@ -436,6 +436,7 @@ void reshade::runtime::destroy_font_atlas()
 void reshade::runtime::draw_ui()
 {
 	const bool show_splash = _show_splash && (is_loading() || !_reload_compile_queue.empty() || (_last_present_time - _last_reload_time) < std::chrono::seconds(5));
+	const bool show_single_effect_splash = _show_single_effect_splash && (is_loading() || !_reload_compile_queue.empty() || (_last_present_time - _last_reload_time) < std::chrono::seconds(1));
 	const bool show_screenshot_message = _show_screenshot_message && _last_present_time - _last_screenshot_time < std::chrono::seconds(_screenshot_save_success ? 3 : 5);
 
 	if (_show_menu && !_ignore_shortcuts && !_imgui_context->IO.NavVisible && _input->is_key_pressed(0x1B /* VK_ESCAPE */))
@@ -480,7 +481,7 @@ void reshade::runtime::draw_ui()
 	ImVec2 viewport_offset = ImVec2(0, 0);
 
 	// Create ImGui widgets and windows
-	if (show_splash || show_screenshot_message || (!_show_menu && _tutorial_index == 0))
+	if (show_splash || show_single_effect_splash || show_screenshot_message || (!_show_menu && _tutorial_index == 0))
 	{
 		ImGui::SetNextWindowPos(ImVec2(10, 10));
 		ImGui::SetNextWindowSize(ImVec2(imgui_io.DisplaySize.x - 20.0f, 0.0f));
@@ -508,20 +509,23 @@ void reshade::runtime::draw_ui()
 		}
 		else
 		{
-			ImGui::TextUnformatted("ReShade " VERSION_STRING_FILE " by crosire");
-
-			if (_needs_update)
+			if (!show_single_effect_splash)
 			{
-				ImGui::TextColored(COLOR_YELLOW,
-					"An update is available! Please visit https://reshade.me and install the new version (v%lu.%lu.%lu).",
-					_latest_version[0], _latest_version[1], _latest_version[2]);
-			}
-			else
-			{
-				ImGui::TextUnformatted("Visit https://reshade.me for news, updates, shaders and discussion.");
-			}
+				ImGui::TextUnformatted("ReShade " VERSION_STRING_FILE " by crosire");
 
-			ImGui::Spacing();
+				if (_needs_update)
+				{
+					ImGui::TextColored(COLOR_YELLOW,
+						"An update is available! Please visit https://reshade.me and install the new version (v%lu.%lu.%lu).",
+						_latest_version[0], _latest_version[1], _latest_version[2]);
+				}
+				else
+				{
+					ImGui::TextUnformatted("Visit https://reshade.me for news, updates, shaders and discussion.");
+				}
+
+				ImGui::Spacing();
+			}
 
 			ImGui::ProgressBar(1.0f - _reload_remaining_effects / float(_reload_total_effects), ImVec2(-1, 0), "");
 			ImGui::SameLine(15);
@@ -547,6 +551,14 @@ void reshade::runtime::draw_ui()
 				ImGui::TextColored(ImVec4(1, 1, 1, 1), "%s", input::key_name(_menu_key_data).c_str());
 				ImGui::SameLine(0.0f, 0.0f);
 				ImGui::TextUnformatted("' to start the tutorial.");
+			}
+			else if (!show_single_effect_splash)
+			{
+				ImGui::TextUnformatted("Press '");
+				ImGui::SameLine(0.0f, 0.0f);
+				ImGui::TextColored(ImVec4(1, 1, 1, 1), "%s", input::key_name(_menu_key_data).c_str());
+				ImGui::SameLine(0.0f, 0.0f);
+				ImGui::TextUnformatted("' to open the configuration menu.");
 			}
 
 			if (!_last_reload_successful)
@@ -2072,11 +2084,24 @@ void reshade::runtime::draw_overlay_variable_editor()
 
 			if (ImGui::Button("OK"))
 			{
+				size_t current_effect_index = variable.effect_index;
+				const std::filesystem::path source_file = _loaded_effects[variable.effect_index].source_file;
 				save_current_preset();
-				_show_splash = true;
-				_effect_filter_buffer[0] = '\0'; // Reset filter
+				_show_single_effect_splash = true;
+				_show_splash = !_show_single_effect_splash;
 
-				load_effects();
+				// Reload effect file
+				_textures_loaded = false;
+				_reload_total_effects = 1;
+				_reload_remaining_effects = 1;
+				_reload_compile_queue.push_back(current_effect_index);
+				unload_effect(current_effect_index);
+				load_effect(source_file, current_effect_index);
+				assert(_reload_remaining_effects == 0);
+
+				// Reloading an effect file invalidates all textures, but the statistics window may already have drawn references to those, so need to reset it
+				ImGui::FindWindowByName("Statistics")->DrawList->CmdBuffer.clear();
+
 				preprocessor_modified = false;
 			}
 

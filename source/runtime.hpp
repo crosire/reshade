@@ -349,6 +349,7 @@ namespace reshade
 		bool _show_splash = true;
 		bool _show_code_editor = false;
 		bool _show_screenshot_message = true;
+		bool _show_single_effect_splash = false;
 		bool _no_font_scaling = false;
 		bool _log_wordwrap = false;
 		bool _variable_editor_tabs = false;
