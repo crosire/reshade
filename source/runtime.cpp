@@ -269,7 +269,7 @@ void reshade::runtime::load_effect(const std::filesystem::path &path, size_t ind
 	effect &effect = _loaded_effects[index]; // Safe to access this multi-threaded, since this is the only call working on this effect
 	effect.source_file = path;
 	effect.compile_sucess = true;
-	std::unordered_map<std::string, reshadefx::macro_info> displayable_macros;
+	std::unordered_map<std::string, reshadefx::preprocessor::macro_info> displayable_macros;
 
 	{ // Load, pre-process and compile the source file
 		reshadefx::preprocessor pp;
@@ -311,6 +311,26 @@ void reshade::runtime::load_effect(const std::filesystem::path &path, size_t ind
 					definition.substr(equals_index + 1));
 			else
 				pp.add_macro_definition(definition);
+		}
+
+		// init _displayable_macros definition
+		pp.clear_displayable_macros();
+
+		if (!_current_preset_path.empty())
+		{
+			for (const auto& definition : effect.preprocessor_definitions)
+			{
+				if (definition.empty())
+					continue; // Skip invalid definitions
+
+				const size_t equals_index = definition.find('=');
+				if (equals_index != std::string::npos)
+					pp.add_displayable_macro_definition(
+						definition.substr(0, equals_index),
+						definition.substr(equals_index + 1));
+				else
+					pp.add_displayable_macro_definition(definition);
+			}
 		}
 
 		if (!pp.append_file(path))
@@ -364,7 +384,7 @@ void reshade::runtime::load_effect(const std::filesystem::path &path, size_t ind
 	// Fill all specialization constants with values from the current preset
 	if (_performance_mode && !_current_preset_path.empty() && effect.compile_sucess)
 	{
-		const ini_file preset(_current_preset_path);
+		const ini_file& preset = ini_file::load_cache(_current_preset_path);
 		const std::string section(path.filename().u8string());
 
 		for (reshadefx::uniform_info &constant : effect.module.spec_constants)
@@ -418,6 +438,8 @@ void reshade::runtime::load_effect(const std::filesystem::path &path, size_t ind
 		// Create space for all variables in the uniform storage area
 		_uniform_data_storage.resize(effect.storage_offset + effect.storage_size);
 	}
+
+	effect.preprocessor_definitions.clear();
 	   
 	for (const auto& definition : displayable_macros)
 	{
@@ -445,6 +467,7 @@ void reshade::runtime::load_effect(const std::filesystem::path &path, size_t ind
 		preprocessor_uniform.initializer_value = constant;
 		effect.module.uniforms.push_back(preprocessor_uniform);
 		// std::rotate(effect.module.uniforms.rbegin(), effect.module.uniforms.rbegin() + 1, effect.module.uniforms.rend());
+		effect.preprocessor_definitions.push_back(preprocessor_uniform.name + "=" + constant.string_data);
 	}
 
 	std::vector<uniform> new_uniforms;
@@ -1189,7 +1212,9 @@ void reshade::runtime::load_current_preset()
 
 	for (uniform &variable : _uniforms)
 	{
-		const std::string section = _loaded_effects[variable.effect_index].source_file.filename().u8string();
+		effect &effect = _loaded_effects[variable.effect_index];
+		const std::string section = effect.source_file.filename().u8string();
+		preset.get(section, "PreprocessorDefinitions", effect.preprocessor_definitions);
 
 		if (variable.supports_toggle_key())
 		{
@@ -1284,13 +1309,14 @@ void reshade::runtime::save_current_preset() const
 	// TODO: Do we want to save spec constants here too? The preset will be rather empty in performance mode otherwise.
 	for (const uniform &variable : _uniforms)
 	{
-		if (variable.special != special_uniform::none
+		if ((variable.special != special_uniform::none && variable.special != special_uniform::effect_preprocessor)
 			|| std::find(effect_list.begin(), effect_list.end(), variable.effect_index) == effect_list.end())
 			continue;
 
 		assert(variable.type.components() <= 16);
 
 		const std::string section = _loaded_effects[variable.effect_index].source_file.filename().u8string();
+		const effect effect = _loaded_effects[variable.effect_index];
 		reshadefx::constant values;
 
 		if (variable.supports_toggle_key())
@@ -1302,21 +1328,28 @@ void reshade::runtime::save_current_preset() const
 				preset.set(section, "Key" + variable.name, 0); // Clear toggle key data
 		}
 
-		switch (variable.type.base)
+		if (variable.special == special_uniform::effect_preprocessor)
 		{
-		case reshadefx::type::t_int:
-			get_uniform_value(variable, values.as_int, 16);
-			preset.set(section, variable.name, values.as_int, variable.type.components());
-			break;
-		case reshadefx::type::t_bool:
-		case reshadefx::type::t_uint:
-			get_uniform_value(variable, values.as_uint, 16);
-			preset.set(section, variable.name, values.as_uint, variable.type.components());
-			break;
-		case reshadefx::type::t_float:
-			get_uniform_value(variable, values.as_float, 16);
-			preset.set(section, variable.name, values.as_float, variable.type.components());
-			break;
+			preset.set(section, "PreprocessorDefinitions", effect.preprocessor_definitions);
+		}
+		else
+		{
+			switch (variable.type.base)
+			{
+			case reshadefx::type::t_int:
+				get_uniform_value(variable, values.as_int, 16);
+				preset.set(section, variable.name, values.as_int, variable.type.components());
+				break;
+			case reshadefx::type::t_bool:
+			case reshadefx::type::t_uint:
+				get_uniform_value(variable, values.as_uint, 16);
+				preset.set(section, variable.name, values.as_uint, variable.type.components());
+				break;
+			case reshadefx::type::t_float:
+				get_uniform_value(variable, values.as_float, 16);
+				preset.set(section, variable.name, values.as_float, variable.type.components());
+				break;
+			}
 		}
 	}
 }

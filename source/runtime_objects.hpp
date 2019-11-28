@@ -51,17 +51,11 @@ namespace reshade
 		bool compile_sucess = false;
 		std::string errors;
 		std::string preamble;
-		std::vector<std::string> macros;
+		std::vector<std::string> preprocessor_definitions;
 		reshadefx::module module;
 		std::filesystem::path source_file;
 		std::vector<std::filesystem::path> included_files;
 		size_t storage_offset = 0, storage_size = 0;
-	};
-
-	struct macro final : reshadefx::macro_info
-	{
-		macro() {}
-		macro(const reshadefx::macro_info& init) : macro_info(init) {}
 	};
 
 	struct texture final : reshadefx::texture_info

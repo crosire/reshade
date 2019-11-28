@@ -21,6 +21,14 @@ namespace reshadefx
 	class preprocessor
 	{
 	public:
+		struct macro_info
+		{
+			std::string replacement_list;
+			std::vector<std::string> parameters;
+			bool is_variadic = false;
+			bool is_function_like = false;
+		};
+
 		/// <summary>
 		/// Add an include directory to the list of search paths used when resolving #include directives.
 		/// </summary>
@@ -58,6 +66,12 @@ namespace reshadefx
 		bool add_displayable_macro_definition(const std::string& name, std::string value = "1");
 
 		/// <summary>
+		/// clear displayable macro definitions
+		/// </summary>
+		/// <returns></returns>
+		void clear_displayable_macros();
+
+		/// <summary>
 		/// Open the specified file, parse its contents and append them to the output.
 		/// </summary>
 		/// <param name="path">The path to the file to parse.</param>
@@ -82,14 +96,14 @@ namespace reshadefx
 		const std::string &output() const { return _output; }
 
 		/// <summary>
-		/// Get a list of all included files.
-		/// </summary>
-		std::vector<std::filesystem::path> included_files() const;
-
-		/// <summary>
 		/// Get a list of the macros that can be displayed in the UI
 		/// </summary>
 		std::unordered_map<std::string, macro_info> displayable_macros() const { return _displayable_macros; }
+
+		/// <summary>
+		/// Get a list of all included files.
+		/// </summary>
+		std::vector<std::filesystem::path> included_files() const;
 
 	private:
 		struct if_level

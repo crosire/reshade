@@ -436,7 +436,7 @@ void reshade::runtime::destroy_font_atlas()
 void reshade::runtime::draw_ui()
 {
 	const bool show_splash = _show_splash && (is_loading() || !_reload_compile_queue.empty() || (_last_present_time - _last_reload_time) < std::chrono::seconds(5));
-	const bool show_single_effect_splash = _show_single_effect_splash && (is_loading() || !_reload_compile_queue.empty() || (_last_present_time - _last_reload_time) < std::chrono::seconds(1));
+	const bool show_single_effect_splash = _show_single_effect_splash && (is_loading() || !_reload_compile_queue.empty() || (_last_present_time - _last_reload_time) < std::chrono::seconds(5));
 	const bool show_screenshot_message = _show_screenshot_message && _last_present_time - _last_screenshot_time < std::chrono::seconds(_screenshot_save_success ? 3 : 5);
 
 	if (_show_menu && !_ignore_shortcuts && !_imgui_context->IO.NavVisible && _input->is_key_pressed(0x1B /* VK_ESCAPE */))
@@ -1810,6 +1810,7 @@ void reshade::runtime::draw_overlay_variable_editor()
 	}
 
 	ImGui::PushItemWidth(ImGui::GetWindowWidth() * 0.5f);
+	size_t p_index = 0;
 
 	for (size_t index = 0; index < _uniforms.size(); ++index)
 	{
@@ -1828,6 +1829,7 @@ void reshade::runtime::draw_overlay_variable_editor()
 		if (variable.effect_index != current_effect)
 		{
 			current_effect = variable.effect_index;
+			p_index = 0;
 
 			const bool is_focused = _focused_effect == variable.effect_index;
 
@@ -2044,33 +2046,38 @@ void reshade::runtime::draw_overlay_variable_editor()
 			ImGui::PopID();
 		}
 
-		// A value has changed, so save the current preset
-		if (modified)
-			save_current_preset();
-
 		if (variable.special == special_uniform::effect_preprocessor)
 		{
 			char name[128] = "";
 			char value[128] = "";
 			const float button_size = ImGui::GetFrameHeight();
 			const float button_spacing = ImGui::GetStyle().ItemInnerSpacing.x;
-
+			std::string preprocessor_definitions = _loaded_effects[variable.effect_index].preprocessor_definitions[p_index];
+				
 			ImGui::BeginGroup();
 
-			variable.name.copy(name, sizeof(name) - 1);
-			variable.initializer_value.string_data.copy(value, sizeof(value) - 1);
+			const size_t equals_index = preprocessor_definitions.find('=');
+			preprocessor_definitions.copy(name, std::min(equals_index, sizeof(name) - 1));
+			if (equals_index != std::string::npos)
+				preprocessor_definitions.copy(value, sizeof(value) - 1, equals_index + 1);
 
 			ImGui::PushID(static_cast<int>(index));
 
+			bool preprocessor_modified = false;
+
 			ImGui::PushItemWidth(ImGui::CalcItemWidth() - (button_spacing + button_size));
-			ImGui::InputText("", value, sizeof(value));
+			preprocessor_modified |= ImGui::InputText("##value", value, sizeof(value));
 			ImGui::PopItemWidth();
 
 			ImGui::SameLine(0, button_spacing);
 
-			if (ImGui::Button("OK") || _input->is_key_pressed(ImGuiKey_Enter, true, false, false))
+			if (preprocessor_modified)
+				_loaded_effects[variable.effect_index].preprocessor_definitions[p_index] = std::string(name) + '=' + std::string(value);
+
+			if (ImGui::Button("OK"))
 			{
-				const std::filesystem::path source_file = _loaded_effects[variable.effect_index].source_file;
+				/* const std::filesystem::path source_file = _loaded_effects[variable.effect_index].source_file;
+				save_current_preset();
 				_show_single_effect_splash = true;
 				_show_splash = !_show_single_effect_splash;
 
@@ -2084,7 +2091,13 @@ void reshade::runtime::draw_overlay_variable_editor()
 				assert(_reload_remaining_effects == 0);
 
 				// Reloading an effect file invalidates all textures, but the statistics window may already have drawn references to those, so need to reset it
-				ImGui::FindWindowByName("Statistics")->DrawList->CmdBuffer.clear();
+				ImGui::FindWindowByName("Statistics")->DrawList->CmdBuffer.clear();*/
+				save_current_preset();
+				_show_splash = true;
+				_effect_filter_buffer[0] = '\0'; // Reset filter
+
+				load_effects();
+				preprocessor_modified = false;
 			}
 
 			ImGui::PopID();
@@ -2093,7 +2106,12 @@ void reshade::runtime::draw_overlay_variable_editor()
 			ImGui::TextUnformatted(name);
 
 			ImGui::EndGroup();
+			p_index++;
 		}
+
+		// A value has changed, so save the current preset
+		if (modified)
+			save_current_preset();
 	}
 
 	ImGui::PopItemWidth();
