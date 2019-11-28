@@ -552,13 +552,20 @@ void reshade::runtime::draw_ui()
 				ImGui::SameLine(0.0f, 0.0f);
 				ImGui::TextUnformatted("' to start the tutorial.");
 			}
-			else if (!show_single_effect_splash)
+			else
 			{
-				ImGui::TextUnformatted("Press '");
-				ImGui::SameLine(0.0f, 0.0f);
-				ImGui::TextColored(ImVec4(1, 1, 1, 1), "%s", input::key_name(_menu_key_data).c_str());
-				ImGui::SameLine(0.0f, 0.0f);
-				ImGui::TextUnformatted("' to open the configuration menu.");
+				if (show_single_effect_splash)
+				{
+					ImGui::Text("Effect loaded.");
+				}
+				else
+				{
+					ImGui::TextUnformatted("Press '");
+					ImGui::SameLine(0.0f, 0.0f);
+					ImGui::TextColored(ImVec4(1, 1, 1, 1), "%s", input::key_name(_menu_key_data).c_str());
+					ImGui::SameLine(0.0f, 0.0f);
+					ImGui::TextUnformatted("' to open the configuration menu.");
+				}
 			}
 
 			if (!_last_reload_successful)
