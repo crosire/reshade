@@ -255,6 +255,9 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	dispatch_table.ResetFences = (PFN_vkResetFences)gdpa(device, "vkResetFences");
 	dispatch_table.GetFenceStatus = (PFN_vkGetFenceStatus)gdpa(device, "vkGetFenceStatus");
 	dispatch_table.WaitForFences = (PFN_vkWaitForFences)gdpa(device, "vkWaitForFences");
+	dispatch_table.CreateQueryPool = (PFN_vkCreateQueryPool)gdpa(device, "vkCreateQueryPool");
+	dispatch_table.DestroyQueryPool = (PFN_vkDestroyQueryPool)gdpa(device, "vkDestroyQueryPool");
+	dispatch_table.GetQueryPoolResults = (PFN_vkGetQueryPoolResults)gdpa(device, "vkGetQueryPoolResults");
 	dispatch_table.CreateBuffer = (PFN_vkCreateBuffer)gdpa(device, "vkCreateBuffer");
 	dispatch_table.DestroyBuffer = (PFN_vkDestroyBuffer)gdpa(device, "vkDestroyBuffer");
 	dispatch_table.CreateImage = (PFN_vkCreateImage)gdpa(device, "vkCreateImage");
@@ -306,6 +309,8 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	dispatch_table.CmdClearDepthStencilImage = (PFN_vkCmdClearDepthStencilImage)gdpa(device, "vkCmdClearDepthStencilImage");
 	dispatch_table.CmdClearAttachments = (PFN_vkCmdClearAttachments)gdpa(device, "vkCmdClearAttachments");
 	dispatch_table.CmdPipelineBarrier = (PFN_vkCmdPipelineBarrier)gdpa(device, "vkCmdPipelineBarrier");
+	dispatch_table.CmdResetQueryPool = (PFN_vkCmdResetQueryPool)gdpa(device, "vkCmdResetQueryPool");
+	dispatch_table.CmdWriteTimestamp = (PFN_vkCmdWriteTimestamp)gdpa(device, "vkCmdWriteTimestamp");
 	dispatch_table.CmdPushConstants = (PFN_vkCmdPushConstants)gdpa(device, "vkCmdPushConstants");
 	dispatch_table.CmdBeginRenderPass = (PFN_vkCmdBeginRenderPass)gdpa(device, "vkCmdBeginRenderPass");
 	dispatch_table.CmdEndRenderPass = (PFN_vkCmdEndRenderPass)gdpa(device, "vkCmdEndRenderPass");
