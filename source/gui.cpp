@@ -1880,6 +1880,9 @@ void reshade::runtime::draw_overlay_variable_editor()
 		{
 			current_category = category;
 
+			if(variable.special == special_uniform::effect_preprocessor)
+				ImGui::PushStyleColor(ImGuiCol_Text, COLOR_YELLOW);
+
 			if (!category.empty())
 			{
 				std::string label(category.data(), category.size());
@@ -1897,6 +1900,9 @@ void reshade::runtime::draw_overlay_variable_editor()
 			{
 				current_category_is_closed = false;
 			}
+
+			if (variable.special == special_uniform::effect_preprocessor)
+				ImGui::PopStyleColor();
 		}
 
 		// Skip rendering invisible items
@@ -2044,6 +2050,8 @@ void reshade::runtime::draw_overlay_variable_editor()
 				
 			ImGui::BeginGroup();
 
+			ImGui::PushStyleColor(ImGuiCol_Text, COLOR_YELLOW);
+
 			const size_t equals_index = preprocessor_definitions.find('=');
 			preprocessor_definitions.copy(name, std::min(equals_index, sizeof(name) - 1));
 			if (equals_index != std::string::npos)
@@ -2076,6 +2084,8 @@ void reshade::runtime::draw_overlay_variable_editor()
 
 			ImGui::SameLine(0, button_spacing);
 			ImGui::TextUnformatted(name);
+
+			ImGui::PopStyleColor();
 
 			ImGui::EndGroup();
 			p_index++;
