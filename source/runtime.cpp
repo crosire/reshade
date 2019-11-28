@@ -36,7 +36,6 @@ static inline std::string trim(const std::string& str, const char* chars = " \t"
 	return res;
 }
 
-
 static inline std::filesystem::path absolute_path(std::filesystem::path path)
 {
 	std::error_code ec;
@@ -64,6 +63,33 @@ static inline bool check_preset_path(std::filesystem::path preset_path)
 		return true; // A non-existent path is valid for a new preset
 
 	return reshade::ini_file::load_cache(preset_path).has({}, "Techniques");
+}
+
+static inline reshadefx::uniform_info effect_preprocessor_definition_to_uniform(std::string name, reshadefx::constant initializer_value)
+{
+	reshadefx::uniform_info effect_preprocessor_uniform;
+	effect_preprocessor_uniform.name = name;
+	reshadefx::constant preprocessor_constant = {};
+	preprocessor_constant.string_data = "Effect preprocessors";
+	std::pair<reshadefx::type, reshadefx::constant> annotation_info;
+	reshadefx::type type = {};
+	type.rows = type.cols = 0;
+	type.base = reshadefx::type::t_string;
+	reshadefx::constant category = {};
+	category.string_data = "Effect Preprocessor definitions";
+	annotation_info.first = type;
+	annotation_info.second = category;
+	effect_preprocessor_uniform.annotations.emplace("ui_category", annotation_info);
+	reshadefx::constant source = {};
+	source.string_data = "effect preprocessor";
+	annotation_info.first = type;
+	annotation_info.second = source;
+	effect_preprocessor_uniform.annotations.emplace("source", annotation_info);
+	effect_preprocessor_uniform.has_initializer_value = true;
+	effect_preprocessor_uniform.type = type;
+	effect_preprocessor_uniform.initializer_value = initializer_value;
+
+	return effect_preprocessor_uniform;
 }
 
 static bool find_file(const std::vector<std::filesystem::path> &search_paths, std::filesystem::path &path)
@@ -443,31 +469,12 @@ void reshade::runtime::load_effect(const std::filesystem::path &path, size_t ind
 	   
 	for (const auto& definition : displayable_macros)
 	{
-		reshadefx::uniform_info preprocessor_uniform;
-		preprocessor_uniform.name = definition.first;
-		reshadefx::constant preprocessor_constant = {};
-		preprocessor_constant.string_data = "Effect preprocessors";
-		std::pair<reshadefx::type, reshadefx::constant> annotation_info;
-		reshadefx::type type = {};
-		type.rows = type.cols = 0;
-		type.base = reshadefx::type::t_string;
-		reshadefx::constant constant = {};
-		constant.string_data = "Effect Preprocessor definitions";
-		annotation_info.first = type;
-		annotation_info.second = constant;
-		preprocessor_uniform.annotations.emplace("ui_category", annotation_info);
-		constant.string_data = "effect preprocessor";
-		annotation_info.first = type;
-		annotation_info.second = constant;
-		preprocessor_uniform.annotations.emplace("source", annotation_info);
-		preprocessor_uniform.has_initializer_value = true;
-		preprocessor_uniform.type = type;
-		constant = {};
-		constant.string_data = trim(definition.second.replacement_list);
-		preprocessor_uniform.initializer_value = constant;
+		reshadefx::constant initializer_value = {};
+		initializer_value.string_data = trim(definition.second.replacement_list);
+		reshadefx::uniform_info preprocessor_uniform = effect_preprocessor_definition_to_uniform(definition.first, initializer_value);
 		effect.module.uniforms.push_back(preprocessor_uniform);
 		// std::rotate(effect.module.uniforms.rbegin(), effect.module.uniforms.rbegin() + 1, effect.module.uniforms.rend());
-		effect.preprocessor_definitions.push_back(preprocessor_uniform.name + "=" + constant.string_data);
+		effect.preprocessor_definitions.push_back(preprocessor_uniform.name + "=" + initializer_value.string_data);
 	}
 
 	std::vector<uniform> new_uniforms;
@@ -1604,7 +1611,7 @@ void reshade::runtime::set_uniform_value(uniform &variable, const float *values,
 	set_uniform_value(variable, reinterpret_cast<const uint8_t *>(data), count * sizeof(int32_t));
 }
 
-void reshade::runtime::reset_uniform_value(uniform &variable)
+void reshade::runtime::reset_uniform_value(uniform& variable)
 {
 	if (!variable.has_initializer_value)
 	{
@@ -1620,14 +1627,14 @@ void reshade::runtime::reset_uniform_value(uniform &variable)
 			switch (variable.type.base)
 			{
 			case reshadefx::type::t_int:
-				reinterpret_cast<float *>(_uniform_data_storage.data() + variable.storage_offset)[i] = static_cast<float>(variable.initializer_value.as_int[i]);
+				reinterpret_cast<float*>(_uniform_data_storage.data() + variable.storage_offset)[i] = static_cast<float>(variable.initializer_value.as_int[i]);
 				break;
 			case reshadefx::type::t_bool:
 			case reshadefx::type::t_uint:
-				reinterpret_cast<float *>(_uniform_data_storage.data() + variable.storage_offset)[i] = static_cast<float>(variable.initializer_value.as_uint[i]);
+				reinterpret_cast<float*>(_uniform_data_storage.data() + variable.storage_offset)[i] = static_cast<float>(variable.initializer_value.as_uint[i]);
 				break;
 			case reshadefx::type::t_float:
-				reinterpret_cast<float *>(_uniform_data_storage.data() + variable.storage_offset)[i] = variable.initializer_value.as_float[i];
+				reinterpret_cast<float*>(_uniform_data_storage.data() + variable.storage_offset)[i] = variable.initializer_value.as_float[i];
 				break;
 			}
 		}
