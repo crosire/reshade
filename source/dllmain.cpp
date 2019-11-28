@@ -18,11 +18,17 @@ extern std::filesystem::path get_system_path()
 	static std::filesystem::path system_path;
 	if (!system_path.empty())
 		return system_path; // Return the cached system path
-	TCHAR buf[MAX_PATH] = TEXT("");
-	if (!GetEnvironmentVariable(TEXT("RESHADE_MODULE_PATH_OVERRIDE"), buf, ARRAYSIZE(buf))
-		|| *buf == TEXT('\0')) // Empty string
-		GetSystemDirectory(buf, ARRAYSIZE(buf)); // First try environment variable, use system directory if it does not exist
-	return system_path = buf;
+
+	std::wstring buf(32767, L'\0'); // 32767 > MAX_PATH
+	if (GetEnvironmentVariableW(L"RESHADE_MODULE_PATH_OVERRIDE", buf.data(), buf.size()) == 0 || buf.empty()) // Not exist or empty string
+		GetSystemDirectoryW(buf.data(), buf.size()); // First try environment variable, use system directory if it does not exist
+
+	if (system_path = buf.data(); system_path.has_stem()) // Remove '\0' from the path buffer for adding path string
+		system_path += L'\\';
+	if (system_path.is_relative())
+		system_path = g_target_executable_path.parent_path() / system_path;
+
+	return system_path = system_path.lexically_normal();
 }
 
 static inline std::filesystem::path get_module_path(HMODULE module)
