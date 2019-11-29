@@ -627,6 +627,8 @@ void reshade::runtime::load_effect(const std::filesystem::path &path, size_t ind
 			LOG(INFO) << "Successfully loaded " << path << '.';
 		else
 			LOG(WARN) << "Successfully loaded " << path << " with warnings:\n" << effect.errors;
+	else
+		effect.preprocessor_definitions.clear();
 
 	{	const std::lock_guard<std::mutex> lock(_reload_mutex);
 		std::move(new_uniforms.begin(), new_uniforms.end(), std::back_inserter(_uniforms));
@@ -1239,7 +1241,10 @@ void reshade::runtime::load_current_preset()
 	{
 		effect &effect = _loaded_effects[variable.effect_index];
 		const std::string section = effect.source_file.filename().u8string();
-		preset.get(section, "PreprocessorDefinitions", effect.preprocessor_definitions);
+		std::vector<std::string> effect_preprocessor_definitions;
+		preset.get(section, "PreprocessorDefinitions", effect_preprocessor_definitions);
+		if (!effect_preprocessor_definitions.empty())
+			effect.preprocessor_definitions = effect_preprocessor_definitions;
 
 		if (variable.supports_toggle_key())
 		{

@@ -2073,16 +2073,21 @@ void reshade::runtime::draw_overlay_variable_editor()
 			char value[128] = "";
 			const float button_size = ImGui::GetFrameHeight();
 			const float button_spacing = ImGui::GetStyle().ItemInnerSpacing.x;
-			std::string preprocessor_definition = _loaded_effects[variable.effect_index].preprocessor_definitions[p_index];
+			std::string preprocessor_definition = "";
+			bool reload_effect = false;
+
+			if (!_loaded_effects[variable.effect_index].preprocessor_definitions.empty())
+			{
+				preprocessor_definition = _loaded_effects[variable.effect_index].preprocessor_definitions[p_index];
+				const size_t equals_index = preprocessor_definition.find('=');
+				preprocessor_definition.copy(name, std::min(equals_index, sizeof(name) - 1));
+				if (equals_index != std::string::npos)
+					preprocessor_definition.copy(value, sizeof(value) - 1, equals_index + 1);
+			}
 				
 			ImGui::BeginGroup();
 
 			ImGui::PushStyleColor(ImGuiCol_Text, COLOR_YELLOW);
-
-			const size_t equals_index = preprocessor_definition.find('=');
-			preprocessor_definition.copy(name, std::min(equals_index, sizeof(name) - 1));
-			if (equals_index != std::string::npos)
-				preprocessor_definition.copy(value, sizeof(value) - 1, equals_index + 1);
 
 			ImGui::PushID(static_cast<int>(index));
 
@@ -2107,6 +2112,29 @@ void reshade::runtime::draw_overlay_variable_editor()
 			}
 
 			if (imgui_toggle_button("Apply", _effect_preprocessor_modified))
+				reload_effect = true;
+
+			ImGui::PopStyleColor();
+			ImGui::PushStyleColor(ImGuiCol_Text, COLOR_YELLOW);
+
+			ImGui::SameLine(0, button_spacing);
+			ImGui::TextUnformatted(name);
+
+			if (p_index >= (_loaded_effects[variable.effect_index].preprocessor_definitions.size() - 1))
+				if (ImGui::Button("Reset preprocessor definitions", ImVec2(ImGui::CalcItemWidth() - (button_spacing + button_size), 0)))
+				{
+					_loaded_effects[variable.effect_index].preprocessor_definitions.clear();
+					reload_effect = true;
+				}
+
+			ImGui::PopStyleColor();
+
+			ImGui::PopID();
+
+			ImGui::EndGroup();
+			p_index++;
+
+			if (reload_effect)
 			{
 				size_t current_effect_index = variable.effect_index;
 				const std::filesystem::path source_file = _loaded_effects[variable.effect_index].source_file;
@@ -2128,19 +2156,6 @@ void reshade::runtime::draw_overlay_variable_editor()
 
 				preprocessor_modified = _effect_preprocessor_modified = false;
 			}
-
-			ImGui::PopStyleColor();
-			ImGui::PushStyleColor(ImGuiCol_Text, COLOR_YELLOW);
-
-			ImGui::SameLine(0, button_spacing);
-			ImGui::TextUnformatted(name);
-
-			ImGui::PopStyleColor();
-
-			ImGui::PopID();
-
-			ImGui::EndGroup();
-			p_index++;
 		}
 
 		// A value has changed, so save the current preset
