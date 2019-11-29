@@ -1825,6 +1825,8 @@ void reshade::runtime::draw_overlay_variable_editor()
 	}
 
 	ImGui::PushItemWidth(ImGui::GetWindowWidth() * 0.5f);
+	const float button_size = ImGui::GetFrameHeight();
+	const float button_spacing = ImGui::GetStyle().ItemInnerSpacing.x;
 	size_t p_index = 0;
 
 	for (size_t index = 0; index < _uniforms.size(); ++index)
@@ -2071,8 +2073,6 @@ void reshade::runtime::draw_overlay_variable_editor()
 		{
 			char name[128] = "";
 			char value[128] = "";
-			const float button_size = ImGui::GetFrameHeight();
-			const float button_spacing = ImGui::GetStyle().ItemInnerSpacing.x;
 			std::string preprocessor_definition = "";
 			bool reload_effect = false;
 
@@ -2161,6 +2161,93 @@ void reshade::runtime::draw_overlay_variable_editor()
 		// A value has changed, so save the current preset
 		if (modified)
 			save_current_preset();
+	}
+
+	for (size_t index = 0; index < _uniforms.size(); ++index)
+	{
+		uniform& variable = _uniforms[index];
+		bool reload_effect = false;
+
+		// Skip hidden and special variables
+		if (variable.annotation_as_int("hidden") || (variable.special != special_uniform::none && variable.special != special_uniform::effect_preprocessor))
+			continue;
+
+		// Hide variables that are not currently used in any of the active effects
+		if (!_loaded_effects[variable.effect_index].compile_sucess && variable.special == special_uniform::effect_preprocessor)
+		{
+			ImGui::PushStyleColor(ImGuiCol_Text, COLOR_RED);
+
+			// Create separate tab for every effect file
+			if (variable.effect_index != current_effect)
+			{
+				current_effect = variable.effect_index;
+				p_index = 0;
+
+				const bool is_focused = _focused_effect == variable.effect_index;
+
+				const std::string filename = _loaded_effects[current_effect].source_file.filename().u8string();
+
+				if (_variable_editor_tabs)
+				{
+					if (current_tree_is_open)
+						ImGui::EndTabItem();
+
+					current_tree_is_open = ImGui::BeginTabItem(filename.c_str());
+				}
+				else
+				{
+					if (current_tree_is_open)
+						ImGui::TreePop();
+
+					if (is_focused || _effects_expanded_state & 1)
+						ImGui::SetNextItemOpen(is_focused || (_effects_expanded_state >> 1) != 0);
+
+					current_tree_is_open = ImGui::TreeNodeEx(filename.c_str(), ImGuiTreeNodeFlags_DefaultOpen);
+				}
+
+				if (is_focused)
+				{
+					ImGui::SetScrollHereY(0.0f);
+					_focused_effect = std::numeric_limits<size_t>::max();
+				}
+			}
+
+			// Skip rendering invisible items
+			if (!current_tree_is_open)
+				continue;
+
+			ImGui::PushID(static_cast<int>(index));
+
+			if (p_index >= (_loaded_effects[variable.effect_index].preprocessor_definitions.size() - 1))
+				if (ImGui::Button("Reset preprocessor definitions", ImVec2(ImGui::CalcItemWidth() - (button_spacing + button_size), 0)))
+				{
+					_loaded_effects[variable.effect_index].preprocessor_definitions.clear();
+					size_t current_effect_index = variable.effect_index;
+					const std::filesystem::path source_file = _loaded_effects[variable.effect_index].source_file;
+					const std::string section = _loaded_effects[variable.effect_index].source_file.filename().u8string();
+					reshade::ini_file& preset = ini_file::load_cache(_current_preset_path);
+					preset.set(section, "PreprocessorDefinitions", _loaded_effects[variable.effect_index].preprocessor_definitions);
+					_show_single_effect_splash = true;
+					_show_splash = !_show_single_effect_splash;
+
+					// Reload effect file
+					_textures_loaded = false;
+					_reload_total_effects = 1;
+					_reload_remaining_effects = 1;
+					_reload_compile_queue.push_back(current_effect_index);
+					unload_effect(current_effect_index);
+					load_effect(source_file, current_effect_index);
+					assert(_reload_remaining_effects == 0);
+
+					// Reloading an effect file invalidates all textures, but the statistics window may already have drawn references to those, so need to reset it
+					ImGui::FindWindowByName("Statistics")->DrawList->CmdBuffer.clear();
+				}
+
+			ImGui::PopStyleColor();
+
+			ImGui::PopID();
+			p_index++;
+		}
 	}
 
 	ImGui::PopItemWidth();

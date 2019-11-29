@@ -627,8 +627,6 @@ void reshade::runtime::load_effect(const std::filesystem::path &path, size_t ind
 			LOG(INFO) << "Successfully loaded " << path << '.';
 		else
 			LOG(WARN) << "Successfully loaded " << path << " with warnings:\n" << effect.errors;
-	else
-		effect.preprocessor_definitions.clear();
 
 	{	const std::lock_guard<std::mutex> lock(_reload_mutex);
 		std::move(new_uniforms.begin(), new_uniforms.end(), std::back_inserter(_uniforms));
