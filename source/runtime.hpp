@@ -249,6 +249,12 @@ namespace reshade
 
 		/// <summary>
 		/// Create a copy of the current frame and write it to an image file on disk.
+		/// <param name="variable">Uniform variable of the effect</param>
+		/// </summary>
+		void save_effect_preprocessor_definitions(uniform variable);
+
+		/// <summary>
+		/// Create a copy of the current frame and write it to an image file on disk.
 		/// </summary>
 		void save_screenshot(const std::wstring &postfix = std::wstring(), bool should_save_preset = false);
 

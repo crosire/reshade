@@ -2136,24 +2136,7 @@ void reshade::runtime::draw_overlay_variable_editor()
 
 			if (reload_effect)
 			{
-				size_t current_effect_index = variable.effect_index;
-				const std::filesystem::path source_file = _loaded_effects[variable.effect_index].source_file;
-				save_current_preset();
-				_show_single_effect_splash = true;
-				_show_splash = !_show_single_effect_splash;
-
-				// Reload effect file
-				_textures_loaded = false;
-				_reload_total_effects = 1;
-				_reload_remaining_effects = 1;
-				_reload_compile_queue.push_back(current_effect_index);
-				unload_effect(current_effect_index);
-				load_effect(source_file, current_effect_index);
-				assert(_reload_remaining_effects == 0);
-
-				// Reloading an effect file invalidates all textures, but the statistics window may already have drawn references to those, so need to reset it
-				ImGui::FindWindowByName("Statistics")->DrawList->CmdBuffer.clear();
-
+				save_effect_preprocessor_definitions(variable);
 				preprocessor_modified = _effect_preprocessor_modified = false;
 			}
 		}
@@ -2222,25 +2205,7 @@ void reshade::runtime::draw_overlay_variable_editor()
 				if (ImGui::Button("Reset preprocessor definitions", ImVec2(ImGui::CalcItemWidth() - (button_spacing + button_size), 0)))
 				{
 					_loaded_effects[variable.effect_index].preprocessor_definitions.clear();
-					size_t current_effect_index = variable.effect_index;
-					const std::filesystem::path source_file = _loaded_effects[variable.effect_index].source_file;
-					const std::string section = _loaded_effects[variable.effect_index].source_file.filename().u8string();
-					reshade::ini_file& preset = ini_file::load_cache(_current_preset_path);
-					preset.set(section, "PreprocessorDefinitions", _loaded_effects[variable.effect_index].preprocessor_definitions);
-					_show_single_effect_splash = true;
-					_show_splash = !_show_single_effect_splash;
-
-					// Reload effect file
-					_textures_loaded = false;
-					_reload_total_effects = 1;
-					_reload_remaining_effects = 1;
-					_reload_compile_queue.push_back(current_effect_index);
-					unload_effect(current_effect_index);
-					load_effect(source_file, current_effect_index);
-					assert(_reload_remaining_effects == 0);
-
-					// Reloading an effect file invalidates all textures, but the statistics window may already have drawn references to those, so need to reset it
-					ImGui::FindWindowByName("Statistics")->DrawList->CmdBuffer.clear();
+					save_effect_preprocessor_definitions(variable);
 				}
 
 			ImGui::PopStyleColor();
@@ -2800,6 +2765,30 @@ void reshade::runtime::open_file_in_editor(size_t effect_index, const std::files
 
 		_editor.add_error(error_line, error_text, error_text.find("warning") != std::string::npos);
 	}
+}
+
+void reshade::runtime::save_effect_preprocessor_definitions(uniform variable)
+{
+	size_t current_effect_index = variable.effect_index;
+	const effect effect = _loaded_effects[current_effect_index];
+	const std::filesystem::path source_file = effect.source_file;
+	const std::string section = effect.source_file.filename().u8string();
+	reshade::ini_file& preset = ini_file::load_cache(_current_preset_path);
+	preset.set(section, "PreprocessorDefinitions", effect.preprocessor_definitions);
+	_show_single_effect_splash = true;
+	_show_splash = !_show_single_effect_splash;
+
+	// Reload effect file
+	_textures_loaded = false;
+	_reload_total_effects = 1;
+	_reload_remaining_effects = 1;
+	_reload_compile_queue.push_back(current_effect_index);
+	unload_effect(current_effect_index);
+	load_effect(source_file, current_effect_index);
+	assert(_reload_remaining_effects == 0);
+
+	// Reloading an effect file invalidates all textures, but the statistics window may already have drawn references to those, so need to reset it
+	ImGui::FindWindowByName("Statistics")->DrawList->CmdBuffer.clear();
 }
 
 #endif
