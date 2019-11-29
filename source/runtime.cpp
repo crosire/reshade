@@ -241,7 +241,11 @@ void reshade::runtime::on_present()
 		if (!is_loading() && _reload_compile_queue.empty())
 		{
 			if (_input->is_key_pressed(_reload_key_data))
+			{
+				if (_effect_preprocessor_modified)
+					save_current_preset();
 				load_effects();
+			}
 
 			if (const bool reversed = _input->is_key_pressed(_prev_preset_key_data);
 				_input->is_key_pressed(_next_preset_key_data) || reversed)
@@ -252,6 +256,8 @@ void reshade::runtime::on_present()
 					_last_preset_switching_time = current_time;
 					_is_in_between_presets_transition = true;
 					save_config();
+					if (_effect_preprocessor_modified)
+						save_current_preset();
 				}
 			}
 
@@ -339,31 +345,33 @@ void reshade::runtime::load_effect(const std::filesystem::path &path, size_t ind
 				pp.add_macro_definition(definition);
 		}
 
+		// load effect preprocessor definitions
+		const reshade::ini_file& preset = ini_file::load_cache(_current_preset_path);
+		const std::string section = effect.source_file.filename().u8string();
+		preset.get(section, "PreprocessorDefinitions", effect.preprocessor_definitions);
+
 		// init _displayable_macros definition
 		pp.clear_displayable_macros();
 
-		if (!_current_preset_path.empty())
+		for (const auto& definition : effect.preprocessor_definitions)
 		{
-			for (const auto& definition : effect.preprocessor_definitions)
-			{
-				if (definition.empty())
-					continue; // Skip invalid definitions
+			if (definition.empty())
+				continue; // Skip invalid definitions
 
-				const size_t equals_index = definition.find('=');
-				if (equals_index != std::string::npos)
-				{
-					pp.add_macro_definition(
-						definition.substr(0, equals_index),
-						definition.substr(equals_index + 1));
-					pp.add_displayable_macro_definition(
-						definition.substr(0, equals_index),
-						definition.substr(equals_index + 1));
-				}
-				else
-				{
-					pp.add_macro_definition(definition);
-					pp.add_displayable_macro_definition(definition);
-				}
+			const size_t equals_index = definition.find('=');
+			if (equals_index != std::string::npos)
+			{
+				pp.add_macro_definition(
+					definition.substr(0, equals_index),
+					definition.substr(equals_index + 1));
+				pp.add_displayable_macro_definition(
+					definition.substr(0, equals_index),
+					definition.substr(equals_index + 1));
+			}
+			else
+			{
+				pp.add_macro_definition(definition);
+				pp.add_displayable_macro_definition(definition);
 			}
 		}
 
@@ -413,6 +421,8 @@ void reshade::runtime::load_effect(const std::filesystem::path &path, size_t ind
 
 		// Write result to effect module
 		codegen->write_result(effect.module);
+
+		_effect_preprocessor_modified = false;
 	}
 
 	// Fill all specialization constants with values from the current preset

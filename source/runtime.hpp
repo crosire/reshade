@@ -289,6 +289,7 @@ namespace reshade
 		bool _last_reload_successful = true;
 		bool _should_save_screenshot = false;
 		bool _is_in_between_presets_transition = false;
+		bool _effect_preprocessor_modified = false;
 		std::mutex _reload_mutex;
 		size_t _reload_total_effects = 1;
 		std::vector<size_t> _reload_compile_queue;

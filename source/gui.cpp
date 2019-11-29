@@ -25,6 +25,8 @@ static char g_reshadegui_ini_path[260 * 3] = {};
 
 const ImVec4 COLOR_RED = ImColor(240, 100, 100);
 const ImVec4 COLOR_YELLOW = ImColor(204, 204, 0);
+const ImVec4 COLOR_GREEN = ImColor(0, 204, 0);
+const ImVec4 COLOR_BLACK = ImColor(0, 0, 0);
 
 void reshade::runtime::init_ui()
 {
@@ -948,6 +950,9 @@ void reshade::runtime::draw_overlay_menu_home()
 		{
 			_show_splash = true;
 			_effect_filter_buffer[0] = '\0'; // Reset filter
+			
+			if (_effect_preprocessor_modified)
+				save_current_preset();
 
 			load_effects();
 		}
@@ -958,6 +963,9 @@ void reshade::runtime::draw_overlay_menu_home()
 		{
 			_show_splash = true;
 			_effect_filter_buffer[0] = '\0'; // Reset filter
+			
+			if (_effect_preprocessor_modified)
+				save_current_preset();
 
 			save_config();
 			load_effects(); // Reload effects after switching
@@ -2065,16 +2073,16 @@ void reshade::runtime::draw_overlay_variable_editor()
 			char value[128] = "";
 			const float button_size = ImGui::GetFrameHeight();
 			const float button_spacing = ImGui::GetStyle().ItemInnerSpacing.x;
-			std::string preprocessor_definitions = _loaded_effects[variable.effect_index].preprocessor_definitions[p_index];
+			std::string preprocessor_definition = _loaded_effects[variable.effect_index].preprocessor_definitions[p_index];
 				
 			ImGui::BeginGroup();
 
 			ImGui::PushStyleColor(ImGuiCol_Text, COLOR_YELLOW);
 
-			const size_t equals_index = preprocessor_definitions.find('=');
-			preprocessor_definitions.copy(name, std::min(equals_index, sizeof(name) - 1));
+			const size_t equals_index = preprocessor_definition.find('=');
+			preprocessor_definition.copy(name, std::min(equals_index, sizeof(name) - 1));
 			if (equals_index != std::string::npos)
-				preprocessor_definitions.copy(value, sizeof(value) - 1, equals_index + 1);
+				preprocessor_definition.copy(value, sizeof(value) - 1, equals_index + 1);
 
 			ImGui::PushID(static_cast<int>(index));
 
@@ -2087,9 +2095,18 @@ void reshade::runtime::draw_overlay_variable_editor()
 			ImGui::SameLine(0, button_spacing);
 
 			if (preprocessor_modified)
+			{
 				_loaded_effects[variable.effect_index].preprocessor_definitions[p_index] = std::string(name) + '=' + std::string(value);
+				_effect_preprocessor_modified = true;
+			}
 
-			if (ImGui::Button("OK"))
+			if (_effect_preprocessor_modified)
+			{
+				ImGui::PopStyleColor();
+				ImGui::PushStyleColor(ImGuiCol_Text, COLOR_BLACK);
+			}
+
+			if (imgui_toggle_button("Apply", _effect_preprocessor_modified))
 			{
 				size_t current_effect_index = variable.effect_index;
 				const std::filesystem::path source_file = _loaded_effects[variable.effect_index].source_file;
@@ -2109,15 +2126,18 @@ void reshade::runtime::draw_overlay_variable_editor()
 				// Reloading an effect file invalidates all textures, but the statistics window may already have drawn references to those, so need to reset it
 				ImGui::FindWindowByName("Statistics")->DrawList->CmdBuffer.clear();
 
-				preprocessor_modified = false;
+				preprocessor_modified = _effect_preprocessor_modified = false;
 			}
 
-			ImGui::PopID();
+			ImGui::PopStyleColor();
+			ImGui::PushStyleColor(ImGuiCol_Text, COLOR_YELLOW);
 
 			ImGui::SameLine(0, button_spacing);
 			ImGui::TextUnformatted(name);
 
 			ImGui::PopStyleColor();
+
+			ImGui::PopID();
 
 			ImGui::EndGroup();
 			p_index++;
