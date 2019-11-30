@@ -25,6 +25,8 @@ void reshade::d3d10::buffer_detection::reset(bool release_resources)
 {
 	_stats.vertices = 0;
 	_stats.drawcalls = 0;
+	_best_copy_stats.vertices = 0;
+	_best_copy_stats.drawcalls = 0;
 #if RESHADE_DX10_CAPTURE_DEPTH_BUFFERS
 	_counters_per_used_depth_texture.clear();
 
@@ -93,6 +95,8 @@ void reshade::d3d10::buffer_detection::on_draw(UINT vertices)
 #if RESHADE_DX10_CAPTURE_DEPTH_BUFFERS
 void reshade::d3d10::buffer_detection::on_clear_depthstencil(UINT clear_flags, ID3D10DepthStencilView *dsv)
 {
+	bool bcopy = false;
+
 	if ((clear_flags & D3D10_CLEAR_DEPTH) == 0)
 		return;
 
@@ -108,15 +112,24 @@ void reshade::d3d10::buffer_detection::on_clear_depthstencil(UINT clear_flags, I
 
 	counters.clears.push_back(counters.current_stats);
 
+	// Make a backup copy of the depth texture before it is cleared
+	if (_auto_copy)
+	{
+		if (counters.current_stats.vertices >= _best_copy_stats.vertices)
+		{
+			bcopy = true;
+			_best_copy_stats = counters.current_stats;
+		}
+	}
+	else if (counters.clears.size() == _depthstencil_clear_index.second)
+		bcopy = true;
+
+	if (bcopy)
+		_device->CopyResource(_depthstencil_clear_texture.get(), dsv_texture.get());
+
 	// Reset draw call stats for clears
 	counters.current_stats.vertices = 0;
 	counters.current_stats.drawcalls = 0;
-
-	// Make a backup copy of the depth texture before it is cleared
-	if (counters.clears.size() == _depthstencil_clear_index.second)
-	{
-		_device->CopyResource(_depthstencil_clear_texture.get(), dsv_texture.get());
-	}
 }
 
 bool reshade::d3d10::buffer_detection::update_depthstencil_clear_texture(D3D10_TEXTURE2D_DESC desc)
@@ -148,6 +161,7 @@ com_ptr<ID3D10Texture2D> reshade::d3d10::buffer_detection::find_best_depth_textu
 {
 	depthstencil_info best_snapshot;
 	com_ptr<ID3D10Texture2D> best_match;
+	_auto_copy = clear_index_override == std::numeric_limits<UINT>::max();
 
 	if (override != nullptr)
 	{

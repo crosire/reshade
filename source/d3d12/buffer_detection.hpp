@@ -45,6 +45,8 @@ namespace reshade::d3d12
 		ID3D12Device *_device = nullptr;
 		const buffer_detection_context *_context = nullptr;
 		draw_stats _stats;
+		draw_stats _best_copy_stats;
+		bool _auto_copy = false;
 #if RESHADE_DX12_CAPTURE_DEPTH_BUFFERS
 		com_ptr<ID3D12Resource> _current_depthstencil;
 		// Use "std::map" instead of "std::unordered_map" so that the iteration order is guaranteed

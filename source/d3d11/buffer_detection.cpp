@@ -160,7 +160,10 @@ void reshade::d3d11::buffer_detection::on_clear_depthstencil(UINT clear_flags, I
 	if (_auto_copy)
 	{
 		if (counters.current_stats.vertices >= _best_copy_stats.vertices)
+		{
 			bcopy = true;
+			_best_copy_stats = counters.current_stats;
+		}
 	}
 	else if (counters.clears.size() == _context->_depthstencil_clear_index.second)
 		bcopy = true;

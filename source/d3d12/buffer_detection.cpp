@@ -21,6 +21,8 @@ void reshade::d3d12::buffer_detection::reset()
 {
 	_stats.vertices = 0;
 	_stats.drawcalls = 0;
+	_best_copy_stats.vertices = 0;
+	_best_copy_stats.drawcalls = 0;
 #if RESHADE_DX12_CAPTURE_DEPTH_BUFFERS
 	_current_depthstencil.reset();
 	_counters_per_used_depth_texture.clear();
@@ -88,6 +90,7 @@ void reshade::d3d12::buffer_detection::on_set_depthstencil(D3D12_CPU_DESCRIPTOR_
 void reshade::d3d12::buffer_detection::on_clear_depthstencil(ID3D12GraphicsCommandList *cmd_list, D3D12_CLEAR_FLAGS clear_flags, D3D12_CPU_DESCRIPTOR_HANDLE dsv)
 {
 	assert(_context != nullptr);
+	bool bcopy = false;
 
 	if ((clear_flags & D3D12_CLEAR_FLAG_DEPTH) == 0)
 		return;
@@ -104,13 +107,20 @@ void reshade::d3d12::buffer_detection::on_clear_depthstencil(ID3D12GraphicsComma
 
 	counters.clears.push_back(counters.current_stats);
 
-	// Reset draw call stats for clears
-	counters.current_stats.vertices = 0;
-	counters.current_stats.drawcalls = 0;
-
 	// Make a backup copy of the depth texture before it is cleared
 	// This is not really correct, since clears may accumulate over multiple command lists, but it's unlikely that the same depth stencil is used in more than one
-	if (counters.clears.size() == _context->_depthstencil_clear_index.second)
+	if (_auto_copy)
+	{
+		if (counters.current_stats.vertices >= _best_copy_stats.vertices)
+		{
+			bcopy = true;
+			_best_copy_stats = counters.current_stats;
+		}
+	}
+	else if (counters.clears.size() == _context->_depthstencil_clear_index.second)
+		bcopy = true;
+
+	if (bcopy)
 	{
 		D3D12_RESOURCE_BARRIER transition = { D3D12_RESOURCE_BARRIER_TYPE_TRANSITION };
 		transition.Transition.pResource = _context->_depthstencil_clear_texture.get();
@@ -125,6 +135,10 @@ void reshade::d3d12::buffer_detection::on_clear_depthstencil(ID3D12GraphicsComma
 		transition.Transition.StateAfter = D3D12_RESOURCE_STATE_COMMON;
 		cmd_list->ResourceBarrier(1, &transition);
 	}
+
+	// Reset draw call stats for clears
+	counters.current_stats.vertices = 0;
+	counters.current_stats.drawcalls = 0;
 }
 
 void reshade::d3d12::buffer_detection_context::on_create_dsv(ID3D12Resource *dsv_texture, D3D12_CPU_DESCRIPTOR_HANDLE handle)
@@ -179,6 +193,7 @@ com_ptr<ID3D12Resource> reshade::d3d12::buffer_detection_context::find_best_dept
 {
 	depthstencil_info best_snapshot;
 	com_ptr<ID3D12Resource> best_match;
+	_auto_copy = clear_index_override == std::numeric_limits<UINT>::max();
 
 	if (override != nullptr)
 	{
