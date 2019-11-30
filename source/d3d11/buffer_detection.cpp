@@ -150,8 +150,8 @@ void reshade::d3d11::buffer_detection::on_clear_depthstencil(UINT clear_flags, I
 	auto &counters = _counters_per_used_depth_texture[dsv_texture];
 
 	// Ignore clears when there was no meaningful workload
-	if (counters.current_stats.drawcalls == 0)
-		return;
+	// if (counters.current_stats.drawcalls == 0)
+		// return;
 
 	counters.clears.push_back(counters.current_stats);
 
