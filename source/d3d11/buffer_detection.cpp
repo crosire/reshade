@@ -31,6 +31,8 @@ void reshade::d3d11::buffer_detection::reset()
 {
 	_stats.vertices = 0;
 	_stats.drawcalls = 0;
+	_best_copy_stats.vertices = 0;
+	_best_copy_stats.drawcalls = 0;
 #if RESHADE_DX11_CAPTURE_DEPTH_BUFFERS
 	_counters_per_used_depth_texture.clear();
 #endif
@@ -136,6 +138,7 @@ void reshade::d3d11::buffer_detection::on_draw(UINT vertices)
 void reshade::d3d11::buffer_detection::on_clear_depthstencil(UINT clear_flags, ID3D11DepthStencilView *dsv)
 {
 	assert(_context != nullptr);
+	bool bcopy = false;
 
 	if ((clear_flags & D3D11_CLEAR_DEPTH) == 0)
 		return;
@@ -152,16 +155,22 @@ void reshade::d3d11::buffer_detection::on_clear_depthstencil(UINT clear_flags, I
 
 	counters.clears.push_back(counters.current_stats);
 
+	// Make a backup copy of the depth texture before it is cleared
+	// This is not really correct, since clears may accumulate over multiple command lists, but it's unlikely that the same depth stencil is used in more than one
+	if (_auto_copy)
+	{
+		if (counters.current_stats.vertices >= _best_copy_stats.vertices)
+			bcopy = true;
+	}
+	else if (counters.clears.size() == _context->_depthstencil_clear_index.second)
+		bcopy = true;
+
+	if(bcopy)
+		_device->CopyResource(_context->_depthstencil_clear_texture.get(), dsv_texture.get());
+
 	// Reset draw call stats for clears
 	counters.current_stats.vertices = 0;
 	counters.current_stats.drawcalls = 0;
-
-	// Make a backup copy of the depth texture before it is cleared
-	// This is not really correct, since clears may accumulate over multiple command lists, but it's unlikely that the same depth stencil is used in more than one
-	if (counters.clears.size() == _context->_depthstencil_clear_index.second)
-	{
-		_device->CopyResource(_context->_depthstencil_clear_texture.get(), dsv_texture.get());
-	}
 }
 
 bool reshade::d3d11::buffer_detection_context::update_depthstencil_clear_texture(D3D11_TEXTURE2D_DESC desc)
@@ -198,6 +207,7 @@ com_ptr<ID3D11Texture2D> reshade::d3d11::buffer_detection_context::find_best_dep
 {
 	depthstencil_info best_snapshot;
 	com_ptr<ID3D11Texture2D> best_match;
+	_auto_copy = clear_index_override == std::numeric_limits<UINT>::max();
 
 	if (override != nullptr)
 	{
