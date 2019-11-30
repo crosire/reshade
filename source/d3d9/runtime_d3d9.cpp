@@ -1054,7 +1054,7 @@ void reshade::d3d9::runtime_d3d9::draw_depth_debug_menu()
 				ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyle().Colors[ImGuiCol_TextDisabled]);
 			}
 
-			if (bool value = _depthstencil_override == ds_surface;
+			if (bool value = (_depthstencil_override == ds_surface);
 				ImGui::Checkbox(label, &value))
 				_depthstencil_override = value ? ds_surface.get() : nullptr;
 
@@ -1076,7 +1076,8 @@ void reshade::d3d9::runtime_d3d9::draw_depth_debug_menu()
 					}
 
 					ImGui::SameLine();
-					ImGui::Text("|           | %5u draw calls ==> %8u vertices |",
+					ImGui::Text("%*s|           | %5u draw calls ==> %8u vertices |",
+						sizeof(ds_surface) - 4, "", // Add space to fill pointer length
 						snapshot.clears[clear_index - 1].drawcalls, snapshot.clears[clear_index - 1].vertices);
 				}
 			}

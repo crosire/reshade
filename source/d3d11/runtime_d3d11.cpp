@@ -1275,13 +1275,13 @@ void reshade::d3d11::runtime_d3d11::draw_depth_debug_menu()
 				ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyle().Colors[ImGuiCol_TextDisabled]);
 			}
 
-			if (bool value = _depth_texture_override == dsv_texture;
+			if (bool value = (_depth_texture_override == dsv_texture);
 				ImGui::Checkbox(label, &value))
 				_depth_texture_override = value ? dsv_texture.get() : nullptr;
 
 			ImGui::SameLine();
-			ImGui::Text("| %4ux%-4u | %5u draw calls ==> %8u vertices | %2zu render target(s) |%s",
-				desc.Width, desc.Height, snapshot.stats.drawcalls, snapshot.stats.vertices, snapshot.additional_views.size(), (msaa ? " MSAA" : ""));
+			ImGui::Text("| %4ux%-4u | %5u draw calls ==> %8u vertices |%s",
+				desc.Width, desc.Height, snapshot.total_stats.drawcalls, snapshot.total_stats.vertices, (msaa ? " MSAA" : ""));
 
 			if (_preserve_depth_buffers && dsv_texture == _current_tracker->current_depth_texture())
 			{
@@ -1297,7 +1297,8 @@ void reshade::d3d11::runtime_d3d11::draw_depth_debug_menu()
 					}
 
 					ImGui::SameLine();
-					ImGui::Text("|           | %5u draw calls ==> %8u vertices |",
+					ImGui::Text("%*s|           | %5u draw calls ==> %8u vertices |",
+						sizeof(dsv_texture) - 4, "", // Add space to fill pointer length
 						snapshot.clears[clear_index - 1].drawcalls, snapshot.clears[clear_index - 1].vertices);
 				}
 			}

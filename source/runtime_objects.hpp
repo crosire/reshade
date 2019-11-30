@@ -52,6 +52,7 @@ namespace reshade
 		std::string preamble;
 		reshadefx::module module;
 		std::filesystem::path source_file;
+		std::vector<std::filesystem::path> included_files;
 		size_t storage_offset = 0, storage_size = 0;
 	};
 
