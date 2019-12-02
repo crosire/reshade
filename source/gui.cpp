@@ -2162,11 +2162,14 @@ void reshade::runtime::draw_overlay_technique_editor()
 				if (ImGui::MenuItem(effect.source_file.filename().u8string().c_str()))
 					source_file = effect.source_file;
 
-				ImGui::Separator();
+				if (!effect.included_files.empty())
+				{
+					ImGui::Separator();
 
-				for (const auto &included_file : effect.included_files)
-					if (ImGui::MenuItem(included_file.filename().u8string().c_str()))
-						source_file = included_file;
+					for (const auto &included_file : effect.included_files)
+						if (ImGui::MenuItem(included_file.filename().u8string().c_str()))
+							source_file = included_file;
+				}
 
 				ImGui::EndPopup();
 
