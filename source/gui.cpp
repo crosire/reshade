@@ -2100,7 +2100,7 @@ void reshade::runtime::draw_overlay_variable_editor()
 				_effect_preprocessor_modified = true;
 			}
 
-			if (preprocessor_modified)
+			if (_effect_preprocessor_modified)
 			{
 				ImGui::PopStyleColor();
 				ImGui::PushStyleColor(ImGuiCol_Text, COLOR_BLACK);
