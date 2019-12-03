@@ -350,9 +350,6 @@ void reshade::runtime::load_effect(const std::filesystem::path &path, size_t ind
 		const std::string section = effect.source_file.filename().u8string();
 		preset.get(section, "PreprocessorDefinitions", effect.preprocessor_definitions);
 
-		// init _displayable_macros definition
-		pp.clear_displayable_macros();
-
 		for (const auto& definition : effect.preprocessor_definitions)
 		{
 			if (definition.empty())

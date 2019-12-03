@@ -412,7 +412,7 @@ void reshade::runtime::build_font_atlas()
 
 	destroy_font_atlas();
 
-	_show_splash = true;
+	_show_splash = splashMsg::DISPLAY;
 	_rebuild_font_atlas = false;
 
 	int width, height;
@@ -437,8 +437,8 @@ void reshade::runtime::destroy_font_atlas()
 
 void reshade::runtime::draw_ui()
 {
-	const bool show_splash = _show_splash && (is_loading() || !_reload_compile_queue.empty() || (_last_present_time - _last_reload_time) < std::chrono::seconds(5));
-	const bool show_single_effect_splash = _show_single_effect_splash && (is_loading() || !_reload_compile_queue.empty() || (_last_present_time - _last_reload_time) < std::chrono::seconds(1));
+	const int splash_duration = (_show_splash == splashMsg::PREPROCESSOR_DISPLAY) ? 1 : 5;
+	const bool show_splash = (_show_splash != splashMsg::OFF) && (is_loading() || !_reload_compile_queue.empty() || (_last_present_time - _last_reload_time) < std::chrono::seconds(splash_duration));
 	const bool show_screenshot_message = _show_screenshot_message && _last_present_time - _last_screenshot_time < std::chrono::seconds(_screenshot_save_success ? 3 : 5);
 
 	if (_show_menu && !_ignore_shortcuts && !_imgui_context->IO.NavVisible && _input->is_key_pressed(0x1B /* VK_ESCAPE */))
@@ -483,7 +483,7 @@ void reshade::runtime::draw_ui()
 	ImVec2 viewport_offset = ImVec2(0, 0);
 
 	// Create ImGui widgets and windows
-	if (show_splash || show_single_effect_splash || show_screenshot_message || (!_show_menu && _tutorial_index == 0))
+	if (show_splash || show_screenshot_message || (!_show_menu && _tutorial_index == 0))
 	{
 		ImGui::SetNextWindowPos(ImVec2(10, 10));
 		ImGui::SetNextWindowSize(ImVec2(imgui_io.DisplaySize.x - 20.0f, 0.0f));
@@ -511,7 +511,7 @@ void reshade::runtime::draw_ui()
 		}
 		else
 		{
-			if (!show_single_effect_splash)
+			if (_show_splash != splashMsg::PREPROCESSOR_DISPLAY)
 			{
 				ImGui::TextUnformatted("ReShade " VERSION_STRING_FILE " by crosire");
 
@@ -556,7 +556,7 @@ void reshade::runtime::draw_ui()
 			}
 			else
 			{
-				if (show_single_effect_splash)
+				if (_show_splash == splashMsg::PREPROCESSOR_DISPLAY)
 				{
 					ImGui::Text("Effect loaded.");
 				}
@@ -948,7 +948,7 @@ void reshade::runtime::draw_overlay_menu_home()
 
 		if (ImGui::Button("Reload", ImVec2(-150, 0)))
 		{
-			_show_splash = true;
+			_show_splash = splashMsg::DISPLAY;
 			_effect_filter_buffer[0] = '\0'; // Reset filter
 			
 			if (_effect_preprocessor_modified)
@@ -961,7 +961,7 @@ void reshade::runtime::draw_overlay_menu_home()
 
 		if (ImGui::Checkbox("Performance Mode", &_performance_mode))
 		{
-			_show_splash = true;
+			_show_splash = splashMsg::DISPLAY;
 			_effect_filter_buffer[0] = '\0'; // Reset filter
 			
 			if (_effect_preprocessor_modified)
@@ -1641,7 +1641,7 @@ void reshade::runtime::draw_code_editor()
 		ImGui::Button("Save", ImVec2(ImGui::GetContentRegionAvail().x, 0)) || _input->is_key_pressed('S', true, false, false)))
 	{
 		// Hide splash bar during compile
-		_show_splash = false;
+		_show_splash = splashMsg::OFF;
 
 		// Write current editor text to file
 		const std::string text = _editor.get_text();
@@ -1806,7 +1806,7 @@ void reshade::runtime::draw_overlay_variable_editor()
 	{
 		_was_preprocessor_popup_edited = false;
 
-		_show_splash = true;
+		_show_splash = splashMsg::DISPLAY;
 		_effect_filter_buffer[0] = '\0'; // Reset filter
 
 		load_effects();
@@ -2705,7 +2705,7 @@ void reshade::runtime::draw_preset_explorer()
 	{
 		if (condition != condition::cancel)
 		{
-			_show_splash = true;
+			_show_splash = splashMsg::DISPLAY;
 
 			save_config();
 			load_current_preset();
@@ -2775,8 +2775,7 @@ void reshade::runtime::save_effect_preprocessor_definitions(uniform variable)
 	const std::string section = effect.source_file.filename().u8string();
 	reshade::ini_file& preset = ini_file::load_cache(_current_preset_path);
 	preset.set(section, "PreprocessorDefinitions", effect.preprocessor_definitions);
-	_show_single_effect_splash = true;
-	_show_splash = !_show_single_effect_splash;
+	_show_splash = splashMsg::PREPROCESSOR_DISPLAY;
 
 	// Reload effect file
 	_textures_loaded = false;

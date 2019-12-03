@@ -66,12 +66,6 @@ namespace reshadefx
 		bool add_displayable_macro_definition(const std::string& name, std::string value = "1");
 
 		/// <summary>
-		/// clear displayable macro definitions
-		/// </summary>
-		/// <returns></returns>
-		void clear_displayable_macros();
-
-		/// <summary>
 		/// Open the specified file, parse its contents and append them to the output.
 		/// </summary>
 		/// <param name="path">The path to the file to parse.</param>
@@ -122,6 +116,8 @@ namespace reshadefx
 			input_level *parent;
 		};
 
+		const std::string RESHADE_PREPROCESSOR_UI = "RESHADE_PREPROCESSOR_UI";
+
 		void error(const location &location, const std::string &message);
 		void warning(const location &location, const std::string &message);
 
@@ -157,6 +153,7 @@ namespace reshadefx
 		void create_macro_replacement_list(macro_info &macro);
 
 		bool _success = true;
+		bool _add_displayable_macros = false;
 		token _token;
 		std::vector<input_level> _input_stack;
 		location _output_location;

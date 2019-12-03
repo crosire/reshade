@@ -63,7 +63,7 @@ bool reshadefx::preprocessor::add_macro_definition(const std::string &name, cons
 {
 	assert(!name.empty());
 
-	return _macros.emplace(name, macro).second;
+	return _macros.try_emplace(name, macro).second;
 }
 bool reshadefx::preprocessor::add_macro_definition(const std::string &name, std::string value)
 {
@@ -77,7 +77,7 @@ bool reshadefx::preprocessor::add_displayable_macro_definition(const std::string
 {
 	assert(!name.empty());
 
-	return _displayable_macros.emplace(name, macro).second;
+	return _displayable_macros.try_emplace(name, macro).second;
 }
 bool reshadefx::preprocessor::add_displayable_macro_definition(const std::string& name, std::string value)
 {
@@ -87,11 +87,6 @@ bool reshadefx::preprocessor::add_displayable_macro_definition(const std::string
 	return add_displayable_macro_definition(name, macro);
 }
 
-void reshadefx::preprocessor::clear_displayable_macros()
-{
-	_displayable_macros.clear();
-}
-
 bool reshadefx::preprocessor::append_file(const std::filesystem::path &path)
 {
 	std::string data;
@@ -99,6 +94,7 @@ bool reshadefx::preprocessor::append_file(const std::filesystem::path &path)
 		return false;
 
 	_success = true; // Clear success flag before parsing a new file
+	_add_displayable_macros = false;
 
 	push(std::move(data), path.u8string());
 	parse();
@@ -379,6 +375,9 @@ void reshadefx::preprocessor::parse_def()
 	const auto macro_name = std::move(_token.literal_as_string);
 	const auto macro_name_end_offset = _token.offset + _token.length;
 
+	if (macro_name == RESHADE_PREPROCESSOR_UI)
+		_add_displayable_macros = true;
+
 	if (current_lexer().input_string()[macro_name_end_offset] == '(')
 	{
 		accept(tokenid::parenthesis_open);
@@ -409,7 +408,7 @@ void reshadefx::preprocessor::parse_def()
 
 	create_macro_replacement_list(m);
 
-	if (!add_macro_definition(macro_name, m))
+	if (!add_macro_definition(macro_name, m) && macro_name != RESHADE_PREPROCESSOR_UI)
 		return error(location, "redefinition of '" + macro_name + "'");
 
 	if (const auto it = _displayable_macros.find(macro_name); it != _displayable_macros.end())
@@ -422,6 +421,9 @@ void reshadefx::preprocessor::parse_undef()
 		return;
 	else if (_token.literal_as_string == "defined")
 		return warning(_token.location, "macro name 'defined' is reserved");
+
+	if (_token.literal_as_string == RESHADE_PREPROCESSOR_UI)
+		_add_displayable_macros = false;
 
 	_macros.erase(_token.literal_as_string);
 }
@@ -464,8 +466,17 @@ void reshadefx::preprocessor::parse_ifndef()
 	level.parent = current_if_stack().empty() ? nullptr : &current_if_stack().top();
 	level.skipping = (level.parent != nullptr && level.parent->skipping) || !level.value;
 
-	if(!level.skipping && _displayable_macros.find(_token.literal_as_string) == _displayable_macros.end())
-		add_displayable_macro_definition(_token.literal_as_string, "");
+	if (_add_displayable_macros)
+	{
+		if (!level.skipping && _displayable_macros.find(_token.literal_as_string) == _displayable_macros.end())
+			add_displayable_macro_definition(_token.literal_as_string, "");
+	}
+	else
+	{
+		// remove the macro from the UI
+		if (_displayable_macros.find(_token.literal_as_string) != _displayable_macros.end())
+			_displayable_macros.erase(_token.literal_as_string);
+	}
 
 	current_if_stack().push(level);
 }
