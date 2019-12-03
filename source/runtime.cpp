@@ -242,8 +242,6 @@ void reshade::runtime::on_present()
 		{
 			if (_input->is_key_pressed(_reload_key_data))
 			{
-				if (_effect_preprocessor_modified)
-					save_current_preset();
 				load_effects();
 			}
 
@@ -256,8 +254,6 @@ void reshade::runtime::on_present()
 					_last_preset_switching_time = current_time;
 					_is_in_between_presets_transition = true;
 					save_config();
-					if (_effect_preprocessor_modified)
-						save_current_preset();
 				}
 			}
 
@@ -418,8 +414,6 @@ void reshade::runtime::load_effect(const std::filesystem::path &path, size_t ind
 
 		// Write result to effect module
 		codegen->write_result(effect.module);
-
-		_effect_preprocessor_modified = false;
 	}
 
 	// Fill all specialization constants with values from the current preset

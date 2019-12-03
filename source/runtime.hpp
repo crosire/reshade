@@ -257,7 +257,7 @@ namespace reshade
 		/// Create a copy of the current frame and write it to an image file on disk.
 		/// <param name="variable">Uniform variable of the effect</param>
 		/// </summary>
-		void save_effect_preprocessor_definitions(uniform variable);
+		void save_effect_preprocessor_definitions(uniform variable, bool reload = false);
 
 		/// <summary>
 		/// Create a copy of the current frame and write it to an image file on disk.
