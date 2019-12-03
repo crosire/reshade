@@ -38,6 +38,7 @@ namespace reshade::d3d12
 		struct depthstencil_info
 		{
 			draw_stats total_stats;
+			draw_stats previous_stats; // Stats from the previous frame
 			draw_stats current_stats; // Stats since last clear
 			std::vector<draw_stats> clears;
 		};

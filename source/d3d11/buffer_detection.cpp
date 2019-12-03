@@ -34,7 +34,14 @@ void reshade::d3d11::buffer_detection::reset()
 	_best_copy_stats.vertices = 0;
 	_best_copy_stats.drawcalls = 0;
 #if RESHADE_DX11_CAPTURE_DEPTH_BUFFERS
-	_counters_per_used_depth_texture.clear();
+	for (auto& [dsv_texture, snapshot] : _counters_per_used_depth_texture)
+	{
+		snapshot.current_stats.vertices = 0;
+		snapshot.current_stats.drawcalls = 0;
+		snapshot.total_stats.vertices = 0;
+		snapshot.total_stats.drawcalls = 0;
+		snapshot.clears.clear();
+	}
 #endif
 #if RESHADE_DX11_CAPTURE_CONSTANT_BUFFERS
 	_counters_per_constant_buffer.clear();
@@ -50,6 +57,7 @@ void reshade::d3d11::buffer_detection_context::reset(bool release_resources)
 		assert(_context == this);
 
 		_depthstencil_clear_texture.reset();
+		_counters_per_used_depth_texture.clear();
 	}
 #endif
 }
@@ -67,6 +75,8 @@ void reshade::d3d11::buffer_detection::merge(const buffer_detection &source)
 		target_snapshot.total_stats.drawcalls += snapshot.total_stats.drawcalls;
 		target_snapshot.current_stats.vertices += snapshot.current_stats.vertices;
 		target_snapshot.current_stats.drawcalls += snapshot.current_stats.drawcalls;
+		target_snapshot.previous_stats.vertices += snapshot.previous_stats.vertices;
+		target_snapshot.previous_stats.drawcalls += snapshot.previous_stats.drawcalls;
 
 		target_snapshot.clears.insert(target_snapshot.clears.end(), snapshot.clears.begin(), snapshot.clears.end());
 	}
@@ -148,21 +158,29 @@ void reshade::d3d11::buffer_detection::on_clear_depthstencil(UINT clear_flags, I
 		return;
 
 	auto &counters = _counters_per_used_depth_texture[dsv_texture];
+	draw_stats stats = counters.current_stats;
+
+	// since the clearing instance can occure before the drawcalls, rely on the stats of the previous frame if necessary
+	if (counters.current_stats.drawcalls == 0)
+	{
+		stats.drawcalls = counters.previous_stats.drawcalls;
+		stats.vertices = counters.previous_stats.vertices;
+	}
 
 	// Ignore clears when there was no meaningful workload
-	// if (counters.current_stats.drawcalls == 0)
-		// return;
+	if (stats.drawcalls == 0)
+		return;
 
-	counters.clears.push_back(counters.current_stats);
+	counters.clears.push_back(stats);
 
 	// Make a backup copy of the depth texture before it is cleared
 	// This is not really correct, since clears may accumulate over multiple command lists, but it's unlikely that the same depth stencil is used in more than one
 	if (_auto_copy)
 	{
-		if (counters.current_stats.vertices >= _best_copy_stats.vertices)
+		if (stats.vertices >= _best_copy_stats.vertices)
 		{
 			bcopy = true;
-			_best_copy_stats = counters.current_stats;
+			_best_copy_stats = stats;
 		}
 	}
 	else if (counters.clears.size() == _context->_depthstencil_clear_index.second)
@@ -175,7 +193,6 @@ void reshade::d3d11::buffer_detection::on_clear_depthstencil(UINT clear_flags, I
 	counters.current_stats.vertices = 0;
 	counters.current_stats.drawcalls = 0;
 }
-
 bool reshade::d3d11::buffer_detection_context::update_depthstencil_clear_texture(D3D11_TEXTURE2D_DESC desc)
 {
 	if (_depthstencil_clear_texture != nullptr)
@@ -223,6 +240,10 @@ com_ptr<ID3D11Texture2D> reshade::d3d11::buffer_detection_context::find_best_dep
 		{
 			if (snapshot.total_stats.drawcalls == 0)
 				continue; // Skip unused
+
+			// keep track of the stats for the next frame
+			snapshot.previous_stats.vertices = snapshot.current_stats.vertices;
+			snapshot.previous_stats.drawcalls = snapshot.current_stats.drawcalls;
 
 			D3D11_TEXTURE2D_DESC desc;
 			dsv_texture->GetDesc(&desc);
