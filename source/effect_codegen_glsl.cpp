@@ -749,6 +749,7 @@ private:
 					{
 						// TODO: Implement matrix to vector swizzles
 						assert(false);
+						expr_code += "_NOT_IMPLEMENTED_"; // Make sure compilation fails
 					}
 				}
 				else
@@ -759,6 +760,14 @@ private:
 				}
 				break;
 			}
+		}
+
+		// GLSL matrices are always floating point, so need to cast result to the target type
+		if (!exp.chain.empty() && exp.chain[0].from.is_matrix() && !exp.chain[0].from.is_floating_point())
+		{
+			type.clear();
+			write_type<false, false>(type, exp.type);
+			expr_code = type + '(' + expr_code + ')';
 		}
 
 		if (force_new_id)
@@ -820,6 +829,7 @@ private:
 					{
 						// TODO: Implement matrix to vector swizzles
 						assert(false);
+						code += "_NOT_IMPLEMENTED_"; // Make sure compilation fails
 					}
 				}
 				else
@@ -832,7 +842,14 @@ private:
 			}
 		}
 
-		code += " = " + id_to_name(value) + ";\n";
+		code += " = ";
+
+		// GLSL matrices are always floating point, so need to cast type
+		if (!exp.chain.empty() && exp.chain[0].from.is_matrix() && !exp.chain[0].from.is_floating_point())
+			// Only supporting scalar assignments to matrices currently, so can assume to always cast to float
+			code += "float(" + id_to_name(value) + ");\n";
+		else
+			code += id_to_name(value) + ";\n";
 	}
 
 	id   emit_constant(const type &type, const constant &data) override
