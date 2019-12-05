@@ -729,7 +729,8 @@ private:
 				break;
 			case expression::operation::op_dynamic_index:
 				// For matrices this will extract a column, but that is fine, since they are initialized column-wise too
-				expr_code += '[' + id_to_name(op.index) + ']';
+				// Also cast to an integer, since it could be a boolean too, but GLSL does not allow those in index expressions
+				expr_code += "[int(" + id_to_name(op.index) + ")]";
 				break;
 			case expression::operation::op_constant_index:
 				expr_code += '[' + std::to_string(op.index) + ']';
@@ -800,7 +801,7 @@ private:
 				code += escape_name(find_struct(op.from.definition).member_list[op.index].name);
 				break;
 			case expression::operation::op_dynamic_index:
-				code += '[' + id_to_name(op.index) + ']';
+				code += "[int(" + id_to_name(op.index) + ")]";
 				break;
 			case expression::operation::op_constant_index:
 				code += '[' + std::to_string(op.index) + ']';
