@@ -379,6 +379,13 @@ bool imgui_list_with_buttons(const char *label, const std::string_view ui_items,
 	return modified;
 }
 
+bool imgui_combo_with_buttons(const char *label, bool &v)
+{
+	int current_item = v ? 1 : 0;
+	bool modified = imgui_combo_with_buttons(label, "Off\0On\0", current_item);
+	v = current_item != 0;
+	return modified;
+}
 bool imgui_combo_with_buttons(const char *label, const std::string_view ui_items, int &v)
 {
 	const auto imgui_context = ImGui::GetCurrentContext();

@@ -935,21 +935,17 @@ void reshade::runtime::draw_overlay_menu_home()
 
 		if (ImGui::Button("Reload", ImVec2(-150, 0)))
 		{
-			_show_splash = true;
-			_effect_filter_buffer[0] = '\0'; // Reset filter
-
 			load_effects();
+			_show_splash = true;
 		}
 
 		ImGui::SameLine();
 
 		if (ImGui::Checkbox("Performance Mode", &_performance_mode))
 		{
-			_show_splash = true;
-			_effect_filter_buffer[0] = '\0'; // Reset filter
-
 			save_config();
 			load_effects(); // Reload effects after switching
+			_show_splash = true;
 		}
 	}
 	else
@@ -1779,18 +1775,19 @@ void reshade::runtime::draw_overlay_variable_editor()
 		ImGui::EndChild();
 
 		if (modified)
-			save_config(), save_current_preset(), _was_preprocessor_popup_edited = true;
+		{
+			save_config();
+			save_current_preset();
+			_was_preprocessor_popup_edited = true;
+		}
 
 		ImGui::EndPopup();
 	}
 	else if (_was_preprocessor_popup_edited)
 	{
-		_was_preprocessor_popup_edited = false;
-
-		_show_splash = true;
-		_effect_filter_buffer[0] = '\0'; // Reset filter
-
 		load_effects();
+		_show_splash = true;
+		_was_preprocessor_popup_edited = false;
 	}
 
 	ImGui::BeginChild("##variables");
@@ -1815,26 +1812,24 @@ void reshade::runtime::draw_overlay_variable_editor()
 		if (variable.annotation_as_int("hidden") || variable.special != special_uniform::none)
 			continue;
 
+		const effect &effect = _loaded_effects[variable.effect_index];
 		// Hide variables that are not currently used in any of the active effects
-		if (!_loaded_effects[variable.effect_index].rendering)
+		if (!effect.rendering)
 			continue;
-		assert(_loaded_effects[variable.effect_index].compile_sucess);
+		assert(effect.compile_sucess);
 
 		// Create separate tab for every effect file
 		if (variable.effect_index != current_effect)
 		{
 			current_effect = variable.effect_index;
-
 			const bool is_focused = _focused_effect == variable.effect_index;
-
-			const std::string filename = _loaded_effects[current_effect].source_file.filename().u8string();
 
 			if (_variable_editor_tabs)
 			{
 				if (current_tree_is_open)
 					ImGui::EndTabItem();
 
-				current_tree_is_open = ImGui::BeginTabItem(filename.c_str());
+				current_tree_is_open = ImGui::BeginTabItem(effect.source_file.filename().u8string().c_str());
 			}
 			else
 			{
@@ -1844,7 +1839,7 @@ void reshade::runtime::draw_overlay_variable_editor()
 				if (is_focused || _effects_expanded_state & 1)
 					ImGui::SetNextItemOpen(is_focused || (_effects_expanded_state >> 1) != 0);
 
-				current_tree_is_open = ImGui::TreeNodeEx(filename.c_str(), ImGuiTreeNodeFlags_DefaultOpen);
+				current_tree_is_open = ImGui::TreeNodeEx(effect.source_file.filename().u8string().c_str(), ImGuiTreeNodeFlags_DefaultOpen);
 			}
 
 			if (is_focused)
@@ -1858,7 +1853,7 @@ void reshade::runtime::draw_overlay_variable_editor()
 				ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(_imgui_context->Style.FramePadding.x, 0));
 				if (imgui_popup_button("Reset all to default", _variable_editor_tabs ? ImGui::GetContentRegionAvail().x : ImGui::CalcItemWidth()))
 				{
-					ImGui::Text("Do you really want to reset all values in '%s' to their defaults?", filename.c_str());
+					ImGui::Text("Do you really want to reset all values in '%s' to their defaults?", effect.source_file.filename().u8string().c_str());
 
 					if (ImGui::Button("Yes", ImVec2(ImGui::GetContentRegionAvail().x, 0)))
 					{
@@ -1928,15 +1923,9 @@ void reshade::runtime::draw_overlay_variable_editor()
 				get_uniform_value(variable, &data, 1);
 
 				if (ui_type == "combo")
-				{
-					int current_item = data ? 1 : 0;
-					modified = imgui_combo_with_buttons(label.data(), "Off\0On\0", current_item);
-					data = current_item != 0;
-				}
+					modified = imgui_combo_with_buttons(label.data(), data);
 				else
-				{
 					modified = ImGui::Checkbox(label.data(), &data);
-				}
 
 				if (modified)
 					set_uniform_value(variable, &data, 1);
