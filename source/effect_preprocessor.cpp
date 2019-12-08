@@ -4,7 +4,7 @@
  */
 
 #include "effect_preprocessor.hpp"
-#include <assert.h>
+#include <cassert>
 
 enum macro_replacement
 {
@@ -644,8 +644,9 @@ bool reshadefx::preprocessor::evaluate_expression()
 		int value;
 	};
 
-	int stack[128];
-	rpn_token rpn[128];
+	const size_t STACK_SIZE = 128;
+	int stack[STACK_SIZE];
+	rpn_token rpn[STACK_SIZE];
 	size_t stack_count = 0, rpn_count = 0;
 	tokenid previous_token = _token;
 	const int precedence[] = { 0, 1, 2, 3, 4, 5, 6, 7, 7, 7, 7, 8, 8, 9, 9, 10, 10, 10, 11, 11, 11, 11 };
@@ -653,7 +654,7 @@ bool reshadefx::preprocessor::evaluate_expression()
 	// Run shunting-yard algorithm
 	while (!peek(tokenid::end_of_line))
 	{
-		if (stack_count >= _countof(stack) || rpn_count >= _countof(rpn))
+		if (stack_count >= STACK_SIZE || rpn_count >= STACK_SIZE)
 		{
 			error(_token.location, "expression evaluator ran out of stack space");
 			return false;

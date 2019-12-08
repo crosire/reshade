@@ -195,14 +195,14 @@ bool reshadefx::parser::accept_type_class(type &type)
 	case tokenid::bool3:
 	case tokenid::bool4:
 		type.base = type::t_bool;
-		type.rows = 1 + unsigned int(_token_next.id) - unsigned int(tokenid::bool_);
+		type.rows = 1 + static_cast<unsigned int>(_token_next.id) - static_cast<unsigned int>(tokenid::bool_);
 		type.cols = 1;
 		break;
 	case tokenid::bool2x2:
 	case tokenid::bool3x3:
 	case tokenid::bool4x4:
 		type.base = type::t_bool;
-		type.rows = 2 + unsigned int(_token_next.id) - unsigned int(tokenid::bool2x2);
+		type.rows = 2 + static_cast<unsigned int>(_token_next.id) - static_cast<unsigned int>(tokenid::bool2x2);
 		type.cols = type.rows;
 		break;
 	case tokenid::int_:
@@ -210,14 +210,14 @@ bool reshadefx::parser::accept_type_class(type &type)
 	case tokenid::int3:
 	case tokenid::int4:
 		type.base = type::t_int;
-		type.rows = 1 + unsigned int(_token_next.id) - unsigned int(tokenid::int_);
+		type.rows = 1 + static_cast<unsigned int>(_token_next.id) - static_cast<unsigned int>(tokenid::int_);
 		type.cols = 1;
 		break;
 	case tokenid::int2x2:
 	case tokenid::int3x3:
 	case tokenid::int4x4:
 		type.base = type::t_int;
-		type.rows = 2 + unsigned int(_token_next.id) - unsigned int(tokenid::int2x2);
+		type.rows = 2 + static_cast<unsigned int>(_token_next.id) - static_cast<unsigned int>(tokenid::int2x2);
 		type.cols = type.rows;
 		break;
 	case tokenid::uint_:
@@ -225,14 +225,14 @@ bool reshadefx::parser::accept_type_class(type &type)
 	case tokenid::uint3:
 	case tokenid::uint4:
 		type.base = type::t_uint;
-		type.rows = 1 + unsigned int(_token_next.id) - unsigned int(tokenid::uint_);
+		type.rows = 1 + static_cast<unsigned int>(_token_next.id) - static_cast<unsigned int>(tokenid::uint_);
 		type.cols = 1;
 		break;
 	case tokenid::uint2x2:
 	case tokenid::uint3x3:
 	case tokenid::uint4x4:
 		type.base = type::t_uint;
-		type.rows = 2 + unsigned int(_token_next.id) - unsigned int(tokenid::uint2x2);
+		type.rows = 2 + static_cast<unsigned int>(_token_next.id) - static_cast<unsigned int>(tokenid::uint2x2);
 		type.cols = type.rows;
 		break;
 	case tokenid::float_:
@@ -240,14 +240,14 @@ bool reshadefx::parser::accept_type_class(type &type)
 	case tokenid::float3:
 	case tokenid::float4:
 		type.base = type::t_float;
-		type.rows = 1 + unsigned int(_token_next.id) - unsigned int(tokenid::float_);
+		type.rows = 1 + static_cast<unsigned int>(_token_next.id) - static_cast<unsigned int>(tokenid::float_);
 		type.cols = 1;
 		break;
 	case tokenid::float2x2:
 	case tokenid::float3x3:
 	case tokenid::float4x4:
 		type.base = type::t_float;
-		type.rows = 2 + unsigned int(_token_next.id) - unsigned int(tokenid::float2x2);
+		type.rows = 2 + static_cast<unsigned int>(_token_next.id) - static_cast<unsigned int>(tokenid::float2x2);
 		type.cols = type.rows;
 		break;
 	case tokenid::string_:

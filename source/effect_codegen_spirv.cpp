@@ -5,9 +5,9 @@
 
 #include "effect_parser.hpp"
 #include "effect_codegen.hpp"
-#include <assert.h>
-#include <algorithm>
-#include <unordered_map>
+#include <cassert>
+#include <cstring> // memcmp
+#include <algorithm> // std::find_if, std::max
 #include <unordered_set>
 
 // Use the C++ variant of the SPIR-V headers
@@ -734,8 +734,8 @@ private:
 
 		_module.entry_points.push_back(entry_point_info { func.unique_name, is_ps });
 
+		std::vector<uint32_t> inputs_and_outputs;
 		std::vector<expression> call_params;
-		std::vector<unsigned int> inputs_and_outputs;
 
 		// Generate the glue entry point function
 		function_info entry_point;

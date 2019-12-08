@@ -33,7 +33,7 @@ namespace reshade
 		depth_buffer
 	};
 
-	class base_object abstract
+	class base_object
 	{
 	public:
 		virtual ~base_object() {}

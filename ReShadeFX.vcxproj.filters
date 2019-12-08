@@ -17,6 +17,7 @@
     <ClInclude Include="source\effect_parser.hpp" />
     <ClInclude Include="source\effect_preprocessor.hpp" />
     <ClInclude Include="source\effect_symbol_table.hpp" />
+    <ClInclude Include="source\effect_token.hpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="source\effect_symbol_table_intrinsics.inl" />

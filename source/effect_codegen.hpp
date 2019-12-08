@@ -6,15 +6,15 @@
 #pragma once
 
 #include "effect_lexer.hpp"
-#include <algorithm>
-#include <memory>
+#include <memory> // std::unique_ptr
+#include <algorithm> // std::find_if
 
 namespace reshadefx
 {
 	/// <summary>
 	/// A SSA code generation back-end interface for the parser to call into.
 	/// </summary>
-	class codegen abstract
+	class codegen
 	{
 	public:
 		/// <summary>
