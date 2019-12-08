@@ -17,16 +17,16 @@ namespace reshade::d3d11
 	class buffer_detection
 	{
 	public:
-		void init(ID3D11DeviceContext *device, const class buffer_detection_context *context = nullptr);
+		void init(ID3D11DeviceContext* device, const class buffer_detection_context* context = nullptr);
 		void reset();
 
-		void merge(const buffer_detection &source);
+		void merge(const buffer_detection& source);
 
-		void on_map(ID3D11Resource *pResource);
+		void on_map(ID3D11Resource* pResource);
 		void on_draw(UINT vertices);
 
 #if RESHADE_DX11_CAPTURE_DEPTH_BUFFERS
-		void on_clear_depthstencil(UINT clear_flags, ID3D11DepthStencilView *dsv);
+		void on_clear_depthstencil(UINT clear_flags, ID3D11DepthStencilView* dsv);
 #endif
 
 	protected:
@@ -41,13 +41,12 @@ namespace reshade::d3d11
 		struct depthstencil_info
 		{
 			draw_stats total_stats;
-			draw_stats previous_stats; // Stats from the previous frame
 			draw_stats current_stats; // Stats since last clear
 			std::vector<draw_stats> clears;
 		};
 
-		ID3D11DeviceContext *_device = nullptr;
-		const buffer_detection_context *_context = nullptr;
+		ID3D11DeviceContext* _device = nullptr;
+		const buffer_detection_context* _context = nullptr;
 		draw_stats _stats;
 		draw_stats _best_copy_stats;
 		bool _auto_copy = false;
@@ -65,7 +64,7 @@ namespace reshade::d3d11
 		friend class buffer_detection;
 
 	public:
-		explicit buffer_detection_context(ID3D11DeviceContext *context) { init(context); }
+		explicit buffer_detection_context(ID3D11DeviceContext* context) { init(context); }
 
 		UINT total_vertices() const { return _stats.vertices; }
 		UINT total_drawcalls() const { return _stats.drawcalls; }
@@ -74,15 +73,15 @@ namespace reshade::d3d11
 
 #if RESHADE_DX11_CAPTURE_DEPTH_BUFFERS
 		UINT current_clear_index() const { return _depthstencil_clear_index.second; }
-		const auto &depth_buffer_counters() const { return _counters_per_used_depth_texture; }
-		ID3D11Texture2D *current_depth_texture() const { return _depthstencil_clear_index.first; }
+		const auto& depth_buffer_counters() const { return _counters_per_used_depth_texture; }
+		ID3D11Texture2D* current_depth_texture() const { return _depthstencil_clear_index.first; }
 
 		com_ptr<ID3D11Texture2D> find_best_depth_texture(UINT width, UINT height,
 			com_ptr<ID3D11Texture2D> override = nullptr, UINT clear_index_override = 0);
 #endif
 
 #if RESHADE_DX11_CAPTURE_CONSTANT_BUFFERS
-		const auto &constant_buffer_counters() const { return _counters_per_constant_buffer; }
+		const auto& constant_buffer_counters() const { return _counters_per_constant_buffer; }
 #endif
 
 	private:
@@ -90,7 +89,7 @@ namespace reshade::d3d11
 		bool update_depthstencil_clear_texture(D3D11_TEXTURE2D_DESC desc);
 
 		com_ptr<ID3D11Texture2D> _depthstencil_clear_texture;
-		std::pair<ID3D11Texture2D *, UINT> _depthstencil_clear_index = { nullptr, std::numeric_limits<UINT>::max() };
+		std::pair<ID3D11Texture2D*, UINT> _depthstencil_clear_index = { nullptr, std::numeric_limits<UINT>::max() };
 #endif
 	};
 }
