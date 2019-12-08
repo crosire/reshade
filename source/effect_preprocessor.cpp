@@ -19,9 +19,15 @@ enum macro_replacement
 
 static bool read_file(const std::filesystem::path &path, std::string &data)
 {
+#ifdef _WIN32
 	FILE *file = nullptr;
 	if (_wfopen_s(&file, path.c_str(), L"rb") != 0)
 		return false;
+#else
+	FILE *const file = fopen(path.c_str(), "rb");
+	if (file == nullptr)
+		return false;
+#endif
 
 	// Read file contents into memory
 	std::vector<char> mem(static_cast<size_t>(std::filesystem::file_size(path) + 1));
