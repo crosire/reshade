@@ -374,7 +374,7 @@ void reshade::d3d12::runtime_d3d12::on_present(buffer_detection_context &tracker
 	_current_tracker = &tracker;
 	assert(_depth_clear_index_override != 0);
 	update_depthstencil_texture(_has_high_network_activity ? nullptr :
-		tracker.find_best_depth_texture(_filter_aspect_ratio ? _width : 0, _height, _depth_texture_override, _preserve_depth_buffers ? _depth_clear_index_override : 0));
+		tracker.find_best_depth_texture(_commandqueue.get(), _filter_aspect_ratio ? _width : 0, _height, _depth_texture_override, _preserve_depth_buffers ? _depth_clear_index_override : 0));
 #endif
 
 	update_and_render_effects();

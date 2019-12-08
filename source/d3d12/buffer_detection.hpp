@@ -71,13 +71,14 @@ namespace reshade::d3d12
 
 		void on_create_dsv(ID3D12Resource *dsv_texture, D3D12_CPU_DESCRIPTOR_HANDLE handle);
 
-		com_ptr<ID3D12Resource> find_best_depth_texture(UINT width, UINT height,
+		com_ptr<ID3D12Resource> find_best_depth_texture(ID3D12CommandQueue *queue,
+			UINT width, UINT height,
 			com_ptr<ID3D12Resource> override = nullptr, UINT clear_index_override = 0);
 #endif
 
 	private:
 #if RESHADE_DX12_CAPTURE_DEPTH_BUFFERS
-		bool update_depthstencil_clear_texture(D3D12_RESOURCE_DESC desc);
+		bool update_depthstencil_clear_texture(ID3D12CommandQueue *queue, D3D12_RESOURCE_DESC desc);
 
 		com_ptr<ID3D12Resource> resource_from_handle(D3D12_CPU_DESCRIPTOR_HANDLE handle) const;
 
