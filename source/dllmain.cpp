@@ -20,8 +20,8 @@ extern std::filesystem::path get_system_path()
 		return system_path; // Return the cached system path
 
 	std::wstring buf(32767, L'\0'); // 32767 > MAX_PATH
-	if (GetEnvironmentVariableW(L"RESHADE_MODULE_PATH_OVERRIDE", buf.data(), buf.size()) == 0 || buf.empty()) // Not exist or empty string
-		GetSystemDirectoryW(buf.data(), buf.size()); // First try environment variable, use system directory if it does not exist
+	if (GetEnvironmentVariableW(L"RESHADE_MODULE_PATH_OVERRIDE", buf.data(), DWORD(buf.size())) == 0 || buf.empty())
+		GetSystemDirectoryW(buf.data(), UINT(buf.size())); // First try environment variable, use system directory if it does not exist
 
 	if (system_path = buf.data(); system_path.has_stem()) // Remove '\0' from the path buffer for adding path string
 		system_path += L'\\';

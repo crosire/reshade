@@ -26,6 +26,7 @@ bool imgui_toggle_button(const char *label, bool &toggle);
 
 bool imgui_list_with_buttons(const char *label, const std::string_view ui_items, int &v);
 
+bool imgui_combo_with_buttons(const char *label, bool &v);
 bool imgui_combo_with_buttons(const char *label, const std::string_view ui_items, int &v);
 
 bool imgui_drag_with_buttons(const char *label, ImGuiDataType data_type, void *v, int components, const void *v_speed, const void *v_min, const void *v_max, const char *format = nullptr);

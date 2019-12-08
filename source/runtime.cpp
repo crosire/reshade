@@ -337,6 +337,11 @@ void reshade::runtime::load_effect(const std::filesystem::path &path, size_t ind
 		// Append preprocessor and parser errors to the error list
 		effect.errors = std::move(pp.errors()) + std::move(parser.errors());
 
+		// Keep track of defines
+		effect.macro_ifdefs = pp.macro_ifdefs();
+		effect.macro_ifdefs.erase(std::remove_if(effect.macro_ifdefs.begin(), effect.macro_ifdefs.end(), // Remove "RESHADE_" defines and those with short names
+			[](const auto &define) { return define.size() <= 10 || define.compare(0, 8, "RESHADE_") == 0; }), effect.macro_ifdefs.end());
+
 		// Keep track of included files
 		effect.included_files = pp.included_files();
 		std::sort(effect.included_files.begin(), effect.included_files.end()); // Sort file names alphabetically
@@ -348,7 +353,7 @@ void reshade::runtime::load_effect(const std::filesystem::path &path, size_t ind
 	// Fill all specialization constants with values from the current preset
 	if (_performance_mode && !_current_preset_path.empty() && effect.compile_sucess)
 	{
-		const ini_file preset(_current_preset_path);
+		const ini_file preset(_current_preset_path); // ini_file::load_cache is not thread-safe, so load from file here
 		const std::string section(path.filename().u8string());
 
 		for (reshadefx::uniform_info &constant : effect.module.spec_constants)

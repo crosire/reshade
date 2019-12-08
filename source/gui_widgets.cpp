@@ -379,6 +379,13 @@ bool imgui_list_with_buttons(const char *label, const std::string_view ui_items,
 	return modified;
 }
 
+bool imgui_combo_with_buttons(const char *label, bool &v)
+{
+	int current_item = v ? 1 : 0;
+	bool modified = imgui_combo_with_buttons(label, "Off\0On\0", current_item);
+	v = current_item != 0;
+	return modified;
+}
 bool imgui_combo_with_buttons(const char *label, const std::string_view ui_items, int &v)
 {
 	const auto imgui_context = ImGui::GetCurrentContext();
@@ -440,14 +447,14 @@ bool imgui_drag_with_buttons(const char *label, T *v, int components, T v_speed,
 	if (ImGui::ButtonEx("<", ImVec2(button_size, 0), ImGuiButtonFlags_PressedOnClick | ImGuiButtonFlags_Repeat) && v[0] > v_min)
 	{
 		for (int c = 0; c < components; ++c)
-			v[c] -= v_speed;
+			v[c] = std::max(v[c] - v_speed, v_min);
 		value_changed = true;
 	}
 	ImGui::SameLine(0, button_spacing);
 	if (ImGui::ButtonEx(">", ImVec2(button_size, 0), ImGuiButtonFlags_PressedOnClick | ImGuiButtonFlags_Repeat) && v[0] < v_max)
 	{
 		for (int c = 0; c < components; ++c)
-			v[c] += v_speed;
+			v[c] = std::min(v[c] + v_speed, v_max);
 		value_changed = true;
 	}
 
@@ -499,14 +506,14 @@ bool imgui_slider_with_buttons(const char *label, T *v, int components, T v_spee
 	if (ImGui::ButtonEx("<", ImVec2(button_size, 0), ImGuiButtonFlags_PressedOnClick | ImGuiButtonFlags_Repeat) && v[0] > v_min)
 	{
 		for (int c = 0; c < components; ++c)
-			v[c] -= v_speed;
+			v[c] = std::max(v[c] - v_speed, v_min);
 		value_changed = true;
 	}
 	ImGui::SameLine(0, button_spacing);
 	if (ImGui::ButtonEx(">", ImVec2(button_size, 0), ImGuiButtonFlags_PressedOnClick | ImGuiButtonFlags_Repeat) && v[0] < v_max)
 	{
 		for (int c = 0; c < components; ++c)
-			v[c] += v_speed;
+			v[c] = std::min(v[c] + v_speed, v_max);
 		value_changed = true;
 	}
 

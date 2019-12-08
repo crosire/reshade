@@ -167,19 +167,34 @@ com_ptr<ID3D12Resource> reshade::d3d12::buffer_detection_context::resource_from_
 	return nullptr;
 }
 
-bool reshade::d3d12::buffer_detection_context::update_depthstencil_clear_texture(D3D12_RESOURCE_DESC desc)
+bool reshade::d3d12::buffer_detection_context::update_depthstencil_clear_texture(ID3D12CommandQueue *queue, D3D12_RESOURCE_DESC desc)
 {
+	assert(_device != nullptr);
+
 	if (_depthstencil_clear_texture != nullptr)
 	{
 		const D3D12_RESOURCE_DESC existing_desc = _depthstencil_clear_texture->GetDesc();
 
 		if (desc.Width == existing_desc.Width && desc.Height == existing_desc.Height && desc.Format == existing_desc.Format)
 			return true; // Texture already matches dimensions, so can re-use
-		else
-			_depthstencil_clear_texture.reset();
-	}
 
-	assert(_device != nullptr);
+		// Texture may still be in use on device, so wait for all operations to finish before destroying it
+		{	com_ptr<ID3D12Fence> fence;
+			if (FAILED(_device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence))))
+				return false;
+			const HANDLE fence_event = CreateEvent(nullptr, FALSE, FALSE, nullptr);
+			if (fence_event == nullptr)
+				return false;
+
+			assert(queue != nullptr);
+			queue->Signal(fence.get(), 1);
+			fence->SetEventOnCompletion(1, fence_event);
+			WaitForSingleObject(fence_event, INFINITE);
+			CloseHandle(fence_event);
+		}
+
+		_depthstencil_clear_texture.reset();
+	}
 
 	desc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
 	desc.Format = make_dxgi_format_typeless(desc.Format);
@@ -198,7 +213,7 @@ bool reshade::d3d12::buffer_detection_context::update_depthstencil_clear_texture
 	return true;
 }
 
-com_ptr<ID3D12Resource> reshade::d3d12::buffer_detection_context::find_best_depth_texture(UINT width, UINT height, com_ptr<ID3D12Resource> override, UINT clear_index_override)
+com_ptr<ID3D12Resource> reshade::d3d12::buffer_detection_context::find_best_depth_texture(ID3D12CommandQueue *queue, UINT width, UINT height, com_ptr<ID3D12Resource> override, UINT clear_index_override)
 {
 	depthstencil_info best_snapshot;
 	com_ptr<ID3D12Resource> best_match;
@@ -267,7 +282,7 @@ com_ptr<ID3D12Resource> reshade::d3d12::buffer_detection_context::find_best_dept
 			}
 		}
 
-		if (update_depthstencil_clear_texture(best_match->GetDesc()))
+		if (update_depthstencil_clear_texture(queue, best_match->GetDesc()))
 		{
 			return _depthstencil_clear_texture;
 		}

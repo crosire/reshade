@@ -729,7 +729,8 @@ private:
 				break;
 			case expression::operation::op_dynamic_index:
 				// For matrices this will extract a column, but that is fine, since they are initialized column-wise too
-				expr_code += '[' + id_to_name(op.index) + ']';
+				// Also cast to an integer, since it could be a boolean too, but GLSL does not allow those in index expressions
+				expr_code += "[int(" + id_to_name(op.index) + ")]";
 				break;
 			case expression::operation::op_constant_index:
 				expr_code += '[' + std::to_string(op.index) + ']';
@@ -748,6 +749,7 @@ private:
 					{
 						// TODO: Implement matrix to vector swizzles
 						assert(false);
+						expr_code += "_NOT_IMPLEMENTED_"; // Make sure compilation fails
 					}
 				}
 				else
@@ -758,6 +760,14 @@ private:
 				}
 				break;
 			}
+		}
+
+		// GLSL matrices are always floating point, so need to cast result to the target type
+		if (!exp.chain.empty() && exp.chain[0].from.is_matrix() && !exp.chain[0].from.is_floating_point())
+		{
+			type.clear();
+			write_type<false, false>(type, exp.type);
+			expr_code = type + '(' + expr_code + ')';
 		}
 
 		if (force_new_id)
@@ -800,7 +810,7 @@ private:
 				code += escape_name(find_struct(op.from.definition).member_list[op.index].name);
 				break;
 			case expression::operation::op_dynamic_index:
-				code += '[' + id_to_name(op.index) + ']';
+				code += "[int(" + id_to_name(op.index) + ")]";
 				break;
 			case expression::operation::op_constant_index:
 				code += '[' + std::to_string(op.index) + ']';
@@ -819,6 +829,7 @@ private:
 					{
 						// TODO: Implement matrix to vector swizzles
 						assert(false);
+						code += "_NOT_IMPLEMENTED_"; // Make sure compilation fails
 					}
 				}
 				else
@@ -831,7 +842,14 @@ private:
 			}
 		}
 
-		code += " = " + id_to_name(value) + ";\n";
+		code += " = ";
+
+		// GLSL matrices are always floating point, so need to cast type
+		if (!exp.chain.empty() && exp.chain[0].from.is_matrix() && !exp.chain[0].from.is_floating_point())
+			// Only supporting scalar assignments to matrices currently, so can assume to always cast to float
+			code += "float(" + id_to_name(value) + ");\n";
+		else
+			code += id_to_name(value) + ";\n";
 	}
 
 	id   emit_constant(const type &type, const constant &data) override

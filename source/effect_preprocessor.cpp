@@ -99,6 +99,22 @@ bool reshadefx::preprocessor::append_string(const std::string &source_code)
 	return _success;
 }
 
+std::vector<std::string> reshadefx::preprocessor::macro_ifdefs() const
+{
+	std::vector<std::string> defines;
+	defines.reserve(_macro_ifdefs.size());
+	for (const auto &it : _macro_ifdefs)
+		defines.push_back(it);
+	return defines;
+}
+std::vector<std::string> reshadefx::preprocessor::macro_definitions() const
+{
+	std::vector<std::string> defines;
+	defines.reserve(_macros.size());
+	for (const auto &it : _macros)
+		defines.push_back(it.first);
+	return defines;
+}
 std::vector<std::filesystem::path> reshadefx::preprocessor::included_files() const
 {
 	std::vector<std::filesystem::path> files;
@@ -428,6 +444,7 @@ void reshadefx::preprocessor::parse_ifdef()
 	level.skipping = (level.parent != nullptr && level.parent->skipping) || !level.value;
 
 	current_if_stack().push(level);
+	_macro_ifdefs.emplace(_token.literal_as_string);
 }
 void reshadefx::preprocessor::parse_ifndef()
 {
@@ -442,6 +459,7 @@ void reshadefx::preprocessor::parse_ifndef()
 	level.skipping = (level.parent != nullptr && level.parent->skipping) || !level.value;
 
 	current_if_stack().push(level);
+	_macro_ifdefs.emplace(_token.literal_as_string);
 }
 void reshadefx::preprocessor::parse_elif()
 {
