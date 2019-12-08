@@ -6,6 +6,35 @@
 #include "effect_preprocessor.hpp"
 #include <cassert>
 
+enum op_type
+{
+	op_none = -1,
+
+	op_or,
+	op_and,
+	op_bitor,
+	op_bitxor,
+	op_bitand,
+	op_not_equal,
+	op_equal,
+	op_less,
+	op_greater,
+	op_less_equal,
+	op_greater_equal,
+	op_leftshift,
+	op_rightshift,
+	op_add,
+	op_subtract,
+	op_modulo,
+	op_divide,
+	op_multiply,
+	op_plus,
+	op_negate,
+	op_not,
+	op_bitnot,
+	op_parentheses
+};
+
 enum macro_replacement
 {
 	macro_replacement_start = '\x00',
@@ -15,6 +44,15 @@ enum macro_replacement
 	macro_replacement_space = '\xFD',
 	macro_replacement_break = '\xFC',
 	macro_replacement_expand = '\xFB',
+};
+
+static const int precedence_lookup[] = {
+	0, 1, 2, 3, 4, // bitwise operators
+	5, 6, 7, 7, 7, 7, // logical operators
+	8, 8, // left shift, right shift
+	9, 9, // add, subtract
+	10, 10, 10, // modulo, divide, multiply
+	11, 11, 11, 11 // unary operators
 };
 
 static bool read_file(const std::filesystem::path &path, std::string &data)
@@ -229,21 +267,16 @@ void reshadefx::preprocessor::consume()
 void reshadefx::preprocessor::consume_until(tokenid token)
 {
 	while (!accept(token) && !peek(tokenid::end_of_file))
-	{
 		consume();
-	}
 }
 bool reshadefx::preprocessor::accept(tokenid token)
 {
 	while (peek(tokenid::space))
-	{
 		consume();
-	}
 
 	if (peek(token))
 	{
 		consume();
-
 		return true;
 	}
 
@@ -596,11 +629,13 @@ void reshadefx::preprocessor::parse_include()
 		return;
 	}
 
-	auto it = _filecache.find(filepath_string);
-
-	if (it == _filecache.end())
+	std::string data;
+	if (auto it = _filecache.find(filepath_string); it != _filecache.end())
 	{
-		std::string data;
+		data = it->second;
+	}
+	else
+	{
 		if (!read_file(filepath, data))
 		{
 			error(keyword_location, "could not open included file '" + filepath_string + "'");
@@ -608,65 +643,41 @@ void reshadefx::preprocessor::parse_include()
 			return;
 		}
 
-		it = _filecache.emplace(filepath_string, std::move(data)).first;
+		_filecache.emplace(filepath_string, data);
 	}
 
-	push(it->second, filepath_string);
+	push(std::move(data), filepath_string);
 }
 
 bool reshadefx::preprocessor::evaluate_expression()
 {
-	enum op_type
-	{
-		op_none = -1,
-
-		op_or,
-		op_and,
-		op_bitor,
-		op_bitxor,
-		op_bitand,
-		op_not_equal,
-		op_equal,
-		op_less,
-		op_greater,
-		op_less_equal,
-		op_greater_equal,
-		op_leftshift,
-		op_rightshift,
-		op_add,
-		op_subtract,
-		op_modulo,
-		op_divide,
-		op_multiply,
-		op_plus,
-		op_negate,
-		op_not,
-		op_bitnot,
-		op_parentheses
-	};
 	struct rpn_token
 	{
-		bool is_op;
 		int value;
+		bool is_op;
 	};
 
+	size_t rpn_index = 0;
+	size_t stack_index = 0;
 	const size_t STACK_SIZE = 128;
-	int stack[STACK_SIZE];
 	rpn_token rpn[STACK_SIZE];
-	size_t stack_count = 0, rpn_count = 0;
+	int stack[STACK_SIZE];
+
+	// Keep track of previous token to figure out data type of expression
 	tokenid previous_token = _token;
-	const int precedence[] = { 0, 1, 2, 3, 4, 5, 6, 7, 7, 7, 7, 8, 8, 9, 9, 10, 10, 10, 11, 11, 11, 11 };
 
 	// Run shunting-yard algorithm
 	while (!peek(tokenid::end_of_line))
 	{
-		if (stack_count >= STACK_SIZE || rpn_count >= STACK_SIZE)
+		if (stack_index >= STACK_SIZE || rpn_index >= STACK_SIZE)
 		{
 			error(_token.location, "expression evaluator ran out of stack space");
 			return false;
 		}
+
 		int op = op_none;
 		bool is_left_associative = true;
+		bool parenthesis_matched = false;
 
 		consume();
 
@@ -756,205 +767,215 @@ bool reshadefx::preprocessor::evaluate_expression()
 
 		switch (_token)
 		{
-			case tokenid::parenthesis_open:
-				stack[stack_count++] = op_parentheses;
-				break;
-			case tokenid::parenthesis_close:
+		case tokenid::parenthesis_open:
+			stack[stack_index++] = op_parentheses;
+			break;
+		case tokenid::parenthesis_close:
+			parenthesis_matched = false;
+			while (stack_index > 0)
 			{
-				bool matched = false;
-
-				while (stack_count > 0)
+				const int op2 = stack[--stack_index];
+				if (op2 == op_parentheses)
 				{
-					const int op2 = stack[--stack_count];
-
-					if (op2 == op_parentheses)
-					{
-						matched = true;
-						break;
-					}
-
-					rpn[rpn_count].is_op = true;
-					rpn[rpn_count++].value = op2;
+					parenthesis_matched = true;
+					break;
 				}
 
-				if (!matched)
+				rpn[rpn_index++] = { op2, true };
+			}
+
+			if (!parenthesis_matched)
+			{
+				error(_token.location, "unmatched ')'");
+				return false;
+			}
+			break;
+		case tokenid::identifier:
+			if (evaluate_identifier_as_macro())
+				continue;
+
+			if (_token.literal_as_string == "exists")
+			{
+				const bool has_parentheses = accept(tokenid::parenthesis_open);
+				while (accept(tokenid::identifier))
 				{
-					error(_token.location, "unmatched ')'");
+					if (!evaluate_identifier_as_macro())
+					{
+						error(_token.location, "syntax error: unexpected identifier after 'exists'");
+						return false;
+					}
+				}
+				if (!expect(tokenid::string_literal))
 					return false;
-				}
-				break;
-			}
-			case tokenid::identifier:
-			{
-				if (evaluate_identifier_as_macro())
-				{
-					continue;
-				}
-				else if (_token.literal_as_string == "exists")
-				{
-					const bool has_parentheses = accept(tokenid::parenthesis_open);
-
-					while (accept(tokenid::identifier))
-					{
-						if (!evaluate_identifier_as_macro())
-						{
-							error(_token.location, "syntax error: unexpected identifier after 'exists'");
-							return false;
-						}
-					}
-
-					if (!expect(tokenid::string_literal))
-						return false;
-
-					const std::filesystem::path filename = std::filesystem::u8path(_token.literal_as_string);
-
-					if (has_parentheses && !expect(tokenid::parenthesis_close))
-						return false;
-
-					std::error_code ec;
-					std::filesystem::path filepath = std::filesystem::u8path(_output_location.source);
-					filepath.replace_filename(filename);
-
-					if (!std::filesystem::exists(filepath, ec))
-						for (const auto &include_path : _include_paths)
-							if (std::filesystem::exists(filepath = include_path / filename, ec))
-								break;
-
-					rpn[rpn_count].is_op = false;
-					rpn[rpn_count++].value = std::filesystem::exists(filepath, ec);
-					continue;
-				}
-				else if (_token.literal_as_string == "defined")
-				{
-					const bool has_parentheses = accept(tokenid::parenthesis_open);
-
-					if (!expect(tokenid::identifier))
-						return false;
-
-					const bool is_macro_defined = _macros.find(_token.literal_as_string) != _macros.end();
-
-					if (has_parentheses && !expect(tokenid::parenthesis_close))
-						return false;
-
-					rpn[rpn_count].is_op = false;
-					rpn[rpn_count++].value = is_macro_defined;
-					continue;
-				}
-
-				// An identifier that cannot be replaced with a number becomes zero
-				rpn[rpn_count].is_op = false;
-				rpn[rpn_count++].value = 0;
-				break;
-			}
-			case tokenid::int_literal:
-			case tokenid::uint_literal:
-			{
-				rpn[rpn_count].is_op = false;
-				rpn[rpn_count++].value = _token.literal_as_int;
-				break;
-			}
-			default:
-			{
-				if (op == op_none)
-				{
-					error(_token.location, "invalid expression");
+				const std::filesystem::path filename = std::filesystem::u8path(_token.literal_as_string);
+				if (has_parentheses && !expect(tokenid::parenthesis_close))
 					return false;
-				}
 
-				const int precedence1 = precedence[op];
+				std::error_code ec;
+				std::filesystem::path filepath = std::filesystem::u8path(_output_location.source);
+				filepath.replace_filename(filename);
 
-				while (stack_count > 0)
-				{
-					const int op2 = stack[stack_count - 1];
+				if (!std::filesystem::exists(filepath, ec))
+					for (const auto &include_path : _include_paths)
+						if (std::filesystem::exists(filepath = include_path / filename, ec))
+							break;
 
-					if (op2 == op_parentheses)
-						break;
-
-					const int precedence2 = precedence[op2];
-
-					if ((is_left_associative && (precedence1 <= precedence2)) || (!is_left_associative && (precedence1 < precedence2)))
-					{
-						stack_count--;
-						rpn[rpn_count].is_op = true;
-						rpn[rpn_count++].value = op2;
-					}
-					else
-					{
-						break;
-					}
-				}
-
-				stack[stack_count++] = op;
-				break;
+				rpn[rpn_index++] = { std::filesystem::exists(filepath, ec) ? 1 : 0, false };
+				continue;
 			}
+			if (_token.literal_as_string == "defined")
+			{
+				const bool has_parentheses = accept(tokenid::parenthesis_open);
+				if (!expect(tokenid::identifier))
+					return false;
+				const std::string macro_name = std::move(_token.literal_as_string);
+				if (has_parentheses && !expect(tokenid::parenthesis_close))
+					return false;
+
+				rpn[rpn_index++] = { _macros.find(macro_name) != _macros.end() ? 1 : 0, false };
+				continue;
+			}
+
+			// An identifier that cannot be replaced with a number becomes zero
+			rpn[rpn_index++] = { 0, false };
+			break;
+		case tokenid::int_literal:
+		case tokenid::uint_literal:
+			rpn[rpn_index++] = { _token.literal_as_int, false };
+			break;
+		default:
+			if (op == op_none)
+			{
+				error(_token.location, "invalid expression");
+				return false;
+			}
+
+			while (stack_index > 0)
+			{
+				const int prev_op = stack[stack_index - 1];
+				if (prev_op == op_parentheses)
+					break;
+
+				if (is_left_associative ? (precedence_lookup[op] > precedence_lookup[prev_op]) : (precedence_lookup[op] >= precedence_lookup[prev_op]))
+					break;
+
+				stack_index--;
+				rpn[rpn_index++] = { prev_op, true };
+			}
+
+			stack[stack_index++] = op;
+			break;
 		}
 
 		previous_token = _token;
 	}
 
-	while (stack_count > 0)
+	while (stack_index > 0)
 	{
-		const int op = stack[--stack_count];
-
+		const int op = stack[--stack_index];
 		if (op == op_parentheses)
 		{
 			error(_token.location, "unmatched ')'");
 			return false;
 		}
 
-		rpn[rpn_count].is_op = true;
-		rpn[rpn_count++].value = static_cast<int>(op);
+		rpn[rpn_index++] = { op, true };
+	}
+
+#define UNARY_OPERATION(op) { \
+	if (stack_index < 1) \
+		return error(_token.location, "invalid expression"), 0; \
+	stack[stack_index - 1] = op stack[stack_index - 1]; \
+	}
+#define BINARY_OPERATION(op) { \
+	if (stack_index < 2) \
+		return error(_token.location, "invalid expression"), 0; \
+	stack[stack_index - 2] = stack[stack_index - 2] op stack[stack_index - 1]; \
+	stack_index--; \
 	}
 
 	// Evaluate reverse polish notation output
-	for (rpn_token *token = rpn; rpn_count-- != 0; token++)
+	for (auto *token = rpn; rpn_index--; token++)
 	{
 		if (token->is_op)
 		{
-#define UNARY_OPERATION(op) { \
-	if (stack_count < 1) \
-		return error(_token.location, "invalid expression"), 0; \
-	stack[stack_count - 1] = op stack[stack_count - 1]; \
-	}
-#define BINARY_OPERATION(op) { \
-	if (stack_count < 2) \
-		return error(_token.location, "invalid expression"), 0; \
-	stack[stack_count - 2] = stack[stack_count - 2] op stack[stack_count - 1]; \
-	stack_count--; \
-	}
 			switch (token->value)
 			{
-				case op_or: BINARY_OPERATION(||); break;
-				case op_and: BINARY_OPERATION(&&); break;
-				case op_bitor: BINARY_OPERATION(|); break;
-				case op_bitxor: BINARY_OPERATION(^); break;
-				case op_bitand: BINARY_OPERATION(&); break;
-				case op_not_equal: BINARY_OPERATION(!=); break;
-				case op_equal: BINARY_OPERATION(==); break;
-				case op_less: BINARY_OPERATION(<); break;
-				case op_greater: BINARY_OPERATION(>); break;
-				case op_less_equal: BINARY_OPERATION(<=); break;
-				case op_greater_equal: BINARY_OPERATION(>=); break;
-				case op_leftshift: BINARY_OPERATION(<<); break;
-				case op_rightshift: BINARY_OPERATION(>>); break;
-				case op_add: BINARY_OPERATION(+); break;
-				case op_subtract: BINARY_OPERATION(-); break;
-				case op_modulo: BINARY_OPERATION(%); break;
-				case op_divide: BINARY_OPERATION(/); break;
-				case op_multiply: BINARY_OPERATION(*); break;
-				case op_plus: UNARY_OPERATION(+); break;
-				case op_negate: UNARY_OPERATION(-); break;
-				case op_not: UNARY_OPERATION(!); break;
-				case op_bitnot: UNARY_OPERATION(~); break;
+			case op_or:
+				BINARY_OPERATION(||);
+				break;
+			case op_and:
+				BINARY_OPERATION(&&);
+				break;
+			case op_bitor:
+				BINARY_OPERATION(|);
+				break;
+			case op_bitxor:
+				BINARY_OPERATION(^);
+				break;
+			case op_bitand:
+				BINARY_OPERATION(&);
+				break;
+			case op_not_equal:
+				BINARY_OPERATION(!=);
+				break;
+			case op_equal:
+				BINARY_OPERATION(==);
+				break;
+			case op_less:
+				BINARY_OPERATION(<);
+				break;
+			case op_greater:
+				BINARY_OPERATION(>);
+				break;
+			case op_less_equal:
+				BINARY_OPERATION(<=);
+				break;
+			case op_greater_equal:
+				BINARY_OPERATION(>=);
+				break;
+			case op_leftshift:
+				BINARY_OPERATION(<<);
+				break;
+			case op_rightshift:
+				BINARY_OPERATION(>>);
+				break;
+			case op_add:
+				BINARY_OPERATION(+);
+				break;
+			case op_subtract:
+				BINARY_OPERATION(-);
+				break;
+			case op_modulo:
+				BINARY_OPERATION(%);
+				break;
+			case op_divide:
+				BINARY_OPERATION(/);
+				break;
+			case op_multiply:
+				BINARY_OPERATION(*);
+				break;
+			case op_plus:
+				UNARY_OPERATION(+);
+				break;
+			case op_negate:
+				UNARY_OPERATION(-);
+				break;
+			case op_not:
+				UNARY_OPERATION(!);
+				break;
+			case op_bitnot:
+				UNARY_OPERATION(~);
+				break;
 			}
 		}
 		else
 		{
-			stack[stack_count++] = token->value;
+			stack[stack_index++] = token->value;
 		}
 	}
 
-	if (stack_count != 1)
+	if (stack_index != 1)
 	{
 		error(_token.location, "invalid expression");
 		return false;
@@ -1015,12 +1036,13 @@ bool reshadefx::preprocessor::evaluate_identifier_as_macro()
 				argument += _current_token_raw_data;
 			}
 
+			// Trim whitespace from argument
 			if (!argument.empty() && argument.back() == ' ')
 				argument.pop_back();
 			if (!argument.empty() && argument.front() == ' ')
 				argument.erase(0, 1);
 
-			arguments.push_back(argument);
+			arguments.push_back(std::move(argument));
 
 			if (parentheses_level < 0)
 				break;
