@@ -902,9 +902,13 @@ private:
 	}
 	id   emit_ternary_op(const location &loc, tokenid op, const type &res_type, id condition, id true_value, id false_value) override
 	{
-		assert(op == tokenid::question); /* unreferened parameter */ op;
-
 		const id res = make_id();
+
+		if (op != tokenid::question)
+		{
+			assert(false); // Should never happen, since this is the only ternary operator currently supported
+			return res;
+		}
 
 		std::string &code = _blocks.at(_current_block);
 

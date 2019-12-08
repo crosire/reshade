@@ -144,7 +144,7 @@ bool reshadefx::parser::accept_type_class(type &type)
 			else if (_token.literal_as_int < 1 || _token.literal_as_int > 4)
 				return error(_token.location, 3052, "vector dimension must be between 1 and 4"), false;
 
-			type.rows = _token.literal_as_int;
+			type.rows = static_cast<unsigned int>(_token.literal_as_int);
 
 			if (!expect('>'))
 				return false;
@@ -169,14 +169,14 @@ bool reshadefx::parser::accept_type_class(type &type)
 			else if (_token.literal_as_int < 1 || _token.literal_as_int > 4)
 				return error(_token.location, 3053, "matrix dimensions must be between 1 and 4"), false;
 
-			type.rows = _token.literal_as_int;
+			type.rows = static_cast<unsigned int>(_token.literal_as_int);
 
 			if (!expect(',') || !expect(tokenid::int_literal))
 				return false;
 			else if (_token.literal_as_int < 1 || _token.literal_as_int > 4)
 				return error(_token.location, 3053, "matrix dimensions must be between 1 and 4"), false;
 
-			type.cols = _token.literal_as_int;
+			type.cols = static_cast<unsigned int>(_token.literal_as_int);
 
 			if (!expect('>'))
 				return false;
@@ -1013,18 +1013,22 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 
 				for (size_t i = 0, j = 0; i < length; i += 3 + set, ++j)
 				{
-					if (subscript[i] != '_' || subscript[i + set + 1] < '0' + coefficient || subscript[i + set + 1] > '3' + coefficient || subscript[i + set + 2] < '0' + coefficient || subscript[i + set + 2] > '3' + coefficient)
+					if (subscript[i] != '_' ||
+						subscript[i + set + 1] < '0' + coefficient ||
+						subscript[i + set + 1] > '3' + coefficient ||
+						subscript[i + set + 2] < '0' + coefficient ||
+						subscript[i + set + 2] > '3' + coefficient)
 						return error(location, 3018, "invalid subscript '" + subscript + '\''), false;
 					if (set && subscript[i + 1] != 'm')
 						return error(location, 3018, "invalid subscript '" + subscript + "', mixed swizzle sets"), false;
 
-					const unsigned int row = subscript[i + set + 1] - '0' - coefficient;
-					const unsigned int col = subscript[i + set + 2] - '0' - coefficient;
+					const unsigned int row = static_cast<unsigned int>((subscript[i + set + 1] - '0') - coefficient);
+					const unsigned int col = static_cast<unsigned int>((subscript[i + set + 2] - '0') - coefficient);
 
 					if ((row >= exp.type.rows || col >= exp.type.cols) || j > 3)
 						return error(location, 3018, "invalid subscript '" + subscript + "', swizzle out of range"), false;
 
-					offsets[j] = static_cast<unsigned char>(row * 4 + col);
+					offsets[j] = static_cast<signed char>(row * 4 + col);
 
 					// The result is not modifiable if a swizzle appears multiple times
 					for (size_t k = 0; k < j; ++k)

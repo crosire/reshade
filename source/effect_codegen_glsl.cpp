@@ -743,8 +743,8 @@ private:
 				{
 					if (op.swizzle[1] < 0)
 					{
-						const unsigned int row = op.swizzle[0] % 4;
-						const unsigned int col = (op.swizzle[0] - row) / 4;
+						const int row = (op.swizzle[0] % 4);
+						const int col = (op.swizzle[0] - row) / 4;
 
 						expr_code += '[' + std::to_string(row) + "][" + std::to_string(col) + ']';
 					}
@@ -823,8 +823,8 @@ private:
 				{
 					if (op.swizzle[1] < 0)
 					{
-						const unsigned int row = op.swizzle[0] % 4;
-						const unsigned int col = (op.swizzle[0] - row) / 4;
+						const int row = (op.swizzle[0] % 4);
+						const int col = (op.swizzle[0] - row) / 4;
 
 						code += '[' + std::to_string(row) + "][" + std::to_string(col) + ']';
 					}
@@ -1057,9 +1057,13 @@ private:
 	}
 	id   emit_ternary_op(const location &loc, tokenid op, const type &res_type, id condition, id true_value, id false_value) override
 	{
-		assert(op == tokenid::question); /* unreferenced parameter */ op;
-
 		const id res = make_id();
+
+		if (op != tokenid::question)
+		{
+			assert(false); // Should never happen, since this is the only ternary operator currently supported
+			return res;
+		}
 
 		std::string &code = _blocks.at(_current_block);
 
