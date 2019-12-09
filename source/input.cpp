@@ -22,8 +22,26 @@ reshade::input::input(window_handle window)
 	assert(window != nullptr);
 }
 
+#if RESHADE_UWP
+static bool is_uwp_app()
+{
+	const auto GetCurrentPackageFullName = reinterpret_cast<LONG(WINAPI*)(UINT32*, PWSTR)>(
+		GetProcAddress(GetModuleHandle(TEXT("kernel32.dll")), "GetCurrentPackageFullName"));
+	if (GetCurrentPackageFullName == nullptr)
+		return false;
+	// This will return APPMODEL_ERROR_NO_PACKAGE if not a packaged UWP app
+	UINT32 length = 0;
+	return GetCurrentPackageFullName(&length, nullptr) == ERROR_INSUFFICIENT_BUFFER;
+}
+#endif
+
 void reshade::input::register_window_with_raw_input(window_handle window, bool no_legacy_keyboard, bool no_legacy_mouse)
 {
+#if RESHADE_UWP
+	if (is_uwp_app()) // UWP apps never use legacy input messages
+		no_legacy_keyboard = no_legacy_mouse = true;
+#endif
+
 	const std::lock_guard<std::mutex> lock(s_windows_mutex);
 
 	const auto flags = (no_legacy_keyboard ? 0x1u : 0u) | (no_legacy_mouse ? 0x2u : 0u);

@@ -5,13 +5,11 @@
 
 #pragma once
 
-#include <stack>
-#include <vector>
-#include <unordered_map>
-#include <unordered_set>
-#include <memory>
-#include <filesystem>
 #include "effect_lexer.hpp"
+#include <stack>
+#include <memory> // std::unique_ptr
+#include <filesystem>
+#include <unordered_set>
 
 namespace reshadefx
 {

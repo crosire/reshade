@@ -5,7 +5,11 @@
 
 #include "effect_parser.hpp"
 #include "effect_codegen.hpp"
-#include <assert.h>
+#include <cmath> // signbit, isinf, isnan
+#include <cstdio> // snprintf
+#include <cassert>
+#include <cstring> // stricmp
+#include <algorithm> // std::max
 
 using namespace reshadefx;
 
@@ -182,8 +186,8 @@ private:
 					s += std::signbit(data.as_float[i]) ? "1.#INF" : "-1.#INF";
 					break;
 				}
-				std::string temp(_scprintf("%.8f", data.as_float[i]), '\0');
-				sprintf_s(temp.data(), temp.size() + 1, "%.8f", data.as_float[i]);
+				char temp[64] = "";
+				std::snprintf(temp, sizeof(temp), "%.8f", data.as_float[i]);
 				s += temp;
 				break;
 			}
@@ -225,15 +229,15 @@ private:
 		return '_' + std::to_string(id);
 	}
 
-	template <naming naming = naming::general>
+	template <naming naming_type = naming::general>
 	void define_name(const id id, std::string name)
 	{
 		assert(!name.empty());
-		if constexpr (naming != naming::expression)
+		if constexpr (naming_type != naming::expression)
 			if (name[0] == '_')
 				return; // Filter out names that may clash with automatic ones
 		name = escape_name(std::move(name));
-		if constexpr (naming == naming::general)
+		if constexpr (naming_type == naming::general)
 			if (std::find_if(_names.begin(), _names.end(), [&name](const auto &it) { return it.second == name; }) != _names.end())
 				name += '_' + std::to_string(id); // Append a numbered suffix if the name already exists
 		_names[id] = std::move(name);
@@ -898,9 +902,13 @@ private:
 	}
 	id   emit_ternary_op(const location &loc, tokenid op, const type &res_type, id condition, id true_value, id false_value) override
 	{
-		assert(op == tokenid::question); /* unreferened parameter */ op;
-
 		const id res = make_id();
+
+		if (op != tokenid::question)
+		{
+			assert(false); // Should never happen, since this is the only ternary operator currently supported
+			return res;
+		}
 
 		std::string &code = _blocks.at(_current_block);
 

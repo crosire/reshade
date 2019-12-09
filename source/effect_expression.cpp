@@ -3,10 +3,12 @@
  * License: https://github.com/crosire/reshade#license
  */
 
-#include "effect_expression.hpp"
 #include "effect_lexer.hpp"
 #include "effect_codegen.hpp"
-#include <assert.h>
+#include <cmath> // fmodf
+#include <cassert>
+#include <cstring> // memcpy, memset
+#include <algorithm> // std::min, std::max
 
 reshadefx::type reshadefx::type::merge(const type &lhs, const type &rhs)
 {
@@ -169,7 +171,7 @@ void reshadefx::expression::add_member_access(unsigned int index, const reshadef
 	type = in_type;
 	is_constant = false;
 }
-void reshadefx::expression::add_dynamic_index_access(reshadefx::codegen::id index_expression)
+void reshadefx::expression::add_dynamic_index_access(uint32_t index_expression)
 {
 	assert(type.is_numeric() && !is_constant);
 
@@ -246,10 +248,10 @@ void reshadefx::expression::add_swizzle_access(const signed char swizzle[4], uns
 		assert(constant.array_data.empty());
 
 		uint32_t data[16];
-		memcpy(data, &constant.as_uint[0], sizeof(data));
+		std::memcpy(data, &constant.as_uint[0], sizeof(data));
 		for (unsigned int i = 0; i < length; ++i)
 			constant.as_uint[i] = data[swizzle[i]];
-		memset(&constant.as_uint[length], 0, sizeof(uint32_t) * (16 - length)); // Clear the rest of the constant
+		std::memset(&constant.as_uint[length], 0, sizeof(uint32_t) * (16 - length)); // Clear the rest of the constant
 	}
 	else if (length == 1 && prev_type.is_vector()) // Use indexing when possible since the code generation logic is simpler in SPIR-V
 	{
@@ -302,7 +304,7 @@ bool reshadefx::expression::evaluate_constant_expression(reshadefx::tokenid op, 
 				if (rhs.as_float[i] == 0)
 					constant.as_float[i] = std::numeric_limits<float>::quiet_NaN();
 				else
-					constant.as_float[i] = fmodf(constant.as_float[i], rhs.as_float[i]);
+					constant.as_float[i] = std::fmodf(constant.as_float[i], rhs.as_float[i]);
 		}
 		else if (type.is_signed()) {
 			for (unsigned int i = 0; i < type.components(); ++i)

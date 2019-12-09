@@ -144,7 +144,7 @@ bool reshadefx::parser::accept_type_class(type &type)
 			else if (_token.literal_as_int < 1 || _token.literal_as_int > 4)
 				return error(_token.location, 3052, "vector dimension must be between 1 and 4"), false;
 
-			type.rows = _token.literal_as_int;
+			type.rows = static_cast<unsigned int>(_token.literal_as_int);
 
 			if (!expect('>'))
 				return false;
@@ -169,14 +169,14 @@ bool reshadefx::parser::accept_type_class(type &type)
 			else if (_token.literal_as_int < 1 || _token.literal_as_int > 4)
 				return error(_token.location, 3053, "matrix dimensions must be between 1 and 4"), false;
 
-			type.rows = _token.literal_as_int;
+			type.rows = static_cast<unsigned int>(_token.literal_as_int);
 
 			if (!expect(',') || !expect(tokenid::int_literal))
 				return false;
 			else if (_token.literal_as_int < 1 || _token.literal_as_int > 4)
 				return error(_token.location, 3053, "matrix dimensions must be between 1 and 4"), false;
 
-			type.cols = _token.literal_as_int;
+			type.cols = static_cast<unsigned int>(_token.literal_as_int);
 
 			if (!expect('>'))
 				return false;
@@ -195,14 +195,14 @@ bool reshadefx::parser::accept_type_class(type &type)
 	case tokenid::bool3:
 	case tokenid::bool4:
 		type.base = type::t_bool;
-		type.rows = 1 + unsigned int(_token_next.id) - unsigned int(tokenid::bool_);
+		type.rows = 1 + static_cast<unsigned int>(_token_next.id) - static_cast<unsigned int>(tokenid::bool_);
 		type.cols = 1;
 		break;
 	case tokenid::bool2x2:
 	case tokenid::bool3x3:
 	case tokenid::bool4x4:
 		type.base = type::t_bool;
-		type.rows = 2 + unsigned int(_token_next.id) - unsigned int(tokenid::bool2x2);
+		type.rows = 2 + static_cast<unsigned int>(_token_next.id) - static_cast<unsigned int>(tokenid::bool2x2);
 		type.cols = type.rows;
 		break;
 	case tokenid::int_:
@@ -210,14 +210,14 @@ bool reshadefx::parser::accept_type_class(type &type)
 	case tokenid::int3:
 	case tokenid::int4:
 		type.base = type::t_int;
-		type.rows = 1 + unsigned int(_token_next.id) - unsigned int(tokenid::int_);
+		type.rows = 1 + static_cast<unsigned int>(_token_next.id) - static_cast<unsigned int>(tokenid::int_);
 		type.cols = 1;
 		break;
 	case tokenid::int2x2:
 	case tokenid::int3x3:
 	case tokenid::int4x4:
 		type.base = type::t_int;
-		type.rows = 2 + unsigned int(_token_next.id) - unsigned int(tokenid::int2x2);
+		type.rows = 2 + static_cast<unsigned int>(_token_next.id) - static_cast<unsigned int>(tokenid::int2x2);
 		type.cols = type.rows;
 		break;
 	case tokenid::uint_:
@@ -225,14 +225,14 @@ bool reshadefx::parser::accept_type_class(type &type)
 	case tokenid::uint3:
 	case tokenid::uint4:
 		type.base = type::t_uint;
-		type.rows = 1 + unsigned int(_token_next.id) - unsigned int(tokenid::uint_);
+		type.rows = 1 + static_cast<unsigned int>(_token_next.id) - static_cast<unsigned int>(tokenid::uint_);
 		type.cols = 1;
 		break;
 	case tokenid::uint2x2:
 	case tokenid::uint3x3:
 	case tokenid::uint4x4:
 		type.base = type::t_uint;
-		type.rows = 2 + unsigned int(_token_next.id) - unsigned int(tokenid::uint2x2);
+		type.rows = 2 + static_cast<unsigned int>(_token_next.id) - static_cast<unsigned int>(tokenid::uint2x2);
 		type.cols = type.rows;
 		break;
 	case tokenid::float_:
@@ -240,14 +240,14 @@ bool reshadefx::parser::accept_type_class(type &type)
 	case tokenid::float3:
 	case tokenid::float4:
 		type.base = type::t_float;
-		type.rows = 1 + unsigned int(_token_next.id) - unsigned int(tokenid::float_);
+		type.rows = 1 + static_cast<unsigned int>(_token_next.id) - static_cast<unsigned int>(tokenid::float_);
 		type.cols = 1;
 		break;
 	case tokenid::float2x2:
 	case tokenid::float3x3:
 	case tokenid::float4x4:
 		type.base = type::t_float;
-		type.rows = 2 + unsigned int(_token_next.id) - unsigned int(tokenid::float2x2);
+		type.rows = 2 + static_cast<unsigned int>(_token_next.id) - static_cast<unsigned int>(tokenid::float2x2);
 		type.cols = type.rows;
 		break;
 	case tokenid::string_:
@@ -1013,18 +1013,22 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 
 				for (size_t i = 0, j = 0; i < length; i += 3 + set, ++j)
 				{
-					if (subscript[i] != '_' || subscript[i + set + 1] < '0' + coefficient || subscript[i + set + 1] > '3' + coefficient || subscript[i + set + 2] < '0' + coefficient || subscript[i + set + 2] > '3' + coefficient)
+					if (subscript[i] != '_' ||
+						subscript[i + set + 1] < '0' + coefficient ||
+						subscript[i + set + 1] > '3' + coefficient ||
+						subscript[i + set + 2] < '0' + coefficient ||
+						subscript[i + set + 2] > '3' + coefficient)
 						return error(location, 3018, "invalid subscript '" + subscript + '\''), false;
 					if (set && subscript[i + 1] != 'm')
 						return error(location, 3018, "invalid subscript '" + subscript + "', mixed swizzle sets"), false;
 
-					const unsigned int row = subscript[i + set + 1] - '0' - coefficient;
-					const unsigned int col = subscript[i + set + 2] - '0' - coefficient;
+					const unsigned int row = static_cast<unsigned int>((subscript[i + set + 1] - '0') - coefficient);
+					const unsigned int col = static_cast<unsigned int>((subscript[i + set + 2] - '0') - coefficient);
 
 					if ((row >= exp.type.rows || col >= exp.type.cols) || j > 3)
 						return error(location, 3018, "invalid subscript '" + subscript + "', swizzle out of range"), false;
 
-					offsets[j] = static_cast<unsigned char>(row * 4 + col);
+					offsets[j] = static_cast<signed char>(row * 4 + col);
 
 					// The result is not modifiable if a swizzle appears multiple times
 					for (size_t k = 0; k < j; ++k)

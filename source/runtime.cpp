@@ -553,6 +553,9 @@ void reshade::runtime::load_effects()
 	// Clear out any previous effects
 	unload_effects();
 
+#if RESHADE_GUI
+	_show_splash = true; // Always show splash bar when reloading everything
+#endif
 	_last_reload_successful = true;
 
 	// Reload preprocessor definitions from current preset before compiling

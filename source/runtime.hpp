@@ -31,7 +31,7 @@ namespace reshade
 	/// Platform independent base class for the main ReShade runtime.
 	/// This class needs to be implemented for all supported rendering APIs.
 	/// </summary>
-	class runtime abstract
+	class runtime
 	{
 	public:
 		/// <summary>

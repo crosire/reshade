@@ -7,7 +7,7 @@
 
 #include "effect_lexer.hpp"
 #include "effect_symbol_table.hpp"
-#include <memory>
+#include <memory> // std::unique_ptr
 
 namespace reshadefx
 {

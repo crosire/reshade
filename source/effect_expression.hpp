@@ -5,25 +5,12 @@
 
 #pragma once
 
-#include <string>
+#include "effect_token.hpp"
 #include <vector>
 #include <unordered_map>
 
 namespace reshadefx
 {
-	/// <summary>
-	/// Structure which keeps track of a code location
-	/// </summary>
-	struct location
-	{
-		location() : line(1), column(1) { }
-		explicit location(unsigned int line, unsigned int column = 1) : line(line), column(column) { }
-		explicit location(std::string source, unsigned int line, unsigned int column = 1) : source(std::move(source)), line(line), column(column) { }
-
-		std::string source;
-		unsigned int line, column;
-	};
-
 	/// <summary>
 	/// Structure which encapsulates a parsed value type
 	/// </summary>
@@ -211,13 +198,13 @@ namespace reshadefx
 		/// Apply an unary operation to this constant expression.
 		/// </summary>
 		/// <param name="op">The unary operator to apply.</param>
-		bool evaluate_constant_expression(enum class tokenid op);
+		bool evaluate_constant_expression(tokenid op);
 		/// <summary>
 		/// Apply a binary operation to this constant expression.
 		/// </summary>
 		/// <param name="op">The binary operator to apply.</param>
 		/// <param name="rhs">The constant to use as right-hand side of the binary operation.</param>
-		bool evaluate_constant_expression(enum class tokenid op, const reshadefx::constant &rhs);
+		bool evaluate_constant_expression(tokenid op, const reshadefx::constant &rhs);
 	};
 
 
@@ -312,8 +299,8 @@ namespace reshadefx
 		texture_address_mode address_u = texture_address_mode::clamp;
 		texture_address_mode address_v = texture_address_mode::clamp;
 		texture_address_mode address_w = texture_address_mode::clamp;
-		float min_lod = -FLT_MAX;
-		float max_lod = +FLT_MAX;
+		float min_lod = -3.402823466e+38f; // FLT_MAX
+		float max_lod = +3.402823466e+38f;
 		float lod_bias = 0.0f;
 		uint8_t srgb = false;
 	};

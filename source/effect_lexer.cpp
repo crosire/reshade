@@ -4,7 +4,6 @@
  */
 
 #include "effect_lexer.hpp"
-#include <unordered_map>
 
 using namespace reshadefx;
 
@@ -690,11 +689,8 @@ void reshadefx::lexer::parse_identifier(token &tok) const
 		return;
 
 	const auto it = keyword_lookup.find(tok.literal_as_string);
-
 	if (it != keyword_lookup.end())
-	{
 		tok.id = it->second;
-	}
 }
 bool reshadefx::lexer::parse_pp_directive(token &tok)
 {
@@ -703,11 +699,9 @@ bool reshadefx::lexer::parse_pp_directive(token &tok)
 	parse_identifier(tok);
 
 	const auto it = pp_directive_lookup.find(tok.literal_as_string);
-
 	if (it != pp_directive_lookup.end())
 	{
 		tok.id = it->second;
-
 		return true;
 	}
 	else if (!_ignore_line_directives && tok.literal_as_string == "line") // The #line directive needs special handling
@@ -814,7 +808,7 @@ void reshadefx::lexer::parse_string_literal(token &tok, bool escape) const
 					while (is_hexadecimal_digit(*end) && end < _end)
 					{
 						c = *end++;
-						n = (n << 4) | (is_decimal_digit(c) ? c - '0' : c - 55 - 32 * (c & 0x20));
+						n = (n << 4) | (is_decimal_digit(c) ? (c - '0') : (c - 55 - 32 * (c & 0x20)));
 					}
 
 					// For simplicity the number is limited to what fits in a single character
@@ -931,7 +925,7 @@ void reshadefx::lexer::parse_numeric_literal(token &tok) const
 
 			do {
 				exponent *= 10;
-				exponent += *end++ - '0';
+				exponent += (*end++) - '0';
 			} while (is_decimal_digit(*end));
 
 			if (negative)
