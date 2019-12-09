@@ -34,12 +34,7 @@ void reshade::d3d11::buffer_detection::reset()
 	_best_copy_stats.vertices = 0;
 	_best_copy_stats.drawcalls = 0;
 #if RESHADE_DX11_CAPTURE_DEPTH_BUFFERS
-	for (auto& [dsv_texture, snapshot] : _counters_per_used_depth_texture)
-	{
-		snapshot.total_stats.vertices = 0;
-		snapshot.total_stats.drawcalls = 0;
-		snapshot.clears.clear();
-	}
+	_counters_per_used_depth_texture.clear();
 #endif
 #if RESHADE_DX11_CAPTURE_CONSTANT_BUFFERS
 	_counters_per_constant_buffer.clear();
@@ -53,8 +48,7 @@ void reshade::d3d11::buffer_detection_context::reset(bool release_resources)
 	if (release_resources)
 	{
 		assert(_context == this);
-
-		_counters_per_used_depth_texture.clear();
+		
 		_depthstencil_clear_texture.reset();
 	}
 #endif
@@ -156,8 +150,8 @@ void reshade::d3d11::buffer_detection::on_clear_depthstencil(UINT clear_flags, I
 	auto& counters = _counters_per_used_depth_texture[dsv_texture];
 
 	// Ignore clears when there was no meaningful workload
-	if (counters.current_stats.drawcalls == 0)
-		return;
+	// if (counters.current_stats.drawcalls == 0)
+		// return;
 
 	counters.clears.push_back(counters.current_stats);
 

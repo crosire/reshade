@@ -16,8 +16,6 @@ void reshade::d3d12::buffer_detection::init(ID3D12Device* device, const buffer_d
 {
 	_device = device;
 	_context = context;
-	if(context != nullptr)
-		_previous_counters_per_used_depth_texture = context->depth_buffer_counters();
 }
 
 void reshade::d3d12::buffer_detection::reset()
@@ -28,13 +26,7 @@ void reshade::d3d12::buffer_detection::reset()
 	_best_copy_stats.drawcalls = 0;
 #if RESHADE_DX12_CAPTURE_DEPTH_BUFFERS
 	_current_depthstencil.reset();
-
-	for (auto& [dsv_texture, snapshot] : _counters_per_used_depth_texture)
-	{
-		snapshot.total_stats.vertices = 0;
-		snapshot.total_stats.drawcalls = 0;
-		snapshot.clears.clear();
-	}
+	_counters_per_used_depth_texture.clear();
 #endif
 }
 void reshade::d3d12::buffer_detection_context::reset(bool release_resources)
@@ -45,9 +37,7 @@ void reshade::d3d12::buffer_detection_context::reset(bool release_resources)
 	if (release_resources)
 	{
 		assert(_context == this);
-
-		_previous_counters_per_used_depth_texture.clear();
-		_counters_per_used_depth_texture.clear();
+		
 		_depthstencil_clear_texture.reset();
 		_depthstencil_resources_by_handle.clear();
 	}
@@ -58,7 +48,6 @@ void reshade::d3d12::buffer_detection::merge(const buffer_detection& source, std
 {
 	_stats.vertices += source._stats.vertices;
 	_stats.drawcalls += source._stats.drawcalls;
-	_previous_counters_per_used_depth_texture = previous_counters_per_used_depth_texture;
 
 #if RESHADE_DX12_CAPTURE_DEPTH_BUFFERS
 	// Executing a command list in a different command list inherits state
@@ -103,7 +92,6 @@ void reshade::d3d12::buffer_detection::on_clear_depthstencil(ID3D12GraphicsComma
 {
 	assert(_context != nullptr);
 	bool bcopy = false;
-	draw_stats stats;
 
 	if ((clear_flags & D3D12_CLEAR_FLAG_DEPTH) == 0)
 		return;
@@ -113,14 +101,10 @@ void reshade::d3d12::buffer_detection::on_clear_depthstencil(ID3D12GraphicsComma
 		return;
 
 	auto& counters = _counters_per_used_depth_texture[dsv_texture];
-	stats = counters.current_stats;
 
 	// Ignore clears when there was no meaningful workload
-	if (stats.drawcalls == 0 && _previous_counters_per_used_depth_texture.find(dsv_texture) != _previous_counters_per_used_depth_texture.end())
-		stats = _previous_counters_per_used_depth_texture[dsv_texture].current_stats;
-
-	if (stats.drawcalls == 0)
-		return;
+	// if (counters.current_stats.drawcalls == 0)
+		// return;
 
 	counters.clears.push_back(counters.current_stats);
 
@@ -225,7 +209,7 @@ com_ptr<ID3D12Resource> reshade::d3d12::buffer_detection_context::find_best_dept
 {
 	depthstencil_info best_snapshot;
 	com_ptr<ID3D12Resource> best_match;
-	_previous_counters_per_used_depth_texture = _counters_per_used_depth_texture;
+	_auto_copy = clear_index_override == std::numeric_limits<UINT>::max();
 
 	if (override != nullptr)
 	{
