@@ -17,19 +17,6 @@ namespace reshade::d3d12
 	class buffer_detection
 	{
 	public:
-		void init(ID3D12Device* device, const class buffer_detection_context* context = nullptr);
-		void reset();
-
-		void merge(const buffer_detection& source);
-
-		void on_draw(UINT vertices);
-
-#if RESHADE_DX12_CAPTURE_DEPTH_BUFFERS
-		void on_set_depthstencil(D3D12_CPU_DESCRIPTOR_HANDLE dsv);
-		void on_clear_depthstencil(ID3D12GraphicsCommandList* cmd_list, D3D12_CLEAR_FLAGS clear_flags, D3D12_CPU_DESCRIPTOR_HANDLE dsv);
-#endif
-
-	protected:
 		struct draw_stats
 		{
 			UINT vertices = 0;
@@ -42,6 +29,19 @@ namespace reshade::d3d12
 			std::vector<draw_stats> clears;
 		};
 
+		void init(ID3D12Device* device, const class buffer_detection_context* context = nullptr);
+		void reset();
+
+		void merge(const buffer_detection& source, std::map<com_ptr<ID3D12Resource>, depthstencil_info> previous_counters_per_used_depth_texture);
+
+		void on_draw(UINT vertices);
+
+#if RESHADE_DX12_CAPTURE_DEPTH_BUFFERS
+		void on_set_depthstencil(D3D12_CPU_DESCRIPTOR_HANDLE dsv);
+		void on_clear_depthstencil(ID3D12GraphicsCommandList* cmd_list, D3D12_CLEAR_FLAGS clear_flags, D3D12_CPU_DESCRIPTOR_HANDLE dsv);
+#endif
+
+	protected:
 		ID3D12Device* _device = nullptr;
 		const buffer_detection_context* _context = nullptr;
 		draw_stats _stats;
@@ -51,6 +51,7 @@ namespace reshade::d3d12
 		com_ptr<ID3D12Resource> _current_depthstencil;
 		// Use "std::map" instead of "std::unordered_map" so that the iteration order is guaranteed
 		std::map<com_ptr<ID3D12Resource>, depthstencil_info> _counters_per_used_depth_texture;
+		std::map<com_ptr<ID3D12Resource>, depthstencil_info> _previous_counters_per_used_depth_texture;
 #endif
 	};
 

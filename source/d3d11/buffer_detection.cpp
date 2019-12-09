@@ -36,9 +36,6 @@ void reshade::d3d11::buffer_detection::reset()
 #if RESHADE_DX11_CAPTURE_DEPTH_BUFFERS
 	for (auto& [dsv_texture, snapshot] : _counters_per_used_depth_texture)
 	{
-		if (snapshot.total_stats.drawcalls == 0)
-			continue; // Skip unused
-
 		snapshot.total_stats.vertices = 0;
 		snapshot.total_stats.drawcalls = 0;
 		snapshot.clears.clear();
