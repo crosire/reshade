@@ -936,7 +936,6 @@ void reshade::runtime::draw_overlay_menu_home()
 		if (ImGui::Button("Reload", ImVec2(-150, 0)))
 		{
 			load_effects();
-			_show_splash = true;
 		}
 
 		ImGui::SameLine();
@@ -945,7 +944,6 @@ void reshade::runtime::draw_overlay_menu_home()
 		{
 			save_config();
 			load_effects(); // Reload effects after switching
-			_show_splash = true;
 		}
 	}
 	else
@@ -1617,7 +1615,7 @@ void reshade::runtime::draw_code_editor()
 	if (_selected_effect < _loaded_effects.size() && (
 		ImGui::Button("Save", ImVec2(ImGui::GetContentRegionAvail().x, 0)) || _input->is_key_pressed('S', true, false, false)))
 	{
-		// Hide splash bar during compile
+		// Hide splash bar when reloading a single effect file
 		_show_splash = false;
 
 		// Write current editor text to file
@@ -1786,7 +1784,6 @@ void reshade::runtime::draw_overlay_variable_editor()
 	else if (_was_preprocessor_popup_edited)
 	{
 		load_effects();
-		_show_splash = true;
 		_was_preprocessor_popup_edited = false;
 	}
 
@@ -2545,7 +2542,10 @@ void reshade::runtime::draw_preset_explorer()
 	}
 
 	if (condition == condition::popup_add)
-		condition = condition::pass, ImGui::OpenPopup("##name");
+	{
+		ImGui::OpenPopup("##name");
+		condition = condition::pass;
+	}
 
 	ImGui::SetNextWindowPos(cursor_pos + ImVec2(root_window_width + button_size - 230, button_size));
 	if (ImGui::BeginPopup("##name"))
@@ -2596,6 +2596,7 @@ void reshade::runtime::draw_preset_explorer()
 			save_config();
 			load_current_preset();
 		}
+
 		if (is_explore_open && condition != condition::backward && condition != condition::forward)
 			ImGui::CloseCurrentPopup();
 	}
