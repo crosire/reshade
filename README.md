@@ -3,6 +3,8 @@ ReShade
 
 This is a generic post-processing injector for games and video software. It exposes an automated way to access both frame color and depth information and a custom shader language called ReShade FX to write effects like ambient occlusion, depth of field, color correction and more which work everywhere.
 
+The ReShade FX shader compiler contained in this repository is standalone, so can be integrated into other projects as well. Simply add all `source/effect_*.*` files to your project and use it similar to the [fxc example](tools/fxc.cpp).
+
 ## Building
 
 You'll need Visual Studio 2017 or higher to build ReShade and Python for the `gl3w` dependency. The [Vulkan SDK](https://vulkan.lunarg.com/sdk/home#windows) is required if building with Vulkan support.
