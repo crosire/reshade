@@ -1426,11 +1426,23 @@ void reshade::runtime::draw_overlay_menu_statistics()
 			bool g = (_preview_size[2] & 0x0000FF00) != 0;
 			bool b = (_preview_size[2] & 0x00FF0000) != 0;
 			ImGui::SameLine();
+			ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(1, 0, 0, 1));
 			imgui_toggle_button("R", r);
-			ImGui::SameLine(0, 1);
-			imgui_toggle_button("G", g);
-			ImGui::SameLine(0, 1);
-			imgui_toggle_button("B", b);
+			ImGui::PopStyleColor();
+			if (texture.format >= reshadefx::texture_format::rg8)
+			{
+				ImGui::SameLine(0, 1);
+				ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0, 1, 0, 1));
+				imgui_toggle_button("G", g);
+				ImGui::PopStyleColor();
+				if (texture.format >= reshadefx::texture_format::rgba8)
+				{
+					ImGui::SameLine(0, 1);
+					ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0, 0, 1, 1));
+					imgui_toggle_button("B", b);
+					ImGui::PopStyleColor();
+				}
+			}
 			_preview_size[2] = (r ? 0x000000FF : 0) | (g ? 0x0000FF00 : 0) | (b ? 0x00FF0000 : 0) | 0xFF000000;
 
 			const float aspect_ratio = static_cast<float>(texture.width) / static_cast<float>(texture.height);
