@@ -10,9 +10,6 @@
     <Filter Include="core\runtime">
       <UniqueIdentifier>{ecdb23a8-21dc-4334-b5cf-2ea57d27001d}</UniqueIdentifier>
     </Filter>
-    <Filter Include="core\utility">
-      <UniqueIdentifier>{d3347d57-7868-467f-a688-fe9c6adc8e5c}</UniqueIdentifier>
-    </Filter>
     <Filter Include="hooks">
       <UniqueIdentifier>{3c3eb495-1eeb-4c7c-b58f-3bbcf24758f6}</UniqueIdentifier>
     </Filter>
@@ -51,7 +48,13 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="source\dllmain.cpp">
+    <ClCompile Include="source\dll_log.cpp">
+      <Filter>core</Filter>
+    </ClCompile>
+    <ClCompile Include="source\dll_main.cpp">
+      <Filter>core</Filter>
+    </ClCompile>
+    <ClCompile Include="source\dll_resources.cpp">
       <Filter>core</Filter>
     </ClCompile>
     <ClCompile Include="source\hook.cpp">
@@ -60,13 +63,10 @@
     <ClCompile Include="source\hook_manager.cpp">
       <Filter>core\hook</Filter>
     </ClCompile>
-    <ClCompile Include="source\gui.cpp">
+    <ClCompile Include="source\imgui_editor.cpp">
       <Filter>core\runtime</Filter>
     </ClCompile>
-    <ClCompile Include="source\gui_code_editor.cpp">
-      <Filter>core\runtime</Filter>
-    </ClCompile>
-    <ClCompile Include="source\gui_widgets.cpp">
+    <ClCompile Include="source\imgui_widgets.cpp">
       <Filter>core\runtime</Filter>
     </ClCompile>
     <ClCompile Include="source\input.cpp">
@@ -75,17 +75,14 @@
     <ClCompile Include="source\runtime.cpp">
       <Filter>core\runtime</Filter>
     </ClCompile>
-    <ClCompile Include="source\ini_file.cpp">
-      <Filter>core\utility</Filter>
+    <ClCompile Include="source\runtime_config.cpp">
+      <Filter>core\runtime</Filter>
     </ClCompile>
-    <ClCompile Include="source\log.cpp">
-      <Filter>core\utility</Filter>
+    <ClCompile Include="source\runtime_gui.cpp">
+      <Filter>core\runtime</Filter>
     </ClCompile>
-    <ClCompile Include="source\resources.cpp">
-      <Filter>core\utility</Filter>
-    </ClCompile>
-    <ClCompile Include="source\update_check.cpp">
-      <Filter>core\utility</Filter>
+    <ClCompile Include="source\runtime_update_check.cpp">
+      <Filter>core\runtime</Filter>
     </ClCompile>
     <ClCompile Include="source\d3d9\buffer_detection.cpp">
       <Filter>hooks\d3d9</Filter>
@@ -209,16 +206,22 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="source\dll_log.hpp">
+      <Filter>core</Filter>
+    </ClInclude>
+    <ClInclude Include="source\dll_resources.hpp">
+      <Filter>core</Filter>
+    </ClInclude>
     <ClInclude Include="source\hook.hpp">
       <Filter>core\hook</Filter>
     </ClInclude>
     <ClInclude Include="source\hook_manager.hpp">
       <Filter>core\hook</Filter>
     </ClInclude>
-    <ClInclude Include="source\gui_code_editor.hpp">
+    <ClInclude Include="source\imgui_editor.hpp">
       <Filter>core\runtime</Filter>
     </ClInclude>
-    <ClInclude Include="source\gui_widgets.hpp">
+    <ClInclude Include="source\imgui_widgets.hpp">
       <Filter>core\runtime</Filter>
     </ClInclude>
     <ClInclude Include="source\input.hpp">
@@ -227,23 +230,11 @@
     <ClInclude Include="source\runtime.hpp">
       <Filter>core\runtime</Filter>
     </ClInclude>
-    <ClInclude Include="source\runtime_objects.hpp">
+    <ClInclude Include="source\runtime_config.hpp">
       <Filter>core\runtime</Filter>
     </ClInclude>
-    <ClInclude Include="source\com_ptr.hpp">
-      <Filter>core\utility</Filter>
-    </ClInclude>
-    <ClInclude Include="source\ini_file.hpp">
-      <Filter>core\utility</Filter>
-    </ClInclude>
-    <ClInclude Include="source\log.hpp">
-      <Filter>core\utility</Filter>
-    </ClInclude>
-    <ClInclude Include="source\moving_average.hpp">
-      <Filter>core\utility</Filter>
-    </ClInclude>
-    <ClInclude Include="source\resources.hpp">
-      <Filter>core\utility</Filter>
+    <ClInclude Include="source\runtime_objects.hpp">
+      <Filter>core\runtime</Filter>
     </ClInclude>
     <ClInclude Include="source\d3d9\buffer_detection.hpp">
       <Filter>hooks\d3d9</Filter>
@@ -349,6 +340,9 @@
     </ClInclude>
     <ClInclude Include="source\vulkan\vk_layer_dispatch_table.h">
       <Filter>hooks\vulkan</Filter>
+    </ClInclude>
+    <ClInclude Include="source\com_ptr.hpp">
+      <Filter>hooks\windows</Filter>
     </ClInclude>
     <ClInclude Include="res\resource.h">
       <Filter>resources</Filter>

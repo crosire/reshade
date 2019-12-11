@@ -3,10 +3,10 @@
  * License: https://github.com/crosire/reshade#license
  */
 
-#include "log.hpp"
+#include "dll_log.hpp"
 #include "buffer_detection.hpp"
-#include <math.h>
-#include <assert.h>
+#include <cmath>
+#include <cassert>
 
 void reshade::opengl::buffer_detection::reset(GLuint default_width, GLuint default_height, GLenum default_format)
 {
@@ -139,8 +139,8 @@ reshade::opengl::buffer_detection::depthstencil_info reshade::opengl::buffer_det
 
 			if (width != 0 && height != 0)
 			{
-				if ((snapshot.width < floor(width * 0.95f) || snapshot.width > ceil(width * 1.05f)) ||
-					(snapshot.height < floor(height * 0.95f) || snapshot.height > ceil(height * 1.05f)))
+				if ((snapshot.width < std::floor(width * 0.95f) || snapshot.width > std::ceil(width * 1.05f)) ||
+					(snapshot.height < std::floor(height * 0.95f) || snapshot.height > std::ceil(height * 1.05f)))
 					continue; // Not a good fit
 			}
 

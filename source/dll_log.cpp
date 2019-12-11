@@ -3,10 +3,10 @@
  * License: https://github.com/crosire/reshade#license
  */
 
-#include "log.hpp"
+#include "dll_log.hpp"
 #include <mutex>
+#include <cassert>
 #include <fstream>
-#include <assert.h>
 #include <Windows.h>
 
 std::ostringstream reshade::log::line;

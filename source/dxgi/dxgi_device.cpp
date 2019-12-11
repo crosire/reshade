@@ -3,10 +3,9 @@
  * License: https://github.com/crosire/reshade#license
  */
 
-#include "log.hpp"
+#include "dll_log.hpp"
 #include "dxgi_device.hpp"
 #include "dxgi_swapchain.hpp"
-#include <assert.h>
 
 DXGIDevice::DXGIDevice(IDXGIDevice1 *original, IUnknown *direct3d_device) :
 	_orig(original),

@@ -5,10 +5,10 @@
 
 #pragma once
 
-#include <assert.h>
-#include <filesystem>
 #include <vector>
 #include <string>
+#include <cassert>
+#include <filesystem>
 #include <unordered_map>
 
 namespace reshade

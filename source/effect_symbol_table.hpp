@@ -5,7 +5,8 @@
 
 #pragma once
 
-#include "effect_expression.hpp"
+#include "effect_module.hpp"
+#include <unordered_map> // Used for symbol lookup table
 
 namespace reshadefx
 {

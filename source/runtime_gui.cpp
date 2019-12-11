@@ -5,18 +5,16 @@
 
 #if RESHADE_GUI
 
-#include "log.hpp"
+#include "dll_log.hpp"
 #include "version.h"
 #include "runtime.hpp"
+#include "runtime_config.hpp"
 #include "runtime_objects.hpp"
 #include "input.hpp"
-#include "ini_file.hpp"
-#include "gui_widgets.hpp"
-#include <assert.h>
+#include "imgui_widgets.hpp"
+#include <cassert>
 #include <fstream>
 #include <algorithm>
-#include <imgui.h>
-#include <imgui_internal.h>
 
 extern volatile long g_network_traffic;
 extern std::filesystem::path g_reshade_dll_path;
@@ -1428,11 +1426,23 @@ void reshade::runtime::draw_overlay_menu_statistics()
 			bool g = (_preview_size[2] & 0x0000FF00) != 0;
 			bool b = (_preview_size[2] & 0x00FF0000) != 0;
 			ImGui::SameLine();
+			ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(1, 0, 0, 1));
 			imgui_toggle_button("R", r);
-			ImGui::SameLine(0, 1);
-			imgui_toggle_button("G", g);
-			ImGui::SameLine(0, 1);
-			imgui_toggle_button("B", b);
+			ImGui::PopStyleColor();
+			if (texture.format >= reshadefx::texture_format::rg8)
+			{
+				ImGui::SameLine(0, 1);
+				ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0, 1, 0, 1));
+				imgui_toggle_button("G", g);
+				ImGui::PopStyleColor();
+				if (texture.format >= reshadefx::texture_format::rgba8)
+				{
+					ImGui::SameLine(0, 1);
+					ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0, 0, 1, 1));
+					imgui_toggle_button("B", b);
+					ImGui::PopStyleColor();
+				}
+			}
 			_preview_size[2] = (r ? 0x000000FF : 0) | (g ? 0x0000FF00 : 0) | (b ? 0x00FF0000 : 0) | 0xFF000000;
 
 			const float aspect_ratio = static_cast<float>(texture.width) / static_cast<float>(texture.height);
@@ -1941,7 +1951,7 @@ void reshade::runtime::draw_overlay_variable_editor()
 				if (ui_type == "slider")
 					modified = imgui_slider_with_buttons(label.data(), variable.type.is_signed() ? ImGuiDataType_S32 : ImGuiDataType_U32, data, variable.type.rows, &ui_stp_val, &ui_min_val, &ui_max_val);
 				else if (ui_type == "drag")
-					modified = variable.annotations.find("ui_step") == variable.annotations.end() ?
+					modified = variable.annotation_as_int("ui_step") == 0 ?
 						ImGui::DragScalarN(label.data(), variable.type.is_signed() ? ImGuiDataType_S32 : ImGuiDataType_U32, data, variable.type.rows, 1.0f, &ui_min_val, &ui_max_val) :
 						imgui_drag_with_buttons(label.data(), variable.type.is_signed() ? ImGuiDataType_S32 : ImGuiDataType_U32, data, variable.type.rows, &ui_stp_val, &ui_min_val, &ui_max_val);
 				else if (ui_type == "list")
@@ -1974,7 +1984,7 @@ void reshade::runtime::draw_overlay_variable_editor()
 				if (ui_type == "slider")
 					modified = imgui_slider_with_buttons(label.data(), ImGuiDataType_Float, data, variable.type.rows, &ui_stp_val, &ui_min_val, &ui_max_val, precision_format);
 				else if (ui_type == "drag")
-					modified = variable.annotations.find("ui_step") == variable.annotations.end() ?
+					modified = variable.annotation_as_float("ui_step") == 0 ?
 						ImGui::DragScalarN(label.data(), ImGuiDataType_Float, data, variable.type.rows, ui_stp_val, &ui_min_val, &ui_max_val, precision_format) :
 						imgui_drag_with_buttons(label.data(), ImGuiDataType_Float, data, variable.type.rows, &ui_stp_val, &ui_min_val, &ui_max_val, precision_format);
 				else if (ui_type == "color" && variable.type.rows == 1)
@@ -2240,11 +2250,15 @@ void reshade::runtime::draw_overlay_technique_editor()
 				if (ImGui::MenuItem("Generated code"))
 					source_code = effect.preamble + effect.module.hlsl;
 
-				ImGui::Separator();
+				if (!effect.assembly.empty())
+				{
+					ImGui::Separator();
 
-				for (const auto &entry_point : effect.module.entry_points)
-					if (ImGui::MenuItem(entry_point.name.c_str()))
-						source_code = entry_point.assembly;
+					for (const auto &entry_point : effect.module.entry_points)
+						if (const auto assembly_it = effect.assembly.find(entry_point.name);
+							assembly_it != effect.assembly.end() && ImGui::MenuItem(entry_point.name.c_str()))
+							source_code = assembly_it->second;
+				}
 
 				ImGui::EndPopup();
 

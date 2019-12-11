@@ -5,7 +5,7 @@
 
 #include "effect_parser.hpp"
 #include "effect_codegen.hpp"
-#include <assert.h>
+#include <cassert>
 #include <algorithm>
 #include <functional>
 
@@ -1418,7 +1418,7 @@ bool reshadefx::parser::parse_expression_assignment(expression &lhs)
 	return true;
 }
 
-bool reshadefx::parser::parse_annotations(std::unordered_map<std::string, std::pair<type, constant>> &annotations)
+bool reshadefx::parser::parse_annotations(std::vector<annotation> &annotations)
 {
 	// Check if annotations exist and return early if none do
 	if (!accept('<'))
@@ -1434,12 +1434,12 @@ bool reshadefx::parser::parse_annotations(std::unordered_map<std::string, std::p
 		if (!expect(tokenid::identifier))
 			return consume_until('>'), false;
 
-		const auto name = std::move(_token.literal_as_string);
+		auto name = std::move(_token.literal_as_string);
 
 		if (expression expression; !expect('=') || !parse_expression_multary(expression) || !expect(';'))
 			return consume_until('>'), false;
 		else if (expression.is_constant)
-			annotations[name] = { expression.type, expression.constant };
+			annotations.push_back({ expression.type, std::move(name), std::move(expression.constant) });
 		else // Continue parsing annotations despite this not being a constant, since the syntax is still correct
 			parse_success = false,
 			error(expression.location, 3011, "value must be a literal expression");

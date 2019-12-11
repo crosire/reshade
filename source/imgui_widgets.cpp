@@ -4,9 +4,8 @@
  */
 
 #include "input.hpp"
-#include "gui_widgets.hpp"
-#include <assert.h>
-#include <imgui_internal.h>
+#include "imgui_widgets.hpp"
+#include <cassert>
 
 bool imgui_key_input(const char *name, unsigned int key_data[4], const reshade::input &input)
 {

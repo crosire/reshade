@@ -50,25 +50,10 @@ namespace reshadefx
 
 		bool accept_type_class(type &type);
 		bool accept_type_qualifiers(type &type);
-
-		bool parse_type(type &type);
-
-		bool parse_array_size(type &type);
-
 		bool accept_unary_op();
 		bool accept_postfix_op();
 		bool peek_multary_op(unsigned int &precedence) const;
 		bool accept_assignment_op();
-
-		bool parse_expression(expression &expression);
-		bool parse_expression_unary(expression &expression);
-		bool parse_expression_multary(expression &expression, unsigned int precedence = 0);
-		bool parse_expression_assignment(expression &expression);
-
-		bool parse_annotations(std::unordered_map<std::string, std::pair<type, constant>> &annotations);
-
-		bool parse_statement(bool scoped);
-		bool parse_statement_block(bool scoped);
 
 		bool parse_top();
 		bool parse_struct();
@@ -76,14 +61,22 @@ namespace reshadefx
 		bool parse_variable(type type, std::string name, bool global = false);
 		bool parse_technique();
 		bool parse_technique_pass(pass_info &info);
+		bool parse_type(type &type);
+		bool parse_array_size(type &type);
+		bool parse_expression(expression &expression);
+		bool parse_expression_unary(expression &expression);
+		bool parse_expression_multary(expression &expression, unsigned int precedence = 0);
+		bool parse_expression_assignment(expression &expression);
+		bool parse_annotations(std::vector<annotation> &annotations);
+		bool parse_statement(bool scoped);
+		bool parse_statement_block(bool scoped);
 
+		codegen *_codegen = nullptr;
 		std::string _errors;
 		token _token, _token_next, _token_backup;
 		std::unique_ptr<lexer> _lexer, _lexer_backup;
-		codegen *_codegen = nullptr;
-
+		type _current_return_type;
 		std::vector<uint32_t> _loop_break_target_stack;
 		std::vector<uint32_t> _loop_continue_target_stack;
-		type _current_return_type;
 	};
 }

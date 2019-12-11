@@ -5,7 +5,7 @@
 
 #pragma once
 
-#include "effect_expression.hpp"
+#include "effect_token.hpp"
 
 namespace reshadefx
 {

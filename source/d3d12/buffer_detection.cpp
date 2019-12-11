@@ -3,12 +3,12 @@
  * License: https://github.com/crosire/reshade#license
  */
 
-#include "log.hpp"
+#include "dll_log.hpp"
 #include "buffer_detection.hpp"
 #include "d3d12/d3d12_device.hpp"
 #include "../dxgi/format_utils.hpp"
 #include <mutex>
-#include <math.h>
+#include <cmath>
 
 static std::mutex s_global_mutex;
 static bool s_auto_copy;
@@ -246,7 +246,7 @@ com_ptr<ID3D12Resource> reshade::d3d12::buffer_detection_context::find_best_dept
 				const float width_factor = float(width) / float(desc.Width);
 				const float height_factor = float(height) / float(desc.Height);
 
-				if (fabs(texture_aspect_ratio - aspect_ratio) > 0.1f || width_factor > 1.85f || height_factor > 1.85f || width_factor < 0.5f || height_factor < 0.5f)
+				if (std::fabs(texture_aspect_ratio - aspect_ratio) > 0.1f || width_factor > 1.85f || height_factor > 1.85f || width_factor < 0.5f || height_factor < 0.5f)
 					continue; // Not a good fit
 			}
 

@@ -3,10 +3,10 @@
  * License: https://github.com/crosire/reshade#license
  */
 
-#include "log.hpp"
+#include "dll_log.hpp"
 #include "runtime_gl.hpp"
+#include "runtime_config.hpp"
 #include "runtime_objects.hpp"
-#include "ini_file.hpp"
 #include <imgui.h>
 
 namespace reshade::opengl

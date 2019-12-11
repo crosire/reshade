@@ -732,7 +732,7 @@ private:
 			[&func](const auto &ep) { return ep.name == func.unique_name; }); it != _module.entry_points.end())
 			return;
 
-		_module.entry_points.push_back(entry_point_info { func.unique_name, is_ps });
+		_module.entry_points.push_back({ func.unique_name, is_ps });
 
 		std::vector<uint32_t> inputs_and_outputs;
 		std::vector<expression> call_params;

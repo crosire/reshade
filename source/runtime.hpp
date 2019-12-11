@@ -9,11 +9,10 @@
 #include <memory>
 #include <atomic>
 #include <chrono>
-#include <functional>
 #include <filesystem>
 
 #if RESHADE_GUI
-#include "gui_code_editor.hpp"
+#include "imgui_editor.hpp"
 
 struct ImDrawData;
 struct ImGuiContext;

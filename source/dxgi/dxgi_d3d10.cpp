@@ -5,7 +5,7 @@
 
 #include "hook_manager.hpp"
 #include <dxgi.h>
-#include <assert.h>
+#include <cassert>
 
 // These are filtered out during hook installation (see hook_manager.cpp)
 HOOK_EXPORT HRESULT WINAPI DXGIDumpJournal()

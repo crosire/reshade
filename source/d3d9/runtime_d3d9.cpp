@@ -3,9 +3,9 @@
  * License: https://github.com/crosire/reshade#license
  */
 
-#include "log.hpp"
-#include "ini_file.hpp"
+#include "dll_log.hpp"
 #include "runtime_d3d9.hpp"
+#include "runtime_config.hpp"
 #include "runtime_objects.hpp"
 #include <imgui.h>
 #include <imgui_internal.h>
@@ -320,10 +320,8 @@ bool reshade::d3d9::runtime_d3d9::init_effect(size_t index)
 	std::unordered_map<std::string, com_ptr<IUnknown>> entry_points;
 
 	// Compile the generated HLSL source code to DX byte code
-	for (auto &entry_point : effect.module.entry_points)
+	for (const auto &entry_point : effect.module.entry_points)
 	{
-		entry_point.assembly.clear();
-
 		com_ptr<ID3DBlob> compiled, d3d_errors;
 		const std::string &hlsl = entry_point.is_pixel_shader ? hlsl_ps : hlsl_vs;
 
@@ -343,7 +341,7 @@ bool reshade::d3d9::runtime_d3d9::init_effect(size_t index)
 			return false;
 
 		if (com_ptr<ID3DBlob> d3d_disassembled; SUCCEEDED(D3DDisassemble(compiled->GetBufferPointer(), compiled->GetBufferSize(), 0, nullptr, &d3d_disassembled)))
-			entry_point.assembly = std::string(static_cast<const char *>(d3d_disassembled->GetBufferPointer()));
+			effect.assembly[entry_point.name] = std::string(static_cast<const char *>(d3d_disassembled->GetBufferPointer()));
 
 		// Create runtime shader objects from the compiled DX byte code
 		if (entry_point.is_pixel_shader)
