@@ -65,21 +65,24 @@ namespace reshade
 
 		int annotation_as_int(const char *ann_name, size_t i = 0) const
 		{
-			const auto it = annotations.find(ann_name);
+			const auto it = std::find_if(annotations.begin(), annotations.end(),
+				[ann_name](const auto &annotation) { return annotation.name == ann_name; });
 			if (it == annotations.end()) return 0;
-			return it->second.first.is_integral() ? it->second.second.as_int[i] : static_cast<int>(it->second.second.as_float[i]);
+			return it->type.is_integral() ? it->value.as_int[i] : static_cast<int>(it->value.as_float[i]);
 		}
 		float annotation_as_float(const char *ann_name, size_t i = 0) const
 		{
-			const auto it = annotations.find(ann_name);
+			const auto it = std::find_if(annotations.begin(), annotations.end(),
+				[ann_name](const auto &annotation) { return annotation.name == ann_name; });
 			if (it == annotations.end()) return 0.0f;
-			return it->second.first.is_floating_point() ? it->second.second.as_float[i] : static_cast<float>(it->second.second.as_int[i]);
+			return it->type.is_floating_point() ? it->value.as_float[i] : static_cast<float>(it->value.as_int[i]);
 		}
 		std::string_view annotation_as_string(const char *ann_name) const
 		{
-			const auto it = annotations.find(ann_name);
+			const auto it = std::find_if(annotations.begin(), annotations.end(),
+				[ann_name](const auto &annotation) { return annotation.name == ann_name; });
 			if (it == annotations.end()) return std::string_view();
-			return it->second.second.string_data;
+			return it->value.string_data;
 		}
 
 		bool matches_description(const reshadefx::texture_info &desc) const
@@ -99,21 +102,24 @@ namespace reshade
 
 		int annotation_as_int(const char *ann_name, size_t i = 0) const
 		{
-			const auto it = annotations.find(ann_name);
+			const auto it = std::find_if(annotations.begin(), annotations.end(),
+				[ann_name](const auto &annotation) { return annotation.name == ann_name; });
 			if (it == annotations.end()) return 0;
-			return it->second.first.is_integral() ? it->second.second.as_int[i] : static_cast<int>(it->second.second.as_float[i]);
+			return it->type.is_integral() ? it->value.as_int[i] : static_cast<int>(it->value.as_float[i]);
 		}
 		float annotation_as_float(const char *ann_name, size_t i = 0) const
 		{
-			const auto it = annotations.find(ann_name);
+			const auto it = std::find_if(annotations.begin(), annotations.end(),
+				[ann_name](const auto &annotation) { return annotation.name == ann_name; });
 			if (it == annotations.end()) return 0.0f;
-			return it->second.first.is_floating_point() ? it->second.second.as_float[i] : static_cast<float>(it->second.second.as_int[i]);
+			return it->type.is_floating_point() ? it->value.as_float[i] : static_cast<float>(it->value.as_int[i]);
 		}
 		std::string_view annotation_as_string(const char *ann_name) const
 		{
-			const auto it = annotations.find(ann_name);
+			const auto it = std::find_if(annotations.begin(), annotations.end(),
+				[ann_name](const auto &annotation) { return annotation.name == ann_name; });
 			if (it == annotations.end()) return std::string_view();
-			return it->second.second.string_data;
+			return it->value.string_data;
 		}
 
 		bool supports_toggle_key() const
@@ -138,21 +144,24 @@ namespace reshade
 
 		int annotation_as_int(const char *ann_name, size_t i = 0) const
 		{
-			const auto it = annotations.find(ann_name);
+			const auto it = std::find_if(annotations.begin(), annotations.end(),
+				[ann_name](const auto &annotation) { return annotation.name == ann_name; });
 			if (it == annotations.end()) return 0;
-			return it->second.first.is_integral() ? it->second.second.as_int[i] : static_cast<int>(it->second.second.as_float[i]);
+			return it->type.is_integral() ? it->value.as_int[i] : static_cast<int>(it->value.as_float[i]);
 		}
 		float annotation_as_float(const char *ann_name, size_t i = 0) const
 		{
-			const auto it = annotations.find(ann_name);
+			const auto it = std::find_if(annotations.begin(), annotations.end(),
+				[ann_name](const auto &annotation) { return annotation.name == ann_name; });
 			if (it == annotations.end()) return 0.0f;
-			return it->second.first.is_floating_point() ? it->second.second.as_float[i] : static_cast<float>(it->second.second.as_int[i]);
+			return it->type.is_floating_point() ? it->value.as_float[i] : static_cast<float>(it->value.as_int[i]);
 		}
 		std::string_view annotation_as_string(const char *ann_name) const
 		{
-			const auto it = annotations.find(ann_name);
+			const auto it = std::find_if(annotations.begin(), annotations.end(),
+				[ann_name](const auto &annotation) { return annotation.name == ann_name; });
 			if (it == annotations.end()) return std::string_view();
-			return it->second.second.string_data;
+			return it->value.string_data;
 		}
 
 		size_t effect_index = std::numeric_limits<size_t>::max();

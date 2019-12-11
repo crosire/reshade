@@ -6,7 +6,6 @@
 #pragma once
 
 #include "effect_expression.hpp"
-#include <unordered_map>
 
 namespace reshadefx
 {
@@ -81,6 +80,16 @@ namespace reshadefx
 	};
 
 	/// <summary>
+	/// An annotation attached to a variable.
+	/// </summary>
+	struct annotation
+	{
+		type type;
+		std::string name;
+		constant value;
+	};
+
+	/// <summary>
 	/// A texture defined in the shader code.
 	/// </summary>
 	struct texture_info
@@ -89,7 +98,7 @@ namespace reshadefx
 		uint32_t binding = 0;
 		std::string semantic;
 		std::string unique_name;
-		std::unordered_map<std::string, std::pair<type, constant>> annotations;
+		std::vector<annotation> annotations;
 		uint32_t width = 1;
 		uint32_t height = 1;
 		uint32_t levels = 1;
@@ -106,7 +115,7 @@ namespace reshadefx
 		uint32_t texture_binding = 0;
 		std::string unique_name;
 		std::string texture_name;
-		std::unordered_map<std::string, std::pair<type, constant>> annotations;
+		std::vector<annotation> annotations;
 		texture_filter filter = texture_filter::min_mag_mip_linear;
 		texture_address_mode address_u = texture_address_mode::clamp;
 		texture_address_mode address_v = texture_address_mode::clamp;
@@ -126,7 +135,7 @@ namespace reshadefx
 		type type;
 		uint32_t size = 0;
 		uint32_t offset = 0;
-		std::unordered_map<std::string, std::pair<reshadefx::type, constant>> annotations;
+		std::vector<annotation> annotations;
 		bool has_initializer_value = false;
 		constant initializer_value;
 	};
@@ -191,7 +200,7 @@ namespace reshadefx
 	{
 		std::string name;
 		std::vector<pass_info> passes;
-		std::unordered_map<std::string, std::pair<type, constant>> annotations;
+		std::vector<annotation> annotations;
 	};
 
 	/// <summary>
@@ -201,11 +210,13 @@ namespace reshadefx
 	{
 		std::string hlsl;
 		std::vector<uint32_t> spirv;
+
 		std::vector<entry_point> entry_points;
 		std::vector<texture_info> textures;
 		std::vector<sampler_info> samplers;
 		std::vector<uniform_info> uniforms, spec_constants;
 		std::vector<technique_info> techniques;
+
 		uint32_t total_uniform_size = 0;
 		uint32_t num_sampler_bindings = 0;
 		uint32_t num_texture_bindings = 0;

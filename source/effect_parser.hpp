@@ -67,7 +67,7 @@ namespace reshadefx
 		bool parse_expression_unary(expression &expression);
 		bool parse_expression_multary(expression &expression, unsigned int precedence = 0);
 		bool parse_expression_assignment(expression &expression);
-		bool parse_annotations(std::unordered_map<std::string, std::pair<type, constant>> &annotations);
+		bool parse_annotations(std::vector<annotation> &annotations);
 		bool parse_statement(bool scoped);
 		bool parse_statement_block(bool scoped);
 
