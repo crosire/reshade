@@ -11,6 +11,8 @@
 #include <math.h>
 
 static std::mutex s_global_mutex;
+static bool s_auto_copy;
+static reshade::d3d12::buffer_detection::draw_stats s_previous_stats;
 
 void reshade::d3d12::buffer_detection::init(ID3D12Device* device, const buffer_detection_context* context)
 {
@@ -20,16 +22,15 @@ void reshade::d3d12::buffer_detection::init(ID3D12Device* device, const buffer_d
 
 void reshade::d3d12::buffer_detection::reset()
 {
-	_stats.vertices = 0;
-	_stats.drawcalls = 0;
-	_best_copy_stats.vertices = 0;
-	_best_copy_stats.drawcalls = 0;
+	_stats = { 0, 0 };
+	_best_copy_stats = { 0, 0 };
 #if RESHADE_DX12_CAPTURE_DEPTH_BUFFERS
 	_current_depthstencil.reset();
+
 	_counters_per_used_depth_texture.clear();
 #endif
 }
-void reshade::d3d12::buffer_detection_context::reset(bool release_resources)
+void reshade::d3d12::buffer_detection_context::reset(bool release_resources, bool keep_dsv_handles)
 {
 	buffer_detection::reset();
 
@@ -38,8 +39,13 @@ void reshade::d3d12::buffer_detection_context::reset(bool release_resources)
 	{
 		assert(_context == this);
 		
-		_depthstencil_clear_texture.reset();
-		_depthstencil_resources_by_handle.clear();
+		s_previous_stats = { 0, 0 };
+
+		if (!keep_dsv_handles)
+		{
+			_depthstencil_resources_by_handle.clear();
+			_depthstencil_clear_texture.reset();
+		}
 	}
 #endif
 }
@@ -52,6 +58,7 @@ void reshade::d3d12::buffer_detection::merge(const buffer_detection& source, std
 #if RESHADE_DX12_CAPTURE_DEPTH_BUFFERS
 	// Executing a command list in a different command list inherits state
 	_current_depthstencil = source._current_depthstencil;
+	_best_copy_stats = source._best_copy_stats;
 
 	for (const auto& [dsv_texture, snapshot] : source._counters_per_used_depth_texture)
 	{
@@ -102,15 +109,18 @@ void reshade::d3d12::buffer_detection::on_clear_depthstencil(ID3D12GraphicsComma
 
 	auto& counters = _counters_per_used_depth_texture[dsv_texture];
 
+	if (counters.current_stats.drawcalls == 0)
+		counters.current_stats = s_previous_stats;
+
 	// Ignore clears when there was no meaningful workload
-	// if (counters.current_stats.drawcalls == 0)
-		// return;
+	if (counters.current_stats.drawcalls == 0)
+		return;
 
 	counters.clears.push_back(counters.current_stats);
 
 	// Make a backup copy of the depth texture before it is cleared
 	// This is not really correct, since clears may accumulate over multiple command lists, but it's unlikely that the same depth stencil is used in more than one
-	if (_auto_copy)
+	if (s_auto_copy)
 	{
 		if (counters.current_stats.vertices >= _best_copy_stats.vertices)
 		{
@@ -120,6 +130,9 @@ void reshade::d3d12::buffer_detection::on_clear_depthstencil(ID3D12GraphicsComma
 	}
 	else if (counters.clears.size() == _context->_depthstencil_clear_index.second)
 		bcopy = true;
+
+	// Reset draw call stats for clears
+	counters.current_stats = { 0, 0 };
 
 	if (bcopy)
 	{
@@ -136,10 +149,6 @@ void reshade::d3d12::buffer_detection::on_clear_depthstencil(ID3D12GraphicsComma
 		transition.Transition.StateAfter = D3D12_RESOURCE_STATE_COMMON;
 		cmd_list->ResourceBarrier(1, &transition);
 	}
-
-	// Reset draw call stats for clears
-	counters.current_stats.vertices = 0;
-	counters.current_stats.drawcalls = 0;
 }
 
 void reshade::d3d12::buffer_detection_context::on_create_dsv(ID3D12Resource* dsv_texture, D3D12_CPU_DESCRIPTOR_HANDLE handle)
@@ -209,7 +218,7 @@ com_ptr<ID3D12Resource> reshade::d3d12::buffer_detection_context::find_best_dept
 {
 	depthstencil_info best_snapshot;
 	com_ptr<ID3D12Resource> best_match;
-	_auto_copy = clear_index_override == std::numeric_limits<UINT>::max();
+	s_auto_copy = clear_index_override == std::numeric_limits<UINT>::max();
 
 	if (override != nullptr)
 	{
@@ -260,15 +269,19 @@ com_ptr<ID3D12Resource> reshade::d3d12::buffer_detection_context::find_best_dept
 		}
 		else
 		{
-			UINT last_vertices = 0;
+			draw_stats last_stats = { 0, 0 };
+
+			s_previous_stats.drawcalls = best_snapshot.current_stats.drawcalls;
+			s_previous_stats.vertices = best_snapshot.current_stats.vertices;
 
 			for (UINT clear_index = 0; clear_index < best_snapshot.clears.size(); ++clear_index)
 			{
 				const auto& snapshot = best_snapshot.clears[clear_index];
 
-				if (snapshot.vertices >= last_vertices)
+				if (snapshot.vertices >= last_stats.vertices)
 				{
-					last_vertices = snapshot.vertices;
+					last_stats.drawcalls = snapshot.drawcalls;
+					last_stats.vertices = snapshot.vertices;
 					_depthstencil_clear_index.second = clear_index + 1;
 				}
 			}

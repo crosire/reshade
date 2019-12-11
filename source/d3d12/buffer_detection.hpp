@@ -46,7 +46,6 @@ namespace reshade::d3d12
 		const buffer_detection_context* _context = nullptr;
 		draw_stats _stats;
 		draw_stats _best_copy_stats;
-		bool _auto_copy = false;
 #if RESHADE_DX12_CAPTURE_DEPTH_BUFFERS
 		com_ptr<ID3D12Resource> _current_depthstencil;
 		// Use "std::map" instead of "std::unordered_map" so that the iteration order is guaranteed
@@ -64,7 +63,7 @@ namespace reshade::d3d12
 		UINT total_vertices() const { return _stats.vertices; }
 		UINT total_drawcalls() const { return _stats.drawcalls; }
 
-		void reset(bool release_resources);
+		void reset(bool release_resources, bool keep_dsv_handles = false);
 
 #if RESHADE_DX12_CAPTURE_DEPTH_BUFFERS
 		UINT current_clear_index() const { return _depthstencil_clear_index.second; }
