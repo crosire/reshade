@@ -3,9 +3,9 @@
  * License: https://github.com/crosire/reshade#license
  */
 
-#include "log.hpp"
+#include "dll_log.hpp"
 #include "buffer_detection.hpp"
-#include <math.h>
+#include <cmath>
 
 static constexpr auto D3DFMT_INTZ = static_cast<D3DFORMAT>(MAKEFOURCC('I', 'N', 'T', 'Z'));
 static constexpr auto D3DFMT_DF16 = static_cast<D3DFORMAT>(MAKEFOURCC('D', 'F', '1', '6'));
@@ -229,8 +229,8 @@ bool reshade::d3d9::buffer_detection::update_depthstencil_replacement(com_ptr<ID
 
 bool reshade::d3d9::buffer_detection::check_aspect_ratio(const D3DSURFACE_DESC &desc, UINT width, UINT height)
 {
-	return (desc.Width >= floor(width * 0.95f) && desc.Width <= ceil(width * 1.05f))
-		&& (desc.Height >= floor(height * 0.95f) && desc.Height <= ceil(height * 1.05f));
+	return (desc.Width >= std::floor(width * 0.95f) && desc.Width <= std::ceil(width * 1.05f))
+		&& (desc.Height >= std::floor(height * 0.95f) && desc.Height <= std::ceil(height * 1.05f));
 }
 bool reshade::d3d9::buffer_detection::check_texture_format(const D3DSURFACE_DESC &desc)
 {

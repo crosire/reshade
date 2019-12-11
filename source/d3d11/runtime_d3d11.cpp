@@ -3,11 +3,11 @@
  * License: https://github.com/crosire/reshade#license
  */
 
-#include "log.hpp"
-#include "ini_file.hpp"
+#include "dll_log.hpp"
+#include "dll_resources.hpp"
 #include "runtime_d3d11.hpp"
+#include "runtime_config.hpp"
 #include "runtime_objects.hpp"
-#include "resources.hpp"
 #include "../dxgi/format_utils.hpp"
 #include <imgui.h>
 #include <imgui_internal.h>

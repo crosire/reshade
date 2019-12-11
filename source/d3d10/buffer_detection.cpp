@@ -3,10 +3,10 @@
  * License: https://github.com/crosire/reshade#license
  */
 
-#include "log.hpp"
+#include "dll_log.hpp"
 #include "buffer_detection.hpp"
 #include "../dxgi/format_utils.hpp"
-#include <math.h>
+#include <cmath>
 
 #if RESHADE_DX10_CAPTURE_DEPTH_BUFFERS
 static inline com_ptr<ID3D10Texture2D> texture_from_dsv(ID3D10DepthStencilView *dsv)
@@ -176,7 +176,7 @@ com_ptr<ID3D10Texture2D> reshade::d3d10::buffer_detection::find_best_depth_textu
 				const float width_factor = float(width) / float(desc.Width);
 				const float height_factor = float(height) / float(desc.Height);
 
-				if (fabs(texture_aspect_ratio - aspect_ratio) > 0.1f || width_factor > 1.85f || height_factor > 1.85f || width_factor < 0.5f || height_factor < 0.5f)
+				if (std::fabs(texture_aspect_ratio - aspect_ratio) > 0.1f || width_factor > 1.85f || height_factor > 1.85f || width_factor < 0.5f || height_factor < 0.5f)
 					continue; // Not a good fit
 			}
 

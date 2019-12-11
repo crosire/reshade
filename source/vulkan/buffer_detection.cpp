@@ -3,10 +3,10 @@
  * License: https://github.com/crosire/reshade#license
  */
 
-#include "log.hpp"
+#include "dll_log.hpp"
 #include "buffer_detection.hpp"
-#include <math.h>
-#include <assert.h>
+#include <cmath>
+#include <cassert>
 
 void reshade::vulkan::buffer_detection::reset()
 {
@@ -102,7 +102,7 @@ reshade::vulkan::buffer_detection::depthstencil_info reshade::vulkan::buffer_det
 				const float width_factor = float(width) / float(snapshot.image_info.extent.width);
 				const float height_factor = float(height) / float(snapshot.image_info.extent.height);
 
-				if (fabs(texture_aspect_ratio - aspect_ratio) > 0.1f || width_factor > 1.85f || height_factor > 1.85f || width_factor < 0.5f || height_factor < 0.5f)
+				if (std::fabs(texture_aspect_ratio - aspect_ratio) > 0.1f || width_factor > 1.85f || height_factor > 1.85f || width_factor < 0.5f || height_factor < 0.5f)
 					continue; // Not a good fit
 			}
 

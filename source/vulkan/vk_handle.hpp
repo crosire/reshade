@@ -5,8 +5,8 @@
 
 #pragma once
 
+#include <cassert>
 #include <vulkan.h>
-#include <assert.h>
 #include "vk_layer_dispatch_table.h"
 
 template <VkObjectType type>

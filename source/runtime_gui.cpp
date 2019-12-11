@@ -5,18 +5,16 @@
 
 #if RESHADE_GUI
 
-#include "log.hpp"
+#include "dll_log.hpp"
 #include "version.h"
 #include "runtime.hpp"
+#include "runtime_config.hpp"
 #include "runtime_objects.hpp"
 #include "input.hpp"
-#include "ini_file.hpp"
-#include "gui_widgets.hpp"
-#include <assert.h>
+#include "imgui_widgets.hpp"
+#include <cassert>
 #include <fstream>
 #include <algorithm>
-#include <imgui.h>
-#include <imgui_internal.h>
 
 extern volatile long g_network_traffic;
 extern std::filesystem::path g_reshade_dll_path;

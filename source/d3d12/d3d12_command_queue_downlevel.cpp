@@ -5,7 +5,7 @@
 
 #if RESHADE_D3D12ON7
 
-#include "log.hpp"
+#include "dll_log.hpp"
 #include "d3d12_device.hpp"
 #include "d3d12_command_list.hpp"
 #include "d3d12_command_queue.hpp"

@@ -3,10 +3,10 @@
  * License: https://github.com/crosire/reshade#license
  */
 
-#include "log.hpp"
+#include "dll_log.hpp"
 #include "hook_manager.hpp"
-#include <assert.h>
 #include <mutex>
+#include <cassert>
 #include <algorithm>
 #include <tuple>
 #include <vector>

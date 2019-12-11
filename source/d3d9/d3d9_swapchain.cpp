@@ -3,7 +3,7 @@
  * License: https://github.com/crosire/reshade#license
  */
 
-#include "log.hpp"
+#include "dll_log.hpp"
 #include "d3d9_device.hpp"
 #include "d3d9_swapchain.hpp"
 #include "runtime_d3d9.hpp"

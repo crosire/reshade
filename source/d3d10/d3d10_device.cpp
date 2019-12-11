@@ -3,7 +3,7 @@
  * License: https://github.com/crosire/reshade#license
  */
 
-#include "log.hpp"
+#include "dll_log.hpp"
 #include "d3d10_device.hpp"
 #include "../dxgi/dxgi_device.hpp"
 #include "../dxgi/format_utils.hpp"

@@ -3,7 +3,7 @@
  * License: https://github.com/crosire/reshade#license
  */
 
-#include "resources.hpp"
+#include "dll_resources.hpp"
 #include <Windows.h>
 
 extern HMODULE g_module_handle;

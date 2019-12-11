@@ -21,7 +21,7 @@
  * SOFTWARE.
  */
 
-#include "gui_code_editor.hpp"
+#include "imgui_editor.hpp"
 #include "effect_lexer.hpp"
 #include <imgui.h>
 

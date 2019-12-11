@@ -3,17 +3,17 @@
  * License: https://github.com/crosire/reshade#license
  */
 
-#include "log.hpp"
+#include "dll_log.hpp"
 #include "version.h"
 #include "runtime.hpp"
+#include "runtime_config.hpp"
 #include "runtime_objects.hpp"
 #include "effect_parser.hpp"
 #include "effect_codegen.hpp"
 #include "effect_preprocessor.hpp"
 #include "input.hpp"
-#include "ini_file.hpp"
-#include <assert.h>
 #include <thread>
+#include <cassert>
 #include <algorithm>
 #include <stb_image.h>
 #include <stb_image_dds.h>

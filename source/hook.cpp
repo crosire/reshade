@@ -4,7 +4,7 @@
  */
 
 #include "hook.hpp"
-#include <assert.h>
+#include <cassert>
 #include <MinHook.h>
 
 static unsigned long s_reference_count = 0;

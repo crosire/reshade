@@ -3,14 +3,14 @@
  * License: https://github.com/crosire/reshade#license
  */
 
-#include "log.hpp"
+#include "dll_log.hpp"
 #include "input.hpp"
 #include "hook_manager.hpp"
-#include <assert.h>
-#include <Windows.h>
 #include <mutex>
+#include <cassert>
 #include <algorithm>
 #include <unordered_map>
+#include <Windows.h>
 
 static std::mutex s_windows_mutex;
 static std::unordered_map<HWND, unsigned int> s_raw_input_windows;
