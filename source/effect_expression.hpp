@@ -354,7 +354,6 @@ namespace reshadefx
 	{
 		std::string name;
 		bool is_pixel_shader;
-		std::string assembly;
 	};
 
 	/// <summary>

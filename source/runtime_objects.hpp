@@ -54,6 +54,7 @@ namespace reshade
 		std::filesystem::path source_file;
 		std::vector<std::filesystem::path> included_files;
 		std::vector<std::string> macro_ifdefs;
+		std::unordered_map<std::string, std::string> assembly;
 		size_t storage_offset = 0, storage_size = 0;
 	};
 

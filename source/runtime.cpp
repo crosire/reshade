@@ -677,6 +677,8 @@ void reshade::runtime::unload_effect(size_t index)
 	effect.preamble.clear();
 	effect.source_file.clear();
 	effect.included_files.clear();
+	effect.macro_ifdefs.clear();
+	effect.assembly.clear();
 }
 void reshade::runtime::unload_effects()
 {

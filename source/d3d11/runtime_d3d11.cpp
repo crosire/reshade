@@ -394,10 +394,8 @@ bool reshade::d3d11::runtime_d3d11::init_effect(size_t index)
 	std::unordered_map<std::string, com_ptr<IUnknown>> entry_points;
 
 	// Compile the generated HLSL source code to DX byte code
-	for (auto &entry_point : effect.module.entry_points)
+	for (const auto &entry_point : effect.module.entry_points)
 	{
-		entry_point.assembly.clear();
-
 		com_ptr<ID3DBlob> d3d_compiled, d3d_errors;
 		std::string profile = entry_point.is_pixel_shader ? "ps" : "vs";
 
@@ -438,7 +436,7 @@ bool reshade::d3d11::runtime_d3d11::init_effect(size_t index)
 			return false;
 
 		if (com_ptr<ID3DBlob> d3d_disassembled; SUCCEEDED(D3DDisassemble(d3d_compiled->GetBufferPointer(), d3d_compiled->GetBufferSize(), 0, nullptr, &d3d_disassembled)))
-			entry_point.assembly = std::string(static_cast<const char *>(d3d_disassembled->GetBufferPointer()));
+			effect.assembly[entry_point.name] = std::string(static_cast<const char *>(d3d_disassembled->GetBufferPointer()));
 
 		// Create runtime shader objects from the compiled DX byte code
 		if (entry_point.is_pixel_shader)

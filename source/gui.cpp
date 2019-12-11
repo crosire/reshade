@@ -2240,11 +2240,15 @@ void reshade::runtime::draw_overlay_technique_editor()
 				if (ImGui::MenuItem("Generated code"))
 					source_code = effect.preamble + effect.module.hlsl;
 
-				ImGui::Separator();
+				if (!effect.assembly.empty())
+				{
+					ImGui::Separator();
 
-				for (const auto &entry_point : effect.module.entry_points)
-					if (ImGui::MenuItem(entry_point.name.c_str()))
-						source_code = entry_point.assembly;
+					for (const auto &entry_point : effect.module.entry_points)
+						if (const auto assembly_it = effect.assembly.find(entry_point.name);
+							assembly_it != effect.assembly.end() && ImGui::MenuItem(entry_point.name.c_str()))
+							source_code = assembly_it->second;
+				}
 
 				ImGui::EndPopup();
 
