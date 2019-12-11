@@ -3,11 +3,9 @@
  * License: https://github.com/crosire/reshade#license
  */
 
-#include "effect_parser.hpp"
 #include "effect_symbol_table.hpp"
-#include <assert.h>
-#include <algorithm>
-#include <functional>
+#include <cassert>
+#include <algorithm> // std::upper_bound, std::sort
 
 #pragma region Import intrinsic functions
 

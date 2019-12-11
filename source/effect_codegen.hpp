@@ -5,7 +5,7 @@
 
 #pragma once
 
-#include "effect_lexer.hpp"
+#include "effect_module.hpp"
 #include <memory> // std::unique_ptr
 #include <algorithm> // std::find_if
 

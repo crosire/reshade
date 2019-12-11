@@ -10,6 +10,7 @@
 #include <memory> // std::unique_ptr
 #include <filesystem>
 #include <unordered_set>
+#include <unordered_map>
 
 namespace reshadefx
 {
@@ -46,7 +47,7 @@ namespace reshadefx
 		/// <param name="name">The name of the macro to define.</param>
 		/// <param name="value">The value to define that macro to.</param>
 		/// <returns></returns>
-		bool add_macro_definition(const std::string &name, std::string value = "1");
+		bool add_macro_definition(const std::string &name, std::string value = "1") { return add_macro_definition(name, macro { std::move(value) }); }
 
 		/// <summary>
 		/// Open the specified file, parse its contents and append them to the output.

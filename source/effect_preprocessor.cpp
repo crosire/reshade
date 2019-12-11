@@ -109,13 +109,6 @@ bool reshadefx::preprocessor::add_macro_definition(const std::string &name, cons
 
 	return _macros.emplace(name, macro).second;
 }
-bool reshadefx::preprocessor::add_macro_definition(const std::string &name, std::string value)
-{
-	macro macro;
-	macro.replacement_list = std::move(value);
-
-	return add_macro_definition(name, macro);
-}
 
 bool reshadefx::preprocessor::append_file(const std::filesystem::path &path)
 {

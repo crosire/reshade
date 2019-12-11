@@ -5,7 +5,7 @@
 
 #pragma once
 
-#include "effect_expression.hpp"
+#include "effect_module.hpp"
 #include "moving_average.hpp"
 #include <filesystem>
 

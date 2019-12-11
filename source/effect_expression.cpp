@@ -32,7 +32,7 @@ reshadefx::type reshadefx::type::merge(const type &lhs, const type &rhs)
 	return result;
 }
 
-void reshadefx::expression::reset_to_lvalue(const reshadefx::location &loc, reshadefx::codegen::id in_base, const reshadefx::type &in_type)
+void reshadefx::expression::reset_to_lvalue(const reshadefx::location &loc, uint32_t in_base, const reshadefx::type &in_type)
 {
 	type = in_type;
 	base = in_base;
@@ -41,7 +41,7 @@ void reshadefx::expression::reset_to_lvalue(const reshadefx::location &loc, resh
 	is_constant = false;
 	chain.clear();
 }
-void reshadefx::expression::reset_to_rvalue(const reshadefx::location &loc, reshadefx::codegen::id in_base, const reshadefx::type &in_type)
+void reshadefx::expression::reset_to_rvalue(const reshadefx::location &loc, uint32_t in_base, const reshadefx::type &in_type)
 {
 	type = in_type;
 	type.qualifiers |= type::q_const;

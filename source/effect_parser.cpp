@@ -5,7 +5,7 @@
 
 #include "effect_parser.hpp"
 #include "effect_codegen.hpp"
-#include <assert.h>
+#include <cassert>
 #include <algorithm>
 #include <functional>
 
