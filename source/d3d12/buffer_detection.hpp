@@ -46,8 +46,8 @@ namespace reshade::d3d12
 		ID3D12Device *_device = nullptr;
 		const buffer_detection_context *_context = nullptr;
 		draw_stats _stats;
-		draw_stats _best_copy_stats;
 #if RESHADE_DX12_CAPTURE_DEPTH_BUFFERS
+		draw_stats _best_copy_stats;
 		com_ptr<ID3D12Resource> _current_depthstencil;
 		// Use "std::map" instead of "std::unordered_map" so that the iteration order is guaranteed
 		std::map<com_ptr<ID3D12Resource>, depthstencil_info> _counters_per_used_depth_texture;
@@ -84,12 +84,11 @@ namespace reshade::d3d12
 
 		com_ptr<ID3D12Resource> resource_from_handle(D3D12_CPU_DESCRIPTOR_HANDLE handle) const;
 
+		draw_stats _previous_stats;
 		com_ptr<ID3D12Resource> _depthstencil_clear_texture;
 		std::pair<ID3D12Resource *, UINT> _depthstencil_clear_index = { nullptr, std::numeric_limits<UINT>::max() };
 		// Do not hold a reference to the resources here
 		std::unordered_map<SIZE_T, ID3D12Resource *> _depthstencil_resources_by_handle;
-		draw_stats _previous_stats;
-		bool _auto_copy = false;
 #endif
 	};
 }

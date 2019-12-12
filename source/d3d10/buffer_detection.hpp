@@ -64,10 +64,9 @@ namespace reshade::d3d10
 
 		ID3D10Device *const _device;
 		draw_stats _stats;
-		draw_stats _best_copy_stats;
-		draw_stats _previous_stats;
-		bool _auto_copy = false;
 #if RESHADE_DX10_CAPTURE_DEPTH_BUFFERS
+		draw_stats _previous_stats;
+		draw_stats _best_copy_stats;
 		com_ptr<ID3D10Texture2D> _depthstencil_clear_texture;
 		std::pair<ID3D10Texture2D *, UINT> _depthstencil_clear_index = { nullptr, std::numeric_limits<UINT>::max() };
 		// Use "std::map" instead of "std::unordered_map" so that the iteration order is guaranteed
