@@ -95,8 +95,9 @@ namespace reshadefx
 	private:
 		struct if_level
 		{
-			token token;
-			bool value, skipping;
+			bool value;
+			bool skipping;
+			reshadefx::token token;
 			if_level *parent;
 		};
 		struct input_level
@@ -144,7 +145,7 @@ namespace reshadefx
 		void create_macro_replacement_list(macro &macro);
 
 		bool _success = true;
-		token _token;
+		reshadefx::token _token;
 		std::vector<input_level> _input_stack;
 		location _output_location;
 		std::string _output, _errors, _current_token_raw_data;

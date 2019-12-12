@@ -190,7 +190,7 @@ namespace reshadefx
 	struct token
 	{
 		tokenid id;
-		location location;
+		reshadefx::location location;
 		size_t offset, length;
 		union
 		{

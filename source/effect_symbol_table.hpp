@@ -39,9 +39,9 @@ namespace reshadefx
 	{
 		symbol_type op = symbol_type::invalid;
 		uint32_t id = 0;
-		type type = {};
-		constant constant = {};
-		const function_info *function = nullptr;
+		reshadefx::type type = {};
+		reshadefx::constant constant = {};
+		const reshadefx::function_info *function = nullptr;
 	};
 
 	/// <summary>
@@ -93,7 +93,7 @@ namespace reshadefx
 
 	private:
 		struct scoped_symbol : symbol {
-			scope scope; // Store scope with symbol data
+			struct scope scope; // Store scope with symbol data
 		};
 
 		scope _current_scope;

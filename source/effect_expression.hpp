@@ -124,17 +124,17 @@ namespace reshadefx
 			};
 
 			op_type op;
-			type from, to;
+			reshadefx::type from, to;
 			uint32_t index;
 			signed char swizzle[4];
 		};
 
-		type type = {};
 		uint32_t base = 0;
-		constant constant = {};
+		reshadefx::type type = {};
+		reshadefx::constant constant = {};
 		bool is_lvalue = false;
 		bool is_constant = false;
-		location location;
+		reshadefx::location location;
 		std::vector<operation> chain;
 
 		/// <summary>
@@ -170,7 +170,7 @@ namespace reshadefx
 		/// <param name="type">The type to cast the expression to.</param>
 		void add_cast_operation(const reshadefx::type &type);
 		/// <summary>
-		/// Add a struct member lookup to the current access chain.
+		/// Add a structure member lookup to the current access chain.
 		/// </summary>
 		/// <param name="index">The index of the member to dereference.</param>
 		/// <param name="type">The value type of the member.</param>
@@ -196,12 +196,12 @@ namespace reshadefx
 		/// Apply an unary operation to this constant expression.
 		/// </summary>
 		/// <param name="op">The unary operator to apply.</param>
-		bool evaluate_constant_expression(tokenid op);
+		bool evaluate_constant_expression(reshadefx::tokenid op);
 		/// <summary>
 		/// Apply a binary operation to this constant expression.
 		/// </summary>
 		/// <param name="op">The binary operator to apply.</param>
 		/// <param name="rhs">The constant to use as right-hand side of the binary operation.</param>
-		bool evaluate_constant_expression(tokenid op, const reshadefx::constant &rhs);
+		bool evaluate_constant_expression(reshadefx::tokenid op, const reshadefx::constant &rhs);
 	};
 }

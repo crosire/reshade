@@ -123,7 +123,7 @@ public:
 private:
 	struct type_lookup
 	{
-		type type;
+		reshadefx::type type;
 		spv::StorageClass storage;
 		bool is_ptr;
 		spv::Id id;

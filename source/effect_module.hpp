@@ -72,10 +72,10 @@ namespace reshadefx
 	/// </summary>
 	struct struct_member_info
 	{
-		type type;
+		reshadefx::type type;
 		std::string name;
 		std::string semantic;
-		location location;
+		reshadefx::location location;
 		uint32_t definition = 0;
 	};
 
@@ -84,9 +84,9 @@ namespace reshadefx
 	/// </summary>
 	struct annotation
 	{
-		type type;
+		reshadefx::type type;
 		std::string name;
-		constant value;
+		reshadefx::constant value;
 	};
 
 	/// <summary>
@@ -132,12 +132,12 @@ namespace reshadefx
 	struct uniform_info
 	{
 		std::string name;
-		type type;
+		reshadefx::type type;
 		uint32_t size = 0;
 		uint32_t offset = 0;
 		std::vector<annotation> annotations;
 		bool has_initializer_value = false;
-		constant initializer_value;
+		reshadefx::constant initializer_value;
 	};
 
 	/// <summary>
@@ -157,7 +157,7 @@ namespace reshadefx
 		uint32_t definition;
 		std::string name;
 		std::string unique_name;
-		type return_type;
+		reshadefx::type return_type;
 		std::string return_semantic;
 		std::vector<struct_member_info> parameter_list;
 	};
