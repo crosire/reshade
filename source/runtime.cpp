@@ -339,8 +339,9 @@ void reshade::runtime::load_effect(const std::filesystem::path &path, size_t ind
 
 		// Keep track of defines
 		effect.macro_ifdefs = pp.macro_ifdefs();
-		effect.macro_ifdefs.erase(std::remove_if(effect.macro_ifdefs.begin(), effect.macro_ifdefs.end(), // Remove "RESHADE_" defines and those with short names
-			[](const auto &define) { return define.size() <= 10 || define.compare(0, 8, "RESHADE_") == 0; }), effect.macro_ifdefs.end());
+		effect.macro_ifdefs.erase(std::remove_if(effect.macro_ifdefs.begin(), effect.macro_ifdefs.end(), // Remove special defines
+			[](const auto &define) { return define.size() <= 10 || define[0] == '_' ||
+				!define.compare(0, 8, "RESHADE_") || !define.compare(0, 7, "BUFFER_"); }), effect.macro_ifdefs.end());
 
 		// Keep track of included files
 		effect.included_files = pp.included_files();
