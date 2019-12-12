@@ -461,84 +461,88 @@ void reshadefx::preprocessor::parse_undef()
 
 void reshadefx::preprocessor::parse_if()
 {
+	const auto condition_token = _token;
 	const bool condition_result = evaluate_expression();
 
 	if_level level;
-	level.token = _token;
+	std::vector<if_level> &if_stack = _input_stack.back().if_stack;
+	level.token = condition_token;
 	level.value = condition_result;
-	level.parent = current_if_stack().empty() ? nullptr : &current_if_stack().back();
-	level.skipping = (level.parent != nullptr && level.parent->skipping) || !level.value;
+	level.skipping = (!if_stack.empty() && if_stack.back().skipping) || !level.value;
 
-	current_if_stack().push_back(std::move(level));
+	if_stack.push_back(std::move(level));
 }
 void reshadefx::preprocessor::parse_ifdef()
 {
-	if_level level;
-	level.token = _token;
+	const auto condition_token = _token;
 
 	if (!expect(tokenid::identifier))
 		return;
 
+	if_level level;
+	std::vector<if_level> &if_stack = _input_stack.back().if_stack;
+	level.token = condition_token;
 	level.value = _macros.find(_token.literal_as_string) != _macros.end();
-	level.parent = current_if_stack().empty() ? nullptr : &current_if_stack().back();
-	level.skipping = (level.parent != nullptr && level.parent->skipping) || !level.value;
+	level.skipping = (!if_stack.empty() && if_stack.back().skipping) || !level.value;
 
-	current_if_stack().push_back(std::move(level));
+	if_stack.push_back(std::move(level));
 	_macro_ifdefs.emplace(_token.literal_as_string);
 }
 void reshadefx::preprocessor::parse_ifndef()
 {
-	if_level level;
-	level.token = _token;
+	const auto condition_token = _token;
 
 	if (!expect(tokenid::identifier))
 		return;
 
+	if_level level;
+	std::vector<if_level> &if_stack = _input_stack.back().if_stack;
+	level.token = condition_token;
 	level.value = _macros.find(_token.literal_as_string) == _macros.end();
-	level.parent = current_if_stack().empty() ? nullptr : &current_if_stack().back();
-	level.skipping = (level.parent != nullptr && level.parent->skipping) || !level.value;
+	level.skipping = (!if_stack.empty() && if_stack.back().skipping) || !level.value;
 
-	current_if_stack().push_back(std::move(level));
+	if_stack.push_back(std::move(level));
 	_macro_ifdefs.emplace(_token.literal_as_string);
 }
 void reshadefx::preprocessor::parse_elif()
 {
-	if (current_if_stack().empty())
+	std::vector<if_level> &if_stack = _input_stack.back().if_stack;
+	if (if_stack.empty())
 		return error(_token.location, "missing #if for #elif");
 
-	if_level &level = current_if_stack().back();
-
+	if_level &level = if_stack.back();
 	if (level.token == tokenid::hash_else)
 		return error(_token.location, "#elif is not allowed after #else");
 
 	const bool condition_result = evaluate_expression();
 
 	level.token = _token;
-	level.skipping = (level.parent != nullptr && level.parent->skipping) || level.value || !condition_result;
+	level.skipping = (if_stack.size() > 1 && if_stack[if_stack.size() - 2].skipping) || level.value || !condition_result;
 
 	if (!level.value) level.value = condition_result;
 }
 void reshadefx::preprocessor::parse_else()
 {
-	if (current_if_stack().empty())
+	std::vector<if_level> &if_stack = _input_stack.back().if_stack;
+	if (if_stack.empty())
 		return error(_token.location, "missing #if for #else");
 
-	if_level &level = current_if_stack().back();
-
+	if_level &level = if_stack.back();
 	if (level.token == tokenid::hash_else)
 		return error(_token.location, "#else is not allowed after #else");
 
 	level.token = _token;
-	level.skipping = (level.parent != nullptr && level.parent->skipping) || level.value;
+	level.skipping = (if_stack.size() > 1 && if_stack[if_stack.size() - 2].skipping) || level.value;
 
 	if (!level.value) level.value = true;
 }
 void reshadefx::preprocessor::parse_endif()
 {
-	if (current_if_stack().empty())
+	std::vector<if_level> &if_stack = _input_stack.back().if_stack;
+	if (if_stack.empty())
 		return error(_token.location, "missing #if for #endif");
 
-	current_if_stack().pop_back();
+	if_stack.pop_back();
 }
 
 void reshadefx::preprocessor::parse_error()

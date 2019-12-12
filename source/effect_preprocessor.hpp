@@ -98,7 +98,6 @@ namespace reshadefx
 			bool value;
 			bool skipping;
 			reshadefx::token token;
-			if_level *parent;
 		};
 		struct input_level
 		{
