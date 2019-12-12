@@ -200,7 +200,7 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::ExecuteBundle(ID3D12GraphicsCom
 	const auto command_list_proxy = static_cast<D3D12GraphicsCommandList *>(pCommandList);
 
 	// Merge bundle command list trackers into the current one
-	_buffer_detection.merge(command_list_proxy->_buffer_detection, _device->_buffer_detection.depth_buffer_counters());
+	_buffer_detection.merge(command_list_proxy->_buffer_detection);
 
 	_orig->ExecuteBundle(command_list_proxy->_orig);
 }

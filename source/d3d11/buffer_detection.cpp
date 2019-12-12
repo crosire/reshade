@@ -9,7 +9,7 @@
 #include <cmath>
 
 #if RESHADE_DX11_CAPTURE_DEPTH_BUFFERS
-static inline com_ptr<ID3D11Texture2D> texture_from_dsv(ID3D11DepthStencilView* dsv)
+static inline com_ptr<ID3D11Texture2D> texture_from_dsv(ID3D11DepthStencilView *dsv)
 {
 	if (dsv == nullptr)
 		return nullptr;
@@ -24,7 +24,7 @@ static inline com_ptr<ID3D11Texture2D> texture_from_dsv(ID3D11DepthStencilView* 
 static bool s_auto_copy;
 static reshade::d3d11::buffer_detection::draw_stats s_previous_stats;
 
-void reshade::d3d11::buffer_detection::init(ID3D11DeviceContext* device, const buffer_detection_context* context)
+void reshade::d3d11::buffer_detection::init(ID3D11DeviceContext* device, const buffer_detection_context *context)
 {
 	_device = device;
 	_context = context;
@@ -57,7 +57,7 @@ void reshade::d3d11::buffer_detection_context::reset(bool release_resources)
 #endif
 }
 
-void reshade::d3d11::buffer_detection::merge(const buffer_detection& source)
+void reshade::d3d11::buffer_detection::merge(const buffer_detection &source)
 {
 	_stats.vertices += source._stats.vertices;
 	_stats.drawcalls += source._stats.drawcalls;
@@ -67,7 +67,7 @@ void reshade::d3d11::buffer_detection::merge(const buffer_detection& source)
 
 	for (const auto& [dsv_texture, snapshot] : source._counters_per_used_depth_texture)
 	{
-		auto& target_snapshot = _counters_per_used_depth_texture[dsv_texture];
+		auto &target_snapshot = _counters_per_used_depth_texture[dsv_texture];
 		target_snapshot.total_stats.vertices += snapshot.total_stats.vertices;
 		target_snapshot.total_stats.drawcalls += snapshot.total_stats.drawcalls;
 		target_snapshot.current_stats.vertices += snapshot.current_stats.vertices;
@@ -77,7 +77,7 @@ void reshade::d3d11::buffer_detection::merge(const buffer_detection& source)
 	}
 #endif
 #if RESHADE_DX11_CAPTURE_CONSTANT_BUFFERS
-	for (const auto& [buffer, snapshot] : source._counters_per_constant_buffer)
+	for (const auto &[buffer, snapshot] : source._counters_per_constant_buffer)
 	{
 		_counters_per_constant_buffer[buffer].vertices += snapshot.vertices;
 		_counters_per_constant_buffer[buffer].drawcalls += snapshot.drawcalls;
@@ -87,7 +87,7 @@ void reshade::d3d11::buffer_detection::merge(const buffer_detection& source)
 #endif
 }
 
-void reshade::d3d11::buffer_detection::on_map(ID3D11Resource* resource)
+void reshade::d3d11::buffer_detection::on_map(ID3D11Resource *resource)
 {
 	UNREFERENCED_PARAMETER(resource);
 
@@ -96,7 +96,7 @@ void reshade::d3d11::buffer_detection::on_map(ID3D11Resource* resource)
 	resource->GetType(&dim);
 
 	if (dim == D3D11_RESOURCE_DIMENSION_BUFFER)
-		_counters_per_constant_buffer[static_cast<ID3D11Buffer*>(resource)].mapped += 1;
+		_counters_per_constant_buffer[static_cast<ID3D11Buffer *>(resource)].mapped += 1;
 #endif
 }
 
@@ -113,7 +113,7 @@ void reshade::d3d11::buffer_detection::on_draw(UINT vertices)
 	if (dsv_texture == nullptr)
 		return; // This is a draw call with no depth stencil bound
 
-	auto& counters = _counters_per_used_depth_texture[dsv_texture];
+	auto &counters = _counters_per_used_depth_texture[dsv_texture];
 	counters.total_stats.vertices += vertices;
 	counters.total_stats.drawcalls += 1;
 	counters.current_stats.vertices += vertices;
@@ -122,7 +122,7 @@ void reshade::d3d11::buffer_detection::on_draw(UINT vertices)
 #if RESHADE_DX11_CAPTURE_CONSTANT_BUFFERS
 	// Capture constant buffers that are used when depth stencils are drawn
 	com_ptr<ID3D11Buffer> vscbuffers[D3D11_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT];
-	_device->VSGetConstantBuffers(0, ARRAYSIZE(vscbuffers), reinterpret_cast<ID3D11Buffer**>(vscbuffers));
+	_device->VSGetConstantBuffers(0, ARRAYSIZE(vscbuffers), reinterpret_cast<ID3D11Buffer **>(vscbuffers));
 
 	for (UINT i = 0; i < ARRAYSIZE(vscbuffers); i++)
 		// Uses the default drawcalls = 0 the first time around.
@@ -130,7 +130,7 @@ void reshade::d3d11::buffer_detection::on_draw(UINT vertices)
 			_counters_per_constant_buffer[vscbuffers[i]].vs_uses += 1;
 
 	com_ptr<ID3D11Buffer> pscbuffers[D3D11_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT];
-	_device->PSGetConstantBuffers(0, ARRAYSIZE(pscbuffers), reinterpret_cast<ID3D11Buffer**>(pscbuffers));
+	_device->PSGetConstantBuffers(0, ARRAYSIZE(pscbuffers), reinterpret_cast<ID3D11Buffer **>(pscbuffers));
 
 	for (UINT i = 0; i < ARRAYSIZE(pscbuffers); i++)
 		// Uses the default drawcalls = 0 the first time around.
@@ -140,7 +140,7 @@ void reshade::d3d11::buffer_detection::on_draw(UINT vertices)
 }
 
 #if RESHADE_DX11_CAPTURE_DEPTH_BUFFERS
-void reshade::d3d11::buffer_detection::on_clear_depthstencil(UINT clear_flags, ID3D11DepthStencilView* dsv)
+void reshade::d3d11::buffer_detection::on_clear_depthstencil(UINT clear_flags, ID3D11DepthStencilView *dsv)
 {
 	assert(_context != nullptr);
 	bool bcopy = false;
@@ -152,7 +152,7 @@ void reshade::d3d11::buffer_detection::on_clear_depthstencil(UINT clear_flags, I
 	if (dsv_texture == nullptr || dsv_texture != _context->_depthstencil_clear_index.first)
 		return;
 
-	auto& counters = _counters_per_used_depth_texture[dsv_texture];
+	auto &counters = _counters_per_used_depth_texture[dsv_texture];
 
 	if (counters.current_stats.drawcalls == 0)
 		counters.current_stats = s_previous_stats;
@@ -226,7 +226,7 @@ com_ptr<ID3D11Texture2D> reshade::d3d11::buffer_detection_context::find_best_dep
 	}
 	else
 	{
-		for (auto& [dsv_texture, snapshot] : _counters_per_used_depth_texture)
+		for (auto &[dsv_texture, snapshot] : _counters_per_used_depth_texture)
 		{
 			if (snapshot.total_stats.drawcalls == 0)
 				continue; // Skip unused
@@ -276,7 +276,7 @@ com_ptr<ID3D11Texture2D> reshade::d3d11::buffer_detection_context::find_best_dep
 
 			for (UINT clear_index = 0; clear_index < best_snapshot.clears.size(); ++clear_index)
 			{
-				const auto& snapshot = best_snapshot.clears[clear_index];
+				const auto &snapshot = best_snapshot.clears[clear_index];
 
 				if (snapshot.vertices > last_stats.vertices)
 				{

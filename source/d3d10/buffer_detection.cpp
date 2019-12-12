@@ -107,7 +107,7 @@ void reshade::d3d10::buffer_detection::on_clear_depthstencil(UINT clear_flags, I
 	if (dsv_texture == nullptr || dsv_texture != _depthstencil_clear_index.first)
 		return;
 
-	auto& counters = _counters_per_used_depth_texture[dsv_texture];
+	auto &counters = _counters_per_used_depth_texture[dsv_texture];
 
 	if (counters.current_stats.drawcalls == 0)
 		counters.current_stats = s_previous_stats;

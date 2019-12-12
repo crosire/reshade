@@ -154,7 +154,7 @@ void    STDMETHODCALLTYPE D3D12CommandQueue::ExecuteCommandLists(UINT NumCommand
 			const std::lock_guard<std::mutex> lock(s_global_mutex);
 
 			// Merge command list trackers into device one
-			_device->_buffer_detection.merge(command_list_proxy->_buffer_detection, _device->_buffer_detection.depth_buffer_counters());
+			_device->_buffer_detection.merge(command_list_proxy->_buffer_detection);
 
 			// Get original command list pointer from proxy object
 			command_lists[i] = command_list_proxy->_orig;
