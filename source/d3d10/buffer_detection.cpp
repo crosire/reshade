@@ -121,7 +121,7 @@ void reshade::d3d10::buffer_detection::on_clear_depthstencil(UINT clear_flags, I
 	// Make a backup copy of the depth texture before it is cleared
 	if (s_auto_copy)
 	{
-		if (counters.current_stats.vertices >= _best_copy_stats.vertices)
+		if (counters.current_stats.vertices > _best_copy_stats.vertices)
 		{
 			bcopy = true;
 			_best_copy_stats = counters.current_stats;
@@ -227,7 +227,7 @@ com_ptr<ID3D10Texture2D> reshade::d3d10::buffer_detection::find_best_depth_textu
 			{
 				const auto &snapshot = best_snapshot.clears[clear_index];
 
-				if (snapshot.vertices >= last_stats.vertices)
+				if (snapshot.vertices > last_stats.vertices)
 				{
 					last_stats.drawcalls = snapshot.drawcalls;
 					last_stats.vertices = snapshot.vertices;
