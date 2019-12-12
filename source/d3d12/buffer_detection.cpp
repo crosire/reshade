@@ -10,8 +10,6 @@
 #include <cmath>
 
 static std::mutex s_global_mutex;
-static bool s_auto_copy;
-static reshade::d3d12::buffer_detection::draw_stats s_previous_stats;
 
 void reshade::d3d12::buffer_detection::init(ID3D12Device *device, const buffer_detection_context *context)
 {
@@ -38,7 +36,7 @@ void reshade::d3d12::buffer_detection_context::reset(bool release_resources, boo
 	{
 		assert(_context == this);
 		
-		s_previous_stats = { 0, 0 };
+		_previous_stats = { 0, 0 };
 
 		if (!keep_dsv_handles)
 		{
@@ -109,7 +107,7 @@ void reshade::d3d12::buffer_detection::on_clear_depthstencil(ID3D12GraphicsComma
 	auto &counters = _counters_per_used_depth_texture[dsv_texture];
 
 	if (counters.current_stats.drawcalls == 0)
-		counters.current_stats = s_previous_stats;
+		counters.current_stats = _context->_previous_stats;
 
 	// Ignore clears when there was no meaningful workload
 	if (counters.current_stats.drawcalls == 0)
@@ -119,7 +117,7 @@ void reshade::d3d12::buffer_detection::on_clear_depthstencil(ID3D12GraphicsComma
 
 	// Make a backup copy of the depth texture before it is cleared
 	// This is not really correct, since clears may accumulate over multiple command lists, but it's unlikely that the same depth stencil is used in more than one
-	if (s_auto_copy)
+	if (_context->_auto_copy)
 	{
 		if (counters.current_stats.vertices > _best_copy_stats.vertices)
 		{
@@ -217,7 +215,7 @@ com_ptr<ID3D12Resource> reshade::d3d12::buffer_detection_context::find_best_dept
 {
 	depthstencil_info best_snapshot;
 	com_ptr<ID3D12Resource> best_match;
-	s_auto_copy = clear_index_override == std::numeric_limits<UINT>::max();
+	_auto_copy = clear_index_override == std::numeric_limits<UINT>::max();
 
 	if (override != nullptr)
 	{
@@ -270,8 +268,8 @@ com_ptr<ID3D12Resource> reshade::d3d12::buffer_detection_context::find_best_dept
 		{
 			draw_stats last_stats = { 0, 0 };
 
-			s_previous_stats.drawcalls = best_snapshot.current_stats.drawcalls;
-			s_previous_stats.vertices = best_snapshot.current_stats.vertices;
+			_previous_stats.drawcalls = best_snapshot.current_stats.drawcalls;
+			_previous_stats.vertices = best_snapshot.current_stats.vertices;
 
 			for (UINT clear_index = 0; clear_index < best_snapshot.clears.size(); ++clear_index)
 			{

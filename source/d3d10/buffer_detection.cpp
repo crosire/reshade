@@ -21,9 +21,6 @@ static inline com_ptr<ID3D10Texture2D> texture_from_dsv(ID3D10DepthStencilView *
 }
 #endif
 
-static bool s_auto_copy;
-static reshade::d3d10::buffer_detection::draw_stats s_previous_stats;
-
 void reshade::d3d10::buffer_detection::reset(bool release_resources)
 {
 	_stats = { 0, 0 };
@@ -33,7 +30,7 @@ void reshade::d3d10::buffer_detection::reset(bool release_resources)
 
 	if (release_resources)
 	{
-		s_previous_stats = { 0, 0 };
+		_previous_stats = { 0, 0 };
 
 		_depthstencil_clear_texture.reset();
 	}
@@ -110,7 +107,7 @@ void reshade::d3d10::buffer_detection::on_clear_depthstencil(UINT clear_flags, I
 	auto &counters = _counters_per_used_depth_texture[dsv_texture];
 
 	if (counters.current_stats.drawcalls == 0)
-		counters.current_stats = s_previous_stats;
+		counters.current_stats = _previous_stats;
 
 	// Ignore clears when there was no meaningful workload
 	if (counters.current_stats.drawcalls == 0)
@@ -119,7 +116,7 @@ void reshade::d3d10::buffer_detection::on_clear_depthstencil(UINT clear_flags, I
 	counters.clears.push_back(counters.current_stats);
 
 	// Make a backup copy of the depth texture before it is cleared
-	if (s_auto_copy)
+	if (_auto_copy)
 	{
 		if (counters.current_stats.vertices > _best_copy_stats.vertices)
 		{
@@ -166,7 +163,7 @@ com_ptr<ID3D10Texture2D> reshade::d3d10::buffer_detection::find_best_depth_textu
 {
 	depthstencil_info best_snapshot;
 	com_ptr<ID3D10Texture2D> best_match;
-	s_auto_copy = clear_index_override == std::numeric_limits<UINT>::max();
+	_auto_copy = clear_index_override == std::numeric_limits<UINT>::max();
 
 	if (override != nullptr)
 	{
@@ -220,8 +217,8 @@ com_ptr<ID3D10Texture2D> reshade::d3d10::buffer_detection::find_best_depth_textu
 		{
 			draw_stats last_stats = { 0, 0 };
 
-			s_previous_stats.drawcalls = best_snapshot.current_stats.drawcalls;
-			s_previous_stats.vertices = best_snapshot.current_stats.vertices;
+			_previous_stats.drawcalls = best_snapshot.current_stats.drawcalls;
+			_previous_stats.vertices = best_snapshot.current_stats.vertices;
 
 			for (UINT clear_index = 0; clear_index < best_snapshot.clears.size(); ++clear_index)
 			{

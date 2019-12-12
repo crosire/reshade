@@ -17,15 +17,6 @@ namespace reshade::d3d11
 	class buffer_detection
 	{
 	public:
-		struct draw_stats
-		{
-			UINT vertices = 0;
-			UINT drawcalls = 0;
-			UINT mapped = 0;
-			UINT vs_uses = 0;
-			UINT ps_uses = 0;
-		};
-
 		void init(ID3D11DeviceContext *device, const class buffer_detection_context *context = nullptr);
 		void reset();
 
@@ -39,6 +30,14 @@ namespace reshade::d3d11
 #endif
 
 	protected:
+		struct draw_stats
+		{
+			UINT vertices = 0;
+			UINT drawcalls = 0;
+			UINT mapped = 0;
+			UINT vs_uses = 0;
+			UINT ps_uses = 0;
+		};
 		struct depthstencil_info
 		{
 			draw_stats total_stats;
@@ -90,6 +89,8 @@ namespace reshade::d3d11
 
 		com_ptr<ID3D11Texture2D> _depthstencil_clear_texture;
 		std::pair<ID3D11Texture2D *, UINT> _depthstencil_clear_index = { nullptr, std::numeric_limits<UINT>::max() };
+		draw_stats _previous_stats;
+		bool _auto_copy = false;
 #endif
 	};
 }
