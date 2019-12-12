@@ -24,7 +24,7 @@ static inline com_ptr<ID3D11Texture2D> texture_from_dsv(ID3D11DepthStencilView *
 static bool s_auto_copy;
 static reshade::d3d11::buffer_detection::draw_stats s_previous_stats;
 
-void reshade::d3d11::buffer_detection::init(ID3D11DeviceContext* device, const buffer_detection_context *context)
+void reshade::d3d11::buffer_detection::init(ID3D11DeviceContext *device, const buffer_detection_context *context)
 {
 	_device = device;
 	_context = context;
@@ -65,7 +65,7 @@ void reshade::d3d11::buffer_detection::merge(const buffer_detection &source)
 #if RESHADE_DX11_CAPTURE_DEPTH_BUFFERS
 	_best_copy_stats = source._best_copy_stats;
 
-	for (const auto& [dsv_texture, snapshot] : source._counters_per_used_depth_texture)
+	for (const auto &[dsv_texture, snapshot] : source._counters_per_used_depth_texture)
 	{
 		auto &target_snapshot = _counters_per_used_depth_texture[dsv_texture];
 		target_snapshot.total_stats.vertices += snapshot.total_stats.vertices;

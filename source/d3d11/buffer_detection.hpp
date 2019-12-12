@@ -26,7 +26,7 @@ namespace reshade::d3d11
 			UINT ps_uses = 0;
 		};
 
-		void init(ID3D11DeviceContext* device, const class buffer_detection_context *context = nullptr);
+		void init(ID3D11DeviceContext *device, const class buffer_detection_context *context = nullptr);
 		void reset();
 
 		void merge(const buffer_detection &source);

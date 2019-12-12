@@ -22,12 +22,6 @@ namespace reshade::d3d12
 			UINT vertices = 0;
 			UINT drawcalls = 0;
 		};
-		struct depthstencil_info
-		{
-			draw_stats total_stats;
-			draw_stats current_stats; // Stats since last clear
-			std::vector<draw_stats> clears;
-		};
 
 		void init(ID3D12Device *device, const class buffer_detection_context *context = nullptr);
 		void reset();
@@ -42,6 +36,13 @@ namespace reshade::d3d12
 #endif
 
 	protected:
+		struct depthstencil_info
+		{
+			draw_stats total_stats;
+			draw_stats current_stats; // Stats since last clear
+			std::vector<draw_stats> clears;
+		};
+
 		ID3D12Device *_device = nullptr;
 		const buffer_detection_context *_context = nullptr;
 		draw_stats _stats;
