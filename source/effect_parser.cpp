@@ -2756,6 +2756,7 @@ bool reshadefx::parser::parse_technique_pass(pass_info &info)
 	accept(tokenid::identifier);
 
 	bool parse_success = true;
+	function_info vs_info, ps_info;
 
 	if (!expect('{'))
 		return false;
@@ -2828,9 +2829,15 @@ bool reshadefx::parser::parse_technique_pass(pass_info &info)
 						_codegen->define_entry_point(function_info, is_ps);
 
 						if (is_vs)
+						{
+							vs_info = function_info;
 							info.vs_entry_point = function_info.unique_name;
+						}
 						if (is_ps)
+						{
+							ps_info = function_info;
 							info.ps_entry_point = function_info.unique_name;
+						}
 					}
 				}
 				else
@@ -2960,6 +2967,18 @@ bool reshadefx::parser::parse_technique_pass(pass_info &info)
 		if (info.ps_entry_point.empty())
 			parse_success = false,
 			error(pass_location, 3012, "pass is missing 'PixelShader' property");
+
+		// Verify that shader signatures between VS and PS match
+		std::unordered_map<std::string, type> vs_semantic_mapping;
+		if (!vs_info.return_semantic.empty())
+			vs_semantic_mapping[vs_info.return_semantic] = vs_info.return_type;
+		for (auto &param : vs_info.parameter_list)
+			if (!param.semantic.empty() && param.type.has(type::qualifier::q_out))
+				vs_semantic_mapping[param.semantic] = param.type;
+		for (auto &param : ps_info.parameter_list)
+			if (!param.semantic.empty() && param.type.has(type::qualifier::q_in))
+				if (const auto it = vs_semantic_mapping.find(param.semantic); it == vs_semantic_mapping.end() || it->second != param.type)
+					warning(pass_location, 4576, '\'' + param.name + "': pixel shader signature does not match vertex shader one");
 	}
 
 	return expect('}') && parse_success;
