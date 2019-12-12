@@ -1265,7 +1265,7 @@ void reshade::runtime::draw_overlay_menu_statistics()
 		ImGui::Text("%u B", g_network_traffic);
 		ImGui::Text("%.2f fps", _imgui_context->IO.Framerate);
 		ImGui::Text("%u draw calls", _drawcalls);
-		ImGui::Text("%*.3f ms (CPU)", cpu_digits + 4, post_processing_time_cpu * 1e-6f);
+		ImGui::Text("%*.3f ms CPU", cpu_digits + 4, post_processing_time_cpu * 1e-6f);
 
 		ImGui::EndGroup();
 		ImGui::SameLine(ImGui::GetWindowWidth() * 0.66666666f);
@@ -1281,7 +1281,7 @@ void reshade::runtime::draw_overlay_menu_statistics()
 		ImGui::Text("%*.3f ms", gpu_digits + 4, _last_frame_duration.count() * 1e-6f);
 		ImGui::Text("%u vertices", _vertices);
 		if (post_processing_time_gpu != 0)
-			ImGui::Text("%*.3f ms (GPU)", gpu_digits + 4, (post_processing_time_gpu * 1e-6f));
+			ImGui::Text("%*.3f ms GPU", gpu_digits + 4, (post_processing_time_gpu * 1e-6f));
 
 		ImGui::EndGroup();
 	}
@@ -1311,7 +1311,7 @@ void reshade::runtime::draw_overlay_menu_statistics()
 				continue;
 
 			if (technique.average_cpu_duration != 0)
-				ImGui::Text("%*.3f ms (CPU) (%.0f%%)", cpu_digits + 4, technique.average_cpu_duration * 1e-6f, 100 * (technique.average_cpu_duration * 1e-6f) / (post_processing_time_cpu * 1e-6f));
+				ImGui::Text("%*.3f ms CPU (%.0f%%)", cpu_digits + 4, technique.average_cpu_duration * 1e-6f, 100 * (technique.average_cpu_duration * 1e-6f) / (post_processing_time_cpu * 1e-6f));
 			else
 				ImGui::NewLine();
 		}
@@ -1327,7 +1327,7 @@ void reshade::runtime::draw_overlay_menu_statistics()
 
 			// GPU timings are not available for all APIs
 			if (technique.average_gpu_duration != 0)
-				ImGui::Text("%*.3f ms (GPU) (%.0f%%)", gpu_digits + 4, technique.average_gpu_duration * 1e-6f, 100 * (technique.average_gpu_duration * 1e-6f) / (post_processing_time_gpu * 1e-6f));
+				ImGui::Text("%*.3f ms GPU (%.0f%%)", gpu_digits + 4, technique.average_gpu_duration * 1e-6f, 100 * (technique.average_gpu_duration * 1e-6f) / (post_processing_time_gpu * 1e-6f));
 			else
 				ImGui::NewLine();
 		}
@@ -1915,9 +1915,19 @@ void reshade::runtime::draw_overlay_variable_editor()
 		for (int i = 0, spacing = variable.annotation_as_int("ui_spacing"); i < spacing; ++i)
 			ImGui::Spacing();
 
+		// Add user-configurable text before variable widget
+		if (const std::string_view text = variable.annotation_as_string("ui_text");
+			!text.empty())
+		{
+			ImGui::PushTextWrapPos();
+			ImGui::TextUnformatted(text.data());
+			ImGui::PopTextWrapPos();
+		}
+
 		bool modified = false;
 		std::string_view label = variable.annotation_as_string("ui_label");
-		if (label.empty()) label = variable.name;
+		if (label.empty())
+			label = variable.name;
 		const std::string_view ui_type = variable.annotation_as_string("ui_type");
 
 		ImGui::PushID(static_cast<int>(index));
