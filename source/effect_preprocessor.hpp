@@ -5,8 +5,7 @@
 
 #pragma once
 
-#include "effect_lexer.hpp"
-#include <stack>
+#include "effect_token.hpp"
 #include <memory> // std::unique_ptr
 #include <filesystem>
 #include <unordered_set>
@@ -27,6 +26,10 @@ namespace reshadefx
 			bool is_variadic = false;
 			bool is_function_like = false;
 		};
+
+		// Define constructor explicitly because lexer class it not included here
+		preprocessor();
+		~preprocessor();
 
 		/// <summary>
 		/// Add an include directory to the list of search paths used when resolving #include directives.
@@ -99,9 +102,9 @@ namespace reshadefx
 		struct input_level
 		{
 			std::string name;
-			std::unique_ptr<lexer> lexer;
+			std::unique_ptr<class lexer> lexer;
 			token next_token;
-			std::stack<if_level> if_stack;
+			std::vector<if_level> if_stack;
 			std::unordered_set<std::string> hidden_macros;
 			input_level *parent;
 		};
@@ -110,7 +113,7 @@ namespace reshadefx
 		void warning(const location &location, const std::string &message);
 
 		lexer &current_lexer();
-		std::stack<if_level> &current_if_stack();
+		std::vector<if_level> &current_if_stack();
 
 		void push(std::string input, const std::string &name = std::string());
 

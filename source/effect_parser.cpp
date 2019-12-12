@@ -3,6 +3,7 @@
  * License: https://github.com/crosire/reshade#license
  */
 
+#include "effect_lexer.hpp"
 #include "effect_parser.hpp"
 #include "effect_codegen.hpp"
 #include <cassert>
@@ -16,6 +17,13 @@ struct on_scope_exit
 	~on_scope_exit() { leave(); }
 	std::function<void()> leave;
 };
+
+reshadefx::parser::parser()
+{
+}
+reshadefx::parser::~parser()
+{
+}
 
 bool reshadefx::parser::parse(std::string input, codegen *backend)
 {
