@@ -27,7 +27,7 @@ namespace reshadefx
 			bool is_function_like = false;
 		};
 
-		// Define constructor explicitly because lexer class it not included here
+		// Define constructor explicitly because lexer class is not included here
 		preprocessor();
 		~preprocessor();
 

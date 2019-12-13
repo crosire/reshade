@@ -16,7 +16,7 @@ namespace reshadefx
 	class parser : symbol_table
 	{
 	public:
-		// Define constructor explicitly because lexer class it not included here
+		// Define constructor explicitly because lexer class is not included here
 		parser();
 		~parser();
 
