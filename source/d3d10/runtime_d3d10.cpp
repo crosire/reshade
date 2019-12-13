@@ -1249,7 +1249,7 @@ void reshade::d3d10::runtime_d3d10::draw_depth_debug_menu()
 		for (const auto &[dsv_texture, snapshot] : _current_tracker->depth_buffer_counters())
 		{
 			char label[512] = "";
-			sprintf_s(label, "%s0x%p", (dsv_texture == _depth_texture ? "> " : "  "), dsv_texture.get());
+			sprintf_s(label, "%s0x%p", (dsv_texture == _depth_texture || dsv_texture == _current_tracker->current_depth_texture() ? "> " : "  "), dsv_texture.get());
 
 			D3D10_TEXTURE2D_DESC desc;
 			dsv_texture->GetDesc(&desc);

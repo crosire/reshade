@@ -1500,7 +1500,7 @@ void reshade::d3d12::runtime_d3d12::draw_depth_debug_menu()
 		for (const auto &[dsv_texture, snapshot] : _current_tracker->depth_buffer_counters())
 		{
 			char label[512] = "";
-			sprintf_s(label, "%s0x%p", (dsv_texture == _depth_texture ? "> " : "  "), dsv_texture.get());
+			sprintf_s(label, "%s0x%p", (dsv_texture == _depth_texture || dsv_texture == _current_tracker->current_depth_texture() ? "> " : "  "), dsv_texture.get());
 
 			const D3D12_RESOURCE_DESC desc = dsv_texture->GetDesc();
 
