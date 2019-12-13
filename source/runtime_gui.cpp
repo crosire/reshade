@@ -789,7 +789,7 @@ void reshade::runtime::draw_overlay_menu_home()
 	if (_tutorial_index > 1)
 	{
 		const bool show_clear_button = strcmp(_effect_filter_buffer, "Search") != 0 && _effect_filter_buffer[0] != '\0';
-		ImGui::PushItemWidth((_variable_editor_tabs ? -130.0f : -260.0f) - (show_clear_button ? ImGui::GetFrameHeight() + _imgui_context->Style.ItemSpacing.x : 0));
+		ImGui::PushItemWidth((_variable_editor_tabs ? -10.0f : -20.0f) * _font_size - (show_clear_button ? ImGui::GetFrameHeight() + _imgui_context->Style.ItemSpacing.x : 0));
 
 		if (ImGui::InputText("##filter", _effect_filter_buffer, sizeof(_effect_filter_buffer), ImGuiInputTextFlags_AutoSelectAll))
 		{
@@ -830,7 +830,7 @@ void reshade::runtime::draw_overlay_menu_home()
 
 		ImGui::SameLine();
 
-		if (ImGui::Button("Active to top", ImVec2(130 - _imgui_context->Style.ItemSpacing.x, 0)))
+		if (ImGui::Button("Active to top", ImVec2(10 * _font_size - _imgui_context->Style.ItemSpacing.x, 0)))
 		{
 			for (auto i = _techniques.begin(); i != _techniques.end(); ++i)
 			{
@@ -867,7 +867,7 @@ void reshade::runtime::draw_overlay_menu_home()
 
 		ImGui::SameLine();
 
-		if (ImGui::Button(_effects_expanded_state & 2 ? "Collapse all" : "Expand all", ImVec2(130 - _imgui_context->Style.ItemSpacing.x, 0)))
+		if (ImGui::Button(_effects_expanded_state & 2 ? "Collapse all" : "Expand all", ImVec2(10 * _font_size - _imgui_context->Style.ItemSpacing.x, 0)))
 			_effects_expanded_state = (~_effects_expanded_state & 2) | 1;
 
 		if (_tutorial_index == 2)
@@ -931,7 +931,7 @@ void reshade::runtime::draw_overlay_menu_home()
 	{
 		ImGui::Spacing();
 
-		if (ImGui::Button("Reload", ImVec2(-150, 0)))
+		if (ImGui::Button("Reload", ImVec2(-11.5f * _font_size, 0)))
 		{
 			load_effects();
 		}
@@ -1350,7 +1350,7 @@ void reshade::runtime::draw_overlay_menu_statistics()
 
 		const float total_width = ImGui::GetWindowContentRegionWidth();
 		unsigned int texture_index = 0;
-		const unsigned int num_columns = static_cast<unsigned int>(std::ceilf(total_width / 500.0f));
+		const unsigned int num_columns = static_cast<unsigned int>(std::ceilf(total_width / (50.0f * _font_size)));
 		const float single_image_width = (total_width / num_columns) - 5.0f;
 
 		for (const auto &texture : _textures)
