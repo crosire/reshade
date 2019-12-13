@@ -2068,7 +2068,7 @@ void reshade::runtime::draw_overlay_variable_editor()
 						if (name == current_name)
 						{
 							if (equals_index != std::string::npos)
-								it->copy(value, sizeof(value) - 1, equals_index + 1);
+								it->copy(value, 127, equals_index + 1);
 							return it;
 						}
 					}
