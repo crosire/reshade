@@ -851,6 +851,7 @@ void reshade::d3d12::runtime_d3d12::unload_effects()
 bool reshade::d3d12::runtime_d3d12::init_texture(texture &texture)
 {
 	texture.impl = std::make_unique<d3d12_tex_data>();
+	const auto impl = texture.impl->as<d3d12_tex_data>();
 
 	// Do not create resource if it is a reference, it is set in 'render_technique'
 	if (texture.impl_reference != texture_reference::none)
@@ -915,10 +916,10 @@ bool reshade::d3d12::runtime_d3d12::init_texture(texture &texture)
 	D3D12_CLEAR_VALUE clear_value = {};
 	clear_value.Format = make_dxgi_format_normal(desc.Format);
 
-	const auto texture_data = texture.impl->as<d3d12_tex_data>();
-	texture_data->state = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+	// Initialize resource to the pixel shader state immediately, so no additional transition is required
+	impl->state = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
 
-	if (HRESULT hr = _device->CreateCommittedResource(&props, D3D12_HEAP_FLAG_NONE, &desc, texture_data->state, &clear_value, IID_PPV_ARGS(&texture_data->resource)); FAILED(hr))
+	if (HRESULT hr = _device->CreateCommittedResource(&props, D3D12_HEAP_FLAG_NONE, &desc, impl->state, &clear_value, IID_PPV_ARGS(&impl->resource)); FAILED(hr))
 	{
 		LOG(ERROR) << "Failed to create texture '" << texture.unique_name << "' ("
 			"Width = " << desc.Width << ", "
@@ -932,18 +933,18 @@ bool reshade::d3d12::runtime_d3d12::init_texture(texture &texture)
 	std::wstring debug_name;
 	debug_name.reserve(texture.unique_name.size());
 	utf8::unchecked::utf8to16(texture.unique_name.begin(), texture.unique_name.end(), std::back_inserter(debug_name));
-	texture_data->resource->SetName(debug_name.c_str());
+	impl->resource->SetName(debug_name.c_str());
 #endif
 
 	{	D3D12_DESCRIPTOR_HEAP_DESC heap_desc = { D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV };
 		heap_desc.NumDescriptors = texture.levels /* SRV */ + texture.levels - 1 /* UAV */;
 		heap_desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 
-		if (FAILED(_device->CreateDescriptorHeap(&heap_desc, IID_PPV_ARGS(&texture_data->descriptors))))
+		if (FAILED(_device->CreateDescriptorHeap(&heap_desc, IID_PPV_ARGS(&impl->descriptors))))
 			return false;
 	}
 
-	D3D12_CPU_DESCRIPTOR_HANDLE srv_cpu_handle = texture_data->descriptors->GetCPUDescriptorHandleForHeapStart();
+	D3D12_CPU_DESCRIPTOR_HANDLE srv_cpu_handle = impl->descriptors->GetCPUDescriptorHandleForHeapStart();
 
 	for (uint32_t level = 0; level < texture.levels; ++level, srv_cpu_handle.ptr += _srv_handle_size)
 	{
@@ -954,7 +955,7 @@ bool reshade::d3d12::runtime_d3d12::init_texture(texture &texture)
 		srv_desc.Texture2D.MipLevels = 1;
 		srv_desc.Texture2D.MostDetailedMip = level;
 
-		_device->CreateShaderResourceView(texture_data->resource.get(), &srv_desc, srv_cpu_handle);
+		_device->CreateShaderResourceView(impl->resource.get(), &srv_desc, srv_cpu_handle);
 	}
 
 	// Generate UAVs for mipmap generation
@@ -965,15 +966,15 @@ bool reshade::d3d12::runtime_d3d12::init_texture(texture &texture)
 		uav_desc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
 		uav_desc.Texture2D.MipSlice = level;
 
-		_device->CreateUnorderedAccessView(texture_data->resource.get(), nullptr, &uav_desc, srv_cpu_handle);
+		_device->CreateUnorderedAccessView(impl->resource.get(), nullptr, &uav_desc, srv_cpu_handle);
 	}
 
 	return true;
 }
 void reshade::d3d12::runtime_d3d12::upload_texture(texture &texture, const uint8_t *pixels)
 {
-	assert(pixels != nullptr);
-	assert(texture.impl_reference == texture_reference::none);
+	const auto impl = texture.impl->as<d3d12_tex_data>();
+	assert(impl != nullptr && pixels != nullptr && texture.impl_reference == texture_reference::none);
 
 	const uint32_t data_pitch = texture.width * 4;
 	const uint32_t upload_pitch = (data_pitch + D3D12_TEXTURE_DATA_PITCH_ALIGNMENT - 1u) & ~(D3D12_TEXTURE_DATA_PITCH_ALIGNMENT - 1u);
@@ -1003,6 +1004,7 @@ void reshade::d3d12::runtime_d3d12::upload_texture(texture &texture, const uint8
 	if (FAILED(intermediate->Map(0, nullptr, reinterpret_cast<void **>(&mapped_data))))
 		return;
 
+	bool unsupported_format = false;
 	switch (texture.format)
 	{
 	case reshadefx::texture_format::r8:
@@ -1018,38 +1020,36 @@ void reshade::d3d12::runtime_d3d12::upload_texture(texture &texture, const uint8
 		break;
 	case reshadefx::texture_format::rgba8:
 		for (uint32_t y = 0; y < texture.height; ++y, mapped_data += upload_pitch, pixels += data_pitch)
-			memcpy(mapped_data, pixels, data_pitch);
+			std::memcpy(mapped_data, pixels, data_pitch);
 		break;
 	default:
+		unsupported_format = true;
 		LOG(ERROR) << "Texture upload is not supported for format " << static_cast<unsigned int>(texture.format) << '!';
 		break;
 	}
 
 	intermediate->Unmap(0, nullptr);
 
-	const auto texture_impl = texture.impl->as<d3d12_tex_data>();
-	assert(texture_impl != nullptr);
-
-	if (!begin_command_list())
+	if (unsupported_format || !begin_command_list())
 		return;
 
-	transition_state(_cmd_list, texture_impl->resource, texture_impl->state, D3D12_RESOURCE_STATE_COPY_DEST, 0);
+	transition_state(_cmd_list, impl->resource, impl->state, D3D12_RESOURCE_STATE_COPY_DEST, 0);
 	{ // Copy data from upload buffer into target texture
 		D3D12_TEXTURE_COPY_LOCATION src_location = { intermediate.get() };
 		src_location.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
 		src_location.PlacedFootprint.Footprint.Width = texture.width;
 		src_location.PlacedFootprint.Footprint.Height = texture.height;
 		src_location.PlacedFootprint.Footprint.Depth = 1;
-		src_location.PlacedFootprint.Footprint.Format = texture_impl->resource->GetDesc().Format;
+		src_location.PlacedFootprint.Footprint.Format = impl->resource->GetDesc().Format;
 		src_location.PlacedFootprint.Footprint.RowPitch = upload_pitch;
 
-		D3D12_TEXTURE_COPY_LOCATION dst_location = { texture_impl->resource.get() };
+		D3D12_TEXTURE_COPY_LOCATION dst_location = { impl->resource.get() };
 		dst_location.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
 		dst_location.SubresourceIndex = 0;
 
 		_cmd_list->CopyTextureRegion(&dst_location, 0, 0, 0, &src_location, nullptr);
 	}
-	transition_state(_cmd_list, texture_impl->resource, D3D12_RESOURCE_STATE_COPY_DEST, texture_impl->state, 0);
+	transition_state(_cmd_list, impl->resource, D3D12_RESOURCE_STATE_COPY_DEST, impl->state, 0);
 
 	generate_mipmaps(texture);
 
@@ -1062,15 +1062,15 @@ void reshade::d3d12::runtime_d3d12::generate_mipmaps(texture &texture)
 	if (texture.levels <= 1)
 		return; // No need to generate mipmaps when texture does not have any
 
-	const auto texture_impl = texture.impl->as<d3d12_tex_data>();
-	assert(texture_impl != nullptr);
+	const auto impl = texture.impl->as<d3d12_tex_data>();
+	assert(impl != nullptr);
 
 	_cmd_list->SetComputeRootSignature(_mipmap_signature.get());
 	_cmd_list->SetPipelineState(_mipmap_pipeline.get());
-	ID3D12DescriptorHeap *const descriptor_heap = texture_impl->descriptors.get();
+	ID3D12DescriptorHeap *const descriptor_heap = impl->descriptors.get();
 	_cmd_list->SetDescriptorHeaps(1, &descriptor_heap);
 
-	transition_state(_cmd_list, texture_impl->resource, texture_impl->state, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+	transition_state(_cmd_list, impl->resource, impl->state, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 	for (uint32_t level = 1; level < texture.levels; ++level)
 	{
 		const uint32_t width = std::max(1u, texture.width >> level);
@@ -1079,18 +1079,18 @@ void reshade::d3d12::runtime_d3d12::generate_mipmaps(texture &texture)
 		_cmd_list->SetComputeRoot32BitConstant(0, float_as_uint(1.0f / width), 0);
 		_cmd_list->SetComputeRoot32BitConstant(0, float_as_uint(1.0f / height), 1);
 		// Bind next higher mipmap level as input
-		_cmd_list->SetComputeRootDescriptorTable(1, { texture_impl->descriptors->GetGPUDescriptorHandleForHeapStart().ptr + _srv_handle_size * (level - 1) });
+		_cmd_list->SetComputeRootDescriptorTable(1, { impl->descriptors->GetGPUDescriptorHandleForHeapStart().ptr + _srv_handle_size * (level - 1) });
 		// There is no UAV for level 0, so substract one
-		_cmd_list->SetComputeRootDescriptorTable(2, { texture_impl->descriptors->GetGPUDescriptorHandleForHeapStart().ptr + _srv_handle_size * (texture.levels + level - 1) });
+		_cmd_list->SetComputeRootDescriptorTable(2, { impl->descriptors->GetGPUDescriptorHandleForHeapStart().ptr + _srv_handle_size * (texture.levels + level - 1) });
 
 		_cmd_list->Dispatch(std::max(1u, (width + 7) / 8), std::max(1u, (height + 7) / 8), 1);
 
 		// Wait for all accesses to be finished, since the result will be the input for the next mipmap
 		D3D12_RESOURCE_BARRIER barrier = { D3D12_RESOURCE_BARRIER_TYPE_UAV };
-		barrier.UAV.pResource = texture_impl->resource.get();
+		barrier.UAV.pResource = impl->resource.get();
 		_cmd_list->ResourceBarrier(1, &barrier);
 	}
-	transition_state(_cmd_list, texture_impl->resource, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, texture_impl->state);
+	transition_state(_cmd_list, impl->resource, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, impl->state);
 }
 
 void reshade::d3d12::runtime_d3d12::render_technique(technique &technique)

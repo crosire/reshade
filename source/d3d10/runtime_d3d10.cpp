@@ -740,17 +740,17 @@ void reshade::d3d10::runtime_d3d10::unload_effects()
 bool reshade::d3d10::runtime_d3d10::init_texture(texture &texture)
 {
 	texture.impl = std::make_unique<d3d10_tex_data>();
-	const auto texture_data = texture.impl->as<d3d10_tex_data>();
+	const auto impl = texture.impl->as<d3d10_tex_data>();
 
 	switch (texture.impl_reference)
 	{
 	case texture_reference::back_buffer:
-		texture_data->srv[0] = _backbuffer_texture_srv[0];
-		texture_data->srv[1] = _backbuffer_texture_srv[1];
+		impl->srv[0] = _backbuffer_texture_srv[0];
+		impl->srv[1] = _backbuffer_texture_srv[1];
 		return true;
 	case texture_reference::depth_buffer:
-		texture_data->srv[0] = _depth_texture_srv;
-		texture_data->srv[1] = _depth_texture_srv;
+		impl->srv[0] = _depth_texture_srv;
+		impl->srv[1] = _depth_texture_srv;
 		return true;
 	}
 
@@ -804,7 +804,7 @@ bool reshade::d3d10::runtime_d3d10::init_texture(texture &texture)
 		break;
 	}
 
-	if (HRESULT hr = _device->CreateTexture2D(&desc, nullptr, &texture_data->texture); FAILED(hr))
+	if (HRESULT hr = _device->CreateTexture2D(&desc, nullptr, &impl->texture); FAILED(hr))
 	{
 		LOG(ERROR) << "Failed to create texture '" << texture.unique_name << "' ("
 			"Width = " << desc.Width << ", "
@@ -819,7 +819,7 @@ bool reshade::d3d10::runtime_d3d10::init_texture(texture &texture)
 	srv_desc.ViewDimension = D3D10_SRV_DIMENSION_TEXTURE2D;
 	srv_desc.Texture2D.MipLevels = desc.MipLevels;
 
-	if (HRESULT hr = _device->CreateShaderResourceView(texture_data->texture.get(), &srv_desc, &texture_data->srv[0]); FAILED(hr))
+	if (HRESULT hr = _device->CreateShaderResourceView(impl->texture.get(), &srv_desc, &impl->srv[0]); FAILED(hr))
 	{
 		LOG(ERROR) << "Failed to create shader resource view for texture '" << texture.unique_name << "' ("
 			"Format = " << srv_desc.Format << ")! "
@@ -831,7 +831,7 @@ bool reshade::d3d10::runtime_d3d10::init_texture(texture &texture)
 
 	if (srv_desc.Format != desc.Format)
 	{
-		if (HRESULT hr = _device->CreateShaderResourceView(texture_data->texture.get(), &srv_desc, &texture_data->srv[1]); FAILED(hr))
+		if (HRESULT hr = _device->CreateShaderResourceView(impl->texture.get(), &srv_desc, &impl->srv[1]); FAILED(hr))
 		{
 			LOG(ERROR) << "Failed to create shader resource view for texture '" << texture.unique_name << "' ("
 				"Format = " << srv_desc.Format << ")! "
@@ -841,14 +841,15 @@ bool reshade::d3d10::runtime_d3d10::init_texture(texture &texture)
 	}
 	else
 	{
-		texture_data->srv[1] = texture_data->srv[0];
+		impl->srv[1] = impl->srv[0];
 	}
 
 	return true;
 }
 void reshade::d3d10::runtime_d3d10::upload_texture(texture &texture, const uint8_t *pixels)
 {
-	assert(texture.impl_reference == texture_reference::none && pixels != nullptr);
+	const auto impl = texture.impl->as<d3d10_tex_data>();
+	assert(impl != nullptr && texture.impl_reference == texture_reference::none && pixels != nullptr);
 
 	unsigned int upload_pitch;
 	std::vector<uint8_t> upload_data;
@@ -878,13 +879,10 @@ void reshade::d3d10::runtime_d3d10::upload_texture(texture &texture, const uint8
 		return;
 	}
 
-	const auto texture_impl = texture.impl->as<d3d10_tex_data>();
-	assert(texture_impl != nullptr);
-
-	_device->UpdateSubresource(texture_impl->texture.get(), 0, nullptr, pixels, upload_pitch, upload_pitch * texture.height);
+	_device->UpdateSubresource(impl->texture.get(), 0, nullptr, pixels, upload_pitch, upload_pitch * texture.height);
 
 	if (texture.levels > 1)
-		_device->GenerateMips(texture_impl->srv[0].get());
+		_device->GenerateMips(impl->srv[0].get());
 }
 
 void reshade::d3d10::runtime_d3d10::render_technique(technique &technique)

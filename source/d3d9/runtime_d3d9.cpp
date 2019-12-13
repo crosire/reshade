@@ -585,17 +585,17 @@ bool reshade::d3d9::runtime_d3d9::init_effect(size_t index)
 bool reshade::d3d9::runtime_d3d9::init_texture(texture &texture)
 {
 	texture.impl = std::make_unique<d3d9_tex_data>();
-	const auto texture_data = texture.impl->as<d3d9_tex_data>();
+	const auto impl = texture.impl->as<d3d9_tex_data>();
 
 	switch (texture.impl_reference)
 	{
 	case texture_reference::back_buffer:
-		texture_data->texture = _backbuffer_texture;
-		texture_data->surface = _backbuffer_texture_surface;
+		impl->texture = _backbuffer_texture;
+		impl->surface = _backbuffer_texture_surface;
 		return true;
 	case texture_reference::depth_buffer:
-		texture_data->texture = _depthstencil_texture;
-		texture_data->surface = _depthstencil;
+		impl->texture = _depthstencil_texture;
+		impl->surface = _depthstencil;
 		return true;
 	}
 
@@ -664,7 +664,7 @@ bool reshade::d3d9::runtime_d3d9::init_texture(texture &texture)
 	if (SUCCEEDED(hr))
 		usage |= D3DUSAGE_RENDERTARGET;
 
-	hr = _device->CreateTexture(texture.width, texture.height, levels, usage, format, D3DPOOL_DEFAULT, &texture_data->texture, nullptr);
+	hr = _device->CreateTexture(texture.width, texture.height, levels, usage, format, D3DPOOL_DEFAULT, &impl->texture, nullptr);
 	if (FAILED(hr))
 	{
 		LOG(ERROR) << "Failed to create texture '" << texture.unique_name << "' ("
@@ -677,19 +677,17 @@ bool reshade::d3d9::runtime_d3d9::init_texture(texture &texture)
 		return false;
 	}
 
-	hr = texture_data->texture->GetSurfaceLevel(0, &texture_data->surface);
+	hr = impl->texture->GetSurfaceLevel(0, &impl->surface);
 	assert(SUCCEEDED(hr));
 
 	return true;
 }
 void reshade::d3d9::runtime_d3d9::upload_texture(texture &texture, const uint8_t *pixels)
 {
-	assert(texture.impl_reference == texture_reference::none && pixels != nullptr);
+	const auto impl = texture.impl->as<d3d9_tex_data>();
+	assert(impl != nullptr && texture.impl_reference == texture_reference::none && pixels != nullptr);
 
-	const auto texture_impl = texture.impl->as<d3d9_tex_data>();
-	assert(texture_impl != nullptr);
-
-	D3DSURFACE_DESC desc; texture_impl->texture->GetLevelDesc(0, &desc); // Get D3D texture format
+	D3DSURFACE_DESC desc; impl->texture->GetLevelDesc(0, &desc); // Get D3D texture format
 	com_ptr<IDirect3DTexture9> intermediate;
 	if (FAILED(_device->CreateTexture(texture.width, texture.height, 1, 0, desc.Format, D3DPOOL_SYSTEMMEM, &intermediate, nullptr)))
 	{
@@ -735,7 +733,7 @@ void reshade::d3d9::runtime_d3d9::upload_texture(texture &texture, const uint8_t
 
 	intermediate->UnlockRect(0);
 
-	if (HRESULT hr = _device->UpdateTexture(intermediate.get(), texture_impl->texture.get()); FAILED(hr))
+	if (HRESULT hr = _device->UpdateTexture(intermediate.get(), impl->texture.get()); FAILED(hr))
 	{
 		LOG(ERROR) << "Failed to update texture from system memory texture! HRESULT is " << hr << '.';
 		return;

@@ -593,7 +593,7 @@ bool reshade::vulkan::runtime_vk::capture_screenshot(uint8_t *buffer) const
 		}
 		else
 		{
-			memcpy(buffer, mapped_data, data_pitch);
+			std::memcpy(buffer, mapped_data, data_pitch);
 
 			for (uint32_t x = 0; x < data_pitch; x += 4)
 			{
@@ -1253,40 +1253,22 @@ bool reshade::vulkan::runtime_vk::init_texture(texture &texture)
 }
 void reshade::vulkan::runtime_vk::upload_texture(texture &texture, const uint8_t *pixels)
 {
-	assert(pixels != nullptr);
-	assert(texture.impl_reference == texture_reference::none);
-
-	vk_handle<VK_OBJECT_TYPE_BUFFER> intermediate(_device, vk);
-	vk_handle<VK_OBJECT_TYPE_DEVICE_MEMORY> intermediate_mem(_device, vk);
-
-	{   VkBufferCreateInfo create_info { VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO };
-		create_info.size = texture.width * texture.height * 4;
-		create_info.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
-		create_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-
-		check_result(vk.CreateBuffer(_device, &create_info, nullptr, &intermediate));
-	}
+	auto impl = texture.impl->as<vulkan_tex_data>();
+	assert(impl != nullptr && pixels != nullptr && texture.impl_reference == texture_reference::none);
 
 	// Allocate host memory for upload
-	{   VkMemoryRequirements reqs = {};
-		vk.GetBufferMemoryRequirements(_device, intermediate, &reqs);
-
-		VkMemoryAllocateInfo alloc_info { VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO };
-		alloc_info.allocationSize = reqs.size;
-		alloc_info.memoryTypeIndex = find_memory_type_index(_memory_props,
-			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, reqs.memoryTypeBits);
-
-		if (alloc_info.memoryTypeIndex == std::numeric_limits<uint32_t>::max())
-			return;
-
-		check_result(vk.AllocateMemory(_device, &alloc_info, nullptr, &intermediate_mem));
-		check_result(vk.BindBufferMemory(_device, intermediate, intermediate_mem, 0));
-	}
+	vk_handle<VK_OBJECT_TYPE_BUFFER> intermediate(_device, vk,
+		create_buffer(texture.width * texture.height * 4, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT));
+	if (intermediate == VK_NULL_HANDLE)
+		return;
+	vk_handle<VK_OBJECT_TYPE_DEVICE_MEMORY> intermediate_mem(_device, vk, _allocations.back());
+	_allocations.pop_back(); // Take ownership of the allocation
 
 	// Fill upload buffer with pixel data
 	uint8_t *mapped_data;
 	check_result(vk.MapMemory(_device, intermediate_mem, 0, VK_WHOLE_SIZE, 0, reinterpret_cast<void **>(&mapped_data)));
 
+	bool unsupported_format = false;
 	switch (texture.format)
 	{
 	case reshadefx::texture_format::r8:
@@ -1302,19 +1284,17 @@ void reshade::vulkan::runtime_vk::upload_texture(texture &texture, const uint8_t
 		break;
 	case reshadefx::texture_format::rgba8:
 		for (uint32_t y = 0; y < texture.height; ++y, mapped_data += texture.width * 4, pixels += texture.width * 4)
-			memcpy(mapped_data, pixels, texture.width * 4);
+			std::memcpy(mapped_data, pixels, texture.width * 4);
 		break;
 	default:
+		unsupported_format = true;
 		LOG(ERROR) << "Texture upload is not supported for format " << static_cast<unsigned int>(texture.format) << '!';
 		break;
 	}
 
 	vk.UnmapMemory(_device, intermediate_mem);
 
-	auto impl = texture.impl->as<vulkan_tex_data>();
-	assert(impl != nullptr);
-
-	if (!begin_command_buffer())
+	if (unsupported_format || !begin_command_buffer())
 		return;
 	const VkCommandBuffer cmd_list = _cmd_buffers[_cmd_index].first;
 

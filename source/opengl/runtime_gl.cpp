@@ -687,17 +687,17 @@ void reshade::opengl::runtime_gl::unload_effects()
 bool reshade::opengl::runtime_gl::init_texture(texture &texture)
 {
 	texture.impl = std::make_unique<opengl_tex_data>();
-	const auto texture_data = texture.impl->as<opengl_tex_data>();
+	const auto impl = texture.impl->as<opengl_tex_data>();
 
 	switch (texture.impl_reference)
 	{
 	case texture_reference::back_buffer:
-		texture_data->id[0] = _tex[TEX_BACK];
-		texture_data->id[1] = _tex[TEX_BACK_SRGB];
+		impl->id[0] = _tex[TEX_BACK];
+		impl->id[1] = _tex[TEX_BACK_SRGB];
 		return true;
 	case texture_reference::depth_buffer:
-		texture_data->id[0] = _tex[TEX_DEPTH];
-		texture_data->id[1] = _tex[TEX_DEPTH];
+		impl->id[0] = _tex[TEX_DEPTH];
+		impl->id[1] = _tex[TEX_DEPTH];
 		return true;
 	}
 
@@ -745,7 +745,7 @@ bool reshade::opengl::runtime_gl::init_texture(texture &texture)
 		break;
 	}
 
-	texture_data->should_delete = true;
+	impl->should_delete = true;
 
 	// Get current state
 	GLint previous_tex = 0;
@@ -756,21 +756,21 @@ bool reshade::opengl::runtime_gl::init_texture(texture &texture)
 	glGetIntegerv(GL_DRAW_BUFFER, &previous_draw_buffer);
 
 	// Allocate texture storage
-	glGenTextures(2, texture_data->id);
-	glBindTexture(GL_TEXTURE_2D, texture_data->id[0]);
+	glGenTextures(2, impl->id);
+	glBindTexture(GL_TEXTURE_2D, impl->id[0]);
 	glTexStorage2D(GL_TEXTURE_2D, texture.levels, internalformat, texture.width, texture.height);
 
 	// Only create SRGB texture view if necessary
 	if (internalformat_srgb != GL_NONE) {
-		glTextureView(texture_data->id[1], GL_TEXTURE_2D, texture_data->id[0], internalformat_srgb, 0, texture.levels, 0, 1);
+		glTextureView(impl->id[1], GL_TEXTURE_2D, impl->id[0], internalformat_srgb, 0, texture.levels, 0, 1);
 	}
 	else {
-		texture_data->id[1] = texture_data->id[0];
+		impl->id[1] = impl->id[0];
 	}
 
 	// Clear texture to black since by default its contents are undefined
 	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, _fbo[FBO_BLIT]);
-	glFramebufferTexture(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, texture_data->id[0], 0);
+	glFramebufferTexture(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, impl->id[0], 0);
 	assert(glCheckFramebufferStatus(GL_DRAW_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
 	glDrawBuffer(GL_COLOR_ATTACHMENT1);
 	const GLuint clear_color[4] = { 0, 0, 0, 0 };
@@ -786,25 +786,23 @@ bool reshade::opengl::runtime_gl::init_texture(texture &texture)
 }
 void reshade::opengl::runtime_gl::upload_texture(texture &texture, const uint8_t *pixels)
 {
-	assert(texture.impl_reference == texture_reference::none && pixels != nullptr);
+	const auto impl = texture.impl->as<opengl_tex_data>();
+	assert(impl != nullptr && pixels != nullptr && texture.impl_reference == texture_reference::none);
+
+	unsigned int upload_pitch = texture.width * 4;
+	std::vector<uint8_t> upload_data(pixels, pixels + upload_pitch * texture.height);
 
 	// Flip image data horizontally
-	const uint32_t pitch = texture.width * 4;
-	std::vector<uint8_t> data_flipped(pixels, pixels + pitch * texture.height);
-	const auto temp = static_cast<uint8_t *>(alloca(pitch));
-
+	const auto temp = static_cast<uint8_t *>(alloca(upload_pitch));
 	for (uint32_t y = 0; 2 * y < texture.height; y++)
 	{
-		const auto line1 = data_flipped.data() + pitch * (y);
-		const auto line2 = data_flipped.data() + pitch * (texture.height - 1 - y);
+		const auto line1 = upload_data.data() + upload_pitch * (y);
+		const auto line2 = upload_data.data() + upload_pitch * (texture.height - 1 - y);
 
-		std::memcpy(temp,  line1, pitch);
-		std::memcpy(line1, line2, pitch);
-		std::memcpy(line2, temp,  pitch);
+		std::memcpy(temp,  line1, upload_pitch);
+		std::memcpy(line1, line2, upload_pitch);
+		std::memcpy(line2, temp,  upload_pitch);
 	}
-
-	const auto texture_impl = texture.impl->as<opengl_tex_data>();
-	assert(texture_impl != nullptr);
 
 	// Get current state
 	GLint previous_tex = 0;
@@ -842,8 +840,8 @@ void reshade::opengl::runtime_gl::upload_texture(texture &texture, const uint8_t
 	glPixelStorei(GL_UNPACK_SKIP_IMAGES, 0);
 
 	// Bind and upload texture data
-	glBindTexture(GL_TEXTURE_2D, texture_impl->id[0]);
-	glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, texture.width, texture.height, GL_RGBA, GL_UNSIGNED_BYTE, data_flipped.data());
+	glBindTexture(GL_TEXTURE_2D, impl->id[0]);
+	glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, texture.width, texture.height, GL_RGBA, GL_UNSIGNED_BYTE, upload_data.data());
 
 	if (texture.levels > 1)
 		glGenerateMipmap(GL_TEXTURE_2D);

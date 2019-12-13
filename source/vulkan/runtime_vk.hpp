@@ -33,12 +33,12 @@ namespace reshade::vulkan
 		const VkLayerDispatchTable vk;
 
 	private:
-		bool init_effect(size_t index);
-		void unload_effect(size_t index);
-		void unload_effects();
+		bool init_effect(size_t index) override;
+		void unload_effect(size_t index) override;
+		void unload_effects() override;
 
-		bool init_texture(texture &texture);
-		void upload_texture(texture &texture, const uint8_t *pixels);
+		bool init_texture(texture &texture) override;
+		void upload_texture(texture &texture, const uint8_t *pixels) override;
 		void generate_mipmaps(texture &texture);
 
 		void render_technique(technique &technique) override;

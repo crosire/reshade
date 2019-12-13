@@ -94,12 +94,8 @@ struct vk_handle
 		return *this;
 	}
 
-	bool operator==(T rhs) const { return _object == rhs; }
 	bool operator==(const vk_handle &rhs) const { return _object == rhs._object; }
-	friend bool operator==(T lhs, const vk_handle &rhs) { return rhs.operator==(lhs); }
-	bool operator!=(T rhs) const { return _object != rhs; }
 	bool operator!=(const vk_handle &rhs) const { return _object != rhs._object; }
-	friend bool operator!=(T lhs, const vk_handle &rhs) { return rhs.operator!=(lhs); }
 
 	// Default operator used for sorting
 	friend bool operator< (const vk_handle &lhs, const vk_handle &rhs) { return lhs._object < rhs._object; }
