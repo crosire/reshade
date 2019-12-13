@@ -1081,7 +1081,7 @@ void reshade::runtime::load_config()
 	if (check_preset_path(current_preset_path))
 		_current_preset_path = g_reshade_dll_path.parent_path() / current_preset_path;
 	else // Select a default preset file if none exists yet
-		_current_preset_path = g_reshade_dll_path.parent_path() / L"DefaultPreset.ini";
+		_current_preset_path = g_target_executable_path.parent_path() / L"DefaultPreset.ini";
 
 	for (const auto &callback : _load_config_callables)
 		callback(config);
