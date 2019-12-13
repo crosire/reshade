@@ -2254,7 +2254,8 @@ void reshade::runtime::draw_overlay_technique_editor()
 				}
 			}
 
-			if (imgui_popup_button("Show compiled results", button_width))
+			if (!effect.module.hlsl.empty() && // Hide if using SPIR-V, since that cannot easily be shown here
+				imgui_popup_button("Show compiled results", button_width))
 			{
 				std::string source_code;
 				if (ImGui::MenuItem("Generated code"))

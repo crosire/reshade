@@ -320,17 +320,20 @@ bool reshade::opengl::runtime_gl::init_effect(size_t index)
 	effect &effect = _loaded_effects[index];
 
 	// Add specialization constant defines to source code
-#if 0
 	std::vector<GLuint> spec_constants;
 	std::vector<GLuint> spec_constant_values;
-	for (const auto &constant : effect.module.spec_constants)
+	if (!effect.module.spirv.empty())
 	{
-		spec_constants.push_back(constant.offset);
-		spec_constant_values.push_back(constant.initializer_value.as_uint[0]);
+		for (const auto &constant : effect.module.spec_constants)
+		{
+			spec_constants.push_back(constant.offset);
+			spec_constant_values.push_back(constant.initializer_value.as_uint[0]);
+		}
 	}
-#else
-	effect.preamble = "#version 430\n" + effect.preamble;
-#endif
+	else
+	{
+		effect.preamble = "#version 430\n" + effect.preamble;
+	}
 
 	std::unordered_map<std::string, GLuint> entry_points;
 
@@ -340,23 +343,29 @@ bool reshade::opengl::runtime_gl::init_effect(size_t index)
 		GLuint shader_id = glCreateShader(entry_point.is_pixel_shader ? GL_FRAGMENT_SHADER : GL_VERTEX_SHADER);
 		entry_points[entry_point.name] = shader_id;
 
-#if 0
-		glShaderBinary(1, &shader_id, GL_SHADER_BINARY_FORMAT_SPIR_V, effect.module.spirv.data(), effect.module.spirv.size() * sizeof(uint32_t));
-		glSpecializeShader(shader_id, entry_point.first.c_str(), GLuint(spec_constants.size()), spec_constants.data(), spec_constant_values.data());
-#else
-		std::string defines = effect.preamble;
-		defines += "#define ENTRY_POINT_" + entry_point.name + " 1\n";
-		if (!entry_point.is_pixel_shader) // OpenGL does not allow using 'discard' in the vertex shader profile
-			defines += "#define discard\n"
+		if (!effect.module.spirv.empty())
+		{
+			assert(_renderer_id >= 0x14600); // Core since OpenGL 4.6 (see https://www.khronos.org/opengl/wiki/SPIR-V)
+			assert(gl3wProcs.gl.ShaderBinary && gl3wProcs.gl.SpecializeShader);
+
+			glShaderBinary(1, &shader_id, GL_SHADER_BINARY_FORMAT_SPIR_V, effect.module.spirv.data(), static_cast<GLsizei>(effect.module.spirv.size() * sizeof(uint32_t)));
+			glSpecializeShader(shader_id, entry_point.name.c_str(), GLuint(spec_constants.size()), spec_constants.data(), spec_constant_values.data());
+		}
+		else
+		{
+			std::string defines = effect.preamble;
+			defines += "#define ENTRY_POINT_" + entry_point.name + " 1\n";
+			if (!entry_point.is_pixel_shader) // OpenGL does not allow using 'discard' in the vertex shader profile
+				defines += "#define discard\n"
 				"#define dFdx(x) x\n" // 'dFdx', 'dFdx' and 'fwidth' too are only available in fragment shaders
 				"#define dFdy(y) y\n"
 				"#define fwidth(p) p\n";
 
-		GLsizei lengths[] = { static_cast<GLsizei>(defines.size()), static_cast<GLsizei>(effect.module.hlsl.size()) };
-		const GLchar *sources[] = { defines.c_str(), effect.module.hlsl.c_str() };
-		glShaderSource(shader_id, 2, sources, lengths);
-		glCompileShader(shader_id);
-#endif
+			GLsizei lengths[] = { static_cast<GLsizei>(defines.size()), static_cast<GLsizei>(effect.module.hlsl.size()) };
+			const GLchar *sources[] = { defines.c_str(), effect.module.hlsl.c_str() };
+			glShaderSource(shader_id, 2, sources, lengths);
+			glCompileShader(shader_id);
+		}
 
 		GLint status = GL_FALSE;
 		glGetShaderiv(shader_id, GL_COMPILE_STATUS, &status);

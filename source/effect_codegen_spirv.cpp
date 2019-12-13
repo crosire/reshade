@@ -734,6 +734,7 @@ private:
 
 		_module.entry_points.push_back({ func.unique_name, is_ps });
 
+		id position_variable = 0;
 		std::vector<uint32_t> inputs_and_outputs;
 		std::vector<expression> call_params;
 
@@ -768,7 +769,9 @@ private:
 			define_variable(input_variable, {}, param.type, nullptr, spv::StorageClassInput);
 
 			if (spv::BuiltIn builtin; semantic_to_builtin(param.semantic, builtin))
+			{
 				add_builtin(input_variable, builtin);
+			}
 			else
 			{
 				uint32_t location = 0;
@@ -802,12 +805,17 @@ private:
 			call_params.emplace_back().reset_to_lvalue({}, function_variable, param.type);
 			return function_variable;
 		};
-		const auto create_output_variable = [this, &inputs_and_outputs, &semantic_to_builtin](const struct_member_info &param) {
+		const auto create_output_variable = [this, &inputs_and_outputs, &semantic_to_builtin, &position_variable](const struct_member_info &param) {
 			const auto output_variable = make_id();
 			define_variable(output_variable, {}, param.type, nullptr, spv::StorageClassOutput);
 
 			if (spv::BuiltIn builtin; semantic_to_builtin(param.semantic, builtin))
+			{
 				add_builtin(output_variable, builtin);
+
+				if (builtin == spv::BuiltInPosition)
+					position_variable = output_variable;
+			}
 			else
 			{
 				uint32_t location = 0;
@@ -980,6 +988,19 @@ private:
 			add_instruction_without_result(spv::OpStore)
 				.add(result)
 				.add(call_result);
+		}
+
+		// Add code to flip the output vertically in OpenGL
+		if (!_vulkan_semantics && position_variable && !is_ps)
+		{
+			expression position;
+			position.reset_to_lvalue({}, position_variable, { type::t_float, 4, 1 });
+			position.add_constant_index_access(1); // Y component
+
+			// gl_Position.y = -gl_Position.y
+			emit_store(position,
+				emit_unary_op({}, tokenid::minus, { type::t_float, 1, 1 },
+					emit_load(position, false)));
 		}
 
 		leave_block_and_return(0);
