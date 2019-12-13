@@ -144,22 +144,6 @@ bool reshadefx::preprocessor::append_string(const std::string &source_code)
 	return _success;
 }
 
-std::vector<std::string> reshadefx::preprocessor::macro_ifdefs() const
-{
-	std::vector<std::string> defines;
-	defines.reserve(_macro_ifdefs.size());
-	for (const auto &it : _macro_ifdefs)
-		defines.push_back(it);
-	return defines;
-}
-std::vector<std::string> reshadefx::preprocessor::macro_definitions() const
-{
-	std::vector<std::string> defines;
-	defines.reserve(_macros.size());
-	for (const auto &it : _macros)
-		defines.push_back(it.first);
-	return defines;
-}
 std::vector<std::filesystem::path> reshadefx::preprocessor::included_files() const
 {
 	std::vector<std::filesystem::path> files;
@@ -167,6 +151,16 @@ std::vector<std::filesystem::path> reshadefx::preprocessor::included_files() con
 	for (const auto &it : _filecache)
 		files.push_back(std::filesystem::u8path(it.first));
 	return files;
+}
+std::vector<std::pair<std::string, std::string>> reshadefx::preprocessor::used_macro_definitions() const
+{
+	std::vector<std::pair<std::string, std::string>> defines;
+	defines.reserve(_used_macros.size());
+	for (const auto &name : _used_macros)
+		// Do not include function-like macros, since they are more likely to contain a complex replacement list
+		if (const auto it = _macros.find(name); it != _macros.end() && !it->second.is_function_like)
+			defines.push_back({ name, it->second.replacement_list });
+	return defines;
 }
 
 void reshadefx::preprocessor::error(const location &location, const std::string &message)
@@ -487,7 +481,7 @@ void reshadefx::preprocessor::parse_ifdef()
 	level.skipping = (!if_stack.empty() && if_stack.back().skipping) || !level.value;
 
 	if_stack.push_back(std::move(level));
-	_macro_ifdefs.emplace(_token.literal_as_string);
+	_used_macros.emplace(_token.literal_as_string);
 }
 void reshadefx::preprocessor::parse_ifndef()
 {
@@ -503,7 +497,7 @@ void reshadefx::preprocessor::parse_ifndef()
 	level.skipping = (!if_stack.empty() && if_stack.back().skipping) || !level.value;
 
 	if_stack.push_back(std::move(level));
-	_macro_ifdefs.emplace(_token.literal_as_string);
+	_used_macros.emplace(_token.literal_as_string);
 }
 void reshadefx::preprocessor::parse_elif()
 {

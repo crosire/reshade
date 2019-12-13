@@ -77,20 +77,15 @@ namespace reshadefx
 		const std::string &output() const { return _output; }
 
 		/// <summary>
-		/// Get a list of all defines that were used in #ifdef and #ifndef lines
-		/// </summary>
-		/// <returns></returns>
-		std::vector<std::string> macro_ifdefs() const;
-
-		/// <summary>
-		/// Get a list of all defines.
-		/// </summary>
-		std::vector<std::string> macro_definitions() const;
-
-		/// <summary>
 		/// Get a list of all included files.
 		/// </summary>
 		std::vector<std::filesystem::path> included_files() const;
+
+		/// <summary>
+		/// Get a list of all defines that were used in #ifdef and #ifndef lines
+		/// </summary>
+		/// <returns></returns>
+		std::vector<std::pair<std::string, std::string>> used_macro_definitions() const;
 
 	private:
 		struct if_level
@@ -149,7 +144,7 @@ namespace reshadefx
 		location _output_location;
 		std::string _output, _errors, _current_token_raw_data;
 		int _recursion_count = 0;
-		std::unordered_set<std::string> _macro_ifdefs;
+		std::unordered_set<std::string> _used_macros;
 		std::unordered_map<std::string, macro> _macros;
 		std::vector<std::filesystem::path> _include_paths;
 		std::unordered_map<std::string, std::string> _filecache;

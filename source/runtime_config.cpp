@@ -9,18 +9,6 @@
 
 static std::unordered_map<std::wstring, reshade::ini_file> g_ini_cache;
 
-static inline void trim(std::string &str, const char *chars = " \t")
-{
-	str.erase(0, str.find_first_not_of(chars));
-	str.erase(str.find_last_not_of(chars) + 1);
-}
-static inline std::string trim(const std::string &str, const char *chars = " \t")
-{
-	std::string res(str);
-	trim(res, chars);
-	return res;
-}
-
 reshade::ini_file::ini_file(const std::filesystem::path &path)
 	: _path(path)
 {

@@ -337,11 +337,14 @@ void reshade::runtime::load_effect(const std::filesystem::path &path, size_t ind
 		// Append preprocessor and parser errors to the error list
 		effect.errors = std::move(pp.errors()) + std::move(parser.errors());
 
-		// Keep track of defines
-		effect.macro_ifdefs = pp.macro_ifdefs();
-		effect.macro_ifdefs.erase(std::remove_if(effect.macro_ifdefs.begin(), effect.macro_ifdefs.end(), // Remove special defines
-			[](const auto &define) { return define.size() <= 10 || define[0] == '_' ||
-				!define.compare(0, 8, "RESHADE_") || !define.compare(0, 7, "BUFFER_"); }), effect.macro_ifdefs.end());
+		// Keep track of used preprocessor definitions (so they can be displayed in the GUI)
+		for (const auto &definition : pp.used_macro_definitions())
+		{
+			if (definition.first.size() <= 10 || definition.first[0] == '_' || !definition.first.compare(0, 8, "RESHADE_") || !definition.first.compare(0, 7, "BUFFER_"))
+				continue;
+
+			effect.definitions.push_back({ definition.first, trim(definition.second) });
+		}
 
 		// Keep track of included files
 		effect.included_files = pp.included_files();
@@ -678,7 +681,7 @@ void reshade::runtime::unload_effect(size_t index)
 	effect.preamble.clear();
 	effect.source_file.clear();
 	effect.included_files.clear();
-	effect.macro_ifdefs.clear();
+	effect.definitions.clear();
 	effect.assembly.clear();
 }
 void reshade::runtime::unload_effects()

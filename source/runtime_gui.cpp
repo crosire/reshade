@@ -2047,7 +2047,7 @@ void reshade::runtime::draw_overlay_variable_editor()
 			save_current_preset();
 
 		// Draw preprocessor definition list after all uniforms of an effect file
-		if (!effect.macro_ifdefs.empty() && (index + 1 >= _uniforms.size() || _uniforms[index + 1].effect_index != variable.effect_index))
+		if (!effect.definitions.empty() && (index + 1 >= _uniforms.size() || _uniforms[index + 1].effect_index != variable.effect_index))
 		{
 			std::string category_label = "Preprocessor definitions";
 			if (!_variable_editor_tabs)
@@ -2076,21 +2076,32 @@ void reshade::runtime::draw_overlay_variable_editor()
 					return list.end();
 				};
 
-				for (const auto &name : effect.macro_ifdefs)
+				for (const auto &definition : effect.definitions)
 				{
 					char value[128] = "";
-					const auto global_it = find_definition_value(_global_preprocessor_definitions, name, value);
-					const auto preset_it = find_definition_value(_preset_preprocessor_definitions, name, value);
+					const auto global_it = find_definition_value(_global_preprocessor_definitions, definition.first, value);
+					const auto preset_it = find_definition_value(_preset_preprocessor_definitions, definition.first, value);
 
-					if (ImGui::InputText(name.c_str(), value, sizeof(value),
+					if (global_it == _global_preprocessor_definitions.end() &&
+						preset_it == _preset_preprocessor_definitions.end())
+						definition.second.copy(value, sizeof(value) - 1); // Fill with default value
+
+					if (ImGui::InputText(definition.first.c_str(), value, sizeof(value),
 						global_it != _global_preprocessor_definitions.end() ? ImGuiInputTextFlags_ReadOnly : ImGuiInputTextFlags_AutoSelectAll | ImGuiInputTextFlags_EnterReturnsTrue))
 					{
 						if (value[0] == '\0') // An empty value removes the definition
-							_preset_preprocessor_definitions.erase(preset_it);
-						else if (preset_it != _preset_preprocessor_definitions.end())
-							*preset_it = name + '=' + value;
+						{
+							if (preset_it != _preset_preprocessor_definitions.end())
+								_preset_preprocessor_definitions.erase(preset_it);
+						}
 						else
-							_preset_preprocessor_definitions.push_back(name + '=' + value);
+						{
+							if (preset_it != _preset_preprocessor_definitions.end())
+								*preset_it = definition.first + '=' + value;
+							else
+								_preset_preprocessor_definitions.push_back(definition.first + '=' + value);
+						}
+
 						reload_effect = true;
 					}
 				}
