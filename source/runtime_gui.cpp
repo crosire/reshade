@@ -674,7 +674,7 @@ void reshade::runtime::draw_ui()
 			ImGui::End();
 		}
 
-		if (_show_code_editor && !is_loading())
+		if (_show_code_editor)
 		{
 			const std::string title = !_editor_file.empty() ? "Editing " + _editor_file.filename().u8string() + " ###editor" : "Viewing code###editor";
 			if (ImGui::Begin(title.c_str(), &_show_code_editor))
@@ -2652,18 +2652,23 @@ void reshade::runtime::open_text_in_editor(const std::string &text)
 }
 void reshade::runtime::open_file_in_editor(size_t effect_index, const std::filesystem::path &path)
 {
-	_editor.clear_errors();
-	_editor.set_readonly(false);
 	_editor_file = path;
 	_selected_effect = effect_index;
 
 	if (effect_index >= _loaded_effects.size())
+	{
+		_editor.clear_text();
+		_editor.set_readonly(true);
 		return;
+	}
+	else
+	{
+		// Load file to string and update editor text
+		_editor.set_text(std::string(std::istreambuf_iterator<char>(std::ifstream(path).rdbuf()), std::istreambuf_iterator<char>()));
+		_editor.set_readonly(false);
 
-	_show_code_editor = true;
-
-	// Load file to string and update editor text
-	_editor.set_text(std::string(std::istreambuf_iterator<char>(std::ifstream(path).rdbuf()), std::istreambuf_iterator<char>()));
+		_show_code_editor = true;
+	}
 
 	const std::string &errors = _loaded_effects[effect_index].errors;
 
