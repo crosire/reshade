@@ -1464,11 +1464,11 @@ void reshade::d3d12::runtime_d3d12::render_imgui_draw_data(ImDrawData *draw_data
 			_cmd_list->SetDescriptorHeaps(1, &descriptor_heap);
 			_cmd_list->SetGraphicsRootDescriptorTable(1, descriptor_heap->GetGPUDescriptorHandleForHeapStart());
 
-			_cmd_list->DrawIndexedInstanced(cmd.ElemCount, 1, idx_offset, vtx_offset, 0);
+			_cmd_list->DrawIndexedInstanced(cmd.ElemCount, 1, cmd.IdxOffset + idx_offset, cmd.VtxOffset + vtx_offset, 0);
 
-			idx_offset += cmd.ElemCount;
 		}
 
+		idx_offset += draw_list->IdxBuffer.Size;
 		vtx_offset += draw_list->VtxBuffer.Size;
 	}
 

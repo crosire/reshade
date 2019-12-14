@@ -1896,11 +1896,11 @@ void reshade::vulkan::runtime_vk::render_imgui_draw_data(ImDrawData *draw_data)
 			write.pImageInfo = &image_info;
 			vk.CmdPushDescriptorSetKHR(cmd_list, VK_PIPELINE_BIND_POINT_GRAPHICS, _imgui_pipeline_layout, 0, 1, &write);
 
-			vk.CmdDrawIndexed(cmd_list, cmd.ElemCount, 1, idx_offset, vtx_offset, 0);
+			vk.CmdDrawIndexed(cmd_list, cmd.ElemCount, 1, cmd.IdxOffset + idx_offset, cmd.VtxOffset + vtx_offset, 0);
 
-			idx_offset += cmd.ElemCount;
 		}
 
+		idx_offset += draw_list->IdxBuffer.Size;
 		vtx_offset += draw_list->VtxBuffer.Size;
 	}
 

@@ -64,7 +64,7 @@ void reshade::runtime::init_ui()
 	imgui_io.KeyMap[ImGuiKey_Y] = 'Y';
 	imgui_io.KeyMap[ImGuiKey_Z] = 'Z';
 	imgui_io.ConfigFlags = ImGuiConfigFlags_DockingEnable | ImGuiConfigFlags_NavEnableKeyboard;
-	imgui_io.BackendFlags = ImGuiBackendFlags_HasMouseCursors;
+	imgui_io.BackendFlags = ImGuiBackendFlags_HasMouseCursors | ImGuiBackendFlags_RendererHasVtxOffset;
 
 	// Disable rounding by default
 	imgui_style.GrabRounding = 0.0f;

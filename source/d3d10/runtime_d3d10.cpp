@@ -1218,12 +1218,11 @@ void reshade::d3d10::runtime_d3d10::render_imgui_draw_data(ImDrawData *draw_data
 				static_cast<const d3d10_tex_data *>(cmd.TextureId)->srv[0].get();
 			_device->PSSetShaderResources(0, 1, &texture_view);
 
-			_device->DrawIndexed(cmd.ElemCount, idx_offset, vtx_offset);
-
-			idx_offset += cmd.ElemCount;
+			_device->DrawIndexed(cmd.ElemCount, cmd.IdxOffset + idx_offset, cmd.VtxOffset + vtx_offset);
 		}
 
-		vtx_offset += draw_list->VtxBuffer.size();
+		idx_offset += draw_list->IdxBuffer.Size;
+		vtx_offset += draw_list->VtxBuffer.Size;
 	}
 }
 #endif

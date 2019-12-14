@@ -1095,7 +1095,6 @@ void reshade::opengl::runtime_gl::render_imgui_draw_data(ImDrawData *draw_data)
 
 	for (int n = 0; n < draw_data->CmdListsCount; ++n)
 	{
-		const ImDrawIdx *index_offset = 0;
 		ImDrawList *const draw_list = draw_data->CmdLists[n];
 
 		glBindBuffer(GL_ARRAY_BUFFER, _buf[VBO_IMGUI]);
@@ -1120,11 +1119,11 @@ void reshade::opengl::runtime_gl::render_imgui_draw_data(ImDrawData *draw_data)
 				static_cast<GLint>(scissor_rect.z - scissor_rect.x),
 				static_cast<GLint>(scissor_rect.w - scissor_rect.y));
 
-			glBindTexture(GL_TEXTURE_2D, static_cast<const opengl_tex_data *>(cmd.TextureId)->id[0]);
+			glBindTexture(GL_TEXTURE_2D,
+				static_cast<const opengl_tex_data *>(cmd.TextureId)->id[0]);
 
-			glDrawElements(GL_TRIANGLES, cmd.ElemCount, sizeof(ImDrawIdx) == 2 ? GL_UNSIGNED_SHORT : GL_UNSIGNED_INT, index_offset);
-
-			index_offset += cmd.ElemCount;
+			glDrawElementsBaseVertex(GL_TRIANGLES, cmd.ElemCount, sizeof(ImDrawIdx) == 2 ? GL_UNSIGNED_SHORT : GL_UNSIGNED_INT,
+				reinterpret_cast<const void *>(static_cast<uintptr_t>(cmd.IdxOffset * sizeof(ImDrawIdx))), cmd.VtxOffset);
 		}
 	}
 }

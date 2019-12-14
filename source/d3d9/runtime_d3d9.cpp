@@ -1003,12 +1003,12 @@ void reshade::d3d9::runtime_d3d9::render_imgui_draw_data(ImDrawData *draw_data)
 
 			_device->SetTexture(0, static_cast<const d3d9_tex_data *>(cmd.TextureId)->texture.get());
 
-			_device->DrawIndexedPrimitive(D3DPT_TRIANGLELIST, vtx_offset, 0, draw_list->VtxBuffer.size(), idx_offset, cmd.ElemCount / 3);
+			_device->DrawIndexedPrimitive(D3DPT_TRIANGLELIST, cmd.VtxOffset + vtx_offset, 0, draw_list->VtxBuffer.Size, cmd.IdxOffset + idx_offset, cmd.ElemCount / 3);
 
-			idx_offset += cmd.ElemCount;
 		}
 
-		vtx_offset += draw_list->VtxBuffer.size();
+		idx_offset += draw_list->IdxBuffer.Size;
+		vtx_offset += draw_list->VtxBuffer.Size;
 	}
 }
 #endif
