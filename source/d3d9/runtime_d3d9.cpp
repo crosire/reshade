@@ -1033,8 +1033,6 @@ void reshade::d3d9::runtime_d3d9::draw_depth_debug_menu()
 		ImGui::Separator();
 		ImGui::Spacing();
 
-		LOG(INFO) << "------";
-
 		for (const auto &[ds_surface, snapshot] : _current_tracker->depth_buffer_counters())
 		{
 			char label[512] = "";
