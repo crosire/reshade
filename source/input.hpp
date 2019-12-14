@@ -107,8 +107,11 @@ namespace reshade
 	private:
 		std::mutex _mutex;
 		window_handle _window;
-		bool _block_mouse = false, _block_keyboard = false;
-		uint8_t _keys[256] = {}, _mouse_buttons[5] = {};
+		bool _block_mouse = false;
+		bool _block_keyboard = false;
+		uint8_t _keys[256] = {};
+		uint8_t _mouse_buttons[5] = {};
+		unsigned int _keys_time[256] = {};
 		short _mouse_wheel_delta = 0;
 		unsigned int _mouse_position[2] = {};
 		unsigned int _last_mouse_position[2] = {};

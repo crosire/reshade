@@ -187,7 +187,8 @@ bool reshade::input::handle_window_message(const void *message_data)
 				break; // Input is already handled by 'WM_KEYDOWN' and friends (since legacy keyboard messages are enabled), so nothing to do here
 
 			if (raw_data.data.keyboard.VKey != 0xFF)
-				input->_keys[raw_data.data.keyboard.VKey] = (raw_data.data.keyboard.Flags & RI_KEY_BREAK) == 0 ? 0x88 : 0x08;
+				input->_keys[raw_data.data.keyboard.VKey] = (raw_data.data.keyboard.Flags & RI_KEY_BREAK) == 0 ? 0x88 : 0x08,
+				input->_keys_time[raw_data.data.keyboard.VKey] = details.time;
 
 			// No 'WM_CHAR' messages are sent if legacy keyboard messages are disabled, so need to generate text input manually here
 			// Cannot use the ToAscii function always as it seems to reset dead key state and thus calling it can break subsequent application input, should be fine here though since the application is already explicitly using raw input
@@ -202,15 +203,14 @@ bool reshade::input::handle_window_message(const void *message_data)
 	case WM_KEYDOWN:
 	case WM_SYSKEYDOWN:
 		assert(details.wParam < _countof(input->_keys));
-		// Only update state if the key is actually down
-		// This filters out invalid keyboard messages in Assetto Corsa
-		if (GetAsyncKeyState(static_cast<int>(details.wParam)))
-			input->_keys[details.wParam] = 0x88;
+		input->_keys[details.wParam] = 0x88;
+		input->_keys_time[details.wParam] = details.time;
 		break;
 	case WM_KEYUP:
 	case WM_SYSKEYUP:
 		assert(details.wParam < _countof(input->_keys));
 		input->_keys[details.wParam] = 0x08;
+		input->_keys_time[details.wParam] = details.time;
 		break;
 	case WM_LBUTTONDOWN:
 		input->_mouse_buttons[0] = 0x88;
@@ -356,6 +356,13 @@ void reshade::input::next_frame()
 		state &= ~0x8;
 	for (auto &state : _mouse_buttons)
 		state &= ~0x8;
+
+	// Reset any pressed down key states that have not been updated for more than 5 seconds
+	const DWORD time = GetTickCount();
+	for (unsigned int i = 0; i < 256; ++i)
+		if ((_keys[i] & 0x80) != 0 &&
+			(time - _keys_time[i]) > 5000)
+			_keys[i] = 0x08;
 
 	_text_input.clear();
 	_mouse_wheel_delta = 0;
