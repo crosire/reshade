@@ -18,6 +18,8 @@
 
 namespace reshade::vulkan
 {
+	const uint32_t MAX_EFFECT_DESCRIPTOR_SETS = 100;
+
 	struct vulkan_tex_data : base_object
 	{
 		~vulkan_tex_data()
@@ -348,7 +350,7 @@ bool reshade::vulkan::runtime_vk::on_init(VkSwapchainKHR swapchain, const VkSwap
 
 		VkDescriptorPoolCreateInfo create_info { VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO };
 		// No VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT set, so that all descriptors can be reset in one go via vkResetDescriptorPool
-		create_info.maxSets = 100; // TODO: Limit to 100 effects for now
+		create_info.maxSets = MAX_EFFECT_DESCRIPTOR_SETS; // TODO: Limit to 100 effects for now
 		create_info.poolSizeCount = _countof(pool_sizes);
 		create_info.pPoolSizes = pool_sizes;
 
@@ -789,7 +791,11 @@ bool reshade::vulkan::runtime_vk::init_effect(size_t index)
 		alloc_info.descriptorSetCount = 2;
 		alloc_info.pSetLayouts = set_layouts;
 
-		check_result(vk.AllocateDescriptorSets(_device, &alloc_info, effect_data.set)) false;
+		if (vk.AllocateDescriptorSets(_device, &alloc_info, effect_data.set) != VK_SUCCESS)
+		{
+			LOG(ERROR) << "Too many effects loaded. Only " << (MAX_EFFECT_DESCRIPTOR_SETS / 2) << " effects can be active simultaneously in Vulkan.";
+			return false;
+		}
 
 		uint32_t num_writes = 0;
 		VkWriteDescriptorSet writes[2];
