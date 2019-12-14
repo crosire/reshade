@@ -20,12 +20,12 @@ public:
 		text_pos() : line(0), column(0) {}
 		text_pos(size_t line, size_t column = 0) : line(line), column(column) {}
 
-		bool operator ==(const text_pos& o) const { return line == o.line && column == o.column; }
-		bool operator !=(const text_pos& o) const { return line != o.line || column != o.column; }
-		bool operator < (const text_pos& o) const { return line != o.line ? line < o.line : column <  o.column; }
-		bool operator <=(const text_pos& o) const { return line != o.line ? line < o.line : column <= o.column; }
-		bool operator > (const text_pos& o) const { return line != o.line ? line > o.line : column >  o.column; }
-		bool operator >=(const text_pos& o) const { return line != o.line ? line > o.line : column >= o.column; }
+		bool operator ==(const text_pos &o) const { return line == o.line && column == o.column; }
+		bool operator !=(const text_pos &o) const { return line != o.line || column != o.column; }
+		bool operator < (const text_pos &o) const { return line != o.line ? line < o.line : column <  o.column; }
+		bool operator <=(const text_pos &o) const { return line != o.line ? line < o.line : column <= o.column; }
+		bool operator > (const text_pos &o) const { return line != o.line ? line > o.line : column >  o.column; }
+		bool operator >=(const text_pos &o) const { return line != o.line ? line > o.line : column >= o.column; }
 	};
 
 	enum color
@@ -93,6 +93,8 @@ public:
 	uint32_t &get_palette_index(unsigned int index) { return _palette[index]; }
 	static const char *get_palette_color_name(unsigned int index);
 
+	bool find_and_scroll_to_text(const std::string &text, bool backwards = false);
+
 private:
 	struct glyph
 	{
@@ -142,10 +144,9 @@ private:
 	bool _readonly = false;
 	bool _overwrite = false;
 	bool _scroll_to_cursor = false;
+	bool _show_search_popup = false;
 	float _cursor_anim = 0.0f;
 	double _last_click_time = -1.0;
-
-	std::array<uint32_t, color_palette_max> _palette;
 
 	std::vector<std::vector<glyph>> _lines;
 
@@ -162,6 +163,11 @@ private:
 
 	size_t _colorize_line_beg = 0;
 	size_t _colorize_line_end = 0;
+	std::array<uint32_t, color_palette_max> _palette;
 
 	std::unordered_map<size_t, std::pair<std::string, bool>> _errors;
+
+	char _search_text[256] = "";
+	bool _search_window_open = false;
+	unsigned int _search_window_focus = 0;
 };
