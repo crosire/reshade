@@ -238,6 +238,7 @@ void reshade::d3d10::runtime_d3d10::on_reset()
 #endif
 
 #if RESHADE_DX10_CAPTURE_DEPTH_BUFFERS
+	_has_depth_texture = false;
 	_depth_texture_override = nullptr;
 #endif
 }
@@ -1311,6 +1312,7 @@ void reshade::d3d10::runtime_d3d10::update_depthstencil_texture(com_ptr<ID3D10Te
 
 	_depth_texture = std::move(texture);
 	_depth_texture_srv.reset();
+	_has_depth_texture = false;
 
 	if (_depth_texture != nullptr)
 	{
@@ -1330,6 +1332,8 @@ void reshade::d3d10::runtime_d3d10::update_depthstencil_texture(com_ptr<ID3D10Te
 			return;
 		}
 	}
+
+	_has_depth_texture = true;
 
 	// Update all references to the new texture
 	for (auto &tex : _textures)

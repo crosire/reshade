@@ -344,6 +344,7 @@ void reshade::d3d12::runtime_d3d12::on_reset()
 #endif
 
 #if RESHADE_DX12_CAPTURE_DEPTH_BUFFERS
+	_has_depth_texture = false;
 	_depth_texture_override = nullptr;
 #endif
 }
@@ -1581,6 +1582,8 @@ void reshade::d3d12::runtime_d3d12::update_depthstencil_texture(com_ptr<ID3D12Re
 		view_desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
 		view_desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
 		view_desc.Texture2D.MipLevels = desc.MipLevels;
+
+		_has_depth_texture = true;
 	}
 	else
 	{
@@ -1592,6 +1595,8 @@ void reshade::d3d12::runtime_d3d12::update_depthstencil_texture(com_ptr<ID3D12Re
 		view_desc.Texture2D.MipLevels = 1;
 		view_desc.Texture2D.MostDetailedMip = 0;
 		view_desc.Texture2D.ResourceMinLODClamp = 0.0f;
+
+		_has_depth_texture = false;
 	}
 
 	// Descriptors may be currently in use, so make sure all previous frames have finished before updating them

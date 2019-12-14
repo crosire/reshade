@@ -461,6 +461,7 @@ void reshade::vulkan::runtime_vk::on_reset()
 #endif
 
 #if RESHADE_VULKAN_CAPTURE_DEPTH_BUFFERS
+	_has_depth_texture = false;
 	_depth_image_override = VK_NULL_HANDLE;
 #endif
 
@@ -1991,10 +1992,14 @@ void reshade::vulkan::runtime_vk::update_depthstencil_image(VkImage image, VkIma
 				tex.height = frame_height();
 			}
 		}
+
+		_has_depth_texture = true;
 	}
 	else
 	{
 		image_binding.imageView = _empty_depth_image_view;
+
+		_has_depth_texture = false;
 	}
 
 	// Update image bindings

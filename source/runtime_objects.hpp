@@ -22,6 +22,7 @@ namespace reshade
 		mouse_point,
 		mouse_delta,
 		mouse_button,
+		bufready_depth,
 	};
 
 	enum class texture_reference

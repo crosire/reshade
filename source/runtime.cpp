@@ -449,6 +449,8 @@ void reshade::runtime::load_effect(const std::filesystem::path &path, size_t ind
 			var.special = special_uniform::mouse_delta;
 		else if (special == "mousebutton")
 			var.special = special_uniform::mouse_button;
+		else if (special == "bufready_depth")
+			var.special = special_uniform::bufready_depth;
 
 		new_uniforms.push_back(std::move(var));
 	}
@@ -960,6 +962,9 @@ void reshade::runtime::update_and_render_effects()
 				}
 				break;
 			}
+			case special_uniform::bufready_depth:
+				set_uniform_value(variable, _has_depth_texture);
+				break;
 		}
 	}
 

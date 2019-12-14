@@ -182,6 +182,7 @@ namespace reshade
 
 		bool _is_initialized = false;
 		bool _has_high_network_activity = false;
+		bool _has_depth_texture = false;
 		unsigned int _width = 0;
 		unsigned int _height = 0;
 		unsigned int _window_width = 0;
