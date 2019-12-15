@@ -604,11 +604,12 @@ private:
 	}
 	id   define_uniform(const location &, uniform_info &info) override
 	{
-		// GLSL specification on std140 layout:
-		// 1. If the member is a scalar consuming N basic machine units, the base alignment is N.
-		// 2. If the member is a two- or four-component vector with components consuming N basic machine units, the base alignment is 2N or 4N, respectively.
-		// 3. If the member is a three-component vector with components consuming N basic machine units, the base alignment is 4N.
-		info.size = 4 * (info.type.rows == 3 ? 4 : info.type.rows) * info.type.cols * std::max(1, info.type.array_length);
+		// Use similar base packing rules to HLSL
+		const uint32_t array_stride = 16u;
+		const uint32_t matrix_stride = 16u;
+		info.size = info.type.is_matrix() ? (info.type.rows - 1) * matrix_stride + info.type.cols * 4 : info.type.rows * 4;
+		if (info.type.is_array())
+			info.size = std::max(array_stride, info.size) * info.type.array_length;
 
 		if (_uniforms_to_spec_constants && info.has_initializer_value)
 		{
@@ -693,9 +694,11 @@ private:
 				add_decoration(_global_ubo_variable, spv::DecorationDescriptorSet, { 0 });
 			}
 
-			const uint32_t alignment = info.size;
-			const uint32_t alignment_remain = _module.total_uniform_size % alignment;
-			info.offset = (alignment_remain != 0) ? _module.total_uniform_size + alignment - alignment_remain : _module.total_uniform_size;
+			info.offset = _module.total_uniform_size;
+			// Make sure member does not have an improper straddle
+			const uint32_t remaining = 16 - (info.offset & 15);
+			if (remaining != 16 && info.size > remaining)
+				info.offset += remaining;
 			_module.total_uniform_size = info.offset + info.size;
 
 			_module.uniforms.push_back(info);
@@ -710,6 +713,16 @@ private:
 			const uint32_t member_index = static_cast<uint32_t>(member_list.size() - 1);
 
 			add_member_decoration(_global_ubo_type.definition, member_index, spv::DecorationOffset, { info.offset });
+
+			if (info.type.is_array())
+			{
+				add_member_decoration(_global_ubo_type.definition, member_index, spv::DecorationArrayStride, { array_stride });
+			}
+			if (info.type.is_matrix())
+			{
+				add_member_decoration(_global_ubo_type.definition, member_index, spv::DecorationColMajor);
+				add_member_decoration(_global_ubo_type.definition, member_index, spv::DecorationMatrixStride, { matrix_stride });
+			}
 
 			return 0xF0000000 | member_index;
 		}
