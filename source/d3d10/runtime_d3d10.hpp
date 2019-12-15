@@ -28,6 +28,7 @@ namespace reshade::d3d10
 
 	private:
 		bool init_effect(size_t index) override;
+		void unload_effect(size_t index) override;
 		void unload_effects() override;
 
 		bool init_texture(texture &texture) override;

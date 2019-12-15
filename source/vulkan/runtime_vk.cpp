@@ -71,8 +71,6 @@ namespace reshade::vulkan
 		VkDescriptorSetLayout set_layout = VK_NULL_HANDLE;
 		VkBuffer ubo = VK_NULL_HANDLE;
 		VkDeviceMemory ubo_mem = VK_NULL_HANDLE;
-		VkDeviceSize storage_size = 0;
-		VkDeviceSize storage_offset = 0;
 		reshadefx::module module;
 		std::vector<VkDescriptorImageInfo> image_bindings;
 		uint32_t depth_image_binding = std::numeric_limits<uint32_t>::max();
@@ -635,8 +633,6 @@ bool reshade::vulkan::runtime_vk::init_effect(size_t index)
 		_effect_data.resize(index + 1);
 
 	vulkan_effect_data &effect_data = _effect_data[index];
-	effect_data.storage_size = effect.storage_size;
-	effect_data.storage_offset = effect.storage_offset;
 	effect_data.module = effect.module;
 
 	// Create query pool for time measurements
@@ -670,10 +666,10 @@ bool reshade::vulkan::runtime_vk::init_effect(size_t index)
 	}
 
 	// Create global uniform buffer object
-	if (effect.storage_size != 0)
+	if (!effect.uniform_data_storage.empty())
 	{
 		effect_data.ubo = create_buffer(
-			effect.storage_size,
+			effect.uniform_data_storage.size(),
 			VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
 			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 	}
@@ -800,7 +796,7 @@ bool reshade::vulkan::runtime_vk::init_effect(size_t index)
 
 		uint32_t num_writes = 0;
 		VkWriteDescriptorSet writes[2];
-		const VkDescriptorBufferInfo ubo_info = { effect_data.ubo, 0, effect.storage_size };
+		const VkDescriptorBufferInfo ubo_info = { effect_data.ubo, 0, VK_WHOLE_SIZE };
 
 		if (effect_data.ubo != VK_NULL_HANDLE)
 		{
@@ -837,7 +833,7 @@ bool reshade::vulkan::runtime_vk::init_effect(size_t index)
 		const reshadefx::uniform_info &constant = effect.module.spec_constants[spec_id];
 		spec_map.push_back({ spec_id, static_cast<uint32_t>(offset), constant.size });
 		spec_data.resize(offset + constant.size);
-		memcpy(spec_data.data() + offset, &constant.initializer_value.as_uint[0], constant.size);
+		std::memcpy(spec_data.data() + offset, &constant.initializer_value.as_uint[0], constant.size);
 	}
 
 	uint32_t technique_index = 0;
@@ -1115,6 +1111,22 @@ void reshade::vulkan::runtime_vk::unload_effect(size_t index)
 	wait_for_command_buffers(); // Make sure no effect resources are currently in use
 
 	runtime::unload_effect(index);
+
+	if (index < _effect_data.size())
+	{
+		vulkan_effect_data &effect_data = _effect_data[index];
+
+		vk.DestroyQueryPool(_device, effect_data.query_pool, nullptr);
+		effect_data.query_pool = VK_NULL_HANDLE;
+		vk.DestroyPipelineLayout(_device, effect_data.pipeline_layout, nullptr);
+		effect_data.pipeline_layout = VK_NULL_HANDLE;
+		vk.DestroyDescriptorSetLayout(_device, effect_data.set_layout, nullptr);
+		effect_data.set_layout = VK_NULL_HANDLE;
+		vk.DestroyBuffer(_device, effect_data.ubo, nullptr);
+		effect_data.ubo = VK_NULL_HANDLE;
+		vk.FreeMemory(_device, effect_data.ubo_mem, nullptr);
+		effect_data.ubo_mem = VK_NULL_HANDLE;
+	}
 }
 void reshade::vulkan::runtime_vk::unload_effects()
 {
@@ -1374,8 +1386,8 @@ void reshade::vulkan::runtime_vk::render_technique(technique &technique)
 	vk.CmdBindDescriptorSets(cmd_list, VK_PIPELINE_BIND_POINT_GRAPHICS, effect_data.pipeline_layout, 0, 2, effect_data.set, 0, nullptr);
 
 	// Setup shader constants
-	if (effect_data.storage_size != 0)
-		vk.CmdUpdateBuffer(cmd_list, effect_data.ubo, 0, effect_data.storage_size, _uniform_data_storage.data() + effect_data.storage_offset);
+	if (effect_data.ubo != VK_NULL_HANDLE)
+		vk.CmdUpdateBuffer(cmd_list, effect_data.ubo, 0, _loaded_effects[technique.effect_index].uniform_data_storage.size(), _loaded_effects[technique.effect_index].uniform_data_storage.data());
 
 	// Clear default depth stencil
 	const VkImageSubresourceRange clear_range = { VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT, 0, 1, 0, 1 };
@@ -1829,8 +1841,8 @@ void reshade::vulkan::runtime_vk::render_imgui_draw_data(ImDrawData *draw_data)
 	for (int n = 0; n < draw_data->CmdListsCount; n++)
 	{
 		const ImDrawList *draw_list = draw_data->CmdLists[n];
-		memcpy(idx_dst, draw_list->IdxBuffer.Data, draw_list->IdxBuffer.Size * sizeof(ImDrawIdx));
-		memcpy(vtx_dst, draw_list->VtxBuffer.Data, draw_list->VtxBuffer.Size * sizeof(ImDrawVert));
+		std::memcpy(idx_dst, draw_list->IdxBuffer.Data, draw_list->IdxBuffer.Size * sizeof(ImDrawIdx));
+		std::memcpy(vtx_dst, draw_list->VtxBuffer.Data, draw_list->VtxBuffer.Size * sizeof(ImDrawVert));
 		idx_dst += draw_list->IdxBuffer.Size;
 		vtx_dst += draw_list->VtxBuffer.Size;
 	}

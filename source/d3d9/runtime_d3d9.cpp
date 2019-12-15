@@ -32,7 +32,6 @@ namespace reshade::d3d9
 		DWORD sampler_states[16][12] = {};
 		IDirect3DTexture9 *sampler_textures[16] = {};
 		DWORD constant_register_count = 0;
-		size_t uniform_storage_offset = 0;
 	};
 }
 
@@ -275,7 +274,7 @@ bool reshade::d3d9::runtime_d3d9::capture_screenshot(uint8_t *buffer) const
 		}
 		else
 		{
-			memcpy(buffer, mapped_data, pitch);
+			std::memcpy(buffer, mapped_data, pitch);
 
 			for (uint32_t x = 0; x < pitch; x += 4)
 			{
@@ -359,8 +358,7 @@ bool reshade::d3d9::runtime_d3d9::init_effect(size_t index)
 	}
 
 	d3d9_technique_data technique_init;
-	technique_init.constant_register_count = static_cast<DWORD>((effect.storage_size + 15) / 16);
-	technique_init.uniform_storage_offset = effect.storage_offset;
+	technique_init.constant_register_count = static_cast<DWORD>((effect.uniform_data_storage.size() + 15) / 16);
 
 	for (const reshadefx::sampler_info &info : effect.module.samplers)
 	{
@@ -754,7 +752,7 @@ void reshade::d3d9::runtime_d3d9::render_technique(technique &technique)
 	// Setup shader constants
 	if (technique_data.constant_register_count > 0)
 	{
-		const auto uniform_storage_data = reinterpret_cast<const float *>(_uniform_data_storage.data() + technique_data.uniform_storage_offset);
+		const auto uniform_storage_data = reinterpret_cast<const float *>(_loaded_effects[technique.effect_index].uniform_data_storage.data());
 		_device->SetPixelShaderConstantF(0, uniform_storage_data, technique_data.constant_register_count);
 		_device->SetVertexShaderConstantF(0, uniform_storage_data, technique_data.constant_register_count);
 	}
@@ -948,7 +946,7 @@ void reshade::d3d9::runtime_d3d9::render_imgui_draw_data(ImDrawData *draw_data)
 			++vtx_dst; // Next vertex
 		}
 
-		memcpy(idx_dst, draw_list->IdxBuffer.Data, draw_list->IdxBuffer.size() * sizeof(ImDrawIdx));
+		std::memcpy(idx_dst, draw_list->IdxBuffer.Data, draw_list->IdxBuffer.size() * sizeof(ImDrawIdx));
 		idx_dst += draw_list->IdxBuffer.size();
 	}
 

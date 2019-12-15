@@ -75,20 +75,6 @@ namespace reshade
 		const T *as() const { return dynamic_cast<const T *>(this); }
 	};
 
-	struct effect final
-	{
-		unsigned int rendering = 0;
-		bool compile_sucess = false;
-		std::string errors;
-		std::string preamble;
-		reshadefx::module module;
-		std::filesystem::path source_file;
-		std::vector<std::filesystem::path> included_files;
-		std::vector<std::pair<std::string, std::string>> definitions;
-		std::unordered_map<std::string, std::string> assembly;
-		size_t storage_offset = 0, storage_size = 0;
-	};
-
 	struct texture final : reshadefx::texture_info
 	{
 		texture() {}
@@ -164,7 +150,6 @@ namespace reshade
 		}
 
 		size_t effect_index = std::numeric_limits<size_t>::max();
-		size_t storage_offset = 0;
 		special_uniform special = special_uniform::none;
 		uint32_t toggle_key_data[4] = {};
 	};
@@ -205,5 +190,20 @@ namespace reshade
 		moving_average<uint64_t, 60> average_cpu_duration;
 		moving_average<uint64_t, 60> average_gpu_duration;
 		std::unique_ptr<base_object> impl;
+	};
+
+	struct effect final
+	{
+		unsigned int rendering = 0;
+		bool compile_sucess = false;
+		std::string errors;
+		std::string preamble;
+		reshadefx::module module;
+		std::filesystem::path source_file;
+		std::vector<std::filesystem::path> included_files;
+		std::vector<std::pair<std::string, std::string>> definitions;
+		std::unordered_map<std::string, std::string> assembly;
+		std::vector<uniform> uniforms;
+		std::vector<unsigned char> uniform_data_storage;
 	};
 }

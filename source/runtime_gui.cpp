@@ -1798,142 +1798,119 @@ void reshade::runtime::draw_overlay_variable_editor()
 	}
 
 	ImGui::BeginChild("##variables");
-
-	bool current_tree_is_open = false;
-	bool current_category_is_closed = false;
-	size_t current_effect = std::numeric_limits<size_t>::max();
-	std::string current_category;
-
 	if (_variable_editor_tabs)
-	{
 		ImGui::BeginTabBar("##variables");
-	}
-
 	ImGui::PushItemWidth(ImGui::GetWindowWidth() * 0.5f);
 
-	for (size_t index = 0; index < _uniforms.size(); ++index)
+	for (size_t effect_index = 0, id = 0; effect_index < _loaded_effects.size(); ++effect_index)
 	{
-		uniform &variable = _uniforms[index];
-
-		// Skip hidden and special variables
-		if (variable.annotation_as_int("hidden") || variable.special != special_uniform::none)
-			continue;
-
-		const effect &effect = _loaded_effects[variable.effect_index];
 		// Hide variables that are not currently used in any of the active effects
-		if (!effect.rendering)
+		if (!_loaded_effects[effect_index].rendering)
 			continue;
-		assert(effect.compile_sucess);
+		assert(_loaded_effects[effect_index].compile_sucess);
 
 		// Create separate tab for every effect file
-		if (variable.effect_index != current_effect)
+		const bool is_focused = _focused_effect == effect_index;
+		const std::string source_file = _loaded_effects[effect_index].source_file.filename().u8string();
+		if (_variable_editor_tabs)
 		{
-			current_effect = variable.effect_index;
-			const bool is_focused = _focused_effect == variable.effect_index;
+			if (!ImGui::BeginTabItem(source_file.c_str()))
+				continue;
+		}
+		else
+		{
+			if (is_focused || _effects_expanded_state & 1)
+				ImGui::SetNextItemOpen(is_focused || (_effects_expanded_state >> 1) != 0);
 
-			if (_variable_editor_tabs)
+			if (!ImGui::TreeNodeEx(source_file.c_str(), ImGuiTreeNodeFlags_DefaultOpen))
+				continue; // Skip rendering invisible items
+		}
+
+		if (is_focused)
+		{
+			ImGui::SetScrollHereY(0.0f);
+			_focused_effect = std::numeric_limits<size_t>::max();
+		}
+
+		ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(_imgui_context->Style.FramePadding.x, 0));
+		if (imgui_popup_button("Reset all to default", _variable_editor_tabs ? ImGui::GetContentRegionAvail().x : ImGui::CalcItemWidth()))
+		{
+			ImGui::Text("Do you really want to reset all values in '%s' to their defaults?", source_file.c_str());
+
+			if (ImGui::Button("Yes", ImVec2(ImGui::GetContentRegionAvail().x, 0)))
 			{
-				if (current_tree_is_open)
-					ImGui::EndTabItem();
+				for (uniform &reset_variable : _loaded_effects[effect_index].uniforms)
+					reset_uniform_value(reset_variable);
 
-				current_tree_is_open = ImGui::BeginTabItem(effect.source_file.filename().u8string().c_str());
+				save_current_preset();
+
+				ImGui::CloseCurrentPopup();
 			}
-			else
+
+			ImGui::EndPopup();
+		}
+		ImGui::PopStyleVar();
+
+		bool category_is_closed = false;
+		std::string current_category;
+
+		for (uniform &variable : _loaded_effects[effect_index].uniforms)
+		{
+			// Skip hidden and special variables
+			if (variable.annotation_as_int("hidden") || variable.special != special_uniform::none)
+				continue;
+
+			if (const std::string_view category = variable.annotation_as_string("ui_category");
+				category != current_category)
 			{
-				if (current_tree_is_open)
-					ImGui::TreePop();
+				current_category = category;
 
-				if (is_focused || _effects_expanded_state & 1)
-					ImGui::SetNextItemOpen(is_focused || (_effects_expanded_state >> 1) != 0);
-
-				current_tree_is_open = ImGui::TreeNodeEx(effect.source_file.filename().u8string().c_str(), ImGuiTreeNodeFlags_DefaultOpen);
-			}
-
-			if (is_focused)
-			{
-				ImGui::SetScrollHereY(0.0f);
-				_focused_effect = std::numeric_limits<size_t>::max();
-			}
-
-			if (current_tree_is_open)
-			{
-				ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(_imgui_context->Style.FramePadding.x, 0));
-				if (imgui_popup_button("Reset all to default", _variable_editor_tabs ? ImGui::GetContentRegionAvail().x : ImGui::CalcItemWidth()))
+				if (!category.empty())
 				{
-					ImGui::Text("Do you really want to reset all values in '%s' to their defaults?", effect.source_file.filename().u8string().c_str());
+					std::string category_label(category.data(), category.size());
+					if (!_variable_editor_tabs)
+						for (float x = 0, space_x = ImGui::CalcTextSize(" ").x, width = (ImGui::CalcItemWidth() - ImGui::CalcTextSize(category_label.data()).x - 45) / 2; x < width; x += space_x)
+							category_label.insert(0, " ");
 
-					if (ImGui::Button("Yes", ImVec2(ImGui::GetContentRegionAvail().x, 0)))
-					{
-						for (uniform &reset_variable : _uniforms)
-							if (reset_variable.effect_index == current_effect)
-								reset_uniform_value(reset_variable);
+					ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_NoTreePushOnOpen;
+					if (!variable.annotation_as_int("ui_category_closed"))
+						flags |= ImGuiTreeNodeFlags_DefaultOpen;
 
-						save_current_preset();
-
-						ImGui::CloseCurrentPopup();
-					}
-
-					ImGui::EndPopup();
+					category_is_closed = !ImGui::TreeNodeEx(category_label.c_str(), flags);
 				}
-				ImGui::PopStyleVar();
+				else
+				{
+					category_is_closed = false;
+				}
 			}
-		}
 
-		// Skip rendering invisible items
-		if (!current_tree_is_open)
-			continue;
+			// Skip rendering invisible items
+			if (category_is_closed)
+				continue;
 
-		if (const std::string_view category = variable.annotation_as_string("ui_category");
-			category != current_category)
-		{
-			current_category = category;
+			// Add spacing before variable widget
+			for (int i = 0, spacing = variable.annotation_as_int("ui_spacing"); i < spacing; ++i)
+				ImGui::Spacing();
 
-			if (!category.empty())
+			// Add user-configurable text before variable widget
+			if (const std::string_view text = variable.annotation_as_string("ui_text");
+				!text.empty())
 			{
-				std::string category_label(category.data(), category.size());
-				if (!_variable_editor_tabs)
-					for (float x = 0, space_x = ImGui::CalcTextSize(" ").x, width = (ImGui::CalcItemWidth() - ImGui::CalcTextSize(category_label.data()).x - 45) / 2; x < width; x += space_x)
-						category_label.insert(0, " ");
-
-				ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_NoTreePushOnOpen;
-				if (!variable.annotation_as_int("ui_category_closed"))
-					flags |= ImGuiTreeNodeFlags_DefaultOpen;
-
-				current_category_is_closed = !ImGui::TreeNodeEx(category_label.c_str(), flags);
+				ImGui::PushTextWrapPos();
+				ImGui::TextUnformatted(text.data());
+				ImGui::PopTextWrapPos();
 			}
-			else
+
+			bool modified = false;
+			std::string_view label = variable.annotation_as_string("ui_label");
+			if (label.empty())
+				label = variable.name;
+			const std::string_view ui_type = variable.annotation_as_string("ui_type");
+
+			ImGui::PushID(static_cast<int>(id++));
+
+			switch (variable.type.base)
 			{
-				current_category_is_closed = false;
-			}
-		}
-
-		// Skip rendering invisible items
-		if (current_category_is_closed)
-			continue;
-
-		// Add spacing before variable widget
-		for (int i = 0, spacing = variable.annotation_as_int("ui_spacing"); i < spacing; ++i)
-			ImGui::Spacing();
-
-		// Add user-configurable text before variable widget
-		if (const std::string_view text = variable.annotation_as_string("ui_text");
-			!text.empty())
-		{
-			ImGui::PushTextWrapPos();
-			ImGui::TextUnformatted(text.data());
-			ImGui::PopTextWrapPos();
-		}
-
-		bool modified = false;
-		std::string_view label = variable.annotation_as_string("ui_label");
-		if (label.empty())
-			label = variable.name;
-		const std::string_view ui_type = variable.annotation_as_string("ui_type");
-
-		ImGui::PushID(static_cast<int>(index));
-
-		switch (variable.type.base)
-		{
 			case reshadefx::type::t_bool:
 			{
 				bool data;
@@ -2010,137 +1987,126 @@ void reshade::runtime::draw_overlay_variable_editor()
 					set_uniform_value(variable, data, 4);
 				break;
 			}
-		}
-
-		// Display tooltip
-		if (const std::string_view tooltip = variable.annotation_as_string("ui_tooltip");
-			!tooltip.empty() && ImGui::IsItemHovered())
-			ImGui::SetTooltip("%s", tooltip.data());
-
-		// Create context menu
-		if (ImGui::BeginPopupContextItem("##context"))
-		{
-			if (variable.supports_toggle_key() &&
-				imgui_key_input("##toggle_key", variable.toggle_key_data, *_input))
-				modified = true;
-
-			if (ImGui::Button("Reset to default", ImVec2(200, 0)))
-			{
-				modified = true;
-				reset_uniform_value(variable);
-				ImGui::CloseCurrentPopup();
 			}
 
-			ImGui::EndPopup();
+			// Display tooltip
+			if (const std::string_view tooltip = variable.annotation_as_string("ui_tooltip");
+				!tooltip.empty() && ImGui::IsItemHovered())
+				ImGui::SetTooltip("%s", tooltip.data());
+
+			// Create context menu
+			if (ImGui::BeginPopupContextItem("##context"))
+			{
+				if (variable.supports_toggle_key() &&
+					imgui_key_input("##toggle_key", variable.toggle_key_data, *_input))
+					modified = true;
+
+				if (ImGui::Button("Reset to default", ImVec2(200, 0)))
+				{
+					modified = true;
+					reset_uniform_value(variable);
+					ImGui::CloseCurrentPopup();
+				}
+
+				ImGui::EndPopup();
+			}
+
+			if (variable.toggle_key_data[0] != 0)
+			{
+				ImGui::SameLine(ImGui::GetWindowContentRegionWidth() - 120);
+				ImGui::TextDisabled("%s", reshade::input::key_name(variable.toggle_key_data).c_str());
+			}
+
+			ImGui::PopID();
+
+			// A value has changed, so save the current preset
+			if (modified)
+				save_current_preset();
 		}
-
-		if (variable.toggle_key_data[0] != 0)
-		{
-			ImGui::SameLine(ImGui::GetWindowContentRegionWidth() - 120);
-			ImGui::TextDisabled("%s", reshade::input::key_name(variable.toggle_key_data).c_str());
-		}
-
-		ImGui::PopID();
-
-		// A value has changed, so save the current preset
-		if (modified)
-			save_current_preset();
 
 		// Draw preprocessor definition list after all uniforms of an effect file
-		if (!effect.definitions.empty() && (index + 1 >= _uniforms.size() || _uniforms[index + 1].effect_index != variable.effect_index))
+		std::string category_label = "Preprocessor definitions";
+		if (!_variable_editor_tabs)
+			for (float x = 0, space_x = ImGui::CalcTextSize(" ").x, width = (ImGui::CalcItemWidth() - ImGui::CalcTextSize(category_label.data()).x - 45) / 2; x < width; x += space_x)
+				category_label.insert(0, " ");
+
+		if (ImGui::TreeNodeEx(category_label.c_str(), ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_NoTreePushOnOpen))
 		{
-			std::string category_label = "Preprocessor definitions";
-			if (!_variable_editor_tabs)
-				for (float x = 0, space_x = ImGui::CalcTextSize(" ").x, width = (ImGui::CalcItemWidth() - ImGui::CalcTextSize(category_label.data()).x - 45) / 2; x < width; x += space_x)
-					category_label.insert(0, " ");
-
-			if (ImGui::TreeNodeEx(category_label.c_str(), ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_NoTreePushOnOpen))
+			bool reload_effect = false;
+			const auto find_definition_value = [](auto &list, const auto &name, char value[128])
 			{
-				bool reload_effect = false;
-				const auto find_definition_value = [](auto &list, const auto &name, char value[128])
+				for (auto it = list.begin(); it != list.end(); ++it)
 				{
-					for (auto it = list.begin(); it != list.end(); ++it)
+					char current_name[128] = "";
+					const size_t equals_index = it->find('=');
+					it->copy(current_name, std::min(equals_index, sizeof(current_name) - 1));
+
+					if (name == current_name)
 					{
-						char current_name[128] = "";
-						const size_t equals_index = it->find('=');
-						it->copy(current_name, std::min(equals_index, sizeof(current_name) - 1));
-
-						if (name == current_name)
-						{
-							if (equals_index != std::string::npos)
-								it->copy(value, 127, equals_index + 1);
-							return it;
-						}
-					}
-
-					return list.end();
-				};
-
-				for (const auto &definition : effect.definitions)
-				{
-					char value[128] = "";
-					const auto global_it = find_definition_value(_global_preprocessor_definitions, definition.first, value);
-					const auto preset_it = find_definition_value(_preset_preprocessor_definitions, definition.first, value);
-
-					if (global_it == _global_preprocessor_definitions.end() &&
-						preset_it == _preset_preprocessor_definitions.end())
-						definition.second.copy(value, sizeof(value) - 1); // Fill with default value
-
-					if (ImGui::InputText(definition.first.c_str(), value, sizeof(value),
-						global_it != _global_preprocessor_definitions.end() ? ImGuiInputTextFlags_ReadOnly : ImGuiInputTextFlags_AutoSelectAll | ImGuiInputTextFlags_EnterReturnsTrue))
-					{
-						if (value[0] == '\0') // An empty value removes the definition
-						{
-							if (preset_it != _preset_preprocessor_definitions.end())
-								_preset_preprocessor_definitions.erase(preset_it);
-						}
-						else
-						{
-							if (preset_it != _preset_preprocessor_definitions.end())
-								*preset_it = definition.first + '=' + value;
-							else
-								_preset_preprocessor_definitions.push_back(definition.first + '=' + value);
-						}
-
-						reload_effect = true;
+						if (equals_index != std::string::npos)
+							it->copy(value, 127, equals_index + 1);
+						return it;
 					}
 				}
 
-				if (reload_effect)
-				{
-					save_current_preset();
+				return list.end();
+			};
 
-					// Reload current effect file
-					_textures_loaded = false;
-					_reload_total_effects = 1;
-					_reload_remaining_effects = 1;
-					const size_t current_effect_index = variable.effect_index;
-					const std::filesystem::path source_file = effect.source_file;
-					unload_effect(current_effect_index);
-					load_effect(source_file, current_effect_index);
-					assert(_reload_remaining_effects == 0);
-					ImGui::FindWindowByName("Statistics")->DrawList->CmdBuffer.clear();
-					break; // Variables have changed, so abort populating UI with them
+			for (const auto &definition : _loaded_effects[effect_index].definitions)
+			{
+				char value[128] = "";
+				const auto global_it = find_definition_value(_global_preprocessor_definitions, definition.first, value);
+				const auto preset_it = find_definition_value(_preset_preprocessor_definitions, definition.first, value);
+
+				if (global_it == _global_preprocessor_definitions.end() &&
+					preset_it == _preset_preprocessor_definitions.end())
+					definition.second.copy(value, sizeof(value) - 1); // Fill with default value
+
+				if (ImGui::InputText(definition.first.c_str(), value, sizeof(value),
+					global_it != _global_preprocessor_definitions.end() ? ImGuiInputTextFlags_ReadOnly : ImGuiInputTextFlags_AutoSelectAll | ImGuiInputTextFlags_EnterReturnsTrue))
+				{
+					if (value[0] == '\0') // An empty value removes the definition
+					{
+						if (preset_it != _preset_preprocessor_definitions.end())
+							_preset_preprocessor_definitions.erase(preset_it);
+					}
+					else
+					{
+						if (preset_it != _preset_preprocessor_definitions.end())
+							*preset_it = definition.first + '=' + value;
+						else
+							_preset_preprocessor_definitions.push_back(definition.first + '=' + value);
+					}
+
+					reload_effect = true;
 				}
 			}
+
+			if (reload_effect)
+			{
+				save_current_preset();
+
+				// Reload current effect file
+				_textures_loaded = false;
+				_reload_total_effects = 1;
+				_reload_remaining_effects = 1;
+				const std::filesystem::path source_path = _loaded_effects[effect_index].source_file;
+				unload_effect(effect_index);
+				load_effect(source_path, effect_index);
+				assert(_reload_remaining_effects == 0);
+				ImGui::FindWindowByName("Statistics")->DrawList->CmdBuffer.clear();
+			}
 		}
-	}
 
-	ImGui::PopItemWidth();
-
-	if (_variable_editor_tabs)
-	{
-		if (current_tree_is_open)
+		if (_variable_editor_tabs)
 			ImGui::EndTabItem();
-
-		ImGui::EndTabBar();
-	}
-	else
-	{
-		if (current_tree_is_open)
+		else
 			ImGui::TreePop();
 	}
 
+	ImGui::PopItemWidth();
+	if (_variable_editor_tabs)
+		ImGui::EndTabBar();
 	ImGui::EndChild();
 }
 

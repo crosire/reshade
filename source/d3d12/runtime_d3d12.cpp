@@ -40,8 +40,6 @@ namespace reshade::d3d12
 		com_ptr<ID3D12DescriptorHeap> rtv_heap;
 		com_ptr<ID3D12DescriptorHeap> sampler_heap;
 
-		UINT16 sampler_list = 0;
-		SIZE_T storage_offset, storage_size;
 		D3D12_GPU_VIRTUAL_ADDRESS cbv_gpu_address;
 		D3D12_CPU_DESCRIPTOR_HANDLE srv_cpu_base;
 		D3D12_GPU_DESCRIPTOR_HANDLE srv_gpu_base;
@@ -457,7 +455,7 @@ bool reshade::d3d12::runtime_d3d12::capture_screenshot(uint8_t *buffer) const
 		}
 		else
 		{
-			memcpy(buffer, mapped_data, data_pitch);
+			std::memcpy(buffer, mapped_data, data_pitch);
 
 			for (uint32_t x = 0; x < data_pitch; x += 4)
 				buffer[x + 3] = 0xFF; // Clear alpha channel
@@ -512,12 +510,10 @@ bool reshade::d3d12::runtime_d3d12::init_effect(size_t index)
 			effect.assembly[entry_point.name] = std::string(static_cast<const char *>(d3d_disassembled->GetBufferPointer()));
 	}
 
-	if (_effect_data.size() <= index)
+	if (index >= _effect_data.size())
 		_effect_data.resize(index + 1);
 
 	d3d12_effect_data &effect_data = _effect_data[index];
-	effect_data.storage_size = effect.storage_size;
-	effect_data.storage_offset = effect.storage_offset;
 
 	{   D3D12_DESCRIPTOR_RANGE srv_range = {};
 		srv_range.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
@@ -548,10 +544,10 @@ bool reshade::d3d12::runtime_d3d12::init_effect(size_t index)
 		effect_data.signature = create_root_signature(desc);
 	}
 
-	if (effect.storage_size != 0)
+	if (!effect.uniform_data_storage.empty())
 	{
 		D3D12_RESOURCE_DESC desc = { D3D12_RESOURCE_DIMENSION_BUFFER };
-		desc.Width = effect.storage_size;
+		desc.Width = effect.uniform_data_storage.size();
 		desc.Height = 1;
 		desc.DepthOrArraySize = 1;
 		desc.MipLevels = 1;
@@ -598,6 +594,8 @@ bool reshade::d3d12::runtime_d3d12::init_effect(size_t index)
 		effect_data.sampler_cpu_base = effect_data.sampler_heap->GetCPUDescriptorHandleForHeapStart();
 		effect_data.sampler_gpu_base = effect_data.sampler_heap->GetGPUDescriptorHandleForHeapStart();
 	}
+
+	UINT16 sampler_list = 0;
 
 	for (const reshadefx::sampler_info &info : effect.module.samplers)
 	{
@@ -655,9 +653,9 @@ bool reshade::d3d12::runtime_d3d12::init_effect(size_t index)
 		}
 
 		// Only initialize sampler if it has not been created before
-		if (0 == (effect_data.sampler_list & (1 << info.binding)))
+		if (0 == (sampler_list & (1 << info.binding)))
 		{
-			effect_data.sampler_list |= (1 << info.binding); // D3D12_COMMONSHADER_SAMPLER_SLOT_COUNT is 16, so a 16-bit integer is enough to hold all bindings
+			sampler_list |= (1 << info.binding); // D3D12_COMMONSHADER_SAMPLER_SLOT_COUNT is 16, so a 16-bit integer is enough to hold all bindings
 
 			D3D12_SAMPLER_DESC desc = {};
 			desc.Filter = static_cast<D3D12_FILTER>(info.filter);
@@ -835,6 +833,17 @@ void reshade::d3d12::runtime_d3d12::unload_effect(size_t index)
 	wait_for_command_queue();
 
 	runtime::unload_effect(index);
+
+	if (index < _effect_data.size())
+	{
+		d3d12_effect_data &effect_data = _effect_data[index];
+		effect_data.cb.reset();
+		effect_data.signature.reset();
+		effect_data.srv_heap.reset();
+		effect_data.rtv_heap.reset();
+		effect_data.sampler_heap.reset();
+		effect_data.depth_texture_binding = { 0 };
+	}
 }
 void reshade::d3d12::runtime_d3d12::unload_effects()
 {
@@ -1109,12 +1118,12 @@ void reshade::d3d12::runtime_d3d12::render_technique(technique &technique)
 	_cmd_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 	// Setup shader constants
-	if (effect_data.storage_size != 0)
+	if (effect_data.cb != nullptr)
 	{
 		void *mapped;
 		if (HRESULT hr = effect_data.cb->Map(0, nullptr, &mapped); SUCCEEDED(hr))
 		{
-			memcpy(mapped, _uniform_data_storage.data() + effect_data.storage_offset, effect_data.storage_size);
+			std::memcpy(mapped, _loaded_effects[technique.effect_index].uniform_data_storage.data(), _loaded_effects[technique.effect_index].uniform_data_storage.size());
 			effect_data.cb->Unmap(0, nullptr);
 		}
 		else

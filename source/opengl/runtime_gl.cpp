@@ -68,8 +68,6 @@ namespace reshade::opengl
 		GLuint query = 0;
 		bool query_in_flight = false;
 		std::vector<opengl_sampler_data> samplers;
-		ptrdiff_t uniform_storage_index = -1;
-		ptrdiff_t uniform_storage_offset = 0;
 	};
 }
 
@@ -386,21 +384,20 @@ bool reshade::opengl::runtime_gl::init_effect(size_t index)
 		}
 	}
 
-	if (effect.storage_size != 0)
+	if (index >= _effect_ubos.size())
+		_effect_ubos.resize(index + 1);
+
+	if (!effect.uniform_data_storage.empty())
 	{
-		GLuint ubo = 0;
+		GLuint &ubo = _effect_ubos[index];
 		glGenBuffers(1, &ubo);
 		glBindBuffer(GL_UNIFORM_BUFFER, ubo);
-		glBufferData(GL_UNIFORM_BUFFER, effect.storage_size, _uniform_data_storage.data() + effect.storage_offset, GL_DYNAMIC_DRAW);
-
-		_effect_ubos.emplace_back(ubo, effect.storage_size);
+		glBufferData(GL_UNIFORM_BUFFER, effect.uniform_data_storage.size(), effect.uniform_data_storage.data(), GL_DYNAMIC_DRAW);
 	}
 
 	bool success = true;
 
 	opengl_technique_data technique_init;
-	technique_init.uniform_storage_index = _effect_ubos.size() - 1;
-	technique_init.uniform_storage_offset = effect.storage_offset;
 
 	for (const reshadefx::sampler_info &info : effect.module.samplers)
 	{
@@ -680,12 +677,21 @@ bool reshade::opengl::runtime_gl::init_effect(size_t index)
 
 	return success;
 }
+void reshade::opengl::runtime_gl::unload_effect(size_t index)
+{
+	runtime::unload_effect(index);
+
+	if (index < _effect_ubos.size())
+	{
+		glDeleteBuffers(1, &_effect_ubos[index]);
+		_effect_ubos[index] = 0;
+	}
+}
 void reshade::opengl::runtime_gl::unload_effects()
 {
 	runtime::unload_effects();
 
-	for (const auto &info : _effect_ubos)
-		glDeleteBuffers(1, &info.first);
+	glDeleteBuffers(static_cast<GLsizei>(_effect_ubos.size()), _effect_ubos.data());
 	_effect_ubos.clear();
 
 	for (const auto &info : _effect_sampler_states)
@@ -899,10 +905,10 @@ void reshade::opengl::runtime_gl::render_technique(technique &technique)
 	glBindVertexArray(_vao[VAO_FX]); // This is an empty vertex array object
 
 	// Set up shader constants
-	if (technique_data.uniform_storage_index >= 0)
+	if (_effect_ubos[technique.effect_index] != 0)
 	{
-		glBindBufferBase(GL_UNIFORM_BUFFER, 0, _effect_ubos[technique_data.uniform_storage_index].first);
-		glBufferSubData(GL_UNIFORM_BUFFER, 0, _effect_ubos[technique_data.uniform_storage_index].second, _uniform_data_storage.data() + technique_data.uniform_storage_offset);
+		glBindBufferBase(GL_UNIFORM_BUFFER, 0, _effect_ubos[technique.effect_index]);
+		glBufferSubData(GL_UNIFORM_BUFFER, 0, _loaded_effects[technique.effect_index].uniform_data_storage.size(), _loaded_effects[technique.effect_index].uniform_data_storage.data());
 	}
 
 	// Set up shader resources

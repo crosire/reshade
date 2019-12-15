@@ -196,9 +196,7 @@ namespace reshade
 		unsigned int _drawcalls = 0;
 		std::vector<effect> _loaded_effects;
 		std::vector<texture> _textures;
-		std::vector<uniform> _uniforms;
 		std::vector<technique> _techniques;
-		std::vector<unsigned char> _uniform_data_storage;
 
 	private:
 		/// <summary>

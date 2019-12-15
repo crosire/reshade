@@ -404,25 +404,12 @@ void reshade::runtime::load_effect(const std::filesystem::path &path, size_t ind
 		}
 	}
 
-	{	const std::lock_guard<std::mutex> lock(_reload_mutex);
-		effect.storage_size = (effect.module.total_uniform_size + 15) & ~15; // Align to 16 bytes
-		effect.storage_offset = _uniform_data_storage.size();
-
-		// Create space for all variables in the uniform storage area
-		_uniform_data_storage.resize(effect.storage_offset + effect.storage_size);
-	}
-
-	std::vector<uniform> new_uniforms;
-	new_uniforms.reserve(effect.module.uniforms.size());
-	std::vector<texture> new_textures;
-	new_textures.reserve(effect.module.textures.size());
-	std::vector<technique> new_techniques;
-	new_techniques.reserve(effect.module.techniques.size());
+	// Create space for all variables (aligned to 16 bytes)
+	effect.uniform_data_storage.resize((effect.module.total_uniform_size + 15) & ~15);
 
 	for (uniform var : effect.module.uniforms)
 	{
 		var.effect_index = index;
-		var.storage_offset = effect.storage_offset + var.offset;
 
 		// Copy initial data into uniform storage area
 		reset_uniform_value(var);
@@ -452,8 +439,13 @@ void reshade::runtime::load_effect(const std::filesystem::path &path, size_t ind
 		else if (special == "bufready_depth")
 			var.special = special_uniform::bufready_depth;
 
-		new_uniforms.push_back(std::move(var));
+		effect.uniforms.push_back(std::move(var));
 	}
+
+	std::vector<texture> new_textures;
+	new_textures.reserve(effect.module.textures.size());
+	std::vector<technique> new_techniques;
+	new_techniques.reserve(effect.module.techniques.size());
 
 	for (texture texture : effect.module.textures)
 	{
@@ -546,7 +538,6 @@ void reshade::runtime::load_effect(const std::filesystem::path &path, size_t ind
 			LOG(WARN) << "Successfully loaded " << path << " with warnings:\n" << effect.errors;
 
 	{	const std::lock_guard<std::mutex> lock(_reload_mutex);
-		std::move(new_uniforms.begin(), new_uniforms.end(), std::back_inserter(_uniforms));
 		std::move(new_textures.begin(), new_textures.end(), std::back_inserter(_textures));
 		std::move(new_techniques.begin(), new_techniques.end(), std::back_inserter(_techniques));
 
@@ -669,8 +660,6 @@ void reshade::runtime::unload_effect(size_t index)
 	// Lock here to be safe in case another effect is still loading
 	const std::lock_guard<std::mutex> lock(_reload_mutex);
 
-	_uniforms.erase(std::remove_if(_uniforms.begin(), _uniforms.end(),
-		[index](const auto &it) { return it.effect_index == index; }), _uniforms.end());
 	_textures.erase(std::remove_if(_textures.begin(), _textures.end(),
 		[index](const auto &it) { return it.effect_index == index && !it.shared; }), _textures.end());
 	_techniques.erase(std::remove_if(_techniques.begin(), _techniques.end(),
@@ -685,6 +674,8 @@ void reshade::runtime::unload_effect(size_t index)
 	effect.included_files.clear();
 	effect.definitions.clear();
 	effect.assembly.clear();
+	effect.uniforms.clear();
+	effect.uniform_data_storage.clear();
 }
 void reshade::runtime::unload_effects()
 {
@@ -700,12 +691,10 @@ void reshade::runtime::unload_effects()
 		thread.join();
 	_worker_threads.clear();
 
-	_uniforms.clear();
 	_textures.clear();
 	_techniques.clear();
 
 	_loaded_effects.clear();
-	_uniform_data_storage.clear();
 
 	_textures_loaded = false;
 }
@@ -820,151 +809,157 @@ void reshade::runtime::update_and_render_effects()
 	}
 
 	// Update special uniform variables
-	for (uniform &variable : _uniforms)
+	for (effect &effect : _loaded_effects)
 	{
-		if (!_ignore_shortcuts && variable.toggle_key_data[0] != 0 && _input->is_key_pressed(variable.toggle_key_data))
-		{
-			assert(variable.supports_toggle_key());
+		if (!effect.rendering)
+			continue;
 
-			// Change to next value if the associated shortcut key was pressed
-			switch (variable.type.base)
+		for (uniform &variable : effect.uniforms)
+		{
+			if (!_ignore_shortcuts && variable.toggle_key_data[0] != 0 && _input->is_key_pressed(variable.toggle_key_data))
 			{
-				case reshadefx::type::t_bool:
+				assert(variable.supports_toggle_key());
+
+				// Change to next value if the associated shortcut key was pressed
+				switch (variable.type.base)
 				{
-					bool data;
-					get_uniform_value(variable, &data, 1);
-					set_uniform_value(variable, !data);
+					case reshadefx::type::t_bool:
+					{
+						bool data;
+						get_uniform_value(variable, &data, 1);
+						set_uniform_value(variable, !data);
+						break;
+					}
+					case reshadefx::type::t_int:
+					case reshadefx::type::t_uint:
+					{
+						int data[4];
+						get_uniform_value(variable, data, 4);
+						const std::string_view ui_items = variable.annotation_as_string("ui_items");
+						int num_items = 0;
+						for (size_t offset = 0, next; (next = ui_items.find('\0', offset)) != std::string::npos; offset = next + 1)
+							num_items++;
+						data[0] = (data[0] + 1 >= num_items) ? 0 : data[0] + 1;
+						set_uniform_value(variable, data, 4);
+						break;
+					}
+				}
+				save_current_preset();
+			}
+
+			switch (variable.special)
+			{
+				case special_uniform::frame_time:
+				{
+					set_uniform_value(variable, _last_frame_duration.count() * 1e-6f, 0.0f, 0.0f, 0.0f);
 					break;
 				}
-				case reshadefx::type::t_int:
-				case reshadefx::type::t_uint:
+				case special_uniform::frame_count:
 				{
-					int data[4];
-					get_uniform_value(variable, data, 4);
-					const std::string_view ui_items = variable.annotation_as_string("ui_items");
-					int num_items = 0;
-					for (size_t offset = 0, next; (next = ui_items.find('\0', offset)) != std::string::npos; offset = next + 1)
-						num_items++;
-					data[0] = (data[0] + 1 >= num_items) ? 0 : data[0] + 1;
-					set_uniform_value(variable, data, 4);
+					if (variable.type.is_boolean())
+						set_uniform_value(variable, (_framecount % 2) == 0);
+					else
+						set_uniform_value(variable, static_cast<unsigned int>(_framecount % UINT_MAX));
 					break;
 				}
-			}
-			save_current_preset();
-		}
-
-		switch (variable.special)
-		{
-			case special_uniform::frame_time:
-			{
-				set_uniform_value(variable, _last_frame_duration.count() * 1e-6f, 0.0f, 0.0f, 0.0f);
-				break;
-			}
-			case special_uniform::frame_count:
-			{
-				if (variable.type.is_boolean())
-					set_uniform_value(variable, (_framecount % 2) == 0);
-				else
-					set_uniform_value(variable, static_cast<unsigned int>(_framecount % UINT_MAX));
-				break;
-			}
-			case special_uniform::random:
-			{
-				const int min = variable.annotation_as_int("min");
-				const int max = variable.annotation_as_int("max");
-				set_uniform_value(variable, min + (std::rand() % (max - min + 1)));
-				break;
-			}
-			case special_uniform::ping_pong:
-			{
-				const float min = variable.annotation_as_float("min");
-				const float max = variable.annotation_as_float("max");
-				const float step_min = variable.annotation_as_float("step", 0);
-				const float step_max = variable.annotation_as_float("step", 1);
-				float increment = step_max == 0 ? step_min : (step_min + std::fmodf(static_cast<float>(std::rand()), step_max - step_min + 1));
-				const float smoothing = variable.annotation_as_float("smoothing");
-
-				float value[2] = { 0, 0 };
-				get_uniform_value(variable, value, 2);
-				if (value[1] >= 0)
+				case special_uniform::random:
 				{
-					increment = std::max(increment - std::max(0.0f, smoothing - (max - value[0])), 0.05f);
-					increment *= _last_frame_duration.count() * 1e-9f;
-
-					if ((value[0] += increment) >= max)
-						value[0] = max, value[1] = -1;
+					const int min = variable.annotation_as_int("min");
+					const int max = variable.annotation_as_int("max");
+					set_uniform_value(variable, min + (std::rand() % (max - min + 1)));
+					break;
 				}
-				else
+				case special_uniform::ping_pong:
 				{
-					increment = std::max(increment - std::max(0.0f, smoothing - (value[0] - min)), 0.05f);
-					increment *= _last_frame_duration.count() * 1e-9f;
+					const float min = variable.annotation_as_float("min");
+					const float max = variable.annotation_as_float("max");
+					const float step_min = variable.annotation_as_float("step", 0);
+					const float step_max = variable.annotation_as_float("step", 1);
+					float increment = step_max == 0 ? step_min : (step_min + std::fmodf(static_cast<float>(std::rand()), step_max - step_min + 1));
+					const float smoothing = variable.annotation_as_float("smoothing");
 
-					if ((value[0] -= increment) <= min)
-						value[0] = min, value[1] = +1;
-				}
-				set_uniform_value(variable, value, 2);
-				break;
-			}
-			case special_uniform::date:
-			{
-				set_uniform_value(variable, _date, 4);
-				break;
-			}
-			case special_uniform::timer:
-			{
-				set_uniform_value(variable, static_cast<unsigned int>(
-					std::chrono::duration_cast<std::chrono::milliseconds>(_last_present_time - _start_time).count()));
-				break;
-			}
-			case special_uniform::key:
-			{
-				if (const int keycode = variable.annotation_as_int("keycode");
-					keycode > 7 && keycode < 256)
-				{
-					if (const std::string_view mode = variable.annotation_as_string("mode");
-						mode == "toggle" || variable.annotation_as_int("toggle"))
+					float value[2] = { 0, 0 };
+					get_uniform_value(variable, value, 2);
+					if (value[1] >= 0)
 					{
-						bool current_value = false;
-						get_uniform_value(variable, &current_value, 1);
-						if (_input->is_key_pressed(keycode))
-							set_uniform_value(variable, !current_value);
+						increment = std::max(increment - std::max(0.0f, smoothing - (max - value[0])), 0.05f);
+						increment *= _last_frame_duration.count() * 1e-9f;
+
+						if ((value[0] += increment) >= max)
+							value[0] = max, value[1] = -1;
 					}
-					else if (mode == "press")
-						set_uniform_value(variable, _input->is_key_pressed(keycode));
 					else
-						set_uniform_value(variable, _input->is_key_down(keycode));
-				}
-				break;
-				}
-			case special_uniform::mouse_point:
-				set_uniform_value(variable, _input->mouse_position_x(), _input->mouse_position_y());
-				break;
-			case special_uniform::mouse_delta:
-				set_uniform_value(variable, _input->mouse_movement_delta_x(), _input->mouse_movement_delta_y());
-				break;
-			case special_uniform::mouse_button:
-			{
-				if (const int keycode = variable.annotation_as_int("keycode");
-					keycode >= 0 && keycode < 5)
-				{
-					if (const std::string_view mode = variable.annotation_as_string("mode");
-						mode == "toggle" || variable.annotation_as_int("toggle"))
 					{
-						bool current_value = false;
-						get_uniform_value(variable, &current_value, 1);
-						if (_input->is_mouse_button_pressed(keycode))
-							set_uniform_value(variable, !current_value);
+						increment = std::max(increment - std::max(0.0f, smoothing - (value[0] - min)), 0.05f);
+						increment *= _last_frame_duration.count() * 1e-9f;
+
+						if ((value[0] -= increment) <= min)
+							value[0] = min, value[1] = +1;
 					}
-					else if (mode == "press")
-						set_uniform_value(variable, _input->is_mouse_button_pressed(keycode));
-					else
-						set_uniform_value(variable, _input->is_mouse_button_down(keycode));
+					set_uniform_value(variable, value, 2);
+					break;
 				}
-				break;
+				case special_uniform::date:
+				{
+					set_uniform_value(variable, _date, 4);
+					break;
+				}
+				case special_uniform::timer:
+				{
+					set_uniform_value(variable, static_cast<unsigned int>(
+						std::chrono::duration_cast<std::chrono::milliseconds>(_last_present_time - _start_time).count()));
+					break;
+				}
+				case special_uniform::key:
+				{
+					if (const int keycode = variable.annotation_as_int("keycode");
+						keycode > 7 && keycode < 256)
+					{
+						if (const std::string_view mode = variable.annotation_as_string("mode");
+							mode == "toggle" || variable.annotation_as_int("toggle"))
+						{
+							bool current_value = false;
+							get_uniform_value(variable, &current_value, 1);
+							if (_input->is_key_pressed(keycode))
+								set_uniform_value(variable, !current_value);
+						}
+						else if (mode == "press")
+							set_uniform_value(variable, _input->is_key_pressed(keycode));
+						else
+							set_uniform_value(variable, _input->is_key_down(keycode));
+					}
+					break;
+					}
+				case special_uniform::mouse_point:
+					set_uniform_value(variable, _input->mouse_position_x(), _input->mouse_position_y());
+					break;
+				case special_uniform::mouse_delta:
+					set_uniform_value(variable, _input->mouse_movement_delta_x(), _input->mouse_movement_delta_y());
+					break;
+				case special_uniform::mouse_button:
+				{
+					if (const int keycode = variable.annotation_as_int("keycode");
+						keycode >= 0 && keycode < 5)
+					{
+						if (const std::string_view mode = variable.annotation_as_string("mode");
+							mode == "toggle" || variable.annotation_as_int("toggle"))
+						{
+							bool current_value = false;
+							get_uniform_value(variable, &current_value, 1);
+							if (_input->is_mouse_button_pressed(keycode))
+								set_uniform_value(variable, !current_value);
+						}
+						else if (mode == "press")
+							set_uniform_value(variable, _input->is_mouse_button_pressed(keycode));
+						else
+							set_uniform_value(variable, _input->is_mouse_button_down(keycode));
+					}
+					break;
+				}
+				case special_uniform::bufready_depth:
+					set_uniform_value(variable, _has_depth_texture);
+					break;
 			}
-			case special_uniform::bufready_depth:
-				set_uniform_value(variable, _has_depth_texture);
-				break;
 		}
 	}
 
@@ -1160,51 +1155,54 @@ void reshade::runtime::load_current_preset()
 	if (_is_in_between_presets_transition && transition_ms_left <= 0)
 		_is_in_between_presets_transition = false;
 
-	for (uniform &variable : _uniforms)
+	for (effect &effect : _loaded_effects)
 	{
-		const std::string section = _loaded_effects[variable.effect_index].source_file.filename().u8string();
-
-		if (variable.supports_toggle_key())
+		for (uniform &variable : effect.uniforms)
 		{
-			// Load shortcut key, but first reset it, since it may not exist in the preset file
-			memset(variable.toggle_key_data, 0, sizeof(variable.toggle_key_data));
-			preset.get(section, "Key" + variable.name, variable.toggle_key_data);
-		}
+			const std::string section = _loaded_effects[variable.effect_index].source_file.filename().u8string();
 
-		if (!_is_in_between_presets_transition)
-			// Reset values to defaults before loading from a new preset
-			reset_uniform_value(variable);
-
-		reshadefx::constant values, values_old;
-
-		switch (variable.type.base)
-		{
-		case reshadefx::type::t_int:
-			get_uniform_value(variable, values.as_int, 16);
-			preset.get(section, variable.name, values.as_int);
-			set_uniform_value(variable, values.as_int, 16);
-			break;
-		case reshadefx::type::t_bool:
-		case reshadefx::type::t_uint:
-			get_uniform_value(variable, values.as_uint, 16);
-			preset.get(section, variable.name, values.as_uint);
-			set_uniform_value(variable, values.as_uint, 16);
-			break;
-		case reshadefx::type::t_float:
-			get_uniform_value(variable, values.as_float, 16);
-			values_old = values;
-			preset.get(section, variable.name, values.as_float);
-			if (_is_in_between_presets_transition)
+			if (variable.supports_toggle_key())
 			{
-				// Perform smooth transition on floating point values
-				for (unsigned int i = 0; i < 16; i++)
-				{
-					const auto transition_ratio = (values.as_float[i] - values_old.as_float[i]) / transition_ms_left_from_last_frame;
-					values.as_float[i] = values.as_float[i] - transition_ratio * transition_ms_left;
-				}
+				// Load shortcut key, but first reset it, since it may not exist in the preset file
+				memset(variable.toggle_key_data, 0, sizeof(variable.toggle_key_data));
+				preset.get(section, "Key" + variable.name, variable.toggle_key_data);
 			}
-			set_uniform_value(variable, values.as_float, 16);
-			break;
+
+			if (!_is_in_between_presets_transition)
+				// Reset values to defaults before loading from a new preset
+				reset_uniform_value(variable);
+
+			reshadefx::constant values, values_old;
+
+			switch (variable.type.base)
+			{
+			case reshadefx::type::t_int:
+				get_uniform_value(variable, values.as_int, 16);
+				preset.get(section, variable.name, values.as_int);
+				set_uniform_value(variable, values.as_int, 16);
+				break;
+			case reshadefx::type::t_bool:
+			case reshadefx::type::t_uint:
+				get_uniform_value(variable, values.as_uint, 16);
+				preset.get(section, variable.name, values.as_uint);
+				set_uniform_value(variable, values.as_uint, 16);
+				break;
+			case reshadefx::type::t_float:
+				get_uniform_value(variable, values.as_float, 16);
+				values_old = values;
+				preset.get(section, variable.name, values.as_float);
+				if (_is_in_between_presets_transition)
+				{
+					// Perform smooth transition on floating point values
+					for (unsigned int i = 0; i < 16; i++)
+					{
+						const auto transition_ratio = (values.as_float[i] - values_old.as_float[i]) / transition_ms_left_from_last_frame;
+						values.as_float[i] = values.as_float[i] - transition_ratio * transition_ms_left;
+					}
+				}
+				set_uniform_value(variable, values.as_float, 16);
+				break;
+			}
 		}
 	}
 
@@ -1255,41 +1253,44 @@ void reshade::runtime::save_current_preset() const
 	preset.set({}, "PreprocessorDefinitions", _preset_preprocessor_definitions);
 
 	// TODO: Do we want to save spec constants here too? The preset will be rather empty in performance mode otherwise.
-	for (const uniform &variable : _uniforms)
+	for (const effect &effect : _loaded_effects)
 	{
-		if (variable.special != special_uniform::none
-			|| std::find(effect_list.begin(), effect_list.end(), variable.effect_index) == effect_list.end())
-			continue;
-
-		assert(variable.type.components() <= 16);
-
-		const std::string section = _loaded_effects[variable.effect_index].source_file.filename().u8string();
-		reshadefx::constant values;
-
-		if (variable.supports_toggle_key())
+		for (const uniform &variable : effect.uniforms)
 		{
-			// save the shortcut key into the preset files
-			if (variable.toggle_key_data[0] != 0)
-				preset.set(section, "Key" + variable.name, variable.toggle_key_data);
-			else if (int value = 0; preset.get(section, "Key" + variable.name, value), value != 0)
-				preset.set(section, "Key" + variable.name, 0); // Clear toggle key data
-		}
+			if (variable.special != special_uniform::none
+				|| std::find(effect_list.begin(), effect_list.end(), variable.effect_index) == effect_list.end())
+				continue;
 
-		switch (variable.type.base)
-		{
-		case reshadefx::type::t_int:
-			get_uniform_value(variable, values.as_int, 16);
-			preset.set(section, variable.name, values.as_int, variable.type.components());
-			break;
-		case reshadefx::type::t_bool:
-		case reshadefx::type::t_uint:
-			get_uniform_value(variable, values.as_uint, 16);
-			preset.set(section, variable.name, values.as_uint, variable.type.components());
-			break;
-		case reshadefx::type::t_float:
-			get_uniform_value(variable, values.as_float, 16);
-			preset.set(section, variable.name, values.as_float, variable.type.components());
-			break;
+			assert(variable.type.components() <= 16);
+
+			const std::string section = _loaded_effects[variable.effect_index].source_file.filename().u8string();
+			reshadefx::constant values;
+
+			if (variable.supports_toggle_key())
+			{
+				// save the shortcut key into the preset files
+				if (variable.toggle_key_data[0] != 0)
+					preset.set(section, "Key" + variable.name, variable.toggle_key_data);
+				else if (int value = 0; preset.get(section, "Key" + variable.name, value), value != 0)
+					preset.set(section, "Key" + variable.name, 0); // Clear toggle key data
+			}
+
+			switch (variable.type.base)
+			{
+			case reshadefx::type::t_int:
+				get_uniform_value(variable, values.as_int, 16);
+				preset.set(section, variable.name, values.as_int, variable.type.components());
+				break;
+			case reshadefx::type::t_bool:
+			case reshadefx::type::t_uint:
+				get_uniform_value(variable, values.as_uint, 16);
+				preset.set(section, variable.name, values.as_uint, variable.type.components());
+				break;
+			case reshadefx::type::t_float:
+				get_uniform_value(variable, values.as_float, 16);
+				preset.set(section, variable.name, values.as_float, variable.type.components());
+				break;
+			}
 		}
 	}
 }
@@ -1410,9 +1411,10 @@ void reshade::runtime::get_uniform_value(const uniform &variable, uint8_t *data,
 
 	size = std::min(size, size_t(variable.size));
 
-	assert(variable.storage_offset + size <= _uniform_data_storage.size());
+	auto &data_storage = _loaded_effects[variable.effect_index].uniform_data_storage;
+	assert(variable.offset + size <= data_storage.size());
 
-	std::memcpy(data, &_uniform_data_storage[variable.storage_offset], size);
+	std::memcpy(data, &data_storage[variable.offset], size);
 }
 void reshade::runtime::get_uniform_value(const uniform &variable, bool *values, size_t count) const
 {
@@ -1475,9 +1477,10 @@ void reshade::runtime::set_uniform_value(uniform &variable, const uint8_t *data,
 
 	size = std::min(size, size_t(variable.size));
 
-	assert(variable.storage_offset + size <= _uniform_data_storage.size());
+	auto &data_storage = _loaded_effects[variable.effect_index].uniform_data_storage;
+	assert(variable.offset + size <= data_storage.size());
 
-	std::memcpy(&_uniform_data_storage[variable.storage_offset], data, size);
+	std::memcpy(&data_storage[variable.offset], data, size);
 }
 void reshade::runtime::set_uniform_value(uniform &variable, const bool *values, size_t count)
 {
@@ -1546,9 +1549,11 @@ void reshade::runtime::set_uniform_value(uniform &variable, const float *values,
 
 void reshade::runtime::reset_uniform_value(uniform &variable)
 {
+	auto &data_storage = _loaded_effects[variable.effect_index].uniform_data_storage;
+
 	if (!variable.has_initializer_value)
 	{
-		memset(_uniform_data_storage.data() + variable.storage_offset, 0, variable.size);
+		std::memset(data_storage.data() + variable.offset, 0, variable.size);
 		return;
 	}
 
@@ -1560,20 +1565,20 @@ void reshade::runtime::reset_uniform_value(uniform &variable)
 			switch (variable.type.base)
 			{
 			case reshadefx::type::t_int:
-				reinterpret_cast<float *>(_uniform_data_storage.data() + variable.storage_offset)[i] = static_cast<float>(variable.initializer_value.as_int[i]);
+				reinterpret_cast<float *>(data_storage.data() + variable.offset)[i] = static_cast<float>(variable.initializer_value.as_int[i]);
 				break;
 			case reshadefx::type::t_bool:
 			case reshadefx::type::t_uint:
-				reinterpret_cast<float *>(_uniform_data_storage.data() + variable.storage_offset)[i] = static_cast<float>(variable.initializer_value.as_uint[i]);
+				reinterpret_cast<float *>(data_storage.data() + variable.offset)[i] = static_cast<float>(variable.initializer_value.as_uint[i]);
 				break;
 			case reshadefx::type::t_float:
-				reinterpret_cast<float *>(_uniform_data_storage.data() + variable.storage_offset)[i] = variable.initializer_value.as_float[i];
+				reinterpret_cast<float *>(data_storage.data() + variable.offset)[i] = variable.initializer_value.as_float[i];
 				break;
 			}
 		}
 	}
 	else
 	{
-		memcpy(_uniform_data_storage.data() + variable.storage_offset, variable.initializer_value.as_uint, variable.size);
+		std::memcpy(data_storage.data() + variable.offset, variable.initializer_value.as_uint, variable.size);
 	}
 }

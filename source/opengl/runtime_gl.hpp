@@ -31,6 +31,7 @@ namespace reshade::opengl
 
 	private:
 		bool init_effect(size_t index) override;
+		void unload_effect(size_t index) override;
 		void unload_effects() override;
 
 		bool init_texture(texture &texture) override;
@@ -84,9 +85,9 @@ namespace reshade::opengl
 		GLuint _vao[NUM_VAO] = {};
 		GLuint _fbo[NUM_FBO] = {};
 		GLuint _rbo[NUM_RBO] = {};
+		std::vector<GLuint> _effect_ubos;
 		std::vector<GLuint> _reserved_texture_names;
 		std::unordered_map<size_t, GLuint> _effect_sampler_states;
-		std::vector<std::pair<GLuint, GLsizeiptr>> _effect_ubos;
 
 #if RESHADE_GUI
 		void init_imgui_resources();
