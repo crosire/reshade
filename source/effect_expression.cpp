@@ -221,8 +221,8 @@ void reshadefx::expression::add_constant_index_access(unsigned int index)
 		}
 		else if (prev_type.is_matrix()) // Indexing into a matrix returns a row of it as a vector
 		{
-			for (unsigned int i = 0; i < 4; ++i)
-				constant.as_uint[i] = constant.as_uint[index * 4 + i];
+			for (unsigned int i = 0; i < prev_type.cols; ++i)
+				constant.as_uint[i] = constant.as_uint[index * prev_type.cols + i];
 		}
 		else // Indexing into a vector returns the element as a scalar
 		{
