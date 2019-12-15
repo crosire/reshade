@@ -124,6 +124,14 @@ reshade::opengl::runtime_gl::runtime_gl()
 		config.set("OPENGL", "UseAspectRatioHeuristics", _use_aspect_ratio_heuristics);
 #endif
 	});
+
+#ifdef _DEBUG
+	glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS_ARB);
+	glDebugMessageCallback([](unsigned int /*source*/, unsigned int type, unsigned int /*id*/, unsigned int /*severity*/, int /*length*/, const char *message, const void */*userParam*/) {
+		if (type == GL_DEBUG_TYPE_ERROR || type == GL_DEBUG_TYPE_UNDEFINED_BEHAVIOR)
+			OutputDebugStringA(message);
+		}, nullptr);
+#endif
 }
 
 bool reshade::opengl::runtime_gl::on_init(HWND hwnd, unsigned int width, unsigned int height)
