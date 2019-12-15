@@ -140,7 +140,7 @@ reshade::opengl::buffer_detection::depthstencil_info reshade::opengl::buffer_det
 		if (override != 0)
 		{
 			best_match = override;
-			best_snapshot = _depth_source_table.at(0);
+			best_snapshot = _depth_source_table[override];
 		}
 	}
 	else
