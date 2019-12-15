@@ -610,17 +610,69 @@ private:
 		// 3. If the member is a three-component vector with components consuming N basic machine units, the base alignment is 4N.
 		info.size = 4 * (info.type.rows == 3 ? 4 : info.type.rows) * info.type.cols * std::max(1, info.type.array_length);
 
-		if (_uniforms_to_spec_constants && info.type.is_scalar() && info.has_initializer_value)
+		if (_uniforms_to_spec_constants && info.has_initializer_value)
 		{
 			const id res = emit_constant(info.type, info.initializer_value, true);
 
 			add_name(res, info.name.c_str());
 
-			const uint32_t spec_id = uint32_t(_module.spec_constants.size());
-			add_decoration(res, spv::DecorationSpecId, { spec_id });
+			// External specialization constants need to be scalars
+			if (info.type.is_scalar())
+			{
+				assert(info.size == 4);
 
-			_spec_constants.insert(res);
-			_module.spec_constants.push_back(info);
+				const uint32_t spec_id = uint32_t(_module.spec_constants.size());
+				add_decoration(res, spv::DecorationSpecId, { spec_id });
+
+				_module.spec_constants.push_back(info);
+			}
+			else
+			{
+				uniform_info scalar_info = info;
+				scalar_info.type.rows = 1;
+				scalar_info.type.cols = 1;
+				scalar_info.size = 4;
+				scalar_info.initializer_value = {};
+
+				// Add each individual scalar component of the constant as a separate external specialization constant
+				const spirv_instruction &composite_inst = _types_and_constants.instructions.back();
+				assert(composite_inst.result == res && composite_inst.op == spv::OpSpecConstantComposite);
+
+				for (size_t row = 0; row < composite_inst.operands.size(); ++row)
+				{
+					const spirv_instruction &row_inst = *std::find_if(_types_and_constants.instructions.rbegin(), _types_and_constants.instructions.rend(),
+						[elem = composite_inst.operands[row]](const auto &it) { return it.result == elem; });
+
+					if (row_inst.op == spv::OpSpecConstantComposite)
+					{
+						for (size_t col = 0; col < row_inst.operands.size(); ++col)
+						{
+							const spirv_instruction &col_inst = *std::find_if(_types_and_constants.instructions.rbegin(), _types_and_constants.instructions.rend(),
+								[elem = row_inst.operands[col]](const auto &it) { return it.result == elem; });
+
+							const uint32_t spec_id = uint32_t(_module.spec_constants.size());
+							add_decoration(col_inst.result, spv::DecorationSpecId, { spec_id });
+
+							scalar_info.name = info.name + '[' + std::to_string(row) + "][" + std::to_string(col) + ']';
+							scalar_info.initializer_value.as_uint[0] = info.initializer_value.as_uint[row * info.type.cols + col];
+
+							_module.spec_constants.push_back(scalar_info);
+						}
+					}
+					else
+					{
+						assert(row_inst.op == spv::OpSpecConstant || row_inst.op == spv::OpSpecConstantTrue || row_inst.op == spv::OpSpecConstantFalse);
+
+						const uint32_t spec_id = uint32_t(_module.spec_constants.size());
+						add_decoration(row_inst.result, spv::DecorationSpecId, { spec_id });
+
+						scalar_info.name = info.name + '[' + std::to_string(row) + ']';
+						scalar_info.initializer_value.as_uint[0] = info.initializer_value.as_uint[row];
+
+						_module.spec_constants.push_back(scalar_info);
+					}
+				}
+			}
 
 			return res;
 		}
@@ -665,9 +717,7 @@ private:
 	id   define_variable(const location &loc, const type &type, std::string name, bool global, id initializer_value) override
 	{
 		const id res = make_id();
-
 		define_variable(res, loc, type, name.c_str(), global ? spv::StorageClassPrivate : spv::StorageClassFunction, initializer_value);
-
 		return res;
 	}
 	void define_variable(id id, const location &loc, const type &type, const char *name, spv::StorageClass storage, spv::Id initializer_value = 0)
@@ -1166,16 +1216,12 @@ private:
 				assert(false);
 				break;
 			case expression::operation::op_constant_index:
-				if (op.from.is_vector() || op.from.is_matrix())
-				{
-					assert(result != 0);
-					result = add_instruction(spv::OpCompositeExtract, convert_type(op.to))
-						.add(result)
-						.add(op.index) // Literal Index
-						.result;
-					break;
-				}
-				assert(false);
+				assert(result != 0);
+				assert(op.from.is_vector() || op.from.is_matrix());
+				result = add_instruction(spv::OpCompositeExtract, convert_type(op.to))
+					.add(result)
+					.add(op.index) // Literal Index
+					.result;
 				break;
 			case expression::operation::op_swizzle:
 				if (op.to.is_vector())
@@ -1315,57 +1361,59 @@ private:
 
 			switch (op.op)
 			{
-			case expression::operation::op_constant_index:
-			case expression::operation::op_dynamic_index:
-				assert(false);
-				break;
-			case expression::operation::op_swizzle: {
-				spv::Id result = add_instruction(spv::OpLoad, convert_type(base_type))
-					.add(target) // Pointer
-					.result; // Result ID
-
-				if (base_type.is_vector())
+				case expression::operation::op_dynamic_index:
+				case expression::operation::op_constant_index:
+					assert(false);
+					break;
+				case expression::operation::op_swizzle:
 				{
-					spirv_instruction &node = add_instruction(spv::OpVectorShuffle, convert_type(base_type))
-						.add(result) // Vector 1
-						.add(value); // Vector 2
+					spv::Id result = add_instruction(spv::OpLoad, convert_type(base_type))
+						.add(target) // Pointer
+						.result; // Result ID
 
-					unsigned int shuffle[4] = { 0, 1, 2, 3 };
-					for (unsigned int c = 0; c < base_type.rows; ++c)
-						if (op.swizzle[c] >= 0)
-							shuffle[op.swizzle[c]] = base_type.rows + c;
-					for (unsigned int c = 0; c < base_type.rows; ++c)
-						node.add(shuffle[c]);
-
-					value = node.result;
-				}
-				else if (op.to.is_scalar())
-				{
-					assert(op.swizzle[1] < 0);
-
-					spirv_instruction &node = add_instruction(spv::OpCompositeInsert, convert_type(base_type))
-						.add(value) // Object
-						.add(result); // Composite
-
-					if (op.from.is_matrix() && op.from.rows > 1)
+					if (base_type.is_vector())
 					{
-						const unsigned int row = op.swizzle[0] / 4;
-						const unsigned int column = op.swizzle[0] - row * 4;
-						node.add(row);
-						node.add(column);
+						spirv_instruction &node = add_instruction(spv::OpVectorShuffle, convert_type(base_type))
+							.add(result) // Vector 1
+							.add(value); // Vector 2
+
+						unsigned int shuffle[4] = { 0, 1, 2, 3 };
+						for (unsigned int c = 0; c < base_type.rows; ++c)
+							if (op.swizzle[c] >= 0)
+								shuffle[op.swizzle[c]] = base_type.rows + c;
+						for (unsigned int c = 0; c < base_type.rows; ++c)
+							node.add(shuffle[c]);
+
+						value = node.result;
+					}
+					else if (op.to.is_scalar())
+					{
+						assert(op.swizzle[1] < 0);
+
+						spirv_instruction &node = add_instruction(spv::OpCompositeInsert, convert_type(base_type))
+							.add(value) // Object
+							.add(result); // Composite
+
+						if (op.from.is_matrix() && op.from.rows > 1)
+						{
+							const unsigned int row = op.swizzle[0] / 4;
+							const unsigned int column = op.swizzle[0] - row * 4;
+							node.add(row);
+							node.add(column);
+						}
+						else
+						{
+							node.add(op.swizzle[0]);
+						}
+
+						value = node.result; // Result ID
 					}
 					else
 					{
-						node.add(op.swizzle[0]);
+						assert(false);
 					}
-
-					value = node.result; // Result ID
+					break;
 				}
-				else
-				{
-					assert(false);
-				}
-				break; }
 			}
 		}
 
@@ -1376,18 +1424,18 @@ private:
 
 	id   emit_constant(uint32_t value)
 	{
-		constant data;
-		data.as_uint[0] = value;
-		return emit_constant({ type::t_uint, 1, 1 }, data, false);
+		return emit_constant({ type::t_uint, 1, 1 }, value);
 	}
 	id   emit_constant(const type &type, uint32_t value)
 	{
+		// Create a constant value of the specified type
 		constant data;
 		for (unsigned int i = 0; i < type.components(); ++i)
 			if (type.is_integral())
 				data.as_uint[i] = value;
 			else
 				data.as_float[i] = static_cast<float>(value);
+
 		return emit_constant(type, data, false);
 	}
 	id   emit_constant(const type &type, const constant &data) override
@@ -1396,7 +1444,7 @@ private:
 	}
 	id   emit_constant(const type &type, const constant &data, bool spec_constant)
 	{
-		if (!spec_constant)
+		if (!spec_constant) // Specialization constants cannot reuse other constants
 			if (auto it = std::find_if(_constant_lookup.begin(), _constant_lookup.end(), [&type, &data](auto &x) {
 				if (!(std::get<0>(x) == type && std::memcmp(&std::get<1>(x).as_uint[0], &data.as_uint[0], sizeof(uint32_t) * 16) == 0 && std::get<1>(x).array_data.size() == data.array_data.size()))
 					return false;
@@ -1411,48 +1459,49 @@ private:
 
 		if (type.is_array())
 		{
-			assert(type.array_length > 0);
-
-			std::vector<spv::Id> elements;
-			elements.reserve(type.array_length);
+			assert(type.array_length > 0); // Unsized arrays cannot be constants
 
 			auto elem_type = type;
 			elem_type.array_length = 0;
 
+			std::vector<spv::Id> elements;
+			elements.reserve(type.array_length);
+
+			// Fill up elements with constant array data
 			for (const constant &elem : data.array_data)
-				elements.push_back(emit_constant(elem_type, elem));
+				elements.push_back(emit_constant(elem_type, elem, spec_constant));
+			// Fill up any remaining elements with a default value (when the array data did not specify them)
 			for (size_t i = elements.size(); i < static_cast<size_t>(type.array_length); ++i)
-				elements.push_back(emit_constant(elem_type, {}));
+				elements.push_back(emit_constant(elem_type, {}, spec_constant));
 
-			spirv_instruction &node = add_instruction(
-				spec_constant ? spv::OpSpecConstantComposite : spv::OpConstantComposite,
-				convert_type(type), _types_and_constants);
-
-			for (spv::Id elem : elements)
-				node.add(elem);
-
-			result = node.result;
+			result = add_instruction(spec_constant ? spv::OpSpecConstantComposite : spv::OpConstantComposite, convert_type(type), _types_and_constants)
+				.add(elements.begin(), elements.end())
+				.result;
 		}
 		else if (type.is_struct())
 		{
-			assert(!spec_constant);
+			assert(!spec_constant); // Structures cannot be specialization constants
 
-			result = add_instruction(spv::OpConstantNull, convert_type(type), _types_and_constants).result;
+			result = add_instruction(spv::OpConstantNull, convert_type(type), _types_and_constants)
+				.result;
 		}
-		else if (type.is_matrix())
+		else if (type.is_vector() || type.is_matrix())
 		{
+			auto elem_type = type;
+			elem_type.rows = type.cols;
+			elem_type.cols = 1;
+
 			spv::Id rows[4] = {};
 
+			// Construct matrix constant out of row vector constants
+			// Construct vector constant out of scalar constants for each element
 			for (unsigned int i = 0; i < type.rows; ++i)
 			{
-				auto row_type = type;
-				row_type.rows = type.cols;
-				row_type.cols = 1;
 				constant row_data = {};
 				for (unsigned int k = 0; k < type.cols; ++k)
 					row_data.as_uint[k] = data.as_uint[i * type.cols + k];
 
-				rows[i] = emit_constant(row_type, row_data);
+				rows[i] = emit_constant(elem_type, row_data, spec_constant);
 			}
 
 			if (type.rows == 1)
@@ -1461,9 +1510,7 @@ private:
 			}
 			else
 			{
-				spirv_instruction &node = add_instruction(
-					spec_constant ? spv::OpSpecConstantComposite : spv::OpConstantComposite,
-					convert_type(type), _types_and_constants);
+				spirv_instruction &node = add_instruction(spec_constant ? spv::OpSpecConstantComposite : spv::OpConstantComposite, convert_type(type), _types_and_constants);
 
 				for (unsigned int i = 0; i < type.rows; ++i)
 					node.add(rows[i]);
@@ -1471,45 +1518,25 @@ private:
 				result = node.result;
 			}
 		}
-		else if (type.is_vector())
-		{
-			spv::Id rows[4] = {};
-
-			for (unsigned int i = 0; i < type.rows; ++i)
-			{
-				auto scalar_type = type;
-				scalar_type.rows = 1;
-				constant scalar_data = {};
-				scalar_data.as_uint[0] = data.as_uint[i];
-
-				rows[i] = emit_constant(scalar_type, scalar_data);
-			}
-
-			spirv_instruction &node = add_instruction(
-				spec_constant ? spv::OpSpecConstantComposite : spv::OpConstantComposite,
-				convert_type(type), _types_and_constants);
-
-			for (unsigned int i = 0; i < type.rows; ++i)
-				node.add(rows[i]);
-
-			result = node.result;
-		}
 		else if (type.is_boolean())
 		{
 			result = add_instruction(data.as_uint[0] ?
 				(spec_constant ? spv::OpSpecConstantTrue : spv::OpConstantTrue) :
-				(spec_constant ? spv::OpSpecConstantFalse : spv::OpConstantFalse),
-				convert_type(type), _types_and_constants).result;
+				(spec_constant ? spv::OpSpecConstantFalse : spv::OpConstantFalse), convert_type(type), _types_and_constants)
+				.result;
 		}
 		else
 		{
 			assert(type.is_scalar());
-			result = add_instruction(
-				spec_constant ? spv::OpSpecConstant : spv::OpConstant,
-				convert_type(type), _types_and_constants).add(data.as_uint[0]).result;
+
+			result = add_instruction(spec_constant ? spv::OpSpecConstant : spv::OpConstant, convert_type(type), _types_and_constants)
+				.add(data.as_uint[0])
+				.result;
 		}
 
-		if (!spec_constant)
+		if (spec_constant) // Keep track of all specialization constants
+			_spec_constants.insert(result);
+		else
 			_constant_lookup.push_back({ type, data, result });
 
 		return result;
@@ -1536,11 +1563,9 @@ private:
 
 		add_location(loc, *_current_block_data);
 
-		const spv::Id result = add_instruction(spv_op, convert_type(type))
+		return add_instruction(spv_op, convert_type(type))
 			.add(val) // Operand
-			.result; // Result ID
-
-		return result;
+			.result;
 	}
 	id   emit_binary_op(const location &loc, tokenid op, const type &res_type, const type &type, id lhs, id rhs) override
 	{
@@ -1626,15 +1651,14 @@ private:
 
 		add_location(loc, *_current_block_data);
 
-		const spv::Id result = add_instruction(spv_op, convert_type(res_type))
+		spirv_instruction &inst = add_instruction(spv_op, convert_type(res_type))
 			.add(lhs) // Operand 1
-			.add(rhs) // Operand 2
-			.result; // Result ID
+			.add(rhs); // Operand 2
 
 		if (res_type.has(type::q_precise))
-			add_decoration(result, spv::DecorationNoContraction);
+			add_decoration(inst.result, spv::DecorationNoContraction);
 
-		return result;
+		return inst.result;
 	}
 	id   emit_ternary_op(const location &loc, tokenid op, const type &type, id condition, id true_value, id false_value) override
 	{
@@ -1642,13 +1666,11 @@ private:
 
 		add_location(loc, *_current_block_data);
 
-		const spv::Id result = add_instruction(spv::OpSelect, convert_type(type))
+		return add_instruction(spv::OpSelect, convert_type(type))
 			.add(condition) // Condition
 			.add(true_value) // Object 1
 			.add(false_value) // Object 2
-			.result; // Result ID
-
-		return result;
+			.result;
 	}
 	id   emit_call(const location &loc, id function, const type &res_type, const std::vector<expression> &args) override
 	{
@@ -1660,10 +1682,10 @@ private:
 		add_location(loc, *_current_block_data);
 
 		// https://www.khronos.org/registry/spir-v/specs/unified1/SPIRV.html#OpFunctionCall
-		spirv_instruction &call = add_instruction(spv::OpFunctionCall, convert_type(res_type))
-			.add(function); // Function
-		for (size_t i = 0; i < args.size(); ++i)
-			call.add(args[i].base); // Arguments
+		spirv_instruction &call = add_instruction(spv::OpFunctionCall, convert_type(res_type));
+		call.add(function); // Function
+		for (const auto &arg : args)
+			call.add(arg.base); // Arguments
 
 		return call.result;
 	}
@@ -1707,13 +1729,14 @@ private:
 		{
 			assert(type.rows == type.cols);
 
+			auto vector_type = type;
+			vector_type.cols = 1;
+
 			// Second, turn that list of scalars into a list of column vectors
 			for (size_t i = 0, j = 0; i < args.size(); i += type.rows, ++j)
 			{
-				auto vector_type = type;
-				vector_type.cols = 1;
-
 				spirv_instruction &node = add_instruction(spv::OpCompositeConstruct, convert_type(vector_type));
+
 				for (unsigned int k = 0; k < type.rows; ++k)
 					node.add(args[i + k].base);
 
@@ -1722,11 +1745,11 @@ private:
 
 			ids.erase(ids.begin() + type.cols, ids.end());
 		}
-		// The exception is that for constructing a vector, a contiguous subset of the scalars consumed can be represented by a vector operand instead
 		else
 		{
 			assert(type.is_vector() || type.is_array());
 
+			// The exception is that for constructing a vector, a contiguous subset of the scalars consumed can be represented by a vector operand instead
 			for (const auto &arg : args)
 				ids.push_back(arg.base);
 		}
@@ -1781,14 +1804,12 @@ private:
 		add_location(loc, *_current_block_data);
 
 		// https://www.khronos.org/registry/spir-v/specs/unified1/SPIRV.html#OpPhi
-		const spv::Id result = add_instruction(spv::OpPhi, convert_type(type))
+		return add_instruction(spv::OpPhi, convert_type(type))
 			.add(true_value) // Variable 0
 			.add(true_statement_block) // Parent 0
 			.add(false_value) // Variable 1
 			.add(false_statement_block) // Parent 1
 			.result;
-
-		return result;
 	}
 	void emit_loop(const location &loc, id, id prev_block, id header_block, id condition_block, id loop_block, id continue_block, unsigned int loop_control) override
 	{
@@ -1902,7 +1923,7 @@ private:
 		}
 		else
 		{
-			if (value == 0) // The implicit return statement needs this
+			if (0 == value) // The implicit return statement needs this
 				value = add_instruction(spv::OpUndef, convert_type(_current_function->return_type), _types_and_constants).result;
 
 			add_instruction_without_result(spv::OpReturnValue)

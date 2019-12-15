@@ -1032,7 +1032,7 @@ bool reshade::vulkan::runtime_vk::init_effect(size_t index)
 				}
 			}
 
-			VkSpecializationInfo spec_info{ uint32_t(spec_map.size()), spec_map.data(), spec_data.size(), spec_data.data() };
+			VkSpecializationInfo spec_info { uint32_t(spec_map.size()), spec_map.data(), spec_data.size(), spec_data.data() };
 
 			VkPipelineShaderStageCreateInfo stages[2];
 			stages[0] = { VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO };
