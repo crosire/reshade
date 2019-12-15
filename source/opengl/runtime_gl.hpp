@@ -67,8 +67,10 @@ namespace reshade::opengl
 		enum FBO
 		{
 			FBO_BACK,
-			FBO_DEPTH,
 			FBO_BLIT,
+			FBO_CLEAR,
+			FBO_DEPTH_SRC,
+			FBO_DEPTH_DEST,
 				NUM_FBO
 		};
 		enum RBO
@@ -100,7 +102,7 @@ namespace reshade::opengl
 
 #if RESHADE_OPENGL_CAPTURE_DEPTH_BUFFERS
 		void draw_depth_debug_menu();
-		void update_depthstencil_texture(GLuint source, GLuint width, GLuint height, GLuint level, GLenum format);
+		void update_depthstencil_texture(buffer_detection::depthstencil_info info);
 
 		bool _use_aspect_ratio_heuristics = true;
 		GLuint _depth_source = 0;

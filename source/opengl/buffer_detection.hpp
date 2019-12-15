@@ -22,11 +22,9 @@ namespace reshade::opengl
 		};
 		struct depthstencil_info
 		{
-			GLuint handle;
-			GLint width;
-			GLint height;
-			GLint level;
-			GLint format;
+			GLuint obj, level;
+			GLuint width, height;
+			GLenum target, format;
 			draw_stats stats;
 		};
 

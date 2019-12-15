@@ -171,8 +171,12 @@ bool reshade::opengl::runtime_gl::on_init(HWND hwnd, unsigned int width, unsigne
 	glTexStorage2D(GL_TEXTURE_2D, 1, GL_RGBA8, _width, _height);
 	glTextureView(_tex[TEX_BACK_SRGB], GL_TEXTURE_2D, _tex[TEX_BACK], GL_SRGB8_ALPHA8, 0, 1, 0, 1);
 
+	// Initialize depth texture and FBO by assuming they refer to the default depth source
+	_depth_source_width = _width;
+	_depth_source_height = _height;
+	_depth_source_format = _default_depth_format;
 	glBindTexture(GL_TEXTURE_2D, _tex[TEX_DEPTH]);
-	glTexStorage2D(GL_TEXTURE_2D, 1, GL_DEPTH24_STENCIL8, _width, _height);
+	glTexStorage2D(GL_TEXTURE_2D, 1, GL_DEPTH24_STENCIL8, _depth_source_width, _depth_source_height);
 
 	glBindRenderbuffer(GL_RENDERBUFFER, _rbo[RBO_COLOR]);
 	glRenderbufferStorage(GL_RENDERBUFFER, GL_SRGB8_ALPHA8, _width, _height);
@@ -185,8 +189,11 @@ bool reshade::opengl::runtime_gl::on_init(HWND hwnd, unsigned int width, unsigne
 	assert(glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
 
 	glBindFramebuffer(GL_FRAMEBUFFER, _fbo[FBO_BLIT]);
-	glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, _tex[TEX_DEPTH], 0);
 	glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, _tex[TEX_BACK_SRGB], 0);
+	assert(glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
+
+	glBindFramebuffer(GL_FRAMEBUFFER, _fbo[FBO_DEPTH_DEST]);
+	glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, _tex[TEX_DEPTH], 0);
 	assert(glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
 
 #if RESHADE_GUI
@@ -240,8 +247,8 @@ void reshade::opengl::runtime_gl::on_present()
 	_app_state.capture();
 
 #if RESHADE_OPENGL_CAPTURE_DEPTH_BUFFERS
-	const auto snapshot = _buffer_detection.find_best_depth_texture(_use_aspect_ratio_heuristics ? _width : 0, _height, _depth_source_override);
-	update_depthstencil_texture(snapshot.handle, snapshot.width, snapshot.height, snapshot.level, snapshot.format);
+	update_depthstencil_texture(
+		_buffer_detection.find_best_depth_texture(_use_aspect_ratio_heuristics ? _width : 0, _height, _depth_source_override));
 #endif
 
 	// Copy back buffer to RBO
@@ -253,10 +260,13 @@ void reshade::opengl::runtime_gl::on_present()
 	glDrawBuffer(GL_COLOR_ATTACHMENT0);
 	glBlitFramebuffer(0, 0, _width, _height, 0, 0, _width, _height, GL_COLOR_BUFFER_BIT, GL_NEAREST);
 
-	// Copy depth from FBO to depth texture
-	glBindFramebuffer(GL_READ_FRAMEBUFFER, _depth_source != 0 ? _fbo[FBO_DEPTH] : 0);
-	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, _fbo[FBO_BLIT]);
-	glBlitFramebuffer(0, 0, _width, _height, 0, 0, _width, _height, GL_DEPTH_BUFFER_BIT, GL_NEAREST);
+	if (_depth_source == 0 || (_depth_source & 0x80000000) != 0)
+	{
+		// Copy depth from FBO to depth texture
+		glBindFramebuffer(GL_READ_FRAMEBUFFER, _depth_source == 0 ? 0 : _fbo[FBO_DEPTH_SRC]);
+		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, _fbo[FBO_DEPTH_DEST]);
+		glBlitFramebuffer(0, 0, _depth_source_width, _depth_source_height, 0, 0, _depth_source_width, _depth_source_height, GL_DEPTH_BUFFER_BIT, GL_NEAREST);
+	}
 
 	// Set clip space to something consistent
 	if (gl3wProcs.gl.ClipControl != nullptr)
@@ -711,8 +721,8 @@ bool reshade::opengl::runtime_gl::init_texture(texture &texture)
 		impl->id[1] = _tex[TEX_BACK_SRGB];
 		return true;
 	case texture_reference::depth_buffer:
-		impl->id[0] = _tex[TEX_DEPTH];
-		impl->id[1] = _tex[TEX_DEPTH];
+		impl->id[0] = impl->id[1] =
+			_depth_source == 0 || (_depth_source & 0x80000000) != 0 ? _tex[TEX_DEPTH] : _depth_source;
 		return true;
 	}
 
@@ -784,13 +794,14 @@ bool reshade::opengl::runtime_gl::init_texture(texture &texture)
 	}
 
 	// Clear texture to black since by default its contents are undefined
-	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, _fbo[FBO_BLIT]);
-	glFramebufferTexture(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, impl->id[0], 0);
+	// Use a separate FBO here to make sure there is no mismatch with the dimensions of others
+	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, _fbo[FBO_CLEAR]);
+	glFramebufferTexture(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, impl->id[0], 0);
 	assert(glCheckFramebufferStatus(GL_DRAW_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
-	glDrawBuffer(GL_COLOR_ATTACHMENT1);
+	glDrawBuffer(GL_COLOR_ATTACHMENT0);
 	const GLuint clear_color[4] = { 0, 0, 0, 0 };
 	glClearBufferuiv(GL_COLOR, 0, clear_color);
-	glFramebufferTexture(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, 0, 0);
+	glFramebufferTexture(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, 0, 0);
 
 	// Restore previous state from application
 	glBindTexture(GL_TEXTURE_2D, previous_tex);
@@ -1150,7 +1161,7 @@ void reshade::opengl::runtime_gl::draw_depth_debug_menu()
 		for (const auto &[depth_source, snapshot] : _buffer_detection.depth_buffer_counters())
 		{
 			char label[512] = "";
-			sprintf_s(label, "%s0x%08x", (depth_source == _depth_source ? "> " : "  "), depth_source);
+			sprintf_s(label, "%s0x%08x", (depth_source == _depth_source && !_has_high_network_activity ? "> " : "  "), depth_source);
 
 			if (bool value = _depth_source_override == depth_source;
 				ImGui::Checkbox(label, &value))
@@ -1159,7 +1170,7 @@ void reshade::opengl::runtime_gl::draw_depth_debug_menu()
 			ImGui::SameLine();
 			ImGui::Text("| %4ux%-4u | %5u draw calls ==> %8u vertices |%s",
 				snapshot.width, snapshot.height, snapshot.stats.drawcalls, snapshot.stats.vertices,
-				depth_source & 0x80000000 ? " RBO" : depth_source != 0 ? " FBO" : "");
+				(depth_source & 0x80000000) != 0 ? " RBO" : depth_source != 0 ? " FBO" : "");
 		}
 
 		ImGui::Spacing();
@@ -1168,7 +1179,7 @@ void reshade::opengl::runtime_gl::draw_depth_debug_menu()
 	}
 }
 
-void reshade::opengl::runtime_gl::update_depthstencil_texture(GLuint source, GLuint width, GLuint height, GLuint level, GLenum format)
+void reshade::opengl::runtime_gl::update_depthstencil_texture(buffer_detection::depthstencil_info info)
 {
 	if (_has_high_network_activity)
 	{
@@ -1193,78 +1204,82 @@ void reshade::opengl::runtime_gl::update_depthstencil_texture(GLuint source, GLu
 		return;
 	}
 
+	const GLuint source = info.obj | (info.target == GL_RENDERBUFFER ? 0x80000000 : 0);
 	if (_tex[TEX_DEPTH] &&
 		source == _depth_source)
 		return;
-
 	_depth_source = source;
 
 	// Convert depth formats to internal texture formats
-	switch (format)
+	switch (info.format)
 	{
 	case GL_DEPTH_STENCIL:
-		format = GL_DEPTH24_STENCIL8;
+		info.format = GL_DEPTH24_STENCIL8;
 		break;
 	case GL_DEPTH_COMPONENT:
-		format = GL_DEPTH_COMPONENT24;
+		info.format = GL_DEPTH_COMPONENT24;
 		break;
 	}
 
-	assert(_app_state.has_state);
-
-	// Resize depth texture if dimensions have changed
-	if (_tex[TEX_DEPTH] == 0 ||
-		_depth_source_width != width || _depth_source_height != height || _depth_source_format != format)
+	// Can just use source directly if it is a simple texture already, so only create extra one for RBOs
+	if (info.target != GL_TEXTURE_2D || info.level != 0)
 	{
-		// Recreate depth texture (since the storage is immutable after the first call to glTexStorage)
-		glDeleteTextures(1, &_tex[TEX_DEPTH]);
-		glGenTextures(1, &_tex[TEX_DEPTH]);
+		assert(_app_state.has_state);
 
-		glBindTexture(GL_TEXTURE_2D, _tex[TEX_DEPTH]);
-		glTexStorage2D(GL_TEXTURE_2D, 1, format, width, height);
-
-		if (GLenum err = glGetError(); err != GL_NO_ERROR)
+		if (_tex[TEX_DEPTH] == 0 ||
+			// Resize depth texture if dimensions have changed
+			_depth_source_width != info.width || _depth_source_height != info.height || _depth_source_format != info.format)
 		{
-			glDeleteTextures(1, &_tex[TEX_DEPTH]);
-			_tex[TEX_DEPTH] = 0;
+			// Recreate depth texture (since the storage is immutable after the first call to glTexStorage)
+			glDeleteTextures(1, &_tex[TEX_DEPTH]); glGenTextures(1, &_tex[TEX_DEPTH]);
 
-			LOG(ERROR) << "Failed to create depth texture of format " << std::hex << format << " with error code " << err << std::dec << '.';
-		}
+			glBindTexture(GL_TEXTURE_2D, _tex[TEX_DEPTH]);
+			glTexStorage2D(GL_TEXTURE_2D, 1, info.format, info.width, info.height);
 
-		_depth_source_width = width;
-		_depth_source_height = height;
-		_depth_source_format = format;
-
-		// Update FBO attachment
-		glBindFramebuffer(GL_FRAMEBUFFER, _fbo[FBO_BLIT]);
-		glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, _tex[TEX_DEPTH], 0);
-		assert(glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
-
-		// Update all references to the new texture
-		for (auto &tex : _textures)
-		{
-			if (tex.impl != nullptr && tex.impl_reference == texture_reference::depth_buffer)
+			if (GLenum err = glGetError(); err != GL_NO_ERROR)
 			{
-				const auto texture_impl = tex.impl->as<opengl_tex_data>();
-				assert(texture_impl != nullptr && !texture_impl->should_delete);
-				texture_impl->id[0] = _tex[TEX_DEPTH];
-				texture_impl->id[1] = _tex[TEX_DEPTH];
+				glDeleteTextures(1, &_tex[TEX_DEPTH]);
+				_tex[TEX_DEPTH] = 0;
+
+				LOG(ERROR) << "Failed to create depth texture of format " << std::hex << info.format << " with error code " << err << std::dec << '.';
 			}
+
+			_depth_source_width = info.width;
+			_depth_source_height = info.height;
+			_depth_source_format = info.format;
+
+			glBindFramebuffer(GL_FRAMEBUFFER, _fbo[FBO_DEPTH_DEST]);
+			glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, _tex[TEX_DEPTH], 0);
+			assert(glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
 		}
+
+		if (_depth_source != 0)
+		{
+			glBindFramebuffer(GL_FRAMEBUFFER, _fbo[FBO_DEPTH_SRC]);
+
+			if (info.target != GL_RENDERBUFFER) {
+				glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, info.obj, info.level);
+			}
+			else {
+				glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, info.target, info.obj);
+			}
+
+			assert(glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
+		}
+
+		info.obj = _tex[TEX_DEPTH];
 	}
 
-	if (source != 0)
+	// Update all references to the new texture
+	for (auto &tex : _textures)
 	{
-		glBindFramebuffer(GL_FRAMEBUFFER, _fbo[FBO_DEPTH]);
-
-		if ((source & 0x80000000) == 0) {
-			glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, source, level);
+		if (tex.impl != nullptr && tex.impl_reference == texture_reference::depth_buffer)
+		{
+			const auto texture_impl = tex.impl->as<opengl_tex_data>();
+			assert(texture_impl != nullptr && !texture_impl->should_delete);
+			texture_impl->id[0] = info.obj;
+			texture_impl->id[1] = info.obj;
 		}
-		else {
-			glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, source ^ 0x80000000);
-		}
-
-		assert(glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
 	}
 }
 #endif

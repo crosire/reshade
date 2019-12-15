@@ -16,7 +16,7 @@ void reshade::opengl::buffer_detection::reset(GLuint default_width, GLuint defau
 
 #if RESHADE_OPENGL_CAPTURE_DEPTH_BUFFERS
 	// Initialize information for the default depth buffer
-	_depth_source_table[0] = { 0, GLint(default_width), GLint(default_height), 0, GLint(default_format) };
+	_depth_source_table[0] = { 0, 0, default_width, default_height, 0, default_format };
 
 	// Do not clear depth source table, since FBO attachments are usually only created during startup
 	for (auto &source : _depth_source_table)
@@ -62,7 +62,7 @@ void reshade::opengl::buffer_detection::on_fbo_attachment(GLenum attachment, GLe
 	if (_depth_source_table.find(id) != _depth_source_table.end())
 		return;
 
-	depthstencil_info info = { id, 0, 0, level, GL_NONE };
+	depthstencil_info info = { object, static_cast<GLuint>(level), 0, 0, target, GL_NONE };
 
 	if (target == GL_RENDERBUFFER)
 	{
@@ -71,9 +71,9 @@ void reshade::opengl::buffer_detection::on_fbo_attachment(GLenum attachment, GLe
 
 		// Get depth stencil parameters from RBO
 		glBindRenderbuffer(GL_RENDERBUFFER, object);
-		glGetRenderbufferParameteriv(GL_RENDERBUFFER, GL_RENDERBUFFER_WIDTH, &info.width);
-		glGetRenderbufferParameteriv(GL_RENDERBUFFER, GL_RENDERBUFFER_HEIGHT, &info.height);
-		glGetRenderbufferParameteriv(GL_RENDERBUFFER, GL_RENDERBUFFER_INTERNAL_FORMAT, &info.format);
+		glGetRenderbufferParameteriv(GL_RENDERBUFFER, GL_RENDERBUFFER_WIDTH, reinterpret_cast<GLint *>(&info.width));
+		glGetRenderbufferParameteriv(GL_RENDERBUFFER, GL_RENDERBUFFER_HEIGHT, reinterpret_cast<GLint *>(&info.height));
+		glGetRenderbufferParameteriv(GL_RENDERBUFFER, GL_RENDERBUFFER_INTERNAL_FORMAT, reinterpret_cast<GLint *>(&info.format));
 
 		glBindRenderbuffer(GL_RENDERBUFFER, previous_rbo);
 	}
@@ -111,9 +111,9 @@ void reshade::opengl::buffer_detection::on_fbo_attachment(GLenum attachment, GLe
 
 		// Get depth stencil parameters from texture
 		glBindTexture(target, object);
-		glGetTexLevelParameteriv(target, level, GL_TEXTURE_WIDTH, &info.width);
-		glGetTexLevelParameteriv(target, level, GL_TEXTURE_HEIGHT, &info.height);
-		glGetTexLevelParameteriv(target, level, GL_TEXTURE_INTERNAL_FORMAT, &info.format);
+		glGetTexLevelParameteriv(target, level, GL_TEXTURE_WIDTH, reinterpret_cast<GLint *>(&info.width));
+		glGetTexLevelParameteriv(target, level, GL_TEXTURE_HEIGHT, reinterpret_cast<GLint *>(&info.height));
+		glGetTexLevelParameteriv(target, level, GL_TEXTURE_INTERNAL_FORMAT, reinterpret_cast<GLint *>(&info.format));
 
 		glBindTexture(target, previous_tex);
 	}
@@ -126,8 +126,7 @@ void reshade::opengl::buffer_detection::on_delete_fbo_attachment(GLenum target, 
 		return;
 
 	const GLuint id = object | (target == GL_RENDERBUFFER ? 0x80000000 : 0);
-	if (const auto it = _depth_source_table.find(id); it != _depth_source_table.end())
-		_depth_source_table.erase(it);
+	_depth_source_table.erase(id);
 }
 
 reshade::opengl::buffer_detection::depthstencil_info reshade::opengl::buffer_detection::find_best_depth_texture(GLuint width, GLuint height, GLuint override)
