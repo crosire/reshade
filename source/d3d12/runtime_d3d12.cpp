@@ -478,7 +478,7 @@ bool reshade::d3d12::runtime_d3d12::init_effect(size_t index)
 		return false;
 	}
 
-	effect &effect = _loaded_effects[index];
+	effect &effect = _effects[index];
 
 	const auto D3DCompile = reinterpret_cast<pD3DCompile>(GetProcAddress(_d3d_compiler, "D3DCompile"));
 	const auto D3DDisassemble = reinterpret_cast<pD3DDisassemble>(GetProcAddress(_d3d_compiler, "D3DDisassemble"));
@@ -1123,7 +1123,7 @@ void reshade::d3d12::runtime_d3d12::render_technique(technique &technique)
 		void *mapped;
 		if (HRESULT hr = effect_data.cb->Map(0, nullptr, &mapped); SUCCEEDED(hr))
 		{
-			std::memcpy(mapped, _loaded_effects[technique.effect_index].uniform_data_storage.data(), _loaded_effects[technique.effect_index].uniform_data_storage.size());
+			std::memcpy(mapped, _effects[technique.effect_index].uniform_data_storage.data(), _effects[technique.effect_index].uniform_data_storage.size());
 			effect_data.cb->Unmap(0, nullptr);
 		}
 		else

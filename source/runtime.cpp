@@ -24,7 +24,7 @@ extern volatile long g_network_traffic;
 extern std::filesystem::path g_reshade_dll_path;
 extern std::filesystem::path g_target_executable_path;
 
-static inline std::filesystem::path absolute_path(std::filesystem::path path)
+static inline auto absolute_path(std::filesystem::path path)
 {
 	std::error_code ec;
 	// First convert path to an absolute path
@@ -253,7 +253,7 @@ void reshade::runtime::on_present()
 
 void reshade::runtime::load_effect(const std::filesystem::path &path, size_t index)
 {
-	effect &effect = _loaded_effects[index]; // Safe to access this multi-threaded, since this is the only call working on this effect
+	effect &effect = _effects[index]; // Safe to access this multi-threaded, since this is the only call working on this effect
 	effect.source_file = path;
 	effect.compile_sucess = true;
 
@@ -462,7 +462,7 @@ void reshade::runtime::load_effect(const std::filesystem::path &path, size_t ind
 				if (texture.semantic.empty() != (existing_texture->impl_reference == texture_reference::none))
 				{
 					effect.errors += "error: " + texture.unique_name + ": another effect (";
-					effect.errors += _loaded_effects[existing_texture->effect_index].source_file.filename().u8string();
+					effect.errors += _effects[existing_texture->effect_index].source_file.filename().u8string();
 					effect.errors += ") already created a texture with the same name but different usage; rename the variable to fix this error\n";
 					effect.compile_sucess = false;
 					break;
@@ -470,7 +470,7 @@ void reshade::runtime::load_effect(const std::filesystem::path &path, size_t ind
 				else if (texture.semantic.empty() && !existing_texture->matches_description(texture))
 				{
 					effect.errors += "warning: " + texture.unique_name + ": another effect (";
-					effect.errors += _loaded_effects[existing_texture->effect_index].source_file.filename().u8string();
+					effect.errors += _effects[existing_texture->effect_index].source_file.filename().u8string();
 					effect.errors += ") already created a texture with the same name but different dimensions; textures are shared across all effects, so either rename the variable or adjust the dimensions so they match\n";
 				}
 
@@ -575,7 +575,7 @@ void reshade::runtime::load_effects()
 		return; // No effect files found, so nothing more to do
 
 	// Allocate space for effects which are placed in this array during the 'load_effect' call
-	_loaded_effects.resize(_reload_total_effects);
+	_effects.resize(_reload_total_effects);
 
 	// Now that we have a list of files, load them in parallel
 	// Split workload into batches instead of launching a thread for every file to avoid launch overhead and stutters due to too many threads being in flight
@@ -665,7 +665,7 @@ void reshade::runtime::unload_effect(size_t index)
 	_techniques.erase(std::remove_if(_techniques.begin(), _techniques.end(),
 		[index](const auto &it) { return it.effect_index == index; }), _techniques.end());
 
-	effect &effect = _loaded_effects[index];;
+	effect &effect = _effects[index];;
 	effect.rendering = false;
 	effect.compile_sucess = false;
 	effect.errors.clear();
@@ -681,9 +681,9 @@ void reshade::runtime::unload_effects()
 {
 #if RESHADE_GUI
 	// Force editor to clear text after effects where reloaded
-	open_file_in_editor(std::numeric_limits<size_t>::max(), {});
+	open_file_in_code_editor(std::numeric_limits<size_t>::max(), {});
 	_preview_texture = nullptr;
-	_effect_filter_buffer[0] = '\0'; // And reset filter too, since the list of techniques might have changed
+	_effect_filter[0] = '\0'; // And reset filter too, since the list of techniques might have changed
 #endif
 
 	// Make sure no threads are still accessing effect data
@@ -694,7 +694,7 @@ void reshade::runtime::unload_effects()
 	_textures.clear();
 	_techniques.clear();
 
-	_loaded_effects.clear();
+	_effects.clear();
 
 	_textures_loaded = false;
 }
@@ -730,7 +730,7 @@ void reshade::runtime::update_and_render_effects()
 			// Pop an effect from the queue
 			const size_t effect_index = _reload_compile_queue.back();
 			_reload_compile_queue.pop_back();
-			effect &effect = _loaded_effects[effect_index];
+			effect &effect = _effects[effect_index];
 
 			// Create textures now, since they are referenced when building samplers in the 'init_effect' call below
 			bool success = true;
@@ -809,7 +809,7 @@ void reshade::runtime::update_and_render_effects()
 	}
 
 	// Update special uniform variables
-	for (effect &effect : _loaded_effects)
+	for (effect &effect : _effects)
 	{
 		if (!effect.rendering)
 			continue;
@@ -1000,7 +1000,7 @@ void reshade::runtime::update_and_render_effects()
 
 void reshade::runtime::enable_technique(technique &technique)
 {
-	if (!_loaded_effects[technique.effect_index].compile_sucess)
+	if (!_effects[technique.effect_index].compile_sucess)
 		return; // Cannot enable techniques that failed to compile
 
 	const bool status_changed = !technique.enabled;
@@ -1016,7 +1016,7 @@ void reshade::runtime::enable_technique(technique &technique)
 	}
 
 	if (status_changed) // Increase rendering reference count
-		_loaded_effects[technique.effect_index].rendering++;
+		_effects[technique.effect_index].rendering++;
 }
 void reshade::runtime::disable_technique(technique &technique)
 {
@@ -1027,7 +1027,7 @@ void reshade::runtime::disable_technique(technique &technique)
 	technique.average_gpu_duration.clear();
 
 	if (status_changed) // Decrease rendering reference count
-		_loaded_effects[technique.effect_index].rendering--;
+		_effects[technique.effect_index].rendering--;
 }
 
 void reshade::runtime::subscribe_to_load_config(std::function<void(const ini_file &)> function)
@@ -1155,16 +1155,16 @@ void reshade::runtime::load_current_preset()
 	if (_is_in_between_presets_transition && transition_ms_left <= 0)
 		_is_in_between_presets_transition = false;
 
-	for (effect &effect : _loaded_effects)
+	for (effect &effect : _effects)
 	{
 		for (uniform &variable : effect.uniforms)
 		{
-			const std::string section = _loaded_effects[variable.effect_index].source_file.filename().u8string();
+			const std::string section = effect.source_file.filename().u8string();
 
 			if (variable.supports_toggle_key())
 			{
 				// Load shortcut key, but first reset it, since it may not exist in the preset file
-				memset(variable.toggle_key_data, 0, sizeof(variable.toggle_key_data));
+				std::memset(variable.toggle_key_data, 0, sizeof(variable.toggle_key_data));
 				preset.get(section, "Key" + variable.name, variable.toggle_key_data);
 			}
 
@@ -1216,7 +1216,7 @@ void reshade::runtime::load_current_preset()
 			disable_technique(technique);
 
 		// Reset toggle key first, since it may not exist in the preset
-		memset(technique.toggle_key_data, 0, sizeof(technique.toggle_key_data));
+		std::memset(technique.toggle_key_data, 0, sizeof(technique.toggle_key_data));
 		preset.get({}, "Key" + technique.name, technique.toggle_key_data);
 	}
 }
@@ -1225,9 +1225,8 @@ void reshade::runtime::save_current_preset() const
 	reshade::ini_file &preset = ini_file::load_cache(_current_preset_path);
 
 	// Build list of active techniques and effects
-	std::vector<size_t> effect_list;
-	std::vector<std::string> technique_list;
-	std::vector<std::string> sorted_technique_list;
+	std::vector<std::string> technique_list, sorted_technique_list;
+	std::unordered_set<size_t> effect_list;
 	effect_list.reserve(_techniques.size());
 	technique_list.reserve(_techniques.size());
 	sorted_technique_list.reserve(_techniques.size());
@@ -1237,7 +1236,7 @@ void reshade::runtime::save_current_preset() const
 		if (technique.enabled)
 			technique_list.push_back(technique.name);
 		if (technique.enabled || technique.toggle_key_data[0] != 0)
-			effect_list.push_back(technique.effect_index);
+			effect_list.insert(technique.effect_index);
 
 		// Keep track of the order of all techniques and not just the enabled ones
 		sorted_technique_list.push_back(technique.name);
@@ -1253,17 +1252,21 @@ void reshade::runtime::save_current_preset() const
 	preset.set({}, "PreprocessorDefinitions", _preset_preprocessor_definitions);
 
 	// TODO: Do we want to save spec constants here too? The preset will be rather empty in performance mode otherwise.
-	for (const effect &effect : _loaded_effects)
+	for (size_t effect_index = 0; effect_index < _effects.size(); ++effect_index)
 	{
+		if (effect_list.find(effect_index) == effect_list.end())
+			continue;
+
+		const effect &effect = _effects[effect_index];
+
 		for (const uniform &variable : effect.uniforms)
 		{
-			if (variable.special != special_uniform::none
-				|| std::find(effect_list.begin(), effect_list.end(), variable.effect_index) == effect_list.end())
+			if (variable.special != special_uniform::none)
 				continue;
 
 			assert(variable.type.components() <= 16);
 
-			const std::string section = _loaded_effects[variable.effect_index].source_file.filename().u8string();
+			const std::string section = effect.source_file.filename().u8string();
 			reshadefx::constant values;
 
 			if (variable.supports_toggle_key())
@@ -1411,7 +1414,7 @@ void reshade::runtime::get_uniform_value(const uniform &variable, uint8_t *data,
 
 	size = std::min(size, size_t(variable.size));
 
-	auto &data_storage = _loaded_effects[variable.effect_index].uniform_data_storage;
+	auto &data_storage = _effects[variable.effect_index].uniform_data_storage;
 	assert(variable.offset + size <= data_storage.size());
 
 	std::memcpy(data, &data_storage[variable.offset], size);
@@ -1477,7 +1480,7 @@ void reshade::runtime::set_uniform_value(uniform &variable, const uint8_t *data,
 
 	size = std::min(size, size_t(variable.size));
 
-	auto &data_storage = _loaded_effects[variable.effect_index].uniform_data_storage;
+	auto &data_storage = _effects[variable.effect_index].uniform_data_storage;
 	assert(variable.offset + size <= data_storage.size());
 
 	std::memcpy(&data_storage[variable.offset], data, size);
@@ -1549,7 +1552,7 @@ void reshade::runtime::set_uniform_value(uniform &variable, const float *values,
 
 void reshade::runtime::reset_uniform_value(uniform &variable)
 {
-	auto &data_storage = _loaded_effects[variable.effect_index].uniform_data_storage;
+	auto &data_storage = _effects[variable.effect_index].uniform_data_storage;
 
 	if (!variable.has_initializer_value)
 	{

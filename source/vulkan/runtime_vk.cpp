@@ -612,7 +612,7 @@ bool reshade::vulkan::runtime_vk::capture_screenshot(uint8_t *buffer) const
 
 bool reshade::vulkan::runtime_vk::init_effect(size_t index)
 {
-	effect &effect = _loaded_effects[index];
+	effect &effect = _effects[index];
 
 	vk_handle<VK_OBJECT_TYPE_SHADER_MODULE> module(_device, vk);
 
@@ -1387,7 +1387,7 @@ void reshade::vulkan::runtime_vk::render_technique(technique &technique)
 
 	// Setup shader constants
 	if (effect_data.ubo != VK_NULL_HANDLE)
-		vk.CmdUpdateBuffer(cmd_list, effect_data.ubo, 0, _loaded_effects[technique.effect_index].uniform_data_storage.size(), _loaded_effects[technique.effect_index].uniform_data_storage.data());
+		vk.CmdUpdateBuffer(cmd_list, effect_data.ubo, 0, _effects[technique.effect_index].uniform_data_storage.size(), _effects[technique.effect_index].uniform_data_storage.data());
 
 	// Clear default depth stencil
 	const VkImageSubresourceRange clear_range = { VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT, 0, 1, 0, 1 };

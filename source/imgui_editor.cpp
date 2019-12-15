@@ -124,8 +124,7 @@ void imgui_code_editor::render(const char *title, bool border)
 		{
 			// Copy currently selected text into search box
 			if (_select_beg != _select_end)
-				std::memset(_search_text, 0, sizeof(_search_text)),
-				get_selected_text().copy(_search_text, sizeof(_search_text) - 1);
+				_search_text[get_selected_text().copy(_search_text, sizeof(_search_text) - 1)] = '\0';
 
 			_search_window_open = true;
 			_search_window_focus = 2; // Need to focus multiple frames (see https://github.com/ocornut/imgui/issues/343)

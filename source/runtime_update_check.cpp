@@ -21,7 +21,7 @@ private:
 
 bool reshade::runtime::check_for_update(unsigned long latest_version[3])
 {
-	memset(latest_version, 0, 3 * sizeof(unsigned long));
+	std::memset(latest_version, 0, 3 * sizeof(unsigned long));
 
 #if !defined(_DEBUG)
 	const scoped_handle handle = InternetOpen(L"reshade", INTERNET_OPEN_TYPE_PRECONFIG, nullptr, nullptr, 0);

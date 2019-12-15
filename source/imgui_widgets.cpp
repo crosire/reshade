@@ -13,10 +13,7 @@ bool imgui_key_input(const char *name, unsigned int key_data[4], const reshade::
 
 	char buf[48] = "Click to set key shortcut";
 	if (key_data[0] || key_data[1] || key_data[2] || key_data[3])
-	{
-		memset(buf, 0, sizeof(buf)); // Clear existing key data
-		reshade::input::key_name(key_data).copy(buf, sizeof(buf) - 1);
-	}
+		buf[reshade::input::key_name(key_data).copy(buf, sizeof(buf) - 1)] = '\0';
 
 	ImGui::InputText(name, buf, sizeof(buf), ImGuiInputTextFlags_ReadOnly | ImGuiInputTextFlags_NoUndoRedo | ImGuiInputTextFlags_NoHorizontalScroll);
 
@@ -211,8 +208,7 @@ bool imgui_path_list(const char *label, std::vector<std::filesystem::path> &path
 		{
 			ImGui::PushID(static_cast<int>(i));
 
-			memset(buf, 0, sizeof(buf));
-			paths[i].u8string().copy(buf, sizeof(buf) - 1);
+			buf[paths[i].u8string().copy(buf, sizeof(buf) - 1)] = '\0';
 
 			ImGui::PushItemWidth(ImGui::GetWindowContentRegionWidth() - (button_spacing + button_size));
 			if (ImGui::InputText("##path", buf, sizeof(buf)))

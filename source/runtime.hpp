@@ -69,8 +69,9 @@ namespace reshade
 		/// Get the value of a uniform variable.
 		/// </summary>
 		/// <param name="variable">The variable to retrieve the value from.</param>
-		/// <param name="values">The buffer to store the value data in.</param>
-		/// <param name="count">The number of components the value.</param>
+		/// <param name="data">The buffer to store the value data in.</param>
+		/// <param name="size">The size of the <paramref name="data"/> buffer.</param>
+		void get_uniform_value(const uniform &variable, uint8_t *data, size_t size) const;
 		void get_uniform_value(const uniform &variable, bool *values, size_t count) const;
 		void get_uniform_value(const uniform &variable, int32_t *values, size_t count) const;
 		void get_uniform_value(const uniform &variable, uint32_t *values, size_t count) const;
@@ -79,8 +80,9 @@ namespace reshade
 		/// Update the value of a uniform variable.
 		/// </summary>
 		/// <param name="variable">The variable to update.</param>
-		/// <param name="values">The value data to update the variable to.</param>
-		/// <param name="count">The number of components the value.</param>
+		/// <param name="data">The value data to update the variable to.</param>
+		/// <param name="size">The size of the <paramref name="data"/> buffer.</param>
+		void set_uniform_value(uniform &variable, const uint8_t *data, size_t size);
 		void set_uniform_value(uniform &variable, const bool *values, size_t count);
 		void set_uniform_value(uniform &variable, bool x, bool y = false, bool z = false, bool w = false) { const bool data[4] = { x, y, z, w }; set_uniform_value(variable, data, 4); }
 		void set_uniform_value(uniform &variable, const int32_t *values, size_t count);
@@ -191,10 +193,12 @@ namespace reshade
 		unsigned int _device_id = 0;
 		unsigned int _renderer_id = 0;
 		unsigned int _color_bit_depth = 8;
+
 		uint64_t _framecount = 0;
 		unsigned int _vertices = 0;
 		unsigned int _drawcalls = 0;
-		std::vector<effect> _loaded_effects;
+
+		std::vector<effect> _effects;
 		std::vector<texture> _textures;
 		std::vector<technique> _techniques;
 
@@ -249,59 +253,59 @@ namespace reshade
 		/// </summary>
 		void save_screenshot(const std::wstring &postfix = std::wstring(), bool should_save_preset = false);
 
-		void get_uniform_value(const uniform &variable, uint8_t *data, size_t size) const;
-		void set_uniform_value(uniform &variable, const uint8_t *data, size_t size);
-
-		bool _needs_update = false;
-		unsigned long _latest_version[3] = {};
-		std::shared_ptr<class input> _input;
-
+		// === Status ===
+		int _date[4] = {};
 		bool _effects_enabled = true;
 		bool _ignore_shortcuts = false;
-		unsigned int _reload_key_data[4];
 		unsigned int _effects_key_data[4];
-		unsigned int _screenshot_key_data[4];
-		unsigned int _prev_preset_key_data[4];
-		unsigned int _next_preset_key_data[4];
-		int _preset_transition_delay = 1000;
-		int _screenshot_format = 1;
-		std::filesystem::path _screenshot_path;
+		std::shared_ptr<class input> _input;
+		std::chrono::high_resolution_clock::duration _last_frame_duration;
+		std::chrono::high_resolution_clock::time_point _start_time;
+		std::chrono::high_resolution_clock::time_point _last_present_time;
+
+		// == Configuration ===
+		bool _needs_update = false;
+		unsigned long _latest_version[3] = {};
 		std::filesystem::path _configuration_path;
-		std::filesystem::path _last_screenshot_file;
-		bool _screenshot_save_success = false;
-		bool _screenshot_include_preset = false;
-		bool _screenshot_save_before = false;
+		std::vector<std::function<void(ini_file &)>> _save_config_callables;
+		std::vector<std::function<void(const ini_file &)>> _load_config_callables;
 
-		std::filesystem::path _current_preset_path;
-
+		// === Effect Loading ===
+		bool _no_debug_info = 0;
+		bool _no_reload_on_init = false;
+		bool _last_reload_successful = true;
+		bool _textures_loaded = false;
+		bool _performance_mode = false;
+		unsigned int _reload_key_data[4];
+		size_t _reload_total_effects = 1;
+		std::vector<size_t> _reload_compile_queue;
+		std::atomic<size_t> _reload_remaining_effects = 0;
+		std::mutex _reload_mutex;
+		std::vector<std::thread> _worker_threads;
 		std::vector<std::string> _global_preprocessor_definitions;
 		std::vector<std::string> _preset_preprocessor_definitions;
 		std::vector<std::filesystem::path> _effect_search_paths;
 		std::vector<std::filesystem::path> _texture_search_paths;
-
-		bool _textures_loaded = false;
-		bool _performance_mode = false;
-		bool _no_debug_info = 0;
-		bool _no_reload_on_init = false;
-		bool _last_reload_successful = true;
-		bool _should_save_screenshot = false;
-		bool _is_in_between_presets_transition = false;
-		std::mutex _reload_mutex;
-		size_t _reload_total_effects = 1;
-		std::vector<size_t> _reload_compile_queue;
-		std::atomic<size_t> _reload_remaining_effects = 0;
-		std::vector<std::thread> _worker_threads;
-
-		int _date[4] = {};
-		std::chrono::high_resolution_clock::duration _last_frame_duration;
-		std::chrono::high_resolution_clock::time_point _start_time;
 		std::chrono::high_resolution_clock::time_point _last_reload_time;
-		std::chrono::high_resolution_clock::time_point _last_present_time;
-		std::chrono::high_resolution_clock::time_point _last_screenshot_time;
-		std::chrono::high_resolution_clock::time_point _last_preset_switching_time;
 
-		std::vector<std::function<void(ini_file &)>> _save_config_callables;
-		std::vector<std::function<void(const ini_file &)>> _load_config_callables;
+		// === Screenshots ===
+		bool _should_save_screenshot = false;
+		bool _screenshot_save_before = false;
+		bool _screenshot_save_success = false;
+		bool _screenshot_include_preset = false;
+		unsigned int _screenshot_format = 1;
+		unsigned int _screenshot_key_data[4];
+		std::filesystem::path _screenshot_path;
+		std::filesystem::path _last_screenshot_file;
+		std::chrono::high_resolution_clock::time_point _last_screenshot_time;
+
+		// === Preset Switching ===
+		bool _is_in_between_presets_transition = false;
+		unsigned int _prev_preset_key_data[4];
+		unsigned int _next_preset_key_data[4];
+		unsigned int _preset_transition_delay = 1000;
+		std::filesystem::path _current_preset_path;
+		std::chrono::high_resolution_clock::time_point _last_preset_switching_time;
 
 #if RESHADE_GUI
 		void init_ui();
@@ -310,35 +314,23 @@ namespace reshade
 		void destroy_font_atlas();
 
 		void draw_ui();
+		void draw_ui_home();
+		void draw_ui_settings();
+		void draw_ui_statistics();
+		void draw_ui_log();
+		void draw_ui_about();
 
-		void draw_overlay_menu_home();
-		void draw_overlay_menu_settings();
-		void draw_overlay_menu_statistics();
-		void draw_overlay_menu_log();
-		void draw_overlay_menu_about();
 		void draw_code_editor();
-		void draw_overlay_variable_editor();
-		void draw_overlay_technique_editor();
 		void draw_preset_explorer();
+		void draw_variable_editor();
+		void draw_technique_editor();
 
-		void open_text_in_editor(const std::string &text);
-		void open_file_in_editor(size_t effect_index, const std::filesystem::path &path);
+		void open_file_in_code_editor(size_t effect_index, const std::filesystem::path &path);
 
-		std::vector<std::pair<std::string, std::function<void()>>> _menu_callables;
-		std::unique_ptr<texture> _imgui_font_atlas;
+		// === User Interface ===
 		ImGuiContext *_imgui_context = nullptr;
-		size_t _focused_effect = std::numeric_limits<size_t>::max();
-		size_t _selected_effect = std::numeric_limits<size_t>::max();
-		size_t _selected_technique = std::numeric_limits<size_t>::max();
-		int _input_processing_mode = 2;
-		int _style_index = 2;
-		int _editor_style_index = 0;
-		int _font_size = 13;
-		int _editor_font_size = 13;
-		int _clock_format = 0;
-		std::filesystem::path _font;
-		std::filesystem::path _editor_font;
-		unsigned int _menu_key_data[4];
+		std::unique_ptr<texture> _imgui_font_atlas;
+		std::vector<std::pair<std::string, std::function<void()>>> _menu_callables;
 		bool _show_menu = false;
 		bool _show_clock = false;
 		bool _show_fps = false;
@@ -347,25 +339,45 @@ namespace reshade
 		bool _show_code_editor = false;
 		bool _show_screenshot_message = true;
 		bool _no_font_scaling = false;
-		bool _log_wordwrap = false;
-		bool _variable_editor_tabs = false;
 		bool _rebuild_font_atlas = false;
+		unsigned int _menu_key_data[4];
+		int _clock_format = 0;
+		int _input_processing_mode = 2;
+
+		// === User Interface - Home ===
+		char _effect_filter[64] = {};
+		bool _variable_editor_tabs = false;
+		bool _browse_path_is_input_mode = false;
 		bool _was_preprocessor_popup_edited = false;
-		float _fps_col[4] = { 1.0f, 1.0f, 0.784314f, 1.0f };
-		float _fps_scale = 1.0f;
-		float _variable_editor_height = 0.0f;
+		size_t _focused_effect = std::numeric_limits<size_t>::max();
+		size_t _selected_effect = std::numeric_limits<size_t>::max();
+		size_t _selected_technique = std::numeric_limits<size_t>::max();
 		unsigned int _tutorial_index = 0;
 		unsigned int _effects_expanded_state = 2;
-		char _effect_filter_buffer[64] = {};
-		std::filesystem::path _editor_file;
-		std::filesystem::path _file_selection_path;
-		imgui_code_editor _editor;
-		unsigned int _preview_size[3] = { 0, 0, 0xFFFFFFFF };
-		void *_preview_texture = nullptr;
-
-		// Used by preset explorer
-		bool _browse_path_is_input_mode = false;
+		float _variable_editor_height = 0.0f;
 		std::filesystem::path _current_browse_path;
+
+		// === User Interface - Settings ===
+		int _font_size = 13;
+		int _editor_font_size = 13;
+		int _style_index = 2;
+		int _editor_style_index = 0;
+		std::filesystem::path _font;
+		std::filesystem::path _editor_font;
+		std::filesystem::path _file_selection_path;
+		float _fps_col[4] = { 1.0f, 1.0f, 0.784314f, 1.0f };
+		float _fps_scale = 1.0f;
+
+		// === User Interface - Statistics ===
+		void *_preview_texture = nullptr;
+		unsigned int _preview_size[3] = { 0, 0, 0xFFFFFFFF };
+
+		// === User Interface - Log ===
+		bool _log_wordwrap = false;
+
+		// === User Interface - Code Editor ===
+		imgui_code_editor _editor;
+		std::filesystem::path _editor_file;
 #endif
 	};
 }

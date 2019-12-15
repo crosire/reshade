@@ -303,7 +303,7 @@ bool reshade::d3d9::runtime_d3d9::init_effect(size_t index)
 		return false;
 	}
 
-	effect &effect = _loaded_effects[index];
+	effect &effect = _effects[index];
 
 	const auto D3DCompile = reinterpret_cast<pD3DCompile>(GetProcAddress(_d3d_compiler, "D3DCompile"));
 	const auto D3DDisassemble = reinterpret_cast<pD3DDisassemble>(GetProcAddress(_d3d_compiler, "D3DDisassemble"));
@@ -752,7 +752,7 @@ void reshade::d3d9::runtime_d3d9::render_technique(technique &technique)
 	// Setup shader constants
 	if (technique_data.constant_register_count > 0)
 	{
-		const auto uniform_storage_data = reinterpret_cast<const float *>(_loaded_effects[technique.effect_index].uniform_data_storage.data());
+		const auto uniform_storage_data = reinterpret_cast<const float *>(_effects[technique.effect_index].uniform_data_storage.data());
 		_device->SetPixelShaderConstantF(0, uniform_storage_data, technique_data.constant_register_count);
 		_device->SetVertexShaderConstantF(0, uniform_storage_data, technique_data.constant_register_count);
 	}

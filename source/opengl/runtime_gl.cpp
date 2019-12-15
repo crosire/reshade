@@ -208,11 +208,11 @@ void reshade::opengl::runtime_gl::on_reset()
 	glDeleteFramebuffers(NUM_FBO, _fbo);
 	glDeleteRenderbuffers(NUM_RBO, _rbo);
 
-	memset(_buf, 0, sizeof(_vao));
-	memset(_tex, 0, sizeof(_tex));
-	memset(_vao, 0, sizeof(_vao));
-	memset(_fbo, 0, sizeof(_fbo));
-	memset(_rbo, 0, sizeof(_rbo));
+	std::memset(_buf, 0, sizeof(_vao));
+	std::memset(_tex, 0, sizeof(_tex));
+	std::memset(_vao, 0, sizeof(_vao));
+	std::memset(_fbo, 0, sizeof(_fbo));
+	std::memset(_rbo, 0, sizeof(_rbo));
 
 #if RESHADE_GUI
 	glDeleteProgram(_imgui_program);
@@ -315,7 +315,7 @@ bool reshade::opengl::runtime_gl::init_effect(size_t index)
 {
 	assert(_app_state.has_state); // Make sure all binds below are reset later when application state is restored
 
-	effect &effect = _loaded_effects[index];
+	effect &effect = _effects[index];
 
 	// Add specialization constant defines to source code
 	std::vector<GLuint> spec_constants;
@@ -908,7 +908,7 @@ void reshade::opengl::runtime_gl::render_technique(technique &technique)
 	if (_effect_ubos[technique.effect_index] != 0)
 	{
 		glBindBufferBase(GL_UNIFORM_BUFFER, 0, _effect_ubos[technique.effect_index]);
-		glBufferSubData(GL_UNIFORM_BUFFER, 0, _loaded_effects[technique.effect_index].uniform_data_storage.size(), _loaded_effects[technique.effect_index].uniform_data_storage.data());
+		glBufferSubData(GL_UNIFORM_BUFFER, 0, _effects[technique.effect_index].uniform_data_storage.size(), _effects[technique.effect_index].uniform_data_storage.data());
 	}
 
 	// Set up shader resources

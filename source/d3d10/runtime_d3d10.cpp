@@ -374,7 +374,7 @@ bool reshade::d3d10::runtime_d3d10::init_effect(size_t index)
 		return false;
 	}
 
-	effect &effect = _loaded_effects[index];
+	effect &effect = _effects[index];
 
 	const auto D3DCompile = reinterpret_cast<pD3DCompile>(GetProcAddress(_d3d_compiler, "D3DCompile"));
 	const auto D3DDisassemble = reinterpret_cast<pD3DDisassemble>(GetProcAddress(_d3d_compiler, "D3DDisassemble"));
@@ -938,7 +938,7 @@ void reshade::d3d10::runtime_d3d10::render_technique(technique &technique)
 			D3D10_BUFFER_DESC desc = {};
 			constant_buffer->GetDesc(&desc);
 
-			std::memcpy(mapped, _loaded_effects[technique.effect_index].uniform_data_storage.data(), desc.ByteWidth);
+			std::memcpy(mapped, _effects[technique.effect_index].uniform_data_storage.data(), desc.ByteWidth);
 			constant_buffer->Unmap();
 		}
 		else

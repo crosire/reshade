@@ -384,7 +384,7 @@ bool reshade::d3d11::runtime_d3d11::init_effect(size_t index)
 		return false;
 	}
 
-	effect &effect = _loaded_effects[index];
+	effect &effect = _effects[index];
 
 	const auto D3DCompile = reinterpret_cast<pD3DCompile>(GetProcAddress(_d3d_compiler, "D3DCompile"));
 	const auto D3DDisassemble = reinterpret_cast<pD3DDisassemble>(GetProcAddress(_d3d_compiler, "D3DDisassemble"));
@@ -942,7 +942,7 @@ void reshade::d3d11::runtime_d3d11::render_technique(technique &technique)
 		D3D11_MAPPED_SUBRESOURCE mapped;
 		if (HRESULT hr = _immediate_context->Map(constant_buffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped); SUCCEEDED(hr))
 		{
-			std::memcpy(mapped.pData, _loaded_effects[technique.effect_index].uniform_data_storage.data(), mapped.RowPitch);
+			std::memcpy(mapped.pData, _effects[technique.effect_index].uniform_data_storage.data(), mapped.RowPitch);
 			_immediate_context->Unmap(constant_buffer, 0);
 		}
 		else
