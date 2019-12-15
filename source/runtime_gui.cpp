@@ -1797,6 +1797,25 @@ void reshade::runtime::draw_overlay_variable_editor()
 		_was_preprocessor_popup_edited = false;
 	}
 
+	const auto find_definition_value = [](auto &list, const auto &name, char value[128] = nullptr)
+	{
+		for (auto it = list.begin(); it != list.end(); ++it)
+		{
+			char current_name[128] = "";
+			const size_t equals_index = it->find('=');
+			it->copy(current_name, std::min(equals_index, sizeof(current_name) - 1));
+
+			if (name == current_name)
+			{
+				if (equals_index != std::string::npos && value != nullptr)
+					it->copy(value, 127, equals_index + 1);
+				return it;
+			}
+		}
+
+		return list.end();
+	};
+
 	ImGui::BeginChild("##variables");
 	if (_variable_editor_tabs)
 		ImGui::BeginTabBar("##variables");
@@ -1809,9 +1828,11 @@ void reshade::runtime::draw_overlay_variable_editor()
 			continue;
 		assert(_loaded_effects[effect_index].compile_sucess);
 
-		// Create separate tab for every effect file
+		bool reload_effect = false;
 		const bool is_focused = _focused_effect == effect_index;
 		const std::string source_file = _loaded_effects[effect_index].source_file.filename().u8string();
+
+		// Create separate tab for every effect file
 		if (_variable_editor_tabs)
 		{
 			if (!ImGui::BeginTabItem(source_file.c_str()))
@@ -1839,8 +1860,16 @@ void reshade::runtime::draw_overlay_variable_editor()
 
 			if (ImGui::Button("Yes", ImVec2(ImGui::GetContentRegionAvail().x, 0)))
 			{
-				for (uniform &reset_variable : _loaded_effects[effect_index].uniforms)
-					reset_uniform_value(reset_variable);
+				// Reset all uniform variables
+				for (uniform &variable : _loaded_effects[effect_index].uniforms)
+					reset_uniform_value(variable);
+
+				// Reset all preprocessor definitions
+				for (const std::pair<std::string, std::string> &definition : _loaded_effects[effect_index].definitions)
+					if (const auto preset_it = find_definition_value(_preset_preprocessor_definitions, definition.first);
+						preset_it != _preset_preprocessor_definitions.end())
+						reload_effect = true, // Need to reload after changing preprocessor defines so to get accurate defaults again
+						_preset_preprocessor_definitions.erase(preset_it);
 
 				save_current_preset();
 
@@ -2032,27 +2061,7 @@ void reshade::runtime::draw_overlay_variable_editor()
 
 		if (ImGui::TreeNodeEx(category_label.c_str(), ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_NoTreePushOnOpen))
 		{
-			bool reload_effect = false;
-			const auto find_definition_value = [](auto &list, const auto &name, char value[128])
-			{
-				for (auto it = list.begin(); it != list.end(); ++it)
-				{
-					char current_name[128] = "";
-					const size_t equals_index = it->find('=');
-					it->copy(current_name, std::min(equals_index, sizeof(current_name) - 1));
-
-					if (name == current_name)
-					{
-						if (equals_index != std::string::npos)
-							it->copy(value, 127, equals_index + 1);
-						return it;
-					}
-				}
-
-				return list.end();
-			};
-
-			for (const auto &definition : _loaded_effects[effect_index].definitions)
+			for (const std::pair<std::string, std::string> &definition : _loaded_effects[effect_index].definitions)
 			{
 				char value[128] = "";
 				const auto global_it = find_definition_value(_global_preprocessor_definitions, definition.first, value);
@@ -2079,22 +2088,9 @@ void reshade::runtime::draw_overlay_variable_editor()
 					}
 
 					reload_effect = true;
+
+					save_current_preset();
 				}
-			}
-
-			if (reload_effect)
-			{
-				save_current_preset();
-
-				// Reload current effect file
-				_textures_loaded = false;
-				_reload_total_effects = 1;
-				_reload_remaining_effects = 1;
-				const std::filesystem::path source_path = _loaded_effects[effect_index].source_file;
-				unload_effect(effect_index);
-				load_effect(source_path, effect_index);
-				assert(_reload_remaining_effects == 0);
-				ImGui::FindWindowByName("Statistics")->DrawList->CmdBuffer.clear();
 			}
 		}
 
@@ -2102,6 +2098,19 @@ void reshade::runtime::draw_overlay_variable_editor()
 			ImGui::EndTabItem();
 		else
 			ImGui::TreePop();
+
+		if (reload_effect)
+		{
+			// Reload current effect file
+			_textures_loaded = false;
+			_reload_total_effects = 1;
+			_reload_remaining_effects = 1;
+			const std::filesystem::path source_path = _loaded_effects[effect_index].source_file;
+			unload_effect(effect_index);
+			load_effect(source_path, effect_index);
+			assert(_reload_remaining_effects == 0);
+			ImGui::FindWindowByName("Statistics")->DrawList->CmdBuffer.clear();
+		}
 	}
 
 	ImGui::PopItemWidth();
