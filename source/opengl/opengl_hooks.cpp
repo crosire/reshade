@@ -325,8 +325,24 @@ HOOK_EXPORT void WINAPI glDeleteLists(GLuint list, GLsizei range)
 	trampoline(list, range);
 }
 
+			void WINAPI glDeleteRenderbuffers(GLsizei n, const GLuint *renderbuffers)
+{
+#if RESHADE_OPENGL_CAPTURE_DEPTH_BUFFERS
+	if (g_current_runtime)
+		for (GLsizei i = 0; i < n; ++i)
+			g_current_runtime->_buffer_detection.on_delete_fbo_attachment(GL_RENDERBUFFER, renderbuffers[i]);
+#endif
+	static const auto trampoline = reshade::hooks::call(glDeleteRenderbuffers);
+	trampoline(n, renderbuffers);
+}
+
 HOOK_EXPORT void WINAPI glDeleteTextures(GLsizei n, const GLuint *textures)
 {
+#if RESHADE_OPENGL_CAPTURE_DEPTH_BUFFERS
+	if (g_current_runtime)
+		for (GLsizei i = 0; i < n; ++i)
+			g_current_runtime->_buffer_detection.on_delete_fbo_attachment(GL_TEXTURE_2D, textures[i]);
+#endif
 	static const auto trampoline = reshade::hooks::call(glDeleteTextures);
 	trampoline(n, textures);
 }
@@ -365,33 +381,33 @@ HOOK_EXPORT void WINAPI glDrawArrays(GLenum mode, GLint first, GLsizei count)
 	static const auto trampoline = reshade::hooks::call(glDrawArrays);
 	trampoline(mode, first, count);
 }
-extern "C"  void WINAPI glDrawArraysIndirect(GLenum mode, const GLvoid *indirect)
+			void WINAPI glDrawArraysIndirect(GLenum mode, const GLvoid *indirect)
 {
-	static const auto trampoline = reshade::hooks::call(glDrawArraysIndirect);
-	trampoline(mode, indirect);
+			static const auto trampoline = reshade::hooks::call(glDrawArraysIndirect);
+			trampoline(mode, indirect);
 }
-extern "C"  void WINAPI glDrawArraysInstanced(GLenum mode, GLint first, GLsizei count, GLsizei primcount)
+			void WINAPI glDrawArraysInstanced(GLenum mode, GLint first, GLsizei count, GLsizei primcount)
 {
 	if (g_current_runtime) g_current_runtime->_buffer_detection.on_draw(primcount * count);
 
 	static const auto trampoline = reshade::hooks::call(glDrawArraysInstanced);
 	trampoline(mode, first, count, primcount);
 }
-extern "C"  void WINAPI glDrawArraysInstancedARB(GLenum mode, GLint first, GLsizei count, GLsizei primcount)
+			void WINAPI glDrawArraysInstancedARB(GLenum mode, GLint first, GLsizei count, GLsizei primcount)
 {
 	if (g_current_runtime) g_current_runtime->_buffer_detection.on_draw(primcount * count);
 
 	static const auto trampoline = reshade::hooks::call(glDrawArraysInstancedARB);
 	trampoline(mode, first, count, primcount);
 }
-extern "C"  void WINAPI glDrawArraysInstancedEXT(GLenum mode, GLint first, GLsizei count, GLsizei primcount)
+			void WINAPI glDrawArraysInstancedEXT(GLenum mode, GLint first, GLsizei count, GLsizei primcount)
 {
 	if (g_current_runtime) g_current_runtime->_buffer_detection.on_draw(primcount * count);
 
 	static const auto trampoline = reshade::hooks::call(glDrawArraysInstancedEXT);
 	trampoline(mode, first, count, primcount);
 }
-extern "C"  void WINAPI glDrawArraysInstancedBaseInstance(GLenum mode, GLint first, GLsizei count, GLsizei primcount, GLuint baseinstance)
+			void WINAPI glDrawArraysInstancedBaseInstance(GLenum mode, GLint first, GLsizei count, GLsizei primcount, GLuint baseinstance)
 {
 	if (g_current_runtime) g_current_runtime->_buffer_detection.on_draw(primcount * count);
 
@@ -412,54 +428,54 @@ HOOK_EXPORT void WINAPI glDrawElements(GLenum mode, GLsizei count, GLenum type, 
 	static const auto trampoline = reshade::hooks::call(glDrawElements);
 	trampoline(mode, count, type, indices);
 }
-extern "C"  void WINAPI glDrawElementsBaseVertex(GLenum mode, GLsizei count, GLenum type, const GLvoid *indices, GLint basevertex)
+			void WINAPI glDrawElementsBaseVertex(GLenum mode, GLsizei count, GLenum type, const GLvoid *indices, GLint basevertex)
 {
 	if (g_current_runtime) g_current_runtime->_buffer_detection.on_draw(count);
 
 	static const auto trampoline = reshade::hooks::call(glDrawElementsBaseVertex);
 	trampoline(mode, count, type, indices, basevertex);
 }
-extern "C"  void WINAPI glDrawElementsIndirect(GLenum mode, GLenum type, const GLvoid *indirect)
+			void WINAPI glDrawElementsIndirect(GLenum mode, GLenum type, const GLvoid *indirect)
 {
 	static const auto trampoline = reshade::hooks::call(glDrawElementsIndirect);
 	trampoline(mode, type, indirect);
 }
-extern "C"  void WINAPI glDrawElementsInstanced(GLenum mode, GLsizei count, GLenum type, const GLvoid *indices, GLsizei primcount)
+			void WINAPI glDrawElementsInstanced(GLenum mode, GLsizei count, GLenum type, const GLvoid *indices, GLsizei primcount)
 {
 	if (g_current_runtime) g_current_runtime->_buffer_detection.on_draw(primcount * count);
 
 	static const auto trampoline = reshade::hooks::call(glDrawElementsInstanced);
 	trampoline(mode, count, type, indices, primcount);
 }
-extern "C"  void WINAPI glDrawElementsInstancedARB(GLenum mode, GLsizei count, GLenum type, const GLvoid *indices, GLsizei primcount)
+			void WINAPI glDrawElementsInstancedARB(GLenum mode, GLsizei count, GLenum type, const GLvoid *indices, GLsizei primcount)
 {
 	if (g_current_runtime) g_current_runtime->_buffer_detection.on_draw(primcount * count);
 
 	static const auto trampoline = reshade::hooks::call(glDrawElementsInstancedARB);
 	trampoline(mode, count, type, indices, primcount);
 }
-extern "C"  void WINAPI glDrawElementsInstancedEXT(GLenum mode, GLsizei count, GLenum type, const GLvoid *indices, GLsizei primcount)
+			void WINAPI glDrawElementsInstancedEXT(GLenum mode, GLsizei count, GLenum type, const GLvoid *indices, GLsizei primcount)
 {
 	if (g_current_runtime) g_current_runtime->_buffer_detection.on_draw(primcount * count);
 
 	static const auto trampoline = reshade::hooks::call(glDrawElementsInstancedEXT);
 	trampoline(mode, count, type, indices, primcount);
 }
-extern "C"  void WINAPI glDrawElementsInstancedBaseVertex(GLenum mode, GLsizei count, GLenum type, const GLvoid *indices, GLsizei primcount, GLint basevertex)
+			void WINAPI glDrawElementsInstancedBaseVertex(GLenum mode, GLsizei count, GLenum type, const GLvoid *indices, GLsizei primcount, GLint basevertex)
 {
 	if (g_current_runtime) g_current_runtime->_buffer_detection.on_draw(primcount * count);
 
 	static const auto trampoline = reshade::hooks::call(glDrawElementsInstancedBaseVertex);
 	trampoline(mode, count, type, indices, primcount, basevertex);
 }
-extern "C"  void WINAPI glDrawElementsInstancedBaseInstance(GLenum mode, GLsizei count, GLenum type, const GLvoid *indices, GLsizei primcount, GLuint baseinstance)
+			void WINAPI glDrawElementsInstancedBaseInstance(GLenum mode, GLsizei count, GLenum type, const GLvoid *indices, GLsizei primcount, GLuint baseinstance)
 {
 	if (g_current_runtime) g_current_runtime->_buffer_detection.on_draw(primcount * count);
 
 	static const auto trampoline = reshade::hooks::call(glDrawElementsInstancedBaseInstance);
 	trampoline(mode, count, type, indices, primcount, baseinstance);
 }
-extern "C"  void WINAPI glDrawElementsInstancedBaseVertexBaseInstance(GLenum mode, GLsizei count, GLenum type, const GLvoid *indices, GLsizei primcount, GLint basevertex, GLuint baseinstance)
+			void WINAPI glDrawElementsInstancedBaseVertexBaseInstance(GLenum mode, GLsizei count, GLenum type, const GLvoid *indices, GLsizei primcount, GLint basevertex, GLuint baseinstance)
 {
 	if (g_current_runtime) g_current_runtime->_buffer_detection.on_draw(primcount * count);
 
@@ -473,14 +489,14 @@ HOOK_EXPORT void WINAPI glDrawPixels(GLsizei width, GLsizei height, GLenum forma
 	trampoline(width, height, format, type, pixels);
 }
 
-extern "C"  void WINAPI glDrawRangeElements(GLenum mode, GLuint start, GLuint end, GLsizei count, GLenum type, const GLvoid *indices)
+			void WINAPI glDrawRangeElements(GLenum mode, GLuint start, GLuint end, GLsizei count, GLenum type, const GLvoid *indices)
 {
 	if (g_current_runtime) g_current_runtime->_buffer_detection.on_draw(count);
 
 	static const auto trampoline = reshade::hooks::call(glDrawRangeElements);
 	trampoline(mode, start, end, count, type, indices);
 }
-extern "C"  void WINAPI glDrawRangeElementsBaseVertex(GLenum mode, GLuint start, GLuint end, GLsizei count, GLenum type, const GLvoid *indices, GLint basevertex)
+			void WINAPI glDrawRangeElementsBaseVertex(GLenum mode, GLuint start, GLuint end, GLsizei count, GLenum type, const GLvoid *indices, GLint basevertex)
 {
 	if (g_current_runtime) g_current_runtime->_buffer_detection.on_draw(count);
 
@@ -630,7 +646,7 @@ HOOK_EXPORT void WINAPI glFogiv(GLenum pname, const GLint *params)
 	trampoline(pname, params);
 }
 
-extern "C"  void WINAPI glFramebufferRenderbuffer(GLenum target, GLenum attachment, GLenum renderbuffertarget, GLuint renderbuffer)
+			void WINAPI glFramebufferRenderbuffer(GLenum target, GLenum attachment, GLenum renderbuffertarget, GLuint renderbuffer)
 {
 	static const auto trampoline = reshade::hooks::call(glFramebufferRenderbuffer);
 	trampoline(target, attachment, renderbuffertarget, renderbuffer);
@@ -638,7 +654,7 @@ extern "C"  void WINAPI glFramebufferRenderbuffer(GLenum target, GLenum attachme
 	if (g_current_runtime) g_current_runtime->_buffer_detection.on_fbo_attachment(attachment, renderbuffertarget, renderbuffer, 0);
 #endif
 }
-extern "C"  void WINAPI glFramebufferRenderbufferEXT(GLenum target, GLenum attachment, GLenum renderbuffertarget, GLuint renderbuffer)
+			void WINAPI glFramebufferRenderbufferEXT(GLenum target, GLenum attachment, GLenum renderbuffertarget, GLuint renderbuffer)
 {
 	static const auto trampoline = reshade::hooks::call(glFramebufferRenderbufferEXT);
 	trampoline(target, attachment, renderbuffertarget, renderbuffer);
@@ -646,7 +662,7 @@ extern "C"  void WINAPI glFramebufferRenderbufferEXT(GLenum target, GLenum attac
 	if (g_current_runtime) g_current_runtime->_buffer_detection.on_fbo_attachment(attachment, renderbuffertarget, renderbuffer, 0);
 #endif
 }
-extern "C"  void WINAPI glFramebufferTexture(GLenum target, GLenum attachment, GLuint texture, GLint level)
+			void WINAPI glFramebufferTexture(GLenum target, GLenum attachment, GLuint texture, GLint level)
 {
 	static const auto trampoline = reshade::hooks::call(glFramebufferTexture);
 	trampoline(target, attachment, texture, level);
@@ -655,7 +671,7 @@ extern "C"  void WINAPI glFramebufferTexture(GLenum target, GLenum attachment, G
 	if (g_current_runtime) g_current_runtime->_buffer_detection.on_fbo_attachment(attachment, GL_TEXTURE_2D, texture, level);
 #endif
 }
-extern "C"  void WINAPI glFramebufferTextureARB(GLenum target, GLenum attachment, GLuint texture, GLint level)
+			void WINAPI glFramebufferTextureARB(GLenum target, GLenum attachment, GLuint texture, GLint level)
 {
 	static const auto trampoline = reshade::hooks::call(glFramebufferTextureARB);
 	trampoline(target, attachment, texture, level);
@@ -663,7 +679,7 @@ extern "C"  void WINAPI glFramebufferTextureARB(GLenum target, GLenum attachment
 	if (g_current_runtime) g_current_runtime->_buffer_detection.on_fbo_attachment(attachment, GL_TEXTURE_2D, texture, level);
 #endif
 }
-extern "C"  void WINAPI glFramebufferTextureEXT(GLenum target, GLenum attachment, GLuint texture, GLint level)
+			void WINAPI glFramebufferTextureEXT(GLenum target, GLenum attachment, GLuint texture, GLint level)
 {
 	static const auto trampoline = reshade::hooks::call(glFramebufferTextureEXT);
 	trampoline(target, attachment, texture, level);
@@ -671,7 +687,7 @@ extern "C"  void WINAPI glFramebufferTextureEXT(GLenum target, GLenum attachment
 	if (g_current_runtime) g_current_runtime->_buffer_detection.on_fbo_attachment(attachment, GL_TEXTURE_2D, texture, level);
 #endif
 }
-extern "C"  void WINAPI glFramebufferTexture1D(GLenum target, GLenum attachment, GLenum textarget, GLuint texture, GLint level)
+			void WINAPI glFramebufferTexture1D(GLenum target, GLenum attachment, GLenum textarget, GLuint texture, GLint level)
 {
 	static const auto trampoline = reshade::hooks::call(glFramebufferTexture1D);
 	trampoline(target, attachment, textarget, texture, level);
@@ -679,7 +695,7 @@ extern "C"  void WINAPI glFramebufferTexture1D(GLenum target, GLenum attachment,
 	if (g_current_runtime) g_current_runtime->_buffer_detection.on_fbo_attachment(attachment, textarget, texture, level);
 #endif
 }
-extern "C"  void WINAPI glFramebufferTexture1DEXT(GLenum target, GLenum attachment, GLenum textarget, GLuint texture, GLint level)
+			void WINAPI glFramebufferTexture1DEXT(GLenum target, GLenum attachment, GLenum textarget, GLuint texture, GLint level)
 {
 	static const auto trampoline = reshade::hooks::call(glFramebufferTexture1DEXT);
 	trampoline(target, attachment, textarget, texture, level);
@@ -687,7 +703,7 @@ extern "C"  void WINAPI glFramebufferTexture1DEXT(GLenum target, GLenum attachme
 	if (g_current_runtime) g_current_runtime->_buffer_detection.on_fbo_attachment(attachment, textarget, texture, level);
 #endif
 }
-extern "C"  void WINAPI glFramebufferTexture2D(GLenum target, GLenum attachment, GLenum textarget, GLuint texture, GLint level)
+			void WINAPI glFramebufferTexture2D(GLenum target, GLenum attachment, GLenum textarget, GLuint texture, GLint level)
 {
 	static const auto trampoline = reshade::hooks::call(glFramebufferTexture2D);
 	trampoline(target, attachment, textarget, texture, level);
@@ -695,7 +711,7 @@ extern "C"  void WINAPI glFramebufferTexture2D(GLenum target, GLenum attachment,
 	if (g_current_runtime) g_current_runtime->_buffer_detection.on_fbo_attachment(attachment, textarget, texture, level);
 #endif
 }
-extern "C"  void WINAPI glFramebufferTexture2DEXT(GLenum target, GLenum attachment, GLenum textarget, GLuint texture, GLint level)
+			void WINAPI glFramebufferTexture2DEXT(GLenum target, GLenum attachment, GLenum textarget, GLuint texture, GLint level)
 {
 	static const auto trampoline = reshade::hooks::call(glFramebufferTexture2DEXT);
 	trampoline(target, attachment, textarget, texture, level);
@@ -703,7 +719,7 @@ extern "C"  void WINAPI glFramebufferTexture2DEXT(GLenum target, GLenum attachme
 	if (g_current_runtime) g_current_runtime->_buffer_detection.on_fbo_attachment(attachment, textarget, texture, level);
 #endif
 }
-extern "C"  void WINAPI glFramebufferTexture3D(GLenum target, GLenum attachment, GLenum textarget, GLuint texture, GLint level, GLint zoffset)
+			void WINAPI glFramebufferTexture3D(GLenum target, GLenum attachment, GLenum textarget, GLuint texture, GLint level, GLint zoffset)
 {
 	static const auto trampoline = reshade::hooks::call(glFramebufferTexture3D);
 	trampoline(target, attachment, textarget, texture, level, zoffset);
@@ -711,7 +727,7 @@ extern "C"  void WINAPI glFramebufferTexture3D(GLenum target, GLenum attachment,
 	if (g_current_runtime) g_current_runtime->_buffer_detection.on_fbo_attachment(attachment, textarget, texture, level);
 #endif
 }
-extern "C"  void WINAPI glFramebufferTexture3DEXT(GLenum target, GLenum attachment, GLenum textarget, GLuint texture, GLint level, GLint zoffset)
+			void WINAPI glFramebufferTexture3DEXT(GLenum target, GLenum attachment, GLenum textarget, GLuint texture, GLint level, GLint zoffset)
 {
 	static const auto trampoline = reshade::hooks::call(glFramebufferTexture3DEXT);
 	trampoline(target, attachment, textarget, texture, level, zoffset);
@@ -719,7 +735,7 @@ extern "C"  void WINAPI glFramebufferTexture3DEXT(GLenum target, GLenum attachme
 	if (g_current_runtime) g_current_runtime->_buffer_detection.on_fbo_attachment(attachment, textarget, texture, level);
 #endif
 }
-extern "C"  void WINAPI glFramebufferTextureLayer(GLenum target, GLenum attachment, GLuint texture, GLint level, GLint layer)
+			void WINAPI glFramebufferTextureLayer(GLenum target, GLenum attachment, GLuint texture, GLint level, GLint layer)
 {
 	static const auto trampoline = reshade::hooks::call(glFramebufferTextureLayer);
 	trampoline(target, attachment, texture, level, layer);
@@ -728,7 +744,7 @@ extern "C"  void WINAPI glFramebufferTextureLayer(GLenum target, GLenum attachme
 	if (g_current_runtime) g_current_runtime->_buffer_detection.on_fbo_attachment(attachment, GL_TEXTURE_2D_ARRAY, texture, level);
 #endif
 }
-extern "C"  void WINAPI glFramebufferTextureLayerARB(GLenum target, GLenum attachment, GLuint texture, GLint level, GLint layer)
+			void WINAPI glFramebufferTextureLayerARB(GLenum target, GLenum attachment, GLuint texture, GLint level, GLint layer)
 {
 	static const auto trampoline = reshade::hooks::call(glFramebufferTextureLayerARB);
 	trampoline(target, attachment, texture, level, layer);
@@ -736,7 +752,7 @@ extern "C"  void WINAPI glFramebufferTextureLayerARB(GLenum target, GLenum attac
 	if (g_current_runtime) g_current_runtime->_buffer_detection.on_fbo_attachment(attachment, GL_TEXTURE_2D_ARRAY, texture, level);
 #endif
 }
-extern "C"  void WINAPI glFramebufferTextureLayerEXT(GLenum target, GLenum attachment, GLuint texture, GLint level, GLint layer)
+			void WINAPI glFramebufferTextureLayerEXT(GLenum target, GLenum attachment, GLuint texture, GLint level, GLint layer)
 {
 	static const auto trampoline = reshade::hooks::call(glFramebufferTextureLayerEXT);
 	trampoline(target, attachment, texture, level, layer);
@@ -1193,33 +1209,33 @@ HOOK_EXPORT void WINAPI glMultMatrixf(const GLfloat *m)
 	trampoline(m);
 }
 
-extern "C"  void WINAPI glMultiDrawArrays(GLenum mode, const GLint *first, const GLsizei *count, GLsizei drawcount)
+			void WINAPI glMultiDrawArrays(GLenum mode, const GLint *first, const GLsizei *count, GLsizei drawcount)
 {
 	if (g_current_runtime) g_current_runtime->_buffer_detection.on_draw(std::accumulate(count, count + drawcount, 0));
 
 	static const auto trampoline = reshade::hooks::call(glMultiDrawArrays);
 	trampoline(mode, first, count, drawcount);
 }
-extern "C"  void WINAPI glMultiDrawArraysIndirect(GLenum mode, const void *indirect, GLsizei drawcount, GLsizei stride)
+			void WINAPI glMultiDrawArraysIndirect(GLenum mode, const void *indirect, GLsizei drawcount, GLsizei stride)
 {
 	static const auto trampoline = reshade::hooks::call(glMultiDrawArraysIndirect);
 	trampoline(mode, indirect, drawcount, stride);
 }
-extern "C"  void WINAPI glMultiDrawElements(GLenum mode, const GLsizei *count, GLenum type, const GLvoid *const *indices, GLsizei drawcount)
+			void WINAPI glMultiDrawElements(GLenum mode, const GLsizei *count, GLenum type, const GLvoid *const *indices, GLsizei drawcount)
 {
 	if (g_current_runtime) g_current_runtime->_buffer_detection.on_draw(std::accumulate(count, count + drawcount, 0));
 
 	static const auto trampoline = reshade::hooks::call(glMultiDrawElements);
 	trampoline(mode, count, type, indices, drawcount);
 }
-extern "C"  void WINAPI glMultiDrawElementsBaseVertex(GLenum mode, const GLsizei *count, GLenum type, const GLvoid *const *indices, GLsizei drawcount, const GLint *basevertex)
+			void WINAPI glMultiDrawElementsBaseVertex(GLenum mode, const GLsizei *count, GLenum type, const GLvoid *const *indices, GLsizei drawcount, const GLint *basevertex)
 {
 	if (g_current_runtime) g_current_runtime->_buffer_detection.on_draw(std::accumulate(count, count + drawcount, 0));
 
 	static const auto trampoline = reshade::hooks::call(glMultiDrawElementsBaseVertex);
 	trampoline(mode, count, type, indices, drawcount, basevertex);
 }
-extern "C"  void WINAPI glMultiDrawElementsIndirect(GLenum mode, GLenum type, const void *indirect, GLsizei drawcount, GLsizei stride)
+			void WINAPI glMultiDrawElementsIndirect(GLenum mode, GLenum type, const void *indirect, GLsizei drawcount, GLsizei stride)
 {
 	static const auto trampoline = reshade::hooks::call(glMultiDrawElementsIndirect);
 	trampoline(mode, type, indirect, drawcount, stride);
@@ -1924,7 +1940,7 @@ HOOK_EXPORT void WINAPI glTexImage2D(GLenum target, GLint level, GLint internalf
 	}
 	trampoline(target, level, internalformat, width, height, border, format, type, pixels);
 }
-extern "C"  void WINAPI glTexImage3D(GLenum target, GLint level, GLint internalformat, GLsizei width, GLsizei height, GLsizei depth, GLint border, GLenum format, GLenum type, const GLvoid *pixels)
+			void WINAPI glTexImage3D(GLenum target, GLint level, GLint internalformat, GLsizei width, GLsizei height, GLsizei depth, GLint border, GLenum format, GLenum type, const GLvoid *pixels)
 {
 	static const auto trampoline = reshade::hooks::call(glTexImage3D);
 

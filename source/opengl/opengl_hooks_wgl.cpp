@@ -1003,6 +1003,7 @@ HOOK_EXPORT PROC  WINAPI wglGetProcAddress(LPCSTR lpszProc)
 	else if (static bool s_hooks_not_installed = true; s_hooks_not_installed)
 	{
 		// Install all OpenGL hooks in a single batch job
+		reshade::hooks::install("glDeleteRenderbuffers", reinterpret_cast<reshade::hook::address>(trampoline("glDeleteRenderbuffers")), reinterpret_cast<reshade::hook::address>(glDeleteRenderbuffers), true);
 		reshade::hooks::install("glDrawArraysIndirect", reinterpret_cast<reshade::hook::address>(trampoline("glDrawArraysIndirect")), reinterpret_cast<reshade::hook::address>(glDrawArraysIndirect), true);
 		reshade::hooks::install("glDrawArraysInstanced", reinterpret_cast<reshade::hook::address>(trampoline("glDrawArraysInstanced")), reinterpret_cast<reshade::hook::address>(glDrawArraysInstanced), true);
 		reshade::hooks::install("glDrawArraysInstancedARB", reinterpret_cast<reshade::hook::address>(trampoline("glDrawArraysInstancedARB")), reinterpret_cast<reshade::hook::address>(glDrawArraysInstancedARB), true);

@@ -39,6 +39,7 @@ namespace reshade::opengl
 		void on_draw_vertex(GLsizei vertices) { _current_vertex_count += vertices; }
 
 		void on_fbo_attachment(GLenum attachment, GLenum target, GLuint object, GLint level);
+		void on_delete_fbo_attachment(GLenum target, GLuint object);
 
 #if RESHADE_OPENGL_CAPTURE_DEPTH_BUFFERS
 		const auto &depth_buffer_counters() const { return _depth_source_table; }

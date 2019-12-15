@@ -240,7 +240,7 @@ void reshade::opengl::runtime_gl::on_present()
 	_app_state.capture();
 
 #if RESHADE_OPENGL_CAPTURE_DEPTH_BUFFERS
-	const auto snapshot = _buffer_detection.find_best_depth_texture(_width, _height, _depth_source_override);
+	const auto snapshot = _buffer_detection.find_best_depth_texture(_use_aspect_ratio_heuristics ? _width : 0, _height, _depth_source_override);
 	update_depthstencil_texture(snapshot.handle, snapshot.width, snapshot.height, snapshot.level, snapshot.format);
 #endif
 
@@ -1157,7 +1157,7 @@ void reshade::opengl::runtime_gl::draw_depth_debug_menu()
 				_depth_source_override = value ? depth_source : std::numeric_limits<GLuint>::max();
 
 			ImGui::SameLine();
-			ImGui::Text("| %4ux%-4u | %5u draw calls ==> %8u vertices |%f",
+			ImGui::Text("| %4ux%-4u | %5u draw calls ==> %8u vertices |%s",
 				snapshot.width, snapshot.height, snapshot.stats.drawcalls, snapshot.stats.vertices,
 				depth_source & 0x80000000 ? " RBO" : depth_source != 0 ? " FBO" : "");
 		}

@@ -29,6 +29,8 @@ extern "C" void WINAPI glCopyTexSubImage1D(GLenum target, GLint level, GLint xof
 extern "C" void WINAPI glCopyTexSubImage2D(GLenum target, GLint level, GLint xoffset, GLint yoffset, GLint x, GLint y, GLsizei width, GLsizei height);
 #undef glCullFace
 extern "C" void WINAPI glCullFace(GLenum mode);
+#undef glDeleteRenderbuffers
+extern "C" void WINAPI glDeleteRenderbuffers(GLsizei n, const GLuint *renderbuffers);
 #undef glDeleteTextures
 extern "C" void WINAPI glDeleteTextures(GLsizei n, const GLuint *textures);
 #undef glDepthFunc

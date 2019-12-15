@@ -13,11 +13,15 @@ void reshade::opengl::buffer_detection::reset(GLuint default_width, GLuint defau
 	// Reset statistics for next frame
 	_stats.vertices = 0;
 	_stats.drawcalls = 0;
-#if RESHADE_OPENGL_CAPTURE_DEPTH_BUFFERS
-	_depth_source_table.clear();
 
+#if RESHADE_OPENGL_CAPTURE_DEPTH_BUFFERS
 	// Initialize information for the default depth buffer
-	_depth_source_table.emplace(0, depthstencil_info { 0, GLint(default_width), GLint(default_height), 0, GLint(default_format) });
+	_depth_source_table[0] = { 0, GLint(default_width), GLint(default_height), 0, GLint(default_format) };
+
+	// Do not clear depth source table, since FBO attachments are usually only created during startup
+	for (auto &source : _depth_source_table)
+		// Instead only reset the draw call statistics
+		source.second.stats = { 0, 0 };
 #endif
 }
 
@@ -115,6 +119,15 @@ void reshade::opengl::buffer_detection::on_fbo_attachment(GLenum attachment, GLe
 	}
 
 	_depth_source_table.emplace(id, info);
+}
+void reshade::opengl::buffer_detection::on_delete_fbo_attachment(GLenum target, GLuint object)
+{
+	if (object == 0)
+		return;
+
+	const GLuint id = object | (target == GL_RENDERBUFFER ? 0x80000000 : 0);
+	if (const auto it = _depth_source_table.find(id); it != _depth_source_table.end())
+		_depth_source_table.erase(it);
 }
 
 reshade::opengl::buffer_detection::depthstencil_info reshade::opengl::buffer_detection::find_best_depth_texture(GLuint width, GLuint height, GLuint override)
