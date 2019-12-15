@@ -2351,7 +2351,9 @@ void reshade::runtime::draw_variable_editor()
 					imgui_key_input("##toggle_key", variable.toggle_key_data, *_input))
 					modified = true;
 
-				if (ImGui::Button("Reset to default", ImVec2(200, 0)))
+				const float button_width = ImGui::CalcItemWidth();
+
+				if (ImGui::Button("Reset to default", ImVec2(button_width, 0)))
 				{
 					modified = true;
 					reset_uniform_value(variable);
@@ -2395,15 +2397,18 @@ void reshade::runtime::draw_variable_editor()
 				if (ImGui::InputText(definition.first.c_str(), value, sizeof(value),
 					global_it != _global_preprocessor_definitions.end() ? ImGuiInputTextFlags_ReadOnly : ImGuiInputTextFlags_AutoSelectAll | ImGuiInputTextFlags_EnterReturnsTrue))
 				{
-					reload_effect = true;
-
 					if (value[0] == '\0') // An empty value removes the definition
 					{
 						if (preset_it != _preset_preprocessor_definitions.end())
+						{
+							reload_effect = true;
 							_preset_preprocessor_definitions.erase(preset_it);
+						}
 					}
 					else
 					{
+						reload_effect = true;
+
 						if (preset_it != _preset_preprocessor_definitions.end())
 							*preset_it = definition.first + '=' + value;
 						else
@@ -2411,6 +2416,25 @@ void reshade::runtime::draw_variable_editor()
 					}
 
 					save_current_preset();
+				}
+
+				if (!reload_effect && // Cannot compare iterators if definitions were just modified above
+					ImGui::BeginPopupContextItem())
+				{
+					const float button_width = ImGui::CalcItemWidth();
+
+					if (ImGui::Button("Reset to default", ImVec2(button_width, 0)))
+					{
+						if (preset_it != _preset_preprocessor_definitions.end())
+						{
+							reload_effect = true;
+							_preset_preprocessor_definitions.erase(preset_it);
+						}
+
+						ImGui::CloseCurrentPopup();
+					}
+
+					ImGui::EndPopup();
 				}
 			}
 		}
