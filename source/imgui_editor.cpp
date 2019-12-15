@@ -120,13 +120,20 @@ void imgui_code_editor::render(const char *title, bool border)
 		io.WantTextInput = true;
 		io.WantCaptureKeyboard = true;
 
-		if (ctrl && !shift && !alt && ImGui::IsKeyPressed('Z'))
+		if (ctrl && !shift && !alt && ImGui::IsKeyPressed('F'))
+		{
+			// Copy currently selected text into search box
+			if (_select_beg != _select_end)
+				std::memset(_search_text, 0, sizeof(_search_text)),
+				get_selected_text().copy(_search_text, sizeof(_search_text) - 1);
+
+			_search_window_open = true;
+			_search_window_focus = 2; // Need to focus multiple frames (see https://github.com/ocornut/imgui/issues/343)
+		}
+		else if (ctrl && !shift && !alt && ImGui::IsKeyPressed('Z'))
 			undo();
 		else if (ctrl && !shift && !alt && ImGui::IsKeyPressed('Y'))
 			redo();
-		else if (ctrl && !shift && !alt && ImGui::IsKeyPressed('F'))
-			_search_window_open = true,
-			_search_window_focus = 2; // Need to focus multiple frames (see https://github.com/ocornut/imgui/issues/343)
 		else if (!ctrl && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_UpArrow)))
 			if (alt && !shift) // Alt + Up moves the current line one up
 				move_lines_up();
