@@ -124,7 +124,7 @@ void reshade::d3d9::buffer_detection::on_clear_depthstencil(UINT clear_flags)
 	_clear_stats.vertices = 0;
 	_clear_stats.drawcalls = 0;
 
-	if (current_stats.vertices <= 4 || current_stats.drawcalls <= 20) // Also triggers when '_preserve_depth_buffers' is false, since no clear stats are recorded then
+	if (current_stats.vertices <= 4 || current_stats.drawcalls == 0) // Also triggers when '_preserve_depth_buffers' is false, since no clear stats are recorded then
 		return; // Ignore clears when there was no meaningful workload since the last one
 
 	if ((clear_flags & D3DCLEAR_ZBUFFER) == 0)
