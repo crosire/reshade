@@ -2145,7 +2145,9 @@ void reshade::runtime::draw_variable_editor()
 	for (size_t effect_index = 0, id = 0; effect_index < _effects.size(); ++effect_index)
 	{
 		// Hide variables that are not currently used in any of the active effects
-		if (!_effects[effect_index].rendering)
+		if (!_effects[effect_index].rendering ||
+			// Skip showing this effect in the variable list if it doesn't have any uniform variables to show
+			(_effects[effect_index].uniforms.empty() && _effects[effect_index].definitions.empty()))
 			continue;
 		assert(_effects[effect_index].compile_sucess);
 
