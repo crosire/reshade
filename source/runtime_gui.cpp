@@ -2318,7 +2318,7 @@ void reshade::runtime::draw_variable_editor()
 
 				// Calculate display precision based on step value
 				char precision_format[] = "%.0f";
-				for (float x = ui_stp_val; x < 1.0f && precision_format[2] < '9'; x *= 10.0f)
+				for (float x = 1.0f; x * ui_stp_val < 1.0f && precision_format[2] < '9'; x *= 10.0f)
 					++precision_format[2]; // This changes the text to "%.1f", "%.2f", "%.3f", ...
 
 				if (ui_type == "slider")
