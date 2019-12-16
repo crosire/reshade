@@ -117,19 +117,14 @@ bool reshade::input::handle_window_message(const void *message_data)
 	if (input_window == s_windows.end())
 		return false;
 
+	RAWINPUT raw_data = {};
 	const std::shared_ptr<input> input = input_window->second.lock();
 
 	// At this point we have a shared pointer to the input object and no longer reference any memory from the windows list, so can release the lock
 	lock.unlock();
 
 	// Prevent input threads from modifying input while it is accessed elsewhere
-#ifdef _DEBUG
-	std::unique_lock<std::mutex> input_lock(input->_mutex, std::try_to_lock);
-	if (!input_lock.owns_lock())
-		return false; // Avoid recursive lock when message box is open
-#else
 	const std::lock_guard<std::mutex> input_lock = input->lock();
-#endif
 
 	// Calculate window client mouse position
 	ScreenToClient(static_cast<HWND>(input->_window), &details.pt);
@@ -139,13 +134,11 @@ bool reshade::input::handle_window_message(const void *message_data)
 
 	switch (details.message)
 	{
-	case WM_INPUT: {
-		RAWINPUT raw_data = {};
+	case WM_INPUT:
 		if (UINT raw_data_size = sizeof(raw_data);
-			GET_RAWINPUT_CODE_WPARAM(details.wParam) != RIM_INPUT ||
+			GET_RAWINPUT_CODE_WPARAM(details.wParam) != RIM_INPUT || // Ignore all input sink messages (when window is not focused)
 			GetRawInputData(reinterpret_cast<HRAWINPUT>(details.lParam), RID_INPUT, &raw_data, &raw_data_size, sizeof(raw_data.header)) == UINT(-1))
 			break;
-
 		switch (raw_data.header.dwType)
 		{
 		case RIM_TYPEMOUSE:
@@ -196,7 +189,7 @@ bool reshade::input::handle_window_message(const void *message_data)
 				input->_text_input += ch;
 			break;
 		}
-		break; }
+		break;
 	case WM_CHAR:
 		input->_text_input += static_cast<wchar_t>(details.wParam);
 		break;
@@ -453,7 +446,6 @@ static inline bool is_blocking_keyboard_input()
 HOOK_EXPORT BOOL WINAPI HookGetMessageA(LPMSG lpMsg, HWND hWnd, UINT wMsgFilterMin, UINT wMsgFilterMax)
 {
 	static const auto trampoline = reshade::hooks::call(HookGetMessageA);
-
 	if (!trampoline(lpMsg, hWnd, wMsgFilterMin, wMsgFilterMax))
 		return FALSE;
 
@@ -473,7 +465,6 @@ HOOK_EXPORT BOOL WINAPI HookGetMessageA(LPMSG lpMsg, HWND hWnd, UINT wMsgFilterM
 HOOK_EXPORT BOOL WINAPI HookGetMessageW(LPMSG lpMsg, HWND hWnd, UINT wMsgFilterMin, UINT wMsgFilterMax)
 {
 	static const auto trampoline = reshade::hooks::call(HookGetMessageW);
-
 	if (!trampoline(lpMsg, hWnd, wMsgFilterMin, wMsgFilterMax))
 		return FALSE;
 
@@ -493,7 +484,6 @@ HOOK_EXPORT BOOL WINAPI HookGetMessageW(LPMSG lpMsg, HWND hWnd, UINT wMsgFilterM
 HOOK_EXPORT BOOL WINAPI HookPeekMessageA(LPMSG lpMsg, HWND hWnd, UINT wMsgFilterMin, UINT wMsgFilterMax, UINT wRemoveMsg)
 {
 	static const auto trampoline = reshade::hooks::call(HookPeekMessageA);
-
 	if (!trampoline(lpMsg, hWnd, wMsgFilterMin, wMsgFilterMax, wRemoveMsg))
 		return FALSE;
 
@@ -513,7 +503,6 @@ HOOK_EXPORT BOOL WINAPI HookPeekMessageA(LPMSG lpMsg, HWND hWnd, UINT wMsgFilter
 HOOK_EXPORT BOOL WINAPI HookPeekMessageW(LPMSG lpMsg, HWND hWnd, UINT wMsgFilterMin, UINT wMsgFilterMax, UINT wRemoveMsg)
 {
 	static const auto trampoline = reshade::hooks::call(HookPeekMessageW);
-
 	if (!trampoline(lpMsg, hWnd, wMsgFilterMin, wMsgFilterMax, wRemoveMsg))
 		return FALSE;
 

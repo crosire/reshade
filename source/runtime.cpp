@@ -186,8 +186,10 @@ void reshade::runtime::on_present()
 	_last_frame_duration = current_time - _last_present_time;
 	_last_present_time = current_time;
 
+#ifndef _DEBUG
 	// Lock input so it cannot be modified by other threads while we are reading it here
 	const auto input_lock = _input->lock();
+#endif
 
 	// Handle keyboard shortcuts
 	if (!_ignore_shortcuts)
@@ -802,9 +804,11 @@ void reshade::runtime::update_and_render_effects()
 		}
 	}
 
+#ifndef _DEBUG
 	// Lock input so it cannot be modified by other threads while we are reading it here
 	// TODO: This does not catch input happening between now and 'on_present'
 	const auto input_lock = _input->lock();
+#endif
 
 	if (_should_save_screenshot && (_screenshot_save_before || !_effects_enabled))
 		save_screenshot(_effects_enabled ? L" original" : std::wstring(), !_effects_enabled);
