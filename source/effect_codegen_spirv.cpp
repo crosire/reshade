@@ -165,7 +165,7 @@ private:
 	uint32_t _current_semantic_location = 10;
 	std::unordered_set<spv::Id> _spec_constants;
 
-	std::vector<function_blocks> _functions2;
+	std::vector<function_blocks> _functions_blocks;
 	std::unordered_map<id, spirv_basic_block> _block_data;
 	spirv_basic_block *_current_block_data = nullptr;
 
@@ -294,7 +294,7 @@ private:
 			node.write(module.spirv);
 
 		// All function definitions
-		for (const auto &function : _functions2)
+		for (const auto &function : _functions_blocks)
 		{
 			if (function.definition.instructions.empty())
 				continue;
@@ -316,64 +316,64 @@ private:
 	spv::Id convert_type(const type &info, bool is_ptr = false, spv::StorageClass storage = spv::StorageClassFunction)
 	{
 		if (auto it = std::find_if(_type_lookup.begin(), _type_lookup.end(),
-			[&](auto &x) { return x.type == info && x.is_ptr == is_ptr && x.storage == storage; }); it != _type_lookup.end())
+			[&](const auto &lookup) { return lookup.type == info && lookup.is_ptr == is_ptr && lookup.storage == storage; }); it != _type_lookup.end())
 			return it->id;
 
 		spv::Id type;
 
 		if (is_ptr)
 		{
-			const spv::Id elemtype = convert_type(info);
+			const spv::Id elem_type = convert_type(info);
 
 			type = add_instruction(spv::OpTypePointer, 0, _types_and_constants)
 				.add(storage)
-				.add(elemtype)
+				.add(elem_type)
 				.result;
 		}
 		else if (info.is_array())
 		{
-			auto eleminfo = info;
-			eleminfo.array_length = 0;
+			auto elem_info = info;
+			elem_info.array_length = 0;
 
 			// Make sure we don't get any dynamic arrays here
 			assert(info.array_length > 0);
 
-			const spv::Id length = emit_constant(info.array_length);
-			const spv::Id elemtype = convert_type(eleminfo);
+			const spv::Id elem_type = convert_type(elem_info);
+			const spv::Id array_length = emit_constant(info.array_length);
 
 			type = add_instruction(spv::OpTypeArray, 0, _types_and_constants)
-				.add(elemtype)
-				.add(length)
+				.add(elem_type)
+				.add(array_length)
 				.result;
 		}
 		else if (info.is_matrix())
 		{
 			// Convert MxN matrix to a SPIR-V matrix with M vectors with N elements
-			auto eleminfo = info;
-			eleminfo.rows = info.cols;
-			eleminfo.cols = 1;
+			auto elem_info = info;
+			elem_info.rows = info.cols;
+			elem_info.cols = 1;
 
-			const spv::Id elemtype = convert_type(eleminfo);
+			const spv::Id elem_type = convert_type(elem_info);
 
 			// Matrix types with just one row are interpreted as if they were a vector type
 			if (info.rows == 1)
-				type = elemtype;
+				type = elem_type;
 			else
 				type = add_instruction(spv::OpTypeMatrix, 0, _types_and_constants)
-					.add(elemtype)
+					.add(elem_type)
 					.add(info.rows)
 					.result;
 		}
 		else if (info.is_vector())
 		{
-			auto eleminfo = info;
-			eleminfo.rows = 1;
-			eleminfo.cols = 1;
+			auto elem_info = info;
+			elem_info.rows = 1;
+			elem_info.cols = 1;
 
-			const spv::Id elemtype = convert_type(eleminfo);
+			const spv::Id elem_type = convert_type(elem_info);
 
 			type = add_instruction(spv::OpTypeVector, 0, _types_and_constants)
-				.add(elemtype)
+				.add(elem_type)
 				.add(info.rows)
 				.result;
 		}
@@ -383,11 +383,13 @@ private:
 			{
 			case type::t_void:
 				assert(info.rows == 0 && info.cols == 0);
-				type = add_instruction(spv::OpTypeVoid, 0, _types_and_constants).result;
+				type = add_instruction(spv::OpTypeVoid, 0, _types_and_constants)
+					.result;
 				break;
 			case type::t_bool:
 				assert(info.rows == 1 && info.cols == 1);
-				type = add_instruction(spv::OpTypeBool, 0, _types_and_constants).result;
+				type = add_instruction(spv::OpTypeBool, 0, _types_and_constants)
+					.result;
 				break;
 			case type::t_int:
 				assert(info.rows == 1 && info.cols == 1);
@@ -413,7 +415,8 @@ private:
 				assert(info.rows == 0 && info.cols == 0 && info.definition != 0);
 				type = info.definition;
 				break;
-			case type::t_texture: {
+			case type::t_texture:
+			{
 				assert(info.rows == 0 && info.cols == 0);
 				spv::Id sampled_type = convert_type({ type::t_float, 1, 1 });
 				type = add_instruction(spv::OpTypeImage, 0, _types_and_constants)
@@ -425,17 +428,19 @@ private:
 					.add(1) // Will be used with a sampler
 					.add(spv::ImageFormatUnknown)
 					.result;
-				break; }
-			case type::t_sampler: {
+				break;
+			}
+			case type::t_sampler:
+			{
 				assert(info.rows == 0 && info.cols == 0);
 				spv::Id image_type = convert_type({ type::t_texture, 0, 0, type::q_uniform });
 				type = add_instruction(spv::OpTypeSampledImage, 0, _types_and_constants)
 					.add(image_type)
 					.result;
-				break; }
+				break;
+			}
 			default:
-				assert(false);
-				return 0;
+				return assert(false), 0;
 			}
 		}
 
@@ -445,23 +450,25 @@ private:
 	}
 	spv::Id convert_type(const function_blocks &info)
 	{
-		if (auto it = std::find_if(_function_type_lookup.begin(), _function_type_lookup.end(), [&info](auto &x) { return x.first == info; }); it != _function_type_lookup.end())
+		if (auto it = std::find_if(_function_type_lookup.begin(), _function_type_lookup.end(),
+			[&info](const auto &lookup) { return lookup.first == info; }); it != _function_type_lookup.end())
 			return it->second;
 
-		spv::Id return_type = convert_type(info.return_type);
+		auto return_type = convert_type(info.return_type);
 		assert(return_type != 0);
+
 		std::vector<spv::Id> param_type_ids;
+		param_type_ids.reserve(info.param_types.size());
 		for (auto param : info.param_types)
 			param_type_ids.push_back(convert_type(param, true));
 
-		spirv_instruction &node = add_instruction(spv::OpTypeFunction, 0, _types_and_constants);
-		node.add(return_type);
-		for (auto param_type : param_type_ids)
-			node.add(param_type);
+		spirv_instruction &inst = add_instruction(spv::OpTypeFunction, 0, _types_and_constants)
+			.add(return_type)
+			.add(param_type_ids.begin(), param_type_ids.end());
 
-		_function_type_lookup.push_back({ info, node.result });;
+		_function_type_lookup.push_back({ info, inst.result });;
 
-		return node.result;
+		return inst.result;
 	}
 
 	inline void add_name(id id, const char *name)
@@ -548,7 +555,7 @@ private:
 		// First define all member types to make sure they are declared before the struct type references them
 		std::vector<spv::Id> member_types;
 		member_types.reserve(info.member_list.size());
-		for (const auto &member : info.member_list)
+		for (const struct_member_info &member : info.member_list)
 			member_types.push_back(convert_type(member.type));
 
 		// Afterwards define the actual struct type
@@ -729,7 +736,7 @@ private:
 	}
 	id   define_variable(const location &loc, const type &type, std::string name, bool global, id initializer_value) override
 	{
-		const id res = make_id();
+		id res = make_id();
 		define_variable(res, loc, type, name.c_str(), global ? spv::StorageClassPrivate : spv::StorageClassFunction, initializer_value);
 		return res;
 	}
@@ -756,7 +763,7 @@ private:
 	{
 		assert(!is_in_function());
 
-		auto &function = _functions2.emplace_back();
+		auto &function = _functions_blocks.emplace_back();
 		function.return_type = info.return_type;
 
 		_current_function = &function;
@@ -768,8 +775,7 @@ private:
 
 		info.definition = add_instruction(spv::OpFunction, convert_type(info.return_type), function.declaration)
 			.add(spv::FunctionControlMaskNone)
-			.add(convert_type(function))
-			.result;
+			.add(convert_type(function)).result;
 
 		if (!info.name.empty())
 			add_name(info.definition, info.name.c_str());
@@ -778,8 +784,7 @@ private:
 		{
 			add_location(param.location, function.declaration);
 
-			param.definition = add_instruction(spv::OpFunctionParameter, convert_type(param.type, true), function.declaration)
-				.result;
+			param.definition = add_instruction(spv::OpFunctionParameter, convert_type(param.type, true), function.declaration).result;
 
 			add_name(param.definition, param.name.c_str());
 		}
@@ -1576,9 +1581,10 @@ private:
 
 		add_location(loc, *_current_block_data);
 
-		return add_instruction(spv_op, convert_type(type))
-			.add(val) // Operand
-			.result;
+		spirv_instruction &inst = add_instruction(spv_op, convert_type(type))
+			.add(val); // Operand
+
+		return inst.result;
 	}
 	id   emit_binary_op(const location &loc, tokenid op, const type &res_type, const type &type, id lhs, id rhs) override
 	{
@@ -1675,15 +1681,17 @@ private:
 	}
 	id   emit_ternary_op(const location &loc, tokenid op, const type &type, id condition, id true_value, id false_value) override
 	{
-		assert(op == tokenid::question); /* unreferenced parameter */ op;
+		if (op != tokenid::question)
+			return assert(false), 0;
 
 		add_location(loc, *_current_block_data);
 
-		return add_instruction(spv::OpSelect, convert_type(type))
+		spirv_instruction &inst = add_instruction(spv::OpSelect, convert_type(type))
 			.add(condition) // Condition
 			.add(true_value) // Object 1
-			.add(false_value) // Object 2
-			.result;
+			.add(false_value); // Object 2
+
+		return inst.result;
 	}
 	id   emit_call(const location &loc, id function, const type &res_type, const std::vector<expression> &args) override
 	{
@@ -1695,12 +1703,12 @@ private:
 		add_location(loc, *_current_block_data);
 
 		// https://www.khronos.org/registry/spir-v/specs/unified1/SPIRV.html#OpFunctionCall
-		spirv_instruction &call = add_instruction(spv::OpFunctionCall, convert_type(res_type));
-		call.add(function); // Function
+		spirv_instruction &inst = add_instruction(spv::OpFunctionCall, convert_type(res_type));
+		inst.add(function); // Function
 		for (const auto &arg : args)
-			call.add(arg.base); // Arguments
+			inst.add(arg.base); // Arguments
 
-		return call.result;
+		return inst.result;
 	}
 	id   emit_call_intrinsic(const location &loc, id intrinsic, const type &res_type, const std::vector<expression> &args) override
 	{
@@ -1722,7 +1730,7 @@ private:
 #define IMPLEMENT_INTRINSIC_SPIRV(name, i, code) case name##i: code
 #include "effect_symbol_table_intrinsics.inl"
 		default:
-			return 0;
+			return assert(false), 0;
 		}
 	}
 	id   emit_construct(const location &loc, const type &type, const std::vector<expression> &args) override
@@ -1745,15 +1753,15 @@ private:
 			auto vector_type = type;
 			vector_type.cols = 1;
 
-			// Second, turn that list of scalars into a list of column vectors
-			for (size_t i = 0, j = 0; i < args.size(); i += type.rows, ++j)
+			// Turn the list of scalar arguments into a list of column vectors
+			for (size_t arg = 0; arg < args.size(); arg += type.rows)
 			{
-				spirv_instruction &node = add_instruction(spv::OpCompositeConstruct, convert_type(vector_type));
+				spirv_instruction &inst = add_instruction(spv::OpCompositeConstruct, convert_type(vector_type));
 
-				for (unsigned int k = 0; k < type.rows; ++k)
-					node.add(args[i + k].base);
+				for (size_t row = 0; row < type.rows; ++row)
+					inst.add(args[arg + row].base);
 
-				ids.push_back(node.result);
+				ids.push_back(inst.result);
 			}
 
 			ids.erase(ids.begin() + type.cols, ids.end());
@@ -1763,13 +1771,14 @@ private:
 			assert(type.is_vector() || type.is_array());
 
 			// The exception is that for constructing a vector, a contiguous subset of the scalars consumed can be represented by a vector operand instead
-			for (const auto &arg : args)
+			for (const expression &arg : args)
 				ids.push_back(arg.base);
 		}
 
-		return add_instruction(spv::OpCompositeConstruct, convert_type(type))
-			.add(ids.begin(), ids.end())
-			.result;
+		spirv_instruction &inst = add_instruction(spv::OpCompositeConstruct, convert_type(type))
+			.add(ids.begin(), ids.end());
+
+		return inst.result;
 	}
 
 	void emit_if(const location &loc, id, id condition_block, id true_statement_block, id false_statement_block, unsigned int selection_control) override

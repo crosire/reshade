@@ -357,6 +357,7 @@ private:
 		// 3. If the member is a three-component vector with components consuming N basic machine units, the base alignment is 4N.
 		// 4. If the member is an array of scalars or vectors, the base alignment and array stride are set to match the base alignment of a single array element,
 		//    according to rules (1), (2), and (3), and rounded up to the base alignment of a four-component vector.
+		// 5. If the member is a column-major matrix with C columns and R rows, the matrix is stored identically to an array of C column vectors with R components each, according to rule (4).
 		// 7. If the member is a row-major matrix with C columns and R rows, the matrix is stored identically to an array of R row vectors with C components each, according to rule (4).
 		uint32_t alignment = info.type.is_array() || info.type.is_matrix() ? 16u : (info.type.rows == 3 ? 4 : info.type.rows) * 4;
 		info.size = info.type.is_matrix() ? alignment * info.type.rows /* column major layout, with row major layout this would be columns */ : info.type.rows * 4;
@@ -1064,13 +1065,10 @@ private:
 	}
 	id   emit_ternary_op(const location &loc, tokenid op, const type &res_type, id condition, id true_value, id false_value) override
 	{
-		const id res = make_id();
-
 		if (op != tokenid::question)
-		{
-			assert(false); // Should never happen, since this is the only ternary operator currently supported
-			return res;
-		}
+			return assert(false), 0; // Should never happen, since this is the only ternary operator currently supported
+
+		const id res = make_id();
 
 		std::string &code = _blocks.at(_current_block);
 
