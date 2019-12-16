@@ -739,9 +739,6 @@ void reshade::runtime::draw_ui()
 
 void reshade::runtime::draw_ui_home()
 {
-	if (!_effects_enabled)
-		ImGui::Text("Effects are disabled. Press '%s' to enable them again.", input::key_name(_effects_key_data).c_str());
-
 	const char *tutorial_text =
 		"Welcome! Since this is the first time you start ReShade, we'll go through a quick tutorial covering the most important features.\n\n"
 		"If you have difficulties reading this text, press the 'Ctrl' key and adjust the font size with your mouse wheel. "
@@ -788,11 +785,27 @@ void reshade::runtime::draw_ui_home()
 		return; // Cannot show techniques and variables while effects are loading, since they are being modified in other different threads during that time
 	}
 
+	if (!_effects_enabled)
+		ImGui::Text("Effects are disabled. Press '%s' to enable them again.", input::key_name(_effects_key_data).c_str());
+
+	if (!_last_reload_successful)
+	{
+		std::string error_message = "There were errors compiling the following shaders:";
+		for (const effect &effect : _effects)
+			if (!effect.compile_sucess)
+				error_message += ' ' + effect.source_file.filename().u8string() + ',';
+		error_message.pop_back();
+
+		ImGui::TextColored(COLOR_RED, "%s", error_message.c_str());
+
+		ImGui::Spacing();
+	}
+
 	if (_tutorial_index > 1)
 	{
 		const bool show_clear_button = strcmp(_effect_filter, "Search") != 0 && _effect_filter[0] != '\0';
-		ImGui::PushItemWidth((_variable_editor_tabs ? -10.0f : -20.0f) * _font_size - (show_clear_button ? ImGui::GetFrameHeight() + _imgui_context->Style.ItemSpacing.x : 0));
 
+		ImGui::PushItemWidth((_variable_editor_tabs ? -10.0f : -20.0f) * _font_size - (show_clear_button ? ImGui::GetFrameHeight() + _imgui_context->Style.ItemSpacing.x : 0));
 		if (ImGui::InputText("##filter", _effect_filter, sizeof(_effect_filter), ImGuiInputTextFlags_AutoSelectAll))
 		{
 			_effects_expanded_state = 3;
@@ -817,7 +830,6 @@ void reshade::runtime::draw_ui_home()
 		{
 			strcpy_s(_effect_filter, "Search");
 		}
-
 		ImGui::PopItemWidth();
 
 		ImGui::SameLine();
@@ -2459,11 +2471,16 @@ void reshade::runtime::draw_variable_editor()
 			_textures_loaded = false;
 			_reload_total_effects = 1;
 			_reload_remaining_effects = 1;
+			// Make a copy of the path here, since it is cleared during unloading
 			const std::filesystem::path source_path = _effects[effect_index].source_file;
 			unload_effect(effect_index);
 			load_effect(source_path, effect_index);
 			assert(_reload_remaining_effects == 0);
 			ImGui::FindWindowByName("Statistics")->DrawList->CmdBuffer.clear();
+
+			// Re-open file in editor so that errors are updated if there are any
+			if (_selected_effect == effect_index)
+				open_file_in_code_editor(effect_index, _editor_file);
 		}
 	}
 
@@ -2507,7 +2524,7 @@ void reshade::runtime::draw_technique_editor()
 		std::string_view ui_label = technique.annotation_as_string("ui_label");
 		if (ui_label.empty() || !compile_success) ui_label = technique.name;
 		std::string label(ui_label.data(), ui_label.size());
-		label += " [" + effect.source_file.filename().u8string() + ']' + (!compile_success ? " (failed to compile)" : "");
+		label += " [" + effect.source_file.filename().u8string() + ']' + (!compile_success ? " failed to compile" : "");
 
 		if (bool status = technique.enabled; ImGui::Checkbox(label.data(), &status))
 		{
