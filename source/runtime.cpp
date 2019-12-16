@@ -1159,7 +1159,12 @@ void reshade::runtime::load_current_preset()
 	{
 		for (uniform &variable : effect.uniforms)
 		{
+			if (variable.special != special_uniform::none)
+				continue;
+
 			const std::string section = effect.source_file.filename().u8string();
+			const unsigned int components = variable.type.components();
+			reshadefx::constant values, values_old;
 
 			if (variable.supports_toggle_key())
 			{
@@ -1172,35 +1177,33 @@ void reshade::runtime::load_current_preset()
 				// Reset values to defaults before loading from a new preset
 				reset_uniform_value(variable);
 
-			reshadefx::constant values, values_old;
-
 			switch (variable.type.base)
 			{
 			case reshadefx::type::t_int:
-				get_uniform_value(variable, values.as_int, 16);
+				get_uniform_value(variable, values.as_int, components);
 				preset.get(section, variable.name, values.as_int);
-				set_uniform_value(variable, values.as_int, 16);
+				set_uniform_value(variable, values.as_int, components);
 				break;
 			case reshadefx::type::t_bool:
 			case reshadefx::type::t_uint:
-				get_uniform_value(variable, values.as_uint, 16);
+				get_uniform_value(variable, values.as_uint, components);
 				preset.get(section, variable.name, values.as_uint);
-				set_uniform_value(variable, values.as_uint, 16);
+				set_uniform_value(variable, values.as_uint, components);
 				break;
 			case reshadefx::type::t_float:
-				get_uniform_value(variable, values.as_float, 16);
+				get_uniform_value(variable, values.as_float, components);
 				values_old = values;
 				preset.get(section, variable.name, values.as_float);
 				if (_is_in_between_presets_transition)
 				{
 					// Perform smooth transition on floating point values
-					for (unsigned int i = 0; i < 16; i++)
+					for (unsigned int i = 0; i < components; i++)
 					{
 						const auto transition_ratio = (values.as_float[i] - values_old.as_float[i]) / transition_ms_left_from_last_frame;
 						values.as_float[i] = values.as_float[i] - transition_ratio * transition_ms_left;
 					}
 				}
-				set_uniform_value(variable, values.as_float, 16);
+				set_uniform_value(variable, values.as_float, components);
 				break;
 			}
 		}
@@ -1264,9 +1267,8 @@ void reshade::runtime::save_current_preset() const
 			if (variable.special != special_uniform::none)
 				continue;
 
-			assert(variable.type.components() <= 16);
-
 			const std::string section = effect.source_file.filename().u8string();
+			const unsigned int components = variable.type.components();
 			reshadefx::constant values;
 
 			if (variable.supports_toggle_key())
@@ -1281,17 +1283,17 @@ void reshade::runtime::save_current_preset() const
 			switch (variable.type.base)
 			{
 			case reshadefx::type::t_int:
-				get_uniform_value(variable, values.as_int, 16);
-				preset.set(section, variable.name, values.as_int, variable.type.components());
+				get_uniform_value(variable, values.as_int, components);
+				preset.set(section, variable.name, values.as_int, components);
 				break;
 			case reshadefx::type::t_bool:
 			case reshadefx::type::t_uint:
-				get_uniform_value(variable, values.as_uint, 16);
-				preset.set(section, variable.name, values.as_uint, variable.type.components());
+				get_uniform_value(variable, values.as_uint, components);
+				preset.set(section, variable.name, values.as_uint, components);
 				break;
 			case reshadefx::type::t_float:
-				get_uniform_value(variable, values.as_float, 16);
-				preset.set(section, variable.name, values.as_float, variable.type.components());
+				get_uniform_value(variable, values.as_float, components);
+				preset.set(section, variable.name, values.as_float, components);
 				break;
 			}
 		}
@@ -1408,20 +1410,41 @@ void reshade::runtime::save_screenshot(const std::wstring &postfix, const bool s
 	}
 }
 
+static inline bool force_floating_point_value(const reshadefx::type &type, uint32_t renderer_id)
+{
+	if (renderer_id == 0x9000)
+		return true; // All uniform variables are floating-point in D3D9
+	if (type.is_matrix() && ((renderer_id & 0x10000) && renderer_id < 0x14600 /* OpenGL 4.6 uses SPIR-V */))
+		return true; // All matrices are floating-point in GLSL
+	return false;
+}
+
 void reshade::runtime::get_uniform_value(const uniform &variable, uint8_t *data, size_t size) const
 {
 	assert(data != nullptr);
 
-	size = std::min(size, size_t(variable.size));
+	size = std::min(size, static_cast<size_t>(variable.size));
 
 	auto &data_storage = _effects[variable.effect_index].uniform_data_storage;
 	assert(variable.offset + size <= data_storage.size());
 
-	std::memcpy(data, &data_storage[variable.offset], size);
+	if (variable.type.is_matrix())
+	{
+		assert((size % 4) == 0);
+
+		// Each row of a matrix is 16-byte aligned, so needs special handling
+		for (size_t row = 0, i = 0; row < variable.type.rows; ++row)
+			for (size_t col = 0; i < (size / 4), col < variable.type.cols; ++col, ++i)
+				std::memcpy(data + (row * variable.type.cols + col) * 4, data_storage.data() + variable.offset + (row * 4 + col) * 4, 4);
+	}
+	else
+	{
+		std::memcpy(data, data_storage.data() + variable.offset, size);
+	}
 }
 void reshade::runtime::get_uniform_value(const uniform &variable, bool *values, size_t count) const
 {
-	count = std::min(count, size_t(variable.size / 4));
+	count = std::min(count, static_cast<size_t>(variable.size / 4));
 
 	assert(values != nullptr);
 
@@ -1433,7 +1456,7 @@ void reshade::runtime::get_uniform_value(const uniform &variable, bool *values, 
 }
 void reshade::runtime::get_uniform_value(const uniform &variable, int32_t *values, size_t count) const
 {
-	if (!variable.type.is_floating_point() && _renderer_id != 0x9000)
+	if (!variable.type.is_floating_point() && !force_floating_point_value(variable.type, _renderer_id))
 	{
 		get_uniform_value(variable, reinterpret_cast<uint8_t *>(values), count * sizeof(int32_t));
 		return;
@@ -1455,7 +1478,7 @@ void reshade::runtime::get_uniform_value(const uniform &variable, uint32_t *valu
 }
 void reshade::runtime::get_uniform_value(const uniform &variable, float *values, size_t count) const
 {
-	if (variable.type.is_floating_point() || _renderer_id == 0x9000)
+	if (variable.type.is_floating_point() || force_floating_point_value(variable.type, _renderer_id))
 	{
 		get_uniform_value(variable, reinterpret_cast<uint8_t *>(values), count * sizeof(float));
 		return;
@@ -1478,17 +1501,30 @@ void reshade::runtime::set_uniform_value(uniform &variable, const uint8_t *data,
 {
 	assert(data != nullptr);
 
-	size = std::min(size, size_t(variable.size));
+	size = std::min(size, static_cast<size_t>(variable.size));
 
 	auto &data_storage = _effects[variable.effect_index].uniform_data_storage;
 	assert(variable.offset + size <= data_storage.size());
 
-	std::memcpy(&data_storage[variable.offset], data, size);
+	if (variable.type.is_matrix())
+	{
+		assert((size % 4) == 0);
+
+		// Each row of a matrix is 16-byte aligned, so needs special handling
+		for (size_t row = 0, i = 0; row < variable.type.rows; ++row)
+			for (size_t col = 0; i < (size / 4), col < variable.type.cols; ++col, ++i)
+				std::memcpy(data_storage.data() + variable.offset + (row * 4 + col) * 4, data + (row * variable.type.cols + col) * 4, 4);
+	}
+	else
+	{
+		std::memcpy(data_storage.data() + variable.offset, data, size);
+	}
 }
 void reshade::runtime::set_uniform_value(uniform &variable, const bool *values, size_t count)
 {
 	const auto data = static_cast<uint8_t *>(alloca(count * 4));
-	switch (_renderer_id != 0x9000 ? variable.type.base : reshadefx::type::t_float)
+	switch (force_floating_point_value(variable.type, _renderer_id) ?
+		reshadefx::type::t_float : variable.type.base)
 	{
 	case reshadefx::type::t_bool:
 		for (size_t i = 0; i < count; ++i)
@@ -1509,7 +1545,7 @@ void reshade::runtime::set_uniform_value(uniform &variable, const bool *values, 
 }
 void reshade::runtime::set_uniform_value(uniform &variable, const int32_t *values, size_t count)
 {
-	if (!variable.type.is_floating_point() && _renderer_id != 0x9000)
+	if (variable.type.is_integral() && !force_floating_point_value(variable.type, _renderer_id))
 	{
 		set_uniform_value(variable, reinterpret_cast<const uint8_t *>(values), count * sizeof(int));
 		return;
@@ -1523,7 +1559,7 @@ void reshade::runtime::set_uniform_value(uniform &variable, const int32_t *value
 }
 void reshade::runtime::set_uniform_value(uniform &variable, const uint32_t *values, size_t count)
 {
-	if (!variable.type.is_floating_point() && _renderer_id != 0x9000)
+	if (variable.type.is_integral() && !force_floating_point_value(variable.type, _renderer_id))
 	{
 		set_uniform_value(variable, reinterpret_cast<const uint8_t *>(values), count * sizeof(int));
 		return;
@@ -1537,7 +1573,7 @@ void reshade::runtime::set_uniform_value(uniform &variable, const uint32_t *valu
 }
 void reshade::runtime::set_uniform_value(uniform &variable, const float *values, size_t count)
 {
-	if (variable.type.is_floating_point() || _renderer_id == 0x9000)
+	if (variable.type.is_floating_point() || force_floating_point_value(variable.type, _renderer_id))
 	{
 		set_uniform_value(variable, reinterpret_cast<const uint8_t *>(values), count * sizeof(float));
 		return;
@@ -1560,28 +1596,17 @@ void reshade::runtime::reset_uniform_value(uniform &variable)
 		return;
 	}
 
-	if (_renderer_id == 0x9000)
+	switch (variable.type.base)
 	{
-		// Force all uniforms to floating-point in D3D9
-		for (size_t i = 0; i < variable.size / sizeof(float); i++)
-		{
-			switch (variable.type.base)
-			{
-			case reshadefx::type::t_int:
-				reinterpret_cast<float *>(data_storage.data() + variable.offset)[i] = static_cast<float>(variable.initializer_value.as_int[i]);
-				break;
-			case reshadefx::type::t_bool:
-			case reshadefx::type::t_uint:
-				reinterpret_cast<float *>(data_storage.data() + variable.offset)[i] = static_cast<float>(variable.initializer_value.as_uint[i]);
-				break;
-			case reshadefx::type::t_float:
-				reinterpret_cast<float *>(data_storage.data() + variable.offset)[i] = variable.initializer_value.as_float[i];
-				break;
-			}
-		}
-	}
-	else
-	{
-		std::memcpy(data_storage.data() + variable.offset, variable.initializer_value.as_uint, variable.size);
+	case reshadefx::type::t_int:
+		set_uniform_value(variable, variable.initializer_value.as_int, variable.type.components());
+		break;
+	case reshadefx::type::t_bool:
+	case reshadefx::type::t_uint:
+		set_uniform_value(variable, variable.initializer_value.as_uint, variable.type.components());
+		break;
+	case reshadefx::type::t_float:
+		set_uniform_value(variable, variable.initializer_value.as_float, variable.type.components());
+		break;
 	}
 }

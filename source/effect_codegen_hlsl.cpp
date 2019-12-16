@@ -455,6 +455,7 @@ private:
 				info.offset *= 4;
 
 				// Every constant register is 16 bytes wide, so divide memory offset by 16 to get the constant register index
+				// Note: All uniforms are floating-point in shader model 3, even if the uniform type says different!!
 				write_type(_cbuffer_block, type);
 				_cbuffer_block += ' ' + id_to_name(res) + " : register(c" + std::to_string(info.offset / 16) + ");\n";
 			}

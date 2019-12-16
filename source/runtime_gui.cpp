@@ -2278,8 +2278,8 @@ void reshade::runtime::draw_variable_editor()
 			case reshadefx::type::t_int:
 			case reshadefx::type::t_uint:
 			{
-				int data[4];
-				get_uniform_value(variable, data, 4);
+				int data[16];
+				get_uniform_value(variable, data, 16);
 
 				const auto ui_min_val = variable.annotation_as_int("ui_min");
 				const auto ui_max_val = variable.annotation_as_int("ui_max");
@@ -2297,17 +2297,20 @@ void reshade::runtime::draw_variable_editor()
 					modified = imgui_combo_with_buttons(label.data(), variable.annotation_as_string("ui_items"), data[0]);
 				else if (ui_type == "radio")
 					modified = imgui_radio_list(label.data(), variable.annotation_as_string("ui_items"), data[0]);
+				else if (variable.type.is_matrix())
+					for (unsigned int row = 0; row < variable.type.rows; ++row)
+						modified = ImGui::InputScalarN((std::string(label) + " [row " + std::to_string(row) + ']').c_str(), variable.type.is_signed() ? ImGuiDataType_S32 : ImGuiDataType_U32, &data[0] + row * variable.type.cols, variable.type.cols) || modified;
 				else
 					modified = ImGui::InputScalarN(label.data(), variable.type.is_signed() ? ImGuiDataType_S32 : ImGuiDataType_U32, data, variable.type.rows);
 
 				if (modified)
-					set_uniform_value(variable, data, 4);
+					set_uniform_value(variable, data, 16);
 				break;
 			}
 			case reshadefx::type::t_float:
 			{
-				float data[4];
-				get_uniform_value(variable, data, 4);
+				float data[16];
+				get_uniform_value(variable, data, 16);
 
 				const auto ui_min_val = variable.annotation_as_float("ui_min");
 				const auto ui_max_val = variable.annotation_as_float("ui_max");
@@ -2330,11 +2333,14 @@ void reshade::runtime::draw_variable_editor()
 					modified = ImGui::ColorEdit3(label.data(), data, ImGuiColorEditFlags_NoOptions);
 				else if (ui_type == "color" && variable.type.rows == 4)
 					modified = ImGui::ColorEdit4(label.data(), data, ImGuiColorEditFlags_NoOptions | ImGuiColorEditFlags_AlphaPreview | ImGuiColorEditFlags_AlphaBar);
+				else if (variable.type.is_matrix())
+					for (unsigned int row = 0; row < variable.type.rows; ++row)
+						modified = ImGui::InputScalarN((std::string(label) + " [row " + std::to_string(row) + ']').c_str(), ImGuiDataType_Float, &data[0] + row * variable.type.cols, variable.type.cols) || modified;
 				else
 					modified = ImGui::InputScalarN(label.data(), ImGuiDataType_Float, data, variable.type.rows);
 
 				if (modified)
-					set_uniform_value(variable, data, 4);
+					set_uniform_value(variable, data, 16);
 				break;
 			}
 			}

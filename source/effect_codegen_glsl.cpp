@@ -392,6 +392,7 @@ private:
 			write_location(_ubo_block, loc);
 
 			_ubo_block += '\t';
+			// Note: All matrices are floating-point, even if the uniform type says different!!
 			write_type(_ubo_block, info.type);
 			_ubo_block += ' ' + id_to_name(res) + ";\n";
 
