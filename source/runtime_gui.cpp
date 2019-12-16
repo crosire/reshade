@@ -801,9 +801,17 @@ void reshade::runtime::draw_ui_home()
 				error_message += ' ' + effect.source_file.filename().u8string() + ',';
 		error_message.pop_back();
 
-		ImGui::TextColored(COLOR_RED, "%s", error_message.c_str());
+		// Make sure there are actually effects that failed to compile, since the last reload flag may not have been reset
+		if (error_message.size() > 50)
+		{
+			ImGui::TextColored(COLOR_RED, "%s", error_message.c_str());
 
-		ImGui::Spacing();
+			ImGui::Spacing();
+		}
+		else
+		{
+			_last_reload_successful = true;
+		}
 	}
 
 	if (_tutorial_index > 1)
