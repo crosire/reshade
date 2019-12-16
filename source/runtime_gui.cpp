@@ -1647,18 +1647,18 @@ void reshade::runtime::draw_code_editor()
 		std::ofstream(_editor_file, std::ios::trunc).write(text.c_str(), text.size());
 
 		// Reload effect file
-		_textures_loaded = false;
 		_reload_total_effects = 1;
 		_reload_remaining_effects = 1;
-		const std::filesystem::path source_file = _effects[_selected_effect].source_file;
 		unload_effect(_selected_effect);
-		load_effect(source_file, _selected_effect);
+		load_effect(_effects[_selected_effect].source_file, _selected_effect);
+
+		// Re-open current file so that errors are updated
+		open_file_in_code_editor(_selected_effect, _editor_file);
+
 		assert(_reload_remaining_effects == 0);
 
 		// Reloading an effect file invalidates all textures, but the statistics window may already have drawn references to those, so need to reset it
 		ImGui::FindWindowByName("Statistics")->DrawList->CmdBuffer.clear();
-
-		open_file_in_code_editor(_selected_effect, _editor_file);
 	}
 
 	// Select editor font
@@ -2215,8 +2215,9 @@ void reshade::runtime::draw_variable_editor()
 		}
 		ImGui::PopStyleVar();
 
-		bool category_is_closed = false;
+		bool category_closed = false;
 		std::string current_category;
+		auto modified_definition = _preset_preprocessor_definitions.end();
 
 		for (uniform &variable : _effects[effect_index].uniforms)
 		{
@@ -2240,16 +2241,16 @@ void reshade::runtime::draw_variable_editor()
 					if (!variable.annotation_as_int("ui_category_closed"))
 						flags |= ImGuiTreeNodeFlags_DefaultOpen;
 
-					category_is_closed = !ImGui::TreeNodeEx(category_label.c_str(), flags);
+					category_closed = !ImGui::TreeNodeEx(category_label.c_str(), flags);
 				}
 				else
 				{
-					category_is_closed = false;
+					category_closed = false;
 				}
 			}
 
 			// Skip rendering invisible items
-			if (category_is_closed)
+			if (category_closed)
 				continue;
 
 			// Add spacing before variable widget
@@ -2431,12 +2432,16 @@ void reshade::runtime::draw_variable_editor()
 						reload_effect = true;
 
 						if (preset_it != _preset_preprocessor_definitions.end())
+						{
 							*preset_it = definition.first + '=' + value;
+							modified_definition = preset_it;
+						}
 						else
+						{
 							_preset_preprocessor_definitions.push_back(definition.first + '=' + value);
+							modified_definition = _preset_preprocessor_definitions.end() - 1;
+						}
 					}
-
-					save_current_preset();
 				}
 
 				if (!reload_effect && // Cannot compare iterators if definitions were just modified above
@@ -2467,21 +2472,45 @@ void reshade::runtime::draw_variable_editor()
 
 		if (reload_effect)
 		{
+			save_current_preset();
+
+			const bool reload_successful_before = _last_reload_successful;
+
 			// Reload current effect file
-			_textures_loaded = false;
 			_reload_total_effects = 1;
 			_reload_remaining_effects = 1;
-			// Make a copy of the path here, since it is cleared during unloading
-			const std::filesystem::path source_path = _effects[effect_index].source_file;
 			unload_effect(effect_index);
-			load_effect(source_path, effect_index);
-			assert(_reload_remaining_effects == 0);
-			ImGui::FindWindowByName("Statistics")->DrawList->CmdBuffer.clear();
+			if (!load_effect(_effects[effect_index].source_file, effect_index) &&
+				modified_definition != _preset_preprocessor_definitions.end())
+			{
+				// The preprocessor definition that was just modified caused the shader to not compile, so reset to default and try again
+				_preset_preprocessor_definitions.erase(modified_definition);
 
-			// Re-open file in editor so that errors are updated if there are any
-			if (_selected_effect == effect_index)
-				open_file_in_code_editor(effect_index, _editor_file);
+				_reload_total_effects = 1;
+				_reload_remaining_effects = 1;
+				unload_effect(effect_index);
+				if (load_effect(_effects[effect_index].source_file, effect_index))
+				{
+					_last_reload_successful = reload_successful_before;
+					ImGui::OpenPopup("##pperror"); // Notify the user about this
+				}
+
+				// Re-open file in editor so that errors are updated
+				if (_selected_effect == effect_index)
+					open_file_in_code_editor(_selected_effect, _editor_file);
+			}
+
+			assert(_reload_remaining_effects == 0);
+
+			// Reloading an effect file invalidates all textures, but the statistics window may already have drawn references to those, so need to reset it
+			ImGui::FindWindowByName("Statistics")->DrawList->CmdBuffer.clear();
 		}
+	}
+
+	if (ImGui::BeginPopup("##pperror"))
+	{
+		ImGui::TextColored(COLOR_RED, "The shader failed to compile after this change, so it was reverted back to the default.");
+		ImGui::EndPopup();
 	}
 
 	ImGui::PopItemWidth();

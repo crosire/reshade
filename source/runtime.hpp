@@ -140,11 +140,11 @@ namespace reshade
 		/// </summary>
 		/// <param name="path">The path to an effect source code file.</param>
 		/// <param name="index">The ID of the effect.</param>
-		void load_effect(const std::filesystem::path &path, size_t index);
+		bool load_effect(const std::filesystem::path &path, size_t index);
 		/// <summary>
 		/// Load all effects found in the effect search paths.
 		/// </summary>
-		void load_effects();
+		bool load_effects();
 		/// <summary>
 		/// Initialize resources for the effect and load the effect module.
 		/// </summary>

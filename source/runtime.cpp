@@ -251,7 +251,7 @@ void reshade::runtime::on_present()
 	_drawcalls = _vertices = 0;
 }
 
-void reshade::runtime::load_effect(const std::filesystem::path &path, size_t index)
+bool reshade::runtime::load_effect(const std::filesystem::path &path, size_t index)
 {
 	effect &effect = _effects[index]; // Safe to access this multi-threaded, since this is the only call working on this effect
 	effect.source_file = path;
@@ -548,8 +548,10 @@ void reshade::runtime::load_effect(const std::filesystem::path &path, size_t ind
 		_last_reload_successful &= effect.compile_sucess;
 		_reload_remaining_effects--;
 	}
+
+	return effect.compile_sucess;
 }
-void reshade::runtime::load_effects()
+bool reshade::runtime::load_effects()
 {
 	// Clear out any previous effects
 	unload_effects();
@@ -576,7 +578,7 @@ void reshade::runtime::load_effects()
 	_reload_remaining_effects = _reload_total_effects;
 
 	if (_reload_total_effects == 0)
-		return; // No effect files found, so nothing more to do
+		return true; // No effect files found, so nothing more to do
 
 	// Allocate space for effects which are placed in this array during the 'load_effect' call
 	_effects.resize(_reload_total_effects);
@@ -592,6 +594,8 @@ void reshade::runtime::load_effects()
 				if (i * num_splits / effect_files.size() == n)
 					load_effect(effect_files[i], i);
 		});
+
+	return _last_reload_successful;
 }
 void reshade::runtime::load_textures()
 {
@@ -669,12 +673,12 @@ void reshade::runtime::unload_effect(size_t index)
 	_techniques.erase(std::remove_if(_techniques.begin(), _techniques.end(),
 		[index](const auto &it) { return it.effect_index == index; }), _techniques.end());
 
+	// Do not clear source file, so that an 'unload_effect' immediately followed by a 'load_effect' which accesses that works
 	effect &effect = _effects[index];;
 	effect.rendering = false;
 	effect.compile_sucess = false;
 	effect.errors.clear();
 	effect.preamble.clear();
-	effect.source_file.clear();
 	effect.included_files.clear();
 	effect.definitions.clear();
 	effect.assembly.clear();
