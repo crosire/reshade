@@ -26,6 +26,7 @@ public static class Glass
 	private static extern int SetWindowLong(IntPtr hwnd, int index, int newStyle);
 	[DllImport("user32.dll")]
 	private static extern bool SetWindowPos(IntPtr hwnd, IntPtr hwndInsertAfter, int x, int y, int width, int height, uint flags);
+
 	[DllImport("user32.dll")]
 	private static extern IntPtr SendMessage(IntPtr hWnd, UInt32 Msg, IntPtr wParam, IntPtr lParam);
 

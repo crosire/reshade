@@ -2,7 +2,7 @@
   <StackPanel Margin="5">
     <DockPanel LastChildFill="True" Margin="0,5">
       <Label Content="Preset" />
-      <Button Name="BtnPreset" Content="..." Padding="5,0" DockPanel.Dock="Right" Click="BtnPreset_Clicked" />
+      <Button Name="BtnPreset" Content="..." Padding="5,0" DockPanel.Dock="Right" Click="ChoosePresetDialog" />
       <TextBox Name="Preset" Width="427" />
     </DockPanel>
     <DockPanel LastChildFill="True" Margin="0,5">

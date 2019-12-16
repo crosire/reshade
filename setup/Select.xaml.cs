@@ -16,24 +16,21 @@ namespace ReShade.Setup
 	{
 		public class EffectItem : INotifyPropertyChanged
 		{
-			public string Name { get; set; }
-			public string Path { get; set; }
+			bool enabled = true;
+			public event PropertyChangedEventHandler PropertyChanged;
 
 			public bool IsChecked
 			{
-				get
-				{
-					return _isChecked;
-				}
+				get => enabled;
 				set
 				{
-					_isChecked = value;
+					enabled = value;
 					PropertyChanged?.Invoke(this, new PropertyChangedEventArgs("IsChecked"));
 				}
 			}
 
-			private bool _isChecked = true;
-			public event PropertyChangedEventHandler PropertyChanged;
+			public string Name { get; set; }
+			public string Path { get; set; }
 		}
 
 		public SelectWindow(IEnumerable<string> effectFiles)

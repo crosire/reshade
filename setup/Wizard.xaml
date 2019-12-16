@@ -1,12 +1,12 @@
 ﻿<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" x:Class="ReShade.Setup.WizardWindow" Title="Welcome" Width="500" Height="146" ResizeMode="NoResize" WindowStyle="SingleBorderWindow" WindowStartupLocation="CenterScreen" SourceInitialized="OnWindowInit" Loaded="OnWindowLoaded" Closed="OnWindowClosed">
   <DockPanel LastChildFill="True">
-    <Border x:Name="ApiGroup" DockPanel.Dock="Bottom" IsEnabled="False" VerticalAlignment="Top" Margin="5,0,5,5" Padding="5" Background="{x:Static SystemColors.WindowBrush}" BorderBrush="#FF707070" CornerRadius="3" BorderThickness="1">
+    <Border x:Name="ApiGroup" DockPanel.Dock="Bottom" VerticalAlignment="Top" Margin="5,0,5,5" Padding="5" Background="{x:Static SystemColors.WindowBrush}" BorderBrush="#FF707070" CornerRadius="3" BorderThickness="1">
       <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-        <RadioButton x:Name="ApiD3D9" Content="Direct3D 9" Margin="8,0,0,0" Click="OnApiChecked" />
-        <RadioButton x:Name="ApiDXGI" Content="Direct3D 10/11/12" Margin="8,0,0,0" Click="OnApiChecked" />
-        <RadioButton x:Name="ApiOpenGL" Content="OpenGL" Margin="8,0,0,0" Click="OnApiChecked" />
-        <RadioButton x:Name="ApiVulkan" Content="Vulkan" Margin="8,0,0,0" Click="OnApiChecked" />
-        <CheckBox x:Name="ApiVulkanGlobal" Content="Enable ReShade in Vulkan globally (affects all Vulkan games)" Visibility="Collapsed" Checked="OnApiVulkanGlobalChecked" Unchecked="OnApiVulkanGlobalChecked" />
+        <RadioButton x:Name="ApiD3D9" Content="Direct3D 9" Margin="8,0,0,0" Visibility="Collapsed" Click="OnApiChecked" />
+        <RadioButton x:Name="ApiDXGI" Content="Direct3D 10/11/12" Margin="8,0,0,0" Visibility="Collapsed" Click="OnApiChecked" />
+        <RadioButton x:Name="ApiOpenGL" Content="OpenGL" Margin="8,0,0,0" Visibility="Collapsed" Click="OnApiChecked" />
+        <RadioButton x:Name="ApiVulkan" Content="Vulkan" Margin="8,0,0,0" Visibility="Collapsed" Click="OnApiChecked" />
+        <CheckBox x:Name="ApiVulkanGlobal" Content="Enable ReShade in Vulkan globally (affects all Vulkan games)" Visibility="Visible" Checked="OnApiVulkanGlobalChecked" Unchecked="OnApiVulkanGlobalChecked" />
       </StackPanel>
     </Border>
     <Button x:Name="SetupButton" DockPanel.Dock="Top" Margin="5,5,5,5" AllowDrop="True" Click="OnSetupButtonClick" Drop="OnSetupButtonDragDrop">

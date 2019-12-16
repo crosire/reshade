@@ -11,12 +11,12 @@ namespace ReShade.Setup
 {
 	public partial class SettingsWindow
 	{
-		private readonly string _configFilePath;
+		readonly string configFilePath;
 
 		public SettingsWindow(string configPath)
 		{
 			InitializeComponent();
-			_configFilePath = configPath;
+			configFilePath = configPath;
 
 			BtnSave.Click += (s, e) => { Save(); Close(); };
 			BtnReload.Click += (s, e) => Load();
@@ -27,7 +27,7 @@ namespace ReShade.Setup
 
 		private void Save()
 		{
-			var iniFile = new IniFile(_configFilePath);
+			var iniFile = new IniFile(configFilePath);
 
 			iniFile.SetValue("GENERAL", "CurrentPresetPath", Preset.Text);
 			iniFile.SetValue("GENERAL", "EffectSearchPaths", EffectsPath.Text);
@@ -38,19 +38,18 @@ namespace ReShade.Setup
 			iniFile.SetValue("GENERAL", "ShowFPS", CheckboxValue(ShowFps.IsChecked));
 			iniFile.SetValue("GENERAL", "ShowClock", CheckboxValue(ShowClock.IsChecked));
 
-			string tutProgress = iniFile.GetString("GENERAL", "TutorialProgress", "0");
 			var skipTut = SkipTut.IsChecked;
-			iniFile.SetValue("GENERAL", "TutorialProgress", skipTut.HasValue ? (skipTut.Value ? "4" : "0") : tutProgress);
+			iniFile.SetValue("GENERAL", "TutorialProgress", skipTut.HasValue ? (skipTut.Value ? "4" : "0") : iniFile.GetString("GENERAL", "TutorialProgress", "0"));
 
 			iniFile.Save();
 		}
 
 		private void Load()
 		{
-			if (!File.Exists(_configFilePath))
+			if (!File.Exists(configFilePath))
 				return;
 
-			var iniFile = new IniFile(_configFilePath);
+			var iniFile = new IniFile(configFilePath);
 
 			Preset.Text = iniFile.GetString("GENERAL", "CurrentPresetPath");
 			EffectsPath.Text = iniFile.GetString("GENERAL", "EffectSearchPaths");
@@ -72,11 +71,11 @@ namespace ReShade.Setup
 			{
 				SkipTut.IsThreeState = true;
 				SkipTut.IsChecked = null;
-				SkipTut.ToolTip = "Neutral means keep pre-existing progress";
+				SkipTut.ToolTip = "Keep existing tutorial progress";
 			}
 		}
 
-		private void BtnPreset_Clicked(object sender, RoutedEventArgs e)
+		private void ChoosePresetDialog(object sender, RoutedEventArgs e)
 		{
 			string origFirstValue = (Preset.Text ?? "").Split(',')[0];
 
@@ -118,32 +117,5 @@ namespace ReShade.Setup
 		}
 
 		private static string CheckboxValue(bool? check) => (check.HasValue && check.Value ? "1" : "0");
-
-		private static string NullIfBlank(string s) => string.IsNullOrWhiteSpace(s) ? null : s;
-	}
-
-	public struct PresetComboItem
-	{
-		public string Text { get; set; }
-		public int? Value { get; set; }
-	}
-
-	[ValueConversion(typeof(int), typeof(Visibility))]
-	public class ComboSizeToVisibilityConverter : MarkupExtension, IValueConverter
-	{
-		public override object ProvideValue(IServiceProvider serviceProvider)
-		{
-			return this;
-		}
-
-		public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
-		{
-			return (System.Convert.ToInt32(value) > 1 ? Visibility.Visible : Visibility.Collapsed);
-		}
-
-		public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
-		{
-			throw new NotImplementedException();
-		}
 	}
 }
