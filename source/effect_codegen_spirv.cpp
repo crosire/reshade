@@ -621,6 +621,7 @@ private:
 			if (info.type.is_scalar())
 			{
 				assert(info.size == 4);
+				assert(info.offset == 0);
 
 				const uint32_t spec_id = uint32_t(_module.spec_constants.size());
 				add_decoration(res, spv::DecorationSpecId, { spec_id });
@@ -644,31 +645,30 @@ private:
 					const spirv_instruction &row_inst = *std::find_if(_types_and_constants.instructions.rbegin(), _types_and_constants.instructions.rend(),
 						[elem = composite_inst.operands[row]](const auto &it) { return it.result == elem; });
 
-					if (row_inst.op == spv::OpSpecConstantComposite)
-					{
-						for (size_t col = 0; col < row_inst.operands.size(); ++col)
-						{
-							const spirv_instruction &col_inst = *std::find_if(_types_and_constants.instructions.rbegin(), _types_and_constants.instructions.rend(),
-								[elem = row_inst.operands[col]](const auto &it) { return it.result == elem; });
-
-							const uint32_t spec_id = uint32_t(_module.spec_constants.size());
-							add_decoration(col_inst.result, spv::DecorationSpecId, { spec_id });
-
-							scalar_info.name = info.name + '[' + std::to_string(row) + "][" + std::to_string(col) + ']';
-							scalar_info.initializer_value.as_uint[0] = info.initializer_value.as_uint[row * info.type.cols + col];
-
-							_module.spec_constants.push_back(scalar_info);
-						}
-					}
-					else
+					if (row_inst.op != spv::OpSpecConstantComposite)
 					{
 						assert(row_inst.op == spv::OpSpecConstant || row_inst.op == spv::OpSpecConstantTrue || row_inst.op == spv::OpSpecConstantFalse);
 
-						const uint32_t spec_id = uint32_t(_module.spec_constants.size());
+						uint32_t spec_id = static_cast<uint32_t>(_module.spec_constants.size());
 						add_decoration(row_inst.result, spv::DecorationSpecId, { spec_id });
 
-						scalar_info.name = info.name + '[' + std::to_string(row) + ']';
-						scalar_info.initializer_value.as_uint[0] = info.initializer_value.as_uint[row];
+						scalar_info.offset = static_cast<uint32_t>(row);
+						scalar_info.initializer_value.as_uint[0] = info.initializer_value.as_uint[scalar_info.offset];
+
+						_module.spec_constants.push_back(scalar_info);
+						continue;
+					}
+
+					for (size_t col = 0; col < row_inst.operands.size(); ++col)
+					{
+						const spirv_instruction &col_inst = *std::find_if(_types_and_constants.instructions.rbegin(), _types_and_constants.instructions.rend(),
+							[elem = row_inst.operands[col]](const auto &it) { return it.result == elem; });
+
+						uint32_t spec_id = static_cast<uint32_t>(_module.spec_constants.size());
+						add_decoration(col_inst.result, spv::DecorationSpecId, { spec_id });
+
+						scalar_info.offset = static_cast<uint32_t>(row * info.type.cols + col);
+						scalar_info.initializer_value.as_uint[0] = info.initializer_value.as_uint[scalar_info.offset];
 
 						_module.spec_constants.push_back(scalar_info);
 					}

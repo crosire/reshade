@@ -378,6 +378,10 @@ void reshade::runtime::load_effect(const std::filesystem::path &path, size_t ind
 				break;
 			}
 
+			// Check if this is a split specialization constant and move data accordingly
+			if (constant.type.is_scalar() && constant.offset != 0)
+				constant.initializer_value.as_uint[0] = constant.initializer_value.as_uint[constant.offset];
+
 			for (unsigned int i = 0; i < constant.type.components(); ++i)
 			{
 				switch (constant.type.base)

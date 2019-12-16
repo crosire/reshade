@@ -826,13 +826,13 @@ bool reshade::vulkan::runtime_vk::init_effect(size_t index)
 	bool success = true;
 
 	std::vector<uint8_t> spec_data;
-	std::vector<VkSpecializationMapEntry> spec_map;
-	for (uint32_t spec_id = 0; spec_id < uint32_t(effect.module.spec_constants.size()); ++spec_id)
+	std::vector<VkSpecializationMapEntry> spec_constants;
+	for (const reshadefx::uniform_info &constant : effect.module.spec_constants)
 	{
-		const size_t offset = spec_data.size();
-		const reshadefx::uniform_info &constant = effect.module.spec_constants[spec_id];
-		spec_map.push_back({ spec_id, static_cast<uint32_t>(offset), constant.size });
+		const uint32_t id = static_cast<uint32_t>(spec_constants.size());
+		const uint32_t offset = static_cast<uint32_t>(spec_data.size());
 		spec_data.resize(offset + constant.size);
+		spec_constants.push_back({ id, offset, constant.size });
 		std::memcpy(spec_data.data() + offset, &constant.initializer_value.as_uint[0], constant.size);
 	}
 
@@ -1032,7 +1032,7 @@ bool reshade::vulkan::runtime_vk::init_effect(size_t index)
 				}
 			}
 
-			VkSpecializationInfo spec_info { uint32_t(spec_map.size()), spec_map.data(), spec_data.size(), spec_data.data() };
+			VkSpecializationInfo spec_info { uint32_t(spec_constants.size()), spec_constants.data(), spec_data.size(), spec_data.data() };
 
 			VkPipelineShaderStageCreateInfo stages[2];
 			stages[0] = { VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO };

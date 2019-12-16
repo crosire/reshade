@@ -336,14 +336,15 @@ bool reshade::opengl::runtime_gl::init_effect(size_t index)
 	effect &effect = _effects[index];
 
 	// Add specialization constant defines to source code
+	std::vector<GLuint> spec_data;
 	std::vector<GLuint> spec_constants;
-	std::vector<GLuint> spec_constant_values;
 	if (!effect.module.spirv.empty())
 	{
-		for (const auto &constant : effect.module.spec_constants)
+		for (const reshadefx::uniform_info &constant : effect.module.spec_constants)
 		{
-			spec_constants.push_back(constant.offset);
-			spec_constant_values.push_back(constant.initializer_value.as_uint[0]);
+			const GLuint id = static_cast<GLuint>(spec_constants.size());
+			spec_data.push_back(constant.initializer_value.as_uint[0]);
+			spec_constants.push_back(id);
 		}
 	}
 	else
@@ -365,7 +366,7 @@ bool reshade::opengl::runtime_gl::init_effect(size_t index)
 			assert(gl3wProcs.gl.ShaderBinary && gl3wProcs.gl.SpecializeShader);
 
 			glShaderBinary(1, &shader_id, GL_SHADER_BINARY_FORMAT_SPIR_V, effect.module.spirv.data(), static_cast<GLsizei>(effect.module.spirv.size() * sizeof(uint32_t)));
-			glSpecializeShader(shader_id, entry_point.name.c_str(), GLuint(spec_constants.size()), spec_constants.data(), spec_constant_values.data());
+			glSpecializeShader(shader_id, entry_point.name.c_str(), GLuint(spec_constants.size()), spec_constants.data(), spec_data.data());
 		}
 		else
 		{
