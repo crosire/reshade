@@ -453,16 +453,21 @@ void reshade::runtime::draw_ui()
 	auto &imgui_io = _imgui_context->IO;
 	imgui_io.DeltaTime = _last_frame_duration.count() * 1e-9f;
 	imgui_io.MouseDrawCursor = _show_menu;
+	imgui_io.MousePos.x = static_cast<float>(_input->mouse_position_x());
+	imgui_io.MousePos.y = static_cast<float>(_input->mouse_position_y());
 	imgui_io.DisplaySize.x = static_cast<float>(_width);
 	imgui_io.DisplaySize.y = static_cast<float>(_height);
 	imgui_io.Fonts->TexID = _imgui_font_atlas->impl.get();
 
-	// Scale mouse position in case render resolution does not match the window size
-	imgui_io.MousePos.x = _input->mouse_position_x() * (imgui_io.DisplaySize.x / _window_width);
-	imgui_io.MousePos.y = _input->mouse_position_y() * (imgui_io.DisplaySize.y / _window_height);
-
 	// Add wheel delta to the current absolute mouse wheel position
 	imgui_io.MouseWheel += _input->mouse_wheel_delta();
+
+	// Scale mouse position in case render resolution does not match the window size
+	if (_window_width != 0 && _window_height != 0)
+	{
+		imgui_io.MousePos.x *= imgui_io.DisplaySize.x / _window_width;
+		imgui_io.MousePos.y *= imgui_io.DisplaySize.y / _window_height;
+	}
 
 	// Update all the button states
 	imgui_io.KeyAlt = _input->is_key_down(0x12); // VK_MENU
