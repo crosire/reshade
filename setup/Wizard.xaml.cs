@@ -33,6 +33,8 @@ namespace ReShade.Setup
 		{
 			InitializeComponent();
 
+			ApiVulkanGlobal.IsChecked = IsVulkanLayerEnabled(Registry.LocalMachine);
+
 			if (isElevated)
 			{
 				ApiGroup.Visibility = Visibility.Visible;
@@ -148,20 +150,20 @@ namespace ReShade.Setup
 
 		bool EnableVulkanLayer(RegistryKey hive)
 		{
-			if (Directory.Exists(commonPath))
-			{
-				Directory.Delete(commonPath, true);
-			}
-
-			Directory.CreateDirectory(commonPath);
-
-			using (ZipArchive zip = ExtractArchive())
-			{
-				zip.ExtractToDirectory(commonPath);
-			}
-
 			try
 			{
+				if (Directory.Exists(commonPath))
+				{
+					Directory.Delete(commonPath, true);
+				}
+
+				Directory.CreateDirectory(commonPath);
+
+				using (ZipArchive zip = ExtractArchive())
+				{
+					zip.ExtractToDirectory(commonPath);
+				}
+
 				if (Environment.Is64BitOperatingSystem)
 				{
 					using (RegistryKey key = hive.CreateSubKey(@"Software\Khronos\Vulkan\ImplicitLayers"))
@@ -184,13 +186,13 @@ namespace ReShade.Setup
 		}
 		bool DisableVulkanLayer(RegistryKey hive)
 		{
-			if (Directory.Exists(commonPath))
-			{
-				Directory.Delete(commonPath, true);
-			}
-
 			try
 			{
+				if (Directory.Exists(commonPath))
+				{
+					Directory.Delete(commonPath, true);
+				}
+
 				if (Environment.Is64BitOperatingSystem)
 				{
 					using (RegistryKey key = hive.CreateSubKey(@"Software\Khronos\Vulkan\ImplicitLayers"))
@@ -231,6 +233,7 @@ namespace ReShade.Setup
 		void UpdateStatusAndFinish(bool success, string message, string description = null)
 		{
 			isFinished = true;
+			SetupButton.IsEnabled = false; // Use button as text box only
 
 			UpdateStatus(success ? "Succeeded!" : "Failed!", message, description);
 
@@ -649,8 +652,6 @@ namespace ReShade.Setup
 				}
 			}
 
-			ApiVulkanGlobal.IsChecked = IsVulkanLayerEnabled(Registry.LocalMachine);
-
 			if (targetPath != null)
 			{
 				if (hasFinished)
@@ -713,12 +714,20 @@ namespace ReShade.Setup
 			if (checkbox.IsChecked.Value)
 			{
 				DisableVulkanLayer(Registry.CurrentUser);
-				EnableVulkanLayer(Registry.LocalMachine);
+				if (!EnableVulkanLayer(Registry.LocalMachine))
+				{
+					UpdateStatusAndFinish(false, "Failed to install global Vulkan layer.");
+					checkbox.IsChecked = !checkbox.IsChecked;
+				}
 			}
 			else
 			{
 				DisableVulkanLayer(Registry.LocalMachine);
-				EnableVulkanLayer(Registry.CurrentUser);
+				if (!EnableVulkanLayer(Registry.CurrentUser))
+				{
+					UpdateStatusAndFinish(false, "Failed to install user local Vulkan layer.");
+					checkbox.IsChecked = !checkbox.IsChecked;
+				}
 			}
 		}
 		void OnSetupButtonClick(object sender, RoutedEventArgs e)
