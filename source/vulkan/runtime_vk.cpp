@@ -18,7 +18,8 @@
 
 namespace reshade::vulkan
 {
-	const uint32_t MAX_EFFECT_DESCRIPTOR_SETS = 100;
+	// TODO: Limit to 50 effects for now
+	const uint32_t MAX_EFFECT_DESCRIPTOR_SETS = 50 * 2;
 
 	struct vulkan_tex_data : base_object
 	{
@@ -348,7 +349,7 @@ bool reshade::vulkan::runtime_vk::on_init(VkSwapchainKHR swapchain, const VkSwap
 
 		VkDescriptorPoolCreateInfo create_info { VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO };
 		// No VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT set, so that all descriptors can be reset in one go via vkResetDescriptorPool
-		create_info.maxSets = MAX_EFFECT_DESCRIPTOR_SETS; // TODO: Limit to 100 effects for now
+		create_info.maxSets = MAX_EFFECT_DESCRIPTOR_SETS;
 		create_info.poolSizeCount = _countof(pool_sizes);
 		create_info.pPoolSizes = pool_sizes;
 
@@ -905,9 +906,8 @@ bool reshade::vulkan::runtime_vk::init_effect(size_t index)
 				  pass_info.viewport_height ? pass_info.viewport_height : frame_height() }
 			};
 			const VkViewport viewport_rect = {
-				// TODO: Why does the viewport have to be upside down for things to render right?
-				0.0f, static_cast<float>(scissor_rect.extent.height),
-				static_cast<float>(scissor_rect.extent.width), -static_cast<float>(scissor_rect.extent.height),
+				0.0f, 0.0f,
+				static_cast<float>(scissor_rect.extent.width), static_cast<float>(scissor_rect.extent.height),
 				0.0f, 1.0f
 			};
 
