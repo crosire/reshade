@@ -651,6 +651,9 @@ void imgui_code_editor::insert_character(char c, bool auto_indent)
 
 				if (ImGui::GetIO().KeyShift)
 				{
+					if (line.empty())
+						continue; // Line is already empty, so there is no indentation to remove
+
 					if (line[0].c == '\t')
 					{
 						line.erase(line.begin());
