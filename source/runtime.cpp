@@ -322,10 +322,10 @@ bool reshade::runtime::load_effect(const std::filesystem::path &path, size_t ind
 		std::unique_ptr<reshadefx::codegen> codegen;
 		if ((_renderer_id & 0xF0000) == 0)
 			codegen.reset(reshadefx::create_codegen_hlsl(shader_model, !_no_debug_info, _performance_mode));
-		else if (_renderer_id < 0x14600)
+		else if (_renderer_id < 0x20000)
 			codegen.reset(reshadefx::create_codegen_glsl(!_no_debug_info, _performance_mode));
-		else // Vulkan and OpenGL 4.6 use SPIR-V input
-			codegen.reset(reshadefx::create_codegen_spirv(_renderer_id >= 0x20000, !_no_debug_info, _performance_mode, true));
+		else // Vulkan uses SPIR-V input
+			codegen.reset(reshadefx::create_codegen_spirv(true, !_no_debug_info, _performance_mode, true));
 
 		reshadefx::parser parser;
 
@@ -1426,7 +1426,7 @@ static inline bool force_floating_point_value(const reshadefx::type &type, uint3
 {
 	if (renderer_id == 0x9000)
 		return true; // All uniform variables are floating-point in D3D9
-	if (type.is_matrix() && ((renderer_id & 0x10000) && renderer_id < 0x14600 /* OpenGL 4.6 uses SPIR-V */))
+	if (type.is_matrix() && renderer_id & 0x10000)
 		return true; // All matrices are floating-point in GLSL
 	return false;
 }
