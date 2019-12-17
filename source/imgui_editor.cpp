@@ -90,7 +90,7 @@ void imgui_code_editor::render(const char *title, bool border)
 	ImGui::PushStyleColor(ImGuiCol_ChildBg, ImGui::ColorConvertU32ToFloat4(_palette[color_background]));
 	ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0.0f, 0.0f));
 
-	ImGui::BeginChild(title, ImVec2(0, _search_window_open ? -bottom_height : 0), border, ImGuiWindowFlags_HorizontalScrollbar | ImGuiWindowFlags_AlwaysHorizontalScrollbar | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoNavInputs);
+	ImGui::BeginChild(title, ImVec2(0, _search_window_open * -bottom_height), border, ImGuiWindowFlags_HorizontalScrollbar | ImGuiWindowFlags_AlwaysHorizontalScrollbar | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoNavInputs);
 	ImGui::PushAllowKeyboardFocus(true);
 
 	char buf[128] = "", *buf_end = buf;
@@ -120,13 +120,13 @@ void imgui_code_editor::render(const char *title, bool border)
 		io.WantTextInput = true;
 		io.WantCaptureKeyboard = true;
 
-		if (ctrl && !shift && !alt && ImGui::IsKeyPressed('F'))
+		if (ctrl && !shift && !alt && (ImGui::IsKeyPressed('F') || ImGui::IsKeyPressed('H')))
 		{
 			// Copy currently selected text into search box
 			if (_select_beg != _select_end)
 				_search_text[get_selected_text().copy(_search_text, sizeof(_search_text) - 1)] = '\0';
 
-			_search_window_open = true;
+			_search_window_open = ImGui::IsKeyPressed('H') ? 2 /* search + replace */ : 1 /* search */;
 			_search_window_focus = 2; // Need to focus multiple frames (see https://github.com/ocornut/imgui/issues/343)
 		}
 		else if (ctrl && !shift && !alt && ImGui::IsKeyPressed('Z'))
@@ -479,7 +479,8 @@ void imgui_code_editor::render(const char *title, bool border)
 		ImGui::Dummy(ImVec2(0, ImGui::GetStyle().ItemSpacing.y));
 		ImGui::BeginChild("##search", ImVec2(0, 0));
 
-		ImGui::PushItemWidth(ImGui::GetContentRegionAvail().x - (3 * button_spacing) - (3 * button_size));
+		const float input_width = ImGui::GetContentRegionAvail().x - (3 * button_spacing) - (3 * button_size);
+		ImGui::PushItemWidth(input_width);
 		if (ImGui::InputText("##search", _search_text, sizeof(_search_text), ImGuiInputTextFlags_AutoSelectAll | ImGuiInputTextFlags_EnterReturnsTrue | ImGuiInputTextFlags_AllowTabInput))
 		{
 			_search_window_focus = 1; // Focus text box again after entering a value
@@ -487,7 +488,7 @@ void imgui_code_editor::render(const char *title, bool border)
 		}
 		ImGui::PopItemWidth();
 
-		if (_search_window_focus != 0)
+		if (_search_window_focus != 0 && _search_window_focus < 3)
 		{
 			_search_window_focus -= 1;
 			ImGui::SetKeyboardFocusHere(-1);
@@ -501,8 +502,34 @@ void imgui_code_editor::render(const char *title, bool border)
 			find_and_scroll_to_text(_search_text, false);
 		ImGui::SameLine(0.0f, button_spacing);
 		if (ImGui::Button("X", ImVec2(button_size, 0)) || ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_Escape)))
-			_search_window_open = false,
-			_search_window_focus = 0;
+			_search_window_open = _search_window_focus = 0;
+
+		if (_search_window_open != 1)
+		{
+			ImGui::PushItemWidth(input_width);
+			if (ImGui::InputText("##replace", _replace_text, sizeof(_replace_text), ImGuiInputTextFlags_AutoSelectAll | ImGuiInputTextFlags_EnterReturnsTrue | ImGuiInputTextFlags_AllowTabInput))
+			{
+				_search_window_focus = 3; // Focus replace text box again after entering a value
+				if (find_and_scroll_to_text(_search_text, false, true))
+					insert_text(_replace_text);
+			}
+			ImGui::PopItemWidth();
+
+			if (_search_window_focus == 3)
+			{
+				_search_window_focus  = 0;
+				ImGui::SetKeyboardFocusHere(-1);
+			}
+
+			ImGui::SameLine(0.0f, button_spacing);
+			if (ImGui::Button("R", ImVec2(button_size, 0)))
+				if (find_and_scroll_to_text(_search_text, false, true))
+					insert_text(_replace_text);
+			ImGui::SameLine(0.0f, button_spacing);
+			if (ImGui::Button("A", ImVec2(button_size, 0)))
+				while (find_and_scroll_to_text(_search_text, false, true))
+					insert_text(_replace_text);
+		}
 
 		ImGui::EndChild();
 	}
@@ -1390,13 +1417,13 @@ void imgui_code_editor::move_lines_down()
 	_cursor_pos.line++;
 }
 
-bool imgui_code_editor::find_and_scroll_to_text(const std::string &text, bool backwards)
+bool imgui_code_editor::find_and_scroll_to_text(const std::string &text, bool backwards, bool with_selection)
 {
 	if (text.empty())
 		return false; // Cannot search for empty text
 
 	// Start search at the cursor position
-	text_pos match_pos_beg, search_pos = backwards ? _select_beg : _select_end;
+	text_pos match_pos_beg, search_pos = backwards != with_selection ? _select_beg : _select_end;
 
 	if (backwards)
 	{

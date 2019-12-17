@@ -93,7 +93,7 @@ public:
 	uint32_t &get_palette_index(unsigned int index) { return _palette[index]; }
 	static const char *get_palette_color_name(unsigned int index);
 
-	bool find_and_scroll_to_text(const std::string &text, bool backwards = false);
+	bool find_and_scroll_to_text(const std::string &text, bool backwards = false, bool with_selection = false);
 
 private:
 	struct glyph
@@ -168,6 +168,7 @@ private:
 	std::unordered_map<size_t, std::pair<std::string, bool>> _errors;
 
 	char _search_text[256] = "";
-	bool _search_window_open = false;
+	char _replace_text[256] = "";
+	unsigned int _search_window_open = 0;
 	unsigned int _search_window_focus = 0;
 };
