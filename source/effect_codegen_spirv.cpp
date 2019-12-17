@@ -1034,7 +1034,12 @@ private:
 			define_variable(result, {}, func.return_type, nullptr, spv::StorageClassOutput);
 
 			if (spv::BuiltIn builtin; semantic_to_builtin(func.return_semantic, builtin))
+			{
 				add_builtin(result, builtin);
+
+				if (builtin == spv::BuiltInPosition)
+					position_variable = result;
+			}
 			else
 			{
 				uint32_t semantic_location = 0;
