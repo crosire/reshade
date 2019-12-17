@@ -4,6 +4,7 @@
  */
 
 using Microsoft.Win32;
+using ReShade.Utilities;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -12,6 +13,7 @@ using System.IO.Compression;
 using System.Linq;
 using System.Net;
 using System.Reflection;
+using System.Security.Principal;
 using System.Windows;
 using System.Windows.Input;
 
@@ -21,7 +23,7 @@ namespace ReShade.Setup
 	{
 		bool is64Bit = false;
 		bool isHeadless = false;
-		bool isElevated = false;
+		bool isElevated = WindowsIdentity.GetCurrent().Owner.IsWellKnown(WellKnownSidType.BuiltinAdministratorsSid);
 		bool isFinished = false;
 		string configPath = null;
 		string targetPath = null;
@@ -30,6 +32,12 @@ namespace ReShade.Setup
 		public WizardWindow()
 		{
 			InitializeComponent();
+
+			if (isElevated)
+			{
+				ApiGroup.Visibility = Visibility.Visible;
+				ApiVulkanGlobalButton.Visibility = Visibility.Collapsed;
+			}
 		}
 
 		static void MoveFiles(string sourcePath, string targetPath)
@@ -279,7 +287,10 @@ namespace ReShade.Setup
 		}
 		void InstallationStep1()
 		{
+			ApiGroup.IsEnabled = true;
 			SetupButton.IsEnabled = false;
+			ApiGroup.Visibility = ApiD3D9.Visibility = ApiDXGI.Visibility = ApiOpenGL.Visibility = ApiVulkan.Visibility = Visibility.Visible;
+			ApiVulkanGlobal.Visibility = ApiVulkanGlobalButton.Visibility = Visibility.Collapsed;
 
 			var info = FileVersionInfo.GetVersionInfo(targetPath);
 			var name = info.ProductName ?? Path.GetFileNameWithoutExtension(targetPath);
@@ -308,21 +319,18 @@ namespace ReShade.Setup
 			}
 
 			Message.Text = "Select the rendering API the game uses:";
-			ApiGroup.IsEnabled = true;
+
 			ApiD3D9.IsChecked = isApiD3D9;
-			ApiD3D9.Visibility = Visibility.Visible;
 			ApiDXGI.IsChecked = isApiDXGI;
-			ApiDXGI.Visibility = Visibility.Visible;
 			ApiOpenGL.IsChecked = isApiOpenGL;
-			ApiOpenGL.Visibility = Visibility.Visible;
 			ApiVulkan.IsChecked = isApiVulkan;
-			ApiVulkan.Visibility = Visibility.Visible;
-			ApiVulkanGlobal.Visibility = Visibility.Collapsed;
 		}
 		void InstallationStep2()
 		{
 			ApiGroup.IsEnabled = false;
 			SetupButton.IsEnabled = false;
+			ApiGroup.Visibility = ApiD3D9.Visibility = ApiDXGI.Visibility = ApiOpenGL.Visibility = ApiVulkan.Visibility = Visibility.Visible;
+			ApiVulkanGlobal.Visibility = ApiVulkanGlobalButton.Visibility = Visibility.Collapsed;
 
 			string targetDir = Path.GetDirectoryName(targetPath);
 			configPath = Path.Combine(targetDir, "ReShade.ini");
@@ -555,11 +563,19 @@ namespace ReShade.Setup
 				description = "You need to keep the setup tool open for ReShade to work in Vulkan games!\nAlternatively check the option below:";
 
 				ApiGroup.IsEnabled = true;
-				ApiD3D9.Visibility = Visibility.Collapsed;
-				ApiDXGI.Visibility = Visibility.Collapsed;
-				ApiOpenGL.Visibility = Visibility.Collapsed;
-				ApiVulkan.Visibility = Visibility.Collapsed;
+				ApiD3D9.Visibility = ApiDXGI.Visibility = ApiOpenGL.Visibility = ApiVulkan.Visibility = Visibility.Collapsed;
 				ApiVulkanGlobal.Visibility = Visibility.Visible;
+
+				if (isElevated)
+				{
+					ApiGroup.Visibility = Visibility.Visible;
+					ApiVulkanGlobalButton.Visibility = Visibility.Collapsed;
+				}
+				else
+				{
+					ApiGroup.Visibility = Visibility.Collapsed;
+					ApiVulkanGlobalButton.Visibility = Visibility.Visible;
+				}
 			}
 
 			UpdateStatusAndFinish(true, "Edit ReShade settings", description);
@@ -673,19 +689,23 @@ namespace ReShade.Setup
 		}
 		void OnApiVulkanGlobalChecked(object sender, RoutedEventArgs e)
 		{
+			if (sender is System.Windows.Controls.Button button)
+			{
+				RestartWithElevatedPrivileges();
+				return;
+			}
+
 			var checkbox = sender as System.Windows.Controls.CheckBox;
 			if (checkbox.IsChecked == IsVulkanLayerEnabled(Registry.LocalMachine))
 			{
 				return;
 			}
 
+			// Should have elevated privileges at this point
 			if (!isElevated)
 			{
-				if (!RestartWithElevatedPrivileges())
-				{
-					// Reset check box to previous value if unable to get elevated privileges
-					checkbox.IsChecked = !checkbox.IsChecked;
-				}
+				// Reset check box to previous value if unable to get elevated privileges
+				checkbox.IsChecked = !checkbox.IsChecked;
 				return;
 			}
 

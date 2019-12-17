@@ -1,11 +1,13 @@
-﻿using System;
-using System.Globalization;
-using System.IO;
-using System.Windows;
-using System.Windows.Data;
-using System.Windows.Markup;
+﻿/**
+ * Copyright (C) 2014 Patrick Mours. All rights reserved.
+ * License: https://github.com/crosire/reshade#license
+ */
+
 using Microsoft.Win32;
 using Microsoft.WindowsAPICodePack.Dialogs;
+using ReShade.Utilities;
+using System.IO;
+using System.Windows;
 
 namespace ReShade.Setup
 {
