@@ -674,6 +674,11 @@ namespace ReShade.Setup
 				// Enable Vulkan layer while the setup tool is running
 				EnableVulkanLayer(Registry.CurrentUser);
 			}
+			else
+			{
+				// Update existing Vulkan layer with the included version
+				EnableVulkanLayer(Registry.LocalMachine);
+			}
 		}
 		void OnWindowClosed(object sender, EventArgs e)
 		{
