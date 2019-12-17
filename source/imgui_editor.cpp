@@ -1407,6 +1407,9 @@ bool imgui_code_editor::find_and_scroll_to_text(const std::string &text, bool ba
 		{
 			if (!_lines[search_pos.line].empty())
 			{
+				// Trim column index to the last character in the line (rather than the actual end)
+				search_pos.column = std::min(search_pos.column, _lines[search_pos.line].size() - 1);
+
 				while (true)
 				{
 					if (_lines[search_pos.line][search_pos.column].c == text[match_offset])
@@ -1449,7 +1452,7 @@ bool imgui_code_editor::find_and_scroll_to_text(const std::string &text, bool ba
 			if (match_offset != match_last && text[match_offset--] != '\n')
 				match_offset  = match_last; // Check for line feed in search text between lines
 
-			search_pos.column = _lines[search_pos.line].size() - 1;
+			search_pos.column = _lines[search_pos.line].size(); // Continue at end of previous line
 		}
 	}
 	else
