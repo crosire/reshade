@@ -517,11 +517,25 @@ bool reshade::d3d12::runtime_d3d12::init_effect(size_t index)
 	{
 		com_ptr<ID3DBlob> d3d_errors;
 
+		const char *profile = nullptr;
+		switch (entry_point.type)
+		{
+		case reshadefx::shader_type::vs:
+			profile = "vs_5_0";
+			break;
+		case reshadefx::shader_type::ps:
+			profile = "ps_5_0";
+			break;
+		case reshadefx::shader_type::cs:
+			profile = "cs_5_0";
+			break;
+		}
+
 		const HRESULT hr = D3DCompile(
 			hlsl.c_str(), hlsl.size(),
 			nullptr, nullptr, nullptr,
 			entry_point.name.c_str(),
-			entry_point.is_pixel_shader ? "ps_5_0" : "vs_5_0",
+			profile,
 			D3DCOMPILE_ENABLE_STRICTNESS | D3DCOMPILE_OPTIMIZATION_LEVEL3, 0,
 			&entry_points[entry_point.name], &d3d_errors);
 
@@ -1237,6 +1251,15 @@ void reshade::d3d12::runtime_d3d12::render_technique(technique &technique)
 		const d3d12_pass_data &pass_data = impl->passes[pass_index];
 		const reshadefx::pass_info &pass_info = technique.passes[pass_index];
 
+		// Setup states
+		_cmd_list->SetPipelineState(pass_data.pipeline.get());
+
+		if (!pass_info.cs_entry_point.empty())
+		{
+			_cmd_list->Dispatch(pass_info.viewport_width, pass_info.viewport_height, 1);
+			continue;
+		}
+
 		// Transition resource state for render targets
 		for (UINT k = 0; k < pass_data.num_render_targets; ++k)
 		{
@@ -1248,8 +1271,6 @@ void reshade::d3d12::runtime_d3d12::render_technique(technique &technique)
 			transition_state(_cmd_list, static_cast<d3d12_tex_data *>(render_target_texture->impl)->resource, D3D12_RESOURCE_STATE_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
 		}
 
-		// Setup states
-		_cmd_list->SetPipelineState(pass_data.pipeline.get());
 		_cmd_list->OMSetStencilRef(pass_info.stencil_reference_value);
 
 		// Setup render targets

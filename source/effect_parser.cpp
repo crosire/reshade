@@ -2848,7 +2848,7 @@ bool reshadefx::parser::parse_technique_pass(pass_info &info)
 		if (!expect('='))
 			return consume_until('}'), false;
 
-		const bool is_shader_state = state == "VertexShader" || state == "PixelShader";
+		const bool is_shader_state = state == "VertexShader" || state == "PixelShader" || state == "ComputeShader";
 		const bool is_texture_state = state.compare(0, 12, "RenderTarget") == 0 && (state.size() == 12 || (state[12] >= '0' && state[12] < '8'));
 
 		// Shader and render target assignment looks up values in the symbol table, so handle those separately from the other states
@@ -2874,24 +2874,26 @@ bool reshadefx::parser::parse_technique_pass(pass_info &info)
 						parse_success = false,
 						error(location, 3020, "type mismatch, expected function name");
 					else {
-						const bool is_vs = state[0] == 'V';
-						const bool is_ps = state[0] == 'P';
-
 						// Look up the matching function info for this function definition
 						function_info &function_info = _codegen->find_function(symbol.id);
 
 						// We potentially need to generate a special entry point function which translates between function parameters and input/output variables
-						_codegen->define_entry_point(function_info, is_ps);
-
-						if (is_vs)
+						switch (state[0])
 						{
+						case 'V':
 							vs_info = function_info;
 							info.vs_entry_point = function_info.unique_name;
-						}
-						if (is_ps)
-						{
+							_codegen->define_entry_point(function_info, shader_type::vs);
+							break;
+						case 'P':
 							ps_info = function_info;
 							info.ps_entry_point = function_info.unique_name;
+							_codegen->define_entry_point(function_info, shader_type::ps);
+							break;
+						case 'C':
+							info.cs_entry_point = function_info.unique_name;
+							_codegen->define_entry_point(function_info, shader_type::cs);
+							break;
 						}
 					}
 				}
@@ -3040,6 +3042,10 @@ bool reshadefx::parser::parse_technique_pass(pass_info &info)
 				info.num_vertices = value;
 			else if (state == "PrimitiveType" || state == "PrimitiveTopology")
 				info.topology = static_cast<primitive_topology>(value);
+			else if (state == "DispatchWidth")
+				info.viewport_width = value;
+			else if (state == "DispatchHeight")
+				info.viewport_height = value;
 			else
 				parse_success = false,
 				error(location, 3004, "unrecognized pass state '" + state + '\'');
@@ -3051,7 +3057,7 @@ bool reshadefx::parser::parse_technique_pass(pass_info &info)
 
 	if (parse_success)
 	{
-		if (info.vs_entry_point.empty() || info.ps_entry_point.empty())
+		if (info.cs_entry_point.empty() && (info.vs_entry_point.empty() || info.ps_entry_point.empty()))
 		{
 			parse_success = false;
 

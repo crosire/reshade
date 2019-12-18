@@ -466,6 +466,26 @@ private:
 		return inst.result;
 	}
 
+	bool semantic_to_builtin(const std::string &semantic, spv::BuiltIn &builtin, shader_type stype)
+	{
+		builtin = spv::BuiltInMax;
+		if (semantic == "SV_POSITION" || semantic == "POSITION" || semantic == "VPOS")
+			builtin = stype == shader_type::ps ? spv::BuiltInFragCoord : spv::BuiltInPosition;
+		else if (semantic == "SV_DEPTH" || semantic == "DEPTH")
+			builtin = spv::BuiltInFragDepth;
+		else if (semantic == "SV_VERTEXID")
+			builtin = _vulkan_semantics ? spv::BuiltInVertexIndex : spv::BuiltInVertexId;
+		else if (semantic == "SV_GROUPID")
+			builtin = spv::BuiltInWorkgroupId;
+		else if (semantic == "SV_GROUPINDEX")
+			builtin = spv::BuiltInLocalInvocationIndex;
+		else if (semantic == "SV_GROUPTHREADID")
+			builtin = spv::BuiltInLocalInvocationId;
+		else if (semantic == "SV_DISPATCHTHREADID")
+			builtin = spv::BuiltInGlobalInvocationId;
+		return builtin != spv::BuiltInMax;
+	}
+
 	inline void add_name(id id, const char *name)
 	{
 		if (!_debug_info)
@@ -791,13 +811,13 @@ private:
 		return info.definition;
 	}
 
-	void define_entry_point(const function_info &func, bool is_ps) override
+	void define_entry_point(const function_info &func, shader_type stype) override
 	{
 		if (const auto it = std::find_if(_module.entry_points.begin(), _module.entry_points.end(),
 			[&func](const auto &ep) { return ep.name == func.unique_name; }); it != _module.entry_points.end())
 			return;
 
-		_module.entry_points.push_back({ func.unique_name, is_ps });
+		_module.entry_points.push_back({ func.unique_name, stype });
 
 		id position_variable = 0;
 		std::vector<uint32_t> inputs_and_outputs;
@@ -810,28 +830,17 @@ private:
 		define_function({}, entry_point);
 		enter_block(create_block());
 
-		const auto semantic_to_builtin = [this, is_ps](const std::string &semantic, spv::BuiltIn &builtin) {
-			builtin = spv::BuiltInMax;
-			if (semantic == "SV_POSITION" || semantic == "POSITION" || semantic == "VPOS")
-				builtin = is_ps ? spv::BuiltInFragCoord : spv::BuiltInPosition;
-			if (semantic == "SV_DEPTH" || semantic == "DEPTH")
-				builtin = spv::BuiltInFragDepth;
-			if (semantic == "SV_VERTEXID")
-				builtin = _vulkan_semantics ? spv::BuiltInVertexIndex : spv::BuiltInVertexId;
-			return builtin != spv::BuiltInMax;
-		};
-
 		const auto create_varying_param = [this, &call_params](const struct_member_info &param) {
 			const auto local_variable = make_id();
 			define_variable(local_variable, {}, param.type, nullptr, spv::StorageClassFunction);
 			call_params.emplace_back().reset_to_lvalue({}, local_variable, param.type);
 			return local_variable;
 		};
-		const auto create_varying_variable = [this, &inputs_and_outputs, &semantic_to_builtin, &position_variable](const type &param_type, std::string semantic, spv::StorageClass storage) {
+		const auto create_varying_variable = [this, &inputs_and_outputs, &position_variable, &stype](const type &param_type, std::string semantic, spv::StorageClass storage) {
 			const auto attrib_variable = make_id();
 			define_variable(attrib_variable, {}, param_type, nullptr, storage);
 
-			if (spv::BuiltIn builtin; semantic_to_builtin(semantic, builtin))
+			if (spv::BuiltIn builtin; semantic_to_builtin(semantic, builtin, stype))
 			{
 				add_builtin(attrib_variable, builtin);
 
@@ -989,7 +998,7 @@ private:
 		}
 
 		// Add code to flip the output vertically
-		if (_invert_y && position_variable && !is_ps)
+		if (_invert_y && position_variable && stype == shader_type::vs)
 		{
 			expression position;
 			position.reset_to_lvalue({}, position_variable, { type::t_float, 4, 1 });
@@ -1004,17 +1013,39 @@ private:
 		leave_block_and_return(0);
 		leave_function();
 
-		assert(!func.unique_name.empty());
-		add_instruction_without_result(spv::OpEntryPoint, _entries)
-			.add(is_ps ? spv::ExecutionModelFragment : spv::ExecutionModelVertex)
-			.add(entry_point.definition)
-			.add_string(func.unique_name.c_str())
-			.add(inputs_and_outputs.begin(), inputs_and_outputs.end());
-
-		if (is_ps)
+		spv::ExecutionModel model;
+		switch (stype)
+		{
+		case shader_type::vs:
+			model = spv::ExecutionModelVertex;
+			break;
+		case shader_type::ps:
+			model = spv::ExecutionModelFragment;
 			add_instruction_without_result(spv::OpExecutionMode, _execution_modes)
 				.add(entry_point.definition)
 				.add(spv::ExecutionModeOriginUpperLeft);
+			break;
+		case shader_type::cs:
+			assert(inputs_and_outputs.empty());
+			model = spv::ExecutionModelGLCompute;
+			add_instruction_without_result(spv::OpExecutionMode, _execution_modes)
+				.add(entry_point.definition)
+				.add(spv::ExecutionModeLocalSize)
+				.add(func.numthreads[0])
+				.add(func.numthreads[1])
+				.add(func.numthreads[2]);
+			break;
+		default:
+			assert(false);
+			return;
+		}
+
+		assert(!func.unique_name.empty());
+		add_instruction_without_result(spv::OpEntryPoint, _entries)
+			.add(model)
+			.add(entry_point.definition)
+			.add_string(func.unique_name.c_str())
+			.add(inputs_and_outputs.begin(), inputs_and_outputs.end());
 	}
 
 	id   emit_load(const expression &exp, bool) override

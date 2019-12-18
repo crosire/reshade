@@ -1060,6 +1060,11 @@ bool reshade::vulkan::runtime_vk::init_effect(size_t index)
 		std::memcpy(spec_data.data() + offset, &constant.initializer_value.as_uint[0], constant.size);
 	}
 
+	const VkSpecializationInfo spec_info {
+		static_cast<uint32_t>(spec_constants.size()), spec_constants.data(),
+		spec_data.size(), spec_data.data()
+	};
+
 	uint32_t technique_index = 0;
 	for (technique &technique : _techniques)
 	{
@@ -1077,6 +1082,20 @@ bool reshade::vulkan::runtime_vk::init_effect(size_t index)
 		{
 			vulkan_pass_data &pass_data = impl->passes[pass_index];
 			const reshadefx::pass_info &pass_info = technique.passes[pass_index];
+
+			if (!pass_info.cs_entry_point.empty())
+			{
+				VkComputePipelineCreateInfo create_info { VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO };
+				create_info.stage = { VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO };
+				create_info.stage.stage = VK_SHADER_STAGE_COMPUTE_BIT;
+				create_info.stage.module = entry_points.at(pass_info.cs_entry_point);;
+				create_info.stage.pName = pass_info.cs_entry_point.c_str();
+				create_info.stage.pSpecializationInfo = &spec_info;
+				create_info.layout = effect_data.pipeline_layout;
+
+				check_result(vk.CreateComputePipelines(_device, VK_NULL_HANDLE, 1, &create_info, nullptr, &pass_data.pipeline)) false;
+				continue;
+			}
 
 			const auto convert_blend_op = [](reshadefx::pass_blend_op value) -> VkBlendOp {
 				switch (value)
@@ -1263,11 +1282,6 @@ bool reshade::vulkan::runtime_vk::init_effect(size_t index)
 					check_result(vk.CreateFramebuffer(_device, &create_info, nullptr, &pass_data.begin_info.framebuffer)) false;
 				}
 			}
-
-			VkSpecializationInfo spec_info {
-				static_cast<uint32_t>(spec_constants.size()), spec_constants.data(),
-				spec_data.size(), spec_data.data()
-			};
 
 			VkPipelineShaderStageCreateInfo stages[2];
 			stages[0] = { VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO };
@@ -1813,50 +1827,59 @@ void reshade::vulkan::runtime_vk::render_technique(technique &technique)
 		}
 #endif
 
-		if (pass_info.stencil_enable && !is_effect_stencil_cleared)
+		if (!pass_info.cs_entry_point.empty())
 		{
-			is_effect_stencil_cleared = true;
+			vk.CmdBindPipeline(cmd_list, VK_PIPELINE_BIND_POINT_COMPUTE, pass_data.pipeline);
 
-			const VkImageSubresourceRange clear_range = { VK_IMAGE_ASPECT_STENCIL_BIT, 0, 1, 0, 1 };
-			const VkClearDepthStencilValue clear_value = { 1.0f, 0 };
-			transition_layout(vk, cmd_list, _effect_stencil, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, { aspect_flags_from_format(_effect_stencil_format), 0, 1, 0, 1 });
-			vk.CmdClearDepthStencilImage(cmd_list, _effect_stencil, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &clear_value, 1, &clear_range);
-			transition_layout(vk, cmd_list, _effect_stencil, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, { aspect_flags_from_format(_effect_stencil_format), 0, 1, 0, 1 });
-		}
-
-		VkRenderPassBeginInfo begin_info = pass_data.begin_info;
-		if (begin_info.framebuffer == VK_NULL_HANDLE)
-		{
-			begin_info.framebuffer = _swapchain_frames[_swap_index * 2 + pass_info.srgb_write_enable];
-			needs_implicit_backbuffer_copy = true;
+			vk.CmdDispatch(cmd_list, pass_info.viewport_width, pass_info.viewport_height, 1);
 		}
 		else
 		{
-			needs_implicit_backbuffer_copy = false;
-		}
+			if (pass_info.stencil_enable && !is_effect_stencil_cleared)
+			{
+				is_effect_stencil_cleared = true;
 
-		vk.CmdBeginRenderPass(cmd_list, &begin_info, VK_SUBPASS_CONTENTS_INLINE);
+				const VkImageSubresourceRange clear_range = { VK_IMAGE_ASPECT_STENCIL_BIT, 0, 1, 0, 1 };
+				const VkClearDepthStencilValue clear_value = { 1.0f, 0 };
+				transition_layout(vk, cmd_list, _effect_stencil, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, { aspect_flags_from_format(_effect_stencil_format), 0, 1, 0, 1 });
+				vk.CmdClearDepthStencilImage(cmd_list, _effect_stencil, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &clear_value, 1, &clear_range);
+				transition_layout(vk, cmd_list, _effect_stencil, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, { aspect_flags_from_format(_effect_stencil_format), 0, 1, 0, 1 });
+			}
 
-		// Setup states
-		vk.CmdBindPipeline(cmd_list, VK_PIPELINE_BIND_POINT_GRAPHICS, pass_data.pipeline);
+			VkRenderPassBeginInfo begin_info = pass_data.begin_info;
+			if (begin_info.framebuffer == VK_NULL_HANDLE)
+			{
+				begin_info.framebuffer = _swapchain_frames[_swap_index * 2 + pass_info.srgb_write_enable];
+				needs_implicit_backbuffer_copy = true;
+			}
+			else
+			{
+				needs_implicit_backbuffer_copy = false;
+			}
 
-		// Draw primitives
-		vk.CmdDraw(cmd_list, pass_info.num_vertices, 1, 0, 0);
+			vk.CmdBeginRenderPass(cmd_list, &begin_info, VK_SUBPASS_CONTENTS_INLINE);
 
-		_vertices += pass_info.num_vertices;
-		_drawcalls += 1;
+			// Setup states
+			vk.CmdBindPipeline(cmd_list, VK_PIPELINE_BIND_POINT_GRAPHICS, pass_data.pipeline);
 
-		vk.CmdEndRenderPass(cmd_list);
+			// Draw primitives
+			vk.CmdDraw(cmd_list, pass_info.num_vertices, 1, 0, 0);
 
-		// Generate mipmaps
-		for (uint32_t k = 0; k < 8 && !pass_info.render_target_names[k].empty(); ++k)
-		{
-			const auto render_target_texture = std::find_if(_textures.begin(), _textures.end(),
-				[&render_target = pass_info.render_target_names[k]](const auto &item) {
-				return item.unique_name == render_target;
-			});
+			_vertices += pass_info.num_vertices;
+			_drawcalls += 1;
 
-			generate_mipmaps(*render_target_texture);
+			vk.CmdEndRenderPass(cmd_list);
+
+			// Generate mipmaps
+			for (uint32_t k = 0; k < 8 && !pass_info.render_target_names[k].empty(); ++k)
+			{
+				const auto render_target_texture = std::find_if(_textures.begin(), _textures.end(),
+					[&render_target = pass_info.render_target_names[k]](const auto &item) {
+					return item.unique_name == render_target;
+				});
+
+				generate_mipmaps(*render_target_texture);
+			}
 		}
 
 #ifndef NDEBUG

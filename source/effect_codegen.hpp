@@ -90,8 +90,8 @@ namespace reshadefx
 		/// Make a function a shader entry point.
 		/// </summary>
 		/// <param name="function">The function to use as entry point.</param>
-		/// <param name="is_ps"><c>true</c> if this is a pixel shader, <c>false</c> if it is a vertex shader.</param>
-		virtual void define_entry_point(const function_info &function, bool is_ps) = 0;
+		/// <param name="type">The shader type (vertex, pixel or compute shader).</param>
+		virtual void define_entry_point(const function_info &function, shader_type type) = 0;
 
 		/// <summary>
 		/// Resolve the access chain and add a load operation to the output.

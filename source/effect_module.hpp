@@ -212,12 +212,22 @@ namespace reshadefx
 	};
 
 	/// <summary>
+	/// Type of a shader.
+	/// </summary>
+	enum class shader_type
+	{
+		vs,
+		ps,
+		cs,
+	};
+
+	/// <summary>
 	/// A shader entry point function.
 	/// </summary>
 	struct entry_point
 	{
 		std::string name;
-		bool is_pixel_shader;
+		shader_type type;
 	};
 
 	/// <summary>
@@ -242,6 +252,7 @@ namespace reshadefx
 		std::string render_target_names[8] = {};
 		std::string vs_entry_point;
 		std::string ps_entry_point;
+		std::string cs_entry_point;
 		uint8_t clear_render_targets = false;
 		uint8_t srgb_write_enable = false;
 		uint8_t blend_enable = false;

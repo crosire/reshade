@@ -1731,6 +1731,23 @@ IMPLEMENT_INTRINSIC_SPIRV(tex2Dgatheroffset, 0, {
 		.result;
 	})
 
+DEFINE_INTRINSIC(tex2Dstore, 0, void, texture, int2, float4)
+IMPLEMENT_INTRINSIC_GLSL(tex2Dstore, 0, {
+	code += "imageStore(" + id_to_name(args[0].base) + ", " +
+		id_to_name(args[1].base) + ", " +
+		id_to_name(args[2].base) + ')';
+	})
+IMPLEMENT_INTRINSIC_HLSL(tex2Dstore, 0, {
+	if (_shader_model >= 50) {
+		code += id_to_name(args[0].base) + '[' + id_to_name(args[1].base) + "] = " + id_to_name(args[2].base);
+	} else {
+		assert(false);
+	}
+	})
+IMPLEMENT_INTRINSIC_SPIRV(tex2Dstore, 0, {
+	assert(false);
+	})
+
 #undef COMMA
 #undef DEFINE_INTRINSIC
 #undef IMPLEMENT_INTRINSIC_GLSL

@@ -75,6 +75,8 @@ private:
 		{
 			if (type.has(type::q_precise))
 				s += "precise ";
+			if (type.has(type::q_groupshared))
+				s += "groupshared ";
 		}
 
 		if constexpr (is_param)
@@ -332,6 +334,8 @@ private:
 		info.id = make_id();
 		info.binding = _module.num_texture_bindings;
 
+		define_name<naming::unique>(info.id, info.unique_name);
+
 		_module.textures.push_back(info);
 
 		std::string &code = _blocks.at(_current_block);
@@ -340,10 +344,15 @@ private:
 		{
 			write_location(code, loc);
 
-			code += "Texture2D "       + info.unique_name + " : register(t" + std::to_string(info.binding + 0) + ");\n";
+			code += "Texture2D __rgb"  + info.unique_name + " : register(t" + std::to_string(info.binding + 0) + ");\n";
 			code += "Texture2D __srgb" + info.unique_name + " : register(t" + std::to_string(info.binding + 1) + ");\n";
 
 			_module.num_texture_bindings += 2;
+
+			if (_shader_model >= 50)
+			{
+				code += "RWTexture2D<float4> " + id_to_name(info.id) + " : register(u" + std::to_string(info.binding) + ");\n";
+			}
 		}
 
 		return info.id;
@@ -382,7 +391,7 @@ private:
 
 			write_location(code, loc);
 
-			code += "static const __sampler2D " + id_to_name(info.id) + " = { " + (info.srgb ? "__srgb" : "") + info.texture_name + ", __s" + std::to_string(info.binding) + " };\n";
+			code += "static const __sampler2D " + id_to_name(info.id) + " = { " + (info.srgb ? "__srgb" : "__rgb") + info.texture_name + ", __s" + std::to_string(info.binding) + " };\n";
 		}
 		else
 		{
@@ -530,6 +539,12 @@ private:
 
 		std::string &code = _blocks.at(_current_block);
 
+		if (info.numthreads[0] != 0 && is_entry_point)
+			code += "[numthreads(" +
+				std::to_string(info.numthreads[0]) + ", " +
+				std::to_string(info.numthreads[1]) + ", " +
+				std::to_string(info.numthreads[2]) + ")]\n";
+
 		write_location(code, loc);
 
 		write_type(code, info.return_type);
@@ -570,13 +585,13 @@ private:
 		return info.definition;
 	}
 
-	void define_entry_point(const function_info &func, bool is_ps) override
+	void define_entry_point(const function_info &func, shader_type stype) override
 	{
 		if (const auto it = std::find_if(_module.entry_points.begin(), _module.entry_points.end(),
 			[&func](const auto &ep) { return ep.name == func.unique_name; }); it != _module.entry_points.end())
 			return;
 
-		_module.entry_points.push_back({ func.unique_name, is_ps });
+		_module.entry_points.push_back({ func.unique_name, stype });
 
 		// Only have to rewrite the entry point function signature in shader model 3
 		if (_shader_model >= 40)
@@ -592,7 +607,7 @@ private:
 
 		std::string position_variable_name;
 		{
-			if (func.return_type.is_struct() && !is_ps)
+			if (func.return_type.is_struct() && stype == shader_type::vs)
 			{
 				// If this function returns a struct which contains a position output, keep track of its member name
 				for (const auto &member : find_struct(func.return_type.definition).member_list)
@@ -603,12 +618,12 @@ private:
 			if (is_color_semantic(func.return_semantic))
 				// The COLOR output semantic has to be a four-component vector in shader model 3, so enforce that
 				entry_point.return_type.rows = 4;
-			else if (is_position_semantic(func.return_semantic) && !is_ps)
+			else if (is_position_semantic(func.return_semantic) && stype == shader_type::vs)
 				position_variable_name = id_to_name(ret);
 		}
 		for (auto &param : entry_point.parameter_list)
 		{
-			if (param.type.is_struct() && !is_ps)
+			if (param.type.is_struct() && stype == shader_type::vs)
 			{
 				for (const auto &member : find_struct(param.type.definition).member_list)
 					if (is_position_semantic(member.semantic))
@@ -618,7 +633,7 @@ private:
 			if (is_color_semantic(param.semantic))
 				param.type.rows = 4;
 			else if (is_position_semantic(param.semantic))
-				if (is_ps) // Change the position input semantic in pixel shaders
+				if (stype == shader_type::ps) // Change the position input semantic in pixel shaders
 					param.semantic = "VPOS";
 				else // Keep track of the position output variable
 					position_variable_name = param.name;
@@ -671,7 +686,7 @@ private:
 		code += ";\n";
 
 		// Shift everything by half a viewport pixel to workaround the different half-pixel offset in D3D9 (https://aras-p.info/blog/2016/04/08/solving-dx9-half-pixel-offset/)
-		if (!position_variable_name.empty() && !is_ps) // Check if we are in a vertex shader definition
+		if (!position_variable_name.empty() && stype == shader_type::vs) // Check if we are in a vertex shader definition
 			code += '\t' + position_variable_name + ".xy += __TEXEL_SIZE__ * " + position_variable_name + ".ww;\n";
 
 		leave_block_and_return(func.return_type.is_void() ? 0 : ret);

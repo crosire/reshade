@@ -334,14 +334,32 @@ bool reshade::d3d9::runtime_d3d9::init_effect(size_t index)
 	// Compile the generated HLSL source code to DX byte code
 	for (const reshadefx::entry_point &entry_point : effect.module.entry_points)
 	{
+		size_t hlsl_size = 0;
+		const char *profile = nullptr, *hlsl = nullptr;
 		com_ptr<ID3DBlob> compiled, d3d_errors;
-		const std::string &hlsl = entry_point.is_pixel_shader ? hlsl_ps : hlsl_vs;
+
+		switch (entry_point.type)
+		{
+		case reshadefx::shader_type::vs:
+			hlsl = hlsl_vs.c_str();
+			hlsl_size = hlsl_vs.size();
+			profile = "vs_3_0";
+			break;
+		case reshadefx::shader_type::ps:
+			hlsl = hlsl_ps.c_str();
+			hlsl_size = hlsl_ps.size();
+			profile = "ps_3_0";
+			break;
+		case reshadefx::shader_type::cs:
+			effect.errors += "Compute shaders are not supported in D3D9.";
+			return false;
+		}
 
 		HRESULT hr = D3DCompile(
-			hlsl.c_str(), hlsl.size(),
+			hlsl, hlsl_size,
 			nullptr, nullptr, nullptr,
 			entry_point.name.c_str(),
-			entry_point.is_pixel_shader ? "ps_3_0" : "vs_3_0",
+			profile,
 			D3DCOMPILE_OPTIMIZATION_LEVEL3, 0,
 			&compiled, &d3d_errors);
 
@@ -356,10 +374,15 @@ bool reshade::d3d9::runtime_d3d9::init_effect(size_t index)
 			effect.assembly[entry_point.name] = std::string(static_cast<const char *>(d3d_disassembled->GetBufferPointer()));
 
 		// Create runtime shader objects from the compiled DX byte code
-		if (entry_point.is_pixel_shader)
-			hr = _device->CreatePixelShader(static_cast<const DWORD *>(compiled->GetBufferPointer()), reinterpret_cast<IDirect3DPixelShader9 **>(&entry_points[entry_point.name]));
-		else
+		switch (entry_point.type)
+		{
+		case reshadefx::shader_type::vs:
 			hr = _device->CreateVertexShader(static_cast<const DWORD *>(compiled->GetBufferPointer()), reinterpret_cast<IDirect3DVertexShader9 **>(&entry_points[entry_point.name]));
+			break;
+		case reshadefx::shader_type::ps:
+			hr = _device->CreatePixelShader(static_cast<const DWORD *>(compiled->GetBufferPointer()), reinterpret_cast<IDirect3DPixelShader9 **>(&entry_points[entry_point.name]));
+			break;
+		}
 
 		if (FAILED(hr))
 		{
@@ -375,7 +398,7 @@ bool reshade::d3d9::runtime_d3d9::init_effect(size_t index)
 
 	for (const reshadefx::sampler_info &info : effect.module.samplers)
 	{
-		if (info.binding > ARRAYSIZE(technique_init.sampler_states))
+		if (info.binding >= ARRAYSIZE(technique_init.sampler_states))
 			return false;
 
 		const auto existing_texture = std::find_if(_textures.begin(), _textures.end(),

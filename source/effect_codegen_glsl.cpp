@@ -38,6 +38,7 @@ private:
 	};
 
 	std::string _ubo_block;
+	std::string _compute_block;
 	std::unordered_map<id, std::string> _names;
 	std::unordered_map<id, std::string> _blocks;
 	bool _debug_info = false;
@@ -93,6 +94,8 @@ private:
 		{
 			if (type.has(type::q_precise))
 				s += "precise ";
+			if (type.has(type::q_groupshared))
+				s += "shared ";
 		}
 
 		if constexpr (is_interface)
@@ -284,6 +287,24 @@ private:
 
 		return name;
 	}
+	static std::string semantic_to_builtin(std::string name, const std::string &semantic, shader_type stype)
+	{
+		if (semantic == "SV_POSITION" || semantic == "POSITION" || semantic == "VPOS")
+			return stype == shader_type::ps ? "gl_FragCoord" : "gl_Position";
+		else if (semantic == "SV_DEPTH" || semantic == "DEPTH")
+			return "gl_FragDepth";
+		else if (semantic == "SV_VERTEXID")
+			return "gl_VertexID";
+		else if (semantic == "SV_GROUPID")
+			return "gl_WorkGroupID";
+		else if (semantic == "SV_GROUPINDEX")
+			return "gl_LocalInvocationIndex";
+		else if (semantic == "SV_GROUPTHREADID")
+			return "gl_LocalInvocationID";
+		else if (semantic == "SV_DISPATCHTHREADID")
+			return "gl_GlobalInvocationID";
+		return escape_name(name);
+	}
 
 	static void increase_indentation_level(std::string &block)
 	{
@@ -327,11 +348,20 @@ private:
 
 		return info.definition;
 	}
-	id   define_texture(const location &, texture_info &info) override
+	id   define_texture(const location &loc, texture_info &info) override
 	{
 		info.id = make_id();
+		info.binding = _module.num_texture_bindings++;
+
+		define_name<naming::unique>(info.id, info.unique_name);
 
 		_module.textures.push_back(info);
+
+		std::string &code = _blocks.at(_current_block);
+
+		write_location(code, loc);
+
+		code += "layout(binding = " + std::to_string(info.binding) + ", rgba8) uniform image2D " + id_to_name(info.id) + ";\n";
 
 		return info.id;
 	}
@@ -339,6 +369,7 @@ private:
 	{
 		info.id = make_id();
 		info.binding = _module.num_sampler_bindings++;
+		info.texture_binding = ~0u; // Unset texture bindings
 
 		define_name<naming::unique>(info.id, info.unique_name);
 
@@ -501,32 +532,27 @@ private:
 		return info.definition;
 	}
 
-	void define_entry_point(const function_info &func, bool is_ps) override
+	void define_entry_point(const function_info &func, shader_type stype) override
 	{
 		if (const auto it = std::find_if(_module.entry_points.begin(), _module.entry_points.end(),
 			[&func](const auto &ep) { return ep.name == func.unique_name; }); it != _module.entry_points.end())
 			return;
 
-		_module.entry_points.push_back({ func.unique_name, is_ps });
+		_module.entry_points.push_back({ func.unique_name, stype });
 
 		_blocks.at(0) += "#ifdef ENTRY_POINT_" + func.unique_name + '\n';
-		if (is_ps)
+		if (stype == shader_type::ps)
 			_blocks.at(0) += "layout(origin_upper_left) in vec4 gl_FragCoord;\n";
+		if (stype == shader_type::cs)
+			_blocks.at(0) += "layout("
+				  "local_size_x = " + std::to_string(func.numthreads[0]) +
+				", local_size_y = " + std::to_string(func.numthreads[1]) +
+				", local_size_z = " + std::to_string(func.numthreads[2]) + ") in;\n";
 
 		function_info entry_point;
 		entry_point.return_type = { type::t_void };
 
-		const auto semantic_to_builtin = [this, is_ps](const std::string &name, const std::string &semantic) -> std::string {
-			if (semantic == "SV_POSITION" || semantic == "POSITION" || semantic == "VPOS")
-				return is_ps ? "gl_FragCoord" : "gl_Position";
-			if (semantic == "SV_DEPTH" || semantic == "DEPTH")
-				return "gl_FragDepth";
-			if (semantic == "SV_VERTEXID")
-				return "gl_VertexID";
-			return escape_name(name);
-		};
-
-		const auto create_varying_variable = [this, is_ps, &semantic_to_builtin](type type, unsigned int quals, const std::string &name, std::string semantic) {
+		const auto create_varying_variable = [this, stype](type type, unsigned int quals, const std::string &name, std::string semantic) {
 			type.qualifiers = quals;
 
 			// OpenGL does not allow varying of type boolean
@@ -537,7 +563,7 @@ private:
 
 			for (int i = 0, array_length = std::max(1, type.array_length); i < array_length; ++i)
 			{
-				if (!semantic_to_builtin({}, semantic).empty())
+				if (!semantic_to_builtin({}, semantic, stype).empty())
 					continue; // Skip built in variables
 
 				if (const char c = semantic.back(); c < '0' || c > '9')
@@ -617,9 +643,9 @@ private:
 					for (const struct_member_info &member : definition.member_list)
 					{
 						if (param_type.is_array())
-							code += semantic_to_builtin(param_name + '_' + member.name + '_' + std::to_string(a), member.semantic);
+							code += semantic_to_builtin(param_name + '_' + member.name + '_' + std::to_string(a), member.semantic, stype);
 						else
-							code += semantic_to_builtin(param_name + '_' + member.name, member.semantic);
+							code += semantic_to_builtin(param_name + '_' + member.name, member.semantic, stype);
 
 						code += ", ";
 					}
@@ -660,14 +686,14 @@ private:
 			write_type(code, func.return_type), code += " _return = ";
 		// All other output types can write to the output variable directly
 		else if (!func.return_type.is_void())
-			code += semantic_to_builtin("_return", func.return_semantic) + " = ";
+			code += semantic_to_builtin("_return", func.return_semantic, stype) + " = ";
 
 		// Call the function this entry point refers to
 		code += id_to_name(func.definition) + '(';
 
 		for (size_t i = 0; i < num_params; ++i)
 		{
-			code += semantic_to_builtin("_param" + std::to_string(i), func.parameter_list[i].semantic);
+			code += semantic_to_builtin("_param" + std::to_string(i), func.parameter_list[i].semantic, stype);
 
 			if (i < num_params - 1)
 				code += ", ";
@@ -726,7 +752,7 @@ private:
 			for (const struct_member_info &member : definition.member_list)
 			{
 				code += '\t';
-				code += semantic_to_builtin("_return_" + member.name, member.semantic);
+				code += semantic_to_builtin("_return_" + member.name, member.semantic, stype);
 				code += " = _return." + escape_name(member.name) + ";\n";
 			}
 		}

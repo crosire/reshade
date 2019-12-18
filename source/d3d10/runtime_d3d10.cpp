@@ -30,7 +30,7 @@ namespace reshade::d3d10
 		com_ptr<ID3D10VertexShader> vertex_shader;
 		com_ptr<ID3D10RenderTargetView> render_targets[D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT];
 		com_ptr<ID3D10ShaderResourceView> render_target_resources[D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT];
-		std::vector<com_ptr<ID3D10ShaderResourceView>> shader_resources;
+		std::vector<com_ptr<ID3D10ShaderResourceView>> srvs;
 	};
 
 	struct d3d10_effect_data
@@ -395,8 +395,21 @@ bool reshade::d3d10::runtime_d3d10::init_effect(size_t index)
 	// Compile the generated HLSL source code to DX byte code
 	for (const reshadefx::entry_point &entry_point : effect.module.entry_points)
 	{
+		std::string profile;
 		com_ptr<ID3DBlob> d3d_compiled, d3d_errors;
-		std::string profile = entry_point.is_pixel_shader ? "ps" : "vs";
+
+		switch (entry_point.type)
+		{
+		case reshadefx::shader_type::vs:
+			profile = "vs";
+			break;
+		case reshadefx::shader_type::ps:
+			profile = "ps";
+			break;
+		case reshadefx::shader_type::cs:
+			effect.errors += "Compute shaders are not supported in D3D10.";
+			return false;
+		}
 
 		switch (_renderer_id)
 		{
@@ -434,11 +447,16 @@ bool reshade::d3d10::runtime_d3d10::init_effect(size_t index)
 		if (com_ptr<ID3DBlob> d3d_disassembled; SUCCEEDED(D3DDisassemble(d3d_compiled->GetBufferPointer(), d3d_compiled->GetBufferSize(), 0, nullptr, &d3d_disassembled)))
 			effect.assembly[entry_point.name] = std::string(static_cast<const char *>(d3d_disassembled->GetBufferPointer()));
 
-		// Create runtime shader objects from the compiled DX byte code
-		if (entry_point.is_pixel_shader)
-			hr = _device->CreatePixelShader(d3d_compiled->GetBufferPointer(), d3d_compiled->GetBufferSize(), reinterpret_cast<ID3D10PixelShader **>(&entry_points[entry_point.name]));
-		else
+		// Create runtime shader objects from the compiled DX byte code#
+		switch (entry_point.type)
+		{
+		case reshadefx::shader_type::vs:
 			hr = _device->CreateVertexShader(d3d_compiled->GetBufferPointer(), d3d_compiled->GetBufferSize(), reinterpret_cast<ID3D10VertexShader **>(&entry_points[entry_point.name]));
+			break;
+		case reshadefx::shader_type::ps:
+			hr = _device->CreatePixelShader(d3d_compiled->GetBufferPointer(), d3d_compiled->GetBufferSize(), reinterpret_cast<ID3D10PixelShader **>(&entry_points[entry_point.name]));
+			break;
+		}
 
 		if (FAILED(hr))
 		{
@@ -707,8 +725,8 @@ bool reshade::d3d10::runtime_d3d10::init_effect(size_t index)
 			}
 
 			// Unbind any shader resources that are also bound as render target
-			pass_data.shader_resources = impl->texture_bindings;
-			for (com_ptr<ID3D10ShaderResourceView> &srv : pass_data.shader_resources)
+			pass_data.srvs = impl->texture_bindings;
+			for (com_ptr<ID3D10ShaderResourceView> &srv : pass_data.srvs)
 			{
 				if (srv == nullptr)
 					continue;
@@ -1027,8 +1045,8 @@ void reshade::d3d10::runtime_d3d10::render_technique(technique &technique)
 
 		// Setup shader resources after binding render targets, to ensure any OM bindings by the application are unset at this point
 		// Otherwise a slot referencing a resource still bound to the OM would be filled with NULL, which can happen with the depth buffer (https://docs.microsoft.com/windows/win32/api/d3d10/nf-d3d10-id3d10device-pssetshaderresources)
-		_device->VSSetShaderResources(0, static_cast<UINT>(pass_data.shader_resources.size()), reinterpret_cast<ID3D10ShaderResourceView *const *>(pass_data.shader_resources.data()));
-		_device->PSSetShaderResources(0, static_cast<UINT>(pass_data.shader_resources.size()), reinterpret_cast<ID3D10ShaderResourceView *const *>(pass_data.shader_resources.data()));
+		_device->VSSetShaderResources(0, static_cast<UINT>(pass_data.srvs.size()), reinterpret_cast<ID3D10ShaderResourceView *const *>(pass_data.srvs.data()));
+		_device->PSSetShaderResources(0, static_cast<UINT>(pass_data.srvs.size()), reinterpret_cast<ID3D10ShaderResourceView *const *>(pass_data.srvs.data()));
 
 		if (pass_info.clear_render_targets)
 		{
@@ -1076,8 +1094,8 @@ void reshade::d3d10::runtime_d3d10::render_technique(technique &technique)
 
 		// Reset shader resources
 		ID3D10ShaderResourceView *null_srv[D3D10_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT] = { nullptr };
-		_device->VSSetShaderResources(0, static_cast<UINT>(pass_data.shader_resources.size()), null_srv);
-		_device->PSSetShaderResources(0, static_cast<UINT>(pass_data.shader_resources.size()), null_srv);
+		_device->VSSetShaderResources(0, static_cast<UINT>(pass_data.srvs.size()), null_srv);
+		_device->PSSetShaderResources(0, static_cast<UINT>(pass_data.srvs.size()), null_srv);
 
 		needs_implicit_backbuffer_copy = false;
 		for (const com_ptr<ID3D10ShaderResourceView> &resource : pass_data.render_target_resources)
@@ -1445,7 +1463,7 @@ void reshade::d3d10::runtime_d3d10::update_depth_texture_bindings(com_ptr<ID3D10
 
 			for (d3d10_pass_data &pass_data : tech_impl->passes)
 				// Replace all occurances of the old resource view with the new one
-				for (com_ptr<ID3D10ShaderResourceView> &srv : pass_data.shader_resources)
+				for (com_ptr<ID3D10ShaderResourceView> &srv : pass_data.srvs)
 					if (tex_impl->srv[0] == srv || tex_impl->srv[1] == srv)
 						srv = _depth_texture_srv;
 		}
