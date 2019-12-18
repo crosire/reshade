@@ -15,17 +15,6 @@ namespace reshade::vulkan
 	class buffer_detection
 	{
 	public:
-		void reset();
-
-		void merge(const buffer_detection &source);
-
-		void on_draw(uint32_t vertices);
-
-#if RESHADE_VULKAN_CAPTURE_DEPTH_BUFFERS
-		void on_set_depthstencil(VkImage depthstencil, VkImageLayout layout, const VkImageCreateInfo &create_info);
-#endif
-
-	protected:
 		struct draw_stats
 		{
 			uint32_t vertices = 0;
@@ -39,6 +28,17 @@ namespace reshade::vulkan
 			VkImageCreateInfo image_info = {};
 		};
 
+		void reset();
+
+		void merge(const buffer_detection &source);
+
+		void on_draw(uint32_t vertices);
+
+#if RESHADE_VULKAN_CAPTURE_DEPTH_BUFFERS
+		void on_set_depthstencil(VkImage depthstencil, VkImageLayout layout, const VkImageCreateInfo &create_info);
+#endif
+
+	protected:
 		draw_stats _stats;
 #if RESHADE_VULKAN_CAPTURE_DEPTH_BUFFERS
 		VkImage _current_depthstencil = VK_NULL_HANDLE;

@@ -255,7 +255,7 @@ void reshade::opengl::runtime_gl::on_present()
 	_app_state.capture();
 
 #if RESHADE_OPENGL_CAPTURE_DEPTH_BUFFERS
-	update_depthstencil_texture(
+	update_depthstencil_texture(_has_high_network_activity ? buffer_detection::depthstencil_info { 0 } :
 		_buffer_detection.find_best_depth_texture(_use_aspect_ratio_heuristics ? _width : 0, _height, _depth_source_override));
 #endif
 
@@ -1231,7 +1231,7 @@ void reshade::opengl::runtime_gl::update_depthstencil_texture(buffer_detection::
 	}
 
 	// Can just use source directly if it is a simple texture already, so only create extra one for RBOs
-	if (info.target != GL_TEXTURE_2D || info.level != 0)
+	if (info.target != GL_TEXTURE_2D || info.level != 0 || _depth_source == 0)
 	{
 		assert(_app_state.has_state);
 

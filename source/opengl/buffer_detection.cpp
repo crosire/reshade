@@ -38,9 +38,10 @@ void reshade::opengl::buffer_detection::on_draw(GLsizei vertices)
 	GLint target = GL_NONE;
 	glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &object);
 	if (object != 0) { // Zero is valid too, in which case the default depth buffer is referenced, instead of a FBO
-		glGetFramebufferAttachmentParameteriv(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_FRAMEBUFFER_ATTACHMENT_OBJECT_TYPE, &target);
-		if (target == GL_NONE) return;
-		glGetFramebufferAttachmentParameteriv(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_FRAMEBUFFER_ATTACHMENT_OBJECT_NAME, &object);
+		glGetFramebufferAttachmentParameteriv(GL_DRAW_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_FRAMEBUFFER_ATTACHMENT_OBJECT_TYPE, &target);
+		if (target == GL_NONE)
+			return; // FBO does not have a depth attachment
+		glGetFramebufferAttachmentParameteriv(GL_DRAW_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_FRAMEBUFFER_ATTACHMENT_OBJECT_NAME, &object);
 	}
 
 	if (const auto it = _depth_source_table.find(object | (target == GL_RENDERBUFFER ? 0x80000000 : 0));

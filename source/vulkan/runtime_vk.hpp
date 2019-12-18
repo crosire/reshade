@@ -103,7 +103,7 @@ namespace reshade::vulkan
 
 #if RESHADE_VULKAN_CAPTURE_DEPTH_BUFFERS
 		void draw_depth_debug_menu();
-		void update_depthstencil_image(VkImage depthstencil, VkImageLayout layout, VkFormat image_format);
+		void update_depthstencil_image(buffer_detection::depthstencil_info info);
 
 		bool _use_aspect_ratio_heuristics = true;
 		VkImage _depth_image = VK_NULL_HANDLE;

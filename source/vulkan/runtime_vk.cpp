@@ -491,8 +491,8 @@ void reshade::vulkan::runtime_vk::on_present(VkQueue queue, uint32_t swapchain_i
 
 #if RESHADE_VULKAN_CAPTURE_DEPTH_BUFFERS
 	_current_tracker = &tracker;
-	const auto best_snapshot = tracker.find_best_depth_texture(_use_aspect_ratio_heuristics ? _width : 0, _height, _depth_image_override);
-	update_depthstencil_image(_has_high_network_activity ? VK_NULL_HANDLE : best_snapshot.image, best_snapshot.image_layout, best_snapshot.image_info.format);
+	update_depthstencil_image(_has_high_network_activity ? buffer_detection::depthstencil_info { VK_NULL_HANDLE } :
+		tracker.find_best_depth_texture(_use_aspect_ratio_heuristics ? _width : 0, _height, _depth_image_override));
 #endif
 
 	update_and_render_effects();
@@ -1972,16 +1972,16 @@ void reshade::vulkan::runtime_vk::draw_depth_debug_menu()
 	}
 }
 
-void reshade::vulkan::runtime_vk::update_depthstencil_image(VkImage image, VkImageLayout layout, VkFormat image_format)
+void reshade::vulkan::runtime_vk::update_depthstencil_image(buffer_detection::depthstencil_info info)
 {
-	if (image == _depth_image)
+	if (info.image == _depth_image)
 		return;
 
-	assert(layout != VK_IMAGE_LAYOUT_UNDEFINED || image == VK_NULL_HANDLE);
+	assert(info.image_layout != VK_IMAGE_LAYOUT_UNDEFINED || info.image == VK_NULL_HANDLE);
 
-	_depth_image = image;
-	_depth_image_layout = layout;
-	_depth_image_aspect = aspect_flags_from_format(image_format);
+	_depth_image = info.image;
+	_depth_image_layout = info.image_layout;
+	_depth_image_aspect = aspect_flags_from_format(info.image_info.format);
 
 	// Make sure all previous frames have finished before freeing the image view and updating descriptors (since they may be in use otherwise)
 	wait_for_command_buffers();
@@ -1991,9 +1991,9 @@ void reshade::vulkan::runtime_vk::update_depthstencil_image(VkImage image, VkIma
 
 	VkDescriptorImageInfo image_binding = { VK_NULL_HANDLE, VK_NULL_HANDLE, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL };
 
-	if (image != VK_NULL_HANDLE)
+	if (info.image != VK_NULL_HANDLE)
 	{
-		_depth_image_view = create_image_view(image, image_format, 1, VK_IMAGE_ASPECT_DEPTH_BIT);
+		_depth_image_view = create_image_view(info.image, info.image_info.format, 1, VK_IMAGE_ASPECT_DEPTH_BIT);
 		image_binding.imageView = _depth_image_view;
 
 		for (auto &tex : _textures)
