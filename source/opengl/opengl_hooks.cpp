@@ -341,7 +341,7 @@ HOOK_EXPORT void WINAPI glDeleteTextures(GLsizei n, const GLuint *textures)
 #if RESHADE_OPENGL_CAPTURE_DEPTH_BUFFERS
 	if (g_current_runtime)
 		for (GLsizei i = 0; i < n; ++i)
-			g_current_runtime->_buffer_detection.on_delete_fbo_attachment(GL_TEXTURE_2D, textures[i]);
+			g_current_runtime->_buffer_detection.on_delete_fbo_attachment(GL_TEXTURE, textures[i]);
 #endif
 	static const auto trampoline = reshade::hooks::call(glDeleteTextures);
 	trampoline(n, textures);

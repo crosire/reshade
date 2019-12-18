@@ -180,6 +180,7 @@ bool reshade::opengl::runtime_gl::on_init(HWND hwnd, unsigned int width, unsigne
 	glTextureView(_tex[TEX_BACK_SRGB], GL_TEXTURE_2D, _tex[TEX_BACK], GL_SRGB8_ALPHA8, 0, 1, 0, 1);
 
 	// Initialize depth texture and FBO by assuming they refer to the default depth source
+	_copy_depth_source = true;
 	_depth_source_width = _width;
 	_depth_source_height = _height;
 	_depth_source_format = _default_depth_format;
@@ -268,9 +269,9 @@ void reshade::opengl::runtime_gl::on_present()
 	glDrawBuffer(GL_COLOR_ATTACHMENT0);
 	glBlitFramebuffer(0, 0, _width, _height, 0, 0, _width, _height, GL_COLOR_BUFFER_BIT, GL_NEAREST);
 
-	if (_depth_source == 0 || (_depth_source & 0x80000000) != 0)
+	// Copy depth from FBO to depth texture
+	if (_copy_depth_source)
 	{
-		// Copy depth from FBO to depth texture
 		glBindFramebuffer(GL_READ_FRAMEBUFFER, _depth_source == 0 ? 0 : _fbo[FBO_DEPTH_SRC]);
 		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, _fbo[FBO_DEPTH_DEST]);
 		glBlitFramebuffer(0, 0, _depth_source_width, _depth_source_height, 0, 0, _depth_source_width, _depth_source_height, GL_DEPTH_BUFFER_BIT, GL_NEAREST);
@@ -731,7 +732,7 @@ bool reshade::opengl::runtime_gl::init_texture(texture &texture)
 		return true;
 	case texture_reference::depth_buffer:
 		impl->id[0] = impl->id[1] =
-			_depth_source == 0 || (_depth_source & 0x80000000) != 0 ? _tex[TEX_DEPTH] : _depth_source;
+			_copy_depth_source ? _tex[TEX_DEPTH] : _depth_source;
 		return true;
 	}
 
@@ -1193,6 +1194,7 @@ void reshade::opengl::runtime_gl::update_depthstencil_texture(buffer_detection::
 	if (_has_high_network_activity)
 	{
 		_depth_source = 0;
+		_copy_depth_source = false;
 
 		if (_tex[TEX_DEPTH])
 		{
@@ -1230,7 +1232,7 @@ void reshade::opengl::runtime_gl::update_depthstencil_texture(buffer_detection::
 		break;
 	}
 
-	// Can just use source directly if it is a simple texture already, so only create extra one for RBOs
+	// Can just use source directly if it is a simple depth texture already
 	if (info.target != GL_TEXTURE_2D || info.level != 0 || _depth_source == 0)
 	{
 		assert(_app_state.has_state);
@@ -1277,6 +1279,11 @@ void reshade::opengl::runtime_gl::update_depthstencil_texture(buffer_detection::
 		}
 
 		info.obj = _tex[TEX_DEPTH];
+		_copy_depth_source = true;
+	}
+	else
+	{
+		_copy_depth_source = false;
 	}
 
 	// Update all references to the new texture
