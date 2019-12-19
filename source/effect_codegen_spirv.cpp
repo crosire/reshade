@@ -615,7 +615,7 @@ private:
 		// Use similar base packing rules to HLSL
 		const uint32_t array_stride = 16u;
 		const uint32_t matrix_stride = 16u;
-		info.size = info.type.is_matrix() ? (info.type.rows - 1) * matrix_stride + info.type.cols * 4 : info.type.rows * 4;
+		info.size = info.type.is_matrix() ? matrix_stride * info.type.cols : info.type.rows * 4;
 		if (info.type.is_array())
 			info.size = std::max(array_stride, info.size) * info.type.array_length;
 
