@@ -290,6 +290,7 @@ namespace reshade
 
 		// === Screenshots ===
 		bool _should_save_screenshot = false;
+		bool _screenshot_save_ui = false;
 		bool _screenshot_save_before = false;
 		bool _screenshot_save_success = false;
 		bool _screenshot_include_preset = false;

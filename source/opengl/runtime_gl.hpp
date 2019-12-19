@@ -85,7 +85,7 @@ namespace reshade::opengl
 		GLuint _buf[NUM_BUF] = {};
 		GLuint _tex[NUM_TEX] = {};
 		GLuint _vao[NUM_VAO] = {};
-		GLuint _fbo[NUM_FBO] = {};
+		GLuint _fbo[NUM_FBO] = {}, _current_fbo = 0;
 		GLuint _rbo[NUM_RBO] = {};
 		std::vector<GLuint> _effect_ubos;
 		std::vector<GLuint> _reserved_texture_names;

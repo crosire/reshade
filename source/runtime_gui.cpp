@@ -1065,6 +1065,7 @@ void reshade::runtime::draw_ui_settings()
 		modified |= ImGui::Combo("Screenshot Format", reinterpret_cast<int *>(&_screenshot_format), "Bitmap (*.bmp)\0Portable Network Graphics (*.png)\0");
 		modified |= ImGui::Checkbox("Include current preset", &_screenshot_include_preset);
 		modified |= ImGui::Checkbox("Save before and after images", &_screenshot_save_before);
+		modified |= ImGui::Checkbox("Save separate user interface image", &_screenshot_save_ui);
 	}
 
 	if (ImGui::CollapsingHeader("User Interface", ImGuiTreeNodeFlags_DefaultOpen))

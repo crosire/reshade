@@ -227,6 +227,9 @@ void reshade::runtime::on_present()
 #if RESHADE_GUI
 	// Draw overlay
 	draw_ui();
+
+	if (_should_save_screenshot && _screenshot_save_ui)
+		save_screenshot(L" ui");
 #endif
 
 	// Reset input status
@@ -1075,6 +1078,7 @@ void reshade::runtime::load_config()
 	config.get("GENERAL", "PresetTransitionDelay", _preset_transition_delay);
 	config.get("GENERAL", "ScreenshotPath", _screenshot_path);
 	config.get("GENERAL", "ScreenshotFormat", _screenshot_format);
+	config.get("GENERAL", "ScreenshotSaveUI", _screenshot_save_ui);
 	config.get("GENERAL", "ScreenshotSaveBefore", _screenshot_save_before);
 	config.get("GENERAL", "ScreenshotIncludePreset", _screenshot_include_preset);
 
@@ -1119,6 +1123,7 @@ void reshade::runtime::save_config() const
 	config.set("GENERAL", "PresetTransitionDelay", _preset_transition_delay);
 	config.set("GENERAL", "ScreenshotPath", _screenshot_path);
 	config.set("GENERAL", "ScreenshotFormat", _screenshot_format);
+	config.set("GENERAL", "ScreenshotSaveUI", _screenshot_save_ui);
 	config.set("GENERAL", "ScreenshotSaveBefore", _screenshot_save_before);
 	config.set("GENERAL", "ScreenshotIncludePreset", _screenshot_include_preset);
 

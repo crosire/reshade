@@ -268,6 +268,7 @@ void reshade::opengl::runtime_gl::on_present()
 	glReadBuffer(GL_BACK);
 	glDrawBuffer(GL_COLOR_ATTACHMENT0);
 	glBlitFramebuffer(0, 0, _width, _height, 0, 0, _width, _height, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+	_current_fbo = _fbo[FBO_BACK];
 
 	// Copy depth from FBO to depth texture
 	if (_copy_depth_source)
@@ -291,6 +292,7 @@ void reshade::opengl::runtime_gl::on_present()
 	glReadBuffer(GL_COLOR_ATTACHMENT0);
 	glDrawBuffer(GL_BACK);
 	glBlitFramebuffer(0, 0, _width, _height, 0, 0, _width, _height, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+	_current_fbo = 0;
 
 	runtime::on_present();
 
@@ -304,10 +306,10 @@ void reshade::opengl::runtime_gl::on_present()
 
 bool reshade::opengl::runtime_gl::capture_screenshot(uint8_t *buffer) const
 {
-	assert(_app_state.has_state); // Can only call this while rendering to FBO_BACK
+	assert(_app_state.has_state);
 
-	glBindFramebuffer(GL_READ_FRAMEBUFFER, _fbo[FBO_BACK]);
-	glReadBuffer(GL_COLOR_ATTACHMENT0);
+	glBindFramebuffer(GL_READ_FRAMEBUFFER, _current_fbo);
+	glReadBuffer(_current_fbo == 0 ? GL_BACK : GL_COLOR_ATTACHMENT0);
 	glReadPixels(0, 0, GLsizei(_width), GLsizei(_height), GL_RGBA, GL_UNSIGNED_BYTE, buffer);
 
 	// Flip image horizontally
