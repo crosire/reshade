@@ -28,6 +28,7 @@ struct module_export
 };
 
 extern HMODULE g_module_handle;
+static HMODULE s_export_module_handle = nullptr;
 extern std::filesystem::path g_reshade_dll_path;
 static std::filesystem::path s_export_hook_path;
 static std::vector<std::filesystem::path> s_delayed_hook_paths;
@@ -389,6 +390,11 @@ void reshade::hooks::uninstall()
 			std::get<2>(hook_info));
 
 	s_hooks.clear();
+
+	// Free reference to the module loaded for export hooks (this is necessary for Alan Wake to work)
+	if (s_export_module_handle)
+		FreeLibrary(s_export_module_handle);
+	s_export_module_handle = nullptr;
 }
 
 void reshade::hooks::register_module(const std::filesystem::path &target_path)
@@ -443,7 +449,7 @@ reshade::hook::address reshade::hooks::call(hook::address target, hook::address 
 	{
 		return hook.call();
 	}
-	else if (!s_export_hook_path.empty()) // If the hook does not exist yet, delay-load export hooks and try again
+	else if (!s_export_module_handle) // If the hook does not exist yet, delay-load export hooks and try again
 	{
 		// Note: Could use LoadLibraryExW with LOAD_LIBRARY_SEARCH_SYSTEM32 here, but absolute paths should do the trick as well
 		const HMODULE handle = LoadLibraryW(s_export_hook_path.c_str());
@@ -457,6 +463,7 @@ reshade::hook::address reshade::hooks::call(hook::address target, hook::address 
 			install_internal(handle, g_module_handle, hook_method::export_hook);
 
 			s_export_hook_path.clear();
+			s_export_module_handle = handle;
 
 			return call(replacement);
 		}
