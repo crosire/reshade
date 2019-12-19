@@ -151,6 +151,8 @@ bool reshade::opengl::runtime_gl::on_init(HWND hwnd, unsigned int width, unsigne
 
 	switch (pfd.cDepthBits)
 	{
+	case  0: _default_depth_format = GL_NONE; // No depth in this pixel format
+		break;
 	case 16: _default_depth_format = GL_DEPTH_COMPONENT16;
 		break;
 	case 24: _default_depth_format = pfd.cStencilBits ? GL_DEPTH24_STENCIL8 : GL_DEPTH_COMPONENT24;
@@ -159,7 +161,7 @@ bool reshade::opengl::runtime_gl::on_init(HWND hwnd, unsigned int width, unsigne
 		break;
 	}
 
-	// Initialize default depth buffer information
+	// Initialize default frame buffer information
 	_buffer_detection.reset(_width, _height, _default_depth_format);
 
 	// Capture and later restore so that the resource creation code below does not affect the application state
@@ -179,14 +181,6 @@ bool reshade::opengl::runtime_gl::on_init(HWND hwnd, unsigned int width, unsigne
 	glTexStorage2D(GL_TEXTURE_2D, 1, GL_RGBA8, _width, _height);
 	glTextureView(_tex[TEX_BACK_SRGB], GL_TEXTURE_2D, _tex[TEX_BACK], GL_SRGB8_ALPHA8, 0, 1, 0, 1);
 
-	// Initialize depth texture and FBO by assuming they refer to the default depth source
-	_copy_depth_source = true;
-	_depth_source_width = _width;
-	_depth_source_height = _height;
-	_depth_source_format = _default_depth_format;
-	glBindTexture(GL_TEXTURE_2D, _tex[TEX_DEPTH]);
-	glTexStorage2D(GL_TEXTURE_2D, 1, GL_DEPTH24_STENCIL8, _depth_source_width, _depth_source_height);
-
 	glBindRenderbuffer(GL_RENDERBUFFER, _rbo[RBO_COLOR]);
 	glRenderbufferStorage(GL_RENDERBUFFER, GL_SRGB8_ALPHA8, _width, _height);
 	glBindRenderbuffer(GL_RENDERBUFFER, _rbo[RBO_DEPTH]);
@@ -201,9 +195,23 @@ bool reshade::opengl::runtime_gl::on_init(HWND hwnd, unsigned int width, unsigne
 	glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, _tex[TEX_BACK_SRGB], 0);
 	assert(glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
 
-	glBindFramebuffer(GL_FRAMEBUFFER, _fbo[FBO_DEPTH_DEST]);
-	glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, _tex[TEX_DEPTH], 0);
-	assert(glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
+#if RESHADE_OPENGL_CAPTURE_DEPTH_BUFFERS
+	// Initialize depth texture and FBO by assuming they refer to the default frame buffer
+	_has_depth_texture = _default_depth_format != GL_NONE;
+	if (_has_depth_texture)
+	{
+		_copy_depth_source = true;
+		_depth_source_width = _width;
+		_depth_source_height = _height;
+		_depth_source_format = _default_depth_format;
+		glBindTexture(GL_TEXTURE_2D, _tex[TEX_DEPTH]);
+		glTexStorage2D(GL_TEXTURE_2D, 1, _depth_source_format, _depth_source_width, _depth_source_height);
+
+		glBindFramebuffer(GL_FRAMEBUFFER, _fbo[FBO_DEPTH_DEST]);
+		glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, _tex[TEX_DEPTH], 0);
+		assert(glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
+	}
+#endif
 
 #if RESHADE_GUI
 	init_imgui_resources();
@@ -241,7 +249,8 @@ void reshade::opengl::runtime_gl::on_reset()
 	_depth_source_height = 0;
 	_depth_source_format = 0;
 	_depth_source_override = std::numeric_limits<GLuint>::max();
-	_default_depth_format = GL_NONE;
+	_has_depth_texture = false;
+	_copy_depth_source = false;
 #endif
 }
 
@@ -270,6 +279,7 @@ void reshade::opengl::runtime_gl::on_present()
 	glBlitFramebuffer(0, 0, _width, _height, 0, 0, _width, _height, GL_COLOR_BUFFER_BIT, GL_NEAREST);
 	_current_fbo = _fbo[FBO_BACK];
 
+#if RESHADE_OPENGL_CAPTURE_DEPTH_BUFFERS
 	// Copy depth from FBO to depth texture
 	if (_copy_depth_source)
 	{
@@ -277,6 +287,7 @@ void reshade::opengl::runtime_gl::on_present()
 		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, _fbo[FBO_DEPTH_DEST]);
 		glBlitFramebuffer(0, 0, _depth_source_width, _depth_source_height, 0, 0, _depth_source_width, _depth_source_height, GL_DEPTH_BUFFER_BIT, GL_NEAREST);
 	}
+#endif
 
 	// Set clip space to something consistent
 	if (gl3wProcs.gl.ClipControl != nullptr)
@@ -296,9 +307,7 @@ void reshade::opengl::runtime_gl::on_present()
 
 	runtime::on_present();
 
-#if RESHADE_OPENGL_CAPTURE_DEPTH_BUFFERS
 	_buffer_detection.reset(_width, _height, _default_depth_format);
-#endif
 
 	// Apply previous state from application
 	_app_state.apply();
@@ -733,8 +742,10 @@ bool reshade::opengl::runtime_gl::init_texture(texture &texture)
 		impl->id[1] = _tex[TEX_BACK_SRGB];
 		return true;
 	case texture_reference::depth_buffer:
+#if RESHADE_OPENGL_CAPTURE_DEPTH_BUFFERS
 		impl->id[0] = impl->id[1] =
 			_copy_depth_source ? _tex[TEX_DEPTH] : _depth_source;
+#endif
 		return true;
 	}
 
@@ -1172,6 +1183,9 @@ void reshade::opengl::runtime_gl::draw_depth_debug_menu()
 
 		for (const auto &[depth_source, snapshot] : _buffer_detection.depth_buffer_counters())
 		{
+			if (snapshot.format == GL_NONE)
+				continue; // Skip invalid entries
+
 			char label[512] = "";
 			sprintf_s(label, "%s0x%08x", (depth_source == _depth_source && !_has_high_network_activity ? "> " : "  "), depth_source);
 
@@ -1196,6 +1210,7 @@ void reshade::opengl::runtime_gl::update_depthstencil_texture(buffer_detection::
 	if (_has_high_network_activity)
 	{
 		_depth_source = 0;
+		_has_depth_texture = false;
 		_copy_depth_source = false;
 
 		if (_tex[TEX_DEPTH])
@@ -1226,6 +1241,9 @@ void reshade::opengl::runtime_gl::update_depthstencil_texture(buffer_detection::
 	// Convert depth formats to internal texture formats
 	switch (info.format)
 	{
+	case GL_NONE:
+		_has_depth_texture = false;
+		return; // Skip invalid entries (e.g. default frame buffer if pixel format has no depth)
 	case GL_DEPTH_STENCIL:
 		info.format = GL_DEPTH24_STENCIL8;
 		break;
@@ -1233,6 +1251,8 @@ void reshade::opengl::runtime_gl::update_depthstencil_texture(buffer_detection::
 		info.format = GL_DEPTH_COMPONENT24;
 		break;
 	}
+
+	_has_depth_texture = true;
 
 	// Can just use source directly if it is a simple depth texture already
 	if (info.target != GL_TEXTURE_2D || info.level != 0 || _depth_source == 0)
@@ -1254,7 +1274,13 @@ void reshade::opengl::runtime_gl::update_depthstencil_texture(buffer_detection::
 				glDeleteTextures(1, &_tex[TEX_DEPTH]);
 				_tex[TEX_DEPTH] = 0;
 
+				_has_depth_texture = false;
+				_depth_source_width = 0;
+				_depth_source_height = 0;
+				_depth_source_format = GL_NONE;
+
 				LOG(ERROR) << "Failed to create depth texture of format " << std::hex << info.format << " with error code " << err << std::dec << '.';
+				return;
 			}
 
 			_depth_source_width = info.width;

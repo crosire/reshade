@@ -87,6 +87,7 @@ namespace reshade::opengl
 		GLuint _vao[NUM_VAO] = {};
 		GLuint _fbo[NUM_FBO] = {}, _current_fbo = 0;
 		GLuint _rbo[NUM_RBO] = {};
+		GLenum _default_depth_format = GL_NONE;
 		std::vector<GLuint> _effect_ubos;
 		std::vector<GLuint> _reserved_texture_names;
 		std::unordered_map<size_t, GLuint> _effect_sampler_states;
@@ -111,7 +112,6 @@ namespace reshade::opengl
 		GLuint _depth_source_height = 0;
 		GLenum _depth_source_format = 0;
 		GLuint _depth_source_override = std::numeric_limits<GLuint>::max();
-		GLenum _default_depth_format = GL_NONE;
 #endif
 	};
 }
