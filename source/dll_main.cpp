@@ -6,6 +6,7 @@
 #include "dll_log.hpp"
 #include "hook_manager.hpp"
 #include "version.h"
+#include <Psapi.h>
 #include <Windows.h>
 
 HMODULE g_module_handle = nullptr;
@@ -19,12 +20,12 @@ extern std::filesystem::path get_system_path()
 	if (!system_path.empty())
 		return system_path; // Return the cached system path
 
-	std::wstring buf(32767, L'\0'); // 32767 > MAX_PATH
-	if (GetEnvironmentVariableW(L"RESHADE_MODULE_PATH_OVERRIDE", buf.data(), DWORD(buf.size())) == 0 || buf.empty())
-		GetSystemDirectoryW(buf.data(), UINT(buf.size())); // First try environment variable, use system directory if it does not exist
+	WCHAR buf[4096];
+	if (GetEnvironmentVariableW(L"RESHADE_MODULE_PATH_OVERRIDE", buf, ARRAYSIZE(buf)) == 0) // Failure or empty
+		GetSystemDirectoryW(buf, ARRAYSIZE(buf)); // First try environment variable, use system directory if it does not exist
 
-	if (system_path = buf.data(); system_path.has_stem()) // Remove '\0' from the path buffer for adding path string
-		system_path += L'\\';
+	if (system_path = buf; system_path.has_stem())
+		system_path += L'\\'; // Always convert to directory path and not a file
 	if (system_path.is_relative())
 		system_path = g_target_executable_path.parent_path() / system_path;
 
@@ -33,9 +34,8 @@ extern std::filesystem::path get_system_path()
 
 static inline std::filesystem::path get_module_path(HMODULE module)
 {
-	TCHAR buf[MAX_PATH] = {};
-	GetModuleFileName(module, buf, ARRAYSIZE(buf));
-	return buf;
+	WCHAR buf[4096];
+	return GetModuleFileNameW(module, buf, ARRAYSIZE(buf)) ? buf : L"";
 }
 
 #ifdef RESHADE_TEST_APPLICATION
@@ -721,6 +721,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 
 #else
 
+// Export special symbol to identify modules as ReShade instances
+extern "C" __declspec(dllexport) const char *ReShadeVersion = VERSION_STRING_PRODUCT;
+
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 {
 	using namespace reshade;
@@ -739,6 +742,19 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 #else
 		LOG(INFO) << "Initializing crosire's ReShade version '" VERSION_STRING_FILE "' (32-bit) built on '" VERSION_DATE " " VERSION_TIME "' loaded from " << g_reshade_dll_path << " to " << g_target_executable_path << " ...";
 #endif
+
+		// Check if another ReShade instance was already loaded into the process
+		if (HMODULE modules[1024]; K32EnumProcessModules(GetCurrentProcess(), modules, sizeof(modules), &fdwReason)) // Use kernel32 variant which is available in DllMain
+		{
+			for (DWORD i = 0; i < std::min(fdwReason / sizeof(HMODULE), ARRAYSIZE(modules)); ++i)
+			{
+				if (modules[i] != hModule && GetProcAddress(modules[i], "ReShadeVersion") != nullptr)
+				{
+					LOG(WARN) << "Another ReShade instance was already loaded from " << get_module_path(modules[i]) << "! Aborting initialization ...";
+					return FALSE; // Make the "LoadLibrary" call that loaded this instance fail
+				}
+			}
+		}
 
 		hooks::register_module("user32.dll");
 		hooks::register_module("ws2_32.dll");
@@ -759,7 +775,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 
 		hooks::uninstall();
 
-		LOG(INFO) << "Exited.";
+		LOG(INFO) << "Finished exiting.";
 		break;
 	}
 

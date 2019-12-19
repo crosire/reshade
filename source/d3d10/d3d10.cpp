@@ -83,7 +83,10 @@ HOOK_EXPORT HRESULT WINAPI D3D10CreateDeviceAndSwapChain1(IDXGIAdapter *pAdapter
 
 	// It is valid for the device out parameter to be NULL if the application wants to check feature level support, so just return early in that case
 	if (ppDevice == nullptr)
+	{
+		assert(ppSwapChain == nullptr);
 		return hr;
+	}
 
 	auto device = *ppDevice;
 	// Query for the DXGI device since we need to reference it in the hooked device
