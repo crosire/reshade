@@ -492,14 +492,18 @@ HOOK_EXPORT BOOL  WINAPI wglDeleteContext(HGLRC hglrc)
 #endif
 
 		// Choose a random device context to make current with (and hope that is still alive)
-		const HDC hdc = *it->second->_hdcs.begin();
+		const HDC hdc = *it->second->_hdcs.begin(), prev_hdc = wglGetCurrentDC();
+		const HGLRC prev_hglrc = wglGetCurrentContext();
 
 		// Set the render context current so its resources can be cleaned up
-		if (reshade::hooks::call(wglMakeCurrent)(hdc, hglrc))
+		if (hglrc == prev_hglrc || reshade::hooks::call(wglMakeCurrent)(hdc, hglrc))
 		{
 			it->second->on_reset();
 
 			delete it->second;
+
+			if (hglrc != prev_hglrc) // Reset to previous context if it was a different one
+				reshade::hooks::call(wglMakeCurrent)(prev_hdc, prev_hglrc);
 		}
 		else
 		{
