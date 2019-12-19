@@ -12,7 +12,7 @@
     <Button x:Name="ApiVulkanGlobalButton" DockPanel.Dock="Bottom" Margin="5,0,5,5" Padding="5" Height="30" Visibility="Visible" Click="OnApiVulkanGlobalChecked">
       <StackPanel Orientation="Horizontal">
         <Image Source="{x:Static utils:Glass.UacShieldIcon}" Stretch="None" />
-        <TextBlock Padding="2,0,0,0" Text="Enable/Disable ReShade in Vulkan globally (affects all Vulkan games)" />
+        <TextBlock Padding="2,0,0,0" Text="Enable/disable ReShade in Vulkan globally (affects all Vulkan games)" />
       </StackPanel>
     </Button>
     <Button x:Name="SetupButton" DockPanel.Dock="Top" Margin="5,5,5,5" AllowDrop="True" Click="OnSetupButtonClick" Drop="OnSetupButtonDragDrop">

@@ -738,15 +738,15 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 		log::open(std::filesystem::path(g_reshade_dll_path).replace_extension(".log"));
 
 #ifdef WIN64
-		LOG(INFO) << "Initializing crosire's ReShade version '" VERSION_STRING_FILE "' (64-bit) built on '" VERSION_DATE " " VERSION_TIME "' loaded from " << g_reshade_dll_path << " to " << g_target_executable_path << " ...";
+		LOG(INFO) << "Initializing crosire's ReShade version '" VERSION_STRING_FILE "' (64-bit) built on '" VERSION_DATE " " VERSION_TIME "' loaded from " << g_reshade_dll_path << " into " << g_target_executable_path << " ...";
 #else
-		LOG(INFO) << "Initializing crosire's ReShade version '" VERSION_STRING_FILE "' (32-bit) built on '" VERSION_DATE " " VERSION_TIME "' loaded from " << g_reshade_dll_path << " to " << g_target_executable_path << " ...";
+		LOG(INFO) << "Initializing crosire's ReShade version '" VERSION_STRING_FILE "' (32-bit) built on '" VERSION_DATE " " VERSION_TIME "' loaded from " << g_reshade_dll_path << " into " << g_target_executable_path << " ...";
 #endif
 
 		// Check if another ReShade instance was already loaded into the process
 		if (HMODULE modules[1024]; K32EnumProcessModules(GetCurrentProcess(), modules, sizeof(modules), &fdwReason)) // Use kernel32 variant which is available in DllMain
 		{
-			for (DWORD i = 0; i < std::min(fdwReason / sizeof(HMODULE), ARRAYSIZE(modules)); ++i)
+			for (DWORD i = 0; i < std::min<DWORD>(fdwReason / sizeof(HMODULE), ARRAYSIZE(modules)); ++i)
 			{
 				if (modules[i] != hModule && GetProcAddress(modules[i], "ReShadeVersion") != nullptr)
 				{
