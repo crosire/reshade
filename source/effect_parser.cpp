@@ -2508,7 +2508,7 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 			if (type.has(type::q_volatile))
 				return error(location, 3008, '\'' + name + "': global variables cannot be declared 'volatile'"), false;
 		}
-		else
+		else if (!type.has(type::q_groupshared))
 		{
 			// Make all global variables 'uniform' by default, since they should be externally visible without the 'static' keyword
 			if (!type.has(type::q_uniform) && !(type.is_texture() || type.is_sampler()))

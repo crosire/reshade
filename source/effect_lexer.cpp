@@ -215,7 +215,7 @@ static const std::unordered_map<std::string, tokenid> keyword_lookup = {
 	{ "friend", tokenid::reserved },
 	{ "globallycoherent", tokenid::reserved },
 	{ "goto", tokenid::reserved },
-	{ "groupshared", tokenid::reserved },
+	{ "groupshared", tokenid::groupshared },
 	{ "half", tokenid::reserved },
 	{ "half2", tokenid::reserved },
 	{ "half2x2", tokenid::reserved },

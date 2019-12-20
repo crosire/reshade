@@ -378,6 +378,11 @@ bool reshade::opengl::runtime_gl::init_effect(size_t index)
 				defines += "#define dFdy(y) y\n";
 				defines += "#define fwidth(p) p\n";
 			}
+			if (entry_point.type != reshadefx::shader_type::cs)
+			{
+				// OpenGL does not allow using 'shared' in vertex/fragment shader profile
+				defines += "#define shared\n";
+			}
 
 			defines += "#line 1 0\n"; // Reset line number, so it matches what is shown when viewing the generated code
 			defines += effect.preamble;
