@@ -786,6 +786,7 @@ private:
 			// Need to store value in a new variable to comply with request for a new ID
 			std::string &code = _blocks.at(_current_block);
 
+			code += '\t';
 			write_type(code, exp.type);
 			code += ' ' + id_to_name(res) + " = " + expr_code + ";\n";
 		}
