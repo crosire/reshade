@@ -413,6 +413,7 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	INIT_DEVICE_PROC(CreateShaderModule);
 	INIT_DEVICE_PROC(DestroyShaderModule);
 	INIT_DEVICE_PROC(CreateGraphicsPipelines);
+	INIT_DEVICE_PROC(CreateComputePipelines);
 	INIT_DEVICE_PROC(DestroyPipeline);
 	INIT_DEVICE_PROC(CreatePipelineLayout);
 	INIT_DEVICE_PROC(DestroyPipelineLayout);
@@ -446,6 +447,7 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	INIT_DEVICE_PROC(CmdBindVertexBuffers);
 	INIT_DEVICE_PROC(CmdDraw);
 	INIT_DEVICE_PROC(CmdDrawIndexed);
+	INIT_DEVICE_PROC(CmdDispatch);
 	INIT_DEVICE_PROC(CmdCopyBuffer);
 	INIT_DEVICE_PROC(CmdCopyImage);
 	INIT_DEVICE_PROC(CmdBlitImage);

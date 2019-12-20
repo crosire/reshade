@@ -351,17 +351,21 @@ private:
 	id   define_texture(const location &loc, texture_info &info) override
 	{
 		info.id = make_id();
-		info.binding = _module.num_texture_bindings++;
-
-		define_name<naming::unique>(info.id, info.unique_name);
 
 		_module.textures.push_back(info);
 
-		std::string &code = _blocks.at(_current_block);
+		if (info.semantic.empty())
+		{
+			info.binding = _module.num_texture_bindings++;
 
-		write_location(code, loc);
+			define_name<naming::unique>(info.id, info.unique_name);
 
-		code += "layout(binding = " + std::to_string(info.binding) + ", rgba8) uniform image2D " + id_to_name(info.id) + ";\n";
+			std::string &code = _blocks.at(_current_block);
+
+			write_location(code, loc);
+
+			code += "layout(binding = " + std::to_string(info.binding) + ", rgba8) uniform image2D " + id_to_name(info.id) + ";\n";
+		}
 
 		return info.id;
 	}

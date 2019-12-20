@@ -39,9 +39,10 @@ namespace reshade::vulkan
 	struct vulkan_effect_data
 	{
 		VkQueryPool query_pool = VK_NULL_HANDLE;
-		VkDescriptorSet set[2] = {};
+		VkDescriptorSet set[3] = {};
 		VkPipelineLayout pipeline_layout = VK_NULL_HANDLE;
 		VkDescriptorSetLayout set_layout = VK_NULL_HANDLE;
+		VkDescriptorSetLayout compute_layout = VK_NULL_HANDLE;
 		VkBuffer ubo = VK_NULL_HANDLE;
 		VmaAllocation ubo_mem = VK_NULL_HANDLE;
 		std::vector<VkDescriptorImageInfo> image_bindings;
@@ -428,7 +429,8 @@ bool reshade::vulkan::runtime_vk::on_init(VkSwapchainKHR swapchain, const VkSwap
 	// Allocate a single descriptor pool for all effects
 	{   VkDescriptorPoolSize pool_sizes[] = {
 			{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, MAX_EFFECT_DESCRIPTOR_SETS }, // Only need one global UBO per set
-			{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, MAX_EFFECT_DESCRIPTOR_SETS * MAX_IMAGE_DESCRIPTOR_SETS }
+			{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, MAX_EFFECT_DESCRIPTOR_SETS * MAX_IMAGE_DESCRIPTOR_SETS },
+			{ VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, MAX_EFFECT_DESCRIPTOR_SETS * MAX_IMAGE_DESCRIPTOR_SETS },
 		};
 
 		VkDescriptorPoolCreateInfo create_info { VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO };
@@ -440,7 +442,7 @@ bool reshade::vulkan::runtime_vk::on_init(VkSwapchainKHR swapchain, const VkSwap
 		check_result(vk.CreateDescriptorPool(_device, &create_info, nullptr, &_effect_descriptor_pool)) false;
 	}
 
-	{   VkDescriptorSetLayoutBinding bindings = { 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_ALL_GRAPHICS };
+	{   VkDescriptorSetLayoutBinding bindings = { 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_ALL };
 		VkDescriptorSetLayoutCreateInfo create_info { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO };
 		create_info.bindingCount = 1;
 		create_info.pBindings = &bindings;
@@ -876,10 +878,22 @@ bool reshade::vulkan::runtime_vk::init_effect(size_t index)
 		check_result(vk.CreateDescriptorSetLayout(_device, &create_info, nullptr, &effect_data.set_layout)) false;
 	}
 
-	const VkDescriptorSetLayout set_layouts[2] = { _effect_descriptor_layout, effect_data.set_layout };
+	{   std::vector<VkDescriptorSetLayoutBinding> bindings;
+		bindings.reserve(effect.module.num_texture_bindings);
+		for (uint32_t i = 0; i < effect.module.num_texture_bindings; ++i)
+			bindings.push_back({ i, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1, VK_SHADER_STAGE_COMPUTE_BIT });
+
+		VkDescriptorSetLayoutCreateInfo create_info { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO };
+		create_info.bindingCount = uint32_t(bindings.size());
+		create_info.pBindings = bindings.data();
+
+		check_result(vk.CreateDescriptorSetLayout(_device, &create_info, nullptr, &effect_data.compute_layout)) false;
+	}
+
+	const VkDescriptorSetLayout set_layouts[3] = { _effect_descriptor_layout, effect_data.set_layout, effect_data.compute_layout };
 
 	{   VkPipelineLayoutCreateInfo create_info { VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO };
-		create_info.setLayoutCount = 2; // [0] = Global UBO, [1] = Samplers
+		create_info.setLayoutCount = 3; // [0] = Global UBO, [1] = Samplers, [2] = Images
 		create_info.pSetLayouts = set_layouts;
 
 		check_result(vk.CreatePipelineLayout(_device, &create_info, nullptr, &effect_data.pipeline_layout)) false;
@@ -897,11 +911,26 @@ bool reshade::vulkan::runtime_vk::init_effect(size_t index)
 	}
 
 	// Initialize image and sampler bindings
-	std::vector<VkDescriptorImageInfo> image_bindings(effect.module.num_sampler_bindings);
+	std::vector<VkDescriptorImageInfo> image_bindings(effect.module.num_texture_bindings);
+	std::vector<VkDescriptorImageInfo> sampler_bindings(effect.module.num_sampler_bindings);
+
+	for (const reshadefx::texture_info &info : effect.module.textures)
+	{
+		VkDescriptorImageInfo &image_binding = image_bindings[info.binding];
+		image_binding.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+
+		const auto existing_texture = std::find_if(_textures.begin(), _textures.end(),
+			[&texture_name = info.unique_name](const auto &item) {
+			return item.unique_name == texture_name && item.impl != nullptr;
+		});
+		assert(existing_texture != _textures.end());
+
+		image_binding.imageView = static_cast<vulkan_tex_data *>(existing_texture->impl)->view[0];
+	}
 
 	for (const reshadefx::sampler_info &info : effect.module.samplers)
 	{
-		VkDescriptorImageInfo &image_binding = image_bindings[info.binding];
+		VkDescriptorImageInfo &image_binding = sampler_bindings[info.binding];
 		image_binding.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
 		const auto existing_texture = std::find_if(_textures.begin(), _textures.end(),
@@ -1007,11 +1036,11 @@ bool reshade::vulkan::runtime_vk::init_effect(size_t index)
 		image_binding.sampler = it->second;
 	}
 
-	effect_data.image_bindings = image_bindings;
+	effect_data.image_bindings = sampler_bindings;
 
 	{   VkDescriptorSetAllocateInfo alloc_info { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO };
 		alloc_info.descriptorPool = _effect_descriptor_pool;
-		alloc_info.descriptorSetCount = 2;
+		alloc_info.descriptorSetCount = 3;
 		alloc_info.pSetLayouts = set_layouts;
 
 		if (vk.AllocateDescriptorSets(_device, &alloc_info, effect_data.set) != VK_SUCCESS)
@@ -1021,7 +1050,7 @@ bool reshade::vulkan::runtime_vk::init_effect(size_t index)
 		}
 
 		uint32_t num_writes = 0;
-		VkWriteDescriptorSet writes[2];
+		VkWriteDescriptorSet writes[3];
 		const VkDescriptorBufferInfo ubo_info = { effect_data.ubo, 0, VK_WHOLE_SIZE };
 
 		if (effect_data.ubo != VK_NULL_HANDLE)
@@ -1038,11 +1067,22 @@ bool reshade::vulkan::runtime_vk::init_effect(size_t index)
 		if (!image_bindings.empty())
 		{
 			writes[num_writes] = { VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
-			writes[num_writes].dstSet = effect_data.set[1];
+			writes[num_writes].dstSet = effect_data.set[2];
 			writes[num_writes].dstBinding = 0;
 			writes[num_writes].descriptorCount = uint32_t(image_bindings.size());
-			writes[num_writes].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+			writes[num_writes].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
 			writes[num_writes].pImageInfo = image_bindings.data();
+			++num_writes;
+		}
+
+		if (!sampler_bindings.empty())
+		{
+			writes[num_writes] = { VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
+			writes[num_writes].dstSet = effect_data.set[1];
+			writes[num_writes].dstBinding = 0;
+			writes[num_writes].descriptorCount = uint32_t(sampler_bindings.size());
+			writes[num_writes].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+			writes[num_writes].pImageInfo = sampler_bindings.data();
 			++num_writes;
 		}
 
@@ -1398,8 +1438,7 @@ void reshade::vulkan::runtime_vk::unload_effect(size_t index)
 			if (pass_data.begin_info.renderPass != _default_render_pass[0] &&
 				pass_data.begin_info.renderPass != _default_render_pass[1])
 				vk.DestroyRenderPass(_device, pass_data.begin_info.renderPass, nullptr);
-			if (pass_data.begin_info.framebuffer != VK_NULL_HANDLE)
-				vk.DestroyFramebuffer(_device, pass_data.begin_info.framebuffer, nullptr);
+			vk.DestroyFramebuffer(_device, pass_data.begin_info.framebuffer, nullptr);
 			vk.DestroyPipeline(_device, pass_data.pipeline, nullptr);
 		}
 
@@ -1419,6 +1458,8 @@ void reshade::vulkan::runtime_vk::unload_effect(size_t index)
 		effect_data.pipeline_layout = VK_NULL_HANDLE;
 		vk.DestroyDescriptorSetLayout(_device, effect_data.set_layout, nullptr);
 		effect_data.set_layout = VK_NULL_HANDLE;
+		vk.DestroyDescriptorSetLayout(_device, effect_data.compute_layout, nullptr);
+		effect_data.compute_layout = VK_NULL_HANDLE;
 		vmaDestroyBuffer(_alloc, effect_data.ubo, effect_data.ubo_mem);
 		effect_data.ubo = VK_NULL_HANDLE;
 		effect_data.ubo_mem = VK_NULL_HANDLE;
@@ -1440,8 +1481,7 @@ void reshade::vulkan::runtime_vk::unload_effects()
 			if (pass_data.begin_info.renderPass != _default_render_pass[0] &&
 				pass_data.begin_info.renderPass != _default_render_pass[1])
 				vk.DestroyRenderPass(_device, pass_data.begin_info.renderPass, nullptr);
-			if (pass_data.begin_info.framebuffer != VK_NULL_HANDLE)
-				vk.DestroyFramebuffer(_device, pass_data.begin_info.framebuffer, nullptr);
+			vk.DestroyFramebuffer(_device, pass_data.begin_info.framebuffer, nullptr);
 			vk.DestroyPipeline(_device, pass_data.pipeline, nullptr);
 		}
 
@@ -1461,6 +1501,7 @@ void reshade::vulkan::runtime_vk::unload_effects()
 		vk.DestroyQueryPool(_device, data.query_pool, nullptr);
 		vk.DestroyPipelineLayout(_device, data.pipeline_layout, nullptr);
 		vk.DestroyDescriptorSetLayout(_device, data.set_layout, nullptr);
+		vk.DestroyDescriptorSetLayout(_device, data.compute_layout, nullptr);
 		vmaDestroyBuffer(_alloc, data.ubo, data.ubo_mem);
 	}
 
@@ -1528,6 +1569,10 @@ bool reshade::vulkan::runtime_vk::init_texture(texture &texture)
 	// Add required TRANSFER_SRC flag for mipmap generation
 	if (texture.levels > 1)
 		usage_flags |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+
+	const bool with_compute = true; // TODO
+	if (with_compute)
+		usage_flags |= VK_IMAGE_USAGE_STORAGE_BIT;
 
 	VkImageCreateFlags image_flags = 0;
 	// Add mutable format flag required to create a SRGB view of the image
@@ -1775,6 +1820,7 @@ void reshade::vulkan::runtime_vk::render_technique(technique &technique)
 	vk.CmdResetQueryPool(cmd_list, effect_data.query_pool, impl->query_base_index + _cmd_index * 2, 2);
 	vk.CmdWriteTimestamp(cmd_list, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, effect_data.query_pool, impl->query_base_index + _cmd_index * 2);
 
+	vk.CmdBindDescriptorSets(cmd_list, VK_PIPELINE_BIND_POINT_COMPUTE, effect_data.pipeline_layout, 0, 3, effect_data.set, 0, nullptr);
 	vk.CmdBindDescriptorSets(cmd_list, VK_PIPELINE_BIND_POINT_GRAPHICS, effect_data.pipeline_layout, 0, 2, effect_data.set, 0, nullptr);
 
 	// Setup shader constants

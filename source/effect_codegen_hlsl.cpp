@@ -349,7 +349,7 @@ private:
 
 			_module.num_texture_bindings += 2;
 
-			if (_shader_model >= 50)
+			if (_shader_model >= 50 && info.semantic.empty())
 			{
 				code += "RWTexture2D<float4> " + id_to_name(info.id) + " : register(u" + std::to_string(info.binding) + ");\n";
 			}

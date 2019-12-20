@@ -1745,7 +1745,12 @@ IMPLEMENT_INTRINSIC_HLSL(tex2Dstore, 0, {
 	}
 	})
 IMPLEMENT_INTRINSIC_SPIRV(tex2Dstore, 0, {
-	assert(false);
+	add_instruction_without_result(spv::OpImageWrite)
+		.add(args[0].base)
+		.add(args[1].base)
+		.add(args[2].base);
+
+	return 0;
 	})
 
 #undef COMMA

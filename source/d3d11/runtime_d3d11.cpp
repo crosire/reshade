@@ -862,7 +862,7 @@ bool reshade::d3d11::runtime_d3d11::init_texture(texture &texture)
 	desc.MiscFlags = D3D11_RESOURCE_MISC_GENERATE_MIPS;
 
 	const bool with_compute = true; // TODO
-	if (with_compute) // TODO
+	if (with_compute)
 		desc.BindFlags |= D3D11_BIND_UNORDERED_ACCESS;
 
 	switch (texture.format)

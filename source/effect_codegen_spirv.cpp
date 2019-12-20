@@ -426,8 +426,9 @@ private:
 					.add(0) // Not a depth image
 					.add(0) // Not an array
 					.add(0) // Not multi-sampled
-					.add(1) // Will be used with a sampler
-					.add(spv::ImageFormatUnknown).result;
+					.add(!info.has(type::q_groupshared) ? 1 : 2) // Used with a sampler or as storage
+					.add(!info.has(type::q_groupshared) ? spv::ImageFormatUnknown : spv::ImageFormatRgba8)
+					.result;
 				break;
 			case type::t_sampler:
 				assert(info.rows == 0 && info.cols == 0);
@@ -570,9 +571,19 @@ private:
 
 		return info.definition;
 	}
-	id   define_texture(const location &, texture_info &info) override
+	id   define_texture(const location &loc, texture_info &info) override
 	{
 		info.id = make_id();
+
+		if (info.semantic.empty())
+		{
+			info.binding = _module.num_texture_bindings++;
+
+			define_variable(info.id, loc, { type::t_texture, 0, 0, type::q_extern | type::q_uniform | type::q_groupshared }, info.unique_name.c_str(), spv::StorageClassUniformConstant);
+
+			add_decoration(info.id, spv::DecorationBinding, { info.binding });
+			add_decoration(info.id, spv::DecorationDescriptorSet, { 2 });
+		}
 
 		_module.textures.push_back(info);
 
@@ -849,6 +860,8 @@ private:
 			}
 			else
 			{
+				assert(stype != shader_type::cs);
+
 				if (const char c = semantic.back(); c < '0' || c > '9')
 					semantic += '0'; // Always numerate semantics, so that e.g. TEXCOORD and TEXCOORD0 point to the same location
 
@@ -1026,7 +1039,6 @@ private:
 				.add(spv::ExecutionModeOriginUpperLeft);
 			break;
 		case shader_type::cs:
-			assert(inputs_and_outputs.empty());
 			model = spv::ExecutionModelGLCompute;
 			add_instruction_without_result(spv::OpExecutionMode, _execution_modes)
 				.add(entry_point.definition)
