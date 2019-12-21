@@ -773,7 +773,8 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 			exp = std::move(arguments[0]); exp.add_cast_operation(type);
 		}
 	}
-	else // At this point only identifiers are left to check and resolve
+	// At this point only identifiers are left to check and resolve
+	else
 	{
 		// Starting an identifier with '::' restricts the symbol search to the global namespace level
 		const bool exclusive = accept(tokenid::colon_colon);

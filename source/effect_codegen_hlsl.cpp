@@ -684,7 +684,11 @@ private:
 				expr_code += '[' + id_to_name(op.index) + ']';
 				break;
 			case expression::operation::op_constant_index:
-				expr_code += '[' + std::to_string(op.index) + ']';
+				if (op.from.is_vector() && !op.from.is_array())
+					expr_code += '.',
+					expr_code += "xyzw"[op.index];
+				else
+					expr_code += '[' + std::to_string(op.index) + ']';
 				break;
 			case expression::operation::op_swizzle:
 				expr_code += '.';

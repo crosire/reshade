@@ -201,15 +201,21 @@ void reshadefx::expression::add_constant_index_access(unsigned int index)
 
 	if (type.is_array())
 	{
+		assert(type.array_length < 0 || index < static_cast<unsigned int>(type.array_length));
+
 		type.array_length = 0;
 	}
 	else if (type.is_matrix())
 	{
+		assert(index < type.components());
+
 		type.rows = type.cols;
 		type.cols = 1;
 	}
 	else if (type.is_vector())
 	{
+		assert(index < type.components());
+
 		type.rows = 1;
 	}
 
