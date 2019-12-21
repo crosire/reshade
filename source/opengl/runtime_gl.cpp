@@ -359,10 +359,6 @@ bool reshade::opengl::runtime_gl::init_effect(size_t index)
 			spec_constants.push_back(id);
 		}
 	}
-	else
-	{
-		effect.preamble = "#version 430\n" + effect.preamble;
-	}
 
 	std::unordered_map<std::string, GLuint> entry_points;
 
@@ -375,20 +371,28 @@ bool reshade::opengl::runtime_gl::init_effect(size_t index)
 		if (!effect.module.spirv.empty())
 		{
 			assert(_renderer_id >= 0x14600); // Core since OpenGL 4.6 (see https://www.khronos.org/opengl/wiki/SPIR-V)
-			assert(gl3wProcs.gl.ShaderBinary && gl3wProcs.gl.SpecializeShader);
+			assert(gl3wProcs.gl.ShaderBinary != nullptr && gl3wProcs.gl.SpecializeShader != nullptr);
 
 			glShaderBinary(1, &shader_id, GL_SHADER_BINARY_FORMAT_SPIR_V, effect.module.spirv.data(), static_cast<GLsizei>(effect.module.spirv.size() * sizeof(uint32_t)));
 			glSpecializeShader(shader_id, entry_point.name.c_str(), GLuint(spec_constants.size()), spec_constants.data(), spec_data.data());
 		}
 		else
 		{
-			std::string defines = effect.preamble;
+			std::string defines = "#version 430\n";
 			defines += "#define ENTRY_POINT_" + entry_point.name + " 1\n";
-			if (!entry_point.is_pixel_shader) // OpenGL does not allow using 'discard' in the vertex shader profile
-				defines += "#define discard\n"
-				"#define dFdx(x) x\n" // 'dFdx', 'dFdx' and 'fwidth' too are only available in fragment shaders
-				"#define dFdy(y) y\n"
-				"#define fwidth(p) p\n";
+
+			if (!entry_point.is_pixel_shader)
+			{
+				// OpenGL does not allow using 'discard' in the vertex shader profile
+				defines += "#define discard\n";
+				// 'dFdx', 'dFdx' and 'fwidth' too are only available in fragment shaders
+				defines += "#define dFdx(x) x\n";
+				defines += "#define dFdy(y) y\n";
+				defines += "#define fwidth(p) p\n";
+			}
+
+			defines += "#line 1 0\n"; // Reset line number, so it matches what is shown when viewing the generated code
+			defines += effect.preamble;
 
 			GLsizei lengths[] = { static_cast<GLsizei>(defines.size()), static_cast<GLsizei>(effect.module.hlsl.size()) };
 			const GLchar *sources[] = { defines.c_str(), effect.module.hlsl.c_str() };
@@ -402,10 +406,10 @@ bool reshade::opengl::runtime_gl::init_effect(size_t index)
 		{
 			GLint log_size = 0;
 			glGetShaderiv(shader_id, GL_INFO_LOG_LENGTH, &log_size);
-			std::string log(log_size, '\0');
+			std::vector<char> log(log_size);
 			glGetShaderInfoLog(shader_id, log_size, nullptr, log.data());
 
-			effect.errors += log;
+			effect.errors += log.data();
 
 			for (auto &it : entry_points)
 				glDeleteShader(it.second);
@@ -691,10 +695,10 @@ bool reshade::opengl::runtime_gl::init_effect(size_t index)
 			{
 				GLint log_size = 0;
 				glGetProgramiv(pass.program, GL_INFO_LOG_LENGTH, &log_size);
-				std::string log(log_size, '\0');
+				std::vector<char> log(log_size);
 				glGetProgramInfoLog(pass.program, log_size, nullptr, log.data());
 
-				effect.errors += log;
+				effect.errors += log.data();
 
 				LOG(ERROR) << "Failed to link program for pass " << i << " in technique '" << technique.name << "'.";
 				success = false;
