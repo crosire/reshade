@@ -800,7 +800,8 @@ private:
 	}
 	void emit_store(const expression &exp, id value) override
 	{
-		if (const auto it = _remapped_sampler_variables.find(exp.base); it != _remapped_sampler_variables.end())
+		if (const auto it = _remapped_sampler_variables.find(exp.base);
+			it != _remapped_sampler_variables.end())
 		{
 			assert(it->second == 0);
 			it->second = value;

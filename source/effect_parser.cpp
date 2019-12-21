@@ -2630,7 +2630,8 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 
 	symbol symbol;
 
-	if (type.is_numeric() && type.has(type::q_const) && initializer.is_constant) // Variables with a constant initializer and constant type are named constants
+	// Variables with a constant initializer and constant type are named constants
+	if (type.is_numeric() && type.has(type::q_const) && initializer.is_constant)
 	{
 		// Named constants are special symbols
 		symbol = { symbol_type::constant, 0, type, initializer.constant };
@@ -2646,7 +2647,8 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 		symbol = { symbol_type::variable, 0, type };
 		symbol.id = _codegen->define_texture(location, texture_info);
 	}
-	else if (type.is_sampler()) // Samplers are actually combined image samplers
+	// Samplers are actually combined image samplers
+	else if (type.is_sampler())
 	{
 		assert(global);
 
@@ -2662,7 +2664,8 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 		symbol = { symbol_type::variable, 0, type };
 		symbol.id = _codegen->define_sampler(location, sampler_info);
 	}
-	else if (type.has(type::q_uniform)) // Uniform variables are put into a global uniform buffer structure
+	// Uniform variables are put into a global uniform buffer structure
+	else if (type.has(type::q_uniform))
 	{
 		assert(global);
 
@@ -2678,35 +2681,15 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 		symbol = { symbol_type::variable, 0, type };
 		symbol.id = _codegen->define_uniform(location, uniform_info);
 	}
-	else // All other variables are separate entities
+	// All other variables are separate entities
+	else
 	{
-		symbol = { symbol_type::variable, 0, type };
-
 		// Update global variable names to contain the namespace scope to avoid name clashes
 		std::string unique_name = global ? 'V' + current_scope().name + name : name;
 		std::replace(unique_name.begin(), unique_name.end(), ':', '_');
 
-		// The initializer expression for variables must be a constant
-		// Also, only use the variable initializer on global variables, since local variables for e.g. "for" statements need to be assigned in their respective scope and not their declaration
-		if (global && initializer.is_constant)
-		{
-			symbol.id = _codegen->define_variable(location, type, std::move(unique_name), global, _codegen->emit_constant(initializer.type, initializer.constant));
-		}
-		else // Non-constant initializers are explicitly stored in the variable at the definition location instead
-		{
-			const auto initializer_value = _codegen->emit_load(initializer);
-
-			symbol.id = _codegen->define_variable(location, type, std::move(unique_name), global);
-
-			if (initializer_value != 0)
-			{
-				assert(!global); // Global variables cannot have a dynamic initializer
-
-				expression variable; variable.reset_to_lvalue(location, symbol.id, type);
-
-				_codegen->emit_store(variable, initializer_value);
-			}
-		}
+		symbol = { symbol_type::variable, 0, type };
+		symbol.id = _codegen->define_variable(location, type, std::move(unique_name), global, _codegen->emit_load(initializer));
 	}
 
 	// Insert the symbol into the symbol table

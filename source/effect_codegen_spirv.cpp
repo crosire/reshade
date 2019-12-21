@@ -743,7 +743,8 @@ private:
 	}
 	void define_variable(id id, const location &loc, const type &type, const char *name, spv::StorageClass storage, spv::Id initializer_value = 0)
 	{
-		spirv_basic_block &block = storage != spv::StorageClassFunction ? _variables : _current_function->variables;
+		spirv_basic_block &block = (storage != spv::StorageClassFunction) ?
+			_variables : _current_function->variables;
 
 		add_location(loc, block);
 
@@ -752,8 +753,22 @@ private:
 		instruction.type = convert_type(type, true, storage);
 		instruction.result = id;
 		instruction.add(storage);
+
 		if (initializer_value != 0)
-			instruction.add(initializer_value);
+		{
+			if (storage != spv::StorageClassFunction)
+			{
+				// The initializer for variables must be a constant
+				instruction.add(initializer_value);
+			}
+			else
+			{
+				// Only use the variable initializer on global variables, since local variables for e.g. "for" statements need to be assigned in their respective scope and not their declaration
+				expression variable;
+				variable.reset_to_lvalue(loc, id, type);
+				emit_store(variable, initializer_value);
+			}
+		}
 
 		if (name != nullptr && *name != '\0')
 			add_name(id, name);
