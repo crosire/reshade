@@ -169,7 +169,7 @@ private:
 			elem_type.array_length = 0;
 
 			write_type<false, false>(s, elem_type);
-			s += "[](";
+			s += '[' + std::to_string(type.array_length) + "](";
 
 			for (int i = 0; i < type.array_length; ++i)
 			{
