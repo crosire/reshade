@@ -370,10 +370,11 @@ void reshade::input::next_frame()
 		(GetKeyState(VK_MENU) & 0x8000) == 0)
 		_keys[VK_MENU] = 0x08;
 
-	// Update print screen state
+	// Update print screen state (there is no key down message, but the key up one is received via the message queue)
 	if ((_keys[VK_SNAPSHOT] & 0x80) == 0 &&
 		(GetAsyncKeyState(VK_SNAPSHOT) & 0x8000) != 0)
-		_keys[VK_SNAPSHOT] = 0x88;
+		_keys[VK_SNAPSHOT] = 0x88,
+		_keys_time[VK_SNAPSHOT] = time;
 }
 
 std::string reshade::input::key_name(unsigned int keycode)
