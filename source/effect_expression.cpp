@@ -5,7 +5,7 @@
 
 #include "effect_lexer.hpp"
 #include "effect_codegen.hpp"
-#include <cmath> // fmodf
+#include <cmath> // fmod
 #include <cassert>
 #include <cstring> // memcpy, memset
 #include <algorithm> // std::min, std::max
@@ -310,7 +310,7 @@ bool reshadefx::expression::evaluate_constant_expression(reshadefx::tokenid op, 
 				if (rhs.as_float[i] == 0)
 					constant.as_float[i] = std::numeric_limits<float>::quiet_NaN();
 				else
-					constant.as_float[i] = std::fmodf(constant.as_float[i], rhs.as_float[i]);
+					constant.as_float[i] = std::fmod(constant.as_float[i], rhs.as_float[i]);
 		}
 		else if (type.is_signed()) {
 			for (unsigned int i = 0; i < type.components(); ++i)

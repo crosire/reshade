@@ -126,7 +126,11 @@ bool reshadefx::preprocessor::append_file(const std::filesystem::path &path)
 
 	_success = true; // Clear success flag before parsing a new file
 
+#ifdef _WIN32
 	push(std::move(data), path.u8string());
+#else
+	push(std::move(data), path.string());
+#endif
 	parse();
 
 	return _success;
@@ -619,7 +623,11 @@ void reshadefx::preprocessor::parse_include()
 			if (std::filesystem::exists(filepath = include_path / filename, ec))
 				break;
 
+#ifdef _WIN32
 	const std::string filepath_string = filepath.u8string();
+#else
+	const std::string filepath_string = filepath.string();
+#endif
 
 	// Detect recursive include and abort to avoid infinite loop
 	if (std::find_if(_input_stack.begin(), _input_stack.end(),
