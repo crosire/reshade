@@ -277,7 +277,7 @@ private:
 #ifdef _WIN32
 			return _stricmp(a.c_str(), b.c_str()) == 0;
 #else
-			return std::equal(a.begin(), a.end(), b.begin(), b.end(), [](char a, char b) { return tolower(a) == tolower(b); }); };
+			return std::equal(a.begin(), a.end(), b.begin(), b.end(), [](char a, char b) { return tolower(a) == tolower(b); });
 #endif
 		};
 
