@@ -7,6 +7,7 @@
 #include "hook_manager.hpp"
 #include <mutex>
 #include <cassert>
+#include <cstring>
 #include <algorithm>
 #include <tuple>
 #include <vector>

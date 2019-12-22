@@ -273,9 +273,17 @@ private:
 
 	static std::string escape_name(std::string name)
 	{
+		static const auto stringicmp = [](const std::string &a, const std::string &b) {
+#ifdef _WIN32
+			return _stricmp(a.c_str(), b.c_str()) == 0;
+#else
+			return std::equal(a.begin(), a.end(), b.begin(), b.end(), [](char a, char b) { return tolower(a) == tolower(b); }); };
+#endif
+		};
+
 		// HLSL compiler complains about "technique" and "pass" names in strict mode (no matter the casing)
-		if (_stricmp(name.c_str(), "pass") == 0 ||
-			_stricmp(name.c_str(), "technique") == 0)
+		if (stringicmp(name, "pass") ||
+			stringicmp(name, "technique"))
 			name += "_RESERVED";
 
 		return name;
