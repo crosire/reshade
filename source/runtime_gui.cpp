@@ -452,7 +452,7 @@ void reshade::runtime::draw_ui()
 	ImGui::SetCurrentContext(_imgui_context);
 	auto &imgui_io = _imgui_context->IO;
 	imgui_io.DeltaTime = _last_frame_duration.count() * 1e-9f;
-	imgui_io.MouseDrawCursor = _show_menu;
+	imgui_io.MouseDrawCursor = _show_menu && (!_should_save_screenshot || !_screenshot_save_ui);
 	imgui_io.MousePos.x = static_cast<float>(_input->mouse_position_x());
 	imgui_io.MousePos.y = static_cast<float>(_input->mouse_position_y());
 	imgui_io.DisplaySize.x = static_cast<float>(_width);
