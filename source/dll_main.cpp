@@ -464,7 +464,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 	#pragma endregion
 
 	#pragma region Vulkan Implementation
-#define VK_CHECK(exp) assert((exp) == VK_SUCCESS)
+#define VK_CHECK(exp) { const VkResult res = (exp); assert(res == VK_SUCCESS || res == VK_SUBOPTIMAL_KHR); }
 #define VK_CALL_CMD(name, device, ...) reinterpret_cast<PFN_##name>(vkGetDeviceProcAddr(device, #name))(__VA_ARGS__)
 #define VK_CALL_DEV(name, device, ...) reinterpret_cast<PFN_##name>(vkGetDeviceProcAddr(device, #name))(device, __VA_ARGS__)
 #define VK_CALL_INS(name, instance, ...) reinterpret_cast<PFN_##name>(vkGetInstanceProcAddr(instance, #name))(__VA_ARGS__)
