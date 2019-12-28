@@ -1272,7 +1272,7 @@ bool reshade::vulkan::runtime_vk::init_texture(texture &texture)
 
 	return true;
 }
-void reshade::vulkan::runtime_vk::upload_texture(texture &texture, const uint8_t *pixels)
+void reshade::vulkan::runtime_vk::upload_texture(const texture &texture, const uint8_t *pixels)
 {
 	auto impl = texture.impl->as<vulkan_tex_data>();
 	assert(impl != nullptr && pixels != nullptr && texture.impl_reference == texture_reference::none);
@@ -1333,7 +1333,7 @@ void reshade::vulkan::runtime_vk::upload_texture(texture &texture, const uint8_t
 
 	execute_command_buffer();
 }
-void reshade::vulkan::runtime_vk::generate_mipmaps(texture &texture)
+void reshade::vulkan::runtime_vk::generate_mipmaps(const texture &texture)
 {
 	if (texture.levels <= 1)
 		return; // No need to generate mipmaps when texture does not have any

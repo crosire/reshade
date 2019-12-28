@@ -32,7 +32,7 @@ namespace reshade::d3d10
 		void unload_effects() override;
 
 		bool init_texture(texture &texture) override;
-		void upload_texture(texture &texture, const uint8_t *pixels) override;
+		void upload_texture(const texture &texture, const uint8_t *pixels) override;
 
 		void render_technique(technique &technique) override;
 

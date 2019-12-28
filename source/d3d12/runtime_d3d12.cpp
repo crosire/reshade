@@ -981,7 +981,7 @@ bool reshade::d3d12::runtime_d3d12::init_texture(texture &texture)
 
 	return true;
 }
-void reshade::d3d12::runtime_d3d12::upload_texture(texture &texture, const uint8_t *pixels)
+void reshade::d3d12::runtime_d3d12::upload_texture(const texture &texture, const uint8_t *pixels)
 {
 	const auto impl = texture.impl->as<d3d12_tex_data>();
 	assert(impl != nullptr && pixels != nullptr && texture.impl_reference == texture_reference::none);
@@ -1067,7 +1067,7 @@ void reshade::d3d12::runtime_d3d12::upload_texture(texture &texture, const uint8
 	execute_command_list();
 	wait_for_command_queue();
 }
-void reshade::d3d12::runtime_d3d12::generate_mipmaps(texture &texture)
+void reshade::d3d12::runtime_d3d12::generate_mipmaps(const texture &texture)
 {
 	if (texture.levels <= 1)
 		return; // No need to generate mipmaps when texture does not have any

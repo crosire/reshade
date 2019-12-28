@@ -606,7 +606,7 @@ void reshade::runtime::load_textures()
 {
 	LOG(INFO) << "Loading image files for textures ...";
 
-	for (texture &texture : _textures)
+	for (const texture &texture : _textures)
 	{
 		if (texture.impl == nullptr || texture.impl_reference != texture_reference::none)
 			continue; // Ignore textures that are not created yet and those that are handled in the runtime implementation

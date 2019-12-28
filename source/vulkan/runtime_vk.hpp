@@ -38,8 +38,8 @@ namespace reshade::vulkan
 		void unload_effects() override;
 
 		bool init_texture(texture &texture) override;
-		void upload_texture(texture &texture, const uint8_t *pixels) override;
-		void generate_mipmaps(texture &texture);
+		void upload_texture(const texture &texture, const uint8_t *pixels) override;
+		void generate_mipmaps(const texture &texture);
 
 		void render_technique(technique &technique) override;
 

@@ -30,7 +30,7 @@ namespace reshade::d3d9
 		bool init_effect(size_t index) override;
 
 		bool init_texture(texture &info) override;
-		void upload_texture(texture &texture, const uint8_t *pixels) override;
+		void upload_texture(const texture &texture, const uint8_t *pixels) override;
 
 		void render_technique(technique &technique) override;
 

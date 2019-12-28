@@ -64,7 +64,7 @@ namespace reshade
 		/// </summary>
 		/// <param name="texture">The texture to update.</param>
 		/// <param name="pixels">The 32bpp RGBA image data to update the texture with.</param>
-		virtual void upload_texture(texture &texture, const uint8_t *pixels) = 0;
+		virtual void upload_texture(const texture &texture, const uint8_t *pixels) = 0;
 
 		/// <summary>
 		/// Get the value of a uniform variable.
