@@ -316,9 +316,10 @@ bool reshadefx::symbol_table::resolve_function_call(const std::string &name, con
 	{
 		for (auto it = stack_it->second.rbegin(), end = stack_it->second.rend(); it != end; ++it)
 		{
+			if (it->op != symbol_type::function)
+				continue;
 			if (it->scope.level > scope.level ||
-				it->scope.namespace_level > scope.namespace_level ||
-				it->op != symbol_type::function)
+				it->scope.namespace_level > scope.namespace_level || (it->scope.namespace_level == scope.namespace_level && it->scope.name != scope.name))
 				continue;
 
 			const function_info *const function = it->function;
