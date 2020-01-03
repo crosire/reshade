@@ -273,6 +273,11 @@ private:
 
 		if (_debug_info)
 		{
+			spirv_instruction(spv::OpSource)
+				.add(spv::SourceLanguageUnknown) // ReShade FX is not a reserved token at the moment
+				.add(0) // Language version, TODO: Maybe fill in ReShade version here?
+				.write(module.spirv);
+
 			// All debug instructions
 			for (const auto &node : _debug_a.instructions)
 				node.write(module.spirv);
