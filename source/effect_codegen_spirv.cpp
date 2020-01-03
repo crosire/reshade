@@ -234,7 +234,7 @@ private:
 
 		// Write SPIRV header info
 		module.spirv.push_back(spv::MagicNumber);
-		module.spirv.push_back(spv::Version);
+		module.spirv.push_back(0x10300); // Force SPIR-V 1.3
 		module.spirv.push_back(0u); // Generator magic number, see https://www.khronos.org/registry/spir-v/api/spir-v.xml
 		module.spirv.push_back(_next_id); // Maximum ID
 		module.spirv.push_back(0u); // Reserved for instruction schema
@@ -491,15 +491,6 @@ private:
 			.add(spv::DecorationBuiltIn)
 			.add(builtin);
 	}
-	inline void add_decoration(id id, spv::Decoration decoration, const char *string)
-	{
-		assert(string != nullptr);
-		// https://www.khronos.org/registry/spir-v/specs/unified1/SPIRV.html#OpDecorateString
-		add_instruction_without_result(spv::OpDecorateString, _annotations)
-			.add(id)
-			.add(decoration)
-			.add_string(string);
-	}
 	inline void add_decoration(id id, spv::Decoration decoration, std::initializer_list<uint32_t> values = {})
 	{
 		// https://www.khronos.org/registry/spir-v/specs/unified1/SPIRV.html#OpDecorate
@@ -527,16 +518,6 @@ private:
 			.add(member_index)
 			.add(spv::DecorationBuiltIn)
 			.add(builtin);
-	}
-	inline void add_member_decoration(id id, uint32_t member_index, spv::Decoration decoration, const char *string)
-	{
-		// https://www.khronos.org/registry/spir-v/specs/unified1/SPIRV.html#OpMemberDecorateString
-		assert(string != nullptr);
-		add_instruction_without_result(spv::OpMemberDecorateString, _annotations)
-			.add(id)
-			.add(member_index)
-			.add(decoration)
-			.add_string(string);
 	}
 	inline void add_member_decoration(id id, uint32_t member_index, spv::Decoration decoration, std::initializer_list<uint32_t> values = {})
 	{
