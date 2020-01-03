@@ -51,6 +51,7 @@ namespace reshadefx
 		bool expect(char tok) { return expect(static_cast<tokenid>(tok)); }
 		bool expect(tokenid tokid);
 
+		bool accept_symbol(std::string &identifier, scope &scope, symbol &symbol);
 		bool accept_type_class(type &type);
 		bool accept_type_qualifiers(type &type);
 		bool accept_unary_op();

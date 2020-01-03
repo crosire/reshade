@@ -115,23 +115,62 @@ bool reshadefx::parser::expect(tokenid tokid)
 
 // -- Type Parsing -- //
 
+bool reshadefx::parser::accept_symbol(std::string &identifier, scope &scope, symbol &symbol)
+{
+	// Starting an identifier with '::' restricts the symbol search to the global namespace level
+	const bool exclusive = accept(tokenid::colon_colon);
+
+	if (exclusive ? !expect(tokenid::identifier) : !accept(tokenid::identifier))
+	{
+		// No token should come through here, since all possible prefix expressions should have been handled above, so this is an error in the syntax
+		if (!exclusive)
+			error(_token_next.location, 3000, "syntax error: unexpected '" + token::id_to_name(_token_next.id) + '\'');
+		return false;
+	}
+
+	identifier = std::move(_token.literal_as_string);
+
+	// Can concatenate multiple '::' to force symbol search for a specific namespace level
+	while (accept(tokenid::colon_colon))
+	{
+		if (!expect(tokenid::identifier))
+			return false;
+		identifier += "::" + std::move(_token.literal_as_string);
+	}
+
+	// Figure out which scope to start searching in
+	scope = { "::", 0, 0 };
+	if (!exclusive) scope = current_scope();
+
+	// Lookup name in the symbol table
+	symbol = find_symbol(identifier, scope, exclusive);
+
+	return true;
+}
+
 bool reshadefx::parser::accept_type_class(type &type)
 {
 	type.rows = type.cols = 0;
 
-	if (peek(tokenid::identifier))
+	if (peek(tokenid::identifier) || peek(tokenid::colon_colon))
 	{
 		type.base = type::t_struct;
 
-		const symbol symbol = find_symbol(_token_next.literal_as_string);
+		backup(); // Need to restore if this identifier does not turn out to be a structure
 
-		if (symbol.id && symbol.op == symbol_type::structure)
+		scope scope;
+		symbol symbol;
+		std::string identifier;
+		if (accept_symbol(identifier, scope, symbol))
 		{
-			type.definition = symbol.id;
-
-			consume();
-			return true;
+			if (symbol.id && symbol.op == symbol_type::structure)
+			{
+				type.definition = symbol.id;
+				return true;
+			}
 		}
+
+		restore();
 
 		return false;
 	}
@@ -538,6 +577,7 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 	}
 	else if (accept('('))
 	{
+		// Note: This backup may get overridden in 'accept_type_class', but should point to the same token still
 		backup();
 
 		// Check if this is a C-style cast expression
@@ -776,31 +816,11 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 	// At this point only identifiers are left to check and resolve
 	else
 	{
-		// Starting an identifier with '::' restricts the symbol search to the global namespace level
-		const bool exclusive = accept(tokenid::colon_colon);
-
+		scope scope;
+		symbol symbol;
 		std::string identifier;
-
-		if (exclusive ? expect(tokenid::identifier) : accept(tokenid::identifier))
-			identifier = std::move(_token.literal_as_string);
-		else
-			// No token should come through here, since all possible prefix expressions should have been handled above, so this is an error in the syntax
-			return error(_token_next.location, 3000, "syntax error: unexpected '" + token::id_to_name(_token_next.id) + '\''), false;
-
-		// Can concatenate multiple '::' to force symbol search for a specific namespace level
-		while (accept(tokenid::colon_colon))
-		{
-			if (!expect(tokenid::identifier))
-				return false;
-			identifier += "::" + std::move(_token.literal_as_string);
-		}
-
-		// Figure out which scope to start searching in
-		scope scope = { "::", 0, 0 };
-		if (!exclusive) scope = current_scope();
-
-		// Lookup name in the symbol table
-		symbol symbol = find_symbol(identifier, scope, exclusive);
+		if (!accept_symbol(identifier, scope, symbol))
+			return false;
 
 		// Check if this is a function call or variable reference
 		if (accept('('))
@@ -2763,33 +2783,13 @@ bool reshadefx::parser::parse_technique_pass(pass_info &info)
 		// Shader and render target assignment looks up values in the symbol table, so handle those separately from the other states
 		if (is_shader_state || is_texture_state)
 		{
-			// Starting an identifier with '::' restricts the symbol search to the global namespace level
-			const bool exclusive = accept(tokenid::colon_colon);
-
+			scope scope;
+			symbol symbol;
 			std::string identifier;
-
-			if (expect(tokenid::identifier))
-				identifier = std::move(_token.literal_as_string);
-			else
+			if (!accept_symbol(identifier, scope, symbol))
 				return consume_until('}'), false;
 
-			// Can concatenate multiple '::' to force symbol search for a specific namespace level
-			while (accept(tokenid::colon_colon))
-			{
-				if (!expect(tokenid::identifier))
-					return consume_until('}'), false;
-
-				identifier += "::" + std::move(_token.literal_as_string);
-			}
-
 			location = std::move(_token.location);
-
-			// Figure out which scope to start searching in
-			scope scope = { "::", 0, 0 };
-			if (!exclusive) scope = current_scope();
-
-			// Lookup name in the symbol table
-			const symbol symbol = find_symbol(identifier, scope, exclusive);
 
 			// Ignore invalid symbols that were added during error recovery
 			if (symbol.id != 0xFFFFFFFF)
