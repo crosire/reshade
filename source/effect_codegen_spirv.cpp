@@ -252,10 +252,6 @@ private:
 				.add(capability)
 				.write(module.spirv);
 
-		spirv_instruction(spv::OpExtension)
-			.add_string("SPV_GOOGLE_hlsl_functionality1")
-			.write(module.spirv);
-
 		// Optional extension instructions
 		spirv_instruction(spv::OpExtInstImport, _glsl_ext)
 			.add_string("GLSL.std.450") // Import GLSL extension
@@ -493,8 +489,8 @@ private:
 	inline void add_decoration(id id, spv::Decoration decoration, const char *string)
 	{
 		assert(string != nullptr);
-		// https://www.khronos.org/registry/spir-v/specs/unified1/SPIRV.html#OpDecorateStringGOOGLE
-		add_instruction_without_result(spv::OpDecorateStringGOOGLE, _annotations)
+		// https://www.khronos.org/registry/spir-v/specs/unified1/SPIRV.html#OpDecorateString
+		add_instruction_without_result(spv::OpDecorateString, _annotations)
 			.add(id)
 			.add(decoration)
 			.add_string(string);
@@ -529,9 +525,9 @@ private:
 	}
 	inline void add_member_decoration(id id, uint32_t member_index, spv::Decoration decoration, const char *string)
 	{
-		// https://www.khronos.org/registry/spir-v/specs/unified1/SPIRV.html#OpMemberDecorateStringGOOGLE
+		// https://www.khronos.org/registry/spir-v/specs/unified1/SPIRV.html#OpMemberDecorateString
 		assert(string != nullptr);
-		add_instruction_without_result(spv::OpMemberDecorateStringGOOGLE, _annotations)
+		add_instruction_without_result(spv::OpMemberDecorateString, _annotations)
 			.add(id)
 			.add(member_index)
 			.add(decoration)
