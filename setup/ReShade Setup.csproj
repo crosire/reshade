@@ -54,6 +54,7 @@
     <Reference Include="PresentationCore" />
     <Reference Include="PresentationFramework" />
     <Reference Include="System" />
+    <Reference Include="System.Drawing" />
     <Reference Include="System.IO.Compression" />
     <Reference Include="System.IO.Compression.FileSystem" />
     <Reference Include="System.Xaml" />
@@ -70,11 +71,21 @@
     <Compile Include="Glass.cs" />
     <Compile Include="IniFile.cs" />
     <Compile Include="PEInfo.cs" />
-    <Page Include="Settings.xaml">
+    <Page Include="SelectApp.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
-    <Page Include="Select.xaml">
+    <Compile Include="SelectApp.xaml.cs">
+      <DependentUpon>SelectApp.xaml</DependentUpon>
+    </Compile>
+    <Page Include="SelectEffects.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Compile Include="SelectEffects.xaml.cs">
+      <DependentUpon>SelectEffects.xaml</DependentUpon>
+    </Compile>
+    <Page Include="Settings.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
@@ -82,9 +93,6 @@
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
-    <Compile Include="Select.xaml.cs">
-      <DependentUpon>Select.xaml</DependentUpon>
-    </Compile>
     <Compile Include="Wizard.xaml.cs">
       <DependentUpon>Wizard.xaml</DependentUpon>
     </Compile>

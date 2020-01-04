@@ -524,21 +524,21 @@ namespace ReShade.Setup
 
 			if (!isHeadless)
 			{
-				var wnd = new SelectWindow(Directory.GetFiles(targetPathShaders));
-				wnd.Owner = this;
+				var dlg = new SelectEffectsDialog(Directory.GetFiles(targetPathShaders));
+				dlg.Owner = this;
 
 				// If there was an existing installation, select the same effects as previously
 				if (installedEffects != null)
 				{
-					foreach (var item in wnd.GetSelection())
+					foreach (var item in dlg.GetSelection())
 					{
 						item.IsChecked = installedEffects.Contains(item.Path);
 					}
 				}
 
-				wnd.ShowDialog();
+				dlg.ShowDialog();
 
-				foreach (var item in wnd.GetSelection())
+				foreach (var item in dlg.GetSelection())
 				{
 					if (!item.IsChecked)
 					{
@@ -756,23 +756,10 @@ namespace ReShade.Setup
 				return;
 			}
 
-			var dlg = new OpenFileDialog
-			{
-				Filter = "Applications|*.exe",
-				DefaultExt = ".exe",
-				Multiselect = false,
-				ValidateNames = true,
-				CheckFileExists = true
-			};
+			var dlg = new SelectAppDialog();
+			dlg.Owner = this;
 
-			// Open Steam game installation directory by default if it exists
-			string steamPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), "Steam", "steamapps", "common");
-			if (Directory.Exists(steamPath))
-			{
-				dlg.InitialDirectory = steamPath;
-			}
-
-			if (dlg.ShowDialog(this) == true)
+			if (dlg.ShowDialog() == true)
 			{
 				targetPath = dlg.FileName;
 

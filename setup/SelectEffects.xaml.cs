@@ -12,7 +12,7 @@ using System.Windows.Controls;
 
 namespace ReShade.Setup
 {
-	public partial class SelectWindow : Window
+	public partial class SelectEffectsDialog : Window
 	{
 		public class EffectItem : INotifyPropertyChanged
 		{
@@ -33,7 +33,7 @@ namespace ReShade.Setup
 			public string Path { get; set; }
 		}
 
-		public SelectWindow(IEnumerable<string> effectFiles)
+		public SelectEffectsDialog(IEnumerable<string> effectFiles)
 		{
 			InitializeComponent();
 
