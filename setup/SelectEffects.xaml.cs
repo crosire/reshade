@@ -3,7 +3,6 @@
  * License: https://github.com/crosire/reshade#license
  */
 
-using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.IO;
@@ -12,6 +11,7 @@ using System.Net;
 using System.Text.RegularExpressions;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Media;
 
 namespace ReShade.Setup
 {
@@ -51,30 +51,26 @@ namespace ReShade.Setup
 			request.UserAgent = "reshade";
 			request.AutomaticDecompression = DecompressionMethods.GZip;
 
-			try
+			using (var response = request.GetResponse() as HttpWebResponse)
+			using (Stream stream = response.GetResponseStream())
+			using (StreamReader reader = new StreamReader(stream))
 			{
-				using (var response = request.GetResponse() as HttpWebResponse)
-				using (Stream stream = response.GetResponseStream())
-				using (StreamReader reader = new StreamReader(stream))
+				string json = reader.ReadToEnd();
+
+				foreach (Match match in new Regex("\"name\":\"(.*?)\",").Matches(json))
 				{
-					string json = reader.ReadToEnd();
+					string filename = match.Groups[1].Value;
 
-					foreach (Match match in new Regex("\"name\":\"(.*?)\",").Matches(json))
+					if (Path.GetExtension(filename) == ".fx")
 					{
-						string filename = match.Groups[1].Value;
-
-						if (Path.GetExtension(filename) == ".fx")
+						Effects.Add(new EffectItem
 						{
-							Effects.Add(new EffectItem
-							{
-								Name = match.Groups[1].Value,
-								Path = name + "/Shaders/" + filename
-							});
-						}
+							Name = match.Groups[1].Value,
+							Path = name + "/Shaders/" + filename
+						});
 					}
 				}
 			}
-			catch { }
 		}
 
 		public string Name { get; set; }
@@ -87,22 +83,18 @@ namespace ReShade.Setup
 		{
 			InitializeComponent();
 
-			EffectList.ItemsSource = new List<EffectRepositoryItem> {
-				new EffectRepositoryItem("crosire/reshade-shaders"),
-			};
-		}
-		public SelectEffectsDialog(IEnumerable<string> effectFiles)
-		{
-			InitializeComponent();
+			try
+			{
+				// Add default repository
+				Repositories.Add(new EffectRepositoryItem(
+					CustomRepositoryName.Text = "crosire/reshade-shaders"));
+			}
+			catch { }
 
-			EffectList.ItemsSource =
-				effectFiles
-					.Where(it => Path.GetExtension(it) == ".fx")
-					.Select(it => new EffectItem {
-						Name = Path.GetFileName(it),
-						Path = it
-					});
+			EffectList.ItemsSource = Repositories;
 		}
+
+		ObservableCollection<EffectRepositoryItem> Repositories = new ObservableCollection<EffectRepositoryItem>();
 
 		void OnCheck(object sender, RoutedEventArgs e)
 		{
@@ -116,21 +108,11 @@ namespace ReShade.Setup
 			bool check = (string)button.Content == "Check _all";
 			button.Content = check ? "Uncheck _all" : "Check _all";
 
-			if (EffectList.Items[0] is EffectItem)
+			foreach (EffectRepositoryItem repository in Repositories)
 			{
-				foreach (EffectItem item in EffectList.Items)
+				foreach (EffectItem item in repository.Effects)
 				{
 					item.Enabled = check;
-				}
-			}
-			if (EffectList.Items[0] is EffectRepositoryItem)
-			{
-				foreach (EffectRepositoryItem parent in EffectList.Items)
-				{
-					foreach (EffectItem item in parent.Effects)
-					{
-						item.Enabled = check;
-					}
 				}
 			}
 		}
@@ -143,6 +125,36 @@ namespace ReShade.Setup
 		void OnConfirm(object sender, RoutedEventArgs e)
 		{
 			DialogResult = true;
+		}
+
+		void OnAddRepository(object sender, RoutedEventArgs e)
+		{
+			if (CustomRepositoryName.Text.IndexOf('/') < 0)
+			{
+				CustomRepositoryName.Foreground = Brushes.Red;
+				return;
+			}
+
+			// Check if this repository was already added
+			if (Repositories.Where(x => x.Name == CustomRepositoryName.Text).Count() == 0)
+			{
+				EffectRepositoryItem repository = null;
+				try
+				{
+					repository = new EffectRepositoryItem(CustomRepositoryName.Text);
+				}
+				catch
+				{
+					// Invalid repository name
+					CustomRepositoryName.Foreground = Brushes.Red;
+					return;
+				}
+
+				Repositories.Add(repository);
+			}
+
+			CustomRepositoryName.Text = string.Empty;
+			CustomRepositoryName.Foreground = Brushes.Black;
 		}
 	}
 }
