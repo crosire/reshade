@@ -104,11 +104,6 @@ namespace ReShade.Setup
 					});
 		}
 
-		public IEnumerable<EffectItem> GetSelection()
-		{
-			return EffectList.Items.Cast<EffectItem>();
-		}
-
 		void OnCheck(object sender, RoutedEventArgs e)
 		{
 			if (EffectList.Items.Count == 0)

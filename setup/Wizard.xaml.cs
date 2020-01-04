@@ -296,7 +296,9 @@ namespace ReShade.Setup
 			ApiVulkanGlobal.Visibility = ApiVulkanGlobalButton.Visibility = Visibility.Collapsed;
 
 			var info = FileVersionInfo.GetVersionInfo(targetPath);
-			var name = info.ProductName ?? Path.GetFileNameWithoutExtension(targetPath);
+			var name = info.FileDescription;
+			if (string.IsNullOrEmpty(name))
+				name = Path.GetFileNameWithoutExtension(targetPath);
 
 			UpdateStatus("Working on " + name + " ...", "Analyzing " + name + " ...");
 
@@ -433,26 +435,59 @@ namespace ReShade.Setup
 				}
 			}
 
-			if (isHeadless || MessageBox.Show(this, "Do you wish to download a collection of standard effects from https://github.com/crosire/reshade-shaders?", string.Empty, MessageBoxButton.YesNo) == MessageBoxResult.Yes)
+			if (!isHeadless)
 			{
-				InstallationStep3();
-			}
-			else
-			{
-				// Add default search paths if no config exists
-				if (!File.Exists(configPath))
+				string targetPathShaders = Path.Combine(Path.GetDirectoryName(this.targetPath), "reshade-shaders", "Shaders");
+
+				string[] installedEffects = null;
+				if (Directory.Exists(targetPathShaders))
 				{
-					WriteSearchPaths(".\\", ".\\");
+					installedEffects = Directory.GetFiles(targetPathShaders).Select(x => Path.GetFileName(x)).ToArray();
 				}
 
-				InstallationStep5();
-			}
-		}
-		void InstallationStep3()
-		{
-			UpdateStatus("Downloading ...", "Downloading ...");
+				var dlg = new SelectEffectsDialog();
+				dlg.Owner = this;
 
+				// If there was an existing installation, select the same effects as previously
+				if (installedEffects != null)
+				{
+					foreach (EffectRepositoryItem repository in dlg.EffectList.Items)
+					{
+						foreach (EffectItem item in repository.Effects)
+						{
+							item.Enabled = installedEffects.Contains(Path.GetFileName(item.Path));
+						}
+					}
+				}
+
+				if (dlg.ShowDialog() == true)
+				{
+					InstallationStep3(
+						new Queue<string>(dlg.EffectList.Items.Cast<EffectRepositoryItem>().Select(x => x.Name)),
+						dlg.EffectList.Items.Cast<EffectRepositoryItem>().SelectMany(x => x.Effects).Where(x => !x.Enabled).Select(x => Path.GetFileName(x.Path)).ToList());
+					return;
+				}
+			}
+
+			// Add default search paths if no config exists
+			if (!File.Exists(configPath))
+			{
+				WriteSearchPaths(".\\", ".\\");
+			}
+
+			InstallationStep5();
+		}
+		void InstallationStep3(Queue<string> repositories, List<string> disabledFiles)
+		{
+			ApiGroup.IsEnabled = false;
+			SetupButton.IsEnabled = false;
+			ApiGroup.Visibility = ApiD3D9.Visibility = ApiDXGI.Visibility = ApiOpenGL.Visibility = ApiVulkan.Visibility = Visibility.Visible;
+			ApiVulkanGlobal.Visibility = ApiVulkanGlobalButton.Visibility = Visibility.Collapsed;
+
+			string repository = repositories.Dequeue();
 			string downloadPath = Path.GetTempFileName();
+
+			UpdateStatus("Downloading ...", "Downloading " + repository + " ...");
 
 			// Add support for TLS 1.2, so that HTTPS connection to GitHub succeeds
 			ServicePointManager.SecurityProtocol |= SecurityProtocolType.Tls12;
@@ -466,40 +501,38 @@ namespace ReShade.Setup
 				}
 				else
 				{
-					InstallationStep4(downloadPath);
+					InstallationStep4(downloadPath, repository.Substring(repository.IndexOf('/') + 1) + "-master", disabledFiles);
+
+					if (repositories.Count != 0)
+					{
+						InstallationStep3(repositories, disabledFiles);
+					}
 				}
 			};
 
 			client.DownloadProgressChanged += (object sender, DownloadProgressChangedEventArgs e) => {
-				Message.Text = "Downloading ... (" + ((100 * e.BytesReceived) / e.TotalBytesToReceive) + "%)";
+				Message.Text = "Downloading " + repository + " ... (" + ((100 * e.BytesReceived) / e.TotalBytesToReceive) + "%)";
 			};
 
 			try
 			{
-				client.DownloadFileAsync(new Uri("https://github.com/crosire/reshade-shaders/archive/master.zip"), downloadPath);
+				client.DownloadFileAsync(new Uri("https://github.com/" + repository + "/archive/master.zip"), downloadPath);
 			}
 			catch (Exception ex)
 			{
 				UpdateStatus("Failed!", "Unable to download archive.", ex.Message);
 			}
 		}
-		void InstallationStep4(string downloadPath)
+		void InstallationStep4(string downloadPath, string downloadName, List<string> disabledFiles)
 		{
 			Message.Text = "Extracting ...";
 
-			string tempPath = Path.Combine(Path.GetTempPath(), "reshade-shaders-master");
+			string tempPath = Path.Combine(Path.GetTempPath(), downloadName);
 			string tempPathShaders = Path.Combine(tempPath, "Shaders");
 			string tempPathTextures = Path.Combine(tempPath, "Textures");
 			string targetPath = Path.Combine(Path.GetDirectoryName(this.targetPath), "reshade-shaders");
 			string targetPathShaders = Path.Combine(targetPath, "Shaders");
 			string targetPathTextures = Path.Combine(targetPath, "Textures");
-
-			string[] installedEffects = null;
-
-			if (Directory.Exists(targetPath))
-			{
-				installedEffects = Directory.GetFiles(targetPathShaders).ToArray();
-			}
 
 			try
 			{
@@ -511,7 +544,10 @@ namespace ReShade.Setup
 				ZipFile.ExtractToDirectory(downloadPath, Path.GetTempPath());
 
 				MoveFiles(tempPathShaders, targetPathShaders);
-				MoveFiles(tempPathTextures, targetPathTextures);
+				if (Directory.Exists(tempPathTextures))
+				{
+					MoveFiles(tempPathTextures, targetPathTextures);
+				}
 
 				File.Delete(downloadPath);
 				Directory.Delete(tempPath, true);
@@ -524,32 +560,15 @@ namespace ReShade.Setup
 
 			if (!isHeadless)
 			{
-				var dlg = new SelectEffectsDialog(Directory.GetFiles(targetPathShaders));
-				dlg.Owner = this;
-
-				// If there was an existing installation, select the same effects as previously
-				if (installedEffects != null)
+				foreach (var filename in disabledFiles)
 				{
-					foreach (var item in dlg.GetSelection())
+					try
 					{
-						item.Enabled = installedEffects.Contains(item.Path);
+						File.Delete(Path.Combine(targetPathShaders, filename));
 					}
-				}
-
-				dlg.ShowDialog();
-
-				foreach (var item in dlg.GetSelection())
-				{
-					if (!item.Enabled)
+					catch
 					{
-						try
-						{
-							File.Delete(item.Path);
-						}
-						catch
-						{
-							continue;
-						}
+						continue;
 					}
 				}
 			}
