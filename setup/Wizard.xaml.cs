@@ -532,7 +532,7 @@ namespace ReShade.Setup
 				{
 					foreach (var item in dlg.GetSelection())
 					{
-						item.IsChecked = installedEffects.Contains(item.Path);
+						item.Enabled = installedEffects.Contains(item.Path);
 					}
 				}
 
@@ -540,7 +540,7 @@ namespace ReShade.Setup
 
 				foreach (var item in dlg.GetSelection())
 				{
-					if (!item.IsChecked)
+					if (!item.Enabled)
 					{
 						try
 						{
