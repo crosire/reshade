@@ -11,6 +11,7 @@ using System.Net;
 using System.Text.RegularExpressions;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using System.Windows.Media;
 
 namespace ReShade.Setup
@@ -18,9 +19,10 @@ namespace ReShade.Setup
 	public class EffectItem : INotifyPropertyChanged
 	{
 		bool enabled = true;
+		internal EffectRepositoryItem Parent = null;
 		public event PropertyChangedEventHandler PropertyChanged;
 
-		public bool Enabled
+		public bool? Enabled
 		{
 			get
 			{
@@ -28,16 +30,22 @@ namespace ReShade.Setup
 			}
 			set
 			{
-				enabled = value;
-				PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Enabled)));
+				enabled = value ?? false;
+				NotifyPropertyChanged();
+				Parent.NotifyPropertyChanged();
 			}
 		}
 
 		public string Name { get; set; }
 		public string Path { get; set; }
+
+		internal void NotifyPropertyChanged()
+		{
+			PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Enabled)));
+		}
 	}
 
-	public class EffectRepositoryItem
+	public class EffectRepositoryItem : INotifyPropertyChanged
 	{
 		public EffectRepositoryItem(string name)
 		{
@@ -66,15 +74,39 @@ namespace ReShade.Setup
 						Effects.Add(new EffectItem
 						{
 							Name = match.Groups[1].Value,
-							Path = name + "/Shaders/" + filename
+							Path = name + "/Shaders/" + filename,
+							Parent = this
 						});
 					}
 				}
 			}
 		}
 
+		public event PropertyChangedEventHandler PropertyChanged;
+
+		public bool? Enabled
+		{
+			get
+			{
+				int count = Effects.Where(x => x.Enabled.Value).Count();
+				return count == Effects.Count ? true : count == 0 ? false : (bool?)null;
+			}
+			set
+			{
+				foreach (var item in Effects)
+				{
+					item.Enabled = value ?? false;
+				}
+			}
+		}
+
 		public string Name { get; set; }
 		public ObservableCollection<EffectItem> Effects { get; set; } = new ObservableCollection<EffectItem>();
+
+		internal void NotifyPropertyChanged()
+		{
+			PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Enabled)));
+		}
 	}
 
 	public partial class SelectEffectsDialog : Window
@@ -155,6 +187,23 @@ namespace ReShade.Setup
 
 			CustomRepositoryName.Text = string.Empty;
 			CustomRepositoryName.Foreground = Brushes.Black;
+		}
+
+		void OnCheckBoxMouseEnter(object sender, MouseEventArgs e)
+		{
+			if (e.LeftButton == MouseButtonState.Pressed && sender is CheckBox checkbox)
+			{
+				checkbox.IsChecked = !checkbox.IsChecked;
+			}
+		}
+
+		void OnCheckBoxMouseCapture(object sender, MouseEventArgs e)
+		{
+			if (e.LeftButton == MouseButtonState.Pressed && sender is CheckBox checkbox)
+			{
+				checkbox.IsChecked = !checkbox.IsChecked;
+				checkbox.ReleaseMouseCapture();
+			}
 		}
 	}
 }

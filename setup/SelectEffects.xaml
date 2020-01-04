@@ -13,18 +13,16 @@
     <TreeView x:Name="EffectList" Margin="10,5">
       <TreeView.Resources>
         <DataTemplate DataType="{x:Type local:EffectItem}">
-          <StackPanel Orientation="Horizontal">
-            <StackPanel.ToolTip>
+          <CheckBox VerticalAlignment="Center" IsChecked="{Binding Enabled}" Content="{Binding Name}" MouseEnter="OnCheckBoxMouseEnter" GotMouseCapture="OnCheckBoxMouseCapture">
+            <CheckBox.ToolTip>
               <ToolTip>
                 <TextBlock Text="{Binding Path}" />
               </ToolTip>
-            </StackPanel.ToolTip>
-            <CheckBox VerticalAlignment="Center" Margin="0,0,5,0" IsChecked="{Binding Enabled}" />
-            <TextBlock Text="{Binding Name}" />
-          </StackPanel>
+            </CheckBox.ToolTip>
+          </CheckBox>
         </DataTemplate>
         <HierarchicalDataTemplate DataType="{x:Type local:EffectRepositoryItem}" ItemsSource="{Binding Effects}">
-          <TextBlock Text="{Binding Name}" />
+          <CheckBox VerticalAlignment="Center" IsChecked="{Binding Enabled}" Content="{Binding Name}" IsThreeState="True" />
         </HierarchicalDataTemplate>
       </TreeView.Resources>
       <TreeView.ItemContainerStyle>

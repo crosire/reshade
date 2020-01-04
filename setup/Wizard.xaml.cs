@@ -445,8 +445,8 @@ namespace ReShade.Setup
 				if (dlg.ShowDialog() == true)
 				{
 					InstallationStep4(
-						new Queue<string>(dlg.EffectList.Items.Cast<EffectRepositoryItem>().Select(x => x.Name)),
-						dlg.EffectList.Items.Cast<EffectRepositoryItem>().SelectMany(x => x.Effects).Where(x => !x.Enabled).Select(x => Path.GetFileName(x.Path)).ToList());
+						new Queue<string>(dlg.EffectList.Items.Cast<EffectRepositoryItem>().Where(x => x.Enabled != false).Select(x => x.Name)),
+						dlg.EffectList.Items.Cast<EffectRepositoryItem>().SelectMany(x => x.Effects).Where(x => !x.Enabled.Value).Select(x => Path.GetFileName(x.Path)).ToList());
 					return;
 				}
 			}
