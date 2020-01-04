@@ -27,6 +27,7 @@ namespace ReShade.Setup
 		bool isFinished = false;
 		string configPath = null;
 		string targetPath = null;
+		string modulePath = null;
 		string commonPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "ReShade");
 
 		public WizardWindow()
@@ -300,7 +301,7 @@ namespace ReShade.Setup
 			if (string.IsNullOrEmpty(name))
 				name = Path.GetFileNameWithoutExtension(targetPath);
 
-			UpdateStatus("Working on " + name + " ...", "Analyzing " + name + " ...");
+			UpdateStatus("Working on " + name + " ...", "Analyzing executable ...");
 
 			var peInfo = new PEInfo(targetPath);
 			is64Bit = peInfo.Type == PEInfo.BinaryType.IMAGE_FILE_MACHINE_AMD64;
@@ -320,10 +321,10 @@ namespace ReShade.Setup
 
 			if (isApiD3D8 && !isHeadless)
 			{
-				MessageBox.Show(this, "It looks like the target application uses Direct3D 8. You'll have to download an additional wrapper from 'http://reshade.me/d3d8to9' which converts all API calls to Direct3D 9 in order to use ReShade.", "Warning", MessageBoxButton.OK, MessageBoxImage.Warning);
+				MessageBox.Show(this, "It looks like the target application uses Direct3D 8. You'll have to download an additional wrapper from 'https://github.com/crosire/d3d8to9/releases' which converts all API calls to Direct3D 9 in order to use ReShade.", "Warning", MessageBoxButton.OK, MessageBoxImage.Warning);
 			}
 
-			Message.Text = "Select the rendering API the game uses:";
+			Message.Text = "Which rendering API does " + name + " use?";
 
 			ApiD3D9.IsChecked = isApiD3D9;
 			ApiDXGI.IsChecked = isApiDXGI;
@@ -342,73 +343,54 @@ namespace ReShade.Setup
 
 			if (ApiVulkan.IsChecked != true)
 			{
-				string pathModule = null;
+				modulePath = null;
 				if (ApiD3D9.IsChecked == true)
 				{
-					pathModule = "d3d9.dll";
+					modulePath = "d3d9.dll";
 				}
 				if (ApiDXGI.IsChecked == true)
 				{
-					pathModule = "dxgi.dll";
+					modulePath = "dxgi.dll";
 				}
 				if (ApiOpenGL.IsChecked == true)
 				{
-					pathModule = "opengl32.dll";
+					modulePath = "opengl32.dll";
 				}
 
-				if (pathModule == null)
+				if (modulePath == null)
 				{
 					// No API selected, abort immediately
 					return;
 				}
 
-				pathModule = Path.Combine(targetDir, pathModule);
+				modulePath = Path.Combine(targetDir, modulePath);
 
-				var alternativeConfigPath = Path.ChangeExtension(pathModule, ".ini");
+				var alternativeConfigPath = Path.ChangeExtension(modulePath, ".ini");
 				if (File.Exists(alternativeConfigPath))
 				{
 					configPath = alternativeConfigPath;
 				}
 
-				if (File.Exists(pathModule) && !isHeadless)
+				if (File.Exists(modulePath) && !isHeadless)
 				{
-					var result = MessageBox.Show(this, "Do you want to overwrite the existing installation or uninstall ReShade?\n\nPress 'Yes' to overwrite or 'No' to uninstall.", string.Empty, MessageBoxButton.YesNoCancel);
+					ApiGroup.Visibility = Visibility.Collapsed;
+					InstallButtons.Visibility = Visibility.Visible;
 
-					if (result == MessageBoxResult.No)
-					{
-						try
-						{
-							File.Delete(pathModule);
-
-							if (File.Exists(configPath))
-							{
-								File.Delete(configPath);
-							}
-
-							if (File.Exists(Path.ChangeExtension(pathModule, ".log")))
-							{
-								File.Delete(Path.ChangeExtension(pathModule, ".log"));
-							}
-
-							if (Directory.Exists(Path.Combine(targetDir, "reshade-shaders")))
-							{
-								Directory.Delete(Path.Combine(targetDir, "reshade-shaders"), true);
-							}
-
-							UpdateStatusAndFinish(true, "Successfully uninstalled.");
-						}
-						catch (Exception ex)
-						{
-							UpdateStatusAndFinish(false, "Unable to delete some files.", ex.Message);
-						}
-						return;
-					}
-					else if (result != MessageBoxResult.Yes)
-					{
-						UpdateStatusAndFinish(false, "Existing installation found.");
-						return;
-					}
+					Message.Text = "Existing ReShade installation found. How do you want to proceed?";
+					return;
 				}
+			}
+
+			InstallationStep3();
+		}
+		void InstallationStep3()
+		{
+			Message.Text = "Installing ReShade ...";
+
+			if (ApiVulkan.IsChecked != true)
+			{
+				ApiGroup.Visibility = Visibility.Visible;
+				InstallButtons.Visibility = Visibility.Collapsed;
 
 				try
 				{
@@ -422,7 +404,7 @@ namespace ReShade.Setup
 						// 0: ReShade32.dll
 						// 2: ReShade64.dll
 						using (Stream input = zip.Entries[is64Bit ? 2 : 0].Open())
-						using (FileStream output = File.Create(pathModule))
+						using (FileStream output = File.Create(modulePath))
 						{
 							input.CopyTo(output);
 						}
@@ -430,7 +412,7 @@ namespace ReShade.Setup
 				}
 				catch (Exception ex)
 				{
-					UpdateStatusAndFinish(false, "Unable to write file \"" + pathModule + "\".", ex.Message);
+					UpdateStatusAndFinish(false, "Unable to write file \"" + modulePath + "\".", ex.Message);
 					return;
 				}
 			}
@@ -462,7 +444,7 @@ namespace ReShade.Setup
 
 				if (dlg.ShowDialog() == true)
 				{
-					InstallationStep3(
+					InstallationStep4(
 						new Queue<string>(dlg.EffectList.Items.Cast<EffectRepositoryItem>().Select(x => x.Name)),
 						dlg.EffectList.Items.Cast<EffectRepositoryItem>().SelectMany(x => x.Effects).Where(x => !x.Enabled).Select(x => Path.GetFileName(x.Path)).ToList());
 					return;
@@ -475,9 +457,9 @@ namespace ReShade.Setup
 				WriteSearchPaths(".\\", ".\\");
 			}
 
-			InstallationStep5();
+			InstallationStep6();
 		}
-		void InstallationStep3(Queue<string> repositories, List<string> disabledFiles)
+		void InstallationStep4(Queue<string> repositories, List<string> disabledFiles)
 		{
 			ApiGroup.IsEnabled = false;
 			SetupButton.IsEnabled = false;
@@ -487,7 +469,7 @@ namespace ReShade.Setup
 			string repository = repositories.Dequeue();
 			string downloadPath = Path.GetTempFileName();
 
-			UpdateStatus("Downloading ...", "Downloading " + repository + " ...");
+			UpdateStatus("Downloading effects ...", "Downloading " + repository + " ...");
 
 			// Add support for TLS 1.2, so that HTTPS connection to GitHub succeeds
 			ServicePointManager.SecurityProtocol |= SecurityProtocolType.Tls12;
@@ -497,15 +479,15 @@ namespace ReShade.Setup
 			client.DownloadFileCompleted += (object sender, System.ComponentModel.AsyncCompletedEventArgs e) => {
 				if (e.Error != null)
 				{
-					UpdateStatusAndFinish(false, "Unable to download archive.", e.Error.Message);
+					UpdateStatusAndFinish(false, "Unable to download from " + repository + ".", e.Error.Message);
 				}
 				else
 				{
-					InstallationStep4(downloadPath, repository.Substring(repository.IndexOf('/') + 1) + "-master", disabledFiles);
+					InstallationStep5(downloadPath, repository.Substring(repository.IndexOf('/') + 1) + "-master", disabledFiles);
 
 					if (repositories.Count != 0)
 					{
-						InstallationStep3(repositories, disabledFiles);
+						InstallationStep4(repositories, disabledFiles);
 					}
 				}
 			};
@@ -520,12 +502,12 @@ namespace ReShade.Setup
 			}
 			catch (Exception ex)
 			{
-				UpdateStatus("Failed!", "Unable to download archive.", ex.Message);
+				UpdateStatus("Failed!", "Unable to download from " + repository + ".", ex.Message);
 			}
 		}
-		void InstallationStep4(string downloadPath, string downloadName, List<string> disabledFiles)
+		void InstallationStep5(string downloadPath, string downloadName, List<string> disabledFiles)
 		{
-			Message.Text = "Extracting ...";
+			UpdateStatus("Extracting effects ...", "Extracting " + downloadName + " ...");
 
 			string tempPath = Path.Combine(Path.GetTempPath(), downloadName);
 			string tempPathShaders = Path.Combine(tempPath, "Shaders");
@@ -558,31 +540,28 @@ namespace ReShade.Setup
 				return;
 			}
 
-			if (!isHeadless)
+			foreach (var filename in disabledFiles)
 			{
-				foreach (var filename in disabledFiles)
+				try
 				{
-					try
-					{
-						File.Delete(Path.Combine(targetPathShaders, filename));
-					}
-					catch
-					{
-						continue;
-					}
+					File.Delete(Path.Combine(targetPathShaders, filename));
+				}
+				catch
+				{
+					continue;
 				}
 			}
 
 			WriteSearchPaths(".\\reshade-shaders\\Shaders", ".\\reshade-shaders\\Textures");
 
-			InstallationStep5();
+			InstallationStep6();
 		}
-		void InstallationStep5()
+		void InstallationStep6()
 		{
 			string description = null;
 			if (ApiVulkan.IsChecked.Value)
 			{
-				description = "You need to keep the setup tool open for ReShade to work in Vulkan games!\nAlternatively check the option below:";
+				description = "You need to keep this setup tool open for ReShade to work in Vulkan games!\nAlternatively check the option below:";
 
 				ApiGroup.IsEnabled = true;
 				ApiD3D9.Visibility = ApiDXGI.Visibility = ApiOpenGL.Visibility = ApiVulkan.Visibility = Visibility.Collapsed;
@@ -603,8 +582,6 @@ namespace ReShade.Setup
 			UpdateStatusAndFinish(true, "Edit ReShade settings", description);
 
 			SetupButton.IsEnabled = true;
-			SetupButton.Click -= OnSetupButtonClick;
-			SetupButton.Click += (object s, RoutedEventArgs e) => new SettingsWindow(configPath) { Owner = this }.ShowDialog();
 		}
 
 		void OnWindowInit(object sender, EventArgs e)
@@ -675,7 +652,7 @@ namespace ReShade.Setup
 			{
 				if (hasFinished)
 				{
-					InstallationStep5();
+					InstallationStep6();
 				}
 				else if (hasApi)
 				{
@@ -754,9 +731,53 @@ namespace ReShade.Setup
 				}
 			}
 		}
+
+		void OnUpdateClick(object sender, RoutedEventArgs e)
+		{
+			InstallationStep3();
+		}
+		void OnUninstallClick(object sender, RoutedEventArgs e)
+		{
+			ApiGroup.Visibility = Visibility.Visible;
+			InstallButtons.Visibility = Visibility.Collapsed;
+
+			try
+			{
+				string targetDir = Path.GetDirectoryName(targetPath);
+
+				File.Delete(modulePath);
+
+				if (File.Exists(configPath))
+				{
+					File.Delete(configPath);
+				}
+
+				if (File.Exists(Path.ChangeExtension(modulePath, ".log")))
+				{
+					File.Delete(Path.ChangeExtension(modulePath, ".log"));
+				}
+
+				if (Directory.Exists(Path.Combine(targetDir, "reshade-shaders")))
+				{
+					Directory.Delete(Path.Combine(targetDir, "reshade-shaders"), true);
+				}
+
+				UpdateStatusAndFinish(true, "Successfully uninstalled.");
+			}
+			catch (Exception ex)
+			{
+				UpdateStatusAndFinish(false, "Unable to delete some files.", ex.Message);
+			}
+		}
+
 		void OnSetupButtonClick(object sender, RoutedEventArgs e)
 		{
-			if (Keyboard.Modifiers == ModifierKeys.Control)
+			if (isFinished)
+			{
+				new SettingsWindow(configPath) { Owner = this }.ShowDialog();
+				return;
+			}
+			else if (targetPath == null && Keyboard.Modifiers == ModifierKeys.Control)
 			{
 				try
 				{

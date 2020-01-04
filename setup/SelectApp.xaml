@@ -5,7 +5,7 @@
       <Button HorizontalAlignment="Right" VerticalAlignment="Center" Width="100" Margin="10,15,0,15" Content="_Cancel" Click="OnCancel" IsCancel="True" />
       <Button HorizontalAlignment="Right" VerticalAlignment="Center" Width="150" Margin="10,15,0,15" Content="_Add selected application" Click="OnConfirm" IsDefault="True" />
     </StackPanel>
-    <TextBlock DockPanel.Dock="Bottom" Margin="10,5,10,10" TextWrapping="Wrap" Text="Browse and select an application to manage the ReShade installation for it." />
+    <TextBlock DockPanel.Dock="Bottom" Margin="10,5,10,10" TextWrapping="Wrap" Text="Browse and select an application to manage its ReShade installation." />
     <Grid DockPanel.Dock="Bottom" Margin="10,5">
       <TextBlock HorizontalAlignment="Left" VerticalAlignment="Center" Text="Can't find the desired application in the list?" />
       <Button HorizontalAlignment="Right" VerticalAlignment="Center" Width="100" Content="_Browse..." Click="OnBrowse" />
