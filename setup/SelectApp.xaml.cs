@@ -103,8 +103,15 @@ namespace ReShade.Setup
 							}), DispatcherPriority.Background, files);
 						}
 
-						// Continue searching in subdirectories
-						foreach (var path in Directory.GetDirectories(searchPath))
+						// Continue searching in sub-directories
+						var directories = Directory.GetDirectories(searchPath).Where(x =>
+							// Ignore certain folders that are unlikely to contain useful executables
+							x.IndexOf("cache", StringComparison.OrdinalIgnoreCase) < 0 &&
+							!x.Contains("_Data") &&
+							!x.Contains("_CommonRedist") &&
+							!x.StartsWith(".")).ToList();
+
+						foreach (var path in directories)
 						{
 							searchPaths.Enqueue(path);
 						}
