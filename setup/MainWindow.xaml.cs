@@ -27,6 +27,7 @@ namespace ReShade.Setup
 		bool isFinished = false;
 		string configPath = null;
 		string targetPath = null;
+		string targetName = null;
 		string modulePath = null;
 		string commonPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "ReShade");
 
@@ -236,7 +237,7 @@ namespace ReShade.Setup
 			isFinished = true;
 			SetupButton.IsEnabled = false; // Use button as text box only
 
-			UpdateStatus(success ? "Succeeded!" : "Failed!", message, description);
+			UpdateStatus(success ? "ReShade installation was successful!" : "ReShade installation was not successful!", message, description);
 
 			Glass.HideSystemMenu(this, false);
 
@@ -297,11 +298,11 @@ namespace ReShade.Setup
 			ApiVulkanGlobal.Visibility = ApiVulkanGlobalButton.Visibility = Visibility.Collapsed;
 
 			var info = FileVersionInfo.GetVersionInfo(targetPath);
-			var name = info.FileDescription;
-			if (string.IsNullOrEmpty(name))
-				name = Path.GetFileNameWithoutExtension(targetPath);
+			targetName = info.FileDescription;
+			if (string.IsNullOrEmpty(targetName))
+				targetName = Path.GetFileNameWithoutExtension(targetPath);
 
-			UpdateStatus("Working on " + name + " ...", "Analyzing executable ...");
+			UpdateStatus("Working on " + targetName + " ...", "Analyzing executable ...");
 
 			var peInfo = new PEInfo(targetPath);
 			is64Bit = peInfo.Type == PEInfo.BinaryType.IMAGE_FILE_MACHINE_AMD64;
@@ -324,7 +325,7 @@ namespace ReShade.Setup
 				MessageBox.Show(this, "It looks like the target application uses Direct3D 8. You'll have to download an additional wrapper from 'https://github.com/crosire/d3d8to9/releases' which converts all API calls to Direct3D 9 in order to use ReShade.", "Warning", MessageBoxButton.OK, MessageBoxImage.Warning);
 			}
 
-			Message.Text = "Which rendering API does " + name + " use?";
+			Message.Text = "Which rendering API does " + targetName + " use?";
 
 			ApiD3D9.IsChecked = isApiD3D9;
 			ApiDXGI.IsChecked = isApiDXGI;
@@ -337,6 +338,8 @@ namespace ReShade.Setup
 			SetupButton.IsEnabled = false;
 			ApiGroup.Visibility = ApiD3D9.Visibility = ApiDXGI.Visibility = ApiOpenGL.Visibility = ApiVulkan.Visibility = Visibility.Visible;
 			ApiVulkanGlobal.Visibility = ApiVulkanGlobalButton.Visibility = Visibility.Collapsed;
+
+			UpdateStatus("Working on " + targetName + " ...", "Installing ReShade ...");
 
 			string targetDir = Path.GetDirectoryName(targetPath);
 			configPath = Path.Combine(targetDir, "ReShade.ini");
@@ -469,7 +472,7 @@ namespace ReShade.Setup
 			string repository = repositories.Dequeue();
 			string downloadPath = Path.GetTempFileName();
 
-			UpdateStatus("Downloading effects ...", "Downloading " + repository + " ...");
+			UpdateStatus("Working on " + targetName + " ...", "Downloading " + repository + " ...");
 
 			// Add support for TLS 1.2, so that HTTPS connection to GitHub succeeds
 			ServicePointManager.SecurityProtocol |= SecurityProtocolType.Tls12;
@@ -506,12 +509,12 @@ namespace ReShade.Setup
 			}
 			catch (Exception ex)
 			{
-				UpdateStatus("Failed!", "Unable to download from " + repository + ".", ex.Message);
+				UpdateStatusAndFinish(false, "Unable to download from " + repository + ".", ex.Message);
 			}
 		}
 		void InstallationStep5(string downloadPath, string downloadName, List<string> disabledFiles)
 		{
-			UpdateStatus("Extracting effects ...", "Extracting " + downloadName + " ...");
+			UpdateStatus("Working on " + targetName + " ...", "Extracting " + downloadName + " ...");
 
 			string tempPath = Path.Combine(Path.GetTempPath(), downloadName);
 			string tempPathShaders = Path.Combine(tempPath, "Shaders");
@@ -582,6 +585,10 @@ namespace ReShade.Setup
 					ApiVulkanGlobalButton.Visibility = Visibility.Visible;
 				}
 			}
+			else
+			{
+				description = "You may now close this setup tool or click this button to edit additional settings.";
+			}
 
 			UpdateStatusAndFinish(true, "Edit ReShade settings", description);
 
@@ -648,6 +655,7 @@ namespace ReShade.Setup
 				if (File.Exists(args[i]))
 				{
 					targetPath = args[i];
+					targetName = Path.GetFileNameWithoutExtension(targetPath);
 					configPath = Path.Combine(Path.GetDirectoryName(targetPath), "ReShade.ini");
 				}
 			}
@@ -781,7 +789,8 @@ namespace ReShade.Setup
 				new SettingsDialog(configPath) { Owner = this }.ShowDialog();
 				return;
 			}
-			else if (targetPath == null && Keyboard.Modifiers == ModifierKeys.Control)
+
+			if (targetPath == null && Keyboard.Modifiers == ModifierKeys.Control)
 			{
 				try
 				{
@@ -812,6 +821,12 @@ namespace ReShade.Setup
 		}
 		void OnSetupButtonDragDrop(object sender, DragEventArgs e)
 		{
+			if (targetPath != null)
+			{
+				// Prevent drag and drop if another installation is already in progress
+				return;
+			}
+
 			if (e.Data.GetData(DataFormats.FileDrop, true) is string[] files && files.Length >= 1)
 			{
 				targetPath = files[0];
