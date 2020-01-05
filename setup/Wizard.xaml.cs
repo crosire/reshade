@@ -774,7 +774,7 @@ namespace ReShade.Setup
 		{
 			if (isFinished)
 			{
-				new SettingsWindow(configPath) { Owner = this }.ShowDialog();
+				new SettingsDialog(configPath) { Owner = this }.ShowDialog();
 				return;
 			}
 			else if (targetPath == null && Keyboard.Modifiers == ModifierKeys.Control)

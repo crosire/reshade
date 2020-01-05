@@ -11,23 +11,19 @@ using System.Windows;
 
 namespace ReShade.Setup
 {
-	public partial class SettingsWindow
+	public partial class SettingsDialog
 	{
 		readonly string configFilePath;
 
-		public SettingsWindow(string configPath)
+		public SettingsDialog(string configPath)
 		{
 			InitializeComponent();
 			configFilePath = configPath;
 
-			BtnSave.Click += (s, e) => { Save(); Close(); };
-			BtnReload.Click += (s, e) => Load();
-			BtnCancel.Click += (s, e) => Close();
-
-			Load();
+			OnReload(this, null);
 		}
 
-		private void Save()
+		void OnSave(object sender, RoutedEventArgs e)
 		{
 			var iniFile = new IniFile(configFilePath);
 
@@ -44,9 +40,16 @@ namespace ReShade.Setup
 			iniFile.SetValue("GENERAL", "TutorialProgress", skipTut.HasValue ? (skipTut.Value ? "4" : "0") : iniFile.GetString("GENERAL", "TutorialProgress", "0"));
 
 			iniFile.Save();
+
+			DialogResult = true;
 		}
 
-		private void Load()
+		void OnCancel(object sender, RoutedEventArgs e)
+		{
+			DialogResult = false;
+		}
+
+		void OnReload(object sender, RoutedEventArgs e)
 		{
 			if (!File.Exists(configFilePath))
 				return;
@@ -77,7 +80,7 @@ namespace ReShade.Setup
 			}
 		}
 
-		private void ChoosePresetDialog(object sender, RoutedEventArgs e)
+		void OnChoosePresetDialog(object sender, RoutedEventArgs e)
 		{
 			string origFirstValue = (Preset.Text ?? "").Split(',')[0];
 
@@ -98,7 +101,7 @@ namespace ReShade.Setup
 			}
 		}
 
-		private void ChooseFolderDialog(object sender, RoutedEventArgs e)
+		void OnChooseFolderDialog(object sender, RoutedEventArgs e)
 		{
 			var target = e.Source as FrameworkElement;
 			string origFirstValue = (target.Tag as string ?? "").Split(',')[0].TrimEnd(Path.PathSeparator);

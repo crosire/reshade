@@ -1,4 +1,4 @@
-﻿<Window x:Class="ReShade.Setup.SelectEffectsDialog" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:local="clr-namespace:ReShade.Setup" Title="Select effects" Width="498" Height="638" MinWidth="360" MinHeight="275" WindowStyle="None" WindowStartupLocation="CenterOwner">
+﻿<Window x:Class="ReShade.Setup.SelectEffectsDialog" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:local="clr-namespace:ReShade.Setup" Title="Select effects" Width="498" Height="638" MinWidth="355" MinHeight="275" WindowStyle="None" WindowStartupLocation="CenterOwner">
   <DockPanel LastChildFill="True">
     <Label DockPanel.Dock="Top" Margin="10" Padding="0" VerticalAlignment="Top" Foreground="#FF003399" FontSize="16" Content="Select effects to install:" />
     <DockPanel DockPanel.Dock="Bottom" Background="{StaticResource {x:Static SystemColors.ControlLightBrushKey}}">
