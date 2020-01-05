@@ -7,7 +7,7 @@
 
 #include <stdint.h>
 
-struct freepie_io_6dof_data
+struct freepie_io_data
 {
 	float yaw;
 	float pitch;
@@ -21,7 +21,13 @@ struct freepie_io_6dof_data
 struct freepie_io_shared_data
 {
 	int32_t data_id;
-	freepie_io_6dof_data data;
+	freepie_io_data data;
 };
 
-bool freepie_io_6dof_read(uint32_t index, freepie_io_6dof_data *output);
+/// <summary>
+/// Read six degrees of freedom data from the FreePIE IO interface.
+/// </summary>
+/// <param name="index">The device index to read the data from.</param>
+/// <param name="output">A pointer to the object that will receive the data.</param>
+/// <returns><c>true</c> if the data was read successfully, <c>false</c> if connection could not be established.</returns>
+extern "C" bool freepie_io_read(uint32_t index, freepie_io_data *output);

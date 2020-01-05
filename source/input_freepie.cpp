@@ -15,7 +15,7 @@ public:
 	{
 		handle = OpenFileMapping(FILE_MAP_ALL_ACCESS, FALSE, name);
 		if (handle != NULL)
-			mapped = MapViewOfFile(handle, FILE_MAP_ALL_ACCESS, 0, 0, 50);
+			mapped = MapViewOfFile(handle, FILE_MAP_ALL_ACCESS, 0, 0, sizeof(T));
 	}
 	shared_memory(const shared_memory &other) = delete;
 	shared_memory(shared_memory &&other) { operator=(other); }
@@ -52,10 +52,9 @@ private:
 	LPVOID mapped = NULL;
 };
 
-const size_t FREEPIE_IO_MAX_SLOTS = 4;
-
-bool freepie_io_6dof_read(uint32_t index, freepie_io_6dof_data *output)
+bool freepie_io_read(uint32_t index, freepie_io_data *output)
 {
+	const size_t FREEPIE_IO_MAX_SLOTS = 4;
 	if (index >= FREEPIE_IO_MAX_SLOTS)
 		return false;
 

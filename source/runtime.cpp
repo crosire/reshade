@@ -993,16 +993,10 @@ void reshade::runtime::update_and_render_effects()
 					break;
 				}
 				case special_uniform::freepie:
-				{
-					const uint32_t index = variable.annotation_as_int("index");
-
-					if (freepie_io_6dof_data data;
-						freepie_io_6dof_read(index, &data))
-					{
+					if (freepie_io_data data;
+						freepie_io_read(variable.annotation_as_int("index"), &data))
 						set_uniform_value(variable, &data.yaw, 6);
-					}
 					break;
-				}
 				case special_uniform::bufready_depth:
 					set_uniform_value(variable, _has_depth_texture);
 					break;
