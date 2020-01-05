@@ -493,7 +493,11 @@ namespace ReShade.Setup
 			};
 
 			client.DownloadProgressChanged += (object sender, DownloadProgressChangedEventArgs e) => {
-				Message.Text = "Downloading " + repository + " ... (" + ((100 * e.BytesReceived) / e.TotalBytesToReceive) + "%)";
+				// Avoid negative percentage values
+				if (e.TotalBytesToReceive > 0)
+				{
+					Message.Text = "Downloading " + repository + " ... (" + ((100 * e.BytesReceived) / e.TotalBytesToReceive) + "%)";
+				}
 			};
 
 			try
