@@ -12,6 +12,7 @@
 #include "effect_codegen.hpp"
 #include "effect_preprocessor.hpp"
 #include "input.hpp"
+#include "input_freepie.hpp"
 #include <thread>
 #include <cassert>
 #include <algorithm>
@@ -449,6 +450,8 @@ bool reshade::runtime::load_effect(const std::filesystem::path &path, size_t ind
 			var.special = special_uniform::mouse_delta;
 		else if (special == "mousebutton")
 			var.special = special_uniform::mouse_button;
+		else if (special == "freepie")
+			var.special = special_uniform::freepie;
 		else if (special == "bufready_depth")
 			var.special = special_uniform::bufready_depth;
 
@@ -986,6 +989,17 @@ void reshade::runtime::update_and_render_effects()
 							set_uniform_value(variable, _input->is_mouse_button_pressed(keycode));
 						else
 							set_uniform_value(variable, _input->is_mouse_button_down(keycode));
+					}
+					break;
+				}
+				case special_uniform::freepie:
+				{
+					const uint32_t index = variable.annotation_as_int("index");
+
+					if (freepie_io_6dof_data data;
+						freepie_io_6dof_read(index, &data))
+					{
+						set_uniform_value(variable, &data.yaw, 6);
 					}
 					break;
 				}

@@ -397,6 +397,7 @@
     <ClCompile Include="source\imgui_editor.cpp" />
     <ClCompile Include="source\imgui_widgets.cpp" />
     <ClCompile Include="source\input.cpp" />
+    <ClCompile Include="source\input_freepie.cpp" />
     <ClCompile Include="source\opengl\buffer_detection.cpp" />
     <ClCompile Include="source\opengl\opengl_hooks.cpp" />
     <ClCompile Include="source\opengl\opengl_hooks_wgl.cpp" />
@@ -449,6 +450,7 @@
     <ClInclude Include="source\imgui_editor.hpp" />
     <ClInclude Include="source\imgui_widgets.hpp" />
     <ClInclude Include="source\input.hpp" />
+    <ClInclude Include="source\input_freepie.hpp" />
     <ClInclude Include="source\opengl\buffer_detection.hpp" />
     <ClInclude Include="source\opengl\opengl.hpp" />
     <ClInclude Include="source\opengl\opengl_hooks.hpp" />

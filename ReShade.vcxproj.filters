@@ -72,6 +72,9 @@
     <ClCompile Include="source\input.cpp">
       <Filter>core\runtime</Filter>
     </ClCompile>
+    <ClCompile Include="source\input_freepie.cpp">
+      <Filter>core\runtime</Filter>
+    </ClCompile>
     <ClCompile Include="source\runtime.cpp">
       <Filter>core\runtime</Filter>
     </ClCompile>
@@ -225,6 +228,9 @@
       <Filter>core\runtime</Filter>
     </ClInclude>
     <ClInclude Include="source\input.hpp">
+      <Filter>core\runtime</Filter>
+    </ClInclude>
+    <ClInclude Include="source\input_freepie.hpp">
       <Filter>core\runtime</Filter>
     </ClInclude>
     <ClInclude Include="source\runtime.hpp">

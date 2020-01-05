@@ -22,6 +22,7 @@ namespace reshade
 		mouse_point,
 		mouse_delta,
 		mouse_button,
+		freepie,
 		bufready_depth,
 	};
 
