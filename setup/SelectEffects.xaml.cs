@@ -5,6 +5,7 @@
 
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Configuration;
 using System.IO;
 using System.Linq;
 using System.Net;
@@ -120,6 +121,11 @@ namespace ReShade.Setup
 				// Add default repository
 				Repositories.Add(new EffectRepositoryItem(
 					CustomRepositoryName.Text = "crosire/reshade-shaders"));
+
+				foreach (string repository in ConfigurationManager.AppSettings["repositories"].Split(','))
+				{
+					Repositories.Add(new EffectRepositoryItem(repository));
+				}
 			}
 			catch { }
 
@@ -183,6 +189,21 @@ namespace ReShade.Setup
 				}
 
 				Repositories.Add(repository);
+
+				// Add repository to configuration file, so that it is remembered for the next time
+				var configFile = ConfigurationManager.OpenExeConfiguration(ConfigurationUserLevel.None);
+				var configSettings = configFile.AppSettings.Settings;
+
+				if (configSettings["repositories"] == null)
+				{
+					configSettings.Add("repositories", repository.Name);
+				}
+				else
+				{
+					configSettings["repositories"].Value += "," + repository.Name;
+				}
+
+				configFile.Save(ConfigurationSaveMode.Modified);
 			}
 
 			CustomRepositoryName.Text = string.Empty;
