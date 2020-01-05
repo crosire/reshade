@@ -19,7 +19,7 @@ using System.Windows.Input;
 
 namespace ReShade.Setup
 {
-	public partial class WizardWindow
+	public partial class MainWindow
 	{
 		bool is64Bit = false;
 		bool isHeadless = false;
@@ -30,7 +30,7 @@ namespace ReShade.Setup
 		string modulePath = null;
 		string commonPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "ReShade");
 
-		public WizardWindow()
+		public MainWindow()
 		{
 			InitializeComponent();
 
