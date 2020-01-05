@@ -10,6 +10,7 @@
       <TextBlock HorizontalAlignment="Left" VerticalAlignment="Center" Text="Can't find the desired application in the list?" />
       <Button HorizontalAlignment="Right" VerticalAlignment="Center" Width="100" Content="_Browse..." Click="OnBrowse" />
     </Grid>
+    <ProgressBar x:Name="ProgramListProgress" DockPanel.Dock="Bottom" Margin="10,5" Height="20" IsIndeterminate="True" />
     <ListBox x:Name="ProgramList" DockPanel.Dock="Top" Margin="10,5" HorizontalContentAlignment="Stretch" MouseDoubleClick="OnConfirmSelection">
       <ListBox.ItemTemplate>
         <DataTemplate>

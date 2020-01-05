@@ -64,7 +64,7 @@ namespace ReShade.Setup
 						string originConfig = File.ReadAllText(originConfigPath);
 						foreach (Match match in new Regex("value=\"(.+?)\".*key=\"DownloadInPlaceDir\"").Matches(originConfig))
 						{
-							searchPaths.Enqueue(match.Groups[1].Value.TrimEnd('\\'));
+							searchPaths.Enqueue(match.Groups[1].Value);
 						}
 					}
 				}
@@ -98,7 +98,10 @@ namespace ReShade.Setup
 							{
 								foreach (var file in arg)
 								{
-									ProgramListItems.Add(new ProgramItem(file));
+									if (ProgramListItems.FirstOrDefault(x => x.Path == file) == null)
+									{
+										ProgramListItems.Add(new ProgramItem(file));
+									}
 								}
 							}), DispatcherPriority.Background, files);
 						}
@@ -107,9 +110,11 @@ namespace ReShade.Setup
 						var directories = Directory.GetDirectories(searchPath).Where(x =>
 							// Ignore certain folders that are unlikely to contain useful executables
 							x.IndexOf("cache", StringComparison.OrdinalIgnoreCase) < 0 &&
-							!x.Contains("_Data") &&
+							!x.Contains("Data") && // AppData, ProgramData, _Data
 							!x.Contains("_CommonRedist") &&
-							!x.StartsWith(".")).ToList();
+							!x.Contains("\\$") &&
+							!x.Contains("\\.") &&
+							!x.Contains("\\Windows")).ToList();
 
 						foreach (var path in directories)
 						{
@@ -122,6 +127,9 @@ namespace ReShade.Setup
 						continue;
 					}
 				}
+
+				// Hide progress bar after search has finished
+				Dispatcher.BeginInvoke(new Action(() => ProgramListProgress.Visibility = Visibility.Collapsed));
 			});
 
 			UpdateThread.Start();
