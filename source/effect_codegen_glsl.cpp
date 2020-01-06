@@ -395,7 +395,12 @@ private:
 			_ubo_block += '\t';
 			// Note: All matrices are floating-point, even if the uniform type says different!!
 			write_type(_ubo_block, info.type);
-			_ubo_block += ' ' + id_to_name(res) + ";\n";
+			_ubo_block += ' ' + id_to_name(res);
+
+			if (info.type.is_array())
+				_ubo_block += '[' + std::to_string(info.type.array_length) + ']';
+
+			_ubo_block += ";\n";
 
 			_module.uniforms.push_back(info);
 		}

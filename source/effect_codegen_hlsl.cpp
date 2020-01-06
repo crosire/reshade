@@ -452,26 +452,31 @@ private:
 			if (info.type.is_matrix()) // Force row major matrices
 				_cbuffer_block += "row_major ";
 
+			type type = info.type;
 			if (_shader_model < 40)
 			{
-				type type = info.type;
 				// The HLSL compiler tries to evaluate boolean values with temporary registers, which breaks branches, so force it to use constant float registers
 				if (type.is_boolean())
 					type.base = type::t_float;
 
 				// Simply put each uniform into a separate constant register in shader model 3 for now
 				info.offset *= 4;
+			}
 
+			write_type(_cbuffer_block, type);
+			_cbuffer_block += ' ' + id_to_name(res);
+
+			if (info.type.is_array())
+				_cbuffer_block += '[' + std::to_string(info.type.array_length) + ']';
+
+			if (_shader_model < 40)
+			{
 				// Every constant register is 16 bytes wide, so divide memory offset by 16 to get the constant register index
 				// Note: All uniforms are floating-point in shader model 3, even if the uniform type says different!!
-				write_type(_cbuffer_block, type);
-				_cbuffer_block += ' ' + id_to_name(res) + " : register(c" + std::to_string(info.offset / 16) + ");\n";
+				_cbuffer_block += " : register(c" + std::to_string(info.offset / 16) + ')';
 			}
-			else
-			{
-				write_type(_cbuffer_block, info.type);
-				_cbuffer_block += ' ' + id_to_name(res) + ";\n";
-			}
+
+			_cbuffer_block += ";\n";
 
 			_module.uniforms.push_back(info);
 		}
