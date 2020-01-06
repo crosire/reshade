@@ -995,7 +995,14 @@ void reshade::runtime::update_and_render_effects()
 				case special_uniform::freepie:
 					if (freepie_io_data data;
 						freepie_io_read(variable.annotation_as_int("index"), &data))
-						set_uniform_value(variable, &data.yaw, 6);
+					{
+						// Assign as float4 array, since float3 arrays are padded to float4 anyway
+						const float array_values[] = {
+							data.yaw, data.pitch, data.roll, 0.0f,
+							data.x, data.y, data.z, 0.0f
+						};
+						set_uniform_value(variable, array_values, 4 * 2);
+					}
 					break;
 				case special_uniform::bufready_depth:
 					set_uniform_value(variable, _has_depth_texture);
