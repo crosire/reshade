@@ -9,6 +9,7 @@
 #include <memory>
 #include <atomic>
 #include <chrono>
+#include <functional>
 #include <filesystem>
 
 #if RESHADE_GUI
