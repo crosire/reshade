@@ -216,6 +216,8 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 
 	// Enable extensions that ReShade requires
 	enabled_extensions.push_back(VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME);
+	enabled_extensions.push_back(VK_KHR_IMAGE_FORMAT_LIST_EXTENSION_NAME);
+	enabled_extensions.push_back(VK_KHR_SWAPCHAIN_MUTABLE_FORMAT_EXTENSION_NAME);
 
 	// TODO: Make sure a graphics queue exists
 
@@ -361,6 +363,22 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 	// Add required usage flags to create info
 	VkSwapchainCreateInfoKHR create_info = *pCreateInfo;
 	create_info.imageUsage |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+
+	// Add required formats so views with different formats can be created for the swapchain images
+	const VkFormat format_list[2] = {
+		make_format_srgb(create_info.imageFormat),
+		make_format_normal(create_info.imageFormat),
+	};
+
+	VkImageFormatListCreateInfoKHR format_list_info { VK_STRUCTURE_TYPE_IMAGE_FORMAT_LIST_CREATE_INFO_KHR };
+	format_list_info.pNext = create_info.pNext;
+	format_list_info.viewFormatCount = 2;
+	format_list_info.pViewFormats = format_list;
+	create_info.pNext = &format_list_info;
+
+	// Only have to make format mutable if they are actually different
+	if (format_list[0] != format_list[1])
+		create_info.flags |= VK_SWAPCHAIN_CREATE_MUTABLE_FORMAT_BIT_KHR;
 
 	LOG(INFO) << "> Dumping swap chain description:";
 	LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";

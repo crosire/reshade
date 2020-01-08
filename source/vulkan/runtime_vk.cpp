@@ -282,9 +282,8 @@ bool reshade::vulkan::runtime_vk::on_init(VkSwapchainKHR swapchain, const VkSwap
 
 	for (uint32_t i = 0, k = 0; i < num_images; ++i, k += 2)
 	{
-		// TODO: This is technically illegal, since swapchain images are not created with VK_IMAGE_CREATE_MUTABLE_FORMAT_BIT, but it seems to work for now
-		_swapchain_views[k + 0] = create_image_view(_swapchain_images[i], make_format_normal(desc.imageFormat), 1, VK_IMAGE_ASPECT_COLOR_BIT);
 		_swapchain_views[k + 1] = create_image_view(_swapchain_images[i], make_format_srgb(desc.imageFormat), 1, VK_IMAGE_ASPECT_COLOR_BIT);
+		_swapchain_views[k + 0] = create_image_view(_swapchain_images[i], make_format_normal(desc.imageFormat), 1, VK_IMAGE_ASPECT_COLOR_BIT);
 
 		const VkImageView attachment_views[2] = { _swapchain_views[k + 0], _effect_depthstencil_view };
 		const VkImageView attachment_views_srgb[2] = { _swapchain_views[k + 1], _effect_depthstencil_view };
