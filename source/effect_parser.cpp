@@ -1333,7 +1333,7 @@ bool reshadefx::parser::parse_expression_multary(expression &lhs, unsigned int l
 				return false;
 
 			// Check that the condition dimension matches that of at least one side
-			if (lhs.type.is_vector() && lhs.type.rows != true_exp.type.rows && lhs.type.cols != true_exp.type.cols)
+			if (lhs.type.rows != true_exp.type.rows && lhs.type.cols != true_exp.type.cols)
 				return error(lhs.location, 3020, "dimension of conditional does not match value"), false;
 
 			// Check that the two value expressions can be converted between each other
