@@ -72,7 +72,7 @@ static bool find_file(const std::vector<std::filesystem::path> &search_paths, st
 	return false;
 }
 
-static std::vector<std::filesystem::path> find_files(const std::vector<std::filesystem::path> &search_paths, std::initializer_list<const char *> extensions)
+static std::vector<std::filesystem::path> find_files(const std::vector<std::filesystem::path> &search_paths, std::initializer_list<std::filesystem::path> extensions)
 {
 	std::error_code ec;
 	std::vector<std::filesystem::path> files;
@@ -82,7 +82,7 @@ static std::vector<std::filesystem::path> find_files(const std::vector<std::file
 		search_path = absolute_path(std::move(search_path));
 
 		for (const auto &entry : std::filesystem::directory_iterator(search_path, ec))
-			for (auto ext : extensions)
+			for (const auto &ext : extensions)
 				if (entry.path().extension() == ext)
 					files.push_back(entry.path());
 	}
@@ -93,8 +93,8 @@ reshade::runtime::runtime() :
 	_start_time(std::chrono::high_resolution_clock::now()),
 	_last_present_time(std::chrono::high_resolution_clock::now()),
 	_last_frame_duration(std::chrono::milliseconds(1)),
-	_effect_search_paths({ ".\\" }),
-	_texture_search_paths({ ".\\" }),
+	_effect_search_paths({ L".\\" }),
+	_texture_search_paths({ L".\\" }),
 	_global_preprocessor_definitions({
 		"RESHADE_DEPTH_LINEARIZATION_FAR_PLANE=1000.0",
 		"RESHADE_DEPTH_INPUT_IS_UPSIDE_DOWN=0",
@@ -111,14 +111,14 @@ reshade::runtime::runtime() :
 	_screenshot_key_data[0] = 0x2C;
 
 	_configuration_path = g_reshade_dll_path;
-	_configuration_path.replace_extension(".ini");
+	_configuration_path.replace_extension(L".ini");
 	// First look for an API-named configuration file
 	if (std::error_code ec; !std::filesystem::exists(_configuration_path, ec))
 		// On failure check for a "ReShade.ini" in the application directory
-		_configuration_path = g_target_executable_path.parent_path() / "ReShade.ini";
+		_configuration_path = g_target_executable_path.parent_path() / L"ReShade.ini";
 	if (std::error_code ec; !std::filesystem::exists(_configuration_path, ec))
 		// If neither exist create a "ReShade.ini" in the ReShade DLL directory
-		_configuration_path = g_reshade_dll_path.parent_path() / "ReShade.ini";
+		_configuration_path = g_reshade_dll_path.parent_path() / L"ReShade.ini";
 
 	_needs_update = check_for_update(_latest_version);
 
@@ -577,7 +577,7 @@ bool reshade::runtime::load_effects()
 
 	// Build a list of effect files by walking through the effect search paths
 	const std::vector<std::filesystem::path> effect_files =
-		find_files(_effect_search_paths, { ".fx" });
+		find_files(_effect_search_paths, { L".fx" });
 
 	_reload_total_effects = effect_files.size();
 	_reload_remaining_effects = _reload_total_effects;
