@@ -50,6 +50,12 @@ static inline std::filesystem::path get_module_path(HMODULE module)
 	#include <D3D12Downlevel.h>
 #endif
 
+#ifdef NDEBUG
+	#define HCHECK(exp) exp
+#else
+	#define HCHECK(exp) assert(SUCCEEDED(exp))
+#endif
+
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow)
 {
 	using namespace reshade;
@@ -104,8 +110,6 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 	MSG msg = {};
 
 	#pragma region D3D9 Implementation
-#define HCHECK(exp) assert(SUCCEEDED(exp))
-
 	if (strstr(lpCmdLine, "-d3d9"))
 	{
 		const auto d3d9_module = LoadLibrary(TEXT("d3d9.dll"));
