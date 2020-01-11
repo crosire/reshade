@@ -349,7 +349,7 @@ bool reshade::vulkan::runtime_vk::on_init(VkSwapchainKHR swapchain, const VkSwap
 		VkDescriptorPoolCreateInfo create_info { VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO };
 		// No VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT set, so that all descriptors can be reset in one go via vkResetDescriptorPool
 		create_info.maxSets = MAX_EFFECT_DESCRIPTOR_SETS;
-		create_info.poolSizeCount = _countof(pool_sizes);
+		create_info.poolSizeCount = static_cast<uint32_t>(std::size(pool_sizes));
 		create_info.pPoolSizes = pool_sizes;
 
 		check_result(vk.CreateDescriptorPool(_device, &create_info, nullptr, &_effect_descriptor_pool)) false;
@@ -1008,7 +1008,7 @@ bool reshade::vulkan::runtime_vk::init_effect(size_t index)
 					subpass.pColorAttachments = attachment_refs;
 					subpass.pDepthStencilAttachment = num_depth_attachments ? &attachment_refs[num_color_attachments] : nullptr;
 
-					VkRenderPassCreateInfo create_info{ VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO };
+					VkRenderPassCreateInfo create_info { VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO };
 					create_info.attachmentCount = num_color_attachments + num_depth_attachments;
 					create_info.pAttachments = attachment_descs;
 					create_info.subpassCount = 1;
@@ -1019,7 +1019,7 @@ bool reshade::vulkan::runtime_vk::init_effect(size_t index)
 					check_result(vk.CreateRenderPass(_device, &create_info, nullptr, &pass_data.begin_info.renderPass)) false;
 				}
 
-				{   VkFramebufferCreateInfo create_info{ VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO };
+				{   VkFramebufferCreateInfo create_info { VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO };
 					create_info.renderPass = pass_data.begin_info.renderPass;
 					create_info.attachmentCount = num_color_attachments + num_depth_attachments;
 					create_info.pAttachments = attachment_views;
@@ -1031,7 +1031,10 @@ bool reshade::vulkan::runtime_vk::init_effect(size_t index)
 				}
 			}
 
-			VkSpecializationInfo spec_info { uint32_t(spec_constants.size()), spec_constants.data(), spec_data.size(), spec_data.data() };
+			VkSpecializationInfo spec_info {
+				static_cast<uint32_t>(spec_constants.size()), spec_constants.data(),
+				spec_data.size(), spec_data.data()
+			};
 
 			VkPipelineShaderStageCreateInfo stages[2];
 			stages[0] = { VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO };
@@ -1045,32 +1048,32 @@ bool reshade::vulkan::runtime_vk::init_effect(size_t index)
 			stages[1].pName = pass_info.ps_entry_point.c_str();
 			stages[1].pSpecializationInfo = &spec_info;
 
-			VkPipelineVertexInputStateCreateInfo vertex_info = { VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO };
+			VkPipelineVertexInputStateCreateInfo vertex_info { VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO };
 			// No vertex attributes
 
-			VkPipelineInputAssemblyStateCreateInfo ia_info = { VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO };
+			VkPipelineInputAssemblyStateCreateInfo ia_info { VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO };
 			ia_info.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
 
-			VkPipelineViewportStateCreateInfo viewport_info = { VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO };
+			VkPipelineViewportStateCreateInfo viewport_info { VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO };
 			viewport_info.viewportCount = 1;
 			viewport_info.pViewports = &viewport_rect;
 			viewport_info.scissorCount = 1;
 			viewport_info.pScissors = &scissor_rect;
 
-			VkPipelineRasterizationStateCreateInfo raster_info = { VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO };
+			VkPipelineRasterizationStateCreateInfo raster_info { VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO };
 			raster_info.polygonMode = VK_POLYGON_MODE_FILL;
 			raster_info.cullMode = VK_CULL_MODE_NONE;
 			raster_info.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
 			raster_info.lineWidth = 1.0f;
 
-			VkPipelineMultisampleStateCreateInfo ms_info{ VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO };
+			VkPipelineMultisampleStateCreateInfo ms_info { VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO };
 			ms_info.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
 
-			VkPipelineColorBlendStateCreateInfo blend_info{ VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO };
+			VkPipelineColorBlendStateCreateInfo blend_info { VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO };
 			blend_info.attachmentCount = num_color_attachments;
 			blend_info.pAttachments = attachment_blends;
 
-			VkPipelineDepthStencilStateCreateInfo depth_info{ VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO };
+			VkPipelineDepthStencilStateCreateInfo depth_info { VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO };
 			depth_info.depthTestEnable = VK_FALSE;
 			depth_info.depthWriteEnable = VK_FALSE;
 			depth_info.depthCompareOp = VK_COMPARE_OP_ALWAYS;
@@ -1086,8 +1089,8 @@ bool reshade::vulkan::runtime_vk::init_effect(size_t index)
 			depth_info.minDepthBounds = 0.0f;
 			depth_info.minDepthBounds = 1.0f;
 
-			VkGraphicsPipelineCreateInfo create_info{ VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO };
-			create_info.stageCount = _countof(stages);
+			VkGraphicsPipelineCreateInfo create_info { VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO };
+			create_info.stageCount = static_cast<uint32_t>(std::size(stages));
 			create_info.pStages = stages;
 			create_info.pVertexInputState = &vertex_info;
 			create_info.pInputAssemblyState = &ia_info;
@@ -1684,7 +1687,7 @@ bool reshade::vulkan::runtime_vk::init_imgui_resources()
 
 		VkDescriptorSetLayoutCreateInfo create_info { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO };
 		create_info.flags = VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT_KHR;
-		create_info.bindingCount = _countof(bindings);
+		create_info.bindingCount = static_cast<uint32_t>(std::size(bindings));
 		create_info.pBindings = bindings;
 
 		check_result(vk.CreateDescriptorSetLayout(_device, &create_info, nullptr, &_imgui_descriptor_set_layout)) false;
@@ -1698,9 +1701,9 @@ bool reshade::vulkan::runtime_vk::init_imgui_resources()
 		};
 
 		VkPipelineLayoutCreateInfo create_info { VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO };
-		create_info.setLayoutCount = _countof(descriptor_layouts);
+		create_info.setLayoutCount = static_cast<uint32_t>(std::size(descriptor_layouts));
 		create_info.pSetLayouts = descriptor_layouts;
-		create_info.pushConstantRangeCount = _countof(push_constants);
+		create_info.pushConstantRangeCount = static_cast<uint32_t>(std::size(push_constants));
 		create_info.pPushConstantRanges = push_constants;
 
 		check_result(vk.CreatePipelineLayout(_device, &create_info, nullptr, &_imgui_pipeline_layout)) false;
@@ -1725,20 +1728,20 @@ bool reshade::vulkan::runtime_vk::init_imgui_resources()
 	attribute_desc[2].format = VK_FORMAT_R8G8B8A8_UNORM;
 	attribute_desc[2].offset = offsetof(ImDrawVert, col);
 
-	VkPipelineVertexInputStateCreateInfo vertex_info = { VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO };
-	vertex_info.vertexBindingDescriptionCount = _countof(binding_desc);
+	VkPipelineVertexInputStateCreateInfo vertex_info { VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO };
+	vertex_info.vertexBindingDescriptionCount = static_cast<uint32_t>(std::size(binding_desc));
 	vertex_info.pVertexBindingDescriptions = binding_desc;
-	vertex_info.vertexAttributeDescriptionCount = _countof(attribute_desc);
+	vertex_info.vertexAttributeDescriptionCount = static_cast<uint32_t>(std::size(attribute_desc));
 	vertex_info.pVertexAttributeDescriptions = attribute_desc;
 
-	VkPipelineInputAssemblyStateCreateInfo ia_info = { VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO };
+	VkPipelineInputAssemblyStateCreateInfo ia_info { VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO };
 	ia_info.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
 
-	VkPipelineViewportStateCreateInfo viewport_info = { VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO };
+	VkPipelineViewportStateCreateInfo viewport_info { VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO };
 	viewport_info.viewportCount = 1;
 	viewport_info.scissorCount = 1;
 
-	VkPipelineRasterizationStateCreateInfo raster_info = { VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO };
+	VkPipelineRasterizationStateCreateInfo raster_info { VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO };
 	raster_info.polygonMode = VK_POLYGON_MODE_FILL;
 	raster_info.cullMode = VK_CULL_MODE_NONE;
 	raster_info.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
@@ -1764,13 +1767,13 @@ bool reshade::vulkan::runtime_vk::init_imgui_resources()
 	VkPipelineDepthStencilStateCreateInfo depth_info { VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO };
 	depth_info.depthTestEnable = VK_FALSE;
 
-	VkDynamicState dynamic_states[2] = { VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR };
+	VkDynamicState dynamic_states[] = { VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR };
 	VkPipelineDynamicStateCreateInfo dynamic_state { VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO };
-	dynamic_state.dynamicStateCount = _countof(dynamic_states);
+	dynamic_state.dynamicStateCount = static_cast<uint32_t>(std::size(dynamic_states));
 	dynamic_state.pDynamicStates = dynamic_states;
 
 	VkGraphicsPipelineCreateInfo create_info { VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO };
-	create_info.stageCount = _countof(stages);
+	create_info.stageCount = static_cast<uint32_t>(std::size(stages));
 	create_info.pStages = stages;
 	create_info.pVertexInputState = &vertex_info;
 	create_info.pInputAssemblyState = &ia_info;

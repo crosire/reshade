@@ -1374,7 +1374,7 @@ void reshade::runtime::draw_ui_statistics()
 			1 /*R8*/, 2 /*R16F*/, 4 /*R32F*/, 2 /*RG8*/, 4 /*RG16*/, 4 /*RG16F*/, 8 /*RG32F*/, 4 /*RGBA8*/, 8 /*RGBA16*/, 8 /*RGBA16F*/, 16 /*RGBA32F*/, 4 /*RGB10A2*/
 		};
 
-		static_assert(_countof(texture_formats) - 1 == static_cast<unsigned int>(reshadefx::texture_format::rgb10a2));
+		static_assert(std::size(texture_formats) - 1 == static_cast<size_t>(reshadefx::texture_format::rgb10a2));
 
 		const float total_width = ImGui::GetWindowContentRegionWidth();
 		unsigned int texture_index = 0;
