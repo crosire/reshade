@@ -299,7 +299,7 @@ namespace ReShade.Setup
 
 			var info = FileVersionInfo.GetVersionInfo(targetPath);
 			targetName = info.FileDescription;
-			if (string.IsNullOrEmpty(targetName))
+			if (targetName is null || targetName.Trim().Length == 0)
 				targetName = Path.GetFileNameWithoutExtension(targetPath);
 
 			UpdateStatus("Working on " + targetName + " ...", "Analyzing executable ...");

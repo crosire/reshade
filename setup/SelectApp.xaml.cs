@@ -146,7 +146,7 @@ namespace ReShade.Setup
 
 				Path = path;
 				Name = FileVersionInfo.GetVersionInfo(path)?.FileDescription;
-				if (string.IsNullOrEmpty(Name))
+				if (Name is null || Name.Trim().Length == 0)
 				{
 					Name = System.IO.Path.GetFileNameWithoutExtension(path);
 				}
