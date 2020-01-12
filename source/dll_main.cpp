@@ -482,7 +482,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 		VkPhysicalDevice physical_device = VK_NULL_HANDLE;
 
 		{   VkApplicationInfo app_info { VK_STRUCTURE_TYPE_APPLICATION_INFO };
-			app_info.apiVersion = VK_API_VERSION_1_1;
+			app_info.apiVersion = VK_API_VERSION_1_0;
 			app_info.pApplicationName = "ReShade Test Application";
 			app_info.applicationVersion = VERSION_MAJOR * 10000 + VERSION_MINOR * 100 + VERSION_REVISION;
 

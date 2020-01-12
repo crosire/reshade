@@ -95,8 +95,25 @@ VkResult VKAPI_CALL vkCreateInstance(const VkInstanceCreateInfo *pCreateInfo, co
 	if (trampoline == nullptr) // Unable to resolve next 'vkCreateInstance' function in the call chain
 		return VK_ERROR_INITIALIZATION_FAILED;
 
+	VkApplicationInfo app_info { VK_STRUCTURE_TYPE_APPLICATION_INFO };
+	if (pCreateInfo->pApplicationInfo != nullptr)
+		app_info = *pCreateInfo->pApplicationInfo;
+
+	LOG(INFO) << "Requesting Vulkan instance for API version " << VK_VERSION_MAJOR(app_info.apiVersion) << '.' << VK_VERSION_MINOR(app_info.apiVersion) << " ...";
+
+	// ReShade requires at least Vulkan 1.1 (for SPIR-V 1.3 compatibility)
+	if (app_info.apiVersion < VK_API_VERSION_1_1)
+	{
+		LOG(INFO) << "> Replacing requested version with 1.1 ...";
+
+		app_info.apiVersion = VK_API_VERSION_1_1;
+	}
+
+	VkInstanceCreateInfo create_info = *pCreateInfo;
+	create_info.pApplicationInfo = &app_info;
+
 	// Continue call down the chain
-	const VkResult result = trampoline(pCreateInfo, pAllocator, pInstance);
+	const VkResult result = trampoline(&create_info, pAllocator, pInstance);
 	if (result != VK_SUCCESS)
 	{
 		LOG(WARN) << "vkCreateInstance failed with error code " << result << '!';
