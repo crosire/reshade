@@ -54,6 +54,11 @@ namespace reshadefx
 		/// </summary>
 		static unsigned int rank(const type &src, const type &dst);
 
+		/// <summary>
+		/// Returns a human-readable description of this type definition.
+		/// </summary>
+		std::string description() const;
+
 		bool has(qualifier x) const { return (qualifiers & x) == x; }
 		bool is_array() const { return array_length != 0; }
 		bool is_scalar() const { return !is_array() && !is_matrix() && !is_vector() && is_numeric(); }

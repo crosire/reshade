@@ -32,6 +32,59 @@ reshadefx::type reshadefx::type::merge(const type &lhs, const type &rhs)
 	return result;
 }
 
+std::string reshadefx::type::description() const
+{
+	std::string result;
+	switch (base)
+	{
+	case reshadefx::type::t_void:
+		result = "void";
+		break;
+	case reshadefx::type::t_bool:
+		result = "bool";
+		break;
+	case reshadefx::type::t_int:
+		result = "int";
+		break;
+	case reshadefx::type::t_uint:
+		result = "uint";
+		break;
+	case reshadefx::type::t_float:
+		result = "float";
+		break;
+	case reshadefx::type::t_string:
+		result = "string";
+		break;
+	case reshadefx::type::t_struct:
+		result = "struct";
+		break;
+	case reshadefx::type::t_sampler:
+		result = "sampler";
+		break;
+	case reshadefx::type::t_texture:
+		result = "texture";
+		break;
+	case reshadefx::type::t_function:
+		result = "function";
+		break;
+	}
+
+	if (rows > 1 || cols > 1)
+		result += std::to_string(rows);
+	if (cols > 1)
+		result += 'x' + std::to_string(cols);
+
+	if (is_array())
+	{
+		result += '[';
+		if (array_length > 0)
+			result += std::to_string(array_length);
+		result += ']';
+	}
+
+	return result;
+}
+
 void reshadefx::expression::reset_to_lvalue(const reshadefx::location &loc, uint32_t in_base, const reshadefx::type &in_type)
 {
 	type = in_type;

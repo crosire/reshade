@@ -600,7 +600,7 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 
 				// Check if a cast between these types is valid
 				if (!type::rank(exp.type, cast_type))
-					return error(location, 3017, "cannot convert these types"), false;
+					return error(location, 3017, "cannot convert these types (from " + exp.type.description() + " to " + cast_type.description() + ')'), false;
 
 				exp.add_cast_operation(cast_type);
 				return true;
@@ -1413,7 +1413,7 @@ bool reshadefx::parser::parse_expression_assignment(expression &lhs)
 		if (lhs.type.has(type::q_const) || lhs.type.has(type::q_uniform) || !lhs.is_lvalue)
 			return error(lhs.location, 3025, "l-value specifies const object"), false;
 		if (!type::rank(lhs.type, rhs.type))
-			return error(rhs.location, 3020, "cannot convert these types"), false;
+			return error(rhs.location, 3020, "cannot convert these types (from " + rhs.type.description() + " to " + lhs.type.description() + ')'), false;
 
 		// Cannot perform bitwise operations on non-integral types
 		if (!lhs.type.is_integral() && (op == tokenid::ampersand_equal || op == tokenid::pipe_equal || op == tokenid::caret_equal))
@@ -2503,9 +2503,9 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 
 			// Check type compatibility
 			if ((type.array_length >= 0 && initializer.type.array_length != type.array_length) || !type::rank(initializer.type, type))
-				return error(initializer.location, 3017, '\'' + name + "': initial value does not match variable type"), false;
+				return error(initializer.location, 3017, '\'' + name + "': initial value (" + initializer.type.description() + ") does not match variable type (" + type.description() + ')'), false;
 			if ((initializer.type.rows < type.rows || initializer.type.cols < type.cols) && !initializer.type.is_scalar())
-				return error(initializer.location, 3017, "cannot implicitly convert these vector types"), false;
+				return error(initializer.location, 3017, '\'' + name + "': cannot implicitly convert these vector types (from " + initializer.type.description() + " to " + type.description() + ')'), false;
 
 			// Deduce array size from the initializer expression
 			if (initializer.type.is_array())
