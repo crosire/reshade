@@ -77,20 +77,27 @@ namespace ReShade.Setup
 					try
 					{
 						var files = Directory.GetFiles(searchPath, "*.exe", SearchOption.TopDirectoryOnly).Where(x =>
-							// Ignore common utility executables
-							x.IndexOf("tool", StringComparison.OrdinalIgnoreCase) < 0 &&
+							// Exclude installer executables
 							x.IndexOf("redis", StringComparison.OrdinalIgnoreCase) < 0 &&
-							x.IndexOf("crash", StringComparison.OrdinalIgnoreCase) < 0 &&
+							x.IndexOf("unins", StringComparison.OrdinalIgnoreCase) < 0 &&
 							x.IndexOf("setup", StringComparison.OrdinalIgnoreCase) < 0 &&
 							x.IndexOf("update", StringComparison.OrdinalIgnoreCase) < 0 &&
+							x.IndexOf("install", StringComparison.OrdinalIgnoreCase) < 0 &&
+							// Exclude common support executables
+							x.IndexOf("report", StringComparison.OrdinalIgnoreCase) < 0 &&
+							x.IndexOf("support", StringComparison.OrdinalIgnoreCase) < 0 &&
+							x.IndexOf("register", StringComparison.OrdinalIgnoreCase) < 0 &&
+							x.IndexOf("activation", StringComparison.OrdinalIgnoreCase) < 0 &&
+							// Exclude common utility and launcher executables
+							x.IndexOf("tool", StringComparison.OrdinalIgnoreCase) < 0 &&
+							x.IndexOf("crash", StringComparison.OrdinalIgnoreCase) < 0 &&
 							x.IndexOf("config", StringComparison.OrdinalIgnoreCase) < 0 &&
 							x.IndexOf("launch", StringComparison.OrdinalIgnoreCase) < 0 &&
 							x.IndexOf("plugin", StringComparison.OrdinalIgnoreCase) < 0 &&
-							x.IndexOf("steamvr", StringComparison.OrdinalIgnoreCase) < 0 && // Exclude SteamVR executables
-							x.IndexOf("install", StringComparison.OrdinalIgnoreCase) < 0 &&
-							x.IndexOf("support", StringComparison.OrdinalIgnoreCase) < 0 &&
-							x.IndexOf("register", StringComparison.OrdinalIgnoreCase) < 0 &&
-							x.IndexOf("activation", StringComparison.OrdinalIgnoreCase) < 0).ToList();
+							x.IndexOf("benchmark", StringComparison.OrdinalIgnoreCase) < 0 &&
+							// Exclude various known executables like SteamVR and CEF
+							x.IndexOf("steamvr", StringComparison.OrdinalIgnoreCase) < 0 &&
+							x.IndexOf("cefprocess", StringComparison.OrdinalIgnoreCase) < 0).ToList();
 
 						if (files.Count != 0)
 						{
