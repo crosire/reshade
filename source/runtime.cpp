@@ -526,13 +526,10 @@ bool reshade::runtime::load_effect(const std::filesystem::path &path, size_t ind
 	for (technique technique : effect.module.techniques)
 	{
 		technique.effect_index = index;
+
 		technique.hidden = technique.annotation_as_int("hidden") != 0;
 		technique.timeout = technique.annotation_as_int("timeout");
 		technique.timeleft = technique.timeout;
-		technique.toggle_key_data[0] = technique.annotation_as_int("toggle");
-		technique.toggle_key_data[1] = technique.annotation_as_int("togglectrl");
-		technique.toggle_key_data[2] = technique.annotation_as_int("toggleshift");
-		technique.toggle_key_data[3] = technique.annotation_as_int("togglealt");
 
 		if (technique.annotation_as_int("enabled"))
 			enable_technique(technique);
@@ -1235,8 +1232,11 @@ void reshade::runtime::load_current_preset()
 		else
 			disable_technique(technique);
 
-		// Reset toggle key first, since it may not exist in the preset
-		std::memset(technique.toggle_key_data, 0, sizeof(technique.toggle_key_data));
+		// Reset toggle key to the value set via annotation first, since it may not exist in the preset
+		technique.toggle_key_data[0] = technique.annotation_as_int("toggle");
+		technique.toggle_key_data[1] = technique.annotation_as_int("togglectrl");
+		technique.toggle_key_data[2] = technique.annotation_as_int("toggleshift");
+		technique.toggle_key_data[3] = technique.annotation_as_int("togglealt");
 		preset.get({}, "Key" + technique.name, technique.toggle_key_data);
 	}
 }
