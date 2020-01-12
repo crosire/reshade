@@ -2560,7 +2560,8 @@ void reshade::runtime::draw_technique_editor()
 		assert(compile_success || !technique.enabled);
 
 		// Prevent user from enabling the technique when the effect failed to compile
-		ImGui::PushItemFlag(ImGuiItemFlags_Disabled, !compile_success);
+		// Also prevent disabling it for when the technique is set to always be enabled via annotation
+		ImGui::PushItemFlag(ImGuiItemFlags_Disabled, !compile_success || technique.annotation_as_int("enabled"));
 		// Gray out disabled techniques and mark techniques which failed to compile red
 		ImGui::PushStyleColor(ImGuiCol_Text, compile_success ? _imgui_context->Style.Colors[technique.enabled ? ImGuiCol_Text : ImGuiCol_TextDisabled] : COLOR_RED);
 
