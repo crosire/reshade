@@ -97,20 +97,25 @@ namespace ReShade.Setup
 							x.IndexOf("benchmark", StringComparison.OrdinalIgnoreCase) < 0 &&
 							// Exclude various known executables like SteamVR and CEF
 							x.IndexOf("steamvr", StringComparison.OrdinalIgnoreCase) < 0 &&
-							x.IndexOf("cefprocess", StringComparison.OrdinalIgnoreCase) < 0).ToList();
+							x.IndexOf("cefprocess", StringComparison.OrdinalIgnoreCase) < 0).ToArray();
 
-						if (files.Count != 0)
+						if (files.Length != 0)
 						{
-							Dispatcher.BeginInvoke(new Action<List<string>>(arg =>
+							const int SPLIT_SIZE = 10;
+
+							for (int i = 0; i < files.Length; i += SPLIT_SIZE)
 							{
-								foreach (var file in arg)
+								Dispatcher.Invoke(new Action<ArraySegment<string>>(arg =>
 								{
-									if (ProgramListItems.FirstOrDefault(x => x.Path == file) == null)
+									foreach (var file in arg)
 									{
-										ProgramListItems.Add(new ProgramItem(file));
+										if (ProgramListItems.FirstOrDefault(x => x.Path == file) == null)
+										{
+											ProgramListItems.Add(new ProgramItem(file));
+										}
 									}
-								}
-							}), DispatcherPriority.Background, files);
+								}), DispatcherPriority.Background, new ArraySegment<string>(files, i, Math.Min(SPLIT_SIZE, files.Length - i)));
+							}
 						}
 
 						// Continue searching in sub-directories
