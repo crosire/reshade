@@ -76,6 +76,11 @@ namespace ReShade.Setup
 
 				while (searchPaths.Count != 0)
 				{
+					if (SuspendUpdateThread)
+					{
+						SuspendUpdateThreadEvent.WaitOne();
+					}
+
 					string searchPath = searchPaths.Dequeue();
 
 					try
@@ -191,11 +196,15 @@ namespace ReShade.Setup
 		}
 
 		Thread UpdateThread = null;
+		AutoResetEvent SuspendUpdateThreadEvent = new AutoResetEvent(false);
+		bool SuspendUpdateThread = false;
 		public string FileName { get; private set; }
 		ObservableCollection<ProgramItem> ProgramListItems = new ObservableCollection<ProgramItem>();
 
 		void OnBrowse(object sender, RoutedEventArgs e)
 		{
+			SuspendUpdateThread = true;
+
 			var dlg = new OpenFileDialog
 			{
 				Filter = "Applications|*.exe",
@@ -210,6 +219,11 @@ namespace ReShade.Setup
 				UpdateThread.Abort();
 				FileName = dlg.FileName;
 				DialogResult = true;
+			}
+			else
+			{
+				SuspendUpdateThread = false;
+				SuspendUpdateThreadEvent.Set();
 			}
 		}
 
