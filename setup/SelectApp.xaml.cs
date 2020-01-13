@@ -64,7 +64,11 @@ namespace ReShade.Setup
 						string originConfig = File.ReadAllText(originConfigPath);
 						foreach (Match match in new Regex("value=\"(.+?)\".*key=\"DownloadInPlaceDir\"").Matches(originConfig))
 						{
-							searchPaths.Enqueue(match.Groups[1].Value);
+							// Avoid adding short paths to the search paths so not to scan the entire drive
+							if (match.Groups[1].Value.Length > 25)
+							{
+								searchPaths.Enqueue(match.Groups[1].Value);
+							}
 						}
 					}
 				}
@@ -116,17 +120,27 @@ namespace ReShade.Setup
 									}
 								}), DispatcherPriority.Background, new ArraySegment<string>(files, i, Math.Min(SPLIT_SIZE, files.Length - i)));
 							}
+
+							// Give back control to the OS
+							Thread.Sleep(10);
 						}
 
 						// Continue searching in sub-directories
 						var directories = Directory.GetDirectories(searchPath).Where(x =>
+							// Avoid deep folder structures
+							x.Count(c => c == '\\') < 10 &&
 							// Ignore certain folders that are unlikely to contain useful executables
+							x.IndexOf("docs", StringComparison.OrdinalIgnoreCase) < 0 &&
 							x.IndexOf("cache", StringComparison.OrdinalIgnoreCase) < 0 &&
+							x.IndexOf("support", StringComparison.OrdinalIgnoreCase) < 0 &&
 							!x.Contains("Data") && // AppData, ProgramData, _Data
 							!x.Contains("_CommonRedist") &&
+							!x.Contains("__Installer") &&
 							!x.Contains("\\$") &&
 							!x.Contains("\\.") &&
-							!x.Contains("\\Windows")).ToList();
+							!x.Contains("\\Windows") &&
+							// Ignore various folders which are known to not contain useful executables
+							x.IndexOf("steamvr", StringComparison.OrdinalIgnoreCase) < 0);
 
 						foreach (var path in directories)
 						{
