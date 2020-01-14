@@ -376,10 +376,18 @@ namespace ReShade.Setup
 
 				if (File.Exists(modulePath) && !isHeadless)
 				{
-					ApiGroup.Visibility = Visibility.Collapsed;
-					InstallButtons.Visibility = Visibility.Visible;
+					var moduleInfo = FileVersionInfo.GetVersionInfo(modulePath);
+					if (moduleInfo.ProductName == "ReShade")
+					{
+						ApiGroup.Visibility = Visibility.Collapsed;
+						InstallButtons.Visibility = Visibility.Visible;
 
-					Message.Text = "Existing ReShade installation found. How do you want to proceed?";
+						Message.Text = "Existing ReShade installation found. How do you want to proceed?";
+					}
+					else
+					{
+						UpdateStatusAndFinish(false, Path.GetFileName(modulePath) + " already exists, but does not belong to ReShade.", "Please make sure this is not a system file required by the game.");
+					}
 					return;
 				}
 			}
@@ -415,7 +423,7 @@ namespace ReShade.Setup
 				}
 				catch (Exception ex)
 				{
-					UpdateStatusAndFinish(false, "Unable to write file \"" + modulePath + "\".", ex.Message);
+					UpdateStatusAndFinish(false, "Unable to write \"" + modulePath + "\".", ex.Message);
 					return;
 				}
 			}
@@ -543,7 +551,7 @@ namespace ReShade.Setup
 			}
 			catch (Exception ex)
 			{
-				UpdateStatusAndFinish(false, "Unable to extract downloaded archive.", ex.Message);
+				UpdateStatusAndFinish(false, "Unable to extract " + downloadName + ".", ex.Message);
 				return;
 			}
 
@@ -801,7 +809,7 @@ namespace ReShade.Setup
 				}
 				catch (Exception ex)
 				{
-					UpdateStatusAndFinish(false, "Unable to extract files.", ex.Message);
+					UpdateStatusAndFinish(false, "Unable to extract ReShade files.", ex.Message);
 					return;
 				}
 
