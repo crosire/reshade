@@ -119,8 +119,7 @@ namespace ReShade.Setup
 			try
 			{
 				// Add default repository
-				Repositories.Add(new EffectRepositoryItem(
-					CustomRepositoryName.Text = "crosire/reshade-shaders"));
+				Repositories.Add(new EffectRepositoryItem("crosire/reshade-shaders"));
 
 				foreach (string repository in ConfigurationManager.AppSettings["repositories"].Split(','))
 				{
@@ -173,13 +172,21 @@ namespace ReShade.Setup
 				return;
 			}
 
+			string name = CustomRepositoryName.Text;
+
+			if (name.StartsWith("https://github.com/"))
+			{
+				// Remove URL prefix if it exists
+				name = name.Remove(0, 19);
+			}
+
 			// Check if this repository was already added
-			if (Repositories.Where(x => x.Name == CustomRepositoryName.Text).Count() == 0)
+			if (Repositories.Where(x => x.Name == name).Count() == 0)
 			{
 				EffectRepositoryItem repository = null;
 				try
 				{
-					repository = new EffectRepositoryItem(CustomRepositoryName.Text);
+					repository = new EffectRepositoryItem(name);
 				}
 				catch
 				{

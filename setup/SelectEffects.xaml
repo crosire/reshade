@@ -8,7 +8,7 @@
     </DockPanel>
     <DockPanel DockPanel.Dock="Bottom" LastChildFill="True" Margin="10,5,10,10">
       <Button DockPanel.Dock="Right" Width="100" Margin="10,0,0,0" Content="Add _repository" Click="OnAddRepository" />
-      <TextBox x:Name="CustomRepositoryName" DockPanel.Dock="Left" />
+      <TextBox x:Name="CustomRepositoryName" DockPanel.Dock="Left" Text="https://github.com/crosire/reshade-shaders" />
     </DockPanel>
     <TreeView x:Name="EffectList" Margin="10,5">
       <TreeView.Resources>
