@@ -943,36 +943,43 @@ void reshade::d3d9::runtime_d3d9::render_imgui_draw_data(ImDrawData *draw_data)
 			return;
 	}
 
-	ImDrawVert9 *vtx_dst; ImDrawIdx *idx_dst;
-	if (FAILED(_imgui_index_buffer->Lock(0, draw_data->TotalIdxCount * sizeof(ImDrawIdx), reinterpret_cast<void **>(&idx_dst), D3DLOCK_DISCARD)) ||
-		FAILED(_imgui_vertex_buffer->Lock(0, draw_data->TotalVtxCount * sizeof(ImDrawVert9), reinterpret_cast<void **>(&vtx_dst), D3DLOCK_DISCARD)))
-		return;
-
-	for (int n = 0; n < draw_data->CmdListsCount; n++)
+	if (ImDrawIdx *idx_dst;
+		SUCCEEDED(_imgui_index_buffer->Lock(0, draw_data->TotalIdxCount * sizeof(ImDrawIdx), reinterpret_cast<void **>(&idx_dst), D3DLOCK_DISCARD)))
 	{
-		const ImDrawList *const draw_list = draw_data->CmdLists[n];
-
-		for (const ImDrawVert &vtx : draw_list->VtxBuffer)
+		for (int n = 0; n < draw_data->CmdListsCount; ++n)
 		{
-			vtx_dst->x = vtx.pos.x;
-			vtx_dst->y = vtx.pos.y;
-			vtx_dst->z = 0.0f;
-
-			// RGBA --> ARGB for Direct3D 9
-			vtx_dst->col = (vtx.col & 0xFF00FF00) | ((vtx.col & 0xFF0000) >> 16) | ((vtx.col & 0xFF) << 16);
-
-			vtx_dst->u = vtx.uv.x;
-			vtx_dst->v = vtx.uv.y;
-
-			++vtx_dst; // Next vertex
+			const ImDrawList *const draw_list = draw_data->CmdLists[n];
+			std::memcpy(idx_dst, draw_list->IdxBuffer.Data, draw_list->IdxBuffer.size() * sizeof(ImDrawIdx));
+			idx_dst += draw_list->IdxBuffer.size();
 		}
 
-		std::memcpy(idx_dst, draw_list->IdxBuffer.Data, draw_list->IdxBuffer.size() * sizeof(ImDrawIdx));
-		idx_dst += draw_list->IdxBuffer.size();
+		_imgui_index_buffer->Unlock();
 	}
+	if (ImDrawVert9 *vtx_dst;
+		SUCCEEDED(_imgui_vertex_buffer->Lock(0, draw_data->TotalVtxCount * sizeof(ImDrawVert9), reinterpret_cast<void **>(&vtx_dst), D3DLOCK_DISCARD)))
+	{
+		for (int n = 0; n < draw_data->CmdListsCount; ++n)
+		{
+			const ImDrawList *const draw_list = draw_data->CmdLists[n];
 
-	_imgui_index_buffer->Unlock();
-	_imgui_vertex_buffer->Unlock();
+			for (const ImDrawVert &vtx : draw_list->VtxBuffer)
+			{
+				vtx_dst->x = vtx.pos.x;
+				vtx_dst->y = vtx.pos.y;
+				vtx_dst->z = 0.0f;
+
+				// RGBA --> ARGB for Direct3D 9
+				vtx_dst->col = (vtx.col & 0xFF00FF00) | ((vtx.col & 0xFF0000) >> 16) | ((vtx.col & 0xFF) << 16);
+
+				vtx_dst->u = vtx.uv.x;
+				vtx_dst->v = vtx.uv.y;
+
+				++vtx_dst; // Next vertex
+			}
+		}
+
+		_imgui_vertex_buffer->Unlock();
+	}
 
 	// Setup render state: fixed-pipeline, alpha-blending, no face culling, no depth testing
 	_imgui_state->Apply();

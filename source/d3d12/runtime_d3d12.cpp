@@ -1396,22 +1396,30 @@ void reshade::d3d12::runtime_d3d12::render_imgui_draw_data(ImDrawData *draw_data
 		_imgui_vertex_buffer_size[buffer_index] = new_size;
 	}
 
-	ImDrawIdx *idx_dst; ImDrawVert *vtx_dst;
-	if (FAILED(_imgui_index_buffer[buffer_index]->Map(0, nullptr, reinterpret_cast<void **>(&idx_dst))) ||
-		FAILED(_imgui_vertex_buffer[buffer_index]->Map(0, nullptr, reinterpret_cast<void **>(&vtx_dst))))
-		return;
-
-	for (int n = 0; n < draw_data->CmdListsCount; n++)
+	if (ImDrawIdx *idx_dst;
+		SUCCEEDED(_imgui_index_buffer[buffer_index]->Map(0, nullptr, reinterpret_cast<void **>(&idx_dst))))
 	{
-		const ImDrawList *draw_list = draw_data->CmdLists[n];
-		CopyMemory(idx_dst, draw_list->IdxBuffer.Data, draw_list->IdxBuffer.Size * sizeof(ImDrawIdx));
-		CopyMemory(vtx_dst, draw_list->VtxBuffer.Data, draw_list->VtxBuffer.Size * sizeof(ImDrawVert));
-		idx_dst += draw_list->IdxBuffer.Size;
-		vtx_dst += draw_list->VtxBuffer.Size;
-	}
+		for (int n = 0; n < draw_data->CmdListsCount; ++n)
+		{
+			const ImDrawList *const draw_list = draw_data->CmdLists[n];
+			std::memcpy(idx_dst, draw_list->IdxBuffer.Data, draw_list->IdxBuffer.Size * sizeof(ImDrawIdx));
+			idx_dst += draw_list->IdxBuffer.Size;
+		}
 
-	_imgui_index_buffer[buffer_index]->Unmap(0, nullptr);
-	_imgui_vertex_buffer[buffer_index]->Unmap(0, nullptr);
+		_imgui_index_buffer[buffer_index]->Unmap(0, nullptr);
+	}
+	if (ImDrawVert *vtx_dst;
+		SUCCEEDED(_imgui_vertex_buffer[buffer_index]->Map(0, nullptr, reinterpret_cast<void **>(&vtx_dst))))
+	{
+		for (int n = 0; n < draw_data->CmdListsCount; ++n)
+		{
+			const ImDrawList *const draw_list = draw_data->CmdLists[n];
+			std::memcpy(vtx_dst, draw_list->VtxBuffer.Data, draw_list->VtxBuffer.Size * sizeof(ImDrawVert));
+			vtx_dst += draw_list->VtxBuffer.Size;
+		}
+
+		_imgui_vertex_buffer[buffer_index]->Unmap(0, nullptr);
+	}
 
 	if (!begin_command_list(_imgui_pipeline))
 		return;

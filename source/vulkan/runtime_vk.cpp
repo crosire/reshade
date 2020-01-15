@@ -1819,22 +1819,30 @@ void reshade::vulkan::runtime_vk::render_imgui_draw_data(ImDrawData *draw_data)
 	}
 
 	// Map only the memory portion associated with the current frame
-	ImDrawIdx *idx_dst; ImDrawVert *vtx_dst;
-	// TODO: Index buffer is never unmapped in case of failure when mapping vertex buffer
-	check_result(vk.MapMemory(_device, _imgui_index_mem, _imgui_index_buffer_size * buffer_index, _imgui_index_buffer_size, 0, reinterpret_cast<void **>(&idx_dst)));
-	check_result(vk.MapMemory(_device, _imgui_vertex_mem, _imgui_vertex_buffer_size * buffer_index, _imgui_vertex_buffer_size, 0, reinterpret_cast<void **>(&vtx_dst)));
-
-	for (int n = 0; n < draw_data->CmdListsCount; n++)
+	if (ImDrawIdx *idx_dst;
+		vk.MapMemory(_device, _imgui_index_mem, _imgui_index_buffer_size * buffer_index, _imgui_index_buffer_size, 0, reinterpret_cast<void **>(&idx_dst)) == VK_SUCCESS)
 	{
-		const ImDrawList *draw_list = draw_data->CmdLists[n];
-		std::memcpy(idx_dst, draw_list->IdxBuffer.Data, draw_list->IdxBuffer.Size * sizeof(ImDrawIdx));
-		std::memcpy(vtx_dst, draw_list->VtxBuffer.Data, draw_list->VtxBuffer.Size * sizeof(ImDrawVert));
-		idx_dst += draw_list->IdxBuffer.Size;
-		vtx_dst += draw_list->VtxBuffer.Size;
-	}
+		for (int n = 0; n < draw_data->CmdListsCount; ++n)
+		{
+			const ImDrawList *const draw_list = draw_data->CmdLists[n];
+			std::memcpy(idx_dst, draw_list->IdxBuffer.Data, draw_list->IdxBuffer.Size * sizeof(ImDrawIdx));
+			idx_dst += draw_list->IdxBuffer.Size;
+		}
 
-	vk.UnmapMemory(_device, _imgui_index_mem);
-	vk.UnmapMemory(_device, _imgui_vertex_mem);
+		vk.UnmapMemory(_device, _imgui_index_mem);
+	}
+	if (ImDrawVert *vtx_dst;
+		vk.MapMemory(_device, _imgui_vertex_mem, _imgui_vertex_buffer_size * buffer_index, _imgui_vertex_buffer_size, 0, reinterpret_cast<void **>(&vtx_dst)) == VK_SUCCESS)
+	{
+		for (int n = 0; n < draw_data->CmdListsCount; ++n)
+		{
+			const ImDrawList *const draw_list = draw_data->CmdLists[n];
+			std::memcpy(vtx_dst, draw_list->VtxBuffer.Data, draw_list->VtxBuffer.Size * sizeof(ImDrawVert));
+			vtx_dst += draw_list->VtxBuffer.Size;
+		}
+
+		vk.UnmapMemory(_device, _imgui_vertex_mem);
+	}
 
 	if (!begin_command_buffer())
 		return;

@@ -1158,22 +1158,30 @@ void reshade::d3d10::runtime_d3d10::render_imgui_draw_data(ImDrawData *draw_data
 			return;
 	}
 
-	ImDrawIdx *idx_dst; ImDrawVert *vtx_dst;
-	if (FAILED(_imgui_index_buffer->Map(D3D10_MAP_WRITE_DISCARD, 0, reinterpret_cast<void **>(&idx_dst))) ||
-		FAILED(_imgui_vertex_buffer->Map(D3D10_MAP_WRITE_DISCARD, 0, reinterpret_cast<void **>(&vtx_dst))))
-		return;
-
-	for (int n = 0; n < draw_data->CmdListsCount; ++n)
+	if (ImDrawIdx *idx_dst;
+		SUCCEEDED(_imgui_index_buffer->Map(D3D10_MAP_WRITE_DISCARD, 0, reinterpret_cast<void **>(&idx_dst))))
 	{
-		const ImDrawList *const draw_list = draw_data->CmdLists[n];
-		std::memcpy(idx_dst, draw_list->IdxBuffer.Data, draw_list->IdxBuffer.Size * sizeof(ImDrawIdx));
-		std::memcpy(vtx_dst, draw_list->VtxBuffer.Data, draw_list->VtxBuffer.Size * sizeof(ImDrawVert));
-		idx_dst += draw_list->IdxBuffer.Size;
-		vtx_dst += draw_list->VtxBuffer.Size;
-	}
+		for (int n = 0; n < draw_data->CmdListsCount; ++n)
+		{
+			const ImDrawList *const draw_list = draw_data->CmdLists[n];
+			std::memcpy(idx_dst, draw_list->IdxBuffer.Data, draw_list->IdxBuffer.Size * sizeof(ImDrawIdx));
+			idx_dst += draw_list->IdxBuffer.Size;
+		}
 
-	_imgui_index_buffer->Unmap();
-	_imgui_vertex_buffer->Unmap();
+		_imgui_index_buffer->Unmap();
+	}
+	if (ImDrawVert *vtx_dst;
+		SUCCEEDED(_imgui_vertex_buffer->Map(D3D10_MAP_WRITE_DISCARD, 0, reinterpret_cast<void **>(&vtx_dst))))
+	{
+		for (int n = 0; n < draw_data->CmdListsCount; ++n)
+		{
+			const ImDrawList *const draw_list = draw_data->CmdLists[n];
+			std::memcpy(vtx_dst, draw_list->VtxBuffer.Data, draw_list->VtxBuffer.Size * sizeof(ImDrawVert));
+			vtx_dst += draw_list->VtxBuffer.Size;
+		}
+
+		_imgui_vertex_buffer->Unmap();
+	}
 
 	// Setup render state and render draw lists
 	_device->IASetInputLayout(_imgui_input_layout.get());

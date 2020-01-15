@@ -1164,24 +1164,32 @@ void reshade::d3d11::runtime_d3d11::render_imgui_draw_data(ImDrawData *draw_data
 			return;
 	}
 
-	D3D11_MAPPED_SUBRESOURCE idx_resource, vtx_resource;
-	if (FAILED(_immediate_context->Map(_imgui_index_buffer.get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &idx_resource)) ||
-		FAILED(_immediate_context->Map(_imgui_vertex_buffer.get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &vtx_resource)))
-		return;
-
-	auto idx_dst = static_cast<ImDrawIdx *>(idx_resource.pData);
-	auto vtx_dst = static_cast<ImDrawVert *>(vtx_resource.pData);
-	for (int n = 0; n < draw_data->CmdListsCount; ++n)
+	if (D3D11_MAPPED_SUBRESOURCE idx_resource;
+		SUCCEEDED(_immediate_context->Map(_imgui_index_buffer.get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &idx_resource)))
 	{
-		const ImDrawList *const draw_list = draw_data->CmdLists[n];
-		std::memcpy(idx_dst, draw_list->IdxBuffer.Data, draw_list->IdxBuffer.Size * sizeof(ImDrawIdx));
-		std::memcpy(vtx_dst, draw_list->VtxBuffer.Data, draw_list->VtxBuffer.Size * sizeof(ImDrawVert));
-		idx_dst += draw_list->IdxBuffer.Size;
-		vtx_dst += draw_list->VtxBuffer.Size;
-	}
+		auto idx_dst = static_cast<ImDrawIdx *>(idx_resource.pData);
+		for (int n = 0; n < draw_data->CmdListsCount; ++n)
+		{
+			const ImDrawList *const draw_list = draw_data->CmdLists[n];
+			std::memcpy(idx_dst, draw_list->IdxBuffer.Data, draw_list->IdxBuffer.Size * sizeof(ImDrawIdx));
+			idx_dst += draw_list->IdxBuffer.Size;
+		}
 
-	_immediate_context->Unmap(_imgui_index_buffer.get(), 0);
-	_immediate_context->Unmap(_imgui_vertex_buffer.get(), 0);
+		_immediate_context->Unmap(_imgui_index_buffer.get(), 0);
+	}
+	if (D3D11_MAPPED_SUBRESOURCE vtx_resource;
+		SUCCEEDED(_immediate_context->Map(_imgui_vertex_buffer.get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &vtx_resource)))
+	{
+		auto vtx_dst = static_cast<ImDrawVert *>(vtx_resource.pData);
+		for (int n = 0; n < draw_data->CmdListsCount; ++n)
+		{
+			const ImDrawList *const draw_list = draw_data->CmdLists[n];
+			std::memcpy(vtx_dst, draw_list->VtxBuffer.Data, draw_list->VtxBuffer.Size * sizeof(ImDrawVert));
+			vtx_dst += draw_list->VtxBuffer.Size;
+		}
+
+		_immediate_context->Unmap(_imgui_vertex_buffer.get(), 0);
+	}
 
 	// Setup render state and render draw lists
 	_immediate_context->IASetInputLayout(_imgui_input_layout.get());
