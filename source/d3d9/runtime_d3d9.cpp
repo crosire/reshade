@@ -135,25 +135,13 @@ bool reshade::d3d9::runtime_d3d9::on_init(const D3DPRESENT_PARAMETERS &pp)
 	if (FAILED(_device->CreateDepthStencilSurface(_width, _height, D3DFMT_D24S8, D3DMULTISAMPLE_NONE, 0, FALSE, &_effect_depthstencil, nullptr)))
 		return false;
 
-	// Create vertex buffer which holds vertex indices
-	// TODO: Need to increase this for when users sets the "VertexCount" pass state to something greater than 3
-	if (FAILED(_device->CreateVertexBuffer(3 * sizeof(float), D3DUSAGE_WRITEONLY, 0, D3DPOOL_DEFAULT, &_effect_triangle_buffer, nullptr)))
-		return false;
-	if (float *data; SUCCEEDED(_effect_triangle_buffer->Lock(0, 3 * sizeof(float), reinterpret_cast<void **>(&data), 0)))
-	{
-		for (unsigned int i = 0; i < 3; i++)
-			data[i] = static_cast<float>(i);
-		_effect_triangle_buffer->Unlock();
-	}
-	else
-		return false;
-
+	// Create vertex layout for vertex buffer which holds vertex indices
 	const D3DVERTEXELEMENT9 declaration[] = {
 		{ 0, 0, D3DDECLTYPE_FLOAT1, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_TEXCOORD, 0 },
 		D3DDECL_END()
 	};
 
-	if (FAILED(_device->CreateVertexDeclaration(declaration, &_effect_triangle_layout)))
+	if (FAILED(_device->CreateVertexDeclaration(declaration, &_effect_vertex_layout)))
 		return false;
 
 	// Create state block object
@@ -180,9 +168,10 @@ void reshade::d3d9::runtime_d3d9::on_reset()
 	_depthstencil.reset();
 	_depthstencil_texture.reset();
 
+	_max_vertices = 0;
 	_effect_depthstencil.reset();
-	_effect_triangle_buffer.reset();
-	_effect_triangle_layout.reset();
+	_effect_vertex_buffer.reset();
+	_effect_vertex_layout.reset();
 
 #if RESHADE_GUI
 	_imgui_state.reset();
@@ -393,6 +382,8 @@ bool reshade::d3d9::runtime_d3d9::init_effect(size_t index)
 		technique_init.sampler_textures[info.binding] = existing_texture->impl->as<d3d9_tex_data>()->texture.get();
 	}
 
+	UINT max_vertices = 3;
+
 	for (technique &technique : _techniques)
 	{
 		if (technique.impl != nullptr || technique.effect_index != index)
@@ -408,6 +399,8 @@ bool reshade::d3d9::runtime_d3d9::init_effect(size_t index)
 
 			auto &pass = *technique.passes_data.back()->as<d3d9_pass_data>();
 			const auto &pass_info = technique.passes[pass_index];
+
+			max_vertices = std::max(max_vertices, pass_info.num_vertices);
 
 			entry_points.at(pass_info.ps_entry_point)->QueryInterface(&pass.pixel_shader);
 			entry_points.at(pass_info.vs_entry_point)->QueryInterface(&pass.vertex_shader);
@@ -599,6 +592,25 @@ bool reshade::d3d9::runtime_d3d9::init_effect(size_t index)
 		}
 	}
 
+	// Update vertex buffer which holds vertex indices
+	if (max_vertices > _max_vertices)
+	{
+		_effect_vertex_buffer.reset();
+
+		if (FAILED(_device->CreateVertexBuffer(max_vertices * sizeof(float), D3DUSAGE_WRITEONLY, 0, D3DPOOL_DEFAULT, &_effect_vertex_buffer, nullptr)))
+			return false;
+
+		if (float *data;
+			SUCCEEDED(_effect_vertex_buffer->Lock(0, max_vertices * sizeof(float), reinterpret_cast<void **>(&data), 0)))
+		{
+			for (unsigned int i = 0; i < max_vertices; i++)
+				data[i] = static_cast<float>(i);
+			_effect_vertex_buffer->Unlock();
+		}
+
+		_max_vertices = max_vertices;
+	}
+
 	return true;
 }
 
@@ -767,8 +779,8 @@ void reshade::d3d9::runtime_d3d9::render_technique(technique &technique)
 	bool is_default_depthstencil_cleared = false;
 
 	// Setup vertex input
-	_device->SetStreamSource(0, _effect_triangle_buffer.get(), 0, sizeof(float));
-	_device->SetVertexDeclaration(_effect_triangle_layout.get());
+	_device->SetStreamSource(0, _effect_vertex_buffer.get(), 0, sizeof(float));
+	_device->SetVertexDeclaration(_effect_vertex_layout.get());
 
 	// Setup shader constants
 	if (technique_data.constant_register_count > 0)
