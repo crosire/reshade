@@ -15,7 +15,9 @@
 struct device_data
 {
 	VkPhysicalDevice physical_device;
+	VkLayerDispatchTable dispatch_table;
 	reshade::vulkan::buffer_detection_context buffer_detection;
+	uint32_t graphics_queue_family_index = std::numeric_limits<uint32_t>::max();
 };
 
 struct render_pass_data
@@ -33,8 +35,7 @@ struct command_buffer_data
 	reshade::vulkan::buffer_detection buffer_detection;
 };
 
-static lockfree_table<void *, device_data, 16> s_device_data;
-static lockfree_table<void *, VkLayerDispatchTable, 16> s_device_dispatch;
+static lockfree_table<void *, device_data, 16> s_device_dispatch;
 static lockfree_table<void *, VkLayerInstanceDispatchTable, 16> s_instance_dispatch;
 static lockfree_table<VkSurfaceKHR, HWND, 16> s_surface_windows;
 static lockfree_table<VkSwapchainKHR, std::shared_ptr<reshade::vulkan::runtime_vk>, 16> s_runtimes;
@@ -44,6 +45,23 @@ static lockfree_table<VkFramebuffer, std::vector<VkImage>, 256> s_framebuffer_da
 static lockfree_table<VkCommandBuffer, command_buffer_data, 4096> s_command_buffer_data;
 static lockfree_table<VkRenderPass, std::vector<render_pass_data>, 4096> s_renderpass_data;
 
+template <typename T>
+static T *find_layer_info(const void *structure_chain, VkStructureType type, VkLayerFunction function)
+{
+	T *next = reinterpret_cast<T *>(const_cast<void *>(structure_chain));
+	while (next != nullptr && !(next->sType == type && next->function == function))
+		next = reinterpret_cast<T *>(const_cast<void *>(next->pNext));
+	return next;
+}
+template <typename T>
+static const T *find_in_structure_chain(const void *structure_chain, VkStructureType type)
+{
+	const T *next = reinterpret_cast<const T *>(structure_chain);
+	while (next != nullptr && next->sType != type)
+		next = reinterpret_cast<const T *>(next->pNext);
+	return next;
+}
+
 static inline void *dispatch_key_from_handle(const void *dispatch_handle)
 {
 	// The Vulkan loader writes the dispatch table pointer right to the start of the object, so use that as a key for lookup
@@ -52,7 +70,7 @@ static inline void *dispatch_key_from_handle(const void *dispatch_handle)
 }
 
 #define GET_DEVICE_DISPATCH_PTR(name, object) \
-	PFN_vk##name trampoline = s_device_dispatch.at(dispatch_key_from_handle(object)).name; \
+	PFN_vk##name trampoline = s_device_dispatch.at(dispatch_key_from_handle(object)).dispatch_table.name; \
 	assert(trampoline != nullptr);
 #define GET_INSTANCE_DISPATCH_PTR(name, object) \
 	PFN_vk##name trampoline = s_instance_dispatch.at(dispatch_key_from_handle(object)).name; \
@@ -65,15 +83,15 @@ VkResult VKAPI_CALL vkCreateInstance(const VkInstanceCreateInfo *pCreateInfo, co
 	assert(pCreateInfo != nullptr && pInstance != nullptr);
 
 	// Look for layer link info if installed as a layer (provided by the Vulkan loader)
-	VkLayerInstanceCreateInfo *link_info = (VkLayerInstanceCreateInfo *)pCreateInfo->pNext;
-	while (link_info != nullptr && !(link_info->sType == VK_STRUCTURE_TYPE_LOADER_INSTANCE_CREATE_INFO && link_info->function == VK_LAYER_LINK_INFO))
-		link_info = (VkLayerInstanceCreateInfo *)link_info->pNext;
+	VkLayerInstanceCreateInfo *const link_info = find_layer_info<VkLayerInstanceCreateInfo>(
+		pCreateInfo->pNext, VK_STRUCTURE_TYPE_LOADER_INSTANCE_CREATE_INFO, VK_LAYER_LINK_INFO);
 
 	// Get trampoline function pointers
-	PFN_vkGetInstanceProcAddr gipa = nullptr;
+	auto gipa = static_cast<PFN_vkGetInstanceProcAddr>(nullptr);
 	PFN_vkCreateInstance trampoline = nullptr;
 
-	if (link_info != nullptr) {
+	if (link_info != nullptr)
+	{
 		assert(link_info->u.pLayerInfo != nullptr);
 		assert(link_info->u.pLayerInfo->pfnNextGetInstanceProcAddr != nullptr);
 
@@ -184,16 +202,16 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	assert(pCreateInfo != nullptr && pDevice != nullptr);
 
 	// Look for layer link info if installed as a layer (provided by the Vulkan loader)
-	VkLayerDeviceCreateInfo *link_info = (VkLayerDeviceCreateInfo *)pCreateInfo->pNext;
-	while (link_info != nullptr && !(link_info->sType == VK_STRUCTURE_TYPE_LOADER_DEVICE_CREATE_INFO && link_info->function == VK_LAYER_LINK_INFO))
-		link_info = (VkLayerDeviceCreateInfo *)link_info->pNext;
+	VkLayerDeviceCreateInfo *const link_info = find_layer_info<VkLayerDeviceCreateInfo>(
+		pCreateInfo->pNext, VK_STRUCTURE_TYPE_LOADER_DEVICE_CREATE_INFO, VK_LAYER_LINK_INFO);
 
 	// Get trampoline function pointers
-	PFN_vkGetDeviceProcAddr gdpa = nullptr;
-	PFN_vkGetInstanceProcAddr gipa = nullptr;
+	auto gdpa = static_cast<PFN_vkGetDeviceProcAddr>(nullptr);
+	auto gipa = static_cast<PFN_vkGetInstanceProcAddr>(nullptr);
 	PFN_vkCreateDevice trampoline = nullptr;
 
-	if (link_info != nullptr) {
+	if (link_info != nullptr)
+	{
 		assert(link_info->u.pLayerInfo != nullptr);
 		assert(link_info->u.pLayerInfo->pfnNextGetDeviceProcAddr != nullptr);
 		assert(link_info->u.pLayerInfo->pfnNextGetInstanceProcAddr != nullptr);
@@ -218,7 +236,24 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	if (trampoline == nullptr) // Unable to resolve next 'vkCreateDevice' function in the call chain
 		return VK_ERROR_INITIALIZATION_FAILED;
 
-	// TODO: Search pNext chain for VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2
+	auto enum_queue_families = s_instance_dispatch.at(dispatch_key_from_handle(physicalDevice)).GetPhysicalDeviceQueueFamilyProperties;
+	assert(enum_queue_families != nullptr);
+
+	uint32_t num_queue_families = 0;
+	enum_queue_families(physicalDevice, &num_queue_families, nullptr);
+	std::vector<VkQueueFamilyProperties> queue_families(num_queue_families);
+	enum_queue_families(physicalDevice, &num_queue_families, queue_families.data());
+
+	uint32_t graphics_queue_family_index = std::numeric_limits<uint32_t>::max();
+	for (uint32_t i = 0, queue_family_index; i < pCreateInfo->queueCreateInfoCount; ++i)
+	{
+		queue_family_index = pCreateInfo->pQueueCreateInfos[i].queueFamilyIndex;
+		assert(queue_family_index < num_queue_families);
+
+		if (pCreateInfo->pQueueCreateInfos[i].queueCount > 0 && (queue_families[queue_family_index].queueFlags & VK_QUEUE_GRAPHICS_BIT) != 0)
+			graphics_queue_family_index = queue_family_index;
+	}
+
 	VkPhysicalDeviceFeatures enabled_features = {};
 	if (pCreateInfo->pEnabledFeatures != nullptr)
 		enabled_features = *pCreateInfo->pEnabledFeatures;
@@ -228,15 +263,29 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	for (uint32_t i = 0; i < pCreateInfo->enabledExtensionCount; ++i)
 		enabled_extensions.push_back(pCreateInfo->ppEnabledExtensionNames[i]);
 
-	// Enable features that ReShade requires
-	enabled_features.shaderImageGatherExtended = true;
+	// Only have to enable additional features if there is a graphics queue, since ReShade will not run otherwise
+	if (graphics_queue_family_index != std::numeric_limits<uint32_t>::max())
+	{
+		if (const VkPhysicalDeviceFeatures2 *features2 = find_in_structure_chain<VkPhysicalDeviceFeatures2>(
+			pCreateInfo->pNext, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2); features2 != nullptr)
+		{
+			// TODO: Solve overriding this
+			LOG(WARN) << "Not overriding features set via 'VkPhysicalDeviceFeatures2' in structure chain.";
+			enabled_features = features2->features;
+		}
 
-	// Enable extensions that ReShade requires
-	enabled_extensions.push_back(VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME);
-	enabled_extensions.push_back(VK_KHR_IMAGE_FORMAT_LIST_EXTENSION_NAME);
-	enabled_extensions.push_back(VK_KHR_SWAPCHAIN_MUTABLE_FORMAT_EXTENSION_NAME);
+		// Enable features that ReShade requires
+		enabled_features.shaderImageGatherExtended = true;
 
-	// TODO: Make sure a graphics queue exists
+		// Enable extensions that ReShade requires
+		enabled_extensions.push_back(VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME);
+		enabled_extensions.push_back(VK_KHR_IMAGE_FORMAT_LIST_EXTENSION_NAME);
+		enabled_extensions.push_back(VK_KHR_SWAPCHAIN_MUTABLE_FORMAT_EXTENSION_NAME);
+	}
+	else
+	{
+		LOG(WARN) << "Skipping device because it is not created with a graphics queue.";
+	}
 
 	VkDeviceCreateInfo create_info = *pCreateInfo;
 	create_info.enabledExtensionCount = uint32_t(enabled_extensions.size());
@@ -252,8 +301,13 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	}
 
 	VkDevice device = *pDevice;
+	// Initialize per-device data (safe to access here since nothing else can use it yet)
+	auto &device_data = s_device_dispatch.emplace(dispatch_key_from_handle(device));
+	device_data.physical_device = physicalDevice;
+	device_data.graphics_queue_family_index = graphics_queue_family_index;
+
 	// Initialize the device dispatch table
-	VkLayerDispatchTable &dispatch_table = s_device_dispatch.emplace(dispatch_key_from_handle(device));
+	VkLayerDispatchTable &dispatch_table = device_data.dispatch_table;
 	// ---- Core 1_0 commands
 	dispatch_table.GetDeviceProcAddr = gdpa;
 	dispatch_table.DestroyDevice = (PFN_vkDestroyDevice)gdpa(device, "vkDestroyDevice");
@@ -347,10 +401,6 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	// ---- VK_EXT_debug_marker extension commands
 	dispatch_table.DebugMarkerSetObjectNameEXT = (PFN_vkDebugMarkerSetObjectNameEXT)gdpa(device, "vkDebugMarkerSetObjectNameEXT");
 
-	// Initialize per-device data (safe to access here since nothing else can use it yet)
-	auto &device_data = s_device_data.emplace(dispatch_key_from_handle(device));
-	device_data.physical_device = physicalDevice;
-
 #if RESHADE_VERBOSE_LOG
 	LOG(INFO) << "> Returning Vulkan device " << device << '.';
 #endif
@@ -360,7 +410,6 @@ void     VKAPI_CALL vkDestroyDevice(VkDevice device, const VkAllocationCallbacks
 {
 	LOG(INFO) << "Redirecting vkDestroyDevice" << '(' << "device = " << device << ", pAllocator = " << pAllocator << ')' << " ...";
 
-	s_device_data.erase(dispatch_key_from_handle(device));
 	s_command_buffer_data.clear(); // Reset all command buffer data
 
 	// Get function pointer before removing it next
@@ -377,25 +426,42 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 
 	assert(pCreateInfo != nullptr && pSwapchain != nullptr);
 
-	// Add required usage flags to create info
-	VkSwapchainCreateInfoKHR create_info = *pCreateInfo;
-	create_info.imageUsage |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+	auto &device_data = s_device_dispatch.at(dispatch_key_from_handle(device));
 
 	// Add required formats so views with different formats can be created for the swapchain images
-	const VkFormat format_list[2] = {
-		make_format_srgb(create_info.imageFormat),
-		make_format_normal(create_info.imageFormat),
+	const VkFormat format_list[] = {
+		make_format_srgb(pCreateInfo->imageFormat),
+		make_format_normal(pCreateInfo->imageFormat),
 	};
+
+	VkSwapchainCreateInfoKHR create_info = *pCreateInfo;
 
 	VkImageFormatListCreateInfoKHR format_list_info { VK_STRUCTURE_TYPE_IMAGE_FORMAT_LIST_CREATE_INFO_KHR };
 	format_list_info.pNext = create_info.pNext;
 	format_list_info.viewFormatCount = 2;
 	format_list_info.pViewFormats = format_list;
-	create_info.pNext = &format_list_info;
 
-	// Only have to make format mutable if they are actually different
-	if (format_list[0] != format_list[1])
-		create_info.flags |= VK_SWAPCHAIN_CREATE_MUTABLE_FORMAT_BIT_KHR;
+	// Only have to enable additional features if there is a graphics queue, since ReShade will not run otherwise
+	if (device_data.graphics_queue_family_index != std::numeric_limits<uint32_t>::max())
+	{
+		if (const VkImageFormatListCreateInfoKHR *format_list_info2 = find_in_structure_chain<VkImageFormatListCreateInfoKHR>(
+			pCreateInfo->pNext, VK_STRUCTURE_TYPE_IMAGE_FORMAT_LIST_CREATE_INFO_KHR); format_list_info2 != nullptr)
+		{
+			// TODO: Solve overriding this
+			LOG(WARN) << "Not overriding format list set via 'VkImageFormatListCreateInfoKHR' in structure chain.";
+		}
+		else
+		{
+			create_info.pNext = &format_list_info;
+		}
+
+		// Add required usage flags to create info
+		create_info.imageUsage |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+
+		// Only have to make format mutable if they are actually different
+		if (format_list[0] != format_list[1])
+			create_info.flags |= VK_SWAPCHAIN_CREATE_MUTABLE_FORMAT_BIT_KHR;
+	}
 
 	LOG(INFO) << "> Dumping swap chain description:";
 	LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
@@ -418,39 +484,43 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 	LOG(INFO) << "  | oldSwapchain                            | " << std::setw(39) << create_info.oldSwapchain << " |";
 	LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
 
-	GET_DEVICE_DISPATCH_PTR(CreateSwapchainKHR, device);
-	const VkResult result = trampoline(device, &create_info, pAllocator, pSwapchain);
+	const VkResult result = device_data.dispatch_table.CreateSwapchainKHR(device, &create_info, pAllocator, pSwapchain);
 	if (result != VK_SUCCESS)
 	{
 		LOG(WARN) << "vkCreateSwapchainKHR failed with error code " << result << '!';
 		return result;
 	}
 
-	auto &device_data = s_device_data.at(dispatch_key_from_handle(device));
-
-	std::shared_ptr<reshade::vulkan::runtime_vk> runtime;
-	// Remove old swapchain from the list so that a call to 'vkDestroySwapchainKHR' won't reset the runtime again
-	if (s_runtimes.erase(pCreateInfo->oldSwapchain, runtime))
+	if (device_data.graphics_queue_family_index != std::numeric_limits<uint32_t>::max())
 	{
-		assert(pCreateInfo->oldSwapchain != VK_NULL_HANDLE);
+		std::shared_ptr<reshade::vulkan::runtime_vk> runtime;
+		// Remove old swapchain from the list so that a call to 'vkDestroySwapchainKHR' won't reset the runtime again
+		if (s_runtimes.erase(pCreateInfo->oldSwapchain, runtime))
+		{
+			assert(pCreateInfo->oldSwapchain != VK_NULL_HANDLE);
 
-		// Re-use the existing runtime if this swapchain was not created from scratch
-		runtime->on_reset(); // But reset it before initializing again below
+			// Re-use the existing runtime if this swapchain was not created from scratch
+			runtime->on_reset(); // But reset it before initializing again below
+		}
+		else
+		{
+			runtime = std::make_shared<reshade::vulkan::runtime_vk>(
+				device, device_data.physical_device, device_data.graphics_queue_family_index,
+				s_instance_dispatch.at(dispatch_key_from_handle(device_data.physical_device)), device_data.dispatch_table);
+		}
+
+		// Look up window handle from surface
+		const HWND hwnd = s_surface_windows.at(pCreateInfo->surface);
+
+		if (!runtime->on_init(*pSwapchain, *pCreateInfo, hwnd))
+			LOG(ERROR) << "Failed to initialize Vulkan runtime environment on runtime " << runtime.get() << '.';
+
+		s_runtimes.emplace(*pSwapchain, runtime);
 	}
 	else
 	{
-		runtime = std::make_shared<reshade::vulkan::runtime_vk>(
-			device, device_data.physical_device,
-			s_instance_dispatch.at(dispatch_key_from_handle(device_data.physical_device)), s_device_dispatch.at(dispatch_key_from_handle(device)));
+		s_runtimes.emplace(*pSwapchain, nullptr);
 	}
-
-	// Look up window handle from surface
-	const HWND hwnd = s_surface_windows.at(pCreateInfo->surface);
-
-	if (!runtime->on_init(*pSwapchain, *pCreateInfo, hwnd))
-		LOG(ERROR) << "Failed to initialize Vulkan runtime environment on runtime " << runtime.get() << '.';
-
-	s_runtimes.emplace(*pSwapchain, runtime);
 
 #if RESHADE_VERBOSE_LOG
 	LOG(INFO) << "> Returning Vulkan swapchain " << *pSwapchain << '.';
@@ -463,7 +533,7 @@ void     VKAPI_CALL vkDestroySwapchainKHR(VkDevice device, VkSwapchainKHR swapch
 
 	// Remove runtime from global list
 	if (std::shared_ptr<reshade::vulkan::runtime_vk> runtime;
-		s_runtimes.erase(swapchain, runtime))
+		s_runtimes.erase(swapchain, runtime) && runtime != nullptr)
 	{
 		runtime->on_reset();
 	}
@@ -476,7 +546,7 @@ VkResult VKAPI_CALL vkQueueSubmit(VkQueue queue, uint32_t submitCount, const VkS
 {
 	assert(pSubmits != nullptr);
 
-	auto &device_data = s_device_data.at(dispatch_key_from_handle(queue));
+	auto &device_data = s_device_dispatch.at(dispatch_key_from_handle(queue));
 
 	for (uint32_t i = 0; i < submitCount; ++i)
 	{
@@ -493,14 +563,13 @@ VkResult VKAPI_CALL vkQueueSubmit(VkQueue queue, uint32_t submitCount, const VkS
 	}
 
 	// The loader uses the same dispatch table pointer for queues and devices, so can use queue to perform lookup here
-	GET_DEVICE_DISPATCH_PTR(QueueSubmit, queue);
-	return trampoline(queue, submitCount, pSubmits, fence);
+	return device_data.dispatch_table.QueueSubmit(queue, submitCount, pSubmits, fence);
 }
 VkResult VKAPI_CALL vkQueuePresentKHR(VkQueue queue, const VkPresentInfoKHR *pPresentInfo)
 {
 	assert(pPresentInfo != nullptr);
 
-	auto &device_data = s_device_data.at(dispatch_key_from_handle(queue));
+	auto &device_data = s_device_dispatch.at(dispatch_key_from_handle(queue));
 
 	for (uint32_t i = 0; i < pPresentInfo->swapchainCount; ++i)
 	{
@@ -514,8 +583,7 @@ VkResult VKAPI_CALL vkQueuePresentKHR(VkQueue queue, const VkPresentInfoKHR *pPr
 	device_data.buffer_detection.reset();
 
 	// TODO: It may be necessary to add a wait semaphore to the present info
-	GET_DEVICE_DISPATCH_PTR(QueuePresentKHR, queue);
-	return trampoline(queue, pPresentInfo);
+	return device_data.dispatch_table.QueuePresentKHR(queue, pPresentInfo);
 }
 
 

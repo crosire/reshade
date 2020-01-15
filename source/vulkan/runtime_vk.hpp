@@ -22,7 +22,7 @@ namespace reshade::vulkan
 		static const uint32_t NUM_COMMAND_FRAMES = 5;
 
 	public:
-		runtime_vk(VkDevice device, VkPhysicalDevice physical_device, const VkLayerInstanceDispatchTable &instance_table, const VkLayerDispatchTable &device_table);
+		runtime_vk(VkDevice device, VkPhysicalDevice physical_device, uint32_t queue_family_index, const VkLayerInstanceDispatchTable &instance_table, const VkLayerDispatchTable &device_table);
 
 		bool on_init(VkSwapchainKHR swapchain, const VkSwapchainCreateInfoKHR &desc, HWND hwnd);
 		void on_reset();
@@ -53,7 +53,6 @@ namespace reshade::vulkan
 		VkBufferView create_buffer_view(VkBuffer buffer, VkFormat format);
 
 		const VkDevice _device;
-		const VkPhysicalDevice _physical_device;
 		VkSwapchainKHR _swapchain;
 		VkQueue _main_queue = VK_NULL_HANDLE;
 		uint32_t _queue_family_index = 0; // Default to first queue family index

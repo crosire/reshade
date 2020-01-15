@@ -140,29 +140,13 @@ namespace reshade::vulkan
 	}
 }
 
-reshade::vulkan::runtime_vk::runtime_vk(VkDevice device, VkPhysicalDevice physical_device, const VkLayerInstanceDispatchTable &instance_table, const VkLayerDispatchTable &device_table) :
-	_device(device), _physical_device(physical_device), vk(device_table)
+reshade::vulkan::runtime_vk::runtime_vk(VkDevice device, VkPhysicalDevice physical_device, uint32_t queue_family_index, const VkLayerInstanceDispatchTable &instance_table, const VkLayerDispatchTable &device_table) :
+	_device(device), _queue_family_index(queue_family_index), vk(device_table)
 {
 	_renderer_id = 0x20000;
 
 	instance_table.GetPhysicalDeviceMemoryProperties(physical_device, &_memory_props);
 
-	uint32_t num_queue_families = 0;
-	instance_table.GetPhysicalDeviceQueueFamilyProperties(_physical_device, &num_queue_families, nullptr);
-	std::vector<VkQueueFamilyProperties> queue_families(num_queue_families);
-	instance_table.GetPhysicalDeviceQueueFamilyProperties(_physical_device, &num_queue_families, queue_families.data());
-
-	// Find a queue with graphics support
-	for (uint32_t i = 0; i < num_queue_families; ++i)
-	{
-		if (queue_families[i].queueCount > 0 && (queue_families[i].queueFlags & VK_QUEUE_GRAPHICS_BIT))
-		{
-			_queue_family_index = i;
-			break;
-		}
-	}
-
-	// TODO: Need to ensure the device was actually created with support for this queue
 	vk.GetDeviceQueue(device, _queue_family_index, 0, &_main_queue);
 
 #if RESHADE_GUI && RESHADE_VULKAN_CAPTURE_DEPTH_BUFFERS
