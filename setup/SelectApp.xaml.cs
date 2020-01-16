@@ -20,6 +20,7 @@ using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
+using System.Xml;
 
 namespace ReShade.Setup
 {
@@ -61,13 +62,17 @@ namespace ReShade.Setup
 					string originConfigPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Origin", "local.xml");
 					if (File.Exists(originConfigPath))
 					{
-						string originConfig = File.ReadAllText(originConfigPath);
-						foreach (Match match in new Regex("value=\"(.+?)\".*key=\"DownloadInPlaceDir\"").Matches(originConfig))
+						var originConfig = new XmlDocument();
+						originConfig.Load(originConfigPath);
+
+						foreach (string searchPath in originConfig["Settings"].ChildNodes.Cast<XmlNode>()
+							.Where(x => x.Attributes["key"].Value == "DownloadInPlaceDir")
+							.Select(x => x.Attributes["value"].Value))
 						{
 							// Avoid adding short paths to the search paths so not to scan the entire drive
-							if (match.Groups[1].Value.Length > 25)
+							if (searchPath.Length > 25)
 							{
-								searchPaths.Enqueue(match.Groups[1].Value);
+								searchPaths.Enqueue(searchPath);
 							}
 						}
 					}
