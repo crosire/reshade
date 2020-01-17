@@ -95,6 +95,7 @@ namespace ReShade.Setup
 							x.IndexOf("redis", StringComparison.OrdinalIgnoreCase) < 0 &&
 							x.IndexOf("unins", StringComparison.OrdinalIgnoreCase) < 0 &&
 							x.IndexOf("setup", StringComparison.OrdinalIgnoreCase) < 0 &&
+							x.IndexOf("patch", StringComparison.OrdinalIgnoreCase) < 0 &&
 							x.IndexOf("update", StringComparison.OrdinalIgnoreCase) < 0 &&
 							x.IndexOf("install", StringComparison.OrdinalIgnoreCase) < 0 &&
 							// Exclude common support executables
@@ -111,7 +112,8 @@ namespace ReShade.Setup
 							x.IndexOf("benchmark", StringComparison.OrdinalIgnoreCase) < 0 &&
 							// Exclude various known executables like SteamVR and CEF
 							x.IndexOf("steamvr", StringComparison.OrdinalIgnoreCase) < 0 &&
-							x.IndexOf("cefprocess", StringComparison.OrdinalIgnoreCase) < 0).ToArray();
+							x.IndexOf("cefprocess", StringComparison.OrdinalIgnoreCase) < 0 &&
+							!x.Contains("svc")).ToArray(); // Services
 
 						if (files.Length != 0)
 						{
