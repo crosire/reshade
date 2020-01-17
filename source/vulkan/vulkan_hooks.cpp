@@ -117,7 +117,7 @@ VkResult VKAPI_CALL vkCreateInstance(const VkInstanceCreateInfo *pCreateInfo, co
 	if (pCreateInfo->pApplicationInfo != nullptr)
 		app_info = *pCreateInfo->pApplicationInfo;
 
-	LOG(INFO) << "Requesting Vulkan instance for API version " << VK_VERSION_MAJOR(app_info.apiVersion) << '.' << VK_VERSION_MINOR(app_info.apiVersion) << " ...";
+	LOG(INFO) << "> Requesting new Vulkan instance for API version " << VK_VERSION_MAJOR(app_info.apiVersion) << '.' << VK_VERSION_MINOR(app_info.apiVersion) << " ...";
 
 	// ReShade requires at least Vulkan 1.1 (for SPIR-V 1.3 compatibility)
 	if (app_info.apiVersion < VK_API_VERSION_1_1)
@@ -153,7 +153,7 @@ VkResult VKAPI_CALL vkCreateInstance(const VkInstanceCreateInfo *pCreateInfo, co
 	dispatch_table.CreateWin32SurfaceKHR = (PFN_vkCreateWin32SurfaceKHR)gipa(instance, "vkCreateWin32SurfaceKHR");
 
 #if RESHADE_VERBOSE_LOG
-	LOG(INFO) << "> Returning Vulkan instance " << instance << '.';
+	LOG(INFO) << "Returning Vulkan instance " << instance << '.';
 #endif
 	return VK_SUCCESS;
 }
@@ -402,7 +402,7 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	dispatch_table.DebugMarkerSetObjectNameEXT = (PFN_vkDebugMarkerSetObjectNameEXT)gdpa(device, "vkDebugMarkerSetObjectNameEXT");
 
 #if RESHADE_VERBOSE_LOG
-	LOG(INFO) << "> Returning Vulkan device " << device << '.';
+	LOG(INFO) << "Returning Vulkan device " << device << '.';
 #endif
 	return VK_SUCCESS;
 }
@@ -523,7 +523,7 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 	}
 
 #if RESHADE_VERBOSE_LOG
-	LOG(INFO) << "> Returning Vulkan swapchain " << *pSwapchain << '.';
+	LOG(INFO) << "Returning Vulkan swapchain " << *pSwapchain << '.';
 #endif
 	return VK_SUCCESS;
 }

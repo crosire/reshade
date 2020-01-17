@@ -305,7 +305,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateDeferredContext(UINT ContextFlags, 
 	const auto device_context_proxy = new D3D11DeviceContext(this, *ppDeferredContext);
 	device_context_proxy->_buffer_detection.init(*ppDeferredContext, &_immediate_context->_buffer_detection);
 
-	 *ppDeferredContext = device_context_proxy;
+	*ppDeferredContext = device_context_proxy;
 
 #if RESHADE_VERBOSE_LOG
 	LOG(INFO) << "> Returning ID3D11DeviceContext object " << *ppDeferredContext << '.';
