@@ -423,14 +423,28 @@ namespace ReShade.Setup
 				}
 				catch (Exception ex)
 				{
-					UpdateStatusAndFinish(false, "Unable to write \"" + modulePath + "\".", ex.Message);
+					UpdateStatusAndFinish(false, "Unable to write " + Path.GetFileName(modulePath) + ".", ex.Message);
+					return;
+				}
+			}
+
+			// Copy potential pre-made configuration file to target
+			if (File.Exists("ReShade.ini") && !File.Exists(configPath))
+			{
+				try
+				{
+					File.Copy("ReShade.ini", configPath);
+				}
+				catch (Exception ex)
+				{
+					UpdateStatusAndFinish(false, "Unable to write " + Path.GetFileName(configPath) + ".", ex.Message);
 					return;
 				}
 			}
 
 			if (!isHeadless)
 			{
-				string targetPathShaders = Path.Combine(Path.GetDirectoryName(this.targetPath), "reshade-shaders", "Shaders");
+				string targetPathShaders = Path.Combine(Path.GetDirectoryName(targetPath), "reshade-shaders", "Shaders");
 
 				string[] installedEffects = null;
 				if (Directory.Exists(targetPathShaders))
@@ -790,7 +804,7 @@ namespace ReShade.Setup
 			}
 			catch (Exception ex)
 			{
-				UpdateStatusAndFinish(false, "Unable to delete some files.", ex.Message);
+				UpdateStatusAndFinish(false, "Unable to delete ReShade files.", ex.Message);
 			}
 		}
 
