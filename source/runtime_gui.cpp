@@ -2719,23 +2719,27 @@ void reshade::runtime::draw_technique_editor()
 
 void reshade::runtime::open_file_in_code_editor(size_t effect_index, const std::filesystem::path &path)
 {
-	_editor_file = path;
 	_selected_effect = effect_index;
 
 	if (effect_index >= _effects.size())
 	{
 		_editor.clear_text();
 		_editor.set_readonly(true);
+		_editor_file.clear();
 		return;
 	}
-	else
+	// Only reload text if another file is opened (to keep undo history intact)
+	else if (_editor_file != path)
 	{
 		// Load file to string and update editor text
 		_editor.set_text(std::string(std::istreambuf_iterator<char>(std::ifstream(path).rdbuf()), std::istreambuf_iterator<char>()));
 		_editor.set_readonly(false);
 
+		_editor_file = path;
 		_show_code_editor = true;
 	}
+
+	_editor.clear_errors();
 
 	const std::string &errors = _effects[effect_index].errors;
 
