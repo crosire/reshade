@@ -2023,6 +2023,7 @@ void reshade::runtime::draw_variable_editor()
 		bool modified = false;
 		float popup_height = (std::max(_global_preprocessor_definitions.size(), _preset_preprocessor_definitions.size()) + 2) * ImGui::GetFrameHeightWithSpacing();
 		popup_height = std::min(popup_height, _window_height - popup_pos.y - 20.0f);
+		popup_height = std::max(popup_height, 42.0f); // Ensure window always has a minimum height
 		const float button_size = ImGui::GetFrameHeight();
 		const float button_spacing = _imgui_context->Style.ItemInnerSpacing.x;
 
