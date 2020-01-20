@@ -880,9 +880,17 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 
 				if (symbol.op == symbol_type::function || param_type.has(type::q_out))
 				{
-					// All user-defined functions actually accept pointers as arguments, same applies to intrinsics with 'out' parameters
-					const auto temp_variable = _codegen->define_variable(arguments[i].location, param_type);
-					parameters[i].reset_to_lvalue(arguments[i].location, temp_variable, param_type);
+					if (param_type.is_sampler())
+					{
+						// Do not shadow sampler parameters to function calls (but do load them for intrinsics)
+						parameters[i] = arguments[i];
+					}
+					else
+					{
+						// All user-defined functions actually accept pointers as arguments, same applies to intrinsics with 'out' parameters
+						const auto temp_variable = _codegen->define_variable(arguments[i].location, param_type);
+						parameters[i].reset_to_lvalue(arguments[i].location, temp_variable, param_type);
+					}
 				}
 				else
 				{
@@ -892,7 +900,8 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 
 			// Copy in parameters from the argument access chains to parameter variables
 			for (size_t i = 0; i < arguments.size(); ++i)
-				if (parameters[i].is_lvalue && parameters[i].type.has(type::q_in)) // Only do this for pointer parameters as discovered above
+				// Only do this for pointer parameters as discovered above
+				if (parameters[i].is_lvalue && parameters[i].type.has(type::q_in) && !parameters[i].type.is_sampler())
 					_codegen->emit_store(parameters[i], _codegen->emit_load(arguments[i]));
 
 			// Check if the call resolving found an intrinsic or function and invoke the corresponding code
@@ -904,7 +913,8 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 
 			// Copy out parameters from parameter variables back to the argument access chains
 			for (size_t i = 0; i < arguments.size(); ++i)
-				if (parameters[i].is_lvalue && parameters[i].type.has(type::q_out)) // Only do this for pointer parameters as discovered above
+				// Only do this for pointer parameters as discovered above
+				if (parameters[i].is_lvalue && parameters[i].type.has(type::q_out) && !parameters[i].type.is_sampler())
 					_codegen->emit_store(arguments[i], _codegen->emit_load(parameters[i]));
 		}
 		else if (symbol.op == symbol_type::invalid)

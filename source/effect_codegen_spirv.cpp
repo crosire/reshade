@@ -317,6 +317,10 @@ private:
 
 	spv::Id convert_type(const type &info, bool is_ptr = false, spv::StorageClass storage = spv::StorageClassFunction)
 	{
+		// There cannot be function local sampler variables, so always assume uniform storage for them
+		if (info.is_sampler())
+			storage = spv::StorageClassUniformConstant;
+
 		if (auto it = std::find_if(_type_lookup.begin(), _type_lookup.end(),
 			[&](const auto &lookup) { return lookup.type == info && lookup.is_ptr == is_ptr && lookup.storage == storage; }); it != _type_lookup.end())
 			return it->id;
@@ -1333,8 +1337,7 @@ private:
 	}
 	void emit_store(const expression &exp, id value) override
 	{
-		assert(value != 0);
-		assert(exp.is_lvalue && !exp.is_constant);
+		assert(value != 0 && exp.is_lvalue && !exp.is_constant && !exp.type.is_sampler());
 
 		add_location(exp.location, *_current_block_data);
 
