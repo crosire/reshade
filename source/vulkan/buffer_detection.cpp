@@ -31,7 +31,6 @@ void reshade::vulkan::buffer_detection::merge(const buffer_detection &source)
 
 		target_snapshot.image = snapshot.image;
 		target_snapshot.image_info = snapshot.image_info;
-		target_snapshot.image_layout = snapshot.image_layout;
 	}
 #endif
 }
@@ -70,7 +69,8 @@ void reshade::vulkan::buffer_detection::on_set_depthstencil(VkImage depthstencil
 		// This is a new entry in the map, so update data
 		counters.image = depthstencil;
 		counters.image_info = create_info;
-		counters.image_layout = layout;
+		// Keep track of the layout this image likely ends up in
+		counters.image_info.initialLayout = layout;
 	}
 }
 

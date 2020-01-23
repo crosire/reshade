@@ -1971,10 +1971,10 @@ void reshade::vulkan::runtime_vk::update_depthstencil_image(buffer_detection::de
 	if (info.image == _depth_image)
 		return;
 
-	assert(info.image_layout != VK_IMAGE_LAYOUT_UNDEFINED || info.image == VK_NULL_HANDLE);
+	assert(info.image_info.initialLayout != VK_IMAGE_LAYOUT_UNDEFINED || info.image == VK_NULL_HANDLE);
 
 	_depth_image = info.image;
-	_depth_image_layout = info.image_layout;
+	_depth_image_layout = info.image_info.initialLayout;
 	_depth_image_aspect = aspect_flags_from_format(info.image_info.format);
 
 	// Make sure all previous frames have finished before freeing the image view and updating descriptors (since they may be in use otherwise)

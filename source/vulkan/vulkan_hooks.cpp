@@ -23,7 +23,7 @@ struct device_data
 struct render_pass_data
 {
 	uint32_t depthstencil_attachment_index = std::numeric_limits<uint32_t>::max();
-	VkImageLayout initial_depthstencil_layout = VK_IMAGE_LAYOUT_UNDEFINED;
+	VkImageLayout final_depthstencil_layout = VK_IMAGE_LAYOUT_UNDEFINED;
 };
 
 struct command_buffer_data
@@ -668,7 +668,7 @@ VkResult VKAPI_CALL vkCreateRenderPass(VkDevice device, const VkRenderPassCreate
 		if (ds_reference != nullptr && ds_reference->attachment != VK_ATTACHMENT_UNUSED)
 		{
 			const VkAttachmentDescription &ds_attachment = pCreateInfo->pAttachments[ds_reference->attachment];
-			subpass_data.initial_depthstencil_layout = ds_attachment.initialLayout;
+			subpass_data.final_depthstencil_layout = ds_attachment.finalLayout;
 			subpass_data.depthstencil_attachment_index = ds_reference->attachment;
 		}
 	}
@@ -760,11 +760,7 @@ void     VKAPI_CALL vkCmdBeginRenderPass(VkCommandBuffer commandBuffer, const Vk
 	if (renderpass_data.depthstencil_attachment_index < framebuffer_data.size())
 	{
 		const VkImage depthstencil = framebuffer_data[renderpass_data.depthstencil_attachment_index];
-		VkImageLayout depthstencil_layout = renderpass_data.initial_depthstencil_layout;
-
-		// TODO: Technically the image layout stored here is not the one the image ends up in, but the likelihood is high
-		if (VK_IMAGE_LAYOUT_UNDEFINED == depthstencil_layout) // Do some trickery to make sure it is valid
-			depthstencil_layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+		VkImageLayout depthstencil_layout = renderpass_data.final_depthstencil_layout;
 
 		data.buffer_detection.on_set_depthstencil(
 			depthstencil,
@@ -796,7 +792,7 @@ void     VKAPI_CALL vkCmdNextSubpass(VkCommandBuffer commandBuffer, VkSubpassCon
 	if (renderpass_data.depthstencil_attachment_index < framebuffer_data.size())
 	{
 		const VkImage depthstencil = framebuffer_data[renderpass_data.depthstencil_attachment_index];
-		VkImageLayout depthstencil_layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+		VkImageLayout depthstencil_layout = renderpass_data.final_depthstencil_layout;
 
 		data.buffer_detection.on_set_depthstencil(
 			depthstencil,

@@ -24,7 +24,6 @@ namespace reshade::vulkan
 		{
 			draw_stats stats;
 			VkImage image = VK_NULL_HANDLE;
-			VkImageLayout image_layout = VK_IMAGE_LAYOUT_UNDEFINED;
 			VkImageCreateInfo image_info = {};
 		};
 
