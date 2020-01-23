@@ -2126,7 +2126,7 @@ bool reshadefx::parser::parse_top()
 		bool parse_success = true;
 
 		// Recursively parse top level statements until the namespace is closed again
-		while (!peek('}')) // Empty namespaces are valid
+		while (!peek('}') && parse_success) // Empty namespaces are valid
 		{
 			if (!parse_top())
 				parse_success = false; // Continue parsing even after encountering an error
