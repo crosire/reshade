@@ -47,40 +47,43 @@ namespace reshade
 		}
 
 		template <typename T>
-		void get(const std::string &section, const std::string &key, T &value) const
+		bool get(const std::string &section, const std::string &key, T &value) const
 		{
 			const auto it1 = _sections.find(section);
 			if (it1 == _sections.end())
-				return;
+				return false;
 			const auto it2 = it1->second.find(key);
 			if (it2 == it1->second.end())
-				return;
+				return false;
 			value = convert<T>(it2->second, 0);
+			return true;
 		}
 		template <typename T, size_t SIZE>
-		void get(const std::string &section, const std::string &key, T(&values)[SIZE]) const
+		bool get(const std::string &section, const std::string &key, T(&values)[SIZE]) const
 		{
 			const auto it1 = _sections.find(section);
 			if (it1 == _sections.end())
-				return;
+				return false;
 			const auto it2 = it1->second.find(key);
 			if (it2 == it1->second.end())
-				return;
+				return false;
 			for (size_t i = 0; i < SIZE; ++i)
 				values[i] = convert<T>(it2->second, i);
+			return true;
 		}
 		template <typename T>
-		void get(const std::string &section, const std::string &key, std::vector<T> &values) const
+		bool get(const std::string &section, const std::string &key, std::vector<T> &values) const
 		{
 			const auto it1 = _sections.find(section);
 			if (it1 == _sections.end())
-				return;
+				return false;
 			const auto it2 = it1->second.find(key);
 			if (it2 == it1->second.end())
-				return;
+				return false;
 			values.resize(it2->second.size());
 			for (size_t i = 0; i < it2->second.size(); ++i)
 				values[i] = convert<T>(it2->second, i);
+			return true;
 		}
 
 		template <typename T>

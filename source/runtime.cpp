@@ -1059,8 +1059,6 @@ void reshade::runtime::load_config()
 {
 	const ini_file &config = ini_file::load_cache(_configuration_path);
 
-	std::filesystem::path current_preset_path;
-
 	config.get("INPUT", "KeyReload", _reload_key_data);
 	config.get("INPUT", "KeyEffects", _effects_key_data);
 	config.get("INPUT", "KeyScreenshot", _screenshot_key_data);
@@ -1071,7 +1069,6 @@ void reshade::runtime::load_config()
 	config.get("GENERAL", "EffectSearchPaths", _effect_search_paths);
 	config.get("GENERAL", "TextureSearchPaths", _texture_search_paths);
 	config.get("GENERAL", "PreprocessorDefinitions", _global_preprocessor_definitions);
-	config.get("GENERAL", "CurrentPresetPath", current_preset_path);
 	config.get("GENERAL", "PresetTransitionDelay", _preset_transition_delay);
 	config.get("GENERAL", "ScreenshotPath", _screenshot_path);
 	config.get("GENERAL", "ScreenshotFormat", _screenshot_format);
@@ -1082,7 +1079,7 @@ void reshade::runtime::load_config()
 	config.get("GENERAL", "NoDebugInfo", _no_debug_info);
 	config.get("GENERAL", "NoReloadOnInit", _no_reload_on_init);
 
-	if (current_preset_path.empty())
+	if (!config.get("GENERAL", "CurrentPresetPath", _current_preset_path))
 	{
 		// Convert legacy preset index to new preset path
 		size_t preset_index = 0;
@@ -1091,11 +1088,11 @@ void reshade::runtime::load_config()
 		config.get("GENERAL", "CurrentPreset", preset_index);
 
 		if (preset_index < preset_files.size())
-			current_preset_path = preset_files[preset_index];
+			_current_preset_path = preset_files[preset_index];
 	}
 
-	if (check_preset_path(current_preset_path))
-		_current_preset_path = g_reshade_dll_path.parent_path() / current_preset_path;
+	if (check_preset_path(_current_preset_path))
+		_current_preset_path = g_reshade_dll_path.parent_path() / _current_preset_path;
 	else // Select a default preset file if none exists yet
 		_current_preset_path = g_target_executable_path.parent_path() / L"DefaultPreset.ini";
 
@@ -1176,8 +1173,8 @@ void reshade::runtime::load_current_preset()
 			if (variable.special != special_uniform::none)
 				continue;
 
+			unsigned int components = variable.type.components();
 			const std::string section = effect.source_file.filename().u8string();
-			const unsigned int components = variable.type.components();
 			reshadefx::constant values, values_old;
 
 			if (variable.supports_toggle_key())
@@ -1263,7 +1260,7 @@ void reshade::runtime::save_current_preset() const
 
 		if (technique.toggle_key_data[0] != 0)
 			preset.set({}, "Key" + technique.name, technique.toggle_key_data);
-		else if (int value = 0; preset.get({}, "Key" + technique.name, value), value != 0)
+		else if (int value = 0; preset.get({}, "Key" + technique.name, value) && value != 0)
 			preset.set({}, "Key" + technique.name, 0); // Clear toggle key data
 	}
 
@@ -1293,7 +1290,7 @@ void reshade::runtime::save_current_preset() const
 				// save the shortcut key into the preset files
 				if (variable.toggle_key_data[0] != 0)
 					preset.set(section, "Key" + variable.name, variable.toggle_key_data);
-				else if (int value = 0; preset.get(section, "Key" + variable.name, value), value != 0)
+				else if (int value = 0; preset.get(section, "Key" + variable.name, value) && value != 0)
 					preset.set(section, "Key" + variable.name, 0); // Clear toggle key data
 			}
 
