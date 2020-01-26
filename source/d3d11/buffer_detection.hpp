@@ -45,6 +45,7 @@ namespace reshade::d3d11
 		draw_stats _stats;
 #if RESHADE_DX11_CAPTURE_DEPTH_BUFFERS
 		draw_stats _best_copy_stats;
+		bool _has_indirect_drawcalls = false;
 		// Use "std::map" instead of "std::unordered_map" so that the iteration order is guaranteed
 		std::map<com_ptr<ID3D11Texture2D>, depthstencil_info> _counters_per_used_depth_texture;
 #endif

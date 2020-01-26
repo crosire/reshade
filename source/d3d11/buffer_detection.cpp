@@ -32,6 +32,7 @@ void reshade::d3d11::buffer_detection::reset()
 	_stats = { 0, 0 };
 #if RESHADE_DX11_CAPTURE_DEPTH_BUFFERS
 	_best_copy_stats = { 0, 0 };
+	_has_indirect_drawcalls = false;
 	_counters_per_used_depth_texture.clear();
 #endif
 }
@@ -57,6 +58,7 @@ void reshade::d3d11::buffer_detection::merge(const buffer_detection &source)
 
 #if RESHADE_DX11_CAPTURE_DEPTH_BUFFERS
 	_best_copy_stats = source._best_copy_stats;
+	_has_indirect_drawcalls |= source._has_indirect_drawcalls;
 
 	for (const auto &[dsv_texture, snapshot] : source._counters_per_used_depth_texture)
 	{
@@ -89,6 +91,9 @@ void reshade::d3d11::buffer_detection::on_draw(UINT vertices)
 	counters.total_stats.drawcalls += 1;
 	counters.current_stats.vertices += vertices;
 	counters.current_stats.drawcalls += 1;
+
+	if (vertices == 0)
+		_has_indirect_drawcalls = true;
 #endif
 }
 
@@ -197,8 +202,11 @@ com_ptr<ID3D11Texture2D> reshade::d3d11::buffer_detection_context::find_best_dep
 					continue; // Not a good fit
 			}
 
-			// Choose snapshot with the most draw calls, since vertices may not be accurate if application is using indirect draw calls
-			if (snapshot.total_stats.drawcalls >= best_snapshot.total_stats.drawcalls)
+			if (!_has_indirect_drawcalls ?
+				// Choose snapshot with the most vertices, since that is likely to contain the main scene
+				snapshot.total_stats.vertices > best_snapshot.total_stats.vertices :
+				// Or check draw calls, since vertices may not be accurate if application is using indirect draw calls
+				snapshot.total_stats.drawcalls > best_snapshot.total_stats.drawcalls)
 			{
 				best_match = dsv_texture;
 				best_snapshot = snapshot;

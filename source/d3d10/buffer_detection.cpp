@@ -155,7 +155,7 @@ com_ptr<ID3D10Texture2D> reshade::d3d10::buffer_detection::find_best_depth_textu
 			}
 
 			// Choose snapshot with the most vertices, since that is likely to contain the main scene
-			if (snapshot.total_stats.vertices >= best_snapshot.total_stats.vertices)
+			if (snapshot.total_stats.vertices > best_snapshot.total_stats.vertices)
 			{
 				best_match = dsv_texture;
 				best_snapshot = snapshot;

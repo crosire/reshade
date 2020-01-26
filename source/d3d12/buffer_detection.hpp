@@ -49,6 +49,7 @@ namespace reshade::d3d12
 #if RESHADE_DX12_CAPTURE_DEPTH_BUFFERS
 		draw_stats _best_copy_stats;
 		com_ptr<ID3D12Resource> _current_depthstencil;
+		bool _has_indirect_drawcalls = false;
 		// Use "std::map" instead of "std::unordered_map" so that the iteration order is guaranteed
 		std::map<com_ptr<ID3D12Resource>, depthstencil_info> _counters_per_used_depth_texture;
 #endif
