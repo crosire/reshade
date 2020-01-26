@@ -10,7 +10,6 @@
 #include "com_ptr.hpp"
 
 #define RESHADE_DX10_CAPTURE_DEPTH_BUFFERS 1
-#define RESHADE_DX10_CAPTURE_CONSTANT_BUFFERS 0
 
 namespace reshade::d3d10
 {
@@ -24,7 +23,6 @@ namespace reshade::d3d10
 
 		void reset(bool release_resources);
 
-		void on_map(ID3D10Resource *pResource);
 		void on_draw(UINT vertices);
 
 #if RESHADE_DX10_CAPTURE_DEPTH_BUFFERS
@@ -38,18 +36,11 @@ namespace reshade::d3d10
 			com_ptr<ID3D10Texture2D> override = nullptr, UINT clear_index_override = 0);
 #endif
 
-#if RESHADE_DX10_CAPTURE_CONSTANT_BUFFERS
-		const auto &constant_buffer_counters() const { return _counters_per_constant_buffer; }
-#endif
-
 	private:
 		struct draw_stats
 		{
 			UINT vertices = 0;
 			UINT drawcalls = 0;
-			UINT mapped = 0;
-			UINT vs_uses = 0;
-			UINT ps_uses = 0;
 		};
 		struct depthstencil_info
 		{
@@ -71,9 +62,6 @@ namespace reshade::d3d10
 		std::pair<ID3D10Texture2D *, UINT> _depthstencil_clear_index = { nullptr, std::numeric_limits<UINT>::max() };
 		// Use "std::map" instead of "std::unordered_map" so that the iteration order is guaranteed
 		std::map<com_ptr<ID3D10Texture2D>, depthstencil_info> _counters_per_used_depth_texture;
-#endif
-#if RESHADE_DX10_CAPTURE_CONSTANT_BUFFERS
-		std::map<com_ptr<ID3D10Buffer>, draw_stats> _counters_per_constant_buffer;
 #endif
 	};
 }

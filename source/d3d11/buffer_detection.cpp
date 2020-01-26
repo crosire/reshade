@@ -34,9 +34,6 @@ void reshade::d3d11::buffer_detection::reset()
 	_best_copy_stats = { 0, 0 };
 	_counters_per_used_depth_texture.clear();
 #endif
-#if RESHADE_DX11_CAPTURE_CONSTANT_BUFFERS
-	_counters_per_constant_buffer.clear();
-#endif
 }
 void reshade::d3d11::buffer_detection_context::reset(bool release_resources)
 {
@@ -72,28 +69,6 @@ void reshade::d3d11::buffer_detection::merge(const buffer_detection &source)
 		target_snapshot.clears.insert(target_snapshot.clears.end(), snapshot.clears.begin(), snapshot.clears.end());
 	}
 #endif
-#if RESHADE_DX11_CAPTURE_CONSTANT_BUFFERS
-	for (const auto &[buffer, snapshot] : source._counters_per_constant_buffer)
-	{
-		_counters_per_constant_buffer[buffer].vertices += snapshot.vertices;
-		_counters_per_constant_buffer[buffer].drawcalls += snapshot.drawcalls;
-		_counters_per_constant_buffer[buffer].ps_uses += snapshot.ps_uses;
-		_counters_per_constant_buffer[buffer].vs_uses += snapshot.vs_uses;
-	}
-#endif
-}
-
-void reshade::d3d11::buffer_detection::on_map(ID3D11Resource *resource)
-{
-	UNREFERENCED_PARAMETER(resource);
-
-#if RESHADE_DX11_CAPTURE_CONSTANT_BUFFERS
-	D3D11_RESOURCE_DIMENSION dim;
-	resource->GetType(&dim);
-
-	if (dim == D3D11_RESOURCE_DIMENSION_BUFFER)
-		_counters_per_constant_buffer[static_cast<ID3D11Buffer *>(resource)].mapped += 1;
-#endif
 }
 
 void reshade::d3d11::buffer_detection::on_draw(UINT vertices)
@@ -114,24 +89,6 @@ void reshade::d3d11::buffer_detection::on_draw(UINT vertices)
 	counters.total_stats.drawcalls += 1;
 	counters.current_stats.vertices += vertices;
 	counters.current_stats.drawcalls += 1;
-#endif
-#if RESHADE_DX11_CAPTURE_CONSTANT_BUFFERS
-	// Capture constant buffers that are used when depth stencils are drawn
-	com_ptr<ID3D11Buffer> vscbuffers[D3D11_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT];
-	_device->VSGetConstantBuffers(0, ARRAYSIZE(vscbuffers), reinterpret_cast<ID3D11Buffer **>(vscbuffers));
-
-	for (UINT i = 0; i < ARRAYSIZE(vscbuffers); i++)
-		// Uses the default drawcalls = 0 the first time around.
-		if (vscbuffers[i] != nullptr)
-			_counters_per_constant_buffer[vscbuffers[i]].vs_uses += 1;
-
-	com_ptr<ID3D11Buffer> pscbuffers[D3D11_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT];
-	_device->PSGetConstantBuffers(0, ARRAYSIZE(pscbuffers), reinterpret_cast<ID3D11Buffer **>(pscbuffers));
-
-	for (UINT i = 0; i < ARRAYSIZE(pscbuffers); i++)
-		// Uses the default drawcalls = 0 the first time around.
-		if (pscbuffers[i] != nullptr)
-			_counters_per_constant_buffer[pscbuffers[i]].ps_uses += 1;
 #endif
 }
 

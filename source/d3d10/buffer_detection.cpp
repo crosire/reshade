@@ -34,22 +34,6 @@ void reshade::d3d10::buffer_detection::reset(bool release_resources)
 		_depthstencil_clear_texture.reset();
 	}
 #endif
-#if RESHADE_DX10_CAPTURE_CONSTANT_BUFFERS
-	_counters_per_constant_buffer.clear();
-#endif
-}
-
-void reshade::d3d10::buffer_detection::on_map(ID3D10Resource *resource)
-{
-	UNREFERENCED_PARAMETER(resource);
-
-#if RESHADE_DX10_CAPTURE_CONSTANT_BUFFERS
-	D3D10_RESOURCE_DIMENSION dim;
-	resource->GetType(&dim);
-
-	if (dim == D3D10_RESOURCE_DIMENSION_BUFFER)
-		_counters_per_constant_buffer[static_cast<ID3D10Buffer *>(resource)].mapped += 1;
-#endif
 }
 
 void reshade::d3d10::buffer_detection::on_draw(UINT vertices)
@@ -70,24 +54,6 @@ void reshade::d3d10::buffer_detection::on_draw(UINT vertices)
 	counters.total_stats.drawcalls += 1;
 	counters.current_stats.vertices += vertices;
 	counters.current_stats.drawcalls += 1;
-#endif
-#if RESHADE_DX10_CAPTURE_CONSTANT_BUFFERS
-	// Capture constant buffers that are used when depth stencils are drawn
-	com_ptr<ID3D10Buffer> vscbuffers[D3D10_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT];
-	_device->VSGetConstantBuffers(0, ARRAYSIZE(vscbuffers), reinterpret_cast<ID3D10Buffer **>(vscbuffers));
-
-	for (UINT i = 0; i < ARRAYSIZE(vscbuffers); i++)
-		// Uses the default drawcalls = 0 the first time around.
-		if (vscbuffers[i] != nullptr)
-			_counters_per_constant_buffer[vscbuffers[i]].vs_uses += 1;
-
-	com_ptr<ID3D10Buffer> pscbuffers[D3D10_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT];
-	_device->PSGetConstantBuffers(0, ARRAYSIZE(pscbuffers), reinterpret_cast<ID3D10Buffer **>(pscbuffers));
-
-	for (UINT i = 0; i < ARRAYSIZE(pscbuffers); i++)
-		// Uses the default drawcalls = 0 the first time around.
-		if (pscbuffers[i] != nullptr)
-			_counters_per_constant_buffer[pscbuffers[i]].ps_uses += 1;
 #endif
 }
 

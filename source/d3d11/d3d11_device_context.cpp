@@ -165,9 +165,6 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::Draw(UINT VertexCount, UINT StartV
 }
 HRESULT STDMETHODCALLTYPE D3D11DeviceContext::Map(ID3D11Resource *pResource, UINT Subresource, D3D11_MAP MapType, UINT MapFlags, D3D11_MAPPED_SUBRESOURCE *pMappedResource)
 {
-#if RESHADE_DX11_CAPTURE_CONSTANT_BUFFERS
-	_buffer_detection.on_map(pResource);
-#endif
 	return _orig->Map(pResource, Subresource, MapType, MapFlags, pMappedResource);
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::Unmap(ID3D11Resource *pResource, UINT Subresource)
