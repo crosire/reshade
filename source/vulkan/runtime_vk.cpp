@@ -1924,6 +1924,12 @@ void reshade::vulkan::runtime_vk::render_imgui_draw_data(ImDrawData *draw_data)
 #if RESHADE_VULKAN_CAPTURE_DEPTH_BUFFERS
 void reshade::vulkan::runtime_vk::draw_depth_debug_menu()
 {
+	if (_has_high_network_activity)
+	{
+		ImGui::TextColored(ImColor(204, 204, 0), "High network activity discovered.\nAccess to depth buffers is disabled to prevent exploitation.");
+		return;
+	}
+
 	if (ImGui::CollapsingHeader("Depth Buffers", ImGuiTreeNodeFlags_DefaultOpen))
 	{
 		if (ImGui::Checkbox("Use aspect ratio heuristics", &_use_aspect_ratio_heuristics))

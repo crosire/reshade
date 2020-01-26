@@ -1055,6 +1055,12 @@ void reshade::d3d9::runtime_d3d9::render_imgui_draw_data(ImDrawData *draw_data)
 #if RESHADE_DX9_CAPTURE_DEPTH_BUFFERS
 void reshade::d3d9::runtime_d3d9::draw_depth_debug_menu()
 {
+	if (_has_high_network_activity)
+	{
+		ImGui::TextColored(ImColor(204, 204, 0), "High network activity discovered.\nAccess to depth buffers is disabled to prevent exploitation.");
+		return;
+	}
+
 	if (ImGui::CollapsingHeader("Depth Buffers", ImGuiTreeNodeFlags_DefaultOpen))
 	{
 		assert(_current_tracker != nullptr);
