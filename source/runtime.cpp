@@ -248,7 +248,7 @@ void reshade::runtime::on_present()
 	{
 		_has_high_network_activity = traffic > 10;
 		traffic = 0;
-		cooldown = 30;
+		cooldown = 60;
 	}
 
 	// Reset frame statistics
