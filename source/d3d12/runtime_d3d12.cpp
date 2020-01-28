@@ -1515,7 +1515,8 @@ void reshade::d3d12::runtime_d3d12::draw_depth_debug_menu()
 		modified |= ImGui::Checkbox("Copy depth buffers before clear operation", &_preserve_depth_buffers);
 
 		if (modified) // Detection settings have changed, reset heuristic
-			_current_tracker->reset(true, true);
+			// Do not release resources here, as they may still be in use on the device
+			_current_tracker->reset(false);
 
 		ImGui::Spacing();
 		ImGui::Separator();

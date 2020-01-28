@@ -11,10 +11,11 @@
 
 static std::mutex s_global_mutex;
 
-void reshade::d3d12::buffer_detection::init(ID3D12Device *device, const buffer_detection_context *context)
+void reshade::d3d12::buffer_detection::init(ID3D12Device *device, ID3D12GraphicsCommandList *cmd_list, const buffer_detection_context *context)
 {
 	_device = device;
 	_context = context;
+	_cmd_list = cmd_list;
 }
 
 void reshade::d3d12::buffer_detection::reset()
@@ -27,7 +28,7 @@ void reshade::d3d12::buffer_detection::reset()
 	_counters_per_used_depth_texture.clear();
 #endif
 }
-void reshade::d3d12::buffer_detection_context::reset(bool release_resources, bool keep_dsv_handles)
+void reshade::d3d12::buffer_detection_context::reset(bool release_resources)
 {
 	buffer_detection::reset();
 
@@ -38,15 +39,12 @@ void reshade::d3d12::buffer_detection_context::reset(bool release_resources, boo
 		
 		_previous_stats = { 0, 0 };
 
-		if (!keep_dsv_handles)
-		{
-			_depthstencil_clear_texture.reset(); // Can only destroy this when it is guaranteed to no longer be in use
-			_depthstencil_resources_by_handle.clear();
-		}
+		// Can only destroy this when it is guaranteed to no longer be in use
+		_depthstencil_clear_texture.reset();
+		_depthstencil_resources_by_handle.clear();
 	}
 #else
 	UNREFERENCED_PARAMETER(release_resources);
-	UNREFERENCED_PARAMETER(keep_dsv_handles);
 #endif
 }
 
@@ -100,7 +98,7 @@ void reshade::d3d12::buffer_detection::on_set_depthstencil(D3D12_CPU_DESCRIPTOR_
 {
 	_current_depthstencil = _context->resource_from_handle(dsv);
 }
-void reshade::d3d12::buffer_detection::on_clear_depthstencil(ID3D12GraphicsCommandList *cmd_list, D3D12_CLEAR_FLAGS clear_flags, D3D12_CPU_DESCRIPTOR_HANDLE dsv)
+void reshade::d3d12::buffer_detection::on_clear_depthstencil(D3D12_CLEAR_FLAGS clear_flags, D3D12_CPU_DESCRIPTOR_HANDLE dsv)
 {
 	assert(_context != nullptr);
 
@@ -136,13 +134,13 @@ void reshade::d3d12::buffer_detection::on_clear_depthstencil(ID3D12GraphicsComma
 		transition.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
 		transition.Transition.StateBefore = D3D12_RESOURCE_STATE_COMMON;
 		transition.Transition.StateAfter = D3D12_RESOURCE_STATE_COPY_DEST;
-		cmd_list->ResourceBarrier(1, &transition);
+		_cmd_list->ResourceBarrier(1, &transition);
 
-		cmd_list->CopyResource(_context->_depthstencil_clear_texture.get(), dsv_texture.get());
+		_cmd_list->CopyResource(_context->_depthstencil_clear_texture.get(), dsv_texture.get());
 
 		transition.Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_DEST;
 		transition.Transition.StateAfter = D3D12_RESOURCE_STATE_COMMON;
-		cmd_list->ResourceBarrier(1, &transition);
+		_cmd_list->ResourceBarrier(1, &transition);
 	}
 
 	// Reset draw call stats for clears

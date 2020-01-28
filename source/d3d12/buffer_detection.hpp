@@ -15,13 +15,7 @@ namespace reshade::d3d12
 	class buffer_detection
 	{
 	public:
-		struct draw_stats
-		{
-			UINT vertices = 0;
-			UINT drawcalls = 0;
-		};
-
-		void init(ID3D12Device *device, const class buffer_detection_context *context = nullptr);
+		void init(ID3D12Device *device, ID3D12GraphicsCommandList *cmd_list, const class buffer_detection_context *context);
 		void reset();
 
 		void merge(const buffer_detection &source);
@@ -30,10 +24,15 @@ namespace reshade::d3d12
 
 #if RESHADE_DEPTH
 		void on_set_depthstencil(D3D12_CPU_DESCRIPTOR_HANDLE dsv);
-		void on_clear_depthstencil(ID3D12GraphicsCommandList *cmd_list, D3D12_CLEAR_FLAGS clear_flags, D3D12_CPU_DESCRIPTOR_HANDLE dsv);
+		void on_clear_depthstencil(D3D12_CLEAR_FLAGS clear_flags, D3D12_CPU_DESCRIPTOR_HANDLE dsv);
 #endif
 
 	protected:
+		struct draw_stats
+		{
+			UINT vertices = 0;
+			UINT drawcalls = 0;
+		};
 		struct depthstencil_info
 		{
 			draw_stats total_stats;
@@ -42,6 +41,7 @@ namespace reshade::d3d12
 		};
 
 		ID3D12Device *_device = nullptr;
+		ID3D12GraphicsCommandList *_cmd_list = nullptr;
 		const buffer_detection_context *_context = nullptr;
 		draw_stats _stats;
 #if RESHADE_DEPTH
@@ -58,12 +58,12 @@ namespace reshade::d3d12
 		friend class buffer_detection;
 
 	public:
-		explicit buffer_detection_context(ID3D12Device *device) { init(device); }
+		explicit buffer_detection_context(ID3D12Device *device) { init(device, nullptr, nullptr); }
 
 		UINT total_vertices() const { return _stats.vertices; }
 		UINT total_drawcalls() const { return _stats.drawcalls; }
 
-		void reset(bool release_resources, bool keep_dsv_handles = false);
+		void reset(bool release_resources);
 
 #if RESHADE_DEPTH
 		UINT current_clear_index() const { return _depthstencil_clear_index.second; }

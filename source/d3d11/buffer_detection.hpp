@@ -14,7 +14,7 @@ namespace reshade::d3d11
 	class buffer_detection
 	{
 	public:
-		void init(ID3D11DeviceContext *device, const class buffer_detection_context *context = nullptr);
+		void init(ID3D11DeviceContext *device, const class buffer_detection_context *context);
 		void reset();
 
 		void merge(const buffer_detection &source);
@@ -54,7 +54,7 @@ namespace reshade::d3d11
 		friend class buffer_detection;
 
 	public:
-		explicit buffer_detection_context(ID3D11DeviceContext *context) { init(context); }
+		explicit buffer_detection_context(ID3D11DeviceContext *context) { init(context, nullptr); }
 
 		UINT total_vertices() const { return _stats.vertices; }
 		UINT total_drawcalls() const { return _stats.drawcalls; }

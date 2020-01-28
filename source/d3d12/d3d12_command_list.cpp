@@ -286,7 +286,7 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::OMSetRenderTargets(UINT NumRend
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::ClearDepthStencilView(D3D12_CPU_DESCRIPTOR_HANDLE DepthStencilView, D3D12_CLEAR_FLAGS ClearFlags, FLOAT Depth, UINT8 Stencil, UINT NumRects, const D3D12_RECT *pRects)
 {
 #if RESHADE_DEPTH
-	_buffer_detection.on_clear_depthstencil(this, ClearFlags, DepthStencilView);
+	_buffer_detection.on_clear_depthstencil(ClearFlags, DepthStencilView);
 #endif
 	_orig->ClearDepthStencilView(DepthStencilView, ClearFlags, Depth, Stencil, NumRects, pRects);
 }
