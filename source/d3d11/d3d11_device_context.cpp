@@ -326,7 +326,7 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::ClearUnorderedAccessViewFloat(ID3D
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::ClearDepthStencilView(ID3D11DepthStencilView *pDepthStencilView, UINT ClearFlags, FLOAT Depth, UINT8 Stencil)
 {
-#if RESHADE_DX11_CAPTURE_DEPTH_BUFFERS
+#if RESHADE_DEPTH
 	_buffer_detection.on_clear_depthstencil(ClearFlags, pDepthStencilView);
 #endif
 	_orig->ClearDepthStencilView(pDepthStencilView, ClearFlags, Depth, Stencil);

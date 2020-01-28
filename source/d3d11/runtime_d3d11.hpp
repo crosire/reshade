@@ -78,7 +78,7 @@ namespace reshade::d3d11
 		com_ptr<ID3D11DepthStencilState> _imgui_depthstencil_state;
 #endif
 
-#if RESHADE_DX11_CAPTURE_DEPTH_BUFFERS
+#if RESHADE_DEPTH
 		void draw_depth_debug_menu();
 		void update_depthstencil_texture(com_ptr<ID3D11Texture2D> texture);
 

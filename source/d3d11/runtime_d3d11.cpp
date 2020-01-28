@@ -61,10 +61,10 @@ reshade::d3d11::runtime_d3d11::runtime_d3d11(ID3D11Device *device, IDXGISwapChai
 	if (DXGI_ADAPTER_DESC desc; SUCCEEDED(dxgi_adapter->GetDesc(&desc)))
 		_vendor_id = desc.VendorId, _device_id = desc.DeviceId;
 
-#if RESHADE_GUI && RESHADE_DX11_CAPTURE_DEPTH_BUFFERS
+#if RESHADE_GUI && RESHADE_DEPTH
 	subscribe_to_ui("DX11", [this]() { draw_depth_debug_menu(); });
 #endif
-#if RESHADE_DX11_CAPTURE_DEPTH_BUFFERS
+#if RESHADE_DEPTH
 	subscribe_to_load_config([this](const ini_file &config) {
 		config.get("DX11_BUFFER_DETECTION", "DepthBufferRetrievalMode", _preserve_depth_buffers);
 		config.get("DX11_BUFFER_DETECTION", "DepthBufferClearingNumber", _depth_clear_index_override);
@@ -243,7 +243,7 @@ void reshade::d3d11::runtime_d3d11::on_reset()
 	_imgui_depthstencil_state.reset();
 #endif
 
-#if RESHADE_DX11_CAPTURE_DEPTH_BUFFERS
+#if RESHADE_DEPTH
 	_has_depth_texture = false;
 	_depth_texture_override = nullptr;
 #endif
@@ -257,7 +257,7 @@ void reshade::d3d11::runtime_d3d11::on_present(buffer_detection_context &tracker
 	_vertices = tracker.total_vertices();
 	_drawcalls = tracker.total_drawcalls();
 
-#if RESHADE_DX11_CAPTURE_DEPTH_BUFFERS
+#if RESHADE_DEPTH
 	_current_tracker = &tracker;
 	assert(_depth_clear_index_override != 0);
 	update_depthstencil_texture(_has_high_network_activity ? nullptr :
@@ -1248,7 +1248,7 @@ void reshade::d3d11::runtime_d3d11::render_imgui_draw_data(ImDrawData *draw_data
 }
 #endif
 
-#if RESHADE_DX11_CAPTURE_DEPTH_BUFFERS
+#if RESHADE_DEPTH
 void reshade::d3d11::runtime_d3d11::draw_depth_debug_menu()
 {
 	if (_has_high_network_activity)
