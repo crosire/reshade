@@ -8,8 +8,6 @@
 #include <map>
 #include <vulkan.h>
 
-#define RESHADE_VULKAN_CAPTURE_DEPTH_BUFFERS 1
-
 namespace reshade::vulkan
 {
 	class buffer_detection
@@ -33,13 +31,13 @@ namespace reshade::vulkan
 
 		void on_draw(uint32_t vertices);
 
-#if RESHADE_VULKAN_CAPTURE_DEPTH_BUFFERS
+#if RESHADE_DEPTH
 		void on_set_depthstencil(VkImage depthstencil, VkImageLayout layout, const VkImageCreateInfo &create_info);
 #endif
 
 	protected:
 		draw_stats _stats;
-#if RESHADE_VULKAN_CAPTURE_DEPTH_BUFFERS
+#if RESHADE_DEPTH
 		VkImage _current_depthstencil = VK_NULL_HANDLE;
 		// Use "std::map" instead of "std::unordered_map" so that the iteration order is guaranteed
 		std::map<VkImage, depthstencil_info> _counters_per_used_depth_image;
@@ -52,7 +50,7 @@ namespace reshade::vulkan
 		uint32_t total_vertices() const { return _stats.vertices; }
 		uint32_t total_drawcalls() const { return _stats.drawcalls; }
 
-#if RESHADE_VULKAN_CAPTURE_DEPTH_BUFFERS
+#if RESHADE_DEPTH
 		const auto &depth_buffer_counters() const { return _counters_per_used_depth_image; }
 
 		depthstencil_info find_best_depth_texture(uint32_t width, uint32_t height,

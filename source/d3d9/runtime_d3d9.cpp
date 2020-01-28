@@ -60,10 +60,10 @@ reshade::d3d9::runtime_d3d9::runtime_d3d9(IDirect3DDevice9 *device, IDirect3DSwa
 	_num_simultaneous_rendertargets = std::min(caps.NumSimultaneousRTs, DWORD(8));
 	_behavior_flags = creation_params.BehaviorFlags;
 
-#if RESHADE_GUI && RESHADE_DX9_CAPTURE_DEPTH_BUFFERS
+#if RESHADE_GUI && RESHADE_DEPTH
 	subscribe_to_ui("DX9", [this]() { draw_depth_debug_menu(); });
 #endif
-#if RESHADE_DX9_CAPTURE_DEPTH_BUFFERS
+#if RESHADE_DEPTH
 	subscribe_to_load_config([this](const ini_file &config) {
 		config.get("DX9_BUFFER_DETECTION", "DisableINTZ", _disable_intz);
 		config.get("DX9_BUFFER_DETECTION", "PreserveDepthBuffer", _preserve_depth_buffers);
@@ -181,7 +181,7 @@ void reshade::d3d9::runtime_d3d9::on_reset()
 	_imgui_vertex_buffer_size = 0;
 #endif
 
-#if RESHADE_DX9_CAPTURE_DEPTH_BUFFERS
+#if RESHADE_DEPTH
 	_has_depth_texture = false;
 	_depthstencil_override = nullptr;
 #endif
@@ -194,9 +194,9 @@ void reshade::d3d9::runtime_d3d9::on_present(buffer_detection &tracker)
 
 	_vertices = tracker.total_vertices();
 	_drawcalls = tracker.total_drawcalls();
-	_current_tracker = &tracker;
 
-#if RESHADE_DX9_CAPTURE_DEPTH_BUFFERS
+#if RESHADE_DEPTH
+	_current_tracker = &tracker;
 	tracker.disable_intz = _disable_intz;
 
 	assert(_depth_clear_index_override != 0);
@@ -1052,7 +1052,7 @@ void reshade::d3d9::runtime_d3d9::render_imgui_draw_data(ImDrawData *draw_data)
 }
 #endif
 
-#if RESHADE_DX9_CAPTURE_DEPTH_BUFFERS
+#if RESHADE_DEPTH
 void reshade::d3d9::runtime_d3d9::draw_depth_debug_menu()
 {
 	if (_has_high_network_activity)

@@ -101,7 +101,7 @@ namespace reshade::opengl
 		int _imgui_uniform_proj = 0;
 #endif
 
-#if RESHADE_OPENGL_CAPTURE_DEPTH_BUFFERS
+#if RESHADE_DEPTH
 		void draw_depth_debug_menu();
 		void update_depthstencil_texture(buffer_detection::depthstencil_info info);
 

@@ -9,8 +9,6 @@
 #include <d3d9.h>
 #include "com_ptr.hpp"
 
-#define RESHADE_DX9_CAPTURE_DEPTH_BUFFERS 1
-
 namespace reshade::d3d9
 {
 	class buffer_detection
@@ -25,7 +23,7 @@ namespace reshade::d3d9
 
 		void on_draw(D3DPRIMITIVETYPE type, UINT primitives);
 
-#if RESHADE_DX9_CAPTURE_DEPTH_BUFFERS
+#if RESHADE_DEPTH
 		bool disable_intz = false;
 
 		UINT current_clear_index() const { return _depthstencil_clear_index; }
@@ -54,7 +52,7 @@ namespace reshade::d3d9
 			std::vector<draw_stats> clears;
 		};
 
-#if RESHADE_DX9_CAPTURE_DEPTH_BUFFERS
+#if RESHADE_DEPTH
 		bool check_aspect_ratio(const D3DSURFACE_DESC &desc, UINT width, UINT height);
 		bool check_texture_format(const D3DSURFACE_DESC &desc);
 
@@ -63,7 +61,7 @@ namespace reshade::d3d9
 
 		IDirect3DDevice9 *const _device;
 		draw_stats _stats;
-#if RESHADE_DX9_CAPTURE_DEPTH_BUFFERS
+#if RESHADE_DEPTH
 		bool _preserve_depth_buffers = false;
 		draw_stats _clear_stats;
 		UINT _depthstencil_clear_index = std::numeric_limits<UINT>::max();

@@ -149,10 +149,10 @@ reshade::vulkan::runtime_vk::runtime_vk(VkDevice device, VkPhysicalDevice physic
 
 	vk.GetDeviceQueue(device, _queue_family_index, 0, &_main_queue);
 
-#if RESHADE_GUI && RESHADE_VULKAN_CAPTURE_DEPTH_BUFFERS
+#if RESHADE_GUI && RESHADE_DEPTH
 	subscribe_to_ui("Vulkan", [this]() { draw_depth_debug_menu(); });
 #endif
-#if RESHADE_VULKAN_CAPTURE_DEPTH_BUFFERS
+#if RESHADE_DEPTH
 	subscribe_to_load_config([this](const ini_file &config) {
 		config.get("VULKAN_BUFFER_DETECTION", "UseAspectRatioHeuristics", _use_aspect_ratio_heuristics);
 	});
@@ -398,8 +398,6 @@ void reshade::vulkan::runtime_vk::on_reset()
 	_backbuffer_image_view[0] = VK_NULL_HANDLE;
 	vk.DestroyImageView(_device, _backbuffer_image_view[1], nullptr);
 	_backbuffer_image = VK_NULL_HANDLE;
-	vk.DestroyImageView(_device, _depth_image_view, nullptr);
-	_depth_image_view = VK_NULL_HANDLE;
 
 	vk.DestroyRenderPass(_device, _default_render_pass[0], nullptr);
 	_default_render_pass[0] = VK_NULL_HANDLE;
@@ -442,9 +440,12 @@ void reshade::vulkan::runtime_vk::on_reset()
 	_imgui_font_sampler = VK_NULL_HANDLE;
 #endif
 
-#if RESHADE_VULKAN_CAPTURE_DEPTH_BUFFERS
+#if RESHADE_DEPTH
 	_has_depth_texture = false;
+	_depth_image = VK_NULL_HANDLE;
 	_depth_image_override = VK_NULL_HANDLE;
+	vk.DestroyImageView(_device, _depth_image_view, nullptr);
+	_depth_image_view = VK_NULL_HANDLE;
 #endif
 
 	// Free all device memory allocated via the 'create_image' and 'create_buffer' functions
@@ -472,7 +473,7 @@ void reshade::vulkan::runtime_vk::on_present(VkQueue queue, uint32_t swapchain_i
 		return;
 	}
 
-#if RESHADE_VULKAN_CAPTURE_DEPTH_BUFFERS
+#if RESHADE_DEPTH
 	_current_tracker = &tracker;
 	update_depthstencil_image(_has_high_network_activity ? buffer_detection::depthstencil_info { VK_NULL_HANDLE } :
 		tracker.find_best_depth_texture(_use_aspect_ratio_heuristics ? _width : 0, _height, _depth_image_override));
@@ -679,10 +680,12 @@ bool reshade::vulkan::runtime_vk::init_effect(size_t index)
 			image_binding.imageView = _backbuffer_image_view[info.srgb];
 			break;
 		case texture_reference::depth_buffer:
+			// Set to a default view to avoid crash because of this being null
+			image_binding.imageView = _empty_depth_image_view;
+#if RESHADE_DEPTH
 			if (_depth_image_view != VK_NULL_HANDLE)
 				image_binding.imageView = _depth_image_view;
-			else // Set to a default view to avoid crash because of this being null
-				image_binding.imageView = _empty_depth_image_view;
+#endif
 			// Keep track of the depth buffer texture descriptor to simplify updating it
 			effect_data.depth_image_binding = info.binding;
 			break;
@@ -1382,11 +1385,13 @@ void reshade::vulkan::runtime_vk::render_technique(technique &technique)
 	vk.CmdClearDepthStencilImage(cmd_list, _effect_depthstencil, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &clear_value, 1, &clear_range);
 	transition_layout(vk, cmd_list, _effect_depthstencil, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_STENCIL_ATTACHMENT_OPTIMAL, { VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT, 0, 1, 0, 1 });
 
+#if RESHADE_DEPTH
 	if (_depth_image != VK_NULL_HANDLE)
 	{
 		// Transition layout of depth stencil image
 		transition_layout(vk, cmd_list, _depth_image, _depth_image_layout, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, { _depth_image_aspect, 0, 1, 0, 1 });
 	}
+#endif
 
 	for (size_t i = 0; i < technique.passes.size(); ++i)
 	{
@@ -1432,6 +1437,7 @@ void reshade::vulkan::runtime_vk::render_technique(technique &technique)
 		}
 	}
 
+#if RESHADE_DEPTH
 	if (_depth_image != VK_NULL_HANDLE)
 	{
 		assert(_depth_image_layout != VK_IMAGE_LAYOUT_UNDEFINED);
@@ -1439,6 +1445,7 @@ void reshade::vulkan::runtime_vk::render_technique(technique &technique)
 		// Reset image layout of depth stencil image
 		transition_layout(vk, cmd_list, _depth_image, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, _depth_image_layout, { _depth_image_aspect, 0, 1, 0, 1 });
 	}
+#endif
 
 	vk.CmdWriteTimestamp(cmd_list, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, effect_data.query_pool, technique_data.query_index + _cmd_index * 2 + 1);
 }
@@ -1921,7 +1928,7 @@ void reshade::vulkan::runtime_vk::render_imgui_draw_data(ImDrawData *draw_data)
 }
 #endif
 
-#if RESHADE_VULKAN_CAPTURE_DEPTH_BUFFERS
+#if RESHADE_DEPTH
 void reshade::vulkan::runtime_vk::draw_depth_debug_menu()
 {
 	if (_has_high_network_activity)

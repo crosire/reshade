@@ -67,7 +67,7 @@ namespace reshade::d3d9
 		int _imgui_vertex_buffer_size = 0;
 #endif
 
-#if RESHADE_DX9_CAPTURE_DEPTH_BUFFERS
+#if RESHADE_DEPTH
 		void draw_depth_debug_menu();
 		void update_depthstencil_texture(com_ptr<IDirect3DSurface9> depthstencil);
 

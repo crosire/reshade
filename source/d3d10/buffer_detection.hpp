@@ -9,8 +9,6 @@
 #include <d3d10_1.h>
 #include "com_ptr.hpp"
 
-#define RESHADE_DX10_CAPTURE_DEPTH_BUFFERS 1
-
 namespace reshade::d3d10
 {
 	class buffer_detection
@@ -25,7 +23,7 @@ namespace reshade::d3d10
 
 		void on_draw(UINT vertices);
 
-#if RESHADE_DX10_CAPTURE_DEPTH_BUFFERS
+#if RESHADE_DEPTH
 		UINT current_clear_index() const { return _depthstencil_clear_index.second; }
 		ID3D10Texture2D *current_depth_texture() const { return _depthstencil_clear_index.first; }
 		const auto &depth_buffer_counters() const { return _counters_per_used_depth_texture; }
@@ -49,13 +47,13 @@ namespace reshade::d3d10
 			std::vector<draw_stats> clears;
 		};
 
-#if RESHADE_DX10_CAPTURE_DEPTH_BUFFERS
+#if RESHADE_DEPTH
 		bool update_depthstencil_clear_texture(D3D10_TEXTURE2D_DESC desc);
 #endif
 
 		ID3D10Device *const _device;
 		draw_stats _stats;
-#if RESHADE_DX10_CAPTURE_DEPTH_BUFFERS
+#if RESHADE_DEPTH
 		draw_stats _previous_stats;
 		draw_stats _best_copy_stats;
 		com_ptr<ID3D10Texture2D> _depthstencil_clear_texture;

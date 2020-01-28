@@ -100,7 +100,7 @@ namespace reshade::vulkan
 		VkDescriptorSetLayout _imgui_descriptor_set_layout = VK_NULL_HANDLE;
 #endif
 
-#if RESHADE_VULKAN_CAPTURE_DEPTH_BUFFERS
+#if RESHADE_DEPTH
 		void draw_depth_debug_menu();
 		void update_depthstencil_image(buffer_detection::depthstencil_info info);
 

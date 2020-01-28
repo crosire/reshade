@@ -12,7 +12,7 @@ void reshade::vulkan::buffer_detection::reset()
 {
 	_stats.vertices = 0;
 	_stats.drawcalls = 0;
-#if RESHADE_VULKAN_CAPTURE_DEPTH_BUFFERS
+#if RESHADE_DEPTH
 	_counters_per_used_depth_image.clear();
 #endif
 }
@@ -22,7 +22,7 @@ void reshade::vulkan::buffer_detection::merge(const buffer_detection &source)
 	_stats.vertices += source._stats.vertices;
 	_stats.drawcalls += source._stats.drawcalls;
 
-#if RESHADE_VULKAN_CAPTURE_DEPTH_BUFFERS
+#if RESHADE_DEPTH
 	for (const auto &[depthstencil, snapshot] : source._counters_per_used_depth_image)
 	{
 		auto &target_snapshot = _counters_per_used_depth_image[depthstencil];
@@ -40,7 +40,7 @@ void reshade::vulkan::buffer_detection::on_draw(uint32_t vertices)
 	_stats.vertices += vertices;
 	_stats.drawcalls += 1;
 
-#if RESHADE_VULKAN_CAPTURE_DEPTH_BUFFERS
+#if RESHADE_DEPTH
 	if (_current_depthstencil == VK_NULL_HANDLE)
 		// This is a draw call with no depth stencil bound
 		return;
@@ -51,7 +51,7 @@ void reshade::vulkan::buffer_detection::on_draw(uint32_t vertices)
 #endif
 }
 
-#if RESHADE_VULKAN_CAPTURE_DEPTH_BUFFERS
+#if RESHADE_DEPTH
 void reshade::vulkan::buffer_detection::on_set_depthstencil(VkImage depthstencil, VkImageLayout layout, const VkImageCreateInfo &create_info)
 {
 	_current_depthstencil = depthstencil;

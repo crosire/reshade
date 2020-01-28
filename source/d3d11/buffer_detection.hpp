@@ -9,8 +9,6 @@
 #include <d3d11.h>
 #include "com_ptr.hpp"
 
-#define RESHADE_DX11_CAPTURE_DEPTH_BUFFERS 1
-
 namespace reshade::d3d11
 {
 	class buffer_detection
@@ -23,7 +21,7 @@ namespace reshade::d3d11
 
 		void on_draw(UINT vertices);
 
-#if RESHADE_DX11_CAPTURE_DEPTH_BUFFERS
+#if RESHADE_DEPTH
 		void on_clear_depthstencil(UINT clear_flags, ID3D11DepthStencilView *dsv);
 #endif
 
@@ -43,7 +41,7 @@ namespace reshade::d3d11
 		ID3D11DeviceContext *_device = nullptr;
 		const buffer_detection_context *_context = nullptr;
 		draw_stats _stats;
-#if RESHADE_DX11_CAPTURE_DEPTH_BUFFERS
+#if RESHADE_DEPTH
 		draw_stats _best_copy_stats;
 		bool _has_indirect_drawcalls = false;
 		// Use "std::map" instead of "std::unordered_map" so that the iteration order is guaranteed
@@ -63,7 +61,7 @@ namespace reshade::d3d11
 
 		void reset(bool release_resources);
 
-#if RESHADE_DX11_CAPTURE_DEPTH_BUFFERS
+#if RESHADE_DEPTH
 		UINT current_clear_index() const { return _depthstencil_clear_index.second; }
 		const auto &depth_buffer_counters() const { return _counters_per_used_depth_texture; }
 		ID3D11Texture2D *current_depth_texture() const { return _depthstencil_clear_index.first; }
@@ -73,7 +71,7 @@ namespace reshade::d3d11
 #endif
 
 	private:
-#if RESHADE_DX11_CAPTURE_DEPTH_BUFFERS
+#if RESHADE_DEPTH
 		bool update_depthstencil_clear_texture(D3D11_TEXTURE2D_DESC desc);
 
 		draw_stats _previous_stats;

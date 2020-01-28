@@ -8,7 +8,7 @@
 #include "../dxgi/format_utils.hpp"
 #include <cmath>
 
-#if RESHADE_DX10_CAPTURE_DEPTH_BUFFERS
+#if RESHADE_DEPTH
 static inline com_ptr<ID3D10Texture2D> texture_from_dsv(ID3D10DepthStencilView *dsv)
 {
 	if (dsv == nullptr)
@@ -24,7 +24,7 @@ static inline com_ptr<ID3D10Texture2D> texture_from_dsv(ID3D10DepthStencilView *
 void reshade::d3d10::buffer_detection::reset(bool release_resources)
 {
 	_stats = { 0, 0 };
-#if RESHADE_DX10_CAPTURE_DEPTH_BUFFERS
+#if RESHADE_DEPTH
 	_best_copy_stats = { 0, 0 };
 	_counters_per_used_depth_texture.clear();
 
@@ -33,6 +33,8 @@ void reshade::d3d10::buffer_detection::reset(bool release_resources)
 		_previous_stats = { 0, 0 };
 		_depthstencil_clear_texture.reset();
 	}
+#else
+	UNREFERENCED_PARAMETER(release_resources);
 #endif
 }
 
@@ -41,7 +43,7 @@ void reshade::d3d10::buffer_detection::on_draw(UINT vertices)
 	_stats.vertices += vertices;
 	_stats.drawcalls += 1;
 
-#if RESHADE_DX10_CAPTURE_DEPTH_BUFFERS
+#if RESHADE_DEPTH
 	com_ptr<ID3D10DepthStencilView> depthstencil;
 	_device->OMGetRenderTargets(0, nullptr, &depthstencil);
 
@@ -57,7 +59,7 @@ void reshade::d3d10::buffer_detection::on_draw(UINT vertices)
 #endif
 }
 
-#if RESHADE_DX10_CAPTURE_DEPTH_BUFFERS
+#if RESHADE_DEPTH
 void reshade::d3d10::buffer_detection::on_clear_depthstencil(UINT clear_flags, ID3D10DepthStencilView *dsv)
 {
 	if ((clear_flags & D3D10_CLEAR_DEPTH) == 0)

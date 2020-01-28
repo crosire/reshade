@@ -89,7 +89,7 @@ namespace reshade::d3d12
 		com_ptr<ID3D12RootSignature> _imgui_signature;
 #endif
 
-#if RESHADE_DX12_CAPTURE_DEPTH_BUFFERS
+#if RESHADE_DEPTH
 		void draw_depth_debug_menu();
 		void update_depthstencil_texture(com_ptr<ID3D12Resource> texture);
 

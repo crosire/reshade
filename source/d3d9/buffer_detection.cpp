@@ -15,7 +15,7 @@ void reshade::d3d9::buffer_detection::reset(bool release_resources)
 {
 	_stats.vertices = 0;
 	_stats.drawcalls = 0;
-#if RESHADE_DX9_CAPTURE_DEPTH_BUFFERS
+#if RESHADE_DEPTH
 	_clear_stats.vertices = 0;
 	_clear_stats.drawcalls = 0;
 	_counters_per_used_depth_surface.clear();
@@ -36,6 +36,8 @@ void reshade::d3d9::buffer_detection::reset(bool release_resources)
 
 		_device->SetDepthStencilSurface(depthstencil.get());
 	}
+#else
+	UNREFERENCED_PARAMETER(release_resources);
 #endif
 }
 
@@ -61,7 +63,7 @@ void reshade::d3d9::buffer_detection::on_draw(D3DPRIMITIVETYPE type, UINT vertic
 	_stats.vertices += vertices;
 	_stats.drawcalls += 1;
 
-#if RESHADE_DX9_CAPTURE_DEPTH_BUFFERS
+#if RESHADE_DEPTH
 	com_ptr<IDirect3DSurface9> depthstencil;
 	_device->GetDepthStencilSurface(&depthstencil);
 
@@ -93,7 +95,7 @@ void reshade::d3d9::buffer_detection::on_draw(D3DPRIMITIVETYPE type, UINT vertic
 #endif
 }
 
-#if RESHADE_DX9_CAPTURE_DEPTH_BUFFERS
+#if RESHADE_DEPTH
 void reshade::d3d9::buffer_detection::on_set_depthstencil(IDirect3DSurface9 *&depthstencil)
 {
 	if (_depthstencil_replacement != nullptr && depthstencil == _depthstencil_original &&

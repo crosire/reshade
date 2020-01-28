@@ -327,7 +327,7 @@ HOOK_EXPORT void WINAPI glDeleteLists(GLuint list, GLsizei range)
 
 			void WINAPI glDeleteRenderbuffers(GLsizei n, const GLuint *renderbuffers)
 {
-#if RESHADE_OPENGL_CAPTURE_DEPTH_BUFFERS
+#if RESHADE_DEPTH
 	if (g_current_runtime)
 		for (GLsizei i = 0; i < n; ++i)
 			g_current_runtime->_buffer_detection.on_delete_fbo_attachment(GL_RENDERBUFFER, renderbuffers[i]);
@@ -338,7 +338,7 @@ HOOK_EXPORT void WINAPI glDeleteLists(GLuint list, GLsizei range)
 
 HOOK_EXPORT void WINAPI glDeleteTextures(GLsizei n, const GLuint *textures)
 {
-#if RESHADE_OPENGL_CAPTURE_DEPTH_BUFFERS
+#if RESHADE_DEPTH
 	if (g_current_runtime)
 		for (GLsizei i = 0; i < n; ++i)
 			g_current_runtime->_buffer_detection.on_delete_fbo_attachment(GL_TEXTURE, textures[i]);
@@ -650,7 +650,7 @@ HOOK_EXPORT void WINAPI glFogiv(GLenum pname, const GLint *params)
 {
 	static const auto trampoline = reshade::hooks::call(glFramebufferRenderbuffer);
 	trampoline(target, attachment, renderbuffertarget, renderbuffer);
-#if RESHADE_OPENGL_CAPTURE_DEPTH_BUFFERS
+#if RESHADE_DEPTH
 	if (g_current_runtime) g_current_runtime->_buffer_detection.on_fbo_attachment(attachment, renderbuffertarget, renderbuffer, 0);
 #endif
 }
@@ -658,7 +658,7 @@ HOOK_EXPORT void WINAPI glFogiv(GLenum pname, const GLint *params)
 {
 	static const auto trampoline = reshade::hooks::call(glFramebufferRenderbufferEXT);
 	trampoline(target, attachment, renderbuffertarget, renderbuffer);
-#if RESHADE_OPENGL_CAPTURE_DEPTH_BUFFERS
+#if RESHADE_DEPTH
 	if (g_current_runtime) g_current_runtime->_buffer_detection.on_fbo_attachment(attachment, renderbuffertarget, renderbuffer, 0);
 #endif
 }
@@ -666,7 +666,7 @@ HOOK_EXPORT void WINAPI glFogiv(GLenum pname, const GLint *params)
 {
 	static const auto trampoline = reshade::hooks::call(glFramebufferTexture);
 	trampoline(target, attachment, texture, level);
-#if RESHADE_OPENGL_CAPTURE_DEPTH_BUFFERS
+#if RESHADE_DEPTH
 	// No way to figure out the texture binding from the texture name alone, so default to the most likely case of 'GL_TEXTURE_2D'
 	if (g_current_runtime) g_current_runtime->_buffer_detection.on_fbo_attachment(attachment, GL_TEXTURE_2D, texture, level);
 #endif
@@ -675,7 +675,7 @@ HOOK_EXPORT void WINAPI glFogiv(GLenum pname, const GLint *params)
 {
 	static const auto trampoline = reshade::hooks::call(glFramebufferTextureARB);
 	trampoline(target, attachment, texture, level);
-#if RESHADE_OPENGL_CAPTURE_DEPTH_BUFFERS
+#if RESHADE_DEPTH
 	if (g_current_runtime) g_current_runtime->_buffer_detection.on_fbo_attachment(attachment, GL_TEXTURE_2D, texture, level);
 #endif
 }
@@ -683,7 +683,7 @@ HOOK_EXPORT void WINAPI glFogiv(GLenum pname, const GLint *params)
 {
 	static const auto trampoline = reshade::hooks::call(glFramebufferTextureEXT);
 	trampoline(target, attachment, texture, level);
-#if RESHADE_OPENGL_CAPTURE_DEPTH_BUFFERS
+#if RESHADE_DEPTH
 	if (g_current_runtime) g_current_runtime->_buffer_detection.on_fbo_attachment(attachment, GL_TEXTURE_2D, texture, level);
 #endif
 }
@@ -691,7 +691,7 @@ HOOK_EXPORT void WINAPI glFogiv(GLenum pname, const GLint *params)
 {
 	static const auto trampoline = reshade::hooks::call(glFramebufferTexture1D);
 	trampoline(target, attachment, textarget, texture, level);
-#if RESHADE_OPENGL_CAPTURE_DEPTH_BUFFERS
+#if RESHADE_DEPTH
 	if (g_current_runtime) g_current_runtime->_buffer_detection.on_fbo_attachment(attachment, textarget, texture, level);
 #endif
 }
@@ -699,7 +699,7 @@ HOOK_EXPORT void WINAPI glFogiv(GLenum pname, const GLint *params)
 {
 	static const auto trampoline = reshade::hooks::call(glFramebufferTexture1DEXT);
 	trampoline(target, attachment, textarget, texture, level);
-#if RESHADE_OPENGL_CAPTURE_DEPTH_BUFFERS
+#if RESHADE_DEPTH
 	if (g_current_runtime) g_current_runtime->_buffer_detection.on_fbo_attachment(attachment, textarget, texture, level);
 #endif
 }
@@ -707,7 +707,7 @@ HOOK_EXPORT void WINAPI glFogiv(GLenum pname, const GLint *params)
 {
 	static const auto trampoline = reshade::hooks::call(glFramebufferTexture2D);
 	trampoline(target, attachment, textarget, texture, level);
-#if RESHADE_OPENGL_CAPTURE_DEPTH_BUFFERS
+#if RESHADE_DEPTH
 	if (g_current_runtime) g_current_runtime->_buffer_detection.on_fbo_attachment(attachment, textarget, texture, level);
 #endif
 }
@@ -715,7 +715,7 @@ HOOK_EXPORT void WINAPI glFogiv(GLenum pname, const GLint *params)
 {
 	static const auto trampoline = reshade::hooks::call(glFramebufferTexture2DEXT);
 	trampoline(target, attachment, textarget, texture, level);
-#if RESHADE_OPENGL_CAPTURE_DEPTH_BUFFERS
+#if RESHADE_DEPTH
 	if (g_current_runtime) g_current_runtime->_buffer_detection.on_fbo_attachment(attachment, textarget, texture, level);
 #endif
 }
@@ -723,7 +723,7 @@ HOOK_EXPORT void WINAPI glFogiv(GLenum pname, const GLint *params)
 {
 	static const auto trampoline = reshade::hooks::call(glFramebufferTexture3D);
 	trampoline(target, attachment, textarget, texture, level, zoffset);
-#if RESHADE_OPENGL_CAPTURE_DEPTH_BUFFERS
+#if RESHADE_DEPTH
 	if (g_current_runtime) g_current_runtime->_buffer_detection.on_fbo_attachment(attachment, textarget, texture, level);
 #endif
 }
@@ -731,7 +731,7 @@ HOOK_EXPORT void WINAPI glFogiv(GLenum pname, const GLint *params)
 {
 	static const auto trampoline = reshade::hooks::call(glFramebufferTexture3DEXT);
 	trampoline(target, attachment, textarget, texture, level, zoffset);
-#if RESHADE_OPENGL_CAPTURE_DEPTH_BUFFERS
+#if RESHADE_DEPTH
 	if (g_current_runtime) g_current_runtime->_buffer_detection.on_fbo_attachment(attachment, textarget, texture, level);
 #endif
 }
@@ -739,7 +739,7 @@ HOOK_EXPORT void WINAPI glFogiv(GLenum pname, const GLint *params)
 {
 	static const auto trampoline = reshade::hooks::call(glFramebufferTextureLayer);
 	trampoline(target, attachment, texture, level, layer);
-#if RESHADE_OPENGL_CAPTURE_DEPTH_BUFFERS
+#if RESHADE_DEPTH
 	// No way to figure out the texture binding from the texture name alone, so default to the most likely case of 'GL_TEXTURE_2D_ARRAY' (since this accepts a layered texture)
 	if (g_current_runtime) g_current_runtime->_buffer_detection.on_fbo_attachment(attachment, GL_TEXTURE_2D_ARRAY, texture, level);
 #endif
@@ -748,7 +748,7 @@ HOOK_EXPORT void WINAPI glFogiv(GLenum pname, const GLint *params)
 {
 	static const auto trampoline = reshade::hooks::call(glFramebufferTextureLayerARB);
 	trampoline(target, attachment, texture, level, layer);
-#if RESHADE_OPENGL_CAPTURE_DEPTH_BUFFERS
+#if RESHADE_DEPTH
 	if (g_current_runtime) g_current_runtime->_buffer_detection.on_fbo_attachment(attachment, GL_TEXTURE_2D_ARRAY, texture, level);
 #endif
 }
@@ -756,7 +756,7 @@ HOOK_EXPORT void WINAPI glFogiv(GLenum pname, const GLint *params)
 {
 	static const auto trampoline = reshade::hooks::call(glFramebufferTextureLayerEXT);
 	trampoline(target, attachment, texture, level, layer);
-#if RESHADE_OPENGL_CAPTURE_DEPTH_BUFFERS
+#if RESHADE_DEPTH
 	if (g_current_runtime) g_current_runtime->_buffer_detection.on_fbo_attachment(attachment, GL_TEXTURE_2D_ARRAY, texture, level);
 #endif
 }

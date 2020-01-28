@@ -216,7 +216,7 @@ void    STDMETHODCALLTYPE D3D12Device::CreateRenderTargetView(ID3D12Resource *pR
 void    STDMETHODCALLTYPE D3D12Device::CreateDepthStencilView(ID3D12Resource *pResource, const D3D12_DEPTH_STENCIL_VIEW_DESC *pDesc, D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptor)
 {
 	_orig->CreateDepthStencilView(pResource, pDesc, DestDescriptor);
-#if RESHADE_DX12_CAPTURE_DEPTH_BUFFERS
+#if RESHADE_DEPTH
 	if (pResource != nullptr)
 		_buffer_detection.on_create_dsv(pResource, DestDescriptor);
 #endif

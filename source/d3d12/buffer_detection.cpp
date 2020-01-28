@@ -20,7 +20,7 @@ void reshade::d3d12::buffer_detection::init(ID3D12Device *device, const buffer_d
 void reshade::d3d12::buffer_detection::reset()
 {
 	_stats = { 0, 0 };
-#if RESHADE_DX12_CAPTURE_DEPTH_BUFFERS
+#if RESHADE_DEPTH
 	_best_copy_stats = { 0, 0 };
 	_current_depthstencil.reset();
 	_has_indirect_drawcalls = false;
@@ -31,7 +31,7 @@ void reshade::d3d12::buffer_detection_context::reset(bool release_resources, boo
 {
 	buffer_detection::reset();
 
-#if RESHADE_DX12_CAPTURE_DEPTH_BUFFERS
+#if RESHADE_DEPTH
 	if (release_resources)
 	{
 		assert(_context == this);
@@ -44,6 +44,9 @@ void reshade::d3d12::buffer_detection_context::reset(bool release_resources, boo
 			_depthstencil_resources_by_handle.clear();
 		}
 	}
+#else
+	UNREFERENCED_PARAMETER(release_resources);
+	UNREFERENCED_PARAMETER(keep_dsv_handles);
 #endif
 }
 
@@ -52,7 +55,7 @@ void reshade::d3d12::buffer_detection::merge(const buffer_detection &source)
 	_stats.vertices += source._stats.vertices;
 	_stats.drawcalls += source._stats.drawcalls;
 
-#if RESHADE_DX12_CAPTURE_DEPTH_BUFFERS
+#if RESHADE_DEPTH
 	// Executing a command list in a different command list inherits state
 	_current_depthstencil = source._current_depthstencil;
 
@@ -77,7 +80,7 @@ void reshade::d3d12::buffer_detection::on_draw(UINT vertices)
 	_stats.vertices += vertices;
 	_stats.drawcalls += 1;
 
-#if RESHADE_DX12_CAPTURE_DEPTH_BUFFERS
+#if RESHADE_DEPTH
 	if (_current_depthstencil == nullptr)
 		return; // This is a draw call with no depth stencil bound
 
@@ -92,7 +95,7 @@ void reshade::d3d12::buffer_detection::on_draw(UINT vertices)
 #endif
 }
 
-#if RESHADE_DX12_CAPTURE_DEPTH_BUFFERS
+#if RESHADE_DEPTH
 void reshade::d3d12::buffer_detection::on_set_depthstencil(D3D12_CPU_DESCRIPTOR_HANDLE dsv)
 {
 	_current_depthstencil = _context->resource_from_handle(dsv);

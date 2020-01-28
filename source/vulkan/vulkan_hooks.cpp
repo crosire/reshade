@@ -749,7 +749,7 @@ VkResult VKAPI_CALL vkBeginCommandBuffer(VkCommandBuffer commandBuffer, const Vk
 
 void     VKAPI_CALL vkCmdBeginRenderPass(VkCommandBuffer commandBuffer, const VkRenderPassBeginInfo *pRenderPassBegin, VkSubpassContents contents)
 {
-#if RESHADE_VULKAN_CAPTURE_DEPTH_BUFFERS
+#if RESHADE_DEPTH
 	auto &data = s_command_buffer_data.at(commandBuffer);
 	data.current_subpass = 0;
 	data.current_renderpass = pRenderPassBegin->renderPass;
@@ -781,7 +781,7 @@ void     VKAPI_CALL vkCmdNextSubpass(VkCommandBuffer commandBuffer, VkSubpassCon
 	GET_DEVICE_DISPATCH_PTR(CmdNextSubpass, commandBuffer);
 	trampoline(commandBuffer, contents);
 
-#if RESHADE_VULKAN_CAPTURE_DEPTH_BUFFERS
+#if RESHADE_DEPTH
 	auto &data = s_command_buffer_data.at(commandBuffer);
 	data.current_subpass++;
 	assert(data.current_renderpass != VK_NULL_HANDLE);
@@ -810,7 +810,7 @@ void     VKAPI_CALL vkCmdEndRenderPass(VkCommandBuffer commandBuffer)
 	GET_DEVICE_DISPATCH_PTR(CmdEndRenderPass, commandBuffer);
 	trampoline(commandBuffer);
 
-#if RESHADE_VULKAN_CAPTURE_DEPTH_BUFFERS
+#if RESHADE_DEPTH
 	auto &data = s_command_buffer_data.at(commandBuffer);
 	data.current_subpass = std::numeric_limits<uint32_t>::max();
 	data.current_renderpass = VK_NULL_HANDLE;

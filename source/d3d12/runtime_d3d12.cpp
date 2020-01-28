@@ -92,10 +92,10 @@ reshade::d3d12::runtime_d3d12::runtime_d3d12(ID3D12Device *device, ID3D12Command
 		}
 	}
 
-#if RESHADE_GUI && RESHADE_DX12_CAPTURE_DEPTH_BUFFERS
+#if RESHADE_GUI && RESHADE_DEPTH
 	subscribe_to_ui("DX12", [this]() { draw_depth_debug_menu(); });
 #endif
-#if RESHADE_DX12_CAPTURE_DEPTH_BUFFERS
+#if RESHADE_DEPTH
 	subscribe_to_load_config([this](const ini_file &config) {
 		config.get("DX12_BUFFER_DETECTION", "DepthBufferRetrievalMode", _preserve_depth_buffers);
 		config.get("DX12_BUFFER_DETECTION", "DepthBufferClearingNumber", _depth_clear_index_override);
@@ -341,7 +341,7 @@ void reshade::d3d12::runtime_d3d12::on_reset()
 	_imgui_signature.reset();
 #endif
 
-#if RESHADE_DX12_CAPTURE_DEPTH_BUFFERS
+#if RESHADE_DEPTH
 	_has_depth_texture = false;
 	_depth_texture_override = nullptr;
 #endif
@@ -369,7 +369,7 @@ void reshade::d3d12::runtime_d3d12::on_present(buffer_detection_context &tracker
 	// Reset command allocator before using it this frame again
 	_cmd_alloc[_swap_index]->Reset();
 
-#if RESHADE_DX12_CAPTURE_DEPTH_BUFFERS
+#if RESHADE_DEPTH
 	_current_tracker = &tracker;
 	assert(_depth_clear_index_override != 0);
 	update_depthstencil_texture(_has_high_network_activity ? nullptr :
@@ -1497,7 +1497,7 @@ void reshade::d3d12::runtime_d3d12::render_imgui_draw_data(ImDrawData *draw_data
 }
 #endif
 
-#if RESHADE_DX12_CAPTURE_DEPTH_BUFFERS
+#if RESHADE_DEPTH
 void reshade::d3d12::runtime_d3d12::draw_depth_debug_menu()
 {
 	if (_has_high_network_activity)

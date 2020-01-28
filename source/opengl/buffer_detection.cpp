@@ -14,7 +14,7 @@ void reshade::opengl::buffer_detection::reset(GLuint default_width, GLuint defau
 	_stats.vertices = 0;
 	_stats.drawcalls = 0;
 
-#if RESHADE_OPENGL_CAPTURE_DEPTH_BUFFERS
+#if RESHADE_DEPTH
 	// Initialize information for the default depth buffer
 	_depth_source_table[0] = { 0, 0, default_width, default_height, 0, default_format };
 
@@ -22,6 +22,10 @@ void reshade::opengl::buffer_detection::reset(GLuint default_width, GLuint defau
 	for (auto &source : _depth_source_table)
 		// Instead only reset the draw call statistics
 		source.second.stats = { 0, 0 };
+#else
+	UNREFERENCED_PARAMETER(default_width);
+	UNREFERENCED_PARAMETER(default_height);
+	UNREFERENCED_PARAMETER(default_format);
 #endif
 }
 
@@ -33,7 +37,7 @@ void reshade::opengl::buffer_detection::on_draw(GLsizei vertices)
 	_stats.vertices += vertices;
 	_stats.drawcalls += 1;
 
-#if RESHADE_OPENGL_CAPTURE_DEPTH_BUFFERS
+#if RESHADE_DEPTH
 	GLint object = 0;
 	GLint target = GL_NONE;
 	glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &object);
@@ -53,7 +57,7 @@ void reshade::opengl::buffer_detection::on_draw(GLsizei vertices)
 #endif
 }
 
-#if RESHADE_OPENGL_CAPTURE_DEPTH_BUFFERS
+#if RESHADE_DEPTH
 void reshade::opengl::buffer_detection::on_fbo_attachment(GLenum attachment, GLenum target, GLuint object, GLint level)
 {
 	if (object == 0 || (attachment != GL_DEPTH_ATTACHMENT && attachment != GL_DEPTH_STENCIL_ATTACHMENT))

@@ -8,8 +8,6 @@
 #include <map>
 #include "opengl.hpp"
 
-#define RESHADE_OPENGL_CAPTURE_DEPTH_BUFFERS 1
-
 namespace reshade::opengl
 {
 	class buffer_detection
@@ -39,7 +37,7 @@ namespace reshade::opengl
 		void on_fbo_attachment(GLenum attachment, GLenum target, GLuint object, GLint level);
 		void on_delete_fbo_attachment(GLenum target, GLuint object);
 
-#if RESHADE_OPENGL_CAPTURE_DEPTH_BUFFERS
+#if RESHADE_DEPTH
 		const auto &depth_buffer_counters() const { return _depth_source_table; }
 
 		depthstencil_info find_best_depth_texture(GLuint width, GLuint height,
@@ -49,7 +47,7 @@ namespace reshade::opengl
 	private:
 		GLuint _current_vertex_count = 0; // Used to calculate vertex count inside glBegin/glEnd pairs
 		draw_stats _stats;
-#if RESHADE_OPENGL_CAPTURE_DEPTH_BUFFERS
+#if RESHADE_DEPTH
 		std::map<GLuint, depthstencil_info> _depth_source_table;
 #endif
 	};

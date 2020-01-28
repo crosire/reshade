@@ -8,7 +8,7 @@
 #include "../dxgi/format_utils.hpp"
 #include <cmath>
 
-#if RESHADE_DX11_CAPTURE_DEPTH_BUFFERS
+#if RESHADE_DEPTH
 static inline com_ptr<ID3D11Texture2D> texture_from_dsv(ID3D11DepthStencilView *dsv)
 {
 	if (dsv == nullptr)
@@ -30,7 +30,7 @@ void reshade::d3d11::buffer_detection::init(ID3D11DeviceContext *device, const b
 void reshade::d3d11::buffer_detection::reset()
 {
 	_stats = { 0, 0 };
-#if RESHADE_DX11_CAPTURE_DEPTH_BUFFERS
+#if RESHADE_DEPTH
 	_best_copy_stats = { 0, 0 };
 	_has_indirect_drawcalls = false;
 	_counters_per_used_depth_texture.clear();
@@ -40,7 +40,7 @@ void reshade::d3d11::buffer_detection_context::reset(bool release_resources)
 {
 	buffer_detection::reset();
 
-#if RESHADE_DX11_CAPTURE_DEPTH_BUFFERS
+#if RESHADE_DEPTH
 	if (release_resources)
 	{
 		assert(_context == this);
@@ -48,6 +48,8 @@ void reshade::d3d11::buffer_detection_context::reset(bool release_resources)
 		_previous_stats = { 0, 0 };
 		_depthstencil_clear_texture.reset();
 	}
+#else
+	UNREFERENCED_PARAMETER(release_resources);
 #endif
 }
 
@@ -56,7 +58,7 @@ void reshade::d3d11::buffer_detection::merge(const buffer_detection &source)
 	_stats.vertices += source._stats.vertices;
 	_stats.drawcalls += source._stats.drawcalls;
 
-#if RESHADE_DX11_CAPTURE_DEPTH_BUFFERS
+#if RESHADE_DEPTH
 	_best_copy_stats = source._best_copy_stats;
 	_has_indirect_drawcalls |= source._has_indirect_drawcalls;
 
@@ -78,7 +80,7 @@ void reshade::d3d11::buffer_detection::on_draw(UINT vertices)
 	_stats.vertices += vertices;
 	_stats.drawcalls += 1;
 
-#if RESHADE_DX11_CAPTURE_DEPTH_BUFFERS
+#if RESHADE_DEPTH
 	com_ptr<ID3D11DepthStencilView> depthstencil;
 	_device->OMGetRenderTargets(0, nullptr, &depthstencil);
 
@@ -97,7 +99,7 @@ void reshade::d3d11::buffer_detection::on_draw(UINT vertices)
 #endif
 }
 
-#if RESHADE_DX11_CAPTURE_DEPTH_BUFFERS
+#if RESHADE_DEPTH
 void reshade::d3d11::buffer_detection::on_clear_depthstencil(UINT clear_flags, ID3D11DepthStencilView *dsv)
 {
 	assert(_context != nullptr);

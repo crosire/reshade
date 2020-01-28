@@ -101,7 +101,7 @@ reshade::opengl::runtime_gl::runtime_gl()
 		}
 	}
 
-#if RESHADE_GUI && RESHADE_OPENGL_CAPTURE_DEPTH_BUFFERS
+#if RESHADE_GUI && RESHADE_DEPTH
 	subscribe_to_ui("OpenGL", [this]() { draw_depth_debug_menu(); });
 #endif
 	subscribe_to_load_config([this](const ini_file &config) {
@@ -111,7 +111,7 @@ reshade::opengl::runtime_gl::runtime_gl()
 		config.get("OPENGL", "ReserveTextureNames", num_reserve_texture_names);
 		_reserved_texture_names.resize(num_reserve_texture_names);
 
-#if RESHADE_OPENGL_CAPTURE_DEPTH_BUFFERS
+#if RESHADE_DEPTH
 		auto force_default_depth_override = false;
 		config.get("OPENGL", "ForceMainDepthBuffer", force_default_depth_override);
 		config.get("OPENGL", "UseAspectRatioHeuristics", _use_aspect_ratio_heuristics);
@@ -195,7 +195,7 @@ bool reshade::opengl::runtime_gl::on_init(HWND hwnd, unsigned int width, unsigne
 	glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, _tex[TEX_BACK_SRGB], 0);
 	assert(glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
 
-#if RESHADE_OPENGL_CAPTURE_DEPTH_BUFFERS
+#if RESHADE_DEPTH
 	// Initialize depth texture and FBO by assuming they refer to the default frame buffer
 	_has_depth_texture = _default_depth_format != GL_NONE;
 	if (_has_depth_texture)
@@ -243,7 +243,7 @@ void reshade::opengl::runtime_gl::on_reset()
 	_imgui_program = 0;
 #endif
 
-#if RESHADE_OPENGL_CAPTURE_DEPTH_BUFFERS
+#if RESHADE_DEPTH
 	_depth_source = 0;
 	_depth_source_width = 0;
 	_depth_source_height = 0;
@@ -264,7 +264,7 @@ void reshade::opengl::runtime_gl::on_present()
 
 	_app_state.capture();
 
-#if RESHADE_OPENGL_CAPTURE_DEPTH_BUFFERS
+#if RESHADE_DEPTH
 	update_depthstencil_texture(_has_high_network_activity ? buffer_detection::depthstencil_info { 0 } :
 		_buffer_detection.find_best_depth_texture(_use_aspect_ratio_heuristics ? _width : 0, _height, _depth_source_override));
 #endif
@@ -279,7 +279,7 @@ void reshade::opengl::runtime_gl::on_present()
 	glBlitFramebuffer(0, 0, _width, _height, 0, 0, _width, _height, GL_COLOR_BUFFER_BIT, GL_NEAREST);
 	_current_fbo = _fbo[FBO_BACK];
 
-#if RESHADE_OPENGL_CAPTURE_DEPTH_BUFFERS
+#if RESHADE_DEPTH
 	// Copy depth from FBO to depth texture
 	if (_copy_depth_source)
 	{
@@ -746,7 +746,7 @@ bool reshade::opengl::runtime_gl::init_texture(texture &texture)
 		impl->id[1] = _tex[TEX_BACK_SRGB];
 		return true;
 	case texture_reference::depth_buffer:
-#if RESHADE_OPENGL_CAPTURE_DEPTH_BUFFERS
+#if RESHADE_DEPTH
 		impl->id[0] = impl->id[1] =
 			_copy_depth_source ? _tex[TEX_DEPTH] : _depth_source;
 #endif
@@ -1173,7 +1173,7 @@ void reshade::opengl::runtime_gl::render_imgui_draw_data(ImDrawData *draw_data)
 }
 #endif
 
-#if RESHADE_OPENGL_CAPTURE_DEPTH_BUFFERS
+#if RESHADE_DEPTH
 void reshade::opengl::runtime_gl::draw_depth_debug_menu()
 {
 	if (_has_high_network_activity)

@@ -366,7 +366,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetRenderTarget(DWORD RenderTargetInd
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetDepthStencilSurface(IDirect3DSurface9 *pNewZStencil)
 {
-#if RESHADE_DX9_CAPTURE_DEPTH_BUFFERS
+#if RESHADE_DEPTH
 	_buffer_detection.on_set_depthstencil(pNewZStencil);
 #endif
 	return _orig->SetDepthStencilSurface(pNewZStencil);
@@ -374,7 +374,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetDepthStencilSurface(IDirect3DSurfa
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetDepthStencilSurface(IDirect3DSurface9 **ppZStencilSurface)
 {
 	const HRESULT hr = _orig->GetDepthStencilSurface(ppZStencilSurface);
-#if RESHADE_DX9_CAPTURE_DEPTH_BUFFERS
+#if RESHADE_DEPTH
 	if (SUCCEEDED(hr))
 	{
 		assert(ppZStencilSurface != nullptr);
@@ -394,7 +394,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::EndScene()
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::Clear(DWORD Count, const D3DRECT *pRects, DWORD Flags, D3DCOLOR Color, float Z, DWORD Stencil)
 {
-#if RESHADE_DX9_CAPTURE_DEPTH_BUFFERS
+#if RESHADE_DEPTH
 	_buffer_detection.on_clear_depthstencil(Flags);
 #endif
 	return _orig->Clear(Count, pRects, Flags, Color, Z, Stencil);

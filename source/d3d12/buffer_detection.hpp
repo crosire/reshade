@@ -10,8 +10,6 @@
 #include <d3d12.h>
 #include "com_ptr.hpp"
 
-#define RESHADE_DX12_CAPTURE_DEPTH_BUFFERS 1
-
 namespace reshade::d3d12
 {
 	class buffer_detection
@@ -30,7 +28,7 @@ namespace reshade::d3d12
 
 		void on_draw(UINT vertices);
 
-#if RESHADE_DX12_CAPTURE_DEPTH_BUFFERS
+#if RESHADE_DEPTH
 		void on_set_depthstencil(D3D12_CPU_DESCRIPTOR_HANDLE dsv);
 		void on_clear_depthstencil(ID3D12GraphicsCommandList *cmd_list, D3D12_CLEAR_FLAGS clear_flags, D3D12_CPU_DESCRIPTOR_HANDLE dsv);
 #endif
@@ -46,7 +44,7 @@ namespace reshade::d3d12
 		ID3D12Device *_device = nullptr;
 		const buffer_detection_context *_context = nullptr;
 		draw_stats _stats;
-#if RESHADE_DX12_CAPTURE_DEPTH_BUFFERS
+#if RESHADE_DEPTH
 		draw_stats _best_copy_stats;
 		com_ptr<ID3D12Resource> _current_depthstencil;
 		bool _has_indirect_drawcalls = false;
@@ -67,7 +65,7 @@ namespace reshade::d3d12
 
 		void reset(bool release_resources, bool keep_dsv_handles = false);
 
-#if RESHADE_DX12_CAPTURE_DEPTH_BUFFERS
+#if RESHADE_DEPTH
 		UINT current_clear_index() const { return _depthstencil_clear_index.second; }
 		const auto &depth_buffer_counters() const { return _counters_per_used_depth_texture; }
 		ID3D12Resource *current_depth_texture() const { return _depthstencil_clear_index.first; }
@@ -80,7 +78,7 @@ namespace reshade::d3d12
 #endif
 
 	private:
-#if RESHADE_DX12_CAPTURE_DEPTH_BUFFERS
+#if RESHADE_DEPTH
 		bool update_depthstencil_clear_texture(ID3D12CommandQueue *queue, D3D12_RESOURCE_DESC desc);
 
 		com_ptr<ID3D12Resource> resource_from_handle(D3D12_CPU_DESCRIPTOR_HANDLE handle) const;
