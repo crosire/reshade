@@ -3,8 +3,6 @@
  * License: https://github.com/crosire/reshade#license
  */
 
-using Microsoft.Win32;
-using Microsoft.WindowsAPICodePack.Dialogs;
 using ReShade.Utilities;
 using System.IO;
 using System.Windows;
@@ -82,40 +80,38 @@ namespace ReShade.Setup
 
 		void OnChoosePresetDialog(object sender, RoutedEventArgs e)
 		{
-			string origFirstValue = (Preset.Text ?? "").Split(',')[0];
+			string origFirstValue = (Preset.Text ?? string.Empty).Split(',')[0];
 
-			var dlg = new OpenFileDialog
+			var dlg = new FileOpenDialog
 			{
-				CheckFileExists = false,
 				CheckPathExists = true,
-				Multiselect = true,
+				CheckFileExists = false,
 				Filter = "Preset Files (*.ini, *.txt)|*.ini;*.txt",
+				FileName = origFirstValue,
 				DefaultExt = ".ini",
-				InitialDirectory = string.IsNullOrWhiteSpace(origFirstValue) ? null : Path.GetDirectoryName(origFirstValue),
-				FileName = Path.GetFileName(origFirstValue)
+				InitialDirectory = Path.GetDirectoryName(origFirstValue),
 			};
 
 			if (dlg.ShowDialog(this) == true)
 			{
-				Preset.Text = string.Join(",", dlg.FileNames);
+				Preset.Text = dlg.FileName;
 			}
 		}
 
 		void OnChooseFolderDialog(object sender, RoutedEventArgs e)
 		{
 			var target = e.Source as FrameworkElement;
-			string origFirstValue = (target.Tag as string ?? "").Split(',')[0].TrimEnd(Path.PathSeparator);
+			string origFirstValue = (target.Tag as string ?? string.Empty).Split(',')[0].TrimEnd(Path.PathSeparator);
 
-			var dlg = new CommonOpenFileDialog
+			var dlg = new FileOpenDialog
 			{
-				IsFolderPicker = true,
 				Multiselect = true,
-				EnsureFileExists = true,
-				InitialDirectory = string.IsNullOrWhiteSpace(origFirstValue) ? null : Path.GetDirectoryName(origFirstValue),
-				DefaultFileName = Path.GetFileName(origFirstValue)
+				FolderPicker = true,
+				CheckPathExists = true,
+				InitialDirectory = origFirstValue
 			};
 
-			if (dlg.ShowDialog() == CommonFileDialogResult.Ok)
+			if (dlg.ShowDialog(this) == true)
 			{
 				target.Tag = string.Join(",", dlg.FileNames);
 			}
