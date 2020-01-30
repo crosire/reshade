@@ -417,52 +417,59 @@ bool reshade::d3d9::runtime_d3d9::init_effect(size_t index)
 				_device->SetVertexShader(pass.vertex_shader.get());
 				_device->SetPixelShader(pass.pixel_shader.get());
 
-				const auto literal_to_blend_func = [](unsigned int value) {
+				const auto convert_blend_op = [](reshadefx::pass_blend_op value) {
 					switch (value)
 					{
-					case 0:
-						return D3DBLEND_ZERO;
 					default:
-					case 1:
-						return D3DBLEND_ONE;
-					case 2:
-						return D3DBLEND_SRCCOLOR;
-					case 4:
-						return D3DBLEND_INVSRCCOLOR;
-					case 3:
-						return D3DBLEND_SRCALPHA;
-					case 5:
-						return D3DBLEND_INVSRCALPHA;
-					case 6:
-						return D3DBLEND_DESTALPHA;
-					case 7:
-						return D3DBLEND_INVDESTALPHA;
-					case 8:
-						return D3DBLEND_DESTCOLOR;
-					case 9:
-						return D3DBLEND_INVDESTCOLOR;
+					case reshadefx::pass_blend_op::add: return D3DBLENDOP_ADD;
+					case reshadefx::pass_blend_op::subtract: return D3DBLENDOP_SUBTRACT;
+					case reshadefx::pass_blend_op::rev_subtract: return D3DBLENDOP_REVSUBTRACT;
+					case reshadefx::pass_blend_op::min: return D3DBLENDOP_MIN;
+					case reshadefx::pass_blend_op::max: return D3DBLENDOP_MAX;
 					}
 				};
-				const auto literal_to_stencil_op = [](unsigned int value) {
+				const auto convert_blend_func = [](reshadefx::pass_blend_func value) {
 					switch (value)
 					{
 					default:
-					case 1:
-						return D3DSTENCILOP_KEEP;
-					case 0:
-						return D3DSTENCILOP_ZERO;
-					case 3:
-						return D3DSTENCILOP_REPLACE;
-					case 4:
-						return D3DSTENCILOP_INCRSAT;
-					case 5:
-						return D3DSTENCILOP_DECRSAT;
-					case 6:
-						return D3DSTENCILOP_INVERT;
-					case 7:
-						return D3DSTENCILOP_INCR;
-					case 8:
-						return D3DSTENCILOP_DECR;
+					case reshadefx::pass_blend_func::one: return D3DBLEND_ONE;
+					case reshadefx::pass_blend_func::zero: return D3DBLEND_ZERO;
+					case reshadefx::pass_blend_func::src_color: return D3DBLEND_SRCCOLOR;
+					case reshadefx::pass_blend_func::src_alpha: return D3DBLEND_SRCALPHA;
+					case reshadefx::pass_blend_func::inv_src_color: return D3DBLEND_INVSRCCOLOR;
+					case reshadefx::pass_blend_func::inv_src_alpha: return D3DBLEND_INVSRCALPHA;
+					case reshadefx::pass_blend_func::dst_alpha: return D3DBLEND_DESTALPHA;
+					case reshadefx::pass_blend_func::dst_color: return D3DBLEND_DESTCOLOR;
+					case reshadefx::pass_blend_func::inv_dst_alpha: return D3DBLEND_INVDESTALPHA;
+					case reshadefx::pass_blend_func::inv_dst_color: return D3DBLEND_INVDESTCOLOR;
+					}
+				};
+				const auto convert_stencil_op = [](reshadefx::pass_stencil_op value) {
+					switch (value)
+					{
+					default:
+					case reshadefx::pass_stencil_op::keep: return D3DSTENCILOP_KEEP;
+					case reshadefx::pass_stencil_op::zero: return D3DSTENCILOP_ZERO;
+					case reshadefx::pass_stencil_op::invert: return D3DSTENCILOP_INVERT;
+					case reshadefx::pass_stencil_op::replace: return D3DSTENCILOP_REPLACE;
+					case reshadefx::pass_stencil_op::incr: return D3DSTENCILOP_INCR;
+					case reshadefx::pass_stencil_op::incr_sat: return D3DSTENCILOP_INCRSAT;
+					case reshadefx::pass_stencil_op::decr: return D3DSTENCILOP_DECR;
+					case reshadefx::pass_stencil_op::decr_sat: return D3DSTENCILOP_DECRSAT;
+					}
+				};
+				const auto convert_stencil_func = [](reshadefx::pass_stencil_func value) {
+					switch (value)
+					{
+					default:
+					case reshadefx::pass_stencil_func::always: return D3DCMP_ALWAYS;
+					case reshadefx::pass_stencil_func::never: return D3DCMP_NEVER;
+					case reshadefx::pass_stencil_func::equal: return D3DCMP_EQUAL;
+					case reshadefx::pass_stencil_func::not_equal: return D3DCMP_NOTEQUAL;
+					case reshadefx::pass_stencil_func::less: return D3DCMP_LESS;
+					case reshadefx::pass_stencil_func::less_equal: return D3DCMP_LESSEQUAL;
+					case reshadefx::pass_stencil_func::greater: return D3DCMP_GREATER;
+					case reshadefx::pass_stencil_func::greater_equal: return D3DCMP_GREATEREQUAL;
 					}
 				};
 
@@ -472,8 +479,8 @@ bool reshade::d3d9::runtime_d3d9::init_effect(size_t index)
 				_device->SetRenderState(D3DRS_ZWRITEENABLE, true);
 				_device->SetRenderState(D3DRS_ALPHATESTENABLE, false);
 				_device->SetRenderState(D3DRS_LASTPIXEL, true);
-				_device->SetRenderState(D3DRS_SRCBLEND, literal_to_blend_func(pass_info.src_blend));
-				_device->SetRenderState(D3DRS_DESTBLEND, literal_to_blend_func(pass_info.dest_blend));
+				_device->SetRenderState(D3DRS_SRCBLEND, convert_blend_func(pass_info.src_blend));
+				_device->SetRenderState(D3DRS_DESTBLEND, convert_blend_func(pass_info.dest_blend));
 				_device->SetRenderState(D3DRS_CULLMODE, D3DCULL_NONE);
 				_device->SetRenderState(D3DRS_ZFUNC, D3DCMP_ALWAYS);
 				// D3DRS_ALPHAREF
@@ -489,10 +496,10 @@ bool reshade::d3d9::runtime_d3d9::init_effect(size_t index)
 				// D3DRS_FOGDENSITY
 				// D3DRS_RANGEFOGENABLE
 				_device->SetRenderState(D3DRS_STENCILENABLE, pass_info.stencil_enable);
-				_device->SetRenderState(D3DRS_STENCILFAIL, literal_to_stencil_op(pass_info.stencil_op_fail));
-				_device->SetRenderState(D3DRS_STENCILZFAIL, literal_to_stencil_op(pass_info.stencil_op_depth_fail));
-				_device->SetRenderState(D3DRS_STENCILPASS, literal_to_stencil_op(pass_info.stencil_op_pass));
-				_device->SetRenderState(D3DRS_STENCILFUNC, static_cast<D3DCMPFUNC>(pass_info.stencil_comparison_func));
+				_device->SetRenderState(D3DRS_STENCILFAIL, convert_stencil_op(pass_info.stencil_op_fail));
+				_device->SetRenderState(D3DRS_STENCILZFAIL, convert_stencil_op(pass_info.stencil_op_depth_fail));
+				_device->SetRenderState(D3DRS_STENCILPASS, convert_stencil_op(pass_info.stencil_op_pass));
+				_device->SetRenderState(D3DRS_STENCILFUNC, convert_stencil_func(pass_info.stencil_comparison_func));
 				_device->SetRenderState(D3DRS_STENCILREF, pass_info.stencil_reference_value);
 				_device->SetRenderState(D3DRS_STENCILMASK, pass_info.stencil_read_mask);
 				_device->SetRenderState(D3DRS_STENCILWRITEMASK, pass_info.stencil_write_mask);
@@ -524,7 +531,7 @@ bool reshade::d3d9::runtime_d3d9::init_effect(size_t index)
 				// D3DRS_INDEXEDVERTEXBLENDENABLE
 				_device->SetRenderState(D3DRS_COLORWRITEENABLE, pass_info.color_write_mask);
 				// D3DRS_TWEENFACTOR
-				_device->SetRenderState(D3DRS_BLENDOP, static_cast<D3DBLENDOP>(pass_info.blend_op));
+				_device->SetRenderState(D3DRS_BLENDOP, convert_blend_op(pass_info.blend_op));
 				// D3DRS_POSITIONDEGREE
 				// D3DRS_NORMALDEGREE
 				_device->SetRenderState(D3DRS_SCISSORTESTENABLE, false);
@@ -547,9 +554,9 @@ bool reshade::d3d9::runtime_d3d9::init_effect(size_t index)
 				_device->SetRenderState(D3DRS_DEPTHBIAS, 0);
 				// D3DRS_WRAP8 - D3DRS_WRAP15
 				_device->SetRenderState(D3DRS_SEPARATEALPHABLENDENABLE, true);
-				_device->SetRenderState(D3DRS_SRCBLENDALPHA, literal_to_blend_func(pass_info.src_blend_alpha));
-				_device->SetRenderState(D3DRS_DESTBLENDALPHA, literal_to_blend_func(pass_info.dest_blend_alpha));
-				_device->SetRenderState(D3DRS_BLENDOPALPHA, static_cast<D3DBLENDOP>(pass_info.blend_op_alpha));
+				_device->SetRenderState(D3DRS_SRCBLENDALPHA, convert_blend_func(pass_info.src_blend_alpha));
+				_device->SetRenderState(D3DRS_DESTBLENDALPHA, convert_blend_func(pass_info.dest_blend_alpha));
+				_device->SetRenderState(D3DRS_BLENDOPALPHA, convert_blend_op(pass_info.blend_op_alpha));
 
 				hr = _device->EndStateBlock(&pass.stateblock);
 			}

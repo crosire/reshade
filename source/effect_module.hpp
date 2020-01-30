@@ -57,6 +57,65 @@ namespace reshadefx
 	};
 
 	/// <summary>
+	/// Specifies RGB or alpha blending operations.
+	/// </summary>
+	enum class pass_blend_op : uint8_t
+	{
+		add = 1,
+		subtract,
+		rev_subtract,
+		min,
+		max,
+	};
+
+	/// <summary>
+	/// Specifies blend factors, which modulate values between the pixel shader output and render target.
+	/// </summary>
+	enum class pass_blend_func : uint8_t
+	{
+		zero = 0,
+		one = 1,
+		src_color,
+		src_alpha,
+		inv_src_color,
+		inv_src_alpha,
+		dst_color,
+		dst_alpha,
+		inv_dst_color,
+		inv_dst_alpha,
+	};
+
+	/// <summary>
+	/// Specifies the stencil operations that can be performed during depth-stencil testing.
+	/// </summary>
+	enum class pass_stencil_op : uint8_t
+	{
+		zero,
+		keep,
+		invert,
+		replace,
+		incr,
+		incr_sat,
+		decr,
+		decr_sat,
+	};
+
+	/// <summary>
+	/// Specifies comparison options for depth-stencil testing.
+	/// </summary>
+	enum class pass_stencil_func : uint8_t
+	{
+		never,
+		equal,
+		not_equal,
+		less,
+		less_equal,
+		greater,
+		greater_equal,
+		always,
+	};
+
+	/// <summary>
 	/// A struct type defined in the shader code.
 	/// </summary>
 	struct struct_info
@@ -177,17 +236,17 @@ namespace reshadefx
 		uint8_t color_write_mask = 0xF;
 		uint8_t stencil_read_mask = 0xFF;
 		uint8_t stencil_write_mask = 0xFF;
-		uint32_t blend_op = 1; // ADD
-		uint32_t blend_op_alpha = 1; // ADD
-		uint32_t src_blend = 1; // ONE
-		uint32_t dest_blend = 0; // ZERO
-		uint32_t src_blend_alpha = 1; // ONE
-		uint32_t dest_blend_alpha = 0; // ZERO
-		uint32_t stencil_comparison_func = 8; // ALWAYS
+		pass_blend_op blend_op = pass_blend_op::add;
+		pass_blend_op blend_op_alpha = pass_blend_op::add;
+		pass_blend_func src_blend = pass_blend_func::one;
+		pass_blend_func dest_blend = pass_blend_func::zero;
+		pass_blend_func src_blend_alpha = pass_blend_func::one;
+		pass_blend_func dest_blend_alpha = pass_blend_func::zero;
+		pass_stencil_func stencil_comparison_func = pass_stencil_func::always;
 		uint32_t stencil_reference_value = 0;
-		uint32_t stencil_op_pass = 1; // KEEP
-		uint32_t stencil_op_fail = 1; // KEEP
-		uint32_t stencil_op_depth_fail = 1; // KEEP
+		pass_stencil_op stencil_op_pass = pass_stencil_op::keep;
+		pass_stencil_op stencil_op_fail = pass_stencil_op::keep;
+		pass_stencil_op stencil_op_depth_fail = pass_stencil_op::keep;
 		uint32_t num_vertices = 3;
 		uint32_t viewport_width = 0;
 		uint32_t viewport_height = 0;

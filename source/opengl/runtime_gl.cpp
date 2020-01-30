@@ -557,72 +557,72 @@ bool reshade::opengl::runtime_gl::init_effect(size_t index)
 			auto &pass = *technique.passes_data.back()->as<opengl_pass_data>();
 			const auto &pass_info = technique.passes[i];
 
-			const auto literal_to_blend_eq = [](unsigned int value) -> GLenum {
+			const auto convert_blend_op = [](reshadefx::pass_blend_op value) -> GLenum {
 				switch (value)
 				{
 				default:
-				case 1: return GL_FUNC_ADD;
-				case 2: return GL_FUNC_SUBTRACT;
-				case 3: return GL_FUNC_REVERSE_SUBTRACT;
-				case 4: return GL_MIN;
-				case 5: return GL_MAX;
+				case reshadefx::pass_blend_op::add: return GL_FUNC_ADD;
+				case reshadefx::pass_blend_op::subtract: return GL_FUNC_SUBTRACT;
+				case reshadefx::pass_blend_op::rev_subtract: return GL_FUNC_REVERSE_SUBTRACT;
+				case reshadefx::pass_blend_op::min: return GL_MIN;
+				case reshadefx::pass_blend_op::max: return GL_MAX;
 				}
 			};
-			const auto literal_to_blend_func = [](unsigned int value) -> GLenum {
+			const auto convert_blend_func = [](reshadefx::pass_blend_func value) -> GLenum {
 				switch (value)
 				{
 				default:
-				case 0: return GL_ZERO;
-				case 1: return GL_ONE;
-				case 2: return GL_SRC_COLOR;
-				case 3: return GL_SRC_ALPHA;
-				case 4: return GL_ONE_MINUS_SRC_COLOR;
-				case 5: return GL_ONE_MINUS_SRC_ALPHA;
-				case 8: return GL_DST_COLOR;
-				case 6: return GL_DST_ALPHA;
-				case 9: return GL_ONE_MINUS_DST_COLOR;
-				case 7: return GL_ONE_MINUS_DST_ALPHA;
+				case reshadefx::pass_blend_func::one: return GL_ONE;
+				case reshadefx::pass_blend_func::zero: return GL_ZERO;
+				case reshadefx::pass_blend_func::src_color: return GL_SRC_COLOR;
+				case reshadefx::pass_blend_func::src_alpha: return GL_SRC_ALPHA;
+				case reshadefx::pass_blend_func::inv_src_color: return GL_ONE_MINUS_SRC_COLOR;
+				case reshadefx::pass_blend_func::inv_src_alpha: return GL_ONE_MINUS_SRC_ALPHA;
+				case reshadefx::pass_blend_func::dst_color: return GL_DST_COLOR;
+				case reshadefx::pass_blend_func::dst_alpha: return GL_DST_ALPHA;
+				case reshadefx::pass_blend_func::inv_dst_color: return GL_ONE_MINUS_DST_COLOR;
+				case reshadefx::pass_blend_func::inv_dst_alpha: return GL_ONE_MINUS_DST_ALPHA;
 				}
 			};
-			const auto literal_to_comp_func = [](unsigned int value) -> GLenum {
+			const auto convert_stencil_op = [](reshadefx::pass_stencil_op value) -> GLenum {
 				switch (value)
 				{
 				default:
-				case 8: return GL_ALWAYS;
-				case 1: return GL_NEVER;
-				case 3: return GL_EQUAL;
-				case 6: return GL_NOTEQUAL;
-				case 2: return GL_LESS;
-				case 4: return GL_LEQUAL;
-				case 5: return GL_GREATER;
-				case 7: return GL_GEQUAL;
+				case reshadefx::pass_stencil_op::keep: return GL_KEEP;
+				case reshadefx::pass_stencil_op::zero: return GL_ZERO;
+				case reshadefx::pass_stencil_op::invert: return GL_INVERT;
+				case reshadefx::pass_stencil_op::replace: return GL_REPLACE;
+				case reshadefx::pass_stencil_op::incr: return GL_INCR_WRAP;
+				case reshadefx::pass_stencil_op::incr_sat: return GL_INCR;
+				case reshadefx::pass_stencil_op::decr: return GL_DECR_WRAP;
+				case reshadefx::pass_stencil_op::decr_sat: return GL_DECR;
 				}
 			};
-			const auto literal_to_stencil_op = [](unsigned int value) -> GLenum {
+			const auto convert_stencil_func = [](reshadefx::pass_stencil_func value) -> GLenum {
 				switch (value)
 				{
 				default:
-				case 1: return GL_KEEP;
-				case 0: return GL_ZERO;
-				case 3: return GL_REPLACE;
-				case 7: return GL_INCR_WRAP;
-				case 4: return GL_INCR;
-				case 8: return GL_DECR_WRAP;
-				case 5: return GL_DECR;
-				case 6: return GL_INVERT;
+				case reshadefx::pass_stencil_func::always: return GL_ALWAYS;
+				case reshadefx::pass_stencil_func::never: return GL_NEVER;
+				case reshadefx::pass_stencil_func::equal: return GL_EQUAL;
+				case reshadefx::pass_stencil_func::not_equal: return GL_NOTEQUAL;
+				case reshadefx::pass_stencil_func::less: return GL_LESS;
+				case reshadefx::pass_stencil_func::less_equal: return GL_LEQUAL;
+				case reshadefx::pass_stencil_func::greater: return GL_GREATER;
+				case reshadefx::pass_stencil_func::greater_equal: return GL_GEQUAL;
 				}
 			};
 
-			pass.blend_eq_color = literal_to_blend_eq(pass_info.blend_op);
-			pass.blend_eq_alpha = literal_to_blend_eq(pass_info.blend_op_alpha);
-			pass.blend_src = literal_to_blend_func(pass_info.src_blend);
-			pass.blend_dest = literal_to_blend_func(pass_info.dest_blend);
-			pass.blend_src_alpha = literal_to_blend_func(pass_info.src_blend_alpha);
-			pass.blend_dest_alpha = literal_to_blend_func(pass_info.dest_blend_alpha);
-			pass.stencil_func = literal_to_comp_func(pass_info.stencil_comparison_func);
-			pass.stencil_op_z_pass = literal_to_stencil_op(pass_info.stencil_op_pass);
-			pass.stencil_op_fail = literal_to_stencil_op(pass_info.stencil_op_fail);
-			pass.stencil_op_z_fail = literal_to_stencil_op(pass_info.stencil_op_depth_fail);
+			pass.blend_eq_color = convert_blend_op(pass_info.blend_op);
+			pass.blend_eq_alpha = convert_blend_op(pass_info.blend_op_alpha);
+			pass.blend_src = convert_blend_func(pass_info.src_blend);
+			pass.blend_dest = convert_blend_func(pass_info.dest_blend);
+			pass.blend_src_alpha = convert_blend_func(pass_info.src_blend_alpha);
+			pass.blend_dest_alpha = convert_blend_func(pass_info.dest_blend_alpha);
+			pass.stencil_func = convert_stencil_func(pass_info.stencil_comparison_func);
+			pass.stencil_op_z_pass = convert_stencil_op(pass_info.stencil_op_pass);
+			pass.stencil_op_fail = convert_stencil_op(pass_info.stencil_op_fail);
+			pass.stencil_op_z_fail = convert_stencil_op(pass_info.stencil_op_depth_fail);
 
 			glGenFramebuffers(1, &pass.fbo);
 			glBindFramebuffer(GL_FRAMEBUFFER, pass.fbo);

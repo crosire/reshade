@@ -842,47 +842,58 @@ bool reshade::vulkan::runtime_vk::init_effect(size_t index)
 
 			pass_data.runtime = this;
 
-			const auto literal_to_comp_func = [](unsigned int value) -> VkCompareOp {
+			const auto convert_blend_op = [](reshadefx::pass_blend_op value) -> VkBlendOp {
 				switch (value)
 				{
 				default:
-				case 8: return VK_COMPARE_OP_ALWAYS;
-				case 1: return VK_COMPARE_OP_NEVER;
-				case 3: return VK_COMPARE_OP_EQUAL;
-				case 6: return VK_COMPARE_OP_NOT_EQUAL;
-				case 2: return VK_COMPARE_OP_LESS;
-				case 4: return VK_COMPARE_OP_LESS_OR_EQUAL;
-				case 5: return VK_COMPARE_OP_GREATER;
-				case 7: return VK_COMPARE_OP_GREATER_OR_EQUAL;
+				case reshadefx::pass_blend_op::add: return VK_BLEND_OP_ADD;
+				case reshadefx::pass_blend_op::subtract: return VK_BLEND_OP_SUBTRACT;
+				case reshadefx::pass_blend_op::rev_subtract: return VK_BLEND_OP_REVERSE_SUBTRACT;
+				case reshadefx::pass_blend_op::min: return VK_BLEND_OP_MIN;
+				case reshadefx::pass_blend_op::max: return VK_BLEND_OP_MAX;
 				}
 			};
-			const auto literal_to_stencil_op = [](unsigned int value) -> VkStencilOp {
+			const auto convert_blend_func = [](reshadefx::pass_blend_func value) -> VkBlendFactor {
+				switch (value)
+				{
+				default:
+				case reshadefx::pass_blend_func::zero: return VK_BLEND_FACTOR_ZERO;
+				case reshadefx::pass_blend_func::one: return VK_BLEND_FACTOR_ONE;
+				case reshadefx::pass_blend_func::src_color: return VK_BLEND_FACTOR_SRC_COLOR;
+				case reshadefx::pass_blend_func::src_alpha: return VK_BLEND_FACTOR_SRC_ALPHA;
+				case reshadefx::pass_blend_func::inv_src_color: return VK_BLEND_FACTOR_ONE_MINUS_SRC_COLOR;
+				case reshadefx::pass_blend_func::inv_src_alpha: return VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+				case reshadefx::pass_blend_func::dst_color: return VK_BLEND_FACTOR_DST_COLOR;
+				case reshadefx::pass_blend_func::dst_alpha: return VK_BLEND_FACTOR_DST_ALPHA;
+				case reshadefx::pass_blend_func::inv_dst_color: return VK_BLEND_FACTOR_ONE_MINUS_DST_COLOR;
+				case reshadefx::pass_blend_func::inv_dst_alpha: return VK_BLEND_FACTOR_ONE_MINUS_DST_ALPHA;
+				}
+			};
+			const auto convert_stencil_op = [](reshadefx::pass_stencil_op value) -> VkStencilOp {
 				switch (value) {
 				default:
-				case 1: return VK_STENCIL_OP_KEEP;
-				case 0: return VK_STENCIL_OP_ZERO;
-				case 3: return VK_STENCIL_OP_REPLACE;
-				case 4: return VK_STENCIL_OP_INCREMENT_AND_CLAMP;
-				case 5: return VK_STENCIL_OP_DECREMENT_AND_CLAMP;
-				case 6: return VK_STENCIL_OP_INVERT;
-				case 7: return VK_STENCIL_OP_INCREMENT_AND_WRAP;
-				case 8: return VK_STENCIL_OP_DECREMENT_AND_WRAP;
+				case reshadefx::pass_stencil_op::keep: return VK_STENCIL_OP_KEEP;
+				case reshadefx::pass_stencil_op::zero: return VK_STENCIL_OP_ZERO;
+				case reshadefx::pass_stencil_op::invert: return VK_STENCIL_OP_INVERT;
+				case reshadefx::pass_stencil_op::replace: return VK_STENCIL_OP_REPLACE;
+				case reshadefx::pass_stencil_op::incr: return VK_STENCIL_OP_INCREMENT_AND_WRAP;
+				case reshadefx::pass_stencil_op::incr_sat: return VK_STENCIL_OP_INCREMENT_AND_CLAMP;
+				case reshadefx::pass_stencil_op::decr: return VK_STENCIL_OP_DECREMENT_AND_WRAP;
+				case reshadefx::pass_stencil_op::decr_sat: return VK_STENCIL_OP_DECREMENT_AND_CLAMP;
 				}
 			};
-			const auto literal_to_blend_factor = [](unsigned int value) -> VkBlendFactor {
+			const auto convert_stencil_func = [](reshadefx::pass_stencil_func value) -> VkCompareOp {
 				switch (value)
 				{
 				default:
-				case 0: return VK_BLEND_FACTOR_ZERO;
-				case 1: return VK_BLEND_FACTOR_ONE;
-				case 2: return VK_BLEND_FACTOR_SRC_COLOR;
-				case 3: return VK_BLEND_FACTOR_SRC_ALPHA;
-				case 4: return VK_BLEND_FACTOR_ONE_MINUS_SRC_COLOR;
-				case 5: return VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
-				case 8: return VK_BLEND_FACTOR_DST_COLOR;
-				case 6: return VK_BLEND_FACTOR_DST_ALPHA;
-				case 9: return VK_BLEND_FACTOR_ONE_MINUS_DST_COLOR;
-				case 7: return VK_BLEND_FACTOR_ONE_MINUS_DST_ALPHA;
+				case reshadefx::pass_stencil_func::always: return VK_COMPARE_OP_ALWAYS;
+				case reshadefx::pass_stencil_func::never: return VK_COMPARE_OP_NEVER;
+				case reshadefx::pass_stencil_func::equal: return VK_COMPARE_OP_EQUAL;
+				case reshadefx::pass_stencil_func::not_equal: return VK_COMPARE_OP_NOT_EQUAL;
+				case reshadefx::pass_stencil_func::less: return VK_COMPARE_OP_LESS;
+				case reshadefx::pass_stencil_func::less_equal: return VK_COMPARE_OP_LESS_OR_EQUAL;
+				case reshadefx::pass_stencil_func::greater: return VK_COMPARE_OP_GREATER;
+				case reshadefx::pass_stencil_func::greater_equal: return VK_COMPARE_OP_GREATER_OR_EQUAL;
 				}
 			};
 
@@ -909,12 +920,12 @@ bool reshade::vulkan::runtime_vk::init_effect(size_t index)
 			for (uint32_t attach_idx = 0; attach_idx < 8; ++attach_idx, ++num_color_attachments)
 			{
 				attachment_blends[attach_idx].blendEnable = pass_info.blend_enable;
-				attachment_blends[attach_idx].srcColorBlendFactor = literal_to_blend_factor(pass_info.src_blend);
-				attachment_blends[attach_idx].dstColorBlendFactor = literal_to_blend_factor(pass_info.dest_blend);
-				attachment_blends[attach_idx].colorBlendOp = static_cast<VkBlendOp>(pass_info.blend_op - 1);
-				attachment_blends[attach_idx].srcAlphaBlendFactor = literal_to_blend_factor(pass_info.src_blend_alpha);
-				attachment_blends[attach_idx].dstAlphaBlendFactor = literal_to_blend_factor(pass_info.dest_blend_alpha);
-				attachment_blends[attach_idx].alphaBlendOp = static_cast<VkBlendOp>(pass_info.blend_op_alpha - 1);
+				attachment_blends[attach_idx].srcColorBlendFactor = convert_blend_func(pass_info.src_blend);
+				attachment_blends[attach_idx].dstColorBlendFactor = convert_blend_func(pass_info.dest_blend);
+				attachment_blends[attach_idx].colorBlendOp = convert_blend_op(pass_info.blend_op);
+				attachment_blends[attach_idx].srcAlphaBlendFactor = convert_blend_func(pass_info.src_blend_alpha);
+				attachment_blends[attach_idx].dstAlphaBlendFactor = convert_blend_func(pass_info.dest_blend_alpha);
+				attachment_blends[attach_idx].alphaBlendOp = convert_blend_op(pass_info.blend_op_alpha);
 				attachment_blends[attach_idx].colorWriteMask = pass_info.color_write_mask;
 
 				if (pass_info.render_target_names[attach_idx].empty())
@@ -1065,10 +1076,10 @@ bool reshade::vulkan::runtime_vk::init_effect(size_t index)
 			depth_info.depthWriteEnable = VK_FALSE;
 			depth_info.depthCompareOp = VK_COMPARE_OP_ALWAYS;
 			depth_info.stencilTestEnable = pass_info.stencil_enable;
-			depth_info.front.failOp = literal_to_stencil_op(pass_info.stencil_op_fail);
-			depth_info.front.passOp = literal_to_stencil_op(pass_info.stencil_op_pass);
-			depth_info.front.depthFailOp = literal_to_stencil_op(pass_info.stencil_op_depth_fail);
-			depth_info.front.compareOp = literal_to_comp_func(pass_info.stencil_comparison_func);
+			depth_info.front.failOp = convert_stencil_op(pass_info.stencil_op_fail);
+			depth_info.front.passOp = convert_stencil_op(pass_info.stencil_op_pass);
+			depth_info.front.depthFailOp = convert_stencil_op(pass_info.stencil_op_depth_fail);
+			depth_info.front.compareOp = convert_stencil_func(pass_info.stencil_comparison_func);
 			depth_info.front.compareMask = pass_info.stencil_read_mask;
 			depth_info.front.writeMask = pass_info.stencil_write_mask;
 			depth_info.front.reference = pass_info.stencil_reference_value;

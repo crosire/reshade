@@ -2878,10 +2878,34 @@ bool reshadefx::parser::parse_technique_pass(pass_info &info)
 
 				static const std::pair<const char *, uint32_t> s_enum_values[] = {
 					{ "NONE", 0 }, { "ZERO", 0 }, { "ONE", 1 },
-					{ "SRCCOLOR", 2 }, { "SRCALPHA", 3 }, { "INVSRCCOLOR", 4 }, { "INVSRCALPHA", 5 }, { "DESTCOLOR", 8 }, { "DESTALPHA", 6 }, { "INVDESTCOLOR", 9 }, { "INVDESTALPHA", 7 },
-					{ "ADD", 1 }, { "SUBTRACT", 2 }, { "REVSUBTRACT", 3 }, { "MIN", 4 }, { "MAX", 5 },
-					{ "KEEP", 1 }, { "REPLACE", 3 }, { "INVERT", 6 }, { "INCR", 7 }, { "INCRSAT", 4 }, { "DECR", 8 }, { "DECRSAT", 5 },
-					{ "NEVER", 1 }, { "ALWAYS", 8 }, { "LESS", 2 }, { "GREATER", 5 }, { "LEQUAL", 4 }, { "LESSEQUAL", 4 }, { "GEQUAL", 7 }, { "GREATEREQUAL", 7 }, { "EQUAL", 3 }, { "NEQUAL", 6 }, { "NOTEQUAL", 6 },
+					{ "ADD", uint32_t(pass_blend_op::add) },
+					{ "SUBTRACT", uint32_t(pass_blend_op::subtract) },
+					{ "REVSUBTRACT", uint32_t(pass_blend_op::rev_subtract) },
+					{ "MIN", uint32_t(pass_blend_op::min) },
+					{ "MAX", uint32_t(pass_blend_op::max) },
+					{ "SRCCOLOR", uint32_t(pass_blend_func::src_color) },
+					{ "SRCALPHA", uint32_t(pass_blend_func::src_alpha) },
+					{ "INVSRCCOLOR", uint32_t(pass_blend_func::inv_src_color) },
+					{ "INVSRCALPHA", uint32_t(pass_blend_func::inv_src_alpha) },
+					{ "DESTCOLOR", uint32_t(pass_blend_func::dst_color) },
+					{ "DESTALPHA", uint32_t(pass_blend_func::dst_alpha) },
+					{ "INVDESTCOLOR", uint32_t(pass_blend_func::inv_dst_color) },
+					{ "INVDESTALPHA", uint32_t(pass_blend_func::inv_dst_alpha) },
+					{ "KEEP", uint32_t(pass_stencil_op::keep) },
+					{ "REPLACE", uint32_t(pass_stencil_op::replace) },
+					{ "INVERT", uint32_t(pass_stencil_op::invert) },
+					{ "INCR", uint32_t(pass_stencil_op::incr) },
+					{ "INCRSAT", uint32_t(pass_stencil_op::incr_sat) },
+					{ "DECR", uint32_t(pass_stencil_op::decr) },
+					{ "DECRSAT", uint32_t(pass_stencil_op::decr_sat) },
+					{ "NEVER", uint32_t(pass_stencil_func::never) },
+					{ "EQUAL", uint32_t(pass_stencil_func::equal) },
+					{ "NEQUAL", uint32_t(pass_stencil_func::not_equal) }, { "NOTEQUAL", uint32_t(pass_stencil_func::not_equal)  },
+					{ "LESS", uint32_t(pass_stencil_func::less) },
+					{ "GREATER", uint32_t(pass_stencil_func::greater) },
+					{ "LEQUAL", uint32_t(pass_stencil_func::less_equal) }, { "LESSEQUAL", uint32_t(pass_stencil_func::less_equal) },
+					{ "GEQUAL", uint32_t(pass_stencil_func::greater_equal) }, { "GREATEREQUAL", uint32_t(pass_stencil_func::greater_equal) },
+					{ "ALWAYS", uint32_t(pass_stencil_func::always) },
 				};
 
 				// Look up identifier in list of possible enumeration names
@@ -2920,27 +2944,27 @@ bool reshadefx::parser::parse_technique_pass(pass_info &info)
 			else if (state == "StencilWriteMask")
 				info.stencil_write_mask = value & 0xFF;
 			else if (state == "BlendOp")
-				info.blend_op = value;
+				info.blend_op = static_cast<pass_blend_op>(value);
 			else if (state == "BlendOpAlpha")
-				info.blend_op_alpha = value;
+				info.blend_op_alpha = static_cast<pass_blend_op>(value);
 			else if (state == "SrcBlend")
-				info.src_blend = value;
+				info.src_blend = static_cast<pass_blend_func>(value);
 			else if (state == "SrcBlendAlpha")
-				info.src_blend_alpha = value;
+				info.src_blend_alpha = static_cast<pass_blend_func>(value);
 			else if (state == "DestBlend")
-				info.dest_blend = value;
+				info.dest_blend = static_cast<pass_blend_func>(value);
 			else if (state == "DestBlendAlpha")
-				info.dest_blend_alpha = value;
+				info.dest_blend_alpha = static_cast<pass_blend_func>(value);
 			else if (state == "StencilFunc")
-				info.stencil_comparison_func = value;
+				info.stencil_comparison_func = static_cast<pass_stencil_func>(value);
 			else if (state == "StencilRef")
 				info.stencil_reference_value = value;
 			else if (state == "StencilPass" || state == "StencilPassOp")
-				info.stencil_op_pass = value;
+				info.stencil_op_pass = static_cast<pass_stencil_op>(value);
 			else if (state == "StencilFail" || state == "StencilFailOp")
-				info.stencil_op_fail = value;
+				info.stencil_op_fail = static_cast<pass_stencil_op>(value);
 			else if (state == "StencilZFail" || state == "StencilDepthFail" || state == "StencilDepthFailOp")
-				info.stencil_op_depth_fail = value;
+				info.stencil_op_depth_fail = static_cast<pass_stencil_op>(value);
 			else if (state == "VertexCount")
 				info.num_vertices = value;
 			else
