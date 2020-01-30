@@ -54,8 +54,6 @@ namespace reshade::opengl
 		GLenum stencil_op_z_pass = GL_NONE;
 		GLenum draw_targets[8] = {};
 		GLuint draw_textures[8] = {};
-		GLsizei viewport_width = 0;
-		GLsizei viewport_height = 0;
 	};
 
 	struct opengl_technique_data : base_object
@@ -433,19 +431,10 @@ bool reshade::opengl::runtime_gl::init_effect(size_t index)
 	bool success = true;
 
 	opengl_technique_data technique_init;
+	technique_init.samplers.resize(effect.module.num_sampler_bindings);
 
 	for (const reshadefx::sampler_info &info : effect.module.samplers)
 	{
-		const auto existing_texture = std::find_if(_textures.begin(), _textures.end(),
-			[&texture_name = info.texture_name](const auto &item) {
-			return item.unique_name == texture_name && item.impl != nullptr;
-		});
-		if (existing_texture == _textures.end())
-		{
-			success = false;
-			continue;
-		}
-
 		// Hash sampler state to avoid duplicated sampler objects
 		size_t hash = 2166136261;
 		hash = (hash * 16777619) ^ static_cast<uint32_t>(info.address_u);
@@ -457,7 +446,6 @@ bool reshade::opengl::runtime_gl::init_effect(size_t index)
 		hash = (hash * 16777619) ^ reinterpret_cast<const uint32_t &>(info.max_lod);
 
 		auto it = _effect_sampler_states.find(hash);
-
 		if (it == _effect_sampler_states.end())
 		{
 			GLenum minfilter = GL_NONE, magfilter = GL_NONE;
@@ -528,15 +516,17 @@ bool reshade::opengl::runtime_gl::init_effect(size_t index)
 			it = _effect_sampler_states.emplace(hash, sampler_id).first;
 		}
 
-		opengl_sampler_data sampler;
-		sampler.id = it->second;
-		sampler.texture = existing_texture->impl->as<opengl_tex_data>();
-		sampler.is_srgb = info.srgb;
-		sampler.has_mipmaps = existing_texture->levels > 1;
+		const auto existing_texture = std::find_if(_textures.begin(), _textures.end(),
+			[&texture_name = info.texture_name](const auto &item) {
+			return item.unique_name == texture_name && item.impl != nullptr;
+		});
+		assert(existing_texture != _textures.end());
 
-		technique_init.samplers.resize(std::max(technique_init.samplers.size(), size_t(info.binding + 1)));
-
-		technique_init.samplers[info.binding] = std::move(sampler);
+		opengl_sampler_data &sampler_data = technique_init.samplers[info.binding];
+		sampler_data.id = it->second;
+		sampler_data.texture = existing_texture->impl->as<opengl_tex_data>();
+		sampler_data.is_srgb = info.srgb;
+		sampler_data.has_mipmaps = existing_texture->levels > 1;
 	}
 
 	for (technique &technique : _techniques)
@@ -546,16 +536,15 @@ bool reshade::opengl::runtime_gl::init_effect(size_t index)
 
 		// Copy construct new technique implementation instead of move because effect may contain multiple techniques
 		technique.impl = std::make_unique<opengl_technique_data>(technique_init);
-		const auto technique_data = technique.impl->as<opengl_technique_data>();
+		const auto impl = technique.impl->as<opengl_technique_data>();
 
-		glGenQueries(1, &technique_data->query);
+		glGenQueries(1, &impl->query);
 
-		for (size_t i = 0; i < technique.passes.size(); ++i)
+		for (size_t pass_index = 0; pass_index < technique.passes.size(); ++pass_index)
 		{
 			technique.passes_data.push_back(std::make_unique<opengl_pass_data>());
-
-			auto &pass = *technique.passes_data.back()->as<opengl_pass_data>();
-			const auto &pass_info = technique.passes[i];
+			auto &pass_data = *technique.passes_data.back()->as<opengl_pass_data>();
+			reshadefx::pass_info &pass_info = technique.passes[pass_index];
 
 			const auto convert_blend_op = [](reshadefx::pass_blend_op value) -> GLenum {
 				switch (value)
@@ -613,19 +602,19 @@ bool reshade::opengl::runtime_gl::init_effect(size_t index)
 				}
 			};
 
-			pass.blend_eq_color = convert_blend_op(pass_info.blend_op);
-			pass.blend_eq_alpha = convert_blend_op(pass_info.blend_op_alpha);
-			pass.blend_src = convert_blend_func(pass_info.src_blend);
-			pass.blend_dest = convert_blend_func(pass_info.dest_blend);
-			pass.blend_src_alpha = convert_blend_func(pass_info.src_blend_alpha);
-			pass.blend_dest_alpha = convert_blend_func(pass_info.dest_blend_alpha);
-			pass.stencil_func = convert_stencil_func(pass_info.stencil_comparison_func);
-			pass.stencil_op_z_pass = convert_stencil_op(pass_info.stencil_op_pass);
-			pass.stencil_op_fail = convert_stencil_op(pass_info.stencil_op_fail);
-			pass.stencil_op_z_fail = convert_stencil_op(pass_info.stencil_op_depth_fail);
+			pass_data.blend_eq_color = convert_blend_op(pass_info.blend_op);
+			pass_data.blend_eq_alpha = convert_blend_op(pass_info.blend_op_alpha);
+			pass_data.blend_src = convert_blend_func(pass_info.src_blend);
+			pass_data.blend_dest = convert_blend_func(pass_info.dest_blend);
+			pass_data.blend_src_alpha = convert_blend_func(pass_info.src_blend_alpha);
+			pass_data.blend_dest_alpha = convert_blend_func(pass_info.dest_blend_alpha);
+			pass_data.stencil_func = convert_stencil_func(pass_info.stencil_comparison_func);
+			pass_data.stencil_op_z_pass = convert_stencil_op(pass_info.stencil_op_pass);
+			pass_data.stencil_op_fail = convert_stencil_op(pass_info.stencil_op_fail);
+			pass_data.stencil_op_z_fail = convert_stencil_op(pass_info.stencil_op_depth_fail);
 
-			glGenFramebuffers(1, &pass.fbo);
-			glBindFramebuffer(GL_FRAMEBUFFER, pass.fbo);
+			glGenFramebuffers(1, &pass_data.fbo);
+			glBindFramebuffer(GL_FRAMEBUFFER, pass_data.fbo);
 
 			bool backbuffer_fbo = true;
 
@@ -634,44 +623,39 @@ bool reshade::opengl::runtime_gl::init_effect(size_t index)
 				if (pass_info.render_target_names[k].empty())
 					continue; // Skip unbound render targets
 
+				backbuffer_fbo = false;
+
 				const auto render_target_texture = std::find_if(_textures.begin(), _textures.end(),
 					[&render_target = pass_info.render_target_names[k]](const auto &item) {
 					return item.unique_name == render_target;
 				});
+
 				assert(render_target_texture != _textures.end());
-
-				backbuffer_fbo = false;
-
 				const auto texture_impl = render_target_texture->impl->as<opengl_tex_data>();
 				assert(texture_impl != nullptr);
 
-				glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + k, texture_impl->id[pass_info.srgb_write_enable], 0);
+				pass_data.draw_targets[k] = GL_COLOR_ATTACHMENT0 + k;
+				pass_data.draw_textures[k] = texture_impl->id[pass_info.srgb_write_enable];
 
-				pass.draw_targets[k] = GL_COLOR_ATTACHMENT0 + k;
-				pass.draw_textures[k] = texture_impl->id[pass_info.srgb_write_enable];
+				glFramebufferTexture(GL_FRAMEBUFFER, pass_data.draw_targets[k], pass_data.draw_textures[k], 0);
 			}
 
 			if (backbuffer_fbo)
 			{
 				glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, _rbo[RBO_COLOR]);
 
-				pass.draw_targets[0] = GL_COLOR_ATTACHMENT0;
-				pass.draw_textures[0] = _tex[TEX_BACK_SRGB];
+				pass_data.draw_targets[0] = GL_COLOR_ATTACHMENT0;
+				pass_data.draw_textures[0] = _tex[TEX_BACK_SRGB];
 
-				pass.viewport_width = static_cast<GLsizei>(_width);
-				pass.viewport_height = static_cast<GLsizei>(_height);
-			}
-			else
-			{
-				// Effect compiler sets the viewport to the render target dimensions
-				pass.viewport_width = pass_info.viewport_width;
-				pass.viewport_height = pass_info.viewport_height;
+				pass_info.viewport_width = _width;
+				pass_info.viewport_height = _height;
 			}
 
-			assert(pass.viewport_width != 0);
-			assert(pass.viewport_height != 0);
+			assert(pass_info.viewport_width != 0);
+			assert(pass_info.viewport_height != 0);
 
-			if (pass.viewport_width == GLsizei(_width) && pass.viewport_height == GLsizei(_height))
+			if (pass_info.viewport_width == _width &&
+				pass_info.viewport_height == _height)
 			{
 				// Only attach depth-stencil when viewport matches back buffer or else the frame buffer will always be resized to those dimensions
 				glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, _rbo[RBO_DEPTH]);
@@ -680,27 +664,27 @@ bool reshade::opengl::runtime_gl::init_effect(size_t index)
 			assert(glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
 
 			// Link program from input shaders
-			pass.program = glCreateProgram();
+			pass_data.program = glCreateProgram();
 			const GLuint vs_shader_id = entry_points.at(pass_info.vs_entry_point);
 			const GLuint fs_shader_id = entry_points.at(pass_info.ps_entry_point);
-			glAttachShader(pass.program, vs_shader_id);
-			glAttachShader(pass.program, fs_shader_id);
-			glLinkProgram(pass.program);
-			glDetachShader(pass.program, vs_shader_id);
-			glDetachShader(pass.program, fs_shader_id);
+			glAttachShader(pass_data.program, vs_shader_id);
+			glAttachShader(pass_data.program, fs_shader_id);
+			glLinkProgram(pass_data.program);
+			glDetachShader(pass_data.program, vs_shader_id);
+			glDetachShader(pass_data.program, fs_shader_id);
 
 			GLint status = GL_FALSE;
-			glGetProgramiv(pass.program, GL_LINK_STATUS, &status);
+			glGetProgramiv(pass_data.program, GL_LINK_STATUS, &status);
 			if (GL_FALSE == status)
 			{
 				GLint log_size = 0;
-				glGetProgramiv(pass.program, GL_INFO_LOG_LENGTH, &log_size);
+				glGetProgramiv(pass_data.program, GL_INFO_LOG_LENGTH, &log_size);
 				std::vector<char> log(log_size);
-				glGetProgramInfoLog(pass.program, log_size, nullptr, log.data());
+				glGetProgramInfoLog(pass_data.program, log_size, nullptr, log.data());
 
 				effect.errors += log.data();
 
-				LOG(ERROR) << "Failed to link program for pass " << i << " in technique '" << technique.name << "'.";
+				LOG(ERROR) << "Failed to link program for pass " << pass_index << " in technique '" << technique.name << "'.";
 				success = false;
 				break;
 			}
@@ -916,18 +900,21 @@ void reshade::opengl::runtime_gl::render_technique(technique &technique)
 {
 	assert(_app_state.has_state);
 
-	opengl_technique_data &technique_data = *technique.impl->as<opengl_technique_data>();
+	const auto impl = technique.impl->as<opengl_technique_data>();
 
-	if (technique_data.query_in_flight)
+	if (GLuint available = 0; impl->query_in_flight)
 	{
-		GLuint64 elapsed_time = 0;
-		glGetQueryObjectui64v(technique_data.query, GL_QUERY_RESULT, &elapsed_time);
-		technique.average_gpu_duration.append(elapsed_time);
-		technique_data.query_in_flight = false; // Reset query status
+		glGetQueryObjectuiv(impl->query, GL_QUERY_RESULT_AVAILABLE, &available);
+		if (GLuint64 elapsed_time = 0; available != GL_FALSE)
+		{
+			glGetQueryObjectui64v(impl->query, GL_QUERY_RESULT, &elapsed_time);
+			technique.average_gpu_duration.append(elapsed_time);
+			impl->query_in_flight = false; // Reset query status
+		}
 	}
 
-	if (!technique_data.query_in_flight)
-		glBeginQuery(GL_TIME_ELAPSED, technique_data.query);
+	if (!impl->query_in_flight)
+		glBeginQuery(GL_TIME_ELAPSED, impl->query);
 
 	// Clear depth stencil
 	glBindFramebuffer(GL_FRAMEBUFFER, _fbo[FBO_BACK]);
@@ -950,17 +937,19 @@ void reshade::opengl::runtime_gl::render_technique(technique &technique)
 	}
 
 	// Set up shader resources
-	for (size_t i = 0; i < technique_data.samplers.size(); i++)
+	for (GLuint s_slot = 0; s_slot < impl->samplers.size(); s_slot++)
 	{
-		glActiveTexture(GL_TEXTURE0 + GLenum(i));
-		glBindTexture(GL_TEXTURE_2D, technique_data.samplers[i].texture->id[technique_data.samplers[i].is_srgb]);
-		glBindSampler(GLuint(i), technique_data.samplers[i].id);
+		const opengl_sampler_data &sampler_data = impl->samplers[s_slot];
+
+		glActiveTexture(GL_TEXTURE0 + s_slot);
+		glBindTexture(GL_TEXTURE_2D, sampler_data.texture->id[sampler_data.is_srgb]);
+		glBindSampler(s_slot, sampler_data.id);
 	}
 
-	for (size_t i = 0; i < technique.passes.size(); ++i)
+	for (size_t pass_index = 0; pass_index < technique.passes.size(); ++pass_index)
 	{
-		const auto &pass_info = technique.passes[i];
-		const auto &pass_data = *technique.passes_data[i]->as<opengl_pass_data>();
+		const auto &pass_data = *technique.passes_data[pass_index]->as<opengl_pass_data>();
+		const reshadefx::pass_info &pass_info = technique.passes[pass_index];
 
 		// Copy back buffer of previous pass to texture
 		glDisable(GL_FRAMEBUFFER_SRGB);
@@ -971,7 +960,7 @@ void reshade::opengl::runtime_gl::render_technique(technique &technique)
 		glBlitFramebuffer(0, 0, _width, _height, 0, 0, _width, _height, GL_COLOR_BUFFER_BIT, GL_NEAREST);
 
 		// Set up pass specific state
-		glViewport(0, 0, pass_data.viewport_width, pass_data.viewport_height);
+		glViewport(0, 0, static_cast<GLsizei>(pass_info.viewport_width), static_cast<GLsizei>(pass_info.viewport_height));
 		glUseProgram(pass_data.program);
 		glBindFramebuffer(GL_FRAMEBUFFER, pass_data.fbo);
 		glDrawBuffers(8, pass_data.draw_targets);
@@ -1008,6 +997,7 @@ void reshade::opengl::runtime_gl::render_technique(technique &technique)
 			(pass_info.color_write_mask & (1 << 3)) != 0);
 
 		if (pass_info.clear_render_targets)
+		{
 			for (GLuint k = 0; k < 8; k++)
 			{
 				if (pass_data.draw_targets[k] == GL_NONE)
@@ -1015,6 +1005,7 @@ void reshade::opengl::runtime_gl::render_technique(technique &technique)
 				const GLfloat color[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
 				glClearBufferfv(GL_COLOR, k, color);
 			}
+		}
 
 		glDrawArrays(GL_TRIANGLES, 0, pass_info.num_vertices);
 
@@ -1024,22 +1015,23 @@ void reshade::opengl::runtime_gl::render_technique(technique &technique)
 		// Regenerate mipmaps of any textures bound as render target
 		for (GLuint texture_id : pass_data.draw_textures)
 		{
-			for (size_t k = 0; k < technique_data.samplers.size(); ++k)
+			for (GLuint s_slot = 0; s_slot < impl->samplers.size(); ++s_slot)
 			{
-				const auto texture = technique_data.samplers[k].texture;
-				if (technique_data.samplers[k].has_mipmaps &&
-					(texture->id[0] == texture_id || texture->id[1] == texture_id))
+				const opengl_sampler_data &sampler_data = impl->samplers[s_slot];
+
+				if (sampler_data.has_mipmaps && (sampler_data.texture->id[0] == texture_id || sampler_data.texture->id[1] == texture_id))
 				{
-					glActiveTexture(GL_TEXTURE0 + GLenum(k));
+					glActiveTexture(GL_TEXTURE0 + s_slot);
 					glGenerateMipmap(GL_TEXTURE_2D);
 				}
 			}
 		}
 	}
 
-	if (!technique_data.query_in_flight)
+	if (!impl->query_in_flight)
 		glEndQuery(GL_TIME_ELAPSED);
-	technique_data.query_in_flight = true;
+
+	impl->query_in_flight = true;
 }
 
 #if RESHADE_GUI
@@ -1327,12 +1319,13 @@ void reshade::opengl::runtime_gl::update_depthstencil_texture(buffer_detection::
 	// Update all references to the new texture
 	for (auto &tex : _textures)
 	{
-		if (tex.impl != nullptr && tex.impl_reference == texture_reference::depth_buffer)
+		if (tex.impl != nullptr &&
+			tex.impl_reference == texture_reference::depth_buffer)
 		{
 			const auto texture_impl = tex.impl->as<opengl_tex_data>();
 			assert(texture_impl != nullptr && !texture_impl->should_delete);
-			texture_impl->id[0] = info.obj;
-			texture_impl->id[1] = info.obj;
+
+			texture_impl->id[0] = texture_impl->id[1] = info.obj;
 		}
 	}
 }

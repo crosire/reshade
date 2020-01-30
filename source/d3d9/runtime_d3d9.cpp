@@ -18,6 +18,7 @@ namespace reshade::d3d9
 		com_ptr<IDirect3DTexture9> texture;
 		com_ptr<IDirect3DSurface9> surface;
 	};
+
 	struct d3d9_pass_data : base_object
 	{
 		com_ptr<IDirect3DStateBlock9> stateblock;
@@ -26,6 +27,7 @@ namespace reshade::d3d9
 		IDirect3DSurface9 *render_targets[8] = {};
 		IDirect3DTexture9 *sampler_textures[16] = {};
 	};
+
 	struct d3d9_technique_data : base_object
 	{
 		DWORD num_samplers = 0;
@@ -347,6 +349,7 @@ bool reshade::d3d9::runtime_d3d9::init_effect(size_t index)
 	}
 
 	d3d9_technique_data technique_init;
+	technique_init.num_samplers = effect.module.num_sampler_bindings;
 	technique_init.constant_register_count = static_cast<DWORD>((effect.uniform_data_storage.size() + 15) / 16);
 
 	for (const reshadefx::sampler_info &info : effect.module.samplers)
@@ -358,14 +361,14 @@ bool reshade::d3d9::runtime_d3d9::init_effect(size_t index)
 			[&texture_name = info.texture_name](const auto &item) {
 			return item.unique_name == texture_name && item.impl != nullptr;
 		});
-		if (existing_texture == _textures.end())
-			return false;
+		assert(existing_texture != _textures.end());
+
+		technique_init.sampler_textures[info.binding] =
+			existing_texture->impl->as<d3d9_tex_data>()->texture.get();
 
 		// Since textures with auto-generated mipmap levels do not have a mipmap maximum, limit the bias here so this is not as obvious
 		assert(existing_texture->levels > 0);
 		const float lod_bias = std::min(existing_texture->levels - 1.0f, info.lod_bias);
-
-		technique_init.num_samplers = std::max(technique_init.num_samplers, DWORD(info.binding + 1));
 
 		technique_init.sampler_states[info.binding][D3DSAMP_ADDRESSU] = static_cast<D3DTEXTUREADDRESS>(info.address_u);
 		technique_init.sampler_states[info.binding][D3DSAMP_ADDRESSV] = static_cast<D3DTEXTUREADDRESS>(info.address_v);
@@ -378,8 +381,6 @@ bool reshade::d3d9::runtime_d3d9::init_effect(size_t index)
 		technique_init.sampler_states[info.binding][D3DSAMP_MAXMIPLEVEL] = static_cast<DWORD>(std::max(0.0f, info.min_lod));
 		technique_init.sampler_states[info.binding][D3DSAMP_MAXANISOTROPY] = 1;
 		technique_init.sampler_states[info.binding][D3DSAMP_SRGBTEXTURE] = info.srgb;
-
-		technique_init.sampler_textures[info.binding] = existing_texture->impl->as<d3d9_tex_data>()->texture.get();
 	}
 
 	UINT max_vertices = 3;
@@ -391,31 +392,29 @@ bool reshade::d3d9::runtime_d3d9::init_effect(size_t index)
 
 		// Copy construct new technique implementation instead of move because effect may contain multiple techniques
 		technique.impl = std::make_unique<d3d9_technique_data>(technique_init);
-		const auto technique_data = technique.impl->as<d3d9_technique_data>();
+		const auto impl = technique.impl->as<d3d9_technique_data>();
 
 		for (size_t pass_index = 0; pass_index < technique.passes.size(); ++pass_index)
 		{
 			technique.passes_data.push_back(std::make_unique<d3d9_pass_data>());
-
-			auto &pass = *technique.passes_data.back()->as<d3d9_pass_data>();
-			const auto &pass_info = technique.passes[pass_index];
+			auto &pass_data = *technique.passes_data.back()->as<d3d9_pass_data>();
+			const reshadefx::pass_info &pass_info = technique.passes[pass_index];
 
 			max_vertices = std::max(max_vertices, pass_info.num_vertices);
 
-			entry_points.at(pass_info.ps_entry_point)->QueryInterface(&pass.pixel_shader);
-			entry_points.at(pass_info.vs_entry_point)->QueryInterface(&pass.vertex_shader);
+			entry_points.at(pass_info.ps_entry_point)->QueryInterface(&pass_data.pixel_shader);
+			entry_points.at(pass_info.vs_entry_point)->QueryInterface(&pass_data.vertex_shader);
 
-			pass.render_targets[0] = _backbuffer_resolved.get();
+			pass_data.render_targets[0] = _backbuffer_resolved.get();
 
-			for (size_t k = 0; k < ARRAYSIZE(pass.sampler_textures); ++k)
-				pass.sampler_textures[k] = technique_data->sampler_textures[k];
+			for (size_t k = 0; k < ARRAYSIZE(pass_data.sampler_textures); ++k)
+				pass_data.sampler_textures[k] = impl->sampler_textures[k];
 
 			HRESULT hr = _device->BeginStateBlock();
-
 			if (SUCCEEDED(hr))
 			{
-				_device->SetVertexShader(pass.vertex_shader.get());
-				_device->SetPixelShader(pass.pixel_shader.get());
+				_device->SetVertexShader(pass_data.vertex_shader.get());
+				_device->SetPixelShader(pass_data.pixel_shader.get());
 
 				const auto convert_blend_op = [](reshadefx::pass_blend_op value) {
 					switch (value)
@@ -558,7 +557,7 @@ bool reshade::d3d9::runtime_d3d9::init_effect(size_t index)
 				_device->SetRenderState(D3DRS_DESTBLENDALPHA, convert_blend_func(pass_info.dest_blend_alpha));
 				_device->SetRenderState(D3DRS_BLENDOPALPHA, convert_blend_op(pass_info.blend_op_alpha));
 
-				hr = _device->EndStateBlock(&pass.stateblock);
+				hr = _device->EndStateBlock(&pass_data.stateblock);
 			}
 
 			if (FAILED(hr))
@@ -568,7 +567,7 @@ bool reshade::d3d9::runtime_d3d9::init_effect(size_t index)
 				return false;
 			}
 
-			for (unsigned int k = 0; k < 8; ++k)
+			for (UINT k = 0; k < 8; ++k)
 			{
 				if (pass_info.render_target_names[k].empty())
 					continue; // Skip unbound render targets
@@ -583,18 +582,17 @@ bool reshade::d3d9::runtime_d3d9::init_effect(size_t index)
 					[&render_target = pass_info.render_target_names[k]](const auto &item) {
 					return item.unique_name == render_target;
 				});
-				if (render_target_texture == _textures.end())
-					return false;
 
+				assert(render_target_texture != _textures.end());
 				const auto texture_impl = render_target_texture->impl->as<d3d9_tex_data>();
 				assert(texture_impl != nullptr);
 
 				// Unset textures that are used as render target
-				for (DWORD s = 0; s < technique_data->num_samplers; ++s)
-					if (pass.sampler_textures[s] == texture_impl->texture)
-						pass.sampler_textures[s] = nullptr;
+				for (DWORD s = 0; s < impl->num_samplers; ++s)
+					if (texture_impl->texture == pass_data.sampler_textures[s])
+						pass_data.sampler_textures[s] = nullptr;
 
-				pass.render_targets[k] = texture_impl->surface.get();
+				pass_data.render_targets[k] = texture_impl->surface.get();
 			}
 		}
 	}
@@ -610,7 +608,7 @@ bool reshade::d3d9::runtime_d3d9::init_effect(size_t index)
 		if (float *data;
 			SUCCEEDED(_effect_vertex_buffer->Lock(0, max_vertices * sizeof(float), reinterpret_cast<void **>(&data), 0)))
 		{
-			for (unsigned int i = 0; i < max_vertices; i++)
+			for (UINT i = 0; i < max_vertices; i++)
 				data[i] = static_cast<float>(i);
 			_effect_vertex_buffer->Unlock();
 		}
@@ -781,7 +779,7 @@ void reshade::d3d9::runtime_d3d9::upload_texture(const texture &texture, const u
 
 void reshade::d3d9::runtime_d3d9::render_technique(technique &technique)
 {
-	auto &technique_data = *technique.impl->as<d3d9_technique_data>();
+	const auto impl = technique.impl->as<d3d9_technique_data>();
 
 	bool is_default_depthstencil_cleared = false;
 
@@ -790,17 +788,17 @@ void reshade::d3d9::runtime_d3d9::render_technique(technique &technique)
 	_device->SetVertexDeclaration(_effect_vertex_layout.get());
 
 	// Setup shader constants
-	if (technique_data.constant_register_count > 0)
+	if (impl->constant_register_count != 0)
 	{
 		const auto uniform_storage_data = reinterpret_cast<const float *>(_effects[technique.effect_index].uniform_data_storage.data());
-		_device->SetPixelShaderConstantF(0, uniform_storage_data, technique_data.constant_register_count);
-		_device->SetVertexShaderConstantF(0, uniform_storage_data, technique_data.constant_register_count);
+		_device->SetPixelShaderConstantF(0, uniform_storage_data, impl->constant_register_count);
+		_device->SetVertexShaderConstantF(0, uniform_storage_data, impl->constant_register_count);
 	}
 
-	for (size_t i = 0; i < technique.passes.size(); ++i)
+	for (size_t pass_index = 0; pass_index < technique.passes.size(); ++pass_index)
 	{
-		const auto &pass_info = technique.passes[i];
-		const auto &pass_data = *technique.passes_data[i]->as<d3d9_pass_data>();
+		const auto &pass_data = *technique.passes_data[pass_index]->as<d3d9_pass_data>();
+		const reshadefx::pass_info &pass_info = technique.passes[pass_index];
 
 		// Setup states
 		pass_data.stateblock->Apply();
@@ -809,7 +807,7 @@ void reshade::d3d9::runtime_d3d9::render_technique(technique &technique)
 		_device->StretchRect(_backbuffer_resolved.get(), nullptr, _backbuffer_texture_surface.get(), nullptr, D3DTEXF_NONE);
 
 		// Setup shader resources
-		for (DWORD s = 0; s < technique_data.num_samplers; s++)
+		for (DWORD s = 0; s < impl->num_samplers; s++)
 		{
 			_device->SetTexture(s, pass_data.sampler_textures[s]);
 
@@ -820,10 +818,10 @@ void reshade::d3d9::runtime_d3d9::render_technique(technique &technique)
 
 			for (DWORD state = D3DSAMP_ADDRESSU; state <= D3DSAMP_SRGBTEXTURE; state++)
 			{
-				_device->SetSamplerState(s, static_cast<D3DSAMPLERSTATETYPE>(state), technique_data.sampler_states[s][state]);
+				_device->SetSamplerState(s, static_cast<D3DSAMPLERSTATETYPE>(state), impl->sampler_states[s][state]);
 
 				if (s < 4) // vs_3_0 supports up to four samplers in vertex shaders
-					_device->SetSamplerState(D3DVERTEXTEXTURESAMPLER0 + s, static_cast<D3DSAMPLERSTATETYPE>(state), technique_data.sampler_states[s][state]);
+					_device->SetSamplerState(D3DVERTEXTEXTURESAMPLER0 + s, static_cast<D3DSAMPLERSTATETYPE>(state), impl->sampler_states[s][state]);
 			}
 		}
 
@@ -834,7 +832,7 @@ void reshade::d3d9::runtime_d3d9::render_technique(technique &technique)
 		D3DVIEWPORT9 viewport;
 		_device->GetViewport(&viewport);
 
-		const float texelsize[4] = { -1.0f / viewport.Width, 1.0f / viewport.Height };
+		float texelsize[4] = { -1.0f / viewport.Width, 1.0f / viewport.Height };
 		_device->SetVertexShaderConstantF(255, texelsize, 1);
 
 		const bool is_viewport_sized = viewport.Width == _width && viewport.Height == _height;
@@ -862,14 +860,13 @@ void reshade::d3d9::runtime_d3d9::render_technique(technique &technique)
 		_drawcalls += 1;
 
 		// Update shader resources
-		for (const auto target : pass_data.render_targets)
+		for (IDirect3DSurface9 *target : pass_data.render_targets)
 		{
 			if (target == nullptr || target == _backbuffer_resolved)
 				continue;
 
-			com_ptr<IDirect3DBaseTexture9> texture;
-
-			if (SUCCEEDED(target->GetContainer(IID_PPV_ARGS(&texture))) && texture->GetLevelCount() > 1)
+			if (com_ptr<IDirect3DBaseTexture9> texture;
+				SUCCEEDED(target->GetContainer(IID_PPV_ARGS(&texture))) && texture->GetLevelCount() > 1)
 			{
 				texture->SetAutoGenFilterType(D3DTEXF_LINEAR);
 				texture->GenerateMipSubLevels();
@@ -1167,7 +1164,8 @@ void reshade::d3d9::runtime_d3d9::update_depthstencil_texture(com_ptr<IDirect3DS
 	// Update all references to the new texture
 	for (auto &tex : _textures)
 	{
-		if (tex.impl != nullptr && tex.impl_reference == texture_reference::depth_buffer)
+		if (tex.impl != nullptr &&
+			tex.impl_reference == texture_reference::depth_buffer)
 		{
 			const auto texture_impl = tex.impl->as<d3d9_tex_data>();
 			assert(texture_impl != nullptr);
@@ -1175,8 +1173,8 @@ void reshade::d3d9::runtime_d3d9::update_depthstencil_texture(com_ptr<IDirect3DS
 			// Update references in technique list
 			for (const auto &technique : _techniques)
 				for (const auto &pass : technique.passes_data)
-					for (auto &sampler_tex : pass->as<d3d9_pass_data>()->sampler_textures)
-						if (sampler_tex == texture_impl->texture)
+					for (IDirect3DTexture9 *&sampler_tex : pass->as<d3d9_pass_data>()->sampler_textures)
+						if (texture_impl->texture == sampler_tex)
 							sampler_tex = _depthstencil_texture.get();
 
 			texture_impl->surface = _depthstencil;

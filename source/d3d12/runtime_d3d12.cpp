@@ -16,22 +16,6 @@
 
 namespace reshade::d3d12
 {
-	struct d3d12_tex_data : base_object
-	{
-		D3D12_RESOURCE_STATES state;
-		com_ptr<ID3D12Resource> resource;
-		com_ptr<ID3D12DescriptorHeap> descriptors;
-	};
-	struct d3d12_pass_data : base_object
-	{
-		com_ptr<ID3D12PipelineState> pipeline;
-		D3D12_VIEWPORT viewport;
-		UINT num_render_targets;
-		D3D12_CPU_DESCRIPTOR_HANDLE render_targets;
-	};
-	struct d3d12_technique_data : base_object
-	{
-	};
 	struct d3d12_effect_data
 	{
 		com_ptr<ID3D12Resource> cb;
@@ -47,6 +31,26 @@ namespace reshade::d3d12
 		D3D12_CPU_DESCRIPTOR_HANDLE sampler_cpu_base;
 		D3D12_GPU_DESCRIPTOR_HANDLE sampler_gpu_base;
 		D3D12_CPU_DESCRIPTOR_HANDLE depth_texture_binding = {};
+	};
+
+	struct d3d12_tex_data : base_object
+	{
+		D3D12_RESOURCE_STATES state;
+		com_ptr<ID3D12Resource> resource;
+		com_ptr<ID3D12DescriptorHeap> descriptors;
+	};
+
+	struct d3d12_pass_data : base_object
+	{
+		com_ptr<ID3D12PipelineState> pipeline;
+		D3D12_VIEWPORT viewport;
+		UINT num_render_targets;
+		D3D12_CPU_DESCRIPTOR_HANDLE render_targets;
+	};
+
+	struct d3d12_technique_data : base_object
+	{
+		// Empty and only used to indicate that a technique has been initialized
 	};
 
 	static uint32_t float_as_uint(float value)
@@ -614,8 +618,7 @@ bool reshade::d3d12::runtime_d3d12::init_effect(size_t index)
 			[&texture_name = info.texture_name](const auto &item) {
 			return item.unique_name == texture_name && item.impl != nullptr;
 		});
-		if (existing_texture == _textures.end())
-			return false;
+		assert(existing_texture != _textures.end());
 
 		com_ptr<ID3D12Resource> resource;
 		switch (existing_texture->impl_reference)
@@ -631,10 +634,9 @@ bool reshade::d3d12::runtime_d3d12::init_effect(size_t index)
 			break;
 		}
 
-		if (resource == nullptr)
-			continue;
-
-		{   D3D12_SHADER_RESOURCE_VIEW_DESC desc = {};
+		if (resource != nullptr)
+		{
+			D3D12_SHADER_RESOURCE_VIEW_DESC desc = {};
 			desc.Format = info.srgb ?
 				make_dxgi_format_srgb(resource->GetDesc().Format) :
 				make_dxgi_format_normal(resource->GetDesc().Format);
@@ -687,9 +689,8 @@ bool reshade::d3d12::runtime_d3d12::init_effect(size_t index)
 		for (size_t pass_index = 0; pass_index < technique.passes.size(); ++pass_index)
 		{
 			technique.passes_data.push_back(std::make_unique<d3d12_pass_data>());
-
 			auto &pass_data = *technique.passes_data.back()->as<d3d12_pass_data>();
-			const auto &pass_info = technique.passes[pass_index];
+			const reshadefx::pass_info &pass_info = technique.passes[pass_index];
 
 			D3D12_GRAPHICS_PIPELINE_STATE_DESC pso_desc = {};
 			pso_desc.pRootSignature = effect_data.signature.get();
@@ -707,9 +708,7 @@ bool reshade::d3d12::runtime_d3d12::init_effect(size_t index)
 			rtv_handle.ptr += pass_index * 8 * _rtv_handle_size;
 			pass_data.render_targets = rtv_handle;
 
-			pso_desc.DSVFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
-
-			for (unsigned int k = 0; k < 8; k++)
+			for (UINT k = 0; k < 8; k++)
 			{
 				if (pass_info.render_target_names[k].empty())
 					continue; // Skip unbound render targets
@@ -718,9 +717,8 @@ bool reshade::d3d12::runtime_d3d12::init_effect(size_t index)
 					[&render_target = pass_info.render_target_names[k]](const auto &item) {
 					return item.unique_name == render_target;
 				});
-				if (render_target_texture == _textures.end())
-					return assert(false), false;
 
+				assert(render_target_texture != _textures.end());
 				const auto texture_impl = render_target_texture->impl->as<d3d12_tex_data>();
 				assert(texture_impl != nullptr);
 
@@ -748,10 +746,11 @@ bool reshade::d3d12::runtime_d3d12::init_effect(size_t index)
 					make_dxgi_format_normal(_backbuffer_format);
 			}
 
+			pso_desc.NodeMask = 1;
+			pso_desc.DSVFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
 			pso_desc.SampleMask = UINT_MAX;
 			pso_desc.SampleDesc = { 1, 0 };
 			pso_desc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
-			pso_desc.NodeMask = 1;
 
 			{   D3D12_BLEND_DESC &desc = pso_desc.BlendState;
 				desc.RenderTarget[0].BlendEnable = pass_info.blend_enable;
@@ -945,14 +944,14 @@ bool reshade::d3d12::runtime_d3d12::init_texture(texture &texture)
 		break;
 	}
 
-	D3D12_HEAP_PROPERTIES props = { D3D12_HEAP_TYPE_DEFAULT };
-
 	// Render targets are always either cleared to zero or not cleared at all (see 'ClearRenderTargets' pass state), so can set the optimized clear value here to zero
 	D3D12_CLEAR_VALUE clear_value = {};
 	clear_value.Format = make_dxgi_format_normal(desc.Format);
 
 	// Initialize resource to the pixel shader state immediately, so no additional transition is required
 	impl->state = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+
+	D3D12_HEAP_PROPERTIES props = { D3D12_HEAP_TYPE_DEFAULT };
 
 	if (HRESULT hr = _device->CreateCommittedResource(&props, D3D12_HEAP_FLAG_NONE, &desc, impl->state, &clear_value, IID_PPV_ARGS(&impl->resource)); FAILED(hr))
 	{
@@ -1177,7 +1176,7 @@ void reshade::d3d12::runtime_d3d12::render_technique(technique &technique)
 		const auto &pass_data = *technique.passes_data[i]->as<d3d12_pass_data>();
 
 		// Transition render targets
-		for (unsigned int k = 0; k < pass_data.num_render_targets; ++k)
+		for (UINT k = 0; k < pass_data.num_render_targets; ++k)
 		{
 			const auto texture_impl = std::find_if(_textures.begin(), _textures.end(),
 				[&render_target = pass_info.render_target_names[k]](const auto &item) {
@@ -1242,7 +1241,7 @@ void reshade::d3d12::runtime_d3d12::render_technique(technique &technique)
 		_drawcalls += 1;
 
 		// Generate mipmaps
-		for (unsigned int k = 0; k < pass_data.num_render_targets; ++k)
+		for (UINT k = 0; k < pass_data.num_render_targets; ++k)
 		{
 			const auto render_target_texture = std::find_if(_textures.begin(), _textures.end(),
 				[&render_target = pass_info.render_target_names[k]](const auto &item) {
@@ -1618,7 +1617,8 @@ void reshade::d3d12::runtime_d3d12::update_depthstencil_texture(com_ptr<ID3D12Re
 	{
 		for (auto &tex : _textures)
 		{
-			if (tex.impl != nullptr && tex.impl_reference == texture_reference::depth_buffer)
+			if (tex.impl != nullptr &&
+				tex.impl_reference == texture_reference::depth_buffer)
 			{
 				tex.width = frame_width();
 				tex.height = frame_height();

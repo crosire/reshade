@@ -18,8 +18,18 @@
 
 namespace reshade::vulkan
 {
-	// TODO: Limit to 50 effects for now
-	const uint32_t MAX_EFFECT_DESCRIPTOR_SETS = 50 * 2;
+	struct vulkan_effect_data
+	{
+		VkQueryPool query_pool = VK_NULL_HANDLE;
+		VkDescriptorSet set[2] = {};
+		VkPipelineLayout pipeline_layout = VK_NULL_HANDLE;
+		VkDescriptorSetLayout set_layout = VK_NULL_HANDLE;
+		VkBuffer ubo = VK_NULL_HANDLE;
+		VkDeviceMemory ubo_mem = VK_NULL_HANDLE;
+		reshadefx::module module;
+		std::vector<VkDescriptorImageInfo> image_bindings;
+		uint32_t depth_image_binding = std::numeric_limits<uint32_t>::max();
+	};
 
 	struct vulkan_tex_data : base_object
 	{
@@ -41,11 +51,6 @@ namespace reshade::vulkan
 		runtime_vk *runtime = nullptr;
 	};
 
-	struct vulkan_technique_data : base_object
-	{
-		uint32_t query_index = 0;
-	};
-
 	struct vulkan_pass_data : base_object
 	{
 		~vulkan_pass_data()
@@ -64,18 +69,13 @@ namespace reshade::vulkan
 		runtime_vk *runtime = nullptr;
 	};
 
-	struct vulkan_effect_data
+	struct vulkan_technique_data : base_object
 	{
-		VkQueryPool query_pool = VK_NULL_HANDLE;
-		VkDescriptorSet set[2] = {};
-		VkPipelineLayout pipeline_layout = VK_NULL_HANDLE;
-		VkDescriptorSetLayout set_layout = VK_NULL_HANDLE;
-		VkBuffer ubo = VK_NULL_HANDLE;
-		VkDeviceMemory ubo_mem = VK_NULL_HANDLE;
-		reshadefx::module module;
-		std::vector<VkDescriptorImageInfo> image_bindings;
-		uint32_t depth_image_binding = std::numeric_limits<uint32_t>::max();
+		uint32_t query_index = 0;
 	};
+
+	// TODO: Limit to 50 effects for now
+	const uint32_t MAX_EFFECT_DESCRIPTOR_SETS = 50 * 2;
 
 	uint32_t find_memory_type_index(const VkPhysicalDeviceMemoryProperties &props, VkMemoryPropertyFlags flags, uint32_t type_bits)
 	{
@@ -664,15 +664,14 @@ bool reshade::vulkan::runtime_vk::init_effect(size_t index)
 
 	for (const reshadefx::sampler_info &info : effect.module.samplers)
 	{
+		VkDescriptorImageInfo &image_binding = image_bindings[info.binding];
+		image_binding.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+
 		const auto existing_texture = std::find_if(_textures.begin(), _textures.end(),
 			[&texture_name = info.texture_name](const auto &item) {
 			return item.unique_name == texture_name && item.impl != nullptr;
 		});
-		if (existing_texture == _textures.end())
-			return false;
-
-		VkDescriptorImageInfo &image_binding = image_bindings[info.binding];
-		image_binding.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+		assert(existing_texture != _textures.end());
 
 		switch (existing_texture->impl_reference)
 		{
@@ -690,11 +689,16 @@ bool reshade::vulkan::runtime_vk::init_effect(size_t index)
 			effect_data.depth_image_binding = info.binding;
 			break;
 		default:
-			image_binding.imageView = existing_texture->impl->as<vulkan_tex_data>()->view[info.srgb];
+			image_binding.imageView =
+				existing_texture->impl->as<vulkan_tex_data>()->view[info.srgb];
 			break;
 		}
 
-		assert(image_binding.imageView != VK_NULL_HANDLE);
+		if (image_binding.imageView == VK_NULL_HANDLE)
+		{
+			// Unset bindings are not allowed, so fail initialization for the entire effect
+			return false;
+		}
 
 		VkSamplerCreateInfo create_info { VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO };
 		create_info.addressModeU = static_cast<VkSamplerAddressMode>(static_cast<uint32_t>(info.address_u) - 1);
@@ -838,7 +842,7 @@ bool reshade::vulkan::runtime_vk::init_effect(size_t index)
 		{
 			technique.passes_data.push_back(std::make_unique<vulkan_pass_data>());
 			auto &pass_data = *technique.passes_data.back()->as<vulkan_pass_data>();
-			const auto &pass_info = technique.passes[pass_index];
+			const reshadefx::pass_info &pass_info = technique.passes[pass_index];
 
 			pass_data.runtime = this;
 
@@ -1404,10 +1408,10 @@ void reshade::vulkan::runtime_vk::render_technique(technique &technique)
 	}
 #endif
 
-	for (size_t i = 0; i < technique.passes.size(); ++i)
+	for (size_t pass_index = 0; pass_index < technique.passes.size(); ++pass_index)
 	{
-		const auto &pass_info = technique.passes[i];
-		const auto &pass_data = *technique.passes_data[i]->as<vulkan_pass_data>();
+		const auto &pass_data = *technique.passes_data[pass_index]->as<vulkan_pass_data>();
+		const reshadefx::pass_info &pass_info = technique.passes[pass_index];
 
 		// Save back buffer of previous pass
 		const VkImageCopy copy_range = {
@@ -2016,7 +2020,8 @@ void reshade::vulkan::runtime_vk::update_depthstencil_image(buffer_detection::de
 
 		for (auto &tex : _textures)
 		{
-			if (tex.impl != nullptr && tex.impl_reference == texture_reference::depth_buffer)
+			if (tex.impl != nullptr &&
+				tex.impl_reference == texture_reference::depth_buffer)
 			{
 				tex.width = frame_width();
 				tex.height = frame_height();
