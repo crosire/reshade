@@ -77,8 +77,9 @@ namespace reshade::vulkan
 
 		std::vector<VkDeviceMemory> _allocations;
 
-		VkImage _effect_depthstencil = VK_NULL_HANDLE;
-		VkImageView _effect_depthstencil_view = VK_NULL_HANDLE;
+		VkImage _effect_stencil = VK_NULL_HANDLE;
+		VkFormat _effect_stencil_format = VK_FORMAT_UNDEFINED;
+		VkImageView _effect_stencil_view = VK_NULL_HANDLE;
 		VkDescriptorPool _effect_descriptor_pool = VK_NULL_HANDLE;
 		VkDescriptorSetLayout _effect_descriptor_layout = VK_NULL_HANDLE;
 		std::vector<vulkan_effect_data> _effect_data;

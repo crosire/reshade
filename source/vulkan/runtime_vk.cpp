@@ -147,6 +147,26 @@ reshade::vulkan::runtime_vk::runtime_vk(VkDevice device, VkPhysicalDevice physic
 
 	instance_table.GetPhysicalDeviceMemoryProperties(physical_device, &_memory_props);
 
+	const VkFormat possible_stencil_formats[] = {
+		VK_FORMAT_S8_UINT,
+		VK_FORMAT_D16_UNORM_S8_UINT,
+		VK_FORMAT_D24_UNORM_S8_UINT,
+		VK_FORMAT_D32_SFLOAT_S8_UINT
+	};
+
+	// Find a supported stencil format
+	for (const VkFormat format : possible_stencil_formats)
+	{
+		VkFormatProperties format_props = {};
+		instance_table.GetPhysicalDeviceFormatProperties(physical_device, format, &format_props);
+
+		if ((format_props.optimalTilingFeatures & VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT) != 0)
+		{
+			_effect_stencil_format = format;
+			break;
+		}
+	}
+
 	vk.GetDeviceQueue(device, _queue_family_index, 0, &_main_queue);
 
 #if RESHADE_GUI && RESHADE_DEPTH
@@ -178,6 +198,7 @@ bool reshade::vulkan::runtime_vk::on_init(VkSwapchainKHR swapchain, const VkSwap
 	_backbuffer_format = desc.imageFormat;
 
 	// Create back buffer shader image
+	assert(_backbuffer_format != VK_FORMAT_UNDEFINED);
 	_backbuffer_image = create_image(
 		_width, _height, 1, _backbuffer_format,
 		VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
@@ -192,14 +213,15 @@ bool reshade::vulkan::runtime_vk::on_init(VkSwapchainKHR swapchain, const VkSwap
 		return false;
 
 	// Create effect depth stencil resource
-	_effect_depthstencil = create_image(
-		_width, _height, 1, VK_FORMAT_D24_UNORM_S8_UINT,
+	assert(_effect_stencil_format != VK_FORMAT_UNDEFINED);
+	_effect_stencil = create_image(
+		_width, _height, 1, _effect_stencil_format,
 		VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
 		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-	if (_effect_depthstencil == VK_NULL_HANDLE)
+	if (_effect_stencil == VK_NULL_HANDLE)
 		return false;
-	_effect_depthstencil_view = create_image_view(_effect_depthstencil, VK_FORMAT_D24_UNORM_S8_UINT, 1, VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT);
-	if (_effect_depthstencil_view == VK_NULL_HANDLE)
+	_effect_stencil_view = create_image_view(_effect_stencil, _effect_stencil_format, 1, VK_IMAGE_ASPECT_STENCIL_BIT);
+	if (_effect_stencil_view == VK_NULL_HANDLE)
 		return false;
 
 	// Create default render pass
@@ -219,7 +241,7 @@ bool reshade::vulkan::runtime_vk::on_init(VkSwapchainKHR swapchain, const VkSwap
 		attachment_descs[0].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
 		attachment_descs[0].initialLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
 		attachment_descs[0].finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-		attachment_descs[1].format = VK_FORMAT_D24_UNORM_S8_UINT;
+		attachment_descs[1].format = _effect_stencil_format;
 		attachment_descs[1].samples = VK_SAMPLE_COUNT_1_BIT;
 		attachment_descs[1].loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
 		attachment_descs[1].storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
@@ -269,8 +291,8 @@ bool reshade::vulkan::runtime_vk::on_init(VkSwapchainKHR swapchain, const VkSwap
 		_swapchain_views[k + 1] = create_image_view(_swapchain_images[i], make_format_srgb(desc.imageFormat), 1, VK_IMAGE_ASPECT_COLOR_BIT);
 		_swapchain_views[k + 0] = create_image_view(_swapchain_images[i], make_format_normal(desc.imageFormat), 1, VK_IMAGE_ASPECT_COLOR_BIT);
 
-		const VkImageView attachment_views[2] = { _swapchain_views[k + 0], _effect_depthstencil_view };
-		const VkImageView attachment_views_srgb[2] = { _swapchain_views[k + 1], _effect_depthstencil_view };
+		const VkImageView attachment_views[2] = { _swapchain_views[k + 0], _effect_stencil_view };
+		const VkImageView attachment_views_srgb[2] = { _swapchain_views[k + 1], _effect_stencil_view };
 
 		{   VkFramebufferCreateInfo create_info { VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO };
 			create_info.renderPass = _default_render_pass[0];
@@ -325,7 +347,7 @@ bool reshade::vulkan::runtime_vk::on_init(VkSwapchainKHR swapchain, const VkSwap
 	}
 
 	// Allocate a single descriptor pool for all effects
-	{   const VkDescriptorPoolSize pool_sizes[] = {
+	{   VkDescriptorPoolSize pool_sizes[] = {
 			{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1 }, // Only need one global UBO per set
 			{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 128 } // TODO: Limit to 128 image bindings per set for now
 		};
@@ -339,7 +361,8 @@ bool reshade::vulkan::runtime_vk::on_init(VkSwapchainKHR swapchain, const VkSwap
 		check_result(vk.CreateDescriptorPool(_device, &create_info, nullptr, &_effect_descriptor_pool)) false;
 	}
 
-	{   const VkDescriptorSetLayoutBinding bindings = { 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_ALL_GRAPHICS };
+	{   VkDescriptorSetLayoutBinding bindings = { 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_ALL_GRAPHICS };
+
 		VkDescriptorSetLayoutCreateInfo create_info { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO };
 		create_info.bindingCount = 1;
 		create_info.pBindings = &bindings;
@@ -348,10 +371,11 @@ bool reshade::vulkan::runtime_vk::on_init(VkSwapchainKHR swapchain, const VkSwap
 	}
 
 	// Create an empty image, which is used when no depth buffer was detected (since you cannot bind nothing to a descriptor in Vulkan)
-	_empty_depth_image = create_image(1, 1, 1, VK_FORMAT_R16_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+	// Use VK_FORMAT_R16_SFLOAT format, since it is mandatory according to the spec (see https://www.khronos.org/registry/vulkan/specs/1.1/html/vkspec.html#features-required-format-support)
+	_empty_depth_image = create_image(1, 1, 1, VK_FORMAT_R16_SFLOAT, VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 	if (_empty_depth_image == VK_NULL_HANDLE)
 		return false;
-	_empty_depth_image_view = create_image_view(_empty_depth_image, VK_FORMAT_R16_UNORM, 1, VK_IMAGE_ASPECT_COLOR_BIT);
+	_empty_depth_image_view = create_image_view(_empty_depth_image, VK_FORMAT_R16_SFLOAT, 1, VK_IMAGE_ASPECT_COLOR_BIT);
 	if (_empty_depth_image_view == VK_NULL_HANDLE)
 		return false;
 	if (begin_command_buffer())
@@ -409,10 +433,10 @@ void reshade::vulkan::runtime_vk::on_reset()
 	vk.DestroyImageView(_device, _empty_depth_image_view, nullptr);
 	_empty_depth_image_view = VK_NULL_HANDLE;
 
-	vk.DestroyImage(_device, _effect_depthstencil, nullptr);
-	_effect_depthstencil = VK_NULL_HANDLE;
-	vk.DestroyImageView(_device, _effect_depthstencil_view, nullptr);
-	_effect_depthstencil_view = VK_NULL_HANDLE;
+	vk.DestroyImage(_device, _effect_stencil, nullptr);
+	_effect_stencil = VK_NULL_HANDLE;
+	vk.DestroyImageView(_device, _effect_stencil_view, nullptr);
+	_effect_stencil_view = VK_NULL_HANDLE;
 	vk.DestroyDescriptorPool(_device, _effect_descriptor_pool, nullptr);
 	_effect_descriptor_pool = VK_NULL_HANDLE;
 	vk.DestroyDescriptorSetLayout(_device, _effect_descriptor_layout, nullptr);
@@ -980,14 +1004,14 @@ bool reshade::vulkan::runtime_vk::init_effect(size_t index)
 					num_depth_attachments = 1;
 					const uint32_t attach_idx = num_color_attachments;
 
-					attachment_views[attach_idx] = _effect_depthstencil_view;
+					attachment_views[attach_idx] = _effect_stencil_view;
 
 					VkAttachmentReference &attachment_ref = attachment_refs[attach_idx];
 					attachment_ref.attachment = attach_idx;
 					attachment_ref.layout = VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_STENCIL_ATTACHMENT_OPTIMAL;
 
 					VkAttachmentDescription &attachment_desc = attachment_descs[attach_idx];
-					attachment_desc.format = VK_FORMAT_D24_UNORM_S8_UINT;
+					attachment_desc.format = _effect_stencil_format;
 					attachment_desc.samples = VK_SAMPLE_COUNT_1_BIT;
 					attachment_desc.loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
 					attachment_desc.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
@@ -1393,11 +1417,11 @@ void reshade::vulkan::runtime_vk::render_technique(technique &technique)
 		vk.CmdUpdateBuffer(cmd_list, effect_data.ubo, 0, _effects[technique.effect_index].uniform_data_storage.size(), _effects[technique.effect_index].uniform_data_storage.data());
 
 	// Clear default depth stencil
-	const VkImageSubresourceRange clear_range = { VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT, 0, 1, 0, 1 };
+	const VkImageSubresourceRange clear_range = { VK_IMAGE_ASPECT_STENCIL_BIT, 0, 1, 0, 1 };
 	const VkClearDepthStencilValue clear_value = { 1.0f, 0 };
-	transition_layout(vk, cmd_list, _effect_depthstencil, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, { VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT, 0, 1, 0, 1 });
-	vk.CmdClearDepthStencilImage(cmd_list, _effect_depthstencil, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &clear_value, 1, &clear_range);
-	transition_layout(vk, cmd_list, _effect_depthstencil, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_STENCIL_ATTACHMENT_OPTIMAL, { VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT, 0, 1, 0, 1 });
+	transition_layout(vk, cmd_list, _effect_stencil, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, { VK_IMAGE_ASPECT_STENCIL_BIT, 0, 1, 0, 1 });
+	vk.CmdClearDepthStencilImage(cmd_list, _effect_stencil, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &clear_value, 1, &clear_range);
+	transition_layout(vk, cmd_list, _effect_stencil, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_STENCIL_ATTACHMENT_OPTIMAL, { VK_IMAGE_ASPECT_STENCIL_BIT, 0, 1, 0, 1 });
 
 #if RESHADE_DEPTH
 	if (_depth_image != VK_NULL_HANDLE)
@@ -1549,13 +1573,23 @@ VkImage reshade::vulkan::runtime_vk::create_image(uint32_t width, uint32_t heigh
 	create_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 	create_info.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 
-	vk_handle<VK_OBJECT_TYPE_IMAGE> res(_device, vk);
-	check_result(vk.CreateImage(_device, &create_info, nullptr, &res)) VK_NULL_HANDLE;
+	vk_handle<VK_OBJECT_TYPE_IMAGE> ret(_device, vk);
+	if (VkResult res = vk.CreateImage(_device, &create_info, nullptr, &ret); res != VK_SUCCESS)
+	{
+		LOG(ERROR) << "Failed to create image ("
+			"Width = " << width << ", "
+			"Height = " << height << ", "
+			"Levels = " << levels << ", "
+			"Usage = " << usage_flags << ", "
+			"Format = " << format << ")! "
+			"Result is " << res << '.';
+		return VK_NULL_HANDLE;
+	}
 
 	if (mem_flags != 0)
 	{
 		VkMemoryRequirements reqs = {};
-		vk.GetImageMemoryRequirements(_device, res, &reqs);
+		vk.GetImageMemoryRequirements(_device, ret, &reqs);
 
 		// TODO: Implement memory allocator. Shouldn't put everything in dedicated allocations, but eh.
 		VkMemoryAllocateInfo alloc_info { VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO };
@@ -1567,16 +1601,16 @@ VkImage reshade::vulkan::runtime_vk::create_image(uint32_t width, uint32_t heigh
 
 		VkMemoryDedicatedAllocateInfo dedicated_info { VK_STRUCTURE_TYPE_MEMORY_DEDICATED_ALLOCATE_INFO };
 		alloc_info.pNext = &dedicated_info;
-		dedicated_info.image = res;
+		dedicated_info.image = ret;
 
 		vk_handle<VK_OBJECT_TYPE_DEVICE_MEMORY> mem(_device, vk);
 		check_result(vk.AllocateMemory(_device, &alloc_info, nullptr, &mem)) VK_NULL_HANDLE;
-		check_result(vk.BindImageMemory(_device, res, mem, 0)) VK_NULL_HANDLE;
+		check_result(vk.BindImageMemory(_device, ret, mem, 0)) VK_NULL_HANDLE;
 
 		_allocations.push_back(mem.release());
 	}
 
-	return res.release();
+	return ret.release();
 }
 VkImageView reshade::vulkan::runtime_vk::create_image_view(VkImage image, VkFormat format, uint32_t levels, VkImageAspectFlags aspect)
 {
@@ -1599,13 +1633,20 @@ VkBuffer reshade::vulkan::runtime_vk::create_buffer(VkDeviceSize size, VkBufferU
 	create_info.usage = usage_flags;
 	create_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
-	vk_handle<VK_OBJECT_TYPE_BUFFER> res(_device, vk);
-	check_result(vk.CreateBuffer(_device, &create_info, nullptr, &res)) VK_NULL_HANDLE;
+	vk_handle<VK_OBJECT_TYPE_BUFFER> ret(_device, vk);
+	if (VkResult res = vk.CreateBuffer(_device, &create_info, nullptr, &ret); res != VK_SUCCESS)
+	{
+		LOG(ERROR) << "Failed to create buffer ("
+			"Size = " << size << ", "
+			"Usage = " << usage_flags << ")! "
+			"Result is " << res << '.';
+		return VK_NULL_HANDLE;
+	}
 
 	if (mem_flags != 0)
 	{
 		VkMemoryRequirements reqs = {};
-		vk.GetBufferMemoryRequirements(_device, res, &reqs);
+		vk.GetBufferMemoryRequirements(_device, ret, &reqs);
 
 		// TODO: Implement memory allocator. Shouldn't put everything in dedicated allocations, but eh.
 		VkMemoryAllocateInfo alloc_info { VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO };
@@ -1617,16 +1658,16 @@ VkBuffer reshade::vulkan::runtime_vk::create_buffer(VkDeviceSize size, VkBufferU
 
 		VkMemoryDedicatedAllocateInfo dedicated_info { VK_STRUCTURE_TYPE_MEMORY_DEDICATED_ALLOCATE_INFO };
 		alloc_info.pNext = &dedicated_info;
-		dedicated_info.buffer = res;
+		dedicated_info.buffer = ret;
 
 		vk_handle<VK_OBJECT_TYPE_DEVICE_MEMORY> mem(_device, vk);
 		check_result(vk.AllocateMemory(_device, &alloc_info, nullptr, &mem)) VK_NULL_HANDLE;
-		check_result(vk.BindBufferMemory(_device, res, mem, 0)) VK_NULL_HANDLE;
+		check_result(vk.BindBufferMemory(_device, ret, mem, 0)) VK_NULL_HANDLE;
 
 		_allocations.push_back(mem.release());
 	}
 
-	return res.release();
+	return ret.release();
 }
 VkBufferView reshade::vulkan::runtime_vk::create_buffer_view(VkBuffer buffer, VkFormat format)
 {
