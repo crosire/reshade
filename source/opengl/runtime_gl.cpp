@@ -149,6 +149,7 @@ bool reshade::opengl::runtime_gl::on_init(HWND hwnd, unsigned int width, unsigne
 
 	switch (pfd.cDepthBits)
 	{
+	default:
 	case  0: _default_depth_format = GL_NONE; // No depth in this pixel format
 		break;
 	case 16: _default_depth_format = GL_DEPTH_COMPONENT16;

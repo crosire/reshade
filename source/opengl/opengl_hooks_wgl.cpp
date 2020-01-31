@@ -796,14 +796,18 @@ HOOK_EXPORT BOOL  WINAPI wglSwapBuffers(HDC hdc)
 {
 	static const auto trampoline = reshade::hooks::call(wglSwapBuffers);
 
-	const HWND hwnd = WindowFromDC(hdc);
-
-	// Find the runtime that is associated with this device context
-	const auto it = std::find_if(s_opengl_runtimes.begin(), s_opengl_runtimes.end(),
-		[hdc](const std::pair<HGLRC, reshade::opengl::runtime_gl *> &it) { return it.second->_hdcs.count(hdc); });
+	reshade::opengl::runtime_gl *runtime = g_current_runtime;
+	if (runtime == nullptr || 0 == runtime->_hdcs.count(hdc))
+	{
+		// Find the runtime that is associated with this device context
+		const auto it = std::find_if(s_opengl_runtimes.begin(), s_opengl_runtimes.end(),
+			[hdc](const std::pair<HGLRC, reshade::opengl::runtime_gl *> &it) { return it.second->_hdcs.count(hdc); });
+		runtime = it != s_opengl_runtimes.end() ? it->second : nullptr;
+	}
 
 	// The window handle can be invalid if the window was already destroyed
-	if (hwnd != nullptr && it != s_opengl_runtimes.end())
+	if (const HWND hwnd = WindowFromDC(hdc);
+		hwnd != nullptr && runtime != nullptr)
 	{
 		RECT rect = { 0, 0, 0, 0 };
 		GetClientRect(hwnd, &rect);
@@ -811,18 +815,18 @@ HOOK_EXPORT BOOL  WINAPI wglSwapBuffers(HDC hdc)
 		const auto width = static_cast<unsigned int>(rect.right - rect.left);
 		const auto height = static_cast<unsigned int>(rect.bottom - rect.top);
 
-		if (width != it->second->frame_width() || height != it->second->frame_height())
+		if (width != runtime->frame_width() || height != runtime->frame_height())
 		{
-			LOG(INFO) << "Resizing runtime " << it->second << " on device context " << hdc << " to " << width << "x" << height << " ...";
+			LOG(INFO) << "Resizing runtime " << runtime << " on device context " << hdc << " to " << width << "x" << height << " ...";
 
-			it->second->on_reset();
+			runtime->on_reset();
 
-			if (!(width == 0 && height == 0) && !it->second->on_init(hwnd, width, height))
-				LOG(ERROR) << "Failed to recreate OpenGL runtime environment on runtime " << it->second << '.';
+			if (!(width == 0 && height == 0) && !runtime->on_init(hwnd, width, height))
+				LOG(ERROR) << "Failed to recreate OpenGL runtime environment on runtime " << runtime << '.';
 		}
 
 		// Assume that the correct OpenGL context is still current here
-		it->second->on_present();
+		runtime->on_present();
 	}
 
 	return trampoline(hdc);
