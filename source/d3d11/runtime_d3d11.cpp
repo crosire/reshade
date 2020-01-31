@@ -341,8 +341,7 @@ bool reshade::d3d11::runtime_d3d11::capture_screenshot(uint8_t *buffer) const
 
 	for (uint32_t y = 0, pitch = _width * 4; y < _height; y++, buffer += pitch, mapped_data += mapped.RowPitch)
 	{
-		if (_backbuffer_format == DXGI_FORMAT_R10G10B10A2_UNORM ||
-			_backbuffer_format == DXGI_FORMAT_R10G10B10A2_UINT)
+		if (_color_bit_depth == 10)
 		{
 			for (uint32_t x = 0; x < pitch; x += 4)
 			{

@@ -250,8 +250,7 @@ bool reshade::d3d9::runtime_d3d9::capture_screenshot(uint8_t *buffer) const
 
 	for (uint32_t y = 0, pitch = _width * 4; y < _height; y++, buffer += pitch, mapped_data += mapped.Pitch)
 	{
-		if (_backbuffer_format == D3DFMT_A2R10G10B10 ||
-			_backbuffer_format == D3DFMT_A2B10G10R10)
+		if (_color_bit_depth == 10)
 		{
 			for (uint32_t x = 0; x < pitch; x += 4)
 			{

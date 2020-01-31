@@ -562,10 +562,7 @@ bool reshade::vulkan::runtime_vk::capture_screenshot(uint8_t *buffer) const
 
 	for (uint32_t y = 0; y < _height; y++, buffer += data_pitch, mapped_data += data_pitch)
 	{
-		if (_backbuffer_format == VK_FORMAT_A2R10G10B10_UNORM_PACK32 ||
-			_backbuffer_format == VK_FORMAT_A2R10G10B10_SNORM_PACK32 ||
-			_backbuffer_format == VK_FORMAT_A2R10G10B10_USCALED_PACK32 ||
-			_backbuffer_format == VK_FORMAT_A2R10G10B10_SSCALED_PACK32)
+		if (_color_bit_depth == 10)
 		{
 			for (uint32_t x = 0; x < data_pitch; x += 4)
 			{
@@ -575,6 +572,8 @@ bool reshade::vulkan::runtime_vk::capture_screenshot(uint8_t *buffer) const
 				buffer[x + 1] = (((rgba & 0xFFC00) >> 10) / 4) & 0xFF;
 				buffer[x + 2] = (((rgba & 0x3FF00000) >> 20) / 4) & 0xFF;
 				buffer[x + 3] = 0xFF;
+				if (_backbuffer_format >= VK_FORMAT_A2B10G10R10_UNORM_PACK32 && _backbuffer_format <= VK_FORMAT_A2B10G10R10_SINT_PACK32)
+					std::swap(buffer[x + 0], buffer[x + 2]);
 			}
 		}
 		else

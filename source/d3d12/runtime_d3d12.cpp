@@ -444,8 +444,7 @@ bool reshade::d3d12::runtime_d3d12::capture_screenshot(uint8_t *buffer) const
 
 	for (uint32_t y = 0; y < _height; y++, buffer += data_pitch, mapped_data += download_pitch)
 	{
-		if (_backbuffer_format == DXGI_FORMAT_R10G10B10A2_UNORM ||
-			_backbuffer_format == DXGI_FORMAT_R10G10B10A2_UINT)
+		if (_color_bit_depth == 10)
 		{
 			for (uint32_t x = 0; x < data_pitch; x += 4)
 			{
