@@ -147,6 +147,7 @@ VkResult VKAPI_CALL vkCreateInstance(const VkInstanceCreateInfo *pCreateInfo, co
 	dispatch_table.GetPhysicalDeviceFormatProperties = (PFN_vkGetPhysicalDeviceFormatProperties)gipa(instance, "vkGetPhysicalDeviceFormatProperties");
 	dispatch_table.GetPhysicalDeviceMemoryProperties = (PFN_vkGetPhysicalDeviceMemoryProperties)gipa(instance, "vkGetPhysicalDeviceMemoryProperties");
 	dispatch_table.GetPhysicalDeviceQueueFamilyProperties = (PFN_vkGetPhysicalDeviceQueueFamilyProperties)gipa(instance, "vkGetPhysicalDeviceQueueFamilyProperties");
+	dispatch_table.EnumerateDeviceExtensionProperties = (PFN_vkEnumerateDeviceExtensionProperties)gipa(instance, "vkEnumerateDeviceExtensionProperties");
 	dispatch_table.GetInstanceProcAddr = gipa;
 	// ---- VK_KHR_surface extension commands
 	dispatch_table.DestroySurfaceKHR = (PFN_vkDestroySurfaceKHR)gipa(instance, "vkDestroySurfaceKHR");
@@ -239,6 +240,8 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 
 	auto enum_queue_families = s_instance_dispatch.at(dispatch_key_from_handle(physicalDevice)).GetPhysicalDeviceQueueFamilyProperties;
 	assert(enum_queue_families != nullptr);
+	auto enum_device_extensions = s_instance_dispatch.at(dispatch_key_from_handle(physicalDevice)).EnumerateDeviceExtensionProperties;
+	assert(enum_device_extensions != nullptr);
 
 	uint32_t num_queue_families = 0;
 	enum_queue_families(physicalDevice, &num_queue_families, nullptr);
@@ -282,6 +285,25 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 		enabled_extensions.push_back(VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME);
 		enabled_extensions.push_back(VK_KHR_IMAGE_FORMAT_LIST_EXTENSION_NAME);
 		enabled_extensions.push_back(VK_KHR_SWAPCHAIN_MUTABLE_FORMAT_EXTENSION_NAME);
+
+		// Make sure the driver actually supports the requested extensions
+		uint32_t num_extensions = 0;
+		enum_device_extensions(physicalDevice, nullptr, &num_extensions, nullptr);
+		std::vector<VkExtensionProperties> extensions(num_extensions);
+		enum_device_extensions(physicalDevice, nullptr, &num_extensions, extensions.data());
+
+		for (const char *name : enabled_extensions)
+		{
+			if (const auto it = std::find_if(extensions.begin(), extensions.end(),
+				[name](const auto &props) { return strncmp(props.extensionName, name, VK_MAX_EXTENSION_NAME_SIZE) == 0; });
+				it == extensions.end())
+			{
+				LOG(ERROR) << "Required extension \"" << name << "\" is not supported on this device. Initialization failed.";
+
+				// Reset queue family index to prevent ReShade initialization
+				graphics_queue_family_index = std::numeric_limits<uint32_t>::max();
+			}
+		}
 	}
 	else
 	{
