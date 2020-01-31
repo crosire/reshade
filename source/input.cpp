@@ -106,6 +106,12 @@ bool reshade::input::handle_window_message(const void *message_data)
 			return (input_window = s_windows.find(hwnd)) == s_windows.end();
 		}, reinterpret_cast<LPARAM>(&input_window));
 	}
+	if (input_window == s_windows.end())
+	{
+		// Some applications handle input in a child window to the main render window
+		if (const HWND parent = GetParent(details.hwnd); parent != NULL)
+			input_window = s_windows.find(parent);
+	}
 
 	if (input_window == s_windows.end() && raw_input_window != s_raw_input_windows.end())
 	{
