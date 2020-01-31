@@ -181,12 +181,13 @@ bool reshade::opengl::runtime_gl::on_init(HWND hwnd, unsigned int width, unsigne
 
 	glBindRenderbuffer(GL_RENDERBUFFER, _rbo[RBO_COLOR]);
 	glRenderbufferStorage(GL_RENDERBUFFER, GL_SRGB8_ALPHA8, _width, _height);
-	glBindRenderbuffer(GL_RENDERBUFFER, _rbo[RBO_DEPTH]);
-	glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, _width, _height);
+	glBindRenderbuffer(GL_RENDERBUFFER, _rbo[RBO_STENCIL]);
+	// As of OpenGL 4.3 support for GL_STENCIL_INDEX8 is a requirement for render buffers
+	glRenderbufferStorage(GL_RENDERBUFFER, GL_STENCIL_INDEX8, _width, _height);
 
 	glBindFramebuffer(GL_FRAMEBUFFER, _fbo[FBO_BACK]);
 	glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, _rbo[RBO_COLOR]);
-	glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, _rbo[RBO_DEPTH]);
+	glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_STENCIL_ATTACHMENT, GL_RENDERBUFFER, _rbo[RBO_STENCIL]);
 	assert(glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
 
 	glBindFramebuffer(GL_FRAMEBUFFER, _fbo[FBO_BLIT]);
@@ -657,8 +658,8 @@ bool reshade::opengl::runtime_gl::init_effect(size_t index)
 			if (pass_info.viewport_width == _width &&
 				pass_info.viewport_height == _height)
 			{
-				// Only attach depth-stencil when viewport matches back buffer or else the frame buffer will always be resized to those dimensions
-				glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, _rbo[RBO_DEPTH]);
+				// Only attach stencil when viewport matches back buffer or else the frame buffer will always be resized to those dimensions
+				glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_STENCIL_ATTACHMENT, GL_RENDERBUFFER, _rbo[RBO_STENCIL]);
 			}
 
 			assert(glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);

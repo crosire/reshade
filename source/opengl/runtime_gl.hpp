@@ -76,7 +76,7 @@ namespace reshade::opengl
 		enum RBO
 		{
 			RBO_COLOR,
-			RBO_DEPTH,
+			RBO_STENCIL,
 				NUM_RBO
 		};
 
