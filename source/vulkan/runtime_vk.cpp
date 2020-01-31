@@ -212,7 +212,7 @@ bool reshade::vulkan::runtime_vk::on_init(VkSwapchainKHR swapchain, const VkSwap
 	if (_backbuffer_image_view[1] == VK_NULL_HANDLE)
 		return false;
 
-	// Create effect depth stencil resource
+	// Create effect depth-stencil resource
 	assert(_effect_stencil_format != VK_FORMAT_UNDEFINED);
 	_effect_stencil = create_image(
 		_width, _height, 1, _effect_stencil_format,
@@ -1416,7 +1416,7 @@ void reshade::vulkan::runtime_vk::render_technique(technique &technique)
 	if (effect_data.ubo != VK_NULL_HANDLE)
 		vk.CmdUpdateBuffer(cmd_list, effect_data.ubo, 0, _effects[technique.effect_index].uniform_data_storage.size(), _effects[technique.effect_index].uniform_data_storage.data());
 
-	// Clear default depth stencil
+	// Clear default depth-stencil
 	const VkImageSubresourceRange clear_range = { VK_IMAGE_ASPECT_STENCIL_BIT, 0, 1, 0, 1 };
 	const VkClearDepthStencilValue clear_value = { 1.0f, 0 };
 	transition_layout(vk, cmd_list, _effect_stencil, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, { VK_IMAGE_ASPECT_STENCIL_BIT, 0, 1, 0, 1 });
@@ -1426,7 +1426,7 @@ void reshade::vulkan::runtime_vk::render_technique(technique &technique)
 #if RESHADE_DEPTH
 	if (_depth_image != VK_NULL_HANDLE)
 	{
-		// Transition layout of depth stencil image
+		// Transition layout of depth-stencil image
 		transition_layout(vk, cmd_list, _depth_image, _depth_image_layout, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, { _depth_image_aspect, 0, 1, 0, 1 });
 	}
 #endif
@@ -1480,7 +1480,7 @@ void reshade::vulkan::runtime_vk::render_technique(technique &technique)
 	{
 		assert(_depth_image_layout != VK_IMAGE_LAYOUT_UNDEFINED);
 
-		// Reset image layout of depth stencil image
+		// Reset image layout of depth-stencil image
 		transition_layout(vk, cmd_list, _depth_image, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, _depth_image_layout, { _depth_image_aspect, 0, 1, 0, 1 });
 	}
 #endif
@@ -1580,7 +1580,7 @@ VkImage reshade::vulkan::runtime_vk::create_image(uint32_t width, uint32_t heigh
 			"Width = " << width << ", "
 			"Height = " << height << ", "
 			"Levels = " << levels << ", "
-			"Usage = " << usage_flags << ", "
+			"Usage = " << std::hex << usage_flags << std::dec << ", "
 			"Format = " << format << ")! "
 			"Result is " << res << '.';
 		return VK_NULL_HANDLE;
@@ -1638,7 +1638,7 @@ VkBuffer reshade::vulkan::runtime_vk::create_buffer(VkDeviceSize size, VkBufferU
 	{
 		LOG(ERROR) << "Failed to create buffer ("
 			"Size = " << size << ", "
-			"Usage = " << usage_flags << ")! "
+			"Usage = " << std::hex << usage_flags << std::dec << ")! "
 			"Result is " << res << '.';
 		return VK_NULL_HANDLE;
 	}

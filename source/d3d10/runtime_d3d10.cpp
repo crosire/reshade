@@ -184,7 +184,7 @@ bool reshade::d3d10::runtime_d3d10::on_init(const DXGI_SWAP_CHAIN_DESC &swap_des
 			return false;
 	}
 
-	// Create effect depth stencil texture
+	// Create effect depth-stencil texture
 	tex_desc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
 	tex_desc.BindFlags = D3D10_BIND_DEPTH_STENCIL;
 	com_ptr<ID3D10Texture2D> effect_depthstencil_texture;
@@ -699,7 +699,7 @@ bool reshade::d3d10::runtime_d3d10::init_effect(size_t index)
 
 				if (HRESULT hr = _device->CreateDepthStencilState(&desc, &pass_data.depth_stencil_state); FAILED(hr))
 				{
-					LOG(ERROR) << "Failed to create depth stencil state for pass " << pass_index << " in technique '" << technique.name << "'! "
+					LOG(ERROR) << "Failed to create depth-stencil state for pass " << pass_index << " in technique '" << technique.name << "'! "
 						"HRESULT is " << hr << '.';
 					return false;
 				}
@@ -1358,7 +1358,7 @@ void reshade::d3d10::runtime_d3d10::update_depthstencil_texture(com_ptr<ID3D10Te
 
 		if (HRESULT hr = _device->CreateShaderResourceView(_depth_texture.get(), &srv_desc, &_depth_texture_srv); FAILED(hr))
 		{
-			LOG(ERROR) << "Failed to create depth stencil resource view! HRESULT is " << hr << '.';
+			LOG(ERROR) << "Failed to create depth-stencil resource view! HRESULT is " << hr << '.';
 			return;
 		}
 	}

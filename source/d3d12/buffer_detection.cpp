@@ -80,7 +80,7 @@ void reshade::d3d12::buffer_detection::on_draw(UINT vertices)
 
 #if RESHADE_DEPTH
 	if (_current_depthstencil == nullptr)
-		return; // This is a draw call with no depth stencil bound
+		return; // This is a draw call with no depth-stencil bound
 
 	auto &counters = _counters_per_used_depth_texture[_current_depthstencil];
 	counters.total_stats.vertices += vertices;
@@ -124,7 +124,7 @@ void reshade::d3d12::buffer_detection::on_clear_depthstencil(D3D12_CLEAR_FLAGS c
 	// Make a backup copy of the depth texture before it is cleared
 	if (_context->_depthstencil_clear_index.second == std::numeric_limits<UINT>::max() ?
 		counters.current_stats.vertices > _best_copy_stats.vertices :
-		// This is not really correct, since clears may accumulate over multiple command lists, but it's unlikely that the same depth stencil is used in more than one
+		// This is not really correct, since clears may accumulate over multiple command lists, but it's unlikely that the same depth-stencil is used in more than one
 		counters.clears.size() == _context->_depthstencil_clear_index.second)
 	{
 		_best_copy_stats = counters.current_stats;
@@ -203,7 +203,7 @@ bool reshade::d3d12::buffer_detection_context::update_depthstencil_clear_texture
 
 	if (HRESULT hr = _device->CreateCommittedResource(&heap_props, D3D12_HEAP_FLAG_NONE, &desc, D3D12_RESOURCE_STATE_DEPTH_WRITE, &clear_value, IID_PPV_ARGS(&_depthstencil_clear_texture)); FAILED(hr))
 	{
-		LOG(ERROR) << "Failed to create depth stencil texture! HRESULT is " << hr << '.';
+		LOG(ERROR) << "Failed to create depth-stencil texture! HRESULT is " << hr << '.';
 		return false;
 	}
 

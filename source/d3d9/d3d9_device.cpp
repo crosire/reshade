@@ -227,7 +227,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::Reset(D3DPRESENT_PARAMETERS *pPresent
 	if (!runtime->on_init(pp))
 		LOG(ERROR) << "Failed to recreate Direct3D 9 runtime environment on runtime " << runtime.get() << '.';
 
-	// Reload auto depth stencil surface
+	// Reload auto depth-stencil surface
 	if (pp.EnableAutoDepthStencil)
 	{
 		_orig->GetDepthStencilSurface(&_auto_depthstencil);
@@ -811,7 +811,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::ResetEx(D3DPRESENT_PARAMETERS *pPrese
 	if (!runtime->on_init(pp))
 		LOG(ERROR) << "Failed to recreate Direct3D 9 runtime environment on runtime " << runtime.get() << '.';
 
-	// Reload auto depth stencil surface
+	// Reload auto depth-stencil surface
 	if (pp.EnableAutoDepthStencil)
 	{
 		_orig->GetDepthStencilSurface(&_auto_depthstencil);

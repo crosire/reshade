@@ -917,7 +917,7 @@ void reshade::opengl::runtime_gl::render_technique(technique &technique)
 	if (!impl->query_in_flight)
 		glBeginQuery(GL_TIME_ELAPSED, impl->query);
 
-	// Clear depth stencil
+	// Clear depth-stencil
 	glBindFramebuffer(GL_FRAMEBUFFER, _fbo[FBO_BACK]);
 	glClearBufferfi(GL_DEPTH_STENCIL, 0, 1.0f, 0);
 

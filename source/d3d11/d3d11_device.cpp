@@ -123,7 +123,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateTexture2D(const D3D11_TEXTURE2D_DES
 {
 	assert(pDesc != nullptr);
 
-	// Add D3D11_BIND_SHADER_RESOURCE flag to all depth stencil textures so that we can access them in post-processing shaders
+	// Add D3D11_BIND_SHADER_RESOURCE flag to all depth-stencil textures so that we can access them in post-processing shaders
 	D3D11_TEXTURE2D_DESC new_desc = *pDesc;
 	if (0 != (new_desc.BindFlags & D3D11_BIND_DEPTH_STENCIL))
 	{
@@ -157,7 +157,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateShaderResourceView(ID3D11Resource *
 		{
 			texture->GetDesc(&texture_desc);
 
-			// Only textures with the depth stencil bind flag where modified, so skip all others
+			// Only textures with the depth-stencil bind flag where modified, so skip all others
 			if (0 != (texture_desc.BindFlags & D3D11_BIND_DEPTH_STENCIL))
 			{
 				new_desc.Format = make_dxgi_format_normal(texture_desc.Format);

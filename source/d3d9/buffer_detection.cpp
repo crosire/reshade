@@ -69,7 +69,7 @@ void reshade::d3d9::buffer_detection::on_draw(D3DPRIMITIVETYPE type, UINT vertic
 
 	if (depthstencil != nullptr)
 	{
-		// Update draw statistics for tracked depth stencil surfaces
+		// Update draw statistics for tracked depth-stencil surfaces
 		auto &counters = _counters_per_used_depth_surface[depthstencil == _depthstencil_replacement ? _depthstencil_original : depthstencil];
 		counters.stats.vertices += vertices;
 		counters.stats.drawcalls += 1;
@@ -102,7 +102,7 @@ void reshade::d3d9::buffer_detection::on_set_depthstencil(IDirect3DSurface9 *&de
 		// Do not replace surface after targeted clear, so that all draw calls from then on end up in the original surface
 		_counters_per_used_depth_surface[_depthstencil_original].clears.size() < _depthstencil_clear_index)
 	{
-		// Replace application depth stencil surface with our custom one
+		// Replace application depth-stencil surface with our custom one
 		depthstencil = _depthstencil_replacement.get();
 	}
 }
@@ -113,7 +113,7 @@ void reshade::d3d9::buffer_detection::on_get_depthstencil(IDirect3DSurface9 *&de
 		// The call to IDirect3DDevice9::GetDepthStencilSurface increased the reference count, so release that before replacing
 		depthstencil->Release();
 
-		// Return original application depth stencil surface
+		// Return original application depth-stencil surface
 		depthstencil = _depthstencil_original.get();
 		_depthstencil_original->AddRef();
 	}
@@ -220,7 +220,7 @@ bool reshade::d3d9::buffer_detection::update_depthstencil_replacement(com_ptr<ID
 	// The surface holds a reference to the texture, so it is safe to let that go out of scope
 	texture->GetSurfaceLevel(0, &_depthstencil_replacement);
 
-	// Update current depth stencil in case it matches the one we want to replace
+	// Update current depth-stencil in case it matches the one we want to replace
 	com_ptr<IDirect3DSurface9> current_depthstencil;
 	_device->GetDepthStencilSurface(&current_depthstencil);
 	if (current_depthstencil == _depthstencil_original)

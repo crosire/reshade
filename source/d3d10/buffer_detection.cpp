@@ -49,7 +49,7 @@ void reshade::d3d10::buffer_detection::on_draw(UINT vertices)
 
 	const auto dsv_texture = texture_from_dsv(depthstencil.get());
 	if (dsv_texture == nullptr)
-		return; // This is a draw call with no depth stencil bound
+		return; // This is a draw call with no depth-stencil bound
 
 	auto &counters = _counters_per_used_depth_texture[dsv_texture];
 	counters.total_stats.vertices += vertices;
@@ -113,7 +113,7 @@ bool reshade::d3d10::buffer_detection::update_depthstencil_clear_texture(D3D10_T
 
 	if (HRESULT hr = _device->CreateTexture2D(&desc, nullptr, &_depthstencil_clear_texture); FAILED(hr))
 	{
-		LOG(ERROR) << "Failed to create depth stencil texture! HRESULT is " << hr << '.';
+		LOG(ERROR) << "Failed to create depth-stencil texture! HRESULT is " << hr << '.';
 		return false;
 	}
 

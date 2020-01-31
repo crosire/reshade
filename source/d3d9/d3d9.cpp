@@ -71,7 +71,7 @@ static void init_runtime_d3d(T *&device, D3DDEVTYPE device_type, D3DPRESENT_PARA
 
 	const auto device_proxy = new Direct3DDevice9(device, swapchain, runtime, use_software_rendering);
 
-	// Get and set depth stencil surface so that the depth detection callbacks are called with the auto depth stencil surface
+	// Get and set depth-stencil surface so that the depth detection callbacks are called with the auto depth-stencil surface
 	if (pp.EnableAutoDepthStencil)
 	{
 		device->GetDepthStencilSurface(&device_proxy->_auto_depthstencil);

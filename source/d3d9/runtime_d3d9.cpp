@@ -133,7 +133,7 @@ bool reshade::d3d9::runtime_d3d9::on_init(const D3DPRESENT_PARAMETERS &pp)
 	hr = _backbuffer_texture->GetSurfaceLevel(0, &_backbuffer_texture_surface);
 	assert(SUCCEEDED(hr));
 
-	// Create effect depth stencil surface
+	// Create effect depth-stencil surface
 	if (FAILED(_device->CreateDepthStencilSurface(_width, _height, D3DFMT_D24S8, D3DMULTISAMPLE_NONE, 0, FALSE, &_effect_depthstencil, nullptr)))
 		return false;
 

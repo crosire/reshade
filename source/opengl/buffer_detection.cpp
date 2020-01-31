@@ -74,7 +74,7 @@ void reshade::opengl::buffer_detection::on_fbo_attachment(GLenum attachment, GLe
 		GLint previous_rbo = 0;
 		glGetIntegerv(GL_RENDERBUFFER_BINDING, &previous_rbo);
 
-		// Get depth stencil parameters from RBO
+		// Get depth-stencil parameters from RBO
 		glBindRenderbuffer(GL_RENDERBUFFER, object);
 		glGetRenderbufferParameteriv(GL_RENDERBUFFER, GL_RENDERBUFFER_WIDTH, reinterpret_cast<GLint *>(&info.width));
 		glGetRenderbufferParameteriv(GL_RENDERBUFFER, GL_RENDERBUFFER_HEIGHT, reinterpret_cast<GLint *>(&info.height));
@@ -114,7 +114,7 @@ void reshade::opengl::buffer_detection::on_fbo_attachment(GLenum attachment, GLe
 		GLint previous_tex = 0;
 		glGetIntegerv(target_to_binding(target), &previous_tex);
 
-		// Get depth stencil parameters from texture
+		// Get depth-stencil parameters from texture
 		glBindTexture(target, object);
 		glGetTexLevelParameteriv(target, level, GL_TEXTURE_WIDTH, reinterpret_cast<GLint *>(&info.width));
 		glGetTexLevelParameteriv(target, level, GL_TEXTURE_HEIGHT, reinterpret_cast<GLint *>(&info.height));

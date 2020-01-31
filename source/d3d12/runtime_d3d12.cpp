@@ -228,7 +228,7 @@ bool reshade::d3d12::runtime_d3d12::on_init(const DXGI_SWAP_CHAIN_DESC &swap_des
 #endif
 	}
 
-	// Create effect depth stencil resource
+	// Create effect depth-stencil resource
 	{   D3D12_RESOURCE_DESC desc = { D3D12_RESOURCE_DIMENSION_TEXTURE2D };
 		desc.Width = _width;
 		desc.Height = _height;
@@ -1163,7 +1163,7 @@ void reshade::d3d12::runtime_d3d12::render_technique(technique &technique)
 	// Setup samplers
 	_cmd_list->SetGraphicsRootDescriptorTable(2, effect_data.sampler_gpu_base);
 
-	// Clear default depth stencil
+	// Clear default depth-stencil
 	const D3D12_CPU_DESCRIPTOR_HANDLE default_depth_stencil = _depthstencil_dsvs->GetCPUDescriptorHandleForHeapStart();
 	_cmd_list->ClearDepthStencilView(default_depth_stencil, D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
 

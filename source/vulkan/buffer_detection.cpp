@@ -42,7 +42,7 @@ void reshade::vulkan::buffer_detection::on_draw(uint32_t vertices)
 
 #if RESHADE_DEPTH
 	if (_current_depthstencil == VK_NULL_HANDLE)
-		// This is a draw call with no depth stencil bound
+		// This is a draw call with no depth-stencil bound
 		return;
 
 	auto &counters = _counters_per_used_depth_image[_current_depthstencil];

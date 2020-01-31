@@ -245,7 +245,7 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommittedResource(const D3D12_HEAP_
 {
 	assert(pResourceDesc != nullptr);
 
-	// Remove D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE flag so that we can access depth stencil resources in post-processing shaders.
+	// Remove D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE flag so that we can access depth-stencil resources in post-processing shaders.
 	// The flag is only valid in combination with D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL anyway (see https://docs.microsoft.com/en-us/windows/win32/api/d3d12/ne-d3d12-d3d12_resource_flags), so can always remove it.
 	D3D12_RESOURCE_DESC new_desc = *pResourceDesc;
 	new_desc.Flags &= ~D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE;
