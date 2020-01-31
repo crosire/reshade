@@ -92,6 +92,7 @@ void reshade::runtime::init_ui()
 		config.get("GENERAL", "ShowFPS", _show_fps);
 		config.get("GENERAL", "ShowFrameTime", _show_frametime);
 		config.get("GENERAL", "ShowScreenshotMessage", _show_screenshot_message);
+		config.get("GENERAL", "FPSPosition", _fps_pos);
 		config.get("GENERAL", "ClockFormat", _clock_format);
 		config.get("GENERAL", "NoFontScaling", _no_font_scaling);
 		config.get("GENERAL", "SaveWindowState", save_imgui_window_state);
@@ -328,6 +329,7 @@ void reshade::runtime::init_ui()
 		config.set("GENERAL", "ShowFPS", _show_fps);
 		config.set("GENERAL", "ShowFrameTime", _show_frametime);
 		config.set("GENERAL", "ShowScreenshotMessage", _show_screenshot_message);
+		config.set("GENERAL", "FPSPosition", _fps_pos);
 		config.set("GENERAL", "ClockFormat", _clock_format);
 		config.set("GENERAL", "NoFontScaling", _no_font_scaling);
 		config.set("GENERAL", "SaveWindowState", _imgui_context->IO.IniFilename != nullptr);
@@ -582,8 +584,18 @@ void reshade::runtime::draw_ui()
 	}
 	else if (_show_clock || _show_fps || _show_frametime)
 	{
-		ImGui::SetNextWindowPos(ImVec2(imgui_io.DisplaySize.x - 200.0f, 5));
-		ImGui::SetNextWindowSize(ImVec2(200.0f, 200.0f));
+		float window_height = ImGui::GetTextLineHeightWithSpacing();
+		window_height *= (_show_clock ? 1 : 0) + (_show_fps ? 1 : 0) + (_show_frametime ? 1 : 0);
+		window_height += _imgui_context->Style.FramePadding.y * 4.0f;
+
+		ImVec2 fps_window_pos(5, 5);
+		if (_fps_pos % 2)
+			fps_window_pos.x = imgui_io.DisplaySize.x - 200.0f;
+		if (_fps_pos > 1)
+			fps_window_pos.y = imgui_io.DisplaySize.y - window_height - 5;
+
+		ImGui::SetNextWindowPos(fps_window_pos);
+		ImGui::SetNextWindowSize(ImVec2(200.0f, window_height));
 		ImGui::PushStyleColor(ImGuiCol_Text, (const ImVec4 &)_fps_col);
 		ImGui::Begin("FPS", nullptr,
 			ImGuiWindowFlags_NoDecoration |
@@ -605,20 +617,23 @@ void reshade::runtime::draw_ui()
 			const int minute = (_date[3] - hour * 3600) / 60;
 			const int seconds = _date[3] - hour * 3600 - minute * 60;
 
-			ImFormatString(temp, sizeof(temp), _clock_format != 0 ? " %02u:%02u:%02u" : " %02u:%02u", hour, minute, seconds);
-			ImGui::SetCursorPosX(ImGui::GetWindowContentRegionWidth() - ImGui::CalcTextSize(temp).x);
+			ImFormatString(temp, sizeof(temp), _clock_format != 0 ? "%02u:%02u:%02u" : "%02u:%02u", hour, minute, seconds);
+			if (_fps_pos % 2) // Align text to the right of the window
+				ImGui::SetCursorPosX(ImGui::GetWindowContentRegionWidth() - ImGui::CalcTextSize(temp).x);
 			ImGui::TextUnformatted(temp);
 		}
 		if (_show_fps)
 		{
 			ImFormatString(temp, sizeof(temp), "%.0f fps", imgui_io.Framerate);
-			ImGui::SetCursorPosX(ImGui::GetWindowContentRegionWidth() - ImGui::CalcTextSize(temp).x);
+			if (_fps_pos % 2)
+				ImGui::SetCursorPosX(ImGui::GetWindowContentRegionWidth() - ImGui::CalcTextSize(temp).x);
 			ImGui::TextUnformatted(temp);
 		}
 		if (_show_frametime)
 		{
 			ImFormatString(temp, sizeof(temp), "%5.2f ms", 1000.0f / imgui_io.Framerate);
-			ImGui::SetCursorPosX(ImGui::GetWindowContentRegionWidth() - ImGui::CalcTextSize(temp).x);
+			if (_fps_pos % 2)
+				ImGui::SetCursorPosX(ImGui::GetWindowContentRegionWidth() - ImGui::CalcTextSize(temp).x);
 			ImGui::TextUnformatted(temp);
 		}
 
@@ -1231,6 +1246,7 @@ void reshade::runtime::draw_ui_settings()
 		modified |= ImGui::Combo("Clock Format", &_clock_format, "HH:MM\0HH:MM:SS\0");
 		modified |= ImGui::SliderFloat("FPS Text Size", &_fps_scale, 0.2f, 2.5f, "%.1f");
 		modified |= ImGui::ColorEdit4("FPS Text Color", _fps_col, ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreview);
+		modified |= ImGui::Combo("Position on Screen", &_fps_pos, "Top Left\0Top Right\0Bottom Left\0Bottom Right\0");
 	}
 
 	if (modified)

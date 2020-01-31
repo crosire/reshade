@@ -344,6 +344,7 @@ namespace reshade
 		bool _no_font_scaling = false;
 		bool _rebuild_font_atlas = false;
 		unsigned int _menu_key_data[4];
+		int _fps_pos = 1;
 		int _clock_format = 0;
 		int _input_processing_mode = 2;
 
