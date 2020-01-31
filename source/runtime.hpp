@@ -293,7 +293,7 @@ namespace reshade
 		bool _should_save_screenshot = false;
 		bool _screenshot_save_ui = false;
 		bool _screenshot_save_before = false;
-		bool _screenshot_save_success = false;
+		bool _screenshot_save_success = true;
 		bool _screenshot_include_preset = false;
 		unsigned int _screenshot_format = 1;
 		unsigned int _screenshot_key_data[4];
@@ -302,6 +302,7 @@ namespace reshade
 		std::chrono::high_resolution_clock::time_point _last_screenshot_time;
 
 		// === Preset Switching ===
+		bool _preset_save_success = true;
 		bool _is_in_between_presets_transition = false;
 		unsigned int _prev_preset_key_data[4];
 		unsigned int _next_preset_key_data[4];

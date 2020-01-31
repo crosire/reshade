@@ -149,6 +149,9 @@ bool reshade::runtime::on_init(input::window_handle window)
 	_is_initialized = true;
 	_last_reload_time = std::chrono::high_resolution_clock::now();
 
+	_preset_save_success = true;
+	_screenshot_save_success = true;
+
 #if RESHADE_GUI
 	build_font_atlas();
 #endif
@@ -236,7 +239,8 @@ void reshade::runtime::on_present()
 	_input->next_frame();
 
 	// Save modified INI files
-	ini_file::flush_cache();
+	if (!ini_file::flush_cache())
+		_preset_save_success = false;
 
 	// Detect high network traffic
 	static int cooldown = 0, traffic = 0;
@@ -1130,6 +1134,8 @@ void reshade::runtime::save_config() const
 
 void reshade::runtime::load_current_preset()
 {
+	_preset_save_success = true;
+
 	const reshade::ini_file &preset = ini_file::load_cache(_current_preset_path);
 
 	std::vector<std::string> technique_list;

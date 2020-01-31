@@ -123,8 +123,9 @@ bool reshade::ini_file::save()
 
 	if (condition == condition::open && modified_at >= _modified_at)
 	{
+		// File was modified on disk and may have different data, so cannot save
 		_modified = false;
-		return true; // File was modified on disk and may have different data, so cannot save
+		return true;
 	}
 
 	std::string str;
@@ -185,14 +186,19 @@ bool reshade::ini_file::save()
 
 	std::ofstream file;
 	if (condition == condition::open || condition == condition::create)
+	{
 		if (file.open(_path); file.fail())
-			if (condition == condition::open)
-				condition = condition::blocked;
-			else
-				condition = condition::unknown;
+		{
+			condition = (condition == condition::open) ? condition::blocked : condition::unknown;
+		}
+	}
 
 	if (condition == condition::blocked || condition == condition::unknown)
+	{
+		// Reset state to avoid cache flushing to repeatedly save the file
+		_modified = false;
 		return false;
+	}
 
 	file.rdbuf()->pubsetbuf(nullptr, 0);
 
@@ -218,17 +224,22 @@ reshade::ini_file &reshade::ini_file::load_cache(const std::filesystem::path &pa
 		return it.first->second.load(), it.first->second;
 }
 
-void reshade::ini_file::flush_cache()
+bool reshade::ini_file::flush_cache()
 {
-	const std::filesystem::file_time_type now = std::filesystem::file_time_type::clock::now();
+	bool success = true;
+	const auto now = std::filesystem::file_time_type::clock::now();
+
 	// Save all files that were modified in one second intervals
 	for (auto &file : g_ini_cache)
+	{
 		if (file.second._modified && (now - file.second._modified_at) > std::chrono::seconds(1))
-			file.second.save();
+			success &= file.second.save();
+	}
+
+	return success;
 }
 bool reshade::ini_file::flush_cache(const std::filesystem::path &path)
 {
-	if (const auto it = g_ini_cache.find(path); it != g_ini_cache.end())
-		return it->second.save();
-	return false;
+	const auto it = g_ini_cache.find(path);
+	return it != g_ini_cache.end() && it->second.save();
 }

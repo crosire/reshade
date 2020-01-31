@@ -162,7 +162,7 @@ namespace reshade
 		/// <returns>A reference to the cached data. This reference is valid until the next call to <see cref="load_cache"/>.</returns>
 		static reshade::ini_file &load_cache(const std::filesystem::path &path);
 
-		static void flush_cache();
+		static bool flush_cache();
 		static bool flush_cache(const std::filesystem::path &path);
 
 	private:

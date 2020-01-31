@@ -485,7 +485,7 @@ void reshade::runtime::draw_ui()
 	ImVec2 viewport_offset = ImVec2(0, 0);
 
 	// Create ImGui widgets and windows
-	if (show_splash || show_screenshot_message || (!_show_menu && _tutorial_index == 0))
+	if (show_splash || show_screenshot_message || !_preset_save_success || (!_show_menu && _tutorial_index == 0))
 	{
 		ImGui::SetNextWindowPos(ImVec2(10, 10));
 		ImGui::SetNextWindowSize(ImVec2(imgui_io.DisplaySize.x - 20.0f, 0.0f));
@@ -501,7 +501,11 @@ void reshade::runtime::draw_ui()
 			ImGuiWindowFlags_NoDocking |
 			ImGuiWindowFlags_NoFocusOnAppearing);
 
-		if (show_screenshot_message)
+		if (!_preset_save_success)
+		{
+			ImGui::TextColored(COLOR_RED, "Unable to save current preset. Make sure you have write permissions to %s.", _current_preset_path.u8string().c_str());
+		}
+		else if (show_screenshot_message)
 		{
 			if (!_screenshot_save_success)
 				if (std::error_code ec; std::filesystem::exists(_screenshot_path, ec))
