@@ -601,7 +601,7 @@ VkResult VKAPI_CALL vkQueueSubmit(VkQueue queue, uint32_t submitCount, const VkS
 	{
 		for (uint32_t k = 0; k < pSubmits[i].commandBufferCount; ++k)
 		{
-			VkCommandBuffer cmd = pSubmits->pCommandBuffers[k];
+			VkCommandBuffer cmd = pSubmits[i].pCommandBuffers[k];
 			assert(cmd != VK_NULL_HANDLE);
 
 			auto &command_buffer_data = s_command_buffer_data.at(cmd);
