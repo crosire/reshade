@@ -356,8 +356,8 @@ bool reshade::vulkan::runtime_vk::on_init(VkSwapchainKHR swapchain, const VkSwap
 
 	// Allocate a single descriptor pool for all effects
 	{   VkDescriptorPoolSize pool_sizes[] = {
-			{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1 }, // Only need one global UBO per set
-			{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, MAX_IMAGE_DESCRIPTOR_SETS }
+			{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, MAX_EFFECT_DESCRIPTOR_SETS }, // Only need one global UBO per set
+			{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, MAX_EFFECT_DESCRIPTOR_SETS * MAX_IMAGE_DESCRIPTOR_SETS }
 		};
 
 		VkDescriptorPoolCreateInfo create_info { VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO };
@@ -370,7 +370,6 @@ bool reshade::vulkan::runtime_vk::on_init(VkSwapchainKHR swapchain, const VkSwap
 	}
 
 	{   VkDescriptorSetLayoutBinding bindings = { 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_ALL_GRAPHICS };
-
 		VkDescriptorSetLayoutCreateInfo create_info { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO };
 		create_info.bindingCount = 1;
 		create_info.pBindings = &bindings;
@@ -1767,7 +1766,7 @@ bool reshade::vulkan::runtime_vk::init_imgui_resources()
 	if (vk.CmdPushDescriptorSetKHR == nullptr)
 	{
 		VkDescriptorPoolSize pool_sizes[] = {
-			{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1 } // Single image per set
+			{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, MAX_IMAGE_DESCRIPTOR_SETS } // Single image per set
 		};
 
 		VkDescriptorPoolCreateInfo create_info { VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO };
