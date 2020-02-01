@@ -665,7 +665,8 @@ bool reshade::vulkan::runtime_vk::init_effect(size_t index)
 		const VkResult res = vk.CreateShaderModule(_device, &create_info, nullptr, &module);
 		if (res != VK_SUCCESS)
 		{
-			effect.errors += "Failed to create shader module. Vulkan error code " + std::to_string(res) + ".";
+			LOG(ERROR) << "Failed to create shader module. "
+				"Vulkan error code is " << res << '.';
 			return false;
 		}
 	}
@@ -1161,7 +1162,8 @@ bool reshade::vulkan::runtime_vk::init_effect(size_t index)
 			create_info.layout = effect_data.pipeline_layout;
 			create_info.renderPass = pass_data.begin_info.renderPass;
 
-			if (VkResult res = vk.CreateGraphicsPipelines(_device, VK_NULL_HANDLE, 1, &create_info, nullptr, &pass_data.pipeline); res != VK_SUCCESS)
+			const VkResult res = vk.CreateGraphicsPipelines(_device, VK_NULL_HANDLE, 1, &create_info, nullptr, &pass_data.pipeline);
+			if (res != VK_SUCCESS)
 			{
 				LOG(ERROR) << "Failed to create graphics pipeline for pass " << pass_index << " in technique '" << technique.name << "'! "
 					"Vulkan error code is " << res << '.';
