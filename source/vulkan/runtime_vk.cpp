@@ -36,19 +36,27 @@ namespace reshade::vulkan
 		~vulkan_tex_data()
 		{
 			runtime->vk.DestroyImage(runtime->_device, image, nullptr);
-			runtime->vk.DestroyImageView(runtime->_device, view[0], nullptr);
+			if (view[0] != VK_NULL_HANDLE)
+				runtime->vk.DestroyImageView(runtime->_device, view[0], nullptr);
 			if (view[1] != view[0])
 				runtime->vk.DestroyImageView(runtime->_device, view[1], nullptr);
 			if (view[2] != view[0])
 				runtime->vk.DestroyImageView(runtime->_device, view[2], nullptr);
 			if (view[3] != view[2] && view[3] != view[1])
 				runtime->vk.DestroyImageView(runtime->_device, view[3], nullptr);
+#if RESHADE_GUI
+			if (descriptor_set != VK_NULL_HANDLE)
+				runtime->vk.FreeDescriptorSets(runtime->_device, runtime->_imgui_descriptor_pool, 1, &descriptor_set);
+#endif
 		}
 
 		VkImage image = VK_NULL_HANDLE;
 		VkImageView view[4] = {};
 		VkFormat formats[2] = {};
 		runtime_vk *runtime = nullptr;
+#if RESHADE_GUI
+		VkDescriptorSet descriptor_set = VK_NULL_HANDLE;
+#endif
 	};
 
 	struct vulkan_pass_data : base_object
@@ -74,8 +82,8 @@ namespace reshade::vulkan
 		uint32_t query_index = 0;
 	};
 
-	// TODO: Limit to 50 effects for now
-	const uint32_t MAX_EFFECT_DESCRIPTOR_SETS = 50 * 2;
+	const uint32_t MAX_IMAGE_DESCRIPTOR_SETS = 128; // TODO: Limit to 128 image bindings for now
+	const uint32_t MAX_EFFECT_DESCRIPTOR_SETS = 50 * 2; // TODO: Limit to 50 effects for now
 
 	uint32_t find_memory_type_index(const VkPhysicalDeviceMemoryProperties &props, VkMemoryPropertyFlags flags, uint32_t type_bits)
 	{
@@ -349,7 +357,7 @@ bool reshade::vulkan::runtime_vk::on_init(VkSwapchainKHR swapchain, const VkSwap
 	// Allocate a single descriptor pool for all effects
 	{   VkDescriptorPoolSize pool_sizes[] = {
 			{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1 }, // Only need one global UBO per set
-			{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 128 } // TODO: Limit to 128 image bindings per set for now
+			{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, MAX_IMAGE_DESCRIPTOR_SETS }
 		};
 
 		VkDescriptorPoolCreateInfo create_info { VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO };
@@ -458,6 +466,8 @@ void reshade::vulkan::runtime_vk::on_reset()
 	_imgui_pipeline = VK_NULL_HANDLE;
 	vk.DestroyPipelineLayout(_device, _imgui_pipeline_layout, nullptr);
 	_imgui_pipeline_layout = VK_NULL_HANDLE;
+	vk.DestroyDescriptorPool(_device, _imgui_descriptor_pool, nullptr);
+	_imgui_descriptor_pool = VK_NULL_HANDLE;
 	vk.DestroyDescriptorSetLayout(_device, _imgui_descriptor_set_layout, nullptr);
 	_imgui_descriptor_set_layout = VK_NULL_HANDLE;
 	vk.DestroySampler(_device, _imgui_font_sampler, nullptr);
@@ -1288,6 +1298,34 @@ bool reshade::vulkan::runtime_vk::init_texture(texture &texture)
 		impl->view[3] = impl->view[1];
 	}
 
+#if RESHADE_GUI
+	// Only need to allocate descriptor sets for textures when push descriptors are not available
+	if (_imgui_descriptor_pool != VK_NULL_HANDLE)
+	{
+		VkDescriptorSetAllocateInfo alloc_info { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO };
+		alloc_info.descriptorPool = _imgui_descriptor_pool;
+		alloc_info.descriptorSetCount = 1;
+		alloc_info.pSetLayouts = &_imgui_descriptor_set_layout;
+		assert(_imgui_descriptor_set_layout != VK_NULL_HANDLE);
+
+		if (vk.AllocateDescriptorSets(_device, &alloc_info, &impl->descriptor_set) != VK_SUCCESS)
+		{
+			LOG(ERROR) << "Too many textures loaded. Only " << MAX_IMAGE_DESCRIPTOR_SETS << " textures can be active simultaneously in Vulkan.";
+			return false;
+		}
+
+		VkWriteDescriptorSet write { VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
+		write.dstSet = impl->descriptor_set;
+		write.dstBinding = 0;
+		write.descriptorCount = 1;
+		write.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+		const VkDescriptorImageInfo image_info { _imgui_font_sampler, impl->view[0], VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL };
+		write.pImageInfo = &image_info;
+
+		vk.UpdateDescriptorSets(_device, 1, &write, 0, nullptr);
+	}
+#endif
+
 	// Transition to shader read image layout
 	if (begin_command_buffer())
 	{
@@ -1725,6 +1763,22 @@ bool reshade::vulkan::runtime_vk::init_imgui_resources()
 		check_result(vk.CreateSampler(_device, &create_info, nullptr, &_imgui_font_sampler)) false;
 	}
 
+	// Only need to allocate descriptors when push descriptors are not supported
+	if (vk.CmdPushDescriptorSetKHR == nullptr)
+	{
+		VkDescriptorPoolSize pool_sizes[] = {
+			{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1 } // Single image per set
+		};
+
+		VkDescriptorPoolCreateInfo create_info { VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO };
+		create_info.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
+		create_info.maxSets = MAX_IMAGE_DESCRIPTOR_SETS;
+		create_info.poolSizeCount = static_cast<uint32_t>(std::size(pool_sizes));
+		create_info.pPoolSizes = pool_sizes;
+
+		check_result(vk.CreateDescriptorPool(_device, &create_info, nullptr, &_imgui_descriptor_pool)) false;
+	}
+
 	{   VkDescriptorSetLayoutBinding bindings[1] = {};
 		bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 		bindings[0].descriptorCount = 1;
@@ -1732,7 +1786,8 @@ bool reshade::vulkan::runtime_vk::init_imgui_resources()
 		bindings[0].pImmutableSamplers = &_imgui_font_sampler;
 
 		VkDescriptorSetLayoutCreateInfo create_info { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO };
-		create_info.flags = VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT_KHR;
+		if (vk.CmdPushDescriptorSetKHR != nullptr)
+			create_info.flags = VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT_KHR;
 		create_info.bindingCount = static_cast<uint32_t>(std::size(bindings));
 		create_info.pBindings = bindings;
 
@@ -1963,13 +2018,22 @@ void reshade::vulkan::runtime_vk::render_imgui_draw_data(ImDrawData *draw_data)
 
 			auto tex_data = static_cast<const vulkan_tex_data *>(cmd.TextureId);
 
-			VkWriteDescriptorSet write { VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
-			write.dstBinding = 0;
-			write.descriptorCount = 1;
-			write.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-			const VkDescriptorImageInfo image_info { _imgui_font_sampler, tex_data->view[0], VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL };
-			write.pImageInfo = &image_info;
-			vk.CmdPushDescriptorSetKHR(cmd_list, VK_PIPELINE_BIND_POINT_GRAPHICS, _imgui_pipeline_layout, 0, 1, &write);
+			// Use push_descriptor extension when available
+			if (vk.CmdPushDescriptorSetKHR != nullptr)
+			{
+				VkWriteDescriptorSet write { VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
+				write.dstBinding = 0;
+				write.descriptorCount = 1;
+				write.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+				const VkDescriptorImageInfo image_info { _imgui_font_sampler, tex_data->view[0], VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL };
+				write.pImageInfo = &image_info;
+				vk.CmdPushDescriptorSetKHR(cmd_list, VK_PIPELINE_BIND_POINT_GRAPHICS, _imgui_pipeline_layout, 0, 1, &write);
+			}
+			else
+			{
+				assert(tex_data->descriptor_set != VK_NULL_HANDLE);
+				vk.CmdBindDescriptorSets(cmd_list, VK_PIPELINE_BIND_POINT_GRAPHICS, _imgui_pipeline_layout, 0, 1, &tex_data->descriptor_set, 0, nullptr);
+			}
 
 			vk.CmdDrawIndexed(cmd_list, cmd.ElemCount, 1, cmd.IdxOffset + idx_offset, cmd.VtxOffset + vtx_offset, 0);
 

@@ -278,32 +278,43 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 			enabled_features = features2->features;
 		}
 
-		// Enable features that ReShade requires
-		enabled_features.shaderImageGatherExtended = true;
-
-		// Enable extensions that ReShade requires
-		enabled_extensions.push_back(VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME);
-		enabled_extensions.push_back(VK_KHR_IMAGE_FORMAT_LIST_EXTENSION_NAME);
-		enabled_extensions.push_back(VK_KHR_SWAPCHAIN_MUTABLE_FORMAT_EXTENSION_NAME);
-
 		// Make sure the driver actually supports the requested extensions
 		uint32_t num_extensions = 0;
 		enum_device_extensions(physicalDevice, nullptr, &num_extensions, nullptr);
 		std::vector<VkExtensionProperties> extensions(num_extensions);
 		enum_device_extensions(physicalDevice, nullptr, &num_extensions, extensions.data());
 
-		for (const char *name : enabled_extensions)
-		{
+		const auto add_extension = [&extensions, &enabled_extensions, &graphics_queue_family_index](const char *name, bool required) {
 			if (const auto it = std::find_if(extensions.begin(), extensions.end(),
 				[name](const auto &props) { return strncmp(props.extensionName, name, VK_MAX_EXTENSION_NAME_SIZE) == 0; });
-				it == extensions.end())
+				it != extensions.end())
+			{
+				enabled_extensions.push_back(name);
+				return true;
+			}
+
+			if (required)
 			{
 				LOG(ERROR) << "Required extension \"" << name << "\" is not supported on this device. Initialization failed.";
 
 				// Reset queue family index to prevent ReShade initialization
 				graphics_queue_family_index = std::numeric_limits<uint32_t>::max();
 			}
-		}
+			else
+			{
+				LOG(WARN)  << "Optional extension \"" << name << "\" is not supported on this device.";
+			}
+
+			return false;
+		};
+
+		// Enable features that ReShade requires
+		enabled_features.shaderImageGatherExtended = true;
+
+		// Enable extensions that ReShade requires
+		add_extension(VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME, false); // This is optional, see imgui code in 'runtime_vk'
+		add_extension(VK_KHR_IMAGE_FORMAT_LIST_EXTENSION_NAME, true);
+		add_extension(VK_KHR_SWAPCHAIN_MUTABLE_FORMAT_EXTENSION_NAME, true);
 	}
 	else
 	{

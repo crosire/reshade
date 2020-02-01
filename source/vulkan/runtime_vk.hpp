@@ -98,6 +98,7 @@ namespace reshade::vulkan
 		VkSampler _imgui_font_sampler = VK_NULL_HANDLE;
 		VkPipeline _imgui_pipeline = VK_NULL_HANDLE;
 		VkPipelineLayout _imgui_pipeline_layout = VK_NULL_HANDLE;
+		VkDescriptorPool _imgui_descriptor_pool = VK_NULL_HANDLE;
 		VkDescriptorSetLayout _imgui_descriptor_set_layout = VK_NULL_HANDLE;
 #endif
 
