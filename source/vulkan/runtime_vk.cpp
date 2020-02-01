@@ -352,6 +352,10 @@ bool reshade::vulkan::runtime_vk::on_init(VkSwapchainKHR swapchain, const VkSwap
 		create_info.flags = VK_FENCE_CREATE_SIGNALED_BIT; // Create signaled so first status check in 'on_present' succeeds
 
 		check_result(vk.CreateFence(_device, &create_info, nullptr, &_cmd_fences[i])) false;
+
+		VkSemaphoreCreateInfo sem_create_info { VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO };
+
+		check_result(vk.CreateSemaphore(_device, &sem_create_info, nullptr, &_cmd_semaphores[i])) false;
 	}
 
 	// Allocate a single descriptor pool for all effects
@@ -415,6 +419,9 @@ void reshade::vulkan::runtime_vk::on_reset()
 	for (VkFence &fence : _cmd_fences)
 		vk.DestroyFence(_device, fence, nullptr),
 		fence = VK_NULL_HANDLE;
+	for (VkSemaphore &semaphore : _cmd_semaphores)
+		vk.DestroySemaphore(_device, semaphore, nullptr),
+		semaphore = VK_NULL_HANDLE;
 
 	VkCommandBuffer cmd_buffers[NUM_COMMAND_FRAMES] = {};
 	for (uint32_t i = 0; i < NUM_COMMAND_FRAMES; ++i)
@@ -487,7 +494,7 @@ void reshade::vulkan::runtime_vk::on_reset()
 	_allocations.clear();
 }
 
-void reshade::vulkan::runtime_vk::on_present(VkQueue queue, uint32_t swapchain_image_index, buffer_detection_context &tracker)
+void reshade::vulkan::runtime_vk::on_present(VkQueue queue, uint32_t swapchain_image_index, buffer_detection_context &tracker, const VkSemaphore *wait, uint32_t num_wait, VkSemaphore &signal)
 {
 	if (!_is_initialized)
 		return;
@@ -525,13 +532,30 @@ void reshade::vulkan::runtime_vk::on_present(VkQueue queue, uint32_t swapchain_i
 
 		check_result(vk.EndCommandBuffer(cmd_info.first));
 
+		signal = _cmd_semaphores[_cmd_index];
+
 		VkSubmitInfo submit_info { VK_STRUCTURE_TYPE_SUBMIT_INFO };
 		submit_info.commandBufferCount = 1;
 		submit_info.pCommandBuffers = &cmd_info.first;
 
-		vk.QueueSubmit(queue, 1, &submit_info, fence);
+		std::vector<VkPipelineStageFlags> wait_stages(num_wait, VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT);
+		if (wait != VK_NULL_HANDLE)
+		{
+			submit_info.waitSemaphoreCount = num_wait;
+			submit_info.pWaitSemaphores = wait;
+			submit_info.pWaitDstStageMask = wait_stages.data();
+		}
+		if (signal != VK_NULL_HANDLE)
+		{
+			submit_info.signalSemaphoreCount = 1;
+			submit_info.pSignalSemaphores = &signal;
+		}
 
-		cmd_info.second = false; // Command buffer is now in invalid state and ready for a reset
+		if (vk.QueueSubmit(queue, 1, &submit_info, fence) != VK_SUCCESS)
+			signal = VK_NULL_HANDLE; // Semaphore is not signaled if queue submission fails
+
+		// Command buffer is now in invalid state and ready for a reset
+		cmd_info.second = false;
 	}
 
 	// Signal that all fences are currently enqueued, so can be waited upon (see 'wait_for_finish')

@@ -7,6 +7,11 @@
 
 #include <cassert>
 #include <vulkan.h>
+
+// Windows SDK headers define these, which breaks the dispatch table
+#undef CreateEvent
+#undef CreateSemaphore
+
 #include "vk_layer_dispatch_table.h"
 
 template <VkObjectType type>

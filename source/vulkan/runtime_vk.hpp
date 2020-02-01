@@ -26,7 +26,7 @@ namespace reshade::vulkan
 
 		bool on_init(VkSwapchainKHR swapchain, const VkSwapchainCreateInfoKHR &desc, HWND hwnd);
 		void on_reset();
-		void on_present(VkQueue queue, uint32_t swapchain_image_index, buffer_detection_context &tracker);
+		void on_present(VkQueue queue, uint32_t swapchain_image_index, buffer_detection_context &tracker, const VkSemaphore *wait, uint32_t num_wait, VkSemaphore &signal);
 
 		bool capture_screenshot(uint8_t *buffer) const override;
 
@@ -58,9 +58,10 @@ namespace reshade::vulkan
 		uint32_t _queue_family_index = 0; // Default to first queue family index
 		VkPhysicalDeviceMemoryProperties _memory_props = {};
 
-		VkFence _cmd_fences[NUM_COMMAND_FRAMES];
+		VkFence _cmd_fences[NUM_COMMAND_FRAMES] = {};
+		VkSemaphore _cmd_semaphores[NUM_COMMAND_FRAMES] = {};
 		VkCommandPool _cmd_pool = VK_NULL_HANDLE;
-		mutable std::pair<VkCommandBuffer, bool> _cmd_buffers[NUM_COMMAND_FRAMES];
+		mutable std::pair<VkCommandBuffer, bool> _cmd_buffers[NUM_COMMAND_FRAMES] = {};
 		uint32_t _cmd_index = 0;
 		uint32_t _swap_index = 0;
 

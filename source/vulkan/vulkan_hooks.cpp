@@ -364,6 +364,8 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	dispatch_table.ResetFences = (PFN_vkResetFences)gdpa(device, "vkResetFences");
 	dispatch_table.GetFenceStatus = (PFN_vkGetFenceStatus)gdpa(device, "vkGetFenceStatus");
 	dispatch_table.WaitForFences = (PFN_vkWaitForFences)gdpa(device, "vkWaitForFences");
+	dispatch_table.CreateSemaphore = (PFN_vkCreateSemaphore)gdpa(device, "vkCreateSemaphore");
+	dispatch_table.DestroySemaphore = (PFN_vkDestroySemaphore)gdpa(device, "vkDestroySemaphore");
 	dispatch_table.CreateQueryPool = (PFN_vkCreateQueryPool)gdpa(device, "vkCreateQueryPool");
 	dispatch_table.DestroyQueryPool = (PFN_vkDestroyQueryPool)gdpa(device, "vkDestroyQueryPool");
 	dispatch_table.GetQueryPoolResults = (PFN_vkGetQueryPoolResults)gdpa(device, "vkGetQueryPoolResults");
@@ -618,19 +620,35 @@ VkResult VKAPI_CALL vkQueuePresentKHR(VkQueue queue, const VkPresentInfoKHR *pPr
 
 	auto &device_data = s_device_dispatch.at(dispatch_key_from_handle(queue));
 
+	std::vector<VkSemaphore> wait_semaphores(
+		pPresentInfo->pWaitSemaphores, pPresentInfo->pWaitSemaphores + pPresentInfo->waitSemaphoreCount);
+
 	for (uint32_t i = 0; i < pPresentInfo->swapchainCount; ++i)
 	{
 		if (const auto runtime = s_vulkan_runtimes.at(pPresentInfo->pSwapchains[i]);
 			runtime != nullptr)
 		{
-			runtime->on_present(queue, pPresentInfo->pImageIndices[i], device_data.buffer_detection);
+			VkSemaphore signal = VK_NULL_HANDLE;
+			if (runtime->on_present(queue, pPresentInfo->pImageIndices[i], device_data.buffer_detection,
+				wait_semaphores.data(), static_cast<uint32_t>(wait_semaphores.size()), signal); signal != VK_NULL_HANDLE)
+			{
+				// The queue submit in 'on_present' now waits on the requested wait semaphores
+				// The next queue submit should therefore wait on the semaphore that was signaled by the last 'on_present' submit
+				// This effectively builds a linear chain of submissions that each wait on the previous
+				wait_semaphores.clear();
+				wait_semaphores.push_back(signal);
+			}
 		}
 	}
 
 	device_data.buffer_detection.reset();
 
-	// TODO: It may be necessary to add a wait semaphore to the present info
-	return device_data.dispatch_table.QueuePresentKHR(queue, pPresentInfo);
+	// Override wait semaphores based on the last queue submit from above
+	VkPresentInfoKHR present_info = *pPresentInfo;
+	present_info.waitSemaphoreCount = static_cast<uint32_t>(wait_semaphores.size());
+	present_info.pWaitSemaphores = wait_semaphores.data();
+
+	return device_data.dispatch_table.QueuePresentKHR(queue, &present_info);
 }
 
 
