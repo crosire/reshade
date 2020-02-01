@@ -259,7 +259,11 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	}
 
 	VkPhysicalDeviceFeatures enabled_features = {};
-	if (pCreateInfo->pEnabledFeatures != nullptr)
+	const VkPhysicalDeviceFeatures2 *features2 = find_in_structure_chain<VkPhysicalDeviceFeatures2>(
+		pCreateInfo->pNext, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2);
+	if (features2 != nullptr) // The features from the structure chain take precedence
+		enabled_features = features2->features;
+	else if (pCreateInfo->pEnabledFeatures != nullptr)
 		enabled_features = *pCreateInfo->pEnabledFeatures;
 
 	std::vector<const char *> enabled_extensions;
@@ -270,20 +274,12 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	// Only have to enable additional features if there is a graphics queue, since ReShade will not run otherwise
 	if (graphics_queue_family_index != std::numeric_limits<uint32_t>::max())
 	{
-		if (const VkPhysicalDeviceFeatures2 *features2 = find_in_structure_chain<VkPhysicalDeviceFeatures2>(
-			pCreateInfo->pNext, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2); features2 != nullptr)
-		{
-			// TODO: Solve overriding this
-			LOG(WARN) << "Not overriding features set via 'VkPhysicalDeviceFeatures2' in structure chain.";
-			enabled_features = features2->features;
-		}
-
-		// Make sure the driver actually supports the requested extensions
 		uint32_t num_extensions = 0;
 		enum_device_extensions(physicalDevice, nullptr, &num_extensions, nullptr);
 		std::vector<VkExtensionProperties> extensions(num_extensions);
 		enum_device_extensions(physicalDevice, nullptr, &num_extensions, extensions.data());
 
+		// Make sure the driver actually supports the requested extensions
 		const auto add_extension = [&extensions, &enabled_extensions, &graphics_queue_family_index](const char *name, bool required) {
 			if (const auto it = std::find_if(extensions.begin(), extensions.end(),
 				[name](const auto &props) { return strncmp(props.extensionName, name, VK_MAX_EXTENSION_NAME_SIZE) == 0; });
@@ -324,7 +320,13 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	VkDeviceCreateInfo create_info = *pCreateInfo;
 	create_info.enabledExtensionCount = uint32_t(enabled_extensions.size());
 	create_info.ppEnabledExtensionNames = enabled_extensions.data();
-	create_info.pEnabledFeatures = &enabled_features;
+
+	// Patch the enabled features
+	if (features2 != nullptr)
+		// This is evil, because overwriting application memory, but whatever (RenderDoc does this too)
+		const_cast<VkPhysicalDeviceFeatures2 *>(features2)->features = enabled_features;
+	else
+		create_info.pEnabledFeatures = &enabled_features;
 
 	// Continue call down the chain
 	const VkResult result = trampoline(physicalDevice, &create_info, pAllocator, pDevice);
@@ -462,39 +464,48 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 
 	auto &device_data = s_device_dispatch.at(dispatch_key_from_handle(device));
 
-	// Add required formats so views with different formats can be created for the swapchain images
-	const VkFormat format_list[] = {
-		make_format_srgb(pCreateInfo->imageFormat),
-		make_format_normal(pCreateInfo->imageFormat),
-	};
-
 	VkSwapchainCreateInfoKHR create_info = *pCreateInfo;
+	VkImageFormatListCreateInfoKHR format_list_info {
+		VK_STRUCTURE_TYPE_IMAGE_FORMAT_LIST_CREATE_INFO_KHR };
 
-	VkImageFormatListCreateInfoKHR format_list_info { VK_STRUCTURE_TYPE_IMAGE_FORMAT_LIST_CREATE_INFO_KHR };
-	format_list_info.pNext = create_info.pNext;
-	format_list_info.viewFormatCount = 2;
-	format_list_info.pViewFormats = format_list;
+	// Add required formats so views with different formats can be created for the swapchain images
+	std::vector<VkFormat> format_list;
+	format_list.push_back(make_format_srgb(pCreateInfo->imageFormat));
+	format_list.push_back(make_format_normal(pCreateInfo->imageFormat));
 
 	// Only have to enable additional features if there is a graphics queue, since ReShade will not run otherwise
 	if (device_data.graphics_queue_family_index != std::numeric_limits<uint32_t>::max())
 	{
-		if (const VkImageFormatListCreateInfoKHR *format_list_info2 = find_in_structure_chain<VkImageFormatListCreateInfoKHR>(
-			pCreateInfo->pNext, VK_STRUCTURE_TYPE_IMAGE_FORMAT_LIST_CREATE_INFO_KHR); format_list_info2 != nullptr)
-		{
-			// TODO: Solve overriding this
-			LOG(WARN) << "Not overriding format list set via 'VkImageFormatListCreateInfoKHR' in structure chain.";
-		}
-		else
-		{
-			create_info.pNext = &format_list_info;
-		}
-
 		// Add required usage flags to create info
 		create_info.imageUsage |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
 
 		// Only have to make format mutable if they are actually different
 		if (format_list[0] != format_list[1])
 			create_info.flags |= VK_SWAPCHAIN_CREATE_MUTABLE_FORMAT_BIT_KHR;
+
+		// Patch the format list in the create info of the application
+		if (const VkImageFormatListCreateInfoKHR *format_list_info2 = find_in_structure_chain<VkImageFormatListCreateInfoKHR>(
+			pCreateInfo->pNext, VK_STRUCTURE_TYPE_IMAGE_FORMAT_LIST_CREATE_INFO_KHR); format_list_info2 != nullptr)
+		{
+			format_list.insert(format_list.end(),
+				format_list_info2->pViewFormats, format_list_info2->pViewFormats + format_list_info2->viewFormatCount);
+
+			// Remove duplicates from the list (since the new formats may have already been added by the application)
+			std::sort(format_list.begin(), format_list.end());
+			format_list.erase(std::unique(format_list.begin(), format_list.end()), format_list.end());
+
+			// This is evil, because writing into the application memory, but whatever
+			const_cast<VkImageFormatListCreateInfoKHR *>(format_list_info2)->viewFormatCount = static_cast<uint32_t>(format_list.size());
+			const_cast<VkImageFormatListCreateInfoKHR *>(format_list_info2)->pViewFormats = format_list.data();
+		}
+		else if (format_list[0] != format_list[1])
+		{
+			format_list_info.pNext = create_info.pNext;
+			format_list_info.viewFormatCount = static_cast<uint32_t>(format_list.size());
+			format_list_info.pViewFormats = format_list.data();
+
+			create_info.pNext = &format_list_info;
+		}
 	}
 
 	LOG(INFO) << "> Dumping swap chain description:";
