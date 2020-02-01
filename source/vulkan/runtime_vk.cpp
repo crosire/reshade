@@ -393,7 +393,7 @@ bool reshade::vulkan::runtime_vk::on_init(VkSwapchainKHR swapchain, const VkSwap
 	// Transition image layouts to the ones required below
 	if (begin_command_buffer())
 	{
-		transition_layout(vk, _cmd_buffers[_cmd_index].first, _effect_stencil, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, { VK_IMAGE_ASPECT_STENCIL_BIT, 0, 1, 0, 1 });
+		transition_layout(vk, _cmd_buffers[_cmd_index].first, _effect_stencil, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, { aspect_flags_from_format(_effect_stencil_format), 0, 1, 0, 1 });
 		transition_layout(vk, _cmd_buffers[_cmd_index].first, _empty_depth_image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 		execute_command_buffer();
 	}
@@ -545,7 +545,7 @@ void reshade::vulkan::runtime_vk::on_present(VkQueue queue, uint32_t swapchain_i
 		submit_info.pCommandBuffers = &cmd_info.first;
 
 		std::vector<VkPipelineStageFlags> wait_stages(num_wait, VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT);
-		if (wait != VK_NULL_HANDLE)
+		if (wait != nullptr)
 		{
 			submit_info.waitSemaphoreCount = num_wait;
 			submit_info.pWaitSemaphores = wait;
@@ -1525,9 +1525,9 @@ void reshade::vulkan::runtime_vk::render_technique(technique &technique)
 
 			const VkImageSubresourceRange clear_range = { VK_IMAGE_ASPECT_STENCIL_BIT, 0, 1, 0, 1 };
 			const VkClearDepthStencilValue clear_value = { 1.0f, 0 };
-			transition_layout(vk, cmd_list, _effect_stencil, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, { VK_IMAGE_ASPECT_STENCIL_BIT, 0, 1, 0, 1 });
+			transition_layout(vk, cmd_list, _effect_stencil, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, { aspect_flags_from_format(_effect_stencil_format), 0, 1, 0, 1 });
 			vk.CmdClearDepthStencilImage(cmd_list, _effect_stencil, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &clear_value, 1, &clear_range);
-			transition_layout(vk, cmd_list, _effect_stencil, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, { VK_IMAGE_ASPECT_STENCIL_BIT, 0, 1, 0, 1 });
+			transition_layout(vk, cmd_list, _effect_stencil, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, { aspect_flags_from_format(_effect_stencil_format), 0, 1, 0, 1 });
 		}
 
 		VkRenderPassBeginInfo begin_info = pass_data.begin_info;
@@ -1547,7 +1547,7 @@ void reshade::vulkan::runtime_vk::render_technique(technique &technique)
 		vk.CmdEndRenderPass(cmd_list);
 
 		// Generate mipmaps
-		for (unsigned int k = 0; k < 8 && !pass_info.render_target_names[k].empty(); ++k)
+		for (uint32_t k = 0; k < 8 && !pass_info.render_target_names[k].empty(); ++k)
 		{
 			const auto render_target_texture = std::find_if(_textures.begin(), _textures.end(),
 				[&render_target = pass_info.render_target_names[k]](const auto &item) {
