@@ -1641,7 +1641,14 @@ VkImage reshade::vulkan::runtime_vk::create_image(uint32_t width, uint32_t heigh
 		dedicated_info.image = ret;
 
 		vk_handle<VK_OBJECT_TYPE_DEVICE_MEMORY> mem(_device, vk);
-		check_result(vk.AllocateMemory(_device, &alloc_info, nullptr, &mem)) VK_NULL_HANDLE;
+		if (VkResult res = vk.AllocateMemory(_device, &alloc_info, nullptr, &mem); res != VK_SUCCESS)
+		{
+			LOG(ERROR) << "Failed to allocate memory for image ("
+				"Size = " << alloc_info.allocationSize << ")! "
+				"Result is " << res << '.';
+			return VK_NULL_HANDLE;
+		}
+
 		check_result(vk.BindImageMemory(_device, ret, mem, 0)) VK_NULL_HANDLE;
 
 		_allocations.push_back(mem.release());
@@ -1698,7 +1705,14 @@ VkBuffer reshade::vulkan::runtime_vk::create_buffer(VkDeviceSize size, VkBufferU
 		dedicated_info.buffer = ret;
 
 		vk_handle<VK_OBJECT_TYPE_DEVICE_MEMORY> mem(_device, vk);
-		check_result(vk.AllocateMemory(_device, &alloc_info, nullptr, &mem)) VK_NULL_HANDLE;
+		if (VkResult res = vk.AllocateMemory(_device, &alloc_info, nullptr, &mem); res != VK_SUCCESS)
+		{
+			LOG(ERROR) << "Failed to allocate memory for buffer ("
+				"Size = " << alloc_info.allocationSize << ")! "
+				"Result is " << res << '.';
+			return VK_NULL_HANDLE;
+		}
+
 		check_result(vk.BindBufferMemory(_device, ret, mem, 0)) VK_NULL_HANDLE;
 
 		_allocations.push_back(mem.release());
