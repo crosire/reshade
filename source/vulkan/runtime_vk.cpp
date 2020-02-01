@@ -1146,7 +1146,7 @@ bool reshade::vulkan::runtime_vk::init_effect(size_t index)
 			depth_info.front.reference = pass_info.stencil_reference_value;
 			depth_info.back = depth_info.front;
 			depth_info.minDepthBounds = 0.0f;
-			depth_info.minDepthBounds = 1.0f;
+			depth_info.maxDepthBounds = 1.0f;
 
 			VkGraphicsPipelineCreateInfo create_info { VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO };
 			create_info.stageCount = static_cast<uint32_t>(std::size(stages));
