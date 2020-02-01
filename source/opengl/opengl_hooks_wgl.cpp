@@ -485,7 +485,8 @@ HOOK_EXPORT BOOL  WINAPI wglDeleteContext(HGLRC hglrc)
 {
 	LOG(INFO) << "Redirecting wglDeleteContext" << '(' << "hglrc = " << hglrc << ')' << " ...";
 
-	if (const auto it = s_opengl_runtimes.find(hglrc); it != s_opengl_runtimes.end())
+	if (const auto it = s_opengl_runtimes.find(hglrc);
+		it != s_opengl_runtimes.end())
 	{
 #if RESHADE_VERBOSE_LOG
 		LOG(DEBUG) << "> Cleaning up runtime " << it->second << " ...";

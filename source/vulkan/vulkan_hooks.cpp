@@ -38,7 +38,7 @@ struct command_buffer_data
 static lockfree_table<void *, device_data, 16> s_device_dispatch;
 static lockfree_table<void *, VkLayerInstanceDispatchTable, 16> s_instance_dispatch;
 static lockfree_table<VkSurfaceKHR, HWND, 16> s_surface_windows;
-static lockfree_table<VkSwapchainKHR, std::shared_ptr<reshade::vulkan::runtime_vk>, 16> s_runtimes;
+static lockfree_table<VkSwapchainKHR, reshade::vulkan::runtime_vk *, 16> s_vulkan_runtimes;
 static lockfree_table<VkImage, VkImageCreateInfo, 4096> s_image_data;
 static lockfree_table<VkImageView, VkImage, 4096> s_image_view_mapping;
 static lockfree_table<VkFramebuffer, std::vector<VkImage>, 256> s_framebuffer_data;
@@ -527,9 +527,9 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 
 	if (device_data.graphics_queue_family_index != std::numeric_limits<uint32_t>::max())
 	{
-		std::shared_ptr<reshade::vulkan::runtime_vk> runtime;
+		reshade::vulkan::runtime_vk *runtime;
 		// Remove old swapchain from the list so that a call to 'vkDestroySwapchainKHR' won't reset the runtime again
-		if (s_runtimes.erase(pCreateInfo->oldSwapchain, runtime))
+		if (s_vulkan_runtimes.erase(pCreateInfo->oldSwapchain, runtime))
 		{
 			assert(pCreateInfo->oldSwapchain != VK_NULL_HANDLE);
 
@@ -538,7 +538,7 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 		}
 		else
 		{
-			runtime = std::make_shared<reshade::vulkan::runtime_vk>(
+			runtime = new reshade::vulkan::runtime_vk(
 				device, device_data.physical_device, device_data.graphics_queue_family_index,
 				s_instance_dispatch.at(dispatch_key_from_handle(device_data.physical_device)), device_data.dispatch_table);
 		}
@@ -547,13 +547,13 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 		const HWND hwnd = s_surface_windows.at(pCreateInfo->surface);
 
 		if (!runtime->on_init(*pSwapchain, *pCreateInfo, hwnd))
-			LOG(ERROR) << "Failed to initialize Vulkan runtime environment on runtime " << runtime.get() << '.';
+			LOG(ERROR) << "Failed to initialize Vulkan runtime environment on runtime " << runtime << '.';
 
-		s_runtimes.emplace(*pSwapchain, runtime);
+		s_vulkan_runtimes.emplace(*pSwapchain, runtime);
 	}
 	else
 	{
-		s_runtimes.emplace(*pSwapchain, nullptr);
+		s_vulkan_runtimes.emplace(*pSwapchain, nullptr);
 	}
 
 #if RESHADE_VERBOSE_LOG
@@ -566,10 +566,12 @@ void     VKAPI_CALL vkDestroySwapchainKHR(VkDevice device, VkSwapchainKHR swapch
 	LOG(INFO) << "Redirecting vkDestroySwapchainKHR" << '(' << device << ", " << swapchain << ", " << pAllocator << ')' << " ...";
 
 	// Remove runtime from global list
-	if (std::shared_ptr<reshade::vulkan::runtime_vk> runtime;
-		s_runtimes.erase(swapchain, runtime) && runtime != nullptr)
+	if (reshade::vulkan::runtime_vk *runtime;
+		s_vulkan_runtimes.erase(swapchain, runtime) && runtime != nullptr)
 	{
 		runtime->on_reset();
+
+		delete runtime;
 	}
 
 	GET_DEVICE_DISPATCH_PTR(DestroySwapchainKHR, device);
@@ -607,7 +609,7 @@ VkResult VKAPI_CALL vkQueuePresentKHR(VkQueue queue, const VkPresentInfoKHR *pPr
 
 	for (uint32_t i = 0; i < pPresentInfo->swapchainCount; ++i)
 	{
-		if (const auto runtime = s_runtimes.at(pPresentInfo->pSwapchains[i]);
+		if (const auto runtime = s_vulkan_runtimes.at(pPresentInfo->pSwapchains[i]);
 			runtime != nullptr)
 		{
 			runtime->on_present(queue, pPresentInfo->pImageIndices[i], device_data.buffer_detection);
