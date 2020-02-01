@@ -5,7 +5,6 @@
 
 using System.Collections.ObjectModel;
 using System.ComponentModel;
-using System.Configuration;
 using System.IO;
 using System.Linq;
 using System.Net;
@@ -118,12 +117,19 @@ namespace ReShade.Setup
 
 			try
 			{
-				// Add default repository
-				Repositories.Add(new EffectRepositoryItem("crosire/reshade-shaders"));
+				var configFile = new Utilities.IniFile("ReShade Setup.ini");
 
-				foreach (string repository in ConfigurationManager.AppSettings["repositories"].Split(','))
+				if (configFile.GetValue(string.Empty, "Repositories", out string[] repositories))
 				{
-					Repositories.Add(new EffectRepositoryItem(repository));
+					foreach (string repository in repositories)
+					{
+						Repositories.Add(new EffectRepositoryItem(repository));
+					}
+				}
+				else
+				{
+					// Add default repository
+					Repositories.Add(new EffectRepositoryItem("crosire/reshade-shaders"));
 				}
 			}
 			catch { }
@@ -141,7 +147,6 @@ namespace ReShade.Setup
 			}
 
 			var button = sender as Button;
-
 			bool check = (string)button.Content == "Check _all";
 			button.Content = check ? "Uncheck _all" : "Check _all";
 
@@ -198,19 +203,10 @@ namespace ReShade.Setup
 				Repositories.Add(repository);
 
 				// Add repository to configuration file, so that it is remembered for the next time
-				var configFile = ConfigurationManager.OpenExeConfiguration(ConfigurationUserLevel.None);
-				var configSettings = configFile.AppSettings.Settings;
+				var configFile = new Utilities.IniFile("ReShade Setup.ini");
 
-				if (configSettings["repositories"] == null)
-				{
-					configSettings.Add("repositories", repository.Name);
-				}
-				else
-				{
-					configSettings["repositories"].Value += "," + repository.Name;
-				}
-
-				configFile.Save(ConfigurationSaveMode.Modified);
+				configFile.SetValue(string.Empty, "Repositories", Repositories.Select(x => x.Name).ToArray());
+				configFile.Save();
 			}
 
 			CustomRepositoryName.Text = string.Empty;
