@@ -3,7 +3,6 @@
  * License: https://github.com/crosire/reshade#license
  */
 
-#include "dll_log.hpp"
 #include "buffer_detection.hpp"
 #include <cmath>
 #include <cassert>
@@ -76,9 +75,18 @@ void reshade::opengl::buffer_detection::on_fbo_attachment(GLenum attachment, GLe
 
 		// Get depth-stencil parameters from RBO
 		glBindRenderbuffer(GL_RENDERBUFFER, object);
-		glGetRenderbufferParameteriv(GL_RENDERBUFFER, GL_RENDERBUFFER_WIDTH, reinterpret_cast<GLint *>(&info.width));
-		glGetRenderbufferParameteriv(GL_RENDERBUFFER, GL_RENDERBUFFER_HEIGHT, reinterpret_cast<GLint *>(&info.height));
-		glGetRenderbufferParameteriv(GL_RENDERBUFFER, GL_RENDERBUFFER_INTERNAL_FORMAT, reinterpret_cast<GLint *>(&info.format));
+
+		if (GLenum err = glGetError(); err == GL_NO_ERROR)
+		{
+			glGetRenderbufferParameteriv(GL_RENDERBUFFER, GL_RENDERBUFFER_WIDTH, reinterpret_cast<GLint *>(&info.width));
+			glGetRenderbufferParameteriv(GL_RENDERBUFFER, GL_RENDERBUFFER_HEIGHT, reinterpret_cast<GLint *>(&info.height));
+			glGetRenderbufferParameteriv(GL_RENDERBUFFER, GL_RENDERBUFFER_INTERNAL_FORMAT, reinterpret_cast<GLint *>(&info.format));
+		}
+		else
+		{
+			// Something went wrong during binding, cannot get valid information from this RBO
+			return;
+		}
 
 		glBindRenderbuffer(GL_RENDERBUFFER, previous_rbo);
 	}
@@ -111,14 +119,29 @@ void reshade::opengl::buffer_detection::on_fbo_attachment(GLenum attachment, GLe
 			}
 		};
 
+		const GLenum binding = target_to_binding(target);
+		if (binding == GL_TEXTURE_BINDING_3D ||
+			binding == GL_TEXTURE_BINDING_CUBE_MAP ||
+			binding == GL_TEXTURE_BINDING_CUBE_MAP_ARRAY)
+			return; // Ignore attachments that are not two-dimensional
+
 		GLint previous_tex = 0;
-		glGetIntegerv(target_to_binding(target), &previous_tex);
+		glGetIntegerv(binding, &previous_tex);
 
 		// Get depth-stencil parameters from texture
 		glBindTexture(target, object);
-		glGetTexLevelParameteriv(target, level, GL_TEXTURE_WIDTH, reinterpret_cast<GLint *>(&info.width));
-		glGetTexLevelParameteriv(target, level, GL_TEXTURE_HEIGHT, reinterpret_cast<GLint *>(&info.height));
-		glGetTexLevelParameteriv(target, level, GL_TEXTURE_INTERNAL_FORMAT, reinterpret_cast<GLint *>(&info.format));
+
+		if (GLenum err = glGetError(); err == GL_NO_ERROR)
+		{
+			glGetTexLevelParameteriv(target, level, GL_TEXTURE_WIDTH, reinterpret_cast<GLint *>(&info.width));
+			glGetTexLevelParameteriv(target, level, GL_TEXTURE_HEIGHT, reinterpret_cast<GLint *>(&info.height));
+			glGetTexLevelParameteriv(target, level, GL_TEXTURE_INTERNAL_FORMAT, reinterpret_cast<GLint *>(&info.format));
+		}
+		else
+		{
+			// Something went wrong during binding, cannot get valid information from this texture
+			return;
+		}
 
 		glBindTexture(target, previous_tex);
 	}
