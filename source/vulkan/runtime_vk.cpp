@@ -429,16 +429,19 @@ void reshade::vulkan::runtime_vk::on_reset()
 	VkCommandBuffer cmd_buffers[NUM_COMMAND_FRAMES] = {};
 	for (uint32_t i = 0; i < NUM_COMMAND_FRAMES; ++i)
 		std::swap(cmd_buffers[i], _cmd_buffers[i].first);
-	vk.FreeCommandBuffers(_device, _cmd_pool, NUM_COMMAND_FRAMES, cmd_buffers);
-	vk.DestroyCommandPool(_device, _cmd_pool, nullptr);
-	_cmd_pool = VK_NULL_HANDLE;
+	if (_cmd_pool != VK_NULL_HANDLE)
+	{
+		vk.FreeCommandBuffers(_device, _cmd_pool, NUM_COMMAND_FRAMES, cmd_buffers);
+		vk.DestroyCommandPool(_device, _cmd_pool, nullptr);
+		_cmd_pool = VK_NULL_HANDLE;
+	}
 
-	_backbuffer_image_view[1] = VK_NULL_HANDLE;
 	vk.DestroyImage(_device, _backbuffer_image, nullptr);
+	_backbuffer_image = VK_NULL_HANDLE;
 	vk.DestroyImageView(_device, _backbuffer_image_view[0], nullptr);
 	_backbuffer_image_view[0] = VK_NULL_HANDLE;
 	vk.DestroyImageView(_device, _backbuffer_image_view[1], nullptr);
-	_backbuffer_image = VK_NULL_HANDLE;
+	_backbuffer_image_view[1] = VK_NULL_HANDLE;
 
 	vk.DestroyRenderPass(_device, _default_render_pass[0], nullptr);
 	_default_render_pass[0] = VK_NULL_HANDLE;
