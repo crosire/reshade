@@ -239,7 +239,7 @@ bool reshade::vulkan::runtime_vk::on_init(VkSwapchainKHR swapchain, const VkSwap
 		attachment_refs[0].attachment = 0;
 		attachment_refs[0].layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 		attachment_refs[1].attachment = 1;
-		attachment_refs[1].layout = VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_STENCIL_ATTACHMENT_OPTIMAL;
+		attachment_refs[1].layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 		VkAttachmentDescription attachment_descs[2] = {};
 		attachment_descs[0].format = k == 0 ? make_format_normal(_backbuffer_format) : make_format_srgb(_backbuffer_format);
 		attachment_descs[0].samples = VK_SAMPLE_COUNT_1_BIT;
@@ -253,10 +253,10 @@ bool reshade::vulkan::runtime_vk::on_init(VkSwapchainKHR swapchain, const VkSwap
 		attachment_descs[1].samples = VK_SAMPLE_COUNT_1_BIT;
 		attachment_descs[1].loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
 		attachment_descs[1].storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-		attachment_descs[1].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE; // VK_ATTACHMENT_LOAD_OP_LOAD;
+		attachment_descs[1].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
 		attachment_descs[1].stencilStoreOp = VK_ATTACHMENT_STORE_OP_STORE;
-		attachment_descs[1].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED; // VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_STENCIL_ATTACHMENT_OPTIMAL;
-		attachment_descs[1].finalLayout = VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_STENCIL_ATTACHMENT_OPTIMAL;
+		attachment_descs[1].initialLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+		attachment_descs[1].finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
 		VkSubpassDependency subdep = {};
 		subdep.srcSubpass = VK_SUBPASS_EXTERNAL;
@@ -389,8 +389,11 @@ bool reshade::vulkan::runtime_vk::on_init(VkSwapchainKHR swapchain, const VkSwap
 	_empty_depth_image_view = create_image_view(_empty_depth_image, VK_FORMAT_R16_SFLOAT, 1, VK_IMAGE_ASPECT_COLOR_BIT);
 	if (_empty_depth_image_view == VK_NULL_HANDLE)
 		return false;
+
+	// Transition image layouts to the ones required below
 	if (begin_command_buffer())
 	{
+		transition_layout(vk, _cmd_buffers[_cmd_index].first, _effect_stencil, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, { VK_IMAGE_ASPECT_STENCIL_BIT, 0, 1, 0, 1 });
 		transition_layout(vk, _cmd_buffers[_cmd_index].first, _empty_depth_image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 		execute_command_buffer();
 	}
@@ -558,7 +561,7 @@ void reshade::vulkan::runtime_vk::on_present(VkQueue queue, uint32_t swapchain_i
 		cmd_info.second = false;
 	}
 
-	// Signal that all fences are currently enqueued, so can be waited upon (see 'wait_for_finish')
+	// Signal that all fences are currently enqueued, so can be waited upon (see 'wait_for_command_buffers')
 	_cmd_index = std::numeric_limits<uint32_t>::max();
 }
 
@@ -974,7 +977,7 @@ bool reshade::vulkan::runtime_vk::init_effect(size_t index)
 			pass_data.begin_info.renderArea = scissor_rect;
 
 			uint32_t num_color_attachments = 0;
-			uint32_t num_depth_attachments = 0;
+			uint32_t num_stencil_attachments = 0;
 			VkImageView attachment_views[9] = {};
 			VkAttachmentReference attachment_refs[9] = {};
 			VkAttachmentDescription attachment_descs[9] = {};
@@ -1034,16 +1037,18 @@ bool reshade::vulkan::runtime_vk::init_effect(size_t index)
 			}
 			else
 			{
-				if (scissor_rect.extent.width == _width && scissor_rect.extent.height == _height)
+				if (pass_info.stencil_enable && // Only need to attach stencil if stencil is actually used in this pass
+					scissor_rect.extent.width == _width &&
+					scissor_rect.extent.height == _height)
 				{
-					num_depth_attachments = 1;
+					num_stencil_attachments = 1;
 					const uint32_t attach_idx = num_color_attachments;
 
 					attachment_views[attach_idx] = _effect_stencil_view;
 
 					VkAttachmentReference &attachment_ref = attachment_refs[attach_idx];
 					attachment_ref.attachment = attach_idx;
-					attachment_ref.layout = VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_STENCIL_ATTACHMENT_OPTIMAL;
+					attachment_ref.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
 					VkAttachmentDescription &attachment_desc = attachment_descs[attach_idx];
 					attachment_desc.format = _effect_stencil_format;
@@ -1052,8 +1057,8 @@ bool reshade::vulkan::runtime_vk::init_effect(size_t index)
 					attachment_desc.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
 					attachment_desc.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
 					attachment_desc.stencilStoreOp = VK_ATTACHMENT_STORE_OP_STORE;
-					attachment_desc.initialLayout = VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_STENCIL_ATTACHMENT_OPTIMAL;
-					attachment_desc.finalLayout = VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_STENCIL_ATTACHMENT_OPTIMAL;
+					attachment_desc.initialLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+					attachment_desc.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 				}
 
 				{   VkSubpassDependency subdep = {};
@@ -1066,10 +1071,10 @@ bool reshade::vulkan::runtime_vk::init_effect(size_t index)
 					subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
 					subpass.colorAttachmentCount = num_color_attachments;
 					subpass.pColorAttachments = attachment_refs;
-					subpass.pDepthStencilAttachment = num_depth_attachments ? &attachment_refs[num_color_attachments] : nullptr;
+					subpass.pDepthStencilAttachment = num_stencil_attachments ? &attachment_refs[num_color_attachments] : nullptr;
 
 					VkRenderPassCreateInfo create_info { VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO };
-					create_info.attachmentCount = num_color_attachments + num_depth_attachments;
+					create_info.attachmentCount = num_color_attachments + num_stencil_attachments;
 					create_info.pAttachments = attachment_descs;
 					create_info.subpassCount = 1;
 					create_info.pSubpasses = &subpass;
@@ -1081,7 +1086,7 @@ bool reshade::vulkan::runtime_vk::init_effect(size_t index)
 
 				{   VkFramebufferCreateInfo create_info { VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO };
 					create_info.renderPass = pass_data.begin_info.renderPass;
-					create_info.attachmentCount = num_color_attachments + num_depth_attachments;
+					create_info.attachmentCount = num_color_attachments + num_stencil_attachments;
 					create_info.pAttachments = attachment_views;
 					create_info.width = scissor_rect.extent.width;
 					create_info.height = scissor_rect.extent.height;
@@ -1300,7 +1305,7 @@ bool reshade::vulkan::runtime_vk::init_texture(texture &texture)
 #ifdef _DEBUG
 	if (vk.DebugMarkerSetObjectNameEXT != nullptr)
 	{
-		VkDebugMarkerObjectNameInfoEXT name_info{ VK_STRUCTURE_TYPE_DEBUG_MARKER_OBJECT_NAME_INFO_EXT };
+		VkDebugMarkerObjectNameInfoEXT name_info { VK_STRUCTURE_TYPE_DEBUG_MARKER_OBJECT_NAME_INFO_EXT };
 		name_info.object = (uint64_t)impl->image;
 		name_info.objectType = VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_EXT;
 		name_info.pObjectName = texture.unique_name.c_str();
@@ -1459,13 +1464,13 @@ void reshade::vulkan::runtime_vk::generate_mipmaps(const texture &texture)
 
 void reshade::vulkan::runtime_vk::render_technique(technique &technique)
 {
+	const auto impl = technique.impl->as<vulkan_technique_data>();
 	vulkan_effect_data &effect_data = _effect_data[technique.effect_index];
-	vulkan_technique_data &technique_data = *technique.impl->as<vulkan_technique_data>();
 
 	// Evaluate queries from oldest frame in queue
 	if (uint64_t timestamps[2];
 		vk.GetQueryPoolResults(_device, effect_data.query_pool,
-			technique_data.query_index + ((_cmd_index + 1) % NUM_COMMAND_FRAMES) * 2, 2,
+			impl->query_index + ((_cmd_index + 1) % NUM_COMMAND_FRAMES) * 2, 2,
 		sizeof(timestamps), timestamps, sizeof(uint64_t), VK_QUERY_RESULT_64_BIT) == VK_SUCCESS)
 	{
 		technique.average_gpu_duration.append(timestamps[1] - timestamps[0]);
@@ -1476,21 +1481,14 @@ void reshade::vulkan::runtime_vk::render_technique(technique &technique)
 	const VkCommandBuffer cmd_list = _cmd_buffers[_cmd_index].first;
 
 	// Reset current queries and then write time stamp value
-	vk.CmdResetQueryPool(cmd_list, effect_data.query_pool, technique_data.query_index + _cmd_index * 2, 2);
-	vk.CmdWriteTimestamp(cmd_list, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, effect_data.query_pool, technique_data.query_index + _cmd_index * 2);
+	vk.CmdResetQueryPool(cmd_list, effect_data.query_pool, impl->query_index + _cmd_index * 2, 2);
+	vk.CmdWriteTimestamp(cmd_list, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, effect_data.query_pool, impl->query_index + _cmd_index * 2);
 
 	vk.CmdBindDescriptorSets(cmd_list, VK_PIPELINE_BIND_POINT_GRAPHICS, effect_data.pipeline_layout, 0, 2, effect_data.set, 0, nullptr);
 
 	// Setup shader constants
 	if (effect_data.ubo != VK_NULL_HANDLE)
 		vk.CmdUpdateBuffer(cmd_list, effect_data.ubo, 0, _effects[technique.effect_index].uniform_data_storage.size(), _effects[technique.effect_index].uniform_data_storage.data());
-
-	// Clear default depth-stencil
-	const VkImageSubresourceRange clear_range = { VK_IMAGE_ASPECT_STENCIL_BIT, 0, 1, 0, 1 };
-	const VkClearDepthStencilValue clear_value = { 1.0f, 0 };
-	transition_layout(vk, cmd_list, _effect_stencil, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, { VK_IMAGE_ASPECT_STENCIL_BIT, 0, 1, 0, 1 });
-	vk.CmdClearDepthStencilImage(cmd_list, _effect_stencil, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &clear_value, 1, &clear_range);
-	transition_layout(vk, cmd_list, _effect_stencil, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_STENCIL_ATTACHMENT_OPTIMAL, { VK_IMAGE_ASPECT_STENCIL_BIT, 0, 1, 0, 1 });
 
 #if RESHADE_DEPTH
 	if (_depth_image != VK_NULL_HANDLE)
@@ -1499,6 +1497,8 @@ void reshade::vulkan::runtime_vk::render_technique(technique &technique)
 		transition_layout(vk, cmd_list, _depth_image, _depth_image_layout, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, { _depth_image_aspect, 0, 1, 0, 1 });
 	}
 #endif
+
+	bool is_effect_stencil_cleared = false;
 
 	for (size_t pass_index = 0; pass_index < technique.passes.size(); ++pass_index)
 	{
@@ -1515,6 +1515,17 @@ void reshade::vulkan::runtime_vk::render_technique(technique &technique)
 		vk.CmdCopyImage(cmd_list, _swapchain_images[_swap_index], VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, _backbuffer_image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copy_range);
 		transition_layout(vk, cmd_list, _backbuffer_image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 		transition_layout(vk, cmd_list, _swapchain_images[_swap_index], VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
+
+		if (pass_info.stencil_enable && !is_effect_stencil_cleared)
+		{
+			is_effect_stencil_cleared = true;
+
+			const VkImageSubresourceRange clear_range = { VK_IMAGE_ASPECT_STENCIL_BIT, 0, 1, 0, 1 };
+			const VkClearDepthStencilValue clear_value = { 1.0f, 0 };
+			transition_layout(vk, cmd_list, _effect_stencil, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, { VK_IMAGE_ASPECT_STENCIL_BIT, 0, 1, 0, 1 });
+			vk.CmdClearDepthStencilImage(cmd_list, _effect_stencil, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &clear_value, 1, &clear_range);
+			transition_layout(vk, cmd_list, _effect_stencil, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, { VK_IMAGE_ASPECT_STENCIL_BIT, 0, 1, 0, 1 });
+		}
 
 		VkRenderPassBeginInfo begin_info = pass_data.begin_info;
 		if (begin_info.framebuffer == VK_NULL_HANDLE)
@@ -1554,7 +1565,7 @@ void reshade::vulkan::runtime_vk::render_technique(technique &technique)
 	}
 #endif
 
-	vk.CmdWriteTimestamp(cmd_list, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, effect_data.query_pool, technique_data.query_index + _cmd_index * 2 + 1);
+	vk.CmdWriteTimestamp(cmd_list, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, effect_data.query_pool, impl->query_index + _cmd_index * 2 + 1);
 }
 
 bool reshade::vulkan::runtime_vk::begin_command_buffer() const
@@ -1565,7 +1576,7 @@ bool reshade::vulkan::runtime_vk::begin_command_buffer() const
 	if (auto &cmd_info = _cmd_buffers[_cmd_index];
 		!cmd_info.second)
 	{
-		VkCommandBufferBeginInfo begin_info{ VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO };
+		VkCommandBufferBeginInfo begin_info { VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO };
 		begin_info.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
 
 		check_result(vk.BeginCommandBuffer(cmd_info.first, &begin_info)) false;
@@ -1615,7 +1626,7 @@ void reshade::vulkan::runtime_vk::wait_for_command_buffers()
 #if 1
 	vk.QueueWaitIdle(_main_queue);
 #else
-	std::vector<VkFence> pending_fences = _cmd_fences;
+	std::vector<VkFence> pending_fences(_cmd_fences, _cmd_fences + NUM_COMMAND_FRAMES);
 	if (_cmd_index < NUM_COMMAND_FRAMES)
 	{
 		// The current fence cannot be signaled at this point, since it is enqueued later in 'on_present', so remove it from the list of fences to wait on

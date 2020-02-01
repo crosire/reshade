@@ -780,7 +780,7 @@ void reshade::d3d9::runtime_d3d9::render_technique(technique &technique)
 {
 	const auto impl = technique.impl->as<d3d9_technique_data>();
 
-	bool is_default_depthstencil_cleared = false;
+	bool is_effect_stencil_cleared = false;
 
 	// Setup vertex input
 	_device->SetStreamSource(0, _effect_vertex_buffer.get(), 0, sizeof(float));
@@ -824,30 +824,31 @@ void reshade::d3d9::runtime_d3d9::render_technique(technique &technique)
 			}
 		}
 
-		// Setup render targets
+		// Setup render targets (and viewport, which is implicitly updated by 'SetRenderTarget')
 		for (DWORD target = 0; target < _num_simultaneous_rendertargets; target++)
 			_device->SetRenderTarget(target, pass_data.render_targets[target]);
 
 		D3DVIEWPORT9 viewport;
 		_device->GetViewport(&viewport);
+		_device->SetDepthStencilSurface(viewport.Width == _width && viewport.Height == _height && pass_info.stencil_enable ? _effect_depthstencil.get() : nullptr);
 
-		float texelsize[4] = { -1.0f / viewport.Width, 1.0f / viewport.Height };
-		_device->SetVertexShaderConstantF(255, texelsize, 1);
-
-		const bool is_viewport_sized = viewport.Width == _width && viewport.Height == _height;
-
-		_device->SetDepthStencilSurface(is_viewport_sized ? _effect_depthstencil.get() : nullptr);
-
-		if (is_viewport_sized && !is_default_depthstencil_cleared)
+		if (pass_info.stencil_enable && viewport.Width == _width && viewport.Height == _height && !is_effect_stencil_cleared)
 		{
-			is_default_depthstencil_cleared = true;
+			is_effect_stencil_cleared = true;
 
-			_device->Clear(0, nullptr, (pass_info.clear_render_targets ? D3DCLEAR_TARGET : 0) | D3DCLEAR_ZBUFFER | D3DCLEAR_STENCIL, 0, 1.0f, 0);
+			_device->Clear(0, nullptr, (pass_info.clear_render_targets ? D3DCLEAR_TARGET : 0) | D3DCLEAR_STENCIL, 0, 1.0f, 0);
 		}
 		else if (pass_info.clear_render_targets)
 		{
 			_device->Clear(0, nullptr, D3DCLEAR_TARGET, 0, 0.0f, 0);
 		}
+
+		// Set __TEXEL_SIZE__ constant (see effect_codegen_hlsl.cpp)
+		const float texel_size[4] = {
+			-1.0f / viewport.Width,
+			 1.0f / viewport.Height
+		};
+		_device->SetVertexShaderConstantF(255, texel_size, 1);
 
 		// Draw triangle
 		if (pass_info.num_vertices % 3)

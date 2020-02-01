@@ -923,7 +923,7 @@ void reshade::d3d10::runtime_d3d10::render_technique(technique &technique)
 		impl->timestamp_query_beg->End();
 	}
 
-	bool is_default_depthstencil_cleared = false;
+	bool is_effect_stencil_cleared = false;
 
 	// Setup vertex input
 	const uintptr_t null = 0;
@@ -984,13 +984,13 @@ void reshade::d3d10::runtime_d3d10::render_technique(technique &technique)
 		// Setup render targets
 		if (pass_data.viewport.Width == _width && pass_data.viewport.Height == _height)
 		{
-			_device->OMSetRenderTargets(D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT, reinterpret_cast<ID3D10RenderTargetView *const *>(pass_data.render_targets), _effect_depthstencil.get());
+			_device->OMSetRenderTargets(D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT, reinterpret_cast<ID3D10RenderTargetView *const *>(pass_data.render_targets), pass_info.stencil_enable ? _effect_depthstencil.get() : nullptr);
 
-			if (!is_default_depthstencil_cleared)
+			if (pass_info.stencil_enable && !is_effect_stencil_cleared)
 			{
-				is_default_depthstencil_cleared = true;
+				is_effect_stencil_cleared = true;
 
-				_device->ClearDepthStencilView(_effect_depthstencil.get(), D3D10_CLEAR_DEPTH | D3D10_CLEAR_STENCIL, 1.0f, 0);
+				_device->ClearDepthStencilView(_effect_depthstencil.get(), D3D10_CLEAR_STENCIL, 1.0f, 0);
 			}
 		}
 		else

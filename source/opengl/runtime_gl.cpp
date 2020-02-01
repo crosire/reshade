@@ -656,7 +656,8 @@ bool reshade::opengl::runtime_gl::init_effect(size_t index)
 			assert(pass_info.viewport_width != 0);
 			assert(pass_info.viewport_height != 0);
 
-			if (pass_info.viewport_width == _width &&
+			if (pass_info.stencil_enable && // Only need to attach stencil if stencil is actually used in this pass
+				pass_info.viewport_width == _width &&
 				pass_info.viewport_height == _height)
 			{
 				// Only attach stencil when viewport matches back buffer or else the frame buffer will always be resized to those dimensions
@@ -918,10 +919,6 @@ void reshade::opengl::runtime_gl::render_technique(technique &technique)
 	if (!impl->query_in_flight)
 		glBeginQuery(GL_TIME_ELAPSED, impl->query);
 
-	// Clear depth-stencil
-	glBindFramebuffer(GL_FRAMEBUFFER, _fbo[FBO_BACK]);
-	glClearBufferfi(GL_DEPTH_STENCIL, 0, 1.0f, 0);
-
 	// Set up global states
 	glDisable(GL_CULL_FACE);
 	glDisable(GL_DEPTH_TEST);
@@ -947,6 +944,8 @@ void reshade::opengl::runtime_gl::render_technique(technique &technique)
 		glBindTexture(GL_TEXTURE_2D, sampler_data.texture->id[sampler_data.is_srgb]);
 		glBindSampler(s_slot, sampler_data.id);
 	}
+
+	bool is_effect_stencil_cleared = false;
 
 	for (size_t pass_index = 0; pass_index < technique.passes.size(); ++pass_index)
 	{
@@ -984,6 +983,14 @@ void reshade::opengl::runtime_gl::render_technique(technique &technique)
 		}
 		else {
 			glDisable(GL_STENCIL_TEST);
+		}
+
+		if (pass_info.stencil_enable && !is_effect_stencil_cleared)
+		{
+			is_effect_stencil_cleared = true;
+
+			GLint clear_value = 0;
+			glClearBufferiv(GL_STENCIL, 0, &clear_value);
 		}
 
 		if (pass_info.srgb_write_enable) {

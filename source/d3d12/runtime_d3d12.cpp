@@ -1163,16 +1163,15 @@ void reshade::d3d12::runtime_d3d12::render_technique(technique &technique)
 	// Setup samplers
 	_cmd_list->SetGraphicsRootDescriptorTable(2, effect_data.sampler_gpu_base);
 
-	// Clear default depth-stencil
-	const D3D12_CPU_DESCRIPTOR_HANDLE default_depth_stencil = _depthstencil_dsvs->GetCPUDescriptorHandleForHeapStart();
-	_cmd_list->ClearDepthStencilView(default_depth_stencil, D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
+	bool is_effect_stencil_cleared = false;
+	D3D12_CPU_DESCRIPTOR_HANDLE effect_stencil = _depthstencil_dsvs->GetCPUDescriptorHandleForHeapStart();
 
 	transition_state(_cmd_list, _backbuffers[_swap_index], D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
 
 	for (size_t i = 0; i < technique.passes.size(); ++i)
 	{
-		const auto &pass_info = technique.passes[i];
 		const auto &pass_data = *technique.passes_data[i]->as<d3d12_pass_data>();
+		const reshadefx::pass_info &pass_info = technique.passes[i];
 
 		// Transition render targets
 		for (UINT k = 0; k < pass_data.num_render_targets; ++k)
@@ -1201,17 +1200,24 @@ void reshade::d3d12::runtime_d3d12::render_technique(technique &technique)
 		// Setup render targets
 		const float clear_color[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
 
+		if (pass_info.stencil_enable && !is_effect_stencil_cleared)
+		{
+			is_effect_stencil_cleared = true;
+
+			_cmd_list->ClearDepthStencilView(effect_stencil, D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
+		}
+
 		if (pass_data.num_render_targets == 0)
 		{
 			D3D12_CPU_DESCRIPTOR_HANDLE render_target = { _backbuffer_rtvs->GetCPUDescriptorHandleForHeapStart().ptr + (_swap_index * 2 + pass_info.srgb_write_enable) * _rtv_handle_size };
-			_cmd_list->OMSetRenderTargets(1, &render_target, false, pass_info.stencil_enable ? &default_depth_stencil : nullptr);
+			_cmd_list->OMSetRenderTargets(1, &render_target, false, pass_info.stencil_enable ? &effect_stencil : nullptr);
 
 			if (pass_info.clear_render_targets)
 				_cmd_list->ClearRenderTargetView(render_target, clear_color, 0, nullptr);
 		}
 		else if (_width == UINT(pass_data.viewport.Width) && _height == UINT(pass_data.viewport.Height))
 		{
-			_cmd_list->OMSetRenderTargets(pass_data.num_render_targets, &pass_data.render_targets, true, pass_info.stencil_enable ? &default_depth_stencil : nullptr);
+			_cmd_list->OMSetRenderTargets(pass_data.num_render_targets, &pass_data.render_targets, true, pass_info.stencil_enable ? &effect_stencil : nullptr);
 
 			if (pass_info.clear_render_targets)
 				for (UINT k = 0; k < pass_data.num_render_targets; ++k)

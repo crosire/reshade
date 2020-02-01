@@ -930,7 +930,7 @@ void reshade::d3d11::runtime_d3d11::render_technique(technique &technique)
 		_immediate_context->End(impl->timestamp_query_beg.get());
 	}
 
-	bool is_default_depthstencil_cleared = false;
+	bool is_effect_stencil_cleared = false;
 
 	// Setup vertex input
 	const uintptr_t null = 0;
@@ -990,13 +990,13 @@ void reshade::d3d11::runtime_d3d11::render_technique(technique &technique)
 		// Setup render targets
 		if (static_cast<UINT>(pass_data.viewport.Width) == _width && static_cast<UINT>(pass_data.viewport.Height) == _height)
 		{
-			_immediate_context->OMSetRenderTargets(D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT, reinterpret_cast<ID3D11RenderTargetView *const *>(pass_data.render_targets), _effect_depthstencil.get());
+			_immediate_context->OMSetRenderTargets(D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT, reinterpret_cast<ID3D11RenderTargetView *const *>(pass_data.render_targets), pass_info.stencil_enable ? _effect_depthstencil.get() : nullptr);
 
-			if (!is_default_depthstencil_cleared)
+			if (pass_info.stencil_enable && !is_effect_stencil_cleared)
 			{
-				is_default_depthstencil_cleared = true;
+				is_effect_stencil_cleared = true;
 
-				_immediate_context->ClearDepthStencilView(_effect_depthstencil.get(), D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
+				_immediate_context->ClearDepthStencilView(_effect_depthstencil.get(), D3D11_CLEAR_STENCIL, 1.0f, 0);
 			}
 		}
 		else
