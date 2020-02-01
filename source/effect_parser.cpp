@@ -895,6 +895,9 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 				else
 				{
 					parameters[i].reset_to_rvalue(arguments[i].location, _codegen->emit_load(arguments[i]), param_type);
+
+					// Keep track of whether the parameter is a constant for code generation (this makes the expression invalid for all other uses)
+					parameters[i].is_constant = arguments[i].is_constant;
 				}
 			}
 

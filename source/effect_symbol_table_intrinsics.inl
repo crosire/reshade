@@ -1477,12 +1477,14 @@ IMPLEMENT_INTRINSIC_HLSL(tex2Doffset, 0, {
 		code += "tex2D(" + id_to_name(args[0].base) + ".s, " + id_to_name(args[1].base) + " + " + id_to_name(args[2].base) + " * " + id_to_name(args[0].base) + ".pixelsize)";
 	})
 IMPLEMENT_INTRINSIC_SPIRV(tex2Doffset, 0, {
-	add_capability(spv::CapabilityImageGatherExtended);
+	// Non-constant offset operand needs extended capability
+	if (!args[2].is_constant)
+		add_capability(spv::CapabilityImageGatherExtended);
 
 	return add_instruction(spv::OpImageSampleImplicitLod, convert_type(res_type))
 		.add(args[0].base)
 		.add(args[1].base)
-		.add(spv::ImageOperandsOffsetMask)
+		.add(args[2].is_constant ? spv::ImageOperandsConstOffsetMask : spv::ImageOperandsOffsetMask)
 		.add(args[2].base)
 		.result;
 	})
@@ -1534,7 +1536,8 @@ IMPLEMENT_INTRINSIC_HLSL(tex2Dlodoffset, 0, {
 		code += "tex2Dlod(" + id_to_name(args[0].base) + ".s, " + id_to_name(args[1].base) + " + float4(" + id_to_name(args[2].base) + " * " + id_to_name(args[0].base) + ".pixelsize, 0, 0))";
 	})
 IMPLEMENT_INTRINSIC_SPIRV(tex2Dlodoffset, 0, {
-	add_capability(spv::CapabilityImageGatherExtended);
+	if (!args[2].is_constant)
+		add_capability(spv::CapabilityImageGatherExtended);
 
 	const spv::Id xy = add_instruction(spv::OpVectorShuffle, convert_type({ type::t_float, 2, 1 }))
 		.add(args[1].base)
@@ -1550,7 +1553,7 @@ IMPLEMENT_INTRINSIC_SPIRV(tex2Dlodoffset, 0, {
 	return add_instruction(spv::OpImageSampleExplicitLod, convert_type(res_type))
 		.add(args[0].base)
 		.add(xy)
-		.add(spv::ImageOperandsLodMask | spv::ImageOperandsOffsetMask)
+		.add(spv::ImageOperandsLodMask | (args[2].is_constant ? spv::ImageOperandsConstOffsetMask : spv::ImageOperandsOffsetMask))
 		.add(lod)
 		.add(args[2].base)
 		.result;
@@ -1717,13 +1720,14 @@ IMPLEMENT_INTRINSIC_HLSL(tex2Dgatheroffset, 0, {
 	code += '0';
 	})
 IMPLEMENT_INTRINSIC_SPIRV(tex2Dgatheroffset, 0, {
-	add_capability(spv::CapabilityImageGatherExtended);
+	if (!args[2].is_constant)
+		add_capability(spv::CapabilityImageGatherExtended);
 
 	return add_instruction(spv::OpImageGather, convert_type(res_type))
 		.add(args[0].base)
 		.add(args[1].base)
 		.add(args[3].base)
-		.add(spv::ImageOperandsOffsetMask)
+		.add(args[2].is_constant ? spv::ImageOperandsConstOffsetMask : spv::ImageOperandsOffsetMask)
 		.add(args[2].base)
 		.result;
 	})
