@@ -689,6 +689,8 @@ bool reshade::vulkan::runtime_vk::init_effect(size_t index)
 			effect.uniform_data_storage.size(),
 			VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
 			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+		if (effect_data.ubo == VK_NULL_HANDLE)
+			return false;
 	}
 
 	// Initialize image and sampler bindings
@@ -971,9 +973,8 @@ bool reshade::vulkan::runtime_vk::init_effect(size_t index)
 					[&render_target = pass_info.render_target_names[attach_idx]](const auto &item) {
 					return item.unique_name == render_target;
 				});
-				if (render_target_texture == _textures.end())
-					return assert(false), false;
 
+				assert(render_target_texture != _textures.end());
 				auto texture_impl = render_target_texture->impl->as<vulkan_tex_data>();
 				assert(texture_impl != nullptr);
 
@@ -1136,7 +1137,12 @@ bool reshade::vulkan::runtime_vk::init_effect(size_t index)
 			create_info.layout = effect_data.pipeline_layout;
 			create_info.renderPass = pass_data.begin_info.renderPass;
 
-			check_result(vk.CreateGraphicsPipelines(_device, VK_NULL_HANDLE, 1, &create_info, nullptr, &pass_data.pipeline)) false;
+			if (VkResult res = vk.CreateGraphicsPipelines(_device, VK_NULL_HANDLE, 1, &create_info, nullptr, &pass_data.pipeline); res != VK_SUCCESS)
+			{
+				LOG(ERROR) << "Failed to create graphics pipeline for pass " << pass_index << " in technique '" << technique.name << "'! "
+					"Vulkan error code is " << res << '.';
+				return false;
+			}
 		}
 	}
 
@@ -1619,7 +1625,7 @@ VkImage reshade::vulkan::runtime_vk::create_image(uint32_t width, uint32_t heigh
 			"Levels = " << levels << ", "
 			"Usage = " << std::hex << usage_flags << std::dec << ", "
 			"Format = " << format << ")! "
-			"Result is " << res << '.';
+			"Vulkan error code is " << res << '.';
 		return VK_NULL_HANDLE;
 	}
 
@@ -1645,7 +1651,7 @@ VkImage reshade::vulkan::runtime_vk::create_image(uint32_t width, uint32_t heigh
 		{
 			LOG(ERROR) << "Failed to allocate memory for image ("
 				"Size = " << alloc_info.allocationSize << ")! "
-				"Result is " << res << '.';
+				"Vulkan error code is " << res << '.';
 			return VK_NULL_HANDLE;
 		}
 
@@ -1683,7 +1689,7 @@ VkBuffer reshade::vulkan::runtime_vk::create_buffer(VkDeviceSize size, VkBufferU
 		LOG(ERROR) << "Failed to create buffer ("
 			"Size = " << size << ", "
 			"Usage = " << std::hex << usage_flags << std::dec << ")! "
-			"Result is " << res << '.';
+			"Vulkan error code is " << res << '.';
 		return VK_NULL_HANDLE;
 	}
 
@@ -1709,7 +1715,7 @@ VkBuffer reshade::vulkan::runtime_vk::create_buffer(VkDeviceSize size, VkBufferU
 		{
 			LOG(ERROR) << "Failed to allocate memory for buffer ("
 				"Size = " << alloc_info.allocationSize << ")! "
-				"Result is " << res << '.';
+				"Vulkan error code is " << res << '.';
 			return VK_NULL_HANDLE;
 		}
 
