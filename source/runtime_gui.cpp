@@ -2757,8 +2757,9 @@ void reshade::runtime::open_file_in_code_editor(size_t effect_index, const std::
 		_editor.set_readonly(false);
 
 		_editor_file = path;
-		_show_code_editor = true;
 	}
+
+	_show_code_editor = true;
 
 	_editor.clear_errors();
 
