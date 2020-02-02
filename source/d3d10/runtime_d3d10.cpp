@@ -30,7 +30,6 @@ namespace reshade::d3d10
 		com_ptr<ID3D10VertexShader> vertex_shader;
 		com_ptr<ID3D10RenderTargetView> render_targets[D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT];
 		com_ptr<ID3D10ShaderResourceView> render_target_resources[D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT];
-		D3D10_VIEWPORT viewport;
 		std::vector<com_ptr<ID3D10ShaderResourceView>> shader_resources;
 	};
 
@@ -545,24 +544,17 @@ bool reshade::d3d10::runtime_d3d10::init_effect(size_t index)
 		{
 			technique.passes_data.push_back(std::make_unique<d3d10_pass_data>());
 			auto &pass_data = *technique.passes_data.back()->as<d3d10_pass_data>();
-			const reshadefx::pass_info &pass_info = technique.passes[pass_index];
+			reshadefx::pass_info &pass_info = technique.passes[pass_index];
 
 			entry_points.at(pass_info.ps_entry_point)->QueryInterface(&pass_data.pixel_shader);
 			entry_points.at(pass_info.vs_entry_point)->QueryInterface(&pass_data.vertex_shader);
-
-			pass_data.viewport.Width = pass_info.viewport_width;
-			pass_data.viewport.Height = pass_info.viewport_height;
-			pass_data.viewport.MaxDepth = 1.0f;
 
 			const int target_index = pass_info.srgb_write_enable ? 1 : 0;
 			pass_data.render_targets[0] = _backbuffer_rtv[target_index];
 			pass_data.render_target_resources[0] = _backbuffer_texture_srv[target_index];
 
-			for (UINT k = 0; k < 8; k++)
+			for (UINT k = 0; k < 8 && !pass_info.render_target_names[k].empty(); ++k)
 			{
-				if (pass_info.render_target_names[k].empty())
-					continue; // Skip unbound render targets
-
 				const auto render_target_texture = std::find_if(_textures.begin(), _textures.end(),
 					[&render_target = pass_info.render_target_names[k]](const auto &item) {
 					return item.unique_name == render_target;
@@ -579,6 +571,7 @@ bool reshade::d3d10::runtime_d3d10::init_effect(size_t index)
 				rtv_desc.Format = pass_info.srgb_write_enable ? make_dxgi_format_srgb(desc.Format) : make_dxgi_format_normal(desc.Format);
 				rtv_desc.ViewDimension = desc.SampleDesc.Count > 1 ? D3D10_RTV_DIMENSION_TEXTURE2DMS : D3D10_RTV_DIMENSION_TEXTURE2D;
 
+				// Create render target view for texture on demand when it is first used
 				if (texture_impl->rtv[target_index] == nullptr)
 				{
 					if (HRESULT hr = _device->CreateRenderTargetView(texture_impl->texture.get(), &rtv_desc, &texture_impl->rtv[target_index]); FAILED(hr))
@@ -594,10 +587,10 @@ bool reshade::d3d10::runtime_d3d10::init_effect(size_t index)
 				pass_data.render_target_resources[k] = texture_impl->srv[target_index];
 			}
 
-			if (pass_data.viewport.Width == 0)
+			if (pass_info.viewport_width == 0)
 			{
-				pass_data.viewport.Width = frame_width();
-				pass_data.viewport.Height = frame_height();
+				pass_info.viewport_width = frame_width();
+				pass_info.viewport_height = frame_height();
 			}
 
 			{   D3D10_BLEND_DESC desc = {};
@@ -923,8 +916,6 @@ void reshade::d3d10::runtime_d3d10::render_technique(technique &technique)
 		impl->timestamp_query_beg->End();
 	}
 
-	bool is_effect_stencil_cleared = false;
-
 	// Setup vertex input
 	const uintptr_t null = 0;
 	_device->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
@@ -962,6 +953,8 @@ void reshade::d3d10::runtime_d3d10::render_technique(technique &technique)
 	// Disable unused pipeline stages
 	_device->GSSetShader(nullptr);
 
+	bool is_effect_stencil_cleared = false;
+
 	for (size_t pass_index = 0; pass_index < technique.passes.size(); ++pass_index)
 	{
 		const auto &pass_data = *technique.passes_data[pass_index]->as<d3d10_pass_data>();
@@ -982,7 +975,7 @@ void reshade::d3d10::runtime_d3d10::render_technique(technique &technique)
 		_device->PSSetShaderResources(0, static_cast<UINT>(pass_data.shader_resources.size()), reinterpret_cast<ID3D10ShaderResourceView *const *>(pass_data.shader_resources.data()));
 
 		// Setup render targets
-		if (pass_data.viewport.Width == _width && pass_data.viewport.Height == _height)
+		if (pass_info.viewport_width == _width && pass_info.viewport_height == _height)
 		{
 			_device->OMSetRenderTargets(D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT, reinterpret_cast<ID3D10RenderTargetView *const *>(pass_data.render_targets), pass_info.stencil_enable ? _effect_depthstencil.get() : nullptr);
 
@@ -998,8 +991,6 @@ void reshade::d3d10::runtime_d3d10::render_technique(technique &technique)
 			_device->OMSetRenderTargets(D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT, reinterpret_cast<ID3D10RenderTargetView *const *>(pass_data.render_targets), nullptr);
 		}
 
-		_device->RSSetViewports(1, &pass_data.viewport);
-
 		if (pass_info.clear_render_targets)
 		{
 			for (const com_ptr<ID3D10RenderTargetView> &target : pass_data.render_targets)
@@ -1011,6 +1002,9 @@ void reshade::d3d10::runtime_d3d10::render_technique(technique &technique)
 				}
 			}
 		}
+
+		const D3D10_VIEWPORT viewport = { 0, 0, pass_info.viewport_width, pass_info.viewport_height, 0.0f, 1.0f };
+		_device->RSSetViewports(1, &viewport);
 
 		// Draw triangle
 		_device->Draw(pass_info.num_vertices, 0);

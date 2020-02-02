@@ -406,8 +406,33 @@ bool reshade::d3d9::runtime_d3d9::init_effect(size_t index)
 
 			pass_data.render_targets[0] = _backbuffer_resolved.get();
 
-			for (size_t k = 0; k < ARRAYSIZE(pass_data.sampler_textures); ++k)
+			for (UINT k = 0; k < ARRAYSIZE(pass_data.sampler_textures); ++k)
 				pass_data.sampler_textures[k] = impl->sampler_textures[k];
+
+			for (UINT k = 0; k < 8 && !pass_info.render_target_names[k].empty(); ++k)
+			{
+				if (k > _num_simultaneous_rendertargets)
+				{
+					LOG(WARN) << "Device only supports " << _num_simultaneous_rendertargets << " simultaneous render targets, but pass " << pass_index << " in technique '" << technique.name << "' uses more, which are ignored.";
+					break;
+				}
+
+				const auto render_target_texture = std::find_if(_textures.begin(), _textures.end(),
+					[&render_target = pass_info.render_target_names[k]](const auto &item) {
+					return item.unique_name == render_target;
+				});
+
+				assert(render_target_texture != _textures.end());
+				const auto texture_impl = render_target_texture->impl->as<d3d9_tex_data>();
+				assert(texture_impl != nullptr);
+
+				// Unset textures that are used as render target
+				for (DWORD s = 0; s < impl->num_samplers; ++s)
+					if (texture_impl->texture == pass_data.sampler_textures[s])
+						pass_data.sampler_textures[s] = nullptr;
+
+				pass_data.render_targets[k] = texture_impl->surface.get();
+			}
 
 			HRESULT hr = _device->BeginStateBlock();
 			if (SUCCEEDED(hr))
@@ -564,34 +589,6 @@ bool reshade::d3d9::runtime_d3d9::init_effect(size_t index)
 				LOG(ERROR) << "Failed to create state block for pass " << pass_index << " in technique '" << technique.name << "'. "
 					"HRESULT is " << hr << '.';
 				return false;
-			}
-
-			for (UINT k = 0; k < 8; ++k)
-			{
-				if (pass_info.render_target_names[k].empty())
-					continue; // Skip unbound render targets
-
-				if (k > _num_simultaneous_rendertargets)
-				{
-					LOG(WARN) << "Device only supports " << _num_simultaneous_rendertargets << " simultaneous render targets, but pass " << pass_index << " in technique '" << technique.name << "' uses more, which are ignored";
-					break;
-				}
-
-				const auto render_target_texture = std::find_if(_textures.begin(), _textures.end(),
-					[&render_target = pass_info.render_target_names[k]](const auto &item) {
-					return item.unique_name == render_target;
-				});
-
-				assert(render_target_texture != _textures.end());
-				const auto texture_impl = render_target_texture->impl->as<d3d9_tex_data>();
-				assert(texture_impl != nullptr);
-
-				// Unset textures that are used as render target
-				for (DWORD s = 0; s < impl->num_samplers; ++s)
-					if (texture_impl->texture == pass_data.sampler_textures[s])
-						pass_data.sampler_textures[s] = nullptr;
-
-				pass_data.render_targets[k] = texture_impl->surface.get();
 			}
 		}
 	}
@@ -780,8 +777,6 @@ void reshade::d3d9::runtime_d3d9::render_technique(technique &technique)
 {
 	const auto impl = technique.impl->as<d3d9_technique_data>();
 
-	bool is_effect_stencil_cleared = false;
-
 	// Setup vertex input
 	_device->SetStreamSource(0, _effect_vertex_buffer.get(), 0, sizeof(float));
 	_device->SetVertexDeclaration(_effect_vertex_layout.get());
@@ -793,6 +788,8 @@ void reshade::d3d9::runtime_d3d9::render_technique(technique &technique)
 		_device->SetPixelShaderConstantF(0, uniform_storage_data, impl->constant_register_count);
 		_device->SetVertexShaderConstantF(0, uniform_storage_data, impl->constant_register_count);
 	}
+
+	bool is_effect_stencil_cleared = false;
 
 	for (size_t pass_index = 0; pass_index < technique.passes.size(); ++pass_index)
 	{

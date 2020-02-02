@@ -985,23 +985,19 @@ bool reshade::vulkan::runtime_vk::init_effect(size_t index)
 			VkAttachmentReference attachment_refs[9] = {};
 			VkAttachmentDescription attachment_descs[9] = {};
 			VkPipelineColorBlendAttachmentState attachment_blends[8];
+			attachment_blends[0].blendEnable = pass_info.blend_enable;
+			attachment_blends[0].srcColorBlendFactor = convert_blend_func(pass_info.src_blend);
+			attachment_blends[0].dstColorBlendFactor = convert_blend_func(pass_info.dest_blend);
+			attachment_blends[0].colorBlendOp = convert_blend_op(pass_info.blend_op);
+			attachment_blends[0].srcAlphaBlendFactor = convert_blend_func(pass_info.src_blend_alpha);
+			attachment_blends[0].dstAlphaBlendFactor = convert_blend_func(pass_info.dest_blend_alpha);
+			attachment_blends[0].alphaBlendOp = convert_blend_op(pass_info.blend_op_alpha);
+			attachment_blends[0].colorWriteMask = pass_info.color_write_mask;
 
-			for (uint32_t attach_idx = 0; attach_idx < 8; ++attach_idx, ++num_color_attachments)
+			for (uint32_t k = 0; k < 8 && !pass_info.render_target_names[k].empty(); ++k, ++num_color_attachments)
 			{
-				attachment_blends[attach_idx].blendEnable = pass_info.blend_enable;
-				attachment_blends[attach_idx].srcColorBlendFactor = convert_blend_func(pass_info.src_blend);
-				attachment_blends[attach_idx].dstColorBlendFactor = convert_blend_func(pass_info.dest_blend);
-				attachment_blends[attach_idx].colorBlendOp = convert_blend_op(pass_info.blend_op);
-				attachment_blends[attach_idx].srcAlphaBlendFactor = convert_blend_func(pass_info.src_blend_alpha);
-				attachment_blends[attach_idx].dstAlphaBlendFactor = convert_blend_func(pass_info.dest_blend_alpha);
-				attachment_blends[attach_idx].alphaBlendOp = convert_blend_op(pass_info.blend_op_alpha);
-				attachment_blends[attach_idx].colorWriteMask = pass_info.color_write_mask;
-
-				if (pass_info.render_target_names[attach_idx].empty())
-					break; // Skip unbound render targets
-
 				const auto render_target_texture = std::find_if(_textures.begin(), _textures.end(),
-					[&render_target = pass_info.render_target_names[attach_idx]](const auto &item) {
+					[&render_target = pass_info.render_target_names[k]](const auto &item) {
 					return item.unique_name == render_target;
 				});
 
@@ -1009,13 +1005,14 @@ bool reshade::vulkan::runtime_vk::init_effect(size_t index)
 				auto texture_impl = render_target_texture->impl->as<vulkan_tex_data>();
 				assert(texture_impl != nullptr);
 
-				attachment_views[attach_idx] = texture_impl->view[2 + pass_info.srgb_write_enable];
+				attachment_views[k] = texture_impl->view[2 + pass_info.srgb_write_enable];
+				attachment_blends[k] = attachment_blends[0];
 
-				VkAttachmentReference &attachment_ref = attachment_refs[attach_idx];
-				attachment_ref.attachment = attach_idx;
+				VkAttachmentReference &attachment_ref = attachment_refs[k];
+				attachment_ref.attachment = k;
 				attachment_ref.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
-				VkAttachmentDescription &attachment_desc = attachment_descs[attach_idx];
+				VkAttachmentDescription &attachment_desc = attachment_descs[k];
 				attachment_desc.format = texture_impl->formats[pass_info.srgb_write_enable];
 				attachment_desc.samples = VK_SAMPLE_COUNT_1_BIT;
 				attachment_desc.loadOp = pass_info.clear_render_targets ? VK_ATTACHMENT_LOAD_OP_CLEAR : pass_info.blend_enable ? VK_ATTACHMENT_LOAD_OP_LOAD : VK_ATTACHMENT_LOAD_OP_DONT_CARE;
@@ -1045,15 +1042,15 @@ bool reshade::vulkan::runtime_vk::init_effect(size_t index)
 					scissor_rect.extent.height == _height)
 				{
 					num_stencil_attachments = 1;
-					const uint32_t attach_idx = num_color_attachments;
+					const uint32_t stencil_idx = num_color_attachments;
 
-					attachment_views[attach_idx] = _effect_stencil_view;
+					attachment_views[stencil_idx] = _effect_stencil_view;
 
-					VkAttachmentReference &attachment_ref = attachment_refs[attach_idx];
-					attachment_ref.attachment = attach_idx;
+					VkAttachmentReference &attachment_ref = attachment_refs[stencil_idx];
+					attachment_ref.attachment = stencil_idx;
 					attachment_ref.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
-					VkAttachmentDescription &attachment_desc = attachment_descs[attach_idx];
+					VkAttachmentDescription &attachment_desc = attachment_descs[stencil_idx];
 					attachment_desc.format = _effect_stencil_format;
 					attachment_desc.samples = VK_SAMPLE_COUNT_1_BIT;
 					attachment_desc.loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;

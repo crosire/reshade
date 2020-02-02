@@ -43,7 +43,6 @@ namespace reshade::d3d12
 	struct d3d12_pass_data : base_object
 	{
 		com_ptr<ID3D12PipelineState> pipeline;
-		D3D12_VIEWPORT viewport;
 		UINT num_render_targets;
 		D3D12_CPU_DESCRIPTOR_HANDLE render_targets;
 	};
@@ -689,7 +688,7 @@ bool reshade::d3d12::runtime_d3d12::init_effect(size_t index)
 		{
 			technique.passes_data.push_back(std::make_unique<d3d12_pass_data>());
 			auto &pass_data = *technique.passes_data.back()->as<d3d12_pass_data>();
-			const reshadefx::pass_info &pass_info = technique.passes[pass_index];
+			reshadefx::pass_info &pass_info = technique.passes[pass_index];
 
 			D3D12_GRAPHICS_PIPELINE_STATE_DESC pso_desc = {};
 			pso_desc.pRootSignature = effect_data.signature.get();
@@ -699,9 +698,10 @@ bool reshade::d3d12::runtime_d3d12::init_effect(size_t index)
 			const auto &PS = entry_points.at(pass_info.ps_entry_point);
 			pso_desc.PS = { PS->GetBufferPointer(), PS->GetBufferSize() };
 
-			pass_data.viewport.Width = pass_info.viewport_width ? FLOAT(pass_info.viewport_width) : FLOAT(frame_width());
-			pass_data.viewport.Height = pass_info.viewport_height ? FLOAT(pass_info.viewport_height) : FLOAT(frame_height());
-			pass_data.viewport.MaxDepth = 1.0f;
+			pso_desc.NumRenderTargets = 1;
+			pso_desc.RTVFormats[0] = pass_info.srgb_write_enable ?
+				make_dxgi_format_srgb(_backbuffer_format) :
+				make_dxgi_format_normal(_backbuffer_format);
 
 			D3D12_CPU_DESCRIPTOR_HANDLE rtv_handle = effect_data.rtv_cpu_base;
 			rtv_handle.ptr += pass_index * 8 * _rtv_handle_size;
@@ -709,11 +709,8 @@ bool reshade::d3d12::runtime_d3d12::init_effect(size_t index)
 			// Keep track of base handle, which is followed by a contiguous range of render target descriptors
 			pass_data.render_targets = rtv_handle;
 
-			for (UINT k = 0; k < 8; k++)
+			for (UINT k = 0; k < 8 && !pass_info.render_target_names[k].empty(); ++k)
 			{
-				if (pass_info.render_target_names[k].empty())
-					continue; // Skip unbound render targets
-
 				const auto render_target_texture = std::find_if(_textures.begin(), _textures.end(),
 					[&render_target = pass_info.render_target_names[k]](const auto &item) {
 					return item.unique_name == render_target;
@@ -732,20 +729,16 @@ bool reshade::d3d12::runtime_d3d12::init_effect(size_t index)
 				_device->CreateRenderTargetView(texture_impl->resource.get(), &desc, rtv_handle);
 
 				pso_desc.RTVFormats[k] = desc.Format;
-				pso_desc.NumRenderTargets = k + 1;
+				pso_desc.NumRenderTargets = pass_data.num_render_targets = k + 1;
 
 				// Increment handle to next descriptor position
 				rtv_handle.ptr += _rtv_handle_size;
 			}
 
-			pass_data.num_render_targets = pso_desc.NumRenderTargets;
-
-			if (pso_desc.NumRenderTargets == 0)
+			if (pass_info.viewport_width == 0)
 			{
-				pso_desc.NumRenderTargets = 1;
-				pso_desc.RTVFormats[0] = pass_info.srgb_write_enable ?
-					make_dxgi_format_srgb(_backbuffer_format) :
-					make_dxgi_format_normal(_backbuffer_format);
+				pass_info.viewport_width = frame_width();
+				pass_info.viewport_height = frame_height();
 			}
 
 			pso_desc.NodeMask = 1;
@@ -1166,10 +1159,10 @@ void reshade::d3d12::runtime_d3d12::render_technique(technique &technique)
 	// Setup samplers
 	_cmd_list->SetGraphicsRootDescriptorTable(2, effect_data.sampler_gpu_base);
 
+	transition_state(_cmd_list, _backbuffers[_swap_index], D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
+
 	bool is_effect_stencil_cleared = false;
 	D3D12_CPU_DESCRIPTOR_HANDLE effect_stencil = _depthstencil_dsvs->GetCPUDescriptorHandleForHeapStart();
-
-	transition_state(_cmd_list, _backbuffers[_swap_index], D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
 
 	for (size_t i = 0; i < technique.passes.size(); ++i)
 	{
@@ -1218,28 +1211,19 @@ void reshade::d3d12::runtime_d3d12::render_technique(technique &technique)
 			if (pass_info.clear_render_targets)
 				_cmd_list->ClearRenderTargetView(render_target, clear_color, 0, nullptr);
 		}
-		else if (_width == UINT(pass_data.viewport.Width) && _height == UINT(pass_data.viewport.Height))
-		{
-			_cmd_list->OMSetRenderTargets(pass_data.num_render_targets, &pass_data.render_targets, true, pass_info.stencil_enable ? &effect_stencil : nullptr);
-
-			if (pass_info.clear_render_targets)
-				for (UINT k = 0; k < pass_data.num_render_targets; ++k)
-					_cmd_list->ClearRenderTargetView({ pass_data.render_targets.ptr + k * _rtv_handle_size }, clear_color, 0, nullptr);
-		}
 		else
 		{
-			assert(!pass_info.stencil_enable);
-
-			_cmd_list->OMSetRenderTargets(pass_data.num_render_targets, &pass_data.render_targets, true, nullptr);
+			_cmd_list->OMSetRenderTargets(pass_data.num_render_targets, &pass_data.render_targets, true,
+				pass_info.stencil_enable && pass_info.viewport_width == _width && pass_info.viewport_height == _height ? &effect_stencil : nullptr);
 
 			if (pass_info.clear_render_targets)
 				for (UINT k = 0; k < pass_data.num_render_targets; ++k)
 					_cmd_list->ClearRenderTargetView({ pass_data.render_targets.ptr + k * _rtv_handle_size }, clear_color, 0, nullptr);
 		}
 
-		_cmd_list->RSSetViewports(1, &pass_data.viewport);
-
-		D3D12_RECT scissor_rect = { 0, 0, LONG(pass_data.viewport.Width), LONG(pass_data.viewport.Height) };
+		const D3D12_RECT scissor_rect = { 0, 0, static_cast<LONG>(pass_info.viewport_width), static_cast<LONG>(pass_info.viewport_height) };
+		const D3D12_VIEWPORT viewport = { 0.0f, 0.0f, static_cast<FLOAT>(pass_info.viewport_width), static_cast<FLOAT>(pass_info.viewport_height), 0.0f, 1.0f };
+		_cmd_list->RSSetViewports(1, &viewport);
 		_cmd_list->RSSetScissorRects(1, &scissor_rect);
 
 		// Draw triangle

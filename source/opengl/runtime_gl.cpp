@@ -618,31 +618,7 @@ bool reshade::opengl::runtime_gl::init_effect(size_t index)
 			glGenFramebuffers(1, &pass_data.fbo);
 			glBindFramebuffer(GL_FRAMEBUFFER, pass_data.fbo);
 
-			bool backbuffer_fbo = true;
-
-			for (unsigned int k = 0; k < 8; ++k)
-			{
-				if (pass_info.render_target_names[k].empty())
-					continue; // Skip unbound render targets
-
-				backbuffer_fbo = false;
-
-				const auto render_target_texture = std::find_if(_textures.begin(), _textures.end(),
-					[&render_target = pass_info.render_target_names[k]](const auto &item) {
-					return item.unique_name == render_target;
-				});
-
-				assert(render_target_texture != _textures.end());
-				const auto texture_impl = render_target_texture->impl->as<opengl_tex_data>();
-				assert(texture_impl != nullptr);
-
-				pass_data.draw_targets[k] = GL_COLOR_ATTACHMENT0 + k;
-				pass_data.draw_textures[k] = texture_impl->id[pass_info.srgb_write_enable];
-
-				glFramebufferTexture(GL_FRAMEBUFFER, pass_data.draw_targets[k], pass_data.draw_textures[k], 0);
-			}
-
-			if (backbuffer_fbo)
+			if (pass_info.render_target_names[0].empty())
 			{
 				glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, _rbo[RBO_COLOR]);
 
@@ -652,9 +628,27 @@ bool reshade::opengl::runtime_gl::init_effect(size_t index)
 				pass_info.viewport_width = _width;
 				pass_info.viewport_height = _height;
 			}
+			else
+			{
+				for (uint32_t k = 0; k < 8 && !pass_info.render_target_names[k].empty(); ++k)
+				{
+					const auto render_target_texture = std::find_if(_textures.begin(), _textures.end(),
+						[&render_target = pass_info.render_target_names[k]](const auto &item) {
+						return item.unique_name == render_target;
+					});
 
-			assert(pass_info.viewport_width != 0);
-			assert(pass_info.viewport_height != 0);
+					assert(render_target_texture != _textures.end());
+					const auto texture_impl = render_target_texture->impl->as<opengl_tex_data>();
+					assert(texture_impl != nullptr);
+
+					pass_data.draw_targets[k] = GL_COLOR_ATTACHMENT0 + k;
+					pass_data.draw_textures[k] = texture_impl->id[pass_info.srgb_write_enable];
+
+					glFramebufferTexture(GL_FRAMEBUFFER, pass_data.draw_targets[k], pass_data.draw_textures[k], 0);
+				}
+
+				assert(pass_info.viewport_width != 0 && pass_info.viewport_height != 0);
+			}
 
 			if (pass_info.stencil_enable && // Only need to attach stencil if stencil is actually used in this pass
 				pass_info.viewport_width == _width &&
