@@ -54,11 +54,10 @@ namespace reshade::vulkan
 
 		const VkDevice _device;
 		VkSwapchainKHR _swapchain;
-		VkQueue _main_queue = VK_NULL_HANDLE;
 		uint32_t _queue_family_index = 0; // Default to first queue family index
 		VkPhysicalDeviceMemoryProperties _memory_props = {};
 
-		VkFence _cmd_fences[NUM_COMMAND_FRAMES] = {};
+		VkFence _cmd_fences[NUM_COMMAND_FRAMES + 1] = {};
 		VkSemaphore _cmd_semaphores[NUM_COMMAND_FRAMES] = {};
 		VkCommandPool _cmd_pool = VK_NULL_HANDLE;
 		mutable std::pair<VkCommandBuffer, bool> _cmd_buffers[NUM_COMMAND_FRAMES] = {};

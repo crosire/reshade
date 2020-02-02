@@ -175,8 +175,6 @@ reshade::vulkan::runtime_vk::runtime_vk(VkDevice device, VkPhysicalDevice physic
 		}
 	}
 
-	vk.GetDeviceQueue(device, _queue_family_index, 0, &_main_queue);
-
 #if RESHADE_GUI && RESHADE_DEPTH
 	subscribe_to_ui("Vulkan", [this]() { draw_depth_debug_menu(); });
 #endif
@@ -358,6 +356,12 @@ bool reshade::vulkan::runtime_vk::on_init(VkSwapchainKHR swapchain, const VkSwap
 		check_result(vk.CreateSemaphore(_device, &sem_create_info, nullptr, &_cmd_semaphores[i])) false;
 	}
 
+	// Create special fence for synchronous execution (see 'execute_command_buffer'), which is not signaled by default
+	{   VkFenceCreateInfo create_info { VK_STRUCTURE_TYPE_FENCE_CREATE_INFO };
+
+		check_result(vk.CreateFence(_device, &create_info, nullptr, &_cmd_fences[NUM_COMMAND_FRAMES])) false;
+	}
+
 	// Allocate a single descriptor pool for all effects
 	{   VkDescriptorPoolSize pool_sizes[] = {
 			{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, MAX_EFFECT_DESCRIPTOR_SETS }, // Only need one global UBO per set
@@ -510,10 +514,10 @@ void reshade::vulkan::runtime_vk::on_present(VkQueue queue, uint32_t swapchain_i
 
 	_cmd_index = _framecount % NUM_COMMAND_FRAMES;
 	_swap_index = swapchain_image_index;
-	const VkFence fence = _cmd_fences[_cmd_index];
 
 	// Make sure all buffers from the command pool used this frame have finished before resetting it
-	if (vk.GetFenceStatus(_device, fence) != VK_SUCCESS)
+	const VkFence fence = _cmd_fences[_cmd_index];
+	if (vk.GetFenceStatus(_device, fence) == VK_INCOMPLETE)
 	{
 		LOG(WARN) << "Command pool still has buffers in flight. Skipping frame ...";
 		return;
@@ -533,9 +537,6 @@ void reshade::vulkan::runtime_vk::on_present(VkQueue queue, uint32_t swapchain_i
 	if (auto &cmd_info = _cmd_buffers[_cmd_index];
 		cmd_info.second)
 	{
-		// Only reset fence before an actual submit which can signal it again
-		vk.ResetFences(_device, 1, &fence);
-
 		check_result(vk.EndCommandBuffer(cmd_info.first));
 
 		signal = _cmd_semaphores[_cmd_index];
@@ -557,15 +558,16 @@ void reshade::vulkan::runtime_vk::on_present(VkQueue queue, uint32_t swapchain_i
 			submit_info.pSignalSemaphores = &signal;
 		}
 
+		// Only reset fence before an actual submit which can signal it again
+		vk.ResetFences(_device, 1, &fence);
+
 		if (vk.QueueSubmit(queue, 1, &submit_info, fence) != VK_SUCCESS)
-			signal = VK_NULL_HANDLE; // Semaphore is not signaled if queue submission fails
+			// Semaphore is not signaled if queue submission fails
+			signal = VK_NULL_HANDLE;
 
 		// Command buffer is now in invalid state and ready for a reset
 		cmd_info.second = false;
 	}
-
-	// Signal that all fences are currently enqueued, so can be waited upon (see 'wait_for_command_buffers')
-	_cmd_index = std::numeric_limits<uint32_t>::max();
 }
 
 bool reshade::vulkan::runtime_vk::capture_screenshot(uint8_t *buffer) const
@@ -1589,7 +1591,6 @@ bool reshade::vulkan::runtime_vk::begin_command_buffer() const
 void reshade::vulkan::runtime_vk::execute_command_buffer() const
 {
 	auto &cmd_info = _cmd_buffers[_cmd_index];
-
 	assert(cmd_info.second); // Can only execute command buffers that are recording
 
 	check_result(vk.EndCommandBuffer(cmd_info.first));
@@ -1598,20 +1599,15 @@ void reshade::vulkan::runtime_vk::execute_command_buffer() const
 	submit_info.commandBufferCount = 1;
 	submit_info.pCommandBuffers = &cmd_info.first;
 
-	const VkFence fence = _cmd_fences[_cmd_index];
+	// Can use the main graphics queue here, since it is immediately synchronized with the host again anyway
+	VkQueue queue = VK_NULL_HANDLE;
+	vk.GetDeviceQueue(_device, _queue_family_index, 0, &queue);
 
-	// Wait for fence to become available, then submit using it
-	VkResult res = vk.WaitForFences(_device, 1, &fence, VK_TRUE, UINT64_MAX);
-	if (res == VK_SUCCESS)
+	const VkFence fence = _cmd_fences[NUM_COMMAND_FRAMES]; // Use special fence reserved for synchronous execution
+	if (vk.QueueSubmit(queue, 1, &submit_info, fence) == VK_SUCCESS)
 	{
-		res = vk.ResetFences(_device, 1, &fence);
-		assert(res == VK_SUCCESS);
-
-		// Can use the main queue here, since it is immediately synchronized with the host again anyway
-		res = vk.QueueSubmit(_main_queue, 1, &submit_info, fence);
-		assert(res == VK_SUCCESS);
-		res = vk.WaitForFences(_device, 1, &fence, VK_TRUE, UINT64_MAX);
-		assert(res == VK_SUCCESS);
+		// Wait for the submitted work to finish and reset fence again for next use
+		vk.WaitForFences(_device, 1, &fence, VK_TRUE, UINT64_MAX); vk.ResetFences(_device, 1, &fence);
 	}
 
 	cmd_info.second = false; // Command buffer is now in invalid state and ready for a reset
@@ -1623,19 +1619,8 @@ void reshade::vulkan::runtime_vk::wait_for_command_buffers()
 		// Make sure any pending work gets executed here, so it is not enqueued later in 'on_present' (at which point the referenced objects may have been destroyed by the code calling this)
 		execute_command_buffer();
 
-#if 1
-	vk.QueueWaitIdle(_main_queue);
-#else
-	std::vector<VkFence> pending_fences(_cmd_fences, _cmd_fences + NUM_COMMAND_FRAMES);
-	if (_cmd_index < NUM_COMMAND_FRAMES)
-	{
-		// The current fence cannot be signaled at this point, since it is enqueued later in 'on_present', so remove it from the list of fences to wait on
-		pending_fences.erase(pending_fences.begin() + _cmd_index);
-	}
-
-	// Wait on all remaining fences (with a timeout of 1 second to be safe)
-	vk.WaitForFences(_device, uint32_t(pending_fences.size()), pending_fences.data(), VK_TRUE, 1'000'000'000);
-#endif
+	// Wait for all queues to finish to ensure no command buffers are in flight after this call
+	vk.DeviceWaitIdle(_device);
 }
 
 VkImage reshade::vulkan::runtime_vk::create_image(uint32_t width, uint32_t height, uint32_t levels, VkFormat format, VkImageUsageFlags usage_flags, VkMemoryPropertyFlags mem_flags, VkImageCreateFlags flags)
