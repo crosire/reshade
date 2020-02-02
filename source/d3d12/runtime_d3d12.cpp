@@ -705,6 +705,8 @@ bool reshade::d3d12::runtime_d3d12::init_effect(size_t index)
 
 			D3D12_CPU_DESCRIPTOR_HANDLE rtv_handle = effect_data.rtv_cpu_base;
 			rtv_handle.ptr += pass_index * 8 * _rtv_handle_size;
+
+			// Keep track of base handle, which is followed by a contiguous range of render target descriptors
 			pass_data.render_targets = rtv_handle;
 
 			for (UINT k = 0; k < 8; k++)
@@ -721,8 +723,6 @@ bool reshade::d3d12::runtime_d3d12::init_effect(size_t index)
 				const auto texture_impl = render_target_texture->impl->as<d3d12_tex_data>();
 				assert(texture_impl != nullptr);
 
-				rtv_handle.ptr += k * _rtv_handle_size;
-
 				D3D12_RENDER_TARGET_VIEW_DESC desc = {};
 				desc.Format = pass_info.srgb_write_enable ?
 					make_dxgi_format_srgb(texture_impl->resource->GetDesc().Format) :
@@ -733,6 +733,9 @@ bool reshade::d3d12::runtime_d3d12::init_effect(size_t index)
 
 				pso_desc.RTVFormats[k] = desc.Format;
 				pso_desc.NumRenderTargets = k + 1;
+
+				// Increment handle to next descriptor position
+				rtv_handle.ptr += _rtv_handle_size;
 			}
 
 			pass_data.num_render_targets = pso_desc.NumRenderTargets;
