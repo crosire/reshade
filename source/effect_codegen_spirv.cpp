@@ -241,10 +241,7 @@ private:
 
 		// All capabilities
 		spirv_instruction(spv::OpCapability)
-			.add(spv::CapabilityShader)
-			.write(module.spirv);
-		spirv_instruction(spv::OpCapability)
-			.add(spv::CapabilityMatrix)
+			.add(spv::CapabilityShader) // Implicitly declares the Matrix capability too
 			.write(module.spirv);
 
 		for (spv::Capability capability : _capabilities)
