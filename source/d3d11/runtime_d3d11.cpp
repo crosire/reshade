@@ -594,6 +594,10 @@ bool reshade::d3d11::runtime_d3d11::init_effect(size_t index)
 							"HRESULT is " << hr << '.';
 						return false;
 					}
+
+					// Ensure render target contents are initialized to zero and not undefined
+					const FLOAT clear_color[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+					_immediate_context->ClearRenderTargetView(texture_impl->rtv[target_index].get(), clear_color);
 				}
 
 				pass_data.render_targets[k] = texture_impl->rtv[target_index];
