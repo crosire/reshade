@@ -778,7 +778,10 @@ void reshade::runtime::update_and_render_effects()
 					}
 				}
 
-				LOG(ERROR) << "Failed to compile " << effect.source_file << ":\n" << effect.errors;
+				if (effect.errors.empty())
+					LOG(ERROR) << "Failed initializing " << effect.source_file << '.';
+				else
+					LOG(ERROR) << "Failed initializing " << effect.source_file << ":\n" << effect.errors;
 
 				success = false;
 			}
