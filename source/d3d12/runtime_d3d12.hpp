@@ -44,7 +44,7 @@ namespace reshade::d3d12
 
 		bool begin_command_list(const com_ptr<ID3D12PipelineState> &state = nullptr) const;
 		void execute_command_list() const;
-		void wait_for_command_queue() const;
+		bool wait_for_command_queue() const;
 
 		com_ptr<ID3D12RootSignature> create_root_signature(const D3D12_ROOT_SIGNATURE_DESC &desc) const;
 

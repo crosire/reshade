@@ -159,7 +159,7 @@ bool reshade::d3d12::runtime_d3d12::on_init(const DXGI_SWAP_CHAIN_DESC &swap_des
 		return false;
 	_cmd_list->Close(); // Immediately close since it will be reset on first use
 
-	// Create fences for synchronization
+	// Create auto-reset event and fences for synchronization
 	_fence_event = CreateEvent(nullptr, FALSE, FALSE, nullptr);
 	if (_fence_event == nullptr)
 		return false;
@@ -365,8 +365,8 @@ void reshade::d3d12::runtime_d3d12::on_present(buffer_detection_context &tracker
 	// Make sure all commands for this command allocator have finished executing before reseting it
 	if (_fence[_swap_index]->GetCompletedValue() < _fence_value[_swap_index])
 	{
-		_fence[_swap_index]->SetEventOnCompletion(_fence_value[_swap_index], _fence_event);
-		WaitForSingleObject(_fence_event, INFINITE);
+		if (SUCCEEDED(_fence[_swap_index]->SetEventOnCompletion(_fence_value[_swap_index], _fence_event)))
+			WaitForSingleObject(_fence_event, INFINITE); // Event is automatically reset after this wait is released
 	}
 
 	// Reset command allocator before using it this frame again
@@ -383,7 +383,9 @@ void reshade::d3d12::runtime_d3d12::on_present(buffer_detection_context &tracker
 
 	runtime::on_present();
 
-	_commandqueue->Signal(_fence[_swap_index].get(), ++_fence_value[_swap_index]);
+	if (const UINT64 sync_value = _fence_value[_swap_index] + 1;
+		SUCCEEDED(_commandqueue->Signal(_fence[_swap_index].get(), sync_value)))
+		_fence_value[_swap_index] = sync_value;
 }
 
 bool reshade::d3d12::runtime_d3d12::capture_screenshot(uint8_t *buffer) const
@@ -434,7 +436,8 @@ bool reshade::d3d12::runtime_d3d12::capture_screenshot(uint8_t *buffer) const
 
 	// Execute and wait for completion
 	execute_command_list();
-	wait_for_command_queue();
+	if (!wait_for_command_queue())
+		return false;
 
 	// Copy data from system memory texture into output buffer
 	uint8_t *mapped_data;
@@ -1262,12 +1265,17 @@ void reshade::d3d12::runtime_d3d12::execute_command_list() const
 	ID3D12CommandList *const cmd_lists[] = { _cmd_list.get() };
 	_commandqueue->ExecuteCommandLists(ARRAYSIZE(cmd_lists), cmd_lists);
 }
-void reshade::d3d12::runtime_d3d12::wait_for_command_queue() const
+bool reshade::d3d12::runtime_d3d12::wait_for_command_queue() const
 {
-	const UINT64 sync_value = ++_fence_value[_swap_index];
-	_commandqueue->Signal(_fence[_swap_index].get(), sync_value);
-	_fence[_swap_index]->SetEventOnCompletion(sync_value, _fence_event);
-	WaitForSingleObject(_fence_event, INFINITE);
+	// Increment fence value to ensure it has not been signaled before
+	const UINT64 sync_value = _fence_value[_swap_index] + 1;
+	if (FAILED(_commandqueue->Signal(_fence[_swap_index].get(), sync_value)))
+		return false; // Cannot wait on fence if signaling was not successful
+	if (SUCCEEDED(_fence[_swap_index]->SetEventOnCompletion(sync_value, _fence_event)))
+		WaitForSingleObject(_fence_event, INFINITE);
+	// Update CPU side fence value now that it is guaranteed to have come through
+	_fence_value[_swap_index] = sync_value;
+	return true;
 }
 
 com_ptr<ID3D12RootSignature> reshade::d3d12::runtime_d3d12::create_root_signature(const D3D12_ROOT_SIGNATURE_DESC &desc) const
