@@ -2502,7 +2502,7 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 	else
 	{
 		// Global variables can have optional annotations
-		if (global && !parse_annotations(texture_info.annotations))
+		if (global && !parse_annotations(sampler_info.annotations))
 			parse_success = false;
 
 		// Variables without a semantic may have an optional initializer
@@ -2606,7 +2606,8 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 					if (!expression.type.is_texture())
 						return error(expression.location, 3020, "type mismatch, expected texture name"), consume_until('}'), false;
 
-					sampler_info.texture_name = _codegen->find_texture(expression.base).unique_name;
+					texture_info = _codegen->find_texture(expression.base);
+					sampler_info.texture_name = texture_info.unique_name;
 				}
 				else
 				{
@@ -2678,6 +2679,8 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 		texture_info.unique_name = 'V' + current_scope().name + name;
 		std::replace(texture_info.unique_name.begin(), texture_info.unique_name.end(), ':', '_');
 
+		texture_info.annotations = std::move(sampler_info.annotations);
+
 		symbol = { symbol_type::variable, 0, type };
 		symbol.id = _codegen->define_texture(location, texture_info);
 	}
@@ -2688,12 +2691,12 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 
 		if (sampler_info.texture_name.empty())
 			return error(location, 3012, '\'' + name + "': missing 'Texture' property"), false;
+		if (sampler_info.srgb && texture_info.format != texture_format::rgba8)
+			return error(location, 4582, '\'' + name + "': texture does not support sRGB sampling (only textures with RGBA8 format do)"), false;
 
 		// Add namespace scope to avoid name clashes
 		sampler_info.unique_name = 'V' + current_scope().name + name;
 		std::replace(sampler_info.unique_name.begin(), sampler_info.unique_name.end(), ':', '_');
-
-		sampler_info.annotations = std::move(texture_info.annotations);
 
 		symbol = { symbol_type::variable, 0, type };
 		symbol.id = _codegen->define_sampler(location, sampler_info);
@@ -2707,7 +2710,7 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 		uniform_info.name = name;
 		uniform_info.type = type;
 
-		uniform_info.annotations = std::move(texture_info.annotations);
+		uniform_info.annotations = std::move(sampler_info.annotations);
 
 		uniform_info.initializer_value = std::move(initializer.constant);
 		uniform_info.has_initializer_value = initializer.is_constant;
@@ -2773,6 +2776,7 @@ bool reshadefx::parser::parse_technique_pass(pass_info &info)
 	accept(tokenid::identifier);
 
 	bool parse_success = true;
+	bool targets_support_srgb = true;
 	function_info vs_info, ps_info;
 
 	if (!expect('{'))
@@ -2860,6 +2864,10 @@ bool reshadefx::parser::parse_technique_pass(pass_info &info)
 
 						const auto target_index = state.size() > 12 ? (state[12] - '0') : 0;
 						info.render_target_names[target_index] = target_info.unique_name;
+
+						// Only RGBA8 format supports sRGB writes across all APIs
+						if (target_info.format != texture_format::rgba8)
+							targets_support_srgb = false;
 					}
 				}
 			}
@@ -3000,6 +3008,11 @@ bool reshadefx::parser::parse_technique_pass(pass_info &info)
 			if (!param.semantic.empty() && param.type.has(type::qualifier::q_in))
 				if (const auto it = vs_semantic_mapping.find(param.semantic); it == vs_semantic_mapping.end() || it->second != param.type)
 					warning(pass_location, 4576, '\'' + param.name + "': pixel shader signature does not match vertex shader one");
+
+		// Verify render target format supports sRGB writes if enabled
+		if (info.srgb_write_enable && !targets_support_srgb)
+			parse_success = false,
+			error(pass_location, 4582, "one or more render target(s) do not support sRGB writes (only textures with RGBA8 format do)");
 	}
 
 	return expect('}') && parse_success;
