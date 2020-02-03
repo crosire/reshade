@@ -124,9 +124,14 @@ private:
 	struct type_lookup
 	{
 		reshadefx::type type;
-		spv::StorageClass storage;
 		bool is_ptr;
-		spv::Id id;
+		uint32_t array_stride;
+		spv::StorageClass storage;
+
+		friend bool operator==(const type_lookup &lhs, const type_lookup &rhs)
+		{
+			return lhs.type == rhs.type && lhs.is_ptr == rhs.is_ptr && lhs.array_stride == rhs.array_stride && lhs.storage == rhs.storage;
+		}
 	};
 	struct function_blocks
 	{
@@ -156,9 +161,9 @@ private:
 	spirv_basic_block _variables;
 
 	std::unordered_set<spv::Capability> _capabilities;
-	std::vector<type_lookup> _type_lookup;
-	std::vector<std::pair<function_blocks, spv::Id>> _function_type_lookup;
+	std::vector<std::pair<type_lookup, spv::Id>> _type_lookup;
 	std::vector<std::tuple<type, constant, spv::Id>> _constant_lookup;
+	std::vector<std::pair<function_blocks, spv::Id>> _function_type_lookup;
 	std::unordered_map<std::string, uint32_t> _semantic_to_location;
 	std::unordered_map<std::string, spv::Id> _string_lookup;
 	std::unordered_map<spv::Id, spv::StorageClass> _storage_lookup;
@@ -174,8 +179,9 @@ private:
 	bool _vulkan_semantics = false;
 	bool _uniforms_to_spec_constants = false;
 	id _glsl_ext = 0;
+	id _global_ubo_type = 0;
 	id _global_ubo_variable = 0;
-	struct_info _global_ubo_type;
+	std::vector<spv::Id> _global_ubo_types;
 	function_blocks *_current_function = nullptr;
 
 	inline void add_location(const location &loc, spirv_basic_block &block)
@@ -222,22 +228,13 @@ private:
 	void write_result(module &module) override
 	{
 		// First initialize the UBO type now that all member types are known
-		// The name for both the type and variable were initialized in 'define_uniform' earlier already
-		if (_global_ubo_type.definition != 0)
+		if (_global_ubo_type != 0)
 		{
-			std::vector<spv::Id> member_types;
-			member_types.reserve(_global_ubo_type.member_list.size());
-			for (const struct_member_info &member : _global_ubo_type.member_list)
-				member_types.push_back(convert_type(member.type));
-
 			add_instruction(spv::OpTypeStruct, 0, _types_and_constants)
-				.add(member_types.begin(), member_types.end())
-				.result = _global_ubo_type.definition;
+				.add(_global_ubo_types.begin(), _global_ubo_types.end())
+				.result = _global_ubo_type;
 
-			for (uint32_t index = 0; index < _global_ubo_type.member_list.size(); ++index)
-				add_member_name(_global_ubo_type.definition, index, _global_ubo_type.member_list[index].name.c_str());
-
-			define_variable(_global_ubo_variable, {}, { type::t_struct, 0, 0, type::q_uniform, 0, _global_ubo_type.definition }, "$Globals", spv::StorageClassUniform);
+			define_variable(_global_ubo_variable, {}, { type::t_struct, 0, 0, type::q_uniform, 0, _global_ubo_type }, "$Globals", spv::StorageClassUniform);
 		}
 
 		module = std::move(_module);
@@ -322,21 +319,27 @@ private:
 		}
 	}
 
-	spv::Id convert_type(const type &info, bool is_ptr = false, spv::StorageClass storage = spv::StorageClassFunction)
+	spv::Id convert_type(const type &info, bool is_ptr = false, spv::StorageClass storage = spv::StorageClassFunction, uint32_t array_stride = 0)
 	{
+		assert(array_stride == 0 || info.is_array());
+
+		// The storage class is only relevant for pointers, so ignore it for other types during lookup
+		if (is_ptr == false)
+			storage = spv::StorageClassFunction;
 		// There cannot be function local sampler variables, so always assume uniform storage for them
-		if (info.is_sampler())
+		if (info.is_texture() || info.is_sampler())
 			storage = spv::StorageClassUniformConstant;
 
-		if (auto it = std::find_if(_type_lookup.begin(), _type_lookup.end(),
-			[&](const auto &lookup) { return lookup.type == info && lookup.is_ptr == is_ptr && lookup.storage == storage; }); it != _type_lookup.end())
-			return it->id;
+		const type_lookup lookup = { info, is_ptr, array_stride, storage };
+		if (const auto it = std::find_if(_type_lookup.begin(), _type_lookup.end(),
+			[&lookup](const auto &lookup_it) { return lookup_it.first == lookup; }); it != _type_lookup.end())
+			return it->second;
 
 		spv::Id type;
 
 		if (is_ptr)
 		{
-			type = convert_type(info, false);
+			type = convert_type(info, false, storage, array_stride);
 			type = add_instruction(spv::OpTypePointer, 0, _types_and_constants)
 				.add(storage)
 				.add(type).result;
@@ -349,15 +352,15 @@ private:
 			// Make sure we don't get any dynamic arrays here
 			assert(info.array_length > 0);
 
-			type = convert_type(elem_info);
+			type = convert_type(elem_info, false, storage);
 			const spv::Id array_length = emit_constant(info.array_length);
 
 			type = add_instruction(spv::OpTypeArray, 0, _types_and_constants)
 				.add(type)
 				.add(array_length).result;
 
-			// Each array type must have a stride decoration
-			add_decoration(type, spv::DecorationArrayStride, { 16u });
+			if (array_stride != 0)
+				add_decoration(type, spv::DecorationArrayStride, { array_stride });
 		}
 		else if (info.is_matrix())
 		{
@@ -366,7 +369,7 @@ private:
 			elem_info.rows = info.cols;
 			elem_info.cols = 1;
 
-			type = convert_type(elem_info);
+			type = convert_type(elem_info, false, storage);
 
 			// Matrix types with just one row are interpreted as if they were a vector type
 			if (info.rows == 1)
@@ -382,7 +385,7 @@ private:
 			elem_info.rows = 1;
 			elem_info.cols = 1;
 
-			type = convert_type(elem_info);
+			type = convert_type(elem_info, false, storage);
 			type = add_instruction(spv::OpTypeVector, 0, _types_and_constants)
 				.add(type)
 				.add(info.rows).result;
@@ -437,7 +440,7 @@ private:
 			}
 		}
 
-		_type_lookup.push_back({ info, storage, is_ptr, type });;
+		_type_lookup.push_back({ lookup, type });
 
 		return type;
 	}
@@ -649,11 +652,11 @@ private:
 		else
 		{
 			// Create global uniform buffer variable on demand
-			if (_global_ubo_type.definition == 0)
+			if (_global_ubo_type == 0)
 			{
-				_global_ubo_type.definition = make_id();
+				_global_ubo_type = make_id();
 
-				add_decoration(_global_ubo_type.definition, spv::DecorationBlock);
+				add_decoration(_global_ubo_type, spv::DecorationBlock);
 			}
 			if (_global_ubo_variable == 0)
 			{
@@ -672,21 +675,25 @@ private:
 
 			_module.uniforms.push_back(info);
 
-			auto &member_list = _global_ubo_type.member_list;
-			member_list.push_back({ info.type, info.name });
-
+			type ubo_type = info.type;
 			// Convert boolean uniform variables to integer type so that they have a defined size
 			if (info.type.is_boolean())
-				member_list.back().type.base = type::t_uint;
+				ubo_type.base = type::t_uint;
 
-			const uint32_t member_index = static_cast<uint32_t>(member_list.size() - 1);
+			const uint32_t member_index = static_cast<uint32_t>(_global_ubo_types.size());
 
-			add_member_decoration(_global_ubo_type.definition, member_index, spv::DecorationOffset, { info.offset });
+			// Composite objects in the uniform storage class must be explicitly laid out, which includes array types requiring a stride decoration
+			_global_ubo_types.push_back(
+				convert_type(ubo_type, false, spv::StorageClassUniform, info.type.is_array() ? array_stride : 0u));
+
+			add_member_name(_global_ubo_type, member_index, info.name.c_str());
+
+			add_member_decoration(_global_ubo_type, member_index, spv::DecorationOffset, { info.offset });
 
 			if (info.type.is_matrix())
 			{
-				add_member_decoration(_global_ubo_type.definition, member_index, spv::DecorationColMajor);
-				add_member_decoration(_global_ubo_type.definition, member_index, spv::DecorationMatrixStride, { matrix_stride });
+				add_member_decoration(_global_ubo_type, member_index, spv::DecorationColMajor);
+				add_member_decoration(_global_ubo_type, member_index, spv::DecorationMatrixStride, { matrix_stride });
 			}
 
 			return 0xF0000000 | member_index;
@@ -1096,7 +1103,7 @@ private:
 				if (is_uniform_bool)
 					base_type.base = type::t_uint;
 
-				result = add_instruction(spv::OpAccessChain, convert_type(base_type, true, spv::StorageClassUniform))
+				result = add_instruction(spv::OpAccessChain, convert_type(base_type, true, spv::StorageClassUniform, base_type.is_array() ? 16u : 0u))
 					.add(_global_ubo_variable)
 					.add(emit_constant(member_index))
 					.result;
