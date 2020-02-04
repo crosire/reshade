@@ -271,6 +271,15 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	for (uint32_t i = 0; i < pCreateInfo->enabledExtensionCount; ++i)
 		enabled_extensions.push_back(pCreateInfo->ppEnabledExtensionNames[i]);
 
+	// Check if the device is used for presenting
+	if (std::find_if(enabled_extensions.begin(), enabled_extensions.end(),
+		[](const char *name) { return strcmp(name, VK_KHR_SWAPCHAIN_EXTENSION_NAME) == 0; }) == enabled_extensions.end())
+	{
+		LOG(WARN) << "Skipping device because it was not created with the \"" VK_KHR_SWAPCHAIN_EXTENSION_NAME "\" extension.";
+
+		graphics_queue_family_index  = std::numeric_limits<uint32_t>::max();
+	}
+
 	// Only have to enable additional features if there is a graphics queue, since ReShade will not run otherwise
 	if (graphics_queue_family_index != std::numeric_limits<uint32_t>::max())
 	{
