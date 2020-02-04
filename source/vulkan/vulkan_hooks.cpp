@@ -254,8 +254,15 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 		queue_family_index = pCreateInfo->pQueueCreateInfos[i].queueFamilyIndex;
 		assert(queue_family_index < num_queue_families);
 
+		// Find the first queue family which supports graphics and has at least one queue
 		if (pCreateInfo->pQueueCreateInfos[i].queueCount > 0 && (queue_families[queue_family_index].queueFlags & VK_QUEUE_GRAPHICS_BIT) != 0)
+		{
+			if (pCreateInfo->pQueueCreateInfos[i].pQueuePriorities[0] < 1.0f)
+				LOG(WARN) << "Vulkan queue used for rendering has a low priority (" << pCreateInfo->pQueueCreateInfos[i].pQueuePriorities[0] << ").";
+
 			graphics_queue_family_index = queue_family_index;
+			break;
+		}
 	}
 
 	VkPhysicalDeviceFeatures enabled_features = {};
@@ -638,8 +645,7 @@ VkResult VKAPI_CALL vkQueuePresentKHR(VkQueue queue, const VkPresentInfoKHR *pPr
 			runtime != nullptr)
 		{
 			VkSemaphore signal = VK_NULL_HANDLE;
-			if (runtime->on_present(queue, pPresentInfo->pImageIndices[i], device_data.buffer_detection,
-				wait_semaphores.data(), static_cast<uint32_t>(wait_semaphores.size()), signal); signal != VK_NULL_HANDLE)
+			if (runtime->on_present(pPresentInfo->pImageIndices[i], wait_semaphores.data(), static_cast<uint32_t>(wait_semaphores.size()), signal, device_data.buffer_detection); signal != VK_NULL_HANDLE)
 			{
 				// The queue submit in 'on_present' now waits on the requested wait semaphores
 				// The next queue submit should therefore wait on the semaphore that was signaled by the last 'on_present' submit

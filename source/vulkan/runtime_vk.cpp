@@ -175,6 +175,12 @@ reshade::vulkan::runtime_vk::runtime_vk(VkDevice device, VkPhysicalDevice physic
 		}
 	}
 
+	// Get the main graphics queue for command submission
+	// There has to be at least one queue, or else this runtime would not have been created with this queue family index
+	// So it is safe to just get the first one
+	vk.GetDeviceQueue(_device, _queue_family_index, 0, &_queue);
+	assert(_queue != VK_NULL_HANDLE);
+
 #if RESHADE_GUI && RESHADE_DEPTH
 	subscribe_to_ui("Vulkan", [this]() { draw_depth_debug_menu(); });
 #endif
@@ -190,9 +196,6 @@ reshade::vulkan::runtime_vk::runtime_vk(VkDevice device, VkPhysicalDevice physic
 
 bool reshade::vulkan::runtime_vk::on_init(VkSwapchainKHR swapchain, const VkSwapchainCreateInfoKHR &desc, HWND hwnd)
 {
-	// Update swapchain to the new one
-	_swapchain = swapchain;
-
 	RECT window_rect = {};
 	GetClientRect(hwnd, &window_rect);
 
@@ -202,6 +205,9 @@ bool reshade::vulkan::runtime_vk::on_init(VkSwapchainKHR swapchain, const VkSwap
 	_window_height = window_rect.bottom - window_rect.top;
 	_color_bit_depth = desc.imageFormat >= VK_FORMAT_A2R10G10B10_UNORM_PACK32 && desc.imageFormat <= VK_FORMAT_A2B10G10R10_SINT_PACK32 ? 10 : 8;
 	_backbuffer_format = desc.imageFormat;
+
+	if (_queue == VK_NULL_HANDLE)
+		return false;
 
 	// Create back buffer shader image
 	assert(_backbuffer_format != VK_FORMAT_UNDEFINED);
@@ -282,9 +288,9 @@ bool reshade::vulkan::runtime_vk::on_init(VkSwapchainKHR swapchain, const VkSwap
 
 	// Get back buffer images
 	uint32_t num_images = 0;
-	check_result(vk.GetSwapchainImagesKHR(_device, _swapchain, &num_images, nullptr)) false;
+	check_result(vk.GetSwapchainImagesKHR(_device, swapchain, &num_images, nullptr)) false;
 	_swapchain_images.resize(num_images);
-	check_result(vk.GetSwapchainImagesKHR(_device, _swapchain, &num_images, _swapchain_images.data())) false;
+	check_result(vk.GetSwapchainImagesKHR(_device, swapchain, &num_images, _swapchain_images.data())) false;
 
 	assert(desc.imageUsage & VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT);
 	_render_area = desc.imageExtent;
@@ -504,7 +510,7 @@ void reshade::vulkan::runtime_vk::on_reset()
 	_allocations.clear();
 }
 
-void reshade::vulkan::runtime_vk::on_present(VkQueue queue, uint32_t swapchain_image_index, buffer_detection_context &tracker, const VkSemaphore *wait, uint32_t num_wait, VkSemaphore &signal)
+void reshade::vulkan::runtime_vk::on_present(uint32_t swapchain_image_index, const VkSemaphore *wait, uint32_t num_wait, VkSemaphore &signal, buffer_detection_context &tracker)
 {
 	if (!_is_initialized)
 		return;
@@ -560,7 +566,8 @@ void reshade::vulkan::runtime_vk::on_present(VkQueue queue, uint32_t swapchain_i
 		// Only reset fence before an actual submit which can signal it again
 		vk.ResetFences(_device, 1, &fence);
 
-		if (vk.QueueSubmit(queue, 1, &submit_info, fence) != VK_SUCCESS)
+		// Always submit to the graphics queue
+		if (vk.QueueSubmit(_queue, 1, &submit_info, fence) != VK_SUCCESS)
 			// Semaphore is not signaled if queue submission fails
 			signal = VK_NULL_HANDLE;
 
@@ -1598,12 +1605,8 @@ void reshade::vulkan::runtime_vk::execute_command_buffer() const
 	submit_info.commandBufferCount = 1;
 	submit_info.pCommandBuffers = &cmd_info.first;
 
-	// Can use the main graphics queue here, since it is immediately synchronized with the host again anyway
-	VkQueue queue = VK_NULL_HANDLE;
-	vk.GetDeviceQueue(_device, _queue_family_index, 0, &queue);
-
 	const VkFence fence = _cmd_fences[NUM_COMMAND_FRAMES]; // Use special fence reserved for synchronous execution
-	if (vk.QueueSubmit(queue, 1, &submit_info, fence) == VK_SUCCESS)
+	if (vk.QueueSubmit(_queue, 1, &submit_info, fence) == VK_SUCCESS)
 	{
 		// Wait for the submitted work to finish and reset fence again for next use
 		vk.WaitForFences(_device, 1, &fence, VK_TRUE, UINT64_MAX); vk.ResetFences(_device, 1, &fence);
