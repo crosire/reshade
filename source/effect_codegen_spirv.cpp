@@ -567,8 +567,8 @@ private:
 		define_variable(info.id, loc, { type::t_sampler, 0, 0, type::q_extern | type::q_uniform },
 			info.unique_name.c_str(), spv::StorageClassUniformConstant);
 
-		add_decoration(info.id, spv::DecorationBinding, { info.binding });
 		add_decoration(info.id, spv::DecorationDescriptorSet, { 1 });
+		add_decoration(info.id, spv::DecorationBinding, { info.binding });
 
 		_module.samplers.push_back(info);
 
@@ -662,8 +662,8 @@ private:
 			{
 				_global_ubo_variable = make_id();
 
-				add_decoration(_global_ubo_variable, spv::DecorationBinding, { 0 });
 				add_decoration(_global_ubo_variable, spv::DecorationDescriptorSet, { 0 });
+				add_decoration(_global_ubo_variable, spv::DecorationBinding, { 0 });
 			}
 
 			info.offset = _module.total_uniform_size;
@@ -1090,25 +1090,26 @@ private:
 				base_type = exp.chain[0].from;
 
 			spv::StorageClass storage = spv::StorageClassFunction;
-			if (const auto it = _storage_lookup.find(exp.base); it != _storage_lookup.end())
+			if (const auto it = _storage_lookup.find(exp.base);
+				it != _storage_lookup.end())
 				storage = it->second;
+
+			spirv_instruction *access_chain = nullptr;
 
 			// Check if this is a uniform variable (see 'define_uniform' function above) and dereference it
 			if (result & 0xF0000000)
 			{
 				const uint32_t member_index = result ^ 0xF0000000;
 
+				storage = spv::StorageClassUniform;
 				is_uniform_bool = base_type.is_boolean();
 
 				if (is_uniform_bool)
 					base_type.base = type::t_uint;
 
-				result = add_instruction(spv::OpAccessChain, convert_type(base_type, true, spv::StorageClassUniform, base_type.is_array() ? 16u : 0u))
+				access_chain = &add_instruction(spv::OpAccessChain)
 					.add(_global_ubo_variable)
-					.add(emit_constant(member_index))
-					.result;
-
-				storage = spv::StorageClassUniform;
+					.add(emit_constant(member_index));
 			}
 
 			// Any indexing expressions can be resolved during load with an 'OpAccessChain' already
@@ -1117,15 +1118,19 @@ private:
 				exp.chain[0].op == expression::operation::op_dynamic_index ||
 				exp.chain[0].op == expression::operation::op_constant_index))
 			{
-				spirv_instruction &node = add_instruction(spv::OpAccessChain)
-					.add(result); // Base
+				// Ensure that 'access_chain' cannot get invalidated by calls to 'emit_constant' or 'convert_type'
+				assert(_current_block_data != &_types_and_constants);
+
+				// Use access chain from uniform if possible, otherwise create new one
+				if (access_chain == nullptr) access_chain =
+					&add_instruction(spv::OpAccessChain).add(result); // Base
 
 				// Ignore first index into 1xN matrices, since they were translated to a vector type in SPIR-V
 				if (exp.chain[0].from.rows == 1 && exp.chain[0].from.cols > 1)
 					i = 1;
 
 				do {
-					node.add(exp.chain[i].op == expression::operation::op_dynamic_index ?
+					access_chain->add(exp.chain[i].op == expression::operation::op_dynamic_index ?
 						exp.chain[i].index :
 						emit_constant(exp.chain[i].index)); // Indexes
 					base_type = exp.chain[i++].to;
@@ -1134,8 +1139,13 @@ private:
 					exp.chain[i].op == expression::operation::op_dynamic_index ||
 					exp.chain[i].op == expression::operation::op_constant_index));
 
-				node.type = convert_type(exp.chain[i - 1].to, true, storage); // Last type is the result
-				result = node.result;
+				access_chain->type = convert_type(exp.chain[i - 1].to, true, storage); // Last type is the result
+				result = access_chain->result;
+			}
+			else if (access_chain != nullptr)
+			{
+				access_chain->type = convert_type(base_type, true, storage, base_type.is_array() ? 16u : 0u);
+				result = access_chain->result;
 			}
 
 			result = add_instruction(spv::OpLoad, convert_type(base_type))
@@ -1328,18 +1338,21 @@ private:
 			exp.chain[0].op == expression::operation::op_constant_index))
 		{
 			spv::StorageClass storage = spv::StorageClassFunction;
-			if (const auto it = _storage_lookup.find(exp.base); it != _storage_lookup.end())
+			if (const auto it = _storage_lookup.find(exp.base);
+				it != _storage_lookup.end())
 				storage = it->second;
 
-			spirv_instruction &node = add_instruction(spv::OpAccessChain)
-				.add(target); // Base
+			// Ensure that 'access_chain' cannot get invalidated by calls to 'emit_constant' or 'convert_type'
+			assert(_current_block_data != &_types_and_constants);
+
+			spirv_instruction *access_chain = &add_instruction(spv::OpAccessChain).add(target); // Base
 
 			// Ignore first index into 1xN matrices, since they were translated to a vector type in SPIR-V
 			if (exp.chain[0].from.rows == 1 && exp.chain[0].from.cols > 1)
 				i = 1;
 
 			do {
-				node.add(exp.chain[i].op == expression::operation::op_dynamic_index ?
+				access_chain->add(exp.chain[i].op == expression::operation::op_dynamic_index ?
 					exp.chain[i].index :
 					emit_constant(exp.chain[i].index)); // Indexes
 				base_type = exp.chain[i++].to;
@@ -1348,8 +1361,8 @@ private:
 				exp.chain[i].op == expression::operation::op_dynamic_index ||
 				exp.chain[i].op == expression::operation::op_constant_index));
 
-			node.type = convert_type(exp.chain[i - 1].to, true, storage); // Last type is the result
-			target = node.result;
+			access_chain->type = convert_type(exp.chain[i - 1].to, true, storage); // Last type is the result
+			target = access_chain->result;
 		}
 
 		// TODO: Complex access chains like float4x4[0].m00m10[0] = 0;
