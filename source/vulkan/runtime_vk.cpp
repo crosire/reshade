@@ -347,10 +347,8 @@ bool reshade::vulkan::runtime_vk::on_init(VkSwapchainKHR swapchain, const VkSwap
 		_cmd_buffers[i].first = cmd_buffers[i];
 		_cmd_buffers[i].second = false; // Command buffers are in initial state
 
-#ifdef _DEBUG
 		// The validation layers expect the loader to have set the dispatch pointer, but this does not happen when calling down the chain, so fix it here
 		*reinterpret_cast<void **>(cmd_buffers[i]) = *reinterpret_cast<void **>(_device);
-#endif
 
 		VkFenceCreateInfo create_info { VK_STRUCTURE_TYPE_FENCE_CREATE_INFO };
 		create_info.flags = VK_FENCE_CREATE_SIGNALED_BIT; // Create signaled so first status check in 'on_present' succeeds
