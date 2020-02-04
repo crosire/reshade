@@ -1586,19 +1586,19 @@ IMPLEMENT_INTRINSIC_SPIRV(tex2Dsize, 0, {
 	add_capability(spv::CapabilityImageQuery);
 
 	const spv::Id image = add_instruction(spv::OpImage, convert_type({ type::t_texture }))
-		.add(args[0].base)
-		.result;
+		.add(args[0].base).result;
+	const spv::Id level = emit_constant(0u);
 
-	return add_instruction(spv::OpImageQuerySize, convert_type(res_type))
+	return add_instruction(spv::OpImageQuerySizeLod, convert_type(res_type))
 		.add(image)
+		.add(level)
 		.result;
 	})
 IMPLEMENT_INTRINSIC_SPIRV(tex2Dsize, 1, {
 	add_capability(spv::CapabilityImageQuery);
 
 	const spv::Id image = add_instruction(spv::OpImage, convert_type({ type::t_texture }))
-		.add(args[0].base)
-		.result;
+		.add(args[0].base).result;
 
 	return add_instruction(spv::OpImageQuerySizeLod, convert_type(res_type))
 		.add(image)
@@ -1639,8 +1639,7 @@ IMPLEMENT_INTRINSIC_SPIRV(tex2Dfetch, 0, {
 		.result;
 
 	const spv::Id image = add_instruction(spv::OpImage, convert_type({ type::t_texture }))
-		.add(args[0].base)
-		.result;
+		.add(args[0].base).result;
 
 	return add_instruction(spv::OpImageFetch, convert_type(res_type))
 		.add(image)
