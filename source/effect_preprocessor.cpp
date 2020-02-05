@@ -215,8 +215,16 @@ bool reshadefx::preprocessor::consume()
 	while (_input_stack.size() > (_current_input_index + 1))
 		_input_stack.pop_back();
 
-	// Set current token
+	// Update location information after switching input levels
 	input_level &input = _input_stack[_current_input_index];
+	if (!input.name.empty() && input.name != _output_location.source)
+	{
+		_output += "#line " + std::to_string(input.next_token.location.line) + " \"" + input.name + "\"\n";
+		_output_location.line = _token.location.line;
+		_output_location.source = input.name;
+	}
+
+	// Set current token
 	_token = std::move(input.next_token);
 	_token.location.source = _output_location.source;
 	_current_token_raw_data = input.lexer->input_string().substr(_token.offset, _token.length);
@@ -228,12 +236,10 @@ bool reshadefx::preprocessor::consume()
 	// This ensures the EOF token is not consumed until the very last file
 	while (peek(tokenid::end_of_file))
 	{
-		if (!_if_stack.empty() && (!_input_stack[_next_input_index].name.empty() || _next_input_index == 0))
+		// Remove any unterminated blocks from the stack
+		for (; !_if_stack.empty() && _if_stack.back().input_index >= _next_input_index; _if_stack.pop_back())
 		{
 			error(_if_stack.back().token.location, "unterminated #if");
-
-			// Stack should always be empty after reaching the end of a file
-			_if_stack.clear();
 		}
 
 		if (_next_input_index == 0)
@@ -372,17 +378,10 @@ void reshadefx::preprocessor::parse()
 			if (line.empty())
 				continue;
 			_output_location.line++;
-			if (const auto &name = _input_stack[_current_input_index].name;
-				!name.empty() && name != _output_location.source)
-			{
-				_output += "#line " + std::to_string(_token.location.line) + " \"" + name + "\"\n";
-				_output_location.line = _token.location.line;
-				_output_location.source = name;
-			}
-			else if (_output_location.line != _token.location.line)
+			if (_output_location.line != _token.location.line)
 			{
 				_output += "#line " + std::to_string(_token.location.line) + '\n';
-				_output_location.line = _token.location.line;
+				_output_location.line  = _token.location.line;
 			}
 			_output += line;
 			_output += '\n';
@@ -461,6 +460,8 @@ void reshadefx::preprocessor::parse_if()
 {
 	if_level level;
 	level.token = _token;
+	level.input_index = _current_input_index;
+
 	level.value = evaluate_expression();
 	level.skipping = (!_if_stack.empty() && _if_stack.back().skipping) || !level.value;
 
@@ -470,6 +471,7 @@ void reshadefx::preprocessor::parse_ifdef()
 {
 	if_level level;
 	level.token = _token;
+	level.input_index = _current_input_index;
 
 	if (!expect(tokenid::identifier))
 		return;
@@ -484,6 +486,7 @@ void reshadefx::preprocessor::parse_ifndef()
 {
 	if_level level;
 	level.token = _token;
+	level.input_index = _current_input_index;
 
 	if (!expect(tokenid::identifier))
 		return;
@@ -506,6 +509,8 @@ void reshadefx::preprocessor::parse_elif()
 	const bool condition_result = evaluate_expression();
 
 	level.token = _token;
+	level.input_index = _current_input_index;
+
 	level.skipping = (_if_stack.size() > 1 && _if_stack[_if_stack.size() - 2].skipping) || level.value || !condition_result;
 
 	if (!level.value) level.value = condition_result;
@@ -520,6 +525,8 @@ void reshadefx::preprocessor::parse_else()
 		return error(_token.location, "#else is not allowed after #else");
 
 	level.token = _token;
+	level.input_index = _current_input_index;
+
 	level.skipping = (_if_stack.size() > 1 && _if_stack[_if_stack.size() - 2].skipping) || level.value;
 
 	if (!level.value) level.value = true;
