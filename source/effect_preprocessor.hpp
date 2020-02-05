@@ -99,21 +99,16 @@ namespace reshadefx
 			std::string name;
 			std::unique_ptr<class lexer> lexer;
 			token next_token;
-			std::vector<if_level> if_stack;
 			std::unordered_set<std::string> hidden_macros;
-			input_level *parent;
 		};
 
 		void error(const location &location, const std::string &message);
 		void warning(const location &location, const std::string &message);
 
-		lexer &current_lexer();
-		std::vector<if_level> &current_if_stack();
-
 		void push(std::string input, const std::string &name = std::string());
 
 		bool peek(tokenid token) const;
-		void consume();
+		bool consume();
 		void consume_until(tokenid token);
 		bool accept(tokenid token);
 		bool expect(tokenid token);
@@ -139,11 +134,15 @@ namespace reshadefx
 		void create_macro_replacement_list(macro &macro);
 
 		bool _success = true;
+		std::string _output, _errors;
+		std::string _current_token_raw_data;
 		reshadefx::token _token;
+		std::vector<if_level> _if_stack;
 		std::vector<input_level> _input_stack;
+		size_t _next_input_index = 0;
+		size_t _current_input_index = 0;
+		unsigned short _recursion_count = 0;
 		location _output_location;
-		std::string _output, _errors, _current_token_raw_data;
-		int _recursion_count = 0;
 		std::unordered_set<std::string> _used_macros;
 		std::unordered_map<std::string, macro> _macros;
 		std::vector<std::filesystem::path> _include_paths;
