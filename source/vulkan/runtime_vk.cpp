@@ -157,6 +157,9 @@ reshade::vulkan::runtime_vk::runtime_vk(VkDevice device, VkPhysicalDevice physic
 	instance_table.GetPhysicalDeviceProperties(physical_device, &_device_props);
 	instance_table.GetPhysicalDeviceMemoryProperties(physical_device, &_memory_props);
 
+	_vendor_id = _device_props.vendorID;
+	_device_id = _device_props.deviceID;
+
 	const VkFormat possible_stencil_formats[] = {
 		VK_FORMAT_S8_UINT,
 		VK_FORMAT_D16_UNORM_S8_UINT,
@@ -183,8 +186,16 @@ reshade::vulkan::runtime_vk::runtime_vk(VkDevice device, VkPhysicalDevice physic
 	vk.GetDeviceQueue(_device, _queue_family_index, 0, &_queue);
 	assert(_queue != VK_NULL_HANDLE);
 
-#if RESHADE_GUI && RESHADE_DEPTH
-	subscribe_to_ui("Vulkan", [this]() { draw_depth_debug_menu(); });
+#if RESHADE_GUI
+	subscribe_to_ui("Vulkan", [this]() {
+		// Add some information about the device and driver to the UI
+		ImGui::Text("Vulkan %u.%u.%u", VK_VERSION_MAJOR(_device_props.apiVersion), VK_VERSION_MINOR(_device_props.apiVersion), VK_VERSION_PATCH(_device_props.apiVersion));
+		ImGui::Text("%s Driver %u.%u", _device_props.deviceName, VK_VERSION_MAJOR(_device_props.driverVersion), VK_VERSION_MINOR(_device_props.driverVersion));
+
+#if RESHADE_DEPTH
+		draw_depth_debug_menu();
+#endif
+	});
 #endif
 #if RESHADE_DEPTH
 	subscribe_to_load_config([this](const ini_file &config) {
