@@ -32,7 +32,7 @@
         <Grid.ColumnDefinitions>
           <ColumnDefinition />
         </Grid.ColumnDefinitions>
-        <TextBlock x:Name="Message" Grid.Row="0" Grid.Column="0" HorizontalAlignment="Center" FontSize="14" Text="Select a game or application to manage its ReShade installation" />
+        <TextBlock x:Name="Message" Grid.Row="0" Grid.Column="0" HorizontalAlignment="Center" FontSize="14" Text="Click to select a game or application and manage its ReShade installation" />
         <TextBlock x:Name="MessageDescription" Grid.Row="1" Grid.Column="0" HorizontalAlignment="Center" TextAlignment="Center"  FontSize="10" TextWrapping="WrapWithOverflow" TextTrimming="CharacterEllipsis" Visibility="Collapsed" />
       </Grid>
     </Button>
