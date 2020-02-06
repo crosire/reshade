@@ -55,6 +55,7 @@ namespace reshade::vulkan
 		const VkDevice _device;
 		VkQueue _queue = VK_NULL_HANDLE;
 		uint32_t _queue_family_index = 0; // Default to first queue family index
+		VkPhysicalDeviceProperties _device_props = {};
 		VkPhysicalDeviceMemoryProperties _memory_props = {};
 
 		VkFence _cmd_fences[NUM_COMMAND_FRAMES + 1] = {};

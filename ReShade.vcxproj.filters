@@ -326,6 +326,9 @@
     <ClInclude Include="source\vulkan\buffer_detection.hpp">
       <Filter>hooks\vulkan</Filter>
     </ClInclude>
+    <ClInclude Include="source\vulkan\driver_bugs.hpp">
+      <Filter>hooks\vulkan</Filter>
+    </ClInclude>
     <ClInclude Include="source\vulkan\format_utils.hpp">
       <Filter>hooks\vulkan</Filter>
     </ClInclude>

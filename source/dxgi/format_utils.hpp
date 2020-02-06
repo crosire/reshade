@@ -5,8 +5,6 @@
 
 #pragma once
 
-#include <dxgi.h>
-
 inline UINT dxgi_format_color_depth(DXGI_FORMAT format)
 {
 	switch (format)

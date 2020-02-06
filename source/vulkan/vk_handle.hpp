@@ -64,7 +64,7 @@ struct vk_handle
 	vk_handle(VkDevice device, const VkLayerDispatchTable &table, T object)
 		: _object(object), _device(device), _dtable(&table) {}
 	vk_handle(const vk_handle &other) = delete;
-	vk_handle(vk_handle &&other) { operator=(other); }
+	vk_handle(vk_handle &&other) { operator=(std::move(other)); }
 	~vk_handle() {
 		vk_handle_traits<type>::destroy(_device, *_dtable, _object);
 	}

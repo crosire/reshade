@@ -8,6 +8,7 @@
 #include "runtime_vk.hpp"
 #include "runtime_config.hpp"
 #include "runtime_objects.hpp"
+#include "driver_bugs.hpp"
 #include "format_utils.hpp"
 #include <imgui.h>
 #include <imgui_internal.h>
@@ -153,6 +154,7 @@ reshade::vulkan::runtime_vk::runtime_vk(VkDevice device, VkPhysicalDevice physic
 {
 	_renderer_id = 0x20000;
 
+	instance_table.GetPhysicalDeviceProperties(physical_device, &_device_props);
 	instance_table.GetPhysicalDeviceMemoryProperties(physical_device, &_memory_props);
 
 	const VkFormat possible_stencil_formats[] = {
@@ -667,14 +669,42 @@ bool reshade::vulkan::runtime_vk::init_effect(size_t index)
 {
 	effect &effect = _effects[index];
 
-	vk_handle<VK_OBJECT_TYPE_SHADER_MODULE> module(_device, vk);
-
 	// Load shader module
-	{   VkShaderModuleCreateInfo create_info { VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO };
-		create_info.codeSize = effect.module.spirv.size() * sizeof(uint32_t);
-		create_info.pCode = effect.module.spirv.data();
+	std::unordered_map<std::string, VkShaderModule> entry_points;
+	std::vector<vk_handle<VK_OBJECT_TYPE_SHADER_MODULE>> shader_modules;
 
-		const VkResult res = vk.CreateShaderModule(_device, &create_info, nullptr, &module);
+	{   VkResult res = VK_SUCCESS;
+		// The AMD Vulkan driver has issues with multiple entry points in a single shader module, so instead create a separate shader module for every entry point there.
+		bool has_driver_bug = _device_props.vendorID == 0x1002 /*AMD*/;
+
+		if (!has_driver_bug)
+		{
+			VkShaderModuleCreateInfo create_info { VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO };
+			create_info.codeSize = effect.module.spirv.size() * sizeof(uint32_t);
+			create_info.pCode = effect.module.spirv.data();
+
+			res = vk.CreateShaderModule(_device, &create_info, nullptr, &shader_modules.emplace_back(_device, vk));
+		}
+
+		for (size_t i = 0; i < effect.module.entry_points.size() && res == VK_SUCCESS; ++i)
+		{
+			const reshadefx::entry_point &entry_point = effect.module.entry_points[i];
+
+			if (has_driver_bug)
+			{
+				std::vector<uint32_t> spirv = effect.module.spirv;
+				work_around_amd_driver_bug(spirv, entry_point.name);
+
+				VkShaderModuleCreateInfo create_info { VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO };
+				create_info.codeSize = spirv.size() * sizeof(uint32_t);
+				create_info.pCode = spirv.data();
+
+				res = vk.CreateShaderModule(_device, &create_info, nullptr, &shader_modules.emplace_back(_device, vk));
+			}
+
+			entry_points[entry_point.name] = shader_modules.back();
+		}
+
 		if (res != VK_SUCCESS)
 		{
 			LOG(ERROR) << "Failed to create shader module. "
@@ -1110,12 +1140,12 @@ bool reshade::vulkan::runtime_vk::init_effect(size_t index)
 			VkPipelineShaderStageCreateInfo stages[2];
 			stages[0] = { VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO };
 			stages[0].stage = VK_SHADER_STAGE_VERTEX_BIT;
-			stages[0].module = module;
+			stages[0].module = entry_points.at(pass_info.vs_entry_point);
 			stages[0].pName = pass_info.vs_entry_point.c_str();
 			stages[0].pSpecializationInfo = &spec_info;
 			stages[1] = { VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO };
 			stages[1].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
-			stages[1].module = module;
+			stages[1].module = entry_points.at(pass_info.ps_entry_point);
 			stages[1].pName = pass_info.ps_entry_point.c_str();
 			stages[1].pSpecializationInfo = &spec_info;
 

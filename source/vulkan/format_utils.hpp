@@ -5,8 +5,6 @@
 
 #pragma once
 
-#include <vulkan.h>
-
 inline VkFormat make_format_srgb(VkFormat format)
 {
 	switch (format)
