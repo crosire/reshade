@@ -27,7 +27,6 @@ namespace reshade::vulkan
 		VkDescriptorSetLayout set_layout = VK_NULL_HANDLE;
 		VkBuffer ubo = VK_NULL_HANDLE;
 		VkDeviceMemory ubo_mem = VK_NULL_HANDLE;
-		reshadefx::module module;
 		std::vector<VkDescriptorImageInfo> image_bindings;
 		uint32_t depth_image_binding = std::numeric_limits<uint32_t>::max();
 	};
@@ -685,8 +684,12 @@ bool reshade::vulkan::runtime_vk::init_effect(size_t index)
 	std::vector<vk_handle<VK_OBJECT_TYPE_SHADER_MODULE>> shader_modules;
 
 	{   VkResult res = VK_SUCCESS;
-		// The AMD Vulkan driver has issues with multiple entry points in a single shader module, so instead create a separate shader module for every entry point there.
-		bool has_driver_bug = _device_props.vendorID == 0x1002 /*AMD*/;
+
+		/* The AMD Vulkan driver has issues with multiple entry points in a single shader module, so
+		 * instead create a separate shader module for every entry point there.
+		 * See also driver_bugs.hpp for a more detailed description of the problem.
+		 */
+		bool has_driver_bug = (_device_props.vendorID == 0x1002 /*AMD*/);
 
 		if (!has_driver_bug)
 		{
@@ -726,9 +729,7 @@ bool reshade::vulkan::runtime_vk::init_effect(size_t index)
 
 	if (_effect_data.size() <= index)
 		_effect_data.resize(index + 1);
-
 	vulkan_effect_data &effect_data = _effect_data[index];
-	effect_data.module = effect.module;
 
 	// Create query pool for time measurements
 	{   VkQueryPoolCreateInfo create_info { VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO };
