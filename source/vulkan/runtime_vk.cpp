@@ -136,13 +136,15 @@ namespace reshade::vulkan
 			return VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
 		};
 
-		VkImageMemoryBarrier transition{ VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };
-		transition.image = image;
-		transition.subresourceRange = subresource;
+		VkImageMemoryBarrier transition { VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };
 		transition.srcAccessMask = layout_to_access(old_layout);
 		transition.dstAccessMask = layout_to_access(new_layout);
 		transition.oldLayout = old_layout;
 		transition.newLayout = new_layout;
+		transition.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+		transition.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+		transition.image = image;
+		transition.subresourceRange = subresource;
 
 		vk.CmdPipelineBarrier(cmd_list, layout_to_stage(old_layout), layout_to_stage(new_layout), 0, 0, nullptr, 0, nullptr, 1, &transition);
 	}
