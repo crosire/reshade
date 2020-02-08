@@ -75,7 +75,8 @@ void DXGISwapChain::runtime_resize()
 {
 	DXGI_SWAP_CHAIN_DESC desc;
 	// Get description from IDXGISwapChain interface, since later versions are slightly different
-	_orig->GetDesc(&desc);
+	if (FAILED(_orig->GetDesc(&desc)))
+		return;
 
 	bool initialized = false;
 	switch (_direct3d_version)
@@ -205,6 +206,7 @@ ULONG   STDMETHODCALLTYPE DXGISwapChain::Release()
 	_runtime.reset();
 	_direct3d_device.reset();
 
+	// Only release internal reference after the runtime has been reset, so any references it held are cleaned up at this point
 	const ULONG ref_orig = _orig->Release();
 	if (ref_orig != 0) // Verify internal reference count
 		LOG(WARN) << "Reference count for IDXGISwapChain" << _interface_version << " object " << this << " is inconsistent.";

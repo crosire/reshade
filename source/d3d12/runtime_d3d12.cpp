@@ -52,11 +52,6 @@ namespace reshade::d3d12
 		// Empty and only used to indicate that a technique has been initialized
 	};
 
-	static uint32_t float_as_uint(float value)
-	{
-		return *reinterpret_cast<uint32_t *>(&value);
-	}
-
 	static void transition_state(
 		const com_ptr<ID3D12GraphicsCommandList> &list,
 		const com_ptr<ID3D12Resource> &res,
@@ -85,13 +80,12 @@ reshade::d3d12::runtime_d3d12::runtime_d3d12(ID3D12Device *device, ID3D12Command
 	{
 		const LUID luid = device->GetAdapterLuid();
 
-		if (com_ptr<IDXGIAdapter> adapter;
-			factory->EnumAdapterByLuid(luid, IID_PPV_ARGS(&adapter)))
+		if (com_ptr<IDXGIAdapter> dxgi_adapter;
+			SUCCEEDED(factory->EnumAdapterByLuid(luid, IID_PPV_ARGS(&dxgi_adapter))))
 		{
 			DXGI_ADAPTER_DESC desc;
-			adapter->GetDesc(&desc);
-			_vendor_id = desc.VendorId;
-			_device_id = desc.DeviceId;
+			if (SUCCEEDED(dxgi_adapter->GetDesc(&desc)))
+				_vendor_id = desc.VendorId, _device_id = desc.DeviceId;
 		}
 	}
 
@@ -198,7 +192,7 @@ bool reshade::d3d12::runtime_d3d12::on_init(const DXGI_SWAP_CHAIN_DESC &swap_des
 		_backbuffers[i]->SetName(L"Backbuffer");
 #endif
 
-		for (unsigned int srgb_write_enable = 0; srgb_write_enable < 2; ++srgb_write_enable, rtv_handle.ptr += _rtv_handle_size)
+		for (int srgb_write_enable = 0; srgb_write_enable < 2; ++srgb_write_enable, rtv_handle.ptr += _rtv_handle_size)
 		{
 			D3D12_RENDER_TARGET_VIEW_DESC rtv_desc = {};
 			rtv_desc.Format = srgb_write_enable ?
@@ -714,13 +708,10 @@ bool reshade::d3d12::runtime_d3d12::init_effect(size_t index)
 
 			for (UINT k = 0; k < 8 && !pass_info.render_target_names[k].empty(); ++k)
 			{
-				const auto render_target_texture = std::find_if(_textures.begin(), _textures.end(),
+				const auto texture_impl = std::find_if(_textures.begin(), _textures.end(),
 					[&render_target = pass_info.render_target_names[k]](const auto &item) {
 					return item.unique_name == render_target;
-				});
-
-				assert(render_target_texture != _textures.end());
-				const auto texture_impl = render_target_texture->impl->as<d3d12_tex_data>();
+				})->impl->as<d3d12_tex_data>();
 				assert(texture_impl != nullptr);
 
 				D3D12_RENDER_TARGET_VIEW_DESC desc = {};
@@ -1108,6 +1099,7 @@ void reshade::d3d12::runtime_d3d12::generate_mipmaps(const texture &texture)
 		const uint32_t width = std::max(1u, texture.width >> level);
 		const uint32_t height = std::max(1u, texture.height >> level);
 
+		static const auto float_as_uint = [](float value) { return *reinterpret_cast<uint32_t *>(&value); };
 		_cmd_list->SetComputeRoot32BitConstant(0, float_as_uint(1.0f / width), 0);
 		_cmd_list->SetComputeRoot32BitConstant(0, float_as_uint(1.0f / height), 1);
 		// Bind next higher mipmap level as input

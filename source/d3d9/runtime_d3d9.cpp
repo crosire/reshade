@@ -51,15 +51,18 @@ reshade::d3d9::runtime_d3d9::runtime_d3d9(IDirect3DDevice9 *device, IDirect3DSwa
 	_device->GetDeviceCaps(&caps);
 	D3DDEVICE_CREATION_PARAMETERS creation_params = {};
 	_device->GetCreationParameters(&creation_params);
-	D3DADAPTER_IDENTIFIER9 adapter_desc = {};
-	_d3d->GetAdapterIdentifier(creation_params.AdapterOrdinal, 0, &adapter_desc);
 
-	_vendor_id = adapter_desc.VendorId;
-	_device_id = adapter_desc.DeviceId;
 	_renderer_id = 0x9000;
 
+	if (D3DADAPTER_IDENTIFIER9 adapter_desc;
+		SUCCEEDED(_d3d->GetAdapterIdentifier(creation_params.AdapterOrdinal, 0, &adapter_desc)))
+	{
+		_vendor_id = adapter_desc.VendorId;
+		_device_id = adapter_desc.DeviceId;
+	}
+
 	_num_samplers = caps.MaxSimultaneousTextures;
-	_num_simultaneous_rendertargets = std::min(caps.NumSimultaneousRTs, DWORD(8));
+	_num_simultaneous_rendertargets = std::min(caps.NumSimultaneousRTs, static_cast<DWORD>(8));
 	_behavior_flags = creation_params.BehaviorFlags;
 
 #if RESHADE_GUI && RESHADE_DEPTH
@@ -417,13 +420,10 @@ bool reshade::d3d9::runtime_d3d9::init_effect(size_t index)
 					break;
 				}
 
-				const auto render_target_texture = std::find_if(_textures.begin(), _textures.end(),
+				const auto texture_impl = std::find_if(_textures.begin(), _textures.end(),
 					[&render_target = pass_info.render_target_names[k]](const auto &item) {
 					return item.unique_name == render_target;
-				});
-
-				assert(render_target_texture != _textures.end());
-				const auto texture_impl = render_target_texture->impl->as<d3d9_tex_data>();
+				})->impl->as<d3d9_tex_data>();
 				assert(texture_impl != nullptr);
 
 				// Unset textures that are used as render target

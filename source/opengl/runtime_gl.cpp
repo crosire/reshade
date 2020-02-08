@@ -632,13 +632,10 @@ bool reshade::opengl::runtime_gl::init_effect(size_t index)
 			{
 				for (uint32_t k = 0; k < 8 && !pass_info.render_target_names[k].empty(); ++k)
 				{
-					const auto render_target_texture = std::find_if(_textures.begin(), _textures.end(),
+					const auto texture_impl = std::find_if(_textures.begin(), _textures.end(),
 						[&render_target = pass_info.render_target_names[k]](const auto &item) {
 						return item.unique_name == render_target;
-					});
-
-					assert(render_target_texture != _textures.end());
-					const auto texture_impl = render_target_texture->impl->as<opengl_tex_data>();
+					})->impl->as<opengl_tex_data>();
 					assert(texture_impl != nullptr);
 
 					pass_data.draw_targets[k] = GL_COLOR_ATTACHMENT0 + k;

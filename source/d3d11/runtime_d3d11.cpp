@@ -53,14 +53,19 @@ reshade::d3d11::runtime_d3d11::runtime_d3d11(ID3D11Device *device, IDXGISwapChai
 
 	_device->GetImmediateContext(&_immediate_context);
 
-	com_ptr<IDXGIDevice> dxgi_device;
-	_device->QueryInterface(&dxgi_device);
-	com_ptr<IDXGIAdapter> dxgi_adapter;
-	dxgi_device->GetAdapter(&dxgi_adapter);
-
 	_renderer_id = device->GetFeatureLevel();
-	if (DXGI_ADAPTER_DESC desc; SUCCEEDED(dxgi_adapter->GetDesc(&desc)))
-		_vendor_id = desc.VendorId, _device_id = desc.DeviceId;
+
+	if (com_ptr<IDXGIDevice> dxgi_device;
+		SUCCEEDED(_device->QueryInterface(&dxgi_device)))
+	{
+		if (com_ptr<IDXGIAdapter> dxgi_adapter;
+			SUCCEEDED(dxgi_device->GetAdapter(&dxgi_adapter)))
+		{
+			DXGI_ADAPTER_DESC desc;
+			if (SUCCEEDED(dxgi_adapter->GetDesc(&desc)))
+				_vendor_id = desc.VendorId, _device_id = desc.DeviceId;
+		}
+	}
 
 #if RESHADE_GUI && RESHADE_DEPTH
 	subscribe_to_ui("DX11", [this]() { draw_depth_debug_menu(); });
@@ -568,13 +573,10 @@ bool reshade::d3d11::runtime_d3d11::init_effect(size_t index)
 
 			for (UINT k = 0; k < 8 && !pass_info.render_target_names[k].empty(); ++k)
 			{
-				const auto render_target_texture = std::find_if(_textures.begin(), _textures.end(),
+				const auto texture_impl = std::find_if(_textures.begin(), _textures.end(),
 					[&render_target = pass_info.render_target_names[k]](const auto &item) {
 					return item.unique_name == render_target;
-				});
-
-				assert(render_target_texture != _textures.end());
-				const auto texture_impl = render_target_texture->impl->as<d3d11_tex_data>();
+				})->impl->as<d3d11_tex_data>();
 				assert(texture_impl != nullptr);
 
 				D3D11_TEXTURE2D_DESC desc = {};
@@ -589,7 +591,7 @@ bool reshade::d3d11::runtime_d3d11::init_effect(size_t index)
 				{
 					if (HRESULT hr = _device->CreateRenderTargetView(texture_impl->texture.get(), &rtv_desc, &texture_impl->rtv[target_index]); FAILED(hr))
 					{
-						LOG(ERROR) << "Failed to create render target view for texture '" << render_target_texture->unique_name << "' ("
+						LOG(ERROR) << "Failed to create render target view for texture '" << pass_info.render_target_names[k] << "' ("
 							"Format = " << rtv_desc.Format << ")! "
 							"HRESULT is " << hr << '.';
 						return false;

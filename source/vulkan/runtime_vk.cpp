@@ -35,18 +35,19 @@ namespace reshade::vulkan
 	{
 		~vulkan_tex_data()
 		{
-			runtime->vk.DestroyImage(runtime->_device, image, nullptr);
+			const VkLayerDispatchTable &vk = runtime->vk;
+			vk.DestroyImage(runtime->_device, image, nullptr);
 			if (view[0] != VK_NULL_HANDLE)
-				runtime->vk.DestroyImageView(runtime->_device, view[0], nullptr);
+				vk.DestroyImageView(runtime->_device, view[0], nullptr);
 			if (view[1] != view[0])
-				runtime->vk.DestroyImageView(runtime->_device, view[1], nullptr);
+				vk.DestroyImageView(runtime->_device, view[1], nullptr);
 			if (view[2] != view[0])
-				runtime->vk.DestroyImageView(runtime->_device, view[2], nullptr);
+				vk.DestroyImageView(runtime->_device, view[2], nullptr);
 			if (view[3] != view[2] && view[3] != view[1])
-				runtime->vk.DestroyImageView(runtime->_device, view[3], nullptr);
+				vk.DestroyImageView(runtime->_device, view[3], nullptr);
 #if RESHADE_GUI
 			if (descriptor_set != VK_NULL_HANDLE)
-				runtime->vk.FreeDescriptorSets(runtime->_device, runtime->_imgui_descriptor_pool, 1, &descriptor_set);
+				vk.FreeDescriptorSets(runtime->_device, runtime->_imgui_descriptor_pool, 1, &descriptor_set);
 #endif
 		}
 
@@ -63,12 +64,13 @@ namespace reshade::vulkan
 	{
 		~vulkan_pass_data()
 		{
+			const VkLayerDispatchTable &vk = runtime->vk;
 			if (begin_info.renderPass != runtime->_default_render_pass[0] &&
 				begin_info.renderPass != runtime->_default_render_pass[1])
-				runtime->vk.DestroyRenderPass(runtime->_device, begin_info.renderPass, nullptr);
+				vk.DestroyRenderPass(runtime->_device, begin_info.renderPass, nullptr);
 			if (begin_info.framebuffer != VK_NULL_HANDLE)
-				runtime->vk.DestroyFramebuffer(runtime->_device, begin_info.framebuffer, nullptr);
-			runtime->vk.DestroyPipeline(runtime->_device, pipeline, nullptr);
+				vk.DestroyFramebuffer(runtime->_device, begin_info.framebuffer, nullptr);
+			vk.DestroyPipeline(runtime->_device, pipeline, nullptr);
 		}
 
 		VkPipeline pipeline = VK_NULL_HANDLE;
@@ -79,19 +81,11 @@ namespace reshade::vulkan
 
 	struct vulkan_technique_data : base_object
 	{
-		uint32_t query_index = 0;
+		uint32_t query_base_index = 0;
 	};
 
-	const uint32_t MAX_IMAGE_DESCRIPTOR_SETS = 128; // TODO: Limit to 128 image bindings for now
-	const uint32_t MAX_EFFECT_DESCRIPTOR_SETS = 50 * 2; // TODO: Limit to 50 effects for now
-
-	uint32_t find_memory_type_index(const VkPhysicalDeviceMemoryProperties &props, VkMemoryPropertyFlags flags, uint32_t type_bits)
-	{
-		for (uint32_t i = 0; i < props.memoryTypeCount; i++)
-			if ((props.memoryTypes[i].propertyFlags & flags) == flags && type_bits & (1 << i))
-				return i;
-		return std::numeric_limits<uint32_t>::max();
-	}
+	const uint32_t MAX_IMAGE_DESCRIPTOR_SETS = 128; // TODO: Check if these limits are enough
+	const uint32_t MAX_EFFECT_DESCRIPTOR_SETS = 50 * 2;
 
 	void transition_layout(const VkLayerDispatchTable &vk, VkCommandBuffer cmd_list, VkImage image, VkImageLayout old_layout, VkImageLayout new_layout,
 		VkImageSubresourceRange subresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, VK_REMAINING_MIP_LEVELS, 0, VK_REMAINING_ARRAY_LAYERS })
@@ -148,6 +142,14 @@ namespace reshade::vulkan
 
 		vk.CmdPipelineBarrier(cmd_list, layout_to_stage(old_layout), layout_to_stage(new_layout), 0, 0, nullptr, 0, nullptr, 1, &transition);
 	}
+
+	uint32_t find_memory_type_index(const VkPhysicalDeviceMemoryProperties &props, VkMemoryPropertyFlags flags, uint32_t type_bits)
+	{
+		for (uint32_t i = 0; i < props.memoryTypeCount; i++)
+			if ((props.memoryTypes[i].propertyFlags & flags) == flags && type_bits & (1 << i))
+				return i;
+		return std::numeric_limits<uint32_t>::max();
+	}
 }
 
 reshade::vulkan::runtime_vk::runtime_vk(VkDevice device, VkPhysicalDevice physical_device, uint32_t queue_family_index, const VkLayerInstanceDispatchTable &instance_table, const VkLayerDispatchTable &device_table) :
@@ -183,7 +185,7 @@ reshade::vulkan::runtime_vk::runtime_vk(VkDevice device, VkPhysicalDevice physic
 
 	// Get the main graphics queue for command submission
 	// There has to be at least one queue, or else this runtime would not have been created with this queue family index
-	// So it is safe to just get the first one
+	// So it should be safe to just get the first one
 	vk.GetDeviceQueue(_device, _queue_family_index, 0, &_queue);
 	assert(_queue != VK_NULL_HANDLE);
 
@@ -194,6 +196,8 @@ reshade::vulkan::runtime_vk::runtime_vk(VkDevice device, VkPhysicalDevice physic
 		ImGui::Text("%s Driver %u.%u", _device_props.deviceName, VK_VERSION_MAJOR(_device_props.driverVersion), VK_VERSION_MINOR(_device_props.driverVersion));
 
 #if RESHADE_DEPTH
+		ImGui::Spacing();
+
 		draw_depth_debug_menu();
 #endif
 	});
@@ -361,7 +365,7 @@ bool reshade::vulkan::runtime_vk::on_init(VkSwapchainKHR swapchain, const VkSwap
 		_cmd_buffers[i].first = cmd_buffers[i];
 		_cmd_buffers[i].second = false; // Command buffers are in initial state
 
-		// The validation layers expect the loader to have set the dispatch pointer, but this does not happen when calling down the chain, so fix it here
+		// The validation layers expect the loader to have set the dispatch pointer, but this does not happen when calling down the layer chain from here, so fix it
 		*reinterpret_cast<void **>(cmd_buffers[i]) = *reinterpret_cast<void **>(_device);
 
 		VkFenceCreateInfo create_info { VK_STRUCTURE_TYPE_FENCE_CREATE_INFO };
@@ -951,7 +955,7 @@ bool reshade::vulkan::runtime_vk::init_effect(size_t index)
 		technique.impl = std::make_unique<vulkan_technique_data>();
 		auto &technique_data = *technique.impl->as<vulkan_technique_data>();
 		// Offset index so that a query exists for each command frame and two subsequent ones are used for before/after stamps
-		technique_data.query_index = technique_index++ * 2 * NUM_COMMAND_FRAMES;
+		technique_data.query_base_index = technique_index++ * 2 * NUM_COMMAND_FRAMES;
 
 		for (size_t pass_index = 0; pass_index < technique.passes.size(); ++pass_index)
 		{
@@ -1046,13 +1050,10 @@ bool reshade::vulkan::runtime_vk::init_effect(size_t index)
 
 			for (uint32_t k = 0; k < 8 && !pass_info.render_target_names[k].empty(); ++k, ++num_color_attachments)
 			{
-				const auto render_target_texture = std::find_if(_textures.begin(), _textures.end(),
+				const auto texture_impl = std::find_if(_textures.begin(), _textures.end(),
 					[&render_target = pass_info.render_target_names[k]](const auto &item) {
 					return item.unique_name == render_target;
-				});
-
-				assert(render_target_texture != _textures.end());
-				auto texture_impl = render_target_texture->impl->as<vulkan_tex_data>();
+				})->impl->as<vulkan_tex_data>();
 				assert(texture_impl != nullptr);
 
 				attachment_views[k] = texture_impl->view[2 + pass_info.srgb_write_enable];
@@ -1520,7 +1521,7 @@ void reshade::vulkan::runtime_vk::render_technique(technique &technique)
 	// Evaluate queries from oldest frame in queue
 	if (uint64_t timestamps[2];
 		vk.GetQueryPoolResults(_device, effect_data.query_pool,
-			impl->query_index + ((_cmd_index + 1) % NUM_COMMAND_FRAMES) * 2, 2,
+			impl->query_base_index + ((_cmd_index + 1) % NUM_COMMAND_FRAMES) * 2, 2,
 		sizeof(timestamps), timestamps, sizeof(uint64_t), VK_QUERY_RESULT_64_BIT) == VK_SUCCESS)
 	{
 		technique.average_gpu_duration.append(timestamps[1] - timestamps[0]);
@@ -1531,8 +1532,8 @@ void reshade::vulkan::runtime_vk::render_technique(technique &technique)
 	const VkCommandBuffer cmd_list = _cmd_buffers[_cmd_index].first;
 
 	// Reset current queries and then write time stamp value
-	vk.CmdResetQueryPool(cmd_list, effect_data.query_pool, impl->query_index + _cmd_index * 2, 2);
-	vk.CmdWriteTimestamp(cmd_list, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, effect_data.query_pool, impl->query_index + _cmd_index * 2);
+	vk.CmdResetQueryPool(cmd_list, effect_data.query_pool, impl->query_base_index + _cmd_index * 2, 2);
+	vk.CmdWriteTimestamp(cmd_list, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, effect_data.query_pool, impl->query_base_index + _cmd_index * 2);
 
 	vk.CmdBindDescriptorSets(cmd_list, VK_PIPELINE_BIND_POINT_GRAPHICS, effect_data.pipeline_layout, 0, 2, effect_data.set, 0, nullptr);
 
@@ -1615,7 +1616,7 @@ void reshade::vulkan::runtime_vk::render_technique(technique &technique)
 	}
 #endif
 
-	vk.CmdWriteTimestamp(cmd_list, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, effect_data.query_pool, impl->query_index + _cmd_index * 2 + 1);
+	vk.CmdWriteTimestamp(cmd_list, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, effect_data.query_pool, impl->query_base_index + _cmd_index * 2 + 1);
 }
 
 bool reshade::vulkan::runtime_vk::begin_command_buffer() const
@@ -1770,7 +1771,7 @@ VkBuffer reshade::vulkan::runtime_vk::create_buffer(VkDeviceSize size, VkBufferU
 		alloc_info.memoryTypeIndex = find_memory_type_index(_memory_props, mem_flags, reqs.memoryTypeBits);
 
 		if (alloc_info.memoryTypeIndex == std::numeric_limits<uint32_t>::max())
-			return false;
+			return VK_NULL_HANDLE;
 
 		VkMemoryDedicatedAllocateInfo dedicated_info { VK_STRUCTURE_TYPE_MEMORY_DEDICATED_ALLOCATE_INFO };
 		alloc_info.pNext = &dedicated_info;
@@ -2103,7 +2104,7 @@ void reshade::vulkan::runtime_vk::render_imgui_draw_data(ImDrawData *draw_data)
 
 			auto tex_data = static_cast<const vulkan_tex_data *>(cmd.TextureId);
 
-			// Use push_descriptor extension when available
+			// Use push descriptor extension when available
 			if (vk.CmdPushDescriptorSetKHR != nullptr)
 			{
 				VkWriteDescriptorSet write { VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
