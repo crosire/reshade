@@ -122,6 +122,39 @@ void DXGISwapChain::runtime_present(UINT flags)
 	}
 }
 
+void DXGISwapChain::handle_runtime_loss(HRESULT hr)
+{
+	if (!_runtime->is_initialized())
+		return;
+
+	// Handle scenarios where device is lost and just clean up all resources
+	if (hr == DXGI_ERROR_DEVICE_REMOVED || hr == DXGI_ERROR_DEVICE_RESET)
+	{
+		LOG(ERROR) << "Device was lost with " << hr << ". Destroying all resources and disabling ReShade.";
+
+		if (hr == DXGI_ERROR_DEVICE_REMOVED)
+		{
+			HRESULT reason = DXGI_ERROR_INVALID_CALL;
+			switch (_direct3d_version)
+			{
+			case 10:
+				reason = static_cast<D3D10Device *>(_direct3d_device.get())->GetDeviceRemovedReason();
+				break;
+			case 11:
+				reason = static_cast<D3D11Device *>(_direct3d_device.get())->GetDeviceRemovedReason();
+				break;
+			case 12:
+				reason = static_cast<D3D12Device *>(_direct3d_device.get())->GetDeviceRemovedReason();
+				break;
+			}
+
+			LOG(ERROR) << "> Device removal reason is " << reason << '.';
+		}
+
+		runtime_reset();
+	}
+}
+
 bool DXGISwapChain::check_and_upgrade_interface(REFIID riid)
 {
 	if (riid == __uuidof(this) ||
@@ -245,7 +278,9 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::Present(UINT SyncInterval, UINT Flags)
 {
 	runtime_present(Flags);
 
-	return _orig->Present(SyncInterval, Flags);
+	const HRESULT hr = _orig->Present(SyncInterval, Flags);
+	handle_runtime_loss(hr);
+	return hr;
 }
 HRESULT STDMETHODCALLTYPE DXGISwapChain::GetBuffer(UINT Buffer, REFIID riid, void **ppSurface)
 {
@@ -335,7 +370,9 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::Present1(UINT SyncInterval, UINT Presen
 	runtime_present(PresentFlags);
 
 	assert(_interface_version >= 1);
-	return static_cast<IDXGISwapChain1 *>(_orig)->Present1(SyncInterval, PresentFlags, pPresentParameters);
+	const HRESULT hr = static_cast<IDXGISwapChain1 *>(_orig)->Present1(SyncInterval, PresentFlags, pPresentParameters);
+	handle_runtime_loss(hr);
+	return hr;
 }
 BOOL    STDMETHODCALLTYPE DXGISwapChain::IsTemporaryMonoSupported()
 {

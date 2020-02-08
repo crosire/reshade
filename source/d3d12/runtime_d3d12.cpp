@@ -1134,15 +1134,10 @@ void reshade::d3d12::runtime_d3d12::render_technique(technique &technique)
 	// Setup shader constants
 	if (effect_data.cb != nullptr)
 	{
-		void *mapped;
-		if (HRESULT hr = effect_data.cb->Map(0, nullptr, &mapped); SUCCEEDED(hr))
+		if (void *mapped; SUCCEEDED(effect_data.cb->Map(0, nullptr, &mapped)))
 		{
 			std::memcpy(mapped, _effects[technique.effect_index].uniform_data_storage.data(), _effects[technique.effect_index].uniform_data_storage.size());
 			effect_data.cb->Unmap(0, nullptr);
-		}
-		else
-		{
-			LOG(ERROR) << "Failed to map constant buffer! HRESULT is " << hr << '.';
 		}
 
 		_cmd_list->SetGraphicsRootConstantBufferView(0, effect_data.cbv_gpu_address);

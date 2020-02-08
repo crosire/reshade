@@ -945,15 +945,11 @@ void reshade::d3d11::runtime_d3d11::render_technique(technique &technique)
 	if (ID3D11Buffer *const cb = _effect_constant_buffers[technique.effect_index].get();
 		cb != nullptr)
 	{
-		D3D11_MAPPED_SUBRESOURCE mapped;
-		if (HRESULT hr = _immediate_context->Map(cb, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped); SUCCEEDED(hr))
+		if (D3D11_MAPPED_SUBRESOURCE mapped;
+			SUCCEEDED(_immediate_context->Map(cb, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped)))
 		{
 			std::memcpy(mapped.pData, _effects[technique.effect_index].uniform_data_storage.data(), mapped.RowPitch);
 			_immediate_context->Unmap(cb, 0);
-		}
-		else
-		{
-			LOG(ERROR) << "Failed to map constant buffer! HRESULT is " << hr << '.';
 		}
 
 		_immediate_context->VSSetConstantBuffers(0, 1, &cb);

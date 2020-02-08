@@ -938,18 +938,10 @@ void reshade::d3d10::runtime_d3d10::render_technique(technique &technique)
 	if (ID3D10Buffer *const cb = _effect_constant_buffers[technique.effect_index].get();
 		cb != nullptr)
 	{
-		void *mapped;
-		if (HRESULT hr = cb->Map(D3D10_MAP_WRITE_DISCARD, 0, &mapped); SUCCEEDED(hr))
+		if (void *mapped; SUCCEEDED(cb->Map(D3D10_MAP_WRITE_DISCARD, 0, &mapped)))
 		{
-			D3D10_BUFFER_DESC desc = {};
-			cb->GetDesc(&desc);
-
-			std::memcpy(mapped, _effects[technique.effect_index].uniform_data_storage.data(), desc.ByteWidth);
+			std::memcpy(mapped, _effects[technique.effect_index].uniform_data_storage.data(), _effects[technique.effect_index].uniform_data_storage.size());
 			cb->Unmap();
-		}
-		else
-		{
-			LOG(ERROR) << "Failed to map constant buffer! HRESULT is " << hr << '.';
 		}
 
 		_device->VSSetConstantBuffers(0, 1, &cb);

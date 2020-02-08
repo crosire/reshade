@@ -85,6 +85,7 @@ struct DECLSPEC_UUID("1F445F9F-9887-4C4C-9055-4E3BADAFCCA8") DXGISwapChain : IDX
 	void runtime_reset();
 	void runtime_resize();
 	void runtime_present(UINT flags);
+	void handle_runtime_loss(HRESULT hr);
 
 	bool check_and_upgrade_interface(REFIID riid);
 

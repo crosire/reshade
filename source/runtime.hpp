@@ -35,6 +35,11 @@ namespace reshade
 	{
 	public:
 		/// <summary>
+		/// Return whether the runtime is initialized.
+		/// </summary>
+		bool is_initialized() const { return _is_initialized; }
+
+		/// <summary>
 		/// Return the frame width in pixels.
 		/// </summary>
 		unsigned int frame_width() const { return _width; }
