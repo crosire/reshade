@@ -310,7 +310,6 @@ bool reshade::runtime::load_effect(const std::filesystem::path &path, size_t ind
 
 		if (!pp.append_file(path))
 		{
-			LOG(ERROR) << "Failed to load " << path << ":\n" << pp.errors();
 			effect.compile_sucess = false;
 		}
 
