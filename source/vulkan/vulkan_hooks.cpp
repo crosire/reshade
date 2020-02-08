@@ -484,19 +484,18 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 	auto &device_data = s_device_dispatch.at(dispatch_key_from_handle(device));
 
 	VkSwapchainCreateInfoKHR create_info = *pCreateInfo;
-	VkImageFormatListCreateInfoKHR format_list_info {
-		VK_STRUCTURE_TYPE_IMAGE_FORMAT_LIST_CREATE_INFO_KHR };
-
-	// Add required formats so views with different formats can be created for the swapchain images
-	std::vector<VkFormat> format_list;
-	format_list.push_back(make_format_srgb(pCreateInfo->imageFormat));
-	format_list.push_back(make_format_normal(pCreateInfo->imageFormat));
+	VkImageFormatListCreateInfoKHR format_list_info { VK_STRUCTURE_TYPE_IMAGE_FORMAT_LIST_CREATE_INFO_KHR };
+	std::vector<VkFormat> format_list; std::vector<uint32_t> queue_family_list;
 
 	// Only have to enable additional features if there is a graphics queue, since ReShade will not run otherwise
 	if (device_data.graphics_queue_family_index != std::numeric_limits<uint32_t>::max())
 	{
 		// Add required usage flags to create info
 		create_info.imageUsage |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+
+		// Add required formats, so views with different formats can be created for the swapchain images
+		format_list.push_back(make_format_srgb(pCreateInfo->imageFormat));
+		format_list.push_back(make_format_normal(pCreateInfo->imageFormat));
 
 		// Only have to make format mutable if they are actually different
 		if (format_list[0] != format_list[1])
@@ -524,6 +523,20 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 			format_list_info.pViewFormats = format_list.data();
 
 			create_info.pNext = &format_list_info;
+		}
+
+		// Add required queue family indices, so images can be used on the graphics queue
+		if (create_info.imageSharingMode == VK_SHARING_MODE_CONCURRENT)
+		{
+			queue_family_list.reserve(create_info.queueFamilyIndexCount + 1);
+			queue_family_list.push_back(device_data.graphics_queue_family_index);
+
+			for (uint32_t i = 0; i < create_info.queueFamilyIndexCount; ++i)
+				if (create_info.pQueueFamilyIndices[i] != device_data.graphics_queue_family_index)
+					queue_family_list.push_back(create_info.pQueueFamilyIndices[i]);
+
+			create_info.queueFamilyIndexCount = static_cast<uint32_t>(queue_family_list.size());
+			create_info.pQueueFamilyIndices = queue_family_list.data();
 		}
 	}
 
