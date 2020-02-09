@@ -50,6 +50,9 @@ bool reshadefx::parser::parse(std::string input, codegen *backend)
 
 void reshadefx::parser::error(const location &location, unsigned int code, const std::string &message)
 {
+	if (_errors.size() > 1000)
+		return; // Stop printing any more errors after a certain amount
+
 	_errors += location.source;
 	_errors += '(' + std::to_string(location.line) + ", " + std::to_string(location.column) + ')' + ": error";
 	_errors += (code == 0) ? ": " : " X" + std::to_string(code) + ": ";
