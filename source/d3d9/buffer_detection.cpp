@@ -22,8 +22,7 @@ void reshade::d3d9::buffer_detection::reset(bool release_resources)
 
 	if (release_resources)
 	{
-		_depthstencil_original.reset();
-		_depthstencil_replacement.reset();
+		update_depthstencil_replacement(nullptr);
 	}
 	else if (_preserve_depth_buffers && _depthstencil_replacement != nullptr)
 	{
@@ -150,10 +149,17 @@ void reshade::d3d9::buffer_detection::on_clear_depthstencil(UINT clear_flags)
 
 bool reshade::d3d9::buffer_detection::update_depthstencil_replacement(com_ptr<IDirect3DSurface9> depthstencil)
 {
-	_depthstencil_original.reset();
 	com_ptr<IDirect3DSurface9> current_replacement =
 		std::move(_depthstencil_replacement);
-	_depthstencil_replacement.reset();
+	assert(_depthstencil_replacement == nullptr);
+
+	// First unbind the depth-stencil replacement from the device, since it may be destroyed below
+	com_ptr<IDirect3DSurface9> current_depthstencil;
+	_device->GetDepthStencilSurface(&current_depthstencil);
+	if (current_depthstencil == current_replacement)
+		_device->SetDepthStencilSurface(_depthstencil_original.get());
+
+	_depthstencil_original.reset();
 
 	if (depthstencil == nullptr)
 		return true; // Abort early if this update just destroyed the existing replacement
@@ -161,7 +167,7 @@ bool reshade::d3d9::buffer_detection::update_depthstencil_replacement(com_ptr<ID
 	D3DSURFACE_DESC desc;
 	depthstencil->GetDesc(&desc);
 
-	if (check_texture_format(desc))
+	if (check_texture_format(desc) && !_preserve_depth_buffers)
 		return true; // Format already support shader access, so no need to replace
 	else if (disable_intz)
 		// Disable replacement with a texture of the INTZ format (which can have lower precision)
@@ -221,8 +227,6 @@ bool reshade::d3d9::buffer_detection::update_depthstencil_replacement(com_ptr<ID
 	texture->GetSurfaceLevel(0, &_depthstencil_replacement);
 
 	// Update current depth-stencil in case it matches the one we want to replace
-	com_ptr<IDirect3DSurface9> current_depthstencil;
-	_device->GetDepthStencilSurface(&current_depthstencil);
 	if (current_depthstencil == _depthstencil_original)
 		_device->SetDepthStencilSurface(_depthstencil_replacement.get());
 

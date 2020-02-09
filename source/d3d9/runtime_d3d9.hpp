@@ -72,6 +72,7 @@ namespace reshade::d3d9
 		void update_depthstencil_texture(com_ptr<IDirect3DSurface9> depthstencil);
 
 		bool _disable_intz = false;
+		bool _reset_tracker = false;
 		bool _filter_aspect_ratio = true;
 		bool _preserve_depth_buffers = false;
 		UINT _depth_clear_index_override = std::numeric_limits<UINT>::max();

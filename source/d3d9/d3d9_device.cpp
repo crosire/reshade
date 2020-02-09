@@ -78,6 +78,7 @@ ULONG   STDMETHODCALLTYPE Direct3DDevice9::Release()
 		return _orig->Release(), ref;
 
 	// Release remaining references to this device
+	_buffer_detection.reset(true);
 	_auto_depthstencil.reset();
 	_implicit_swapchain->Release();
 

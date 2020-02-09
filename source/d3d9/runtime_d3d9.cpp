@@ -231,6 +231,15 @@ void reshade::d3d9::runtime_d3d9::on_present(buffer_detection &tracker)
 	if ((_behavior_flags & D3DCREATE_MIXED_VERTEXPROCESSING) != 0)
 		_device->SetSoftwareVertexProcessing(software_rendering_enabled);
 
+#if RESHADE_DEPTH
+	// Can only reset the tracker after the state block has been applied, to ensure current depth-stencil binding is updated correctly
+	if (_reset_tracker)
+	{
+		tracker.reset(true);
+		_reset_tracker = false;
+	}
+#endif
+
 	_device->EndScene();
 }
 
@@ -1064,16 +1073,13 @@ void reshade::d3d9::runtime_d3d9::draw_depth_debug_menu()
 
 	if (ImGui::CollapsingHeader("Depth Buffers", ImGuiTreeNodeFlags_DefaultOpen))
 	{
-		assert(_current_tracker != nullptr);
+		assert(!_reset_tracker && _current_tracker != nullptr);
 
-		bool modified = false;
-		modified |= ImGui::Checkbox("Disable replacement with INTZ format", &_disable_intz);
+		// Do NOT reset tracker within state block capture scope, since it may otherwise bind the replacement depth-stencil after it has been destroyed here
+		_reset_tracker |= ImGui::Checkbox("Disable replacement with INTZ format", &_disable_intz);
 
-		modified |= ImGui::Checkbox("Use aspect ratio heuristics", &_filter_aspect_ratio);
-		modified |= ImGui::Checkbox("Copy depth buffers before clear operation", &_preserve_depth_buffers);
-
-		if (modified) // Detection settings have changed, reset heuristic
-			_current_tracker->reset(true);
+		_reset_tracker |= ImGui::Checkbox("Use aspect ratio heuristics", &_filter_aspect_ratio);
+		_reset_tracker |= ImGui::Checkbox("Copy depth buffers before clear operation", &_preserve_depth_buffers);
 
 		ImGui::Spacing();
 		ImGui::Separator();
@@ -1112,7 +1118,7 @@ void reshade::d3d9::runtime_d3d9::draw_depth_debug_menu()
 						ImGui::Checkbox(label, &value))
 					{
 						_depth_clear_index_override = value ? clear_index : std::numeric_limits<UINT>::max();
-						modified = true;
+						_reset_tracker = true;
 					}
 
 					ImGui::SameLine();
@@ -1133,7 +1139,7 @@ void reshade::d3d9::runtime_d3d9::draw_depth_debug_menu()
 		ImGui::Separator();
 		ImGui::Spacing();
 
-		if (modified)
+		if (_reset_tracker)
 			runtime::save_config();
 	}
 }
