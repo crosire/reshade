@@ -80,17 +80,21 @@ namespace ReShade.Setup
 
 		void OnChoosePresetDialog(object sender, RoutedEventArgs e)
 		{
-			string origFirstValue = (Preset.Text ?? string.Empty).Split(',')[0];
-
 			var dlg = new FileOpenDialog
 			{
 				CheckPathExists = true,
 				CheckFileExists = false,
 				Filter = "Preset Files (*.ini, *.txt)|*.ini;*.txt",
-				FileName = origFirstValue,
 				DefaultExt = ".ini",
-				InitialDirectory = Path.GetDirectoryName(origFirstValue),
 			};
+
+			string filename = Preset.Text ?? string.Empty;
+			filename = filename.Split(',')[0];
+			if (!string.IsNullOrEmpty(filename))
+			{
+				dlg.FileName = filename;
+				dlg.InitialDirectory = Path.GetDirectoryName(filename);
+			}
 
 			if (dlg.ShowDialog(this) == true)
 			{
@@ -100,16 +104,24 @@ namespace ReShade.Setup
 
 		void OnChooseFolderDialog(object sender, RoutedEventArgs e)
 		{
-			var target = e.Source as FrameworkElement;
-			string origFirstValue = (target.Tag as string ?? string.Empty).Split(',')[0].TrimEnd(Path.PathSeparator);
-
 			var dlg = new FileOpenDialog
 			{
 				Multiselect = true,
 				FolderPicker = true,
 				CheckPathExists = true,
-				InitialDirectory = origFirstValue
 			};
+
+			var target = e.Source as FrameworkElement;
+
+			string directory = target.Tag as string;
+			if (!string.IsNullOrEmpty(directory))
+			{
+				// Get first path in the list
+				directory = directory.Split(',')[0].TrimEnd(Path.PathSeparator);
+				// Make relative paths absolute (relative to the config file)
+				directory = Path.GetFullPath(Path.Combine(Path.GetDirectoryName(configFilePath), directory));
+				dlg.InitialDirectory = directory;
+			}
 
 			if (dlg.ShowDialog(this) == true)
 			{
