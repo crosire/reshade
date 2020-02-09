@@ -260,30 +260,24 @@ com_ptr<IDirect3DSurface9> reshade::d3d9::buffer_detection::find_best_depth_surf
 	}
 	else
 	{
-		for (const auto &[ds_surface, snapshot] : _counters_per_used_depth_surface)
+		for (const auto &[surface, snapshot] : _counters_per_used_depth_surface)
 		{
 			if (snapshot.stats.drawcalls == 0 || snapshot.stats.vertices == 0)
-				continue; // Ignore unused
+				continue; // Skip unused
 
 			D3DSURFACE_DESC desc;
-			ds_surface->GetDesc(&desc);
+			surface->GetDesc(&desc);
 
 			if (desc.MultiSampleType != D3DMULTISAMPLE_NONE)
 				continue; // MSAA depth buffers are not supported since they would have to be moved into a plain surface before attaching to a shader slot
 			if (width != 0 && height != 0 && !check_aspect_ratio(desc, width, height))
 				continue; // Not a good fit
 
-#if 1
-			const auto curr_weight = (snapshot.stats.vertices * (1.2f - float(snapshot.stats.drawcalls) / _stats.drawcalls));
-			const auto best_weight = (best_snapshot.stats.vertices * (1.2f - float(best_snapshot.stats.drawcalls) / _stats.vertices));
-#else
-			const auto curr_weight = snapshot.vertices;
-			const auto best_weight = best_snapshot.vertices;
-#endif
-
+			const auto curr_weight = snapshot.stats.vertices * (1.2f - static_cast<float>(snapshot.stats.drawcalls) / _stats.drawcalls);
+			const auto best_weight = best_snapshot.stats.vertices * (1.2f - static_cast<float>(best_snapshot.stats.drawcalls) / _stats.vertices);
 			if (curr_weight >= best_weight)
 			{
-				best_match = ds_surface;
+				best_match = surface;
 				best_snapshot = snapshot;
 
 				// Do not need to replace if format already support shader access

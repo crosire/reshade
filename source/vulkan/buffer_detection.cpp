@@ -84,7 +84,7 @@ reshade::vulkan::buffer_detection::depthstencil_info reshade::vulkan::buffer_det
 	}
 	else
 	{
-		for (auto &[depthstencil, snapshot] : _counters_per_used_depth_image)
+		for (const auto &[image, snapshot] : _counters_per_used_depth_image)
 		{
 			if (snapshot.stats.drawcalls == 0 || snapshot.stats.vertices == 0)
 				continue; // Skip unused
@@ -96,18 +96,22 @@ reshade::vulkan::buffer_detection::depthstencil_info reshade::vulkan::buffer_det
 
 			if (width != 0 && height != 0)
 			{
-				const float aspect_ratio = float(width) / float(height);
-				const float texture_aspect_ratio = float(snapshot.image_info.extent.width) / float(snapshot.image_info.extent.height);
+				float aspect_ratio = static_cast<float>(width) / static_cast<float>(height);
+				aspect_ratio -= static_cast<float>(snapshot.image_info.extent.width) / static_cast<float>(snapshot.image_info.extent.height);
 
-				const float width_factor = float(width) / float(snapshot.image_info.extent.width);
-				const float height_factor = float(height) / float(snapshot.image_info.extent.height);
+				const float width_factor = static_cast<float>(width) / snapshot.image_info.extent.width;
+				const float height_factor = static_cast<float>(height) / snapshot.image_info.extent.height;
 
-				if (std::fabs(texture_aspect_ratio - aspect_ratio) > 0.1f || width_factor > 1.85f || height_factor > 1.85f || width_factor < 0.5f || height_factor < 0.5f)
+				if (std::fabs(aspect_ratio) > 0.1f || width_factor > 1.85f || height_factor > 1.85f || width_factor < 0.5f || height_factor < 0.5f)
 					continue; // Not a good fit
 			}
 
-			if (snapshot.stats.drawcalls >= best_snapshot.stats.drawcalls)
+			const auto curr_weight = snapshot.stats.vertices * (1.2f - static_cast<float>(snapshot.stats.drawcalls) / _stats.drawcalls);
+			const auto best_weight = best_snapshot.stats.vertices * (1.2f - static_cast<float>(best_snapshot.stats.drawcalls) / _stats.vertices);
+			if (curr_weight >= best_weight)
+			{
 				best_snapshot = snapshot;
+			}
 		}
 	}
 

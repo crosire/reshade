@@ -172,29 +172,28 @@ reshade::opengl::buffer_detection::depthstencil_info reshade::opengl::buffer_det
 	}
 	else
 	{
-		for (auto &[source, snapshot] : _depth_source_table)
+		for (const auto &[image, snapshot] : _depth_source_table)
 		{
-			if (snapshot.stats.drawcalls == 0)
-				continue; // Skip candidates that were not used during rendering
+			if (snapshot.stats.drawcalls == 0 || snapshot.stats.vertices == 0)
+				continue; // Skip unused
 
 			if (width != 0 && height != 0)
 			{
-				if ((snapshot.width < std::floor(width * 0.95f) || snapshot.width > std::ceil(width * 1.05f)) ||
-					(snapshot.height < std::floor(height * 0.95f) || snapshot.height > std::ceil(height * 1.05f)))
+				float aspect_ratio = static_cast<float>(width) / static_cast<float>(height);
+				aspect_ratio -= static_cast<float>(snapshot.width) / static_cast<float>(snapshot.height);
+
+				const float width_factor = static_cast<float>(width) / snapshot.width;
+				const float height_factor = static_cast<float>(height) / snapshot.height;
+
+				if (std::fabs(aspect_ratio) > 0.1f || width_factor > 1.85f || height_factor > 1.85f || width_factor < 0.5f || height_factor < 0.5f)
 					continue; // Not a good fit
 			}
 
-#if 1
-			const auto curr_weight = snapshot.stats.vertices * (1.2f - float(snapshot.stats.drawcalls) / _stats.drawcalls);
-			const auto best_weight = best_snapshot.stats.vertices * (1.2f - float(best_snapshot.stats.drawcalls) / _stats.vertices);
-#else
-			const auto curr_weight = snapshot.vertices;
-			const auto best_weight = best_snapshot.vertices;
-#endif
-
+			const auto curr_weight = snapshot.stats.vertices * (1.2f - static_cast<float>(snapshot.stats.drawcalls) / _stats.drawcalls);
+			const auto best_weight = best_snapshot.stats.vertices * (1.2f - static_cast<float>(best_snapshot.stats.drawcalls) / _stats.vertices);
 			if (curr_weight >= best_weight)
 			{
-				best_match = source;
+				best_match = image;
 				best_snapshot = snapshot;
 			}
 		}
