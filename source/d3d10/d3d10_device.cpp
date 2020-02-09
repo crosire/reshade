@@ -64,9 +64,12 @@ ULONG   STDMETHODCALLTYPE D3D10Device::Release()
 	_dxgi_device->Release();
 
 	const ULONG ref = InterlockedDecrement(&_ref);
-	const ULONG ref_orig = _orig->Release();
 	if (ref != 0)
-		return ref;
+		return _orig->Release(), ref;
+
+	_buffer_detection.reset(true);
+
+	const ULONG ref_orig = _orig->Release();
 	if (ref_orig != 0) // Verify internal reference count
 		LOG(WARN) << "Reference count for ID3D10Device1 object " << this << " is inconsistent.";
 
