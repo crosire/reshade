@@ -584,7 +584,7 @@ void reshade::runtime::draw_ui()
 	}
 	else if (_show_clock || _show_fps || _show_frametime)
 	{
-		float window_height = ImGui::GetTextLineHeightWithSpacing();
+		float window_height = _imgui_context->FontBaseSize * _fps_scale + _imgui_context->Style.ItemSpacing.y;
 		window_height *= (_show_clock ? 1 : 0) + (_show_fps ? 1 : 0) + (_show_frametime ? 1 : 0);
 		window_height += _imgui_context->Style.FramePadding.y * 4.0f;
 
