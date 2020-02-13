@@ -947,6 +947,7 @@ bool reshade::d3d12::runtime_d3d12::init_texture(texture &texture)
 		LOG(ERROR) << "Failed to create texture '" << texture.unique_name << "' ("
 			"Width = " << desc.Width << ", "
 			"Height = " << desc.Height << ", "
+			"Levels = " << desc.MipLevels << ", "
 			"Format = " << desc.Format << ")! "
 			"HRESULT is " << hr << '.';
 		return false;
