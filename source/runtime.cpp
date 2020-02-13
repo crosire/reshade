@@ -98,7 +98,7 @@ reshade::runtime::runtime() :
 	_global_preprocessor_definitions({
 		"RESHADE_DEPTH_LINEARIZATION_FAR_PLANE=1000.0",
 		"RESHADE_DEPTH_INPUT_IS_UPSIDE_DOWN=0",
-		"RESHADE_DEPTH_INPUT_IS_REVERSED=1",
+		"RESHADE_DEPTH_INPUT_IS_REVERSED=0",
 		"RESHADE_DEPTH_INPUT_IS_LOGARITHMIC=0" }),
 	_reload_key_data(),
 	_effects_key_data(),
