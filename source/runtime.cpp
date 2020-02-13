@@ -141,6 +141,28 @@ bool reshade::runtime::on_init(input::window_handle window)
 {
 	LOG(INFO) << "Recreated runtime environment on runtime " << this << '.';
 
+	{ // Change configuration filename depending on the monitor this window sits in
+		struct monitor_enum_data
+		{
+			HMONITOR monitor;
+			int monitor_index;
+		};
+
+		monitor_enum_data data;
+		data.monitor = MonitorFromWindow(static_cast<HWND>(window), MONITOR_DEFAULTTONEAREST);
+		data.monitor_index = 0;
+
+		EnumDisplayMonitors(nullptr, nullptr, [](HMONITOR hMonitor, HDC, LPRECT, LPARAM dwData) -> BOOL {
+			auto &data = *reinterpret_cast<monitor_enum_data *>(dwData);
+			if (data.monitor != hMonitor)
+				return data.monitor_index++, TRUE;
+			return FALSE;
+		}, reinterpret_cast<LPARAM>(&data));
+
+		if (data.monitor_index != 0) // Do not change filename for the first monitor
+			_configuration_path.replace_filename("ReShade " + std::to_string(data.monitor_index) + ".ini");
+	}
+
 	_input = input::register_window(window);
 
 	// Reset frame count to zero so effects are loaded in 'update_and_render_effects'
