@@ -10,7 +10,7 @@
 #include "buffer_detection.hpp"
 
 #pragma warning(push)
-#pragma warning(disable: 4100 4127 4324) // Disable a bunch of warnings thrown by VMA code
+#pragma warning(disable: 4100 4127 4324 4703) // Disable a bunch of warnings thrown by VMA code
 #include <vk_mem_alloc.h>
 #pragma warning(pop)
 
