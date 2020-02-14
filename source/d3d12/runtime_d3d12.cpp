@@ -1367,6 +1367,8 @@ void reshade::d3d12::runtime_d3d12::render_imgui_draw_data(ImDrawData *draw_data
 	// Create and grow vertex/index buffers if needed
 	if (_imgui_index_buffer_size[buffer_index] < draw_data->TotalIdxCount)
 	{
+		wait_for_command_queue(); // Be safe and ensure nothing still uses this buffer
+
 		_imgui_index_buffer[buffer_index].reset();
 
 		const int new_size = draw_data->TotalIdxCount + 10000;
@@ -1388,6 +1390,8 @@ void reshade::d3d12::runtime_d3d12::render_imgui_draw_data(ImDrawData *draw_data
 	}
 	if (_imgui_vertex_buffer_size[buffer_index] < draw_data->TotalVtxCount)
 	{
+		wait_for_command_queue();
+
 		_imgui_vertex_buffer[buffer_index].reset();
 
 		const int new_size = draw_data->TotalVtxCount + 5000;

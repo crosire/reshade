@@ -2002,7 +2002,8 @@ void reshade::vulkan::runtime_vk::render_imgui_draw_data(ImDrawData *draw_data)
 	// Create and grow vertex/index buffers if needed
 	if (_imgui_index_buffer_size[buffer_index] < draw_data->TotalIdxCount)
 	{
-		// Memory should not be in use, since there are buffers for multiple frames, so can free safely
+		wait_for_command_buffers(); // Be safe and ensure nothing still uses this buffer
+
 		vmaDestroyBuffer(_alloc, _imgui_index_buffer[buffer_index], _imgui_index_mem[buffer_index]);
 
 		const int new_size = draw_data->TotalIdxCount + 10000;
@@ -2015,6 +2016,8 @@ void reshade::vulkan::runtime_vk::render_imgui_draw_data(ImDrawData *draw_data)
 	}
 	if (_imgui_vertex_buffer_size[buffer_index] < draw_data->TotalVtxCount)
 	{
+		wait_for_command_buffers();
+
 		vmaDestroyBuffer(_alloc, _imgui_vertex_buffer[buffer_index], _imgui_vertex_mem[buffer_index]);
 
 		const int new_size = draw_data->TotalVtxCount + 5000;
