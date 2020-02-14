@@ -2723,7 +2723,7 @@ void reshade::runtime::draw_technique_editor()
 	}
 
 	// Move the selected technique to the position of the mouse in the list
-	if (_selected_technique < _techniques.size() && ImGui::IsMouseDragging())
+	if (_selected_technique < _techniques.size() && ImGui::IsMouseDragging(ImGuiMouseButton_Left))
 	{
 		if (hovered_technique_index < _techniques.size() && hovered_technique_index != _selected_technique)
 		{
