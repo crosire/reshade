@@ -26,7 +26,7 @@ namespace reshade::vulkan
 		VkPipelineLayout pipeline_layout = VK_NULL_HANDLE;
 		VkDescriptorSetLayout set_layout = VK_NULL_HANDLE;
 		VkBuffer ubo = VK_NULL_HANDLE;
-		VkDeviceMemory ubo_mem = VK_NULL_HANDLE;
+		VmaAllocation ubo_mem = VK_NULL_HANDLE;
 		std::vector<VkDescriptorImageInfo> image_bindings;
 		uint32_t depth_image_binding = std::numeric_limits<uint32_t>::max();
 	};
@@ -36,7 +36,7 @@ namespace reshade::vulkan
 		~vulkan_tex_data()
 		{
 			const VkLayerDispatchTable &vk = runtime->vk;
-			vk.DestroyImage(runtime->_device, image, nullptr);
+			vmaDestroyImage(runtime->_alloc, image, image_mem);
 			if (view[0] != VK_NULL_HANDLE)
 				vk.DestroyImageView(runtime->_device, view[0], nullptr);
 			if (view[1] != view[0])
@@ -53,6 +53,7 @@ namespace reshade::vulkan
 
 		VkImage image = VK_NULL_HANDLE;
 		VkImageView view[4] = {};
+		VmaAllocation image_mem = VK_NULL_HANDLE;
 		VkFormat formats[2] = {};
 		runtime_vk *runtime = nullptr;
 #if RESHADE_GUI
@@ -189,6 +190,41 @@ reshade::vulkan::runtime_vk::runtime_vk(VkDevice device, VkPhysicalDevice physic
 	vk.GetDeviceQueue(_device, _queue_family_index, 0, &_queue);
 	assert(_queue != VK_NULL_HANDLE);
 
+	{	VmaVulkanFunctions functions;
+		functions.vkGetPhysicalDeviceProperties = instance_table.GetPhysicalDeviceProperties;
+		functions.vkGetPhysicalDeviceMemoryProperties = instance_table.GetPhysicalDeviceMemoryProperties;
+		functions.vkAllocateMemory = device_table.AllocateMemory;
+		functions.vkFreeMemory = device_table.FreeMemory;
+		functions.vkMapMemory = device_table.MapMemory;
+		functions.vkUnmapMemory = device_table.UnmapMemory;
+		functions.vkFlushMappedMemoryRanges = device_table.FlushMappedMemoryRanges;
+		functions.vkInvalidateMappedMemoryRanges = device_table.InvalidateMappedMemoryRanges;
+		functions.vkBindBufferMemory = device_table.BindBufferMemory;
+		functions.vkBindImageMemory = device_table.BindImageMemory;
+		functions.vkGetBufferMemoryRequirements = device_table.GetBufferMemoryRequirements;
+		functions.vkGetImageMemoryRequirements = device_table.GetImageMemoryRequirements;
+		functions.vkCreateBuffer = device_table.CreateBuffer;
+		functions.vkDestroyBuffer = device_table.DestroyBuffer;
+		functions.vkCreateImage = device_table.CreateImage;
+		functions.vkDestroyImage = device_table.DestroyImage;
+		functions.vkCmdCopyBuffer = device_table.CmdCopyBuffer;
+		functions.vkGetBufferMemoryRequirements2KHR = device_table.GetBufferMemoryRequirements2;
+		functions.vkGetImageMemoryRequirements2KHR = device_table.GetImageMemoryRequirements2;
+		functions.vkBindBufferMemory2KHR = device_table.BindBufferMemory2;
+		functions.vkBindImageMemory2KHR = device_table.BindImageMemory2;
+		functions.vkGetPhysicalDeviceMemoryProperties2KHR = instance_table.GetPhysicalDeviceMemoryProperties2;
+
+		VmaAllocatorCreateInfo create_info = {};
+		// The runtime runs in a single thread, so no synchronization necessary
+		create_info.flags = VMA_ALLOCATOR_CREATE_EXTERNALLY_SYNCHRONIZED_BIT;
+		create_info.physicalDevice = physical_device;
+		create_info.device = _device;
+		create_info.pVulkanFunctions = &functions;
+		create_info.vulkanApiVersion = VK_API_VERSION_1_1; // Vulkan 1.1 is guaranteed by code in vulkan_hooks.cpp
+
+		vmaCreateAllocator(&create_info, &_alloc);
+	}
+
 #if RESHADE_GUI
 	subscribe_to_ui("Vulkan", [this]() {
 		// Add some information about the device and driver to the UI
@@ -211,6 +247,10 @@ reshade::vulkan::runtime_vk::runtime_vk(VkDevice device, VkPhysicalDevice physic
 	});
 #endif
 }
+reshade::vulkan::runtime_vk::~runtime_vk()
+{
+	vmaDestroyAllocator(_alloc);
+}
 
 bool reshade::vulkan::runtime_vk::on_init(VkSwapchainKHR swapchain, const VkSwapchainCreateInfoKHR &desc, HWND hwnd)
 {
@@ -231,8 +271,8 @@ bool reshade::vulkan::runtime_vk::on_init(VkSwapchainKHR swapchain, const VkSwap
 	assert(_backbuffer_format != VK_FORMAT_UNDEFINED);
 	_backbuffer_image = create_image(
 		_width, _height, 1, _backbuffer_format,
-		VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
-		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_IMAGE_CREATE_MUTABLE_FORMAT_BIT);
+		VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VMA_MEMORY_USAGE_GPU_ONLY,
+		VK_IMAGE_CREATE_MUTABLE_FORMAT_BIT, VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT);
 	if (_backbuffer_image == VK_NULL_HANDLE)
 		return false;
 	_backbuffer_image_view[0] = create_image_view(_backbuffer_image, make_format_normal(_backbuffer_format), 1, VK_IMAGE_ASPECT_COLOR_BIT);
@@ -246,8 +286,7 @@ bool reshade::vulkan::runtime_vk::on_init(VkSwapchainKHR swapchain, const VkSwap
 	assert(_effect_stencil_format != VK_FORMAT_UNDEFINED);
 	_effect_stencil = create_image(
 		_width, _height, 1, _effect_stencil_format,
-		VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
-		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+		VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
 	if (_effect_stencil == VK_NULL_HANDLE)
 		return false;
 	_effect_stencil_view = create_image_view(_effect_stencil, _effect_stencil_format, 1, VK_IMAGE_ASPECT_STENCIL_BIT);
@@ -409,7 +448,7 @@ bool reshade::vulkan::runtime_vk::on_init(VkSwapchainKHR swapchain, const VkSwap
 
 	// Create an empty image, which is used when no depth buffer was detected (since you cannot bind nothing to a descriptor in Vulkan)
 	// Use VK_FORMAT_R16_SFLOAT format, since it is mandatory according to the spec (see https://www.khronos.org/registry/vulkan/specs/1.1/html/vkspec.html#features-required-format-support)
-	_empty_depth_image = create_image(1, 1, 1, VK_FORMAT_R16_SFLOAT, VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+	_empty_depth_image = create_image(1, 1, 1, VK_FORMAT_R16_SFLOAT, VK_IMAGE_USAGE_SAMPLED_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
 	if (_empty_depth_image == VK_NULL_HANDLE)
 		return false;
 	_empty_depth_image_view = create_image_view(_empty_depth_image, VK_FORMAT_R16_SFLOAT, 1, VK_IMAGE_ASPECT_COLOR_BIT);
@@ -489,16 +528,17 @@ void reshade::vulkan::runtime_vk::on_reset()
 	_effect_descriptor_layout = VK_NULL_HANDLE;
 
 #if RESHADE_GUI
-	vk.FreeMemory(_device, _imgui_index_mem, nullptr);
-	_imgui_index_mem = VK_NULL_HANDLE;
-	vk.DestroyBuffer(_device, _imgui_index_buffer, nullptr);
-	_imgui_index_buffer = VK_NULL_HANDLE;
-	_imgui_index_buffer_size = 0;
-	vk.FreeMemory(_device, _imgui_vertex_mem, nullptr);
-	_imgui_vertex_mem = VK_NULL_HANDLE;
-	vk.DestroyBuffer(_device, _imgui_vertex_buffer, nullptr);
-	_imgui_vertex_buffer = VK_NULL_HANDLE;
-	_imgui_vertex_buffer_size = 0;
+	for (unsigned int i = 0; i < NUM_IMGUI_BUFFERS; ++i)
+	{
+		vmaDestroyBuffer(_alloc, _imgui_index_buffer[i], _imgui_index_mem[i]);
+		_imgui_index_mem[i] = VK_NULL_HANDLE;
+		_imgui_index_buffer[i] = VK_NULL_HANDLE;
+		_imgui_index_buffer_size[i] = 0;
+		vmaDestroyBuffer(_alloc, _imgui_vertex_buffer[i], _imgui_vertex_mem[i]);
+		_imgui_vertex_mem[i] = VK_NULL_HANDLE;
+		_imgui_vertex_buffer[i] = VK_NULL_HANDLE;
+		_imgui_vertex_buffer_size[i] = 0;
+	}
 
 	vk.DestroyPipeline(_device, _imgui_pipeline, nullptr);
 	_imgui_pipeline = VK_NULL_HANDLE;
@@ -520,9 +560,8 @@ void reshade::vulkan::runtime_vk::on_reset()
 	_depth_image_view = VK_NULL_HANDLE;
 #endif
 
-	// Free all device memory allocated via the 'create_image' and 'create_buffer' functions
-	for (VkDeviceMemory allocation : _allocations)
-		vk.FreeMemory(_device, allocation, nullptr);
+	// Free all unmanaged device memory allocated via the 'create_image' and 'create_buffer' functions
+	vmaFreeMemoryPages(_alloc, _allocations.size(), _allocations.data());
 	_allocations.clear();
 }
 
@@ -597,88 +636,83 @@ bool reshade::vulkan::runtime_vk::capture_screenshot(uint8_t *buffer) const
 	const size_t data_pitch = _width * 4;
 
 	vk_handle<VK_OBJECT_TYPE_BUFFER> intermediate(_device, vk);
-	vk_handle<VK_OBJECT_TYPE_DEVICE_MEMORY> intermediate_mem(_device, vk);
+	VmaAllocation intermediate_mem = VK_NULL_HANDLE;
 
 	{   VkBufferCreateInfo create_info { VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO };
-		create_info.size = _width * _height * 4;
-		create_info.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT;
-		create_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+		create_info.size = data_pitch * _height;
+		create_info.usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT;
 
-		check_result(vk.CreateBuffer(_device, &create_info, nullptr, &intermediate)) false;
+		VmaAllocationCreateInfo alloc_info = {};
+		alloc_info.usage = VMA_MEMORY_USAGE_GPU_TO_CPU;
 
-		VkMemoryRequirements reqs = {};
-		vk.GetBufferMemoryRequirements(_device, intermediate, &reqs);
-
-		VkMemoryAllocateInfo alloc_info { VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO };
-		alloc_info.allocationSize = reqs.size;
-		alloc_info.memoryTypeIndex = find_memory_type_index(_memory_props,
-			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, reqs.memoryTypeBits);
-
-		if (alloc_info.memoryTypeIndex == std::numeric_limits<uint32_t>::max())
-			return false;
-
-		vk_handle<VK_OBJECT_TYPE_DEVICE_MEMORY> mem(_device, vk);
-		check_result(vk.AllocateMemory(_device, &alloc_info, nullptr, &intermediate_mem)) false;
-		check_result(vk.BindBufferMemory(_device, intermediate, intermediate_mem, 0)) false;
+		check_result(vmaCreateBuffer(_alloc, &create_info, &alloc_info, &intermediate, &intermediate_mem, nullptr)) false;
 	}
 
-	if (!begin_command_buffer())
-		return false;
-	const VkCommandBuffer cmd_list = _cmd_buffers[_cmd_index].first;
-
-	transition_layout(vk, cmd_list, _swapchain_images[_swap_index], VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
+	// Copy image into download buffer
+	uint8_t *mapped_data = nullptr;
+	if (begin_command_buffer())
 	{
-		VkBufferImageCopy copy;
-		copy.bufferOffset = 0;
-		copy.bufferRowLength = _width;
-		copy.bufferImageHeight = _height;
-		copy.imageOffset = { 0, 0, 0 };
-		copy.imageExtent = { _width, _height, 1 };
-		copy.imageSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 };
+		const VkCommandBuffer cmd_list = _cmd_buffers[_cmd_index].first;
 
-		vk.CmdCopyImageToBuffer(cmd_list, _swapchain_images[_swap_index], VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, intermediate, 1, &copy);
-	}
-	transition_layout(vk, cmd_list, _swapchain_images[_swap_index], VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
-
-	// Execute and wait for completion
-	execute_command_buffer();
-
-	// Copy data from intermediate image into output buffer
-	uint8_t *mapped_data;
-	check_result(vk.MapMemory(_device, intermediate_mem, 0, VK_WHOLE_SIZE, 0, reinterpret_cast<void **>(&mapped_data))) false;
-
-	for (uint32_t y = 0; y < _height; y++, buffer += data_pitch, mapped_data += data_pitch)
-	{
-		if (_color_bit_depth == 10)
+		transition_layout(vk, cmd_list, _swapchain_images[_swap_index], VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
 		{
-			for (uint32_t x = 0; x < data_pitch; x += 4)
+			VkBufferImageCopy copy;
+			copy.bufferOffset = 0;
+			copy.bufferRowLength = _width;
+			copy.bufferImageHeight = _height;
+			copy.imageOffset = { 0, 0, 0 };
+			copy.imageExtent = { _width, _height, 1 };
+			copy.imageSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 };
+
+			vk.CmdCopyImageToBuffer(cmd_list, _swapchain_images[_swap_index], VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, intermediate, 1, &copy);
+		}
+		transition_layout(vk, cmd_list, _swapchain_images[_swap_index], VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
+
+		// Execute and wait for completion
+		execute_command_buffer();
+
+		// Copy data from intermediate image into output buffer
+		if (vmaMapMemory(_alloc, intermediate_mem, reinterpret_cast<void **>(&mapped_data)) != VK_SUCCESS)
+			mapped_data = nullptr;
+	}
+
+	if (mapped_data != nullptr)
+	{
+		for (uint32_t y = 0; y < _height; y++, buffer += data_pitch, mapped_data += data_pitch)
+		{
+			if (_color_bit_depth == 10)
 			{
-				const uint32_t rgba = *reinterpret_cast<const uint32_t *>(mapped_data + x);
-				// Divide by 4 to get 10-bit range (0-1023) into 8-bit range (0-255)
-				buffer[x + 0] = ((rgba & 0x3FF) / 4) & 0xFF;
-				buffer[x + 1] = (((rgba & 0xFFC00) >> 10) / 4) & 0xFF;
-				buffer[x + 2] = (((rgba & 0x3FF00000) >> 20) / 4) & 0xFF;
-				buffer[x + 3] = 0xFF;
-				if (_backbuffer_format >= VK_FORMAT_A2B10G10R10_UNORM_PACK32 && _backbuffer_format <= VK_FORMAT_A2B10G10R10_SINT_PACK32)
-					std::swap(buffer[x + 0], buffer[x + 2]);
+				for (uint32_t x = 0; x < data_pitch; x += 4)
+				{
+					const uint32_t rgba = *reinterpret_cast<const uint32_t *>(mapped_data + x);
+					// Divide by 4 to get 10-bit range (0-1023) into 8-bit range (0-255)
+					buffer[x + 0] = ((rgba & 0x3FF) / 4) & 0xFF;
+					buffer[x + 1] = (((rgba & 0xFFC00) >> 10) / 4) & 0xFF;
+					buffer[x + 2] = (((rgba & 0x3FF00000) >> 20) / 4) & 0xFF;
+					buffer[x + 3] = 0xFF;
+					if (_backbuffer_format >= VK_FORMAT_A2B10G10R10_UNORM_PACK32 && _backbuffer_format <= VK_FORMAT_A2B10G10R10_SINT_PACK32)
+						std::swap(buffer[x + 0], buffer[x + 2]);
+				}
+			}
+			else
+			{
+				std::memcpy(buffer, mapped_data, data_pitch);
+
+				for (uint32_t x = 0; x < data_pitch; x += 4)
+				{
+					buffer[x + 3] = 0xFF; // Clear alpha channel
+					if (_backbuffer_format >= VK_FORMAT_B8G8R8A8_UNORM && _backbuffer_format <= VK_FORMAT_B8G8R8A8_SRGB)
+						std::swap(buffer[x + 0], buffer[x + 2]); // Format is BGRA, but output should be RGBA, so flip channels
+				}
 			}
 		}
-		else
-		{
-			std::memcpy(buffer, mapped_data, data_pitch);
 
-			for (uint32_t x = 0; x < data_pitch; x += 4)
-			{
-				buffer[x + 3] = 0xFF; // Clear alpha channel
-				if (_backbuffer_format >= VK_FORMAT_B8G8R8A8_UNORM && _backbuffer_format <= VK_FORMAT_B8G8R8A8_SRGB)
-					std::swap(buffer[x + 0], buffer[x + 2]); // Format is BGRA, but output should be RGBA, so flip channels
-			}
-		}
+		vmaUnmapMemory(_alloc, intermediate_mem);
 	}
 
-	vk.UnmapMemory(_device, intermediate_mem);
+	vmaFreeMemory(_alloc, intermediate_mem);
 
-	return true;
+	return mapped_data != nullptr;
 }
 
 bool reshade::vulkan::runtime_vk::init_effect(size_t index)
@@ -772,8 +806,8 @@ bool reshade::vulkan::runtime_vk::init_effect(size_t index)
 	{
 		effect_data.ubo = create_buffer(
 			effect.uniform_data_storage.size(),
-			VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+			VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU,
+			0, 0, &effect_data.ubo_mem);
 		if (effect_data.ubo == VK_NULL_HANDLE)
 			return false;
 	}
@@ -1246,9 +1280,8 @@ void reshade::vulkan::runtime_vk::unload_effect(size_t index)
 		effect_data.pipeline_layout = VK_NULL_HANDLE;
 		vk.DestroyDescriptorSetLayout(_device, effect_data.set_layout, nullptr);
 		effect_data.set_layout = VK_NULL_HANDLE;
-		vk.DestroyBuffer(_device, effect_data.ubo, nullptr);
+		vmaDestroyBuffer(_alloc, effect_data.ubo, effect_data.ubo_mem);
 		effect_data.ubo = VK_NULL_HANDLE;
-		vk.FreeMemory(_device, effect_data.ubo_mem, nullptr);
 		effect_data.ubo_mem = VK_NULL_HANDLE;
 	}
 }
@@ -1268,8 +1301,7 @@ void reshade::vulkan::runtime_vk::unload_effects()
 		vk.DestroyQueryPool(_device, data.query_pool, nullptr);
 		vk.DestroyPipelineLayout(_device, data.pipeline_layout, nullptr);
 		vk.DestroyDescriptorSetLayout(_device, data.set_layout, nullptr);
-		vk.DestroyBuffer(_device, data.ubo, nullptr);
-		vk.FreeMemory(_device, data.ubo_mem, nullptr);
+		vmaDestroyBuffer(_alloc, data.ubo, data.ubo_mem);
 	}
 
 	for (auto &[hash, sampler] : _effect_sampler_states)
@@ -1347,9 +1379,8 @@ bool reshade::vulkan::runtime_vk::init_texture(texture &texture)
 
 	impl->image = create_image(
 		texture.width, texture.height, texture.levels, impl->formats[0],
-		usage_flags,
-		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-		image_flags);
+		usage_flags, VMA_MEMORY_USAGE_GPU_ONLY,
+		image_flags, 0, &impl->image_mem);
 	if (impl->image == VK_NULL_HANDLE)
 		return false;
 
@@ -1428,60 +1459,69 @@ void reshade::vulkan::runtime_vk::upload_texture(const texture &texture, const u
 	assert(impl != nullptr && pixels != nullptr && texture.impl_reference == texture_reference::none);
 
 	// Allocate host memory for upload
-	vk_handle<VK_OBJECT_TYPE_BUFFER> intermediate(_device, vk,
-		create_buffer(texture.width * texture.height * 4, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT));
-	if (intermediate == VK_NULL_HANDLE)
-		return;
-	vk_handle<VK_OBJECT_TYPE_DEVICE_MEMORY> intermediate_mem(_device, vk, _allocations.back());
-	_allocations.pop_back(); // Take ownership of the allocation
+	vk_handle<VK_OBJECT_TYPE_BUFFER> intermediate(_device, vk);
+	VmaAllocation intermediate_mem = VK_NULL_HANDLE;
+
+	{   VkBufferCreateInfo create_info { VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO };
+		create_info.size = texture.width * texture.height * 4;
+		create_info.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+
+		VmaAllocationCreateInfo alloc_info = {};
+		alloc_info.usage = VMA_MEMORY_USAGE_CPU_ONLY;
+
+		check_result(vmaCreateBuffer(_alloc, &create_info, &alloc_info, &intermediate, &intermediate_mem, nullptr));
+	}
 
 	// Fill upload buffer with pixel data
-	uint8_t *mapped_data;
-	check_result(vk.MapMemory(_device, intermediate_mem, 0, VK_WHOLE_SIZE, 0, reinterpret_cast<void **>(&mapped_data)));
-
-	bool unsupported_format = false;
-	switch (texture.format)
+	uint8_t *mapped_data = nullptr;
+	if (vmaMapMemory(_alloc, intermediate_mem, reinterpret_cast<void **>(&mapped_data)) == VK_SUCCESS)
 	{
-	case reshadefx::texture_format::r8:
-		for (uint32_t y = 0; y < texture.height; ++y, mapped_data += texture.width * 1, pixels += texture.width * 4)
-			for (uint32_t x = 0; x < texture.width; ++x)
-				mapped_data[x] = pixels[x * 4];
-		break;
-	case reshadefx::texture_format::rg8:
-		for (uint32_t y = 0; y < texture.height; ++y, mapped_data += texture.width * 2, pixels += texture.width * 4)
-			for (uint32_t x = 0; x < texture.width; ++x)
-				mapped_data[x * 2 + 0] = pixels[x * 4 + 0],
-				mapped_data[x * 2 + 1] = pixels[x * 4 + 1];
-		break;
-	case reshadefx::texture_format::rgba8:
-		for (uint32_t y = 0; y < texture.height; ++y, mapped_data += texture.width * 4, pixels += texture.width * 4)
-			std::memcpy(mapped_data, pixels, texture.width * 4);
-		break;
-	default:
-		unsupported_format = true;
-		LOG(ERROR) << "Texture upload is not supported for format " << static_cast<unsigned int>(texture.format) << '!';
-		break;
+		switch (texture.format)
+		{
+		case reshadefx::texture_format::r8:
+			for (uint32_t y = 0; y < texture.height; ++y, mapped_data += texture.width * 1, pixels += texture.width * 4)
+				for (uint32_t x = 0; x < texture.width; ++x)
+					mapped_data[x] = pixels[x * 4];
+			break;
+		case reshadefx::texture_format::rg8:
+			for (uint32_t y = 0; y < texture.height; ++y, mapped_data += texture.width * 2, pixels += texture.width * 4)
+				for (uint32_t x = 0; x < texture.width; ++x)
+					mapped_data[x * 2 + 0] = pixels[x * 4 + 0],
+					mapped_data[x * 2 + 1] = pixels[x * 4 + 1];
+			break;
+		case reshadefx::texture_format::rgba8:
+			for (uint32_t y = 0; y < texture.height; ++y, mapped_data += texture.width * 4, pixels += texture.width * 4)
+				std::memcpy(mapped_data, pixels, texture.width * 4);
+			break;
+		default:
+			mapped_data = nullptr;
+			LOG(ERROR) << "Texture upload is not supported for format " << static_cast<unsigned int>(texture.format) << '!';
+			break;
+		}
+
+		vmaUnmapMemory(_alloc, intermediate_mem);
 	}
 
-	vk.UnmapMemory(_device, intermediate_mem);
+	if (mapped_data != nullptr && begin_command_buffer())
+	{
+		const VkCommandBuffer cmd_list = _cmd_buffers[_cmd_index].first;
 
-	if (unsupported_format || !begin_command_buffer())
-		return;
-	const VkCommandBuffer cmd_list = _cmd_buffers[_cmd_index].first;
+		transition_layout(vk, cmd_list, impl->image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+		{ // Copy data from upload buffer into target texture
+			VkBufferImageCopy copy_region = {};
+			copy_region.imageExtent = { texture.width, texture.height, 1u };
+			copy_region.imageSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 };
 
-	transition_layout(vk, cmd_list, impl->image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
-	{ // Copy data from upload buffer into target texture
-		VkBufferImageCopy copy_region = {};
-		copy_region.imageExtent = { texture.width, texture.height, 1u };
-		copy_region.imageSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 };
+			vk.CmdCopyBufferToImage(cmd_list, intermediate, impl->image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copy_region);
+		}
+		transition_layout(vk, cmd_list, impl->image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
-		vk.CmdCopyBufferToImage(cmd_list, intermediate, impl->image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copy_region);
+		generate_mipmaps(texture);
+
+		execute_command_buffer();
 	}
-	transition_layout(vk, cmd_list, impl->image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
-	generate_mipmaps(texture);
-
-	execute_command_buffer();
+	vmaFreeMemory(_alloc, intermediate_mem);
 }
 void reshade::vulkan::runtime_vk::generate_mipmaps(const texture &texture)
 {
@@ -1668,7 +1708,9 @@ void reshade::vulkan::runtime_vk::wait_for_command_buffers()
 	vk.DeviceWaitIdle(_device);
 }
 
-VkImage reshade::vulkan::runtime_vk::create_image(uint32_t width, uint32_t height, uint32_t levels, VkFormat format, VkImageUsageFlags usage_flags, VkMemoryPropertyFlags mem_flags, VkImageCreateFlags flags)
+VkImage reshade::vulkan::runtime_vk::create_image(uint32_t width, uint32_t height, uint32_t levels, VkFormat format,
+	VkImageUsageFlags usage, VmaMemoryUsage mem_usage,
+	VkImageCreateFlags flags, VmaAllocationCreateFlags mem_flags, VmaAllocation *out_mem)
 {
 	VkImageCreateInfo create_info { VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO };
 	create_info.flags = flags;
@@ -1679,56 +1721,80 @@ VkImage reshade::vulkan::runtime_vk::create_image(uint32_t width, uint32_t heigh
 	create_info.arrayLayers = 1;
 	create_info.samples = VK_SAMPLE_COUNT_1_BIT;
 	create_info.tiling = VK_IMAGE_TILING_OPTIMAL;
-	create_info.usage = usage_flags;
+	create_info.usage = usage;
 	create_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 	create_info.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 
+	VmaAllocation alloc = VK_NULL_HANDLE;
+	VmaAllocationCreateInfo alloc_info = {};
+	alloc_info.flags = mem_flags;
+	alloc_info.usage = mem_usage;
+
 	vk_handle<VK_OBJECT_TYPE_IMAGE> ret(_device, vk);
-	if (VkResult res = vk.CreateImage(_device, &create_info, nullptr, &ret); res != VK_SUCCESS)
+	const VkResult res = vmaCreateImage(_alloc, &create_info, &alloc_info, &ret, &alloc, nullptr);
+	if (res != VK_SUCCESS)
 	{
 		LOG(ERROR) << "Failed to create image ("
 			"Width = " << width << ", "
 			"Height = " << height << ", "
 			"Levels = " << levels << ", "
-			"Usage = " << std::hex << usage_flags << std::dec << ", "
+			"Usage = " << std::hex << usage << std::dec << ", "
 			"Format = " << format << ")! "
 			"Vulkan error code is " << res << '.';
+
+		if (out_mem != nullptr)
+			*out_mem = VK_NULL_HANDLE;
 		return VK_NULL_HANDLE;
 	}
 
-	if (mem_flags != 0)
-	{
-		VkMemoryRequirements reqs = {};
-		vk.GetImageMemoryRequirements(_device, ret, &reqs);
-
-		// TODO: Implement memory allocator. Shouldn't put everything in dedicated allocations, but eh.
-		VkMemoryAllocateInfo alloc_info { VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO };
-		alloc_info.allocationSize = reqs.size;
-		alloc_info.memoryTypeIndex = find_memory_type_index(_memory_props, mem_flags, reqs.memoryTypeBits);
-
-		if (alloc_info.memoryTypeIndex == std::numeric_limits<uint32_t>::max())
-			return VK_NULL_HANDLE;
-
-		VkMemoryDedicatedAllocateInfo dedicated_info { VK_STRUCTURE_TYPE_MEMORY_DEDICATED_ALLOCATE_INFO };
-		alloc_info.pNext = &dedicated_info;
-		dedicated_info.image = ret;
-
-		vk_handle<VK_OBJECT_TYPE_DEVICE_MEMORY> mem(_device, vk);
-		if (VkResult res = vk.AllocateMemory(_device, &alloc_info, nullptr, &mem); res != VK_SUCCESS)
-		{
-			LOG(ERROR) << "Failed to allocate memory for image ("
-				"Size = " << alloc_info.allocationSize << ")! "
-				"Vulkan error code is " << res << '.';
-			return VK_NULL_HANDLE;
-		}
-
-		check_result(vk.BindImageMemory(_device, ret, mem, 0)) VK_NULL_HANDLE;
-
-		_allocations.push_back(mem.release());
-	}
+	if (out_mem != nullptr)
+		*out_mem = alloc;
+	else
+		_allocations.push_back(alloc);
 
 	return ret.release();
 }
+VkBuffer reshade::vulkan::runtime_vk::create_buffer(VkDeviceSize size,
+	VkBufferUsageFlags usage, VmaMemoryUsage mem_usage,
+	VkBufferCreateFlags flags, VmaAllocationCreateFlags mem_flags, VmaAllocation *out_mem)
+{
+	VkBufferCreateInfo create_info { VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO };
+	create_info.flags = flags;
+	create_info.size = size;
+	create_info.usage = usage;
+	create_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+	VmaAllocation alloc = VK_NULL_HANDLE;
+	VmaAllocationCreateInfo alloc_info = {};
+	alloc_info.flags = mem_flags;
+	alloc_info.usage = mem_usage;
+
+	// Make sure host visible allocations are coherent, since no explicit flushing is performed
+	if (mem_usage == VMA_MEMORY_USAGE_CPU_TO_GPU)
+		alloc_info.requiredFlags |= VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+
+	vk_handle<VK_OBJECT_TYPE_BUFFER> ret(_device, vk);
+	const VkResult res = vmaCreateBuffer(_alloc, &create_info, &alloc_info, &ret, &alloc, nullptr);
+	if (res != VK_SUCCESS)
+	{
+		LOG(ERROR) << "Failed to create buffer ("
+			"Size = " << size << ", "
+			"Usage = " << std::hex << usage << std::dec << ")! "
+			"Vulkan error code is " << res << '.';
+
+		if (out_mem != nullptr)
+			*out_mem = VK_NULL_HANDLE;
+		return VK_NULL_HANDLE;
+	}
+
+	if (out_mem != nullptr)
+		*out_mem = alloc;
+	else
+		_allocations.push_back(alloc);
+
+	return ret.release();
+}
+
 VkImageView reshade::vulkan::runtime_vk::create_image_view(VkImage image, VkFormat format, uint32_t levels, VkImageAspectFlags aspect)
 {
 	VkImageViewCreateInfo create_info { VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO };
@@ -1742,56 +1808,6 @@ VkImageView reshade::vulkan::runtime_vk::create_image_view(VkImage image, VkForm
 	check_result(vk.CreateImageView(_device, &create_info, nullptr, &res)) VK_NULL_HANDLE;
 
 	return res.release();
-}
-VkBuffer reshade::vulkan::runtime_vk::create_buffer(VkDeviceSize size, VkBufferUsageFlags usage_flags, VkMemoryPropertyFlags mem_flags)
-{
-	VkBufferCreateInfo create_info { VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO };
-	create_info.size = size;
-	create_info.usage = usage_flags;
-	create_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-
-	vk_handle<VK_OBJECT_TYPE_BUFFER> ret(_device, vk);
-	if (VkResult res = vk.CreateBuffer(_device, &create_info, nullptr, &ret); res != VK_SUCCESS)
-	{
-		LOG(ERROR) << "Failed to create buffer ("
-			"Size = " << size << ", "
-			"Usage = " << std::hex << usage_flags << std::dec << ")! "
-			"Vulkan error code is " << res << '.';
-		return VK_NULL_HANDLE;
-	}
-
-	if (mem_flags != 0)
-	{
-		VkMemoryRequirements reqs = {};
-		vk.GetBufferMemoryRequirements(_device, ret, &reqs);
-
-		// TODO: Implement memory allocator. Shouldn't put everything in dedicated allocations, but eh.
-		VkMemoryAllocateInfo alloc_info { VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO };
-		alloc_info.allocationSize = reqs.size;
-		alloc_info.memoryTypeIndex = find_memory_type_index(_memory_props, mem_flags, reqs.memoryTypeBits);
-
-		if (alloc_info.memoryTypeIndex == std::numeric_limits<uint32_t>::max())
-			return VK_NULL_HANDLE;
-
-		VkMemoryDedicatedAllocateInfo dedicated_info { VK_STRUCTURE_TYPE_MEMORY_DEDICATED_ALLOCATE_INFO };
-		alloc_info.pNext = &dedicated_info;
-		dedicated_info.buffer = ret;
-
-		vk_handle<VK_OBJECT_TYPE_DEVICE_MEMORY> mem(_device, vk);
-		if (VkResult res = vk.AllocateMemory(_device, &alloc_info, nullptr, &mem); res != VK_SUCCESS)
-		{
-			LOG(ERROR) << "Failed to allocate memory for buffer ("
-				"Size = " << alloc_info.allocationSize << ")! "
-				"Vulkan error code is " << res << '.';
-			return VK_NULL_HANDLE;
-		}
-
-		check_result(vk.BindBufferMemory(_device, ret, mem, 0)) VK_NULL_HANDLE;
-
-		_allocations.push_back(mem.release());
-	}
-
-	return ret.release();
 }
 VkBufferView reshade::vulkan::runtime_vk::create_buffer_view(VkBuffer buffer, VkFormat format)
 {
@@ -1983,47 +1999,35 @@ void reshade::vulkan::runtime_vk::render_imgui_draw_data(ImDrawData *draw_data)
 	// Need to multi-buffer vertex data so not to modify data below when the previous frame is still in flight
 	const unsigned int buffer_index = _framecount % NUM_IMGUI_BUFFERS;
 
-	// Attempt to allocate memory if it failed previously
-	bool resize_mem = _imgui_index_buffer == VK_NULL_HANDLE || _imgui_vertex_buffer == VK_NULL_HANDLE;
-
 	// Create and grow vertex/index buffers if needed
-	if (_imgui_index_buffer_size < draw_data->TotalIdxCount * sizeof(ImDrawIdx))
+	if (_imgui_index_buffer_size[buffer_index] < draw_data->TotalIdxCount)
 	{
-		resize_mem = true;
-		_imgui_index_buffer_size = (draw_data->TotalIdxCount + 10000) * sizeof(ImDrawIdx);
-	}
-	if (_imgui_vertex_buffer_size < draw_data->TotalVtxCount * sizeof(ImDrawVert))
-	{
-		resize_mem = true;
-		_imgui_vertex_buffer_size = (draw_data->TotalVtxCount + 5000) * sizeof(ImDrawVert);
-	}
+		// Memory should not be in use, since there are buffers for multiple frames, so can free safely
+		vmaDestroyBuffer(_alloc, _imgui_index_buffer[buffer_index], _imgui_index_mem[buffer_index]);
 
-	if (resize_mem)
-	{
-		wait_for_command_buffers(); // Make sure memory is not currently in use before freeing it
-
-		vk.FreeMemory(_device, _imgui_index_mem, nullptr);
-		_imgui_index_mem = VK_NULL_HANDLE;
-		vk.DestroyBuffer(_device, _imgui_index_buffer, nullptr);
-		_imgui_index_buffer = create_buffer(_imgui_index_buffer_size * NUM_IMGUI_BUFFERS, VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
-		if (_imgui_index_buffer == VK_NULL_HANDLE)
+		const int new_size = draw_data->TotalIdxCount + 10000;
+		_imgui_index_buffer[buffer_index] = create_buffer(new_size * sizeof(ImDrawIdx),
+			VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU,
+			0, 0, &_imgui_index_mem[buffer_index]);
+		if (_imgui_index_buffer[buffer_index] == VK_NULL_HANDLE)
 			return;
-		_imgui_index_mem = _allocations.back();
-		_allocations.pop_back();
+		_imgui_index_buffer_size[buffer_index] = new_size;
+	}
+	if (_imgui_vertex_buffer_size[buffer_index] < draw_data->TotalVtxCount)
+	{
+		vmaDestroyBuffer(_alloc, _imgui_vertex_buffer[buffer_index], _imgui_vertex_mem[buffer_index]);
 
-		vk.FreeMemory(_device, _imgui_vertex_mem, nullptr);
-		_imgui_vertex_mem = VK_NULL_HANDLE;
-		vk.DestroyBuffer(_device, _imgui_vertex_buffer, nullptr);
-		_imgui_vertex_buffer = create_buffer(_imgui_vertex_buffer_size * NUM_IMGUI_BUFFERS, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
-		if (_imgui_vertex_buffer == VK_NULL_HANDLE)
+		const int new_size = draw_data->TotalVtxCount + 5000;
+		_imgui_vertex_buffer[buffer_index] = create_buffer(new_size * sizeof(ImDrawVert),
+			VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU,
+			0, 0, &_imgui_vertex_mem[buffer_index]);
+		if (_imgui_vertex_buffer[buffer_index] == VK_NULL_HANDLE)
 			return;
-		_imgui_vertex_mem = _allocations.back();
-		_allocations.pop_back();
+		_imgui_vertex_buffer_size[buffer_index] = new_size;
 	}
 
-	// Map only the memory portion associated with the current frame
 	if (ImDrawIdx *idx_dst;
-		vk.MapMemory(_device, _imgui_index_mem, _imgui_index_buffer_size * buffer_index, _imgui_index_buffer_size, 0, reinterpret_cast<void **>(&idx_dst)) == VK_SUCCESS)
+		vmaMapMemory(_alloc, _imgui_index_mem[buffer_index], reinterpret_cast<void **>(&idx_dst)) == VK_SUCCESS)
 	{
 		for (int n = 0; n < draw_data->CmdListsCount; ++n)
 		{
@@ -2032,10 +2036,10 @@ void reshade::vulkan::runtime_vk::render_imgui_draw_data(ImDrawData *draw_data)
 			idx_dst += draw_list->IdxBuffer.Size;
 		}
 
-		vk.UnmapMemory(_device, _imgui_index_mem);
+		vmaUnmapMemory(_alloc, _imgui_index_mem[buffer_index]);
 	}
 	if (ImDrawVert *vtx_dst;
-		vk.MapMemory(_device, _imgui_vertex_mem, _imgui_vertex_buffer_size * buffer_index, _imgui_vertex_buffer_size, 0, reinterpret_cast<void **>(&vtx_dst)) == VK_SUCCESS)
+		vmaMapMemory(_alloc, _imgui_vertex_mem[buffer_index], reinterpret_cast<void **>(&vtx_dst)) == VK_SUCCESS)
 	{
 		for (int n = 0; n < draw_data->CmdListsCount; ++n)
 		{
@@ -2044,7 +2048,7 @@ void reshade::vulkan::runtime_vk::render_imgui_draw_data(ImDrawData *draw_data)
 			vtx_dst += draw_list->VtxBuffer.Size;
 		}
 
-		vk.UnmapMemory(_device, _imgui_vertex_mem);
+		vmaUnmapMemory(_alloc, _imgui_vertex_mem[buffer_index]);
 	}
 
 	if (!begin_command_buffer())
@@ -2073,10 +2077,9 @@ void reshade::vulkan::runtime_vk::render_imgui_draw_data(ImDrawData *draw_data)
 	vk.CmdPushConstants(cmd_list, _imgui_pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT, sizeof(float) * 0, sizeof(float) * 2, scale);
 	vk.CmdPushConstants(cmd_list, _imgui_pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT, sizeof(float) * 2, sizeof(float) * 2, translate);
 
-	const VkDeviceSize index_offset = buffer_index * _imgui_index_buffer_size;
-	const VkDeviceSize vertex_offset = buffer_index * _imgui_vertex_buffer_size;
-	vk.CmdBindIndexBuffer(cmd_list, _imgui_index_buffer, index_offset, sizeof(ImDrawIdx) == 2 ? VK_INDEX_TYPE_UINT16 : VK_INDEX_TYPE_UINT32);
-	vk.CmdBindVertexBuffers(cmd_list, 0, 1, &_imgui_vertex_buffer, &vertex_offset);
+	VkDeviceSize vertex_offset = 0;
+	vk.CmdBindIndexBuffer(cmd_list, _imgui_index_buffer[buffer_index], 0, sizeof(ImDrawIdx) == 2 ? VK_INDEX_TYPE_UINT16 : VK_INDEX_TYPE_UINT32);
+	vk.CmdBindVertexBuffers(cmd_list, 0, 1, &_imgui_vertex_buffer[buffer_index], &vertex_offset);
 
 	// Set pipeline before binding viewport, since the pipelines has to enable dynamic viewport first
 	const VkViewport viewport = { 0.0f, 0.0f, draw_data->DisplaySize.x, draw_data->DisplaySize.y, 0.0f, 1.0f };

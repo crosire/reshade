@@ -151,6 +151,8 @@ VkResult VKAPI_CALL vkCreateInstance(const VkInstanceCreateInfo *pCreateInfo, co
 	INIT_INSTANCE_PROC(GetPhysicalDeviceMemoryProperties);
 	INIT_INSTANCE_PROC(GetPhysicalDeviceQueueFamilyProperties);
 	INIT_INSTANCE_PROC(EnumerateDeviceExtensionProperties);
+	// ---- Core 1_1 commands
+	INIT_INSTANCE_PROC(GetPhysicalDeviceMemoryProperties2);
 	// ---- VK_KHR_surface extension commands
 	INIT_INSTANCE_PROC(DestroySurfaceKHR);
 	// ---- VK_KHR_win32_surface extension commands
@@ -375,6 +377,8 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	INIT_DEVICE_PROC(FreeMemory);
 	INIT_DEVICE_PROC(MapMemory);
 	INIT_DEVICE_PROC(UnmapMemory);
+	INIT_DEVICE_PROC(FlushMappedMemoryRanges);
+	INIT_DEVICE_PROC(InvalidateMappedMemoryRanges);
 	INIT_DEVICE_PROC(BindBufferMemory);
 	INIT_DEVICE_PROC(BindImageMemory);
 	INIT_DEVICE_PROC(GetBufferMemoryRequirements);
@@ -432,6 +436,7 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	INIT_DEVICE_PROC(CmdBindVertexBuffers);
 	INIT_DEVICE_PROC(CmdDraw);
 	INIT_DEVICE_PROC(CmdDrawIndexed);
+	INIT_DEVICE_PROC(CmdCopyBuffer);
 	INIT_DEVICE_PROC(CmdCopyImage);
 	INIT_DEVICE_PROC(CmdBlitImage);
 	INIT_DEVICE_PROC(CmdCopyBufferToImage);
@@ -448,6 +453,9 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	INIT_DEVICE_PROC(CmdExecuteCommands);
 	// ---- Core 1_1 commands
 	INIT_DEVICE_PROC(BindBufferMemory2);
+	INIT_DEVICE_PROC(BindImageMemory2);
+	INIT_DEVICE_PROC(GetBufferMemoryRequirements2);
+	INIT_DEVICE_PROC(GetImageMemoryRequirements2);
 	INIT_DEVICE_PROC(GetDeviceQueue2);
 	// ---- VK_KHR_swapchain extension commands
 	INIT_DEVICE_PROC(CreateSwapchainKHR);

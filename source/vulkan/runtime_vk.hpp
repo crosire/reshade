@@ -9,6 +9,11 @@
 #include "vk_handle.hpp"
 #include "buffer_detection.hpp"
 
+#pragma warning(push)
+#pragma warning(disable: 4100 4127 4324) // Disable a bunch of warnings thrown by VMA code
+#include <vk_mem_alloc.h>
+#pragma warning(pop)
+
 namespace reshade::vulkan
 {
 	class runtime_vk : public runtime
@@ -23,6 +28,7 @@ namespace reshade::vulkan
 
 	public:
 		runtime_vk(VkDevice device, VkPhysicalDevice physical_device, uint32_t queue_family_index, const VkLayerInstanceDispatchTable &instance_table, const VkLayerDispatchTable &device_table);
+		~runtime_vk();
 
 		bool on_init(VkSwapchainKHR swapchain, const VkSwapchainCreateInfoKHR &desc, HWND hwnd);
 		void on_reset();
@@ -47,11 +53,17 @@ namespace reshade::vulkan
 		void execute_command_buffer() const;
 		void wait_for_command_buffers();
 
-		VkImage create_image(uint32_t width, uint32_t height, uint32_t levels, VkFormat format, VkImageUsageFlags usage, VkMemoryPropertyFlags mem = 0, VkImageCreateFlags = 0);
+		VkImage create_image(uint32_t width, uint32_t height, uint32_t levels, VkFormat format,
+			VkImageUsageFlags usage, VmaMemoryUsage mem_usage,
+			VkImageCreateFlags flags = 0, VmaAllocationCreateFlags mem_flags = 0, VmaAllocation *out_mem = nullptr);
+		VkBuffer create_buffer(VkDeviceSize size,
+			VkBufferUsageFlags usage, VmaMemoryUsage mem_usage,
+			VkBufferCreateFlags flags = 0, VmaAllocationCreateFlags mem_flags = 0, VmaAllocation *out_mem = nullptr);
+
 		VkImageView create_image_view(VkImage image, VkFormat format, uint32_t levels, VkImageAspectFlags aspect);
-		VkBuffer create_buffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags mem = 0);
 		VkBufferView create_buffer_view(VkBuffer buffer, VkFormat format);
 
+		VmaAllocator _alloc = VK_NULL_HANDLE;
 		const VkDevice _device;
 		VkQueue _queue = VK_NULL_HANDLE;
 		uint32_t _queue_family_index = 0; // Default to first queue family index
@@ -76,7 +88,7 @@ namespace reshade::vulkan
 		VkImage _empty_depth_image = VK_NULL_HANDLE;
 		VkImageView _empty_depth_image_view = VK_NULL_HANDLE;
 
-		std::vector<VkDeviceMemory> _allocations;
+		std::vector<VmaAllocation> _allocations;
 
 		VkImage _effect_stencil = VK_NULL_HANDLE;
 		VkFormat _effect_stencil_format = VK_FORMAT_UNDEFINED;
@@ -90,12 +102,12 @@ namespace reshade::vulkan
 		bool init_imgui_resources();
 		void render_imgui_draw_data(ImDrawData *draw_data) override;
 
-		VkDeviceSize _imgui_index_buffer_size = 0;
-		VkBuffer _imgui_index_buffer = VK_NULL_HANDLE;
-		VkDeviceMemory _imgui_index_mem = VK_NULL_HANDLE;
-		VkDeviceSize _imgui_vertex_buffer_size = 0;
-		VkBuffer _imgui_vertex_buffer = VK_NULL_HANDLE;
-		VkDeviceMemory _imgui_vertex_mem = VK_NULL_HANDLE;
+		VkBuffer _imgui_index_buffer[NUM_IMGUI_BUFFERS] = {};
+		VkDeviceSize _imgui_index_buffer_size[NUM_IMGUI_BUFFERS] = {};
+		VmaAllocation _imgui_index_mem[NUM_IMGUI_BUFFERS] = {};
+		VkBuffer _imgui_vertex_buffer[NUM_IMGUI_BUFFERS] = {};
+		VkDeviceSize _imgui_vertex_buffer_size[NUM_IMGUI_BUFFERS] = {};
+		VmaAllocation _imgui_vertex_mem[NUM_IMGUI_BUFFERS] = {};
 		VkSampler _imgui_font_sampler = VK_NULL_HANDLE;
 		VkPipeline _imgui_pipeline = VK_NULL_HANDLE;
 		VkPipelineLayout _imgui_pipeline_layout = VK_NULL_HANDLE;

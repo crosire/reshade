@@ -16,6 +16,9 @@
 [submodule "spirv"]
 	path = deps/spirv
 	url = https://github.com/KhronosGroup/SPIRV-Headers.git
+[submodule "vma"]
+	path = deps/vma
+	url = https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator
 [submodule "vulkan"]
 	path = deps/vulkan
 	url = https://github.com/KhronosGroup/Vulkan-Headers.git
