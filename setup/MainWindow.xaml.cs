@@ -307,22 +307,27 @@ namespace ReShade.Setup
 			var peInfo = new PEInfo(targetPath);
 			is64Bit = peInfo.Type == PEInfo.BinaryType.IMAGE_FILE_MACHINE_AMD64;
 
-			var nameModule = peInfo.Modules.FirstOrDefault(s =>
-				s.StartsWith("d3d8", StringComparison.OrdinalIgnoreCase) ||
-				s.StartsWith("d3d9", StringComparison.OrdinalIgnoreCase) ||
-				s.StartsWith("dxgi", StringComparison.OrdinalIgnoreCase) ||
-				s.StartsWith("opengl32", StringComparison.OrdinalIgnoreCase) ||
-				s.StartsWith("vulkan-1", StringComparison.OrdinalIgnoreCase)) ?? string.Empty;
+			bool isApiD3D8 = peInfo.Modules.Any(s => s.StartsWith("d3d8", StringComparison.OrdinalIgnoreCase));
+			bool isApiD3D9 = isApiD3D8 || peInfo.Modules.Any(s => s.StartsWith("d3d9", StringComparison.OrdinalIgnoreCase));
+			bool isApiDXGI = peInfo.Modules.Any(s => s.StartsWith("dxgi", StringComparison.OrdinalIgnoreCase) || s.StartsWith("d3d1", StringComparison.OrdinalIgnoreCase) || s.Contains("GFSDK")); // Assume DXGI when GameWorks SDK is in use
+			bool isApiOpenGL = peInfo.Modules.Any(s => s.StartsWith("opengl32", StringComparison.OrdinalIgnoreCase));
+			bool isApiVulkan = peInfo.Modules.Any(s => s.StartsWith("vulkan-1", StringComparison.OrdinalIgnoreCase));
 
-			bool isApiD3D8 = nameModule.StartsWith("d3d8", StringComparison.OrdinalIgnoreCase);
-			bool isApiD3D9 = isApiD3D8 || nameModule.StartsWith("d3d9", StringComparison.OrdinalIgnoreCase);
-			bool isApiDXGI = nameModule.StartsWith("dxgi", StringComparison.OrdinalIgnoreCase);
-			bool isApiOpenGL = nameModule.StartsWith("opengl32", StringComparison.OrdinalIgnoreCase);
-			bool isApiVulkan = nameModule.StartsWith("vulkan-1", StringComparison.OrdinalIgnoreCase);
-
+			if (isApiD3D9 && isApiDXGI)
+			{
+				isApiD3D9 = false; // Prefer DXGI over D3D9
+			}
 			if (isApiD3D8 && !isHeadless)
 			{
 				MessageBox.Show(this, "It looks like the target application uses Direct3D 8. You'll have to download an additional wrapper from 'https://github.com/crosire/d3d8to9/releases' which converts all API calls to Direct3D 9 in order to use ReShade.", "Warning", MessageBoxButton.OK, MessageBoxImage.Warning);
+			}
+			if (isApiDXGI && isApiVulkan)
+			{
+				isApiDXGI = false; // Prefer Vulkan over Direct3D 12
+			}
+			if (isApiOpenGL && (isApiD3D9 || isApiDXGI || isApiVulkan))
+			{
+				isApiOpenGL = false; // Prefer Vulkan over OpenGL
 			}
 
 			Message.Text = "Which rendering API does " + targetName + " use?";
