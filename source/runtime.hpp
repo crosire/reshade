@@ -70,6 +70,11 @@ namespace reshade
 		/// <param name="texture">The texture to update.</param>
 		/// <param name="pixels">The 32bpp RGBA image data to update the texture with.</param>
 		virtual void upload_texture(const texture &texture, const uint8_t *pixels) = 0;
+		/// <summary>
+		/// Destroy an existing texture.
+		/// </summary>
+		/// <param name="texture">The texture to destroy.</param>
+		virtual void destroy_texture(texture &texture) = 0;
 
 		/// <summary>
 		/// Get the value of a uniform variable.
@@ -319,7 +324,6 @@ namespace reshade
 		void init_ui();
 		void deinit_ui();
 		void build_font_atlas();
-		void destroy_font_atlas();
 
 		void draw_ui();
 		void draw_ui_home();

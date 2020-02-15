@@ -17,19 +17,22 @@ std::filesystem::path g_target_executable_path;
 extern std::filesystem::path get_system_path()
 {
 	static std::filesystem::path system_path;
-	if (!system_path.empty())
-		return system_path; // Return the cached system path
+	if (system_path.empty())
+	{
+		WCHAR buf[4096];
+		if (0 == GetEnvironmentVariableW(L"RESHADE_MODULE_PATH_OVERRIDE", buf, ARRAYSIZE(buf)))
+			// First try environment variable, use system directory if it does not exist or is empty
+			GetSystemDirectoryW(buf, ARRAYSIZE(buf));
 
-	WCHAR buf[4096];
-	if (GetEnvironmentVariableW(L"RESHADE_MODULE_PATH_OVERRIDE", buf, ARRAYSIZE(buf)) == 0) // Failure or empty
-		GetSystemDirectoryW(buf, ARRAYSIZE(buf)); // First try environment variable, use system directory if it does not exist
+		if (system_path = buf; system_path.has_stem())
+			system_path += L'\\'; // Always convert to directory path (with a trailing slash)
+		if (system_path.is_relative())
+			system_path = g_target_executable_path.parent_path() / system_path;
 
-	if (system_path = buf; system_path.has_stem())
-		system_path += L'\\'; // Always convert to directory path and not a file
-	if (system_path.is_relative())
-		system_path = g_target_executable_path.parent_path() / system_path;
+		system_path = system_path.lexically_normal();
+	}
 
-	return system_path = system_path.lexically_normal();
+	return system_path;
 }
 
 static inline std::filesystem::path get_module_path(HMODULE module)

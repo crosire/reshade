@@ -160,13 +160,14 @@ bool reshade::runtime::on_init(input::window_handle window)
 }
 void reshade::runtime::on_reset()
 {
-	unload_effects();
-
 	if (!_is_initialized)
 		return;
 
+	unload_effects();
+
 #if RESHADE_GUI
-	destroy_font_atlas();
+	if (_imgui_font_atlas != nullptr)
+		destroy_texture(*_imgui_font_atlas);
 #endif
 
 	LOG(INFO) << "Destroyed runtime environment on runtime " << this << '.';
@@ -673,10 +674,20 @@ void reshade::runtime::unload_effect(size_t index)
 	// Lock here to be safe in case another effect is still loading
 	const std::lock_guard<std::mutex> lock(_reload_mutex);
 
+	// Destroy textures belonging to this effect
 	_textures.erase(std::remove_if(_textures.begin(), _textures.end(),
-		[index](const auto &it) { return it.effect_index == index && !it.shared; }), _textures.end());
+		[this, index](texture &tex) {
+			if (tex.effect_index == index && !tex.shared) {
+				destroy_texture(tex);
+				return true;
+			}
+			return false;
+		}), _textures.end());
+	// Clean up techniques belonging to this effect
 	_techniques.erase(std::remove_if(_techniques.begin(), _techniques.end(),
-		[index](const auto &it) { return it.effect_index == index; }), _techniques.end());
+		[index](const technique &tech) {
+			return tech.effect_index == index;
+		}), _techniques.end());
 
 	// Do not clear source file, so that an 'unload_effect' immediately followed by a 'load_effect' which accesses that works
 	effect &effect = _effects[index];;
@@ -704,12 +715,16 @@ void reshade::runtime::unload_effects()
 		thread.join();
 	_worker_threads.clear();
 
+	// Destroy all textures
+	for (texture &tex : _textures)
+		destroy_texture(tex);
 	_textures.clear();
+	_textures_loaded = false;
+	// Clean up all techniques
 	_techniques.clear();
 
+	// Reset the effect list after all resources have been destroyed
 	_effects.clear();
-
-	_textures_loaded = false;
 }
 
 void reshade::runtime::update_and_render_effects()
@@ -788,13 +803,13 @@ void reshade::runtime::update_and_render_effects()
 			if (!success) // Something went wrong, do clean up
 			{
 				// Destroy all textures belonging to this effect
-				for (texture &texture : _textures)
-					if (texture.effect_index == effect_index && !texture.shared)
-						texture.impl.reset();
+				for (texture &tex : _textures)
+					if (tex.effect_index == effect_index && !tex.shared)
+						destroy_texture(tex);
 				// Disable all techniques belonging to this effect
-				for (technique &technique : _techniques)
-					if (technique.effect_index == effect_index)
-						disable_technique(technique);
+				for (technique &tech : _techniques)
+					if (tech.effect_index == effect_index)
+						disable_technique(tech);
 
 				effect.compile_sucess = false;
 				_last_reload_successful = false;

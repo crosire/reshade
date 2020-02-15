@@ -409,8 +409,6 @@ void reshade::runtime::build_font_atlas()
 		}
 	}
 
-	destroy_font_atlas();
-
 	_show_splash = true;
 	_rebuild_font_atlas = false;
 
@@ -421,18 +419,17 @@ void reshade::runtime::build_font_atlas()
 	ImGui::SetCurrentContext(nullptr);
 
 	// Create font atlas texture and upload it
-	_imgui_font_atlas = std::make_unique<texture>();
+	if (_imgui_font_atlas != nullptr)
+		destroy_texture(*_imgui_font_atlas);
+	if (_imgui_font_atlas == nullptr)
+		_imgui_font_atlas = std::make_unique<texture>();
+
 	_imgui_font_atlas->width = width;
 	_imgui_font_atlas->height = height;
 	_imgui_font_atlas->format = reshadefx::texture_format::rgba8;
 	_imgui_font_atlas->unique_name = "ImGUI Font Atlas";
 	if (init_texture(*_imgui_font_atlas))
 		upload_texture(*_imgui_font_atlas, pixels);
-}
-
-void reshade::runtime::destroy_font_atlas()
-{
-	_imgui_font_atlas.reset();
 }
 
 void reshade::runtime::draw_ui()
@@ -459,7 +456,7 @@ void reshade::runtime::draw_ui()
 	imgui_io.MousePos.y = static_cast<float>(_input->mouse_position_y());
 	imgui_io.DisplaySize.x = static_cast<float>(_width);
 	imgui_io.DisplaySize.y = static_cast<float>(_height);
-	imgui_io.Fonts->TexID = _imgui_font_atlas->impl.get();
+	imgui_io.Fonts->TexID = _imgui_font_atlas->impl;
 
 	// Add wheel delta to the current absolute mouse wheel position
 	imgui_io.MouseWheel += _input->mouse_wheel_delta();
@@ -1458,16 +1455,16 @@ void reshade::runtime::draw_ui_statistics()
 
 			ImGui::TextUnformatted(target_info.c_str());
 
-			if (bool check = _preview_texture == texture.impl.get() && _preview_size[0] == 0; ImGui::RadioButton("Preview scaled", check)) {
+			if (bool check = _preview_texture == texture.impl && _preview_size[0] == 0; ImGui::RadioButton("Preview scaled", check)) {
 				_preview_size[0] = 0;
 				_preview_size[1] = 0;
-				_preview_texture = !check ? texture.impl.get() : nullptr;
+				_preview_texture = !check ? texture.impl : nullptr;
 			}
 			ImGui::SameLine();
-			if (bool check = _preview_texture == texture.impl.get() && _preview_size[0] != 0; ImGui::RadioButton("Preview original", check)) {
+			if (bool check = _preview_texture == texture.impl && _preview_size[0] != 0; ImGui::RadioButton("Preview original", check)) {
 				_preview_size[0] = texture.width;
 				_preview_size[1] = texture.height;
-				_preview_texture = !check ? texture.impl.get() : nullptr;
+				_preview_texture = !check ? texture.impl : nullptr;
 			}
 
 			bool r = (_preview_size[2] & 0x000000FF) != 0;
@@ -1494,7 +1491,7 @@ void reshade::runtime::draw_ui_statistics()
 			_preview_size[2] = (r ? 0x000000FF : 0) | (g ? 0x0000FF00 : 0) | (b ? 0x00FF0000 : 0) | 0xFF000000;
 
 			const float aspect_ratio = static_cast<float>(texture.width) / static_cast<float>(texture.height);
-			imgui_image_with_checkerboard_background(texture.impl.get(), ImVec2(single_image_width, single_image_width / aspect_ratio), _preview_size[2]);
+			imgui_image_with_checkerboard_background(texture.impl, ImVec2(single_image_width, single_image_width / aspect_ratio), _preview_size[2]);
 
 			ImGui::EndGroup();
 			ImGui::PopID();

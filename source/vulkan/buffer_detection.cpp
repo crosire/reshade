@@ -74,13 +74,15 @@ void reshade::vulkan::buffer_detection::on_set_depthstencil(VkImage depthstencil
 	}
 }
 
-reshade::vulkan::buffer_detection::depthstencil_info reshade::vulkan::buffer_detection_context::find_best_depth_texture(uint32_t width, uint32_t height, VkImage override)
+reshade::vulkan::buffer_detection::depthstencil_info reshade::vulkan::buffer_detection_context::find_best_depth_texture(uint32_t width, uint32_t height, VkImage override) const
 {
 	depthstencil_info best_snapshot;
 
 	if (override != VK_NULL_HANDLE)
 	{
-		best_snapshot = _counters_per_used_depth_image[override];
+		const auto source_it = _counters_per_used_depth_image.find(override);
+		if (source_it != _counters_per_used_depth_image.end())
+			best_snapshot = source_it->second;
 	}
 	else
 	{

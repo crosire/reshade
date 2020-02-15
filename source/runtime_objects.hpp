@@ -64,17 +64,6 @@ namespace reshade
 		T _average, _tick_sum, _tick_list[SAMPLES];
 	};
 
-	class base_object
-	{
-	public:
-		virtual ~base_object() {}
-
-		template <typename T>
-		T *as() { return dynamic_cast<T *>(this); }
-		template <typename T>
-		const T *as() const { return dynamic_cast<const T *>(this); }
-	};
-
 	struct texture final : reshadefx::texture_info
 	{
 		texture() {}
@@ -107,9 +96,9 @@ namespace reshade
 			return width == desc.width && height == desc.height && levels == desc.levels && format == desc.format;
 		}
 
+		void *impl = nullptr;
 		size_t effect_index = std::numeric_limits<size_t>::max();
 		texture_reference impl_reference = texture_reference::none;
-		std::unique_ptr<base_object> impl;
 		bool shared = false;
 	};
 
@@ -180,8 +169,8 @@ namespace reshade
 			return it->value.string_data;
 		}
 
+		void *impl = nullptr;
 		size_t effect_index = std::numeric_limits<size_t>::max();
-		std::vector<std::unique_ptr<base_object>> passes_data;
 		bool hidden = false;
 		bool enabled = false;
 		int32_t timeout = 0;
@@ -189,7 +178,6 @@ namespace reshade
 		uint32_t toggle_key_data[4] = {};
 		moving_average<uint64_t, 60> average_cpu_duration;
 		moving_average<uint64_t, 60> average_gpu_duration;
-		std::unique_ptr<base_object> impl;
 	};
 
 	struct effect final

@@ -11,35 +11,13 @@
 
 namespace reshade::opengl
 {
-	struct opengl_tex_data : base_object
+	struct opengl_tex_data
 	{
-		~opengl_tex_data()
-		{
-			if (should_delete)
-				glDeleteTextures(id[0] != id[1] ? 2 : 1, id);
-		}
-
-		bool should_delete = false;
 		GLuint id[2] = {};
 	};
 
-	struct opengl_sampler_data
+	struct opengl_pass_data
 	{
-		GLuint id;
-		opengl_tex_data *texture;
-		bool is_srgb;
-		bool has_mipmaps;
-	};
-
-	struct opengl_pass_data : base_object
-	{
-		~opengl_pass_data()
-		{
-			if (program)
-				glDeleteProgram(program);
-			glDeleteFramebuffers(1, &fbo);
-		}
-
 		GLuint fbo = 0;
 		GLuint program = 0;
 		GLenum blend_eq_color = GL_NONE;
@@ -56,7 +34,15 @@ namespace reshade::opengl
 		GLuint draw_textures[8] = {};
 	};
 
-	struct opengl_technique_data : base_object
+	struct opengl_sampler_data
+	{
+		GLuint id;
+		opengl_tex_data *texture;
+		bool is_srgb;
+		bool has_mipmaps;
+	};
+
+	struct opengl_technique_data
 	{
 		~opengl_technique_data()
 		{
@@ -65,6 +51,7 @@ namespace reshade::opengl
 
 		GLuint query = 0;
 		bool query_in_flight = false;
+		std::vector<opengl_pass_data> passes;
 		std::vector<opengl_sampler_data> samplers;
 	};
 }
@@ -526,7 +513,7 @@ bool reshade::opengl::runtime_gl::init_effect(size_t index)
 
 		opengl_sampler_data &sampler_data = technique_init.samplers[info.binding];
 		sampler_data.id = it->second;
-		sampler_data.texture = existing_texture->impl->as<opengl_tex_data>();
+		sampler_data.texture = static_cast<opengl_tex_data *>(existing_texture->impl);
 		sampler_data.is_srgb = info.srgb;
 		sampler_data.has_mipmaps = existing_texture->levels > 1;
 	}
@@ -537,15 +524,15 @@ bool reshade::opengl::runtime_gl::init_effect(size_t index)
 			continue;
 
 		// Copy construct new technique implementation instead of move because effect may contain multiple techniques
-		technique.impl = std::make_unique<opengl_technique_data>(technique_init);
-		const auto impl = technique.impl->as<opengl_technique_data>();
+		auto impl = new opengl_technique_data(technique_init);
+		technique.impl = impl;
 
 		glGenQueries(1, &impl->query);
 
+		impl->passes.resize(technique.passes.size());
 		for (size_t pass_index = 0; pass_index < technique.passes.size(); ++pass_index)
 		{
-			technique.passes_data.push_back(std::make_unique<opengl_pass_data>());
-			auto &pass_data = *technique.passes_data.back()->as<opengl_pass_data>();
+			opengl_pass_data &pass_data = impl->passes[pass_index];
 			reshadefx::pass_info &pass_info = technique.passes[pass_index];
 
 			const auto convert_blend_op = [](reshadefx::pass_blend_op value) -> GLenum {
@@ -632,10 +619,10 @@ bool reshade::opengl::runtime_gl::init_effect(size_t index)
 			{
 				for (uint32_t k = 0; k < 8 && !pass_info.render_target_names[k].empty(); ++k)
 				{
-					const auto texture_impl = std::find_if(_textures.begin(), _textures.end(),
+					const auto texture_impl = static_cast<opengl_tex_data *>(std::find_if(_textures.begin(), _textures.end(),
 						[&render_target = pass_info.render_target_names[k]](const auto &item) {
 						return item.unique_name == render_target;
-					})->impl->as<opengl_tex_data>();
+					})->impl);
 					assert(texture_impl != nullptr);
 
 					pass_data.draw_targets[k] = GL_COLOR_ATTACHMENT0 + k;
@@ -692,6 +679,26 @@ bool reshade::opengl::runtime_gl::init_effect(size_t index)
 }
 void reshade::opengl::runtime_gl::unload_effect(size_t index)
 {
+	for (technique &tech : _techniques)
+	{
+		if (tech.effect_index != index)
+			continue;
+
+		const auto impl = static_cast<opengl_technique_data *>(tech.impl);
+		if (impl == nullptr)
+			continue;
+
+		for (opengl_pass_data &pass_data : impl->passes)
+		{
+			if (pass_data.program)
+				glDeleteProgram(pass_data.program);
+			glDeleteFramebuffers(1, &pass_data.fbo);
+		}
+
+		delete impl;
+		tech.impl = nullptr;
+	}
+
 	runtime::unload_effect(index);
 
 	if (index < _effect_ubos.size())
@@ -702,6 +709,23 @@ void reshade::opengl::runtime_gl::unload_effect(size_t index)
 }
 void reshade::opengl::runtime_gl::unload_effects()
 {
+	for (technique &tech : _techniques)
+	{
+		const auto impl = static_cast<opengl_technique_data *>(tech.impl);
+		if (impl == nullptr)
+			continue;
+
+		for (opengl_pass_data &pass_data : impl->passes)
+		{
+			if (pass_data.program)
+				glDeleteProgram(pass_data.program);
+			glDeleteFramebuffers(1, &pass_data.fbo);
+		}
+
+		delete impl;
+		tech.impl = nullptr;
+	}
+
 	runtime::unload_effects();
 
 	glDeleteBuffers(static_cast<GLsizei>(_effect_ubos.size()), _effect_ubos.data());
@@ -714,8 +738,8 @@ void reshade::opengl::runtime_gl::unload_effects()
 
 bool reshade::opengl::runtime_gl::init_texture(texture &texture)
 {
-	texture.impl = std::make_unique<opengl_tex_data>();
-	const auto impl = texture.impl->as<opengl_tex_data>();
+	auto impl = new opengl_tex_data();
+	texture.impl = impl;
 
 	switch (texture.impl_reference)
 	{
@@ -775,8 +799,6 @@ bool reshade::opengl::runtime_gl::init_texture(texture &texture)
 		break;
 	}
 
-	impl->should_delete = true;
-
 	// Get current state
 	GLint previous_tex = 0;
 	GLint previous_draw_buffer = 0;
@@ -817,7 +839,7 @@ bool reshade::opengl::runtime_gl::init_texture(texture &texture)
 }
 void reshade::opengl::runtime_gl::upload_texture(const texture &texture, const uint8_t *pixels)
 {
-	const auto impl = texture.impl->as<opengl_tex_data>();
+	auto impl = static_cast<opengl_tex_data *>(texture.impl);
 	assert(impl != nullptr && pixels != nullptr && texture.impl_reference == texture_reference::none);
 
 	unsigned int upload_pitch = texture.width * 4;
@@ -889,12 +911,26 @@ void reshade::opengl::runtime_gl::upload_texture(const texture &texture, const u
 	glPixelStorei(GL_UNPACK_SKIP_PIXELS, previous_unpack_skip_pixels);
 	glPixelStorei(GL_UNPACK_SKIP_IMAGES, previous_unpack_skip_images);
 }
+void reshade::opengl::runtime_gl::destroy_texture(texture &texture)
+{
+	if (texture.impl == nullptr)
+		return;
+	auto impl = static_cast<opengl_tex_data *>(texture.impl);
+
+	if (texture.impl_reference == texture_reference::none)
+	{
+		glDeleteTextures(impl->id[0] != impl->id[1] ? 2 : 1, impl->id);
+	}
+
+	delete impl;
+	texture.impl = nullptr;
+}
 
 void reshade::opengl::runtime_gl::render_technique(technique &technique)
 {
 	assert(_app_state.has_state);
 
-	const auto impl = technique.impl->as<opengl_technique_data>();
+	const auto impl = static_cast<opengl_technique_data *>(technique.impl);
 
 	if (GLuint available = 0; impl->query_in_flight)
 	{
@@ -940,7 +976,7 @@ void reshade::opengl::runtime_gl::render_technique(technique &technique)
 
 	for (size_t pass_index = 0; pass_index < technique.passes.size(); ++pass_index)
 	{
-		const auto &pass_data = *technique.passes_data[pass_index]->as<opengl_pass_data>();
+		const opengl_pass_data &pass_data = impl->passes[pass_index];
 		const reshadefx::pass_info &pass_info = technique.passes[pass_index];
 
 		// Copy back buffer of previous pass to texture
@@ -1220,15 +1256,14 @@ void reshade::opengl::runtime_gl::update_depthstencil_texture(buffer_detection::
 			glDeleteTextures(1, &_tex[TEX_DEPTH]);
 			_tex[TEX_DEPTH] = 0;
 
-			for (auto &tex : _textures)
+			for (const auto &tex : _textures)
 			{
-				if (tex.impl != nullptr && tex.impl_reference == texture_reference::depth_buffer)
-				{
-					const auto texture_impl = tex.impl->as<opengl_tex_data>();
-					assert(texture_impl != nullptr && !texture_impl->should_delete);
-					texture_impl->id[0] = 0;
-					texture_impl->id[1] = 0;
-				}
+				if (tex.impl == nullptr ||
+					tex.impl_reference != texture_reference::depth_buffer)
+					continue;
+				const auto tex_impl = static_cast<opengl_tex_data *>(tex.impl);
+
+				tex_impl->id[0] = tex_impl->id[1] = 0;
 			}
 		}
 		return;
@@ -1317,16 +1352,14 @@ void reshade::opengl::runtime_gl::update_depthstencil_texture(buffer_detection::
 	}
 
 	// Update all references to the new texture
-	for (auto &tex : _textures)
+	for (const auto &tex : _textures)
 	{
-		if (tex.impl != nullptr &&
-			tex.impl_reference == texture_reference::depth_buffer)
-		{
-			const auto texture_impl = tex.impl->as<opengl_tex_data>();
-			assert(texture_impl != nullptr && !texture_impl->should_delete);
+		if (tex.impl == nullptr ||
+			tex.impl_reference != texture_reference::depth_buffer)
+			continue;
+		const auto tex_impl = static_cast<opengl_tex_data *>(tex.impl);
 
-			texture_impl->id[0] = texture_impl->id[1] = info.obj;
-		}
+		tex_impl->id[0] = tex_impl->id[1] = info.obj;
 	}
 }
 #endif

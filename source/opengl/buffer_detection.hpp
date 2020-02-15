@@ -41,7 +41,7 @@ namespace reshade::opengl
 		const auto &depth_buffer_counters() const { return _depth_source_table; }
 
 		depthstencil_info find_best_depth_texture(GLuint width, GLuint height,
-			GLuint override = std::numeric_limits<GLuint>::max());
+			GLuint override = std::numeric_limits<GLuint>::max()) const;
 #endif
 
 	private:

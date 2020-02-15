@@ -15,14 +15,14 @@
 
 namespace reshade::d3d10
 {
-	struct d3d10_tex_data : base_object
+	struct d3d10_tex_data
 	{
 		com_ptr<ID3D10Texture2D> texture;
 		com_ptr<ID3D10RenderTargetView> rtv[2];
 		com_ptr<ID3D10ShaderResourceView> srv[2];
 	};
 
-	struct d3d10_pass_data : base_object
+	struct d3d10_pass_data
 	{
 		com_ptr<ID3D10BlendState> blend_state;
 		com_ptr<ID3D10DepthStencilState> depth_stencil_state;
@@ -33,7 +33,12 @@ namespace reshade::d3d10
 		std::vector<com_ptr<ID3D10ShaderResourceView>> shader_resources;
 	};
 
-	struct d3d10_technique_data : base_object
+	struct d3d10_effect_data
+	{
+		com_ptr<ID3D10Buffer> cb;
+	};
+
+	struct d3d10_technique_data
 	{
 		bool query_in_flight = false;
 		com_ptr<ID3D10Query> timestamp_disjoint;
@@ -41,6 +46,7 @@ namespace reshade::d3d10
 		com_ptr<ID3D10Query> timestamp_query_end;
 		std::vector<com_ptr<ID3D10SamplerState>> sampler_states;
 		std::vector<com_ptr<ID3D10ShaderResourceView>> texture_bindings;
+		std::vector<d3d10_pass_data> passes;
 	};
 }
 
@@ -184,7 +190,7 @@ bool reshade::d3d10::runtime_d3d10::on_init(const DXGI_SWAP_CHAIN_DESC &swap_des
 		desc.FillMode = D3D10_FILL_SOLID;
 		desc.CullMode = D3D10_CULL_NONE;
 		desc.DepthClipEnable = TRUE;
-		if (FAILED(_device->CreateRasterizerState(&desc, &_effect_rasterizer_state)))
+		if (FAILED(_device->CreateRasterizerState(&desc, &_effect_rasterizer)))
 			return false;
 	}
 
@@ -224,7 +230,7 @@ void reshade::d3d10::runtime_d3d10::on_reset()
 	_copy_sampler_state.reset();
 
 	_effect_depthstencil.reset();
-	_effect_rasterizer_state.reset();
+	_effect_rasterizer.reset();
 
 #if RESHADE_GUI
 	_imgui_index_buffer_size = 0;
@@ -291,7 +297,7 @@ void reshade::d3d10::runtime_d3d10::on_present(buffer_detection &tracker)
 		_device->PSSetSamplers(0, ARRAYSIZE(samplers), samplers);
 		ID3D10ShaderResourceView *const srvs[] = { _backbuffer_texture_srv[make_dxgi_format_srgb(_backbuffer_format) == _backbuffer_format].get() };
 		_device->PSSetShaderResources(0, ARRAYSIZE(srvs), srvs);
-		_device->RSSetState(_effect_rasterizer_state.get());
+		_device->RSSetState(_effect_rasterizer.get());
 		const D3D10_VIEWPORT viewport = { 0, 0, _width, _height, 0.0f, 1.0f };
 		_device->RSSetViewports(1, &viewport);
 		_device->OMSetBlendState(nullptr, nullptr, D3D10_DEFAULT_SAMPLE_MASK);
@@ -443,15 +449,16 @@ bool reshade::d3d10::runtime_d3d10::init_effect(size_t index)
 		}
 	}
 
-	if (index >= _effect_constant_buffers.size())
-		_effect_constant_buffers.resize(index + 1);
+	if (index >= _effect_data.size())
+		_effect_data.resize(index + 1);
+	d3d10_effect_data &effect_data = _effect_data[index];
 
 	if (!effect.uniform_data_storage.empty())
 	{
 		const D3D10_BUFFER_DESC desc = { static_cast<UINT>(effect.uniform_data_storage.size()), D3D10_USAGE_DYNAMIC, D3D10_BIND_CONSTANT_BUFFER, D3D10_CPU_ACCESS_WRITE };
 		const D3D10_SUBRESOURCE_DATA init_data = { effect.uniform_data_storage.data(), desc.ByteWidth };
 
-		if (HRESULT hr = _device->CreateBuffer(&desc, &init_data, &_effect_constant_buffers[index]); FAILED(hr))
+		if (HRESULT hr = _device->CreateBuffer(&desc, &init_data, &effect_data.cb); FAILED(hr))
 		{
 			LOG(ERROR) << "Failed to create constant buffer for effect file " << effect.source_file << ". "
 				"HRESULT is " << hr << '.';
@@ -483,7 +490,7 @@ bool reshade::d3d10::runtime_d3d10::init_effect(size_t index)
 		assert(existing_texture != _textures.end());
 
 		technique_init.texture_bindings[info.texture_binding] =
-			existing_texture->impl->as<d3d10_tex_data>()->srv[info.srgb ? 1 : 0];
+			static_cast<d3d10_tex_data *>(existing_texture->impl)->srv[info.srgb ? 1 : 0];
 
 		if (technique_init.sampler_states[info.binding] == nullptr)
 		{
@@ -535,8 +542,8 @@ bool reshade::d3d10::runtime_d3d10::init_effect(size_t index)
 			continue;
 
 		// Copy construct new technique implementation instead of move because effect may contain multiple techniques
-		technique.impl = std::make_unique<d3d10_technique_data>(technique_init);
-		const auto impl = technique.impl->as<d3d10_technique_data>();
+		auto impl = new d3d10_technique_data(technique_init);
+		technique.impl = impl;
 
 		D3D10_QUERY_DESC query_desc = {};
 		query_desc.Query = D3D10_QUERY_TIMESTAMP;
@@ -545,10 +552,10 @@ bool reshade::d3d10::runtime_d3d10::init_effect(size_t index)
 		query_desc.Query = D3D10_QUERY_TIMESTAMP_DISJOINT;
 		_device->CreateQuery(&query_desc, &impl->timestamp_disjoint);
 
+		impl->passes.resize(technique.passes.size());
 		for (size_t pass_index = 0; pass_index < technique.passes.size(); ++pass_index)
 		{
-			technique.passes_data.push_back(std::make_unique<d3d10_pass_data>());
-			auto &pass_data = *technique.passes_data.back()->as<d3d10_pass_data>();
+			d3d10_pass_data &pass_data = impl->passes[pass_index];
 			reshadefx::pass_info &pass_info = technique.passes[pass_index];
 
 			entry_points.at(pass_info.ps_entry_point)->QueryInterface(&pass_data.pixel_shader);
@@ -560,10 +567,10 @@ bool reshade::d3d10::runtime_d3d10::init_effect(size_t index)
 
 			for (UINT k = 0; k < 8 && !pass_info.render_target_names[k].empty(); ++k)
 			{
-				const auto texture_impl = std::find_if(_textures.begin(), _textures.end(),
+				const auto texture_impl = static_cast<d3d10_tex_data *>(std::find_if(_textures.begin(), _textures.end(),
 					[&render_target = pass_info.render_target_names[k]](const auto &item) {
 					return item.unique_name == render_target;
-				})->impl->as<d3d10_tex_data>();
+				})->impl);
 				assert(texture_impl != nullptr);
 
 				D3D10_TEXTURE2D_DESC desc = {};
@@ -652,7 +659,7 @@ bool reshade::d3d10::runtime_d3d10::init_effect(size_t index)
 			}
 
 			// Rasterizer state is the same for all passes
-			assert(_effect_rasterizer_state != nullptr);
+			assert(_effect_rasterizer != nullptr);
 
 			{   D3D10_DEPTH_STENCIL_DESC desc = {};
 				desc.DepthEnable = FALSE;
@@ -735,23 +742,41 @@ bool reshade::d3d10::runtime_d3d10::init_effect(size_t index)
 }
 void reshade::d3d10::runtime_d3d10::unload_effect(size_t index)
 {
+	for (technique &tech : _techniques)
+	{
+		if (tech.effect_index != index)
+			continue;
+
+		delete static_cast<d3d10_technique_data *>(tech.impl);
+		tech.impl = nullptr;
+	}
+
 	runtime::unload_effect(index);
 
-	if (index < _effect_constant_buffers.size())
-		_effect_constant_buffers[index].reset();
+	if (index < _effect_data.size())
+	{
+		d3d10_effect_data &effect_data = _effect_data[index];
+		effect_data.cb.reset();
+	}
 }
 void reshade::d3d10::runtime_d3d10::unload_effects()
 {
+	for (technique &tech : _techniques)
+	{
+		delete static_cast<d3d10_technique_data *>(tech.impl);
+		tech.impl = nullptr;
+	}
+
 	runtime::unload_effects();
 
+	_effect_data.clear();
 	_effect_sampler_states.clear();
-	_effect_constant_buffers.clear();
 }
 
 bool reshade::d3d10::runtime_d3d10::init_texture(texture &texture)
 {
-	texture.impl = std::make_unique<d3d10_tex_data>();
-	const auto impl = texture.impl->as<d3d10_tex_data>();
+	auto impl = new d3d10_tex_data();
+	texture.impl = impl;
 
 	switch (texture.impl_reference)
 	{
@@ -860,7 +885,7 @@ bool reshade::d3d10::runtime_d3d10::init_texture(texture &texture)
 }
 void reshade::d3d10::runtime_d3d10::upload_texture(const texture &texture, const uint8_t *pixels)
 {
-	const auto impl = texture.impl->as<d3d10_tex_data>();
+	auto impl = static_cast<d3d10_tex_data *>(texture.impl);
 	assert(impl != nullptr && texture.impl_reference == texture_reference::none && pixels != nullptr);
 
 	unsigned int upload_pitch;
@@ -896,10 +921,16 @@ void reshade::d3d10::runtime_d3d10::upload_texture(const texture &texture, const
 	if (texture.levels > 1)
 		_device->GenerateMips(impl->srv[0].get());
 }
+void reshade::d3d10::runtime_d3d10::destroy_texture(texture &texture)
+{
+	delete static_cast<d3d10_tex_data *>(texture.impl);
+	texture.impl = nullptr;
+}
 
 void reshade::d3d10::runtime_d3d10::render_technique(technique &technique)
 {
-	const auto impl = technique.impl->as<d3d10_technique_data>();
+	const auto impl = static_cast<d3d10_technique_data *>(technique.impl);
+	d3d10_effect_data &effect_data = _effect_data[technique.effect_index];
 
 	// Evaluate queries
 	if (impl->query_in_flight)
@@ -929,14 +960,14 @@ void reshade::d3d10::runtime_d3d10::render_technique(technique &technique)
 	_device->IASetInputLayout(nullptr);
 	_device->IASetVertexBuffers(0, 1, reinterpret_cast<ID3D10Buffer *const *>(&null), reinterpret_cast<const UINT *>(&null), reinterpret_cast<const UINT *>(&null));
 
-	_device->RSSetState(_effect_rasterizer_state.get());
+	_device->RSSetState(_effect_rasterizer.get());
 
 	// Setup samplers
 	_device->VSSetSamplers(0, static_cast<UINT>(impl->sampler_states.size()), reinterpret_cast<ID3D10SamplerState *const *>(impl->sampler_states.data()));
 	_device->PSSetSamplers(0, static_cast<UINT>(impl->sampler_states.size()), reinterpret_cast<ID3D10SamplerState *const *>(impl->sampler_states.data()));
 
 	// Setup shader constants
-	if (ID3D10Buffer *const cb = _effect_constant_buffers[technique.effect_index].get();
+	if (ID3D10Buffer *const cb = effect_data.cb.get();
 		cb != nullptr)
 	{
 		if (void *mapped; SUCCEEDED(cb->Map(D3D10_MAP_WRITE_DISCARD, 0, &mapped)))
@@ -956,7 +987,7 @@ void reshade::d3d10::runtime_d3d10::render_technique(technique &technique)
 
 	for (size_t pass_index = 0; pass_index < technique.passes.size(); ++pass_index)
 	{
-		const auto &pass_data = *technique.passes_data[pass_index]->as<d3d10_pass_data>();
+		const d3d10_pass_data &pass_data = impl->passes[pass_index];
 		const reshadefx::pass_info &pass_info = technique.passes[pass_index];
 
 		// Setup states
@@ -1359,24 +1390,27 @@ void reshade::d3d10::runtime_d3d10::update_depthstencil_texture(com_ptr<ID3D10Te
 	_has_depth_texture = true;
 
 	// Update all references to the new texture
-	for (auto &tex : _textures)
+	for (const auto &tex : _textures)
 	{
-		if (tex.impl != nullptr &&
-			tex.impl_reference == texture_reference::depth_buffer)
+		if (tex.impl == nullptr ||
+			tex.impl_reference != texture_reference::depth_buffer)
+			continue;
+		const auto tex_impl = static_cast<d3d10_tex_data *>(tex.impl);
+
+		// Update references in technique list
+		for (const technique &tech : _techniques)
 		{
-			const auto texture_impl = tex.impl->as<d3d10_tex_data>();
-			assert(texture_impl != nullptr);
+			const auto tech_impl = static_cast<d3d10_technique_data *>(tech.impl);
+			if (tech_impl == nullptr)
+				continue;
 
-			// Update references in technique list
-			for (const auto &technique : _techniques)
-				for (const auto &pass : technique.passes_data)
-					for (com_ptr<ID3D10ShaderResourceView> &srv : pass->as<d3d10_pass_data>()->shader_resources)
-						if (texture_impl->srv[0] == srv ||
-							texture_impl->srv[1] == srv)
-							srv = _depth_texture_srv;
-
-			texture_impl->srv[0] = texture_impl->srv[1] = _depth_texture_srv;
+			for (d3d10_pass_data &pass_data : tech_impl->passes)
+				for (com_ptr<ID3D10ShaderResourceView> &srv : pass_data.shader_resources)
+					if (tex_impl->srv[0] == srv || tex_impl->srv[1] == srv)
+						srv = _depth_texture_srv;
 		}
+
+		tex_impl->srv[0] = tex_impl->srv[1] = _depth_texture_srv;
 	}
 }
 #endif

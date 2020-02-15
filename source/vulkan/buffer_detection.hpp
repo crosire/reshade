@@ -54,7 +54,7 @@ namespace reshade::vulkan
 		const auto &depth_buffer_counters() const { return _counters_per_used_depth_image; }
 
 		depthstencil_info find_best_depth_texture(uint32_t width, uint32_t height,
-			VkImage override = VK_NULL_HANDLE);
+			VkImage override = VK_NULL_HANDLE) const;
 #endif
 	};
 }

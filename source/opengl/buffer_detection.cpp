@@ -157,17 +157,18 @@ void reshade::opengl::buffer_detection::on_delete_fbo_attachment(GLenum target, 
 	_depth_source_table.erase(id);
 }
 
-reshade::opengl::buffer_detection::depthstencil_info reshade::opengl::buffer_detection::find_best_depth_texture(GLuint width, GLuint height, GLuint override)
+reshade::opengl::buffer_detection::depthstencil_info reshade::opengl::buffer_detection::find_best_depth_texture(GLuint width, GLuint height, GLuint override) const
 {
 	GLuint best_match = 0;
 	depthstencil_info best_snapshot = _depth_source_table.at(0); // Always fall back to default depth buffer if no better match is found
 
 	if (override != std::numeric_limits<GLuint>::max())
 	{
-		if (override != 0)
+		const auto source_it = _depth_source_table.find(override);
+		if (override != 0 && source_it != _depth_source_table.end())
 		{
 			best_match = override;
-			best_snapshot = _depth_source_table[override];
+			best_snapshot = source_it->second;
 		}
 	}
 	else

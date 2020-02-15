@@ -33,6 +33,7 @@ namespace reshade::d3d10
 
 		bool init_texture(texture &texture) override;
 		void upload_texture(const texture &texture, const uint8_t *pixels) override;
+		void destroy_texture(texture &texture) override;
 
 		void render_technique(technique &technique) override;
 
@@ -54,9 +55,9 @@ namespace reshade::d3d10
 		com_ptr<ID3D10SamplerState>  _copy_sampler_state;
 
 		HMODULE _d3d_compiler = nullptr;
-		com_ptr<ID3D10RasterizerState> _effect_rasterizer_state;
+		com_ptr<ID3D10RasterizerState> _effect_rasterizer;
 		com_ptr<ID3D10DepthStencilView> _effect_depthstencil;
-		std::vector<com_ptr<ID3D10Buffer>> _effect_constant_buffers;
+		std::vector<struct d3d10_effect_data> _effect_data;
 		std::unordered_map<size_t, com_ptr<ID3D10SamplerState>> _effect_sampler_states;
 
 #if RESHADE_GUI

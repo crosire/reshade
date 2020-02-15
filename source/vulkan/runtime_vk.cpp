@@ -19,6 +19,24 @@
 
 namespace reshade::vulkan
 {
+	struct vulkan_tex_data
+	{
+		VkImage image = VK_NULL_HANDLE;
+		VkImageView view[4] = {};
+		VmaAllocation image_mem = VK_NULL_HANDLE;
+		VkFormat formats[2] = {};
+#if RESHADE_GUI
+		VkDescriptorSet descriptor_set = VK_NULL_HANDLE;
+#endif
+	};
+
+	struct vulkan_pass_data
+	{
+		VkPipeline pipeline = VK_NULL_HANDLE;
+		VkClearValue clear_values[8] = {};
+		VkRenderPassBeginInfo begin_info = { VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO };
+	};
+
 	struct vulkan_effect_data
 	{
 		VkQueryPool query_pool = VK_NULL_HANDLE;
@@ -31,58 +49,10 @@ namespace reshade::vulkan
 		uint32_t depth_image_binding = std::numeric_limits<uint32_t>::max();
 	};
 
-	struct vulkan_tex_data : base_object
-	{
-		~vulkan_tex_data()
-		{
-			const VkLayerDispatchTable &vk = runtime->vk;
-			vmaDestroyImage(runtime->_alloc, image, image_mem);
-			if (view[0] != VK_NULL_HANDLE)
-				vk.DestroyImageView(runtime->_device, view[0], nullptr);
-			if (view[1] != view[0])
-				vk.DestroyImageView(runtime->_device, view[1], nullptr);
-			if (view[2] != view[0])
-				vk.DestroyImageView(runtime->_device, view[2], nullptr);
-			if (view[3] != view[2] && view[3] != view[1])
-				vk.DestroyImageView(runtime->_device, view[3], nullptr);
-#if RESHADE_GUI
-			if (descriptor_set != VK_NULL_HANDLE)
-				vk.FreeDescriptorSets(runtime->_device, runtime->_imgui_descriptor_pool, 1, &descriptor_set);
-#endif
-		}
-
-		VkImage image = VK_NULL_HANDLE;
-		VkImageView view[4] = {};
-		VmaAllocation image_mem = VK_NULL_HANDLE;
-		VkFormat formats[2] = {};
-		runtime_vk *runtime = nullptr;
-#if RESHADE_GUI
-		VkDescriptorSet descriptor_set = VK_NULL_HANDLE;
-#endif
-	};
-
-	struct vulkan_pass_data : base_object
-	{
-		~vulkan_pass_data()
-		{
-			const VkLayerDispatchTable &vk = runtime->vk;
-			if (begin_info.renderPass != runtime->_default_render_pass[0] &&
-				begin_info.renderPass != runtime->_default_render_pass[1])
-				vk.DestroyRenderPass(runtime->_device, begin_info.renderPass, nullptr);
-			if (begin_info.framebuffer != VK_NULL_HANDLE)
-				vk.DestroyFramebuffer(runtime->_device, begin_info.framebuffer, nullptr);
-			vk.DestroyPipeline(runtime->_device, pipeline, nullptr);
-		}
-
-		VkPipeline pipeline = VK_NULL_HANDLE;
-		VkClearValue clear_values[8] = {};
-		VkRenderPassBeginInfo begin_info = { VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO };
-		runtime_vk *runtime = nullptr;
-	};
-
-	struct vulkan_technique_data : base_object
+	struct vulkan_technique_data
 	{
 		uint32_t query_base_index = 0;
+		std::vector<vulkan_pass_data> passes;
 	};
 
 	const uint32_t MAX_IMAGE_DESCRIPTOR_SETS = 128; // TODO: Check if these limits are enough
@@ -142,14 +112,6 @@ namespace reshade::vulkan
 		transition.subresourceRange = subresource;
 
 		vk.CmdPipelineBarrier(cmd_list, layout_to_stage(old_layout), layout_to_stage(new_layout), 0, 0, nullptr, 0, nullptr, 1, &transition);
-	}
-
-	uint32_t find_memory_type_index(const VkPhysicalDeviceMemoryProperties &props, VkMemoryPropertyFlags flags, uint32_t type_bits)
-	{
-		for (uint32_t i = 0; i < props.memoryTypeCount; i++)
-			if ((props.memoryTypes[i].propertyFlags & flags) == flags && type_bits & (1 << i))
-				return i;
-		return std::numeric_limits<uint32_t>::max();
 	}
 }
 
@@ -843,7 +805,7 @@ bool reshade::vulkan::runtime_vk::init_effect(size_t index)
 			break;
 		default:
 			image_binding.imageView =
-				existing_texture->impl->as<vulkan_tex_data>()->view[info.srgb];
+				static_cast<vulkan_tex_data *>(existing_texture->impl)->view[info.srgb];
 			break;
 		}
 
@@ -967,8 +929,6 @@ bool reshade::vulkan::runtime_vk::init_effect(size_t index)
 		vk.UpdateDescriptorSets(_device, num_writes, writes, 0, nullptr);
 	}
 
-	bool success = true;
-
 	std::vector<uint8_t> spec_data;
 	std::vector<VkSpecializationMapEntry> spec_constants;
 	for (const reshadefx::uniform_info &constant : effect.module.spec_constants)
@@ -986,18 +946,17 @@ bool reshade::vulkan::runtime_vk::init_effect(size_t index)
 		if (technique.impl != nullptr || technique.effect_index != index)
 			continue;
 
-		technique.impl = std::make_unique<vulkan_technique_data>();
-		auto &technique_data = *technique.impl->as<vulkan_technique_data>();
-		// Offset index so that a query exists for each command frame and two subsequent ones are used for before/after stamps
-		technique_data.query_base_index = technique_index++ * 2 * NUM_COMMAND_FRAMES;
+		auto impl = new vulkan_technique_data();
+		technique.impl = impl;
 
+		// Offset index so that a query exists for each command frame and two subsequent ones are used for before/after stamps
+		impl->query_base_index = technique_index++ * 2 * NUM_COMMAND_FRAMES;
+
+		impl->passes.resize(technique.passes.size());
 		for (size_t pass_index = 0; pass_index < technique.passes.size(); ++pass_index)
 		{
-			technique.passes_data.push_back(std::make_unique<vulkan_pass_data>());
-			auto &pass_data = *technique.passes_data.back()->as<vulkan_pass_data>();
+			vulkan_pass_data &pass_data = impl->passes[pass_index];
 			const reshadefx::pass_info &pass_info = technique.passes[pass_index];
-
-			pass_data.runtime = this;
 
 			const auto convert_blend_op = [](reshadefx::pass_blend_op value) -> VkBlendOp {
 				switch (value)
@@ -1084,10 +1043,10 @@ bool reshade::vulkan::runtime_vk::init_effect(size_t index)
 
 			for (uint32_t k = 0; k < 8 && !pass_info.render_target_names[k].empty(); ++k, ++num_color_attachments)
 			{
-				const auto texture_impl = std::find_if(_textures.begin(), _textures.end(),
+				const auto texture_impl = static_cast<vulkan_tex_data *>(std::find_if(_textures.begin(), _textures.end(),
 					[&render_target = pass_info.render_target_names[k]](const auto &item) {
 					return item.unique_name == render_target;
-				})->impl->as<vulkan_tex_data>();
+				})->impl);
 				assert(texture_impl != nullptr);
 
 				attachment_views[k] = texture_impl->view[2 + pass_info.srgb_write_enable];
@@ -1262,11 +1221,34 @@ bool reshade::vulkan::runtime_vk::init_effect(size_t index)
 		}
 	}
 
-	return success;
+	return true;
 }
 void reshade::vulkan::runtime_vk::unload_effect(size_t index)
 {
 	wait_for_command_buffers(); // Make sure no effect resources are currently in use
+
+	for (technique &tech : _techniques)
+	{
+		if (tech.effect_index != index)
+			continue;
+
+		const auto impl = static_cast<vulkan_technique_data *>(tech.impl);
+		if (impl == nullptr)
+			continue;
+
+		for (vulkan_pass_data &pass_data : impl->passes)
+		{
+			if (pass_data.begin_info.renderPass != _default_render_pass[0] &&
+				pass_data.begin_info.renderPass != _default_render_pass[1])
+				vk.DestroyRenderPass(_device, pass_data.begin_info.renderPass, nullptr);
+			if (pass_data.begin_info.framebuffer != VK_NULL_HANDLE)
+				vk.DestroyFramebuffer(_device, pass_data.begin_info.framebuffer, nullptr);
+			vk.DestroyPipeline(_device, pass_data.pipeline, nullptr);
+		}
+
+		delete impl;
+		tech.impl = nullptr;
+	}
 
 	runtime::unload_effect(index);
 
@@ -1288,6 +1270,26 @@ void reshade::vulkan::runtime_vk::unload_effect(size_t index)
 void reshade::vulkan::runtime_vk::unload_effects()
 {
 	wait_for_command_buffers(); // Make sure no effect resources are currently in use
+
+	for (technique &tech : _techniques)
+	{
+		const auto impl = static_cast<vulkan_technique_data *>(tech.impl);
+		if (impl == nullptr)
+			continue;
+
+		for (vulkan_pass_data &pass_data : impl->passes)
+		{
+			if (pass_data.begin_info.renderPass != _default_render_pass[0] &&
+				pass_data.begin_info.renderPass != _default_render_pass[1])
+				vk.DestroyRenderPass(_device, pass_data.begin_info.renderPass, nullptr);
+			if (pass_data.begin_info.framebuffer != VK_NULL_HANDLE)
+				vk.DestroyFramebuffer(_device, pass_data.begin_info.framebuffer, nullptr);
+			vk.DestroyPipeline(_device, pass_data.pipeline, nullptr);
+		}
+
+		delete impl;
+		tech.impl = nullptr;
+	}
 
 	runtime::unload_effects();
 
@@ -1315,9 +1317,8 @@ void reshade::vulkan::runtime_vk::unload_effects()
 
 bool reshade::vulkan::runtime_vk::init_texture(texture &texture)
 {
-	texture.impl = std::make_unique<vulkan_tex_data>();
-	auto impl = texture.impl->as<vulkan_tex_data>();
-	impl->runtime = this;
+	auto impl = new vulkan_tex_data();
+	texture.impl = impl;
 
 	// Do not create resource if it is a reference, it is set in 'render_technique'
 	if (texture.impl_reference != texture_reference::none)
@@ -1455,7 +1456,7 @@ bool reshade::vulkan::runtime_vk::init_texture(texture &texture)
 }
 void reshade::vulkan::runtime_vk::upload_texture(const texture &texture, const uint8_t *pixels)
 {
-	auto impl = texture.impl->as<vulkan_tex_data>();
+	auto impl = static_cast<vulkan_tex_data *>(texture.impl);
 	assert(impl != nullptr && pixels != nullptr && texture.impl_reference == texture_reference::none);
 
 	// Allocate host memory for upload
@@ -1523,12 +1524,35 @@ void reshade::vulkan::runtime_vk::upload_texture(const texture &texture, const u
 
 	vmaFreeMemory(_alloc, intermediate_mem);
 }
+void reshade::vulkan::runtime_vk::destroy_texture(texture &texture)
+{
+	if (texture.impl == nullptr)
+		return;
+	auto impl = static_cast<vulkan_tex_data *>(texture.impl);
+
+	vmaDestroyImage(_alloc, impl->image, impl->image_mem);
+	if (impl->view[0] != VK_NULL_HANDLE)
+		vk.DestroyImageView(_device, impl->view[0], nullptr);
+	if (impl->view[1] != impl->view[0])
+		vk.DestroyImageView(_device, impl->view[1], nullptr);
+	if (impl->view[2] != impl->view[0])
+		vk.DestroyImageView(_device, impl->view[2], nullptr);
+	if (impl->view[3] != impl->view[2] && impl->view[3] != impl->view[1])
+		vk.DestroyImageView(_device, impl->view[3], nullptr);
+#if RESHADE_GUI
+	if (impl->descriptor_set != VK_NULL_HANDLE)
+		vk.FreeDescriptorSets(_device, _imgui_descriptor_pool, 1, &impl->descriptor_set);
+#endif
+
+	delete impl;
+	texture.impl = nullptr;
+}
 void reshade::vulkan::runtime_vk::generate_mipmaps(const texture &texture)
 {
 	if (texture.levels <= 1)
 		return; // No need to generate mipmaps when texture does not have any
 
-	auto impl = texture.impl->as<vulkan_tex_data>();
+	auto impl = static_cast<vulkan_tex_data *>(texture.impl);
 	assert(impl != nullptr);
 
 	int32_t width = texture.width;
@@ -1555,7 +1579,7 @@ void reshade::vulkan::runtime_vk::generate_mipmaps(const texture &texture)
 
 void reshade::vulkan::runtime_vk::render_technique(technique &technique)
 {
-	const auto impl = technique.impl->as<vulkan_technique_data>();
+	const auto impl = static_cast<vulkan_technique_data *>(technique.impl);
 	vulkan_effect_data &effect_data = _effect_data[technique.effect_index];
 
 	// Evaluate queries from oldest frame in queue
@@ -1593,7 +1617,7 @@ void reshade::vulkan::runtime_vk::render_technique(technique &technique)
 
 	for (size_t pass_index = 0; pass_index < technique.passes.size(); ++pass_index)
 	{
-		const auto &pass_data = *technique.passes_data[pass_index]->as<vulkan_pass_data>();
+		const vulkan_pass_data &pass_data = impl->passes[pass_index];
 		const reshadefx::pass_info &pass_info = technique.passes[pass_index];
 
 		// Save back buffer of previous pass

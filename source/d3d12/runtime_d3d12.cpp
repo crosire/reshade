@@ -16,6 +16,20 @@
 
 namespace reshade::d3d12
 {
+	struct d3d12_tex_data
+	{
+		D3D12_RESOURCE_STATES state;
+		com_ptr<ID3D12Resource> resource;
+		com_ptr<ID3D12DescriptorHeap> descriptors;
+	};
+
+	struct d3d12_pass_data
+	{
+		com_ptr<ID3D12PipelineState> pipeline;
+		UINT num_render_targets;
+		D3D12_CPU_DESCRIPTOR_HANDLE render_targets;
+	};
+
 	struct d3d12_effect_data
 	{
 		com_ptr<ID3D12Resource> cb;
@@ -33,23 +47,9 @@ namespace reshade::d3d12
 		D3D12_CPU_DESCRIPTOR_HANDLE depth_texture_binding = {};
 	};
 
-	struct d3d12_tex_data : base_object
+	struct d3d12_technique_data
 	{
-		D3D12_RESOURCE_STATES state;
-		com_ptr<ID3D12Resource> resource;
-		com_ptr<ID3D12DescriptorHeap> descriptors;
-	};
-
-	struct d3d12_pass_data : base_object
-	{
-		com_ptr<ID3D12PipelineState> pipeline;
-		UINT num_render_targets;
-		D3D12_CPU_DESCRIPTOR_HANDLE render_targets;
-	};
-
-	struct d3d12_technique_data : base_object
-	{
-		// Empty and only used to indicate that a technique has been initialized
+		std::vector<d3d12_pass_data> passes;
 	};
 
 	static void transition_state(
@@ -374,7 +374,6 @@ void reshade::d3d12::runtime_d3d12::on_present(buffer_detection_context &tracker
 #endif
 
 	update_and_render_effects();
-
 	runtime::on_present();
 
 	if (const UINT64 sync_value = _fence_value[_swap_index] + 1;
@@ -511,7 +510,6 @@ bool reshade::d3d12::runtime_d3d12::init_effect(size_t index)
 
 	if (index >= _effect_data.size())
 		_effect_data.resize(index + 1);
-
 	d3d12_effect_data &effect_data = _effect_data[index];
 
 	{   D3D12_DESCRIPTOR_RANGE srv_range = {};
@@ -625,7 +623,7 @@ bool reshade::d3d12::runtime_d3d12::init_effect(size_t index)
 			resource = _depth_texture;
 			break;
 		default:
-			resource = existing_texture->impl->as<d3d12_tex_data>()->resource;
+			resource = static_cast<d3d12_tex_data *>(existing_texture->impl)->resource;
 			break;
 		}
 
@@ -672,19 +670,18 @@ bool reshade::d3d12::runtime_d3d12::init_effect(size_t index)
 		}
 	}
 
-	bool success = true;
-
 	for (technique &technique : _techniques)
 	{
 		if (technique.impl != nullptr || technique.effect_index != index)
 			continue;
 
-		technique.impl = std::make_unique<d3d12_technique_data>();
+		auto impl = new d3d12_technique_data();
+		technique.impl = impl;
 
+		impl->passes.resize(technique.passes.size());
 		for (size_t pass_index = 0; pass_index < technique.passes.size(); ++pass_index)
 		{
-			technique.passes_data.push_back(std::make_unique<d3d12_pass_data>());
-			auto &pass_data = *technique.passes_data.back()->as<d3d12_pass_data>();
+			d3d12_pass_data &pass_data = impl->passes[pass_index];
 			reshadefx::pass_info &pass_info = technique.passes[pass_index];
 
 			D3D12_GRAPHICS_PIPELINE_STATE_DESC pso_desc = {};
@@ -708,10 +705,10 @@ bool reshade::d3d12::runtime_d3d12::init_effect(size_t index)
 
 			for (UINT k = 0; k < 8 && !pass_info.render_target_names[k].empty(); ++k)
 			{
-				const auto texture_impl = std::find_if(_textures.begin(), _textures.end(),
+				const auto texture_impl = static_cast<d3d12_tex_data *>(std::find_if(_textures.begin(), _textures.end(),
 					[&render_target = pass_info.render_target_names[k]](const auto &item) {
 					return item.unique_name == render_target;
-				})->impl->as<d3d12_tex_data>();
+				})->impl);
 				assert(texture_impl != nullptr);
 
 				D3D12_RENDER_TARGET_VIEW_DESC desc = {};
@@ -838,12 +835,21 @@ bool reshade::d3d12::runtime_d3d12::init_effect(size_t index)
 		}
 	}
 
-	return success;
+	return true;
 }
 void reshade::d3d12::runtime_d3d12::unload_effect(size_t index)
 {
 	// Wait for all GPU operations to finish so resources are no longer referenced
 	wait_for_command_queue();
+
+	for (technique &tech : _techniques)
+	{
+		if (tech.effect_index != index)
+			continue;
+
+		delete static_cast<d3d12_technique_data *>(tech.impl);
+		tech.impl = nullptr;
+	}
 
 	runtime::unload_effect(index);
 
@@ -860,11 +866,14 @@ void reshade::d3d12::runtime_d3d12::unload_effect(size_t index)
 }
 void reshade::d3d12::runtime_d3d12::unload_effects()
 {
-	if (!_is_initialized)
-		return;
-
 	// Wait for all GPU operations to finish so resources are no longer referenced
 	wait_for_command_queue();
+
+	for (technique &tech : _techniques)
+	{
+		delete static_cast<d3d12_technique_data *>(tech.impl);
+		tech.impl = nullptr;
+	}
 
 	runtime::unload_effects();
 
@@ -873,8 +882,8 @@ void reshade::d3d12::runtime_d3d12::unload_effects()
 
 bool reshade::d3d12::runtime_d3d12::init_texture(texture &texture)
 {
-	texture.impl = std::make_unique<d3d12_tex_data>();
-	const auto impl = texture.impl->as<d3d12_tex_data>();
+	auto impl = new d3d12_tex_data();
+	texture.impl = impl;
 
 	// Do not create resource if it is a reference, it is set in 'render_technique'
 	if (texture.impl_reference != texture_reference::none)
@@ -997,7 +1006,7 @@ bool reshade::d3d12::runtime_d3d12::init_texture(texture &texture)
 }
 void reshade::d3d12::runtime_d3d12::upload_texture(const texture &texture, const uint8_t *pixels)
 {
-	const auto impl = texture.impl->as<d3d12_tex_data>();
+	auto impl = static_cast<d3d12_tex_data *>(texture.impl);
 	assert(impl != nullptr && pixels != nullptr && texture.impl_reference == texture_reference::none);
 
 	const uint32_t data_pitch = texture.width * 4;
@@ -1081,12 +1090,17 @@ void reshade::d3d12::runtime_d3d12::upload_texture(const texture &texture, const
 	execute_command_list();
 	wait_for_command_queue();
 }
+void reshade::d3d12::runtime_d3d12::destroy_texture(texture &texture)
+{
+	delete static_cast<d3d12_tex_data *>(texture.impl);
+	texture.impl = nullptr;
+}
 void reshade::d3d12::runtime_d3d12::generate_mipmaps(const texture &texture)
 {
 	if (texture.levels <= 1)
 		return; // No need to generate mipmaps when texture does not have any
 
-	const auto impl = texture.impl->as<d3d12_tex_data>();
+	auto impl = static_cast<d3d12_tex_data *>(texture.impl);
 	assert(impl != nullptr);
 
 	_cmd_list->SetComputeRootSignature(_mipmap_signature.get());
@@ -1120,6 +1134,7 @@ void reshade::d3d12::runtime_d3d12::generate_mipmaps(const texture &texture)
 
 void reshade::d3d12::runtime_d3d12::render_technique(technique &technique)
 {
+	const auto impl = static_cast<d3d12_technique_data *>(technique.impl);
 	d3d12_effect_data &effect_data = _effect_data[technique.effect_index];
 
 	if (!begin_command_list())
@@ -1155,18 +1170,18 @@ void reshade::d3d12::runtime_d3d12::render_technique(technique &technique)
 	bool is_effect_stencil_cleared = false;
 	D3D12_CPU_DESCRIPTOR_HANDLE effect_stencil = _depthstencil_dsvs->GetCPUDescriptorHandleForHeapStart();
 
-	for (size_t i = 0; i < technique.passes.size(); ++i)
+	for (size_t pass_index = 0; pass_index < technique.passes.size(); ++pass_index)
 	{
-		const auto &pass_data = *technique.passes_data[i]->as<d3d12_pass_data>();
-		const reshadefx::pass_info &pass_info = technique.passes[i];
+		const d3d12_pass_data &pass_data = impl->passes[pass_index];
+		const reshadefx::pass_info &pass_info = technique.passes[pass_index];
 
 		// Transition render targets
 		for (UINT k = 0; k < pass_data.num_render_targets; ++k)
 		{
-			const auto texture_impl = std::find_if(_textures.begin(), _textures.end(),
+			const auto texture_impl = static_cast<d3d12_tex_data *>(std::find_if(_textures.begin(), _textures.end(),
 				[&render_target = pass_info.render_target_names[k]](const auto &item) {
 				return item.unique_name == render_target;
-			})->impl->as<d3d12_tex_data>();
+			})->impl);
 
 			if (texture_impl->state != D3D12_RESOURCE_STATE_RENDER_TARGET)
 				transition_state(_cmd_list, texture_impl->resource, texture_impl->state, D3D12_RESOURCE_STATE_RENDER_TARGET);
