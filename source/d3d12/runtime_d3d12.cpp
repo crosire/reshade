@@ -610,6 +610,9 @@ bool reshade::d3d12::runtime_d3d12::init_effect(size_t index)
 			return false;
 		}
 
+		D3D12_CPU_DESCRIPTOR_HANDLE srv_handle = effect_data.srv_cpu_base;
+		srv_handle.ptr += info.texture_binding * _srv_handle_size;
+
 		const auto existing_texture = std::find_if(_textures.begin(), _textures.end(),
 			[&texture_name = info.texture_name](const auto &item) {
 			return item.unique_name == texture_name && item.impl != nullptr;
@@ -623,7 +626,9 @@ bool reshade::d3d12::runtime_d3d12::init_effect(size_t index)
 			resource = _backbuffer_texture;
 			break;
 		case texture_reference::depth_buffer:
-			resource = _depth_texture;
+			resource = _depth_texture; // Note: This may be null
+			// Keep track of the depth buffer texture descriptor to simplify updating it
+			effect_data.depth_texture_binding = srv_handle;
 			break;
 		default:
 			resource = static_cast<d3d12_tex_data *>(existing_texture->impl)->resource;
@@ -640,14 +645,7 @@ bool reshade::d3d12::runtime_d3d12::init_effect(size_t index)
 			desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
 			desc.Texture2D.MipLevels = existing_texture->levels;
 
-			D3D12_CPU_DESCRIPTOR_HANDLE srv_handle = effect_data.srv_cpu_base;
-			srv_handle.ptr += info.texture_binding * _srv_handle_size;
-
 			_device->CreateShaderResourceView(resource.get(), &desc, srv_handle);
-
-			// Keep track of the depth buffer texture descriptor to simplify updating it
-			if (existing_texture->impl_reference == texture_reference::depth_buffer)
-				effect_data.depth_texture_binding = srv_handle;
 		}
 
 		// Only initialize sampler if it has not been created before
@@ -1623,16 +1621,6 @@ void reshade::d3d12::runtime_d3d12::update_depth_texture_bindings(com_ptr<ID3D12
 
 	if (_depth_texture != nullptr)
 	{
-		for (auto &tex : _textures)
-		{
-			if (tex.impl != nullptr &&
-				tex.impl_reference == texture_reference::depth_buffer)
-			{
-				tex.width = _width;
-				tex.height = _height;
-			}
-		}
-
 		const D3D12_RESOURCE_DESC desc = _depth_texture->GetDesc();
 
 		view_desc.Format = make_dxgi_format_normal(desc.Format);

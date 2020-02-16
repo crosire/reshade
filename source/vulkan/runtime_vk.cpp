@@ -2239,16 +2239,6 @@ void reshade::vulkan::runtime_vk::update_depth_image_bindings(buffer_detection::
 		_depth_image_view = create_image_view(info.image, info.image_info.format, 1, VK_IMAGE_ASPECT_DEPTH_BIT);
 		image_binding.imageView = _depth_image_view;
 
-		for (auto &tex : _textures)
-		{
-			if (tex.impl != nullptr &&
-				tex.impl_reference == texture_reference::depth_buffer)
-			{
-				tex.width = frame_width();
-				tex.height = frame_height();
-			}
-		}
-
 		_has_depth_texture = true;
 	}
 	else
