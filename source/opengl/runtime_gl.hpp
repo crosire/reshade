@@ -10,9 +10,6 @@
 #include "buffer_detection.hpp"
 #include <unordered_set>
 
-namespace reshade { enum class texture_reference; }
-namespace reshadefx { struct sampler_info; }
-
 namespace reshade::opengl
 {
 	class runtime_gl : public runtime
@@ -97,9 +94,12 @@ namespace reshade::opengl
 		void init_imgui_resources();
 		void render_imgui_draw_data(ImDrawData *data) override;
 
-		GLuint _imgui_program = 0;
-		int _imgui_uniform_tex = 0;
-		int _imgui_uniform_proj = 0;
+		struct imgui_resources
+		{
+			GLuint program = 0;
+			int uniform_tex_location = 0;
+			int uniform_proj_location = 0;
+		} _imgui;
 #endif
 
 #if RESHADE_DEPTH

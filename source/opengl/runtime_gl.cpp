@@ -226,8 +226,8 @@ void reshade::opengl::runtime_gl::on_reset()
 	std::memset(_rbo, 0, sizeof(_rbo));
 
 #if RESHADE_GUI
-	glDeleteProgram(_imgui_program);
-	_imgui_program = 0;
+	glDeleteProgram(_imgui.program);
+	_imgui.program = 0;
 #endif
 
 #if RESHADE_DEPTH
@@ -1108,19 +1108,19 @@ void reshade::opengl::runtime_gl::init_imgui_resources()
 	glShaderSource(imgui_fs, 1, fragment_shader, 0);
 	glCompileShader(imgui_fs);
 
-	_imgui_program = glCreateProgram();
-	glAttachShader(_imgui_program, imgui_vs);
-	glAttachShader(_imgui_program, imgui_fs);
-	glLinkProgram(_imgui_program);
+	_imgui.program = glCreateProgram();
+	glAttachShader(_imgui.program, imgui_vs);
+	glAttachShader(_imgui.program, imgui_fs);
+	glLinkProgram(_imgui.program);
 	glDeleteShader(imgui_vs);
 	glDeleteShader(imgui_fs);
 
-	_imgui_uniform_tex  = glGetUniformLocation(_imgui_program, "Texture");
-	_imgui_uniform_proj = glGetUniformLocation(_imgui_program, "ProjMtx");
+	_imgui.uniform_tex_location  = glGetUniformLocation(_imgui.program, "Texture");
+	_imgui.uniform_proj_location = glGetUniformLocation(_imgui.program, "ProjMtx");
 
-	const int attrib_pos = glGetAttribLocation(_imgui_program, "Position");
-	const int attrib_uv  = glGetAttribLocation(_imgui_program, "UV");
-	const int attrib_col = glGetAttribLocation(_imgui_program, "Color");
+	const int attrib_pos = glGetAttribLocation(_imgui.program, "Position");
+	const int attrib_uv  = glGetAttribLocation(_imgui.program, "UV");
+	const int attrib_col = glGetAttribLocation(_imgui.program, "Color");
 
 	glBindBuffer(GL_ARRAY_BUFFER, _buf[VBO_IMGUI]);
 	glBindVertexArray(_vao[VAO_IMGUI]);
@@ -1148,7 +1148,7 @@ void reshade::opengl::runtime_gl::render_imgui_draw_data(ImDrawData *draw_data)
 	glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
 	glDepthMask(GL_FALSE);
 	glActiveTexture(GL_TEXTURE0); // Bind texture at location zero below
-	glUseProgram(_imgui_program);
+	glUseProgram(_imgui.program);
 	glBindSampler(0, 0); // Do not use separate sampler object, since state is already set in texture
 	glBindVertexArray(_vao[VAO_IMGUI]);
 
@@ -1162,8 +1162,8 @@ void reshade::opengl::runtime_gl::render_imgui_draw_data(ImDrawData *draw_data)
 		+(2 * draw_data->DisplayPos.y + draw_data->DisplaySize.y) / draw_data->DisplaySize.y, 0.0f, 1.0f,
 	};
 
-	glUniform1i(_imgui_uniform_tex, 0); // Set to GL_TEXTURE0
-	glUniformMatrix4fv(_imgui_uniform_proj, 1, GL_FALSE, ortho_projection);
+	glUniform1i(_imgui.uniform_tex_location, 0); // Set to GL_TEXTURE0
+	glUniformMatrix4fv(_imgui.uniform_proj_location, 1, GL_FALSE, ortho_projection);
 
 	for (int n = 0; n < draw_data->CmdListsCount; ++n)
 	{

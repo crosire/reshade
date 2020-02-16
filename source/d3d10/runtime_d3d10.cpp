@@ -233,18 +233,18 @@ void reshade::d3d10::runtime_d3d10::on_reset()
 	_effect_rasterizer.reset();
 
 #if RESHADE_GUI
-	_imgui_index_buffer_size = 0;
-	_imgui_index_buffer.reset();
-	_imgui_vertex_buffer_size = 0;
-	_imgui_vertex_buffer.reset();
-	_imgui_vertex_shader.reset();
-	_imgui_pixel_shader.reset();
-	_imgui_input_layout.reset();
-	_imgui_constant_buffer.reset();
-	_imgui_texture_sampler.reset();
-	_imgui_rasterizer_state.reset();
-	_imgui_blend_state.reset();
-	_imgui_depthstencil_state.reset();
+	_imgui.cb.reset();
+	_imgui.vs.reset();
+	_imgui.rs.reset();
+	_imgui.ps.reset();
+	_imgui.ss.reset();
+	_imgui.bs.reset();
+	_imgui.ds.reset();
+	_imgui.layout.reset();
+	_imgui.indices.reset();
+	_imgui.vertices.reset();
+	_imgui.num_indices = 0;
+	_imgui.num_vertices = 0;
 #endif
 
 #if RESHADE_DEPTH
@@ -1077,7 +1077,7 @@ void reshade::d3d10::runtime_d3d10::render_technique(technique &technique)
 bool reshade::d3d10::runtime_d3d10::init_imgui_resources()
 {
 	{   const resources::data_resource vs = resources::load_data_resource(IDR_IMGUI_VS);
-		if (FAILED(_device->CreateVertexShader(vs.data, vs.data_size, &_imgui_vertex_shader)))
+		if (FAILED(_device->CreateVertexShader(vs.data, vs.data_size, &_imgui.vs)))
 			return false;
 
 		const D3D10_INPUT_ELEMENT_DESC input_layout[] = {
@@ -1085,12 +1085,12 @@ bool reshade::d3d10::runtime_d3d10::init_imgui_resources()
 			{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT,   0, offsetof(ImDrawVert, uv ), D3D10_INPUT_PER_VERTEX_DATA, 0 },
 			{ "COLOR",    0, DXGI_FORMAT_R8G8B8A8_UNORM, 0, offsetof(ImDrawVert, col), D3D10_INPUT_PER_VERTEX_DATA, 0 },
 		};
-		if (FAILED(_device->CreateInputLayout(input_layout, ARRAYSIZE(input_layout), vs.data, vs.data_size, &_imgui_input_layout)))
+		if (FAILED(_device->CreateInputLayout(input_layout, ARRAYSIZE(input_layout), vs.data, vs.data_size, &_imgui.layout)))
 			return false;
 	}
 
 	{   const resources::data_resource ps = resources::load_data_resource(IDR_IMGUI_PS);
-		if (FAILED(_device->CreatePixelShader(ps.data, ps.data_size, &_imgui_pixel_shader)))
+		if (FAILED(_device->CreatePixelShader(ps.data, ps.data_size, &_imgui.ps)))
 			return false;
 	}
 
@@ -1111,7 +1111,7 @@ bool reshade::d3d10::runtime_d3d10::init_imgui_resources()
 		initial_data.pSysMem = ortho_projection;
 		initial_data.SysMemPitch = sizeof(ortho_projection);
 
-		if (FAILED(_device->CreateBuffer(&desc, &initial_data, &_imgui_constant_buffer)))
+		if (FAILED(_device->CreateBuffer(&desc, &initial_data, &_imgui.cb)))
 			return false;
 	}
 
@@ -1125,7 +1125,7 @@ bool reshade::d3d10::runtime_d3d10::init_imgui_resources()
 		desc.BlendOpAlpha = D3D10_BLEND_OP_ADD;
 		desc.RenderTargetWriteMask[0] = D3D10_COLOR_WRITE_ENABLE_ALL;
 
-		if (FAILED(_device->CreateBlendState(&desc, &_imgui_blend_state)))
+		if (FAILED(_device->CreateBlendState(&desc, &_imgui.bs)))
 			return false;
 	}
 
@@ -1135,7 +1135,7 @@ bool reshade::d3d10::runtime_d3d10::init_imgui_resources()
 		desc.ScissorEnable = true;
 		desc.DepthClipEnable = true;
 
-		if (FAILED(_device->CreateRasterizerState(&desc, &_imgui_rasterizer_state)))
+		if (FAILED(_device->CreateRasterizerState(&desc, &_imgui.rs)))
 			return false;
 	}
 
@@ -1143,7 +1143,7 @@ bool reshade::d3d10::runtime_d3d10::init_imgui_resources()
 		desc.DepthEnable = false;
 		desc.StencilEnable = false;
 
-		if (FAILED(_device->CreateDepthStencilState(&desc, &_imgui_depthstencil_state)))
+		if (FAILED(_device->CreateDepthStencilState(&desc, &_imgui.ds)))
 			return false;
 	}
 
@@ -1154,7 +1154,7 @@ bool reshade::d3d10::runtime_d3d10::init_imgui_resources()
 		desc.AddressW = D3D10_TEXTURE_ADDRESS_WRAP;
 		desc.ComparisonFunc = D3D10_COMPARISON_ALWAYS;
 
-		if (FAILED(_device->CreateSamplerState(&desc, &_imgui_texture_sampler)))
+		if (FAILED(_device->CreateSamplerState(&desc, &_imgui.ss)))
 			return false;
 	}
 
@@ -1163,42 +1163,43 @@ bool reshade::d3d10::runtime_d3d10::init_imgui_resources()
 
 void reshade::d3d10::runtime_d3d10::render_imgui_draw_data(ImDrawData *draw_data)
 {
+	// Projection matrix resides in an immutable constant buffer, so cannot change display dimensions
 	assert(draw_data->DisplayPos.x == 0 && draw_data->DisplaySize.x == _width);
 	assert(draw_data->DisplayPos.y == 0 && draw_data->DisplaySize.y == _height);
 
 	// Create and grow vertex/index buffers if needed
-	if (_imgui_index_buffer_size < draw_data->TotalIdxCount)
+	if (_imgui.num_indices < draw_data->TotalIdxCount)
 	{
-		_imgui_index_buffer.reset();
-		_imgui_index_buffer_size = draw_data->TotalIdxCount + 10000;
+		_imgui.indices.reset();
+		_imgui.num_indices = draw_data->TotalIdxCount + 10000;
 
 		D3D10_BUFFER_DESC desc = {};
 		desc.Usage = D3D10_USAGE_DYNAMIC;
-		desc.ByteWidth = _imgui_index_buffer_size * sizeof(ImDrawIdx);
+		desc.ByteWidth = _imgui.num_indices * sizeof(ImDrawIdx);
 		desc.BindFlags = D3D10_BIND_INDEX_BUFFER;
 		desc.CPUAccessFlags = D3D10_CPU_ACCESS_WRITE;
 
-		if (FAILED(_device->CreateBuffer(&desc, nullptr, &_imgui_index_buffer)))
+		if (FAILED(_device->CreateBuffer(&desc, nullptr, &_imgui.indices)))
 			return;
 	}
-	if (_imgui_vertex_buffer_size < draw_data->TotalVtxCount)
+	if (_imgui.num_vertices < draw_data->TotalVtxCount)
 	{
-		_imgui_vertex_buffer.reset();
-		_imgui_vertex_buffer_size = draw_data->TotalVtxCount + 5000;
+		_imgui.vertices.reset();
+		_imgui.num_vertices = draw_data->TotalVtxCount + 5000;
 
 		D3D10_BUFFER_DESC desc = {};
 		desc.Usage = D3D10_USAGE_DYNAMIC;
-		desc.ByteWidth = _imgui_vertex_buffer_size * sizeof(ImDrawVert);
+		desc.ByteWidth = _imgui.num_vertices * sizeof(ImDrawVert);
 		desc.BindFlags = D3D10_BIND_VERTEX_BUFFER;
 		desc.CPUAccessFlags = D3D10_CPU_ACCESS_WRITE;
 		desc.MiscFlags = 0;
 
-		if (FAILED(_device->CreateBuffer(&desc, nullptr, &_imgui_vertex_buffer)))
+		if (FAILED(_device->CreateBuffer(&desc, nullptr, &_imgui.vertices)))
 			return;
 	}
 
 	if (ImDrawIdx *idx_dst;
-		SUCCEEDED(_imgui_index_buffer->Map(D3D10_MAP_WRITE_DISCARD, 0, reinterpret_cast<void **>(&idx_dst))))
+		SUCCEEDED(_imgui.indices->Map(D3D10_MAP_WRITE_DISCARD, 0, reinterpret_cast<void **>(&idx_dst))))
 	{
 		for (int n = 0; n < draw_data->CmdListsCount; ++n)
 		{
@@ -1207,10 +1208,10 @@ void reshade::d3d10::runtime_d3d10::render_imgui_draw_data(ImDrawData *draw_data
 			idx_dst += draw_list->IdxBuffer.Size;
 		}
 
-		_imgui_index_buffer->Unmap();
+		_imgui.indices->Unmap();
 	}
 	if (ImDrawVert *vtx_dst;
-		SUCCEEDED(_imgui_vertex_buffer->Map(D3D10_MAP_WRITE_DISCARD, 0, reinterpret_cast<void **>(&vtx_dst))))
+		SUCCEEDED(_imgui.vertices->Map(D3D10_MAP_WRITE_DISCARD, 0, reinterpret_cast<void **>(&vtx_dst))))
 	{
 		for (int n = 0; n < draw_data->CmdListsCount; ++n)
 		{
@@ -1219,29 +1220,29 @@ void reshade::d3d10::runtime_d3d10::render_imgui_draw_data(ImDrawData *draw_data
 			vtx_dst += draw_list->VtxBuffer.Size;
 		}
 
-		_imgui_vertex_buffer->Unmap();
+		_imgui.vertices->Unmap();
 	}
 
 	// Setup render state and render draw lists
-	_device->IASetInputLayout(_imgui_input_layout.get());
-	_device->IASetIndexBuffer(_imgui_index_buffer.get(), sizeof(ImDrawIdx) == 2 ? DXGI_FORMAT_R16_UINT : DXGI_FORMAT_R32_UINT, 0);
+	_device->IASetInputLayout(_imgui.layout.get());
+	_device->IASetIndexBuffer(_imgui.indices.get(), sizeof(ImDrawIdx) == 2 ? DXGI_FORMAT_R16_UINT : DXGI_FORMAT_R32_UINT, 0);
 	const UINT stride = sizeof(ImDrawVert), offset = 0;
-	ID3D10Buffer *const vertex_buffers[] = { _imgui_vertex_buffer.get() };
+	ID3D10Buffer *const vertex_buffers[] = { _imgui.vertices.get() };
 	_device->IASetVertexBuffers(0, ARRAYSIZE(vertex_buffers), vertex_buffers, &stride, &offset);
 	_device->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-	_device->VSSetShader(_imgui_vertex_shader.get());
-	ID3D10Buffer *const constant_buffers[] = { _imgui_constant_buffer.get() };
+	_device->VSSetShader(_imgui.vs.get());
+	ID3D10Buffer *const constant_buffers[] = { _imgui.cb.get() };
 	_device->VSSetConstantBuffers(0, ARRAYSIZE(constant_buffers), constant_buffers);
 	_device->GSSetShader(nullptr);
-	_device->PSSetShader(_imgui_pixel_shader.get());
-	ID3D10SamplerState *const samplers[] = { _imgui_texture_sampler.get() };
+	_device->PSSetShader(_imgui.ps.get());
+	ID3D10SamplerState *const samplers[] = { _imgui.ss.get() };
 	_device->PSSetSamplers(0, ARRAYSIZE(samplers), samplers);
-	_device->RSSetState(_imgui_rasterizer_state.get());
+	_device->RSSetState(_imgui.rs.get());
 	const D3D10_VIEWPORT viewport = { 0, 0, _width, _height, 0.0f, 1.0f };
 	_device->RSSetViewports(1, &viewport);
 	const FLOAT blend_factor[4] = { 0.f, 0.f, 0.f, 0.f };
-	_device->OMSetBlendState(_imgui_blend_state.get(), blend_factor, D3D10_DEFAULT_SAMPLE_MASK);
-	_device->OMSetDepthStencilState(_imgui_depthstencil_state.get(), 0);
+	_device->OMSetBlendState(_imgui.bs.get(), blend_factor, D3D10_DEFAULT_SAMPLE_MASK);
+	_device->OMSetDepthStencilState(_imgui.ds.get(), 0);
 	ID3D10RenderTargetView *const render_targets[] = { _backbuffer_rtv[0].get() };
 	_device->OMSetRenderTargets(ARRAYSIZE(render_targets), render_targets, nullptr);
 

@@ -326,16 +326,16 @@ void reshade::d3d12::runtime_d3d12::on_reset()
 	_effect_depthstencil.reset();
 
 #if RESHADE_GUI
+	_imgui.pipeline.reset();
+	_imgui.signature.reset();
+
 	for (unsigned int i = 0; i < NUM_IMGUI_BUFFERS; ++i)
 	{
-		_imgui_index_buffer[i].reset();
-		_imgui_index_buffer_size[i] = 0;
-		_imgui_vertex_buffer[i].reset();
-		_imgui_vertex_buffer_size[i] = 0;
+		_imgui.indices[i].reset();
+		_imgui.vertices[i].reset();
+		_imgui.num_indices[i] = 0;
+		_imgui.num_vertices[i] = 0;
 	}
-
-	_imgui_pipeline.reset();
-	_imgui_signature.reset();
 #endif
 
 #if RESHADE_DEPTH
@@ -1323,11 +1323,11 @@ bool reshade::d3d12::runtime_d3d12::init_imgui_resources()
 		desc.pStaticSamplers = samplers;
 		desc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
 
-		_imgui_signature = create_root_signature(desc);
+		_imgui.signature = create_root_signature(desc);
 	}
 
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC pso_desc = {};
-	pso_desc.pRootSignature = _imgui_signature.get();
+	pso_desc.pRootSignature = _imgui.signature.get();
 	pso_desc.SampleMask = UINT_MAX;
 	pso_desc.NumRenderTargets = 1;
 	pso_desc.RTVFormats[0] = _backbuffer_format;
@@ -1371,7 +1371,7 @@ bool reshade::d3d12::runtime_d3d12::init_imgui_resources()
 		desc.StencilEnable = false;
 	}
 
-	return SUCCEEDED(_device->CreateGraphicsPipelineState(&pso_desc, IID_PPV_ARGS(&_imgui_pipeline)));
+	return SUCCEEDED(_device->CreateGraphicsPipelineState(&pso_desc, IID_PPV_ARGS(&_imgui.pipeline)));
 }
 
 void reshade::d3d12::runtime_d3d12::render_imgui_draw_data(ImDrawData *draw_data)
@@ -1380,11 +1380,11 @@ void reshade::d3d12::runtime_d3d12::render_imgui_draw_data(ImDrawData *draw_data
 	const unsigned int buffer_index = _framecount % NUM_IMGUI_BUFFERS;
 
 	// Create and grow vertex/index buffers if needed
-	if (_imgui_index_buffer_size[buffer_index] < draw_data->TotalIdxCount)
+	if (_imgui.num_indices[buffer_index] < draw_data->TotalIdxCount)
 	{
 		wait_for_command_queue(); // Be safe and ensure nothing still uses this buffer
 
-		_imgui_index_buffer[buffer_index].reset();
+		_imgui.indices[buffer_index].reset();
 
 		const int new_size = draw_data->TotalIdxCount + 10000;
 		D3D12_RESOURCE_DESC desc = { D3D12_RESOURCE_DIMENSION_BUFFER };
@@ -1396,18 +1396,18 @@ void reshade::d3d12::runtime_d3d12::render_imgui_draw_data(ImDrawData *draw_data
 		desc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
 		D3D12_HEAP_PROPERTIES props = { D3D12_HEAP_TYPE_UPLOAD };
 
-		if (FAILED(_device->CreateCommittedResource(&props, D3D12_HEAP_FLAG_NONE, &desc, D3D12_RESOURCE_STATE_GENERIC_READ, NULL, IID_PPV_ARGS(&_imgui_index_buffer[buffer_index]))))
+		if (FAILED(_device->CreateCommittedResource(&props, D3D12_HEAP_FLAG_NONE, &desc, D3D12_RESOURCE_STATE_GENERIC_READ, NULL, IID_PPV_ARGS(&_imgui.indices[buffer_index]))))
 			return;
 #ifdef _DEBUG
-		_imgui_index_buffer[buffer_index]->SetName(L"ImGui Index Buffer");
+		_imgui.indices[buffer_index]->SetName(L"ImGui Index Buffer");
 #endif
-		_imgui_index_buffer_size[buffer_index] = new_size;
+		_imgui.num_indices[buffer_index] = new_size;
 	}
-	if (_imgui_vertex_buffer_size[buffer_index] < draw_data->TotalVtxCount)
+	if (_imgui.num_vertices[buffer_index] < draw_data->TotalVtxCount)
 	{
 		wait_for_command_queue();
 
-		_imgui_vertex_buffer[buffer_index].reset();
+		_imgui.vertices[buffer_index].reset();
 
 		const int new_size = draw_data->TotalVtxCount + 5000;
 		D3D12_RESOURCE_DESC desc = { D3D12_RESOURCE_DIMENSION_BUFFER };
@@ -1419,16 +1419,16 @@ void reshade::d3d12::runtime_d3d12::render_imgui_draw_data(ImDrawData *draw_data
 		desc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
 		D3D12_HEAP_PROPERTIES props = { D3D12_HEAP_TYPE_UPLOAD };
 
-		if (FAILED(_device->CreateCommittedResource(&props, D3D12_HEAP_FLAG_NONE, &desc, D3D12_RESOURCE_STATE_GENERIC_READ, NULL, IID_PPV_ARGS(&_imgui_vertex_buffer[buffer_index]))))
+		if (FAILED(_device->CreateCommittedResource(&props, D3D12_HEAP_FLAG_NONE, &desc, D3D12_RESOURCE_STATE_GENERIC_READ, NULL, IID_PPV_ARGS(&_imgui.vertices[buffer_index]))))
 			return;
 #ifdef _DEBUG
-		_imgui_index_buffer[buffer_index]->SetName(L"ImGui Vertex Buffer");
+		_imgui.vertices[buffer_index]->SetName(L"ImGui Vertex Buffer");
 #endif
-		_imgui_vertex_buffer_size[buffer_index] = new_size;
+		_imgui.num_vertices[buffer_index] = new_size;
 	}
 
 	if (ImDrawIdx *idx_dst;
-		SUCCEEDED(_imgui_index_buffer[buffer_index]->Map(0, nullptr, reinterpret_cast<void **>(&idx_dst))))
+		SUCCEEDED(_imgui.indices[buffer_index]->Map(0, nullptr, reinterpret_cast<void **>(&idx_dst))))
 	{
 		for (int n = 0; n < draw_data->CmdListsCount; ++n)
 		{
@@ -1437,10 +1437,10 @@ void reshade::d3d12::runtime_d3d12::render_imgui_draw_data(ImDrawData *draw_data
 			idx_dst += draw_list->IdxBuffer.Size;
 		}
 
-		_imgui_index_buffer[buffer_index]->Unmap(0, nullptr);
+		_imgui.indices[buffer_index]->Unmap(0, nullptr);
 	}
 	if (ImDrawVert *vtx_dst;
-		SUCCEEDED(_imgui_vertex_buffer[buffer_index]->Map(0, nullptr, reinterpret_cast<void **>(&vtx_dst))))
+		SUCCEEDED(_imgui.vertices[buffer_index]->Map(0, nullptr, reinterpret_cast<void **>(&vtx_dst))))
 	{
 		for (int n = 0; n < draw_data->CmdListsCount; ++n)
 		{
@@ -1449,10 +1449,10 @@ void reshade::d3d12::runtime_d3d12::render_imgui_draw_data(ImDrawData *draw_data
 			vtx_dst += draw_list->VtxBuffer.Size;
 		}
 
-		_imgui_vertex_buffer[buffer_index]->Unmap(0, nullptr);
+		_imgui.vertices[buffer_index]->Unmap(0, nullptr);
 	}
 
-	if (!begin_command_list(_imgui_pipeline))
+	if (!begin_command_list(_imgui.pipeline))
 		return;
 
 	// Transition render target
@@ -1469,13 +1469,13 @@ void reshade::d3d12::runtime_d3d12::render_imgui_draw_data(ImDrawData *draw_data
 
 	// Setup render state and render draw lists
 	const D3D12_INDEX_BUFFER_VIEW index_buffer_view = {
-		_imgui_index_buffer[buffer_index]->GetGPUVirtualAddress(), _imgui_index_buffer_size[buffer_index] * sizeof(ImDrawIdx), sizeof(ImDrawIdx) == 2 ? DXGI_FORMAT_R16_UINT : DXGI_FORMAT_R32_UINT };
+		_imgui.indices[buffer_index]->GetGPUVirtualAddress(), _imgui.num_indices[buffer_index] * sizeof(ImDrawIdx), sizeof(ImDrawIdx) == 2 ? DXGI_FORMAT_R16_UINT : DXGI_FORMAT_R32_UINT };
 	_cmd_list->IASetIndexBuffer(&index_buffer_view);
 	const D3D12_VERTEX_BUFFER_VIEW vertex_buffer_view = {
-		_imgui_vertex_buffer[buffer_index]->GetGPUVirtualAddress(), _imgui_vertex_buffer_size[buffer_index] * sizeof(ImDrawVert),  sizeof(ImDrawVert) };
+		_imgui.vertices[buffer_index]->GetGPUVirtualAddress(), _imgui.num_vertices[buffer_index] * sizeof(ImDrawVert),  sizeof(ImDrawVert) };
 	_cmd_list->IASetVertexBuffers(0, 1, &vertex_buffer_view);
 	_cmd_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-	_cmd_list->SetGraphicsRootSignature(_imgui_signature.get());
+	_cmd_list->SetGraphicsRootSignature(_imgui.signature.get());
 	_cmd_list->SetGraphicsRoot32BitConstants(0, sizeof(ortho_projection) / 4, ortho_projection, 0);
 	const D3D12_VIEWPORT viewport = { 0, 0, draw_data->DisplaySize.x, draw_data->DisplaySize.y, 0.0f, 1.0f };
 	_cmd_list->RSSetViewports(1, &viewport);

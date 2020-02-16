@@ -18,11 +18,6 @@ namespace reshade::vulkan
 {
 	class runtime_vk : public runtime
 	{
-		friend struct vulkan_tex_data;
-		friend struct vulkan_technique_data;
-		friend struct vulkan_pass_data;
-		friend struct vulkan_effect_data;
-
 		static const uint32_t NUM_IMGUI_BUFFERS = 5;
 		static const uint32_t NUM_COMMAND_FRAMES = 5;
 
@@ -96,24 +91,28 @@ namespace reshade::vulkan
 		VkImageView _effect_stencil_view = VK_NULL_HANDLE;
 		VkDescriptorPool _effect_descriptor_pool = VK_NULL_HANDLE;
 		VkDescriptorSetLayout _effect_descriptor_layout = VK_NULL_HANDLE;
-		std::vector<vulkan_effect_data> _effect_data;
+		std::vector<struct vulkan_effect_data> _effect_data;
 		std::unordered_map<size_t, VkSampler> _effect_sampler_states;
 
 #if RESHADE_GUI
 		bool init_imgui_resources();
 		void render_imgui_draw_data(ImDrawData *draw_data) override;
 
-		VkBuffer _imgui_index_buffer[NUM_IMGUI_BUFFERS] = {};
-		VkDeviceSize _imgui_index_buffer_size[NUM_IMGUI_BUFFERS] = {};
-		VmaAllocation _imgui_index_mem[NUM_IMGUI_BUFFERS] = {};
-		VkBuffer _imgui_vertex_buffer[NUM_IMGUI_BUFFERS] = {};
-		VkDeviceSize _imgui_vertex_buffer_size[NUM_IMGUI_BUFFERS] = {};
-		VmaAllocation _imgui_vertex_mem[NUM_IMGUI_BUFFERS] = {};
-		VkSampler _imgui_font_sampler = VK_NULL_HANDLE;
-		VkPipeline _imgui_pipeline = VK_NULL_HANDLE;
-		VkPipelineLayout _imgui_pipeline_layout = VK_NULL_HANDLE;
-		VkDescriptorPool _imgui_descriptor_pool = VK_NULL_HANDLE;
-		VkDescriptorSetLayout _imgui_descriptor_set_layout = VK_NULL_HANDLE;
+		struct imgui_resources
+		{
+			VkSampler sampler = VK_NULL_HANDLE;
+			VkPipeline pipeline = VK_NULL_HANDLE;
+			VkPipelineLayout pipeline_layout = VK_NULL_HANDLE;
+			VkDescriptorPool descriptor_pool = VK_NULL_HANDLE;
+			VkDescriptorSetLayout descriptor_layout = VK_NULL_HANDLE;
+
+			VkBuffer indices[NUM_IMGUI_BUFFERS] = {};
+			VkBuffer vertices[NUM_IMGUI_BUFFERS] = {};
+			VmaAllocation indices_mem[NUM_IMGUI_BUFFERS] = {};
+			VmaAllocation vertices_mem[NUM_IMGUI_BUFFERS] = {};
+			int num_indices[NUM_IMGUI_BUFFERS] = {};
+			int num_vertices[NUM_IMGUI_BUFFERS] = {};
+		} _imgui;
 #endif
 
 #if RESHADE_DEPTH

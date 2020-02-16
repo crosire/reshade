@@ -9,8 +9,6 @@
 #include "buffer_detection.hpp"
 #include <dxgi1_5.h>
 
-namespace reshadefx { struct sampler_info; }
-
 namespace reshade::d3d12
 {
 	class runtime_d3d12 : public runtime
@@ -82,12 +80,16 @@ namespace reshade::d3d12
 		bool init_imgui_resources();
 		void render_imgui_draw_data(ImDrawData *data) override;
 
-		int _imgui_index_buffer_size[NUM_IMGUI_BUFFERS] = {};
-		com_ptr<ID3D12Resource> _imgui_index_buffer[NUM_IMGUI_BUFFERS];
-		int _imgui_vertex_buffer_size[NUM_IMGUI_BUFFERS] = {};
-		com_ptr<ID3D12Resource> _imgui_vertex_buffer[NUM_IMGUI_BUFFERS];
-		com_ptr<ID3D12PipelineState> _imgui_pipeline;
-		com_ptr<ID3D12RootSignature> _imgui_signature;
+		struct imgui_resources
+		{
+			com_ptr<ID3D12PipelineState> pipeline;
+			com_ptr<ID3D12RootSignature> signature;
+
+			com_ptr<ID3D12Resource> indices[NUM_IMGUI_BUFFERS];
+			com_ptr<ID3D12Resource> vertices[NUM_IMGUI_BUFFERS];
+			int num_indices[NUM_IMGUI_BUFFERS] = {};
+			int num_vertices[NUM_IMGUI_BUFFERS] = {};
+		} _imgui;
 #endif
 
 #if RESHADE_DEPTH

@@ -9,9 +9,6 @@
 #include "state_block.hpp"
 #include "buffer_detection.hpp"
 
-namespace reshade { enum class texture_reference; }
-namespace reshadefx { struct sampler_info; }
-
 namespace reshade::d3d9
 {
 	class runtime_d3d9 : public runtime
@@ -63,11 +60,15 @@ namespace reshade::d3d9
 		bool init_imgui_resources();
 		void render_imgui_draw_data(ImDrawData *data) override;
 
-		com_ptr<IDirect3DStateBlock9> _imgui_state;
-		com_ptr<IDirect3DIndexBuffer9> _imgui_index_buffer;
-		com_ptr<IDirect3DVertexBuffer9> _imgui_vertex_buffer;
-		int _imgui_index_buffer_size = 0;
-		int _imgui_vertex_buffer_size = 0;
+		struct imgui_resources
+		{
+			com_ptr<IDirect3DStateBlock9> state;
+
+			com_ptr<IDirect3DIndexBuffer9> indices;
+			com_ptr<IDirect3DVertexBuffer9> vertices;
+			int num_indices = 0;
+			int num_vertices = 0;
+		} _imgui;
 #endif
 
 #if RESHADE_DEPTH

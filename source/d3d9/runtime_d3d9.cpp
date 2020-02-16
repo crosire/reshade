@@ -180,11 +180,11 @@ void reshade::d3d9::runtime_d3d9::on_reset()
 	_effect_vertex_layout.reset();
 
 #if RESHADE_GUI
-	_imgui_state.reset();
-	_imgui_index_buffer.reset();
-	_imgui_vertex_buffer.reset();
-	_imgui_index_buffer_size = 0;
-	_imgui_vertex_buffer_size = 0;
+	_imgui.state.reset();
+	_imgui.indices.reset();
+	_imgui.vertices.reset();
+	_imgui.num_indices = 0;
+	_imgui.num_vertices = 0;
 #endif
 
 #if RESHADE_DEPTH
@@ -954,7 +954,7 @@ bool reshade::d3d9::runtime_d3d9::init_imgui_resources()
 		_device->SetSamplerState(0, D3DSAMP_MAXMIPLEVEL, 0);
 		_device->SetSamplerState(0, D3DSAMP_SRGBTEXTURE, 0);
 
-		hr = _device->EndStateBlock(&_imgui_state);
+		hr = _device->EndStateBlock(&_imgui.state);
 	}
 
 	if (FAILED(hr))
@@ -977,25 +977,25 @@ void reshade::d3d9::runtime_d3d9::render_imgui_draw_data(ImDrawData *draw_data)
 	};
 
 	// Create and grow vertex/index buffers if needed
-	if (_imgui_index_buffer_size < draw_data->TotalIdxCount)
+	if (_imgui.num_indices < draw_data->TotalIdxCount)
 	{
-		_imgui_index_buffer.reset();
-		_imgui_index_buffer_size = draw_data->TotalIdxCount + 10000;
+		_imgui.indices.reset();
+		_imgui.num_indices = draw_data->TotalIdxCount + 10000;
 
-		if (FAILED(_device->CreateIndexBuffer(_imgui_index_buffer_size * sizeof(ImDrawIdx), D3DUSAGE_DYNAMIC | D3DUSAGE_WRITEONLY, sizeof(ImDrawIdx) == 2 ? D3DFMT_INDEX16 : D3DFMT_INDEX32, D3DPOOL_DEFAULT, &_imgui_index_buffer, nullptr)))
+		if (FAILED(_device->CreateIndexBuffer(_imgui.num_indices * sizeof(ImDrawIdx), D3DUSAGE_DYNAMIC | D3DUSAGE_WRITEONLY, sizeof(ImDrawIdx) == 2 ? D3DFMT_INDEX16 : D3DFMT_INDEX32, D3DPOOL_DEFAULT, &_imgui.indices, nullptr)))
 			return;
 	}
-	if (_imgui_vertex_buffer_size < draw_data->TotalVtxCount)
+	if (_imgui.num_vertices < draw_data->TotalVtxCount)
 	{
-		_imgui_vertex_buffer.reset();
-		_imgui_vertex_buffer_size = draw_data->TotalVtxCount + 5000;
+		_imgui.vertices.reset();
+		_imgui.num_vertices = draw_data->TotalVtxCount + 5000;
 
-		if (FAILED(_device->CreateVertexBuffer(_imgui_vertex_buffer_size * sizeof(ImDrawVert9), D3DUSAGE_DYNAMIC | D3DUSAGE_WRITEONLY, D3DFVF_XYZ | D3DFVF_DIFFUSE | D3DFVF_TEX1, D3DPOOL_DEFAULT, &_imgui_vertex_buffer, nullptr)))
+		if (FAILED(_device->CreateVertexBuffer(_imgui.num_vertices * sizeof(ImDrawVert9), D3DUSAGE_DYNAMIC | D3DUSAGE_WRITEONLY, D3DFVF_XYZ | D3DFVF_DIFFUSE | D3DFVF_TEX1, D3DPOOL_DEFAULT, &_imgui.vertices, nullptr)))
 			return;
 	}
 
 	if (ImDrawIdx *idx_dst;
-		SUCCEEDED(_imgui_index_buffer->Lock(0, draw_data->TotalIdxCount * sizeof(ImDrawIdx), reinterpret_cast<void **>(&idx_dst), D3DLOCK_DISCARD)))
+		SUCCEEDED(_imgui.indices->Lock(0, draw_data->TotalIdxCount * sizeof(ImDrawIdx), reinterpret_cast<void **>(&idx_dst), D3DLOCK_DISCARD)))
 	{
 		for (int n = 0; n < draw_data->CmdListsCount; ++n)
 		{
@@ -1004,10 +1004,10 @@ void reshade::d3d9::runtime_d3d9::render_imgui_draw_data(ImDrawData *draw_data)
 			idx_dst += draw_list->IdxBuffer.size();
 		}
 
-		_imgui_index_buffer->Unlock();
+		_imgui.indices->Unlock();
 	}
 	if (ImDrawVert9 *vtx_dst;
-		SUCCEEDED(_imgui_vertex_buffer->Lock(0, draw_data->TotalVtxCount * sizeof(ImDrawVert9), reinterpret_cast<void **>(&vtx_dst), D3DLOCK_DISCARD)))
+		SUCCEEDED(_imgui.vertices->Lock(0, draw_data->TotalVtxCount * sizeof(ImDrawVert9), reinterpret_cast<void **>(&vtx_dst), D3DLOCK_DISCARD)))
 	{
 		for (int n = 0; n < draw_data->CmdListsCount; ++n)
 		{
@@ -1029,16 +1029,18 @@ void reshade::d3d9::runtime_d3d9::render_imgui_draw_data(ImDrawData *draw_data)
 			}
 		}
 
-		_imgui_vertex_buffer->Unlock();
+		_imgui.vertices->Unlock();
 	}
 
 	// Setup render state: fixed-pipeline, alpha-blending, no face culling, no depth testing
-	_imgui_state->Apply();
-	_device->SetIndices(_imgui_index_buffer.get());
-	_device->SetStreamSource(0, _imgui_vertex_buffer.get(), 0, sizeof(ImDrawVert9));
+	_imgui.state->Apply();
+	_device->SetIndices(_imgui.indices.get());
+	_device->SetStreamSource(0, _imgui.vertices.get(), 0, sizeof(ImDrawVert9));
+	_device->SetRenderTarget(0, _backbuffer_resolved.get());
+
+	// Clear unused bindings
 	for (unsigned int i = 0; i < _num_samplers; i++)
 		_device->SetTexture(i, nullptr);
-	_device->SetRenderTarget(0, _backbuffer_resolved.get());
 	for (unsigned int i = 1; i < _num_simultaneous_rendertargets; i++)
 		_device->SetRenderTarget(i, nullptr);
 	_device->SetDepthStencilSurface(nullptr);

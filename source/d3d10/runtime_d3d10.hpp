@@ -9,9 +9,6 @@
 #include "state_block.hpp"
 #include "buffer_detection.hpp"
 
-namespace reshade { enum class texture_reference; }
-namespace reshadefx { struct sampler_info; }
-
 namespace reshade::d3d10
 {
 	class runtime_d3d10 : public runtime
@@ -64,18 +61,22 @@ namespace reshade::d3d10
 		bool init_imgui_resources();
 		void render_imgui_draw_data(ImDrawData *data) override;
 
-		int _imgui_index_buffer_size = 0;
-		com_ptr<ID3D10Buffer> _imgui_index_buffer;
-		int _imgui_vertex_buffer_size = 0;
-		com_ptr<ID3D10Buffer> _imgui_vertex_buffer;
-		com_ptr<ID3D10VertexShader> _imgui_vertex_shader;
-		com_ptr<ID3D10PixelShader> _imgui_pixel_shader;
-		com_ptr<ID3D10InputLayout> _imgui_input_layout;
-		com_ptr<ID3D10Buffer> _imgui_constant_buffer;
-		com_ptr<ID3D10SamplerState> _imgui_texture_sampler;
-		com_ptr<ID3D10RasterizerState> _imgui_rasterizer_state;
-		com_ptr<ID3D10BlendState> _imgui_blend_state;
-		com_ptr<ID3D10DepthStencilState> _imgui_depthstencil_state;
+		struct imgui_resources
+		{
+			com_ptr<ID3D10Buffer> cb;
+			com_ptr<ID3D10VertexShader> vs;
+			com_ptr<ID3D10RasterizerState> rs;
+			com_ptr<ID3D10PixelShader> ps;
+			com_ptr<ID3D10SamplerState> ss;
+			com_ptr<ID3D10BlendState> bs;
+			com_ptr<ID3D10DepthStencilState> ds;
+			com_ptr<ID3D10InputLayout> layout;
+
+			com_ptr<ID3D10Buffer> indices;
+			com_ptr<ID3D10Buffer> vertices;
+			int num_indices = 0;
+			int num_vertices = 0;
+		} _imgui;
 #endif
 
 #if RESHADE_DEPTH
