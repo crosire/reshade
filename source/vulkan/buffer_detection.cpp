@@ -74,46 +74,44 @@ void reshade::vulkan::buffer_detection::on_set_depthstencil(VkImage depthstencil
 	}
 }
 
-reshade::vulkan::buffer_detection::depthstencil_info reshade::vulkan::buffer_detection_context::find_best_depth_texture(uint32_t width, uint32_t height, VkImage override) const
+reshade::vulkan::buffer_detection::depthstencil_info reshade::vulkan::buffer_detection_context::find_best_depth_texture(VkExtent2D dimensions, VkImage override) const
 {
-	depthstencil_info best_snapshot;
-
 	if (override != VK_NULL_HANDLE)
 	{
 		const auto source_it = _counters_per_used_depth_image.find(override);
 		if (source_it != _counters_per_used_depth_image.end())
-			best_snapshot = source_it->second;
+			return source_it->second;
+		else
+			return {};
 	}
-	else
+
+	depthstencil_info best_snapshot;
+
+	for (const auto &[image, snapshot] : _counters_per_used_depth_image)
 	{
-		for (const auto &[image, snapshot] : _counters_per_used_depth_image)
+		if (snapshot.stats.drawcalls == 0 || snapshot.stats.vertices == 0)
+			continue; // Skip unused
+		if (snapshot.image_info.samples != VK_SAMPLE_COUNT_1_BIT)
+			continue; // Ignore MSAA textures, since they would need to be resolved first
+
+		if (dimensions.width != 0 && dimensions.height != 0)
 		{
-			if (snapshot.stats.drawcalls == 0 || snapshot.stats.vertices == 0)
-				continue; // Skip unused
+			const float w = static_cast<float>(dimensions.width);
+			const float w_ratio = w / snapshot.image_info.extent.width;
+			const float h = static_cast<float>(dimensions.height);
+			const float h_ratio = h / snapshot.image_info.extent.height;
+			const float aspect_ratio = (w / h) - (static_cast<float>(snapshot.image_info.extent.width) / snapshot.image_info.extent.height);
 
+			if (std::fabs(aspect_ratio) > 0.1f || w_ratio > 1.85f || h_ratio > 1.85f || w_ratio < 0.5f || h_ratio < 0.5f)
+				continue; // Not a good fit
+		}
+
+		const auto curr_weight = snapshot.stats.vertices * (1.2f - static_cast<float>(snapshot.stats.drawcalls) / _stats.drawcalls);
+		const auto best_weight = best_snapshot.stats.vertices * (1.2f - static_cast<float>(best_snapshot.stats.drawcalls) / _stats.vertices);
+		if (curr_weight >= best_weight)
+		{
 			assert(snapshot.image != VK_NULL_HANDLE);
-
-			if (snapshot.image_info.samples != VK_SAMPLE_COUNT_1_BIT)
-				continue; // Ignore MSAA textures, since they would need to be resolved first
-
-			if (width != 0 && height != 0)
-			{
-				float aspect_ratio = static_cast<float>(width) / static_cast<float>(height);
-				aspect_ratio -= static_cast<float>(snapshot.image_info.extent.width) / static_cast<float>(snapshot.image_info.extent.height);
-
-				const float width_factor = static_cast<float>(width) / snapshot.image_info.extent.width;
-				const float height_factor = static_cast<float>(height) / snapshot.image_info.extent.height;
-
-				if (std::fabs(aspect_ratio) > 0.1f || width_factor > 1.85f || height_factor > 1.85f || width_factor < 0.5f || height_factor < 0.5f)
-					continue; // Not a good fit
-			}
-
-			const auto curr_weight = snapshot.stats.vertices * (1.2f - static_cast<float>(snapshot.stats.drawcalls) / _stats.drawcalls);
-			const auto best_weight = best_snapshot.stats.vertices * (1.2f - static_cast<float>(best_snapshot.stats.drawcalls) / _stats.vertices);
-			if (curr_weight >= best_weight)
-			{
-				best_snapshot = snapshot;
-			}
+			best_snapshot = snapshot;
 		}
 	}
 

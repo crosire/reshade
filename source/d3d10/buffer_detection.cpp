@@ -137,8 +137,7 @@ com_ptr<ID3D10Texture2D> reshade::d3d10::buffer_detection::find_best_depth_textu
 			if (snapshot.total_stats.drawcalls == 0)
 				continue; // Skip unused
 
-			D3D10_TEXTURE2D_DESC desc;
-			dsv_texture->GetDesc(&desc);
+			D3D10_TEXTURE2D_DESC desc; dsv_texture->GetDesc(&desc);
 			assert((desc.BindFlags & D3D10_BIND_DEPTH_STENCIL) != 0);
 
 			if (desc.SampleDesc.Count > 1)
@@ -146,13 +145,13 @@ com_ptr<ID3D10Texture2D> reshade::d3d10::buffer_detection::find_best_depth_textu
 
 			if (width != 0 && height != 0)
 			{
-				const float aspect_ratio = float(width) / float(height);
-				const float texture_aspect_ratio = float(desc.Width) / float(desc.Height);
+				const float w = static_cast<float>(width);
+				const float w_ratio = w / desc.Width;
+				const float h = static_cast<float>(height);
+				const float h_ratio = h / desc.Height;
+				const float aspect_ratio = (w / h) - (static_cast<float>(desc.Width) / desc.Height);
 
-				const float width_factor = float(width) / float(desc.Width);
-				const float height_factor = float(height) / float(desc.Height);
-
-				if (std::fabs(texture_aspect_ratio - aspect_ratio) > 0.1f || width_factor > 1.85f || height_factor > 1.85f || width_factor < 0.5f || height_factor < 0.5f)
+				if (std::fabs(aspect_ratio) > 0.1f || w_ratio > 1.85f || h_ratio > 1.85f || w_ratio < 0.5f || h_ratio < 0.5f)
 					continue; // Not a good fit
 			}
 

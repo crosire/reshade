@@ -165,38 +165,35 @@ reshade::opengl::buffer_detection::depthstencil_info reshade::opengl::buffer_det
 	if (override != std::numeric_limits<GLuint>::max())
 	{
 		const auto source_it = _depth_source_table.find(override);
-		if (override != 0 && source_it != _depth_source_table.end())
-		{
-			best_match = override;
-			best_snapshot = source_it->second;
-		}
+		if (source_it != _depth_source_table.end())
+			return source_it->second;
+		else
+			return best_snapshot;
 	}
-	else
+
+	for (const auto &[image, snapshot] : _depth_source_table)
 	{
-		for (const auto &[image, snapshot] : _depth_source_table)
+		if (snapshot.stats.drawcalls == 0 || snapshot.stats.vertices == 0)
+			continue; // Skip unused
+
+		if (width != 0 && height != 0)
 		{
-			if (snapshot.stats.drawcalls == 0 || snapshot.stats.vertices == 0)
-				continue; // Skip unused
+			const float w = static_cast<float>(width);
+			const float w_ratio = w / snapshot.width;
+			const float h = static_cast<float>(height);
+			const float h_ratio = h / snapshot.height;
+			const float aspect_ratio = (w / h) - (static_cast<float>(snapshot.width) / snapshot.height);
 
-			if (width != 0 && height != 0)
-			{
-				float aspect_ratio = static_cast<float>(width) / static_cast<float>(height);
-				aspect_ratio -= static_cast<float>(snapshot.width) / static_cast<float>(snapshot.height);
+			if (std::fabs(aspect_ratio) > 0.1f || w_ratio > 1.85f || h_ratio > 1.85f || w_ratio < 0.5f || h_ratio < 0.5f)
+				continue; // Not a good fit
+		}
 
-				const float width_factor = static_cast<float>(width) / snapshot.width;
-				const float height_factor = static_cast<float>(height) / snapshot.height;
-
-				if (std::fabs(aspect_ratio) > 0.1f || width_factor > 1.85f || height_factor > 1.85f || width_factor < 0.5f || height_factor < 0.5f)
-					continue; // Not a good fit
-			}
-
-			const auto curr_weight = snapshot.stats.vertices * (1.2f - static_cast<float>(snapshot.stats.drawcalls) / _stats.drawcalls);
-			const auto best_weight = best_snapshot.stats.vertices * (1.2f - static_cast<float>(best_snapshot.stats.drawcalls) / _stats.vertices);
-			if (curr_weight >= best_weight)
-			{
-				best_match = image;
-				best_snapshot = snapshot;
-			}
+		const auto curr_weight = snapshot.stats.vertices * (1.2f - static_cast<float>(snapshot.stats.drawcalls) / _stats.drawcalls);
+		const auto best_weight = best_snapshot.stats.vertices * (1.2f - static_cast<float>(best_snapshot.stats.drawcalls) / _stats.vertices);
+		if (curr_weight >= best_weight)
+		{
+			best_match = image;
+			best_snapshot = snapshot;
 		}
 	}
 

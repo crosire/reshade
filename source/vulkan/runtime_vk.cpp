@@ -548,7 +548,7 @@ void reshade::vulkan::runtime_vk::on_present(uint32_t swapchain_image_index, con
 #if RESHADE_DEPTH
 	_current_tracker = &tracker;
 	update_depthstencil_image(_has_high_network_activity ? buffer_detection::depthstencil_info { VK_NULL_HANDLE } :
-		tracker.find_best_depth_texture(_use_aspect_ratio_heuristics ? _width : 0, _height, _depth_image_override));
+		tracker.find_best_depth_texture(_use_aspect_ratio_heuristics ? VkExtent2D { _width, _height } : VkExtent2D { 0, 0 }, _depth_image_override));
 #endif
 
 	update_and_render_effects();
@@ -1015,8 +1015,8 @@ bool reshade::vulkan::runtime_vk::init_effect(size_t index)
 
 			const VkRect2D scissor_rect = {
 				{ 0, 0 },
-				{ pass_info.viewport_width ? pass_info.viewport_width : frame_width(),
-				  pass_info.viewport_height ? pass_info.viewport_height : frame_height() }
+				{ pass_info.viewport_width ? pass_info.viewport_width : _width,
+				  pass_info.viewport_height ? pass_info.viewport_height : _height }
 			};
 			const VkViewport viewport_rect = {
 				0.0f, 0.0f,
@@ -1073,7 +1073,7 @@ bool reshade::vulkan::runtime_vk::init_effect(size_t index)
 				pass_data.begin_info.pClearValues = pass_data.clear_values; // These are initialized to zero already
 			}
 
-			if (num_color_attachments == 0)
+			if (pass_info.render_target_names[0].empty())
 			{
 				num_color_attachments = 1;
 				pass_data.begin_info.renderPass = _default_render_pass[pass_info.srgb_write_enable];

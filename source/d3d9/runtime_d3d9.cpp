@@ -1152,7 +1152,7 @@ void reshade::d3d9::runtime_d3d9::draw_depth_debug_menu()
 
 					ImGui::SameLine();
 					ImGui::Text("%*s|           | %5u draw calls ==> %8u vertices |",
-						sizeof(ds_surface) - 4, "", // Add space to fill pointer length
+						sizeof(ds_surface), "", // Add space to fill pointer length
 						snapshot.clears[clear_index - 1].drawcalls, snapshot.clears[clear_index - 1].vertices);
 				}
 			}

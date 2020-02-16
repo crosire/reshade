@@ -36,12 +36,12 @@ namespace reshade::vulkan
 #endif
 
 	protected:
-		draw_stats _stats;
 #if RESHADE_DEPTH
 		VkImage _current_depthstencil = VK_NULL_HANDLE;
 		// Use "std::map" instead of "std::unordered_map" so that the iteration order is guaranteed
 		std::map<VkImage, depthstencil_info> _counters_per_used_depth_image;
 #endif
+		draw_stats _stats;
 	};
 
 	class buffer_detection_context : public buffer_detection
@@ -53,8 +53,7 @@ namespace reshade::vulkan
 #if RESHADE_DEPTH
 		const auto &depth_buffer_counters() const { return _counters_per_used_depth_image; }
 
-		depthstencil_info find_best_depth_texture(uint32_t width, uint32_t height,
-			VkImage override = VK_NULL_HANDLE) const;
+		depthstencil_info find_best_depth_texture(VkExtent2D dimensions = {}, VkImage override = VK_NULL_HANDLE) const;
 #endif
 	};
 }

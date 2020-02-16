@@ -726,10 +726,10 @@ bool reshade::d3d12::runtime_d3d12::init_effect(size_t index)
 				rtv_handle.ptr += _rtv_handle_size;
 			}
 
-			if (pass_info.viewport_width == 0)
+			if (pass_info.render_target_names[0].empty())
 			{
-				pass_info.viewport_width = frame_width();
-				pass_info.viewport_height = frame_height();
+				pass_info.viewport_width = _width;
+				pass_info.viewport_height = _height;
 			}
 
 			pso_desc.NodeMask = 1;
@@ -1590,7 +1590,7 @@ void reshade::d3d12::runtime_d3d12::draw_depth_debug_menu()
 
 					ImGui::SameLine();
 					ImGui::Text("%*s|           | %5u draw calls ==> %8u vertices |",
-						sizeof(dsv_texture) - 4, "", // Add space to fill pointer length
+						sizeof(dsv_texture), "", // Add space to fill pointer length
 						snapshot.clears[clear_index - 1].drawcalls, snapshot.clears[clear_index - 1].vertices);
 				}
 			}
@@ -1627,8 +1627,8 @@ void reshade::d3d12::runtime_d3d12::update_depthstencil_texture(com_ptr<ID3D12Re
 			if (tex.impl != nullptr &&
 				tex.impl_reference == texture_reference::depth_buffer)
 			{
-				tex.width = frame_width();
-				tex.height = frame_height();
+				tex.width = _width;
+				tex.height = _height;
 			}
 		}
 
