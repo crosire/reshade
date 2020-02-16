@@ -174,8 +174,6 @@ void reshade::d3d9::runtime_d3d9::on_reset()
 	_backbuffer_resolved.reset();
 	_backbuffer_texture.reset();
 	_backbuffer_texture_surface.reset();
-	_depthstencil.reset();
-	_depthstencil_texture.reset();
 
 	_max_vertices = 0;
 	_effect_depthstencil.reset();
@@ -191,6 +189,9 @@ void reshade::d3d9::runtime_d3d9::on_reset()
 #endif
 
 #if RESHADE_DEPTH
+	_depth_texture.reset();
+	_depth_texture_surface.reset();
+
 	_has_depth_texture = false;
 	_depthstencil_override = nullptr;
 #endif
@@ -663,8 +664,10 @@ bool reshade::d3d9::runtime_d3d9::init_texture(texture &texture)
 		impl->surface = _backbuffer_texture_surface;
 		return true;
 	case texture_reference::depth_buffer:
-		impl->texture = _depthstencil_texture;
-		impl->surface = _depthstencil;
+#if RESHADE_DEPTH
+		impl->texture = _depth_texture;
+		impl->surface = _depth_texture_surface;
+#endif
 		return true;
 	}
 
@@ -1180,16 +1183,16 @@ void reshade::d3d9::runtime_d3d9::draw_depth_debug_menu(buffer_detection &tracke
 
 void reshade::d3d9::runtime_d3d9::update_depth_texture_bindings(com_ptr<IDirect3DSurface9> depthstencil)
 {
-	if (depthstencil == _depthstencil)
+	if (depthstencil == _depth_texture_surface)
 		return;
 
-	_depthstencil = std::move(depthstencil);
-	_depthstencil_texture.reset();
+	_depth_texture.reset();
+	_depth_texture_surface = std::move(depthstencil);
 	_has_depth_texture = false;
 
-	if (_depthstencil != nullptr)
+	if (_depth_texture_surface != nullptr)
 	{
-		if (HRESULT hr = _depthstencil->GetContainer(IID_PPV_ARGS(&_depthstencil_texture)); FAILED(hr))
+		if (HRESULT hr = _depth_texture_surface->GetContainer(IID_PPV_ARGS(&_depth_texture)); FAILED(hr))
 		{
 			LOG(ERROR) << "Failed to retrieve texture from depth surface! HRESULT is " << hr << '.';
 			return;
@@ -1216,11 +1219,11 @@ void reshade::d3d9::runtime_d3d9::update_depth_texture_bindings(com_ptr<IDirect3
 			for (d3d9_pass_data &pass_data : tech_impl->passes)
 				for (IDirect3DTexture9 *&sampler_tex : pass_data.sampler_textures)
 					if (tex_impl->texture == sampler_tex)
-						sampler_tex = _depthstencil_texture.get();
+						sampler_tex = _depth_texture.get();
 		}
 
-		tex_impl->surface = _depthstencil;
-		tex_impl->texture = _depthstencil_texture;
+		tex_impl->texture = _depth_texture;
+		tex_impl->surface = _depth_texture_surface;
 	}
 }
 #endif

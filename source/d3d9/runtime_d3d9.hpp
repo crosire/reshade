@@ -50,8 +50,6 @@ namespace reshade::d3d9
 		com_ptr<IDirect3DSurface9> _backbuffer_resolved;
 		com_ptr<IDirect3DTexture9> _backbuffer_texture;
 		com_ptr<IDirect3DSurface9> _backbuffer_texture_surface;
-		com_ptr<IDirect3DSurface9> _depthstencil;
-		com_ptr<IDirect3DTexture9> _depthstencil_texture;
 
 		HMODULE _d3d_compiler = nullptr;
 		com_ptr<IDirect3DSurface9> _effect_depthstencil;
@@ -76,6 +74,9 @@ namespace reshade::d3d9
 #if RESHADE_DEPTH
 		void draw_depth_debug_menu(buffer_detection &tracker);
 		void update_depth_texture_bindings(com_ptr<IDirect3DSurface9> depthstencil);
+
+		com_ptr<IDirect3DTexture9> _depth_texture;
+		com_ptr<IDirect3DSurface9> _depth_texture_surface;
 
 		bool _disable_intz = false;
 		bool _reset_tracker = false;

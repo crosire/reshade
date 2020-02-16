@@ -233,8 +233,6 @@ void reshade::d3d11::runtime_d3d11::on_reset()
 	_backbuffer_texture.reset();
 	_backbuffer_texture_srv[0].reset();
 	_backbuffer_texture_srv[1].reset();
-	_depth_texture.reset();
-	_depth_texture_srv.reset();
 
 	_copy_vertex_shader.reset();
 	_copy_pixel_shader.reset();
@@ -259,6 +257,9 @@ void reshade::d3d11::runtime_d3d11::on_reset()
 #endif
 
 #if RESHADE_DEPTH
+	_depth_texture.reset();
+	_depth_texture_srv.reset();
+
 	_has_depth_texture = false;
 	_depth_texture_override = nullptr;
 #endif
@@ -795,8 +796,10 @@ bool reshade::d3d11::runtime_d3d11::init_texture(texture &texture)
 		impl->srv[1] = _backbuffer_texture_srv[1];
 		return true;
 	case texture_reference::depth_buffer:
+#if RESHADE_DEPTH
 		impl->srv[0] = _depth_texture_srv;
 		impl->srv[1] = _depth_texture_srv;
+#endif
 		return true;
 	}
 

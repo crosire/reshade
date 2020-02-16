@@ -320,7 +320,6 @@ void reshade::d3d12::runtime_d3d12::on_reset()
 	_backbuffers.clear();
 	_backbuffer_rtvs.reset();
 	_backbuffer_texture.reset();
-	_depth_texture.reset();
 	_depthstencil_dsvs.reset();
 
 	_mipmap_pipeline.reset();
@@ -342,6 +341,8 @@ void reshade::d3d12::runtime_d3d12::on_reset()
 #endif
 
 #if RESHADE_DEPTH
+	_depth_texture.reset();
+
 	_has_depth_texture = false;
 	_depth_texture_override = nullptr;
 #endif
@@ -626,7 +627,9 @@ bool reshade::d3d12::runtime_d3d12::init_effect(size_t index)
 			resource = _backbuffer_texture;
 			break;
 		case texture_reference::depth_buffer:
+#if RESHADE_DEPTH
 			resource = _depth_texture; // Note: This may be null
+#endif
 			// Keep track of the depth buffer texture descriptor to simplify updating it
 			effect_data.depth_texture_binding = srv_handle;
 			break;

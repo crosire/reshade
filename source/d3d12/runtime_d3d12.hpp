@@ -68,7 +68,6 @@ namespace reshade::d3d12
 		std::vector<com_ptr<ID3D12Resource>> _backbuffers;
 		com_ptr<ID3D12Resource> _backbuffer_texture;
 		com_ptr<ID3D12DescriptorHeap> _backbuffer_rtvs;
-		com_ptr<ID3D12Resource> _depth_texture;
 		com_ptr<ID3D12DescriptorHeap> _depthstencil_dsvs;
 
 		com_ptr<ID3D12PipelineState> _mipmap_pipeline;
@@ -97,6 +96,8 @@ namespace reshade::d3d12
 #if RESHADE_DEPTH
 		void draw_depth_debug_menu(buffer_detection_context &tracker);
 		void update_depth_texture_bindings(com_ptr<ID3D12Resource> texture);
+
+		com_ptr<ID3D12Resource> _depth_texture;
 
 		bool _filter_aspect_ratio = true;
 		bool _preserve_depth_buffers = false;

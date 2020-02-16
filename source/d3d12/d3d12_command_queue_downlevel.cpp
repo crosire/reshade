@@ -17,6 +17,7 @@ D3D12CommandQueueDownlevel::D3D12CommandQueueDownlevel(D3D12CommandQueue *queue,
 	_device(queue->_device) {
 	assert(_orig != nullptr);
 	_runtime = std::make_unique<reshade::d3d12::runtime_d3d12>(_device->_orig, queue->_orig, nullptr);
+	_runtime->_buffer_detection = &_device->_buffer_detection;
 }
 
 HRESULT STDMETHODCALLTYPE D3D12CommandQueueDownlevel::QueryInterface(REFIID riid, void **ppvObj)
@@ -86,7 +87,7 @@ HRESULT STDMETHODCALLTYPE D3D12CommandQueueDownlevel::Present(ID3D12GraphicsComm
 			LOG(ERROR) << "Failed to initialize Direct3D 12 runtime environment on runtime " << _runtime.get() << '.';
 	}
 
-	_runtime->on_present(_device->_buffer_detection);
+	_runtime->on_present();
 
 	// Clear current frame stats
 	_device->_buffer_detection.reset(false);
