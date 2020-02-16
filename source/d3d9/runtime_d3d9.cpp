@@ -1195,11 +1195,12 @@ void reshade::d3d9::runtime_d3d9::update_depth_texture_bindings(com_ptr<IDirect3
 		if (HRESULT hr = _depth_surface->GetContainer(IID_PPV_ARGS(&_depth_texture)); FAILED(hr))
 		{
 			LOG(ERROR) << "Failed to retrieve texture from depth surface! HRESULT is " << hr << '.';
-			return;
+		}
+		else
+		{
+			_has_depth_texture = true;
 		}
 	}
-
-	_has_depth_texture = true;
 
 	// Update all references to the new texture
 	for (const auto &tex : _textures)

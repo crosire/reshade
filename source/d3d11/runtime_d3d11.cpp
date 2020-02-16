@@ -1402,11 +1402,12 @@ void reshade::d3d11::runtime_d3d11::update_depth_texture_bindings(com_ptr<ID3D11
 		if (HRESULT hr = _device->CreateShaderResourceView(_depth_texture.get(), &srv_desc, &_depth_texture_srv); FAILED(hr))
 		{
 			LOG(ERROR) << "Failed to create depth-stencil resource view! HRESULT is " << hr << '.';
-			return;
+		}
+		else
+		{
+			_has_depth_texture = true;
 		}
 	}
-
-	_has_depth_texture = true;
 
 	// Update all references to the new texture
 	for (const auto &tex : _textures)

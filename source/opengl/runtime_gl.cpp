@@ -1312,8 +1312,7 @@ void reshade::opengl::runtime_gl::update_depth_texture_bindings(buffer_detection
 				_tex[TEX_DEPTH] = 0;
 
 				_has_depth_texture = false;
-				_depth_source_width = 0;
-				_depth_source_height = 0;
+				_depth_source_width = _depth_source_height = 0;
 				_depth_source_format = GL_NONE;
 
 				LOG(ERROR) << "Failed to create depth texture of format " << std::hex << info.format << " with error code " << err << std::dec << '.';
