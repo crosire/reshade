@@ -67,7 +67,10 @@ reshade::d3d9::runtime_d3d9::runtime_d3d9(IDirect3DDevice9 *device, IDirect3DSwa
 	_behavior_flags = creation_params.BehaviorFlags;
 
 #if RESHADE_GUI && RESHADE_DEPTH
-	subscribe_to_ui("DX9", [this]() { draw_depth_debug_menu(); });
+	subscribe_to_ui("DX9", [this]() {
+		assert(_buffer_detection != nullptr);
+		draw_depth_debug_menu(*_buffer_detection);
+	});
 #endif
 #if RESHADE_DEPTH
 	subscribe_to_load_config([this](const ini_file &config) {
@@ -193,21 +196,21 @@ void reshade::d3d9::runtime_d3d9::on_reset()
 #endif
 }
 
-void reshade::d3d9::runtime_d3d9::on_present(buffer_detection &tracker)
+void reshade::d3d9::runtime_d3d9::on_present()
 {
 	if (!_is_initialized || FAILED(_device->BeginScene()))
 		return;
 
-	_vertices = tracker.total_vertices();
-	_drawcalls = tracker.total_drawcalls();
+	assert(_buffer_detection != nullptr);
+	_vertices = _buffer_detection->total_vertices();
+	_drawcalls = _buffer_detection->total_drawcalls();
 
 #if RESHADE_DEPTH
-	_current_tracker = &tracker;
-	tracker.disable_intz = _disable_intz;
+	_buffer_detection->disable_intz = _disable_intz;
 
 	assert(_depth_clear_index_override != 0);
-	update_depthstencil_texture(_has_high_network_activity ? nullptr :
-		tracker.find_best_depth_surface(_filter_aspect_ratio ? _width : 0, _height, _depthstencil_override, _preserve_depth_buffers ? _depth_clear_index_override : 0));
+	update_depth_texture_bindings(_has_high_network_activity ? nullptr :
+		_buffer_detection->find_best_depth_surface(_filter_aspect_ratio ? _width : 0, _height, _depthstencil_override, _preserve_depth_buffers ? _depth_clear_index_override : 0));
 #endif
 
 	_app_state.capture();
@@ -236,7 +239,7 @@ void reshade::d3d9::runtime_d3d9::on_present(buffer_detection &tracker)
 	// Can only reset the tracker after the state block has been applied, to ensure current depth-stencil binding is updated correctly
 	if (_reset_tracker)
 	{
-		tracker.reset(true);
+		_buffer_detection->reset(true);
 		_reset_tracker = false;
 	}
 #endif
@@ -1094,7 +1097,7 @@ void reshade::d3d9::runtime_d3d9::render_imgui_draw_data(ImDrawData *draw_data)
 #endif
 
 #if RESHADE_DEPTH
-void reshade::d3d9::runtime_d3d9::draw_depth_debug_menu()
+void reshade::d3d9::runtime_d3d9::draw_depth_debug_menu(buffer_detection &tracker)
 {
 	if (_has_high_network_activity)
 	{
@@ -1104,7 +1107,7 @@ void reshade::d3d9::runtime_d3d9::draw_depth_debug_menu()
 
 	if (ImGui::CollapsingHeader("Depth Buffers", ImGuiTreeNodeFlags_DefaultOpen))
 	{
-		assert(!_reset_tracker && _current_tracker != nullptr);
+		assert(!_reset_tracker);
 
 		// Do NOT reset tracker within state block capture scope, since it may otherwise bind the replacement depth-stencil after it has been destroyed here
 		_reset_tracker |= ImGui::Checkbox("Disable replacement with INTZ format", &_disable_intz);
@@ -1116,10 +1119,10 @@ void reshade::d3d9::runtime_d3d9::draw_depth_debug_menu()
 		ImGui::Separator();
 		ImGui::Spacing();
 
-		for (const auto &[ds_surface, snapshot] : _current_tracker->depth_buffer_counters())
+		for (const auto &[ds_surface, snapshot] : tracker.depth_buffer_counters())
 		{
 			char label[512] = "";
-			sprintf_s(label, "%s0x%p", (ds_surface == _current_tracker->current_depth_surface() ? "> " : "  "), ds_surface.get());
+			sprintf_s(label, "%s0x%p", (ds_surface == tracker.current_depth_surface() ? "> " : "  "), ds_surface.get());
 
 			D3DSURFACE_DESC desc;
 			ds_surface->GetDesc(&desc);
@@ -1139,11 +1142,11 @@ void reshade::d3d9::runtime_d3d9::draw_depth_debug_menu()
 			ImGui::Text("| %4ux%-4u | %5u draw calls ==> %8u vertices |%s",
 				desc.Width, desc.Height, snapshot.stats.drawcalls, snapshot.stats.vertices, (msaa ? " MSAA" : ""));
 
-			if (_preserve_depth_buffers && ds_surface == _current_tracker->current_depth_surface())
+			if (_preserve_depth_buffers && ds_surface == tracker.current_depth_surface())
 			{
 				for (UINT clear_index = 1; clear_index <= snapshot.clears.size(); ++clear_index)
 				{
-					sprintf_s(label, "%s  CLEAR %2u", (clear_index == _current_tracker->current_clear_index() ? "> " : "  "), clear_index);
+					sprintf_s(label, "%s  CLEAR %2u", (clear_index == tracker.current_clear_index() ? "> " : "  "), clear_index);
 
 					if (bool value = (_depth_clear_index_override == clear_index);
 						ImGui::Checkbox(label, &value))
@@ -1175,7 +1178,7 @@ void reshade::d3d9::runtime_d3d9::draw_depth_debug_menu()
 	}
 }
 
-void reshade::d3d9::runtime_d3d9::update_depthstencil_texture(com_ptr<IDirect3DSurface9> depthstencil)
+void reshade::d3d9::runtime_d3d9::update_depth_texture_bindings(com_ptr<IDirect3DSurface9> depthstencil)
 {
 	if (depthstencil == _depthstencil)
 		return;

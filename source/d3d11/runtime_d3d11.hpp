@@ -19,9 +19,11 @@ namespace reshade::d3d11
 
 		bool on_init(const DXGI_SWAP_CHAIN_DESC &desc);
 		void on_reset();
-		void on_present(buffer_detection_context &tracker);
+		void on_present();
 
 		bool capture_screenshot(uint8_t *buffer) const override;
+
+		buffer_detection_context *_buffer_detection = nullptr;
 
 	private:
 		bool init_effect(size_t index) override;
@@ -45,8 +47,6 @@ namespace reshade::d3d11
 		com_ptr<ID3D11RenderTargetView> _backbuffer_rtv[3];
 		com_ptr<ID3D11Texture2D> _backbuffer_texture;
 		com_ptr<ID3D11ShaderResourceView> _backbuffer_texture_srv[2];
-		com_ptr<ID3D11Texture2D> _depth_texture;
-		com_ptr<ID3D11ShaderResourceView> _depth_texture_srv;
 
 		com_ptr<ID3D11PixelShader> _copy_pixel_shader;
 		com_ptr<ID3D11VertexShader> _copy_vertex_shader;
@@ -81,14 +81,16 @@ namespace reshade::d3d11
 #endif
 
 #if RESHADE_DEPTH
-		void draw_depth_debug_menu();
-		void update_depthstencil_texture(com_ptr<ID3D11Texture2D> texture);
+		void draw_depth_debug_menu(buffer_detection_context &tracker);
+		void update_depth_texture_bindings(com_ptr<ID3D11Texture2D> texture);
+
+		com_ptr<ID3D11Texture2D> _depth_texture;
+		com_ptr<ID3D11ShaderResourceView> _depth_texture_srv;
 
 		bool _filter_aspect_ratio = true;
 		bool _preserve_depth_buffers = false;
 		UINT _depth_clear_index_override = std::numeric_limits<UINT>::max();
 		ID3D11Texture2D *_depth_texture_override = nullptr;
-		buffer_detection_context *_current_tracker = nullptr;
 #endif
 	};
 }

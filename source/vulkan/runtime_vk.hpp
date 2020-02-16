@@ -27,11 +27,12 @@ namespace reshade::vulkan
 
 		bool on_init(VkSwapchainKHR swapchain, const VkSwapchainCreateInfoKHR &desc, HWND hwnd);
 		void on_reset();
-		void on_present(uint32_t swapchain_image_index, const VkSemaphore *wait, uint32_t num_wait, VkSemaphore &signal, buffer_detection_context &tracker);
+		void on_present(uint32_t swapchain_image_index, const VkSemaphore *wait, uint32_t num_wait, VkSemaphore &signal);
 
 		bool capture_screenshot(uint8_t *buffer) const override;
 
 		const VkLayerDispatchTable vk;
+		buffer_detection_context *_buffer_detection = nullptr;
 
 	private:
 		bool init_effect(size_t index) override;
@@ -116,8 +117,8 @@ namespace reshade::vulkan
 #endif
 
 #if RESHADE_DEPTH
-		void draw_depth_debug_menu();
-		void update_depthstencil_image(buffer_detection::depthstencil_info info);
+		void draw_depth_debug_menu(buffer_detection_context &tracker);
+		void update_depth_image_bindings(buffer_detection::depthstencil_info info);
 
 		bool _use_aspect_ratio_heuristics = true;
 		VkImage _depth_image = VK_NULL_HANDLE;
@@ -125,7 +126,6 @@ namespace reshade::vulkan
 		VkImageView _depth_image_view = VK_NULL_HANDLE;
 		VkImageLayout _depth_image_layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 		VkImageAspectFlags _depth_image_aspect = VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT;
-		buffer_detection_context *_current_tracker = nullptr;
 #endif
 	};
 }

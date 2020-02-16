@@ -74,7 +74,10 @@ reshade::d3d11::runtime_d3d11::runtime_d3d11(ID3D11Device *device, IDXGISwapChai
 	}
 
 #if RESHADE_GUI && RESHADE_DEPTH
-	subscribe_to_ui("DX11", [this]() { draw_depth_debug_menu(); });
+	subscribe_to_ui("DX11", [this]() {
+		assert(_buffer_detection != nullptr);
+		draw_depth_debug_menu(*_buffer_detection);
+	});
 #endif
 #if RESHADE_DEPTH
 	subscribe_to_load_config([this](const ini_file &config) {
@@ -261,19 +264,19 @@ void reshade::d3d11::runtime_d3d11::on_reset()
 #endif
 }
 
-void reshade::d3d11::runtime_d3d11::on_present(buffer_detection_context &tracker)
+void reshade::d3d11::runtime_d3d11::on_present()
 {
 	if (!_is_initialized)
 		return;
 
-	_vertices = tracker.total_vertices();
-	_drawcalls = tracker.total_drawcalls();
+	assert(_buffer_detection != nullptr);
+	_vertices = _buffer_detection->total_vertices();
+	_drawcalls = _buffer_detection->total_drawcalls();
 
 #if RESHADE_DEPTH
-	_current_tracker = &tracker;
 	assert(_depth_clear_index_override != 0);
-	update_depthstencil_texture(_has_high_network_activity ? nullptr :
-		tracker.find_best_depth_texture(_filter_aspect_ratio ? _width : 0, _height, _depth_texture_override, _preserve_depth_buffers ? _depth_clear_index_override : 0));
+	update_depth_texture_bindings(_has_high_network_activity ? nullptr :
+		_buffer_detection->find_best_depth_texture(_filter_aspect_ratio ? _width : 0, _height, _depth_texture_override, _preserve_depth_buffers ? _depth_clear_index_override : 0));
 #endif
 
 	_app_state.capture(_immediate_context.get());
@@ -1292,7 +1295,7 @@ void reshade::d3d11::runtime_d3d11::render_imgui_draw_data(ImDrawData *draw_data
 #endif
 
 #if RESHADE_DEPTH
-void reshade::d3d11::runtime_d3d11::draw_depth_debug_menu()
+void reshade::d3d11::runtime_d3d11::draw_depth_debug_menu(buffer_detection_context &tracker)
 {
 	if (_has_high_network_activity)
 	{
@@ -1302,23 +1305,21 @@ void reshade::d3d11::runtime_d3d11::draw_depth_debug_menu()
 
 	if (ImGui::CollapsingHeader("Depth Buffers", ImGuiTreeNodeFlags_DefaultOpen))
 	{
-		assert(_current_tracker != nullptr);
-
 		bool modified = false;
 		modified |= ImGui::Checkbox("Use aspect ratio heuristics", &_filter_aspect_ratio);
 		modified |= ImGui::Checkbox("Copy depth buffers before clear operation", &_preserve_depth_buffers);
 
 		if (modified) // Detection settings have changed, reset heuristic
-			_current_tracker->reset(true);
+			tracker.reset(true);
 
 		ImGui::Spacing();
 		ImGui::Separator();
 		ImGui::Spacing();
 
-		for (const auto &[dsv_texture, snapshot] : _current_tracker->depth_buffer_counters())
+		for (const auto &[dsv_texture, snapshot] : tracker.depth_buffer_counters())
 		{
 			char label[512] = "";
-			sprintf_s(label, "%s0x%p", (dsv_texture == _depth_texture || dsv_texture == _current_tracker->current_depth_texture() ? "> " : "  "), dsv_texture.get());
+			sprintf_s(label, "%s0x%p", (dsv_texture == _depth_texture || dsv_texture == tracker.current_depth_texture() ? "> " : "  "), dsv_texture.get());
 
 			D3D11_TEXTURE2D_DESC desc;
 			dsv_texture->GetDesc(&desc);
@@ -1338,11 +1339,11 @@ void reshade::d3d11::runtime_d3d11::draw_depth_debug_menu()
 			ImGui::Text("| %4ux%-4u | %5u draw calls ==> %8u vertices |%s",
 				desc.Width, desc.Height, snapshot.total_stats.drawcalls, snapshot.total_stats.vertices, (msaa ? " MSAA" : ""));
 
-			if (_preserve_depth_buffers && dsv_texture == _current_tracker->current_depth_texture())
+			if (_preserve_depth_buffers && dsv_texture == tracker.current_depth_texture())
 			{
 				for (UINT clear_index = 1; clear_index <= snapshot.clears.size(); ++clear_index)
 				{
-					sprintf_s(label, "%s  CLEAR %2u", (clear_index == _current_tracker->current_clear_index() ? "> " : "  "), clear_index);
+					sprintf_s(label, "%s  CLEAR %2u", (clear_index == tracker.current_clear_index() ? "> " : "  "), clear_index);
 
 					if (bool value = (_depth_clear_index_override == clear_index);
 						ImGui::Checkbox(label, &value))
@@ -1374,7 +1375,7 @@ void reshade::d3d11::runtime_d3d11::draw_depth_debug_menu()
 	}
 }
 
-void reshade::d3d11::runtime_d3d11::update_depthstencil_texture(com_ptr<ID3D11Texture2D> texture)
+void reshade::d3d11::runtime_d3d11::update_depth_texture_bindings(com_ptr<ID3D11Texture2D> texture)
 {
 	if (texture == _depth_texture)
 		return;

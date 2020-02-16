@@ -104,7 +104,7 @@ namespace reshade::opengl
 
 #if RESHADE_DEPTH
 		void draw_depth_debug_menu();
-		void update_depthstencil_texture(buffer_detection::depthstencil_info info);
+		void update_depth_texture_bindings(buffer_detection::depthstencil_info info);
 
 		bool _copy_depth_source = true;
 		bool _use_aspect_ratio_heuristics = true;

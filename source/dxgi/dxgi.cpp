@@ -10,6 +10,7 @@
 #include "d3d10/d3d10_device.hpp"
 #include "d3d10/runtime_d3d10.hpp"
 #include "d3d11/d3d11_device.hpp"
+#include "d3d11/d3d11_device_context.hpp"
 #include "d3d11/runtime_d3d11.hpp"
 #include "d3d12/d3d12_device.hpp"
 #include "d3d12/d3d12_command_queue.hpp"
@@ -103,6 +104,8 @@ static void init_reshade_runtime_d3d(T *&swapchain, unsigned int direct3d_versio
 		if (!runtime->on_init(desc))
 			LOG(ERROR) << "Failed to initialize Direct3D 10 runtime environment on runtime " << runtime.get() << '.';
 
+		runtime->_buffer_detection = &device->_buffer_detection;
+
 		swapchain = new DXGISwapChain(device.get(), swapchain, std::move(runtime)); // Overwrite returned swapchain pointer with hooked object
 	}
 	else if (direct3d_version == 11)
@@ -112,6 +115,8 @@ static void init_reshade_runtime_d3d(T *&swapchain, unsigned int direct3d_versio
 		auto runtime = std::make_unique<reshade::d3d11::runtime_d3d11>(device->_orig, swapchain);
 		if (!runtime->on_init(desc))
 			LOG(ERROR) << "Failed to initialize Direct3D 11 runtime environment on runtime " << runtime.get() << '.';
+
+		runtime->_buffer_detection = &device->_immediate_context->_buffer_detection;
 
 		swapchain = new DXGISwapChain(device.get(), swapchain, std::move(runtime));
 	}
@@ -128,6 +133,8 @@ static void init_reshade_runtime_d3d(T *&swapchain, unsigned int direct3d_versio
 			auto runtime = std::make_unique<reshade::d3d12::runtime_d3d12>(command_queue->_device->_orig, command_queue->_orig, swapchain3.get());
 			if (!runtime->on_init(desc))
 				LOG(ERROR) << "Failed to initialize Direct3D 12 runtime environment on runtime " << runtime.get() << '.';
+
+			runtime->_buffer_detection = &command_queue->_device->_buffer_detection;
 
 			swapchain = new DXGISwapChain(command_queue->_device, swapchain3.get(), std::move(runtime));
 		}

@@ -252,7 +252,7 @@ void reshade::opengl::runtime_gl::on_present()
 	_app_state.capture();
 
 #if RESHADE_DEPTH
-	update_depthstencil_texture(_has_high_network_activity ? buffer_detection::depthstencil_info { 0 } :
+	update_depth_texture_bindings(_has_high_network_activity ? buffer_detection::depthstencil_info { 0 } :
 		_buffer_detection.find_best_depth_texture(_use_aspect_ratio_heuristics ? _width : 0, _height, _depth_source_override));
 #endif
 
@@ -1243,7 +1243,7 @@ void reshade::opengl::runtime_gl::draw_depth_debug_menu()
 	}
 }
 
-void reshade::opengl::runtime_gl::update_depthstencil_texture(buffer_detection::depthstencil_info info)
+void reshade::opengl::runtime_gl::update_depth_texture_bindings(buffer_detection::depthstencil_info info)
 {
 	if (_has_high_network_activity)
 	{

@@ -25,9 +25,11 @@ namespace reshade::d3d12
 #endif
 			);
 		void on_reset();
-		void on_present(buffer_detection_context &tracker);
+		void on_present();
 
 		bool capture_screenshot(uint8_t *buffer) const override;
+
+		buffer_detection_context *_buffer_detection = nullptr;
 
 	private:
 		bool init_effect(size_t index) override;
@@ -93,14 +95,13 @@ namespace reshade::d3d12
 #endif
 
 #if RESHADE_DEPTH
-		void draw_depth_debug_menu();
-		void update_depthstencil_texture(com_ptr<ID3D12Resource> texture);
+		void draw_depth_debug_menu(buffer_detection_context &tracker);
+		void update_depth_texture_bindings(com_ptr<ID3D12Resource> texture);
 
 		bool _filter_aspect_ratio = true;
 		bool _preserve_depth_buffers = false;
 		UINT _depth_clear_index_override = std::numeric_limits<UINT>::max();
 		ID3D12Resource *_depth_texture_override = nullptr;
-		buffer_detection_context *_current_tracker = nullptr;
 #endif
 	};
 }

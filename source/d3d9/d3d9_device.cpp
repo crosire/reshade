@@ -164,9 +164,10 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateAdditionalSwapChain(D3DPRESENT_
 	swapchain->GetPresentParameters(&pp);
 
 	const auto runtime = std::make_shared<reshade::d3d9::runtime_d3d9>(device, swapchain);
-
 	if (!runtime->on_init(pp))
 		LOG(ERROR) << "Failed to initialize Direct3D 9 runtime environment on runtime " << runtime.get() << '.';
+
+	runtime->_buffer_detection = &_buffer_detection;
 
 	AddRef(); // Add reference which is released when the swap chain is destroyed (see 'Direct3DSwapChain9::Release')
 
@@ -239,7 +240,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::Reset(D3DPRESENT_PARAMETERS *pPresent
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::Present(const RECT *pSourceRect, const RECT *pDestRect, HWND hDestWindowOverride, const RGNDATA *pDirtyRegion)
 {
-	_implicit_swapchain->_runtime->on_present(_buffer_detection);
+	_implicit_swapchain->_runtime->on_present();
 	_buffer_detection.reset(false);
 
 	return _orig->Present(pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion);
@@ -721,7 +722,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::ComposeRects(IDirect3DSurface9 *pSrc,
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::PresentEx(const RECT *pSourceRect, const RECT *pDestRect, HWND hDestWindowOverride, const RGNDATA *pDirtyRegion, DWORD dwFlags)
 {
-	_implicit_swapchain->_runtime->on_present(_buffer_detection);
+	_implicit_swapchain->_runtime->on_present();
 	_buffer_detection.reset(false);
 
 	assert(_extended_interface);

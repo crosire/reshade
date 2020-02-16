@@ -596,6 +596,8 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 			runtime = new reshade::vulkan::runtime_vk(
 				device, device_data.physical_device, device_data.graphics_queue_family_index,
 				s_instance_dispatch.at(dispatch_key_from_handle(device_data.physical_device)), device_data.dispatch_table);
+
+			runtime->_buffer_detection = &device_data.buffer_detection;
 		}
 
 		// Look up window handle from surface
@@ -671,7 +673,7 @@ VkResult VKAPI_CALL vkQueuePresentKHR(VkQueue queue, const VkPresentInfoKHR *pPr
 			runtime != nullptr)
 		{
 			VkSemaphore signal = VK_NULL_HANDLE;
-			if (runtime->on_present(pPresentInfo->pImageIndices[i], wait_semaphores.data(), static_cast<uint32_t>(wait_semaphores.size()), signal, device_data.buffer_detection); signal != VK_NULL_HANDLE)
+			if (runtime->on_present(pPresentInfo->pImageIndices[i], wait_semaphores.data(), static_cast<uint32_t>(wait_semaphores.size()), signal); signal != VK_NULL_HANDLE)
 			{
 				// The queue submit in 'on_present' now waits on the requested wait semaphores
 				// The next queue submit should therefore wait on the semaphore that was signaled by the last 'on_present' submit

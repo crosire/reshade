@@ -19,9 +19,11 @@ namespace reshade::d3d9
 
 		bool on_init(const D3DPRESENT_PARAMETERS &pp);
 		void on_reset();
-		void on_present(buffer_detection &tracker);
+		void on_present();
 
 		bool capture_screenshot(uint8_t *buffer) const override;
+
+		buffer_detection *_buffer_detection = nullptr;
 
 	private:
 		bool init_effect(size_t index) override;
@@ -72,8 +74,8 @@ namespace reshade::d3d9
 #endif
 
 #if RESHADE_DEPTH
-		void draw_depth_debug_menu();
-		void update_depthstencil_texture(com_ptr<IDirect3DSurface9> depthstencil);
+		void draw_depth_debug_menu(buffer_detection &tracker);
+		void update_depth_texture_bindings(com_ptr<IDirect3DSurface9> depthstencil);
 
 		bool _disable_intz = false;
 		bool _reset_tracker = false;
@@ -81,7 +83,6 @@ namespace reshade::d3d9
 		bool _preserve_depth_buffers = false;
 		UINT _depth_clear_index_override = std::numeric_limits<UINT>::max();
 		IDirect3DSurface9 *_depthstencil_override = nullptr;
-		buffer_detection *_current_tracker = nullptr;
 #endif
 	};
 }

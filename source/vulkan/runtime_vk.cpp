@@ -196,7 +196,8 @@ reshade::vulkan::runtime_vk::runtime_vk(VkDevice device, VkPhysicalDevice physic
 #if RESHADE_DEPTH
 		ImGui::Spacing();
 
-		draw_depth_debug_menu();
+		assert(_buffer_detection != nullptr);
+		draw_depth_debug_menu(*_buffer_detection);
 #endif
 	});
 #endif
@@ -527,13 +528,14 @@ void reshade::vulkan::runtime_vk::on_reset()
 	_allocations.clear();
 }
 
-void reshade::vulkan::runtime_vk::on_present(uint32_t swapchain_image_index, const VkSemaphore *wait, uint32_t num_wait, VkSemaphore &signal, buffer_detection_context &tracker)
+void reshade::vulkan::runtime_vk::on_present(uint32_t swapchain_image_index, const VkSemaphore *wait, uint32_t num_wait, VkSemaphore &signal)
 {
 	if (!_is_initialized)
 		return;
 
-	_vertices = tracker.total_vertices();
-	_drawcalls = tracker.total_drawcalls();
+	assert(_buffer_detection != nullptr);
+	_vertices = _buffer_detection->total_vertices();
+	_drawcalls = _buffer_detection->total_drawcalls();
 
 	_cmd_index = _framecount % NUM_COMMAND_FRAMES;
 	_swap_index = swapchain_image_index;
@@ -546,9 +548,8 @@ void reshade::vulkan::runtime_vk::on_present(uint32_t swapchain_image_index, con
 	}
 
 #if RESHADE_DEPTH
-	_current_tracker = &tracker;
-	update_depthstencil_image(_has_high_network_activity ? buffer_detection::depthstencil_info { VK_NULL_HANDLE } :
-		tracker.find_best_depth_texture(_use_aspect_ratio_heuristics ? VkExtent2D { _width, _height } : VkExtent2D { 0, 0 }, _depth_image_override));
+	update_depth_image_bindings(_has_high_network_activity ? buffer_detection::depthstencil_info { VK_NULL_HANDLE } :
+		_buffer_detection->find_best_depth_texture(_use_aspect_ratio_heuristics ? VkExtent2D { _width, _height } : VkExtent2D { 0, 0 }, _depth_image_override));
 #endif
 
 	update_and_render_effects();
@@ -2164,7 +2165,7 @@ void reshade::vulkan::runtime_vk::render_imgui_draw_data(ImDrawData *draw_data)
 #endif
 
 #if RESHADE_DEPTH
-void reshade::vulkan::runtime_vk::draw_depth_debug_menu()
+void reshade::vulkan::runtime_vk::draw_depth_debug_menu(buffer_detection_context &tracker)
 {
 	if (_has_high_network_activity)
 	{
@@ -2181,7 +2182,7 @@ void reshade::vulkan::runtime_vk::draw_depth_debug_menu()
 		ImGui::Separator();
 		ImGui::Spacing();
 
-		for (const auto &[depth_image, snapshot] : _current_tracker->depth_buffer_counters())
+		for (const auto &[depth_image, snapshot] : tracker.depth_buffer_counters())
 		{
 			char label[512] = "";
 			sprintf_s(label, "%s0x%016llx", (depth_image == _depth_image ? "> " : "  "), (uint64_t)depth_image);
@@ -2214,7 +2215,7 @@ void reshade::vulkan::runtime_vk::draw_depth_debug_menu()
 	}
 }
 
-void reshade::vulkan::runtime_vk::update_depthstencil_image(buffer_detection::depthstencil_info info)
+void reshade::vulkan::runtime_vk::update_depth_image_bindings(buffer_detection::depthstencil_info info)
 {
 	if (info.image == _depth_image)
 		return;

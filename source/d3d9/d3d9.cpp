@@ -65,11 +65,12 @@ static void init_runtime_d3d(T *&device, D3DDEVTYPE device_type, D3DPRESENT_PARA
 	swapchain->GetPresentParameters(&pp);
 
 	const auto runtime = std::make_shared<reshade::d3d9::runtime_d3d9>(device, swapchain);
-
 	if (!runtime->on_init(pp))
 		LOG(ERROR) << "Failed to initialize Direct3D 9 runtime environment on runtime " << runtime.get() << '.';
 
 	const auto device_proxy = new Direct3DDevice9(device, swapchain, runtime, use_software_rendering);
+
+	runtime->_buffer_detection = &device_proxy->_buffer_detection;
 
 	// Get and set depth-stencil surface so that the depth detection callbacks are called with the auto depth-stencil surface
 	if (pp.EnableAutoDepthStencil)
