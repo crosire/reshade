@@ -74,7 +74,7 @@ namespace reshade::d3d12
 		com_ptr<ID3D12RootSignature> _mipmap_signature;
 
 		HMODULE _d3d_compiler = nullptr;
-		com_ptr<ID3D12Resource> _effect_depthstencil;
+		com_ptr<ID3D12Resource> _effect_stencil;
 		std::vector<struct d3d12_effect_data> _effect_data;
 
 #if RESHADE_GUI

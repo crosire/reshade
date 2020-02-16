@@ -52,7 +52,7 @@ namespace reshade::d3d9
 		com_ptr<IDirect3DSurface9> _backbuffer_texture_surface;
 
 		HMODULE _d3d_compiler = nullptr;
-		com_ptr<IDirect3DSurface9> _effect_depthstencil;
+		com_ptr<IDirect3DSurface9> _effect_stencil;
 		com_ptr<IDirect3DVertexBuffer9> _effect_vertex_buffer;
 		com_ptr<IDirect3DVertexDeclaration9> _effect_vertex_layout;
 
@@ -73,17 +73,17 @@ namespace reshade::d3d9
 
 #if RESHADE_DEPTH
 		void draw_depth_debug_menu(buffer_detection &tracker);
-		void update_depth_texture_bindings(com_ptr<IDirect3DSurface9> depthstencil);
+		void update_depth_texture_bindings(com_ptr<IDirect3DSurface9> surface);
 
 		com_ptr<IDirect3DTexture9> _depth_texture;
-		com_ptr<IDirect3DSurface9> _depth_texture_surface;
+		com_ptr<IDirect3DSurface9> _depth_surface;
 
 		bool _disable_intz = false;
-		bool _reset_tracker = false;
+		bool _reset_buffer_detection = false;
 		bool _filter_aspect_ratio = true;
 		bool _preserve_depth_buffers = false;
 		UINT _depth_clear_index_override = std::numeric_limits<UINT>::max();
-		IDirect3DSurface9 *_depthstencil_override = nullptr;
+		IDirect3DSurface9 *_depth_surface_override = nullptr;
 #endif
 	};
 }

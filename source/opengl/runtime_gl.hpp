@@ -109,8 +109,7 @@ namespace reshade::opengl
 		bool _copy_depth_source = true;
 		bool _use_aspect_ratio_heuristics = true;
 		GLuint _depth_source = 0;
-		GLuint _depth_source_width = 0;
-		GLuint _depth_source_height = 0;
+		GLuint _depth_source_width = 0, _depth_source_height = 0;
 		GLenum _depth_source_format = 0;
 		GLuint _depth_source_override = std::numeric_limits<GLuint>::max();
 #endif

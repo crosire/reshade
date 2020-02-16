@@ -63,7 +63,7 @@ namespace reshade::vulkan
 		VmaAllocator _alloc = VK_NULL_HANDLE;
 		const VkDevice _device;
 		VkQueue _queue = VK_NULL_HANDLE;
-		uint32_t _queue_family_index = 0; // Default to first queue family index
+		const uint32_t _queue_family_index;
 		VkPhysicalDeviceProperties _device_props = {};
 		VkPhysicalDeviceMemoryProperties _memory_props = {};
 
@@ -90,9 +90,9 @@ namespace reshade::vulkan
 		VkImage _effect_stencil = VK_NULL_HANDLE;
 		VkFormat _effect_stencil_format = VK_FORMAT_UNDEFINED;
 		VkImageView _effect_stencil_view = VK_NULL_HANDLE;
+		std::vector<struct vulkan_effect_data> _effect_data;
 		VkDescriptorPool _effect_descriptor_pool = VK_NULL_HANDLE;
 		VkDescriptorSetLayout _effect_descriptor_layout = VK_NULL_HANDLE;
-		std::vector<struct vulkan_effect_data> _effect_data;
 		std::unordered_map<size_t, VkSampler> _effect_sampler_states;
 
 #if RESHADE_GUI

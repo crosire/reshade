@@ -141,7 +141,7 @@ bool reshade::d3d9::runtime_d3d9::on_init(const D3DPRESENT_PARAMETERS &pp)
 	assert(SUCCEEDED(hr));
 
 	// Create effect depth-stencil surface
-	if (FAILED(_device->CreateDepthStencilSurface(_width, _height, D3DFMT_D24S8, D3DMULTISAMPLE_NONE, 0, FALSE, &_effect_depthstencil, nullptr)))
+	if (FAILED(_device->CreateDepthStencilSurface(_width, _height, D3DFMT_D24S8, D3DMULTISAMPLE_NONE, 0, FALSE, &_effect_stencil, nullptr)))
 		return false;
 
 	// Create vertex layout for vertex buffer which holds vertex indices
@@ -176,7 +176,7 @@ void reshade::d3d9::runtime_d3d9::on_reset()
 	_backbuffer_texture_surface.reset();
 
 	_max_vertices = 0;
-	_effect_depthstencil.reset();
+	_effect_stencil.reset();
 	_effect_vertex_buffer.reset();
 	_effect_vertex_layout.reset();
 
@@ -190,10 +190,10 @@ void reshade::d3d9::runtime_d3d9::on_reset()
 
 #if RESHADE_DEPTH
 	_depth_texture.reset();
-	_depth_texture_surface.reset();
+	_depth_surface.reset();
 
 	_has_depth_texture = false;
-	_depthstencil_override = nullptr;
+	_depth_surface_override = nullptr;
 #endif
 }
 
@@ -211,7 +211,7 @@ void reshade::d3d9::runtime_d3d9::on_present()
 
 	assert(_depth_clear_index_override != 0);
 	update_depth_texture_bindings(_has_high_network_activity ? nullptr :
-		_buffer_detection->find_best_depth_surface(_filter_aspect_ratio ? _width : 0, _height, _depthstencil_override, _preserve_depth_buffers ? _depth_clear_index_override : 0));
+		_buffer_detection->find_best_depth_surface(_filter_aspect_ratio ? _width : 0, _height, _depth_surface_override, _preserve_depth_buffers ? _depth_clear_index_override : 0));
 #endif
 
 	_app_state.capture();
@@ -238,10 +238,10 @@ void reshade::d3d9::runtime_d3d9::on_present()
 
 #if RESHADE_DEPTH
 	// Can only reset the tracker after the state block has been applied, to ensure current depth-stencil binding is updated correctly
-	if (_reset_tracker)
+	if (_reset_buffer_detection)
 	{
 		_buffer_detection->reset(true);
-		_reset_tracker = false;
+		_reset_buffer_detection = false;
 	}
 #endif
 
@@ -666,7 +666,7 @@ bool reshade::d3d9::runtime_d3d9::init_texture(texture &texture)
 	case texture_reference::depth_buffer:
 #if RESHADE_DEPTH
 		impl->texture = _depth_texture;
-		impl->surface = _depth_texture_surface;
+		impl->surface = _depth_surface;
 #endif
 		return true;
 	}
@@ -871,7 +871,7 @@ void reshade::d3d9::runtime_d3d9::render_technique(technique &technique)
 
 		D3DVIEWPORT9 viewport;
 		_device->GetViewport(&viewport);
-		_device->SetDepthStencilSurface(viewport.Width == _width && viewport.Height == _height && pass_info.stencil_enable ? _effect_depthstencil.get() : nullptr);
+		_device->SetDepthStencilSurface(viewport.Width == _width && viewport.Height == _height && pass_info.stencil_enable ? _effect_stencil.get() : nullptr);
 
 		if (pass_info.stencil_enable && viewport.Width == _width && viewport.Height == _height && !is_effect_stencil_cleared)
 		{
@@ -1110,13 +1110,13 @@ void reshade::d3d9::runtime_d3d9::draw_depth_debug_menu(buffer_detection &tracke
 
 	if (ImGui::CollapsingHeader("Depth Buffers", ImGuiTreeNodeFlags_DefaultOpen))
 	{
-		assert(!_reset_tracker);
+		assert(!_reset_buffer_detection);
 
 		// Do NOT reset tracker within state block capture scope, since it may otherwise bind the replacement depth-stencil after it has been destroyed here
-		_reset_tracker |= ImGui::Checkbox("Disable replacement with INTZ format", &_disable_intz);
+		_reset_buffer_detection |= ImGui::Checkbox("Disable replacement with INTZ format", &_disable_intz);
 
-		_reset_tracker |= ImGui::Checkbox("Use aspect ratio heuristics", &_filter_aspect_ratio);
-		_reset_tracker |= ImGui::Checkbox("Copy depth buffers before clear operation", &_preserve_depth_buffers);
+		_reset_buffer_detection |= ImGui::Checkbox("Use aspect ratio heuristics", &_filter_aspect_ratio);
+		_reset_buffer_detection |= ImGui::Checkbox("Copy depth buffers before clear operation", &_preserve_depth_buffers);
 
 		ImGui::Spacing();
 		ImGui::Separator();
@@ -1137,9 +1137,9 @@ void reshade::d3d9::runtime_d3d9::draw_depth_debug_menu(buffer_detection &tracke
 				ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyle().Colors[ImGuiCol_TextDisabled]);
 			}
 
-			if (bool value = (_depthstencil_override == ds_surface);
+			if (bool value = (_depth_surface_override == ds_surface);
 				ImGui::Checkbox(label, &value))
-				_depthstencil_override = value ? ds_surface.get() : nullptr;
+				_depth_surface_override = value ? ds_surface.get() : nullptr;
 
 			ImGui::SameLine();
 			ImGui::Text("| %4ux%-4u | %5u draw calls ==> %8u vertices |%s",
@@ -1155,12 +1155,12 @@ void reshade::d3d9::runtime_d3d9::draw_depth_debug_menu(buffer_detection &tracke
 						ImGui::Checkbox(label, &value))
 					{
 						_depth_clear_index_override = value ? clear_index : std::numeric_limits<UINT>::max();
-						_reset_tracker = true;
+						_reset_buffer_detection = true;
 					}
 
 					ImGui::SameLine();
 					ImGui::Text("%*s|           | %5u draw calls ==> %8u vertices |",
-						sizeof(ds_surface), "", // Add space to fill pointer length
+						sizeof(ds_surface.get()) == 8 ? 8 : 0, "", // Add space to fill pointer length
 						snapshot.clears[clear_index - 1].drawcalls, snapshot.clears[clear_index - 1].vertices);
 				}
 			}
@@ -1176,23 +1176,23 @@ void reshade::d3d9::runtime_d3d9::draw_depth_debug_menu(buffer_detection &tracke
 		ImGui::Separator();
 		ImGui::Spacing();
 
-		if (_reset_tracker)
+		if (_reset_buffer_detection)
 			runtime::save_config();
 	}
 }
 
-void reshade::d3d9::runtime_d3d9::update_depth_texture_bindings(com_ptr<IDirect3DSurface9> depthstencil)
+void reshade::d3d9::runtime_d3d9::update_depth_texture_bindings(com_ptr<IDirect3DSurface9> surface)
 {
-	if (depthstencil == _depth_texture_surface)
+	if (surface == _depth_surface)
 		return;
 
 	_depth_texture.reset();
-	_depth_texture_surface = std::move(depthstencil);
+	_depth_surface = std::move(surface);
 	_has_depth_texture = false;
 
-	if (_depth_texture_surface != nullptr)
+	if (_depth_surface != nullptr)
 	{
-		if (HRESULT hr = _depth_texture_surface->GetContainer(IID_PPV_ARGS(&_depth_texture)); FAILED(hr))
+		if (HRESULT hr = _depth_surface->GetContainer(IID_PPV_ARGS(&_depth_texture)); FAILED(hr))
 		{
 			LOG(ERROR) << "Failed to retrieve texture from depth surface! HRESULT is " << hr << '.';
 			return;
@@ -1223,7 +1223,7 @@ void reshade::d3d9::runtime_d3d9::update_depth_texture_bindings(com_ptr<IDirect3
 		}
 
 		tex_impl->texture = _depth_texture;
-		tex_impl->surface = _depth_texture_surface;
+		tex_impl->surface = _depth_surface;
 	}
 }
 #endif

@@ -203,7 +203,7 @@ bool reshade::d3d10::runtime_d3d10::on_init(const DXGI_SWAP_CHAIN_DESC &swap_des
 	com_ptr<ID3D10Texture2D> effect_depthstencil_texture;
 	if (FAILED(_device->CreateTexture2D(&tex_desc, nullptr, &effect_depthstencil_texture)))
 		return false;
-	if (FAILED(_device->CreateDepthStencilView(effect_depthstencil_texture.get(), nullptr, &_effect_depthstencil)))
+	if (FAILED(_device->CreateDepthStencilView(effect_depthstencil_texture.get(), nullptr, &_effect_stencil)))
 		return false;
 
 #if RESHADE_GUI
@@ -230,7 +230,7 @@ void reshade::d3d10::runtime_d3d10::on_reset()
 	_copy_pixel_shader.reset();
 	_copy_sampler_state.reset();
 
-	_effect_depthstencil.reset();
+	_effect_stencil.reset();
 	_effect_rasterizer.reset();
 
 #if RESHADE_GUI
@@ -1013,13 +1013,13 @@ void reshade::d3d10::runtime_d3d10::render_technique(technique &technique)
 		// Setup render targets
 		if (pass_info.viewport_width == _width && pass_info.viewport_height == _height)
 		{
-			_device->OMSetRenderTargets(D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT, reinterpret_cast<ID3D10RenderTargetView *const *>(pass_data.render_targets), pass_info.stencil_enable ? _effect_depthstencil.get() : nullptr);
+			_device->OMSetRenderTargets(D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT, reinterpret_cast<ID3D10RenderTargetView *const *>(pass_data.render_targets), pass_info.stencil_enable ? _effect_stencil.get() : nullptr);
 
 			if (pass_info.stencil_enable && !is_effect_stencil_cleared)
 			{
 				is_effect_stencil_cleared = true;
 
-				_device->ClearDepthStencilView(_effect_depthstencil.get(), D3D10_CLEAR_STENCIL, 1.0f, 0);
+				_device->ClearDepthStencilView(_effect_stencil.get(), D3D10_CLEAR_STENCIL, 1.0f, 0);
 			}
 		}
 		else
@@ -1343,7 +1343,7 @@ void reshade::d3d10::runtime_d3d10::draw_depth_debug_menu(buffer_detection &trac
 
 					ImGui::SameLine();
 					ImGui::Text("%*s|           | %5u draw calls ==> %8u vertices |",
-						sizeof(dsv_texture), "", // Add space to fill pointer length
+						sizeof(dsv_texture.get()) == 8 ? 8 : 0, "", // Add space to fill pointer length
 						snapshot.clears[clear_index - 1].drawcalls, snapshot.clears[clear_index - 1].vertices);
 				}
 			}

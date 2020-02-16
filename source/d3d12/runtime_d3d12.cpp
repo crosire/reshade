@@ -239,12 +239,12 @@ bool reshade::d3d12::runtime_d3d12::on_init(const DXGI_SWAP_CHAIN_DESC &swap_des
 		clear_value.Format = desc.Format;
 		clear_value.DepthStencil = { 1.0f, 0x0 };
 
-		if (FAILED(_device->CreateCommittedResource(&props, D3D12_HEAP_FLAG_NONE, &desc, D3D12_RESOURCE_STATE_DEPTH_WRITE, &clear_value, IID_PPV_ARGS(&_effect_depthstencil))))
+		if (FAILED(_device->CreateCommittedResource(&props, D3D12_HEAP_FLAG_NONE, &desc, D3D12_RESOURCE_STATE_DEPTH_WRITE, &clear_value, IID_PPV_ARGS(&_effect_stencil))))
 			return false;
 #ifdef _DEBUG
-		_effect_depthstencil->SetName(L"ReShade Default Depth-Stencil");
+		_effect_stencil->SetName(L"ReShade Default Depth-Stencil");
 #endif
-		_device->CreateDepthStencilView(_effect_depthstencil.get(), nullptr, _depthstencil_dsvs->GetCPUDescriptorHandleForHeapStart());
+		_device->CreateDepthStencilView(_effect_stencil.get(), nullptr, _depthstencil_dsvs->GetCPUDescriptorHandleForHeapStart());
 	}
 
 	// Create mipmap generation states
@@ -325,7 +325,7 @@ void reshade::d3d12::runtime_d3d12::on_reset()
 	_mipmap_pipeline.reset();
 	_mipmap_signature.reset();
 
-	_effect_depthstencil.reset();
+	_effect_stencil.reset();
 
 #if RESHADE_GUI
 	_imgui.pipeline.reset();
@@ -1592,7 +1592,7 @@ void reshade::d3d12::runtime_d3d12::draw_depth_debug_menu(buffer_detection_conte
 
 					ImGui::SameLine();
 					ImGui::Text("%*s|           | %5u draw calls ==> %8u vertices |",
-						sizeof(dsv_texture), "", // Add space to fill pointer length
+						sizeof(dsv_texture.get()) == 8 ? 8 : 0, "", // Add space to fill pointer length
 						snapshot.clears[clear_index - 1].drawcalls, snapshot.clears[clear_index - 1].vertices);
 				}
 			}
