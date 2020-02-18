@@ -752,6 +752,9 @@ bool reshade::d3d9::runtime_d3d9::init_texture(texture &texture)
 	hr = impl->texture->GetSurfaceLevel(0, &impl->surface);
 	assert(SUCCEEDED(hr));
 
+	// Clear texture to zero since by default its contents are undefined
+	_device->ColorFill(impl->surface.get(), nullptr, D3DCOLOR_ARGB(0, 0, 0, 0));
+
 	return true;
 }
 void reshade::d3d9::runtime_d3d9::upload_texture(const texture &texture, const uint8_t *pixels)

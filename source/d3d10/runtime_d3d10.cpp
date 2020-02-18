@@ -460,9 +460,9 @@ bool reshade::d3d10::runtime_d3d10::init_effect(size_t index)
 	if (!effect.uniform_data_storage.empty())
 	{
 		const D3D10_BUFFER_DESC desc = { static_cast<UINT>(effect.uniform_data_storage.size()), D3D10_USAGE_DYNAMIC, D3D10_BIND_CONSTANT_BUFFER, D3D10_CPU_ACCESS_WRITE };
-		const D3D10_SUBRESOURCE_DATA init_data = { effect.uniform_data_storage.data(), desc.ByteWidth };
+		const D3D10_SUBRESOURCE_DATA initial_data = { effect.uniform_data_storage.data(), desc.ByteWidth };
 
-		if (HRESULT hr = _device->CreateBuffer(&desc, &init_data, &effect_data.cb); FAILED(hr))
+		if (HRESULT hr = _device->CreateBuffer(&desc, &initial_data, &effect_data.cb); FAILED(hr))
 		{
 			LOG(ERROR) << "Failed to create constant buffer for effect file " << effect.source_file << ". "
 				"HRESULT is " << hr << '.';
@@ -594,10 +594,6 @@ bool reshade::d3d10::runtime_d3d10::init_effect(size_t index)
 							"HRESULT is " << hr << '.';
 						return false;
 					}
-
-					// Ensure render target contents are initialized to zero and not undefined
-					const FLOAT clear_color[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
-					_device->ClearRenderTargetView(texture_impl->rtv[target_index].get(), clear_color);
 				}
 
 				pass_data.render_targets[k] = texture_impl->rtv[target_index];
@@ -846,7 +842,16 @@ bool reshade::d3d10::runtime_d3d10::init_texture(texture &texture)
 		break;
 	}
 
-	if (HRESULT hr = _device->CreateTexture2D(&desc, nullptr, &impl->texture); FAILED(hr))
+	// Clear texture to zero since by default its contents are undefined
+	std::vector<uint8_t> zero_data(desc.Width * desc.Height * 16);
+	std::vector<D3D10_SUBRESOURCE_DATA> initial_data(desc.MipLevels);
+	for (UINT level = 0, width = desc.Width; level < desc.MipLevels; ++level, width /= 2)
+	{
+		initial_data[level].pSysMem = zero_data.data();
+		initial_data[level].SysMemPitch = width * 16;
+	}
+
+	if (HRESULT hr = _device->CreateTexture2D(&desc, initial_data.data(), &impl->texture); FAILED(hr))
 	{
 		LOG(ERROR) << "Failed to create texture '" << texture.unique_name << "' ("
 			"Width = " << desc.Width << ", "

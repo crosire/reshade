@@ -820,7 +820,7 @@ bool reshade::opengl::runtime_gl::init_texture(texture &texture)
 		impl->id[1] = impl->id[0];
 	}
 
-	// Clear texture to black since by default its contents are undefined
+	// Clear texture to zero since by default its contents are undefined
 	// Use a separate FBO here to make sure there is no mismatch with the dimensions of others
 	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, _fbo[FBO_CLEAR]);
 	glFramebufferTexture(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, impl->id[0], 0);
