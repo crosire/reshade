@@ -1172,10 +1172,21 @@ void reshade::d3d12::runtime_d3d12::render_technique(technique &technique)
 	transition_state(_cmd_list, _backbuffers[_swap_index], D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
 
 	bool is_effect_stencil_cleared = false;
+	bool needs_implicit_backbuffer_copy = true; // First pass always needs the back buffer updated
 	D3D12_CPU_DESCRIPTOR_HANDLE effect_stencil = _depthstencil_dsvs->GetCPUDescriptorHandleForHeapStart();
 
 	for (size_t pass_index = 0; pass_index < technique.passes.size(); ++pass_index)
 	{
+		if (needs_implicit_backbuffer_copy)
+		{
+			// Save back buffer of previous pass
+			transition_state(_cmd_list, _backbuffer_texture, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_COPY_DEST);
+			transition_state(_cmd_list, _backbuffers[_swap_index], D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_COPY_SOURCE);
+			_cmd_list->CopyResource(_backbuffer_texture.get(), _backbuffers[_swap_index].get());
+			transition_state(_cmd_list, _backbuffer_texture, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+			transition_state(_cmd_list, _backbuffers[_swap_index], D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
+		}
+
 		const d3d12_pass_data &pass_data = impl->passes[pass_index];
 		const reshadefx::pass_info &pass_info = technique.passes[pass_index];
 
@@ -1191,13 +1202,6 @@ void reshade::d3d12::runtime_d3d12::render_technique(technique &technique)
 				transition_state(_cmd_list, texture_impl->resource, texture_impl->state, D3D12_RESOURCE_STATE_RENDER_TARGET);
 			texture_impl->state = D3D12_RESOURCE_STATE_RENDER_TARGET;
 		}
-
-		// Save back buffer of previous pass
-		transition_state(_cmd_list, _backbuffer_texture, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_COPY_DEST);
-		transition_state(_cmd_list, _backbuffers[_swap_index], D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_COPY_SOURCE);
-		_cmd_list->CopyResource(_backbuffer_texture.get(), _backbuffers[_swap_index].get());
-		transition_state(_cmd_list, _backbuffer_texture, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-		transition_state(_cmd_list, _backbuffers[_swap_index], D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
 
 		// Setup states
 		_cmd_list->SetPipelineState(pass_data.pipeline.get());
@@ -1215,6 +1219,8 @@ void reshade::d3d12::runtime_d3d12::render_technique(technique &technique)
 
 		if (pass_data.num_render_targets == 0)
 		{
+			needs_implicit_backbuffer_copy = true;
+
 			D3D12_CPU_DESCRIPTOR_HANDLE render_target = { _backbuffer_rtvs->GetCPUDescriptorHandleForHeapStart().ptr + (_swap_index * 2 + pass_info.srgb_write_enable) * _rtv_handle_size };
 			_cmd_list->OMSetRenderTargets(1, &render_target, false, pass_info.stencil_enable ? &effect_stencil : nullptr);
 
@@ -1223,6 +1229,8 @@ void reshade::d3d12::runtime_d3d12::render_technique(technique &technique)
 		}
 		else
 		{
+			needs_implicit_backbuffer_copy = false;
+
 			_cmd_list->OMSetRenderTargets(pass_data.num_render_targets, &pass_data.render_targets, true,
 				pass_info.stencil_enable && pass_info.viewport_width == _width && pass_info.viewport_height == _height ? &effect_stencil : nullptr);
 

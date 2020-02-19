@@ -995,9 +995,16 @@ void reshade::d3d10::runtime_d3d10::render_technique(technique &technique)
 	_device->GSSetShader(nullptr);
 
 	bool is_effect_stencil_cleared = false;
+	bool needs_implicit_backbuffer_copy = true; // First pass always needs the back buffer updated
 
 	for (size_t pass_index = 0; pass_index < technique.passes.size(); ++pass_index)
 	{
+		if (needs_implicit_backbuffer_copy)
+		{
+			// Save back buffer of previous pass
+			_device->CopyResource(_backbuffer_texture.get(), _backbuffer_resolved.get());
+		}
+
 		const d3d10_pass_data &pass_data = impl->passes[pass_index];
 		const reshadefx::pass_info &pass_info = technique.passes[pass_index];
 
@@ -1007,9 +1014,6 @@ void reshade::d3d10::runtime_d3d10::render_technique(technique &technique)
 
 		_device->OMSetBlendState(pass_data.blend_state.get(), nullptr, D3D10_DEFAULT_SAMPLE_MASK);
 		_device->OMSetDepthStencilState(pass_data.depth_stencil_state.get(), pass_info.stencil_reference_value);
-
-		// Save back buffer of previous pass
-		_device->CopyResource(_backbuffer_texture.get(), _backbuffer_resolved.get());
 
 		// Setup shader resources
 		_device->VSSetShaderResources(0, static_cast<UINT>(pass_data.shader_resources.size()), reinterpret_cast<ID3D10ShaderResourceView *const *>(pass_data.shader_resources.data()));
@@ -1036,11 +1040,10 @@ void reshade::d3d10::runtime_d3d10::render_technique(technique &technique)
 		{
 			for (const com_ptr<ID3D10RenderTargetView> &target : pass_data.render_targets)
 			{
-				if (target != nullptr)
-				{
-					const FLOAT color[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
-					_device->ClearRenderTargetView(target.get(), color);
-				}
+				if (target == nullptr)
+					break;
+				const FLOAT color[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+				_device->ClearRenderTargetView(target.get(), color);
 			}
 		}
 
@@ -1061,11 +1064,18 @@ void reshade::d3d10::runtime_d3d10::render_technique(technique &technique)
 		_device->VSSetShaderResources(0, static_cast<UINT>(pass_data.shader_resources.size()), null_srv);
 		_device->PSSetShaderResources(0, static_cast<UINT>(pass_data.shader_resources.size()), null_srv);
 
-		// Update shader resources
+		needs_implicit_backbuffer_copy = false;
 		for (const com_ptr<ID3D10ShaderResourceView> &resource : pass_data.render_target_resources)
 		{
 			if (resource == nullptr)
-				continue;
+				break;
+
+			if (resource == _backbuffer_texture_srv[0] ||
+				resource == _backbuffer_texture_srv[1])
+			{
+				needs_implicit_backbuffer_copy = true;
+				break;
+			}
 
 			D3D10_SHADER_RESOURCE_VIEW_DESC resource_desc;
 			resource->GetDesc(&resource_desc);

@@ -837,17 +837,21 @@ void reshade::d3d9::runtime_d3d9::render_technique(technique &technique)
 	}
 
 	bool is_effect_stencil_cleared = false;
+	bool needs_implicit_backbuffer_copy = true; // First pass always needs the back buffer updated
 
 	for (size_t pass_index = 0; pass_index < technique.passes.size(); ++pass_index)
 	{
+		if (needs_implicit_backbuffer_copy)
+		{
+			// Save back buffer of previous pass
+			_device->StretchRect(_backbuffer_resolved.get(), nullptr, _backbuffer_texture_surface.get(), nullptr, D3DTEXF_NONE);
+		}
+
 		const d3d9_pass_data &pass_data = impl->passes[pass_index];
 		const reshadefx::pass_info &pass_info = technique.passes[pass_index];
 
 		// Setup states
 		pass_data.stateblock->Apply();
-
-		// Save back buffer of previous pass
-		_device->StretchRect(_backbuffer_resolved.get(), nullptr, _backbuffer_texture_surface.get(), nullptr, D3DTEXF_NONE);
 
 		// Setup shader resources
 		for (DWORD s = 0; s < impl->num_samplers; s++)
@@ -903,11 +907,17 @@ void reshade::d3d9::runtime_d3d9::render_technique(technique &technique)
 		_vertices += pass_info.num_vertices;
 		_drawcalls += 1;
 
-		// Update shader resources
+		needs_implicit_backbuffer_copy = false;
 		for (IDirect3DSurface9 *target : pass_data.render_targets)
 		{
-			if (target == nullptr || target == _backbuffer_resolved)
-				continue;
+			if (target == nullptr)
+				break;
+
+			if (target == _backbuffer_resolved)
+			{
+				needs_implicit_backbuffer_copy = true;
+				break;
+			}
 
 			if (com_ptr<IDirect3DBaseTexture9> texture;
 				SUCCEEDED(target->GetContainer(IID_PPV_ARGS(&texture))) && texture->GetLevelCount() > 1)

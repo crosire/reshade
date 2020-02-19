@@ -973,19 +973,23 @@ void reshade::opengl::runtime_gl::render_technique(technique &technique)
 	}
 
 	bool is_effect_stencil_cleared = false;
+	bool needs_implicit_backbuffer_copy = true; // First pass always needs the back buffer updated
 
 	for (size_t pass_index = 0; pass_index < technique.passes.size(); ++pass_index)
 	{
+		if (needs_implicit_backbuffer_copy)
+		{
+			// Copy back buffer of previous pass to texture
+			glDisable(GL_FRAMEBUFFER_SRGB);
+			glBindFramebuffer(GL_READ_FRAMEBUFFER, _fbo[FBO_BACK]);
+			glBindFramebuffer(GL_DRAW_FRAMEBUFFER, _fbo[FBO_BLIT]);
+			glReadBuffer(GL_COLOR_ATTACHMENT0);
+			glDrawBuffer(GL_COLOR_ATTACHMENT0);
+			glBlitFramebuffer(0, 0, _width, _height, 0, 0, _width, _height, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+		}
+
 		const opengl_pass_data &pass_data = impl->passes[pass_index];
 		const reshadefx::pass_info &pass_info = technique.passes[pass_index];
-
-		// Copy back buffer of previous pass to texture
-		glDisable(GL_FRAMEBUFFER_SRGB);
-		glBindFramebuffer(GL_READ_FRAMEBUFFER, _fbo[FBO_BACK]);
-		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, _fbo[FBO_BLIT]);
-		glReadBuffer(GL_COLOR_ATTACHMENT0);
-		glDrawBuffer(GL_COLOR_ATTACHMENT0);
-		glBlitFramebuffer(0, 0, _width, _height, 0, 0, _width, _height, GL_COLOR_BUFFER_BIT, GL_NEAREST);
 
 		// Set up pass specific state
 		glViewport(0, 0, static_cast<GLsizei>(pass_info.viewport_width), static_cast<GLsizei>(pass_info.viewport_height));
@@ -1037,7 +1041,7 @@ void reshade::opengl::runtime_gl::render_technique(technique &technique)
 			for (GLuint k = 0; k < 8; k++)
 			{
 				if (pass_data.draw_targets[k] == GL_NONE)
-					continue; // Ignore unbound render targets
+					break; // Ignore unbound render targets
 				const GLfloat color[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
 				glClearBufferfv(GL_COLOR, k, color);
 			}
@@ -1048,9 +1052,19 @@ void reshade::opengl::runtime_gl::render_technique(technique &technique)
 		_vertices += pass_info.num_vertices;
 		_drawcalls += 1;
 
-		// Regenerate mipmaps of any textures bound as render target
+		needs_implicit_backbuffer_copy = false;
 		for (GLuint texture_id : pass_data.draw_textures)
 		{
+			if (texture_id == 0)
+				break;
+
+			if (texture_id == _tex[TEX_BACK_SRGB])
+			{
+				needs_implicit_backbuffer_copy = true;
+				break;
+			}
+
+			// Regenerate mipmaps of any textures bound as render target
 			for (GLuint s_slot = 0; s_slot < impl->samplers.size(); ++s_slot)
 			{
 				const opengl_sampler_data &sampler_data = impl->samplers[s_slot];
