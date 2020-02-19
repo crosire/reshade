@@ -505,6 +505,8 @@ HOOK_EXPORT BOOL  WINAPI wglDeleteContext(HGLRC hglrc)
 
 			if (hglrc != prev_hglrc) // Reset to previous context if it was a different one
 				reshade::hooks::call(wglMakeCurrent)(prev_hdc, prev_hglrc);
+			if (it->second == g_current_runtime) // Ensure the runtime is not still current after deleting
+				g_current_runtime = nullptr;
 		}
 		else
 		{
@@ -621,6 +623,8 @@ HOOK_EXPORT BOOL  WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 
 		if (hwnd == nullptr || s_pbuffer_device_contexts.find(hdc) != s_pbuffer_device_contexts.end())
 		{
+			g_current_runtime = nullptr;
+
 			LOG(WARN) << "Skipping render context " << hglrc << " because there is no window associated with its device context " << hdc << '.';
 			return TRUE;
 		}
