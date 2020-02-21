@@ -2416,7 +2416,7 @@ bool reshadefx::parser::parse_function(type type, std::string name)
 	if (!insert_symbol(name, symbol, true))
 		return error(location, 3003, "redefinition of '" + name + '\''), false;
 
-	for (const auto &param : info.parameter_list)
+	for (const struct_member_info &param : info.parameter_list)
 		if (!insert_symbol(param.name, { symbol_type::variable, param.definition, param.type }))
 			return error(param.location, 3003, "redefinition of '" + param.name + '\''), false;
 
@@ -3000,22 +3000,33 @@ bool reshadefx::parser::parse_technique_pass(pass_info &info)
 			parse_success = false,
 			error(pass_location, 3012, "pass is missing 'PixelShader' property");
 
-		// Verify that shader signatures between VS and PS match
-		std::unordered_map<std::string, type> vs_semantic_mapping;
-		if (!vs_info.return_semantic.empty())
-			vs_semantic_mapping[vs_info.return_semantic] = vs_info.return_type;
-		for (auto &param : vs_info.parameter_list)
-			if (!param.semantic.empty() && param.type.has(type::qualifier::q_out))
-				vs_semantic_mapping[param.semantic] = param.type;
-		for (auto &param : ps_info.parameter_list)
-			if (!param.semantic.empty() && param.type.has(type::qualifier::q_in))
-				if (const auto it = vs_semantic_mapping.find(param.semantic); it == vs_semantic_mapping.end() || it->second != param.type)
-					warning(pass_location, 4576, '\'' + param.name + "': pixel shader signature does not match vertex shader one");
-
 		// Verify render target format supports sRGB writes if enabled
 		if (info.srgb_write_enable && !targets_support_srgb)
 			parse_success = false,
 			error(pass_location, 4582, "one or more render target(s) do not support sRGB writes (only textures with RGBA8 format do)");
+
+		// Verify that shader signatures between VS and PS match (both semantics and interpolation qualifiers)
+		std::unordered_map<std::string, type> vs_semantic_mapping;
+		if (!vs_info.return_semantic.empty())
+			vs_semantic_mapping[vs_info.return_semantic] = vs_info.return_type;
+		for (const struct_member_info &param : vs_info.parameter_list)
+		{
+			if (!param.semantic.empty() && param.type.has(type::q_out))
+			{
+				vs_semantic_mapping[param.semantic] = param.type;
+			}
+		}
+		for (const struct_member_info &param : ps_info.parameter_list)
+		{
+			if (!param.semantic.empty() && param.type.has(type::q_in))
+			{
+				if (const auto it = vs_semantic_mapping.find(param.semantic); it == vs_semantic_mapping.end() || it->second != param.type)
+					warning(pass_location, 4576, '\'' + param.name + "': pixel shader semantic does not match vertex shader one");
+				else if (((it->second.qualifiers ^ param.type.qualifiers) & (type::q_linear | type::q_noperspective | type::q_centroid | type::q_nointerpolation)) != 0)
+					parse_success = false,
+					error(pass_location, 4568, '\'' + param.name + "': pixel shader interpolation qualifiers do not match vertex shader ones");
+			}
+		}
 	}
 
 	return expect('}') && parse_success;
