@@ -24,6 +24,7 @@ namespace reshade::opengl
 	private:
 		GLint _vao;
 		GLint _vbo;
+		GLint _ibo;
 		GLint _ubo;
 		GLint _program;
 		GLint _textures2d[32], _samplers[32];

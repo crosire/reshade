@@ -20,9 +20,11 @@ void reshade::opengl::state_block::capture()
 	has_state = true;
 #endif
 
-	glGetIntegerv(GL_CURRENT_PROGRAM, &_program);
 	glGetIntegerv(GL_VERTEX_ARRAY_BINDING, &_vao);
 	glGetIntegerv(GL_ARRAY_BUFFER_BINDING, &_vbo);
+	glGetIntegerv(GL_ELEMENT_ARRAY_BUFFER_BINDING, &_ibo);
+
+	glGetIntegerv(GL_CURRENT_PROGRAM, &_program);
 	glGetIntegerv(GL_UNIFORM_BUFFER_BINDING, &_ubo);
 
 	glGetIntegerv(GL_ACTIVE_TEXTURE, &_active_texture);
@@ -81,9 +83,11 @@ void reshade::opengl::state_block::apply() const
 	has_state = false;
 #endif
 
-	glUseProgram(_program);
 	glBindVertexArray(_vao);
 	glBindBuffer(GL_ARRAY_BUFFER, _vbo);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, _ibo);
+
+	glUseProgram(_program);
 	glBindBuffer(GL_UNIFORM_BUFFER, _ubo);
 
 	for (GLuint i = 0; i < 32; i++)

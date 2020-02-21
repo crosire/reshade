@@ -953,6 +953,7 @@ void reshade::opengl::runtime_gl::render_technique(technique &technique)
 	glFrontFace(GL_CCW);
 	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 	glDepthMask(GL_FALSE); // No need to write to the depth buffer
+
 	glBindVertexArray(_vao[VAO_FX]); // This is an empty vertex array object
 
 	// Set up shader constants
@@ -1136,14 +1137,17 @@ void reshade::opengl::runtime_gl::init_imgui_resources()
 	const int attrib_uv  = glGetAttribLocation(_imgui.program, "UV");
 	const int attrib_col = glGetAttribLocation(_imgui.program, "Color");
 
-	glBindBuffer(GL_ARRAY_BUFFER, _buf[VBO_IMGUI]);
 	glBindVertexArray(_vao[VAO_IMGUI]);
+	glBindVertexBuffer(0, _buf[VBO_IMGUI], 0, sizeof(ImDrawVert));
 	glEnableVertexAttribArray(attrib_pos);
+	glVertexAttribFormat(attrib_pos, 2, GL_FLOAT, GL_FALSE, offsetof(ImDrawVert, pos));
+	glVertexAttribBinding(attrib_pos, 0);
 	glEnableVertexAttribArray(attrib_uv );
+	glVertexAttribFormat(attrib_uv,  2, GL_FLOAT, GL_FALSE, offsetof(ImDrawVert, uv ));
+	glVertexAttribBinding(attrib_uv, 0);
 	glEnableVertexAttribArray(attrib_col);
-	glVertexAttribPointer(attrib_pos, 2, GL_FLOAT, GL_FALSE, sizeof(ImDrawVert), reinterpret_cast<GLvoid *>(offsetof(ImDrawVert, pos)));
-	glVertexAttribPointer(attrib_uv , 2, GL_FLOAT, GL_FALSE, sizeof(ImDrawVert), reinterpret_cast<GLvoid *>(offsetof(ImDrawVert, uv )));
-	glVertexAttribPointer(attrib_col, 4, GL_UNSIGNED_BYTE, GL_TRUE, sizeof(ImDrawVert), reinterpret_cast<GLvoid *>(offsetof(ImDrawVert, col)));
+	glVertexAttribFormat(attrib_col, 4, GL_UNSIGNED_BYTE, GL_TRUE, offsetof(ImDrawVert, col));
+	glVertexAttribBinding(attrib_col, 0);
 }
 
 void reshade::opengl::runtime_gl::render_imgui_draw_data(ImDrawData *draw_data)
@@ -1161,10 +1165,10 @@ void reshade::opengl::runtime_gl::render_imgui_draw_data(ImDrawData *draw_data)
 	glDisable(GL_STENCIL_TEST);
 	glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
 	glDepthMask(GL_FALSE);
-	glActiveTexture(GL_TEXTURE0); // Bind texture at location zero below
+
 	glUseProgram(_imgui.program);
+	glActiveTexture(GL_TEXTURE0); // Bind texture at location zero below
 	glBindSampler(0, 0); // Do not use separate sampler object, since state is already set in texture
-	glBindVertexArray(_vao[VAO_IMGUI]);
 
 	glViewport(0, 0, GLsizei(draw_data->DisplaySize.x), GLsizei(draw_data->DisplaySize.y));
 
@@ -1179,14 +1183,15 @@ void reshade::opengl::runtime_gl::render_imgui_draw_data(ImDrawData *draw_data)
 	glUniform1i(_imgui.uniform_tex_location, 0); // Set to GL_TEXTURE0
 	glUniformMatrix4fv(_imgui.uniform_proj_location, 1, GL_FALSE, ortho_projection);
 
+	glBindVertexArray(_vao[VAO_IMGUI]);
+	glBindBuffer(GL_ARRAY_BUFFER, _buf[VBO_IMGUI]);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, _buf[IBO_IMGUI]);
+
 	for (int n = 0; n < draw_data->CmdListsCount; ++n)
 	{
 		ImDrawList *const draw_list = draw_data->CmdLists[n];
 
-		glBindBuffer(GL_ARRAY_BUFFER, _buf[VBO_IMGUI]);
 		glBufferData(GL_ARRAY_BUFFER, draw_list->VtxBuffer.Size * sizeof(ImDrawVert), draw_list->VtxBuffer.Data, GL_STREAM_DRAW);
-
-		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, _buf[IBO_IMGUI]);
 		glBufferData(GL_ELEMENT_ARRAY_BUFFER, draw_list->IdxBuffer.Size * sizeof(ImDrawIdx), draw_list->IdxBuffer.Data, GL_STREAM_DRAW);
 
 		for (const ImDrawCmd &cmd : draw_list->CmdBuffer)
