@@ -190,7 +190,7 @@ void reshade::runtime::on_present()
 	_last_frame_duration = current_time - _last_present_time;
 	_last_present_time = current_time;
 
-#ifndef _DEBUG
+#ifdef NDEBUG
 	// Lock input so it cannot be modified by other threads while we are reading it here
 	const auto input_lock = _input->lock();
 #endif
@@ -825,7 +825,7 @@ void reshade::runtime::update_and_render_effects()
 		}
 	}
 
-#ifndef _DEBUG
+#ifdef NDEBUG
 	// Lock input so it cannot be modified by other threads while we are reading it here
 	// TODO: This does not catch input happening between now and 'on_present'
 	const auto input_lock = _input->lock();

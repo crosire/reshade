@@ -390,7 +390,7 @@ HOOK_EXPORT HGLRC WINAPI wglCreateContext(HDC hdc)
 	if (major < 3 || minor < 2)
 		core = compatibility = false;
 
-#ifdef _DEBUG
+#ifndef NDEBUG
 	flags |= attribute::WGL_CONTEXT_DEBUG_BIT_ARB;
 #endif
 

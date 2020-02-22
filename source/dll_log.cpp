@@ -50,7 +50,7 @@ reshade::log::message::~message()
 	// Write line to the log file and flush it
 	s_file_stream << line_string << std::endl;
 
-#ifdef _DEBUG
+#ifndef NDEBUG
 	// Write line to the debug output
 	line_string += '\n';
 	OutputDebugStringA(line_string.c_str());

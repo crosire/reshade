@@ -1386,7 +1386,7 @@ bool reshade::vulkan::runtime_vk::init_texture(texture &texture)
 	if (impl->image == VK_NULL_HANDLE)
 		return false;
 
-#ifdef _DEBUG
+#ifndef NDEBUG
 	if (vk.DebugMarkerSetObjectNameEXT != nullptr)
 	{
 		VkDebugMarkerObjectNameInfoEXT name_info { VK_STRUCTURE_TYPE_DEBUG_MARKER_OBJECT_NAME_INFO_EXT };
