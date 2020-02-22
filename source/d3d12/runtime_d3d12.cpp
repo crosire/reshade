@@ -191,8 +191,8 @@ bool reshade::d3d12::runtime_d3d12::on_init(const DXGI_SWAP_CHAIN_DESC &swap_des
 			return false;
 
 		assert(_backbuffers[i] != nullptr);
-#ifdef _DEBUG
-		_backbuffers[i]->SetName(L"Backbuffer");
+#ifndef NDEBUG
+		_backbuffers[i]->SetName(L"Back buffer");
 #endif
 
 		for (int srgb_write_enable = 0; srgb_write_enable < 2; ++srgb_write_enable, rtv_handle.ptr += _rtv_handle_size)
@@ -219,12 +219,12 @@ bool reshade::d3d12::runtime_d3d12::on_init(const DXGI_SWAP_CHAIN_DESC &swap_des
 
 		if (FAILED(_device->CreateCommittedResource(&props, D3D12_HEAP_FLAG_NONE, &desc, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, nullptr, IID_PPV_ARGS(&_backbuffer_texture))))
 			return false;
-#ifdef _DEBUG
-		_backbuffer_texture->SetName(L"ReShade Backbuffer Texture");
+#ifndef NDEBUG
+		_backbuffer_texture->SetName(L"ReShade back buffer");
 #endif
 	}
 
-	// Create effect depth-stencil resource
+	// Create effect stencil resource
 	{   D3D12_RESOURCE_DESC desc = { D3D12_RESOURCE_DIMENSION_TEXTURE2D };
 		desc.Width = _width;
 		desc.Height = _height;
@@ -241,8 +241,8 @@ bool reshade::d3d12::runtime_d3d12::on_init(const DXGI_SWAP_CHAIN_DESC &swap_des
 
 		if (FAILED(_device->CreateCommittedResource(&props, D3D12_HEAP_FLAG_NONE, &desc, D3D12_RESOURCE_STATE_DEPTH_WRITE, &clear_value, IID_PPV_ARGS(&_effect_stencil))))
 			return false;
-#ifdef _DEBUG
-		_effect_stencil->SetName(L"ReShade Default Depth-Stencil");
+#ifndef NDEBUG
+		_effect_stencil->SetName(L"ReShade stencil buffer");
 #endif
 		_device->CreateDepthStencilView(_effect_stencil.get(), nullptr, _depthstencil_dsvs->GetCPUDescriptorHandleForHeapStart());
 	}
@@ -406,7 +406,7 @@ bool reshade::d3d12::runtime_d3d12::capture_screenshot(uint8_t *buffer) const
 		return false;
 	}
 
-#ifdef _DEBUG
+#ifndef NDEBUG
 	intermediate->SetName(L"ReShade screenshot texture");
 #endif
 
@@ -558,8 +558,8 @@ bool reshade::d3d12::runtime_d3d12::init_effect(size_t index)
 
 		if (FAILED(_device->CreateCommittedResource(&props, D3D12_HEAP_FLAG_NONE, &desc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&effect_data.cb))))
 			return false;
-#ifdef _DEBUG
-		effect_data.cb->SetName(L"ReShade Global CB");
+#ifndef NDEBUG
+		effect_data.cb->SetName(L"ReShade constant buffer");
 #endif
 		effect_data.cbv_gpu_address = effect_data.cb->GetGPUVirtualAddress();
 	}
@@ -966,7 +966,7 @@ bool reshade::d3d12::runtime_d3d12::init_texture(texture &texture)
 		return false;
 	}
 
-#ifdef _DEBUG
+#ifndef NDEBUG
 	std::wstring debug_name;
 	debug_name.reserve(texture.unique_name.size());
 	utf8::unchecked::utf8to16(texture.unique_name.begin(), texture.unique_name.end(), std::back_inserter(debug_name));
@@ -1032,7 +1032,7 @@ void reshade::d3d12::runtime_d3d12::upload_texture(const texture &texture, const
 		return;
 	}
 
-#ifdef _DEBUG
+#ifndef NDEBUG
 	intermediate->SetName(L"ReShade upload texture");
 #endif
 
@@ -1410,8 +1410,8 @@ void reshade::d3d12::runtime_d3d12::render_imgui_draw_data(ImDrawData *draw_data
 
 		if (FAILED(_device->CreateCommittedResource(&props, D3D12_HEAP_FLAG_NONE, &desc, D3D12_RESOURCE_STATE_GENERIC_READ, NULL, IID_PPV_ARGS(&_imgui.indices[buffer_index]))))
 			return;
-#ifdef _DEBUG
-		_imgui.indices[buffer_index]->SetName(L"ImGui Index Buffer");
+#ifndef NDEBUG
+		_imgui.indices[buffer_index]->SetName(L"ImGui index buffer");
 #endif
 		_imgui.num_indices[buffer_index] = new_size;
 	}
@@ -1433,8 +1433,8 @@ void reshade::d3d12::runtime_d3d12::render_imgui_draw_data(ImDrawData *draw_data
 
 		if (FAILED(_device->CreateCommittedResource(&props, D3D12_HEAP_FLAG_NONE, &desc, D3D12_RESOURCE_STATE_GENERIC_READ, NULL, IID_PPV_ARGS(&_imgui.vertices[buffer_index]))))
 			return;
-#ifdef _DEBUG
-		_imgui.vertices[buffer_index]->SetName(L"ImGui Vertex Buffer");
+#ifndef NDEBUG
+		_imgui.vertices[buffer_index]->SetName(L"ImGui vertex buffer");
 #endif
 		_imgui.num_vertices[buffer_index] = new_size;
 	}

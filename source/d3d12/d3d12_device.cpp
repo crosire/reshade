@@ -120,8 +120,20 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommandQueue(const D3D12_COMMAND_QU
 {
 	LOG(INFO) << "Redirecting ID3D12Device::CreateCommandQueue" << '(' << "this = " << this << ", pDesc = " << pDesc << ", riid = " << riid << ", ppCommandQueue = " << ppCommandQueue << ')' << " ...";
 
-	if (ppCommandQueue == nullptr)
+	if (pDesc == nullptr || ppCommandQueue == nullptr)
 		return E_INVALIDARG;
+
+#if RESHADE_VERBOSE_LOG
+	LOG(INFO) << "> Dumping command queue description:";
+	LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
+	LOG(INFO) << "  | Parameter                               | Value                                   |";
+	LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
+	LOG(INFO) << "  | Type                                    | " << std::setw(39) << pDesc->Type << " |";
+	LOG(INFO) << "  | Priority                                | " << std::setw(39) << pDesc->Priority << " |";
+	LOG(INFO) << "  | Flags                                   | " << std::setw(39) << std::hex << pDesc->Flags << std::dec << " |";
+	LOG(INFO) << "  | NodeMask                                | " << std::setw(39) << std::hex << pDesc->NodeMask << std::dec << " |";
+	LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
+#endif
 
 	const HRESULT hr = _orig->CreateCommandQueue(pDesc, riid, ppCommandQueue);
 	if (FAILED(hr))
