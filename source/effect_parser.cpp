@@ -2381,6 +2381,13 @@ bool reshadefx::parser::parse_function(type type, std::string name)
 			param.semantic = std::move(_token.literal_as_string);
 			// Make semantic upper case to simplify comparison later on
 			std::transform(param.semantic.begin(), param.semantic.end(), param.semantic.begin(), [](char c) { return static_cast<char>(toupper(c)); });
+
+			if (param.type.is_integral() && !param.type.has(type::q_nointerpolation) &&
+				param.semantic.compare(0, 3, "SV_") != 0)
+			{
+				param.type.qualifiers |= type::q_nointerpolation; // Integer parameters do not interpolate, so make this explicit (to avoid issues with GLSL)
+				warning(param.location, 4568, '\'' + param.name + "': integer parameters have the 'nointerpolation' qualifier by default");
+			}
 		}
 
 		info.parameter_list.push_back(std::move(param));
