@@ -43,21 +43,21 @@ static inline std::filesystem::path get_module_path(HMODULE module)
 
 #ifdef RESHADE_TEST_APPLICATION
 
-#include "d3d9/runtime_d3d9.hpp"
-#include "d3d11/runtime_d3d11.hpp"
-#include "d3d12/runtime_d3d12.hpp"
-#include "opengl/runtime_gl.hpp"
-#include "vulkan/runtime_vk.hpp"
+#  include "d3d9/runtime_d3d9.hpp"
+#  include "d3d11/runtime_d3d11.hpp"
+#  include "d3d12/runtime_d3d12.hpp"
+#  include "opengl/runtime_gl.hpp"
+#  include "vulkan/runtime_vk.hpp"
 
-#if RESHADE_D3D12ON7
-	#include <D3D12Downlevel.h>
-#endif
+#  if RESHADE_D3D12ON7
+#    include <D3D12Downlevel.h>
+#  endif
 
-#ifdef NDEBUG
+#  ifdef NDEBUG
 	#define HCHECK(exp) exp
-#else
+#  else
 	#define HCHECK(exp) assert(SUCCEEDED(exp))
-#endif
+#  endif
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow)
 {
@@ -252,14 +252,14 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 
 		HCHECK(D3D12CreateDevice(nullptr, D3D_FEATURE_LEVEL_12_0, IID_PPV_ARGS(&device)));
 
-#if RESHADE_D3D12ON7
+#  if RESHADE_D3D12ON7
 		// Check if this device was created using d3d12on7 on Windows 7
 		// See https://microsoft.github.io/DirectX-Specs/d3d/D3D12onWin7.html for more information
 		com_ptr<ID3D12DeviceDownlevel> downlevel;
 		const bool is_d3d12on7 = SUCCEEDED(device->QueryInterface(&downlevel));
-#else
+#  else
 		const bool is_d3d12on7 = false;
-#endif
+#  endif
 
 		{   D3D12_COMMAND_QUEUE_DESC desc = { D3D12_COMMAND_LIST_TYPE_DIRECT };
 			HCHECK(device->CreateCommandQueue(&desc, IID_PPV_ARGS(&command_queue)));
@@ -368,7 +368,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 			ID3D12CommandList *const cmd_list = cmd_lists[swap_index].get();
 			command_queue->ExecuteCommandLists(1, &cmd_list);
 
-#if RESHADE_D3D12ON7
+#  if RESHADE_D3D12ON7
 			if (is_d3d12on7)
 			{
 				// Create a dummy list to pass into present
@@ -382,7 +382,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 				HCHECK(queue_downlevel->Present(dummy_list.get(), backbuffers[swap_index].get(), window_handle, D3D12_DOWNLEVEL_PRESENT_FLAG_WAIT_FOR_VBLANK));
 			}
 			else
-#endif
+#  endif
 				// Synchronization is handled in "runtime_d3d12::on_present"
 				HCHECK(swapchain->Present(1, 0));
 		}
@@ -467,10 +467,10 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 	#pragma endregion
 
 	#pragma region Vulkan Implementation
-#define VK_CHECK(exp) { const VkResult res = (exp); assert(res == VK_SUCCESS || res == VK_SUBOPTIMAL_KHR); }
-#define VK_CALL_CMD(name, device, ...) reinterpret_cast<PFN_##name>(vkGetDeviceProcAddr(device, #name))(__VA_ARGS__)
-#define VK_CALL_DEV(name, device, ...) reinterpret_cast<PFN_##name>(vkGetDeviceProcAddr(device, #name))(device, __VA_ARGS__)
-#define VK_CALL_INS(name, instance, ...) reinterpret_cast<PFN_##name>(vkGetInstanceProcAddr(instance, #name))(__VA_ARGS__)
+#  define VK_CHECK(exp) { const VkResult res = (exp); assert(res == VK_SUCCESS || res == VK_SUBOPTIMAL_KHR); }
+#  define VK_CALL_CMD(name, device, ...) reinterpret_cast<PFN_##name>(vkGetDeviceProcAddr(device, #name))(__VA_ARGS__)
+#  define VK_CALL_DEV(name, device, ...) reinterpret_cast<PFN_##name>(vkGetDeviceProcAddr(device, #name))(device, __VA_ARGS__)
+#  define VK_CALL_INS(name, instance, ...) reinterpret_cast<PFN_##name>(vkGetInstanceProcAddr(instance, #name))(__VA_ARGS__)
 
 	if (strstr(lpCmdLine, "-vulkan"))
 	{
@@ -490,11 +490,11 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 			app_info.applicationVersion = VERSION_MAJOR * 10000 + VERSION_MINOR * 100 + VERSION_REVISION;
 
 			const char *const enabled_layers[] = {
-#if VK_HEADER_VERSION >= 106
+#  if VK_HEADER_VERSION >= 106
 				"VK_LAYER_KHRONOS_validation"
-#else
+#  else
 				"VK_LAYER_LUNARG_standard_validation"
-#endif
+#  endif
 			};
 			const char *const enabled_extensions[] = {
 				VK_KHR_SURFACE_EXTENSION_NAME,
@@ -531,11 +531,11 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 			queue_info.pQueuePriorities = &queue_priority;
 
 			const char *const enabled_layers[] = {
-#if VK_HEADER_VERSION >= 106
+#  if VK_HEADER_VERSION >= 106
 				"VK_LAYER_KHRONOS_validation"
-#else
+#  else
 				"VK_LAYER_LUNARG_standard_validation"
-#endif
+#  endif
 			};
 			const char *const enabled_extensions[] = {
 				VK_KHR_SWAPCHAIN_EXTENSION_NAME
@@ -728,6 +728,12 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 
 #else
 
+#  ifndef NDEBUG
+#include <DbgHelp.h>
+
+static PVOID g_exception_handler_handle = nullptr;
+#  endif
+
 // Export special symbol to identify modules as ReShade instances
 extern "C" __declspec(dllexport) const char *ReShadeVersion = VERSION_STRING_PRODUCT;
 
@@ -744,11 +750,55 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 
 		log::open(std::filesystem::path(g_reshade_dll_path).replace_extension(".log"));
 
-#ifdef WIN64
+#  ifdef WIN64
 		LOG(INFO) << "Initializing crosire's ReShade version '" VERSION_STRING_FILE "' (64-bit) built on '" VERSION_DATE " " VERSION_TIME "' loaded from " << g_reshade_dll_path << " into " << g_target_executable_path << " ...";
-#else
+#  else
 		LOG(INFO) << "Initializing crosire's ReShade version '" VERSION_STRING_FILE "' (32-bit) built on '" VERSION_DATE " " VERSION_TIME "' loaded from " << g_reshade_dll_path << " into " << g_target_executable_path << " ...";
-#endif
+#  endif
+
+#  ifndef NDEBUG
+		g_exception_handler_handle = AddVectoredExceptionHandler(1, [](PEXCEPTION_POINTERS ex) -> LONG {
+			// Ignore debugging exceptions
+			if (const DWORD code = ex->ExceptionRecord->ExceptionCode;
+				code == CONTROL_C_EXIT || code == 0x406D1388 /* SetThreadName */ ||
+				code == DBG_PRINTEXCEPTION_C || code == DBG_PRINTEXCEPTION_WIDE_C)
+				goto continue_search;
+
+			// Create dump with exception information for the first 100 occurrences
+			if (static unsigned int dump_index = 0;
+				++dump_index < 100)
+			{
+				const auto dbghelp = LoadLibrary(TEXT("dbghelp.dll"));
+				if (dbghelp == nullptr)
+					goto continue_search;
+
+				const auto dbghelp_write_dump = reinterpret_cast<BOOL(WINAPI *)(HANDLE, DWORD, HANDLE, MINIDUMP_TYPE, PMINIDUMP_EXCEPTION_INFORMATION, PMINIDUMP_USER_STREAM_INFORMATION, PMINIDUMP_CALLBACK_INFORMATION)>(
+					GetProcAddress(dbghelp, "MiniDumpWriteDump"));
+				if (dbghelp_write_dump == nullptr)
+					goto continue_search;
+
+				char dump_name[] = "exception_00.dmp";
+				dump_name[10] = '0' + static_cast<char>(dump_index / 10);
+				dump_name[11] = '0' + static_cast<char>(dump_index % 10);
+
+				const HANDLE file = CreateFileA(dump_name, GENERIC_WRITE, FILE_SHARE_WRITE, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+				if (file == INVALID_HANDLE_VALUE)
+					goto continue_search;
+
+				MINIDUMP_EXCEPTION_INFORMATION info;
+				info.ThreadId = GetCurrentThreadId();
+				info.ExceptionPointers = ex;
+				info.ClientPointers = FALSE;
+
+				dbghelp_write_dump(GetCurrentProcess(), GetCurrentProcessId(), file, MiniDumpNormal, &info, nullptr, nullptr);
+
+				CloseHandle(file);
+			}
+
+		continue_search:
+			return EXCEPTION_CONTINUE_SEARCH;
+		});
+#  endif
 
 		// Check if another ReShade instance was already loaded into the process
 		if (HMODULE modules[1024]; K32EnumProcessModules(GetCurrentProcess(), modules, sizeof(modules), &fdwReason)) // Use kernel32 variant which is available in DllMain
@@ -781,6 +831,10 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 		LOG(INFO) << "Exiting ...";
 
 		hooks::uninstall();
+
+#  ifndef NDEBUG
+		RemoveVectoredExceptionHandler(g_exception_handler_handle);
+#  endif
 
 		LOG(INFO) << "Finished exiting.";
 		break;
