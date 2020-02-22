@@ -43,7 +43,6 @@ private:
 	bool _debug_info = false;
 	bool _uniforms_to_spec_constants = false;
 	std::unordered_map<id, id> _remapped_sampler_variables;
-	uint32_t _current_semantic_location = 10;
 	std::unordered_map<std::string, uint32_t> _semantic_to_location;
 
 	// Only write compatibility intrinsics to result if they are actually in use
@@ -520,7 +519,7 @@ private:
 			return escape_name(name);
 		};
 
-		const auto create_varying_variable = [this, is_ps, &semantic_to_builtin](type type, unsigned int quals, const std::string &name, const std::string &semantic) {
+		const auto create_varying_variable = [this, is_ps, &semantic_to_builtin](type type, unsigned int quals, const std::string &name, std::string semantic) {
 			type.qualifiers = quals;
 
 			// OpenGL does not allow varying of type boolean
@@ -531,19 +530,19 @@ private:
 
 			for (int i = 0, array_length = std::max(1, type.array_length); i < array_length; ++i)
 			{
-				uint32_t location = 0;
 				if (!semantic_to_builtin({}, semantic).empty())
-					continue;
-				else if (semantic.compare(0, 5, "COLOR") == 0)
-					location = std::strtoul(semantic.c_str() + 5, nullptr, 10);
-				else if (semantic.compare(0, 8, "TEXCOORD") == 0)
-					location = std::strtoul(semantic.c_str() + 8, nullptr, 10);
-				else if (semantic.compare(0, 9, "SV_TARGET") == 0)
+					continue; // Skip built in variables
+
+				if (const char c = semantic.back(); c < '0' || c > '9')
+					semantic += '0'; // Always numerate semantics, so that e.g. TEXCOORD and TEXCOORD0 point to the same location
+
+				uint32_t location = 0;
+				if (semantic.compare(0, 9, "SV_TARGET") == 0)
 					location = std::strtoul(semantic.c_str() + 9, nullptr, 10);
 				else if (const auto it = _semantic_to_location.find(semantic); it != _semantic_to_location.end())
 					location = it->second;
 				else
-					_semantic_to_location[semantic] = location = _current_semantic_location++;
+					_semantic_to_location[semantic] = location = static_cast<uint32_t>(_semantic_to_location.size());
 
 				code += "layout(location = " + std::to_string(location + i) + ") ";
 				write_type<false, false, true>(code, type);

@@ -167,7 +167,6 @@ private:
 	std::vector<std::pair<function_blocks, spv::Id>> _function_type_lookup;
 	std::unordered_map<std::string, spv::Id> _string_lookup;
 	std::unordered_map<spv::Id, spv::StorageClass> _storage_lookup;
-	uint32_t _current_semantic_location = 10;
 	std::unordered_map<std::string, uint32_t> _semantic_to_location;
 
 	std::vector<function_blocks> _functions_blocks;
@@ -812,7 +811,7 @@ private:
 			call_params.emplace_back().reset_to_lvalue({}, local_variable, param.type);
 			return local_variable;
 		};
-		const auto create_varying_variable = [this, &inputs_and_outputs, &semantic_to_builtin, &position_variable](const type &param_type, const std::string &semantic, spv::StorageClass storage) {
+		const auto create_varying_variable = [this, &inputs_and_outputs, &semantic_to_builtin, &position_variable](const type &param_type, std::string semantic, spv::StorageClass storage) {
 			const auto attrib_variable = make_id();
 			define_variable(attrib_variable, {}, param_type, nullptr, storage);
 
@@ -825,17 +824,16 @@ private:
 			}
 			else
 			{
+				if (const char c = semantic.back(); c < '0' || c > '9')
+					semantic += '0'; // Always numerate semantics, so that e.g. TEXCOORD and TEXCOORD0 point to the same location
+
 				uint32_t location = 0;
-				     if (semantic.compare(0, 5, "COLOR") == 0)
-					location = std::strtoul(semantic.c_str() + 5, nullptr, 10);
-				else if (semantic.compare(0, 8, "TEXCOORD") == 0)
-					location = std::strtoul(semantic.c_str() + 8, nullptr, 10);
-				else if (semantic.compare(0, 9, "SV_TARGET") == 0)
+				if (semantic.compare(0, 9, "SV_TARGET") == 0)
 					location = std::strtoul(semantic.c_str() + 9, nullptr, 10);
 				else if (const auto it = _semantic_to_location.find(semantic); it != _semantic_to_location.end())
 					location = it->second;
 				else
-					_semantic_to_location[semantic] = location = _current_semantic_location++;
+					_semantic_to_location[semantic] = location = static_cast<uint32_t>(_semantic_to_location.size());
 
 				add_decoration(attrib_variable, spv::DecorationLocation, { location });
 			}
