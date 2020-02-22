@@ -97,8 +97,6 @@ namespace reshade::opengl
 		struct imgui_resources
 		{
 			GLuint program = 0;
-			int uniform_tex_location = 0;
-			int uniform_proj_location = 0;
 		} _imgui;
 #endif
 

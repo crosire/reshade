@@ -1091,28 +1091,29 @@ void reshade::opengl::runtime_gl::init_imgui_resources()
 	assert(_app_state.has_state);
 
 	const GLchar *vertex_shader[] = {
-		"#version 330\n"
-		"uniform mat4 ProjMtx;\n"
-		"in vec2 Position, UV;\n"
-		"in vec4 Color;\n"
-		"out vec2 Frag_UV;\n"
-		"out vec4 Frag_Color;\n"
+		"#version 430\n"
+		"layout(location = 1) uniform mat4 proj;\n"
+		"layout(location = 0) in vec2 pos;\n"
+		"layout(location = 1) in vec2 tex;\n"
+		"layout(location = 2) in vec4 col;\n"
+		"out vec4 frag_col;\n"
+		"out vec2 frag_tex;\n"
 		"void main()\n"
 		"{\n"
-		"	Frag_UV = UV * vec2(1.0, -1.0) + vec2(0.0, 1.0);\n" // Texture coordinates were flipped in 'update_texture'
-		"	Frag_Color = Color;\n"
-		"	gl_Position = ProjMtx * vec4(Position.xy, 0, 1);\n"
+		"	frag_col = col;\n"
+		"	frag_tex = tex * vec2(1.0, -1.0) + vec2(0.0, 1.0);\n" // Texture coordinates were flipped in 'update_texture'
+		"	gl_Position = proj * vec4(pos.xy, 0, 1);\n"
 		"}\n"
 	};
 	const GLchar *fragment_shader[] = {
-		"#version 330\n"
-		"uniform sampler2D Texture;\n"
-		"in vec2 Frag_UV;\n"
-		"in vec4 Frag_Color;\n"
-		"out vec4 Out_Color;\n"
+		"#version 430\n"
+		"layout(location = 0) uniform sampler2D s0;\n"
+		"in vec4 frag_col;\n"
+		"in vec2 frag_tex;\n"
+		"out vec4 col;\n"
 		"void main()\n"
 		"{\n"
-		"	Out_Color = Frag_Color * texture(Texture, Frag_UV.st);\n"
+		"	col = frag_col * texture(s0, frag_tex.st);\n"
 		"}\n"
 	};
 
@@ -1126,28 +1127,21 @@ void reshade::opengl::runtime_gl::init_imgui_resources()
 	_imgui.program = glCreateProgram();
 	glAttachShader(_imgui.program, imgui_vs);
 	glAttachShader(_imgui.program, imgui_fs);
-	glLinkProgram(_imgui.program);
+	 glLinkProgram(_imgui.program);
 	glDeleteShader(imgui_vs);
 	glDeleteShader(imgui_fs);
 
-	_imgui.uniform_tex_location  = glGetUniformLocation(_imgui.program, "Texture");
-	_imgui.uniform_proj_location = glGetUniformLocation(_imgui.program, "ProjMtx");
-
-	const int attrib_pos = glGetAttribLocation(_imgui.program, "Position");
-	const int attrib_uv  = glGetAttribLocation(_imgui.program, "UV");
-	const int attrib_col = glGetAttribLocation(_imgui.program, "Color");
-
 	glBindVertexArray(_vao[VAO_IMGUI]);
 	glBindVertexBuffer(0, _buf[VBO_IMGUI], 0, sizeof(ImDrawVert));
-	glEnableVertexAttribArray(attrib_pos);
-	glVertexAttribFormat(attrib_pos, 2, GL_FLOAT, GL_FALSE, offsetof(ImDrawVert, pos));
-	glVertexAttribBinding(attrib_pos, 0);
-	glEnableVertexAttribArray(attrib_uv );
-	glVertexAttribFormat(attrib_uv,  2, GL_FLOAT, GL_FALSE, offsetof(ImDrawVert, uv ));
-	glVertexAttribBinding(attrib_uv, 0);
-	glEnableVertexAttribArray(attrib_col);
-	glVertexAttribFormat(attrib_col, 4, GL_UNSIGNED_BYTE, GL_TRUE, offsetof(ImDrawVert, col));
-	glVertexAttribBinding(attrib_col, 0);
+	glEnableVertexAttribArray(0 /* pos */);
+	glVertexAttribFormat(0, 2, GL_FLOAT, GL_FALSE, offsetof(ImDrawVert, pos));
+	glVertexAttribBinding(0, 0);
+	glEnableVertexAttribArray(1 /* tex */);
+	glVertexAttribFormat(1, 2, GL_FLOAT, GL_FALSE, offsetof(ImDrawVert, uv ));
+	glVertexAttribBinding(1, 0);
+	glEnableVertexAttribArray(2 /* col */);
+	glVertexAttribFormat(2, 4, GL_UNSIGNED_BYTE, GL_TRUE, offsetof(ImDrawVert, col));
+	glVertexAttribBinding(2, 0);
 }
 
 void reshade::opengl::runtime_gl::render_imgui_draw_data(ImDrawData *draw_data)
@@ -1180,8 +1174,8 @@ void reshade::opengl::runtime_gl::render_imgui_draw_data(ImDrawData *draw_data)
 		+(2 * draw_data->DisplayPos.y + draw_data->DisplaySize.y) / draw_data->DisplaySize.y, 0.0f, 1.0f,
 	};
 
-	glUniform1i(_imgui.uniform_tex_location, 0); // Set to GL_TEXTURE0
-	glUniformMatrix4fv(_imgui.uniform_proj_location, 1, GL_FALSE, ortho_projection);
+	glUniform1i(0 /* s0 */, 0); // Set to GL_TEXTURE0
+	glUniformMatrix4fv(1 /* proj */, 1, GL_FALSE, ortho_projection);
 
 	glBindVertexArray(_vao[VAO_IMGUI]);
 	glBindBuffer(GL_ARRAY_BUFFER, _buf[VBO_IMGUI]);

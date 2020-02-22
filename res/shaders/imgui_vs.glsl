@@ -12,7 +12,7 @@ layout(push_constant) uniform PushConstants {
 
 void main()
 {
-	gl_Position = vec4(pos * pc.scale + pc.translate, 0, 1);
 	o.col = col;
 	o.tex = tex;
+	gl_Position = vec4(pos * pc.scale + pc.translate, 0, 1);
 }
