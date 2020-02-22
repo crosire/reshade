@@ -1130,18 +1130,6 @@ void reshade::opengl::runtime_gl::init_imgui_resources()
 	 glLinkProgram(_imgui.program);
 	glDeleteShader(imgui_vs);
 	glDeleteShader(imgui_fs);
-
-	glBindVertexArray(_vao[VAO_IMGUI]);
-	glBindVertexBuffer(0, _buf[VBO_IMGUI], 0, sizeof(ImDrawVert));
-	glEnableVertexAttribArray(0 /* pos */);
-	glVertexAttribFormat(0, 2, GL_FLOAT, GL_FALSE, offsetof(ImDrawVert, pos));
-	glVertexAttribBinding(0, 0);
-	glEnableVertexAttribArray(1 /* tex */);
-	glVertexAttribFormat(1, 2, GL_FLOAT, GL_FALSE, offsetof(ImDrawVert, uv ));
-	glVertexAttribBinding(1, 0);
-	glEnableVertexAttribArray(2 /* col */);
-	glVertexAttribFormat(2, 4, GL_UNSIGNED_BYTE, GL_TRUE, offsetof(ImDrawVert, col));
-	glVertexAttribBinding(2, 0);
 }
 
 void reshade::opengl::runtime_gl::render_imgui_draw_data(ImDrawData *draw_data)
@@ -1178,6 +1166,19 @@ void reshade::opengl::runtime_gl::render_imgui_draw_data(ImDrawData *draw_data)
 	glUniformMatrix4fv(1 /* proj */, 1, GL_FALSE, ortho_projection);
 
 	glBindVertexArray(_vao[VAO_IMGUI]);
+	// Need to rebuild vertex array object every frame
+	// Doing so fixes weird interaction with 'glEnableClientState' and 'glVertexPointer' (e.g. in the first Call of Duty)
+	glBindVertexBuffer(0, _buf[VBO_IMGUI], 0, sizeof(ImDrawVert));
+	glEnableVertexAttribArray(0 /* pos */);
+	glVertexAttribFormat(0, 2, GL_FLOAT, GL_FALSE, offsetof(ImDrawVert, pos));
+	glVertexAttribBinding(0, 0);
+	glEnableVertexAttribArray(1 /* tex */);
+	glVertexAttribFormat(1, 2, GL_FLOAT, GL_FALSE, offsetof(ImDrawVert, uv ));
+	glVertexAttribBinding(1, 0);
+	glEnableVertexAttribArray(2 /* col */);
+	glVertexAttribFormat(2, 4, GL_UNSIGNED_BYTE, GL_TRUE, offsetof(ImDrawVert, col));
+	glVertexAttribBinding(2, 0);
+
 	glBindBuffer(GL_ARRAY_BUFFER, _buf[VBO_IMGUI]);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, _buf[IBO_IMGUI]);
 
