@@ -160,15 +160,15 @@ private:
 	spirv_basic_block _types_and_constants;
 	spirv_basic_block _variables;
 
+	std::unordered_set<spv::Id> _spec_constants;
 	std::unordered_set<spv::Capability> _capabilities;
 	std::vector<std::pair<type_lookup, spv::Id>> _type_lookup;
 	std::vector<std::tuple<type, constant, spv::Id>> _constant_lookup;
 	std::vector<std::pair<function_blocks, spv::Id>> _function_type_lookup;
-	std::unordered_map<std::string, uint32_t> _semantic_to_location;
 	std::unordered_map<std::string, spv::Id> _string_lookup;
 	std::unordered_map<spv::Id, spv::StorageClass> _storage_lookup;
 	uint32_t _current_semantic_location = 10;
-	std::unordered_set<spv::Id> _spec_constants;
+	std::unordered_map<std::string, uint32_t> _semantic_to_location;
 
 	std::vector<function_blocks> _functions_blocks;
 	std::unordered_map<id, spirv_basic_block> _block_data;
@@ -801,172 +801,125 @@ private:
 				builtin = spv::BuiltInPointSize;
 			if (semantic == "SV_DEPTH")
 				builtin = spv::BuiltInFragDepth;
-			if (semantic == "VERTEXID" || semantic == "SV_VERTEXID")
+			if (semantic == "SV_VERTEXID")
 				builtin = _vulkan_semantics ? spv::BuiltInVertexIndex : spv::BuiltInVertexId;
 			return builtin != spv::BuiltInMax;
 		};
 
-		const auto create_input_param = [this, &call_params](const struct_member_info &param) {
+		const auto create_varying_param = [this, &call_params](const struct_member_info &param) {
 			const auto local_variable = make_id();
 			define_variable(local_variable, {}, param.type, nullptr, spv::StorageClassFunction);
 			call_params.emplace_back().reset_to_lvalue({}, local_variable, param.type);
 			return local_variable;
 		};
-		const auto create_input_variable = [this, &inputs_and_outputs, &semantic_to_builtin](const struct_member_info &param) {
-			const auto input_variable = make_id();
-			define_variable(input_variable, {}, param.type, nullptr, spv::StorageClassInput);
+		const auto create_varying_variable = [this, &inputs_and_outputs, &semantic_to_builtin, &position_variable](const type &param_type, const std::string &semantic, spv::StorageClass storage) {
+			const auto attrib_variable = make_id();
+			define_variable(attrib_variable, {}, param_type, nullptr, storage);
 
-			if (spv::BuiltIn builtin; semantic_to_builtin(param.semantic, builtin))
+			if (spv::BuiltIn builtin; semantic_to_builtin(semantic, builtin))
 			{
-				add_builtin(input_variable, builtin);
+				add_builtin(attrib_variable, builtin);
+
+				if (builtin == spv::BuiltInPosition && storage == spv::StorageClassOutput)
+					position_variable = attrib_variable;
 			}
 			else
 			{
 				uint32_t location = 0;
-				if (param.semantic.size() >= 5 && param.semantic.compare(0, 5, "COLOR") == 0)
-					location = std::strtol(param.semantic.substr(5).c_str(), nullptr, 10);
-				else if (param.semantic.size() >= 9 && param.semantic.compare(0, 9, "SV_TARGET") == 0)
-					location = std::strtol(param.semantic.substr(9).c_str(), nullptr, 10);
-				else if (param.semantic.size() >= 8 && param.semantic.compare(0, 8, "TEXCOORD") == 0)
-					location = std::strtol(param.semantic.substr(8).c_str(), nullptr, 10);
-				else if (const auto it = _semantic_to_location.find(param.semantic); it != _semantic_to_location.end())
+				     if (semantic.compare(0, 5, "COLOR") == 0)
+					location = std::strtoul(semantic.c_str() + 5, nullptr, 10);
+				else if (semantic.compare(0, 8, "TEXCOORD") == 0)
+					location = std::strtoul(semantic.c_str() + 8, nullptr, 10);
+				else if (semantic.compare(0, 9, "SV_TARGET") == 0)
+					location = std::strtoul(semantic.c_str() + 9, nullptr, 10);
+				else if (const auto it = _semantic_to_location.find(semantic); it != _semantic_to_location.end())
 					location = it->second;
 				else
-					_semantic_to_location[param.semantic] = location = _current_semantic_location++;
+					_semantic_to_location[semantic] = location = _current_semantic_location++;
 
-				add_decoration(input_variable, spv::DecorationLocation, { location });
+				add_decoration(attrib_variable, spv::DecorationLocation, { location });
 			}
 
-			if (param.type.has(type::q_noperspective))
-				add_decoration(input_variable, spv::DecorationNoPerspective);
-			if (param.type.has(type::q_centroid))
-				add_decoration(input_variable, spv::DecorationCentroid);
-			if (param.type.has(type::q_nointerpolation))
-				add_decoration(input_variable, spv::DecorationFlat);
+			if (param_type.has(type::q_noperspective))
+				add_decoration(attrib_variable, spv::DecorationNoPerspective);
+			if (param_type.has(type::q_centroid))
+				add_decoration(attrib_variable, spv::DecorationCentroid);
+			if (param_type.has(type::q_nointerpolation))
+				add_decoration(attrib_variable, spv::DecorationFlat);
 
-			inputs_and_outputs.push_back(input_variable);
-			return input_variable;
+			inputs_and_outputs.push_back(attrib_variable);
+			return attrib_variable;
 		};
 
-		const auto create_output_param = [this, &call_params](const struct_member_info &param) {
-			const auto local_variable = make_id();
-			define_variable(local_variable, {}, param.type, nullptr, spv::StorageClassFunction);
-			call_params.emplace_back().reset_to_lvalue({}, local_variable, param.type);
-			return local_variable;
-		};
-		const auto create_output_variable = [this, &inputs_and_outputs, &semantic_to_builtin, &position_variable](const struct_member_info &param) {
-			const auto output_variable = make_id();
-			define_variable(output_variable, {}, param.type, nullptr, spv::StorageClassOutput);
-
-			if (spv::BuiltIn builtin; semantic_to_builtin(param.semantic, builtin))
-			{
-				add_builtin(output_variable, builtin);
-
-				if (builtin == spv::BuiltInPosition)
-					position_variable = output_variable;
-			}
-			else
-			{
-				uint32_t location = 0;
-				if (param.semantic.size() >= 5 && param.semantic.compare(0, 5, "COLOR") == 0)
-					location = std::strtol(param.semantic.substr(5).c_str(), nullptr, 10);
-				else if (param.semantic.size() >= 9 && param.semantic.compare(0, 9, "SV_TARGET") == 0)
-					location = std::strtol(param.semantic.substr(9).c_str(), nullptr, 10);
-				else if (param.semantic.size() >= 8 && param.semantic.compare(0, 8, "TEXCOORD") == 0)
-					location = std::strtol(param.semantic.substr(8).c_str(), nullptr, 10);
-				else if (const auto it = _semantic_to_location.find(param.semantic); it != _semantic_to_location.end())
-					location = it->second;
-				else
-					_semantic_to_location[param.semantic] = location = _current_semantic_location++;
-
-				add_decoration(output_variable, spv::DecorationLocation, { location });
-			}
-
-			if (param.type.has(type::q_noperspective))
-				add_decoration(output_variable, spv::DecorationNoPerspective);
-			if (param.type.has(type::q_centroid))
-				add_decoration(output_variable, spv::DecorationCentroid);
-			if (param.type.has(type::q_nointerpolation))
-				add_decoration(output_variable, spv::DecorationFlat);
-
-			inputs_and_outputs.push_back(output_variable);
-			return output_variable;
-		};
-
-		// Handle input parameters
-		for (const auto &param : func.parameter_list)
+		// Translate function parameters to input/output variables
+		for (const struct_member_info &param : func.parameter_list)
 		{
 			if (param.type.has(type::q_out))
 			{
-				create_output_param(param);
+				create_varying_param(param);
 
 				// Flatten structure parameters
 				if (param.type.is_struct())
-				{
 					for (const struct_member_info &member : find_struct(param.type.definition).member_list)
-					{
-						create_output_variable(member);
-					}
-				}
+						create_varying_variable(member.type, member.semantic, spv::StorageClassOutput);
 				else
-				{
-					create_output_variable(param);
-				}
+					create_varying_variable(param.type, param.semantic, spv::StorageClassOutput);
 			}
 			else
 			{
-				const auto param_variable = create_input_param(param);
+				uint32_t param_value, param_variable = create_varying_param(param);
 
-				// Flatten structure parameters
 				if (param.type.is_struct())
 				{
 					std::vector<uint32_t> elements;
 
 					for (const struct_member_info &member : find_struct(param.type.definition).member_list)
 					{
-						const auto input = create_input_variable(member);
-						const auto value = add_instruction(spv::OpLoad, convert_type(member.type)).add(input).result;
+						const auto input = create_varying_variable(member.type, member.semantic, spv::StorageClassInput);
+						const auto value = add_instruction(spv::OpLoad, convert_type(member.type))
+							.add(input).result;
 						elements.push_back(value);
 					}
 
-					const auto composite_value = add_instruction(spv::OpCompositeConstruct, convert_type(param.type))
+					param_value = add_instruction(spv::OpCompositeConstruct, convert_type(param.type))
 						.add(elements.begin(), elements.end()).result;
-
-					add_instruction_without_result(spv::OpStore)
-						.add(param_variable)
-						.add(composite_value);
 				}
 				else
 				{
-					const auto input = create_input_variable(param);
-					const auto value = add_instruction(spv::OpLoad, convert_type(param.type)).add(input).result;
-					add_instruction_without_result(spv::OpStore)
-						.add(param_variable)
-						.add(value);
+					const auto input = create_varying_variable(param.type, param.semantic, spv::StorageClassInput);
+					param_value = add_instruction(spv::OpLoad, convert_type(param.type))
+						.add(input).result;
 				}
+
+				add_instruction_without_result(spv::OpStore)
+					.add(param_variable)
+					.add(param_value);
 			}
 		}
 
 		const auto call_result = emit_call({}, func.definition, func.return_type, call_params);
 
-		size_t param_index = 0;
-		size_t inputs_and_outputs_index = 0;
-		for (const struct_member_info &param : func.parameter_list)
+		for (size_t i = 0, inputs_and_outputs_index = 0; i < func.parameter_list.size(); ++i)
 		{
+			const struct_member_info &param = func.parameter_list[i];
+
 			if (param.type.has(type::q_out))
 			{
 				const auto value = add_instruction(spv::OpLoad, convert_type(param.type))
-					.add(call_params[param_index++].base).result;
+					.add(call_params[i].base).result;
 
 				if (param.type.is_struct())
 				{
-					unsigned int member_index = 0;
+					const struct_info &definition = find_struct(param.type.definition);
 
-					for (const struct_member_info &member : find_struct(param.type.definition).member_list)
+					for (uint32_t member_index = 0; member_index < definition.member_list.size(); ++member_index)
 					{
+						const struct_member_info &member = definition.member_list[member_index];
+
 						const auto member_value = add_instruction(spv::OpCompositeExtract, convert_type(member.type))
 							.add(value)
 							.add(member_index++).result;
+
 						add_instruction_without_result(spv::OpStore)
 							.add(inputs_and_outputs[inputs_and_outputs_index++])
 							.add(member_value);
@@ -981,18 +934,27 @@ private:
 			}
 			else
 			{
-				param_index++;
-				inputs_and_outputs_index += param.type.is_struct() ? find_struct(param.type.definition).member_list.size() : 1;
+				if (param.type.is_struct())
+				{
+					const struct_info &definition = find_struct(param.type.definition);
+					inputs_and_outputs_index += definition.member_list.size();
+				}
+				else
+				{
+					inputs_and_outputs_index += 1;
+				}
 			}
 		}
 
 		if (func.return_type.is_struct())
 		{
-			unsigned int member_index = 0;
+			const struct_info &definition = find_struct(func.return_type.definition);
 
-			for (const struct_member_info &member : find_struct(func.return_type.definition).member_list)
+			for (uint32_t member_index = 0; member_index < definition.member_list.size(); ++member_index)
 			{
-				const auto result = create_output_variable(member);
+				const struct_member_info &member = definition.member_list[member_index];
+
+				const auto result = create_varying_variable(member.type, member.semantic, spv::StorageClassOutput);
 				const auto member_result = add_instruction(spv::OpCompositeExtract, convert_type(member.type))
 					.add(call_result)
 					.add(member_index).result;
@@ -1000,41 +962,11 @@ private:
 				add_instruction_without_result(spv::OpStore)
 					.add(result)
 					.add(member_result);
-
-				member_index++;
 			}
 		}
 		else if (!func.return_type.is_void())
 		{
-			const auto result = make_id();
-			define_variable(result, {}, func.return_type, nullptr, spv::StorageClassOutput);
-
-			if (spv::BuiltIn builtin; semantic_to_builtin(func.return_semantic, builtin))
-			{
-				add_builtin(result, builtin);
-
-				if (builtin == spv::BuiltInPosition)
-					position_variable = result;
-			}
-			else
-			{
-				uint32_t semantic_location = 0;
-				if (func.return_semantic.size() >= 5 && func.return_semantic.compare(0, 5, "COLOR") == 0)
-					semantic_location = std::strtol(func.return_semantic.substr(5).c_str(), nullptr, 10);
-				else if (func.return_semantic.size() >= 9 && func.return_semantic.compare(0, 9, "SV_TARGET") == 0)
-					semantic_location = std::strtol(func.return_semantic.substr(9).c_str(), nullptr, 10);
-				else if (func.return_semantic.size() >= 8 && func.return_semantic.compare(0, 8, "TEXCOORD") == 0)
-					semantic_location = std::strtol(func.return_semantic.substr(8).c_str(), nullptr, 10);
-				else if (const auto it = _semantic_to_location.find(func.return_semantic); it != _semantic_to_location.end())
-					semantic_location = it->second;
-				else
-					_semantic_to_location[func.return_semantic] = semantic_location = _current_semantic_location++;
-
-				add_decoration(result, spv::DecorationLocation, { semantic_location });
-			}
-
-			inputs_and_outputs.push_back(result);
-
+			const auto result = create_varying_variable(func.return_type, func.return_semantic, spv::StorageClassOutput);
 			add_instruction_without_result(spv::OpStore)
 				.add(result)
 				.add(call_result);

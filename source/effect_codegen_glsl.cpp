@@ -43,6 +43,8 @@ private:
 	bool _debug_info = false;
 	bool _uniforms_to_spec_constants = false;
 	std::unordered_map<id, id> _remapped_sampler_variables;
+	uint32_t _current_semantic_location = 10;
+	std::unordered_map<std::string, uint32_t> _semantic_to_location;
 
 	// Only write compatibility intrinsics to result if they are actually in use
 	bool _uses_fmod = false;
@@ -505,21 +507,20 @@ private:
 		function_info entry_point;
 		entry_point.return_type = { type::t_void };
 
-		const auto is_color_semantic = [](const std::string &semantic) {
-			return semantic.compare(0, 9, "SV_TARGET") == 0 || semantic.compare(0, 5, "COLOR") == 0; };
-
-		const auto escape_name_with_builtins = [this, is_ps](std::string name, const std::string &semantic) -> std::string
+		const auto semantic_to_builtin = [this, is_ps](std::string name, const std::string &semantic) -> std::string
 		{
-			if (semantic == "SV_VERTEXID" || semantic == "VERTEXID")
-				return "gl_VertexID";
-			else if (semantic == "SV_POSITION" || semantic == "POSITION" || semantic == "VPOS")
+			if (semantic == "SV_POSITION")
 				return is_ps ? "gl_FragCoord" : "gl_Position";
-			else if (semantic == "SV_DEPTH" || semantic == "DEPTH")
+			if (semantic == "SV_POINTSIZE")
+				return "gl_PointSize";
+			if (semantic == "SV_DEPTH")
 				return "gl_FragDepth";
+			if (semantic == "SV_VERTEXID")
+				return "gl_VertexID";
 			return escape_name(name);
 		};
 
-		const auto create_shader_param = [this, is_ps, &escape_name_with_builtins](type type, unsigned int quals, const std::string &name, const std::string &semantic) {
+		const auto create_varying_variable = [this, is_ps, &semantic_to_builtin](type type, unsigned int quals, const std::string &name, const std::string &semantic) {
 			type.qualifiers = quals;
 
 			// OpenGL does not allow varying of type boolean
@@ -528,18 +529,21 @@ private:
 
 			std::string &code = _blocks.at(_current_block);
 
-			unsigned long location = 0;
-
 			for (int i = 0, array_length = std::max(1, type.array_length); i < array_length; ++i)
 			{
-				if (!escape_name_with_builtins(std::string(), semantic).empty())
+				uint32_t location = 0;
+				if (!semantic_to_builtin({}, semantic).empty())
 					continue;
 				else if (semantic.compare(0, 5, "COLOR") == 0)
-					location = strtoul(semantic.c_str() + 5, nullptr, 10);
+					location = std::strtoul(semantic.c_str() + 5, nullptr, 10);
 				else if (semantic.compare(0, 8, "TEXCOORD") == 0)
-					location = strtoul(semantic.c_str() + 8, nullptr, 10) + 1;
+					location = std::strtoul(semantic.c_str() + 8, nullptr, 10);
 				else if (semantic.compare(0, 9, "SV_TARGET") == 0)
-					location = strtoul(semantic.c_str() + 9, nullptr, 10);
+					location = std::strtoul(semantic.c_str() + 9, nullptr, 10);
+				else if (const auto it = _semantic_to_location.find(semantic); it != _semantic_to_location.end())
+					location = it->second;
+				else
+					_semantic_to_location[semantic] = location = _current_semantic_location++;
 
 				code += "layout(location = " + std::to_string(location + i) + ") ";
 				write_type<false, false, true>(code, type);
@@ -552,25 +556,25 @@ private:
 			}
 		};
 
-		const size_t num_params = func.parameter_list.size();
-
 		// Translate function parameters to input/output variables
 		if (func.return_type.is_struct())
-			for (const auto &member : find_struct(func.return_type.definition).member_list)
-				create_shader_param(member.type, type::q_out, "_return_" + member.name, member.semantic);
+			for (const struct_member_info &member : find_struct(func.return_type.definition).member_list)
+				create_varying_variable(member.type, type::q_out, "_return_" + member.name, member.semantic);
 		else if (!func.return_type.is_void())
-			create_shader_param(func.return_type, type::q_out, "_return", func.return_semantic);
+			create_varying_variable(func.return_type, type::q_out, "_return", func.return_semantic);
 
+		size_t num_params = func.parameter_list.size();
 		for (size_t i = 0; i < num_params; ++i)
 		{
-			const auto &param_type = func.parameter_list[i].type;
+			const type &param_type = func.parameter_list[i].type;
 			const std::string param_name = "_param" + std::to_string(i);
 
+			// Flatten structure parameters
 			if (param_type.is_struct())
-				for (const auto &member : find_struct(param_type.definition).member_list)
-					create_shader_param(member.type, param_type.qualifiers | member.type.qualifiers, param_name + '_' + member.name, member.semantic);
+				for (const struct_member_info &member : find_struct(param_type.definition).member_list)
+					create_varying_variable(member.type, param_type.qualifiers | member.type.qualifiers, param_name + '_' + member.name, member.semantic);
 			else
-				create_shader_param(param_type, param_type.qualifiers, param_name, func.parameter_list[i].semantic);
+				create_varying_variable(param_type, param_type.qualifiers, param_name, func.parameter_list[i].semantic);
 		}
 
 		define_function({}, entry_point, true);
@@ -581,7 +585,7 @@ private:
 		// Handle input parameters
 		for (size_t i = 0; i < num_params; ++i)
 		{
-			const auto &param_type = func.parameter_list[i].type;
+			const type &param_type = func.parameter_list[i].type;
 			const std::string param_name = "_param" + std::to_string(i);
 
 			for (int a = 0, array_length = std::max(1, param_type.array_length); a < array_length; a++)
@@ -600,12 +604,14 @@ private:
 					write_type<false, false>(code, param_type);
 					code += '(';
 
-					for (const auto &member : find_struct(param_type.definition).member_list)
+					const struct_info &definition = find_struct(param_type.definition);
+
+					for (const struct_member_info &member : definition.member_list)
 					{
 						if (param_type.is_array())
-							code += escape_name_with_builtins(param_name + '_' + member.name + '_' + std::to_string(a), member.semantic);
+							code += semantic_to_builtin(param_name + '_' + member.name + '_' + std::to_string(a), member.semantic);
 						else
-							code += escape_name_with_builtins(param_name + '_' + member.name, member.semantic);
+							code += semantic_to_builtin(param_name + '_' + member.name, member.semantic);
 
 						code += ", ";
 					}
@@ -646,14 +652,14 @@ private:
 			write_type(code, func.return_type), code += " _return = ";
 		// All other output types can write to the output variable directly
 		else if (!func.return_type.is_void())
-			code += escape_name_with_builtins("_return", func.return_semantic) + " = ";
+			code += semantic_to_builtin("_return", func.return_semantic) + " = ";
 
 		// Call the function this entry point refers to
 		code += id_to_name(func.definition) + '(';
 
 		for (size_t i = 0; i < num_params; ++i)
 		{
-			code += escape_name_with_builtins("_param" + std::to_string(i), func.parameter_list[i].semantic);
+			code += semantic_to_builtin("_param" + std::to_string(i), func.parameter_list[i].semantic);
 
 			if (i < num_params - 1)
 				code += ", ";
@@ -664,7 +670,7 @@ private:
 		// Handle output parameters
 		for (size_t i = 0; i < num_params; ++i)
 		{
-			const auto &param_type = func.parameter_list[i].type;
+			const type &param_type = func.parameter_list[i].type;
 			if (!param_type.has(type::q_out))
 				continue;
 
@@ -684,7 +690,9 @@ private:
 				if (!param_type.is_struct())
 					continue;
 
-				for (const auto &member : find_struct(param_type.definition).member_list)
+				const struct_info &definition = find_struct(param_type.definition);
+
+				for (const struct_member_info &member : definition.member_list)
 				{
 					code += '\t';
 					if (param_type.is_array())
@@ -705,10 +713,12 @@ private:
 		// Handle return struct output variables
 		if (func.return_type.is_struct())
 		{
-			for (const auto &member : find_struct(func.return_type.definition).member_list)
+			const struct_info &definition = find_struct(func.return_type.definition);
+
+			for (const struct_member_info &member : definition.member_list)
 			{
 				code += '\t';
-				code += escape_name_with_builtins("_return_" + member.name, member.semantic);
+				code += semantic_to_builtin("_return_" + member.name, member.semantic);
 				code += " = _return." + escape_name(member.name) + ";\n";
 			}
 		}
