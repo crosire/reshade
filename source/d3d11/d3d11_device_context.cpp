@@ -98,10 +98,13 @@ ULONG   STDMETHODCALLTYPE D3D11DeviceContext::AddRef()
 ULONG   STDMETHODCALLTYPE D3D11DeviceContext::Release()
 {
 	const ULONG ref = InterlockedDecrement(&_ref);
-	const ULONG ref_orig = _orig->Release();
 	if (ref != 0)
-		return ref;
-	if (ref_orig != 0)
+		return _orig->Release(), ref;
+
+	_buffer_detection.reset(true);
+
+	const ULONG ref_orig = _orig->Release();
+	if (ref_orig != 0) // Verify internal reference count
 		LOG(WARN) << "Reference count for ID3D11DeviceContext" << _interface_version << " object " << this << " is inconsistent.";
 
 #if RESHADE_VERBOSE_LOG

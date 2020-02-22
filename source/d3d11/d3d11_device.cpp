@@ -100,8 +100,7 @@ ULONG   STDMETHODCALLTYPE D3D11Device::Release()
 	if (ref != 0)
 		return _orig->Release(), ref;
 
-	_immediate_context->_buffer_detection.reset(true);
-
+	// Note: At this point the immediate context should have been deleted by the release above (so do not access it)
 	const ULONG ref_orig = _orig->Release();
 	if (ref_orig != 0) // Verify internal reference count
 		LOG(WARN) << "Reference count for ID3D11Device" << _interface_version << " object " << this << " is inconsistent.";
