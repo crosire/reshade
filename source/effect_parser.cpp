@@ -2998,7 +2998,7 @@ bool reshadefx::parser::parse_technique_pass(pass_info &info)
 			error(pass_location, 3012, "pass is missing 'VertexShader' property");
 		if (info.ps_entry_point.empty())
 			parse_success = false,
-			error(pass_location, 3012, "pass is missing 'PixelShader' property");
+			error(pass_location, 3012,  "pass is missing 'PixelShader' property");
 
 		// Verify render target format supports sRGB writes if enabled
 		if (info.srgb_write_enable && !targets_support_srgb)
@@ -3007,24 +3007,68 @@ bool reshadefx::parser::parse_technique_pass(pass_info &info)
 
 		// Verify that shader signatures between VS and PS match (both semantics and interpolation qualifiers)
 		std::unordered_map<std::string, type> vs_semantic_mapping;
-		if (!vs_info.return_semantic.empty())
+		if (vs_info.return_semantic.empty())
+		{
+			if (!vs_info.return_type.is_void() && !vs_info.return_type.is_struct())
+			{
+				parse_success = false;
+				error(pass_location, 3503, '\'' + info.vs_entry_point + "': function return value is missing semantics");
+			}
+		}
+		else
+		{
 			vs_semantic_mapping[vs_info.return_semantic] = vs_info.return_type;
+		}
+
 		for (const struct_member_info &param : vs_info.parameter_list)
 		{
-			if (!param.semantic.empty() && param.type.has(type::q_out))
+			if (param.semantic.empty())
+			{
+				if (!param.type.is_struct())
+				{
+					parse_success = false;
+					if (param.type.has(type::q_in))
+						error(pass_location, 3502, '\'' + info.vs_entry_point + "': input parameter '" + param.name + "' is missing semantics");
+					else
+						error(pass_location, 3503, '\'' + info.vs_entry_point + "': output parameter '" + param.name + "' is missing semantics");
+				}
+			}
+			else if (param.type.has(type::q_out))
 			{
 				vs_semantic_mapping[param.semantic] = param.type;
 			}
 		}
+
+		if (ps_info.return_semantic.empty())
+		{
+			if (!ps_info.return_type.is_void() && !ps_info.return_type.is_struct())
+			{
+				parse_success = false;
+				error(pass_location, 3503, '\'' + info.ps_entry_point + "': function return value is missing semantics");
+			}
+		}
+
 		for (const struct_member_info &param : ps_info.parameter_list)
 		{
-			if (!param.semantic.empty() && param.type.has(type::q_in))
+			if (param.semantic.empty())
 			{
-				if (const auto it = vs_semantic_mapping.find(param.semantic); it == vs_semantic_mapping.end() || it->second != param.type)
-					warning(pass_location, 4576, '\'' + param.name + "': pixel shader semantic does not match vertex shader one");
+				if (!param.type.is_struct())
+				{
+					parse_success = false;
+					if (param.type.has(type::q_in))
+						error(pass_location, 3502, '\'' + info.ps_entry_point + "': input parameter '" + param.name + "' is missing semantics");
+					else
+						error(pass_location, 3503, '\'' + info.ps_entry_point + "': output parameter '" + param.name + "' is missing semantics");
+				}
+			}
+			else if (param.type.has(type::q_in))
+			{
+				if (const auto it = vs_semantic_mapping.find(param.semantic);
+					it == vs_semantic_mapping.end() || it->second != param.type)
+					warning(pass_location, 4576, '\'' + info.ps_entry_point + "': input parameter '" + param.name + "' semantic does not match vertex shader one");
 				else if (((it->second.qualifiers ^ param.type.qualifiers) & (type::q_linear | type::q_noperspective | type::q_centroid | type::q_nointerpolation)) != 0)
 					parse_success = false,
-					error(pass_location, 4568, '\'' + param.name + "': pixel shader interpolation qualifiers do not match vertex shader ones");
+					error(  pass_location, 4568, '\'' + info.ps_entry_point + "': input parameter '" + param.name + "' interpolation qualifiers do not match vertex shader ones");
 			}
 		}
 	}
