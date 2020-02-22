@@ -314,13 +314,19 @@ HOOK_EXPORT HRESULT WINAPI CreateDXGIFactory1(REFIID riid, void **ppFactory)
 	}
 
 #if RESHADE_VERBOSE_LOG
-	LOG(INFO) << "Returning IDXGIFactory1 object " << *ppFactory << '.';
+	LOG(INFO) << "Returning IDXGIFactory object " << *ppFactory << '.';
 #endif
 	return hr;
 }
 HOOK_EXPORT HRESULT WINAPI CreateDXGIFactory2(UINT Flags, REFIID riid, void **ppFactory)
 {
-	LOG(INFO) << "Redirecting CreateDXGIFactory2" << '(' << "Flags = " << Flags << ", riid = " << riid << ", ppFactory = " << ppFactory << ')' << " ...";
+	// IDXGIFactory  {7B7166EC-21C7-44AE-B21A-C9AE321AE369}
+	// IDXGIFactory1 {770AAE78-F26F-4DBA-A829-253C83D1B387}
+	// IDXGIFactory2 {50C83A1C-E072-4C48-87B0-3630FA36A6D0}
+	// IDXGIFactory3 {25483823-CD46-4C7D-86CA-47AA95B837BD}
+	// IDXGIFactory4 {1BC6EA02-EF36-464F-BF0C-21CA39E5168A}
+
+	LOG(INFO) << "Redirecting CreateDXGIFactory2" << '(' << "Flags = " << std::hex << Flags << std::dec << ", riid = " << riid << ", ppFactory = " << ppFactory << ')' << " ...";
 
 	static const auto trampoline = reshade::hooks::call(CreateDXGIFactory2);
 
@@ -349,7 +355,7 @@ HOOK_EXPORT HRESULT WINAPI CreateDXGIFactory2(UINT Flags, REFIID riid, void **pp
 	reshade::hooks::install("IDXGIFactory2::CreateSwapChainForComposition", vtable_from_instance(factory), 24, reinterpret_cast<reshade::hook::address>(&IDXGIFactory2_CreateSwapChainForComposition));
 
 #if RESHADE_VERBOSE_LOG
-	LOG(INFO) << "Returning IDXGIFactory2 object " << *ppFactory << '.';
+	LOG(INFO) << "Returning IDXGIFactory object " << *ppFactory << '.';
 #endif
 	return hr;
 }
