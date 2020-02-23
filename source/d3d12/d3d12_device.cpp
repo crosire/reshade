@@ -123,7 +123,6 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommandQueue(const D3D12_COMMAND_QU
 	if (pDesc == nullptr || ppCommandQueue == nullptr)
 		return E_INVALIDARG;
 
-#if RESHADE_VERBOSE_LOG
 	LOG(INFO) << "> Dumping command queue description:";
 	LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
 	LOG(INFO) << "  | Parameter                               | Value                                   |";
@@ -133,7 +132,6 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommandQueue(const D3D12_COMMAND_QU
 	LOG(INFO) << "  | Flags                                   | " << std::setw(39) << std::hex << pDesc->Flags << std::dec << " |";
 	LOG(INFO) << "  | NodeMask                                | " << std::setw(39) << std::hex << pDesc->NodeMask << std::dec << " |";
 	LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
-#endif
 
 	const HRESULT hr = _orig->CreateCommandQueue(pDesc, riid, ppCommandQueue);
 	if (FAILED(hr))
@@ -148,7 +146,7 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommandQueue(const D3D12_COMMAND_QU
 	if (command_queue_proxy->check_and_upgrade_interface(riid))
 	{
 #if RESHADE_VERBOSE_LOG
-		LOG(INFO) << "> Returning ID3D12CommandQueue object " << command_queue_proxy << '.';
+		LOG(INFO) << "> Returning ID3D12CommandQueue" << command_queue_proxy->_interface_version << " object " << command_queue_proxy << '.';
 #endif
 		*ppCommandQueue = command_queue_proxy;
 	}

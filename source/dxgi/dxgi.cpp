@@ -92,6 +92,8 @@ static void init_reshade_runtime_d3d(T *&swapchain, unsigned int direct3d_versio
 	if (FAILED(swapchain->GetDesc(&desc)))
 		return; // This should not happen, but let's be safe
 
+	DXGISwapChain *swapchain_proxy = nullptr;
+
 	if ((desc.BufferUsage & DXGI_USAGE_RENDER_TARGET_OUTPUT) == 0)
 	{
 		LOG(WARN) << "Skipping swap chain due to missing 'DXGI_USAGE_RENDER_TARGET_OUTPUT' flag.";
@@ -106,7 +108,7 @@ static void init_reshade_runtime_d3d(T *&swapchain, unsigned int direct3d_versio
 
 		runtime->_buffer_detection = &device->_buffer_detection;
 
-		swapchain = new DXGISwapChain(device.get(), swapchain, std::move(runtime)); // Overwrite returned swapchain pointer with hooked object
+		swapchain_proxy = new DXGISwapChain(device.get(), swapchain, std::move(runtime)); // Overwrite returned swapchain pointer with hooked object
 	}
 	else if (direct3d_version == 11)
 	{
@@ -118,7 +120,7 @@ static void init_reshade_runtime_d3d(T *&swapchain, unsigned int direct3d_versio
 
 		runtime->_buffer_detection = &device->_immediate_context->_buffer_detection;
 
-		swapchain = new DXGISwapChain(device.get(), swapchain, std::move(runtime));
+		swapchain_proxy = new DXGISwapChain(device.get(), swapchain, std::move(runtime));
 	}
 	else if (direct3d_version == 12)
 	{
@@ -136,7 +138,7 @@ static void init_reshade_runtime_d3d(T *&swapchain, unsigned int direct3d_versio
 
 			runtime->_buffer_detection = &command_queue->_device->_buffer_detection;
 
-			swapchain = new DXGISwapChain(command_queue->_device, swapchain3.get(), std::move(runtime));
+			swapchain_proxy = new DXGISwapChain(command_queue->_device, swapchain3.get(), std::move(runtime));
 		}
 		else
 		{
@@ -148,9 +150,13 @@ static void init_reshade_runtime_d3d(T *&swapchain, unsigned int direct3d_versio
 		LOG(WARN) << "Skipping swap chain because it was created without a (hooked) Direct3D device.";
 	}
 
+	if (swapchain_proxy != nullptr)
+	{
 #if RESHADE_VERBOSE_LOG
-	LOG(INFO) << "Returning IDXGISwapChain object " << swapchain << '.';
+		LOG(INFO) << "Returning IDXGISwapChain" << swapchain_proxy->_interface_version << " object " << swapchain_proxy << '.';
 #endif
+		swapchain = swapchain_proxy;
+	}
 }
 
 HRESULT STDMETHODCALLTYPE IDXGIFactory_CreateSwapChain(IDXGIFactory *pFactory, IUnknown *pDevice, DXGI_SWAP_CHAIN_DESC *pDesc, IDXGISwapChain **ppSwapChain)

@@ -30,13 +30,17 @@ HOOK_EXPORT HRESULT WINAPI D3D12CreateDevice(
 
 	// Upgrade to the actual interface version requested here
 	if (device_proxy->check_and_upgrade_interface(riid))
-		*ppDevice = device_proxy;
-	else // Do not hook object if we do not support the requested interface
-		delete device_proxy;
-
+	{
 #if RESHADE_VERBOSE_LOG
-	LOG(INFO) << "Returning ID3D12Device" << device_proxy->_interface_version << " object " << device_proxy << '.';
+		LOG(INFO) << "Returning ID3D12Device" << device_proxy->_interface_version << " object " << device_proxy << '.';
 #endif
+		*ppDevice = device_proxy;
+	}
+	else // Do not hook object if we do not support the requested interface
+	{
+		delete device_proxy; // Delete instead of release to keep reference count untouched
+	}
+
 	return hr;
 }
 
