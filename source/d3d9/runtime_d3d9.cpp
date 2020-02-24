@@ -1115,83 +1115,83 @@ void reshade::d3d9::runtime_d3d9::render_imgui_draw_data(ImDrawData *draw_data)
 #if RESHADE_DEPTH
 void reshade::d3d9::runtime_d3d9::draw_depth_debug_menu(buffer_detection &tracker)
 {
+	if (!ImGui::CollapsingHeader("Depth Buffers", ImGuiTreeNodeFlags_DefaultOpen))
+		return;
+
 	if (_has_high_network_activity)
 	{
 		ImGui::TextColored(ImColor(204, 204, 0), "High network activity discovered.\nAccess to depth buffers is disabled to prevent exploitation.");
 		return;
 	}
 
-	if (ImGui::CollapsingHeader("Depth Buffers", ImGuiTreeNodeFlags_DefaultOpen))
+	assert(!_reset_buffer_detection);
+
+	// Do NOT reset tracker within state block capture scope, since it may otherwise bind the replacement depth-stencil after it has been destroyed here
+	_reset_buffer_detection |= ImGui::Checkbox("Disable replacement with INTZ format", &_disable_intz);
+
+	_reset_buffer_detection |= ImGui::Checkbox("Use aspect ratio heuristics", &_filter_aspect_ratio);
+	_reset_buffer_detection |= ImGui::Checkbox("Copy depth buffers before clear operation", &_preserve_depth_buffers);
+
+	ImGui::Spacing();
+	ImGui::Separator();
+	ImGui::Spacing();
+
+	for (const auto &[ds_surface, snapshot] : tracker.depth_buffer_counters())
 	{
-		assert(!_reset_buffer_detection);
+		char label[512] = "";
+		sprintf_s(label, "%s0x%p", (ds_surface == tracker.current_depth_surface() ? "> " : "  "), ds_surface.get());
 
-		// Do NOT reset tracker within state block capture scope, since it may otherwise bind the replacement depth-stencil after it has been destroyed here
-		_reset_buffer_detection |= ImGui::Checkbox("Disable replacement with INTZ format", &_disable_intz);
+		D3DSURFACE_DESC desc;
+		ds_surface->GetDesc(&desc);
 
-		_reset_buffer_detection |= ImGui::Checkbox("Use aspect ratio heuristics", &_filter_aspect_ratio);
-		_reset_buffer_detection |= ImGui::Checkbox("Copy depth buffers before clear operation", &_preserve_depth_buffers);
-
-		ImGui::Spacing();
-		ImGui::Separator();
-		ImGui::Spacing();
-
-		for (const auto &[ds_surface, snapshot] : tracker.depth_buffer_counters())
+		const bool msaa = desc.MultiSampleType != D3DMULTISAMPLE_NONE;
+		if (msaa) // Disable widget for MSAA textures
 		{
-			char label[512] = "";
-			sprintf_s(label, "%s0x%p", (ds_surface == tracker.current_depth_surface() ? "> " : "  "), ds_surface.get());
+			ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
+			ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyle().Colors[ImGuiCol_TextDisabled]);
+		}
 
-			D3DSURFACE_DESC desc;
-			ds_surface->GetDesc(&desc);
+		if (bool value = (_depth_surface_override == ds_surface);
+			ImGui::Checkbox(label, &value))
+			_depth_surface_override = value ? ds_surface.get() : nullptr;
 
-			const bool msaa = desc.MultiSampleType != D3DMULTISAMPLE_NONE;
-			if (msaa) // Disable widget for MSAA textures
+		ImGui::SameLine();
+		ImGui::Text("| %4ux%-4u | %5u draw calls ==> %8u vertices |%s",
+			desc.Width, desc.Height, snapshot.stats.drawcalls, snapshot.stats.vertices, (msaa ? " MSAA" : ""));
+
+		if (_preserve_depth_buffers && ds_surface == tracker.current_depth_surface())
+		{
+			for (UINT clear_index = 1; clear_index <= snapshot.clears.size(); ++clear_index)
 			{
-				ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
-				ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyle().Colors[ImGuiCol_TextDisabled]);
-			}
+				sprintf_s(label, "%s  CLEAR %2u", (clear_index == tracker.current_clear_index() ? "> " : "  "), clear_index);
 
-			if (bool value = (_depth_surface_override == ds_surface);
-				ImGui::Checkbox(label, &value))
-				_depth_surface_override = value ? ds_surface.get() : nullptr;
-
-			ImGui::SameLine();
-			ImGui::Text("| %4ux%-4u | %5u draw calls ==> %8u vertices |%s",
-				desc.Width, desc.Height, snapshot.stats.drawcalls, snapshot.stats.vertices, (msaa ? " MSAA" : ""));
-
-			if (_preserve_depth_buffers && ds_surface == tracker.current_depth_surface())
-			{
-				for (UINT clear_index = 1; clear_index <= snapshot.clears.size(); ++clear_index)
+				if (bool value = (_depth_clear_index_override == clear_index);
+					ImGui::Checkbox(label, &value))
 				{
-					sprintf_s(label, "%s  CLEAR %2u", (clear_index == tracker.current_clear_index() ? "> " : "  "), clear_index);
-
-					if (bool value = (_depth_clear_index_override == clear_index);
-						ImGui::Checkbox(label, &value))
-					{
-						_depth_clear_index_override = value ? clear_index : std::numeric_limits<UINT>::max();
-						_reset_buffer_detection = true;
-					}
-
-					ImGui::SameLine();
-					ImGui::Text("%*s|           | %5u draw calls ==> %8u vertices |",
-						sizeof(ds_surface.get()) == 8 ? 8 : 0, "", // Add space to fill pointer length
-						snapshot.clears[clear_index - 1].drawcalls, snapshot.clears[clear_index - 1].vertices);
+					_depth_clear_index_override = value ? clear_index : std::numeric_limits<UINT>::max();
+					_reset_buffer_detection = true;
 				}
-			}
 
-			if (msaa)
-			{
-				ImGui::PopStyleColor();
-				ImGui::PopItemFlag();
+				ImGui::SameLine();
+				ImGui::Text("%*s|           | %5u draw calls ==> %8u vertices |",
+					sizeof(ds_surface.get()) == 8 ? 8 : 0, "", // Add space to fill pointer length
+					snapshot.clears[clear_index - 1].drawcalls, snapshot.clears[clear_index - 1].vertices);
 			}
 		}
 
-		ImGui::Spacing();
-		ImGui::Separator();
-		ImGui::Spacing();
-
-		if (_reset_buffer_detection)
-			runtime::save_config();
+		if (msaa)
+		{
+			ImGui::PopStyleColor();
+			ImGui::PopItemFlag();
+		}
 	}
+
+	ImGui::Spacing();
+	ImGui::Separator();
+	ImGui::Spacing();
+
+	if (_reset_buffer_detection)
+		runtime::save_config();
 }
 
 void reshade::d3d9::runtime_d3d9::update_depth_texture_bindings(com_ptr<IDirect3DSurface9> surface)

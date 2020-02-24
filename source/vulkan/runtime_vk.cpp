@@ -2179,52 +2179,52 @@ void reshade::vulkan::runtime_vk::render_imgui_draw_data(ImDrawData *draw_data)
 #if RESHADE_DEPTH
 void reshade::vulkan::runtime_vk::draw_depth_debug_menu(buffer_detection_context &tracker)
 {
+	if (!ImGui::CollapsingHeader("Depth Buffers", ImGuiTreeNodeFlags_DefaultOpen))
+		return;
+
 	if (_has_high_network_activity)
 	{
 		ImGui::TextColored(ImColor(204, 204, 0), "High network activity discovered.\nAccess to depth buffers is disabled to prevent exploitation.");
 		return;
 	}
 
-	if (ImGui::CollapsingHeader("Depth Buffers", ImGuiTreeNodeFlags_DefaultOpen))
+	if (ImGui::Checkbox("Use aspect ratio heuristics", &_use_aspect_ratio_heuristics))
+		runtime::save_config();
+
+	ImGui::Spacing();
+	ImGui::Separator();
+	ImGui::Spacing();
+
+	for (const auto &[depth_image, snapshot] : tracker.depth_buffer_counters())
 	{
-		if (ImGui::Checkbox("Use aspect ratio heuristics", &_use_aspect_ratio_heuristics))
-			runtime::save_config();
+		char label[512] = "";
+		sprintf_s(label, "%s0x%016llx", (depth_image == _depth_image ? "> " : "  "), (uint64_t)depth_image);
 
-		ImGui::Spacing();
-		ImGui::Separator();
-		ImGui::Spacing();
-
-		for (const auto &[depth_image, snapshot] : tracker.depth_buffer_counters())
+		const bool msaa = snapshot.image_info.samples != VK_SAMPLE_COUNT_1_BIT;
+		if (msaa) // Disable widget for MSAA textures
 		{
-			char label[512] = "";
-			sprintf_s(label, "%s0x%016llx", (depth_image == _depth_image ? "> " : "  "), (uint64_t)depth_image);
-
-			const bool msaa = snapshot.image_info.samples != VK_SAMPLE_COUNT_1_BIT;
-			if (msaa) // Disable widget for MSAA textures
-			{
-				ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
-				ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyle().Colors[ImGuiCol_TextDisabled]);
-			}
-
-			if (bool value = (_depth_image_override == depth_image);
-				ImGui::Checkbox(label, &value))
-				_depth_image_override = value ? depth_image : VK_NULL_HANDLE;
-
-			ImGui::SameLine();
-			ImGui::Text("| %4ux%-4u | %5u draw calls ==> %8u vertices |%s",
-				snapshot.image_info.extent.width, snapshot.image_info.extent.height, snapshot.stats.drawcalls, snapshot.stats.vertices, (msaa ? " MSAA" : ""));
-
-			if (msaa)
-			{
-				ImGui::PopStyleColor();
-				ImGui::PopItemFlag();
-			}
+			ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
+			ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyle().Colors[ImGuiCol_TextDisabled]);
 		}
 
-		ImGui::Spacing();
-		ImGui::Separator();
-		ImGui::Spacing();
+		if (bool value = (_depth_image_override == depth_image);
+			ImGui::Checkbox(label, &value))
+			_depth_image_override = value ? depth_image : VK_NULL_HANDLE;
+
+		ImGui::SameLine();
+		ImGui::Text("| %4ux%-4u | %5u draw calls ==> %8u vertices |%s",
+			snapshot.image_info.extent.width, snapshot.image_info.extent.height, snapshot.stats.drawcalls, snapshot.stats.vertices, (msaa ? " MSAA" : ""));
+
+		if (msaa)
+		{
+			ImGui::PopStyleColor();
+			ImGui::PopItemFlag();
+		}
 	}
+
+	ImGui::Spacing();
+	ImGui::Separator();
+	ImGui::Spacing();
 }
 
 void reshade::vulkan::runtime_vk::update_depth_image_bindings(buffer_detection::depthstencil_info info)

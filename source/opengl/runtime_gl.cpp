@@ -1218,43 +1218,43 @@ void reshade::opengl::runtime_gl::render_imgui_draw_data(ImDrawData *draw_data)
 #if RESHADE_DEPTH
 void reshade::opengl::runtime_gl::draw_depth_debug_menu()
 {
+	if (!ImGui::CollapsingHeader("Depth Buffers", ImGuiTreeNodeFlags_DefaultOpen))
+		return;
+
 	if (_has_high_network_activity)
 	{
 		ImGui::TextColored(ImColor(204, 204, 0), "High network activity discovered.\nAccess to depth buffers is disabled to prevent exploitation.");
 		return;
 	}
 
-	if (ImGui::CollapsingHeader("Depth Buffers", ImGuiTreeNodeFlags_DefaultOpen))
+	if (ImGui::Checkbox("Use aspect ratio heuristics", &_use_aspect_ratio_heuristics))
+		runtime::save_config();
+
+	ImGui::Spacing();
+	ImGui::Separator();
+	ImGui::Spacing();
+
+	for (const auto &[depth_source, snapshot] : _buffer_detection.depth_buffer_counters())
 	{
-		if (ImGui::Checkbox("Use aspect ratio heuristics", &_use_aspect_ratio_heuristics))
-			runtime::save_config();
+		if (snapshot.format == GL_NONE)
+			continue; // Skip invalid entries
 
-		ImGui::Spacing();
-		ImGui::Separator();
-		ImGui::Spacing();
+		char label[512] = "";
+		sprintf_s(label, "%s0x%08x", (depth_source == _depth_source && !_has_high_network_activity ? "> " : "  "), depth_source);
 
-		for (const auto &[depth_source, snapshot] : _buffer_detection.depth_buffer_counters())
-		{
-			if (snapshot.format == GL_NONE)
-				continue; // Skip invalid entries
+		if (bool value = _depth_source_override == depth_source;
+			ImGui::Checkbox(label, &value))
+			_depth_source_override = value ? depth_source : std::numeric_limits<GLuint>::max();
 
-			char label[512] = "";
-			sprintf_s(label, "%s0x%08x", (depth_source == _depth_source && !_has_high_network_activity ? "> " : "  "), depth_source);
-
-			if (bool value = _depth_source_override == depth_source;
-				ImGui::Checkbox(label, &value))
-				_depth_source_override = value ? depth_source : std::numeric_limits<GLuint>::max();
-
-			ImGui::SameLine();
-			ImGui::Text("| %4ux%-4u | %5u draw calls ==> %8u vertices |%s",
-				snapshot.width, snapshot.height, snapshot.stats.drawcalls, snapshot.stats.vertices,
-				(depth_source & 0x80000000) != 0 ? " RBO" : depth_source != 0 ? " FBO" : "");
-		}
-
-		ImGui::Spacing();
-		ImGui::Separator();
-		ImGui::Spacing();
+		ImGui::SameLine();
+		ImGui::Text("| %4ux%-4u | %5u draw calls ==> %8u vertices |%s",
+			snapshot.width, snapshot.height, snapshot.stats.drawcalls, snapshot.stats.vertices,
+			(depth_source & 0x80000000) != 0 ? " RBO" : depth_source != 0 ? " FBO" : "");
 	}
+
+	ImGui::Spacing();
+	ImGui::Separator();
+	ImGui::Spacing();
 }
 
 void reshade::opengl::runtime_gl::update_depth_texture_bindings(buffer_detection::depthstencil_info info)

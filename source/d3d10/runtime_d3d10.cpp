@@ -1301,82 +1301,82 @@ void reshade::d3d10::runtime_d3d10::render_imgui_draw_data(ImDrawData *draw_data
 #if RESHADE_DEPTH
 void reshade::d3d10::runtime_d3d10::draw_depth_debug_menu(buffer_detection &tracker)
 {
+	if (!ImGui::CollapsingHeader("Depth Buffers", ImGuiTreeNodeFlags_DefaultOpen))
+		return;
+
 	if (_has_high_network_activity)
 	{
 		ImGui::TextColored(ImColor(204, 204, 0), "High network activity discovered.\nAccess to depth buffers is disabled to prevent exploitation.");
 		return;
 	}
 
-	if (ImGui::CollapsingHeader("Depth Buffers", ImGuiTreeNodeFlags_DefaultOpen))
+	bool modified = false;
+	modified |= ImGui::Checkbox("Use aspect ratio heuristics", &_filter_aspect_ratio);
+	modified |= ImGui::Checkbox("Copy depth buffers before clear operation", &_preserve_depth_buffers);
+
+	if (modified) // Detection settings have changed, reset heuristic
+		tracker.reset(true);
+
+	ImGui::Spacing();
+	ImGui::Separator();
+	ImGui::Spacing();
+
+	for (const auto &[dsv_texture, snapshot] : tracker.depth_buffer_counters())
 	{
-		bool modified = false;
-		modified |= ImGui::Checkbox("Use aspect ratio heuristics", &_filter_aspect_ratio);
-		modified |= ImGui::Checkbox("Copy depth buffers before clear operation", &_preserve_depth_buffers);
+		char label[512] = "";
+		sprintf_s(label, "%s0x%p", (dsv_texture == _depth_texture || dsv_texture == tracker.current_depth_texture() ? "> " : "  "), dsv_texture.get());
 
-		if (modified) // Detection settings have changed, reset heuristic
-			tracker.reset(true);
+		D3D10_TEXTURE2D_DESC desc;
+		dsv_texture->GetDesc(&desc);
 
-		ImGui::Spacing();
-		ImGui::Separator();
-		ImGui::Spacing();
-
-		for (const auto &[dsv_texture, snapshot] : tracker.depth_buffer_counters())
+		const bool msaa = desc.SampleDesc.Count > 1;
+		if (msaa) // Disable widget for MSAA textures
 		{
-			char label[512] = "";
-			sprintf_s(label, "%s0x%p", (dsv_texture == _depth_texture || dsv_texture == tracker.current_depth_texture() ? "> " : "  "), dsv_texture.get());
+			ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
+			ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyle().Colors[ImGuiCol_TextDisabled]);
+		}
 
-			D3D10_TEXTURE2D_DESC desc;
-			dsv_texture->GetDesc(&desc);
+		if (bool value = (_depth_texture_override == dsv_texture);
+			ImGui::Checkbox(label, &value))
+			_depth_texture_override = value ? dsv_texture.get() : nullptr;
 
-			const bool msaa = desc.SampleDesc.Count > 1;
-			if (msaa) // Disable widget for MSAA textures
+		ImGui::SameLine();
+		ImGui::Text("| %4ux%-4u | %5u draw calls ==> %8u vertices |%s",
+			desc.Width, desc.Height, snapshot.total_stats.drawcalls, snapshot.total_stats.vertices, (msaa ? " MSAA" : ""));
+
+		if (_preserve_depth_buffers && dsv_texture == tracker.current_depth_texture())
+		{
+			for (UINT clear_index = 1; clear_index <= snapshot.clears.size(); ++clear_index)
 			{
-				ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
-				ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyle().Colors[ImGuiCol_TextDisabled]);
-			}
+				sprintf_s(label, "%s  CLEAR %2u", (clear_index == tracker.current_clear_index() ? "> " : "  "), clear_index);
 
-			if (bool value = (_depth_texture_override == dsv_texture);
-				ImGui::Checkbox(label, &value))
-				_depth_texture_override = value ? dsv_texture.get() : nullptr;
-
-			ImGui::SameLine();
-			ImGui::Text("| %4ux%-4u | %5u draw calls ==> %8u vertices |%s",
-				desc.Width, desc.Height, snapshot.total_stats.drawcalls, snapshot.total_stats.vertices, (msaa ? " MSAA" : ""));
-
-			if (_preserve_depth_buffers && dsv_texture == tracker.current_depth_texture())
-			{
-				for (UINT clear_index = 1; clear_index <= snapshot.clears.size(); ++clear_index)
+				if (bool value = (_depth_clear_index_override == clear_index);
+					ImGui::Checkbox(label, &value))
 				{
-					sprintf_s(label, "%s  CLEAR %2u", (clear_index == tracker.current_clear_index() ? "> " : "  "), clear_index);
-
-					if (bool value = (_depth_clear_index_override == clear_index);
-						ImGui::Checkbox(label, &value))
-					{
-						_depth_clear_index_override = value ? clear_index : std::numeric_limits<UINT>::max();
-						modified = true;
-					}
-
-					ImGui::SameLine();
-					ImGui::Text("%*s|           | %5u draw calls ==> %8u vertices |",
-						sizeof(dsv_texture.get()) == 8 ? 8 : 0, "", // Add space to fill pointer length
-						snapshot.clears[clear_index - 1].drawcalls, snapshot.clears[clear_index - 1].vertices);
+					_depth_clear_index_override = value ? clear_index : std::numeric_limits<UINT>::max();
+					modified = true;
 				}
-			}
 
-			if (msaa)
-			{
-				ImGui::PopStyleColor();
-				ImGui::PopItemFlag();
+				ImGui::SameLine();
+				ImGui::Text("%*s|           | %5u draw calls ==> %8u vertices |",
+					sizeof(dsv_texture.get()) == 8 ? 8 : 0, "", // Add space to fill pointer length
+					snapshot.clears[clear_index - 1].drawcalls, snapshot.clears[clear_index - 1].vertices);
 			}
 		}
 
-		ImGui::Spacing();
-		ImGui::Separator();
-		ImGui::Spacing();
-
-		if (modified)
-			runtime::save_config();
+		if (msaa)
+		{
+			ImGui::PopStyleColor();
+			ImGui::PopItemFlag();
+		}
 	}
+
+	ImGui::Spacing();
+	ImGui::Separator();
+	ImGui::Spacing();
+
+	if (modified)
+		runtime::save_config();
 }
 
 void reshade::d3d10::runtime_d3d10::update_depth_texture_bindings(com_ptr<ID3D10Texture2D> texture)
