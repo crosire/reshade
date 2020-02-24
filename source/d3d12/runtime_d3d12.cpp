@@ -440,7 +440,7 @@ bool reshade::d3d12::runtime_d3d12::capture_screenshot(uint8_t *buffer) const
 		dst_location.PlacedFootprint.Footprint.Width = _width;
 		dst_location.PlacedFootprint.Footprint.Height = _height;
 		dst_location.PlacedFootprint.Footprint.Depth = 1;
-		dst_location.PlacedFootprint.Footprint.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+		dst_location.PlacedFootprint.Footprint.Format = make_dxgi_format_normal(_backbuffer_format);
 		dst_location.PlacedFootprint.Footprint.RowPitch = download_pitch;
 
 		_cmd_list->CopyTextureRegion(&dst_location, 0, 0, 0, &src_location, nullptr);
