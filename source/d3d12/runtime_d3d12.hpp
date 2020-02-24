@@ -61,6 +61,7 @@ namespace reshade::d3d12
 		HANDLE _fence_event = nullptr;
 		mutable std::vector<UINT64> _fence_value;
 		std::vector<com_ptr<ID3D12Fence>> _fence;
+		mutable bool _cmd_list_is_recording = false;
 		com_ptr<ID3D12GraphicsCommandList> _cmd_list;
 		std::vector<com_ptr<ID3D12CommandAllocator>> _cmd_alloc;
 

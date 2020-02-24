@@ -21,7 +21,6 @@ namespace reshade::d3d12
 {
 	struct d3d12_tex_data
 	{
-		D3D12_RESOURCE_STATES state;
 		com_ptr<ID3D12Resource> resource;
 		com_ptr<ID3D12DescriptorHeap> descriptors;
 	};
@@ -374,19 +373,27 @@ void reshade::d3d12::runtime_d3d12::on_present()
 	// Reset command allocator before using it this frame again
 	_cmd_alloc[_swap_index]->Reset();
 
+	if (!begin_command_list())
+		return;
+
 #if RESHADE_DEPTH
-	com_ptr<ID3D12Resource> depth_texture;
-	if (begin_command_list())
-	{
-		assert(_depth_clear_index_override != 0);
-		depth_texture = _buffer_detection->update_depth_texture(_commandqueue.get(), _cmd_list.get(), _filter_aspect_ratio ? _width : 0, _height, _depth_texture_override, _preserve_depth_buffers ? _depth_clear_index_override : 0);
-		execute_command_list();
-	}
-	update_depth_texture_bindings(depth_texture);
+	assert(_depth_clear_index_override != 0);
+	update_depth_texture_bindings(_buffer_detection->update_depth_texture(
+		_commandqueue.get(), _cmd_list.get(), _filter_aspect_ratio ? _width : 0, _height, _depth_texture_override, _preserve_depth_buffers ? _depth_clear_index_override : 0));
 #endif
+
+	transition_state(_cmd_list, _backbuffers[_swap_index], D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
 
 	update_and_render_effects();
 	runtime::on_present();
+
+	// Potentially have to restart command list here because a screenshot was taken
+	if (!begin_command_list())
+		return;
+
+	transition_state(_cmd_list, _backbuffers[_swap_index], D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
+
+	execute_command_list();
 
 	if (const UINT64 sync_value = _fence_value[_swap_index] + 1;
 		SUCCEEDED(_commandqueue->Signal(_fence[_swap_index].get(), sync_value)))
@@ -421,7 +428,8 @@ bool reshade::d3d12::runtime_d3d12::capture_screenshot(uint8_t *buffer) const
 	if (!begin_command_list())
 		return false;
 
-	transition_state(_cmd_list, _backbuffers[_swap_index], D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_COPY_SOURCE, 0);
+	// Was transitioned to D3D12_RESOURCE_STATE_RENDER_TARGET in 'on_present' already
+	transition_state(_cmd_list, _backbuffers[_swap_index], D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_COPY_SOURCE, 0);
 	{
 		D3D12_TEXTURE_COPY_LOCATION src_location = { _backbuffers[_swap_index].get() };
 		src_location.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
@@ -437,7 +445,7 @@ bool reshade::d3d12::runtime_d3d12::capture_screenshot(uint8_t *buffer) const
 
 		_cmd_list->CopyTextureRegion(&dst_location, 0, 0, 0, &src_location, nullptr);
 	}
-	transition_state(_cmd_list, _backbuffers[_swap_index], D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_PRESENT, 0);
+	transition_state(_cmd_list, _backbuffers[_swap_index], D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET, 0);
 
 	// Execute and wait for completion
 	execute_command_list();
@@ -958,12 +966,9 @@ bool reshade::d3d12::runtime_d3d12::init_texture(texture &texture)
 	D3D12_CLEAR_VALUE clear_value = {};
 	clear_value.Format = make_dxgi_format_normal(desc.Format);
 
-	// Initialize resource to be accessible in shader stages immediately, so no additional transition is required
-	impl->state = D3D12_RESOURCE_STATE_SHADER_RESOURCE;
-
 	D3D12_HEAP_PROPERTIES props = { D3D12_HEAP_TYPE_DEFAULT };
 
-	if (HRESULT hr = _device->CreateCommittedResource(&props, D3D12_HEAP_FLAG_NONE, &desc, impl->state, &clear_value, IID_PPV_ARGS(&impl->resource)); FAILED(hr))
+	if (HRESULT hr = _device->CreateCommittedResource(&props, D3D12_HEAP_FLAG_NONE, &desc, D3D12_RESOURCE_STATE_SHADER_RESOURCE, &clear_value, IID_PPV_ARGS(&impl->resource)); FAILED(hr))
 	{
 		LOG(ERROR) << "Failed to create texture '" << texture.unique_name << "' ("
 			"Width = " << desc.Width << ", "
@@ -1078,7 +1083,7 @@ void reshade::d3d12::runtime_d3d12::upload_texture(const texture &texture, const
 	if (unsupported_format || !begin_command_list())
 		return;
 
-	transition_state(_cmd_list, impl->resource, impl->state, D3D12_RESOURCE_STATE_COPY_DEST, 0);
+	transition_state(_cmd_list, impl->resource, D3D12_RESOURCE_STATE_SHADER_RESOURCE, D3D12_RESOURCE_STATE_COPY_DEST, 0);
 	{ // Copy data from upload buffer into target texture
 		D3D12_TEXTURE_COPY_LOCATION src_location = { intermediate.get() };
 		src_location.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
@@ -1094,7 +1099,7 @@ void reshade::d3d12::runtime_d3d12::upload_texture(const texture &texture, const
 
 		_cmd_list->CopyTextureRegion(&dst_location, 0, 0, 0, &src_location, nullptr);
 	}
-	transition_state(_cmd_list, impl->resource, D3D12_RESOURCE_STATE_COPY_DEST, impl->state, 0);
+	transition_state(_cmd_list, impl->resource, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_SHADER_RESOURCE, 0);
 
 	generate_mipmaps(texture);
 
@@ -1120,7 +1125,7 @@ void reshade::d3d12::runtime_d3d12::generate_mipmaps(const texture &texture)
 	ID3D12DescriptorHeap *const descriptor_heap = impl->descriptors.get();
 	_cmd_list->SetDescriptorHeaps(1, &descriptor_heap);
 
-	transition_state(_cmd_list, impl->resource, impl->state, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+	transition_state(_cmd_list, impl->resource, D3D12_RESOURCE_STATE_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 	for (uint32_t level = 1; level < texture.levels; ++level)
 	{
 		const uint32_t width = std::max(1u, texture.width >> level);
@@ -1141,7 +1146,7 @@ void reshade::d3d12::runtime_d3d12::generate_mipmaps(const texture &texture)
 		barrier.UAV.pResource = impl->resource.get();
 		_cmd_list->ResourceBarrier(1, &barrier);
 	}
-	transition_state(_cmd_list, impl->resource, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, impl->state);
+	transition_state(_cmd_list, impl->resource, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_SHADER_RESOURCE);
 }
 
 void reshade::d3d12::runtime_d3d12::render_technique(technique &technique)
@@ -1177,8 +1182,7 @@ void reshade::d3d12::runtime_d3d12::render_technique(technique &technique)
 	// Setup samplers
 	_cmd_list->SetGraphicsRootDescriptorTable(2, effect_data.sampler_gpu_base);
 
-	transition_state(_cmd_list, _backbuffers[_swap_index], D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
-	// TODO: Technically would need to transition the depth texture here as well
+	// TODO: Technically need to transition the depth texture here as well
 
 	bool is_effect_stencil_cleared = false;
 	bool needs_implicit_backbuffer_copy = true; // First pass always needs the back buffer updated
@@ -1199,17 +1203,15 @@ void reshade::d3d12::runtime_d3d12::render_technique(technique &technique)
 		const d3d12_pass_data &pass_data = impl->passes[pass_index];
 		const reshadefx::pass_info &pass_info = technique.passes[pass_index];
 
-		// Transition render targets
+		// Transition resource state for render targets
 		for (UINT k = 0; k < pass_data.num_render_targets; ++k)
 		{
-			const auto texture_impl = static_cast<d3d12_tex_data *>(std::find_if(_textures.begin(), _textures.end(),
+			const auto render_target_texture = std::find_if(_textures.begin(), _textures.end(),
 				[&render_target = pass_info.render_target_names[k]](const auto &item) {
 				return item.unique_name == render_target;
-			})->impl);
+			});
 
-			if (texture_impl->state != D3D12_RESOURCE_STATE_RENDER_TARGET)
-				transition_state(_cmd_list, texture_impl->resource, texture_impl->state, D3D12_RESOURCE_STATE_RENDER_TARGET);
-			texture_impl->state = D3D12_RESOURCE_STATE_RENDER_TARGET;
+			transition_state(_cmd_list, static_cast<d3d12_tex_data *>(render_target_texture->impl)->resource, D3D12_RESOURCE_STATE_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
 		}
 
 		// Setup states
@@ -1259,7 +1261,7 @@ void reshade::d3d12::runtime_d3d12::render_technique(technique &technique)
 		_vertices += pass_info.num_vertices;
 		_drawcalls += 1;
 
-		// Generate mipmaps
+		// Generate mipmaps and transition resource state back to shader access
 		for (UINT k = 0; k < pass_data.num_render_targets; ++k)
 		{
 			const auto render_target_texture = std::find_if(_textures.begin(), _textures.end(),
@@ -1267,22 +1269,30 @@ void reshade::d3d12::runtime_d3d12::render_technique(technique &technique)
 				return item.unique_name == render_target;
 			});
 
+			transition_state(_cmd_list, static_cast<d3d12_tex_data *>(render_target_texture->impl)->resource, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_SHADER_RESOURCE);
 			generate_mipmaps(*render_target_texture);
 		}
 	}
-
-	transition_state(_cmd_list, _backbuffers[_swap_index], D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
-
-	execute_command_list();
 }
 
 bool reshade::d3d12::runtime_d3d12::begin_command_list(const com_ptr<ID3D12PipelineState> &state) const
 {
+	if (_cmd_list_is_recording)
+	{
+		if (state != nullptr) // Update pipeline state if requested
+			_cmd_list->SetPipelineState(state.get());
+		return true;
+	}
+
 	// Reset command list using current command allocator and put it into the recording state
-	return SUCCEEDED(_cmd_list->Reset(_cmd_alloc[_swap_index].get(), state.get()));
+	_cmd_list_is_recording = SUCCEEDED(_cmd_list->Reset(_cmd_alloc[_swap_index].get(), state.get()));
+	return _cmd_list_is_recording;
 }
 void reshade::d3d12::runtime_d3d12::execute_command_list() const
 {
+	assert(_cmd_list_is_recording);
+	_cmd_list_is_recording = false;
+
 	if (FAILED(_cmd_list->Close()))
 		return;
 
@@ -1476,9 +1486,6 @@ void reshade::d3d12::runtime_d3d12::render_imgui_draw_data(ImDrawData *draw_data
 	if (!begin_command_list(_imgui.pipeline))
 		return;
 
-	// Transition render target
-	transition_state(_cmd_list, _backbuffers[_swap_index], D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
-
 	// Setup orthographic projection matrix
 	const float ortho_projection[16] = {
 		2.0f / draw_data->DisplaySize.x, 0.0f,  0.0f, 0.0f,
@@ -1523,14 +1530,9 @@ void reshade::d3d12::runtime_d3d12::render_imgui_draw_data(ImDrawData *draw_data
 			};
 			_cmd_list->RSSetScissorRects(1, &scissor_rect);
 
-			const auto texture_impl = static_cast<d3d12_tex_data *>(cmd.TextureId);
-
-			if (texture_impl->state != D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE)
-				transition_state(_cmd_list, texture_impl->resource, texture_impl->state, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-			texture_impl->state = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
-
 			// First descriptor in resource-specific descriptor heap is SRV to top-most mipmap level
-			ID3D12DescriptorHeap *const descriptor_heap = { texture_impl->descriptors.get() };
+			// Can assume that the resource state is D3D12_RESOURCE_STATE_SHADER_RESOURCE at this point
+			ID3D12DescriptorHeap *const descriptor_heap = { static_cast<d3d12_tex_data *>(cmd.TextureId)->descriptors.get() };
 			_cmd_list->SetDescriptorHeaps(1, &descriptor_heap);
 			_cmd_list->SetGraphicsRootDescriptorTable(1, descriptor_heap->GetGPUDescriptorHandleForHeapStart());
 
@@ -1541,11 +1543,6 @@ void reshade::d3d12::runtime_d3d12::render_imgui_draw_data(ImDrawData *draw_data
 		idx_offset += draw_list->IdxBuffer.Size;
 		vtx_offset += draw_list->VtxBuffer.Size;
 	}
-
-	// Transition render target back to previous state
-	transition_state(_cmd_list, _backbuffers[_swap_index], D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
-
-	execute_command_list();
 }
 #endif
 
