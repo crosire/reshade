@@ -375,9 +375,14 @@ void reshade::d3d12::runtime_d3d12::on_present()
 	_cmd_alloc[_swap_index]->Reset();
 
 #if RESHADE_DEPTH
-	assert(_depth_clear_index_override != 0);
-	update_depth_texture_bindings(_has_high_network_activity ? nullptr :
-		_buffer_detection->find_best_depth_texture(_commandqueue.get(), _filter_aspect_ratio ? _width : 0, _height, _depth_texture_override, _preserve_depth_buffers ? _depth_clear_index_override : 0));
+	com_ptr<ID3D12Resource> depth_texture;
+	if (begin_command_list())
+	{
+		assert(_depth_clear_index_override != 0);
+		depth_texture = _buffer_detection->update_depth_texture(_commandqueue.get(), _cmd_list.get(), _filter_aspect_ratio ? _width : 0, _height, _depth_texture_override, _preserve_depth_buffers ? _depth_clear_index_override : 0);
+		execute_command_list();
+	}
+	update_depth_texture_bindings(depth_texture);
 #endif
 
 	update_and_render_effects();
@@ -1627,6 +1632,9 @@ void reshade::d3d12::runtime_d3d12::draw_depth_debug_menu(buffer_detection_conte
 
 void reshade::d3d12::runtime_d3d12::update_depth_texture_bindings(com_ptr<ID3D12Resource> texture)
 {
+	if (_has_high_network_activity)
+		texture = nullptr; // Unbind texture
+
 	if (texture == _depth_texture)
 		return;
 

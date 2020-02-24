@@ -72,9 +72,9 @@ namespace reshade::d3d12
 
 		void on_create_dsv(ID3D12Resource *dsv_texture, D3D12_CPU_DESCRIPTOR_HANDLE handle);
 
-		com_ptr<ID3D12Resource> find_best_depth_texture(ID3D12CommandQueue *queue,
+		com_ptr<ID3D12Resource> update_depth_texture(ID3D12CommandQueue *queue, ID3D12GraphicsCommandList *list,
 			UINT width, UINT height,
-			com_ptr<ID3D12Resource> override = nullptr, UINT clear_index_override = 0);
+			ID3D12Resource *override = nullptr, UINT clear_index_override = 0);
 #endif
 
 	private:
