@@ -219,6 +219,7 @@ com_ptr<ID3D12Resource> reshade::d3d12::buffer_detection_context::find_best_dept
 
 			const D3D12_RESOURCE_DESC desc = dsv_texture->GetDesc();
 			assert((desc.Flags & D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL) != 0);
+			assert((desc.Flags & D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE) == 0);
 
 			if (desc.SampleDesc.Count > 1)
 				continue; // Ignore MSAA textures, since they would need to be resolved first
