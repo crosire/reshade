@@ -129,18 +129,8 @@ void reshade::d3d12::buffer_detection::on_clear_depthstencil(D3D12_CLEAR_FLAGS c
 	{
 		_best_copy_stats = counters.current_stats;
 
-		D3D12_RESOURCE_BARRIER transition = { D3D12_RESOURCE_BARRIER_TYPE_TRANSITION };
-		transition.Transition.pResource = _context->_depthstencil_clear_texture.get();
-		transition.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
-		transition.Transition.StateBefore = D3D12_RESOURCE_STATE_COMMON;
-		transition.Transition.StateAfter = D3D12_RESOURCE_STATE_COPY_DEST;
-		_cmd_list->ResourceBarrier(1, &transition);
-
+		// Do not need to insert a resource barrier here, since the clear texture is in D3D12_RESOURCE_STATE_COMMON, which is implicitly promoted to D3D12_RESOURCE_STATE_COPY_DEST
 		_cmd_list->CopyResource(_context->_depthstencil_clear_texture.get(), dsv_texture.get());
-
-		transition.Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_DEST;
-		transition.Transition.StateAfter = D3D12_RESOURCE_STATE_COMMON;
-		_cmd_list->ResourceBarrier(1, &transition);
 	}
 
 	// Reset draw call stats for clears
@@ -193,7 +183,7 @@ bool reshade::d3d12::buffer_detection_context::update_depthstencil_clear_texture
 		_depthstencil_clear_texture.reset();
 	}
 
-	desc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
+	desc.Flags = D3D12_RESOURCE_FLAG_NONE;
 	desc.Format = make_dxgi_format_typeless(desc.Format);
 
 	D3D12_CLEAR_VALUE clear_value = {};
@@ -201,7 +191,7 @@ bool reshade::d3d12::buffer_detection_context::update_depthstencil_clear_texture
 	clear_value.DepthStencil = { 1.0f, 0x0 };
 	D3D12_HEAP_PROPERTIES heap_props = { D3D12_HEAP_TYPE_DEFAULT };
 
-	if (HRESULT hr = _device->CreateCommittedResource(&heap_props, D3D12_HEAP_FLAG_NONE, &desc, D3D12_RESOURCE_STATE_DEPTH_WRITE, &clear_value, IID_PPV_ARGS(&_depthstencil_clear_texture)); FAILED(hr))
+	if (HRESULT hr = _device->CreateCommittedResource(&heap_props, D3D12_HEAP_FLAG_NONE, &desc, D3D12_RESOURCE_STATE_COMMON, &clear_value, IID_PPV_ARGS(&_depthstencil_clear_texture)); FAILED(hr))
 	{
 		LOG(ERROR) << "Failed to create depth-stencil texture! HRESULT is " << hr << '.';
 		return false;
