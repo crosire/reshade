@@ -14,6 +14,9 @@
 #include <imgui_internal.h>
 #include <d3dcompiler.h>
 
+#define D3D12_RESOURCE_STATE_SHADER_RESOURCE \
+	(D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE)
+
 namespace reshade::d3d12
 {
 	struct d3d12_tex_data
@@ -217,7 +220,7 @@ bool reshade::d3d12::runtime_d3d12::on_init(const DXGI_SWAP_CHAIN_DESC &swap_des
 		desc.SampleDesc = { 1, 0 };
 		D3D12_HEAP_PROPERTIES props = { D3D12_HEAP_TYPE_DEFAULT };
 
-		if (FAILED(_device->CreateCommittedResource(&props, D3D12_HEAP_FLAG_NONE, &desc, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, nullptr, IID_PPV_ARGS(&_backbuffer_texture))))
+		if (FAILED(_device->CreateCommittedResource(&props, D3D12_HEAP_FLAG_NONE, &desc, D3D12_RESOURCE_STATE_SHADER_RESOURCE, nullptr, IID_PPV_ARGS(&_backbuffer_texture))))
 			return false;
 #ifndef NDEBUG
 		_backbuffer_texture->SetName(L"ReShade back buffer");
@@ -950,8 +953,8 @@ bool reshade::d3d12::runtime_d3d12::init_texture(texture &texture)
 	D3D12_CLEAR_VALUE clear_value = {};
 	clear_value.Format = make_dxgi_format_normal(desc.Format);
 
-	// Initialize resource to the pixel shader state immediately, so no additional transition is required
-	impl->state = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+	// Initialize resource to be accessible in shader stages immediately, so no additional transition is required
+	impl->state = D3D12_RESOURCE_STATE_SHADER_RESOURCE;
 
 	D3D12_HEAP_PROPERTIES props = { D3D12_HEAP_TYPE_DEFAULT };
 
@@ -1180,10 +1183,10 @@ void reshade::d3d12::runtime_d3d12::render_technique(technique &technique)
 		if (needs_implicit_backbuffer_copy)
 		{
 			// Save back buffer of previous pass
-			transition_state(_cmd_list, _backbuffer_texture, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_COPY_DEST);
+			transition_state(_cmd_list, _backbuffer_texture, D3D12_RESOURCE_STATE_SHADER_RESOURCE, D3D12_RESOURCE_STATE_COPY_DEST);
 			transition_state(_cmd_list, _backbuffers[_swap_index], D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_COPY_SOURCE);
 			_cmd_list->CopyResource(_backbuffer_texture.get(), _backbuffers[_swap_index].get());
-			transition_state(_cmd_list, _backbuffer_texture, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+			transition_state(_cmd_list, _backbuffer_texture, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_SHADER_RESOURCE);
 			transition_state(_cmd_list, _backbuffers[_swap_index], D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
 		}
 
