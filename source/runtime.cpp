@@ -1153,6 +1153,7 @@ void reshade::runtime::load_current_preset()
 {
 	_preset_save_success = true;
 
+	reshade::ini_file config = ini_file::load_cache(_configuration_path); // Copy config, because reference becomes invalid in the next line
 	const reshade::ini_file &preset = ini_file::load_cache(_current_preset_path);
 
 	std::vector<std::string> technique_list;
@@ -1171,10 +1172,12 @@ void reshade::runtime::load_current_preset()
 		return; // Preset values are loaded in 'update_and_render_effects' during effect loading
 	}
 
-	// Reorder techniques
+	if (sorted_technique_list.empty())
+		config.get("GENERAL", "TechniqueSorting", sorted_technique_list);
 	if (sorted_technique_list.empty())
 		sorted_technique_list = technique_list;
 
+	// Reorder techniques
 	std::sort(_techniques.begin(), _techniques.end(),
 		[&sorted_technique_list](const auto &lhs, const auto &rhs) {
 			return (std::find(sorted_technique_list.begin(), sorted_technique_list.end(), lhs.name) - sorted_technique_list.begin()) <

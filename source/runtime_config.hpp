@@ -157,6 +157,7 @@ namespace reshade
 
 		/// <summary>
 		/// Gets the specified INI file from cache or opens it when it was not cached yet.
+		/// WARNING: Reference is only valid until the next 'load_cache' call.
 		/// </summary>
 		/// <param name="path">The path to the INI file to access.</param>
 		/// <returns>A reference to the cached data. This reference is valid until the next call to <see cref="load_cache"/>.</returns>
