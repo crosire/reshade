@@ -129,8 +129,18 @@ void reshade::d3d12::buffer_detection::on_clear_depthstencil(D3D12_CLEAR_FLAGS c
 	{
 		_best_copy_stats = counters.current_stats;
 
-		// Do not need to insert a resource barrier here, since the clear texture is in D3D12_RESOURCE_STATE_COMMON, which is implicitly promoted to D3D12_RESOURCE_STATE_COPY_DEST
+		D3D12_RESOURCE_BARRIER transition = { D3D12_RESOURCE_BARRIER_TYPE_TRANSITION };
+		transition.Transition.pResource = dsv_texture.get();
+		transition.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+		transition.Transition.StateBefore = D3D12_RESOURCE_STATE_DEPTH_WRITE; // A resource has to be in this state for 'ID3D12GraphicsCommandList::ClearDepthStencilView', so can assume it here
+		transition.Transition.StateAfter = D3D12_RESOURCE_STATE_COPY_SOURCE;
+		_cmd_list->ResourceBarrier(1, &transition);
+
+		// Do not need to insert a resource barrier for '_depthstencil_clear_texture' here, since it is in D3D12_RESOURCE_STATE_COMMON, which is implicitly promoted to D3D12_RESOURCE_STATE_COPY_DEST
 		_cmd_list->CopyResource(_context->_depthstencil_clear_texture.get(), dsv_texture.get());
+
+		std::swap(transition.Transition.StateBefore, transition.Transition.StateAfter);
+		_cmd_list->ResourceBarrier(1, &transition);
 	}
 
 	// Reset draw call stats for clears
@@ -261,6 +271,7 @@ com_ptr<ID3D12Resource> reshade::d3d12::buffer_detection_context::update_depth_t
 	}
 	else
 	{
+		// TODO: Fix resource state transition
 		list->CopyResource(_context->_depthstencil_clear_texture.get(), best_match.get());
 	}
 
