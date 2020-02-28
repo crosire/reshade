@@ -448,7 +448,6 @@ bool reshade::d3d12::runtime_d3d12::capture_screenshot(uint8_t *buffer) const
 	transition_state(_cmd_list, _backbuffers[_swap_index], D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET, 0);
 
 	// Execute and wait for completion
-	execute_command_list();
 	if (!wait_for_command_queue())
 		return false;
 
@@ -1104,7 +1103,6 @@ void reshade::d3d12::runtime_d3d12::upload_texture(const texture &texture, const
 	generate_mipmaps(texture);
 
 	// Execute and wait for completion
-	execute_command_list();
 	wait_for_command_queue();
 }
 void reshade::d3d12::runtime_d3d12::destroy_texture(texture &texture)
@@ -1301,6 +1299,10 @@ void reshade::d3d12::runtime_d3d12::execute_command_list() const
 }
 bool reshade::d3d12::runtime_d3d12::wait_for_command_queue() const
 {
+	// Flush command list, to avoid it still referencing resources that may be destroyed after this call
+	if (_cmd_list_is_recording)
+		execute_command_list();
+
 	// Increment fence value to ensure it has not been signaled before
 	const UINT64 sync_value = _fence_value[_swap_index] + 1;
 	if (FAILED(_commandqueue->Signal(_fence[_swap_index].get(), sync_value)))
