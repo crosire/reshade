@@ -238,7 +238,7 @@ namespace ReShade.Setup
 			MessageDescription.Visibility = string.IsNullOrEmpty(description) ? Visibility.Collapsed : Visibility.Visible;
 			MessageDescription.Text = description;
 
-			Glass.HideSystemMenu(this);
+			AeroGlass.HideSystemMenu(this);
 		}
 		void UpdateStatusAndFinish(bool success, string message, string description = null)
 		{
@@ -247,7 +247,7 @@ namespace ReShade.Setup
 
 			UpdateStatus(success ? "ReShade installation was successful!" : "ReShade installation was not successful!", message, description);
 
-			Glass.HideSystemMenu(this, false);
+			AeroGlass.HideSystemMenu(this, false);
 
 			if (isHeadless)
 			{
@@ -607,8 +607,8 @@ namespace ReShade.Setup
 
 		void OnWindowInit(object sender, EventArgs e)
 		{
-			Glass.HideIcon(this);
-			Glass.ExtendFrame(this);
+			AeroGlass.HideIcon(this);
+			AeroGlass.ExtendFrame(this);
 		}
 		void OnWindowLoaded(object sender, RoutedEventArgs e)
 		{
