@@ -17,25 +17,42 @@
 #include "d3d12/runtime_d3d12.hpp"
 #include <CoreWindow.h>
 
+static void dump_sample_desc(const DXGI_SAMPLE_DESC &desc)
+{
+	LOG(INFO) <<     "  | SampleCount                             | " << std::setw(39) << desc.Count   << " |";
+
+	switch (desc.Quality)
+	{
+	case D3D11_CENTER_MULTISAMPLE_PATTERN:
+		LOG(INFO) << "  | SampleQuality                           | D3D11_CENTER_MULTISAMPLE_PATTERN        |";
+		break;
+	case D3D11_STANDARD_MULTISAMPLE_PATTERN:
+		LOG(INFO) << "  | SampleQuality                           | D3D11_STANDARD_MULTISAMPLE_PATTERN      |";
+		break;
+	default:
+		LOG(INFO) << "  | SampleQuality                           | " << std::setw(39) << desc.Quality << " |";
+		break;
+	}
+}
+
 static void dump_swapchain_desc(const DXGI_SWAP_CHAIN_DESC &desc)
 {
 	LOG(INFO) << "> Dumping swap chain description:";
 	LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
 	LOG(INFO) << "  | Parameter                               | Value                                   |";
 	LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
-	LOG(INFO) << "  | Width                                   | " << std::setw(39) << desc.BufferDesc.Width << " |";
-	LOG(INFO) << "  | Height                                  | " << std::setw(39) << desc.BufferDesc.Height << " |";
+	LOG(INFO) << "  | Width                                   | " << std::setw(39) << desc.BufferDesc.Width   << " |";
+	LOG(INFO) << "  | Height                                  | " << std::setw(39) << desc.BufferDesc.Height  << " |";
 	LOG(INFO) << "  | RefreshRate                             | " << std::setw(19) << desc.BufferDesc.RefreshRate.Numerator << ' ' << std::setw(19) << desc.BufferDesc.RefreshRate.Denominator << " |";
-	LOG(INFO) << "  | Format                                  | " << std::setw(39) << desc.BufferDesc.Format << " |";
-	LOG(INFO) << "  | ScanlineOrdering                        | " << std::setw(39) << desc.BufferDesc.ScanlineOrdering << " |";
+	LOG(INFO) << "  | Format                                  | " << std::setw(39) << desc.BufferDesc.Format  << " |";
+	LOG(INFO) << "  | ScanlineOrdering                        | " << std::setw(39) << desc.BufferDesc.ScanlineOrdering   << " |";
 	LOG(INFO) << "  | Scaling                                 | " << std::setw(39) << desc.BufferDesc.Scaling << " |";
-	LOG(INFO) << "  | SampleCount                             | " << std::setw(39) << desc.SampleDesc.Count << " |";
-	LOG(INFO) << "  | SampleQuality                           | " << std::setw(39) << desc.SampleDesc.Quality << " |";
-	LOG(INFO) << "  | BufferUsage                             | " << std::setw(39) << desc.BufferUsage << " |";
-	LOG(INFO) << "  | BufferCount                             | " << std::setw(39) << desc.BufferCount << " |";
+	dump_sample_desc(desc.SampleDesc);
+	LOG(INFO) << "  | BufferUsage                             | " << std::setw(39) << desc.BufferUsage  << " |";
+	LOG(INFO) << "  | BufferCount                             | " << std::setw(39) << desc.BufferCount  << " |";
 	LOG(INFO) << "  | OutputWindow                            | " << std::setw(39) << desc.OutputWindow << " |";
-	LOG(INFO) << "  | Windowed                                | " << std::setw(39) << (desc.Windowed != FALSE ? "TRUE" : "FALSE") << " |";
-	LOG(INFO) << "  | SwapEffect                              | " << std::setw(39) << desc.SwapEffect << " |";
+	LOG(INFO) << "  | Windowed                                | " << std::setw(39) << (desc.Windowed ? "TRUE" : "FALSE") << " |";
+	LOG(INFO) << "  | SwapEffect                              | " << std::setw(39) << desc.SwapEffect   << " |";
 	LOG(INFO) << "  | Flags                                   | " << std::setw(39) << std::hex << desc.Flags << std::dec << " |";
 	LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
 }
@@ -45,17 +62,16 @@ static void dump_swapchain_desc(const DXGI_SWAP_CHAIN_DESC1 &desc)
 	LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
 	LOG(INFO) << "  | Parameter                               | Value                                   |";
 	LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
-	LOG(INFO) << "  | Width                                   | " << std::setw(39) << desc.Width << " |";
-	LOG(INFO) << "  | Height                                  | " << std::setw(39) << desc.Height << " |";
-	LOG(INFO) << "  | Format                                  | " << std::setw(39) << desc.Format << " |";
-	LOG(INFO) << "  | Stereo                                  | " << std::setw(39) << (desc.Stereo != FALSE ? "TRUE" : "FALSE") << " |";
-	LOG(INFO) << "  | SampleCount                             | " << std::setw(39) << desc.SampleDesc.Count << " |";
-	LOG(INFO) << "  | SampleQuality                           | " << std::setw(39) << desc.SampleDesc.Quality << " |";
+	LOG(INFO) << "  | Width                                   | " << std::setw(39) << desc.Width   << " |";
+	LOG(INFO) << "  | Height                                  | " << std::setw(39) << desc.Height  << " |";
+	LOG(INFO) << "  | Format                                  | " << std::setw(39) << desc.Format  << " |";
+	LOG(INFO) << "  | Stereo                                  | " << std::setw(39) << (desc.Stereo ? "TRUE" : "FALSE") << " |";
+	dump_sample_desc(desc.SampleDesc);
 	LOG(INFO) << "  | BufferUsage                             | " << std::setw(39) << desc.BufferUsage << " |";
 	LOG(INFO) << "  | BufferCount                             | " << std::setw(39) << desc.BufferCount << " |";
-	LOG(INFO) << "  | Scaling                                 | " << std::setw(39) << desc.Scaling << " |";
-	LOG(INFO) << "  | SwapEffect                              | " << std::setw(39) << desc.SwapEffect << " |";
-	LOG(INFO) << "  | AlphaMode                               | " << std::setw(39) << desc.AlphaMode << " |";
+	LOG(INFO) << "  | Scaling                                 | " << std::setw(39) << desc.Scaling     << " |";
+	LOG(INFO) << "  | SwapEffect                              | " << std::setw(39) << desc.SwapEffect  << " |";
+	LOG(INFO) << "  | AlphaMode                               | " << std::setw(39) << desc.AlphaMode   << " |";
 	LOG(INFO) << "  | Flags                                   | " << std::setw(39) << std::hex << desc.Flags << std::dec << " |";
 	LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
 }
