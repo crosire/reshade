@@ -211,6 +211,13 @@ bool reshadefx::preprocessor::consume()
 {
 	_current_input_index = _next_input_index;
 
+	if (_input_stack.empty())
+	{
+		// End of input has been reached already (this can happen when the input text is not terminated with a new line)
+		assert(_current_input_index == 0);
+		return false;
+	}
+
 	// Clear out input stack, now that the current token is overwritten
 	while (_input_stack.size() > (_current_input_index + 1))
 		_input_stack.pop_back();
