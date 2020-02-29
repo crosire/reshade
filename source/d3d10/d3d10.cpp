@@ -74,6 +74,11 @@ HOOK_EXPORT HRESULT WINAPI D3D10CreateDeviceAndSwapChain1(IDXGIAdapter *pAdapter
 		<< ", ppDevice = " << ppDevice
 		<< ')' << " ...";
 
+#ifndef NDEBUG
+	// Remove flag that prevents turning on the debug layer
+	Flags &= ~D3D10_CREATE_DEVICE_PREVENT_ALTERING_LAYER_SETTINGS_FROM_REGISTRY;
+#endif
+
 	HRESULT hr = reshade::hooks::call(D3D10CreateDeviceAndSwapChain1)(pAdapter, DriverType, Software, Flags, HardwareLevel, SDKVersion, nullptr, nullptr, ppDevice);
 	if (FAILED(hr))
 	{
