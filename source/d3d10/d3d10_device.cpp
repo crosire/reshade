@@ -375,7 +375,8 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateTexture2D(const D3D10_TEXTURE2D_DES
 
 	// Add D3D10_BIND_SHADER_RESOURCE flag to all depth-stencil textures so that we can access them in post-processing shaders
 	D3D10_TEXTURE2D_DESC new_desc = *pDesc;
-	if (0 != (new_desc.BindFlags & D3D10_BIND_DEPTH_STENCIL))
+	if (new_desc.SampleDesc.Count == 1 && // Skip MSAA textures
+		0 != (new_desc.BindFlags & D3D10_BIND_DEPTH_STENCIL))
 	{
 		new_desc.Format = make_dxgi_format_typeless(new_desc.Format);
 		new_desc.BindFlags |= D3D10_BIND_SHADER_RESOURCE;
@@ -408,15 +409,18 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateShaderResourceView(ID3D10Resource *
 			texture->GetDesc(&texture_desc);
 
 			// Only textures with the depth-stencil bind flag where modified, so skip all others
-			if (0 != (texture_desc.BindFlags & D3D10_BIND_DEPTH_STENCIL))
+			if (texture_desc.SampleDesc.Count == 1 &&
+				0 != (texture_desc.BindFlags & D3D10_BIND_DEPTH_STENCIL))
 			{
 				new_desc.Format = make_dxgi_format_normal(texture_desc.Format);
 
 				if (pDesc == nullptr) // Only need to set the rest of the fields if the application did not pass in a valid description already
 				{
-					new_desc.ViewDimension = D3D10_SRV_DIMENSION_TEXTURE2D;
-					new_desc.Texture2D.MipLevels = texture_desc.MipLevels;
-					new_desc.Texture2D.MostDetailedMip = 0;
+					new_desc.ViewDimension = texture_desc.ArraySize > 1 ? D3D10_SRV_DIMENSION_TEXTURE2DARRAY : D3D10_SRV_DIMENSION_TEXTURE2D;
+					new_desc.Texture2DArray.MipLevels = texture_desc.MipLevels;
+					new_desc.Texture2DArray.MostDetailedMip = 0;
+					new_desc.Texture2DArray.ArraySize = texture_desc.ArraySize;
+					new_desc.Texture2DArray.FirstArraySlice = 0;
 				}
 
 				pDesc = &new_desc;
@@ -450,15 +454,23 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateDepthStencilView(ID3D10Resource *pR
 		{
 			texture->GetDesc(&texture_desc);
 
-			new_desc.Format = make_dxgi_format_dsv(texture_desc.Format);
-
-			if (pDesc == nullptr) // Only need to set the rest of the fields if the application did not pass in a valid description already
+			// Only non-MSAA textures where modified, so skip all others
+			if (texture_desc.SampleDesc.Count == 1)
 			{
-				new_desc.ViewDimension = D3D10_DSV_DIMENSION_TEXTURE2D;
-				new_desc.Texture2D.MipSlice = 0;
-			}
+				assert((texture_desc.BindFlags & D3D10_BIND_DEPTH_STENCIL) != 0);
 
-			pDesc = &new_desc;
+				new_desc.Format = make_dxgi_format_dsv(texture_desc.Format);
+
+				if (pDesc == nullptr) // Only need to set the rest of the fields if the application did not pass in a valid description already
+				{
+					new_desc.ViewDimension = texture_desc.ArraySize > 1 ? D3D10_DSV_DIMENSION_TEXTURE2DARRAY : D3D10_DSV_DIMENSION_TEXTURE2D;
+					new_desc.Texture2DArray.MipSlice = 0;
+					new_desc.Texture2DArray.FirstArraySlice = 0;
+					new_desc.Texture2DArray.ArraySize = texture_desc.ArraySize;
+				}
+
+				pDesc = &new_desc;
+			}
 		}
 	}
 
@@ -564,15 +576,18 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateShaderResourceView1(ID3D10Resource 
 		{
 			texture->GetDesc(&texture_desc);
 
-			if (0 != (texture_desc.BindFlags & D3D10_BIND_DEPTH_STENCIL))
+			if (texture_desc.SampleDesc.Count == 1 &&
+				0 != (texture_desc.BindFlags & D3D10_BIND_DEPTH_STENCIL))
 			{
 				new_desc.Format = make_dxgi_format_normal(texture_desc.Format);
 
 				if (pDesc == nullptr)
 				{
-					new_desc.ViewDimension = D3D10_1_SRV_DIMENSION_TEXTURE2D;
-					new_desc.Texture2D.MipLevels = texture_desc.MipLevels;
-					new_desc.Texture2D.MostDetailedMip = 0;
+					new_desc.ViewDimension = texture_desc.ArraySize > 1 ? D3D10_1_SRV_DIMENSION_TEXTURE2DARRAY : D3D10_1_SRV_DIMENSION_TEXTURE2D;
+					new_desc.Texture2DArray.MipLevels = texture_desc.MipLevels;
+					new_desc.Texture2DArray.MostDetailedMip = 0;
+					new_desc.Texture2DArray.ArraySize = texture_desc.ArraySize;
+					new_desc.Texture2DArray.FirstArraySlice = 0;
 				}
 
 				pDesc = &new_desc;

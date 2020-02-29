@@ -143,6 +143,8 @@ com_ptr<ID3D10Texture2D> reshade::d3d10::buffer_detection::find_best_depth_textu
 			if (desc.SampleDesc.Count > 1)
 				continue; // Ignore MSAA textures, since they would need to be resolved first
 
+			assert((desc.BindFlags & D3D10_BIND_SHADER_RESOURCE) != 0);
+
 			if (width != 0 && height != 0)
 			{
 				const float w = static_cast<float>(width);
