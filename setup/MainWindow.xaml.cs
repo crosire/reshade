@@ -46,7 +46,7 @@ namespace ReShade.Setup
 
 		static void MoveFiles(string sourcePath, string targetPath)
 		{
-			if (!Directory.Exists(targetPath))
+			if (Directory.Exists(targetPath) == false)
 			{
 				Directory.CreateDirectory(targetPath);
 			}
@@ -56,6 +56,14 @@ namespace ReShade.Setup
 				string target = targetPath + source.Replace(sourcePath, string.Empty);
 
 				File.Copy(source, target, true);
+			}
+
+			// Copy files recursively
+			foreach (string source in Directory.GetDirectories(sourcePath))
+			{
+				string target = targetPath + source.Replace(sourcePath, string.Empty);
+
+				MoveFiles(source, target);
 			}
 		}
 		static bool IsWritable(string targetPath)
@@ -449,37 +457,16 @@ namespace ReShade.Setup
 
 			if (!isHeadless)
 			{
-				string targetPathShaders = Path.Combine(Path.GetDirectoryName(targetPath), "reshade-shaders", "Shaders");
-
-				string[] installedEffects = null;
-				if (Directory.Exists(targetPathShaders))
-				{
-					installedEffects = Directory.GetFiles(targetPathShaders).Select(x => Path.GetFileName(x)).ToArray();
-				}
-
 				var dlg = new SelectEffectsDialog();
 				dlg.Owner = this;
 
-				// If there was an existing installation, select the same effects as previously
-				if (installedEffects != null)
-				{
-					foreach (EffectRepositoryItem repository in dlg.EffectList.Items)
-					{
-						foreach (EffectItem item in repository.Effects)
-						{
-							item.Enabled = installedEffects.Contains(Path.GetFileName(item.Path));
-						}
-					}
-				}
-
 				if (dlg.ShowDialog() == true)
 				{
-					var repositoryItems = dlg.EffectList.Items.Cast<EffectRepositoryItem>();
-					var repositoryNames = new Queue<string>(repositoryItems.Where(x => x.Enabled != false).Select(x => x.Name));
+					var packages = new Queue<string>(dlg.EnabledPackageUrls);
 
-					if (repositoryNames.Count != 0)
+					if (packages.Count != 0)
 					{
-						InstallationStep4(repositoryNames, repositoryItems.SelectMany(x => x.Effects).Where(x => !x.Enabled.Value).Select(x => Path.GetFileName(x.Path)).ToList());
+						InstallationStep4(packages);
 						return;
 					}
 				}
@@ -493,17 +480,17 @@ namespace ReShade.Setup
 
 			InstallationStep6();
 		}
-		void InstallationStep4(Queue<string> repositories, List<string> disabledFiles)
+		void InstallationStep4(Queue<string> packages)
 		{
 			ApiGroup.IsEnabled = false;
 			SetupButton.IsEnabled = false;
 			ApiGroup.Visibility = ApiD3D9.Visibility = ApiDXGI.Visibility = ApiOpenGL.Visibility = ApiVulkan.Visibility = Visibility.Visible;
 			ApiVulkanGlobal.Visibility = ApiVulkanGlobalButton.Visibility = Visibility.Collapsed;
 
-			string repository = repositories.Dequeue();
-			string downloadPath = Path.GetTempFileName();
+			var downloadUrl = new Uri(packages.Dequeue());
+			var downloadPath = Path.GetTempFileName();
 
-			UpdateStatus("Working on " + targetName + " ...", "Downloading " + repository + " ...");
+			UpdateStatus("Working on " + targetName + " ...", "Downloading " + downloadUrl.AbsolutePath + " ...");
 
 			// Add support for TLS 1.2, so that HTTPS connection to GitHub succeeds
 			ServicePointManager.SecurityProtocol |= SecurityProtocolType.Tls12;
@@ -513,15 +500,15 @@ namespace ReShade.Setup
 			client.DownloadFileCompleted += (object sender, System.ComponentModel.AsyncCompletedEventArgs e) => {
 				if (e.Error != null)
 				{
-					UpdateStatusAndFinish(false, "Unable to download from " + repository + ".", e.Error.Message);
+					UpdateStatusAndFinish(false, "Unable to download from " + downloadUrl + ".", e.Error.Message);
 				}
 				else
 				{
-					InstallationStep5(downloadPath, repository.Substring(repository.IndexOf('/') + 1) + "-master", disabledFiles);
+					InstallationStep5(downloadPath, downloadUrl.AbsolutePath);
 
-					if (repositories.Count != 0)
+					if (packages.Count != 0)
 					{
-						InstallationStep4(repositories, disabledFiles);
+						InstallationStep4(packages);
 					}
 				}
 			};
@@ -530,26 +517,24 @@ namespace ReShade.Setup
 				// Avoid negative percentage values
 				if (e.TotalBytesToReceive > 0)
 				{
-					Message.Text = "Downloading " + repository + " ... (" + ((100 * e.BytesReceived) / e.TotalBytesToReceive) + "%)";
+					Message.Text = "Downloading " + downloadUrl.AbsolutePath + " ... (" + ((100 * e.BytesReceived) / e.TotalBytesToReceive) + "%)";
 				}
 			};
 
 			try
 			{
-				client.DownloadFileAsync(new Uri("https://github.com/" + repository + "/archive/master.zip"), downloadPath);
+				client.DownloadFileAsync(downloadUrl, downloadPath);
 			}
 			catch (Exception ex)
 			{
-				UpdateStatusAndFinish(false, "Unable to download from " + repository + ".", ex.Message);
+				UpdateStatusAndFinish(false, "Unable to download from " + downloadUrl + ".", ex.Message);
 			}
 		}
-		void InstallationStep5(string downloadPath, string downloadName, List<string> disabledFiles)
+		void InstallationStep5(string downloadPath, string downloadName)
 		{
 			UpdateStatus("Working on " + targetName + " ...", "Extracting " + downloadName + " ...");
 
-			string tempPath = Path.Combine(Path.GetTempPath(), downloadName);
-			string tempPathShaders = Path.Combine(tempPath, "Shaders");
-			string tempPathTextures = Path.Combine(tempPath, "Textures");
+			string tempPath = Path.Combine(Path.GetTempPath(), "reshade-shaders");
 			string targetPath = Path.Combine(Path.GetDirectoryName(this.targetPath), "reshade-shaders");
 			string targetPathShaders = Path.Combine(targetPath, "Shaders");
 			string targetPathTextures = Path.Combine(targetPath, "Textures");
@@ -561,10 +546,16 @@ namespace ReShade.Setup
 					Directory.Delete(tempPath, true);
 				}
 
-				ZipFile.ExtractToDirectory(downloadPath, Path.GetTempPath());
+				ZipFile.ExtractToDirectory(downloadPath, tempPath);
 
-				MoveFiles(tempPathShaders, targetPathShaders);
-				if (Directory.Exists(tempPathTextures))
+				string tempPathShaders = Directory.GetFiles(tempPath, "*.fx", SearchOption.AllDirectories).Select(x => Path.GetDirectoryName(x)).OrderBy(x => x.Length).First();
+				string tempPathTextures = Directory.GetDirectories(tempPath, "Textures", SearchOption.AllDirectories).FirstOrDefault();
+
+				if (tempPathShaders != null)
+				{
+					MoveFiles(tempPathShaders, targetPathShaders);
+				}
+				if (tempPathTextures != null)
 				{
 					MoveFiles(tempPathTextures, targetPathTextures);
 				}
@@ -576,18 +567,6 @@ namespace ReShade.Setup
 			{
 				UpdateStatusAndFinish(false, "Unable to extract " + downloadName + ".", ex.Message);
 				return;
-			}
-
-			foreach (var filename in disabledFiles)
-			{
-				try
-				{
-					File.Delete(Path.Combine(targetPathShaders, filename));
-				}
-				catch
-				{
-					continue;
-				}
 			}
 
 			WriteSearchPaths(".\\reshade-shaders\\Shaders", ".\\reshade-shaders\\Textures");
