@@ -819,14 +819,35 @@ namespace ReShade.Setup
 				return;
 			}
 
-			var dlg = new SelectAppDialog();
-			dlg.Owner = this;
-
-			if (dlg.ShowDialog() == true)
+			if (Keyboard.Modifiers == ModifierKeys.Alt)
 			{
-				targetPath = dlg.FileName;
+				var dlg = new OpenFileDialog
+				{
+					Filter = "Applications|*.exe",
+					DefaultExt = ".exe",
+					Multiselect = false,
+					ValidateNames = true,
+					CheckFileExists = true
+				};
 
-				InstallationStep0();
+				if (dlg.ShowDialog(this) == true)
+				{
+					targetPath = dlg.FileName;
+
+					InstallationStep0();
+				}
+			}
+			else
+			{
+				var dlg = new SelectAppDialog();
+				dlg.Owner = this;
+
+				if (dlg.ShowDialog() == true)
+				{
+					targetPath = dlg.FileName;
+
+					InstallationStep0();
+				}
 			}
 		}
 		void OnSetupButtonDragDrop(object sender, DragEventArgs e)
