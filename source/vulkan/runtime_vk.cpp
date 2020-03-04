@@ -1762,6 +1762,17 @@ VkImage reshade::vulkan::runtime_vk::create_image(uint32_t width, uint32_t heigh
 	create_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 	create_info.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 
+	const VkFormat format_list[2] = { make_format_normal(format), make_format_srgb(format) };
+	VkImageFormatListCreateInfoKHR format_list_info { VK_STRUCTURE_TYPE_IMAGE_FORMAT_LIST_CREATE_INFO_KHR };
+
+	if (format_list[0] != format_list[1])
+	{
+		format_list_info.viewFormatCount = 2;
+		format_list_info.pViewFormats = format_list;
+
+		create_info.pNext = &format_list_info;
+	}
+
 	VmaAllocation alloc = VK_NULL_HANDLE;
 	VmaAllocationCreateInfo alloc_info = {};
 	alloc_info.flags = mem_flags;
