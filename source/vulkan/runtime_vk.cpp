@@ -1765,7 +1765,7 @@ VkImage reshade::vulkan::runtime_vk::create_image(uint32_t width, uint32_t heigh
 	const VkFormat format_list[2] = { make_format_normal(format), make_format_srgb(format) };
 	VkImageFormatListCreateInfoKHR format_list_info { VK_STRUCTURE_TYPE_IMAGE_FORMAT_LIST_CREATE_INFO_KHR };
 
-	if (format_list[0] != format_list[1])
+	if (format_list[0] != format_list[1] && (flags & VK_IMAGE_CREATE_MUTABLE_FORMAT_BIT) != 0)
 	{
 		format_list_info.viewFormatCount = 2;
 		format_list_info.pViewFormats = format_list;
