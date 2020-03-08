@@ -360,7 +360,8 @@ void reshade::input::next_frame()
 	const DWORD time = GetTickCount();
 	for (unsigned int i = 0; i < 256; ++i)
 		if ((_keys[i] & 0x80) != 0 &&
-			(time - _keys_time[i]) > 5000)
+			(time - _keys_time[i]) > 5000 &&
+			(GetAsyncKeyState(i) & 0x8000) == 0)
 			_keys[i] = 0x08;
 
 	_text_input.clear();
