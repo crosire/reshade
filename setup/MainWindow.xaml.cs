@@ -86,7 +86,7 @@ namespace ReShade.Setup
 			using (var input = File.OpenRead(Assembly.GetExecutingAssembly().Location))
 			{
 				byte[] block = new byte[512];
-				byte[] signature = { 0x50, 0x4B, 0x03, 0x04, 0x14, 0x00, 0x00, 0x00 }; // PK..
+				byte[] signature = { 0x50, 0x4B, 0x03, 0x04 }; // PK..
 
 				// Look for archive at the end of this executable and copy it to a file
 				while (input.Read(block, 0, block.Length) >= signature.Length)
