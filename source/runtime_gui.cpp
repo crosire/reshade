@@ -2233,6 +2233,8 @@ void reshade::runtime::draw_variable_editor()
 		{
 			if (!ImGui::BeginTabItem(source_file.c_str()))
 				continue;
+			// Begin a new child here so scrolling through variables does not move the tab itself too
+			ImGui::BeginChild("##tab");
 		}
 		else
 		{
@@ -2527,9 +2529,14 @@ void reshade::runtime::draw_variable_editor()
 		}
 
 		if (_variable_editor_tabs)
+		{
+			ImGui::EndChild();
 			ImGui::EndTabItem();
+		}
 		else
+		{
 			ImGui::TreePop();
+		}
 
 		if (reload_effect)
 		{
