@@ -155,7 +155,7 @@ namespace ReShade.Setup
 				iniFile.SetValue("GENERAL", "TextureSearchPaths", paths.ToArray());
 			}
 
-			iniFile.Save();
+			iniFile.SaveFile();
 		}
 
 		bool EnableVulkanLayer(RegistryKey hive)
@@ -409,36 +409,49 @@ namespace ReShade.Setup
 		}
 		void InstallationStep3()
 		{
+			ApiGroup.Visibility = Visibility.Visible;
+			InstallButtons.Visibility = Visibility.Collapsed;
+
 			Message.Text = "Installing ReShade ...";
 
-			if (ApiVulkan.IsChecked != true)
-			{
-				ApiGroup.Visibility = Visibility.Visible;
-				InstallButtons.Visibility = Visibility.Collapsed;
+			IniFile packagesIni = null;
+			IniFile compatibilityIni = null;
 
-				try
+			try
+			{
+				using (ZipArchive zip = ExtractArchive())
 				{
-					using (ZipArchive zip = ExtractArchive())
+					if (ApiVulkan.IsChecked != true)
 					{
-						if (zip.Entries.Count != 4)
+						var module = zip.GetEntry(is64Bit ? "ReShade64.dll" : "ReShade32.dll");
+						if (module == null)
 						{
 							throw new FileFormatException("Expected ReShade archive to contain ReShade DLLs");
 						}
 
-						// 0: ReShade32.dll
-						// 2: ReShade64.dll
-						using (Stream input = zip.Entries[is64Bit ? 2 : 0].Open())
+						using (Stream input = module.Open())
 						using (FileStream output = File.Create(modulePath))
 						{
 							input.CopyTo(output);
 						}
 					}
+
+					var packagesEntry = zip.GetEntry("SetupEffectPackages.ini");
+					if (packagesEntry != null)
+					{
+						packagesIni = new IniFile(packagesEntry.Open());
+					}
+					var compatibilityEntry = zip.GetEntry("SetupCompatibility.ini");
+					if (compatibilityEntry != null)
+					{
+						compatibilityIni = new IniFile(compatibilityEntry.Open());
+					}
 				}
-				catch (Exception ex)
-				{
-					UpdateStatusAndFinish(false, "Unable to write " + Path.GetFileName(modulePath) + ".", ex.Message);
-					return;
-				}
+			}
+			catch (Exception ex)
+			{
+				UpdateStatusAndFinish(false, "Unable to write " + Path.GetFileName(modulePath) + ".", ex.Message);
+				return;
 			}
 
 			// Copy potential pre-made configuration file to target
@@ -455,9 +468,22 @@ namespace ReShade.Setup
 				}
 			}
 
-			if (!isHeadless)
+			// Add default configuration
+			var config = new IniFile(configPath);
+			if (compatibilityIni != null && !config.HasValue("GENERAL", "PreprocessorDefinitions"))
 			{
-				var dlg = new SelectEffectsDialog();
+				config.SetValue("GENERAL", "PreprocessorDefinitions",
+					"RESHADE_DEPTH_LINEARIZATION_FAR_PLANE=1000.0",
+					"RESHADE_DEPTH_INPUT_IS_UPSIDE_DOWN=" + compatibilityIni.GetString(targetName, "DepthUpsideDown", "0"),
+					"RESHADE_DEPTH_INPUT_IS_REVERSED=" + compatibilityIni.GetString(targetName, "DepthReversed", "0"),
+					"RESHADE_DEPTH_INPUT_IS_LOGARITHMIC=" + compatibilityIni.GetString(targetName, "DepthLogarithmic", "0"));
+				config.SaveFile();
+			}
+
+			// Only show the selection dialog if there are actually packages to choose
+			if (!isHeadless && packagesIni != null)
+			{
+				var dlg = new SelectEffectsDialog(packagesIni);
 				dlg.Owner = this;
 
 				if (dlg.ShowDialog() == true)
@@ -473,7 +499,7 @@ namespace ReShade.Setup
 			}
 
 			// Add default search paths if no config exists
-			if (!File.Exists(configPath))
+			if (!config.HasValue("GENERAL", "EffectSearchPaths") && !config.HasValue("GENERAL", "TextureSearchPaths"))
 			{
 				WriteSearchPaths(".\\", ".\\");
 			}

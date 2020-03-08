@@ -37,7 +37,7 @@ namespace ReShade.Setup
 			var skipTut = SkipTut.IsChecked;
 			iniFile.SetValue("GENERAL", "TutorialProgress", skipTut.HasValue ? (skipTut.Value ? "4" : "0") : iniFile.GetString("GENERAL", "TutorialProgress", "0"));
 
-			iniFile.Save();
+			iniFile.SaveFile();
 
 			DialogResult = true;
 		}

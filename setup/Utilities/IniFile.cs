@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text;
 
 namespace ReShade.Utilities
@@ -11,48 +12,62 @@ namespace ReShade.Utilities
 		SortedDictionary<string, SortedDictionary<string, string[]>> sections =
 			new SortedDictionary<string, SortedDictionary<string, string[]>>();
 
-		public IniFile(string path)
+		public IniFile(string path) : this(File.Exists(path) ? new FileStream(path, FileMode.Open) : null)
 		{
 			filePath = path;
-
-			if (!File.Exists(filePath))
+		}
+		public IniFile(Stream stream)
+		{
+			if (stream == null)
 			{
 				return;
 			}
 
 			var section = string.Empty;
 
-			foreach (var next in File.ReadLines(filePath, Encoding.UTF8))
+			using (var reader = new StreamReader(stream, Encoding.UTF8))
 			{
-				var line = next.Trim();
-				if (string.IsNullOrEmpty(line) ||
-					// Ignore lines which are comments
-					line.StartsWith(";", StringComparison.Ordinal) ||
-					line.StartsWith("//", StringComparison.Ordinal))
+				while (!reader.EndOfStream)
 				{
-					continue;
-				}
+					string line = reader.ReadLine().Trim();
+					if (string.IsNullOrEmpty(line) ||
+						// Ignore lines which are comments
+						line.StartsWith(";", StringComparison.Ordinal) ||
+						line.StartsWith("//", StringComparison.Ordinal))
+					{
+						continue;
+					}
 
-				if (line.StartsWith("[", StringComparison.Ordinal) && line.EndsWith("]", StringComparison.Ordinal))
-				{
-					// This is a section definition
-					section = line.Substring(1, line.Length - 2);
-					continue;
-				}
+					if (line.StartsWith("[", StringComparison.Ordinal) && line.EndsWith("]", StringComparison.Ordinal))
+					{
+						// This is a section definition
+						section = line.Substring(1, line.Length - 2);
+						continue;
+					}
 
-				var pair = line.Split(new[] { '=' }, 2, StringSplitOptions.None);
-				if (pair.Length == 2 && pair[0].Trim() is var key && pair[1].Trim() is var value)
-				{
-					SetValue(section, key, value.Split(new[] { ',' }, StringSplitOptions.None));
-				}
-				else
-				{
-					SetValue(section, line);
+					var pair = line.Split(new[] { '=' }, 2, StringSplitOptions.None);
+					if (pair.Length == 2 && pair[0].Trim() is var key && pair[1].Trim() is var value)
+					{
+						SetValue(section, key, value.Split(new[] { ',' }, StringSplitOptions.None));
+					}
+					else
+					{
+						SetValue(section, line);
+					}
 				}
 			}
 		}
 
-		public void Save()
+		public void SaveFile()
+		{
+			if (filePath == null)
+			{
+				throw new InvalidOperationException();
+			}
+
+			SaveFile(filePath);
+		}
+		public void SaveFile(string path)
 		{
 			var text = new StringBuilder();
 
@@ -73,9 +88,13 @@ namespace ReShade.Utilities
 
 			text.AppendLine();
 
-			File.WriteAllText(filePath, text.ToString(), Encoding.UTF8);
+			File.WriteAllText(path, text.ToString(), Encoding.UTF8);
 		}
 
+		public bool HasValue(string section, string key)
+		{
+			return sections.TryGetValue(section, out var sectionData) && sectionData.ContainsKey(key);
+		}
 		public bool GetValue(string section, string key, out string[] value)
 		{
 			if (!sections.TryGetValue(section, out var sectionData))
@@ -99,6 +118,11 @@ namespace ReShade.Utilities
 		public string GetString(string section, string key, string def = default)
 		{
 			return GetValue(section, key, out var value) ? string.Join(",", value) : def;
+		}
+
+		public string[] GetSections()
+		{
+			return sections.Select(x => x.Key).ToArray();
 		}
 	}
 }

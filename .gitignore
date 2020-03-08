@@ -35,3 +35,5 @@ Thumbs.db
 
 # Versioning
 /res/Version.h
+/res/SetupCompatibility.ini
+/res/SetupEffectPackages.ini
