@@ -120,16 +120,7 @@ void imgui_code_editor::render(const char *title, bool border)
 		io.WantTextInput = true;
 		io.WantCaptureKeyboard = true;
 
-		if (ctrl && !shift && !alt && (ImGui::IsKeyPressed('F') || ImGui::IsKeyPressed('H')))
-		{
-			// Copy currently selected text into search box
-			if (_select_beg != _select_end)
-				_search_text[get_selected_text().copy(_search_text, sizeof(_search_text) - 1)] = '\0';
-
-			_search_window_open = ImGui::IsKeyPressed('H') ? 2 /* search + replace */ : 1 /* search */;
-			_search_window_focus = 2; // Need to focus multiple frames (see https://github.com/ocornut/imgui/issues/343)
-		}
-		else if (ctrl && !shift && !alt && ImGui::IsKeyPressed('Z'))
+		if (ctrl && !shift && !alt && ImGui::IsKeyPressed('Z'))
 			undo();
 		else if (ctrl && !shift && !alt && ImGui::IsKeyPressed('Y'))
 			redo();
@@ -474,12 +465,22 @@ void imgui_code_editor::render(const char *title, bool border)
 	ImGui::PopStyleVar();
 	ImGui::PopStyleColor();
 
+	if (ctrl && !shift && !alt && (ImGui::IsKeyPressed('F') || ImGui::IsKeyPressed('H')))
+	{
+		// Copy currently selected text into search box
+		if (_select_beg != _select_end)
+			_search_text[get_selected_text().copy(_search_text, sizeof(_search_text) - 1)] = '\0';
+
+		_search_window_open = ImGui::IsKeyPressed('H') ? 2 /* search + replace */ : 1 /* search */;
+		_search_window_focus = 2; // Need to focus multiple frames (see https://github.com/ocornut/imgui/issues/343)
+	}
+
 	if (_search_window_open)
 	{
 		ImGui::Dummy(ImVec2(0, ImGui::GetStyle().ItemSpacing.y));
 		ImGui::BeginChild("##search", ImVec2(0, 0));
 
-		const float input_width = ImGui::GetContentRegionAvail().x - (4 * button_spacing) - (4 * button_size);
+		const float input_width = ImGui::GetContentRegionAvail().x - (4 * button_spacing) - (4 * button_size) - 5;
 		ImGui::PushItemWidth(input_width);
 		if (ImGui::InputText("##search", _search_text, sizeof(_search_text), ImGuiInputTextFlags_AutoSelectAll | ImGuiInputTextFlags_EnterReturnsTrue | ImGuiInputTextFlags_AllowTabInput))
 		{
@@ -495,19 +496,30 @@ void imgui_code_editor::render(const char *title, bool border)
 		}
 
 		ImGui::SameLine(0.0f, button_spacing);
-		ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyle().Colors[_search_case_insensitive ? ImGuiCol_ButtonActive : ImGuiCol_Button]);
-		if (ImGui::Button("I", ImVec2(button_size, 0)))
-			_search_case_insensitive = !_search_case_insensitive;
+		ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyle().Colors[_search_case_sensitive ? ImGuiCol_ButtonActive : ImGuiCol_Button]);
+		if (ImGui::Button("Aa", ImVec2(button_size + 5, 0)) || (!ctrl && !shift && alt && ImGui::IsKeyPressed('C')))
+			_search_case_sensitive = !_search_case_sensitive;
 		ImGui::PopStyleColor();
+		if (ImGui::IsItemHovered())
+			ImGui::SetTooltip("Match case (Alt + C)");
+
 		ImGui::SameLine(0.0f, button_spacing);
-		if (ImGui::Button("<", ImVec2(button_size, 0)))
+		if (ImGui::Button("<", ImVec2(button_size, 0)) || (shift && ImGui::IsKeyPressed(0x72))) // VK_F3
 			find_and_scroll_to_text(_search_text, true);
+		if (ImGui::IsItemHovered())
+			ImGui::SetTooltip("Find previous (Shift + F3)");
+
 		ImGui::SameLine(0.0f, button_spacing);
-		if (ImGui::Button(">", ImVec2(button_size, 0)))
+		if (ImGui::Button(">", ImVec2(button_size, 0)) || (!shift && ImGui::IsKeyPressed(0x72)))
 			find_and_scroll_to_text(_search_text, false);
+		if (ImGui::IsItemHovered())
+			ImGui::SetTooltip("Find next (F3)");
+
 		ImGui::SameLine(0.0f, button_spacing);
 		if (ImGui::Button("X", ImVec2(button_size, 0)) || ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_Escape)))
 			_search_window_open = _search_window_focus = 0;
+		if (ImGui::IsItemHovered())
+			ImGui::SetTooltip("Close (Escape)");
 
 		if (_search_window_open != 1)
 		{
@@ -526,14 +538,19 @@ void imgui_code_editor::render(const char *title, bool border)
 				ImGui::SetKeyboardFocusHere(-1);
 			}
 
-			ImGui::SameLine(0.0f, 2 * button_size + 3 * button_spacing);
-			if (ImGui::Button("R", ImVec2(button_size, 0)))
+			ImGui::SameLine(0.0f, button_spacing * 2 + button_size + 5);
+			if (ImGui::Button("Repl", ImVec2(2 * button_size + button_spacing, 0)) || (!ctrl && !shift && alt && ImGui::IsKeyPressed('R')))
 				if (find_and_scroll_to_text(_search_text, false, true))
 					insert_text(_replace_text);
+			if (ImGui::IsItemHovered())
+				ImGui::SetTooltip("Replace next (Alt + R)");
+
 			ImGui::SameLine(0.0f, button_spacing);
-			if (ImGui::Button("A", ImVec2(button_size, 0)))
+			if (ImGui::Button("A", ImVec2(button_size, 0)) || (!ctrl && !shift && alt && ImGui::IsKeyPressed('A')))
 				while (find_and_scroll_to_text(_search_text, false, true))
 					insert_text(_replace_text);
+			if (ImGui::IsItemHovered())
+				ImGui::SetTooltip("Replace all (Alt + A)");
 		}
 
 		ImGui::EndChild();
@@ -1428,7 +1445,7 @@ bool imgui_code_editor::find_and_scroll_to_text(const std::string &text, bool ba
 		return false; // Cannot search for empty text
 
 	const auto compare_c = [this](char clhs, char crhs) {
-		return _search_case_insensitive ? tolower(clhs) == tolower(crhs) : clhs == crhs;
+		return _search_case_sensitive ? clhs == crhs : tolower(clhs) == tolower(crhs);
 	};
 
 	// Start search at the cursor position

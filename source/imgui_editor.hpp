@@ -145,7 +145,7 @@ private:
 	bool _overwrite = false;
 	bool _scroll_to_cursor = false;
 	bool _show_search_popup = false;
-	bool _search_case_insensitive = false;
+	bool _search_case_sensitive = true;
 	float _cursor_anim = 0.0f;
 	double _last_click_time = -1.0;
 
