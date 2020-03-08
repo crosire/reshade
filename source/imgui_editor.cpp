@@ -479,7 +479,7 @@ void imgui_code_editor::render(const char *title, bool border)
 		ImGui::Dummy(ImVec2(0, ImGui::GetStyle().ItemSpacing.y));
 		ImGui::BeginChild("##search", ImVec2(0, 0));
 
-		const float input_width = ImGui::GetContentRegionAvail().x - (3 * button_spacing) - (3 * button_size);
+		const float input_width = ImGui::GetContentRegionAvail().x - (4 * button_spacing) - (4 * button_size);
 		ImGui::PushItemWidth(input_width);
 		if (ImGui::InputText("##search", _search_text, sizeof(_search_text), ImGuiInputTextFlags_AutoSelectAll | ImGuiInputTextFlags_EnterReturnsTrue | ImGuiInputTextFlags_AllowTabInput))
 		{
@@ -494,6 +494,11 @@ void imgui_code_editor::render(const char *title, bool border)
 			ImGui::SetKeyboardFocusHere(-1);
 		}
 
+		ImGui::SameLine(0.0f, button_spacing);
+		ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyle().Colors[_search_case_insensitive ? ImGuiCol_ButtonActive : ImGuiCol_Button]);
+		if (ImGui::Button("I", ImVec2(button_size, 0)))
+			_search_case_insensitive = !_search_case_insensitive;
+		ImGui::PopStyleColor();
 		ImGui::SameLine(0.0f, button_spacing);
 		if (ImGui::Button("<", ImVec2(button_size, 0)))
 			find_and_scroll_to_text(_search_text, true);
@@ -521,7 +526,7 @@ void imgui_code_editor::render(const char *title, bool border)
 				ImGui::SetKeyboardFocusHere(-1);
 			}
 
-			ImGui::SameLine(0.0f, button_spacing);
+			ImGui::SameLine(0.0f, 2 * button_size + 3 * button_spacing);
 			if (ImGui::Button("R", ImVec2(button_size, 0)))
 				if (find_and_scroll_to_text(_search_text, false, true))
 					insert_text(_replace_text);
@@ -1422,6 +1427,10 @@ bool imgui_code_editor::find_and_scroll_to_text(const std::string &text, bool ba
 	if (text.empty())
 		return false; // Cannot search for empty text
 
+	const auto compare_c = [this](char clhs, char crhs) {
+		return _search_case_insensitive ? tolower(clhs) == tolower(crhs) : clhs == crhs;
+	};
+
 	// Start search at the cursor position
 	text_pos match_pos_beg, search_pos = backwards != with_selection ? _select_beg : _select_end;
 
@@ -1439,7 +1448,7 @@ bool imgui_code_editor::find_and_scroll_to_text(const std::string &text, bool ba
 
 				while (true)
 				{
-					if (_lines[search_pos.line][search_pos.column].c == text[match_offset])
+					if (compare_c(_lines[search_pos.line][search_pos.column].c, text[match_offset]))
 					{
 						if (match_offset == match_last) // Keep track of end of the match
 							match_pos_beg = search_pos;
@@ -1493,7 +1502,7 @@ bool imgui_code_editor::find_and_scroll_to_text(const std::string &text, bool ba
 
 			while (search_pos.column < _lines[search_pos.line].size())
 			{
-				if (_lines[search_pos.line][search_pos.column].c == text[match_offset])
+				if (compare_c(_lines[search_pos.line][search_pos.column].c, text[match_offset]))
 				{
 					if (match_offset == 0) // Keep track of beginning of the match
 						match_pos_beg = search_pos;
