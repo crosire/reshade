@@ -228,7 +228,7 @@ void reshade::runtime::on_present()
 	// Draw overlay
 	draw_ui();
 
-	if (_should_save_screenshot && _screenshot_save_ui)
+	if (_should_save_screenshot && _screenshot_save_ui && _show_menu)
 		save_screenshot(L" ui");
 #endif
 
