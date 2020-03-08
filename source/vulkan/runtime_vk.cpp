@@ -437,7 +437,8 @@ void reshade::vulkan::runtime_vk::on_reset()
 {
 	runtime::on_reset();
 
-	wait_for_command_buffers(); // Make sure none of the resources below are currently in use
+	// Make sure none of the resources below are currently in use
+	wait_for_command_buffers();
 
 	for (VkImageView view : _swapchain_views)
 		vk.DestroyImageView(_device, view, nullptr);
@@ -1226,7 +1227,8 @@ bool reshade::vulkan::runtime_vk::init_effect(size_t index)
 }
 void reshade::vulkan::runtime_vk::unload_effect(size_t index)
 {
-	wait_for_command_buffers(); // Make sure no effect resources are currently in use
+	// Make sure no effect resources are currently in use
+	wait_for_command_buffers();
 
 	for (technique &tech : _techniques)
 	{
@@ -1270,7 +1272,8 @@ void reshade::vulkan::runtime_vk::unload_effect(size_t index)
 }
 void reshade::vulkan::runtime_vk::unload_effects()
 {
-	wait_for_command_buffers(); // Make sure no effect resources are currently in use
+	// Make sure no effect resources are currently in use
+	wait_for_command_buffers();
 
 	for (technique &tech : _techniques)
 	{

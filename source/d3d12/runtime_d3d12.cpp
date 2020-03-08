@@ -312,6 +312,9 @@ void reshade::d3d12::runtime_d3d12::on_reset()
 {
 	runtime::on_reset();
 
+	// Make sure none of the resources below are currently in use
+	wait_for_command_queue();
+
 	_cmd_list.reset();
 	_cmd_alloc.clear();
 
@@ -858,7 +861,7 @@ bool reshade::d3d12::runtime_d3d12::init_effect(size_t index)
 }
 void reshade::d3d12::runtime_d3d12::unload_effect(size_t index)
 {
-	// Wait for all GPU operations to finish so resources are no longer referenced
+	// Make sure no effect resources are currently in use
 	wait_for_command_queue();
 
 	for (technique &tech : _techniques)
@@ -885,7 +888,7 @@ void reshade::d3d12::runtime_d3d12::unload_effect(size_t index)
 }
 void reshade::d3d12::runtime_d3d12::unload_effects()
 {
-	// Wait for all GPU operations to finish so resources are no longer referenced
+	// Make sure no effect resources are currently in use
 	wait_for_command_queue();
 
 	for (technique &tech : _techniques)
