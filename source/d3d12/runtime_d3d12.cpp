@@ -507,7 +507,7 @@ bool reshade::d3d12::runtime_d3d12::init_effect(size_t index)
 	std::unordered_map<std::string, com_ptr<ID3DBlob>> entry_points;
 
 	// Compile the generated HLSL source code to DX byte code
-	for (const auto &entry_point : effect.module.entry_points)
+	for (const reshadefx::entry_point &entry_point : effect.module.entry_points)
 	{
 		com_ptr<ID3DBlob> d3d_errors;
 
@@ -1633,15 +1633,15 @@ void reshade::d3d12::runtime_d3d12::draw_depth_debug_menu(buffer_detection_conte
 		runtime::save_config();
 }
 
-void reshade::d3d12::runtime_d3d12::update_depth_texture_bindings(com_ptr<ID3D12Resource> texture)
+void reshade::d3d12::runtime_d3d12::update_depth_texture_bindings(com_ptr<ID3D12Resource> depth_texture)
 {
 	if (_has_high_network_activity)
-		texture = nullptr; // Unbind texture
+		depth_texture.reset();
 
-	if (texture == _depth_texture)
+	if (depth_texture == _depth_texture)
 		return;
 
-	_depth_texture = std::move(texture);
+	_depth_texture = std::move(depth_texture);
 
 	D3D12_SHADER_RESOURCE_VIEW_DESC view_desc = {};
 

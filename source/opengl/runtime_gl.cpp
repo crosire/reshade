@@ -350,7 +350,7 @@ bool reshade::opengl::runtime_gl::init_effect(size_t index)
 	std::unordered_map<std::string, GLuint> entry_points;
 
 	// Compile all entry points
-	for (const auto &entry_point : effect.module.entry_points)
+	for (const reshadefx::entry_point &entry_point : effect.module.entry_points)
 	{
 		GLuint shader_id = glCreateShader(entry_point.is_pixel_shader ? GL_FRAGMENT_SHADER : GL_VERTEX_SHADER);
 		entry_points[entry_point.name] = shader_id;
@@ -1365,7 +1365,7 @@ void reshade::opengl::runtime_gl::update_depth_texture_bindings(buffer_detection
 	}
 
 	// Update all references to the new texture
-	for (const auto &tex : _textures)
+	for (const texture &tex : _textures)
 	{
 		if (tex.impl == nullptr ||
 			tex.impl_reference != texture_reference::depth_buffer)

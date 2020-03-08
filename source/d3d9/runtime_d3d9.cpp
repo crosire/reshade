@@ -327,7 +327,7 @@ bool reshade::d3d9::runtime_d3d9::init_effect(size_t index)
 	std::unordered_map<std::string, com_ptr<IUnknown>> entry_points;
 
 	// Compile the generated HLSL source code to DX byte code
-	for (const auto &entry_point : effect.module.entry_points)
+	for (const reshadefx::entry_point &entry_point : effect.module.entry_points)
 	{
 		com_ptr<ID3DBlob> compiled, d3d_errors;
 		const std::string &hlsl = entry_point.is_pixel_shader ? hlsl_ps : hlsl_vs;
@@ -1194,13 +1194,16 @@ void reshade::d3d9::runtime_d3d9::draw_depth_debug_menu(buffer_detection &tracke
 		runtime::save_config();
 }
 
-void reshade::d3d9::runtime_d3d9::update_depth_texture_bindings(com_ptr<IDirect3DSurface9> surface)
+void reshade::d3d9::runtime_d3d9::update_depth_texture_bindings(com_ptr<IDirect3DSurface9> depth_surface)
 {
-	if (surface == _depth_surface)
+	if (_has_high_network_activity)
+		depth_surface.reset();
+
+	if (depth_surface == _depth_surface)
 		return;
 
 	_depth_texture.reset();
-	_depth_surface = std::move(surface);
+	_depth_surface = std::move(depth_surface);
 	_has_depth_texture = false;
 
 	if (_depth_surface != nullptr)
@@ -1216,7 +1219,7 @@ void reshade::d3d9::runtime_d3d9::update_depth_texture_bindings(com_ptr<IDirect3
 	}
 
 	// Update all references to the new texture
-	for (const auto &tex : _textures)
+	for (const texture &tex : _textures)
 	{
 		if (tex.impl == nullptr ||
 			tex.impl_reference != texture_reference::depth_buffer)

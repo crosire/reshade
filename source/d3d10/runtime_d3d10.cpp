@@ -398,7 +398,7 @@ bool reshade::d3d10::runtime_d3d10::init_effect(size_t index)
 	std::unordered_map<std::string, com_ptr<IUnknown>> entry_points;
 
 	// Compile the generated HLSL source code to DX byte code
-	for (const auto &entry_point : effect.module.entry_points)
+	for (const reshadefx::entry_point &entry_point : effect.module.entry_points)
 	{
 		com_ptr<ID3DBlob> d3d_compiled, d3d_errors;
 		std::string profile = entry_point.is_pixel_shader ? "ps" : "vs";
@@ -1379,12 +1379,15 @@ void reshade::d3d10::runtime_d3d10::draw_depth_debug_menu(buffer_detection &trac
 		runtime::save_config();
 }
 
-void reshade::d3d10::runtime_d3d10::update_depth_texture_bindings(com_ptr<ID3D10Texture2D> texture)
+void reshade::d3d10::runtime_d3d10::update_depth_texture_bindings(com_ptr<ID3D10Texture2D> depth_texture)
 {
-	if (texture == _depth_texture)
+	if (_has_high_network_activity)
+		depth_texture.reset();
+
+	if (depth_texture == _depth_texture)
 		return;
 
-	_depth_texture = std::move(texture);
+	_depth_texture = std::move(depth_texture);
 	_depth_texture_srv.reset();
 	_has_depth_texture = false;
 
@@ -1411,7 +1414,7 @@ void reshade::d3d10::runtime_d3d10::update_depth_texture_bindings(com_ptr<ID3D10
 	}
 
 	// Update all references to the new texture
-	for (const auto &tex : _textures)
+	for (const texture &tex : _textures)
 	{
 		if (tex.impl == nullptr ||
 			tex.impl_reference != texture_reference::depth_buffer)

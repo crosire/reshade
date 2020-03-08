@@ -549,7 +549,7 @@ void reshade::vulkan::runtime_vk::on_present(uint32_t swapchain_image_index, con
 	}
 
 #if RESHADE_DEPTH
-	update_depth_image_bindings(_has_high_network_activity ? buffer_detection::depthstencil_info { VK_NULL_HANDLE } :
+	update_depth_image_bindings(_has_high_network_activity ? buffer_detection::depthstencil_info {} :
 		_buffer_detection->find_best_depth_texture(_use_aspect_ratio_heuristics ? VkExtent2D { _width, _height } : VkExtent2D { 0, 0 }, _depth_image_override));
 #endif
 
@@ -2243,6 +2243,9 @@ void reshade::vulkan::runtime_vk::draw_depth_debug_menu(buffer_detection_context
 
 void reshade::vulkan::runtime_vk::update_depth_image_bindings(buffer_detection::depthstencil_info info)
 {
+	if (_has_high_network_activity)
+		info = buffer_detection::depthstencil_info {};
+
 	if (info.image == _depth_image)
 		return;
 
