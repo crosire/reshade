@@ -24,6 +24,7 @@
 #include "imgui_editor.hpp"
 #include "effect_lexer.hpp"
 #include <imgui.h>
+#include <imgui_internal.h>
 
 const char *imgui_code_editor::get_palette_color_name(unsigned int col)
 {
@@ -92,6 +93,7 @@ void imgui_code_editor::render(const char *title, bool border)
 
 	ImGui::BeginChild(title, ImVec2(0, _search_window_open * -bottom_height), border, ImGuiWindowFlags_HorizontalScrollbar | ImGuiWindowFlags_AlwaysHorizontalScrollbar | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoNavInputs);
 	ImGui::PushAllowKeyboardFocus(true);
+	const char *const editor_window_name = ImGui::GetCurrentWindowRead()->Name;
 
 	char buf[128] = "", *buf_end = buf;
 
@@ -120,7 +122,9 @@ void imgui_code_editor::render(const char *title, bool border)
 		io.WantTextInput = true;
 		io.WantCaptureKeyboard = true;
 
-		if (ctrl && !shift && !alt && ImGui::IsKeyPressed('Z'))
+		if (ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_Escape)))
+			ImGui::SetWindowFocus(nullptr); // Reset window focus
+		else if (ctrl && !shift && !alt && ImGui::IsKeyPressed('Z'))
 			undo();
 		else if (ctrl && !shift && !alt && ImGui::IsKeyPressed('Y'))
 			redo();
@@ -517,7 +521,11 @@ void imgui_code_editor::render(const char *title, bool border)
 
 		ImGui::SameLine(0.0f, button_spacing);
 		if (ImGui::Button("X", ImVec2(button_size, 0)) || ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_Escape)))
+		{
 			_search_window_open = _search_window_focus = 0;
+			// Move focus back to text editor again next frame
+			ImGui::SetWindowFocus(editor_window_name);
+		}
 		if (ImGui::IsItemHovered())
 			ImGui::SetTooltip("Close (Escape)");
 
