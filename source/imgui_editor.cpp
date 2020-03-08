@@ -547,8 +547,12 @@ void imgui_code_editor::render(const char *title, bool border)
 
 			ImGui::SameLine(0.0f, button_spacing);
 			if (ImGui::Button("A", ImVec2(button_size, 0)) || (!ctrl && !shift && alt && ImGui::IsKeyPressed('A')))
+			{
+				// Reset select position so that replace stats at document begin
+				_select_beg = text_pos();
 				while (find_and_scroll_to_text(_search_text, false, true))
 					insert_text(_replace_text);
+			}
 			if (ImGui::IsItemHovered())
 				ImGui::SetTooltip("Replace all (Alt + A)");
 		}
