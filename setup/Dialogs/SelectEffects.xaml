@@ -16,7 +16,7 @@
               </ToolTip>
             </Grid.ToolTip>
             <Grid.RowDefinitions>
-              <RowDefinition Height="30" />
+              <RowDefinition Height="20" />
               <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
             <Grid.ColumnDefinitions>

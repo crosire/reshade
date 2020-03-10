@@ -3,6 +3,7 @@
  * License: https://github.com/crosire/reshade#license
  */
 
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Linq;
@@ -33,9 +34,10 @@ namespace ReShade.Setup
 			InitializeComponent();
 			DataContext = this;
 
+			var packages = new List<EffectPackage>();
 			foreach (var packageName in packagesIni.GetSections())
 			{
-				Packages.Add(new EffectPackage
+				packages.Add(new EffectPackage
 				{
 					Enabled = packagesIni.GetString(packageName, "Enabled") == "1",
 					PackageName = packageName,
@@ -43,6 +45,10 @@ namespace ReShade.Setup
 					DownloadUrl = packagesIni.GetString(packageName, "DownloadUrl")
 				});
 			}
+
+			// Show default enabled packages at the top
+			packages.Sort((lhs, rhs) => (lhs.Enabled == rhs.Enabled ? 100 : 0) + rhs.PackageName.CompareTo(lhs.PackageName));
+			packages.ForEach(x => Packages.Add(x));
 		}
 
 		public string[] EnabledPackageUrls => Packages.Where(x => x.Enabled).Select(x => x.DownloadUrl).ToArray();
