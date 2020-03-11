@@ -474,6 +474,31 @@ namespace ReShade.Setup
 					"RESHADE_DEPTH_INPUT_IS_UPSIDE_DOWN=" + compatibilityIni.GetString(targetName, "DepthUpsideDown", "0"),
 					"RESHADE_DEPTH_INPUT_IS_REVERSED=" + compatibilityIni.GetString(targetName, "DepthReversed", "0"),
 					"RESHADE_DEPTH_INPUT_IS_LOGARITHMIC=" + compatibilityIni.GetString(targetName, "DepthLogarithmic", "0"));
+
+				if (compatibilityIni.HasValue(targetName, "DepthCopyBeforeClears") ||
+					compatibilityIni.HasValue(targetName, "UseAspectRatioHeuristics"))
+				{
+					switch (compatibilityIni.GetString(targetName, "RenderApi"))
+					{
+						case "D3D9":
+							config.SetValue("DX9_BUFFER_DETECTION", "PreserveDepthBuffer", compatibilityIni.GetString(targetName, "DepthCopyBeforeClears", "0"));
+							config.SetValue("DX9_BUFFER_DETECTION", "UseAspectRatioHeuristics", compatibilityIni.GetString(targetName, "UseAspectRatioHeuristics", "1"));
+							break;
+						case "D3D10":
+							config.SetValue("DX10_BUFFER_DETECTION", "DepthBufferRetrievalMode", compatibilityIni.GetString(targetName, "DepthCopyBeforeClears", "0"));
+							config.SetValue("DX10_BUFFER_DETECTION", "UseAspectRatioHeuristics", compatibilityIni.GetString(targetName, "UseAspectRatioHeuristics", "1"));
+							break;
+						case "D3D11":
+							config.SetValue("DX11_BUFFER_DETECTION", "DepthBufferRetrievalMode", compatibilityIni.GetString(targetName, "DepthCopyBeforeClears", "0"));
+							config.SetValue("DX11_BUFFER_DETECTION", "UseAspectRatioHeuristics", compatibilityIni.GetString(targetName, "UseAspectRatioHeuristics", "1"));
+							break;
+						case "D3D12":
+							config.SetValue("DX12_BUFFER_DETECTION", "DepthBufferRetrievalMode", compatibilityIni.GetString(targetName, "DepthCopyBeforeClears", "0"));
+							config.SetValue("DX12_BUFFER_DETECTION", "UseAspectRatioHeuristics", compatibilityIni.GetString(targetName, "UseAspectRatioHeuristics", "1"));
+							break;
+					}
+				}
+
 				config.SaveFile();
 			}
 
