@@ -484,10 +484,12 @@ void reshadefx::preprocessor::parse_ifdef()
 		return;
 
 	level.value = _macros.find(_token.literal_as_string) != _macros.end();
-	level.skipping = (!_if_stack.empty() && _if_stack.back().skipping) || !level.value;
+	const bool parent_skipping = !_if_stack.empty() && _if_stack.back().skipping;
+	level.skipping = parent_skipping || !level.value;
 
 	_if_stack.push_back(std::move(level));
-	_used_macros.emplace(_token.literal_as_string);
+	if (!parent_skipping) // Only add if this #ifdef is active
+		_used_macros.emplace(_token.literal_as_string);
 }
 void reshadefx::preprocessor::parse_ifndef()
 {
@@ -499,10 +501,12 @@ void reshadefx::preprocessor::parse_ifndef()
 		return;
 
 	level.value = _macros.find(_token.literal_as_string) == _macros.end();
-	level.skipping = (!_if_stack.empty() && _if_stack.back().skipping) || !level.value;
+	const bool parent_skipping = !_if_stack.empty() && _if_stack.back().skipping;
+	level.skipping = parent_skipping || !level.value;
 
 	_if_stack.push_back(std::move(level));
-	_used_macros.emplace(_token.literal_as_string);
+	if (!parent_skipping) // Only add if this #ifndef is active
+		_used_macros.emplace(_token.literal_as_string);
 }
 void reshadefx::preprocessor::parse_elif()
 {
@@ -518,7 +522,8 @@ void reshadefx::preprocessor::parse_elif()
 	level.token = _token;
 	level.input_index = _current_input_index;
 
-	level.skipping = (_if_stack.size() > 1 && _if_stack[_if_stack.size() - 2].skipping) || level.value || !condition_result;
+	const bool parent_skipping = _if_stack.size() > 1 && _if_stack[_if_stack.size() - 2].skipping;
+	level.skipping = parent_skipping || level.value || !condition_result;
 
 	if (!level.value) level.value = condition_result;
 }
@@ -534,7 +539,8 @@ void reshadefx::preprocessor::parse_else()
 	level.token = _token;
 	level.input_index = _current_input_index;
 
-	level.skipping = (_if_stack.size() > 1 && _if_stack[_if_stack.size() - 2].skipping) || level.value;
+	const bool parent_skipping = _if_stack.size() > 1 && _if_stack[_if_stack.size() - 2].skipping;
+	level.skipping = parent_skipping || level.value;
 
 	if (!level.value) level.value = true;
 }
