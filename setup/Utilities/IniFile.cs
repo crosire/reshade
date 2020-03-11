@@ -33,16 +33,21 @@ namespace ReShade.Utilities
 					if (string.IsNullOrEmpty(line) ||
 						// Ignore lines which are comments
 						line.StartsWith(";", StringComparison.Ordinal) ||
+						line.StartsWith("#", StringComparison.Ordinal) ||
 						line.StartsWith("//", StringComparison.Ordinal))
 					{
 						continue;
 					}
 
-					if (line.StartsWith("[", StringComparison.Ordinal) && line.EndsWith("]", StringComparison.Ordinal))
+					if (line.StartsWith("[", StringComparison.Ordinal))
 					{
-						// This is a section definition
-						section = line.Substring(1, line.Length - 2);
-						continue;
+						int sectionEnd = line.IndexOf(']');
+						if (sectionEnd >= 0)
+						{
+							// This is a section definition
+							section = line.Substring(1, sectionEnd - 1);
+							continue;
+						}
 					}
 
 					var pair = line.Split(new[] { '=' }, 2, StringSplitOptions.None);

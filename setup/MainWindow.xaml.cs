@@ -31,9 +31,37 @@ namespace ReShade.Setup
 		string modulePath = null;
 		string commonPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "ReShade");
 
+		ZipArchive zip;
+		IniFile packagesIni;
+		IniFile compatibilityIni;
+
 		public MainWindow()
 		{
 			InitializeComponent();
+
+			// Extract archive attached to this executable
+			var output = new FileStream(Path.GetTempFileName(), FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.ReadWrite | FileShare.Delete, 4096, FileOptions.DeleteOnClose);
+
+			using (var input = File.OpenRead(Assembly.GetExecutingAssembly().Location))
+			{
+				byte[] block = new byte[512];
+				byte[] signature = { 0x50, 0x4B, 0x03, 0x04 }; // PK..
+
+				// Look for archive at the end of this executable and copy it to a file
+				while (input.Read(block, 0, block.Length) >= signature.Length)
+				{
+					if (block.Take(signature.Length).SequenceEqual(signature))
+					{
+						output.Write(block, 0, block.Length);
+						input.CopyTo(output);
+						break;
+					}
+				}
+			}
+
+			zip = new ZipArchive(output, ZipArchiveMode.Read, false);
+			packagesIni = new IniFile(zip.GetEntry("SetupEffectPackages.ini")?.Open());
+			compatibilityIni = new IniFile(zip.GetEntry("SetupCompatibility.ini")?.Open());
 
 			ApiVulkanGlobal.IsChecked = IsVulkanLayerEnabled(Registry.LocalMachine);
 
@@ -77,30 +105,6 @@ namespace ReShade.Setup
 			{
 				return false;
 			}
-		}
-
-		static ZipArchive ExtractArchive()
-		{
-			var output = new FileStream(Path.GetTempFileName(), FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.ReadWrite | FileShare.Delete, 4096, FileOptions.DeleteOnClose);
-
-			using (var input = File.OpenRead(Assembly.GetExecutingAssembly().Location))
-			{
-				byte[] block = new byte[512];
-				byte[] signature = { 0x50, 0x4B, 0x03, 0x04 }; // PK..
-
-				// Look for archive at the end of this executable and copy it to a file
-				while (input.Read(block, 0, block.Length) >= signature.Length)
-				{
-					if (block.Take(signature.Length).SequenceEqual(signature))
-					{
-						output.Write(block, 0, block.Length);
-						input.CopyTo(output);
-						break;
-					}
-				}
-			}
-
-			return new ZipArchive(output, ZipArchiveMode.Read, false);
 		}
 
 		void AddSearchPath(List<string> searchPaths, string newPath)
@@ -168,11 +172,7 @@ namespace ReShade.Setup
 				}
 
 				Directory.CreateDirectory(commonPath);
-
-				using (ZipArchive zip = ExtractArchive())
-				{
-					zip.ExtractToDirectory(commonPath);
-				}
+				zip.ExtractToDirectory(commonPath);
 
 				if (Environment.Is64BitOperatingSystem)
 				{
@@ -315,6 +315,20 @@ namespace ReShade.Setup
 			var peInfo = new PEInfo(targetPath);
 			is64Bit = peInfo.Type == PEInfo.BinaryType.IMAGE_FILE_MACHINE_AMD64;
 
+			// Check whether the API is specified in the compatibility list, in which case setup can continue right away
+			if (compatibilityIni != null && compatibilityIni.HasValue(targetName, "RenderApi"))
+			{
+				string api = compatibilityIni.GetString(targetName, "RenderApi");
+
+				ApiD3D9.IsChecked = api == "D3D8" || api == "D3D9";
+				ApiDXGI.IsChecked = api == "D3D10" || api == "D3D11" || api == "D3D12" || api == "DXGI";
+				ApiOpenGL.IsChecked = api == "OpenGL";
+				ApiVulkan.IsChecked = api == "Vulkan";
+
+				InstallationStep2();
+				return;
+			}
+
 			bool isApiD3D8 = peInfo.Modules.Any(s => s.StartsWith("d3d8", StringComparison.OrdinalIgnoreCase));
 			bool isApiD3D9 = isApiD3D8 || peInfo.Modules.Any(s => s.StartsWith("d3d9", StringComparison.OrdinalIgnoreCase));
 			bool isApiDXGI = peInfo.Modules.Any(s => s.StartsWith("dxgi", StringComparison.OrdinalIgnoreCase) || s.StartsWith("d3d1", StringComparison.OrdinalIgnoreCase) || s.Contains("GFSDK")); // Assume DXGI when GameWorks SDK is in use
@@ -333,9 +347,9 @@ namespace ReShade.Setup
 			{
 				isApiDXGI = false; // Prefer Vulkan over Direct3D 12
 			}
-			if (isApiOpenGL && (isApiD3D9 || isApiDXGI || isApiVulkan))
+			if (isApiOpenGL && (isApiD3D8 || isApiD3D9 || isApiDXGI || isApiVulkan))
 			{
-				isApiOpenGL = false; // Prefer Vulkan over OpenGL
+				isApiOpenGL = false; // Prefer Vulkan and Direct3D over OpenGL
 			}
 
 			Message.Text = "Which rendering API does " + targetName + " use?";
@@ -414,44 +428,27 @@ namespace ReShade.Setup
 
 			Message.Text = "Installing ReShade ...";
 
-			IniFile packagesIni = null;
-			IniFile compatibilityIni = null;
-
-			try
+			if (ApiVulkan.IsChecked != true)
 			{
-				using (ZipArchive zip = ExtractArchive())
+				try
 				{
-					if (ApiVulkan.IsChecked != true)
+					var module = zip.GetEntry(is64Bit ? "ReShade64.dll" : "ReShade32.dll");
+					if (module == null)
 					{
-						var module = zip.GetEntry(is64Bit ? "ReShade64.dll" : "ReShade32.dll");
-						if (module == null)
-						{
-							throw new FileFormatException("Expected ReShade archive to contain ReShade DLLs");
-						}
-
-						using (Stream input = module.Open())
-						using (FileStream output = File.Create(modulePath))
-						{
-							input.CopyTo(output);
-						}
+						throw new FileFormatException("Expected ReShade archive to contain ReShade DLLs");
 					}
 
-					var packagesEntry = zip.GetEntry("SetupEffectPackages.ini");
-					if (packagesEntry != null)
+					using (Stream input = module.Open())
+					using (FileStream output = File.Create(modulePath))
 					{
-						packagesIni = new IniFile(packagesEntry.Open());
-					}
-					var compatibilityEntry = zip.GetEntry("SetupCompatibility.ini");
-					if (compatibilityEntry != null)
-					{
-						compatibilityIni = new IniFile(compatibilityEntry.Open());
+						input.CopyTo(output);
 					}
 				}
-			}
-			catch (Exception ex)
-			{
-				UpdateStatusAndFinish(false, "Unable to write " + Path.GetFileName(modulePath) + ".", ex.Message);
-				return;
+				catch (Exception ex)
+				{
+					UpdateStatusAndFinish(false, "Unable to write " + Path.GetFileName(modulePath) + ".", ex.Message);
+					return;
+				}
 			}
 
 			// Copy potential pre-made configuration file to target
@@ -830,10 +827,7 @@ namespace ReShade.Setup
 			{
 				try
 				{
-					using (ZipArchive zip = ExtractArchive())
-					{
-						zip.ExtractToDirectory(".");
-					}
+					zip.ExtractToDirectory(".");
 				}
 				catch (Exception ex)
 				{
