@@ -510,7 +510,7 @@ namespace ReShade.Setup
 
 				if (dlg.ShowDialog() == true)
 				{
-					var packages = new Queue<string>(dlg.EnabledPackageUrls);
+					var packages = new Queue<EffectPackage>(dlg.EnabledPackages);
 
 					if (packages.Count != 0)
 					{
@@ -528,17 +528,17 @@ namespace ReShade.Setup
 
 			InstallationStep6();
 		}
-		void InstallationStep4(Queue<string> packages)
+		void InstallationStep4(Queue<EffectPackage> packages)
 		{
 			ApiGroup.IsEnabled = false;
 			SetupButton.IsEnabled = false;
 			ApiGroup.Visibility = ApiD3D9.Visibility = ApiDXGI.Visibility = ApiOpenGL.Visibility = ApiVulkan.Visibility = Visibility.Visible;
 			ApiVulkanGlobal.Visibility = ApiVulkanGlobalButton.Visibility = Visibility.Collapsed;
 
-			var downloadUrl = new Uri(packages.Dequeue());
+			var package = packages.Dequeue();
 			var downloadPath = Path.GetTempFileName();
 
-			UpdateStatus("Working on " + targetName + " ...", "Downloading " + downloadUrl.AbsolutePath + " ...");
+			UpdateStatus("Working on " + targetName + " ...", "Downloading " + package.PackageName + " ...", package.DownloadUrl);
 
 			// Add support for TLS 1.2, so that HTTPS connection to GitHub succeeds
 			ServicePointManager.SecurityProtocol |= SecurityProtocolType.Tls12;
@@ -548,11 +548,11 @@ namespace ReShade.Setup
 			client.DownloadFileCompleted += (object sender, System.ComponentModel.AsyncCompletedEventArgs e) => {
 				if (e.Error != null)
 				{
-					UpdateStatusAndFinish(false, "Unable to download from " + downloadUrl + ".", e.Error.Message);
+					UpdateStatusAndFinish(false, "Unable to download from " + package.DownloadUrl + ".", e.Error.Message);
 				}
 				else
 				{
-					InstallationStep5(downloadPath, downloadUrl.AbsolutePath);
+					InstallationStep5(downloadPath, package);
 
 					if (packages.Count != 0)
 					{
@@ -565,27 +565,24 @@ namespace ReShade.Setup
 				// Avoid negative percentage values
 				if (e.TotalBytesToReceive > 0)
 				{
-					Message.Text = "Downloading " + downloadUrl.AbsolutePath + " ... (" + ((100 * e.BytesReceived) / e.TotalBytesToReceive) + "%)";
+					Message.Text = "Downloading " + package.PackageName + " ... (" + ((100 * e.BytesReceived) / e.TotalBytesToReceive) + "%)";
 				}
 			};
 
 			try
 			{
-				client.DownloadFileAsync(downloadUrl, downloadPath);
+				client.DownloadFileAsync(new Uri(package.DownloadUrl), downloadPath);
 			}
 			catch (Exception ex)
 			{
-				UpdateStatusAndFinish(false, "Unable to download from " + downloadUrl + ".", ex.Message);
+				UpdateStatusAndFinish(false, "Unable to download from " + package.DownloadUrl + ".", ex.Message);
 			}
 		}
-		void InstallationStep5(string downloadPath, string downloadName)
+		void InstallationStep5(string downloadPath, EffectPackage package)
 		{
-			UpdateStatus("Working on " + targetName + " ...", "Extracting " + downloadName + " ...");
+			UpdateStatus("Working on " + targetName + " ...", "Extracting " + package.PackageName + " ...");
 
 			string tempPath = Path.Combine(Path.GetTempPath(), "reshade-shaders");
-			string targetPath = Path.Combine(Path.GetDirectoryName(this.targetPath), "reshade-shaders");
-			string targetPathShaders = Path.Combine(targetPath, "Shaders");
-			string targetPathTextures = Path.Combine(targetPath, "Textures");
 
 			try
 			{
@@ -596,16 +593,28 @@ namespace ReShade.Setup
 
 				ZipFile.ExtractToDirectory(downloadPath, tempPath);
 
-				string tempPathShaders = Directory.GetFiles(tempPath, "*.fx", SearchOption.AllDirectories).Select(x => Path.GetDirectoryName(x)).OrderBy(x => x.Length).First();
+				// First check for a standard folder name
+				string tempPathShaders = Directory.GetDirectories(tempPath, "Shaders", SearchOption.AllDirectories).FirstOrDefault();
 				string tempPathTextures = Directory.GetDirectories(tempPath, "Textures", SearchOption.AllDirectories).FirstOrDefault();
 
+				// If that does not exist, look for the first directory that contains shaders/textures
+				if (tempPathShaders == null)
+				{
+					tempPathShaders = Directory.GetFiles(tempPath, "*.fx", SearchOption.AllDirectories).Select(x => Path.GetDirectoryName(x)).OrderBy(x => x.Length).FirstOrDefault();
+				}
+				if (tempPathTextures == null)
+				{
+					tempPathTextures = Directory.GetFiles(tempPath, "*.png", SearchOption.AllDirectories).Select(x => Path.GetDirectoryName(x)).OrderBy(x => x.Length).FirstOrDefault();
+				}
+
+				// Move only the relevant files to the target
 				if (tempPathShaders != null)
 				{
-					MoveFiles(tempPathShaders, targetPathShaders);
+					MoveFiles(tempPathShaders, Path.Combine(Path.GetDirectoryName(targetPath), package.InstallPath));
 				}
 				if (tempPathTextures != null)
 				{
-					MoveFiles(tempPathTextures, targetPathTextures);
+					MoveFiles(tempPathTextures, Path.Combine(Path.GetDirectoryName(targetPath), package.TextureInstallPath));
 				}
 
 				File.Delete(downloadPath);
@@ -613,11 +622,11 @@ namespace ReShade.Setup
 			}
 			catch (Exception ex)
 			{
-				UpdateStatusAndFinish(false, "Unable to extract " + downloadName + ".", ex.Message);
+				UpdateStatusAndFinish(false, "Unable to extract " + package.PackageName + ".", ex.Message);
 				return;
 			}
 
-			WriteSearchPaths(".\\reshade-shaders\\Shaders", ".\\reshade-shaders\\Textures");
+			WriteSearchPaths(package.InstallPath, package.TextureInstallPath);
 
 			InstallationStep6();
 		}

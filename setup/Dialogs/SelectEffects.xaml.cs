@@ -18,6 +18,8 @@ namespace ReShade.Setup
 		public bool Enabled { get; set; }
 		public string PackageName { get; set; }
 		public string PackageDescription { get; set; }
+		public string InstallPath { get; set; }
+		public string TextureInstallPath { get; set; }
 		public string DownloadUrl { get; set; }
 
 		public event PropertyChangedEventHandler PropertyChanged;
@@ -34,24 +36,21 @@ namespace ReShade.Setup
 			InitializeComponent();
 			DataContext = this;
 
-			var packages = new List<EffectPackage>();
-			foreach (var packageName in packagesIni.GetSections())
+			foreach (var package in packagesIni.GetSections())
 			{
-				packages.Add(new EffectPackage
+				Packages.Add(new EffectPackage
 				{
-					Enabled = packagesIni.GetString(packageName, "Enabled") == "1",
-					PackageName = packageName,
-					PackageDescription = packagesIni.GetString(packageName, "PackageDescription"),
-					DownloadUrl = packagesIni.GetString(packageName, "DownloadUrl")
+					Enabled = packagesIni.GetString(package, "Enabled") == "1",
+					PackageName = packagesIni.GetString(package, "PackageName"),
+					PackageDescription = packagesIni.GetString(package, "PackageDescription"),
+					InstallPath = packagesIni.GetString(package, "InstallPath"),
+					TextureInstallPath = packagesIni.GetString(package, "TextureInstallPath"),
+					DownloadUrl = packagesIni.GetString(package, "DownloadUrl")
 				});
 			}
-
-			// Show default enabled packages at the top
-			packages.Sort((lhs, rhs) => (lhs.Enabled == rhs.Enabled ? 100 : 0) + rhs.PackageName.CompareTo(lhs.PackageName));
-			packages.ForEach(x => Packages.Add(x));
 		}
 
-		public string[] EnabledPackageUrls => Packages.Where(x => x.Enabled).Select(x => x.DownloadUrl).ToArray();
+		public IEnumerable<EffectPackage> EnabledPackages => Packages.Where(x => x.Enabled);
 		public ObservableCollection<EffectPackage> Packages { get; } = new ObservableCollection<EffectPackage>();
 
 		void OnCheck(object sender, RoutedEventArgs e)
