@@ -446,7 +446,7 @@ namespace ReShade.Setup
 				}
 				catch (Exception ex)
 				{
-					UpdateStatusAndFinish(false, "Unable to write " + Path.GetFileName(modulePath) + ".", ex.Message);
+					UpdateStatusAndFinish(false, "Failed to install " + Path.GetFileName(modulePath) + ".", ex.Message);
 					return;
 				}
 			}
@@ -460,7 +460,7 @@ namespace ReShade.Setup
 				}
 				catch (Exception ex)
 				{
-					UpdateStatusAndFinish(false, "Unable to write " + Path.GetFileName(configPath) + ".", ex.Message);
+					UpdateStatusAndFinish(false, "Failed to install " + Path.GetFileName(configPath) + ".", ex.Message);
 					return;
 				}
 			}
@@ -548,7 +548,7 @@ namespace ReShade.Setup
 			client.DownloadFileCompleted += (object sender, System.ComponentModel.AsyncCompletedEventArgs e) => {
 				if (e.Error != null)
 				{
-					UpdateStatusAndFinish(false, "Unable to download from " + package.DownloadUrl + ".", e.Error.Message);
+					UpdateStatusAndFinish(false, "Failed to download from " + package.DownloadUrl + ".", e.Error.Message);
 				}
 				else
 				{
@@ -575,7 +575,7 @@ namespace ReShade.Setup
 			}
 			catch (Exception ex)
 			{
-				UpdateStatusAndFinish(false, "Unable to download from " + package.DownloadUrl + ".", ex.Message);
+				UpdateStatusAndFinish(false, "Failed to download from " + package.DownloadUrl + ".", ex.Message);
 			}
 		}
 		void InstallationStep5(string downloadPath, EffectPackage package)
@@ -622,7 +622,7 @@ namespace ReShade.Setup
 			}
 			catch (Exception ex)
 			{
-				UpdateStatusAndFinish(false, "Unable to extract " + package.PackageName + ".", ex.Message);
+				UpdateStatusAndFinish(false, "Failed to extract " + package.PackageName + ".", ex.Message);
 				return;
 			}
 
@@ -845,7 +845,7 @@ namespace ReShade.Setup
 			}
 			catch (Exception ex)
 			{
-				UpdateStatusAndFinish(false, "Unable to delete ReShade files.", ex.Message);
+				UpdateStatusAndFinish(false, "Failed to delete some ReShade files.", ex.Message);
 			}
 		}
 
@@ -865,7 +865,7 @@ namespace ReShade.Setup
 				}
 				catch (Exception ex)
 				{
-					UpdateStatusAndFinish(false, "Unable to extract ReShade files.", ex.Message);
+					UpdateStatusAndFinish(false, "Failed to extract some ReShade files.", ex.Message);
 					return;
 				}
 
