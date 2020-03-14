@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright (C) 2017 BalazsJako
  * Copyright (C) 2018 Patrick Mours
  *
