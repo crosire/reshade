@@ -2559,6 +2559,10 @@ void reshade::runtime::draw_variable_editor()
 				{
 					_last_reload_successful = reload_successful_before;
 					ImGui::OpenPopup("##pperror"); // Notify the user about this
+
+					// Update preset again now, so that the removed preprocessor definition does not reappear on a reload
+					// The preset is actually loaded again next frame to update the technique status (see 'update_and_render_effects'), so cannot use 'save_current_preset' here
+					ini_file::load_cache(_current_preset_path).set({}, "PreprocessorDefinitions", _preset_preprocessor_definitions);
 				}
 
 				// Re-open file in editor so that errors are updated
