@@ -146,6 +146,7 @@ bool reshade::d3d12::runtime_d3d12::on_init(const DXGI_SWAP_CHAIN_DESC &swap_des
 	{
 		_backbuffers.resize(1);
 		_backbuffers[0] = backbuffer;
+		assert(swap_desc.BufferCount == 1);
 	}
 #endif
 

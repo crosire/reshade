@@ -250,7 +250,7 @@ private:
 			if (semantic == "SV_VERTEXID" || semantic == "VERTEXID")
 				return "TEXCOORD0 /* VERTEXID */";
 			else if (semantic == "SV_POSITION")
-				return "POSITION";
+				return "POSITION"; // For pixel shaders this has to be "VPOS", so need to redefine that in post
 			else if (semantic.compare(0, 9, "SV_TARGET") == 0)
 				return "COLOR" + semantic.substr(9);
 			else if (semantic == "SV_DEPTH")
