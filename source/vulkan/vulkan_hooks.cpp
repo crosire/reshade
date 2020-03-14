@@ -10,7 +10,6 @@
 #include "vk_layer_dispatch_table.h"
 #include "format_utils.hpp"
 #include "lockfree_table.hpp"
-#include <memory>
 
 struct device_data
 {

@@ -12,7 +12,7 @@ HOOK_EXPORT ATOM WINAPI HookRegisterClassA(const WNDCLASSA *lpWndClass)
 {
 	assert(lpWndClass != nullptr);
 
-	auto wndclass = *lpWndClass;
+	WNDCLASSA wndclass = *lpWndClass;
 
 	if (wndclass.hInstance == GetModuleHandle(nullptr))
 	{
@@ -32,7 +32,7 @@ HOOK_EXPORT ATOM WINAPI HookRegisterClassW(const WNDCLASSW *lpWndClass)
 {
 	assert(lpWndClass != nullptr);
 
-	auto wndclass = *lpWndClass;
+	WNDCLASSW wndclass = *lpWndClass;
 
 	if (wndclass.hInstance == GetModuleHandle(nullptr))
 	{
@@ -52,7 +52,7 @@ HOOK_EXPORT ATOM WINAPI HookRegisterClassExA(const WNDCLASSEXA *lpWndClassEx)
 {
 	assert(lpWndClassEx != nullptr);
 
-	auto wndclass = *lpWndClassEx;
+	WNDCLASSEXA wndclass = *lpWndClassEx;
 
 	if (wndclass.hInstance == GetModuleHandle(nullptr))
 	{
@@ -72,7 +72,7 @@ HOOK_EXPORT ATOM WINAPI HookRegisterClassExW(const WNDCLASSEXW *lpWndClassEx)
 {
 	assert(lpWndClassEx != nullptr);
 
-	auto wndclass = *lpWndClassEx;
+	WNDCLASSEXW wndclass = *lpWndClassEx;
 
 	if (wndclass.hInstance == GetModuleHandle(nullptr))
 	{

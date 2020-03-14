@@ -347,9 +347,6 @@
     <ClInclude Include="source\vulkan\vk_handle.hpp">
       <Filter>hooks\vulkan</Filter>
     </ClInclude>
-    <ClInclude Include="source\vulkan\vk_layer_dispatch_table.h">
-      <Filter>hooks\vulkan</Filter>
-    </ClInclude>
     <ClInclude Include="source\com_ptr.hpp">
       <Filter>hooks\windows</Filter>
     </ClInclude>

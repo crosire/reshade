@@ -38,7 +38,6 @@ void reshade::runtime::init_ui()
 	_variable_editor_height = 300;
 
 	_imgui_context = ImGui::CreateContext();
-
 	auto &imgui_io = _imgui_context->IO;
 	auto &imgui_style = _imgui_context->Style;
 	imgui_io.IniFilename = nullptr;
@@ -368,7 +367,6 @@ void reshade::runtime::init_ui()
 		}
 	});
 }
-
 void reshade::runtime::deinit_ui()
 {
 	ImGui::DestroyContext(_imgui_context);
@@ -378,7 +376,7 @@ void reshade::runtime::build_font_atlas()
 {
 	ImGui::SetCurrentContext(_imgui_context);
 
-	const auto atlas = _imgui_context->IO.Fonts;
+	ImFontAtlas *const atlas = _imgui_context->IO.Fonts;
 	// Remove any existing fonts from atlas first
 	atlas->Clear();
 
@@ -2782,13 +2780,13 @@ void reshade::runtime::open_file_in_code_editor(size_t effect_index, const std::
 		_editor_file.clear();
 		return;
 	}
+
 	// Only reload text if another file is opened (to keep undo history intact)
-	else if (_editor_file != path)
+	if (path != _editor_file)
 	{
 		// Load file to string and update editor text
 		_editor.set_text(std::string(std::istreambuf_iterator<char>(std::ifstream(path).rdbuf()), std::istreambuf_iterator<char>()));
 		_editor.set_readonly(false);
-
 		_editor_file = path;
 	}
 

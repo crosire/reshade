@@ -28,11 +28,17 @@ namespace reshade::log
 	};
 
 	/// <summary>
+	/// Open a log file for writing.
+	/// </summary>
+	/// <param name="path">The path to the log file.</param>
+	bool open(const std::filesystem::path &path);
+
+	/// <summary>
 	/// The current log line stream.
 	/// </summary>
 	extern std::ostringstream line;
 	/// <summary>
-	/// The history of all log messages.
+	/// An in-memory history of all log messages.
 	/// </summary>
 	extern std::vector<std::string> lines;
 
@@ -121,10 +127,4 @@ namespace reshade::log
 			return operator<<(utf8_message);
 		}
 	};
-
-	/// <summary>
-	/// Open a log file for writing.
-	/// </summary>
-	/// <param name="path">The path to the log file.</param>
-	bool open(const std::filesystem::path &path);
 }
