@@ -193,7 +193,11 @@ reshade::vulkan::runtime_vk::runtime_vk(VkDevice device, VkPhysicalDevice physic
 	subscribe_to_ui("Vulkan", [this]() {
 		// Add some information about the device and driver to the UI
 		ImGui::Text("Vulkan %u.%u.%u", VK_VERSION_MAJOR(_device_props.apiVersion), VK_VERSION_MINOR(_device_props.apiVersion), VK_VERSION_PATCH(_device_props.apiVersion));
-		ImGui::Text("%s Driver %u.%u", _device_props.deviceName, VK_VERSION_MAJOR(_device_props.driverVersion), VK_VERSION_MINOR(_device_props.driverVersion));
+		ImGui::Text("%s Driver %u.%u",
+			_device_props.deviceName,
+			VK_VERSION_MAJOR(_device_props.driverVersion),
+			// NVIDIA has a custom driver version scheme, so extract the proper minor version from it
+			_device_props.vendorID == 0x10DE ? (_device_props.driverVersion >> 14) & 0xFF : VK_VERSION_MINOR(_device_props.driverVersion));
 
 #if RESHADE_DEPTH
 		ImGui::Spacing();
