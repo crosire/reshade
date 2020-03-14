@@ -451,6 +451,24 @@ namespace ReShade.Setup
 				}
 			}
 
+			// Create a default log file for troubleshooting
+			File.WriteAllText(Path.ChangeExtension(modulePath, ".log"), @"
+If you are reading this after launching the game at least once, it likely means ReShade was not loaded by the game.
+
+In that event here are some steps you can try to resolve this:
+
+1) Make sure this file and the related DLL are really in the same directory as the game executable.
+   If that is the case and it does not work regardless, check if there is a 'bin' directory, move them there and try again.
+
+2) Try running the game with elevated user permissions by doing a right click on its executable and choosing 'Run as administrator'.
+
+3) If the game crashes, try disabling all game overlays (like Origin), recording software (like Fraps), FPS displaying software,
+   GPU overclocking and tweaking software and other proxy DLLs (like ENB, Helix or Umod).
+
+4) If none of the above helps, you can get support on the forums at https://forum.reshade.me. But search for your problem before
+   creating a new topic, as somebody else may have already found a solution.
+");
+
 			// Copy potential pre-made configuration file to target
 			if (File.Exists("ReShade.ini") && !File.Exists(configPath))
 			{
