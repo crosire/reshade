@@ -313,8 +313,9 @@ void reshade::d3d12::runtime_d3d12::on_reset()
 {
 	runtime::on_reset();
 
-	// Make sure none of the resources below are currently in use
-	wait_for_command_queue();
+	// Make sure none of the resources below are currently in use (provided the runtime was initialized previously)
+	if (!_fence.empty() && !_fence_value.empty())
+		wait_for_command_queue();
 
 	_cmd_list.reset();
 	_cmd_alloc.clear();
@@ -595,7 +596,7 @@ bool reshade::d3d12::runtime_d3d12::init_effect(size_t index)
 	}
 
 	{   D3D12_DESCRIPTOR_HEAP_DESC desc = { D3D12_DESCRIPTOR_HEAP_TYPE_RTV };
-		for (auto &info : effect.module.techniques)
+		for (const reshadefx::technique_info &info : effect.module.techniques)
 			desc.NumDescriptors += static_cast<UINT>(8 * info.passes.size());
 
 		if (FAILED(_device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&effect_data.rtv_heap))))
@@ -647,7 +648,7 @@ bool reshade::d3d12::runtime_d3d12::init_effect(size_t index)
 			break;
 		case texture_reference::depth_buffer:
 #if RESHADE_DEPTH
-			resource = _depth_texture; // Note: This may be null
+			resource = _depth_texture; // Note: This can be a "nullptr"
 #endif
 			// Keep track of the depth buffer texture descriptor to simplify updating it
 			effect_data.depth_texture_binding = srv_handle;
