@@ -39,29 +39,38 @@ namespace ReShade.Setup
 		{
 			InitializeComponent();
 
-			// Extract archive attached to this executable
-			var output = new FileStream(Path.GetTempFileName(), FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.ReadWrite | FileShare.Delete, 4096, FileOptions.DeleteOnClose);
-
-			using (var input = File.OpenRead(Assembly.GetExecutingAssembly().Location))
+			try
 			{
-				byte[] block = new byte[512];
-				byte[] signature = { 0x50, 0x4B, 0x03, 0x04 }; // PK..
+				// Extract archive attached to this executable
+				var output = new FileStream(Path.GetTempFileName(), FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.ReadWrite | FileShare.Delete, 4096, FileOptions.DeleteOnClose);
 
-				// Look for archive at the end of this executable and copy it to a file
-				while (input.Read(block, 0, block.Length) >= signature.Length)
+				using (var input = File.OpenRead(Assembly.GetExecutingAssembly().Location))
 				{
-					if (block.Take(signature.Length).SequenceEqual(signature))
+					byte[] block = new byte[512];
+					byte[] signature = { 0x50, 0x4B, 0x03, 0x04 }; // PK..
+
+					// Look for archive at the end of this executable and copy it to a file
+					while (input.Read(block, 0, block.Length) >= signature.Length)
 					{
-						output.Write(block, 0, block.Length);
-						input.CopyTo(output);
-						break;
+						if (block.Take(signature.Length).SequenceEqual(signature))
+						{
+							output.Write(block, 0, block.Length);
+							input.CopyTo(output);
+							break;
+						}
 					}
 				}
-			}
 
-			zip = new ZipArchive(output, ZipArchiveMode.Read, false);
-			packagesIni = new IniFile(zip.GetEntry("SetupEffectPackages.ini")?.Open());
-			compatibilityIni = new IniFile(zip.GetEntry("SetupCompatibility.ini")?.Open());
+				zip = new ZipArchive(output, ZipArchiveMode.Read, false);
+				packagesIni = new IniFile(zip.GetEntry("SetupEffectPackages.ini")?.Open());
+				compatibilityIni = new IniFile(zip.GetEntry("SetupCompatibility.ini")?.Open());
+			}
+			catch
+			{
+				MessageBox.Show("This setup archive is corrupted! Please download from https://reshade.me again.");
+				Environment.Exit(1);
+				return;
+			}
 
 			ApiVulkanGlobal.IsChecked = IsVulkanLayerEnabled(Registry.LocalMachine);
 
