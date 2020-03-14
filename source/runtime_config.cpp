@@ -66,7 +66,7 @@ void reshade::ini_file::load()
 	{
 		trim(line);
 
-		if (line.empty() || line[0] == ';' || line[0] == '/')
+		if (line.empty() || line[0] == ';' || line[0] == '/' || line[0] == '#')
 			continue;
 
 		// Read section name
