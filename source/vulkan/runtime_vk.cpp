@@ -117,10 +117,12 @@ namespace reshade::vulkan
 reshade::vulkan::runtime_vk::runtime_vk(VkDevice device, VkPhysicalDevice physical_device, uint32_t queue_family_index, const VkLayerInstanceDispatchTable &instance_table, const VkLayerDispatchTable &device_table) :
 	_device(device), _queue_family_index(queue_family_index), vk(device_table)
 {
-	_renderer_id = 0x20000;
-
 	instance_table.GetPhysicalDeviceProperties(physical_device, &_device_props);
 	instance_table.GetPhysicalDeviceMemoryProperties(physical_device, &_memory_props);
+
+	_renderer_id = 0x20000 |
+		VK_VERSION_MAJOR(_device_props.apiVersion) << 12 |
+		VK_VERSION_MINOR(_device_props.apiVersion) <<  8;
 
 	_vendor_id = _device_props.vendorID;
 	_device_id = _device_props.deviceID;
@@ -554,7 +556,6 @@ void reshade::vulkan::runtime_vk::on_present(uint32_t swapchain_image_index, con
 #endif
 
 	update_and_render_effects();
-
 	runtime::on_present();
 
 	// Submit all asynchronous commands in one batch to the current queue
@@ -875,11 +876,9 @@ bool reshade::vulkan::runtime_vk::init_effect(size_t index)
 			break;
 		}
 
+		// Unset bindings are not allowed, so fail initialization for the entire effect in that case
 		if (image_binding.imageView == VK_NULL_HANDLE)
-		{
-			// Unset bindings are not allowed, so fail initialization for the entire effect
 			return false;
-		}
 
 		VkSamplerCreateInfo create_info { VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO };
 		create_info.addressModeU = static_cast<VkSamplerAddressMode>(static_cast<uint32_t>(info.address_u) - 1);
