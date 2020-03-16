@@ -325,9 +325,10 @@ namespace ReShade.Setup
 			is64Bit = peInfo.Type == PEInfo.BinaryType.IMAGE_FILE_MACHINE_AMD64;
 
 			// Check whether the API is specified in the compatibility list, in which case setup can continue right away
-			if (compatibilityIni != null && compatibilityIni.HasValue(targetName, "RenderApi"))
+			var executableName = Path.GetFileName(targetPath);
+			if (compatibilityIni != null && compatibilityIni.HasValue(executableName, "RenderApi"))
 			{
-				string api = compatibilityIni.GetString(targetName, "RenderApi");
+				string api = compatibilityIni.GetString(executableName, "RenderApi");
 
 				ApiD3D9.IsChecked = api == "D3D8" || api == "D3D9";
 				ApiDXGI.IsChecked = api == "D3D10" || api == "D3D11" || api == "D3D12" || api == "DXGI";
