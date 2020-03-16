@@ -160,7 +160,7 @@ private:
 	char _search_text[256] = "";
 	char _replace_text[256] = "";
 	bool _show_search_popup = false;
-	bool _search_case_sensitive = true;
+	bool _search_case_sensitive = false;
 	unsigned int _search_window_open = 0;
 	unsigned int _search_window_focus = 0;
 
