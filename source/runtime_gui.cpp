@@ -1694,29 +1694,31 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 void reshade::runtime::draw_code_editor()
 {
-	if (_selected_effect < _effects.size() && (
-		ImGui::Button("Save", ImVec2(ImGui::GetContentRegionAvail().x, 0)) || _input->is_key_pressed('S', true, false, false)))
+	if (ImGui::Button("Save", ImVec2(ImGui::GetContentRegionAvail().x, 0)) || _input->is_key_pressed('S', true, false, false))
 	{
-		// Hide splash bar when reloading a single effect file
-		_show_splash = false;
-
 		// Write current editor text to file
 		const std::string text = _editor.get_text();
 		std::ofstream(_editor_file, std::ios::trunc).write(text.c_str(), text.size());
 
-		// Reload effect file
-		_reload_total_effects = 1;
-		_reload_remaining_effects = 1;
-		unload_effect(_selected_effect);
-		load_effect(_effects[_selected_effect].source_file, _selected_effect);
+		if (!is_loading() && _selected_effect < _effects.size())
+		{
+			// Hide splash bar when reloading a single effect file
+			_show_splash = false;
 
-		// Re-open current file so that errors are updated
-		open_file_in_code_editor(_selected_effect, _editor_file);
+			// Reload effect file
+			_reload_total_effects = 1;
+			_reload_remaining_effects = 1;
+			unload_effect(_selected_effect);
+			load_effect(_effects[_selected_effect].source_file, _selected_effect);
 
-		assert(_reload_remaining_effects == 0);
+			// Re-open current file so that errors are updated
+			open_file_in_code_editor(_selected_effect, _editor_file);
 
-		// Reloading an effect file invalidates all textures, but the statistics window may already have drawn references to those, so need to reset it
-		ImGui::FindWindowByName("Statistics")->DrawList->CmdBuffer.clear();
+			assert(_reload_remaining_effects == 0);
+
+			// Reloading an effect file invalidates all textures, but the statistics window may already have drawn references to those, so need to reset it
+			ImGui::FindWindowByName("Statistics")->DrawList->CmdBuffer.clear();
+		}
 	}
 
 	// Select editor font

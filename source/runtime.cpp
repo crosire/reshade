@@ -702,8 +702,7 @@ void reshade::runtime::unload_effect(size_t index)
 void reshade::runtime::unload_effects()
 {
 #if RESHADE_GUI
-	// Force editor to clear text after effects where reloaded
-	open_file_in_code_editor(std::numeric_limits<size_t>::max(), {});
+	_selected_effect = std::numeric_limits<size_t>::max();
 	_preview_texture = nullptr;
 	_effect_filter[0] = '\0'; // And reset filter too, since the list of techniques might have changed
 #endif
@@ -740,6 +739,14 @@ void reshade::runtime::update_and_render_effects()
 
 		// Finished loading effects, so apply preset to figure out which ones need compiling
 		load_current_preset();
+
+#if RESHADE_GUI
+		// Re-open last file in code editor after a reload
+		if (_show_code_editor && !_editor_file.empty())
+			if (const auto it = std::find_if(_effects.begin(), _effects.end(),
+				[this](const effect &fx) { return fx.source_file == _editor_file; }); it != _effects.end())
+				open_file_in_code_editor(it - _effects.begin(), _editor_file);
+#endif
 
 		_last_reload_time = std::chrono::high_resolution_clock::now();
 		_reload_total_effects = 0;
