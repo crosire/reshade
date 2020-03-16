@@ -458,10 +458,9 @@ namespace ReShade.Setup
 					UpdateStatusAndFinish(false, "Failed to install " + Path.GetFileName(modulePath) + ".", ex.Message);
 					return;
 				}
-			}
 
-			// Create a default log file for troubleshooting
-			File.WriteAllText(Path.ChangeExtension(modulePath, ".log"), @"
+				// Create a default log file for troubleshooting
+				File.WriteAllText(Path.ChangeExtension(modulePath, ".log"), @"
 If you are reading this after launching the game at least once, it likely means ReShade was not loaded by the game.
 
 In that event here are some steps you can try to resolve this:
@@ -477,6 +476,7 @@ In that event here are some steps you can try to resolve this:
 4) If none of the above helps, you can get support on the forums at https://forum.reshade.me. But search for your problem before
    creating a new topic, as somebody else may have already found a solution.
 ");
+			}
 
 			// Copy potential pre-made configuration file to target
 			if (File.Exists("ReShade.ini") && !File.Exists(configPath))
