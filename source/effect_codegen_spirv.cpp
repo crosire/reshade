@@ -796,8 +796,6 @@ private:
 			builtin = spv::BuiltInMax;
 			if (semantic == "SV_POSITION" || semantic == "POSITION" || semantic == "VPOS")
 				builtin = is_ps ? spv::BuiltInFragCoord : spv::BuiltInPosition;
-			if (semantic == "SV_POINTSIZE" || semantic == "PSIZE")
-				builtin = spv::BuiltInPointSize;
 			if (semantic == "SV_DEPTH" || semantic == "DEPTH")
 				builtin = spv::BuiltInFragDepth;
 			if (semantic == "SV_VERTEXID")

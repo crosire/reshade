@@ -510,8 +510,6 @@ private:
 		{
 			if (semantic == "SV_POSITION" || semantic == "POSITION" || semantic == "VPOS")
 				return is_ps ? "gl_FragCoord" : "gl_Position";
-			if (semantic == "SV_POINTSIZE" || semantic == "PSIZE")
-				return "gl_PointSize";
 			if (semantic == "SV_DEPTH" || semantic == "DEPTH")
 				return "gl_FragDepth";
 			if (semantic == "SV_VERTEXID")
