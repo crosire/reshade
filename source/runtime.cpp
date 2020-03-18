@@ -191,6 +191,17 @@ void reshade::runtime::on_present()
 	const auto input_lock = _input->lock();
 #endif
 
+#if RESHADE_GUI
+	// Draw overlay
+	draw_ui();
+
+	if (_should_save_screenshot && _screenshot_save_ui && _show_menu)
+		save_screenshot(L" ui");
+#endif
+
+	// All screenshots were created at this point, so reset request
+	_should_save_screenshot = false;
+
 	// Handle keyboard shortcuts
 	if (!_ignore_shortcuts)
 	{
@@ -198,7 +209,7 @@ void reshade::runtime::on_present()
 			_effects_enabled = !_effects_enabled;
 
 		if (_input->is_key_pressed(_screenshot_key_data))
-			_should_save_screenshot = true; // Notify 'update_and_render_effects' that we want to save a screenshot
+			_should_save_screenshot = true; // Notify 'update_and_render_effects' that we want to save a screenshot next frame
 
 		// Do not allow the next shortcuts while effects are being loaded or compiled (since they affect that state)
 		if (!is_loading() && _reload_compile_queue.empty())
@@ -223,14 +234,6 @@ void reshade::runtime::on_present()
 				load_current_preset();
 		}
 	}
-
-#if RESHADE_GUI
-	// Draw overlay
-	draw_ui();
-
-	if (_should_save_screenshot && _screenshot_save_ui && _show_menu)
-		save_screenshot(L" ui");
-#endif
 
 	// Reset input status
 	_input->next_frame();
@@ -841,10 +844,7 @@ void reshade::runtime::update_and_render_effects()
 
 	// Nothing to do here if effects are disabled globally
 	if (!_effects_enabled)
-	{
-		_should_save_screenshot = false;
 		return;
-	}
 
 	// Update special uniform variables
 	for (effect &effect : _effects)
@@ -1042,10 +1042,7 @@ void reshade::runtime::update_and_render_effects()
 	}
 
 	if (_should_save_screenshot)
-	{
 		save_screenshot(std::wstring(), true);
-		_should_save_screenshot = false;
-	}
 }
 
 void reshade::runtime::enable_technique(technique &technique)
