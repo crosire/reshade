@@ -1,4 +1,8 @@
 EXPORTS
+	; d2d1.dll
+	D2D1CreateDevice @7
+	D2D1CreateFactory @1
+
 	; d3d9.dll
 	Direct3DCreate9 @37
 	Direct3DCreate9Ex @38

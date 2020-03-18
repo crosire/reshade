@@ -823,6 +823,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 		hooks::register_module("user32.dll");
 		hooks::register_module("ws2_32.dll");
 
+		hooks::register_module(get_system_path() / "d2d1.dll");
 		hooks::register_module(get_system_path() / "d3d9.dll");
 		hooks::register_module(get_system_path() / "d3d10.dll");
 		hooks::register_module(get_system_path() / "d3d10_1.dll");
