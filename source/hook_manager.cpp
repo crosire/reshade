@@ -443,7 +443,7 @@ void reshade::hooks::register_module(const std::filesystem::path &target_path)
 	}
 }
 
-reshade::hook::address reshade::hooks::call(hook::address target, hook::address replacement)
+reshade::hook::address reshade::hooks::call(hook::address replacement, hook::address target)
 {
 	const hook hook = find_internal(target, replacement);
 
@@ -468,7 +468,7 @@ reshade::hook::address reshade::hooks::call(hook::address target, hook::address 
 			s_export_hook_path.clear();
 			s_export_module_handle = handle;
 
-			return call(target, replacement);
+			return call(replacement, target);
 		}
 		else
 		{
