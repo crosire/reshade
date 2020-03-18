@@ -6,7 +6,6 @@
 #pragma once
 
 #include <d3d11_4.h>
-#include "buffer_detection.hpp"
 
 struct DXGIDevice;
 struct D3D11DeviceContext;

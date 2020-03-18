@@ -5,7 +5,6 @@
 
 #include "dll_log.hpp"
 #include "hook_manager.hpp"
-#include "com_ptr.hpp"
 #include "dxgi/dxgi_device.hpp"
 #include <d2d1_3.h>
 

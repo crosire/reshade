@@ -5,8 +5,8 @@
 
 #include "dll_log.hpp"
 #include "d3d10_device.hpp"
-#include "../dxgi/dxgi_device.hpp"
-#include "../dxgi/format_utils.hpp"
+#include "dxgi/dxgi_device.hpp"
+#include "dxgi/format_utils.hpp"
 
 D3D10Device::D3D10Device(IDXGIDevice1 *dxgi_device, ID3D10Device1 *original) :
 	_orig(original),

@@ -6,8 +6,8 @@
 #include "dll_log.hpp"
 #include "d3d11_device.hpp"
 #include "d3d11_device_context.hpp"
-#include "../dxgi/dxgi_device.hpp"
-#include "../dxgi/format_utils.hpp"
+#include "dxgi/dxgi_device.hpp"
+#include "dxgi/format_utils.hpp"
 
 D3D11Device::D3D11Device(IDXGIDevice1 *dxgi_device, ID3D11Device *original, ID3D11DeviceContext *immediate_context) :
 	_orig(original),

@@ -5,7 +5,7 @@
 
 #include "dll_log.hpp"
 #include "buffer_detection.hpp"
-#include "../dxgi/format_utils.hpp"
+#include "dxgi/format_utils.hpp"
 #include <cmath>
 
 #if RESHADE_DEPTH

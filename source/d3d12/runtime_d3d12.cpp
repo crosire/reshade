@@ -9,7 +9,7 @@
 #include "runtime_d3d12.hpp"
 #include "runtime_config.hpp"
 #include "runtime_objects.hpp"
-#include "../dxgi/format_utils.hpp"
+#include "dxgi/format_utils.hpp"
 #include <imgui.h>
 #include <imgui_internal.h>
 #include <d3dcompiler.h>
