@@ -99,7 +99,7 @@ int wmain(int argc, wchar_t *argv[])
 		Sleep(1); // Sleep a bit to not overburden the CPU
 	}
 
-	printf("Found a matching process with PID %d! Injecting ReShade ...\n", pid);
+	printf("Found a matching process with PID %d! Injecting ReShade ... ", pid);
 
 	// Wait just a little bit for the application to initialize
 	Sleep(50);
@@ -110,7 +110,7 @@ int wmain(int argc, wchar_t *argv[])
 
 	if (remote_process == nullptr)
 	{
-		printf("Failed to open target application process!\n");
+		printf("\nFailed to open target application process!\n");
 		return GetLastError();
 	}
 
@@ -121,6 +121,12 @@ int wmain(int argc, wchar_t *argv[])
 	GetCurrentDirectoryW(MAX_PATH, load_path);
 	swprintf(load_path, MAX_PATH, L"%s\\%s", load_path, remote_is_wow64 ? L"ReShade32.dll" : L"ReShade64.dll");
 
+	if (GetFileAttributesW(load_path) == INVALID_FILE_ATTRIBUTES)
+	{
+		wprintf(L"\nFailed to find ReShade at \"%s\"!\n", load_path);
+		return ERROR_FILE_NOT_FOUND;
+	}
+
 	// Make sure the DLL has permissions set up for "ALL_APPLICATION_PACKAGES"
 	update_acl_for_uwp(load_path);
 
@@ -129,7 +135,7 @@ int wmain(int argc, wchar_t *argv[])
 	// Write 'LoadLibrary' call argument to target application
 	if (load_param == nullptr || !WriteProcessMemory(remote_process, load_param, load_path, sizeof(load_path), nullptr))
 	{
-		printf("Failed to allocate and write 'LoadLibrary' argument in target application!\n");
+		printf("\nFailed to allocate and write 'LoadLibrary' argument in target application!\n");
 		return GetLastError();
 	}
 
@@ -139,13 +145,24 @@ int wmain(int argc, wchar_t *argv[])
 
 	if (load_thread == nullptr)
 	{
-		printf("Failed to execute 'LoadLibrary' in target application!\n");
+		printf("\nFailed to execute 'LoadLibrary' in target application!\n");
 		return GetLastError();
 	}
 
 	// Wait for loading to finish and clean up parameter memory afterwards
 	WaitForSingleObject(load_thread, INFINITE);
 	VirtualFreeEx(remote_process, load_param, 0, MEM_RELEASE);
+
+	// Thread thread exit code will contain the module handle
+	if (DWORD exit_code; GetExitCodeThread(load_thread, &exit_code) && exit_code != 0)
+	{
+		printf("Succeeded!\n");
+	}
+	else
+	{
+		printf("\nFailed to load ReShade in target application!\n");
+		return ERROR_INVALID_ACCESS;
+	}
 
 	return 0;
 }
