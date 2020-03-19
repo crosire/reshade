@@ -1136,12 +1136,18 @@ private:
 						assert(op.from.is_integral());
 						spv_op = op.from.is_signed() ? spv::OpConvertSToF : spv::OpConvertUToF;
 						break;
+					default:
+						assert(false);
+						break;
 					}
 
 					result = add_instruction(spv_op, convert_type(op.to))
 						.add(result)
 						.result;
 				}
+				break;
+			case expression::operation::op_member:
+				// These should have been handled above already
 				break;
 			case expression::operation::op_dynamic_index:
 				if (op.from.is_vector())
@@ -1303,6 +1309,10 @@ private:
 
 			switch (op.op)
 			{
+				case expression::operation::op_cast:
+				case expression::operation::op_member:
+					// These should have been handled above already (and casting does not make sense for a store operation)
+					break;
 				case expression::operation::op_dynamic_index:
 				case expression::operation::op_constant_index:
 					assert(false);
