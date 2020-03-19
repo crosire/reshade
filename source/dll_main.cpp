@@ -775,7 +775,13 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 			if (static unsigned int dump_index = 0;
 				++dump_index < 100)
 			{
-				const auto dbghelp = LoadLibrary(TEXT("dbghelp.dll"));
+				// Call into the original "LoadLibrary" directly, to avoid failing memory corruption checks
+				extern HMODULE WINAPI HookLoadLibraryA(LPCSTR lpFileName);
+				const auto ll = reshade::hooks::call(HookLoadLibraryA);
+				if (ll == nullptr)
+					goto continue_search;
+
+				const auto dbghelp = ll("dbghelp.dll");
 				if (dbghelp == nullptr)
 					goto continue_search;
 
