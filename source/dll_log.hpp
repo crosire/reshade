@@ -70,10 +70,18 @@ namespace reshade::log
 		{
 			switch (hresult)
 			{
+			case E_NOTIMPL:
+				return *this << "E_NOTIMPL";
+			case E_NOINTERFACE:
+				return *this << "E_NOINTERFACE";
+			case E_FAIL:
+				return *this << "E_FAIL";
 			case E_INVALIDARG:
 				return *this << "E_INVALIDARG";
 			case DXGI_ERROR_INVALID_CALL:
 				return *this << "DXGI_ERROR_INVALID_CALL";
+			case DXGI_ERROR_UNSUPPORTED:
+				return *this << "DXGI_ERROR_UNSUPPORTED";
 			case DXGI_ERROR_DEVICE_REMOVED:
 				return *this << "DXGI_ERROR_DEVICE_REMOVED";
 			case DXGI_ERROR_DEVICE_HUNG:
@@ -81,20 +89,8 @@ namespace reshade::log
 			case DXGI_ERROR_DEVICE_RESET:
 				return *this << "DXGI_ERROR_DEVICE_RESET";
 			default:
-				*this << std::hex << static_cast<unsigned long>(hresult) << std::dec;
-				break;
+				return *this << std::hex << static_cast<unsigned long>(hresult) << std::dec;
 			}
-
-			if (LPCTSTR message = nullptr;
-				FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_IGNORE_INSERTS,
-					nullptr, hresult, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), reinterpret_cast<LPTSTR>(&message), 0, nullptr)
-				&& message != nullptr)
-			{
-				*this << " (" << message << ')';
-				LocalFree((HLOCAL)message);
-			}
-
-			return *this;
 		}
 
 		template <>
