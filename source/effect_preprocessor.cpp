@@ -342,6 +342,8 @@ void reshadefx::preprocessor::parse()
 			if (!expect(tokenid::end_of_line))
 				consume_until(tokenid::end_of_line);
 			continue;
+		default:
+			break;
 		}
 
 		if (skip)
@@ -775,6 +777,8 @@ bool reshadefx::preprocessor::evaluate_expression()
 		case tokenid::pipe_pipe:
 			op = op_or;
 			break;
+		default:
+			break;
 		}
 
 		switch (_token)
@@ -1185,6 +1189,8 @@ void reshadefx::preprocessor::create_macro_replacement_list(macro &macro)
 				}
 				break;
 			}
+			default:
+				break;
 		}
 
 		macro.replacement_list += _current_token_raw_data;

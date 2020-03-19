@@ -1138,6 +1138,8 @@ private:
 						assert(op.from.is_integral());
 						spv_op = op.from.is_signed() ? spv::OpConvertSToF : spv::OpConvertUToF;
 						break;
+					default:
+						break;
 					}
 
 					result = add_instruction(spv_op, convert_type(op.to))
@@ -1246,6 +1248,8 @@ private:
 					break;
 				}
 				assert(false);
+				break;
+			default:
 				break;
 			}
 		}
@@ -1358,6 +1362,8 @@ private:
 					}
 					break;
 				}
+				default:
+					break;
 			}
 		}
 

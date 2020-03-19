@@ -345,6 +345,8 @@ bool reshadefx::expression::evaluate_constant_expression(reshadefx::tokenid op)
 		for (unsigned int i = 0; i < type.components(); ++i)
 			constant.as_uint[i] = ~constant.as_uint[i];
 		break;
+	default:
+		break;
 	}
 
 	return true;
@@ -518,6 +520,8 @@ bool reshadefx::expression::evaluate_constant_expression(reshadefx::tokenid op, 
 		else
 			for (unsigned int i = 0; i < type.components(); ++i)
 				constant.as_uint[i] >>= rhs.as_uint[i];
+		break;
+	default:
 		break;
 	}
 
