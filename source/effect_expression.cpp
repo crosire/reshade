@@ -209,7 +209,7 @@ void reshadefx::expression::add_cast_operation(const reshadefx::type &cast_type)
 	{
 		assert(!type.is_array() && !cast_type.is_array());
 
-		chain.push_back({ operation::op_cast, type, cast_type });
+		chain.push_back({ operation::op_cast, type, cast_type, 0, { 0 } });
 	}
 
 	type = cast_type;
@@ -218,7 +218,7 @@ void reshadefx::expression::add_member_access(unsigned int index, const reshadef
 {
 	assert(type.is_struct());
 
-	chain.push_back({ operation::op_member, type, in_type, index });
+	chain.push_back({ operation::op_member, type, in_type, index, { 0 } });
 
 	// The type is now the type of the member that was accessed
 	type = in_type;
@@ -244,7 +244,7 @@ void reshadefx::expression::add_dynamic_index_access(uint32_t index_expression)
 		type.rows = 1;
 	}
 
-	chain.push_back({ operation::op_dynamic_index, prev_type, type, index_expression });
+	chain.push_back({ operation::op_dynamic_index, prev_type, type, index_expression, { 0 } });
 }
 void reshadefx::expression::add_constant_index_access(unsigned int index)
 {
@@ -290,7 +290,7 @@ void reshadefx::expression::add_constant_index_access(unsigned int index)
 	}
 	else
 	{
-		chain.push_back({ operation::op_constant_index, prev_type, type, index });
+		chain.push_back({ operation::op_constant_index, prev_type, type, index, { 0 } });
 	}
 }
 void reshadefx::expression::add_swizzle_access(const signed char swizzle[4], unsigned int length)
@@ -314,7 +314,7 @@ void reshadefx::expression::add_swizzle_access(const signed char swizzle[4], uns
 	}
 	else if (length == 1 && prev_type.is_vector()) // Use indexing when possible since the code generation logic is simpler in SPIR-V
 	{
-		chain.push_back({ operation::op_constant_index, prev_type, type, static_cast<uint32_t>(swizzle[0]) });
+		chain.push_back({ operation::op_constant_index, prev_type, type, static_cast<uint32_t>(swizzle[0]), { 0 } });
 	}
 	else
 	{
