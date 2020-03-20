@@ -381,3 +381,14 @@ HOOK_EXPORT HRESULT WINAPI CreateDXGIFactory2(UINT Flags, REFIID riid, void **pp
 #endif
 	return hr;
 }
+
+HOOK_EXPORT HRESULT WINAPI DXGIGetDebugInterface1(UINT Flags, REFIID riid, void **pDebug)
+{
+	static const auto trampoline = reshade::hooks::call(DXGIGetDebugInterface1);
+
+	// DXGIGetDebugInterface1 is not available on Windows 7, so act as if Windows SDK is not installed
+	if (trampoline == nullptr)
+		return E_NOINTERFACE;
+
+	return trampoline(Flags, riid, pDebug);
+}
