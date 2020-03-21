@@ -30,6 +30,7 @@
     <UseVSHostingProcess>true</UseVSHostingProcess>
     <Prefer32Bit>false</Prefer32Bit>
     <LangVersion>7.3</LangVersion>
+    <NoWarn>1633</NoWarn>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <PlatformTarget>AnyCPU</PlatformTarget>
@@ -39,6 +40,7 @@
     <UseVSHostingProcess>false</UseVSHostingProcess>
     <Prefer32Bit>false</Prefer32Bit>
     <LangVersion>7.3</LangVersion>
+    <NoWarn>1633</NoWarn>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="PresentationCore" />
@@ -103,24 +105,29 @@
     <None Include="Properties\Assembly.manifest">
       <SubType>Designer</SubType>
     </None>
+    <None Include="Properties\AssemblyInfo.cs.in" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="Properties\Icon.ico" />
   </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Common.props" />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
+    <PreBuildEvent>
+echo Generating assembly version ...
+"$(VC_ExecutablePath_x86)\cl.exe" /nologo /EP /C /I $(SolutionDir)res $(ProjectDir)Properties\AssemblyInfo.cs.in &gt; $(ProjectDir)Properties\AssemblyInfo.cs
+echo Compiling ReShade setup tool ...</PreBuildEvent>
     <PostBuildEvent>
 echo Compressing ReShade DLLs ...
-"$(SolutionDir)tools\7za" a -y "$(TargetDir)ReShade.zip" "$(SolutionDir)bin\Win32\Release\ReShade32.dll" "$(SolutionDir)res\layers\ReShade32.json" "$(SolutionDir)bin\x64\Release\ReShade64.dll" "$(SolutionDir)res\layers\ReShade64.json"
-if exist "$(SolutionDir)res\SetupCompatibility.ini" "$(SolutionDir)tools\7za" a -y "$(TargetDir)ReShade.zip" "$(SolutionDir)res\SetupCompatibility.ini"
-if exist "$(SolutionDir)res\SetupEffectPackages.ini" "$(SolutionDir)tools\7za" a -y "$(TargetDir)ReShade.zip" "$(SolutionDir)res\SetupEffectPackages.ini"
+"$(SolutionDir)tools\7za.exe" a -y "$(TargetDir)ReShade.zip" "$(SolutionDir)bin\Win32\Release\ReShade32.dll" "$(SolutionDir)res\layers\ReShade32.json" "$(SolutionDir)bin\x64\Release\ReShade64.dll" "$(SolutionDir)res\layers\ReShade64.json" &gt; nul
+if exist "$(SolutionDir)res\SetupCompatibility.ini" "$(SolutionDir)tools\7za.exe" a -y "$(TargetDir)ReShade.zip" "$(SolutionDir)res\SetupCompatibility.ini" &gt; nul
+if exist "$(SolutionDir)res\SetupEffectPackages.ini" "$(SolutionDir)tools\7za.exe" a -y "$(TargetDir)ReShade.zip" "$(SolutionDir)res\SetupEffectPackages.ini" &gt; nul
 
 echo Appending archive to setup executable ...
 copy /b "$(TargetPath)" + "$(TargetDir)ReShade.zip" "$(TargetPath)"
 
 echo Cleaning up and deleting temporary archive ...
-del "$(TargetDir)ReShade.zip"
-    </PostBuildEvent>
+del "$(TargetDir)ReShade.zip"</PostBuildEvent>
     <RunPostBuildEvent>OnBuildSuccess</RunPostBuildEvent>
   </PropertyGroup>
 </Project>

@@ -1,12 +1,12 @@
-/**
+/*
  * Copyright (C) 2014 Patrick Mours. All rights reserved.
  * License: https://github.com/crosire/reshade#license
  */
 
 #pragma once
 
-#include "com_ptr.hpp"
 #include <d3d9.h>
+#include "com_ptr.hpp"
 
 namespace reshade::d3d9
 {

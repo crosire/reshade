@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright (C) 2014 Patrick Mours. All rights reserved.
  * License: https://github.com/crosire/reshade#license
  */
@@ -247,24 +247,22 @@ private:
 	{
 		if (_shader_model < 40)
 		{
-			if (semantic == "SV_VERTEXID" || semantic == "VERTEXID")
-				return "TEXCOORD0 /* VERTEXID */";
-			else if (semantic == "SV_POSITION")
-				return "POSITION";
-			else if (semantic.compare(0, 9, "SV_TARGET") == 0)
+			if (semantic == "SV_POSITION")
+				return "POSITION"; // For pixel shaders this has to be "VPOS", so need to redefine that in post
+			if (semantic.compare(0, 9, "SV_TARGET") == 0)
 				return "COLOR" + semantic.substr(9);
-			else if (semantic == "SV_DEPTH")
+			if (semantic == "SV_DEPTH")
 				return "DEPTH";
+			if (semantic == "SV_VERTEXID")
+				return "TEXCOORD0 /* VERTEXID */";
 		}
 		else
 		{
-			if (semantic == "VERTEXID")
-				return "SV_VERTEXID";
-			else if (semantic == "POSITION" || semantic == "VPOS")
+			if (semantic == "POSITION" || semantic == "VPOS")
 				return "SV_POSITION";
-			else if (semantic.compare(0, 5, "COLOR") == 0)
+			if (semantic.compare(0, 5, "COLOR") == 0)
 				return "SV_TARGET" + semantic.substr(5);
-			else if (semantic == "DEPTH")
+			if (semantic == "DEPTH")
 				return "SV_DEPTH";
 		}
 

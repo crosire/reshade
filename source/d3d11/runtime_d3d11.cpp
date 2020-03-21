@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright (C) 2014 Patrick Mours. All rights reserved.
  * License: https://github.com/crosire/reshade#license
  */
@@ -8,7 +8,7 @@
 #include "runtime_d3d11.hpp"
 #include "runtime_config.hpp"
 #include "runtime_objects.hpp"
-#include "../dxgi/format_utils.hpp"
+#include "dxgi/format_utils.hpp"
 #include <imgui.h>
 #include <imgui_internal.h>
 #include <d3dcompiler.h>
@@ -115,8 +115,8 @@ bool reshade::d3d11::runtime_d3d11::on_init(const DXGI_SWAP_CHAIN_DESC &swap_des
 	_backbuffer_format = swap_desc.BufferDesc.Format;
 
 	// Get back buffer texture
-	HRESULT hr = _swapchain->GetBuffer(0, IID_PPV_ARGS(&_backbuffer));
-	assert(SUCCEEDED(hr));
+	if (FAILED(_swapchain->GetBuffer(0, IID_PPV_ARGS(&_backbuffer))))
+		return false;
 
 	D3D11_TEXTURE2D_DESC tex_desc = {};
 	tex_desc.Width = _width;
@@ -139,9 +139,8 @@ bool reshade::d3d11::runtime_d3d11::on_init(const DXGI_SWAP_CHAIN_DESC &swap_des
 	{
 		if (FAILED(_device->CreateTexture2D(&tex_desc, nullptr, &_backbuffer_resolved)))
 			return false;
-
-		hr = _device->CreateRenderTargetView(_backbuffer.get(), nullptr, &_backbuffer_rtv[2]);
-		assert(SUCCEEDED(hr));
+		if (FAILED(_device->CreateRenderTargetView(_backbuffer.get(), nullptr, &_backbuffer_rtv[2])))
+			return false;
 	}
 	else
 	{
@@ -150,18 +149,17 @@ bool reshade::d3d11::runtime_d3d11::on_init(const DXGI_SWAP_CHAIN_DESC &swap_des
 
 	// Create back buffer shader texture
 	tex_desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
-	if (SUCCEEDED(hr = _device->CreateTexture2D(&tex_desc, nullptr, &_backbuffer_texture)))
-	{
-		D3D11_SHADER_RESOURCE_VIEW_DESC srv_desc = {};
-		srv_desc.Format = make_dxgi_format_normal(tex_desc.Format);
-		srv_desc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
-		srv_desc.Texture2D.MipLevels = tex_desc.MipLevels;
-		hr = _device->CreateShaderResourceView(_backbuffer_texture.get(), &srv_desc, &_backbuffer_texture_srv[0]);
-		srv_desc.Format = make_dxgi_format_srgb(tex_desc.Format);
-		hr = _device->CreateShaderResourceView(_backbuffer_texture.get(), &srv_desc, &_backbuffer_texture_srv[1]);
-	}
+	if (FAILED(_device->CreateTexture2D(&tex_desc, nullptr, &_backbuffer_texture)))
+		return false;
 
-	if (FAILED(hr))
+	D3D11_SHADER_RESOURCE_VIEW_DESC srv_desc = {};
+	srv_desc.Format = make_dxgi_format_normal(tex_desc.Format);
+	srv_desc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+	srv_desc.Texture2D.MipLevels = tex_desc.MipLevels;
+	if (FAILED(_device->CreateShaderResourceView(_backbuffer_texture.get(), &srv_desc, &_backbuffer_texture_srv[0])))
+		return false;
+	srv_desc.Format = make_dxgi_format_srgb(tex_desc.Format);
+	if (FAILED(_device->CreateShaderResourceView(_backbuffer_texture.get(), &srv_desc, &_backbuffer_texture_srv[1])))
 		return false;
 
 	D3D11_RENDER_TARGET_VIEW_DESC rtv_desc = {};
@@ -285,10 +283,6 @@ void reshade::d3d11::runtime_d3d11::on_present()
 	// Resolve MSAA back buffer if MSAA is active
 	if (_backbuffer_resolved != _backbuffer)
 		_immediate_context->ResolveSubresource(_backbuffer_resolved.get(), 0, _backbuffer.get(), 0, _backbuffer_format);
-
-	// Setup real back buffer
-	ID3D11RenderTargetView *const rtv = _backbuffer_rtv[0].get();
-	_immediate_context->OMSetRenderTargets(1, &rtv, nullptr);
 
 	update_and_render_effects();
 	runtime::on_present();

@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright (C) 2014 Patrick Mours. All rights reserved.
  * License: https://github.com/crosire/reshade#license
  */
@@ -309,7 +309,7 @@ HOOK_EXPORT HRESULT WINAPI CreateDXGIFactory(REFIID riid, void **ppFactory)
 	LOG(INFO) << "Redirecting CreateDXGIFactory" << '(' << "riid = " << riid << ", ppFactory = " << ppFactory << ')' << " ...";
 	LOG(INFO) << "> Passing on to CreateDXGIFactory1:";
 
-	// DXGI1.1 should always be available, so to simplify code just 'CreateDXGIFactory' which is otherwise identical
+	// DXGI 1.1 should always be available, so to simplify code just call 'CreateDXGIFactory' which is otherwise identical
 	return CreateDXGIFactory1(riid, ppFactory);
 }
 HOOK_EXPORT HRESULT WINAPI CreateDXGIFactory1(REFIID riid, void **ppFactory)
@@ -325,18 +325,18 @@ HOOK_EXPORT HRESULT WINAPI CreateDXGIFactory1(REFIID riid, void **ppFactory)
 
 	IDXGIFactory *const factory = static_cast<IDXGIFactory *>(*ppFactory);
 
-	reshade::hooks::install("IDXGIFactory::CreateSwapChain", vtable_from_instance(factory), 10, reinterpret_cast<reshade::hook::address>(&IDXGIFactory_CreateSwapChain));
+	reshade::hooks::install("IDXGIFactory::CreateSwapChain", vtable_from_instance(factory), 10, reinterpret_cast<reshade::hook::address>(IDXGIFactory_CreateSwapChain));
 
-	// Check for DXGI1.2 support and install IDXGIFactory2 hooks if it exists
+	// Check for DXGI 1.2 support and install IDXGIFactory2 hooks if it exists
 	if (com_ptr<IDXGIFactory2> factory2; SUCCEEDED(factory->QueryInterface(&factory2)))
 	{
-		reshade::hooks::install("IDXGIFactory2::CreateSwapChainForHwnd", vtable_from_instance(factory2.get()), 15, reinterpret_cast<reshade::hook::address>(&IDXGIFactory2_CreateSwapChainForHwnd));
-		reshade::hooks::install("IDXGIFactory2::CreateSwapChainForCoreWindow", vtable_from_instance(factory2.get()), 16, reinterpret_cast<reshade::hook::address>(&IDXGIFactory2_CreateSwapChainForCoreWindow));
-		reshade::hooks::install("IDXGIFactory2::CreateSwapChainForComposition", vtable_from_instance(factory2.get()), 24, reinterpret_cast<reshade::hook::address>(&IDXGIFactory2_CreateSwapChainForComposition));
+		reshade::hooks::install("IDXGIFactory2::CreateSwapChainForHwnd", vtable_from_instance(factory2.get()), 15, reinterpret_cast<reshade::hook::address>(IDXGIFactory2_CreateSwapChainForHwnd));
+		reshade::hooks::install("IDXGIFactory2::CreateSwapChainForCoreWindow", vtable_from_instance(factory2.get()), 16, reinterpret_cast<reshade::hook::address>(IDXGIFactory2_CreateSwapChainForCoreWindow));
+		reshade::hooks::install("IDXGIFactory2::CreateSwapChainForComposition", vtable_from_instance(factory2.get()), 24, reinterpret_cast<reshade::hook::address>(IDXGIFactory2_CreateSwapChainForComposition));
 	}
 
 #if RESHADE_VERBOSE_LOG
-	LOG(INFO) << "Returning IDXGIFactory object " << *ppFactory << '.';
+	LOG(INFO) << "Returning IDXGIFactory object " << factory << '.';
 #endif
 	return hr;
 }
@@ -368,16 +368,30 @@ HOOK_EXPORT HRESULT WINAPI CreateDXGIFactory2(UINT Flags, REFIID riid, void **pp
 		return hr;
 	}
 
-	// We can pretty much assume support for DXGI1.2 at this point
-	IDXGIFactory2 *const factory = static_cast<IDXGIFactory2 *>(*ppFactory);
+	IDXGIFactory *const factory = static_cast<IDXGIFactory *>(*ppFactory);
 
-	reshade::hooks::install("IDXGIFactory::CreateSwapChain", vtable_from_instance(factory), 10, reinterpret_cast<reshade::hook::address>(&IDXGIFactory_CreateSwapChain));
-	reshade::hooks::install("IDXGIFactory2::CreateSwapChainForHwnd", vtable_from_instance(factory), 15, reinterpret_cast<reshade::hook::address>(&IDXGIFactory2_CreateSwapChainForHwnd));
-	reshade::hooks::install("IDXGIFactory2::CreateSwapChainForCoreWindow", vtable_from_instance(factory), 16, reinterpret_cast<reshade::hook::address>(&IDXGIFactory2_CreateSwapChainForCoreWindow));
-	reshade::hooks::install("IDXGIFactory2::CreateSwapChainForComposition", vtable_from_instance(factory), 24, reinterpret_cast<reshade::hook::address>(&IDXGIFactory2_CreateSwapChainForComposition));
+	reshade::hooks::install("IDXGIFactory::CreateSwapChain", vtable_from_instance(factory), 10, reinterpret_cast<reshade::hook::address>(IDXGIFactory_CreateSwapChain));
+
+	if (com_ptr<IDXGIFactory2> factory2; SUCCEEDED(factory->QueryInterface(&factory2)))
+	{
+		reshade::hooks::install("IDXGIFactory2::CreateSwapChainForHwnd", vtable_from_instance(factory2.get()), 15, reinterpret_cast<reshade::hook::address>(IDXGIFactory2_CreateSwapChainForHwnd));
+		reshade::hooks::install("IDXGIFactory2::CreateSwapChainForCoreWindow", vtable_from_instance(factory2.get()), 16, reinterpret_cast<reshade::hook::address>(IDXGIFactory2_CreateSwapChainForCoreWindow));
+		reshade::hooks::install("IDXGIFactory2::CreateSwapChainForComposition", vtable_from_instance(factory2.get()), 24, reinterpret_cast<reshade::hook::address>(IDXGIFactory2_CreateSwapChainForComposition));
+	}
 
 #if RESHADE_VERBOSE_LOG
-	LOG(INFO) << "Returning IDXGIFactory object " << *ppFactory << '.';
+	LOG(INFO) << "Returning IDXGIFactory object " << factory << '.';
 #endif
 	return hr;
+}
+
+HOOK_EXPORT HRESULT WINAPI DXGIGetDebugInterface1(UINT Flags, REFIID riid, void **pDebug)
+{
+	static const auto trampoline = reshade::hooks::call(DXGIGetDebugInterface1);
+
+	// DXGIGetDebugInterface1 is not available on Windows 7, so act as if Windows SDK is not installed
+	if (trampoline == nullptr)
+		return E_NOINTERFACE;
+
+	return trampoline(Flags, riid, pDebug);
 }

@@ -1,13 +1,13 @@
-/**
+/*
  * Copyright (C) 2014 Patrick Mours. All rights reserved.
  * License: https://github.com/crosire/reshade#license
  */
 
 #pragma once
 
+#include <memory>
 #include <dxgi1_5.h>
 #include "com_ptr.hpp"
-#include <memory>
 
 struct D3D10Device;
 struct D3D11Device;

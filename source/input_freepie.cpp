@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright (C) 2014 Patrick Mours. All rights reserved.
  * License: https://github.com/crosire/reshade#license
  */
@@ -14,16 +14,16 @@ public:
 	shared_memory(LPCTSTR name)
 	{
 		handle = OpenFileMapping(FILE_MAP_ALL_ACCESS, FALSE, name);
-		if (handle != NULL)
+		if (handle != nullptr)
 			mapped = MapViewOfFile(handle, FILE_MAP_ALL_ACCESS, 0, 0, sizeof(T));
 	}
 	shared_memory(const shared_memory &other) = delete;
 	shared_memory(shared_memory &&other) { operator=(other); }
 	~shared_memory()
 	{
-		if (mapped != NULL)
+		if (mapped != nullptr)
 			UnmapViewOfFile(mapped);
-		if (handle != NULL)
+		if (handle != nullptr)
 			CloseHandle(handle);
 	}
 
@@ -32,24 +32,24 @@ public:
 	{
 		handle = other.handle;
 		mapped = other.mapped;
-		other.handle = NULL;
-		other.mapped = NULL;
+		other.handle = nullptr;
+		other.mapped = nullptr;
 		return *this;
 	}
 
 	operator T &()
 	{
-		return *(T*)mapped;
+		return *reinterpret_cast<T *>(mapped);
 	}
 
 	operator bool() const
 	{
-		return handle != NULL && handle != INVALID_HANDLE_VALUE;
+		return handle && handle != INVALID_HANDLE_VALUE;
 	}
 
 private:
-	HANDLE handle = NULL;
-	LPVOID mapped = NULL;
+	HANDLE handle = nullptr;
+	LPVOID mapped = nullptr;
 };
 
 bool freepie_io_read(uint32_t index, freepie_io_data *output)

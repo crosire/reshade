@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright (C) 2014 Patrick Mours. All rights reserved.
  * License: https://github.com/crosire/reshade#license
  */
@@ -10,7 +10,7 @@
 
 /// <summary>
 /// A simple lock-free linear search table.
-/// A key value one zero holds a special meaning, so do not use it.
+/// The key values "one" and "zero" hold a special meaning (see <see cref="no_value"/> and <see cref="update_value"/>), so do not use them.
 /// </summary>
 template <typename TKey, typename TValue, size_t MAX_ENTRIES>
 class lockfree_table

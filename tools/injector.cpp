@@ -9,6 +9,13 @@
 #include <AclAPI.h>
 #include <TlHelp32.h>
 
+struct loading_data
+{
+	WCHAR load_path[MAX_PATH] = L"";
+	decltype(&GetLastError) GetLastError = nullptr;
+	decltype(&LoadLibraryW) LoadLibraryW = nullptr;
+};
+
 struct scoped_handle
 {
 	HANDLE handle;
@@ -69,6 +76,15 @@ static void update_acl_for_uwp(LPWSTR path)
 	LocalFree(sid);
 }
 
+#if RESHADE_LOADING_THREAD_FUNC
+static DWORD WINAPI loading_thread_func(loading_data *arg)
+{
+	if (arg->LoadLibraryW(arg->load_path) == NULL)
+		return arg->GetLastError();
+	return ERROR_SUCCESS;
+}
+#endif
+
 int wmain(int argc, wchar_t *argv[])
 {
 	if (argc != 2)
@@ -99,53 +115,105 @@ int wmain(int argc, wchar_t *argv[])
 		Sleep(1); // Sleep a bit to not overburden the CPU
 	}
 
-	printf("Found a matching process with PID %d! Injecting ReShade ...\n", pid);
+	printf("Found a matching process with PID %d! Injecting ReShade ... ", pid);
 
 	// Wait just a little bit for the application to initialize
 	Sleep(50);
 
 	// Open target application process
-	const HANDLE local_process = GetCurrentProcess();
 	const scoped_handle remote_process = OpenProcess(PROCESS_CREATE_THREAD | PROCESS_VM_OPERATION | PROCESS_VM_READ | PROCESS_VM_WRITE | PROCESS_QUERY_INFORMATION, FALSE, pid);
-
 	if (remote_process == nullptr)
 	{
-		printf("Failed to open target application process!\n");
+		printf("\nFailed to open target application process!\n");
 		return GetLastError();
 	}
 
+	// Check process architecture
 	BOOL remote_is_wow64 = FALSE;
 	IsWow64Process(remote_process, &remote_is_wow64);
+#ifndef _WIN64
+	if (remote_is_wow64 == FALSE)
+#else
+	if (remote_is_wow64 != FALSE)
+#endif
+	{
+		printf("\nProcess architecture does not match injection tool! Cannot continue.\n");
+		return ERROR_IMAGE_MACHINE_TYPE_MISMATCH;
+	}
 
-	WCHAR load_path[MAX_PATH] = L"";
-	GetCurrentDirectoryW(MAX_PATH, load_path);
-	swprintf(load_path, MAX_PATH, L"%s\\%s", load_path, remote_is_wow64 ? L"ReShade32.dll" : L"ReShade64.dll");
+	loading_data arg;
+	GetCurrentDirectoryW(MAX_PATH, arg.load_path);
+	swprintf(arg.load_path, MAX_PATH, L"%s\\%s", arg.load_path, remote_is_wow64 ? L"ReShade32.dll" : L"ReShade64.dll");
+
+	if (GetFileAttributesW(arg.load_path) == INVALID_FILE_ATTRIBUTES)
+	{
+		wprintf(L"\nFailed to find ReShade at \"%s\"!\n", arg.load_path);
+		return ERROR_FILE_NOT_FOUND;
+	}
 
 	// Make sure the DLL has permissions set up for "ALL_APPLICATION_PACKAGES"
-	update_acl_for_uwp(load_path);
+	update_acl_for_uwp(arg.load_path);
 
-	const auto load_param = VirtualAllocEx(remote_process, nullptr, sizeof(load_path), MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+	// This happens to work because kernel32.dll is always loaded to the same base address, so the address of 'LoadLibrary' is the same in the target application and the current one
+	arg.GetLastError = GetLastError;
+	arg.LoadLibraryW = LoadLibraryW;
 
-	// Write 'LoadLibrary' call argument to target application
-	if (load_param == nullptr || !WriteProcessMemory(remote_process, load_param, load_path, sizeof(load_path), nullptr))
+#if RESHADE_LOADING_THREAD_FUNC
+	const auto loading_thread_func_size = 64; // An estimate of the size of the 'loading_thread_func' function
+#else
+	const auto loading_thread_func_size = 0;
+#endif
+	const auto load_param = VirtualAllocEx(remote_process, nullptr, loading_thread_func_size + sizeof(arg), MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE);
+#if RESHADE_LOADING_THREAD_FUNC
+	const auto loading_thread_func_address = static_cast<LPBYTE>(load_param) + sizeof(arg);
+#else
+	const auto loading_thread_func_address = arg.LoadLibraryW;
+#endif
+
+	// Write thread entry point function and 'LoadLibrary' call argument to target application
+	if (load_param == nullptr
+		|| !WriteProcessMemory(remote_process, load_param, &arg, sizeof(arg), nullptr)
+#if RESHADE_LOADING_THREAD_FUNC
+		|| !WriteProcessMemory(remote_process, loading_thread_func_address, loading_thread_func, loading_thread_func_size, nullptr)
+#endif
+		)
 	{
-		printf("Failed to allocate and write 'LoadLibrary' argument in target application!\n");
+		printf("\nFailed to allocate and write 'LoadLibrary' argument in target application!\n");
 		return GetLastError();
 	}
 
 	// Execute 'LoadLibrary' in target application
-	// This happens to work because kernel32.dll is always loaded to the same base address, so the address of 'LoadLibrary' is the same in the target application and the current one
-	const scoped_handle load_thread = CreateRemoteThread(remote_process, nullptr, 0, reinterpret_cast<LPTHREAD_START_ROUTINE>(LoadLibraryW), load_param, 0, nullptr);
-
+	const scoped_handle load_thread = CreateRemoteThread(remote_process, nullptr, 0, reinterpret_cast<LPTHREAD_START_ROUTINE>(loading_thread_func_address), load_param, 0, nullptr);
 	if (load_thread == nullptr)
 	{
-		printf("Failed to execute 'LoadLibrary' in target application!\n");
+		printf("\nFailed to execute 'LoadLibrary' in target application!\n");
 		return GetLastError();
 	}
 
 	// Wait for loading to finish and clean up parameter memory afterwards
 	WaitForSingleObject(load_thread, INFINITE);
 	VirtualFreeEx(remote_process, load_param, 0, MEM_RELEASE);
+
+	// Thread thread exit code will contain the module handle
+	if (DWORD exit_code; GetExitCodeThread(load_thread, &exit_code) &&
+#if RESHADE_LOADING_THREAD_FUNC
+		exit_code == ERROR_SUCCESS)
+#else
+		exit_code != NULL)
+#endif
+	{
+		printf("Succeeded!\n");
+	}
+	else
+	{
+#if RESHADE_LOADING_THREAD_FUNC
+		printf("\nFailed to load ReShade in target application! Error code is 0x%x.\n", exit_code);
+		return exit_code;
+#else
+		printf("\nFailed to load ReShade in target application!\n");
+		return ERROR_MOD_NOT_FOUND;
+#endif
+	}
 
 	return 0;
 }

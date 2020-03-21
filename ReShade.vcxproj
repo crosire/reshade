@@ -359,6 +359,7 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="source\d2d1\d2d1.cpp" />
     <ClCompile Include="source\d3d10\buffer_detection.cpp" />
     <ClCompile Include="source\d3d10\d3d10.cpp" />
     <ClCompile Include="source\d3d10\d3d10_device.cpp" />
@@ -460,12 +461,10 @@
     <ClInclude Include="source\runtime_config.hpp" />
     <ClInclude Include="source\runtime_objects.hpp" />
     <ClInclude Include="source\vulkan\buffer_detection.hpp" />
-    <ClInclude Include="source\vulkan\driver_bugs.hpp" />
     <ClInclude Include="source\vulkan\format_utils.hpp" />
     <ClInclude Include="source\vulkan\lockfree_table.hpp" />
     <ClInclude Include="source\vulkan\runtime_vk.hpp" />
     <ClInclude Include="source\vulkan\vk_handle.hpp" />
-    <ClInclude Include="source\vulkan\vk_layer_dispatch_table.h" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="res\resource.rc" />

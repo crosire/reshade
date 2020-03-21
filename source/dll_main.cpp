@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright (C) 2014 Patrick Mours. All rights reserved.
  * License: https://github.com/crosire/reshade#license
  */
@@ -467,7 +467,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 	#pragma endregion
 
 	#pragma region Vulkan Implementation
-#  define VK_CHECK(exp) { const VkResult res = (exp); assert(res == VK_SUCCESS || res == VK_SUBOPTIMAL_KHR); }
+#  define VK_CHECK(exp) { const VkResult res = (exp); assert(res == VK_SUCCESS); }
 #  define VK_CALL_CMD(name, device, ...) reinterpret_cast<PFN_##name>(vkGetDeviceProcAddr(device, #name))(__VA_ARGS__)
 #  define VK_CALL_DEV(name, device, ...) reinterpret_cast<PFN_##name>(vkGetDeviceProcAddr(device, #name))(device, __VA_ARGS__)
 #  define VK_CALL_INS(name, instance, ...) reinterpret_cast<PFN_##name>(vkGetInstanceProcAddr(instance, #name))(__VA_ARGS__)
@@ -679,28 +679,35 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 			}
 
 			uint32_t swapchain_image_index = 0;
-			VK_CHECK(VK_CALL_DEV(vkAcquireNextImageKHR, device, swapchain, UINT64_MAX, sem_acquire, VK_NULL_HANDLE, &swapchain_image_index));
 
-			VkSubmitInfo submit_info { VK_STRUCTURE_TYPE_SUBMIT_INFO };
-			submit_info.waitSemaphoreCount = 1;
-			VkPipelineStageFlags wait_mask = VK_PIPELINE_STAGE_TRANSFER_BIT;
-			submit_info.pWaitDstStageMask = &wait_mask;
-			submit_info.pWaitSemaphores = &sem_acquire;
-			submit_info.commandBufferCount = 1;
-			submit_info.pCommandBuffers = &cmd_list[swapchain_image_index];
-			submit_info.signalSemaphoreCount = 1;
-			submit_info.pSignalSemaphores = &sem_present;
+			VkResult present_res = VK_CALL_DEV(vkAcquireNextImageKHR, device, swapchain, UINT64_MAX, sem_acquire, VK_NULL_HANDLE, &swapchain_image_index);
+			if (present_res == VK_SUCCESS)
+			{
+				VkSubmitInfo submit_info { VK_STRUCTURE_TYPE_SUBMIT_INFO };
+				submit_info.waitSemaphoreCount = 1;
+				VkPipelineStageFlags wait_mask = VK_PIPELINE_STAGE_TRANSFER_BIT;
+				submit_info.pWaitDstStageMask = &wait_mask;
+				submit_info.pWaitSemaphores = &sem_acquire;
+				submit_info.commandBufferCount = 1;
+				submit_info.pCommandBuffers = &cmd_list[swapchain_image_index];
+				submit_info.signalSemaphoreCount = 1;
+				submit_info.pSignalSemaphores = &sem_present;
 
-			VK_CHECK(VK_CALL_CMD(vkQueueSubmit, device, queue, 1, &submit_info, VK_NULL_HANDLE));
+				VK_CHECK(VK_CALL_CMD(vkQueueSubmit, device, queue, 1, &submit_info, VK_NULL_HANDLE));
 
-			VkPresentInfoKHR present_info { VK_STRUCTURE_TYPE_PRESENT_INFO_KHR };
-			present_info.waitSemaphoreCount = 1;
-			present_info.pWaitSemaphores = &sem_present;
-			present_info.swapchainCount = 1;
-			present_info.pSwapchains = &swapchain;
-			present_info.pImageIndices = &swapchain_image_index;
+				VkPresentInfoKHR present_info { VK_STRUCTURE_TYPE_PRESENT_INFO_KHR };
+				present_info.waitSemaphoreCount = 1;
+				present_info.pWaitSemaphores = &sem_present;
+				present_info.swapchainCount = 1;
+				present_info.pSwapchains = &swapchain;
+				present_info.pImageIndices = &swapchain_image_index;
 
-			VK_CHECK(VK_CALL_CMD(vkQueuePresentKHR, device, queue, &present_info));
+				present_res = VK_CALL_CMD(vkQueuePresentKHR, device, queue, &present_info);
+			}
+
+			// Ignore out of date errors during presentation, since swapchain will be recreated on next minimize/maximize event anyway
+			if (present_res != VK_SUBOPTIMAL_KHR && present_res != VK_ERROR_OUT_OF_DATE_KHR)
+				VK_CHECK(present_res);
 		}
 
 		// Wait for all GPU work to finish before destroying objects
@@ -768,7 +775,13 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 			if (static unsigned int dump_index = 0;
 				++dump_index < 100)
 			{
-				const auto dbghelp = LoadLibrary(TEXT("dbghelp.dll"));
+				// Call into the original "LoadLibrary" directly, to avoid failing memory corruption checks
+				extern HMODULE WINAPI HookLoadLibraryA(LPCSTR lpFileName);
+				const auto ll = reshade::hooks::call(HookLoadLibraryA);
+				if (ll == nullptr)
+					goto continue_search;
+
+				const auto dbghelp = ll("dbghelp.dll");
 				if (dbghelp == nullptr)
 					goto continue_search;
 
@@ -816,6 +829,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 		hooks::register_module("user32.dll");
 		hooks::register_module("ws2_32.dll");
 
+		hooks::register_module(get_system_path() / "d2d1.dll");
 		hooks::register_module(get_system_path() / "d3d9.dll");
 		hooks::register_module(get_system_path() / "d3d10.dll");
 		hooks::register_module(get_system_path() / "d3d10_1.dll");

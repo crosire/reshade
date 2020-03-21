@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright (C) 2014 Patrick Mours. All rights reserved.
  * License: https://github.com/crosire/reshade#license
  */
@@ -8,7 +8,6 @@
 #include "runtime_vk.hpp"
 #include "runtime_config.hpp"
 #include "runtime_objects.hpp"
-#include "driver_bugs.hpp"
 #include "format_utils.hpp"
 #include <imgui.h>
 #include <imgui_internal.h>
@@ -118,10 +117,12 @@ namespace reshade::vulkan
 reshade::vulkan::runtime_vk::runtime_vk(VkDevice device, VkPhysicalDevice physical_device, uint32_t queue_family_index, const VkLayerInstanceDispatchTable &instance_table, const VkLayerDispatchTable &device_table) :
 	_device(device), _queue_family_index(queue_family_index), vk(device_table)
 {
-	_renderer_id = 0x20000;
-
 	instance_table.GetPhysicalDeviceProperties(physical_device, &_device_props);
 	instance_table.GetPhysicalDeviceMemoryProperties(physical_device, &_memory_props);
+
+	_renderer_id = 0x20000 |
+		VK_VERSION_MAJOR(_device_props.apiVersion) << 12 |
+		VK_VERSION_MINOR(_device_props.apiVersion) <<  8;
 
 	_vendor_id = _device_props.vendorID;
 	_device_id = _device_props.deviceID;
@@ -192,7 +193,11 @@ reshade::vulkan::runtime_vk::runtime_vk(VkDevice device, VkPhysicalDevice physic
 	subscribe_to_ui("Vulkan", [this]() {
 		// Add some information about the device and driver to the UI
 		ImGui::Text("Vulkan %u.%u.%u", VK_VERSION_MAJOR(_device_props.apiVersion), VK_VERSION_MINOR(_device_props.apiVersion), VK_VERSION_PATCH(_device_props.apiVersion));
-		ImGui::Text("%s Driver %u.%u", _device_props.deviceName, VK_VERSION_MAJOR(_device_props.driverVersion), VK_VERSION_MINOR(_device_props.driverVersion));
+		ImGui::Text("%s Driver %u.%u",
+			_device_props.deviceName,
+			VK_VERSION_MAJOR(_device_props.driverVersion),
+			// NVIDIA has a custom driver version scheme, so extract the proper minor version from it
+			_device_props.vendorID == 0x10DE ? (_device_props.driverVersion >> 14) & 0xFF : VK_VERSION_MINOR(_device_props.driverVersion));
 
 #if RESHADE_DEPTH
 		ImGui::Spacing();
@@ -555,7 +560,6 @@ void reshade::vulkan::runtime_vk::on_present(uint32_t swapchain_image_index, con
 #endif
 
 	update_and_render_effects();
-
 	runtime::on_present();
 
 	// Submit all asynchronous commands in one batch to the current queue
@@ -690,11 +694,10 @@ bool reshade::vulkan::runtime_vk::init_effect(size_t index)
 
 	{   VkResult res = VK_SUCCESS;
 
-		/* The AMD Vulkan driver has issues with multiple entry points in a single shader module, so
-		 * instead create a separate shader module for every entry point there.
-		 * See also driver_bugs.hpp for a more detailed description of the problem.
-		 */
-		bool has_driver_bug = (_device_props.vendorID == 0x1002 /*AMD*/);
+		// The AMD driver has a really hard time with SPIR-V modules that have multiple entry points.
+		// Trying to create a graphics pipeline using a shader module created from such a SPIR-V module tends to just fail with a generic VK_ERROR_OUT_OF_HOST_MEMORY.
+		// This is a pretty unpleasant driver bug, but until fixed, create a separate shader module for every entry point and rewrite the SPIR-V module for each to removes all but a single entry point (and associated functions/variables).
+		bool has_driver_bug = (_device_props.vendorID == 0x1002); // AMD
 
 		if (!has_driver_bug)
 		{
@@ -711,8 +714,73 @@ bool reshade::vulkan::runtime_vk::init_effect(size_t index)
 
 			if (has_driver_bug)
 			{
+				uint32_t current_function = 0, current_function_offset = 0;
 				std::vector<uint32_t> spirv = effect.module.spirv;
-				work_around_amd_driver_bug(spirv, entry_point.name);
+				std::vector<uint32_t> functions_to_remove, variables_to_remove;
+
+				for (uint32_t inst = 5 /* Skip SPIR-V header information */; inst < spirv.size();)
+				{
+					const uint32_t op = spirv[inst] & 0xFFFF;
+					const uint32_t len = (spirv[inst] >> 16) & 0xFFFF;
+					assert(len != 0);
+
+					switch (op)
+					{
+					case 15: // OpEntryPoint
+						// Look for any non-matching entry points
+						if (entry_point.name != reinterpret_cast<const char *>(&spirv[inst + 3]))
+						{
+							functions_to_remove.push_back(spirv[inst + 2]);
+
+							// Get interface variables
+							for (size_t k = inst + 3 + (entry_point.name.size() / 4); k < inst + len; ++k)
+								variables_to_remove.push_back(spirv[k]);
+
+							// Remove this entry point from the module
+							spirv.erase(spirv.begin() + inst, spirv.begin() + inst + len);
+							continue;
+						}
+						break;
+					case 16: // OpExecutionMode
+						if (std::find(functions_to_remove.begin(), functions_to_remove.end(), spirv[inst + 1]) != functions_to_remove.end())
+						{
+							spirv.erase(spirv.begin() + inst, spirv.begin() + inst + len);
+							continue;
+						}
+						break;
+					case 59: // OpVariable
+						// Remove all declarations of the interface variables for non-matching entry points
+						if (std::find(variables_to_remove.begin(), variables_to_remove.end(), spirv[inst + 2]) != variables_to_remove.end())
+						{
+							spirv.erase(spirv.begin() + inst, spirv.begin() + inst + len);
+							continue;
+						}
+						break;
+					case 71: // OpDecorate
+						// Remove all decorations targeting any of the interface variables for non-matching entry points
+						if (std::find(variables_to_remove.begin(), variables_to_remove.end(), spirv[inst + 1]) != variables_to_remove.end())
+						{
+							spirv.erase(spirv.begin() + inst, spirv.begin() + inst + len);
+							continue;
+						}
+						break;
+					case 54: // OpFunction
+						current_function = spirv[inst + 2];
+						current_function_offset = inst;
+						break;
+					case 56: // OpFunctionEnd
+						// Remove all function definitions for non-matching entry points
+						if (std::find(functions_to_remove.begin(), functions_to_remove.end(), current_function) != functions_to_remove.end())
+						{
+							spirv.erase(spirv.begin() + current_function_offset, spirv.begin() + inst + len);
+							inst = current_function_offset;
+							continue;
+						}
+						break;
+					}
+
+					inst += len;
+				}
 
 				VkShaderModuleCreateInfo create_info { VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO };
 				create_info.codeSize = spirv.size() * sizeof(uint32_t);
@@ -812,11 +880,9 @@ bool reshade::vulkan::runtime_vk::init_effect(size_t index)
 			break;
 		}
 
+		// Unset bindings are not allowed, so fail initialization for the entire effect in that case
 		if (image_binding.imageView == VK_NULL_HANDLE)
-		{
-			// Unset bindings are not allowed, so fail initialization for the entire effect
 			return false;
-		}
 
 		VkSamplerCreateInfo create_info { VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO };
 		create_info.addressModeU = static_cast<VkSamplerAddressMode>(static_cast<uint32_t>(info.address_u) - 1);

@@ -1,11 +1,11 @@
-/**
+/*
  * Copyright (C) 2014 Patrick Mours. All rights reserved.
  * License: https://github.com/crosire/reshade#license
  */
 
 #include "dll_log.hpp"
 #include "buffer_detection.hpp"
-#include "../dxgi/format_utils.hpp"
+#include "dxgi/format_utils.hpp"
 #include <cmath>
 
 #if RESHADE_DEPTH

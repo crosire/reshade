@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright (C) 2014 Patrick Mours. All rights reserved.
  * License: https://github.com/crosire/reshade#license
  */
@@ -213,6 +213,17 @@ void reshade::runtime::on_present()
 	const auto input_lock = _input->lock();
 #endif
 
+#if RESHADE_GUI
+	// Draw overlay
+	draw_ui();
+
+	if (_should_save_screenshot && _screenshot_save_ui && _show_menu)
+		save_screenshot(L" ui");
+#endif
+
+	// All screenshots were created at this point, so reset request
+	_should_save_screenshot = false;
+
 	// Handle keyboard shortcuts
 	if (!_ignore_shortcuts)
 	{
@@ -220,7 +231,7 @@ void reshade::runtime::on_present()
 			_effects_enabled = !_effects_enabled;
 
 		if (_input->is_key_pressed(_screenshot_key_data))
-			_should_save_screenshot = true; // Notify 'update_and_render_effects' that we want to save a screenshot
+			_should_save_screenshot = true; // Notify 'update_and_render_effects' that we want to save a screenshot next frame
 
 		// Do not allow the next shortcuts while effects are being loaded or compiled (since they affect that state)
 		if (!is_loading() && _reload_compile_queue.empty())
@@ -245,14 +256,6 @@ void reshade::runtime::on_present()
 				load_current_preset();
 		}
 	}
-
-#if RESHADE_GUI
-	// Draw overlay
-	draw_ui();
-
-	if (_should_save_screenshot && _screenshot_save_ui && _show_menu)
-		save_screenshot(L" ui");
-#endif
 
 	// Reset input status
 	_input->next_frame();
@@ -724,8 +727,7 @@ void reshade::runtime::unload_effect(size_t index)
 void reshade::runtime::unload_effects()
 {
 #if RESHADE_GUI
-	// Force editor to clear text after effects where reloaded
-	open_file_in_code_editor(std::numeric_limits<size_t>::max(), {});
+	_selected_effect = std::numeric_limits<size_t>::max();
 	_preview_texture = nullptr;
 	_effect_filter[0] = '\0'; // And reset filter too, since the list of techniques might have changed
 #endif
@@ -762,6 +764,14 @@ void reshade::runtime::update_and_render_effects()
 
 		// Finished loading effects, so apply preset to figure out which ones need compiling
 		load_current_preset();
+
+#if RESHADE_GUI
+		// Re-open last file in code editor after a reload
+		if (_show_code_editor && !_editor_file.empty())
+			if (const auto it = std::find_if(_effects.begin(), _effects.end(),
+				[this](const effect &fx) { return fx.source_file == _editor_file; }); it != _effects.end())
+				open_file_in_code_editor(it - _effects.begin(), _editor_file);
+#endif
 
 		_last_reload_time = std::chrono::high_resolution_clock::now();
 		_reload_total_effects = 0;
@@ -856,10 +866,7 @@ void reshade::runtime::update_and_render_effects()
 
 	// Nothing to do here if effects are disabled globally
 	if (!_effects_enabled)
-	{
-		_should_save_screenshot = false;
 		return;
-	}
 
 	// Update special uniform variables
 	for (effect &effect : _effects)
@@ -1057,10 +1064,7 @@ void reshade::runtime::update_and_render_effects()
 	}
 
 	if (_should_save_screenshot)
-	{
 		save_screenshot(std::wstring(), true);
-		_should_save_screenshot = false;
-	}
 }
 
 void reshade::runtime::enable_technique(technique &technique)

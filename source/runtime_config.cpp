@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright (C) 2014 Patrick Mours. All rights reserved.
  * License: https://github.com/crosire/reshade#license
  */
@@ -66,7 +66,7 @@ void reshade::ini_file::load()
 	{
 		trim(line);
 
-		if (line.empty() || line[0] == ';' || line[0] == '/')
+		if (line.empty() || line[0] == ';' || line[0] == '/' || line[0] == '#')
 			continue;
 
 		// Read section name
@@ -108,27 +108,15 @@ bool reshade::ini_file::save()
 	if (!_modified)
 		return true;
 
-	enum class condition { none, open, create, blocked, unknown };
-	auto condition = condition::none;
-
 	std::error_code ec;
-
 	std::filesystem::file_time_type modified_at = std::filesystem::last_write_time(_path, ec);
-	if (ec.value() == 0)
-		condition = condition::open;
-	else if (ec.value() == 0x2 || ec.value() == 0x3) // 0x2: ERROR_FILE_NOT_FOUND, 0x3: ERROR_PATH_NOT_FOUND
-		condition = condition::create;
-	else
-		condition = condition::unknown;
-
-	if (condition == condition::open && modified_at >= _modified_at)
+	if (ec.value() == 0 && modified_at >= _modified_at)
 	{
-		// File was modified on disk and may have different data, so cannot save
+		// File exists and was modified on disk and may have different data, so cannot save
 		_modified = false;
 		return true;
 	}
 
-	std::string str;
 	std::stringstream data;
 	std::vector<std::string> section_names, key_names;
 
@@ -147,6 +135,7 @@ bool reshade::ini_file::save()
 	{
 		const auto &keys = _sections.at(section_name);
 
+		key_names.clear();
 		key_names.reserve(keys.size());
 		for (const auto &key : keys)
 			key_names.push_back(key.first);
@@ -179,21 +168,10 @@ bool reshade::ini_file::save()
 		}
 
 		data << '\n';
-		key_names.clear();
 	}
 
-	str = data.str();
-
-	std::ofstream file;
-	if (condition == condition::open || condition == condition::create)
-	{
-		if (file.open(_path); file.fail())
-		{
-			condition = (condition == condition::open) ? condition::blocked : condition::unknown;
-		}
-	}
-
-	if (condition == condition::blocked || condition == condition::unknown)
+	std::ofstream file(_path);
+	if (!file.is_open() || file.fail())
 	{
 		// Reset state to avoid cache flushing to repeatedly save the file
 		_modified = false;
@@ -202,9 +180,11 @@ bool reshade::ini_file::save()
 
 	file.rdbuf()->pubsetbuf(nullptr, 0);
 
+	const std::string str = data.str();
 	file.imbue(std::locale("en-us.UTF-8"));
 	file.write(str.data(), str.size());
 
+	// Keep the modified flag if saving was not successful, so to try again later
 	if (_modified = file.fail(); _modified)
 		std::filesystem::last_write_time(_path, modified_at, ec);
 	else if (modified_at = std::filesystem::last_write_time(_path, ec); ec.value() == 0)

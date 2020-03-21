@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright (C) 2014 Patrick Mours. All rights reserved.
  * License: https://github.com/crosire/reshade#license
  */
@@ -513,8 +513,8 @@ IMPLEMENT_INTRINSIC_HLSL(saturate, 0, {
 	code += "saturate(" + id_to_name(args[0].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_SPIRV(saturate, 0, {
-	const spv::Id constant_one = emit_constant(args[0].type, { 1.0f, 1.0f, 1.0f, 1.0f });
-	const spv::Id constant_zero = emit_constant(args[0].type, { 0.0f, 0.0f, 0.0f, 0.0f });
+	const spv::Id constant_one = emit_constant(args[0].type, 1u);
+	const spv::Id constant_zero = emit_constant(args[0].type, 0u);
 
 	return add_instruction(spv::OpExtInst, convert_type(res_type))
 		.add(_glsl_ext)
@@ -564,7 +564,7 @@ IMPLEMENT_INTRINSIC_HLSL(rcp, 0, {
 		code += "1.0 / " + id_to_name(args[0].base);
 	})
 IMPLEMENT_INTRINSIC_SPIRV(rcp, 0, {
-	const spv::Id constant_one = emit_constant(args[0].type, { 1.0f, 1.0f, 1.0f, 1.0f });
+	const spv::Id constant_one = emit_constant(args[0].type, 1u);
 
 	return add_instruction(spv::OpFDiv, convert_type(res_type))
 		.add(constant_one)
@@ -687,7 +687,7 @@ IMPLEMENT_INTRINSIC_SPIRV(log10, 0, {
 		.result;
 
 	const spv::Id log10 = emit_constant(args[0].type, /* log2(10) */
-		{ 3.321928f, 3.321928f, 3.321928f, 3.321928f });
+		{ { 3.321928f, 3.321928f, 3.321928f, 3.321928f } });
 
 	return add_instruction(spv::OpFDiv, convert_type(res_type))
 		.add(log2)

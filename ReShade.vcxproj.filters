@@ -13,6 +13,9 @@
     <Filter Include="hooks">
       <UniqueIdentifier>{3c3eb495-1eeb-4c7c-b58f-3bbcf24758f6}</UniqueIdentifier>
     </Filter>
+    <Filter Include="hooks\d2d1">
+      <UniqueIdentifier>{66ce0286-382a-475f-aff5-7320035ffc85}</UniqueIdentifier>
+    </Filter>
     <Filter Include="hooks\d3d9">
       <UniqueIdentifier>{63356f14-45b5-4047-9be1-e7e6e8a3f3e5}</UniqueIdentifier>
     </Filter>
@@ -86,6 +89,9 @@
     </ClCompile>
     <ClCompile Include="source\runtime_update_check.cpp">
       <Filter>core\runtime</Filter>
+    </ClCompile>
+    <ClCompile Include="source\d2d1\d2d1.cpp">
+      <Filter>hooks\d2d1</Filter>
     </ClCompile>
     <ClCompile Include="source\d3d9\buffer_detection.cpp">
       <Filter>hooks\d3d9</Filter>
@@ -332,9 +338,6 @@
     <ClInclude Include="source\vulkan\buffer_detection.hpp">
       <Filter>hooks\vulkan</Filter>
     </ClInclude>
-    <ClInclude Include="source\vulkan\driver_bugs.hpp">
-      <Filter>hooks\vulkan</Filter>
-    </ClInclude>
     <ClInclude Include="source\vulkan\format_utils.hpp">
       <Filter>hooks\vulkan</Filter>
     </ClInclude>
@@ -345,9 +348,6 @@
       <Filter>hooks\vulkan</Filter>
     </ClInclude>
     <ClInclude Include="source\vulkan\vk_handle.hpp">
-      <Filter>hooks\vulkan</Filter>
-    </ClInclude>
-    <ClInclude Include="source\vulkan\vk_layer_dispatch_table.h">
       <Filter>hooks\vulkan</Filter>
     </ClInclude>
     <ClInclude Include="source\com_ptr.hpp">

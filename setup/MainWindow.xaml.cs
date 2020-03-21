@@ -1,4 +1,4 @@
-﻿/**
+﻿/*
  * Copyright (C) 2014 Patrick Mours. All rights reserved.
  * License: https://github.com/crosire/reshade#license
  */
@@ -39,29 +39,38 @@ namespace ReShade.Setup
 		{
 			InitializeComponent();
 
-			// Extract archive attached to this executable
-			var output = new FileStream(Path.GetTempFileName(), FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.ReadWrite | FileShare.Delete, 4096, FileOptions.DeleteOnClose);
-
-			using (var input = File.OpenRead(Assembly.GetExecutingAssembly().Location))
+			try
 			{
-				byte[] block = new byte[512];
-				byte[] signature = { 0x50, 0x4B, 0x03, 0x04 }; // PK..
+				// Extract archive attached to this executable
+				var output = new FileStream(Path.GetTempFileName(), FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.ReadWrite | FileShare.Delete, 4096, FileOptions.DeleteOnClose);
 
-				// Look for archive at the end of this executable and copy it to a file
-				while (input.Read(block, 0, block.Length) >= signature.Length)
+				using (var input = File.OpenRead(Assembly.GetExecutingAssembly().Location))
 				{
-					if (block.Take(signature.Length).SequenceEqual(signature))
+					byte[] block = new byte[512];
+					byte[] signature = { 0x50, 0x4B, 0x03, 0x04 }; // PK..
+
+					// Look for archive at the end of this executable and copy it to a file
+					while (input.Read(block, 0, block.Length) >= signature.Length)
 					{
-						output.Write(block, 0, block.Length);
-						input.CopyTo(output);
-						break;
+						if (block.Take(signature.Length).SequenceEqual(signature))
+						{
+							output.Write(block, 0, block.Length);
+							input.CopyTo(output);
+							break;
+						}
 					}
 				}
-			}
 
-			zip = new ZipArchive(output, ZipArchiveMode.Read, false);
-			packagesIni = new IniFile(zip.GetEntry("SetupEffectPackages.ini")?.Open());
-			compatibilityIni = new IniFile(zip.GetEntry("SetupCompatibility.ini")?.Open());
+				zip = new ZipArchive(output, ZipArchiveMode.Read, false);
+				packagesIni = new IniFile(zip.GetEntry("SetupEffectPackages.ini")?.Open());
+				compatibilityIni = new IniFile(zip.GetEntry("SetupCompatibility.ini")?.Open());
+			}
+			catch
+			{
+				MessageBox.Show("This setup archive is corrupted! Please download from https://reshade.me again.");
+				Environment.Exit(1);
+				return;
+			}
 
 			ApiVulkanGlobal.IsChecked = IsVulkanLayerEnabled(Registry.LocalMachine);
 
@@ -316,9 +325,10 @@ namespace ReShade.Setup
 			is64Bit = peInfo.Type == PEInfo.BinaryType.IMAGE_FILE_MACHINE_AMD64;
 
 			// Check whether the API is specified in the compatibility list, in which case setup can continue right away
-			if (compatibilityIni != null && compatibilityIni.HasValue(targetName, "RenderApi"))
+			var executableName = Path.GetFileName(targetPath);
+			if (compatibilityIni != null && compatibilityIni.HasValue(executableName, "RenderApi"))
 			{
-				string api = compatibilityIni.GetString(targetName, "RenderApi");
+				string api = compatibilityIni.GetString(executableName, "RenderApi");
 
 				ApiD3D9.IsChecked = api == "D3D8" || api == "D3D9";
 				ApiDXGI.IsChecked = api == "D3D10" || api == "D3D11" || api == "D3D12" || api == "DXGI";
@@ -449,6 +459,24 @@ namespace ReShade.Setup
 					UpdateStatusAndFinish(false, "Failed to install " + Path.GetFileName(modulePath) + ".", ex.Message);
 					return;
 				}
+
+				// Create a default log file for troubleshooting
+				File.WriteAllText(Path.ChangeExtension(modulePath, ".log"), @"
+If you are reading this after launching the game at least once, it likely means ReShade was not loaded by the game.
+
+In that event here are some steps you can try to resolve this:
+
+1) Make sure this file and the related DLL are really in the same directory as the game executable.
+   If that is the case and it does not work regardless, check if there is a 'bin' directory, move them there and try again.
+
+2) Try running the game with elevated user permissions by doing a right click on its executable and choosing 'Run as administrator'.
+
+3) If the game crashes, try disabling all game overlays (like Origin), recording software (like Fraps), FPS displaying software,
+   GPU overclocking and tweaking software and other proxy DLLs (like ENB, Helix or Umod).
+
+4) If none of the above helps, you can get support on the forums at https://forum.reshade.me. But search for your problem before
+   creating a new topic, as somebody else may have already found a solution.
+");
 			}
 
 			// Copy potential pre-made configuration file to target

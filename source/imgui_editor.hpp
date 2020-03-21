@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright (C) 2014 Patrick Mours. All rights reserved.
  * License: https://github.com/crosire/reshade#license
  */
@@ -20,12 +20,12 @@ public:
 		text_pos() : line(0), column(0) {}
 		text_pos(size_t line, size_t column = 0) : line(line), column(column) {}
 
-		bool operator ==(const text_pos &o) const { return line == o.line && column == o.column; }
-		bool operator !=(const text_pos &o) const { return line != o.line || column != o.column; }
-		bool operator < (const text_pos &o) const { return line != o.line ? line < o.line : column <  o.column; }
-		bool operator <=(const text_pos &o) const { return line != o.line ? line < o.line : column <= o.column; }
-		bool operator > (const text_pos &o) const { return line != o.line ? line > o.line : column >  o.column; }
-		bool operator >=(const text_pos &o) const { return line != o.line ? line > o.line : column >= o.column; }
+		bool operator==(const text_pos &o) const { return line == o.line && column == o.column; }
+		bool operator!=(const text_pos &o) const { return line != o.line || column != o.column; }
+		bool operator< (const text_pos &o) const { return line != o.line ? line < o.line : column <  o.column; }
+		bool operator<=(const text_pos &o) const { return line != o.line ? line < o.line : column <= o.column; }
+		bool operator> (const text_pos &o) const { return line != o.line ? line > o.line : column >  o.column; }
+		bool operator>=(const text_pos &o) const { return line != o.line ? line > o.line : column >= o.column; }
 	};
 
 	enum color
@@ -85,7 +85,7 @@ public:
 	void clear_errors() { _errors.clear(); }
 
 	void set_readonly(bool state) { _readonly = state; }
-	void set_tab_size(unsigned int size) { _tab_size = size; }
+	void set_tab_size(unsigned short size) { _tab_size = size; }
 	void set_left_margin(float margin) { _left_margin = margin; }
 	void set_line_spacing(float spacing) { _line_spacing = spacing; }
 
@@ -140,16 +140,15 @@ private:
 
 	float _left_margin = 10.0f;
 	float _line_spacing = 1.0f;
-	unsigned int _tab_size = 4;
+	unsigned short _tab_size = 4;
 	bool _readonly = false;
 	bool _overwrite = false;
 	bool _scroll_to_cursor = false;
-	bool _show_search_popup = false;
-	bool _search_case_sensitive = true;
 	float _cursor_anim = 0.0f;
 	double _last_click_time = -1.0;
 
 	std::vector<std::vector<glyph>> _lines;
+	std::unordered_map<size_t, std::pair<std::string, bool>> _errors;
 
 	text_pos _cursor_pos;
 	text_pos _select_beg;
@@ -158,6 +157,13 @@ private:
 	text_pos _interactive_end;
 	std::string _highlighted;
 
+	char _search_text[256] = "";
+	char _replace_text[256] = "";
+	bool _show_search_popup = false;
+	bool _search_case_sensitive = false;
+	unsigned int _search_window_open = 0;
+	unsigned int _search_window_focus = 0;
+
 	size_t _undo_index = 0;
 	std::vector<undo_record> _undo;
 	bool _in_undo_operation = false;
@@ -165,11 +171,4 @@ private:
 	size_t _colorize_line_beg = 0;
 	size_t _colorize_line_end = 0;
 	std::array<uint32_t, color_palette_max> _palette;
-
-	std::unordered_map<size_t, std::pair<std::string, bool>> _errors;
-
-	char _search_text[256] = "";
-	char _replace_text[256] = "";
-	unsigned int _search_window_open = 0;
-	unsigned int _search_window_focus = 0;
 };

@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright (C) 2014 Patrick Mours. All rights reserved.
  * License: https://github.com/crosire/reshade#license
  */
@@ -107,9 +107,9 @@ namespace reshadefx
 		};
 
 		// Optional string associated with this constant
-		std::string string_data;
+		std::string string_data = {};
 		// Optional additional elements if this is an array constant
-		std::vector<constant> array_data;
+		std::vector<constant> array_data = {};
 	};
 
 	/// <summary>
@@ -130,8 +130,8 @@ namespace reshadefx
 
 			op_type op;
 			reshadefx::type from, to;
-			uint32_t index;
-			signed char swizzle[4];
+			uint32_t index = 0;
+			signed char swizzle[4] = {};
 		};
 
 		uint32_t base = 0;

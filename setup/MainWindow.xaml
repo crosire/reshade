@@ -5,7 +5,7 @@
         <ColumnDefinition Width="0.5*" />
         <ColumnDefinition Width="0.5*" />
       </Grid.ColumnDefinitions>
-      <Button Grid.Column="0" Margin="0,0,2.5,0" Content="_Update" Click="OnUpdateClick" />
+      <Button Grid.Column="0" Margin="0,0,2.5,0" Content="_Update" Click="OnUpdateClick" IsDefault="True" />
       <Button Grid.Column="1" Margin="2.5,0,0,0" Content="Un_install" Click="OnUninstallClick" />
     </Grid>
     <Border x:Name="ApiGroup" DockPanel.Dock="Bottom" Height="30" Margin="5,0,5,5" Padding="5" Visibility="Collapsed" Background="{x:Static SystemColors.WindowBrush}" BorderBrush="#FF707070" CornerRadius="3" BorderThickness="1">

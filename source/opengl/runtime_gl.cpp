@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright (C) 2014 Patrick Mours. All rights reserved.
  * License: https://github.com/crosire/reshade#license
  */
@@ -44,11 +44,6 @@ namespace reshade::opengl
 
 	struct opengl_technique_data
 	{
-		~opengl_technique_data()
-		{
-			glDeleteQueries(1, &query);
-		}
-
 		GLuint query = 0;
 		bool query_in_flight = false;
 		std::vector<opengl_pass_data> passes;
@@ -688,6 +683,8 @@ void reshade::opengl::runtime_gl::unload_effect(size_t index)
 		if (impl == nullptr)
 			continue;
 
+		glDeleteQueries(1, &impl->query);
+
 		for (opengl_pass_data &pass_data : impl->passes)
 		{
 			if (pass_data.program)
@@ -714,6 +711,8 @@ void reshade::opengl::runtime_gl::unload_effects()
 		const auto impl = static_cast<opengl_technique_data *>(tech.impl);
 		if (impl == nullptr)
 			continue;
+
+		glDeleteQueries(1, &impl->query);
 
 		for (opengl_pass_data &pass_data : impl->passes)
 		{

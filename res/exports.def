@@ -1,4 +1,8 @@
 EXPORTS
+	; d2d1.dll
+	D2D1CreateDevice @7
+	D2D1CreateFactory @1
+
 	; d3d9.dll
 	Direct3DCreate9 @37
 	Direct3DCreate9Ex @38
@@ -37,12 +41,14 @@ EXPORTS
 	CreateDXGIFactory1 @11
 	CreateDXGIFactory2 @12
 
-	DXGIDumpJournal
-	DXGIReportAdapterConfiguration
-	DXGID3D10CreateDevice @13
-	DXGID3D10CreateLayeredDevice @14
-	DXGID3D10GetLayeredDeviceSize @15
+	DXGID3D10CreateDevice
+	DXGID3D10CreateLayeredDevice
+	DXGID3D10GetLayeredDeviceSize
 	DXGID3D10RegisterLayers
+
+	DXGIDumpJournal
+	DXGIGetDebugInterface1
+	DXGIReportAdapterConfiguration
 
 	; opengl32.dll
 	glAccum

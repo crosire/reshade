@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright (C) 2014 Patrick Mours. All rights reserved.
  * License: https://github.com/crosire/reshade#license
  */
@@ -11,7 +11,6 @@
 #include <algorithm>
 #include <tuple>
 #include <vector>
-#include <unordered_map>
 #include <Windows.h>
 
 enum class hook_method
@@ -393,6 +392,7 @@ void reshade::hooks::uninstall()
 	s_hooks.clear();
 
 	// Free reference to the module loaded for export hooks (this is necessary for Alan Wake to work)
+	// The reason being that otherwise a subsequent call to "LoadLibrary" may return handle to the still loaded export module, instead of loading the ReShade module again
 	if (s_export_module_handle)
 		FreeLibrary(s_export_module_handle);
 	s_export_module_handle = nullptr;
@@ -407,6 +407,7 @@ void reshade::hooks::register_module(const std::filesystem::path &target_path)
 	install("LoadLibraryExW", reinterpret_cast<hook::address>(&LoadLibraryExW), reinterpret_cast<hook::address>(&HookLoadLibraryExW), true);
 
 	// Install all "LoadLibrary" hooks in one go immediately
+	// Skip this in the test application to make RenderDoc work (which hooks these too)
 	hook::apply_queued_actions();
 #endif
 
@@ -442,17 +443,18 @@ void reshade::hooks::register_module(const std::filesystem::path &target_path)
 	}
 }
 
-reshade::hook::address reshade::hooks::call(hook::address target, hook::address replacement)
+reshade::hook::address reshade::hooks::call(hook::address replacement, hook::address target)
 {
 	const hook hook = find_internal(target, replacement);
 
 	if (hook.valid())
-	{
 		return hook.call();
-	}
-	else if (!s_export_module_handle) // If the hook does not exist yet, delay-load export hooks and try again
+
+	// If the hook does not exist yet, delay-load export hooks and try again
+	if (!s_export_module_handle)
 	{
-		// Note: Could use LoadLibraryExW with LOAD_LIBRARY_SEARCH_SYSTEM32 here, but absolute paths should do the trick as well
+		assert(s_export_hook_path.is_absolute());
+
 		const HMODULE handle = LoadLibraryW(s_export_hook_path.c_str());
 
 		LOG(INFO) << "Installing export hooks for " << s_export_hook_path << " ...";
@@ -466,7 +468,7 @@ reshade::hook::address reshade::hooks::call(hook::address target, hook::address 
 			s_export_hook_path.clear();
 			s_export_module_handle = handle;
 
-			return call(replacement);
+			return call(replacement, target);
 		}
 		else
 		{

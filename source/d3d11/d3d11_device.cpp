@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright (C) 2014 Patrick Mours. All rights reserved.
  * License: https://github.com/crosire/reshade#license
  */
@@ -6,8 +6,8 @@
 #include "dll_log.hpp"
 #include "d3d11_device.hpp"
 #include "d3d11_device_context.hpp"
-#include "../dxgi/dxgi_device.hpp"
-#include "../dxgi/format_utils.hpp"
+#include "dxgi/dxgi_device.hpp"
+#include "dxgi/format_utils.hpp"
 
 D3D11Device::D3D11Device(IDXGIDevice1 *dxgi_device, ID3D11Device *original, ID3D11DeviceContext *immediate_context) :
 	_orig(original),
@@ -372,8 +372,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::GetDeviceRemovedReason()
 }
 void    STDMETHODCALLTYPE D3D11Device::GetImmediateContext(ID3D11DeviceContext **ppImmediateContext)
 {
-	if (ppImmediateContext == nullptr)
-		return;
+	assert(ppImmediateContext != nullptr);
 
 	_immediate_context->AddRef();
 	*ppImmediateContext = _immediate_context;
@@ -393,11 +392,11 @@ D3D_FEATURE_LEVEL STDMETHODCALLTYPE D3D11Device::GetFeatureLevel()
 
 void    STDMETHODCALLTYPE D3D11Device::GetImmediateContext1(ID3D11DeviceContext1 **ppImmediateContext)
 {
-	if (ppImmediateContext == nullptr)
-		return;
-
+	assert(ppImmediateContext != nullptr);
 	assert(_interface_version >= 1);
-	assert(_immediate_context->_interface_version >= 1);
+
+	// Upgrade immediate context to interface version 1
+	_immediate_context->check_and_upgrade_interface(__uuidof(**ppImmediateContext));
 
 	_immediate_context->AddRef();
 	*ppImmediateContext = _immediate_context;
@@ -456,8 +455,14 @@ HRESULT STDMETHODCALLTYPE D3D11Device::OpenSharedResourceByName(LPCWSTR lpName, 
 
 void    STDMETHODCALLTYPE D3D11Device::GetImmediateContext2(ID3D11DeviceContext2 **ppImmediateContext)
 {
+	assert(ppImmediateContext != nullptr);
 	assert(_interface_version >= 2);
-	static_cast<ID3D11Device2 *>(_orig)->GetImmediateContext2(ppImmediateContext);
+
+	// Upgrade immediate context to interface version 2
+	_immediate_context->check_and_upgrade_interface(__uuidof(**ppImmediateContext));
+
+	_immediate_context->AddRef();
+	*ppImmediateContext = _immediate_context;
 }
 HRESULT STDMETHODCALLTYPE D3D11Device::CreateDeferredContext2(UINT ContextFlags, ID3D11DeviceContext2 **ppDeferredContext)
 {

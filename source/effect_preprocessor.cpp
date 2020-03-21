@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright (C) 2014 Patrick Mours. All rights reserved.
  * License: https://github.com/crosire/reshade#license
  */
@@ -342,6 +342,9 @@ void reshadefx::preprocessor::parse()
 			if (!expect(tokenid::end_of_line))
 				consume_until(tokenid::end_of_line);
 			continue;
+		default:
+			// All other tokens are handled below
+			break;
 		}
 
 		if (skip)
@@ -775,6 +778,9 @@ bool reshadefx::preprocessor::evaluate_expression()
 		case tokenid::pipe_pipe:
 			op = op_or;
 			break;
+		default:
+			// This is not an operator token
+			break;
 		}
 
 		switch (_token)
@@ -1140,7 +1146,7 @@ void reshadefx::preprocessor::create_macro_replacement_list(macro &macro)
 						return;
 					}
 
-					// the ## token concatenation operator
+					// Start a ## token concatenation operator
 					macro.replacement_list += macro_replacement_start;
 					macro.replacement_list += macro_replacement_concat;
 					continue;
@@ -1155,7 +1161,7 @@ void reshadefx::preprocessor::create_macro_replacement_list(macro &macro)
 					if (it == macro.parameters.end())
 						return error(_token.location, "# must be followed by parameter name");
 
-					// the # stringize operator
+					// Start a # stringize operator
 					macro.replacement_list += macro_replacement_start;
 					macro.replacement_list += macro_replacement_stringize;
 					macro.replacement_list += static_cast<char>(std::distance(macro.parameters.begin(), it));
@@ -1183,6 +1189,11 @@ void reshadefx::preprocessor::create_macro_replacement_list(macro &macro)
 					macro.replacement_list += static_cast<char>(std::distance(macro.parameters.begin(), it));
 					continue;
 				}
+				break;
+			}
+			default:
+			{
+				// Token needs no special handling, raw data is added to macro below
 				break;
 			}
 		}

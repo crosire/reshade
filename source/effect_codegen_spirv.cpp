@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright (C) 2014 Patrick Mours. All rights reserved.
  * License: https://github.com/crosire/reshade#license
  */
@@ -794,11 +794,9 @@ private:
 
 		const auto semantic_to_builtin = [this, is_ps](const std::string &semantic, spv::BuiltIn &builtin) {
 			builtin = spv::BuiltInMax;
-			if (semantic == "SV_POSITION")
+			if (semantic == "SV_POSITION" || semantic == "POSITION" || semantic == "VPOS")
 				builtin = is_ps ? spv::BuiltInFragCoord : spv::BuiltInPosition;
-			if (semantic == "SV_POINTSIZE")
-				builtin = spv::BuiltInPointSize;
-			if (semantic == "SV_DEPTH")
+			if (semantic == "SV_DEPTH" || semantic == "DEPTH")
 				builtin = spv::BuiltInFragDepth;
 			if (semantic == "SV_VERTEXID")
 				builtin = _vulkan_semantics ? spv::BuiltInVertexIndex : spv::BuiltInVertexId;
@@ -830,6 +828,8 @@ private:
 				uint32_t location = 0;
 				if (semantic.compare(0, 9, "SV_TARGET") == 0)
 					location = std::strtoul(semantic.c_str() + 9, nullptr, 10);
+				else if (semantic.compare(0, 5, "COLOR") == 0)
+					location = std::strtoul(semantic.c_str() + 5, nullptr, 10);
 				else if (const auto it = _semantic_to_location.find(semantic); it != _semantic_to_location.end())
 					location = it->second;
 				else
@@ -1136,12 +1136,18 @@ private:
 						assert(op.from.is_integral());
 						spv_op = op.from.is_signed() ? spv::OpConvertSToF : spv::OpConvertUToF;
 						break;
+					default:
+						assert(false);
+						break;
 					}
 
 					result = add_instruction(spv_op, convert_type(op.to))
 						.add(result)
 						.result;
 				}
+				break;
+			case expression::operation::op_member:
+				// These should have been handled above already
 				break;
 			case expression::operation::op_dynamic_index:
 				if (op.from.is_vector())
@@ -1303,6 +1309,10 @@ private:
 
 			switch (op.op)
 			{
+				case expression::operation::op_cast:
+				case expression::operation::op_member:
+					// These should have been handled above already (and casting does not make sense for a store operation)
+					break;
 				case expression::operation::op_dynamic_index:
 				case expression::operation::op_constant_index:
 					assert(false);

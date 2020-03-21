@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright (C) 2014 Patrick Mours. All rights reserved.
  * License: https://github.com/crosire/reshade#license
  */
@@ -10,7 +10,6 @@
 #include "vk_layer_dispatch_table.h"
 #include "format_utils.hpp"
 #include "lockfree_table.hpp"
-#include <memory>
 
 struct device_data
 {

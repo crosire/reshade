@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright (C) 2014 Patrick Mours. All rights reserved.
  * License: https://github.com/crosire/reshade#license
  */
@@ -58,10 +58,10 @@ namespace reshade::hooks
 	/// <param name="target">The original target address the hook was installed to (optional).</param>
 	/// <param name="replacement">The address of the hook function which was previously used to install a hook.</param>
 	/// <returns>The address of original/trampoline function.</returns>
-	hook::address call(hook::address target, hook::address replacement);
+	hook::address call(hook::address replacement, hook::address target);
 	template <typename T>
 	inline T call(T replacement, hook::address target = nullptr)
 	{
-		return reinterpret_cast<T>(call(target, reinterpret_cast<hook::address>(replacement)));
+		return reinterpret_cast<T>(call(reinterpret_cast<hook::address>(replacement), target));
 	}
 }

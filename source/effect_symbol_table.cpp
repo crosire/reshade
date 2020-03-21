@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright (C) 2014 Patrick Mours. All rights reserved.
  * License: https://github.com/crosire/reshade#license
  */
@@ -19,7 +19,7 @@ struct intrinsic
 		function.return_type = ret_type;
 		function.parameter_list.reserve(arg_types.size());
 		for (const type &arg_type : arg_types)
-			function.parameter_list.push_back({ arg_type });
+			function.parameter_list.push_back({ arg_type, {}, {}, {} });
 	}
 
 	unsigned int id;

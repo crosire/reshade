@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright (C) 2017 BalazsJako
  * Copyright (C) 2018 Patrick Mours
  *
@@ -207,7 +207,7 @@ void imgui_code_editor::render(const char *title, bool border)
 
 		const bool is_clicked = ImGui::IsMouseClicked(0);
 		const bool is_double_click = !shift && ImGui::IsMouseDoubleClicked(0);
-		const bool is_triple_click = !shift && is_clicked && !is_double_click && ImGui::GetTime() - _last_click_time < io.MouseDoubleClickTime;
+		const bool is_triple_click = !shift && is_clicked && !is_double_click && (ImGui::GetTime() - _last_click_time) < io.MouseDoubleClickTime;
 
 		if (is_triple_click)
 		{

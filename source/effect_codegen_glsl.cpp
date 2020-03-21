@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright (C) 2014 Patrick Mours. All rights reserved.
  * License: https://github.com/crosire/reshade#license
  */
@@ -508,11 +508,9 @@ private:
 
 		const auto semantic_to_builtin = [this, is_ps](std::string name, const std::string &semantic) -> std::string
 		{
-			if (semantic == "SV_POSITION")
+			if (semantic == "SV_POSITION" || semantic == "POSITION" || semantic == "VPOS")
 				return is_ps ? "gl_FragCoord" : "gl_Position";
-			if (semantic == "SV_POINTSIZE")
-				return "gl_PointSize";
-			if (semantic == "SV_DEPTH")
+			if (semantic == "SV_DEPTH" || semantic == "DEPTH")
 				return "gl_FragDepth";
 			if (semantic == "SV_VERTEXID")
 				return "gl_VertexID";
@@ -539,6 +537,8 @@ private:
 				uint32_t location = 0;
 				if (semantic.compare(0, 9, "SV_TARGET") == 0)
 					location = std::strtoul(semantic.c_str() + 9, nullptr, 10);
+				else if (semantic.compare(0, 5, "COLOR") == 0)
+					location = std::strtoul(semantic.c_str() + 5, nullptr, 10);
 				else if (const auto it = _semantic_to_location.find(semantic); it != _semantic_to_location.end())
 					location = it->second;
 				else

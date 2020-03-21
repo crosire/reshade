@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright (C) 2014 Patrick Mours. All rights reserved.
  * License: https://github.com/crosire/reshade#license
  */
@@ -187,7 +187,7 @@ HOOK_EXPORT IDirect3D9 *WINAPI Direct3DCreate9(UINT SDKVersion)
 		return nullptr;
 	}
 
-	reshade::hooks::install("IDirect3D9::CreateDevice", vtable_from_instance(res), 16, reinterpret_cast<reshade::hook::address>(&IDirect3D9_CreateDevice));
+	reshade::hooks::install("IDirect3D9::CreateDevice", vtable_from_instance(res), 16, reinterpret_cast<reshade::hook::address>(IDirect3D9_CreateDevice));
 
 #if RESHADE_VERBOSE_LOG
 	LOG(INFO) << "Returning IDirect3D9 object " << res << '.';
@@ -206,8 +206,8 @@ HOOK_EXPORT     HRESULT WINAPI Direct3DCreate9Ex(UINT SDKVersion, IDirect3D9Ex *
 		return hr;
 	}
 
-	reshade::hooks::install("IDirect3D9::CreateDevice", vtable_from_instance(*ppD3D), 16, reinterpret_cast<reshade::hook::address>(&IDirect3D9_CreateDevice));
-	reshade::hooks::install("IDirect3D9Ex::CreateDeviceEx", vtable_from_instance(*ppD3D), 20, reinterpret_cast<reshade::hook::address>(&IDirect3D9Ex_CreateDeviceEx));
+	reshade::hooks::install("IDirect3D9::CreateDevice", vtable_from_instance(*ppD3D), 16, reinterpret_cast<reshade::hook::address>(IDirect3D9_CreateDevice));
+	reshade::hooks::install("IDirect3D9Ex::CreateDeviceEx", vtable_from_instance(*ppD3D), 20, reinterpret_cast<reshade::hook::address>(IDirect3D9Ex_CreateDeviceEx));
 
 #if RESHADE_VERBOSE_LOG
 	LOG(INFO) << "Returning IDirect3D9Ex object " << *ppD3D << '.';

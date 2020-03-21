@@ -35,5 +35,7 @@ Thumbs.db
 
 # Versioning
 /res/Version.h
+/setup/Properties/AssemblyInfo.cs
+
 /res/SetupCompatibility.ini
 /res/SetupEffectPackages.ini
