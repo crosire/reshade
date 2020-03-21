@@ -33,9 +33,7 @@ packages/
 .DS_Store
 Thumbs.db
 
-# Versioning
+# Versioning and setup files
 /res/Version.h
+/setup/*.ini
 /setup/Properties/AssemblyInfo.cs
-
-/res/SetupCompatibility.ini
-/res/SetupEffectPackages.ini

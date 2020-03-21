@@ -120,8 +120,8 @@ echo Compiling ReShade setup tool ...</PreBuildEvent>
     <PostBuildEvent>
 echo Compressing ReShade DLLs ...
 "$(SolutionDir)tools\7za.exe" a -y "$(TargetDir)ReShade.zip" "$(SolutionDir)bin\Win32\Release\ReShade32.dll" "$(SolutionDir)res\layers\ReShade32.json" "$(SolutionDir)bin\x64\Release\ReShade64.dll" "$(SolutionDir)res\layers\ReShade64.json" &gt; nul
-if exist "$(SolutionDir)res\SetupCompatibility.ini" "$(SolutionDir)tools\7za.exe" a -y "$(TargetDir)ReShade.zip" "$(SolutionDir)res\SetupCompatibility.ini" &gt; nul
-if exist "$(SolutionDir)res\SetupEffectPackages.ini" "$(SolutionDir)tools\7za.exe" a -y "$(TargetDir)ReShade.zip" "$(SolutionDir)res\SetupEffectPackages.ini" &gt; nul
+if exist "$(ProjectDir)SetupCompatibility.ini" "$(SolutionDir)tools\7za.exe" a -y "$(TargetDir)ReShade.zip" "$(ProjectDir)SetupCompatibility.ini" &gt; nul
+if exist "$(ProjectDir)SetupEffectPackages.ini" "$(SolutionDir)tools\7za.exe" a -y "$(TargetDir)ReShade.zip" "$(ProjectDir)SetupEffectPackages.ini" &gt; nul
 
 echo Appending archive to setup executable ...
 copy /b "$(TargetPath)" + "$(TargetDir)ReShade.zip" "$(TargetPath)"
