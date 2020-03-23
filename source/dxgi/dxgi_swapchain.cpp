@@ -15,6 +15,8 @@
 #include "d3d12/runtime_d3d12.hpp"
 #include <algorithm>
 
+thread_local bool inPresentCall = false;
+
 DXGISwapChain::DXGISwapChain(D3D10Device *device, IDXGISwapChain  *original, const std::shared_ptr<reshade::runtime> &runtime) :
 	_orig(original),
 	_interface_version(0),
@@ -276,10 +278,12 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::GetDevice(REFIID riid, void **ppDevice)
 
 HRESULT STDMETHODCALLTYPE DXGISwapChain::Present(UINT SyncInterval, UINT Flags)
 {
+	inPresentCall = true;
 	runtime_present(Flags);
 
 	const HRESULT hr = _orig->Present(SyncInterval, Flags);
 	handle_runtime_loss(hr);
+	inPresentCall = false;
 	return hr;
 }
 HRESULT STDMETHODCALLTYPE DXGISwapChain::GetBuffer(UINT Buffer, REFIID riid, void **ppSurface)
