@@ -420,6 +420,9 @@ namespace ReShade.Setup
 						InstallButtons.Visibility = Visibility.Visible;
 
 						Message.Text = "Existing ReShade installation found. How do you want to proceed?";
+
+						// Do not hide exit button when asking about existing installation, so user can abort installation
+						AeroGlass.HideSystemMenu(this, false);
 					}
 					else
 					{
@@ -436,7 +439,7 @@ namespace ReShade.Setup
 			ApiGroup.Visibility = Visibility.Visible;
 			InstallButtons.Visibility = Visibility.Collapsed;
 
-			Message.Text = "Installing ReShade ...";
+			UpdateStatus("Working on " + targetName + " ...", "Installing ReShade ...");
 
 			if (ApiVulkan.IsChecked != true)
 			{
