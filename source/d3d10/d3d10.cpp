@@ -7,6 +7,8 @@
 #include "hook_manager.hpp"
 #include "d3d10_device.hpp"
 
+extern thread_local bool g_in_present_call;
+
 HOOK_EXPORT HRESULT WINAPI D3D10CreateDevice(IDXGIAdapter *pAdapter, D3D10_DRIVER_TYPE DriverType, HMODULE Software, UINT Flags, UINT SDKVersion, ID3D10Device **ppDevice)
 {
 	LOG(INFO) << "Redirecting D3D10CreateDevice" << '('
@@ -87,7 +89,8 @@ HOOK_EXPORT HRESULT WINAPI D3D10CreateDeviceAndSwapChain1(IDXGIAdapter *pAdapter
 	}
 
 	// It is valid for the device out parameter to be NULL if the application wants to check feature level support, so just return early in that case
-	if (ppDevice == nullptr)
+	// Also return early here in case this called from within 'IDXGISwapChain::Present', which indicates that the DXGI runtime tries to create an internal device, which should not be hooked
+	if (ppDevice == nullptr || g_in_present_call)
 	{
 		assert(ppSwapChain == nullptr);
 		return hr;
