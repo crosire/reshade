@@ -8,6 +8,8 @@
 #include "d3d11_device.hpp"
 #include "d3d11_device_context.hpp"
 
+extern thread_local bool inPresentCall;
+
 HOOK_EXPORT HRESULT WINAPI D3D11CreateDevice(IDXGIAdapter *pAdapter, D3D_DRIVER_TYPE DriverType, HMODULE Software, UINT Flags, const D3D_FEATURE_LEVEL *pFeatureLevels, UINT FeatureLevels, UINT SDKVersion, ID3D11Device **ppDevice, D3D_FEATURE_LEVEL *pFeatureLevel, ID3D11DeviceContext **ppImmediateContext)
 {
 	LOG(INFO) << "Redirecting D3D11CreateDevice" << '('
@@ -56,6 +58,11 @@ HOOK_EXPORT HRESULT WINAPI D3D11CreateDeviceAndSwapChain(IDXGIAdapter *pAdapter,
 	if (FAILED(hr))
 	{
 		LOG(WARN) << "D3D11CreateDeviceAndSwapChain failed with error code " << hr << '!';
+		return hr;
+	}
+
+	if (inPresentCall && !ppSwapChain)
+	{
 		return hr;
 	}
 
