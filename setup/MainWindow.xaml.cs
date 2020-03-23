@@ -39,6 +39,8 @@ namespace ReShade.Setup
 		{
 			InitializeComponent();
 
+			Title = "ReShade Setup v" + Assembly.GetExecutingAssembly().GetName().Version.ToString(3);
+
 			try
 			{
 				// Extract archive attached to this executable
@@ -254,7 +256,7 @@ namespace ReShade.Setup
 			isFinished = true;
 			SetupButton.IsEnabled = false; // Use button as text box only
 
-			UpdateStatus(success ? "ReShade installation was successful!" : "ReShade installation was not successful!", message, description);
+			UpdateStatus(success ? "ReShade Setup was successful!" : "ReShade Setup was not successful!", message, description);
 
 			AeroGlass.HideSystemMenu(this, false);
 
