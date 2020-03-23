@@ -6,10 +6,12 @@
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Navigation;
 
 namespace ReShade.Setup
 {
@@ -21,6 +23,7 @@ namespace ReShade.Setup
 		public string InstallPath { get; set; }
 		public string TextureInstallPath { get; set; }
 		public string DownloadUrl { get; set; }
+		public string RepositoryUrl { get; set; }
 
 		public event PropertyChangedEventHandler PropertyChanged;
 		internal void NotifyPropertyChanged(string propertyName)
@@ -45,7 +48,8 @@ namespace ReShade.Setup
 					PackageDescription = packagesIni.GetString(package, "PackageDescription"),
 					InstallPath = packagesIni.GetString(package, "InstallPath"),
 					TextureInstallPath = packagesIni.GetString(package, "TextureInstallPath"),
-					DownloadUrl = packagesIni.GetString(package, "DownloadUrl")
+					DownloadUrl = packagesIni.GetString(package, "DownloadUrl"),
+					RepositoryUrl = packagesIni.GetString(package, "RepositoryUrl")
 				});
 			}
 		}
@@ -100,6 +104,19 @@ namespace ReShade.Setup
 			{
 				checkbox.IsChecked = !checkbox.IsChecked;
 				checkbox.ReleaseMouseCapture();
+			}
+		}
+
+		void OnHyperlinkRequestNavigate(object sender, RequestNavigateEventArgs e)
+		{
+			try
+			{
+				Process.Start(e.Uri.AbsoluteUri);
+				e.Handled = true;
+			}
+			catch
+			{
+				e.Handled = false;
 			}
 		}
 	}

@@ -24,7 +24,14 @@
               <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
             <CheckBox Grid.Column="0" VerticalAlignment="Center" HorizontalAlignment="Center" IsChecked="{Binding Enabled}" MouseEnter="OnCheckBoxMouseEnter" GotMouseCapture="OnCheckBoxMouseCapture" />
-            <TextBlock Grid.Column="1" VerticalAlignment="Center" Text="{Binding PackageName}" />
+            <TextBlock Grid.Column="1" VerticalAlignment="Center">
+              <Hyperlink NavigateUri="{Binding RepositoryUrl}" RequestNavigate="OnHyperlinkRequestNavigate">
+                <TextBlock Text="{Binding PackageName}" />
+                <Hyperlink.ToolTip>
+                  <TextBlock Text="{Binding RepositoryUrl}" />
+                </Hyperlink.ToolTip>
+              </Hyperlink>
+            </TextBlock>
             <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding PackageDescription}">
               <TextBlock.Style>
                 <Style TargetType="TextBlock">
