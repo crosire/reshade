@@ -722,7 +722,7 @@ bool reshadefx::lexer::parse_pp_directive(token &tok)
 
 		skip_space();
 
-		// Check if this #line directive has an filename attached to it
+		// Check if this #line directive has an file name attached to it
 		if (_cur[0] == '"')
 		{
 			token temptok;

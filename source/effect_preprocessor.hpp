@@ -147,6 +147,6 @@ namespace reshadefx
 		std::unordered_set<std::string> _used_macros;
 		std::unordered_map<std::string, macro> _macros;
 		std::vector<std::filesystem::path> _include_paths;
-		std::unordered_map<std::string, std::string> _filecache;
+		std::unordered_map<std::string, std::string> _file_cache;
 	};
 }
