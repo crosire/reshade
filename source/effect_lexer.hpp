@@ -22,8 +22,10 @@ namespace reshadefx
 			bool ignore_pp_directives = true,
 			bool ignore_line_directives = false,
 			bool ignore_keywords = false,
-			bool escape_string_literals = true) :
+			bool escape_string_literals = true,
+			const location &start_location = location()) :
 			_input(std::move(input)),
+			_cur_location(start_location),
 			_ignore_comments(ignore_comments),
 			_ignore_whitespace(ignore_whitespace),
 			_ignore_pp_directives(ignore_pp_directives),

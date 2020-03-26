@@ -180,7 +180,13 @@ void reshadefx::preprocessor::warning(const location &location, const std::strin
 
 void reshadefx::preprocessor::push(std::string input, const std::string &name)
 {
-	input_level level = {};
+	location start_location = !name.empty() ?
+		// Start at the beginning of the file when pushing a new file
+		location(name, 1) :
+		// Start with last known token location when pushing an unnamed string
+		_token.location;
+
+	input_level level = { name };
 	level.lexer.reset(new lexer(
 		std::move(input),
 		true  /* ignore_comments */,
@@ -188,16 +194,10 @@ void reshadefx::preprocessor::push(std::string input, const std::string &name)
 		false /* ignore_pp_directives */,
 		false /* ignore_line_directives */,
 		true  /* ignore_keywords */,
-		false /* escape_string_literals */));
+		false /* escape_string_literals */,
+		start_location));
 	level.next_token.id = tokenid::unknown;
-
-	// Initialize location information
-	if (!name.empty())
-	{
-		level.name = name;
-		_output += "#line 1 \"" + name + "\"\n";
-		_output_location.source = name;
-	}
+	level.next_token.location = start_location; // This is used in 'consume' to initialize the output location
 
 	// Inherit hidden macros from parent
 	if (!_input_stack.empty())
@@ -234,13 +234,12 @@ bool reshadefx::preprocessor::consume()
 	if (!input.name.empty() && input.name != _output_location.source)
 	{
 		_output += "#line " + std::to_string(input.next_token.location.line) + " \"" + input.name + "\"\n";
-		_output_location.line = _token.location.line;
+		_output_location.line = input.next_token.location.line;
 		_output_location.source = input.name;
 	}
 
 	// Set current token
 	_token = std::move(input.next_token);
-	_token.location.source = _output_location.source;
 	_current_token_raw_data = input.lexer->input_string().substr(_token.offset, _token.length);
 
 	// Get the next token
