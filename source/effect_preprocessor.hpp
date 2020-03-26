@@ -92,7 +92,7 @@ namespace reshadefx
 		{
 			bool value;
 			bool skipping;
-			reshadefx::token token;
+			token pp_token;
 			size_t input_index;
 		};
 		struct input_level

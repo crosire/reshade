@@ -255,7 +255,7 @@ bool reshadefx::preprocessor::consume()
 	{
 		// Remove any unterminated blocks from the stack
 		for (; !_if_stack.empty() && _if_stack.back().input_index >= _next_input_index; _if_stack.pop_back())
-			error(_if_stack.back().token.location, "unterminated #if");
+			error(_if_stack.back().pp_token.location, "unterminated #if");
 
 		if (_next_input_index == 0)
 		{
@@ -480,24 +480,33 @@ void reshadefx::preprocessor::parse_undef()
 void reshadefx::preprocessor::parse_if()
 {
 	if_level level;
-	level.token = _token;
+	level.pp_token = _token;
 	level.input_index = _current_input_index;
 
+	// Evaluate expression after updating 'pp_token', so that it points at the beginning # token
 	level.value = evaluate_expression();
-	level.skipping = (!_if_stack.empty() && _if_stack.back().skipping) || !level.value;
+
+	const bool parent_skipping = !_if_stack.empty() && _if_stack.back().skipping;
+	level.skipping = parent_skipping || !level.value;
 
 	_if_stack.push_back(std::move(level));
 }
 void reshadefx::preprocessor::parse_ifdef()
 {
 	if_level level;
-	level.token = _token;
+	level.pp_token = _token;
 	level.input_index = _current_input_index;
 
 	if (!expect(tokenid::identifier))
 		return;
 
-	level.value = _macros.find(_token.literal_as_string) != _macros.end();
+	level.value = _macros.find(_token.literal_as_string) != _macros.end() ||
+		// Check built-in macros as well
+		_token.literal_as_string == "__LINE__" ||
+		_token.literal_as_string == "__FILE__" ||
+		_token.literal_as_string == "__FILE_NAME__" ||
+		_token.literal_as_string == "__FILE_STEM__";
+
 	const bool parent_skipping = !_if_stack.empty() && _if_stack.back().skipping;
 	level.skipping = parent_skipping || !level.value;
 
@@ -508,13 +517,18 @@ void reshadefx::preprocessor::parse_ifdef()
 void reshadefx::preprocessor::parse_ifndef()
 {
 	if_level level;
-	level.token = _token;
+	level.pp_token = _token;
 	level.input_index = _current_input_index;
 
 	if (!expect(tokenid::identifier))
 		return;
 
-	level.value = _macros.find(_token.literal_as_string) == _macros.end();
+	level.value = _macros.find(_token.literal_as_string) == _macros.end() &&
+		_token.literal_as_string != "__LINE__" &&
+		_token.literal_as_string != "__FILE__" &&
+		_token.literal_as_string != "__FILE_NAME__" &&
+		_token.literal_as_string != "__FILE_STEM__";
+
 	const bool parent_skipping = !_if_stack.empty() && _if_stack.back().skipping;
 	level.skipping = parent_skipping || !level.value;
 
@@ -528,15 +542,15 @@ void reshadefx::preprocessor::parse_elif()
 		return error(_token.location, "missing #if for #elif");
 
 	if_level &level = _if_stack.back();
-	if (level.token == tokenid::hash_else)
+	if (level.pp_token == tokenid::hash_else)
 		return error(_token.location, "#elif is not allowed after #else");
 
-	const bool condition_result = evaluate_expression();
-
-	level.token = _token;
+	// Update 'pp_token' before evaluating expression, so that it points at the beginning # token
+	level.pp_token = _token;
 	level.input_index = _current_input_index;
 
 	const bool parent_skipping = _if_stack.size() > 1 && _if_stack[_if_stack.size() - 2].skipping;
+	const bool condition_result = evaluate_expression();
 	level.skipping = parent_skipping || level.value || !condition_result;
 
 	if (!level.value) level.value = condition_result;
@@ -547,10 +561,10 @@ void reshadefx::preprocessor::parse_else()
 		return error(_token.location, "missing #if for #else");
 
 	if_level &level = _if_stack.back();
-	if (level.token == tokenid::hash_else)
+	if (level.pp_token == tokenid::hash_else)
 		return error(_token.location, "#else is not allowed after #else");
 
-	level.token = _token;
+	level.pp_token = _token;
 	level.input_index = _current_input_index;
 
 	const bool parent_skipping = _if_stack.size() > 1 && _if_stack[_if_stack.size() - 2].skipping;
@@ -1010,17 +1024,16 @@ bool reshadefx::preprocessor::evaluate_expression()
 
 bool reshadefx::preprocessor::evaluate_identifier_as_macro()
 {
-	if (_token.literal_as_string == "__FILE__")
-	{
-		push(escape_string(_token.location.source));
-		return true;
-	}
 	if (_token.literal_as_string == "__LINE__")
 	{
 		push(std::to_string(_token.location.line));
 		return true;
 	}
-
+	if (_token.literal_as_string == "__FILE__")
+	{
+		push(escape_string(_token.location.source));
+		return true;
+	}
 	if (_token.literal_as_string == "__FILE_STEM__")
 	{
 		const std::filesystem::path file_stem = std::filesystem::u8path(_token.location.source).stem();
