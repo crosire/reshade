@@ -84,7 +84,7 @@ namespace reshadefx
 
 		void parse_identifier(token &tok) const;
 		bool parse_pp_directive(token &tok);
-		void parse_string_literal(token &tok, bool escape) const;
+		void parse_string_literal(token &tok, bool escape);
 		void parse_numeric_literal(token &tok) const;
 
 		std::string _input;

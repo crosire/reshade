@@ -739,9 +739,9 @@ bool reshadefx::lexer::parse_pp_directive(token &tok)
 
 	return true;
 }
-void reshadefx::lexer::parse_string_literal(token &tok, bool escape) const
+void reshadefx::lexer::parse_string_literal(token &tok, bool escape)
 {
-	auto *const begin = _cur, *end = begin + 1;
+	auto *const begin = _cur, *end = begin + 1; // Skip first quote character right away
 
 	for (auto c = *end; c != '"'; c = *++end)
 	{
@@ -749,12 +749,22 @@ void reshadefx::lexer::parse_string_literal(token &tok, bool escape) const
 		{
 			// Line feed reached, the string literal is done (technically this should be an error, but the lexer does not report errors, so ignore it)
 			end--;
+			if (end[0] == '\r') end--;
 			break;
 		}
-		if (c == '\\' && end[1] == '\n')
+
+		if (c == '\r')
+		{
+			// Silently ignore carriage return characters
+			continue;
+		}
+
+		if (unsigned int n = (end[1] == '\r' && end + 2 < _end) ? 2 : 1;
+			c == '\\' && end[n] == '\n')
 		{
 			// Escape character found at end of line, the string literal continues on to the next line
-			end++;
+			end += n;
+			_cur_location.line++;
 			continue;
 		}
 

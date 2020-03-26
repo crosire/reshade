@@ -1587,7 +1587,14 @@ void imgui_code_editor::colorize()
 		for (size_t k = 0; k < _lines[l].size(); ++k)
 			input_string.push_back(_lines[l][k].c);
 
-	reshadefx::lexer lexer(input_string, false, true, false, true, false, true);
+	reshadefx::lexer lexer(
+		input_string,
+		false /* ignore_comments */,
+		true  /* ignore_whitespace */,
+		false /* ignore_pp_directives */,
+		true  /* ignore_line_directives */,
+		false /* ignore_keywords */,
+		false /* escape_string_literals */);
 
 	for (reshadefx::token tok; (tok = lexer.lex()).id != reshadefx::tokenid::end_of_file;)
 	{
