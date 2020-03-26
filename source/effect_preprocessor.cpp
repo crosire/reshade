@@ -245,6 +245,10 @@ bool reshadefx::preprocessor::consume()
 	// Get the next token
 	input.next_token = input.lexer->lex();
 
+	// Verify string literals (since the lexer cannot throw errors itself)
+	if (_token == tokenid::string_literal && _current_token_raw_data.back() != '\"')
+		error(_token.location, "unterminated string literal");
+
 	// Pop input level if lexical analysis has reached the end of it
 	// This ensures the EOF token is not consumed until the very last file
 	while (peek(tokenid::end_of_file))
