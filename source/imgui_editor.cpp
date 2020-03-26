@@ -695,8 +695,8 @@ void imgui_code_editor::insert_character(char c, bool auto_indent)
 			auto &beg = _select_beg;
 			auto &end = _select_end;
 
-			_colorize_line_beg = std::min(_colorize_line_beg, beg.line);
-			_colorize_line_end = std::max(_colorize_line_end, end.line + 1);
+			_colorize_line_beg = std::min(_colorize_line_beg, beg.line - std::min<size_t>(beg.line, 10));
+			_colorize_line_end = std::max(_colorize_line_end, end.line + 10 + 1);
 
 			beg.column = 0;
 			if (end.column == 0 && end.line > 0)
@@ -752,7 +752,8 @@ void imgui_code_editor::insert_character(char c, bool auto_indent)
 	u.added = c;
 	u.added_beg = _cursor_pos;
 
-	_colorize_line_beg = std::min(_colorize_line_beg, _cursor_pos.line);
+	// Colorize additional 10 lines above and below to better catch multi-line constructs
+	_colorize_line_beg = std::min(_colorize_line_beg, _cursor_pos.line - std::min<size_t>(_cursor_pos.line, 10));
 
 	// New line feed requires insertion of a new line
 	if (c == '\n')
@@ -799,7 +800,7 @@ void imgui_code_editor::insert_character(char c, bool auto_indent)
 
 	_scroll_to_cursor = true;
 
-	_colorize_line_end = std::max(_colorize_line_end, _cursor_pos.line + 1);
+	_colorize_line_end = std::max(_colorize_line_end, _cursor_pos.line + 10 + 1);
 }
 
 std::string imgui_code_editor::get_text() const
@@ -961,8 +962,8 @@ void imgui_code_editor::delete_next()
 
 	record_undo(std::move(u));
 
-	_colorize_line_beg = std::min(_colorize_line_beg, _cursor_pos.line);
-	_colorize_line_end = std::max(_colorize_line_end, _cursor_pos.line + 1);
+	_colorize_line_beg = std::min(_colorize_line_beg, _cursor_pos.line - std::min<size_t>(_cursor_pos.line, 10));
+	_colorize_line_end = std::max(_colorize_line_end, _cursor_pos.line + 10 + 1);
 }
 void imgui_code_editor::delete_previous()
 {
@@ -1015,8 +1016,8 @@ void imgui_code_editor::delete_previous()
 
 	_scroll_to_cursor = true;
 
-	_colorize_line_beg = std::min(_colorize_line_beg, _cursor_pos.line);
-	_colorize_line_end = std::max(_colorize_line_end, _cursor_pos.line + 1);
+	_colorize_line_beg = std::min(_colorize_line_beg, _cursor_pos.line - std::min<size_t>(_cursor_pos.line, 10));
+	_colorize_line_end = std::max(_colorize_line_end, _cursor_pos.line + 10 + 1);
 }
 void imgui_code_editor::delete_selection()
 {
@@ -1061,8 +1062,8 @@ void imgui_code_editor::delete_selection()
 		assert(!_lines.empty());
 	}
 
-	_colorize_line_beg = std::min(_colorize_line_beg, _select_beg.line);
-	_colorize_line_end = std::max(_colorize_line_end, _select_end.line + 1);
+	_colorize_line_beg = std::min(_colorize_line_beg, _select_beg.line - std::min<size_t>(_cursor_pos.line, 10));
+	_colorize_line_end = std::max(_colorize_line_end, _select_end.line + 10 + 1);
 
 	// Reset selection
 	_cursor_pos = _select_beg;
@@ -1575,6 +1576,8 @@ void imgui_code_editor::colorize()
 	_colorize_line_beg = to;
 
 	// Reset coloring range if we have finished coloring it after this iteration
+	if (_colorize_line_end > _lines.size())
+		_colorize_line_end = _lines.size();
 	if (_colorize_line_beg == _colorize_line_end)
 	{
 		_colorize_line_beg = std::numeric_limits<size_t>::max();
