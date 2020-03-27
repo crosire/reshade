@@ -672,7 +672,7 @@ VkResult VKAPI_CALL vkQueuePresentKHR(VkQueue queue, const VkPresentInfoKHR *pPr
 			runtime != nullptr)
 		{
 			VkSemaphore signal = VK_NULL_HANDLE;
-			if (runtime->on_present(pPresentInfo->pImageIndices[i], wait_semaphores.data(), static_cast<uint32_t>(wait_semaphores.size()), signal); signal != VK_NULL_HANDLE)
+			if (runtime->on_present(queue, pPresentInfo->pImageIndices[i], wait_semaphores, signal); signal != VK_NULL_HANDLE)
 			{
 				// The queue submit in 'on_present' now waits on the requested wait semaphores
 				// The next queue submit should therefore wait on the semaphore that was signaled by the last 'on_present' submit
@@ -853,6 +853,7 @@ VkResult VKAPI_CALL vkBeginCommandBuffer(VkCommandBuffer commandBuffer, const Vk
 	GET_DEVICE_DISPATCH_PTR(BeginCommandBuffer, commandBuffer);
 	return trampoline(commandBuffer, pBeginInfo);
 }
+
 
 void     VKAPI_CALL vkCmdBeginRenderPass(VkCommandBuffer commandBuffer, const VkRenderPassBeginInfo *pRenderPassBegin, VkSubpassContents contents)
 {

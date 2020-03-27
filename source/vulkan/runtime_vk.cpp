@@ -383,7 +383,10 @@ bool reshade::vulkan::runtime_vk::on_init(VkSwapchainKHR swapchain, const VkSwap
 
 		VkSemaphoreCreateInfo sem_create_info { VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO };
 
-		check_result(vk.CreateSemaphore(_device, &sem_create_info, nullptr, &_cmd_semaphores[i])) false;
+		for (uint32_t k = 0; k < 2; ++k)
+		{
+			check_result(vk.CreateSemaphore(_device, &sem_create_info, nullptr, &_cmd_semaphores[i + k * NUM_COMMAND_FRAMES])) false;
+		}
 	}
 
 	// Create special fence for synchronous execution (see 'execute_command_buffer'), which is not signaled by default
@@ -461,6 +464,9 @@ void reshade::vulkan::runtime_vk::on_reset()
 		vk.DestroySemaphore(_device, semaphore, nullptr),
 		semaphore = VK_NULL_HANDLE;
 
+	assert(_wait_stages.empty());
+	assert(_wait_semaphores.empty());
+
 	VkCommandBuffer cmd_buffers[NUM_COMMAND_FRAMES] = {};
 	for (uint32_t i = 0; i < NUM_COMMAND_FRAMES; ++i)
 		std::swap(cmd_buffers[i], _cmd_buffers[i].first);
@@ -535,7 +541,7 @@ void reshade::vulkan::runtime_vk::on_reset()
 	_allocations.clear();
 }
 
-void reshade::vulkan::runtime_vk::on_present(uint32_t swapchain_image_index, const VkSemaphore *wait, uint32_t num_wait, VkSemaphore &signal)
+void reshade::vulkan::runtime_vk::on_present(VkQueue queue, uint32_t swapchain_image_index, const std::vector<VkSemaphore> &wait, VkSemaphore &signal)
 {
 	if (!_is_initialized)
 		return;
@@ -546,6 +552,9 @@ void reshade::vulkan::runtime_vk::on_present(uint32_t swapchain_image_index, con
 
 	_cmd_index = _framecount % NUM_COMMAND_FRAMES;
 	_swap_index = swapchain_image_index;
+
+	_wait_stages.resize(wait.size(), VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT);
+	_wait_semaphores.assign(wait.begin(), wait.end());
 
 	// Make sure the command buffer has finished executing before reusing it this frame
 	const VkFence fence = _cmd_fences[_cmd_index];
@@ -571,21 +580,29 @@ void reshade::vulkan::runtime_vk::on_present(uint32_t swapchain_image_index, con
 		signal = _cmd_semaphores[_cmd_index];
 
 		VkSubmitInfo submit_info { VK_STRUCTURE_TYPE_SUBMIT_INFO };
+
+		// If the application is presenting with a different queue than rendering, synchronize these two queues first
+		// This ensures that it has finished rendering before ReShade applies its own rendering
+		if (queue != _queue)
+		{
+			// Signal a semaphore from the queue the application is presenting with
+			submit_info.signalSemaphoreCount = 1;
+			submit_info.pSignalSemaphores = &_cmd_semaphores[NUM_COMMAND_FRAMES + _cmd_index];
+
+			vk.QueueSubmit(queue, 1, &submit_info, VK_NULL_HANDLE);
+
+			// Wait on that semaphore in the ReShade submit
+			_wait_stages.push_back(VK_PIPELINE_STAGE_ALL_COMMANDS_BIT);
+			_wait_semaphores.push_back(submit_info.pSignalSemaphores[0]);
+		}
+
+		submit_info.waitSemaphoreCount = static_cast<uint32_t>(_wait_semaphores.size());
+		submit_info.pWaitSemaphores = _wait_semaphores.data();
+		submit_info.pWaitDstStageMask = _wait_stages.data();
 		submit_info.commandBufferCount = 1;
 		submit_info.pCommandBuffers = &cmd_info.first;
-
-		std::vector<VkPipelineStageFlags> wait_stages(num_wait, VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT);
-		if (wait != nullptr)
-		{
-			submit_info.waitSemaphoreCount = num_wait;
-			submit_info.pWaitSemaphores = wait;
-			submit_info.pWaitDstStageMask = wait_stages.data();
-		}
-		if (signal != VK_NULL_HANDLE)
-		{
-			submit_info.signalSemaphoreCount = 1;
-			submit_info.pSignalSemaphores = &signal;
-		}
+		submit_info.signalSemaphoreCount = 1;
+		submit_info.pSignalSemaphores = &signal;
 
 		// Only reset fence before an actual submit which can signal it again
 		vk.ResetFences(_device, 1, &fence);
@@ -598,6 +615,9 @@ void reshade::vulkan::runtime_vk::on_present(uint32_t swapchain_image_index, con
 		// Command buffer is now in invalid state and ready for a reset
 		cmd_info.second = false;
 	}
+
+	_wait_stages.clear();
+	_wait_semaphores.clear();
 }
 
 bool reshade::vulkan::runtime_vk::capture_screenshot(uint8_t *buffer) const
@@ -1792,8 +1812,15 @@ void reshade::vulkan::runtime_vk::execute_command_buffer() const
 	check_result(vk.EndCommandBuffer(cmd_info.first));
 
 	VkSubmitInfo submit_info { VK_STRUCTURE_TYPE_SUBMIT_INFO };
+	// Wait for any semaphores from the application, so it has a chance to finish rendering before e.g. capturing a screenshot
+	submit_info.waitSemaphoreCount = static_cast<uint32_t>(_wait_semaphores.size());
+	submit_info.pWaitSemaphores = _wait_semaphores.data();
+	submit_info.pWaitDstStageMask = _wait_stages.data();
 	submit_info.commandBufferCount = 1;
 	submit_info.pCommandBuffers = &cmd_info.first;
+	// Signal those same semaphores again right after, so they continue to work in the next submit
+	submit_info.signalSemaphoreCount = static_cast<uint32_t>(_wait_semaphores.size());
+	submit_info.pSignalSemaphores = _wait_semaphores.data();
 
 	const VkFence fence = _cmd_fences[NUM_COMMAND_FRAMES]; // Use special fence reserved for synchronous execution
 	if (vk.QueueSubmit(_queue, 1, &submit_info, fence) == VK_SUCCESS)
