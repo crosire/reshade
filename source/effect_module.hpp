@@ -116,6 +116,15 @@ namespace reshadefx
 	};
 
 	/// <summary>
+	/// Specifies the possible primitives.
+	/// </summary>
+	enum class primitive_topology : uint8_t
+	{
+		point_list = 1,
+		triangle_list = 4,
+	};
+
+	/// <summary>
 	/// A struct type defined in the shader code.
 	/// </summary>
 	struct struct_info
@@ -248,6 +257,7 @@ namespace reshadefx
 		pass_stencil_op stencil_op_fail = pass_stencil_op::keep;
 		pass_stencil_op stencil_op_depth_fail = pass_stencil_op::keep;
 		uint32_t num_vertices = 3;
+		primitive_topology topology = primitive_topology::triangle_list;
 		uint32_t viewport_width = 0;
 		uint32_t viewport_height = 0;
 	};

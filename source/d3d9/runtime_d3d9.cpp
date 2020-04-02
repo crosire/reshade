@@ -901,11 +901,16 @@ void reshade::d3d9::runtime_d3d9::render_technique(technique &technique)
 		};
 		_device->SetVertexShaderConstantF(255, texel_size, 1);
 
-		// Draw triangle
-		if (pass_info.num_vertices % 3)
+		// Draw primitives
+		switch (pass_info.topology)
+		{
+		case reshadefx::primitive_topology::point_list:
 			_device->DrawPrimitive(D3DPT_POINTLIST, 0, pass_info.num_vertices);
-		else
+			break;
+		case reshadefx::primitive_topology::triangle_list:
 			_device->DrawPrimitive(D3DPT_TRIANGLELIST, 0, pass_info.num_vertices / 3);
+			break;
+		}
 
 		_vertices += pass_info.num_vertices;
 		_drawcalls += 1;

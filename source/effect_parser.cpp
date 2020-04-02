@@ -2927,6 +2927,8 @@ bool reshadefx::parser::parse_technique_pass(pass_info &info)
 					{ "LEQUAL", uint32_t(pass_stencil_func::less_equal) }, { "LESSEQUAL", uint32_t(pass_stencil_func::less_equal) },
 					{ "GEQUAL", uint32_t(pass_stencil_func::greater_equal) }, { "GREATEREQUAL", uint32_t(pass_stencil_func::greater_equal) },
 					{ "ALWAYS", uint32_t(pass_stencil_func::always) },
+					{ "POINTS", uint32_t(primitive_topology::point_list) },
+					{ "TRIANGLES", uint32_t(primitive_topology::triangle_list) },
 				};
 
 				// Look up identifier in list of possible enumeration names
@@ -2988,6 +2990,8 @@ bool reshadefx::parser::parse_technique_pass(pass_info &info)
 				info.stencil_op_depth_fail = static_cast<pass_stencil_op>(value);
 			else if (state == "VertexCount")
 				info.num_vertices = value;
+			else if (state == "PrimitiveType" || state == "PrimitiveTopology")
+				info.topology = static_cast<primitive_topology>(value);
 			else
 				parse_success = false,
 				error(location, 3004, "unrecognized pass state '" + state + '\'');

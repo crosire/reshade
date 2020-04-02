@@ -961,7 +961,6 @@ void reshade::d3d10::runtime_d3d10::render_technique(technique &technique)
 
 	// Setup vertex input
 	const uintptr_t null = 0;
-	_device->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 	_device->IASetInputLayout(nullptr);
 	_device->IASetVertexBuffers(0, 1, reinterpret_cast<ID3D10Buffer *const *>(&null), reinterpret_cast<const UINT *>(&null), reinterpret_cast<const UINT *>(&null));
 
@@ -1044,7 +1043,16 @@ void reshade::d3d10::runtime_d3d10::render_technique(technique &technique)
 		const D3D10_VIEWPORT viewport = { 0, 0, pass_info.viewport_width, pass_info.viewport_height, 0.0f, 1.0f };
 		_device->RSSetViewports(1, &viewport);
 
-		// Draw triangle
+		// Draw primitives
+		switch (pass_info.topology)
+		{
+		case reshadefx::primitive_topology::point_list:
+			_device->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_POINTLIST);
+			break;
+		case reshadefx::primitive_topology::triangle_list:
+			_device->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+			break;
+		}
 		_device->Draw(pass_info.num_vertices, 0);
 
 		_vertices += pass_info.num_vertices;

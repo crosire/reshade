@@ -1250,7 +1250,15 @@ bool reshade::vulkan::runtime_vk::init_effect(size_t index)
 			// No vertex attributes
 
 			VkPipelineInputAssemblyStateCreateInfo ia_info { VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO };
-			ia_info.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+			switch (pass_info.topology)
+			{
+			case reshadefx::primitive_topology::point_list:
+				ia_info.topology = VK_PRIMITIVE_TOPOLOGY_POINT_LIST;
+				break;
+			case reshadefx::primitive_topology::triangle_list:
+				ia_info.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+				break;
+			}
 
 			VkPipelineViewportStateCreateInfo viewport_info { VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO };
 			viewport_info.viewportCount = 1;
@@ -1753,7 +1761,7 @@ void reshade::vulkan::runtime_vk::render_technique(technique &technique)
 		// Setup states
 		vk.CmdBindPipeline(cmd_list, VK_PIPELINE_BIND_POINT_GRAPHICS, pass_data.pipeline);
 
-		// Draw triangle
+		// Draw primitives
 		vk.CmdDraw(cmd_list, pass_info.num_vertices, 1, 0, 0);
 
 		_vertices += pass_info.num_vertices;

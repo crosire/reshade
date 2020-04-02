@@ -760,7 +760,16 @@ bool reshade::d3d12::runtime_d3d12::init_effect(size_t index)
 			pso_desc.DSVFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
 			pso_desc.SampleMask = UINT_MAX;
 			pso_desc.SampleDesc = { 1, 0 };
-			pso_desc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+
+			switch (pass_info.topology)
+			{
+			case reshadefx::primitive_topology::point_list:
+				pso_desc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_POINT;
+				break;
+			case reshadefx::primitive_topology::triangle_list:
+				pso_desc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+				break;
+			}
 
 			{   D3D12_BLEND_DESC &desc = pso_desc.BlendState;
 				desc.RenderTarget[0].BlendEnable = pass_info.blend_enable;
@@ -1164,9 +1173,6 @@ void reshade::d3d12::runtime_d3d12::render_technique(technique &technique)
 	_cmd_list->SetDescriptorHeaps(ARRAYSIZE(descriptor_heaps), descriptor_heaps);
 	_cmd_list->SetGraphicsRootSignature(effect_data.signature.get());
 
-	// Setup vertex input
-	_cmd_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-
 	// Setup shader constants
 	if (effect_data.cb != nullptr)
 	{
@@ -1258,7 +1264,16 @@ void reshade::d3d12::runtime_d3d12::render_technique(technique &technique)
 		_cmd_list->RSSetViewports(1, &viewport);
 		_cmd_list->RSSetScissorRects(1, &scissor_rect);
 
-		// Draw triangle
+		// Draw primitives
+		switch (pass_info.topology)
+		{
+		case reshadefx::primitive_topology::point_list:
+			_cmd_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_POINTLIST);
+			break;
+		case reshadefx::primitive_topology::triangle_list:
+			_cmd_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+			break;
+		}
 		_cmd_list->DrawInstanced(pass_info.num_vertices, 1, 0, 0);
 
 		_vertices += pass_info.num_vertices;

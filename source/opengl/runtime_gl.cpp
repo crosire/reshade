@@ -1047,7 +1047,16 @@ void reshade::opengl::runtime_gl::render_technique(technique &technique)
 			}
 		}
 
-		glDrawArrays(GL_TRIANGLES, 0, pass_info.num_vertices);
+		// Draw primitives
+		switch (pass_info.topology)
+		{
+		case reshadefx::primitive_topology::point_list:
+			glDrawArrays(GL_POINTS, 0, pass_info.num_vertices);
+			break;
+		case reshadefx::primitive_topology::triangle_list:
+			glDrawArrays(GL_TRIANGLES, 0, pass_info.num_vertices);
+			break;
+		}
 
 		_vertices += pass_info.num_vertices;
 		_drawcalls += 1;
