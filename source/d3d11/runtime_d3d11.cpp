@@ -1059,8 +1059,17 @@ void reshade::d3d11::runtime_d3d11::render_technique(technique &technique)
 		case reshadefx::primitive_topology::point_list:
 			_immediate_context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_POINTLIST);
 			break;
+		case reshadefx::primitive_topology::line_list:
+			_immediate_context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_LINELIST);
+			break;
+		case reshadefx::primitive_topology::line_strip:
+			_immediate_context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_LINESTRIP);
+			break;
 		case reshadefx::primitive_topology::triangle_list:
 			_immediate_context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+			break;
+		case reshadefx::primitive_topology::triangle_strip:
+			_immediate_context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
 			break;
 		}
 		_immediate_context->Draw(pass_info.num_vertices, 0);

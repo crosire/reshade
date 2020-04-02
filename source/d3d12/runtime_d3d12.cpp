@@ -766,7 +766,12 @@ bool reshade::d3d12::runtime_d3d12::init_effect(size_t index)
 			case reshadefx::primitive_topology::point_list:
 				pso_desc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_POINT;
 				break;
+			case reshadefx::primitive_topology::line_list:
+			case reshadefx::primitive_topology::line_strip:
+				pso_desc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_LINE;
+				break;
 			case reshadefx::primitive_topology::triangle_list:
+			case reshadefx::primitive_topology::triangle_strip:
 				pso_desc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
 				break;
 			}
@@ -1270,8 +1275,17 @@ void reshade::d3d12::runtime_d3d12::render_technique(technique &technique)
 		case reshadefx::primitive_topology::point_list:
 			_cmd_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_POINTLIST);
 			break;
+		case reshadefx::primitive_topology::line_list:
+			_cmd_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_LINELIST);
+			break;
+		case reshadefx::primitive_topology::line_strip:
+			_cmd_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_LINESTRIP);
+			break;
 		case reshadefx::primitive_topology::triangle_list:
 			_cmd_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+			break;
+		case reshadefx::primitive_topology::triangle_strip:
+			_cmd_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
 			break;
 		}
 		_cmd_list->DrawInstanced(pass_info.num_vertices, 1, 0, 0);

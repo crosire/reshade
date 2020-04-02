@@ -907,8 +907,17 @@ void reshade::d3d9::runtime_d3d9::render_technique(technique &technique)
 		case reshadefx::primitive_topology::point_list:
 			_device->DrawPrimitive(D3DPT_POINTLIST, 0, pass_info.num_vertices);
 			break;
+		case reshadefx::primitive_topology::line_list:
+			_device->DrawPrimitive(D3DPT_LINELIST, 0, pass_info.num_vertices / 2);
+			break;
+		case reshadefx::primitive_topology::line_strip:
+			_device->DrawPrimitive(D3DPT_LINESTRIP, 0, pass_info.num_vertices - 1);
+			break;
 		case reshadefx::primitive_topology::triangle_list:
 			_device->DrawPrimitive(D3DPT_TRIANGLELIST, 0, pass_info.num_vertices / 3);
+			break;
+		case reshadefx::primitive_topology::triangle_strip:
+			_device->DrawPrimitive(D3DPT_TRIANGLESTRIP, 0, pass_info.num_vertices - 2);
 			break;
 		}
 

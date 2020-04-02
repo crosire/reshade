@@ -1255,8 +1255,17 @@ bool reshade::vulkan::runtime_vk::init_effect(size_t index)
 			case reshadefx::primitive_topology::point_list:
 				ia_info.topology = VK_PRIMITIVE_TOPOLOGY_POINT_LIST;
 				break;
+			case reshadefx::primitive_topology::line_list:
+				ia_info.topology = VK_PRIMITIVE_TOPOLOGY_LINE_LIST;
+				break;
+			case reshadefx::primitive_topology::line_strip:
+				ia_info.topology = VK_PRIMITIVE_TOPOLOGY_LINE_STRIP;
+				break;
 			case reshadefx::primitive_topology::triangle_list:
 				ia_info.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+				break;
+			case reshadefx::primitive_topology::triangle_strip:
+				ia_info.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP;
 				break;
 			}
 

@@ -1049,8 +1049,17 @@ void reshade::d3d10::runtime_d3d10::render_technique(technique &technique)
 		case reshadefx::primitive_topology::point_list:
 			_device->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_POINTLIST);
 			break;
+		case reshadefx::primitive_topology::line_list:
+			_device->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_LINELIST);
+			break;
+		case reshadefx::primitive_topology::line_strip:
+			_device->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_LINESTRIP);
+			break;
 		case reshadefx::primitive_topology::triangle_list:
 			_device->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+			break;
+		case reshadefx::primitive_topology::triangle_strip:
+			_device->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
 			break;
 		}
 		_device->Draw(pass_info.num_vertices, 0);

@@ -121,7 +121,10 @@ namespace reshadefx
 	enum class primitive_topology : uint8_t
 	{
 		point_list = 1,
-		triangle_list = 4,
+		line_list,
+		line_strip,
+		triangle_list,
+		triangle_strip,
 	};
 
 	/// <summary>

@@ -1053,8 +1053,17 @@ void reshade::opengl::runtime_gl::render_technique(technique &technique)
 		case reshadefx::primitive_topology::point_list:
 			glDrawArrays(GL_POINTS, 0, pass_info.num_vertices);
 			break;
+		case reshadefx::primitive_topology::line_list:
+			glDrawArrays(GL_LINES, 0, pass_info.num_vertices);
+			break;
+		case reshadefx::primitive_topology::line_strip:
+			glDrawArrays(GL_LINE_STRIP, 0, pass_info.num_vertices);
+			break;
 		case reshadefx::primitive_topology::triangle_list:
 			glDrawArrays(GL_TRIANGLES, 0, pass_info.num_vertices);
+			break;
+		case reshadefx::primitive_topology::triangle_strip:
+			glDrawArrays(GL_TRIANGLE_STRIP, 0, pass_info.num_vertices);
 			break;
 		}
 

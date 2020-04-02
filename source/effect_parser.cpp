@@ -2928,7 +2928,13 @@ bool reshadefx::parser::parse_technique_pass(pass_info &info)
 					{ "GEQUAL", uint32_t(pass_stencil_func::greater_equal) }, { "GREATEREQUAL", uint32_t(pass_stencil_func::greater_equal) },
 					{ "ALWAYS", uint32_t(pass_stencil_func::always) },
 					{ "POINTS", uint32_t(primitive_topology::point_list) },
+					{ "POINTLIST", uint32_t(primitive_topology::point_list) },
+					{ "LINES", uint32_t(primitive_topology::line_list) },
+					{ "LINELIST", uint32_t(primitive_topology::line_list) },
+					{ "LINESTRIP", uint32_t(primitive_topology::line_strip) },
 					{ "TRIANGLES", uint32_t(primitive_topology::triangle_list) },
+					{ "TRIANGLELIST", uint32_t(primitive_topology::triangle_list) },
+					{ "TRIANGLESTRIP", uint32_t(primitive_topology::triangle_strip) },
 				};
 
 				// Look up identifier in list of possible enumeration names
