@@ -450,6 +450,8 @@ bool reshade::runtime::load_effect(const std::filesystem::path &path, size_t ind
 			var.special = special_uniform::mouse_button;
 		else if (special == "freepie")
 			var.special = special_uniform::freepie;
+		else if (special == "overlay_open")
+			var.special = special_uniform::overlay_open;
 		else if (special == "bufready_depth")
 			var.special = special_uniform::bufready_depth;
 
@@ -1005,6 +1007,11 @@ void reshade::runtime::update_and_render_effects()
 						};
 						set_uniform_value(variable, array_values, 4 * 2);
 					}
+					break;
+				case special_uniform::overlay_open:
+#if RESHADE_GUI
+					set_uniform_value(variable, _show_menu);
+#endif
 					break;
 				case special_uniform::bufready_depth:
 					set_uniform_value(variable, _has_depth_texture);
