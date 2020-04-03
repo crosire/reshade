@@ -221,7 +221,8 @@ void reshade::d3d11::runtime_d3d11::on_reset()
 	runtime::on_reset();
 
 	// Reset reference count to make UnrealEngine happy
-	_backbuffer->AddRef();
+	if (_is_initialized && _backbuffer != nullptr)
+		_backbuffer->AddRef();
 
 	_backbuffer.reset();
 	_backbuffer_resolved.reset();

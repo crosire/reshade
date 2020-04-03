@@ -41,6 +41,8 @@ void reshade::d3d11::buffer_detection_context::reset(bool release_resources)
 	buffer_detection::reset();
 
 #if RESHADE_DEPTH
+	assert(_depthstencil_clear_texture == nullptr || _context == this);
+
 	if (release_resources)
 	{
 		assert(_context == this);

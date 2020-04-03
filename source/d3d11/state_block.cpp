@@ -83,6 +83,7 @@ void reshade::d3d11::state_block::apply_and_release()
 	_device_context->IASetPrimitiveTopology(_ia_primitive_topology);
 	_device_context->IASetInputLayout(_ia_input_layout);
 
+	// With D3D_FEATURE_LEVEL_10_0 or less, the maximum number of IA Vertex Input Slots is 16
 	if (_device_feature_level > D3D_FEATURE_LEVEL_10_0)
 		_device_context->IASetVertexBuffers(0, D3D11_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT, _ia_vertex_buffers, _ia_vertex_strides, _ia_vertex_offsets);
 	else

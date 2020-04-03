@@ -101,7 +101,8 @@ ULONG   STDMETHODCALLTYPE D3D11DeviceContext::Release()
 	if (ref != 0)
 		return _orig->Release(), ref;
 
-	_buffer_detection.reset(true);
+	// Only the immediate context holds references to buffer detection resources
+	_buffer_detection.reset(this == _device->_immediate_context);
 
 	const ULONG ref_orig = _orig->Release();
 	if (ref_orig != 0) // Verify internal reference count
