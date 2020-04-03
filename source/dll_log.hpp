@@ -72,12 +72,14 @@ namespace reshade::log
 			{
 			case E_NOTIMPL:
 				return *this << "E_NOTIMPL";
+			case E_OUTOFMEMORY:
+				return *this << "E_OUTOFMEMORY";
+			case E_INVALIDARG:
+				return *this << "E_INVALIDARG";
 			case E_NOINTERFACE:
 				return *this << "E_NOINTERFACE";
 			case E_FAIL:
 				return *this << "E_FAIL";
-			case E_INVALIDARG:
-				return *this << "E_INVALIDARG";
 			case DXGI_ERROR_INVALID_CALL:
 				return *this << "DXGI_ERROR_INVALID_CALL";
 			case DXGI_ERROR_UNSUPPORTED:
