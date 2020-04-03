@@ -211,7 +211,7 @@ bool reshade::d3d11::runtime_d3d11::on_init(const DXGI_SWAP_CHAIN_DESC &swap_des
 		return false;
 #endif
 
-	// Clear reference count to make UnrealEngine happy
+	// Clear reference count to make Unreal Engine 4 happy (which checks the reference count)
 	_backbuffer->Release();
 
 	return runtime::on_init(swap_desc.OutputWindow);
@@ -220,9 +220,20 @@ void reshade::d3d11::runtime_d3d11::on_reset()
 {
 	runtime::on_reset();
 
-	// Reset reference count to make UnrealEngine happy
-	if (_is_initialized && _backbuffer != nullptr)
-		_backbuffer->AddRef();
+	if (_backbuffer != nullptr)
+	{
+		unsigned int add_references = 0;
+		// Resident Evil 3 releases all references to the back buffer before calling 'IDXGISwapChain::ResizeBuffers', even ones it does not own
+		// Releasing the references ReShade owns would then make the count negative, which consequently breaks DXGI validation, so reset those references here
+		if (_backbuffer.ref_count() == 0)
+			add_references = _backbuffer == _backbuffer_resolved ? 2 : 1;
+		// Reset reference count released because of Unreal Engine 4
+		else if (_is_initialized)
+			add_references = 1;
+
+		for (unsigned int i = 0; i < add_references; ++i)
+			_backbuffer->AddRef();
+	}
 
 	_backbuffer.reset();
 	_backbuffer_resolved.reset();

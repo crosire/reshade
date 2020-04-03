@@ -37,6 +37,7 @@ public:
 	/// </summary>
 	unsigned long ref_count() const
 	{
+		assert(_object != nullptr);
 		return _object->AddRef(), _object->Release();
 	}
 
@@ -64,11 +65,23 @@ public:
 	}
 
 	// Overloaded pointer operators which operate on the managed object.
-	T &operator*() const { assert(_object != nullptr); return *_object; }
-	T *operator->() const { assert(_object != nullptr); return _object; }
+	T &operator*() const
+	{
+		assert(_object != nullptr);
+		return *_object;
+	}
+	T *operator->() const
+	{
+		assert(_object != nullptr);
+		return _object;
+	}
 
 	// This should only be called on uninitialized objects, e.g. when passed into 'QueryInterface' or creation functions.
-	T **operator&() { assert(_object == nullptr); return &_object; }
+	T **operator&()
+	{
+		assert(_object == nullptr);
+		return &_object;
+	}
 
 	com_ptr<T> &operator=(T *object)
 	{
