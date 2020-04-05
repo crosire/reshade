@@ -8,7 +8,7 @@
 #include "d3d11_device.hpp"
 #include "d3d11_device_context.hpp"
 
-extern thread_local bool g_in_present_call;
+extern thread_local bool g_in_dxgi_runtime;
 
 HOOK_EXPORT HRESULT WINAPI D3D11CreateDevice(IDXGIAdapter *pAdapter, D3D_DRIVER_TYPE DriverType, HMODULE Software, UINT Flags, const D3D_FEATURE_LEVEL *pFeatureLevels, UINT FeatureLevels, UINT SDKVersion, ID3D11Device **ppDevice, D3D_FEATURE_LEVEL *pFeatureLevel, ID3D11DeviceContext **ppImmediateContext)
 {
@@ -67,8 +67,8 @@ HOOK_EXPORT HRESULT WINAPI D3D11CreateDeviceAndSwapChain(IDXGIAdapter *pAdapter,
 	LOG(INFO) << "> Using feature level " << std::hex << FeatureLevel << std::dec << '.';
 
 	// It is valid for the device out parameter to be NULL if the application wants to check feature level support, so just return early in that case
-	// Also return early here in case this called from within 'IDXGISwapChain::Present', which indicates that the DXGI runtime tries to create an internal device, which should not be hooked
-	if (ppDevice == nullptr || g_in_present_call)
+	// Also return early here in case this called from within 'IDXGISwapChain::Present' or 'IDXGIFactory::CreateSwapChain', which indicates that the DXGI runtime tries to create an internal device, which should not be hooked
+	if (ppDevice == nullptr || g_in_dxgi_runtime)
 	{
 		assert(ppSwapChain == nullptr && ppImmediateContext == nullptr);
 		return hr;

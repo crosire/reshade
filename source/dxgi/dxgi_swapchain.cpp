@@ -15,7 +15,7 @@
 #include "d3d12/runtime_d3d12.hpp"
 #include <algorithm>
 
-thread_local bool g_in_present_call = false;
+thread_local bool g_in_dxgi_runtime = false;
 
 DXGISwapChain::DXGISwapChain(D3D10Device *device, IDXGISwapChain  *original, const std::shared_ptr<reshade::runtime> &runtime) :
 	_orig(original),
@@ -280,9 +280,9 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::Present(UINT SyncInterval, UINT Flags)
 {
 	runtime_present(Flags);
 
-	g_in_present_call = true;
+	g_in_dxgi_runtime = true;
 	const HRESULT hr = _orig->Present(SyncInterval, Flags);
-	g_in_present_call = false;
+	g_in_dxgi_runtime = false;
 	handle_runtime_loss(hr);
 	return hr;
 }
@@ -374,9 +374,9 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::Present1(UINT SyncInterval, UINT Presen
 	runtime_present(PresentFlags);
 
 	assert(_interface_version >= 1);
-	g_in_present_call = true;
+	g_in_dxgi_runtime = true;
 	const HRESULT hr = static_cast<IDXGISwapChain1 *>(_orig)->Present1(SyncInterval, PresentFlags, pPresentParameters);
-	g_in_present_call = false;
+	g_in_dxgi_runtime = false;
 	handle_runtime_loss(hr);
 	return hr;
 }
