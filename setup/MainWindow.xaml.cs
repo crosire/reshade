@@ -536,7 +536,7 @@ In that event here are some steps you can try to resolve this:
 			}
 
 			// Only show the selection dialog if there are actually packages to choose
-			if (!isHeadless && packagesIni != null)
+			if (!isHeadless && packagesIni != null && packagesIni.GetSections().Length != 0)
 			{
 				var dlg = new SelectEffectsDialog(packagesIni);
 				dlg.Owner = this;
