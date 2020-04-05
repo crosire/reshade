@@ -17,6 +17,8 @@
 #include "d3d12/runtime_d3d12.hpp"
 #include <CoreWindow.h>
 
+extern thread_local bool g_in_dxgi_runtime;
+
 static void dump_sample_desc(const DXGI_SAMPLE_DESC &desc)
 {
 	LOG(INFO) <<     "  | SampleCount                             | " << std::setw(39) << desc.Count   << " |";
@@ -193,7 +195,9 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory_CreateSwapChain(IDXGIFactory *pFactory, I
 	const unsigned int direct3d_version =
 		query_device(pDevice, device_proxy);
 
+	g_in_dxgi_runtime = true;
 	const HRESULT hr = reshade::hooks::call(IDXGIFactory_CreateSwapChain, vtable_from_instance(pFactory) + 10)(pFactory, pDevice, pDesc, ppSwapChain);
+	g_in_dxgi_runtime = false;
 	if (FAILED(hr))
 	{
 		LOG(WARN) << "IDXGIFactory::CreateSwapChain failed with error code " << hr << '!';
