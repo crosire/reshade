@@ -406,9 +406,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 		// Initialize OpenGL
 		const HDC hdc = GetDC(window_handle);
 
-		PIXELFORMATDESCRIPTOR pfd = { sizeof(pfd) };
-		pfd.nVersion = 1;
-		pfd.dwFlags = PFD_DRAW_TO_WINDOW | PFD_SUPPORT_OPENGL | PFD_DOUBLEBUFFER;
+		PIXELFORMATDESCRIPTOR pfd = { sizeof(pfd), 1 };
+		pfd.dwFlags = PFD_DOUBLEBUFFER | PFD_DRAW_TO_WINDOW | PFD_SUPPORT_OPENGL;
 		pfd.iPixelType = PFD_TYPE_RGBA;
 		pfd.cColorBits = 32;
 

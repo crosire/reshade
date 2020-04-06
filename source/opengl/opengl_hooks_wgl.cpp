@@ -492,26 +492,53 @@ HOOK_EXPORT BOOL  WINAPI wglDeleteContext(HGLRC hglrc)
 		LOG(DEBUG) << "> Cleaning up runtime " << it->second << " ...";
 #endif
 
-		// Choose a random device context to make current with (and hope that is still alive)
-		const HDC hdc = *it->second->_hdcs.begin(), prev_hdc = wglGetCurrentDC();
-		const HGLRC prev_hglrc = wglGetCurrentContext();
-
 		// Set the render context current so its resources can be cleaned up
-		if (hglrc == prev_hglrc || reshade::hooks::call(wglMakeCurrent)(hdc, hglrc))
+		const HGLRC prev_hglrc = wglGetCurrentContext();
+		if (hglrc == prev_hglrc)
 		{
 			it->second->on_reset();
 
 			delete it->second;
-
-			if (hglrc != prev_hglrc) // Reset to previous context if it was a different one
-				reshade::hooks::call(wglMakeCurrent)(prev_hdc, prev_hglrc);
-			if (it->second == g_current_runtime) // Ensure the runtime is not still current after deleting
-				g_current_runtime = nullptr;
 		}
 		else
 		{
-			LOG(WARN) << "Unable to make context current, leaking resources ...";
+			// Choose a device context to make current with
+			HDC hdc = *it->second->_hdcs.begin();
+			const HDC prev_hdc = wglGetCurrentDC();
+
+			// In case the original was destroyed already, create a dummy window to get a valid context
+			HWND dummy_window_handle = nullptr;
+			if (!WindowFromDC(hdc))
+			{
+				dummy_window_handle = CreateWindow(TEXT("Static"), nullptr, 0, 0, 0, 0, 0, nullptr, nullptr, nullptr, 0);
+				hdc = GetDC(dummy_window_handle);
+				PIXELFORMATDESCRIPTOR pfd = { sizeof(pfd), 1 };
+				pfd.dwFlags = PFD_DOUBLEBUFFER | PFD_DRAW_TO_WINDOW | PFD_SUPPORT_OPENGL;
+				reshade::hooks::call(wglSetPixelFormat)(hdc,
+					reshade::hooks::call(wglChoosePixelFormat)(hdc, &pfd), &pfd);
+			}
+
+			if (reshade::hooks::call(wglMakeCurrent)(hdc, hglrc))
+			{
+				it->second->on_reset();
+
+				delete it->second;
+
+				// Restore previous device and render context
+				reshade::hooks::call(wglMakeCurrent)(prev_hdc, prev_hglrc);
+			}
+			else
+			{
+				LOG(WARN) << "Unable to make context current (error code " << (GetLastError() & 0xFFFF) << "), leaking resources ...";
+			}
+
+			if (dummy_window_handle != nullptr)
+				DestroyWindow(dummy_window_handle);
 		}
+
+		// Ensure the runtime is not still current after deleting
+		if (it->second == g_current_runtime)
+			g_current_runtime = nullptr;
 
 		s_opengl_runtimes.erase(it);
 	}
