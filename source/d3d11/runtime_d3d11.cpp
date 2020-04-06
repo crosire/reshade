@@ -218,8 +218,6 @@ bool reshade::d3d11::runtime_d3d11::on_init(const DXGI_SWAP_CHAIN_DESC &swap_des
 }
 void reshade::d3d11::runtime_d3d11::on_reset()
 {
-	runtime::on_reset();
-
 	if (_backbuffer != nullptr)
 	{
 		unsigned int add_references = 0;
@@ -234,6 +232,8 @@ void reshade::d3d11::runtime_d3d11::on_reset()
 		for (unsigned int i = 0; i < add_references; ++i)
 			_backbuffer->AddRef();
 	}
+
+	runtime::on_reset();
 
 	_backbuffer.reset();
 	_backbuffer_resolved.reset();
