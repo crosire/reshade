@@ -135,7 +135,7 @@ reshade::runtime::~runtime()
 
 bool reshade::runtime::on_init(input::window_handle window)
 {
-	LOG(INFO) << "Recreated runtime environment on runtime " << this << '.';
+	assert(!_is_initialized);
 
 	_input = input::register_window(window);
 
@@ -148,28 +148,27 @@ bool reshade::runtime::on_init(input::window_handle window)
 	_preset_save_success = true;
 	_screenshot_save_success = true;
 
-#if RESHADE_GUI
-	build_font_atlas();
-#endif
+	LOG(INFO) << "Recreated runtime environment on runtime " << this << '.';
 
 	return true;
 }
 void reshade::runtime::on_reset()
 {
 	if (!_is_initialized)
-		return;
+		return; // Nothing to do if the runtime was already destroyed or not successfully initialized in the first place
 
 	unload_effects();
+
+	_width = _height = 0;
+	_is_initialized = false;
 
 #if RESHADE_GUI
 	if (_imgui_font_atlas != nullptr)
 		destroy_texture(*_imgui_font_atlas);
+	_rebuild_font_atlas = true;
 #endif
 
 	LOG(INFO) << "Destroyed runtime environment on runtime " << this << '.';
-
-	_width = _height = 0;
-	_is_initialized = false;
 }
 void reshade::runtime::on_present()
 {
@@ -599,7 +598,8 @@ bool reshade::runtime::load_effects()
 	// Keep track of the spawned threads, so the runtime cannot be destroyed while they are still running
 	for (size_t n = 0; n < num_splits; ++n)
 		_worker_threads.emplace_back([this, effect_files, num_splits, n]() {
-			for (size_t i = 0; i < effect_files.size(); ++i)
+			// Abort loading when initialization state changes (indicating that 'on_reset' was called in the meantime)
+			for (size_t i = 0; i < effect_files.size() && _is_initialized; ++i)
 				if (i * num_splits / effect_files.size() == n)
 					load_effect(effect_files[i], i);
 		});

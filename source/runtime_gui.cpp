@@ -374,8 +374,6 @@ void reshade::runtime::deinit_ui()
 
 void reshade::runtime::build_font_atlas()
 {
-	ImGui::SetCurrentContext(_imgui_context);
-
 	ImFontAtlas *const atlas = _imgui_context->IO.Fonts;
 	// Remove any existing fonts from atlas first
 	atlas->Clear();
@@ -414,8 +412,6 @@ void reshade::runtime::build_font_atlas()
 	unsigned char *pixels;
 	atlas->GetTexDataAsRGBA32(&pixels, &width, &height);
 
-	ImGui::SetCurrentContext(nullptr);
-
 	// Create font atlas texture and upload it
 	if (_imgui_font_atlas != nullptr)
 		destroy_texture(*_imgui_font_atlas);
@@ -432,6 +428,8 @@ void reshade::runtime::build_font_atlas()
 
 void reshade::runtime::draw_ui()
 {
+	assert(_is_initialized);
+
 	const bool show_splash = _show_splash && (is_loading() || !_reload_compile_queue.empty() || (_last_present_time - _last_reload_time) < std::chrono::seconds(5));
 	// Do not show this message in the same frame the screenshot is taken (so that it won't show up on the UI screenshot)
 	const bool show_screenshot_message = (_show_screenshot_message || !_screenshot_save_success) && !_should_save_screenshot && (_last_present_time - _last_screenshot_time) < std::chrono::seconds(_screenshot_save_success ? 3 : 5);
@@ -820,7 +818,6 @@ void reshade::runtime::draw_ui_home()
 		if (error_message.size() > 50)
 		{
 			ImGui::TextColored(COLOR_RED, "%s", error_message.c_str());
-
 			ImGui::Spacing();
 		}
 		else
