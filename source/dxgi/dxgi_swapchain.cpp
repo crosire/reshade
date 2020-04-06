@@ -60,6 +60,8 @@ DXGISwapChain::DXGISwapChain(D3D12Device *device, IDXGISwapChain3 *original, con
 
 void DXGISwapChain::runtime_reset()
 {
+	const std::lock_guard<std::mutex> lock(_runtime_mutex);
+
 	switch (_direct3d_version)
 	{
 	case 10:
@@ -80,6 +82,8 @@ void DXGISwapChain::runtime_resize()
 	if (FAILED(_orig->GetDesc(&desc)))
 		return;
 
+	const std::lock_guard<std::mutex> lock(_runtime_mutex);
+
 	bool initialized = false;
 	switch (_direct3d_version)
 	{
@@ -99,10 +103,14 @@ void DXGISwapChain::runtime_resize()
 }
 void DXGISwapChain::runtime_present(UINT flags)
 {
-	// Some D3D11 games test presentation for timing and composition purposes.
-	// These calls are not rendering related, but rather a status request for the D3D runtime and as such should be ignored.
+	// Some D3D11 games test presentation for timing and composition purposes
+	// These calls are not rendering related, but rather a status request for the D3D runtime and as such should be ignored
 	if (flags & DXGI_PRESENT_TEST)
 		return;
+
+	// Synchronize access to runtime to avoid race conditions between 'load_effects' and 'unload_effects' causing crashes
+	// This is necessary because Resident Evil 3 calls DXGI functions simultaneously from multiple threads (which is technically illegal)
+	const std::lock_guard<std::mutex> lock(_runtime_mutex);
 
 	switch (_direct3d_version)
 	{

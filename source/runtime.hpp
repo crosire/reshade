@@ -155,7 +155,7 @@ namespace reshade
 		/// <summary>
 		/// Load all effects found in the effect search paths.
 		/// </summary>
-		bool load_effects();
+		void load_effects();
 		/// <summary>
 		/// Initialize resources for the effect and load the effect module.
 		/// </summary>

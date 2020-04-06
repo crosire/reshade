@@ -560,7 +560,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &path, size_t ind
 
 	return effect.compile_sucess;
 }
-bool reshade::runtime::load_effects()
+void reshade::runtime::load_effects()
 {
 	// Clear out any previous effects
 	unload_effects();
@@ -587,7 +587,7 @@ bool reshade::runtime::load_effects()
 	_reload_remaining_effects = _reload_total_effects;
 
 	if (_reload_total_effects == 0)
-		return true; // No effect files found, so nothing more to do
+		return; // No effect files found, so nothing more to do
 
 	// Allocate space for effects which are placed in this array during the 'load_effect' call
 	_effects.resize(_reload_total_effects);
@@ -604,8 +604,6 @@ bool reshade::runtime::load_effects()
 				if (i * num_splits / effect_files.size() == n)
 					load_effect(effect_files[i], i);
 		});
-
-	return _last_reload_successful;
 }
 void reshade::runtime::load_textures()
 {
