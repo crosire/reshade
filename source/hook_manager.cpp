@@ -451,7 +451,7 @@ reshade::hook::address reshade::hooks::call(hook::address replacement, hook::add
 		return hook.call();
 
 	// If the hook does not exist yet, delay-load export hooks and try again
-	if (!s_export_module_handle)
+	if (!s_export_module_handle && !s_export_hook_path.empty())
 	{
 		assert(s_export_hook_path.is_absolute());
 
