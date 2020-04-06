@@ -154,14 +154,15 @@ bool reshade::runtime::on_init(input::window_handle window)
 }
 void reshade::runtime::on_reset()
 {
-	if (!_is_initialized)
+	if (_is_initialized)
+		// Update initialization state immediately, so that any effect loading still in progress can abort early
+		_is_initialized = false;
+	else
 		return; // Nothing to do if the runtime was already destroyed or not successfully initialized in the first place
 
 	unload_effects();
 
 	_width = _height = 0;
-	_is_initialized = false;
-
 #if RESHADE_GUI
 	if (_imgui_font_atlas != nullptr)
 		destroy_texture(*_imgui_font_atlas);
