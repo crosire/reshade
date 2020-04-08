@@ -3,7 +3,7 @@
  * License: https://github.com/crosire/reshade#license
  */
 
-using ReShade.Utilities;
+using ReShade.Setup.Utilities;
 using System.IO;
 using System.Windows;
 

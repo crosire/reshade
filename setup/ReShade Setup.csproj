@@ -106,6 +106,8 @@
       <SubType>Designer</SubType>
     </None>
     <None Include="Properties\AssemblyInfo.cs.in" />
+    <EmbeddedResource Condition="Exists('Compatibility.ini')" Include="Compatibility.ini" />
+    <EmbeddedResource Condition="Exists('EffectPackages.ini')" Include="EffectPackages.ini" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="Properties\Icon.ico" />
@@ -113,21 +115,18 @@
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Common.props" />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
-    <PreBuildEvent>
-echo Generating assembly version ...
+    <PreBuildEvent>echo Generating assembly version ...
 "$(VC_ExecutablePath_x86)\cl.exe" /nologo /EP /C /I $(SolutionDir)res $(ProjectDir)Properties\AssemblyInfo.cs.in &gt; $(ProjectDir)Properties\AssemblyInfo.cs
+
 echo Compiling ReShade setup tool ...</PreBuildEvent>
-    <PostBuildEvent>
-echo Compressing ReShade DLLs ...
-"$(SolutionDir)tools\7za.exe" a -y "$(TargetDir)ReShade.zip" "$(SolutionDir)bin\Win32\Release\ReShade32.dll" "$(SolutionDir)res\layers\ReShade32.json" "$(SolutionDir)bin\x64\Release\ReShade64.dll" "$(SolutionDir)res\layers\ReShade64.json" &gt; nul
-if exist "$(ProjectDir)SetupCompatibility.ini" "$(SolutionDir)tools\7za.exe" a -y "$(TargetDir)ReShade.zip" "$(ProjectDir)SetupCompatibility.ini" &gt; nul
-if exist "$(ProjectDir)SetupEffectPackages.ini" "$(SolutionDir)tools\7za.exe" a -y "$(TargetDir)ReShade.zip" "$(ProjectDir)SetupEffectPackages.ini" &gt; nul
+    <PostBuildEvent>echo Compressing ReShade DLLs ...
+"$(SolutionDir)tools\7za.exe" a -y "$(TargetDir)ReShade Setup.zip" "$(SolutionDir)bin\Win32\Release\ReShade32.dll" "$(SolutionDir)res\layers\ReShade32.json" "$(SolutionDir)bin\x64\Release\ReShade64.dll" "$(SolutionDir)res\layers\ReShade64.json" &gt; nul
 
 echo Appending archive to setup executable ...
-copy /b "$(TargetPath)" + "$(TargetDir)ReShade.zip" "$(TargetPath)"
+copy /b "$(TargetPath)" + "$(TargetDir)ReShade Setup.zip" "$(TargetPath)"
 
 echo Cleaning up and deleting temporary archive ...
-del "$(TargetDir)ReShade.zip"</PostBuildEvent>
+del "$(TargetDir)ReShade Setup.zip"</PostBuildEvent>
     <RunPostBuildEvent>OnBuildSuccess</RunPostBuildEvent>
   </PropertyGroup>
 </Project>

@@ -1,4 +1,4 @@
-﻿<Window x:Class="ReShade.Setup.MainWindow" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:utils="clr-namespace:ReShade.Utilities" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" Title="" Width="500" Height="146" ResizeMode="NoResize" WindowStyle="SingleBorderWindow" WindowStartupLocation="CenterScreen" SourceInitialized="OnWindowInit" Loaded="OnWindowLoaded" Closed="OnWindowClosed">
+﻿<Window x:Class="ReShade.Setup.MainWindow" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:utils="clr-namespace:ReShade.Setup.Utilities" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" Title="" Width="500" Height="146" ResizeMode="NoResize" WindowStyle="SingleBorderWindow" WindowStartupLocation="CenterScreen" SourceInitialized="OnWindowInit" Loaded="OnWindowLoaded" Closed="OnWindowClosed">
   <DockPanel LastChildFill="True">
     <Grid x:Name="InstallButtons" DockPanel.Dock="Bottom" Height="30" Margin="5,0,5,5" Visibility="Collapsed">
       <Grid.ColumnDefinitions>

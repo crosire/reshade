@@ -9,7 +9,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 
-namespace ReShade.Utilities
+namespace ReShade.Setup.Utilities
 {
 	public class IniFile
 	{

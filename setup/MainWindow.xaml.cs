@@ -4,7 +4,7 @@
  */
 
 using Microsoft.Win32;
-using ReShade.Utilities;
+using ReShade.Setup.Utilities;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -39,14 +39,15 @@ namespace ReShade.Setup
 		{
 			InitializeComponent();
 
-			Title = "ReShade Setup v" + Assembly.GetExecutingAssembly().GetName().Version.ToString(3);
+			var assembly = Assembly.GetExecutingAssembly();
+			Title = "ReShade Setup v" + assembly.GetName().Version.ToString(3);
 
 			try
 			{
 				// Extract archive attached to this executable
 				var output = new FileStream(Path.GetTempFileName(), FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.ReadWrite | FileShare.Delete, 4096, FileOptions.DeleteOnClose);
 
-				using (var input = File.OpenRead(Assembly.GetExecutingAssembly().Location))
+				using (var input = File.OpenRead(assembly.Location))
 				{
 					byte[] block = new byte[512];
 					byte[] signature = { 0x50, 0x4B, 0x03, 0x04 }; // PK..
@@ -64,8 +65,8 @@ namespace ReShade.Setup
 				}
 
 				zip = new ZipArchive(output, ZipArchiveMode.Read, false);
-				packagesIni = new IniFile(zip.GetEntry("SetupEffectPackages.ini")?.Open());
-				compatibilityIni = new IniFile(zip.GetEntry("SetupCompatibility.ini")?.Open());
+				packagesIni = new IniFile(assembly.GetManifestResourceStream("ReShade.Setup.EffectPackages.ini"));
+				compatibilityIni = new IniFile(assembly.GetManifestResourceStream("ReShade.Setup.Compatibility.ini"));
 			}
 			catch
 			{

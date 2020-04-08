@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Security;
 
-namespace ReShade.Utilities
+namespace ReShade.Setup.Utilities
 {
 	public unsafe class PEInfo
 	{
