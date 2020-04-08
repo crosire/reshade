@@ -2135,7 +2135,7 @@ bool reshadefx::parser::parse_top()
 		while (!peek('}') && parse_success) // Empty namespaces are valid
 		{
 			if (!parse_top())
-				parse_success = false; // Continue parsing even after encountering an error
+				parse_success = false;
 		}
 
 		leave_namespace();

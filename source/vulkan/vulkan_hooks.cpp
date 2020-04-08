@@ -448,6 +448,7 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	INIT_DEVICE_PROC(CmdWriteTimestamp);
 	INIT_DEVICE_PROC(CmdPushConstants);
 	INIT_DEVICE_PROC(CmdBeginRenderPass);
+	INIT_DEVICE_PROC(CmdNextSubpass);
 	INIT_DEVICE_PROC(CmdEndRenderPass);
 	INIT_DEVICE_PROC(CmdExecuteCommands);
 	// ---- Core 1_1 commands
