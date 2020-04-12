@@ -343,6 +343,7 @@ namespace reshade
 		ImGuiContext *_imgui_context = nullptr;
 		std::unique_ptr<texture> _imgui_font_atlas;
 		std::vector<std::pair<std::string, std::function<void()>>> _menu_callables;
+		std::string _window_state_path;
 		bool _show_menu = false;
 		bool _show_clock = false;
 		bool _show_fps = false;
