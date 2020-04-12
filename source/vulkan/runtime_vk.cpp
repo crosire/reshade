@@ -251,6 +251,18 @@ bool reshade::vulkan::runtime_vk::on_init(VkSwapchainKHR swapchain, const VkSwap
 	if (_backbuffer_image_view[1] == VK_NULL_HANDLE)
 		return false;
 
+#ifndef NDEBUG
+	if (vk.DebugMarkerSetObjectNameEXT != nullptr)
+	{
+		VkDebugMarkerObjectNameInfoEXT name_info { VK_STRUCTURE_TYPE_DEBUG_MARKER_OBJECT_NAME_INFO_EXT };
+		name_info.object = (uint64_t)_backbuffer_image;
+		name_info.objectType = VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_EXT;
+		name_info.pObjectName = "ReShade back buffer";
+
+		vk.DebugMarkerSetObjectNameEXT(_device, &name_info);
+	}
+#endif
+
 	// Create effect depth-stencil resource
 	assert(_effect_stencil_format != VK_FORMAT_UNDEFINED);
 	_effect_stencil = create_image(
@@ -261,6 +273,18 @@ bool reshade::vulkan::runtime_vk::on_init(VkSwapchainKHR swapchain, const VkSwap
 	_effect_stencil_view = create_image_view(_effect_stencil, _effect_stencil_format, 1, VK_IMAGE_ASPECT_STENCIL_BIT);
 	if (_effect_stencil_view == VK_NULL_HANDLE)
 		return false;
+
+#ifndef NDEBUG
+	if (vk.DebugMarkerSetObjectNameEXT != nullptr)
+	{
+		VkDebugMarkerObjectNameInfoEXT name_info{ VK_STRUCTURE_TYPE_DEBUG_MARKER_OBJECT_NAME_INFO_EXT };
+		name_info.object = (uint64_t)_effect_stencil;
+		name_info.objectType = VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_EXT;
+		name_info.pObjectName = "ReShade stencil buffer";
+
+		vk.DebugMarkerSetObjectNameEXT(_device, &name_info);
+	}
+#endif
 
 	// Create default render pass
 	for (uint32_t k = 0; k < 2; ++k)
@@ -1703,6 +1727,21 @@ void reshade::vulkan::runtime_vk::render_technique(technique &technique)
 		return;
 	const VkCommandBuffer cmd_list = _cmd_buffers[_cmd_index].first;
 
+#ifndef NDEBUG
+	const bool insert_debug_markers = vk.CmdDebugMarkerBeginEXT != nullptr && vk.CmdDebugMarkerEndEXT != nullptr;
+	if (insert_debug_markers)
+	{
+		VkDebugMarkerMarkerInfoEXT debug_info { VK_STRUCTURE_TYPE_DEBUG_MARKER_MARKER_INFO_EXT };
+		debug_info.pMarkerName = technique.name.c_str();
+		debug_info.color[0] = 0.8f;
+		debug_info.color[1] = 0.0f;
+		debug_info.color[2] = 0.8f;
+		debug_info.color[3] = 1.0f;
+
+		vk.CmdDebugMarkerBeginEXT(cmd_list, &debug_info);
+	}
+#endif
+
 	// Reset current queries and then write time stamp value
 	vk.CmdResetQueryPool(cmd_list, effect_data.query_pool, impl->query_base_index + _cmd_index * 2, 2);
 	vk.CmdWriteTimestamp(cmd_list, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, effect_data.query_pool, impl->query_base_index + _cmd_index * 2);
@@ -1742,6 +1781,22 @@ void reshade::vulkan::runtime_vk::render_technique(technique &technique)
 
 		const vulkan_pass_data &pass_data = impl->passes[pass_index];
 		const reshadefx::pass_info &pass_info = technique.passes[pass_index];
+
+#ifndef NDEBUG
+		if (insert_debug_markers)
+		{
+			const std::string pass_name = "Pass " + std::to_string(pass_index);
+
+			VkDebugMarkerMarkerInfoEXT debug_info { VK_STRUCTURE_TYPE_DEBUG_MARKER_MARKER_INFO_EXT };
+			debug_info.pMarkerName = pass_name.c_str();
+			debug_info.color[0] = 0.8f;
+			debug_info.color[1] = 0.8f;
+			debug_info.color[2] = 0.8f;
+			debug_info.color[3] = 1.0f;
+
+			vk.CmdDebugMarkerBeginEXT(cmd_list, &debug_info);
+		}
+#endif
 
 		if (pass_info.stencil_enable && !is_effect_stencil_cleared)
 		{
@@ -1788,6 +1843,11 @@ void reshade::vulkan::runtime_vk::render_technique(technique &technique)
 
 			generate_mipmaps(*render_target_texture);
 		}
+
+#ifndef NDEBUG
+		if (insert_debug_markers)
+			vk.CmdDebugMarkerEndEXT(cmd_list);
+#endif
 	}
 
 #if RESHADE_DEPTH
@@ -1801,6 +1861,11 @@ void reshade::vulkan::runtime_vk::render_technique(technique &technique)
 #endif
 
 	vk.CmdWriteTimestamp(cmd_list, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, effect_data.query_pool, impl->query_base_index + _cmd_index * 2 + 1);
+
+#ifndef NDEBUG
+	if (insert_debug_markers)
+		vk.CmdDebugMarkerEndEXT(cmd_list);
+#endif
 }
 
 bool reshade::vulkan::runtime_vk::begin_command_buffer() const

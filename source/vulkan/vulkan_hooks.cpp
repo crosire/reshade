@@ -331,6 +331,9 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 		add_extension(VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME, false); // This is optional, see imgui code in 'runtime_vk'
 		add_extension(VK_KHR_IMAGE_FORMAT_LIST_EXTENSION_NAME, true);
 		add_extension(VK_KHR_SWAPCHAIN_MUTABLE_FORMAT_EXTENSION_NAME, true);
+#ifndef NDEBUG
+		add_extension(VK_EXT_DEBUG_MARKER_EXTENSION_NAME, false);
+#endif
 	}
 	else
 	{
@@ -466,6 +469,8 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	INIT_DEVICE_PROC(CmdPushDescriptorSetKHR);
 	// ---- VK_EXT_debug_marker extension commands
 	INIT_DEVICE_PROC(DebugMarkerSetObjectNameEXT);
+	INIT_DEVICE_PROC(CmdDebugMarkerBeginEXT);
+	INIT_DEVICE_PROC(CmdDebugMarkerEndEXT);
 #undef INIT_DEVICE_PROC
 
 #if RESHADE_VERBOSE_LOG
