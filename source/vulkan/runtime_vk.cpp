@@ -1218,11 +1218,13 @@ bool reshade::vulkan::runtime_vk::init_effect(size_t index)
 					attachment_desc.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 				}
 
-				{   VkSubpassDependency subdep = {};
+				{   // Synchronize any writes to render targets in previous passes with reads from them in this pass
+					VkSubpassDependency subdep = {};
 					subdep.srcSubpass = VK_SUBPASS_EXTERNAL;
 					subdep.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-					subdep.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-					subdep.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+					subdep.dstStageMask = VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+					subdep.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+					subdep.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
 
 					VkSubpassDescription subpass = {};
 					subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
