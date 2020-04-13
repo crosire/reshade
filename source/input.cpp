@@ -255,9 +255,13 @@ bool reshade::input::is_key_pressed(unsigned int keycode) const
 	assert(keycode < ARRAYSIZE(_keys));
 	return keycode < ARRAYSIZE(_keys) && (_keys[keycode] & 0x88) == 0x88;
 }
-bool reshade::input::is_key_pressed(unsigned int keycode, bool ctrl, bool shift, bool alt) const
+bool reshade::input::is_key_pressed(unsigned int keycode, bool ctrl, bool shift, bool alt, bool force_modifiers) const
 {
-	return is_key_pressed(keycode) && ctrl == is_key_down(VK_CONTROL) && shift == is_key_down(VK_SHIFT) && alt == is_key_down(VK_MENU);
+	const bool key_down = is_key_pressed(keycode), ctrl_down = is_key_down(VK_CONTROL), shift_down = is_key_down(VK_SHIFT), alt_down = is_key_down(VK_MENU);
+	if (force_modifiers) // Modifier state is required to match
+		return key_down && (ctrl == ctrl_down && shift == shift_down && alt == alt_down);
+	else // Modifier state is optional and only has to match when down
+		return key_down && (!ctrl || ctrl_down) && (!shift || shift_down) && (!alt || alt_down);
 }
 bool reshade::input::is_key_released(unsigned int keycode) const
 {

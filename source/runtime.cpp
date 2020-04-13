@@ -205,20 +205,20 @@ void reshade::runtime::on_present()
 	// Handle keyboard shortcuts
 	if (!_ignore_shortcuts)
 	{
-		if (_input->is_key_pressed(_effects_key_data))
+		if (_input->is_key_pressed(_effects_key_data, _force_shortcut_modifiers))
 			_effects_enabled = !_effects_enabled;
 
-		if (_input->is_key_pressed(_screenshot_key_data))
+		if (_input->is_key_pressed(_screenshot_key_data, _force_shortcut_modifiers))
 			_should_save_screenshot = true; // Notify 'update_and_render_effects' that we want to save a screenshot next frame
 
 		// Do not allow the next shortcuts while effects are being loaded or compiled (since they affect that state)
 		if (!is_loading() && _reload_compile_queue.empty())
 		{
-			if (_input->is_key_pressed(_reload_key_data))
+			if (_input->is_key_pressed(_reload_key_data, _force_shortcut_modifiers))
 				load_effects();
 
-			if (const bool reversed = _input->is_key_pressed(_prev_preset_key_data);
-				_input->is_key_pressed(_next_preset_key_data) || reversed)
+			if (const bool reversed = _input->is_key_pressed(_prev_preset_key_data, _force_shortcut_modifiers);
+				_input->is_key_pressed(_next_preset_key_data, _force_shortcut_modifiers) || reversed)
 			{
 				// The preset shortcut key was pressed down, so start the transition
 				if (switch_to_next_preset(_current_preset_path.parent_path(), reversed))
@@ -855,7 +855,7 @@ void reshade::runtime::update_and_render_effects()
 
 		for (uniform &variable : effect.uniforms)
 		{
-			if (!_ignore_shortcuts && variable.toggle_key_data[0] != 0 && _input->is_key_pressed(variable.toggle_key_data))
+			if (!_ignore_shortcuts && variable.toggle_key_data[0] != 0 && _input->is_key_pressed(variable.toggle_key_data, _force_shortcut_modifiers))
 			{
 				assert(variable.supports_toggle_key());
 
@@ -1028,7 +1028,7 @@ void reshade::runtime::update_and_render_effects()
 			if (technique.timeleft <= 0)
 				disable_technique(technique);
 		}
-		else if (!_ignore_shortcuts && (_input->is_key_pressed(technique.toggle_key_data) ||
+		else if (!_ignore_shortcuts && (_input->is_key_pressed(technique.toggle_key_data, _force_shortcut_modifiers) ||
 			(technique.toggle_key_data[0] >= 0x01 && technique.toggle_key_data[0] <= 0x06 && _input->is_mouse_button_pressed(technique.toggle_key_data[0] - 1))))
 		{
 			if (!technique.enabled)
@@ -1105,6 +1105,7 @@ void reshade::runtime::load_config()
 	config.get("INPUT", "KeyScreenshot", _screenshot_key_data);
 	config.get("INPUT", "KeyPreviousPreset", _prev_preset_key_data);
 	config.get("INPUT", "KeyNextPreset", _next_preset_key_data);
+	config.get("INPUT", "ForceShortcutModifiers", _force_shortcut_modifiers);
 
 	config.get("GENERAL", "PerformanceMode", _performance_mode);
 	config.get("GENERAL", "EffectSearchPaths", _effect_search_paths);
@@ -1149,6 +1150,7 @@ void reshade::runtime::save_config() const
 	config.set("INPUT", "KeyScreenshot", _screenshot_key_data);
 	config.set("INPUT", "KeyPreviousPreset", _prev_preset_key_data);
 	config.set("INPUT", "KeyNextPreset", _next_preset_key_data);
+	config.set("INPUT", "ForceShortcutModifiers", _force_shortcut_modifiers);
 
 	config.set("GENERAL", "PerformanceMode", _performance_mode);
 	config.set("GENERAL", "EffectSearchPaths", _effect_search_paths);

@@ -436,7 +436,7 @@ void reshade::runtime::draw_ui()
 
 	if (_show_menu && !_ignore_shortcuts && !_imgui_context->IO.NavVisible && _input->is_key_pressed(0x1B /* VK_ESCAPE */))
 		_show_menu = false; // Close when pressing the escape button and not currently navigating with the keyboard
-	else if (!_ignore_shortcuts && _input->is_key_pressed(_menu_key_data) && _imgui_context->ActiveId == 0)
+	else if (!_ignore_shortcuts && _input->is_key_pressed(_menu_key_data, _force_shortcut_modifiers) && _imgui_context->ActiveId == 0)
 		_show_menu = !_show_menu;
 
 	_ignore_shortcuts = false;
@@ -1027,7 +1027,6 @@ void reshade::runtime::draw_ui_home()
 		}
 	}
 }
-
 void reshade::runtime::draw_ui_settings()
 {
 	bool modified = false;
@@ -1247,7 +1246,6 @@ void reshade::runtime::draw_ui_settings()
 	if (reload_style) // Style is applied in "load_config()".
 		load_config();
 }
-
 void reshade::runtime::draw_ui_statistics()
 {
 	unsigned int cpu_digits = 1;
@@ -1516,7 +1514,6 @@ void reshade::runtime::draw_ui_statistics()
 		ImGui::Text("Total memory usage: %ld.%03ld %s", memory_view.quot, memory_view.rem, memory_size_unit);
 	}
 }
-
 void reshade::runtime::draw_ui_log()
 {
 	if (ImGui::Button("Clear Log"))
@@ -1563,7 +1560,6 @@ void reshade::runtime::draw_ui_log()
 		}
 	} ImGui::EndChild();
 }
-
 void reshade::runtime::draw_ui_about()
 {
 	ImGui::TextUnformatted("ReShade " VERSION_STRING_FILE);
@@ -2588,7 +2584,6 @@ void reshade::runtime::draw_variable_editor()
 		ImGui::EndTabBar();
 	ImGui::EndChild();
 }
-
 void reshade::runtime::draw_technique_editor()
 {
 	size_t hovered_technique_index = std::numeric_limits<size_t>::max();
