@@ -780,7 +780,7 @@ bool reshade::vulkan::runtime_vk::init_effect(size_t index)
 							functions_to_remove.push_back(spirv[inst + 2]);
 
 							// Get interface variables
-							for (size_t k = inst + 3 + (entry_point.name.size() / 4); k < inst + len; ++k)
+							for (size_t k = inst + 3 + ((strlen(reinterpret_cast<const char *>(&spirv[inst + 3])) + 4) / 4); k < inst + len; ++k)
 								variables_to_remove.push_back(spirv[k]);
 
 							// Remove this entry point from the module
