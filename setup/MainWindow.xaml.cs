@@ -638,7 +638,12 @@ In that event here are some steps you can try to resolve this:
 				}
 				if (tempPathTextures == null)
 				{
-					tempPathTextures = Directory.GetFiles(tempPath, "*.png", SearchOption.AllDirectories).Select(x => Path.GetDirectoryName(x)).OrderBy(x => x.Length).FirstOrDefault();
+					string[] tempTextureExtensions = {"*.png", "*.jpg", "*.jpeg"};
+
+					foreach (string extension in tempTextureExtensions)
+					{
+						tempPathTextures = tempPathTextures.Union(Directory.GetFiles(tempPath, extension, SearchOption.AllDirectories).Select(x => Path.GetDirectoryName(x)).OrderBy(x => x.Length).FirstOrDefault()).ToString();
+					}
 				}
 
 				// Move only the relevant files to the target
