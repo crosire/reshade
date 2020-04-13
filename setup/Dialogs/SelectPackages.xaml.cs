@@ -18,6 +18,7 @@ namespace ReShade.Setup.Dialogs
 	public class EffectPackage : INotifyPropertyChanged
 	{
 		public bool Enabled { get; set; }
+		public bool Modifiable { get; set; }
 		public string PackageName { get; set; }
 		public string PackageDescription { get; set; }
 		public string InstallPath { get; set; }
@@ -44,6 +45,7 @@ namespace ReShade.Setup.Dialogs
 				Items.Add(new EffectPackage
 				{
 					Enabled = packagesIni.GetString(package, "Enabled") == "1",
+					Modifiable = packagesIni.GetString(package, "Required") != "1",
 					PackageName = packagesIni.GetString(package, "PackageName"),
 					PackageDescription = packagesIni.GetString(package, "PackageDescription"),
 					InstallPath = packagesIni.GetString(package, "InstallPath"),
