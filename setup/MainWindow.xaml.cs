@@ -270,23 +270,37 @@ namespace ReShade.Setup
 
 		bool RestartWithElevatedPrivileges()
 		{
-			var startInfo = new ProcessStartInfo {
+			var startInfo = new ProcessStartInfo
+			{
 				Verb = "runas",
 				FileName = Assembly.GetExecutingAssembly().Location,
 				Arguments = $"\"{targetPath}\" --elevated --left {Left} --top {Top}"
 			};
 
 			if (ApiD3D9.IsChecked.Value)
+			{
 				startInfo.Arguments += " --api d3d9";
+			}
+
 			if (ApiDXGI.IsChecked.Value)
+			{
 				startInfo.Arguments += " --api dxgi";
+			}
+
 			if (ApiOpenGL.IsChecked.Value)
+			{
 				startInfo.Arguments += " --api opengl";
+			}
+
 			if (ApiVulkan.IsChecked.Value)
+			{
 				startInfo.Arguments += " --api vulkan";
+			}
 
 			if (isFinished)
+			{
 				startInfo.Arguments += " --finished";
+			}
 
 			try
 			{
@@ -321,7 +335,9 @@ namespace ReShade.Setup
 			var info = FileVersionInfo.GetVersionInfo(targetPath);
 			targetName = info.FileDescription;
 			if (targetName is null || targetName.Trim().Length == 0)
+			{
 				targetName = Path.GetFileNameWithoutExtension(targetPath);
+			}
 
 			UpdateStatus("Working on " + targetName + " ...", "Analyzing executable ...");
 
@@ -580,7 +596,8 @@ In that event here are some steps you can try to resolve this:
 
 			var client = new WebClient();
 
-			client.DownloadFileCompleted += (object sender, System.ComponentModel.AsyncCompletedEventArgs e) => {
+			client.DownloadFileCompleted += (object sender, System.ComponentModel.AsyncCompletedEventArgs e) =>
+			{
 				if (e.Error != null)
 				{
 					UpdateStatusAndFinish(false, "Failed to download from " + package.DownloadUrl + ".", e.Error.Message);
@@ -596,7 +613,8 @@ In that event here are some steps you can try to resolve this:
 				}
 			};
 
-			client.DownloadProgressChanged += (object sender, DownloadProgressChangedEventArgs e) => {
+			client.DownloadProgressChanged += (object sender, DownloadProgressChangedEventArgs e) =>
+			{
 				// Avoid negative percentage values
 				if (e.TotalBytesToReceive > 0)
 				{
@@ -621,7 +639,8 @@ In that event here are some steps you can try to resolve this:
 
 			try
 			{
-				if (Directory.Exists(tempPath)) // Delete existing directories since extraction fails if the target is not empty
+				// Delete existing directories since extraction fails if the target is not empty
+				if (Directory.Exists(tempPath))
 				{
 					Directory.Delete(tempPath, true);
 				}
@@ -631,30 +650,52 @@ In that event here are some steps you can try to resolve this:
 				// First check for a standard folder name
 				string tempPathShaders = Directory.GetDirectories(tempPath, "Shaders", SearchOption.AllDirectories).FirstOrDefault();
 				string tempPathTextures = Directory.GetDirectories(tempPath, "Textures", SearchOption.AllDirectories).FirstOrDefault();
+				string targetPathShaders = Path.Combine(Path.GetDirectoryName(targetPath), package.InstallPath);
+				string targetPathTextures = Path.Combine(Path.GetDirectoryName(targetPath), package.TextureInstallPath);
 
 				// If that does not exist, look for the first directory that contains shaders/textures
+				string[] effects = Directory.GetFiles(tempPath, "*.fx", SearchOption.AllDirectories);
 				if (tempPathShaders == null)
 				{
-					tempPathShaders = Directory.GetFiles(tempPath, "*.fx", SearchOption.AllDirectories).Select(x => Path.GetDirectoryName(x)).OrderBy(x => x.Length).FirstOrDefault();
+					tempPathShaders = effects.Select(x => Path.GetDirectoryName(x)).OrderBy(x => x.Length).FirstOrDefault();
 				}
 				if (tempPathTextures == null)
 				{
-					string[] tempTextureExtensions = {"*.png", "*.jpg", "*.jpeg"};
+					string[] tempTextureExtensions = { "*.png", "*.jpg", "*.jpeg" };
 
 					foreach (string extension in tempTextureExtensions)
 					{
-						tempPathTextures = tempPathTextures.Union(Directory.GetFiles(tempPath, extension, SearchOption.AllDirectories).Select(x => Path.GetDirectoryName(x)).OrderBy(x => x.Length).FirstOrDefault()).ToString();
+						string path = Directory.GetFiles(tempPath, extension, SearchOption.AllDirectories).Select(x => Path.GetDirectoryName(x)).OrderBy(x => x.Length).FirstOrDefault();
+						tempPathTextures = tempPathTextures != null ? tempPathTextures.Union(path).ToString() : path;
+					}
+				}
+
+				// Show file selection dialog
+				if (!isHeadless)
+				{
+					effects = effects.Select(x => targetPathShaders + x.Remove(0, tempPathShaders.Length)).ToArray();
+
+					var dlg = new SelectEffectsDialog(package.PackageName, effects);
+					dlg.Owner = this;
+
+					if (dlg.ShowDialog() == true)
+					{
+						// Delete all unselected effect files before moving
+						foreach (string filePath in effects.Except(dlg.EnabledItems.Select(x => x.FilePath)))
+						{
+							File.Delete(tempPathShaders + filePath.Remove(0, targetPathShaders.Length));
+						}
 					}
 				}
 
 				// Move only the relevant files to the target
 				if (tempPathShaders != null)
 				{
-					MoveFiles(tempPathShaders, Path.Combine(Path.GetDirectoryName(targetPath), package.InstallPath));
+					MoveFiles(tempPathShaders, targetPathShaders);
 				}
 				if (tempPathTextures != null)
 				{
-					MoveFiles(tempPathTextures, Path.Combine(Path.GetDirectoryName(targetPath), package.TextureInstallPath));
+					MoveFiles(tempPathTextures, targetPathTextures);
 				}
 
 				File.Delete(downloadPath);

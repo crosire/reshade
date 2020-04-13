@@ -70,6 +70,13 @@
     <Compile Include="Dialogs\SelectApp.xaml.cs">
       <DependentUpon>SelectApp.xaml</DependentUpon>
     </Compile>
+    <Page Include="Dialogs\SelectEffects.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Compile Include="Dialogs\SelectEffects.xaml.cs">
+      <DependentUpon>SelectEffects.xaml</DependentUpon>
+    </Compile>
     <Page Include="Dialogs\SelectPackages.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
