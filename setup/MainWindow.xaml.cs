@@ -4,6 +4,7 @@
  */
 
 using Microsoft.Win32;
+using ReShade.Setup.Dialogs;
 using ReShade.Setup.Utilities;
 using System;
 using System.Collections.Generic;
@@ -539,12 +540,12 @@ In that event here are some steps you can try to resolve this:
 			// Only show the selection dialog if there are actually packages to choose
 			if (!isHeadless && packagesIni != null && packagesIni.GetSections().Length != 0)
 			{
-				var dlg = new SelectEffectsDialog(packagesIni);
+				var dlg = new SelectPackagesDialog(packagesIni);
 				dlg.Owner = this;
 
 				if (dlg.ShowDialog() == true)
 				{
-					var packages = new Queue<EffectPackage>(dlg.EnabledPackages);
+					var packages = new Queue<EffectPackage>(dlg.EnabledItems);
 
 					if (packages.Count != 0)
 					{

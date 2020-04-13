@@ -13,7 +13,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Navigation;
 
-namespace ReShade.Setup
+namespace ReShade.Setup.Dialogs
 {
 	public class EffectPackage : INotifyPropertyChanged
 	{
@@ -32,16 +32,16 @@ namespace ReShade.Setup
 		}
 	}
 
-	public partial class SelectEffectsDialog : Window
+	public partial class SelectPackagesDialog : Window
 	{
-		public SelectEffectsDialog(Utilities.IniFile packagesIni)
+		public SelectPackagesDialog(Utilities.IniFile packagesIni)
 		{
 			InitializeComponent();
 			DataContext = this;
 
 			foreach (var package in packagesIni.GetSections())
 			{
-				Packages.Add(new EffectPackage
+				Items.Add(new EffectPackage
 				{
 					Enabled = packagesIni.GetString(package, "Enabled") == "1",
 					PackageName = packagesIni.GetString(package, "PackageName"),
@@ -54,12 +54,12 @@ namespace ReShade.Setup
 			}
 		}
 
-		public IEnumerable<EffectPackage> EnabledPackages => Packages.Where(x => x.Enabled);
-		public ObservableCollection<EffectPackage> Packages { get; } = new ObservableCollection<EffectPackage>();
+		public IEnumerable<EffectPackage> EnabledItems => Items.Where(x => x.Enabled);
+		public ObservableCollection<EffectPackage> Items { get; } = new ObservableCollection<EffectPackage>();
 
 		void OnCheck(object sender, RoutedEventArgs e)
 		{
-			if (Packages.Count == 0)
+			if (Items.Count == 0)
 			{
 				return;
 			}
@@ -72,10 +72,10 @@ namespace ReShade.Setup
 				bool check = button.Content as string == CHECK_LABEL;
 				button.Content = check ? UNCHECK_LABEL : CHECK_LABEL;
 
-				foreach (var package in Packages)
+				foreach (var item in Items)
 				{
-					package.Enabled = check;
-					package.NotifyPropertyChanged(nameof(package.Enabled));
+					item.Enabled = check;
+					item.NotifyPropertyChanged(nameof(item.Enabled));
 				}
 			}
 		}
@@ -84,7 +84,6 @@ namespace ReShade.Setup
 		{
 			DialogResult = false;
 		}
-
 		void OnConfirm(object sender, RoutedEventArgs e)
 		{
 			DialogResult = true;
@@ -97,7 +96,6 @@ namespace ReShade.Setup
 				checkbox.IsChecked = !checkbox.IsChecked;
 			}
 		}
-
 		void OnCheckBoxMouseCapture(object sender, MouseEventArgs e)
 		{
 			if (e.LeftButton == MouseButtonState.Pressed && sender is CheckBox checkbox)

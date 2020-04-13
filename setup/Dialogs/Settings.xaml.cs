@@ -7,7 +7,7 @@ using ReShade.Setup.Utilities;
 using System.IO;
 using System.Windows;
 
-namespace ReShade.Setup
+namespace ReShade.Setup.Dialogs
 {
 	public partial class SettingsDialog
 	{
