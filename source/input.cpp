@@ -154,27 +154,27 @@ bool reshade::input::handle_window_message(const void *message_data)
 				break; // Input is already handled (since legacy mouse messages are enabled), so nothing to do here
 
 			if (raw_data.data.mouse.usButtonFlags & RI_MOUSE_LEFT_BUTTON_DOWN)
-				input->_mouse_buttons[0] = 0x88;
+				input->_keys[VK_LBUTTON] = 0x88;
 			else if (raw_data.data.mouse.usButtonFlags & RI_MOUSE_LEFT_BUTTON_UP)
-				input->_mouse_buttons[0] = 0x08;
+				input->_keys[VK_LBUTTON] = 0x08;
 			if (raw_data.data.mouse.usButtonFlags & RI_MOUSE_RIGHT_BUTTON_DOWN)
-				input->_mouse_buttons[1] = 0x88;
+				input->_keys[VK_RBUTTON] = 0x88;
 			else if (raw_data.data.mouse.usButtonFlags & RI_MOUSE_RIGHT_BUTTON_UP)
-				input->_mouse_buttons[1] = 0x08;
+				input->_keys[VK_RBUTTON] = 0x08;
 			if (raw_data.data.mouse.usButtonFlags & RI_MOUSE_MIDDLE_BUTTON_DOWN)
-				input->_mouse_buttons[2] = 0x88;
+				input->_keys[VK_MBUTTON] = 0x88;
 			else if (raw_data.data.mouse.usButtonFlags & RI_MOUSE_MIDDLE_BUTTON_UP)
-				input->_mouse_buttons[2] = 0x08;
+				input->_keys[VK_MBUTTON] = 0x08;
 
 			if (raw_data.data.mouse.usButtonFlags & RI_MOUSE_BUTTON_4_DOWN)
-				input->_mouse_buttons[3] = 0x88;
+				input->_keys[VK_XBUTTON1] = 0x88;
 			else if (raw_data.data.mouse.usButtonFlags & RI_MOUSE_BUTTON_4_UP)
-				input->_mouse_buttons[3] = 0x08;
+				input->_keys[VK_XBUTTON1] = 0x08;
 
 			if (raw_data.data.mouse.usButtonFlags & RI_MOUSE_BUTTON_5_DOWN)
-				input->_mouse_buttons[4] = 0x88;
+				input->_keys[VK_XBUTTON2] = 0x88;
 			else if (raw_data.data.mouse.usButtonFlags & RI_MOUSE_BUTTON_5_UP)
-				input->_mouse_buttons[4] = 0x08;
+				input->_keys[VK_XBUTTON2] = 0x08;
 
 			if (raw_data.data.mouse.usButtonFlags & RI_MOUSE_WHEEL)
 				input->_mouse_wheel_delta += static_cast<short>(raw_data.data.mouse.usButtonData) / WHEEL_DELTA;
@@ -212,33 +212,33 @@ bool reshade::input::handle_window_message(const void *message_data)
 		input->_keys_time[details.wParam] = details.time;
 		break;
 	case WM_LBUTTONDOWN:
-		input->_mouse_buttons[0] = 0x88;
+		input->_keys[VK_LBUTTON] = 0x88;
 		break;
 	case WM_LBUTTONUP:
-		input->_mouse_buttons[0] = 0x08;
+		input->_keys[VK_LBUTTON] = 0x08;
 		break;
 	case WM_RBUTTONDOWN:
-		input->_mouse_buttons[1] = 0x88;
+		input->_keys[VK_RBUTTON] = 0x88;
 		break;
 	case WM_RBUTTONUP:
-		input->_mouse_buttons[1] = 0x08;
+		input->_keys[VK_RBUTTON] = 0x08;
 		break;
 	case WM_MBUTTONDOWN:
-		input->_mouse_buttons[2] = 0x88;
+		input->_keys[VK_MBUTTON] = 0x88;
 		break;
 	case WM_MBUTTONUP:
-		input->_mouse_buttons[2] = 0x08;
+		input->_keys[VK_MBUTTON] = 0x08;
 		break;
 	case WM_MOUSEWHEEL:
 		input->_mouse_wheel_delta += GET_WHEEL_DELTA_WPARAM(details.wParam) / WHEEL_DELTA;
 		break;
 	case WM_XBUTTONDOWN:
-		assert(2 + HIWORD(details.wParam) < ARRAYSIZE(input->_mouse_buttons));
-		input->_mouse_buttons[2 + HIWORD(details.wParam)] = 0x88;
+		assert(HIWORD(details.wParam) < 2);
+		input->_keys[VK_XBUTTON1 + HIWORD(details.wParam)] = 0x88;
 		break;
 	case WM_XBUTTONUP:
-		assert(2 + HIWORD(details.wParam) < ARRAYSIZE(input->_mouse_buttons));
-		input->_mouse_buttons[2 + HIWORD(details.wParam)] = 0x08;
+		assert(HIWORD(details.wParam) < 2);
+		input->_keys[VK_XBUTTON1 + HIWORD(details.wParam)] = 0x08;
 		break;
 	}
 
@@ -271,7 +271,8 @@ bool reshade::input::is_key_released(unsigned int keycode) const
 
 bool reshade::input::is_any_key_down() const
 {
-	for (unsigned int i = 0; i < ARRAYSIZE(_keys); i++)
+	// Skip mouse buttons
+	for (unsigned int i = VK_XBUTTON2 + 1; i < ARRAYSIZE(_keys); i++)
 		if (is_key_down(i))
 			return true;
 	return false;
@@ -287,14 +288,14 @@ bool reshade::input::is_any_key_released() const
 
 unsigned int reshade::input::last_key_pressed() const
 {
-	for (unsigned int i = 0; i < ARRAYSIZE(_keys); i++)
+	for (unsigned int i = VK_XBUTTON2 + 1; i < ARRAYSIZE(_keys); i++)
 		if (is_key_pressed(i))
 			return i;
 	return 0;
 }
 unsigned int reshade::input::last_key_released() const
 {
-	for (unsigned int i = 0; i < ARRAYSIZE(_keys); i++)
+	for (unsigned int i = VK_XBUTTON2 + 1; i < ARRAYSIZE(_keys); i++)
 		if (is_key_released(i))
 			return i;
 	return 0;
@@ -302,37 +303,37 @@ unsigned int reshade::input::last_key_released() const
 
 bool reshade::input::is_mouse_button_down(unsigned int button) const
 {
-	assert(button < ARRAYSIZE(_mouse_buttons));
-	return button < ARRAYSIZE(_mouse_buttons) && (_mouse_buttons[button] & 0x80) == 0x80;
+	assert(button < 5);
+	return is_key_down(VK_LBUTTON + button + (button < 2 ? 0 : 1));
 }
 bool reshade::input::is_mouse_button_pressed(unsigned int button) const
 {
-	assert(button < ARRAYSIZE(_mouse_buttons));
-	return button < ARRAYSIZE(_mouse_buttons) && (_mouse_buttons[button] & 0x88) == 0x88;
+	assert(button < 5);
+	return is_key_pressed(VK_LBUTTON + button + (button < 2 ? 0 : 1));
 }
 bool reshade::input::is_mouse_button_released(unsigned int button) const
 {
-	assert(button < ARRAYSIZE(_mouse_buttons));
-	return button < ARRAYSIZE(_mouse_buttons) && (_mouse_buttons[button] & 0x88) == 0x08;
+	assert(button < 5);
+	return is_key_released(VK_LBUTTON + button + (button < 2 ? 0 : 1));
 }
 
 bool reshade::input::is_any_mouse_button_down() const
 {
-	for (unsigned int i = 0; i < ARRAYSIZE(_mouse_buttons); i++)
+	for (unsigned int i = 0; i < 5; i++)
 		if (is_mouse_button_down(i))
 			return true;
 	return false;
 }
 bool reshade::input::is_any_mouse_button_pressed() const
 {
-	for (unsigned int i = 0; i < ARRAYSIZE(_mouse_buttons); i++)
+	for (unsigned int i = 0; i < 5; i++)
 		if (is_mouse_button_pressed(i))
 			return true;
 	return false;
 }
 bool reshade::input::is_any_mouse_button_released() const
 {
-	for (unsigned int i = 0; i < ARRAYSIZE(_mouse_buttons); i++)
+	for (unsigned int i = 0; i < 5; i++)
 		if (is_mouse_button_released(i))
 			return true;
 	return false;
@@ -356,8 +357,6 @@ void reshade::input::next_frame()
 	_frame_count++;
 
 	for (auto &state : _keys)
-		state &= ~0x8;
-	for (auto &state : _mouse_buttons)
 		state &= ~0x8;
 
 	// Reset any pressed down key states that have not been updated for more than 5 seconds
@@ -394,7 +393,7 @@ std::string reshade::input::key_name(unsigned int keycode)
 		return std::string();
 
 	static const char *keyboard_keys_german[256] = {
-		"", "", "", "Cancel", "", "", "", "", "Backspace", "Tab", "", "", "Clear", "Enter", "", "",
+		"", "Left Mouse", "Right Mouse", "Cancel", "Middle Mouse", "X1 Mouse", "X2 Mouse", "", "Backspace", "Tab", "", "", "Clear", "Enter", "", "",
 		"Shift", "Control", "Alt", "Pause", "Caps Lock", "", "", "", "", "", "", "Escape", "", "", "", "",
 		"Leertaste", "Bild auf", "Bild ab", "Ende", "Pos 1", "Left Arrow", "Up Arrow", "Right Arrow", "Down Arrow", "Select", "", "", "Druck", "Einfg", "Entf", "Hilfe",
 		"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "", "", "", "", "", "",
@@ -412,7 +411,7 @@ std::string reshade::input::key_name(unsigned int keycode)
 		"", "", "", "", "", "", "Attn", "CrSel", "ExSel", "Erase EOF", "Play", "Zoom", "", "PA1", "OEM Clear", ""
 	};
 	static const char *keyboard_keys_international[256] = {
-		"", "", "", "Cancel", "", "", "", "", "Backspace", "Tab", "", "", "Clear", "Enter", "", "",
+		"", "Left Mouse", "Right Mouse", "Cancel", "Middle Mouse", "X1 Mouse", "X2 Mouse", "", "Backspace", "Tab", "", "", "Clear", "Enter", "", "",
 		"Shift", "Control", "Alt", "Pause", "Caps Lock", "", "", "", "", "", "", "Escape", "", "", "", "",
 		"Space", "Page Up", "Page Down", "End", "Home", "Left Arrow", "Up Arrow", "Right Arrow", "Down Arrow", "Select", "", "", "Print Screen", "Insert", "Delete", "Help",
 		"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "", "", "", "", "", "",

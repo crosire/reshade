@@ -1028,8 +1028,7 @@ void reshade::runtime::update_and_render_effects()
 			if (technique.timeleft <= 0)
 				disable_technique(technique);
 		}
-		else if (!_ignore_shortcuts && (_input->is_key_pressed(technique.toggle_key_data, _force_shortcut_modifiers) ||
-			(technique.toggle_key_data[0] >= 0x01 && technique.toggle_key_data[0] <= 0x06 && _input->is_mouse_button_pressed(technique.toggle_key_data[0] - 1))))
+		else if (!_ignore_shortcuts && _input->is_key_pressed(technique.toggle_key_data, _force_shortcut_modifiers))
 		{
 			if (!technique.enabled)
 				enable_technique(technique);
