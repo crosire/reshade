@@ -865,7 +865,7 @@ private:
 			}
 			else
 			{
-				uint32_t param_value, param_variable = create_varying_param(param);
+				uint32_t param_value, param_var = create_varying_param(param);
 
 				if (param.type.is_struct())
 				{
@@ -885,12 +885,13 @@ private:
 				else
 				{
 					const auto input = create_varying_variable(param.type, param.semantic, spv::StorageClassInput);
+
 					param_value = add_instruction(spv::OpLoad, convert_type(param.type))
 						.add(input).result;
 				}
 
 				add_instruction_without_result(spv::OpStore)
-					.add(param_variable)
+					.add(param_var)
 					.add(param_value);
 			}
 		}
@@ -912,11 +913,9 @@ private:
 
 					for (uint32_t member_index = 0; member_index < definition.member_list.size(); ++member_index)
 					{
-						const struct_member_info &member = definition.member_list[member_index];
-
-						const auto member_value = add_instruction(spv::OpCompositeExtract, convert_type(member.type))
+						auto member_value = add_instruction(spv::OpCompositeExtract, convert_type(definition.member_list[member_index].type))
 							.add(value)
-							.add(member_index++).result;
+							.add(member_index).result;
 
 						add_instruction_without_result(spv::OpStore)
 							.add(inputs_and_outputs[inputs_and_outputs_index++])
@@ -965,6 +964,7 @@ private:
 		else if (!func.return_type.is_void())
 		{
 			const auto result = create_varying_variable(func.return_type, func.return_semantic, spv::StorageClassOutput);
+
 			add_instruction_without_result(spv::OpStore)
 				.add(result)
 				.add(call_result);
