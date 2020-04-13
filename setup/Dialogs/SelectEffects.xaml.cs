@@ -92,10 +92,6 @@ namespace ReShade.Setup.Dialogs
 			}
 		}
 
-		void OnCancel(object sender, RoutedEventArgs e)
-		{
-			DialogResult = false;
-		}
 		void OnConfirm(object sender, RoutedEventArgs e)
 		{
 			DialogResult = true;
