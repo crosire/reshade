@@ -3,7 +3,7 @@
     <Label DockPanel.Dock="Top" Margin="10" Padding="0" VerticalAlignment="Top" Foreground="#FF003399" FontSize="16" Content="Select effect packages to install:" />
     <DockPanel DockPanel.Dock="Bottom" Margin="0,5,0,0" Background="{StaticResource {x:Static SystemColors.ControlLightBrushKey}}">
       <Button Width="100" Margin="10,15" Content="Uncheck _all" Click="OnCheck" KeyboardNavigation.TabIndex="2" />
-      <Button DockPanel.Dock="Right" HorizontalAlignment="Right" Width="100" Margin="0,15,10,15" Content="_Cancel" Click="OnCancel" IsCancel="True" KeyboardNavigation.TabIndex="1" />
+      <Button DockPanel.Dock="Right" HorizontalAlignment="Right" Width="100" Margin="0,15,10,15" Content="_Skip" Click="OnCancel" IsCancel="True" KeyboardNavigation.TabIndex="1" />
       <Button DockPanel.Dock="Right" HorizontalAlignment="Right" Width="100" Margin="0,15,10,15" Content="_OK" Click="OnConfirm" IsDefault="True" KeyboardNavigation.TabIndex="0" />
     </DockPanel>
     <ListBox x:Name="EffectPackageList" Margin="10,5" HorizontalContentAlignment="Stretch" ItemsSource="{Binding Packages}">
