@@ -11,7 +11,7 @@
       <Button Width="100" Margin="10,15" Content="Uncheck _all" Click="OnCheck" KeyboardNavigation.TabIndex="2" />
       <Button DockPanel.Dock="Right" HorizontalAlignment="Right" Width="100" Margin="0,15,10,15" Content="_OK" Click="OnConfirm" IsDefault="True" KeyboardNavigation.TabIndex="0" />
     </DockPanel>
-    <TextBlock DockPanel.Dock="Bottom" Margin="10,5" TextWrapping="Wrap" Text="Check all effect files of the package you want to install/update." />
+    <TextBlock DockPanel.Dock="Bottom" Margin="10,5" TextWrapping="Wrap" Text="Check all effect files of the package you want to install or update. Files not checked here will not be installed or left untouched when updating." />
     <ListBox x:Name="ItemsListBox" Margin="10,5" HorizontalContentAlignment="Stretch" ItemsSource="{Binding Items}">
       <ListBox.ItemTemplate>
         <DataTemplate>

@@ -40,7 +40,9 @@ namespace ReShade.Setup.Dialogs
 			{
 				packageName = packageName.Remove(authorIndex);
 			}
-			PackageName.Text = packageName;
+
+			// Put package name in quotes in the tile, so repeating words do not look odd
+			PackageName.Text = '\"' + packageName + '\"';
 
 			var isAnyEnabled = false;
 			foreach (var path in files)
