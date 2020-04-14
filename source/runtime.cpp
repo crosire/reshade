@@ -309,9 +309,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &path, size_t ind
 		}
 
 		if (!pp.append_file(path))
-		{
 			effect.compile_sucess = false;
-		}
 
 		unsigned shader_model;
 		if (_renderer_id == 0x9000)     // D3D9
@@ -336,7 +334,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &path, size_t ind
 		reshadefx::parser parser;
 
 		// Compile the pre-processed source code (try the compile even if the preprocessor step failed to get additional error information)
-		if (!parser.parse(std::move(pp.output()), codegen.get()))
+		if (!parser.parse(std::move(pp.output()), codegen.get()) || !effect.compile_sucess)
 		{
 			LOG(ERROR) << "Failed to compile " << path << ":\n" << pp.errors() << parser.errors();
 			effect.compile_sucess = false;
