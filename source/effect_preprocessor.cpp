@@ -680,6 +680,9 @@ void reshadefx::preprocessor::parse_include()
 		_file_cache.emplace(file_path_string, data);
 	}
 
+	// Clear out input stack before pushing include so that hidden macros do not bleed into the include
+	while (_input_stack.size() > (_next_input_index + 1))
+		_input_stack.pop_back();
 	push(std::move(data), file_path_string);
 }
 
