@@ -419,6 +419,7 @@ void reshadefx::preprocessor::parse()
 
 	// Append the last line after the EOF was reached to the output
 	_output += line;
+	_output += '\n';
 }
 
 void reshadefx::preprocessor::parse_def()
