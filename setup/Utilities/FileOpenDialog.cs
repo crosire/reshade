@@ -179,8 +179,8 @@ namespace ReShade.Setup.Utilities
 		{
 			get
 			{
-				dialog.GetFileName(out string result);
-				return result;
+				var fileNames = FileNames;
+				return fileNames.Length != 0 ? fileNames[0] : null;
 			}
 			set
 			{
