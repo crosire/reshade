@@ -76,6 +76,11 @@ namespace ReShade.Setup.Dialogs
 
 				foreach (var item in Items)
 				{
+					if (!item.Modifiable)
+					{
+						continue;
+					}
+
 					item.Enabled = check;
 					item.NotifyPropertyChanged(nameof(item.Enabled));
 				}
