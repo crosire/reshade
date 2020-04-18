@@ -229,6 +229,15 @@ void reshade::runtime::on_present()
 				}
 			}
 
+			if (_input->is_key_pressed(_wireframe_key_data))
+				_wireframe_mode = !_wireframe_mode;
+
+			// disable wireframe_mode in case of network activity
+			if (_has_high_network_activity)
+			{
+				_wireframe_mode = false;
+			}
+
 			// Continuously update preset values while a transition is in progress
 			if (_is_in_between_presets_transition)
 				load_current_preset();
@@ -1103,6 +1112,7 @@ void reshade::runtime::load_config()
 	config.get("INPUT", "KeyPreviousPreset", _prev_preset_key_data);
 	config.get("INPUT", "KeyNextPreset", _next_preset_key_data);
 	config.get("INPUT", "ForceShortcutModifiers", _force_shortcut_modifiers);
+	config.get("INPUT", "KeyWireframe", _wireframe_key_data);
 
 	config.get("GENERAL", "PerformanceMode", _performance_mode);
 	config.get("GENERAL", "EffectSearchPaths", _effect_search_paths);
@@ -1148,6 +1158,7 @@ void reshade::runtime::save_config() const
 	config.set("INPUT", "KeyPreviousPreset", _prev_preset_key_data);
 	config.set("INPUT", "KeyNextPreset", _next_preset_key_data);
 	config.set("INPUT", "ForceShortcutModifiers", _force_shortcut_modifiers);
+	config.set("INPUT", "KeyWireframe", _wireframe_key_data);
 
 	config.set("GENERAL", "PerformanceMode", _performance_mode);
 	config.set("GENERAL", "EffectSearchPaths", _effect_search_paths);

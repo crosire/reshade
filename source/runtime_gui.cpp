@@ -1043,6 +1043,8 @@ void reshade::runtime::draw_ui_settings()
 		_ignore_shortcuts |= ImGui::IsItemActive();
 		modified |= imgui_key_input("Effect Reload Key", _reload_key_data, *_input);
 		_ignore_shortcuts |= ImGui::IsItemActive();
+		modified |= imgui_key_input("Wireframe mode Toggle Key", _wireframe_key_data, *_input);
+		_ignore_shortcuts |= ImGui::IsItemActive();
 
 		modified |= imgui_key_input("Previous Preset Key", _prev_preset_key_data, *_input);
 		_ignore_shortcuts |= ImGui::IsItemActive();

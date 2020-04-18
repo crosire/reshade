@@ -128,6 +128,11 @@ namespace reshade
 		/// <param name="function">The callback function.</param>
 		void subscribe_to_save_config(std::function<void(ini_file &)> function);
 
+		/// <summary>
+		/// Return the state of the wireframe mode.
+		/// </summary>
+		bool wireframe_mode() const { return _wireframe_mode; }
+
 	protected:
 		runtime();
 		virtual ~runtime();
@@ -312,6 +317,9 @@ namespace reshade
 		std::filesystem::path _last_screenshot_file;
 		std::chrono::high_resolution_clock::time_point _last_screenshot_time;
 
+		// === Wireframe Swiching ===
+		unsigned int _wireframe_key_data[4];
+
 		// === Preset Switching ===
 		bool _preset_save_success = true;
 		bool _is_in_between_presets_transition = false;
@@ -382,6 +390,9 @@ namespace reshade
 		std::filesystem::path _file_selection_path;
 		float _fps_col[4] = { 1.0f, 1.0f, 0.784314f, 1.0f };
 		float _fps_scale = 1.0f;
+
+		// === Wireframe Mode ===
+		bool _wireframe_mode = false;
 
 		// === User Interface - Statistics ===
 		void *_preview_texture = nullptr;

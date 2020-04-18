@@ -25,6 +25,7 @@ namespace reshade::vulkan
 			VkImageCreateInfo image_info = {};
 		};
 
+		void init(VkDevice device, const class buffer_detection_context* context = nullptr);
 		void reset();
 
 		void merge(const buffer_detection &source);
@@ -34,6 +35,9 @@ namespace reshade::vulkan
 #if RESHADE_DEPTH
 		void on_set_depthstencil(VkImage depthstencil, VkImageLayout layout, const VkImageCreateInfo &create_info);
 #endif
+		void on_bind_pipeline(VkPipeline* ppPipeline);
+
+		const bool get_wireframe_mode();
 
 	protected:
 #if RESHADE_DEPTH
@@ -41,19 +45,33 @@ namespace reshade::vulkan
 		// Use "std::map" instead of "std::unordered_map" so that the iteration order is guaranteed
 		std::map<VkImage, depthstencil_info> _counters_per_used_depth_image;
 #endif
+		VkDevice _device = nullptr;
+		const buffer_detection_context* _context = nullptr;
 		draw_stats _stats;
 	};
 
 	class buffer_detection_context : public buffer_detection
 	{
+		friend class buffer_detection;
+
 	public:
 		uint32_t total_vertices() const { return _stats.vertices; }
 		uint32_t total_drawcalls() const { return _stats.drawcalls; }
+
+		void reset(bool release_resources);
+
+		void set_wireframe_mode(bool value);
 
 #if RESHADE_DEPTH
 		const auto &depth_buffer_counters() const { return _counters_per_used_depth_image; }
 
 		depthstencil_info find_best_depth_texture(VkExtent2D dimensions = {}, VkImage override = VK_NULL_HANDLE) const;
 #endif
+
+		void on_create_graphic_pipelines(VkPipeline oldPipeline, VkPipeline newPipeline);
+
+	private:
+		bool _wireframe_mode;
+		std::map<VkPipeline, VkPipeline> _wireframe_pipelines;
 	};
 }

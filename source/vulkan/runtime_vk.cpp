@@ -574,6 +574,7 @@ void reshade::vulkan::runtime_vk::on_present(VkQueue queue, uint32_t swapchain_i
 		return;
 
 	assert(_buffer_detection != nullptr);
+	_buffer_detection->set_wireframe_mode(wireframe_mode());
 	_vertices = _buffer_detection->total_vertices();
 	_drawcalls = _buffer_detection->total_drawcalls();
 

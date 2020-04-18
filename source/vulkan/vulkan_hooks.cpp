@@ -593,6 +593,7 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 		{
 			assert(pCreateInfo->oldSwapchain != VK_NULL_HANDLE);
 
+			device_data.buffer_detection.reset(true);
 			// Re-use the existing runtime if this swapchain was not created from scratch
 			runtime->on_reset(); // But reset it before initializing again below
 		}
@@ -627,10 +628,13 @@ void     VKAPI_CALL vkDestroySwapchainKHR(VkDevice device, VkSwapchainKHR swapch
 {
 	LOG(INFO) << "Redirecting vkDestroySwapchainKHR" << '(' << device << ", " << swapchain << ", " << pAllocator << ')' << " ...";
 
+	auto& device_data = s_device_dispatch.at(dispatch_key_from_handle(device));
+
 	// Remove runtime from global list
 	if (reshade::vulkan::runtime_vk *runtime;
 		s_vulkan_runtimes.erase(swapchain, runtime) && runtime != nullptr)
 	{
+		device_data.buffer_detection.reset(true);
 		runtime->on_reset();
 
 		delete runtime;
@@ -689,7 +693,7 @@ VkResult VKAPI_CALL vkQueuePresentKHR(VkQueue queue, const VkPresentInfoKHR *pPr
 		}
 	}
 
-	device_data.buffer_detection.reset();
+	device_data.buffer_detection.reset(false);
 
 	// Override wait semaphores based on the last queue submit from above
 	VkPresentInfoKHR present_info = *pPresentInfo;
@@ -826,7 +830,7 @@ void     VKAPI_CALL vkDestroyFramebuffer(VkDevice device, VkFramebuffer framebuf
 	trampoline(device, framebuffer, pAllocator);
 }
 
-VkResult VKAPI_CALL vkAllocateCommandBuffers(VkDevice device, const VkCommandBufferAllocateInfo *pAllocateInfo, VkCommandBuffer *pCommandBuffers)
+VkResult VKAPI_CALL vkAllocateCommandBuffers(VkDevice device, const VkCommandBufferAllocateInfo* pAllocateInfo, VkCommandBuffer* pCommandBuffers)
 {
 	GET_DEVICE_DISPATCH_PTR(AllocateCommandBuffers, device);
 	const VkResult result = trampoline(device, pAllocateInfo, pCommandBuffers);
@@ -836,8 +840,14 @@ VkResult VKAPI_CALL vkAllocateCommandBuffers(VkDevice device, const VkCommandBuf
 		return result;
 	}
 
+	auto& device_data = s_device_dispatch.at(dispatch_key_from_handle(device));
+
 	for (uint32_t i = 0; i < pAllocateInfo->commandBufferCount; ++i)
+	{
 		s_command_buffer_data.emplace(pCommandBuffers[i]);
+		auto& data = s_command_buffer_data.at(pCommandBuffers[i]);
+		data.buffer_detection.init(device, &device_data.buffer_detection);
+	}
 
 	return VK_SUCCESS;
 }
@@ -967,6 +977,42 @@ void     VKAPI_CALL vkCmdDrawIndexed(VkCommandBuffer commandBuffer, uint32_t ind
 	data.buffer_detection.on_draw(indexCount * instanceCount);
 }
 
+VkResult VKAPI_CALL vkCreateGraphicsPipelines(VkDevice device, VkPipelineCache pipelineCache, uint32_t createInfoCount, const VkGraphicsPipelineCreateInfo* pCreateInfos, const VkAllocationCallbacks* pAllocator, VkPipeline* pPipelines)
+{
+	GET_DEVICE_DISPATCH_PTR(CreateGraphicsPipelines, device);
+	VkResult result = trampoline(device, pipelineCache, createInfoCount, pCreateInfos, pAllocator, pPipelines);
+
+	auto& device_data = s_device_dispatch.at(dispatch_key_from_handle(device));
+
+	VkGraphicsPipelineCreateInfo createInfos = *pCreateInfos;
+
+	VkPipelineRasterizationStateCreateInfo rasterisationInfo = *pCreateInfos->pRasterizationState;
+	rasterisationInfo.polygonMode = VK_POLYGON_MODE_LINE;
+	rasterisationInfo.cullMode = VK_CULL_MODE_NONE;
+	rasterisationInfo.lineWidth = 1.0f;
+
+	createInfos.pRasterizationState = &rasterisationInfo;
+
+	VkPipeline oldPipeline = *pPipelines;
+	VkPipeline newPipeline = VK_NULL_HANDLE;
+
+	result = trampoline(device, pipelineCache, createInfoCount, &createInfos, pAllocator, &newPipeline);
+
+	device_data.buffer_detection.on_create_graphic_pipelines(oldPipeline, newPipeline);
+
+	return result;
+}
+
+void VKAPI_CALL vkCmdBindPipeline(VkCommandBuffer commandBuffer, VkPipelineBindPoint pipelineBindPoint, VkPipeline pipeline)
+{
+	GET_DEVICE_DISPATCH_PTR(CmdBindPipeline, commandBuffer);
+
+	auto& data = s_command_buffer_data.at(commandBuffer);
+	data.buffer_detection.on_bind_pipeline(&pipeline);
+
+	trampoline(commandBuffer, pipelineBindPoint, pipeline);
+}
+
 
 VK_LAYER_EXPORT PFN_vkVoidFunction VKAPI_CALL vkGetDeviceProcAddr(VkDevice device, const char *pName)
 {
@@ -1015,6 +1061,11 @@ VK_LAYER_EXPORT PFN_vkVoidFunction VKAPI_CALL vkGetDeviceProcAddr(VkDevice devic
 		return reinterpret_cast<PFN_vkVoidFunction>(vkCmdDraw);
 	if (0 == strcmp(pName, "vkCmdDrawIndexed"))
 		return reinterpret_cast<PFN_vkVoidFunction>(vkCmdDrawIndexed);
+
+	if (0 == strcmp(pName, "vkCreateGraphicsPipelines"))
+		return reinterpret_cast<PFN_vkVoidFunction>(vkCreateGraphicsPipelines);
+	if (0 == strcmp(pName, "vkCmdBindPipeline"))
+		return reinterpret_cast<PFN_vkVoidFunction>(vkCmdBindPipeline);
 
 	// Need to self-intercept as well, since some layers rely on this (e.g. Steam overlay)
 	// See also https://github.com/KhronosGroup/Vulkan-Loader/blob/master/loader/LoaderAndLayerInterface.md#layer-conventions-and-rules

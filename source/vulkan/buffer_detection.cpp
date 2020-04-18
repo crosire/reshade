@@ -5,8 +5,23 @@
 
 #include "dll_log.hpp"
 #include "buffer_detection.hpp"
+#include <mutex>
 #include <cmath>
 #include <cassert>
+
+static std::mutex s_global_mutex;
+
+void reshade::vulkan::buffer_detection::init(VkDevice device, const buffer_detection_context* context)
+{
+	_device = device;
+	_context = context;
+}
+
+void reshade::vulkan::buffer_detection_context::on_create_graphic_pipelines(VkPipeline oldPipeline, VkPipeline newPipeline)
+{
+	const std::lock_guard<std::mutex> lock(s_global_mutex);
+	_wireframe_pipelines[oldPipeline] = newPipeline;
+}
 
 void reshade::vulkan::buffer_detection::reset()
 {
@@ -15,6 +30,40 @@ void reshade::vulkan::buffer_detection::reset()
 #if RESHADE_DEPTH
 	_counters_per_used_depth_image.clear();
 #endif
+}
+
+void reshade::vulkan::buffer_detection_context::reset(bool release_resources)
+{
+	buffer_detection::reset();
+
+#if RESHADE_DEPTH
+	if (release_resources)
+	{
+		_wireframe_pipelines.clear();
+	}
+#endif
+}
+
+void reshade::vulkan::buffer_detection::on_bind_pipeline(VkPipeline* ppPipeline)
+{
+	const std::lock_guard<std::mutex> lock(s_global_mutex);
+	if (!_context->_wireframe_mode)
+		return;
+
+	const auto it = _context->_wireframe_pipelines.find(*ppPipeline);
+
+	if (it != _context->_wireframe_pipelines.end())
+		*ppPipeline = it->second;
+}
+
+void reshade::vulkan::buffer_detection_context::set_wireframe_mode(bool value)
+{
+	_wireframe_mode = value;
+}
+
+const bool reshade::vulkan::buffer_detection::get_wireframe_mode()
+{
+	return _context->_wireframe_mode;
 }
 
 void reshade::vulkan::buffer_detection::merge(const buffer_detection &source)
