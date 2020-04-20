@@ -46,7 +46,7 @@ void reshade::vulkan::buffer_detection_context::reset(bool release_resources)
 
 void reshade::vulkan::buffer_detection::on_bind_pipeline(VkPipeline* ppPipeline)
 {
-	const std::lock_guard<std::mutex> lock(s_global_mutex);
+	// const std::lock_guard<std::mutex> lock(s_global_mutex);
 	if (!_context->_wireframe_mode)
 		return;
 

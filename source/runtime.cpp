@@ -229,8 +229,11 @@ void reshade::runtime::on_present()
 				}
 			}
 
-			if (_input->is_key_pressed(_wireframe_key_data))
+			if (_input->is_key_pressed(_wireframe_key_data)) {
+				if(!_wireframe_mode)
+					Sleep(30000);
 				_wireframe_mode = !_wireframe_mode;
+			}
 
 			// disable wireframe_mode in case of network activity
 			if (_has_high_network_activity)

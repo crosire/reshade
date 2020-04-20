@@ -325,14 +325,15 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 		};
 
 		// Enable features that ReShade requires
-		enabled_features.shaderImageGatherExtended = true;
+		enabled_features.shaderImageGatherExtended = VK_TRUE;
+		enabled_features.fillModeNonSolid = VK_TRUE;
 
 		// Enable extensions that ReShade requires
-		add_extension(VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME, false); // This is optional, see imgui code in 'runtime_vk'
-		add_extension(VK_KHR_IMAGE_FORMAT_LIST_EXTENSION_NAME, true);
-		add_extension(VK_KHR_SWAPCHAIN_MUTABLE_FORMAT_EXTENSION_NAME, true);
+		add_extension(VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME, VK_FALSE); // This is optional, see imgui code in 'runtime_vk'
+		add_extension(VK_KHR_IMAGE_FORMAT_LIST_EXTENSION_NAME, VK_TRUE);
+		add_extension(VK_KHR_SWAPCHAIN_MUTABLE_FORMAT_EXTENSION_NAME, VK_TRUE);
 #ifndef NDEBUG
-		add_extension(VK_EXT_DEBUG_MARKER_EXTENSION_NAME, false);
+		add_extension(VK_EXT_DEBUG_MARKER_EXTENSION_NAME, VK_FALSE);
 #endif
 	}
 	else
@@ -593,7 +594,7 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 		{
 			assert(pCreateInfo->oldSwapchain != VK_NULL_HANDLE);
 
-			device_data.buffer_detection.reset(true);
+			device_data.buffer_detection.reset(false);
 			// Re-use the existing runtime if this swapchain was not created from scratch
 			runtime->on_reset(); // But reset it before initializing again below
 		}
@@ -980,7 +981,7 @@ void     VKAPI_CALL vkCmdDrawIndexed(VkCommandBuffer commandBuffer, uint32_t ind
 VkResult VKAPI_CALL vkCreateGraphicsPipelines(VkDevice device, VkPipelineCache pipelineCache, uint32_t createInfoCount, const VkGraphicsPipelineCreateInfo* pCreateInfos, const VkAllocationCallbacks* pAllocator, VkPipeline* pPipelines)
 {
 	GET_DEVICE_DISPATCH_PTR(CreateGraphicsPipelines, device);
-	VkResult result = trampoline(device, pipelineCache, createInfoCount, pCreateInfos, pAllocator, pPipelines);
+	VkResult result = trampoline(device, nullptr, createInfoCount, pCreateInfos, pAllocator, pPipelines);
 
 	auto& device_data = s_device_dispatch.at(dispatch_key_from_handle(device));
 
@@ -996,7 +997,7 @@ VkResult VKAPI_CALL vkCreateGraphicsPipelines(VkDevice device, VkPipelineCache p
 	VkPipeline oldPipeline = *pPipelines;
 	VkPipeline newPipeline = VK_NULL_HANDLE;
 
-	result = trampoline(device, pipelineCache, createInfoCount, &createInfos, pAllocator, &newPipeline);
+	result = trampoline(device, nullptr, createInfoCount, &createInfos, pAllocator, &newPipeline);
 
 	device_data.buffer_detection.on_create_graphic_pipelines(oldPipeline, newPipeline);
 
