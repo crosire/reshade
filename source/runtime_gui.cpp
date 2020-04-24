@@ -503,9 +503,11 @@ void reshade::runtime::draw_ui()
 		}
 		else if(_wireframe_mode_warmup_step)
 		{
-			ImGui::TextColored(COLOR_RED,
-				"Wireframe mode is launching. It will be available in %u seconds",
-				_wireframe_mode_warmup_delay);
+			ImGui::TextColored(COLOR_YELLOW,
+				"Wireframe mode is launching...");
+			ImGui::TextColored(COLOR_YELLOW,
+				"It will be available in %zu seconds",
+				_wireframe_mode_warmup_delay - _wireframe_mode_warmup_remaining_time.count());
 		}
 		else if (show_screenshot_message)
 		{

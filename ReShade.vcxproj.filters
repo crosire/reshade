@@ -378,6 +378,13 @@
     <None Include="res\resource.rc2">
       <Filter>resources</Filter>
     </None>
+    <None Include="res\shaders\copy_ps.cso" />
+    <None Include="res\shaders\fullscreen_vs.cso" />
+    <None Include="res\shaders\imgui_vs.cso" />
+    <None Include="res\shaders\imgui_ps.cso" />
+    <None Include="res\shaders\imgui_vs.spv" />
+    <None Include="res\shaders\imgui_ps.spv" />
+    <None Include="res\shaders\mipmap_cs.cso" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="res\shaders\copy_ps.hlsl">

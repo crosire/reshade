@@ -274,6 +274,8 @@ namespace reshade
 		/// </summary>
 		void save_screenshot(const std::wstring &postfix = std::wstring(), bool should_save_preset = false);
 
+		void init_wireframe_effect_file(std::filesystem::path configuration_path, std::filesystem::path effect_path);
+
 		// === Status ===
 		int _date[4] = {};
 		bool _effects_enabled = true;
@@ -401,7 +403,8 @@ namespace reshade
 		bool _wireframe_mode_initialized = false;
 		bool _wireframe_mode_warmup_step = false;
 		unsigned int _wireframe_mode_warmup_delay = 0;
-		std::chrono::high_resolution_clock::time_point _wireframe_mode_warmup_remaing_time;
+		std::chrono::seconds _wireframe_mode_warmup_remaining_time;
+		std::chrono::high_resolution_clock::time_point _wireframe_mode_warmup_start_time;
 
 		// === User Interface - Statistics ===
 		void *_preview_texture = nullptr;
