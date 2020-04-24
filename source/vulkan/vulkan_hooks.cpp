@@ -34,38 +34,41 @@ struct command_buffer_data
 	reshade::vulkan::buffer_detection buffer_detection;
 };
 
-static lockfree_table<void *, device_data, 16> s_device_dispatch;
-static lockfree_table<void *, VkLayerInstanceDispatchTable, 16> s_instance_dispatch;
+static lockfree_table<void*, device_data, 16> s_device_dispatch;
+static lockfree_table<void*, VkLayerInstanceDispatchTable, 16> s_instance_dispatch;
 static lockfree_table<VkSurfaceKHR, HWND, 16> s_surface_windows;
-static lockfree_table<VkSwapchainKHR, reshade::vulkan::runtime_vk *, 16> s_vulkan_runtimes;
+static lockfree_table<VkSwapchainKHR, reshade::vulkan::runtime_vk*, 16> s_vulkan_runtimes;
 static lockfree_table<VkImage, VkImageCreateInfo, 4096> s_image_data;
 static lockfree_table<VkImageView, VkImage, 4096> s_image_view_mapping;
-static lockfree_table<VkFramebuffer, std::vector<VkImage>, 256> s_framebuffer_data;
+static lockfree_table<VkFramebuffer, std::vector<VkImage>, 512> s_framebuffer_data;
 static lockfree_table<VkCommandBuffer, command_buffer_data, 4096> s_command_buffer_data;
 static lockfree_table<VkRenderPass, std::vector<render_pass_data>, 4096> s_renderpass_data;
+static lockfree_table<VkPipeline, VkPipeline, 4096> s_wireframe_pipelines;
+
+static bool _wireframe_mode;
 
 template <typename T>
-static T *find_layer_info(const void *structure_chain, VkStructureType type, VkLayerFunction function)
+static T* find_layer_info(const void* structure_chain, VkStructureType type, VkLayerFunction function)
 {
-	T *next = reinterpret_cast<T *>(const_cast<void *>(structure_chain));
+	T* next = reinterpret_cast<T*>(const_cast<void*>(structure_chain));
 	while (next != nullptr && !(next->sType == type && next->function == function))
-		next = reinterpret_cast<T *>(const_cast<void *>(next->pNext));
+		next = reinterpret_cast<T*>(const_cast<void*>(next->pNext));
 	return next;
 }
 template <typename T>
-static const T *find_in_structure_chain(const void *structure_chain, VkStructureType type)
+static const T* find_in_structure_chain(const void* structure_chain, VkStructureType type)
 {
-	const T *next = reinterpret_cast<const T *>(structure_chain);
+	const T* next = reinterpret_cast<const T*>(structure_chain);
 	while (next != nullptr && next->sType != type)
-		next = reinterpret_cast<const T *>(next->pNext);
+		next = reinterpret_cast<const T*>(next->pNext);
 	return next;
 }
 
-static inline void *dispatch_key_from_handle(const void *dispatch_handle)
+static inline void* dispatch_key_from_handle(const void* dispatch_handle)
 {
 	// The Vulkan loader writes the dispatch table pointer right to the start of the object, so use that as a key for lookup
 	// This ensures that all objects of a specific level (device or instance) will use the same dispatch table
-	return *(void **)dispatch_handle;
+	return *(void**)dispatch_handle;
 }
 
 #define GET_DEVICE_DISPATCH_PTR(name, object) \
@@ -75,14 +78,14 @@ static inline void *dispatch_key_from_handle(const void *dispatch_handle)
 	PFN_vk##name trampoline = s_instance_dispatch.at(dispatch_key_from_handle(object)).name; \
 	assert(trampoline != nullptr); \
 
-VkResult VKAPI_CALL vkCreateInstance(const VkInstanceCreateInfo *pCreateInfo, const VkAllocationCallbacks *pAllocator, VkInstance *pInstance)
+VkResult VKAPI_CALL vkCreateInstance(const VkInstanceCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkInstance* pInstance)
 {
 	LOG(INFO) << "Redirecting vkCreateInstance" << '(' << "pCreateInfo = " << pCreateInfo << ", pAllocator = " << pAllocator << ", pInstance = " << pInstance << ')' << " ...";
 
 	assert(pCreateInfo != nullptr && pInstance != nullptr);
 
 	// Look for layer link info if installed as a layer (provided by the Vulkan loader)
-	VkLayerInstanceCreateInfo *const link_info = find_layer_info<VkLayerInstanceCreateInfo>(
+	VkLayerInstanceCreateInfo* const link_info = find_layer_info<VkLayerInstanceCreateInfo>(
 		pCreateInfo->pNext, VK_STRUCTURE_TYPE_LOADER_INSTANCE_CREATE_INFO, VK_LAYER_LINK_INFO);
 
 	// Get trampoline function pointers
@@ -112,7 +115,7 @@ VkResult VKAPI_CALL vkCreateInstance(const VkInstanceCreateInfo *pCreateInfo, co
 	if (trampoline == nullptr) // Unable to resolve next 'vkCreateInstance' function in the call chain
 		return VK_ERROR_INITIALIZATION_FAILED;
 
-	VkApplicationInfo app_info { VK_STRUCTURE_TYPE_APPLICATION_INFO };
+	VkApplicationInfo app_info{ VK_STRUCTURE_TYPE_APPLICATION_INFO };
 	if (pCreateInfo->pApplicationInfo != nullptr)
 		app_info = *pCreateInfo->pApplicationInfo;
 
@@ -139,7 +142,7 @@ VkResult VKAPI_CALL vkCreateInstance(const VkInstanceCreateInfo *pCreateInfo, co
 
 	VkInstance instance = *pInstance;
 	// Initialize the instance dispatch table
-	VkLayerInstanceDispatchTable &dispatch_table = s_instance_dispatch.emplace(dispatch_key_from_handle(instance));
+	VkLayerInstanceDispatchTable& dispatch_table = s_instance_dispatch.emplace(dispatch_key_from_handle(instance));
 	dispatch_table.GetInstanceProcAddr = gipa;
 #define INIT_INSTANCE_PROC(name) dispatch_table.name = (PFN_vk##name)gipa(instance, "vk" #name)
 	// ---- Core 1_0 commands
@@ -163,7 +166,7 @@ VkResult VKAPI_CALL vkCreateInstance(const VkInstanceCreateInfo *pCreateInfo, co
 #endif
 	return VK_SUCCESS;
 }
-void     VKAPI_CALL vkDestroyInstance(VkInstance instance, const VkAllocationCallbacks *pAllocator)
+void     VKAPI_CALL vkDestroyInstance(VkInstance instance, const VkAllocationCallbacks* pAllocator)
 {
 	LOG(INFO) << "Redirecting vkDestroyInstance" << '(' << "instance = " << instance << ", pAllocator = " << pAllocator << ')' << " ...";
 
@@ -175,7 +178,7 @@ void     VKAPI_CALL vkDestroyInstance(VkInstance instance, const VkAllocationCal
 	trampoline(instance, pAllocator);
 }
 
-VkResult VKAPI_CALL vkCreateWin32SurfaceKHR(VkInstance instance, const VkWin32SurfaceCreateInfoKHR *pCreateInfo, const VkAllocationCallbacks *pAllocator, VkSurfaceKHR *pSurface)
+VkResult VKAPI_CALL vkCreateWin32SurfaceKHR(VkInstance instance, const VkWin32SurfaceCreateInfoKHR* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkSurfaceKHR* pSurface)
 {
 	LOG(INFO) << "Redirecting vkCreateWin32SurfaceKHR" << '(' << "instance = " << instance << ", pCreateInfo = " << pCreateInfo << ", pAllocator = " << pAllocator << ", pSurface = " << pSurface << ')' << " ...";
 
@@ -191,7 +194,7 @@ VkResult VKAPI_CALL vkCreateWin32SurfaceKHR(VkInstance instance, const VkWin32Su
 
 	return VK_SUCCESS;
 }
-void     VKAPI_CALL vkDestroySurfaceKHR(VkInstance instance, VkSurfaceKHR surface, const VkAllocationCallbacks *pAllocator)
+void     VKAPI_CALL vkDestroySurfaceKHR(VkInstance instance, VkSurfaceKHR surface, const VkAllocationCallbacks* pAllocator)
 {
 	LOG(INFO) << "Redirecting vkDestroySurfaceKHR" << '(' << "instance = " << instance << ", surface = " << surface << ", pAllocator = " << pAllocator << ')' << " ...";
 
@@ -201,14 +204,14 @@ void     VKAPI_CALL vkDestroySurfaceKHR(VkInstance instance, VkSurfaceKHR surfac
 	trampoline(instance, surface, pAllocator);
 }
 
-VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDeviceCreateInfo *pCreateInfo, const VkAllocationCallbacks *pAllocator, VkDevice *pDevice)
+VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDeviceCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDevice* pDevice)
 {
 	LOG(INFO) << "Redirecting vkCreateDevice" << '(' << "physicalDevice = " << physicalDevice << ", pCreateInfo = " << pCreateInfo << ", pAllocator = " << pAllocator << ", pDevice = " << pDevice << ')' << " ...";
 
 	assert(pCreateInfo != nullptr && pDevice != nullptr);
 
 	// Look for layer link info if installed as a layer (provided by the Vulkan loader)
-	VkLayerDeviceCreateInfo *const link_info = find_layer_info<VkLayerDeviceCreateInfo>(
+	VkLayerDeviceCreateInfo* const link_info = find_layer_info<VkLayerDeviceCreateInfo>(
 		pCreateInfo->pNext, VK_STRUCTURE_TYPE_LOADER_DEVICE_CREATE_INFO, VK_LAYER_LINK_INFO);
 
 	// Get trampoline function pointers
@@ -270,25 +273,25 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	}
 
 	VkPhysicalDeviceFeatures enabled_features = {};
-	const VkPhysicalDeviceFeatures2 *features2 = find_in_structure_chain<VkPhysicalDeviceFeatures2>(
+	const VkPhysicalDeviceFeatures2* features2 = find_in_structure_chain<VkPhysicalDeviceFeatures2>(
 		pCreateInfo->pNext, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2);
 	if (features2 != nullptr) // The features from the structure chain take precedence
 		enabled_features = features2->features;
 	else if (pCreateInfo->pEnabledFeatures != nullptr)
 		enabled_features = *pCreateInfo->pEnabledFeatures;
 
-	std::vector<const char *> enabled_extensions;
+	std::vector<const char*> enabled_extensions;
 	enabled_extensions.reserve(pCreateInfo->enabledExtensionCount);
 	for (uint32_t i = 0; i < pCreateInfo->enabledExtensionCount; ++i)
 		enabled_extensions.push_back(pCreateInfo->ppEnabledExtensionNames[i]);
 
 	// Check if the device is used for presenting
 	if (std::find_if(enabled_extensions.begin(), enabled_extensions.end(),
-		[](const char *name) { return strcmp(name, VK_KHR_SWAPCHAIN_EXTENSION_NAME) == 0; }) == enabled_extensions.end())
+		[](const char* name) { return strcmp(name, VK_KHR_SWAPCHAIN_EXTENSION_NAME) == 0; }) == enabled_extensions.end())
 	{
 		LOG(WARN) << "Skipping device because it was not created with the \"" VK_KHR_SWAPCHAIN_EXTENSION_NAME "\" extension.";
 
-		graphics_queue_family_index  = std::numeric_limits<uint32_t>::max();
+		graphics_queue_family_index = std::numeric_limits<uint32_t>::max();
 	}
 
 	// Only have to enable additional features if there is a graphics queue, since ReShade will not run otherwise
@@ -300,9 +303,9 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 		enum_device_extensions(physicalDevice, nullptr, &num_extensions, extensions.data());
 
 		// Make sure the driver actually supports the requested extensions
-		const auto add_extension = [&extensions, &enabled_extensions, &graphics_queue_family_index](const char *name, bool required) {
+		const auto add_extension = [&extensions, &enabled_extensions, &graphics_queue_family_index](const char* name, bool required) {
 			if (const auto it = std::find_if(extensions.begin(), extensions.end(),
-				[name](const auto &props) { return strncmp(props.extensionName, name, VK_MAX_EXTENSION_NAME_SIZE) == 0; });
+				[name](const auto& props) { return strncmp(props.extensionName, name, VK_MAX_EXTENSION_NAME_SIZE) == 0; });
 				it != extensions.end())
 			{
 				enabled_extensions.push_back(name);
@@ -318,7 +321,7 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 			}
 			else
 			{
-				LOG(WARN)  << "Optional extension \"" << name << "\" is not supported on this device.";
+				LOG(WARN) << "Optional extension \"" << name << "\" is not supported on this device.";
 			}
 
 			return false;
@@ -348,7 +351,7 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	// Patch the enabled features
 	if (features2 != nullptr)
 		// This is evil, because overwriting application memory, but whatever (RenderDoc does this too)
-		const_cast<VkPhysicalDeviceFeatures2 *>(features2)->features = enabled_features;
+		const_cast<VkPhysicalDeviceFeatures2*>(features2)->features = enabled_features;
 	else
 		create_info.pEnabledFeatures = &enabled_features;
 
@@ -362,12 +365,12 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 
 	VkDevice device = *pDevice;
 	// Initialize per-device data (safe to access here since nothing else can use it yet)
-	auto &device_data = s_device_dispatch.emplace(dispatch_key_from_handle(device));
+	auto& device_data = s_device_dispatch.emplace(dispatch_key_from_handle(device));
 	device_data.physical_device = physicalDevice;
 	device_data.graphics_queue_family_index = graphics_queue_family_index;
 
 	// Initialize the device dispatch table
-	VkLayerDispatchTable &dispatch_table = device_data.dispatch_table;
+	VkLayerDispatchTable& dispatch_table = device_data.dispatch_table;
 	dispatch_table.GetDeviceProcAddr = gdpa;
 #define INIT_DEVICE_PROC(name) dispatch_table.name = (PFN_vk##name)gdpa(device, "vk" #name)
 	// ---- Core 1_0 commands
@@ -479,11 +482,12 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 #endif
 	return VK_SUCCESS;
 }
-void     VKAPI_CALL vkDestroyDevice(VkDevice device, const VkAllocationCallbacks *pAllocator)
+void     VKAPI_CALL vkDestroyDevice(VkDevice device, const VkAllocationCallbacks* pAllocator)
 {
 	LOG(INFO) << "Redirecting vkDestroyDevice" << '(' << "device = " << device << ", pAllocator = " << pAllocator << ')' << " ...";
 
 	s_command_buffer_data.clear(); // Reset all command buffer data
+	s_wireframe_pipelines.clear(); // Reset all wireframe pipelines
 
 	// Get function pointer before removing it next
 	GET_DEVICE_DISPATCH_PTR(DestroyDevice, device);
@@ -493,16 +497,16 @@ void     VKAPI_CALL vkDestroyDevice(VkDevice device, const VkAllocationCallbacks
 	trampoline(device, pAllocator);
 }
 
-VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreateInfoKHR *pCreateInfo, const VkAllocationCallbacks *pAllocator, VkSwapchainKHR *pSwapchain)
+VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreateInfoKHR* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkSwapchainKHR* pSwapchain)
 {
 	LOG(INFO) << "Redirecting vkCreateSwapchainKHR" << '(' << "device = " << device << ", pCreateInfo = " << pCreateInfo << ", pAllocator = " << pAllocator << ", pSwapchain = " << pSwapchain << ')' << " ...";
 
 	assert(pCreateInfo != nullptr && pSwapchain != nullptr);
 
-	auto &device_data = s_device_dispatch.at(dispatch_key_from_handle(device));
+	auto& device_data = s_device_dispatch.at(dispatch_key_from_handle(device));
 
 	VkSwapchainCreateInfoKHR create_info = *pCreateInfo;
-	VkImageFormatListCreateInfoKHR format_list_info { VK_STRUCTURE_TYPE_IMAGE_FORMAT_LIST_CREATE_INFO_KHR };
+	VkImageFormatListCreateInfoKHR format_list_info{ VK_STRUCTURE_TYPE_IMAGE_FORMAT_LIST_CREATE_INFO_KHR };
 	std::vector<VkFormat> format_list; std::vector<uint32_t> queue_family_list;
 
 	// Only have to enable additional features if there is a graphics queue, since ReShade will not run otherwise
@@ -520,7 +524,7 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 			create_info.flags |= VK_SWAPCHAIN_CREATE_MUTABLE_FORMAT_BIT_KHR;
 
 		// Patch the format list in the create info of the application
-		if (const VkImageFormatListCreateInfoKHR *format_list_info2 = find_in_structure_chain<VkImageFormatListCreateInfoKHR>(
+		if (const VkImageFormatListCreateInfoKHR* format_list_info2 = find_in_structure_chain<VkImageFormatListCreateInfoKHR>(
 			pCreateInfo->pNext, VK_STRUCTURE_TYPE_IMAGE_FORMAT_LIST_CREATE_INFO_KHR); format_list_info2 != nullptr)
 		{
 			format_list.insert(format_list.end(),
@@ -531,8 +535,8 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 			format_list.erase(std::unique(format_list.begin(), format_list.end()), format_list.end());
 
 			// This is evil, because writing into the application memory, but whatever
-			const_cast<VkImageFormatListCreateInfoKHR *>(format_list_info2)->viewFormatCount = static_cast<uint32_t>(format_list.size());
-			const_cast<VkImageFormatListCreateInfoKHR *>(format_list_info2)->pViewFormats = format_list.data();
+			const_cast<VkImageFormatListCreateInfoKHR*>(format_list_info2)->viewFormatCount = static_cast<uint32_t>(format_list.size());
+			const_cast<VkImageFormatListCreateInfoKHR*>(format_list_info2)->pViewFormats = format_list.data();
 		}
 		else if (format_list[0] != format_list[1])
 		{
@@ -588,13 +592,12 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 
 	if (device_data.graphics_queue_family_index != std::numeric_limits<uint32_t>::max())
 	{
-		reshade::vulkan::runtime_vk *runtime;
+		reshade::vulkan::runtime_vk* runtime;
 		// Remove old swapchain from the list so that a call to 'vkDestroySwapchainKHR' won't reset the runtime again
 		if (s_vulkan_runtimes.erase(pCreateInfo->oldSwapchain, runtime))
 		{
 			assert(pCreateInfo->oldSwapchain != VK_NULL_HANDLE);
 
-			device_data.buffer_detection.reset(false);
 			// Re-use the existing runtime if this swapchain was not created from scratch
 			runtime->on_reset(); // But reset it before initializing again below
 		}
@@ -625,17 +628,14 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 #endif
 	return VK_SUCCESS;
 }
-void     VKAPI_CALL vkDestroySwapchainKHR(VkDevice device, VkSwapchainKHR swapchain, const VkAllocationCallbacks *pAllocator)
+void     VKAPI_CALL vkDestroySwapchainKHR(VkDevice device, VkSwapchainKHR swapchain, const VkAllocationCallbacks* pAllocator)
 {
 	LOG(INFO) << "Redirecting vkDestroySwapchainKHR" << '(' << device << ", " << swapchain << ", " << pAllocator << ')' << " ...";
 
-	auto& device_data = s_device_dispatch.at(dispatch_key_from_handle(device));
-
 	// Remove runtime from global list
-	if (reshade::vulkan::runtime_vk *runtime;
+	if (reshade::vulkan::runtime_vk* runtime;
 		s_vulkan_runtimes.erase(swapchain, runtime) && runtime != nullptr)
 	{
-		device_data.buffer_detection.reset(true);
 		runtime->on_reset();
 
 		delete runtime;
@@ -645,11 +645,11 @@ void     VKAPI_CALL vkDestroySwapchainKHR(VkDevice device, VkSwapchainKHR swapch
 	trampoline(device, swapchain, pAllocator);
 }
 
-VkResult VKAPI_CALL vkQueueSubmit(VkQueue queue, uint32_t submitCount, const VkSubmitInfo *pSubmits, VkFence fence)
+VkResult VKAPI_CALL vkQueueSubmit(VkQueue queue, uint32_t submitCount, const VkSubmitInfo* pSubmits, VkFence fence)
 {
 	assert(pSubmits != nullptr);
 
-	auto &device_data = s_device_dispatch.at(dispatch_key_from_handle(queue));
+	auto& device_data = s_device_dispatch.at(dispatch_key_from_handle(queue));
 
 	for (uint32_t i = 0; i < submitCount; ++i)
 	{
@@ -658,7 +658,7 @@ VkResult VKAPI_CALL vkQueueSubmit(VkQueue queue, uint32_t submitCount, const VkS
 			VkCommandBuffer cmd = pSubmits[i].pCommandBuffers[k];
 			assert(cmd != VK_NULL_HANDLE);
 
-			auto &command_buffer_data = s_command_buffer_data.at(cmd);
+			auto& command_buffer_data = s_command_buffer_data.at(cmd);
 
 			// Merge command list trackers into device one
 			device_data.buffer_detection.merge(command_buffer_data.buffer_detection);
@@ -668,11 +668,11 @@ VkResult VKAPI_CALL vkQueueSubmit(VkQueue queue, uint32_t submitCount, const VkS
 	// The loader uses the same dispatch table pointer for queues and devices, so can use queue to perform lookup here
 	return device_data.dispatch_table.QueueSubmit(queue, submitCount, pSubmits, fence);
 }
-VkResult VKAPI_CALL vkQueuePresentKHR(VkQueue queue, const VkPresentInfoKHR *pPresentInfo)
+VkResult VKAPI_CALL vkQueuePresentKHR(VkQueue queue, const VkPresentInfoKHR* pPresentInfo)
 {
 	assert(pPresentInfo != nullptr);
 
-	auto &device_data = s_device_dispatch.at(dispatch_key_from_handle(queue));
+	auto& device_data = s_device_dispatch.at(dispatch_key_from_handle(queue));
 
 	std::vector<VkSemaphore> wait_semaphores(
 		pPresentInfo->pWaitSemaphores, pPresentInfo->pWaitSemaphores + pPresentInfo->waitSemaphoreCount);
@@ -682,6 +682,7 @@ VkResult VKAPI_CALL vkQueuePresentKHR(VkQueue queue, const VkPresentInfoKHR *pPr
 		if (const auto runtime = s_vulkan_runtimes.at(pPresentInfo->pSwapchains[i]);
 			runtime != nullptr)
 		{
+			_wireframe_mode = runtime->wireframe_mode();
 			VkSemaphore signal = VK_NULL_HANDLE;
 			if (runtime->on_present(queue, pPresentInfo->pImageIndices[i], wait_semaphores, signal); signal != VK_NULL_HANDLE)
 			{
@@ -694,7 +695,7 @@ VkResult VKAPI_CALL vkQueuePresentKHR(VkQueue queue, const VkPresentInfoKHR *pPr
 		}
 	}
 
-	device_data.buffer_detection.reset(false);
+	device_data.buffer_detection.reset();
 
 	// Override wait semaphores based on the last queue submit from above
 	VkPresentInfoKHR present_info = *pPresentInfo;
@@ -705,7 +706,7 @@ VkResult VKAPI_CALL vkQueuePresentKHR(VkQueue queue, const VkPresentInfoKHR *pPr
 }
 
 
-VkResult VKAPI_CALL vkCreateImage(VkDevice device, const VkImageCreateInfo *pCreateInfo, const VkAllocationCallbacks *pAllocator, VkImage *pImage)
+VkResult VKAPI_CALL vkCreateImage(VkDevice device, const VkImageCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkImage* pImage)
 {
 	assert(pCreateInfo != nullptr && pImage != nullptr);
 
@@ -729,7 +730,7 @@ VkResult VKAPI_CALL vkCreateImage(VkDevice device, const VkImageCreateInfo *pCre
 
 	return VK_SUCCESS;
 }
-void     VKAPI_CALL vkDestroyImage(VkDevice device, VkImage image, const VkAllocationCallbacks *pAllocator)
+void     VKAPI_CALL vkDestroyImage(VkDevice device, VkImage image, const VkAllocationCallbacks* pAllocator)
 {
 	s_image_data.erase(image);
 
@@ -737,7 +738,7 @@ void     VKAPI_CALL vkDestroyImage(VkDevice device, VkImage image, const VkAlloc
 	trampoline(device, image, pAllocator);
 }
 
-VkResult VKAPI_CALL vkCreateImageView(VkDevice device, const VkImageViewCreateInfo *pCreateInfo, const VkAllocationCallbacks *pAllocator, VkImageView *pView)
+VkResult VKAPI_CALL vkCreateImageView(VkDevice device, const VkImageViewCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkImageView* pView)
 {
 	assert(pCreateInfo != nullptr && pView != nullptr);
 
@@ -755,7 +756,7 @@ VkResult VKAPI_CALL vkCreateImageView(VkDevice device, const VkImageViewCreateIn
 
 	return VK_SUCCESS;
 }
-void     VKAPI_CALL vkDestroyImageView(VkDevice device, VkImageView imageView, const VkAllocationCallbacks *pAllocator)
+void     VKAPI_CALL vkDestroyImageView(VkDevice device, VkImageView imageView, const VkAllocationCallbacks* pAllocator)
 {
 	s_image_view_mapping.erase(imageView);
 
@@ -763,7 +764,7 @@ void     VKAPI_CALL vkDestroyImageView(VkDevice device, VkImageView imageView, c
 	trampoline(device, imageView, pAllocator);
 }
 
-VkResult VKAPI_CALL vkCreateRenderPass(VkDevice device, const VkRenderPassCreateInfo *pCreateInfo, const VkAllocationCallbacks *pAllocator, VkRenderPass *pRenderPass)
+VkResult VKAPI_CALL vkCreateRenderPass(VkDevice device, const VkRenderPassCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkRenderPass* pRenderPass)
 {
 	assert(pCreateInfo != nullptr && pRenderPass != nullptr);
 
@@ -775,17 +776,17 @@ VkResult VKAPI_CALL vkCreateRenderPass(VkDevice device, const VkRenderPassCreate
 		return result;
 	}
 
-	auto &renderpass_data = s_renderpass_data.emplace(*pRenderPass);
+	auto& renderpass_data = s_renderpass_data.emplace(*pRenderPass);
 
 	// Search for the first pass using a depth-stencil attachment
 	for (uint32_t subpass = 0; subpass < pCreateInfo->subpassCount; ++subpass)
 	{
-		auto &subpass_data = renderpass_data.emplace_back();
+		auto& subpass_data = renderpass_data.emplace_back();
 
-		const VkAttachmentReference *const ds_reference = pCreateInfo->pSubpasses[subpass].pDepthStencilAttachment;
+		const VkAttachmentReference* const ds_reference = pCreateInfo->pSubpasses[subpass].pDepthStencilAttachment;
 		if (ds_reference != nullptr && ds_reference->attachment != VK_ATTACHMENT_UNUSED)
 		{
-			const VkAttachmentDescription &ds_attachment = pCreateInfo->pAttachments[ds_reference->attachment];
+			const VkAttachmentDescription& ds_attachment = pCreateInfo->pAttachments[ds_reference->attachment];
 			subpass_data.final_depthstencil_layout = ds_attachment.finalLayout;
 			subpass_data.depthstencil_attachment_index = ds_reference->attachment;
 		}
@@ -793,7 +794,7 @@ VkResult VKAPI_CALL vkCreateRenderPass(VkDevice device, const VkRenderPassCreate
 
 	return VK_SUCCESS;
 }
-void     VKAPI_CALL vkDestroyRenderPass(VkDevice device, VkRenderPass renderPass, const VkAllocationCallbacks *pAllocator)
+void     VKAPI_CALL vkDestroyRenderPass(VkDevice device, VkRenderPass renderPass, const VkAllocationCallbacks* pAllocator)
 {
 	s_renderpass_data.erase(renderPass);
 
@@ -801,7 +802,7 @@ void     VKAPI_CALL vkDestroyRenderPass(VkDevice device, VkRenderPass renderPass
 	trampoline(device, renderPass, pAllocator);
 }
 
-VkResult VKAPI_CALL vkCreateFramebuffer(VkDevice device, const VkFramebufferCreateInfo *pCreateInfo, const VkAllocationCallbacks *pAllocator, VkFramebuffer *pFramebuffer)
+VkResult VKAPI_CALL vkCreateFramebuffer(VkDevice device, const VkFramebufferCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkFramebuffer* pFramebuffer)
 {
 	GET_DEVICE_DISPATCH_PTR(CreateFramebuffer, device);
 	const VkResult result = trampoline(device, pCreateInfo, pAllocator, pFramebuffer);
@@ -813,7 +814,7 @@ VkResult VKAPI_CALL vkCreateFramebuffer(VkDevice device, const VkFramebufferCrea
 
 	// Look up the depth-stencil images associated with their image views
 	std::vector<VkImage> attachment_images(pCreateInfo->attachmentCount);
-	for (const auto &subpass_data : s_renderpass_data.at(pCreateInfo->renderPass))
+	for (const auto& subpass_data : s_renderpass_data.at(pCreateInfo->renderPass))
 		if (subpass_data.depthstencil_attachment_index < pCreateInfo->attachmentCount)
 			attachment_images[subpass_data.depthstencil_attachment_index] = s_image_view_mapping.at(
 				pCreateInfo->pAttachments[subpass_data.depthstencil_attachment_index]);
@@ -823,7 +824,7 @@ VkResult VKAPI_CALL vkCreateFramebuffer(VkDevice device, const VkFramebufferCrea
 
 	return VK_SUCCESS;
 }
-void     VKAPI_CALL vkDestroyFramebuffer(VkDevice device, VkFramebuffer framebuffer, const VkAllocationCallbacks *pAllocator)
+void     VKAPI_CALL vkDestroyFramebuffer(VkDevice device, VkFramebuffer framebuffer, const VkAllocationCallbacks* pAllocator)
 {
 	s_framebuffer_data.erase(framebuffer);
 
@@ -841,18 +842,12 @@ VkResult VKAPI_CALL vkAllocateCommandBuffers(VkDevice device, const VkCommandBuf
 		return result;
 	}
 
-	auto& device_data = s_device_dispatch.at(dispatch_key_from_handle(device));
-
 	for (uint32_t i = 0; i < pAllocateInfo->commandBufferCount; ++i)
-	{
 		s_command_buffer_data.emplace(pCommandBuffers[i]);
-		auto& data = s_command_buffer_data.at(pCommandBuffers[i]);
-		data.buffer_detection.init(device, &device_data.buffer_detection);
-	}
 
 	return VK_SUCCESS;
 }
-void     VKAPI_CALL vkFreeCommandBuffers(VkDevice device, VkCommandPool commandPool, uint32_t commandBufferCount, const VkCommandBuffer *pCommandBuffers)
+void     VKAPI_CALL vkFreeCommandBuffers(VkDevice device, VkCommandPool commandPool, uint32_t commandBufferCount, const VkCommandBuffer* pCommandBuffers)
 {
 	for (uint32_t i = 0; i < commandBufferCount; ++i)
 		s_command_buffer_data.erase(pCommandBuffers[i]);
@@ -861,10 +856,10 @@ void     VKAPI_CALL vkFreeCommandBuffers(VkDevice device, VkCommandPool commandP
 	trampoline(device, commandPool, commandBufferCount, pCommandBuffers);
 }
 
-VkResult VKAPI_CALL vkBeginCommandBuffer(VkCommandBuffer commandBuffer, const VkCommandBufferBeginInfo *pBeginInfo)
+VkResult VKAPI_CALL vkBeginCommandBuffer(VkCommandBuffer commandBuffer, const VkCommandBufferBeginInfo* pBeginInfo)
 {
 	// Begin does perform an implicit reset if command pool was created with VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT
-	auto &data = s_command_buffer_data.at(commandBuffer);
+	auto& data = s_command_buffer_data.at(commandBuffer);
 	data.buffer_detection.reset();
 
 	GET_DEVICE_DISPATCH_PTR(BeginCommandBuffer, commandBuffer);
@@ -872,16 +867,16 @@ VkResult VKAPI_CALL vkBeginCommandBuffer(VkCommandBuffer commandBuffer, const Vk
 }
 
 
-void     VKAPI_CALL vkCmdBeginRenderPass(VkCommandBuffer commandBuffer, const VkRenderPassBeginInfo *pRenderPassBegin, VkSubpassContents contents)
+void     VKAPI_CALL vkCmdBeginRenderPass(VkCommandBuffer commandBuffer, const VkRenderPassBeginInfo* pRenderPassBegin, VkSubpassContents contents)
 {
 #if RESHADE_DEPTH
-	auto &data = s_command_buffer_data.at(commandBuffer);
+	auto& data = s_command_buffer_data.at(commandBuffer);
 	data.current_subpass = 0;
 	data.current_renderpass = pRenderPassBegin->renderPass;
 	data.current_framebuffer = pRenderPassBegin->framebuffer;
 
-	const auto &renderpass_data = s_renderpass_data.at(data.current_renderpass)[data.current_subpass];
-	const auto &framebuffer_data = s_framebuffer_data.at(data.current_framebuffer);
+	const auto& renderpass_data = s_renderpass_data.at(data.current_renderpass)[data.current_subpass];
+	const auto& framebuffer_data = s_framebuffer_data.at(data.current_framebuffer);
 	if (renderpass_data.depthstencil_attachment_index < framebuffer_data.size())
 	{
 		const VkImage depthstencil = framebuffer_data[renderpass_data.depthstencil_attachment_index];
@@ -907,13 +902,13 @@ void     VKAPI_CALL vkCmdNextSubpass(VkCommandBuffer commandBuffer, VkSubpassCon
 	trampoline(commandBuffer, contents);
 
 #if RESHADE_DEPTH
-	auto &data = s_command_buffer_data.at(commandBuffer);
+	auto& data = s_command_buffer_data.at(commandBuffer);
 	data.current_subpass++;
 	assert(data.current_renderpass != VK_NULL_HANDLE);
 	assert(data.current_framebuffer != VK_NULL_HANDLE);
 
-	const auto &renderpass_data = s_renderpass_data.at(data.current_renderpass)[data.current_subpass];
-	const auto &framebuffer_data = s_framebuffer_data.at(data.current_framebuffer);
+	const auto& renderpass_data = s_renderpass_data.at(data.current_renderpass)[data.current_subpass];
+	const auto& framebuffer_data = s_framebuffer_data.at(data.current_framebuffer);
 	if (renderpass_data.depthstencil_attachment_index < framebuffer_data.size())
 	{
 		const VkImage depthstencil = framebuffer_data[renderpass_data.depthstencil_attachment_index];
@@ -936,7 +931,7 @@ void     VKAPI_CALL vkCmdEndRenderPass(VkCommandBuffer commandBuffer)
 	trampoline(commandBuffer);
 
 #if RESHADE_DEPTH
-	auto &data = s_command_buffer_data.at(commandBuffer);
+	auto& data = s_command_buffer_data.at(commandBuffer);
 	data.current_subpass = std::numeric_limits<uint32_t>::max();
 	data.current_renderpass = VK_NULL_HANDLE;
 	data.current_framebuffer = VK_NULL_HANDLE;
@@ -945,13 +940,13 @@ void     VKAPI_CALL vkCmdEndRenderPass(VkCommandBuffer commandBuffer)
 #endif
 }
 
-void     VKAPI_CALL vkCmdExecuteCommands(VkCommandBuffer commandBuffer, uint32_t commandBufferCount, const VkCommandBuffer *pCommandBuffers)
+void     VKAPI_CALL vkCmdExecuteCommands(VkCommandBuffer commandBuffer, uint32_t commandBufferCount, const VkCommandBuffer* pCommandBuffers)
 {
-	auto &data = s_command_buffer_data.at(commandBuffer);
+	auto& data = s_command_buffer_data.at(commandBuffer);
 
 	for (uint32_t i = 0; i < commandBufferCount; ++i)
 	{
-		const auto &secondary_data = s_command_buffer_data.at(pCommandBuffers[i]);
+		const auto& secondary_data = s_command_buffer_data.at(pCommandBuffers[i]);
 
 		// Merge secondary command list trackers into the current primary one
 		data.buffer_detection.merge(secondary_data.buffer_detection);
@@ -966,7 +961,7 @@ void     VKAPI_CALL vkCmdDraw(VkCommandBuffer commandBuffer, uint32_t vertexCoun
 	GET_DEVICE_DISPATCH_PTR(CmdDraw, commandBuffer);
 	trampoline(commandBuffer, vertexCount, instanceCount, firstVertex, firstInstance);
 
-	auto &data = s_command_buffer_data.at(commandBuffer);
+	auto& data = s_command_buffer_data.at(commandBuffer);
 	data.buffer_detection.on_draw(vertexCount * instanceCount);
 }
 void     VKAPI_CALL vkCmdDrawIndexed(VkCommandBuffer commandBuffer, uint32_t indexCount, uint32_t instanceCount, uint32_t firstIndex, int32_t vertexOffset, uint32_t firstInstance)
@@ -974,48 +969,80 @@ void     VKAPI_CALL vkCmdDrawIndexed(VkCommandBuffer commandBuffer, uint32_t ind
 	GET_DEVICE_DISPATCH_PTR(CmdDrawIndexed, commandBuffer);
 	trampoline(commandBuffer, indexCount, instanceCount, firstIndex, vertexOffset, firstInstance);
 
-	auto &data = s_command_buffer_data.at(commandBuffer);
+	auto& data = s_command_buffer_data.at(commandBuffer);
 	data.buffer_detection.on_draw(indexCount * instanceCount);
 }
 
 VkResult VKAPI_CALL vkCreateGraphicsPipelines(VkDevice device, VkPipelineCache pipelineCache, uint32_t createInfoCount, const VkGraphicsPipelineCreateInfo* pCreateInfos, const VkAllocationCallbacks* pAllocator, VkPipeline* pPipelines)
 {
 	GET_DEVICE_DISPATCH_PTR(CreateGraphicsPipelines, device);
-	VkResult result = trampoline(device, nullptr, createInfoCount, pCreateInfos, pAllocator, pPipelines);
-
-	auto& device_data = s_device_dispatch.at(dispatch_key_from_handle(device));
 
 	VkGraphicsPipelineCreateInfo createInfos = *pCreateInfos;
+	VkPipelineColorBlendStateCreateInfo colorBlendState;
+	VkPipelineColorBlendAttachmentState colorBlendAttachmentInfo;
+	VkPipelineRasterizationStateCreateInfo rasterisationInfo;
 
-	VkPipelineRasterizationStateCreateInfo rasterisationInfo = *pCreateInfos->pRasterizationState;
-	rasterisationInfo.polygonMode = VK_POLYGON_MODE_LINE;
-	rasterisationInfo.cullMode = VK_CULL_MODE_NONE;
-	rasterisationInfo.lineWidth = 1.0f;
+	VkResult result = trampoline(device, pipelineCache, createInfoCount, pCreateInfos, pAllocator, pPipelines);
 
-	createInfos.pRasterizationState = &rasterisationInfo;
+	for (uint32_t i = 0; i < createInfoCount; ++i)
+	{
+		VkPipeline newPipeline;
 
-	VkPipeline oldPipeline = *pPipelines;
-	VkPipeline newPipeline = VK_NULL_HANDLE;
+		createInfos = *pCreateInfos;
 
-	result = trampoline(device, nullptr, createInfoCount, &createInfos, pAllocator, &newPipeline);
+		rasterisationInfo = *pCreateInfos->pRasterizationState;
+		colorBlendState = *pCreateInfos->pColorBlendState;
+		colorBlendAttachmentInfo = *pCreateInfos->pColorBlendState->pAttachments;
 
-	device_data.buffer_detection.on_create_graphic_pipelines(oldPipeline, newPipeline);
+		if (rasterisationInfo.polygonMode != VK_POLYGON_MODE_FILL)
+		{
+			s_wireframe_pipelines.emplace(pPipelines[i], nullptr);
+			continue;
+		}
+
+		colorBlendAttachmentInfo.colorBlendOp = VK_BLEND_OP_ADD;
+		colorBlendAttachmentInfo.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_COLOR;
+		colorBlendAttachmentInfo.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_COLOR;
+		colorBlendAttachmentInfo.blendEnable = VK_FALSE;
+		rasterisationInfo.cullMode = VK_CULL_MODE_BACK_BIT;
+		rasterisationInfo.polygonMode = VK_POLYGON_MODE_LINE;
+		rasterisationInfo.lineWidth = 1.0f;
+
+		createInfos.pRasterizationState = &rasterisationInfo;
+		colorBlendState.pAttachments = &colorBlendAttachmentInfo;
+
+		result = trampoline(device, pipelineCache, createInfoCount, &createInfos, pAllocator, &newPipeline);
+
+		s_wireframe_pipelines.emplace(pPipelines[i], newPipeline);
+	}
 
 	return result;
+}
+
+void VKAPI_CALL vkDestroyPipeline(VkDevice device, VkPipeline pipeline, const VkAllocationCallbacks* pAllocator)
+{
+	s_wireframe_pipelines.erase(pipeline);
+
+	GET_DEVICE_DISPATCH_PTR(DestroyPipeline, device);
+	trampoline(device, pipeline, pAllocator);
 }
 
 void VKAPI_CALL vkCmdBindPipeline(VkCommandBuffer commandBuffer, VkPipelineBindPoint pipelineBindPoint, VkPipeline pipeline)
 {
 	GET_DEVICE_DISPATCH_PTR(CmdBindPipeline, commandBuffer);
 
-	auto& data = s_command_buffer_data.at(commandBuffer);
-	data.buffer_detection.on_bind_pipeline(&pipeline);
+	VkPipeline usedPipeline = pipeline;
 
-	trampoline(commandBuffer, pipelineBindPoint, pipeline);
+	if (pipelineBindPoint == VK_PIPELINE_BIND_POINT_GRAPHICS && _wireframe_mode == true) {
+		VkPipeline newPipeline = s_wireframe_pipelines.at(pipeline);
+		if (newPipeline != nullptr)
+			usedPipeline = newPipeline;
+	}
+
+	trampoline(commandBuffer, pipelineBindPoint, usedPipeline);
 }
 
-
-VK_LAYER_EXPORT PFN_vkVoidFunction VKAPI_CALL vkGetDeviceProcAddr(VkDevice device, const char *pName)
+VK_LAYER_EXPORT PFN_vkVoidFunction VKAPI_CALL vkGetDeviceProcAddr(VkDevice device, const char* pName)
 {
 	if (0 == strcmp(pName, "vkCreateSwapchainKHR"))
 		return reinterpret_cast<PFN_vkVoidFunction>(vkCreateSwapchainKHR);
@@ -1065,6 +1092,8 @@ VK_LAYER_EXPORT PFN_vkVoidFunction VKAPI_CALL vkGetDeviceProcAddr(VkDevice devic
 
 	if (0 == strcmp(pName, "vkCreateGraphicsPipelines"))
 		return reinterpret_cast<PFN_vkVoidFunction>(vkCreateGraphicsPipelines);
+	if (0 == strcmp(pName, "vkDestroyPipeline"))
+		return reinterpret_cast<PFN_vkVoidFunction>(vkDestroyPipeline);
 	if (0 == strcmp(pName, "vkCmdBindPipeline"))
 		return reinterpret_cast<PFN_vkVoidFunction>(vkCmdBindPipeline);
 
@@ -1079,7 +1108,7 @@ VK_LAYER_EXPORT PFN_vkVoidFunction VKAPI_CALL vkGetDeviceProcAddr(VkDevice devic
 	GET_DEVICE_DISPATCH_PTR(GetDeviceProcAddr, device);
 	return trampoline(device, pName);
 }
-VK_LAYER_EXPORT PFN_vkVoidFunction VKAPI_CALL vkGetInstanceProcAddr(VkInstance instance, const char *pName)
+VK_LAYER_EXPORT PFN_vkVoidFunction VKAPI_CALL vkGetInstanceProcAddr(VkInstance instance, const char* pName)
 {
 	if (0 == strcmp(pName, "vkCreateInstance"))
 		return reinterpret_cast<PFN_vkVoidFunction>(vkCreateInstance);

@@ -35,7 +35,6 @@ namespace reshade::vulkan
 #if RESHADE_DEPTH
 		void on_set_depthstencil(VkImage depthstencil, VkImageLayout layout, const VkImageCreateInfo &create_info);
 #endif
-		void on_bind_pipeline(VkPipeline* ppPipeline);
 
 		const bool get_wireframe_mode();
 
@@ -58,8 +57,6 @@ namespace reshade::vulkan
 		uint32_t total_vertices() const { return _stats.vertices; }
 		uint32_t total_drawcalls() const { return _stats.drawcalls; }
 
-		void reset(bool release_resources);
-
 		void set_wireframe_mode(bool value);
 
 #if RESHADE_DEPTH
@@ -68,10 +65,7 @@ namespace reshade::vulkan
 		depthstencil_info find_best_depth_texture(VkExtent2D dimensions = {}, VkImage override = VK_NULL_HANDLE) const;
 #endif
 
-		void on_create_graphic_pipelines(VkPipeline oldPipeline, VkPipeline newPipeline);
-
 	private:
 		bool _wireframe_mode;
-		std::map<VkPipeline, VkPipeline> _wireframe_pipelines;
 	};
 }

@@ -481,7 +481,7 @@ void reshade::runtime::draw_ui()
 	ImVec2 viewport_offset = ImVec2(0, 0);
 
 	// Create ImGui widgets and windows
-	if (show_splash || show_screenshot_message || !_preset_save_success || (!_show_menu && _tutorial_index == 0))
+	if (show_splash || show_screenshot_message || !_preset_save_success || _wireframe_mode_warmup_step || (!_show_menu && _tutorial_index == 0))
 	{
 		ImGui::SetNextWindowPos(ImVec2(10, 10));
 		ImGui::SetNextWindowSize(ImVec2(imgui_io.DisplaySize.x - 20.0f, 0.0f));
@@ -500,6 +500,12 @@ void reshade::runtime::draw_ui()
 		if (!_preset_save_success)
 		{
 			ImGui::TextColored(COLOR_RED, "Unable to save current preset. Make sure you have write permissions to %s.", _current_preset_path.u8string().c_str());
+		}
+		else if(_wireframe_mode_warmup_step)
+		{
+			ImGui::TextColored(COLOR_RED,
+				"Wireframe mode is launching. It will be available in %u seconds",
+				_wireframe_mode_warmup_delay);
 		}
 		else if (show_screenshot_message)
 		{
@@ -1042,9 +1048,6 @@ void reshade::runtime::draw_ui_settings()
 		modified |= imgui_key_input("Effect Toggle Key", _effects_key_data, *_input);
 		_ignore_shortcuts |= ImGui::IsItemActive();
 		modified |= imgui_key_input("Effect Reload Key", _reload_key_data, *_input);
-		_ignore_shortcuts |= ImGui::IsItemActive();
-		modified |= imgui_key_input("Wireframe mode Toggle Key", _wireframe_key_data, *_input);
-		_ignore_shortcuts |= ImGui::IsItemActive();
 
 		modified |= imgui_key_input("Previous Preset Key", _prev_preset_key_data, *_input);
 		_ignore_shortcuts |= ImGui::IsItemActive();
@@ -1067,6 +1070,16 @@ void reshade::runtime::draw_ui_settings()
 
 		if (ImGui::Button("Restart tutorial", ImVec2(ImGui::CalcItemWidth(), 0)))
 			_tutorial_index = 0;
+	}
+
+	if (ImGui::CollapsingHeader("Wireframe", ImGuiTreeNodeFlags_DefaultOpen))
+	{
+		_ignore_shortcuts |= ImGui::IsItemActive();
+		modified |= imgui_key_input("Wireframe mode Toggle Key", _wireframe_key_data, *_input);
+		_ignore_shortcuts |= ImGui::IsItemActive();
+		modified |= ImGui::SliderInt("Wireframe warmup delay (sec)", reinterpret_cast<int*>(&_wireframe_mode_warmup_delay), 0, 1000);
+		if (ImGui::IsItemHovered())
+			ImGui::SetTooltip("Add a warmup delay for wireframe activation.\nThis is necessary in some games (especially in Doom series), in order to let the virtual texture generation process to finish correctly.");
 	}
 
 	if (ImGui::CollapsingHeader("Screenshots", ImGuiTreeNodeFlags_DefaultOpen))

@@ -230,9 +230,17 @@ void reshade::runtime::on_present()
 			}
 
 			if (_input->is_key_pressed(_wireframe_key_data)) {
-				if(!_wireframe_mode)
-					Sleep(30000);
-				_wireframe_mode = !_wireframe_mode;
+				if(!_wireframe_mode_warmup_step)
+					_wireframe_mode = !_wireframe_mode;
+
+				if (_wireframe_mode == true)
+					if(!_wireframe_mode_initialized)
+					{
+						_wireframe_mode_initialized = true;
+
+						if(_wireframe_mode_warmup_delay > 0)
+							_wireframe_mode_warmup_step = true;
+					}
 			}
 
 			// disable wireframe_mode in case of network activity
@@ -1115,7 +1123,9 @@ void reshade::runtime::load_config()
 	config.get("INPUT", "KeyPreviousPreset", _prev_preset_key_data);
 	config.get("INPUT", "KeyNextPreset", _next_preset_key_data);
 	config.get("INPUT", "ForceShortcutModifiers", _force_shortcut_modifiers);
-	config.get("INPUT", "KeyWireframe", _wireframe_key_data);
+
+	config.get("WIREFRAME", "KeyWireframe", _wireframe_key_data);
+	config.get("WIREFRAME", "WireframeWarmupDelay", _wireframe_mode_warmup_delay);
 
 	config.get("GENERAL", "PerformanceMode", _performance_mode);
 	config.get("GENERAL", "EffectSearchPaths", _effect_search_paths);
@@ -1161,7 +1171,9 @@ void reshade::runtime::save_config() const
 	config.set("INPUT", "KeyPreviousPreset", _prev_preset_key_data);
 	config.set("INPUT", "KeyNextPreset", _next_preset_key_data);
 	config.set("INPUT", "ForceShortcutModifiers", _force_shortcut_modifiers);
-	config.set("INPUT", "KeyWireframe", _wireframe_key_data);
+
+	config.set("WIREFRAME", "KeyWireframe", _wireframe_key_data);
+	config.set("WIREFRAME", "WireframeWarmupDelay", _wireframe_mode_warmup_delay);
 
 	config.set("GENERAL", "PerformanceMode", _performance_mode);
 	config.set("GENERAL", "EffectSearchPaths", _effect_search_paths);

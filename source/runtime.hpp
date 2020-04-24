@@ -133,6 +133,11 @@ namespace reshade
 		/// </summary>
 		bool wireframe_mode() const { return _wireframe_mode; }
 
+		/// <summary>
+		/// Return the delay of the wireframe mode warmup step.
+		/// </summary>
+		unsigned int wireframe_mode_warmup_delay() const { return _wireframe_mode_warmup_delay; }
+
 	protected:
 		runtime();
 		virtual ~runtime();
@@ -393,6 +398,10 @@ namespace reshade
 
 		// === Wireframe Mode ===
 		bool _wireframe_mode = false;
+		bool _wireframe_mode_initialized = false;
+		bool _wireframe_mode_warmup_step = false;
+		unsigned int _wireframe_mode_warmup_delay = 0;
+		std::chrono::high_resolution_clock::time_point _wireframe_mode_warmup_remaing_time;
 
 		// === User Interface - Statistics ===
 		void *_preview_texture = nullptr;
