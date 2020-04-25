@@ -14,10 +14,6 @@
     <None Include="res\shaders\imgui_vs.spv" />
     <None Include="res\shaders\imgui_ps.spv" />
     <None Include="res\shaders\mipmap_cs.cso" />
-    <None Include="res\shaders\rcdata1.bin" />
-  </ItemGroup>
-  <ItemGroup>
-    <FxCompile Include="res\effects\wireframe.fx" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="res\resource.h" />
