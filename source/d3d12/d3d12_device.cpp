@@ -163,7 +163,9 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommandAllocator(D3D12_COMMAND_LIST
 }
 HRESULT STDMETHODCALLTYPE D3D12Device::CreateGraphicsPipelineState(const D3D12_GRAPHICS_PIPELINE_STATE_DESC *pDesc, REFIID riid, void **ppPipelineState)
 {
-	return _orig->CreateGraphicsPipelineState(pDesc, riid, ppPipelineState);
+	HRESULT hr = _orig->CreateGraphicsPipelineState(pDesc, riid, ppPipelineState);
+
+	return _buffer_detection.on_create_graphics_pipelinestate(pDesc, ppPipelineState);
 }
 HRESULT STDMETHODCALLTYPE D3D12Device::CreateComputePipelineState(const D3D12_COMPUTE_PIPELINE_STATE_DESC *pDesc, REFIID riid, void **ppPipelineState)
 {
@@ -342,7 +344,9 @@ HRESULT STDMETHODCALLTYPE D3D12Device::SetResidencyPriority(UINT NumObjects, ID3
 HRESULT STDMETHODCALLTYPE D3D12Device::CreatePipelineState(const D3D12_PIPELINE_STATE_STREAM_DESC *pDesc, REFIID riid, void **ppPipelineState)
 {
 	assert(_interface_version >= 2);
-	return static_cast<ID3D12Device2 *>(_orig)->CreatePipelineState(pDesc, riid, ppPipelineState);
+	HRESULT hr = static_cast<ID3D12Device2*>(_orig)->CreatePipelineState(pDesc, riid, ppPipelineState);
+
+	return _buffer_detection.on_create_pipelinestate(pDesc, ppPipelineState);
 }
 
 HRESULT STDMETHODCALLTYPE D3D12Device::OpenExistingHeapFromAddress(const void *pAddress, REFIID riid, void **ppvHeap)

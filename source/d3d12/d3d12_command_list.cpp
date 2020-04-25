@@ -186,6 +186,8 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::OMSetStencilRef(UINT StencilRef
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetPipelineState(ID3D12PipelineState *pPipelineState)
 {
+	_buffer_detection.on_set_pipelineState(&pPipelineState);
+
 	_orig->SetPipelineState(pPipelineState);
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::ResourceBarrier(UINT NumBarriers, const D3D12_RESOURCE_BARRIER *pBarriers)

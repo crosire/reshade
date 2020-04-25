@@ -126,7 +126,10 @@ reshade::runtime::runtime() :
 #endif
 	load_config();
 
-	init_wireframe_effect_file(_configuration_path, _effect_search_paths[0]);
+	for (std::filesystem::path effect_search_path : _effect_search_paths)
+	{
+		init_wireframe_effect_file(_configuration_path, effect_search_path);
+	}
 }
 reshade::runtime::~runtime()
 {

@@ -27,6 +27,10 @@ namespace reshade::d3d12
 		void on_clear_depthstencil(D3D12_CLEAR_FLAGS clear_flags, D3D12_CPU_DESCRIPTOR_HANDLE dsv);
 #endif
 
+		void on_set_pipelineState(ID3D12PipelineState** ppPipelineState);
+
+		const bool get_wireframe_mode();
+
 	protected:
 		struct draw_stats
 		{
@@ -65,12 +69,17 @@ namespace reshade::d3d12
 
 		void reset(bool release_resources);
 
+		void set_wireframe_mode(bool value);
+
 #if RESHADE_DEPTH
 		UINT current_clear_index() const { return _depthstencil_clear_index.second; }
 		const auto &depth_buffer_counters() const { return _counters_per_used_depth_texture; }
 		ID3D12Resource *current_depth_texture() const { return _depthstencil_clear_index.first; }
 
 		void on_create_dsv(ID3D12Resource *dsv_texture, D3D12_CPU_DESCRIPTOR_HANDLE handle);
+
+		HRESULT on_create_pipelinestate(const D3D12_PIPELINE_STATE_STREAM_DESC* pDesc, void** ppPipelineState);
+		HRESULT on_create_graphics_pipelinestate(const D3D12_GRAPHICS_PIPELINE_STATE_DESC* pDesc, void** ppPipelineState);
 
 		com_ptr<ID3D12Resource> update_depth_texture(ID3D12CommandQueue *queue, ID3D12GraphicsCommandList *list,
 			UINT width, UINT height,
@@ -89,5 +98,7 @@ namespace reshade::d3d12
 		// Do not hold a reference to the resources here
 		std::unordered_map<SIZE_T, ID3D12Resource *> _depthstencil_resources_by_handle;
 #endif
+		bool _wireframe_mode;
+		std::unordered_map<com_ptr<ID3D12PipelineState>, com_ptr<ID3D12PipelineState>> _wireframe_pipelineStates;
 	};
 }

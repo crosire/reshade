@@ -28,6 +28,7 @@ void reshade::d3d12::buffer_detection::reset()
 	_counters_per_used_depth_texture.clear();
 #endif
 }
+
 void reshade::d3d12::buffer_detection_context::reset(bool release_resources)
 {
 	buffer_detection::reset();
@@ -44,6 +45,7 @@ void reshade::d3d12::buffer_detection_context::reset(bool release_resources)
 		// Can only destroy this when it is guaranteed to no longer be in use
 		_depthstencil_clear_texture.reset();
 		_depthstencil_resources_by_handle.clear();
+		_wireframe_pipelineStates.clear();
 	}
 #else
 	UNREFERENCED_PARAMETER(release_resources);
@@ -280,3 +282,70 @@ com_ptr<ID3D12Resource> reshade::d3d12::buffer_detection_context::update_depth_t
 	return _depthstencil_clear_texture;
 }
 #endif
+
+void reshade::d3d12::buffer_detection_context::set_wireframe_mode(bool value)
+{
+	_wireframe_mode = value;
+}
+
+const bool reshade::d3d12::buffer_detection::get_wireframe_mode()
+{
+	return _context->_wireframe_mode;
+}
+
+HRESULT reshade::d3d12::buffer_detection_context::on_create_pipelinestate(const D3D12_PIPELINE_STATE_STREAM_DESC* pDesc, void** ppPipelineState)
+{
+	const std::lock_guard<std::mutex> lock(s_global_mutex);
+	D3D12_PIPELINE_STATE_STREAM_DESC newdesc = *pDesc;
+	{   D3D12_RASTERIZER_DESC& desc = static_cast<D3D12_GRAPHICS_PIPELINE_STATE_DESC*>(newdesc.pPipelineStateSubobjectStream)->RasterizerState;
+		desc.FillMode = D3D12_FILL_MODE_WIREFRAME;
+		desc.CullMode = D3D12_CULL_MODE_NONE;
+		desc.DepthClipEnable = false;
+		desc.FrontCounterClockwise = true;
+	}
+
+	com_ptr<ID3D12PipelineState> oldPipelineState = reinterpret_cast<ID3D12PipelineState*>(*ppPipelineState);
+	com_ptr<ID3D12PipelineState> newPipelineState;
+
+	HRESULT hr = static_cast<ID3D12Device2*>(_device)->CreatePipelineState(&newdesc, IID_PPV_ARGS(&newPipelineState));
+
+	const auto it = _wireframe_pipelineStates.find(oldPipelineState);
+	if (it == _wireframe_pipelineStates.end())
+		_wireframe_pipelineStates[oldPipelineState] = newPipelineState;
+
+	return hr;
+}
+
+HRESULT reshade::d3d12::buffer_detection_context::on_create_graphics_pipelinestate(const D3D12_GRAPHICS_PIPELINE_STATE_DESC* pDesc, void** ppPipelineState)
+{
+	const std::lock_guard<std::mutex> lock(s_global_mutex);
+	D3D12_GRAPHICS_PIPELINE_STATE_DESC newdesc = *pDesc;
+	newdesc.BlendState.AlphaToCoverageEnable = false;
+	{   D3D12_RASTERIZER_DESC& desc = newdesc.RasterizerState;
+		desc.FillMode = D3D12_FILL_MODE_WIREFRAME;
+		desc.CullMode = D3D12_CULL_MODE_NONE;
+		desc.DepthClipEnable = false;
+		desc.FrontCounterClockwise = true;
+	}
+	com_ptr<ID3D12PipelineState> oldPipelineState = reinterpret_cast<ID3D12PipelineState*>(*ppPipelineState);
+	com_ptr<ID3D12PipelineState> newPipelineState;
+
+	HRESULT hr = static_cast<ID3D12Device2*>(_device)->CreateGraphicsPipelineState(&newdesc, IID_PPV_ARGS(&newPipelineState));
+
+	const auto it = _wireframe_pipelineStates.find(oldPipelineState);
+	if (it == _wireframe_pipelineStates.end())
+		_wireframe_pipelineStates[oldPipelineState] = newPipelineState;
+
+	return hr;
+}
+
+void reshade::d3d12::buffer_detection::on_set_pipelineState(ID3D12PipelineState** ppPipelineState)
+{
+	if (!_context->_wireframe_mode)
+		return;
+
+	const auto it = _context->_wireframe_pipelineStates.find(*ppPipelineState);
+
+	if (it != _context->_wireframe_pipelineStates.end())
+		*ppPipelineState = it->second.get();
+}

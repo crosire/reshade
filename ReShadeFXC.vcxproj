@@ -165,5 +165,17 @@
   <ItemGroup>
     <ResourceCompile Include="res\resource.rc" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="res\shaders\copy_ps.cso" />
+    <None Include="res\shaders\fullscreen_vs.cso" />
+    <None Include="res\shaders\imgui_ps.cso" />
+    <None Include="res\shaders\imgui_ps.spv" />
+    <None Include="res\shaders\imgui_vs.cso" />
+    <None Include="res\shaders\imgui_vs.spv" />
+    <None Include="res\shaders\mipmap_cs.cso" />
+  </ItemGroup>
+  <ItemGroup>
+    <FxCompile Include="res\effects\wireframe.fx" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
 </Project>
