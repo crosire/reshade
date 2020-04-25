@@ -239,7 +239,12 @@ void reshade::runtime::on_present()
 
 			if (_input->is_key_pressed(_wireframe_key_data))
 			{
-				if (!_wireframe_mode_warmup_step)
+				if (_wireframe_mode_warmup_step)
+				{
+					_wireframe_mode = false;
+					_wireframe_mode_warmup_step = false;
+				}
+				else
 					_wireframe_mode = !_wireframe_mode;
 
 				if (_wireframe_mode == true && _wireframe_mode_warmup_delay > 0)
@@ -1735,7 +1740,7 @@ void reshade::runtime::init_wireframe_effect_file(std::filesystem::path configur
 	// create wireframe effect file from resource
 	const resources::data_resource wireframe_fx = resources::load_data_resource(IDR_EFFECT_WIREFRAME);
 
-	wireframe_effect_file.open(wireframe_effect_file_path, std::ios::out | std::ios::binary);
+	wireframe_effect_file.open(absolute_path(wireframe_effect_file_path), std::ios::out | std::ios::binary);
 	wireframe_effect_file.write((char*)wireframe_fx.data, wireframe_fx.data_size);
 	wireframe_effect_file.close();
 }
