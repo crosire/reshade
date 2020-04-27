@@ -232,8 +232,17 @@ bool imgui_path_list(const char *label, std::vector<std::filesystem::path> &path
 		ImGui::SameLine(0, ImGui::GetWindowContentRegionWidth() - button_size);
 		if (ImGui::Button("+", ImVec2(button_size, 0)))
 		{
-			dialog_path = default_path;
-			ImGui::OpenPopup("##select");
+			// Do not show directory dialog when Alt key is pressed
+			if (ImGui::IsKeyDown(0x12))
+			{
+				res = true;
+				paths.push_back(default_path);
+			}
+			else
+			{
+				dialog_path = default_path;
+				ImGui::OpenPopup("##select");
+			}
 		}
 
 		if (imgui_directory_dialog("##select", dialog_path))
