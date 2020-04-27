@@ -54,6 +54,7 @@ namespace reshade::d3d11
 
 		HMODULE _d3d_compiler = nullptr;
 		com_ptr<ID3D11RasterizerState> _effect_rasterizer;
+		com_ptr<ID3D11RasterizerState> _effect_wireframe_rasterizer;
 		std::unordered_map<size_t, com_ptr<ID3D11SamplerState>> _effect_sampler_states;
 		com_ptr<ID3D11DepthStencilView> _effect_stencil;
 		std::vector<struct d3d11_effect_data> _effect_data;

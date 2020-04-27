@@ -243,3 +243,13 @@ com_ptr<ID3D11Texture2D> reshade::d3d11::buffer_detection_context::find_best_dep
 	return best_match;
 }
 #endif
+
+void reshade::d3d11::buffer_detection_context::set_wireframe_mode(bool value)
+{
+	_wireframe_mode = value;
+}
+
+const bool reshade::d3d11::buffer_detection::get_wireframe_mode()
+{
+	return _context->_wireframe_mode;
+}

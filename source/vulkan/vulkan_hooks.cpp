@@ -986,7 +986,7 @@ VkResult VKAPI_CALL vkCreateGraphicsPipelines(VkDevice device, VkPipelineCache p
 
 	for (uint32_t i = 0; i < createInfoCount; ++i)
 	{
-		VkPipeline newPipeline;
+		VkPipeline wireframePipeline;
 
 		createInfos = *pCreateInfos;
 
@@ -996,7 +996,7 @@ VkResult VKAPI_CALL vkCreateGraphicsPipelines(VkDevice device, VkPipelineCache p
 
 		if (rasterisationInfo.polygonMode != VK_POLYGON_MODE_FILL)
 		{
-			s_wireframe_pipelines.emplace(pPipelines[i], nullptr);
+			s_wireframe_pipelines.emplace(pPipelines[i], VK_NULL_HANDLE);
 			continue;
 		}
 
@@ -1011,9 +1011,9 @@ VkResult VKAPI_CALL vkCreateGraphicsPipelines(VkDevice device, VkPipelineCache p
 		createInfos.pRasterizationState = &rasterisationInfo;
 		colorBlendState.pAttachments = &colorBlendAttachmentInfo;
 
-		result = trampoline(device, pipelineCache, createInfoCount, &createInfos, pAllocator, &newPipeline);
+		result = trampoline(device, pipelineCache, createInfoCount, &createInfos, pAllocator, &wireframePipeline);
 
-		s_wireframe_pipelines.emplace(pPipelines[i], newPipeline);
+		s_wireframe_pipelines.emplace(pPipelines[i], wireframePipeline);
 	}
 
 	return result;
@@ -1034,9 +1034,9 @@ void VKAPI_CALL vkCmdBindPipeline(VkCommandBuffer commandBuffer, VkPipelineBindP
 	VkPipeline usedPipeline = pipeline;
 
 	if (pipelineBindPoint == VK_PIPELINE_BIND_POINT_GRAPHICS && _wireframe_mode == true) {
-		VkPipeline newPipeline = s_wireframe_pipelines.at(pipeline);
-		if (newPipeline != nullptr)
-			usedPipeline = newPipeline;
+		VkPipeline wireframePipeline = s_wireframe_pipelines.at(pipeline);
+		if (wireframePipeline != VK_NULL_HANDLE)
+			usedPipeline = wireframePipeline;
 	}
 
 	trampoline(commandBuffer, pipelineBindPoint, usedPipeline);

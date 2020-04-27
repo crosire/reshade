@@ -25,6 +25,8 @@ namespace reshade::d3d11
 		void on_clear_depthstencil(UINT clear_flags, ID3D11DepthStencilView *dsv);
 #endif
 
+		const bool get_wireframe_mode();
+
 	protected:
 		struct draw_stats
 		{
@@ -61,6 +63,8 @@ namespace reshade::d3d11
 
 		void reset(bool release_resources);
 
+		void set_wireframe_mode(bool value);
+
 #if RESHADE_DEPTH
 		UINT current_clear_index() const { return _depthstencil_clear_index.second; }
 		const auto &depth_buffer_counters() const { return _counters_per_used_depth_texture; }
@@ -78,5 +82,7 @@ namespace reshade::d3d11
 		com_ptr<ID3D11Texture2D> _depthstencil_clear_texture;
 		std::pair<ID3D11Texture2D *, UINT> _depthstencil_clear_index = { nullptr, std::numeric_limits<UINT>::max() };
 #endif
+
+		bool _wireframe_mode;
 	};
 }

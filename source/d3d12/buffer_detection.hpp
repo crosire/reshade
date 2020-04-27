@@ -1,6 +1,6 @@
 /*
- * Copyright (C) 2014 Patrick Mours. All rights reserved.
- * License: https://github.com/crosire/reshade#license
+  *Copyright (C) 2014 Patrick Mours. All rights reserved.
+  *License: https://github.com/crosire/reshade#license
  */
 
 #pragma once
@@ -18,7 +18,7 @@ namespace reshade::d3d12
 		void init(ID3D12Device *device, ID3D12GraphicsCommandList *cmd_list, const class buffer_detection_context *context);
 		void reset();
 
-		void merge(const buffer_detection &source);
+		void merge(const buffer_detection& source);
 
 		void on_draw(UINT vertices);
 
@@ -27,7 +27,7 @@ namespace reshade::d3d12
 		void on_clear_depthstencil(D3D12_CLEAR_FLAGS clear_flags, D3D12_CPU_DESCRIPTOR_HANDLE dsv);
 #endif
 
-		void on_set_pipelineState(ID3D12PipelineState** ppPipelineState);
+		void on_set_pipelineState(ID3D12PipelineState **ppPipelineState);
 
 		const bool get_wireframe_mode();
 
@@ -73,18 +73,18 @@ namespace reshade::d3d12
 
 #if RESHADE_DEPTH
 		UINT current_clear_index() const { return _depthstencil_clear_index.second; }
-		const auto &depth_buffer_counters() const { return _counters_per_used_depth_texture; }
+		const auto& depth_buffer_counters() const { return _counters_per_used_depth_texture; }
 		ID3D12Resource *current_depth_texture() const { return _depthstencil_clear_index.first; }
 
 		void on_create_dsv(ID3D12Resource *dsv_texture, D3D12_CPU_DESCRIPTOR_HANDLE handle);
-
-		HRESULT on_create_pipelinestate(const D3D12_PIPELINE_STATE_STREAM_DESC* pDesc, void** ppPipelineState);
-		HRESULT on_create_graphics_pipelinestate(const D3D12_GRAPHICS_PIPELINE_STATE_DESC* pDesc, void** ppPipelineState);
 
 		com_ptr<ID3D12Resource> update_depth_texture(ID3D12CommandQueue *queue, ID3D12GraphicsCommandList *list,
 			UINT width, UINT height,
 			ID3D12Resource *override = nullptr, UINT clear_index_override = 0);
 #endif
+
+		HRESULT on_create_pipelineState(const D3D12_PIPELINE_STATE_STREAM_DESC* pDesc, void** ppPipelineState);
+		HRESULT on_create_graphics_pipelineState(const D3D12_GRAPHICS_PIPELINE_STATE_DESC* pDesc, void** ppPipelineState);
 
 	private:
 #if RESHADE_DEPTH
@@ -94,10 +94,11 @@ namespace reshade::d3d12
 
 		draw_stats _previous_stats;
 		com_ptr<ID3D12Resource> _depthstencil_clear_texture;
-		std::pair<ID3D12Resource *, UINT> _depthstencil_clear_index = { nullptr, std::numeric_limits<UINT>::max() };
+		std::pair<ID3D12Resource*, UINT> _depthstencil_clear_index = { nullptr, std::numeric_limits<UINT>::max() };
 		// Do not hold a reference to the resources here
-		std::unordered_map<SIZE_T, ID3D12Resource *> _depthstencil_resources_by_handle;
+		std::unordered_map<SIZE_T, ID3D12Resource*> _depthstencil_resources_by_handle;
 #endif
+
 		bool _wireframe_mode;
 		std::unordered_map<com_ptr<ID3D12PipelineState>, com_ptr<ID3D12PipelineState>> _wireframe_pipelineStates;
 	};

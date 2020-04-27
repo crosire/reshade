@@ -108,4 +108,5 @@ struct DECLSPEC_UUID("72299288-2C68-4AD8-945D-2BFB5AA9C609") D3D11Device : ID3D1
 	unsigned int _interface_version;
 	DXGIDevice *const _dxgi_device;
 	D3D11DeviceContext *const _immediate_context;
+	ID3D11RasterizerState *_effect_wireframe_rasterizer;
 };

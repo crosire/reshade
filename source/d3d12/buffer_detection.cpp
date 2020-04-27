@@ -293,48 +293,59 @@ const bool reshade::d3d12::buffer_detection::get_wireframe_mode()
 	return _context->_wireframe_mode;
 }
 
-HRESULT reshade::d3d12::buffer_detection_context::on_create_pipelinestate(const D3D12_PIPELINE_STATE_STREAM_DESC* pDesc, void** ppPipelineState)
+HRESULT reshade::d3d12::buffer_detection_context::on_create_pipelineState(const D3D12_PIPELINE_STATE_STREAM_DESC *pDesc, void **ppPipelineState)
 {
 	const std::lock_guard<std::mutex> lock(s_global_mutex);
 	D3D12_PIPELINE_STATE_STREAM_DESC newdesc = *pDesc;
-	{   D3D12_RASTERIZER_DESC& desc = static_cast<D3D12_GRAPHICS_PIPELINE_STATE_DESC*>(newdesc.pPipelineStateSubobjectStream)->RasterizerState;
-		desc.FillMode = D3D12_FILL_MODE_WIREFRAME;
-		desc.CullMode = D3D12_CULL_MODE_NONE;
-		desc.DepthClipEnable = false;
-		desc.FrontCounterClockwise = true;
-	}
+	D3D12_RASTERIZER_DESC& desc = static_cast<D3D12_GRAPHICS_PIPELINE_STATE_DESC*>(newdesc.pPipelineStateSubobjectStream)->RasterizerState;
 
 	com_ptr<ID3D12PipelineState> oldPipelineState = reinterpret_cast<ID3D12PipelineState*>(*ppPipelineState);
-	com_ptr<ID3D12PipelineState> newPipelineState;
+	com_ptr<ID3D12PipelineState> wireframePipelineState;
 
-	HRESULT hr = static_cast<ID3D12Device2*>(_device)->CreatePipelineState(&newdesc, IID_PPV_ARGS(&newPipelineState));
+	if (desc.FillMode != D3D12_FILL_MODE_SOLID)
+	{
+		_wireframe_pipelineStates[oldPipelineState] = nullptr;
+		return S_OK;
+	}
 
-	const auto it = _wireframe_pipelineStates.find(oldPipelineState);
-	if (it == _wireframe_pipelineStates.end())
-		_wireframe_pipelineStates[oldPipelineState] = newPipelineState;
+	desc.FillMode = D3D12_FILL_MODE_WIREFRAME;
+	desc.CullMode = D3D12_CULL_MODE_NONE;
+	desc.DepthClipEnable = false;
+	desc.FrontCounterClockwise = true;
+
+	HRESULT hr = static_cast<ID3D12Device2*>(_device)->CreatePipelineState(&newdesc, IID_PPV_ARGS(&wireframePipelineState));
+
+	if (hr == S_OK)
+		_wireframe_pipelineStates[oldPipelineState] = wireframePipelineState;
 
 	return hr;
 }
 
-HRESULT reshade::d3d12::buffer_detection_context::on_create_graphics_pipelinestate(const D3D12_GRAPHICS_PIPELINE_STATE_DESC* pDesc, void** ppPipelineState)
+HRESULT reshade::d3d12::buffer_detection_context::on_create_graphics_pipelineState(const D3D12_GRAPHICS_PIPELINE_STATE_DESC* pDesc, void **ppPipelineState)
 {
 	const std::lock_guard<std::mutex> lock(s_global_mutex);
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC newdesc = *pDesc;
-	newdesc.BlendState.AlphaToCoverageEnable = false;
-	{   D3D12_RASTERIZER_DESC& desc = newdesc.RasterizerState;
-		desc.FillMode = D3D12_FILL_MODE_WIREFRAME;
-		desc.CullMode = D3D12_CULL_MODE_NONE;
-		desc.DepthClipEnable = false;
-		desc.FrontCounterClockwise = true;
-	}
+	D3D12_RASTERIZER_DESC& desc = newdesc.RasterizerState;
+
 	com_ptr<ID3D12PipelineState> oldPipelineState = reinterpret_cast<ID3D12PipelineState*>(*ppPipelineState);
-	com_ptr<ID3D12PipelineState> newPipelineState;
+	com_ptr<ID3D12PipelineState> wireframePipelineState;
 
-	HRESULT hr = static_cast<ID3D12Device2*>(_device)->CreateGraphicsPipelineState(&newdesc, IID_PPV_ARGS(&newPipelineState));
+	if (desc.FillMode != D3D12_FILL_MODE_SOLID)
+	{
+		_wireframe_pipelineStates[oldPipelineState] = nullptr;
+		return S_OK;
+	}
 
-	const auto it = _wireframe_pipelineStates.find(oldPipelineState);
-	if (it == _wireframe_pipelineStates.end())
-		_wireframe_pipelineStates[oldPipelineState] = newPipelineState;
+	newdesc.BlendState.AlphaToCoverageEnable = false;
+	desc.FillMode = D3D12_FILL_MODE_WIREFRAME;
+	desc.CullMode = D3D12_CULL_MODE_NONE;
+	desc.DepthClipEnable = false;
+	desc.FrontCounterClockwise = true;
+
+	HRESULT hr = static_cast<ID3D12Device2*>(_device)->CreateGraphicsPipelineState(&newdesc, IID_PPV_ARGS(&wireframePipelineState));
+
+	if(hr == S_OK)
+		_wireframe_pipelineStates[oldPipelineState] = wireframePipelineState;
 
 	return hr;
 }
@@ -345,7 +356,7 @@ void reshade::d3d12::buffer_detection::on_set_pipelineState(ID3D12PipelineState*
 		return;
 
 	const auto it = _context->_wireframe_pipelineStates.find(*ppPipelineState);
-
 	if (it != _context->_wireframe_pipelineStates.end())
-		*ppPipelineState = it->second.get();
+		if (it->second != nullptr)
+			*ppPipelineState = it->second.get();
 }
