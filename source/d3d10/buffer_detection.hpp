@@ -34,6 +34,9 @@ namespace reshade::d3d10
 			com_ptr<ID3D10Texture2D> override = nullptr, UINT clear_index_override = 0);
 #endif
 
+		const bool get_wireframe_mode();
+		void set_wireframe_mode(bool value);
+
 	private:
 		struct draw_stats
 		{
@@ -61,5 +64,7 @@ namespace reshade::d3d10
 		// Use "std::map" instead of "std::unordered_map" so that the iteration order is guaranteed
 		std::map<com_ptr<ID3D10Texture2D>, depthstencil_info> _counters_per_used_depth_texture;
 #endif
+
+		bool _wireframe_mode;
 	};
 }

@@ -264,6 +264,8 @@ void reshade::d3d10::runtime_d3d10::on_present()
 	_vertices = _buffer_detection->total_vertices();
 	_drawcalls = _buffer_detection->total_drawcalls();
 
+	_buffer_detection->set_wireframe_mode(wireframe_mode());
+
 #if RESHADE_DEPTH
 	assert(_depth_clear_index_override != 0);
 	update_depth_texture_bindings(_has_high_network_activity ? nullptr :

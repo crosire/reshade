@@ -192,7 +192,10 @@ void    STDMETHODCALLTYPE D3D10Device::DrawAuto()
 }
 void    STDMETHODCALLTYPE D3D10Device::RSSetState(ID3D10RasterizerState *pRasterizerState)
 {
-	_orig->RSSetState(pRasterizerState);
+	if (_buffer_detection.get_wireframe_mode() == true)
+		_orig->RSSetState(_wireframe_rasterizer);
+	else
+		_orig->RSSetState(pRasterizerState);
 }
 void    STDMETHODCALLTYPE D3D10Device::RSSetViewports(UINT NumViewports, const D3D10_VIEWPORT *pViewports)
 {
@@ -512,7 +515,16 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateDepthStencilState(const D3D10_DEPTH
 }
 HRESULT STDMETHODCALLTYPE D3D10Device::CreateRasterizerState(const D3D10_RASTERIZER_DESC *pRasterizerDesc, ID3D10RasterizerState **ppRasterizerState)
 {
-	return _orig->CreateRasterizerState(pRasterizerDesc, ppRasterizerState);
+	// Create effect wireframe states
+	D3D10_RASTERIZER_DESC desc = {};
+	desc.FillMode = D3D10_FILL_WIREFRAME;
+	desc.CullMode = D3D10_CULL_NONE;
+	desc.DepthClipEnable = TRUE;
+	HRESULT hr = _orig->CreateRasterizerState(&desc, &_wireframe_rasterizer);
+
+	hr = _orig->CreateRasterizerState(pRasterizerDesc, ppRasterizerState);
+
+	return hr;
 }
 HRESULT STDMETHODCALLTYPE D3D10Device::CreateSamplerState(const D3D10_SAMPLER_DESC *pSamplerDesc, ID3D10SamplerState **ppSamplerState)
 {
