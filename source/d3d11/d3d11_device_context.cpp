@@ -291,7 +291,7 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::DispatchIndirect(ID3D11Buffer *pBu
 void    STDMETHODCALLTYPE D3D11DeviceContext::RSSetState(ID3D11RasterizerState *pRasterizerState)
 {
 	if(_buffer_detection.get_wireframe_mode() == true)
-		_orig->RSSetState(_device->_effect_wireframe_rasterizer);
+		_orig->RSSetState(_device->_wireframe_rasterizer);
 	else
 		_orig->RSSetState(pRasterizerState);
 }

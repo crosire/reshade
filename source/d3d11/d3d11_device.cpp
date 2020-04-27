@@ -289,7 +289,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateRasterizerState(const D3D11_RASTERI
 	desc.FillMode = D3D11_FILL_WIREFRAME;
 	desc.CullMode = D3D11_CULL_NONE;
 	desc.DepthClipEnable = TRUE;
-	HRESULT hr = _orig->CreateRasterizerState(&desc, &_effect_wireframe_rasterizer);
+	HRESULT hr = _orig->CreateRasterizerState(&desc, &_wireframe_rasterizer);
 
 	hr = _orig->CreateRasterizerState(pRasterizerDesc, ppRasterizerState);
 
