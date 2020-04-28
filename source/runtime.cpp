@@ -1732,6 +1732,8 @@ void reshade::runtime::init_wireframe_effect_file(std::filesystem::path configur
 	std::filesystem::path wireframe_effect_file_path;
 	std::ofstream wireframe_effect_file;
 
+	effect_path = absolute_path(effect_path);
+
 	if (std::error_code ec; !std::filesystem::exists(effect_path, ec))
 		wireframe_effect_file_path = configuration_path.parent_path() / L"Wireframe.fx";
 	else
