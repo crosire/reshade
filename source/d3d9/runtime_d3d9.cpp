@@ -206,6 +206,11 @@ void reshade::d3d9::runtime_d3d9::on_present()
 	_vertices = _buffer_detection->total_vertices();
 	_drawcalls = _buffer_detection->total_drawcalls();
 
+	if (wireframe_mode())
+		_device->SetRenderState(D3DRS_FILLMODE, D3DFILL_WIREFRAME);
+	else
+		_device->SetRenderState(D3DRS_FILLMODE, D3DFILL_SOLID);
+
 #if RESHADE_DEPTH
 	// Disable INTZ replacement while high network activity is detected, since the option is not available in the UI then, but artifacts may occur without it
 	_buffer_detection->disable_intz = _disable_intz || _has_high_network_activity;
