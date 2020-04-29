@@ -126,10 +126,12 @@ reshade::runtime::runtime() :
 #endif
 	load_config();
 
+#if RESHADE_WIREFRAME
 	for (std::filesystem::path effect_search_path : _effect_search_paths)
 	{
 		init_wireframe_effect_file(_configuration_path, effect_search_path);
 	}
+#endif
 }
 reshade::runtime::~runtime()
 {
@@ -237,6 +239,7 @@ void reshade::runtime::on_present()
 				}
 			}
 
+#if RESHADE_WIREFRAME
 			if (_input->is_key_pressed(_wireframe_key_data))
 			{
 				if (_wireframe_mode_warmup_step)
@@ -271,6 +274,7 @@ void reshade::runtime::on_present()
 					_wireframe_mode = true;
 				}
 			}
+#endif
 
 			// Continuously update preset values while a transition is in progress
 			if (_is_in_between_presets_transition)
@@ -1077,17 +1081,19 @@ void reshade::runtime::update_and_render_effects()
 				disable_technique(technique);
 		}
 
+#if RESHADE_WIREFRAME
 		if ("Wireframe" == technique.name)
 			if(_wireframe_mode)
 				enable_technique(technique);
 			else
 				disable_technique(technique);
 
-		if (technique.impl == nullptr || !technique.enabled)
-			continue; // Ignore techniques that are not fully loaded or currently disabled
-
 		if (_wireframe_mode && "Wireframe" != technique.name)
 			continue;
+#endif
+
+		if (technique.impl == nullptr || !technique.enabled)
+			continue; // Ignore techniques that are not fully loaded or currently disabled
 
 		const auto time_technique_started = std::chrono::high_resolution_clock::now();
 		render_technique(technique);
@@ -1156,8 +1162,10 @@ void reshade::runtime::load_config()
 	config.get("INPUT", "KeyNextPreset", _next_preset_key_data);
 	config.get("INPUT", "ForceShortcutModifiers", _force_shortcut_modifiers);
 
+#if RESHADE_WIREFRAME
 	config.get("WIREFRAME", "KeyWireframe", _wireframe_key_data);
 	config.get("WIREFRAME", "WireframeWarmupDelay", _wireframe_mode_warmup_delay);
+#endif
 
 	config.get("GENERAL", "PerformanceMode", _performance_mode);
 	config.get("GENERAL", "EffectSearchPaths", _effect_search_paths);
@@ -1204,8 +1212,10 @@ void reshade::runtime::save_config() const
 	config.set("INPUT", "KeyNextPreset", _next_preset_key_data);
 	config.set("INPUT", "ForceShortcutModifiers", _force_shortcut_modifiers);
 
+#if RESHADE_WIREFRAME
 	config.set("WIREFRAME", "KeyWireframe", _wireframe_key_data);
 	config.set("WIREFRAME", "WireframeWarmupDelay", _wireframe_mode_warmup_delay);
+#endif
 
 	config.set("GENERAL", "PerformanceMode", _performance_mode);
 	config.set("GENERAL", "EffectSearchPaths", _effect_search_paths);
@@ -1727,6 +1737,7 @@ void reshade::runtime::reset_uniform_value(uniform& variable)
 	}
 }
 
+#if RESHADE_WIREFRAME
 void reshade::runtime::init_wireframe_effect_file(std::filesystem::path configuration_path, std::filesystem::path effect_path)
 {
 	std::filesystem::path wireframe_effect_file_path;
@@ -1746,3 +1757,4 @@ void reshade::runtime::init_wireframe_effect_file(std::filesystem::path configur
 	wireframe_effect_file.write((char*)wireframe_fx.data, wireframe_fx.data_size);
 	wireframe_effect_file.close();
 }
+#endif

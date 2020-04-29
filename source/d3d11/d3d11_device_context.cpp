@@ -288,12 +288,17 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::DispatchIndirect(ID3D11Buffer *pBu
 {
 	_orig->DispatchIndirect(pBufferForArgs, AlignedByteOffsetForArgs);
 }
-void    STDMETHODCALLTYPE D3D11DeviceContext::RSSetState(ID3D11RasterizerState *pRasterizerState)
+void    STDMETHODCALLTYPE D3D11DeviceContext::RSSetState(ID3D11RasterizerState* pRasterizerState)
 {
-	if(_buffer_detection.get_wireframe_mode() == true)
+#if RESHADE_WIREFRAME
+	if (_buffer_detection.get_wireframe_mode() == true)
+	{
 		_orig->RSSetState(_device->_wireframe_rasterizer);
-	else
-		_orig->RSSetState(pRasterizerState);
+		return;
+	}
+#endif
+
+	_orig->RSSetState(pRasterizerState);
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::RSSetViewports(UINT NumViewports, const D3D11_VIEWPORT *pViewports)
 {

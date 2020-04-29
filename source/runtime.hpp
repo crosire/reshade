@@ -128,6 +128,7 @@ namespace reshade
 		/// <param name="function">The callback function.</param>
 		void subscribe_to_save_config(std::function<void(ini_file &)> function);
 
+#if RESHADE_WIREFRAME
 		/// <summary>
 		/// Return the state of the wireframe mode.
 		/// </summary>
@@ -137,6 +138,7 @@ namespace reshade
 		/// Return the delay of the wireframe mode warmup step.
 		/// </summary>
 		unsigned int wireframe_mode_warmup_delay() const { return _wireframe_mode_warmup_delay; }
+#endif
 
 	protected:
 		runtime();
@@ -274,7 +276,9 @@ namespace reshade
 		/// </summary>
 		void save_screenshot(const std::wstring &postfix = std::wstring(), bool should_save_preset = false);
 
+#if RESHADE_WIREFRAME
 		void init_wireframe_effect_file(std::filesystem::path configuration_path, std::filesystem::path effect_path);
+#endif
 
 		// === Status ===
 		int _date[4] = {};
@@ -324,8 +328,10 @@ namespace reshade
 		std::filesystem::path _last_screenshot_file;
 		std::chrono::high_resolution_clock::time_point _last_screenshot_time;
 
+#if RESHADE_WIREFRAME
 		// === Wireframe Swiching ===
 		unsigned int _wireframe_key_data[4];
+#endif
 
 		// === Preset Switching ===
 		bool _preset_save_success = true;
@@ -398,6 +404,7 @@ namespace reshade
 		float _fps_col[4] = { 1.0f, 1.0f, 0.784314f, 1.0f };
 		float _fps_scale = 1.0f;
 
+#if RESHADE_WIREFRAME
 		// === Wireframe Mode ===
 		bool _wireframe_mode = false;
 		bool _wireframe_mode_initialized = false;
@@ -405,6 +412,7 @@ namespace reshade
 		unsigned int _wireframe_mode_warmup_delay = 0;
 		std::chrono::seconds _wireframe_mode_warmup_remaining_time;
 		std::chrono::high_resolution_clock::time_point _wireframe_mode_warmup_start_time;
+#endif
 
 		// === User Interface - Statistics ===
 		void *_preview_texture = nullptr;

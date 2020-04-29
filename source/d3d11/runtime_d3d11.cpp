@@ -284,7 +284,9 @@ void reshade::d3d11::runtime_d3d11::on_present()
 	_vertices = _buffer_detection->total_vertices();
 	_drawcalls = _buffer_detection->total_drawcalls();
 
+#if RESHADE_WIREFRAME
 	_buffer_detection->set_wireframe_mode(wireframe_mode());
+#endif
 
 #if RESHADE_DEPTH
 	assert(_depth_clear_index_override != 0);

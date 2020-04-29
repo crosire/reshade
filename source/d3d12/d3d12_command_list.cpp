@@ -186,7 +186,9 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::OMSetStencilRef(UINT StencilRef
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetPipelineState(ID3D12PipelineState *pPipelineState)
 {
+#if RESHADE_WIREFRAME
 	_buffer_detection.on_set_pipelineState(&pPipelineState);
+#endif
 
 	_orig->SetPipelineState(pPipelineState);
 }

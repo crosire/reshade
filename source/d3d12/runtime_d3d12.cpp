@@ -364,7 +364,9 @@ void reshade::d3d12::runtime_d3d12::on_present()
 	_vertices = _buffer_detection->total_vertices();
 	_drawcalls = _buffer_detection->total_drawcalls();
 
+#if RESHADE_WIREFRAME
 	_buffer_detection->set_wireframe_mode(wireframe_mode());
+#endif
 
 	// There is no swap chain for d3d12on7
 	if (_swapchain != nullptr)

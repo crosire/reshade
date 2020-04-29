@@ -43,9 +43,12 @@ static lockfree_table<VkImageView, VkImage, 4096> s_image_view_mapping;
 static lockfree_table<VkFramebuffer, std::vector<VkImage>, 512> s_framebuffer_data;
 static lockfree_table<VkCommandBuffer, command_buffer_data, 4096> s_command_buffer_data;
 static lockfree_table<VkRenderPass, std::vector<render_pass_data>, 4096> s_renderpass_data;
+
+#if RESHADE_WIREFRAME
 static lockfree_table<VkPipeline, VkPipeline, 4096> s_wireframe_pipelines;
 
 static bool _wireframe_mode;
+#endif
 
 template <typename T>
 static T* find_layer_info(const void* structure_chain, VkStructureType type, VkLayerFunction function)
@@ -487,7 +490,10 @@ void     VKAPI_CALL vkDestroyDevice(VkDevice device, const VkAllocationCallbacks
 	LOG(INFO) << "Redirecting vkDestroyDevice" << '(' << "device = " << device << ", pAllocator = " << pAllocator << ')' << " ...";
 
 	s_command_buffer_data.clear(); // Reset all command buffer data
+
+#if RESHADE_WIREFRAME
 	s_wireframe_pipelines.clear(); // Reset all wireframe pipelines
+#endif
 
 	// Get function pointer before removing it next
 	GET_DEVICE_DISPATCH_PTR(DestroyDevice, device);
@@ -682,7 +688,10 @@ VkResult VKAPI_CALL vkQueuePresentKHR(VkQueue queue, const VkPresentInfoKHR* pPr
 		if (const auto runtime = s_vulkan_runtimes.at(pPresentInfo->pSwapchains[i]);
 			runtime != nullptr)
 		{
+#if RESHADE_WIREFRAME
 			_wireframe_mode = runtime->wireframe_mode();
+#endif
+
 			VkSemaphore signal = VK_NULL_HANDLE;
 			if (runtime->on_present(queue, pPresentInfo->pImageIndices[i], wait_semaphores, signal); signal != VK_NULL_HANDLE)
 			{
@@ -973,16 +982,16 @@ void     VKAPI_CALL vkCmdDrawIndexed(VkCommandBuffer commandBuffer, uint32_t ind
 	data.buffer_detection.on_draw(indexCount * instanceCount);
 }
 
+#if RESHADE_WIREFRAME
 VkResult VKAPI_CALL vkCreateGraphicsPipelines(VkDevice device, VkPipelineCache pipelineCache, uint32_t createInfoCount, const VkGraphicsPipelineCreateInfo* pCreateInfos, const VkAllocationCallbacks* pAllocator, VkPipeline* pPipelines)
 {
 	GET_DEVICE_DISPATCH_PTR(CreateGraphicsPipelines, device);
 
+	VkResult result = trampoline(device, pipelineCache, createInfoCount, pCreateInfos, pAllocator, pPipelines);
 	VkGraphicsPipelineCreateInfo createInfos = *pCreateInfos;
 	VkPipelineColorBlendStateCreateInfo colorBlendState;
 	VkPipelineColorBlendAttachmentState colorBlendAttachmentInfo;
 	VkPipelineRasterizationStateCreateInfo rasterisationInfo;
-
-	VkResult result = trampoline(device, pipelineCache, createInfoCount, pCreateInfos, pAllocator, pPipelines);
 
 	for (uint32_t i = 0; i < createInfoCount; ++i)
 	{
@@ -1041,6 +1050,7 @@ void VKAPI_CALL vkCmdBindPipeline(VkCommandBuffer commandBuffer, VkPipelineBindP
 
 	trampoline(commandBuffer, pipelineBindPoint, usedPipeline);
 }
+#endif
 
 VK_LAYER_EXPORT PFN_vkVoidFunction VKAPI_CALL vkGetDeviceProcAddr(VkDevice device, const char* pName)
 {
@@ -1090,12 +1100,14 @@ VK_LAYER_EXPORT PFN_vkVoidFunction VKAPI_CALL vkGetDeviceProcAddr(VkDevice devic
 	if (0 == strcmp(pName, "vkCmdDrawIndexed"))
 		return reinterpret_cast<PFN_vkVoidFunction>(vkCmdDrawIndexed);
 
+#if RESHADE_WIREFRAME
 	if (0 == strcmp(pName, "vkCreateGraphicsPipelines"))
 		return reinterpret_cast<PFN_vkVoidFunction>(vkCreateGraphicsPipelines);
 	if (0 == strcmp(pName, "vkDestroyPipeline"))
 		return reinterpret_cast<PFN_vkVoidFunction>(vkDestroyPipeline);
 	if (0 == strcmp(pName, "vkCmdBindPipeline"))
 		return reinterpret_cast<PFN_vkVoidFunction>(vkCmdBindPipeline);
+#endif
 
 	// Need to self-intercept as well, since some layers rely on this (e.g. Steam overlay)
 	// See also https://github.com/KhronosGroup/Vulkan-Loader/blob/master/loader/LoaderAndLayerInterface.md#layer-conventions-and-rules

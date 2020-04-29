@@ -244,10 +244,12 @@ void reshade::opengl::runtime_gl::on_present()
 	_vertices = _buffer_detection.total_vertices();
 	_drawcalls = _buffer_detection.total_drawcalls();
 
+#if RESHADE_WIREFRAME
 	if (wireframe_mode())
 		glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 	else
 		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+#endif
 
 	_app_state.capture();
 

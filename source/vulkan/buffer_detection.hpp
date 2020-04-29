@@ -36,8 +36,6 @@ namespace reshade::vulkan
 		void on_set_depthstencil(VkImage depthstencil, VkImageLayout layout, const VkImageCreateInfo &create_info);
 #endif
 
-		const bool get_wireframe_mode();
-
 	protected:
 #if RESHADE_DEPTH
 		VkImage _current_depthstencil = VK_NULL_HANDLE;
@@ -57,15 +55,10 @@ namespace reshade::vulkan
 		uint32_t total_vertices() const { return _stats.vertices; }
 		uint32_t total_drawcalls() const { return _stats.drawcalls; }
 
-		void set_wireframe_mode(bool value);
-
 #if RESHADE_DEPTH
 		const auto &depth_buffer_counters() const { return _counters_per_used_depth_image; }
 
 		depthstencil_info find_best_depth_texture(VkExtent2D dimensions = {}, VkImage override = VK_NULL_HANDLE) const;
 #endif
-
-	private:
-		bool _wireframe_mode;
 	};
 }

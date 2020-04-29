@@ -165,7 +165,11 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateGraphicsPipelineState(const D3D12_G
 {
 	HRESULT hr = _orig->CreateGraphicsPipelineState(pDesc, riid, ppPipelineState);
 
-	return _buffer_detection.on_create_graphics_pipelineState(pDesc, ppPipelineState);
+#if RESHADE_WIREFRAME
+	hr = _buffer_detection.on_create_graphics_pipelineState(pDesc, ppPipelineState);
+#endif
+
+	return hr;
 }
 HRESULT STDMETHODCALLTYPE D3D12Device::CreateComputePipelineState(const D3D12_COMPUTE_PIPELINE_STATE_DESC *pDesc, REFIID riid, void **ppPipelineState)
 {
@@ -346,7 +350,11 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreatePipelineState(const D3D12_PIPELINE_
 	assert(_interface_version >= 2);
 	HRESULT hr = static_cast<ID3D12Device2*>(_orig)->CreatePipelineState(pDesc, riid, ppPipelineState);
 
-	return _buffer_detection.on_create_pipelineState(pDesc, ppPipelineState);
+#if RESHADE_WIREFRAME
+	hr = _buffer_detection.on_create_pipelineState(pDesc, ppPipelineState);
+#endif
+
+	return hr;
 }
 
 HRESULT STDMETHODCALLTYPE D3D12Device::OpenExistingHeapFromAddress(const void *pAddress, REFIID riid, void **ppvHeap)

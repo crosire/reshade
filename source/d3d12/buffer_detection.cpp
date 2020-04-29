@@ -45,6 +45,14 @@ void reshade::d3d12::buffer_detection_context::reset(bool release_resources)
 		// Can only destroy this when it is guaranteed to no longer be in use
 		_depthstencil_clear_texture.reset();
 		_depthstencil_resources_by_handle.clear();
+	}
+#else
+	UNREFERENCED_PARAMETER(release_resources);
+#endif
+
+#if RESHADE_WIREFRAME
+	if (release_resources)
+	{
 		_wireframe_pipelineStates.clear();
 	}
 #else
@@ -283,6 +291,7 @@ com_ptr<ID3D12Resource> reshade::d3d12::buffer_detection_context::update_depth_t
 }
 #endif
 
+#if RESHADE_WIREFRAME
 void reshade::d3d12::buffer_detection_context::set_wireframe_mode(bool value)
 {
 	_wireframe_mode = value;
@@ -360,3 +369,4 @@ void reshade::d3d12::buffer_detection::on_set_pipelineState(ID3D12PipelineState*
 		if (it->second != nullptr)
 			*ppPipelineState = it->second.get();
 }
+#endif

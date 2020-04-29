@@ -284,14 +284,16 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateDepthStencilState(const D3D11_DEPTH
 }
 HRESULT STDMETHODCALLTYPE D3D11Device::CreateRasterizerState(const D3D11_RASTERIZER_DESC *pRasterizerDesc, ID3D11RasterizerState **ppRasterizerState)
 {
+	HRESULT hr = _orig->CreateRasterizerState(pRasterizerDesc, ppRasterizerState);
+
+#if RESHADE_WIREFRAME
 	// Create effect wireframe states
 	D3D11_RASTERIZER_DESC desc = {};
 	desc.FillMode = D3D11_FILL_WIREFRAME;
 	desc.CullMode = D3D11_CULL_NONE;
 	desc.DepthClipEnable = TRUE;
-	HRESULT hr = _orig->CreateRasterizerState(&desc, &_wireframe_rasterizer);
-
-	hr = _orig->CreateRasterizerState(pRasterizerDesc, ppRasterizerState);
+	hr = _orig->CreateRasterizerState(&desc, &_wireframe_rasterizer);
+#endif
 
 	return hr;
 }

@@ -480,8 +480,40 @@ void reshade::runtime::draw_ui()
 
 	ImVec2 viewport_offset = ImVec2(0, 0);
 
+#if RESHADE_WIREFRAME
 	// Create ImGui widgets and windows
-	if (show_splash || show_screenshot_message || !_preset_save_success || _wireframe_mode_warmup_step || (!_show_menu && _tutorial_index == 0))
+	if (_wireframe_mode_warmup_step)
+	{
+		ImGui::SetNextWindowPos(ImVec2(10, 10));
+		ImGui::SetNextWindowSize(ImVec2(imgui_io.DisplaySize.x - 20.0f, 0.0f));
+		ImGui::PushStyleVar(ImGuiStyleVar_Alpha, 1.0f);
+		ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.862745f, 0.862745f, 0.862745f, 1.0f));
+		ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0.117647f, 0.117647f, 0.117647f, 0.7f));
+		ImGui::Begin("Splash Screen", nullptr,
+			ImGuiWindowFlags_NoDecoration |
+			ImGuiWindowFlags_NoNav |
+			ImGuiWindowFlags_NoMove |
+			ImGuiWindowFlags_NoInputs |
+			ImGuiWindowFlags_NoSavedSettings |
+			ImGuiWindowFlags_NoDocking |
+			ImGuiWindowFlags_NoFocusOnAppearing);
+
+		ImGui::TextColored(COLOR_YELLOW,
+			"Wireframe mode is launching...");
+		ImGui::TextColored(COLOR_YELLOW,
+			"It will be available in %zu seconds",
+			_wireframe_mode_warmup_delay - _wireframe_mode_warmup_remaining_time.count());		
+
+		viewport_offset.y += ImGui::GetWindowHeight() + 10; // Add small space between windows
+
+		ImGui::End();
+		ImGui::PopStyleColor(2);
+		ImGui::PopStyleVar();
+	}
+#endif
+
+	// Create ImGui widgets and windows
+	if (show_splash || show_screenshot_message || !_preset_save_success || (!_show_menu && _tutorial_index == 0))
 	{
 		ImGui::SetNextWindowPos(ImVec2(10, 10));
 		ImGui::SetNextWindowSize(ImVec2(imgui_io.DisplaySize.x - 20.0f, 0.0f));
@@ -500,14 +532,6 @@ void reshade::runtime::draw_ui()
 		if (!_preset_save_success)
 		{
 			ImGui::TextColored(COLOR_RED, "Unable to save current preset. Make sure you have write permissions to %s.", _current_preset_path.u8string().c_str());
-		}
-		else if(_wireframe_mode_warmup_step)
-		{
-			ImGui::TextColored(COLOR_YELLOW,
-				"Wireframe mode is launching...");
-			ImGui::TextColored(COLOR_YELLOW,
-				"It will be available in %zu seconds",
-				_wireframe_mode_warmup_delay - _wireframe_mode_warmup_remaining_time.count());
 		}
 		else if (show_screenshot_message)
 		{
@@ -1074,6 +1098,7 @@ void reshade::runtime::draw_ui_settings()
 			_tutorial_index = 0;
 	}
 
+#if RESHADE_WIREFRAME
 	if (ImGui::CollapsingHeader("Wireframe", ImGuiTreeNodeFlags_DefaultOpen))
 	{
 		_ignore_shortcuts |= ImGui::IsItemActive();
@@ -1083,6 +1108,7 @@ void reshade::runtime::draw_ui_settings()
 		if (ImGui::IsItemHovered())
 			ImGui::SetTooltip("Add a warmup delay for wireframe activation.\nThis is necessary in some games (especially in Doom series), in order to let the virtual texture generation process to finish correctly.");
 	}
+#endif
 
 	if (ImGui::CollapsingHeader("Screenshots", ImGuiTreeNodeFlags_DefaultOpen))
 	{
