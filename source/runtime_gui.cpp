@@ -1104,7 +1104,7 @@ void reshade::runtime::draw_ui_settings()
 		_ignore_shortcuts |= ImGui::IsItemActive();
 		modified |= imgui_key_input("Wireframe mode Toggle Key", _wireframe_key_data, *_input);
 		_ignore_shortcuts |= ImGui::IsItemActive();
-		modified |= ImGui::SliderInt("Wireframe warmup delay (sec)", reinterpret_cast<int*>(&_wireframe_mode_warmup_delay), 0, 1000);
+		modified |= ImGui::SliderInt("Wireframe warmup delay (sec)", reinterpret_cast<int*>(&_wireframe_mode_warmup_delay), 0, 300);
 		if (ImGui::IsItemHovered())
 			ImGui::SetTooltip("Add a warmup delay for wireframe activation.\nThis is necessary in some games (especially in Doom series), in order to let the virtual texture generation process to finish correctly.");
 	}

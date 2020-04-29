@@ -246,7 +246,9 @@ void reshade::opengl::runtime_gl::on_present()
 
 #if RESHADE_WIREFRAME
 	if (wireframe_mode())
+	{
 		glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+	}
 	else
 		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 #endif
