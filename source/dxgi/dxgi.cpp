@@ -17,6 +17,7 @@
 #include "d3d12/runtime_d3d12.hpp"
 #include <CoreWindow.h>
 
+// Use this to filter out internal device created by the DXGI runtime in the D3D device creation hooks 
 extern thread_local bool g_in_dxgi_runtime;
 
 static void dump_sample_desc(const DXGI_SAMPLE_DESC &desc)
@@ -230,7 +231,9 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForHwnd(IDXGIFactory2 *pF
 	const unsigned int direct3d_version =
 		query_device(pDevice, device_proxy);
 
+	g_in_dxgi_runtime = true;
 	const HRESULT hr = reshade::hooks::call(IDXGIFactory2_CreateSwapChainForHwnd, vtable_from_instance(pFactory) + 15)(pFactory, pDevice, hWnd, pDesc, pFullscreenDesc, pRestrictToOutput, ppSwapChain);
+	g_in_dxgi_runtime = false;
 	if (FAILED(hr))
 	{
 		LOG(WARN) << "IDXGIFactory2::CreateSwapChainForHwnd failed with error code " << hr << '!';
@@ -261,7 +264,9 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForCoreWindow(IDXGIFactor
 	const unsigned int direct3d_version =
 		query_device(pDevice, device_proxy);
 
+	g_in_dxgi_runtime = true;
 	const HRESULT hr = reshade::hooks::call(IDXGIFactory2_CreateSwapChainForCoreWindow, vtable_from_instance(pFactory) + 16)(pFactory, pDevice, pWindow, pDesc, pRestrictToOutput, ppSwapChain);
+	g_in_dxgi_runtime = false;
 	if (FAILED(hr))
 	{
 		LOG(WARN) << "IDXGIFactory2::CreateSwapChainForCoreWindow failed with error code " << hr << '!';
@@ -296,7 +301,9 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForComposition(IDXGIFacto
 	const unsigned int direct3d_version =
 		query_device(pDevice, device_proxy);
 
+	g_in_dxgi_runtime = true;
 	const HRESULT hr = reshade::hooks::call(IDXGIFactory2_CreateSwapChainForComposition, vtable_from_instance(pFactory) + 24)(pFactory, pDevice, pDesc, pRestrictToOutput, ppSwapChain);
+	g_in_dxgi_runtime = false;
 	if (FAILED(hr))
 	{
 		LOG(WARN) << "IDXGIFactory2::CreateSwapChainForComposition failed with error code " << hr << '!';
