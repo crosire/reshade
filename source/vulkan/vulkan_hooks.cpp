@@ -45,7 +45,7 @@ static lockfree_table<VkCommandBuffer, command_buffer_data, 4096> s_command_buff
 static lockfree_table<VkRenderPass, std::vector<render_pass_data>, 4096> s_renderpass_data;
 
 #if RESHADE_WIREFRAME
-static lockfree_table<VkPipeline, VkPipeline, 4096> s_wireframe_pipelines;
+static lockfree_table<VkPipeline, VkPipeline, 12288> s_wireframe_pipelines;
 
 static bool _wireframe_mode;
 #endif
