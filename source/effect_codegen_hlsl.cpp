@@ -408,17 +408,16 @@ private:
 	}
 	id   define_uniform(const location &loc, uniform_info &info) override
 	{
-		info.size = info.type.is_matrix() ? (info.type.rows - 1) * 16u + info.type.cols * 4 : info.type.rows * 4;
-		// Arrays are not packed in HLSL by default, each element is stored in a four-component vector
-		if (info.type.is_array())
-			info.size = std::max(16u, info.size) * info.type.array_length;
-
 		const id res = make_id();
 
 		define_name<naming::unique>(res, info.name);
 
 		if (_uniforms_to_spec_constants && info.has_initializer_value)
 		{
+			info.size = info.type.components() * 4;
+			if (info.type.is_array())
+				info.size += info.type.array_length;
+
 			std::string &code = _blocks.at(_current_block);
 
 			write_location(code, loc);
@@ -434,10 +433,18 @@ private:
 		}
 		else
 		{
+			if (info.type.is_matrix())
+				info.size = align_up(info.type.cols * 4, 16, info.type.rows);
+			else // Vectors are column major (1xN), matrices are row major (NxM)
+				info.size = info.type.rows * 4;
+			// Arrays are not packed in HLSL by default, each element is stored in a four-component vector (16 bytes)
+			if (info.type.is_array())
+				info.size = align_up(info.size, 16, info.type.array_length);
+
 			// Data is packed into 4-byte boundaries (see https://docs.microsoft.com/en-us/windows/win32/direct3dhlsl/dx-graphics-hlsl-packing-rules)
 			// This is already guaranteed, since all types are at least 4-byte in size
 			info.offset = _module.total_uniform_size;
-			// Additionally HLSL packs data so that it does not cross a 16-byte boundary
+			// Additionally, HLSL packs data so that it does not cross a 16-byte boundary
 			const uint32_t remaining = 16 - (info.offset & 15);
 			if (remaining != 16 && info.size > remaining)
 				info.offset += remaining;

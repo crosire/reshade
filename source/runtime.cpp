@@ -1480,21 +1480,31 @@ static inline bool force_floating_point_value(const reshadefx::type &type, uint3
 
 void reshade::runtime::get_uniform_value(const uniform &variable, uint8_t *data, size_t size) const
 {
-	assert(data != nullptr);
-
 	size = std::min(size, static_cast<size_t>(variable.size));
+	assert(data != nullptr && (size % 4) == 0);
 
 	auto &data_storage = _effects[variable.effect_index].uniform_data_storage;
 	assert(variable.offset + size <= data_storage.size());
 
 	if (variable.type.is_matrix())
 	{
-		assert((size % 4) == 0);
-
-		// Each row of a matrix is 16-byte aligned, so needs special handling
-		for (size_t row = 0, i = 0; row < variable.type.rows; ++row)
-			for (size_t col = 0; i < (size / 4), col < variable.type.cols; ++col, ++i)
-				std::memcpy(data + (row * variable.type.cols + col) * 4, data_storage.data() + variable.offset + (row * 4 + col) * 4, 4);
+		size_t array_length = (variable.type.is_array() ? variable.type.array_length : 1);
+		for (size_t a = 0, i = 0; a < array_length; ++a)
+			// Each row of a matrix is 16-byte aligned, so needs special handling
+			for (size_t row = 0; row < variable.type.rows; ++row)
+				for (size_t col = 0; i < (size / 4) && col < variable.type.cols; ++col, ++i)
+					std::memcpy(
+						data + (a * variable.type.components() + (row * variable.type.cols + col)) * 4,
+						data_storage.data() + variable.offset + (a * (variable.type.rows * 4) + (row * 4 + col)) * 4, 4);
+	}
+	else if (variable.type.is_array())
+	{
+		for (size_t a = 0, i = 0; a < variable.type.array_length; ++a)
+			// Each element in the array is 16-byte aligned, so needs special handling
+			for (size_t row = 0; i < (size / 4) && row < variable.type.rows; ++row, ++i)
+				std::memcpy(
+					data + (a * variable.type.components() + row) * 4,
+					data_storage.data() + variable.offset + (a * 4 + row) * 4, 4);
 	}
 	else
 	{
@@ -1504,7 +1514,6 @@ void reshade::runtime::get_uniform_value(const uniform &variable, uint8_t *data,
 void reshade::runtime::get_uniform_value(const uniform &variable, bool *values, size_t count) const
 {
 	count = std::min(count, static_cast<size_t>(variable.size / 4));
-
 	assert(values != nullptr);
 
 	const auto data = static_cast<uint8_t *>(alloca(variable.size));
@@ -1521,8 +1530,7 @@ void reshade::runtime::get_uniform_value(const uniform &variable, int32_t *value
 		return;
 	}
 
-	count = std::min(count, variable.size / sizeof(float));
-
+	count = std::min(count, static_cast<size_t>(variable.size / 4));
 	assert(values != nullptr);
 
 	const auto data = static_cast<uint8_t *>(alloca(variable.size));
@@ -1543,8 +1551,7 @@ void reshade::runtime::get_uniform_value(const uniform &variable, float *values,
 		return;
 	}
 
-	count = std::min(count, variable.size / sizeof(int32_t));
-
+	count = std::min(count, static_cast<size_t>(variable.size / 4));
 	assert(values != nullptr);
 
 	const auto data = static_cast<uint8_t *>(alloca(variable.size));
@@ -1558,21 +1565,31 @@ void reshade::runtime::get_uniform_value(const uniform &variable, float *values,
 }
 void reshade::runtime::set_uniform_value(uniform &variable, const uint8_t *data, size_t size)
 {
-	assert(data != nullptr);
-
 	size = std::min(size, static_cast<size_t>(variable.size));
+	assert(data != nullptr && (size % 4) == 0);
 
 	auto &data_storage = _effects[variable.effect_index].uniform_data_storage;
 	assert(variable.offset + size <= data_storage.size());
 
 	if (variable.type.is_matrix())
 	{
-		assert((size % 4) == 0);
-
-		// Each row of a matrix is 16-byte aligned, so needs special handling
-		for (size_t row = 0, i = 0; row < variable.type.rows; ++row)
-			for (size_t col = 0; i < (size / 4), col < variable.type.cols; ++col, ++i)
-				std::memcpy(data_storage.data() + variable.offset + (row * 4 + col) * 4, data + (row * variable.type.cols + col) * 4, 4);
+		size_t array_length = (variable.type.is_array() ? variable.type.array_length : 1);
+		for (size_t a = 0, i = 0; a < array_length; ++a)
+			// Each row of a matrix is 16-byte aligned, so needs special handling
+			for (size_t row = 0; row < variable.type.rows; ++row)
+				for (size_t col = 0; i < (size / 4) && col < variable.type.cols; ++col, ++i)
+					std::memcpy(
+						data_storage.data() + variable.offset + (a * variable.type.rows * 4 + (row * 4 + col)) * 4,
+						data + (a * variable.type.components() + (row * variable.type.cols + col)) * 4, 4);
+	}
+	else if (variable.type.is_array())
+	{
+		for (size_t a = 0, i = 0; a < variable.type.array_length; ++a)
+			// Each element in the array is 16-byte aligned, so needs special handling
+			for (size_t row = 0; i < (size / 4) && row < variable.type.rows; ++row, ++i)
+				std::memcpy(
+					data_storage.data() + variable.offset + (a * 4 + row) * 4,
+					data + (a * variable.type.components() + row) * 4, 4);
 	}
 	else
 	{
@@ -1647,24 +1664,23 @@ void reshade::runtime::set_uniform_value(uniform &variable, const float *values,
 void reshade::runtime::reset_uniform_value(uniform &variable)
 {
 	auto &data_storage = _effects[variable.effect_index].uniform_data_storage;
-
 	if (!variable.has_initializer_value)
 	{
 		std::memset(data_storage.data() + variable.offset, 0, variable.size);
 		return;
 	}
 
-	switch (variable.type.base)
+	const size_t array_length = (variable.type.is_array() ? variable.type.array_length : 1);
+	const size_t component_data_size = variable.type.components() * array_length * 4;
+
+	// Append all initializers together to get tightly packed component data, which is then properly aligned in 'set_uniform_value'
+	const auto data = static_cast<uint8_t *>(alloca(component_data_size));
+	for (size_t i = 0; i < array_length; ++i)
 	{
-	case reshadefx::type::t_int:
-		set_uniform_value(variable, variable.initializer_value.as_int, variable.type.components());
-		break;
-	case reshadefx::type::t_bool:
-	case reshadefx::type::t_uint:
-		set_uniform_value(variable, variable.initializer_value.as_uint, variable.type.components());
-		break;
-	case reshadefx::type::t_float:
-		set_uniform_value(variable, variable.initializer_value.as_float, variable.type.components());
-		break;
+		const reshadefx::constant &value = variable.type.is_array() ? variable.initializer_value.array_data[i] : variable.initializer_value;
+
+		std::memcpy(data + variable.type.components() * 4 * i, value.as_uint, variable.type.components() * 4);
 	}
+
+	set_uniform_value(variable, data, component_data_size);
 }

@@ -80,6 +80,8 @@ private:
 				"vec4 compCond(bvec4 cond, vec4 a, vec4 b) { return vec4(cond.x ? a.x : b.x, cond.y ? a.y : b.y, cond.z ? a.z : b.z, cond.w ? a.w : b.w); }\n";
 
 		if (!_ubo_block.empty())
+			// Read matrices in column major layout, even though they are actually row major, to avoid transposing them on every access (since GLSL uses column matrices)
+			// TODO: This technically only works with square matrices
 			module.hlsl += "layout(std140, column_major, binding = 0) uniform _Globals {\n" + _ubo_block + "};\n";
 		module.hlsl += _blocks.at(0);
 	}
@@ -352,25 +354,16 @@ private:
 	}
 	id   define_uniform(const location &loc, uniform_info &info) override
 	{
-		// GLSL specification on std140 layout:
-		// 1. If the member is a scalar consuming N basic machine units, the base alignment is N.
-		// 2. If the member is a two- or four-component vector with components consuming N basic machine units, the base alignment is 2N or 4N, respectively.
-		// 3. If the member is a three-component vector with components consuming N basic machine units, the base alignment is 4N.
-		// 4. If the member is an array of scalars or vectors, the base alignment and array stride are set to match the base alignment of a single array element,
-		//    according to rules (1), (2), and (3), and rounded up to the base alignment of a four-component vector.
-		// 5. If the member is a column-major matrix with C columns and R rows, the matrix is stored identically to an array of C column vectors with R components each, according to rule (4).
-		// 7. If the member is a row-major matrix with C columns and R rows, the matrix is stored identically to an array of R row vectors with C components each, according to rule (4).
-		uint32_t alignment = info.type.is_array() || info.type.is_matrix() ? 16u : (info.type.rows == 3 ? 4 : info.type.rows) * 4;
-		info.size = info.type.is_matrix() ? alignment * info.type.rows /* column major layout, with row major layout this would be columns */ : info.type.rows * 4;
-		if (info.type.is_array())
-			info.size = std::max(16u, info.size) * info.type.array_length;
-
 		const id res = make_id();
 
 		define_name<naming::unique>(res, info.name);
 
 		if (_uniforms_to_spec_constants && info.has_initializer_value)
 		{
+			info.size = info.type.components() * 4;
+			if (info.type.is_array())
+				info.size += info.type.array_length;
+
 			std::string &code = _blocks.at(_current_block);
 
 			write_location(code, loc);
@@ -386,9 +379,25 @@ private:
 		}
 		else
 		{
+			// GLSL specification on std140 layout:
+			// 1. If the member is a scalar consuming N basic machine units, the base alignment is N.
+			// 2. If the member is a two- or four-component vector with components consuming N basic machine units, the base alignment is 2N or 4N, respectively.
+			// 3. If the member is a three-component vector with components consuming N basic machine units, the base alignment is 4N.
+			// 4. If the member is an array of scalars or vectors, the base alignment and array stride are set to match the base alignment of a single array element,
+			//    according to rules (1), (2), and (3), and rounded up to the base alignment of a four-component vector.
+			// 7. If the member is a row-major matrix with C columns and R rows, the matrix is stored identically to an array of R row vectors with C components each, according to rule (4).
+			// 8. If the member is an array of S row-major matrices with C columns and R rows, the matrix is stored identically to a row of S*R row vectors with C components each, according to rule (4).
+			const uint32_t alignment = info.type.is_array() || info.type.is_matrix() ? 16 /* (4) */ : (info.type.rows == 3 ? 4 /* (3) */ : info.type.rows /* (2)*/) * 4 /* (1)*/;
+			if (info.type.is_matrix())
+				info.size = std::max(info.type.array_length, 1) * info.type.rows * alignment /* (7), (8) */;
+			else if (info.type.is_array())
+				info.size = info.type.array_length * alignment;
+			else
+				info.size = info.type.rows * 4;
+
 			// Adjust offset according to alignment rules from above
-			alignment -= 1;
-			info.offset = (_module.total_uniform_size + alignment) & ~alignment;
+			info.offset = _module.total_uniform_size;
+			info.offset = align_up(info.offset, alignment);
 			_module.total_uniform_size = info.offset + info.size;
 
 			write_location(_ubo_block, loc);
