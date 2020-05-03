@@ -666,16 +666,19 @@ private:
 				add_decoration(_global_ubo_variable, spv::DecorationBinding, { 0 });
 			}
 
-			const uint32_t array_stride = 16u;
-			const uint32_t matrix_stride = 16u;
+			uint32_t array_stride = 16;
+			const uint32_t matrix_stride = 16;
 
-			// Use similar base packing rules to HLSL
 			if (info.type.is_matrix())
-				info.size = align_up(info.type.cols * 4, matrix_stride, info.type.rows);
+				// Column major case, for row major this would be like in HLSL
+				info.size = info.type.rows * matrix_stride;
 			else
 				info.size = info.type.rows * 4;
 			if (info.type.is_array())
-				info.size = align_up(info.size, array_stride, info.type.array_length);
+			{
+				array_stride = align_up(info.size, array_stride);
+				info.size = array_stride * (info.type.array_length - 1) + info.size;
+			}
 
 			info.offset = _module.total_uniform_size;
 			// Make sure member does not have an improper straddle
@@ -704,7 +707,7 @@ private:
 			if (info.type.is_matrix())
 			{
 				// Read matrices in column major layout, even though they are actually row major, to avoid transposing them on every access (since SPIR-V uses column matrices)
-				// TODO: This technically only works with square matrices and falls apart with arrays
+				// TODO: This technically only works with square matrices
 				add_member_decoration(_global_ubo_type, member_index, spv::DecorationColMajor);
 				add_member_decoration(_global_ubo_type, member_index, spv::DecorationMatrixStride, { matrix_stride });
 			}
