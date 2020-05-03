@@ -37,10 +37,6 @@ namespace reshade::log
 	/// The current log line stream.
 	/// </summary>
 	extern std::ostringstream line;
-	/// <summary>
-	/// An in-memory history of all log messages.
-	/// </summary>
-	extern std::vector<std::string> lines;
 
 	/// <summary>
 	/// Constructs a single log message including current time and level and writes it to the open log file.

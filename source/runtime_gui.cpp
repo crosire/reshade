@@ -1516,8 +1516,11 @@ void reshade::runtime::draw_ui_statistics()
 }
 void reshade::runtime::draw_ui_log()
 {
+	std::filesystem::path log_path = g_reshade_dll_path;
+	log_path.replace_extension(".log");
+
 	if (ImGui::Button("Clear Log"))
-		reshade::log::lines.clear();
+		std::ofstream(log_path, std::ios::out | std::ios::trunc);
 
 	ImGui::SameLine();
 	ImGui::Checkbox("Word Wrap", &_log_wordwrap);
@@ -1528,14 +1531,20 @@ void reshade::runtime::draw_ui_log()
 
 	if (ImGui::BeginChild("log", ImVec2(0, 0), true, _log_wordwrap ? 0 : ImGuiWindowFlags_AlwaysHorizontalScrollbar))
 	{
+		// Limit number of log lines to read, to avoid stalling when log gets too big
+		const size_t line_limit = 800;
+		// Read log file again every frame to avoid having to store its contents in memory all the time
+		std::ifstream log_file(log_path);
 		std::vector<std::string> lines;
-		lines.reserve(reshade::log::lines.size());
-		for (auto &line : reshade::log::lines)
+		lines.reserve(line_limit);
+		for (std::string line; std::getline(log_file, line) && lines.size() < line_limit;)
 			if (filter.PassFilter(line.c_str()))
 				lines.push_back(line);
+		log_file.close();
+		if (lines.size() == line_limit)
+			lines.push_back("Log was truncated to reduce memory footprint!");
 
 		ImGuiListClipper clipper(static_cast<int>(lines.size()), ImGui::GetTextLineHeightWithSpacing());
-
 		while (clipper.Step())
 		{
 			for (int i = clipper.DisplayStart; i < clipper.DisplayEnd; ++i)
@@ -1544,7 +1553,7 @@ void reshade::runtime::draw_ui_log()
 
 				if (lines[i].find("ERROR |") != std::string::npos)
 					textcol = COLOR_RED;
-				else if (lines[i].find("WARN  |") != std::string::npos)
+				else if (lines[i].find("WARN  |") != std::string::npos || i == line_limit)
 					textcol = COLOR_YELLOW;
 				else if (lines[i].find("DEBUG |") != std::string::npos)
 					textcol = ImColor(100, 100, 255);
