@@ -389,6 +389,8 @@ namespace reshade
 
 		// === User Interface - Log ===
 		bool _log_wordwrap = false;
+		uintmax_t _last_log_size;
+		std::vector<std::string> _log_lines;
 
 		// === User Interface - Code Editor ===
 		imgui_code_editor _editor;

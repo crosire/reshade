@@ -60,6 +60,10 @@ reshade::log::message::~message()
 
 bool reshade::log::open(const std::filesystem::path &path)
 {
+	if (s_file_stream.is_open())
+		// Close the previous stream first
+		s_file_stream.close();
+
 	line.setf(std::ios::left);
 	line.setf(std::ios::showbase);
 

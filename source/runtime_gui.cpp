@@ -1520,48 +1520,54 @@ void reshade::runtime::draw_ui_log()
 	log_path.replace_extension(".log");
 
 	if (ImGui::Button("Clear Log"))
-		std::ofstream(log_path, std::ios::out | std::ios::trunc);
+		// Close and open the stream again, which will clear the file too
+		log::open(log_path);
 
 	ImGui::SameLine();
 	ImGui::Checkbox("Word Wrap", &_log_wordwrap);
 	ImGui::SameLine();
 
 	static ImGuiTextFilter filter; // TODO: Better make this a member of the runtime class, in case there are multiple instances.
-	filter.Draw("Filter (inc, -exc)", -150);
+	const bool filter_changed = filter.Draw("Filter (inc, -exc)", -150);
 
 	if (ImGui::BeginChild("log", ImVec2(0, 0), true, _log_wordwrap ? 0 : ImGuiWindowFlags_AlwaysHorizontalScrollbar))
 	{
 		// Limit number of log lines to read, to avoid stalling when log gets too big
-		const size_t line_limit = 800;
-		// Read log file again every frame to avoid having to store its contents in memory all the time
-		std::ifstream log_file(log_path);
-		std::vector<std::string> lines;
-		lines.reserve(line_limit);
-		for (std::string line; std::getline(log_file, line) && lines.size() < line_limit;)
-			if (filter.PassFilter(line.c_str()))
-				lines.push_back(line);
-		log_file.close();
-		if (lines.size() == line_limit)
-			lines.push_back("Log was truncated to reduce memory footprint!");
+		const size_t line_limit = 1000;
 
-		ImGuiListClipper clipper(static_cast<int>(lines.size()), ImGui::GetTextLineHeightWithSpacing());
+		std::error_code ec;
+		const auto last_log_size = std::filesystem::file_size(log_path, ec);
+		if (filter_changed || _last_log_size != last_log_size)
+		{
+			_log_lines.clear();
+			std::ifstream log_file(log_path);
+			for (std::string line; std::getline(log_file, line) && _log_lines.size() < line_limit;)
+				if (filter.PassFilter(line.c_str()))
+					_log_lines.push_back(line);
+			_last_log_size = last_log_size;
+
+			if (_log_lines.size() == line_limit)
+				_log_lines.push_back("Log was truncated to reduce memory footprint!");
+		}
+
+		ImGuiListClipper clipper(static_cast<int>(_log_lines.size()), ImGui::GetTextLineHeightWithSpacing());
 		while (clipper.Step())
 		{
 			for (int i = clipper.DisplayStart; i < clipper.DisplayEnd; ++i)
 			{
 				ImVec4 textcol = _imgui_context->Style.Colors[ImGuiCol_Text];
 
-				if (lines[i].find("ERROR |") != std::string::npos)
+				if (_log_lines[i].find("ERROR |") != std::string::npos)
 					textcol = COLOR_RED;
-				else if (lines[i].find("WARN  |") != std::string::npos || i == line_limit)
+				else if (_log_lines[i].find("WARN  |") != std::string::npos || i == line_limit)
 					textcol = COLOR_YELLOW;
-				else if (lines[i].find("DEBUG |") != std::string::npos)
+				else if (_log_lines[i].find("DEBUG |") != std::string::npos)
 					textcol = ImColor(100, 100, 255);
 
 				ImGui::PushStyleColor(ImGuiCol_Text, textcol);
 				if (_log_wordwrap) ImGui::PushTextWrapPos();
 
-				ImGui::TextUnformatted(lines[i].c_str());
+				ImGui::TextUnformatted(_log_lines[i].c_str());
 
 				if (_log_wordwrap) ImGui::PopTextWrapPos();
 				ImGui::PopStyleColor();
