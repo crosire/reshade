@@ -677,7 +677,8 @@ private:
 			if (info.type.is_array())
 			{
 				array_stride = align_up(info.size, array_stride);
-				info.size = array_stride * (info.type.array_length - 1) + info.size;
+				// Uniform block rules do not permit anything in the padding of an array
+				info.size = array_stride * info.type.array_length;
 			}
 
 			info.offset = _module.total_uniform_size;
@@ -686,8 +687,6 @@ private:
 			if (remaining != 16 && info.size > remaining)
 				info.offset += remaining;
 			_module.total_uniform_size = info.offset + info.size;
-
-			_module.uniforms.push_back(info);
 
 			type ubo_type = info.type;
 			// Convert boolean uniform variables to integer type so that they have a defined size
@@ -711,6 +710,8 @@ private:
 				add_member_decoration(_global_ubo_type, member_index, spv::DecorationColMajor);
 				add_member_decoration(_global_ubo_type, member_index, spv::DecorationMatrixStride, { matrix_stride });
 			}
+
+			_module.uniforms.push_back(info);
 
 			return 0xF0000000 | member_index;
 		}
