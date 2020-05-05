@@ -63,32 +63,32 @@
     <Compile Include="Utilities\FileOpenDialog.cs" />
     <Compile Include="Utilities\IniFile.cs" />
     <Compile Include="Utilities\PEInfo.cs" />
-    <Page Include="Dialogs\SelectApp.xaml">
+    <Page Include="Windows\SelectApp.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
-    <Compile Include="Dialogs\SelectApp.xaml.cs">
+    <Compile Include="Windows\SelectApp.xaml.cs">
       <DependentUpon>SelectApp.xaml</DependentUpon>
     </Compile>
-    <Page Include="Dialogs\SelectEffects.xaml">
+    <Page Include="Windows\SelectEffects.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
-    <Compile Include="Dialogs\SelectEffects.xaml.cs">
+    <Compile Include="Windows\SelectEffects.xaml.cs">
       <DependentUpon>SelectEffects.xaml</DependentUpon>
     </Compile>
-    <Page Include="Dialogs\SelectPackages.xaml">
+    <Page Include="Windows\SelectPackages.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
-    <Compile Include="Dialogs\SelectPackages.xaml.cs">
+    <Compile Include="Windows\SelectPackages.xaml.cs">
       <DependentUpon>SelectPackages.xaml</DependentUpon>
     </Compile>
-    <Page Include="Dialogs\Settings.xaml">
+    <Page Include="Windows\Settings.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
-    <Compile Include="Dialogs\Settings.xaml.cs">
+    <Compile Include="Windows\Settings.xaml.cs">
       <DependentUpon>Settings.xaml</DependentUpon>
     </Compile>
     <Page Include="MainWindow.xaml">
@@ -113,8 +113,8 @@
       <SubType>Designer</SubType>
     </None>
     <None Include="Properties\AssemblyInfo.cs.in" />
-    <EmbeddedResource Condition="Exists('Compatibility.ini')" Include="Compatibility.ini" />
-    <EmbeddedResource Condition="Exists('EffectPackages.ini')" Include="EffectPackages.ini" />
+    <EmbeddedResource Condition="Exists('Config\Compatibility.ini')" Include="Config\Compatibility.ini" />
+    <EmbeddedResource Condition="Exists('Config\EffectPackages.ini')" Include="Config\EffectPackages.ini" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="Properties\Icon.ico" />
