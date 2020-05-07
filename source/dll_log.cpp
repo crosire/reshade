@@ -10,7 +10,6 @@
 #include <Windows.h>
 
 std::ostringstream reshade::log::line;
-std::vector<std::string> reshade::log::lines;
 static std::mutex s_message_mutex;
 static std::ofstream s_file_stream;
 
@@ -45,7 +44,6 @@ reshade::log::message::message(level level)
 reshade::log::message::~message()
 {
 	std::string line_string = line.str();
-	lines.push_back(line_string);
 
 	// Write line to the log file and flush it
 	s_file_stream << line_string << std::endl;
@@ -62,6 +60,10 @@ reshade::log::message::~message()
 
 bool reshade::log::open(const std::filesystem::path &path)
 {
+	if (s_file_stream.is_open())
+		// Close the previous stream first
+		s_file_stream.close();
+
 	line.setf(std::ios::left);
 	line.setf(std::ios::showbase);
 

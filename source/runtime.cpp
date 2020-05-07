@@ -4,7 +4,6 @@
  */
 
 #include "dll_log.hpp"
-#include "dll_resources.hpp"
 #include "version.h"
 #include "runtime.hpp"
 #include "runtime_config.hpp"
@@ -21,8 +20,6 @@
 #include <stb_image_dds.h>
 #include <stb_image_write.h>
 #include <stb_image_resize.h>
-#include <iostream>
-#include <fstream>
 
 extern volatile long g_network_traffic;
 extern std::filesystem::path g_reshade_dll_path;
@@ -57,7 +54,7 @@ static inline bool check_preset_path(std::filesystem::path preset_path)
 	return reshade::ini_file::load_cache(preset_path).has({}, "Techniques");
 }
 
-static bool find_file(const std::vector<std::filesystem::path>& search_paths, std::filesystem::path& path)
+static bool find_file(const std::vector<std::filesystem::path> &search_paths, std::filesystem::path &path)
 {
 	std::error_code ec;
 	if (path.is_absolute())
@@ -76,7 +73,7 @@ static bool find_file(const std::vector<std::filesystem::path>& search_paths, st
 	return false;
 }
 
-static std::vector<std::filesystem::path> find_files(const std::vector<std::filesystem::path>& search_paths, std::initializer_list<std::filesystem::path> extensions)
+static std::vector<std::filesystem::path> find_files(const std::vector<std::filesystem::path> &search_paths, std::initializer_list<std::filesystem::path> extensions)
 {
 	std::error_code ec;
 	std::vector<std::filesystem::path> files;
@@ -85,8 +82,8 @@ static std::vector<std::filesystem::path> find_files(const std::vector<std::file
 		// Ignore the working directory and instead start relative paths at the DLL location
 		search_path = absolute_path(std::move(search_path));
 
-		for (const auto& entry : std::filesystem::directory_iterator(search_path, ec))
-			for (const auto& ext : extensions)
+		for (const auto &entry : std::filesystem::directory_iterator(search_path, ec))
+			for (const auto &ext : extensions)
 				if (entry.path().extension() == ext)
 					files.push_back(entry.path());
 	}
@@ -125,13 +122,6 @@ reshade::runtime::runtime() :
 	init_ui();
 #endif
 	load_config();
-
-#if RESHADE_WIREFRAME
-	for (std::filesystem::path effect_search_path : _effect_search_paths)
-	{
-		init_wireframe_effect_file(_configuration_path, effect_search_path);
-	}
-#endif
 }
 reshade::runtime::~runtime()
 {
@@ -239,43 +229,6 @@ void reshade::runtime::on_present()
 				}
 			}
 
-#if RESHADE_WIREFRAME
-			if (_input->is_key_pressed(_wireframe_key_data))
-			{
-				if (_wireframe_mode_warmup_step)
-				{
-					_wireframe_mode = false;
-					_wireframe_mode_warmup_step = false;
-				}
-				else
-					_wireframe_mode = !_wireframe_mode;
-
-				if (_wireframe_mode == true && _wireframe_mode_warmup_delay > 0)
-				{
-					_wireframe_mode_warmup_step = true;
-					_wireframe_mode_warmup_start_time = current_time;
-					_wireframe_mode = false;
-				}
-			}
-
-			// disable wireframe_mode in case of network activity
-			if (_has_high_network_activity)
-			{
-				_wireframe_mode = false;
-			}
-
-			if (_wireframe_mode_warmup_step == true)
-			{
-				_wireframe_mode_warmup_remaining_time = std::chrono::duration_cast<std::chrono::seconds>(current_time - _wireframe_mode_warmup_start_time);
-
-				if (_wireframe_mode_warmup_remaining_time.count() >= _wireframe_mode_warmup_delay)
-				{
-					_wireframe_mode_warmup_step = false;
-					_wireframe_mode = true;
-				}
-			}
-#endif
-
 			// Continuously update preset values while a transition is in progress
 			if (_is_in_between_presets_transition)
 				load_current_preset();
@@ -307,9 +260,9 @@ void reshade::runtime::on_present()
 	_drawcalls = _vertices = 0;
 }
 
-bool reshade::runtime::load_effect(const std::filesystem::path& path, size_t index)
+bool reshade::runtime::load_effect(const std::filesystem::path &path, size_t index)
 {
-	effect& effect = _effects[index]; // Safe to access this multi-threaded, since this is the only call working on this effect
+	effect &effect = _effects[index]; // Safe to access this multi-threaded, since this is the only call working on this effect
 	effect.source_file = path;
 	effect.compile_sucess = true;
 
@@ -341,7 +294,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path& path, size_t ind
 		std::vector<std::string> preprocessor_definitions = _global_preprocessor_definitions;
 		preprocessor_definitions.insert(preprocessor_definitions.end(), _preset_preprocessor_definitions.begin(), _preset_preprocessor_definitions.end());
 
-		for (const auto& definition : preprocessor_definitions)
+		for (const auto &definition : preprocessor_definitions)
 		{
 			if (definition.empty())
 				continue; // Skip invalid definitions
@@ -391,7 +344,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path& path, size_t ind
 		effect.errors = std::move(pp.errors()) + std::move(parser.errors());
 
 		// Keep track of used preprocessor definitions (so they can be displayed in the GUI)
-		for (const auto& definition : pp.used_macro_definitions())
+		for (const auto &definition : pp.used_macro_definitions())
 		{
 			if (definition.first.size() <= 10 || definition.first[0] == '_' || !definition.first.compare(0, 8, "RESHADE_") || !definition.first.compare(0, 7, "BUFFER_"))
 				continue;
@@ -413,7 +366,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path& path, size_t ind
 		const ini_file preset(_current_preset_path); // ini_file::load_cache is not thread-safe, so load from file here
 		const std::string section(path.filename().u8string());
 
-		for (reshadefx::uniform_info& constant : effect.module.spec_constants)
+		for (reshadefx::uniform_info &constant : effect.module.spec_constants)
 		{
 			effect.preamble += "#define SPEC_CONSTANT_" + constant.name + ' ';
 
@@ -515,29 +468,29 @@ bool reshade::runtime::load_effect(const std::filesystem::path& path, size_t ind
 		{	const std::lock_guard<std::mutex> lock(_reload_mutex); // Protect access to global texture list
 
 			// Try to share textures with the same name across effects
-		if (const auto existing_texture = std::find_if(_textures.begin(), _textures.end(),
-			[&texture](const auto& item) { return item.unique_name == texture.unique_name; });
-			existing_texture != _textures.end())
-		{
-			// Cannot share texture if this is a normal one, but the existing one is a reference and vice versa
-			if (texture.semantic.empty() != (existing_texture->impl_reference == texture_reference::none))
+			if (const auto existing_texture = std::find_if(_textures.begin(), _textures.end(),
+				[&texture](const auto &item) { return item.unique_name == texture.unique_name; });
+				existing_texture != _textures.end())
 			{
-				effect.errors += "error: " + texture.unique_name + ": another effect (";
-				effect.errors += _effects[existing_texture->effect_index].source_file.filename().u8string();
-				effect.errors += ") already created a texture with the same name but different usage; rename the variable to fix this error\n";
-				effect.compile_sucess = false;
-				break;
-			}
-			else if (texture.semantic.empty() && !existing_texture->matches_description(texture))
-			{
-				effect.errors += "warning: " + texture.unique_name + ": another effect (";
-				effect.errors += _effects[existing_texture->effect_index].source_file.filename().u8string();
-				effect.errors += ") already created a texture with the same name but different dimensions; textures are shared across all effects, so either rename the variable or adjust the dimensions so they match\n";
-			}
+				// Cannot share texture if this is a normal one, but the existing one is a reference and vice versa
+				if (texture.semantic.empty() != (existing_texture->impl_reference == texture_reference::none))
+				{
+					effect.errors += "error: " + texture.unique_name + ": another effect (";
+					effect.errors += _effects[existing_texture->effect_index].source_file.filename().u8string();
+					effect.errors += ") already created a texture with the same name but different usage; rename the variable to fix this error\n";
+					effect.compile_sucess = false;
+					break;
+				}
+				else if (texture.semantic.empty() && !existing_texture->matches_description(texture))
+				{
+					effect.errors += "warning: " + texture.unique_name + ": another effect (";
+					effect.errors += _effects[existing_texture->effect_index].source_file.filename().u8string();
+					effect.errors += ") already created a texture with the same name but different dimensions; textures are shared across all effects, so either rename the variable or adjust the dimensions so they match\n";
+				}
 
-			existing_texture->shared = true;
-			continue;
-		}
+				existing_texture->shared = true;
+				continue;
+			}
 		}
 
 		if (texture.annotation_as_int("pooled"))
@@ -546,17 +499,17 @@ bool reshade::runtime::load_effect(const std::filesystem::path& path, size_t ind
 
 			// Try to find another pooled texture to share with
 			if (const auto existing_texture = std::find_if(_textures.begin(), _textures.end(),
-				[&texture](const auto& item) { return item.annotation_as_int("pooled") && item.matches_description(texture); });
+				[&texture](const auto &item) { return item.annotation_as_int("pooled") && item.matches_description(texture); });
 				existing_texture != _textures.end())
 			{
 				// Overwrite referenced texture in samplers with the pooled one
-				for (auto& sampler_info : effect.module.samplers)
+				for (auto &sampler_info : effect.module.samplers)
 					if (sampler_info.texture_name == texture.unique_name)
 						sampler_info.texture_name = existing_texture->unique_name;
 				// Overwrite referenced texture in render targets with the pooled one
-				for (auto& technique_info : effect.module.techniques)
-					for (auto& pass_info : technique_info.passes)
-						for (auto& target_name : pass_info.render_target_names)
+				for (auto &technique_info : effect.module.techniques)
+					for (auto &pass_info : technique_info.passes)
+						for (auto &target_name : pass_info.render_target_names)
 							if (target_name == texture.unique_name)
 								target_name = existing_texture->unique_name;
 
@@ -596,11 +549,11 @@ bool reshade::runtime::load_effect(const std::filesystem::path& path, size_t ind
 			LOG(WARN) << "Successfully loaded " << path << " with warnings:\n" << effect.errors;
 
 	{	const std::lock_guard<std::mutex> lock(_reload_mutex);
-	std::move(new_textures.begin(), new_textures.end(), std::back_inserter(_textures));
-	std::move(new_techniques.begin(), new_techniques.end(), std::back_inserter(_techniques));
+		std::move(new_textures.begin(), new_textures.end(), std::back_inserter(_textures));
+		std::move(new_techniques.begin(), new_techniques.end(), std::back_inserter(_techniques));
 
-	_last_reload_successful &= effect.compile_sucess;
-	_reload_remaining_effects--;
+		_last_reload_successful &= effect.compile_sucess;
+		_reload_remaining_effects--;
 	}
 
 	return effect.compile_sucess;
@@ -620,7 +573,7 @@ void reshade::runtime::load_effects()
 	{
 		_preset_preprocessor_definitions.clear();
 
-		const ini_file& preset = ini_file::load_cache(_current_preset_path);
+		const ini_file &preset = ini_file::load_cache(_current_preset_path);
 		preset.get({}, "PreprocessorDefinitions", _preset_preprocessor_definitions);
 	}
 
@@ -644,17 +597,17 @@ void reshade::runtime::load_effects()
 	// Keep track of the spawned threads, so the runtime cannot be destroyed while they are still running
 	for (size_t n = 0; n < num_splits; ++n)
 		_worker_threads.emplace_back([this, effect_files, num_splits, n]() {
-		// Abort loading when initialization state changes (indicating that 'on_reset' was called in the meantime)
-		for (size_t i = 0; i < effect_files.size() && _is_initialized; ++i)
-			if (i * num_splits / effect_files.size() == n)
-				load_effect(effect_files[i], i);
-			});
+			// Abort loading when initialization state changes (indicating that 'on_reset' was called in the meantime)
+			for (size_t i = 0; i < effect_files.size() && _is_initialized; ++i)
+				if (i * num_splits / effect_files.size() == n)
+					load_effect(effect_files[i], i);
+		});
 }
 void reshade::runtime::load_textures()
 {
 	LOG(INFO) << "Loading image files for textures ...";
 
-	for (const texture& texture : _textures)
+	for (const texture &texture : _textures)
 	{
 		if (texture.impl == nullptr || texture.impl_reference != texture_reference::none)
 			continue; // Ignore textures that are not created yet and those that are handled in the runtime implementation
@@ -671,10 +624,10 @@ void reshade::runtime::load_textures()
 			continue;
 		}
 
-		unsigned char* filedata = nullptr;
+		unsigned char *filedata = nullptr;
 		int width = 0, height = 0, channels = 0;
 
-		if (FILE* file; _wfopen_s(&file, source_path.c_str(), L"rb") == 0)
+		if (FILE *file; _wfopen_s(&file, source_path.c_str(), L"rb") == 0)
 		{
 			// Read texture data into memory in one go since that is faster than reading chunk by chunk
 			std::vector<uint8_t> mem(static_cast<size_t>(std::filesystem::file_size(source_path)));
@@ -723,7 +676,7 @@ void reshade::runtime::unload_effect(size_t index)
 
 	// Destroy textures belonging to this effect
 	_textures.erase(std::remove_if(_textures.begin(), _textures.end(),
-		[this, index](texture& tex) {
+		[this, index](texture &tex) {
 			if (tex.effect_index == index && !tex.shared) {
 				destroy_texture(tex);
 				return true;
@@ -732,12 +685,12 @@ void reshade::runtime::unload_effect(size_t index)
 		}), _textures.end());
 	// Clean up techniques belonging to this effect
 	_techniques.erase(std::remove_if(_techniques.begin(), _techniques.end(),
-		[index](const technique& tech) {
+		[index](const technique &tech) {
 			return tech.effect_index == index;
 		}), _techniques.end());
 
 	// Do not clear source file, so that an 'unload_effect' immediately followed by a 'load_effect' which accesses that works
-	effect& effect = _effects[index];;
+	effect &effect = _effects[index];;
 	effect.rendering = false;
 	effect.compile_sucess = false;
 	effect.errors.clear();
@@ -757,12 +710,12 @@ void reshade::runtime::unload_effects()
 #endif
 
 	// Make sure no threads are still accessing effect data
-	for (std::thread& thread : _worker_threads)
+	for (std::thread &thread : _worker_threads)
 		thread.join();
 	_worker_threads.clear();
 
 	// Destroy all textures
-	for (texture& tex : _textures)
+	for (texture &tex : _textures)
 		destroy_texture(tex);
 	_textures.clear();
 	_textures_loaded = false;
@@ -782,7 +735,7 @@ void reshade::runtime::update_and_render_effects()
 	if (_reload_remaining_effects == 0)
 	{
 		// Clear the thread list now that they all have finished
-		for (std::thread& thread : _worker_threads)
+		for (std::thread &thread : _worker_threads)
 			thread.join(); // Threads have exited, but still need to join them prior destruction
 		_worker_threads.clear();
 
@@ -793,7 +746,7 @@ void reshade::runtime::update_and_render_effects()
 		// Re-open last file in code editor after a reload
 		if (_show_code_editor && !_editor_file.empty())
 			if (const auto it = std::find_if(_effects.begin(), _effects.end(),
-				[this](const effect& fx) { return fx.source_file == _editor_file; }); it != _effects.end())
+				[this](const effect &fx) { return fx.source_file == _editor_file; }); it != _effects.end())
 				open_file_in_code_editor(it - _effects.begin(), _editor_file);
 #endif
 
@@ -812,11 +765,11 @@ void reshade::runtime::update_and_render_effects()
 			// Pop an effect from the queue
 			const size_t effect_index = _reload_compile_queue.back();
 			_reload_compile_queue.pop_back();
-			effect& effect = _effects[effect_index];
+			effect &effect = _effects[effect_index];
 
 			// Create textures now, since they are referenced when building samplers in the 'init_effect' call below
 			bool success = true;
-			for (texture& texture : _textures)
+			for (texture &texture : _textures)
 			{
 				if (texture.impl == nullptr && (texture.effect_index == effect_index || texture.shared))
 				{
@@ -857,11 +810,11 @@ void reshade::runtime::update_and_render_effects()
 			if (!success) // Something went wrong, do clean up
 			{
 				// Destroy all textures belonging to this effect
-				for (texture& tex : _textures)
+				for (texture &tex : _textures)
 					if (tex.effect_index == effect_index && !tex.shared)
 						destroy_texture(tex);
 				// Disable all techniques belonging to this effect
-				for (technique& tech : _techniques)
+				for (technique &tech : _techniques)
 					if (tech.effect_index == effect_index)
 						disable_technique(tech);
 
@@ -893,12 +846,12 @@ void reshade::runtime::update_and_render_effects()
 		return;
 
 	// Update special uniform variables
-	for (effect& effect : _effects)
+	for (effect &effect : _effects)
 	{
 		if (!effect.rendering)
 			continue;
 
-		for (uniform& variable : effect.uniforms)
+		for (uniform &variable : effect.uniforms)
 		{
 			if (!_ignore_shortcuts && variable.toggle_key_data[0] != 0 && _input->is_key_pressed(variable.toggle_key_data, _force_shortcut_modifiers))
 			{
@@ -907,165 +860,165 @@ void reshade::runtime::update_and_render_effects()
 				// Change to next value if the associated shortcut key was pressed
 				switch (variable.type.base)
 				{
-				case reshadefx::type::t_bool:
-				{
-					bool data;
-					get_uniform_value(variable, &data, 1);
-					set_uniform_value(variable, !data);
-					break;
-				}
-				case reshadefx::type::t_int:
-				case reshadefx::type::t_uint:
-				{
-					int data[4];
-					get_uniform_value(variable, data, 4);
-					const std::string_view ui_items = variable.annotation_as_string("ui_items");
-					int num_items = 0;
-					for (size_t offset = 0, next; (next = ui_items.find('\0', offset)) != std::string::npos; offset = next + 1)
-						num_items++;
-					data[0] = (data[0] + 1 >= num_items) ? 0 : data[0] + 1;
-					set_uniform_value(variable, data, 4);
-					break;
-				}
+					case reshadefx::type::t_bool:
+					{
+						bool data;
+						get_uniform_value(variable, &data, 1);
+						set_uniform_value(variable, !data);
+						break;
+					}
+					case reshadefx::type::t_int:
+					case reshadefx::type::t_uint:
+					{
+						int data[4];
+						get_uniform_value(variable, data, 4);
+						const std::string_view ui_items = variable.annotation_as_string("ui_items");
+						int num_items = 0;
+						for (size_t offset = 0, next; (next = ui_items.find('\0', offset)) != std::string::npos; offset = next + 1)
+							num_items++;
+						data[0] = (data[0] + 1 >= num_items) ? 0 : data[0] + 1;
+						set_uniform_value(variable, data, 4);
+						break;
+					}
 				}
 				save_current_preset();
 			}
 
 			switch (variable.special)
 			{
-			case special_uniform::frame_time:
-			{
-				set_uniform_value(variable, _last_frame_duration.count() * 1e-6f, 0.0f, 0.0f, 0.0f);
-				break;
-			}
-			case special_uniform::frame_count:
-			{
-				if (variable.type.is_boolean())
-					set_uniform_value(variable, (_framecount % 2) == 0);
-				else
-					set_uniform_value(variable, static_cast<unsigned int>(_framecount % UINT_MAX));
-				break;
-			}
-			case special_uniform::random:
-			{
-				const int min = variable.annotation_as_int("min");
-				const int max = variable.annotation_as_int("max");
-				set_uniform_value(variable, min + (std::rand() % (max - min + 1)));
-				break;
-			}
-			case special_uniform::ping_pong:
-			{
-				const float min = variable.annotation_as_float("min");
-				const float max = variable.annotation_as_float("max");
-				const float step_min = variable.annotation_as_float("step", 0);
-				const float step_max = variable.annotation_as_float("step", 1);
-				float increment = step_max == 0 ? step_min : (step_min + std::fmodf(static_cast<float>(std::rand()), step_max - step_min + 1));
-				const float smoothing = variable.annotation_as_float("smoothing");
-
-				float value[2] = { 0, 0 };
-				get_uniform_value(variable, value, 2);
-				if (value[1] >= 0)
+				case special_uniform::frame_time:
 				{
-					increment = std::max(increment - std::max(0.0f, smoothing - (max - value[0])), 0.05f);
-					increment *= _last_frame_duration.count() * 1e-9f;
-
-					if ((value[0] += increment) >= max)
-						value[0] = max, value[1] = -1;
+					set_uniform_value(variable, _last_frame_duration.count() * 1e-6f, 0.0f, 0.0f, 0.0f);
+					break;
 				}
-				else
+				case special_uniform::frame_count:
 				{
-					increment = std::max(increment - std::max(0.0f, smoothing - (value[0] - min)), 0.05f);
-					increment *= _last_frame_duration.count() * 1e-9f;
-
-					if ((value[0] -= increment) <= min)
-						value[0] = min, value[1] = +1;
-				}
-				set_uniform_value(variable, value, 2);
-				break;
-			}
-			case special_uniform::date:
-			{
-				set_uniform_value(variable, _date, 4);
-				break;
-			}
-			case special_uniform::timer:
-			{
-				set_uniform_value(variable, static_cast<unsigned int>(
-					std::chrono::duration_cast<std::chrono::milliseconds>(_last_present_time - _start_time).count()));
-				break;
-			}
-			case special_uniform::key:
-			{
-				if (const int keycode = variable.annotation_as_int("keycode");
-					keycode > 7 && keycode < 256)
-				{
-					if (const std::string_view mode = variable.annotation_as_string("mode");
-						mode == "toggle" || variable.annotation_as_int("toggle"))
-					{
-						bool current_value = false;
-						get_uniform_value(variable, &current_value, 1);
-						if (_input->is_key_pressed(keycode))
-							set_uniform_value(variable, !current_value);
-					}
-					else if (mode == "press")
-						set_uniform_value(variable, _input->is_key_pressed(keycode));
+					if (variable.type.is_boolean())
+						set_uniform_value(variable, (_framecount % 2) == 0);
 					else
-						set_uniform_value(variable, _input->is_key_down(keycode));
+						set_uniform_value(variable, static_cast<unsigned int>(_framecount % UINT_MAX));
+					break;
 				}
-				break;
-			}
-			case special_uniform::mouse_point:
-				set_uniform_value(variable, _input->mouse_position_x(), _input->mouse_position_y());
-				break;
-			case special_uniform::mouse_delta:
-				set_uniform_value(variable, _input->mouse_movement_delta_x(), _input->mouse_movement_delta_y());
-				break;
-			case special_uniform::mouse_button:
-			{
-				if (const int keycode = variable.annotation_as_int("keycode");
-					keycode >= 0 && keycode < 5)
+				case special_uniform::random:
 				{
-					if (const std::string_view mode = variable.annotation_as_string("mode");
-						mode == "toggle" || variable.annotation_as_int("toggle"))
+					const int min = variable.annotation_as_int("min");
+					const int max = variable.annotation_as_int("max");
+					set_uniform_value(variable, min + (std::rand() % (max - min + 1)));
+					break;
+				}
+				case special_uniform::ping_pong:
+				{
+					const float min = variable.annotation_as_float("min");
+					const float max = variable.annotation_as_float("max");
+					const float step_min = variable.annotation_as_float("step", 0);
+					const float step_max = variable.annotation_as_float("step", 1);
+					float increment = step_max == 0 ? step_min : (step_min + std::fmodf(static_cast<float>(std::rand()), step_max - step_min + 1));
+					const float smoothing = variable.annotation_as_float("smoothing");
+
+					float value[2] = { 0, 0 };
+					get_uniform_value(variable, value, 2);
+					if (value[1] >= 0)
 					{
-						bool current_value = false;
-						get_uniform_value(variable, &current_value, 1);
-						if (_input->is_mouse_button_pressed(keycode))
-							set_uniform_value(variable, !current_value);
+						increment = std::max(increment - std::max(0.0f, smoothing - (max - value[0])), 0.05f);
+						increment *= _last_frame_duration.count() * 1e-9f;
+
+						if ((value[0] += increment) >= max)
+							value[0] = max, value[1] = -1;
 					}
-					else if (mode == "press")
-						set_uniform_value(variable, _input->is_mouse_button_pressed(keycode));
 					else
-						set_uniform_value(variable, _input->is_mouse_button_down(keycode));
+					{
+						increment = std::max(increment - std::max(0.0f, smoothing - (value[0] - min)), 0.05f);
+						increment *= _last_frame_duration.count() * 1e-9f;
+
+						if ((value[0] -= increment) <= min)
+							value[0] = min, value[1] = +1;
+					}
+					set_uniform_value(variable, value, 2);
+					break;
 				}
-				break;
-			}
-			case special_uniform::freepie:
-				if (freepie_io_data data;
-					freepie_io_read(variable.annotation_as_int("index"), &data))
+				case special_uniform::date:
 				{
-					// Assign as float4 array, since float3 arrays are padded to float4 anyway
-					const float array_values[] = {
-						data.yaw, data.pitch, data.roll, 0.0f,
-						data.x, data.y, data.z, 0.0f
-					};
-					set_uniform_value(variable, array_values, 4 * 2);
+					set_uniform_value(variable, _date, 4);
+					break;
 				}
-				break;
-			case special_uniform::overlay_open:
+				case special_uniform::timer:
+				{
+					set_uniform_value(variable, static_cast<unsigned int>(
+						std::chrono::duration_cast<std::chrono::milliseconds>(_last_present_time - _start_time).count()));
+					break;
+				}
+				case special_uniform::key:
+				{
+					if (const int keycode = variable.annotation_as_int("keycode");
+						keycode > 7 && keycode < 256)
+					{
+						if (const std::string_view mode = variable.annotation_as_string("mode");
+							mode == "toggle" || variable.annotation_as_int("toggle"))
+						{
+							bool current_value = false;
+							get_uniform_value(variable, &current_value, 1);
+							if (_input->is_key_pressed(keycode))
+								set_uniform_value(variable, !current_value);
+						}
+						else if (mode == "press")
+							set_uniform_value(variable, _input->is_key_pressed(keycode));
+						else
+							set_uniform_value(variable, _input->is_key_down(keycode));
+					}
+					break;
+					}
+				case special_uniform::mouse_point:
+					set_uniform_value(variable, _input->mouse_position_x(), _input->mouse_position_y());
+					break;
+				case special_uniform::mouse_delta:
+					set_uniform_value(variable, _input->mouse_movement_delta_x(), _input->mouse_movement_delta_y());
+					break;
+				case special_uniform::mouse_button:
+				{
+					if (const int keycode = variable.annotation_as_int("keycode");
+						keycode >= 0 && keycode < 5)
+					{
+						if (const std::string_view mode = variable.annotation_as_string("mode");
+							mode == "toggle" || variable.annotation_as_int("toggle"))
+						{
+							bool current_value = false;
+							get_uniform_value(variable, &current_value, 1);
+							if (_input->is_mouse_button_pressed(keycode))
+								set_uniform_value(variable, !current_value);
+						}
+						else if (mode == "press")
+							set_uniform_value(variable, _input->is_mouse_button_pressed(keycode));
+						else
+							set_uniform_value(variable, _input->is_mouse_button_down(keycode));
+					}
+					break;
+				}
+				case special_uniform::freepie:
+					if (freepie_io_data data;
+						freepie_io_read(variable.annotation_as_int("index"), &data))
+					{
+						// Assign as float4 array, since float3 arrays are padded to float4 anyway
+						const float array_values[] = {
+							data.yaw, data.pitch, data.roll, 0.0f,
+							data.x, data.y, data.z, 0.0f
+						};
+						set_uniform_value(variable, array_values, 4 * 2);
+					}
+					break;
+				case special_uniform::overlay_open:
 #if RESHADE_GUI
-				set_uniform_value(variable, _show_menu);
+					set_uniform_value(variable, _show_menu);
 #endif
-				break;
-			case special_uniform::bufready_depth:
-				set_uniform_value(variable, _has_depth_texture);
-				break;
+					break;
+				case special_uniform::bufready_depth:
+					set_uniform_value(variable, _has_depth_texture);
+					break;
 			}
 		}
 	}
 
 	// Render all enabled techniques
-	for (technique& technique : _techniques)
+	for (technique &technique : _techniques)
 	{
 		if (technique.timeleft > 0)
 		{
@@ -1081,17 +1034,6 @@ void reshade::runtime::update_and_render_effects()
 				disable_technique(technique);
 		}
 
-#if RESHADE_WIREFRAME
-		if ("Wireframe" == technique.name)
-			if(_wireframe_mode)
-				enable_technique(technique);
-			else
-				disable_technique(technique);
-
-		if (_wireframe_mode && "Wireframe" != technique.name)
-			continue;
-#endif
-
 		if (technique.impl == nullptr || !technique.enabled)
 			continue; // Ignore techniques that are not fully loaded or currently disabled
 
@@ -1106,7 +1048,7 @@ void reshade::runtime::update_and_render_effects()
 		save_screenshot(std::wstring(), true);
 }
 
-void reshade::runtime::enable_technique(technique& technique)
+void reshade::runtime::enable_technique(technique &technique)
 {
 	if (!_effects[technique.effect_index].compile_sucess)
 		return; // Cannot enable techniques that failed to compile
@@ -1126,9 +1068,9 @@ void reshade::runtime::enable_technique(technique& technique)
 	if (status_changed) // Increase rendering reference count
 		_effects[technique.effect_index].rendering++;
 }
-void reshade::runtime::disable_technique(technique& technique)
+void reshade::runtime::disable_technique(technique &technique)
 {
-	const bool status_changed = technique.enabled;
+	const bool status_changed =  technique.enabled;
 	technique.enabled = false;
 	technique.timeleft = 0;
 	technique.average_cpu_duration.clear();
@@ -1138,13 +1080,13 @@ void reshade::runtime::disable_technique(technique& technique)
 		_effects[technique.effect_index].rendering--;
 }
 
-void reshade::runtime::subscribe_to_load_config(std::function<void(const ini_file&)> function)
+void reshade::runtime::subscribe_to_load_config(std::function<void(const ini_file &)> function)
 {
 	_load_config_callables.push_back(function);
 
 	function(ini_file::load_cache(_configuration_path));
 }
-void reshade::runtime::subscribe_to_save_config(std::function<void(ini_file&)> function)
+void reshade::runtime::subscribe_to_save_config(std::function<void(ini_file &)> function)
 {
 	_save_config_callables.push_back(function);
 
@@ -1153,7 +1095,7 @@ void reshade::runtime::subscribe_to_save_config(std::function<void(ini_file&)> f
 
 void reshade::runtime::load_config()
 {
-	const ini_file& config = ini_file::load_cache(_configuration_path);
+	const ini_file &config = ini_file::load_cache(_configuration_path);
 
 	config.get("INPUT", "KeyReload", _reload_key_data);
 	config.get("INPUT", "KeyEffects", _effects_key_data);
@@ -1161,11 +1103,6 @@ void reshade::runtime::load_config()
 	config.get("INPUT", "KeyPreviousPreset", _prev_preset_key_data);
 	config.get("INPUT", "KeyNextPreset", _next_preset_key_data);
 	config.get("INPUT", "ForceShortcutModifiers", _force_shortcut_modifiers);
-
-#if RESHADE_WIREFRAME
-	config.get("WIREFRAME", "KeyWireframe", _wireframe_key_data);
-	config.get("WIREFRAME", "WireframeWarmupDelay", _wireframe_mode_warmup_delay);
-#endif
 
 	config.get("GENERAL", "PerformanceMode", _performance_mode);
 	config.get("GENERAL", "EffectSearchPaths", _effect_search_paths);
@@ -1198,12 +1135,12 @@ void reshade::runtime::load_config()
 	else // Select a default preset file if none exists yet
 		_current_preset_path = g_target_executable_path.parent_path() / L"DefaultPreset.ini";
 
-	for (const auto& callback : _load_config_callables)
+	for (const auto &callback : _load_config_callables)
 		callback(config);
 }
 void reshade::runtime::save_config() const
 {
-	ini_file& config = ini_file::load_cache(_configuration_path);
+	ini_file &config = ini_file::load_cache(_configuration_path);
 
 	config.set("INPUT", "KeyReload", _reload_key_data);
 	config.set("INPUT", "KeyEffects", _effects_key_data);
@@ -1211,11 +1148,6 @@ void reshade::runtime::save_config() const
 	config.set("INPUT", "KeyPreviousPreset", _prev_preset_key_data);
 	config.set("INPUT", "KeyNextPreset", _next_preset_key_data);
 	config.set("INPUT", "ForceShortcutModifiers", _force_shortcut_modifiers);
-
-#if RESHADE_WIREFRAME
-	config.set("WIREFRAME", "KeyWireframe", _wireframe_key_data);
-	config.set("WIREFRAME", "WireframeWarmupDelay", _wireframe_mode_warmup_delay);
-#endif
 
 	config.set("GENERAL", "PerformanceMode", _performance_mode);
 	config.set("GENERAL", "EffectSearchPaths", _effect_search_paths);
@@ -1232,7 +1164,7 @@ void reshade::runtime::save_config() const
 	config.set("GENERAL", "NoDebugInfo", _no_debug_info);
 	config.set("GENERAL", "NoReloadOnInit", _no_reload_on_init);
 
-	for (const auto& callback : _save_config_callables)
+	for (const auto &callback : _save_config_callables)
 		callback(config);
 }
 
@@ -1241,7 +1173,7 @@ void reshade::runtime::load_current_preset()
 	_preset_save_success = true;
 
 	reshade::ini_file config = ini_file::load_cache(_configuration_path); // Copy config, because reference becomes invalid in the next line
-	const reshade::ini_file& preset = ini_file::load_cache(_current_preset_path);
+	const reshade::ini_file &preset = ini_file::load_cache(_current_preset_path);
 
 	std::vector<std::string> technique_list;
 	preset.get({}, "Techniques", technique_list);
@@ -1266,9 +1198,9 @@ void reshade::runtime::load_current_preset()
 
 	// Reorder techniques
 	std::sort(_techniques.begin(), _techniques.end(),
-		[&sorted_technique_list](const auto& lhs, const auto& rhs) {
+		[&sorted_technique_list](const auto &lhs, const auto &rhs) {
 			return (std::find(sorted_technique_list.begin(), sorted_technique_list.end(), lhs.name) - sorted_technique_list.begin()) <
-				(std::find(sorted_technique_list.begin(), sorted_technique_list.end(), rhs.name) - sorted_technique_list.begin());
+			       (std::find(sorted_technique_list.begin(), sorted_technique_list.end(), rhs.name) - sorted_technique_list.begin());
 		});
 
 	// Compute times since the transition has started and how much is left till it should end
@@ -1279,9 +1211,9 @@ void reshade::runtime::load_current_preset()
 	if (_is_in_between_presets_transition && transition_ms_left <= 0)
 		_is_in_between_presets_transition = false;
 
-	for (effect& effect : _effects)
+	for (effect &effect : _effects)
 	{
-		for (uniform& variable : effect.uniforms)
+		for (uniform &variable : effect.uniforms)
 		{
 			if (variable.special != special_uniform::none)
 				continue;
@@ -1333,7 +1265,7 @@ void reshade::runtime::load_current_preset()
 		}
 	}
 
-	for (technique& technique : _techniques)
+	for (technique &technique : _techniques)
 	{
 		// Ignore preset if "enabled" annotation is set
 		if (technique.annotation_as_int("enabled")
@@ -1352,7 +1284,7 @@ void reshade::runtime::load_current_preset()
 }
 void reshade::runtime::save_current_preset() const
 {
-	reshade::ini_file& preset = ini_file::load_cache(_current_preset_path);
+	reshade::ini_file &preset = ini_file::load_cache(_current_preset_path);
 
 	// Build list of active techniques and effects
 	std::vector<std::string> technique_list, sorted_technique_list;
@@ -1361,7 +1293,7 @@ void reshade::runtime::save_current_preset() const
 	technique_list.reserve(_techniques.size());
 	sorted_technique_list.reserve(_techniques.size());
 
-	for (const technique& technique : _techniques)
+	for (const technique &technique : _techniques)
 	{
 		if (technique.enabled)
 			technique_list.push_back(technique.name);
@@ -1387,9 +1319,9 @@ void reshade::runtime::save_current_preset() const
 		if (effect_list.find(effect_index) == effect_list.end())
 			continue;
 
-		const effect& effect = _effects[effect_index];
+		const effect &effect = _effects[effect_index];
 
-		for (const uniform& variable : effect.uniforms)
+		for (const uniform &variable : effect.uniforms)
 		{
 			if (variable.special != special_uniform::none)
 				continue;
@@ -1427,7 +1359,7 @@ void reshade::runtime::save_current_preset() const
 	}
 }
 
-bool reshade::runtime::switch_to_next_preset(const std::filesystem::path& filter_path, bool reversed)
+bool reshade::runtime::switch_to_next_preset(const std::filesystem::path &filter_path, bool reversed)
 {
 	std::error_code ec; // This is here to ignore file system errors below
 
@@ -1442,7 +1374,7 @@ bool reshade::runtime::switch_to_next_preset(const std::filesystem::path& filter
 	size_t current_preset_index = std::numeric_limits<size_t>::max();
 	std::vector<std::filesystem::path> preset_paths;
 
-	for (const auto& entry : std::filesystem::directory_iterator(search_path, std::filesystem::directory_options::skip_permission_denied, ec))
+	for (const auto &entry : std::filesystem::directory_iterator(search_path, std::filesystem::directory_options::skip_permission_denied, ec))
 	{
 		// Skip anything that is not a valid preset file
 		if (!check_preset_path(entry.path()))
@@ -1485,7 +1417,7 @@ bool reshade::runtime::switch_to_next_preset(const std::filesystem::path& filter
 	return true;
 }
 
-void reshade::runtime::save_screenshot(const std::wstring& postfix, const bool should_save_preset)
+void reshade::runtime::save_screenshot(const std::wstring &postfix, const bool should_save_preset)
 {
 	const int hour = _date[3] / 3600;
 	const int minute = (_date[3] - hour * 3600) / 60;
@@ -1503,10 +1435,10 @@ void reshade::runtime::save_screenshot(const std::wstring& postfix, const bool s
 
 	if (std::vector<uint8_t> data(_width * _height * 4); capture_screenshot(data.data()))
 	{
-		if (FILE* file; _wfopen_s(&file, screenshot_path.c_str(), L"wb") == 0)
+		if (FILE *file; _wfopen_s(&file, screenshot_path.c_str(), L"wb") == 0)
 		{
-			const auto write_callback = [](void* context, void* data, int size) {
-				fwrite(data, 1, size, static_cast<FILE*>(context));
+			const auto write_callback = [](void *context, void *data, int size) {
+				fwrite(data, 1, size, static_cast<FILE *>(context));
 			};
 
 			switch (_screenshot_format)
@@ -1537,7 +1469,7 @@ void reshade::runtime::save_screenshot(const std::wstring& postfix, const bool s
 	}
 }
 
-static inline bool force_floating_point_value(const reshadefx::type& type, uint32_t renderer_id)
+static inline bool force_floating_point_value(const reshadefx::type &type, uint32_t renderer_id)
 {
 	if (renderer_id == 0x9000)
 		return true; // All uniform variables are floating-point in D3D9
@@ -1546,112 +1478,129 @@ static inline bool force_floating_point_value(const reshadefx::type& type, uint3
 	return false;
 }
 
-void reshade::runtime::get_uniform_value(const uniform& variable, uint8_t* data, size_t size) const
+void reshade::runtime::get_uniform_value(const uniform &variable, uint8_t *data, size_t size) const
 {
-	assert(data != nullptr);
-
 	size = std::min(size, static_cast<size_t>(variable.size));
+	assert(data != nullptr && (size % 4) == 0);
 
-	auto& data_storage = _effects[variable.effect_index].uniform_data_storage;
+	auto &data_storage = _effects[variable.effect_index].uniform_data_storage;
 	assert(variable.offset + size <= data_storage.size());
 
 	if (variable.type.is_matrix())
 	{
-		assert((size % 4) == 0);
-
-		// Each row of a matrix is 16-byte aligned, so needs special handling
-		for (size_t row = 0, i = 0; row < variable.type.rows; ++row)
-			for (size_t col = 0; i < (size / 4), col < variable.type.cols; ++col, ++i)
-				std::memcpy(data + (row * variable.type.cols + col) * 4, data_storage.data() + variable.offset + (row * 4 + col) * 4, 4);
+		size_t array_length = (variable.type.is_array() ? variable.type.array_length : 1);
+		for (size_t a = 0, i = 0; a < array_length; ++a)
+			// Each row of a matrix is 16-byte aligned, so needs special handling
+			for (size_t row = 0; row < variable.type.rows; ++row)
+				for (size_t col = 0; i < (size / 4) && col < variable.type.cols; ++col, ++i)
+					std::memcpy(
+						data + (a * variable.type.components() + (row * variable.type.cols + col)) * 4,
+						data_storage.data() + variable.offset + (a * (variable.type.rows * 4) + (row * 4 + col)) * 4, 4);
+	}
+	else if (variable.type.is_array())
+	{
+		for (size_t a = 0, i = 0; a < variable.type.array_length; ++a)
+			// Each element in the array is 16-byte aligned, so needs special handling
+			for (size_t row = 0; i < (size / 4) && row < variable.type.rows; ++row, ++i)
+				std::memcpy(
+					data + (a * variable.type.components() + row) * 4,
+					data_storage.data() + variable.offset + (a * 4 + row) * 4, 4);
 	}
 	else
 	{
 		std::memcpy(data, data_storage.data() + variable.offset, size);
 	}
 }
-void reshade::runtime::get_uniform_value(const uniform& variable, bool* values, size_t count) const
+void reshade::runtime::get_uniform_value(const uniform &variable, bool *values, size_t count) const
 {
 	count = std::min(count, static_cast<size_t>(variable.size / 4));
-
 	assert(values != nullptr);
 
-	const auto data = static_cast<uint8_t*>(alloca(variable.size));
+	const auto data = static_cast<uint8_t *>(alloca(variable.size));
 	get_uniform_value(variable, data, variable.size);
 
 	for (size_t i = 0; i < count; i++)
-		values[i] = reinterpret_cast<const uint32_t*>(data)[i] != 0;
+		values[i] = reinterpret_cast<const uint32_t *>(data)[i] != 0;
 }
-void reshade::runtime::get_uniform_value(const uniform& variable, int32_t* values, size_t count) const
+void reshade::runtime::get_uniform_value(const uniform &variable, int32_t *values, size_t count) const
 {
 	if (variable.type.is_integral() && !force_floating_point_value(variable.type, _renderer_id))
 	{
-		get_uniform_value(variable, reinterpret_cast<uint8_t*>(values), count * sizeof(int32_t));
+		get_uniform_value(variable, reinterpret_cast<uint8_t *>(values), count * sizeof(int32_t));
 		return;
 	}
 
-	count = std::min(count, variable.size / sizeof(float));
-
+	count = std::min(count, static_cast<size_t>(variable.size / 4));
 	assert(values != nullptr);
 
-	const auto data = static_cast<uint8_t*>(alloca(variable.size));
+	const auto data = static_cast<uint8_t *>(alloca(variable.size));
 	get_uniform_value(variable, data, variable.size);
 
 	for (size_t i = 0; i < count; i++)
-		values[i] = static_cast<int32_t>(reinterpret_cast<const float*>(data)[i]);
+		values[i] = static_cast<int32_t>(reinterpret_cast<const float *>(data)[i]);
 }
-void reshade::runtime::get_uniform_value(const uniform& variable, uint32_t* values, size_t count) const
+void reshade::runtime::get_uniform_value(const uniform &variable, uint32_t *values, size_t count) const
 {
-	get_uniform_value(variable, reinterpret_cast<int32_t*>(values), count);
+	get_uniform_value(variable, reinterpret_cast<int32_t *>(values), count);
 }
-void reshade::runtime::get_uniform_value(const uniform& variable, float* values, size_t count) const
+void reshade::runtime::get_uniform_value(const uniform &variable, float *values, size_t count) const
 {
 	if (variable.type.is_floating_point() || force_floating_point_value(variable.type, _renderer_id))
 	{
-		get_uniform_value(variable, reinterpret_cast<uint8_t*>(values), count * sizeof(float));
+		get_uniform_value(variable, reinterpret_cast<uint8_t *>(values), count * sizeof(float));
 		return;
 	}
 
-	count = std::min(count, variable.size / sizeof(int32_t));
-
+	count = std::min(count, static_cast<size_t>(variable.size / 4));
 	assert(values != nullptr);
 
-	const auto data = static_cast<uint8_t*>(alloca(variable.size));
+	const auto data = static_cast<uint8_t *>(alloca(variable.size));
 	get_uniform_value(variable, data, variable.size);
 
 	for (size_t i = 0; i < count; ++i)
 		if (variable.type.is_signed())
-			values[i] = static_cast<float>(reinterpret_cast<const int32_t*>(data)[i]);
+			values[i] = static_cast<float>(reinterpret_cast<const int32_t *>(data)[i]);
 		else
-			values[i] = static_cast<float>(reinterpret_cast<const uint32_t*>(data)[i]);
+			values[i] = static_cast<float>(reinterpret_cast<const uint32_t *>(data)[i]);
 }
-void reshade::runtime::set_uniform_value(uniform& variable, const uint8_t* data, size_t size)
+void reshade::runtime::set_uniform_value(uniform &variable, const uint8_t *data, size_t size)
 {
-	assert(data != nullptr);
-
 	size = std::min(size, static_cast<size_t>(variable.size));
+	assert(data != nullptr && (size % 4) == 0);
 
-	auto& data_storage = _effects[variable.effect_index].uniform_data_storage;
+	auto &data_storage = _effects[variable.effect_index].uniform_data_storage;
 	assert(variable.offset + size <= data_storage.size());
 
 	if (variable.type.is_matrix())
 	{
-		assert((size % 4) == 0);
-
-		// Each row of a matrix is 16-byte aligned, so needs special handling
-		for (size_t row = 0, i = 0; row < variable.type.rows; ++row)
-			for (size_t col = 0; i < (size / 4), col < variable.type.cols; ++col, ++i)
-				std::memcpy(data_storage.data() + variable.offset + (row * 4 + col) * 4, data + (row * variable.type.cols + col) * 4, 4);
+		size_t array_length = (variable.type.is_array() ? variable.type.array_length : 1);
+		for (size_t a = 0, i = 0; a < array_length; ++a)
+			// Each row of a matrix is 16-byte aligned, so needs special handling
+			for (size_t row = 0; row < variable.type.rows; ++row)
+				for (size_t col = 0; i < (size / 4) && col < variable.type.cols; ++col, ++i)
+					std::memcpy(
+						data_storage.data() + variable.offset + (a * variable.type.rows * 4 + (row * 4 + col)) * 4,
+						data + (a * variable.type.components() + (row * variable.type.cols + col)) * 4, 4);
+	}
+	else if (variable.type.is_array())
+	{
+		for (size_t a = 0, i = 0; a < variable.type.array_length; ++a)
+			// Each element in the array is 16-byte aligned, so needs special handling
+			for (size_t row = 0; i < (size / 4) && row < variable.type.rows; ++row, ++i)
+				std::memcpy(
+					data_storage.data() + variable.offset + (a * 4 + row) * 4,
+					data + (a * variable.type.components() + row) * 4, 4);
 	}
 	else
 	{
 		std::memcpy(data_storage.data() + variable.offset, data, size);
 	}
 }
-void reshade::runtime::set_uniform_value(uniform& variable, const bool* values, size_t count)
+void reshade::runtime::set_uniform_value(uniform &variable, const bool *values, size_t count)
 {
 	if (variable.type.is_floating_point() || force_floating_point_value(variable.type, _renderer_id))
 	{
-		const auto data = static_cast<float*>(alloca(count * sizeof(float)));
+		const auto data = static_cast<float *>(alloca(count * sizeof(float)));
 		for (size_t i = 0; i < count; ++i)
 			data[i] = values[i] ? 1.0f : 0.0f;
 
@@ -1659,102 +1608,79 @@ void reshade::runtime::set_uniform_value(uniform& variable, const bool* values, 
 	}
 	else
 	{
-		const auto data = static_cast<uint32_t*>(alloca(count * sizeof(uint32_t)));
+		const auto data = static_cast<uint32_t *>(alloca(count * sizeof(uint32_t)));
 		for (size_t i = 0; i < count; ++i)
 			data[i] = values[i] ? 1 : 0;
 
 		set_uniform_value(variable, data, count * sizeof(uint32_t));
 	}
 }
-void reshade::runtime::set_uniform_value(uniform& variable, const int32_t* values, size_t count)
+void reshade::runtime::set_uniform_value(uniform &variable, const int32_t *values, size_t count)
 {
 	if (variable.type.is_floating_point() || force_floating_point_value(variable.type, _renderer_id))
 	{
-		const auto data = static_cast<float*>(alloca(count * sizeof(float)));
+		const auto data = static_cast<float *>(alloca(count * sizeof(float)));
 		for (size_t i = 0; i < count; ++i)
 			data[i] = static_cast<float>(values[i]);
 
-		set_uniform_value(variable, reinterpret_cast<const uint8_t*>(data), count * sizeof(float));
+		set_uniform_value(variable, reinterpret_cast<const uint8_t *>(data), count * sizeof(float));
 	}
 	else
 	{
-		set_uniform_value(variable, reinterpret_cast<const uint8_t*>(values), count * sizeof(int32_t));
+		set_uniform_value(variable, reinterpret_cast<const uint8_t *>(values), count * sizeof(int32_t));
 	}
 }
-void reshade::runtime::set_uniform_value(uniform& variable, const uint32_t* values, size_t count)
+void reshade::runtime::set_uniform_value(uniform &variable, const uint32_t *values, size_t count)
 {
 	if (variable.type.is_floating_point() || force_floating_point_value(variable.type, _renderer_id))
 	{
-		const auto data = static_cast<float*>(alloca(count * sizeof(float)));
+		const auto data = static_cast<float *>(alloca(count * sizeof(float)));
 		for (size_t i = 0; i < count; ++i)
 			data[i] = static_cast<float>(values[i]);
 
-		set_uniform_value(variable, reinterpret_cast<const uint8_t*>(data), count * sizeof(float));
+		set_uniform_value(variable, reinterpret_cast<const uint8_t *>(data), count * sizeof(float));
 	}
 	else
 	{
-		set_uniform_value(variable, reinterpret_cast<const uint8_t*>(values), count * sizeof(uint32_t));
+		set_uniform_value(variable, reinterpret_cast<const uint8_t *>(values), count * sizeof(uint32_t));
 	}
 }
-void reshade::runtime::set_uniform_value(uniform& variable, const float* values, size_t count)
+void reshade::runtime::set_uniform_value(uniform &variable, const float *values, size_t count)
 {
 	if (variable.type.is_floating_point() || force_floating_point_value(variable.type, _renderer_id))
 	{
-		set_uniform_value(variable, reinterpret_cast<const uint8_t*>(values), count * sizeof(float));
+		set_uniform_value(variable, reinterpret_cast<const uint8_t *>(values), count * sizeof(float));
 	}
 	else
 	{
-		const auto data = static_cast<int32_t*>(alloca(count * sizeof(int32_t)));
+		const auto data = static_cast<int32_t *>(alloca(count * sizeof(int32_t)));
 		for (size_t i = 0; i < count; ++i)
 			data[i] = static_cast<int32_t>(values[i]);
 
-		set_uniform_value(variable, reinterpret_cast<const uint8_t*>(data), count * sizeof(int32_t));
+		set_uniform_value(variable, reinterpret_cast<const uint8_t *>(data), count * sizeof(int32_t));
 	}
 }
 
-void reshade::runtime::reset_uniform_value(uniform& variable)
+void reshade::runtime::reset_uniform_value(uniform &variable)
 {
-	auto& data_storage = _effects[variable.effect_index].uniform_data_storage;
-
+	auto &data_storage = _effects[variable.effect_index].uniform_data_storage;
 	if (!variable.has_initializer_value)
 	{
 		std::memset(data_storage.data() + variable.offset, 0, variable.size);
 		return;
 	}
 
-	switch (variable.type.base)
+	const size_t array_length = (variable.type.is_array() ? variable.type.array_length : 1);
+	const size_t component_data_size = variable.type.components() * array_length * 4;
+
+	// Append all initializers together to get tightly packed component data, which is then properly aligned in 'set_uniform_value'
+	const auto data = static_cast<uint8_t *>(alloca(component_data_size));
+	for (size_t i = 0; i < array_length; ++i)
 	{
-	case reshadefx::type::t_int:
-		set_uniform_value(variable, variable.initializer_value.as_int, variable.type.components());
-		break;
-	case reshadefx::type::t_bool:
-	case reshadefx::type::t_uint:
-		set_uniform_value(variable, variable.initializer_value.as_uint, variable.type.components());
-		break;
-	case reshadefx::type::t_float:
-		set_uniform_value(variable, variable.initializer_value.as_float, variable.type.components());
-		break;
+		const reshadefx::constant &value = variable.type.is_array() ? variable.initializer_value.array_data[i] : variable.initializer_value;
+
+		std::memcpy(data + variable.type.components() * 4 * i, value.as_uint, variable.type.components() * 4);
 	}
+
+	set_uniform_value(variable, data, component_data_size);
 }
-
-#if RESHADE_WIREFRAME
-void reshade::runtime::init_wireframe_effect_file(std::filesystem::path configuration_path, std::filesystem::path effect_path)
-{
-	std::filesystem::path wireframe_effect_file_path;
-	std::ofstream wireframe_effect_file;
-
-	effect_path = absolute_path(effect_path);
-
-	if (std::error_code ec; !std::filesystem::exists(effect_path, ec))
-		wireframe_effect_file_path = configuration_path.parent_path() / L"Wireframe.fx";
-	else
-		wireframe_effect_file_path = effect_path / L"Wireframe.fx";
-
-	// create wireframe effect file from resource
-	const resources::data_resource wireframe_fx = resources::load_data_resource(IDR_EFFECT_WIREFRAME);
-
-	wireframe_effect_file.open(absolute_path(wireframe_effect_file_path), std::ios::out | std::ios::binary);
-	wireframe_effect_file.write((char*)wireframe_fx.data, wireframe_fx.data_size);
-	wireframe_effect_file.close();
-}
-#endif

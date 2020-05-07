@@ -294,6 +294,16 @@ namespace reshadefx
 	protected:
 		id make_id() { return _next_id++; }
 
+		static uint32_t align_up(uint32_t size, uint32_t alignment)
+		{
+			alignment -= 1;
+			return ((size + alignment) & ~alignment);
+		}
+		static uint32_t align_up(uint32_t size, uint32_t alignment, uint32_t elements)
+		{
+			return align_up(size, alignment) * (elements - 1) + size;
+		}
+
 		module _module;
 		std::vector<struct_info> _structs;
 		std::vector<std::unique_ptr<function_info>> _functions;

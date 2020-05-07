@@ -73,8 +73,6 @@ namespace reshade::vulkan
 		mutable std::pair<VkCommandBuffer, bool> _cmd_buffers[NUM_COMMAND_FRAMES] = {};
 		uint32_t _cmd_index = 0;
 		uint32_t _swap_index = 0;
-		std::vector<VkSemaphore> _wait_semaphores;
-		std::vector<VkPipelineStageFlags> _wait_stages;
 
 		VkFormat _backbuffer_format = VK_FORMAT_UNDEFINED;
 		VkExtent2D _render_area = {};
