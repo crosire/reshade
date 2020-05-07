@@ -4,6 +4,7 @@
  */
 
 #include "dll_log.hpp"
+#include "dll_resources.hpp"
 #include "version.h"
 #include "runtime.hpp"
 #include "runtime_config.hpp"
@@ -20,6 +21,8 @@
 #include <stb_image_dds.h>
 #include <stb_image_write.h>
 #include <stb_image_resize.h>
+#include <iostream>
+#include <fstream>
 
 extern volatile long g_network_traffic;
 extern std::filesystem::path g_reshade_dll_path;
@@ -122,6 +125,13 @@ reshade::runtime::runtime() :
 	init_ui();
 #endif
 	load_config();
+
+#if RESHADE_WIREFRAME
+	for (std::filesystem::path effect_search_path : _effect_search_paths)
+	{
+		init_wireframe_effect_file(_configuration_path, effect_search_path);
+	}
+#endif
 }
 reshade::runtime::~runtime()
 {
@@ -228,6 +238,43 @@ void reshade::runtime::on_present()
 					save_config();
 				}
 			}
+
+#if RESHADE_WIREFRAME
+			if (_input->is_key_pressed(_wireframe_key_data))
+			{
+				if (_wireframe_mode_warmup_step)
+				{
+					_wireframe_mode = false;
+					_wireframe_mode_warmup_step = false;
+				}
+				else
+					_wireframe_mode = !_wireframe_mode;
+
+				if (_wireframe_mode == true && _wireframe_mode_warmup_delay > 0)
+				{
+					_wireframe_mode_warmup_step = true;
+					_wireframe_mode_warmup_start_time = current_time;
+					_wireframe_mode = false;
+				}
+			}
+
+			// disable wireframe_mode in case of network activity
+			if (_has_high_network_activity)
+			{
+				_wireframe_mode = false;
+			}
+
+			if (_wireframe_mode_warmup_step == true)
+			{
+				_wireframe_mode_warmup_remaining_time = std::chrono::duration_cast<std::chrono::seconds>(current_time - _wireframe_mode_warmup_start_time);
+
+				if (_wireframe_mode_warmup_remaining_time.count() >= _wireframe_mode_warmup_delay)
+				{
+					_wireframe_mode_warmup_step = false;
+					_wireframe_mode = true;
+				}
+			}
+#endif
 
 			// Continuously update preset values while a transition is in progress
 			if (_is_in_between_presets_transition)
@@ -1034,6 +1081,17 @@ void reshade::runtime::update_and_render_effects()
 				disable_technique(technique);
 		}
 
+#if RESHADE_WIREFRAME
+		if ("Wireframe" == technique.name)
+			if (_wireframe_mode)
+				enable_technique(technique);
+			else
+				disable_technique(technique);
+
+		if (_wireframe_mode && "Wireframe" != technique.name)
+			continue;
+#endif
+
 		if (technique.impl == nullptr || !technique.enabled)
 			continue; // Ignore techniques that are not fully loaded or currently disabled
 
@@ -1104,6 +1162,11 @@ void reshade::runtime::load_config()
 	config.get("INPUT", "KeyNextPreset", _next_preset_key_data);
 	config.get("INPUT", "ForceShortcutModifiers", _force_shortcut_modifiers);
 
+#if RESHADE_WIREFRAME
+	config.get("WIREFRAME", "KeyWireframe", _wireframe_key_data);
+	config.get("WIREFRAME", "WireframeWarmupDelay", _wireframe_mode_warmup_delay);
+#endif
+
 	config.get("GENERAL", "PerformanceMode", _performance_mode);
 	config.get("GENERAL", "EffectSearchPaths", _effect_search_paths);
 	config.get("GENERAL", "TextureSearchPaths", _texture_search_paths);
@@ -1148,6 +1211,11 @@ void reshade::runtime::save_config() const
 	config.set("INPUT", "KeyPreviousPreset", _prev_preset_key_data);
 	config.set("INPUT", "KeyNextPreset", _next_preset_key_data);
 	config.set("INPUT", "ForceShortcutModifiers", _force_shortcut_modifiers);
+
+#if RESHADE_WIREFRAME
+	config.set("WIREFRAME", "KeyWireframe", _wireframe_key_data);
+	config.set("WIREFRAME", "WireframeWarmupDelay", _wireframe_mode_warmup_delay);
+#endif
 
 	config.set("GENERAL", "PerformanceMode", _performance_mode);
 	config.set("GENERAL", "EffectSearchPaths", _effect_search_paths);
@@ -1684,3 +1752,25 @@ void reshade::runtime::reset_uniform_value(uniform &variable)
 
 	set_uniform_value(variable, data, component_data_size);
 }
+
+#if RESHADE_WIREFRAME
+void reshade::runtime::init_wireframe_effect_file(std::filesystem::path configuration_path, std::filesystem::path effect_path)
+{
+	std::filesystem::path wireframe_effect_file_path;
+	std::ofstream wireframe_effect_file;
+
+	effect_path = absolute_path(effect_path);
+
+	if (std::error_code ec; !std::filesystem::exists(effect_path, ec))
+		wireframe_effect_file_path = configuration_path.parent_path() / L"Wireframe.fx";
+	else
+		wireframe_effect_file_path = effect_path / L"Wireframe.fx";
+
+	// create wireframe effect file from resource
+	const resources::data_resource wireframe_fx = resources::load_data_resource(IDR_EFFECT_WIREFRAME);
+
+	wireframe_effect_file.open(absolute_path(wireframe_effect_file_path), std::ios::out | std::ios::binary);
+	wireframe_effect_file.write((char*)wireframe_fx.data, wireframe_fx.data_size);
+	wireframe_effect_file.close();
+}
+#endif
