@@ -128,6 +128,12 @@ reshade::vulkan::runtime_vk::runtime_vk(VkDevice device, VkPhysicalDevice physic
 	_vendor_id = _device_props.vendorID;
 	_device_id = _device_props.deviceID;
 
+	// NVIDIA has a custom driver version scheme, so extract the proper minor version from it
+	const uint32_t driver_minor_version = _vendor_id == 0x10DE ?
+		(_device_props.driverVersion >> 14) & 0xFF : VK_VERSION_MINOR(_device_props.driverVersion);
+	LOG(INFO) << "Running on " << _device_props.deviceName << " Driver " << VK_VERSION_MAJOR(_device_props.driverVersion) << '.' << driver_minor_version;
+
+	// Find a supported stencil format
 	const VkFormat possible_stencil_formats[] = {
 		VK_FORMAT_S8_UINT,
 		VK_FORMAT_D16_UNORM_S8_UINT,
@@ -135,7 +141,6 @@ reshade::vulkan::runtime_vk::runtime_vk(VkDevice device, VkPhysicalDevice physic
 		VK_FORMAT_D32_SFLOAT_S8_UINT
 	};
 
-	// Find a supported stencil format
 	for (const VkFormat format : possible_stencil_formats)
 	{
 		VkFormatProperties format_props = {};
@@ -191,14 +196,10 @@ reshade::vulkan::runtime_vk::runtime_vk(VkDevice device, VkPhysicalDevice physic
 	}
 
 #if RESHADE_GUI
-	subscribe_to_ui("Vulkan", [this]() {
+	subscribe_to_ui("Vulkan", [this, driver_minor_version]() {
 		// Add some information about the device and driver to the UI
 		ImGui::Text("Vulkan %u.%u.%u", VK_VERSION_MAJOR(_device_props.apiVersion), VK_VERSION_MINOR(_device_props.apiVersion), VK_VERSION_PATCH(_device_props.apiVersion));
-		ImGui::Text("%s Driver %u.%u",
-			_device_props.deviceName,
-			VK_VERSION_MAJOR(_device_props.driverVersion),
-			// NVIDIA has a custom driver version scheme, so extract the proper minor version from it
-			_device_props.vendorID == 0x10DE ? (_device_props.driverVersion >> 14) & 0xFF : VK_VERSION_MINOR(_device_props.driverVersion));
+		ImGui::Text("%s Driver %u.%u", _device_props.deviceName, VK_VERSION_MAJOR(_device_props.driverVersion), driver_minor_version);
 
 #if RESHADE_DEPTH
 		ImGui::Spacing();

@@ -85,9 +85,12 @@ reshade::d3d12::runtime_d3d12::runtime_d3d12(ID3D12Device *device, ID3D12Command
 		if (com_ptr<IDXGIAdapter> dxgi_adapter;
 			SUCCEEDED(factory->EnumAdapterByLuid(luid, IID_PPV_ARGS(&dxgi_adapter))))
 		{
-			DXGI_ADAPTER_DESC desc;
-			if (SUCCEEDED(dxgi_adapter->GetDesc(&desc)))
+			if (DXGI_ADAPTER_DESC desc; SUCCEEDED(dxgi_adapter->GetDesc(&desc)))
+			{
 				_vendor_id = desc.VendorId, _device_id = desc.DeviceId;
+
+				LOG(INFO) << "Running on " << desc.Description;
+			}
 		}
 	}
 
@@ -1690,7 +1693,7 @@ void reshade::d3d12::runtime_d3d12::update_depth_texture_bindings(com_ptr<ID3D12
 	else
 	{
 		// Need to provide a description so descriptor type can be determined
-		// See https://docs.microsoft.com/en-us/windows/win32/api/d3d12/nf-d3d12-id3d12device-createshaderresourceview
+		// See https://docs.microsoft.com/windows/win32/api/d3d12/nf-d3d12-id3d12device-createshaderresourceview
 		view_desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
 		view_desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
 		view_desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;

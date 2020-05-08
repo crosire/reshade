@@ -60,6 +60,11 @@ reshade::d3d9::runtime_d3d9::runtime_d3d9(IDirect3DDevice9 *device, IDirect3DSwa
 	{
 		_vendor_id = adapter_desc.VendorId;
 		_device_id = adapter_desc.DeviceId;
+
+		// Only the last 5 digits represents the version specific to a driver
+		// See https://docs.microsoft.com/windows-hardware/drivers/display/version-numbers-for-display-drivers
+		const DWORD driver_version = LOWORD(adapter_desc.DriverVersion.LowPart) + (HIWORD(adapter_desc.DriverVersion.LowPart) % 10) * 10000;
+		LOG(INFO) << "Running on " << adapter_desc.Description << " Driver " << (driver_version / 100) << '.' << (driver_version % 100);
 	}
 
 	_num_samplers = caps.MaxSimultaneousTextures;
@@ -862,7 +867,7 @@ void reshade::d3d9::runtime_d3d9::render_technique(technique &technique)
 			_device->SetTexture(s, pass_data.sampler_textures[s]);
 
 			// Need to bind textures to vertex shader samplers too
-			// See https://docs.microsoft.com/de-de/windows/win32/direct3d9/vertex-textures-in-vs-3-0
+			// See https://docs.microsoft.com/windows/win32/direct3d9/vertex-textures-in-vs-3-0
 			if (s < 4)
 				_device->SetTexture(D3DVERTEXTEXTURESAMPLER0 + s, pass_data.sampler_textures[s]);
 

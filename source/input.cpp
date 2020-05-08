@@ -361,7 +361,7 @@ void reshade::input::next_frame()
 
 	// Reset any pressed down key states (apart from mouse buttons) that have not been updated for more than 5 seconds
 	// Do not check mouse buttons here, since 'GetAsyncKeyState' always returns the state of the physical mouse buttons, not the logical ones in case they were remapped
-	// See also https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getasynckeystate
+	// See also https://docs.microsoft.com/windows/win32/api/winuser/nf-winuser-getasynckeystate
 	// And time is not tracked for mouse buttons anyway
 	const DWORD time = GetTickCount();
 	for (unsigned int i = 8; i < 256; ++i)
