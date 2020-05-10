@@ -70,7 +70,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::QueryInterface(REFIID riid, void **ppvObj
 	}
 
 	// Note: Objects must have an identity, so use DXGIDevice for IID_IUnknown
-	// See https://docs.microsoft.com/en-us/windows/desktop/com/rules-for-implementing-queryinterface
+	// See https://docs.microsoft.com/windows/desktop/com/rules-for-implementing-queryinterface
 	if (_dxgi_device->check_and_upgrade_interface(riid))
 	{
 		_dxgi_device->AddRef();

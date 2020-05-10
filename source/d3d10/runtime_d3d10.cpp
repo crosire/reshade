@@ -65,9 +65,12 @@ reshade::d3d10::runtime_d3d10::runtime_d3d10(ID3D10Device1 *device, IDXGISwapCha
 		if (com_ptr<IDXGIAdapter> dxgi_adapter;
 			SUCCEEDED(dxgi_device->GetAdapter(&dxgi_adapter)))
 		{
-			DXGI_ADAPTER_DESC desc;
-			if (SUCCEEDED(dxgi_adapter->GetDesc(&desc)))
+			if (DXGI_ADAPTER_DESC desc; SUCCEEDED(dxgi_adapter->GetDesc(&desc)))
+			{
 				_vendor_id = desc.VendorId, _device_id = desc.DeviceId;
+
+				LOG(INFO) << "Running on " << desc.Description;
+			}
 		}
 	}
 

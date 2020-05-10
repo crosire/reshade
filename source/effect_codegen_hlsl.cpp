@@ -441,7 +441,7 @@ private:
 			if (info.type.is_array())
 				info.size = align_up(info.size, 16, info.type.array_length);
 
-			// Data is packed into 4-byte boundaries (see https://docs.microsoft.com/en-us/windows/win32/direct3dhlsl/dx-graphics-hlsl-packing-rules)
+			// Data is packed into 4-byte boundaries (see https://docs.microsoft.com/windows/win32/direct3dhlsl/dx-graphics-hlsl-packing-rules)
 			// This is already guaranteed, since all types are at least 4-byte in size
 			info.offset = _module.total_uniform_size;
 			// Additionally, HLSL packs data so that it does not cross a 16-byte boundary
@@ -1367,7 +1367,7 @@ private:
 		{
 			// HLSL compiler doesn't handle discard like a shader kill
 			// Add a return statement to exit functions in case discard is the last control flow statement
-			// See https://docs.microsoft.com/en-us/windows/win32/direct3dhlsl/discard--sm4---asm-
+			// See https://docs.microsoft.com/windows/win32/direct3dhlsl/discard--sm4---asm-
 			code += "\treturn ";
 			write_constant(code, return_type, constant());
 			code += ";\n";
