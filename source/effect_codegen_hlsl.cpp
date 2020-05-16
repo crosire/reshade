@@ -591,19 +591,30 @@ private:
 		define_name<naming::general>(ret, "ret");
 
 		std::string position_variable_name;
+		{
+			if (func.return_type.is_struct() && !is_ps)
+			{
+				// If this function returns a struct which contains a position output, keep track of its member name
+				for (const auto &member : find_struct(func.return_type.definition).member_list)
+					if (is_position_semantic(member.semantic))
+						position_variable_name = id_to_name(ret) + '.' + member.name;
+			}
 
-		if (func.return_type.is_struct() && !is_ps)
-			// If this function returns a struct which contains a position output, keep track of its member name
-			for (const auto &member : find_struct(func.return_type.definition).member_list)
-				if (is_position_semantic(member.semantic))
-					position_variable_name = id_to_name(ret) + '.' + member.name;
-		if (is_color_semantic(func.return_semantic))
-			// The COLOR output semantic has to be a four-component vector in shader model 3, so enforce that
-			entry_point.return_type.rows = 4;
-		else if (is_position_semantic(func.return_semantic) && !is_ps)
-			position_variable_name = id_to_name(ret);
-
+			if (is_color_semantic(func.return_semantic))
+				// The COLOR output semantic has to be a four-component vector in shader model 3, so enforce that
+				entry_point.return_type.rows = 4;
+			else if (is_position_semantic(func.return_semantic) && !is_ps)
+				position_variable_name = id_to_name(ret);
+		}
 		for (auto &param : entry_point.parameter_list)
+		{
+			if (param.type.is_struct() && !is_ps)
+			{
+				for (const auto &member : find_struct(param.type.definition).member_list)
+					if (is_position_semantic(member.semantic))
+						position_variable_name = param.name + '.' + member.name;
+			}
+
 			if (is_color_semantic(param.semantic))
 				param.type.rows = 4;
 			else if (is_position_semantic(param.semantic))
@@ -611,6 +622,7 @@ private:
 					param.semantic = "VPOS";
 				else // Keep track of the position output variable
 					position_variable_name = param.name;
+		}
 
 		define_function({}, entry_point, true);
 		enter_block(create_block());
