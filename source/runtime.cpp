@@ -1486,9 +1486,9 @@ void reshade::runtime::get_uniform_value(const uniform &variable, uint8_t *data,
 	auto &data_storage = _effects[variable.effect_index].uniform_data_storage;
 	assert(variable.offset + size <= data_storage.size());
 
+	const size_t array_length = (variable.type.is_array() ? variable.type.array_length : 1);
 	if (variable.type.is_matrix())
 	{
-		size_t array_length = (variable.type.is_array() ? variable.type.array_length : 1);
 		for (size_t a = 0, i = 0; a < array_length; ++a)
 			// Each row of a matrix is 16-byte aligned, so needs special handling
 			for (size_t row = 0; row < variable.type.rows; ++row)
@@ -1497,9 +1497,9 @@ void reshade::runtime::get_uniform_value(const uniform &variable, uint8_t *data,
 						data + (a * variable.type.components() + (row * variable.type.cols + col)) * 4,
 						data_storage.data() + variable.offset + (a * (variable.type.rows * 4) + (row * 4 + col)) * 4, 4);
 	}
-	else if (variable.type.is_array())
+	else if (array_length > 1)
 	{
-		for (size_t a = 0, i = 0; a < variable.type.array_length; ++a)
+		for (size_t a = 0, i = 0; a < array_length; ++a)
 			// Each element in the array is 16-byte aligned, so needs special handling
 			for (size_t row = 0; i < (size / 4) && row < variable.type.rows; ++row, ++i)
 				std::memcpy(
@@ -1571,9 +1571,9 @@ void reshade::runtime::set_uniform_value(uniform &variable, const uint8_t *data,
 	auto &data_storage = _effects[variable.effect_index].uniform_data_storage;
 	assert(variable.offset + size <= data_storage.size());
 
+	const size_t array_length = (variable.type.is_array() ? variable.type.array_length : 1);
 	if (variable.type.is_matrix())
 	{
-		size_t array_length = (variable.type.is_array() ? variable.type.array_length : 1);
 		for (size_t a = 0, i = 0; a < array_length; ++a)
 			// Each row of a matrix is 16-byte aligned, so needs special handling
 			for (size_t row = 0; row < variable.type.rows; ++row)
@@ -1582,9 +1582,9 @@ void reshade::runtime::set_uniform_value(uniform &variable, const uint8_t *data,
 						data_storage.data() + variable.offset + (a * variable.type.rows * 4 + (row * 4 + col)) * 4,
 						data + (a * variable.type.components() + (row * variable.type.cols + col)) * 4, 4);
 	}
-	else if (variable.type.is_array())
+	else if (array_length > 1)
 	{
-		for (size_t a = 0, i = 0; a < variable.type.array_length; ++a)
+		for (size_t a = 0, i = 0; a < array_length; ++a)
 			// Each element in the array is 16-byte aligned, so needs special handling
 			for (size_t row = 0; i < (size / 4) && row < variable.type.rows; ++row, ++i)
 				std::memcpy(
