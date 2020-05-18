@@ -1011,10 +1011,6 @@ void reshade::d3d10::runtime_d3d10::render_technique(technique &technique)
 		_device->OMSetBlendState(pass_data.blend_state.get(), nullptr, D3D10_DEFAULT_SAMPLE_MASK);
 		_device->OMSetDepthStencilState(pass_data.depth_stencil_state.get(), pass_info.stencil_reference_value);
 
-		// Setup shader resources
-		_device->VSSetShaderResources(0, static_cast<UINT>(pass_data.shader_resources.size()), reinterpret_cast<ID3D10ShaderResourceView *const *>(pass_data.shader_resources.data()));
-		_device->PSSetShaderResources(0, static_cast<UINT>(pass_data.shader_resources.size()), reinterpret_cast<ID3D10ShaderResourceView *const *>(pass_data.shader_resources.data()));
-
 		// Setup render targets
 		if (pass_info.viewport_width == _width && pass_info.viewport_height == _height)
 		{
@@ -1031,6 +1027,11 @@ void reshade::d3d10::runtime_d3d10::render_technique(technique &technique)
 		{
 			_device->OMSetRenderTargets(D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT, reinterpret_cast<ID3D10RenderTargetView *const *>(pass_data.render_targets), nullptr);
 		}
+
+		// Setup shader resources after binding render targets, to ensure any OM bindings by the application are unset at this point
+		// Otherwise a slot referencing a resource still bound to the OM would be filled with NULL, which can happen with the depth buffer (https://docs.microsoft.com/windows/win32/api/d3d10/nf-d3d10-id3d10device-pssetshaderresources)
+		_device->VSSetShaderResources(0, static_cast<UINT>(pass_data.shader_resources.size()), reinterpret_cast<ID3D10ShaderResourceView *const *>(pass_data.shader_resources.data()));
+		_device->PSSetShaderResources(0, static_cast<UINT>(pass_data.shader_resources.size()), reinterpret_cast<ID3D10ShaderResourceView *const *>(pass_data.shader_resources.data()));
 
 		if (pass_info.clear_render_targets)
 		{
