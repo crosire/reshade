@@ -1668,6 +1668,9 @@ void reshade::vulkan::runtime_vk::destroy_texture(texture &texture)
 		return;
 	auto impl = static_cast<vulkan_tex_data *>(texture.impl);
 
+	// Make sure texture is not still in use before destroying it
+	wait_for_command_buffers();
+
 	vmaDestroyImage(_alloc, impl->image, impl->image_mem);
 	if (impl->view[0] != VK_NULL_HANDLE)
 		vk.DestroyImageView(_device, impl->view[0], nullptr);
