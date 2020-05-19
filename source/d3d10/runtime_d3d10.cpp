@@ -279,10 +279,6 @@ void reshade::d3d10::runtime_d3d10::on_present()
 	if (_backbuffer_resolved != _backbuffer)
 		_device->ResolveSubresource(_backbuffer_resolved.get(), 0, _backbuffer.get(), 0, _backbuffer_format);
 
-	// Setup real back buffer
-	auto rtv = _backbuffer_rtv[0].get();
-	_device->OMSetRenderTargets(1, &rtv, nullptr);
-
 	update_and_render_effects();
 	runtime::on_present();
 
