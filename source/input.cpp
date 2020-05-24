@@ -343,19 +343,6 @@ bool reshade::input::is_any_mouse_button_released() const
 	return false;
 }
 
-void reshade::input::block_mouse_input(bool enable)
-{
-	_block_mouse = enable;
-
-	// Some applications clip the mouse cursor, so disable that while we want full control over mouse input
-	if (enable)
-		ClipCursor(nullptr);
-}
-void reshade::input::block_keyboard_input(bool enable)
-{
-	_block_keyboard = enable;
-}
-
 void reshade::input::next_frame()
 {
 	_frame_count++;
@@ -593,6 +580,16 @@ HOOK_EXPORT BOOL WINAPI HookRegisterRawInputDevices(PCRAWINPUTDEVICE pRawInputDe
 }
 
 static POINT last_cursor_position = {};
+
+HOOK_EXPORT BOOL WINAPI HookClipCursor(const RECT *lpRect)
+{
+	if (is_blocking_mouse_input())
+		// Some applications clip the mouse cursor, so disable that while we want full control over mouse input
+		lpRect = nullptr;
+
+	static const auto trampoline = reshade::hooks::call(HookClipCursor);
+	return trampoline(lpRect);
+}
 
 HOOK_EXPORT BOOL WINAPI HookSetCursorPosition(int X, int Y)
 {

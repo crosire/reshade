@@ -65,13 +65,12 @@ namespace reshade
 		/// <summary>
 		/// Set to <c>true</c> to prevent mouse input window messages from reaching the application.
 		/// </summary>
-		void block_mouse_input(bool enable);
+		void block_mouse_input(bool enable) { _block_mouse = enable; }
+		bool is_blocking_mouse_input() const { return _block_mouse; }
 		/// <summary>
 		/// Set to <c>true</c> to prevent keyboard input window messages from reaching the application.
 		/// </summary>
-		void block_keyboard_input(bool enable);
-
-		bool is_blocking_mouse_input() const { return _block_mouse; }
+		void block_keyboard_input(bool enable) { _block_keyboard = enable; }
 		bool is_blocking_keyboard_input() const { return _block_keyboard; }
 
 		/// <summary>
