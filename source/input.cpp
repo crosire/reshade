@@ -129,6 +129,10 @@ bool reshade::input::handle_window_message(const void *message_data)
 	// At this point we have a shared pointer to the input object and no longer reference any memory from the windows list, so can release the lock
 	lock.unlock();
 
+	// It may happen that the input was destroyed between the removal of expired entries above and here, so need to abort in this case
+	if (input == nullptr)
+		return false;
+
 	// Prevent input threads from modifying input while it is accessed elsewhere
 	const std::lock_guard<std::mutex> input_lock = input->lock();
 
