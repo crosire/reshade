@@ -40,7 +40,7 @@ static lockfree_table<VkSurfaceKHR, HWND, 16> s_surface_windows;
 static lockfree_table<VkSwapchainKHR, reshade::vulkan::runtime_vk*, 16> s_vulkan_runtimes;
 static lockfree_table<VkImage, VkImageCreateInfo, 4096> s_image_data;
 static lockfree_table<VkImageView, VkImage, 4096> s_image_view_mapping;
-static lockfree_table<VkFramebuffer, std::vector<VkImage>, 512> s_framebuffer_data;
+static lockfree_table<VkFramebuffer, std::vector<VkImage>, 4096> s_framebuffer_data;
 static lockfree_table<VkCommandBuffer, command_buffer_data, 4096> s_command_buffer_data;
 static lockfree_table<VkRenderPass, std::vector<render_pass_data>, 4096> s_renderpass_data;
 
