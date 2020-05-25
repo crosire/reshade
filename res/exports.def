@@ -431,6 +431,7 @@ EXPORTS
 	PeekMessageW = HookPeekMessageW
 	PostMessageA = HookPostMessageA
 	PostMessageW = HookPostMessageW
+	ClipCursor = HookClipCursor
 	GetCursorPos = HookGetCursorPosition
 	SetCursorPos = HookSetCursorPosition
 
