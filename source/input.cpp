@@ -129,6 +129,10 @@ bool reshade::input::handle_window_message(const void *message_data)
 	// At this point we have a shared pointer to the input object and no longer reference any memory from the windows list, so can release the lock
 	lock.unlock();
 
+	// It may happen that the input was destroyed between the removal of expired entries above and here, so need to abort in this case
+	if (input == nullptr)
+		return false;
+
 	// Prevent input threads from modifying input while it is accessed elsewhere
 	const std::lock_guard<std::mutex> input_lock = input->lock();
 
@@ -337,19 +341,6 @@ bool reshade::input::is_any_mouse_button_released() const
 		if (is_mouse_button_released(i))
 			return true;
 	return false;
-}
-
-void reshade::input::block_mouse_input(bool enable)
-{
-	_block_mouse = enable;
-
-	// Some applications clip the mouse cursor, so disable that while we want full control over mouse input
-	if (enable)
-		ClipCursor(nullptr);
-}
-void reshade::input::block_keyboard_input(bool enable)
-{
-	_block_keyboard = enable;
 }
 
 void reshade::input::next_frame()
@@ -589,6 +580,16 @@ HOOK_EXPORT BOOL WINAPI HookRegisterRawInputDevices(PCRAWINPUTDEVICE pRawInputDe
 }
 
 static POINT last_cursor_position = {};
+
+HOOK_EXPORT BOOL WINAPI HookClipCursor(const RECT *lpRect)
+{
+	if (is_blocking_mouse_input())
+		// Some applications clip the mouse cursor, so disable that while we want full control over mouse input
+		lpRect = nullptr;
+
+	static const auto trampoline = reshade::hooks::call(HookClipCursor);
+	return trampoline(lpRect);
+}
 
 HOOK_EXPORT BOOL WINAPI HookSetCursorPosition(int X, int Y)
 {
