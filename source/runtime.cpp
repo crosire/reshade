@@ -1604,7 +1604,7 @@ void reshade::runtime::set_uniform_value(uniform &variable, const bool *values, 
 		for (size_t i = 0; i < count; ++i)
 			data[i] = values[i] ? 1.0f : 0.0f;
 
-		set_uniform_value(variable, data, count * sizeof(float));
+		set_uniform_value(variable, reinterpret_cast<const uint8_t *>(data), count * sizeof(float));
 	}
 	else
 	{
@@ -1612,7 +1612,7 @@ void reshade::runtime::set_uniform_value(uniform &variable, const bool *values, 
 		for (size_t i = 0; i < count; ++i)
 			data[i] = values[i] ? 1 : 0;
 
-		set_uniform_value(variable, data, count * sizeof(uint32_t));
+		set_uniform_value(variable, reinterpret_cast<const uint8_t *>(data), count * sizeof(uint32_t));
 	}
 }
 void reshade::runtime::set_uniform_value(uniform &variable, const int32_t *values, size_t count)
