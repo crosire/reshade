@@ -285,8 +285,14 @@ com_ptr<ID3D11Texture2D> reshade::d3d11::buffer_detection_context::find_best_dep
 
 	if (override != nullptr)
 	{
+		depthstencil_info *snapshot;
 		best_match = std::move(override);
-		best_snapshot = _counters_per_used_depth_texture[best_match];
+		snapshot = &_counters_per_used_depth_texture[best_match];
+		best_snapshot = *snapshot;
+
+		// fallback => if no rectangle were found, display one instance in the UI
+		if (snapshot->rectangles.empty())
+			snapshot->rectangles.push_back(snapshot->total_stats);
 	}
 	else
 	{
