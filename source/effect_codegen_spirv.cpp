@@ -584,7 +584,7 @@ private:
 			const auto add_spec_constant = [this](const spirv_instruction &inst, const uniform_info &info, const constant &initializer_value, size_t initializer_offset) {
 				assert(inst.op == spv::OpSpecConstant || inst.op == spv::OpSpecConstantTrue || inst.op == spv::OpSpecConstantFalse);
 
-				uint32_t spec_id = static_cast<uint32_t>(_module.spec_constants.size());
+				const uint32_t spec_id = static_cast<uint32_t>(_module.spec_constants.size());
 				add_decoration(inst.result, spv::DecorationSpecId, { spec_id });
 
 				uniform_info scalar_info = info;

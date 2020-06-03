@@ -25,68 +25,50 @@ extern volatile long g_network_traffic;
 extern std::filesystem::path g_reshade_dll_path;
 extern std::filesystem::path g_target_executable_path;
 
-static inline auto absolute_path(std::filesystem::path path)
+bool resolve_path(std::filesystem::path &path)
 {
 	std::error_code ec;
 	// First convert path to an absolute path
+	// Ignore the working directory and instead start relative paths at the DLL location
 	path = std::filesystem::absolute(g_reshade_dll_path.parent_path() / path, ec);
-	// Finally try to canonicalize the path too (this may fail though, so it is optional)
+	// Finally try to canonicalize the path too
 	if (auto canonical_path = std::filesystem::canonical(path, ec); !ec)
 		path = std::move(canonical_path);
-	return path;
+	return !ec; // The canonicalization step fails if the path does not exist
 }
-
-static inline bool check_preset_path(std::filesystem::path preset_path)
+bool resolve_preset_path(std::filesystem::path &path)
 {
 	// First make sure the extension matches, before diving into the file system
-	if (preset_path.extension() != L".ini" && preset_path.extension() != L".txt")
+	if (const std::filesystem::path ext = path.extension();
+		ext != L".ini" && ext != L".txt")
 		return false;
-
-	preset_path = absolute_path(preset_path);
-
-	std::error_code ec;
-	const std::filesystem::file_type file_type = std::filesystem::status(preset_path, ec).type();
-	if (file_type == std::filesystem::file_type::directory || ec.value() == 0x7b) // 0x7b: ERROR_INVALID_NAME
-		return false;
-	if (file_type == std::filesystem::file_type::not_found)
-		return true; // A non-existent path is valid for a new preset
-
-	return reshade::ini_file::load_cache(preset_path).has({}, "Techniques");
+	// A non-existent path is valid for a new preset
+	// Otherwise ensure the file has a technique list, which should make it a preset
+	return !resolve_path(path) || reshade::ini_file::load_cache(path).has({}, "Techniques");
 }
 
 static bool find_file(const std::vector<std::filesystem::path> &search_paths, std::filesystem::path &path)
 {
 	std::error_code ec;
+	// Do not have to perform a search if the path is already absolute
 	if (path.is_absolute())
 		return std::filesystem::exists(path, ec);
-
 	for (std::filesystem::path search_path : search_paths)
-	{
 		// Append relative file path to absolute search path
-		search_path = absolute_path(std::move(search_path)) / path;
-
-		if (std::filesystem::exists(search_path, ec)) {
-			path = std::move(search_path);
-			return true;
-		}
-	}
+		if (search_path /= path; resolve_path(search_path))
+			return path = std::move(search_path), true;
 	return false;
 }
-
 static std::vector<std::filesystem::path> find_files(const std::vector<std::filesystem::path> &search_paths, std::initializer_list<std::filesystem::path> extensions)
 {
 	std::error_code ec;
 	std::vector<std::filesystem::path> files;
 	for (std::filesystem::path search_path : search_paths)
-	{
-		// Ignore the working directory and instead start relative paths at the DLL location
-		search_path = absolute_path(std::move(search_path));
-
-		for (const auto &entry : std::filesystem::directory_iterator(search_path, ec))
-			for (const auto &ext : extensions)
-				if (entry.path().extension() == ext)
-					files.push_back(entry.path());
-	}
+		if (resolve_path(search_path))
+			for (const std::filesystem::directory_entry &entry : std::filesystem::directory_iterator(search_path, std::filesystem::directory_options::skip_permission_denied, ec))
+				if (!entry.is_directory(ec) &&
+					std::find(extensions.begin(), extensions.end(), entry.path().extension()) != extensions.end())
+					files.emplace_back(entry); // Construct path from directory entry in-place
 	return files;
 }
 
@@ -218,7 +200,7 @@ void reshade::runtime::on_present()
 				load_effects();
 
 			if (const bool reversed = _input->is_key_pressed(_prev_preset_key_data, _force_shortcut_modifiers);
-				_input->is_key_pressed(_next_preset_key_data, _force_shortcut_modifiers) || reversed)
+				reversed || _input->is_key_pressed(_next_preset_key_data, _force_shortcut_modifiers))
 			{
 				// The preset shortcut key was pressed down, so start the transition
 				if (switch_to_next_preset(_current_preset_path.parent_path(), reversed))
@@ -272,11 +254,8 @@ bool reshade::runtime::load_effect(const std::filesystem::path &path, size_t ind
 			pp.add_include_path(path.parent_path());
 
 		for (std::filesystem::path include_path : _effect_search_paths)
-		{
-			include_path = absolute_path(include_path);
-			if (!include_path.empty())
+			if (resolve_path(include_path))
 				pp.add_include_path(include_path);
-		}
 
 		pp.add_macro_definition("__RESHADE__", std::to_string(VERSION_MAJOR * 10000 + VERSION_MINOR * 100 + VERSION_REVISION));
 		pp.add_macro_definition("__RESHADE_PERFORMANCE_MODE__", _performance_mode ? "1" : "0");
@@ -667,6 +646,8 @@ void reshade::runtime::load_textures()
 
 void reshade::runtime::unload_effect(size_t index)
 {
+	assert(index < _effects.size());
+
 #if RESHADE_GUI
 	_preview_texture = nullptr;
 #endif
@@ -711,7 +692,8 @@ void reshade::runtime::unload_effects()
 
 	// Make sure no threads are still accessing effect data
 	for (std::thread &thread : _worker_threads)
-		thread.join();
+		if (thread.joinable())
+			thread.join();
 	_worker_threads.clear();
 
 	// Destroy all textures
@@ -736,7 +718,8 @@ void reshade::runtime::update_and_render_effects()
 	{
 		// Clear the thread list now that they all have finished
 		for (std::thread &thread : _worker_threads)
-			thread.join(); // Threads have exited, but still need to join them prior destruction
+			if (thread.joinable())
+				thread.join(); // Threads have exited, but still need to join them prior to destruction
 		_worker_threads.clear();
 
 		// Finished loading effects, so apply preset to figure out which ones need compiling
@@ -1050,6 +1033,8 @@ void reshade::runtime::update_and_render_effects()
 
 void reshade::runtime::enable_technique(technique &technique)
 {
+	assert(technique.effect_index < _effects.size());
+
 	if (!_effects[technique.effect_index].compile_sucess)
 		return; // Cannot enable techniques that failed to compile
 
@@ -1070,6 +1055,8 @@ void reshade::runtime::enable_technique(technique &technique)
 }
 void reshade::runtime::disable_technique(technique &technique)
 {
+	assert(technique.effect_index < _effects.size());
+
 	const bool status_changed =  technique.enabled;
 	technique.enabled = false;
 	technique.timeleft = 0;
@@ -1118,9 +1105,10 @@ void reshade::runtime::load_config()
 	config.get("GENERAL", "NoDebugInfo", _no_debug_info);
 	config.get("GENERAL", "NoReloadOnInit", _no_reload_on_init);
 
+	// Check if the preset uses the new preset path option
 	if (!config.get("GENERAL", "CurrentPresetPath", _current_preset_path))
 	{
-		// Convert legacy preset index to new preset path
+		// Otherwise convert legacy preset index to a single preset path
 		size_t preset_index = 0;
 		std::vector<std::filesystem::path> preset_files;
 		config.get("GENERAL", "PresetFiles", preset_files);
@@ -1130,9 +1118,8 @@ void reshade::runtime::load_config()
 			_current_preset_path = preset_files[preset_index];
 	}
 
-	if (check_preset_path(_current_preset_path))
-		_current_preset_path = g_reshade_dll_path.parent_path() / _current_preset_path;
-	else // Select a default preset file if none exists yet
+	// Use default if the preset file does not exist yet
+	if (!resolve_preset_path(_current_preset_path))
 		_current_preset_path = g_target_executable_path.parent_path() / L"DefaultPreset.ini";
 
 	for (const auto &callback : _load_config_callables)
@@ -1172,8 +1159,8 @@ void reshade::runtime::load_current_preset()
 {
 	_preset_save_success = true;
 
-	reshade::ini_file config = ini_file::load_cache(_configuration_path); // Copy config, because reference becomes invalid in the next line
-	const reshade::ini_file &preset = ini_file::load_cache(_current_preset_path);
+	ini_file config = ini_file::load_cache(_configuration_path); // Copy config, because reference becomes invalid in the next line
+	const ini_file &preset = ini_file::load_cache(_current_preset_path);
 
 	std::vector<std::string> technique_list;
 	preset.get({}, "Techniques", technique_list);
@@ -1198,7 +1185,7 @@ void reshade::runtime::load_current_preset()
 
 	// Reorder techniques
 	std::sort(_techniques.begin(), _techniques.end(),
-		[&sorted_technique_list](const auto &lhs, const auto &rhs) {
+		[&sorted_technique_list](const technique &lhs, const technique &rhs) {
 			return (std::find(sorted_technique_list.begin(), sorted_technique_list.end(), lhs.name) - sorted_technique_list.begin()) <
 			       (std::find(sorted_technique_list.begin(), sorted_technique_list.end(), rhs.name) - sorted_technique_list.begin());
 		});
@@ -1217,10 +1204,7 @@ void reshade::runtime::load_current_preset()
 		{
 			if (variable.special != special_uniform::none)
 				continue;
-
-			unsigned int components = variable.type.components();
 			const std::string section = effect.source_file.filename().u8string();
-			reshadefx::constant values, values_old;
 
 			if (variable.supports_toggle_key())
 			{
@@ -1233,33 +1217,34 @@ void reshade::runtime::load_current_preset()
 				// Reset values to defaults before loading from a new preset
 				reset_uniform_value(variable);
 
+			reshadefx::constant values, values_old;
 			switch (variable.type.base)
 			{
 			case reshadefx::type::t_int:
-				get_uniform_value(variable, values.as_int, components);
+				get_uniform_value(variable, values.as_int, variable.type.components());
 				preset.get(section, variable.name, values.as_int);
-				set_uniform_value(variable, values.as_int, components);
+				set_uniform_value(variable, values.as_int, variable.type.components());
 				break;
 			case reshadefx::type::t_bool:
 			case reshadefx::type::t_uint:
-				get_uniform_value(variable, values.as_uint, components);
+				get_uniform_value(variable, values.as_uint, variable.type.components());
 				preset.get(section, variable.name, values.as_uint);
-				set_uniform_value(variable, values.as_uint, components);
+				set_uniform_value(variable, values.as_uint, variable.type.components());
 				break;
 			case reshadefx::type::t_float:
-				get_uniform_value(variable, values.as_float, components);
+				get_uniform_value(variable, values.as_float, variable.type.components());
 				values_old = values;
 				preset.get(section, variable.name, values.as_float);
 				if (_is_in_between_presets_transition)
 				{
 					// Perform smooth transition on floating point values
-					for (unsigned int i = 0; i < components; i++)
+					for (unsigned int i = 0; i < variable.type.components(); i++)
 					{
 						const auto transition_ratio = (values.as_float[i] - values_old.as_float[i]) / transition_ms_left_from_last_frame;
 						values.as_float[i] = values.as_float[i] - transition_ratio * transition_ms_left;
 					}
 				}
-				set_uniform_value(variable, values.as_float, components);
+				set_uniform_value(variable, values.as_float, variable.type.components());
 				break;
 			}
 		}
@@ -1268,8 +1253,8 @@ void reshade::runtime::load_current_preset()
 	for (technique &technique : _techniques)
 	{
 		// Ignore preset if "enabled" annotation is set
-		if (technique.annotation_as_int("enabled")
-			|| std::find(technique_list.begin(), technique_list.end(), technique.name) != technique_list.end())
+		if (technique.annotation_as_int("enabled") ||
+			std::find(technique_list.begin(), technique_list.end(), technique.name) != technique_list.end())
 			enable_technique(technique);
 		else
 			disable_technique(technique);
@@ -1284,7 +1269,7 @@ void reshade::runtime::load_current_preset()
 }
 void reshade::runtime::save_current_preset() const
 {
-	reshade::ini_file &preset = ini_file::load_cache(_current_preset_path);
+	ini_file &preset = ini_file::load_cache(_current_preset_path);
 
 	// Build list of active techniques and effects
 	std::vector<std::string> technique_list, sorted_technique_list;
@@ -1359,39 +1344,36 @@ void reshade::runtime::save_current_preset() const
 	}
 }
 
-bool reshade::runtime::switch_to_next_preset(const std::filesystem::path &filter_path, bool reversed)
+bool reshade::runtime::switch_to_next_preset(std::filesystem::path filter_path, bool reversed)
 {
 	std::error_code ec; // This is here to ignore file system errors below
 
-	std::filesystem::path filter_text = filter_path.filename();
-	std::filesystem::path search_path = absolute_path(filter_path);
-
-	if (std::filesystem::is_directory(search_path, ec))
-		filter_text.clear();
-	else if (!filter_text.empty())
-		search_path = search_path.parent_path();
+	std::filesystem::path filter_text;
+	if (resolve_path(filter_path); !std::filesystem::is_directory(filter_path, ec))
+		if (filter_text = filter_path.filename(); !filter_text.empty())
+			filter_path = filter_path.parent_path();
 
 	size_t current_preset_index = std::numeric_limits<size_t>::max();
 	std::vector<std::filesystem::path> preset_paths;
 
-	for (const auto &entry : std::filesystem::directory_iterator(search_path, std::filesystem::directory_options::skip_permission_denied, ec))
+	for (std::filesystem::path preset_path : std::filesystem::directory_iterator(filter_path, std::filesystem::directory_options::skip_permission_denied, ec))
 	{
 		// Skip anything that is not a valid preset file
-		if (!check_preset_path(entry.path()))
+		if (!resolve_preset_path(preset_path))
 			continue;
 
 		// Keep track of the index of the current preset in the list of found preset files that is being build
-		if (std::filesystem::equivalent(entry, _current_preset_path, ec)) {
+		if (std::filesystem::equivalent(preset_path, _current_preset_path, ec)) {
 			current_preset_index = preset_paths.size();
-			preset_paths.push_back(entry);
+			preset_paths.push_back(std::move(preset_path));
 			continue;
 		}
 
-		const std::wstring preset_name = entry.path().stem();
+		const std::wstring preset_name = preset_path.stem();
 		// Only add those files that are matching the filter text
 		if (filter_text.empty() || std::search(preset_name.begin(), preset_name.end(), filter_text.native().begin(), filter_text.native().end(),
 			[](wchar_t c1, wchar_t c2) { return towlower(c1) == towlower(c2); }) != preset_name.end())
-			preset_paths.push_back(entry);
+			preset_paths.push_back(std::move(preset_path));
 	}
 
 	if (preset_paths.begin() == preset_paths.end())
