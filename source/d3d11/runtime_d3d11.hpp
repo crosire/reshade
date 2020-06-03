@@ -89,7 +89,9 @@ namespace reshade::d3d11
 
 		bool _filter_aspect_ratio = true;
 		bool _preserve_depth_buffers = false;
+		bool _preserve_hidden_depth_buffers = false;
 		UINT _depth_clear_index_override = std::numeric_limits<UINT>::max();
+		UINT _depth_hidden_by_rectangle_index_override = std::numeric_limits<UINT>::max();
 		ID3D11Texture2D *_depth_texture_override = nullptr;
 #endif
 	};

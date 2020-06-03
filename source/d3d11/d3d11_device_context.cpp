@@ -8,7 +8,7 @@
 #include "d3d11_device_context.hpp"
 #include "d3d11_command_list.hpp"
 
-D3D11DeviceContext::D3D11DeviceContext(D3D11Device *device, ID3D11DeviceContext  *original) :
+D3D11DeviceContext::D3D11DeviceContext(D3D11Device *device, ID3D11DeviceContext *original) :
 	_orig(original),
 	_interface_version(0),
 	_device(device),
@@ -159,11 +159,13 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::VSSetShader(ID3D11VertexShader *pV
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::DrawIndexed(UINT IndexCount, UINT StartIndexLocation, INT BaseVertexLocation)
 {
+	_buffer_detection.before_draw(IndexCount);
 	_orig->DrawIndexed(IndexCount, StartIndexLocation, BaseVertexLocation);
 	_buffer_detection.on_draw(IndexCount);
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::Draw(UINT VertexCount, UINT StartVertexLocation)
 {
+	_buffer_detection.before_draw(VertexCount);
 	_orig->Draw(VertexCount, StartVertexLocation);
 	_buffer_detection.on_draw(VertexCount);
 }
@@ -193,11 +195,13 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::IASetIndexBuffer(ID3D11Buffer *pIn
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::DrawIndexedInstanced(UINT IndexCountPerInstance, UINT InstanceCount, UINT StartIndexLocation, INT BaseVertexLocation, UINT StartInstanceLocation)
 {
+	_buffer_detection.before_draw(IndexCountPerInstance * InstanceCount);
 	_orig->DrawIndexedInstanced(IndexCountPerInstance, InstanceCount, StartIndexLocation, BaseVertexLocation, StartInstanceLocation);
 	_buffer_detection.on_draw(IndexCountPerInstance * InstanceCount);
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::DrawInstanced(UINT VertexCountPerInstance, UINT InstanceCount, UINT StartVertexLocation, UINT StartInstanceLocation)
 {
+	_buffer_detection.before_draw(VertexCountPerInstance * InstanceCount);
 	_orig->DrawInstanced(VertexCountPerInstance, InstanceCount, StartVertexLocation, StartInstanceLocation);
 	_buffer_detection.on_draw(VertexCountPerInstance * InstanceCount);
 }
@@ -247,6 +251,7 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::GSSetSamplers(UINT StartSlot, UINT
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::OMSetRenderTargets(UINT NumViews, ID3D11RenderTargetView *const *ppRenderTargetViews, ID3D11DepthStencilView *pDepthStencilView)
 {
+	_buffer_detection.on_OM_set_render_targets(pDepthStencilView);
 	_orig->OMSetRenderTargets(NumViews, ppRenderTargetViews, pDepthStencilView);
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::OMSetRenderTargetsAndUnorderedAccessViews(UINT NumRTVs, ID3D11RenderTargetView *const *ppRenderTargetViews, ID3D11DepthStencilView *pDepthStencilView, UINT UAVStartSlot, UINT NumUAVs, ID3D11UnorderedAccessView *const *ppUnorderedAccessViews, const UINT *pUAVInitialCounts)
