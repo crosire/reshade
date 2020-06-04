@@ -332,3 +332,17 @@ com_ptr<IDirect3DSurface9> reshade::d3d9::buffer_detection::find_best_depth_surf
 	return _depthstencil_replacement; // Replacement takes effect starting with the next frame
 }
 #endif
+
+#if RESHADE_WIREFRAME
+
+void reshade::d3d9::buffer_detection::set_wireframe_mode(bool value)
+{
+	_wireframe_mode = value;
+}
+
+const bool reshade::d3d9::buffer_detection::get_wireframe_mode()
+{
+	return _wireframe_mode;
+}
+
+#endif

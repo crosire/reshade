@@ -455,6 +455,12 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetClipPlane(DWORD Index, float *pPla
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetRenderState(D3DRENDERSTATETYPE State, DWORD Value)
 {
+#if RESHADE_WIREFRAME
+	if (_buffer_detection.get_wireframe_mode() == true && (State & D3DRS_FILLMODE) != 0 && Value == D3DFILL_SOLID)
+	{
+		Value = D3DFILL_WIREFRAME;
+	}
+#endif
 	return _orig->SetRenderState(State, Value);
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetRenderState(D3DRENDERSTATETYPE State, DWORD *pValue)

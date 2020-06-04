@@ -40,6 +40,11 @@ namespace reshade::d3d9
 			com_ptr<IDirect3DSurface9> override = nullptr, UINT clear_index_override = 0);
 #endif
 
+#if RESHADE_WIREFRAME
+		const bool get_wireframe_mode();
+		void set_wireframe_mode(bool value);
+#endif
+
 	private:
 		struct draw_stats
 		{
@@ -69,6 +74,10 @@ namespace reshade::d3d9
 		com_ptr<IDirect3DSurface9> _depthstencil_replacement;
 		// Use "std::map" instead of "std::unordered_map" so that the iteration order is guaranteed
 		std::map<com_ptr<IDirect3DSurface9>, depthstencil_info> _counters_per_used_depth_surface;
+#endif
+
+#if RESHADE_WIREFRAME
+		bool _wireframe_mode;
 #endif
 	};
 }

@@ -212,10 +212,7 @@ void reshade::d3d9::runtime_d3d9::on_present()
 	_drawcalls = _buffer_detection->total_drawcalls();
 
 #if RESHADE_WIREFRAME
-	if (wireframe_mode())
-		_device->SetRenderState(D3DRS_FILLMODE, D3DFILL_WIREFRAME);
-	else
-		_device->SetRenderState(D3DRS_FILLMODE, D3DFILL_SOLID);
+	_buffer_detection->set_wireframe_mode(wireframe_mode());
 #endif
 
 #if RESHADE_DEPTH
