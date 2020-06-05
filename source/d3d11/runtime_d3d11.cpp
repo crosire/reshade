@@ -80,7 +80,7 @@ reshade::d3d11::runtime_d3d11::runtime_d3d11(ID3D11Device *device, IDXGISwapChai
 	subscribe_to_ui("DX11", [this]() {
 		assert(_buffer_detection != nullptr);
 		draw_depth_debug_menu(*_buffer_detection);
-		});
+	});
 #endif
 #if RESHADE_DEPTH
 	subscribe_to_load_config([this](const ini_file &config) {
@@ -194,21 +194,21 @@ bool reshade::d3d11::runtime_d3d11::on_init(const DXGI_SWAP_CHAIN_DESC &swap_des
 		return false;
 
 	{   D3D11_SAMPLER_DESC desc = {};
-	desc.Filter = D3D11_FILTER_MIN_MAG_MIP_POINT;
-	desc.AddressU = D3D11_TEXTURE_ADDRESS_CLAMP;
-	desc.AddressV = D3D11_TEXTURE_ADDRESS_CLAMP;
-	desc.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
-	if (FAILED(_device->CreateSamplerState(&desc, &_copy_sampler_state)))
-		return false;
+		desc.Filter = D3D11_FILTER_MIN_MAG_MIP_POINT;
+		desc.AddressU = D3D11_TEXTURE_ADDRESS_CLAMP;
+		desc.AddressV = D3D11_TEXTURE_ADDRESS_CLAMP;
+		desc.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
+		if (FAILED(_device->CreateSamplerState(&desc, &_copy_sampler_state)))
+			return false;
 	}
 
 	// Create effect states
 	{   D3D11_RASTERIZER_DESC desc = {};
-	desc.FillMode = D3D11_FILL_SOLID;
-	desc.CullMode = D3D11_CULL_NONE;
-	desc.DepthClipEnable = TRUE;
-	if (FAILED(_device->CreateRasterizerState(&desc, &_effect_rasterizer)))
-		return false;
+		desc.FillMode = D3D11_FILL_SOLID;
+		desc.CullMode = D3D11_CULL_NONE;
+		desc.DepthClipEnable = TRUE;
+		if (FAILED(_device->CreateRasterizerState(&desc, &_effect_rasterizer)))
+			return false;
 	}
 
 	// Create effect depth-stencil texture
@@ -1146,85 +1146,85 @@ void reshade::d3d11::runtime_d3d11::render_technique(technique &technique)
 bool reshade::d3d11::runtime_d3d11::init_imgui_resources()
 {
 	{   const resources::data_resource vs = resources::load_data_resource(IDR_IMGUI_VS);
-	if (FAILED(_device->CreateVertexShader(vs.data, vs.data_size, nullptr, &_imgui.vs)))
-		return false;
+		if (FAILED(_device->CreateVertexShader(vs.data, vs.data_size, nullptr, &_imgui.vs)))
+			return false;
 
-	const D3D11_INPUT_ELEMENT_DESC input_layout[] = {
-		{ "POSITION", 0, DXGI_FORMAT_R32G32_FLOAT,   0, offsetof(ImDrawVert, pos), D3D11_INPUT_PER_VERTEX_DATA, 0 },
-		{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT,   0, offsetof(ImDrawVert, uv ), D3D11_INPUT_PER_VERTEX_DATA, 0 },
-		{ "COLOR",    0, DXGI_FORMAT_R8G8B8A8_UNORM, 0, offsetof(ImDrawVert, col), D3D11_INPUT_PER_VERTEX_DATA, 0 },
-	};
-	if (FAILED(_device->CreateInputLayout(input_layout, ARRAYSIZE(input_layout), vs.data, vs.data_size, &_imgui.layout)))
-		return false;
+		const D3D11_INPUT_ELEMENT_DESC input_layout[] = {
+			{ "POSITION", 0, DXGI_FORMAT_R32G32_FLOAT,   0, offsetof(ImDrawVert, pos), D3D11_INPUT_PER_VERTEX_DATA, 0 },
+			{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT,   0, offsetof(ImDrawVert, uv ), D3D11_INPUT_PER_VERTEX_DATA, 0 },
+			{ "COLOR",    0, DXGI_FORMAT_R8G8B8A8_UNORM, 0, offsetof(ImDrawVert, col), D3D11_INPUT_PER_VERTEX_DATA, 0 },
+		};
+		if (FAILED(_device->CreateInputLayout(input_layout, ARRAYSIZE(input_layout), vs.data, vs.data_size, &_imgui.layout)))
+			return false;
 	}
 
 	{   const resources::data_resource ps = resources::load_data_resource(IDR_IMGUI_PS);
-	if (FAILED(_device->CreatePixelShader(ps.data, ps.data_size, nullptr, &_imgui.ps)))
-		return false;
+		if (FAILED(_device->CreatePixelShader(ps.data, ps.data_size, nullptr, &_imgui.ps)))
+			return false;
 	}
 
 	{   D3D11_BUFFER_DESC desc = {};
-	desc.ByteWidth = 16 * sizeof(float);
-	desc.Usage = D3D11_USAGE_IMMUTABLE;
-	desc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+		desc.ByteWidth = 16 * sizeof(float);
+		desc.Usage = D3D11_USAGE_IMMUTABLE;
+		desc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
 
-	// Setup orthographic projection matrix
-	const float ortho_projection[16] = {
-		2.0f / _width, 0.0f,   0.0f, 0.0f,
-		0.0f, -2.0f / _height, 0.0f, 0.0f,
-		0.0f,          0.0f,   0.5f, 0.0f,
-		-1.f,          1.0f,   0.5f, 1.0f
-	};
+		// Setup orthographic projection matrix
+		const float ortho_projection[16] = {
+			2.0f / _width, 0.0f,   0.0f, 0.0f,
+			0.0f, -2.0f / _height, 0.0f, 0.0f,
+			0.0f,          0.0f,   0.5f, 0.0f,
+			-1.f,          1.0f,   0.5f, 1.0f
+		};
 
-	D3D11_SUBRESOURCE_DATA initial_data = {};
-	initial_data.pSysMem = ortho_projection;
-	initial_data.SysMemPitch = sizeof(ortho_projection);
+		D3D11_SUBRESOURCE_DATA initial_data = {};
+		initial_data.pSysMem = ortho_projection;
+		initial_data.SysMemPitch = sizeof(ortho_projection);
 
-	if (FAILED(_device->CreateBuffer(&desc, &initial_data, &_imgui.cb)))
-		return false;
+		if (FAILED(_device->CreateBuffer(&desc, &initial_data, &_imgui.cb)))
+			return false;
 	}
 
 	{   D3D11_BLEND_DESC desc = {};
-	desc.RenderTarget[0].BlendEnable = true;
-	desc.RenderTarget[0].SrcBlend = D3D11_BLEND_SRC_ALPHA;
-	desc.RenderTarget[0].DestBlend = D3D11_BLEND_INV_SRC_ALPHA;
-	desc.RenderTarget[0].BlendOp = D3D11_BLEND_OP_ADD;
-	desc.RenderTarget[0].SrcBlendAlpha = D3D11_BLEND_INV_SRC_ALPHA;
-	desc.RenderTarget[0].DestBlendAlpha = D3D11_BLEND_ZERO;
-	desc.RenderTarget[0].BlendOpAlpha = D3D11_BLEND_OP_ADD;
-	desc.RenderTarget[0].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
+		desc.RenderTarget[0].BlendEnable = true;
+		desc.RenderTarget[0].SrcBlend = D3D11_BLEND_SRC_ALPHA;
+		desc.RenderTarget[0].DestBlend = D3D11_BLEND_INV_SRC_ALPHA;
+		desc.RenderTarget[0].BlendOp = D3D11_BLEND_OP_ADD;
+		desc.RenderTarget[0].SrcBlendAlpha = D3D11_BLEND_INV_SRC_ALPHA;
+		desc.RenderTarget[0].DestBlendAlpha = D3D11_BLEND_ZERO;
+		desc.RenderTarget[0].BlendOpAlpha = D3D11_BLEND_OP_ADD;
+		desc.RenderTarget[0].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
 
-	if (FAILED(_device->CreateBlendState(&desc, &_imgui.bs)))
-		return false;
+		if (FAILED(_device->CreateBlendState(&desc, &_imgui.bs)))
+			return false;
 	}
 
 	{   D3D11_RASTERIZER_DESC desc = {};
-	desc.FillMode = D3D11_FILL_SOLID;
-	desc.CullMode = D3D11_CULL_NONE;
-	desc.ScissorEnable = true;
-	desc.DepthClipEnable = true;
+		desc.FillMode = D3D11_FILL_SOLID;
+		desc.CullMode = D3D11_CULL_NONE;
+		desc.ScissorEnable = true;
+		desc.DepthClipEnable = true;
 
-	if (FAILED(_device->CreateRasterizerState(&desc, &_imgui.rs)))
-		return false;
+		if (FAILED(_device->CreateRasterizerState(&desc, &_imgui.rs)))
+			return false;
 	}
 
 	{   D3D11_DEPTH_STENCIL_DESC desc = {};
-	desc.DepthEnable = false;
-	desc.StencilEnable = false;
+		desc.DepthEnable = false;
+		desc.StencilEnable = false;
 
-	if (FAILED(_device->CreateDepthStencilState(&desc, &_imgui.ds)))
-		return false;
+		if (FAILED(_device->CreateDepthStencilState(&desc, &_imgui.ds)))
+			return false;
 	}
 
 	{   D3D11_SAMPLER_DESC desc = {};
-	desc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
-	desc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
-	desc.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
-	desc.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
-	desc.ComparisonFunc = D3D11_COMPARISON_ALWAYS;
+		desc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
+		desc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
+		desc.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
+		desc.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
+		desc.ComparisonFunc = D3D11_COMPARISON_ALWAYS;
 
-	if (FAILED(_device->CreateSamplerState(&desc, &_imgui.ss)))
-		return false;
+		if (FAILED(_device->CreateSamplerState(&desc, &_imgui.ss)))
+			return false;
 	}
 
 	return true;
