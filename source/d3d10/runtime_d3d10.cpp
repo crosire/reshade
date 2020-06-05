@@ -617,106 +617,106 @@ bool reshade::d3d10::runtime_d3d10::init_effect(size_t index)
 			{   D3D10_BLEND_DESC desc = {};
 				desc.BlendEnable[0] = pass_info.blend_enable;
 
-			const auto convert_blend_op = [](reshadefx::pass_blend_op value) {
-				switch (value)
-				{
+				const auto convert_blend_op = [](reshadefx::pass_blend_op value) {
+					switch (value)
+					{
 					default:
 					case reshadefx::pass_blend_op::add: return D3D10_BLEND_OP_ADD;
 					case reshadefx::pass_blend_op::subtract: return D3D10_BLEND_OP_SUBTRACT;
 					case reshadefx::pass_blend_op::rev_subtract: return D3D10_BLEND_OP_REV_SUBTRACT;
 					case reshadefx::pass_blend_op::min: return D3D10_BLEND_OP_MIN;
 					case reshadefx::pass_blend_op::max: return D3D10_BLEND_OP_MAX;
+					}
+				};
+				const auto convert_blend_func = [](reshadefx::pass_blend_func value) {
+					switch (value) {
+					default:
+					case reshadefx::pass_blend_func::one: return D3D10_BLEND_ONE;
+					case reshadefx::pass_blend_func::zero: return D3D10_BLEND_ZERO;
+					case reshadefx::pass_blend_func::src_color: return D3D10_BLEND_SRC_COLOR;
+					case reshadefx::pass_blend_func::src_alpha: return D3D10_BLEND_SRC_ALPHA;
+					case reshadefx::pass_blend_func::inv_src_color: return D3D10_BLEND_INV_SRC_COLOR;
+					case reshadefx::pass_blend_func::inv_src_alpha: return D3D10_BLEND_INV_SRC_ALPHA;
+					case reshadefx::pass_blend_func::dst_color: return D3D10_BLEND_DEST_COLOR;
+					case reshadefx::pass_blend_func::dst_alpha: return D3D10_BLEND_DEST_ALPHA;
+					case reshadefx::pass_blend_func::inv_dst_color: return D3D10_BLEND_INV_DEST_COLOR;
+					case reshadefx::pass_blend_func::inv_dst_alpha: return D3D10_BLEND_INV_DEST_ALPHA;
+					}
+				};
+
+				desc.SrcBlend = convert_blend_func(pass_info.src_blend);
+				desc.DestBlend = convert_blend_func(pass_info.dest_blend);
+				desc.BlendOp = convert_blend_op(pass_info.blend_op);
+				desc.SrcBlendAlpha = convert_blend_func(pass_info.src_blend_alpha);
+				desc.DestBlendAlpha = convert_blend_func(pass_info.dest_blend_alpha);
+				desc.BlendOpAlpha = convert_blend_op(pass_info.blend_op_alpha);
+				desc.RenderTargetWriteMask[0] = pass_info.color_write_mask;
+
+				for (UINT i = 1; i < 8; ++i)
+				{
+					desc.BlendEnable[i] = desc.BlendEnable[0];
+					desc.RenderTargetWriteMask[i] = desc.RenderTargetWriteMask[0];
 				}
-			};
-			const auto convert_blend_func = [](reshadefx::pass_blend_func value) {
-				switch (value) {
-				default:
-				case reshadefx::pass_blend_func::one: return D3D10_BLEND_ONE;
-				case reshadefx::pass_blend_func::zero: return D3D10_BLEND_ZERO;
-				case reshadefx::pass_blend_func::src_color: return D3D10_BLEND_SRC_COLOR;
-				case reshadefx::pass_blend_func::src_alpha: return D3D10_BLEND_SRC_ALPHA;
-				case reshadefx::pass_blend_func::inv_src_color: return D3D10_BLEND_INV_SRC_COLOR;
-				case reshadefx::pass_blend_func::inv_src_alpha: return D3D10_BLEND_INV_SRC_ALPHA;
-				case reshadefx::pass_blend_func::dst_color: return D3D10_BLEND_DEST_COLOR;
-				case reshadefx::pass_blend_func::dst_alpha: return D3D10_BLEND_DEST_ALPHA;
-				case reshadefx::pass_blend_func::inv_dst_color: return D3D10_BLEND_INV_DEST_COLOR;
-				case reshadefx::pass_blend_func::inv_dst_alpha: return D3D10_BLEND_INV_DEST_ALPHA;
+
+				if (HRESULT hr = _device->CreateBlendState(&desc, &pass_data.blend_state); FAILED(hr))
+				{
+					LOG(ERROR) << "Failed to create blend state for pass " << pass_index << " in technique '" << technique.name << "'! "
+						"HRESULT is " << hr << '.';
+					return false;
 				}
-			};
-
-			desc.SrcBlend = convert_blend_func(pass_info.src_blend);
-			desc.DestBlend = convert_blend_func(pass_info.dest_blend);
-			desc.BlendOp = convert_blend_op(pass_info.blend_op);
-			desc.SrcBlendAlpha = convert_blend_func(pass_info.src_blend_alpha);
-			desc.DestBlendAlpha = convert_blend_func(pass_info.dest_blend_alpha);
-			desc.BlendOpAlpha = convert_blend_op(pass_info.blend_op_alpha);
-			desc.RenderTargetWriteMask[0] = pass_info.color_write_mask;
-
-			for (UINT i = 1; i < 8; ++i)
-			{
-				desc.BlendEnable[i] = desc.BlendEnable[0];
-				desc.RenderTargetWriteMask[i] = desc.RenderTargetWriteMask[0];
-			}
-
-			if (HRESULT hr = _device->CreateBlendState(&desc, &pass_data.blend_state); FAILED(hr))
-			{
-				LOG(ERROR) << "Failed to create blend state for pass " << pass_index << " in technique '" << technique.name << "'! "
-					"HRESULT is " << hr << '.';
-				return false;
-			}
 			}
 
 			// Rasterizer state is the same for all passes
 			assert(_effect_rasterizer != nullptr);
 
 			{   D3D10_DEPTH_STENCIL_DESC desc = {};
-			desc.DepthEnable = FALSE;
-			desc.DepthWriteMask = D3D10_DEPTH_WRITE_MASK_ZERO;
-			desc.DepthFunc = D3D10_COMPARISON_ALWAYS;
+				desc.DepthEnable = FALSE;
+				desc.DepthWriteMask = D3D10_DEPTH_WRITE_MASK_ZERO;
+				desc.DepthFunc = D3D10_COMPARISON_ALWAYS;
 
-			const auto convert_stencil_op = [](reshadefx::pass_stencil_op value) {
-				switch (value) {
-				default:
-				case reshadefx::pass_stencil_op::keep: return D3D10_STENCIL_OP_KEEP;
-				case reshadefx::pass_stencil_op::zero: return D3D10_STENCIL_OP_ZERO;
-				case reshadefx::pass_stencil_op::invert: return D3D10_STENCIL_OP_INVERT;
-				case reshadefx::pass_stencil_op::replace: return D3D10_STENCIL_OP_REPLACE;
-				case reshadefx::pass_stencil_op::incr: return D3D10_STENCIL_OP_INCR;
-				case reshadefx::pass_stencil_op::incr_sat: return D3D10_STENCIL_OP_INCR_SAT;
-				case reshadefx::pass_stencil_op::decr: return D3D10_STENCIL_OP_DECR;
-				case reshadefx::pass_stencil_op::decr_sat: return D3D10_STENCIL_OP_DECR_SAT;
-				}
-			};
-			const auto convert_stencil_func = [](reshadefx::pass_stencil_func value) {
-				switch (value)
+				const auto convert_stencil_op = [](reshadefx::pass_stencil_op value) {
+					switch (value) {
+					default:
+					case reshadefx::pass_stencil_op::keep: return D3D10_STENCIL_OP_KEEP;
+					case reshadefx::pass_stencil_op::zero: return D3D10_STENCIL_OP_ZERO;
+					case reshadefx::pass_stencil_op::invert: return D3D10_STENCIL_OP_INVERT;
+					case reshadefx::pass_stencil_op::replace: return D3D10_STENCIL_OP_REPLACE;
+					case reshadefx::pass_stencil_op::incr: return D3D10_STENCIL_OP_INCR;
+					case reshadefx::pass_stencil_op::incr_sat: return D3D10_STENCIL_OP_INCR_SAT;
+					case reshadefx::pass_stencil_op::decr: return D3D10_STENCIL_OP_DECR;
+					case reshadefx::pass_stencil_op::decr_sat: return D3D10_STENCIL_OP_DECR_SAT;
+					}
+				};
+				const auto convert_stencil_func = [](reshadefx::pass_stencil_func value) {
+					switch (value)
+					{
+					default:
+					case reshadefx::pass_stencil_func::always: return D3D10_COMPARISON_ALWAYS;
+					case reshadefx::pass_stencil_func::never: return D3D10_COMPARISON_NEVER;
+					case reshadefx::pass_stencil_func::equal: return D3D10_COMPARISON_EQUAL;
+					case reshadefx::pass_stencil_func::not_equal: return D3D10_COMPARISON_NOT_EQUAL;
+					case reshadefx::pass_stencil_func::less: return D3D10_COMPARISON_LESS;
+					case reshadefx::pass_stencil_func::less_equal: return D3D10_COMPARISON_LESS_EQUAL;
+					case reshadefx::pass_stencil_func::greater: return D3D10_COMPARISON_GREATER;
+					case reshadefx::pass_stencil_func::greater_equal: return D3D10_COMPARISON_GREATER_EQUAL;
+					}
+				};
+
+				desc.StencilEnable = pass_info.stencil_enable;
+				desc.StencilReadMask = pass_info.stencil_read_mask;
+				desc.StencilWriteMask = pass_info.stencil_write_mask;
+				desc.FrontFace.StencilFailOp = convert_stencil_op(pass_info.stencil_op_fail);
+				desc.FrontFace.StencilDepthFailOp = convert_stencil_op(pass_info.stencil_op_depth_fail);
+				desc.FrontFace.StencilPassOp = convert_stencil_op(pass_info.stencil_op_pass);
+				desc.FrontFace.StencilFunc = convert_stencil_func(pass_info.stencil_comparison_func);
+				desc.BackFace = desc.FrontFace;
+
+				if (HRESULT hr = _device->CreateDepthStencilState(&desc, &pass_data.depth_stencil_state); FAILED(hr))
 				{
-				default:
-				case reshadefx::pass_stencil_func::always: return D3D10_COMPARISON_ALWAYS;
-				case reshadefx::pass_stencil_func::never: return D3D10_COMPARISON_NEVER;
-				case reshadefx::pass_stencil_func::equal: return D3D10_COMPARISON_EQUAL;
-				case reshadefx::pass_stencil_func::not_equal: return D3D10_COMPARISON_NOT_EQUAL;
-				case reshadefx::pass_stencil_func::less: return D3D10_COMPARISON_LESS;
-				case reshadefx::pass_stencil_func::less_equal: return D3D10_COMPARISON_LESS_EQUAL;
-				case reshadefx::pass_stencil_func::greater: return D3D10_COMPARISON_GREATER;
-				case reshadefx::pass_stencil_func::greater_equal: return D3D10_COMPARISON_GREATER_EQUAL;
+					LOG(ERROR) << "Failed to create depth-stencil state for pass " << pass_index << " in technique '" << technique.name << "'! "
+						"HRESULT is " << hr << '.';
+					return false;
 				}
-			};
-
-			desc.StencilEnable = pass_info.stencil_enable;
-			desc.StencilReadMask = pass_info.stencil_read_mask;
-			desc.StencilWriteMask = pass_info.stencil_write_mask;
-			desc.FrontFace.StencilFailOp = convert_stencil_op(pass_info.stencil_op_fail);
-			desc.FrontFace.StencilDepthFailOp = convert_stencil_op(pass_info.stencil_op_depth_fail);
-			desc.FrontFace.StencilPassOp = convert_stencil_op(pass_info.stencil_op_pass);
-			desc.FrontFace.StencilFunc = convert_stencil_func(pass_info.stencil_comparison_func);
-			desc.BackFace = desc.FrontFace;
-
-			if (HRESULT hr = _device->CreateDepthStencilState(&desc, &pass_data.depth_stencil_state); FAILED(hr))
-			{
-				LOG(ERROR) << "Failed to create depth-stencil state for pass " << pass_index << " in technique '" << technique.name << "'! "
-					"HRESULT is " << hr << '.';
-				return false;
-			}
 			}
 
 			pass_data.shader_resources = impl->texture_bindings;
