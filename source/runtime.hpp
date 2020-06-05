@@ -115,7 +115,7 @@ namespace reshade
 		/// </summary>
 		/// <param name="label">Name of the widget.</param>
 		/// <param name="function">The callback function.</param>
-		void subscribe_to_ui(std::string label, std::function<void()> function) { _menu_callables.push_back({ label, function }); }
+		void subscribe_to_ui(std::string label, std::function<void()> function) { _menu_callables.emplace_back(label, function); }
 #endif
 		/// <summary>
 		/// Register a function to be called when user configuration is loaded.
@@ -257,7 +257,7 @@ namespace reshade
 		/// <param name="filter_path">Directory base to search in and/or an optional filter to skip preset files.</param>
 		/// <param name="reversed">Set to <c>true</c> to switch to previous instead of next preset.</param>
 		/// <returns><c>true</c> if there was another preset to switch to, <c>false</c> if not and therefore no changes were made.</returns>
-		bool switch_to_next_preset(const std::filesystem::path &filter_path, bool reversed = false);
+		bool switch_to_next_preset(std::filesystem::path filter_path, bool reversed = false);
 
 		/// <summary>
 		/// Create a copy of the current frame and write it to an image file on disk.
