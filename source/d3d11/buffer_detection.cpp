@@ -203,8 +203,8 @@ void reshade::d3d11::buffer_detection::on_clear_depthstencil(UINT clear_flags, I
 	// Make a backup copy of the depth texture before it is cleared
 	if (_context->_depthstencil_clear_index.second == std::numeric_limits<UINT>::max() ?
 		counters.current_stats.vertices > _best_copy_stats.vertices :
-	// This is not really correct, since clears may accumulate over multiple command lists, but it's unlikely that the same depth-stencil is used in more than one
-	counters.clears.size() == _context->_depthstencil_clear_index.second)
+		// This is not really correct, since clears may accumulate over multiple command lists, but it's unlikely that the same depth-stencil is used in more than one
+		counters.clears.size() == _context->_depthstencil_clear_index.second)
 	{
 		_best_copy_stats = counters.current_stats;
 
@@ -318,8 +318,8 @@ com_ptr<ID3D11Texture2D> reshade::d3d11::buffer_detection_context::find_best_dep
 			if (!_has_indirect_drawcalls ?
 				// Choose snapshot with the most vertices, since that is likely to contain the main scene
 				snapshot.total_stats.vertices > best_snapshot.total_stats.vertices :
-			// Or check draw calls, since vertices may not be accurate if application is using indirect draw calls
-			snapshot.total_stats.drawcalls > best_snapshot.total_stats.drawcalls)
+				// Or check draw calls, since vertices may not be accurate if application is using indirect draw calls
+				snapshot.total_stats.drawcalls > best_snapshot.total_stats.drawcalls)
 			{
 				best_match = dsv_texture;
 				best_snapshot = snapshot;
