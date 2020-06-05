@@ -151,7 +151,7 @@ void reshade::d3d10::buffer_detection::on_clear_depthstencil(UINT clear_flags, I
 	// Make a backup copy of the depth texture before it is cleared
 	if (_depthstencil_clear_index.second == std::numeric_limits<UINT>::max() ?
 		counters.current_stats.vertices > _best_copy_stats.vertices :
-	counters.clears.size() == _depthstencil_clear_index.second)
+		counters.clears.size() == _depthstencil_clear_index.second)
 	{
 		_best_copy_stats = counters.current_stats;
 
