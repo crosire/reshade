@@ -101,13 +101,13 @@ reshade::d3d11::runtime_d3d11::runtime_d3d11(ID3D11Device *device, IDXGISwapChai
 		if (_depth_hidden_by_rectangle_index_override == 0)
 			// Zero is not a valid hidden index, since it disables depth buffer preservation
 			_depth_hidden_by_rectangle_index_override = std::numeric_limits<UINT>::max();
-		});
+	});
 	subscribe_to_save_config([this](ini_file &config) {
 		config.set("DX11_BUFFER_DETECTION", "DepthBufferRetrievalMode", _preserve_depth_buffers ? 1 : _preserve_hidden_depth_buffers ? 2 : 0);
 		config.set("DX11_BUFFER_DETECTION", "DepthBufferClearingNumber", _depth_clear_index_override);
 		config.set("DX11_BUFFER_DETECTION", "DepthBufferHiddenByRectangleNumber", _depth_hidden_by_rectangle_index_override);
 		config.set("DX11_BUFFER_DETECTION", "UseAspectRatioHeuristics", _filter_aspect_ratio);
-		});
+	});
 #endif
 }
 reshade::d3d11::runtime_d3d11::~runtime_d3d11()

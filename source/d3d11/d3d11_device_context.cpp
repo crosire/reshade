@@ -8,7 +8,7 @@
 #include "d3d11_device_context.hpp"
 #include "d3d11_command_list.hpp"
 
-D3D11DeviceContext::D3D11DeviceContext(D3D11Device *device, ID3D11DeviceContext *original) :
+D3D11DeviceContext::D3D11DeviceContext(D3D11Device *device, ID3D11DeviceContext  *original) :
 	_orig(original),
 	_interface_version(0),
 	_device(device),
