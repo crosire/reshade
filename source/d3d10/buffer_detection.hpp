@@ -30,8 +30,7 @@ namespace reshade::d3d10
 		ID3D10Texture2D *current_hidden_by_rectangle_depth_texture() const { return _depthstencil_hidden_by_rectangle_index.first; }
 		const auto &depth_buffer_counters() const { return _counters_per_used_depth_texture; }
 
-		void before_draw(UINT vertices);
-		void on_OM_set_render_targets(ID3D10DepthStencilView *dsv);
+		void on_set_render_targets(ID3D10DepthStencilView *dsv);
 		void on_clear_depthstencil(UINT clear_flags, ID3D10DepthStencilView *dsv);
 
 		com_ptr<ID3D10Texture2D> find_best_depth_texture(UINT width, UINT height,

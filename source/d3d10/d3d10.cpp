@@ -24,6 +24,8 @@ HOOK_EXPORT HRESULT WINAPI D3D10CreateDevice(IDXGIAdapter *pAdapter, D3D10_DRIVE
 	// Only 'd3d10.dll' is guaranteed to be loaded at this point, but the 'D3D10CreateDeviceAndSwapChain1' entry point is in 'd3d10_1.dll', so load that now to make sure hooks can be resolved
 	LoadLibraryW(L"d3d10_1.dll");
 
+	// Upgrade to feature level 10.1, since 10.0 did not allow copying between depth-stencil resources
+	// See https://docs.microsoft.com/windows/win32/api/d3d10/nf-d3d10-id3d10device-copyresource
 	return D3D10CreateDeviceAndSwapChain1(pAdapter, DriverType, Software, Flags, D3D10_FEATURE_LEVEL_10_1, D3D10_1_SDK_VERSION, nullptr, nullptr, reinterpret_cast<ID3D10Device1 **>(ppDevice));
 }
 

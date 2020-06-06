@@ -82,26 +82,25 @@ reshade::d3d10::runtime_d3d10::runtime_d3d10(ID3D10Device1 *device, IDXGISwapCha
 #endif
 #if RESHADE_DEPTH
 	subscribe_to_load_config([this](const ini_file &config) {
-		UINT Depth_buffer_retreval_mode = 0;
-
-		config.get("DX10_BUFFER_DETECTION", "DepthBufferRetrievalMode", Depth_buffer_retreval_mode);
+		unsigned int detection_mode = 0;
+		config.get("DX10_BUFFER_DETECTION", "DepthBufferRetrievalMode", detection_mode);
 		config.get("DX10_BUFFER_DETECTION", "DepthBufferClearingNumber", _depth_clear_index_override);
 		config.get("DX10_BUFFER_DETECTION", "DepthBufferHiddenByRectangleNumber", _depth_hidden_by_rectangle_index_override);
 		config.get("DX10_BUFFER_DETECTION", "UseAspectRatioHeuristics", _filter_aspect_ratio);
 
-		_preserve_depth_buffers = (Depth_buffer_retreval_mode == 1);
-		_preserve_hidden_depth_buffers = (Depth_buffer_retreval_mode == 2);
+		_preserve_depth_buffers = (detection_mode == 1);
+		_preserve_hidden_depth_buffers = (detection_mode == 2);
 
 		if (_depth_clear_index_override == 0)
 			// Zero is not a valid clear index, since it disables depth buffer preservation
 			_depth_clear_index_override = std::numeric_limits<UINT>::max();
-
 		if (_depth_hidden_by_rectangle_index_override == 0)
 			// Zero is not a valid hidden index, since it disables depth buffer preservation
 			_depth_hidden_by_rectangle_index_override = std::numeric_limits<UINT>::max();
 	});
 	subscribe_to_save_config([this](ini_file &config) {
-		config.set("DX10_BUFFER_DETECTION", "DepthBufferRetrievalMode", _preserve_depth_buffers ? 1 : _preserve_hidden_depth_buffers ? 2 : 0);
+		const unsigned int detection_mode = _preserve_depth_buffers ? 1 : _preserve_hidden_depth_buffers ? 2 : 0;
+		config.set("DX10_BUFFER_DETECTION", "DepthBufferRetrievalMode", detection_mode);
 		config.set("DX10_BUFFER_DETECTION", "DepthBufferClearingNumber", _depth_clear_index_override);
 		config.set("DX10_BUFFER_DETECTION", "DepthBufferHiddenByRectangleNumber", _depth_hidden_by_rectangle_index_override);
 		config.set("DX10_BUFFER_DETECTION", "UseAspectRatioHeuristics", _filter_aspect_ratio);
@@ -281,7 +280,11 @@ void reshade::d3d10::runtime_d3d10::on_present()
 #if RESHADE_DEPTH
 	assert(_depth_clear_index_override != 0 && _depth_hidden_by_rectangle_index_override != 0);
 	update_depth_texture_bindings(_has_high_network_activity ? nullptr :
-		_buffer_detection->find_best_depth_texture(_filter_aspect_ratio ? _width : 0, _height, _depth_texture_override, _preserve_depth_buffers ? _depth_clear_index_override : 0, _preserve_hidden_depth_buffers ? _depth_hidden_by_rectangle_index_override : 0));
+		_buffer_detection->find_best_depth_texture(
+			_filter_aspect_ratio ? _width : 0, _height,
+			_depth_texture_override,
+			_preserve_depth_buffers ? _depth_clear_index_override : 0,
+			_preserve_hidden_depth_buffers ? _depth_hidden_by_rectangle_index_override : 0));
 #endif
 
 	_app_state.capture();
@@ -1338,16 +1341,20 @@ void reshade::d3d10::runtime_d3d10::draw_depth_debug_menu(buffer_detection &trac
 
 	bool modified = false;
 	modified |= ImGui::Checkbox("Use aspect ratio heuristics", &_filter_aspect_ratio);
-	bool preserve_depth_buffers_modified = ImGui::Checkbox("Copy depth buffers before clear operation", &_preserve_depth_buffers);
-	bool preserve_hidden_depth_buffers_modified = ImGui::Checkbox("Copy depth buffers before it is hidden when a rectangle is drawn in front of it", &_preserve_hidden_depth_buffers);
-	modified |= preserve_depth_buffers_modified;
-	modified |= preserve_hidden_depth_buffers_modified;
 
-	if (preserve_depth_buffers_modified && _preserve_depth_buffers == true)
-		_preserve_hidden_depth_buffers = false;
+	if (ImGui::Checkbox("Copy depth buffer before clear operations", &_preserve_depth_buffers))
+	{
+		modified = true;
+		if (_preserve_depth_buffers)
+			_preserve_hidden_depth_buffers = false;
+	}
 
-	if (preserve_hidden_depth_buffers_modified && _preserve_hidden_depth_buffers == true)
-		_preserve_depth_buffers = false;
+	if (ImGui::Checkbox("Copy depth buffer before fullscreen draw calls", &_preserve_hidden_depth_buffers))
+	{
+		modified = true;
+		if (_preserve_hidden_depth_buffers)
+			_preserve_depth_buffers = false;
+	}
 
 	if (modified) // Detection settings have changed, reset heuristic
 		tracker.reset(true);
@@ -1359,7 +1366,10 @@ void reshade::d3d10::runtime_d3d10::draw_depth_debug_menu(buffer_detection &trac
 	for (const auto &[dsv_texture, snapshot] : tracker.depth_buffer_counters())
 	{
 		char label[512] = "";
-		sprintf_s(label, "%s0x%p", (dsv_texture == _depth_texture || dsv_texture == tracker.current_depth_texture() || dsv_texture == tracker.current_hidden_by_rectangle_depth_texture() ? "> " : "  "), dsv_texture.get());
+		sprintf_s(label, "%s0x%p", (
+			dsv_texture == _depth_texture ||
+			dsv_texture == tracker.current_depth_texture() ||
+			dsv_texture == tracker.current_hidden_by_rectangle_depth_texture() ? "> " : "  "), dsv_texture.get());
 
 		D3D10_TEXTURE2D_DESC desc;
 		dsv_texture->GetDesc(&desc);
@@ -1403,7 +1413,7 @@ void reshade::d3d10::runtime_d3d10::draw_depth_debug_menu(buffer_detection &trac
 		{
 			for (UINT hidden_depth_buffer_index = 1; hidden_depth_buffer_index <= snapshot.rectangles.size(); ++hidden_depth_buffer_index)
 			{
-				sprintf_s(label, "%s  RECTANGLES %2u", (hidden_depth_buffer_index == tracker.current_hidden_by_rectangle_index() ? "> " : "  "), hidden_depth_buffer_index);
+				sprintf_s(label, "%s   RECT %2u", (hidden_depth_buffer_index == tracker.current_hidden_by_rectangle_index() ? "> " : "  "), hidden_depth_buffer_index);
 
 				if (bool value = (_depth_hidden_by_rectangle_index_override == hidden_depth_buffer_index);
 					ImGui::Checkbox(label, &value))

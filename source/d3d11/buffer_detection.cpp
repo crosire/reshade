@@ -89,49 +89,6 @@ void reshade::d3d11::buffer_detection::merge(const buffer_detection &source)
 #endif
 }
 
-void reshade::d3d11::buffer_detection::before_draw(UINT vertices)
-{
-#if RESHADE_DEPTH
-	if (!_preserve_depth_buffers_hidden_by_rectangle)
-		return;
-
-	// a rectangle drawing should habe only 6 vertices (two triangles)
-	if (vertices != 6)
-		return;
-
-	// only check the rectangles that are drawn at the beginning of an Output Merger Stage, if the depthstencil has been previously prepared (it has been cleared)
-	if (_new_OM_stage == false || _depth_stencil_cleared == false)
-		return;
-
-	// if the depth bufer has previously been cleared, it is not necessary to make a copy of the depth buffer
-	if (_depth_buffer_cleared == true)
-		return;
-
-	com_ptr<ID3D11DepthStencilView> depthstencil;
-	_device->OMGetRenderTargets(0, nullptr, &depthstencil);
-
-	const auto dsv_texture = texture_from_dsv(depthstencil.get());
-	if (dsv_texture == nullptr || dsv_texture != _context->_depthstencil_hidden_by_rectangle_index.first)
-		return; // This is a draw call with no depth-stencil bound
-
-	auto &counters = _counters_per_used_depth_texture[dsv_texture];
-
-	counters.rectangles.push_back(counters.rect_stats);
-	_depth_stencil_cleared = false;
-	_new_OM_stage = false;
-
-	// Make a backup copy of the depth texture before it is cleared
-	if (_context->_depthstencil_hidden_by_rectangle_index.second == std::numeric_limits<UINT>::max() ||
-		// This is not really correct, since clears may accumulate over multiple command lists, but it's unlikely that the same depth-stencil is used in more than one
-		counters.rectangles.size() == _context->_depthstencil_hidden_by_rectangle_index.second)
-	{
-		_device->CopyResource(_context->_depthstencil_hidden_by_rectangle_texture.get(), dsv_texture.get());
-	}
-
-	counters.rect_stats = { 0, 0 };
-#endif
-}
-
 void reshade::d3d11::buffer_detection::on_draw(UINT vertices)
 {
 	_stats.vertices += vertices;
@@ -155,10 +112,37 @@ void reshade::d3d11::buffer_detection::on_draw(UINT vertices)
 
 	if (vertices == 0)
 		_has_indirect_drawcalls = true;
+
+	// Check if this draw likely represets a fullscreen rectangle (two triangles)
+	if (_preserve_depth_buffers_hidden_by_rectangle && vertices == 6)
+	{
+		// only check the rectangles that are drawn at the beginning of an Output Merger Stage, if the depthstencil has been previously prepared (it has been cleared)
+		// if the depth bufer has previously been cleared, it is not necessary to make a copy of the depth buffer
+		if (!_new_OM_stage || !_depth_stencil_cleared || _depth_buffer_cleared)
+			return;
+
+		if (dsv_texture != _context->_depthstencil_hidden_by_rectangle_index.first)
+			return; // This is a draw call with no depth-stencil bound
+
+		counters.rectangles.push_back(counters.rect_stats);
+		_depth_stencil_cleared = false;
+		_new_OM_stage = false;
+
+		// Make a backup copy of the depth texture before it is cleared
+		if (_context->_depthstencil_hidden_by_rectangle_index.second == std::numeric_limits<UINT>::max() ||
+			// This is not really correct, since clears may accumulate over multiple command lists, but it's unlikely that the same depth-stencil is used in more than one
+			counters.rectangles.size() == _context->_depthstencil_hidden_by_rectangle_index.second)
+		{
+			_device->CopyResource(_context->_depthstencil_hidden_by_rectangle_texture.get(), dsv_texture.get());
+		}
+
+		counters.rect_stats = { 0, 0 };
+	}
 #endif
 }
 
-void reshade::d3d11::buffer_detection::on_OM_set_render_targets(ID3D11DepthStencilView *dsv)
+#if RESHADE_DEPTH
+void reshade::d3d11::buffer_detection::on_set_render_targets(ID3D11DepthStencilView *dsv)
 {
 	assert(_context != nullptr);
 
@@ -173,7 +157,6 @@ void reshade::d3d11::buffer_detection::on_OM_set_render_targets(ID3D11DepthStenc
 	_depth_buffer_cleared = false;
 }
 
-#if RESHADE_DEPTH
 void reshade::d3d11::buffer_detection::on_clear_depthstencil(UINT clear_flags, ID3D11DepthStencilView *dsv)
 {
 	assert(_context != nullptr);

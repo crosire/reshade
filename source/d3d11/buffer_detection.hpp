@@ -22,8 +22,7 @@ namespace reshade::d3d11
 		void on_draw(UINT vertices);
 
 #if RESHADE_DEPTH
-		void before_draw(UINT vertices);
-		void on_OM_set_render_targets(ID3D11DepthStencilView *dsv);
+		void on_set_render_targets(ID3D11DepthStencilView *dsv);
 		void on_clear_depthstencil(UINT clear_flags, ID3D11DepthStencilView *dsv);
 #endif
 
