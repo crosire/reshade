@@ -871,7 +871,7 @@ void reshade::runtime::update_and_render_effects()
 			{
 				case special_uniform::frame_time:
 				{
-					set_uniform_value(variable, _last_frame_duration.count() * 1e-6f, 0.0f, 0.0f, 0.0f);
+					set_uniform_value(variable, _last_frame_duration.count() * 1e-6f);
 					break;
 				}
 				case special_uniform::frame_count:
@@ -1460,7 +1460,7 @@ static inline bool force_floating_point_value(const reshadefx::type &type, uint3
 	return false;
 }
 
-void reshade::runtime::get_uniform_value(const uniform &variable, uint8_t *data, size_t size) const
+void reshade::runtime::get_uniform_value(const uniform &variable, uint8_t *data, size_t size, size_t base_index) const
 {
 	size = std::min(size, static_cast<size_t>(variable.size));
 	assert(data != nullptr && (size % 4) == 0);
@@ -1469,23 +1469,25 @@ void reshade::runtime::get_uniform_value(const uniform &variable, uint8_t *data,
 	assert(variable.offset + size <= data_storage.size());
 
 	const size_t array_length = (variable.type.is_array() ? variable.type.array_length : 1);
+	assert(base_index < array_length);
+
 	if (variable.type.is_matrix())
 	{
-		for (size_t a = 0, i = 0; a < array_length; ++a)
+		for (size_t a = base_index, i = 0; a < array_length; ++a)
 			// Each row of a matrix is 16-byte aligned, so needs special handling
 			for (size_t row = 0; row < variable.type.rows; ++row)
 				for (size_t col = 0; i < (size / 4) && col < variable.type.cols; ++col, ++i)
 					std::memcpy(
-						data + (a * variable.type.components() + (row * variable.type.cols + col)) * 4,
+						data + ((a - base_index) * variable.type.components() + (row * variable.type.cols + col)) * 4,
 						data_storage.data() + variable.offset + (a * (variable.type.rows * 4) + (row * 4 + col)) * 4, 4);
 	}
 	else if (array_length > 1)
 	{
-		for (size_t a = 0, i = 0; a < array_length; ++a)
+		for (size_t a = base_index, i = 0; a < array_length; ++a)
 			// Each element in the array is 16-byte aligned, so needs special handling
 			for (size_t row = 0; i < (size / 4) && row < variable.type.rows; ++row, ++i)
 				std::memcpy(
-					data + (a * variable.type.components() + row) * 4,
+					data + ((a - base_index) * variable.type.components() + row) * 4,
 					data_storage.data() + variable.offset + (a * 4 + row) * 4, 4);
 	}
 	else
@@ -1493,22 +1495,22 @@ void reshade::runtime::get_uniform_value(const uniform &variable, uint8_t *data,
 		std::memcpy(data, data_storage.data() + variable.offset, size);
 	}
 }
-void reshade::runtime::get_uniform_value(const uniform &variable, bool *values, size_t count) const
+void reshade::runtime::get_uniform_value(const uniform &variable, bool *values, size_t count, size_t array_index) const
 {
 	count = std::min(count, static_cast<size_t>(variable.size / 4));
 	assert(values != nullptr);
 
 	const auto data = static_cast<uint8_t *>(alloca(variable.size));
-	get_uniform_value(variable, data, variable.size);
+	get_uniform_value(variable, data, variable.size, array_index);
 
 	for (size_t i = 0; i < count; i++)
 		values[i] = reinterpret_cast<const uint32_t *>(data)[i] != 0;
 }
-void reshade::runtime::get_uniform_value(const uniform &variable, int32_t *values, size_t count) const
+void reshade::runtime::get_uniform_value(const uniform &variable, int32_t *values, size_t count, size_t array_index) const
 {
 	if (variable.type.is_integral() && !force_floating_point_value(variable.type, _renderer_id))
 	{
-		get_uniform_value(variable, reinterpret_cast<uint8_t *>(values), count * sizeof(int32_t));
+		get_uniform_value(variable, reinterpret_cast<uint8_t *>(values), count * sizeof(int32_t), array_index);
 		return;
 	}
 
@@ -1516,20 +1518,20 @@ void reshade::runtime::get_uniform_value(const uniform &variable, int32_t *value
 	assert(values != nullptr);
 
 	const auto data = static_cast<uint8_t *>(alloca(variable.size));
-	get_uniform_value(variable, data, variable.size);
+	get_uniform_value(variable, data, variable.size, array_index);
 
 	for (size_t i = 0; i < count; i++)
 		values[i] = static_cast<int32_t>(reinterpret_cast<const float *>(data)[i]);
 }
-void reshade::runtime::get_uniform_value(const uniform &variable, uint32_t *values, size_t count) const
+void reshade::runtime::get_uniform_value(const uniform &variable, uint32_t *values, size_t count, size_t array_index) const
 {
-	get_uniform_value(variable, reinterpret_cast<int32_t *>(values), count);
+	get_uniform_value(variable, reinterpret_cast<int32_t *>(values), count, array_index);
 }
-void reshade::runtime::get_uniform_value(const uniform &variable, float *values, size_t count) const
+void reshade::runtime::get_uniform_value(const uniform &variable, float *values, size_t count, size_t array_index) const
 {
 	if (variable.type.is_floating_point() || force_floating_point_value(variable.type, _renderer_id))
 	{
-		get_uniform_value(variable, reinterpret_cast<uint8_t *>(values), count * sizeof(float));
+		get_uniform_value(variable, reinterpret_cast<uint8_t *>(values), count * sizeof(float), array_index);
 		return;
 	}
 
@@ -1537,7 +1539,7 @@ void reshade::runtime::get_uniform_value(const uniform &variable, float *values,
 	assert(values != nullptr);
 
 	const auto data = static_cast<uint8_t *>(alloca(variable.size));
-	get_uniform_value(variable, data, variable.size);
+	get_uniform_value(variable, data, variable.size, array_index);
 
 	for (size_t i = 0; i < count; ++i)
 		if (variable.type.is_signed())
@@ -1545,7 +1547,7 @@ void reshade::runtime::get_uniform_value(const uniform &variable, float *values,
 		else
 			values[i] = static_cast<float>(reinterpret_cast<const uint32_t *>(data)[i]);
 }
-void reshade::runtime::set_uniform_value(uniform &variable, const uint8_t *data, size_t size)
+void reshade::runtime::set_uniform_value(uniform &variable, const uint8_t *data, size_t size, size_t base_index)
 {
 	size = std::min(size, static_cast<size_t>(variable.size));
 	assert(data != nullptr && (size % 4) == 0);
@@ -1554,31 +1556,33 @@ void reshade::runtime::set_uniform_value(uniform &variable, const uint8_t *data,
 	assert(variable.offset + size <= data_storage.size());
 
 	const size_t array_length = (variable.type.is_array() ? variable.type.array_length : 1);
+	assert(base_index < array_length);
+
 	if (variable.type.is_matrix())
 	{
-		for (size_t a = 0, i = 0; a < array_length; ++a)
+		for (size_t a = base_index, i = 0; a < array_length; ++a)
 			// Each row of a matrix is 16-byte aligned, so needs special handling
 			for (size_t row = 0; row < variable.type.rows; ++row)
 				for (size_t col = 0; i < (size / 4) && col < variable.type.cols; ++col, ++i)
 					std::memcpy(
 						data_storage.data() + variable.offset + (a * variable.type.rows * 4 + (row * 4 + col)) * 4,
-						data + (a * variable.type.components() + (row * variable.type.cols + col)) * 4, 4);
+						data + ((a - base_index) * variable.type.components() + (row * variable.type.cols + col)) * 4, 4);
 	}
 	else if (array_length > 1)
 	{
-		for (size_t a = 0, i = 0; a < array_length; ++a)
+		for (size_t a = base_index, i = 0; a < array_length; ++a)
 			// Each element in the array is 16-byte aligned, so needs special handling
 			for (size_t row = 0; i < (size / 4) && row < variable.type.rows; ++row, ++i)
 				std::memcpy(
 					data_storage.data() + variable.offset + (a * 4 + row) * 4,
-					data + (a * variable.type.components() + row) * 4, 4);
+					data + ((a - base_index) * variable.type.components() + row) * 4, 4);
 	}
 	else
 	{
 		std::memcpy(data_storage.data() + variable.offset, data, size);
 	}
 }
-void reshade::runtime::set_uniform_value(uniform &variable, const bool *values, size_t count)
+void reshade::runtime::set_uniform_value(uniform &variable, const bool *values, size_t count, size_t array_index)
 {
 	if (variable.type.is_floating_point() || force_floating_point_value(variable.type, _renderer_id))
 	{
@@ -1586,7 +1590,7 @@ void reshade::runtime::set_uniform_value(uniform &variable, const bool *values, 
 		for (size_t i = 0; i < count; ++i)
 			data[i] = values[i] ? 1.0f : 0.0f;
 
-		set_uniform_value(variable, reinterpret_cast<const uint8_t *>(data), count * sizeof(float));
+		set_uniform_value(variable, reinterpret_cast<const uint8_t *>(data), count * sizeof(float), array_index);
 	}
 	else
 	{
@@ -1594,10 +1598,10 @@ void reshade::runtime::set_uniform_value(uniform &variable, const bool *values, 
 		for (size_t i = 0; i < count; ++i)
 			data[i] = values[i] ? 1 : 0;
 
-		set_uniform_value(variable, reinterpret_cast<const uint8_t *>(data), count * sizeof(uint32_t));
+		set_uniform_value(variable, reinterpret_cast<const uint8_t *>(data), count * sizeof(uint32_t), array_index);
 	}
 }
-void reshade::runtime::set_uniform_value(uniform &variable, const int32_t *values, size_t count)
+void reshade::runtime::set_uniform_value(uniform &variable, const int32_t *values, size_t count, size_t array_index)
 {
 	if (variable.type.is_floating_point() || force_floating_point_value(variable.type, _renderer_id))
 	{
@@ -1605,14 +1609,14 @@ void reshade::runtime::set_uniform_value(uniform &variable, const int32_t *value
 		for (size_t i = 0; i < count; ++i)
 			data[i] = static_cast<float>(values[i]);
 
-		set_uniform_value(variable, reinterpret_cast<const uint8_t *>(data), count * sizeof(float));
+		set_uniform_value(variable, reinterpret_cast<const uint8_t *>(data), count * sizeof(float), array_index);
 	}
 	else
 	{
-		set_uniform_value(variable, reinterpret_cast<const uint8_t *>(values), count * sizeof(int32_t));
+		set_uniform_value(variable, reinterpret_cast<const uint8_t *>(values), count * sizeof(int32_t), array_index);
 	}
 }
-void reshade::runtime::set_uniform_value(uniform &variable, const uint32_t *values, size_t count)
+void reshade::runtime::set_uniform_value(uniform &variable, const uint32_t *values, size_t count, size_t array_index)
 {
 	if (variable.type.is_floating_point() || force_floating_point_value(variable.type, _renderer_id))
 	{
@@ -1620,18 +1624,18 @@ void reshade::runtime::set_uniform_value(uniform &variable, const uint32_t *valu
 		for (size_t i = 0; i < count; ++i)
 			data[i] = static_cast<float>(values[i]);
 
-		set_uniform_value(variable, reinterpret_cast<const uint8_t *>(data), count * sizeof(float));
+		set_uniform_value(variable, reinterpret_cast<const uint8_t *>(data), count * sizeof(float), array_index);
 	}
 	else
 	{
-		set_uniform_value(variable, reinterpret_cast<const uint8_t *>(values), count * sizeof(uint32_t));
+		set_uniform_value(variable, reinterpret_cast<const uint8_t *>(values), count * sizeof(uint32_t), array_index);
 	}
 }
-void reshade::runtime::set_uniform_value(uniform &variable, const float *values, size_t count)
+void reshade::runtime::set_uniform_value(uniform &variable, const float *values, size_t count, size_t array_index)
 {
 	if (variable.type.is_floating_point() || force_floating_point_value(variable.type, _renderer_id))
 	{
-		set_uniform_value(variable, reinterpret_cast<const uint8_t *>(values), count * sizeof(float));
+		set_uniform_value(variable, reinterpret_cast<const uint8_t *>(values), count * sizeof(float), array_index);
 	}
 	else
 	{
@@ -1639,7 +1643,7 @@ void reshade::runtime::set_uniform_value(uniform &variable, const float *values,
 		for (size_t i = 0; i < count; ++i)
 			data[i] = static_cast<int32_t>(values[i]);
 
-		set_uniform_value(variable, reinterpret_cast<const uint8_t *>(data), count * sizeof(int32_t));
+		set_uniform_value(variable, reinterpret_cast<const uint8_t *>(data), count * sizeof(int32_t), array_index);
 	}
 }
 
@@ -1652,17 +1656,24 @@ void reshade::runtime::reset_uniform_value(uniform &variable)
 		return;
 	}
 
-	const size_t array_length = (variable.type.is_array() ? variable.type.array_length : 1);
-	const size_t component_data_size = variable.type.components() * array_length * 4;
-
-	// Append all initializers together to get tightly packed component data, which is then properly aligned in 'set_uniform_value'
-	const auto data = static_cast<uint8_t *>(alloca(component_data_size));
-	for (size_t i = 0; i < array_length; ++i)
+	// Need to use typed setters, to ensure values are properly forced to floating point in D3D9
+	for (size_t i = 0, array_length = (variable.type.is_array() ? variable.type.array_length : 1);
+		i < array_length; ++i)
 	{
 		const reshadefx::constant &value = variable.type.is_array() ? variable.initializer_value.array_data[i] : variable.initializer_value;
 
-		std::memcpy(data + variable.type.components() * 4 * i, value.as_uint, variable.type.components() * 4);
+		switch (variable.type.base)
+		{
+		case reshadefx::type::t_int:
+			set_uniform_value(variable, value.as_int, variable.type.components(), i);
+			break;
+		case reshadefx::type::t_bool:
+		case reshadefx::type::t_uint:
+			set_uniform_value(variable, value.as_uint, variable.type.components(), i);
+			break;
+		case reshadefx::type::t_float:
+			set_uniform_value(variable, value.as_float, variable.type.components(), i);
+			break;
+		}
 	}
-
-	set_uniform_value(variable, data, component_data_size);
 }
