@@ -362,7 +362,7 @@ private:
 		{
 			info.size = info.type.components() * 4;
 			if (info.type.is_array())
-				info.size += info.type.array_length;
+				info.size *= info.type.array_length;
 
 			std::string &code = _blocks.at(_current_block);
 
