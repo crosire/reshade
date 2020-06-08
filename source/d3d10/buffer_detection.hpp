@@ -18,6 +18,7 @@ namespace reshade::d3d10
 		{
 			UINT vertices = 0;
 			UINT drawcalls = 0;
+			bool rect = false;
 		};
 		struct depthstencil_info
 		{
@@ -61,7 +62,6 @@ namespace reshade::d3d10
 		bool _preserve_depth_buffers_hidden_by_rectangle = false;
 		bool _new_om_stage = false;
 		bool _depth_stencil_cleared = false;
-		bool _depth_buffer_cleared = false;
 		com_ptr<ID3D10Texture2D> _depthstencil_clear_texture;
 		std::pair<ID3D10Texture2D *, UINT> _depthstencil_clear_index = { nullptr, std::numeric_limits<UINT>::max() };
 		// Use "std::map" instead of "std::unordered_map" so that the iteration order is guaranteed

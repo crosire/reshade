@@ -18,6 +18,7 @@ namespace reshade::d3d11
 		{
 			UINT vertices = 0;
 			UINT drawcalls = 0;
+			bool rect = false;
 		};
 		struct depthstencil_info
 		{
@@ -46,7 +47,6 @@ namespace reshade::d3d11
 		draw_stats _best_copy_stats;
 		bool _new_om_stage = false;
 		bool _depth_stencil_cleared = false;
-		bool _depth_buffer_cleared = false;
 		bool _has_indirect_drawcalls = false;
 		// Use "std::map" instead of "std::unordered_map" so that the iteration order is guaranteed
 		std::map<com_ptr<ID3D11Texture2D>, depthstencil_info> _counters_per_used_depth_texture;
