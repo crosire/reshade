@@ -66,8 +66,6 @@ void reshade::d3d11::buffer_detection::merge(const buffer_detection &source)
 #if RESHADE_DEPTH
 	_new_om_stage = false;
 	_best_copy_stats = source._best_copy_stats;
-	_preserve_cleared_depth_buffers |= source._preserve_cleared_depth_buffers;
-	_preserve_depth_buffers_hidden_by_rectangle |= source._preserve_depth_buffers_hidden_by_rectangle;
 	_depth_stencil_cleared |= source._depth_stencil_cleared;
 	_depth_buffer_cleared |= source._depth_buffer_cleared;
 	_has_indirect_drawcalls |= source._has_indirect_drawcalls;
@@ -103,7 +101,7 @@ void reshade::d3d11::buffer_detection::on_draw(UINT vertices)
 		_has_indirect_drawcalls = true;
 
 	// Check if this draw call likely represets a fullscreen rectangle (two triangles), which would clear the depth-stencil
-	if (_preserve_depth_buffers_hidden_by_rectangle && vertices <= 6 && _new_om_stage && _depth_stencil_cleared && !_depth_buffer_cleared)
+	if (_context->_preserve_depth_buffers_hidden_by_rectangle && vertices <= 6 && _new_om_stage && _depth_stencil_cleared && !_depth_buffer_cleared)
 	{
 		ID3D11RasterizerState *rasterizer_state = nullptr;
 		_device->RSGetState(&rasterizer_state);
