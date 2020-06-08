@@ -57,7 +57,7 @@ void reshade::d3d10::buffer_detection::on_draw(UINT vertices)
 		return; // This is a draw call with no depth-stencil bound
 
 	// Check if this draw call likely represets a fullscreen rectangle (two triangles), which would clear the depth-stencil
-	if (_preserve_depth_buffers_hidden_by_rectangle && vertices == 6 && _new_om_stage && _depth_stencil_cleared && !_depth_buffer_cleared)
+	if (_preserve_depth_buffers_hidden_by_rectangle && vertices <= 6 && _new_om_stage && _depth_stencil_cleared && !_depth_buffer_cleared)
 	{
 		ID3D10RasterizerState *rasterizer_state = nullptr;
 		_device->RSGetState(&rasterizer_state);
@@ -116,16 +116,15 @@ void reshade::d3d10::buffer_detection::on_clear_depthstencil(UINT clear_flags, I
 	// Make a backup copy of the depth texture before it is cleared
 	if (_depthstencil_clear_index.second == std::numeric_limits<UINT>::max() ?
 		rect_draw_call || counters.current_stats.vertices > _best_copy_stats.vertices :
-		counters.clears.size() == _depthstencil_clear_index.second)
+	counters.clears.size() == _depthstencil_clear_index.second)
 	{
 		_best_copy_stats = counters.current_stats;
 
 		_device->CopyResource(_depthstencil_clear_texture.get(), dsv_texture.get());
 	}
 
-	if (!rect_draw_call)
-		// Reset draw call stats for clears
-		counters.current_stats = { 0, 0 };
+	// Reset draw call stats for clears
+	counters.current_stats = { 0, 0 };
 }
 
 bool reshade::d3d10::buffer_detection::update_depthstencil_clear_texture(D3D10_TEXTURE2D_DESC desc)

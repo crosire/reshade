@@ -152,7 +152,7 @@ void reshade::d3d11::buffer_detection::on_clear_depthstencil(UINT clear_flags, I
 	auto &counters = _counters_per_used_depth_texture[dsv_texture];
 
 	// Update stats with data from previous frame
-	if (!rect_draw_call && counters.current_stats.drawcalls == 0)
+	if (counters.current_stats.drawcalls == 0)
 		counters.current_stats = _context->_previous_stats;
 
 	// Ignore clears when there was no meaningful workload
@@ -172,9 +172,8 @@ void reshade::d3d11::buffer_detection::on_clear_depthstencil(UINT clear_flags, I
 		_device->CopyResource(_context->_depthstencil_clear_texture.get(), dsv_texture.get());
 	}
 
-	if (!rect_draw_call)
-		// Reset draw call stats for clears
-		counters.current_stats = { 0, 0 };
+	// Reset draw call stats for clears
+	counters.current_stats = { 0, 0 };
 }
 
 bool reshade::d3d11::buffer_detection_context::update_depthstencil_clear_texture(D3D11_TEXTURE2D_DESC desc)
