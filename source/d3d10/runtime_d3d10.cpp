@@ -1377,7 +1377,11 @@ void reshade::d3d10::runtime_d3d10::draw_depth_debug_menu(buffer_detection &trac
 		{
 			for (UINT clear_index = 1; clear_index <= snapshot.clears.size(); ++clear_index)
 			{
-				sprintf_s(label, "%s  CLEAR %2u", (clear_index == tracker.current_clear_index() ? "> " : "  "), clear_index);
+				UINT space_size = 8;
+				if (snapshot.clears[clear_index - 1].rect)
+					space_size -= sizeof("(RECT)") - 1;
+
+				sprintf_s(label, "%s CLEAR %2u %s", (clear_index == tracker.current_clear_index() ? "> " : "  "), clear_index, snapshot.clears[clear_index - 1].rect ? "(RECT)" : "");
 
 				if (bool value = (_depth_clear_index_override == clear_index);
 					ImGui::Checkbox(label, &value))
@@ -1388,7 +1392,7 @@ void reshade::d3d10::runtime_d3d10::draw_depth_debug_menu(buffer_detection &trac
 
 				ImGui::SameLine();
 				ImGui::Text("%*s|           | %5u draw calls ==> %8u vertices |",
-					sizeof(dsv_texture.get()) == 8 ? 8 : 0, "", // Add space to fill pointer length
+					sizeof(dsv_texture.get()) == 8 ? space_size : 0, "", // Add space to fill pointer length
 					snapshot.clears[clear_index - 1].drawcalls, snapshot.clears[clear_index - 1].vertices);
 			}
 		}
