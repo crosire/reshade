@@ -57,7 +57,7 @@ void reshade::d3d10::buffer_detection::on_draw(UINT vertices)
 		return; // This is a draw call with no depth-stencil bound
 
 	// Check if this draw call likely represets a fullscreen rectangle (two triangles), which would clear the depth-stencil
-	if (_preserve_depth_buffers_hidden_by_rectangle && vertices == 6 && _new_om_stage && _depth_stencil_cleared && !_depth_buffer_cleared)
+	if (_preserve_depth_buffers_hidden_by_rectangle && vertices <= 6 && _new_om_stage && _depth_stencil_cleared && !_depth_buffer_cleared)
 	{
 		ID3D10RasterizerState *rasterizer_state = nullptr;
 		_device->RSGetState(&rasterizer_state);
