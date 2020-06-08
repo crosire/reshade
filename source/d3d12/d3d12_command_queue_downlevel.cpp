@@ -16,8 +16,8 @@ D3D12CommandQueueDownlevel::D3D12CommandQueueDownlevel(D3D12CommandQueue *queue,
 	_orig(original),
 	_device(queue->_device) {
 	assert(_orig != nullptr);
-	_runtime = std::make_unique<reshade::d3d12::runtime_d3d12>(_device->_orig, queue->_orig, nullptr);
-	_runtime->_buffer_detection = &_device->_buffer_detection;
+	_runtime = std::make_unique<reshade::d3d12::runtime_d3d12>(
+		_device->_orig, queue->_orig, nullptr, &_device->_buffer_detection);
 }
 
 HRESULT STDMETHODCALLTYPE D3D12CommandQueueDownlevel::QueryInterface(REFIID riid, void **ppvObj)
