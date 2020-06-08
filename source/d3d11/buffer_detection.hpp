@@ -48,8 +48,6 @@ namespace reshade::d3d11
 		draw_stats _stats;
 #if RESHADE_DEPTH
 		draw_stats _best_copy_stats;
-		bool _preserve_cleared_depth_buffers = false;
-		bool _preserve_depth_buffers_hidden_by_rectangle = false;
 		bool _new_om_stage = false;
 		bool _depth_stencil_cleared = false;
 		bool _depth_buffer_cleared = false;
@@ -91,6 +89,8 @@ namespace reshade::d3d11
 		draw_stats _previous_stats;
 		com_ptr<ID3D11Texture2D> _depthstencil_clear_texture;
 		std::pair<ID3D11Texture2D *, UINT> _depthstencil_clear_index = { nullptr, std::numeric_limits<UINT>::max() };
+		bool _preserve_cleared_depth_buffers = false;
+		bool _preserve_depth_buffers_hidden_by_rectangle = false;
 #endif
 
 #if RESHADE_WIREFRAME
