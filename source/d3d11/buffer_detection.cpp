@@ -166,10 +166,12 @@ void reshade::d3d11::buffer_detection::on_clear_depthstencil(UINT clear_flags, I
 	// Make a backup copy of the depth texture before it is cleared
 	if (_context->_depthstencil_clear_index.second == std::numeric_limits<UINT>::max() ?
 		rect_draw_call || counters.current_stats.vertices > _best_copy_stats.vertices :
-	// This is not really correct, since clears may accumulate over multiple command lists, but it's unlikely that the same depth-stencil is used in more than one
-	counters.clears.size() == _context->_depthstencil_clear_index.second)
+		// This is not really correct, since clears may accumulate over multiple command lists, but it's unlikely that the same depth-stencil is used in more than one
+		counters.clears.size() == _context->_depthstencil_clear_index.second)
 	{
-		_best_copy_stats = counters.current_stats;
+		// since the rect draw calls are selected according to their order, their stats are not taken into account to find the best stats
+		if (!rect_draw_call)
+			_best_copy_stats = counters.current_stats;
 
 		_device->CopyResource(_context->_depthstencil_clear_texture.get(), dsv_texture.get());
 	}
