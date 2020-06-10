@@ -25,11 +25,15 @@ void reshade::d3d10::buffer_detection::reset(bool release_resources)
 {
 	_stats = { 0, 0 };
 #if RESHADE_DEPTH
+	_new_om_stage = false;
+	_depth_stencil_cleared = false;
 	_best_copy_stats = { 0, 0 };
 	_counters_per_used_depth_texture.clear();
 
 	if (release_resources)
 	{
+		_preserve_cleared_depth_buffers = false;
+		_preserve_depth_buffers_hidden_by_rectangle = false;
 		_previous_stats = { 0, 0 };
 		_depthstencil_clear_texture.reset();
 	}
@@ -51,6 +55,29 @@ void reshade::d3d10::buffer_detection::on_draw(UINT vertices)
 	if (dsv_texture == nullptr)
 		return; // This is a draw call with no depth-stencil bound
 
+	// Check if this draw call likely represets a fullscreen rectangle (two triangles), which would clear the depth-stencil
+	if (_preserve_depth_buffers_hidden_by_rectangle && vertices <= 6 && _new_om_stage && _depth_stencil_cleared)
+	{
+		ID3D10RasterizerState *rasterizer_state = nullptr;
+		_device->RSGetState(&rasterizer_state);
+		D3D10_RASTERIZER_DESC raster_desc;
+		rasterizer_state->GetDesc(&raster_desc);
+
+		ID3D10DepthStencilState *depth_stencil_state = nullptr;
+		UINT stencilRef;
+		_device->OMGetDepthStencilState(&depth_stencil_state, &stencilRef);
+		D3D10_DEPTH_STENCIL_DESC depth_stencil_desc;
+		depth_stencil_state->GetDesc(&depth_stencil_desc);
+
+		if ((raster_desc.CullMode & D3D10_CULL_NONE) != 0 && depth_stencil_desc.DepthWriteMask == D3D10_DEPTH_WRITE_MASK_ALL)
+		{
+			on_clear_depthstencil(D3D10_CLEAR_STENCIL, depthstencil.get(), true);
+
+			_new_om_stage = false;
+			_depth_stencil_cleared = false;
+		}
+	}
+
 	auto &counters = _counters_per_used_depth_texture[dsv_texture];
 	counters.total_stats.vertices += vertices;
 	counters.total_stats.drawcalls += 1;
@@ -60,9 +87,16 @@ void reshade::d3d10::buffer_detection::on_draw(UINT vertices)
 }
 
 #if RESHADE_DEPTH
-void reshade::d3d10::buffer_detection::on_clear_depthstencil(UINT clear_flags, ID3D10DepthStencilView *dsv)
+void reshade::d3d10::buffer_detection::on_set_render_targets()
 {
-	if ((clear_flags & D3D10_CLEAR_DEPTH) == 0)
+	_new_om_stage = true;
+}
+
+void reshade::d3d10::buffer_detection::on_clear_depthstencil(UINT clear_flags, ID3D10DepthStencilView *dsv, bool rect_draw_call)
+{
+	_depth_stencil_cleared = true;
+
+	if (!rect_draw_call && (clear_flags & D3D10_CLEAR_DEPTH) == 0)
 		return;
 
 	com_ptr<ID3D10Texture2D> dsv_texture = texture_from_dsv(dsv);
@@ -72,21 +106,26 @@ void reshade::d3d10::buffer_detection::on_clear_depthstencil(UINT clear_flags, I
 	auto &counters = _counters_per_used_depth_texture[dsv_texture];
 
 	// Update stats with data from previous frame
-	if (counters.current_stats.drawcalls == 0)
+	if (!rect_draw_call && counters.current_stats.drawcalls == 0)
 		counters.current_stats = _previous_stats;
 
 	// Ignore clears when there was no meaningful workload
 	if (counters.current_stats.drawcalls == 0)
 		return;
 
+	if (rect_draw_call)
+		counters.current_stats.rect = true;
+
 	counters.clears.push_back(counters.current_stats);
 
 	// Make a backup copy of the depth texture before it is cleared
 	if (_depthstencil_clear_index.second == std::numeric_limits<UINT>::max() ?
-		counters.current_stats.vertices > _best_copy_stats.vertices :
+		rect_draw_call || counters.current_stats.vertices > _best_copy_stats.vertices :
 		counters.clears.size() == _depthstencil_clear_index.second)
 	{
-		_best_copy_stats = counters.current_stats;
+		// since the rect draw calls are selected according to their order, their stats are not taken into account to find the best stats
+		if (!rect_draw_call)
+			_best_copy_stats = counters.current_stats;
 
 		_device->CopyResource(_depthstencil_clear_texture.get(), dsv_texture.get());
 	}
@@ -120,10 +159,13 @@ bool reshade::d3d10::buffer_detection::update_depthstencil_clear_texture(D3D10_T
 	return true;
 }
 
-com_ptr<ID3D10Texture2D> reshade::d3d10::buffer_detection::find_best_depth_texture(UINT width, UINT height, com_ptr<ID3D10Texture2D> override, UINT clear_index_override)
+com_ptr<ID3D10Texture2D> reshade::d3d10::buffer_detection::find_best_depth_texture(UINT width, UINT height, com_ptr<ID3D10Texture2D> override, UINT clear_index_override, bool extended_to_rect_draw_calls)
 {
 	depthstencil_info best_snapshot;
 	com_ptr<ID3D10Texture2D> best_match;
+
+	_preserve_cleared_depth_buffers = (clear_index_override > 0);
+	_preserve_depth_buffers_hidden_by_rectangle = (extended_to_rect_draw_calls == true);
 
 	if (override != nullptr)
 	{
