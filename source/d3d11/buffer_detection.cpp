@@ -15,15 +15,16 @@ static inline com_ptr<ID3D11Texture2D> texture_from_dsv(ID3D11DepthStencilView *
 		return nullptr;
 	com_ptr<ID3D11Resource> resource;
 	dsv->GetResource(&resource);
+	assert(resource != nullptr);
 	com_ptr<ID3D11Texture2D> texture;
 	resource->QueryInterface(&texture);
 	return texture;
 }
 #endif
 
-void reshade::d3d11::buffer_detection::init(ID3D11DeviceContext *device, const buffer_detection_context *context)
+void reshade::d3d11::buffer_detection::init(ID3D11DeviceContext *device_context, const buffer_detection_context *context)
 {
-	_device = device;
+	_device_context = device_context;
 	_context = context;
 }
 
@@ -88,7 +89,7 @@ void reshade::d3d11::buffer_detection::on_draw(UINT vertices)
 
 #if RESHADE_DEPTH
 	com_ptr<ID3D11DepthStencilView> depthstencil;
-	_device->OMGetRenderTargets(0, nullptr, &depthstencil);
+	_device_context->OMGetRenderTargets(0, nullptr, &depthstencil);
 
 	const auto dsv_texture = texture_from_dsv(depthstencil.get());
 	if (dsv_texture == nullptr)
@@ -103,16 +104,18 @@ void reshade::d3d11::buffer_detection::on_draw(UINT vertices)
 	{
 		D3D11_RASTERIZER_DESC rs_desc = {};
 		com_ptr<ID3D11RasterizerState> rs;
-		_device->RSGetState(&rs);
+		_device_context->RSGetState(&rs);
+		assert(rs != nullptr);
 		rs->GetDesc(&rs_desc);
 
 		UINT stencil_ref_value;
 		D3D11_DEPTH_STENCIL_DESC dss_desc = {};
 		com_ptr<ID3D11DepthStencilState> dss;
-		_device->OMGetDepthStencilState(&dss, &stencil_ref_value);
+		_device_context->OMGetDepthStencilState(&dss, &stencil_ref_value);
+		assert(dss != nullptr);
 		dss->GetDesc(&dss_desc);
 
-		if ((rs_desc.CullMode & D3D11_CULL_NONE) != 0 && dss_desc.DepthWriteMask == D3D11_DEPTH_WRITE_MASK_ALL)
+		if (rs_desc.CullMode == D3D11_CULL_NONE && dss_desc.DepthWriteMask == D3D11_DEPTH_WRITE_MASK_ALL)
 		{
 			on_clear_depthstencil(D3D11_CLEAR_DEPTH, depthstencil.get(), true);
 
@@ -174,7 +177,7 @@ void reshade::d3d11::buffer_detection::on_clear_depthstencil(UINT clear_flags, I
 		if (!rect_draw_call)
 			_best_copy_stats = counters.current_stats;
 
-		_device->CopyResource(_context->_depthstencil_clear_texture.get(), dsv_texture.get());
+		_device_context->CopyResource(_context->_depthstencil_clear_texture.get(), dsv_texture.get());
 	}
 
 	// Reset draw call stats for clears
@@ -194,13 +197,13 @@ bool reshade::d3d11::buffer_detection_context::update_depthstencil_clear_texture
 			_depthstencil_clear_texture.reset();
 	}
 
-	assert(_device != nullptr);
+	assert(_device_context != nullptr);
 
 	desc.Format = make_dxgi_format_typeless(desc.Format);
 	desc.BindFlags = D3D11_BIND_DEPTH_STENCIL | D3D11_BIND_SHADER_RESOURCE;
 
 	com_ptr<ID3D11Device> device;
-	_device->GetDevice(&device);
+	_device_context->GetDevice(&device);
 
 	if (HRESULT hr = device->CreateTexture2D(&desc, nullptr, &_depthstencil_clear_texture); FAILED(hr))
 	{

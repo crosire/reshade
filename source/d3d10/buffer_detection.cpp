@@ -15,6 +15,7 @@ static inline com_ptr<ID3D10Texture2D> texture_from_dsv(ID3D10DepthStencilView *
 		return nullptr;
 	com_ptr<ID3D10Resource> resource;
 	dsv->GetResource(&resource);
+	assert(resource != nullptr);
 	com_ptr<ID3D10Texture2D> texture;
 	resource->QueryInterface(&texture);
 	return texture;
@@ -59,15 +60,17 @@ void reshade::d3d10::buffer_detection::on_draw(UINT vertices)
 		D3D10_RASTERIZER_DESC rs_desc = {};
 		com_ptr<ID3D10RasterizerState> rs;
 		_device->RSGetState(&rs);
+		assert(rs != nullptr);
 		rs->GetDesc(&rs_desc);
 
 		UINT stencil_ref_value;
 		D3D10_DEPTH_STENCIL_DESC dss_desc = {};
 		com_ptr<ID3D10DepthStencilState> dss;
 		_device->OMGetDepthStencilState(&dss, &stencil_ref_value);
+		assert(dss != nullptr);
 		dss->GetDesc(&dss_desc);
 
-		if ((rs_desc.CullMode & D3D10_CULL_NONE) != 0 && dss_desc.DepthWriteMask == D3D10_DEPTH_WRITE_MASK_ALL)
+		if (rs_desc.CullMode == D3D10_CULL_NONE && dss_desc.DepthWriteMask == D3D10_DEPTH_WRITE_MASK_ALL)
 		{
 			on_clear_depthstencil(D3D10_CLEAR_DEPTH, depthstencil.get(), true);
 

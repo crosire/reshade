@@ -28,7 +28,7 @@ namespace reshade::d3d11
 			std::vector<draw_stats> clears;
 		};
 
-		void init(ID3D11DeviceContext *device, const class buffer_detection_context *context);
+		void init(ID3D11DeviceContext *device_context, const class buffer_detection_context *context);
 		void reset();
 
 		void merge(const buffer_detection &source);
@@ -41,7 +41,7 @@ namespace reshade::d3d11
 
 	protected:
 		draw_stats _stats;
-		ID3D11DeviceContext *_device = nullptr;
+		ID3D11DeviceContext *_device_context = nullptr;
 		const buffer_detection_context *_context = nullptr;
 #if RESHADE_DEPTH
 		draw_stats _best_copy_stats;
