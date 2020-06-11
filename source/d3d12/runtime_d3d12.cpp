@@ -1290,24 +1290,27 @@ void reshade::d3d12::runtime_d3d12::render_technique(technique &technique)
 		_cmd_list->RSSetScissorRects(1, &scissor_rect);
 
 		// Draw primitives
+		D3D_PRIMITIVE_TOPOLOGY topology;
 		switch (pass_info.topology)
 		{
 		case reshadefx::primitive_topology::point_list:
-			_cmd_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_POINTLIST);
+			topology = D3D_PRIMITIVE_TOPOLOGY_POINTLIST;
 			break;
 		case reshadefx::primitive_topology::line_list:
-			_cmd_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_LINELIST);
+			topology = D3D_PRIMITIVE_TOPOLOGY_LINELIST;
 			break;
 		case reshadefx::primitive_topology::line_strip:
-			_cmd_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_LINESTRIP);
+			topology = D3D_PRIMITIVE_TOPOLOGY_LINESTRIP;
 			break;
+		default:
 		case reshadefx::primitive_topology::triangle_list:
-			_cmd_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+			topology = D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
 			break;
 		case reshadefx::primitive_topology::triangle_strip:
-			_cmd_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+			topology = D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP;
 			break;
 		}
+		_cmd_list->IASetPrimitiveTopology(topology);
 		_cmd_list->DrawInstanced(pass_info.num_vertices, 1, 0, 0);
 
 		_vertices += pass_info.num_vertices;

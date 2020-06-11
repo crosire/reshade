@@ -102,14 +102,14 @@ void reshade::d3d11::buffer_detection::on_draw(UINT vertices)
 	// Check if this draw call likely represets a fullscreen rectangle (two triangles), which would clear the depth-stencil
 	if (_context->preserve_hidden_depth_buffers && vertices <= 6 && _new_om_stage && _depth_stencil_cleared)
 	{
-		D3D11_RASTERIZER_DESC rs_desc = {};
+		D3D11_RASTERIZER_DESC rs_desc;
 		com_ptr<ID3D11RasterizerState> rs;
 		_device_context->RSGetState(&rs);
 		assert(rs != nullptr);
 		rs->GetDesc(&rs_desc);
 
 		UINT stencil_ref_value;
-		D3D11_DEPTH_STENCIL_DESC dss_desc = {};
+		D3D11_DEPTH_STENCIL_DESC dss_desc;
 		com_ptr<ID3D11DepthStencilState> dss;
 		_device_context->OMGetDepthStencilState(&dss, &stencil_ref_value);
 		assert(dss != nullptr);
@@ -229,7 +229,8 @@ com_ptr<ID3D11Texture2D> reshade::d3d11::buffer_detection_context::find_best_dep
 			if (snapshot.total_stats.drawcalls == 0)
 				continue; // Skip unused
 
-			D3D11_TEXTURE2D_DESC desc; dsv_texture->GetDesc(&desc);
+			D3D11_TEXTURE2D_DESC desc;
+			dsv_texture->GetDesc(&desc);
 			assert((desc.BindFlags & D3D11_BIND_DEPTH_STENCIL) != 0);
 
 			if (desc.SampleDesc.Count > 1)

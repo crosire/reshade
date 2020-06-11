@@ -100,8 +100,9 @@ bool imgui_directory_dialog(const char *name, std::filesystem::path &path)
 	if (!ImGui::BeginPopup(name))
 		return false;
 
-	char buf[_MAX_PATH] = "";
-	path.u8string().copy(buf, sizeof(buf) - 1);
+	char buf[260];
+	const size_t buf_len = path.u8string().copy(buf, sizeof(buf) - 1);
+	buf[buf_len] = '\0';
 
 	ImGui::PushItemWidth(400);
 	if (ImGui::InputText("##path", buf, sizeof(buf)))
@@ -165,8 +166,9 @@ bool imgui_directory_input_box(const char *name, std::filesystem::path &path, st
 	ImGui::PushID(name);
 	ImGui::BeginGroup();
 
-	char buf[_MAX_PATH] = "";
-	path.u8string().copy(buf, sizeof(buf) - 1);
+	char buf[260];
+	const size_t buf_len = path.u8string().copy(buf, sizeof(buf) - 1);
+	buf[buf_len] = '\0';
 
 	ImGui::PushItemWidth(ImGui::CalcItemWidth() - (button_spacing + button_size));
 	if (ImGui::InputText("##path", buf, sizeof(buf)))
@@ -200,15 +202,15 @@ bool imgui_path_list(const char *label, std::vector<std::filesystem::path> &path
 	ImGui::BeginGroup();
 	ImGui::PushID(label);
 
-	char buf[_MAX_PATH];
-
 	if (ImGui::BeginChild("##paths", ImVec2(item_width, (paths.size() + 1) * item_height), false, ImGuiWindowFlags_NoScrollWithMouse))
 	{
 		for (size_t i = 0; i < paths.size(); ++i)
 		{
 			ImGui::PushID(static_cast<int>(i));
 
-			buf[paths[i].u8string().copy(buf, sizeof(buf) - 1)] = '\0';
+			char buf[260];
+			const size_t buf_len = paths[i].u8string().copy(buf, sizeof(buf) - 1);
+			buf[buf_len] = '\0';
 
 			ImGui::PushItemWidth(ImGui::GetWindowContentRegionWidth() - (button_spacing + button_size));
 			if (ImGui::InputText("##path", buf, sizeof(buf)))
@@ -398,8 +400,10 @@ bool imgui_combo_with_buttons(const char *label, const std::string_view ui_items
 	std::string items;
 	items.reserve(ui_items.size());
 	for (size_t offset = 0, next; (next = ui_items.find('\0', offset)) != std::string::npos; offset = next + 1, ++num_items)
-		items += ui_items.data() + offset,
-		items += '\0';
+	{
+		items += ui_items.data() + offset;
+		items += '\0'; // Terminate item in the combo list
+	}
 
 	ImGui::BeginGroup();
 

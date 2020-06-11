@@ -55,9 +55,7 @@ namespace reshade::vulkan
 		VkBuffer create_buffer(VkDeviceSize size,
 			VkBufferUsageFlags usage, VmaMemoryUsage mem_usage,
 			VkBufferCreateFlags flags = 0, VmaAllocationCreateFlags mem_flags = 0, VmaAllocation *out_mem = nullptr);
-
 		VkImageView create_image_view(VkImage image, VkFormat format, uint32_t levels, VkImageAspectFlags aspect);
-		VkBufferView create_buffer_view(VkBuffer buffer, VkFormat format);
 
 		VmaAllocator _alloc = VK_NULL_HANDLE;
 		const VkDevice _device;

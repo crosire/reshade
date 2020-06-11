@@ -11,7 +11,7 @@ class shared_memory
 {
 public:
 	shared_memory() {}
-	shared_memory(LPCTSTR name)
+	explicit shared_memory(LPCTSTR name)
 	{
 		handle = OpenFileMapping(FILE_MAP_ALL_ACCESS, FALSE, name);
 		if (handle != nullptr)

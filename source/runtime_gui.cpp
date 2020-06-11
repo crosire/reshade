@@ -896,7 +896,7 @@ void reshade::runtime::draw_ui_home()
 
 		ImGui::SameLine();
 
-		if (ImGui::Button(_effects_expanded_state & 2 ? "Collapse all" : "Expand all", ImVec2(10 * _font_size - _imgui_context->Style.ItemSpacing.x, 0)))
+		if (ImGui::Button((_effects_expanded_state & 2) ? "Collapse all" : "Expand all", ImVec2(10 * _font_size - _imgui_context->Style.ItemSpacing.x, 0)))
 			_effects_expanded_state = (~_effects_expanded_state & 2) | 1;
 
 		if (_tutorial_index == 2)
@@ -1021,8 +1021,6 @@ void reshade::runtime::draw_ui_settings()
 {
 	bool modified = false;
 	bool reload_style = false;
-	const float button_size = ImGui::GetFrameHeight();
-	const float button_spacing = _imgui_context->Style.ItemInnerSpacing.x;
 
 	if (ImGui::CollapsingHeader("General", ImGuiTreeNodeFlags_DefaultOpen))
 	{
@@ -1243,11 +1241,6 @@ void reshade::runtime::draw_ui_statistics()
 	uint64_t post_processing_time_cpu = 0;
 	uint64_t post_processing_time_gpu = 0;
 
-	// Variables used to calculate memory size of textures
-	ldiv_t memory_view;
-	const char *memory_size_unit;
-	uint32_t post_processing_memory_size = 0;
-
 	if (!is_loading() && _effects_enabled)
 	{
 		for (const auto &technique : _techniques)
@@ -1381,6 +1374,11 @@ void reshade::runtime::draw_ui_statistics()
 		unsigned int texture_index = 0;
 		const unsigned int num_columns = static_cast<unsigned int>(std::ceilf(total_width / (50.0f * _font_size)));
 		const float single_image_width = (total_width / num_columns) - 5.0f;
+
+		// Variables used to calculate memory size of textures
+		ldiv_t memory_view;
+		const char *memory_size_unit;
+		uint32_t post_processing_memory_size = 0;
 
 		for (const auto &texture : _textures)
 		{

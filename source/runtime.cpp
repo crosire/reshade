@@ -484,13 +484,12 @@ bool reshade::runtime::load_effect(const std::filesystem::path &path, size_t ind
 				// Overwrite referenced texture in samplers with the pooled one
 				for (auto &sampler_info : effect.module.samplers)
 					if (sampler_info.texture_name == texture.unique_name)
-						sampler_info.texture_name = existing_texture->unique_name;
+						sampler_info.texture_name  = existing_texture->unique_name;
 				// Overwrite referenced texture in render targets with the pooled one
 				for (auto &technique_info : effect.module.techniques)
 					for (auto &pass_info : technique_info.passes)
-						for (auto &target_name : pass_info.render_target_names)
-							if (target_name == texture.unique_name)
-								target_name = existing_texture->unique_name;
+						std::replace(std::begin(pass_info.render_target_names), std::end(pass_info.render_target_names),
+							texture.unique_name, existing_texture->unique_name);
 
 				existing_texture->shared = true;
 				continue;
@@ -1649,10 +1648,9 @@ void reshade::runtime::set_uniform_value(uniform &variable, const float *values,
 
 void reshade::runtime::reset_uniform_value(uniform &variable)
 {
-	auto &data_storage = _effects[variable.effect_index].uniform_data_storage;
 	if (!variable.has_initializer_value)
 	{
-		std::memset(data_storage.data() + variable.offset, 0, variable.size);
+		std::memset(_effects[variable.effect_index].uniform_data_storage.data() + variable.offset, 0, variable.size);
 		return;
 	}
 

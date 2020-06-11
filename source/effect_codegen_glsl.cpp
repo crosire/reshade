@@ -516,8 +516,7 @@ private:
 		function_info entry_point;
 		entry_point.return_type = { type::t_void };
 
-		const auto semantic_to_builtin = [this, is_ps](std::string name, const std::string &semantic) -> std::string
-		{
+		const auto semantic_to_builtin = [this, is_ps](const std::string &name, const std::string &semantic) -> std::string {
 			if (semantic == "SV_POSITION" || semantic == "POSITION" || semantic == "VPOS")
 				return is_ps ? "gl_FragCoord" : "gl_Position";
 			if (semantic == "SV_DEPTH" || semantic == "DEPTH")

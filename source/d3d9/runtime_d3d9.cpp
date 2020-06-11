@@ -913,6 +913,7 @@ void reshade::d3d9::runtime_d3d9::render_technique(technique &technique)
 		case reshadefx::primitive_topology::line_strip:
 			_device->DrawPrimitive(D3DPT_LINESTRIP, 0, pass_info.num_vertices - 1);
 			break;
+		default:
 		case reshadefx::primitive_topology::triangle_list:
 			_device->DrawPrimitive(D3DPT_TRIANGLELIST, 0, pass_info.num_vertices / 3);
 			break;
@@ -1251,6 +1252,7 @@ void reshade::d3d9::runtime_d3d9::update_depth_texture_bindings(com_ptr<IDirect3
 				continue;
 
 			for (d3d9_pass_data &pass_data : tech_impl->passes)
+				// Replace all occurances of the old texture with the new one
 				for (IDirect3DTexture9 *&sampler_tex : pass_data.sampler_textures)
 					if (tex_impl->texture == sampler_tex)
 						sampler_tex = _depth_texture.get();

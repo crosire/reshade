@@ -159,7 +159,6 @@ void reshade::opengl::buffer_detection::on_delete_fbo_attachment(GLenum target, 
 
 reshade::opengl::buffer_detection::depthstencil_info reshade::opengl::buffer_detection::find_best_depth_texture(GLuint width, GLuint height, GLuint override) const
 {
-	GLuint best_match = 0;
 	depthstencil_info best_snapshot = _depth_source_table.at(0); // Always fall back to default depth buffer if no better match is found
 
 	if (override != std::numeric_limits<GLuint>::max())
@@ -192,7 +191,6 @@ reshade::opengl::buffer_detection::depthstencil_info reshade::opengl::buffer_det
 		const auto best_weight = best_snapshot.stats.vertices * (1.2f - static_cast<float>(best_snapshot.stats.drawcalls) / _stats.vertices);
 		if (curr_weight >= best_weight)
 		{
-			best_match = image;
 			best_snapshot = snapshot;
 		}
 	}

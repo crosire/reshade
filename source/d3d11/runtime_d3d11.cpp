@@ -214,7 +214,7 @@ bool reshade::d3d11::runtime_d3d11::on_init(const DXGI_SWAP_CHAIN_DESC &swap_des
 		return false;
 #endif
 
-	// Clear reference count to make Unreal Engine 4 happy (which checks the reference count)
+	// Clear reference to make Unreal Engine 4 happy (which checks the reference count)
 	_backbuffer->Release();
 
 	return runtime::on_init(swap_desc.OutputWindow);
@@ -228,7 +228,7 @@ void reshade::d3d11::runtime_d3d11::on_reset()
 		// Releasing the references ReShade owns would then make the count negative, which consequently breaks DXGI validation, so reset those references here
 		if (_backbuffer.ref_count() == 0)
 			add_references = _backbuffer == _backbuffer_resolved ? 2 : 1;
-		// Reset reference count released because of Unreal Engine 4
+		// Add the reference back that was released because of Unreal Engine 4
 		else if (_is_initialized)
 			add_references = 1;
 
@@ -320,7 +320,7 @@ void reshade::d3d11::runtime_d3d11::on_present()
 		ID3D11ShaderResourceView *const srvs[] = { _backbuffer_texture_srv[make_dxgi_format_srgb(_backbuffer_format) == _backbuffer_format].get() };
 		_immediate_context->PSSetShaderResources(0, ARRAYSIZE(srvs), srvs);
 		_immediate_context->RSSetState(_effect_rasterizer.get());
-		const D3D11_VIEWPORT viewport = { 0, 0, FLOAT(_width), FLOAT(_height), 0.0f, 1.0f };
+		const D3D11_VIEWPORT viewport = { 0.0f, 0.0f, static_cast<FLOAT>(_width), static_cast<FLOAT>(_height), 0.0f, 1.0f };
 		_immediate_context->RSSetViewports(1, &viewport);
 		_immediate_context->OMSetBlendState(nullptr, nullptr, D3D11_DEFAULT_SAMPLE_MASK);
 		_immediate_context->OMSetDepthStencilState(nullptr, D3D11_DEFAULT_STENCIL_REFERENCE);
@@ -598,7 +598,7 @@ bool reshade::d3d11::runtime_d3d11::init_effect(size_t index)
 				})->impl);
 				assert(texture_impl != nullptr);
 
-				D3D11_TEXTURE2D_DESC desc = {};
+				D3D11_TEXTURE2D_DESC desc;
 				texture_impl->texture->GetDesc(&desc);
 
 				D3D11_RENDER_TARGET_VIEW_DESC rtv_desc = {};
@@ -726,24 +726,23 @@ bool reshade::d3d11::runtime_d3d11::init_effect(size_t index)
 				}
 			}
 
+			// Unbind any shader resources that are also bound as render target
 			pass_data.shader_resources = impl->texture_bindings;
 			for (com_ptr<ID3D11ShaderResourceView> &srv : pass_data.shader_resources)
 			{
 				if (srv == nullptr)
 					continue;
-
-				com_ptr<ID3D11Resource> res1;
-				srv->GetResource(&res1);
+				com_ptr<ID3D11Resource> srv_res;
+				srv->GetResource(&srv_res);
 
 				for (const com_ptr<ID3D11RenderTargetView> &rtv : pass_data.render_targets)
 				{
 					if (rtv == nullptr)
 						continue;
+					com_ptr<ID3D11Resource> rtv_res;
+					rtv->GetResource(&rtv_res);
 
-					com_ptr<ID3D11Resource> res2;
-					rtv->GetResource(&res2);
-
-					if (res1 == res2)
+					if (srv_res == rtv_res)
 					{
 						srv.reset();
 						break;
@@ -1059,7 +1058,7 @@ void reshade::d3d11::runtime_d3d11::render_technique(technique &technique)
 			for (const com_ptr<ID3D11RenderTargetView> &target : pass_data.render_targets)
 			{
 				if (target == nullptr)
-					break;
+					break; // Render targets can only be set consecutively
 				const FLOAT color[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
 				_immediate_context->ClearRenderTargetView(target.get(), color);
 			}
@@ -1069,24 +1068,27 @@ void reshade::d3d11::runtime_d3d11::render_technique(technique &technique)
 		_immediate_context->RSSetViewports(1, &viewport);
 
 		// Draw primitives
+		D3D11_PRIMITIVE_TOPOLOGY topology;
 		switch (pass_info.topology)
 		{
 		case reshadefx::primitive_topology::point_list:
-			_immediate_context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_POINTLIST);
+			topology = D3D11_PRIMITIVE_TOPOLOGY_POINTLIST;
 			break;
 		case reshadefx::primitive_topology::line_list:
-			_immediate_context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_LINELIST);
+			topology = D3D11_PRIMITIVE_TOPOLOGY_LINELIST;
 			break;
 		case reshadefx::primitive_topology::line_strip:
-			_immediate_context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_LINESTRIP);
+			topology = D3D11_PRIMITIVE_TOPOLOGY_LINESTRIP;
 			break;
+		default:
 		case reshadefx::primitive_topology::triangle_list:
-			_immediate_context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+			topology = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
 			break;
 		case reshadefx::primitive_topology::triangle_strip:
-			_immediate_context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+			topology = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP;
 			break;
 		}
+		_immediate_context->IASetPrimitiveTopology(topology);
 		_immediate_context->Draw(pass_info.num_vertices, 0);
 
 		_vertices += pass_info.num_vertices;
@@ -1299,9 +1301,9 @@ void reshade::d3d11::runtime_d3d11::render_imgui_draw_data(ImDrawData *draw_data
 	ID3D11SamplerState *const samplers[] = { _imgui.ss.get() };
 	_immediate_context->PSSetSamplers(0, ARRAYSIZE(samplers), samplers);
 	_immediate_context->RSSetState(_imgui.rs.get());
-	const D3D11_VIEWPORT viewport = { 0, 0, FLOAT(_width), FLOAT(_height), 0.0f, 1.0f };
+	const D3D11_VIEWPORT viewport = { 0.0f, 0.0f, static_cast<FLOAT>(_width), static_cast<FLOAT>(_height), 0.0f, 1.0f };
 	_immediate_context->RSSetViewports(1, &viewport);
-	const FLOAT blend_factor[4] = { 0.f, 0.f, 0.f, 0.f };
+	const FLOAT blend_factor[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
 	_immediate_context->OMSetBlendState(_imgui.bs.get(), blend_factor, D3D11_DEFAULT_SAMPLE_MASK);
 	_immediate_context->OMSetDepthStencilState(_imgui.ds.get(), 0);
 	ID3D11RenderTargetView *const render_targets[] = { _backbuffer_rtv[0].get() };
@@ -1440,7 +1442,6 @@ void reshade::d3d11::runtime_d3d11::update_depth_texture_bindings(com_ptr<ID3D11
 	{
 		D3D11_TEXTURE2D_DESC tex_desc;
 		_depth_texture->GetDesc(&tex_desc);
-
 		assert((tex_desc.BindFlags & D3D11_BIND_SHADER_RESOURCE) != 0);
 
 		D3D11_SHADER_RESOURCE_VIEW_DESC srv_desc = {};
@@ -1474,6 +1475,7 @@ void reshade::d3d11::runtime_d3d11::update_depth_texture_bindings(com_ptr<ID3D11
 				continue;
 
 			for (d3d11_pass_data &pass_data : tech_impl->passes)
+				// Replace all occurances of the old resource view with the new one
 				for (com_ptr<ID3D11ShaderResourceView> &srv : pass_data.shader_resources)
 					if (tex_impl->srv[0] == srv || tex_impl->srv[1] == srv)
 						srv = _depth_texture_srv;

@@ -141,7 +141,7 @@ VkResult VKAPI_CALL vkCreateInstance(const VkInstanceCreateInfo *pCreateInfo, co
 	// Initialize the instance dispatch table
 	VkLayerInstanceDispatchTable &dispatch_table = s_instance_dispatch.emplace(dispatch_key_from_handle(instance));
 	dispatch_table.GetInstanceProcAddr = gipa;
-#define INIT_INSTANCE_PROC(name) dispatch_table.name = (PFN_vk##name)gipa(instance, "vk" #name)
+#define INIT_INSTANCE_PROC(name) dispatch_table.name = reinterpret_cast<PFN_vk##name>(gipa(instance, "vk" #name))
 	// ---- Core 1_0 commands
 	INIT_INSTANCE_PROC(DestroyInstance);
 	INIT_INSTANCE_PROC(EnumeratePhysicalDevices);
@@ -368,7 +368,7 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	// Initialize the device dispatch table
 	VkLayerDispatchTable &dispatch_table = device_data.dispatch_table;
 	dispatch_table.GetDeviceProcAddr = gdpa;
-#define INIT_DEVICE_PROC(name) dispatch_table.name = (PFN_vk##name)gdpa(device, "vk" #name)
+#define INIT_DEVICE_PROC(name) dispatch_table.name = reinterpret_cast<PFN_vk##name>(gdpa(device, "vk" #name))
 	// ---- Core 1_0 commands
 	INIT_DEVICE_PROC(DestroyDevice);
 	INIT_DEVICE_PROC(GetDeviceQueue);

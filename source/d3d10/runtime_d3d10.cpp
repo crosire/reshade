@@ -573,7 +573,7 @@ bool reshade::d3d10::runtime_d3d10::init_effect(size_t index)
 				})->impl);
 				assert(texture_impl != nullptr);
 
-				D3D10_TEXTURE2D_DESC desc = {};
+				D3D10_TEXTURE2D_DESC desc;
 				texture_impl->texture->GetDesc(&desc);
 
 				D3D10_RENDER_TARGET_VIEW_DESC rtv_desc = {};
@@ -707,24 +707,23 @@ bool reshade::d3d10::runtime_d3d10::init_effect(size_t index)
 				}
 			}
 
+			// Unbind any shader resources that are also bound as render target
 			pass_data.shader_resources = impl->texture_bindings;
 			for (com_ptr<ID3D10ShaderResourceView> &srv : pass_data.shader_resources)
 			{
 				if (srv == nullptr)
 					continue;
-
-				com_ptr<ID3D10Resource> res1;
-				srv->GetResource(&res1);
+				com_ptr<ID3D10Resource> srv_res;
+				srv->GetResource(&srv_res);
 
 				for (const com_ptr<ID3D10RenderTargetView> &rtv : pass_data.render_targets)
 				{
 					if (rtv == nullptr)
 						continue;
+					com_ptr<ID3D10Resource> rtv_res;
+					rtv->GetResource(&rtv_res);
 
-					com_ptr<ID3D10Resource> res2;
-					rtv->GetResource(&res2);
-
-					if (res1 == res2)
+					if (srv_res == rtv_res)
 					{
 						srv.reset();
 						break;
@@ -1037,7 +1036,7 @@ void reshade::d3d10::runtime_d3d10::render_technique(technique &technique)
 			for (const com_ptr<ID3D10RenderTargetView> &target : pass_data.render_targets)
 			{
 				if (target == nullptr)
-					break;
+					break; // Render targets can only be set consecutively
 				const FLOAT color[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
 				_device->ClearRenderTargetView(target.get(), color);
 			}
@@ -1047,24 +1046,27 @@ void reshade::d3d10::runtime_d3d10::render_technique(technique &technique)
 		_device->RSSetViewports(1, &viewport);
 
 		// Draw primitives
+		D3D10_PRIMITIVE_TOPOLOGY topology;
 		switch (pass_info.topology)
 		{
 		case reshadefx::primitive_topology::point_list:
-			_device->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_POINTLIST);
+			topology = D3D10_PRIMITIVE_TOPOLOGY_POINTLIST;
 			break;
 		case reshadefx::primitive_topology::line_list:
-			_device->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_LINELIST);
+			topology = D3D10_PRIMITIVE_TOPOLOGY_LINELIST;
 			break;
 		case reshadefx::primitive_topology::line_strip:
-			_device->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_LINESTRIP);
+			topology = D3D10_PRIMITIVE_TOPOLOGY_LINESTRIP;
 			break;
+		default:
 		case reshadefx::primitive_topology::triangle_list:
-			_device->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+			topology = D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
 			break;
 		case reshadefx::primitive_topology::triangle_strip:
-			_device->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+			topology = D3D10_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP;
 			break;
 		}
+		_device->IASetPrimitiveTopology(topology);
 		_device->Draw(pass_info.num_vertices, 0);
 
 		_vertices += pass_info.num_vertices;
@@ -1376,7 +1378,7 @@ void reshade::d3d10::runtime_d3d10::draw_depth_debug_menu(buffer_detection &trac
 				}
 
 				ImGui::SameLine();
-				ImGui::Text("%*s|           | %5u draw calls ==> %8u vertices |",
+				ImGui::Text("%*s|           | %5u draw calls ==> %8u vertices |%s",
 					sizeof(dsv_texture.get()) == 8 ? 8 : 0, "", // Add space to fill pointer length
 					snapshot.clears[clear_index - 1].drawcalls, snapshot.clears[clear_index - 1].vertices,
 					snapshot.clears[clear_index - 1].rect ? " RECT" : "");
@@ -1414,7 +1416,6 @@ void reshade::d3d10::runtime_d3d10::update_depth_texture_bindings(com_ptr<ID3D10
 	{
 		D3D10_TEXTURE2D_DESC tex_desc;
 		_depth_texture->GetDesc(&tex_desc);
-
 		assert((tex_desc.BindFlags & D3D10_BIND_SHADER_RESOURCE) != 0);
 
 		D3D10_SHADER_RESOURCE_VIEW_DESC srv_desc = {};
@@ -1448,6 +1449,7 @@ void reshade::d3d10::runtime_d3d10::update_depth_texture_bindings(com_ptr<ID3D10
 				continue;
 
 			for (d3d10_pass_data &pass_data : tech_impl->passes)
+				// Replace all occurances of the old resource view with the new one
 				for (com_ptr<ID3D10ShaderResourceView> &srv : pass_data.shader_resources)
 					if (tex_impl->srv[0] == srv || tex_impl->srv[1] == srv)
 						srv = _depth_texture_srv;
