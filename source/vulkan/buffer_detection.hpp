@@ -25,7 +25,6 @@ namespace reshade::vulkan
 			VkImageCreateInfo image_info = {};
 		};
 
-		void init(VkDevice device, const class buffer_detection_context* context = nullptr);
 		void reset();
 
 		void merge(const buffer_detection &source);
@@ -37,20 +36,16 @@ namespace reshade::vulkan
 #endif
 
 	protected:
+		draw_stats _stats;
 #if RESHADE_DEPTH
 		VkImage _current_depthstencil = VK_NULL_HANDLE;
 		// Use "std::map" instead of "std::unordered_map" so that the iteration order is guaranteed
 		std::map<VkImage, depthstencil_info> _counters_per_used_depth_image;
 #endif
-		VkDevice _device = nullptr;
-		const buffer_detection_context* _context = nullptr;
-		draw_stats _stats;
 	};
 
 	class buffer_detection_context : public buffer_detection
 	{
-		friend class buffer_detection;
-
 	public:
 		uint32_t total_vertices() const { return _stats.vertices; }
 		uint32_t total_drawcalls() const { return _stats.drawcalls; }

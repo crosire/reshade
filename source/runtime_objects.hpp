@@ -68,7 +68,7 @@ namespace reshade
 
 	struct texture final : reshadefx::texture_info
 	{
-		texture() {}
+		texture() {} // For standalone textures like the font atlas
 		texture(const reshadefx::texture_info &init) : texture_info(init) {}
 
 		int annotation_as_int(const char *ann_name, size_t i = 0) const

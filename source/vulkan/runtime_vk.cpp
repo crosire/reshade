@@ -58,7 +58,7 @@ namespace reshade::vulkan
 	const uint32_t MAX_EFFECT_DESCRIPTOR_SETS = 50 * 2;
 
 	void transition_layout(const VkLayerDispatchTable &vk, VkCommandBuffer cmd_list, VkImage image, VkImageLayout old_layout, VkImageLayout new_layout,
-		VkImageSubresourceRange subresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, VK_REMAINING_MIP_LEVELS, 0, VK_REMAINING_ARRAY_LAYERS })
+		const VkImageSubresourceRange &subresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, VK_REMAINING_MIP_LEVELS, 0, VK_REMAINING_ARRAY_LAYERS })
 	{
 		const auto layout_to_access = [](VkImageLayout layout) -> VkAccessFlags {
 			switch (layout)
@@ -115,9 +115,11 @@ namespace reshade::vulkan
 	}
 }
 
-reshade::vulkan::runtime_vk::runtime_vk(VkDevice device, VkPhysicalDevice physical_device, uint32_t queue_family_index, const VkLayerInstanceDispatchTable &instance_table, const VkLayerDispatchTable &device_table) :
-	_device(device), _queue_family_index(queue_family_index), vk(device_table)
+reshade::vulkan::runtime_vk::runtime_vk(VkDevice device, VkPhysicalDevice physical_device, uint32_t queue_family_index, const VkLayerInstanceDispatchTable &instance_table, const VkLayerDispatchTable &device_table, buffer_detection_context *bdc) :
+	vk(device_table), _device(device), _queue_family_index(queue_family_index), _buffer_detection(bdc)
 {
+	assert(bdc != nullptr);
+
 	instance_table.GetPhysicalDeviceProperties(physical_device, &_device_props);
 	instance_table.GetPhysicalDeviceMemoryProperties(physical_device, &_memory_props);
 
@@ -1143,7 +1145,6 @@ bool reshade::vulkan::runtime_vk::init_effect(size_t index)
 			pass_data.begin_info.renderArea = scissor_rect;
 
 			uint32_t num_color_attachments = 0;
-			uint32_t num_stencil_attachments = 0;
 			VkImageView attachment_views[9] = {};
 			VkAttachmentReference attachment_refs[9] = {};
 			VkAttachmentDescription attachment_descs[9] = {};
@@ -1197,6 +1198,8 @@ bool reshade::vulkan::runtime_vk::init_effect(size_t index)
 			}
 			else
 			{
+				uint32_t num_stencil_attachments = 0;
+
 				if (pass_info.stencil_enable && // Only need to attach stencil if stencil is actually used in this pass
 					scissor_rect.extent.width == _width &&
 					scissor_rect.extent.height == _height)
@@ -1291,6 +1294,7 @@ bool reshade::vulkan::runtime_vk::init_effect(size_t index)
 			case reshadefx::primitive_topology::line_strip:
 				ia_info.topology = VK_PRIMITIVE_TOPOLOGY_LINE_STRIP;
 				break;
+			default:
 			case reshadefx::primitive_topology::triangle_list:
 				ia_info.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
 				break;
@@ -2024,7 +2028,6 @@ VkBuffer reshade::vulkan::runtime_vk::create_buffer(VkDeviceSize size,
 
 	return ret.release();
 }
-
 VkImageView reshade::vulkan::runtime_vk::create_image_view(VkImage image, VkFormat format, uint32_t levels, VkImageAspectFlags aspect)
 {
 	VkImageViewCreateInfo create_info { VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO };
@@ -2036,19 +2039,6 @@ VkImageView reshade::vulkan::runtime_vk::create_image_view(VkImage image, VkForm
 
 	vk_handle<VK_OBJECT_TYPE_IMAGE_VIEW> res(_device, vk);
 	check_result(vk.CreateImageView(_device, &create_info, nullptr, &res)) VK_NULL_HANDLE;
-
-	return res.release();
-}
-VkBufferView reshade::vulkan::runtime_vk::create_buffer_view(VkBuffer buffer, VkFormat format)
-{
-	VkBufferViewCreateInfo create_info { VK_STRUCTURE_TYPE_BUFFER_VIEW_CREATE_INFO };
-	create_info.buffer = buffer;
-	create_info.format = format;
-	create_info.offset = 0;
-	create_info.range = VK_WHOLE_SIZE;
-
-	vk_handle<VK_OBJECT_TYPE_BUFFER_VIEW> res(_device, vk);
-	check_result(vk.CreateBufferView(_device, &create_info, nullptr, &res)) VK_NULL_HANDLE;
 
 	return res.release();
 }

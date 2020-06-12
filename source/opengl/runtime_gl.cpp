@@ -854,9 +854,10 @@ void reshade::opengl::runtime_gl::upload_texture(const texture &texture, const u
 	std::vector<uint8_t> upload_data(pixels, pixels + upload_pitch * texture.height);
 
 	// Flip image data horizontally
-	const auto temp = static_cast<uint8_t *>(alloca(upload_pitch));
+	std::vector<uint8_t> temp_image_line(upload_pitch);
 	for (uint32_t y = 0; 2 * y < texture.height; y++)
 	{
+		const auto temp  = temp_image_line.data();
 		const auto line1 = upload_data.data() + upload_pitch * (y);
 		const auto line2 = upload_data.data() + upload_pitch * (texture.height - 1 - y);
 
@@ -864,6 +865,7 @@ void reshade::opengl::runtime_gl::upload_texture(const texture &texture, const u
 		std::memcpy(line1, line2, upload_pitch);
 		std::memcpy(line2, temp,  upload_pitch);
 	}
+	temp_image_line.clear(); // Free up temporary memory now
 
 	// Get current state
 	GLint previous_tex = 0;
@@ -1057,24 +1059,27 @@ void reshade::opengl::runtime_gl::render_technique(technique &technique)
 		}
 
 		// Draw primitives
+		GLenum topology;
 		switch (pass_info.topology)
 		{
 		case reshadefx::primitive_topology::point_list:
-			glDrawArrays(GL_POINTS, 0, pass_info.num_vertices);
+			topology = GL_POINTS;
 			break;
 		case reshadefx::primitive_topology::line_list:
-			glDrawArrays(GL_LINES, 0, pass_info.num_vertices);
+			topology = GL_LINES;
 			break;
 		case reshadefx::primitive_topology::line_strip:
-			glDrawArrays(GL_LINE_STRIP, 0, pass_info.num_vertices);
+			topology = GL_LINE_STRIP;
 			break;
+		default:
 		case reshadefx::primitive_topology::triangle_list:
-			glDrawArrays(GL_TRIANGLES, 0, pass_info.num_vertices);
+			topology = GL_TRIANGLES;
 			break;
 		case reshadefx::primitive_topology::triangle_strip:
-			glDrawArrays(GL_TRIANGLE_STRIP, 0, pass_info.num_vertices);
+			topology = GL_TRIANGLE_STRIP;
 			break;
 		}
+		glDrawArrays(GL_TRIANGLE_STRIP, 0, pass_info.num_vertices);
 
 		_vertices += pass_info.num_vertices;
 		_drawcalls += 1;

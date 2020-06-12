@@ -62,7 +62,7 @@ struct spirv_instruction
 			for (uint32_t i = 0; i < 4 && *string; ++i)
 				reinterpret_cast<uint8_t *>(&word)[i] = *string++;
 			add(word);
-		} while (*string || word & 0xFF000000);
+		} while (*string || (word & 0xFF000000));
 		return *this;
 	}
 
@@ -457,9 +457,9 @@ private:
 		for (const type &param_type : info.param_types)
 			param_type_ids.push_back(convert_type(param_type, true));
 
-		spirv_instruction &inst = add_instruction(spv::OpTypeFunction, 0, _types_and_constants)
-			.add(return_type)
-			.add(param_type_ids.begin(), param_type_ids.end());
+		spirv_instruction &inst = add_instruction(spv::OpTypeFunction, 0, _types_and_constants);
+		inst.add(return_type);
+		inst.add(param_type_ids.begin(), param_type_ids.end());
 
 		_function_type_lookup.push_back({ info, inst.result });;
 
@@ -584,7 +584,7 @@ private:
 			const auto add_spec_constant = [this](const spirv_instruction &inst, const uniform_info &info, const constant &initializer_value, size_t initializer_offset) {
 				assert(inst.op == spv::OpSpecConstant || inst.op == spv::OpSpecConstantTrue || inst.op == spv::OpSpecConstantFalse);
 
-				uint32_t spec_id = static_cast<uint32_t>(_module.spec_constants.size());
+				const uint32_t spec_id = static_cast<uint32_t>(_module.spec_constants.size());
 				add_decoration(inst.result, spv::DecorationSpecId, { spec_id });
 
 				uniform_info scalar_info = info;
@@ -730,17 +730,17 @@ private:
 		add_location(loc, block);
 
 		// https://www.khronos.org/registry/spir-v/specs/unified1/SPIRV.html#OpVariable
-		spirv_instruction &instruction = add_instruction_without_result(spv::OpVariable, block);
-		instruction.type = convert_type(type, true, storage);
-		instruction.result = id;
-		instruction.add(storage);
+		spirv_instruction &inst = add_instruction_without_result(spv::OpVariable, block);
+		inst.type = convert_type(type, true, storage);
+		inst.result = id;
+		inst.add(storage);
 
 		if (initializer_value != 0)
 		{
 			if (storage != spv::StorageClassFunction)
 			{
 				// The initializer for variables must be a constant
-				instruction.add(initializer_value);
+				inst.add(initializer_value);
 			}
 			else
 			{
@@ -1533,8 +1533,8 @@ private:
 
 		add_location(loc, *_current_block_data);
 
-		spirv_instruction &inst = add_instruction(spv_op, convert_type(type))
-			.add(val); // Operand
+		spirv_instruction &inst = add_instruction(spv_op, convert_type(type));
+		inst.add(val); // Operand
 
 		return inst.result;
 	}
@@ -1622,9 +1622,9 @@ private:
 
 		add_location(loc, *_current_block_data);
 
-		spirv_instruction &inst = add_instruction(spv_op, convert_type(res_type))
-			.add(lhs) // Operand 1
-			.add(rhs); // Operand 2
+		spirv_instruction &inst = add_instruction(spv_op, convert_type(res_type));
+		inst.add(lhs); // Operand 1
+		inst.add(rhs); // Operand 2
 
 		if (res_type.has(type::q_precise))
 			add_decoration(inst.result, spv::DecorationNoContraction);
@@ -1638,10 +1638,10 @@ private:
 
 		add_location(loc, *_current_block_data);
 
-		spirv_instruction &inst = add_instruction(spv::OpSelect, convert_type(type))
-			.add(condition) // Condition
-			.add(true_value) // Object 1
-			.add(false_value); // Object 2
+		spirv_instruction &inst = add_instruction(spv::OpSelect, convert_type(type));
+		inst.add(condition); // Condition
+		inst.add(true_value); // Object 1
+		inst.add(false_value); // Object 2
 
 		return inst.result;
 	}
@@ -1709,7 +1709,6 @@ private:
 			for (size_t arg = 0; arg < args.size(); arg += type.rows)
 			{
 				spirv_instruction &inst = add_instruction(spv::OpCompositeConstruct, convert_type(vector_type));
-
 				for (size_t row = 0; row < type.rows; ++row)
 					inst.add(args[arg + row].base);
 
@@ -1727,8 +1726,8 @@ private:
 				ids.push_back(arg.base);
 		}
 
-		spirv_instruction &inst = add_instruction(spv::OpCompositeConstruct, convert_type(type))
-			.add(ids.begin(), ids.end());
+		spirv_instruction &inst = add_instruction(spv::OpCompositeConstruct, convert_type(type));
+		inst.add(ids.begin(), ids.end());
 
 		return inst.result;
 	}

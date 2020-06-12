@@ -22,7 +22,7 @@ namespace reshade::vulkan
 		static const uint32_t NUM_COMMAND_FRAMES = 5;
 
 	public:
-		runtime_vk(VkDevice device, VkPhysicalDevice physical_device, uint32_t queue_family_index, const VkLayerInstanceDispatchTable &instance_table, const VkLayerDispatchTable &device_table);
+		runtime_vk(VkDevice device, VkPhysicalDevice physical_device, uint32_t queue_family_index, const VkLayerInstanceDispatchTable &instance_table, const VkLayerDispatchTable &device_table, buffer_detection_context *bdc);
 		~runtime_vk();
 
 		bool on_init(VkSwapchainKHR swapchain, const VkSwapchainCreateInfoKHR &desc, HWND hwnd);
@@ -32,7 +32,6 @@ namespace reshade::vulkan
 		bool capture_screenshot(uint8_t *buffer) const override;
 
 		const VkLayerDispatchTable vk;
-		buffer_detection_context *_buffer_detection = nullptr;
 
 	private:
 		bool init_effect(size_t index) override;
@@ -56,9 +55,7 @@ namespace reshade::vulkan
 		VkBuffer create_buffer(VkDeviceSize size,
 			VkBufferUsageFlags usage, VmaMemoryUsage mem_usage,
 			VkBufferCreateFlags flags = 0, VmaAllocationCreateFlags mem_flags = 0, VmaAllocation *out_mem = nullptr);
-
 		VkImageView create_image_view(VkImage image, VkFormat format, uint32_t levels, VkImageAspectFlags aspect);
-		VkBufferView create_buffer_view(VkBuffer buffer, VkFormat format);
 
 		VmaAllocator _alloc = VK_NULL_HANDLE;
 		const VkDevice _device;
@@ -66,6 +63,7 @@ namespace reshade::vulkan
 		const uint32_t _queue_family_index;
 		VkPhysicalDeviceProperties _device_props = {};
 		VkPhysicalDeviceMemoryProperties _memory_props = {};
+		buffer_detection_context *const _buffer_detection;
 
 		VkFence _cmd_fences[NUM_COMMAND_FRAMES + 1] = {};
 		VkSemaphore _cmd_semaphores[NUM_COMMAND_FRAMES * 2] = {};

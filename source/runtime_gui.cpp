@@ -20,8 +20,8 @@ extern volatile long g_network_traffic;
 extern std::filesystem::path g_reshade_dll_path;
 extern std::filesystem::path g_target_executable_path;
 
-const ImVec4 COLOR_RED = ImColor(240, 100, 100);
-const ImVec4 COLOR_YELLOW = ImColor(204, 204, 0);
+static const ImVec4 COLOR_RED = ImColor(240, 100, 100);
+static const ImVec4 COLOR_YELLOW = ImColor(204, 204, 0);
 
 void reshade::runtime::init_ui()
 {
@@ -781,10 +781,9 @@ void reshade::runtime::draw_ui()
 	_input->block_mouse_input(_input_processing_mode != 0 && _show_menu && (imgui_io.WantCaptureMouse || _input_processing_mode == 2));
 	_input->block_keyboard_input(_input_processing_mode != 0 && _show_menu && (imgui_io.WantCaptureKeyboard || _input_processing_mode == 2));
 
-	if (const auto draw_data = ImGui::GetDrawData(); draw_data != nullptr && draw_data->CmdListsCount != 0 && draw_data->TotalVtxCount != 0)
-	{
+	if (ImDrawData *const draw_data = ImGui::GetDrawData();
+		draw_data != nullptr && draw_data->CmdListsCount != 0 && draw_data->TotalVtxCount != 0)
 		render_imgui_draw_data(draw_data);
-	}
 }
 
 void reshade::runtime::draw_ui_home()
@@ -867,21 +866,12 @@ void reshade::runtime::draw_ui_home()
 		{
 			_effects_expanded_state = 3;
 
-			if (_effect_filter[0] == '\0')
-			{
-				// Reset visibility state
-				for (technique &technique : _techniques)
-					technique.hidden = technique.annotation_as_int("hidden") != 0;
-			}
-			else
-			{
-				const std::string filter = _effect_filter;
-
-				for (technique &technique : _techniques)
-					technique.hidden = technique.annotation_as_int("hidden") != 0 ||
-						std::search(technique.name.begin(), technique.name.end(), filter.begin(), filter.end(),
-							[](auto c1, auto c2) { return tolower(c1) == tolower(c2); }) == technique.name.end() && _effects[technique.effect_index].source_file.filename().u8string().find(filter) == std::string::npos;
-			}
+			const std::string_view filter_view = _effect_filter;
+			for (technique &technique : _techniques)
+				technique.hidden = technique.annotation_as_int("hidden") != 0 || (
+					!filter_view.empty() && // Reset visibility state if filter is empty
+					std::search(technique.name.begin(), technique.name.end(), filter_view.begin(), filter_view.end(), [](auto c1, auto c2) { return tolower(c1) == tolower(c2); }) == technique.name.end() &&
+					_effects[technique.effect_index].source_file.filename().u8string().find(filter_view) == std::string::npos);
 		}
 		else if (!ImGui::IsItemActive() && _effect_filter[0] == '\0')
 		{
@@ -938,7 +928,7 @@ void reshade::runtime::draw_ui_home()
 
 		ImGui::SameLine();
 
-		if (ImGui::Button(_effects_expanded_state & 2 ? "Collapse all" : "Expand all", ImVec2(10 * _font_size - _imgui_context->Style.ItemSpacing.x, 0)))
+		if (ImGui::Button((_effects_expanded_state & 2) ? "Collapse all" : "Expand all", ImVec2(10 * _font_size - _imgui_context->Style.ItemSpacing.x, 0)))
 			_effects_expanded_state = (~_effects_expanded_state & 2) | 1;
 
 		if (_tutorial_index == 2)
@@ -1063,8 +1053,6 @@ void reshade::runtime::draw_ui_settings()
 {
 	bool modified = false;
 	bool reload_style = false;
-	const float button_size = ImGui::GetFrameHeight();
-	const float button_spacing = _imgui_context->Style.ItemInnerSpacing.x;
 
 	if (ImGui::CollapsingHeader("General", ImGuiTreeNodeFlags_DefaultOpen))
 	{
@@ -1296,11 +1284,6 @@ void reshade::runtime::draw_ui_statistics()
 	uint64_t post_processing_time_cpu = 0;
 	uint64_t post_processing_time_gpu = 0;
 
-	// Variables used to calculate memory size of textures
-	ldiv_t memory_view;
-	const char *memory_size_unit;
-	uint32_t post_processing_memory_size = 0;
-
 	if (!is_loading() && _effects_enabled)
 	{
 		for (const auto &technique : _techniques)
@@ -1434,6 +1417,11 @@ void reshade::runtime::draw_ui_statistics()
 		unsigned int texture_index = 0;
 		const unsigned int num_columns = static_cast<unsigned int>(std::ceilf(total_width / (50.0f * _font_size)));
 		const float single_image_width = (total_width / num_columns) - 5.0f;
+
+		// Variables used to calculate memory size of textures
+		ldiv_t memory_view;
+		const char *memory_size_unit;
+		uint32_t post_processing_memory_size = 0;
 
 		for (const auto &texture : _textures)
 		{
@@ -1913,7 +1901,7 @@ void reshade::runtime::draw_preset_explorer()
 						condition = condition::select;
 
 					if (condition == condition::select)
-						if (reshade::ini_file::load_cache(reshade_container_path / input_preset_path).has("", "Techniques"))
+						if (ini_file::load_cache(reshade_container_path / input_preset_path).has("", "Techniques"))
 							_current_preset_path = reshade_container_path / input_preset_path;
 						else
 							condition = condition::pass;
@@ -2030,7 +2018,7 @@ void reshade::runtime::draw_preset_explorer()
 						continue;
 
 				if (ImGui::Selectable(entry.path().filename().u8string().c_str(), static_cast<bool>(is_current_preset)))
-					if (reshade::ini_file::load_cache(entry).has("", "Techniques"))
+					if (ini_file::load_cache(entry).has("", "Techniques"))
 						condition = condition::select, _current_preset_path = entry;
 					else
 						condition = condition::pass;
@@ -2079,7 +2067,7 @@ void reshade::runtime::draw_preset_explorer()
 				condition = condition::pass;
 			else if (file_type == std::filesystem::file_type::not_found)
 				condition = condition::create, _current_preset_path = focus_preset_path;
-			else if (reshade::ini_file::load_cache(focus_preset_path).has("", "Techniques"))
+			else if (ini_file::load_cache(focus_preset_path).has("", "Techniques"))
 				condition = condition::select, _current_preset_path = focus_preset_path;
 			else
 				condition = condition::pass;

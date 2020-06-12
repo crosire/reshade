@@ -120,7 +120,7 @@ namespace reshade
 		template <typename T, size_t SIZE>
 		void set(const std::string &section, const std::string &key, const T(&values)[SIZE], const size_t size = SIZE)
 		{
-			assert(0 <= size && size <= SIZE);
+			assert(size <= SIZE);
 
 			auto &v = _sections[section][key];
 			v.resize(size);

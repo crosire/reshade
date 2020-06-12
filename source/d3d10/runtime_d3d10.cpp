@@ -50,10 +50,11 @@ namespace reshade::d3d10
 	};
 }
 
-reshade::d3d10::runtime_d3d10::runtime_d3d10(ID3D10Device1 *device, IDXGISwapChain *swapchain) :
-	_device(device), _swapchain(swapchain),
+reshade::d3d10::runtime_d3d10::runtime_d3d10(ID3D10Device1 *device, IDXGISwapChain *swapchain, buffer_detection *bdc) :
+	_device(device), _swapchain(swapchain), _buffer_detection(bdc),
 	_app_state(device)
 {
+	assert(bdc != nullptr);
 	assert(device != nullptr);
 	assert(swapchain != nullptr);
 
@@ -76,30 +77,24 @@ reshade::d3d10::runtime_d3d10::runtime_d3d10(ID3D10Device1 *device, IDXGISwapCha
 
 #if RESHADE_GUI && RESHADE_DEPTH
 	subscribe_to_ui("DX10", [this]() {
-		assert(_buffer_detection != nullptr);
 		draw_depth_debug_menu(*_buffer_detection);
-		});
+	});
 #endif
 #if RESHADE_DEPTH
 	subscribe_to_load_config([this](const ini_file &config) {
-		UINT Depth_buffer_retreval_mode = 0;
-
-		config.get("DX10_BUFFER_DETECTION", "DepthBufferRetrievalMode", Depth_buffer_retreval_mode);
-		config.get("DX10_BUFFER_DETECTION", "DepthBufferClearingNumber", _depth_clear_index_override);
+		UINT detection_mode = 0;
+		config.get("DX10_BUFFER_DETECTION", "DepthBufferRetrievalMode", detection_mode);
+		config.get("DX10_BUFFER_DETECTION", "DepthBufferClearingNumber", _buffer_detection->depthstencil_clear_index.second);
 		config.get("DX10_BUFFER_DETECTION", "UseAspectRatioHeuristics", _filter_aspect_ratio);
 
-		_preserve_depth_buffers = (Depth_buffer_retreval_mode >= 1);
-		_preserve_hidden_depth_buffers = (Depth_buffer_retreval_mode == 2);
-
-		if (_depth_clear_index_override == 0)
-			// Zero is not a valid clear index, since it disables depth buffer preservation
-			_depth_clear_index_override = std::numeric_limits<UINT>::max();
-		});
+		_buffer_detection->preserve_depth_buffers = (detection_mode >= 1);
+		_buffer_detection->preserve_hidden_depth_buffers = (detection_mode == 2);
+	});
 	subscribe_to_save_config([this](ini_file &config) {
-		config.set("DX10_BUFFER_DETECTION", "DepthBufferRetrievalMode", _preserve_hidden_depth_buffers ? 2 : _preserve_depth_buffers ? 1 : 0);
-		config.set("DX10_BUFFER_DETECTION", "DepthBufferClearingNumber", _depth_clear_index_override);
+		config.set("DX10_BUFFER_DETECTION", "DepthBufferRetrievalMode", _buffer_detection->preserve_hidden_depth_buffers ? 2 : _buffer_detection->preserve_depth_buffers ? 1 : 0);
+		config.set("DX10_BUFFER_DETECTION", "DepthBufferClearingNumber", _buffer_detection->depthstencil_clear_index.second);
 		config.set("DX10_BUFFER_DETECTION", "UseAspectRatioHeuristics", _filter_aspect_ratio);
-		});
+	});
 #endif
 }
 reshade::d3d10::runtime_d3d10::~runtime_d3d10()
@@ -186,21 +181,21 @@ bool reshade::d3d10::runtime_d3d10::on_init(const DXGI_SWAP_CHAIN_DESC &swap_des
 		return false;
 
 	{   D3D10_SAMPLER_DESC desc = {};
-	desc.Filter = D3D10_FILTER_MIN_MAG_MIP_POINT;
-	desc.AddressU = D3D10_TEXTURE_ADDRESS_CLAMP;
-	desc.AddressV = D3D10_TEXTURE_ADDRESS_CLAMP;
-	desc.AddressW = D3D10_TEXTURE_ADDRESS_CLAMP;
-	if (FAILED(_device->CreateSamplerState(&desc, &_copy_sampler_state)))
-		return false;
+		desc.Filter = D3D10_FILTER_MIN_MAG_MIP_POINT;
+		desc.AddressU = D3D10_TEXTURE_ADDRESS_CLAMP;
+		desc.AddressV = D3D10_TEXTURE_ADDRESS_CLAMP;
+		desc.AddressW = D3D10_TEXTURE_ADDRESS_CLAMP;
+		if (FAILED(_device->CreateSamplerState(&desc, &_copy_sampler_state)))
+			return false;
 	}
 
 	// Create effect states
 	{   D3D10_RASTERIZER_DESC desc = {};
-	desc.FillMode = D3D10_FILL_SOLID;
-	desc.CullMode = D3D10_CULL_NONE;
-	desc.DepthClipEnable = TRUE;
-	if (FAILED(_device->CreateRasterizerState(&desc, &_effect_rasterizer)))
-		return false;
+		desc.FillMode = D3D10_FILL_SOLID;
+		desc.CullMode = D3D10_CULL_NONE;
+		desc.DepthClipEnable = TRUE;
+		if (FAILED(_device->CreateRasterizerState(&desc, &_effect_rasterizer)))
+			return false;
 	}
 
 	// Create effect depth-stencil texture
@@ -277,9 +272,8 @@ void reshade::d3d10::runtime_d3d10::on_present()
 #endif
 
 #if RESHADE_DEPTH
-	assert(_depth_clear_index_override != 0);
 	update_depth_texture_bindings(_has_high_network_activity ? nullptr :
-		_buffer_detection->find_best_depth_texture(_filter_aspect_ratio ? _width : 0, _height, _depth_texture_override, _preserve_depth_buffers ? _depth_clear_index_override : 0, _preserve_hidden_depth_buffers ? _depth_clear_index_override : 0));
+		_buffer_detection->find_best_depth_texture(_filter_aspect_ratio ? _width : 0, _height, _depth_texture_override));
 #endif
 
 	_app_state.capture();
@@ -583,7 +577,7 @@ bool reshade::d3d10::runtime_d3d10::init_effect(size_t index)
 				})->impl);
 				assert(texture_impl != nullptr);
 
-				D3D10_TEXTURE2D_DESC desc = {};
+				D3D10_TEXTURE2D_DESC desc;
 				texture_impl->texture->GetDesc(&desc);
 
 				D3D10_RENDER_TARGET_VIEW_DESC rtv_desc = {};
@@ -613,128 +607,127 @@ bool reshade::d3d10::runtime_d3d10::init_effect(size_t index)
 			}
 
 			{   D3D10_BLEND_DESC desc = {};
-			desc.BlendEnable[0] = pass_info.blend_enable;
+				desc.BlendEnable[0] = pass_info.blend_enable;
 
-			const auto convert_blend_op = [](reshadefx::pass_blend_op value) {
-				switch (value)
+				const auto convert_blend_op = [](reshadefx::pass_blend_op value) {
+					switch (value)
+					{
+					default:
+					case reshadefx::pass_blend_op::add: return D3D10_BLEND_OP_ADD;
+					case reshadefx::pass_blend_op::subtract: return D3D10_BLEND_OP_SUBTRACT;
+					case reshadefx::pass_blend_op::rev_subtract: return D3D10_BLEND_OP_REV_SUBTRACT;
+					case reshadefx::pass_blend_op::min: return D3D10_BLEND_OP_MIN;
+					case reshadefx::pass_blend_op::max: return D3D10_BLEND_OP_MAX;
+					}
+				};
+				const auto convert_blend_func = [](reshadefx::pass_blend_func value) {
+					switch (value) {
+					default:
+					case reshadefx::pass_blend_func::one: return D3D10_BLEND_ONE;
+					case reshadefx::pass_blend_func::zero: return D3D10_BLEND_ZERO;
+					case reshadefx::pass_blend_func::src_color: return D3D10_BLEND_SRC_COLOR;
+					case reshadefx::pass_blend_func::src_alpha: return D3D10_BLEND_SRC_ALPHA;
+					case reshadefx::pass_blend_func::inv_src_color: return D3D10_BLEND_INV_SRC_COLOR;
+					case reshadefx::pass_blend_func::inv_src_alpha: return D3D10_BLEND_INV_SRC_ALPHA;
+					case reshadefx::pass_blend_func::dst_color: return D3D10_BLEND_DEST_COLOR;
+					case reshadefx::pass_blend_func::dst_alpha: return D3D10_BLEND_DEST_ALPHA;
+					case reshadefx::pass_blend_func::inv_dst_color: return D3D10_BLEND_INV_DEST_COLOR;
+					case reshadefx::pass_blend_func::inv_dst_alpha: return D3D10_BLEND_INV_DEST_ALPHA;
+					}
+				};
+
+				desc.SrcBlend = convert_blend_func(pass_info.src_blend);
+				desc.DestBlend = convert_blend_func(pass_info.dest_blend);
+				desc.BlendOp = convert_blend_op(pass_info.blend_op);
+				desc.SrcBlendAlpha = convert_blend_func(pass_info.src_blend_alpha);
+				desc.DestBlendAlpha = convert_blend_func(pass_info.dest_blend_alpha);
+				desc.BlendOpAlpha = convert_blend_op(pass_info.blend_op_alpha);
+				desc.RenderTargetWriteMask[0] = pass_info.color_write_mask;
+
+				for (UINT i = 1; i < 8; ++i)
 				{
-				default:
-				case reshadefx::pass_blend_op::add: return D3D10_BLEND_OP_ADD;
-				case reshadefx::pass_blend_op::subtract: return D3D10_BLEND_OP_SUBTRACT;
-				case reshadefx::pass_blend_op::rev_subtract: return D3D10_BLEND_OP_REV_SUBTRACT;
-				case reshadefx::pass_blend_op::min: return D3D10_BLEND_OP_MIN;
-				case reshadefx::pass_blend_op::max: return D3D10_BLEND_OP_MAX;
+					desc.BlendEnable[i] = desc.BlendEnable[0];
+					desc.RenderTargetWriteMask[i] = desc.RenderTargetWriteMask[0];
 				}
-			};
-			const auto convert_blend_func = [](reshadefx::pass_blend_func value) {
-				switch (value) {
-				default:
-				case reshadefx::pass_blend_func::one: return D3D10_BLEND_ONE;
-				case reshadefx::pass_blend_func::zero: return D3D10_BLEND_ZERO;
-				case reshadefx::pass_blend_func::src_color: return D3D10_BLEND_SRC_COLOR;
-				case reshadefx::pass_blend_func::src_alpha: return D3D10_BLEND_SRC_ALPHA;
-				case reshadefx::pass_blend_func::inv_src_color: return D3D10_BLEND_INV_SRC_COLOR;
-				case reshadefx::pass_blend_func::inv_src_alpha: return D3D10_BLEND_INV_SRC_ALPHA;
-				case reshadefx::pass_blend_func::dst_color: return D3D10_BLEND_DEST_COLOR;
-				case reshadefx::pass_blend_func::dst_alpha: return D3D10_BLEND_DEST_ALPHA;
-				case reshadefx::pass_blend_func::inv_dst_color: return D3D10_BLEND_INV_DEST_COLOR;
-				case reshadefx::pass_blend_func::inv_dst_alpha: return D3D10_BLEND_INV_DEST_ALPHA;
+
+				if (HRESULT hr = _device->CreateBlendState(&desc, &pass_data.blend_state); FAILED(hr))
+				{
+					LOG(ERROR) << "Failed to create blend state for pass " << pass_index << " in technique '" << technique.name << "'! "
+						"HRESULT is " << hr << '.';
+					return false;
 				}
-			};
-
-			desc.SrcBlend = convert_blend_func(pass_info.src_blend);
-			desc.DestBlend = convert_blend_func(pass_info.dest_blend);
-			desc.BlendOp = convert_blend_op(pass_info.blend_op);
-			desc.SrcBlendAlpha = convert_blend_func(pass_info.src_blend_alpha);
-			desc.DestBlendAlpha = convert_blend_func(pass_info.dest_blend_alpha);
-			desc.BlendOpAlpha = convert_blend_op(pass_info.blend_op_alpha);
-			desc.RenderTargetWriteMask[0] = pass_info.color_write_mask;
-
-			for (UINT i = 1; i < 8; ++i)
-			{
-				desc.BlendEnable[i] = desc.BlendEnable[0];
-				desc.RenderTargetWriteMask[i] = desc.RenderTargetWriteMask[0];
-			}
-
-			if (HRESULT hr = _device->CreateBlendState(&desc, &pass_data.blend_state); FAILED(hr))
-			{
-				LOG(ERROR) << "Failed to create blend state for pass " << pass_index << " in technique '" << technique.name << "'! "
-					"HRESULT is " << hr << '.';
-				return false;
-			}
 			}
 
 			// Rasterizer state is the same for all passes
 			assert(_effect_rasterizer != nullptr);
 
 			{   D3D10_DEPTH_STENCIL_DESC desc = {};
-			desc.DepthEnable = FALSE;
-			desc.DepthWriteMask = D3D10_DEPTH_WRITE_MASK_ZERO;
-			desc.DepthFunc = D3D10_COMPARISON_ALWAYS;
+				desc.DepthEnable = FALSE;
+				desc.DepthWriteMask = D3D10_DEPTH_WRITE_MASK_ZERO;
+				desc.DepthFunc = D3D10_COMPARISON_ALWAYS;
 
-			const auto convert_stencil_op = [](reshadefx::pass_stencil_op value) {
-				switch (value) {
-				default:
-				case reshadefx::pass_stencil_op::keep: return D3D10_STENCIL_OP_KEEP;
-				case reshadefx::pass_stencil_op::zero: return D3D10_STENCIL_OP_ZERO;
-				case reshadefx::pass_stencil_op::invert: return D3D10_STENCIL_OP_INVERT;
-				case reshadefx::pass_stencil_op::replace: return D3D10_STENCIL_OP_REPLACE;
-				case reshadefx::pass_stencil_op::incr: return D3D10_STENCIL_OP_INCR;
-				case reshadefx::pass_stencil_op::incr_sat: return D3D10_STENCIL_OP_INCR_SAT;
-				case reshadefx::pass_stencil_op::decr: return D3D10_STENCIL_OP_DECR;
-				case reshadefx::pass_stencil_op::decr_sat: return D3D10_STENCIL_OP_DECR_SAT;
-				}
-			};
-			const auto convert_stencil_func = [](reshadefx::pass_stencil_func value) {
-				switch (value)
+				const auto convert_stencil_op = [](reshadefx::pass_stencil_op value) {
+					switch (value) {
+					default:
+					case reshadefx::pass_stencil_op::keep: return D3D10_STENCIL_OP_KEEP;
+					case reshadefx::pass_stencil_op::zero: return D3D10_STENCIL_OP_ZERO;
+					case reshadefx::pass_stencil_op::invert: return D3D10_STENCIL_OP_INVERT;
+					case reshadefx::pass_stencil_op::replace: return D3D10_STENCIL_OP_REPLACE;
+					case reshadefx::pass_stencil_op::incr: return D3D10_STENCIL_OP_INCR;
+					case reshadefx::pass_stencil_op::incr_sat: return D3D10_STENCIL_OP_INCR_SAT;
+					case reshadefx::pass_stencil_op::decr: return D3D10_STENCIL_OP_DECR;
+					case reshadefx::pass_stencil_op::decr_sat: return D3D10_STENCIL_OP_DECR_SAT;
+					}
+				};
+				const auto convert_stencil_func = [](reshadefx::pass_stencil_func value) {
+					switch (value)
+					{
+					default:
+					case reshadefx::pass_stencil_func::always: return D3D10_COMPARISON_ALWAYS;
+					case reshadefx::pass_stencil_func::never: return D3D10_COMPARISON_NEVER;
+					case reshadefx::pass_stencil_func::equal: return D3D10_COMPARISON_EQUAL;
+					case reshadefx::pass_stencil_func::not_equal: return D3D10_COMPARISON_NOT_EQUAL;
+					case reshadefx::pass_stencil_func::less: return D3D10_COMPARISON_LESS;
+					case reshadefx::pass_stencil_func::less_equal: return D3D10_COMPARISON_LESS_EQUAL;
+					case reshadefx::pass_stencil_func::greater: return D3D10_COMPARISON_GREATER;
+					case reshadefx::pass_stencil_func::greater_equal: return D3D10_COMPARISON_GREATER_EQUAL;
+					}
+				};
+
+				desc.StencilEnable = pass_info.stencil_enable;
+				desc.StencilReadMask = pass_info.stencil_read_mask;
+				desc.StencilWriteMask = pass_info.stencil_write_mask;
+				desc.FrontFace.StencilFailOp = convert_stencil_op(pass_info.stencil_op_fail);
+				desc.FrontFace.StencilDepthFailOp = convert_stencil_op(pass_info.stencil_op_depth_fail);
+				desc.FrontFace.StencilPassOp = convert_stencil_op(pass_info.stencil_op_pass);
+				desc.FrontFace.StencilFunc = convert_stencil_func(pass_info.stencil_comparison_func);
+				desc.BackFace = desc.FrontFace;
+
+				if (HRESULT hr = _device->CreateDepthStencilState(&desc, &pass_data.depth_stencil_state); FAILED(hr))
 				{
-				default:
-				case reshadefx::pass_stencil_func::always: return D3D10_COMPARISON_ALWAYS;
-				case reshadefx::pass_stencil_func::never: return D3D10_COMPARISON_NEVER;
-				case reshadefx::pass_stencil_func::equal: return D3D10_COMPARISON_EQUAL;
-				case reshadefx::pass_stencil_func::not_equal: return D3D10_COMPARISON_NOT_EQUAL;
-				case reshadefx::pass_stencil_func::less: return D3D10_COMPARISON_LESS;
-				case reshadefx::pass_stencil_func::less_equal: return D3D10_COMPARISON_LESS_EQUAL;
-				case reshadefx::pass_stencil_func::greater: return D3D10_COMPARISON_GREATER;
-				case reshadefx::pass_stencil_func::greater_equal: return D3D10_COMPARISON_GREATER_EQUAL;
+					LOG(ERROR) << "Failed to create depth-stencil state for pass " << pass_index << " in technique '" << technique.name << "'! "
+						"HRESULT is " << hr << '.';
+					return false;
 				}
-			};
-
-			desc.StencilEnable = pass_info.stencil_enable;
-			desc.StencilReadMask = pass_info.stencil_read_mask;
-			desc.StencilWriteMask = pass_info.stencil_write_mask;
-			desc.FrontFace.StencilFailOp = convert_stencil_op(pass_info.stencil_op_fail);
-			desc.FrontFace.StencilDepthFailOp = convert_stencil_op(pass_info.stencil_op_depth_fail);
-			desc.FrontFace.StencilPassOp = convert_stencil_op(pass_info.stencil_op_pass);
-			desc.FrontFace.StencilFunc = convert_stencil_func(pass_info.stencil_comparison_func);
-			desc.BackFace = desc.FrontFace;
-
-			if (HRESULT hr = _device->CreateDepthStencilState(&desc, &pass_data.depth_stencil_state); FAILED(hr))
-			{
-				LOG(ERROR) << "Failed to create depth-stencil state for pass " << pass_index << " in technique '" << technique.name << "'! "
-					"HRESULT is " << hr << '.';
-				return false;
-			}
 			}
 
+			// Unbind any shader resources that are also bound as render target
 			pass_data.shader_resources = impl->texture_bindings;
 			for (com_ptr<ID3D10ShaderResourceView> &srv : pass_data.shader_resources)
 			{
 				if (srv == nullptr)
 					continue;
-
-				com_ptr<ID3D10Resource> res1;
-				srv->GetResource(&res1);
+				com_ptr<ID3D10Resource> srv_res;
+				srv->GetResource(&srv_res);
 
 				for (const com_ptr<ID3D10RenderTargetView> &rtv : pass_data.render_targets)
 				{
 					if (rtv == nullptr)
 						continue;
+					com_ptr<ID3D10Resource> rtv_res;
+					rtv->GetResource(&rtv_res);
 
-					com_ptr<ID3D10Resource> res2;
-					rtv->GetResource(&res2);
-
-					if (res1 == res2)
+					if (srv_res == rtv_res)
 					{
 						srv.reset();
 						break;
@@ -1047,7 +1040,7 @@ void reshade::d3d10::runtime_d3d10::render_technique(technique &technique)
 			for (const com_ptr<ID3D10RenderTargetView> &target : pass_data.render_targets)
 			{
 				if (target == nullptr)
-					break;
+					break; // Render targets can only be set consecutively
 				const FLOAT color[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
 				_device->ClearRenderTargetView(target.get(), color);
 			}
@@ -1057,24 +1050,27 @@ void reshade::d3d10::runtime_d3d10::render_technique(technique &technique)
 		_device->RSSetViewports(1, &viewport);
 
 		// Draw primitives
+		D3D10_PRIMITIVE_TOPOLOGY topology;
 		switch (pass_info.topology)
 		{
 		case reshadefx::primitive_topology::point_list:
-			_device->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_POINTLIST);
+			topology = D3D10_PRIMITIVE_TOPOLOGY_POINTLIST;
 			break;
 		case reshadefx::primitive_topology::line_list:
-			_device->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_LINELIST);
+			topology = D3D10_PRIMITIVE_TOPOLOGY_LINELIST;
 			break;
 		case reshadefx::primitive_topology::line_strip:
-			_device->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_LINESTRIP);
+			topology = D3D10_PRIMITIVE_TOPOLOGY_LINESTRIP;
 			break;
+		default:
 		case reshadefx::primitive_topology::triangle_list:
-			_device->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+			topology = D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
 			break;
 		case reshadefx::primitive_topology::triangle_strip:
-			_device->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+			topology = D3D10_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP;
 			break;
 		}
+		_device->IASetPrimitiveTopology(topology);
 		_device->Draw(pass_info.num_vertices, 0);
 
 		_vertices += pass_info.num_vertices;
@@ -1122,85 +1118,85 @@ void reshade::d3d10::runtime_d3d10::render_technique(technique &technique)
 bool reshade::d3d10::runtime_d3d10::init_imgui_resources()
 {
 	{   const resources::data_resource vs = resources::load_data_resource(IDR_IMGUI_VS);
-	if (FAILED(_device->CreateVertexShader(vs.data, vs.data_size, &_imgui.vs)))
-		return false;
+		if (FAILED(_device->CreateVertexShader(vs.data, vs.data_size, &_imgui.vs)))
+			return false;
 
-	const D3D10_INPUT_ELEMENT_DESC input_layout[] = {
-		{ "POSITION", 0, DXGI_FORMAT_R32G32_FLOAT,   0, offsetof(ImDrawVert, pos), D3D10_INPUT_PER_VERTEX_DATA, 0 },
-		{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT,   0, offsetof(ImDrawVert, uv ), D3D10_INPUT_PER_VERTEX_DATA, 0 },
-		{ "COLOR",    0, DXGI_FORMAT_R8G8B8A8_UNORM, 0, offsetof(ImDrawVert, col), D3D10_INPUT_PER_VERTEX_DATA, 0 },
-	};
-	if (FAILED(_device->CreateInputLayout(input_layout, ARRAYSIZE(input_layout), vs.data, vs.data_size, &_imgui.layout)))
-		return false;
+		const D3D10_INPUT_ELEMENT_DESC input_layout[] = {
+			{ "POSITION", 0, DXGI_FORMAT_R32G32_FLOAT,   0, offsetof(ImDrawVert, pos), D3D10_INPUT_PER_VERTEX_DATA, 0 },
+			{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT,   0, offsetof(ImDrawVert, uv ), D3D10_INPUT_PER_VERTEX_DATA, 0 },
+			{ "COLOR",    0, DXGI_FORMAT_R8G8B8A8_UNORM, 0, offsetof(ImDrawVert, col), D3D10_INPUT_PER_VERTEX_DATA, 0 },
+		};
+		if (FAILED(_device->CreateInputLayout(input_layout, ARRAYSIZE(input_layout), vs.data, vs.data_size, &_imgui.layout)))
+			return false;
 	}
 
 	{   const resources::data_resource ps = resources::load_data_resource(IDR_IMGUI_PS);
-	if (FAILED(_device->CreatePixelShader(ps.data, ps.data_size, &_imgui.ps)))
-		return false;
+		if (FAILED(_device->CreatePixelShader(ps.data, ps.data_size, &_imgui.ps)))
+			return false;
 	}
 
 	{   D3D10_BUFFER_DESC desc = {};
-	desc.ByteWidth = 16 * sizeof(float);
-	desc.Usage = D3D10_USAGE_IMMUTABLE;
-	desc.BindFlags = D3D10_BIND_CONSTANT_BUFFER;
+		desc.ByteWidth = 16 * sizeof(float);
+		desc.Usage = D3D10_USAGE_IMMUTABLE;
+		desc.BindFlags = D3D10_BIND_CONSTANT_BUFFER;
 
-	// Setup orthographic projection matrix
-	const float ortho_projection[16] = {
-		2.0f / _width, 0.0f,   0.0f, 0.0f,
-		0.0f, -2.0f / _height, 0.0f, 0.0f,
-		0.0f,          0.0f,   0.5f, 0.0f,
-		-1.f,          1.0f,   0.5f, 1.0f
-	};
+		// Setup orthographic projection matrix
+		const float ortho_projection[16] = {
+			2.0f / _width, 0.0f,   0.0f, 0.0f,
+			0.0f, -2.0f / _height, 0.0f, 0.0f,
+			0.0f,          0.0f,   0.5f, 0.0f,
+			-1.f,          1.0f,   0.5f, 1.0f
+		};
 
-	D3D10_SUBRESOURCE_DATA initial_data = {};
-	initial_data.pSysMem = ortho_projection;
-	initial_data.SysMemPitch = sizeof(ortho_projection);
+		D3D10_SUBRESOURCE_DATA initial_data = {};
+		initial_data.pSysMem = ortho_projection;
+		initial_data.SysMemPitch = sizeof(ortho_projection);
 
-	if (FAILED(_device->CreateBuffer(&desc, &initial_data, &_imgui.cb)))
-		return false;
+		if (FAILED(_device->CreateBuffer(&desc, &initial_data, &_imgui.cb)))
+			return false;
 	}
 
 	{   D3D10_BLEND_DESC desc = {};
-	desc.BlendEnable[0] = true;
-	desc.SrcBlend = D3D10_BLEND_SRC_ALPHA;
-	desc.DestBlend = D3D10_BLEND_INV_SRC_ALPHA;
-	desc.BlendOp = D3D10_BLEND_OP_ADD;
-	desc.SrcBlendAlpha = D3D10_BLEND_INV_SRC_ALPHA;
-	desc.DestBlendAlpha = D3D10_BLEND_ZERO;
-	desc.BlendOpAlpha = D3D10_BLEND_OP_ADD;
-	desc.RenderTargetWriteMask[0] = D3D10_COLOR_WRITE_ENABLE_ALL;
+		desc.BlendEnable[0] = true;
+		desc.SrcBlend = D3D10_BLEND_SRC_ALPHA;
+		desc.DestBlend = D3D10_BLEND_INV_SRC_ALPHA;
+		desc.BlendOp = D3D10_BLEND_OP_ADD;
+		desc.SrcBlendAlpha = D3D10_BLEND_INV_SRC_ALPHA;
+		desc.DestBlendAlpha = D3D10_BLEND_ZERO;
+		desc.BlendOpAlpha = D3D10_BLEND_OP_ADD;
+		desc.RenderTargetWriteMask[0] = D3D10_COLOR_WRITE_ENABLE_ALL;
 
-	if (FAILED(_device->CreateBlendState(&desc, &_imgui.bs)))
-		return false;
+		if (FAILED(_device->CreateBlendState(&desc, &_imgui.bs)))
+			return false;
 	}
 
 	{   D3D10_RASTERIZER_DESC desc = {};
-	desc.FillMode = D3D10_FILL_SOLID;
-	desc.CullMode = D3D10_CULL_NONE;
-	desc.ScissorEnable = true;
-	desc.DepthClipEnable = true;
+		desc.FillMode = D3D10_FILL_SOLID;
+		desc.CullMode = D3D10_CULL_NONE;
+		desc.ScissorEnable = true;
+		desc.DepthClipEnable = true;
 
-	if (FAILED(_device->CreateRasterizerState(&desc, &_imgui.rs)))
-		return false;
+		if (FAILED(_device->CreateRasterizerState(&desc, &_imgui.rs)))
+			return false;
 	}
 
 	{   D3D10_DEPTH_STENCIL_DESC desc = {};
-	desc.DepthEnable = false;
-	desc.StencilEnable = false;
+		desc.DepthEnable = false;
+		desc.StencilEnable = false;
 
-	if (FAILED(_device->CreateDepthStencilState(&desc, &_imgui.ds)))
-		return false;
+		if (FAILED(_device->CreateDepthStencilState(&desc, &_imgui.ds)))
+			return false;
 	}
 
 	{   D3D10_SAMPLER_DESC desc = {};
-	desc.Filter = D3D10_FILTER_MIN_MAG_MIP_LINEAR;
-	desc.AddressU = D3D10_TEXTURE_ADDRESS_WRAP;
-	desc.AddressV = D3D10_TEXTURE_ADDRESS_WRAP;
-	desc.AddressW = D3D10_TEXTURE_ADDRESS_WRAP;
-	desc.ComparisonFunc = D3D10_COMPARISON_ALWAYS;
+		desc.Filter = D3D10_FILTER_MIN_MAG_MIP_LINEAR;
+		desc.AddressU = D3D10_TEXTURE_ADDRESS_WRAP;
+		desc.AddressV = D3D10_TEXTURE_ADDRESS_WRAP;
+		desc.AddressW = D3D10_TEXTURE_ADDRESS_WRAP;
+		desc.ComparisonFunc = D3D10_COMPARISON_ALWAYS;
 
-	if (FAILED(_device->CreateSamplerState(&desc, &_imgui.ss)))
-		return false;
+		if (FAILED(_device->CreateSamplerState(&desc, &_imgui.ss)))
+			return false;
 	}
 
 	return true;
@@ -1336,12 +1332,11 @@ void reshade::d3d10::runtime_d3d10::draw_depth_debug_menu(buffer_detection &trac
 
 	bool modified = false;
 	modified |= ImGui::Checkbox("Use aspect ratio heuristics", &_filter_aspect_ratio);
-	modified |= ImGui::Checkbox("Copy depth buffers before clear operation", &_preserve_depth_buffers);
-	if (_preserve_depth_buffers)
-		modified |= ImGui::Checkbox("Extend to depth buffer copies before a rectangle is drawn in front of it", &_preserve_hidden_depth_buffers);
-
-	if (!_preserve_depth_buffers)
-		_preserve_hidden_depth_buffers = false;
+	modified |= ImGui::Checkbox("Copy depth buffer before clear operations", &tracker.preserve_depth_buffers);
+	if (tracker.preserve_depth_buffers)
+		modified |= ImGui::Checkbox("Copy depth buffer before fullscreen draw calls", &tracker.preserve_hidden_depth_buffers);
+	else
+		tracker.preserve_hidden_depth_buffers = false;
 
 	if (modified) // Detection settings have changed, reset heuristic
 		tracker.reset(true);
@@ -1353,7 +1348,7 @@ void reshade::d3d10::runtime_d3d10::draw_depth_debug_menu(buffer_detection &trac
 	for (const auto &[dsv_texture, snapshot] : tracker.depth_buffer_counters())
 	{
 		char label[512] = "";
-		sprintf_s(label, "%s0x%p", (dsv_texture == _depth_texture || dsv_texture == tracker.current_depth_texture() ? "> " : "  "), dsv_texture.get());
+		sprintf_s(label, "%s0x%p", (dsv_texture == tracker.depthstencil_clear_index.first ? "> " : "  "), dsv_texture.get());
 
 		D3D10_TEXTURE2D_DESC desc;
 		dsv_texture->GetDesc(&desc);
@@ -1373,27 +1368,24 @@ void reshade::d3d10::runtime_d3d10::draw_depth_debug_menu(buffer_detection &trac
 		ImGui::Text("| %4ux%-4u | %5u draw calls ==> %8u vertices |%s",
 			desc.Width, desc.Height, snapshot.total_stats.drawcalls, snapshot.total_stats.vertices, (msaa ? " MSAA" : ""));
 
-		if (_preserve_depth_buffers && dsv_texture == tracker.current_depth_texture())
+		if (tracker.preserve_depth_buffers && dsv_texture == tracker.depthstencil_clear_index.first)
 		{
 			for (UINT clear_index = 1; clear_index <= snapshot.clears.size(); ++clear_index)
 			{
-				UINT space_size = 8;
-				if (snapshot.clears[clear_index - 1].rect)
-					space_size -= sizeof("(RECT)") - 1;
+				sprintf_s(label, "%s  CLEAR %2u", (clear_index == tracker.depthstencil_clear_index.second ? "> " : "  "), clear_index);
 
-				sprintf_s(label, "%s CLEAR %2u %s", (clear_index == tracker.current_clear_index() ? "> " : "  "), clear_index, snapshot.clears[clear_index - 1].rect ? "(RECT)" : "");
-
-				if (bool value = (_depth_clear_index_override == clear_index);
+				if (bool value = (tracker.depthstencil_clear_index.second == clear_index);
 					ImGui::Checkbox(label, &value))
 				{
-					_depth_clear_index_override = value ? clear_index : std::numeric_limits<UINT>::max();
+					tracker.depthstencil_clear_index.second = value ? clear_index : 0;
 					modified = true;
 				}
 
 				ImGui::SameLine();
-				ImGui::Text("%*s|           | %5u draw calls ==> %8u vertices |",
-					sizeof(dsv_texture.get()) == 8 ? space_size : 0, "", // Add space to fill pointer length
-					snapshot.clears[clear_index - 1].drawcalls, snapshot.clears[clear_index - 1].vertices);
+				ImGui::Text("%*s|           | %5u draw calls ==> %8u vertices |%s",
+					sizeof(dsv_texture.get()) == 8 ? 8 : 0, "", // Add space to fill pointer length
+					snapshot.clears[clear_index - 1].drawcalls, snapshot.clears[clear_index - 1].vertices,
+					snapshot.clears[clear_index - 1].rect ? " RECT" : "");
 			}
 		}
 
@@ -1428,7 +1420,6 @@ void reshade::d3d10::runtime_d3d10::update_depth_texture_bindings(com_ptr<ID3D10
 	{
 		D3D10_TEXTURE2D_DESC tex_desc;
 		_depth_texture->GetDesc(&tex_desc);
-
 		assert((tex_desc.BindFlags & D3D10_BIND_SHADER_RESOURCE) != 0);
 
 		D3D10_SHADER_RESOURCE_VIEW_DESC srv_desc = {};
@@ -1462,6 +1453,7 @@ void reshade::d3d10::runtime_d3d10::update_depth_texture_bindings(com_ptr<ID3D10
 				continue;
 
 			for (d3d10_pass_data &pass_data : tech_impl->passes)
+				// Replace all occurances of the old resource view with the new one
 				for (com_ptr<ID3D10ShaderResourceView> &srv : pass_data.shader_resources)
 					if (tex_impl->srv[0] == srv || tex_impl->srv[1] == srv)
 						srv = _depth_texture_srv;

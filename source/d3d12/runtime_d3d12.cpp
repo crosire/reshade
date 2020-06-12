@@ -69,9 +69,10 @@ namespace reshade::d3d12
 	}
 }
 
-reshade::d3d12::runtime_d3d12::runtime_d3d12(ID3D12Device *device, ID3D12CommandQueue *queue, IDXGISwapChain3 *swapchain) :
-	_device(device), _commandqueue(queue), _swapchain(swapchain)
+reshade::d3d12::runtime_d3d12::runtime_d3d12(ID3D12Device *device, ID3D12CommandQueue *queue, IDXGISwapChain3 *swapchain, buffer_detection_context *bdc) :
+	_device(device), _commandqueue(queue), _swapchain(swapchain), _buffer_detection(bdc)
 {
+	assert(bdc != nullptr);
 	assert(queue != nullptr);
 	assert(device != nullptr);
 
@@ -96,23 +97,18 @@ reshade::d3d12::runtime_d3d12::runtime_d3d12(ID3D12Device *device, ID3D12Command
 
 #if RESHADE_GUI && RESHADE_DEPTH
 	subscribe_to_ui("DX12", [this]() {
-		assert(_buffer_detection != nullptr);
 		draw_depth_debug_menu(*_buffer_detection);
 	});
 #endif
 #if RESHADE_DEPTH
 	subscribe_to_load_config([this](const ini_file &config) {
-		config.get("DX12_BUFFER_DETECTION", "DepthBufferRetrievalMode", _preserve_depth_buffers);
-		config.get("DX12_BUFFER_DETECTION", "DepthBufferClearingNumber", _depth_clear_index_override);
+		config.get("DX12_BUFFER_DETECTION", "DepthBufferRetrievalMode", _buffer_detection->preserve_depth_buffers);
+		config.get("DX12_BUFFER_DETECTION", "DepthBufferClearingNumber", _buffer_detection->depthstencil_clear_index.second);
 		config.get("DX12_BUFFER_DETECTION", "UseAspectRatioHeuristics", _filter_aspect_ratio);
-
-		if (_depth_clear_index_override == 0)
-			// Zero is not a valid clear index, since it disables depth buffer preservation
-			_depth_clear_index_override = std::numeric_limits<UINT>::max();
 	});
 	subscribe_to_save_config([this](ini_file &config) {
-		config.set("DX12_BUFFER_DETECTION", "DepthBufferRetrievalMode", _preserve_depth_buffers);
-		config.set("DX12_BUFFER_DETECTION", "DepthBufferClearingNumber", _depth_clear_index_override);
+		config.set("DX12_BUFFER_DETECTION", "DepthBufferRetrievalMode", _buffer_detection->preserve_depth_buffers);
+		config.set("DX12_BUFFER_DETECTION", "DepthBufferClearingNumber", _buffer_detection->depthstencil_clear_index.second);
 		config.set("DX12_BUFFER_DETECTION", "UseAspectRatioHeuristics", _filter_aspect_ratio);
 	});
 #endif
@@ -395,9 +391,8 @@ void reshade::d3d12::runtime_d3d12::on_present()
 		return;
 
 #if RESHADE_DEPTH
-	assert(_depth_clear_index_override != 0);
 	update_depth_texture_bindings(_buffer_detection->update_depth_texture(
-		_commandqueue.get(), _cmd_list.get(), _filter_aspect_ratio ? _width : 0, _height, _depth_texture_override, _preserve_depth_buffers ? _depth_clear_index_override : 0));
+		_commandqueue.get(), _cmd_list.get(), _filter_aspect_ratio ? _width : 0, _height, _depth_texture_override));
 #endif
 
 	transition_state(_cmd_list, _backbuffers[_swap_index], D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
@@ -1299,24 +1294,27 @@ void reshade::d3d12::runtime_d3d12::render_technique(technique &technique)
 		_cmd_list->RSSetScissorRects(1, &scissor_rect);
 
 		// Draw primitives
+		D3D_PRIMITIVE_TOPOLOGY topology;
 		switch (pass_info.topology)
 		{
 		case reshadefx::primitive_topology::point_list:
-			_cmd_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_POINTLIST);
+			topology = D3D_PRIMITIVE_TOPOLOGY_POINTLIST;
 			break;
 		case reshadefx::primitive_topology::line_list:
-			_cmd_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_LINELIST);
+			topology = D3D_PRIMITIVE_TOPOLOGY_LINELIST;
 			break;
 		case reshadefx::primitive_topology::line_strip:
-			_cmd_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_LINESTRIP);
+			topology = D3D_PRIMITIVE_TOPOLOGY_LINESTRIP;
 			break;
+		default:
 		case reshadefx::primitive_topology::triangle_list:
-			_cmd_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+			topology = D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
 			break;
 		case reshadefx::primitive_topology::triangle_strip:
-			_cmd_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+			topology = D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP;
 			break;
 		}
+		_cmd_list->IASetPrimitiveTopology(topology);
 		_cmd_list->DrawInstanced(pass_info.num_vertices, 1, 0, 0);
 
 		_vertices += pass_info.num_vertices;
@@ -1625,7 +1623,7 @@ void reshade::d3d12::runtime_d3d12::draw_depth_debug_menu(buffer_detection_conte
 
 	bool modified = false;
 	modified |= ImGui::Checkbox("Use aspect ratio heuristics", &_filter_aspect_ratio);
-	modified |= ImGui::Checkbox("Copy depth buffers before clear operation", &_preserve_depth_buffers);
+	modified |= ImGui::Checkbox("Copy depth buffer before clear operations", &tracker.preserve_depth_buffers);
 
 	if (modified) // Detection settings have changed, reset heuristic
 		// Do not release resources here, as they may still be in use on the device
@@ -1639,7 +1637,7 @@ void reshade::d3d12::runtime_d3d12::draw_depth_debug_menu(buffer_detection_conte
 	{
 		// TODO: Display current resource when not preserving depth buffers
 		char label[512] = "";
-		sprintf_s(label, "%s0x%p", (dsv_texture == tracker.current_depth_texture() ? "> " : "  "), dsv_texture.get());
+		sprintf_s(label, "%s0x%p", (dsv_texture == tracker.depthstencil_clear_index.first ? "> " : "  "), dsv_texture.get());
 
 		const D3D12_RESOURCE_DESC desc = dsv_texture->GetDesc();
 
@@ -1658,16 +1656,16 @@ void reshade::d3d12::runtime_d3d12::draw_depth_debug_menu(buffer_detection_conte
 		ImGui::Text("| %4ux%-4u | %5u draw calls ==> %8u vertices |%s",
 			desc.Width, desc.Height, snapshot.total_stats.drawcalls, snapshot.total_stats.vertices, (msaa ? " MSAA" : ""));
 
-		if (_preserve_depth_buffers && dsv_texture == tracker.current_depth_texture())
+		if (tracker.preserve_depth_buffers && dsv_texture == tracker.depthstencil_clear_index.first)
 		{
 			for (UINT clear_index = 1; clear_index <= snapshot.clears.size(); ++clear_index)
 			{
-				sprintf_s(label, "%s  CLEAR %2u", (clear_index == tracker.current_clear_index() ? "> " : "  "), clear_index);
+				sprintf_s(label, "%s  CLEAR %2u", (clear_index == tracker.depthstencil_clear_index.second ? "> " : "  "), clear_index);
 
-				if (bool value = (_depth_clear_index_override == clear_index);
+				if (bool value = (tracker.depthstencil_clear_index.second == clear_index);
 					ImGui::Checkbox(label, &value))
 				{
-					_depth_clear_index_override = value ? clear_index : std::numeric_limits<UINT>::max();
+					tracker.depthstencil_clear_index.second = value ? clear_index : 0;
 					modified = true;
 				}
 

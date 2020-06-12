@@ -6,6 +6,7 @@
 #pragma once
 
 #include <map>
+#include <vector>
 #include <d3d10_1.h>
 #include "com_ptr.hpp"
 
@@ -35,17 +36,19 @@ namespace reshade::d3d10
 		void reset(bool release_resources);
 
 		void on_draw(UINT vertices);
-
 #if RESHADE_DEPTH
-		UINT current_clear_index() const { return _depthstencil_clear_index.second; }
-		ID3D10Texture2D *current_depth_texture() const { return _depthstencil_clear_index.first; }
-		const auto &depth_buffer_counters() const { return _counters_per_used_depth_texture; }
-
 		void on_set_render_targets();
 		void on_clear_depthstencil(UINT clear_flags, ID3D10DepthStencilView *dsv, bool rect_draw_call = false);
 
+		// Detection Settings
+		bool preserve_depth_buffers = false;
+		bool preserve_hidden_depth_buffers = false;
+		std::pair<ID3D10Texture2D *, UINT> depthstencil_clear_index = { nullptr, 0 };
+
+		const auto &depth_buffer_counters() const { return _counters_per_used_depth_texture; }
+
 		com_ptr<ID3D10Texture2D> find_best_depth_texture(UINT width, UINT height,
-			com_ptr<ID3D10Texture2D> override = nullptr, UINT clear_index_override = 0, bool extended_to_rect_draw_calls = false);
+			com_ptr<ID3D10Texture2D> override = nullptr);
 #endif
 
 #if RESHADE_WIREFRAME
@@ -54,21 +57,17 @@ namespace reshade::d3d10
 #endif
 
 	private:
+		draw_stats _stats;
+		ID3D10Device *const _device;
+
 #if RESHADE_DEPTH
 		bool update_depthstencil_clear_texture(D3D10_TEXTURE2D_DESC desc);
-#endif
 
-		ID3D10Device *const _device;
-		draw_stats _stats;
-#if RESHADE_DEPTH
 		draw_stats _previous_stats;
 		draw_stats _best_copy_stats;
-		bool _preserve_cleared_depth_buffers = false;
-		bool _preserve_depth_buffers_hidden_by_rectangle = false;
 		bool _new_om_stage = false;
 		bool _depth_stencil_cleared = false;
 		com_ptr<ID3D10Texture2D> _depthstencil_clear_texture;
-		std::pair<ID3D10Texture2D *, UINT> _depthstencil_clear_index = { nullptr, std::numeric_limits<UINT>::max() };
 		// Use "std::map" instead of "std::unordered_map" so that the iteration order is guaranteed
 		std::map<com_ptr<ID3D10Texture2D>, depthstencil_info> _counters_per_used_depth_texture;
 #endif

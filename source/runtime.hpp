@@ -82,25 +82,27 @@ namespace reshade
 		/// <param name="variable">The variable to retrieve the value from.</param>
 		/// <param name="data">The buffer to store the value data in.</param>
 		/// <param name="size">The size of the <paramref name="data"/> buffer.</param>
-		void get_uniform_value(const uniform &variable, uint8_t *data, size_t size) const;
-		void get_uniform_value(const uniform &variable, bool *values, size_t count) const;
-		void get_uniform_value(const uniform &variable, int32_t *values, size_t count) const;
-		void get_uniform_value(const uniform &variable, uint32_t *values, size_t count) const;
-		void get_uniform_value(const uniform &variable, float *values, size_t count) const;
+		/// <param name="base_index">Array index to start reading from.</param>
+		void get_uniform_value(const uniform &variable, uint8_t *data, size_t size, size_t base_index) const;
+		void get_uniform_value(const uniform &variable, bool *values, size_t count, size_t array_index = 0) const;
+		void get_uniform_value(const uniform &variable, int32_t *values, size_t count, size_t array_index = 0) const;
+		void get_uniform_value(const uniform &variable, uint32_t *values, size_t count, size_t array_index = 0) const;
+		void get_uniform_value(const uniform &variable, float *values, size_t count, size_t array_index = 0) const;
 		/// <summary>
 		/// Update the value of a uniform variable.
 		/// </summary>
 		/// <param name="variable">The variable to update.</param>
 		/// <param name="data">The value data to update the variable to.</param>
 		/// <param name="size">The size of the <paramref name="data"/> buffer.</param>
-		void set_uniform_value(uniform &variable, const uint8_t *data, size_t size);
-		void set_uniform_value(uniform &variable, const bool *values, size_t count);
+		/// <param name="base_index">Array index to start writing to.</param>
+		void set_uniform_value(uniform &variable, const uint8_t *data, size_t size, size_t base_index);
+		void set_uniform_value(uniform &variable, const bool *values, size_t count, size_t array_index = 0);
 		void set_uniform_value(uniform &variable, bool x, bool y = false, bool z = false, bool w = false) { const bool data[4] = { x, y, z, w }; set_uniform_value(variable, data, 4); }
-		void set_uniform_value(uniform &variable, const int32_t *values, size_t count);
-		void set_uniform_value(uniform &variable, int32_t  x, int32_t y = 0, int32_t z = 0, int32_t w = 0) { const int32_t data[4] = { x, y, z, w }; set_uniform_value(variable, data, 4); }
-		void set_uniform_value(uniform &variable, const uint32_t *values, size_t count);
-		void set_uniform_value(uniform &variable, uint32_t x, uint32_t y = 0u, uint32_t z = 0u, uint32_t w = 0u) { const uint32_t data[4] = { x, y, z, w }; set_uniform_value(variable, data, 4); }
-		void set_uniform_value(uniform &variable, const float *values, size_t count);
+		void set_uniform_value(uniform &variable, const int32_t *values, size_t count, size_t array_index = 0);
+		void set_uniform_value(uniform &variable, int32_t x, int32_t y = 0, int32_t z = 0, int32_t w = 0) { const int32_t data[4] = { x, y, z, w }; set_uniform_value(variable, data, 4); }
+		void set_uniform_value(uniform &variable, const uint32_t *values, size_t count, size_t array_index = 0);
+		void set_uniform_value(uniform &variable, uint32_t x, uint32_t y = 0, uint32_t z = 0, uint32_t w = 0) { const uint32_t data[4] = { x, y, z, w }; set_uniform_value(variable, data, 4); }
+		void set_uniform_value(uniform &variable, const float *values, size_t count, size_t array_index = 0);
 		void set_uniform_value(uniform &variable, float x, float y = 0.0f, float z = 0.0f, float w = 0.0f) { const float data[4] = { x, y, z, w }; set_uniform_value(variable, data, 4); }
 
 		/// <summary>
@@ -115,7 +117,7 @@ namespace reshade
 		/// </summary>
 		/// <param name="label">Name of the widget.</param>
 		/// <param name="function">The callback function.</param>
-		void subscribe_to_ui(std::string label, std::function<void()> function) { _menu_callables.push_back({ label, function }); }
+		void subscribe_to_ui(std::string label, std::function<void()> function) { _menu_callables.emplace_back(label, function); }
 #endif
 		/// <summary>
 		/// Register a function to be called when user configuration is loaded.
@@ -269,7 +271,7 @@ namespace reshade
 		/// <param name="filter_path">Directory base to search in and/or an optional filter to skip preset files.</param>
 		/// <param name="reversed">Set to <c>true</c> to switch to previous instead of next preset.</param>
 		/// <returns><c>true</c> if there was another preset to switch to, <c>false</c> if not and therefore no changes were made.</returns>
-		bool switch_to_next_preset(const std::filesystem::path &filter_path, bool reversed = false);
+		bool switch_to_next_preset(std::filesystem::path filter_path, bool reversed = false);
 
 		/// <summary>
 		/// Create a copy of the current frame and write it to an image file on disk.
