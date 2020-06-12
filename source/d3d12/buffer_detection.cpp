@@ -217,7 +217,7 @@ com_ptr<ID3D12Resource> reshade::d3d12::buffer_detection_context::update_depth_t
 {
 	depthstencil_info best_snapshot;
 	com_ptr<ID3D12Resource> best_match = override;
-	if (best_match == nullptr)
+	if (best_match != nullptr)
 	{
 		best_snapshot = _counters_per_used_depth_texture[best_match];
 	}
