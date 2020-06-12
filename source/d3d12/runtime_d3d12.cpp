@@ -105,6 +105,9 @@ reshade::d3d12::runtime_d3d12::runtime_d3d12(ID3D12Device *device, ID3D12Command
 		config.get("DX12_BUFFER_DETECTION", "DepthBufferRetrievalMode", _buffer_detection->preserve_depth_buffers);
 		config.get("DX12_BUFFER_DETECTION", "DepthBufferClearingNumber", _buffer_detection->depthstencil_clear_index.second);
 		config.get("DX12_BUFFER_DETECTION", "UseAspectRatioHeuristics", _filter_aspect_ratio);
+
+		if (_buffer_detection->depthstencil_clear_index.second == std::numeric_limits<UINT>::max())
+			_buffer_detection->depthstencil_clear_index.second  = 0;
 	});
 	subscribe_to_save_config([this](ini_file &config) {
 		config.set("DX12_BUFFER_DETECTION", "DepthBufferRetrievalMode", _buffer_detection->preserve_depth_buffers);

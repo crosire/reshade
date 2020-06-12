@@ -91,6 +91,9 @@ reshade::d3d11::runtime_d3d11::runtime_d3d11(ID3D11Device *device, IDXGISwapChai
 
 		_buffer_detection->preserve_depth_buffers = (detection_mode >= 1);
 		_buffer_detection->preserve_hidden_depth_buffers = (detection_mode == 2);
+
+		if (_buffer_detection->depthstencil_clear_index.second == std::numeric_limits<UINT>::max())
+			_buffer_detection->depthstencil_clear_index.second  = 0;
 	});
 	subscribe_to_save_config([this](ini_file &config) {
 		config.set("DX11_BUFFER_DETECTION", "DepthBufferRetrievalMode", _buffer_detection->preserve_hidden_depth_buffers ? 2 : _buffer_detection->preserve_depth_buffers ? 1 : 0);
