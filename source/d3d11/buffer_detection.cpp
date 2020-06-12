@@ -35,6 +35,7 @@ void reshade::d3d11::buffer_detection::reset()
 	_depth_stencil_cleared = false;
 	_best_copy_stats = { 0, 0 };
 	_has_indirect_drawcalls = false;
+	_first_empty_stats = true;
 	_counters_per_used_depth_texture.clear();
 #endif
 }
@@ -67,6 +68,7 @@ void reshade::d3d11::buffer_detection::merge(const buffer_detection &source)
 		_best_copy_stats = source._best_copy_stats;
 	_depth_stencil_cleared |= source._depth_stencil_cleared;
 	_has_indirect_drawcalls |= source._has_indirect_drawcalls;
+	_first_empty_stats |= source._first_empty_stats;
 
 	for (const auto &[dsv_texture, snapshot] : source._counters_per_used_depth_texture)
 	{
@@ -114,7 +116,7 @@ void reshade::d3d11::buffer_detection::on_draw(UINT vertices)
 		assert(dss != nullptr);
 		dss->GetDesc(&dss_desc);
 
-		if (rs_desc.CullMode == D3D11_CULL_NONE && dss_desc.DepthWriteMask == D3D11_DEPTH_WRITE_MASK_ALL && dss_desc.DepthEnable == true && dss_desc.DepthFunc == D3D11_COMPARISON_ALWAYS)
+		if (rs_desc.CullMode == D3D11_CULL_NONE && dss_desc.DepthWriteMask == D3D11_DEPTH_WRITE_MASK_ALL && dss_desc.DepthEnable == TRUE && dss_desc.DepthFunc == D3D11_COMPARISON_ALWAYS)
 		{
 			on_clear_depthstencil(D3D11_CLEAR_DEPTH, depthstencil.get(), true);
 
@@ -147,8 +149,11 @@ void reshade::d3d11::buffer_detection::on_clear_depthstencil(UINT clear_flags, I
 	auto &counters = _counters_per_used_depth_texture[dsv_texture];
 
 	// Update stats with data from previous frame
-	if (!rect_draw_call && counters.current_stats.drawcalls == 0)
+	if (!rect_draw_call && counters.current_stats.drawcalls == 0 && _first_empty_stats)
+	{
 		counters.current_stats = _context->_previous_stats;
+		_first_empty_stats = false;
+	}
 
 	// Ignore clears when there was no meaningful workload
 	if (counters.current_stats.drawcalls == 0)

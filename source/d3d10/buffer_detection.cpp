@@ -27,6 +27,7 @@ void reshade::d3d10::buffer_detection::reset(bool release_resources)
 	_stats = { 0, 0 };
 #if RESHADE_DEPTH
 	_depth_stencil_cleared = false;
+	_first_empty_stats = true;
 	_best_copy_stats = { 0, 0 };
 	_counters_per_used_depth_texture.clear();
 
@@ -69,7 +70,7 @@ void reshade::d3d10::buffer_detection::on_draw(UINT vertices)
 		assert(dss != nullptr);
 		dss->GetDesc(&dss_desc);
 
-		if (rs_desc.CullMode == D3D10_CULL_NONE && dss_desc.DepthWriteMask == D3D10_DEPTH_WRITE_MASK_ALL && dss_desc.DepthEnable == true && dss_desc.DepthFunc == D3D10_COMPARISON_ALWAYS)
+		if (rs_desc.CullMode == D3D10_CULL_NONE && dss_desc.DepthWriteMask == D3D10_DEPTH_WRITE_MASK_ALL && dss_desc.DepthEnable == TRUE && dss_desc.DepthFunc == D3D10_COMPARISON_ALWAYS)
 		{
 			on_clear_depthstencil(D3D10_CLEAR_DEPTH, depthstencil.get(), true);
 
@@ -100,8 +101,11 @@ void reshade::d3d10::buffer_detection::on_clear_depthstencil(UINT clear_flags, I
 	auto &counters = _counters_per_used_depth_texture[dsv_texture];
 
 	// Update stats with data from previous frame
-	if (!rect_draw_call && counters.current_stats.drawcalls == 0)
+	if (!rect_draw_call && counters.current_stats.drawcalls == 0 && _first_empty_stats)
+	{
 		counters.current_stats = _previous_stats;
+		_first_empty_stats = false;
+	}
 
 	// Ignore clears when there was no meaningful workload
 	if (counters.current_stats.drawcalls == 0)
