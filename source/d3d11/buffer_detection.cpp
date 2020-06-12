@@ -115,7 +115,7 @@ void reshade::d3d11::buffer_detection::on_draw(UINT vertices)
 		assert(dss != nullptr);
 		dss->GetDesc(&dss_desc);
 
-		if (rs_desc.CullMode == D3D11_CULL_NONE && dss_desc.DepthWriteMask == D3D11_DEPTH_WRITE_MASK_ALL)
+		if (rs_desc.CullMode == D3D11_CULL_NONE && dss_desc.DepthWriteMask == D3D11_DEPTH_WRITE_MASK_ALL && dss_desc.DepthEnable == true && dss_desc.DepthFunc == D3D11_COMPARISON_ALWAYS)
 		{
 			on_clear_depthstencil(D3D11_CLEAR_DEPTH, depthstencil.get(), true);
 

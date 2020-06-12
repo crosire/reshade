@@ -70,7 +70,7 @@ void reshade::d3d10::buffer_detection::on_draw(UINT vertices)
 		assert(dss != nullptr);
 		dss->GetDesc(&dss_desc);
 
-		if (rs_desc.CullMode == D3D10_CULL_NONE && dss_desc.DepthWriteMask == D3D10_DEPTH_WRITE_MASK_ALL)
+		if (rs_desc.CullMode == D3D10_CULL_NONE && dss_desc.DepthWriteMask == D3D10_DEPTH_WRITE_MASK_ALL && dss_desc.DepthEnable == true && dss_desc.DepthFunc == D3D10_COMPARISON_ALWAYS)
 		{
 			on_clear_depthstencil(D3D10_CLEAR_DEPTH, depthstencil.get(), true);
 

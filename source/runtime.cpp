@@ -1750,7 +1750,7 @@ void reshade::runtime::init_wireframe_effect_file(std::filesystem::path configur
 	std::filesystem::path wireframe_effect_file_path;
 	std::ofstream wireframe_effect_file;
 
-	effect_path = absolute_path(effect_path);
+	resolve_path(effect_path);
 
 	if (std::error_code ec; !std::filesystem::exists(effect_path, ec))
 		wireframe_effect_file_path = configuration_path.parent_path() / L"Wireframe.fx";
@@ -1760,7 +1760,9 @@ void reshade::runtime::init_wireframe_effect_file(std::filesystem::path configur
 	// create wireframe effect file from resource
 	const resources::data_resource wireframe_fx = resources::load_data_resource(IDR_EFFECT_WIREFRAME);
 
-	wireframe_effect_file.open(absolute_path(wireframe_effect_file_path), std::ios::out | std::ios::binary);
+	resolve_path(wireframe_effect_file_path);
+
+	wireframe_effect_file.open(wireframe_effect_file_path, std::ios::out | std::ios::binary);
 	wireframe_effect_file.write((char*)wireframe_fx.data, wireframe_fx.data_size);
 	wireframe_effect_file.close();
 }
