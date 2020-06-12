@@ -496,13 +496,17 @@
   <ItemGroup>
     <CustomBuild Include="res\shaders\imgui_ps.glsl">
       <FileType>Document</FileType>
-      <Command>glslangValidator.exe -V -S frag "%(FullPath)" -o "$(SolutionDir)res\shaders\%(Filename).spv"</Command>
+      <Command>"$(VK_SDK_PATH)\Bin\glslangValidator.exe" -V -S frag "%(FullPath)" -o "$(SolutionDir)res\shaders\%(Filename).spv"</Command>
       <Outputs>$(SolutionDir)res\shaders\%(Filename).spv</Outputs>
+      <Message></Message>
+      <ExcludedFromBuild Condition="!Exists('$(VK_SDK_PATH)\Bin\glslangValidator.exe')">true</ExcludedFromBuild>
     </CustomBuild>
     <CustomBuild Include="res\shaders\imgui_vs.glsl">
       <FileType>Document</FileType>
-      <Command>glslangValidator.exe -V -S vert "%(FullPath)" -o "$(SolutionDir)res\shaders\%(Filename).spv"</Command>
+      <Command>"$(VK_SDK_PATH)\Bin\glslangValidator.exe" -V -S vert "%(FullPath)" -o "$(SolutionDir)res\shaders\%(Filename).spv"</Command>
       <Outputs>$(SolutionDir)res\shaders\%(Filename).spv</Outputs>
+      <Message></Message>
+      <ExcludedFromBuild Condition="!Exists('$(VK_SDK_PATH)\Bin\glslangValidator.exe')">true</ExcludedFromBuild>
     </CustomBuild>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

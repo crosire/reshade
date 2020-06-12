@@ -7,7 +7,6 @@
 [Rr]elease/
 *.obj
 *.cso
-*.spv
 
 # Visual Studio cache files
 .vs/
