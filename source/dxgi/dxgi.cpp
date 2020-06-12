@@ -74,6 +74,12 @@ static void dump_and_modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC &desc)
 			desc.BufferDesc.Width = force_resolution[0];
 			desc.BufferDesc.Height = force_resolution[1];
 		}
+
+		if (bool force_10_bit_format;
+			config.get("APP", "Force10BitFormat", force_10_bit_format) && force_10_bit_format)
+		{
+			desc.BufferDesc.Format = DXGI_FORMAT_R10G10B10A2_UNORM;
+		}
 	}
 }
 static bool dump_and_modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC1 &desc)
@@ -105,6 +111,12 @@ static bool dump_and_modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC1 &desc)
 		{
 			desc.Width = force_resolution[0];
 			desc.Height = force_resolution[1];
+		}
+
+		if (bool force_10_bit_format;
+			config.get("APP", "Force10BitFormat", force_10_bit_format) && force_10_bit_format)
+		{
+			desc.Format = DXGI_FORMAT_R10G10B10A2_UNORM;
 		}
 
 		return force_windowed;
@@ -201,6 +213,7 @@ static void init_reshade_runtime_d3d(T *&swapchain, unsigned int direct3d_versio
 
 			config.get("APP", "ForceVSync", swapchain_proxy->_force_vsync);
 			config.get("APP", "ForceResolution", swapchain_proxy->_force_resolution);
+			config.get("APP", "Force10BitFormat", swapchain_proxy->_force_10_bit_format);
 		}
 
 #if RESHADE_VERBOSE_LOG

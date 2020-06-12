@@ -57,6 +57,12 @@ void dump_and_modify_present_parameters(D3DPRESENT_PARAMETERS &pp)
 			pp.BackBufferWidth = force_resolution[0];
 			pp.BackBufferHeight = force_resolution[1];
 		}
+
+		if (bool force_10_bit_format;
+			config.get("APP", "Force10BitFormat", force_10_bit_format) && force_10_bit_format)
+		{
+			pp.BackBufferFormat = D3DFMT_A2R10G10B10;
+		}
 	}
 }
 

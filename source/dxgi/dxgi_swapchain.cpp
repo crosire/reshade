@@ -330,6 +330,8 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers(UINT BufferCount, UINT Wi
 		_force_resolution[1] != 0)
 		Width = _force_resolution[0],
 		Height = _force_resolution[1];
+	if (_force_10_bit_format)
+		NewFormat = DXGI_FORMAT_R10G10B10A2_UNORM;
 
 	const HRESULT hr = _orig->ResizeBuffers(BufferCount, Width, Height, NewFormat, SwapChainFlags);
 	if (hr == DXGI_ERROR_INVALID_CALL) // Ignore invalid call errors since the device is still in a usable state afterwards
@@ -496,6 +498,8 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers1(UINT BufferCount, UINT W
 		_force_resolution[1] != 0)
 		Width = _force_resolution[0],
 		Height = _force_resolution[1];
+	if (_force_10_bit_format)
+		Format = DXGI_FORMAT_R10G10B10A2_UNORM;
 
 	assert(_interface_version >= 3);
 	const HRESULT hr = static_cast<IDXGISwapChain3 *>(_orig)->ResizeBuffers1(BufferCount, Width, Height, Format, SwapChainFlags, pCreationNodeMask, ppPresentQueue);
