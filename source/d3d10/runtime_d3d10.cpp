@@ -50,10 +50,11 @@ namespace reshade::d3d10
 	};
 }
 
-reshade::d3d10::runtime_d3d10::runtime_d3d10(ID3D10Device1 *device, IDXGISwapChain *swapchain) :
-	_device(device), _swapchain(swapchain),
+reshade::d3d10::runtime_d3d10::runtime_d3d10(ID3D10Device1 *device, IDXGISwapChain *swapchain, buffer_detection *bdc) :
+	_device(device), _swapchain(swapchain), _buffer_detection(bdc),
 	_app_state(device)
 {
+	assert(bdc != nullptr);
 	assert(device != nullptr);
 	assert(swapchain != nullptr);
 
@@ -76,28 +77,22 @@ reshade::d3d10::runtime_d3d10::runtime_d3d10(ID3D10Device1 *device, IDXGISwapCha
 
 #if RESHADE_GUI && RESHADE_DEPTH
 	subscribe_to_ui("DX10", [this]() {
-		assert(_buffer_detection != nullptr);
 		draw_depth_debug_menu(*_buffer_detection);
 	});
 #endif
 #if RESHADE_DEPTH
 	subscribe_to_load_config([this](const ini_file &config) {
-		UINT Depth_buffer_retreval_mode = 0;
-
-		config.get("DX10_BUFFER_DETECTION", "DepthBufferRetrievalMode", Depth_buffer_retreval_mode);
-		config.get("DX10_BUFFER_DETECTION", "DepthBufferClearingNumber", _depth_clear_index_override);
+		UINT detection_mode = 0;
+		config.get("DX10_BUFFER_DETECTION", "DepthBufferRetrievalMode", detection_mode);
+		config.get("DX10_BUFFER_DETECTION", "DepthBufferClearingNumber", _buffer_detection->depthstencil_clear_index.second);
 		config.get("DX10_BUFFER_DETECTION", "UseAspectRatioHeuristics", _filter_aspect_ratio);
 
-		_preserve_depth_buffers = (Depth_buffer_retreval_mode >= 1);
-		_preserve_hidden_depth_buffers = (Depth_buffer_retreval_mode == 2);
-
-		if (_depth_clear_index_override == 0)
-			// Zero is not a valid clear index, since it disables depth buffer preservation
-			_depth_clear_index_override = std::numeric_limits<UINT>::max();
+		_buffer_detection->preserve_depth_buffers = (detection_mode >= 1);
+		_buffer_detection->preserve_hidden_depth_buffers = (detection_mode == 2);
 	});
 	subscribe_to_save_config([this](ini_file &config) {
-		config.set("DX10_BUFFER_DETECTION", "DepthBufferRetrievalMode", _preserve_hidden_depth_buffers ? 2 : _preserve_depth_buffers ? 1 : 0);
-		config.set("DX10_BUFFER_DETECTION", "DepthBufferClearingNumber", _depth_clear_index_override);
+		config.set("DX10_BUFFER_DETECTION", "DepthBufferRetrievalMode", _buffer_detection->preserve_hidden_depth_buffers ? 2 : _buffer_detection->preserve_depth_buffers ? 1 : 0);
+		config.set("DX10_BUFFER_DETECTION", "DepthBufferClearingNumber", _buffer_detection->depthstencil_clear_index.second);
 		config.set("DX10_BUFFER_DETECTION", "UseAspectRatioHeuristics", _filter_aspect_ratio);
 	});
 #endif
@@ -273,9 +268,8 @@ void reshade::d3d10::runtime_d3d10::on_present()
 	_drawcalls = _buffer_detection->total_drawcalls();
 
 #if RESHADE_DEPTH
-	assert(_depth_clear_index_override != 0);
 	update_depth_texture_bindings(_has_high_network_activity ? nullptr :
-		_buffer_detection->find_best_depth_texture(_filter_aspect_ratio ? _width : 0, _height, _depth_texture_override, _preserve_depth_buffers ? _depth_clear_index_override : 0, _preserve_hidden_depth_buffers ? _depth_clear_index_override : 0));
+		_buffer_detection->find_best_depth_texture(_filter_aspect_ratio ? _width : 0, _height, _depth_texture_override));
 #endif
 
 	_app_state.capture();
@@ -579,7 +573,7 @@ bool reshade::d3d10::runtime_d3d10::init_effect(size_t index)
 				})->impl);
 				assert(texture_impl != nullptr);
 
-				D3D10_TEXTURE2D_DESC desc = {};
+				D3D10_TEXTURE2D_DESC desc;
 				texture_impl->texture->GetDesc(&desc);
 
 				D3D10_RENDER_TARGET_VIEW_DESC rtv_desc = {};
@@ -713,24 +707,23 @@ bool reshade::d3d10::runtime_d3d10::init_effect(size_t index)
 				}
 			}
 
+			// Unbind any shader resources that are also bound as render target
 			pass_data.shader_resources = impl->texture_bindings;
 			for (com_ptr<ID3D10ShaderResourceView> &srv : pass_data.shader_resources)
 			{
 				if (srv == nullptr)
 					continue;
-
-				com_ptr<ID3D10Resource> res1;
-				srv->GetResource(&res1);
+				com_ptr<ID3D10Resource> srv_res;
+				srv->GetResource(&srv_res);
 
 				for (const com_ptr<ID3D10RenderTargetView> &rtv : pass_data.render_targets)
 				{
 					if (rtv == nullptr)
 						continue;
+					com_ptr<ID3D10Resource> rtv_res;
+					rtv->GetResource(&rtv_res);
 
-					com_ptr<ID3D10Resource> res2;
-					rtv->GetResource(&res2);
-
-					if (res1 == res2)
+					if (srv_res == rtv_res)
 					{
 						srv.reset();
 						break;
@@ -1043,7 +1036,7 @@ void reshade::d3d10::runtime_d3d10::render_technique(technique &technique)
 			for (const com_ptr<ID3D10RenderTargetView> &target : pass_data.render_targets)
 			{
 				if (target == nullptr)
-					break;
+					break; // Render targets can only be set consecutively
 				const FLOAT color[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
 				_device->ClearRenderTargetView(target.get(), color);
 			}
@@ -1053,24 +1046,27 @@ void reshade::d3d10::runtime_d3d10::render_technique(technique &technique)
 		_device->RSSetViewports(1, &viewport);
 
 		// Draw primitives
+		D3D10_PRIMITIVE_TOPOLOGY topology;
 		switch (pass_info.topology)
 		{
 		case reshadefx::primitive_topology::point_list:
-			_device->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_POINTLIST);
+			topology = D3D10_PRIMITIVE_TOPOLOGY_POINTLIST;
 			break;
 		case reshadefx::primitive_topology::line_list:
-			_device->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_LINELIST);
+			topology = D3D10_PRIMITIVE_TOPOLOGY_LINELIST;
 			break;
 		case reshadefx::primitive_topology::line_strip:
-			_device->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_LINESTRIP);
+			topology = D3D10_PRIMITIVE_TOPOLOGY_LINESTRIP;
 			break;
+		default:
 		case reshadefx::primitive_topology::triangle_list:
-			_device->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+			topology = D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
 			break;
 		case reshadefx::primitive_topology::triangle_strip:
-			_device->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+			topology = D3D10_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP;
 			break;
 		}
+		_device->IASetPrimitiveTopology(topology);
 		_device->Draw(pass_info.num_vertices, 0);
 
 		_vertices += pass_info.num_vertices;
@@ -1332,12 +1328,11 @@ void reshade::d3d10::runtime_d3d10::draw_depth_debug_menu(buffer_detection &trac
 
 	bool modified = false;
 	modified |= ImGui::Checkbox("Use aspect ratio heuristics", &_filter_aspect_ratio);
-	modified |= ImGui::Checkbox("Copy depth buffers before clear operation", &_preserve_depth_buffers);
-	if (_preserve_depth_buffers)
-		modified |= ImGui::Checkbox("Extend to depth buffer copies before a rectangle is drawn in front of it", &_preserve_hidden_depth_buffers);
-
-	if (!_preserve_depth_buffers)
-		_preserve_hidden_depth_buffers = false;
+	modified |= ImGui::Checkbox("Copy depth buffer before clear operations", &tracker.preserve_depth_buffers);
+	if (tracker.preserve_depth_buffers)
+		modified |= ImGui::Checkbox("Copy depth buffer before fullscreen draw calls", &tracker.preserve_hidden_depth_buffers);
+	else
+		tracker.preserve_hidden_depth_buffers = false;
 
 	if (modified) // Detection settings have changed, reset heuristic
 		tracker.reset(true);
@@ -1349,7 +1344,7 @@ void reshade::d3d10::runtime_d3d10::draw_depth_debug_menu(buffer_detection &trac
 	for (const auto &[dsv_texture, snapshot] : tracker.depth_buffer_counters())
 	{
 		char label[512] = "";
-		sprintf_s(label, "%s0x%p", (dsv_texture == _depth_texture || dsv_texture == tracker.current_depth_texture() ? "> " : "  "), dsv_texture.get());
+		sprintf_s(label, "%s0x%p", (dsv_texture == tracker.depthstencil_clear_index.first ? "> " : "  "), dsv_texture.get());
 
 		D3D10_TEXTURE2D_DESC desc;
 		dsv_texture->GetDesc(&desc);
@@ -1369,27 +1364,24 @@ void reshade::d3d10::runtime_d3d10::draw_depth_debug_menu(buffer_detection &trac
 		ImGui::Text("| %4ux%-4u | %5u draw calls ==> %8u vertices |%s",
 			desc.Width, desc.Height, snapshot.total_stats.drawcalls, snapshot.total_stats.vertices, (msaa ? " MSAA" : ""));
 
-		if (_preserve_depth_buffers && dsv_texture == tracker.current_depth_texture())
+		if (tracker.preserve_depth_buffers && dsv_texture == tracker.depthstencil_clear_index.first)
 		{
 			for (UINT clear_index = 1; clear_index <= snapshot.clears.size(); ++clear_index)
 			{
-				UINT space_size = 8;
-				if (snapshot.clears[clear_index - 1].rect)
-					space_size -= sizeof("(RECT)") - 1;
+				sprintf_s(label, "%s  CLEAR %2u", (clear_index == tracker.depthstencil_clear_index.second ? "> " : "  "), clear_index);
 
-				sprintf_s(label, "%s CLEAR %2u %s", (clear_index == tracker.current_clear_index() ? "> " : "  "), clear_index, snapshot.clears[clear_index - 1].rect ? "(RECT)" : "");
-
-				if (bool value = (_depth_clear_index_override == clear_index);
+				if (bool value = (tracker.depthstencil_clear_index.second == clear_index);
 					ImGui::Checkbox(label, &value))
 				{
-					_depth_clear_index_override = value ? clear_index : std::numeric_limits<UINT>::max();
+					tracker.depthstencil_clear_index.second = value ? clear_index : 0;
 					modified = true;
 				}
 
 				ImGui::SameLine();
-				ImGui::Text("%*s|           | %5u draw calls ==> %8u vertices |",
-					sizeof(dsv_texture.get()) == 8 ? space_size : 0, "", // Add space to fill pointer length
-					snapshot.clears[clear_index - 1].drawcalls, snapshot.clears[clear_index - 1].vertices);
+				ImGui::Text("%*s|           | %5u draw calls ==> %8u vertices |%s",
+					sizeof(dsv_texture.get()) == 8 ? 8 : 0, "", // Add space to fill pointer length
+					snapshot.clears[clear_index - 1].drawcalls, snapshot.clears[clear_index - 1].vertices,
+					snapshot.clears[clear_index - 1].rect ? " RECT" : "");
 			}
 		}
 
@@ -1424,7 +1416,6 @@ void reshade::d3d10::runtime_d3d10::update_depth_texture_bindings(com_ptr<ID3D10
 	{
 		D3D10_TEXTURE2D_DESC tex_desc;
 		_depth_texture->GetDesc(&tex_desc);
-
 		assert((tex_desc.BindFlags & D3D10_BIND_SHADER_RESOURCE) != 0);
 
 		D3D10_SHADER_RESOURCE_VIEW_DESC srv_desc = {};
@@ -1458,6 +1449,7 @@ void reshade::d3d10::runtime_d3d10::update_depth_texture_bindings(com_ptr<ID3D10
 				continue;
 
 			for (d3d10_pass_data &pass_data : tech_impl->passes)
+				// Replace all occurances of the old resource view with the new one
 				for (com_ptr<ID3D10ShaderResourceView> &srv : pass_data.shader_resources)
 					if (tex_impl->srv[0] == srv || tex_impl->srv[1] == srv)
 						srv = _depth_texture_srv;

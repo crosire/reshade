@@ -115,7 +115,7 @@ int wmain(int argc, wchar_t *argv[])
 		Sleep(1); // Sleep a bit to not overburden the CPU
 	}
 
-	printf("Found a matching process with PID %d! Injecting ReShade ... ", pid);
+	printf("Found a matching process with PID %lu! Injecting ReShade ... ", pid);
 
 	// Wait just a little bit for the application to initialize
 	Sleep(50);
@@ -143,7 +143,8 @@ int wmain(int argc, wchar_t *argv[])
 
 	loading_data arg;
 	GetCurrentDirectoryW(MAX_PATH, arg.load_path);
-	swprintf(arg.load_path, MAX_PATH, L"%s\\%s", arg.load_path, remote_is_wow64 ? L"ReShade32.dll" : L"ReShade64.dll");
+	wcscat_s(arg.load_path, L"\\");
+	wcscat_s(arg.load_path, remote_is_wow64 ? L"ReShade32.dll" : L"ReShade64.dll");
 
 	if (GetFileAttributesW(arg.load_path) == INVALID_FILE_ATTRIBUTES)
 	{

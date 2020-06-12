@@ -13,8 +13,8 @@ namespace reshade::d3d9 { class runtime_d3d9; }
 
 struct DECLSPEC_UUID("F1006E9A-1C51-4AF4-ACEF-3605D2D4C8EE") Direct3DDevice9 : IDirect3DDevice9Ex
 {
-	Direct3DDevice9(IDirect3DDevice9   *original, IDirect3DSwapChain9 *implicit_swapchain, const std::shared_ptr<reshade::d3d9::runtime_d3d9> &runtime, bool use_software_rendering);
-	Direct3DDevice9(IDirect3DDevice9Ex *original, IDirect3DSwapChain9 *implicit_swapchain, const std::shared_ptr<reshade::d3d9::runtime_d3d9> &runtime, bool use_software_rendering);
+	Direct3DDevice9(IDirect3DDevice9   *original, bool use_software_rendering);
+	Direct3DDevice9(IDirect3DDevice9Ex *original, bool use_software_rendering);
 
 	Direct3DDevice9(const Direct3DDevice9 &) = delete;
 	Direct3DDevice9 &operator=(const Direct3DDevice9 &) = delete;
@@ -165,7 +165,7 @@ struct DECLSPEC_UUID("F1006E9A-1C51-4AF4-ACEF-3605D2D4C8EE") Direct3DDevice9 : I
 	IDirect3DDevice9 *_orig;
 	bool _extended_interface;
 	bool _use_software_rendering;
-	Direct3DSwapChain9 *_implicit_swapchain;
+	Direct3DSwapChain9 *_implicit_swapchain = nullptr;
 	std::vector<Direct3DSwapChain9 *> _additional_swapchains;
 	com_ptr<IDirect3DSurface9> _auto_depthstencil;
 	reshade::d3d9::buffer_detection _buffer_detection;

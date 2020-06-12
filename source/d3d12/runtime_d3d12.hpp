@@ -16,7 +16,7 @@ namespace reshade::d3d12
 		static const uint32_t NUM_IMGUI_BUFFERS = 5;
 
 	public:
-		runtime_d3d12(ID3D12Device *device, ID3D12CommandQueue *queue, IDXGISwapChain3 *swapchain);
+		runtime_d3d12(ID3D12Device *device, ID3D12CommandQueue *queue, IDXGISwapChain3 *swapchain, buffer_detection_context *bdc);
 		~runtime_d3d12();
 
 		bool on_init(const DXGI_SWAP_CHAIN_DESC &desc
@@ -28,8 +28,6 @@ namespace reshade::d3d12
 		void on_present();
 
 		bool capture_screenshot(uint8_t *buffer) const override;
-
-		buffer_detection_context *_buffer_detection = nullptr;
 
 	private:
 		bool init_effect(size_t index) override;
@@ -52,6 +50,7 @@ namespace reshade::d3d12
 		const com_ptr<ID3D12Device> _device;
 		const com_ptr<ID3D12CommandQueue> _commandqueue;
 		const com_ptr<IDXGISwapChain3> _swapchain;
+		buffer_detection_context *const _buffer_detection;
 		UINT _srv_handle_size = 0;
 		UINT _rtv_handle_size = 0;
 		UINT _dsv_handle_size = 0;
@@ -101,8 +100,6 @@ namespace reshade::d3d12
 		com_ptr<ID3D12Resource> _depth_texture;
 
 		bool _filter_aspect_ratio = true;
-		bool _preserve_depth_buffers = false;
-		UINT _depth_clear_index_override = std::numeric_limits<UINT>::max();
 		ID3D12Resource *_depth_texture_override = nullptr;
 #endif
 	};

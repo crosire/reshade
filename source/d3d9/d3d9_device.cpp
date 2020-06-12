@@ -10,19 +10,17 @@
 
 extern void dump_present_parameters(const D3DPRESENT_PARAMETERS &pp);
 
-Direct3DDevice9::Direct3DDevice9(IDirect3DDevice9   *original, IDirect3DSwapChain9 *implicit_swapchain, const std::shared_ptr<reshade::d3d9::runtime_d3d9> &runtime, bool use_software_rendering) :
+Direct3DDevice9::Direct3DDevice9(IDirect3DDevice9   *original, bool use_software_rendering) :
 	_orig(original),
 	_extended_interface(0),
 	_use_software_rendering(use_software_rendering),
-	_implicit_swapchain(new Direct3DSwapChain9(this, implicit_swapchain, runtime)),
 	_buffer_detection(original) {
 	assert(_orig != nullptr);
 }
-Direct3DDevice9::Direct3DDevice9(IDirect3DDevice9Ex *original, IDirect3DSwapChain9 *implicit_swapchain, const std::shared_ptr<reshade::d3d9::runtime_d3d9> &runtime, bool use_software_rendering) :
+Direct3DDevice9::Direct3DDevice9(IDirect3DDevice9Ex *original, bool use_software_rendering) :
 	_orig(original),
 	_extended_interface(1),
 	_use_software_rendering(use_software_rendering),
-	_implicit_swapchain(new Direct3DSwapChain9(this, implicit_swapchain, runtime)),
 	_buffer_detection(original) {
 	assert(_orig != nullptr);
 }
@@ -163,11 +161,9 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateAdditionalSwapChain(D3DPRESENT_
 	D3DPRESENT_PARAMETERS pp;
 	swapchain->GetPresentParameters(&pp);
 
-	const auto runtime = std::make_shared<reshade::d3d9::runtime_d3d9>(device, swapchain);
+	const auto runtime = std::make_shared<reshade::d3d9::runtime_d3d9>(device, swapchain, &_buffer_detection);
 	if (!runtime->on_init(pp))
 		LOG(ERROR) << "Failed to initialize Direct3D 9 runtime environment on runtime " << runtime.get() << '.';
-
-	runtime->_buffer_detection = &_buffer_detection;
 
 	AddRef(); // Add reference which is released when the swap chain is destroyed (see 'Direct3DSwapChain9::Release')
 

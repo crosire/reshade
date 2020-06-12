@@ -14,7 +14,7 @@ namespace reshade::d3d10
 	class runtime_d3d10 : public runtime
 	{
 	public:
-		runtime_d3d10(ID3D10Device1 *device, IDXGISwapChain *swapchain);
+		runtime_d3d10(ID3D10Device1 *device, IDXGISwapChain *swapchain, buffer_detection *bdc);
 		~runtime_d3d10();
 
 		bool on_init(const DXGI_SWAP_CHAIN_DESC &desc);
@@ -22,8 +22,6 @@ namespace reshade::d3d10
 		void on_present();
 
 		bool capture_screenshot(uint8_t *buffer) const override;
-
-		buffer_detection *_buffer_detection = nullptr;
 
 	private:
 		bool init_effect(size_t index) override;
@@ -39,6 +37,7 @@ namespace reshade::d3d10
 		state_block _app_state;
 		const com_ptr<ID3D10Device1> _device;
 		const com_ptr<IDXGISwapChain> _swapchain;
+		buffer_detection *const _buffer_detection;
 
 		DXGI_FORMAT _backbuffer_format = DXGI_FORMAT_UNKNOWN;
 		com_ptr<ID3D10Texture2D> _backbuffer;
@@ -87,9 +86,6 @@ namespace reshade::d3d10
 		com_ptr<ID3D10ShaderResourceView> _depth_texture_srv;
 
 		bool _filter_aspect_ratio = true;
-		bool _preserve_depth_buffers = false;
-		bool _preserve_hidden_depth_buffers = false;
-		UINT _depth_clear_index_override = std::numeric_limits<UINT>::max();
 		ID3D10Texture2D *_depth_texture_override = nullptr;
 #endif
 	};

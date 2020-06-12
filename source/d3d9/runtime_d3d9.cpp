@@ -38,10 +38,11 @@ namespace reshade::d3d9
 	};
 }
 
-reshade::d3d9::runtime_d3d9::runtime_d3d9(IDirect3DDevice9 *device, IDirect3DSwapChain9 *swapchain) :
-	_device(device), _swapchain(swapchain),
+reshade::d3d9::runtime_d3d9::runtime_d3d9(IDirect3DDevice9 *device, IDirect3DSwapChain9 *swapchain, buffer_detection *bdc) :
+	_device(device), _swapchain(swapchain), _buffer_detection(bdc),
 	_app_state(device)
 {
+	assert(bdc != nullptr);
 	assert(device != nullptr);
 	assert(swapchain != nullptr);
 
@@ -73,25 +74,20 @@ reshade::d3d9::runtime_d3d9::runtime_d3d9(IDirect3DDevice9 *device, IDirect3DSwa
 
 #if RESHADE_GUI && RESHADE_DEPTH
 	subscribe_to_ui("DX9", [this]() {
-		assert(_buffer_detection != nullptr);
 		draw_depth_debug_menu(*_buffer_detection);
 	});
 #endif
 #if RESHADE_DEPTH
 	subscribe_to_load_config([this](const ini_file &config) {
 		config.get("DX9_BUFFER_DETECTION", "DisableINTZ", _disable_intz);
-		config.get("DX9_BUFFER_DETECTION", "PreserveDepthBuffer", _preserve_depth_buffers);
-		config.get("DX9_BUFFER_DETECTION", "PreserveDepthBufferIndex", _depth_clear_index_override);
+		config.get("DX9_BUFFER_DETECTION", "PreserveDepthBuffer", _buffer_detection->preserve_depth_buffers);
+		config.get("DX9_BUFFER_DETECTION", "PreserveDepthBufferIndex", _buffer_detection->depthstencil_clear_index_override);
 		config.get("DX9_BUFFER_DETECTION", "UseAspectRatioHeuristics", _filter_aspect_ratio);
-
-		if (_depth_clear_index_override == 0)
-			// Zero is not a valid clear index, since it disables depth buffer preservation
-			_depth_clear_index_override = std::numeric_limits<UINT>::max();
 	});
 	subscribe_to_save_config([this](ini_file &config) {
 		config.set("DX9_BUFFER_DETECTION", "DisableINTZ", _disable_intz);
-		config.set("DX9_BUFFER_DETECTION", "PreserveDepthBuffer", _preserve_depth_buffers);
-		config.set("DX9_BUFFER_DETECTION", "PreserveDepthBufferIndex", _depth_clear_index_override);
+		config.set("DX9_BUFFER_DETECTION", "PreserveDepthBuffer", _buffer_detection->preserve_depth_buffers);
+		config.set("DX9_BUFFER_DETECTION", "PreserveDepthBufferIndex", _buffer_detection->depthstencil_clear_index_override);
 		config.set("DX9_BUFFER_DETECTION", "UseAspectRatioHeuristics", _filter_aspect_ratio);
 	});
 #endif
@@ -215,9 +211,8 @@ void reshade::d3d9::runtime_d3d9::on_present()
 	// Disable INTZ replacement while high network activity is detected, since the option is not available in the UI then, but artifacts may occur without it
 	_buffer_detection->disable_intz = _disable_intz || _has_high_network_activity;
 
-	assert(_depth_clear_index_override != 0);
 	update_depth_texture_bindings(_has_high_network_activity ? nullptr :
-		_buffer_detection->find_best_depth_surface(_filter_aspect_ratio ? _width : 0, _height, _depth_surface_override, _preserve_depth_buffers ? _depth_clear_index_override : 0));
+		_buffer_detection->find_best_depth_surface(_filter_aspect_ratio ? _width : 0, _height, _depth_surface_override));
 #endif
 
 	_app_state.capture();
@@ -918,6 +913,7 @@ void reshade::d3d9::runtime_d3d9::render_technique(technique &technique)
 		case reshadefx::primitive_topology::line_strip:
 			_device->DrawPrimitive(D3DPT_LINESTRIP, 0, pass_info.num_vertices - 1);
 			break;
+		default:
 		case reshadefx::primitive_topology::triangle_list:
 			_device->DrawPrimitive(D3DPT_TRIANGLELIST, 0, pass_info.num_vertices / 3);
 			break;
@@ -1152,7 +1148,7 @@ void reshade::d3d9::runtime_d3d9::draw_depth_debug_menu(buffer_detection &tracke
 	_reset_buffer_detection |= ImGui::Checkbox("Disable replacement with INTZ format", &_disable_intz);
 
 	_reset_buffer_detection |= ImGui::Checkbox("Use aspect ratio heuristics", &_filter_aspect_ratio);
-	_reset_buffer_detection |= ImGui::Checkbox("Copy depth buffers before clear operation", &_preserve_depth_buffers);
+	_reset_buffer_detection |= ImGui::Checkbox("Copy depth buffer before clear operations", &tracker.preserve_depth_buffers);
 
 	ImGui::Spacing();
 	ImGui::Separator();
@@ -1181,16 +1177,16 @@ void reshade::d3d9::runtime_d3d9::draw_depth_debug_menu(buffer_detection &tracke
 		ImGui::Text("| %4ux%-4u | %5u draw calls ==> %8u vertices |%s",
 			desc.Width, desc.Height, snapshot.stats.drawcalls, snapshot.stats.vertices, (msaa ? " MSAA" : ""));
 
-		if (_preserve_depth_buffers && ds_surface == tracker.current_depth_surface())
+		if (tracker.preserve_depth_buffers && ds_surface == tracker.current_depth_surface())
 		{
 			for (UINT clear_index = 1; clear_index <= snapshot.clears.size(); ++clear_index)
 			{
-				sprintf_s(label, "%s  CLEAR %2u", (clear_index == tracker.current_clear_index() ? "> " : "  "), clear_index);
+				sprintf_s(label, "%s  CLEAR %2u", (clear_index == tracker.depthstencil_clear_index ? "> " : "  "), clear_index);
 
-				if (bool value = (_depth_clear_index_override == clear_index);
+				if (bool value = (tracker.depthstencil_clear_index_override == clear_index);
 					ImGui::Checkbox(label, &value))
 				{
-					_depth_clear_index_override = value ? clear_index : std::numeric_limits<UINT>::max();
+					tracker.depthstencil_clear_index_override = value ? clear_index : 0;
 					_reset_buffer_detection = true;
 				}
 
@@ -1256,6 +1252,7 @@ void reshade::d3d9::runtime_d3d9::update_depth_texture_bindings(com_ptr<IDirect3
 				continue;
 
 			for (d3d9_pass_data &pass_data : tech_impl->passes)
+				// Replace all occurances of the old texture with the new one
 				for (IDirect3DTexture9 *&sampler_tex : pass_data.sampler_textures)
 					if (tex_impl->texture == sampler_tex)
 						sampler_tex = _depth_texture.get();
