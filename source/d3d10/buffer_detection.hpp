@@ -37,7 +37,6 @@ namespace reshade::d3d10
 
 		void on_draw(UINT vertices);
 #if RESHADE_DEPTH
-		void on_set_render_targets();
 		void on_clear_depthstencil(UINT clear_flags, ID3D10DepthStencilView *dsv, bool rect_draw_call = false);
 
 		// Detection Settings
@@ -65,7 +64,6 @@ namespace reshade::d3d10
 
 		draw_stats _previous_stats;
 		draw_stats _best_copy_stats;
-		bool _new_om_stage = false;
 		bool _depth_stencil_cleared = false;
 		com_ptr<ID3D10Texture2D> _depthstencil_clear_texture;
 		// Use "std::map" instead of "std::unordered_map" so that the iteration order is guaranteed

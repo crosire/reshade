@@ -35,7 +35,6 @@ namespace reshade::d3d11
 
 		void on_draw(UINT vertices);
 #if RESHADE_DEPTH
-		void on_set_render_targets();
 		void on_clear_depthstencil(UINT clear_flags, ID3D11DepthStencilView *dsv, bool rect_draw_call = false);
 #endif
 
@@ -49,7 +48,6 @@ namespace reshade::d3d11
 		const buffer_detection_context *_context = nullptr;
 #if RESHADE_DEPTH
 		draw_stats _best_copy_stats;
-		bool _new_om_stage = false;
 		bool _depth_stencil_cleared = false;
 		bool _has_indirect_drawcalls = false;
 		// Use "std::map" instead of "std::unordered_map" so that the iteration order is guaranteed

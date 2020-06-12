@@ -32,7 +32,6 @@ void reshade::d3d11::buffer_detection::reset()
 {
 	_stats = { 0, 0 };
 #if RESHADE_DEPTH
-	_new_om_stage = false;
 	_depth_stencil_cleared = false;
 	_best_copy_stats = { 0, 0 };
 	_has_indirect_drawcalls = false;
@@ -64,8 +63,8 @@ void reshade::d3d11::buffer_detection::merge(const buffer_detection &source)
 	_stats.drawcalls += source._stats.drawcalls;
 
 #if RESHADE_DEPTH
-	_new_om_stage = false;
-	_best_copy_stats = source._best_copy_stats;
+	if(source._best_copy_stats.vertices > _best_copy_stats.vertices)
+		_best_copy_stats = source._best_copy_stats;
 	_depth_stencil_cleared |= source._depth_stencil_cleared;
 	_has_indirect_drawcalls |= source._has_indirect_drawcalls;
 
@@ -100,7 +99,7 @@ void reshade::d3d11::buffer_detection::on_draw(UINT vertices)
 		_has_indirect_drawcalls = true;
 
 	// Check if this draw call likely represets a fullscreen rectangle (two triangles), which would clear the depth-stencil
-	if (_context->preserve_hidden_depth_buffers && vertices <= 6 && _new_om_stage && _depth_stencil_cleared)
+	if (_context->preserve_hidden_depth_buffers && vertices <= 6 && _depth_stencil_cleared)
 	{
 		D3D11_RASTERIZER_DESC rs_desc;
 		com_ptr<ID3D11RasterizerState> rs;
@@ -119,7 +118,6 @@ void reshade::d3d11::buffer_detection::on_draw(UINT vertices)
 		{
 			on_clear_depthstencil(D3D11_CLEAR_DEPTH, depthstencil.get(), true);
 
-			_new_om_stage = false;
 			_depth_stencil_cleared = false;
 		}
 	}
@@ -133,11 +131,6 @@ void reshade::d3d11::buffer_detection::on_draw(UINT vertices)
 }
 
 #if RESHADE_DEPTH
-void reshade::d3d11::buffer_detection::on_set_render_targets()
-{
-	_new_om_stage = true;
-}
-
 void reshade::d3d11::buffer_detection::on_clear_depthstencil(UINT clear_flags, ID3D11DepthStencilView *dsv, bool rect_draw_call)
 {
 	assert(_context != nullptr);
