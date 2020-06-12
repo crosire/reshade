@@ -11,6 +11,8 @@
 #include <filesystem>
 #include <unordered_map>
 
+extern std::filesystem::path g_reshade_config_path;
+
 inline void trim(std::string &str, const char *chars = " \t")
 {
 	str.erase(0, str.find_first_not_of(chars));
