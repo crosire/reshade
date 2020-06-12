@@ -97,4 +97,6 @@ struct DECLSPEC_UUID("1F445F9F-9887-4C4C-9055-4E3BADAFCCA8") DXGISwapChain : IDX
 	const unsigned int _direct3d_version;
 	std::mutex _runtime_mutex;
 	std::shared_ptr<reshade::runtime> _runtime;
+	bool _force_vsync = false;
+	unsigned int _force_resolution[2] = { 0, 0 };
 };

@@ -8,7 +8,7 @@
 #include "d3d9_swapchain.hpp"
 #include "runtime_d3d9.hpp"
 
-extern void dump_present_parameters(const D3DPRESENT_PARAMETERS &pp);
+extern void dump_and_modify_present_parameters(D3DPRESENT_PARAMETERS &pp);
 
 Direct3DDevice9::Direct3DDevice9(IDirect3DDevice9   *original, bool use_software_rendering) :
 	_orig(original),
@@ -145,9 +145,10 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateAdditionalSwapChain(D3DPRESENT_
 	if (pPresentationParameters == nullptr)
 		return D3DERR_INVALIDCALL;
 
-	dump_present_parameters(*pPresentationParameters);
+	D3DPRESENT_PARAMETERS pp = *pPresentationParameters;
+	dump_and_modify_present_parameters(pp);
 
-	const HRESULT hr = _orig->CreateAdditionalSwapChain(pPresentationParameters, ppSwapChain);
+	const HRESULT hr = _orig->CreateAdditionalSwapChain(&pp, ppSwapChain);
 	if (FAILED(hr))
 	{
 		LOG(WARN) << "IDirect3DDevice9::CreateAdditionalSwapChain failed with error code " << hr << '!';
@@ -158,7 +159,8 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateAdditionalSwapChain(D3DPRESENT_
 	IDirect3DSwapChain9 *const swapchain = *ppSwapChain;
 	assert(swapchain != nullptr);
 
-	D3DPRESENT_PARAMETERS pp;
+	// Retrieve present parameters here again, to get correct values for 'BackBufferWidth' and 'BackBufferHeight'
+	// They may otherwise still be set to zero (which is valid for creation)
 	swapchain->GetPresentParameters(&pp);
 
 	const auto runtime = std::make_shared<reshade::d3d9::runtime_d3d9>(device, swapchain, &_buffer_detection);
@@ -204,7 +206,8 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::Reset(D3DPRESENT_PARAMETERS *pPresent
 	if (pPresentationParameters == nullptr)
 		return D3DERR_INVALIDCALL;
 
-	dump_present_parameters(*pPresentationParameters);
+	D3DPRESENT_PARAMETERS pp = *pPresentationParameters;
+	dump_and_modify_present_parameters(pp);
 
 	const auto runtime = _implicit_swapchain->_runtime;
 	runtime->on_reset();
@@ -212,14 +215,13 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::Reset(D3DPRESENT_PARAMETERS *pPresent
 	_buffer_detection.reset(true);
 	_auto_depthstencil.reset();
 
-	const HRESULT hr = _orig->Reset(pPresentationParameters);
+	const HRESULT hr = _orig->Reset(&pp);
 	if (FAILED(hr))
 	{
 		LOG(ERROR) << "IDirect3DDevice9::Reset failed with error code " << hr << '!';
 		return hr;
 	}
 
-	D3DPRESENT_PARAMETERS pp;
 	_implicit_swapchain->GetPresentParameters(&pp);
 
 	if (!runtime->on_init(pp))
@@ -787,7 +789,8 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::ResetEx(D3DPRESENT_PARAMETERS *pPrese
 	if (pPresentationParameters == nullptr)
 		return D3DERR_INVALIDCALL;
 
-	dump_present_parameters(*pPresentationParameters);
+	D3DPRESENT_PARAMETERS pp = *pPresentationParameters;
+	dump_and_modify_present_parameters(pp);
 
 	const auto runtime = _implicit_swapchain->_runtime;
 	runtime->on_reset();
@@ -796,14 +799,13 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::ResetEx(D3DPRESENT_PARAMETERS *pPrese
 	_auto_depthstencil.reset();
 
 	assert(_extended_interface);
-	const HRESULT hr = static_cast<IDirect3DDevice9Ex *>(_orig)->ResetEx(pPresentationParameters, pFullscreenDisplayMode);
+	const HRESULT hr = static_cast<IDirect3DDevice9Ex *>(_orig)->ResetEx(&pp, pFullscreenDisplayMode);
 	if (FAILED(hr))
 	{
 		LOG(ERROR) << "IDirect3DDevice9Ex::ResetEx failed with error code " << hr << '!';
 		return hr;
 	}
 
-	D3DPRESENT_PARAMETERS pp;
 	_implicit_swapchain->GetPresentParameters(&pp);
 
 	if (!runtime->on_init(pp))
