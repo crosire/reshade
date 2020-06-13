@@ -32,10 +32,10 @@ void reshade::d3d11::buffer_detection::reset()
 {
 	_stats = { 0, 0 };
 #if RESHADE_DEPTH
-	_depth_stencil_cleared = false;
 	_best_copy_stats = { 0, 0 };
-	_has_indirect_drawcalls = false;
 	_first_empty_stats = true;
+	_depth_stencil_cleared = false;
+	_has_indirect_drawcalls = false;
 	_counters_per_used_depth_texture.clear();
 #endif
 }
@@ -64,9 +64,9 @@ void reshade::d3d11::buffer_detection::merge(const buffer_detection &source)
 	_stats.drawcalls += source._stats.drawcalls;
 
 #if RESHADE_DEPTH
+	_first_empty_stats |= source._first_empty_stats;
 	_depth_stencil_cleared |= source._depth_stencil_cleared;
 	_has_indirect_drawcalls |= source._has_indirect_drawcalls;
-	_first_empty_stats |= source._first_empty_stats;
 
 	if (source._best_copy_stats.vertices > _best_copy_stats.vertices)
 		_best_copy_stats = source._best_copy_stats;

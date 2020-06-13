@@ -26,9 +26,9 @@ void reshade::d3d10::buffer_detection::reset(bool release_resources)
 {
 	_stats = { 0, 0 };
 #if RESHADE_DEPTH
-	_depth_stencil_cleared = false;
-	_first_empty_stats = true;
 	_best_copy_stats = { 0, 0 };
+	_first_empty_stats = true;
+	_depth_stencil_cleared = false;
 	_counters_per_used_depth_texture.clear();
 
 	if (release_resources)

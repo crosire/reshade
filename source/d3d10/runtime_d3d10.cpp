@@ -82,7 +82,6 @@ reshade::d3d10::runtime_d3d10::runtime_d3d10(ID3D10Device1 *device, IDXGISwapCha
 #endif
 #if RESHADE_DEPTH
 	subscribe_to_load_config([this](const ini_file &config) {
-		UINT detection_mode = 0;
 		config.get("DX10_BUFFER_DETECTION", "DepthBufferRetrievalMode", _buffer_detection->preserve_depth_buffers);
 		config.get("DX10_BUFFER_DETECTION", "DepthBufferClearingNumber", _buffer_detection->depthstencil_clear_index.second);
 		config.get("DX10_BUFFER_DETECTION", "UseAspectRatioHeuristics", _filter_aspect_ratio);
