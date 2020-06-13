@@ -26,8 +26,8 @@ void reshade::d3d10::buffer_detection::reset(bool release_resources)
 {
 	_stats = { 0, 0 };
 #if RESHADE_DEPTH
-	_new_om_stage = false;
 	_depth_stencil_cleared = false;
+	_first_empty_stats = true;
 	_best_copy_stats = { 0, 0 };
 	_counters_per_used_depth_texture.clear();
 
@@ -55,7 +55,7 @@ void reshade::d3d10::buffer_detection::on_draw(UINT vertices)
 		return; // This is a draw call with no depth-stencil bound
 
 	// Check if this draw call likely represets a fullscreen rectangle (two triangles), which would clear the depth-stencil
-	if (preserve_hidden_depth_buffers && vertices <= 6 && _new_om_stage && _depth_stencil_cleared)
+	if (vertices <= 6 && _depth_stencil_cleared)
 	{
 		D3D10_RASTERIZER_DESC rs_desc;
 		com_ptr<ID3D10RasterizerState> rs;
@@ -70,11 +70,10 @@ void reshade::d3d10::buffer_detection::on_draw(UINT vertices)
 		assert(dss != nullptr);
 		dss->GetDesc(&dss_desc);
 
-		if (rs_desc.CullMode == D3D10_CULL_NONE && dss_desc.DepthWriteMask == D3D10_DEPTH_WRITE_MASK_ALL)
+		if (rs_desc.CullMode == D3D10_CULL_NONE && dss_desc.DepthWriteMask == D3D10_DEPTH_WRITE_MASK_ALL && dss_desc.DepthEnable == TRUE && dss_desc.DepthFunc == D3D10_COMPARISON_ALWAYS)
 		{
 			on_clear_depthstencil(D3D10_CLEAR_DEPTH, depthstencil.get(), true);
 
-			_new_om_stage = false;
 			_depth_stencil_cleared = false;
 		}
 	}
@@ -88,16 +87,11 @@ void reshade::d3d10::buffer_detection::on_draw(UINT vertices)
 }
 
 #if RESHADE_DEPTH
-void reshade::d3d10::buffer_detection::on_set_render_targets()
-{
-	_new_om_stage = true;
-}
-
 void reshade::d3d10::buffer_detection::on_clear_depthstencil(UINT clear_flags, ID3D10DepthStencilView *dsv, bool rect_draw_call)
 {
 	_depth_stencil_cleared = true;
 
-	if ((clear_flags & D3D10_CLEAR_DEPTH) == 0 || !preserve_depth_buffers)
+	if (!rect_draw_call && (clear_flags & D3D10_CLEAR_DEPTH) == 0)
 		return;
 
 	com_ptr<ID3D10Texture2D> dsv_texture = texture_from_dsv(dsv);
@@ -107,8 +101,11 @@ void reshade::d3d10::buffer_detection::on_clear_depthstencil(UINT clear_flags, I
 	auto &counters = _counters_per_used_depth_texture[dsv_texture];
 
 	// Update stats with data from previous frame
-	if (!rect_draw_call && counters.current_stats.drawcalls == 0)
+	if (!rect_draw_call && counters.current_stats.drawcalls == 0 && _first_empty_stats)
+	{
 		counters.current_stats = _previous_stats;
+		_first_empty_stats = false;
+	}
 
 	// Ignore clears when there was no meaningful workload
 	if (counters.current_stats.drawcalls == 0)
