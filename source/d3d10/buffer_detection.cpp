@@ -221,12 +221,3 @@ com_ptr<ID3D10Texture2D> reshade::d3d10::buffer_detection::find_best_depth_textu
 	return best_match;
 }
 #endif
-
-#if RESHADE_WIREFRAME
-
-void reshade::d3d10::buffer_detection::set_wireframe_mode(bool value)
-{
-	_wireframe_mode = value;
-}
-
-#endif
