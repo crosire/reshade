@@ -70,6 +70,7 @@ void reshade::d3d12::buffer_detection::merge(const buffer_detection &source)
 	// Executing a command list in a different command list inherits state
 	_current_depthstencil = source._current_depthstencil;
 
+	_first_empty_stats |= source._first_empty_stats;
 	_has_indirect_drawcalls |= source._has_indirect_drawcalls;
 
 	if (source._best_copy_stats.vertices > _best_copy_stats.vertices)
