@@ -71,7 +71,6 @@ namespace reshade::d3d11
 #if RESHADE_DEPTH
 		// Detection Settings
 		bool preserve_depth_buffers = false;
-		bool preserve_hidden_depth_buffers = false;
 		std::pair<ID3D11Texture2D *, UINT> depthstencil_clear_index = { nullptr, 0 };
 
 		const auto &depth_buffer_counters() const { return _counters_per_used_depth_texture; }

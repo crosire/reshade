@@ -83,15 +83,15 @@ reshade::d3d10::runtime_d3d10::runtime_d3d10(ID3D10Device1 *device, IDXGISwapCha
 #if RESHADE_DEPTH
 	subscribe_to_load_config([this](const ini_file &config) {
 		UINT detection_mode = 0;
-		config.get("DX10_BUFFER_DETECTION", "DepthBufferRetrievalMode", detection_mode);
+		config.get("DX10_BUFFER_DETECTION", "DepthBufferRetrievalMode", _buffer_detection->preserve_depth_buffers);
 		config.get("DX10_BUFFER_DETECTION", "DepthBufferClearingNumber", _buffer_detection->depthstencil_clear_index.second);
 		config.get("DX10_BUFFER_DETECTION", "UseAspectRatioHeuristics", _filter_aspect_ratio);
 
-		_buffer_detection->preserve_depth_buffers = (detection_mode >= 1);
-		_buffer_detection->preserve_hidden_depth_buffers = (detection_mode == 2);
+		if (_buffer_detection->depthstencil_clear_index.second == std::numeric_limits<UINT>::max())
+			_buffer_detection->depthstencil_clear_index.second  = 0;
 	});
 	subscribe_to_save_config([this](ini_file &config) {
-		config.set("DX10_BUFFER_DETECTION", "DepthBufferRetrievalMode", _buffer_detection->preserve_hidden_depth_buffers ? 2 : _buffer_detection->preserve_depth_buffers ? 1 : 0);
+		config.set("DX10_BUFFER_DETECTION", "DepthBufferRetrievalMode", _buffer_detection->preserve_depth_buffers);
 		config.set("DX10_BUFFER_DETECTION", "DepthBufferClearingNumber", _buffer_detection->depthstencil_clear_index.second);
 		config.set("DX10_BUFFER_DETECTION", "UseAspectRatioHeuristics", _filter_aspect_ratio);
 	});
@@ -1333,10 +1333,6 @@ void reshade::d3d10::runtime_d3d10::draw_depth_debug_menu(buffer_detection &trac
 	bool modified = false;
 	modified |= ImGui::Checkbox("Use aspect ratio heuristics", &_filter_aspect_ratio);
 	modified |= ImGui::Checkbox("Copy depth buffer before clear operations", &tracker.preserve_depth_buffers);
-	if (tracker.preserve_depth_buffers)
-		modified |= ImGui::Checkbox("Copy depth buffer before fullscreen draw calls", &tracker.preserve_hidden_depth_buffers);
-	else
-		tracker.preserve_hidden_depth_buffers = false;
 
 	if (modified) // Detection settings have changed, reset heuristic
 		tracker.reset(true);

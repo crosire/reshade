@@ -6,8 +6,8 @@
 #include "dll_log.hpp"
 #include "hook_manager.hpp"
 #include "runtime_vk.hpp"
-#include "vk_layer.h"
-#include "vk_layer_dispatch_table.h"
+#include <vk_layer.h>
+#include <vk_layer_dispatch_table.h>
 #include "format_utils.hpp"
 #include "lockfree_table.hpp"
 

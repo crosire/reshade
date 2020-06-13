@@ -115,7 +115,7 @@
       <PreprocessorDefinitions>WIN32;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ResourceCompile>
     <PreBuildEvent>
-      <Command>tools\verbuild res\version.h -c</Command>
+      <Command>powershell -ExecutionPolicy Bypass -File tools\verbuild.ps1 res\version.h "$(Configuration)"</Command>
     </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -144,7 +144,7 @@
       <PreprocessorDefinitions>WIN64;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ResourceCompile>
     <PreBuildEvent>
-      <Command>tools\verbuild res\version.h -c</Command>
+      <Command>powershell -ExecutionPolicy Bypass -File tools\verbuild.ps1 res\version.h "$(Configuration)"</Command>
     </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug App|Win32'">
@@ -173,7 +173,7 @@
       <PreprocessorDefinitions>WIN32;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ResourceCompile>
     <PreBuildEvent>
-      <Command>tools\verbuild res\version.h -c</Command>
+      <Command>powershell -ExecutionPolicy Bypass -File tools\verbuild.ps1 res\version.h "$(Configuration)"</Command>
     </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug App|x64'">
@@ -202,7 +202,7 @@
       <PreprocessorDefinitions>WIN64;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ResourceCompile>
     <PreBuildEvent>
-      <Command>tools\verbuild res\version.h -c</Command>
+      <Command>powershell -ExecutionPolicy Bypass -File tools\verbuild.ps1 res\version.h "$(Configuration)"</Command>
     </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -236,7 +236,7 @@
       <PreprocessorDefinitions>WIN32;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ResourceCompile>
     <PreBuildEvent>
-      <Command>tools\verbuild res\version.h *.*.*.+ -xFP -b0.0.0.0 -s</Command>
+      <Command>powershell -ExecutionPolicy Bypass -File tools\verbuild.ps1 res\version.h "$(Configuration)"</Command>
     </PreBuildEvent>
     <PostBuildEvent>
       <Command>if exist "res\sign.pfx" signtool sign /f "res\sign.pfx" /t http://timestamp.verisign.com/scripts/timstamp.dll "$(TargetPath)"</Command>
@@ -273,7 +273,7 @@
       <PreprocessorDefinitions>WIN64;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ResourceCompile>
     <PreBuildEvent>
-      <Command>tools\verbuild res\version.h *.*.*.+ -xFP -b0.0.0.0 -s</Command>
+      <Command>powershell -ExecutionPolicy Bypass -File tools\verbuild.ps1 res\version.h "$(Configuration)"</Command>
     </PreBuildEvent>
     <PostBuildEvent>
       <Command>if exist "res\sign.pfx" signtool sign /f "res\sign.pfx" /t http://timestamp.verisign.com/scripts/timstamp.dll "$(TargetPath)"</Command>
@@ -309,6 +309,9 @@
     <ResourceCompile>
       <PreprocessorDefinitions>WIN32;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ResourceCompile>
+    <PreBuildEvent>
+      <Command>powershell -ExecutionPolicy Bypass -File tools\verbuild.ps1 res\version.h "$(Configuration)"</Command>
+    </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release App|x64'">
     <ClCompile>
@@ -340,6 +343,9 @@
     <ResourceCompile>
       <PreprocessorDefinitions>WIN64;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ResourceCompile>
+    <PreBuildEvent>
+      <Command>powershell -ExecutionPolicy Bypass -File tools\verbuild.ps1 res\version.h "$(Configuration)"</Command>
+    </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ProjectReference Include="deps\gl3w.vcxproj">
@@ -503,13 +509,19 @@
   <ItemGroup>
     <CustomBuild Include="res\shaders\imgui_ps.glsl">
       <FileType>Document</FileType>
-      <Command>glslangValidator.exe -V -S frag "%(FullPath)" -o "$(SolutionDir)res\shaders\%(Filename).spv"</Command>
+      <Command>"$(VK_SDK_PATH)\Bin\glslangValidator.exe" -V -S frag "%(FullPath)" -o "$(SolutionDir)res\shaders\%(Filename).spv"</Command>
       <Outputs>$(SolutionDir)res\shaders\%(Filename).spv</Outputs>
+      <Message>
+      </Message>
+      <ExcludedFromBuild Condition="!Exists('$(VK_SDK_PATH)\Bin\glslangValidator.exe')">true</ExcludedFromBuild>
     </CustomBuild>
     <CustomBuild Include="res\shaders\imgui_vs.glsl">
       <FileType>Document</FileType>
-      <Command>glslangValidator.exe -V -S vert "%(FullPath)" -o "$(SolutionDir)res\shaders\%(Filename).spv"</Command>
+      <Command>"$(VK_SDK_PATH)\Bin\glslangValidator.exe" -V -S vert "%(FullPath)" -o "$(SolutionDir)res\shaders\%(Filename).spv"</Command>
       <Outputs>$(SolutionDir)res\shaders\%(Filename).spv</Outputs>
+      <Message>
+      </Message>
+      <ExcludedFromBuild Condition="!Exists('$(VK_SDK_PATH)\Bin\glslangValidator.exe')">true</ExcludedFromBuild>
     </CustomBuild>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

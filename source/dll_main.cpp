@@ -12,6 +12,7 @@
 HMODULE g_module_handle = nullptr;
 
 std::filesystem::path g_reshade_dll_path;
+std::filesystem::path g_reshade_config_path;
 std::filesystem::path g_target_executable_path;
 
 extern std::filesystem::path get_system_path()
@@ -65,9 +66,10 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 
 	g_module_handle = hInstance;
 	g_reshade_dll_path = get_module_path(nullptr);
+	g_reshade_config_path = g_reshade_dll_path.parent_path() / L"ReShade.ini";
 	g_target_executable_path = get_module_path(nullptr);
 
-	log::open(std::filesystem::path(g_reshade_dll_path).replace_extension(".log"));
+	log::open(std::filesystem::path(g_reshade_dll_path).replace_extension(L".log"));
 
 	hooks::register_module("user32.dll");
 
@@ -752,15 +754,25 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 	case DLL_PROCESS_ATTACH:
 		g_module_handle = hModule;
 		g_reshade_dll_path = get_module_path(hModule);
+		g_reshade_config_path = g_reshade_dll_path;
+		g_reshade_config_path.replace_extension(L".ini");
 		g_target_executable_path = get_module_path(nullptr);
 
-		log::open(std::filesystem::path(g_reshade_dll_path).replace_extension(".log"));
+		log::open(std::filesystem::path(g_reshade_dll_path).replace_extension(L".log"));
 
 #  ifdef WIN64
 		LOG(INFO) << "Initializing crosire's ReShade version '" VERSION_STRING_FILE "' (64-bit) built on '" VERSION_DATE " " VERSION_TIME "' loaded from " << g_reshade_dll_path << " into " << g_target_executable_path << " ...";
 #  else
 		LOG(INFO) << "Initializing crosire's ReShade version '" VERSION_STRING_FILE "' (32-bit) built on '" VERSION_DATE " " VERSION_TIME "' loaded from " << g_reshade_dll_path << " into " << g_target_executable_path << " ...";
 #  endif
+
+		// First look for an API-named configuration file
+		if (std::error_code ec; !std::filesystem::exists(g_reshade_config_path, ec))
+			// On failure check for a "ReShade.ini" in the application directory
+			g_reshade_config_path = g_target_executable_path.parent_path() / L"ReShade.ini";
+		if (std::error_code ec; !std::filesystem::exists(g_reshade_config_path, ec))
+			// If neither exist create a "ReShade.ini" in the ReShade DLL directory
+			g_reshade_config_path = g_reshade_dll_path.parent_path() / L"ReShade.ini";
 
 #  ifndef NDEBUG
 		g_exception_handler_handle = AddVectoredExceptionHandler(1, [](PEXCEPTION_POINTERS ex) -> LONG {

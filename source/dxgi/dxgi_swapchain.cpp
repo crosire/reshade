@@ -287,6 +287,8 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::GetDevice(REFIID riid, void **ppDevice)
 HRESULT STDMETHODCALLTYPE DXGISwapChain::Present(UINT SyncInterval, UINT Flags)
 {
 	runtime_present(Flags);
+	if (_force_vsync)
+		SyncInterval = 1;
 
 	g_in_dxgi_runtime = true;
 	const HRESULT hr = _orig->Present(SyncInterval, Flags);
@@ -324,6 +326,12 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers(UINT BufferCount, UINT Wi
 		<< ')' << " ...";
 
 	runtime_reset();
+	if (_force_resolution[0] != 0 &&
+		_force_resolution[1] != 0)
+		Width = _force_resolution[0],
+		Height = _force_resolution[1];
+	if (_force_10_bit_format)
+		NewFormat = DXGI_FORMAT_R10G10B10A2_UNORM;
 
 	const HRESULT hr = _orig->ResizeBuffers(BufferCount, Width, Height, NewFormat, SwapChainFlags);
 	if (hr == DXGI_ERROR_INVALID_CALL) // Ignore invalid call errors since the device is still in a usable state afterwards
@@ -380,6 +388,8 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::GetCoreWindow(REFIID refiid, void **ppU
 HRESULT STDMETHODCALLTYPE DXGISwapChain::Present1(UINT SyncInterval, UINT PresentFlags, const DXGI_PRESENT_PARAMETERS *pPresentParameters)
 {
 	runtime_present(PresentFlags);
+	if (_force_vsync)
+		SyncInterval = 1;
 
 	assert(_interface_version >= 1);
 	g_in_dxgi_runtime = true;
@@ -484,6 +494,12 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers1(UINT BufferCount, UINT W
 		<< ')' << " ...";
 
 	runtime_reset();
+	if (_force_resolution[0] != 0 &&
+		_force_resolution[1] != 0)
+		Width = _force_resolution[0],
+		Height = _force_resolution[1];
+	if (_force_10_bit_format)
+		Format = DXGI_FORMAT_R10G10B10A2_UNORM;
 
 	assert(_interface_version >= 3);
 	const HRESULT hr = static_cast<IDXGISwapChain3 *>(_orig)->ResizeBuffers1(BufferCount, Width, Height, Format, SwapChainFlags, pCreationNodeMask, ppPresentQueue);

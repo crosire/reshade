@@ -12,7 +12,7 @@
 #undef CreateEvent
 #undef CreateSemaphore
 
-#include "vk_layer_dispatch_table.h"
+#include <vk_layer_dispatch_table.h>
 
 template <VkObjectType type>
 struct vk_handle_traits;
