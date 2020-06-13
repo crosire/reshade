@@ -101,7 +101,7 @@ void reshade::d3d11::buffer_detection::on_draw(UINT vertices)
 	if (vertices == 0)
 		_has_indirect_drawcalls = true;
 
-	// Check if this draw call likely represets a fullscreen rectangle (two triangles), which would clear the depth-stencil
+	// Check if this draw call likely represets a fullscreen rectangle (one or two triangles), which would clear the depth-stencil
 	if (_context->preserve_depth_buffers && vertices <= 6 && _depth_stencil_cleared)
 	{
 		D3D11_RASTERIZER_DESC rs_desc;
@@ -134,7 +134,7 @@ void reshade::d3d11::buffer_detection::on_draw(UINT vertices)
 }
 
 #if RESHADE_DEPTH
-void reshade::d3d11::buffer_detection::on_clear_depthstencil(UINT clear_flags, ID3D11DepthStencilView *dsv, bool rect_draw_call)
+void reshade::d3d11::buffer_detection::on_clear_depthstencil(UINT clear_flags, ID3D11DepthStencilView *dsv, bool fullscreen_draw_call)
 {
 	assert(_context != nullptr);
 
@@ -150,7 +150,7 @@ void reshade::d3d11::buffer_detection::on_clear_depthstencil(UINT clear_flags, I
 	auto &counters = _counters_per_used_depth_texture[dsv_texture];
 
 	// Update stats with data from previous frame
-	if (!rect_draw_call && counters.current_stats.drawcalls == 0 && _first_empty_stats)
+	if (!fullscreen_draw_call && counters.current_stats.drawcalls == 0 && _first_empty_stats)
 	{
 		counters.current_stats = _context->_previous_stats;
 		_first_empty_stats = false;
@@ -160,7 +160,7 @@ void reshade::d3d11::buffer_detection::on_clear_depthstencil(UINT clear_flags, I
 	if (counters.current_stats.drawcalls == 0)
 		return;
 
-	if (rect_draw_call)
+	if (fullscreen_draw_call)
 		counters.current_stats.rect = true;
 
 	counters.clears.push_back(counters.current_stats);
@@ -168,12 +168,12 @@ void reshade::d3d11::buffer_detection::on_clear_depthstencil(UINT clear_flags, I
 	// Make a backup copy of the depth texture before it is cleared
 	if (_context->depthstencil_clear_index.second == 0 ?
 		// If clear index override is set to zero, always copy any suitable buffers
-		rect_draw_call || counters.current_stats.vertices > _best_copy_stats.vertices :
+		fullscreen_draw_call || counters.current_stats.vertices > _best_copy_stats.vertices :
 		// This is not really correct, since clears may accumulate over multiple command lists, but it's unlikely that the same depth-stencil is used in more than one
 		counters.clears.size() == _context->depthstencil_clear_index.second)
 	{
-		// since the rect draw calls are selected according to their order, their stats are not taken into account to find the best stats
-		if (!rect_draw_call)
+		// Since clears from fullscreen draw calls are selected based on their order (last one wins), their stats are ignored for the regular clear heuristic
+		if (!fullscreen_draw_call)
 			_best_copy_stats = counters.current_stats;
 
 		_device_context->CopyResource(_context->_depthstencil_clear_texture.get(), dsv_texture.get());
