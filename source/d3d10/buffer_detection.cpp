@@ -91,7 +91,7 @@ void reshade::d3d10::buffer_detection::on_clear_depthstencil(UINT clear_flags, I
 {
 	_depth_stencil_cleared = true;
 
-	if ((clear_flags & D3D10_CLEAR_DEPTH) == 0)
+	if (!rect_draw_call && (clear_flags & D3D10_CLEAR_DEPTH) == 0)
 		return;
 
 	com_ptr<ID3D10Texture2D> dsv_texture = texture_from_dsv(dsv);
@@ -220,4 +220,13 @@ com_ptr<ID3D10Texture2D> reshade::d3d10::buffer_detection::find_best_depth_textu
 
 	return best_match;
 }
+#endif
+
+#if RESHADE_WIREFRAME
+
+void reshade::d3d10::buffer_detection::set_wireframe_mode(bool value)
+{
+	_wireframe_mode = value;
+}
+
 #endif
