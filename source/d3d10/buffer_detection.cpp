@@ -91,7 +91,7 @@ void reshade::d3d10::buffer_detection::on_clear_depthstencil(UINT clear_flags, I
 {
 	_depth_stencil_cleared = true;
 
-	if (!rect_draw_call && (clear_flags & D3D10_CLEAR_DEPTH) == 0)
+	if ((clear_flags & D3D10_CLEAR_DEPTH) == 0 || !preserve_depth_buffers)
 		return;
 
 	com_ptr<ID3D10Texture2D> dsv_texture = texture_from_dsv(dsv);
