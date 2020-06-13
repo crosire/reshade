@@ -278,6 +278,8 @@ bool reshade::d3d9::runtime_d3d9::capture_screenshot(uint8_t *buffer) const
 				buffer[x + 1] = (((rgba & 0xFFC00) >> 10) / 4) & 0xFF;
 				buffer[x + 2] = (((rgba & 0x3FF00000) >> 20) / 4) & 0xFF;
 				buffer[x + 3] = 0xFF;
+				if (_backbuffer_format == D3DFMT_A2R10G10B10)
+					std::swap(buffer[x + 0], buffer[x + 2]);
 			}
 		}
 		else

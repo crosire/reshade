@@ -65,9 +65,11 @@ void reshade::d3d11::buffer_detection::merge(const buffer_detection &source)
 
 #if RESHADE_DEPTH
 	_new_om_stage = false;
-	_best_copy_stats = source._best_copy_stats;
 	_depth_stencil_cleared |= source._depth_stencil_cleared;
 	_has_indirect_drawcalls |= source._has_indirect_drawcalls;
+
+	if (source._best_copy_stats.vertices > _best_copy_stats.vertices)
+		_best_copy_stats = source._best_copy_stats;
 
 	for (const auto &[dsv_texture, snapshot] : source._counters_per_used_depth_texture)
 	{
