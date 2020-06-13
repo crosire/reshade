@@ -102,7 +102,7 @@ void reshade::d3d11::buffer_detection::on_draw(UINT vertices)
 		_has_indirect_drawcalls = true;
 
 	// Check if this draw call likely represets a fullscreen rectangle (two triangles), which would clear the depth-stencil
-	if (vertices <= 6 && _depth_stencil_cleared)
+	if (_context->preserve_depth_buffers && vertices <= 6 && _depth_stencil_cleared)
 	{
 		D3D11_RASTERIZER_DESC rs_desc;
 		com_ptr<ID3D11RasterizerState> rs;
