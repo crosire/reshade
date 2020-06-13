@@ -45,9 +45,9 @@ namespace reshade::d3d11
 		const buffer_detection_context *_context = nullptr;
 #if RESHADE_DEPTH
 		draw_stats _best_copy_stats;
+		bool _first_empty_stats = true;
 		bool _depth_stencil_cleared = false;
 		bool _has_indirect_drawcalls = false;
-		bool _first_empty_stats = true;
 		// Use "std::map" instead of "std::unordered_map" so that the iteration order is guaranteed
 		std::map<com_ptr<ID3D11Texture2D>, depthstencil_info> _counters_per_used_depth_texture;
 #endif
