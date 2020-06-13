@@ -24,8 +24,8 @@ void reshade::d3d12::buffer_detection::reset()
 #if RESHADE_DEPTH
 	_best_copy_stats = { 0, 0 };
 	_current_depthstencil.reset();
-	_has_indirect_drawcalls = false;
 	_first_empty_stats = true;
+	_has_indirect_drawcalls = false;
 	_counters_per_used_depth_texture.clear();
 #endif
 }
@@ -128,7 +128,7 @@ void reshade::d3d12::buffer_detection::on_clear_depthstencil(D3D12_CLEAR_FLAGS c
 	auto &counters = _counters_per_used_depth_texture[dsv_texture];
 
 	// Update stats with data from previous frame
-	if (counters.current_stats.drawcalls == 0)
+	if (counters.current_stats.drawcalls == 0 && _first_empty_stats)
 	{
 		counters.current_stats = _context->_previous_stats;
 		_first_empty_stats = false;
