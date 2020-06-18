@@ -15,6 +15,8 @@
 #include "d3d12/runtime_d3d12.hpp"
 #include <algorithm>
 
+extern UINT query_device(IUnknown *&device, com_ptr<IUnknown> &device_proxy);
+
 thread_local bool g_in_dxgi_runtime = false;
 
 DXGISwapChain::DXGISwapChain(D3D10Device *device, IDXGISwapChain  *original, const std::shared_ptr<reshade::runtime> &runtime) :
@@ -501,8 +503,18 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers1(UINT BufferCount, UINT W
 	if (_force_10_bit_format)
 		Format = DXGI_FORMAT_R10G10B10A2_UNORM;
 
+	// Need to extract the original command queue object from the proxies passed in
+	assert(ppPresentQueue != nullptr);
+	std::vector<IUnknown *> present_queues(BufferCount);
+	for (UINT i = 0; i < BufferCount; ++i)
+	{
+		present_queues[i] = ppPresentQueue[i];
+		com_ptr<IUnknown> command_queue_proxy;
+		query_device(present_queues[i], command_queue_proxy);
+	}
+
 	assert(_interface_version >= 3);
-	const HRESULT hr = static_cast<IDXGISwapChain3 *>(_orig)->ResizeBuffers1(BufferCount, Width, Height, Format, SwapChainFlags, pCreationNodeMask, ppPresentQueue);
+	const HRESULT hr = static_cast<IDXGISwapChain3 *>(_orig)->ResizeBuffers1(BufferCount, Width, Height, Format, SwapChainFlags, pCreationNodeMask, present_queues.data());
 	if (hr == DXGI_ERROR_INVALID_CALL)
 	{
 		LOG(WARN) << "IDXGISwapChain3::ResizeBuffers1 failed with error code DXGI_ERROR_INVALID_CALL!";

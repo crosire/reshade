@@ -123,7 +123,7 @@ static bool dump_and_modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC1 &desc)
 	}
 }
 
-static unsigned int query_device(IUnknown *&device, com_ptr<IUnknown> &device_proxy)
+UINT query_device(IUnknown *&device, com_ptr<IUnknown> &device_proxy)
 {
 	if (com_ptr<D3D10Device> device_d3d10; SUCCEEDED(device->QueryInterface(&device_d3d10)))
 	{
@@ -149,7 +149,7 @@ static unsigned int query_device(IUnknown *&device, com_ptr<IUnknown> &device_pr
 }
 
 template <typename T>
-static void init_reshade_runtime_d3d(T *&swapchain, unsigned int direct3d_version, const com_ptr<IUnknown> &device_proxy, HWND hwnd = nullptr)
+static void init_reshade_runtime_d3d(T *&swapchain, UINT direct3d_version, const com_ptr<IUnknown> &device_proxy, HWND hwnd = nullptr)
 {
 	DXGI_SWAP_CHAIN_DESC desc;
 	if (FAILED(swapchain->GetDesc(&desc)))
@@ -239,8 +239,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory_CreateSwapChain(IDXGIFactory *pFactory, I
 	dump_and_modify_swapchain_desc(desc);
 
 	com_ptr<IUnknown> device_proxy;
-	const unsigned int direct3d_version =
-		query_device(pDevice, device_proxy);
+	const UINT direct3d_version = query_device(pDevice, device_proxy);
 
 	g_in_dxgi_runtime = true;
 	const HRESULT hr = reshade::hooks::call(IDXGIFactory_CreateSwapChain, vtable_from_instance(pFactory) + 10)(pFactory, pDevice, &desc, ppSwapChain);
@@ -276,8 +275,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForHwnd(IDXGIFactory2 *pF
 		pFullscreenDesc = nullptr;
 
 	com_ptr<IUnknown> device_proxy;
-	const unsigned int direct3d_version =
-		query_device(pDevice, device_proxy);
+	const UINT direct3d_version = query_device(pDevice, device_proxy);
 
 	g_in_dxgi_runtime = true;
 	const HRESULT hr = reshade::hooks::call(IDXGIFactory2_CreateSwapChainForHwnd, vtable_from_instance(pFactory) + 15)(pFactory, pDevice, hWnd, &desc, pFullscreenDesc, pRestrictToOutput, ppSwapChain);
@@ -310,8 +308,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForCoreWindow(IDXGIFactor
 	dump_and_modify_swapchain_desc(desc);
 
 	com_ptr<IUnknown> device_proxy;
-	const unsigned int direct3d_version =
-		query_device(pDevice, device_proxy);
+	const UINT direct3d_version = query_device(pDevice, device_proxy);
 
 	g_in_dxgi_runtime = true;
 	const HRESULT hr = reshade::hooks::call(IDXGIFactory2_CreateSwapChainForCoreWindow, vtable_from_instance(pFactory) + 16)(pFactory, pDevice, pWindow, &desc, pRestrictToOutput, ppSwapChain);
@@ -348,8 +345,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForComposition(IDXGIFacto
 	dump_and_modify_swapchain_desc(desc);
 
 	com_ptr<IUnknown> device_proxy;
-	const unsigned int direct3d_version =
-		query_device(pDevice, device_proxy);
+	const UINT direct3d_version = query_device(pDevice, device_proxy);
 
 	g_in_dxgi_runtime = true;
 	const HRESULT hr = reshade::hooks::call(IDXGIFactory2_CreateSwapChainForComposition, vtable_from_instance(pFactory) + 24)(pFactory, pDevice, &desc, pRestrictToOutput, ppSwapChain);
