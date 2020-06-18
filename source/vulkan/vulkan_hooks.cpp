@@ -1044,8 +1044,6 @@ VkResult VKAPI_CALL vkCreateGraphicsPipelines(VkDevice device, VkPipelineCache p
 		createInfos = *pCreateInfos;
 
 		rasterisationInfo = *pCreateInfos->pRasterizationState;
-		colorBlendState = *pCreateInfos->pColorBlendState;
-		colorBlendAttachmentInfo = *pCreateInfos->pColorBlendState->pAttachments;
 
 		if (rasterisationInfo.polygonMode != VK_POLYGON_MODE_FILL)
 		{
@@ -1053,16 +1051,11 @@ VkResult VKAPI_CALL vkCreateGraphicsPipelines(VkDevice device, VkPipelineCache p
 			continue;
 		}
 
-		colorBlendAttachmentInfo.colorBlendOp = VK_BLEND_OP_ADD;
-		colorBlendAttachmentInfo.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_COLOR;
-		colorBlendAttachmentInfo.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_COLOR;
-		colorBlendAttachmentInfo.blendEnable = VK_FALSE;
 		rasterisationInfo.cullMode = VK_CULL_MODE_BACK_BIT;
 		rasterisationInfo.polygonMode = VK_POLYGON_MODE_LINE;
 		rasterisationInfo.lineWidth = 1.0f;
 
 		createInfos.pRasterizationState = &rasterisationInfo;
-		colorBlendState.pAttachments = &colorBlendAttachmentInfo;
 
 		result = trampoline(device, pipelineCache, createInfoCount, &createInfos, pAllocator, &wireframePipeline);
 
