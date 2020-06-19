@@ -104,7 +104,7 @@ namespace reshade::d3d12
 #endif
 
 #if RESHADE_WIREFRAME
-		bool _wireframe_mode;
+		bool _wireframe_mode = false;
 		std::unordered_map<com_ptr<ID3D12PipelineState>, com_ptr<ID3D12PipelineState>> _wireframe_pipelineStates;
 #endif
 	};

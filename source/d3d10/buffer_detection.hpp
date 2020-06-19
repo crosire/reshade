@@ -71,7 +71,7 @@ namespace reshade::d3d10
 #endif
 
 #if RESHADE_WIREFRAME
-		bool _wireframe_mode;
+		bool _wireframe_mode = false;
 #endif
 	};
 }

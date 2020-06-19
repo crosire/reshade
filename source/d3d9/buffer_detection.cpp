@@ -147,6 +147,25 @@ void reshade::d3d9::buffer_detection::on_clear_depthstencil(UINT clear_flags)
 	}
 }
 
+void reshade::d3d9::buffer_detection::after_clear_depthstencil()
+{
+	if (_depthstencil_replacement == nullptr)
+		return;
+
+	com_ptr<IDirect3DSurface9> depthstencil;
+	_device->GetDepthStencilSurface(&depthstencil);
+
+	if (depthstencil != _depthstencil_original)
+		return;
+
+	if (// Replace surface before targeted clear, so that all draw calls until this clear are bounded to the surface used by Reshade
+		_counters_per_used_depth_surface[_depthstencil_original].clears.size() < depthstencil_clear_index)
+	{
+		// Replace application depth-stencil surface with our custom one
+		_device->SetDepthStencilSurface(_depthstencil_replacement.get());
+	}
+}
+
 bool reshade::d3d9::buffer_detection::update_depthstencil_replacement(com_ptr<IDirect3DSurface9> depthstencil)
 {
 	com_ptr<IDirect3DSurface9> current_replacement =
