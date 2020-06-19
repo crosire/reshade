@@ -75,7 +75,7 @@ reshade::d3d9::runtime_d3d9::runtime_d3d9(IDirect3DDevice9 *device, IDirect3DSwa
 #if RESHADE_GUI && RESHADE_DEPTH
 	subscribe_to_ui("DX9", [this]() {
 		draw_depth_debug_menu(*_buffer_detection);
-		});
+	});
 #endif
 #if RESHADE_DEPTH
 	subscribe_to_load_config([this](const ini_file &config) {
@@ -83,13 +83,13 @@ reshade::d3d9::runtime_d3d9::runtime_d3d9(IDirect3DDevice9 *device, IDirect3DSwa
 		config.get("DX9_BUFFER_DETECTION", "PreserveDepthBuffer", _buffer_detection->preserve_depth_buffers);
 		config.get("DX9_BUFFER_DETECTION", "PreserveDepthBufferIndex", _buffer_detection->depthstencil_clear_index.second);
 		config.get("DX9_BUFFER_DETECTION", "UseAspectRatioHeuristics", _filter_aspect_ratio);
-		});
+	});
 	subscribe_to_save_config([this](ini_file &config) {
 		config.set("DX9_BUFFER_DETECTION", "DisableINTZ", _disable_intz);
 		config.set("DX9_BUFFER_DETECTION", "PreserveDepthBuffer", _buffer_detection->preserve_depth_buffers);
 		config.set("DX9_BUFFER_DETECTION", "PreserveDepthBufferIndex", _buffer_detection->depthstencil_clear_index.second);
 		config.set("DX9_BUFFER_DETECTION", "UseAspectRatioHeuristics", _filter_aspect_ratio);
-		});
+	});
 #endif
 }
 reshade::d3d9::runtime_d3d9::~runtime_d3d9()
@@ -118,12 +118,12 @@ bool reshade::d3d9::runtime_d3d9::on_init(const D3DPRESENT_PARAMETERS &pp)
 	{
 		switch (_backbuffer_format)
 		{
-			case D3DFMT_X8R8G8B8:
-				_backbuffer_format = D3DFMT_A8R8G8B8;
-				break;
-			case D3DFMT_X8B8G8R8:
-				_backbuffer_format = D3DFMT_A8B8G8R8;
-				break;
+		case D3DFMT_X8R8G8B8:
+			_backbuffer_format = D3DFMT_A8R8G8B8;
+			break;
+		case D3DFMT_X8B8G8R8:
+			_backbuffer_format = D3DFMT_A8B8G8R8;
+			break;
 		}
 
 		if (FAILED(_device->CreateRenderTarget(_width, _height, _backbuffer_format, D3DMULTISAMPLE_NONE, 0, FALSE, &_backbuffer_resolved, nullptr)))
@@ -466,56 +466,56 @@ bool reshade::d3d9::runtime_d3d9::init_effect(size_t index)
 				const auto convert_blend_op = [](reshadefx::pass_blend_op value) {
 					switch (value)
 					{
-						default:
-						case reshadefx::pass_blend_op::add: return D3DBLENDOP_ADD;
-						case reshadefx::pass_blend_op::subtract: return D3DBLENDOP_SUBTRACT;
-						case reshadefx::pass_blend_op::rev_subtract: return D3DBLENDOP_REVSUBTRACT;
-						case reshadefx::pass_blend_op::min: return D3DBLENDOP_MIN;
-						case reshadefx::pass_blend_op::max: return D3DBLENDOP_MAX;
+					default:
+					case reshadefx::pass_blend_op::add: return D3DBLENDOP_ADD;
+					case reshadefx::pass_blend_op::subtract: return D3DBLENDOP_SUBTRACT;
+					case reshadefx::pass_blend_op::rev_subtract: return D3DBLENDOP_REVSUBTRACT;
+					case reshadefx::pass_blend_op::min: return D3DBLENDOP_MIN;
+					case reshadefx::pass_blend_op::max: return D3DBLENDOP_MAX;
 					}
 				};
 				const auto convert_blend_func = [](reshadefx::pass_blend_func value) {
 					switch (value)
 					{
-						default:
-						case reshadefx::pass_blend_func::one: return D3DBLEND_ONE;
-						case reshadefx::pass_blend_func::zero: return D3DBLEND_ZERO;
-						case reshadefx::pass_blend_func::src_color: return D3DBLEND_SRCCOLOR;
-						case reshadefx::pass_blend_func::src_alpha: return D3DBLEND_SRCALPHA;
-						case reshadefx::pass_blend_func::inv_src_color: return D3DBLEND_INVSRCCOLOR;
-						case reshadefx::pass_blend_func::inv_src_alpha: return D3DBLEND_INVSRCALPHA;
-						case reshadefx::pass_blend_func::dst_alpha: return D3DBLEND_DESTALPHA;
-						case reshadefx::pass_blend_func::dst_color: return D3DBLEND_DESTCOLOR;
-						case reshadefx::pass_blend_func::inv_dst_alpha: return D3DBLEND_INVDESTALPHA;
-						case reshadefx::pass_blend_func::inv_dst_color: return D3DBLEND_INVDESTCOLOR;
+					default:
+					case reshadefx::pass_blend_func::one: return D3DBLEND_ONE;
+					case reshadefx::pass_blend_func::zero: return D3DBLEND_ZERO;
+					case reshadefx::pass_blend_func::src_color: return D3DBLEND_SRCCOLOR;
+					case reshadefx::pass_blend_func::src_alpha: return D3DBLEND_SRCALPHA;
+					case reshadefx::pass_blend_func::inv_src_color: return D3DBLEND_INVSRCCOLOR;
+					case reshadefx::pass_blend_func::inv_src_alpha: return D3DBLEND_INVSRCALPHA;
+					case reshadefx::pass_blend_func::dst_alpha: return D3DBLEND_DESTALPHA;
+					case reshadefx::pass_blend_func::dst_color: return D3DBLEND_DESTCOLOR;
+					case reshadefx::pass_blend_func::inv_dst_alpha: return D3DBLEND_INVDESTALPHA;
+					case reshadefx::pass_blend_func::inv_dst_color: return D3DBLEND_INVDESTCOLOR;
 					}
 				};
 				const auto convert_stencil_op = [](reshadefx::pass_stencil_op value) {
 					switch (value)
 					{
-						default:
-						case reshadefx::pass_stencil_op::keep: return D3DSTENCILOP_KEEP;
-						case reshadefx::pass_stencil_op::zero: return D3DSTENCILOP_ZERO;
-						case reshadefx::pass_stencil_op::invert: return D3DSTENCILOP_INVERT;
-						case reshadefx::pass_stencil_op::replace: return D3DSTENCILOP_REPLACE;
-						case reshadefx::pass_stencil_op::incr: return D3DSTENCILOP_INCR;
-						case reshadefx::pass_stencil_op::incr_sat: return D3DSTENCILOP_INCRSAT;
-						case reshadefx::pass_stencil_op::decr: return D3DSTENCILOP_DECR;
-						case reshadefx::pass_stencil_op::decr_sat: return D3DSTENCILOP_DECRSAT;
+					default:
+					case reshadefx::pass_stencil_op::keep: return D3DSTENCILOP_KEEP;
+					case reshadefx::pass_stencil_op::zero: return D3DSTENCILOP_ZERO;
+					case reshadefx::pass_stencil_op::invert: return D3DSTENCILOP_INVERT;
+					case reshadefx::pass_stencil_op::replace: return D3DSTENCILOP_REPLACE;
+					case reshadefx::pass_stencil_op::incr: return D3DSTENCILOP_INCR;
+					case reshadefx::pass_stencil_op::incr_sat: return D3DSTENCILOP_INCRSAT;
+					case reshadefx::pass_stencil_op::decr: return D3DSTENCILOP_DECR;
+					case reshadefx::pass_stencil_op::decr_sat: return D3DSTENCILOP_DECRSAT;
 					}
 				};
 				const auto convert_stencil_func = [](reshadefx::pass_stencil_func value) {
 					switch (value)
 					{
-						default:
-						case reshadefx::pass_stencil_func::always: return D3DCMP_ALWAYS;
-						case reshadefx::pass_stencil_func::never: return D3DCMP_NEVER;
-						case reshadefx::pass_stencil_func::equal: return D3DCMP_EQUAL;
-						case reshadefx::pass_stencil_func::not_equal: return D3DCMP_NOTEQUAL;
-						case reshadefx::pass_stencil_func::less: return D3DCMP_LESS;
-						case reshadefx::pass_stencil_func::less_equal: return D3DCMP_LESSEQUAL;
-						case reshadefx::pass_stencil_func::greater: return D3DCMP_GREATER;
-						case reshadefx::pass_stencil_func::greater_equal: return D3DCMP_GREATEREQUAL;
+					default:
+					case reshadefx::pass_stencil_func::always: return D3DCMP_ALWAYS;
+					case reshadefx::pass_stencil_func::never: return D3DCMP_NEVER;
+					case reshadefx::pass_stencil_func::equal: return D3DCMP_EQUAL;
+					case reshadefx::pass_stencil_func::not_equal: return D3DCMP_NOTEQUAL;
+					case reshadefx::pass_stencil_func::less: return D3DCMP_LESS;
+					case reshadefx::pass_stencil_func::less_equal: return D3DCMP_LESSEQUAL;
+					case reshadefx::pass_stencil_func::greater: return D3DCMP_GREATER;
+					case reshadefx::pass_stencil_func::greater_equal: return D3DCMP_GREATEREQUAL;
 					}
 				};
 
@@ -668,16 +668,16 @@ bool reshade::d3d9::runtime_d3d9::init_texture(texture &texture)
 
 	switch (texture.impl_reference)
 	{
-		case texture_reference::back_buffer:
-			impl->texture = _backbuffer_texture;
-			impl->surface = _backbuffer_texture_surface;
-			return true;
-		case texture_reference::depth_buffer:
+	case texture_reference::back_buffer:
+		impl->texture = _backbuffer_texture;
+		impl->surface = _backbuffer_texture_surface;
+		return true;
+	case texture_reference::depth_buffer:
 #if RESHADE_DEPTH
-			impl->texture = _depth_texture;
-			impl->surface = _depth_surface;
+		impl->texture = _depth_texture;
+		impl->surface = _depth_surface;
 #endif
-			return true;
+		return true;
 	}
 
 	UINT levels = texture.levels;
@@ -688,42 +688,42 @@ bool reshade::d3d9::runtime_d3d9::init_texture(texture &texture)
 
 	switch (texture.format)
 	{
-		case reshadefx::texture_format::r8:
-			format = D3DFMT_A8R8G8B8;
-			break;
-		case reshadefx::texture_format::r16f:
-			format = D3DFMT_R16F;
-			break;
-		case reshadefx::texture_format::r32f:
-			format = D3DFMT_R32F;
-			break;
-		case reshadefx::texture_format::rg8:
-			format = D3DFMT_A8R8G8B8;
-			break;
-		case reshadefx::texture_format::rg16:
-			format = D3DFMT_G16R16;
-			break;
-		case reshadefx::texture_format::rg16f:
-			format = D3DFMT_G16R16F;
-			break;
-		case reshadefx::texture_format::rg32f:
-			format = D3DFMT_G32R32F;
-			break;
-		case reshadefx::texture_format::rgba8:
-			format = D3DFMT_A8R8G8B8;
-			break;
-		case reshadefx::texture_format::rgba16:
-			format = D3DFMT_A16B16G16R16;
-			break;
-		case reshadefx::texture_format::rgba16f:
-			format = D3DFMT_A16B16G16R16F;
-			break;
-		case reshadefx::texture_format::rgba32f:
-			format = D3DFMT_A32B32G32R32F;
-			break;
-		case reshadefx::texture_format::rgb10a2:
-			format = D3DFMT_A2B10G10R10;
-			break;
+	case reshadefx::texture_format::r8:
+		format = D3DFMT_A8R8G8B8;
+		break;
+	case reshadefx::texture_format::r16f:
+		format = D3DFMT_R16F;
+		break;
+	case reshadefx::texture_format::r32f:
+		format = D3DFMT_R32F;
+		break;
+	case reshadefx::texture_format::rg8:
+		format = D3DFMT_A8R8G8B8;
+		break;
+	case reshadefx::texture_format::rg16:
+		format = D3DFMT_G16R16;
+		break;
+	case reshadefx::texture_format::rg16f:
+		format = D3DFMT_G16R16F;
+		break;
+	case reshadefx::texture_format::rg32f:
+		format = D3DFMT_G32R32F;
+		break;
+	case reshadefx::texture_format::rgba8:
+		format = D3DFMT_A8R8G8B8;
+		break;
+	case reshadefx::texture_format::rgba16:
+		format = D3DFMT_A16B16G16R16;
+		break;
+	case reshadefx::texture_format::rgba16f:
+		format = D3DFMT_A16B16G16R16F;
+		break;
+	case reshadefx::texture_format::rgba32f:
+		format = D3DFMT_A32B32G32R32F;
+		break;
+	case reshadefx::texture_format::rgb10a2:
+		format = D3DFMT_A2B10G10R10;
+		break;
 	}
 
 	if (levels > 1)
@@ -786,33 +786,33 @@ void reshade::d3d9::runtime_d3d9::upload_texture(const texture &texture, const u
 
 	switch (texture.format)
 	{
-		case reshadefx::texture_format::r8: // These are actually D3DFMT_A8R8G8B8, see 'init_texture'
-			for (uint32_t y = 0, pitch = texture.width * 4; y < texture.height; ++y, mapped_data += mapped.Pitch, pixels += pitch)
-				for (uint32_t x = 0; x < pitch; x += 4)
-					mapped_data[x + 0] = 0, // Set green and blue channel to zero
-					mapped_data[x + 1] = 0,
-					mapped_data[x + 2] = pixels[x + 0],
-					mapped_data[x + 3] = 0xFF;
-			break;
-		case reshadefx::texture_format::rg8:
-			for (uint32_t y = 0, pitch = texture.width * 4; y < texture.height; ++y, mapped_data += mapped.Pitch, pixels += pitch)
-				for (uint32_t x = 0; x < pitch; x += 4)
-					mapped_data[x + 0] = 0, // Set blue channel to zero
-					mapped_data[x + 1] = pixels[x + 1],
-					mapped_data[x + 2] = pixels[x + 0],
-					mapped_data[x + 3] = 0xFF;
-			break;
-		case reshadefx::texture_format::rgba8:
-			for (uint32_t y = 0, pitch = texture.width * 4; y < texture.height; ++y, mapped_data += mapped.Pitch, pixels += pitch)
-				for (uint32_t x = 0; x < pitch; x += 4)
-					mapped_data[x + 0] = pixels[x + 2], // Flip RGBA input to BGRA
-					mapped_data[x + 1] = pixels[x + 1],
-					mapped_data[x + 2] = pixels[x + 0],
-					mapped_data[x + 3] = pixels[x + 3];
-			break;
-		default:
-			LOG(ERROR) << "Texture upload is not supported for format " << static_cast<unsigned int>(texture.format) << '!';
-			break;
+	case reshadefx::texture_format::r8: // These are actually D3DFMT_A8R8G8B8, see 'init_texture'
+		for (uint32_t y = 0, pitch = texture.width * 4; y < texture.height; ++y, mapped_data += mapped.Pitch, pixels += pitch)
+			for (uint32_t x = 0; x < pitch; x += 4)
+				mapped_data[x + 0] = 0, // Set green and blue channel to zero
+				mapped_data[x + 1] = 0,
+				mapped_data[x + 2] = pixels[x + 0],
+				mapped_data[x + 3] = 0xFF;
+		break;
+	case reshadefx::texture_format::rg8:
+		for (uint32_t y = 0, pitch = texture.width * 4; y < texture.height; ++y, mapped_data += mapped.Pitch, pixels += pitch)
+			for (uint32_t x = 0; x < pitch; x += 4)
+				mapped_data[x + 0] = 0, // Set blue channel to zero
+				mapped_data[x + 1] = pixels[x + 1],
+				mapped_data[x + 2] = pixels[x + 0],
+				mapped_data[x + 3] = 0xFF;
+		break;
+	case reshadefx::texture_format::rgba8:
+		for (uint32_t y = 0, pitch = texture.width * 4; y < texture.height; ++y, mapped_data += mapped.Pitch, pixels += pitch)
+			for (uint32_t x = 0; x < pitch; x += 4)
+				mapped_data[x + 0] = pixels[x + 2], // Flip RGBA input to BGRA
+				mapped_data[x + 1] = pixels[x + 1],
+				mapped_data[x + 2] = pixels[x + 0],
+				mapped_data[x + 3] = pixels[x + 3];
+		break;
+	default:
+		LOG(ERROR) << "Texture upload is not supported for format " << static_cast<unsigned int>(texture.format) << '!';
+		break;
 	}
 
 	intermediate->UnlockRect(0);
@@ -910,22 +910,22 @@ void reshade::d3d9::runtime_d3d9::render_technique(technique &technique)
 		// Draw primitives
 		switch (pass_info.topology)
 		{
-			case reshadefx::primitive_topology::point_list:
-				_device->DrawPrimitive(D3DPT_POINTLIST, 0, pass_info.num_vertices);
-				break;
-			case reshadefx::primitive_topology::line_list:
-				_device->DrawPrimitive(D3DPT_LINELIST, 0, pass_info.num_vertices / 2);
-				break;
-			case reshadefx::primitive_topology::line_strip:
-				_device->DrawPrimitive(D3DPT_LINESTRIP, 0, pass_info.num_vertices - 1);
-				break;
-			default:
-			case reshadefx::primitive_topology::triangle_list:
-				_device->DrawPrimitive(D3DPT_TRIANGLELIST, 0, pass_info.num_vertices / 3);
-				break;
-			case reshadefx::primitive_topology::triangle_strip:
-				_device->DrawPrimitive(D3DPT_TRIANGLESTRIP, 0, pass_info.num_vertices - 2);
-				break;
+		case reshadefx::primitive_topology::point_list:
+			_device->DrawPrimitive(D3DPT_POINTLIST, 0, pass_info.num_vertices);
+			break;
+		case reshadefx::primitive_topology::line_list:
+			_device->DrawPrimitive(D3DPT_LINELIST, 0, pass_info.num_vertices / 2);
+			break;
+		case reshadefx::primitive_topology::line_strip:
+			_device->DrawPrimitive(D3DPT_LINESTRIP, 0, pass_info.num_vertices - 1);
+			break;
+		default:
+		case reshadefx::primitive_topology::triangle_list:
+			_device->DrawPrimitive(D3DPT_TRIANGLELIST, 0, pass_info.num_vertices / 3);
+			break;
+		case reshadefx::primitive_topology::triangle_strip:
+			_device->DrawPrimitive(D3DPT_TRIANGLESTRIP, 0, pass_info.num_vertices - 2);
+			break;
 		}
 
 		_vertices += pass_info.num_vertices;
