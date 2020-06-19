@@ -37,7 +37,8 @@ void reshade::d3d9::buffer_detection::reset(bool release_resources)
 		_device->SetDepthStencilSurface(_depthstencil_replacement.get());
 		_device->Clear(0, nullptr, D3DCLEAR_ZBUFFER, 0, 1.0f, 0);
 
-		_device->SetDepthStencilSurface(depthstencil.get());
+		if (depthstencil != _depthstencil_original)
+			_device->SetDepthStencilSurface(depthstencil.get());
 	}
 #else
 	UNREFERENCED_PARAMETER(release_resources);
@@ -157,25 +158,6 @@ void reshade::d3d9::buffer_detection::on_clear_depthstencil(UINT clear_flags)
 
 	// Reset draw call stats for clears
 	counters.current_stats = { 0, 0 };
-}
-
-void reshade::d3d9::buffer_detection::after_clear_depthstencil()
-{
-	if (_depthstencil_replacement == nullptr)
-		return;
-
-	com_ptr<IDirect3DSurface9> depthstencil;
-	_device->GetDepthStencilSurface(&depthstencil);
-
-	if (depthstencil != _depthstencil_original)
-		return;
-
-	if (// Replace surface before targeted clear, so that all draw calls until this clear are bounded to the surface used by Reshade
-		_counters_per_used_depth_surface[_depthstencil_original].clears.size() < internal_clear_index)
-	{
-		// Replace application depth-stencil surface with our custom one
-		_device->SetDepthStencilSurface(_depthstencil_replacement.get());
-	}
 }
 
 bool reshade::d3d9::buffer_detection::update_depthstencil_replacement(com_ptr<IDirect3DSurface9> depthstencil)
