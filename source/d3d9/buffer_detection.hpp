@@ -38,6 +38,7 @@ namespace reshade::d3d9
 		void on_set_depthstencil(IDirect3DSurface9 *&depthstencil);
 		void on_get_depthstencil(IDirect3DSurface9 *&depthstencil);
 		void on_clear_depthstencil(UINT clear_flags);
+		void after_clear_depthstencil();
 
 		// Detection Settings
 		bool disable_intz = false;

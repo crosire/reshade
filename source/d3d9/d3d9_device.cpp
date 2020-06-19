@@ -397,7 +397,14 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::Clear(DWORD Count, const D3DRECT *pRe
 #if RESHADE_DEPTH
 	_buffer_detection.on_clear_depthstencil(Flags);
 #endif
-	return _orig->Clear(Count, pRects, Flags, Color, Z, Stencil);
+	const HRESULT hr = _orig->Clear(Count, pRects, Flags, Color, Z, Stencil);
+
+#if RESHADE_DEPTH
+	// we have to revert to the replacement one, if necessary
+	_buffer_detection.after_clear_depthstencil();
+#endif
+
+	return hr;
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetTransform(D3DTRANSFORMSTATETYPE State, const D3DMATRIX *pMatrix)
 {
