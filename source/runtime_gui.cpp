@@ -1545,9 +1545,9 @@ void reshade::runtime::draw_ui_log()
 			{
 				ImVec4 textcol = _imgui_context->Style.Colors[ImGuiCol_Text];
 
-				if (_log_lines[i].find("ERROR |") != std::string::npos)
+				if (_log_lines[i].find("ERROR |") != std::string::npos || _log_lines[i].find("error") != std::string::npos)
 					textcol = COLOR_RED;
-				else if (_log_lines[i].find("WARN  |") != std::string::npos || i == line_limit)
+				else if (_log_lines[i].find("WARN  |") != std::string::npos || _log_lines[i].find("warning") != std::string::npos || i == line_limit)
 					textcol = COLOR_YELLOW;
 				else if (_log_lines[i].find("DEBUG |") != std::string::npos)
 					textcol = ImColor(100, 100, 255);
