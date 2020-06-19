@@ -1177,7 +1177,7 @@ void reshade::d3d9::runtime_d3d9::draw_depth_debug_menu(buffer_detection &tracke
 
 		ImGui::SameLine();
 		ImGui::Text("| %4ux%-4u | %5u draw calls ==> %8u vertices |%s",
-			desc.Width, desc.Height, snapshot.stats.drawcalls, snapshot.stats.vertices, (msaa ? " MSAA" : ""));
+			desc.Width, desc.Height, snapshot.total_stats.drawcalls, snapshot.total_stats.vertices, (msaa ? " MSAA" : ""));
 
 		if (tracker.preserve_depth_buffers && ds_surface == tracker.current_depth_surface())
 		{

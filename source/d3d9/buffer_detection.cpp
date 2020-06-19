@@ -72,8 +72,8 @@ void reshade::d3d9::buffer_detection::on_draw(D3DPRIMITIVETYPE type, UINT vertic
 	{
 		// Update draw statistics for tracked depth-stencil surfaces
 		auto &counters = _counters_per_used_depth_surface[depthstencil == _depthstencil_replacement ? _depthstencil_original : depthstencil];
-		counters.stats.vertices += vertices;
-		counters.stats.drawcalls += 1;
+		counters.total_stats.vertices += vertices;
+		counters.total_stats.drawcalls += 1;
 	}
 
 	if (preserve_depth_buffers && _depthstencil_replacement != nullptr)
@@ -127,11 +127,11 @@ void reshade::d3d9::buffer_detection::on_clear_depthstencil(UINT clear_flags)
 	_clear_stats.vertices = 0;
 	_clear_stats.drawcalls = 0;
 
+	if ((clear_flags & D3DCLEAR_ZBUFFER) == 0 || !preserve_depth_buffers)
+		return; // Ignore clears that do not affect the depth buffer (e.g. color or stencil clears)
+
 	if (current_stats.vertices <= 4 || current_stats.drawcalls == 0) // Also triggers when '_preserve_depth_buffers' is false, since no clear stats are recorded then
 		return; // Ignore clears when there was no meaningful workload since the last one
-
-	if ((clear_flags & D3DCLEAR_ZBUFFER) == 0)
-		return; // Ignore clears that do not affect the depth buffer (e.g. color or stencil clears)
 
 	com_ptr<IDirect3DSurface9> depthstencil;
 	_device->GetDepthStencilSurface(&depthstencil);
@@ -263,7 +263,7 @@ com_ptr<IDirect3DSurface9> reshade::d3d9::buffer_detection::find_best_depth_surf
 	{
 		for (const auto &[surface, snapshot] : _counters_per_used_depth_surface)
 		{
-			if (snapshot.stats.drawcalls == 0 || snapshot.stats.vertices == 0)
+			if (snapshot.total_stats.drawcalls == 0 || snapshot.total_stats.vertices == 0)
 				continue; // Skip unused
 
 			D3DSURFACE_DESC desc;
@@ -274,8 +274,8 @@ com_ptr<IDirect3DSurface9> reshade::d3d9::buffer_detection::find_best_depth_surf
 			if (width != 0 && height != 0 && !check_aspect_ratio(desc, width, height))
 				continue; // Not a good fit
 
-			const auto curr_weight = snapshot.stats.vertices * (1.2f - static_cast<float>(snapshot.stats.drawcalls) / _stats.drawcalls);
-			const auto best_weight = best_snapshot.stats.vertices * (1.2f - static_cast<float>(best_snapshot.stats.drawcalls) / _stats.vertices);
+			const auto curr_weight = snapshot.total_stats.vertices * (1.2f - static_cast<float>(snapshot.total_stats.drawcalls) / _stats.drawcalls);
+			const auto best_weight = best_snapshot.total_stats.vertices * (1.2f - static_cast<float>(best_snapshot.total_stats.drawcalls) / _stats.vertices);
 			if (curr_weight >= best_weight)
 			{
 				best_match = surface;

@@ -22,7 +22,7 @@ namespace reshade::d3d9
 		};
 		struct depthstencil_info
 		{
-			draw_stats stats;
+			draw_stats total_stats;
 			std::vector<draw_stats> clears;
 		};
 
