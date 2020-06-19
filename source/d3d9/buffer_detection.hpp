@@ -22,7 +22,8 @@ namespace reshade::d3d9
 		};
 		struct depthstencil_info
 		{
-			draw_stats stats;
+			draw_stats total_stats;
+			draw_stats current_stats; // Stats since last clear
 			std::vector<draw_stats> clears;
 		};
 
@@ -43,8 +44,8 @@ namespace reshade::d3d9
 		// Detection Settings
 		bool disable_intz = false;
 		bool preserve_depth_buffers = false;
-		UINT depthstencil_clear_index = std::numeric_limits<UINT>::max();
-		UINT depthstencil_clear_index_override = 0;
+		std::pair<com_ptr<IDirect3DSurface9>, UINT> depthstencil_clear_index = { nullptr, 0 };
+		UINT internal_clear_index = 0;
 
 		const auto &depth_buffer_counters() const { return _counters_per_used_depth_surface; }
 		IDirect3DSurface9 *current_depth_surface() const { return _depthstencil_original.get(); }
@@ -54,21 +55,32 @@ namespace reshade::d3d9
 			com_ptr<IDirect3DSurface9> override = nullptr);
 #endif
 
+#if RESHADE_WIREFRAME
+		const bool get_wireframe_mode();
+		void set_wireframe_mode(bool value);
+#endif
+
 	private:
 		draw_stats _stats;
 		IDirect3DDevice9 *const _device;
 
 #if RESHADE_DEPTH
-		bool check_aspect_ratio(const D3DSURFACE_DESC &desc, UINT width, UINT height);
 		bool check_texture_format(const D3DSURFACE_DESC &desc);
 
 		bool update_depthstencil_replacement(com_ptr<IDirect3DSurface9> depthstencil);
 
-		draw_stats _clear_stats;
+		draw_stats _previous_stats;
+		draw_stats _best_copy_stats;
+		bool _first_empty_stats = true;
+		bool _depth_stencil_cleared = false;
 		com_ptr<IDirect3DSurface9> _depthstencil_original;
 		com_ptr<IDirect3DSurface9> _depthstencil_replacement;
 		// Use "std::map" instead of "std::unordered_map" so that the iteration order is guaranteed
 		std::map<com_ptr<IDirect3DSurface9>, depthstencil_info> _counters_per_used_depth_surface;
+#endif
+
+#if RESHADE_WIREFRAME
+		bool _wireframe_mode;
 #endif
 	};
 }

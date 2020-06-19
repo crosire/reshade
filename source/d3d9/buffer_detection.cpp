@@ -13,16 +13,20 @@ static constexpr auto D3DFMT_DF24 = static_cast<D3DFORMAT>(MAKEFOURCC('D', 'F', 
 
 void reshade::d3d9::buffer_detection::reset(bool release_resources)
 {
-	_stats.vertices = 0;
-	_stats.drawcalls = 0;
+	_stats = { 0, 0 };
 #if RESHADE_DEPTH
-	_clear_stats.vertices = 0;
-	_clear_stats.drawcalls = 0;
+	_best_copy_stats = { 0, 0 };
+	_first_empty_stats = true;
+	_depth_stencil_cleared = false;
 	_counters_per_used_depth_surface.clear();
 
 	if (release_resources)
 	{
+		_previous_stats = { 0, 0 };
 		update_depthstencil_replacement(nullptr);
+		_depthstencil_replacement.reset();
+		_depthstencil_original.reset();
+		depthstencil_clear_index.first.release();
 	}
 	else if (preserve_depth_buffers && _depthstencil_replacement != nullptr)
 	{
@@ -44,19 +48,19 @@ void reshade::d3d9::buffer_detection::on_draw(D3DPRIMITIVETYPE type, UINT vertic
 {
 	switch (type)
 	{
-	case D3DPT_LINELIST:
-		vertices *= 2;
-		break;
-	case D3DPT_LINESTRIP:
-		vertices += 1;
-		break;
-	case D3DPT_TRIANGLELIST:
-		vertices *= 3;
-		break;
-	case D3DPT_TRIANGLESTRIP:
-	case D3DPT_TRIANGLEFAN:
-		vertices += 2;
-		break;
+		case D3DPT_LINELIST:
+			vertices *= 2;
+			break;
+		case D3DPT_LINESTRIP:
+			vertices += 1;
+			break;
+		case D3DPT_TRIANGLELIST:
+			vertices *= 3;
+			break;
+		case D3DPT_TRIANGLESTRIP:
+		case D3DPT_TRIANGLEFAN:
+			vertices += 2;
+			break;
 	}
 
 	_stats.vertices += vertices;
@@ -66,40 +70,38 @@ void reshade::d3d9::buffer_detection::on_draw(D3DPRIMITIVETYPE type, UINT vertic
 	com_ptr<IDirect3DSurface9> depthstencil;
 	_device->GetDepthStencilSurface(&depthstencil);
 
-	if (depthstencil != nullptr)
-	{
-		// Update draw statistics for tracked depth-stencil surfaces
-		auto &counters = _counters_per_used_depth_surface[depthstencil == _depthstencil_replacement ? _depthstencil_original : depthstencil];
-		counters.stats.vertices += vertices;
-		counters.stats.drawcalls += 1;
-	}
+	if (depthstencil == nullptr)
+		return; // This is a draw call with no depth-stencil bound
 
-	if (preserve_depth_buffers && _depthstencil_replacement != nullptr)
-	{
-		D3DVIEWPORT9 viewport;
-		_device->GetViewport(&viewport);
+	depthstencil = (depthstencil == _depthstencil_replacement) ? _depthstencil_original : depthstencil;
 
-		D3DSURFACE_DESC viewport_desc;
-		viewport_desc.Width = viewport.Width;
-		viewport_desc.Height = viewport.Height;
-		D3DSURFACE_DESC depthstencil_desc;
-		_depthstencil_replacement->GetDesc(&depthstencil_desc);
+	// Update draw statistics for tracked depth-stencil surfaces
+	auto &counters = _counters_per_used_depth_surface[depthstencil];
+	counters.total_stats.vertices += vertices;
+	counters.total_stats.drawcalls += 1;
+	counters.current_stats.vertices += vertices;
+	counters.current_stats.drawcalls += 1;
+#endif
 
-		if (!check_aspect_ratio(viewport_desc, depthstencil_desc.Width, depthstencil_desc.Height))
-			return; // Ignore draw calls that go to a smaller viewport (this helps removing infrequent clears in e.g. Mirror's Edge)
-
-		_clear_stats.vertices += vertices;
-		_clear_stats.drawcalls += 1;
-	}
+#if RESHADE_WIREFRAME
+	if (_wireframe_mode == true)
+		_device->SetRenderState(D3DRS_FILLMODE, D3DFILL_WIREFRAME);
+	else
+		_device->SetRenderState(D3DRS_FILLMODE, D3DFILL_SOLID);
 #endif
 }
 
 #if RESHADE_DEPTH
 void reshade::d3d9::buffer_detection::on_set_depthstencil(IDirect3DSurface9 *&depthstencil)
 {
-	if (_depthstencil_replacement != nullptr && depthstencil == _depthstencil_original &&
-		// Do not replace surface after targeted clear, so that all draw calls from then on end up in the original surface
-		_counters_per_used_depth_surface[_depthstencil_original].clears.size() < depthstencil_clear_index)
+	if (_depthstencil_replacement == nullptr)
+		return;
+
+	if (depthstencil != _depthstencil_original)
+		return;
+
+	if (// Replace surface before targeted clear, so that all draw calls until this clear are bounded to the surface used by Reshade
+		_counters_per_used_depth_surface[_depthstencil_original].clears.size() < internal_clear_index)
 	{
 		// Replace application depth-stencil surface with our custom one
 		depthstencil = _depthstencil_replacement.get();
@@ -107,44 +109,61 @@ void reshade::d3d9::buffer_detection::on_set_depthstencil(IDirect3DSurface9 *&de
 }
 void reshade::d3d9::buffer_detection::on_get_depthstencil(IDirect3DSurface9 *&depthstencil)
 {
-	if (_depthstencil_replacement != nullptr && depthstencil == _depthstencil_replacement)
-	{
-		// The call to IDirect3DDevice9::GetDepthStencilSurface increased the reference count, so release that before replacing
-		depthstencil->Release();
+	if (_depthstencil_replacement == nullptr)
+		return;
 
-		// Return original application depth-stencil surface
-		depthstencil = _depthstencil_original.get();
-		_depthstencil_original->AddRef();
-	}
+	if (depthstencil != _depthstencil_replacement)
+		return;// The call to IDirect3DDevice9::GetDepthStencilSurface increased the reference count, so release that before replacing
+
+	depthstencil->Release();
+	// Return the original application depth-stencil surface in case the game engine needs it
+	depthstencil = _depthstencil_original.get();
+	_depthstencil_original->AddRef();
 }
 
 void reshade::d3d9::buffer_detection::on_clear_depthstencil(UINT clear_flags)
 {
-	// Reset draw call stats for clears
-	auto current_stats = _clear_stats;
-	_clear_stats.vertices = 0;
-	_clear_stats.drawcalls = 0;
+	_depth_stencil_cleared = true;
 
-	if (current_stats.vertices <= 4 || current_stats.drawcalls == 0) // Also triggers when '_preserve_depth_buffers' is false, since no clear stats are recorded then
-		return; // Ignore clears when there was no meaningful workload since the last one
-
-	if ((clear_flags & D3DCLEAR_ZBUFFER) == 0)
-		return; // Ignore clears that do not affect the depth buffer (e.g. color or stencil clears)
+	if ((clear_flags & D3DCLEAR_ZBUFFER) == 0 || !preserve_depth_buffers)
+		return;
 
 	com_ptr<IDirect3DSurface9> depthstencil;
 	_device->GetDepthStencilSurface(&depthstencil);
 
+	depthstencil = (depthstencil == _depthstencil_replacement) ? _depthstencil_original : depthstencil;
+
+	if (depthstencil == nullptr || _depthstencil_replacement == nullptr || depthstencil != depthstencil_clear_index.first)
+		return;
+
+	// always bound the stats to the original depthstencil surface
+	auto &counters = _counters_per_used_depth_surface[depthstencil];
+
+	// Update stats with data from previous frame
+	if (counters.current_stats.drawcalls == 0 && _first_empty_stats)
+	{
+		counters.current_stats = _previous_stats;
+		_first_empty_stats = false;
+	}
+
+	if (counters.current_stats.vertices <= 4 || counters.current_stats.drawcalls == 0) // Also triggers when '_preserve_depth_buffers' is false, since no clear stats are recorded then
+		return; // Ignore clears when there was no meaningful workload since the last one
+
 	if (depthstencil != _depthstencil_original && depthstencil != _depthstencil_replacement)
 		return; // Can only avoid clear of the replacement surface
 
-	auto &clears = _counters_per_used_depth_surface[_depthstencil_original].clears;
-	clears.push_back(std::move(current_stats));
+	counters.clears.push_back(counters.current_stats);
 
-	if (depthstencil_clear_index == clears.size())
+	if (internal_clear_index == counters.clears.size())
 	{
+		_best_copy_stats = counters.current_stats;
+
 		// Bind the original surface again so the clear is not performed on the replacement
 		_device->SetDepthStencilSurface(_depthstencil_original.get());
 	}
+
+	// Reset draw call stats for clears
+	counters.current_stats = { 0, 0 };
 }
 
 void reshade::d3d9::buffer_detection::after_clear_depthstencil()
@@ -159,7 +178,7 @@ void reshade::d3d9::buffer_detection::after_clear_depthstencil()
 		return;
 
 	if (// Replace surface before targeted clear, so that all draw calls until this clear are bounded to the surface used by Reshade
-		_counters_per_used_depth_surface[_depthstencil_original].clears.size() < depthstencil_clear_index)
+		_counters_per_used_depth_surface[_depthstencil_original].clears.size() < internal_clear_index)
 	{
 		// Replace application depth-stencil surface with our custom one
 		_device->SetDepthStencilSurface(_depthstencil_replacement.get());
@@ -252,11 +271,6 @@ bool reshade::d3d9::buffer_detection::update_depthstencil_replacement(com_ptr<ID
 	return true;
 }
 
-bool reshade::d3d9::buffer_detection::check_aspect_ratio(const D3DSURFACE_DESC &desc, UINT width, UINT height)
-{
-	return (desc.Width >= std::floor(width * 0.95f) && desc.Width <= std::ceil(width * 1.05f))
-		&& (desc.Height >= std::floor(height * 0.95f) && desc.Height <= std::ceil(height * 1.05f));
-}
 bool reshade::d3d9::buffer_detection::check_texture_format(const D3DSURFACE_DESC &desc)
 {
 	// Binding a depth-stencil surface as a texture to a shader is only supported on the following custom formats:
@@ -280,20 +294,30 @@ com_ptr<IDirect3DSurface9> reshade::d3d9::buffer_detection::find_best_depth_surf
 	{
 		for (const auto &[surface, snapshot] : _counters_per_used_depth_surface)
 		{
-			if (snapshot.stats.drawcalls == 0 || snapshot.stats.vertices == 0)
+			if (snapshot.total_stats.drawcalls == 0)
 				continue; // Skip unused
 
 			D3DSURFACE_DESC desc;
 			surface->GetDesc(&desc);
+			assert((desc.Usage & D3DUSAGE_DEPTHSTENCIL) != 0);
 
 			if (desc.MultiSampleType != D3DMULTISAMPLE_NONE)
 				continue; // MSAA depth buffers are not supported since they would have to be moved into a plain surface before attaching to a shader slot
-			if (width != 0 && height != 0 && !check_aspect_ratio(desc, width, height))
-				continue; // Not a good fit
 
-			const auto curr_weight = snapshot.stats.vertices * (1.2f - static_cast<float>(snapshot.stats.drawcalls) / _stats.drawcalls);
-			const auto best_weight = best_snapshot.stats.vertices * (1.2f - static_cast<float>(best_snapshot.stats.drawcalls) / _stats.vertices);
-			if (curr_weight >= best_weight)
+			if (width != 0 && height != 0)
+			{
+				const float w = static_cast<float>(width);
+				const float w_ratio = w / desc.Width;
+				const float h = static_cast<float>(height);
+				const float h_ratio = h / desc.Height;
+				const float aspect_ratio = (w / h) - (static_cast<float>(desc.Width) / desc.Height);
+
+				if (std::fabs(aspect_ratio) > 0.1f || w_ratio > 1.85f || h_ratio > 1.85f || w_ratio < 0.5f || h_ratio < 0.5f)
+					continue; // Not a good fit
+			}
+
+			// Choose snapshot with the most vertices, since that is likely to contain the main scene
+			if (snapshot.total_stats.vertices > best_snapshot.total_stats.vertices)
 			{
 				best_match = surface;
 				best_snapshot = snapshot;
@@ -304,19 +328,22 @@ com_ptr<IDirect3DSurface9> reshade::d3d9::buffer_detection::find_best_depth_surf
 		}
 	}
 
+	depthstencil_clear_index.first = best_match.get();
+
 	if (preserve_depth_buffers && best_match != nullptr)
 	{
+		_previous_stats = best_snapshot.current_stats;
+
 		// Always need to replace if preserving on clears
 		no_replacement = false;
 
-		if (depthstencil_clear_index_override != 0)
+		if (depthstencil_clear_index.second != 0)
 		{
-			depthstencil_clear_index = depthstencil_clear_index_override;
+			internal_clear_index = depthstencil_clear_index.second;
 		}
 		else
 		{
-			depthstencil_clear_index = std::numeric_limits<UINT>::max();
-
+			internal_clear_index = std::numeric_limits<UINT>::max();
 			UINT last_vertices = 0;
 
 			for (UINT clear_index = 0; clear_index < best_snapshot.clears.size(); clear_index++)
@@ -328,7 +355,7 @@ com_ptr<IDirect3DSurface9> reshade::d3d9::buffer_detection::find_best_depth_surf
 				if (mult * snapshot.vertices >= last_vertices)
 				{
 					last_vertices = mult * snapshot.vertices;
-					depthstencil_clear_index = clear_index + 1;
+					internal_clear_index = clear_index + 1;
 				}
 			}
 		}
@@ -346,4 +373,18 @@ com_ptr<IDirect3DSurface9> reshade::d3d9::buffer_detection::find_best_depth_surf
 
 	return _depthstencil_replacement; // Replacement takes effect starting with the next frame
 }
+#endif
+
+#if RESHADE_WIREFRAME
+
+void reshade::d3d9::buffer_detection::set_wireframe_mode(bool value)
+{
+	_wireframe_mode = value;
+}
+
+const bool reshade::d3d9::buffer_detection::get_wireframe_mode()
+{
+	return _wireframe_mode;
+}
+
 #endif

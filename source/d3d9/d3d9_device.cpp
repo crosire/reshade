@@ -10,7 +10,7 @@
 
 extern void dump_and_modify_present_parameters(D3DPRESENT_PARAMETERS &pp);
 
-Direct3DDevice9::Direct3DDevice9(IDirect3DDevice9   *original, bool use_software_rendering) :
+Direct3DDevice9::Direct3DDevice9(IDirect3DDevice9 *original, bool use_software_rendering) :
 	_orig(original),
 	_extended_interface(0),
 	_use_software_rendering(use_software_rendering),
@@ -397,15 +397,16 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::Clear(DWORD Count, const D3DRECT *pRe
 #if RESHADE_DEPTH
 	_buffer_detection.on_clear_depthstencil(Flags);
 #endif
+
 	const HRESULT hr = _orig->Clear(Count, pRects, Flags, Color, Z, Stencil);
 
 #if RESHADE_DEPTH
-	// we have to revert to the replacement one, if necessary
 	_buffer_detection.after_clear_depthstencil();
 #endif
 
 	return hr;
 }
+
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetTransform(D3DTRANSFORMSTATETYPE State, const D3DMATRIX *pMatrix)
 {
 	return _orig->SetTransform(State, pMatrix);
