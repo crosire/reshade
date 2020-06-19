@@ -33,7 +33,9 @@ void reshade::d3d9::buffer_detection::reset(bool release_resources)
 		_device->SetDepthStencilSurface(_depthstencil_replacement.get());
 		_device->Clear(0, nullptr, D3DCLEAR_ZBUFFER, 0, 1.0f, 0);
 
-		_device->SetDepthStencilSurface(depthstencil.get());
+		// Keep the depth-stencil surface reset back to the replacement, so starting next frame it is the one used again (instead of the original)
+		if (depthstencil != _depthstencil_original)
+			_device->SetDepthStencilSurface(depthstencil.get());
 	}
 #else
 	UNREFERENCED_PARAMETER(release_resources);
