@@ -103,6 +103,7 @@ namespace ReShade.Setup.Dialogs
 							x.IndexOf("support", StringComparison.OrdinalIgnoreCase) < 0 &&
 							x.IndexOf("register", StringComparison.OrdinalIgnoreCase) < 0 &&
 							x.IndexOf("activation", StringComparison.OrdinalIgnoreCase) < 0 &&
+							x.IndexOf("diagnostics", StringComparison.OrdinalIgnoreCase) < 0 &&
 							// Exclude common utility and launcher executables
 							x.IndexOf("tool", StringComparison.OrdinalIgnoreCase) < 0 &&
 							x.IndexOf("crash", StringComparison.OrdinalIgnoreCase) < 0 &&
