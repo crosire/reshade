@@ -83,6 +83,9 @@ reshade::d3d9::runtime_d3d9::runtime_d3d9(IDirect3DDevice9 *device, IDirect3DSwa
 		config.get("DX9_BUFFER_DETECTION", "PreserveDepthBuffer", _buffer_detection->preserve_depth_buffers);
 		config.get("DX9_BUFFER_DETECTION", "PreserveDepthBufferIndex", _buffer_detection->depthstencil_clear_index.second);
 		config.get("DX9_BUFFER_DETECTION", "UseAspectRatioHeuristics", _filter_aspect_ratio);
+
+		if (_buffer_detection->depthstencil_clear_index.second == std::numeric_limits<UINT>::max())
+			_buffer_detection->depthstencil_clear_index.second = 0;
 	});
 	subscribe_to_save_config([this](ini_file &config) {
 		config.set("DX9_BUFFER_DETECTION", "DisableINTZ", _disable_intz);
