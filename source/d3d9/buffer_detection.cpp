@@ -37,6 +37,7 @@ void reshade::d3d9::buffer_detection::reset(bool release_resources)
 		_device->SetDepthStencilSurface(_depthstencil_replacement.get());
 		_device->Clear(0, nullptr, D3DCLEAR_ZBUFFER, 0, 1.0f, 0);
 
+		// Keep the depth-stencil surface reset back to the replacement, so starting next frame it is the one used again (instead of the original)
 		if (depthstencil != _depthstencil_original)
 			_device->SetDepthStencilSurface(depthstencil.get());
 	}
@@ -49,19 +50,19 @@ void reshade::d3d9::buffer_detection::on_draw(D3DPRIMITIVETYPE type, UINT vertic
 {
 	switch (type)
 	{
-		case D3DPT_LINELIST:
-			vertices *= 2;
-			break;
-		case D3DPT_LINESTRIP:
-			vertices += 1;
-			break;
-		case D3DPT_TRIANGLELIST:
-			vertices *= 3;
-			break;
-		case D3DPT_TRIANGLESTRIP:
-		case D3DPT_TRIANGLEFAN:
-			vertices += 2;
-			break;
+	case D3DPT_LINELIST:
+		vertices *= 2;
+		break;
+	case D3DPT_LINESTRIP:
+		vertices += 1;
+		break;
+	case D3DPT_TRIANGLELIST:
+		vertices *= 3;
+		break;
+	case D3DPT_TRIANGLESTRIP:
+	case D3DPT_TRIANGLEFAN:
+		vertices += 2;
+		break;
 	}
 
 	_stats.vertices += vertices;
@@ -293,6 +294,9 @@ com_ptr<IDirect3DSurface9> reshade::d3d9::buffer_detection::find_best_depth_surf
 
 			// Choose snapshot with the most vertices, since that is likely to contain the main scene
 			if (snapshot.total_stats.vertices > best_snapshot.total_stats.vertices)
+			const auto curr_weight = snapshot.total_stats.vertices * (1.2f - static_cast<float>(snapshot.total_stats.drawcalls) / _stats.drawcalls);
+			const auto best_weight = best_snapshot.total_stats.vertices * (1.2f - static_cast<float>(best_snapshot.total_stats.drawcalls) / _stats.vertices);
+			if (curr_weight >= best_weight)
 			{
 				best_match = surface;
 				best_snapshot = snapshot;
