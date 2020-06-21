@@ -97,13 +97,16 @@ namespace reshade
 		/// <param name="base_index">Array index to start writing to.</param>
 		void set_uniform_value(uniform &variable, const uint8_t *data, size_t size, size_t base_index);
 		void set_uniform_value(uniform &variable, const bool *values, size_t count, size_t array_index = 0);
-		void set_uniform_value(uniform &variable, bool x, bool y = false, bool z = false, bool w = false) { const bool data[4] = { x, y, z, w }; set_uniform_value(variable, data, 4); }
 		void set_uniform_value(uniform &variable, const int32_t *values, size_t count, size_t array_index = 0);
-		void set_uniform_value(uniform &variable, int32_t x, int32_t y = 0, int32_t z = 0, int32_t w = 0) { const int32_t data[4] = { x, y, z, w }; set_uniform_value(variable, data, 4); }
 		void set_uniform_value(uniform &variable, const uint32_t *values, size_t count, size_t array_index = 0);
-		void set_uniform_value(uniform &variable, uint32_t x, uint32_t y = 0, uint32_t z = 0, uint32_t w = 0) { const uint32_t data[4] = { x, y, z, w }; set_uniform_value(variable, data, 4); }
 		void set_uniform_value(uniform &variable, const float *values, size_t count, size_t array_index = 0);
-		void set_uniform_value(uniform &variable, float x, float y = 0.0f, float z = 0.0f, float w = 0.0f) { const float data[4] = { x, y, z, w }; set_uniform_value(variable, data, 4); }
+		template <typename T>
+		std::enable_if_t<std::is_same_v<T, bool> || std::is_same_v<T, int32_t> || std::is_same_v<T, uint32_t> || std::is_same_v<T, float>>
+		set_uniform_value(uniform &variable, T x, T y = T(0), T z = T(0), T w = T(0))
+		{
+			const T data[4] = { x, y, z, w };
+			set_uniform_value(variable, data, 4);
+		}
 
 		/// <summary>
 		/// Reset a uniform variable to its initial value.
