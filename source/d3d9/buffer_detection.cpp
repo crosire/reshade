@@ -292,8 +292,6 @@ com_ptr<IDirect3DSurface9> reshade::d3d9::buffer_detection::find_best_depth_surf
 					continue; // Not a good fit
 			}
 
-			// Choose snapshot with the most vertices, since that is likely to contain the main scene
-			if (snapshot.total_stats.vertices > best_snapshot.total_stats.vertices)
 			const auto curr_weight = snapshot.total_stats.vertices * (1.2f - static_cast<float>(snapshot.total_stats.drawcalls) / _stats.drawcalls);
 			const auto best_weight = best_snapshot.total_stats.vertices * (1.2f - static_cast<float>(best_snapshot.total_stats.drawcalls) / _stats.vertices);
 			if (curr_weight >= best_weight)
