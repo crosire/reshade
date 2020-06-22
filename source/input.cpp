@@ -246,12 +246,12 @@ bool reshade::input::handle_window_message(const void *message_data)
 		input->_mouse_wheel_delta += GET_WHEEL_DELTA_WPARAM(details.wParam) / WHEEL_DELTA;
 		break;
 	case WM_XBUTTONDOWN:
-		assert(HIWORD(details.wParam) < 2);
-		input->_keys[VK_XBUTTON1 + HIWORD(details.wParam)] = 0x88;
+		assert(HIWORD(details.wParam) == XBUTTON1 || HIWORD(details.wParam) == XBUTTON2);
+		input->_keys[VK_XBUTTON1 + (HIWORD(details.wParam) - XBUTTON1)] = 0x88;
 		break;
 	case WM_XBUTTONUP:
-		assert(HIWORD(details.wParam) < 2);
-		input->_keys[VK_XBUTTON1 + HIWORD(details.wParam)] = 0x08;
+		assert(HIWORD(details.wParam) == XBUTTON1 || HIWORD(details.wParam) == XBUTTON2);
+		input->_keys[VK_XBUTTON1 + (HIWORD(details.wParam) - XBUTTON1)] = 0x08;
 		break;
 	}
 
@@ -317,17 +317,17 @@ unsigned int reshade::input::last_key_released() const
 bool reshade::input::is_mouse_button_down(unsigned int button) const
 {
 	assert(button < 5);
-	return is_key_down(VK_LBUTTON + button + (button < 2 ? 0 : 1));
+	return is_key_down(VK_LBUTTON + button + (button < 2 ? 0 : 1)); // VK_CANCEL is being ignored by runtime
 }
 bool reshade::input::is_mouse_button_pressed(unsigned int button) const
 {
 	assert(button < 5);
-	return is_key_pressed(VK_LBUTTON + button + (button < 2 ? 0 : 1));
+	return is_key_pressed(VK_LBUTTON + button + (button < 2 ? 0 : 1)); // VK_CANCEL is being ignored by runtime
 }
 bool reshade::input::is_mouse_button_released(unsigned int button) const
 {
 	assert(button < 5);
-	return is_key_released(VK_LBUTTON + button + (button < 2 ? 0 : 1));
+	return is_key_released(VK_LBUTTON + button + (button < 2 ? 0 : 1)); // VK_CANCEL is being ignored by runtime
 }
 
 bool reshade::input::is_any_mouse_button_down() const
