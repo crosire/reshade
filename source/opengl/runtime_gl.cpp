@@ -69,14 +69,7 @@ reshade::opengl::runtime_gl::runtime_gl()
 	{
 		if ((dd.StateFlags & DISPLAY_DEVICE_PRIMARY_DEVICE) != 0)
 		{
-			// Format: PCI\VEN_XXXX&DEV_XXXX...
-			const std::string id = dd.DeviceID;
-
-			if (id.length() > 20)
-			{
-				_vendor_id = std::stoi(id.substr(8, 4), nullptr, 16);
-				_device_id = std::stoi(id.substr(17, 4), nullptr, 16);
-			}
+			std::sscanf(dd.DeviceID, "PCI\\VEN_%x&DEV_%x", &_vendor_id, &_device_id);
 			break;
 		}
 	}
