@@ -346,22 +346,22 @@ bool reshade::d3d10::runtime_d3d10::capture_screenshot(uint8_t *buffer) const
 			{
 				const uint32_t rgba = *reinterpret_cast<const uint32_t *>(mapped_data + x);
 				// Divide by 4 to get 10-bit range (0-1023) into 8-bit range (0-255)
-				buffer[x + 0] = ((rgba & 0x3FF) / 4) & 0xFF;
-				buffer[x + 1] = (((rgba & 0xFFC00) >> 10) / 4) & 0xFF;
-				buffer[x + 2] = (((rgba & 0x3FF00000) >> 20) / 4) & 0xFF;
-				buffer[x + 3] = 0xFF;
+				buffer[x + 0] = ( (rgba & 0x000003FF)        /  4) & 0xFF;
+				buffer[x + 1] = (((rgba & 0x000FFC00) >> 10) /  4) & 0xFF;
+				buffer[x + 2] = (((rgba & 0x3FF00000) >> 20) /  4) & 0xFF;
+				buffer[x + 3] = (((rgba & 0xC0000000) >> 30) * 85) & 0xFF;
 			}
 		}
 		else
 		{
 			std::memcpy(buffer, mapped_data, pitch);
 
-			for (uint32_t x = 0; x < pitch; x += 4)
+			if (_backbuffer_format == DXGI_FORMAT_B8G8R8A8_UNORM ||
+				_backbuffer_format == DXGI_FORMAT_B8G8R8A8_UNORM_SRGB)
 			{
-				buffer[x + 3] = 0xFF; // Clear alpha channel
-				if (_backbuffer_format == DXGI_FORMAT_B8G8R8A8_UNORM ||
-					_backbuffer_format == DXGI_FORMAT_B8G8R8A8_UNORM_SRGB)
-					std::swap(buffer[x + 0], buffer[x + 2]); // Format is BGRA, but output should be RGBA, so flip channels
+				// Format is BGRA, but output should be RGBA, so flip channels
+				for (uint32_t x = 0; x < pitch; x += 4)
+					std::swap(buffer[x + 0], buffer[x + 2]);
 			}
 		}
 	}

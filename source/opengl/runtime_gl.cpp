@@ -304,12 +304,10 @@ bool reshade::opengl::runtime_gl::capture_screenshot(uint8_t *buffer) const
 
 		for (unsigned int x = 0; x < pitch; x += 4)
 		{
-			buffer[i1 + x + 3] = 0xFF; // Clear alpha channel
-			buffer[i2 + x + 3] = 0xFF;
-
 			std::swap(buffer[i1 + x + 0], buffer[i2 + x + 0]);
 			std::swap(buffer[i1 + x + 1], buffer[i2 + x + 1]);
 			std::swap(buffer[i1 + x + 2], buffer[i2 + x + 2]);
+			std::swap(buffer[i1 + x + 3], buffer[i2 + x + 3]);
 		}
 	}
 

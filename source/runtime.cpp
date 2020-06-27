@@ -1091,6 +1091,7 @@ void reshade::runtime::load_config()
 	config.get("GENERAL", "ScreenshotSaveUI", _screenshot_save_ui);
 	config.get("GENERAL", "ScreenshotSaveBefore", _screenshot_save_before);
 	config.get("GENERAL", "ScreenshotIncludePreset", _screenshot_include_preset);
+	config.get("GENERAL", "ScreenshotClearAlpha", _screenshot_clear_alpha);
 
 	config.get("GENERAL", "NoDebugInfo", _no_debug_info);
 	config.get("GENERAL", "NoReloadOnInit", _no_reload_on_init);
@@ -1137,6 +1138,7 @@ void reshade::runtime::save_config() const
 	config.set("GENERAL", "ScreenshotSaveUI", _screenshot_save_ui);
 	config.set("GENERAL", "ScreenshotSaveBefore", _screenshot_save_before);
 	config.set("GENERAL", "ScreenshotIncludePreset", _screenshot_include_preset);
+	config.set("GENERAL", "ScreenshotClearAlpha", _screenshot_clear_alpha);
 
 	config.set("GENERAL", "NoDebugInfo", _no_debug_info);
 	config.set("GENERAL", "NoReloadOnInit", _no_reload_on_init);
@@ -1407,6 +1409,12 @@ void reshade::runtime::save_screenshot(const std::wstring &postfix, const bool s
 
 	if (std::vector<uint8_t> data(_width * _height * 4); capture_screenshot(data.data()))
 	{
+		// Clear alpha channel
+		if (_screenshot_clear_alpha)
+			for (uint32_t h = 0; h < _height; ++h)
+				for (uint32_t w = 0; w < _width; ++w)
+					data[(h * _width + w) * 4 + 3] = 0xFF;
+
 		if (FILE *file; _wfopen_s(&file, screenshot_path.c_str(), L"wb") == 0)
 		{
 			const auto write_callback = [](void *context, void *data, int size) {

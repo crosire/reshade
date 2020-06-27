@@ -311,6 +311,7 @@ namespace reshade
 		bool _screenshot_save_before = false;
 		bool _screenshot_save_success = true;
 		bool _screenshot_include_preset = false;
+		bool _screenshot_clear_alpha = true;
 		unsigned int _screenshot_format = 1;
 		unsigned int _screenshot_key_data[4];
 		std::filesystem::path _screenshot_path;
