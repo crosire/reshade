@@ -66,6 +66,11 @@ HOOK_EXPORT HRESULT WINAPI D3D10CreateDeviceAndSwapChain(IDXGIAdapter *pAdapter,
 
 HOOK_EXPORT HRESULT WINAPI D3D10CreateDeviceAndSwapChain1(IDXGIAdapter *pAdapter, D3D10_DRIVER_TYPE DriverType, HMODULE Software, UINT Flags, D3D10_FEATURE_LEVEL1 HardwareLevel, UINT SDKVersion, DXGI_SWAP_CHAIN_DESC *pSwapChainDesc, IDXGISwapChain **ppSwapChain, ID3D10Device1 **ppDevice)
 {
+	// Pass on unmodified in case this called from within 'IDXGISwapChain::Present' or 'IDXGIFactory::CreateSwapChain', which indicates that the DXGI runtime is trying to create an internal device, which should not be hooked
+	if (g_in_dxgi_runtime)
+		return reshade::hooks::call(D3D10CreateDeviceAndSwapChain1)(
+			pAdapter, DriverType, Software, Flags, HardwareLevel, SDKVersion, pSwapChainDesc, ppSwapChain, ppDevice);
+
 	LOG(INFO) << "Redirecting D3D10CreateDeviceAndSwapChain1" << '('
 		<<   "pAdapter = " << pAdapter
 		<< ", DriverType = " << DriverType
@@ -83,7 +88,10 @@ HOOK_EXPORT HRESULT WINAPI D3D10CreateDeviceAndSwapChain1(IDXGIAdapter *pAdapter
 	Flags &= ~D3D10_CREATE_DEVICE_PREVENT_ALTERING_LAYER_SETTINGS_FROM_REGISTRY;
 #endif
 
+	// This may call 'D3D11CreateDeviceAndSwapChain' internally, so to avoid duplicated hooks, set the flag that forces it to return early
+	g_in_dxgi_runtime = true;
 	HRESULT hr = reshade::hooks::call(D3D10CreateDeviceAndSwapChain1)(pAdapter, DriverType, Software, Flags, HardwareLevel, SDKVersion, nullptr, nullptr, ppDevice);
+	g_in_dxgi_runtime = false;
 	if (FAILED(hr))
 	{
 		LOG(WARN) << "D3D10CreateDeviceAndSwapChain1 failed with error code " << hr << '!';
@@ -91,8 +99,7 @@ HOOK_EXPORT HRESULT WINAPI D3D10CreateDeviceAndSwapChain1(IDXGIAdapter *pAdapter
 	}
 
 	// It is valid for the device out parameter to be NULL if the application wants to check feature level support, so just return early in that case
-	// Also return early here in case this called from within 'IDXGISwapChain::Present' or 'IDXGIFactory::CreateSwapChain', which indicates that the DXGI runtime is trying to create an internal device, which should not be hooked
-	if (ppDevice == nullptr || g_in_dxgi_runtime)
+	if (ppDevice == nullptr)
 	{
 		assert(ppSwapChain == nullptr);
 		return hr;
@@ -144,7 +151,7 @@ HOOK_EXPORT HRESULT WINAPI D3D10CreateDeviceAndSwapChain1(IDXGIAdapter *pAdapter
 		if (device_proxy != nullptr)
 		{
 #if RESHADE_VERBOSE_LOG
-			LOG(INFO) << "Returning IDXGIDevice1 object " << device_proxy->_dxgi_device << " and ID3D10Device1 object " << device_proxy << '.';
+			LOG(INFO) << "Returning ID3D10Device1 object " << device_proxy << " and IDXGIDevice1 object " << device_proxy->_dxgi_device << '.';
 #endif
 			*ppDevice = device_proxy;
 		}
