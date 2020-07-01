@@ -627,7 +627,7 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 	{
 		bool is_constant = true;
 		std::vector<expression> elements;
-		type composite_type = { type::t_bool, 1, 1 };
+		type composite_type = { type::t_void, 1, 1 };
 
 		while (!peek('}'))
 		{
@@ -647,6 +647,8 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 
 			if (element.type.is_array())
 				return error(element.location, 3119, "arrays cannot be multi-dimensional"), consume_until('}'), false;
+			if (composite_type.base != type::t_void && element.type.definition != composite_type.definition)
+				return error(element.location, 3017, "cannot convert these types (from " + element.type.description() + " to " + composite_type.description() + ')'), false;
 
 			is_constant &= element.is_constant; // Result is only constant if all arguments are constant
 			composite_type = type::merge(composite_type, element.type);

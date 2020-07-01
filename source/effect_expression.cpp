@@ -14,8 +14,14 @@ reshadefx::type reshadefx::type::merge(const type &lhs, const type &rhs)
 {
 	type result = { std::max(lhs.base, rhs.base) };
 
+	// Non-numeric types cannot be vectors or matrices
+	if (!result.is_numeric())
+	{
+		result.rows = 0;
+		result.cols = 0;
+	}
 	// If one side of the expression is scalar, it needs to be promoted to the same dimension as the other side
-	if ((lhs.rows == 1 && lhs.cols == 1) || (rhs.rows == 1 && rhs.cols == 1))
+	else if ((lhs.rows == 1 && lhs.cols == 1) || (rhs.rows == 1 && rhs.cols == 1))
 	{
 		result.rows = std::max(lhs.rows, rhs.rows);
 		result.cols = std::max(lhs.cols, rhs.cols);
@@ -28,6 +34,11 @@ reshadefx::type reshadefx::type::merge(const type &lhs, const type &rhs)
 
 	// Some qualifiers propagate to the result
 	result.qualifiers = (lhs.qualifiers & type::q_precise) | (rhs.qualifiers & type::q_precise);
+
+	// In case this is a structure, assume they are the same
+	result.definition = rhs.definition;
+	assert(lhs.definition == rhs.definition || lhs.definition == 0);
+	assert(lhs.array_length == 0 && rhs.array_length == 0);
 
 	return result;
 }
@@ -226,7 +237,8 @@ void reshadefx::expression::add_member_access(unsigned int index, const reshadef
 }
 void reshadefx::expression::add_dynamic_index_access(uint32_t index_expression)
 {
-	assert(type.is_numeric() && !is_constant);
+	assert(!is_constant); // Cannot have dynamic indexing into constant in SPIR-V
+	assert(type.is_array() || (type.is_numeric() && !type.is_scalar()));
 
 	auto prev_type = type;
 
@@ -248,7 +260,7 @@ void reshadefx::expression::add_dynamic_index_access(uint32_t index_expression)
 }
 void reshadefx::expression::add_constant_index_access(unsigned int index)
 {
-	assert(type.is_numeric() && !type.is_scalar());
+	assert(type.is_array() || (type.is_numeric() && !type.is_scalar()));
 
 	auto prev_type = type;
 
