@@ -476,18 +476,15 @@ bool reshade::d3d12::runtime_d3d12::capture_screenshot(uint8_t *buffer) const
 			{
 				const uint32_t rgba = *reinterpret_cast<const uint32_t *>(mapped_data + x);
 				// Divide by 4 to get 10-bit range (0-1023) into 8-bit range (0-255)
-				buffer[x + 0] = ((rgba & 0x3FF) / 4) & 0xFF;
-				buffer[x + 1] = (((rgba & 0xFFC00) >> 10) / 4) & 0xFF;
-				buffer[x + 2] = (((rgba & 0x3FF00000) >> 20) / 4) & 0xFF;
-				buffer[x + 3] = 0xFF;
+				buffer[x + 0] = ( (rgba & 0x000003FF)        /  4) & 0xFF;
+				buffer[x + 1] = (((rgba & 0x000FFC00) >> 10) /  4) & 0xFF;
+				buffer[x + 2] = (((rgba & 0x3FF00000) >> 20) /  4) & 0xFF;
+				buffer[x + 3] = (((rgba & 0xC0000000) >> 30) * 85) & 0xFF;
 			}
 		}
 		else
 		{
 			std::memcpy(buffer, mapped_data, data_pitch);
-
-			for (uint32_t x = 0; x < data_pitch; x += 4)
-				buffer[x + 3] = 0xFF; // Clear alpha channel
 		}
 	}
 

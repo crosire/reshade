@@ -97,7 +97,9 @@ ULONG   STDMETHODCALLTYPE Direct3DSwapChain9::Release()
 
 HRESULT STDMETHODCALLTYPE Direct3DSwapChain9::Present(const RECT *pSourceRect, const RECT *pDestRect, HWND hDestWindowOverride, const RGNDATA *pDirtyRegion, DWORD dwFlags)
 {
-	_runtime->on_present();
+	// Only call into runtime if the entire surface is presented, to avoid partial updates messing up effects and the GUI
+	if (pSourceRect == nullptr)
+		_runtime->on_present();
 	_device->_buffer_detection.reset(false);
 
 	return _orig->Present(pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion, dwFlags);

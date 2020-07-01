@@ -776,10 +776,12 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 
 #  ifndef NDEBUG
 		g_exception_handler_handle = AddVectoredExceptionHandler(1, [](PEXCEPTION_POINTERS ex) -> LONG {
-			// Ignore debugging exceptions
+			// Ignore debugging and some common language exceptions
 			if (const DWORD code = ex->ExceptionRecord->ExceptionCode;
 				code == CONTROL_C_EXIT || code == 0x406D1388 /* SetThreadName */ ||
-				code == DBG_PRINTEXCEPTION_C || code == DBG_PRINTEXCEPTION_WIDE_C)
+				code == DBG_PRINTEXCEPTION_C || code == DBG_PRINTEXCEPTION_WIDE_C ||
+				code == 0xE0434352 /* CLR exception */ ||
+				code == 0xE06D7363 /* Visual C++ exception */)
 				goto continue_search;
 
 			// Create dump with exception information for the first 100 occurrences

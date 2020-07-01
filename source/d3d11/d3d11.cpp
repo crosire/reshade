@@ -31,6 +31,11 @@ HOOK_EXPORT HRESULT WINAPI D3D11CreateDevice(IDXGIAdapter *pAdapter, D3D_DRIVER_
 
 HOOK_EXPORT HRESULT WINAPI D3D11CreateDeviceAndSwapChain(IDXGIAdapter *pAdapter, D3D_DRIVER_TYPE DriverType, HMODULE Software, UINT Flags, const D3D_FEATURE_LEVEL *pFeatureLevels, UINT FeatureLevels, UINT SDKVersion, const DXGI_SWAP_CHAIN_DESC *pSwapChainDesc, IDXGISwapChain **ppSwapChain, ID3D11Device **ppDevice, D3D_FEATURE_LEVEL *pFeatureLevel, ID3D11DeviceContext **ppImmediateContext)
 {
+	// Pass on unmodified in case this called from within 'IDXGISwapChain::Present' or 'IDXGIFactory::CreateSwapChain' or 'D3D10CreateDeviceAndSwapChain1', which indicates that the DXGI runtime is trying to create an internal device, which should not be hooked
+	if (g_in_dxgi_runtime)
+		return reshade::hooks::call(D3D11CreateDeviceAndSwapChain)(
+			pAdapter, DriverType, Software, Flags, pFeatureLevels, FeatureLevels, SDKVersion, pSwapChainDesc, ppSwapChain, ppDevice, pFeatureLevel, ppImmediateContext);
+
 	LOG(INFO) << "Redirecting D3D11CreateDeviceAndSwapChain" << '('
 		<<   "pAdapter = " << pAdapter
 		<< ", DriverType = " << DriverType
@@ -67,8 +72,7 @@ HOOK_EXPORT HRESULT WINAPI D3D11CreateDeviceAndSwapChain(IDXGIAdapter *pAdapter,
 	LOG(INFO) << "> Using feature level " << std::hex << FeatureLevel << std::dec << '.';
 
 	// It is valid for the device out parameter to be NULL if the application wants to check feature level support, so just return early in that case
-	// Also return early here in case this called from within 'IDXGISwapChain::Present' or 'IDXGIFactory::CreateSwapChain', which indicates that the DXGI runtime is trying to create an internal device, which should not be hooked
-	if (ppDevice == nullptr || g_in_dxgi_runtime)
+	if (ppDevice == nullptr)
 	{
 		assert(ppSwapChain == nullptr && ppImmediateContext == nullptr);
 		return hr;
@@ -128,7 +132,7 @@ HOOK_EXPORT HRESULT WINAPI D3D11CreateDeviceAndSwapChain(IDXGIAdapter *pAdapter,
 		if (device_proxy != nullptr)
 		{
 #if RESHADE_VERBOSE_LOG
-			LOG(INFO) << "Returning IDXGIDevice1 object " << device_proxy->_dxgi_device << " and ID3D11Device object " << device_proxy << '.';
+			LOG(INFO) << "Returning ID3D11Device0 object " << device_proxy << " and IDXGIDevice1 object " << device_proxy->_dxgi_device << '.';
 #endif
 			*ppDevice = device_proxy;
 		}
