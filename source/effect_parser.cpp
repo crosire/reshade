@@ -412,6 +412,10 @@ bool reshadefx::parser::parse_array_size(type &type)
 		}
 	}
 
+	// Multi-dimensional arrays are not supported
+	if (peek('['))
+		return error(_token_next.location, 3119, "arrays cannot be multi-dimensional"), false;
+
 	return true;
 }
 
@@ -640,6 +644,9 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 				return consume_until('}'), false;
 
 			expression &element = elements.back();
+
+			if (element.type.is_array())
+				return error(element.location, 3119, "arrays cannot be multi-dimensional"), consume_until('}'), false;
 
 			is_constant &= element.is_constant; // Result is only constant if all arguments are constant
 			composite_type = type::merge(composite_type, element.type);
