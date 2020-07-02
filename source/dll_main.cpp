@@ -128,10 +128,10 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 		pp.PresentationInterval = D3DPRESENT_INTERVAL_ONE;
 
 		// Initialize Direct3D 9
-		com_ptr<IDirect3D9> d3d(Direct3DCreate9(D3D_SDK_VERSION), true);
-		com_ptr<IDirect3DDevice9> device;
-
-		HCHECK(d3d->CreateDevice(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, window_handle, D3DCREATE_HARDWARE_VERTEXPROCESSING, &pp, &device));
+		com_ptr<IDirect3D9Ex> d3d;
+		HCHECK(Direct3DCreate9Ex(D3D_SDK_VERSION, &d3d));
+		com_ptr<IDirect3DDevice9Ex> device;
+		HCHECK(d3d->CreateDeviceEx(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, window_handle, D3DCREATE_HARDWARE_VERTEXPROCESSING, &pp, nullptr, &device));
 
 		while (msg.message != WM_QUIT)
 		{
@@ -144,7 +144,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 				pp.BackBufferWidth = s_resize_w;
 				pp.BackBufferHeight = s_resize_h;
 
-				HCHECK(device->Reset(&pp));
+				HCHECK(device->ResetEx(&pp, nullptr));
 
 				s_resize_w = s_resize_h = 0;
 			}
