@@ -1756,36 +1756,53 @@ void reshade::runtime::draw_preset_explorer()
 	enum class condition { pass, select, popup_add, create, backward, forward, reload, cancel };
 	condition condition = condition::pass;
 
+	ImGuiButtonFlags button_flags = ImGuiButtonFlags_NoNavFocus;
 	if (is_loading())
+	{
+		button_flags |= ImGuiButtonFlags_Disabled;
 		ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
+	}
 
-	if (ImGui::ButtonEx("<", ImVec2(button_size, 0), ImGuiButtonFlags_NoNavFocus | (is_loading() ? ImGuiButtonFlags_Disabled : 0)))
-		if (condition = condition::backward, _current_browse_path = _current_preset_path.parent_path().lexically_proximate(reshade_container_path);
-			_current_browse_path == L".")
+	if (ImGui::ButtonEx("<", ImVec2(button_size, 0), button_flags))
+	{
+		condition = condition::backward;
+		_current_browse_path = _current_preset_path.parent_path().lexically_proximate(reshade_container_path);
+		if (_current_browse_path == L".")
 			_current_browse_path.clear();
-
-	if (ImGui::SameLine(0, button_spacing);
-		ImGui::ButtonEx(">", ImVec2(button_size, 0), ImGuiButtonFlags_NoNavFocus | (is_loading() ? ImGuiButtonFlags_Disabled : 0)))
-		if (condition = condition::forward, _current_browse_path = _current_preset_path.parent_path().lexically_proximate(reshade_container_path);
-			_current_browse_path == L".")
+	}
+	ImGui::SameLine(0, button_spacing);
+	if (ImGui::ButtonEx(">", ImVec2(button_size, 0), button_flags))
+	{
+		condition = condition::forward;
+		_current_browse_path = _current_preset_path.parent_path().lexically_proximate(reshade_container_path);
+		if (_current_browse_path == L".")
 			_current_browse_path.clear();
+	}
 
 	if (is_loading())
 		ImGui::PopStyleColor();
 
 	ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2(0.0f, 0.5f));
-	if (ImGui::SameLine(0, button_spacing);
-		ImGui::ButtonEx(_current_preset_path.stem().u8string().c_str(), ImVec2(root_window_width - (button_spacing + button_size) * 3, 0), ImGuiButtonFlags_NoNavFocus))
-		if (ImGui::OpenPopup("##explore"), _browse_path_is_input_mode = _imgui_context->IO.KeyCtrl,
-			_current_browse_path = _current_preset_path.parent_path().lexically_proximate(reshade_container_path);
-			_current_browse_path == L".")
+	ImGui::SameLine(0, button_spacing);
+	if (ImGui::ButtonEx(_current_preset_path.stem().u8string().c_str(), ImVec2(root_window_width - (button_spacing + button_size) * 3, 0), ImGuiButtonFlags_NoNavFocus))
+	{
+		ImGui::OpenPopup("##explore");
+
+		_browse_path_is_input_mode = _imgui_context->IO.KeyCtrl;
+		_current_browse_path = _current_preset_path.parent_path().lexically_proximate(reshade_container_path);
+		if (_current_browse_path == L".")
 			_current_browse_path.clear();
 		else if (_current_browse_path.has_filename())
 			_current_browse_path += L'\\';
+	}
 	ImGui::PopStyleVar();
 
-	if (ImGui::SameLine(0, button_spacing); ImGui::ButtonEx("+", ImVec2(button_size, 0), ImGuiButtonFlags_PressedOnClick | ImGuiButtonFlags_NoNavFocus))
-		condition = condition::popup_add, _current_browse_path = _current_preset_path.parent_path();
+	ImGui::SameLine(0, button_spacing);
+	if (ImGui::ButtonEx("+", ImVec2(button_size, 0), ImGuiButtonFlags_PressedOnClick | ImGuiButtonFlags_NoNavFocus))
+	{
+		condition = condition::popup_add;
+		_current_browse_path = _current_preset_path.parent_path();
+	}
 
 	ImGui::SetNextWindowPos(cursor_pos - _imgui_context->Style.WindowPadding);
 	const bool is_explore_open = ImGui::BeginPopup("##explore");
@@ -1801,11 +1818,10 @@ void reshade::runtime::draw_preset_explorer()
 		if (is_loading())
 			ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
 
-		if (ImGui::ButtonEx("<", ImVec2(button_size, 0), ImGuiButtonFlags_NoNavFocus | (is_loading() ? ImGuiButtonFlags_Disabled : 0)))
+		if (ImGui::ButtonEx("<", ImVec2(button_size, 0), button_flags))
 			condition = condition::backward;
-
-		if (ImGui::SameLine(0, button_spacing);
-			ImGui::ButtonEx(">", ImVec2(button_size, 0), ImGuiButtonFlags_NoNavFocus | (is_loading() ? ImGuiButtonFlags_Disabled : 0)))
+		ImGui::SameLine(0, button_spacing);
+		if (ImGui::ButtonEx(">", ImVec2(button_size, 0), button_flags))
 			condition = condition::forward;
 
 		if (is_loading())
@@ -1883,17 +1899,29 @@ void reshade::runtime::draw_preset_explorer()
 		{
 			ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2(0.0f, 0.5f));
 			if (ImGui::ButtonEx(_current_preset_path.stem().u8string().c_str(), ImVec2(root_window_width - (button_spacing + button_size) * 3, 0), ImGuiButtonFlags_NoNavFocus))
-				if (ImGui::ActivateItem(ImGui::GetID("##path")), _browse_path_is_input_mode = _imgui_context->IO.KeyCtrl; _browse_path_is_input_mode)
+			{
+				ImGui::ActivateItem(ImGui::GetID("##path"));
+				_browse_path_is_input_mode = _imgui_context->IO.KeyCtrl;
+				if (_browse_path_is_input_mode)
+				{
 					if (_current_browse_path.has_filename() && std::filesystem::is_directory(reshade_container_path / _current_browse_path, ec))
 						_current_browse_path += L'\\';
 					else
 						condition = condition::pass;
+				}
 				else
+				{
 					condition = condition::cancel;
+				}
+			}
 			else if (is_loading())
+			{
 				condition = condition::pass;
+			}
 			else if (ImGui::IsKeyPressedMap(ImGuiKey_Enter))
+			{
 				condition = condition::reload;
+			}
 			ImGui::PopStyleVar();
 		}
 
@@ -1910,7 +1938,10 @@ void reshade::runtime::draw_preset_explorer()
 				activate = !_current_browse_path.empty() && ImGui::IsKeyPressedMap(ImGuiKey_Backspace, false);
 
 			if (activate)
-				ImGui::ActivateItem(ImGui::GetID("##path")), _browse_path_is_input_mode = true;
+			{
+				ImGui::ActivateItem(ImGui::GetID("##path"));
+				_browse_path_is_input_mode = true;
+			}
 		}
 	}
 
@@ -2007,6 +2038,9 @@ void reshade::runtime::draw_preset_explorer()
 	ImGui::SetNextWindowPos(cursor_pos + ImVec2(root_window_width + button_size - 230, button_size));
 	if (ImGui::BeginPopup("##name"))
 	{
+		static bool duplicate_current_preset = false;
+		ImGui::Checkbox("Duplicate current preset", &duplicate_current_preset);
+
 		char filename[_MAX_PATH]{};
 		ImGui::InputText("Name", filename, sizeof(filename));
 
@@ -2021,20 +2055,26 @@ void reshade::runtime::draw_preset_explorer()
 			if (focus_preset_path.extension() != L".ini" && focus_preset_path.extension() != L".txt")
 				focus_preset_path += L".ini";
 
-			if (is_loading())
-				condition = condition::pass;
-			else if (!focus_preset_path.has_stem())
-				condition = condition::pass;
-			else if (const std::filesystem::file_type file_type = std::filesystem::status(focus_preset_path, ec).type(); ec.value() == 0x7b) // 0x7b: ERROR_INVALID_NAME
-				condition = condition::pass;
-			else if (file_type == std::filesystem::file_type::directory)
-				condition = condition::pass;
-			else if (file_type == std::filesystem::file_type::not_found)
-				condition = condition::create, _current_preset_path = focus_preset_path;
-			else if (ini_file::load_cache(focus_preset_path).has("", "Techniques"))
-				condition = condition::select, _current_preset_path = focus_preset_path;
-			else
-				condition = condition::pass;
+			condition = condition::pass;
+
+			const std::filesystem::file_type file_type = std::filesystem::status(focus_preset_path, ec).type();
+			if (!is_loading() && focus_preset_path.has_stem() && file_type != std::filesystem::file_type::directory)
+			{
+				if (file_type == std::filesystem::file_type::not_found)
+				{
+					condition = condition::create;
+
+					if (duplicate_current_preset)
+						CopyFileW(_current_preset_path.c_str(), focus_preset_path.c_str(), TRUE);
+
+					_current_preset_path = focus_preset_path;
+				}
+				else if (ini_file::load_cache(focus_preset_path).has("", "Techniques"))
+				{
+					condition = condition::select;
+					_current_preset_path = focus_preset_path;
+				}
+			}
 
 			if (condition == condition::pass)
 				ImGui::SetKeyboardFocusHere();
