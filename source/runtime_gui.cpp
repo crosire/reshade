@@ -15,6 +15,7 @@
 #include <cassert>
 #include <fstream>
 #include <algorithm>
+#include <shellapi.h>
 
 extern volatile long g_network_traffic;
 extern std::filesystem::path g_reshade_dll_path;
@@ -2745,6 +2746,11 @@ void reshade::runtime::draw_technique_editor()
 					ImGui::CloseCurrentPopup();
 				}
 			}
+
+			ImGui::Separator();
+
+			if (ImGui::Button("Open folder in explorer", ImVec2(button_width, 0)))
+				ShellExecuteW(nullptr, L"open", L"explorer.exe", (L"/select,\"" + effect.source_file.wstring() + L"\"").c_str(), nullptr, SW_SHOWDEFAULT);
 
 			ImGui::EndPopup();
 		}
