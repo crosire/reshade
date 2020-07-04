@@ -97,6 +97,7 @@ void reshade::runtime::init_ui()
 		config.get("GENERAL", "SaveWindowState", save_imgui_window_state);
 		config.get("GENERAL", "TutorialProgress", _tutorial_index);
 		config.get("GENERAL", "NewVariableUI", _variable_editor_tabs);
+		config.get("GENERAL", "VariableUIHeight", _variable_editor_height);
 
 		config.get("STYLE", "Alpha", _imgui_context->Style.Alpha);
 		config.get("STYLE", "GrabRounding", _imgui_context->Style.GrabRounding);
@@ -334,6 +335,7 @@ void reshade::runtime::init_ui()
 		config.set("GENERAL", "SaveWindowState", _imgui_context->IO.IniFilename != nullptr);
 		config.set("GENERAL", "TutorialProgress", _tutorial_index);
 		config.set("GENERAL", "NewVariableUI", _variable_editor_tabs);
+		config.set("GENERAL", "VariableUIHeight", _variable_editor_height);
 
 		config.set("STYLE", "Alpha", _imgui_context->Style.Alpha);
 		config.set("STYLE", "GrabRounding", _imgui_context->Style.GrabRounding);
@@ -931,7 +933,10 @@ void reshade::runtime::draw_ui_home()
 		if (ImGui::IsItemHovered())
 			ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeNS);
 		if (ImGui::IsItemActive())
+		{
 			_variable_editor_height -= _imgui_context->IO.MouseDelta.y;
+			save_config();
+		}
 
 		if (_tutorial_index == 3)
 		{
