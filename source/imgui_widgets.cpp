@@ -110,13 +110,13 @@ bool imgui_directory_dialog(const char *name, std::filesystem::path &path)
 	ImGui::PopItemWidth();
 
 	ImGui::SameLine();
-	if (ImGui::Button("Ok", ImVec2(100, 0)))
+	if (ImGui::Button("Ok", ImVec2(80, 0)))
 		ok = true;
 	ImGui::SameLine();
-	if (ImGui::Button("Cancel", ImVec2(100, 0)))
+	if (ImGui::Button("Cancel", ImVec2(80, 0)))
 		cancel = true;
 
-	ImGui::BeginChild("##files", ImVec2(0, 300));
+	ImGui::BeginChild("##files", ImVec2(0, 300), true, ImGuiWindowFlags_NavFlattened);
 
 	std::error_code ec;
 
@@ -132,7 +132,7 @@ bool imgui_directory_dialog(const char *name, std::filesystem::path &path)
 	if (path.has_parent_path() && ImGui::Selectable(".."))
 		path = path.parent_path();
 
-	for (const auto &entry : std::filesystem::directory_iterator(path, ec))
+	for (const auto &entry : std::filesystem::directory_iterator(path, std::filesystem::directory_options::skip_permission_denied, ec))
 	{
 		if (!entry.is_directory(ec))
 			continue; // Only show directories
@@ -141,10 +141,7 @@ bool imgui_directory_dialog(const char *name, std::filesystem::path &path)
 		label = "<DIR> " + label;
 
 		if (ImGui::Selectable(label.c_str(), entry.path() == path))
-		{
 			path = entry.path();
-			break;
-		}
 	}
 
 	ImGui::EndChild();
