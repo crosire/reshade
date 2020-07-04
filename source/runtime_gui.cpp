@@ -2627,7 +2627,14 @@ void reshade::runtime::draw_technique_editor()
 			ImGui::Separator();
 
 			if (ImGui::Button("Open folder in explorer", ImVec2(button_width, 0)))
-				ShellExecuteW(nullptr, L"open", L"explorer.exe", (L"/select,\"" + effect.source_file.wstring() + L"\"").c_str(), nullptr, SW_SHOWDEFAULT);
+			{
+				// Use absolute path to explorer to avoid potential security issues when executable is replaced
+				WCHAR explorer_path[260] = L"";
+				GetWindowsDirectoryW(explorer_path, sizeof(explorer_path));
+				wcscat_s(explorer_path, L"\\explorer.exe");
+
+				ShellExecuteW(nullptr, L"open", explorer_path, (L"/select,\"" + effect.source_file.wstring() + L"\"").c_str(), nullptr, SW_SHOWDEFAULT);
+			}
 
 			ImGui::EndPopup();
 		}
