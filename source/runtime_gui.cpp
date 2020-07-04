@@ -40,8 +40,6 @@ void reshade::runtime::init_ui()
 	_menu_key_data[2] = false;
 	_menu_key_data[3] = false;
 
-	_current_browse_path = _current_preset_path.empty() ?
-		_configuration_path.parent_path() : _current_preset_path.parent_path();
 	_variable_editor_height = 300;
 
 	_imgui_context = ImGui::CreateContext();
@@ -1805,6 +1803,7 @@ void reshade::runtime::draw_preset_explorer()
 		if (ImGui::IsWindowAppearing())
 			ImGui::SetKeyboardFocusHere();
 
+		// This sets the browse path the first time the popup is opened too
 		if (_current_browse_path.empty() || !_current_browse_path.is_absolute())
 			_current_browse_path = _current_preset_path.empty() ?
 				_configuration_path.parent_path() : _current_preset_path.parent_path();
