@@ -376,7 +376,8 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateTexture2D(const D3D10_TEXTURE2D_DES
 	// Add D3D10_BIND_SHADER_RESOURCE flag to all depth-stencil textures so that we can access them in post-processing shaders
 	D3D10_TEXTURE2D_DESC new_desc = *pDesc;
 	if (new_desc.SampleDesc.Count == 1 && // Skip MSAA textures
-		0 != (new_desc.BindFlags & D3D10_BIND_DEPTH_STENCIL))
+		0 != (new_desc.BindFlags & D3D10_BIND_DEPTH_STENCIL) &&
+		0 == (new_desc.BindFlags & D3D10_BIND_SHADER_RESOURCE))
 	{
 		new_desc.Format = make_dxgi_format_typeless(new_desc.Format);
 		new_desc.BindFlags |= D3D10_BIND_SHADER_RESOURCE;
@@ -397,9 +398,9 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateTexture3D(const D3D10_TEXTURE3D_DES
 HRESULT STDMETHODCALLTYPE D3D10Device::CreateShaderResourceView(ID3D10Resource *pResource, const D3D10_SHADER_RESOURCE_VIEW_DESC *pDesc, ID3D10ShaderResourceView **ppSRView)
 {
 	D3D10_SHADER_RESOURCE_VIEW_DESC new_desc =
-		pDesc != nullptr ? *pDesc : D3D10_SHADER_RESOURCE_VIEW_DESC {};
+		pDesc != nullptr ? *pDesc : D3D10_SHADER_RESOURCE_VIEW_DESC { DXGI_FORMAT_UNKNOWN };
 
-	// A view cannot be created with a typeless format (which was set 'CreateTexture2D'), so fix it
+	// A view cannot be created with a typeless format (which was set in 'CreateTexture2D'), so fix it
 	if (pDesc == nullptr || pDesc->Format == DXGI_FORMAT_UNKNOWN)
 	{
 		D3D10_TEXTURE2D_DESC texture_desc;
@@ -408,11 +409,13 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateShaderResourceView(ID3D10Resource *
 		{
 			texture->GetDesc(&texture_desc);
 
-			// Only textures with the depth-stencil bind flag where modified, so skip all others
+			// Only non-MSAA textures with the depth-stencil bind flag where modified, so skip all others
 			if (texture_desc.SampleDesc.Count == 1 &&
 				0 != (texture_desc.BindFlags & D3D10_BIND_DEPTH_STENCIL))
 			{
-				new_desc.Format = make_dxgi_format_normal(texture_desc.Format);
+				// Do not replace format if application already provided one (since we can assume it is not typeless then)
+				if (new_desc.Format == DXGI_FORMAT_UNKNOWN)
+					new_desc.Format  = make_dxgi_format_normal(texture_desc.Format);
 
 				if (pDesc == nullptr) // Only need to set the rest of the fields if the application did not pass in a valid description already
 				{
@@ -443,7 +446,7 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateRenderTargetView(ID3D10Resource *pR
 HRESULT STDMETHODCALLTYPE D3D10Device::CreateDepthStencilView(ID3D10Resource *pResource, const D3D10_DEPTH_STENCIL_VIEW_DESC *pDesc, ID3D10DepthStencilView **ppDepthStencilView)
 {
 	D3D10_DEPTH_STENCIL_VIEW_DESC new_desc =
-		pDesc != nullptr ? *pDesc : D3D10_DEPTH_STENCIL_VIEW_DESC {};
+		pDesc != nullptr ? *pDesc : D3D10_DEPTH_STENCIL_VIEW_DESC { DXGI_FORMAT_UNKNOWN };
 
 	// A view cannot be created with a typeless format (which was set in 'CreateTexture2D'), so fix it
 	if (pDesc == nullptr || pDesc->Format == DXGI_FORMAT_UNKNOWN)
@@ -459,7 +462,9 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateDepthStencilView(ID3D10Resource *pR
 			{
 				assert((texture_desc.BindFlags & D3D10_BIND_DEPTH_STENCIL) != 0);
 
-				new_desc.Format = make_dxgi_format_dsv(texture_desc.Format);
+				// Do not replace format if application already provided one (since we can assume it is not typeless then)
+				if (new_desc.Format == DXGI_FORMAT_UNKNOWN)
+					new_desc.Format  = make_dxgi_format_dsv(texture_desc.Format);
 
 				if (pDesc == nullptr) // Only need to set the rest of the fields if the application did not pass in a valid description already
 				{
@@ -566,7 +571,7 @@ void    STDMETHODCALLTYPE D3D10Device::GetTextFilterSize(UINT *pWidth, UINT *pHe
 HRESULT STDMETHODCALLTYPE D3D10Device::CreateShaderResourceView1(ID3D10Resource *pResource, const D3D10_SHADER_RESOURCE_VIEW_DESC1 *pDesc, ID3D10ShaderResourceView1 **ppSRView)
 {
 	D3D10_SHADER_RESOURCE_VIEW_DESC1 new_desc =
-		pDesc != nullptr ? *pDesc : D3D10_SHADER_RESOURCE_VIEW_DESC1 {};
+		pDesc != nullptr ? *pDesc : D3D10_SHADER_RESOURCE_VIEW_DESC1 { DXGI_FORMAT_UNKNOWN };
 
 	if (pDesc == nullptr || pDesc->Format == DXGI_FORMAT_UNKNOWN)
 	{
@@ -579,7 +584,8 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateShaderResourceView1(ID3D10Resource 
 			if (texture_desc.SampleDesc.Count == 1 &&
 				0 != (texture_desc.BindFlags & D3D10_BIND_DEPTH_STENCIL))
 			{
-				new_desc.Format = make_dxgi_format_normal(texture_desc.Format);
+				if (new_desc.Format == DXGI_FORMAT_UNKNOWN)
+					new_desc.Format  = make_dxgi_format_normal(texture_desc.Format);
 
 				if (pDesc == nullptr)
 				{

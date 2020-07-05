@@ -128,7 +128,8 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateTexture2D(const D3D11_TEXTURE2D_DES
 	// Add D3D11_BIND_SHADER_RESOURCE flag to all depth-stencil textures so that we can access them in post-processing shaders
 	D3D11_TEXTURE2D_DESC new_desc = *pDesc;
 	if (new_desc.SampleDesc.Count == 1 && // Skip MSAA textures
-		0 != (new_desc.BindFlags & D3D11_BIND_DEPTH_STENCIL))
+		0 != (new_desc.BindFlags & D3D11_BIND_DEPTH_STENCIL) &&
+		0 == (new_desc.BindFlags & D3D11_BIND_SHADER_RESOURCE))
 	{
 		new_desc.Format = make_dxgi_format_typeless(new_desc.Format);
 		new_desc.BindFlags |= D3D11_BIND_SHADER_RESOURCE;
@@ -149,9 +150,9 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateTexture3D(const D3D11_TEXTURE3D_DES
 HRESULT STDMETHODCALLTYPE D3D11Device::CreateShaderResourceView(ID3D11Resource *pResource, const D3D11_SHADER_RESOURCE_VIEW_DESC *pDesc, ID3D11ShaderResourceView **ppSRView)
 {
 	D3D11_SHADER_RESOURCE_VIEW_DESC new_desc =
-		pDesc != nullptr ? *pDesc : D3D11_SHADER_RESOURCE_VIEW_DESC {};
+		pDesc != nullptr ? *pDesc : D3D11_SHADER_RESOURCE_VIEW_DESC { DXGI_FORMAT_UNKNOWN };
 
-	// A view cannot be created with a typeless format (which was set 'CreateTexture2D'), so fix it
+	// A view cannot be created with a typeless format (which was set in 'CreateTexture2D'), so fix it
 	if (pDesc == nullptr || pDesc->Format == DXGI_FORMAT_UNKNOWN)
 	{
 		D3D11_TEXTURE2D_DESC texture_desc;
@@ -160,11 +161,13 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateShaderResourceView(ID3D11Resource *
 		{
 			texture->GetDesc(&texture_desc);
 
-			// Only textures with the depth-stencil bind flag where modified, so skip all others
+			// Only non-MSAA textures with the depth-stencil bind flag where modified, so skip all others
 			if (texture_desc.SampleDesc.Count == 1 &&
 				0 != (texture_desc.BindFlags & D3D11_BIND_DEPTH_STENCIL))
 			{
-				new_desc.Format = make_dxgi_format_normal(texture_desc.Format);
+				// Do not replace format if application already provided one (since we can assume it is not typeless then)
+				if (new_desc.Format == DXGI_FORMAT_UNKNOWN)
+					new_desc.Format  = make_dxgi_format_normal(texture_desc.Format);
 
 				if (pDesc == nullptr) // Only need to set the rest of the fields if the application did not pass in a valid description already
 				{
@@ -199,7 +202,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateRenderTargetView(ID3D11Resource *pR
 HRESULT STDMETHODCALLTYPE D3D11Device::CreateDepthStencilView(ID3D11Resource *pResource, const D3D11_DEPTH_STENCIL_VIEW_DESC *pDesc, ID3D11DepthStencilView **ppDepthStencilView)
 {
 	D3D11_DEPTH_STENCIL_VIEW_DESC new_desc =
-		pDesc != nullptr ? *pDesc : D3D11_DEPTH_STENCIL_VIEW_DESC {};
+		pDesc != nullptr ? *pDesc : D3D11_DEPTH_STENCIL_VIEW_DESC { DXGI_FORMAT_UNKNOWN };
 
 	// A view cannot be created with a typeless format (which was set in 'CreateTexture2D'), so fix it
 	if (pDesc == nullptr || pDesc->Format == DXGI_FORMAT_UNKNOWN)
@@ -215,7 +218,9 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateDepthStencilView(ID3D11Resource *pR
 			{
 				assert((texture_desc.BindFlags & D3D11_BIND_DEPTH_STENCIL) != 0);
 
-				new_desc.Format = make_dxgi_format_dsv(texture_desc.Format);
+				// Do not replace format if application already provided one (since we can assume it is not typeless then)
+				if (new_desc.Format == DXGI_FORMAT_UNKNOWN)
+					new_desc.Format  = make_dxgi_format_dsv(texture_desc.Format);
 
 				if (pDesc == nullptr) // Only need to set the rest of the fields if the application did not pass in a valid description already
 				{
@@ -507,7 +512,8 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateTexture2D1(const D3D11_TEXTURE2D_DE
 
 	D3D11_TEXTURE2D_DESC1 new_desc = *pDesc1;
 	if (new_desc.SampleDesc.Count == 1 &&
-		0 != (new_desc.BindFlags & D3D11_BIND_DEPTH_STENCIL))
+		0 != (new_desc.BindFlags & D3D11_BIND_DEPTH_STENCIL) &&
+		0 == (new_desc.BindFlags & D3D11_BIND_SHADER_RESOURCE))
 	{
 		new_desc.Format = make_dxgi_format_typeless(new_desc.Format);
 		new_desc.BindFlags |= D3D11_BIND_SHADER_RESOURCE;
@@ -535,7 +541,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateRasterizerState2(const D3D11_RASTER
 HRESULT STDMETHODCALLTYPE D3D11Device::CreateShaderResourceView1(ID3D11Resource *pResource, const D3D11_SHADER_RESOURCE_VIEW_DESC1 *pDesc1, ID3D11ShaderResourceView1 **ppSRView1)
 {
 	D3D11_SHADER_RESOURCE_VIEW_DESC1 new_desc =
-		pDesc1 != nullptr ? *pDesc1 : D3D11_SHADER_RESOURCE_VIEW_DESC1 {};
+		pDesc1 != nullptr ? *pDesc1 : D3D11_SHADER_RESOURCE_VIEW_DESC1 { DXGI_FORMAT_UNKNOWN };
 
 	if (pDesc1 == nullptr || pDesc1->Format == DXGI_FORMAT_UNKNOWN)
 	{
@@ -548,7 +554,8 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateShaderResourceView1(ID3D11Resource 
 			if (texture_desc.SampleDesc.Count == 1 &&
 				0 != (texture_desc.BindFlags & D3D11_BIND_DEPTH_STENCIL))
 			{
-				new_desc.Format = make_dxgi_format_normal(texture_desc.Format);
+				if (new_desc.Format == DXGI_FORMAT_UNKNOWN)
+					new_desc.Format  = make_dxgi_format_normal(texture_desc.Format);
 
 				if (pDesc1 == nullptr)
 				{
