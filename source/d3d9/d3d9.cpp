@@ -155,7 +155,7 @@ HRESULT STDMETHODCALLTYPE IDirect3D9_CreateDevice(IDirect3D9 *pD3D, UINT Adapter
 {
 	LOG(INFO) << "Redirecting IDirect3D9::CreateDevice" << '('
 		<<   "this = " << pD3D
-		<< ", pAdapter = " << Adapter
+		<< ", Adapter = " << Adapter
 		<< ", DeviceType = " << DeviceType
 		<< ", hFocusWindow = " << hFocusWindow
 		<< ", BehaviorFlags = " << std::hex << BehaviorFlags << std::dec

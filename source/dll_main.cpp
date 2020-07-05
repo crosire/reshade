@@ -6,6 +6,7 @@
 #include "dll_log.hpp"
 #include "hook_manager.hpp"
 #include "version.h"
+#include <cassert>
 #include <Psapi.h>
 #include <Windows.h>
 
