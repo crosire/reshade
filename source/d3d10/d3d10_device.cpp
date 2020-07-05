@@ -432,9 +432,7 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateShaderResourceView(ID3D10Resource *
 			if (texture_desc.SampleDesc.Count == 1 &&
 				0 != (texture_desc.BindFlags & D3D10_BIND_DEPTH_STENCIL))
 			{
-				// Do not replace format if application already provided one (since we can assume it is not typeless then)
-				if (new_desc.Format == DXGI_FORMAT_UNKNOWN)
-					new_desc.Format  = make_dxgi_format_normal(texture_desc.Format);
+				new_desc.Format = make_dxgi_format_normal(texture_desc.Format);
 
 				if (pDesc == nullptr) // Only need to set the rest of the fields if the application did not pass in a valid description already
 				{
@@ -491,9 +489,7 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateDepthStencilView(ID3D10Resource *pR
 			{
 				assert((texture_desc.BindFlags & D3D10_BIND_DEPTH_STENCIL) != 0);
 
-				// Do not replace format if application already provided one (since we can assume it is not typeless then)
-				if (new_desc.Format == DXGI_FORMAT_UNKNOWN)
-					new_desc.Format  = make_dxgi_format_dsv(texture_desc.Format);
+				new_desc.Format = make_dxgi_format_dsv(texture_desc.Format);
 
 				if (pDesc == nullptr) // Only need to set the rest of the fields if the application did not pass in a valid description already
 				{
@@ -623,8 +619,7 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateShaderResourceView1(ID3D10Resource 
 			if (texture_desc.SampleDesc.Count == 1 &&
 				0 != (texture_desc.BindFlags & D3D10_BIND_DEPTH_STENCIL))
 			{
-				if (new_desc.Format == DXGI_FORMAT_UNKNOWN)
-					new_desc.Format  = make_dxgi_format_normal(texture_desc.Format);
+				new_desc.Format = make_dxgi_format_normal(texture_desc.Format);
 
 				if (pDesc == nullptr)
 				{
