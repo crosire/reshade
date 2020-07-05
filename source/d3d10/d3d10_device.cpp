@@ -387,6 +387,22 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateTexture2D(const D3D10_TEXTURE2D_DES
 	if (FAILED(hr))
 	{
 		LOG(WARN) << "ID3D10Device::CreateTexture2D failed with error code " << hr << '.';
+#if RESHADE_VERBOSE_LOG
+		LOG(DEBUG) << "> Dumping description:";
+		LOG(DEBUG) << "  +-----------------------------------------+-----------------------------------------+";
+		LOG(DEBUG) << "  | Width                                   | " << std::setw(39) << new_desc.Width << " |";
+		LOG(DEBUG) << "  | Height                                  | " << std::setw(39) << new_desc.Height << " |";
+		LOG(DEBUG) << "  | MipLevels                               | " << std::setw(39) << new_desc.MipLevels << " |";
+		LOG(DEBUG) << "  | ArraySize                               | " << std::setw(39) << new_desc.ArraySize << " |";
+		LOG(DEBUG) << "  | Format                                  | " << std::setw(39) << new_desc.Format << " |";
+		LOG(DEBUG) << "  | SampleCount                             | " << std::setw(39) << new_desc.SampleDesc.Count << " |";
+		LOG(DEBUG) << "  | SampleQuality                           | " << std::setw(39) << new_desc.SampleDesc.Quality << " |";
+		LOG(DEBUG) << "  | Usage                                   | " << std::setw(39) << new_desc.Usage << " |";
+		LOG(DEBUG) << "  | BindFlags                               | " << std::setw(39) << std::hex << new_desc.BindFlags << std::dec << " |";
+		LOG(DEBUG) << "  | CPUAccessFlags                          | " << std::setw(39) << std::hex << new_desc.CPUAccessFlags << std::dec << " |";
+		LOG(DEBUG) << "  | MiscFlags                               | " << std::setw(39) << std::hex << new_desc.MiscFlags << std::dec << " |";
+		LOG(DEBUG) << "  +-----------------------------------------+-----------------------------------------+";
+#endif
 	}
 
 	return hr;
@@ -438,6 +454,13 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateShaderResourceView(ID3D10Resource *
 	if (FAILED(hr))
 	{
 		LOG(WARN) << "ID3D10Device::CreateShaderResourceView failed with error code " << hr << '.';
+#if RESHADE_VERBOSE_LOG
+		LOG(DEBUG) << "> Dumping description:";
+		LOG(DEBUG) << "  +-----------------------------------------+-----------------------------------------+";
+		LOG(DEBUG) << "  | Format                                  | " << std::setw(39) << new_desc.Format << " |";
+		LOG(DEBUG) << "  | ViewDimension                           | " << std::setw(39) << new_desc.ViewDimension << " |";
+		LOG(DEBUG) << "  +-----------------------------------------+-----------------------------------------+";
+#endif
 	}
 
 	return hr;
@@ -489,6 +512,13 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateDepthStencilView(ID3D10Resource *pR
 	if (FAILED(hr))
 	{
 		LOG(WARN) << "ID3D10Device::CreateDepthStencilView failed with error code " << hr << '.';
+#if RESHADE_VERBOSE_LOG
+		LOG(DEBUG) << "> Dumping description:";
+		LOG(DEBUG) << "  +-----------------------------------------+-----------------------------------------+";
+		LOG(DEBUG) << "  | Format                                  | " << std::setw(39) << new_desc.Format << " |";
+		LOG(DEBUG) << "  | ViewDimension                           | " << std::setw(39) << new_desc.ViewDimension << " |";
+		LOG(DEBUG) << "  +-----------------------------------------+-----------------------------------------+";
+#endif
 	}
 
 	return hr;
@@ -614,6 +644,13 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateShaderResourceView1(ID3D10Resource 
 	if (FAILED(hr))
 	{
 		LOG(WARN) << "ID3D10Device1::CreateShaderResourceView1 failed with error code " << hr << '.';
+#if RESHADE_VERBOSE_LOG
+		LOG(DEBUG) << "> Dumping description:";
+		LOG(DEBUG) << "  +-----------------------------------------+-----------------------------------------+";
+		LOG(DEBUG) << "  | Format                                  | " << std::setw(39) << new_desc.Format << " |";
+		LOG(DEBUG) << "  | ViewDimension                           | " << std::setw(39) << new_desc.ViewDimension << " |";
+		LOG(DEBUG) << "  +-----------------------------------------+-----------------------------------------+";
+#endif
 	}
 
 	return hr;
