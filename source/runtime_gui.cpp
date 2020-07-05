@@ -1770,7 +1770,7 @@ void reshade::runtime::draw_preset_explorer()
 		switch_to_next_preset(_current_browse_path, false);
 
 	ImGui::SameLine(0, button_spacing);
-	const ImVec2 popup_pos = ImGui::GetCursorScreenPos() - _imgui_context->Style.WindowPadding;
+	const ImVec2 popup_pos = ImGui::GetCursorScreenPos() + ImVec2(-_imgui_context->Style.WindowPadding.x, ImGui::GetFrameHeightWithSpacing());
 
 	ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2(0.0f, 0.5f));
 	if (ImGui::ButtonEx(_current_preset_path.stem().u8string().c_str(), ImVec2(browse_button_width, 0), button_flags))
