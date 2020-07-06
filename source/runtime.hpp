@@ -350,7 +350,6 @@ namespace reshade
 		ImGuiContext *_imgui_context = nullptr;
 		std::unique_ptr<texture> _imgui_font_atlas;
 		std::vector<std::pair<std::string, std::function<void()>>> _menu_callables;
-		std::string _window_state_path;
 		bool _show_menu = false;
 		bool _show_clock = false;
 		bool _show_fps = false;
@@ -368,7 +367,7 @@ namespace reshade
 		// === User Interface - Home ===
 		char _effect_filter[64] = {};
 		bool _variable_editor_tabs = false;
-		bool _browse_path_is_input_mode = false;
+		bool _duplicate_current_preset = false;
 		bool _was_preprocessor_popup_edited = false;
 		size_t _focused_effect = std::numeric_limits<size_t>::max();
 		size_t _selected_effect = std::numeric_limits<size_t>::max();

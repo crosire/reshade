@@ -68,6 +68,12 @@ static void dump_and_modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC &desc)
 			desc.Windowed = TRUE;
 		}
 
+		if (bool force_fullscreen;
+			config.get("APP", "ForceFullscreen", force_fullscreen) && force_fullscreen)
+		{
+			desc.Windowed = FALSE;
+		}
+
 		if (unsigned int force_resolution[2];
 			config.get("APP", "ForceResolution", force_resolution) && force_resolution[0] != 0 && force_resolution[1] != 0)
 		{
@@ -82,7 +88,7 @@ static void dump_and_modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC &desc)
 		}
 	}
 }
-static bool dump_and_modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC1 &desc)
+static void dump_and_modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC1 &desc, DXGI_SWAP_CHAIN_FULLSCREEN_DESC &fullscreen_desc)
 {
 	LOG(INFO) << "> Dumping swap chain description:";
 	LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
@@ -90,12 +96,15 @@ static bool dump_and_modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC1 &desc)
 	LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
 	LOG(INFO) << "  | Width                                   | " << std::setw(39) << desc.Width   << " |";
 	LOG(INFO) << "  | Height                                  | " << std::setw(39) << desc.Height  << " |";
+	LOG(INFO) << "  | RefreshRate                             | " << std::setw(19) << fullscreen_desc.RefreshRate.Numerator << ' ' << std::setw(19) << fullscreen_desc.RefreshRate.Denominator << " |";
 	LOG(INFO) << "  | Format                                  | " << std::setw(39) << desc.Format  << " |";
 	LOG(INFO) << "  | Stereo                                  | " << std::setw(39) << (desc.Stereo ? "TRUE" : "FALSE") << " |";
+	LOG(INFO) << "  | ScanlineOrdering                        | " << std::setw(39) << fullscreen_desc.ScanlineOrdering << " |";
+	LOG(INFO) << "  | Scaling                                 | " << std::setw(39) << fullscreen_desc.Scaling << " |";
 	dump_sample_desc(desc.SampleDesc);
 	LOG(INFO) << "  | BufferUsage                             | " << std::setw(39) << desc.BufferUsage << " |";
 	LOG(INFO) << "  | BufferCount                             | " << std::setw(39) << desc.BufferCount << " |";
-	LOG(INFO) << "  | Scaling                                 | " << std::setw(39) << desc.Scaling     << " |";
+	LOG(INFO) << "  | Windowed                                | " << std::setw(39) << (fullscreen_desc.Windowed ? "TRUE" : "FALSE") << " |";
 	LOG(INFO) << "  | SwapEffect                              | " << std::setw(39) << desc.SwapEffect  << " |";
 	LOG(INFO) << "  | AlphaMode                               | " << std::setw(39) << desc.AlphaMode   << " |";
 	LOG(INFO) << "  | Flags                                   | " << std::setw(39) << std::hex << desc.Flags << std::dec << " |";
@@ -103,8 +112,17 @@ static bool dump_and_modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC1 &desc)
 
 	{ const reshade::ini_file config(g_reshade_config_path);
 
-		bool force_windowed = false;
-		config.get("APP", "ForceWindowed", force_windowed);
+		if (bool force_windowed;
+			config.get("APP", "ForceWindowed", force_windowed) && force_windowed)
+		{
+			fullscreen_desc.Windowed = TRUE;
+		}
+
+		if (bool force_fullscreen;
+			config.get("APP", "ForceFullscreen", force_fullscreen) && force_fullscreen)
+		{
+			fullscreen_desc.Windowed = FALSE;
+		}
 
 		if (unsigned int force_resolution[2];
 			config.get("APP", "ForceResolution", force_resolution) && force_resolution[0] != 0 && force_resolution[1] != 0)
@@ -118,8 +136,6 @@ static bool dump_and_modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC1 &desc)
 		{
 			desc.Format = DXGI_FORMAT_R10G10B10A2_UNORM;
 		}
-
-		return force_windowed;
 	}
 }
 
@@ -271,14 +287,18 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForHwnd(IDXGIFactory2 *pF
 		return DXGI_ERROR_INVALID_CALL;
 
 	DXGI_SWAP_CHAIN_DESC1 desc = *pDesc;
-	if (dump_and_modify_swapchain_desc(desc))
-		pFullscreenDesc = nullptr;
+	DXGI_SWAP_CHAIN_FULLSCREEN_DESC fullscreen_desc = {};
+	if (pFullscreenDesc != nullptr)
+		fullscreen_desc = *pFullscreenDesc;
+	else
+		fullscreen_desc.Windowed = TRUE;
+	dump_and_modify_swapchain_desc(desc, fullscreen_desc);
 
 	com_ptr<IUnknown> device_proxy;
 	const UINT direct3d_version = query_device(pDevice, device_proxy);
 
 	g_in_dxgi_runtime = true;
-	const HRESULT hr = reshade::hooks::call(IDXGIFactory2_CreateSwapChainForHwnd, vtable_from_instance(pFactory) + 15)(pFactory, pDevice, hWnd, &desc, pFullscreenDesc, pRestrictToOutput, ppSwapChain);
+	const HRESULT hr = reshade::hooks::call(IDXGIFactory2_CreateSwapChainForHwnd, vtable_from_instance(pFactory) + 15)(pFactory, pDevice, hWnd, &desc, fullscreen_desc.Windowed ? nullptr : &fullscreen_desc, pRestrictToOutput, ppSwapChain);
 	g_in_dxgi_runtime = false;
 	if (FAILED(hr))
 	{
@@ -305,7 +325,8 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForCoreWindow(IDXGIFactor
 		return DXGI_ERROR_INVALID_CALL;
 
 	DXGI_SWAP_CHAIN_DESC1 desc = *pDesc;
-	dump_and_modify_swapchain_desc(desc);
+	DXGI_SWAP_CHAIN_FULLSCREEN_DESC fullscreen_desc; // UWP applications cannot be set into fullscreen mode
+	dump_and_modify_swapchain_desc(desc, fullscreen_desc);
 
 	com_ptr<IUnknown> device_proxy;
 	const UINT direct3d_version = query_device(pDevice, device_proxy);
@@ -342,7 +363,8 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForComposition(IDXGIFacto
 		return DXGI_ERROR_INVALID_CALL;
 
 	DXGI_SWAP_CHAIN_DESC1 desc = *pDesc;
-	dump_and_modify_swapchain_desc(desc);
+	DXGI_SWAP_CHAIN_FULLSCREEN_DESC fullscreen_desc; // Composition swap chains cannot be set into fullscreen mode
+	dump_and_modify_swapchain_desc(desc, fullscreen_desc);
 
 	com_ptr<IUnknown> device_proxy;
 	const UINT direct3d_version = query_device(pDevice, device_proxy);

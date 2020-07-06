@@ -14,7 +14,7 @@
 #undef IDirect3D9_CreateDevice
 #undef IDirect3D9Ex_CreateDeviceEx
 
-void dump_and_modify_present_parameters(D3DPRESENT_PARAMETERS &pp)
+void dump_and_modify_present_parameters(D3DPRESENT_PARAMETERS &pp, IDirect3D9 *d3d, UINT adapter_index)
 {
 	LOG(INFO) << "> Dumping presentation parameters:";
 	LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
@@ -51,6 +51,19 @@ void dump_and_modify_present_parameters(D3DPRESENT_PARAMETERS &pp)
 			pp.FullScreen_RefreshRateInHz = 0;
 		}
 
+		if (bool force_fullscreen;
+			config.get("APP", "ForceFullscreen", force_fullscreen) && force_fullscreen)
+		{
+			D3DDISPLAYMODE current_mode = {};
+			d3d->GetAdapterDisplayMode(adapter_index, &current_mode);
+
+			pp.BackBufferWidth = current_mode.Width;
+			pp.BackBufferHeight = current_mode.Height;
+			pp.BackBufferFormat = current_mode.Format;
+			pp.Windowed = FALSE;
+			pp.FullScreen_RefreshRateInHz = current_mode.RefreshRate;
+		}
+
 		if (unsigned int force_resolution[2];
 			config.get("APP", "ForceResolution", force_resolution) && force_resolution[0] != 0 && force_resolution[1] != 0)
 		{
@@ -63,6 +76,21 @@ void dump_and_modify_present_parameters(D3DPRESENT_PARAMETERS &pp)
 		{
 			pp.BackBufferFormat = D3DFMT_A2R10G10B10;
 		}
+	}
+}
+void dump_and_modify_present_parameters(D3DPRESENT_PARAMETERS &pp, D3DDISPLAYMODEEX &fullscreen_desc, IDirect3D9Ex *d3d, UINT adapter_index)
+{
+	dump_and_modify_present_parameters(pp, d3d, adapter_index);
+
+	assert(fullscreen_desc.Size == sizeof(D3DDISPLAYMODEEX));
+
+	// Update fullscreen display mode in case it was not provided by the application
+	if (!pp.Windowed && fullscreen_desc.RefreshRate == 0)
+	{
+		fullscreen_desc.Width = pp.BackBufferWidth;
+		fullscreen_desc.Height = pp.BackBufferHeight;
+		fullscreen_desc.RefreshRate = pp.FullScreen_RefreshRateInHz;
+		fullscreen_desc.Format = pp.BackBufferFormat;
 	}
 }
 
@@ -127,7 +155,7 @@ HRESULT STDMETHODCALLTYPE IDirect3D9_CreateDevice(IDirect3D9 *pD3D, UINT Adapter
 {
 	LOG(INFO) << "Redirecting IDirect3D9::CreateDevice" << '('
 		<<   "this = " << pD3D
-		<< ", pAdapter = " << Adapter
+		<< ", Adapter = " << Adapter
 		<< ", DeviceType = " << DeviceType
 		<< ", hFocusWindow = " << hFocusWindow
 		<< ", BehaviorFlags = " << std::hex << BehaviorFlags << std::dec
@@ -145,7 +173,7 @@ HRESULT STDMETHODCALLTYPE IDirect3D9_CreateDevice(IDirect3D9 *pD3D, UINT Adapter
 	}
 
 	D3DPRESENT_PARAMETERS pp = *pPresentationParameters;
-	dump_and_modify_present_parameters(pp);
+	dump_and_modify_present_parameters(pp, pD3D, Adapter);
 
 	const bool use_software_rendering = (BehaviorFlags & D3DCREATE_SOFTWARE_VERTEXPROCESSING) != 0;
 	if (use_software_rendering)
@@ -155,6 +183,12 @@ HRESULT STDMETHODCALLTYPE IDirect3D9_CreateDevice(IDirect3D9 *pD3D, UINT Adapter
 	}
 
 	const HRESULT hr = reshade::hooks::call(IDirect3D9_CreateDevice, vtable_from_instance(pD3D) + 16)(pD3D, Adapter, DeviceType, hFocusWindow, BehaviorFlags, &pp, ppReturnedDeviceInterface);
+	// Update output values (see https://docs.microsoft.com/windows/win32/api/d3d9/nf-d3d9-idirect3d9-createdevice)
+	pPresentationParameters->BackBufferWidth = pp.BackBufferWidth;
+	pPresentationParameters->BackBufferHeight = pp.BackBufferHeight;
+	pPresentationParameters->BackBufferFormat = pp.BackBufferFormat;
+	pPresentationParameters->BackBufferCount = pp.BackBufferCount;
+
 	if (FAILED(hr))
 	{
 		LOG(WARN) << "IDirect3D9::CreateDevice failed with error code " << hr << '!';
@@ -189,7 +223,10 @@ HRESULT STDMETHODCALLTYPE IDirect3D9Ex_CreateDeviceEx(IDirect3D9Ex *pD3D, UINT A
 	}
 
 	D3DPRESENT_PARAMETERS pp = *pPresentationParameters;
-	dump_and_modify_present_parameters(pp);
+	D3DDISPLAYMODEEX fullscreen_mode = { sizeof(fullscreen_mode) };
+	if (pFullscreenDisplayMode != nullptr)
+		fullscreen_mode = *pFullscreenDisplayMode;
+	dump_and_modify_present_parameters(pp, fullscreen_mode, pD3D, Adapter);
 
 	const bool use_software_rendering = (BehaviorFlags & D3DCREATE_SOFTWARE_VERTEXPROCESSING) != 0;
 	if (use_software_rendering)
@@ -198,7 +235,12 @@ HRESULT STDMETHODCALLTYPE IDirect3D9Ex_CreateDeviceEx(IDirect3D9Ex *pD3D, UINT A
 		BehaviorFlags = (BehaviorFlags & ~D3DCREATE_SOFTWARE_VERTEXPROCESSING) | D3DCREATE_MIXED_VERTEXPROCESSING;
 	}
 
-	const HRESULT hr = reshade::hooks::call(IDirect3D9Ex_CreateDeviceEx, vtable_from_instance(pD3D) + 20)(pD3D, Adapter, DeviceType, hFocusWindow, BehaviorFlags, &pp, pFullscreenDisplayMode, ppReturnedDeviceInterface);
+	const HRESULT hr = reshade::hooks::call(IDirect3D9Ex_CreateDeviceEx, vtable_from_instance(pD3D) + 20)(pD3D, Adapter, DeviceType, hFocusWindow, BehaviorFlags, &pp, pp.Windowed ? nullptr : &fullscreen_mode, ppReturnedDeviceInterface);
+	pPresentationParameters->BackBufferWidth = pp.BackBufferWidth;
+	pPresentationParameters->BackBufferHeight = pp.BackBufferHeight;
+	pPresentationParameters->BackBufferFormat = pp.BackBufferFormat;
+	pPresentationParameters->BackBufferCount = pp.BackBufferCount;
+
 	if (FAILED(hr))
 	{
 		LOG(WARN) << "IDirect3D9Ex::CreateDeviceEx failed with error code " << hr << '!';

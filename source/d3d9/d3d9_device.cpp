@@ -8,7 +8,8 @@
 #include "d3d9_swapchain.hpp"
 #include "runtime_d3d9.hpp"
 
-extern void dump_and_modify_present_parameters(D3DPRESENT_PARAMETERS &pp);
+extern void dump_and_modify_present_parameters(D3DPRESENT_PARAMETERS &pp, IDirect3D9 *d3d, UINT adapter_index);
+extern void dump_and_modify_present_parameters(D3DPRESENT_PARAMETERS &pp, D3DDISPLAYMODEEX &fullscreen_desc, IDirect3D9Ex *d3d, UINT adapter_index);
 
 Direct3DDevice9::Direct3DDevice9(IDirect3DDevice9 *original, bool use_software_rendering) :
 	_orig(original),
@@ -145,10 +146,22 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateAdditionalSwapChain(D3DPRESENT_
 	if (pPresentationParameters == nullptr)
 		return D3DERR_INVALIDCALL;
 
+	com_ptr<IDirect3D9> d3d;
+	_orig->GetDirect3D(&d3d);
+	D3DDEVICE_CREATION_PARAMETERS cp = {};
+	_orig->GetCreationParameters(&cp);
+
 	D3DPRESENT_PARAMETERS pp = *pPresentationParameters;
-	dump_and_modify_present_parameters(pp);
+	dump_and_modify_present_parameters(pp, d3d.get(), cp.AdapterOrdinal);
+	d3d.reset();
 
 	const HRESULT hr = _orig->CreateAdditionalSwapChain(&pp, ppSwapChain);
+	// Update output values (see https://docs.microsoft.com/windows/win32/api/d3d9/nf-d3d9-idirect3ddevice9-createadditionalswapchain)
+	pPresentationParameters->BackBufferWidth = pp.BackBufferWidth;
+	pPresentationParameters->BackBufferHeight = pp.BackBufferHeight;
+	pPresentationParameters->BackBufferFormat = pp.BackBufferFormat;
+	pPresentationParameters->BackBufferCount = pp.BackBufferCount;
+
 	if (FAILED(hr))
 	{
 		LOG(WARN) << "IDirect3DDevice9::CreateAdditionalSwapChain failed with error code " << hr << '!';
@@ -206,8 +219,14 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::Reset(D3DPRESENT_PARAMETERS *pPresent
 	if (pPresentationParameters == nullptr)
 		return D3DERR_INVALIDCALL;
 
+	com_ptr<IDirect3D9> d3d;
+	_orig->GetDirect3D(&d3d);
+	D3DDEVICE_CREATION_PARAMETERS cp = {};
+	_orig->GetCreationParameters(&cp);
+
 	D3DPRESENT_PARAMETERS pp = *pPresentationParameters;
-	dump_and_modify_present_parameters(pp);
+	dump_and_modify_present_parameters(pp, d3d.get(), cp.AdapterOrdinal);
+	d3d.reset();
 
 	const auto runtime = _implicit_swapchain->_runtime;
 	runtime->on_reset();
@@ -216,6 +235,12 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::Reset(D3DPRESENT_PARAMETERS *pPresent
 	_auto_depthstencil.reset();
 
 	const HRESULT hr = _orig->Reset(&pp);
+	// Update output values (see https://docs.microsoft.com/windows/win32/api/d3d9/nf-d3d9-idirect3ddevice9-reset)
+	pPresentationParameters->BackBufferWidth = pp.BackBufferWidth;
+	pPresentationParameters->BackBufferHeight = pp.BackBufferHeight;
+	pPresentationParameters->BackBufferFormat = pp.BackBufferFormat;
+	pPresentationParameters->BackBufferCount = pp.BackBufferCount;
+
 	if (FAILED(hr))
 	{
 		LOG(ERROR) << "IDirect3DDevice9::Reset failed with error code " << hr << '!';
@@ -794,8 +819,20 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::ResetEx(D3DPRESENT_PARAMETERS *pPrese
 	if (pPresentationParameters == nullptr)
 		return D3DERR_INVALIDCALL;
 
+	com_ptr<IDirect3D9> d3d;
+	_orig->GetDirect3D(&d3d);
+	com_ptr<IDirect3D9Ex> d3dex;
+	d3d->QueryInterface(IID_PPV_ARGS(&d3dex));
+	D3DDEVICE_CREATION_PARAMETERS cp = {};
+	_orig->GetCreationParameters(&cp);
+
 	D3DPRESENT_PARAMETERS pp = *pPresentationParameters;
-	dump_and_modify_present_parameters(pp);
+	D3DDISPLAYMODEEX fullscreen_mode = { sizeof(fullscreen_mode) };
+	if (pFullscreenDisplayMode != nullptr)
+		fullscreen_mode = *pFullscreenDisplayMode;
+	dump_and_modify_present_parameters(pp, fullscreen_mode, d3dex.get(), cp.AdapterOrdinal);
+	d3d.reset();
+	d3dex.reset();
 
 	const auto runtime = _implicit_swapchain->_runtime;
 	runtime->on_reset();
@@ -804,7 +841,12 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::ResetEx(D3DPRESENT_PARAMETERS *pPrese
 	_auto_depthstencil.reset();
 
 	assert(_extended_interface);
-	const HRESULT hr = static_cast<IDirect3DDevice9Ex *>(_orig)->ResetEx(&pp, pFullscreenDisplayMode);
+	const HRESULT hr = static_cast<IDirect3DDevice9Ex *>(_orig)->ResetEx(&pp, pp.Windowed ? nullptr : &fullscreen_mode);
+	pPresentationParameters->BackBufferWidth = pp.BackBufferWidth;
+	pPresentationParameters->BackBufferHeight = pp.BackBufferHeight;
+	pPresentationParameters->BackBufferFormat = pp.BackBufferFormat;
+	pPresentationParameters->BackBufferCount = pp.BackBufferCount;
+
 	if (FAILED(hr))
 	{
 		LOG(ERROR) << "IDirect3DDevice9Ex::ResetEx failed with error code " << hr << '!';

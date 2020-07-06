@@ -54,9 +54,6 @@ ULONG   STDMETHODCALLTYPE D3D11CommandList::Release()
 	if (ref_orig != 0)
 		LOG(WARN) << "Reference count for ID3D11CommandList object " << this << " is inconsistent.";
 
-#if RESHADE_VERBOSE_LOG
-	LOG(DEBUG) << "Destroyed ID3D11CommandList object " << this << '.';
-#endif
 	delete this;
 
 	return 0;

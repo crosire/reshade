@@ -15,7 +15,9 @@
 #include <cassert>
 #include <fstream>
 #include <algorithm>
+#include <shellapi.h>
 
+static std::string g_window_state_path;
 extern volatile long g_network_traffic;
 extern std::filesystem::path g_reshade_dll_path;
 extern std::filesystem::path g_target_executable_path;
@@ -25,9 +27,12 @@ static const ImVec4 COLOR_YELLOW = ImColor(204, 204, 0);
 
 void reshade::runtime::init_ui()
 {
-	std::filesystem::path reshadegui_ini_path = _configuration_path;
-	reshadegui_ini_path.replace_filename("ReShadeGUI.ini");
-	_window_state_path = reshadegui_ini_path.u8string();
+	if (g_window_state_path.empty())
+	{
+		std::filesystem::path reshadegui_ini_path = g_reshade_config_path;
+		reshadegui_ini_path.replace_filename("ReShadeGUI.ini");
+		g_window_state_path = reshadegui_ini_path.u8string();
+	}
 
 	// Default shortcut: Home
 	_menu_key_data[0] = 0x24;
@@ -97,6 +102,7 @@ void reshade::runtime::init_ui()
 		config.get("GENERAL", "SaveWindowState", save_imgui_window_state);
 		config.get("GENERAL", "TutorialProgress", _tutorial_index);
 		config.get("GENERAL", "NewVariableUI", _variable_editor_tabs);
+		config.get("GENERAL", "VariableUIHeight", _variable_editor_height);
 
 		config.get("STYLE", "Alpha", _imgui_context->Style.Alpha);
 		config.get("STYLE", "GrabRounding", _imgui_context->Style.GrabRounding);
@@ -115,7 +121,7 @@ void reshade::runtime::init_ui()
 		config.get("STYLE", "StyleIndex", _style_index);
 		config.get("STYLE", "EditorStyleIndex", _editor_style_index);
 
-		_imgui_context->IO.IniFilename = save_imgui_window_state ? _window_state_path.c_str() : nullptr;
+		_imgui_context->IO.IniFilename = save_imgui_window_state ? g_window_state_path.c_str() : nullptr;
 
 		// For compatibility with older versions, set the alpha value if it is missing
 		if (_fps_col[3] == 0.0f) _fps_col[3] = 1.0f;
@@ -334,6 +340,7 @@ void reshade::runtime::init_ui()
 		config.set("GENERAL", "SaveWindowState", _imgui_context->IO.IniFilename != nullptr);
 		config.set("GENERAL", "TutorialProgress", _tutorial_index);
 		config.set("GENERAL", "NewVariableUI", _variable_editor_tabs);
+		config.set("GENERAL", "VariableUIHeight", _variable_editor_height);
 
 		config.set("STYLE", "Alpha", _imgui_context->Style.Alpha);
 		config.set("STYLE", "GrabRounding", _imgui_context->Style.GrabRounding);
@@ -931,7 +938,10 @@ void reshade::runtime::draw_ui_home()
 		if (ImGui::IsItemHovered())
 			ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeNS);
 		if (ImGui::IsItemActive())
+		{
 			_variable_editor_height -= _imgui_context->IO.MouseDelta.y;
+			save_config();
+		}
 
 		if (_tutorial_index == 3)
 		{
@@ -1076,7 +1086,7 @@ void reshade::runtime::draw_ui_settings()
 		if (ImGui::Checkbox("Save window state (ReShadeGUI.ini)", &save_imgui_window_state))
 		{
 			modified = true;
-			_imgui_context->IO.IniFilename = save_imgui_window_state ? _window_state_path.c_str() : nullptr;
+			_imgui_context->IO.IniFilename = save_imgui_window_state ? g_window_state_path.c_str() : nullptr;
 		}
 
 		modified |= ImGui::Checkbox("Group effect files with tabs instead of a tree", &_variable_editor_tabs);
@@ -1544,7 +1554,7 @@ void reshade::runtime::draw_ui_log()
 		{
 			for (int i = clipper.DisplayStart; i < clipper.DisplayEnd; ++i)
 			{
-				ImVec4 textcol = _imgui_context->Style.Colors[ImGuiCol_Text];
+				ImVec4 textcol = ImGui::GetStyleColorVec4(ImGuiCol_Text);
 
 				if (_log_lines[i].find("ERROR |") != std::string::npos || _log_lines[i].find("error") != std::string::npos)
 					textcol = COLOR_RED;
@@ -1739,321 +1749,193 @@ void reshade::runtime::draw_code_editor()
 
 void reshade::runtime::draw_preset_explorer()
 {
-	static const std::filesystem::path reshade_container_path = g_reshade_dll_path.parent_path();
-	const ImVec2 cursor_pos = ImGui::GetCursorScreenPos();
 	const float button_size = ImGui::GetFrameHeight();
 	const float button_spacing = _imgui_context->Style.ItemInnerSpacing.x;
-	const float root_window_width = ImGui::GetWindowContentRegionWidth();
+	const float browse_button_width = ImGui::GetWindowContentRegionWidth() - (button_spacing + button_size) * 3;
 
 	std::error_code ec;
+	bool reload_preset = false;
 
-	enum class condition { pass, select, popup_add, create, backward, forward, reload, cancel };
-	condition condition = condition::pass;
-
+	ImGuiButtonFlags button_flags = ImGuiButtonFlags_NoNavFocus;
 	if (is_loading())
+	{
+		button_flags |= ImGuiButtonFlags_Disabled;
 		ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
+	}
 
-	if (ImGui::ButtonEx("<", ImVec2(button_size, 0), ImGuiButtonFlags_NoNavFocus | (is_loading() ? ImGuiButtonFlags_Disabled : 0)))
-		if (condition = condition::backward, _current_browse_path = _current_preset_path.parent_path().lexically_proximate(reshade_container_path);
-			_current_browse_path == L".")
-			_current_browse_path.clear();
+	if (ImGui::ButtonEx("<", ImVec2(button_size, 0), button_flags))
+		switch_to_next_preset(_current_browse_path, true);
+	ImGui::SameLine(0, button_spacing);
+	if (ImGui::ButtonEx(">", ImVec2(button_size, 0), button_flags))
+		switch_to_next_preset(_current_browse_path, false);
 
-	if (ImGui::SameLine(0, button_spacing);
-		ImGui::ButtonEx(">", ImVec2(button_size, 0), ImGuiButtonFlags_NoNavFocus | (is_loading() ? ImGuiButtonFlags_Disabled : 0)))
-		if (condition = condition::forward, _current_browse_path = _current_preset_path.parent_path().lexically_proximate(reshade_container_path);
-			_current_browse_path == L".")
-			_current_browse_path.clear();
+	ImGui::SameLine(0, button_spacing);
+	const ImVec2 popup_pos = ImGui::GetCursorScreenPos() + ImVec2(-_imgui_context->Style.WindowPadding.x, ImGui::GetFrameHeightWithSpacing());
+
+	ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2(0.0f, 0.5f));
+	if (ImGui::ButtonEx(_current_preset_path.stem().u8string().c_str(), ImVec2(browse_button_width, 0), button_flags))
+		ImGui::OpenPopup("##explore");
+	ImGui::PopStyleVar();
+
+	ImGui::SameLine(0, button_spacing);
+	if (ImGui::ButtonEx("+", ImVec2(button_size, 0), button_flags | ImGuiButtonFlags_PressedOnClick))
+	{
+		ImGui::OpenPopup("##name");
+
+		// Reset base path for new preset
+		_current_browse_path = _current_preset_path.parent_path();
+	}
 
 	if (is_loading())
 		ImGui::PopStyleColor();
 
-	ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2(0.0f, 0.5f));
-	if (ImGui::SameLine(0, button_spacing);
-		ImGui::ButtonEx(_current_preset_path.stem().u8string().c_str(), ImVec2(root_window_width - (button_spacing + button_size) * 3, 0), ImGuiButtonFlags_NoNavFocus))
-		if (ImGui::OpenPopup("##explore"), _browse_path_is_input_mode = _imgui_context->IO.KeyCtrl,
-			_current_browse_path = _current_preset_path.parent_path().lexically_proximate(reshade_container_path);
-			_current_browse_path == L".")
-			_current_browse_path.clear();
-		else if (_current_browse_path.has_filename())
-			_current_browse_path += L'\\';
-	ImGui::PopStyleVar();
-
-	if (ImGui::SameLine(0, button_spacing); ImGui::ButtonEx("+", ImVec2(button_size, 0), ImGuiButtonFlags_PressedOnClick | ImGuiButtonFlags_NoNavFocus))
-		condition = condition::popup_add, _current_browse_path = _current_preset_path.parent_path();
-
-	ImGui::SetNextWindowPos(cursor_pos - _imgui_context->Style.WindowPadding);
-	const bool is_explore_open = ImGui::BeginPopup("##explore");
-
-	if (_browse_path_is_input_mode && !is_explore_open)
-		_browse_path_is_input_mode = false;
-
-	if (is_explore_open)
+	if (ImGui::BeginPopup("##explore"))
 	{
-		const bool is_popup_open = ImGui::IsPopupOpen("##name");
-		bool browse_path_is_editing = false;
+		ImGui::SetWindowPos(popup_pos);
 
-		if (is_loading())
-			ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
+		char buf[260] = "";
+		_current_browse_path.u8string().copy(buf, sizeof(buf) - 1);
+		if (ImGui::InputTextEx("##path", nullptr, buf, sizeof(buf), ImVec2(browse_button_width, 0), ImGuiInputTextFlags_None))
+			_current_browse_path = std::filesystem::u8path(buf);
 
-		if (ImGui::ButtonEx("<", ImVec2(button_size, 0), ImGuiButtonFlags_NoNavFocus | (is_loading() ? ImGuiButtonFlags_Disabled : 0)))
-			condition = condition::backward;
+		if (ImGui::IsItemActivated())
+			_imgui_context->InputTextState.ClearSelection();
+		if (ImGui::IsWindowAppearing())
+			ImGui::SetKeyboardFocusHere();
 
-		if (ImGui::SameLine(0, button_spacing);
-			ImGui::ButtonEx(">", ImVec2(button_size, 0), ImGuiButtonFlags_NoNavFocus | (is_loading() ? ImGuiButtonFlags_Disabled : 0)))
-			condition = condition::forward;
+		// This sets the browse path the first time the popup is opened too
+		if (_current_browse_path.empty() || !_current_browse_path.is_absolute())
+			_current_browse_path = _current_preset_path.empty() ?
+				_configuration_path.parent_path() : _current_preset_path.parent_path();
 
-		if (is_loading())
-			ImGui::PopStyleColor();
-
-		ImGui::SameLine(0, button_spacing);
-		if (_browse_path_is_input_mode)
+		if (ImGui::IsKeyPressedMap(ImGuiKey_Enter))
 		{
-			if (ImGui::IsWindowAppearing())
-				ImGui::SetKeyboardFocusHere();
-
-			char buf[260] = "";
-			_current_browse_path.u8string().copy(buf, sizeof(buf) - 1);
-
-			const bool is_edited = ImGui::InputTextEx("##path", nullptr, buf, sizeof(buf), ImVec2(root_window_width - (button_spacing + button_size) * 3, 0), ImGuiInputTextFlags_None);
-			const bool is_returned = ImGui::IsKeyPressedMap(ImGuiKey_Enter);
-
-			if (ImGui::IsItemActivated())
-				_imgui_context->InputTextState.ClearSelection();
-
-			browse_path_is_editing = ImGui::IsItemActive();
-
-			if (!is_popup_open && (is_edited || is_returned))
+			const std::filesystem::file_type file_type = std::filesystem::status(_current_browse_path, ec).type();
+			if (file_type != std::filesystem::file_type::directory &&
+				_current_browse_path.extension() == L".ini" || _current_browse_path.extension() == L".txt")
 			{
-				std::filesystem::path input_preset_path = std::filesystem::u8path(buf);
-				std::filesystem::file_type file_type = std::filesystem::status(reshade_container_path / input_preset_path, ec).type();
-
-				if (is_edited && ec.value() != 0x7b) // 0x7b: ERROR_INVALID_NAME
-					if (_current_browse_path = input_preset_path; buf[0] == '\0')
-						if (_browse_path_is_input_mode = false,
-							_current_browse_path = _current_preset_path.parent_path().lexically_proximate(reshade_container_path);
-							_current_browse_path == L".")
-							_current_browse_path.clear();
-
-				if (is_returned)
-				{
-					if (is_loading())
-						condition = condition::pass;
-					else if (_current_browse_path.empty())
-						condition = condition::cancel;
-					else if (ec.value() == 0x7b) // 0x7b: ERROR_INVALID_NAME
-						condition = condition::pass;
-					else if (file_type == std::filesystem::file_type::directory)
-						condition = condition::popup_add;
-					else if (_current_browse_path.extension() == L".ini" || _current_browse_path.extension() == L".txt")
-						if (file_type == std::filesystem::file_type::not_found)
-							condition = condition::create;
-						else
-							condition = condition::select;
-					else if (input_preset_path += L".ini", file_type = std::filesystem::status(reshade_container_path / input_preset_path, ec).type(); ec.value() == 0x7b) // 0x7b: ERROR_INVALID_NAME
-						condition = condition::pass;
-					else if (file_type == std::filesystem::file_type::directory)
-						condition = condition::popup_add;
-					else if (file_type == std::filesystem::file_type::not_found)
-						condition = condition::create;
-					else
-						condition = condition::select;
-
-					if (condition == condition::select)
-						if (ini_file::load_cache(reshade_container_path / input_preset_path).has("", "Techniques"))
-							_current_preset_path = reshade_container_path / input_preset_path;
-						else
-							condition = condition::pass;
-					else if (condition == condition::create)
-						_current_preset_path = reshade_container_path / input_preset_path;
-					else if (condition == condition::popup_add)
-						_current_browse_path = input_preset_path;
-
-					if (condition == condition::pass)
-						ImGui::ActivateItem(ImGui::GetID("##path"));
-				}
+				reload_preset =
+					file_type == std::filesystem::file_type::not_found ||
+					ini_file::load_cache(_current_browse_path).has("", "Techniques");
 			}
-		}
-		else
-		{
-			ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2(0.0f, 0.5f));
-			if (ImGui::ButtonEx(_current_preset_path.stem().u8string().c_str(), ImVec2(root_window_width - (button_spacing + button_size) * 3, 0), ImGuiButtonFlags_NoNavFocus))
-				if (ImGui::ActivateItem(ImGui::GetID("##path")), _browse_path_is_input_mode = _imgui_context->IO.KeyCtrl; _browse_path_is_input_mode)
-					if (_current_browse_path.has_filename() && std::filesystem::is_directory(reshade_container_path / _current_browse_path, ec))
-						_current_browse_path += L'\\';
-					else
-						condition = condition::pass;
-				else
-					condition = condition::cancel;
-			else if (is_loading())
-				condition = condition::pass;
-			else if (ImGui::IsKeyPressedMap(ImGuiKey_Enter))
-				condition = condition::reload;
-			ImGui::PopStyleVar();
-		}
 
-		if (!is_popup_open && (!_browse_path_is_input_mode || !browse_path_is_editing))
-		{
-			bool activate = true;
-
-			if (const std::wstring &ch = _input->text_input(); !ch.empty() && L'~' >= ch[0] && ch[0] >= L'!')
-				if (ch[0] != L'\\' && ch[0] != L'/' && _current_browse_path.has_filename() && std::filesystem::is_directory(reshade_container_path / _current_browse_path, ec))
-					_current_browse_path += L'\\' + ch;
-				else
-					_current_browse_path += ch;
+			if (reload_preset)
+			{
+				ImGui::CloseCurrentPopup();
+				_current_preset_path = _current_browse_path;
+			}
 			else
-				activate = !_current_browse_path.empty() && ImGui::IsKeyPressedMap(ImGuiKey_Backspace, false);
-
-			if (activate)
-				ImGui::ActivateItem(ImGui::GetID("##path")), _browse_path_is_input_mode = true;
+			{
+				ImGui::SetKeyboardFocusHere();
+			}
 		}
-	}
 
-	if (condition == condition::backward || condition == condition::forward)
-		if (!switch_to_next_preset(_current_browse_path, condition == condition::backward))
-			condition = condition::pass;
-
-	if (is_explore_open)
-	{
-		std::filesystem::path preset_container_path = (reshade_container_path / _current_browse_path).lexically_normal();
-		std::filesystem::path presets_filter_text = _current_browse_path.filename();
-
-		if (std::filesystem::is_directory(preset_container_path, ec))
-			presets_filter_text.clear();
-		else if (!presets_filter_text.empty())
-			preset_container_path = preset_container_path.parent_path();
-
-		if (ImGui::SameLine(0, button_spacing); ImGui::ButtonEx("+", ImVec2(button_size, 0), ImGuiButtonFlags_PressedOnClick | ImGuiButtonFlags_NoNavFocus))
-			if (const std::filesystem::file_type file_type = std::filesystem::status(reshade_container_path / _current_browse_path, ec).type(); ec.value() != 0x7b) // 0x7b: ERROR_INVALID_NAME
-				if (condition = condition::popup_add; _current_browse_path.has_filename())
-					if (file_type == std::filesystem::file_type::not_found || file_type != std::filesystem::file_type::directory)
-						_current_browse_path = _current_browse_path.parent_path();
-
-		if (ImGui::IsWindowAppearing() || condition == condition::backward || condition == condition::forward)
-			ImGui::SetNextWindowFocus();
-
-		if (ImGui::BeginChild("##paths", ImVec2(0, 300), true, ImGuiWindowFlags_NavFlattened))
+		std::filesystem::path base_path = _current_browse_path;
+		std::wstring presets_filter_text;
+		if (!std::filesystem::is_directory(base_path, ec))
 		{
-			if (ImGui::Selectable(".."))
-			{
-				if (_current_browse_path = std::filesystem::absolute(reshade_container_path / _current_browse_path, ec); !_current_browse_path.has_filename())
-					_current_browse_path = _current_browse_path.parent_path();
-
-				while (!std::filesystem::is_directory(_current_browse_path, ec) && _current_browse_path.parent_path() != _current_browse_path)
-					_current_browse_path = _current_browse_path.parent_path();
-				_current_browse_path = _current_browse_path.parent_path();
-
-				if (std::filesystem::equivalent(reshade_container_path, _current_browse_path, ec))
-					_current_browse_path.clear();
-				else if (std::equal(reshade_container_path.begin(), reshade_container_path.end(), _current_browse_path.begin()))
-					_current_browse_path = _current_browse_path.lexically_proximate(reshade_container_path);
-			}
-
-			std::vector<std::filesystem::directory_entry> preset_paths;
-			for (const std::filesystem::directory_entry &entry : std::filesystem::directory_iterator(preset_container_path, std::filesystem::directory_options::skip_permission_denied, ec))
-				if (entry.is_directory(ec))
-					if (ImGui::Selectable(("<DIR> " + entry.path().filename().u8string()).c_str()))
-						if (std::filesystem::equivalent(reshade_container_path, entry, ec))
-							_current_browse_path.clear();
-						else if (std::equal(reshade_container_path.begin(), reshade_container_path.end(), entry.path().begin()))
-							_current_browse_path = entry.path().lexically_proximate(reshade_container_path);
-						else
-							_current_browse_path = entry;
-					else {}
-				else if (entry.path().extension() == L".ini" || entry.path().extension() == L".txt")
-					preset_paths.push_back(entry);
-
-			if (is_loading())
-				ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true),
-				ImGui::PushStyleColor(ImGuiCol_Text, _imgui_context->Style.Colors[ImGuiCol_TextDisabled]);
-
-			for (const std::filesystem::directory_entry &entry : preset_paths)
-			{
-				const bool is_current_preset = std::filesystem::equivalent(entry, _current_preset_path, ec);
-
-				if (!is_current_preset && !presets_filter_text.empty())
-					if (const std::wstring preset_name(entry.path().stem()), &filter_text = presets_filter_text.native();
-						std::search(preset_name.begin(), preset_name.end(), filter_text.begin(), filter_text.end(), [](const wchar_t c1, const wchar_t c2) { return towlower(c1) == towlower(c2); }) == preset_name.end())
-						continue;
-
-				if (ImGui::Selectable(entry.path().filename().u8string().c_str(), static_cast<bool>(is_current_preset)))
-					if (ini_file::load_cache(entry).has("", "Techniques"))
-						condition = condition::select, _current_preset_path = entry;
-					else
-						condition = condition::pass;
-
-				if (is_current_preset && (ImGui::IsWindowAppearing() || condition == condition::backward || condition == condition::forward))
-					ImGui::SetScrollHereY();
-			}
-
-			if (is_loading())
-				ImGui::PopStyleColor(),
-				ImGui::PopItemFlag();
+			presets_filter_text = base_path.filename().wstring();
+			base_path = base_path.parent_path();
 		}
+
+		ImGui::BeginChild("##paths", ImVec2(browse_button_width, 300), true, ImGuiWindowFlags_NavFlattened);
+
+		if (_current_browse_path.has_parent_path() && ImGui::Selectable(".."))
+			_current_browse_path = _current_browse_path.parent_path();
+
+		std::vector<std::filesystem::path> preset_paths;
+		for (const auto &entry : std::filesystem::directory_iterator(base_path, std::filesystem::directory_options::skip_permission_denied, ec))
+		{
+			if (entry.is_directory(ec))
+			{
+				std::string label = entry.path().filename().u8string();
+				label = "<DIR> " + label;
+
+				if (ImGui::Selectable(label.c_str()))
+					_current_browse_path = entry.path();
+				continue;
+			}
+
+			if (entry.path().extension() == L".ini" || entry.path().extension() == L".txt")
+				preset_paths.push_back(entry);
+		}
+		for (const std::filesystem::path &preset_path : preset_paths)
+		{
+			const bool is_current_preset = std::filesystem::equivalent(preset_path, _current_preset_path, ec);
+
+			if (!presets_filter_text.empty() && !is_current_preset)
+			{
+				const std::wstring preset_name = preset_path.filename().wstring();
+				if (std::search(preset_name.begin(), preset_name.end(), presets_filter_text.begin(), presets_filter_text.end(),
+					[](const wchar_t c1, const wchar_t c2) { return towlower(c1) == towlower(c2); }) == preset_name.end())
+					continue;
+			}
+
+			if (ImGui::Selectable(preset_path.filename().u8string().c_str(), is_current_preset) &&
+				ini_file::load_cache(preset_path).has("", "Techniques"))
+			{
+				reload_preset = true;
+				_current_preset_path = preset_path;
+				ImGui::CloseCurrentPopup();
+			}
+
+			if (is_current_preset && ImGui::IsWindowAppearing())
+				ImGui::SetScrollHereY();
+		}
+
 		ImGui::EndChild();
+		ImGui::EndPopup();
 	}
 
-	if (condition == condition::popup_add)
-	{
-		ImGui::OpenPopup("##name");
-		condition = condition::pass;
-	}
-
-	ImGui::SetNextWindowPos(cursor_pos + ImVec2(root_window_width + button_size - 230, button_size));
 	if (ImGui::BeginPopup("##name"))
 	{
-		char filename[_MAX_PATH]{};
-		ImGui::InputText("Name", filename, sizeof(filename));
+		ImGui::Checkbox("Duplicate current preset", &_duplicate_current_preset);
 
-		if (filename[0] == '\0' && ImGui::IsKeyPressedMap(ImGuiKey_Backspace))
-			ImGui::CloseCurrentPopup();
-		else if (ImGui::IsWindowAppearing())
-			ImGui::SetKeyboardFocusHere();
-		else if (ImGui::IsKeyPressedMap(ImGuiKey_Enter))
+		char preset_name[260] = "";
+		if (ImGui::InputText("Name", preset_name, sizeof(preset_name), ImGuiInputTextFlags_EnterReturnsTrue) && preset_name[0] != '\0')
 		{
-			std::filesystem::path focus_preset_path = reshade_container_path / _current_browse_path / std::filesystem::u8path(filename);
+			std::filesystem::path new_preset_path = _current_browse_path / std::filesystem::u8path(preset_name);
+			if (new_preset_path.extension() != L".ini" && new_preset_path.extension() != L".txt")
+				new_preset_path += L".ini";
 
-			if (focus_preset_path.extension() != L".ini" && focus_preset_path.extension() != L".txt")
-				focus_preset_path += L".ini";
+			const std::filesystem::file_type file_type = std::filesystem::status(new_preset_path, ec).type();
+			if (file_type != std::filesystem::file_type::directory)
+			{
+				reload_preset =
+					file_type == std::filesystem::file_type::not_found ||
+					ini_file::load_cache(new_preset_path).has("", "Techniques");
 
-			if (is_loading())
-				condition = condition::pass;
-			else if (!focus_preset_path.has_stem())
-				condition = condition::pass;
-			else if (const std::filesystem::file_type file_type = std::filesystem::status(focus_preset_path, ec).type(); ec.value() == 0x7b) // 0x7b: ERROR_INVALID_NAME
-				condition = condition::pass;
-			else if (file_type == std::filesystem::file_type::directory)
-				condition = condition::pass;
-			else if (file_type == std::filesystem::file_type::not_found)
-				condition = condition::create, _current_preset_path = focus_preset_path;
-			else if (ini_file::load_cache(focus_preset_path).has("", "Techniques"))
-				condition = condition::select, _current_preset_path = focus_preset_path;
-			else
-				condition = condition::pass;
+				if (_duplicate_current_preset && file_type == std::filesystem::file_type::not_found)
+					CopyFileW(_current_preset_path.c_str(), new_preset_path.c_str(), TRUE);
+			}
 
-			if (condition == condition::pass)
-				ImGui::SetKeyboardFocusHere();
-			else
+			if (reload_preset)
+			{
 				ImGui::CloseCurrentPopup();
-		}
-		ImGui::EndPopup();
-	}
-
-	if (condition != condition::pass)
-	{
-		if (condition != condition::cancel)
-		{
-			_show_splash = true;
-
-			save_config();
-			load_current_preset();
+				_current_preset_path = new_preset_path;
+			}
+			else
+			{
+				ImGui::SetKeyboardFocusHere();
+			}
 		}
 
-		if (is_explore_open && condition != condition::backward && condition != condition::forward)
+		if (ImGui::IsWindowAppearing())
+			ImGui::SetKeyboardFocusHere();
+
+		if (preset_name[0] == '\0' && ImGui::IsKeyPressedMap(ImGuiKey_Backspace))
 			ImGui::CloseCurrentPopup();
+
+		ImGui::EndPopup();
 	}
 
-	if (is_explore_open)
-		ImGui::EndPopup();
+	if (reload_preset)
+	{
+		_show_splash = true;
+
+		save_config();
+		load_current_preset();
+	}
 }
 
 void reshade::runtime::draw_variable_editor()
@@ -2739,6 +2621,18 @@ void reshade::runtime::draw_technique_editor()
 					_show_code_editor = true;
 					ImGui::CloseCurrentPopup();
 				}
+			}
+
+			ImGui::Separator();
+
+			if (ImGui::Button("Open folder in explorer", ImVec2(button_width, 0)))
+			{
+				// Use absolute path to explorer to avoid potential security issues when executable is replaced
+				WCHAR explorer_path[260] = L"";
+				GetWindowsDirectoryW(explorer_path, sizeof(explorer_path));
+				wcscat_s(explorer_path, L"\\explorer.exe");
+
+				ShellExecuteW(nullptr, L"open", explorer_path, (L"/select,\"" + effect.source_file.wstring() + L"\"").c_str(), nullptr, SW_SHOWDEFAULT);
 			}
 
 			ImGui::EndPopup();

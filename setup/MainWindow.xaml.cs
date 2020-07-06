@@ -647,7 +647,7 @@ In that event here are some steps you can try to resolve this:
 
 				ZipFile.ExtractToDirectory(downloadPath, tempPath);
 
-				// First check for a standard folder name
+				// First check for a standard directory name
 				string tempPathShaders = Directory.GetDirectories(tempPath, "Shaders", SearchOption.AllDirectories).FirstOrDefault();
 				string tempPathTextures = Directory.GetDirectories(tempPath, "Textures", SearchOption.AllDirectories).FirstOrDefault();
 				string targetPathShaders = Path.Combine(Path.GetDirectoryName(targetPath), package.InstallPath);

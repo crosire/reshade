@@ -128,7 +128,8 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateTexture2D(const D3D11_TEXTURE2D_DES
 	// Add D3D11_BIND_SHADER_RESOURCE flag to all depth-stencil textures so that we can access them in post-processing shaders
 	D3D11_TEXTURE2D_DESC new_desc = *pDesc;
 	if (new_desc.SampleDesc.Count == 1 && // Skip MSAA textures
-		0 != (new_desc.BindFlags & D3D11_BIND_DEPTH_STENCIL))
+		0 != (new_desc.BindFlags & D3D11_BIND_DEPTH_STENCIL) &&
+		0 == (new_desc.BindFlags & D3D11_BIND_SHADER_RESOURCE))
 	{
 		new_desc.Format = make_dxgi_format_typeless(new_desc.Format);
 		new_desc.BindFlags |= D3D11_BIND_SHADER_RESOURCE;
@@ -138,6 +139,22 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateTexture2D(const D3D11_TEXTURE2D_DES
 	if (FAILED(hr))
 	{
 		LOG(WARN) << "ID3D11Device::CreateTexture2D failed with error code " << hr << '.';
+#if RESHADE_VERBOSE_LOG
+		LOG(DEBUG) << "> Dumping description:";
+		LOG(DEBUG) << "  +-----------------------------------------+-----------------------------------------+";
+		LOG(DEBUG) << "  | Width                                   | " << std::setw(39) << new_desc.Width << " |";
+		LOG(DEBUG) << "  | Height                                  | " << std::setw(39) << new_desc.Height << " |";
+		LOG(DEBUG) << "  | MipLevels                               | " << std::setw(39) << new_desc.MipLevels << " |";
+		LOG(DEBUG) << "  | ArraySize                               | " << std::setw(39) << new_desc.ArraySize << " |";
+		LOG(DEBUG) << "  | Format                                  | " << std::setw(39) << new_desc.Format << " |";
+		LOG(DEBUG) << "  | SampleCount                             | " << std::setw(39) << new_desc.SampleDesc.Count << " |";
+		LOG(DEBUG) << "  | SampleQuality                           | " << std::setw(39) << new_desc.SampleDesc.Quality << " |";
+		LOG(DEBUG) << "  | Usage                                   | " << std::setw(39) << new_desc.Usage << " |";
+		LOG(DEBUG) << "  | BindFlags                               | " << std::setw(39) << std::hex << new_desc.BindFlags << std::dec << " |";
+		LOG(DEBUG) << "  | CPUAccessFlags                          | " << std::setw(39) << std::hex << new_desc.CPUAccessFlags << std::dec << " |";
+		LOG(DEBUG) << "  | MiscFlags                               | " << std::setw(39) << std::hex << new_desc.MiscFlags << std::dec << " |";
+		LOG(DEBUG) << "  +-----------------------------------------+-----------------------------------------+";
+#endif
 	}
 
 	return hr;
@@ -148,10 +165,13 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateTexture3D(const D3D11_TEXTURE3D_DES
 }
 HRESULT STDMETHODCALLTYPE D3D11Device::CreateShaderResourceView(ID3D11Resource *pResource, const D3D11_SHADER_RESOURCE_VIEW_DESC *pDesc, ID3D11ShaderResourceView **ppSRView)
 {
-	D3D11_SHADER_RESOURCE_VIEW_DESC new_desc =
-		pDesc != nullptr ? *pDesc : D3D11_SHADER_RESOURCE_VIEW_DESC {};
+	if (pResource == nullptr)
+		return E_INVALIDARG;
 
-	// A view cannot be created with a typeless format (which was set 'CreateTexture2D'), so fix it
+	D3D11_SHADER_RESOURCE_VIEW_DESC new_desc =
+		pDesc != nullptr ? *pDesc : D3D11_SHADER_RESOURCE_VIEW_DESC { DXGI_FORMAT_UNKNOWN };
+
+	// A view cannot be created with a typeless format (which was set in 'CreateTexture2D'), so fix it
 	if (pDesc == nullptr || pDesc->Format == DXGI_FORMAT_UNKNOWN)
 	{
 		D3D11_TEXTURE2D_DESC texture_desc;
@@ -160,7 +180,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateShaderResourceView(ID3D11Resource *
 		{
 			texture->GetDesc(&texture_desc);
 
-			// Only textures with the depth-stencil bind flag where modified, so skip all others
+			// Only non-MSAA textures with the depth-stencil bind flag where modified, so skip all others
 			if (texture_desc.SampleDesc.Count == 1 &&
 				0 != (texture_desc.BindFlags & D3D11_BIND_DEPTH_STENCIL))
 			{
@@ -184,6 +204,13 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateShaderResourceView(ID3D11Resource *
 	if (FAILED(hr))
 	{
 		LOG(WARN) << "ID3D11Device::CreateShaderResourceView failed with error code " << hr << '.';
+#if RESHADE_VERBOSE_LOG
+		LOG(DEBUG) << "> Dumping description:";
+		LOG(DEBUG) << "  +-----------------------------------------+-----------------------------------------+";
+		LOG(DEBUG) << "  | Format                                  | " << std::setw(39) << new_desc.Format << " |";
+		LOG(DEBUG) << "  | ViewDimension                           | " << std::setw(39) << new_desc.ViewDimension << " |";
+		LOG(DEBUG) << "  +-----------------------------------------+-----------------------------------------+";
+#endif
 	}
 
 	return hr;
@@ -198,8 +225,11 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateRenderTargetView(ID3D11Resource *pR
 }
 HRESULT STDMETHODCALLTYPE D3D11Device::CreateDepthStencilView(ID3D11Resource *pResource, const D3D11_DEPTH_STENCIL_VIEW_DESC *pDesc, ID3D11DepthStencilView **ppDepthStencilView)
 {
+	if (pResource == nullptr)
+		return E_INVALIDARG;
+
 	D3D11_DEPTH_STENCIL_VIEW_DESC new_desc =
-		pDesc != nullptr ? *pDesc : D3D11_DEPTH_STENCIL_VIEW_DESC {};
+		pDesc != nullptr ? *pDesc : D3D11_DEPTH_STENCIL_VIEW_DESC { DXGI_FORMAT_UNKNOWN };
 
 	// A view cannot be created with a typeless format (which was set in 'CreateTexture2D'), so fix it
 	if (pDesc == nullptr || pDesc->Format == DXGI_FORMAT_UNKNOWN)
@@ -234,6 +264,13 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateDepthStencilView(ID3D11Resource *pR
 	if (FAILED(hr))
 	{
 		LOG(WARN) << "ID3D11Device::CreateDepthStencilView failed with error code " << hr << '.';
+#if RESHADE_VERBOSE_LOG
+		LOG(DEBUG) << "> Dumping description:";
+		LOG(DEBUG) << "  +-----------------------------------------+-----------------------------------------+";
+		LOG(DEBUG) << "  | Format                                  | " << std::setw(39) << new_desc.Format << " |";
+		LOG(DEBUG) << "  | ViewDimension                           | " << std::setw(39) << new_desc.ViewDimension << " |";
+		LOG(DEBUG) << "  +-----------------------------------------+-----------------------------------------+";
+#endif
 	}
 
 	return hr;
@@ -507,7 +544,8 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateTexture2D1(const D3D11_TEXTURE2D_DE
 
 	D3D11_TEXTURE2D_DESC1 new_desc = *pDesc1;
 	if (new_desc.SampleDesc.Count == 1 &&
-		0 != (new_desc.BindFlags & D3D11_BIND_DEPTH_STENCIL))
+		0 != (new_desc.BindFlags & D3D11_BIND_DEPTH_STENCIL) &&
+		0 == (new_desc.BindFlags & D3D11_BIND_SHADER_RESOURCE))
 	{
 		new_desc.Format = make_dxgi_format_typeless(new_desc.Format);
 		new_desc.BindFlags |= D3D11_BIND_SHADER_RESOURCE;
@@ -518,6 +556,23 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateTexture2D1(const D3D11_TEXTURE2D_DE
 	if (FAILED(hr))
 	{
 		LOG(WARN) << "ID3D11Device3::CreateTexture2D1 failed with error code " << hr << '.';
+#if RESHADE_VERBOSE_LOG
+		LOG(DEBUG) << "> Dumping description:";
+		LOG(DEBUG) << "  +-----------------------------------------+-----------------------------------------+";
+		LOG(DEBUG) << "  | Width                                   | " << std::setw(39) << new_desc.Width << " |";
+		LOG(DEBUG) << "  | Height                                  | " << std::setw(39) << new_desc.Height << " |";
+		LOG(DEBUG) << "  | MipLevels                               | " << std::setw(39) << new_desc.MipLevels << " |";
+		LOG(DEBUG) << "  | ArraySize                               | " << std::setw(39) << new_desc.ArraySize << " |";
+		LOG(DEBUG) << "  | Format                                  | " << std::setw(39) << new_desc.Format << " |";
+		LOG(DEBUG) << "  | SampleCount                             | " << std::setw(39) << new_desc.SampleDesc.Count << " |";
+		LOG(DEBUG) << "  | SampleQuality                           | " << std::setw(39) << new_desc.SampleDesc.Quality << " |";
+		LOG(DEBUG) << "  | Usage                                   | " << std::setw(39) << new_desc.Usage << " |";
+		LOG(DEBUG) << "  | BindFlags                               | " << std::setw(39) << std::hex << new_desc.BindFlags << std::dec << " |";
+		LOG(DEBUG) << "  | CPUAccessFlags                          | " << std::setw(39) << std::hex << new_desc.CPUAccessFlags << std::dec << " |";
+		LOG(DEBUG) << "  | MiscFlags                               | " << std::setw(39) << std::hex << new_desc.MiscFlags << std::dec << " |";
+		LOG(DEBUG) << "  | TextureLayout                           | " << std::setw(39) << new_desc.TextureLayout << " |";
+		LOG(DEBUG) << "  +-----------------------------------------+-----------------------------------------+";
+#endif
 	}
 
 	return hr;
@@ -534,8 +589,11 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateRasterizerState2(const D3D11_RASTER
 }
 HRESULT STDMETHODCALLTYPE D3D11Device::CreateShaderResourceView1(ID3D11Resource *pResource, const D3D11_SHADER_RESOURCE_VIEW_DESC1 *pDesc1, ID3D11ShaderResourceView1 **ppSRView1)
 {
+	if (pResource == nullptr)
+		return E_INVALIDARG;
+
 	D3D11_SHADER_RESOURCE_VIEW_DESC1 new_desc =
-		pDesc1 != nullptr ? *pDesc1 : D3D11_SHADER_RESOURCE_VIEW_DESC1 {};
+		pDesc1 != nullptr ? *pDesc1 : D3D11_SHADER_RESOURCE_VIEW_DESC1 { DXGI_FORMAT_UNKNOWN };
 
 	if (pDesc1 == nullptr || pDesc1->Format == DXGI_FORMAT_UNKNOWN)
 	{
@@ -580,6 +638,13 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateShaderResourceView1(ID3D11Resource 
 	if (FAILED(hr))
 	{
 		LOG(WARN) << "ID3D11Device3::CreateShaderResourceView1 failed with error code " << hr << '.';
+#if RESHADE_VERBOSE_LOG
+		LOG(DEBUG) << "> Dumping description:";
+		LOG(DEBUG) << "  +-----------------------------------------+-----------------------------------------+";
+		LOG(DEBUG) << "  | Format                                  | " << std::setw(39) << new_desc.Format << " |";
+		LOG(DEBUG) << "  | ViewDimension                           | " << std::setw(39) << new_desc.ViewDimension << " |";
+		LOG(DEBUG) << "  +-----------------------------------------+-----------------------------------------+";
+#endif
 	}
 
 	return hr;
