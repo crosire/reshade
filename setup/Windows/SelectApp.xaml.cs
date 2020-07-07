@@ -30,6 +30,8 @@ namespace ReShade.Setup.Dialogs
 		{
 			InitializeComponent();
 
+			PathBox.Text = Directory.GetCurrentDirectory();
+
 			// Sort items in list by name
 			var view = CollectionViewSource.GetDefaultView(ProgramListItems);
 			view.SortDescriptions.Add(new SortDescription(nameof(ProgramItem.Name), ListSortDirection.Ascending));
@@ -206,7 +208,7 @@ namespace ReShade.Setup.Dialogs
 		Thread UpdateThread = null;
 		AutoResetEvent SuspendUpdateThreadEvent = new AutoResetEvent(false);
 		bool SuspendUpdateThread = false;
-		public string FileName { get; private set; }
+		public string FileName { get => PathBox.Text; private set => PathBox.Text = value; }
 		ObservableCollection<ProgramItem> ProgramListItems = new ObservableCollection<ProgramItem>();
 
 		void OnBrowse(object sender, RoutedEventArgs e)
@@ -243,10 +245,8 @@ namespace ReShade.Setup.Dialogs
 
 		void OnConfirm(object sender, RoutedEventArgs e)
 		{
-			FileName = (ProgramList.SelectedItem as ProgramItem)?.Path;
-
 			// Only close dialog if an actual item was selected in the list
-			if (FileName != null)
+			if (!string.IsNullOrEmpty(FileName) && Path.GetExtension(FileName) == ".exe" && File.Exists(FileName))
 			{
 				UpdateThread.Abort();
 				DialogResult = true;
@@ -255,7 +255,15 @@ namespace ReShade.Setup.Dialogs
 
 		void OnConfirmSelection(object sender, MouseButtonEventArgs e)
 		{
-			OnConfirm(sender, null);
+			if (e.LeftButton == MouseButtonState.Pressed)
+			{
+				OnConfirm(sender, null);
+			}
+		}
+
+		void OnSelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+		{
+			FileName = (ProgramList.SelectedItem as ProgramItem)?.Path;
 		}
 	}
 }
