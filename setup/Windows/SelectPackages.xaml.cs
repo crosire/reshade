@@ -3,10 +3,12 @@
  * License: https://github.com/crosire/reshade#license
  */
 
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
@@ -17,8 +19,8 @@ namespace ReShade.Setup.Dialogs
 {
 	public class EffectPackage : INotifyPropertyChanged
 	{
-		public bool Enabled { get; set; }
-		public bool Modifiable { get; set; }
+		public bool Enabled { get; set; } = false;
+		public bool Modifiable { get; set; } = true;
 		public string PackageName { get; set; }
 		public string PackageDescription { get; set; }
 		public string InstallPath { get; set; }
@@ -123,6 +125,33 @@ namespace ReShade.Setup.Dialogs
 			{
 				e.Handled = false;
 			}
+		}
+
+		void OnAddPackage(object sender, RoutedEventArgs e)
+		{
+			string url = PathBox.Text;
+			if (!url.StartsWith("http") || !url.EndsWith(".zip"))
+			{
+				// Only accept ZIP download links
+				return;
+			}
+
+			PathBox.Text = string.Empty;
+
+			Items.Add(new EffectPackage {
+				Enabled = true,
+				PackageName = Path.GetFileName(url),
+				InstallPath = ".\\reshade-shaders\\Shaders",
+				TextureInstallPath = ".\\reshade-shaders\\Textures",
+				DownloadUrl = url,
+				RepositoryUrl = url
+			});
+		}
+
+		void OnTextBoxGotFocus(object sender, RoutedEventArgs e)
+		{
+			var tb = (TextBox)sender;
+			tb.Dispatcher.BeginInvoke(new Action(() => tb.SelectAll()));
 		}
 	}
 }

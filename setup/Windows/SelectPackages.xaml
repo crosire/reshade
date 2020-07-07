@@ -7,6 +7,15 @@
       <Button DockPanel.Dock="Right" HorizontalAlignment="Right" Width="100" Margin="0,15,10,15" Content="_OK" Click="OnConfirm" IsDefault="True" KeyboardNavigation.TabIndex="0" />
     </DockPanel>
     <TextBlock DockPanel.Dock="Bottom" Margin="10,5" TextWrapping="Wrap" Text="Check all effect packages you want to install or update or click on Skip to continue without modifying them (e.g. if you want to only update ReShade, but not the effects)." />
+    <Grid DockPanel.Dock="Bottom" Margin="10,5">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="*" />
+        <ColumnDefinition Width="10" /> <!-- Margin -->
+        <ColumnDefinition Width="100" />
+      </Grid.ColumnDefinitions>
+      <TextBox x:Name="PathBox" Grid.Column="0" Text="Enter ZIP download link to custom repository here" GotFocus="OnTextBoxGotFocus" />
+      <Button Grid.Column="2" Content="Add" Click="OnAddPackage" />
+    </Grid>
     <ListBox x:Name="ItemsListBox" Margin="10,5" HorizontalContentAlignment="Stretch" ItemsSource="{Binding Items}">
       <ListBox.ItemTemplate>
         <DataTemplate>
