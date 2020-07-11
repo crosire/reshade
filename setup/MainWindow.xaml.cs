@@ -671,7 +671,7 @@ In that event here are some steps you can try to resolve this:
 				}
 
 				// Show file selection dialog
-				if (!isHeadless)
+				if (!isHeadless && package.Enabled == null)
 				{
 					effects = effects.Select(x => targetPathShaders + x.Remove(0, tempPathShaders.Length)).ToArray();
 

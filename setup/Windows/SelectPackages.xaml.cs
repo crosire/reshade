@@ -19,7 +19,7 @@ namespace ReShade.Setup.Dialogs
 {
 	public class EffectPackage : INotifyPropertyChanged
 	{
-		public bool Enabled { get; set; } = false;
+		public bool? Enabled { get; set; } = false;
 		public bool Modifiable { get; set; } = true;
 		public string PackageName { get; set; }
 		public string PackageDescription { get; set; }
@@ -44,10 +44,13 @@ namespace ReShade.Setup.Dialogs
 
 			foreach (var package in packagesIni.GetSections())
 			{
+				bool enabled = packagesIni.GetString(package, "Enabled") == "1";
+				bool required = packagesIni.GetString(package, "Required") == "1";
+
 				Items.Add(new EffectPackage
 				{
-					Enabled = packagesIni.GetString(package, "Enabled") == "1",
-					Modifiable = packagesIni.GetString(package, "Required") != "1",
+					Enabled = required ? true : enabled ? (bool?)null : false,
+					Modifiable = !required,
 					PackageName = packagesIni.GetString(package, "PackageName"),
 					PackageDescription = packagesIni.GetString(package, "PackageDescription"),
 					InstallPath = packagesIni.GetString(package, "InstallPath"),
@@ -58,7 +61,7 @@ namespace ReShade.Setup.Dialogs
 			}
 		}
 
-		public IEnumerable<EffectPackage> EnabledItems => Items.Where(x => x.Enabled);
+		public IEnumerable<EffectPackage> EnabledItems => Items.Where(x => x.Enabled != false);
 		public ObservableCollection<EffectPackage> Items { get; } = new ObservableCollection<EffectPackage>();
 
 		void OnCheck(object sender, RoutedEventArgs e)
@@ -98,35 +101,6 @@ namespace ReShade.Setup.Dialogs
 			DialogResult = true;
 		}
 
-		void OnCheckBoxMouseEnter(object sender, MouseEventArgs e)
-		{
-			if (e.LeftButton == MouseButtonState.Pressed && sender is CheckBox checkbox)
-			{
-				checkbox.IsChecked = !checkbox.IsChecked;
-			}
-		}
-		void OnCheckBoxMouseCapture(object sender, MouseEventArgs e)
-		{
-			if (e.LeftButton == MouseButtonState.Pressed && sender is CheckBox checkbox)
-			{
-				checkbox.IsChecked = !checkbox.IsChecked;
-				checkbox.ReleaseMouseCapture();
-			}
-		}
-
-		void OnHyperlinkRequestNavigate(object sender, RequestNavigateEventArgs e)
-		{
-			try
-			{
-				Process.Start(e.Uri.AbsoluteUri);
-				e.Handled = true;
-			}
-			catch
-			{
-				e.Handled = false;
-			}
-		}
-
 		void OnAddPackage(object sender, RoutedEventArgs e)
 		{
 			string url = PathBox.Text;
@@ -147,11 +121,23 @@ namespace ReShade.Setup.Dialogs
 				RepositoryUrl = url
 			});
 		}
-
 		void OnTextBoxGotFocus(object sender, RoutedEventArgs e)
 		{
 			var tb = (TextBox)sender;
 			tb.Dispatcher.BeginInvoke(new Action(() => tb.SelectAll()));
+		}
+
+		void OnHyperlinkRequestNavigate(object sender, RequestNavigateEventArgs e)
+		{
+			try
+			{
+				Process.Start(e.Uri.AbsoluteUri);
+				e.Handled = true;
+			}
+			catch
+			{
+				e.Handled = false;
+			}
 		}
 	}
 }
