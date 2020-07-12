@@ -68,6 +68,12 @@ namespace ReShade.Setup
 				zip = new ZipArchive(output, ZipArchiveMode.Read, false);
 				packagesIni = new IniFile(assembly.GetManifestResourceStream("ReShade.Setup.Config.EffectPackages.ini"));
 				compatibilityIni = new IniFile(assembly.GetManifestResourceStream("ReShade.Setup.Config.Compatibility.ini"));
+
+				// Validate archive contains the ReShade DLLs
+				if (zip.GetEntry("ReShade32.dll") == null || zip.GetEntry("ReShade64.dll") == null)
+				{
+					throw new InvalidDataException();
+				}
 			}
 			catch
 			{
