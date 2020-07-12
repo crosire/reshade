@@ -123,7 +123,7 @@
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
     <PreBuildEvent>echo Generating assembly version ...
-"$(VC_ExecutablePath_x86)\cl.exe" /nologo /EP /C /I $(SolutionDir)res $(ProjectDir)Properties\AssemblyInfo.cs.in &gt; $(ProjectDir)Properties\AssemblyInfo.cs
+"$(VC_ExecutablePath_x86)\cl.exe" /nologo /EP /C /I "$(SolutionDir)res" "$(ProjectDir)Properties\AssemblyInfo.cs.in" &gt; "$(ProjectDir)Properties\AssemblyInfo.cs"
 
 echo Compiling ReShade setup tool ...</PreBuildEvent>
     <PostBuildEvent>echo Compressing ReShade DLLs ...
