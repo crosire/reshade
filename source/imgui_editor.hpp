@@ -91,6 +91,7 @@ public:
 
 	void set_palette(const std::array<uint32_t, color_palette_max> &palette) { _palette = palette; }
 	uint32_t &get_palette_index(unsigned int index) { return _palette[index]; }
+	const std::array<uint32_t, color_palette_max> &get_palette() const { return _palette; }
 	static const char *get_palette_color_name(unsigned int index);
 
 	bool find_and_scroll_to_text(const std::string &text, bool backwards = false, bool with_selection = false);

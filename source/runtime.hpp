@@ -340,6 +340,7 @@ namespace reshade
 		void draw_ui_about();
 
 		void draw_code_editor();
+		void draw_code_viewer();
 		void draw_preset_explorer();
 		void draw_variable_editor();
 		void draw_technique_editor();
@@ -356,6 +357,7 @@ namespace reshade
 		bool _show_frametime = false;
 		bool _show_splash = true;
 		bool _show_code_editor = false;
+		bool _show_code_viewer = false;
 		bool _show_screenshot_message = true;
 		bool _no_font_scaling = false;
 		bool _rebuild_font_atlas = true;
@@ -398,7 +400,7 @@ namespace reshade
 		std::vector<std::string> _log_lines;
 
 		// === User Interface - Code Editor ===
-		imgui_code_editor _editor;
+		imgui_code_editor _editor, _viewer;
 		std::filesystem::path _editor_file;
 #endif
 	};
