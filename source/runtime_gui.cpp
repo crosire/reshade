@@ -2648,7 +2648,7 @@ void reshade::runtime::draw_technique_editor()
 			{
 				// Use absolute path to explorer to avoid potential security issues when executable is replaced
 				WCHAR explorer_path[260] = L"";
-				GetWindowsDirectoryW(explorer_path, sizeof(explorer_path));
+				GetWindowsDirectoryW(explorer_path, ARRAYSIZE(explorer_path));
 				wcscat_s(explorer_path, L"\\explorer.exe");
 
 				ShellExecuteW(nullptr, L"open", explorer_path, (L"/select,\"" + effect.source_file.wstring() + L"\"").c_str(), nullptr, SW_SHOWDEFAULT);
