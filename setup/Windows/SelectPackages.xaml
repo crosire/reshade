@@ -6,7 +6,16 @@
       <Button DockPanel.Dock="Right" HorizontalAlignment="Right" Width="100" Margin="0,15,10,15" Content="_Skip" Click="OnCancel" IsCancel="True" KeyboardNavigation.TabIndex="1" />
       <Button DockPanel.Dock="Right" HorizontalAlignment="Right" Width="100" Margin="0,15,10,15" Content="_OK" Click="OnConfirm" IsDefault="True" KeyboardNavigation.TabIndex="0" />
     </DockPanel>
-    <TextBlock DockPanel.Dock="Bottom" Margin="10,5" TextWrapping="Wrap" Text="Check all effect packages you want to install or update or click on Skip to continue without modifying them (e.g. if you want to only update ReShade, but not the effects)." />
+    <TextBlock DockPanel.Dock="Bottom" Margin="10,5" TextWrapping="Wrap" Text="Check all effect packages you want to install or update or click on Skip to continue without modifying them (e.g. if you want to only update ReShade, but not the effects).&#10;You will get prompted to select individual effects for packages with a filled out checkbox. Those with a checkmark will instead have all effects installed." />
+    <Grid DockPanel.Dock="Bottom" Margin="10,5">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="*" />
+        <ColumnDefinition Width="10" /> <!-- Margin -->
+        <ColumnDefinition Width="100" />
+      </Grid.ColumnDefinitions>
+      <TextBox x:Name="PathBox" Grid.Column="0" Text="Enter ZIP download link to custom repository here" GotFocus="OnTextBoxGotFocus" />
+      <Button Grid.Column="2" Content="Add" Click="OnAddPackage" />
+    </Grid>
     <ListBox x:Name="ItemsListBox" Margin="10,5" HorizontalContentAlignment="Stretch" ItemsSource="{Binding Items}">
       <ListBox.ItemTemplate>
         <DataTemplate>
@@ -24,7 +33,7 @@
               <ColumnDefinition Width="35" />
               <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
-            <CheckBox Grid.Column="0" VerticalAlignment="Center" HorizontalAlignment="Center" IsChecked="{Binding Enabled}" IsEnabled="{Binding Modifiable}" MouseEnter="OnCheckBoxMouseEnter" GotMouseCapture="OnCheckBoxMouseCapture" />
+            <CheckBox Grid.Column="0" VerticalAlignment="Center" HorizontalAlignment="Center" IsChecked="{Binding Enabled}" IsEnabled="{Binding Modifiable}" IsThreeState="True" />
             <TextBlock Grid.Column="1" VerticalAlignment="Center">
               <Hyperlink NavigateUri="{Binding RepositoryUrl}" RequestNavigate="OnHyperlinkRequestNavigate">
                 <TextBlock Text="{Binding PackageName}" />

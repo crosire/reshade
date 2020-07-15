@@ -1,10 +1,12 @@
+$exists = Test-Path $args[0]
 $version = 0,0,0,0
 
 # Get version from existing file
-if (Test-Path $args[0]) {
-	Get-Content $args[0] |
-	Where { $_ -match "VERSION_FULL (\d+).(\d+).(\d+).(\d+)" } |
-	ForEach { $version = [int]::Parse($matches[1]), [int]::Parse($matches[2]), [int]::Parse($matches[3]), [int]::Parse($matches[4]) }
+if ($exists -and $(Get-Content $args[0] | Out-String) -match "VERSION_FULL (\d+).(\d+).(\d+).(\d+)") {
+	$version = [int]::Parse($matches[1]), [int]::Parse($matches[2]), [int]::Parse($matches[3]), [int]::Parse($matches[4])
+}
+elseif ($(git describe --tags) -match "v(\d+)\.(\d+)\.(\d+)(-\d+-\w+)?") {
+	$version = [int]::Parse($matches[1]), [int]::Parse($matches[2]), [int]::Parse($matches[3]), 0
 }
 
 # Increment build version for Release builds
@@ -12,7 +14,7 @@ if ($args[1] -eq "Release") {
 	$version[3] += 1
 	"Updating version to $([string]::Join('.', $version)) ..."
 }
-else {
+elseif ($exists) {
 	return
 }
 

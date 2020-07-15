@@ -3,10 +3,12 @@
  * License: https://github.com/crosire/reshade#license
  */
 
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
@@ -17,8 +19,8 @@ namespace ReShade.Setup.Dialogs
 {
 	public class EffectPackage : INotifyPropertyChanged
 	{
-		public bool Enabled { get; set; }
-		public bool Modifiable { get; set; }
+		public bool? Enabled { get; set; } = false;
+		public bool Modifiable { get; set; } = true;
 		public string PackageName { get; set; }
 		public string PackageDescription { get; set; }
 		public string InstallPath { get; set; }
@@ -42,10 +44,13 @@ namespace ReShade.Setup.Dialogs
 
 			foreach (var package in packagesIni.GetSections())
 			{
+				bool enabled = packagesIni.GetString(package, "Enabled") == "1";
+				bool required = packagesIni.GetString(package, "Required") == "1";
+
 				Items.Add(new EffectPackage
 				{
-					Enabled = packagesIni.GetString(package, "Enabled") == "1",
-					Modifiable = packagesIni.GetString(package, "Required") != "1",
+					Enabled = required ? true : enabled ? (bool?)null : false,
+					Modifiable = !required,
 					PackageName = packagesIni.GetString(package, "PackageName"),
 					PackageDescription = packagesIni.GetString(package, "PackageDescription"),
 					InstallPath = packagesIni.GetString(package, "InstallPath"),
@@ -56,7 +61,7 @@ namespace ReShade.Setup.Dialogs
 			}
 		}
 
-		public IEnumerable<EffectPackage> EnabledItems => Items.Where(x => x.Enabled);
+		public IEnumerable<EffectPackage> EnabledItems => Items.Where(x => x.Enabled != false);
 		public ObservableCollection<EffectPackage> Items { get; } = new ObservableCollection<EffectPackage>();
 
 		void OnCheck(object sender, RoutedEventArgs e)
@@ -96,20 +101,30 @@ namespace ReShade.Setup.Dialogs
 			DialogResult = true;
 		}
 
-		void OnCheckBoxMouseEnter(object sender, MouseEventArgs e)
+		void OnAddPackage(object sender, RoutedEventArgs e)
 		{
-			if (e.LeftButton == MouseButtonState.Pressed && sender is CheckBox checkbox)
+			string url = PathBox.Text;
+			if (!url.StartsWith("http") || !url.EndsWith(".zip"))
 			{
-				checkbox.IsChecked = !checkbox.IsChecked;
+				// Only accept ZIP download links
+				return;
 			}
+
+			PathBox.Text = string.Empty;
+
+			Items.Add(new EffectPackage {
+				Enabled = true,
+				PackageName = Path.GetFileName(url),
+				InstallPath = ".\\reshade-shaders\\Shaders",
+				TextureInstallPath = ".\\reshade-shaders\\Textures",
+				DownloadUrl = url,
+				RepositoryUrl = url
+			});
 		}
-		void OnCheckBoxMouseCapture(object sender, MouseEventArgs e)
+		void OnTextBoxGotFocus(object sender, RoutedEventArgs e)
 		{
-			if (e.LeftButton == MouseButtonState.Pressed && sender is CheckBox checkbox)
-			{
-				checkbox.IsChecked = !checkbox.IsChecked;
-				checkbox.ReleaseMouseCapture();
-			}
+			var tb = (TextBox)sender;
+			tb.Dispatcher.BeginInvoke(new Action(() => tb.SelectAll()));
 		}
 
 		void OnHyperlinkRequestNavigate(object sender, RequestNavigateEventArgs e)

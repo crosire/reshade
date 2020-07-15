@@ -325,6 +325,8 @@ void reshade::runtime::init_ui()
 				_editor.get_palette_index(i) = ImGui::ColorConvertFloat4ToU32(value);
 			break;
 		}
+
+		_viewer.set_palette(_editor.get_palette());
 	});
 	_save_config_callables.push_back([this](ini_file &config) {
 		config.set("INPUT", "KeyMenu", _menu_key_data);
@@ -675,6 +677,7 @@ void reshade::runtime::draw_ui()
 
 			// Attach editor window to the remaining dock space
 			ImGui::DockBuilderDockWindow("###editor", right_space_id);
+			ImGui::DockBuilderDockWindow("###viewer", right_space_id);
 
 			// Commit the layout
 			ImGui::DockBuilderFinish(root_space_id);
@@ -703,9 +706,15 @@ void reshade::runtime::draw_ui()
 
 		if (_show_code_editor)
 		{
-			const std::string title = !_editor_file.empty() ? "Editing " + _editor_file.filename().u8string() + " ###editor" : "Viewing code###editor";
+			const std::string title = "Editing " + _editor_file.filename().u8string() + " ###editor";
 			if (ImGui::Begin(title.c_str(), &_show_code_editor))
 				draw_code_editor();
+			ImGui::End();
+		}
+		if (_show_code_viewer)
+		{
+			if (ImGui::Begin("Viewing code###viewer", &_show_code_viewer))
+				draw_code_viewer();
 			ImGui::End();
 		}
 	}
@@ -1197,7 +1206,7 @@ void reshade::runtime::draw_ui_settings()
 					modified |= ImGui::ColorEdit4("##editor_color", &color.x, ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreview);
 					ImGui::SameLine(); ImGui::TextUnformatted(imgui_code_editor::get_palette_color_name(i));
 					ImGui::PopID();
-					_editor.get_palette_index(i) = ImGui::ColorConvertFloat4ToU32(color);
+					_viewer.get_palette_index(i) = _editor.get_palette_index(i) = ImGui::ColorConvertFloat4ToU32(color);
 				}
 				ImGui::PopItemWidth();
 			} ImGui::EndChild();
@@ -1731,9 +1740,7 @@ void reshade::runtime::draw_code_editor()
 
 	// Select editor font
 	ImGui::PushFont(_imgui_context->IO.Fonts->Fonts[1]);
-
 	_editor.render("##editor");
-
 	ImGui::PopFont();
 
 	// Disable keyboard shortcuts when the window is focused so they don't get triggered while editing text
@@ -1744,6 +1751,20 @@ void reshade::runtime::draw_code_editor()
 	if (is_focused)
 		_imgui_context->IO.ConfigFlags &= ~ImGuiConfigFlags_NavEnableKeyboard;
 	else // Enable navigation again if focus is lost
+		_imgui_context->IO.ConfigFlags |=  ImGuiConfigFlags_NavEnableKeyboard;
+}
+void reshade::runtime::draw_code_viewer()
+{
+	ImGui::PushFont(_imgui_context->IO.Fonts->Fonts[1]);
+	_viewer.render("##viewer");
+	ImGui::PopFont();
+
+	const bool is_focused = ImGui::IsWindowFocused(ImGuiFocusedFlags_ChildWindows);
+	_ignore_shortcuts |= is_focused;
+
+	if (is_focused)
+		_imgui_context->IO.ConfigFlags &= ~ImGuiConfigFlags_NavEnableKeyboard;
+	else
 		_imgui_context->IO.ConfigFlags |=  ImGuiConfigFlags_NavEnableKeyboard;
 }
 
@@ -2613,12 +2634,10 @@ void reshade::runtime::draw_technique_editor()
 
 				if (!source_code.empty())
 				{
-					_editor.set_text(source_code);
-					_editor.clear_errors();
-					_editor.set_readonly(true);
-					_editor_file.clear();
-					_selected_effect = std::numeric_limits<size_t>::max();
-					_show_code_editor = true;
+					_viewer.set_text(source_code);
+					_viewer.clear_errors();
+					_viewer.set_readonly(true);
+					_show_code_viewer = true;
 					ImGui::CloseCurrentPopup();
 				}
 			}
@@ -2629,7 +2648,7 @@ void reshade::runtime::draw_technique_editor()
 			{
 				// Use absolute path to explorer to avoid potential security issues when executable is replaced
 				WCHAR explorer_path[260] = L"";
-				GetWindowsDirectoryW(explorer_path, sizeof(explorer_path));
+				GetWindowsDirectoryW(explorer_path, ARRAYSIZE(explorer_path));
 				wcscat_s(explorer_path, L"\\explorer.exe");
 
 				ShellExecuteW(nullptr, L"open", explorer_path, (L"/select,\"" + effect.source_file.wstring() + L"\"").c_str(), nullptr, SW_SHOWDEFAULT);
