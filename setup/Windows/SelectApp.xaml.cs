@@ -81,6 +81,15 @@ namespace ReShade.Setup.Dialogs
 				}
 				catch { }
 
+				// Add Epic Games Launcher install location
+				{
+					string epicGamesInstallPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "Epic Games");
+					if (Directory.Exists(epicGamesInstallPath))
+					{
+						searchPaths.Enqueue(epicGamesInstallPath);
+					}
+				}
+
 				while (searchPaths.Count != 0)
 				{
 					if (SuspendUpdateThread)
