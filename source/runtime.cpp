@@ -1091,6 +1091,7 @@ void reshade::runtime::load_config()
 	config.get("GENERAL", "ScreenshotSaveUI", _screenshot_save_ui);
 	config.get("GENERAL", "ScreenshotSaveBefore", _screenshot_save_before);
 	config.get("GENERAL", "ScreenshotIncludePreset", _screenshot_include_preset);
+	config.get("GENERAL", "ScreenshotJPEGQuality", _screenshot_jpeg_quality);
 	config.get("GENERAL", "ScreenshotClearAlpha", _screenshot_clear_alpha);
 
 	config.get("GENERAL", "NoDebugInfo", _no_debug_info);
@@ -1138,6 +1139,7 @@ void reshade::runtime::save_config() const
 	config.set("GENERAL", "ScreenshotSaveUI", _screenshot_save_ui);
 	config.set("GENERAL", "ScreenshotSaveBefore", _screenshot_save_before);
 	config.set("GENERAL", "ScreenshotIncludePreset", _screenshot_include_preset);
+	config.set("GENERAL", "ScreenshotJPEGQuality", _screenshot_jpeg_quality);
 	config.set("GENERAL", "ScreenshotClearAlpha", _screenshot_clear_alpha);
 
 	config.set("GENERAL", "NoDebugInfo", _no_debug_info);
@@ -1401,7 +1403,7 @@ void reshade::runtime::save_screenshot(const std::wstring &postfix, const bool s
 	sprintf_s(filename, " %.4d-%.2d-%.2d %.2d-%.2d-%.2d", _date[0], _date[1], _date[2], hour, minute, seconds);
 
 	const std::wstring least = (_screenshot_path.is_relative() ? g_target_executable_path.parent_path() / _screenshot_path : _screenshot_path) / g_target_executable_path.stem().concat(filename);
-	const std::wstring screenshot_path = least + postfix + (_screenshot_format == 0 ? L".bmp" : L".png");
+	const std::wstring screenshot_path = least + postfix + (_screenshot_format == 0 ? L".bmp" : _screenshot_format == 1 ? L".png" : L".jpeg");
 
 	LOG(INFO) << "Saving screenshot to " << screenshot_path << " ...";
 
@@ -1428,6 +1430,9 @@ void reshade::runtime::save_screenshot(const std::wstring &postfix, const bool s
 				break;
 			case 1:
 				_screenshot_save_success = stbi_write_png_to_func(write_callback, file, _width, _height, 4, data.data(), 0) != 0;
+				break;
+			case 2:
+				_screenshot_save_success = stbi_write_jpg_to_func(write_callback, file, _width, _height, 4, data.data(), _screenshot_jpeg_quality) != 0;
 				break;
 			}
 
