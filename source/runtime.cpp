@@ -1412,7 +1412,8 @@ void reshade::runtime::save_screenshot(const std::wstring &postfix, const bool s
 	if (std::vector<uint8_t> data(_width * _height * 4); capture_screenshot(data.data()))
 	{
 		// Clear alpha channel
-		if (_screenshot_clear_alpha)
+		// The alpha channel doesn't need to be cleared if we're saving a JPEG, stbi ignores it
+		if (_screenshot_clear_alpha && _screenshot_format != 2)
 			for (uint32_t h = 0; h < _height; ++h)
 				for (uint32_t w = 0; w < _width; ++w)
 					data[(h * _width + w) * 4 + 3] = 0xFF;

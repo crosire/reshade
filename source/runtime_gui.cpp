@@ -1084,8 +1084,9 @@ void reshade::runtime::draw_ui_settings()
 
 		if (_screenshot_format == 2)
 			modified |= ImGui::SliderInt("JPEG Quality", reinterpret_cast<int *>(&_screenshot_jpeg_quality), 1, 100);
+		else
+			modified |= ImGui::Checkbox("Clear alpha channel", &_screenshot_clear_alpha);
 
-		modified |= ImGui::Checkbox("Clear alpha channel", &_screenshot_clear_alpha);
 		modified |= ImGui::Checkbox("Include current preset", &_screenshot_include_preset);
 		modified |= ImGui::Checkbox("Save before and after images", &_screenshot_save_before);
 		modified |= ImGui::Checkbox("Save separate user interface image", &_screenshot_save_ui);
