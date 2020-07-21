@@ -30,8 +30,6 @@ namespace ReShade.Setup.Dialogs
 		{
 			InitializeComponent();
 
-			PathBox.Text = Directory.GetCurrentDirectory();
-
 			// Sort items in list by name
 			var view = CollectionViewSource.GetDefaultView(ProgramListItems);
 			view.SortDescriptions.Add(new SortDescription(nameof(ProgramItem.Name), ListSortDirection.Ascending));
@@ -142,6 +140,9 @@ namespace ReShade.Setup.Dialogs
 											ProgramListItems.Add(new ProgramItem(file));
 										}
 									}
+
+									if (PathBox.Text.Length == 0)
+										ProgramList.SelectedIndex = 0;
 								}), DispatcherPriority.Background, new ArraySegment<string>(files, i, Math.Min(SPLIT_SIZE, files.Length - i)));
 							}
 
@@ -267,6 +268,14 @@ namespace ReShade.Setup.Dialogs
 			if (e.LeftButton == MouseButtonState.Pressed)
 			{
 				OnConfirm(sender, null);
+			}
+		}
+
+		void OnPathChanged(object sender, System.Windows.Controls.TextChangedEventArgs e)
+		{
+			if (PathBox.IsFocused)
+			{
+				ProgramList.UnselectAll();
 			}
 		}
 
