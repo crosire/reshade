@@ -317,6 +317,7 @@ namespace reshade
 		std::filesystem::path _screenshot_path;
 		std::filesystem::path _last_screenshot_file;
 		std::chrono::high_resolution_clock::time_point _last_screenshot_time;
+		unsigned int _screenshot_jpeg_quality = 90;
 
 		// === Preset Switching ===
 		bool _preset_save_success = true;
