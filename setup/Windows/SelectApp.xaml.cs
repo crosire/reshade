@@ -265,7 +265,7 @@ namespace ReShade.Setup.Dialogs
 
 		void OnConfirmSelection(object sender, MouseButtonEventArgs e)
 		{
-			if (e.LeftButton == MouseButtonState.Pressed)
+			if (e.ChangedButton == MouseButton.Left && e.ButtonState == MouseButtonState.Pressed)
 			{
 				OnConfirm(sender, null);
 			}
