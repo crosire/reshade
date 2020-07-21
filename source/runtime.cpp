@@ -521,7 +521,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &path, size_t ind
 		std::move(new_textures.begin(), new_textures.end(), std::back_inserter(_textures));
 		std::move(new_techniques.begin(), new_techniques.end(), std::back_inserter(_techniques));
 
-		_last_reload_successful &= effect.compile_sucess;
+		_last_shader_reload_successful &= effect.compile_sucess;
 		_reload_remaining_effects--;
 	}
 
@@ -535,7 +535,7 @@ void reshade::runtime::load_effects()
 #if RESHADE_GUI
 	_show_splash = true; // Always show splash bar when reloading everything
 #endif
-	_last_reload_successful = true;
+	_last_shader_reload_successful = true;
 
 	// Reload preprocessor definitions from current preset before compiling
 	if (!_current_preset_path.empty())
@@ -574,9 +574,11 @@ void reshade::runtime::load_effects()
 }
 void reshade::runtime::load_textures()
 {
+	_last_texture_reload_successful = true;
+
 	LOG(INFO) << "Loading image files for textures ...";
 
-	for (const texture &texture : _textures)
+	for (texture &texture : _textures)
 	{
 		if (texture.impl == nullptr || texture.impl_reference != texture_reference::none)
 			continue; // Ignore textures that are not created yet and those that are handled in the runtime implementation
@@ -588,8 +590,10 @@ void reshade::runtime::load_textures()
 			continue;
 
 		// Search for image file using the provided search paths unless the path provided is already absolute
-		if (!find_file(_texture_search_paths, source_path)) {
+		if (!find_file(_texture_search_paths, source_path))
+		{
 			LOG(ERROR) << "Source " << source_path << " for texture '" << texture.unique_name << "' could not be found in any of the texture search paths.";
+			_last_texture_reload_successful = false;
 			continue;
 		}
 
@@ -609,8 +613,10 @@ void reshade::runtime::load_textures()
 				filedata = stbi_load_from_memory(mem.data(), static_cast<int>(mem.size()), &width, &height, &channels, STBI_rgb_alpha);
 		}
 
-		if (filedata == nullptr) {
+		if (filedata == nullptr)
+		{
 			LOG(ERROR) << "Source " << source_path << " for texture '" << texture.unique_name << "' could not be loaded! Make sure it is of a compatible file format.";
+			_last_texture_reload_successful = false;
 			continue;
 		}
 
@@ -629,6 +635,8 @@ void reshade::runtime::load_textures()
 		}
 
 		stbi_image_free(filedata);
+
+		texture.loaded = true;
 	}
 
 	_textures_loaded = true;
@@ -792,7 +800,7 @@ void reshade::runtime::update_and_render_effects()
 						disable_technique(tech);
 
 				effect.compile_sucess = false;
-				_last_reload_successful = false;
+				_last_shader_reload_successful = false;
 			}
 
 			// An effect has changed, need to reload textures

@@ -571,7 +571,7 @@ void reshade::runtime::draw_ui()
 				ImGui::TextUnformatted("' to open the configuration menu.");
 			}
 
-			if (!_last_reload_successful)
+			if (!_last_shader_reload_successful)
 			{
 				ImGui::Spacing();
 				ImGui::TextColored(COLOR_RED,
@@ -821,23 +821,41 @@ void reshade::runtime::draw_ui_home()
 	if (!_effects_enabled)
 		ImGui::Text("Effects are disabled. Press '%s' to enable them again.", input::key_name(_effects_key_data).c_str());
 
-	if (!_last_reload_successful)
+	if (!_last_shader_reload_successful)
 	{
-		std::string error_message = "There were errors compiling the following shaders:";
+		std::string shader_list;
 		for (const effect &effect : _effects)
 			if (!effect.compile_sucess)
-				error_message += ' ' + effect.source_file.filename().u8string() + ',';
-		error_message.pop_back();
+				shader_list += ' ' + effect.source_file.filename().u8string() + ',';
 
 		// Make sure there are actually effects that failed to compile, since the last reload flag may not have been reset
-		if (error_message.size() > 50)
+		if (shader_list.empty())
 		{
-			ImGui::TextColored(COLOR_RED, "%s", error_message.c_str());
-			ImGui::Spacing();
+			_last_shader_reload_successful = true;
 		}
 		else
 		{
-			_last_reload_successful = true;
+			shader_list.pop_back();
+			ImGui::TextColored(COLOR_RED, "Some shaders failed to compile:%s", shader_list.c_str());
+			ImGui::Spacing();
+		}
+	}
+	if (!_last_texture_reload_successful)
+	{
+		std::string texture_list;
+		for (const texture &texture : _textures)
+			if (!texture.loaded && !texture.annotation_as_string("source").empty())
+				texture_list += ' ' + texture.unique_name + ',';
+
+		if (texture_list.empty())
+		{
+			_last_texture_reload_successful = true;
+		}
+		else
+		{
+			texture_list.pop_back();
+			ImGui::TextColored(COLOR_RED, "Some textures failed to load:%s", texture_list.c_str());
+			ImGui::Spacing();
 		}
 	}
 
@@ -2448,7 +2466,7 @@ void reshade::runtime::draw_variable_editor()
 		{
 			save_current_preset();
 
-			const bool reload_successful_before = _last_reload_successful;
+			const bool reload_successful_before = _last_shader_reload_successful;
 
 			// Reload current effect file
 			_reload_total_effects = 1;
@@ -2465,7 +2483,7 @@ void reshade::runtime::draw_variable_editor()
 				unload_effect(effect_index);
 				if (load_effect(_effects[effect_index].source_file, effect_index))
 				{
-					_last_reload_successful = reload_successful_before;
+					_last_shader_reload_successful = reload_successful_before;
 					ImGui::OpenPopup("##pperror"); // Notify the user about this
 
 					// Update preset again now, so that the removed preprocessor definition does not reappear on a reload

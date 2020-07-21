@@ -290,7 +290,8 @@ namespace reshade
 		// === Effect Loading ===
 		bool _no_debug_info = 0;
 		bool _no_reload_on_init = false;
-		bool _last_reload_successful = true;
+		bool _last_shader_reload_successful = true;
+		bool _last_texture_reload_successful = true;
 		bool _textures_loaded = false;
 		bool _performance_mode = false;
 		unsigned int _reload_key_data[4];
