@@ -878,7 +878,7 @@ void reshade::d3d9::runtime_d3d9::render_technique(technique &technique)
 		const d3d9_pass_data &pass_data = impl->passes[pass_index];
 		const reshadefx::pass_info &pass_info = technique.passes[pass_index];
 
-		// Setup states
+		// Setup state
 		pass_data.stateblock->Apply();
 
 		// Setup shader resources

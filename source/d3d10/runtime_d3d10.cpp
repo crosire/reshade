@@ -1023,7 +1023,6 @@ void reshade::d3d10::runtime_d3d10::render_technique(technique &technique)
 		const d3d10_pass_data &pass_data = impl->passes[pass_index];
 		const reshadefx::pass_info &pass_info = technique.passes[pass_index];
 
-		// Setup states
 		_device->VSSetShader(pass_data.vertex_shader.get());
 		_device->PSSetShader(pass_data.pixel_shader.get());
 

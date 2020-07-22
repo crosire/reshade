@@ -53,6 +53,7 @@ namespace reshade::d3d12
 
 	struct d3d12_technique_data
 	{
+		bool has_compute_passes = false;
 		std::vector<d3d12_pass_data> passes;
 	};
 
@@ -783,6 +784,8 @@ bool reshade::d3d12::runtime_d3d12::init_effect(size_t index)
 
 			if (!pass_info.cs_entry_point.empty())
 			{
+				impl->has_compute_passes = true;
+
 				D3D12_COMPUTE_PIPELINE_STATE_DESC pso_desc = {};
 				pso_desc.pRootSignature = effect_data.signature.get();
 
@@ -1277,7 +1280,6 @@ void reshade::d3d12::runtime_d3d12::render_technique(technique &technique)
 	ID3D12DescriptorHeap *const descriptor_heaps[] = { effect_data.srv_uav_heap.get(), effect_data.sampler_heap.get() };
 	_cmd_list->SetDescriptorHeaps(ARRAYSIZE(descriptor_heaps), descriptor_heaps);
 	_cmd_list->SetGraphicsRootSignature(effect_data.signature.get());
-	_cmd_list->SetComputeRootSignature(effect_data.signature.get());
 
 	// Setup shader constants
 	if (effect_data.cb != nullptr)
@@ -1289,18 +1291,21 @@ void reshade::d3d12::runtime_d3d12::render_technique(technique &technique)
 		}
 
 		_cmd_list->SetGraphicsRootConstantBufferView(0, effect_data.cbv_gpu_address);
-		_cmd_list->SetComputeRootConstantBufferView(0, effect_data.cbv_gpu_address);
 	}
 
-	// Setup shader resources
+	// Setup shader resources and samplers
 	_cmd_list->SetGraphicsRootDescriptorTable(1, effect_data.srv_gpu_base);
-	_cmd_list->SetComputeRootDescriptorTable(1, effect_data.srv_gpu_base);
-
-	// Setup samplers
 	_cmd_list->SetGraphicsRootDescriptorTable(2, effect_data.sampler_gpu_base);
-	_cmd_list->SetComputeRootDescriptorTable(2, effect_data.sampler_gpu_base);
 
-	_cmd_list->SetComputeRootDescriptorTable(3, effect_data.uav_gpu_base);
+	if (impl->has_compute_passes)
+	{
+		_cmd_list->SetComputeRootSignature(effect_data.signature.get());
+		if (effect_data.cb != nullptr)
+			_cmd_list->SetComputeRootConstantBufferView(0, effect_data.cbv_gpu_address);
+		_cmd_list->SetComputeRootDescriptorTable(1, effect_data.srv_gpu_base);
+		_cmd_list->SetComputeRootDescriptorTable(2, effect_data.sampler_gpu_base);
+		_cmd_list->SetComputeRootDescriptorTable(3, effect_data.uav_gpu_base);
+	}
 
 	// TODO: Technically need to transition the depth texture here as well
 
@@ -1313,112 +1318,112 @@ void reshade::d3d12::runtime_d3d12::render_technique(technique &technique)
 		const d3d12_pass_data &pass_data = impl->passes[pass_index];
 		const reshadefx::pass_info &pass_info = technique.passes[pass_index];
 
-		// Setup states
 		_cmd_list->SetPipelineState(pass_data.pipeline.get());
 
 		if (!pass_info.cs_entry_point.empty())
 		{
 			_cmd_list->Dispatch(pass_info.viewport_width, pass_info.viewport_height, 1);
-			continue;
-		}
-
-		if (needs_implicit_backbuffer_copy)
-		{
-			// Save back buffer of previous pass
-			transition_state(_cmd_list, _backbuffer_texture, D3D12_RESOURCE_STATE_SHADER_RESOURCE, D3D12_RESOURCE_STATE_COPY_DEST);
-			transition_state(_cmd_list, _backbuffers[_swap_index], D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_COPY_SOURCE);
-			_cmd_list->CopyResource(_backbuffer_texture.get(), _backbuffers[_swap_index].get());
-			transition_state(_cmd_list, _backbuffer_texture, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_SHADER_RESOURCE);
-			transition_state(_cmd_list, _backbuffers[_swap_index], D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
-		}
-
-		// Transition resource state for render targets
-		for (UINT k = 0; k < pass_data.num_render_targets; ++k)
-		{
-			const auto render_target_texture = std::find_if(_textures.begin(), _textures.end(),
-				[&render_target = pass_info.render_target_names[k]](const auto &item) {
-				return item.unique_name == render_target;
-			});
-
-			transition_state(_cmd_list, static_cast<d3d12_tex_data *>(render_target_texture->impl)->resource, D3D12_RESOURCE_STATE_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
-		}
-
-		_cmd_list->OMSetStencilRef(pass_info.stencil_reference_value);
-
-		// Setup render targets
-		const float clear_color[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
-
-		if (pass_info.stencil_enable && !is_effect_stencil_cleared)
-		{
-			is_effect_stencil_cleared = true;
-
-			_cmd_list->ClearDepthStencilView(effect_stencil, D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
-		}
-
-		if (pass_data.num_render_targets == 0)
-		{
-			needs_implicit_backbuffer_copy = true;
-
-			D3D12_CPU_DESCRIPTOR_HANDLE render_target = { _backbuffer_rtvs->GetCPUDescriptorHandleForHeapStart().ptr + (_swap_index * 2 + pass_info.srgb_write_enable) * _rtv_handle_size };
-			_cmd_list->OMSetRenderTargets(1, &render_target, false, pass_info.stencil_enable ? &effect_stencil : nullptr);
-
-			if (pass_info.clear_render_targets)
-				_cmd_list->ClearRenderTargetView(render_target, clear_color, 0, nullptr);
 		}
 		else
 		{
-			needs_implicit_backbuffer_copy = false;
+			if (needs_implicit_backbuffer_copy)
+			{
+				// Save back buffer of previous pass
+				transition_state(_cmd_list, _backbuffer_texture, D3D12_RESOURCE_STATE_SHADER_RESOURCE, D3D12_RESOURCE_STATE_COPY_DEST);
+				transition_state(_cmd_list, _backbuffers[_swap_index], D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_COPY_SOURCE);
+				_cmd_list->CopyResource(_backbuffer_texture.get(), _backbuffers[_swap_index].get());
+				transition_state(_cmd_list, _backbuffer_texture, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_SHADER_RESOURCE);
+				transition_state(_cmd_list, _backbuffers[_swap_index], D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
+			}
 
-			_cmd_list->OMSetRenderTargets(pass_data.num_render_targets, &pass_data.render_targets, true,
-				pass_info.stencil_enable && pass_info.viewport_width == _width && pass_info.viewport_height == _height ? &effect_stencil : nullptr);
+			// Transition resource state for render targets
+			for (UINT k = 0; k < pass_data.num_render_targets; ++k)
+			{
+				const auto render_target_texture = std::find_if(_textures.begin(), _textures.end(),
+					[&render_target = pass_info.render_target_names[k]](const auto &item) {
+					return item.unique_name == render_target;
+				});
 
-			if (pass_info.clear_render_targets)
-				for (UINT k = 0; k < pass_data.num_render_targets; ++k)
-					_cmd_list->ClearRenderTargetView({ pass_data.render_targets.ptr + k * _rtv_handle_size }, clear_color, 0, nullptr);
-		}
+				transition_state(_cmd_list, static_cast<d3d12_tex_data *>(render_target_texture->impl)->resource, D3D12_RESOURCE_STATE_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
+			}
 
-		const D3D12_RECT scissor_rect = { 0, 0, static_cast<LONG>(pass_info.viewport_width), static_cast<LONG>(pass_info.viewport_height) };
-		const D3D12_VIEWPORT viewport = { 0.0f, 0.0f, static_cast<FLOAT>(pass_info.viewport_width), static_cast<FLOAT>(pass_info.viewport_height), 0.0f, 1.0f };
-		_cmd_list->RSSetViewports(1, &viewport);
-		_cmd_list->RSSetScissorRects(1, &scissor_rect);
+			_cmd_list->OMSetStencilRef(pass_info.stencil_reference_value);
 
-		// Draw primitives
-		D3D_PRIMITIVE_TOPOLOGY topology;
-		switch (pass_info.topology)
-		{
-		case reshadefx::primitive_topology::point_list:
-			topology = D3D_PRIMITIVE_TOPOLOGY_POINTLIST;
-			break;
-		case reshadefx::primitive_topology::line_list:
-			topology = D3D_PRIMITIVE_TOPOLOGY_LINELIST;
-			break;
-		case reshadefx::primitive_topology::line_strip:
-			topology = D3D_PRIMITIVE_TOPOLOGY_LINESTRIP;
-			break;
-		default:
-		case reshadefx::primitive_topology::triangle_list:
-			topology = D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
-			break;
-		case reshadefx::primitive_topology::triangle_strip:
-			topology = D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP;
-			break;
-		}
-		_cmd_list->IASetPrimitiveTopology(topology);
-		_cmd_list->DrawInstanced(pass_info.num_vertices, 1, 0, 0);
+			// Setup render targets
+			const float clear_color[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
 
-		_vertices += pass_info.num_vertices;
-		_drawcalls += 1;
+			if (pass_info.stencil_enable && !is_effect_stencil_cleared)
+			{
+				is_effect_stencil_cleared = true;
 
-		// Generate mipmaps and transition resource state back to shader access
-		for (UINT k = 0; k < pass_data.num_render_targets; ++k)
-		{
-			const auto render_target_texture = std::find_if(_textures.begin(), _textures.end(),
-				[&render_target = pass_info.render_target_names[k]](const auto &item) {
-				return item.unique_name == render_target;
-			});
+				_cmd_list->ClearDepthStencilView(effect_stencil, D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
+			}
 
-			transition_state(_cmd_list, static_cast<d3d12_tex_data *>(render_target_texture->impl)->resource, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_SHADER_RESOURCE);
-			generate_mipmaps(*render_target_texture);
+			if (pass_data.num_render_targets == 0)
+			{
+				needs_implicit_backbuffer_copy = true;
+
+				D3D12_CPU_DESCRIPTOR_HANDLE render_target = { _backbuffer_rtvs->GetCPUDescriptorHandleForHeapStart().ptr + (_swap_index * 2 + pass_info.srgb_write_enable) * _rtv_handle_size };
+				_cmd_list->OMSetRenderTargets(1, &render_target, false, pass_info.stencil_enable ? &effect_stencil : nullptr);
+
+				if (pass_info.clear_render_targets)
+					_cmd_list->ClearRenderTargetView(render_target, clear_color, 0, nullptr);
+			}
+			else
+			{
+				needs_implicit_backbuffer_copy = false;
+
+				_cmd_list->OMSetRenderTargets(pass_data.num_render_targets, &pass_data.render_targets, true,
+					pass_info.stencil_enable && pass_info.viewport_width == _width && pass_info.viewport_height == _height ? &effect_stencil : nullptr);
+
+				if (pass_info.clear_render_targets)
+					for (UINT k = 0; k < pass_data.num_render_targets; ++k)
+						_cmd_list->ClearRenderTargetView({ pass_data.render_targets.ptr + k * _rtv_handle_size }, clear_color, 0, nullptr);
+			}
+
+			const D3D12_RECT scissor_rect = { 0, 0, static_cast<LONG>(pass_info.viewport_width), static_cast<LONG>(pass_info.viewport_height) };
+			const D3D12_VIEWPORT viewport = { 0.0f, 0.0f, static_cast<FLOAT>(pass_info.viewport_width), static_cast<FLOAT>(pass_info.viewport_height), 0.0f, 1.0f };
+			_cmd_list->RSSetViewports(1, &viewport);
+			_cmd_list->RSSetScissorRects(1, &scissor_rect);
+
+			// Draw primitives
+			D3D_PRIMITIVE_TOPOLOGY topology;
+			switch (pass_info.topology)
+			{
+			case reshadefx::primitive_topology::point_list:
+				topology = D3D_PRIMITIVE_TOPOLOGY_POINTLIST;
+				break;
+			case reshadefx::primitive_topology::line_list:
+				topology = D3D_PRIMITIVE_TOPOLOGY_LINELIST;
+				break;
+			case reshadefx::primitive_topology::line_strip:
+				topology = D3D_PRIMITIVE_TOPOLOGY_LINESTRIP;
+				break;
+			default:
+			case reshadefx::primitive_topology::triangle_list:
+				topology = D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+				break;
+			case reshadefx::primitive_topology::triangle_strip:
+				topology = D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP;
+				break;
+			}
+			_cmd_list->IASetPrimitiveTopology(topology);
+			_cmd_list->DrawInstanced(pass_info.num_vertices, 1, 0, 0);
+
+			_vertices += pass_info.num_vertices;
+			_drawcalls += 1;
+
+			// Generate mipmaps and transition resource state back to shader access
+			for (UINT k = 0; k < pass_data.num_render_targets; ++k)
+			{
+				const auto render_target_texture = std::find_if(_textures.begin(), _textures.end(),
+					[&render_target = pass_info.render_target_names[k]](const auto &item) {
+					return item.unique_name == render_target;
+				});
+
+				transition_state(_cmd_list, static_cast<d3d12_tex_data *>(render_target_texture->impl)->resource, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_SHADER_RESOURCE);
+				generate_mipmaps(*render_target_texture);
+			}
 		}
 	}
 }

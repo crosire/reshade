@@ -1098,7 +1098,6 @@ void reshade::d3d11::runtime_d3d11::render_technique(technique &technique)
 		if (!pass_info.cs_entry_point.empty())
 		{
 			_immediate_context->CSSetShader(pass_data.compute_shader.get(), nullptr, 0);
-
 			_immediate_context->CSSetShaderResources(0, static_cast<UINT>(pass_data.srvs.size()), reinterpret_cast<ID3D11ShaderResourceView *const *>(pass_data.srvs.data()));
 			_immediate_context->CSSetUnorderedAccessViews(0, static_cast<UINT>(pass_data.uavs.size()), reinterpret_cast<ID3D11UnorderedAccessView *const *>(pass_data.uavs.data()), nullptr);
 
@@ -1109,111 +1108,111 @@ void reshade::d3d11::runtime_d3d11::render_technique(technique &technique)
 			ID3D11UnorderedAccessView *null_uav[D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT] = { nullptr };
 			_immediate_context->CSSetShaderResources(0, static_cast<UINT>(pass_data.srvs.size()), null_srv);
 			_immediate_context->CSSetUnorderedAccessViews(0, static_cast<UINT>(pass_data.uavs.size()), null_uav, nullptr);
-			continue;
-		}
-
-		if (needs_implicit_backbuffer_copy)
-		{
-			// Save back buffer of previous pass
-			_immediate_context->CopyResource(_backbuffer_texture.get(), _backbuffer_resolved.get());
-		}
-
-		// Setup states
-		_immediate_context->VSSetShader(pass_data.vertex_shader.get(), nullptr, 0);
-		_immediate_context->PSSetShader(pass_data.pixel_shader.get(), nullptr, 0);
-
-		_immediate_context->OMSetBlendState(pass_data.blend_state.get(), nullptr, D3D11_DEFAULT_SAMPLE_MASK);
-		_immediate_context->OMSetDepthStencilState(pass_data.depth_stencil_state.get(), pass_info.stencil_reference_value);
-
-		// Setup render targets
-		if (pass_info.viewport_width == _width && pass_info.viewport_height == _height)
-		{
-			_immediate_context->OMSetRenderTargets(D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT, reinterpret_cast<ID3D11RenderTargetView *const *>(pass_data.render_targets), pass_info.stencil_enable ? _effect_stencil.get() : nullptr);
-
-			if (pass_info.stencil_enable && !is_effect_stencil_cleared)
-			{
-				is_effect_stencil_cleared = true;
-
-				_immediate_context->ClearDepthStencilView(_effect_stencil.get(), D3D11_CLEAR_STENCIL, 1.0f, 0);
-			}
 		}
 		else
 		{
-			_immediate_context->OMSetRenderTargets(D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT, reinterpret_cast<ID3D11RenderTargetView *const *>(pass_data.render_targets), nullptr);
-		}
-
-		// Setup shader resources after binding render targets, to ensure any OM bindings by the application are unset at this point
-		// Otherwise a slot referencing a resource still bound to the OM would be filled with NULL, which can happen with the depth buffer (https://docs.microsoft.com/windows/win32/api/d3d11/nf-d3d11-id3d11devicecontext-pssetshaderresources)
-		_immediate_context->VSSetShaderResources(0, static_cast<UINT>(pass_data.srvs.size()), reinterpret_cast<ID3D11ShaderResourceView *const *>(pass_data.srvs.data()));
-		_immediate_context->PSSetShaderResources(0, static_cast<UINT>(pass_data.srvs.size()), reinterpret_cast<ID3D11ShaderResourceView *const *>(pass_data.srvs.data()));
-
-		if (pass_info.clear_render_targets)
-		{
-			for (const com_ptr<ID3D11RenderTargetView> &target : pass_data.render_targets)
+			if (needs_implicit_backbuffer_copy)
 			{
-				if (target == nullptr)
-					break; // Render targets can only be set consecutively
-				const FLOAT color[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
-				_immediate_context->ClearRenderTargetView(target.get(), color);
-			}
-		}
-
-		const D3D11_VIEWPORT viewport = { 0.0f, 0.0f, static_cast<FLOAT>(pass_info.viewport_width), static_cast<FLOAT>(pass_info.viewport_height), 0.0f, 1.0f };
-		_immediate_context->RSSetViewports(1, &viewport);
-
-		// Draw primitives
-		D3D11_PRIMITIVE_TOPOLOGY topology;
-		switch (pass_info.topology)
-		{
-		case reshadefx::primitive_topology::point_list:
-			topology = D3D11_PRIMITIVE_TOPOLOGY_POINTLIST;
-			break;
-		case reshadefx::primitive_topology::line_list:
-			topology = D3D11_PRIMITIVE_TOPOLOGY_LINELIST;
-			break;
-		case reshadefx::primitive_topology::line_strip:
-			topology = D3D11_PRIMITIVE_TOPOLOGY_LINESTRIP;
-			break;
-		default:
-		case reshadefx::primitive_topology::triangle_list:
-			topology = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
-			break;
-		case reshadefx::primitive_topology::triangle_strip:
-			topology = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP;
-			break;
-		}
-		_immediate_context->IASetPrimitiveTopology(topology);
-		_immediate_context->Draw(pass_info.num_vertices, 0);
-
-		_vertices += pass_info.num_vertices;
-		_drawcalls += 1;
-
-		// Reset render targets
-		_immediate_context->OMSetRenderTargets(0, nullptr, nullptr);
-
-		// Reset shader resources
-		ID3D11ShaderResourceView *null_srv[D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT] = { nullptr };
-		_immediate_context->VSSetShaderResources(0, static_cast<UINT>(pass_data.srvs.size()), null_srv);
-		_immediate_context->PSSetShaderResources(0, static_cast<UINT>(pass_data.srvs.size()), null_srv);
-
-		needs_implicit_backbuffer_copy = false;
-		for (const com_ptr<ID3D11ShaderResourceView> &resource : pass_data.render_target_resources)
-		{
-			if (resource == nullptr)
-				break;
-
-			if (resource == _backbuffer_texture_srv[0] ||
-				resource == _backbuffer_texture_srv[1])
-			{
-				needs_implicit_backbuffer_copy = true;
-				break;
+				// Save back buffer of previous pass
+				_immediate_context->CopyResource(_backbuffer_texture.get(), _backbuffer_resolved.get());
 			}
 
-			D3D11_SHADER_RESOURCE_VIEW_DESC resource_desc;
-			resource->GetDesc(&resource_desc);
+			_immediate_context->VSSetShader(pass_data.vertex_shader.get(), nullptr, 0);
+			_immediate_context->PSSetShader(pass_data.pixel_shader.get(), nullptr, 0);
 
-			if (resource_desc.Texture2D.MipLevels > 1)
-				_immediate_context->GenerateMips(resource.get());
+			_immediate_context->OMSetBlendState(pass_data.blend_state.get(), nullptr, D3D11_DEFAULT_SAMPLE_MASK);
+			_immediate_context->OMSetDepthStencilState(pass_data.depth_stencil_state.get(), pass_info.stencil_reference_value);
+
+			// Setup render targets
+			if (pass_info.viewport_width == _width && pass_info.viewport_height == _height)
+			{
+				_immediate_context->OMSetRenderTargets(D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT, reinterpret_cast<ID3D11RenderTargetView *const *>(pass_data.render_targets), pass_info.stencil_enable ? _effect_stencil.get() : nullptr);
+
+				if (pass_info.stencil_enable && !is_effect_stencil_cleared)
+				{
+					is_effect_stencil_cleared = true;
+
+					_immediate_context->ClearDepthStencilView(_effect_stencil.get(), D3D11_CLEAR_STENCIL, 1.0f, 0);
+				}
+			}
+			else
+			{
+				_immediate_context->OMSetRenderTargets(D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT, reinterpret_cast<ID3D11RenderTargetView *const *>(pass_data.render_targets), nullptr);
+			}
+
+			// Setup shader resources after binding render targets, to ensure any OM bindings by the application are unset at this point
+			// Otherwise a slot referencing a resource still bound to the OM would be filled with NULL, which can happen with the depth buffer (https://docs.microsoft.com/windows/win32/api/d3d11/nf-d3d11-id3d11devicecontext-pssetshaderresources)
+			_immediate_context->VSSetShaderResources(0, static_cast<UINT>(pass_data.srvs.size()), reinterpret_cast<ID3D11ShaderResourceView *const *>(pass_data.srvs.data()));
+			_immediate_context->PSSetShaderResources(0, static_cast<UINT>(pass_data.srvs.size()), reinterpret_cast<ID3D11ShaderResourceView *const *>(pass_data.srvs.data()));
+
+			if (pass_info.clear_render_targets)
+			{
+				for (const com_ptr<ID3D11RenderTargetView> &target : pass_data.render_targets)
+				{
+					if (target == nullptr)
+						break; // Render targets can only be set consecutively
+					const FLOAT color[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+					_immediate_context->ClearRenderTargetView(target.get(), color);
+				}
+			}
+
+			const D3D11_VIEWPORT viewport = { 0.0f, 0.0f, static_cast<FLOAT>(pass_info.viewport_width), static_cast<FLOAT>(pass_info.viewport_height), 0.0f, 1.0f };
+			_immediate_context->RSSetViewports(1, &viewport);
+
+			// Draw primitives
+			D3D11_PRIMITIVE_TOPOLOGY topology;
+			switch (pass_info.topology)
+			{
+			case reshadefx::primitive_topology::point_list:
+				topology = D3D11_PRIMITIVE_TOPOLOGY_POINTLIST;
+				break;
+			case reshadefx::primitive_topology::line_list:
+				topology = D3D11_PRIMITIVE_TOPOLOGY_LINELIST;
+				break;
+			case reshadefx::primitive_topology::line_strip:
+				topology = D3D11_PRIMITIVE_TOPOLOGY_LINESTRIP;
+				break;
+			default:
+			case reshadefx::primitive_topology::triangle_list:
+				topology = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+				break;
+			case reshadefx::primitive_topology::triangle_strip:
+				topology = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP;
+				break;
+			}
+			_immediate_context->IASetPrimitiveTopology(topology);
+			_immediate_context->Draw(pass_info.num_vertices, 0);
+
+			_vertices += pass_info.num_vertices;
+			_drawcalls += 1;
+
+			// Reset render targets
+			_immediate_context->OMSetRenderTargets(0, nullptr, nullptr);
+
+			// Reset shader resources
+			ID3D11ShaderResourceView *null_srv[D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT] = { nullptr };
+			_immediate_context->VSSetShaderResources(0, static_cast<UINT>(pass_data.srvs.size()), null_srv);
+			_immediate_context->PSSetShaderResources(0, static_cast<UINT>(pass_data.srvs.size()), null_srv);
+
+			needs_implicit_backbuffer_copy = false;
+			for (const com_ptr<ID3D11ShaderResourceView> &resource : pass_data.render_target_resources)
+			{
+				if (resource == nullptr)
+					break;
+
+				if (resource == _backbuffer_texture_srv[0] ||
+					resource == _backbuffer_texture_srv[1])
+				{
+					needs_implicit_backbuffer_copy = true;
+					break;
+				}
+
+				D3D11_SHADER_RESOURCE_VIEW_DESC resource_desc;
+				resource->GetDesc(&resource_desc);
+
+				if (resource_desc.Texture2D.MipLevels > 1)
+					_immediate_context->GenerateMips(resource.get());
+			}
 		}
 	}
 

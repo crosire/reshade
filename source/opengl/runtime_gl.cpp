@@ -984,7 +984,7 @@ void reshade::opengl::runtime_gl::render_technique(technique &technique)
 	if (!impl->query_in_flight)
 		glBeginQuery(GL_TIME_ELAPSED, impl->query);
 
-	// Set up global states
+	// Set up global state
 	glDisable(GL_CULL_FACE);
 	glDisable(GL_DEPTH_TEST);
 	glDisable(GL_SCISSOR_TEST);
@@ -1028,122 +1028,124 @@ void reshade::opengl::runtime_gl::render_technique(technique &technique)
 		if (!pass_info.cs_entry_point.empty())
 		{
 			glDispatchCompute(pass_info.viewport_width, pass_info.viewport_height, 1);
-			continue;
 		}
-
-		if (needs_implicit_backbuffer_copy)
+		else
 		{
-			// Copy back buffer of previous pass to texture
-			glDisable(GL_FRAMEBUFFER_SRGB);
-			glBindFramebuffer(GL_READ_FRAMEBUFFER, _fbo[FBO_BACK]);
-			glBindFramebuffer(GL_DRAW_FRAMEBUFFER, _fbo[FBO_BLIT]);
-			glReadBuffer(GL_COLOR_ATTACHMENT0);
-			glDrawBuffer(GL_COLOR_ATTACHMENT0);
-			glBlitFramebuffer(0, 0, _width, _height, 0, 0, _width, _height, GL_COLOR_BUFFER_BIT, GL_NEAREST);
-		}
-
-		// Set up pass specific state
-		glViewport(0, 0, static_cast<GLsizei>(pass_info.viewport_width), static_cast<GLsizei>(pass_info.viewport_height));
-		glBindFramebuffer(GL_FRAMEBUFFER, pass_data.fbo);
-		glDrawBuffers(8, pass_data.draw_targets);
-
-		if (pass_info.blend_enable) {
-			glEnable(GL_BLEND);
-			glBlendFuncSeparate(pass_data.blend_src, pass_data.blend_dest, pass_data.blend_src_alpha, pass_data.blend_dest_alpha);
-			glBlendEquationSeparate(pass_data.blend_eq_color, pass_data.blend_eq_alpha);
-		}
-		else {
-			glDisable(GL_BLEND);
-		}
-
-		if (pass_info.stencil_enable) {
-			glEnable(GL_STENCIL_TEST);
-			glStencilOp(pass_data.stencil_op_fail, pass_data.stencil_op_z_fail, pass_data.stencil_op_z_pass);
-			glStencilMask(pass_info.stencil_write_mask);
-			glStencilFunc(pass_data.stencil_func, pass_info.stencil_reference_value, pass_info.stencil_read_mask);
-		}
-		else {
-			glDisable(GL_STENCIL_TEST);
-		}
-
-		if (pass_info.stencil_enable && !is_effect_stencil_cleared)
-		{
-			is_effect_stencil_cleared = true;
-
-			GLint clear_value = 0;
-			glClearBufferiv(GL_STENCIL, 0, &clear_value);
-		}
-
-		if (pass_info.srgb_write_enable) {
-			glEnable(GL_FRAMEBUFFER_SRGB);
-		} else {
-			glDisable(GL_FRAMEBUFFER_SRGB);
-		}
-
-		glColorMask(
-			(pass_info.color_write_mask & (1 << 0)) != 0,
-			(pass_info.color_write_mask & (1 << 1)) != 0,
-			(pass_info.color_write_mask & (1 << 2)) != 0,
-			(pass_info.color_write_mask & (1 << 3)) != 0);
-
-		if (pass_info.clear_render_targets)
-		{
-			for (GLuint k = 0; k < 8; k++)
+			if (needs_implicit_backbuffer_copy)
 			{
-				if (pass_data.draw_targets[k] == GL_NONE)
-					break; // Ignore unbound render targets
-				const GLfloat color[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
-				glClearBufferfv(GL_COLOR, k, color);
-			}
-		}
-
-		// Draw primitives
-		GLenum topology;
-		switch (pass_info.topology)
-		{
-		case reshadefx::primitive_topology::point_list:
-			topology = GL_POINTS;
-			break;
-		case reshadefx::primitive_topology::line_list:
-			topology = GL_LINES;
-			break;
-		case reshadefx::primitive_topology::line_strip:
-			topology = GL_LINE_STRIP;
-			break;
-		default:
-		case reshadefx::primitive_topology::triangle_list:
-			topology = GL_TRIANGLES;
-			break;
-		case reshadefx::primitive_topology::triangle_strip:
-			topology = GL_TRIANGLE_STRIP;
-			break;
-		}
-		glDrawArrays(GL_TRIANGLE_STRIP, 0, pass_info.num_vertices);
-
-		_vertices += pass_info.num_vertices;
-		_drawcalls += 1;
-
-		needs_implicit_backbuffer_copy = false;
-		for (GLuint texture_id : pass_data.draw_textures)
-		{
-			if (texture_id == 0)
-				break;
-
-			if (texture_id == _tex[TEX_BACK_SRGB])
-			{
-				needs_implicit_backbuffer_copy = true;
-				break;
+				// Copy back buffer of previous pass to texture
+				glDisable(GL_FRAMEBUFFER_SRGB);
+				glBindFramebuffer(GL_READ_FRAMEBUFFER, _fbo[FBO_BACK]);
+				glBindFramebuffer(GL_DRAW_FRAMEBUFFER, _fbo[FBO_BLIT]);
+				glReadBuffer(GL_COLOR_ATTACHMENT0);
+				glDrawBuffer(GL_COLOR_ATTACHMENT0);
+				glBlitFramebuffer(0, 0, _width, _height, 0, 0, _width, _height, GL_COLOR_BUFFER_BIT, GL_NEAREST);
 			}
 
-			// Regenerate mipmaps of any textures bound as render target
-			for (GLuint s_slot = 0; s_slot < impl->samplers.size(); ++s_slot)
-			{
-				const opengl_sampler_data &sampler_data = impl->samplers[s_slot];
+			// Set up pass specific state
+			glViewport(0, 0, static_cast<GLsizei>(pass_info.viewport_width), static_cast<GLsizei>(pass_info.viewport_height));
+			glBindFramebuffer(GL_FRAMEBUFFER, pass_data.fbo);
+			glDrawBuffers(8, pass_data.draw_targets);
 
-				if (sampler_data.has_mipmaps && (sampler_data.texture->id[0] == texture_id || sampler_data.texture->id[1] == texture_id))
+			if (pass_info.blend_enable) {
+				glEnable(GL_BLEND);
+				glBlendFuncSeparate(pass_data.blend_src, pass_data.blend_dest, pass_data.blend_src_alpha, pass_data.blend_dest_alpha);
+				glBlendEquationSeparate(pass_data.blend_eq_color, pass_data.blend_eq_alpha);
+			}
+			else {
+				glDisable(GL_BLEND);
+			}
+
+			if (pass_info.stencil_enable) {
+				glEnable(GL_STENCIL_TEST);
+				glStencilOp(pass_data.stencil_op_fail, pass_data.stencil_op_z_fail, pass_data.stencil_op_z_pass);
+				glStencilMask(pass_info.stencil_write_mask);
+				glStencilFunc(pass_data.stencil_func, pass_info.stencil_reference_value, pass_info.stencil_read_mask);
+			}
+			else {
+				glDisable(GL_STENCIL_TEST);
+			}
+
+			if (pass_info.stencil_enable && !is_effect_stencil_cleared)
+			{
+				is_effect_stencil_cleared = true;
+
+				GLint clear_value = 0;
+				glClearBufferiv(GL_STENCIL, 0, &clear_value);
+			}
+
+			if (pass_info.srgb_write_enable) {
+				glEnable(GL_FRAMEBUFFER_SRGB);
+			}
+			else {
+				glDisable(GL_FRAMEBUFFER_SRGB);
+			}
+
+			glColorMask(
+				(pass_info.color_write_mask & (1 << 0)) != 0,
+				(pass_info.color_write_mask & (1 << 1)) != 0,
+				(pass_info.color_write_mask & (1 << 2)) != 0,
+				(pass_info.color_write_mask & (1 << 3)) != 0);
+
+			if (pass_info.clear_render_targets)
+			{
+				for (GLuint k = 0; k < 8; k++)
 				{
-					glActiveTexture(GL_TEXTURE0 + s_slot);
-					glGenerateMipmap(GL_TEXTURE_2D);
+					if (pass_data.draw_targets[k] == GL_NONE)
+						break; // Ignore unbound render targets
+					const GLfloat color[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+					glClearBufferfv(GL_COLOR, k, color);
+				}
+			}
+
+			// Draw primitives
+			GLenum topology;
+			switch (pass_info.topology)
+			{
+			case reshadefx::primitive_topology::point_list:
+				topology = GL_POINTS;
+				break;
+			case reshadefx::primitive_topology::line_list:
+				topology = GL_LINES;
+				break;
+			case reshadefx::primitive_topology::line_strip:
+				topology = GL_LINE_STRIP;
+				break;
+			default:
+			case reshadefx::primitive_topology::triangle_list:
+				topology = GL_TRIANGLES;
+				break;
+			case reshadefx::primitive_topology::triangle_strip:
+				topology = GL_TRIANGLE_STRIP;
+				break;
+			}
+			glDrawArrays(GL_TRIANGLE_STRIP, 0, pass_info.num_vertices);
+
+			_vertices += pass_info.num_vertices;
+			_drawcalls += 1;
+
+			needs_implicit_backbuffer_copy = false;
+			for (GLuint texture_id : pass_data.draw_textures)
+			{
+				if (texture_id == 0)
+					break;
+
+				if (texture_id == _tex[TEX_BACK_SRGB])
+				{
+					needs_implicit_backbuffer_copy = true;
+					break;
+				}
+
+				// Regenerate mipmaps of any textures bound as render target
+				for (GLuint s_slot = 0; s_slot < impl->samplers.size(); ++s_slot)
+				{
+					const opengl_sampler_data &sampler_data = impl->samplers[s_slot];
+
+					if (sampler_data.has_mipmaps && (sampler_data.texture->id[0] == texture_id || sampler_data.texture->id[1] == texture_id))
+					{
+						glActiveTexture(GL_TEXTURE0 + s_slot);
+						glGenerateMipmap(GL_TEXTURE_2D);
+					}
 				}
 			}
 		}

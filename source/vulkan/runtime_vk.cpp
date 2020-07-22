@@ -52,6 +52,7 @@ namespace reshade::vulkan
 
 	struct vulkan_technique_data
 	{
+		bool has_compute_passes = false;
 		uint32_t query_base_index = 0;
 		std::vector<vulkan_pass_data> passes;
 	};
@@ -912,8 +913,8 @@ bool reshade::vulkan::runtime_vk::init_effect(size_t index)
 	}
 
 	// Initialize image and sampler bindings
-	std::vector<VkDescriptorImageInfo> storage_bindings(effect.module.num_texture_bindings);
 	std::vector<VkDescriptorImageInfo> sampler_bindings(effect.module.num_sampler_bindings);
+	std::vector<VkDescriptorImageInfo> storage_bindings(effect.module.num_texture_bindings);
 
 	for (const reshadefx::texture_info &info : effect.module.textures)
 	{
@@ -1072,17 +1073,6 @@ bool reshade::vulkan::runtime_vk::init_effect(size_t index)
 			++num_writes;
 		}
 
-		if (!storage_bindings.empty())
-		{
-			writes[num_writes] = { VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
-			writes[num_writes].dstSet = effect_data.set[2];
-			writes[num_writes].dstBinding = 0;
-			writes[num_writes].descriptorCount = uint32_t(storage_bindings.size());
-			writes[num_writes].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-			writes[num_writes].pImageInfo = storage_bindings.data();
-			++num_writes;
-		}
-
 		if (!sampler_bindings.empty())
 		{
 			writes[num_writes] = { VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
@@ -1091,6 +1081,17 @@ bool reshade::vulkan::runtime_vk::init_effect(size_t index)
 			writes[num_writes].descriptorCount = uint32_t(sampler_bindings.size());
 			writes[num_writes].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 			writes[num_writes].pImageInfo = sampler_bindings.data();
+			++num_writes;
+		}
+
+		if (!storage_bindings.empty())
+		{
+			writes[num_writes] = { VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
+			writes[num_writes].dstSet = effect_data.set[2];
+			writes[num_writes].dstBinding = 0;
+			writes[num_writes].descriptorCount = uint32_t(storage_bindings.size());
+			writes[num_writes].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+			writes[num_writes].pImageInfo = storage_bindings.data();
 			++num_writes;
 		}
 
@@ -1133,6 +1134,8 @@ bool reshade::vulkan::runtime_vk::init_effect(size_t index)
 
 			if (!pass_info.cs_entry_point.empty())
 			{
+				impl->has_compute_passes = true;
+
 				for (const reshadefx::texture_info &info : effect.module.textures)
 				{
 					const auto existing_texture = std::find_if(_textures.begin(), _textures.end(),
@@ -1841,8 +1844,9 @@ void reshade::vulkan::runtime_vk::render_technique(technique &technique)
 	vk.CmdResetQueryPool(cmd_list, effect_data.query_pool, impl->query_base_index + _cmd_index * 2, 2);
 	vk.CmdWriteTimestamp(cmd_list, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, effect_data.query_pool, impl->query_base_index + _cmd_index * 2);
 
-	vk.CmdBindDescriptorSets(cmd_list, VK_PIPELINE_BIND_POINT_COMPUTE, effect_data.pipeline_layout, 0, 3, effect_data.set, 0, nullptr);
 	vk.CmdBindDescriptorSets(cmd_list, VK_PIPELINE_BIND_POINT_GRAPHICS, effect_data.pipeline_layout, 0, 2, effect_data.set, 0, nullptr);
+	if (impl->has_compute_passes)
+		vk.CmdBindDescriptorSets(cmd_list, VK_PIPELINE_BIND_POINT_COMPUTE, effect_data.pipeline_layout, 0, 3, effect_data.set, 0, nullptr);
 
 	// Setup shader constants
 	if (effect_data.ubo != VK_NULL_HANDLE)
@@ -1886,7 +1890,6 @@ void reshade::vulkan::runtime_vk::render_technique(technique &technique)
 				transition_layout(vk, cmd_list, image, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL, { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 });
 
 			vk.CmdBindPipeline(cmd_list, VK_PIPELINE_BIND_POINT_COMPUTE, pass_data.pipeline);
-
 			vk.CmdDispatch(cmd_list, pass_info.viewport_width, pass_info.viewport_height, 1);
 
 			for (VkImage image : pass_data.images_to_transition)
@@ -1932,10 +1935,8 @@ void reshade::vulkan::runtime_vk::render_technique(technique &technique)
 
 			vk.CmdBeginRenderPass(cmd_list, &begin_info, VK_SUBPASS_CONTENTS_INLINE);
 
-			// Setup states
-			vk.CmdBindPipeline(cmd_list, VK_PIPELINE_BIND_POINT_GRAPHICS, pass_data.pipeline);
-
 			// Draw primitives
+			vk.CmdBindPipeline(cmd_list, VK_PIPELINE_BIND_POINT_GRAPHICS, pass_data.pipeline);
 			vk.CmdDraw(cmd_list, pass_info.num_vertices, 1, 0, 0);
 
 			_vertices += pass_info.num_vertices;

@@ -1740,8 +1740,6 @@ IMPLEMENT_INTRINSIC_GLSL(tex2Dstore, 0, {
 IMPLEMENT_INTRINSIC_HLSL(tex2Dstore, 0, {
 	if (_shader_model >= 50) {
 		code += id_to_name(args[0].base) + '[' + id_to_name(args[1].base) + "] = " + id_to_name(args[2].base);
-	} else {
-		assert(false);
 	}
 	})
 IMPLEMENT_INTRINSIC_SPIRV(tex2Dstore, 0, {
