@@ -453,7 +453,7 @@ bool reshade::vulkan::runtime_vk::on_init(VkSwapchainKHR swapchain, const VkSwap
 
 	// Create an empty image, which is used when no depth buffer was detected (since you cannot bind nothing to a descriptor in Vulkan)
 	// Use VK_FORMAT_R16_SFLOAT format, since it is mandatory according to the spec (see https://www.khronos.org/registry/vulkan/specs/1.1/html/vkspec.html#features-required-format-support)
-	_empty_depth_image = create_image(1, 1, 1, VK_FORMAT_R16_SFLOAT, VK_IMAGE_USAGE_SAMPLED_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
+	_empty_depth_image = create_image(1, 1, 1, VK_FORMAT_R16_SFLOAT, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
 	if (_empty_depth_image == VK_NULL_HANDLE)
 		return false;
 	_empty_depth_image_view = create_image_view(_empty_depth_image, VK_FORMAT_R16_SFLOAT, 1, VK_IMAGE_ASPECT_COLOR_BIT);
@@ -464,7 +464,7 @@ bool reshade::vulkan::runtime_vk::on_init(VkSwapchainKHR swapchain, const VkSwap
 	if (begin_command_buffer())
 	{
 		transition_layout(vk, _cmd_buffers[_cmd_index].first, _effect_stencil, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, { aspect_flags_from_format(_effect_stencil_format), 0, 1, 0, 1 });
-		transition_layout(vk, _cmd_buffers[_cmd_index].first, _empty_depth_image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+		transition_layout(vk, _cmd_buffers[_cmd_index].first, _empty_depth_image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
 		execute_command_buffer();
 	}
 
@@ -912,36 +912,38 @@ bool reshade::vulkan::runtime_vk::init_effect(size_t index)
 	}
 
 	// Initialize image and sampler bindings
-	std::vector<VkDescriptorImageInfo> image_bindings(effect.module.num_texture_bindings);
+	std::vector<VkDescriptorImageInfo> storage_bindings(effect.module.num_texture_bindings);
 	std::vector<VkDescriptorImageInfo> sampler_bindings(effect.module.num_sampler_bindings);
 
 	for (const reshadefx::texture_info &info : effect.module.textures)
 	{
-		if (!info.semantic.empty())
-			continue;
-
-		VkDescriptorImageInfo &image_binding = image_bindings[info.binding];
-		image_binding.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
-
 		const auto existing_texture = std::find_if(_textures.begin(), _textures.end(),
 			[&texture_name = info.unique_name](const auto &item) {
 			return item.unique_name == texture_name && item.impl != nullptr;
 		});
 		assert(existing_texture != _textures.end());
 
-		image_binding.imageView = static_cast<vulkan_tex_data *>(existing_texture->impl)->view[0];
+		if (existing_texture->impl_reference != texture_reference::none)
+			continue;
+
+		VkDescriptorImageInfo &image_binding = storage_bindings[info.binding];
+		image_binding.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+		if (info.unordered_access)
+			image_binding.imageView = static_cast<vulkan_tex_data *>(existing_texture->impl)->view[0];
+		else
+			image_binding.imageView = _empty_depth_image_view;
 	}
 
 	for (const reshadefx::sampler_info &info : effect.module.samplers)
 	{
-		VkDescriptorImageInfo &image_binding = sampler_bindings[info.binding];
-		image_binding.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-
 		const auto existing_texture = std::find_if(_textures.begin(), _textures.end(),
 			[&texture_name = info.texture_name](const auto &item) {
 			return item.unique_name == texture_name && item.impl != nullptr;
 		});
 		assert(existing_texture != _textures.end());
+
+		VkDescriptorImageInfo &image_binding = sampler_bindings[info.binding];
+		image_binding.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
 		switch (existing_texture->impl_reference)
 		{
@@ -954,7 +956,9 @@ bool reshade::vulkan::runtime_vk::init_effect(size_t index)
 #if RESHADE_DEPTH
 			if (_depth_image_view != VK_NULL_HANDLE)
 				image_binding.imageView = _depth_image_view;
+			else
 #endif
+				image_binding.imageLayout = VK_IMAGE_LAYOUT_GENERAL; // Empty depth image is in general layout
 			// Keep track of the depth buffer texture descriptor to simplify updating it
 			effect_data.depth_image_binding = info.binding;
 			break;
@@ -1068,14 +1072,14 @@ bool reshade::vulkan::runtime_vk::init_effect(size_t index)
 			++num_writes;
 		}
 
-		if (!image_bindings.empty())
+		if (!storage_bindings.empty())
 		{
 			writes[num_writes] = { VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
 			writes[num_writes].dstSet = effect_data.set[2];
 			writes[num_writes].dstBinding = 0;
-			writes[num_writes].descriptorCount = uint32_t(image_bindings.size());
+			writes[num_writes].descriptorCount = uint32_t(storage_bindings.size());
 			writes[num_writes].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-			writes[num_writes].pImageInfo = image_bindings.data();
+			writes[num_writes].pImageInfo = storage_bindings.data();
 			++num_writes;
 		}
 
@@ -1583,13 +1587,12 @@ bool reshade::vulkan::runtime_vk::init_texture(texture &texture)
 	}
 
 	// Need TRANSFER_DST for texture data upload
-	VkImageUsageFlags usage_flags = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
-	// Add required TRANSFER_SRC flag for mipmap generation
-	if (texture.levels > 1)
+	VkImageUsageFlags usage_flags = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+	if (texture.levels > 1) // Add required TRANSFER_SRC flag for mipmap generation
 		usage_flags |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
-
-	const bool with_compute = true; // TODO
-	if (with_compute)
+	if (texture.render_target)
+		usage_flags |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+	if (texture.unordered_access)
 		usage_flags |= VK_IMAGE_USAGE_STORAGE_BIT;
 
 	VkImageCreateFlags image_flags = 0;
@@ -1620,7 +1623,7 @@ bool reshade::vulkan::runtime_vk::init_texture(texture &texture)
 
 	// Create shader views
 	impl->view[0] = create_image_view(impl->image, impl->formats[0], VK_REMAINING_MIP_LEVELS, VK_IMAGE_ASPECT_COLOR_BIT);
-	impl->view[1] = impl->formats[0] != impl->formats[1] ?
+	impl->view[1] = impl->formats[0] != impl->formats[1] && !texture.unordered_access ?
 		create_image_view(impl->image, impl->formats[1], VK_REMAINING_MIP_LEVELS, VK_IMAGE_ASPECT_COLOR_BIT) :
 		impl->view[0];
 
@@ -1628,7 +1631,7 @@ bool reshade::vulkan::runtime_vk::init_texture(texture &texture)
 	if (texture.levels > 1)
 	{
 		impl->view[2] = create_image_view(impl->image, impl->formats[0], 1, VK_IMAGE_ASPECT_COLOR_BIT);
-		impl->view[3] = impl->formats[0] != impl->formats[1] ?
+		impl->view[3] = impl->formats[0] != impl->formats[1] && !texture.unordered_access ?
 			create_image_view(impl->image, impl->formats[1], 1, VK_IMAGE_ASPECT_COLOR_BIT) :
 			impl->view[2];
 	}

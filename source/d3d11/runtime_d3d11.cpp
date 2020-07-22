@@ -516,20 +516,26 @@ bool reshade::d3d11::runtime_d3d11::init_effect(size_t index)
 	}
 
 	d3d11_technique_data technique_init;
-	technique_init.sampler_states.resize(effect.module.num_sampler_bindings);
 	technique_init.srv_bindings.resize(effect.module.num_texture_bindings);
 	technique_init.uav_bindings.resize(effect.module.num_texture_bindings);
+	technique_init.sampler_states.resize(effect.module.num_sampler_bindings);
 
 	for (const reshadefx::texture_info &info : effect.module.textures)
 	{
-		if (!info.semantic.empty())
-			continue;
+		if (info.binding >= D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT)
+		{
+			LOG(ERROR) << "Cannot bind texture '" << info.unique_name << "' since it exceeds the maximum number of allowed resource slots in D3D11 (" << info.unique_name << ", allowed are up to " << D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT << ").";
+			return false;
+		}
 
 		const auto existing_texture = std::find_if(_textures.begin(), _textures.end(),
 			[&texture_name = info.unique_name](const auto &item) {
 			return item.unique_name == texture_name && item.impl != nullptr;
 		});
 		assert(existing_texture != _textures.end());
+
+		if (existing_texture->impl_reference != texture_reference::none || !info.unordered_access)
+			continue;
 
 		technique_init.uav_bindings[info.binding] =
 			static_cast<d3d11_tex_data *>(existing_texture->impl)->uav;
@@ -861,11 +867,13 @@ bool reshade::d3d11::runtime_d3d11::init_texture(texture &texture)
 	desc.ArraySize = 1;
 	desc.SampleDesc = { 1, 0 };
 	desc.Usage = D3D11_USAGE_DEFAULT;
-	desc.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET;
-	desc.MiscFlags = D3D11_RESOURCE_MISC_GENERATE_MIPS;
+	desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
 
-	const bool with_compute = true; // TODO
-	if (with_compute)
+	if (texture.levels > 1)
+		desc.MiscFlags |= D3D11_RESOURCE_MISC_GENERATE_MIPS; // Requires D3D11_BIND_RENDER_TARGET as well
+	if (texture.render_target || texture.levels > 1)
+		desc.BindFlags |= D3D11_BIND_RENDER_TARGET;
+	if (texture.unordered_access)
 		desc.BindFlags |= D3D11_BIND_UNORDERED_ACCESS;
 
 	switch (texture.format)
@@ -958,7 +966,7 @@ bool reshade::d3d11::runtime_d3d11::init_texture(texture &texture)
 		impl->srv[1] = impl->srv[0];
 	}
 
-	if (with_compute)
+	if (texture.unordered_access)
 	{
 		D3D11_UNORDERED_ACCESS_VIEW_DESC uav_desc = {};
 		uav_desc.Format = make_dxgi_format_normal(desc.Format);

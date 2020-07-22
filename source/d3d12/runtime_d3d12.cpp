@@ -662,17 +662,23 @@ bool reshade::d3d12::runtime_d3d12::init_effect(size_t index)
 
 	for (const reshadefx::texture_info &info : effect.module.textures)
 	{
-		if (!info.semantic.empty())
-			continue;
-
-		D3D12_CPU_DESCRIPTOR_HANDLE uav_handle = effect_data.uav_cpu_base;
-		uav_handle.ptr += info.binding * _srv_handle_size;
+		if (info.binding >= D3D12_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT)
+		{
+			LOG(ERROR) << "Cannot bind texture '" << info.unique_name << "' since it exceeds the maximum number of allowed resource slots in D3D12 (" << info.unique_name << ", allowed are up to " << D3D12_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT << ").";
+			return false;
+		}
 
 		const auto existing_texture = std::find_if(_textures.begin(), _textures.end(),
 			[&texture_name = info.unique_name](const auto &item) {
 			return item.unique_name == texture_name && item.impl != nullptr;
 		});
 		assert(existing_texture != _textures.end());
+
+		if (existing_texture->impl_reference != texture_reference::none || !info.unordered_access)
+			continue;
+
+		D3D12_CPU_DESCRIPTOR_HANDLE uav_handle = effect_data.uav_cpu_base;
+		uav_handle.ptr += info.binding * _srv_handle_size;
 
 		const com_ptr<ID3D12Resource> resource =
 			static_cast<d3d12_tex_data *>(existing_texture->impl)->resource;
@@ -698,14 +704,14 @@ bool reshade::d3d12::runtime_d3d12::init_effect(size_t index)
 			return false;
 		}
 
-		D3D12_CPU_DESCRIPTOR_HANDLE srv_handle = effect_data.srv_cpu_base;
-		srv_handle.ptr += info.texture_binding * _srv_handle_size;
-
 		const auto existing_texture = std::find_if(_textures.begin(), _textures.end(),
 			[&texture_name = info.texture_name](const auto &item) {
 			return item.unique_name == texture_name && item.impl != nullptr;
 		});
 		assert(existing_texture != _textures.end());
+
+		D3D12_CPU_DESCRIPTOR_HANDLE srv_handle = effect_data.srv_cpu_base;
+		srv_handle.ptr += info.texture_binding * _srv_handle_size;
 
 		com_ptr<ID3D12Resource> resource;
 		switch (existing_texture->impl_reference)
@@ -1021,10 +1027,10 @@ bool reshade::d3d12::runtime_d3d12::init_texture(texture &texture)
 	desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
 	desc.SampleDesc = { 1, 0 };
 	desc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
-	desc.Flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET; // Textures may be bound as render target
 
-	const bool with_compute = true; // TODO
-	if (texture.levels > 1 || with_compute) // Need UAV for mipmap generation
+	if (texture.render_target)
+		desc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
+	if (texture.unordered_access || texture.levels > 1) // Need UAV for mipmap generation
 		desc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
 
 	switch (texture.format)
@@ -1073,7 +1079,7 @@ bool reshade::d3d12::runtime_d3d12::init_texture(texture &texture)
 
 	D3D12_HEAP_PROPERTIES props = { D3D12_HEAP_TYPE_DEFAULT };
 
-	if (HRESULT hr = _device->CreateCommittedResource(&props, D3D12_HEAP_FLAG_NONE, &desc, D3D12_RESOURCE_STATE_SHADER_RESOURCE, &clear_value, IID_PPV_ARGS(&impl->resource)); FAILED(hr))
+	if (HRESULT hr = _device->CreateCommittedResource(&props, D3D12_HEAP_FLAG_NONE, &desc, D3D12_RESOURCE_STATE_SHADER_RESOURCE, texture.render_target ? &clear_value : nullptr, IID_PPV_ARGS(&impl->resource)); FAILED(hr))
 	{
 		LOG(ERROR) << "Failed to create texture '" << texture.unique_name << "' ("
 			"Width = " << desc.Width << ", "
@@ -1679,6 +1685,7 @@ void reshade::d3d12::runtime_d3d12::render_imgui_draw_data(ImDrawData *draw_data
 			// First descriptor in resource-specific descriptor heap is SRV to top-most mipmap level
 			// Can assume that the resource state is D3D12_RESOURCE_STATE_SHADER_RESOURCE at this point
 			ID3D12DescriptorHeap *const descriptor_heap = { static_cast<d3d12_tex_data *>(cmd.TextureId)->descriptors.get() };
+			assert(descriptor_heap != nullptr);
 			_cmd_list->SetDescriptorHeaps(1, &descriptor_heap);
 			_cmd_list->SetGraphicsRootDescriptorTable(1, descriptor_heap->GetGPUDescriptorHandleForHeapStart());
 

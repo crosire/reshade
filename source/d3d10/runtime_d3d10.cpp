@@ -45,7 +45,7 @@ namespace reshade::d3d10
 		com_ptr<ID3D10Query> timestamp_query_beg;
 		com_ptr<ID3D10Query> timestamp_query_end;
 		std::vector<com_ptr<ID3D10SamplerState>> sampler_states;
-		std::vector<com_ptr<ID3D10ShaderResourceView>> texture_bindings;
+		std::vector<com_ptr<ID3D10ShaderResourceView>> srv_bindings;
 		std::vector<d3d10_pass_data> passes;
 	};
 }
@@ -484,8 +484,8 @@ bool reshade::d3d10::runtime_d3d10::init_effect(size_t index)
 	}
 
 	d3d10_technique_data technique_init;
+	technique_init.srv_bindings.resize(effect.module.num_texture_bindings);
 	technique_init.sampler_states.resize(effect.module.num_sampler_bindings);
-	technique_init.texture_bindings.resize(effect.module.num_texture_bindings);
 
 	for (const reshadefx::sampler_info &info : effect.module.samplers)
 	{
@@ -506,7 +506,7 @@ bool reshade::d3d10::runtime_d3d10::init_effect(size_t index)
 		});
 		assert(existing_texture != _textures.end());
 
-		technique_init.texture_bindings[info.texture_binding] =
+		technique_init.srv_bindings[info.texture_binding] =
 			static_cast<d3d10_tex_data *>(existing_texture->impl)->srv[info.srgb ? 1 : 0];
 
 		if (technique_init.sampler_states[info.binding] == nullptr)
@@ -725,7 +725,7 @@ bool reshade::d3d10::runtime_d3d10::init_effect(size_t index)
 			}
 
 			// Unbind any shader resources that are also bound as render target
-			pass_data.srvs = impl->texture_bindings;
+			pass_data.srvs = impl->srv_bindings;
 			for (com_ptr<ID3D10ShaderResourceView> &srv : pass_data.srvs)
 			{
 				if (srv == nullptr)
@@ -811,8 +811,12 @@ bool reshade::d3d10::runtime_d3d10::init_texture(texture &texture)
 	desc.ArraySize = 1;
 	desc.SampleDesc = { 1, 0 };
 	desc.Usage = D3D10_USAGE_DEFAULT;
-	desc.BindFlags = D3D10_BIND_SHADER_RESOURCE | D3D10_BIND_RENDER_TARGET;
-	desc.MiscFlags = D3D10_RESOURCE_MISC_GENERATE_MIPS;
+	desc.BindFlags = D3D10_BIND_SHADER_RESOURCE;
+
+	if (texture.levels > 1)
+		desc.MiscFlags |= D3D10_RESOURCE_MISC_GENERATE_MIPS; // Requires D3D10_BIND_RENDER_TARGET as well
+	if (texture.render_target || texture.levels > 1)
+		desc.BindFlags |= D3D10_BIND_RENDER_TARGET;
 
 	switch (texture.format)
 	{

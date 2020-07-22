@@ -431,14 +431,14 @@ bool reshade::opengl::runtime_gl::init_effect(size_t index)
 
 	for (const reshadefx::texture_info &info : effect.module.textures)
 	{
-		if (!info.semantic.empty())
-			continue;
-
 		const auto existing_texture = std::find_if(_textures.begin(), _textures.end(),
 			[&texture_name = info.unique_name](const auto &item) {
 			return item.unique_name == texture_name && item.impl != nullptr;
 		});
 		assert(existing_texture != _textures.end());
+
+		if (existing_texture->impl_reference != texture_reference::none || !info.unordered_access)
+			continue;
 
 		technique_init.images[info.binding] = static_cast<opengl_tex_data *>(existing_texture->impl)->id[0];
 	}

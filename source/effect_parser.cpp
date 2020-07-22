@@ -2683,6 +2683,10 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 						texture_info.levels = value > 0 ? value : 1;
 					else if (property_name == "Format")
 						texture_info.format = static_cast<texture_format>(value);
+					else if (property_name == "RenderTarget")
+						texture_info.render_target = value != 0;
+					else if (property_name == "UnorderedAccess")
+						texture_info.unordered_access = value != 0;
 					else if (property_name == "SRGBTexture" || property_name == "SRGBReadEnable")
 						sampler_info.srgb = value != 0;
 					else if (property_name == "AddressU")
@@ -2914,7 +2918,9 @@ bool reshadefx::parser::parse_technique_pass(pass_info &info)
 						parse_success = false,
 						error(location, 3020, "type mismatch, expected texture name");
 					else {
-						const texture_info &target_info = _codegen->find_texture(symbol.id);
+						texture_info &target_info = _codegen->find_texture(symbol.id);
+						// Texture is used as a render target
+						target_info.render_target = true;
 
 						// Verify that all render targets in this pass have the same dimensions
 						if (info.viewport_width != 0 && info.viewport_height != 0 && (target_info.width != info.viewport_width || target_info.height != info.viewport_height))
