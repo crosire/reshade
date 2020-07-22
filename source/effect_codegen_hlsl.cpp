@@ -344,7 +344,7 @@ private:
 		{
 			write_location(code, loc);
 
-			code += "Texture2D __rgb"  + info.unique_name + " : register(t" + std::to_string(info.binding + 0) + ");\n";
+			code += "Texture2D __"     + info.unique_name + " : register(t" + std::to_string(info.binding + 0) + ");\n";
 			code += "Texture2D __srgb" + info.unique_name + " : register(t" + std::to_string(info.binding + 1) + ");\n";
 
 			_module.num_texture_bindings += 2;
@@ -391,7 +391,7 @@ private:
 
 			write_location(code, loc);
 
-			code += "static const __sampler2D " + id_to_name(info.id) + " = { " + (info.srgb ? "__srgb" : "__rgb") + info.texture_name + ", __s" + std::to_string(info.binding) + " };\n";
+			code += "static const __sampler2D " + id_to_name(info.id) + " = { " + (info.srgb ? "__srgb" : "__") + info.texture_name + ", __s" + std::to_string(info.binding) + " };\n";
 		}
 		else
 		{

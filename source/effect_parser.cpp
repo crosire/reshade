@@ -2165,8 +2165,7 @@ bool reshadefx::parser::parse_top()
 	}
 	else
 	{
-		int numthreads[3] = { 1, 1, 1 };
-
+		int numthreads[3] = { 0, 0, 0 };
 		if (accept('['))
 		{
 			if (!expect(tokenid::identifier))
@@ -2831,7 +2830,7 @@ bool reshadefx::parser::parse_technique_pass(pass_info &info)
 
 	bool parse_success = true;
 	bool targets_support_srgb = true;
-	function_info vs_info, ps_info;
+	function_info vs_info, ps_info, cs_info;
 
 	if (!expect('{'))
 		return false;
@@ -2891,6 +2890,7 @@ bool reshadefx::parser::parse_technique_pass(pass_info &info)
 							_codegen->define_entry_point(function_info, shader_type::ps);
 							break;
 						case 'C':
+							cs_info = function_info;
 							info.cs_entry_point = function_info.unique_name;
 							_codegen->define_entry_point(function_info, shader_type::cs);
 							break;
@@ -3057,7 +3057,15 @@ bool reshadefx::parser::parse_technique_pass(pass_info &info)
 
 	if (parse_success)
 	{
-		if (info.cs_entry_point.empty() && (info.vs_entry_point.empty() || info.ps_entry_point.empty()))
+		if (!info.cs_entry_point.empty())
+		{
+			if (cs_info.numthreads[0] == 0 || cs_info.numthreads[1] == 0 || cs_info.numthreads[2] == 0)
+			{
+				parse_success = false;
+				error(pass_location, 3084, "'numthreads(X,Y,Z)' attribute expected, where 'X,Y,Z' are the dimensions of the thread group");
+			}
+		}
+		else if (info.vs_entry_point.empty() || info.ps_entry_point.empty())
 		{
 			parse_success = false;
 

@@ -1690,6 +1690,7 @@ void imgui_code_editor::colorize()
 		case reshadefx::tokenid::uniform_:
 		case reshadefx::tokenid::volatile_:
 		case reshadefx::tokenid::precise:
+		case reshadefx::tokenid::groupshared:
 		case reshadefx::tokenid::in:
 		case reshadefx::tokenid::out:
 		case reshadefx::tokenid::inout:
