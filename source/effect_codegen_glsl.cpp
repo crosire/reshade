@@ -352,8 +352,6 @@ private:
 	{
 		info.id = make_id();
 
-		_module.textures.push_back(info);
-
 		if (info.semantic.empty())
 		{
 			info.binding = _module.num_texture_bindings++;
@@ -367,6 +365,8 @@ private:
 			code += "layout(binding = " + std::to_string(info.binding) + ", rgba8) uniform image2D " + id_to_name(info.id) + ";\n";
 		}
 
+		_module.textures.push_back(info);
+
 		return info.id;
 	}
 	id   define_sampler(const location &loc, sampler_info &info) override
@@ -377,13 +377,13 @@ private:
 
 		define_name<naming::unique>(info.id, info.unique_name);
 
-		_module.samplers.push_back(info);
-
 		std::string &code = _blocks.at(_current_block);
 
 		write_location(code, loc);
 
 		code += "layout(binding = " + std::to_string(info.binding) + ") uniform sampler2D " + id_to_name(info.id) + ";\n";
+
+		_module.samplers.push_back(info);
 
 		return info.id;
 	}

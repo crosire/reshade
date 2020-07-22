@@ -332,28 +332,28 @@ private:
 	id   define_texture(const location &loc, texture_info &info) override
 	{
 		info.id = make_id();
-		info.binding = _module.num_texture_bindings;
 
 		define_name<naming::unique>(info.id, info.unique_name);
 
-		_module.textures.push_back(info);
-
-		std::string &code = _blocks.at(_current_block);
-
 		if (_shader_model >= 40)
 		{
+			info.binding = _module.num_texture_bindings;
+			_module.num_texture_bindings += 2;
+
+			std::string &code = _blocks.at(_current_block);
+
 			write_location(code, loc);
 
 			code += "Texture2D __"     + info.unique_name + " : register(t" + std::to_string(info.binding + 0) + ");\n";
 			code += "Texture2D __srgb" + info.unique_name + " : register(t" + std::to_string(info.binding + 1) + ");\n";
-
-			_module.num_texture_bindings += 2;
 
 			if (_shader_model >= 50 && info.semantic.empty())
 			{
 				code += "RWTexture2D<float4> " + id_to_name(info.id) + " : register(u" + std::to_string(info.binding) + ");\n";
 			}
 		}
+
+		_module.textures.push_back(info);
 
 		return info.id;
 	}

@@ -419,6 +419,7 @@ private:
 				break;
 			case type::t_texture:
 				assert(info.rows == 0 && info.cols == 0);
+				assert(info.definition == 0 /* sampled */ || info.definition == 1 /* storage*/);
 				type = convert_type({ type::t_float, 1, 1 });
 				type = add_instruction(spv::OpTypeImage, 0, _types_and_constants)
 					.add(type) // Sampled Type
@@ -426,8 +427,8 @@ private:
 					.add(0) // Not a depth image
 					.add(0) // Not an array
 					.add(0) // Not multi-sampled
-					.add(!info.has(type::q_groupshared) ? 1 : 2) // Used with a sampler or as storage
-					.add(!info.has(type::q_groupshared) ? spv::ImageFormatUnknown : spv::ImageFormatRgba8)
+					.add(info.definition == 0 ? 1 : 2) // Used with a sampler or as storage
+					.add(info.definition == 0 ? spv::ImageFormatUnknown : spv::ImageFormatRgba8)
 					.result;
 				break;
 			case type::t_sampler:
@@ -579,7 +580,8 @@ private:
 		{
 			info.binding = _module.num_texture_bindings++;
 
-			define_variable(info.id, loc, { type::t_texture, 0, 0, type::q_extern | type::q_uniform | type::q_groupshared }, info.unique_name.c_str(), spv::StorageClassUniformConstant);
+			define_variable(info.id, loc, { type::t_texture, 0, 0, type::q_extern | type::q_uniform, 0, 1 /* Storage image */ },
+				info.unique_name.c_str(), spv::StorageClassUniformConstant);
 
 			add_decoration(info.id, spv::DecorationBinding, { info.binding });
 			add_decoration(info.id, spv::DecorationDescriptorSet, { 2 });
@@ -1138,6 +1140,10 @@ private:
 				access_chain->type = convert_type(base_type, true, storage, base_type.is_array() ? 16u : 0u);
 				result = access_chain->result;
 			}
+
+			// Textures can only be referenced when they are storage images, so correct the pointer type
+			if (base_type.base == type::t_texture)
+				base_type.definition = 1; // Storage image
 
 			result = add_instruction(spv::OpLoad, convert_type(base_type))
 				.add(result) // Pointer
