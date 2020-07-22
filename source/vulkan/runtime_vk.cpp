@@ -32,6 +32,7 @@ namespace reshade::vulkan
 	struct vulkan_pass_data
 	{
 		VkPipeline pipeline = VK_NULL_HANDLE;
+		std::vector<VkImage> images_to_transition;
 		VkClearValue clear_values[8] = {};
 		VkRenderPassBeginInfo begin_info = { VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO };
 	};
@@ -1128,6 +1129,20 @@ bool reshade::vulkan::runtime_vk::init_effect(size_t index)
 
 			if (!pass_info.cs_entry_point.empty())
 			{
+				for (const reshadefx::texture_info &info : effect.module.textures)
+				{
+					const auto existing_texture = std::find_if(_textures.begin(), _textures.end(),
+						[&texture_name = info.unique_name](const auto &item) {
+						return item.unique_name == texture_name && item.impl != nullptr;
+					});
+					assert(existing_texture != _textures.end());
+
+					if (existing_texture->impl_reference != texture_reference::none || !info.unordered_access)
+						continue;
+
+					pass_data.images_to_transition.push_back(static_cast<vulkan_tex_data *>(existing_texture->impl)->image);
+				}
+
 				VkComputePipelineCreateInfo create_info { VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO };
 				create_info.stage = { VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO };
 				create_info.stage.stage = VK_SHADER_STAGE_COMPUTE_BIT;
@@ -1864,9 +1879,15 @@ void reshade::vulkan::runtime_vk::render_technique(technique &technique)
 
 		if (!pass_info.cs_entry_point.empty())
 		{
+			for (VkImage image : pass_data.images_to_transition)
+				transition_layout(vk, cmd_list, image, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL, { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 });
+
 			vk.CmdBindPipeline(cmd_list, VK_PIPELINE_BIND_POINT_COMPUTE, pass_data.pipeline);
 
 			vk.CmdDispatch(cmd_list, pass_info.viewport_width, pass_info.viewport_height, 1);
+
+			for (VkImage image : pass_data.images_to_transition)
+				transition_layout(vk, cmd_list, image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 });
 		}
 		else
 		{
