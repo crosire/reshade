@@ -36,14 +36,16 @@ namespace reshade::d3d12
 	{
 		com_ptr<ID3D12Resource> cb;
 		com_ptr<ID3D12RootSignature> signature;
-		com_ptr<ID3D12DescriptorHeap> srv_heap;
 		com_ptr<ID3D12DescriptorHeap> rtv_heap;
+		com_ptr<ID3D12DescriptorHeap> srv_uav_heap;
 		com_ptr<ID3D12DescriptorHeap> sampler_heap;
 
 		D3D12_GPU_VIRTUAL_ADDRESS cbv_gpu_address;
 		D3D12_CPU_DESCRIPTOR_HANDLE srv_cpu_base;
 		D3D12_GPU_DESCRIPTOR_HANDLE srv_gpu_base;
 		D3D12_CPU_DESCRIPTOR_HANDLE rtv_cpu_base;
+		D3D12_CPU_DESCRIPTOR_HANDLE uav_cpu_base;
+		D3D12_GPU_DESCRIPTOR_HANDLE uav_gpu_base;
 		D3D12_CPU_DESCRIPTOR_HANDLE sampler_cpu_base;
 		D3D12_GPU_DESCRIPTOR_HANDLE sampler_gpu_base;
 		D3D12_CPU_DESCRIPTOR_HANDLE depth_texture_binding = {};
@@ -562,8 +564,12 @@ bool reshade::d3d12::runtime_d3d12::init_effect(size_t index)
 		sampler_range.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER;
 		sampler_range.NumDescriptors = effect.module.num_sampler_bindings;
 		sampler_range.BaseShaderRegister = 0;
+		D3D12_DESCRIPTOR_RANGE uav_range = {};
+		uav_range.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_UAV;
+		uav_range.NumDescriptors = effect.module.num_texture_bindings;
+		uav_range.BaseShaderRegister = 0;
 
-		D3D12_ROOT_PARAMETER params[3] = {};
+		D3D12_ROOT_PARAMETER params[4] = {};
 		params[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
 		params[0].Descriptor.ShaderRegister = 0; // b0 (global constant buffer)
 		params[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
@@ -575,6 +581,10 @@ bool reshade::d3d12::runtime_d3d12::init_effect(size_t index)
 		params[2].DescriptorTable.NumDescriptorRanges = 1;
 		params[2].DescriptorTable.pDescriptorRanges = &sampler_range;
 		params[2].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+		params[3].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+		params[3].DescriptorTable.NumDescriptorRanges = 1;
+		params[3].DescriptorTable.pDescriptorRanges = &uav_range;
+		params[3].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
 
 		D3D12_ROOT_SIGNATURE_DESC desc = {};
 		desc.NumParameters = ARRAYSIZE(params);
@@ -602,20 +612,6 @@ bool reshade::d3d12::runtime_d3d12::init_effect(size_t index)
 		effect_data.cbv_gpu_address = effect_data.cb->GetGPUVirtualAddress();
 	}
 
-	{   D3D12_DESCRIPTOR_HEAP_DESC desc = { D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV };
-		desc.NumDescriptors = effect.module.num_texture_bindings;
-		desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
-
-		if (FAILED(_device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&effect_data.srv_heap))))
-			return false;
-#ifndef NDEBUG
-		effect_data.srv_heap->SetName(L"ReShade effect SRV heap");
-#endif
-
-		effect_data.srv_cpu_base = effect_data.srv_heap->GetCPUDescriptorHandleForHeapStart();
-		effect_data.srv_gpu_base = effect_data.srv_heap->GetGPUDescriptorHandleForHeapStart();
-	}
-
 	{   D3D12_DESCRIPTOR_HEAP_DESC desc = { D3D12_DESCRIPTOR_HEAP_TYPE_RTV };
 		for (const reshadefx::technique_info &info : effect.module.techniques)
 			desc.NumDescriptors += static_cast<UINT>(8 * info.passes.size());
@@ -627,6 +623,25 @@ bool reshade::d3d12::runtime_d3d12::init_effect(size_t index)
 #endif
 
 		effect_data.rtv_cpu_base = effect_data.rtv_heap->GetCPUDescriptorHandleForHeapStart();
+	}
+
+	{   D3D12_DESCRIPTOR_HEAP_DESC desc = { D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV };
+		desc.NumDescriptors = effect.module.num_texture_bindings * 2;
+		desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+
+		if (FAILED(_device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&effect_data.srv_uav_heap))))
+			return false;
+#ifndef NDEBUG
+		effect_data.srv_uav_heap->SetName(L"ReShade effect SRV heap");
+#endif
+
+		effect_data.srv_cpu_base = effect_data.srv_uav_heap->GetCPUDescriptorHandleForHeapStart();
+		effect_data.srv_gpu_base = effect_data.srv_uav_heap->GetGPUDescriptorHandleForHeapStart();
+
+		effect_data.uav_cpu_base = effect_data.srv_cpu_base;
+		effect_data.uav_cpu_base.ptr += effect.module.num_texture_bindings * _srv_handle_size;
+		effect_data.uav_gpu_base = effect_data.srv_gpu_base;
+		effect_data.uav_gpu_base.ptr += effect.module.num_texture_bindings * _srv_handle_size;
 	}
 
 	{   D3D12_DESCRIPTOR_HEAP_DESC desc = { D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER };
@@ -644,6 +659,31 @@ bool reshade::d3d12::runtime_d3d12::init_effect(size_t index)
 	}
 
 	UINT16 sampler_list = 0;
+
+	for (const reshadefx::texture_info &info : effect.module.textures)
+	{
+		if (!info.semantic.empty())
+			continue;
+
+		D3D12_CPU_DESCRIPTOR_HANDLE uav_handle = effect_data.uav_cpu_base;
+		uav_handle.ptr += info.binding * _srv_handle_size;
+
+		const auto existing_texture = std::find_if(_textures.begin(), _textures.end(),
+			[&texture_name = info.unique_name](const auto &item) {
+			return item.unique_name == texture_name && item.impl != nullptr;
+		});
+		assert(existing_texture != _textures.end());
+
+		const com_ptr<ID3D12Resource> resource =
+			static_cast<d3d12_tex_data *>(existing_texture->impl)->resource;
+
+		D3D12_UNORDERED_ACCESS_VIEW_DESC desc = {};
+		desc.Format = make_dxgi_format_normal(resource->GetDesc().Format);
+		desc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
+		desc.Texture2D.MipSlice = 0;
+
+		_device->CreateUnorderedAccessView(resource.get(), nullptr, &desc, uav_handle);
+	}
 
 	for (const reshadefx::sampler_info &info : effect.module.samplers)
 	{
@@ -734,6 +774,25 @@ bool reshade::d3d12::runtime_d3d12::init_effect(size_t index)
 		{
 			d3d12_pass_data &pass_data = impl->passes[pass_index];
 			reshadefx::pass_info &pass_info = technique.passes[pass_index];
+
+			if (!pass_info.cs_entry_point.empty())
+			{
+				D3D12_COMPUTE_PIPELINE_STATE_DESC pso_desc = {};
+				pso_desc.pRootSignature = effect_data.signature.get();
+
+				const auto &CS = entry_points.at(pass_info.cs_entry_point);
+				pso_desc.CS = { CS->GetBufferPointer(), CS->GetBufferSize() };
+
+				pso_desc.NodeMask = 1;
+
+				if (HRESULT hr = _device->CreateComputePipelineState(&pso_desc, IID_PPV_ARGS(&pass_data.pipeline)); FAILED(hr))
+				{
+					LOG(ERROR) << "Failed to create pipeline for pass " << pass_index << " in technique '" << technique.name << "'! "
+						"HRESULT is " << hr << '.';
+					return false;
+				}
+				continue;
+			}
 
 			D3D12_GRAPHICS_PIPELINE_STATE_DESC pso_desc = {};
 			pso_desc.pRootSignature = effect_data.signature.get();
@@ -923,8 +982,8 @@ void reshade::d3d12::runtime_d3d12::unload_effect(size_t index)
 		d3d12_effect_data &effect_data = _effect_data[index];
 		effect_data.cb.reset();
 		effect_data.signature.reset();
-		effect_data.srv_heap.reset();
 		effect_data.rtv_heap.reset();
+		effect_data.srv_uav_heap.reset();
 		effect_data.sampler_heap.reset();
 		effect_data.depth_texture_binding = { 0 };
 	}
@@ -964,7 +1023,8 @@ bool reshade::d3d12::runtime_d3d12::init_texture(texture &texture)
 	desc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
 	desc.Flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET; // Textures may be bound as render target
 
-	if (texture.levels > 1) // Need UAV for mipmap generation
+	const bool with_compute = true; // TODO
+	if (texture.levels > 1 || with_compute) // Need UAV for mipmap generation
 		desc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
 
 	switch (texture.format)
@@ -1208,9 +1268,10 @@ void reshade::d3d12::runtime_d3d12::render_technique(technique &technique)
 	if (!begin_command_list())
 		return;
 
-	ID3D12DescriptorHeap *const descriptor_heaps[] = { effect_data.srv_heap.get(), effect_data.sampler_heap.get() };
+	ID3D12DescriptorHeap *const descriptor_heaps[] = { effect_data.srv_uav_heap.get(), effect_data.sampler_heap.get() };
 	_cmd_list->SetDescriptorHeaps(ARRAYSIZE(descriptor_heaps), descriptor_heaps);
 	_cmd_list->SetGraphicsRootSignature(effect_data.signature.get());
+	_cmd_list->SetComputeRootSignature(effect_data.signature.get());
 
 	// Setup shader constants
 	if (effect_data.cb != nullptr)
@@ -1222,13 +1283,18 @@ void reshade::d3d12::runtime_d3d12::render_technique(technique &technique)
 		}
 
 		_cmd_list->SetGraphicsRootConstantBufferView(0, effect_data.cbv_gpu_address);
+		_cmd_list->SetComputeRootConstantBufferView(0, effect_data.cbv_gpu_address);
 	}
 
 	// Setup shader resources
 	_cmd_list->SetGraphicsRootDescriptorTable(1, effect_data.srv_gpu_base);
+	_cmd_list->SetComputeRootDescriptorTable(1, effect_data.srv_gpu_base);
 
 	// Setup samplers
 	_cmd_list->SetGraphicsRootDescriptorTable(2, effect_data.sampler_gpu_base);
+	_cmd_list->SetComputeRootDescriptorTable(2, effect_data.sampler_gpu_base);
+
+	_cmd_list->SetComputeRootDescriptorTable(3, effect_data.uav_gpu_base);
 
 	// TODO: Technically need to transition the depth texture here as well
 
