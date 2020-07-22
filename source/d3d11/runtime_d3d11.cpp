@@ -522,6 +522,9 @@ bool reshade::d3d11::runtime_d3d11::init_effect(size_t index)
 
 	for (const reshadefx::texture_info &info : effect.module.textures)
 	{
+		if (!info.semantic.empty())
+			continue;
+
 		const auto existing_texture = std::find_if(_textures.begin(), _textures.end(),
 			[&texture_name = info.unique_name](const auto &item) {
 			return item.unique_name == texture_name && item.impl != nullptr;
@@ -1081,12 +1084,6 @@ void reshade::d3d11::runtime_d3d11::render_technique(technique &technique)
 
 	for (size_t pass_index = 0; pass_index < technique.passes.size(); ++pass_index)
 	{
-		if (needs_implicit_backbuffer_copy)
-		{
-			// Save back buffer of previous pass
-			_immediate_context->CopyResource(_backbuffer_texture.get(), _backbuffer_resolved.get());
-		}
-
 		const d3d11_pass_data &pass_data = impl->passes[pass_index];
 		const reshadefx::pass_info &pass_info = technique.passes[pass_index];
 
@@ -1105,6 +1102,12 @@ void reshade::d3d11::runtime_d3d11::render_technique(technique &technique)
 			_immediate_context->CSSetShaderResources(0, static_cast<UINT>(pass_data.srvs.size()), null_srv);
 			_immediate_context->CSSetUnorderedAccessViews(0, static_cast<UINT>(pass_data.uavs.size()), null_uav, nullptr);
 			continue;
+		}
+
+		if (needs_implicit_backbuffer_copy)
+		{
+			// Save back buffer of previous pass
+			_immediate_context->CopyResource(_backbuffer_texture.get(), _backbuffer_resolved.get());
 		}
 
 		// Setup states
