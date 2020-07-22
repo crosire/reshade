@@ -894,7 +894,7 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 
 				if (symbol.op == symbol_type::function || param_type.has(type::q_out))
 				{
-					if (param_type.is_sampler())
+					if (param_type.is_sampler() || param_type.is_texture())
 					{
 						// Do not shadow sampler parameters to function calls (but do load them for intrinsics)
 						parameters[i] = arguments[i];
@@ -918,7 +918,7 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 			// Copy in parameters from the argument access chains to parameter variables
 			for (size_t i = 0; i < arguments.size(); ++i)
 				// Only do this for pointer parameters as discovered above
-				if (parameters[i].is_lvalue && parameters[i].type.has(type::q_in) && !parameters[i].type.is_sampler())
+				if (parameters[i].is_lvalue && parameters[i].type.has(type::q_in) && !parameters[i].type.is_sampler() && !parameters[i].type.is_texture())
 					_codegen->emit_store(parameters[i], _codegen->emit_load(arguments[i]));
 
 			// Check if the call resolving found an intrinsic or function and invoke the corresponding code
@@ -931,7 +931,7 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 			// Copy out parameters from parameter variables back to the argument access chains
 			for (size_t i = 0; i < arguments.size(); ++i)
 				// Only do this for pointer parameters as discovered above
-				if (parameters[i].is_lvalue && parameters[i].type.has(type::q_out) && !parameters[i].type.is_sampler())
+				if (parameters[i].is_lvalue && parameters[i].type.has(type::q_out) && !parameters[i].type.is_sampler() && !parameters[i].type.is_texture())
 					_codegen->emit_store(arguments[i], _codegen->emit_load(parameters[i]));
 		}
 		else if (symbol.op == symbol_type::invalid)
@@ -2527,6 +2527,8 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 			return error(location, 3006, '\'' + name + "': local variables cannot be declared 'extern'"), false;
 		if (type.has(type::q_uniform))
 			return error(location, 3047, '\'' + name + "': local variables cannot be declared 'uniform'"), false;
+		if (type.has(type::q_groupshared))
+			return error(location, 3010, '\'' + name + "': local variables cannot be declared 'groupshared'"), false;
 
 		if (type.is_texture() || type.is_sampler())
 			return error(location, 3038, '\'' + name + "': local variables cannot be textures or samplers"), false;
@@ -2566,6 +2568,8 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 			if (!parse_expression_assignment(initializer))
 				return false;
 
+			if (type.has(type::q_groupshared))
+				return error(initializer.location, 3009, '\'' + name + "': variables declared 'groupshared' cannot have an initializer"), false;
 			if (global && !initializer.is_constant) // TODO: This could be resolved by initializing these at the beginning of the entry point
 				return error(initializer.location, 3011, '\'' + name + "': initial value must be a literal expression"), false;
 
@@ -2779,7 +2783,9 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 		std::replace(unique_name.begin(), unique_name.end(), ':', '_');
 
 		symbol = { symbol_type::variable, 0, type };
-		symbol.id = _codegen->define_variable(location, type, std::move(unique_name), global, _codegen->emit_load(initializer));
+		symbol.id = _codegen->define_variable(location, type, std::move(unique_name), global,
+			// Shared variables cannot have an initializer
+			type.has(type::q_groupshared) ? 0 : _codegen->emit_load(initializer));
 	}
 
 	// Insert the symbol into the symbol table

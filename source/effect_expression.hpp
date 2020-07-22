@@ -72,8 +72,8 @@ namespace reshadefx
 		bool is_integral() const { return base == t_bool || base == t_int || base == t_uint; }
 		bool is_floating_point() const { return base == t_float; }
 		bool is_struct() const { return base == t_struct; }
-		bool is_texture() const { return base == t_texture; }
 		bool is_sampler() const { return base == t_sampler; }
+		bool is_texture() const { return base == t_texture; }
 		bool is_function() const { return base == t_function; }
 
 		unsigned int components() const { return rows * cols; }

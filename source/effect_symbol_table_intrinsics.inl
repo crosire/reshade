@@ -1585,7 +1585,7 @@ IMPLEMENT_INTRINSIC_HLSL(tex2Dsize, 1, {
 IMPLEMENT_INTRINSIC_SPIRV(tex2Dsize, 0, {
 	add_capability(spv::CapabilityImageQuery);
 
-	const spv::Id image = add_instruction(spv::OpImage, convert_type({ type::t_texture }))
+	const spv::Id image = add_instruction(spv::OpImage, convert_type({ type::t_texture, 0, 0, 0, 0, 1 /* sampled */ }))
 		.add(args[0].base).result;
 	const spv::Id level = emit_constant(0u);
 
@@ -1597,7 +1597,7 @@ IMPLEMENT_INTRINSIC_SPIRV(tex2Dsize, 0, {
 IMPLEMENT_INTRINSIC_SPIRV(tex2Dsize, 1, {
 	add_capability(spv::CapabilityImageQuery);
 
-	const spv::Id image = add_instruction(spv::OpImage, convert_type({ type::t_texture }))
+	const spv::Id image = add_instruction(spv::OpImage, convert_type({ type::t_texture, 0, 0, 0, 0, 1 /* sampled */ }))
 		.add(args[0].base).result;
 
 	return add_instruction(spv::OpImageQuerySizeLod, convert_type(res_type))
@@ -1638,7 +1638,7 @@ IMPLEMENT_INTRINSIC_SPIRV(tex2Dfetch, 0, {
 		.add(3) // .w
 		.result;
 
-	const spv::Id image = add_instruction(spv::OpImage, convert_type({ type::t_texture }))
+	const spv::Id image = add_instruction(spv::OpImage, convert_type({ type::t_texture, 0, 0, 0, 0, 1 /* sampled */ }))
 		.add(args[0].base).result;
 
 	return add_instruction(spv::OpImageFetch, convert_type(res_type))
