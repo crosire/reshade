@@ -30,7 +30,7 @@ namespace reshade::d3d12
 		com_ptr<ID3D12PipelineState> pipeline;
 		UINT num_render_targets;
 		D3D12_CPU_DESCRIPTOR_HANDLE render_targets;
-		std::vector<const texture *> modified_resources;
+		std::vector<const d3d12_tex_data *> modified_resources;
 	};
 
 	struct d3d12_effect_data
@@ -800,7 +800,7 @@ bool reshade::d3d12::runtime_d3d12::init_effect(size_t index)
 					if (texture.impl_reference != texture_reference::none || !info.unordered_access)
 						continue;
 
-					pass_data.modified_resources.push_back(&texture);
+					pass_data.modified_resources.push_back(static_cast<d3d12_tex_data *>(texture.impl));
 				}
 
 				pso_desc.NodeMask = 1;
@@ -829,10 +829,10 @@ bool reshade::d3d12::runtime_d3d12::init_effect(size_t index)
 
 				for (UINT k = 0; k < 8 && !pass_info.render_target_names[k].empty(); ++k)
 				{
-					const texture &render_target_texture = look_up_texture_by_name(pass_info.render_target_names[k]);
-					d3d12_tex_data *const tex_impl = static_cast<d3d12_tex_data *>(render_target_texture.impl);
+					d3d12_tex_data *const tex_impl = static_cast<d3d12_tex_data *>(
+						look_up_texture_by_name(pass_info.render_target_names[k]).impl);
 
-					pass_data.modified_resources.push_back(&render_target_texture);
+					pass_data.modified_resources.push_back(tex_impl);
 
 					const D3D12_RESOURCE_DESC desc = tex_impl->resource->GetDesc();
 
@@ -1228,7 +1228,7 @@ void reshade::d3d12::runtime_d3d12::upload_texture(const texture &texture, const
 	}
 	transition_state(_cmd_list, impl->resource, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_SHADER_RESOURCE, 0);
 
-	generate_mipmaps(texture);
+	generate_mipmaps(impl);
 
 	// Execute and wait for completion
 	wait_for_command_queue();
@@ -1241,13 +1241,13 @@ void reshade::d3d12::runtime_d3d12::destroy_texture(texture &texture)
 	delete static_cast<d3d12_tex_data *>(texture.impl);
 	texture.impl = nullptr;
 }
-void reshade::d3d12::runtime_d3d12::generate_mipmaps(const texture &texture)
+void reshade::d3d12::runtime_d3d12::generate_mipmaps(const d3d12_tex_data *impl)
 {
-	if (texture.levels <= 1)
-		return; // No need to generate mipmaps when texture does not have any
-
-	auto impl = static_cast<d3d12_tex_data *>(texture.impl);
 	assert(impl != nullptr);
+
+	const D3D12_RESOURCE_DESC desc = impl->resource->GetDesc();
+	if (desc.MipLevels <= 1)
+		return; // No need to generate mipmaps when texture does not have any
 
 	_cmd_list->SetComputeRootSignature(_mipmap_signature.get());
 	_cmd_list->SetPipelineState(_mipmap_pipeline.get());
@@ -1255,10 +1255,10 @@ void reshade::d3d12::runtime_d3d12::generate_mipmaps(const texture &texture)
 	_cmd_list->SetDescriptorHeaps(1, &descriptor_heap);
 
 	transition_state(_cmd_list, impl->resource, D3D12_RESOURCE_STATE_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-	for (uint32_t level = 1; level < texture.levels; ++level)
+	for (uint32_t level = 1; level < desc.MipLevels; ++level)
 	{
-		const uint32_t width = std::max(1u, texture.width >> level);
-		const uint32_t height = std::max(1u, texture.height >> level);
+		const uint32_t width = std::max(1u, static_cast<uint32_t>(desc.Width) >> level);
+		const uint32_t height = std::max(1u, desc.Height >> level);
 
 		static const auto float_as_uint = [](float value) { return *reinterpret_cast<uint32_t *>(&value); };
 		_cmd_list->SetComputeRoot32BitConstant(0, float_as_uint(1.0f / width), 0);
@@ -1266,7 +1266,7 @@ void reshade::d3d12::runtime_d3d12::generate_mipmaps(const texture &texture)
 		// Bind next higher mipmap level as input
 		_cmd_list->SetComputeRootDescriptorTable(1, { impl->descriptors->GetGPUDescriptorHandleForHeapStart().ptr + _srv_handle_size * (level - 1) });
 		// There is no UAV for level 0, so substract one
-		_cmd_list->SetComputeRootDescriptorTable(2, { impl->descriptors->GetGPUDescriptorHandleForHeapStart().ptr + _srv_handle_size * (texture.levels + level - 1) });
+		_cmd_list->SetComputeRootDescriptorTable(2, { impl->descriptors->GetGPUDescriptorHandleForHeapStart().ptr + _srv_handle_size * (desc.MipLevels + level - 1) });
 
 		_cmd_list->Dispatch(std::max(1u, (width + 7) / 8), std::max(1u, (height + 7) / 8), 1);
 
@@ -1347,8 +1347,8 @@ void reshade::d3d12::runtime_d3d12::render_technique(technique &technique)
 			}
 
 			// Transition resource state for render targets
-			for (const texture *render_target_texture : pass_data.modified_resources)
-				transition_state(_cmd_list, static_cast<d3d12_tex_data *>(render_target_texture->impl)->resource, D3D12_RESOURCE_STATE_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
+			for (const d3d12_tex_data *render_target_texture : pass_data.modified_resources)
+				transition_state(_cmd_list, render_target_texture->resource, D3D12_RESOURCE_STATE_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
 
 			_cmd_list->OMSetStencilRef(pass_info.stencil_reference_value);
 
@@ -1417,13 +1417,13 @@ void reshade::d3d12::runtime_d3d12::render_technique(technique &technique)
 			_drawcalls += 1;
 
 			// Transition resource state back to shader access
-			for (const texture *render_target_texture : pass_data.modified_resources)
-				transition_state(_cmd_list, static_cast<d3d12_tex_data *>(render_target_texture->impl)->resource, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_SHADER_RESOURCE);
+			for (const d3d12_tex_data *render_target_texture : pass_data.modified_resources)
+				transition_state(_cmd_list, render_target_texture->resource, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_SHADER_RESOURCE);
 		}
 
 		// Generate mipmaps for modified resources
-		for (const texture *modified_texture : pass_data.modified_resources)
-			generate_mipmaps(*modified_texture);
+		for (const d3d12_tex_data *modified_texture : pass_data.modified_resources)
+			generate_mipmaps(modified_texture);
 	}
 }
 

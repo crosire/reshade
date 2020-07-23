@@ -27,6 +27,7 @@ namespace reshade::vulkan
 #if RESHADE_GUI
 		VkDescriptorSet descriptor_set = VK_NULL_HANDLE;
 #endif
+		uint32_t width = 0, height = 0, levels = 0;
 	};
 
 	struct vulkan_pass_data
@@ -34,7 +35,7 @@ namespace reshade::vulkan
 		VkPipeline pipeline = VK_NULL_HANDLE;
 		VkClearValue clear_values[8] = {};
 		VkRenderPassBeginInfo begin_info = { VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO };
-		std::vector<const texture *> modified_resources;
+		std::vector<const vulkan_tex_data *> modified_resources;
 	};
 
 	struct vulkan_effect_data
@@ -1133,7 +1134,7 @@ bool reshade::vulkan::runtime_vk::init_effect(size_t index)
 					if (texture.impl_reference != texture_reference::none || !info.unordered_access)
 						continue;
 
-					pass_data.modified_resources.push_back(&texture);
+					pass_data.modified_resources.push_back(static_cast<vulkan_tex_data *>(texture.impl));
 				}
 
 				VkComputePipelineCreateInfo create_info { VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO };
@@ -1238,10 +1239,10 @@ bool reshade::vulkan::runtime_vk::init_effect(size_t index)
 
 				for (uint32_t k = 0; k < 8 && !pass_info.render_target_names[k].empty(); ++k, ++num_color_attachments)
 				{
-					const texture &render_target_texture = look_up_texture_by_name(pass_info.render_target_names[k]);
-					vulkan_tex_data *const tex_impl = static_cast<vulkan_tex_data *>(render_target_texture.impl);
+					vulkan_tex_data *const tex_impl = static_cast<vulkan_tex_data *>(
+						look_up_texture_by_name(pass_info.render_target_names[k]).impl);
 
-					pass_data.modified_resources.push_back(&render_target_texture);
+					pass_data.modified_resources.push_back(tex_impl);
 
 					attachment_views[k] = tex_impl->view[2 + pass_info.srgb_write_enable];
 					attachment_blends[k] = attachment_blends[0];
@@ -1539,6 +1540,10 @@ bool reshade::vulkan::runtime_vk::init_texture(texture &texture)
 	if (texture.impl_reference != texture_reference::none)
 		return true;
 
+	impl->width = texture.width;
+	impl->height = texture.height;
+	impl->levels = texture.levels;
+
 	switch (texture.format)
 	{
 	case reshadefx::texture_format::r8:
@@ -1735,7 +1740,7 @@ void reshade::vulkan::runtime_vk::upload_texture(const texture &texture, const u
 		}
 		transition_layout(vk, cmd_list, impl->image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
-		generate_mipmaps(texture);
+		generate_mipmaps(impl);
 
 		execute_command_buffer();
 	}
@@ -1768,19 +1773,18 @@ void reshade::vulkan::runtime_vk::destroy_texture(texture &texture)
 	delete impl;
 	texture.impl = nullptr;
 }
-void reshade::vulkan::runtime_vk::generate_mipmaps(const texture &texture)
+void reshade::vulkan::runtime_vk::generate_mipmaps(const vulkan_tex_data *impl)
 {
-	if (texture.levels <= 1)
-		return; // No need to generate mipmaps when texture does not have any
-
-	auto impl = static_cast<vulkan_tex_data *>(texture.impl);
 	assert(impl != nullptr);
 
-	int32_t width = texture.width;
-	int32_t height = texture.height;
+	if (impl->levels <= 1)
+		return; // No need to generate mipmaps when texture does not have any
+
+	int32_t width = impl->width;
+	int32_t height = impl->height;
 	const VkCommandBuffer cmd_list = _cmd_buffers[_cmd_index].first;
 
-	for (uint32_t level = 1; level < texture.levels; ++level, width /= 2, height /= 2)
+	for (uint32_t level = 1; level < impl->levels; ++level, width /= 2, height /= 2)
 	{
 		VkImageBlit blit;
 		blit.srcOffsets[0] = { 0, 0, 0 };
@@ -1877,14 +1881,14 @@ void reshade::vulkan::runtime_vk::render_technique(technique &technique)
 
 		if (!pass_info.cs_entry_point.empty())
 		{
-			for (const texture *storage_resource : pass_data.modified_resources)
-				transition_layout(vk, cmd_list, static_cast<vulkan_tex_data *>(storage_resource->impl)->image, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL, { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 });
+			for (const vulkan_tex_data *storage_resource : pass_data.modified_resources)
+				transition_layout(vk, cmd_list, storage_resource->image, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL, { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 });
 
 			vk.CmdBindPipeline(cmd_list, VK_PIPELINE_BIND_POINT_COMPUTE, pass_data.pipeline);
 			vk.CmdDispatch(cmd_list, pass_info.viewport_width, pass_info.viewport_height, 1);
 
-			for (const texture *storage_resource : pass_data.modified_resources)
-				transition_layout(vk, cmd_list, static_cast<vulkan_tex_data *>(storage_resource->impl)->image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 });
+			for (const vulkan_tex_data *storage_resource : pass_data.modified_resources)
+				transition_layout(vk, cmd_list, storage_resource->image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 });
 		}
 		else
 		{
@@ -1937,8 +1941,8 @@ void reshade::vulkan::runtime_vk::render_technique(technique &technique)
 		}
 
 		// Generate mipmaps for modified resources
-		for (const texture *texture : pass_data.modified_resources)
-			generate_mipmaps(*texture);
+		for (const vulkan_tex_data *texture : pass_data.modified_resources)
+			generate_mipmaps(texture);
 
 #ifndef NDEBUG
 		if (insert_debug_markers)
