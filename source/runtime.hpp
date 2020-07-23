@@ -198,6 +198,12 @@ namespace reshade
 		virtual void render_imgui_draw_data(ImDrawData *draw_data) = 0;
 #endif
 
+		/// <summary>
+		/// Returns the texture object corresponding to the passed <paramref name="unique_name"/>.
+		/// </summary>
+		/// <param name="unique_name">The name of the texture to find.</param>
+		texture &look_up_texture_by_name(const std::string &unique_name);
+
 		bool _is_initialized = false;
 		bool _has_high_network_activity = false;
 		bool _has_depth_texture = false;

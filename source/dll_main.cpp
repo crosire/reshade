@@ -311,8 +311,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 				GetClientRect(window_handle, &window_rect);
 
 				D3D12_RESOURCE_DESC desc = { D3D12_RESOURCE_DIMENSION_TEXTURE2D };
-				desc.Width = window_rect.right - window_rect.left;
-				desc.Height = window_rect.bottom - window_rect.top;
+				desc.Width = window_rect.right;
+				desc.Height = window_rect.bottom;
 				desc.DepthOrArraySize = desc.MipLevels = 1;
 				desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
 				desc.SampleDesc = { 1, 0 };

@@ -844,8 +844,8 @@ HOOK_EXPORT BOOL  WINAPI wglSwapBuffers(HDC hdc)
 		RECT rect = { 0, 0, 0, 0 };
 		GetClientRect(hwnd, &rect);
 
-		const auto width = static_cast<unsigned int>(rect.right - rect.left);
-		const auto height = static_cast<unsigned int>(rect.bottom - rect.top);
+		const auto width = static_cast<unsigned int>(rect.right);
+		const auto height = static_cast<unsigned int>(rect.bottom);
 
 		if (width != runtime->frame_width() || height != runtime->frame_height())
 		{
