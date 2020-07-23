@@ -433,6 +433,8 @@ void reshade::runtime::build_font_atlas()
 	_imgui_font_atlas->unique_name = "ImGUI Font Atlas";
 	if (init_texture(*_imgui_font_atlas))
 		upload_texture(*_imgui_font_atlas, pixels);
+	else
+		_imgui_font_atlas.reset();
 }
 
 void reshade::runtime::draw_ui()
@@ -453,6 +455,8 @@ void reshade::runtime::draw_ui()
 
 	if (_rebuild_font_atlas)
 		build_font_atlas();
+	if (_imgui_font_atlas == nullptr)
+		return; // Cannot render UI without font atlas
 
 	ImGui::SetCurrentContext(_imgui_context);
 	auto &imgui_io = _imgui_context->IO;
@@ -2612,6 +2616,18 @@ void reshade::runtime::draw_technique_editor()
 
 			ImGui::Separator();
 
+			if (ImGui::Button("Open folder in explorer", ImVec2(button_width, 0)))
+			{
+				// Use absolute path to explorer to avoid potential security issues when executable is replaced
+				WCHAR explorer_path[260] = L"";
+				GetWindowsDirectoryW(explorer_path, ARRAYSIZE(explorer_path));
+				wcscat_s(explorer_path, L"\\explorer.exe");
+
+				ShellExecuteW(nullptr, L"open", explorer_path, (L"/select,\"" + effect.source_file.wstring() + L"\"").c_str(), nullptr, SW_SHOWDEFAULT);
+			}
+
+			ImGui::Separator();
+
 			if (imgui_popup_button("Edit source code", button_width))
 			{
 				std::filesystem::path source_file;
@@ -2663,18 +2679,6 @@ void reshade::runtime::draw_technique_editor()
 					_show_code_viewer = true;
 					ImGui::CloseCurrentPopup();
 				}
-			}
-
-			ImGui::Separator();
-
-			if (ImGui::Button("Open folder in explorer", ImVec2(button_width, 0)))
-			{
-				// Use absolute path to explorer to avoid potential security issues when executable is replaced
-				WCHAR explorer_path[260] = L"";
-				GetWindowsDirectoryW(explorer_path, ARRAYSIZE(explorer_path));
-				wcscat_s(explorer_path, L"\\explorer.exe");
-
-				ShellExecuteW(nullptr, L"open", explorer_path, (L"/select,\"" + effect.source_file.wstring() + L"\"").c_str(), nullptr, SW_SHOWDEFAULT);
 			}
 
 			ImGui::EndPopup();
