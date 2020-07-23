@@ -29,8 +29,7 @@ namespace reshade::d3d10
 		com_ptr<ID3D10PixelShader> pixel_shader;
 		com_ptr<ID3D10VertexShader> vertex_shader;
 		com_ptr<ID3D10RenderTargetView> render_targets[D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT];
-		com_ptr<ID3D10ShaderResourceView> render_target_resources[D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT];
-		std::vector<com_ptr<ID3D10ShaderResourceView>> srvs;
+		std::vector<com_ptr<ID3D10ShaderResourceView>> srvs, modified_resources;
 	};
 
 	struct d3d10_effect_data
@@ -579,8 +578,6 @@ bool reshade::d3d10::runtime_d3d10::init_effect(size_t index)
 			entry_points.at(pass_info.vs_entry_point)->QueryInterface(&pass_data.vertex_shader);
 
 			const int target_index = pass_info.srgb_write_enable ? 1 : 0;
-			pass_data.render_targets[0] = _backbuffer_rtv[target_index];
-			pass_data.render_target_resources[0] = _backbuffer_texture_srv[target_index];
 
 			for (UINT k = 0; k < 8 && !pass_info.render_target_names[k].empty(); ++k)
 			{
@@ -610,11 +607,14 @@ bool reshade::d3d10::runtime_d3d10::init_effect(size_t index)
 				}
 
 				pass_data.render_targets[k] = texture_impl->rtv[target_index];
-				pass_data.render_target_resources[k] = texture_impl->srv[target_index];
+				pass_data.modified_resources.push_back(texture_impl->srv[target_index]);
 			}
 
 			if (pass_info.render_target_names[0].empty())
 			{
+				pass_data.render_targets[0] = _backbuffer_rtv[target_index];
+				pass_data.modified_resources.push_back(_backbuffer_texture_srv[target_index]);
+
 				pass_info.viewport_width = _width;
 				pass_info.viewport_height = _height;
 			}
@@ -1101,11 +1101,9 @@ void reshade::d3d10::runtime_d3d10::render_technique(technique &technique)
 		_device->PSSetShaderResources(0, static_cast<UINT>(pass_data.srvs.size()), null_srv);
 
 		needs_implicit_backbuffer_copy = false;
-		for (const com_ptr<ID3D10ShaderResourceView> &resource : pass_data.render_target_resources)
+		// Generate mipmaps for modified resources
+		for (const com_ptr<ID3D10ShaderResourceView> &resource : pass_data.modified_resources)
 		{
-			if (resource == nullptr)
-				break;
-
 			if (resource == _backbuffer_texture_srv[0] ||
 				resource == _backbuffer_texture_srv[1])
 			{

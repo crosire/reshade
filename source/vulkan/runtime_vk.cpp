@@ -32,9 +32,9 @@ namespace reshade::vulkan
 	struct vulkan_pass_data
 	{
 		VkPipeline pipeline = VK_NULL_HANDLE;
-		std::vector<VkImage> images_to_transition;
 		VkClearValue clear_values[8] = {};
 		VkRenderPassBeginInfo begin_info = { VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO };
+		std::vector<const texture *> modified_resources;
 	};
 
 	struct vulkan_effect_data
@@ -1147,7 +1147,7 @@ bool reshade::vulkan::runtime_vk::init_effect(size_t index)
 					if (existing_texture->impl_reference != texture_reference::none || !info.unordered_access)
 						continue;
 
-					pass_data.images_to_transition.push_back(static_cast<vulkan_tex_data *>(existing_texture->impl)->image);
+					pass_data.modified_resources.push_back(&*existing_texture);
 				}
 
 				VkComputePipelineCreateInfo create_info { VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO };
@@ -1246,12 +1246,15 @@ bool reshade::vulkan::runtime_vk::init_effect(size_t index)
 
 			for (uint32_t k = 0; k < 8 && !pass_info.render_target_names[k].empty(); ++k, ++num_color_attachments)
 			{
-				const auto texture_impl = static_cast<vulkan_tex_data *>(std::find_if(_textures.begin(), _textures.end(),
-					[&render_target = pass_info.render_target_names[k]](const auto &item) {
-					return item.unique_name == render_target;
-				})->impl);
-				assert(texture_impl != nullptr);
+				const auto existing_texture = std::find_if(_textures.begin(), _textures.end(),
+					[&texture_name = pass_info.render_target_names[k]](const auto &item) {
+					return item.unique_name == texture_name && item.impl != nullptr;
+				});
+				assert(existing_texture != _textures.end());
 
+				pass_data.modified_resources.push_back(&*existing_texture);
+
+				const auto texture_impl = static_cast<vulkan_tex_data *>(existing_texture->impl);
 				attachment_views[k] = texture_impl->view[2 + pass_info.srgb_write_enable];
 				attachment_blends[k] = attachment_blends[0];
 
@@ -1886,14 +1889,14 @@ void reshade::vulkan::runtime_vk::render_technique(technique &technique)
 
 		if (!pass_info.cs_entry_point.empty())
 		{
-			for (VkImage image : pass_data.images_to_transition)
-				transition_layout(vk, cmd_list, image, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL, { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 });
+			for (const texture *storage_resource : pass_data.modified_resources)
+				transition_layout(vk, cmd_list, static_cast<vulkan_tex_data *>(storage_resource->impl)->image, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL, { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 });
 
 			vk.CmdBindPipeline(cmd_list, VK_PIPELINE_BIND_POINT_COMPUTE, pass_data.pipeline);
 			vk.CmdDispatch(cmd_list, pass_info.viewport_width, pass_info.viewport_height, 1);
 
-			for (VkImage image : pass_data.images_to_transition)
-				transition_layout(vk, cmd_list, image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 });
+			for (const texture *storage_resource : pass_data.modified_resources)
+				transition_layout(vk, cmd_list, static_cast<vulkan_tex_data *>(storage_resource->impl)->image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 });
 		}
 		else
 		{
@@ -1943,18 +1946,11 @@ void reshade::vulkan::runtime_vk::render_technique(technique &technique)
 			_drawcalls += 1;
 
 			vk.CmdEndRenderPass(cmd_list);
-
-			// Generate mipmaps
-			for (uint32_t k = 0; k < 8 && !pass_info.render_target_names[k].empty(); ++k)
-			{
-				const auto render_target_texture = std::find_if(_textures.begin(), _textures.end(),
-					[&render_target = pass_info.render_target_names[k]](const auto &item) {
-					return item.unique_name == render_target;
-				});
-
-				generate_mipmaps(*render_target_texture);
-			}
 		}
+
+		// Generate mipmaps for modified resources
+		for (const texture *texture : pass_data.modified_resources)
+			generate_mipmaps(*texture);
 
 #ifndef NDEBUG
 		if (insert_debug_markers)

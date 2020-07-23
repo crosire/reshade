@@ -31,8 +31,7 @@ namespace reshade::d3d11
 		com_ptr<ID3D11VertexShader> vertex_shader;
 		com_ptr<ID3D11ComputeShader> compute_shader;
 		com_ptr<ID3D11RenderTargetView> render_targets[D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT];
-		com_ptr<ID3D11ShaderResourceView> render_target_resources[D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT];
-		std::vector<com_ptr<ID3D11ShaderResourceView>> srvs;
+		std::vector<com_ptr<ID3D11ShaderResourceView>> srvs, modified_resources;
 		std::vector<com_ptr<ID3D11UnorderedAccessView>> uavs;
 	};
 
@@ -634,6 +633,20 @@ bool reshade::d3d11::runtime_d3d11::init_effect(size_t index)
 				entry_points.at(pass_info.cs_entry_point)->QueryInterface(&pass_data.compute_shader);
 
 				pass_data.uavs = impl->uav_bindings;
+
+				for (const reshadefx::texture_info &info : effect.module.textures)
+				{
+					const auto existing_texture = std::find_if(_textures.begin(), _textures.end(),
+						[&texture_name = info.unique_name](const auto &item) {
+						return item.unique_name == texture_name && item.impl != nullptr;
+					});
+					assert(existing_texture != _textures.end());
+
+					if (existing_texture->impl_reference != texture_reference::none || !info.unordered_access)
+						continue;
+
+					pass_data.modified_resources.push_back(static_cast<d3d11_tex_data *>(existing_texture->impl)->srv[0]);
+				}
 				continue;
 			}
 
@@ -641,8 +654,6 @@ bool reshade::d3d11::runtime_d3d11::init_effect(size_t index)
 			entry_points.at(pass_info.vs_entry_point)->QueryInterface(&pass_data.vertex_shader);
 
 			const int target_index = pass_info.srgb_write_enable ? 1 : 0;
-			pass_data.render_targets[0] = _backbuffer_rtv[target_index];
-			pass_data.render_target_resources[0] = _backbuffer_texture_srv[target_index];
 
 			for (UINT k = 0; k < 8 && !pass_info.render_target_names[k].empty(); ++k)
 			{
@@ -672,11 +683,14 @@ bool reshade::d3d11::runtime_d3d11::init_effect(size_t index)
 				}
 
 				pass_data.render_targets[k] = texture_impl->rtv[target_index];
-				pass_data.render_target_resources[k] = texture_impl->srv[target_index];
+				pass_data.modified_resources.push_back(texture_impl->srv[target_index]);
 			}
 
 			if (pass_info.render_target_names[0].empty())
 			{
+				pass_data.render_targets[0] = _backbuffer_rtv[target_index];
+				pass_data.modified_resources.push_back(_backbuffer_texture_srv[target_index]);
+
 				pass_info.viewport_width = _width;
 				pass_info.viewport_height = _height;
 			}
@@ -1195,24 +1209,23 @@ void reshade::d3d11::runtime_d3d11::render_technique(technique &technique)
 			_immediate_context->PSSetShaderResources(0, static_cast<UINT>(pass_data.srvs.size()), null_srv);
 
 			needs_implicit_backbuffer_copy = false;
-			for (const com_ptr<ID3D11ShaderResourceView> &resource : pass_data.render_target_resources)
+		}
+
+		// Generate mipmaps for modified resources
+		for (const com_ptr<ID3D11ShaderResourceView> &resource : pass_data.modified_resources)
+		{
+			if (resource == _backbuffer_texture_srv[0] ||
+				resource == _backbuffer_texture_srv[1])
 			{
-				if (resource == nullptr)
-					break;
-
-				if (resource == _backbuffer_texture_srv[0] ||
-					resource == _backbuffer_texture_srv[1])
-				{
-					needs_implicit_backbuffer_copy = true;
-					break;
-				}
-
-				D3D11_SHADER_RESOURCE_VIEW_DESC resource_desc;
-				resource->GetDesc(&resource_desc);
-
-				if (resource_desc.Texture2D.MipLevels > 1)
-					_immediate_context->GenerateMips(resource.get());
+				needs_implicit_backbuffer_copy = true;
+				break;
 			}
+
+			D3D11_SHADER_RESOURCE_VIEW_DESC resource_desc;
+			resource->GetDesc(&resource_desc);
+
+			if (resource_desc.Texture2D.MipLevels > 1)
+				_immediate_context->GenerateMips(resource.get());
 		}
 	}
 

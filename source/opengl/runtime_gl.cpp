@@ -1125,27 +1125,28 @@ void reshade::opengl::runtime_gl::render_technique(technique &technique)
 			_drawcalls += 1;
 
 			needs_implicit_backbuffer_copy = false;
-			for (GLuint texture_id : pass_data.draw_textures)
+		}
+
+		// Generate mipmaps for modified resources
+		for (GLuint texture_id : pass_data.draw_textures)
+		{
+			if (texture_id == 0)
+				break;
+
+			if (texture_id == _tex[TEX_BACK_SRGB])
 			{
-				if (texture_id == 0)
-					break;
+				needs_implicit_backbuffer_copy = true;
+				break;
+			}
 
-				if (texture_id == _tex[TEX_BACK_SRGB])
+			for (GLuint s_slot = 0; s_slot < impl->samplers.size(); ++s_slot)
+			{
+				const opengl_sampler_data &sampler_data = impl->samplers[s_slot];
+
+				if (sampler_data.has_mipmaps && (sampler_data.texture->id[0] == texture_id || sampler_data.texture->id[1] == texture_id))
 				{
-					needs_implicit_backbuffer_copy = true;
-					break;
-				}
-
-				// Regenerate mipmaps of any textures bound as render target
-				for (GLuint s_slot = 0; s_slot < impl->samplers.size(); ++s_slot)
-				{
-					const opengl_sampler_data &sampler_data = impl->samplers[s_slot];
-
-					if (sampler_data.has_mipmaps && (sampler_data.texture->id[0] == texture_id || sampler_data.texture->id[1] == texture_id))
-					{
-						glActiveTexture(GL_TEXTURE0 + s_slot);
-						glGenerateMipmap(GL_TEXTURE_2D);
-					}
+					glActiveTexture(GL_TEXTURE0 + s_slot);
+					glGenerateMipmap(GL_TEXTURE_2D);
 				}
 			}
 		}

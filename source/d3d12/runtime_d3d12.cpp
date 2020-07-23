@@ -30,6 +30,7 @@ namespace reshade::d3d12
 		com_ptr<ID3D12PipelineState> pipeline;
 		UINT num_render_targets;
 		D3D12_CPU_DESCRIPTOR_HANDLE render_targets;
+		std::vector<const texture *> modified_resources;
 	};
 
 	struct d3d12_effect_data
@@ -681,7 +682,7 @@ bool reshade::d3d12::runtime_d3d12::init_effect(size_t index)
 		D3D12_CPU_DESCRIPTOR_HANDLE uav_handle = effect_data.uav_cpu_base;
 		uav_handle.ptr += info.binding * _srv_handle_size;
 
-		const com_ptr<ID3D12Resource> resource =
+		const com_ptr<ID3D12Resource> &resource =
 			static_cast<d3d12_tex_data *>(existing_texture->impl)->resource;
 
 		D3D12_UNORDERED_ACCESS_VIEW_DESC desc = {};
@@ -786,6 +787,20 @@ bool reshade::d3d12::runtime_d3d12::init_effect(size_t index)
 			{
 				impl->has_compute_passes = true;
 
+				for (const reshadefx::texture_info &info : effect.module.textures)
+				{
+					const auto existing_texture = std::find_if(_textures.begin(), _textures.end(),
+						[&texture_name = info.unique_name](const auto &item) {
+						return item.unique_name == texture_name && item.impl != nullptr;
+					});
+					assert(existing_texture != _textures.end());
+
+					if (existing_texture->impl_reference != texture_reference::none || !info.unordered_access)
+						continue;
+
+					pass_data.modified_resources.push_back(&*existing_texture);
+				}
+
 				D3D12_COMPUTE_PIPELINE_STATE_DESC pso_desc = {};
 				pso_desc.pRootSignature = effect_data.signature.get();
 
@@ -824,19 +839,24 @@ bool reshade::d3d12::runtime_d3d12::init_effect(size_t index)
 
 			for (UINT k = 0; k < 8 && !pass_info.render_target_names[k].empty(); ++k)
 			{
-				const auto texture_impl = static_cast<d3d12_tex_data *>(std::find_if(_textures.begin(), _textures.end(),
+				const auto existing_texture = std::find_if(_textures.begin(), _textures.end(),
 					[&render_target = pass_info.render_target_names[k]](const auto &item) {
 					return item.unique_name == render_target;
-				})->impl);
-				assert(texture_impl != nullptr);
+				});
+				assert(existing_texture != _textures.end());
+
+				pass_data.modified_resources.push_back(&*existing_texture);
+
+				const com_ptr<ID3D12Resource> &resource =
+					static_cast<d3d12_tex_data *>(existing_texture->impl)->resource;
 
 				D3D12_RENDER_TARGET_VIEW_DESC desc = {};
 				desc.Format = pass_info.srgb_write_enable ?
-					make_dxgi_format_srgb(texture_impl->resource->GetDesc().Format) :
-					make_dxgi_format_normal(texture_impl->resource->GetDesc().Format);
+					make_dxgi_format_srgb(resource->GetDesc().Format) :
+					make_dxgi_format_normal(resource->GetDesc().Format);
 				desc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
 
-				_device->CreateRenderTargetView(texture_impl->resource.get(), &desc, rtv_handle);
+				_device->CreateRenderTargetView(resource.get(), &desc, rtv_handle);
 
 				pso_desc.RTVFormats[k] = desc.Format;
 				pso_desc.NumRenderTargets = pass_data.num_render_targets = k + 1;
@@ -1337,15 +1357,8 @@ void reshade::d3d12::runtime_d3d12::render_technique(technique &technique)
 			}
 
 			// Transition resource state for render targets
-			for (UINT k = 0; k < pass_data.num_render_targets; ++k)
-			{
-				const auto render_target_texture = std::find_if(_textures.begin(), _textures.end(),
-					[&render_target = pass_info.render_target_names[k]](const auto &item) {
-					return item.unique_name == render_target;
-				});
-
+			for (const texture *render_target_texture : pass_data.modified_resources)
 				transition_state(_cmd_list, static_cast<d3d12_tex_data *>(render_target_texture->impl)->resource, D3D12_RESOURCE_STATE_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
-			}
 
 			_cmd_list->OMSetStencilRef(pass_info.stencil_reference_value);
 
@@ -1413,18 +1426,14 @@ void reshade::d3d12::runtime_d3d12::render_technique(technique &technique)
 			_vertices += pass_info.num_vertices;
 			_drawcalls += 1;
 
-			// Generate mipmaps and transition resource state back to shader access
-			for (UINT k = 0; k < pass_data.num_render_targets; ++k)
-			{
-				const auto render_target_texture = std::find_if(_textures.begin(), _textures.end(),
-					[&render_target = pass_info.render_target_names[k]](const auto &item) {
-					return item.unique_name == render_target;
-				});
-
+			// Transition resource state back to shader access
+			for (const texture *render_target_texture : pass_data.modified_resources)
 				transition_state(_cmd_list, static_cast<d3d12_tex_data *>(render_target_texture->impl)->resource, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_SHADER_RESOURCE);
-				generate_mipmaps(*render_target_texture);
-			}
 		}
+
+		// Generate mipmaps for modified resources
+		for (const texture *modified_texture : pass_data.modified_resources)
+			generate_mipmaps(*modified_texture);
 	}
 }
 

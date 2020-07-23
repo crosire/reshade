@@ -951,6 +951,7 @@ void reshade::d3d9::runtime_d3d9::render_technique(technique &technique)
 		_drawcalls += 1;
 
 		needs_implicit_backbuffer_copy = false;
+		// Generate mipmaps for modified resources
 		for (IDirect3DSurface9 *target : pass_data.render_targets)
 		{
 			if (target == nullptr)
