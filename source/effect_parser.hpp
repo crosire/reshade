@@ -61,7 +61,7 @@ namespace reshadefx
 
 		bool parse_top();
 		bool parse_struct();
-		bool parse_function(type type, std::string name, int numthreads[3]);
+		bool parse_function(type type, std::string name);
 		bool parse_variable(type type, std::string name, bool global = false);
 		bool parse_technique();
 		bool parse_technique_pass(pass_info &info);

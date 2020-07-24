@@ -545,24 +545,10 @@ private:
 	}
 	id   define_function(const location &loc, function_info &info) override
 	{
-		return define_function(loc, info, _shader_model >= 40);
-	}
-	id   define_function(const location &loc, function_info &info, bool is_entry_point)
-	{
-		std::string name = info.unique_name;
-		if (!is_entry_point)
-			name += '_';
-
 		info.definition = make_id();
-		define_name<naming::unique>(info.definition, std::move(name));
+		define_name<naming::unique>(info.definition, info.unique_name);
 
 		std::string &code = _blocks.at(_current_block);
-
-		if (info.numthreads[0] != 0 && is_entry_point)
-			code += "[numthreads(" +
-				std::to_string(info.numthreads[0]) + ", " +
-				std::to_string(info.numthreads[1]) + ", " +
-				std::to_string(info.numthreads[2]) + ")]\n";
 
 		write_location(code, loc);
 
@@ -585,7 +571,7 @@ private:
 			if (param.type.is_array())
 				code += '[' + std::to_string(param.type.array_length) + ']';
 
-			if (is_entry_point && !param.semantic.empty())
+			if (!param.semantic.empty())
 				code += " : " + convert_semantic(param.semantic);
 
 			if (i < num_params - 1)
@@ -594,7 +580,7 @@ private:
 
 		code += ')';
 
-		if (is_entry_point && !info.return_semantic.empty())
+		if (!info.return_semantic.empty())
 			code += " : " + convert_semantic(info.return_semantic);
 
 		code += '\n';
@@ -604,16 +590,22 @@ private:
 		return info.definition;
 	}
 
-	void define_entry_point(const function_info &func, shader_type stype) override
+	void define_entry_point(function_info &func, shader_type stype, int num_threads[3]) override
 	{
+		// Modify entry point name since a new function is created for it below
+		if (stype == shader_type::cs)
+			func.unique_name = 'E' + func.unique_name + '_' + std::to_string(num_threads[0]) + '_' + std::to_string(num_threads[1]) + '_' + std::to_string(num_threads[2]);
+		else if (_shader_model < 40)
+			func.unique_name = 'E' + func.unique_name;
+
 		if (const auto it = std::find_if(_module.entry_points.begin(), _module.entry_points.end(),
 			[&func](const auto &ep) { return ep.name == func.unique_name; }); it != _module.entry_points.end())
 			return;
 
 		_module.entry_points.push_back({ func.unique_name, stype });
 
-		// Only have to rewrite the entry point function signature in shader model 3
-		if (_shader_model >= 40)
+		// Only have to rewrite the entry point function signature in shader model 3 and for compute (to write "numthreads" attribute)
+		if (_shader_model >= 40 && stype != shader_type::cs)
 			return;
 
 		auto entry_point = func;
@@ -658,7 +650,13 @@ private:
 					position_variable_name = param.name;
 		}
 
-		define_function({}, entry_point, true);
+		if (stype == shader_type::cs)
+			_blocks.at(_current_block) += "[numthreads(" +
+				std::to_string(num_threads[0]) + ", " +
+				std::to_string(num_threads[1]) + ", " +
+				std::to_string(num_threads[2]) + ")]\n";
+
+		define_function({}, entry_point);
 		enter_block(create_block());
 
 		std::string &code = _blocks.at(_current_block);

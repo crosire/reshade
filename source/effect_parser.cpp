@@ -2168,35 +2168,6 @@ bool reshadefx::parser::parse_top()
 	}
 	else
 	{
-		int numthreads[3] = { 0, 0, 0 };
-		if (accept('['))
-		{
-			if (!expect(tokenid::identifier))
-				return false;
-
-			if (_token.literal_as_string == "numthreads")
-			{
-				expression x, y, z;
-				if (!expect('(') || !parse_expression_multary(x) || !expect(',') || !parse_expression_multary(y) || !expect(',') || !parse_expression_multary(z) || !expect(')'))
-					return false;
-				if (!x.is_constant)
-					error(x.location, 3011, "value must be a literal expression");
-				if (!y.is_constant)
-					error(x.location, 3011, "value must be a literal expression");
-				if (!z.is_constant)
-					error(x.location, 3011, "value must be a literal expression");
-				x.add_cast_operation({ type::t_int, 1, 1 });
-				y.add_cast_operation({ type::t_int, 1, 1 });
-				z.add_cast_operation({ type::t_int, 1, 1 });
-				numthreads[0] = x.constant.as_int[0];
-				numthreads[1] = y.constant.as_int[0];
-				numthreads[2] = z.constant.as_int[0];
-			}
-
-			if (!expect(']'))
-				return false;
-		}
-
 		if (type type; parse_type(type)) // Type found, this can be either a variable or a function declaration
 		{
 			if (!expect(tokenid::identifier))
@@ -2206,7 +2177,7 @@ bool reshadefx::parser::parse_top()
 			{
 				const auto name = std::move(_token.literal_as_string);
 				// This is definitely a function declaration, so parse it
-				if (!parse_function(type, name, numthreads)) {
+				if (!parse_function(type, name)) {
 					// Insert dummy function into symbol table, so later references can be resolved despite the error
 					insert_symbol(name, { symbol_type::function, ~0u, { type::t_function } }, true);
 					return false;
@@ -2326,7 +2297,7 @@ bool reshadefx::parser::parse_struct()
 	return expect('}');
 }
 
-bool reshadefx::parser::parse_function(type type, std::string name, int numthreads[3])
+bool reshadefx::parser::parse_function(type type, std::string name)
 {
 	const auto location = std::move(_token.location);
 
@@ -2342,8 +2313,6 @@ bool reshadefx::parser::parse_function(type type, std::string name, int numthrea
 
 	info.return_type = type;
 	_current_return_type = info.return_type;
-
-	std::copy_n(numthreads, 3, info.numthreads);
 
 	bool parse_success = true;
 	bool expect_parenthesis = true;
@@ -2891,6 +2860,26 @@ bool reshadefx::parser::parse_technique_pass(pass_info &info)
 
 			location = std::move(_token.location);
 
+			int num_threads[3] = { 1, 1, 1 };
+			if (accept('<'))
+			{
+				expression x, y, z;
+				if (!parse_expression_multary(x) || !expect(',') || !parse_expression_multary(y) || !expect(',') || !parse_expression_multary(z, 8) || !expect('>'))
+					return consume_until('}'), false;
+				if (!x.is_constant)
+					error(x.location, 3011, "value must be a literal expression");
+				if (!y.is_constant)
+					error(y.location, 3011, "value must be a literal expression");
+				if (!z.is_constant)
+					error(z.location, 3011, "value must be a literal expression");
+				x.add_cast_operation({ type::t_int, 1, 1 });
+				y.add_cast_operation({ type::t_int, 1, 1 });
+				z.add_cast_operation({ type::t_int, 1, 1 });
+				num_threads[0] = x.constant.as_int[0];
+				num_threads[1] = y.constant.as_int[0];
+				num_threads[2] = z.constant.as_int[0];
+			}
+
 			// Ignore invalid symbols that were added during error recovery
 			if (symbol.id != 0xFFFFFFFF)
 			{
@@ -2911,18 +2900,18 @@ bool reshadefx::parser::parse_technique_pass(pass_info &info)
 						{
 						case 'V':
 							vs_info = function_info;
-							info.vs_entry_point = function_info.unique_name;
-							_codegen->define_entry_point(function_info, shader_type::vs);
+							_codegen->define_entry_point(vs_info, shader_type::vs);
+							info.vs_entry_point = vs_info.unique_name;
 							break;
 						case 'P':
 							ps_info = function_info;
-							info.ps_entry_point = function_info.unique_name;
-							_codegen->define_entry_point(function_info, shader_type::ps);
+							_codegen->define_entry_point(ps_info, shader_type::ps);
+							info.ps_entry_point = ps_info.unique_name;
 							break;
 						case 'C':
 							cs_info = function_info;
-							info.cs_entry_point = function_info.unique_name;
-							_codegen->define_entry_point(function_info, shader_type::cs);
+							_codegen->define_entry_point(cs_info, shader_type::cs, num_threads);
+							info.cs_entry_point = cs_info.unique_name;
 							break;
 						}
 					}
@@ -3074,9 +3063,9 @@ bool reshadefx::parser::parse_technique_pass(pass_info &info)
 				info.num_vertices = value;
 			else if (state == "PrimitiveType" || state == "PrimitiveTopology")
 				info.topology = static_cast<primitive_topology>(value);
-			else if (state == "DispatchWidth")
+			else if (state == "DispatchSizeX")
 				info.viewport_width = value;
-			else if (state == "DispatchHeight")
+			else if (state == "DispatchSizeY")
 				info.viewport_height = value;
 			else
 				parse_success = false,
@@ -3091,10 +3080,10 @@ bool reshadefx::parser::parse_technique_pass(pass_info &info)
 	{
 		if (!info.cs_entry_point.empty())
 		{
-			if (cs_info.numthreads[0] == 0 || cs_info.numthreads[1] == 0 || cs_info.numthreads[2] == 0)
+			if (info.viewport_width == 0 || info.viewport_height == 0)
 			{
 				parse_success = false;
-				error(pass_location, 3084, "'numthreads(X,Y,Z)' attribute expected, where 'X,Y,Z' are the dimensions of the thread group");
+				error(pass_location, 3012, "pass is missing 'DispatchSizeX' or 'DispatchSizeY' property");
 			}
 		}
 		else if (info.vs_entry_point.empty() || info.ps_entry_point.empty())
