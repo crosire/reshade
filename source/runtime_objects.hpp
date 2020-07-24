@@ -102,6 +102,7 @@ namespace reshade
 		size_t effect_index = std::numeric_limits<size_t>::max();
 		texture_reference impl_reference = texture_reference::none;
 		bool shared = false;
+		bool loaded = false;
 	};
 
 	struct uniform final : reshadefx::uniform_info

@@ -30,8 +30,6 @@ namespace ReShade.Setup.Dialogs
 		{
 			InitializeComponent();
 
-			PathBox.Text = Directory.GetCurrentDirectory();
-
 			// Sort items in list by name
 			var view = CollectionViewSource.GetDefaultView(ProgramListItems);
 			view.SortDescriptions.Add(new SortDescription(nameof(ProgramItem.Name), ListSortDirection.Ascending));
@@ -80,6 +78,15 @@ namespace ReShade.Setup.Dialogs
 					}
 				}
 				catch { }
+
+				// Add Epic Games Launcher install location
+				{
+					string epicGamesInstallPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "Epic Games");
+					if (Directory.Exists(epicGamesInstallPath))
+					{
+						searchPaths.Enqueue(epicGamesInstallPath);
+					}
+				}
 
 				while (searchPaths.Count != 0)
 				{
@@ -133,6 +140,9 @@ namespace ReShade.Setup.Dialogs
 											ProgramListItems.Add(new ProgramItem(file));
 										}
 									}
+
+									if (PathBox.Text.Length == 0)
+										ProgramList.SelectedIndex = 0;
 								}), DispatcherPriority.Background, new ArraySegment<string>(files, i, Math.Min(SPLIT_SIZE, files.Length - i)));
 							}
 
@@ -255,9 +265,17 @@ namespace ReShade.Setup.Dialogs
 
 		void OnConfirmSelection(object sender, MouseButtonEventArgs e)
 		{
-			if (e.LeftButton == MouseButtonState.Pressed)
+			if (e.ChangedButton == MouseButton.Left && e.ButtonState == MouseButtonState.Pressed)
 			{
 				OnConfirm(sender, null);
+			}
+		}
+
+		void OnPathChanged(object sender, System.Windows.Controls.TextChangedEventArgs e)
+		{
+			if (PathBox.IsFocused)
+			{
+				ProgramList.UnselectAll();
 			}
 		}
 

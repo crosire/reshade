@@ -521,7 +521,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &path, size_t ind
 		std::move(new_textures.begin(), new_textures.end(), std::back_inserter(_textures));
 		std::move(new_techniques.begin(), new_techniques.end(), std::back_inserter(_techniques));
 
-		_last_reload_successful &= effect.compile_sucess;
+		_last_shader_reload_successful &= effect.compile_sucess;
 		_reload_remaining_effects--;
 	}
 
@@ -535,7 +535,7 @@ void reshade::runtime::load_effects()
 #if RESHADE_GUI
 	_show_splash = true; // Always show splash bar when reloading everything
 #endif
-	_last_reload_successful = true;
+	_last_shader_reload_successful = true;
 
 	// Reload preprocessor definitions from current preset before compiling
 	if (!_current_preset_path.empty())
@@ -574,9 +574,11 @@ void reshade::runtime::load_effects()
 }
 void reshade::runtime::load_textures()
 {
+	_last_texture_reload_successful = true;
+
 	LOG(INFO) << "Loading image files for textures ...";
 
-	for (const texture &texture : _textures)
+	for (texture &texture : _textures)
 	{
 		if (texture.impl == nullptr || texture.impl_reference != texture_reference::none)
 			continue; // Ignore textures that are not created yet and those that are handled in the runtime implementation
@@ -588,8 +590,10 @@ void reshade::runtime::load_textures()
 			continue;
 
 		// Search for image file using the provided search paths unless the path provided is already absolute
-		if (!find_file(_texture_search_paths, source_path)) {
+		if (!find_file(_texture_search_paths, source_path))
+		{
 			LOG(ERROR) << "Source " << source_path << " for texture '" << texture.unique_name << "' could not be found in any of the texture search paths.";
+			_last_texture_reload_successful = false;
 			continue;
 		}
 
@@ -609,8 +613,10 @@ void reshade::runtime::load_textures()
 				filedata = stbi_load_from_memory(mem.data(), static_cast<int>(mem.size()), &width, &height, &channels, STBI_rgb_alpha);
 		}
 
-		if (filedata == nullptr) {
+		if (filedata == nullptr)
+		{
 			LOG(ERROR) << "Source " << source_path << " for texture '" << texture.unique_name << "' could not be loaded! Make sure it is of a compatible file format.";
+			_last_texture_reload_successful = false;
 			continue;
 		}
 
@@ -629,6 +635,8 @@ void reshade::runtime::load_textures()
 		}
 
 		stbi_image_free(filedata);
+
+		texture.loaded = true;
 	}
 
 	_textures_loaded = true;
@@ -792,7 +800,7 @@ void reshade::runtime::update_and_render_effects()
 						disable_technique(tech);
 
 				effect.compile_sucess = false;
-				_last_reload_successful = false;
+				_last_shader_reload_successful = false;
 			}
 
 			// An effect has changed, need to reload textures
@@ -1091,6 +1099,7 @@ void reshade::runtime::load_config()
 	config.get("GENERAL", "ScreenshotSaveUI", _screenshot_save_ui);
 	config.get("GENERAL", "ScreenshotSaveBefore", _screenshot_save_before);
 	config.get("GENERAL", "ScreenshotIncludePreset", _screenshot_include_preset);
+	config.get("GENERAL", "ScreenshotJPEGQuality", _screenshot_jpeg_quality);
 	config.get("GENERAL", "ScreenshotClearAlpha", _screenshot_clear_alpha);
 
 	config.get("GENERAL", "NoDebugInfo", _no_debug_info);
@@ -1138,6 +1147,7 @@ void reshade::runtime::save_config() const
 	config.set("GENERAL", "ScreenshotSaveUI", _screenshot_save_ui);
 	config.set("GENERAL", "ScreenshotSaveBefore", _screenshot_save_before);
 	config.set("GENERAL", "ScreenshotIncludePreset", _screenshot_include_preset);
+	config.set("GENERAL", "ScreenshotJPEGQuality", _screenshot_jpeg_quality);
 	config.set("GENERAL", "ScreenshotClearAlpha", _screenshot_clear_alpha);
 
 	config.set("GENERAL", "NoDebugInfo", _no_debug_info);
@@ -1401,7 +1411,7 @@ void reshade::runtime::save_screenshot(const std::wstring &postfix, const bool s
 	sprintf_s(filename, " %.4d-%.2d-%.2d %.2d-%.2d-%.2d", _date[0], _date[1], _date[2], hour, minute, seconds);
 
 	const std::wstring least = (_screenshot_path.is_relative() ? g_target_executable_path.parent_path() / _screenshot_path : _screenshot_path) / g_target_executable_path.stem().concat(filename);
-	const std::wstring screenshot_path = least + postfix + (_screenshot_format == 0 ? L".bmp" : L".png");
+	const std::wstring screenshot_path = least + postfix + (_screenshot_format == 0 ? L".bmp" : _screenshot_format == 1 ? L".png" : L".jpeg");
 
 	LOG(INFO) << "Saving screenshot to " << screenshot_path << " ...";
 
@@ -1410,7 +1420,8 @@ void reshade::runtime::save_screenshot(const std::wstring &postfix, const bool s
 	if (std::vector<uint8_t> data(_width * _height * 4); capture_screenshot(data.data()))
 	{
 		// Clear alpha channel
-		if (_screenshot_clear_alpha)
+		// The alpha channel doesn't need to be cleared if we're saving a JPEG, stbi ignores it
+		if (_screenshot_clear_alpha && _screenshot_format != 2)
 			for (uint32_t h = 0; h < _height; ++h)
 				for (uint32_t w = 0; w < _width; ++w)
 					data[(h * _width + w) * 4 + 3] = 0xFF;
@@ -1428,6 +1439,9 @@ void reshade::runtime::save_screenshot(const std::wstring &postfix, const bool s
 				break;
 			case 1:
 				_screenshot_save_success = stbi_write_png_to_func(write_callback, file, _width, _height, 4, data.data(), 0) != 0;
+				break;
+			case 2:
+				_screenshot_save_success = stbi_write_jpg_to_func(write_callback, file, _width, _height, 4, data.data(), _screenshot_jpeg_quality) != 0;
 				break;
 			}
 

@@ -1,4 +1,9 @@
 ﻿<Window x:Class="ReShade.Setup.Dialogs.SelectAppDialog" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" Title="Select application" Width="510" Height="638" MinWidth="295" MinHeight="275" WindowStyle="None" WindowStartupLocation="CenterOwner" FocusManager.FocusedElement="{Binding ElementName=ProgramList}">
+  <Window.Resources>
+    <Style TargetType="ListBoxItem">
+      <EventSetter Event="MouseDoubleClick" Handler="OnConfirmSelection" />
+    </Style>
+  </Window.Resources>
   <DockPanel LastChildFill="True">
     <Label DockPanel.Dock="Top" Margin="10" Padding="0" VerticalAlignment="Top" Foreground="#FF003399" FontSize="16" Content="Select a game or application:" />
     <DockPanel DockPanel.Dock="Bottom" Margin="0,5,0,0" Background="{StaticResource {x:Static SystemColors.ControlLightBrushKey}}" >
@@ -10,9 +15,9 @@
       <TextBlock HorizontalAlignment="Left" VerticalAlignment="Center" Text="Can't find the desired game in the list?" />
       <Button HorizontalAlignment="Right" VerticalAlignment="Center" Width="100" Content="_Browse..." Click="OnBrowse" />
     </Grid>
-    <TextBox x:Name="PathBox" DockPanel.Dock="Bottom" Margin="10,0,10,5" HorizontalAlignment="Stretch" />
+    <TextBox x:Name="PathBox" DockPanel.Dock="Bottom" Margin="10,0,10,5" HorizontalAlignment="Stretch" TextChanged="OnPathChanged" />
     <ProgressBar x:Name="ProgramListProgress" DockPanel.Dock="Bottom" Margin="10,0,10,5" Height="20" IsIndeterminate="True" />
-    <ListBox x:Name="ProgramList" Margin="10,5" HorizontalContentAlignment="Stretch" SelectionChanged="OnSelectionChanged" MouseDoubleClick="OnConfirmSelection">
+    <ListBox x:Name="ProgramList" Margin="10,5" HorizontalContentAlignment="Stretch" SelectionChanged="OnSelectionChanged">
       <ListBox.ItemTemplate>
         <DataTemplate>
           <Grid Margin="0,3">

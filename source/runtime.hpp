@@ -290,7 +290,8 @@ namespace reshade
 		// === Effect Loading ===
 		bool _no_debug_info = 0;
 		bool _no_reload_on_init = false;
-		bool _last_reload_successful = true;
+		bool _last_shader_reload_successful = true;
+		bool _last_texture_reload_successful = true;
 		bool _textures_loaded = false;
 		bool _performance_mode = false;
 		unsigned int _reload_key_data[4];
@@ -317,6 +318,7 @@ namespace reshade
 		std::filesystem::path _screenshot_path;
 		std::filesystem::path _last_screenshot_file;
 		std::chrono::high_resolution_clock::time_point _last_screenshot_time;
+		unsigned int _screenshot_jpeg_quality = 90;
 
 		// === Preset Switching ===
 		bool _preset_save_success = true;
