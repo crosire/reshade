@@ -344,6 +344,7 @@ IMPLEMENT_INTRINSIC_GLSL(asint, 0, {
 	code += "floatBitsToInt(" + id_to_name(args[0].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_HLSL(asint, 0, {
+	// Really only supported on shader model 4+
 	code += "asint(" + id_to_name(args[0].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_SPIRV(asint, 0, {
@@ -1765,6 +1766,67 @@ IMPLEMENT_INTRINSIC_SPIRV(tex2Dstore, 0, {
 		.add(args[0].base)
 		.add(args[1].base)
 		.add(args[2].base);
+	return 0;
+	})
+
+
+// barrier()
+DEFINE_INTRINSIC(barrier, 0, void)
+IMPLEMENT_INTRINSIC_GLSL(barrier, 0, {
+	code += "barrier()";
+	})
+IMPLEMENT_INTRINSIC_HLSL(barrier, 0, {
+	if (_shader_model >= 50) {
+		code += "GroupMemoryBarrierWithGroupSync()";
+	}
+	})
+IMPLEMENT_INTRINSIC_SPIRV(barrier, 0, {
+	const spv::Id mem_scope = emit_constant(spv::ScopeWorkgroup);
+	const spv::Id mem_semantics = emit_constant(spv::MemorySemanticsWorkgroupMemoryMask | spv::MemorySemanticsAcquireReleaseMask);
+
+	add_instruction_without_result(spv::OpControlBarrier)
+		.add(mem_scope) // Execution scope
+		.add(mem_scope)
+		.add(mem_semantics);
+	return 0;
+	})
+
+// memoryBarrier()
+DEFINE_INTRINSIC(memoryBarrier, 0, void)
+IMPLEMENT_INTRINSIC_GLSL(memoryBarrier, 0, {
+	code += "memoryBarrier()";
+	})
+IMPLEMENT_INTRINSIC_HLSL(memoryBarrier, 0, {
+	if (_shader_model >= 50) {
+		code += "AllMemoryBarrier()";
+	}
+	})
+IMPLEMENT_INTRINSIC_SPIRV(memoryBarrier, 0, {
+	const spv::Id mem_scope = emit_constant(spv::ScopeDevice);
+	const spv::Id mem_semantics = emit_constant(spv::MemorySemanticsImageMemoryMask | spv::MemorySemanticsUniformMemoryMask | spv::MemorySemanticsWorkgroupMemoryMask | spv::MemorySemanticsAcquireReleaseMask);
+
+	add_instruction_without_result(spv::OpMemoryBarrier)
+		.add(mem_scope)
+		.add(mem_semantics);
+	return 0;
+	})
+// groupMemoryBarrier()
+DEFINE_INTRINSIC(groupMemoryBarrier, 0, void)
+IMPLEMENT_INTRINSIC_GLSL(groupMemoryBarrier, 0, {
+	code += "groupMemoryBarrier()";
+	})
+IMPLEMENT_INTRINSIC_HLSL(groupMemoryBarrier, 0, {
+	if (_shader_model >= 50) {
+		code += "GroupMemoryBarrier()";
+	}
+	})
+IMPLEMENT_INTRINSIC_SPIRV(groupMemoryBarrier, 0, {
+	const spv::Id mem_scope = emit_constant(spv::ScopeWorkgroup);
+	const spv::Id mem_semantics = emit_constant(spv::MemorySemanticsWorkgroupMemoryMask | spv::MemorySemanticsAcquireReleaseMask);
+
+	add_instruction_without_result(spv::OpMemoryBarrier)
+		.add(mem_scope)
+		.add(mem_semantics);
 	return 0;
 	})
 

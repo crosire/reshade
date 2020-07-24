@@ -387,6 +387,10 @@ bool reshade::opengl::runtime_gl::init_effect(size_t index)
 			{
 				// OpenGL does not allow using 'shared' in vertex/fragment shader profile
 				defines += "#define shared\n";
+				// Barrier intrinsics are only available in compute shaders
+				defines += "#define barrier()\n";
+				defines += "#define memoryBarrier()\n";
+				defines += "#define groupMemoryBarrier()\n";
 			}
 
 			defines += "#line 1 0\n"; // Reset line number, so it matches what is shown when viewing the generated code
