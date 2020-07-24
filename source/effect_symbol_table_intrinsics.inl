@@ -1563,11 +1563,15 @@ IMPLEMENT_INTRINSIC_SPIRV(tex2Dlodoffset, 0, {
 // ret tex2Dsize(s, lod)
 DEFINE_INTRINSIC(tex2Dsize, 0, int2, sampler)
 DEFINE_INTRINSIC(tex2Dsize, 1, int2, sampler, int)
+DEFINE_INTRINSIC(tex2Dsize, 2, int2, storage)
 IMPLEMENT_INTRINSIC_GLSL(tex2Dsize, 0, {
 	code += "textureSize(" + id_to_name(args[0].base) + ", 0)";
 	})
 IMPLEMENT_INTRINSIC_GLSL(tex2Dsize, 1, {
 	code += "textureSize(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ')';
+	})
+IMPLEMENT_INTRINSIC_GLSL(tex2Dsize, 2, {
+	code += "imageSize(" + id_to_name(args[0].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_HLSL(tex2Dsize, 0, {
 	if (_shader_model >= 40u)
@@ -1581,6 +1585,12 @@ IMPLEMENT_INTRINSIC_HLSL(tex2Dsize, 1, {
 			id_to_name(args[0].base) + ".t.GetDimensions(" + id_to_name(args[1].base) + ", " + id_to_name(res) + ".x, " + id_to_name(res) + ".y, temp" + std::to_string(res) + ')';
 	else
 		code += "int2(1.0 / " + id_to_name(args[0].base) + ".pixelsize) / exp2(" + id_to_name(args[1].base) + ')';
+	})
+IMPLEMENT_INTRINSIC_HLSL(tex2Dsize, 2, {
+	if (_shader_model >= 50u)
+		code += id_to_name(args[0].base) + ".GetDimensions(" + id_to_name(res) + ".x, " + id_to_name(res) + ".y)";
+	else
+		code += "int2(0, 0)";
 	})
 IMPLEMENT_INTRINSIC_SPIRV(tex2Dsize, 0, {
 	add_capability(spv::CapabilityImageQuery);
@@ -1603,6 +1613,13 @@ IMPLEMENT_INTRINSIC_SPIRV(tex2Dsize, 1, {
 	return add_instruction(spv::OpImageQuerySizeLod, convert_type(res_type))
 		.add(image)
 		.add(args[1].base)
+		.result;
+	})
+IMPLEMENT_INTRINSIC_SPIRV(tex2Dsize, 2, {
+	add_capability(spv::CapabilityImageQuery);
+
+	return add_instruction(spv::OpImageQuerySize, convert_type(res_type))
+		.add(args[0].base)
 		.result;
 	})
 
@@ -1735,7 +1752,7 @@ IMPLEMENT_INTRINSIC_SPIRV(tex2Dgatheroffset, 0, {
 DEFINE_INTRINSIC(tex2Dstore, 0, void, storage, int2, float4)
 IMPLEMENT_INTRINSIC_GLSL(tex2Dstore, 0, {
 	code += "imageStore(" + id_to_name(args[0].base) + ", " +
-		id_to_name(args[1].base) + ", " +
+		id_to_name(args[1].base) + " * ivec2(1, -1) + imageSize(" + id_to_name(args[0].base) + ") * ivec2(0, 1), " +
 		id_to_name(args[2].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_HLSL(tex2Dstore, 0, {

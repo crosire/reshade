@@ -1062,7 +1062,7 @@ private:
 #include "effect_symbol_table_intrinsics.inl"
 		};
 
-		if (_shader_model >= 40 && (intrinsic == tex2Dsize0 || intrinsic == tex2Dsize1))
+		if (_shader_model >= 40 && (intrinsic == tex2Dsize0 || intrinsic == tex2Dsize1 || intrinsic == tex2Dsize2))
 		{
 			// Implementation of the 'tex2Dsize' intrinsic passes the result variable into 'GetDimensions' as output argument
 			write_type(code, res_type);
