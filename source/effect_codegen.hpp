@@ -56,6 +56,13 @@ namespace reshadefx
 		/// <returns>New SSA ID of the binding.</returns>
 		virtual id define_sampler(const location &loc, sampler_info &info) = 0;
 		/// <summary>
+		/// Define a new storage binding.
+		/// </summary>
+		/// <param name="loc">Source location matching this definition (for debugging).</param>
+		/// <param name="info">The storage description.</param>
+		/// <returns>New SSA ID of the binding.</returns>
+		virtual id define_storage(const location &loc, storage_info &info) = 0;
+		/// <summary>
 		/// Define a new uniform variable.
 		/// </summary>
 		/// <param name="loc">Source location matching this definition (for debugging).</param>

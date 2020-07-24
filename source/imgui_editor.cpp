@@ -1733,6 +1733,7 @@ void imgui_code_editor::colorize()
 		case reshadefx::tokenid::string_:
 		case reshadefx::tokenid::texture:
 		case reshadefx::tokenid::sampler:
+		case reshadefx::tokenid::storage:
 			col = color_keyword;
 			break;
 		case reshadefx::tokenid::hash_def:

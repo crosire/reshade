@@ -525,23 +525,21 @@ bool reshade::d3d11::runtime_d3d11::init_effect(size_t index)
 
 	d3d11_technique_data technique_init;
 	technique_init.srv_bindings.resize(effect.module.num_texture_bindings);
-	technique_init.uav_bindings.resize(effect.module.num_texture_bindings);
+	technique_init.uav_bindings.resize(effect.module.num_storage_bindings);
 	technique_init.sampler_states.resize(effect.module.num_sampler_bindings);
 
-	for (const reshadefx::texture_info &info : effect.module.textures)
+	for (const reshadefx::storage_info &info : effect.module.images)
 	{
 		if (info.binding >= D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT)
 		{
-			LOG(ERROR) << "Cannot bind texture '" << info.unique_name << "' since it exceeds the maximum number of allowed resource slots in " << "D3D11" << " (" << info.unique_name << ", allowed are up to " << D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT << ").";
+			LOG(ERROR) << "Cannot bind storage '" << info.texture_name << "' since it exceeds the maximum number of allowed resource slots in " << "D3D11" << " (" << info.binding << ", allowed are up to " << D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT << ").";
 			return false;
 		}
 
-		const texture &texture = look_up_texture_by_name(info.unique_name);
+		const texture &texture = look_up_texture_by_name(info.texture_name);
 
-		if (texture.impl_reference != texture_reference::none || !info.unordered_access)
-			continue;
-
-		technique_init.uav_bindings[info.binding] = static_cast<d3d11_tex_data *>(texture.impl)->uav;
+		technique_init.uav_bindings[info.binding] =
+			static_cast<d3d11_tex_data *>(texture.impl)->uav;
 	}
 
 	for (const reshadefx::sampler_info &info : effect.module.samplers)

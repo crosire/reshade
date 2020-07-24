@@ -159,6 +159,7 @@ static const std::unordered_map<tokenid, std::string> token_lookup = {
 	{ tokenid::string_, "string" },
 	{ tokenid::texture, "texture" },
 	{ tokenid::sampler, "sampler" },
+	{ tokenid::storage, "storage" },
 };
 static const std::unordered_map<std::string, tokenid> keyword_lookup = {
 	{ "asm", tokenid::reserved },
@@ -274,6 +275,10 @@ static const std::unordered_map<std::string, tokenid> keyword_lookup = {
 	{ "samplerCUBE", tokenid::reserved },
 	{ "samplerRECT", tokenid::reserved },
 	{ "SamplerState", tokenid::reserved },
+	{ "storage", tokenid::storage },
+	{ "storage1D", tokenid::storage },
+	{ "storage2D", tokenid::storage },
+	{ "storage3D", tokenid::storage },
 	{ "shared", tokenid::reserved },
 	{ "short", tokenid::reserved },
 	{ "signed", tokenid::reserved },

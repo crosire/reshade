@@ -43,8 +43,8 @@ namespace reshade::vulkan
 		VkQueryPool query_pool = VK_NULL_HANDLE;
 		VkDescriptorSet set[3] = {};
 		VkPipelineLayout pipeline_layout = VK_NULL_HANDLE;
-		VkDescriptorSetLayout set_layout = VK_NULL_HANDLE;
-		VkDescriptorSetLayout compute_layout = VK_NULL_HANDLE;
+		VkDescriptorSetLayout sampler_layout = VK_NULL_HANDLE;
+		VkDescriptorSetLayout storage_layout = VK_NULL_HANDLE;
 		VkBuffer ubo = VK_NULL_HANDLE;
 		VmaAllocation ubo_mem = VK_NULL_HANDLE;
 		std::vector<VkDescriptorImageInfo> image_bindings;
@@ -455,7 +455,7 @@ bool reshade::vulkan::runtime_vk::on_init(VkSwapchainKHR swapchain, const VkSwap
 
 	// Create an empty image, which is used when no depth buffer was detected (since you cannot bind nothing to a descriptor in Vulkan)
 	// Use VK_FORMAT_R16_SFLOAT format, since it is mandatory according to the spec (see https://www.khronos.org/registry/vulkan/specs/1.1/html/vkspec.html#features-required-format-support)
-	_empty_depth_image = create_image(1, 1, 1, VK_FORMAT_R16_SFLOAT, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
+	_empty_depth_image = create_image(1, 1, 1, VK_FORMAT_R16_SFLOAT, VK_IMAGE_USAGE_SAMPLED_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
 	if (_empty_depth_image == VK_NULL_HANDLE)
 		return false;
 	_empty_depth_image_view = create_image_view(_empty_depth_image, VK_FORMAT_R16_SFLOAT, 1, VK_IMAGE_ASPECT_COLOR_BIT);
@@ -466,7 +466,7 @@ bool reshade::vulkan::runtime_vk::on_init(VkSwapchainKHR swapchain, const VkSwap
 	if (begin_command_buffer())
 	{
 		transition_layout(vk, _cmd_buffers[_cmd_index].first, _effect_stencil, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, { aspect_flags_from_format(_effect_stencil_format), 0, 1, 0, 1 });
-		transition_layout(vk, _cmd_buffers[_cmd_index].first, _empty_depth_image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
+		transition_layout(vk, _cmd_buffers[_cmd_index].first, _empty_depth_image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 		execute_command_buffer();
 	}
 
@@ -876,25 +876,27 @@ bool reshade::vulkan::runtime_vk::init_effect(size_t index)
 		create_info.bindingCount = uint32_t(bindings.size());
 		create_info.pBindings = bindings.data();
 
-		check_result(vk.CreateDescriptorSetLayout(_device, &create_info, nullptr, &effect_data.set_layout)) false;
+		check_result(vk.CreateDescriptorSetLayout(_device, &create_info, nullptr, &effect_data.sampler_layout)) false;
 	}
 
-	{   std::vector<VkDescriptorSetLayoutBinding> bindings;
-		bindings.reserve(effect.module.num_texture_bindings);
-		for (uint32_t i = 0; i < effect.module.num_texture_bindings; ++i)
+	if (effect.module.num_storage_bindings != 0)
+	{
+		std::vector<VkDescriptorSetLayoutBinding> bindings;
+		bindings.reserve(effect.module.num_storage_bindings);
+		for (uint32_t i = 0; i < effect.module.num_storage_bindings; ++i)
 			bindings.push_back({ i, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1, VK_SHADER_STAGE_COMPUTE_BIT });
 
 		VkDescriptorSetLayoutCreateInfo create_info { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO };
 		create_info.bindingCount = uint32_t(bindings.size());
 		create_info.pBindings = bindings.data();
 
-		check_result(vk.CreateDescriptorSetLayout(_device, &create_info, nullptr, &effect_data.compute_layout)) false;
+		check_result(vk.CreateDescriptorSetLayout(_device, &create_info, nullptr, &effect_data.storage_layout)) false;
 	}
 
-	const VkDescriptorSetLayout set_layouts[3] = { _effect_descriptor_layout, effect_data.set_layout, effect_data.compute_layout };
+	const VkDescriptorSetLayout set_layouts[3] = { _effect_descriptor_layout, effect_data.sampler_layout, effect_data.storage_layout };
 
 	{   VkPipelineLayoutCreateInfo create_info { VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO };
-		create_info.setLayoutCount = 3; // [0] = Global UBO, [1] = Samplers, [2] = Storage Images
+		create_info.setLayoutCount = effect.module.num_storage_bindings == 0 ? 2 : 3; // [0] = Global UBO, [1] = Samplers, [2] = Storage Images
 		create_info.pSetLayouts = set_layouts;
 
 		check_result(vk.CreatePipelineLayout(_device, &create_info, nullptr, &effect_data.pipeline_layout)) false;
@@ -913,21 +915,15 @@ bool reshade::vulkan::runtime_vk::init_effect(size_t index)
 
 	// Initialize image and sampler bindings
 	std::vector<VkDescriptorImageInfo> sampler_bindings(effect.module.num_sampler_bindings);
-	std::vector<VkDescriptorImageInfo> storage_bindings(effect.module.num_texture_bindings);
+	std::vector<VkDescriptorImageInfo> storage_bindings(effect.module.num_storage_bindings);
 
-	for (const reshadefx::texture_info &info : effect.module.textures)
+	for (const reshadefx::storage_info &info : effect.module.images)
 	{
-		const texture &texture = look_up_texture_by_name(info.unique_name);
-
-		if (texture.impl_reference != texture_reference::none)
-			continue;
+		const texture &texture = look_up_texture_by_name(info.texture_name);
 
 		VkDescriptorImageInfo &image_binding = storage_bindings[info.binding];
+		image_binding.imageView = static_cast<vulkan_tex_data *>(texture.impl)->view[0];
 		image_binding.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
-		if (info.unordered_access)
-			image_binding.imageView = static_cast<vulkan_tex_data *>(texture.impl)->view[0];
-		else
-			image_binding.imageView = _empty_depth_image_view;
 	}
 
 	for (const reshadefx::sampler_info &info : effect.module.samplers)
@@ -948,9 +944,7 @@ bool reshade::vulkan::runtime_vk::init_effect(size_t index)
 #if RESHADE_DEPTH
 			if (_depth_image_view != VK_NULL_HANDLE)
 				image_binding.imageView = _depth_image_view;
-			else
 #endif
-				image_binding.imageLayout = VK_IMAGE_LAYOUT_GENERAL; // Empty depth image is in general layout
 			// Keep track of the depth buffer texture descriptor to simplify updating it
 			effect_data.depth_image_binding = info.binding;
 			break;
@@ -1039,7 +1033,7 @@ bool reshade::vulkan::runtime_vk::init_effect(size_t index)
 
 	{   VkDescriptorSetAllocateInfo alloc_info { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO };
 		alloc_info.descriptorPool = _effect_descriptor_pool;
-		alloc_info.descriptorSetCount = 3;
+		alloc_info.descriptorSetCount = effect.module.num_storage_bindings == 0 ? 2 : 3;
 		alloc_info.pSetLayouts = set_layouts;
 
 		if (vk.AllocateDescriptorSets(_device, &alloc_info, effect_data.set) != VK_SUCCESS)
@@ -1063,7 +1057,7 @@ bool reshade::vulkan::runtime_vk::init_effect(size_t index)
 			++num_writes;
 		}
 
-		if (!sampler_bindings.empty())
+		if (effect.module.num_sampler_bindings != 0)
 		{
 			writes[num_writes] = { VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
 			writes[num_writes].dstSet = effect_data.set[1];
@@ -1074,7 +1068,7 @@ bool reshade::vulkan::runtime_vk::init_effect(size_t index)
 			++num_writes;
 		}
 
-		if (!storage_bindings.empty())
+		if (effect.module.num_storage_bindings != 0)
 		{
 			writes[num_writes] = { VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
 			writes[num_writes].dstSet = effect_data.set[2];
@@ -1472,10 +1466,10 @@ void reshade::vulkan::runtime_vk::unload_effect(size_t index)
 		effect_data.query_pool = VK_NULL_HANDLE;
 		vk.DestroyPipelineLayout(_device, effect_data.pipeline_layout, nullptr);
 		effect_data.pipeline_layout = VK_NULL_HANDLE;
-		vk.DestroyDescriptorSetLayout(_device, effect_data.set_layout, nullptr);
-		effect_data.set_layout = VK_NULL_HANDLE;
-		vk.DestroyDescriptorSetLayout(_device, effect_data.compute_layout, nullptr);
-		effect_data.compute_layout = VK_NULL_HANDLE;
+		vk.DestroyDescriptorSetLayout(_device, effect_data.sampler_layout, nullptr);
+		effect_data.sampler_layout = VK_NULL_HANDLE;
+		vk.DestroyDescriptorSetLayout(_device, effect_data.storage_layout, nullptr);
+		effect_data.storage_layout = VK_NULL_HANDLE;
 		vmaDestroyBuffer(_alloc, effect_data.ubo, effect_data.ubo_mem);
 		effect_data.ubo = VK_NULL_HANDLE;
 		effect_data.ubo_mem = VK_NULL_HANDLE;
@@ -1516,8 +1510,8 @@ void reshade::vulkan::runtime_vk::unload_effects()
 	{
 		vk.DestroyQueryPool(_device, data.query_pool, nullptr);
 		vk.DestroyPipelineLayout(_device, data.pipeline_layout, nullptr);
-		vk.DestroyDescriptorSetLayout(_device, data.set_layout, nullptr);
-		vk.DestroyDescriptorSetLayout(_device, data.compute_layout, nullptr);
+		vk.DestroyDescriptorSetLayout(_device, data.sampler_layout, nullptr);
+		vk.DestroyDescriptorSetLayout(_device, data.storage_layout, nullptr);
 		vmaDestroyBuffer(_alloc, data.ubo, data.ubo_mem);
 	}
 
@@ -1840,7 +1834,7 @@ void reshade::vulkan::runtime_vk::render_technique(technique &technique)
 
 	vk.CmdBindDescriptorSets(cmd_list, VK_PIPELINE_BIND_POINT_GRAPHICS, effect_data.pipeline_layout, 0, 2, effect_data.set, 0, nullptr);
 	if (impl->has_compute_passes)
-		vk.CmdBindDescriptorSets(cmd_list, VK_PIPELINE_BIND_POINT_COMPUTE, effect_data.pipeline_layout, 0, 3, effect_data.set, 0, nullptr);
+		vk.CmdBindDescriptorSets(cmd_list, VK_PIPELINE_BIND_POINT_COMPUTE, effect_data.pipeline_layout, 0, effect_data.storage_layout ? 3 : 2, effect_data.set, 0, nullptr);
 
 	// Setup shader constants
 	if (effect_data.ubo != VK_NULL_HANDLE)

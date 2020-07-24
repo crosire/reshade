@@ -417,9 +417,14 @@ private:
 				assert(info.rows == 0 && info.cols == 0 && info.definition != 0);
 				type = info.definition;
 				break;
+			case type::t_sampler:
+				assert(info.rows == 0 && info.cols == 0);
+				type = convert_type({ type::t_texture, 0, 0, type::q_uniform });
+				type = add_instruction(spv::OpTypeSampledImage, 0, _types_and_constants).add(type).result;
+				break;
+			case type::t_storage:
 			case type::t_texture:
 				assert(info.rows == 0 && info.cols == 0);
-				assert(info.definition == 1 /* sampled */ || info.definition == 0 /* storage*/);
 				type = convert_type({ type::t_float, 1, 1 });
 				type = add_instruction(spv::OpTypeImage, 0, _types_and_constants)
 					.add(type) // Sampled Type
@@ -427,14 +432,9 @@ private:
 					.add(0) // Not a depth image
 					.add(0) // Not an array
 					.add(0) // Not multi-sampled
-					.add(info.definition == 1 ? 1 : 2) // Used with a sampler or as storage
-					.add(info.definition == 1 ? spv::ImageFormatUnknown : spv::ImageFormatRgba8)
+					.add(info.is_texture() ? 1 : 2) // Used with a sampler or as storage
+					.add(info.is_texture() ? spv::ImageFormatUnknown : spv::ImageFormatRgba32f)
 					.result;
-				break;
-			case type::t_sampler:
-				assert(info.rows == 0 && info.cols == 0);
-				type = convert_type({ type::t_texture, 0, 0, type::q_uniform, 0, 1 /* sampled */ });
-				type = add_instruction(spv::OpTypeSampledImage, 0, _types_and_constants).add(type).result;
 				break;
 			default:
 				return assert(false), 0;
@@ -572,20 +572,9 @@ private:
 
 		return info.definition;
 	}
-	id   define_texture(const location &loc, texture_info &info) override
+	id   define_texture(const location &, texture_info &info) override
 	{
 		info.id = make_id();
-
-		if (info.semantic.empty())
-		{
-			info.binding = _module.num_texture_bindings++;
-
-			define_variable(info.id, loc, { type::t_texture, 0, 0, type::q_extern | type::q_uniform },
-				info.unique_name.c_str(), spv::StorageClassUniformConstant);
-
-			add_decoration(info.id, spv::DecorationBinding, { info.binding });
-			add_decoration(info.id, spv::DecorationDescriptorSet, { 2 });
-		}
 
 		_module.textures.push_back(info);
 
@@ -599,10 +588,25 @@ private:
 		define_variable(info.id, loc, { type::t_sampler, 0, 0, type::q_extern | type::q_uniform },
 			info.unique_name.c_str(), spv::StorageClassUniformConstant);
 
-		add_decoration(info.id, spv::DecorationDescriptorSet, { 1 });
 		add_decoration(info.id, spv::DecorationBinding, { info.binding });
+		add_decoration(info.id, spv::DecorationDescriptorSet, { 1 });
 
 		_module.samplers.push_back(info);
+
+		return info.id;
+	}
+	id   define_storage(const location &loc, storage_info &info) override
+	{
+		info.id = make_id();
+		info.binding = _module.num_storage_bindings++;
+
+		define_variable(info.id, loc, { type::t_storage, 0, 0, type::q_extern | type::q_uniform },
+			info.unique_name.c_str(), spv::StorageClassUniformConstant);
+
+		add_decoration(info.id, spv::DecorationBinding, { info.binding });
+		add_decoration(info.id, spv::DecorationDescriptorSet, { 2 });
+
+		_module.images.push_back(info);
 
 		return info.id;
 	}

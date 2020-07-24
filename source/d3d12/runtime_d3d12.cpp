@@ -569,7 +569,7 @@ bool reshade::d3d12::runtime_d3d12::init_effect(size_t index)
 		sampler_range.BaseShaderRegister = 0;
 		D3D12_DESCRIPTOR_RANGE uav_range = {};
 		uav_range.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_UAV;
-		uav_range.NumDescriptors = effect.module.num_texture_bindings;
+		uav_range.NumDescriptors = effect.module.num_storage_bindings;
 		uav_range.BaseShaderRegister = 0;
 
 		D3D12_ROOT_PARAMETER params[4] = {};
@@ -590,12 +590,15 @@ bool reshade::d3d12::runtime_d3d12::init_effect(size_t index)
 		params[3].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
 
 		D3D12_ROOT_SIGNATURE_DESC desc = {};
-		desc.NumParameters = ARRAYSIZE(params);
+		desc.NumParameters = effect.module.num_storage_bindings == 0 ? 3 : 4;
 		desc.pParameters = params;
 
 		effect_data.signature = create_root_signature(desc);
 		if (effect_data.signature == nullptr)
+		{
+			LOG(ERROR) << "Failed to create root signature for effect file '" << effect.source_file << "'!";
 			return false;
+		}
 	}
 
 	if (!effect.uniform_data_storage.empty())
@@ -636,7 +639,7 @@ bool reshade::d3d12::runtime_d3d12::init_effect(size_t index)
 	}
 
 	{   D3D12_DESCRIPTOR_HEAP_DESC desc = { D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV };
-		desc.NumDescriptors = effect.module.num_texture_bindings * 2;
+		desc.NumDescriptors = effect.module.num_texture_bindings + effect.module.num_storage_bindings;
 		desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 
 		if (FAILED(_device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&effect_data.srv_uav_heap))))
@@ -670,23 +673,21 @@ bool reshade::d3d12::runtime_d3d12::init_effect(size_t index)
 
 	UINT16 sampler_list = 0;
 
-	for (const reshadefx::texture_info &info : effect.module.textures)
+	for (const reshadefx::storage_info &info : effect.module.images)
 	{
 		if (info.binding >= D3D12_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT)
 		{
-			LOG(ERROR) << "Cannot bind texture '" << info.unique_name << "' since it exceeds the maximum number of allowed resource slots in " << "D3D12" << " (" << info.unique_name << ", allowed are up to " << D3D12_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT << ").";
+			LOG(ERROR) << "Cannot bind storage '" << info.texture_name << "' since it exceeds the maximum number of allowed resource slots in " << "D3D12" << " (" << info.binding << ", allowed are up to " << D3D12_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT << ").";
 			return false;
 		}
 
-		const texture &texture = look_up_texture_by_name(info.unique_name);
-
-		if (texture.impl_reference != texture_reference::none || !info.unordered_access)
-			continue;
+		const texture &texture = look_up_texture_by_name(info.texture_name);
 
 		D3D12_CPU_DESCRIPTOR_HANDLE uav_handle = effect_data.uav_cpu_base;
 		uav_handle.ptr += info.binding * _srv_handle_size;
 
-		const com_ptr<ID3D12Resource> &resource = static_cast<d3d12_tex_data *>(texture.impl)->resource;
+		com_ptr<ID3D12Resource> resource;
+		resource = static_cast<d3d12_tex_data *>(texture.impl)->resource;
 
 		D3D12_UNORDERED_ACCESS_VIEW_DESC desc = {};
 		desc.Format = make_dxgi_format_normal(resource->GetDesc().Format);

@@ -349,11 +349,6 @@ private:
 
 			code += "Texture2D __"     + info.unique_name + " : register(t" + std::to_string(info.binding + 0) + ");\n";
 			code += "Texture2D __srgb" + info.unique_name + " : register(t" + std::to_string(info.binding + 1) + ");\n";
-
-			if (_shader_model >= 50 && info.semantic.empty())
-			{
-				code += "RWTexture2D<float4> " + id_to_name(info.id) + " : register(u" + std::to_string(info.binding) + ");\n";
-			}
 		}
 
 		_module.textures.push_back(info);
@@ -415,6 +410,27 @@ private:
 		}
 
 		_module.samplers.push_back(info);
+
+		return info.id;
+	}
+	id   define_storage(const location &loc, storage_info &info) override
+	{
+		info.id = make_id();
+
+		define_name<naming::unique>(info.id, info.unique_name);
+
+		if (_shader_model >= 50)
+		{
+			info.binding = _module.num_storage_bindings++;
+
+			std::string &code = _blocks.at(_current_block);
+
+			write_location(code, loc);
+
+			code += "RWTexture2D<float4> " + info.unique_name + " : register(u" + std::to_string(info.binding) + ");\n";
+		}
+
+		_module.images.push_back(info);
 
 		return info.id;
 	}

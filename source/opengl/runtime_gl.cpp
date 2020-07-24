@@ -14,6 +14,7 @@ namespace reshade::opengl
 	struct opengl_tex_data
 	{
 		GLuint id[2] = {};
+		GLenum internal_format = GL_NONE;
 	};
 
 	struct opengl_pass_data
@@ -34,6 +35,11 @@ namespace reshade::opengl
 		GLuint draw_textures[8] = {};
 	};
 
+	struct opengl_storage_data
+	{
+		opengl_tex_data *texture;
+	};
+
 	struct opengl_sampler_data
 	{
 		GLuint id;
@@ -46,8 +52,8 @@ namespace reshade::opengl
 	{
 		GLuint query = 0;
 		bool query_in_flight = false;
-		std::vector<GLuint> images;
 		std::vector<opengl_pass_data> passes;
+		std::vector<opengl_storage_data> images;
 		std::vector<opengl_sampler_data> samplers;
 	};
 }
@@ -425,17 +431,16 @@ bool reshade::opengl::runtime_gl::init_effect(size_t index)
 	bool success = true;
 
 	opengl_technique_data technique_init;
-	technique_init.images.resize(effect.module.num_texture_bindings);
+	assert(effect.module.num_texture_bindings == 0);
+	technique_init.images.resize(effect.module.num_storage_bindings);
 	technique_init.samplers.resize(effect.module.num_sampler_bindings);
 
-	for (const reshadefx::texture_info &info : effect.module.textures)
+	for (const reshadefx::storage_info &info : effect.module.images)
 	{
-		const texture &texture = look_up_texture_by_name(info.unique_name);
+		const texture &texture = look_up_texture_by_name(info.texture_name);
 
-		if (texture.impl_reference != texture_reference::none || !info.unordered_access)
-			continue;
-
-		technique_init.images[info.binding] = static_cast<opengl_tex_data *>(texture.impl)->id[0];
+		opengl_storage_data &storage_data = technique_init.images[info.binding];
+		storage_data.texture = static_cast<opengl_tex_data *>(texture.impl);
 	}
 
 	for (const reshadefx::sampler_info &info : effect.module.samplers)
@@ -778,49 +783,50 @@ bool reshade::opengl::runtime_gl::init_texture(texture &texture)
 		return true;
 	}
 
-	GLenum internalformat = GL_RGBA8;
-	GLenum internalformat_srgb = GL_NONE;
-
+	GLenum internal_format = GL_RGBA8;
+	GLenum internal_format_srgb = GL_NONE;
 	switch (texture.format)
 	{
 	case reshadefx::texture_format::r8:
-		internalformat = GL_R8;
+		internal_format = GL_R8;
 		break;
 	case reshadefx::texture_format::r16f:
-		internalformat = GL_R16F;
+		internal_format = GL_R16F;
 		break;
 	case reshadefx::texture_format::r32f:
-		internalformat = GL_R32F;
+		internal_format = GL_R32F;
 		break;
 	case reshadefx::texture_format::rg8:
-		internalformat = GL_RG8;
+		internal_format = GL_RG8;
 		break;
 	case reshadefx::texture_format::rg16:
-		internalformat = GL_RG16;
+		internal_format = GL_RG16;
 		break;
 	case reshadefx::texture_format::rg16f:
-		internalformat = GL_RG16F;
+		internal_format = GL_RG16F;
 		break;
 	case reshadefx::texture_format::rg32f:
-		internalformat = GL_RG32F;
+		internal_format = GL_RG32F;
 		break;
 	case reshadefx::texture_format::rgba8:
-		internalformat = GL_RGBA8;
-		internalformat_srgb = GL_SRGB8_ALPHA8;
+		internal_format = GL_RGBA8;
+		internal_format_srgb = GL_SRGB8_ALPHA8;
 		break;
 	case reshadefx::texture_format::rgba16:
-		internalformat = GL_RGBA16;
+		internal_format = GL_RGBA16;
 		break;
 	case reshadefx::texture_format::rgba16f:
-		internalformat = GL_RGBA16F;
+		internal_format = GL_RGBA16F;
 		break;
 	case reshadefx::texture_format::rgba32f:
-		internalformat = GL_RGBA32F;
+		internal_format = GL_RGBA32F;
 		break;
 	case reshadefx::texture_format::rgb10a2:
-		internalformat = GL_RGB10_A2;
+		internal_format = GL_RGB10_A2;
 		break;
 	}
+
+	impl->internal_format = internal_format;
 
 	// Get current state
 	GLint previous_tex = 0;
@@ -833,11 +839,11 @@ bool reshade::opengl::runtime_gl::init_texture(texture &texture)
 	// Allocate texture storage
 	glGenTextures(2, impl->id);
 	glBindTexture(GL_TEXTURE_2D, impl->id[0]);
-	glTexStorage2D(GL_TEXTURE_2D, texture.levels, internalformat, texture.width, texture.height);
+	glTexStorage2D(GL_TEXTURE_2D, texture.levels, internal_format, texture.width, texture.height);
 
 	// Only create SRGB texture view if necessary
-	if (internalformat_srgb != GL_NONE) {
-		glTextureView(impl->id[1], GL_TEXTURE_2D, impl->id[0], internalformat_srgb, 0, texture.levels, 0, 1);
+	if (internal_format_srgb != GL_NONE) {
+		glTextureView(impl->id[1], GL_TEXTURE_2D, impl->id[0], internal_format_srgb, 0, texture.levels, 0, 1);
 	}
 	else {
 		impl->id[1] = impl->id[0];
@@ -991,7 +997,9 @@ void reshade::opengl::runtime_gl::render_technique(technique &technique)
 	// Set up shader resources
 	for (GLuint binding = 0; binding < impl->images.size(); ++binding)
 	{
-		glBindImageTexture(binding, impl->images[binding], 0, GL_FALSE, 0, GL_READ_WRITE, GL_RGBA8); // TODO: format
+		const opengl_storage_data &storage_data = impl->images[binding];
+
+		glBindImageTexture(binding, storage_data.texture->id[0], 0, GL_FALSE, 0, GL_READ_WRITE, storage_data.texture->internal_format);
 	}
 	for (GLuint binding = 0; binding < impl->samplers.size(); ++binding)
 	{

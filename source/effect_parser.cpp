@@ -309,6 +309,9 @@ bool reshadefx::parser::accept_type_class(type &type)
 	case tokenid::sampler:
 		type.base = type::t_sampler;
 		break;
+	case tokenid::storage:
+		type.base = type::t_storage;
+		break;
 	default:
 		return false;
 	}
@@ -894,7 +897,7 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 
 				if (symbol.op == symbol_type::function || param_type.has(type::q_out))
 				{
-					if (param_type.is_sampler() || param_type.is_texture())
+					if (param_type.is_sampler() || param_type.is_storage())
 					{
 						// Do not shadow sampler parameters to function calls (but do load them for intrinsics)
 						parameters[i] = arguments[i];
@@ -918,7 +921,7 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 			// Copy in parameters from the argument access chains to parameter variables
 			for (size_t i = 0; i < arguments.size(); ++i)
 				// Only do this for pointer parameters as discovered above
-				if (parameters[i].is_lvalue && parameters[i].type.has(type::q_in) && !parameters[i].type.is_sampler() && !parameters[i].type.is_texture())
+				if (parameters[i].is_lvalue && parameters[i].type.has(type::q_in) && !parameters[i].type.is_sampler() && !parameters[i].type.is_storage())
 					_codegen->emit_store(parameters[i], _codegen->emit_load(arguments[i]));
 
 			// Check if the call resolving found an intrinsic or function and invoke the corresponding code
@@ -931,7 +934,7 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 			// Copy out parameters from parameter variables back to the argument access chains
 			for (size_t i = 0; i < arguments.size(); ++i)
 				// Only do this for pointer parameters as discovered above
-				if (parameters[i].is_lvalue && parameters[i].type.has(type::q_out) && !parameters[i].type.is_sampler() && !parameters[i].type.is_texture())
+				if (parameters[i].is_lvalue && parameters[i].type.has(type::q_out) && !parameters[i].type.is_sampler() && !parameters[i].type.is_storage())
 					_codegen->emit_store(arguments[i], _codegen->emit_load(parameters[i]));
 		}
 		else if (symbol.op == symbol_type::invalid)
@@ -2510,7 +2513,7 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 		else if (!type.has(type::q_groupshared))
 		{
 			// Make all global variables 'uniform' by default, since they should be externally visible without the 'static' keyword
-			if (!type.has(type::q_uniform) && !(type.is_texture() || type.is_sampler()))
+			if (!type.has(type::q_uniform) && !(type.is_texture() || type.is_sampler() || type.is_storage()))
 				warning(location, 5000, '\'' + name + "': global variables are considered 'uniform' by default");
 
 			// Global variables that are not 'static' are always 'extern' and 'uniform'
@@ -2530,7 +2533,7 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 		if (type.has(type::q_groupshared))
 			return error(location, 3010, '\'' + name + "': local variables cannot be declared 'groupshared'"), false;
 
-		if (type.is_texture() || type.is_sampler())
+		if (type.is_texture() || type.is_sampler() || type.is_storage())
 			return error(location, 3038, '\'' + name + "': local variables cannot be textures or samplers"), false;
 	}
 
@@ -2542,6 +2545,7 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 	expression initializer;
 	texture_info texture_info;
 	sampler_info sampler_info;
+	storage_info storage_info;
 
 	if (accept(':'))
 	{
@@ -2663,8 +2667,14 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 					if (!expression.type.is_texture())
 						return error(expression.location, 3020, "type mismatch, expected texture name"), consume_until('}'), false;
 
-					texture_info = _codegen->find_texture(expression.base);
-					sampler_info.texture_name = texture_info.unique_name;
+					reshadefx::texture_info &target_info = _codegen->find_texture(expression.base);
+					if (type.is_storage())
+						// Texture is used as storage
+						target_info.unordered_access = true;
+
+					texture_info = target_info;
+					sampler_info.texture_name = target_info.unique_name;
+					storage_info.texture_name = target_info.unique_name;
 				}
 				else
 				{
@@ -2683,10 +2693,6 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 						texture_info.levels = value > 0 ? value : 1;
 					else if (property_name == "Format")
 						texture_info.format = static_cast<texture_format>(value);
-					else if (property_name == "RenderTarget")
-						texture_info.render_target = value != 0;
-					else if (property_name == "UnorderedAccess")
-						texture_info.unordered_access = value != 0;
 					else if (property_name == "SRGBTexture" || property_name == "SRGBReadEnable")
 						sampler_info.srgb = value != 0;
 					else if (property_name == "AddressU")
@@ -2761,6 +2767,20 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 
 		symbol = { symbol_type::variable, 0, type };
 		symbol.id = _codegen->define_sampler(location, sampler_info);
+	}
+	else if (type.is_storage())
+	{
+		assert(global);
+
+		if (storage_info.texture_name.empty())
+			return error(location, 3012, '\'' + name + "': missing 'Texture' property"), false;
+
+		// Add namespace scope to avoid name clashes
+		storage_info.unique_name = 'V' + current_scope().name + name;
+		std::replace(storage_info.unique_name.begin(), storage_info.unique_name.end(), ':', '_');
+
+		symbol = { symbol_type::variable, 0, type };
+		symbol.id = _codegen->define_storage(location, storage_info);
 	}
 	// Uniform variables are put into a global uniform buffer structure
 	else if (type.has(type::q_uniform))
@@ -2918,7 +2938,7 @@ bool reshadefx::parser::parse_technique_pass(pass_info &info)
 						parse_success = false,
 						error(location, 3020, "type mismatch, expected texture name");
 					else {
-						texture_info &target_info = _codegen->find_texture(symbol.id);
+						reshadefx::texture_info &target_info = _codegen->find_texture(symbol.id);
 						// Texture is used as a render target
 						target_info.render_target = true;
 

@@ -200,6 +200,17 @@ namespace reshadefx
 	};
 
 	/// <summary>
+	/// A texture storage object defined in the shader code.
+	/// </summary>
+	struct storage_info
+	{
+		uint32_t id = 0;
+		uint32_t binding = 0;
+		std::string unique_name;
+		std::string texture_name;
+	};
+
+	/// <summary>
 	/// An uniform variable defined in the shader code.
 	/// </summary>
 	struct uniform_info
@@ -300,11 +311,13 @@ namespace reshadefx
 		std::vector<entry_point> entry_points;
 		std::vector<texture_info> textures;
 		std::vector<sampler_info> samplers;
+		std::vector<storage_info> images;
 		std::vector<uniform_info> uniforms, spec_constants;
 		std::vector<technique_info> techniques;
 
 		uint32_t total_uniform_size = 0;
-		uint32_t num_sampler_bindings = 0;
 		uint32_t num_texture_bindings = 0;
+		uint32_t num_sampler_bindings = 0;
+		uint32_t num_storage_bindings = 0;
 	};
 }

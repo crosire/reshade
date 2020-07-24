@@ -165,6 +165,7 @@ namespace reshadefx
 		string_,
 		texture,
 		sampler,
+		storage,
 
 		// preprocessor directives
 		hash_def,
