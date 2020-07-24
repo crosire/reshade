@@ -705,7 +705,7 @@ bool reshade::d3d9::runtime_d3d9::init_texture(texture &texture)
 	switch (texture.format)
 	{
 	case reshadefx::texture_format::r8:
-		format = D3DFMT_A8R8G8B8;
+		format = D3DFMT_X8R8G8B8; // Use 4-component format so that green/blue components are returned as zero and alpha as one (to match behavior from other APIs)
 		break;
 	case reshadefx::texture_format::r16f:
 		format = D3DFMT_R16F;
@@ -714,7 +714,7 @@ bool reshade::d3d9::runtime_d3d9::init_texture(texture &texture)
 		format = D3DFMT_R32F;
 		break;
 	case reshadefx::texture_format::rg8:
-		format = D3DFMT_A8R8G8B8;
+		format = D3DFMT_X8R8G8B8;
 		break;
 	case reshadefx::texture_format::rg16:
 		format = D3DFMT_G16R16;
@@ -806,7 +806,7 @@ void reshade::d3d9::runtime_d3d9::upload_texture(const texture &texture, const u
 
 	switch (texture.format)
 	{
-	case reshadefx::texture_format::r8: // These are actually D3DFMT_A8R8G8B8, see 'init_texture'
+	case reshadefx::texture_format::r8: // These are actually D3DFMT_X8R8G8B8, see 'init_texture'
 		for (uint32_t y = 0, pitch = texture.width * 4; y < texture.height; ++y, mapped_data += mapped.Pitch, pixels += pitch)
 			for (uint32_t x = 0; x < pitch; x += 4)
 				mapped_data[x + 0] = 0, // Set green and blue channel to zero
