@@ -2863,21 +2863,31 @@ bool reshadefx::parser::parse_technique_pass(pass_info &info)
 			int num_threads[3] = { 1, 1, 1 };
 			if (accept('<'))
 			{
-				expression x, y, z;
-				if (!parse_expression_multary(x) || !expect(',') || !parse_expression_multary(y) || !expect(',') || !parse_expression_multary(z, 8) || !expect('>'))
+					if (expression x; parse_expression_multary(x, 8) && x.is_constant)
+						x.add_cast_operation({ type::t_int, 1, 1 }),
+						num_threads[0] = x.constant.as_int[0];
+					else
+						return error(x.location, 3011, "value must be a literal expression"), consume_until('}'), false;
+
+				if (accept(','))
+				{
+					if (expression y; parse_expression_multary(y, 8) && y.is_constant)
+						y.add_cast_operation({ type::t_int, 1, 1 }),
+						num_threads[1] = y.constant.as_int[0];
+					else
+						return error(y.location, 3011, "value must be a literal expression"), consume_until('}'), false;
+				}
+				if (accept(','))
+				{
+					if (expression z; parse_expression_multary(z, 8) && z.is_constant)
+						z.add_cast_operation({ type::t_int, 1, 1 }),
+						num_threads[2] = z.constant.as_int[0];
+					else
+						return error(z.location, 3011, "value must be a literal expression"), consume_until('}'), false;
+				}
+
+				if (!expect('>'))
 					return consume_until('}'), false;
-				if (!x.is_constant)
-					error(x.location, 3011, "value must be a literal expression");
-				if (!y.is_constant)
-					error(y.location, 3011, "value must be a literal expression");
-				if (!z.is_constant)
-					error(z.location, 3011, "value must be a literal expression");
-				x.add_cast_operation({ type::t_int, 1, 1 });
-				y.add_cast_operation({ type::t_int, 1, 1 });
-				z.add_cast_operation({ type::t_int, 1, 1 });
-				num_threads[0] = x.constant.as_int[0];
-				num_threads[1] = y.constant.as_int[0];
-				num_threads[2] = z.constant.as_int[0];
 			}
 
 			// Ignore invalid symbols that were added during error recovery
