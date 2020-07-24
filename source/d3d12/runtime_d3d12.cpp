@@ -793,12 +793,9 @@ bool reshade::d3d12::runtime_d3d12::init_effect(size_t index)
 				const auto &CS = entry_points.at(pass_info.cs_entry_point);
 				pso_desc.CS = { CS->GetBufferPointer(), CS->GetBufferSize() };
 
-				for (const reshadefx::texture_info &info : effect.module.textures)
+				for (const reshadefx::storage_info &info : effect.module.storages)
 				{
-					const texture &texture = look_up_texture_by_name(info.unique_name);
-
-					if (texture.impl_reference != texture_reference::none || !info.unordered_access)
-						continue;
+					const texture &texture = look_up_texture_by_name(info.texture_name);
 
 					pass_data.modified_resources.push_back(static_cast<d3d12_tex_data *>(texture.impl));
 				}
@@ -840,7 +837,7 @@ bool reshade::d3d12::runtime_d3d12::init_effect(size_t index)
 					rtv_desc.Format = pass_info.srgb_write_enable ?
 						make_dxgi_format_srgb(desc.Format) :
 						make_dxgi_format_normal(desc.Format);
-					rtv_desc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
+					rtv_desc.ViewDimension = desc.SampleDesc.Count > 1 ? D3D12_RTV_DIMENSION_TEXTURE2DMS : D3D12_RTV_DIMENSION_TEXTURE2D;
 
 					_device->CreateRenderTargetView(tex_impl->resource.get(), &rtv_desc, rtv_handle);
 

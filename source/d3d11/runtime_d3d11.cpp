@@ -623,17 +623,14 @@ bool reshade::d3d11::runtime_d3d11::init_effect(size_t index)
 			{
 				entry_points.at(pass_info.cs_entry_point)->QueryInterface(&pass_data.compute_shader);
 
-				pass_data.uavs = impl->uav_bindings;
-
-				for (const reshadefx::texture_info &info : effect.module.textures)
+				for (const reshadefx::storage_info &info : effect.module.storages)
 				{
-					const texture &texture = look_up_texture_by_name(info.unique_name);
-
-					if (texture.impl_reference != texture_reference::none || !info.unordered_access)
-						continue;
+					const texture &texture = look_up_texture_by_name(info.texture_name);
 
 					pass_data.modified_resources.push_back(static_cast<d3d11_tex_data *>(texture.impl)->srv[0]);
 				}
+
+				pass_data.uavs = impl->uav_bindings;
 			}
 			else
 			{

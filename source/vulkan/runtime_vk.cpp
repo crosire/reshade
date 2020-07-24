@@ -1120,12 +1120,9 @@ bool reshade::vulkan::runtime_vk::init_effect(size_t index)
 			{
 				impl->has_compute_passes = true;
 
-				for (const reshadefx::texture_info &info : effect.module.textures)
+				for (const reshadefx::storage_info &info : effect.module.storages)
 				{
-					const texture &texture = look_up_texture_by_name(info.unique_name);
-
-					if (texture.impl_reference != texture_reference::none || !info.unordered_access)
-						continue;
+					const texture &texture = look_up_texture_by_name(info.texture_name);
 
 					pass_data.modified_resources.push_back(static_cast<vulkan_tex_data *>(texture.impl));
 				}
