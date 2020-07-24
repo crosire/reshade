@@ -11,7 +11,7 @@ extern thread_local bool g_in_dxgi_runtime;
 
 HOOK_EXPORT HRESULT WINAPI D3D10CreateDevice(IDXGIAdapter *pAdapter, D3D10_DRIVER_TYPE DriverType, HMODULE Software, UINT Flags, UINT SDKVersion, ID3D10Device **ppDevice)
 {
-	LOG(INFO) << "Redirecting D3D10CreateDevice" << '('
+	LOG(INFO) << "Redirecting " << "D3D10CreateDevice" << '('
 		<<   "pAdapter = " << pAdapter
 		<< ", DriverType = " << DriverType
 		<< ", Software = " << Software
@@ -19,7 +19,7 @@ HOOK_EXPORT HRESULT WINAPI D3D10CreateDevice(IDXGIAdapter *pAdapter, D3D10_DRIVE
 		<< ", SDKVersion = " << SDKVersion
 		<< ", ppDevice = " << ppDevice
 		<< ')' << " ...";
-	LOG(INFO) << "> Passing on to D3D10CreateDeviceAndSwapChain1:";
+	LOG(INFO) << "> Passing on to " << "D3D10CreateDeviceAndSwapChain1" << ':';
 
 	// Only 'd3d10.dll' is guaranteed to be loaded at this point, but the 'D3D10CreateDeviceAndSwapChain1' entry point is in 'd3d10_1.dll', so load that now to make sure hooks can be resolved
 	LoadLibraryW(L"d3d10_1.dll");
@@ -31,7 +31,7 @@ HOOK_EXPORT HRESULT WINAPI D3D10CreateDevice(IDXGIAdapter *pAdapter, D3D10_DRIVE
 
 HOOK_EXPORT HRESULT WINAPI D3D10CreateDevice1(IDXGIAdapter *pAdapter, D3D10_DRIVER_TYPE DriverType, HMODULE Software, UINT Flags, D3D10_FEATURE_LEVEL1 HardwareLevel, UINT SDKVersion, ID3D10Device1 **ppDevice)
 {
-	LOG(INFO) << "Redirecting D3D10CreateDevice1" << '('
+	LOG(INFO) << "Redirecting " << "D3D10CreateDevice1" << '('
 		<<   "pAdapter = " << pAdapter
 		<< ", DriverType = " << DriverType
 		<< ", Software = " << Software
@@ -40,14 +40,14 @@ HOOK_EXPORT HRESULT WINAPI D3D10CreateDevice1(IDXGIAdapter *pAdapter, D3D10_DRIV
 		<< ", SDKVersion = " << SDKVersion
 		<< ", ppDevice = " << ppDevice
 		<< ')' << " ...";
-	LOG(INFO) << "> Passing on to D3D10CreateDeviceAndSwapChain1:";
+	LOG(INFO) << "> Passing on to " << "D3D10CreateDeviceAndSwapChain1" << ':';
 
 	return D3D10CreateDeviceAndSwapChain1(pAdapter, DriverType, Software, Flags, HardwareLevel, SDKVersion, nullptr, nullptr, ppDevice);
 }
 
 HOOK_EXPORT HRESULT WINAPI D3D10CreateDeviceAndSwapChain(IDXGIAdapter *pAdapter, D3D10_DRIVER_TYPE DriverType, HMODULE Software, UINT Flags, UINT SDKVersion, DXGI_SWAP_CHAIN_DESC *pSwapChainDesc, IDXGISwapChain **ppSwapChain, ID3D10Device **ppDevice)
 {
-	LOG(INFO) << "Redirecting D3D10CreateDeviceAndSwapChain" << '('
+	LOG(INFO) << "Redirecting " << "D3D10CreateDeviceAndSwapChain" << '('
 		<<   "pAdapter = " << pAdapter
 		<< ", DriverType = " << DriverType
 		<< ", Software = " << Software
@@ -57,7 +57,7 @@ HOOK_EXPORT HRESULT WINAPI D3D10CreateDeviceAndSwapChain(IDXGIAdapter *pAdapter,
 		<< ", ppSwapChain = " << ppSwapChain
 		<< ", ppDevice = " << ppDevice
 		<< ')' << " ...";
-	LOG(INFO) << "> Passing on to D3D10CreateDeviceAndSwapChain1:";
+	LOG(INFO) << "> Passing on to " << "D3D10CreateDeviceAndSwapChain1" << ':';
 
 	LoadLibraryW(L"d3d10_1.dll");
 
@@ -71,7 +71,7 @@ HOOK_EXPORT HRESULT WINAPI D3D10CreateDeviceAndSwapChain1(IDXGIAdapter *pAdapter
 		return reshade::hooks::call(D3D10CreateDeviceAndSwapChain1)(
 			pAdapter, DriverType, Software, Flags, HardwareLevel, SDKVersion, pSwapChainDesc, ppSwapChain, ppDevice);
 
-	LOG(INFO) << "Redirecting D3D10CreateDeviceAndSwapChain1" << '('
+	LOG(INFO) << "Redirecting " << "D3D10CreateDeviceAndSwapChain1" << '('
 		<<   "pAdapter = " << pAdapter
 		<< ", DriverType = " << DriverType
 		<< ", Software = " << Software
@@ -94,7 +94,7 @@ HOOK_EXPORT HRESULT WINAPI D3D10CreateDeviceAndSwapChain1(IDXGIAdapter *pAdapter
 	g_in_dxgi_runtime = false;
 	if (FAILED(hr))
 	{
-		LOG(WARN) << "D3D10CreateDeviceAndSwapChain1 failed with error code " << hr << '!';
+		LOG(WARN) << "D3D10CreateDeviceAndSwapChain1" << " failed with error code " << hr << '!';
 		return hr;
 	}
 
@@ -141,7 +141,7 @@ HOOK_EXPORT HRESULT WINAPI D3D10CreateDeviceAndSwapChain1(IDXGIAdapter *pAdapter
 		hr = adapter->GetParent(IID_PPV_ARGS(&factory));
 		assert(SUCCEEDED(hr));
 
-		LOG(INFO) << "> Calling IDXGIFactory::CreateSwapChain:";
+		LOG(INFO) << "> Calling " << "IDXGIFactory::CreateSwapChain" << ':';
 
 		hr = factory->CreateSwapChain(device, pSwapChainDesc, ppSwapChain);
 	}

@@ -13,12 +13,12 @@ HOOK_EXPORT HRESULT WINAPI D3D12CreateDevice(
 	REFIID riid,
 	void **ppDevice)
 {
-	LOG(INFO) << "Redirecting D3D12CreateDevice" << '(' << "pAdapter = " << pAdapter << ", MinimumFeatureLevel = " << std::hex << MinimumFeatureLevel << std::dec << ", riid = " << riid << ", ppDevice = " << ppDevice << ')' << " ...";
+	LOG(INFO) << "Redirecting " << "D3D12CreateDevice" << '(' << "pAdapter = " << pAdapter << ", MinimumFeatureLevel = " << std::hex << MinimumFeatureLevel << std::dec << ", riid = " << riid << ", ppDevice = " << ppDevice << ')' << " ...";
 
 	const HRESULT hr = reshade::hooks::call(D3D12CreateDevice)(pAdapter, MinimumFeatureLevel, riid, ppDevice);
 	if (FAILED(hr))
 	{
-		LOG(WARN) << "D3D12CreateDevice failed with error code " << std::hex << hr << std::dec << '!';
+		LOG(WARN) << "D3D12CreateDevice" << " failed with error code " << std::hex << hr << std::dec << '!';
 		return hr;
 	}
 

@@ -312,7 +312,7 @@ bool reshade::d3d9::runtime_d3d9::init_effect(size_t index)
 
 	if (_d3d_compiler == nullptr)
 	{
-		LOG(ERROR) << "Unable to load HLSL compiler (\"d3dcompiler_47.dll\"). Make sure you have the DirectX end-user runtime (June 2010) installed or a newer version of the library in the application directory.";
+		LOG(ERROR) << "Unable to load HLSL compiler (\"d3dcompiler_47.dll\")." << " Make sure you have the DirectX end-user runtime (June 2010) installed or a newer version of the library in the application directory.";
 		return false;
 	}
 
@@ -353,7 +353,9 @@ bool reshade::d3d9::runtime_d3d9::init_effect(size_t index)
 			profile = "ps_3_0";
 			break;
 		case reshadefx::shader_type::cs:
-			effect.errors += "Compute shaders are not supported in D3D9.";
+			effect.errors += "Compute shaders are not supported in ";
+			effect.errors += "D3D9";
+			effect.errors += '.';
 			return false;
 		}
 
@@ -401,7 +403,7 @@ bool reshade::d3d9::runtime_d3d9::init_effect(size_t index)
 	{
 		if (info.binding >= ARRAYSIZE(technique_init.sampler_states))
 		{
-			LOG(ERROR) << "Cannot bind sampler '" << info.unique_name << "' since it exceeds the maximum number of allowed sampler slots in D3D9 (" << info.binding << ", allowed are up to " << ARRAYSIZE(technique_init.sampler_states) << ").";
+			LOG(ERROR) << "Cannot bind sampler '" << info.unique_name << "' since it exceeds the maximum number of allowed sampler slots in " << "D3D9" << " (" << info.binding << ", allowed are up to " << ARRAYSIZE(technique_init.sampler_states) << ").";
 			return false;
 		}
 

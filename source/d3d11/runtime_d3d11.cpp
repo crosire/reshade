@@ -408,7 +408,7 @@ bool reshade::d3d11::runtime_d3d11::init_effect(size_t index)
 
 	if (_d3d_compiler == nullptr)
 	{
-		LOG(ERROR) << "Unable to load HLSL compiler (\"d3dcompiler_47.dll\"). Make sure you have the DirectX end-user runtime (June 2010) installed or a newer version of the library in the application directory.";
+		LOG(ERROR) << "Unable to load HLSL compiler (\"d3dcompiler_47.dll\")." << " Make sure you have the DirectX end-user runtime (June 2010) installed or a newer version of the library in the application directory.";
 		return false;
 	}
 
@@ -438,7 +438,9 @@ bool reshade::d3d11::runtime_d3d11::init_effect(size_t index)
 			profile = "cs";
 			if (_renderer_id < D3D_FEATURE_LEVEL_11_0)
 			{
-				effect.errors += "Compute shaders are not supported in D3D10.";
+				effect.errors += "Compute shaders are not supported in ";
+				effect.errors += "D3D10";
+				effect.errors += '.';
 				return false;
 			}
 			break;
@@ -499,7 +501,7 @@ bool reshade::d3d11::runtime_d3d11::init_effect(size_t index)
 
 		if (FAILED(hr))
 		{
-			LOG(ERROR) << "Failed to create shader for entry point '" << entry_point.name << "'. HRESULT is " << hr << '.';
+			LOG(ERROR) << "Failed to create shader for entry point '" << entry_point.name << "'! HRESULT is " << hr << '.';
 			return false;
 		}
 	}
@@ -515,7 +517,7 @@ bool reshade::d3d11::runtime_d3d11::init_effect(size_t index)
 
 		if (HRESULT hr = _device->CreateBuffer(&desc, &initial_data, &effect_data.cb); FAILED(hr))
 		{
-			LOG(ERROR) << "Failed to create constant buffer for effect file " << effect.source_file << ". HRESULT is " << hr << '.';
+			LOG(ERROR) << "Failed to create constant buffer for effect file '" << effect.source_file << "'! HRESULT is " << hr << '.';
 			LOG(DEBUG) << "> Details: Width = " << desc.ByteWidth;
 			return false;
 		}
@@ -530,7 +532,7 @@ bool reshade::d3d11::runtime_d3d11::init_effect(size_t index)
 	{
 		if (info.binding >= D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT)
 		{
-			LOG(ERROR) << "Cannot bind texture '" << info.unique_name << "' since it exceeds the maximum number of allowed resource slots in D3D11 (" << info.unique_name << ", allowed are up to " << D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT << ").";
+			LOG(ERROR) << "Cannot bind texture '" << info.unique_name << "' since it exceeds the maximum number of allowed resource slots in " << "D3D11" << " (" << info.unique_name << ", allowed are up to " << D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT << ").";
 			return false;
 		}
 
@@ -546,12 +548,12 @@ bool reshade::d3d11::runtime_d3d11::init_effect(size_t index)
 	{
 		if (info.binding >= D3D11_COMMONSHADER_SAMPLER_SLOT_COUNT)
 		{
-			LOG(ERROR) << "Cannot bind sampler '" << info.unique_name << "' since it exceeds the maximum number of allowed sampler slots in D3D11 (" << info.binding << ", allowed are up to " << D3D11_COMMONSHADER_SAMPLER_SLOT_COUNT << ").";
+			LOG(ERROR) << "Cannot bind sampler '" << info.unique_name << "' since it exceeds the maximum number of allowed sampler slots in " << "D3D11" << " (" << info.binding << ", allowed are up to " << D3D11_COMMONSHADER_SAMPLER_SLOT_COUNT << ").";
 			return false;
 		}
 		if (info.texture_binding >= D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT)
 		{
-			LOG(ERROR) << "Cannot bind texture '" << info.texture_name << "' since it exceeds the maximum number of allowed resource slots in D3D11 (" << info.texture_binding << ", allowed are up to " << D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT << ").";
+			LOG(ERROR) << "Cannot bind texture '" << info.texture_name << "' since it exceeds the maximum number of allowed resource slots in " << "D3D11" << " (" << info.texture_binding << ", allowed are up to " << D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT << ").";
 			return false;
 		}
 

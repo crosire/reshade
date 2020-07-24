@@ -611,7 +611,7 @@ bool reshade::d3d12::runtime_d3d12::init_effect(size_t index)
 
 		if (HRESULT hr = _device->CreateCommittedResource(&props, D3D12_HEAP_FLAG_NONE, &desc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&effect_data.cb)); FAILED(hr))
 		{
-			LOG(ERROR) << "Failed to create constant buffer for effect file " << effect.source_file << ". HRESULT is " << hr << '.';
+			LOG(ERROR) << "Failed to create constant buffer for effect file '" << effect.source_file << "'! HRESULT is " << hr << '.';
 			LOG(DEBUG) << "> Details: Width = " << desc.Width;
 			return false;
 		}
@@ -674,7 +674,7 @@ bool reshade::d3d12::runtime_d3d12::init_effect(size_t index)
 	{
 		if (info.binding >= D3D12_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT)
 		{
-			LOG(ERROR) << "Cannot bind texture '" << info.unique_name << "' since it exceeds the maximum number of allowed resource slots in D3D12 (" << info.unique_name << ", allowed are up to " << D3D12_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT << ").";
+			LOG(ERROR) << "Cannot bind texture '" << info.unique_name << "' since it exceeds the maximum number of allowed resource slots in " << "D3D12" << " (" << info.unique_name << ", allowed are up to " << D3D12_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT << ").";
 			return false;
 		}
 
@@ -700,12 +700,12 @@ bool reshade::d3d12::runtime_d3d12::init_effect(size_t index)
 	{
 		if (info.binding >= D3D12_COMMONSHADER_SAMPLER_SLOT_COUNT)
 		{
-			LOG(ERROR) << "Cannot bind sampler '" << info.unique_name << "' since it exceeds the maximum number of allowed sampler slots in D3D12 (" << info.binding << ", allowed are up to " << D3D12_COMMONSHADER_SAMPLER_SLOT_COUNT << ").";
+			LOG(ERROR) << "Cannot bind sampler '" << info.unique_name << "' since it exceeds the maximum number of allowed sampler slots in " << "D3D12" << " (" << info.binding << ", allowed are up to " << D3D12_COMMONSHADER_SAMPLER_SLOT_COUNT << ").";
 			return false;
 		}
 		if (info.texture_binding >= D3D12_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT)
 		{
-			LOG(ERROR) << "Cannot bind texture '" << info.texture_name << "' since it exceeds the maximum number of allowed resource slots in D3D12 (" << info.texture_binding << ", allowed are up to " << D3D12_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT << ").";
+			LOG(ERROR) << "Cannot bind texture '" << info.texture_name << "' since it exceeds the maximum number of allowed resource slots in " << "D3D12" << " (" << info.texture_binding << ", allowed are up to " << D3D12_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT << ").";
 			return false;
 		}
 

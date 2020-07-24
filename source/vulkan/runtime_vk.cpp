@@ -849,8 +849,7 @@ bool reshade::vulkan::runtime_vk::init_effect(size_t index)
 
 		if (res != VK_SUCCESS)
 		{
-			LOG(ERROR) << "Failed to create shader module. "
-				"Vulkan error code is " << res << '.';
+			LOG(ERROR) << "Failed to create shader module! Vulkan error code is " << res << '.';
 			return false;
 		}
 	}
@@ -2055,13 +2054,8 @@ VkImage reshade::vulkan::runtime_vk::create_image(uint32_t width, uint32_t heigh
 	const VkResult res = vmaCreateImage(_alloc, &create_info, &alloc_info, &ret, &alloc, nullptr);
 	if (res != VK_SUCCESS)
 	{
-		LOG(ERROR) << "Failed to create image ("
-			"Width = " << width << ", "
-			"Height = " << height << ", "
-			"Levels = " << levels << ", "
-			"Usage = " << std::hex << usage << std::dec << ", "
-			"Format = " << format << ")! "
-			"Vulkan error code is " << res << '.';
+		LOG(ERROR) << "Failed to create image! Vulkan error code is " << res << '.';
+		LOG(DEBUG) << "> Details: Width = " << width << ", Height = " << height << ", Levels = " << levels << ", Format = " << format << ", Usage = " << std::hex << usage << std::dec;
 
 		if (out_mem != nullptr)
 			*out_mem = VK_NULL_HANDLE;
@@ -2098,10 +2092,8 @@ VkBuffer reshade::vulkan::runtime_vk::create_buffer(VkDeviceSize size,
 	const VkResult res = vmaCreateBuffer(_alloc, &create_info, &alloc_info, &ret, &alloc, nullptr);
 	if (res != VK_SUCCESS)
 	{
-		LOG(ERROR) << "Failed to create buffer ("
-			"Size = " << size << ", "
-			"Usage = " << std::hex << usage << std::dec << ")! "
-			"Vulkan error code is " << res << '.';
+		LOG(ERROR) << "Failed to create buffer! Vulkan error code is " << res << '.';
+		LOG(DEBUG) << "> Details: Size = " << size << ", Usage = " << std::hex << usage << std::dec;
 
 		if (out_mem != nullptr)
 			*out_mem = VK_NULL_HANDLE;

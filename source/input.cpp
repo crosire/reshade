@@ -555,7 +555,7 @@ HOOK_EXPORT BOOL WINAPI HookPostMessageW(HWND hWnd, UINT Msg, WPARAM wParam, LPA
 HOOK_EXPORT BOOL WINAPI HookRegisterRawInputDevices(PCRAWINPUTDEVICE pRawInputDevices, UINT uiNumDevices, UINT cbSize)
 {
 #if RESHADE_VERBOSE_LOG
-	LOG(DEBUG) << "Redirecting RegisterRawInputDevices" << '(' << "pRawInputDevices = " << pRawInputDevices << ", uiNumDevices = " << uiNumDevices << ", cbSize = " << cbSize << ')' << " ...";
+	LOG(DEBUG) << "Redirecting " << "RegisterRawInputDevices" << '(' << "pRawInputDevices = " << pRawInputDevices << ", uiNumDevices = " << uiNumDevices << ", cbSize = " << cbSize << ')' << " ...";
 #endif
 	for (UINT i = 0; i < uiNumDevices; ++i)
 	{
@@ -581,7 +581,7 @@ HOOK_EXPORT BOOL WINAPI HookRegisterRawInputDevices(PCRAWINPUTDEVICE pRawInputDe
 
 	if (!reshade::hooks::call(HookRegisterRawInputDevices)(pRawInputDevices, uiNumDevices, cbSize))
 	{
-		LOG(WARN) << "RegisterRawInputDevices failed with error code " << GetLastError() << '!';
+		LOG(WARN) << "RegisterRawInputDevices" << " failed with error code " << GetLastError() << '!';
 		return FALSE;
 	}
 
