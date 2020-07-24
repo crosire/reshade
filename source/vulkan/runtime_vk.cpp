@@ -917,15 +917,6 @@ bool reshade::vulkan::runtime_vk::init_effect(size_t index)
 	std::vector<VkDescriptorImageInfo> sampler_bindings(effect.module.num_sampler_bindings);
 	std::vector<VkDescriptorImageInfo> storage_bindings(effect.module.num_storage_bindings);
 
-	for (const reshadefx::storage_info &info : effect.module.images)
-	{
-		const texture &texture = look_up_texture_by_name(info.texture_name);
-
-		VkDescriptorImageInfo &image_binding = storage_bindings[info.binding];
-		image_binding.imageView = static_cast<vulkan_tex_data *>(texture.impl)->view[0];
-		image_binding.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
-	}
-
 	for (const reshadefx::sampler_info &info : effect.module.samplers)
 	{
 		const texture &texture = look_up_texture_by_name(info.texture_name);
@@ -1029,7 +1020,14 @@ bool reshade::vulkan::runtime_vk::init_effect(size_t index)
 		image_binding.sampler = it->second;
 	}
 
-	effect_data.image_bindings = sampler_bindings;
+	for (const reshadefx::storage_info &info : effect.module.storages)
+	{
+		const texture &texture = look_up_texture_by_name(info.texture_name);
+
+		VkDescriptorImageInfo &image_binding = storage_bindings[info.binding];
+		image_binding.imageView = static_cast<vulkan_tex_data *>(texture.impl)->view[0];
+		image_binding.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+	}
 
 	{   VkDescriptorSetAllocateInfo alloc_info { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO };
 		alloc_info.descriptorPool = _effect_descriptor_pool;
@@ -1081,6 +1079,8 @@ bool reshade::vulkan::runtime_vk::init_effect(size_t index)
 
 		vk.UpdateDescriptorSets(_device, num_writes, writes, 0, nullptr);
 	}
+
+	effect_data.image_bindings = std::move(sampler_bindings);
 
 	std::vector<uint8_t> spec_data;
 	std::vector<VkSpecializationMapEntry> spec_constants;

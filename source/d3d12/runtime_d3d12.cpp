@@ -672,31 +672,6 @@ bool reshade::d3d12::runtime_d3d12::init_effect(size_t index)
 	}
 
 	UINT16 sampler_list = 0;
-
-	for (const reshadefx::storage_info &info : effect.module.images)
-	{
-		if (info.binding >= D3D12_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT)
-		{
-			LOG(ERROR) << "Cannot bind storage '" << info.texture_name << "' since it exceeds the maximum number of allowed resource slots in " << "D3D12" << " (" << info.binding << ", allowed are up to " << D3D12_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT << ").";
-			return false;
-		}
-
-		const texture &texture = look_up_texture_by_name(info.texture_name);
-
-		D3D12_CPU_DESCRIPTOR_HANDLE uav_handle = effect_data.uav_cpu_base;
-		uav_handle.ptr += info.binding * _srv_handle_size;
-
-		com_ptr<ID3D12Resource> resource;
-		resource = static_cast<d3d12_tex_data *>(texture.impl)->resource;
-
-		D3D12_UNORDERED_ACCESS_VIEW_DESC desc = {};
-		desc.Format = make_dxgi_format_normal(resource->GetDesc().Format);
-		desc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
-		desc.Texture2D.MipSlice = 0;
-
-		_device->CreateUnorderedAccessView(resource.get(), nullptr, &desc, uav_handle);
-	}
-
 	for (const reshadefx::sampler_info &info : effect.module.samplers)
 	{
 		if (info.binding >= D3D12_COMMONSHADER_SAMPLER_SLOT_COUNT)
@@ -768,6 +743,30 @@ bool reshade::d3d12::runtime_d3d12::init_effect(size_t index)
 
 			_device->CreateSampler(&desc, sampler_handle);
 		}
+	}
+
+	for (const reshadefx::storage_info &info : effect.module.storages)
+	{
+		if (info.binding >= D3D12_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT)
+		{
+			LOG(ERROR) << "Cannot bind storage '" << info.unique_name << "' since it exceeds the maximum number of allowed resource slots in " << "D3D12" << " (" << info.binding << ", allowed are up to " << D3D12_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT << ").";
+			return false;
+		}
+
+		const texture &texture = look_up_texture_by_name(info.texture_name);
+
+		D3D12_CPU_DESCRIPTOR_HANDLE uav_handle = effect_data.uav_cpu_base;
+		uav_handle.ptr += info.binding * _srv_handle_size;
+
+		com_ptr<ID3D12Resource> resource;
+		resource = static_cast<d3d12_tex_data *>(texture.impl)->resource;
+
+		D3D12_UNORDERED_ACCESS_VIEW_DESC desc = {};
+		desc.Format = make_dxgi_format_normal(resource->GetDesc().Format);
+		desc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
+		desc.Texture2D.MipSlice = 0;
+
+		_device->CreateUnorderedAccessView(resource.get(), nullptr, &desc, uav_handle);
 	}
 
 	for (technique &technique : _techniques)

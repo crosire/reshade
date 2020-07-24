@@ -310,7 +310,7 @@ namespace reshadefx
 		std::vector<entry_point> entry_points;
 		std::vector<texture_info> textures;
 		std::vector<sampler_info> samplers;
-		std::vector<storage_info> images;
+		std::vector<storage_info> storages;
 		std::vector<uniform_info> uniforms, spec_constants;
 		std::vector<technique_info> techniques;
 

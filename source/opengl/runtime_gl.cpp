@@ -35,11 +35,6 @@ namespace reshade::opengl
 		GLuint draw_textures[8] = {};
 	};
 
-	struct opengl_storage_data
-	{
-		opengl_tex_data *texture;
-	};
-
 	struct opengl_sampler_data
 	{
 		GLuint id;
@@ -48,13 +43,18 @@ namespace reshade::opengl
 		bool has_mipmaps;
 	};
 
+	struct opengl_storage_data
+	{
+		opengl_tex_data *texture;
+	};
+
 	struct opengl_technique_data
 	{
 		GLuint query = 0;
 		bool query_in_flight = false;
 		std::vector<opengl_pass_data> passes;
-		std::vector<opengl_storage_data> images;
 		std::vector<opengl_sampler_data> samplers;
+		std::vector<opengl_storage_data> storages;
 	};
 }
 
@@ -432,16 +432,8 @@ bool reshade::opengl::runtime_gl::init_effect(size_t index)
 
 	opengl_technique_data technique_init;
 	assert(effect.module.num_texture_bindings == 0);
-	technique_init.images.resize(effect.module.num_storage_bindings);
 	technique_init.samplers.resize(effect.module.num_sampler_bindings);
-
-	for (const reshadefx::storage_info &info : effect.module.images)
-	{
-		const texture &texture = look_up_texture_by_name(info.texture_name);
-
-		opengl_storage_data &storage_data = technique_init.images[info.binding];
-		storage_data.texture = static_cast<opengl_tex_data *>(texture.impl);
-	}
+	technique_init.storages.resize(effect.module.num_storage_bindings);
 
 	for (const reshadefx::sampler_info &info : effect.module.samplers)
 	{
@@ -532,6 +524,14 @@ bool reshade::opengl::runtime_gl::init_effect(size_t index)
 		sampler_data.texture = static_cast<opengl_tex_data *>(texture.impl);
 		sampler_data.is_srgb = info.srgb;
 		sampler_data.has_mipmaps = texture.levels > 1;
+	}
+
+	for (const reshadefx::storage_info &info : effect.module.storages)
+	{
+		const texture &texture = look_up_texture_by_name(info.texture_name);
+
+		opengl_storage_data &storage_data = technique_init.storages[info.binding];
+		storage_data.texture = static_cast<opengl_tex_data *>(texture.impl);
 	}
 
 	for (technique &technique : _techniques)
@@ -995,9 +995,9 @@ void reshade::opengl::runtime_gl::render_technique(technique &technique)
 	}
 
 	// Set up shader resources
-	for (GLuint binding = 0; binding < impl->images.size(); ++binding)
+	for (GLuint binding = 0; binding < impl->storages.size(); ++binding)
 	{
-		const opengl_storage_data &storage_data = impl->images[binding];
+		const opengl_storage_data &storage_data = impl->storages[binding];
 
 		glBindImageTexture(binding, storage_data.texture->id[0], 0, GL_FALSE, 0, GL_READ_WRITE, storage_data.texture->internal_format);
 	}

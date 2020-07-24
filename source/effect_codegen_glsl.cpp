@@ -390,7 +390,7 @@ private:
 
 		code += "layout(binding = " + std::to_string(info.binding) + ") uniform writeonly image2D " + id_to_name(info.id) + ";\n";
 
-		_module.images.push_back(info);
+		_module.storages.push_back(info);
 
 		return info.id;
 	}

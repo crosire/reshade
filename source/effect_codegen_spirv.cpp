@@ -606,7 +606,7 @@ private:
 		add_decoration(info.id, spv::DecorationBinding, { info.binding });
 		add_decoration(info.id, spv::DecorationDescriptorSet, { 2 });
 
-		_module.images.push_back(info);
+		_module.storages.push_back(info);
 
 		return info.id;
 	}

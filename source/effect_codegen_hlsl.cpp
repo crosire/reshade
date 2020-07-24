@@ -430,7 +430,7 @@ private:
 			code += "RWTexture2D<float4> " + info.unique_name + " : register(u" + std::to_string(info.binding) + ");\n";
 		}
 
-		_module.images.push_back(info);
+		_module.storages.push_back(info);
 
 		return info.id;
 	}
