@@ -652,8 +652,8 @@ private:
 				// Add each individual scalar component of the constant as a separate external specialization constant
 				for (size_t i = 0; i < (info.type.is_array() ? base_inst.operands.size() : 1); ++i)
 				{
+					constant initializer_value = info.initializer_value;
 					spirv_instruction elem_inst = base_inst;
-					reshadefx::constant initializer_value = info.initializer_value;
 
 					if (info.type.is_array())
 					{
@@ -1454,7 +1454,7 @@ private:
 	id   emit_constant(const type &type, uint32_t value)
 	{
 		// Create a constant value of the specified type
-		constant data;
+		constant data = {};
 		for (unsigned int i = 0; i < type.components(); ++i)
 			if (type.is_integral())
 				data.as_uint[i] = value;
@@ -1478,7 +1478,7 @@ private:
 						return false;
 				return true;
 			}); it != _constant_lookup.end())
-				return std::get<2>(*it);
+				return std::get<2>(*it); // Re-use existing constant instead of duplicating the definition
 
 		spv::Id result = 0;
 
@@ -1536,7 +1536,6 @@ private:
 			else
 			{
 				spirv_instruction &node = add_instruction(spec_constant ? spv::OpSpecConstantComposite : spv::OpConstantComposite, convert_type(type), _types_and_constants);
-
 				for (unsigned int i = 0; i < type.rows; ++i)
 					node.add(rows[i]);
 

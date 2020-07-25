@@ -561,10 +561,7 @@ private:
 		if (stype == shader_type::ps)
 			_blocks.at(0) += "layout(origin_upper_left) in vec4 gl_FragCoord;\n";
 		if (stype == shader_type::cs)
-			_blocks.at(0) += "layout("
-				  "local_size_x = " + std::to_string(num_threads[0]) +
-				", local_size_y = " + std::to_string(num_threads[1]) +
-				", local_size_z = 1) in;\n";
+			_blocks.at(0) += "layout(local_size_x = " + std::to_string(num_threads[0]) + ", local_size_y = " + std::to_string(num_threads[1]) + ") in;\n";
 
 		function_info entry_point;
 		entry_point.return_type = { type::t_void };
