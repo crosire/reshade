@@ -229,11 +229,16 @@ private:
 		// First initialize the UBO type now that all member types are known
 		if (_global_ubo_type != 0)
 		{
-			add_instruction(spv::OpTypeStruct, 0, _types_and_constants)
-				.add(_global_ubo_types.begin(), _global_ubo_types.end())
-				.result = _global_ubo_type;
+			spirv_instruction &type_inst = add_instruction_without_result(spv::OpTypeStruct, _types_and_constants);
+			type_inst.add(_global_ubo_types.begin(), _global_ubo_types.end());
+			type_inst.result = _global_ubo_type;
 
-			define_variable(_global_ubo_variable, {}, { type::t_struct, 0, 0, type::q_uniform, 0, _global_ubo_type }, "$Globals", spv::StorageClassUniform);
+			spirv_instruction &variable_inst = add_instruction_without_result(spv::OpVariable, _variables);
+			variable_inst.add(spv::StorageClassUniform);
+			variable_inst.type = convert_type({ type::t_struct, 0, 0, type::q_uniform, 0, _global_ubo_type }, true, spv::StorageClassUniform);
+			variable_inst.result = _global_ubo_variable;
+
+			add_name(variable_inst.result, "$Globals");
 		}
 
 		module = std::move(_module);
@@ -335,7 +340,6 @@ private:
 			return it->second;
 
 		spv::Id type;
-
 		if (is_ptr)
 		{
 			type = convert_type(info, false, storage, array_stride);
@@ -584,11 +588,8 @@ private:
 	}
 	id   define_sampler(const location &loc, sampler_info &info) override
 	{
-		info.id = make_id();
+		info.id = define_variable(loc, { type::t_sampler, 0, 0, type::q_extern | type::q_uniform }, info.unique_name.c_str(), spv::StorageClassUniformConstant);
 		info.binding = _module.num_sampler_bindings++;
-
-		define_variable(info.id, loc, { type::t_sampler, 0, 0, type::q_extern | type::q_uniform },
-			info.unique_name.c_str(), spv::StorageClassUniformConstant);
 
 		add_decoration(info.id, spv::DecorationBinding, { info.binding });
 		add_decoration(info.id, spv::DecorationDescriptorSet, { 1 });
@@ -599,11 +600,8 @@ private:
 	}
 	id   define_storage(const location &loc, storage_info &info) override
 	{
-		info.id = make_id();
+		info.id = define_variable(loc, { type::t_storage, 0, 0, type::q_extern | type::q_uniform }, info.unique_name.c_str(), spv::StorageClassUniformConstant);
 		info.binding = _module.num_storage_bindings++;
-
-		define_variable(info.id, loc, { type::t_storage, 0, 0, type::q_extern | type::q_uniform },
-			info.unique_name.c_str(), spv::StorageClassUniformConstant);
 
 		add_decoration(info.id, spv::DecorationBinding, { info.binding });
 		add_decoration(info.id, spv::DecorationDescriptorSet, { 2 });
@@ -757,12 +755,17 @@ private:
 	}
 	id   define_variable(const location &loc, const type &type, std::string name, bool global, id initializer_value) override
 	{
-		id res = make_id();
-		define_variable(res, loc, type, name.c_str(), global ? spv::StorageClassPrivate : spv::StorageClassFunction, initializer_value);
-		return res;
+		spv::StorageClass storage = spv::StorageClassFunction;
+		if (type.has(type::q_groupshared))
+			storage = spv::StorageClassWorkgroup;
+		else if (global)
+			storage = spv::StorageClassPrivate;
+
+		return define_variable(loc, type, name.c_str(), storage, initializer_value);
 	}
-	void define_variable(id id, const location &loc, const type &type, const char *name, spv::StorageClass storage, spv::Id initializer_value = 0)
+	id   define_variable(const location &loc, const type &type, const char *name, spv::StorageClass storage, spv::Id initializer_value = 0)
 	{
+		id res = make_id();
 		spirv_basic_block &block = (storage != spv::StorageClassFunction) ?
 			_variables : _current_function->variables;
 
@@ -771,7 +774,7 @@ private:
 		// https://www.khronos.org/registry/spir-v/specs/unified1/SPIRV.html#OpVariable
 		spirv_instruction &inst = add_instruction_without_result(spv::OpVariable, block);
 		inst.type = convert_type(type, true, storage);
-		inst.result = id;
+		inst.result = res;
 		inst.add(storage);
 
 		if (initializer_value != 0)
@@ -785,15 +788,17 @@ private:
 			{
 				// Only use the variable initializer on global variables, since local variables for e.g. "for" statements need to be assigned in their respective scope and not their declaration
 				expression variable;
-				variable.reset_to_lvalue(loc, id, type);
+				variable.reset_to_lvalue(loc, res, type);
 				emit_store(variable, initializer_value);
 			}
 		}
 
 		if (name != nullptr && *name != '\0')
-			add_name(id, name);
+			add_name(res, name);
 
-		_storage_lookup[id] = storage;
+		_storage_lookup[res] = storage;
+
+		return res;
 	}
 	id   define_function(const location &loc, function_info &info) override
 	{
@@ -854,14 +859,12 @@ private:
 		enter_block(create_block());
 
 		const auto create_varying_param = [this, &call_params](const struct_member_info &param) {
-			const auto local_variable = make_id();
-			define_variable(local_variable, {}, param.type, nullptr, spv::StorageClassFunction);
+			const id local_variable = define_variable({}, param.type, nullptr, spv::StorageClassFunction);
 			call_params.emplace_back().reset_to_lvalue({}, local_variable, param.type);
 			return local_variable;
 		};
 		const auto create_varying_variable = [this, &inputs_and_outputs, &position_variable, &stype](const type &param_type, std::string semantic, spv::StorageClass storage) {
-			const auto attrib_variable = make_id();
-			define_variable(attrib_variable, {}, param_type, nullptr, storage);
+			const id attrib_variable = define_variable({}, param_type, nullptr, storage);
 
 			if (spv::BuiltIn builtin; semantic_to_builtin(semantic, builtin, stype))
 			{
