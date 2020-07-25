@@ -1594,7 +1594,7 @@ bool reshade::vulkan::runtime_vk::init_texture(texture &texture)
 		usage_flags |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
 	if (texture.render_target)
 		usage_flags |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
-	if (texture.unordered_access)
+	if (texture.storage_access)
 		usage_flags |= VK_IMAGE_USAGE_STORAGE_BIT;
 
 	VkImageCreateFlags image_flags = 0;
@@ -1625,7 +1625,7 @@ bool reshade::vulkan::runtime_vk::init_texture(texture &texture)
 
 	// Create shader views
 	impl->view[0] = create_image_view(impl->image, impl->formats[0], VK_REMAINING_MIP_LEVELS, VK_IMAGE_ASPECT_COLOR_BIT);
-	impl->view[1] = impl->formats[0] != impl->formats[1] && !texture.unordered_access ? // sRGB formats do not support storage usage
+	impl->view[1] = impl->formats[0] != impl->formats[1] && !texture.storage_access ? // sRGB formats do not support storage usage
 		create_image_view(impl->image, impl->formats[1], VK_REMAINING_MIP_LEVELS, VK_IMAGE_ASPECT_COLOR_BIT) :
 		impl->view[0];
 
@@ -1633,7 +1633,7 @@ bool reshade::vulkan::runtime_vk::init_texture(texture &texture)
 	if (texture.levels > 1)
 	{
 		impl->view[2] = create_image_view(impl->image, impl->formats[0], 1, VK_IMAGE_ASPECT_COLOR_BIT);
-		impl->view[3] = impl->formats[0] != impl->formats[1] && !texture.unordered_access ?
+		impl->view[3] = impl->formats[0] != impl->formats[1] && !texture.storage_access ?
 			create_image_view(impl->image, impl->formats[1], 1, VK_IMAGE_ASPECT_COLOR_BIT) :
 			impl->view[2];
 	}

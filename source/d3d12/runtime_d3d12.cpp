@@ -1053,7 +1053,7 @@ bool reshade::d3d12::runtime_d3d12::init_texture(texture &texture)
 
 	if (texture.render_target)
 		desc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
-	if (texture.unordered_access || texture.levels > 1) // Need UAV for mipmap generation
+	if (texture.storage_access || texture.levels > 1) // Need UAV for mipmap generation
 		desc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
 
 	switch (texture.format)

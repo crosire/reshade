@@ -870,7 +870,7 @@ bool reshade::d3d11::runtime_d3d11::init_texture(texture &texture)
 		desc.MiscFlags |= D3D11_RESOURCE_MISC_GENERATE_MIPS; // Requires D3D11_BIND_RENDER_TARGET as well
 	if (texture.render_target || texture.levels > 1)
 		desc.BindFlags |= D3D11_BIND_RENDER_TARGET;
-	if (texture.unordered_access)
+	if (texture.storage_access)
 		desc.BindFlags |= D3D11_BIND_UNORDERED_ACCESS;
 
 	switch (texture.format)
@@ -957,7 +957,7 @@ bool reshade::d3d11::runtime_d3d11::init_texture(texture &texture)
 		impl->srv[1] = impl->srv[0];
 	}
 
-	if (texture.unordered_access)
+	if (texture.storage_access)
 	{
 		D3D11_UNORDERED_ACCESS_VIEW_DESC uav_desc = {};
 		uav_desc.Format = make_dxgi_format_normal(desc.Format);

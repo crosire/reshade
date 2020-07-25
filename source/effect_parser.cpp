@@ -2639,7 +2639,7 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 					reshadefx::texture_info &target_info = _codegen->find_texture(expression.base);
 					if (type.is_storage())
 						// Texture is used as storage
-						target_info.unordered_access = true;
+						target_info.storage_access = true;
 
 					texture_info = target_info;
 					sampler_info.texture_name = target_info.unique_name;

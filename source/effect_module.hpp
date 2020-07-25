@@ -175,7 +175,7 @@ namespace reshadefx
 		uint32_t levels = 1;
 		texture_format format = texture_format::rgba8;
 		bool render_target = false;
-		bool unordered_access = false;
+		bool storage_access = false;
 	};
 
 	/// <summary>
