@@ -1753,7 +1753,7 @@ IMPLEMENT_INTRINSIC_SPIRV(tex2Dgatheroffset, 0, {
 DEFINE_INTRINSIC(tex2Dstore, 0, void, storage, int2, float4)
 IMPLEMENT_INTRINSIC_GLSL(tex2Dstore, 0, {
 	code += "imageStore(" + id_to_name(args[0].base) + ", " +
-		id_to_name(args[1].base) + " * ivec2(1, -1) + imageSize(" + id_to_name(args[0].base) + ") * ivec2(0, 1), " +
+		id_to_name(args[1].base) + " * ivec2(1, -1) + ivec2(0, imageSize(" + id_to_name(args[0].base) + ").y - 1), " +
 		id_to_name(args[2].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_HLSL(tex2Dstore, 0, {
