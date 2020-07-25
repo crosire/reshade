@@ -1097,6 +1097,7 @@ void reshade::d3d11::runtime_d3d11::render_technique(technique &technique)
 
 		_immediate_context->VSSetConstantBuffers(0, 1, &cb);
 		_immediate_context->PSSetConstantBuffers(0, 1, &cb);
+		_immediate_context->CSSetConstantBuffers(0, 1, &cb);
 	}
 
 	// Disable unused pipeline stages
