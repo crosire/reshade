@@ -1380,7 +1380,7 @@ void reshade::runtime::draw_ui_statistics()
 				continue;
 
 			if (technique.average_cpu_duration != 0)
-				ImGui::Text("%*.3f ms CPU (%.0f%%)", cpu_digits + 4, technique.average_cpu_duration * 1e-6f, 100 * (technique.average_cpu_duration * 1e-6f) / (post_processing_time_cpu * 1e-6f));
+				ImGui::Text("%*.3f ms CPU", cpu_digits + 4, technique.average_cpu_duration * 1e-6f);
 			else
 				ImGui::NewLine();
 		}
@@ -1396,7 +1396,7 @@ void reshade::runtime::draw_ui_statistics()
 
 			// GPU timings are not available for all APIs
 			if (technique.average_gpu_duration != 0)
-				ImGui::Text("%*.3f ms GPU (%.0f%%)", gpu_digits + 4, technique.average_gpu_duration * 1e-6f, 100 * (technique.average_gpu_duration * 1e-6f) / (post_processing_time_gpu * 1e-6f));
+				ImGui::Text("%*.3f ms GPU", gpu_digits + 4, technique.average_gpu_duration * 1e-6f);
 			else
 				ImGui::NewLine();
 		}
