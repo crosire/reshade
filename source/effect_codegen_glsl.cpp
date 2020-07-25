@@ -298,6 +298,8 @@ private:
 			return "gl_FragDepth";
 		else if (semantic == "SV_VERTEXID")
 			return "gl_VertexID";
+		else if (semantic == "SV_ISFRONTFACE")
+			return "gl_FrontFacing";
 		else if (semantic == "SV_GROUPID")
 			return "gl_WorkGroupID";
 		else if (semantic == "SV_GROUPINDEX")

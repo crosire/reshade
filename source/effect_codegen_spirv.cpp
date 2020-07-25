@@ -477,6 +477,8 @@ private:
 			builtin = spv::BuiltInFragDepth;
 		else if (semantic == "SV_VERTEXID")
 			builtin = _vulkan_semantics ? spv::BuiltInVertexIndex : spv::BuiltInVertexId;
+		else if (semantic == "SV_ISFRONTFACE")
+			builtin = spv::BuiltInFrontFacing;
 		else if (semantic == "SV_GROUPID")
 			builtin = spv::BuiltInWorkgroupId;
 		else if (semantic == "SV_GROUPINDEX")

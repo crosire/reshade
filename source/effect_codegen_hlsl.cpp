@@ -260,6 +260,8 @@ private:
 				return "DEPTH";
 			if (semantic == "SV_VERTEXID")
 				return "TEXCOORD0 /* VERTEXID */";
+			if (semantic == "SV_ISFRONTFACE")
+				return "VFACE";
 		}
 		else
 		{
