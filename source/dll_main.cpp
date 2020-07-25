@@ -864,6 +864,15 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 		RemoveVectoredExceptionHandler(g_exception_handler_handle);
 #  endif
 
+		// Module is now invalid, so break out of any message loops that may still have it in the call stack (see 'HookGetMessage' implementation in input.cpp)
+		// This is necessary since a different thread may have called into the 'GetMessage' hook from ReShade, but not receive a message until after the module was unloaded
+		// At that point it would return to code that was already unloaded and crash
+		// Hooks were already uninstalled now, so after returning from any existing 'GetMessage' hook call, application will call the real one next and things continue to work
+		g_module_handle = nullptr;
+		// This duration has to be slightly larger than the timeout in 'HookGetMessage' to ensure success
+		// It should also be large enough to cover any potential other calls to previous hooks that may still be in flight from other threads
+		Sleep(1050);
+
 		LOG(INFO) << "Finished exiting.";
 		break;
 	}
