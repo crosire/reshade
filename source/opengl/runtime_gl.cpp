@@ -1019,6 +1019,17 @@ void reshade::opengl::runtime_gl::render_technique(technique &technique)
 
 	for (size_t pass_index = 0; pass_index < technique.passes.size(); ++pass_index)
 	{
+		if (needs_implicit_backbuffer_copy)
+		{
+			// Copy back buffer of previous pass to texture
+			glDisable(GL_FRAMEBUFFER_SRGB);
+			glBindFramebuffer(GL_READ_FRAMEBUFFER, _fbo[FBO_BACK]);
+			glBindFramebuffer(GL_DRAW_FRAMEBUFFER, _fbo[FBO_BLIT]);
+			glReadBuffer(GL_COLOR_ATTACHMENT0);
+			glDrawBuffer(GL_COLOR_ATTACHMENT0);
+			glBlitFramebuffer(0, 0, _width, _height, 0, 0, _width, _height, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+		}
+
 		const opengl_pass_data &pass_data = impl->passes[pass_index];
 		const reshadefx::pass_info &pass_info = technique.passes[pass_index];
 
@@ -1030,17 +1041,6 @@ void reshade::opengl::runtime_gl::render_technique(technique &technique)
 		}
 		else
 		{
-			if (needs_implicit_backbuffer_copy)
-			{
-				// Copy back buffer of previous pass to texture
-				glDisable(GL_FRAMEBUFFER_SRGB);
-				glBindFramebuffer(GL_READ_FRAMEBUFFER, _fbo[FBO_BACK]);
-				glBindFramebuffer(GL_DRAW_FRAMEBUFFER, _fbo[FBO_BLIT]);
-				glReadBuffer(GL_COLOR_ATTACHMENT0);
-				glDrawBuffer(GL_COLOR_ATTACHMENT0);
-				glBlitFramebuffer(0, 0, _width, _height, 0, 0, _width, _height, GL_COLOR_BUFFER_BIT, GL_NEAREST);
-			}
-
 			// Set up pass specific state
 			glViewport(0, 0, static_cast<GLsizei>(pass_info.viewport_width), static_cast<GLsizei>(pass_info.viewport_height));
 			glBindFramebuffer(GL_FRAMEBUFFER, pass_data.fbo);

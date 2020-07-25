@@ -633,7 +633,31 @@ bool reshade::d3d11::runtime_d3d11::init_effect(size_t index)
 					pass_data.modified_resources.push_back(static_cast<d3d11_tex_data *>(texture.impl)->srv[0]);
 				}
 
+				pass_data.srvs = impl->srv_bindings;
 				pass_data.uavs = impl->uav_bindings;
+
+				// Unbind any shader resources that are also bound as UAV
+				for (com_ptr<ID3D11ShaderResourceView> &srv : pass_data.srvs)
+				{
+					if (srv == nullptr)
+						continue;
+					com_ptr<ID3D11Resource> srv_res;
+					srv->GetResource(&srv_res);
+
+					for (const com_ptr<ID3D11UnorderedAccessView> &uav : pass_data.uavs)
+					{
+						if (uav == nullptr)
+							continue;
+						com_ptr<ID3D11Resource> uav_res;
+						uav->GetResource(&uav_res);
+
+						if (srv_res == uav_res)
+						{
+							srv.reset();
+							break;
+						}
+					}
+				}
 			}
 			else
 			{
@@ -1081,6 +1105,12 @@ void reshade::d3d11::runtime_d3d11::render_technique(technique &technique)
 
 	for (size_t pass_index = 0; pass_index < technique.passes.size(); ++pass_index)
 	{
+		if (needs_implicit_backbuffer_copy)
+		{
+			// Save back buffer of previous pass
+			_immediate_context->CopyResource(_backbuffer_texture.get(), _backbuffer_resolved.get());
+		}
+
 		const d3d11_pass_data &pass_data = impl->passes[pass_index];
 		const reshadefx::pass_info &pass_info = technique.passes[pass_index];
 
@@ -1100,12 +1130,6 @@ void reshade::d3d11::runtime_d3d11::render_technique(technique &technique)
 		}
 		else
 		{
-			if (needs_implicit_backbuffer_copy)
-			{
-				// Save back buffer of previous pass
-				_immediate_context->CopyResource(_backbuffer_texture.get(), _backbuffer_resolved.get());
-			}
-
 			_immediate_context->VSSetShader(pass_data.vertex_shader.get(), nullptr, 0);
 			_immediate_context->PSSetShader(pass_data.pixel_shader.get(), nullptr, 0);
 

@@ -1333,6 +1333,16 @@ void reshade::d3d12::runtime_d3d12::render_technique(technique &technique)
 
 	for (size_t pass_index = 0; pass_index < technique.passes.size(); ++pass_index)
 	{
+		if (needs_implicit_backbuffer_copy)
+		{
+			// Save back buffer of previous pass
+			transition_state(_cmd_list, _backbuffer_texture, D3D12_RESOURCE_STATE_SHADER_RESOURCE, D3D12_RESOURCE_STATE_COPY_DEST);
+			transition_state(_cmd_list, _backbuffers[_swap_index], D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_COPY_SOURCE);
+			_cmd_list->CopyResource(_backbuffer_texture.get(), _backbuffers[_swap_index].get());
+			transition_state(_cmd_list, _backbuffer_texture, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_SHADER_RESOURCE);
+			transition_state(_cmd_list, _backbuffers[_swap_index], D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
+		}
+
 		const d3d12_pass_data &pass_data = impl->passes[pass_index];
 		const reshadefx::pass_info &pass_info = technique.passes[pass_index];
 
@@ -1344,16 +1354,6 @@ void reshade::d3d12::runtime_d3d12::render_technique(technique &technique)
 		}
 		else
 		{
-			if (needs_implicit_backbuffer_copy)
-			{
-				// Save back buffer of previous pass
-				transition_state(_cmd_list, _backbuffer_texture, D3D12_RESOURCE_STATE_SHADER_RESOURCE, D3D12_RESOURCE_STATE_COPY_DEST);
-				transition_state(_cmd_list, _backbuffers[_swap_index], D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_COPY_SOURCE);
-				_cmd_list->CopyResource(_backbuffer_texture.get(), _backbuffers[_swap_index].get());
-				transition_state(_cmd_list, _backbuffer_texture, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_SHADER_RESOURCE);
-				transition_state(_cmd_list, _backbuffers[_swap_index], D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
-			}
-
 			// Transition resource state for render targets
 			for (const d3d12_tex_data *render_target_texture : pass_data.modified_resources)
 				transition_state(_cmd_list, render_target_texture->resource, D3D12_RESOURCE_STATE_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
