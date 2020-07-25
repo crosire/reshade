@@ -525,10 +525,14 @@ bool reshade::d3d11::runtime_d3d11::init_effect(size_t index)
 		}
 	}
 
+	const UINT max_uav_bindings =
+		_renderer_id >= D3D_FEATURE_LEVEL_11_1 ? D3D11_1_UAV_SLOT_COUNT :
+		_renderer_id == D3D_FEATURE_LEVEL_11_0 ? D3D11_PS_CS_UAV_REGISTER_COUNT : 0;
+
 	d3d11_technique_data technique_init;
 	technique_init.srv_bindings.resize(effect.module.num_texture_bindings);
 	technique_init.sampler_states.resize(effect.module.num_sampler_bindings);
-	technique_init.uav_bindings.resize(effect.module.num_storage_bindings);
+	technique_init.uav_bindings.resize(std::min(effect.module.num_storage_bindings, max_uav_bindings));
 
 	for (const reshadefx::sampler_info &info : effect.module.samplers)
 	{
@@ -585,7 +589,6 @@ bool reshade::d3d11::runtime_d3d11::init_effect(size_t index)
 		}
 	}
 
-	const UINT max_uav_bindings = _renderer_id >= D3D_FEATURE_LEVEL_11_1 ? D3D11_1_UAV_SLOT_COUNT : D3D11_PS_CS_UAV_REGISTER_COUNT;
 	for (const reshadefx::storage_info &info : effect.module.storages)
 	{
 		if (info.binding >= max_uav_bindings)
@@ -894,7 +897,7 @@ bool reshade::d3d11::runtime_d3d11::init_texture(texture &texture)
 		desc.MiscFlags |= D3D11_RESOURCE_MISC_GENERATE_MIPS; // Requires D3D11_BIND_RENDER_TARGET as well
 	if (texture.render_target || texture.levels > 1)
 		desc.BindFlags |= D3D11_BIND_RENDER_TARGET;
-	if (texture.storage_access)
+	if (texture.storage_access && _renderer_id >= D3D_FEATURE_LEVEL_11_0)
 		desc.BindFlags |= D3D11_BIND_UNORDERED_ACCESS;
 
 	switch (texture.format)
@@ -981,7 +984,7 @@ bool reshade::d3d11::runtime_d3d11::init_texture(texture &texture)
 		impl->srv[1] = impl->srv[0];
 	}
 
-	if (texture.storage_access)
+	if (texture.storage_access && _renderer_id >= D3D_FEATURE_LEVEL_11_0)
 	{
 		D3D11_UNORDERED_ACCESS_VIEW_DESC uav_desc = {};
 		uav_desc.Format = make_dxgi_format_normal(desc.Format);
