@@ -1063,7 +1063,7 @@ VK_LAYER_EXPORT PFN_vkVoidFunction VKAPI_CALL vkGetDeviceProcAddr(VkDevice devic
 		return reinterpret_cast<PFN_vkVoidFunction>(vkCmdDrawIndexed);
 
 	// Need to self-intercept as well, since some layers rely on this (e.g. Steam overlay)
-	// See also https://github.com/KhronosGroup/Vulkan-Loader/blob/master/loader/LoaderAndLayerInterface.md#layer-conventions-and-rules
+	// See https://github.com/KhronosGroup/Vulkan-Loader/blob/master/loader/LoaderAndLayerInterface.md#layer-conventions-and-rules
 	if (0 == strcmp(pName, "vkGetDeviceProcAddr"))
 		return reinterpret_cast<PFN_vkVoidFunction>(vkGetDeviceProcAddr);
 

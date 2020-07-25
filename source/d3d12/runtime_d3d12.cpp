@@ -759,14 +759,25 @@ bool reshade::d3d12::runtime_d3d12::init_effect(size_t index)
 		uav_handle.ptr += info.binding * _srv_handle_size;
 
 		com_ptr<ID3D12Resource> resource;
-		resource = static_cast<d3d12_tex_data *>(texture.impl)->resource;
+		switch (texture.impl_reference)
+		{
+		case texture_reference::back_buffer:
+		case texture_reference::depth_buffer:
+			break;
+		default:
+			resource = static_cast<d3d12_tex_data *>(texture.impl)->resource;
+			break;
+		}
 
-		D3D12_UNORDERED_ACCESS_VIEW_DESC desc = {};
-		desc.Format = make_dxgi_format_normal(resource->GetDesc().Format);
-		desc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
-		desc.Texture2D.MipSlice = 0;
+		if (resource != nullptr)
+		{
+			D3D12_UNORDERED_ACCESS_VIEW_DESC desc = {};
+			desc.Format = make_dxgi_format_normal(resource->GetDesc().Format);
+			desc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
+			desc.Texture2D.MipSlice = 0;
 
-		_device->CreateUnorderedAccessView(resource.get(), nullptr, &desc, uav_handle);
+			_device->CreateUnorderedAccessView(resource.get(), nullptr, &desc, uav_handle);
+		}
 	}
 
 	for (technique &technique : _techniques)

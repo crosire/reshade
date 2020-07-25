@@ -1025,8 +1025,21 @@ bool reshade::vulkan::runtime_vk::init_effect(size_t index)
 		const texture &texture = look_up_texture_by_name(info.texture_name);
 
 		VkDescriptorImageInfo &image_binding = storage_bindings[info.binding];
-		image_binding.imageView = static_cast<vulkan_tex_data *>(texture.impl)->view[0];
 		image_binding.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+
+		switch (texture.impl_reference)
+		{
+		case texture_reference::back_buffer:
+		case texture_reference::depth_buffer:
+			break;
+		default:
+			image_binding.imageView = static_cast<vulkan_tex_data *>(texture.impl)->view[0];
+			break;
+		}
+
+		// Unset bindings are not allowed, so fail initialization for the entire effect in that case
+		if (image_binding.imageView == VK_NULL_HANDLE)
+			return false;
 	}
 
 	{   VkDescriptorSetAllocateInfo alloc_info { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO };
