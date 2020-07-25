@@ -747,9 +747,9 @@ bool reshade::d3d12::runtime_d3d12::init_effect(size_t index)
 
 	for (const reshadefx::storage_info &info : effect.module.storages)
 	{
-		if (info.binding >= D3D12_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT)
+		if (info.binding >= D3D12_UAV_SLOT_COUNT)
 		{
-			LOG(ERROR) << "Cannot bind storage '" << info.unique_name << "' since it exceeds the maximum number of allowed resource slots in " << "D3D12" << " (" << info.binding << ", allowed are up to " << D3D12_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT << ").";
+			LOG(ERROR) << "Cannot bind storage '" << info.unique_name << "' since it exceeds the maximum number of allowed resource slots in " << "D3D12" << " (" << info.binding << ", allowed are up to " << D3D12_UAV_SLOT_COUNT << ").";
 			return false;
 		}
 

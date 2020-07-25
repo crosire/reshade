@@ -344,7 +344,7 @@ IMPLEMENT_INTRINSIC_GLSL(asint, 0, {
 	code += "floatBitsToInt(" + id_to_name(args[0].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_HLSL(asint, 0, {
-	// Really only supported on shader model 4+
+	// Really only supported on SM4+
 	code += "asint(" + id_to_name(args[0].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_SPIRV(asint, 0, {
@@ -1591,7 +1591,7 @@ IMPLEMENT_INTRINSIC_HLSL(tex2Dsize, 2, {
 	if (_shader_model >= 50u)
 		code += id_to_name(args[0].base) + ".GetDimensions(" + id_to_name(res) + ".x, " + id_to_name(res) + ".y)";
 	else
-		code += "int2(0, 0)";
+		code += "int2(0, 0)"; // Only supported on SM5+
 	})
 IMPLEMENT_INTRINSIC_SPIRV(tex2Dsize, 0, {
 	add_capability(spv::CapabilityImageQuery);

@@ -436,6 +436,8 @@ bool reshade::d3d11::runtime_d3d11::init_effect(size_t index)
 			break;
 		case reshadefx::shader_type::cs:
 			profile = "cs";
+			// Feature level 10 and 10.1 support a limited form of DirectCompute, but it does not have support for RWTexture2D, so it is not useful here
+			// See https://docs.microsoft.com/windows/win32/direct3d11/direct3d-11-advanced-stages-compute-shader
 			if (_renderer_id < D3D_FEATURE_LEVEL_11_0)
 			{
 				effect.errors += "Compute shaders are not supported in ";
@@ -583,11 +585,12 @@ bool reshade::d3d11::runtime_d3d11::init_effect(size_t index)
 		}
 	}
 
+	const UINT max_uav_bindings = _renderer_id >= D3D_FEATURE_LEVEL_11_1 ? D3D11_1_UAV_SLOT_COUNT : D3D11_PS_CS_UAV_REGISTER_COUNT;
 	for (const reshadefx::storage_info &info : effect.module.storages)
 	{
-		if (info.binding >= D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT)
+		if (info.binding >= max_uav_bindings)
 		{
-			LOG(ERROR) << "Cannot bind storage '" << info.unique_name << "' since it exceeds the maximum number of allowed resource slots in " << "D3D11" << " (" << info.binding << ", allowed are up to " << D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT << ").";
+			LOG(ERROR) << "Cannot bind storage '" << info.unique_name << "' since it exceeds the maximum number of allowed resource slots in " << "D3D11" << " (" << info.binding << ", allowed are up to " << max_uav_bindings << ").";
 			return false;
 		}
 

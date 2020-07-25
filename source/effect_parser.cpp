@@ -2860,31 +2860,21 @@ bool reshadefx::parser::parse_technique_pass(pass_info &info)
 
 			location = std::move(_token.location);
 
-			int num_threads[3] = { 1, 1, 1 };
+			int num_threads[2] = { 1, 1 };
 			if (accept('<'))
 			{
-					if (expression x; parse_expression_multary(x, 8) && x.is_constant)
-						x.add_cast_operation({ type::t_int, 1, 1 }),
-						num_threads[0] = x.constant.as_int[0];
-					else
-						return error(x.location, 3011, "value must be a literal expression"), consume_until('}'), false;
+				expression x, y;
+				if (!parse_expression_multary(x, 8) || !expect(',') || !parse_expression_multary(y, 8))
+					return consume_until('}'), false;
 
-				if (accept(','))
-				{
-					if (expression y; parse_expression_multary(y, 8) && y.is_constant)
-						y.add_cast_operation({ type::t_int, 1, 1 }),
-						num_threads[1] = y.constant.as_int[0];
-					else
-						return error(y.location, 3011, "value must be a literal expression"), consume_until('}'), false;
-				}
-				if (accept(','))
-				{
-					if (expression z; parse_expression_multary(z, 8) && z.is_constant)
-						z.add_cast_operation({ type::t_int, 1, 1 }),
-						num_threads[2] = z.constant.as_int[0];
-					else
-						return error(z.location, 3011, "value must be a literal expression"), consume_until('}'), false;
-				}
+				if (!x.is_constant)
+					return error(x.location, 3011, "value must be a literal expression"), consume_until('}'), false;
+				if (!y.is_constant)
+					return error(y.location, 3011, "value must be a literal expression"), consume_until('}'), false;
+				x.add_cast_operation({ type::t_int, 1, 1 });
+				y.add_cast_operation({ type::t_int, 1, 1 });
+				num_threads[0] = x.constant.as_int[0];
+				num_threads[1] = y.constant.as_int[0];
 
 				if (!expect('>'))
 					return consume_until('}'), false;
