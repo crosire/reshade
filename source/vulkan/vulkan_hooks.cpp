@@ -334,6 +334,7 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 
 		// Enable features that ReShade requires
 		enabled_features.shaderImageGatherExtended = true;
+		enabled_features.shaderStorageImageWriteWithoutFormat = true;
 
 		// Enable extensions that ReShade requires
 		add_extension(VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME, false); // This is optional, see imgui code in 'runtime_vk'

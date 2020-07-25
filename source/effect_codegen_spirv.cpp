@@ -427,6 +427,8 @@ private:
 				type = add_instruction(spv::OpTypeSampledImage, 0, _types_and_constants).add(type).result;
 				break;
 			case type::t_storage:
+				// No format specified for the storage image
+				add_capability(spv::CapabilityStorageImageWriteWithoutFormat);
 			case type::t_texture:
 				assert(info.rows == 0 && info.cols == 0);
 				type = convert_type({ type::t_float, 1, 1 });
@@ -437,7 +439,7 @@ private:
 					.add(0) // Not an array
 					.add(0) // Not multi-sampled
 					.add(info.is_texture() ? 1 : 2) // Used with a sampler or as storage
-					.add(info.is_texture() ? spv::ImageFormatUnknown : spv::ImageFormatRgba32f)
+					.add(spv::ImageFormatUnknown)
 					.result;
 				break;
 			default:
