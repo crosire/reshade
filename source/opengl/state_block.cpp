@@ -27,6 +27,7 @@ void reshade::opengl::state_block::capture()
 	glGetIntegerv(GL_CURRENT_PROGRAM, &_program);
 	glGetIntegerv(GL_UNIFORM_BUFFER_BINDING, &_ubo);
 
+	// Technically should capture image bindings here as well ...
 	glGetIntegerv(GL_ACTIVE_TEXTURE, &_active_texture);
 	for (GLuint i = 0; i < 32; i++)
 	{

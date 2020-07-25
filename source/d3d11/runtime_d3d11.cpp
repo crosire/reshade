@@ -527,7 +527,8 @@ bool reshade::d3d11::runtime_d3d11::init_effect(size_t index)
 
 	const UINT max_uav_bindings =
 		_renderer_id >= D3D_FEATURE_LEVEL_11_1 ? D3D11_1_UAV_SLOT_COUNT :
-		_renderer_id == D3D_FEATURE_LEVEL_11_0 ? D3D11_PS_CS_UAV_REGISTER_COUNT : 0;
+		_renderer_id == D3D_FEATURE_LEVEL_11_0 ? D3D11_PS_CS_UAV_REGISTER_COUNT :
+		_renderer_id >= D3D_FEATURE_LEVEL_10_0 ? D3D11_CS_4_X_UAV_REGISTER_COUNT : 0;
 
 	d3d11_technique_data technique_init;
 	technique_init.srv_bindings.resize(effect.module.num_texture_bindings);
