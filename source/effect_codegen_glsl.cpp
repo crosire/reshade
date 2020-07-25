@@ -282,11 +282,11 @@ private:
 
 		// Append something to reserved names so that they do not fail to compile
 		if (name.compare(0, 3, "gl_") == 0 || s_reserverd_names.count(name))
-			name += "_RESERVED"; // Do not append an underscore at the end, since another one may get added in 'define_name'
+			name = '_' + name; // Append an underscore at start instead of the end, since another one may get added in 'define_name' when there is a suffix
 
-		// Remove double underscore symbols from name which can occur due to namespaces but are not allowed in GLSL
+		// Remove duplicated underscore symbols from name which can occur due to namespaces but are not allowed in GLSL
 		for (size_t pos = 0; (pos = name.find("__", pos)) != std::string::npos; pos += 3)
-			name.replace(pos, 2, "_UNDERSCORE");
+			name.replace(pos, 2, "_");
 
 		return name;
 	}
