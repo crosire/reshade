@@ -535,7 +535,7 @@ In that event here are some steps you can try to resolve this:
 					var info = FileVersionInfo.GetVersionInfo(targetPath);
 					if (info.LegalCopyright != null)
 					{
-						Match match = new Regex("(20|19[0-9]{2})").Match(info.LegalCopyright);
+						Match match = new Regex("(20[0-9]{2})", RegexOptions.RightToLeft).Match(info.LegalCopyright);
 						if (match.Success && int.TryParse(match.Groups[1].Value, out int year))
 						{
 							// Modern games usually use reversed depth
