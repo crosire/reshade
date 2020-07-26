@@ -1,4 +1,4 @@
-﻿<Window x:Class="ReShade.Setup.Dialogs.SelectEffectsDialog" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" Title="Select effect files" Width="510" Height="638" MinWidth="355" MinHeight="275" WindowStyle="None" WindowStartupLocation="CenterOwner" FocusManager.FocusedElement="{Binding ElementName=ItemsListBox}">
+﻿<Window x:Class="ReShade.Setup.Dialogs.SelectEffectsDialog" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" Title="Select effect files" Width="510" Height="638" MinWidth="410" MinHeight="275" WindowStyle="None" WindowStartupLocation="CenterOwner" FocusManager.FocusedElement="{Binding ElementName=ItemsListBox}">
   <DockPanel LastChildFill="True">
     <Label DockPanel.Dock="Top" Margin="10" Padding="0" VerticalAlignment="Top" HorizontalContentAlignment="Stretch" Foreground="#FF003399" FontSize="16">
       <StackPanel Orientation="Horizontal">
