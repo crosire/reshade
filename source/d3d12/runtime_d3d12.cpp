@@ -490,6 +490,14 @@ bool reshade::d3d12::runtime_d3d12::capture_screenshot(uint8_t *buffer) const
 		else
 		{
 			std::memcpy(buffer, mapped_data, data_pitch);
+
+			if (_backbuffer_format == DXGI_FORMAT_B8G8R8A8_UNORM ||
+				_backbuffer_format == DXGI_FORMAT_B8G8R8A8_UNORM_SRGB)
+			{
+				// Format is BGRA, but output should be RGBA, so flip channels
+				for (uint32_t x = 0; x < data_pitch; x += 4)
+					std::swap(buffer[x + 0], buffer[x + 2]);
+			}
 		}
 	}
 
