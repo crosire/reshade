@@ -526,7 +526,7 @@ void reshade::runtime::draw_ui()
 		}
 		else
 		{
-			ImGui::TextUnformatted("ReShade " VERSION_STRING_FILE " by crosire");
+			ImGui::TextUnformatted("ReShade " VERSION_STRING_PRODUCT " by crosire");
 
 			if (_needs_update)
 			{
@@ -1612,7 +1612,7 @@ void reshade::runtime::draw_ui_log()
 }
 void reshade::runtime::draw_ui_about()
 {
-	ImGui::TextUnformatted("ReShade " VERSION_STRING_FILE);
+	ImGui::TextUnformatted("ReShade " VERSION_STRING_PRODUCT);
 
 	ImGui::PushTextWrapPos();
 	ImGui::TextUnformatted(R"(Copyright (C) 2014 Patrick Mours. All rights reserved.
