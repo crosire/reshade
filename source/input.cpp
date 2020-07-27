@@ -12,6 +12,7 @@
 #include <unordered_map>
 #include <Windows.h>
 
+extern HMODULE g_module_handle;
 static std::mutex s_windows_mutex;
 static std::unordered_map<HWND, unsigned int> s_raw_input_windows;
 static std::unordered_map<HWND, std::weak_ptr<reshade::input>> s_windows;
@@ -361,7 +362,7 @@ void reshade::input::next_frame()
 
 	// Reset any pressed down key states (apart from mouse buttons) that have not been updated for more than 5 seconds
 	// Do not check mouse buttons here, since 'GetAsyncKeyState' always returns the state of the physical mouse buttons, not the logical ones in case they were remapped
-	// See also https://docs.microsoft.com/windows/win32/api/winuser/nf-winuser-getasynckeystate
+	// See https://docs.microsoft.com/windows/win32/api/winuser/nf-winuser-getasynckeystate
 	// And time is not tracked for mouse buttons anyway
 	const DWORD time = GetTickCount();
 	for (unsigned int i = 8; i < 256; ++i)
@@ -459,41 +460,24 @@ static inline bool is_blocking_keyboard_input()
 
 HOOK_EXPORT BOOL WINAPI HookGetMessageA(LPMSG lpMsg, HWND hWnd, UINT wMsgFilterMin, UINT wMsgFilterMax)
 {
-	static const auto trampoline = reshade::hooks::call(HookGetMessageA);
-	if (!trampoline(lpMsg, hWnd, wMsgFilterMin, wMsgFilterMax))
-		return FALSE;
+	// Implement 'GetMessage' with a timeout (see also DLL_PROCESS_DETACH in dllmain.cpp for more explanation)
+	while (!PeekMessageA(lpMsg, hWnd, wMsgFilterMin, wMsgFilterMax, PM_REMOVE) && g_module_handle != nullptr)
+		MsgWaitForMultipleObjects(0, nullptr, FALSE, 1000, QS_ALLINPUT);
 
-	assert(lpMsg != nullptr);
+	if (g_module_handle == nullptr)
+		std::memset(lpMsg, 0, sizeof(MSG)); // Clear message structure, so application does not process it
 
-	if (lpMsg->hwnd != nullptr && reshade::input::handle_window_message(lpMsg))
-	{
-		// We still want 'WM_CHAR' messages, so translate message
-		TranslateMessage(lpMsg);
-
-		// Change message so it is ignored by the recipient window
-		lpMsg->message = WM_NULL;
-	}
-
-	return TRUE;
+	return lpMsg->message != WM_QUIT;
 }
 HOOK_EXPORT BOOL WINAPI HookGetMessageW(LPMSG lpMsg, HWND hWnd, UINT wMsgFilterMin, UINT wMsgFilterMax)
 {
-	static const auto trampoline = reshade::hooks::call(HookGetMessageW);
-	if (!trampoline(lpMsg, hWnd, wMsgFilterMin, wMsgFilterMax))
-		return FALSE;
+	while (!PeekMessageW(lpMsg, hWnd, wMsgFilterMin, wMsgFilterMax, PM_REMOVE) && g_module_handle != nullptr)
+		MsgWaitForMultipleObjects(0, nullptr, FALSE, 1000, QS_ALLINPUT);
 
-	assert(lpMsg != nullptr);
+	if (g_module_handle == nullptr)
+		std::memset(lpMsg, 0, sizeof(MSG));
 
-	if (lpMsg->hwnd != nullptr && reshade::input::handle_window_message(lpMsg))
-	{
-		// We still want 'WM_CHAR' messages, so translate message
-		TranslateMessage(lpMsg);
-
-		// Change message so it is ignored by the recipient window
-		lpMsg->message = WM_NULL;
-	}
-
-	return TRUE;
+	return lpMsg->message != WM_QUIT;
 }
 HOOK_EXPORT BOOL WINAPI HookPeekMessageA(LPMSG lpMsg, HWND hWnd, UINT wMsgFilterMin, UINT wMsgFilterMax, UINT wRemoveMsg)
 {
@@ -555,7 +539,7 @@ HOOK_EXPORT BOOL WINAPI HookPostMessageW(HWND hWnd, UINT Msg, WPARAM wParam, LPA
 HOOK_EXPORT BOOL WINAPI HookRegisterRawInputDevices(PCRAWINPUTDEVICE pRawInputDevices, UINT uiNumDevices, UINT cbSize)
 {
 #if RESHADE_VERBOSE_LOG
-	LOG(DEBUG) << "Redirecting RegisterRawInputDevices" << '(' << "pRawInputDevices = " << pRawInputDevices << ", uiNumDevices = " << uiNumDevices << ", cbSize = " << cbSize << ')' << " ...";
+	LOG(DEBUG) << "Redirecting " << "RegisterRawInputDevices" << '(' << "pRawInputDevices = " << pRawInputDevices << ", uiNumDevices = " << uiNumDevices << ", cbSize = " << cbSize << ')' << " ...";
 #endif
 	for (UINT i = 0; i < uiNumDevices; ++i)
 	{
@@ -581,7 +565,7 @@ HOOK_EXPORT BOOL WINAPI HookRegisterRawInputDevices(PCRAWINPUTDEVICE pRawInputDe
 
 	if (!reshade::hooks::call(HookRegisterRawInputDevices)(pRawInputDevices, uiNumDevices, cbSize))
 	{
-		LOG(WARN) << "RegisterRawInputDevices failed with error code " << GetLastError() << '!';
+		LOG(WARN) << "RegisterRawInputDevices" << " failed with error code " << GetLastError() << '!';
 		return FALSE;
 	}
 

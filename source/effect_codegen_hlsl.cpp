@@ -75,6 +75,8 @@ private:
 		{
 			if (type.has(type::q_precise))
 				s += "precise ";
+			if (type.has(type::q_groupshared))
+				s += "groupshared ";
 		}
 
 		if constexpr (is_param)
@@ -119,6 +121,9 @@ private:
 			break;
 		case type::t_sampler:
 			s += "__sampler2D";
+			break;
+		case type::t_texture:
+			s += "RWTexture2D<float4>";
 			break;
 		default:
 			assert(false);
@@ -255,6 +260,8 @@ private:
 				return "DEPTH";
 			if (semantic == "SV_VERTEXID")
 				return "TEXCOORD0 /* VERTEXID */";
+			if (semantic == "SV_ISFRONTFACE")
+				return "VFACE";
 		}
 		else
 		{
@@ -330,21 +337,23 @@ private:
 	id   define_texture(const location &loc, texture_info &info) override
 	{
 		info.id = make_id();
-		info.binding = _module.num_texture_bindings;
 
-		_module.textures.push_back(info);
-
-		std::string &code = _blocks.at(_current_block);
+		define_name<naming::unique>(info.id, info.unique_name);
 
 		if (_shader_model >= 40)
 		{
+			info.binding = _module.num_texture_bindings;
+			_module.num_texture_bindings += 2;
+
+			std::string &code = _blocks.at(_current_block);
+
 			write_location(code, loc);
 
-			code += "Texture2D "       + info.unique_name + " : register(t" + std::to_string(info.binding + 0) + ");\n";
+			code += "Texture2D __"     + info.unique_name + " : register(t" + std::to_string(info.binding + 0) + ");\n";
 			code += "Texture2D __srgb" + info.unique_name + " : register(t" + std::to_string(info.binding + 1) + ");\n";
-
-			_module.num_texture_bindings += 2;
 		}
+
+		_module.textures.push_back(info);
 
 		return info.id;
 	}
@@ -382,7 +391,7 @@ private:
 
 			write_location(code, loc);
 
-			code += "static const __sampler2D " + id_to_name(info.id) + " = { " + (info.srgb ? "__srgb" : "") + info.texture_name + ", __s" + std::to_string(info.binding) + " };\n";
+			code += "static const __sampler2D " + id_to_name(info.id) + " = { " + (info.srgb ? "__srgb" : "__") + info.texture_name + ", __s" + std::to_string(info.binding) + " };\n";
 		}
 		else
 		{
@@ -403,6 +412,27 @@ private:
 		}
 
 		_module.samplers.push_back(info);
+
+		return info.id;
+	}
+	id   define_storage(const location &loc, storage_info &info) override
+	{
+		info.id = make_id();
+
+		define_name<naming::unique>(info.id, info.unique_name);
+
+		if (_shader_model >= 50)
+		{
+			info.binding = _module.num_storage_bindings++;
+
+			std::string &code = _blocks.at(_current_block);
+
+			write_location(code, loc);
+
+			code += "RWTexture2D<float4> " + info.unique_name + " : register(u" + std::to_string(info.binding) + ");\n";
+		}
+
+		_module.storages.push_back(info);
 
 		return info.id;
 	}
@@ -517,16 +547,8 @@ private:
 	}
 	id   define_function(const location &loc, function_info &info) override
 	{
-		return define_function(loc, info, _shader_model >= 40);
-	}
-	id   define_function(const location &loc, function_info &info, bool is_entry_point)
-	{
-		std::string name = info.unique_name;
-		if (!is_entry_point)
-			name += '_';
-
 		info.definition = make_id();
-		define_name<naming::unique>(info.definition, std::move(name));
+		define_name<naming::unique>(info.definition, info.unique_name);
 
 		std::string &code = _blocks.at(_current_block);
 
@@ -551,7 +573,7 @@ private:
 			if (param.type.is_array())
 				code += '[' + std::to_string(param.type.array_length) + ']';
 
-			if (is_entry_point && !param.semantic.empty())
+			if (!param.semantic.empty())
 				code += " : " + convert_semantic(param.semantic);
 
 			if (i < num_params - 1)
@@ -560,7 +582,7 @@ private:
 
 		code += ')';
 
-		if (is_entry_point && !info.return_semantic.empty())
+		if (!info.return_semantic.empty())
 			code += " : " + convert_semantic(info.return_semantic);
 
 		code += '\n';
@@ -570,16 +592,22 @@ private:
 		return info.definition;
 	}
 
-	void define_entry_point(const function_info &func, bool is_ps) override
+	void define_entry_point(function_info &func, shader_type stype, int num_threads[2]) override
 	{
+		// Modify entry point name since a new function is created for it below
+		if (stype == shader_type::cs)
+			func.unique_name = 'E' + func.unique_name + '_' + std::to_string(num_threads[0]) + '_' + std::to_string(num_threads[1]);
+		else if (_shader_model < 40)
+			func.unique_name = 'E' + func.unique_name;
+
 		if (const auto it = std::find_if(_module.entry_points.begin(), _module.entry_points.end(),
 			[&func](const auto &ep) { return ep.name == func.unique_name; }); it != _module.entry_points.end())
 			return;
 
-		_module.entry_points.push_back({ func.unique_name, is_ps });
+		_module.entry_points.push_back({ func.unique_name, stype });
 
-		// Only have to rewrite the entry point function signature in shader model 3
-		if (_shader_model >= 40)
+		// Only have to rewrite the entry point function signature in shader model 3 and for compute (to write "numthreads" attribute)
+		if (_shader_model >= 40 && stype != shader_type::cs)
 			return;
 
 		auto entry_point = func;
@@ -592,7 +620,7 @@ private:
 
 		std::string position_variable_name;
 		{
-			if (func.return_type.is_struct() && !is_ps)
+			if (func.return_type.is_struct() && stype == shader_type::vs)
 			{
 				// If this function returns a struct which contains a position output, keep track of its member name
 				for (const auto &member : find_struct(func.return_type.definition).member_list)
@@ -603,12 +631,12 @@ private:
 			if (is_color_semantic(func.return_semantic))
 				// The COLOR output semantic has to be a four-component vector in shader model 3, so enforce that
 				entry_point.return_type.rows = 4;
-			else if (is_position_semantic(func.return_semantic) && !is_ps)
+			else if (is_position_semantic(func.return_semantic) && stype == shader_type::vs)
 				position_variable_name = id_to_name(ret);
 		}
 		for (auto &param : entry_point.parameter_list)
 		{
-			if (param.type.is_struct() && !is_ps)
+			if (param.type.is_struct() && stype == shader_type::vs)
 			{
 				for (const auto &member : find_struct(param.type.definition).member_list)
 					if (is_position_semantic(member.semantic))
@@ -618,13 +646,19 @@ private:
 			if (is_color_semantic(param.semantic))
 				param.type.rows = 4;
 			else if (is_position_semantic(param.semantic))
-				if (is_ps) // Change the position input semantic in pixel shaders
+				if (stype == shader_type::ps) // Change the position input semantic in pixel shaders
 					param.semantic = "VPOS";
 				else // Keep track of the position output variable
 					position_variable_name = param.name;
 		}
 
-		define_function({}, entry_point, true);
+		if (stype == shader_type::cs)
+			_blocks.at(_current_block) += "[numthreads(" +
+				std::to_string(num_threads[0]) + ", " +
+				std::to_string(num_threads[1]) + ", " +
+				"1)]\n";
+
+		define_function({}, entry_point);
 		enter_block(create_block());
 
 		std::string &code = _blocks.at(_current_block);
@@ -671,7 +705,7 @@ private:
 		code += ";\n";
 
 		// Shift everything by half a viewport pixel to workaround the different half-pixel offset in D3D9 (https://aras-p.info/blog/2016/04/08/solving-dx9-half-pixel-offset/)
-		if (!position_variable_name.empty() && !is_ps) // Check if we are in a vertex shader definition
+		if (!position_variable_name.empty() && stype == shader_type::vs) // Check if we are in a vertex shader definition
 			code += '\t' + position_variable_name + ".xy += __TEXEL_SIZE__ * " + position_variable_name + ".ww;\n";
 
 		leave_block_and_return(func.return_type.is_void() ? 0 : ret);
@@ -1030,7 +1064,7 @@ private:
 #include "effect_symbol_table_intrinsics.inl"
 		};
 
-		if (_shader_model >= 40 && (intrinsic == tex2Dsize0 || intrinsic == tex2Dsize1))
+		if (_shader_model >= 40 && (intrinsic == tex2Dsize0 || intrinsic == tex2Dsize1 || intrinsic == tex2Dsize2))
 		{
 			// Implementation of the 'tex2Dsize' intrinsic passes the result variable into 'GetDimensions' as output argument
 			write_type(code, res_type);

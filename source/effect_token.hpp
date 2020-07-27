@@ -121,6 +121,7 @@ namespace reshadefx
 		uniform_,
 		volatile_,
 		precise,
+		groupshared,
 		in,
 		out,
 		inout,
@@ -164,6 +165,7 @@ namespace reshadefx
 		string_,
 		texture,
 		sampler,
+		storage,
 
 		// preprocessor directives
 		hash_def,

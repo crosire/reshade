@@ -56,6 +56,13 @@ namespace reshadefx
 		/// <returns>New SSA ID of the binding.</returns>
 		virtual id define_sampler(const location &loc, sampler_info &info) = 0;
 		/// <summary>
+		/// Define a new storage binding.
+		/// </summary>
+		/// <param name="loc">Source location matching this definition (for debugging).</param>
+		/// <param name="info">The storage description.</param>
+		/// <returns>New SSA ID of the binding.</returns>
+		virtual id define_storage(const location &loc, storage_info &info) = 0;
+		/// <summary>
 		/// Define a new uniform variable.
 		/// </summary>
 		/// <param name="loc">Source location matching this definition (for debugging).</param>
@@ -89,9 +96,10 @@ namespace reshadefx
 		/// <summary>
 		/// Make a function a shader entry point.
 		/// </summary>
-		/// <param name="function">The function to use as entry point.</param>
-		/// <param name="is_ps"><c>true</c> if this is a pixel shader, <c>false</c> if it is a vertex shader.</param>
-		virtual void define_entry_point(const function_info &function, bool is_ps) = 0;
+		/// <param name="function">The function to use as entry point. May be overwritten to point to a new unique function for this entry point.</param>
+		/// <param name="type">The shader type (vertex, pixel or compute shader).</param>
+		/// <param name="num_threads">The number of local threads it this is a compute entry point.</param>
+		virtual void define_entry_point(function_info &function, shader_type type, int num_threads[2] = nullptr) = 0;
 
 		/// <summary>
 		/// Resolve the access chain and add a load operation to the output.

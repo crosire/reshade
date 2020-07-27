@@ -77,6 +77,18 @@ void reshade::d3d11::state_block::capture(ID3D11DeviceContext *devicecontext)
 	_device_context->OMGetBlendState(&_om_blend_state, _om_blend_factor, &_om_sample_mask);
 	_device_context->OMGetDepthStencilState(&_om_depth_stencil_state, &_om_stencil_ref);
 	_device_context->OMGetRenderTargets(ARRAYSIZE(_om_render_targets), _om_render_targets, &_om_depth_stencil);
+
+	if (_device_feature_level >= D3D_FEATURE_LEVEL_10_0)
+	{
+		_cs_num_class_instances = ARRAYSIZE(_cs_class_instances);
+		_device_context->CSGetShader(&_cs, _cs_class_instances, &_cs_num_class_instances);
+		_device_context->CSGetConstantBuffers(0, ARRAYSIZE(_cs_constant_buffers), _cs_constant_buffers);
+		_device_context->CSGetSamplers(0, ARRAYSIZE(_cs_sampler_states), _cs_sampler_states);
+		_device_context->CSGetShaderResources(0, ARRAYSIZE(_cs_shader_resources), _cs_shader_resources);
+		_device_context->CSGetUnorderedAccessViews(0,
+			_device_feature_level >= D3D_FEATURE_LEVEL_11_1 ? D3D11_1_UAV_SLOT_COUNT :
+			_device_feature_level == D3D_FEATURE_LEVEL_11_0 ? D3D11_PS_CS_UAV_REGISTER_COUNT : D3D11_CS_4_X_UAV_REGISTER_COUNT, _cs_unordered_access_views);
+	}
 }
 void reshade::d3d11::state_block::apply_and_release()
 {
@@ -122,6 +134,19 @@ void reshade::d3d11::state_block::apply_and_release()
 	_device_context->OMSetDepthStencilState(_om_depth_stencil_state, _om_stencil_ref);
 	_device_context->OMSetRenderTargets(ARRAYSIZE(_om_render_targets), _om_render_targets, _om_depth_stencil);
 
+	if (_device_feature_level >= D3D_FEATURE_LEVEL_10_0)
+	{
+		_device_context->CSSetShader(_cs, _cs_class_instances, _cs_num_class_instances);
+		_device_context->CSSetConstantBuffers(0, ARRAYSIZE(_cs_constant_buffers), _cs_constant_buffers);
+		_device_context->CSSetSamplers(0, ARRAYSIZE(_cs_sampler_states), _cs_sampler_states);
+		_device_context->CSSetShaderResources(0, ARRAYSIZE(_cs_shader_resources), _cs_shader_resources);
+		UINT uav_initial_counts[D3D11_1_UAV_SLOT_COUNT];
+		std::memset(uav_initial_counts, -1, sizeof(uav_initial_counts)); // Keep the current offset
+		_device_context->CSSetUnorderedAccessViews(0,
+			_device_feature_level >= D3D_FEATURE_LEVEL_11_1 ? D3D11_1_UAV_SLOT_COUNT :
+			_device_feature_level == D3D_FEATURE_LEVEL_11_0 ? D3D11_PS_CS_UAV_REGISTER_COUNT : D3D11_CS_4_X_UAV_REGISTER_COUNT, _cs_unordered_access_views, uav_initial_counts);
+	}
+
 	release_all_device_objects();
 
 	_device_context.reset();
@@ -166,4 +191,15 @@ void reshade::d3d11::state_block::release_all_device_objects()
 	for (auto &render_target : _om_render_targets)
 		safe_release(render_target);
 	safe_release(_om_depth_stencil);
+	safe_release(_cs);
+	for (UINT i = 0; i < _cs_num_class_instances; i++)
+		safe_release(_cs_class_instances[i]);
+	for (auto &constant_buffer : _cs_constant_buffers)
+		safe_release(constant_buffer);
+	for (auto &sampler_state : _cs_sampler_states)
+		safe_release(sampler_state);
+	for (auto &shader_resource : _cs_shader_resources)
+		safe_release(shader_resource);
+	for (auto &unordered_access_view : _cs_unordered_access_views)
+		safe_release(unordered_access_view);
 }

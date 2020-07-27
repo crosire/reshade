@@ -174,6 +174,8 @@ namespace reshadefx
 		uint32_t height = 1;
 		uint32_t levels = 1;
 		texture_format format = texture_format::rgba8;
+		bool render_target = false;
+		bool storage_access = false;
 	};
 
 	/// <summary>
@@ -198,6 +200,17 @@ namespace reshadefx
 	};
 
 	/// <summary>
+	/// A texture storage object defined in the shader code.
+	/// </summary>
+	struct storage_info
+	{
+		uint32_t id = 0;
+		uint32_t binding = 0;
+		std::string unique_name;
+		std::string texture_name;
+	};
+
+	/// <summary>
 	/// An uniform variable defined in the shader code.
 	/// </summary>
 	struct uniform_info
@@ -212,12 +225,22 @@ namespace reshadefx
 	};
 
 	/// <summary>
+	/// Type of a shader.
+	/// </summary>
+	enum class shader_type
+	{
+		vs,
+		ps,
+		cs,
+	};
+
+	/// <summary>
 	/// A shader entry point function.
 	/// </summary>
 	struct entry_point
 	{
 		std::string name;
-		bool is_pixel_shader;
+		shader_type type;
 	};
 
 	/// <summary>
@@ -241,6 +264,7 @@ namespace reshadefx
 		std::string render_target_names[8] = {};
 		std::string vs_entry_point;
 		std::string ps_entry_point;
+		std::string cs_entry_point;
 		uint8_t clear_render_targets = false;
 		uint8_t srgb_write_enable = false;
 		uint8_t blend_enable = false;
@@ -286,11 +310,13 @@ namespace reshadefx
 		std::vector<entry_point> entry_points;
 		std::vector<texture_info> textures;
 		std::vector<sampler_info> samplers;
+		std::vector<storage_info> storages;
 		std::vector<uniform_info> uniforms, spec_constants;
 		std::vector<technique_info> techniques;
 
 		uint32_t total_uniform_size = 0;
-		uint32_t num_sampler_bindings = 0;
 		uint32_t num_texture_bindings = 0;
+		uint32_t num_sampler_bindings = 0;
+		uint32_t num_storage_bindings = 0;
 	};
 }

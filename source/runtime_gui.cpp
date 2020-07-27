@@ -433,6 +433,8 @@ void reshade::runtime::build_font_atlas()
 	_imgui_font_atlas->unique_name = "ImGUI Font Atlas";
 	if (init_texture(*_imgui_font_atlas))
 		upload_texture(*_imgui_font_atlas, pixels);
+	else
+		_imgui_font_atlas.reset();
 }
 
 void reshade::runtime::draw_ui()
@@ -453,6 +455,8 @@ void reshade::runtime::draw_ui()
 
 	if (_rebuild_font_atlas)
 		build_font_atlas();
+	if (_imgui_font_atlas == nullptr)
+		return; // Cannot render UI without font atlas
 
 	ImGui::SetCurrentContext(_imgui_context);
 	auto &imgui_io = _imgui_context->IO;
@@ -522,7 +526,7 @@ void reshade::runtime::draw_ui()
 		}
 		else
 		{
-			ImGui::TextUnformatted("ReShade " VERSION_STRING_FILE " by crosire");
+			ImGui::TextUnformatted("ReShade " VERSION_STRING_PRODUCT " by crosire");
 
 			if (_needs_update)
 			{
@@ -1376,7 +1380,7 @@ void reshade::runtime::draw_ui_statistics()
 				continue;
 
 			if (technique.average_cpu_duration != 0)
-				ImGui::Text("%*.3f ms CPU (%.0f%%)", cpu_digits + 4, technique.average_cpu_duration * 1e-6f, 100 * (technique.average_cpu_duration * 1e-6f) / (post_processing_time_cpu * 1e-6f));
+				ImGui::Text("%*.3f ms CPU", cpu_digits + 4, technique.average_cpu_duration * 1e-6f);
 			else
 				ImGui::NewLine();
 		}
@@ -1392,7 +1396,7 @@ void reshade::runtime::draw_ui_statistics()
 
 			// GPU timings are not available for all APIs
 			if (technique.average_gpu_duration != 0)
-				ImGui::Text("%*.3f ms GPU (%.0f%%)", gpu_digits + 4, technique.average_gpu_duration * 1e-6f, 100 * (technique.average_gpu_duration * 1e-6f) / (post_processing_time_gpu * 1e-6f));
+				ImGui::Text("%*.3f ms GPU", gpu_digits + 4, technique.average_gpu_duration * 1e-6f);
 			else
 				ImGui::NewLine();
 		}
@@ -1608,7 +1612,7 @@ void reshade::runtime::draw_ui_log()
 }
 void reshade::runtime::draw_ui_about()
 {
-	ImGui::TextUnformatted("ReShade " VERSION_STRING_FILE);
+	ImGui::TextUnformatted("ReShade " VERSION_STRING_PRODUCT);
 
 	ImGui::PushTextWrapPos();
 	ImGui::TextUnformatted(R"(Copyright (C) 2014 Patrick Mours. All rights reserved.
@@ -2612,6 +2616,18 @@ void reshade::runtime::draw_technique_editor()
 
 			ImGui::Separator();
 
+			if (ImGui::Button("Open folder in explorer", ImVec2(button_width, 0)))
+			{
+				// Use absolute path to explorer to avoid potential security issues when executable is replaced
+				WCHAR explorer_path[260] = L"";
+				GetWindowsDirectoryW(explorer_path, ARRAYSIZE(explorer_path));
+				wcscat_s(explorer_path, L"\\explorer.exe");
+
+				ShellExecuteW(nullptr, L"open", explorer_path, (L"/select,\"" + effect.source_file.wstring() + L"\"").c_str(), nullptr, SW_SHOWDEFAULT);
+			}
+
+			ImGui::Separator();
+
 			if (imgui_popup_button("Edit source code", button_width))
 			{
 				std::filesystem::path source_file;
@@ -2663,18 +2679,6 @@ void reshade::runtime::draw_technique_editor()
 					_show_code_viewer = true;
 					ImGui::CloseCurrentPopup();
 				}
-			}
-
-			ImGui::Separator();
-
-			if (ImGui::Button("Open folder in explorer", ImVec2(button_width, 0)))
-			{
-				// Use absolute path to explorer to avoid potential security issues when executable is replaced
-				WCHAR explorer_path[260] = L"";
-				GetWindowsDirectoryW(explorer_path, ARRAYSIZE(explorer_path));
-				wcscat_s(explorer_path, L"\\explorer.exe");
-
-				ShellExecuteW(nullptr, L"open", explorer_path, (L"/select,\"" + effect.source_file.wstring() + L"\"").c_str(), nullptr, SW_SHOWDEFAULT);
 			}
 
 			ImGui::EndPopup();

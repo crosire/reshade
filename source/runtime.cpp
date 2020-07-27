@@ -278,6 +278,19 @@ bool reshade::runtime::load_effect(const std::filesystem::path &path, size_t ind
 				pp.add_macro_definition(definition);
 		}
 
+		// Add some conversion macros for compatibility with older versions of ReShade
+		pp.append_string(
+			"#define tex2Dgather(s, t, c) tex2Dgather##c(s, t)\n"
+			"#define tex2Dgather0 tex2DgatherR\n"
+			"#define tex2Dgather1 tex2DgatherG\n"
+			"#define tex2Dgather2 tex2DgatherB\n"
+			"#define tex2Dgather3 tex2DgatherA\n"
+			"#define tex2Dgatheroffset(s, t, o, c) tex2Dgather##c##offset(s, t, o)\n"
+			"#define tex2Dgather0offset tex2DgatherRoffset\n"
+			"#define tex2Dgather1offset tex2DgatherGoffset\n"
+			"#define tex2Dgather2offset tex2DgatherBoffset\n"
+			"#define tex2Dgather3offset tex2DgatherAoffset\n");
+
 		if (!pp.append_file(path))
 			effect.compile_sucess = false;
 
@@ -1687,4 +1700,12 @@ void reshade::runtime::reset_uniform_value(uniform &variable)
 			break;
 		}
 	}
+}
+
+reshade::texture &reshade::runtime::look_up_texture_by_name(const std::string &unique_name)
+{
+	const auto it = std::find_if(_textures.begin(), _textures.end(),
+		[&unique_name](const auto &item) { return item.unique_name == unique_name && item.impl != nullptr; });
+	assert(it != _textures.end());
+	return *it;
 }

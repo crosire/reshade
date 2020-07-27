@@ -15,6 +15,7 @@ using System.Linq;
 using System.Net;
 using System.Reflection;
 using System.Security.Principal;
+using System.Text.RegularExpressions;
 using System.Windows;
 using System.Windows.Input;
 
@@ -526,11 +527,28 @@ In that event here are some steps you can try to resolve this:
 			var config = new IniFile(configPath);
 			if (compatibilityIni != null && !config.HasValue("GENERAL", "PreprocessorDefinitions"))
 			{
+				string depthReversed = compatibilityIni.GetString(targetName, "DepthReversed", "0");
+				string depthUpsideDown = compatibilityIni.GetString(targetName, "DepthUpsideDown", "0");
+				string depthLogarithmic = compatibilityIni.GetString(targetName, "DepthLogarithmic", "0");
+				if (!compatibilityIni.HasValue(targetName, "DepthReversed"))
+				{
+					var info = FileVersionInfo.GetVersionInfo(targetPath);
+					if (info.LegalCopyright != null)
+					{
+						Match match = new Regex("(20[0-9]{2})", RegexOptions.RightToLeft).Match(info.LegalCopyright);
+						if (match.Success && int.TryParse(match.Groups[1].Value, out int year))
+						{
+							// Modern games usually use reversed depth
+							depthReversed = year >= 2012 ? "1" : "0";
+						}
+					}
+				}
+
 				config.SetValue("GENERAL", "PreprocessorDefinitions",
 					"RESHADE_DEPTH_LINEARIZATION_FAR_PLANE=1000.0",
-					"RESHADE_DEPTH_INPUT_IS_UPSIDE_DOWN=" + compatibilityIni.GetString(targetName, "DepthUpsideDown", "0"),
-					"RESHADE_DEPTH_INPUT_IS_REVERSED=" + compatibilityIni.GetString(targetName, "DepthReversed", "0"),
-					"RESHADE_DEPTH_INPUT_IS_LOGARITHMIC=" + compatibilityIni.GetString(targetName, "DepthLogarithmic", "0"));
+					"RESHADE_DEPTH_INPUT_IS_UPSIDE_DOWN=" + depthUpsideDown,
+					"RESHADE_DEPTH_INPUT_IS_REVERSED=" + depthReversed,
+					"RESHADE_DEPTH_INPUT_IS_LOGARITHMIC=" + depthLogarithmic);
 
 				if (compatibilityIni.HasValue(targetName, "DepthCopyBeforeClears") ||
 					compatibilityIni.HasValue(targetName, "UseAspectRatioHeuristics"))
@@ -552,6 +570,9 @@ In that event here are some steps you can try to resolve this:
 						case "D3D12":
 							config.SetValue("DX12_BUFFER_DETECTION", "DepthBufferRetrievalMode", compatibilityIni.GetString(targetName, "DepthCopyBeforeClears", "0"));
 							config.SetValue("DX12_BUFFER_DETECTION", "UseAspectRatioHeuristics", compatibilityIni.GetString(targetName, "UseAspectRatioHeuristics", "1"));
+							break;
+						case "Vulkan":
+							config.SetValue("VULKAN_BUFFER_DETECTION", "UseAspectRatioHeuristics", compatibilityIni.GetString(targetName, "UseAspectRatioHeuristics", "1"));
 							break;
 					}
 				}

@@ -309,6 +309,9 @@ bool reshadefx::parser::accept_type_class(type &type)
 	case tokenid::sampler:
 		type.base = type::t_sampler;
 		break;
+	case tokenid::storage:
+		type.base = type::t_storage;
+		break;
 	default:
 		return false;
 	}
@@ -332,6 +335,8 @@ bool reshadefx::parser::accept_type_qualifiers(type &type)
 		qualifiers |= type::q_volatile;
 	if (accept(tokenid::precise))
 		qualifiers |= type::q_precise;
+	if (accept(tokenid::groupshared))
+		qualifiers |= type::q_groupshared;
 
 	if (accept(tokenid::in))
 		qualifiers |= type::q_in;
@@ -892,7 +897,7 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 
 				if (symbol.op == symbol_type::function || param_type.has(type::q_out))
 				{
-					if (param_type.is_sampler())
+					if (param_type.is_sampler() || param_type.is_storage())
 					{
 						// Do not shadow sampler parameters to function calls (but do load them for intrinsics)
 						parameters[i] = arguments[i];
@@ -916,7 +921,7 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 			// Copy in parameters from the argument access chains to parameter variables
 			for (size_t i = 0; i < arguments.size(); ++i)
 				// Only do this for pointer parameters as discovered above
-				if (parameters[i].is_lvalue && parameters[i].type.has(type::q_in) && !parameters[i].type.is_sampler())
+				if (parameters[i].is_lvalue && parameters[i].type.has(type::q_in) && !parameters[i].type.is_sampler() && !parameters[i].type.is_storage())
 					_codegen->emit_store(parameters[i], _codegen->emit_load(arguments[i]));
 
 			// Check if the call resolving found an intrinsic or function and invoke the corresponding code
@@ -929,7 +934,7 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 			// Copy out parameters from parameter variables back to the argument access chains
 			for (size_t i = 0; i < arguments.size(); ++i)
 				// Only do this for pointer parameters as discovered above
-				if (parameters[i].is_lvalue && parameters[i].type.has(type::q_out) && !parameters[i].type.is_sampler())
+				if (parameters[i].is_lvalue && parameters[i].type.has(type::q_out) && !parameters[i].type.is_sampler() && !parameters[i].type.is_storage())
 					_codegen->emit_store(arguments[i], _codegen->emit_load(parameters[i]));
 		}
 		else if (symbol.op == symbol_type::invalid)
@@ -2161,45 +2166,48 @@ bool reshadefx::parser::parse_top()
 		if (!parse_technique())
 			return false;
 	}
-	else if (type type; parse_type(type)) // Type found, this can be either a variable or a function declaration
+	else
 	{
-		if (!expect(tokenid::identifier))
-			return false;
-
-		if (peek('('))
+		if (type type; parse_type(type)) // Type found, this can be either a variable or a function declaration
 		{
-			const auto name = std::move(_token.literal_as_string);
-			// This is definitely a function declaration, so parse it
-			if (!parse_function(type, name)) {
-				// Insert dummy function into symbol table, so later references can be resolved despite the error
-				insert_symbol(name, { symbol_type::function, ~0u, { type::t_function } }, true);
+			if (!expect(tokenid::identifier))
 				return false;
+
+			if (peek('('))
+			{
+				const auto name = std::move(_token.literal_as_string);
+				// This is definitely a function declaration, so parse it
+				if (!parse_function(type, name)) {
+					// Insert dummy function into symbol table, so later references can be resolved despite the error
+					insert_symbol(name, { symbol_type::function, ~0u, { type::t_function } }, true);
+					return false;
+				}
+			}
+			else
+			{
+				// There may be multiple variable names after the type, handle them all
+				unsigned int count = 0;
+				do {
+					if (count++ > 0 && !(expect(',') && expect(tokenid::identifier)))
+						return false;
+					const auto name = std::move(_token.literal_as_string);
+					if (!parse_variable(type, name, true)) {
+						// Insert dummy variable into symbol table, so later references can be resolved despite the error
+						insert_symbol(name, { symbol_type::variable, ~0u, type }, true);
+						return consume_until(';'), false; // Skip the rest of the statement in case of an error
+					}
+				} while (!peek(';'));
+
+				if (!expect(';')) // Variable declarations are terminated with a semicolon
+					return false;
 			}
 		}
-		else
+		else if (!accept(';')) // Ignore single semicolons in the source
 		{
-			// There may be multiple variable names after the type, handle them all
-			unsigned int count = 0;
-			do {
-				if (count++ > 0 && !(expect(',') && expect(tokenid::identifier)))
-					return false;
-				const auto name = std::move(_token.literal_as_string);
-				if (!parse_variable(type, name, true)) {
-					// Insert dummy variable into symbol table, so later references can be resolved despite the error
-					insert_symbol(name, { symbol_type::variable, ~0u, type }, true);
-					return consume_until(';'), false; // Skip the rest of the statement in case of an error
-				}
-			} while (!peek(';'));
-
-			if (!expect(';')) // Variable declarations are terminated with a semicolon
-				return false;
+			consume(); // Unexpected token in source stream, consume and report an error about it
+			error(_token.location, 3000, "syntax error: unexpected '" + token::id_to_name(_token.id) + '\'');
+			return false;
 		}
-	}
-	else if (!accept(';')) // Ignore single semicolons in the source
-	{
-		consume(); // Unexpected token in source stream, consume and report an error about it
-		error(_token.location, 3000, "syntax error: unexpected '" + token::id_to_name(_token.id) + '\'');
-		return false;
 	}
 
 	return true;
@@ -2471,10 +2479,10 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 			if (type.has(type::q_volatile))
 				return error(location, 3008, '\'' + name + "': global variables cannot be declared 'volatile'"), false;
 		}
-		else
+		else if (!type.has(type::q_groupshared))
 		{
 			// Make all global variables 'uniform' by default, since they should be externally visible without the 'static' keyword
-			if (!type.has(type::q_uniform) && !(type.is_texture() || type.is_sampler()))
+			if (!type.has(type::q_uniform) && !(type.is_texture() || type.is_sampler() || type.is_storage()))
 				warning(location, 5000, '\'' + name + "': global variables are considered 'uniform' by default");
 
 			// Global variables that are not 'static' are always 'extern' and 'uniform'
@@ -2491,8 +2499,10 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 			return error(location, 3006, '\'' + name + "': local variables cannot be declared 'extern'"), false;
 		if (type.has(type::q_uniform))
 			return error(location, 3047, '\'' + name + "': local variables cannot be declared 'uniform'"), false;
+		if (type.has(type::q_groupshared))
+			return error(location, 3010, '\'' + name + "': local variables cannot be declared 'groupshared'"), false;
 
-		if (type.is_texture() || type.is_sampler())
+		if (type.is_texture() || type.is_sampler() || type.is_storage())
 			return error(location, 3038, '\'' + name + "': local variables cannot be textures or samplers"), false;
 	}
 
@@ -2504,6 +2514,7 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 	expression initializer;
 	texture_info texture_info;
 	sampler_info sampler_info;
+	storage_info storage_info;
 
 	if (accept(':'))
 	{
@@ -2530,6 +2541,8 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 			if (!parse_expression_assignment(initializer))
 				return false;
 
+			if (type.has(type::q_groupshared))
+				return error(initializer.location, 3009, '\'' + name + "': variables declared 'groupshared' cannot have an initializer"), false;
 			if (global && !initializer.is_constant) // TODO: This could be resolved by initializing these at the beginning of the entry point
 				return error(initializer.location, 3011, '\'' + name + "': initial value must be a literal expression"), false;
 
@@ -2623,8 +2636,14 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 					if (!expression.type.is_texture())
 						return error(expression.location, 3020, "type mismatch, expected texture name"), consume_until('}'), false;
 
-					texture_info = _codegen->find_texture(expression.base);
-					sampler_info.texture_name = texture_info.unique_name;
+					reshadefx::texture_info &target_info = _codegen->find_texture(expression.base);
+					if (type.is_storage())
+						// Texture is used as storage
+						target_info.storage_access = true;
+
+					texture_info = target_info;
+					sampler_info.texture_name = target_info.unique_name;
+					storage_info.texture_name = target_info.unique_name;
 				}
 				else
 				{
@@ -2718,6 +2737,20 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 		symbol = { symbol_type::variable, 0, type };
 		symbol.id = _codegen->define_sampler(location, sampler_info);
 	}
+	else if (type.is_storage())
+	{
+		assert(global);
+
+		if (storage_info.texture_name.empty())
+			return error(location, 3012, '\'' + name + "': missing 'Texture' property"), false;
+
+		// Add namespace scope to avoid name clashes
+		storage_info.unique_name = 'V' + current_scope().name + name;
+		std::replace(storage_info.unique_name.begin(), storage_info.unique_name.end(), ':', '_');
+
+		symbol = { symbol_type::variable, 0, type };
+		symbol.id = _codegen->define_storage(location, storage_info);
+	}
 	// Uniform variables are put into a global uniform buffer structure
 	else if (type.has(type::q_uniform))
 	{
@@ -2743,7 +2776,9 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 		std::replace(unique_name.begin(), unique_name.end(), ':', '_');
 
 		symbol = { symbol_type::variable, 0, type };
-		symbol.id = _codegen->define_variable(location, type, std::move(unique_name), global, _codegen->emit_load(initializer));
+		symbol.id = _codegen->define_variable(location, type, std::move(unique_name), global,
+			// Shared variables cannot have an initializer
+			type.has(type::q_groupshared) ? 0 : _codegen->emit_load(initializer));
 	}
 
 	// Insert the symbol into the symbol table
@@ -2794,7 +2829,7 @@ bool reshadefx::parser::parse_technique_pass(pass_info &info)
 
 	bool parse_success = true;
 	bool targets_support_srgb = true;
-	function_info vs_info, ps_info;
+	function_info vs_info, ps_info, cs_info;
 
 	if (!expect('{'))
 		return false;
@@ -2811,7 +2846,7 @@ bool reshadefx::parser::parse_technique_pass(pass_info &info)
 		if (!expect('='))
 			return consume_until('}'), false;
 
-		const bool is_shader_state = state == "VertexShader" || state == "PixelShader";
+		const bool is_shader_state = state == "VertexShader" || state == "PixelShader" || state == "ComputeShader";
 		const bool is_texture_state = state.compare(0, 12, "RenderTarget") == 0 && (state.size() == 12 || (state[12] >= '0' && state[12] < '8'));
 
 		// Shader and render target assignment looks up values in the symbol table, so handle those separately from the other states
@@ -2825,6 +2860,26 @@ bool reshadefx::parser::parse_technique_pass(pass_info &info)
 
 			location = std::move(_token.location);
 
+			int num_threads[2] = { 1, 1 };
+			if (accept('<'))
+			{
+				expression x, y;
+				if (!parse_expression_multary(x, 8) || !expect(',') || !parse_expression_multary(y, 8))
+					return consume_until('}'), false;
+
+				if (!x.is_constant)
+					return error(x.location, 3011, "value must be a literal expression"), consume_until('}'), false;
+				if (!y.is_constant)
+					return error(y.location, 3011, "value must be a literal expression"), consume_until('}'), false;
+				x.add_cast_operation({ type::t_int, 1, 1 });
+				y.add_cast_operation({ type::t_int, 1, 1 });
+				num_threads[0] = x.constant.as_int[0];
+				num_threads[1] = y.constant.as_int[0];
+
+				if (!expect('>'))
+					return consume_until('}'), false;
+			}
+
 			// Ignore invalid symbols that were added during error recovery
 			if (symbol.id != 0xFFFFFFFF)
 			{
@@ -2837,24 +2892,27 @@ bool reshadefx::parser::parse_technique_pass(pass_info &info)
 						parse_success = false,
 						error(location, 3020, "type mismatch, expected function name");
 					else {
-						const bool is_vs = state[0] == 'V';
-						const bool is_ps = state[0] == 'P';
-
 						// Look up the matching function info for this function definition
 						function_info &function_info = _codegen->find_function(symbol.id);
 
 						// We potentially need to generate a special entry point function which translates between function parameters and input/output variables
-						_codegen->define_entry_point(function_info, is_ps);
-
-						if (is_vs)
+						switch (state[0])
 						{
+						case 'V':
 							vs_info = function_info;
-							info.vs_entry_point = function_info.unique_name;
-						}
-						if (is_ps)
-						{
+							_codegen->define_entry_point(vs_info, shader_type::vs);
+							info.vs_entry_point = vs_info.unique_name;
+							break;
+						case 'P':
 							ps_info = function_info;
-							info.ps_entry_point = function_info.unique_name;
+							_codegen->define_entry_point(ps_info, shader_type::ps);
+							info.ps_entry_point = ps_info.unique_name;
+							break;
+						case 'C':
+							cs_info = function_info;
+							_codegen->define_entry_point(cs_info, shader_type::cs, num_threads);
+							info.cs_entry_point = cs_info.unique_name;
+							break;
 						}
 					}
 				}
@@ -2869,7 +2927,9 @@ bool reshadefx::parser::parse_technique_pass(pass_info &info)
 						parse_success = false,
 						error(location, 3020, "type mismatch, expected texture name");
 					else {
-						const texture_info &target_info = _codegen->find_texture(symbol.id);
+						reshadefx::texture_info &target_info = _codegen->find_texture(symbol.id);
+						// Texture is used as a render target
+						target_info.render_target = true;
 
 						// Verify that all render targets in this pass have the same dimensions
 						if (info.viewport_width != 0 && info.viewport_height != 0 && (target_info.width != info.viewport_width || target_info.height != info.viewport_height))
@@ -3003,6 +3063,10 @@ bool reshadefx::parser::parse_technique_pass(pass_info &info)
 				info.num_vertices = value;
 			else if (state == "PrimitiveType" || state == "PrimitiveTopology")
 				info.topology = static_cast<primitive_topology>(value);
+			else if (state == "DispatchSizeX")
+				info.viewport_width = value;
+			else if (state == "DispatchSizeY")
+				info.viewport_height = value;
 			else
 				parse_success = false,
 				error(location, 3004, "unrecognized pass state '" + state + '\'');
@@ -3014,7 +3078,15 @@ bool reshadefx::parser::parse_technique_pass(pass_info &info)
 
 	if (parse_success)
 	{
-		if (info.vs_entry_point.empty() || info.ps_entry_point.empty())
+		if (!info.cs_entry_point.empty())
+		{
+			if (info.viewport_width == 0 || info.viewport_height == 0)
+			{
+				parse_success = false;
+				error(pass_location, 3012, "pass is missing 'DispatchSizeX' or 'DispatchSizeY' property");
+			}
+		}
+		else if (info.vs_entry_point.empty() || info.ps_entry_point.empty())
 		{
 			parse_success = false;
 

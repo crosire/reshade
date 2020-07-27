@@ -27,6 +27,7 @@ namespace reshade::vulkan
 #if RESHADE_GUI
 		VkDescriptorSet descriptor_set = VK_NULL_HANDLE;
 #endif
+		uint32_t width = 0, height = 0, levels = 0;
 	};
 
 	struct vulkan_pass_data
@@ -34,14 +35,16 @@ namespace reshade::vulkan
 		VkPipeline pipeline = VK_NULL_HANDLE;
 		VkClearValue clear_values[8] = {};
 		VkRenderPassBeginInfo begin_info = { VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO };
+		std::vector<const vulkan_tex_data *> modified_resources;
 	};
 
 	struct vulkan_effect_data
 	{
 		VkQueryPool query_pool = VK_NULL_HANDLE;
-		VkDescriptorSet set[2] = {};
+		VkDescriptorSet set[3] = {};
 		VkPipelineLayout pipeline_layout = VK_NULL_HANDLE;
-		VkDescriptorSetLayout set_layout = VK_NULL_HANDLE;
+		VkDescriptorSetLayout sampler_layout = VK_NULL_HANDLE;
+		VkDescriptorSetLayout storage_layout = VK_NULL_HANDLE;
 		VkBuffer ubo = VK_NULL_HANDLE;
 		VmaAllocation ubo_mem = VK_NULL_HANDLE;
 		std::vector<VkDescriptorImageInfo> image_bindings;
@@ -50,6 +53,7 @@ namespace reshade::vulkan
 
 	struct vulkan_technique_data
 	{
+		bool has_compute_passes = false;
 		uint32_t query_base_index = 0;
 		std::vector<vulkan_pass_data> passes;
 	};
@@ -232,8 +236,8 @@ bool reshade::vulkan::runtime_vk::on_init(VkSwapchainKHR swapchain, const VkSwap
 
 	_width = desc.imageExtent.width;
 	_height = desc.imageExtent.height;
-	_window_width = window_rect.right - window_rect.left;
-	_window_height = window_rect.bottom - window_rect.top;
+	_window_width = window_rect.right;
+	_window_height = window_rect.bottom;
 	_color_bit_depth = desc.imageFormat >= VK_FORMAT_A2R10G10B10_UNORM_PACK32 && desc.imageFormat <= VK_FORMAT_A2B10G10R10_SINT_PACK32 ? 10 : 8;
 	_backbuffer_format = desc.imageFormat;
 
@@ -428,7 +432,8 @@ bool reshade::vulkan::runtime_vk::on_init(VkSwapchainKHR swapchain, const VkSwap
 	// Allocate a single descriptor pool for all effects
 	{   VkDescriptorPoolSize pool_sizes[] = {
 			{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, MAX_EFFECT_DESCRIPTOR_SETS }, // Only need one global UBO per set
-			{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, MAX_EFFECT_DESCRIPTOR_SETS * MAX_IMAGE_DESCRIPTOR_SETS }
+			{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, MAX_EFFECT_DESCRIPTOR_SETS * MAX_IMAGE_DESCRIPTOR_SETS },
+			{ VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, MAX_EFFECT_DESCRIPTOR_SETS * MAX_IMAGE_DESCRIPTOR_SETS },
 		};
 
 		VkDescriptorPoolCreateInfo create_info { VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO };
@@ -440,7 +445,7 @@ bool reshade::vulkan::runtime_vk::on_init(VkSwapchainKHR swapchain, const VkSwap
 		check_result(vk.CreateDescriptorPool(_device, &create_info, nullptr, &_effect_descriptor_pool)) false;
 	}
 
-	{   VkDescriptorSetLayoutBinding bindings = { 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_ALL_GRAPHICS };
+	{   VkDescriptorSetLayoutBinding bindings = { 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_ALL };
 		VkDescriptorSetLayoutCreateInfo create_info { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO };
 		create_info.bindingCount = 1;
 		create_info.pBindings = &bindings;
@@ -748,8 +753,7 @@ bool reshade::vulkan::runtime_vk::init_effect(size_t index)
 		// The AMD driver has a really hard time with SPIR-V modules that have multiple entry points.
 		// Trying to create a graphics pipeline using a shader module created from such a SPIR-V module tends to just fail with a generic VK_ERROR_OUT_OF_HOST_MEMORY.
 		// This is a pretty unpleasant driver bug, but until fixed, create a separate shader module for every entry point and rewrite the SPIR-V module for each to removes all but a single entry point (and associated functions/variables).
-		bool has_driver_bug = (_device_props.vendorID == 0x1002); // AMD
-
+		bool has_driver_bug = (_device_props.vendorID == 0x1002 /* AMD */);
 		if (!has_driver_bug)
 		{
 			VkShaderModuleCreateInfo create_info { VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO };
@@ -845,8 +849,7 @@ bool reshade::vulkan::runtime_vk::init_effect(size_t index)
 
 		if (res != VK_SUCCESS)
 		{
-			LOG(ERROR) << "Failed to create shader module. "
-				"Vulkan error code is " << res << '.';
+			LOG(ERROR) << "Failed to create shader module! Vulkan error code is " << res << '.';
 			return false;
 		}
 	}
@@ -867,19 +870,33 @@ bool reshade::vulkan::runtime_vk::init_effect(size_t index)
 	{   std::vector<VkDescriptorSetLayoutBinding> bindings;
 		bindings.reserve(effect.module.num_sampler_bindings);
 		for (uint32_t i = 0; i < effect.module.num_sampler_bindings; ++i)
-			bindings.push_back({ i, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_ALL_GRAPHICS });
+			bindings.push_back({ i, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_ALL });
 
 		VkDescriptorSetLayoutCreateInfo create_info { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO };
 		create_info.bindingCount = uint32_t(bindings.size());
 		create_info.pBindings = bindings.data();
 
-		check_result(vk.CreateDescriptorSetLayout(_device, &create_info, nullptr, &effect_data.set_layout)) false;
+		check_result(vk.CreateDescriptorSetLayout(_device, &create_info, nullptr, &effect_data.sampler_layout)) false;
 	}
 
-	const VkDescriptorSetLayout set_layouts[2] = { _effect_descriptor_layout, effect_data.set_layout };
+	if (effect.module.num_storage_bindings != 0)
+	{
+		std::vector<VkDescriptorSetLayoutBinding> bindings;
+		bindings.reserve(effect.module.num_storage_bindings);
+		for (uint32_t i = 0; i < effect.module.num_storage_bindings; ++i)
+			bindings.push_back({ i, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1, VK_SHADER_STAGE_COMPUTE_BIT });
+
+		VkDescriptorSetLayoutCreateInfo create_info { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO };
+		create_info.bindingCount = uint32_t(bindings.size());
+		create_info.pBindings = bindings.data();
+
+		check_result(vk.CreateDescriptorSetLayout(_device, &create_info, nullptr, &effect_data.storage_layout)) false;
+	}
+
+	const VkDescriptorSetLayout set_layouts[3] = { _effect_descriptor_layout, effect_data.sampler_layout, effect_data.storage_layout };
 
 	{   VkPipelineLayoutCreateInfo create_info { VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO };
-		create_info.setLayoutCount = 2; // [0] = Global UBO, [1] = Samplers
+		create_info.setLayoutCount = effect.module.num_storage_bindings == 0 ? 2 : 3; // [0] = Global UBO, [1] = Samplers, [2] = Storage Images
 		create_info.pSetLayouts = set_layouts;
 
 		check_result(vk.CreatePipelineLayout(_device, &create_info, nullptr, &effect_data.pipeline_layout)) false;
@@ -897,20 +914,17 @@ bool reshade::vulkan::runtime_vk::init_effect(size_t index)
 	}
 
 	// Initialize image and sampler bindings
-	std::vector<VkDescriptorImageInfo> image_bindings(effect.module.num_sampler_bindings);
+	std::vector<VkDescriptorImageInfo> sampler_bindings(effect.module.num_sampler_bindings);
+	std::vector<VkDescriptorImageInfo> storage_bindings(effect.module.num_storage_bindings);
 
 	for (const reshadefx::sampler_info &info : effect.module.samplers)
 	{
-		VkDescriptorImageInfo &image_binding = image_bindings[info.binding];
+		const texture &texture = look_up_texture_by_name(info.texture_name);
+
+		VkDescriptorImageInfo &image_binding = sampler_bindings[info.binding];
 		image_binding.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
-		const auto existing_texture = std::find_if(_textures.begin(), _textures.end(),
-			[&texture_name = info.texture_name](const auto &item) {
-			return item.unique_name == texture_name && item.impl != nullptr;
-		});
-		assert(existing_texture != _textures.end());
-
-		switch (existing_texture->impl_reference)
+		switch (texture.impl_reference)
 		{
 		case texture_reference::back_buffer:
 			image_binding.imageView = _backbuffer_image_view[info.srgb];
@@ -926,8 +940,7 @@ bool reshade::vulkan::runtime_vk::init_effect(size_t index)
 			effect_data.depth_image_binding = info.binding;
 			break;
 		default:
-			image_binding.imageView =
-				static_cast<vulkan_tex_data *>(existing_texture->impl)->view[info.srgb];
+			image_binding.imageView = static_cast<vulkan_tex_data *>(texture.impl)->view[info.srgb];
 			break;
 		}
 
@@ -996,7 +1009,7 @@ bool reshade::vulkan::runtime_vk::init_effect(size_t index)
 		for (size_t i = 0; i < sizeof(create_info); ++i)
 			desc_hash = (desc_hash * 16777619) ^ reinterpret_cast<const uint8_t *>(&create_info)[i];
 
-		auto it = _effect_sampler_states.find(desc_hash);
+		std::unordered_map<size_t, VkSampler>::iterator it = _effect_sampler_states.find(desc_hash);
 		if (it == _effect_sampler_states.end())
 		{
 			VkSampler sampler = VK_NULL_HANDLE;
@@ -1007,11 +1020,31 @@ bool reshade::vulkan::runtime_vk::init_effect(size_t index)
 		image_binding.sampler = it->second;
 	}
 
-	effect_data.image_bindings = image_bindings;
+	for (const reshadefx::storage_info &info : effect.module.storages)
+	{
+		const texture &texture = look_up_texture_by_name(info.texture_name);
+
+		VkDescriptorImageInfo &image_binding = storage_bindings[info.binding];
+		image_binding.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+
+		switch (texture.impl_reference)
+		{
+		case texture_reference::back_buffer:
+		case texture_reference::depth_buffer:
+			break;
+		default:
+			image_binding.imageView = static_cast<vulkan_tex_data *>(texture.impl)->view[0];
+			break;
+		}
+
+		// Unset bindings are not allowed, so fail initialization for the entire effect in that case
+		if (image_binding.imageView == VK_NULL_HANDLE)
+			return false;
+	}
 
 	{   VkDescriptorSetAllocateInfo alloc_info { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO };
 		alloc_info.descriptorPool = _effect_descriptor_pool;
-		alloc_info.descriptorSetCount = 2;
+		alloc_info.descriptorSetCount = effect.module.num_storage_bindings == 0 ? 2 : 3;
 		alloc_info.pSetLayouts = set_layouts;
 
 		if (vk.AllocateDescriptorSets(_device, &alloc_info, effect_data.set) != VK_SUCCESS)
@@ -1021,7 +1054,7 @@ bool reshade::vulkan::runtime_vk::init_effect(size_t index)
 		}
 
 		uint32_t num_writes = 0;
-		VkWriteDescriptorSet writes[2];
+		VkWriteDescriptorSet writes[3];
 		const VkDescriptorBufferInfo ubo_info = { effect_data.ubo, 0, VK_WHOLE_SIZE };
 
 		if (effect_data.ubo != VK_NULL_HANDLE)
@@ -1035,19 +1068,32 @@ bool reshade::vulkan::runtime_vk::init_effect(size_t index)
 			++num_writes;
 		}
 
-		if (!image_bindings.empty())
+		if (effect.module.num_sampler_bindings != 0)
 		{
 			writes[num_writes] = { VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
 			writes[num_writes].dstSet = effect_data.set[1];
 			writes[num_writes].dstBinding = 0;
-			writes[num_writes].descriptorCount = uint32_t(image_bindings.size());
+			writes[num_writes].descriptorCount = uint32_t(sampler_bindings.size());
 			writes[num_writes].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-			writes[num_writes].pImageInfo = image_bindings.data();
+			writes[num_writes].pImageInfo = sampler_bindings.data();
+			++num_writes;
+		}
+
+		if (effect.module.num_storage_bindings != 0)
+		{
+			writes[num_writes] = { VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
+			writes[num_writes].dstSet = effect_data.set[2];
+			writes[num_writes].dstBinding = 0;
+			writes[num_writes].descriptorCount = uint32_t(storage_bindings.size());
+			writes[num_writes].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+			writes[num_writes].pImageInfo = storage_bindings.data();
 			++num_writes;
 		}
 
 		vk.UpdateDescriptorSets(_device, num_writes, writes, 0, nullptr);
 	}
+
+	effect_data.image_bindings = std::move(sampler_bindings);
 
 	std::vector<uint8_t> spec_data;
 	std::vector<VkSpecializationMapEntry> spec_constants;
@@ -1059,6 +1105,11 @@ bool reshade::vulkan::runtime_vk::init_effect(size_t index)
 		spec_constants.push_back({ id, offset, constant.size });
 		std::memcpy(spec_data.data() + offset, &constant.initializer_value.as_uint[0], constant.size);
 	}
+
+	const VkSpecializationInfo spec_info {
+		static_cast<uint32_t>(spec_constants.size()), spec_constants.data(),
+		spec_data.size(), spec_data.data()
+	};
 
 	uint32_t technique_index = 0;
 	for (technique &technique : _techniques)
@@ -1078,287 +1129,310 @@ bool reshade::vulkan::runtime_vk::init_effect(size_t index)
 			vulkan_pass_data &pass_data = impl->passes[pass_index];
 			const reshadefx::pass_info &pass_info = technique.passes[pass_index];
 
-			const auto convert_blend_op = [](reshadefx::pass_blend_op value) -> VkBlendOp {
-				switch (value)
-				{
-				default:
-				case reshadefx::pass_blend_op::add: return VK_BLEND_OP_ADD;
-				case reshadefx::pass_blend_op::subtract: return VK_BLEND_OP_SUBTRACT;
-				case reshadefx::pass_blend_op::rev_subtract: return VK_BLEND_OP_REVERSE_SUBTRACT;
-				case reshadefx::pass_blend_op::min: return VK_BLEND_OP_MIN;
-				case reshadefx::pass_blend_op::max: return VK_BLEND_OP_MAX;
-				}
-			};
-			const auto convert_blend_func = [](reshadefx::pass_blend_func value) -> VkBlendFactor {
-				switch (value)
-				{
-				default:
-				case reshadefx::pass_blend_func::zero: return VK_BLEND_FACTOR_ZERO;
-				case reshadefx::pass_blend_func::one: return VK_BLEND_FACTOR_ONE;
-				case reshadefx::pass_blend_func::src_color: return VK_BLEND_FACTOR_SRC_COLOR;
-				case reshadefx::pass_blend_func::src_alpha: return VK_BLEND_FACTOR_SRC_ALPHA;
-				case reshadefx::pass_blend_func::inv_src_color: return VK_BLEND_FACTOR_ONE_MINUS_SRC_COLOR;
-				case reshadefx::pass_blend_func::inv_src_alpha: return VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
-				case reshadefx::pass_blend_func::dst_color: return VK_BLEND_FACTOR_DST_COLOR;
-				case reshadefx::pass_blend_func::dst_alpha: return VK_BLEND_FACTOR_DST_ALPHA;
-				case reshadefx::pass_blend_func::inv_dst_color: return VK_BLEND_FACTOR_ONE_MINUS_DST_COLOR;
-				case reshadefx::pass_blend_func::inv_dst_alpha: return VK_BLEND_FACTOR_ONE_MINUS_DST_ALPHA;
-				}
-			};
-			const auto convert_stencil_op = [](reshadefx::pass_stencil_op value) -> VkStencilOp {
-				switch (value) {
-				default:
-				case reshadefx::pass_stencil_op::keep: return VK_STENCIL_OP_KEEP;
-				case reshadefx::pass_stencil_op::zero: return VK_STENCIL_OP_ZERO;
-				case reshadefx::pass_stencil_op::invert: return VK_STENCIL_OP_INVERT;
-				case reshadefx::pass_stencil_op::replace: return VK_STENCIL_OP_REPLACE;
-				case reshadefx::pass_stencil_op::incr: return VK_STENCIL_OP_INCREMENT_AND_WRAP;
-				case reshadefx::pass_stencil_op::incr_sat: return VK_STENCIL_OP_INCREMENT_AND_CLAMP;
-				case reshadefx::pass_stencil_op::decr: return VK_STENCIL_OP_DECREMENT_AND_WRAP;
-				case reshadefx::pass_stencil_op::decr_sat: return VK_STENCIL_OP_DECREMENT_AND_CLAMP;
-				}
-			};
-			const auto convert_stencil_func = [](reshadefx::pass_stencil_func value) -> VkCompareOp {
-				switch (value)
-				{
-				default:
-				case reshadefx::pass_stencil_func::always: return VK_COMPARE_OP_ALWAYS;
-				case reshadefx::pass_stencil_func::never: return VK_COMPARE_OP_NEVER;
-				case reshadefx::pass_stencil_func::equal: return VK_COMPARE_OP_EQUAL;
-				case reshadefx::pass_stencil_func::not_equal: return VK_COMPARE_OP_NOT_EQUAL;
-				case reshadefx::pass_stencil_func::less: return VK_COMPARE_OP_LESS;
-				case reshadefx::pass_stencil_func::less_equal: return VK_COMPARE_OP_LESS_OR_EQUAL;
-				case reshadefx::pass_stencil_func::greater: return VK_COMPARE_OP_GREATER;
-				case reshadefx::pass_stencil_func::greater_equal: return VK_COMPARE_OP_GREATER_OR_EQUAL;
-				}
-			};
-
-			const VkRect2D scissor_rect = {
-				{ 0, 0 },
-				{ pass_info.viewport_width ? pass_info.viewport_width : _width,
-				  pass_info.viewport_height ? pass_info.viewport_height : _height }
-			};
-			const VkViewport viewport_rect = {
-				0.0f, 0.0f,
-				static_cast<float>(scissor_rect.extent.width), static_cast<float>(scissor_rect.extent.height),
-				0.0f, 1.0f
-			};
-
-			pass_data.begin_info.renderArea = scissor_rect;
-
-			uint32_t num_color_attachments = 0;
-			VkImageView attachment_views[9] = {};
-			VkAttachmentReference attachment_refs[9] = {};
-			VkAttachmentDescription attachment_descs[9] = {};
-			VkPipelineColorBlendAttachmentState attachment_blends[8];
-			attachment_blends[0].blendEnable = pass_info.blend_enable;
-			attachment_blends[0].srcColorBlendFactor = convert_blend_func(pass_info.src_blend);
-			attachment_blends[0].dstColorBlendFactor = convert_blend_func(pass_info.dest_blend);
-			attachment_blends[0].colorBlendOp = convert_blend_op(pass_info.blend_op);
-			attachment_blends[0].srcAlphaBlendFactor = convert_blend_func(pass_info.src_blend_alpha);
-			attachment_blends[0].dstAlphaBlendFactor = convert_blend_func(pass_info.dest_blend_alpha);
-			attachment_blends[0].alphaBlendOp = convert_blend_op(pass_info.blend_op_alpha);
-			attachment_blends[0].colorWriteMask = pass_info.color_write_mask;
-
-			for (uint32_t k = 0; k < 8 && !pass_info.render_target_names[k].empty(); ++k, ++num_color_attachments)
+			if (!pass_info.cs_entry_point.empty())
 			{
-				const auto texture_impl = static_cast<vulkan_tex_data *>(std::find_if(_textures.begin(), _textures.end(),
-					[&render_target = pass_info.render_target_names[k]](const auto &item) {
-					return item.unique_name == render_target;
-				})->impl);
-				assert(texture_impl != nullptr);
+				impl->has_compute_passes = true;
 
-				attachment_views[k] = texture_impl->view[2 + pass_info.srgb_write_enable];
-				attachment_blends[k] = attachment_blends[0];
+				for (const reshadefx::storage_info &info : effect.module.storages)
+				{
+					const texture &texture = look_up_texture_by_name(info.texture_name);
 
-				VkAttachmentReference &attachment_ref = attachment_refs[k];
-				attachment_ref.attachment = k;
-				attachment_ref.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+					pass_data.modified_resources.push_back(static_cast<vulkan_tex_data *>(texture.impl));
+				}
 
-				VkAttachmentDescription &attachment_desc = attachment_descs[k];
-				attachment_desc.format = texture_impl->formats[pass_info.srgb_write_enable];
-				attachment_desc.samples = VK_SAMPLE_COUNT_1_BIT;
-				attachment_desc.loadOp = pass_info.clear_render_targets ? VK_ATTACHMENT_LOAD_OP_CLEAR : pass_info.blend_enable ? VK_ATTACHMENT_LOAD_OP_LOAD : VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-				attachment_desc.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-				attachment_desc.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-				attachment_desc.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-				attachment_desc.initialLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-				attachment_desc.finalLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-			}
+				VkComputePipelineCreateInfo create_info { VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO };
+				create_info.stage = { VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO };
+				create_info.stage.stage = VK_SHADER_STAGE_COMPUTE_BIT;
+				create_info.stage.module = entry_points.at(pass_info.cs_entry_point);;
+				create_info.stage.pName = pass_info.cs_entry_point.c_str();
+				create_info.stage.pSpecializationInfo = &spec_info;
+				create_info.layout = effect_data.pipeline_layout;
 
-			if (pass_info.clear_render_targets)
-			{
-				pass_data.begin_info.clearValueCount = num_color_attachments;
-				pass_data.begin_info.pClearValues = pass_data.clear_values; // These are initialized to zero already
-			}
-
-			if (pass_info.render_target_names[0].empty())
-			{
-				num_color_attachments = 1;
-				pass_data.begin_info.renderPass = _default_render_pass[pass_info.srgb_write_enable];
-				pass_data.begin_info.framebuffer = VK_NULL_HANDLE; // Select the correct swapchain frame buffer during rendering
+				const VkResult res = vk.CreateComputePipelines(_device, VK_NULL_HANDLE, 1, &create_info, nullptr, &pass_data.pipeline);
+				if (res != VK_SUCCESS)
+				{
+					LOG(ERROR) << "Failed to create compute pipeline for pass " << pass_index << " in technique '" << technique.name << "'! Vulkan error code is " << res << '.';
+					return false;
+				}
 			}
 			else
 			{
-				uint32_t num_stencil_attachments = 0;
+				const auto convert_blend_op = [](reshadefx::pass_blend_op value) -> VkBlendOp {
+					switch (value)
+					{
+					default:
+					case reshadefx::pass_blend_op::add: return VK_BLEND_OP_ADD;
+					case reshadefx::pass_blend_op::subtract: return VK_BLEND_OP_SUBTRACT;
+					case reshadefx::pass_blend_op::rev_subtract: return VK_BLEND_OP_REVERSE_SUBTRACT;
+					case reshadefx::pass_blend_op::min: return VK_BLEND_OP_MIN;
+					case reshadefx::pass_blend_op::max: return VK_BLEND_OP_MAX;
+					}
+				};
+				const auto convert_blend_func = [](reshadefx::pass_blend_func value) -> VkBlendFactor {
+					switch (value)
+					{
+					case reshadefx::pass_blend_func::zero: return VK_BLEND_FACTOR_ZERO;
+					default:
+					case reshadefx::pass_blend_func::one: return VK_BLEND_FACTOR_ONE;
+					case reshadefx::pass_blend_func::src_color: return VK_BLEND_FACTOR_SRC_COLOR;
+					case reshadefx::pass_blend_func::src_alpha: return VK_BLEND_FACTOR_SRC_ALPHA;
+					case reshadefx::pass_blend_func::inv_src_color: return VK_BLEND_FACTOR_ONE_MINUS_SRC_COLOR;
+					case reshadefx::pass_blend_func::inv_src_alpha: return VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+					case reshadefx::pass_blend_func::dst_color: return VK_BLEND_FACTOR_DST_COLOR;
+					case reshadefx::pass_blend_func::dst_alpha: return VK_BLEND_FACTOR_DST_ALPHA;
+					case reshadefx::pass_blend_func::inv_dst_color: return VK_BLEND_FACTOR_ONE_MINUS_DST_COLOR;
+					case reshadefx::pass_blend_func::inv_dst_alpha: return VK_BLEND_FACTOR_ONE_MINUS_DST_ALPHA;
+					}
+				};
+				const auto convert_stencil_op = [](reshadefx::pass_stencil_op value) -> VkStencilOp {
+					switch (value)
+					{
+					case reshadefx::pass_stencil_op::zero: return VK_STENCIL_OP_ZERO;
+					default:
+					case reshadefx::pass_stencil_op::keep: return VK_STENCIL_OP_KEEP;
+					case reshadefx::pass_stencil_op::invert: return VK_STENCIL_OP_INVERT;
+					case reshadefx::pass_stencil_op::replace: return VK_STENCIL_OP_REPLACE;
+					case reshadefx::pass_stencil_op::incr: return VK_STENCIL_OP_INCREMENT_AND_WRAP;
+					case reshadefx::pass_stencil_op::incr_sat: return VK_STENCIL_OP_INCREMENT_AND_CLAMP;
+					case reshadefx::pass_stencil_op::decr: return VK_STENCIL_OP_DECREMENT_AND_WRAP;
+					case reshadefx::pass_stencil_op::decr_sat: return VK_STENCIL_OP_DECREMENT_AND_CLAMP;
+					}
+				};
+				const auto convert_stencil_func = [](reshadefx::pass_stencil_func value) -> VkCompareOp {
+					switch (value)
+					{
+					case reshadefx::pass_stencil_func::never: return VK_COMPARE_OP_NEVER;
+					case reshadefx::pass_stencil_func::equal: return VK_COMPARE_OP_EQUAL;
+					case reshadefx::pass_stencil_func::not_equal: return VK_COMPARE_OP_NOT_EQUAL;
+					case reshadefx::pass_stencil_func::less: return VK_COMPARE_OP_LESS;
+					case reshadefx::pass_stencil_func::less_equal: return VK_COMPARE_OP_LESS_OR_EQUAL;
+					case reshadefx::pass_stencil_func::greater: return VK_COMPARE_OP_GREATER;
+					case reshadefx::pass_stencil_func::greater_equal: return VK_COMPARE_OP_GREATER_OR_EQUAL;
+					default:
+					case reshadefx::pass_stencil_func::always: return VK_COMPARE_OP_ALWAYS;
+					}
+				};
 
-				if (pass_info.stencil_enable && // Only need to attach stencil if stencil is actually used in this pass
-					scissor_rect.extent.width == _width &&
-					scissor_rect.extent.height == _height)
+				const VkRect2D scissor_rect = {
+					{ 0, 0 },
+					{ pass_info.viewport_width ? pass_info.viewport_width : _width,
+					  pass_info.viewport_height ? pass_info.viewport_height : _height }
+				};
+				const VkViewport viewport_rect = {
+					0.0f, 0.0f,
+					static_cast<float>(scissor_rect.extent.width), static_cast<float>(scissor_rect.extent.height),
+					0.0f, 1.0f
+				};
+
+				pass_data.begin_info.renderArea = scissor_rect;
+
+				uint32_t num_color_attachments = 0;
+				VkImageView attachment_views[9] = {};
+				VkAttachmentReference attachment_refs[9] = {};
+				VkAttachmentDescription attachment_descs[9] = {};
+				VkPipelineColorBlendAttachmentState attachment_blends[8];
+				attachment_blends[0].blendEnable = pass_info.blend_enable;
+				attachment_blends[0].srcColorBlendFactor = convert_blend_func(pass_info.src_blend);
+				attachment_blends[0].dstColorBlendFactor = convert_blend_func(pass_info.dest_blend);
+				attachment_blends[0].colorBlendOp = convert_blend_op(pass_info.blend_op);
+				attachment_blends[0].srcAlphaBlendFactor = convert_blend_func(pass_info.src_blend_alpha);
+				attachment_blends[0].dstAlphaBlendFactor = convert_blend_func(pass_info.dest_blend_alpha);
+				attachment_blends[0].alphaBlendOp = convert_blend_op(pass_info.blend_op_alpha);
+				attachment_blends[0].colorWriteMask = pass_info.color_write_mask;
+
+				for (uint32_t k = 0; k < 8 && !pass_info.render_target_names[k].empty(); ++k, ++num_color_attachments)
 				{
-					num_stencil_attachments = 1;
-					const uint32_t stencil_idx = num_color_attachments;
+					vulkan_tex_data *const tex_impl = static_cast<vulkan_tex_data *>(
+						look_up_texture_by_name(pass_info.render_target_names[k]).impl);
 
-					attachment_views[stencil_idx] = _effect_stencil_view;
+					pass_data.modified_resources.push_back(tex_impl);
 
-					VkAttachmentReference &attachment_ref = attachment_refs[stencil_idx];
-					attachment_ref.attachment = stencil_idx;
-					attachment_ref.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+					attachment_views[k] = tex_impl->view[2 + pass_info.srgb_write_enable];
+					attachment_blends[k] = attachment_blends[0];
 
-					VkAttachmentDescription &attachment_desc = attachment_descs[stencil_idx];
-					attachment_desc.format = _effect_stencil_format;
+					VkAttachmentReference &attachment_ref = attachment_refs[k];
+					attachment_ref.attachment = k;
+					attachment_ref.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+					VkAttachmentDescription &attachment_desc = attachment_descs[k];
+					attachment_desc.format = tex_impl->formats[pass_info.srgb_write_enable];
 					attachment_desc.samples = VK_SAMPLE_COUNT_1_BIT;
-					attachment_desc.loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-					attachment_desc.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-					attachment_desc.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
-					attachment_desc.stencilStoreOp = VK_ATTACHMENT_STORE_OP_STORE;
-					attachment_desc.initialLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-					attachment_desc.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+					attachment_desc.loadOp = pass_info.clear_render_targets ? VK_ATTACHMENT_LOAD_OP_CLEAR : pass_info.blend_enable ? VK_ATTACHMENT_LOAD_OP_LOAD : VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+					attachment_desc.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+					attachment_desc.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+					attachment_desc.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+					attachment_desc.initialLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+					attachment_desc.finalLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 				}
 
-				{   // Synchronize any writes to render targets in previous passes with reads from them in this pass
-					VkSubpassDependency subdep = {};
-					subdep.srcSubpass = VK_SUBPASS_EXTERNAL;
-					subdep.dstSubpass = 0;
-					subdep.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-					subdep.dstStageMask = VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT;
-					subdep.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-					subdep.dstAccessMask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-
-					VkSubpassDescription subpass = {};
-					subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-					subpass.colorAttachmentCount = num_color_attachments;
-					subpass.pColorAttachments = attachment_refs;
-					subpass.pDepthStencilAttachment = num_stencil_attachments ? &attachment_refs[num_color_attachments] : nullptr;
-
-					VkRenderPassCreateInfo create_info { VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO };
-					create_info.attachmentCount = num_color_attachments + num_stencil_attachments;
-					create_info.pAttachments = attachment_descs;
-					create_info.subpassCount = 1;
-					create_info.pSubpasses = &subpass;
-					create_info.dependencyCount = 1;
-					create_info.pDependencies = &subdep;
-
-					check_result(vk.CreateRenderPass(_device, &create_info, nullptr, &pass_data.begin_info.renderPass)) false;
+				if (pass_info.clear_render_targets)
+				{
+					pass_data.begin_info.clearValueCount = num_color_attachments;
+					pass_data.begin_info.pClearValues = pass_data.clear_values; // These are initialized to zero already
 				}
 
-				{   VkFramebufferCreateInfo create_info { VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO };
-					create_info.renderPass = pass_data.begin_info.renderPass;
-					create_info.attachmentCount = num_color_attachments + num_stencil_attachments;
-					create_info.pAttachments = attachment_views;
-					create_info.width = scissor_rect.extent.width;
-					create_info.height = scissor_rect.extent.height;
-					create_info.layers = 1;
-
-					check_result(vk.CreateFramebuffer(_device, &create_info, nullptr, &pass_data.begin_info.framebuffer)) false;
+				if (pass_info.render_target_names[0].empty())
+				{
+					num_color_attachments = 1;
+					pass_data.begin_info.renderPass = _default_render_pass[pass_info.srgb_write_enable];
+					pass_data.begin_info.framebuffer = VK_NULL_HANDLE; // Select the correct swapchain frame buffer during rendering
 				}
-			}
+				else
+				{
+					uint32_t num_stencil_attachments = 0;
 
-			VkSpecializationInfo spec_info {
-				static_cast<uint32_t>(spec_constants.size()), spec_constants.data(),
-				spec_data.size(), spec_data.data()
-			};
+					if (pass_info.stencil_enable && // Only need to attach stencil if stencil is actually used in this pass
+						scissor_rect.extent.width == _width &&
+						scissor_rect.extent.height == _height)
+					{
+						num_stencil_attachments = 1;
+						const uint32_t stencil_idx = num_color_attachments;
 
-			VkPipelineShaderStageCreateInfo stages[2];
-			stages[0] = { VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO };
-			stages[0].stage = VK_SHADER_STAGE_VERTEX_BIT;
-			stages[0].module = entry_points.at(pass_info.vs_entry_point);
-			stages[0].pName = pass_info.vs_entry_point.c_str();
-			stages[0].pSpecializationInfo = &spec_info;
-			stages[1] = { VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO };
-			stages[1].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
-			stages[1].module = entry_points.at(pass_info.ps_entry_point);
-			stages[1].pName = pass_info.ps_entry_point.c_str();
-			stages[1].pSpecializationInfo = &spec_info;
+						attachment_views[stencil_idx] = _effect_stencil_view;
 
-			VkPipelineVertexInputStateCreateInfo vertex_info { VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO };
-			// No vertex attributes
+						VkAttachmentReference &attachment_ref = attachment_refs[stencil_idx];
+						attachment_ref.attachment = stencil_idx;
+						attachment_ref.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
-			VkPipelineInputAssemblyStateCreateInfo ia_info { VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO };
-			switch (pass_info.topology)
-			{
-			case reshadefx::primitive_topology::point_list:
-				ia_info.topology = VK_PRIMITIVE_TOPOLOGY_POINT_LIST;
-				break;
-			case reshadefx::primitive_topology::line_list:
-				ia_info.topology = VK_PRIMITIVE_TOPOLOGY_LINE_LIST;
-				break;
-			case reshadefx::primitive_topology::line_strip:
-				ia_info.topology = VK_PRIMITIVE_TOPOLOGY_LINE_STRIP;
-				break;
-			default:
-			case reshadefx::primitive_topology::triangle_list:
-				ia_info.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
-				break;
-			case reshadefx::primitive_topology::triangle_strip:
-				ia_info.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP;
-				break;
-			}
+						VkAttachmentDescription &attachment_desc = attachment_descs[stencil_idx];
+						attachment_desc.format = _effect_stencil_format;
+						attachment_desc.samples = VK_SAMPLE_COUNT_1_BIT;
+						attachment_desc.loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+						attachment_desc.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+						attachment_desc.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
+						attachment_desc.stencilStoreOp = VK_ATTACHMENT_STORE_OP_STORE;
+						attachment_desc.initialLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+						attachment_desc.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+					}
 
-			VkPipelineViewportStateCreateInfo viewport_info { VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO };
-			viewport_info.viewportCount = 1;
-			viewport_info.pViewports = &viewport_rect;
-			viewport_info.scissorCount = 1;
-			viewport_info.pScissors = &scissor_rect;
+					{   // Synchronize any writes to render targets in previous passes with reads from them in this pass
+						VkSubpassDependency subdep = {};
+						subdep.srcSubpass = VK_SUBPASS_EXTERNAL;
+						subdep.dstSubpass = 0;
+						subdep.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+						subdep.dstStageMask = VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT;
+						subdep.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+						subdep.dstAccessMask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
 
-			VkPipelineRasterizationStateCreateInfo raster_info { VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO };
-			raster_info.polygonMode = VK_POLYGON_MODE_FILL;
-			raster_info.cullMode = VK_CULL_MODE_NONE;
-			raster_info.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
-			raster_info.lineWidth = 1.0f;
+						VkSubpassDescription subpass = {};
+						subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+						subpass.colorAttachmentCount = num_color_attachments;
+						subpass.pColorAttachments = attachment_refs;
+						subpass.pDepthStencilAttachment = num_stencil_attachments ? &attachment_refs[num_color_attachments] : nullptr;
 
-			VkPipelineMultisampleStateCreateInfo ms_info { VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO };
-			ms_info.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+						VkRenderPassCreateInfo create_info { VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO };
+						create_info.attachmentCount = num_color_attachments + num_stencil_attachments;
+						create_info.pAttachments = attachment_descs;
+						create_info.subpassCount = 1;
+						create_info.pSubpasses = &subpass;
+						create_info.dependencyCount = 1;
+						create_info.pDependencies = &subdep;
 
-			VkPipelineColorBlendStateCreateInfo blend_info { VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO };
-			blend_info.attachmentCount = num_color_attachments;
-			blend_info.pAttachments = attachment_blends;
+						check_result(vk.CreateRenderPass(_device, &create_info, nullptr, &pass_data.begin_info.renderPass)) false;
+					}
 
-			VkPipelineDepthStencilStateCreateInfo depth_info { VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO };
-			depth_info.depthTestEnable = VK_FALSE;
-			depth_info.depthWriteEnable = VK_FALSE;
-			depth_info.depthCompareOp = VK_COMPARE_OP_ALWAYS;
-			depth_info.stencilTestEnable = pass_info.stencil_enable;
-			depth_info.front.failOp = convert_stencil_op(pass_info.stencil_op_fail);
-			depth_info.front.passOp = convert_stencil_op(pass_info.stencil_op_pass);
-			depth_info.front.depthFailOp = convert_stencil_op(pass_info.stencil_op_depth_fail);
-			depth_info.front.compareOp = convert_stencil_func(pass_info.stencil_comparison_func);
-			depth_info.front.compareMask = pass_info.stencil_read_mask;
-			depth_info.front.writeMask = pass_info.stencil_write_mask;
-			depth_info.front.reference = pass_info.stencil_reference_value;
-			depth_info.back = depth_info.front;
-			depth_info.minDepthBounds = 0.0f;
-			depth_info.maxDepthBounds = 1.0f;
+					{   VkFramebufferCreateInfo create_info { VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO };
+						create_info.renderPass = pass_data.begin_info.renderPass;
+						create_info.attachmentCount = num_color_attachments + num_stencil_attachments;
+						create_info.pAttachments = attachment_views;
+						create_info.width = scissor_rect.extent.width;
+						create_info.height = scissor_rect.extent.height;
+						create_info.layers = 1;
 
-			VkGraphicsPipelineCreateInfo create_info { VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO };
-			create_info.stageCount = static_cast<uint32_t>(std::size(stages));
-			create_info.pStages = stages;
-			create_info.pVertexInputState = &vertex_info;
-			create_info.pInputAssemblyState = &ia_info;
-			create_info.pViewportState = &viewport_info;
-			create_info.pRasterizationState = &raster_info;
-			create_info.pMultisampleState = &ms_info;
-			create_info.pDepthStencilState = &depth_info;
-			create_info.pColorBlendState = &blend_info;
-			create_info.layout = effect_data.pipeline_layout;
-			create_info.renderPass = pass_data.begin_info.renderPass;
+						check_result(vk.CreateFramebuffer(_device, &create_info, nullptr, &pass_data.begin_info.framebuffer)) false;
+					}
+				}
 
-			const VkResult res = vk.CreateGraphicsPipelines(_device, VK_NULL_HANDLE, 1, &create_info, nullptr, &pass_data.pipeline);
-			if (res != VK_SUCCESS)
-			{
-				LOG(ERROR) << "Failed to create graphics pipeline for pass " << pass_index << " in technique '" << technique.name << "'! "
-					"Vulkan error code is " << res << '.';
-				return false;
+				VkPipelineShaderStageCreateInfo stages[2];
+				stages[0] = { VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO };
+				stages[0].stage = VK_SHADER_STAGE_VERTEX_BIT;
+				stages[0].module = entry_points.at(pass_info.vs_entry_point);
+				stages[0].pName = pass_info.vs_entry_point.c_str();
+				stages[0].pSpecializationInfo = &spec_info;
+				stages[1] = { VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO };
+				stages[1].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+				stages[1].module = entry_points.at(pass_info.ps_entry_point);
+				stages[1].pName = pass_info.ps_entry_point.c_str();
+				stages[1].pSpecializationInfo = &spec_info;
+
+				VkPipelineVertexInputStateCreateInfo vertex_info { VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO };
+				// No vertex attributes
+
+				VkPipelineInputAssemblyStateCreateInfo ia_info { VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO };
+				switch (pass_info.topology)
+				{
+				case reshadefx::primitive_topology::point_list:
+					ia_info.topology = VK_PRIMITIVE_TOPOLOGY_POINT_LIST;
+					break;
+				case reshadefx::primitive_topology::line_list:
+					ia_info.topology = VK_PRIMITIVE_TOPOLOGY_LINE_LIST;
+					break;
+				case reshadefx::primitive_topology::line_strip:
+					ia_info.topology = VK_PRIMITIVE_TOPOLOGY_LINE_STRIP;
+					break;
+				default:
+				case reshadefx::primitive_topology::triangle_list:
+					ia_info.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+					break;
+				case reshadefx::primitive_topology::triangle_strip:
+					ia_info.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP;
+					break;
+				}
+
+				VkPipelineViewportStateCreateInfo viewport_info { VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO };
+				viewport_info.viewportCount = 1;
+				viewport_info.pViewports = &viewport_rect;
+				viewport_info.scissorCount = 1;
+				viewport_info.pScissors = &scissor_rect;
+
+				VkPipelineRasterizationStateCreateInfo raster_info { VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO };
+				raster_info.polygonMode = VK_POLYGON_MODE_FILL;
+				raster_info.cullMode = VK_CULL_MODE_NONE;
+				raster_info.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
+				raster_info.lineWidth = 1.0f;
+
+				VkPipelineMultisampleStateCreateInfo ms_info { VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO };
+				ms_info.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+
+				VkPipelineColorBlendStateCreateInfo blend_info { VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO };
+				blend_info.attachmentCount = num_color_attachments;
+				blend_info.pAttachments = attachment_blends;
+
+				VkPipelineDepthStencilStateCreateInfo depth_info { VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO };
+				depth_info.depthTestEnable = VK_FALSE;
+				depth_info.depthWriteEnable = VK_FALSE;
+				depth_info.depthCompareOp = VK_COMPARE_OP_ALWAYS;
+				depth_info.stencilTestEnable = pass_info.stencil_enable;
+				depth_info.front.failOp = convert_stencil_op(pass_info.stencil_op_fail);
+				depth_info.front.passOp = convert_stencil_op(pass_info.stencil_op_pass);
+				depth_info.front.depthFailOp = convert_stencil_op(pass_info.stencil_op_depth_fail);
+				depth_info.front.compareOp = convert_stencil_func(pass_info.stencil_comparison_func);
+				depth_info.front.compareMask = pass_info.stencil_read_mask;
+				depth_info.front.writeMask = pass_info.stencil_write_mask;
+				depth_info.front.reference = pass_info.stencil_reference_value;
+				depth_info.back = depth_info.front;
+				depth_info.minDepthBounds = 0.0f;
+				depth_info.maxDepthBounds = 1.0f;
+
+				VkGraphicsPipelineCreateInfo create_info { VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO };
+				create_info.stageCount = static_cast<uint32_t>(std::size(stages));
+				create_info.pStages = stages;
+				create_info.pVertexInputState = &vertex_info;
+				create_info.pInputAssemblyState = &ia_info;
+				create_info.pViewportState = &viewport_info;
+				create_info.pRasterizationState = &raster_info;
+				create_info.pMultisampleState = &ms_info;
+				create_info.pDepthStencilState = &depth_info;
+				create_info.pColorBlendState = &blend_info;
+				create_info.layout = effect_data.pipeline_layout;
+				create_info.renderPass = pass_data.begin_info.renderPass;
+
+				const VkResult res = vk.CreateGraphicsPipelines(_device, VK_NULL_HANDLE, 1, &create_info, nullptr, &pass_data.pipeline);
+				if (res != VK_SUCCESS)
+				{
+					LOG(ERROR) << "Failed to create graphics pipeline for pass " << pass_index << " in technique '" << technique.name << "'! Vulkan error code is " << res << '.';
+					return false;
+				}
 			}
 		}
 	}
@@ -1384,8 +1458,7 @@ void reshade::vulkan::runtime_vk::unload_effect(size_t index)
 			if (pass_data.begin_info.renderPass != _default_render_pass[0] &&
 				pass_data.begin_info.renderPass != _default_render_pass[1])
 				vk.DestroyRenderPass(_device, pass_data.begin_info.renderPass, nullptr);
-			if (pass_data.begin_info.framebuffer != VK_NULL_HANDLE)
-				vk.DestroyFramebuffer(_device, pass_data.begin_info.framebuffer, nullptr);
+			vk.DestroyFramebuffer(_device, pass_data.begin_info.framebuffer, nullptr);
 			vk.DestroyPipeline(_device, pass_data.pipeline, nullptr);
 		}
 
@@ -1403,8 +1476,10 @@ void reshade::vulkan::runtime_vk::unload_effect(size_t index)
 		effect_data.query_pool = VK_NULL_HANDLE;
 		vk.DestroyPipelineLayout(_device, effect_data.pipeline_layout, nullptr);
 		effect_data.pipeline_layout = VK_NULL_HANDLE;
-		vk.DestroyDescriptorSetLayout(_device, effect_data.set_layout, nullptr);
-		effect_data.set_layout = VK_NULL_HANDLE;
+		vk.DestroyDescriptorSetLayout(_device, effect_data.sampler_layout, nullptr);
+		effect_data.sampler_layout = VK_NULL_HANDLE;
+		vk.DestroyDescriptorSetLayout(_device, effect_data.storage_layout, nullptr);
+		effect_data.storage_layout = VK_NULL_HANDLE;
 		vmaDestroyBuffer(_alloc, effect_data.ubo, effect_data.ubo_mem);
 		effect_data.ubo = VK_NULL_HANDLE;
 		effect_data.ubo_mem = VK_NULL_HANDLE;
@@ -1426,8 +1501,7 @@ void reshade::vulkan::runtime_vk::unload_effects()
 			if (pass_data.begin_info.renderPass != _default_render_pass[0] &&
 				pass_data.begin_info.renderPass != _default_render_pass[1])
 				vk.DestroyRenderPass(_device, pass_data.begin_info.renderPass, nullptr);
-			if (pass_data.begin_info.framebuffer != VK_NULL_HANDLE)
-				vk.DestroyFramebuffer(_device, pass_data.begin_info.framebuffer, nullptr);
+			vk.DestroyFramebuffer(_device, pass_data.begin_info.framebuffer, nullptr);
 			vk.DestroyPipeline(_device, pass_data.pipeline, nullptr);
 		}
 
@@ -1446,7 +1520,8 @@ void reshade::vulkan::runtime_vk::unload_effects()
 	{
 		vk.DestroyQueryPool(_device, data.query_pool, nullptr);
 		vk.DestroyPipelineLayout(_device, data.pipeline_layout, nullptr);
-		vk.DestroyDescriptorSetLayout(_device, data.set_layout, nullptr);
+		vk.DestroyDescriptorSetLayout(_device, data.sampler_layout, nullptr);
+		vk.DestroyDescriptorSetLayout(_device, data.storage_layout, nullptr);
 		vmaDestroyBuffer(_alloc, data.ubo, data.ubo_mem);
 	}
 
@@ -1467,6 +1542,10 @@ bool reshade::vulkan::runtime_vk::init_texture(texture &texture)
 	// Do not create resource if it is a reference, it is set in 'render_technique'
 	if (texture.impl_reference != texture_reference::none)
 		return true;
+
+	impl->width = texture.width;
+	impl->height = texture.height;
+	impl->levels = texture.levels;
 
 	switch (texture.format)
 	{
@@ -1510,10 +1589,13 @@ bool reshade::vulkan::runtime_vk::init_texture(texture &texture)
 	}
 
 	// Need TRANSFER_DST for texture data upload
-	VkImageUsageFlags usage_flags = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
-	// Add required TRANSFER_SRC flag for mipmap generation
-	if (texture.levels > 1)
+	VkImageUsageFlags usage_flags = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+	if (texture.levels > 1) // Add required TRANSFER_SRC flag for mipmap generation
 		usage_flags |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+	if (texture.render_target)
+		usage_flags |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+	if (texture.storage_access)
+		usage_flags |= VK_IMAGE_USAGE_STORAGE_BIT;
 
 	VkImageCreateFlags image_flags = 0;
 	// Add mutable format flag required to create a SRGB view of the image
@@ -1543,7 +1625,7 @@ bool reshade::vulkan::runtime_vk::init_texture(texture &texture)
 
 	// Create shader views
 	impl->view[0] = create_image_view(impl->image, impl->formats[0], VK_REMAINING_MIP_LEVELS, VK_IMAGE_ASPECT_COLOR_BIT);
-	impl->view[1] = impl->formats[0] != impl->formats[1] ?
+	impl->view[1] = impl->formats[0] != impl->formats[1] && !texture.storage_access ? // sRGB formats do not support storage usage
 		create_image_view(impl->image, impl->formats[1], VK_REMAINING_MIP_LEVELS, VK_IMAGE_ASPECT_COLOR_BIT) :
 		impl->view[0];
 
@@ -1551,7 +1633,7 @@ bool reshade::vulkan::runtime_vk::init_texture(texture &texture)
 	if (texture.levels > 1)
 	{
 		impl->view[2] = create_image_view(impl->image, impl->formats[0], 1, VK_IMAGE_ASPECT_COLOR_BIT);
-		impl->view[3] = impl->formats[0] != impl->formats[1] ?
+		impl->view[3] = impl->formats[0] != impl->formats[1] && !texture.storage_access ?
 			create_image_view(impl->image, impl->formats[1], 1, VK_IMAGE_ASPECT_COLOR_BIT) :
 			impl->view[2];
 	}
@@ -1640,7 +1722,7 @@ void reshade::vulkan::runtime_vk::upload_texture(const texture &texture, const u
 			break;
 		default:
 			mapped_data = nullptr;
-			LOG(ERROR) << "Texture upload is not supported for format " << static_cast<unsigned int>(texture.format) << '!';
+			LOG(ERROR) << "Texture upload is not supported for format " << static_cast<unsigned int>(texture.format) << " of texture '" << texture.unique_name << "'.";
 			break;
 		}
 
@@ -1661,7 +1743,7 @@ void reshade::vulkan::runtime_vk::upload_texture(const texture &texture, const u
 		}
 		transition_layout(vk, cmd_list, impl->image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
-		generate_mipmaps(texture);
+		generate_mipmaps(impl);
 
 		execute_command_buffer();
 	}
@@ -1694,19 +1776,18 @@ void reshade::vulkan::runtime_vk::destroy_texture(texture &texture)
 	delete impl;
 	texture.impl = nullptr;
 }
-void reshade::vulkan::runtime_vk::generate_mipmaps(const texture &texture)
+void reshade::vulkan::runtime_vk::generate_mipmaps(const vulkan_tex_data *impl)
 {
-	if (texture.levels <= 1)
-		return; // No need to generate mipmaps when texture does not have any
-
-	auto impl = static_cast<vulkan_tex_data *>(texture.impl);
 	assert(impl != nullptr);
 
-	int32_t width = texture.width;
-	int32_t height = texture.height;
+	if (impl->levels <= 1)
+		return; // No need to generate mipmaps when texture does not have any
+
+	int32_t width = impl->width;
+	int32_t height = impl->height;
 	const VkCommandBuffer cmd_list = _cmd_buffers[_cmd_index].first;
 
-	for (uint32_t level = 1; level < texture.levels; ++level, width /= 2, height /= 2)
+	for (uint32_t level = 1; level < impl->levels; ++level, width /= 2, height /= 2)
 	{
 		VkImageBlit blit;
 		blit.srcOffsets[0] = { 0, 0, 0 };
@@ -1762,6 +1843,8 @@ void reshade::vulkan::runtime_vk::render_technique(technique &technique)
 	vk.CmdWriteTimestamp(cmd_list, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, effect_data.query_pool, impl->query_base_index + _cmd_index * 2);
 
 	vk.CmdBindDescriptorSets(cmd_list, VK_PIPELINE_BIND_POINT_GRAPHICS, effect_data.pipeline_layout, 0, 2, effect_data.set, 0, nullptr);
+	if (impl->has_compute_passes)
+		vk.CmdBindDescriptorSets(cmd_list, VK_PIPELINE_BIND_POINT_COMPUTE, effect_data.pipeline_layout, 0, effect_data.storage_layout ? 3 : 2, effect_data.set, 0, nullptr);
 
 	// Setup shader constants
 	if (effect_data.ubo != VK_NULL_HANDLE)
@@ -1813,51 +1896,56 @@ void reshade::vulkan::runtime_vk::render_technique(technique &technique)
 		}
 #endif
 
-		if (pass_info.stencil_enable && !is_effect_stencil_cleared)
+		if (!pass_info.cs_entry_point.empty())
 		{
-			is_effect_stencil_cleared = true;
+			for (const vulkan_tex_data *storage_resource : pass_data.modified_resources)
+				transition_layout(vk, cmd_list, storage_resource->image, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL, { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 });
 
-			const VkImageSubresourceRange clear_range = { VK_IMAGE_ASPECT_STENCIL_BIT, 0, 1, 0, 1 };
-			const VkClearDepthStencilValue clear_value = { 1.0f, 0 };
-			transition_layout(vk, cmd_list, _effect_stencil, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, { aspect_flags_from_format(_effect_stencil_format), 0, 1, 0, 1 });
-			vk.CmdClearDepthStencilImage(cmd_list, _effect_stencil, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &clear_value, 1, &clear_range);
-			transition_layout(vk, cmd_list, _effect_stencil, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, { aspect_flags_from_format(_effect_stencil_format), 0, 1, 0, 1 });
-		}
+			vk.CmdBindPipeline(cmd_list, VK_PIPELINE_BIND_POINT_COMPUTE, pass_data.pipeline);
+			vk.CmdDispatch(cmd_list, pass_info.viewport_width, pass_info.viewport_height, 1);
 
-		VkRenderPassBeginInfo begin_info = pass_data.begin_info;
-		if (begin_info.framebuffer == VK_NULL_HANDLE)
-		{
-			begin_info.framebuffer = _swapchain_frames[_swap_index * 2 + pass_info.srgb_write_enable];
-			needs_implicit_backbuffer_copy = true;
+			for (const vulkan_tex_data *storage_resource : pass_data.modified_resources)
+				transition_layout(vk, cmd_list, storage_resource->image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 });
 		}
 		else
 		{
-			needs_implicit_backbuffer_copy = false;
+			if (pass_info.stencil_enable && !is_effect_stencil_cleared)
+			{
+				is_effect_stencil_cleared = true;
+
+				const VkImageSubresourceRange clear_range = { VK_IMAGE_ASPECT_STENCIL_BIT, 0, 1, 0, 1 };
+				const VkClearDepthStencilValue clear_value = { 1.0f, 0 };
+				transition_layout(vk, cmd_list, _effect_stencil, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, { aspect_flags_from_format(_effect_stencil_format), 0, 1, 0, 1 });
+				vk.CmdClearDepthStencilImage(cmd_list, _effect_stencil, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &clear_value, 1, &clear_range);
+				transition_layout(vk, cmd_list, _effect_stencil, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, { aspect_flags_from_format(_effect_stencil_format), 0, 1, 0, 1 });
+			}
+
+			VkRenderPassBeginInfo begin_info = pass_data.begin_info;
+			if (begin_info.framebuffer == VK_NULL_HANDLE)
+			{
+				begin_info.framebuffer = _swapchain_frames[_swap_index * 2 + pass_info.srgb_write_enable];
+				needs_implicit_backbuffer_copy = true;
+			}
+			else
+			{
+				needs_implicit_backbuffer_copy = false;
+			}
+
+			vk.CmdBeginRenderPass(cmd_list, &begin_info, VK_SUBPASS_CONTENTS_INLINE);
+
+			// Draw primitives
+			vk.CmdBindPipeline(cmd_list, VK_PIPELINE_BIND_POINT_GRAPHICS, pass_data.pipeline);
+			vk.CmdDraw(cmd_list, pass_info.num_vertices, 1, 0, 0);
+
+			_vertices += pass_info.num_vertices;
+			_drawcalls += 1;
+
+			vk.CmdEndRenderPass(cmd_list);
 		}
 
-		vk.CmdBeginRenderPass(cmd_list, &begin_info, VK_SUBPASS_CONTENTS_INLINE);
-
-		// Setup states
-		vk.CmdBindPipeline(cmd_list, VK_PIPELINE_BIND_POINT_GRAPHICS, pass_data.pipeline);
-
-		// Draw primitives
-		vk.CmdDraw(cmd_list, pass_info.num_vertices, 1, 0, 0);
-
-		_vertices += pass_info.num_vertices;
-		_drawcalls += 1;
-
-		vk.CmdEndRenderPass(cmd_list);
-
-		// Generate mipmaps
-		for (uint32_t k = 0; k < 8 && !pass_info.render_target_names[k].empty(); ++k)
-		{
-			const auto render_target_texture = std::find_if(_textures.begin(), _textures.end(),
-				[&render_target = pass_info.render_target_names[k]](const auto &item) {
-				return item.unique_name == render_target;
-			});
-
-			generate_mipmaps(*render_target_texture);
-		}
+		// Generate mipmaps for modified resources
+		for (const vulkan_tex_data *texture : pass_data.modified_resources)
+			generate_mipmaps(texture);
 
 #ifndef NDEBUG
 		if (insert_debug_markers)
@@ -1970,13 +2058,8 @@ VkImage reshade::vulkan::runtime_vk::create_image(uint32_t width, uint32_t heigh
 	const VkResult res = vmaCreateImage(_alloc, &create_info, &alloc_info, &ret, &alloc, nullptr);
 	if (res != VK_SUCCESS)
 	{
-		LOG(ERROR) << "Failed to create image ("
-			"Width = " << width << ", "
-			"Height = " << height << ", "
-			"Levels = " << levels << ", "
-			"Usage = " << std::hex << usage << std::dec << ", "
-			"Format = " << format << ")! "
-			"Vulkan error code is " << res << '.';
+		LOG(ERROR) << "Failed to create image! Vulkan error code is " << res << '.';
+		LOG(DEBUG) << "> Details: Width = " << width << ", Height = " << height << ", Levels = " << levels << ", Format = " << format << ", Usage = " << std::hex << usage << std::dec;
 
 		if (out_mem != nullptr)
 			*out_mem = VK_NULL_HANDLE;
@@ -2013,10 +2096,8 @@ VkBuffer reshade::vulkan::runtime_vk::create_buffer(VkDeviceSize size,
 	const VkResult res = vmaCreateBuffer(_alloc, &create_info, &alloc_info, &ret, &alloc, nullptr);
 	if (res != VK_SUCCESS)
 	{
-		LOG(ERROR) << "Failed to create buffer ("
-			"Size = " << size << ", "
-			"Usage = " << std::hex << usage << std::dec << ")! "
-			"Vulkan error code is " << res << '.';
+		LOG(ERROR) << "Failed to create buffer! Vulkan error code is " << res << '.';
+		LOG(DEBUG) << "> Details: Size = " << size << ", Usage = " << std::hex << usage << std::dec;
 
 		if (out_mem != nullptr)
 			*out_mem = VK_NULL_HANDLE;

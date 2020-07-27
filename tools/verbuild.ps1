@@ -18,6 +18,8 @@ elseif ($exists) {
 	return
 }
 
+$official = Test-Path ($args[0] + "\..\sign.pfx")
+
 # Update version file with the new version information
 @"
 #pragma once
@@ -32,5 +34,5 @@ elseif ($exists) {
 #define VERSION_BUILD $($version[3])
 
 #define VERSION_STRING_FILE "$([string]::Join('.', $version))"
-#define VERSION_STRING_PRODUCT "$($version[0]).$($version[1]).$($version[2])"
+#define VERSION_STRING_PRODUCT "$($version[0]).$($version[1]).$($version[2])$(if (-not $official) { " UNOFFICIAL" })"
 "@ | Out-File -FilePath $args[0]

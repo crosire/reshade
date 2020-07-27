@@ -233,7 +233,7 @@ bool reshade::d3d9::buffer_detection::update_depthstencil_replacement(com_ptr<ID
 
 	if (HRESULT hr = _device->CreateTexture(desc.Width, desc.Height, 1, D3DUSAGE_DEPTHSTENCIL, desc.Format, D3DPOOL_DEFAULT, &texture, nullptr); FAILED(hr))
 	{
-		LOG(ERROR) << "Failed to create depth texture replacement! HRESULT is " << hr << '.';
+		LOG(ERROR) << "Failed to create depth replacement texture! HRESULT is " << hr << '.';
 		return false;
 	}
 

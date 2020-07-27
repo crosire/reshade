@@ -108,8 +108,8 @@ bool reshade::d3d9::runtime_d3d9::on_init(const D3DPRESENT_PARAMETERS &pp)
 
 	_width = pp.BackBufferWidth;
 	_height = pp.BackBufferHeight;
-	_window_width = window_rect.right - window_rect.left;
-	_window_height = window_rect.bottom - window_rect.top;
+	_window_width = window_rect.right;
+	_window_height = window_rect.bottom;
 	_color_bit_depth = pp.BackBufferFormat == D3DFMT_A2B10G10R10 || pp.BackBufferFormat == D3DFMT_A2R10G10B10 ? 10 : 8;
 	_backbuffer_format = pp.BackBufferFormat;
 
@@ -256,13 +256,15 @@ bool reshade::d3d9::runtime_d3d9::capture_screenshot(uint8_t *buffer) const
 {
 	// Create a surface in system memory, copy back buffer data into it and lock it for reading
 	com_ptr<IDirect3DSurface9> intermediate;
-	if (FAILED(_device->CreateOffscreenPlainSurface(_width, _height, _backbuffer_format, D3DPOOL_SYSTEMMEM, &intermediate, nullptr)))
+	if (HRESULT hr = _device->CreateOffscreenPlainSurface(_width, _height, _backbuffer_format, D3DPOOL_SYSTEMMEM, &intermediate, nullptr); FAILED(hr))
 	{
-		LOG(ERROR) << "Failed to create system memory texture for screenshot capture!";
+		LOG(ERROR) << "Failed to create system memory texture for screenshot capture! HRESULT is " << hr << '.';
+		LOG(DEBUG) << "> Details: Width = " << _width << ", Height = " << _height << ", Format = " << _backbuffer_format;
 		return false;
 	}
 
-	_device->GetRenderTargetData(_backbuffer_resolved.get(), intermediate.get());
+	if (FAILED(_device->GetRenderTargetData(_backbuffer_resolved.get(), intermediate.get())))
+		return false;
 
 	D3DLOCKED_RECT mapped;
 	if (FAILED(intermediate->LockRect(&mapped, nullptr, D3DLOCK_READONLY)))
@@ -313,7 +315,7 @@ bool reshade::d3d9::runtime_d3d9::init_effect(size_t index)
 
 	if (_d3d_compiler == nullptr)
 	{
-		LOG(ERROR) << "Unable to load HLSL compiler (\"d3dcompiler_47.dll\"). Make sure you have the DirectX end-user runtime (June 2010) installed or a newer version of the library in the application directory.";
+		LOG(ERROR) << "Unable to load HLSL compiler (\"d3dcompiler_47.dll\")." << " Make sure you have the DirectX end-user runtime (June 2010) installed or a newer version of the library in the application directory.";
 		return false;
 	}
 
@@ -337,14 +339,34 @@ bool reshade::d3d9::runtime_d3d9::init_effect(size_t index)
 	// Compile the generated HLSL source code to DX byte code
 	for (const reshadefx::entry_point &entry_point : effect.module.entry_points)
 	{
+		size_t hlsl_size = 0;
+		const char *profile = nullptr, *hlsl = nullptr;
 		com_ptr<ID3DBlob> compiled, d3d_errors;
-		const std::string &hlsl = entry_point.is_pixel_shader ? hlsl_ps : hlsl_vs;
+
+		switch (entry_point.type)
+		{
+		case reshadefx::shader_type::vs:
+			hlsl = hlsl_vs.c_str();
+			hlsl_size = hlsl_vs.size();
+			profile = "vs_3_0";
+			break;
+		case reshadefx::shader_type::ps:
+			hlsl = hlsl_ps.c_str();
+			hlsl_size = hlsl_ps.size();
+			profile = "ps_3_0";
+			break;
+		case reshadefx::shader_type::cs:
+			effect.errors += "Compute shaders are not supported in ";
+			effect.errors += "D3D9";
+			effect.errors += '.';
+			return false;
+		}
 
 		HRESULT hr = D3DCompile(
-			hlsl.c_str(), hlsl.size(),
+			hlsl, hlsl_size,
 			nullptr, nullptr, nullptr,
 			entry_point.name.c_str(),
-			entry_point.is_pixel_shader ? "ps_3_0" : "vs_3_0",
+			profile,
 			D3DCOMPILE_OPTIMIZATION_LEVEL3, 0,
 			&compiled, &d3d_errors);
 
@@ -359,15 +381,19 @@ bool reshade::d3d9::runtime_d3d9::init_effect(size_t index)
 			effect.assembly[entry_point.name] = std::string(static_cast<const char *>(d3d_disassembled->GetBufferPointer()));
 
 		// Create runtime shader objects from the compiled DX byte code
-		if (entry_point.is_pixel_shader)
-			hr = _device->CreatePixelShader(static_cast<const DWORD *>(compiled->GetBufferPointer()), reinterpret_cast<IDirect3DPixelShader9 **>(&entry_points[entry_point.name]));
-		else
+		switch (entry_point.type)
+		{
+		case reshadefx::shader_type::vs:
 			hr = _device->CreateVertexShader(static_cast<const DWORD *>(compiled->GetBufferPointer()), reinterpret_cast<IDirect3DVertexShader9 **>(&entry_points[entry_point.name]));
+			break;
+		case reshadefx::shader_type::ps:
+			hr = _device->CreatePixelShader(static_cast<const DWORD *>(compiled->GetBufferPointer()), reinterpret_cast<IDirect3DPixelShader9 **>(&entry_points[entry_point.name]));
+			break;
+		}
 
 		if (FAILED(hr))
 		{
-			LOG(ERROR) << "Failed to create shader for entry point '" << entry_point.name << "'. "
-				"HRESULT is " << hr << '.';
+			LOG(ERROR) << "Failed to create shader for entry point '" << entry_point.name << "'! HRESULT is " << hr << '.';
 			return false;
 		}
 	}
@@ -378,21 +404,19 @@ bool reshade::d3d9::runtime_d3d9::init_effect(size_t index)
 
 	for (const reshadefx::sampler_info &info : effect.module.samplers)
 	{
-		if (info.binding > ARRAYSIZE(technique_init.sampler_states))
+		if (info.binding >= ARRAYSIZE(technique_init.sampler_states))
+		{
+			LOG(ERROR) << "Cannot bind sampler '" << info.unique_name << "' since it exceeds the maximum number of allowed sampler slots in " << "D3D9" << " (" << info.binding << ", allowed are up to " << ARRAYSIZE(technique_init.sampler_states) << ").";
 			return false;
+		}
 
-		const auto existing_texture = std::find_if(_textures.begin(), _textures.end(),
-			[&texture_name = info.texture_name](const auto &item) {
-			return item.unique_name == texture_name && item.impl != nullptr;
-		});
-		assert(existing_texture != _textures.end());
+		const texture &texture = look_up_texture_by_name(info.texture_name);
 
-		technique_init.sampler_textures[info.binding] =
-			static_cast<d3d9_tex_data *>(existing_texture->impl)->texture.get();
+		technique_init.sampler_textures[info.binding] = static_cast<d3d9_tex_data *>(texture.impl)->texture.get();
 
 		// Since textures with auto-generated mipmap levels do not have a mipmap maximum, limit the bias here so this is not as obvious
-		assert(existing_texture->levels > 0);
-		const float lod_bias = std::min(existing_texture->levels - 1.0f, info.lod_bias);
+		assert(texture.levels > 0);
+		const float lod_bias = std::min(texture.levels - 1.0f, info.lod_bias);
 
 		technique_init.sampler_states[info.binding][D3DSAMP_ADDRESSU] = static_cast<D3DTEXTUREADDRESS>(info.address_u);
 		technique_init.sampler_states[info.binding][D3DSAMP_ADDRESSV] = static_cast<D3DTEXTUREADDRESS>(info.address_v);
@@ -442,18 +466,15 @@ bool reshade::d3d9::runtime_d3d9::init_effect(size_t index)
 					break;
 				}
 
-				const auto texture_impl = static_cast<d3d9_tex_data *>(std::find_if(_textures.begin(), _textures.end(),
-					[&render_target = pass_info.render_target_names[k]](const auto &item) {
-					return item.unique_name == render_target;
-				})->impl);
-				assert(texture_impl != nullptr);
+				d3d9_tex_data *const tex_impl = static_cast<d3d9_tex_data *>(
+					look_up_texture_by_name(pass_info.render_target_names[k]).impl);
 
 				// Unset textures that are used as render target
 				for (DWORD s = 0; s < impl->num_samplers; ++s)
-					if (texture_impl->texture == pass_data.sampler_textures[s])
+					if (tex_impl->texture == pass_data.sampler_textures[s])
 						pass_data.sampler_textures[s] = nullptr;
 
-				pass_data.render_targets[k] = texture_impl->surface.get();
+				pass_data.render_targets[k] = tex_impl->surface.get();
 			}
 
 			HRESULT hr = _device->BeginStateBlock();
@@ -518,22 +539,22 @@ bool reshade::d3d9::runtime_d3d9::init_effect(size_t index)
 					}
 				};
 
-				_device->SetRenderState(D3DRS_ZENABLE, false);
+				_device->SetRenderState(D3DRS_ZENABLE, FALSE);
 				_device->SetRenderState(D3DRS_FILLMODE, D3DFILL_SOLID);
 				// D3DRS_SHADEMODE
-				_device->SetRenderState(D3DRS_ZWRITEENABLE, true);
-				_device->SetRenderState(D3DRS_ALPHATESTENABLE, false);
-				_device->SetRenderState(D3DRS_LASTPIXEL, true);
+				_device->SetRenderState(D3DRS_ZWRITEENABLE, TRUE);
+				_device->SetRenderState(D3DRS_ALPHATESTENABLE, FALSE);
+				_device->SetRenderState(D3DRS_LASTPIXEL, TRUE);
 				_device->SetRenderState(D3DRS_SRCBLEND, convert_blend_func(pass_info.src_blend));
 				_device->SetRenderState(D3DRS_DESTBLEND, convert_blend_func(pass_info.dest_blend));
 				_device->SetRenderState(D3DRS_CULLMODE, D3DCULL_NONE);
 				_device->SetRenderState(D3DRS_ZFUNC, D3DCMP_ALWAYS);
 				// D3DRS_ALPHAREF
 				// D3DRS_ALPHAFUNC
-				_device->SetRenderState(D3DRS_DITHERENABLE, false);
+				_device->SetRenderState(D3DRS_DITHERENABLE, FALSE);
 				_device->SetRenderState(D3DRS_ALPHABLENDENABLE, pass_info.blend_enable);
-				_device->SetRenderState(D3DRS_FOGENABLE, false);
-				_device->SetRenderState(D3DRS_SPECULARENABLE, false);
+				_device->SetRenderState(D3DRS_FOGENABLE, FALSE);
+				_device->SetRenderState(D3DRS_SPECULARENABLE, FALSE);
 				// D3DRS_FOGCOLOR
 				// D3DRS_FOGTABLEMODE
 				// D3DRS_FOGSTART
@@ -550,13 +571,13 @@ bool reshade::d3d9::runtime_d3d9::init_effect(size_t index)
 				_device->SetRenderState(D3DRS_STENCILWRITEMASK, pass_info.stencil_write_mask);
 				// D3DRS_TEXTUREFACTOR
 				// D3DRS_WRAP0 - D3DRS_WRAP7
-				_device->SetRenderState(D3DRS_CLIPPING, false);
-				_device->SetRenderState(D3DRS_LIGHTING, false);
+				_device->SetRenderState(D3DRS_CLIPPING, FALSE);
+				_device->SetRenderState(D3DRS_LIGHTING, FALSE);
 				// D3DRS_AMBIENT
 				// D3DRS_FOGVERTEXMODE
-				_device->SetRenderState(D3DRS_COLORVERTEX, false);
+				_device->SetRenderState(D3DRS_COLORVERTEX, FALSE);
 				// D3DRS_LOCALVIEWER
-				_device->SetRenderState(D3DRS_NORMALIZENORMALS, false);
+				_device->SetRenderState(D3DRS_NORMALIZENORMALS, FALSE);
 				_device->SetRenderState(D3DRS_DIFFUSEMATERIALSOURCE, D3DMCS_COLOR1);
 				_device->SetRenderState(D3DRS_SPECULARMATERIALSOURCE, D3DMCS_COLOR2);
 				_device->SetRenderState(D3DRS_AMBIENTMATERIALSOURCE, D3DMCS_MATERIAL);
@@ -579,14 +600,14 @@ bool reshade::d3d9::runtime_d3d9::init_effect(size_t index)
 				_device->SetRenderState(D3DRS_BLENDOP, convert_blend_op(pass_info.blend_op));
 				// D3DRS_POSITIONDEGREE
 				// D3DRS_NORMALDEGREE
-				_device->SetRenderState(D3DRS_SCISSORTESTENABLE, false);
+				_device->SetRenderState(D3DRS_SCISSORTESTENABLE, FALSE);
 				_device->SetRenderState(D3DRS_SLOPESCALEDEPTHBIAS, 0);
-				_device->SetRenderState(D3DRS_ANTIALIASEDLINEENABLE, false);
+				_device->SetRenderState(D3DRS_ANTIALIASEDLINEENABLE, FALSE);
 				// D3DRS_MINTESSELLATIONLEVEL
 				// D3DRS_MAXTESSELLATIONLEVEL
 				// D3DRS_ADAPTIVETESS_X - D3DRS_ADAPTIVETESS_W
-				_device->SetRenderState(D3DRS_ENABLEADAPTIVETESSELLATION, false);
-				_device->SetRenderState(D3DRS_TWOSIDEDSTENCILMODE, false);
+				_device->SetRenderState(D3DRS_ENABLEADAPTIVETESSELLATION, FALSE);
+				_device->SetRenderState(D3DRS_TWOSIDEDSTENCILMODE, FALSE);
 				// D3DRS_CCW_STENCILFAIL
 				// D3DRS_CCW_STENCILZFAIL
 				// D3DRS_CCW_STENCILPASS
@@ -598,7 +619,7 @@ bool reshade::d3d9::runtime_d3d9::init_effect(size_t index)
 				_device->SetRenderState(D3DRS_SRGBWRITEENABLE, pass_info.srgb_write_enable);
 				_device->SetRenderState(D3DRS_DEPTHBIAS, 0);
 				// D3DRS_WRAP8 - D3DRS_WRAP15
-				_device->SetRenderState(D3DRS_SEPARATEALPHABLENDENABLE, true);
+				_device->SetRenderState(D3DRS_SEPARATEALPHABLENDENABLE, TRUE);
 				_device->SetRenderState(D3DRS_SRCBLENDALPHA, convert_blend_func(pass_info.src_blend_alpha));
 				_device->SetRenderState(D3DRS_DESTBLENDALPHA, convert_blend_func(pass_info.dest_blend_alpha));
 				_device->SetRenderState(D3DRS_BLENDOPALPHA, convert_blend_op(pass_info.blend_op_alpha));
@@ -608,8 +629,7 @@ bool reshade::d3d9::runtime_d3d9::init_effect(size_t index)
 
 			if (FAILED(hr))
 			{
-				LOG(ERROR) << "Failed to create state block for pass " << pass_index << " in technique '" << technique.name << "'. "
-					"HRESULT is " << hr << '.';
+				LOG(ERROR) << "Failed to create state block for pass " << pass_index << " in technique '" << technique.name << "'! HRESULT is " << hr << '.';
 				return false;
 			}
 		}
@@ -688,7 +708,7 @@ bool reshade::d3d9::runtime_d3d9::init_texture(texture &texture)
 	switch (texture.format)
 	{
 	case reshadefx::texture_format::r8:
-		format = D3DFMT_A8R8G8B8;
+		format = D3DFMT_X8R8G8B8; // Use 4-component format so that green/blue components are returned as zero and alpha as one (to match behavior from other APIs)
 		break;
 	case reshadefx::texture_format::r16f:
 		format = D3DFMT_R16F;
@@ -697,7 +717,7 @@ bool reshade::d3d9::runtime_d3d9::init_texture(texture &texture)
 		format = D3DFMT_R32F;
 		break;
 	case reshadefx::texture_format::rg8:
-		format = D3DFMT_A8R8G8B8;
+		format = D3DFMT_X8R8G8B8;
 		break;
 	case reshadefx::texture_format::rg16:
 		format = D3DFMT_G16R16;
@@ -735,25 +755,28 @@ bool reshade::d3d9::runtime_d3d9::init_texture(texture &texture)
 		}
 		else
 		{
-			LOG(WARN) << "Auto-generated mipmap levels are not supported for the format of texture '" << texture.unique_name << "'.";
+			LOG(WARN) << "Auto-generated mipmap levels are not supported for format " << static_cast<unsigned int>(texture.format) << " of texture '" << texture.unique_name << "'.";
 		}
 	}
 
-	// Make texture a render target if format allows it
-	HRESULT hr = _d3d->CheckDeviceFormat(cp.AdapterOrdinal, cp.DeviceType, D3DFMT_X8R8G8B8, D3DUSAGE_RENDERTARGET, D3DRTYPE_TEXTURE, format);
-	if (SUCCEEDED(hr))
-		usage |= D3DUSAGE_RENDERTARGET;
+	if (texture.render_target)
+	{
+		// Make texture a render target if format allows it
+		if (_d3d->CheckDeviceFormat(cp.AdapterOrdinal, cp.DeviceType, D3DFMT_X8R8G8B8, D3DUSAGE_RENDERTARGET, D3DRTYPE_TEXTURE, format) == D3D_OK)
+		{
+			usage |= D3DUSAGE_RENDERTARGET;
+		}
+		else
+		{
+			LOG(WARN) << "Render target usage is not supported for format " << static_cast<unsigned int>(texture.format) << " of texture '" << texture.unique_name << "'.";
+		}
+	}
 
-	hr = _device->CreateTexture(texture.width, texture.height, levels, usage, format, D3DPOOL_DEFAULT, &impl->texture, nullptr);
+	HRESULT hr = _device->CreateTexture(texture.width, texture.height, levels, usage, format, D3DPOOL_DEFAULT, &impl->texture, nullptr);
 	if (FAILED(hr))
 	{
-		LOG(ERROR) << "Failed to create texture '" << texture.unique_name << "' ("
-			"Width = " << texture.width << ", "
-			"Height = " << texture.height << ", "
-			"Levels = " << levels << ", "
-			"Usage = " << usage << ", "
-			"Format = " << format << ")! "
-			"HRESULT is " << hr << '.';
+		LOG(ERROR) << "Failed to create texture '" << texture.unique_name << "'! HRESULT is " << hr << '.';
+		LOG(DEBUG) << "> Details: Width = " << texture.width << ", Height = " << texture.height << ", Levels = " << levels << ", Usage = " << usage << ", Format = " << format;
 		return false;
 	}
 
@@ -772,9 +795,10 @@ void reshade::d3d9::runtime_d3d9::upload_texture(const texture &texture, const u
 
 	D3DSURFACE_DESC desc; impl->texture->GetLevelDesc(0, &desc); // Get D3D texture format
 	com_ptr<IDirect3DTexture9> intermediate;
-	if (FAILED(_device->CreateTexture(texture.width, texture.height, 1, 0, desc.Format, D3DPOOL_SYSTEMMEM, &intermediate, nullptr)))
+	if (HRESULT hr = _device->CreateTexture(texture.width, texture.height, 1, 0, desc.Format, D3DPOOL_SYSTEMMEM, &intermediate, nullptr); FAILED(hr))
 	{
-		LOG(ERROR) << "Failed to create system memory texture for texture updating!";
+		LOG(ERROR) << "Failed to create system memory texture for updating texture '" << texture.unique_name << "'! HRESULT is " << hr << '.';
+		LOG(DEBUG) << "> Details: Width = " << texture.width << ", Height = " << texture.height << ", Levels = " << "1" << ", Usage = " << "0" << ", Format = " << desc.Format;
 		return;
 	}
 
@@ -785,7 +809,7 @@ void reshade::d3d9::runtime_d3d9::upload_texture(const texture &texture, const u
 
 	switch (texture.format)
 	{
-	case reshadefx::texture_format::r8: // These are actually D3DFMT_A8R8G8B8, see 'init_texture'
+	case reshadefx::texture_format::r8: // These are actually D3DFMT_X8R8G8B8, see 'init_texture'
 		for (uint32_t y = 0, pitch = texture.width * 4; y < texture.height; ++y, mapped_data += mapped.Pitch, pixels += pitch)
 			for (uint32_t x = 0; x < pitch; x += 4)
 				mapped_data[x + 0] = 0, // Set green and blue channel to zero
@@ -810,7 +834,7 @@ void reshade::d3d9::runtime_d3d9::upload_texture(const texture &texture, const u
 				mapped_data[x + 3] = pixels[x + 3];
 		break;
 	default:
-		LOG(ERROR) << "Texture upload is not supported for format " << static_cast<unsigned int>(texture.format) << '!';
+		LOG(ERROR) << "Texture upload is not supported for format " << static_cast<unsigned int>(texture.format) << " of texture '" << texture.unique_name << "'!";
 		break;
 	}
 
@@ -818,7 +842,7 @@ void reshade::d3d9::runtime_d3d9::upload_texture(const texture &texture, const u
 
 	if (HRESULT hr = _device->UpdateTexture(intermediate.get(), impl->texture.get()); FAILED(hr))
 	{
-		LOG(ERROR) << "Failed to update texture from system memory texture! HRESULT is " << hr << '.';
+		LOG(ERROR) << "Failed to update texture '" << texture.unique_name << "' from system memory texture! HRESULT is " << hr << '.';
 		return;
 	}
 }
@@ -832,7 +856,7 @@ void reshade::d3d9::runtime_d3d9::render_technique(technique &technique)
 {
 	const auto impl = static_cast<d3d9_technique_data *>(technique.impl);
 
-	// Setup vertex input
+	// Setup vertex input (used to have a vertex ID as vertex shader input)
 	_device->SetStreamSource(0, _effect_vertex_buffer.get(), 0, sizeof(float));
 	_device->SetVertexDeclaration(_effect_vertex_layout.get());
 
@@ -858,7 +882,7 @@ void reshade::d3d9::runtime_d3d9::render_technique(technique &technique)
 		const d3d9_pass_data &pass_data = impl->passes[pass_index];
 		const reshadefx::pass_info &pass_info = technique.passes[pass_index];
 
-		// Setup states
+		// Setup state
 		pass_data.stateblock->Apply();
 
 		// Setup shader resources
@@ -907,30 +931,39 @@ void reshade::d3d9::runtime_d3d9::render_technique(technique &technique)
 		_device->SetVertexShaderConstantF(255, texel_size, 1);
 
 		// Draw primitives
+		UINT primitive_count = pass_info.num_vertices;
+		D3DPRIMITIVETYPE topology;
 		switch (pass_info.topology)
 		{
 		case reshadefx::primitive_topology::point_list:
-			_device->DrawPrimitive(D3DPT_POINTLIST, 0, pass_info.num_vertices);
+			topology = D3DPT_POINTLIST;
 			break;
 		case reshadefx::primitive_topology::line_list:
-			_device->DrawPrimitive(D3DPT_LINELIST, 0, pass_info.num_vertices / 2);
+			topology = D3DPT_LINELIST;
+			primitive_count /= 2;
 			break;
 		case reshadefx::primitive_topology::line_strip:
-			_device->DrawPrimitive(D3DPT_LINESTRIP, 0, pass_info.num_vertices - 1);
+			topology = D3DPT_LINESTRIP;
+			primitive_count -= 1;
 			break;
 		default:
 		case reshadefx::primitive_topology::triangle_list:
-			_device->DrawPrimitive(D3DPT_TRIANGLELIST, 0, pass_info.num_vertices / 3);
+			topology = D3DPT_TRIANGLELIST;
+			primitive_count /= 3;
 			break;
 		case reshadefx::primitive_topology::triangle_strip:
-			_device->DrawPrimitive(D3DPT_TRIANGLESTRIP, 0, pass_info.num_vertices - 2);
+			topology = D3DPT_TRIANGLESTRIP;
+			primitive_count -= 2;
 			break;
 		}
+		_device->DrawPrimitive(topology, 0, primitive_count);
 
 		_vertices += pass_info.num_vertices;
 		_drawcalls += 1;
 
 		needs_implicit_backbuffer_copy = false;
+
+		// Generate mipmaps for modified resources
 		for (IDirect3DSurface9 *target : pass_data.render_targets)
 		{
 			if (target == nullptr)
@@ -956,7 +989,6 @@ void reshade::d3d9::runtime_d3d9::render_technique(technique &technique)
 bool reshade::d3d9::runtime_d3d9::init_imgui_resources()
 {
 	HRESULT hr = _device->BeginStateBlock();
-
 	if (SUCCEEDED(hr))
 	{
 		_device->SetFVF(D3DFVF_XYZ | D3DFVF_DIFFUSE | D3DFVF_TEX1);

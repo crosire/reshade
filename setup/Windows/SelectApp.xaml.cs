@@ -11,7 +11,6 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Text.RegularExpressions;
 using System.Threading;
 using System.Windows;
 using System.Windows.Data;
@@ -20,7 +19,16 @@ using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
+using System.Text.RegularExpressions;
 using System.Xml;
+
+static class StringExtensionMethods
+{
+	public static bool ContainsIgnoreCase(this string s, string value)
+	{
+		return s.IndexOf(value, StringComparison.OrdinalIgnoreCase) >= 0;
+	}
+}
 
 namespace ReShade.Setup.Dialogs
 {
@@ -30,13 +38,12 @@ namespace ReShade.Setup.Dialogs
 		{
 			InitializeComponent();
 
-			// Sort items in list by name
-			var view = CollectionViewSource.GetDefaultView(ProgramListItems);
-			view.SortDescriptions.Add(new SortDescription(nameof(ProgramItem.Name), ListSortDirection.Ascending));
-			ProgramList.ItemsSource = view;
+			ProgramList.ItemsSource = CollectionViewSource.GetDefaultView(ProgramListItems);
 
 			UpdateThread = new Thread(() =>
 			{
+				var files = new List<string>();
+#if !RESHADE_SETUP_USE_MUI_CACHE
 				var searchPaths = new Queue<string>();
 
 				// Add Steam install locations
@@ -87,89 +94,19 @@ namespace ReShade.Setup.Dialogs
 						searchPaths.Enqueue(epicGamesInstallPath);
 					}
 				}
-
-				while (searchPaths.Count != 0)
+#else
+				foreach (var name in new string[] {
+					"Software\\Classes\\Local Settings\\Software\\Microsoft\\Windows\\Shell\\MuiCache",
+					"Software\\Microsoft\\Windows\\ShellNoRoam\\MUICache",
+					"Software\\Microsoft\\Windows NT\\CurrentVersion\\AppCompatFlags\\Compatibility Assistant\\Persisted",
+					"Software\\Microsoft\\Windows NT\\CurrentVersion\\AppCompatFlags\\Compatibility Assistant\\Store" })
 				{
-					if (SuspendUpdateThread)
-					{
-						SuspendUpdateThreadEvent.WaitOne();
-					}
-
-					string searchPath = searchPaths.Dequeue();
-
 					try
 					{
-						var files = Directory.GetFiles(searchPath, "*.exe", SearchOption.TopDirectoryOnly).Where(x =>
-							// Exclude installer executables
-							x.IndexOf("redis", StringComparison.OrdinalIgnoreCase) < 0 &&
-							x.IndexOf("unins", StringComparison.OrdinalIgnoreCase) < 0 &&
-							x.IndexOf("setup", StringComparison.OrdinalIgnoreCase) < 0 &&
-							x.IndexOf("patch", StringComparison.OrdinalIgnoreCase) < 0 &&
-							x.IndexOf("update", StringComparison.OrdinalIgnoreCase) < 0 &&
-							x.IndexOf("install", StringComparison.OrdinalIgnoreCase) < 0 &&
-							// Exclude common support executables
-							x.IndexOf("report", StringComparison.OrdinalIgnoreCase) < 0 &&
-							x.IndexOf("support", StringComparison.OrdinalIgnoreCase) < 0 &&
-							x.IndexOf("register", StringComparison.OrdinalIgnoreCase) < 0 &&
-							x.IndexOf("activation", StringComparison.OrdinalIgnoreCase) < 0 &&
-							x.IndexOf("diagnostics", StringComparison.OrdinalIgnoreCase) < 0 &&
-							// Exclude common utility and launcher executables
-							x.IndexOf("tool", StringComparison.OrdinalIgnoreCase) < 0 &&
-							x.IndexOf("crash", StringComparison.OrdinalIgnoreCase) < 0 &&
-							x.IndexOf("config", StringComparison.OrdinalIgnoreCase) < 0 &&
-							x.IndexOf("launch", StringComparison.OrdinalIgnoreCase) < 0 &&
-							x.IndexOf("plugin", StringComparison.OrdinalIgnoreCase) < 0 &&
-							x.IndexOf("benchmark", StringComparison.OrdinalIgnoreCase) < 0 &&
-							// Exclude various known executables like SteamVR and CEF
-							x.IndexOf("steamvr", StringComparison.OrdinalIgnoreCase) < 0 &&
-							x.IndexOf("cefprocess", StringComparison.OrdinalIgnoreCase) < 0 &&
-							!x.Contains("svc")).ToArray(); // Services
-
-						if (files.Length != 0)
+						string[] values = Registry.CurrentUser.OpenSubKey(name)?.GetValueNames();
+						if (values != null)
 						{
-							const int SPLIT_SIZE = 10;
-
-							for (int i = 0; i < files.Length; i += SPLIT_SIZE)
-							{
-								Dispatcher.Invoke(new Action<ArraySegment<string>>(arg =>
-								{
-									foreach (var file in arg)
-									{
-										if (ProgramListItems.FirstOrDefault(x => x.Path == file) == null)
-										{
-											ProgramListItems.Add(new ProgramItem(file));
-										}
-									}
-
-									if (PathBox.Text.Length == 0)
-										ProgramList.SelectedIndex = 0;
-								}), DispatcherPriority.Background, new ArraySegment<string>(files, i, Math.Min(SPLIT_SIZE, files.Length - i)));
-							}
-
-							// Give back control to the OS
-							Thread.Sleep(10);
-						}
-
-						// Continue searching in sub-directories
-						var directories = Directory.GetDirectories(searchPath).Where(x =>
-							// Avoid deep folder structures
-							x.Count(c => c == '\\') < 10 &&
-							// Ignore certain folders that are unlikely to contain useful executables
-							x.IndexOf("docs", StringComparison.OrdinalIgnoreCase) < 0 &&
-							x.IndexOf("cache", StringComparison.OrdinalIgnoreCase) < 0 &&
-							x.IndexOf("support", StringComparison.OrdinalIgnoreCase) < 0 &&
-							!x.Contains("Data") && // AppData, ProgramData, _Data
-							!x.Contains("_CommonRedist") &&
-							!x.Contains("__Installer") &&
-							!x.Contains("\\$") &&
-							!x.Contains("\\.") &&
-							!x.Contains("\\Windows") &&
-							// Ignore various folders which are known to not contain useful executables
-							x.IndexOf("steamvr", StringComparison.OrdinalIgnoreCase) < 0);
-
-						foreach (var path in directories)
-						{
-							searchPaths.Enqueue(path);
+							files.AddRange(values);
 						}
 					}
 					catch
@@ -178,9 +115,118 @@ namespace ReShade.Setup.Dialogs
 						continue;
 					}
 				}
+#endif
+
+				const int SPLIT_SIZE = 50;
+				var items = new KeyValuePair<string, FileVersionInfo>[SPLIT_SIZE];
+
+#if !RESHADE_SETUP_USE_MUI_CACHE
+				while (searchPaths.Count != 0)
+				{
+					string searchPath = searchPaths.Dequeue();
+
+					try
+					{
+						files = Directory.GetFiles(searchPath, "*.exe", SearchOption.TopDirectoryOnly).ToList();
+					}
+					catch
+					{
+						// Skip permission errors
+						continue;
+					}
+#endif
+
+					for (int offset = 0; offset < files.Count; offset += SPLIT_SIZE)
+					{
+						if (SuspendUpdateThread)
+						{
+							SuspendUpdateThreadEvent.WaitOne();
+						}
+
+						for (int i = 0; i < Math.Min(SPLIT_SIZE, files.Count - offset); ++i)
+						{
+							string path = files[offset + i];
+
+							if (Path.GetExtension(path) != ".exe" || !File.Exists(path))
+							{
+								continue;
+							}
+
+							// Exclude common installer, support and launcher executables
+							if (path.ContainsIgnoreCase("redis") ||
+								path.ContainsIgnoreCase("unins") ||
+								path.ContainsIgnoreCase("setup") ||
+								path.ContainsIgnoreCase("patch") ||
+								path.ContainsIgnoreCase("update") ||
+								path.ContainsIgnoreCase("install") ||
+								path.ContainsIgnoreCase("report") ||
+								path.ContainsIgnoreCase("support") ||
+								path.ContainsIgnoreCase("register") ||
+								path.ContainsIgnoreCase("activation") ||
+								path.ContainsIgnoreCase("diagnostics") ||
+								path.ContainsIgnoreCase("tool") ||
+								path.ContainsIgnoreCase("crash") ||
+								path.ContainsIgnoreCase("config") ||
+								path.ContainsIgnoreCase("launch") ||
+								path.ContainsIgnoreCase("plugin") ||
+								path.ContainsIgnoreCase("benchmark") ||
+								path.ContainsIgnoreCase("steamvr") ||
+								path.ContainsIgnoreCase("cefprocess") ||
+								path.Contains("svc") ||
+								// Ignore certain folders that are unlikely to contain useful executables
+								path.ContainsIgnoreCase("docs") ||
+								path.ContainsIgnoreCase("cache") ||
+								path.ContainsIgnoreCase("support") ||
+								path.Contains("Data") || // AppData, ProgramData, _Data
+								path.Contains("_CommonRedist") ||
+								path.Contains("__Installer") ||
+								path.Contains("\\$") ||
+								path.Contains("\\.") ||
+								path.Contains("\\Windows") ||
+								path.ContainsIgnoreCase("steamvr"))
+							{
+								continue;
+							}
+
+							items[i] = new KeyValuePair<string, FileVersionInfo>(path, FileVersionInfo.GetVersionInfo(path));
+						}
+
+						Dispatcher.Invoke(new Action<KeyValuePair<string, FileVersionInfo>[]>(arg =>
+						{
+							foreach (var item in arg)
+							{
+								if (item.Key == null || ProgramListItems.Any(x => x.Path == item.Key))
+								{
+									continue;
+								}
+
+								ProgramListItems.Add(new ProgramItem(item.Key, item.Value));
+							}
+						}), DispatcherPriority.Background, (object)items);
+
+						// Give back control to the OS
+						Thread.Sleep(5);
+					}
+
+#if !RESHADE_SETUP_USE_MUI_CACHE
+					// Continue searching in sub-directories
+					foreach (var path in Directory.GetDirectories(searchPath))
+					{
+						searchPaths.Enqueue(path);
+					}
+				}
+#endif
 
 				// Hide progress bar after search has finished
-				Dispatcher.BeginInvoke(new Action(() => ProgramListProgress.Visibility = Visibility.Collapsed));
+				Dispatcher.BeginInvoke(new Action(() =>
+				{
+					ProgramListProgress.Visibility = Visibility.Collapsed;
+
+					if (PathBox.Text.Length == 0)
+					{
+						ProgramList.SelectedIndex = 0;
+					}
+				}));
 			});
 
 			UpdateThread.Start();
@@ -188,15 +234,10 @@ namespace ReShade.Setup.Dialogs
 
 		class ProgramItem
 		{
-			public ProgramItem(string path)
+			public ProgramItem(string path, FileVersionInfo info)
 			{
-				if (!File.Exists(path))
-				{
-					throw new FileNotFoundException("Program does not exist", path);
-				}
-
 				Path = path;
-				Name = FileVersionInfo.GetVersionInfo(path)?.FileDescription;
+				Name = info.FileDescription;
 				if (Name is null || Name.Trim().Length == 0)
 				{
 					Name = System.IO.Path.GetFileNameWithoutExtension(path);
@@ -208,11 +249,21 @@ namespace ReShade.Setup.Dialogs
 				{
 					Icon = Imaging.CreateBitmapSourceFromHIcon(ico.Handle, Int32Rect.Empty, BitmapSizeOptions.FromEmptyOptions());
 				}
+
+				try
+				{
+					LastAccess = File.GetLastAccessTime(path).ToString("s");
+				}
+				catch
+				{
+					LastAccess = string.Empty;
+				}
 			}
 
 			public string Name { get; }
 			public string Path { get; }
 			public ImageSource Icon { get; }
+			public string LastAccess { get; }
 		}
 
 		Thread UpdateThread = null;
@@ -279,6 +330,24 @@ namespace ReShade.Setup.Dialogs
 			}
 		}
 
+		void OnSortByChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+		{
+			var view = CollectionViewSource.GetDefaultView(ProgramListItems);
+			view.SortDescriptions.Clear();
+
+			switch (SortBy.SelectedIndex)
+			{
+				case 0:
+					view.SortDescriptions.Add(new SortDescription(nameof(ProgramItem.LastAccess), ListSortDirection.Descending));
+					break;
+				case 1:
+					view.SortDescriptions.Add(new SortDescription(nameof(ProgramItem.Name), ListSortDirection.Ascending));
+					break;
+				case 2:
+					view.SortDescriptions.Add(new SortDescription(nameof(ProgramItem.Name), ListSortDirection.Descending));
+					break;
+			}
+		}
 		void OnSelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
 		{
 			FileName = (ProgramList.SelectedItem as ProgramItem)?.Path;

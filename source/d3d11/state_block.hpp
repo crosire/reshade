@@ -66,5 +66,12 @@ namespace reshade::d3d11
 		UINT _om_stencil_ref;
 		ID3D11RenderTargetView *_om_render_targets[D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT];
 		ID3D11DepthStencilView *_om_depth_stencil;
+		UINT _cs_num_class_instances;
+		ID3D11ClassInstance *_cs_class_instances[256];
+		ID3D11Buffer *_cs_constant_buffers[D3D11_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT];
+		ID3D11SamplerState *_cs_sampler_states[D3D11_COMMONSHADER_SAMPLER_SLOT_COUNT];
+		ID3D11ShaderResourceView *_cs_shader_resources[D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT];
+		ID3D11UnorderedAccessView *_cs_unordered_access_views[D3D11_1_UAV_SLOT_COUNT];
+		ID3D11ComputeShader *_cs;
 	};
 }

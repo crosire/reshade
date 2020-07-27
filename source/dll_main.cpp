@@ -101,7 +101,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 
 	// Create and show window instance
 	const HWND window_handle = CreateWindow(
-		wc.lpszClassName, TEXT("ReShade ") TEXT(VERSION_STRING_FILE) TEXT(" by crosire"), WS_OVERLAPPEDWINDOW,
+		wc.lpszClassName, TEXT("ReShade ") TEXT(VERSION_STRING_PRODUCT) TEXT(" by crosire"), WS_OVERLAPPEDWINDOW,
 		0, 0, 1024, 800, nullptr, nullptr, hInstance, nullptr);
 
 	if (window_handle == nullptr)
@@ -311,8 +311,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 				GetClientRect(window_handle, &window_rect);
 
 				D3D12_RESOURCE_DESC desc = { D3D12_RESOURCE_DIMENSION_TEXTURE2D };
-				desc.Width = window_rect.right - window_rect.left;
-				desc.Height = window_rect.bottom - window_rect.top;
+				desc.Width = window_rect.right;
+				desc.Height = window_rect.bottom;
 				desc.DepthOrArraySize = desc.MipLevels = 1;
 				desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
 				desc.SampleDesc = { 1, 0 };
@@ -762,9 +762,9 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 		log::open(std::filesystem::path(g_reshade_dll_path).replace_extension(L".log"));
 
 #  ifdef WIN64
-		LOG(INFO) << "Initializing crosire's ReShade version '" VERSION_STRING_FILE "' (64-bit) built on '" VERSION_DATE " " VERSION_TIME "' loaded from " << g_reshade_dll_path << " into " << g_target_executable_path << " ...";
+		LOG(INFO) << "Initializing crosire's ReShade version '" VERSION_STRING_PRODUCT "' (64-bit) built on '" VERSION_DATE " " VERSION_TIME "' loaded from " << g_reshade_dll_path << " into " << g_target_executable_path << " ...";
 #  else
-		LOG(INFO) << "Initializing crosire's ReShade version '" VERSION_STRING_FILE "' (32-bit) built on '" VERSION_DATE " " VERSION_TIME "' loaded from " << g_reshade_dll_path << " into " << g_target_executable_path << " ...";
+		LOG(INFO) << "Initializing crosire's ReShade version '" VERSION_STRING_PRODUCT "' (32-bit) built on '" VERSION_DATE " " VERSION_TIME "' loaded from " << g_reshade_dll_path << " into " << g_target_executable_path << " ...";
 #  endif
 
 		// First look for an API-named configuration file
@@ -863,6 +863,15 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 #  ifndef NDEBUG
 		RemoveVectoredExceptionHandler(g_exception_handler_handle);
 #  endif
+
+		// Module is now invalid, so break out of any message loops that may still have it in the call stack (see 'HookGetMessage' implementation in input.cpp)
+		// This is necessary since a different thread may have called into the 'GetMessage' hook from ReShade, but not receive a message until after the module was unloaded
+		// At that point it would return to code that was already unloaded and crash
+		// Hooks were already uninstalled now, so after returning from any existing 'GetMessage' hook call, application will call the real one next and things continue to work
+		g_module_handle = nullptr;
+		// This duration has to be slightly larger than the timeout in 'HookGetMessage' to ensure success
+		// It should also be large enough to cover any potential other calls to previous hooks that may still be in flight from other threads
+		Sleep(1050);
 
 		LOG(INFO) << "Finished exiting.";
 		break;

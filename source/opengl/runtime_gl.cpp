@@ -14,6 +14,7 @@ namespace reshade::opengl
 	struct opengl_tex_data
 	{
 		GLuint id[2] = {};
+		GLenum internal_format = GL_NONE;
 	};
 
 	struct opengl_pass_data
@@ -42,12 +43,18 @@ namespace reshade::opengl
 		bool has_mipmaps;
 	};
 
+	struct opengl_storage_data
+	{
+		opengl_tex_data *texture;
+	};
+
 	struct opengl_technique_data
 	{
 		GLuint query = 0;
 		bool query_in_flight = false;
 		std::vector<opengl_pass_data> passes;
 		std::vector<opengl_sampler_data> samplers;
+		std::vector<opengl_storage_data> storages;
 	};
 }
 
@@ -118,8 +125,8 @@ bool reshade::opengl::runtime_gl::on_init(HWND hwnd, unsigned int width, unsigne
 
 	_width = width;
 	_height = height;
-	_window_width = window_rect.right - window_rect.left;
-	_window_height = window_rect.bottom - window_rect.top;
+	_window_width = window_rect.right;
+	_window_height = window_rect.bottom;
 	_color_bit_depth = pfd.cRedBits;
 
 	switch (pfd.cDepthBits)
@@ -333,28 +340,41 @@ bool reshade::opengl::runtime_gl::init_effect(size_t index)
 		}
 	}
 
-	std::unordered_map<std::string, GLuint> entry_points;
-
 	// Compile all entry points
+	std::unordered_map<std::string, GLuint> entry_points;
 	for (const reshadefx::entry_point &entry_point : effect.module.entry_points)
 	{
-		GLuint shader_id = glCreateShader(entry_point.is_pixel_shader ? GL_FRAGMENT_SHADER : GL_VERTEX_SHADER);
-		entry_points[entry_point.name] = shader_id;
+		GLuint shader_type = GL_NONE;
+		switch (entry_point.type)
+		{
+		case reshadefx::shader_type::vs:
+			shader_type = GL_VERTEX_SHADER;
+			break;
+		case reshadefx::shader_type::ps:
+			shader_type = GL_FRAGMENT_SHADER;
+			break;
+		case reshadefx::shader_type::cs:
+			shader_type = GL_COMPUTE_SHADER;
+			break;
+		}
+
+		GLuint shader_object = glCreateShader(shader_type);
+		entry_points[entry_point.name] = shader_object;
 
 		if (!effect.module.spirv.empty())
 		{
 			assert(_renderer_id >= 0x14600); // Core since OpenGL 4.6 (see https://www.khronos.org/opengl/wiki/SPIR-V)
 			assert(gl3wProcs.gl.ShaderBinary != nullptr && gl3wProcs.gl.SpecializeShader != nullptr);
 
-			glShaderBinary(1, &shader_id, GL_SHADER_BINARY_FORMAT_SPIR_V, effect.module.spirv.data(), static_cast<GLsizei>(effect.module.spirv.size() * sizeof(uint32_t)));
-			glSpecializeShader(shader_id, entry_point.name.c_str(), GLuint(spec_constants.size()), spec_constants.data(), spec_data.data());
+			glShaderBinary(1, &shader_object, GL_SHADER_BINARY_FORMAT_SPIR_V, effect.module.spirv.data(), static_cast<GLsizei>(effect.module.spirv.size() * sizeof(uint32_t)));
+			glSpecializeShader(shader_object, entry_point.name.c_str(), GLuint(spec_constants.size()), spec_constants.data(), spec_data.data());
 		}
 		else
 		{
 			std::string defines = "#version 430\n";
 			defines += "#define ENTRY_POINT_" + entry_point.name + " 1\n";
 
-			if (!entry_point.is_pixel_shader)
+			if (entry_point.type == reshadefx::shader_type::vs)
 			{
 				// OpenGL does not allow using 'discard' in the vertex shader profile
 				defines += "#define discard\n";
@@ -363,24 +383,33 @@ bool reshade::opengl::runtime_gl::init_effect(size_t index)
 				defines += "#define dFdy(y) y\n";
 				defines += "#define fwidth(p) p\n";
 			}
+			if (entry_point.type != reshadefx::shader_type::cs)
+			{
+				// OpenGL does not allow using 'shared' in vertex/fragment shader profile
+				defines += "#define shared\n";
+				// Barrier intrinsics are only available in compute shaders
+				defines += "#define barrier()\n";
+				defines += "#define memoryBarrier()\n";
+				defines += "#define groupMemoryBarrier()\n";
+			}
 
 			defines += "#line 1 0\n"; // Reset line number, so it matches what is shown when viewing the generated code
 			defines += effect.preamble;
 
 			GLsizei lengths[] = { static_cast<GLsizei>(defines.size()), static_cast<GLsizei>(effect.module.hlsl.size()) };
 			const GLchar *sources[] = { defines.c_str(), effect.module.hlsl.c_str() };
-			glShaderSource(shader_id, 2, sources, lengths);
-			glCompileShader(shader_id);
+			glShaderSource(shader_object, 2, sources, lengths);
+			glCompileShader(shader_object);
 		}
 
 		GLint status = GL_FALSE;
-		glGetShaderiv(shader_id, GL_COMPILE_STATUS, &status);
+		glGetShaderiv(shader_object, GL_COMPILE_STATUS, &status);
 		if (GL_FALSE == status)
 		{
 			GLint log_size = 0;
-			glGetShaderiv(shader_id, GL_INFO_LOG_LENGTH, &log_size);
+			glGetShaderiv(shader_object, GL_INFO_LOG_LENGTH, &log_size);
 			std::vector<char> log(log_size);
-			glGetShaderInfoLog(shader_id, log_size, nullptr, log.data());
+			glGetShaderInfoLog(shader_object, log_size, nullptr, log.data());
 
 			effect.errors += log.data();
 
@@ -406,10 +435,14 @@ bool reshade::opengl::runtime_gl::init_effect(size_t index)
 	bool success = true;
 
 	opengl_technique_data technique_init;
+	assert(effect.module.num_texture_bindings == 0);
 	technique_init.samplers.resize(effect.module.num_sampler_bindings);
+	technique_init.storages.resize(effect.module.num_storage_bindings);
 
 	for (const reshadefx::sampler_info &info : effect.module.samplers)
 	{
+		const texture &texture = look_up_texture_by_name(info.texture_name);
+
 		// Hash sampler state to avoid duplicated sampler objects
 		size_t hash = 2166136261;
 		hash = (hash * 16777619) ^ static_cast<uint32_t>(info.address_u);
@@ -420,44 +453,43 @@ bool reshade::opengl::runtime_gl::init_effect(size_t index)
 		hash = (hash * 16777619) ^ reinterpret_cast<const uint32_t &>(info.min_lod);
 		hash = (hash * 16777619) ^ reinterpret_cast<const uint32_t &>(info.max_lod);
 
-		auto it = _effect_sampler_states.find(hash);
+		std::unordered_map<size_t, GLuint>::iterator it = _effect_sampler_states.find(hash);
 		if (it == _effect_sampler_states.end())
 		{
-			GLenum minfilter = GL_NONE, magfilter = GL_NONE;
-
+			GLenum min_filter = GL_NONE, mag_filter = GL_NONE;
 			switch (info.filter)
 			{
 			case reshadefx::texture_filter::min_mag_mip_point:
-				minfilter = GL_NEAREST_MIPMAP_NEAREST;
-				magfilter = GL_NEAREST;
+				min_filter = GL_NEAREST_MIPMAP_NEAREST;
+				mag_filter = GL_NEAREST;
 				break;
 			case reshadefx::texture_filter::min_mag_point_mip_linear:
-				minfilter = GL_NEAREST_MIPMAP_LINEAR;
-				magfilter = GL_NEAREST;
+				min_filter = GL_NEAREST_MIPMAP_LINEAR;
+				mag_filter = GL_NEAREST;
 				break;
 			case reshadefx::texture_filter::min_point_mag_linear_mip_point:
-				minfilter = GL_NEAREST_MIPMAP_NEAREST;
-				magfilter = GL_LINEAR;
+				min_filter = GL_NEAREST_MIPMAP_NEAREST;
+				mag_filter = GL_LINEAR;
 				break;
 			case reshadefx::texture_filter::min_point_mag_mip_linear:
-				minfilter = GL_NEAREST_MIPMAP_LINEAR;
-				magfilter = GL_LINEAR;
+				min_filter = GL_NEAREST_MIPMAP_LINEAR;
+				mag_filter = GL_LINEAR;
 				break;
 			case reshadefx::texture_filter::min_linear_mag_mip_point:
-				minfilter = GL_LINEAR_MIPMAP_NEAREST;
-				magfilter = GL_NEAREST;
+				min_filter = GL_LINEAR_MIPMAP_NEAREST;
+				mag_filter = GL_NEAREST;
 				break;
 			case reshadefx::texture_filter::min_linear_mag_point_mip_linear:
-				minfilter = GL_LINEAR_MIPMAP_LINEAR;
-				magfilter = GL_NEAREST;
+				min_filter = GL_LINEAR_MIPMAP_LINEAR;
+				mag_filter = GL_NEAREST;
 				break;
 			case reshadefx::texture_filter::min_mag_linear_mip_point:
-				minfilter = GL_LINEAR_MIPMAP_NEAREST;
-				magfilter = GL_LINEAR;
+				min_filter = GL_LINEAR_MIPMAP_NEAREST;
+				mag_filter = GL_LINEAR;
 				break;
 			case reshadefx::texture_filter::min_mag_mip_linear:
-				minfilter = GL_LINEAR_MIPMAP_LINEAR;
-				magfilter = GL_LINEAR;
+				min_filter = GL_LINEAR_MIPMAP_LINEAR;
+				mag_filter = GL_LINEAR;
 				break;
 			}
 
@@ -482,8 +514,8 @@ bool reshade::opengl::runtime_gl::init_effect(size_t index)
 			glSamplerParameteri(sampler_id, GL_TEXTURE_WRAP_S, convert_address_mode(info.address_u));
 			glSamplerParameteri(sampler_id, GL_TEXTURE_WRAP_T, convert_address_mode(info.address_v));
 			glSamplerParameteri(sampler_id, GL_TEXTURE_WRAP_R, convert_address_mode(info.address_w));
-			glSamplerParameteri(sampler_id, GL_TEXTURE_MAG_FILTER, magfilter);
-			glSamplerParameteri(sampler_id, GL_TEXTURE_MIN_FILTER, minfilter);
+			glSamplerParameteri(sampler_id, GL_TEXTURE_MAG_FILTER, mag_filter);
+			glSamplerParameteri(sampler_id, GL_TEXTURE_MIN_FILTER, min_filter);
 			glSamplerParameterf(sampler_id, GL_TEXTURE_LOD_BIAS, info.lod_bias);
 			glSamplerParameterf(sampler_id, GL_TEXTURE_MIN_LOD, info.min_lod);
 			glSamplerParameterf(sampler_id, GL_TEXTURE_MAX_LOD, info.max_lod);
@@ -491,17 +523,19 @@ bool reshade::opengl::runtime_gl::init_effect(size_t index)
 			it = _effect_sampler_states.emplace(hash, sampler_id).first;
 		}
 
-		const auto existing_texture = std::find_if(_textures.begin(), _textures.end(),
-			[&texture_name = info.texture_name](const auto &item) {
-			return item.unique_name == texture_name && item.impl != nullptr;
-		});
-		assert(existing_texture != _textures.end());
-
 		opengl_sampler_data &sampler_data = technique_init.samplers[info.binding];
 		sampler_data.id = it->second;
-		sampler_data.texture = static_cast<opengl_tex_data *>(existing_texture->impl);
+		sampler_data.texture = static_cast<opengl_tex_data *>(texture.impl);
 		sampler_data.is_srgb = info.srgb;
-		sampler_data.has_mipmaps = existing_texture->levels > 1;
+		sampler_data.has_mipmaps = texture.levels > 1;
+	}
+
+	for (const reshadefx::storage_info &info : effect.module.storages)
+	{
+		const texture &texture = look_up_texture_by_name(info.texture_name);
+
+		opengl_storage_data &storage_data = technique_init.storages[info.binding];
+		storage_data.texture = static_cast<opengl_tex_data *>(texture.impl);
 	}
 
 	for (technique &technique : _techniques)
@@ -521,124 +555,132 @@ bool reshade::opengl::runtime_gl::init_effect(size_t index)
 			opengl_pass_data &pass_data = impl->passes[pass_index];
 			reshadefx::pass_info &pass_info = technique.passes[pass_index];
 
-			const auto convert_blend_op = [](reshadefx::pass_blend_op value) -> GLenum {
-				switch (value)
-				{
-				default:
-				case reshadefx::pass_blend_op::add: return GL_FUNC_ADD;
-				case reshadefx::pass_blend_op::subtract: return GL_FUNC_SUBTRACT;
-				case reshadefx::pass_blend_op::rev_subtract: return GL_FUNC_REVERSE_SUBTRACT;
-				case reshadefx::pass_blend_op::min: return GL_MIN;
-				case reshadefx::pass_blend_op::max: return GL_MAX;
-				}
-			};
-			const auto convert_blend_func = [](reshadefx::pass_blend_func value) -> GLenum {
-				switch (value)
-				{
-				default:
-				case reshadefx::pass_blend_func::one: return GL_ONE;
-				case reshadefx::pass_blend_func::zero: return GL_ZERO;
-				case reshadefx::pass_blend_func::src_color: return GL_SRC_COLOR;
-				case reshadefx::pass_blend_func::src_alpha: return GL_SRC_ALPHA;
-				case reshadefx::pass_blend_func::inv_src_color: return GL_ONE_MINUS_SRC_COLOR;
-				case reshadefx::pass_blend_func::inv_src_alpha: return GL_ONE_MINUS_SRC_ALPHA;
-				case reshadefx::pass_blend_func::dst_color: return GL_DST_COLOR;
-				case reshadefx::pass_blend_func::dst_alpha: return GL_DST_ALPHA;
-				case reshadefx::pass_blend_func::inv_dst_color: return GL_ONE_MINUS_DST_COLOR;
-				case reshadefx::pass_blend_func::inv_dst_alpha: return GL_ONE_MINUS_DST_ALPHA;
-				}
-			};
-			const auto convert_stencil_op = [](reshadefx::pass_stencil_op value) -> GLenum {
-				switch (value)
-				{
-				default:
-				case reshadefx::pass_stencil_op::keep: return GL_KEEP;
-				case reshadefx::pass_stencil_op::zero: return GL_ZERO;
-				case reshadefx::pass_stencil_op::invert: return GL_INVERT;
-				case reshadefx::pass_stencil_op::replace: return GL_REPLACE;
-				case reshadefx::pass_stencil_op::incr: return GL_INCR_WRAP;
-				case reshadefx::pass_stencil_op::incr_sat: return GL_INCR;
-				case reshadefx::pass_stencil_op::decr: return GL_DECR_WRAP;
-				case reshadefx::pass_stencil_op::decr_sat: return GL_DECR;
-				}
-			};
-			const auto convert_stencil_func = [](reshadefx::pass_stencil_func value) -> GLenum {
-				switch (value)
-				{
-				default:
-				case reshadefx::pass_stencil_func::always: return GL_ALWAYS;
-				case reshadefx::pass_stencil_func::never: return GL_NEVER;
-				case reshadefx::pass_stencil_func::equal: return GL_EQUAL;
-				case reshadefx::pass_stencil_func::not_equal: return GL_NOTEQUAL;
-				case reshadefx::pass_stencil_func::less: return GL_LESS;
-				case reshadefx::pass_stencil_func::less_equal: return GL_LEQUAL;
-				case reshadefx::pass_stencil_func::greater: return GL_GREATER;
-				case reshadefx::pass_stencil_func::greater_equal: return GL_GEQUAL;
-				}
-			};
+			pass_data.program = glCreateProgram();
 
-			pass_data.blend_eq_color = convert_blend_op(pass_info.blend_op);
-			pass_data.blend_eq_alpha = convert_blend_op(pass_info.blend_op_alpha);
-			pass_data.blend_src = convert_blend_func(pass_info.src_blend);
-			pass_data.blend_dest = convert_blend_func(pass_info.dest_blend);
-			pass_data.blend_src_alpha = convert_blend_func(pass_info.src_blend_alpha);
-			pass_data.blend_dest_alpha = convert_blend_func(pass_info.dest_blend_alpha);
-			pass_data.stencil_func = convert_stencil_func(pass_info.stencil_comparison_func);
-			pass_data.stencil_op_z_pass = convert_stencil_op(pass_info.stencil_op_pass);
-			pass_data.stencil_op_fail = convert_stencil_op(pass_info.stencil_op_fail);
-			pass_data.stencil_op_z_fail = convert_stencil_op(pass_info.stencil_op_depth_fail);
-
-			glGenFramebuffers(1, &pass_data.fbo);
-			glBindFramebuffer(GL_FRAMEBUFFER, pass_data.fbo);
-
-			if (pass_info.render_target_names[0].empty())
+			if (!pass_info.cs_entry_point.empty())
 			{
-				glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, _rbo[RBO_COLOR]);
-
-				pass_data.draw_targets[0] = GL_COLOR_ATTACHMENT0;
-				pass_data.draw_textures[0] = _tex[TEX_BACK_SRGB];
-
-				pass_info.viewport_width = _width;
-				pass_info.viewport_height = _height;
+				const GLuint cs_shader_id = entry_points.at(pass_info.cs_entry_point);
+				glAttachShader(pass_data.program, cs_shader_id);
+				glLinkProgram(pass_data.program);
+				glDetachShader(pass_data.program, cs_shader_id);
 			}
 			else
 			{
-				for (uint32_t k = 0; k < 8 && !pass_info.render_target_names[k].empty(); ++k)
+				// Link program from input shaders
+				const GLuint vs_shader_id = entry_points.at(pass_info.vs_entry_point);
+				const GLuint fs_shader_id = entry_points.at(pass_info.ps_entry_point);
+				glAttachShader(pass_data.program, vs_shader_id);
+				glAttachShader(pass_data.program, fs_shader_id);
+				glLinkProgram(pass_data.program);
+				glDetachShader(pass_data.program, vs_shader_id);
+				glDetachShader(pass_data.program, fs_shader_id);
+
+				const auto convert_blend_op = [](reshadefx::pass_blend_op value) -> GLenum {
+					switch (value)
+					{
+					default:
+					case reshadefx::pass_blend_op::add: return GL_FUNC_ADD;
+					case reshadefx::pass_blend_op::subtract: return GL_FUNC_SUBTRACT;
+					case reshadefx::pass_blend_op::rev_subtract: return GL_FUNC_REVERSE_SUBTRACT;
+					case reshadefx::pass_blend_op::min: return GL_MIN;
+					case reshadefx::pass_blend_op::max: return GL_MAX;
+					}
+				};
+				const auto convert_blend_func = [](reshadefx::pass_blend_func value) -> GLenum {
+					switch (value)
+					{
+					case reshadefx::pass_blend_func::zero: return GL_ZERO;
+					default:
+					case reshadefx::pass_blend_func::one: return GL_ONE;
+					case reshadefx::pass_blend_func::src_color: return GL_SRC_COLOR;
+					case reshadefx::pass_blend_func::src_alpha: return GL_SRC_ALPHA;
+					case reshadefx::pass_blend_func::inv_src_color: return GL_ONE_MINUS_SRC_COLOR;
+					case reshadefx::pass_blend_func::inv_src_alpha: return GL_ONE_MINUS_SRC_ALPHA;
+					case reshadefx::pass_blend_func::dst_color: return GL_DST_COLOR;
+					case reshadefx::pass_blend_func::dst_alpha: return GL_DST_ALPHA;
+					case reshadefx::pass_blend_func::inv_dst_color: return GL_ONE_MINUS_DST_COLOR;
+					case reshadefx::pass_blend_func::inv_dst_alpha: return GL_ONE_MINUS_DST_ALPHA;
+					}
+				};
+				const auto convert_stencil_op = [](reshadefx::pass_stencil_op value) -> GLenum {
+					switch (value)
+					{
+					case reshadefx::pass_stencil_op::zero: return GL_ZERO;
+					default:
+					case reshadefx::pass_stencil_op::keep: return GL_KEEP;
+					case reshadefx::pass_stencil_op::invert: return GL_INVERT;
+					case reshadefx::pass_stencil_op::replace: return GL_REPLACE;
+					case reshadefx::pass_stencil_op::incr: return GL_INCR_WRAP;
+					case reshadefx::pass_stencil_op::incr_sat: return GL_INCR;
+					case reshadefx::pass_stencil_op::decr: return GL_DECR_WRAP;
+					case reshadefx::pass_stencil_op::decr_sat: return GL_DECR;
+					}
+				};
+				const auto convert_stencil_func = [](reshadefx::pass_stencil_func value) -> GLenum {
+					switch (value)
+					{
+					case reshadefx::pass_stencil_func::never: return GL_NEVER;
+					case reshadefx::pass_stencil_func::equal: return GL_EQUAL;
+					case reshadefx::pass_stencil_func::not_equal: return GL_NOTEQUAL;
+					case reshadefx::pass_stencil_func::less: return GL_LESS;
+					case reshadefx::pass_stencil_func::less_equal: return GL_LEQUAL;
+					case reshadefx::pass_stencil_func::greater: return GL_GREATER;
+					case reshadefx::pass_stencil_func::greater_equal: return GL_GEQUAL;
+					default:
+					case reshadefx::pass_stencil_func::always: return GL_ALWAYS;
+					}
+				};
+
+				pass_data.blend_eq_color = convert_blend_op(pass_info.blend_op);
+				pass_data.blend_eq_alpha = convert_blend_op(pass_info.blend_op_alpha);
+				pass_data.blend_src = convert_blend_func(pass_info.src_blend);
+				pass_data.blend_dest = convert_blend_func(pass_info.dest_blend);
+				pass_data.blend_src_alpha = convert_blend_func(pass_info.src_blend_alpha);
+				pass_data.blend_dest_alpha = convert_blend_func(pass_info.dest_blend_alpha);
+				pass_data.stencil_func = convert_stencil_func(pass_info.stencil_comparison_func);
+				pass_data.stencil_op_z_pass = convert_stencil_op(pass_info.stencil_op_pass);
+				pass_data.stencil_op_fail = convert_stencil_op(pass_info.stencil_op_fail);
+				pass_data.stencil_op_z_fail = convert_stencil_op(pass_info.stencil_op_depth_fail);
+
+				glGenFramebuffers(1, &pass_data.fbo);
+				glBindFramebuffer(GL_FRAMEBUFFER, pass_data.fbo);
+
+				if (pass_info.render_target_names[0].empty())
 				{
-					const auto texture_impl = static_cast<opengl_tex_data *>(std::find_if(_textures.begin(), _textures.end(),
-						[&render_target = pass_info.render_target_names[k]](const auto &item) {
-						return item.unique_name == render_target;
-					})->impl);
-					assert(texture_impl != nullptr);
+					glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, _rbo[RBO_COLOR]);
 
-					pass_data.draw_targets[k] = GL_COLOR_ATTACHMENT0 + k;
-					pass_data.draw_textures[k] = texture_impl->id[pass_info.srgb_write_enable];
+					pass_data.draw_targets[0] = GL_COLOR_ATTACHMENT0;
+					pass_data.draw_textures[0] = _tex[TEX_BACK_SRGB];
 
-					glFramebufferTexture(GL_FRAMEBUFFER, pass_data.draw_targets[k], pass_data.draw_textures[k], 0);
+					pass_info.viewport_width = _width;
+					pass_info.viewport_height = _height;
+				}
+				else
+				{
+					for (uint32_t k = 0; k < 8 && !pass_info.render_target_names[k].empty(); ++k)
+					{
+						opengl_tex_data *const tex_impl = static_cast<opengl_tex_data *>(
+							look_up_texture_by_name(pass_info.render_target_names[k]).impl);
+
+						pass_data.draw_targets[k] = GL_COLOR_ATTACHMENT0 + k;
+						pass_data.draw_textures[k] = tex_impl->id[pass_info.srgb_write_enable];
+
+						glFramebufferTexture(GL_FRAMEBUFFER, pass_data.draw_targets[k], pass_data.draw_textures[k], 0);
+					}
+
+					assert(pass_info.viewport_width != 0 && pass_info.viewport_height != 0);
 				}
 
-				assert(pass_info.viewport_width != 0 && pass_info.viewport_height != 0);
+				if (pass_info.stencil_enable && // Only need to attach stencil if stencil is actually used in this pass
+					pass_info.viewport_width == _width &&
+					pass_info.viewport_height == _height)
+				{
+					// Only attach stencil when viewport matches back buffer or else the frame buffer will always be resized to those dimensions
+					glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_STENCIL_ATTACHMENT, GL_RENDERBUFFER, _rbo[RBO_STENCIL]);
+				}
+
+				assert(glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
 			}
-
-			if (pass_info.stencil_enable && // Only need to attach stencil if stencil is actually used in this pass
-				pass_info.viewport_width == _width &&
-				pass_info.viewport_height == _height)
-			{
-				// Only attach stencil when viewport matches back buffer or else the frame buffer will always be resized to those dimensions
-				glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_STENCIL_ATTACHMENT, GL_RENDERBUFFER, _rbo[RBO_STENCIL]);
-			}
-
-			assert(glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
-
-			// Link program from input shaders
-			pass_data.program = glCreateProgram();
-			const GLuint vs_shader_id = entry_points.at(pass_info.vs_entry_point);
-			const GLuint fs_shader_id = entry_points.at(pass_info.ps_entry_point);
-			glAttachShader(pass_data.program, vs_shader_id);
-			glAttachShader(pass_data.program, fs_shader_id);
-			glLinkProgram(pass_data.program);
-			glDetachShader(pass_data.program, vs_shader_id);
-			glDetachShader(pass_data.program, fs_shader_id);
 
 			GLint status = GL_FALSE;
 			glGetProgramiv(pass_data.program, GL_LINK_STATUS, &status);
@@ -745,49 +787,50 @@ bool reshade::opengl::runtime_gl::init_texture(texture &texture)
 		return true;
 	}
 
-	GLenum internalformat = GL_RGBA8;
-	GLenum internalformat_srgb = GL_NONE;
-
+	GLenum internal_format = GL_RGBA8;
+	GLenum internal_format_srgb = GL_NONE;
 	switch (texture.format)
 	{
 	case reshadefx::texture_format::r8:
-		internalformat = GL_R8;
+		internal_format = GL_R8;
 		break;
 	case reshadefx::texture_format::r16f:
-		internalformat = GL_R16F;
+		internal_format = GL_R16F;
 		break;
 	case reshadefx::texture_format::r32f:
-		internalformat = GL_R32F;
+		internal_format = GL_R32F;
 		break;
 	case reshadefx::texture_format::rg8:
-		internalformat = GL_RG8;
+		internal_format = GL_RG8;
 		break;
 	case reshadefx::texture_format::rg16:
-		internalformat = GL_RG16;
+		internal_format = GL_RG16;
 		break;
 	case reshadefx::texture_format::rg16f:
-		internalformat = GL_RG16F;
+		internal_format = GL_RG16F;
 		break;
 	case reshadefx::texture_format::rg32f:
-		internalformat = GL_RG32F;
+		internal_format = GL_RG32F;
 		break;
 	case reshadefx::texture_format::rgba8:
-		internalformat = GL_RGBA8;
-		internalformat_srgb = GL_SRGB8_ALPHA8;
+		internal_format = GL_RGBA8;
+		internal_format_srgb = GL_SRGB8_ALPHA8;
 		break;
 	case reshadefx::texture_format::rgba16:
-		internalformat = GL_RGBA16;
+		internal_format = GL_RGBA16;
 		break;
 	case reshadefx::texture_format::rgba16f:
-		internalformat = GL_RGBA16F;
+		internal_format = GL_RGBA16F;
 		break;
 	case reshadefx::texture_format::rgba32f:
-		internalformat = GL_RGBA32F;
+		internal_format = GL_RGBA32F;
 		break;
 	case reshadefx::texture_format::rgb10a2:
-		internalformat = GL_RGB10_A2;
+		internal_format = GL_RGB10_A2;
 		break;
 	}
+
+	impl->internal_format = internal_format;
 
 	// Get current state
 	GLint previous_tex = 0;
@@ -800,11 +843,11 @@ bool reshade::opengl::runtime_gl::init_texture(texture &texture)
 	// Allocate texture storage
 	glGenTextures(2, impl->id);
 	glBindTexture(GL_TEXTURE_2D, impl->id[0]);
-	glTexStorage2D(GL_TEXTURE_2D, texture.levels, internalformat, texture.width, texture.height);
+	glTexStorage2D(GL_TEXTURE_2D, texture.levels, internal_format, texture.width, texture.height);
 
 	// Only create SRGB texture view if necessary
-	if (internalformat_srgb != GL_NONE) {
-		glTextureView(impl->id[1], GL_TEXTURE_2D, impl->id[0], internalformat_srgb, 0, texture.levels, 0, 1);
+	if (internal_format_srgb != GL_NONE) {
+		glTextureView(impl->id[1], GL_TEXTURE_2D, impl->id[0], internal_format_srgb, 0, texture.levels, 0, 1);
 	}
 	else {
 		impl->id[1] = impl->id[0];
@@ -909,8 +952,7 @@ void reshade::opengl::runtime_gl::destroy_texture(texture &texture)
 		return;
 	auto impl = static_cast<opengl_tex_data *>(texture.impl);
 
-	if (texture.impl_reference == texture_reference::none)
-	{
+	if (texture.impl_reference == texture_reference::none) {
 		glDeleteTextures(impl->id[0] != impl->id[1] ? 2 : 1, impl->id);
 	}
 
@@ -935,10 +977,11 @@ void reshade::opengl::runtime_gl::render_technique(technique &technique)
 		}
 	}
 
-	if (!impl->query_in_flight)
+	if (!impl->query_in_flight) {
 		glBeginQuery(GL_TIME_ELAPSED, impl->query);
+	}
 
-	// Set up global states
+	// Set up global state
 	glDisable(GL_CULL_FACE);
 	glDisable(GL_DEPTH_TEST);
 	glDisable(GL_SCISSOR_TEST);
@@ -956,13 +999,19 @@ void reshade::opengl::runtime_gl::render_technique(technique &technique)
 	}
 
 	// Set up shader resources
-	for (GLuint s_slot = 0; s_slot < impl->samplers.size(); s_slot++)
+	for (GLuint binding = 0; binding < impl->storages.size(); ++binding)
 	{
-		const opengl_sampler_data &sampler_data = impl->samplers[s_slot];
+		const opengl_storage_data &storage_data = impl->storages[binding];
 
-		glActiveTexture(GL_TEXTURE0 + s_slot);
+		glBindImageTexture(binding, storage_data.texture->id[0], 0, GL_FALSE, 0, GL_READ_WRITE, storage_data.texture->internal_format);
+	}
+	for (GLuint binding = 0; binding < impl->samplers.size(); ++binding)
+	{
+		const opengl_sampler_data &sampler_data = impl->samplers[binding];
+
+		glBindSampler(binding, sampler_data.id);
+		glActiveTexture(GL_TEXTURE0 + binding);
 		glBindTexture(GL_TEXTURE_2D, sampler_data.texture->id[sampler_data.is_srgb]);
-		glBindSampler(s_slot, sampler_data.id);
 	}
 
 	bool is_effect_stencil_cleared = false;
@@ -984,89 +1033,100 @@ void reshade::opengl::runtime_gl::render_technique(technique &technique)
 		const opengl_pass_data &pass_data = impl->passes[pass_index];
 		const reshadefx::pass_info &pass_info = technique.passes[pass_index];
 
-		// Set up pass specific state
-		glViewport(0, 0, static_cast<GLsizei>(pass_info.viewport_width), static_cast<GLsizei>(pass_info.viewport_height));
 		glUseProgram(pass_data.program);
-		glBindFramebuffer(GL_FRAMEBUFFER, pass_data.fbo);
-		glDrawBuffers(8, pass_data.draw_targets);
 
-		if (pass_info.blend_enable) {
-			glEnable(GL_BLEND);
-			glBlendFuncSeparate(pass_data.blend_src, pass_data.blend_dest, pass_data.blend_src_alpha, pass_data.blend_dest_alpha);
-			glBlendEquationSeparate(pass_data.blend_eq_color, pass_data.blend_eq_alpha);
-		}
-		else {
-			glDisable(GL_BLEND);
-		}
-
-		if (pass_info.stencil_enable) {
-			glEnable(GL_STENCIL_TEST);
-			glStencilOp(pass_data.stencil_op_fail, pass_data.stencil_op_z_fail, pass_data.stencil_op_z_pass);
-			glStencilMask(pass_info.stencil_write_mask);
-			glStencilFunc(pass_data.stencil_func, pass_info.stencil_reference_value, pass_info.stencil_read_mask);
-		}
-		else {
-			glDisable(GL_STENCIL_TEST);
-		}
-
-		if (pass_info.stencil_enable && !is_effect_stencil_cleared)
+		if (!pass_info.cs_entry_point.empty())
 		{
-			is_effect_stencil_cleared = true;
-
-			GLint clear_value = 0;
-			glClearBufferiv(GL_STENCIL, 0, &clear_value);
+			glDispatchCompute(pass_info.viewport_width, pass_info.viewport_height, 1);
 		}
-
-		if (pass_info.srgb_write_enable) {
-			glEnable(GL_FRAMEBUFFER_SRGB);
-		} else {
-			glDisable(GL_FRAMEBUFFER_SRGB);
-		}
-
-		glColorMask(
-			(pass_info.color_write_mask & (1 << 0)) != 0,
-			(pass_info.color_write_mask & (1 << 1)) != 0,
-			(pass_info.color_write_mask & (1 << 2)) != 0,
-			(pass_info.color_write_mask & (1 << 3)) != 0);
-
-		if (pass_info.clear_render_targets)
+		else
 		{
-			for (GLuint k = 0; k < 8; k++)
-			{
-				if (pass_data.draw_targets[k] == GL_NONE)
-					break; // Ignore unbound render targets
-				const GLfloat color[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
-				glClearBufferfv(GL_COLOR, k, color);
+			// Set up pass specific state
+			glViewport(0, 0, static_cast<GLsizei>(pass_info.viewport_width), static_cast<GLsizei>(pass_info.viewport_height));
+			glBindFramebuffer(GL_FRAMEBUFFER, pass_data.fbo);
+			glDrawBuffers(8, pass_data.draw_targets);
+
+			if (pass_info.blend_enable) {
+				glEnable(GL_BLEND);
+				glBlendFuncSeparate(pass_data.blend_src, pass_data.blend_dest, pass_data.blend_src_alpha, pass_data.blend_dest_alpha);
+				glBlendEquationSeparate(pass_data.blend_eq_color, pass_data.blend_eq_alpha);
 			}
+			else {
+				glDisable(GL_BLEND);
+			}
+
+			if (pass_info.stencil_enable) {
+				glEnable(GL_STENCIL_TEST);
+				glStencilOp(pass_data.stencil_op_fail, pass_data.stencil_op_z_fail, pass_data.stencil_op_z_pass);
+				glStencilMask(pass_info.stencil_write_mask);
+				glStencilFunc(pass_data.stencil_func, pass_info.stencil_reference_value, pass_info.stencil_read_mask);
+			}
+			else {
+				glDisable(GL_STENCIL_TEST);
+			}
+
+			if (pass_info.stencil_enable && !is_effect_stencil_cleared)
+			{
+				is_effect_stencil_cleared = true;
+
+				GLint clear_value = 0;
+				glClearBufferiv(GL_STENCIL, 0, &clear_value);
+			}
+
+			if (pass_info.srgb_write_enable) {
+				glEnable(GL_FRAMEBUFFER_SRGB);
+			}
+			else {
+				glDisable(GL_FRAMEBUFFER_SRGB);
+			}
+
+			glColorMask(
+				(pass_info.color_write_mask & (1 << 0)) != 0,
+				(pass_info.color_write_mask & (1 << 1)) != 0,
+				(pass_info.color_write_mask & (1 << 2)) != 0,
+				(pass_info.color_write_mask & (1 << 3)) != 0);
+
+			if (pass_info.clear_render_targets)
+			{
+				for (GLuint k = 0; k < 8; k++)
+				{
+					if (pass_data.draw_targets[k] == GL_NONE)
+						break; // Ignore unbound render targets
+					const GLfloat color[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+					glClearBufferfv(GL_COLOR, k, color);
+				}
+			}
+
+			// Draw primitives
+			GLenum topology;
+			switch (pass_info.topology)
+			{
+			case reshadefx::primitive_topology::point_list:
+				topology = GL_POINTS;
+				break;
+			case reshadefx::primitive_topology::line_list:
+				topology = GL_LINES;
+				break;
+			case reshadefx::primitive_topology::line_strip:
+				topology = GL_LINE_STRIP;
+				break;
+			default:
+			case reshadefx::primitive_topology::triangle_list:
+				topology = GL_TRIANGLES;
+				break;
+			case reshadefx::primitive_topology::triangle_strip:
+				topology = GL_TRIANGLE_STRIP;
+				break;
+			}
+			glDrawArrays(GL_TRIANGLE_STRIP, 0, pass_info.num_vertices);
+
+			_vertices += pass_info.num_vertices;
+			_drawcalls += 1;
+
+			needs_implicit_backbuffer_copy = false;
 		}
 
-		// Draw primitives
-		GLenum topology;
-		switch (pass_info.topology)
-		{
-		case reshadefx::primitive_topology::point_list:
-			topology = GL_POINTS;
-			break;
-		case reshadefx::primitive_topology::line_list:
-			topology = GL_LINES;
-			break;
-		case reshadefx::primitive_topology::line_strip:
-			topology = GL_LINE_STRIP;
-			break;
-		default:
-		case reshadefx::primitive_topology::triangle_list:
-			topology = GL_TRIANGLES;
-			break;
-		case reshadefx::primitive_topology::triangle_strip:
-			topology = GL_TRIANGLE_STRIP;
-			break;
-		}
-		glDrawArrays(GL_TRIANGLE_STRIP, 0, pass_info.num_vertices);
-
-		_vertices += pass_info.num_vertices;
-		_drawcalls += 1;
-
-		needs_implicit_backbuffer_copy = false;
+		// Generate mipmaps for modified resources
 		for (GLuint texture_id : pass_data.draw_textures)
 		{
 			if (texture_id == 0)
@@ -1078,22 +1138,22 @@ void reshade::opengl::runtime_gl::render_technique(technique &technique)
 				break;
 			}
 
-			// Regenerate mipmaps of any textures bound as render target
-			for (GLuint s_slot = 0; s_slot < impl->samplers.size(); ++s_slot)
+			for (GLuint binding = 0; binding < impl->samplers.size(); ++binding)
 			{
-				const opengl_sampler_data &sampler_data = impl->samplers[s_slot];
+				const opengl_sampler_data &sampler_data = impl->samplers[binding];
 
 				if (sampler_data.has_mipmaps && (sampler_data.texture->id[0] == texture_id || sampler_data.texture->id[1] == texture_id))
 				{
-					glActiveTexture(GL_TEXTURE0 + s_slot);
+					glActiveTexture(GL_TEXTURE0 + binding);
 					glGenerateMipmap(GL_TEXTURE_2D);
 				}
 			}
 		}
 	}
 
-	if (!impl->query_in_flight)
+	if (!impl->query_in_flight) {
 		glEndQuery(GL_TIME_ELAPSED);
+	}
 
 	impl->query_in_flight = true;
 }

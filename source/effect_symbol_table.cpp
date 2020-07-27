@@ -57,6 +57,7 @@ enum {
 #define out_float3 { reshadefx::type::t_float, 3, 1, reshadefx::type::q_out }
 #define out_float4 { reshadefx::type::t_float, 4, 1, reshadefx::type::q_out }
 #define sampler { reshadefx::type::t_sampler }
+#define storage { reshadefx::type::t_storage }
 
 // Import intrinsic function definitions
 #define DEFINE_INTRINSIC(name, i, ret_type, ...) intrinsic(#name, name##i, ret_type, { __VA_ARGS__ }),
@@ -89,6 +90,7 @@ static const intrinsic s_intrinsics[] = {
 #undef out_float3
 #undef out_float4
 #undef sampler
+#undef storage
 
 #pragma endregion
 
