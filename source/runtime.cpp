@@ -147,8 +147,8 @@ void reshade::runtime::on_reset()
 void reshade::runtime::on_present()
 {
 	// Get current time and date
-	time_t t = std::time(nullptr); tm tm;
-	localtime_s(&tm, &t);
+	const std::time_t t = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+	tm tm; localtime_s(&tm, &t);
 	_date[0] = tm.tm_year + 1900;
 	_date[1] = tm.tm_mon + 1;
 	_date[2] = tm.tm_mday;
