@@ -289,7 +289,8 @@ private:
 		// HLSL compiler complains about "technique" and "pass" names in strict mode (no matter the casing)
 		if (stringicmp(name, "pass") ||
 			stringicmp(name, "technique"))
-			name += "_RESERVED";
+			// This is guaranteed to not clash with user defined names, since those starting with an underscore are filtered out in 'define_name'
+			name = '_' + name;
 
 		return name;
 	}
