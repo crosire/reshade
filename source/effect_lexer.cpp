@@ -4,6 +4,7 @@
  */
 
 #include "effect_lexer.hpp"
+#include <cassert>
 #include <unordered_map> // Used for static lookup tables
 
 using namespace reshadefx;
@@ -407,7 +408,7 @@ reshadefx::token reshadefx::lexer::lex()
 next_token:
 	// Reset token data
 	tok.location = _cur_location;
-	tok.offset = _cur - _input.data();
+	tok.offset = input_offset();
 	tok.length = 1;
 	tok.literal_as_double = 0;
 	tok.literal_as_string.clear();
@@ -423,7 +424,7 @@ next_token:
 		if (_ignore_whitespace || is_at_line_begin || *_cur == '\n')
 			goto next_token;
 		tok.id = tokenid::space;
-		tok.length = _cur - _input.data() - tok.offset;
+		tok.length = input_offset() - tok.offset;
 		return tok;
 	case '\n':
 		_cur++;
@@ -537,7 +538,7 @@ next_token:
 			if (_ignore_comments)
 				goto next_token;
 			tok.id = tokenid::single_line_comment;
-			tok.length = _cur - _input.data() - tok.offset;
+			tok.length = input_offset() - tok.offset;
 			return tok;
 		}
 		else if (_cur[1] == '*')
@@ -559,7 +560,7 @@ next_token:
 			if (_ignore_comments)
 				goto next_token;
 			tok.id = tokenid::multi_line_comment;
-			tok.length = _cur - _input.data() - tok.offset;
+			tok.length = input_offset() - tok.offset;
 			return tok;
 		}
 		else if (_cur[1] == '=')
@@ -682,6 +683,12 @@ void reshadefx::lexer::skip_to_next_line()
 		skip(1);
 }
 
+void reshadefx::lexer::reset_to_offset(size_t offset)
+{
+	assert(offset < _input.size());
+	_cur = _input.data() + offset;
+}
+
 void reshadefx::lexer::parse_identifier(token &tok) const
 {
 	auto *const begin = _cur, *end = begin;
@@ -690,15 +697,15 @@ void reshadefx::lexer::parse_identifier(token &tok) const
 	do end++; while (type_lookup[uint8_t(*end)] == IDENT || type_lookup[uint8_t(*end)] == DIGIT);
 
 	tok.id = tokenid::identifier;
-	tok.offset = begin - _input.data();
+	tok.offset = input_offset();
 	tok.length = end - begin;
 	tok.literal_as_string.assign(begin, end);
 
 	if (_ignore_keywords)
 		return;
 
-	const auto it = keyword_lookup.find(tok.literal_as_string);
-	if (it != keyword_lookup.end())
+	if (const auto it = keyword_lookup.find(tok.literal_as_string);
+		it != keyword_lookup.end())
 		tok.id = it->second;
 }
 bool reshadefx::lexer::parse_pp_directive(token &tok)
@@ -707,8 +714,8 @@ bool reshadefx::lexer::parse_pp_directive(token &tok)
 	skip_space(); // Skip any space between the '#' and directive
 	parse_identifier(tok);
 
-	const auto it = pp_directive_lookup.find(tok.literal_as_string);
-	if (it != pp_directive_lookup.end())
+	if (const auto it = pp_directive_lookup.find(tok.literal_as_string);
+		it != pp_directive_lookup.end())
 	{
 		tok.id = it->second;
 		return true;

@@ -188,12 +188,15 @@ private:
 		if (loc.source.empty() || !_debug_info)
 			return;
 
-		spv::Id file = _string_lookup[loc.source];
-		if (file == 0) {
+		spv::Id file;
+		if (const auto it = _string_lookup.find(loc.source); it != _string_lookup.end())
+			file = it->second;
+		else
+		{
 			file = add_instruction(spv::OpString, 0, _debug_a)
 				.add_string(loc.source.c_str())
 				.result;
-			_string_lookup[loc.source] = file;
+			_string_lookup.emplace(loc.source, file);
 		}
 
 		// https://www.khronos.org/registry/spir-v/specs/unified1/SPIRV.html#OpLine
