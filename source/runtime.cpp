@@ -515,10 +515,9 @@ bool reshade::runtime::load_effect(const std::filesystem::path &path, size_t ind
 		technique.effect_index = index;
 
 		technique.hidden = technique.annotation_as_int("hidden") != 0;
-		technique.timeout = technique.annotation_as_int("timeout");
-		technique.timeleft = technique.timeout;
 
-		if (technique.annotation_as_int("enabled"))
+		if (technique.annotation_as_int("enabled") ||
+			technique.annotation_as_int("run_once"))
 			enable_technique(technique);
 
 		new_techniques.push_back(std::move(technique));
@@ -1014,13 +1013,17 @@ void reshade::runtime::update_and_render_effects()
 	// Render all enabled techniques
 	for (technique &technique : _techniques)
 	{
-		if (technique.timeleft > 0)
+		if (technique.time_left > 0)
 		{
-			technique.timeleft -= std::chrono::duration_cast<std::chrono::milliseconds>(_last_frame_duration).count();
-			if (technique.timeleft <= 0)
+			technique.time_left -= std::chrono::duration_cast<std::chrono::milliseconds>(_last_frame_duration).count();
+			if (technique.time_left <= 0)
+			{
 				disable_technique(technique);
+				continue;
+			}
 		}
-		else if (!_ignore_shortcuts && _input->is_key_pressed(technique.toggle_key_data, _force_shortcut_modifiers))
+
+		if (!_ignore_shortcuts && _input->is_key_pressed(technique.toggle_key_data, _force_shortcut_modifiers))
 		{
 			if (!technique.enabled)
 				enable_technique(technique);
@@ -1036,6 +1039,9 @@ void reshade::runtime::update_and_render_effects()
 		const auto time_technique_finished = std::chrono::high_resolution_clock::now();
 
 		technique.average_cpu_duration.append(std::chrono::duration_cast<std::chrono::nanoseconds>(time_technique_finished - time_technique_started).count());
+
+		if (technique.annotation_as_int("run_once"))
+			disable_technique(technique);
 	}
 
 	if (_should_save_screenshot)
@@ -1051,7 +1057,7 @@ void reshade::runtime::enable_technique(technique &technique)
 
 	const bool status_changed = !technique.enabled;
 	technique.enabled = true;
-	technique.timeleft = technique.timeout;
+	technique.time_left = technique.annotation_as_int("timeout");
 
 	// Queue effect file for compilation if it was not fully loaded yet
 	if (technique.impl == nullptr && // Avoid adding the same effect multiple times to the queue if it contains multiple techniques that were enabled simultaneously
@@ -1070,7 +1076,7 @@ void reshade::runtime::disable_technique(technique &technique)
 
 	const bool status_changed =  technique.enabled;
 	technique.enabled = false;
-	technique.timeleft = 0;
+	technique.time_left = 0;
 	technique.average_cpu_duration.clear();
 	technique.average_gpu_duration.clear();
 
@@ -1267,8 +1273,8 @@ void reshade::runtime::load_current_preset()
 
 	for (technique &technique : _techniques)
 	{
-		// Ignore preset if "enabled" annotation is set
-		if (technique.annotation_as_int("enabled") ||
+		// Ignore preset if "enabled" or "run_once" annotation is set
+		if (technique.annotation_as_int("enabled") || technique.annotation_as_int("run_once") ||
 			std::find(technique_list.begin(), technique_list.end(), technique.name) != technique_list.end())
 			enable_technique(technique);
 		else
