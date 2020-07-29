@@ -860,6 +860,10 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 			if (!expect(')'))
 				return false;
 
+			// Function calls can only be made from within functions
+			if (!_codegen->is_in_function())
+				return error(location, 3005, "invalid function call outside of a function"), false;
+
 			// Try to resolve the call by searching through both function symbols and intrinsics
 			bool undeclared = !symbol.id, ambiguous = false;
 

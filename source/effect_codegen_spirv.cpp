@@ -770,6 +770,8 @@ private:
 	}
 	id   define_variable(const location &loc, const type &type, const char *name, spv::StorageClass storage, spv::Id initializer_value = 0)
 	{
+		assert(storage != spv::StorageClassFunction || _current_function != nullptr);
+
 		id res = make_id();
 		spirv_basic_block &block = (storage != spv::StorageClassFunction) ?
 			_variables : _current_function->variables;
