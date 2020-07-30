@@ -569,6 +569,14 @@ private:
 		entry_point.return_type = { type::t_void };
 
 		const auto create_varying_variable = [this, stype](type type, unsigned int quals, const std::string &name, std::string semantic) {
+			// Skip built in variables
+			if (!semantic_to_builtin({}, semantic, stype).empty())
+				return;
+			// Always numerate semantics, so that e.g. TEXCOORD and TEXCOORD0 point to the same location
+			if (!semantic.empty())
+				if (const char c = semantic.back(); c < '0' || c > '9')
+					semantic += '0';
+
 			type.qualifiers |= quals;
 
 			// OpenGL does not allow varying of type boolean
@@ -579,12 +587,6 @@ private:
 
 			for (int i = 0, array_length = std::max(1, type.array_length); i < array_length; ++i)
 			{
-				if (!semantic_to_builtin({}, semantic, stype).empty())
-					continue; // Skip built in variables
-
-				if (const char c = semantic.back(); c < '0' || c > '9')
-					semantic += '0'; // Always numerate semantics, so that e.g. TEXCOORD and TEXCOORD0 point to the same location
-
 				uint32_t location = 0;
 				if (semantic.compare(0, 9, "SV_TARGET") == 0)
 					location = std::strtoul(semantic.c_str() + 9, nullptr, 10);
