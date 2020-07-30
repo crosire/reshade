@@ -569,7 +569,7 @@ private:
 		entry_point.return_type = { type::t_void };
 
 		const auto create_varying_variable = [this, stype](type type, unsigned int quals, const std::string &name, std::string semantic) {
-			type.qualifiers = quals;
+			type.qualifiers |= quals;
 
 			// OpenGL does not allow varying of type boolean
 			if (type.base == type::t_bool)
@@ -622,7 +622,7 @@ private:
 			// Flatten structure parameters
 			if (param_type.is_struct())
 				for (const struct_member_info &member : find_struct(param_type.definition).member_list)
-					create_varying_variable(member.type, param_type.qualifiers | member.type.qualifiers, param_name + '_' + member.name, member.semantic);
+					create_varying_variable(member.type, param_type.qualifiers, param_name + '_' + member.name, member.semantic);
 			else
 				create_varying_variable(param_type, param_type.qualifiers, param_name, func.parameter_list[i].semantic);
 		}
