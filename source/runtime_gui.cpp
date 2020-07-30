@@ -1125,6 +1125,8 @@ void reshade::runtime::draw_ui_settings()
 			_imgui_context->IO.IniFilename = save_imgui_window_state ? g_window_state_path.c_str() : nullptr;
 		}
 
+		modified |= ImGui::Checkbox("Do not compile effects automatically", & _no_reload_on_init);
+
 		modified |= ImGui::Checkbox("Group effect files with tabs instead of a tree", &_variable_editor_tabs);
 
 		#pragma region Style
