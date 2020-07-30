@@ -28,7 +28,6 @@ reshadefx::parser::~parser()
 bool reshadefx::parser::parse(std::string input, codegen *backend)
 {
 	_lexer.reset(new lexer(std::move(input)));
-	_lexer_backup.reset();
 
 	// Set backend for subsequent code-generation
 	_codegen = backend;
@@ -72,14 +71,13 @@ void reshadefx::parser::warning(const location &location, unsigned int code, con
 
 void reshadefx::parser::backup()
 {
-	_lexer.swap(_lexer_backup);
-	_lexer.reset(new lexer(*_lexer_backup));
 	_token_backup = _token_next;
+	_lexer_backup_offset = _lexer->input_offset();
 }
 void reshadefx::parser::restore()
 {
-	_lexer.swap(_lexer_backup);
-	_token_next = _token_backup;
+	_lexer->reset_to_offset(_lexer_backup_offset);
+	_token_next = _token_backup; // Copy instead of move here, since restore may be called twice (from 'accept_type_class' and then again from 'parse_expression_unary')
 }
 
 void reshadefx::parser::consume()
@@ -161,10 +159,8 @@ bool reshadefx::parser::accept_type_class(type &type)
 
 		backup(); // Need to restore if this identifier does not turn out to be a structure
 
-		scope scope;
-		symbol symbol;
-		std::string identifier;
-		if (accept_symbol(identifier, scope, symbol))
+		scope scope; symbol symbol;
+		if (std::string identifier; accept_symbol(identifier, scope, symbol))
 		{
 			if (symbol.id && symbol.op == symbol_type::structure)
 			{
@@ -863,6 +859,10 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 			// The list should be terminated with a parenthesis
 			if (!expect(')'))
 				return false;
+
+			// Function calls can only be made from within functions
+			if (!_codegen->is_in_function())
+				return error(location, 3005, "invalid function call outside of a function"), false;
 
 			// Try to resolve the call by searching through both function symbols and intrinsics
 			bool undeclared = !symbol.id, ambiguous = false;

@@ -42,7 +42,7 @@ namespace reshadefx
 		{
 			_input = lexer._input;
 			_cur_location = lexer._cur_location;
-			_cur = _input.data() + (lexer._cur - lexer._input.data());
+			reset_to_offset(lexer._cur - lexer._input.data());
 			_end = _input.data() + _input.size();
 			_ignore_comments = lexer._ignore_comments;
 			_ignore_whitespace = lexer._ignore_whitespace;
@@ -53,6 +53,11 @@ namespace reshadefx
 
 			return *this;
 		}
+
+		/// <summary>
+		/// Get the current position in the input string.
+		/// </summary>
+		size_t input_offset() const { return _cur - _input.data(); }
 
 		/// <summary>
 		/// Get the input string this lexical analyzer works on.
@@ -74,6 +79,12 @@ namespace reshadefx
 		/// Advances to the next new line, ignoring all tokens.
 		/// </summary>
 		void skip_to_next_line();
+
+		/// <summary>
+		/// Reset position to the specified <paramref name="offset"/>.
+		/// </summary>
+		/// <param name="offset">Offset in characters from the start of the input string.</param>
+		void reset_to_offset(size_t offset);
 
 	private:
 		/// <summary>

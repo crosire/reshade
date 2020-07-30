@@ -188,12 +188,15 @@ private:
 		if (loc.source.empty() || !_debug_info)
 			return;
 
-		spv::Id file = _string_lookup[loc.source];
-		if (file == 0) {
+		spv::Id file;
+		if (const auto it = _string_lookup.find(loc.source); it != _string_lookup.end())
+			file = it->second;
+		else
+		{
 			file = add_instruction(spv::OpString, 0, _debug_a)
 				.add_string(loc.source.c_str())
 				.result;
-			_string_lookup[loc.source] = file;
+			_string_lookup.emplace(loc.source, file);
 		}
 
 		// https://www.khronos.org/registry/spir-v/specs/unified1/SPIRV.html#OpLine
@@ -767,6 +770,8 @@ private:
 	}
 	id   define_variable(const location &loc, const type &type, const char *name, spv::StorageClass storage, spv::Id initializer_value = 0)
 	{
+		assert(storage != spv::StorageClassFunction || _current_function != nullptr);
+
 		id res = make_id();
 		spirv_basic_block &block = (storage != spv::StorageClassFunction) ?
 			_variables : _current_function->variables;
@@ -1175,6 +1180,7 @@ private:
 		// Work through all remaining operations in the access chain and apply them to the value
 		for (; i < exp.chain.size(); ++i)
 		{
+			assert(result != 0);
 			const auto &op = exp.chain[i];
 
 			switch (op.op)
@@ -1201,7 +1207,6 @@ private:
 				else
 				{
 					spv::Op spv_op = spv::OpNop;
-
 					switch (op.to.base)
 					{
 					case type::t_int:
@@ -1224,13 +1229,10 @@ private:
 						.result;
 				}
 				break;
-			case expression::operation::op_member:
-				// These should have been handled above already
-				break;
 			case expression::operation::op_dynamic_index:
 				if (op.from.is_vector())
 				{
-					assert(result != 0 && op.to.is_scalar());
+					assert(op.to.is_scalar());
 					result = add_instruction(spv::OpVectorExtractDynamic, convert_type(op.to))
 						.add(result) // Vector
 						.add(op.index) // Index
@@ -1239,9 +1241,9 @@ private:
 				}
 				assert(false);
 				break;
+			case expression::operation::op_member: // In case of struct return values, which are r-values
 			case expression::operation::op_constant_index:
-				assert(result != 0);
-				assert(op.from.is_vector() || op.from.is_matrix());
+				assert(op.from.is_vector() || op.from.is_matrix() || op.from.is_struct());
 				result = add_instruction(spv::OpCompositeExtract, convert_type(op.to))
 					.add(result)
 					.add(op.index) // Literal Index
@@ -1263,7 +1265,6 @@ private:
 							scalar_type.rows = 1;
 							scalar_type.cols = 1;
 
-							assert(result != 0);
 							spirv_instruction &node = add_instruction(spv::OpCompositeExtract, convert_type(scalar_type))
 								.add(result);
 
@@ -1276,10 +1277,8 @@ private:
 						}
 
 						spirv_instruction &node = add_instruction(spv::OpCompositeConstruct, convert_type(op.to));
-
 						for (unsigned int c = 0; c < 4 && op.swizzle[c] >= 0; ++c)
 							node.add(components[c]);
-
 						result = node.result;
 						break;
 					}
@@ -1288,30 +1287,26 @@ private:
 						spirv_instruction &node = add_instruction(spv::OpVectorShuffle, convert_type(op.to))
 							.add(result) // Vector 1
 							.add(result); // Vector 2
-
 						for (unsigned int c = 0; c < 4 && op.swizzle[c] >= 0; ++c)
 							node.add(op.swizzle[c]);
-
 						result = node.result;
 						break;
 					}
 					else
 					{
 						spirv_instruction &node = add_instruction(spv::OpCompositeConstruct, convert_type(op.to));
-
 						for (unsigned int c = 0; c < op.to.rows; ++c)
 							node.add(result);
-
 						result = node.result;
 						break;
 					}
 				}
 				else if (op.from.is_matrix() && op.to.is_scalar())
 				{
-					assert(result != 0 && op.swizzle[1] < 0);
+					assert(op.swizzle[1] < 0);
+
 					spirv_instruction &node = add_instruction(spv::OpCompositeExtract, convert_type(op.to))
 						.add(result); // Composite
-
 					if (op.from.rows > 1)
 					{
 						const unsigned int row = op.swizzle[0] / 4;
@@ -1323,7 +1318,6 @@ private:
 					{
 						node.add(op.swizzle[0]);
 					}
-
 					result = node.result; // Result ID
 					break;
 				}
