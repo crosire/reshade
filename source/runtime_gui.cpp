@@ -1127,6 +1127,8 @@ void reshade::runtime::draw_ui_settings()
 
 		modified |= ImGui::Checkbox("Group effect files with tabs instead of a tree", &_variable_editor_tabs);
 
+		modified |= ImGui::Checkbox("Do not compile effects automatically", &_no_reload_on_init);
+
 		#pragma region Style
 		if (ImGui::Combo("Style", &_style_index, "Dark\0Light\0Default\0Custom Simple\0Custom Advanced\0Solarized Dark\0Solarized Light\0"))
 		{
