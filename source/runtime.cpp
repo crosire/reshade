@@ -516,8 +516,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &path, size_t ind
 
 		technique.hidden = technique.annotation_as_int("hidden") != 0;
 
-		if (technique.annotation_as_int("enabled") ||
-			technique.annotation_as_int("run_once"))
+		if (technique.annotation_as_int("enabled"))
 			enable_technique(technique);
 
 		new_techniques.push_back(std::move(technique));
@@ -1013,16 +1012,6 @@ void reshade::runtime::update_and_render_effects()
 	// Render all enabled techniques
 	for (technique &technique : _techniques)
 	{
-		if (technique.time_left > 0)
-		{
-			technique.time_left -= std::chrono::duration_cast<std::chrono::milliseconds>(_last_frame_duration).count();
-			if (technique.time_left <= 0)
-			{
-				disable_technique(technique);
-				continue;
-			}
-		}
-
 		if (!_ignore_shortcuts && _input->is_key_pressed(technique.toggle_key_data, _force_shortcut_modifiers))
 		{
 			if (!technique.enabled)
@@ -1040,8 +1029,12 @@ void reshade::runtime::update_and_render_effects()
 
 		technique.average_cpu_duration.append(std::chrono::duration_cast<std::chrono::nanoseconds>(time_technique_finished - time_technique_started).count());
 
-		if (technique.annotation_as_int("run_once"))
-			disable_technique(technique);
+		if (technique.time_left > 0)
+		{
+			technique.time_left -= std::chrono::duration_cast<std::chrono::milliseconds>(_last_frame_duration).count();
+			if (technique.time_left <= 0)
+				disable_technique(technique);
+		}
 	}
 
 	if (_should_save_screenshot)
@@ -1273,8 +1266,8 @@ void reshade::runtime::load_current_preset()
 
 	for (technique &technique : _techniques)
 	{
-		// Ignore preset if "enabled" or "run_once" annotation is set
-		if (technique.annotation_as_int("enabled") || technique.annotation_as_int("run_once") ||
+		// Ignore preset if "enabled" annotation is set
+		if (technique.annotation_as_int("enabled") ||
 			std::find(technique_list.begin(), technique_list.end(), technique.name) != technique_list.end())
 			enable_technique(technique);
 		else
