@@ -410,6 +410,7 @@ namespace reshade
 		// === User Interface - Code Editor ===
 		imgui_code_editor _editor, _viewer;
 		std::filesystem::path _editor_file;
+		std::string _viewer_entry_point;
 #endif
 	};
 }

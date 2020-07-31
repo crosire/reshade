@@ -1,9 +1,16 @@
 ﻿#include "version.h"
 
+#define BUILD_VERSION(major, minor, revision) \
+	BUILD_VERSION_EXPAND(major, minor, revision)
+#define BUILD_VERSION_STRING(version) \
+	#version
+#define BUILD_VERSION_EXPAND(major, minor, revision) \
+	BUILD_VERSION_STRING(major.minor.revision)
+
 using System.Reflection;
 
 [assembly: AssemblyTitle("ReShade Setup")]
-[assembly: AssemblyVersion(VERSION_STRING_PRODUCT)]
+[assembly: AssemblyVersion(BUILD_VERSION(VERSION_MAJOR, VERSION_MINOR, VERSION_REVISION))]
 [assembly: AssemblyDescription("")]
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("crosire")]

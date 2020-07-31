@@ -2230,43 +2230,61 @@ bool reshadefx::parser::parse_struct()
 	if (!expect('{'))
 		return false;
 
+	bool parse_success = true;
+
 	while (!peek('}')) // Empty structures are possible
 	{
 		struct_member_info member;
 
 		if (!parse_type(member.type))
-			return error(_token_next.location, 3000, "syntax error: unexpected '" + token::id_to_name(_token_next.id) + "', expected struct member type"), consume_until('}'), false;
-
-		if (member.type.is_void())
-			return error(_token_next.location, 3038, "struct members cannot be void"), consume_until('}'), false;
-		if (member.type.has(type::q_in) || member.type.has(type::q_out))
-			return error(_token_next.location, 3055, "struct members cannot be declared 'in' or 'out'"), consume_until('}'), false;
-
-		if (member.type.is_struct()) // Nesting structures would make input/output argument flattening more complicated, so prevent it for now
-			return error(_token_next.location, 3090, "nested struct members are not supported"), consume_until('}'), false;
+			return error(_token_next.location, 3000, "syntax error: unexpected '" + token::id_to_name(_token_next.id) + "', expected struct member type"), consume_until('}'), accept(';'), false;
 
 		unsigned int count = 0;
 		do {
 			if (count++ > 0 && !expect(','))
-				return consume_until('}'), false;
+				return consume_until('}'), accept(';'), false;
 
 			if (!expect(tokenid::identifier))
-				return consume_until('}'), false;
+				return consume_until('}'), accept(';'), false;
 
 			member.name = std::move(_token.literal_as_string);
 			member.location = std::move(_token.location);
 
+			if (member.type.is_void())
+				parse_success = false,
+				error(member.location, 3038, '\'' + member.name + "': struct members cannot be void");
+			if (member.type.is_struct()) // Nesting structures would make input/output argument flattening more complicated, so prevent it for now
+				parse_success = false,
+				error(member.location, 3090, '\'' + member.name + "': nested struct members are not supported");
+
+			if (member.type.has(type::q_in) || member.type.has(type::q_out))
+				parse_success = false,
+				error(member.location, 3055, '\'' + member.name + "': struct members cannot be declared 'in' or 'out'");
+			if (member.type.has(type::q_const))
+				parse_success = false,
+				error(member.location, 3035, '\'' + member.name + "': struct members cannot be declared 'const'");
+			if (member.type.has(type::q_extern))
+				parse_success = false,
+				error(member.location, 3006, '\'' + member.name + "': struct members cannot be declared 'extern'");
+			if (member.type.has(type::q_uniform))
+				parse_success = false,
+				error(member.location, 3047, '\'' + member.name + "': struct members cannot be declared 'uniform'");
+			if (member.type.has(type::q_groupshared))
+				parse_success = false,
+				error(member.location, 3010, '\'' + member.name + "': struct members cannot be declared 'groupshared'");
+
 			// Modify member specific type, so that following members in the declaration list are not affected by this
 			if (!parse_array_size(member.type))
-				return consume_until('}'), false;
+				return consume_until('}'), accept(';'), false;
 			else if (member.type.array_length < 0)
-				return error(member.location, 3072, '\'' + member.name + "': array dimensions of struct members must be explicit"), consume_until('}'), false;
+				parse_success = false,
+				error(member.location, 3072, '\'' + member.name + "': array dimensions of struct members must be explicit");
 
 			// Structure members may have semantics to use them as input/output types
 			if (accept(':'))
 			{
 				if (!expect(tokenid::identifier))
-					return consume_until('}'), false;
+					return consume_until('}'), accept(';'), false;
 
 				member.semantic = std::move(_token.literal_as_string);
 				// Make semantic upper case to simplify comparison later on
@@ -2278,7 +2296,7 @@ bool reshadefx::parser::parse_struct()
 		} while (!peek(';'));
 
 		if (!expect(';'))
-			return consume_until('}'), false;
+			return consume_until('}'), accept(';'), false;
 	}
 
 	// Empty structures are valid, but not usually intended, so emit a warning
@@ -2294,7 +2312,7 @@ bool reshadefx::parser::parse_struct()
 	if (!insert_symbol(info.name, symbol, true))
 		return error(location, 3003, "redefinition of '" + info.name + '\''), false;
 
-	return expect('}');
+	return expect('}') && parse_success;
 }
 
 bool reshadefx::parser::parse_function(type type, std::string name)
@@ -2571,7 +2589,8 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 		}
 		else if (global && accept('{')) // Textures and samplers can have a property block attached to their declaration
 		{
-			if (type.has(type::q_const)) // Non-numeric variables cannot be constants
+			// Non-numeric variables cannot be constants
+			if (type.has(type::q_const))
 				return error(location, 3035, '\'' + name + "': this variable type cannot be declared 'const'"), false;
 
 			while (!peek('}'))

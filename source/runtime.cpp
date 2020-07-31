@@ -516,8 +516,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &path, size_t ind
 
 		technique.hidden = technique.annotation_as_int("hidden") != 0;
 
-		if (technique.annotation_as_int("enabled") ||
-			technique.annotation_as_int("run_once"))
+		if (technique.annotation_as_int("enabled"))
 			enable_technique(technique);
 
 		new_techniques.push_back(std::move(technique));
@@ -735,94 +734,103 @@ void reshade::runtime::update_and_render_effects()
 		// Finished loading effects, so apply preset to figure out which ones need compiling
 		load_current_preset();
 
-#if RESHADE_GUI
-		// Re-open last file in code editor after a reload
-		if (_show_code_editor && !_editor_file.empty())
-			if (const auto it = std::find_if(_effects.begin(), _effects.end(),
-				[this](const effect &fx) { return fx.source_file == _editor_file; }); it != _effects.end())
-				open_file_in_code_editor(it - _effects.begin(), _editor_file);
-#endif
-
 		_last_reload_time = std::chrono::high_resolution_clock::now();
 		_reload_total_effects = 0;
 		_reload_remaining_effects = std::numeric_limits<size_t>::max();
+
+#if RESHADE_GUI
+		// Re-open last file in code editor after a reload
+		if (_show_code_editor && !_editor_file.empty())
+		{
+			if (const auto it = std::find_if(_effects.begin(), _effects.end(),
+				[this](const effect &fx) { return fx.source_file == _editor_file; }); it != _effects.end())
+				open_file_in_code_editor(it - _effects.begin(), _editor_file);
+		}
+#endif
 	}
 	else if (_reload_remaining_effects != std::numeric_limits<size_t>::max())
 	{
 		return; // Cannot render while effects are still being loaded
 	}
-	else
+	else if (!_reload_compile_queue.empty())
 	{
-		if (!_reload_compile_queue.empty())
+		bool success = true;
+
+		// Pop an effect from the queue
+		const size_t effect_index = _reload_compile_queue.back();
+		_reload_compile_queue.pop_back();
+		effect &effect = _effects[effect_index];
+
+		// Create textures now, since they are referenced when building samplers in the 'init_effect' call below
+		for (texture &texture : _textures)
 		{
-			// Pop an effect from the queue
-			const size_t effect_index = _reload_compile_queue.back();
-			_reload_compile_queue.pop_back();
-			effect &effect = _effects[effect_index];
+			// Always create shared textures, since they may be in use by this effect already
+			if (texture.impl != nullptr || (texture.effect_index != effect_index && !texture.shared))
+				continue;
 
-			// Create textures now, since they are referenced when building samplers in the 'init_effect' call below
-			bool success = true;
-			for (texture &texture : _textures)
+			if (!init_texture(texture))
 			{
-				if (texture.impl == nullptr && (texture.effect_index == effect_index || texture.shared))
-				{
-					if (!init_texture(texture))
-					{
-						success = false;
-						effect.errors += "Failed to create texture " + texture.unique_name;
-						break;
-					}
-				}
-			}
-
-			// Compile the effect with the back-end implementation
-			if (success && !init_effect(effect_index))
-			{
-				// De-duplicate error lines (D3DCompiler sometimes repeats the same error multiple times)
-				for (size_t cur_line_offset = 0, next_line_offset, end_offset;
-					(next_line_offset = effect.errors.find('\n', cur_line_offset)) != std::string::npos && (end_offset = effect.errors.find('\n', next_line_offset + 1)) != std::string::npos; cur_line_offset = next_line_offset + 1)
-				{
-					const std::string_view cur_line(effect.errors.c_str() + cur_line_offset, next_line_offset - cur_line_offset);
-					const std::string_view next_line(effect.errors.c_str() + next_line_offset + 1, end_offset - next_line_offset - 1);
-
-					if (cur_line == next_line)
-					{
-						effect.errors.erase(next_line_offset, end_offset - next_line_offset);
-						next_line_offset = cur_line_offset - 1;
-					}
-				}
-
-				if (effect.errors.empty())
-					LOG(ERROR) << "Failed initializing " << effect.source_file << '.';
-				else
-					LOG(ERROR) << "Failed initializing " << effect.source_file << ":\n" << effect.errors;
-
 				success = false;
+				effect.errors += "Failed to create texture " + texture.unique_name;
+				break;
 			}
-
-			if (!success) // Something went wrong, do clean up
-			{
-				// Destroy all textures belonging to this effect
-				for (texture &tex : _textures)
-					if (tex.effect_index == effect_index && !tex.shared)
-						destroy_texture(tex);
-				// Disable all techniques belonging to this effect
-				for (technique &tech : _techniques)
-					if (tech.effect_index == effect_index)
-						disable_technique(tech);
-
-				effect.compile_sucess = false;
-				_last_shader_reload_successful = false;
-			}
-
-			// An effect has changed, need to reload textures
-			_textures_loaded = false;
 		}
-		else if (!_textures_loaded)
+
+		// Compile the effect with the back-end implementation
+		if (success && (success = init_effect(effect_index)) == false)
 		{
-			// Now that all effects were compiled, load all textures
-			load_textures();
+			// De-duplicate error lines (D3DCompiler sometimes repeats the same error multiple times)
+			for (size_t cur_line_offset = 0, next_line_offset, end_offset;
+				(next_line_offset = effect.errors.find('\n', cur_line_offset)) != std::string::npos && (end_offset = effect.errors.find('\n', next_line_offset + 1)) != std::string::npos; cur_line_offset = next_line_offset + 1)
+			{
+				const std::string_view cur_line(effect.errors.c_str() + cur_line_offset, next_line_offset - cur_line_offset);
+				const std::string_view next_line(effect.errors.c_str() + next_line_offset + 1, end_offset - next_line_offset - 1);
+
+				if (cur_line == next_line)
+				{
+					effect.errors.erase(next_line_offset, end_offset - next_line_offset);
+					next_line_offset = cur_line_offset - 1;
+				}
+			}
+
+			if (effect.errors.empty())
+				LOG(ERROR) << "Failed initializing " << effect.source_file << '.';
+			else
+				LOG(ERROR) << "Failed initializing " << effect.source_file << ":\n" << effect.errors;
 		}
+
+		if (success == false) // Something went wrong, do clean up
+		{
+			// Destroy all textures belonging to this effect
+			for (texture &tex : _textures)
+				if (tex.effect_index == effect_index && !tex.shared)
+					destroy_texture(tex);
+			// Disable all techniques belonging to this effect
+			for (technique &tech : _techniques)
+				if (tech.effect_index == effect_index)
+					disable_technique(tech);
+
+			effect.compile_sucess = false;
+			_last_shader_reload_successful = false;
+		}
+
+		// An effect has changed, need to reload textures
+		_textures_loaded = false;
+
+#if RESHADE_GUI
+		// Update assembly in viewer after a reload
+		if (_show_code_viewer && !_viewer_entry_point.empty() && success)
+		{
+			if (const auto assembly_it = effect.assembly.find(_viewer_entry_point);
+				assembly_it != effect.assembly.end())
+				_viewer.set_text(assembly_it->second);
+		}
+#endif
+	}
+	else if (!_textures_loaded)
+	{
+		// Now that all effects were compiled, load all textures
+		load_textures();
 	}
 
 #ifdef NDEBUG
@@ -1013,16 +1021,6 @@ void reshade::runtime::update_and_render_effects()
 	// Render all enabled techniques
 	for (technique &technique : _techniques)
 	{
-		if (technique.time_left > 0)
-		{
-			technique.time_left -= std::chrono::duration_cast<std::chrono::milliseconds>(_last_frame_duration).count();
-			if (technique.time_left <= 0)
-			{
-				disable_technique(technique);
-				continue;
-			}
-		}
-
 		if (!_ignore_shortcuts && _input->is_key_pressed(technique.toggle_key_data, _force_shortcut_modifiers))
 		{
 			if (!technique.enabled)
@@ -1040,8 +1038,12 @@ void reshade::runtime::update_and_render_effects()
 
 		technique.average_cpu_duration.append(std::chrono::duration_cast<std::chrono::nanoseconds>(time_technique_finished - time_technique_started).count());
 
-		if (technique.annotation_as_int("run_once"))
-			disable_technique(technique);
+		if (technique.time_left > 0)
+		{
+			technique.time_left -= std::chrono::duration_cast<std::chrono::milliseconds>(_last_frame_duration).count();
+			if (technique.time_left <= 0)
+				disable_technique(technique);
+		}
 	}
 
 	if (_should_save_screenshot)
@@ -1273,8 +1275,8 @@ void reshade::runtime::load_current_preset()
 
 	for (technique &technique : _techniques)
 	{
-		// Ignore preset if "enabled" or "run_once" annotation is set
-		if (technique.annotation_as_int("enabled") || technique.annotation_as_int("run_once") ||
+		// Ignore preset if "enabled" annotation is set
+		if (technique.annotation_as_int("enabled") ||
 			std::find(technique_list.begin(), technique_list.end(), technique.name) != technique_list.end())
 			enable_technique(technique);
 		else

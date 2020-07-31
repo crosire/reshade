@@ -40,6 +40,8 @@ void reshade::runtime::init_ui()
 	_menu_key_data[2] = false;
 	_menu_key_data[3] = false;
 
+	_editor.set_readonly(true);
+	_viewer.set_readonly(true);
 	_variable_editor_height = 300;
 
 	_imgui_context = ImGui::CreateContext();
@@ -717,7 +719,7 @@ void reshade::runtime::draw_ui()
 		}
 		if (_show_code_viewer)
 		{
-			if (ImGui::Begin("Viewing code###viewer", &_show_code_viewer))
+			if (ImGui::Begin("Viewing generated code###viewer", &_show_code_viewer))
 				draw_code_viewer();
 			ImGui::End();
 		}
@@ -1754,11 +1756,10 @@ void reshade::runtime::draw_code_editor()
 			_reload_remaining_effects = 1;
 			unload_effect(_selected_effect);
 			load_effect(_effects[_selected_effect].source_file, _selected_effect);
+			assert(_reload_remaining_effects == 0);
 
 			// Re-open current file so that errors are updated
 			open_file_in_code_editor(_selected_effect, _editor_file);
-
-			assert(_reload_remaining_effects == 0);
 
 			// Reloading an effect file invalidates all textures, but the statistics window may already have drawn references to those, so need to reset it
 			ImGui::FindWindowByName("Statistics")->DrawList->CmdBuffer.clear();
@@ -2638,9 +2639,13 @@ void reshade::runtime::draw_technique_editor()
 				{
 					ImGui::Separator();
 
-					for (const auto &included_file : effect.included_files)
+					for (const std::filesystem::path &included_file : effect.included_files)
+					{
 						if (ImGui::MenuItem(included_file.filename().u8string().c_str()))
+						{
 							source_file = included_file;
+						}
+					}
 				}
 
 				ImGui::EndPopup();
@@ -2657,26 +2662,32 @@ void reshade::runtime::draw_technique_editor()
 			{
 				std::string source_code;
 				if (ImGui::MenuItem("Generated code"))
+				{
 					source_code = effect.preamble + effect.module.hlsl;
+					_viewer_entry_point.clear();
+				}
 
 				if (!effect.assembly.empty())
 				{
 					ImGui::Separator();
 
 					for (const reshadefx::entry_point &entry_point : effect.module.entry_points)
+					{
 						if (const auto assembly_it = effect.assembly.find(entry_point.name);
 							assembly_it != effect.assembly.end() && ImGui::MenuItem(entry_point.name.c_str()))
+						{
 							source_code = assembly_it->second;
+							_viewer_entry_point = entry_point.name;
+						}
+					}
 				}
 
 				ImGui::EndPopup();
 
 				if (!source_code.empty())
 				{
-					_viewer.set_text(source_code);
-					_viewer.clear_errors();
-					_viewer.set_readonly(true);
 					_show_code_viewer = true;
+					_viewer.set_text(source_code);
 					ImGui::CloseCurrentPopup();
 				}
 			}
@@ -2724,19 +2735,26 @@ void reshade::runtime::open_file_in_code_editor(size_t effect_index, const std::
 		return;
 	}
 
+	// Force code editor to become visible
+	_show_code_editor = true;
+
 	// Only reload text if another file is opened (to keep undo history intact)
 	if (path != _editor_file)
 	{
+		_editor_file = path;
+
 		// Load file to string and update editor text
 		_editor.set_text(std::string(std::istreambuf_iterator<char>(std::ifstream(path).rdbuf()), std::istreambuf_iterator<char>()));
 		_editor.set_readonly(false);
-		_editor_file = path;
 	}
 
-	_show_code_editor = true;
+	// Update generated code in viewer after a reload
+	if (_show_code_viewer && _viewer_entry_point.empty())
+	{
+		_viewer.set_text(_effects[effect_index].preamble + _effects[effect_index].module.hlsl);
+	}
 
 	_editor.clear_errors();
-
 	const std::string &errors = _effects[effect_index].errors;
 
 	for (size_t offset = 0, next; offset != std::string::npos; offset = next)
