@@ -442,6 +442,8 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::MultiplyTransform(D3DTRANSFORMSTATETY
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetViewport(const D3DVIEWPORT9 *pViewport)
 {
+	_buffer_detection.on_set_viewport(*pViewport);
+
 	return _orig->SetViewport(pViewport);
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetViewport(D3DVIEWPORT9 *pViewport)

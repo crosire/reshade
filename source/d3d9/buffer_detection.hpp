@@ -63,6 +63,7 @@ namespace reshade::d3d9
 		IDirect3DDevice9 *const _device;
 
 #if RESHADE_DEPTH
+		bool check_aspect_ratio(UINT width_to_check, UINT height_to_check, UINT width, UINT height);
 		bool check_texture_format(const D3DSURFACE_DESC &desc);
 
 		bool update_depthstencil_replacement(com_ptr<IDirect3DSurface9> depthstencil);

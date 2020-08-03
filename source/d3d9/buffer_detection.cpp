@@ -61,19 +61,19 @@ void reshade::d3d9::buffer_detection::on_draw(D3DPRIMITIVETYPE type, UINT vertic
 {
 	switch (type)
 	{
-		case D3DPT_LINELIST:
-			vertices *= 2;
-			break;
-		case D3DPT_LINESTRIP:
-			vertices += 1;
-			break;
-		case D3DPT_TRIANGLELIST:
-			vertices *= 3;
-			break;
-		case D3DPT_TRIANGLESTRIP:
-		case D3DPT_TRIANGLEFAN:
-			vertices += 2;
-			break;
+	case D3DPT_LINELIST:
+		vertices *= 2;
+		break;
+	case D3DPT_LINESTRIP:
+		vertices += 1;
+		break;
+	case D3DPT_TRIANGLELIST:
+		vertices *= 3;
+		break;
+	case D3DPT_TRIANGLESTRIP:
+	case D3DPT_TRIANGLEFAN:
+		vertices += 2;
+		break;
 	}
 
 	_stats.vertices += vertices;
@@ -262,6 +262,11 @@ bool reshade::d3d9::buffer_detection::update_depthstencil_replacement(com_ptr<ID
 	return true;
 }
 
+bool reshade::d3d9::buffer_detection::check_aspect_ratio(UINT width_to_check, UINT height_to_check, UINT width, UINT height)
+{
+	return (width_to_check >= std::floor(width * 0.95f) && width_to_check <= std::ceil(width * 1.05f))
+		&& (height_to_check >= std::floor(height * 0.95f) && height_to_check <= std::ceil(height * 1.05f));
+}
 bool reshade::d3d9::buffer_detection::check_texture_format(const D3DSURFACE_DESC &desc)
 {
 	// Binding a depth-stencil surface as a texture to a shader is only supported on the following custom formats:
@@ -286,7 +291,7 @@ com_ptr<IDirect3DSurface9> reshade::d3d9::buffer_detection::find_best_depth_surf
 	{
 		for (const auto &[surface, snapshot] : _counters_per_used_depth_surface)
 		{
-			if (snapshot.total_stats.drawcalls == 0)
+			if (snapshot.total_stats.drawcalls == 0 || snapshot.total_stats.vertices == 0)
 				continue; // Skip unused
 
 			D3DSURFACE_DESC desc;
@@ -296,17 +301,8 @@ com_ptr<IDirect3DSurface9> reshade::d3d9::buffer_detection::find_best_depth_surf
 			if (desc.MultiSampleType != D3DMULTISAMPLE_NONE)
 				continue; // MSAA depth buffers are not supported since they would have to be moved into a plain surface before attaching to a shader slot
 
-			if (width != 0 && height != 0)
-			{
-				const float w = static_cast<float>(width);
-				const float w_ratio = w / desc.Width;
-				const float h = static_cast<float>(height);
-				const float h_ratio = h / desc.Height;
-				const float aspect_ratio = (w / h) - (static_cast<float>(desc.Width) / desc.Height);
-
-				if (std::fabs(aspect_ratio) > 0.1f || w_ratio > 1.85f || h_ratio > 1.85f || w_ratio < 0.5f || h_ratio < 0.5f)
-					continue; // Not a good fit
-			}
+			if (width != 0 && height != 0 && !check_aspect_ratio(desc.Width, desc.Height, width, height))
+				continue; // Not a good fit
 
 			const auto curr_weight = snapshot.total_stats.vertices * (1.2f - static_cast<float>(snapshot.total_stats.drawcalls) / _stats.drawcalls);
 			const auto best_weight = best_snapshot.total_stats.vertices * (1.2f - static_cast<float>(best_snapshot.total_stats.drawcalls) / _stats.vertices);
@@ -344,19 +340,10 @@ com_ptr<IDirect3DSurface9> reshade::d3d9::buffer_detection::find_best_depth_surf
 			{
 				const auto &snapshot = best_snapshot.clears[clear_index];
 
-				// check for viewport dimensions: if it does not match the deptsurface dimensions, this means
+				// check for viewport dimensions: if it does not match the depthsurface dimensions, this means
 				// that vertices have been drawn in a portion of the depthsurface, so do not take this into account
-				if (width != 0 && height != 0)
-				{
-					const float w = static_cast<float>(width);
-					const float w_ratio = w / snapshot.viewport.Width;
-					const float h = static_cast<float>(height);
-					const float h_ratio = h / snapshot.viewport.Height;
-					const float aspect_ratio = (w / h) - (static_cast<float>(snapshot.viewport.Width) / snapshot.viewport.Height);
-
-					if (std::fabs(aspect_ratio) > 0.1f || w_ratio > 1.85f || h_ratio > 1.85f || w_ratio < 0.5f || h_ratio < 0.5f)
-						continue; // Not a good fit
-				}
+				if (width != 0 && height != 0 && !check_aspect_ratio(snapshot.viewport.Width, snapshot.viewport.Height, width, height))
+					continue; // Not a good fit
 
 				// Fix for source engine games: Add a weight in order not to select the first db instance if it is related to the background scene
 				int mult = (clear_index > 0) ? 10 : 1;
