@@ -528,7 +528,7 @@ void reshade::runtime::draw_ui()
 		}
 		else
 		{
-			ImGui::TextUnformatted("ReShade " VERSION_STRING_PRODUCT " by crosire");
+			ImGui::TextUnformatted("ReShade " VERSION_STRING_PRODUCT);
 
 			if (_needs_update)
 			{
