@@ -342,7 +342,7 @@ com_ptr<IDirect3DSurface9> reshade::d3d9::buffer_detection::find_best_depth_surf
 
 				// check for viewport dimensions: if it does not match the depthsurface dimensions, this means
 				// that vertices have been drawn in a portion of the depthsurface, so do not take this into account
-				if (width != 0 && height != 0 && !check_aspect_ratio(snapshot.viewport.Width, snapshot.viewport.Height, width, height))
+				if (width != 0 && height != 0 && snapshot.viewport.Width != 0 && snapshot.viewport.Height != 0 && !check_aspect_ratio(snapshot.viewport.Width, snapshot.viewport.Height, width, height))
 					continue; // Not a good fit
 
 				// Fix for source engine games: Add a weight in order not to select the first db instance if it is related to the background scene
