@@ -122,7 +122,7 @@ private:
 		case type::t_sampler:
 			s += "__sampler2D";
 			break;
-		case type::t_texture:
+		case type::t_storage:
 			s += "RWTexture2D<float4>";
 			break;
 		default:

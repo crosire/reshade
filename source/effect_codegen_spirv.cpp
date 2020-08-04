@@ -344,7 +344,7 @@ private:
 		if (is_ptr == false)
 			storage = spv::StorageClassFunction;
 		// There cannot be function local sampler variables, so always assume uniform storage for them
-		if (info.is_texture() || info.is_sampler())
+		if (info.is_texture() || info.is_sampler() || info.is_storage())
 			storage = spv::StorageClassUniformConstant;
 
 		const type_lookup lookup = { info, is_ptr, array_stride, storage };

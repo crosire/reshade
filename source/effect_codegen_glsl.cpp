@@ -163,8 +163,8 @@ private:
 		case type::t_sampler:
 			s += "sampler2D";
 			break;
-		case type::t_texture:
-			s += "image2D";
+		case type::t_storage:
+			s += "writeonly image2D";
 			break;
 		default:
 			assert(false);
