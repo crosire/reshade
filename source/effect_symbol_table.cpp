@@ -9,21 +9,19 @@
 
 #pragma region Import intrinsic functions
 
-using namespace reshadefx;
-
 struct intrinsic
 {
-	intrinsic(const char *name, unsigned int id, const type &ret_type, std::initializer_list<type> arg_types) : id(id)
+	intrinsic(const char *name, unsigned int id, const reshadefx::type &ret_type, std::initializer_list<reshadefx::type> arg_types) : id(id)
 	{
 		function.name = name;
 		function.return_type = ret_type;
 		function.parameter_list.reserve(arg_types.size());
-		for (const type &arg_type : arg_types)
+		for (const reshadefx::type &arg_type : arg_types)
 			function.parameter_list.push_back({ arg_type, {}, {}, {} });
 	}
 
 	unsigned int id;
-	function_info function;
+	reshadefx::function_info function;
 };
 
 // Import intrinsic callback functions
