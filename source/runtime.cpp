@@ -1436,7 +1436,7 @@ void reshade::runtime::save_screenshot(const std::wstring &postfix, const bool s
 	sprintf_s(filename, " %.4d-%.2d-%.2d %.2d-%.2d-%.2d", _date[0], _date[1], _date[2], hour, minute, seconds);
 
 	const std::wstring least = (_screenshot_path.is_relative() ? g_target_executable_path.parent_path() / _screenshot_path : _screenshot_path) / g_target_executable_path.stem().concat(filename);
-	const std::wstring screenshot_path = least + postfix + (_screenshot_format == 0 ? L".bmp" : _screenshot_format == 1 ? L".png" : L".jpeg");
+	const std::wstring screenshot_path = least + postfix + (_screenshot_format == 0 ? L".bmp" : _screenshot_format == 1 ? L".png" : L".jpg");
 
 	LOG(INFO) << "Saving screenshot to " << screenshot_path << " ...";
 

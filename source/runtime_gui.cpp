@@ -41,7 +41,7 @@ void reshade::runtime::init_ui()
 	_menu_key_data[3] = false;
 
 	_editor.set_readonly(true);
-	_viewer.set_readonly(true);
+	_viewer.set_readonly(true); // Viewer is always read-only
 	_variable_editor_height = 300;
 
 	_imgui_context = ImGui::CreateContext();
