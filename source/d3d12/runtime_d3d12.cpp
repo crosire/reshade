@@ -549,7 +549,7 @@ bool reshade::d3d12::runtime_d3d12::init_effect(size_t index)
 			nullptr, nullptr, nullptr,
 			entry_point.name.c_str(),
 			profile,
-			D3DCOMPILE_ENABLE_STRICTNESS | D3DCOMPILE_OPTIMIZATION_LEVEL3, 0,
+			D3DCOMPILE_ENABLE_STRICTNESS | (_performance_mode ? D3DCOMPILE_OPTIMIZATION_LEVEL3 : D3DCOMPILE_OPTIMIZATION_LEVEL1), 0,
 			&entry_points[entry_point.name], &d3d_errors);
 
 		if (d3d_errors != nullptr) // Append warnings to the output error string as well

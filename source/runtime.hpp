@@ -205,6 +205,7 @@ namespace reshade
 		texture &look_up_texture_by_name(const std::string &unique_name);
 
 		bool _is_initialized = false;
+		bool _performance_mode = false;
 		bool _has_high_network_activity = false;
 		bool _has_depth_texture = false;
 		unsigned int _width = 0;
@@ -299,7 +300,6 @@ namespace reshade
 		bool _last_shader_reload_successful = true;
 		bool _last_texture_reload_successful = true;
 		bool _textures_loaded = false;
-		bool _performance_mode = false;
 		unsigned int _reload_key_data[4];
 		size_t _reload_total_effects = 1;
 		std::vector<size_t> _reload_compile_queue;
