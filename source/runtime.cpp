@@ -472,6 +472,10 @@ bool reshade::runtime::load_effect(const std::filesystem::path &path, size_t ind
 				}
 
 				existing_texture->shared = true;
+
+				// Always make shared textures render targets, since they may be used as such in a different effect
+				existing_texture->render_target = true;
+				existing_texture->storage_access = true;
 				continue;
 			}
 		}
