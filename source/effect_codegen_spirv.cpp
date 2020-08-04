@@ -961,7 +961,7 @@ private:
 					{
 						input_var = create_varying_variable(member.type, member.semantic, spv::StorageClassInput);
 
-						param_value = add_instruction(spv::OpLoad, convert_type(param.type))
+						param_value = add_instruction(spv::OpLoad, convert_type(member.type))
 							.add(input_var).result;
 						elements.push_back(param_value);
 					}
