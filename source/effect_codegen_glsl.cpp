@@ -358,6 +358,7 @@ private:
 	id   define_texture(const location &, texture_info &info) override
 	{
 		info.id = make_id();
+		info.binding = ~0u;
 
 		_module.textures.push_back(info);
 

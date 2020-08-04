@@ -295,16 +295,16 @@ bool reshade::runtime::load_effect(const std::filesystem::path &path, size_t ind
 			effect.compile_sucess = false;
 
 		unsigned shader_model;
-		if (_renderer_id == 0x9000)     // D3D9
-			shader_model = 30;
-		else if (_renderer_id < 0xa100) // D3D10
-			shader_model = 40;
-		else if (_renderer_id < 0xb000) // D3D11
-			shader_model = 41;
-		else if (_renderer_id < 0xc000) // D3D12
-			shader_model = 50;
+		if (_renderer_id == 0x9000)
+			shader_model = 30; // D3D9
+		else if (_renderer_id < 0xa100)
+			shader_model = 40; // D3D10 (including feature level 9)
+		else if (_renderer_id < 0xb000)
+			shader_model = 41; // D3D10.1
+		else if (_renderer_id < 0xc000)
+			shader_model = 50; // D3D11
 		else
-			shader_model = 60;
+			shader_model = 60; // D3D12
 
 		std::unique_ptr<reshadefx::codegen> codegen;
 		if ((_renderer_id & 0xF0000) == 0)

@@ -487,6 +487,7 @@ bool reshade::d3d10::runtime_d3d10::init_effect(size_t index)
 	}
 
 	d3d10_technique_data technique_init;
+	assert(effect.module.num_storage_bindings == 0);
 	technique_init.srv_bindings.resize(effect.module.num_texture_bindings);
 	technique_init.sampler_states.resize(effect.module.num_sampler_bindings);
 
