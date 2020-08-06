@@ -29,9 +29,16 @@ void reshade::d3d9::buffer_detection::reset(bool release_resources)
 	}
 	else if (preserve_depth_buffers && _depthstencil_replacement != nullptr)
 	{
-
 		com_ptr<IDirect3DSurface9> depthstencil;
 		_device->GetDepthStencilSurface(&depthstencil);
+
+		// ensure that all the depth surfaces are cleared at the end of the frame
+		for (com_ptr<IDirect3DSurface9> depth_surface : _preserved_depthstencil_surfaces)
+		{
+			// Clear the replacement at the end of the frame, since the clear performed by the application was only applied to the original one
+			_device->SetDepthStencilSurface(depth_surface.get());
+			_device->Clear(0, nullptr, D3DCLEAR_ZBUFFER, 0, 1.0f, 0);
+		}
 
 		depthstencil = (depthstencil == _depthstencil_replacement) ? _depthstencil_original : depthstencil;
 
@@ -43,14 +50,6 @@ void reshade::d3d9::buffer_detection::reset(bool release_resources)
 
 		// switch to another depthsurface replacement
 		switch_depthsurface(depthstencil, counters);
-
-		// ensure that all the depth surfaces are cleared at the end of the frame
-		for (com_ptr<IDirect3DSurface9> depth_surface : _preserved_depthstencil_surfaces)
-		{
-			// Clear the replacement at the end of the frame, since the clear performed by the application was only applied to the original one
-			_device->SetDepthStencilSurface(depth_surface.get());
-			_device->Clear(0, nullptr, D3DCLEAR_ZBUFFER, 0, 1.0f, 0);
-		}
 	}
 #else
 	UNREFERENCED_PARAMETER(release_resources);
@@ -278,7 +277,7 @@ com_ptr<IDirect3DSurface9> reshade::d3d9::buffer_detection::find_best_depth_surf
 	bool no_replacement = true;
 	depthstencil_info best_snapshot;
 	com_ptr<IDirect3DSurface9> best_match = std::move(override);
-	com_ptr<IDirect3DSurface9> best_preserved_match = _depthstencil_replacement;
+	com_ptr<IDirect3DSurface9> best_depthstencil_replacement = _depthstencil_replacement;
 
 	if (best_match != nullptr)
 	{
@@ -330,7 +329,7 @@ com_ptr<IDirect3DSurface9> reshade::d3d9::buffer_detection::find_best_depth_surf
 		{
 			UINT clear_index = depthstencil_clear_index.second - 1;
 			const auto &snapshot = best_snapshot.clears[clear_index];
-			best_preserved_match = std::move(snapshot.preserved_depthstencil_surface);
+			best_depthstencil_replacement = std::move(snapshot.preserved_depthstencil_surface);
 		}
 		else
 		{
@@ -350,7 +349,7 @@ com_ptr<IDirect3DSurface9> reshade::d3d9::buffer_detection::find_best_depth_surf
 				if (mult * snapshot.vertices >= last_vertices)
 				{
 					last_vertices = mult * snapshot.vertices;
-					best_preserved_match = std::move(snapshot.preserved_depthstencil_surface);
+					best_depthstencil_replacement = std::move(snapshot.preserved_depthstencil_surface);
 				}
 			}
 		}
@@ -361,7 +360,7 @@ com_ptr<IDirect3DSurface9> reshade::d3d9::buffer_detection::find_best_depth_surf
 	if (no_replacement)
 		return best_match;
 	if (best_match == _depthstencil_original)
-		return best_preserved_match;
+		return best_depthstencil_replacement;
 
 	// Depth buffers that do not use a shader-readable format need a replacement
 	update_depthstencil_replacement(std::move(best_match));
