@@ -23,6 +23,7 @@ namespace reshade::d3d9
 		struct depthstencil_info
 		{
 			draw_stats total_stats;
+			draw_stats current_stats; // Stats since last clear
 			std::vector<draw_stats> clears;
 		};
 
@@ -58,12 +59,11 @@ namespace reshade::d3d9
 		IDirect3DDevice9 *const _device;
 
 #if RESHADE_DEPTH
-		bool check_aspect_ratio(const D3DSURFACE_DESC &desc, UINT width, UINT height);
+		bool check_aspect_ratio(UINT width_to_check, UINT height_to_check, UINT width, UINT height);
 		bool check_texture_format(const D3DSURFACE_DESC &desc);
 
 		bool update_depthstencil_replacement(com_ptr<IDirect3DSurface9> depthstencil);
 
-		draw_stats _clear_stats;
 		com_ptr<IDirect3DSurface9> _depthstencil_original;
 		com_ptr<IDirect3DSurface9> _depthstencil_replacement;
 		// Use "std::map" instead of "std::unordered_map" so that the iteration order is guaranteed

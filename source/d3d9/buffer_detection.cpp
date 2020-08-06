@@ -13,11 +13,8 @@ static constexpr auto D3DFMT_DF24 = static_cast<D3DFORMAT>(MAKEFOURCC('D', 'F', 
 
 void reshade::d3d9::buffer_detection::reset(bool release_resources)
 {
-	_stats.vertices = 0;
-	_stats.drawcalls = 0;
+	_stats = { 0, 0 };
 #if RESHADE_DEPTH
-	_clear_stats.vertices = 0;
-	_clear_stats.drawcalls = 0;
 	_counters_per_used_depth_surface.clear();
 
 	if (release_resources)
@@ -68,30 +65,26 @@ void reshade::d3d9::buffer_detection::on_draw(D3DPRIMITIVETYPE type, UINT vertic
 	com_ptr<IDirect3DSurface9> depthstencil;
 	_device->GetDepthStencilSurface(&depthstencil);
 
-	if (depthstencil != nullptr)
-	{
-		// Update draw statistics for tracked depth-stencil surfaces
-		auto &counters = _counters_per_used_depth_surface[depthstencil == _depthstencil_replacement ? _depthstencil_original : depthstencil];
-		counters.total_stats.vertices += vertices;
-		counters.total_stats.drawcalls += 1;
-	}
+	if (depthstencil == nullptr)
+		return; // This is a draw call with no depth-stencil bound
+
+	// Update draw statistics for tracked depth-stencil surfaces
+	auto &counters = _counters_per_used_depth_surface[depthstencil == _depthstencil_replacement ? _depthstencil_original : depthstencil];
+	counters.total_stats.vertices += vertices;
+	counters.total_stats.drawcalls += 1;
 
 	if (preserve_depth_buffers && _depthstencil_replacement != nullptr)
 	{
 		D3DVIEWPORT9 viewport;
 		_device->GetViewport(&viewport);
-
-		D3DSURFACE_DESC viewport_desc;
-		viewport_desc.Width = viewport.Width;
-		viewport_desc.Height = viewport.Height;
 		D3DSURFACE_DESC depthstencil_desc;
 		_depthstencil_replacement->GetDesc(&depthstencil_desc);
 
-		if (!check_aspect_ratio(viewport_desc, depthstencil_desc.Width, depthstencil_desc.Height))
+		if (!check_aspect_ratio(viewport.Width, viewport.Height, depthstencil_desc.Width, depthstencil_desc.Height))
 			return; // Ignore draw calls that go to a smaller viewport (this helps removing infrequent clears in e.g. Mirror's Edge)
 
-		_clear_stats.vertices += vertices;
-		_clear_stats.drawcalls += 1;
+		counters.current_stats.vertices += vertices;
+		counters.current_stats.drawcalls += 1;
 	}
 #endif
 }
@@ -122,16 +115,8 @@ void reshade::d3d9::buffer_detection::on_get_depthstencil(IDirect3DSurface9 *&de
 
 void reshade::d3d9::buffer_detection::on_clear_depthstencil(UINT clear_flags)
 {
-	// Reset draw call stats for clears
-	auto current_stats = _clear_stats;
-	_clear_stats.vertices = 0;
-	_clear_stats.drawcalls = 0;
-
 	if ((clear_flags & D3DCLEAR_ZBUFFER) == 0 || !preserve_depth_buffers)
 		return; // Ignore clears that do not affect the depth buffer (e.g. color or stencil clears)
-
-	if (current_stats.vertices <= 4 || current_stats.drawcalls == 0) // Also triggers when '_preserve_depth_buffers' is false, since no clear stats are recorded then
-		return; // Ignore clears when there was no meaningful workload since the last one
 
 	com_ptr<IDirect3DSurface9> depthstencil;
 	_device->GetDepthStencilSurface(&depthstencil);
@@ -139,14 +124,23 @@ void reshade::d3d9::buffer_detection::on_clear_depthstencil(UINT clear_flags)
 	if (depthstencil != _depthstencil_original && depthstencil != _depthstencil_replacement)
 		return; // Can only avoid clear of the replacement surface
 
-	auto &clears = _counters_per_used_depth_surface[_depthstencil_original].clears;
-	clears.push_back(std::move(current_stats));
+	auto &counters = _counters_per_used_depth_surface[_depthstencil_original];
 
-	if (depthstencil_clear_index == clears.size())
+	// Ignore clears when there was no meaningful workload
+	// Also triggers when '_preserve_depth_buffers' is false, since no clear stats are recorded then
+	if (counters.current_stats.vertices <= 4 || counters.current_stats.drawcalls == 0)
+		return;
+
+	counters.clears.push_back(counters.current_stats);
+
+	if (depthstencil_clear_index == counters.clears.size())
 	{
 		// Bind the original surface again so the clear is not performed on the replacement
 		_device->SetDepthStencilSurface(_depthstencil_original.get());
 	}
+
+	// Reset draw call stats for clears
+	counters.current_stats = { 0, 0 };
 }
 
 bool reshade::d3d9::buffer_detection::update_depthstencil_replacement(com_ptr<IDirect3DSurface9> depthstencil)
@@ -235,10 +229,10 @@ bool reshade::d3d9::buffer_detection::update_depthstencil_replacement(com_ptr<ID
 	return true;
 }
 
-bool reshade::d3d9::buffer_detection::check_aspect_ratio(const D3DSURFACE_DESC &desc, UINT width, UINT height)
+bool reshade::d3d9::buffer_detection::check_aspect_ratio(UINT width_to_check, UINT height_to_check, UINT width, UINT height)
 {
-	return (desc.Width >= std::floor(width * 0.95f) && desc.Width <= std::ceil(width * 1.05f))
-		&& (desc.Height >= std::floor(height * 0.95f) && desc.Height <= std::ceil(height * 1.05f));
+	return (width_to_check >= std::floor(width * 0.95f) && width_to_check <= std::ceil(width * 1.05f))
+		&& (height_to_check >= std::floor(height * 0.95f) && height_to_check <= std::ceil(height * 1.05f));
 }
 bool reshade::d3d9::buffer_detection::check_texture_format(const D3DSURFACE_DESC &desc)
 {
@@ -268,10 +262,12 @@ com_ptr<IDirect3DSurface9> reshade::d3d9::buffer_detection::find_best_depth_surf
 
 			D3DSURFACE_DESC desc;
 			surface->GetDesc(&desc);
+			assert((desc.Usage & D3DUSAGE_DEPTHSTENCIL) != 0);
 
 			if (desc.MultiSampleType != D3DMULTISAMPLE_NONE)
 				continue; // MSAA depth buffers are not supported since they would have to be moved into a plain surface before attaching to a shader slot
-			if (width != 0 && height != 0 && !check_aspect_ratio(desc, width, height))
+
+			if (width != 0 && height != 0 && !check_aspect_ratio(desc.Width, desc.Height, width, height))
 				continue; // Not a good fit
 
 			const auto curr_weight = snapshot.total_stats.vertices * (1.2f - static_cast<float>(snapshot.total_stats.drawcalls) / _stats.drawcalls);
@@ -306,7 +302,7 @@ com_ptr<IDirect3DSurface9> reshade::d3d9::buffer_detection::find_best_depth_surf
 			{
 				const auto &snapshot = best_snapshot.clears[clear_index];
 
-				// Fix for source engine games: Add a weight in order not to select the first db instance if it is related to the background scene
+				// Fix for Source Engine games: Add a weight in order not to select the first db instance if it is related to the background scene
 				int mult = (clear_index > 0) ? 10 : 1;
 				if (mult * snapshot.vertices >= last_vertices)
 				{
