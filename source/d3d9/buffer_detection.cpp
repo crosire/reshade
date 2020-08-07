@@ -325,7 +325,7 @@ com_ptr<IDirect3DSurface9> reshade::d3d9::buffer_detection::find_best_depth_surf
 		// Always need to replace if preserving on clears
 		no_replacement = false;
 
-		if (depthstencil_clear_index.second != 0 && depthstencil_clear_index.second < best_snapshot.clears.size())
+		if (depthstencil_clear_index.second != 0 && depthstencil_clear_index.second <= best_snapshot.clears.size())
 		{
 			UINT clear_index = depthstencil_clear_index.second - 1;
 			const auto &snapshot = best_snapshot.clears[clear_index];
@@ -355,7 +355,7 @@ com_ptr<IDirect3DSurface9> reshade::d3d9::buffer_detection::find_best_depth_surf
 		}
 	}
 
-	assert(best_match == nullptr || best_match != best_preserved_match);
+	assert(best_match == nullptr || best_match != best_depthstencil_replacement);
 
 	if (no_replacement)
 		return best_match;
