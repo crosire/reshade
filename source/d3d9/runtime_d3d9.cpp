@@ -1208,7 +1208,10 @@ void reshade::d3d9::runtime_d3d9::draw_depth_debug_menu(buffer_detection &tracke
 
 		if (bool value = (_depth_surface_override == ds_surface);
 			ImGui::Checkbox(label, &value))
+		{
 			_depth_surface_override = value ? ds_surface.get() : nullptr;
+			_reset_buffer_detection = true;
+		}
 
 		ImGui::SameLine();
 		ImGui::Text("| %4ux%-4u | %5u draw calls ==> %8u vertices |%s",
