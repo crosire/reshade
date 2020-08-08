@@ -122,7 +122,7 @@ private:
 		case type::t_sampler:
 			s += "__sampler2D";
 			break;
-		case type::t_texture:
+		case type::t_storage:
 			s += "RWTexture2D<float4>";
 			break;
 		default:
@@ -338,6 +338,7 @@ private:
 	id   define_texture(const location &loc, texture_info &info) override
 	{
 		info.id = make_id();
+		info.binding = ~0u;
 
 		define_name<naming::unique>(info.id, info.unique_name);
 
@@ -397,6 +398,7 @@ private:
 		else
 		{
 			info.binding = _module.num_sampler_bindings++;
+			info.texture_binding = ~0u; // Unset texture binding
 
 			code += "sampler2D __" + info.unique_name + "_s : register(s" + std::to_string(info.binding) + ");\n";
 
@@ -419,6 +421,7 @@ private:
 	id   define_storage(const location &loc, storage_info &info) override
 	{
 		info.id = make_id();
+		info.binding = ~0u;
 
 		define_name<naming::unique>(info.id, info.unique_name);
 

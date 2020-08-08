@@ -23,7 +23,7 @@ extern thread_local bool g_in_dxgi_runtime;
 
 static void dump_sample_desc(const DXGI_SAMPLE_DESC &desc)
 {
-	LOG(INFO) << "  | SampleCount                             | " << std::setw(39) << desc.Count   << " |";
+	LOG(INFO) <<     "  | SampleCount                             | " << std::setw(39) << desc.Count   << " |";
 	switch (desc.Quality)
 	{
 	case D3D11_CENTER_MULTISAMPLE_PATTERN:

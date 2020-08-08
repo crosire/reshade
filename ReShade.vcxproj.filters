@@ -13,6 +13,9 @@
     <Filter Include="hooks">
       <UniqueIdentifier>{3c3eb495-1eeb-4c7c-b58f-3bbcf24758f6}</UniqueIdentifier>
     </Filter>
+    <Filter Include="hooks\d2d1">
+      <UniqueIdentifier>{66ce0286-382a-475f-aff5-7320035ffc85}</UniqueIdentifier>
+    </Filter>
     <Filter Include="hooks\d3d9">
       <UniqueIdentifier>{63356f14-45b5-4047-9be1-e7e6e8a3f3e5}</UniqueIdentifier>
     </Filter>
@@ -45,9 +48,6 @@
     </Filter>
     <Filter Include="resources\shaders">
       <UniqueIdentifier>{9232c43b-559d-4435-b309-c8bbf4e6477b}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="hooks\d2d1">
-      <UniqueIdentifier>{66ce0286-382a-475f-aff5-7320035ffc85}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>

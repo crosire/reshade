@@ -367,7 +367,7 @@ bool reshade::d3d9::runtime_d3d9::init_effect(size_t index)
 			nullptr, nullptr, nullptr,
 			entry_point.name.c_str(),
 			profile,
-			D3DCOMPILE_OPTIMIZATION_LEVEL3, 0,
+			_performance_mode ? D3DCOMPILE_OPTIMIZATION_LEVEL3 : D3DCOMPILE_OPTIMIZATION_LEVEL1, 0,
 			&compiled, &d3d_errors);
 
 		if (d3d_errors != nullptr) // Append warnings to the output error string as well
@@ -399,6 +399,8 @@ bool reshade::d3d9::runtime_d3d9::init_effect(size_t index)
 	}
 
 	d3d9_technique_data technique_init;
+	assert(effect.module.num_texture_bindings == 0);
+	assert(effect.module.num_storage_bindings == 0);
 	technique_init.num_samplers = effect.module.num_sampler_bindings;
 	technique_init.constant_register_count = static_cast<DWORD>((effect.uniform_data_storage.size() + 15) / 16);
 

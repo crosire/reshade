@@ -41,7 +41,7 @@ void reshade::runtime::init_ui()
 	_menu_key_data[3] = false;
 
 	_editor.set_readonly(true);
-	_viewer.set_readonly(true);
+	_viewer.set_readonly(true); // Viewer is always read-only
 	_variable_editor_height = 300;
 
 	_imgui_context = ImGui::CreateContext();
@@ -528,7 +528,7 @@ void reshade::runtime::draw_ui()
 		}
 		else
 		{
-			ImGui::TextUnformatted("ReShade " VERSION_STRING_PRODUCT " by crosire");
+			ImGui::TextUnformatted("ReShade " VERSION_STRING_PRODUCT);
 
 			if (_needs_update)
 			{
@@ -1104,6 +1104,19 @@ void reshade::runtime::draw_ui_settings()
 		_ignore_shortcuts |= ImGui::IsItemActive();
 
 		modified |= imgui_directory_input_box("Screenshot Path", _screenshot_path, _file_selection_path);
+
+		const int hour = _date[3] / 3600;
+		const int minute = (_date[3] - hour * 3600) / 60;
+		const int seconds = _date[3] - hour * 3600 - minute * 60;
+
+		char timestamp[21];
+		sprintf_s(timestamp, " %.4d-%.2d-%.2d %.2d-%.2d-%.2d", _date[0], _date[1], _date[2], hour, minute, seconds);
+
+		std::string screenshot_naming_items;
+		screenshot_naming_items += g_target_executable_path.stem().string() + timestamp + '\0';
+		screenshot_naming_items += g_target_executable_path.stem().string() + timestamp + ' ' + _current_preset_path.stem().string() + '\0';
+		modified |= ImGui::Combo("Screenshot Name", reinterpret_cast<int *>(&_screenshot_naming), screenshot_naming_items.c_str());
+
 		modified |= ImGui::Combo("Screenshot Format", reinterpret_cast<int *>(&_screenshot_format), "Bitmap (*.bmp)\0Portable Network Graphics (*.png)\0JPEG (*.jpeg)\0");
 
 		if (_screenshot_format == 2)

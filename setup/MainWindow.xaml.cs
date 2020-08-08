@@ -127,6 +127,20 @@ namespace ReShade.Setup
 			}
 		}
 
+		static bool ReShadeExists(string path, out bool isReShade)
+		{
+			if (File.Exists(path))
+			{
+				isReShade = FileVersionInfo.GetVersionInfo(path).ProductName == "ReShade";
+				return true;
+			}
+			else
+			{
+				isReShade = false;
+				return false;
+			}
+		}
+
 		void AddSearchPath(List<string> searchPaths, string newPath)
 		{
 			string basePath = Path.GetDirectoryName(ApiVulkan.IsChecked.Value ? commonPath : targetPath);
@@ -438,10 +452,9 @@ namespace ReShade.Setup
 					configPath = alternativeConfigPath;
 				}
 
-				if (File.Exists(modulePath) && !isHeadless)
+				if (ReShadeExists(modulePath, out bool isReShade) && !isHeadless)
 				{
-					var moduleInfo = FileVersionInfo.GetVersionInfo(modulePath);
-					if (moduleInfo.ProductName == "ReShade")
+					if (isReShade)
 					{
 						ApiGroup.Visibility = Visibility.Collapsed;
 						InstallButtons.Visibility = Visibility.Visible;
@@ -455,6 +468,25 @@ namespace ReShade.Setup
 					{
 						UpdateStatusAndFinish(false, Path.GetFileName(modulePath) + " already exists, but does not belong to ReShade.", "Please make sure this is not a system file required by the game.");
 					}
+					return;
+				}
+			}
+
+			if (!isHeadless)
+			{
+				if (ApiD3D9.IsChecked != true && ReShadeExists(Path.Combine(targetDir, "d3d9.dll"), out bool isD3D9ReShade) && isD3D9ReShade)
+				{
+					UpdateStatusAndFinish(false, "Existing ReShade installation for Direct3D 9 found.", "Multiple simultaneous ReShade installations are not supported. Please uninstall the existing one first.");
+					return;
+				}
+				if (ApiDXGI.IsChecked != true && ReShadeExists(Path.Combine(targetDir, "dxgi.dll"), out bool isDXGIReShade) && isDXGIReShade)
+				{
+					UpdateStatusAndFinish(false, "Existing ReShade installation for Direct3D 10/11/12 found.", "Multiple simultaneous ReShade installations are not supported. Please uninstall the existing one first.");
+					return;
+				}
+				if (ApiOpenGL.IsChecked != true && ReShadeExists(Path.Combine(targetDir, "opengl32.dll"), out bool isOpenGLReShade) && isOpenGLReShade)
+				{
+					UpdateStatusAndFinish(false, "Existing ReShade installation for OpenGL found.", "Multiple simultaneous ReShade installations are not supported. Please uninstall the existing one first.");
 					return;
 				}
 			}
