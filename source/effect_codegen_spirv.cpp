@@ -344,7 +344,7 @@ private:
 		if (is_ptr == false)
 			storage = spv::StorageClassFunction;
 		// There cannot be function local sampler variables, so always assume uniform storage for them
-		if (info.is_texture() || info.is_sampler())
+		if (info.is_texture() || info.is_sampler() || info.is_storage())
 			storage = spv::StorageClassUniformConstant;
 
 		const type_lookup lookup = { info, is_ptr, array_stride, storage };
@@ -603,7 +603,8 @@ private:
 	}
 	id   define_texture(const location &, texture_info &info) override
 	{
-		info.id = make_id();
+		info.id = make_id(); // Need to create an unique ID here too, so that the symbol lookup for textures works
+		info.binding = ~0u;
 
 		_module.textures.push_back(info);
 
@@ -613,6 +614,7 @@ private:
 	{
 		info.id = define_variable(loc, { type::t_sampler, 0, 0, type::q_extern | type::q_uniform }, info.unique_name.c_str(), spv::StorageClassUniformConstant);
 		info.binding = _module.num_sampler_bindings++;
+		info.texture_binding = ~0u;
 
 		add_decoration(info.id, spv::DecorationBinding, { info.binding });
 		add_decoration(info.id, spv::DecorationDescriptorSet, { 1 });
@@ -790,16 +792,16 @@ private:
 	{
 		assert(storage != spv::StorageClassFunction || _current_function != nullptr);
 
-		id res = make_id();
 		spirv_basic_block &block = (storage != spv::StorageClassFunction) ?
 			_variables : _current_function->variables;
 
 		add_location(loc, block);
 
 		// https://www.khronos.org/registry/spir-v/specs/unified1/SPIRV.html#OpVariable
-		spirv_instruction &inst = add_instruction_without_result(spv::OpVariable, block);
+		spv::Id res;
+		spirv_instruction &inst = add_instruction(spv::OpVariable, block, res);
 		inst.type = convert_type(type, true, storage);
-		inst.result = res;
+
 		inst.add(storage);
 
 		if (initializer_value != 0)
@@ -961,7 +963,7 @@ private:
 					{
 						input_var = create_varying_variable(member.type, member.semantic, spv::StorageClassInput);
 
-						param_value = add_instruction(spv::OpLoad, convert_type(param.type))
+						param_value = add_instruction(spv::OpLoad, convert_type(member.type))
 							.add(input_var).result;
 						elements.push_back(param_value);
 					}

@@ -914,6 +914,7 @@ bool reshade::vulkan::runtime_vk::init_effect(size_t index)
 	}
 
 	// Initialize image and sampler bindings
+	assert(effect.module.num_texture_bindings == 0);
 	std::vector<VkDescriptorImageInfo> sampler_bindings(effect.module.num_sampler_bindings);
 	std::vector<VkDescriptorImageInfo> storage_bindings(effect.module.num_storage_bindings);
 

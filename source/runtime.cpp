@@ -295,16 +295,16 @@ bool reshade::runtime::load_effect(const std::filesystem::path &path, size_t ind
 			effect.compile_sucess = false;
 
 		unsigned shader_model;
-		if (_renderer_id == 0x9000)     // D3D9
-			shader_model = 30;
-		else if (_renderer_id < 0xa100) // D3D10
-			shader_model = 40;
-		else if (_renderer_id < 0xb000) // D3D11
-			shader_model = 41;
-		else if (_renderer_id < 0xc000) // D3D12
-			shader_model = 50;
+		if (_renderer_id == 0x9000)
+			shader_model = 30; // D3D9
+		else if (_renderer_id < 0xa100)
+			shader_model = 40; // D3D10 (including feature level 9)
+		else if (_renderer_id < 0xb000)
+			shader_model = 41; // D3D10.1
+		else if (_renderer_id < 0xc000)
+			shader_model = 50; // D3D11
 		else
-			shader_model = 60;
+			shader_model = 60; // D3D12
 
 		std::unique_ptr<reshadefx::codegen> codegen;
 		if ((_renderer_id & 0xF0000) == 0)
@@ -472,6 +472,10 @@ bool reshade::runtime::load_effect(const std::filesystem::path &path, size_t ind
 				}
 
 				existing_texture->shared = true;
+
+				// Always make shared textures render targets, since they may be used as such in a different effect
+				existing_texture->render_target = true;
+				existing_texture->storage_access = true;
 				continue;
 			}
 		}
@@ -1428,11 +1432,17 @@ void reshade::runtime::save_screenshot(const std::wstring &postfix, const bool s
 	const int minute = (_date[3] - hour * 3600) / 60;
 	const int seconds = _date[3] - hour * 3600 - minute * 60;
 
-	char filename[21];
-	sprintf_s(filename, " %.4d-%.2d-%.2d %.2d-%.2d-%.2d", _date[0], _date[1], _date[2], hour, minute, seconds);
+	char timestamp[21];
+	sprintf_s(timestamp, " %.4d-%.2d-%.2d %.2d-%.2d-%.2d", _date[0], _date[1], _date[2], hour, minute, seconds);
 
-	const std::wstring least = (_screenshot_path.is_relative() ? g_target_executable_path.parent_path() / _screenshot_path : _screenshot_path) / g_target_executable_path.stem().concat(filename);
-	const std::wstring screenshot_path = least + postfix + (_screenshot_format == 0 ? L".bmp" : _screenshot_format == 1 ? L".png" : L".jpeg");
+	std::wstring filename = g_target_executable_path.stem().concat(timestamp);
+	if (_screenshot_naming == 1)
+		filename += L' ' + _current_preset_path.stem().wstring();
+
+	filename += postfix;
+	filename += _screenshot_format == 0 ? L".bmp" : _screenshot_format == 1 ? L".png" : L".jpg";
+
+	std::filesystem::path screenshot_path = g_target_executable_path.parent_path() / _screenshot_path / filename;
 
 	LOG(INFO) << "Saving screenshot to " << screenshot_path << " ...";
 
@@ -1480,7 +1490,7 @@ void reshade::runtime::save_screenshot(const std::wstring &postfix, const bool s
 	else if (_screenshot_include_preset && should_save_preset && ini_file::flush_cache(_current_preset_path))
 	{
 		// Preset was flushed to disk, so can just copy it over to the new location
-		std::error_code ec; std::filesystem::copy_file(_current_preset_path, least + L".ini", std::filesystem::copy_options::overwrite_existing, ec);
+		std::error_code ec; std::filesystem::copy_file(_current_preset_path, screenshot_path.replace_extension(L".ini"), std::filesystem::copy_options::overwrite_existing, ec);
 	}
 }
 
