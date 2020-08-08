@@ -1432,11 +1432,17 @@ void reshade::runtime::save_screenshot(const std::wstring &postfix, const bool s
 	const int minute = (_date[3] - hour * 3600) / 60;
 	const int seconds = _date[3] - hour * 3600 - minute * 60;
 
-	char filename[21];
-	sprintf_s(filename, " %.4d-%.2d-%.2d %.2d-%.2d-%.2d", _date[0], _date[1], _date[2], hour, minute, seconds);
+	char timestamp[21];
+	sprintf_s(timestamp, " %.4d-%.2d-%.2d %.2d-%.2d-%.2d", _date[0], _date[1], _date[2], hour, minute, seconds);
 
-	const std::wstring least = (_screenshot_path.is_relative() ? g_target_executable_path.parent_path() / _screenshot_path : _screenshot_path) / g_target_executable_path.stem().concat(filename);
-	const std::wstring screenshot_path = least + postfix + (_screenshot_format == 0 ? L".bmp" : _screenshot_format == 1 ? L".png" : L".jpg");
+	std::wstring filename = g_target_executable_path.stem().concat(timestamp);
+	if (_screenshot_naming == 1)
+		filename += L' ' + _current_preset_path.stem().wstring();
+
+	filename += postfix;
+	filename += _screenshot_format == 0 ? L".bmp" : _screenshot_format == 1 ? L".png" : L".jpg";
+
+	std::filesystem::path screenshot_path = g_target_executable_path.parent_path() / _screenshot_path / filename;
 
 	LOG(INFO) << "Saving screenshot to " << screenshot_path << " ...";
 
@@ -1484,7 +1490,7 @@ void reshade::runtime::save_screenshot(const std::wstring &postfix, const bool s
 	else if (_screenshot_include_preset && should_save_preset && ini_file::flush_cache(_current_preset_path))
 	{
 		// Preset was flushed to disk, so can just copy it over to the new location
-		std::error_code ec; std::filesystem::copy_file(_current_preset_path, least + L".ini", std::filesystem::copy_options::overwrite_existing, ec);
+		std::error_code ec; std::filesystem::copy_file(_current_preset_path, screenshot_path.replace_extension(L".ini"), std::filesystem::copy_options::overwrite_existing, ec);
 	}
 }
 
