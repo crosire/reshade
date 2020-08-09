@@ -22,9 +22,6 @@ void reshade::d3d9::buffer_detection::reset(bool release_resources)
 	{
 		_previous_stats = { 0, 0 };
 		update_depthstencil_replacement(nullptr);
-		_depthstencil_replacement.reset();
-		_depthstencil_original.reset();
-		depthstencil_clear_index.first.release();
 		_preserved_depthstencil_surfaces.clear();
 	}
 	else if (preserve_depth_buffers && _depthstencil_replacement != nullptr)
@@ -91,6 +88,7 @@ void reshade::d3d9::buffer_detection::on_draw(D3DPRIMITIVETYPE type, UINT vertic
 	counters.total_stats.drawcalls += 1;
 	counters.current_stats.vertices += vertices;
 	counters.current_stats.drawcalls += 1;
+	_device->GetViewport(&counters.current_stats.viewport);
 #endif
 }
 
@@ -154,23 +152,6 @@ void reshade::d3d9::buffer_detection::on_clear_depthstencil(UINT clear_flags)
 	switch_depthsurface(depthstencil, counters);
 
 	// the new selected depthsurface will now be cleared to reset it after calling this function
-}
-
-void reshade::d3d9::buffer_detection::on_set_viewport(D3DVIEWPORT9 viewport)
-{
-	com_ptr<IDirect3DSurface9> depthstencil;
-	_device->GetDepthStencilSurface(&depthstencil);
-
-	depthstencil = (depthstencil == _depthstencil_replacement) ? _depthstencil_original : depthstencil;
-
-	if (depthstencil == nullptr || _depthstencil_replacement == nullptr || depthstencil != depthstencil_clear_index.first)
-		return;
-
-	// always bound the stats to the original depthstencil surface
-	auto &counters = _counters_per_used_depth_surface[depthstencil];
-
-	// register the viewport associated with the current depthsurface
-	counters.current_stats.viewport = viewport;
 }
 
 bool reshade::d3d9::buffer_detection::update_depthstencil_replacement(com_ptr<IDirect3DSurface9> depthstencil)

@@ -29,8 +29,6 @@ namespace reshade::d3d9
 			std::vector<draw_stats> clears;
 		};
 
-		std::vector<com_ptr<IDirect3DSurface9>> _preserved_depthstencil_surfaces;
-
 		explicit buffer_detection(IDirect3DDevice9 *device) : _device(device) {}
 
 		UINT total_vertices() const { return _stats.vertices; }
@@ -43,12 +41,11 @@ namespace reshade::d3d9
 		void on_set_depthstencil(IDirect3DSurface9 *&depthstencil);
 		void on_get_depthstencil(IDirect3DSurface9 *&depthstencil);
 		void on_clear_depthstencil(UINT clear_flags);
-		void on_set_viewport(D3DVIEWPORT9 viewport);
 
 		// Detection Settings
 		bool disable_intz = false;
 		bool preserve_depth_buffers = false;
-		std::pair<com_ptr<IDirect3DSurface9>, UINT> depthstencil_clear_index = { nullptr, 0 };
+		std::pair<IDirect3DSurface9 *, UINT> depthstencil_clear_index = { nullptr, 0 };
 
 		const auto &depth_buffer_counters() const { return _counters_per_used_depth_surface; }
 		IDirect3DSurface9 *current_depth_surface() const { return _depthstencil_original.get(); }
@@ -76,6 +73,7 @@ namespace reshade::d3d9
 		com_ptr<IDirect3DSurface9> _depthstencil_replacement;
 		// Use "std::map" instead of "std::unordered_map" so that the iteration order is guaranteed
 		std::map<com_ptr<IDirect3DSurface9>, depthstencil_info> _counters_per_used_depth_surface;
+		std::vector<com_ptr<IDirect3DSurface9>> _preserved_depthstencil_surfaces;
 #endif
 	};
 }
