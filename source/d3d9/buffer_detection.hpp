@@ -19,14 +19,17 @@ namespace reshade::d3d9
 		{
 			UINT vertices = 0;
 			UINT drawcalls = 0;
+		};
+		struct clear_stats : public draw_stats
+		{
 			D3DVIEWPORT9 viewport;
 			com_ptr<IDirect3DSurface9> preserved_depthstencil_surface;
 		};
 		struct depthstencil_info
 		{
 			draw_stats total_stats;
-			draw_stats current_stats; // Stats since last clear
-			std::vector<draw_stats> clears;
+			clear_stats current_stats; // Stats since last clear
+			std::vector<clear_stats> clears;
 		};
 
 		explicit buffer_detection(IDirect3DDevice9 *device) : _device(device) {}
@@ -45,7 +48,7 @@ namespace reshade::d3d9
 		// Detection Settings
 		bool disable_intz = false;
 		bool preserve_depth_buffers = false;
-		std::pair<IDirect3DSurface9 *, UINT> depthstencil_clear_index = { nullptr, 0 };
+		UINT depthstencil_clear_index = 0;
 
 		const auto &depth_buffer_counters() const { return _counters_per_used_depth_surface; }
 		IDirect3DSurface9 *current_depth_surface() const { return _depthstencil_original.get(); }
