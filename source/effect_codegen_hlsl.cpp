@@ -1279,6 +1279,14 @@ private:
 			code += "\t\t}\n";
 			code += continue_data;
 			code += condition_data;
+
+			// Work around D3DCompiler bug (only in SM3) that causes it to forget to initialize the loop count register, so that loops are not executed at all
+			// Only applies to dynamic loops, where it generates a loop instruction like "rep i0", but never sets the "i0" register via "defi i0, ..."
+			// Moving the loop condition into the loop body fixes that, but therefore only necessary for loops which have a condition
+			// Check 'condition_name' instead of 'condition_value' here to also catch cases where a constant boolean expression was passed in as loop condition
+			if (_shader_model < 40 && condition_name != "true")
+				code += "\t\tif (!" + condition_name + ") break;\n";
+
 			code += "\t}\n";
 
 			_blocks.erase(condition_block);
