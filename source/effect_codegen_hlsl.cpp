@@ -1274,19 +1274,20 @@ private:
 			for (size_t offset = 0; (offset = loop_data.find(continue_id, offset)) != std::string::npos; offset += continue_data.size())
 				loop_data.replace(offset, continue_id.size(), continue_data + condition_data);
 
-			code += "while (" + condition_name + ")\n\t{\n\t\t{\n";
-			code += loop_data;
-			code += "\t\t}\n";
-			code += continue_data;
-			code += condition_data;
+			code += "while (" + condition_name + ")\n\t{\n\t\t";
 
 			// Work around D3DCompiler bug (only in SM3) that causes it to forget to initialize the loop count register, so that loops are not executed at all
 			// Only applies to dynamic loops, where it generates a loop instruction like "rep i0", but never sets the "i0" register via "defi i0, ..."
 			// Moving the loop condition into the loop body fixes that, but therefore only necessary for loops which have a condition
 			// Check 'condition_name' instead of 'condition_value' here to also catch cases where a constant boolean expression was passed in as loop condition
 			if (_shader_model < 40 && condition_name != "true")
-				code += "\t\tif (!" + condition_name + ") break;\n";
+				code += "if (!" + condition_name + ") break;\n\t\t";
 
+			code += "{\n";
+			code += loop_data;
+			code += "\t\t}\n";
+			code += continue_data;
+			code += condition_data;
 			code += "\t}\n";
 
 			_blocks.erase(condition_block);
