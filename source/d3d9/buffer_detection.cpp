@@ -15,12 +15,10 @@ void reshade::d3d9::buffer_detection::reset(bool release_resources)
 {
 	_stats = { 0, 0 };
 #if RESHADE_DEPTH
-	_first_empty_stats = true;
 	_counters_per_used_depth_surface.clear();
 
 	if (release_resources)
 	{
-		_previous_stats = { 0, 0 };
 		for (size_t i = 0; i < _depthstencil_replacement.size(); ++i)
 			update_depthstencil_replacement(nullptr, i);
 		_depthstencil_original.reset(); // Reset this after all replacements have been released, so that 'update_depthstencil_replacement' was able to bind it if necessary
@@ -128,14 +126,6 @@ void reshade::d3d9::buffer_detection::on_clear_depthstencil(UINT clear_flags)
 		return; // Can only avoid clear of the replacement surface
 
 	auto &counters = _counters_per_used_depth_surface[_depthstencil_original];
-
-	// Update stats with data from previous frame
-	if (counters.current_stats.drawcalls == 0 && _first_empty_stats)
-	{
-		counters.current_stats.vertices = _previous_stats.vertices;
-		counters.current_stats.drawcalls = _previous_stats.drawcalls;
-		_first_empty_stats = false;
-	}
 
 	// Ignore clears when there was no meaningful workload
 	// Also triggers when '_preserve_depth_buffers' is false, since no clear stats are recorded then
@@ -302,8 +292,6 @@ com_ptr<IDirect3DSurface9> reshade::d3d9::buffer_detection::find_best_depth_surf
 
 	if (preserve_depth_buffers && best_match != nullptr)
 	{
-		_previous_stats = best_snapshot.current_stats;
-
 		// Always need to replace if preserving on clears
 		no_replacement = false;
 
