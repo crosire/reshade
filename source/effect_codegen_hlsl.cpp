@@ -616,8 +616,10 @@ private:
 
 		auto entry_point = func;
 
-		const auto is_color_semantic = [](const std::string &semantic) { return semantic.compare(0, 9, "SV_TARGET") == 0 || semantic.compare(0, 5, "COLOR") == 0; };
-		const auto is_position_semantic = [](const std::string &semantic) { return semantic == "SV_POSITION" || semantic == "POSITION"; };
+		const auto is_color_semantic = [](const std::string &semantic) {
+			return semantic.compare(0, 9, "SV_TARGET") == 0 || semantic.compare(0, 5, "COLOR") == 0; };
+		const auto is_position_semantic = [](const std::string &semantic) {
+			return semantic == "SV_POSITION" || semantic == "POSITION"; };
 
 		const auto ret = make_id();
 		define_name<naming::general>(ret, "ret");
@@ -627,33 +629,45 @@ private:
 			if (func.return_type.is_struct() && stype == shader_type::vs)
 			{
 				// If this function returns a struct which contains a position output, keep track of its member name
-				for (const auto &member : find_struct(func.return_type.definition).member_list)
+				for (const struct_member_info &member : find_struct(func.return_type.definition).member_list)
 					if (is_position_semantic(member.semantic))
 						position_variable_name = id_to_name(ret) + '.' + member.name;
 			}
 
 			if (is_color_semantic(func.return_semantic))
+			{
 				// The COLOR output semantic has to be a four-component vector in shader model 3, so enforce that
 				entry_point.return_type.rows = 4;
-			else if (is_position_semantic(func.return_semantic) && stype == shader_type::vs)
-				position_variable_name = id_to_name(ret);
+			}
+			if (is_position_semantic(func.return_semantic))
+			{
+				if (stype == shader_type::vs)
+					// Keep track of the position output variable
+					position_variable_name = id_to_name(ret);
+			}
 		}
-		for (auto &param : entry_point.parameter_list)
+		for (struct_member_info &param : entry_point.parameter_list)
 		{
 			if (param.type.is_struct() && stype == shader_type::vs)
 			{
-				for (const auto &member : find_struct(param.type.definition).member_list)
+				for (const struct_member_info &member : find_struct(param.type.definition).member_list)
 					if (is_position_semantic(member.semantic))
 						position_variable_name = param.name + '.' + member.name;
 			}
 
 			if (is_color_semantic(param.semantic))
+			{
 				param.type.rows = 4;
-			else if (is_position_semantic(param.semantic))
-				if (stype == shader_type::ps) // Change the position input semantic in pixel shaders
-					param.semantic = "VPOS";
-				else // Keep track of the position output variable
+			}
+			if (is_position_semantic(param.semantic))
+			{
+				if (stype == shader_type::vs)
+					// Keep track of the position output variable
 					position_variable_name = param.name;
+				else if (stype == shader_type::ps)
+					// Change the position input semantic in pixel shaders
+					param.semantic = "VPOS";
+			}
 		}
 
 		if (stype == shader_type::cs)
@@ -668,15 +682,22 @@ private:
 		std::string &code = _blocks.at(_current_block);
 
 		// Clear all color output parameters so no component is left uninitialized
-		for (auto &param : entry_point.parameter_list)
+		for (struct_member_info &param : entry_point.parameter_list)
+		{
 			if (is_color_semantic(param.semantic))
 				code += '\t' + param.name + " = float4(0.0, 0.0, 0.0, 0.0);\n";
+		}
 
 		code += '\t';
 		if (is_color_semantic(func.return_semantic))
+		{
 			code += "const float4 " + id_to_name(ret) + " = float4(";
+		}
 		else if (!func.return_type.is_void())
-			write_type(code, func.return_type), code += ' ' + id_to_name(ret) + " = ";
+		{
+			write_type(code, func.return_type);
+			code += ' ' + id_to_name(ret) + " = ";
+		}
 
 		// Call the function this entry point refers to
 		code += id_to_name(func.definition) + '(';
