@@ -721,7 +721,7 @@ void imgui_code_editor::insert_character(char c, bool auto_indent)
 						if (i == end.line && end.column > 0)
 							end.column--;
 					}
-					else for (size_t j = 0; j < _tab_size && line[0].c == ' '; j++) // Do the same for spaces
+					else for (size_t j = 0; j < _tab_size && !line.empty() && line[0].c == ' '; j++) // Do the same for spaces
 					{
 						line.erase(line.begin());
 						if (i == end.line && end.column > 0)
