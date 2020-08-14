@@ -265,12 +265,8 @@ private:
 		}
 		else
 		{
-			if (semantic == "POSITION" || semantic == "VPOS")
-				return "SV_POSITION";
 			if (semantic.compare(0, 5, "COLOR") == 0)
 				return "SV_TARGET" + semantic.substr(5);
-			if (semantic == "DEPTH")
-				return "SV_DEPTH";
 		}
 
 		return semantic;

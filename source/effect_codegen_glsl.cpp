@@ -294,9 +294,9 @@ private:
 	}
 	static std::string semantic_to_builtin(std::string name, const std::string &semantic, shader_type stype)
 	{
-		if (semantic == "SV_POSITION" || semantic == "POSITION" || semantic == "VPOS")
+		if (semantic == "SV_POSITION")
 			return stype == shader_type::ps ? "gl_FragCoord" : "gl_Position";
-		else if (semantic == "SV_DEPTH" || semantic == "DEPTH")
+		else if (semantic == "SV_DEPTH")
 			return "gl_FragDepth";
 		else if (semantic == "SV_VERTEXID")
 			return "gl_VertexID";
@@ -570,16 +570,10 @@ private:
 		entry_point.return_type = { type::t_void };
 
 		std::unordered_map<std::string, std::string> semantic_to_varying_variable;
-		const auto create_varying_variable = [this, stype, &semantic_to_varying_variable](type type, unsigned int quals, const std::string &name, std::string &semantic) {
+		const auto create_varying_variable = [this, stype, &semantic_to_varying_variable](type type, unsigned int quals, const std::string &name, const std::string &semantic) {
 			// Skip built in variables
 			if (!semantic_to_builtin(std::string(), semantic, stype).empty())
 				return;
-
-			// Always numerate semantics, so that e.g. TEXCOORD and TEXCOORD0 point to the same location
-			// This will update the original semantic as well (since a reference was passed into this function)
-			if (!semantic.empty())
-				if (const char c = semantic.back(); c < '0' || c > '9')
-					semantic += '0';
 
 			// Do not create multiple input/output variables for duplicate semantic usage (since every input/output location may only be defined once in GLSL)
 			if (!semantic_to_varying_variable.emplace(semantic, name).second)

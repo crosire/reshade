@@ -498,9 +498,9 @@ private:
 	bool semantic_to_builtin(const std::string &semantic, spv::BuiltIn &builtin, shader_type stype)
 	{
 		builtin = spv::BuiltInMax;
-		if (semantic == "SV_POSITION" || semantic == "POSITION" || semantic == "VPOS")
+		if (semantic == "SV_POSITION")
 			builtin = stype == shader_type::ps ? spv::BuiltInFragCoord : spv::BuiltInPosition;
-		else if (semantic == "SV_DEPTH" || semantic == "DEPTH")
+		else if (semantic == "SV_DEPTH")
 			builtin = spv::BuiltInFragDepth;
 		else if (semantic == "SV_VERTEXID")
 			builtin = _vulkan_semantics ? spv::BuiltInVertexIndex : spv::BuiltInVertexId;

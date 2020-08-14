@@ -2301,6 +2301,19 @@ bool reshadefx::parser::parse_struct()
 				member.semantic = std::move(_token.literal_as_string);
 				// Make semantic upper case to simplify comparison later on
 				std::transform(member.semantic.begin(), member.semantic.end(), member.semantic.begin(), [](char c) { return static_cast<char>(toupper(c)); });
+
+				if (member.semantic.compare(0, 3, "SV_") != 0)
+				{
+					// Always numerate semantics, so that e.g. TEXCOORD and TEXCOORD0 point to the same location
+					if (const char c = member.semantic.back(); c < '0' || c > '9')
+						member.semantic += '0';
+
+					if (member.type.is_integral() && !member.type.has(type::q_nointerpolation))
+					{
+						member.type.qualifiers |= type::q_nointerpolation; // Integer fields do not interpolate, so make this explicit (to avoid issues with GLSL)
+						warning(member.location, 4568, '\'' + member.name + "': integer fields have the 'nointerpolation' qualifier by default");
+					}
+				}
 			}
 
 			// Save member name and type for book keeping
@@ -2429,11 +2442,17 @@ bool reshadefx::parser::parse_function(type type, std::string name)
 			// Make semantic upper case to simplify comparison later on
 			std::transform(param.semantic.begin(), param.semantic.end(), param.semantic.begin(), [](char c) { return static_cast<char>(toupper(c)); });
 
-			if (param.type.is_integral() && !param.type.has(type::q_nointerpolation) &&
-				param.semantic.compare(0, 3, "SV_") != 0)
+			if (param.semantic.compare(0, 3, "SV_") != 0)
 			{
-				param.type.qualifiers |= type::q_nointerpolation; // Integer parameters do not interpolate, so make this explicit (to avoid issues with GLSL)
-				warning(param.location, 4568, '\'' + param.name + "': integer parameters have the 'nointerpolation' qualifier by default");
+				// Always numerate semantics, so that e.g. TEXCOORD and TEXCOORD0 point to the same location
+				if (const char c = param.semantic.back(); c < '0' || c > '9')
+					param.semantic += '0';
+
+				if (param.type.is_integral() && !param.type.has(type::q_nointerpolation))
+				{
+					param.type.qualifiers |= type::q_nointerpolation; // Integer parameters do not interpolate, so make this explicit (to avoid issues with GLSL)
+					warning(param.location, 4568, '\'' + param.name + "': integer parameters have the 'nointerpolation' qualifier by default");
+				}
 			}
 		}
 
