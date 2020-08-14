@@ -1195,7 +1195,7 @@ private:
 	id   emit_call(const location &loc, id function, const type &res_type, const std::vector<expression> &args) override
 	{
 #ifndef NDEBUG
-		for (const auto &arg : args)
+		for (const expression &arg : args)
 			assert(arg.chain.empty() && arg.base != 0);
 #endif
 
@@ -1235,7 +1235,7 @@ private:
 	id   emit_call_intrinsic(const location &loc, id intrinsic, const type &res_type, const std::vector<expression> &args) override
 	{
 #ifndef NDEBUG
-		for (const auto &arg : args)
+		for (const expression &arg : args)
 			assert(arg.chain.empty() && arg.base != 0);
 #endif
 

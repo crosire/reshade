@@ -897,7 +897,7 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 				{
 					if (param_type.is_sampler() || param_type.is_storage())
 					{
-						// Do not shadow sampler parameters to function calls (but do load them for intrinsics)
+						// Do not shadow object or pointer parameters to function calls
 						parameters[i] = arguments[i];
 					}
 					else
@@ -2278,6 +2278,9 @@ bool reshadefx::parser::parse_struct()
 			if (member.type.has(type::q_extern))
 				parse_success = false,
 				error(member.location, 3006, '\'' + member.name + "': struct members cannot be declared 'extern'");
+			if (member.type.has(type::q_static))
+				parse_success = false,
+				error(member.location, 3007, '\'' + member.name + "': struct members cannot be declared 'static'");
 			if (member.type.has(type::q_uniform))
 				parse_success = false,
 				error(member.location, 3047, '\'' + member.name + "': struct members cannot be declared 'uniform'");
@@ -2398,6 +2401,7 @@ bool reshadefx::parser::parse_function(type type, std::string name)
 		if (param.type.is_void())
 			parse_success = false,
 			error(param.location, 3038, '\'' + param.name + "': function parameters cannot be void");
+
 		if (param.type.has(type::q_extern))
 			parse_success = false,
 			error(param.location, 3006, '\'' + param.name + "': function parameters cannot be declared 'extern'");
@@ -2407,6 +2411,9 @@ bool reshadefx::parser::parse_function(type type, std::string name)
 		if (param.type.has(type::q_uniform))
 			parse_success = false,
 			error(param.location, 3047, '\'' + param.name + "': function parameters cannot be declared 'uniform', consider placing in global scope instead");
+		if (param.type.has(type::q_groupshared))
+			parse_success = false,
+			error(param.location, 3010, '\'' + param.name + "': function parameters cannot be declared 'groupshared'"), false;
 
 		if (param.type.has(type::q_out) && param.type.has(type::q_const))
 			parse_success = false,
