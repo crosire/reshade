@@ -106,7 +106,7 @@ void reshadefx::expression::reset_to_lvalue(const reshadefx::location &loc, uint
 	chain.clear();
 
 	// Strip away global variable qualifiers
-	type.qualifiers &= ~(reshadefx::type::q_uniform | reshadefx::type::q_groupshared);
+	type.qualifiers &= ~(reshadefx::type::q_extern | reshadefx::type::q_static | reshadefx::type::q_uniform | reshadefx::type::q_groupshared);
 }
 void reshadefx::expression::reset_to_rvalue(const reshadefx::location &loc, uint32_t in_base, const reshadefx::type &in_type)
 {
@@ -118,7 +118,7 @@ void reshadefx::expression::reset_to_rvalue(const reshadefx::location &loc, uint
 	is_constant = false;
 	chain.clear();
 
-	assert(!type.has(reshadefx::type::q_uniform) && !type.has(reshadefx::type::q_groupshared));
+	assert(!type.has(reshadefx::type::q_extern) && !type.has(reshadefx::type::q_static) && !type.has(reshadefx::type::q_uniform) && !type.has(reshadefx::type::q_groupshared));
 }
 
 void reshadefx::expression::reset_to_rvalue_constant(const reshadefx::location &loc, bool data)

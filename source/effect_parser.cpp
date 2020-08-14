@@ -893,8 +893,6 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 				if (arguments[i].type.components() > param_type.components())
 					warning(arguments[i].location, 3206, "implicit truncation of vector type");
 
-				arguments[i].add_cast_operation(param_type);
-
 				if (symbol.op == symbol_type::function || param_type.has(type::q_out))
 				{
 					if (param_type.is_sampler() || param_type.is_storage())
@@ -911,18 +909,26 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 				}
 				else
 				{
-					parameters[i].reset_to_rvalue(arguments[i].location, _codegen->emit_load(arguments[i]), param_type);
+					expression arg = arguments[i];
+					arg.add_cast_operation(param_type);
+					parameters[i].reset_to_rvalue(arg.location, _codegen->emit_load(arg), param_type);
 
 					// Keep track of whether the parameter is a constant for code generation (this makes the expression invalid for all other uses)
-					parameters[i].is_constant = arguments[i].is_constant;
+					parameters[i].is_constant = arg.is_constant;
 				}
 			}
 
 			// Copy in parameters from the argument access chains to parameter variables
 			for (size_t i = 0; i < arguments.size(); ++i)
+			{
 				// Only do this for pointer parameters as discovered above
 				if (parameters[i].is_lvalue && parameters[i].type.has(type::q_in) && !parameters[i].type.is_sampler() && !parameters[i].type.is_storage())
-					_codegen->emit_store(parameters[i], _codegen->emit_load(arguments[i]));
+				{
+					expression arg = arguments[i];
+					arg.add_cast_operation(parameters[i].type);
+					_codegen->emit_store(parameters[i], _codegen->emit_load(arg));
+				}
+			}
 
 			// Check if the call resolving found an intrinsic or function and invoke the corresponding code
 			const auto result = symbol.op == symbol_type::function ?
@@ -933,9 +939,15 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 
 			// Copy out parameters from parameter variables back to the argument access chains
 			for (size_t i = 0; i < arguments.size(); ++i)
+			{
 				// Only do this for pointer parameters as discovered above
 				if (parameters[i].is_lvalue && parameters[i].type.has(type::q_out) && !parameters[i].type.is_sampler() && !parameters[i].type.is_storage())
-					_codegen->emit_store(arguments[i], _codegen->emit_load(parameters[i]));
+				{
+					expression arg = parameters[i];
+					arg.add_cast_operation(arguments[i].type);
+					_codegen->emit_store(arguments[i], _codegen->emit_load(arg));
+				}
+			}
 		}
 		else if (symbol.op == symbol_type::invalid)
 		{
