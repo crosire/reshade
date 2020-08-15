@@ -1085,9 +1085,14 @@ private:
 #include "effect_symbol_table_intrinsics.inl"
 		};
 
-		if (_shader_model >= 40 && (intrinsic == tex2Dsize0 || intrinsic == tex2Dsize1 || intrinsic == tex2Dsize2))
+		if (_shader_model >= 40 && (
+			intrinsic == tex2Dsize0 || intrinsic == tex2Dsize1 || intrinsic == tex2Dsize2 ||
+			intrinsic == atomicAdd0 || intrinsic == atomicAnd0 || intrinsic == atomicOr0  || intrinsic == atomicXor0 ||
+			intrinsic == atomicMin0 || intrinsic == atomicMin1 || intrinsic == atomicMax0 || intrinsic == atomicMax1 ||
+			intrinsic == atomicExchange0 || intrinsic == atomicCompareExchange0))
 		{
 			// Implementation of the 'tex2Dsize' intrinsic passes the result variable into 'GetDimensions' as output argument
+			// Same with the atomic intrinsics, which use the last parameter to return the previous value of the target
 			write_type(code, res_type);
 			code += ' ' + id_to_name(res) + "; ";
 		}

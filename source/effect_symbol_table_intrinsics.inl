@@ -2040,6 +2040,210 @@ IMPLEMENT_INTRINSIC_SPIRV(groupMemoryBarrier, 0, {
 	return 0;
 	})
 
+// ret atomicAdd(inout mem, data)
+DEFINE_INTRINSIC(atomicAdd, 0, int, inout_int, int)
+DEFINE_INTRINSIC(atomicAdd, 0, uint, inout_uint, uint)
+IMPLEMENT_INTRINSIC_GLSL(atomicAdd, 0, {
+	code += "atomicAdd(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ')';
+	})
+IMPLEMENT_INTRINSIC_HLSL(atomicAdd, 0, {
+	code += "InterlockedAdd(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ", " + id_to_name(res) + ')';
+	})
+IMPLEMENT_INTRINSIC_SPIRV(atomicAdd, 0, {
+	const spv::Id mem_scope = emit_constant(spv::ScopeDevice);
+	const spv::Id mem_semantics = emit_constant(spv::MemorySemanticsMaskNone);
+
+	return add_instruction(spv::OpAtomicIAdd, convert_type(res_type))
+		.add(args[0].base)
+		.add(mem_scope)
+		.add(mem_semantics)
+		.add(args[1].base)
+		.result;
+	})
+
+// ret atomicAnd(inout mem, data)
+DEFINE_INTRINSIC(atomicAnd, 0, int, inout_int, int)
+DEFINE_INTRINSIC(atomicAnd, 0, uint, inout_uint, uint)
+IMPLEMENT_INTRINSIC_GLSL(atomicAnd, 0, {
+	code += "atomicAnd(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ')';
+	})
+IMPLEMENT_INTRINSIC_HLSL(atomicAnd, 0, {
+	code += "InterlockedAnd(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ", " + id_to_name(res) + ')';
+	})
+IMPLEMENT_INTRINSIC_SPIRV(atomicAnd, 0, {
+	const spv::Id mem_scope = emit_constant(spv::ScopeDevice);
+	const spv::Id mem_semantics = emit_constant(spv::MemorySemanticsMaskNone);
+
+	return add_instruction(spv::OpAtomicAnd, convert_type(res_type))
+		.add(args[0].base)
+		.add(mem_scope)
+		.add(mem_semantics)
+		.add(args[1].base)
+		.result;
+	})
+
+// ret atomicOr(inout mem, data)
+DEFINE_INTRINSIC(atomicOr, 0, int, inout_int, int)
+DEFINE_INTRINSIC(atomicOr, 0, uint, inout_uint, uint)
+IMPLEMENT_INTRINSIC_GLSL(atomicOr, 0, {
+	code += "atomicOr(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ')';
+	})
+IMPLEMENT_INTRINSIC_HLSL(atomicOr, 0, {
+	code += "InterlockedOr(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ", " + id_to_name(res) + ')';
+	})
+IMPLEMENT_INTRINSIC_SPIRV(atomicOr, 0, {
+	const spv::Id mem_scope = emit_constant(spv::ScopeDevice);
+	const spv::Id mem_semantics = emit_constant(spv::MemorySemanticsMaskNone);
+
+	return add_instruction(spv::OpAtomicOr, convert_type(res_type))
+		.add(args[0].base)
+		.add(mem_scope)
+		.add(mem_semantics)
+		.add(args[1].base)
+		.result;
+	})
+
+// ret atomicXor(inout mem, data)
+DEFINE_INTRINSIC(atomicXor, 0, int, inout_int, int)
+DEFINE_INTRINSIC(atomicXor, 0, uint, inout_uint, uint)
+IMPLEMENT_INTRINSIC_GLSL(atomicXor, 0, {
+	code += "atomicXor(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ')';
+	})
+IMPLEMENT_INTRINSIC_HLSL(atomicXor, 0, {
+	code += "InterlockedXor(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ", " + id_to_name(res) + ')';
+	})
+IMPLEMENT_INTRINSIC_SPIRV(atomicXor, 0, {
+	const spv::Id mem_scope = emit_constant(spv::ScopeDevice);
+	const spv::Id mem_semantics = emit_constant(spv::MemorySemanticsMaskNone);
+
+	return add_instruction(spv::OpAtomicXor, convert_type(res_type))
+		.add(args[0].base)
+		.add(mem_scope)
+		.add(mem_semantics)
+		.add(args[1].base)
+		.result;
+	})
+
+// ret atomicMin(inout mem, data)
+DEFINE_INTRINSIC(atomicMin, 0, int, inout_int, int)
+DEFINE_INTRINSIC(atomicMin, 1, uint, inout_uint, uint)
+IMPLEMENT_INTRINSIC_GLSL(atomicMin, 0, {
+	code += "atomicMin(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ')';
+	})
+IMPLEMENT_INTRINSIC_GLSL(atomicMin, 1, {
+	code += "atomicMin(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ')';
+	})
+IMPLEMENT_INTRINSIC_HLSL(atomicMin, 0, {
+	code += "InterlockedMin(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ", " + id_to_name(res) + ')';
+	})
+IMPLEMENT_INTRINSIC_HLSL(atomicMin, 1, {
+	code += "InterlockedMin(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ", " + id_to_name(res) + ')';
+	})
+IMPLEMENT_INTRINSIC_SPIRV(atomicMin, 0, {
+	const spv::Id mem_scope = emit_constant(spv::ScopeDevice);
+	const spv::Id mem_semantics = emit_constant(spv::MemorySemanticsMaskNone);
+
+	return add_instruction(spv::OpAtomicSMin, convert_type(res_type))
+		.add(args[0].base)
+		.add(mem_scope)
+		.add(mem_semantics)
+		.add(args[1].base)
+		.result;
+	})
+IMPLEMENT_INTRINSIC_SPIRV(atomicMin, 1, {
+	const spv::Id mem_scope = emit_constant(spv::ScopeDevice);
+	const spv::Id mem_semantics = emit_constant(spv::MemorySemanticsMaskNone);
+
+	return add_instruction(spv::OpAtomicUMin, convert_type(res_type))
+		.add(args[0].base)
+		.add(mem_scope)
+		.add(mem_semantics)
+		.add(args[1].base)
+		.result;
+	})
+
+// ret atomicMax(inout mem, data)
+DEFINE_INTRINSIC(atomicMax, 0, int, inout_int, int)
+DEFINE_INTRINSIC(atomicMax, 1, uint, inout_uint, uint)
+IMPLEMENT_INTRINSIC_GLSL(atomicMax, 0, {
+	code += "atomicMax(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ')';
+	})
+IMPLEMENT_INTRINSIC_HLSL(atomicMax, 0, {
+	code += "InterlockedMax(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ", " + id_to_name(res) + ')';
+	})
+IMPLEMENT_INTRINSIC_SPIRV(atomicMax, 0, {
+	const spv::Id mem_scope = emit_constant(spv::ScopeDevice);
+	const spv::Id mem_semantics = emit_constant(spv::MemorySemanticsMaskNone);
+
+	return add_instruction(spv::OpAtomicSMax, convert_type(res_type))
+		.add(args[0].base)
+		.add(mem_scope)
+		.add(mem_semantics)
+		.add(args[1].base)
+		.result;
+	})
+IMPLEMENT_INTRINSIC_GLSL(atomicMax, 1, {
+	code += "atomicMax(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ')';
+	})
+IMPLEMENT_INTRINSIC_HLSL(atomicMax, 1, {
+	code += "InterlockedMax(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ", " + id_to_name(res) + ')';
+	})
+IMPLEMENT_INTRINSIC_SPIRV(atomicMax, 1, {
+	const spv::Id mem_scope = emit_constant(spv::ScopeDevice);
+	const spv::Id mem_semantics = emit_constant(spv::MemorySemanticsMaskNone);
+
+	return add_instruction(spv::OpAtomicUMax, convert_type(res_type))
+		.add(args[0].base)
+		.add(mem_scope)
+		.add(mem_semantics)
+		.add(args[1].base)
+		.result;
+	})
+
+// ret atomicExchange(inout mem, data)
+DEFINE_INTRINSIC(atomicExchange, 0, int, inout_int, int)
+DEFINE_INTRINSIC(atomicExchange, 0, uint, inout_uint, uint)
+IMPLEMENT_INTRINSIC_GLSL(atomicExchange, 0, {
+	code += "atomicExchange(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ')';
+	})
+IMPLEMENT_INTRINSIC_HLSL(atomicExchange, 0, {
+	code += "InterlockedExchange(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ", " + id_to_name(res) + ')';
+	})
+IMPLEMENT_INTRINSIC_SPIRV(atomicExchange, 0, {
+	const spv::Id mem_scope = emit_constant(spv::ScopeDevice);
+	const spv::Id mem_semantics = emit_constant(spv::MemorySemanticsMaskNone);
+
+	return add_instruction(spv::OpAtomicExchange, convert_type(res_type))
+		.add(args[0].base)
+		.add(mem_scope)
+		.add(mem_semantics)
+		.add(args[1].base)
+		.result;
+	})
+
+// ret atomicCompareExchange(inout mem, compare, data)
+DEFINE_INTRINSIC(atomicCompareExchange, 0, int, inout_int, int, int)
+DEFINE_INTRINSIC(atomicCompareExchange, 0, uint, inout_uint, uint, uint)
+IMPLEMENT_INTRINSIC_GLSL(atomicCompareExchange, 0, {
+	code += "atomicCompSwap(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ", " + id_to_name(args[2].base) + ')';
+	})
+IMPLEMENT_INTRINSIC_HLSL(atomicCompareExchange, 0, {
+	code += "InterlockedCompareExchange(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ", " + id_to_name(args[2].base) + ", " + id_to_name(res) + ')';
+	})
+IMPLEMENT_INTRINSIC_SPIRV(atomicCompareExchange, 0, {
+	const spv::Id mem_scope = emit_constant(spv::ScopeDevice);
+	const spv::Id mem_semantics = emit_constant(spv::MemorySemanticsMaskNone);
+
+	return add_instruction(spv::OpAtomicCompareExchange, convert_type(res_type))
+		.add(args[0].base)
+		.add(mem_scope)
+		.add(mem_semantics)
+		.add(mem_semantics)
+		.add(args[2].base)
+		.add(args[1].base)
+		.result;
+	})
+
 #undef DEFINE_INTRINSIC
 #undef IMPLEMENT_INTRINSIC_GLSL
 #undef IMPLEMENT_INTRINSIC_HLSL

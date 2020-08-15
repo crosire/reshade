@@ -895,10 +895,21 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 
 				if (symbol.op == symbol_type::function || param_type.has(type::q_out))
 				{
-					if (param_type.is_sampler() || param_type.is_storage())
+					if (param_type.is_sampler() || param_type.is_storage() || param_type.has(type::q_groupshared) /* Special case for atomic intrinsics */)
 					{
+						if (arguments[i].type != param_type)
+							return error(location, 3004, "no matching intrinsic overload for '" + identifier + '\''), false;
+
+						assert(arguments[i].is_lvalue);
+
 						// Do not shadow object or pointer parameters to function calls
-						parameters[i] = arguments[i];
+						size_t chain_index = 0;
+						const auto access_chain = _codegen->emit_access_chain(arguments[i], chain_index);
+						parameters[i].reset_to_lvalue(arguments[i].location, access_chain, param_type);
+						assert(chain_index == arguments[i].chain.size());
+
+						// This is referencing a l-value, but want to avoid copying below
+						parameters[i].is_lvalue = false;
 					}
 					else
 					{
@@ -1151,6 +1162,9 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 				target_type.rows = static_cast<unsigned int>(length);
 
 				exp.add_cast_operation(target_type);
+
+				if (length > 1 || exp.type.has(type::q_uniform))
+					exp.type.qualifiers = (exp.type.qualifiers | type::q_const) & ~type::q_uniform;
 			}
 			else
 			{
