@@ -81,13 +81,16 @@ reshade::d3d9::runtime_d3d9::runtime_d3d9(IDirect3DDevice9 *device, IDirect3DSwa
 	subscribe_to_load_config([this](const ini_file &config) {
 		config.get("DX9_BUFFER_DETECTION", "DisableINTZ", _disable_intz);
 		config.get("DX9_BUFFER_DETECTION", "PreserveDepthBuffer", _buffer_detection->preserve_depth_buffers);
-		config.get("DX9_BUFFER_DETECTION", "PreserveDepthBufferIndex", _buffer_detection->depthstencil_clear_index_override);
+		config.get("DX9_BUFFER_DETECTION", "PreserveDepthBufferIndex", _buffer_detection->depthstencil_clear_index);
 		config.get("DX9_BUFFER_DETECTION", "UseAspectRatioHeuristics", _filter_aspect_ratio);
+
+		if (_buffer_detection->depthstencil_clear_index == std::numeric_limits<UINT>::max())
+			_buffer_detection->depthstencil_clear_index  = 0;
 	});
 	subscribe_to_save_config([this](ini_file &config) {
 		config.set("DX9_BUFFER_DETECTION", "DisableINTZ", _disable_intz);
 		config.set("DX9_BUFFER_DETECTION", "PreserveDepthBuffer", _buffer_detection->preserve_depth_buffers);
-		config.set("DX9_BUFFER_DETECTION", "PreserveDepthBufferIndex", _buffer_detection->depthstencil_clear_index_override);
+		config.set("DX9_BUFFER_DETECTION", "PreserveDepthBufferIndex", _buffer_detection->depthstencil_clear_index);
 		config.set("DX9_BUFFER_DETECTION", "UseAspectRatioHeuristics", _filter_aspect_ratio);
 	});
 #endif
@@ -1207,7 +1210,10 @@ void reshade::d3d9::runtime_d3d9::draw_depth_debug_menu(buffer_detection &tracke
 
 		if (bool value = (_depth_surface_override == ds_surface);
 			ImGui::Checkbox(label, &value))
+		{
 			_depth_surface_override = value ? ds_surface.get() : nullptr;
+			_reset_buffer_detection = true;
+		}
 
 		ImGui::SameLine();
 		ImGui::Text("| %4ux%-4u | %5u draw calls ==> %8u vertices |%s",
@@ -1219,10 +1225,10 @@ void reshade::d3d9::runtime_d3d9::draw_depth_debug_menu(buffer_detection &tracke
 			{
 				sprintf_s(label, "%s  CLEAR %2u", (clear_index == tracker.depthstencil_clear_index ? "> " : "  "), clear_index);
 
-				if (bool value = (tracker.depthstencil_clear_index_override == clear_index);
+				if (bool value = (tracker.depthstencil_clear_index == clear_index);
 					ImGui::Checkbox(label, &value))
 				{
-					tracker.depthstencil_clear_index_override = value ? clear_index : 0;
+					tracker.depthstencil_clear_index = value ? clear_index : 0;
 					_reset_buffer_detection = true;
 				}
 
