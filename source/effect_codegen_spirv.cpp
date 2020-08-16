@@ -498,9 +498,9 @@ private:
 	bool semantic_to_builtin(const std::string &semantic, spv::BuiltIn &builtin, shader_type stype)
 	{
 		builtin = spv::BuiltInMax;
-		if (semantic == "SV_POSITION" || semantic == "POSITION" || semantic == "VPOS")
+		if (semantic == "SV_POSITION")
 			builtin = stype == shader_type::ps ? spv::BuiltInFragCoord : spv::BuiltInPosition;
-		else if (semantic == "SV_DEPTH" || semantic == "DEPTH")
+		else if (semantic == "SV_DEPTH")
 			builtin = spv::BuiltInFragDepth;
 		else if (semantic == "SV_VERTEXID")
 			builtin = _vulkan_semantics ? spv::BuiltInVertexIndex : spv::BuiltInVertexId;
@@ -1118,7 +1118,6 @@ private:
 
 		size_t i = 0;
 		spv::Id result = exp.base;
-
 		auto base_type = exp.type;
 		bool is_uniform_bool = false;
 
@@ -1171,17 +1170,16 @@ private:
 				if (exp.chain[0].from.rows == 1 && exp.chain[0].from.cols > 1)
 					i = 1;
 
-				do {
+				for (; i < exp.chain.size() && (
+					exp.chain[i].op == expression::operation::op_member ||
+					exp.chain[i].op == expression::operation::op_dynamic_index ||
+					exp.chain[i].op == expression::operation::op_constant_index); ++i)
 					access_chain->add(exp.chain[i].op == expression::operation::op_dynamic_index ?
 						exp.chain[i].index :
 						emit_constant(exp.chain[i].index)); // Indexes
-					base_type = exp.chain[i++].to;
-				} while (i < exp.chain.size() && (
-					exp.chain[i].op == expression::operation::op_member ||
-					exp.chain[i].op == expression::operation::op_dynamic_index ||
-					exp.chain[i].op == expression::operation::op_constant_index));
 
-				access_chain->type = convert_type(exp.chain[i - 1].to, true, storage); // Last type is the result
+				base_type = exp.chain[i - 1].to;
+				access_chain->type = convert_type(base_type, true, storage); // Last type is the result
 				result = access_chain->result;
 			}
 			else if (access_chain != nullptr)
@@ -1363,43 +1361,9 @@ private:
 		add_location(exp.location, *_current_block_data);
 
 		size_t i = 0;
-		spv::Id target = exp.base;
-
-		auto base_type = exp.chain.empty() ? exp.type : exp.chain[0].from;
-
 		// Any indexing expressions can be resolved with an 'OpAccessChain' already
-		if (!exp.chain.empty() && (
-			exp.chain[0].op == expression::operation::op_member ||
-			exp.chain[0].op == expression::operation::op_dynamic_index ||
-			exp.chain[0].op == expression::operation::op_constant_index))
-		{
-			spv::StorageClass storage = spv::StorageClassFunction;
-			if (const auto it = _storage_lookup.find(exp.base);
-				it != _storage_lookup.end())
-				storage = it->second;
-
-			// Ensure that 'access_chain' cannot get invalidated by calls to 'emit_constant' or 'convert_type'
-			assert(_current_block_data != &_types_and_constants);
-
-			spirv_instruction *access_chain = &add_instruction(spv::OpAccessChain).add(target); // Base
-
-			// Ignore first index into 1xN matrices, since they were translated to a vector type in SPIR-V
-			if (exp.chain[0].from.rows == 1 && exp.chain[0].from.cols > 1)
-				i = 1;
-
-			do {
-				access_chain->add(exp.chain[i].op == expression::operation::op_dynamic_index ?
-					exp.chain[i].index :
-					emit_constant(exp.chain[i].index)); // Indexes
-				base_type = exp.chain[i++].to;
-			} while (i < exp.chain.size() && (
-				exp.chain[i].op == expression::operation::op_member ||
-				exp.chain[i].op == expression::operation::op_dynamic_index ||
-				exp.chain[i].op == expression::operation::op_constant_index));
-
-			access_chain->type = convert_type(exp.chain[i - 1].to, true, storage); // Last type is the result
-			target = access_chain->result;
-		}
+		spv::Id target = emit_access_chain(exp, i);
+		auto base_type = exp.chain.empty() ? exp.type : i == 0 ? exp.chain[0].from : exp.chain[i - 1].to;
 
 		// TODO: Complex access chains like float4x4[0].m00m10[0] = 0;
 		// Work through all remaining operations in the access chain and apply them to the value
@@ -1472,6 +1436,44 @@ private:
 		add_instruction_without_result(spv::OpStore)
 			.add(target)
 			.add(value);
+	}
+	id   emit_access_chain(const expression &exp, size_t &i) override
+	{
+		// This function cannot create access chains for uniform variables
+		assert((exp.base & 0xF0000000) == 0);
+
+		i = 0;
+		if (exp.chain.empty() || (
+			exp.chain[0].op != expression::operation::op_member &&
+			exp.chain[0].op != expression::operation::op_dynamic_index &&
+			exp.chain[0].op != expression::operation::op_constant_index))
+			return exp.base;
+
+		spv::StorageClass storage = spv::StorageClassFunction;
+		if (const auto it = _storage_lookup.find(exp.base);
+			it != _storage_lookup.end())
+			storage = it->second;
+
+		// Ensure that 'access_chain' cannot get invalidated by calls to 'emit_constant' or 'convert_type'
+		assert(_current_block_data != &_types_and_constants);
+
+		spirv_instruction *access_chain =
+			&add_instruction(spv::OpAccessChain).add(exp.base); // Base
+
+		// Ignore first index into 1xN matrices, since they were translated to a vector type in SPIR-V
+		if (exp.chain[0].from.rows == 1 && exp.chain[0].from.cols > 1)
+			i = 1;
+
+		for (; i < exp.chain.size() && (
+			exp.chain[i].op == expression::operation::op_member ||
+			exp.chain[i].op == expression::operation::op_dynamic_index ||
+			exp.chain[i].op == expression::operation::op_constant_index); ++i)
+			access_chain->add(exp.chain[i].op == expression::operation::op_dynamic_index ?
+				exp.chain[i].index :
+				emit_constant(exp.chain[i].index)); // Indexes
+
+		access_chain->type = convert_type(exp.chain[i - 1].to, true, storage); // Last type is the result
+		return access_chain->result;
 	}
 
 	id   emit_constant(uint32_t value)

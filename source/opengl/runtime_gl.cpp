@@ -387,6 +387,14 @@ bool reshade::opengl::runtime_gl::init_effect(size_t index)
 			{
 				// OpenGL does not allow using 'shared' in vertex/fragment shader profile
 				defines += "#define shared\n";
+				defines += "#define atomicAdd(a, b) a\n";
+				defines += "#define atomicAnd(a, b) a\n";
+				defines += "#define atomicOr(a, b) a\n";
+				defines += "#define atomicXor(a, b) a\n";
+				defines += "#define atomicMin(a, b) a\n";
+				defines += "#define atomicMax(a, b) a\n";
+				defines += "#define atomicExchange(a, b) a\n";
+				defines += "#define atomicCompSwap(a, b, c) a\n";
 				// Barrier intrinsics are only available in compute shaders
 				defines += "#define barrier()\n";
 				defines += "#define memoryBarrier()\n";

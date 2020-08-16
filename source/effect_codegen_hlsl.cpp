@@ -265,12 +265,8 @@ private:
 		}
 		else
 		{
-			if (semantic == "POSITION" || semantic == "VPOS")
-				return "SV_POSITION";
 			if (semantic.compare(0, 5, "COLOR") == 0)
 				return "SV_TARGET" + semantic.substr(5);
-			if (semantic == "DEPTH")
-				return "SV_DEPTH";
 		}
 
 		return semantic;
@@ -616,8 +612,10 @@ private:
 
 		auto entry_point = func;
 
-		const auto is_color_semantic = [](const std::string &semantic) { return semantic.compare(0, 9, "SV_TARGET") == 0 || semantic.compare(0, 5, "COLOR") == 0; };
-		const auto is_position_semantic = [](const std::string &semantic) { return semantic == "SV_POSITION" || semantic == "POSITION"; };
+		const auto is_color_semantic = [](const std::string &semantic) {
+			return semantic.compare(0, 9, "SV_TARGET") == 0 || semantic.compare(0, 5, "COLOR") == 0; };
+		const auto is_position_semantic = [](const std::string &semantic) {
+			return semantic == "SV_POSITION" || semantic == "POSITION"; };
 
 		const auto ret = make_id();
 		define_name<naming::general>(ret, "ret");
@@ -627,33 +625,45 @@ private:
 			if (func.return_type.is_struct() && stype == shader_type::vs)
 			{
 				// If this function returns a struct which contains a position output, keep track of its member name
-				for (const auto &member : find_struct(func.return_type.definition).member_list)
+				for (const struct_member_info &member : find_struct(func.return_type.definition).member_list)
 					if (is_position_semantic(member.semantic))
 						position_variable_name = id_to_name(ret) + '.' + member.name;
 			}
 
 			if (is_color_semantic(func.return_semantic))
+			{
 				// The COLOR output semantic has to be a four-component vector in shader model 3, so enforce that
 				entry_point.return_type.rows = 4;
-			else if (is_position_semantic(func.return_semantic) && stype == shader_type::vs)
-				position_variable_name = id_to_name(ret);
+			}
+			if (is_position_semantic(func.return_semantic))
+			{
+				if (stype == shader_type::vs)
+					// Keep track of the position output variable
+					position_variable_name = id_to_name(ret);
+			}
 		}
-		for (auto &param : entry_point.parameter_list)
+		for (struct_member_info &param : entry_point.parameter_list)
 		{
 			if (param.type.is_struct() && stype == shader_type::vs)
 			{
-				for (const auto &member : find_struct(param.type.definition).member_list)
+				for (const struct_member_info &member : find_struct(param.type.definition).member_list)
 					if (is_position_semantic(member.semantic))
 						position_variable_name = param.name + '.' + member.name;
 			}
 
 			if (is_color_semantic(param.semantic))
+			{
 				param.type.rows = 4;
-			else if (is_position_semantic(param.semantic))
-				if (stype == shader_type::ps) // Change the position input semantic in pixel shaders
-					param.semantic = "VPOS";
-				else // Keep track of the position output variable
+			}
+			if (is_position_semantic(param.semantic))
+			{
+				if (stype == shader_type::vs)
+					// Keep track of the position output variable
 					position_variable_name = param.name;
+				else if (stype == shader_type::ps)
+					// Change the position input semantic in pixel shaders
+					param.semantic = "VPOS";
+			}
 		}
 
 		if (stype == shader_type::cs)
@@ -668,15 +678,22 @@ private:
 		std::string &code = _blocks.at(_current_block);
 
 		// Clear all color output parameters so no component is left uninitialized
-		for (auto &param : entry_point.parameter_list)
+		for (struct_member_info &param : entry_point.parameter_list)
+		{
 			if (is_color_semantic(param.semantic))
 				code += '\t' + param.name + " = float4(0.0, 0.0, 0.0, 0.0);\n";
+		}
 
 		code += '\t';
 		if (is_color_semantic(func.return_semantic))
+		{
 			code += "const float4 " + id_to_name(ret) + " = float4(";
+		}
 		else if (!func.return_type.is_void())
-			write_type(code, func.return_type), code += ' ' + id_to_name(ret) + " = ";
+		{
+			write_type(code, func.return_type);
+			code += ' ' + id_to_name(ret) + " = ";
+		}
 
 		// Call the function this entry point refers to
 		code += id_to_name(func.definition) + '(';
@@ -1010,7 +1027,7 @@ private:
 	id   emit_call(const location &loc, id function, const type &res_type, const std::vector<expression> &args) override
 	{
 #ifndef NDEBUG
-		for (const auto &arg : args)
+		for (const expression &arg : args)
 			assert(arg.chain.empty() && arg.base != 0);
 #endif
 
@@ -1050,7 +1067,7 @@ private:
 	id   emit_call_intrinsic(const location &loc, id intrinsic, const type &res_type, const std::vector<expression> &args) override
 	{
 #ifndef NDEBUG
-		for (const auto &arg : args)
+		for (const expression &arg : args)
 			assert(arg.chain.empty() && arg.base != 0);
 #endif
 
@@ -1068,9 +1085,14 @@ private:
 #include "effect_symbol_table_intrinsics.inl"
 		};
 
-		if (_shader_model >= 40 && (intrinsic == tex2Dsize0 || intrinsic == tex2Dsize1 || intrinsic == tex2Dsize2))
+		if (_shader_model >= 40 && (
+			intrinsic == tex2Dsize0 || intrinsic == tex2Dsize1 || intrinsic == tex2Dsize2 ||
+			intrinsic == atomicAdd0 || intrinsic == atomicAnd0 || intrinsic == atomicOr0  || intrinsic == atomicXor0 ||
+			intrinsic == atomicMin0 || intrinsic == atomicMin1 || intrinsic == atomicMax0 || intrinsic == atomicMax1 ||
+			intrinsic == atomicExchange0 || intrinsic == atomicCompareExchange0))
 		{
 			// Implementation of the 'tex2Dsize' intrinsic passes the result variable into 'GetDimensions' as output argument
+			// Same with the atomic intrinsics, which use the last parameter to return the previous value of the target
 			write_type(code, res_type);
 			code += ' ' + id_to_name(res) + "; ";
 		}
@@ -1274,7 +1296,16 @@ private:
 			for (size_t offset = 0; (offset = loop_data.find(continue_id, offset)) != std::string::npos; offset += continue_data.size())
 				loop_data.replace(offset, continue_id.size(), continue_data + condition_data);
 
-			code += "while (" + condition_name + ")\n\t{\n\t\t{\n";
+			code += "while (" + condition_name + ")\n\t{\n\t\t";
+
+			// Work around D3DCompiler bug (only in SM3) that causes it to forget to initialize the loop count register, so that loops are not executed at all
+			// Only applies to dynamic loops, where it generates a loop instruction like "rep i0", but never sets the "i0" register via "defi i0, ..."
+			// Moving the loop condition into the loop body fixes that, but therefore only necessary for loops which have a condition
+			// Check 'condition_name' instead of 'condition_value' here to also catch cases where a constant boolean expression was passed in as loop condition
+			if (_shader_model < 40 && condition_name != "true")
+				code += "if (!" + condition_name + ") break;\n\t\t";
+
+			code += "{\n";
 			code += loop_data;
 			code += "\t\t}\n";
 			code += continue_data;

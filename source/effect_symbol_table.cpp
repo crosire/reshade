@@ -39,10 +39,12 @@ enum {
 #define int2 { reshadefx::type::t_int, 2, 1 }
 #define int3 { reshadefx::type::t_int, 3, 1 }
 #define int4 { reshadefx::type::t_int, 4, 1 }
+#define inout_int { reshadefx::type::t_int, 1, 1, reshadefx::type::q_inout | reshadefx::type::q_groupshared }
 #define uint { reshadefx::type::t_uint, 1, 1 }
 #define uint2 { reshadefx::type::t_uint, 2, 1 }
 #define uint3 { reshadefx::type::t_uint, 3, 1 }
 #define uint4 { reshadefx::type::t_uint, 4, 1 }
+#define inout_uint { reshadefx::type::t_uint, 1, 1, reshadefx::type::q_inout | reshadefx::type::q_groupshared }
 #define float { reshadefx::type::t_float, 1, 1 }
 #define float2 { reshadefx::type::t_float, 2, 1 }
 #define float3 { reshadefx::type::t_float, 3, 1 }
@@ -264,11 +266,13 @@ static int compare_functions(const std::vector<reshadefx::expression> &arguments
 	bool function1_viable = true;
 	const auto function1_ranks = static_cast<unsigned int *>(alloca(num_arguments * sizeof(unsigned int)));
 	for (size_t i = 0; i < num_arguments; ++i)
+	{
 		if ((function1_ranks[i] = reshadefx::type::rank(arguments[i].type, function1->parameter_list[i].type)) == 0)
 		{
 			function1_viable = false;
 			break;
 		}
+	}
 
 	// Catch case where the second function does not exist
 	if (function2 == nullptr)
@@ -278,11 +282,13 @@ static int compare_functions(const std::vector<reshadefx::expression> &arguments
 	bool function2_viable = true;
 	const auto function2_ranks = static_cast<unsigned int *>(alloca(num_arguments * sizeof(unsigned int)));
 	for (size_t i = 0; i < num_arguments; ++i)
+	{
 		if ((function2_ranks[i] = reshadefx::type::rank(arguments[i].type, function2->parameter_list[i].type)) == 0)
 		{
 			function2_viable = false;
 			break;
 		}
+	}
 
 	// If one of the functions is not viable, then the other one automatically wins
 	if (!function1_viable || !function2_viable)

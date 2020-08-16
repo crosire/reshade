@@ -893,14 +893,23 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 				if (arguments[i].type.components() > param_type.components())
 					warning(arguments[i].location, 3206, "implicit truncation of vector type");
 
-				arguments[i].add_cast_operation(param_type);
-
 				if (symbol.op == symbol_type::function || param_type.has(type::q_out))
 				{
-					if (param_type.is_sampler() || param_type.is_storage())
+					if (param_type.is_sampler() || param_type.is_storage() || param_type.has(type::q_groupshared) /* Special case for atomic intrinsics */)
 					{
-						// Do not shadow sampler parameters to function calls (but do load them for intrinsics)
-						parameters[i] = arguments[i];
+						if (arguments[i].type != param_type)
+							return error(location, 3004, "no matching intrinsic overload for '" + identifier + '\''), false;
+
+						assert(arguments[i].is_lvalue);
+
+						// Do not shadow object or pointer parameters to function calls
+						size_t chain_index = 0;
+						const auto access_chain = _codegen->emit_access_chain(arguments[i], chain_index);
+						parameters[i].reset_to_lvalue(arguments[i].location, access_chain, param_type);
+						assert(chain_index == arguments[i].chain.size());
+
+						// This is referencing a l-value, but want to avoid copying below
+						parameters[i].is_lvalue = false;
 					}
 					else
 					{
@@ -911,18 +920,26 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 				}
 				else
 				{
-					parameters[i].reset_to_rvalue(arguments[i].location, _codegen->emit_load(arguments[i]), param_type);
+					expression arg = arguments[i];
+					arg.add_cast_operation(param_type);
+					parameters[i].reset_to_rvalue(arg.location, _codegen->emit_load(arg), param_type);
 
 					// Keep track of whether the parameter is a constant for code generation (this makes the expression invalid for all other uses)
-					parameters[i].is_constant = arguments[i].is_constant;
+					parameters[i].is_constant = arg.is_constant;
 				}
 			}
 
 			// Copy in parameters from the argument access chains to parameter variables
 			for (size_t i = 0; i < arguments.size(); ++i)
+			{
 				// Only do this for pointer parameters as discovered above
 				if (parameters[i].is_lvalue && parameters[i].type.has(type::q_in) && !parameters[i].type.is_sampler() && !parameters[i].type.is_storage())
-					_codegen->emit_store(parameters[i], _codegen->emit_load(arguments[i]));
+				{
+					expression arg = arguments[i];
+					arg.add_cast_operation(parameters[i].type);
+					_codegen->emit_store(parameters[i], _codegen->emit_load(arg));
+				}
+			}
 
 			// Check if the call resolving found an intrinsic or function and invoke the corresponding code
 			const auto result = symbol.op == symbol_type::function ?
@@ -933,9 +950,15 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 
 			// Copy out parameters from parameter variables back to the argument access chains
 			for (size_t i = 0; i < arguments.size(); ++i)
+			{
 				// Only do this for pointer parameters as discovered above
 				if (parameters[i].is_lvalue && parameters[i].type.has(type::q_out) && !parameters[i].type.is_sampler() && !parameters[i].type.is_storage())
-					_codegen->emit_store(arguments[i], _codegen->emit_load(parameters[i]));
+				{
+					expression arg = parameters[i];
+					arg.add_cast_operation(arguments[i].type);
+					_codegen->emit_store(arguments[i], _codegen->emit_load(arg));
+				}
+			}
 		}
 		else if (symbol.op == symbol_type::invalid)
 		{
@@ -1139,6 +1162,9 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 				target_type.rows = static_cast<unsigned int>(length);
 
 				exp.add_cast_operation(target_type);
+
+				if (length > 1 || exp.type.has(type::q_uniform))
+					exp.type.qualifiers = (exp.type.qualifiers | type::q_const) & ~type::q_uniform;
 			}
 			else
 			{
@@ -2266,6 +2292,9 @@ bool reshadefx::parser::parse_struct()
 			if (member.type.has(type::q_extern))
 				parse_success = false,
 				error(member.location, 3006, '\'' + member.name + "': struct members cannot be declared 'extern'");
+			if (member.type.has(type::q_static))
+				parse_success = false,
+				error(member.location, 3007, '\'' + member.name + "': struct members cannot be declared 'static'");
 			if (member.type.has(type::q_uniform))
 				parse_success = false,
 				error(member.location, 3047, '\'' + member.name + "': struct members cannot be declared 'uniform'");
@@ -2289,6 +2318,19 @@ bool reshadefx::parser::parse_struct()
 				member.semantic = std::move(_token.literal_as_string);
 				// Make semantic upper case to simplify comparison later on
 				std::transform(member.semantic.begin(), member.semantic.end(), member.semantic.begin(), [](char c) { return static_cast<char>(toupper(c)); });
+
+				if (member.semantic.compare(0, 3, "SV_") != 0)
+				{
+					// Always numerate semantics, so that e.g. TEXCOORD and TEXCOORD0 point to the same location
+					if (const char c = member.semantic.back(); c < '0' || c > '9')
+						member.semantic += '0';
+
+					if (member.type.is_integral() && !member.type.has(type::q_nointerpolation))
+					{
+						member.type.qualifiers |= type::q_nointerpolation; // Integer fields do not interpolate, so make this explicit (to avoid issues with GLSL)
+						warning(member.location, 4568, '\'' + member.name + "': integer fields have the 'nointerpolation' qualifier by default");
+					}
+				}
 			}
 
 			// Save member name and type for book keeping
@@ -2373,6 +2415,7 @@ bool reshadefx::parser::parse_function(type type, std::string name)
 		if (param.type.is_void())
 			parse_success = false,
 			error(param.location, 3038, '\'' + param.name + "': function parameters cannot be void");
+
 		if (param.type.has(type::q_extern))
 			parse_success = false,
 			error(param.location, 3006, '\'' + param.name + "': function parameters cannot be declared 'extern'");
@@ -2382,6 +2425,9 @@ bool reshadefx::parser::parse_function(type type, std::string name)
 		if (param.type.has(type::q_uniform))
 			parse_success = false,
 			error(param.location, 3047, '\'' + param.name + "': function parameters cannot be declared 'uniform', consider placing in global scope instead");
+		if (param.type.has(type::q_groupshared))
+			parse_success = false,
+			error(param.location, 3010, '\'' + param.name + "': function parameters cannot be declared 'groupshared'"), false;
 
 		if (param.type.has(type::q_out) && param.type.has(type::q_const))
 			parse_success = false,
@@ -2417,11 +2463,17 @@ bool reshadefx::parser::parse_function(type type, std::string name)
 			// Make semantic upper case to simplify comparison later on
 			std::transform(param.semantic.begin(), param.semantic.end(), param.semantic.begin(), [](char c) { return static_cast<char>(toupper(c)); });
 
-			if (param.type.is_integral() && !param.type.has(type::q_nointerpolation) &&
-				param.semantic.compare(0, 3, "SV_") != 0)
+			if (param.semantic.compare(0, 3, "SV_") != 0)
 			{
-				param.type.qualifiers |= type::q_nointerpolation; // Integer parameters do not interpolate, so make this explicit (to avoid issues with GLSL)
-				warning(param.location, 4568, '\'' + param.name + "': integer parameters have the 'nointerpolation' qualifier by default");
+				// Always numerate semantics, so that e.g. TEXCOORD and TEXCOORD0 point to the same location
+				if (const char c = param.semantic.back(); c < '0' || c > '9')
+					param.semantic += '0';
+
+				if (param.type.is_integral() && !param.type.has(type::q_nointerpolation))
+				{
+					param.type.qualifiers |= type::q_nointerpolation; // Integer parameters do not interpolate, so make this explicit (to avoid issues with GLSL)
+					warning(param.location, 4568, '\'' + param.name + "': integer parameters have the 'nointerpolation' qualifier by default");
+				}
 			}
 		}
 

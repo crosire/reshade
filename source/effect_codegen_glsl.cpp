@@ -294,9 +294,9 @@ private:
 	}
 	static std::string semantic_to_builtin(std::string name, const std::string &semantic, shader_type stype)
 	{
-		if (semantic == "SV_POSITION" || semantic == "POSITION" || semantic == "VPOS")
+		if (semantic == "SV_POSITION")
 			return stype == shader_type::ps ? "gl_FragCoord" : "gl_Position";
-		else if (semantic == "SV_DEPTH" || semantic == "DEPTH")
+		else if (semantic == "SV_DEPTH")
 			return "gl_FragDepth";
 		else if (semantic == "SV_VERTEXID")
 			return "gl_VertexID";
@@ -569,14 +569,15 @@ private:
 		function_info entry_point;
 		entry_point.return_type = { type::t_void };
 
-		const auto create_varying_variable = [this, stype](type type, unsigned int quals, const std::string &name, std::string semantic) {
+		std::unordered_map<std::string, std::string> semantic_to_varying_variable;
+		const auto create_varying_variable = [this, stype, &semantic_to_varying_variable](type type, unsigned int quals, const std::string &name, const std::string &semantic) {
 			// Skip built in variables
-			if (!semantic_to_builtin({}, semantic, stype).empty())
+			if (!semantic_to_builtin(std::string(), semantic, stype).empty())
 				return;
-			// Always numerate semantics, so that e.g. TEXCOORD and TEXCOORD0 point to the same location
-			if (!semantic.empty())
-				if (const char c = semantic.back(); c < '0' || c > '9')
-					semantic += '0';
+
+			// Do not create multiple input/output variables for duplicate semantic usage (since every input/output location may only be defined once in GLSL)
+			if (!semantic_to_varying_variable.emplace(semantic, name).second)
+				return;
 
 			type.qualifiers |= quals;
 
@@ -584,34 +585,33 @@ private:
 			if (type.base == type::t_bool)
 				type.base  = type::t_float;
 
+			uint32_t location = 0;
+			if (semantic.compare(0, 9, "SV_TARGET") == 0)
+				location = std::strtoul(semantic.c_str() + 9, nullptr, 10);
+			else if (semantic.compare(0, 5, "COLOR") == 0)
+				location = std::strtoul(semantic.c_str() + 5, nullptr, 10);
+			else if (const auto it = _semantic_to_location.find(semantic); it != _semantic_to_location.end())
+				location = it->second;
+			else
+				_semantic_to_location[semantic] = location = static_cast<uint32_t>(_semantic_to_location.size()); // TODO: This will return clashing locations when there are semantics on arrays
+
 			std::string &code = _blocks.at(_current_block);
 
-			for (int i = 0, array_length = std::max(1, type.array_length); i < array_length; ++i)
+			for (int a = 0, array_length = std::max(1, type.array_length); a < array_length; ++a)
 			{
-				uint32_t location = 0;
-				if (semantic.compare(0, 9, "SV_TARGET") == 0)
-					location = std::strtoul(semantic.c_str() + 9, nullptr, 10);
-				else if (semantic.compare(0, 5, "COLOR") == 0)
-					location = std::strtoul(semantic.c_str() + 5, nullptr, 10);
-				else if (const auto it = _semantic_to_location.find(semantic); it != _semantic_to_location.end())
-					location = it->second;
-				else
-					_semantic_to_location[semantic] = location = static_cast<uint32_t>(_semantic_to_location.size());
-
-				code += "layout(location = " + std::to_string(location + i) + ") ";
+				code += "layout(location = " + std::to_string(location + a) + ") ";
 				write_type<false, false, true>(code, type);
 				code += ' ';
-				if (type.is_array())
-					code += escape_name(name + '_' + std::to_string(i));
-				else
-					code += escape_name(name);
+				code += escape_name(type.is_array() ?
+					name + '_' + std::to_string(a) :
+					name);
 				code += ";\n";
 			}
 		};
 
 		// Translate function parameters to input/output variables
 		if (func.return_type.is_struct())
-			for (const struct_member_info &member : find_struct(func.return_type.definition).member_list)
+			for (struct_member_info &member : find_struct(func.return_type.definition).member_list)
 				create_varying_variable(member.type, type::q_out, "_return_" + member.name, member.semantic);
 		else if (!func.return_type.is_void())
 			create_varying_variable(func.return_type, type::q_out, "_return", func.return_semantic);
@@ -624,12 +624,13 @@ private:
 
 			// Flatten structure parameters
 			if (param_type.is_struct())
-				for (const struct_member_info &member : find_struct(param_type.definition).member_list)
+				for (struct_member_info &member : find_struct(param_type.definition).member_list)
 					create_varying_variable(member.type, param_type.qualifiers, param_name + '_' + member.name, member.semantic);
 			else
 				create_varying_variable(param_type, param_type.qualifiers, param_name, func.parameter_list[i].semantic);
 		}
 
+		// Translate return value to output variable
 		define_function({}, entry_point, true);
 		enter_block(create_block());
 
@@ -641,18 +642,18 @@ private:
 			const type &param_type = func.parameter_list[i].type;
 			const std::string param_name = "_param" + std::to_string(i);
 
+			// Create local array element variables
 			for (int a = 0, array_length = std::max(1, param_type.array_length); a < array_length; a++)
 			{
-				// Build struct from separate member input variables
 				if (param_type.is_struct())
 				{
+					// Build struct from separate member input variables
 					code += '\t';
 					write_type<false, true>(code, param_type);
 					code += ' ';
-					if (param_type.is_array())
-						code += escape_name(param_name + '_' + std::to_string(a));
-					else
-						code += escape_name(param_name);
+					code += escape_name(param_type.is_array() ?
+						param_name + '_' + std::to_string(a) :
+						param_name);
 					code += " = ";
 					write_type<false, false>(code, param_type);
 					code += '(';
@@ -661,11 +662,14 @@ private:
 
 					for (const struct_member_info &member : definition.member_list)
 					{
+						std::string var_name = param_name + '_' + member.name;
+						if (const auto it = semantic_to_varying_variable.find(func.parameter_list[i].semantic);
+							it != semantic_to_varying_variable.end() && it->second != var_name)
+							var_name = it->second;
 						if (param_type.is_array())
-							code += semantic_to_builtin(param_name + '_' + member.name + '_' + std::to_string(a), member.semantic, stype);
-						else
-							code += semantic_to_builtin(param_name + '_' + member.name, member.semantic, stype);
+							var_name += '_' + std::to_string(a);
 
+						code += semantic_to_builtin(var_name, member.semantic, stype);
 						code += ", ";
 					}
 
@@ -675,8 +679,25 @@ private:
 
 					code += ");\n";
 				}
+				else if (const auto it = semantic_to_varying_variable.find(func.parameter_list[i].semantic);
+					it != semantic_to_varying_variable.end() && it->second != param_name)
+				{
+					// Create local variables for duplicated semantics (since no input/output variable is created for those)
+					code += '\t';
+					write_type<false, true>(code, param_type);
+					code += ' ';
+					code += escape_name(param_type.is_array() ?
+						param_name + '_' + std::to_string(a) :
+						param_name);
+					code += " = ";
+					code += escape_name(param_type.is_array() ?
+						it->second + '_' + std::to_string(a) :
+						it->second);
+					code += ";\n";
+				}
 			}
 
+			// Build array from separate array element variables
 			if (param_type.is_array())
 			{
 				code += '\t';
@@ -702,10 +723,16 @@ private:
 		code += '\t';
 		// Structs cannot be output variables, so have to write to a temporary first and then output each member separately
 		if (func.return_type.is_struct())
-			write_type(code, func.return_type), code += " _return = ";
+		{
+			write_type(code, func.return_type);
+			code += " _return = ";
+		}
 		// All other output types can write to the output variable directly
 		else if (!func.return_type.is_void())
-			code += semantic_to_builtin("_return", func.return_semantic, stype) + " = ";
+		{
+			code += semantic_to_builtin("_return", func.return_semantic, stype);
+			code += " = ";
+		}
 
 		// Call the function this entry point refers to
 		code += id_to_name(func.definition) + '(';
@@ -726,9 +753,9 @@ private:
 			const type &param_type = func.parameter_list[i].type;
 			if (!param_type.has(type::q_out))
 				continue;
-
 			const std::string param_name = "_param" + std::to_string(i);
 
+			// Split up array output into individual array elements again
 			for (int a = 0; a < param_type.array_length; a++)
 			{
 				code += '\t';
@@ -738,27 +765,27 @@ private:
 				code += '[' + std::to_string(a) + "];\n";
 			}
 
-			for (int a = 0; a < std::max(1, param_type.array_length); a++)
+			// Write out array elements to output variables (only necessary for structs, since others where already written directly above)
+			if (param_type.is_struct())
 			{
-				if (!param_type.is_struct())
-					continue;
-
 				const struct_info &definition = find_struct(param_type.definition);
 
-				for (const struct_member_info &member : definition.member_list)
+				for (int a = 0; a < std::max(1, param_type.array_length); a++)
 				{
-					code += '\t';
-					if (param_type.is_array())
-						code += escape_name(param_name + '_' + member.name + '_' + std::to_string(a));
-					else
-						code += escape_name(param_name + '_' + member.name);
-					code += " = ";
-					code += escape_name(param_name);
-					code += '.';
-					code += escape_name(member.name);
-					if (param_type.is_array())
-						code += '[' + std::to_string(a) + ']';
-					code += ";\n";
+					for (const struct_member_info &member : definition.member_list)
+					{
+						code += '\t';
+						code += escape_name(param_type.is_array() ?
+							param_name + '_' + member.name + '_' + std::to_string(a) :
+							param_name + '_' + member.name);
+						code += " = ";
+						code += escape_name(param_name);
+						code += '.';
+						code += escape_name(member.name);
+						if (param_type.is_array())
+							code += '[' + std::to_string(a) + ']';
+						code += ";\n";
+					}
 				}
 			}
 		}
@@ -1168,7 +1195,7 @@ private:
 	id   emit_call(const location &loc, id function, const type &res_type, const std::vector<expression> &args) override
 	{
 #ifndef NDEBUG
-		for (const auto &arg : args)
+		for (const expression &arg : args)
 			assert(arg.chain.empty() && arg.base != 0);
 #endif
 
@@ -1208,7 +1235,7 @@ private:
 	id   emit_call_intrinsic(const location &loc, id intrinsic, const type &res_type, const std::vector<expression> &args) override
 	{
 #ifndef NDEBUG
-		for (const auto &arg : args)
+		for (const expression &arg : args)
 			assert(arg.chain.empty() && arg.base != 0);
 #endif
 

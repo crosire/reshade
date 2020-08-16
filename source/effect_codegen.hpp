@@ -114,6 +114,13 @@ namespace reshadefx
 		/// <param name="chain">The access chain pointing to the variable to store to.</param>
 		/// <param name="value">The SSA ID of the value to store.</param>
 		virtual void emit_store(const expression &chain, id value) = 0;
+		/// <summary>
+		/// Resolve the access chain, but do not add a load operation. This returns a pointer instead.
+		/// </summary>
+		/// <param name="chain">The access chain pointing to the variable to resolve.</param>
+		/// <param name="chain_index">Output value which is set to the index in the access chain up to which the access chain went.</param>
+		/// <returns>New SSA ID with a pointer to the value.</returns>
+		virtual id emit_access_chain(const expression &chain, size_t &chain_index) { chain_index = chain.chain.size(); return emit_load(chain); }
 
 		/// <summary>
 		/// Create a SSA constant value.
