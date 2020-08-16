@@ -536,7 +536,7 @@ In that event here are some steps you can try to resolve this:
 3) If the game crashes, try disabling all game overlays (like Origin), recording software (like Fraps), FPS displaying software,
    GPU overclocking and tweaking software and other proxy DLLs (like ENB, Helix or Umod).
 
-4) If none of the above helps, you can get support on the forums at https://forum.reshade.me. But search for your problem before
+4) If none of the above helps, you can get support on the forums at https://reshade.me/forum. But search for your problem before
    creating a new topic, as somebody else may have already found a solution.
 ");
 			}
