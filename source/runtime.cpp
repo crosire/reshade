@@ -549,6 +549,7 @@ void reshade::runtime::load_effects()
 
 #if RESHADE_GUI
 	_show_splash = true; // Always show splash bar when reloading everything
+	_reload_count++;
 #endif
 	_last_shader_reload_successful = true;
 

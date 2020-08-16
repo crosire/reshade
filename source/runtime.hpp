@@ -370,6 +370,7 @@ namespace reshade
 		bool _show_screenshot_message = true;
 		bool _no_font_scaling = false;
 		bool _rebuild_font_atlas = true;
+		unsigned int _reload_count = 0;
 		unsigned int _menu_key_data[4];
 		int _fps_pos = 1;
 		int _clock_format = 0;
