@@ -22,6 +22,7 @@ namespace reshade
 		mouse_point,
 		mouse_delta,
 		mouse_button,
+		mouse_wheel,
 		freepie,
 		overlay_open,
 		bufready_depth,
