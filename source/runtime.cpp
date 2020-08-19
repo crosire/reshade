@@ -1013,15 +1013,16 @@ void reshade::runtime::update_and_render_effects()
 					if (step == 0.0f)
 						step  = 1.0f;
 
-					float value = 0.0f;
-					get_uniform_value(variable, &value, 1);
-					value += _input->mouse_wheel_delta() * step;
+					float value[2] = { 0, 0 };
+					get_uniform_value(variable, value, 2);
+					value[1] = _input->mouse_wheel_delta();
+					value[0] = value[0] + value[1] * step;
 					if (min != max)
 					{
-						value = std::max(value, min);
-						value = std::min(value, max);
+						value[0] = std::max(value[0], min);
+						value[0] = std::min(value[0], max);
 					}
-					set_uniform_value(variable, &value, 1);
+					set_uniform_value(variable, value, 2);
 					break;
 				}
 				case special_uniform::freepie:
