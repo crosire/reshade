@@ -1625,26 +1625,47 @@ IMPLEMENT_INTRINSIC_SPIRV(tex2Dsize, 2, {
 	})
 
 // ret tex2Dfetch(s, coords)
-DEFINE_INTRINSIC(tex2Dfetch, 0, float4, sampler, int4)
+DEFINE_INTRINSIC(tex2Dfetch, 0, float4, sampler, int2)
+DEFINE_INTRINSIC(tex2Dfetch, 1, float4, sampler, int4)
 IMPLEMENT_INTRINSIC_GLSL(tex2Dfetch, 0, {
 	// Flip texture coordinates vertically
 	//   coords * ivec2(1, -1) + ivec2(0, size.y - 1)
+	code += "texelFetch(" + id_to_name(args[0].base) + ", " +
+		id_to_name(args[1].base) + ".xy * ivec2(1, -1) + ivec2(0, textureSize(" + id_to_name(args[0].base) + ", 0).y - 1), 0)";
+	})
+IMPLEMENT_INTRINSIC_GLSL(tex2Dfetch, 1, {
 	code += "texelFetch(" + id_to_name(args[0].base) + ", " +
 		id_to_name(args[1].base) + ".xy * ivec2(1, -1) + ivec2(0, textureSize(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ".w).y - 1), " +
 		id_to_name(args[1].base) + ".w)";
 	})
 IMPLEMENT_INTRINSIC_HLSL(tex2Dfetch, 0, {
 	if (_shader_model >= 40u)
-		code += id_to_name(args[0].base) + ".t.Load(" + id_to_name(args[1].base) + ".xyw)";
+		code += id_to_name(args[0].base) + ".t.Load(int3(" + id_to_name(args[1].base) + ", 0))";
 	else
 		// SM3 does not have a fetch intrinsic, so emulate it by transforming coordinates into texture space ones
 		// Also add a half-pixel offset to align texels with pixels
 		//   (coords + 0.5) / size
 		code += "tex2Dlod(" + id_to_name(args[0].base) + ".s, float4((" +
+			id_to_name(args[1].base) + ".xy + 0.5) * " + id_to_name(args[0].base) + ".pixelsize, 0, 0))";
+	})
+IMPLEMENT_INTRINSIC_HLSL(tex2Dfetch, 1, {
+	if (_shader_model >= 40u)
+		code += id_to_name(args[0].base) + ".t.Load(" + id_to_name(args[1].base) + ".xyw)";
+	else
+		code += "tex2Dlod(" + id_to_name(args[0].base) + ".s, float4((" +
 			id_to_name(args[1].base) + ".xy + 0.5) * " + id_to_name(args[0].base) + ".pixelsize * exp2(" + id_to_name(args[1].base) + ".w), 0, " +
 			id_to_name(args[1].base) + ".w))";
 	})
 IMPLEMENT_INTRINSIC_SPIRV(tex2Dfetch, 0, {
+	const spv::Id image = add_instruction(spv::OpImage, convert_type({ type::t_texture }))
+		.add(args[0].base).result;
+
+	return add_instruction(spv::OpImageFetch, convert_type(res_type))
+		.add(image)
+		.add(args[1].base)
+		.result;
+	})
+IMPLEMENT_INTRINSIC_SPIRV(tex2Dfetch, 1, {
 	const spv::Id xy = add_instruction(spv::OpVectorShuffle, convert_type({ type::t_int, 2, 1 }))
 		.add(args[1].base)
 		.add(args[1].base)
