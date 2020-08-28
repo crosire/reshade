@@ -1275,6 +1275,9 @@ bool reshadefx::parser::parse_expression_multary(expression &lhs, unsigned int l
 			}
 			else if (op == tokenid::ampersand || op == tokenid::pipe || op == tokenid::caret)
 			{
+				if (type.is_boolean())
+					type.base = type::t_int;
+
 				// Cannot perform bitwise operations on non-integral types
 				if (!lhs.type.is_integral())
 					return error(lhs.location, 3082, "int or unsigned int type required"), false;
@@ -1285,10 +1288,10 @@ bool reshadefx::parser::parse_expression_multary(expression &lhs, unsigned int l
 			{
 				if (op == tokenid::ampersand_ampersand || op == tokenid::pipe_pipe)
 					type.base = type::t_bool;
-
-				// Logical operations return a boolean value
-				if (op == tokenid::less || op == tokenid::less_equal || op == tokenid::greater || op == tokenid::greater_equal)
-					is_bool_result = true;
+				else if (op == tokenid::less || op == tokenid::less_equal || op == tokenid::greater || op == tokenid::greater_equal)
+					is_bool_result = true; // Logical operations return a boolean value
+				else if (type.is_boolean())
+					type.base = type::t_int; // Arithmetic with boolean values treats the operands as integers
 
 				// Cannot perform arithmetic operations on non-basic types
 				if (!lhs.type.is_scalar() && !lhs.type.is_vector() && !lhs.type.is_matrix())
