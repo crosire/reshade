@@ -184,6 +184,9 @@ bool reshade::input::handle_window_message(const void *message_data)
 				input->_mouse_wheel_delta += static_cast<short>(raw_data.data.mouse.usButtonData) / WHEEL_DELTA;
 			break;
 		case RIM_TYPEKEYBOARD:
+			if (raw_data.data.keyboard.VKey == 0)
+				break; // Ignore messages without a valid key code
+
 			is_keyboard_message = true;
 			// Do not block key up messages if the key down one was not blocked previously
 			if (input->_block_keyboard && (raw_data.data.keyboard.Flags & RI_KEY_BREAK) != 0 && raw_data.data.keyboard.VKey < 0xFF && (input->_keys[raw_data.data.keyboard.VKey] & 0x04) == 0)
@@ -210,7 +213,7 @@ bool reshade::input::handle_window_message(const void *message_data)
 		break;
 	case WM_KEYDOWN:
 	case WM_SYSKEYDOWN:
-		assert(details.wParam < ARRAYSIZE(input->_keys));
+		assert(details.wParam > 0 && details.wParam < ARRAYSIZE(input->_keys));
 		input->_keys[details.wParam] = 0x88;
 		input->_keys_time[details.wParam] = details.time;
 		if (input->_block_keyboard)
@@ -218,7 +221,7 @@ bool reshade::input::handle_window_message(const void *message_data)
 		break;
 	case WM_KEYUP:
 	case WM_SYSKEYUP:
-		assert(details.wParam < ARRAYSIZE(input->_keys));
+		assert(details.wParam > 0 && details.wParam < ARRAYSIZE(input->_keys));
 		// Do not block key up messages if the key down one was not blocked previously (so key does not get stuck for the application)
 		if (input->_block_keyboard && (input->_keys[details.wParam] & 0x04) == 0)
 			is_keyboard_message = false;
@@ -267,7 +270,7 @@ bool reshade::input::is_key_down(unsigned int keycode) const
 bool reshade::input::is_key_pressed(unsigned int keycode) const
 {
 	assert(keycode < ARRAYSIZE(_keys));
-	return keycode < ARRAYSIZE(_keys) && (_keys[keycode] & 0x88) == 0x88;
+	return keycode > 0 && keycode < ARRAYSIZE(_keys) && (_keys[keycode] & 0x88) == 0x88;
 }
 bool reshade::input::is_key_pressed(unsigned int keycode, bool ctrl, bool shift, bool alt, bool force_modifiers) const
 {
@@ -280,7 +283,7 @@ bool reshade::input::is_key_pressed(unsigned int keycode, bool ctrl, bool shift,
 bool reshade::input::is_key_released(unsigned int keycode) const
 {
 	assert(keycode < ARRAYSIZE(_keys));
-	return keycode < ARRAYSIZE(_keys) && (_keys[keycode] & 0x88) == 0x08;
+	return keycode > 0 && keycode < ARRAYSIZE(_keys) && (_keys[keycode] & 0x88) == 0x08;
 }
 
 bool reshade::input::is_any_key_down() const
