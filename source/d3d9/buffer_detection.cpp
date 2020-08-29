@@ -24,7 +24,7 @@ void reshade::d3d9::buffer_detection::reset(bool release_resources)
 		_depthstencil_original.reset(); // Reset this after all replacements have been released, so that 'update_depthstencil_replacement' was able to bind it if necessary
 		_depthstencil_replacement.clear();
 	}
-	else if (preserve_depth_buffers && !_depthstencil_replacement.empty())
+	else if (preserve_depth_buffers && !_depthstencil_replacement.empty() && _depthstencil_replacement[0] != nullptr)
 	{
 		com_ptr<IDirect3DSurface9> depthstencil;
 		_device->GetDepthStencilSurface(&depthstencil);
@@ -98,7 +98,8 @@ void reshade::d3d9::buffer_detection::on_set_depthstencil(IDirect3DSurface9 *&de
 		_counters_per_used_depth_surface[_depthstencil_original].clears.size() : 0;
 
 	// Replace application depth-stencil surface with our custom one
-	depthstencil = _depthstencil_replacement[replacement_index].get();
+	if (_depthstencil_replacement[replacement_index] != nullptr)
+		depthstencil = _depthstencil_replacement[replacement_index].get();
 }
 void reshade::d3d9::buffer_detection::on_get_depthstencil(IDirect3DSurface9 *&depthstencil)
 {
@@ -122,7 +123,7 @@ void reshade::d3d9::buffer_detection::on_clear_depthstencil(UINT clear_flags)
 	_device->GetDepthStencilSurface(&depthstencil);
 	assert(depthstencil != nullptr);
 
-	if (std::find(_depthstencil_replacement.begin(), _depthstencil_replacement.end(), depthstencil) == _depthstencil_replacement.end())
+	if (std::find(_depthstencil_replacement.begin(), _depthstencil_replacement.end(), depthstencil) == _depthstencil_replacement.end() && depthstencil != _depthstencil_original)
 		return; // Can only avoid clear of the replacement surface
 
 	auto &counters = _counters_per_used_depth_surface[_depthstencil_original];
@@ -169,9 +170,16 @@ bool reshade::d3d9::buffer_detection::update_depthstencil_replacement(com_ptr<ID
 	D3DSURFACE_DESC desc;
 	depthstencil->GetDesc(&desc);
 
-	if (check_texture_format(desc) && !preserve_depth_buffers)
-		return true; // Format already supports shader access, so no need to replace
-	else if (disable_intz)
+	if (check_texture_format(desc) && (!preserve_depth_buffers || index == 0))
+	{
+		// Format already supports shader access, so no need to replace
+		// Also never replace the original buffer when preserving, since game (e.g. Dead Space) may use it as a texture binding later, so have to fill it
+		if (preserve_depth_buffers)
+			_depthstencil_original = std::move(depthstencil);
+		return true;
+	}
+
+	if (disable_intz)
 		// Disable replacement with a texture of the INTZ format (which can have lower precision)
 		return false;
 
@@ -292,9 +300,6 @@ com_ptr<IDirect3DSurface9> reshade::d3d9::buffer_detection::find_best_depth_surf
 
 	if (preserve_depth_buffers && best_match != nullptr)
 	{
-		// Always need to replace if preserving on clears
-		no_replacement = false;
-
 		if (!_depthstencil_replacement.empty())
 		{
 			if (depthstencil_clear_index != 0 && depthstencil_clear_index <= best_snapshot.clears.size())
@@ -328,6 +333,9 @@ com_ptr<IDirect3DSurface9> reshade::d3d9::buffer_detection::find_best_depth_surf
 				}
 			}
 		}
+
+		// Always need to replace if preserving on clears, unless this is the first clear and game is using INTZ itself already
+		no_replacement = !_depthstencil_replacement.empty() && best_replacement == nullptr;
 	}
 
 	assert(best_match == nullptr || best_match != best_replacement);

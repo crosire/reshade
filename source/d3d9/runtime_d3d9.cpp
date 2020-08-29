@@ -1196,7 +1196,7 @@ void reshade::d3d9::runtime_d3d9::draw_depth_debug_menu(buffer_detection &tracke
 	for (const auto &[ds_surface, snapshot] : tracker.depth_buffer_counters())
 	{
 		char label[512] = "";
-		sprintf_s(label, "%s0x%p", (ds_surface == tracker.current_depth_surface() ? "> " : "  "), ds_surface.get());
+		sprintf_s(label, "%s0x%p", (ds_surface == tracker.current_depth_surface() || ds_surface == _depth_surface ? "> " : "  "), ds_surface.get());
 
 		D3DSURFACE_DESC desc;
 		ds_surface->GetDesc(&desc);
