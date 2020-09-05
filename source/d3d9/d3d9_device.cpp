@@ -422,7 +422,9 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::EndScene()
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::Clear(DWORD Count, const D3DRECT *pRects, DWORD Flags, D3DCOLOR Color, float Z, DWORD Stencil)
 {
 #if RESHADE_DEPTH
-	_buffer_detection.on_clear_depthstencil(Flags);
+	// Skip partial clears, since buffer detection logic replaces entire depth-stencil surface and therefore may otherwise break rendering after those
+	if (Flags != D3DCLEAR_TARGET && (Count == 0 || (pRects->x1 == 0 && pRects->y1 == 0)))
+		_buffer_detection.on_clear_depthstencil(Flags);
 #endif
 	return _orig->Clear(Count, pRects, Flags, Color, Z, Stencil);
 }
