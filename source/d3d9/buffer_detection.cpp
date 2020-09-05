@@ -265,8 +265,9 @@ com_ptr<IDirect3DSurface9> reshade::d3d9::buffer_detection::find_best_depth_surf
 	{
 		best_snapshot = _counters_per_used_depth_surface[best_match];
 
-		// Always replace when there is an override surface
-		no_replacement = false;
+		D3DSURFACE_DESC desc;
+		best_match->GetDesc(&desc);
+		no_replacement = check_texture_format(desc);
 	}
 	else
 	{
