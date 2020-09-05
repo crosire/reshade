@@ -2207,8 +2207,8 @@ void reshade::runtime::draw_variable_editor()
 			if (ImGui::Button("Yes", ImVec2(ImGui::GetContentRegionAvail().x, 0)))
 			{
 				// Reset all uniform variables
-				for (uniform &variable : _effects[effect_index].uniforms)
-					reset_uniform_value(variable);
+				for (uniform &variable_it : _effects[effect_index].uniforms)
+					reset_uniform_value(variable_it);
 
 				// Reset all preprocessor definitions
 				for (const std::pair<std::string, std::string> &definition : _effects[effect_index].definitions)
@@ -2253,6 +2253,25 @@ void reshade::runtime::draw_variable_editor()
 						flags |= ImGuiTreeNodeFlags_DefaultOpen;
 
 					category_closed = !ImGui::TreeNodeEx(category_label.c_str(), flags);
+
+					if (ImGui::BeginPopupContextItem(category_label.c_str()))
+					{
+						std::string reset_button_label(category.data(), category.size());
+						reset_button_label = "Reset all in '" + reset_button_label + "' to default";
+
+						if (ImGui::Button(reset_button_label.c_str(), ImVec2(ImGui::GetContentRegionAvail().x, 0)))
+						{
+							for (uniform &variable_it : _effects[effect_index].uniforms)
+								if (variable_it.annotation_as_string("ui_category") == category)
+									reset_uniform_value(variable_it);
+
+							save_current_preset();
+
+							ImGui::CloseCurrentPopup();
+						}
+
+						ImGui::EndPopup();
+					}
 				}
 				else
 				{

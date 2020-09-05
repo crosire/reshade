@@ -951,8 +951,8 @@ void reshade::runtime::update_and_render_effects()
 				}
 				case special_uniform::timer:
 				{
-					set_uniform_value(variable, static_cast<unsigned int>(
-						std::chrono::duration_cast<std::chrono::milliseconds>(_last_present_time - _start_time).count()));
+					const unsigned long long timer_ms = std::chrono::duration_cast<std::chrono::milliseconds>(_last_present_time - _start_time).count();
+					set_uniform_value(variable, static_cast<unsigned int>(timer_ms));
 					break;
 				}
 				case special_uniform::key:
