@@ -1080,6 +1080,9 @@ void reshade::runtime::draw_ui_settings()
 		modified |= imgui_key_input("Next Preset Key", _next_preset_key_data, *_input);
 		_ignore_shortcuts |= ImGui::IsItemActive();
 
+		modified |= imgui_key_input("Performance Mode Toggle Key", _performance_mode_key_data, *_input);
+		_ignore_shortcuts |= ImGui::IsItemActive();
+
 		modified |= ImGui::SliderInt("Preset transition", reinterpret_cast<int *>(&_preset_transition_delay), 0, 10 * 1000);
 		if (ImGui::IsItemHovered())
 			ImGui::SetTooltip("Makes a smooth transition, but only for floating point values.\nRecommended for multiple presets that contain the same shaders, otherwise set this to zero.\nValues are in milliseconds.");

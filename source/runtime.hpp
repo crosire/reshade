@@ -336,6 +336,9 @@ namespace reshade
 		std::filesystem::path _current_preset_path;
 		std::chrono::high_resolution_clock::time_point _last_preset_switching_time;
 
+		// === Performance Mode
+		unsigned int _performance_mode_key_data[4];
+
 #if RESHADE_GUI
 		void init_ui();
 		void deinit_ui();
