@@ -235,7 +235,9 @@ bool imgui_path_list(const char *label, std::vector<std::filesystem::path> &path
 			if (ImGui::IsKeyDown(0x12))
 			{
 				res = true;
-				paths.push_back(default_path);
+
+				// Take last the last path of the list if possible.
+				paths.push_back(paths.empty() ? default_path : paths.back());
 			}
 			else
 			{
