@@ -3159,6 +3159,11 @@ bool reshadefx::parser::parse_technique_pass(pass_info &info)
 				parse_success = false;
 				error(pass_location, 3012, "pass is missing 'DispatchSizeX' or 'DispatchSizeY' property");
 			}
+
+			if (!info.vs_entry_point.empty())
+				warning(pass_location, 3089, "pass is specifying both 'VertexShader' and 'ComputeShader' which cannot be used together");
+			if (!info.ps_entry_point.empty())
+				warning(pass_location, 3089,  "pass is specifying both 'PixelShader' and 'ComputeShader' which cannot be used together");
 		}
 		else if (info.vs_entry_point.empty() || info.ps_entry_point.empty())
 		{
