@@ -587,7 +587,7 @@ void reshade::vulkan::runtime_vk::on_present(VkQueue queue, uint32_t swapchain_i
 
 	// Make sure the command buffer has finished executing before reusing it this frame
 	const VkFence fence = _cmd_fences[_cmd_index];
-	if (vk.GetFenceStatus(_device, fence) == VK_INCOMPLETE)
+	if (vk.GetFenceStatus(_device, fence) == VK_NOT_READY)
 	{
 		vk.WaitForFences(_device, 1, &fence, VK_TRUE, UINT64_MAX);
 	}

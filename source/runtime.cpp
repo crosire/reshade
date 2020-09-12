@@ -480,6 +480,18 @@ bool reshade::runtime::load_effect(const std::filesystem::path &path, size_t ind
 					effect.errors += ") already created a texture with the same name but different dimensions; textures are shared across all effects, so either rename the variable or adjust the dimensions so they match\n";
 				}
 
+				if (_color_bit_depth != 8)
+				{
+					for (const auto &sampler_info : effect.module.samplers)
+					{
+						if (sampler_info.srgb && sampler_info.texture_name == texture.unique_name)
+						{
+							effect.errors += "error: " + sampler_info.unique_name + ": texture does not support sRGB sampling (back buffer format is not RGBA8)";
+							effect.compile_sucess = false;
+						}
+					}
+				}
+
 				existing_texture->shared = true;
 
 				// Always make shared textures render targets, since they may be used as such in a different effect
