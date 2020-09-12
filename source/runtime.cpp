@@ -83,6 +83,7 @@ reshade::runtime::runtime() :
 	_screenshot_key_data(),
 	_prev_preset_key_data(),
 	_next_preset_key_data(),
+	_performance_mode_key_data(),
 	_configuration_path(g_reshade_config_path),
 	_screenshot_path(g_target_executable_path.parent_path())
 {
