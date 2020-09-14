@@ -354,7 +354,7 @@ bool reshade::hooks::install(const char *name, hook::address target, hook::addre
 	hook.replacement = replacement;
 
 	return install_internal(name, hook, hook_method::function_hook) &&
-		(!queue_enable || hook::apply_queued_actions()); // Can optionally only queue up the hooks instead of installing them right away
+		(queue_enable || hook::apply_queued_actions()); // Can optionally only queue up the hooks instead of installing them right away
 }
 bool reshade::hooks::install(const char *name, hook::address vtable[], unsigned int offset, hook::address replacement)
 {
