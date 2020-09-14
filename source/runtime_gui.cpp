@@ -1075,6 +1075,9 @@ void reshade::runtime::draw_ui_settings()
 		modified |= imgui_key_input("Effect Reload Key", _reload_key_data, *_input);
 		_ignore_shortcuts |= ImGui::IsItemActive();
 
+		modified |= imgui_key_input("Performance Mode Toggle Key", _performance_mode_key_data, *_input);
+		_ignore_shortcuts |= ImGui::IsItemActive();
+
 		modified |= imgui_key_input("Previous Preset Key", _prev_preset_key_data, *_input);
 		_ignore_shortcuts |= ImGui::IsItemActive();
 		modified |= imgui_key_input("Next Preset Key", _next_preset_key_data, *_input);
