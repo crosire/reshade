@@ -788,6 +788,9 @@ bool reshade::d3d12::runtime_d3d12::init_effect(size_t index)
 		}
 	}
 
+	// The render target descriptor table is shared across all techniques in the effect
+	D3D12_CPU_DESCRIPTOR_HANDLE rtv_base_handle = effect_data.rtv_cpu_base;
+
 	for (technique &technique : _techniques)
 	{
 		if (technique.impl != nullptr || technique.effect_index != index)
@@ -837,10 +840,10 @@ bool reshade::d3d12::runtime_d3d12::init_effect(size_t index)
 				const auto &PS = entry_points.at(pass_info.ps_entry_point);
 				pso_desc.PS = { PS->GetBufferPointer(), PS->GetBufferSize() };
 
-				D3D12_CPU_DESCRIPTOR_HANDLE rtv_handle = effect_data.rtv_cpu_base;
-				rtv_handle.ptr += pass_index * 8 * _rtv_handle_size;
+				D3D12_CPU_DESCRIPTOR_HANDLE rtv_handle = rtv_base_handle;
+				rtv_base_handle.ptr += 8 * _rtv_handle_size;
 
-				// Keep track of base handle, which is followed by a contiguous range of render target descriptors
+				// Keep track of the base handle, which is followed by a contiguous range of render target descriptors
 				pass_data.render_targets = rtv_handle;
 
 				for (UINT k = 0; k < 8 && !pass_info.render_target_names[k].empty(); ++k)
