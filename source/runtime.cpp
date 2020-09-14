@@ -1165,7 +1165,7 @@ void reshade::runtime::load_config()
 	config.get("INPUT", "KeyScreenshot", _screenshot_key_data);
 	config.get("INPUT", "KeyPreviousPreset", _prev_preset_key_data);
 	config.get("INPUT", "KeyNextPreset", _next_preset_key_data);
-	config.get("INPUT", "KeyPerformance", _performance_mode_key_data);
+	config.get("INPUT", "KeyPerformanceMode", _performance_mode_key_data);
 	config.get("INPUT", "ForceShortcutModifiers", _force_shortcut_modifiers);
 
 	config.get("GENERAL", "PerformanceMode", _performance_mode);
@@ -1213,7 +1213,7 @@ void reshade::runtime::save_config() const
 	config.set("INPUT", "KeyScreenshot", _screenshot_key_data);
 	config.set("INPUT", "KeyPreviousPreset", _prev_preset_key_data);
 	config.set("INPUT", "KeyNextPreset", _next_preset_key_data);
-	config.set("INPUT", "KeyPerformance", _performance_mode_key_data);
+	config.set("INPUT", "KeyPerformanceMode", _performance_mode_key_data);
 	config.set("INPUT", "ForceShortcutModifiers", _force_shortcut_modifiers);
 
 	config.set("GENERAL", "PerformanceMode", _performance_mode);
