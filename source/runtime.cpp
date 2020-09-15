@@ -1212,7 +1212,11 @@ void reshade::runtime::save_config() const
 	config.set("GENERAL", "TextureSearchPaths", _texture_search_paths);
 	config.set("GENERAL", "PreprocessorDefinitions", _global_preprocessor_definitions);
 
-	config.set("GENERAL", "PresetPath", _current_preset_path);
+	// Use ReShade DLL directory as base for relative preset paths (see 'resolve_preset_path')
+	std::filesystem::path relative_preset_path = _current_preset_path.lexically_proximate(g_reshade_dll_path.parent_path());
+	if (relative_preset_path.wstring().rfind(L"..", 0) != std::wstring::npos)
+		relative_preset_path = _current_preset_path; // Do not use relative path if preset is in a parent directory
+	config.set("GENERAL", "PresetPath", relative_preset_path);
 	config.set("GENERAL", "PresetTransitionDelay", _preset_transition_delay);
 
 	config.set("SCREENSHOTS", "ClearAlpha", _screenshot_clear_alpha);
