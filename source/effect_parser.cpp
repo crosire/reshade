@@ -2749,16 +2749,19 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 					if (!expression.is_constant || !expression.type.is_scalar())
 						return error(expression.location, 3538, "value must be a literal scalar expression"), consume_until('}'), false;
 
-					// All states below expect the value to be of an unsigned integer type
-					expression.add_cast_operation({ type::t_uint, 1, 1 });
-					const unsigned int value = expression.constant.as_uint[0];
+					// All states below expect the value to be of an integer type
+					expression.add_cast_operation({ type::t_int, 1, 1 });
+					const int value = expression.constant.as_int[0];
+
+					if (value < 0) // There is little use for negative values, so warn in those cases
+						warning(expression.location, 3571, "negative value specified for property '" + property_name + '\'');
 
 					if (property_name == "Width")
 						texture_info.width = value > 0 ? value : 1;
 					else if (property_name == "Height")
 						texture_info.height = value > 0 ? value : 1;
 					else if (property_name == "MipLevels")
-						texture_info.levels = value > 0 ? value : 1;
+						texture_info.levels = value > 0 ? value : 1; // Also ensures negative values do not cause problems
 					else if (property_name == "Format")
 						texture_info.format = static_cast<texture_format>(value);
 					else if (property_name == "SRGBTexture" || property_name == "SRGBReadEnable")
