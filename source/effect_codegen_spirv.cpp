@@ -1898,8 +1898,10 @@ private:
 
 		_current_block_data->instructions.push_back(merge_label);
 	}
-	void emit_switch(const location &loc, id, id selector_block, id default_label, const std::vector<id> &case_literal_and_labels, unsigned int selection_control) override
+	void emit_switch(const location &loc, id, id selector_block, id default_label, const std::vector<id> &case_literal_and_labels, const std::vector<id> &case_blocks, unsigned int selection_control) override
 	{
+		assert(case_blocks.size() == case_literal_and_labels.size() / 2);
+
 		spirv_instruction merge_label = _current_block_data->instructions.back();
 		assert(merge_label.op == spv::OpLabel);
 		_current_block_data->instructions.pop_back();
@@ -1923,8 +1925,8 @@ private:
 
 		// Append all blocks belonging to the switch
 		_current_block_data->instructions.push_back(switch_inst);
-		for (size_t i = 0; i < case_literal_and_labels.size(); i += 2)
-			_current_block_data->append(_block_data[case_literal_and_labels[i + 1]]);
+		for (const id case_block : case_blocks)
+			_current_block_data->append(_block_data[case_block]);
 		if (default_label != merge_label.result)
 			_current_block_data->append(_block_data[default_label]);
 

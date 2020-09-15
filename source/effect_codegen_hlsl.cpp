@@ -1321,9 +1321,10 @@ private:
 		_blocks.erase(loop_block);
 		_blocks.erase(continue_block);
 	}
-	void emit_switch(const location &loc, id selector_value, id selector_block, id default_label, const std::vector<id> &case_literal_and_labels, unsigned int flags) override
+	void emit_switch(const location &loc, id selector_value, id selector_block, id default_label, const std::vector<id> &case_literal_and_labels, const std::vector<id> &case_blocks, unsigned int flags) override
 	{
 		assert(selector_value != 0 && selector_block != 0 && default_label != 0);
+		assert(case_blocks.size() == case_literal_and_labels.size() / 2);
 
 		std::string &code = _blocks.at(_current_block);
 
@@ -1342,9 +1343,8 @@ private:
 
 			for (size_t i = 0; i < case_literal_and_labels.size(); i += 2)
 			{
-				assert(case_literal_and_labels[i + 1] != 0);
-
-				std::string &case_data = _blocks.at(case_literal_and_labels[i + 1]);
+				assert(case_blocks[i / 2] != 0);
+				std::string &case_data = _blocks.at(case_blocks[i / 2]);
 
 				increase_indentation_level(case_data);
 
@@ -1379,9 +1379,8 @@ private:
 
 			for (size_t i = 0; i < case_literal_and_labels.size(); i += 2)
 			{
-				assert(case_literal_and_labels[i + 1] != 0);
-
-				std::string &case_data = _blocks.at(case_literal_and_labels[i + 1]);
+				assert(case_blocks[i / 2] != 0);
+				std::string &case_data = _blocks.at(case_blocks[i / 2]);
 
 				increase_indentation_level(case_data);
 
@@ -1409,8 +1408,8 @@ private:
 
 		// Remove consumed blocks to save memory
 		_blocks.erase(selector_block);
-		for (size_t i = 0; i < case_literal_and_labels.size(); i += 2)
-			_blocks.erase(case_literal_and_labels[i + 1]);
+		for (const id case_block : case_blocks)
+			_blocks.erase(case_block);
 	}
 
 	id   create_block() override

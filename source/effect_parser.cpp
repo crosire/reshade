@@ -1662,11 +1662,12 @@ bool reshadefx::parser::parse_statement(bool scoped)
 
 			bool parse_success = true;
 			codegen::id default_label = merge_block; // The default case jumps to the end of the switch statement if not overwritten
-			std::vector<codegen::id> case_literal_and_labels;
+			codegen::id current_label = _codegen->create_block();
+			std::vector<codegen::id> case_literal_and_labels, case_blocks;
 			size_t last_case_label_index = 0;
 
 			// Enter first switch statement body block
-			_codegen->enter_block(_codegen->create_block());
+			_codegen->enter_block(current_label);
 
 			while (!peek(tokenid::end_of_file))
 			{
@@ -1725,18 +1726,26 @@ bool reshadefx::parser::parse_statement(bool scoped)
 						error(_token_next.location, 3533, "non-empty case statements must have break or return");
 					}
 
-					const codegen::id next_block = end_of_switch ? merge_block : _codegen->create_block();
-					const codegen::id current_block = _codegen->leave_block_and_branch(next_block);
+					const codegen::id next_label = end_of_switch ? merge_block : _codegen->create_block();
+					// This is different from 'current_label', since there may have been branching logic inside the case, which would have changed the active block
+					const codegen::id current_block = _codegen->leave_block_and_branch(next_label);
 
-					assert(current_block != 0);
-
-					if (default_label == 0)
-						default_label = current_block;
+					if (0 == default_label)
+					{
+						default_label = current_label;
+					}
 					else
+					{
 						for (size_t i = last_case_label_index; i < case_literal_and_labels.size(); i += 2)
-							case_literal_and_labels[i + 1] = current_block;
+						{
+							case_literal_and_labels[i + 1] = current_label;
+							// Need to use the initial label for the switch table, but the current block to merge all the block data
+							case_blocks.push_back(current_block);
+						}
+					}
 
-					_codegen->enter_block(next_block);
+					current_label = next_label;
+					_codegen->enter_block(current_label);
 
 					if (end_of_switch) // We reached the end, nothing more to do
 						break;
@@ -1749,7 +1758,7 @@ bool reshadefx::parser::parse_statement(bool scoped)
 				warning(location, 5002, "switch statement contains no 'case' or 'default' labels");
 
 			// Emit structured control flow for a switch statement and connect all basic blocks
-			_codegen->emit_switch(location, selector_value, selector_block, default_label, case_literal_and_labels, selection_control);
+			_codegen->emit_switch(location, selector_value, selector_block, default_label, case_literal_and_labels, case_blocks, selection_control);
 
 			return expect('}') && parse_success;
 		}

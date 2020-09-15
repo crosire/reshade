@@ -211,7 +211,7 @@ namespace reshadefx
 		/// </summary>
 		/// <param name="loc">Source location matching this switch (for debugging).</param>
 		/// <param name="flags">0 - default, 1 - flatten, 2 - do not flatten</param>
-		virtual void emit_switch(const location &loc, id selector_value, id selector_block, id default_label, const std::vector<id> &case_literal_and_labels, unsigned int flags) = 0;
+		virtual void emit_switch(const location &loc, id selector_value, id selector_block, id default_label, const std::vector<id> &case_literal_and_labels, const std::vector<id> &case_blocks, unsigned int flags) = 0;
 
 		/// <summary>
 		/// Returns true if code is currently added to a basic block.
