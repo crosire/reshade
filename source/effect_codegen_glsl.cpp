@@ -434,14 +434,19 @@ private:
 			//    according to rules (1), (2), and (3), and rounded up to the base alignment of a four-component vector.
 			// 7. If the member is a row-major matrix with C columns and R rows, the matrix is stored identically to an array of R row vectors with C components each, according to rule (4).
 			// 8. If the member is an array of S row-major matrices with C columns and R rows, the matrix is stored identically to a row of S*R row vectors with C components each, according to rule (4).
-			const uint32_t alignment = info.type.is_array() || info.type.is_matrix() ? 16 /* (4) */ : (info.type.rows == 3 ? 4 /* (3) */ : info.type.rows /* (2)*/) * 4 /* (1)*/;
+			uint32_t alignment = (info.type.rows == 3 ? 4 /* (3) */ : info.type.rows /* (2)*/) * 4 /* (1)*/;
+			info.size = info.type.rows * 4;
 
 			if (info.type.is_matrix())
+			{
+				alignment = 16 /* (4) */;
 				info.size = info.type.rows * alignment /* (7), (8) */;
-			else
-				info.size = info.type.rows * 4;
+			}
 			if (info.type.is_array())
+			{
+				alignment = 16 /* (4) */;
 				info.size = align_up(info.size, alignment) * info.type.array_length;
+			}
 
 			// Adjust offset according to alignment rules from above
 			info.offset = _module.total_uniform_size;

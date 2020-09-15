@@ -728,26 +728,27 @@ private:
 				add_decoration(_global_ubo_variable, spv::DecorationBinding, { 0 });
 			}
 
+			uint32_t alignment = (info.type.rows == 3 ? 4 : info.type.rows) * 4;
+			info.size = info.type.rows * 4;
+
 			uint32_t array_stride = 16;
 			const uint32_t matrix_stride = 16;
 
 			if (info.type.is_matrix())
-				// Column major case, for row major this would be like in HLSL
+			{
+				alignment = matrix_stride;
 				info.size = info.type.rows * matrix_stride;
-			else
-				info.size = info.type.rows * 4;
+			}
 			if (info.type.is_array())
 			{
+				alignment = array_stride;
 				array_stride = align_up(info.size, array_stride);
 				// Uniform block rules do not permit anything in the padding of an array
 				info.size = array_stride * info.type.array_length;
 			}
 
 			info.offset = _module.total_uniform_size;
-			// Make sure member does not have an improper straddle
-			const uint32_t remaining = 16 - (info.offset & 15);
-			if (remaining != 16 && info.size > remaining)
-				info.offset += remaining;
+			info.offset = align_up(info.offset, alignment);
 			_module.total_uniform_size = info.offset + info.size;
 
 			type ubo_type = info.type;
