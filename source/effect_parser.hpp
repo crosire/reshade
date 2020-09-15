@@ -59,7 +59,7 @@ namespace reshadefx
 		bool peek_multary_op(unsigned int &precedence) const;
 		bool accept_assignment_op();
 
-		bool parse_top();
+		void parse_top(bool &parse_success);
 		bool parse_struct();
 		bool parse_function(type type, std::string name);
 		bool parse_variable(type type, std::string name, bool global = false);

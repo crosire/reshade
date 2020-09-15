@@ -35,12 +35,11 @@ bool reshadefx::parser::parse(std::string input, codegen *backend)
 	consume();
 
 	bool parse_success = true;
+	bool current_success = true;
 
 	while (!peek(tokenid::end_of_file))
-	{
-		if (!parse_top())
+		if (parse_top(current_success); !current_success)
 			parse_success = false;
-	}
 
 	return parse_success;
 }
@@ -2163,59 +2162,66 @@ bool reshadefx::parser::parse_statement_block(bool scoped)
 	return expect('}');
 }
 
-bool reshadefx::parser::parse_top()
+void reshadefx::parser::parse_top(bool &parse_success)
 {
 	if (accept(tokenid::namespace_))
 	{
 		// Anonymous namespaces are not supported right now, so an identifier is a must
 		if (!expect(tokenid::identifier))
-			return false;
+		{
+			parse_success = false;
+			return;
+		}
 
 		const auto name = std::move(_token.literal_as_string);
 
 		if (!expect('{'))
-			return false;
+		{
+			parse_success = false;
+			return;
+		}
 
 		enter_namespace(name);
 
-		bool parse_success = true;
+		bool current_success = true;
+		bool parse_success_namespace = true;
 
 		// Recursively parse top level statements until the namespace is closed again
-		while (!peek('}') && parse_success) // Empty namespaces are valid
-		{
-			if (!parse_top())
-				parse_success = false;
-		}
+		while (!peek('}') && parse_success_namespace) // Empty namespaces are valid
+			if (parse_top(current_success); !current_success)
+				parse_success_namespace = false;
 
 		leave_namespace();
 
-		return expect('}') && parse_success;
+		parse_success = expect('}') && parse_success_namespace;
 	}
 	else if (accept(tokenid::struct_)) // Structure keyword found, parse the structure definition
 	{
-		if (!parse_struct() || !expect(';')) // Structure definitions are terminated with a semicolon
-			return false;
+		// Structure definitions are terminated with a semicolon
+		parse_success = parse_struct() && expect(';');
 	}
 	else if (accept(tokenid::technique)) // Technique keyword found, parse the technique definition
 	{
-		if (!parse_technique())
-			return false;
+		parse_success = parse_technique();
 	}
 	else
 	{
 		if (type type; parse_type(type)) // Type found, this can be either a variable or a function declaration
 		{
-			if (!expect(tokenid::identifier))
-				return false;
+			parse_success = expect(tokenid::identifier);
+			if (!parse_success)
+				return;
 
 			if (peek('('))
 			{
 				const auto name = std::move(_token.literal_as_string);
 				// This is definitely a function declaration, so parse it
-				if (!parse_function(type, name)) {
+				if (!parse_function(type, name))
+				{
 					// Insert dummy function into symbol table, so later references can be resolved despite the error
 					insert_symbol(name, { symbol_type::function, ~0u, { type::t_function } }, true);
-					return false;
+					parse_success = false;
+					return;
 				}
 			}
 			else
@@ -2224,28 +2230,41 @@ bool reshadefx::parser::parse_top()
 				unsigned int count = 0;
 				do {
 					if (count++ > 0 && !(expect(',') && expect(tokenid::identifier)))
-						return false;
+					{
+						parse_success = false;
+						return;
+					}
 					const auto name = std::move(_token.literal_as_string);
-					if (!parse_variable(type, name, true)) {
+					if (!parse_variable(type, name, true))
+					{
 						// Insert dummy variable into symbol table, so later references can be resolved despite the error
 						insert_symbol(name, { symbol_type::variable, ~0u, type }, true);
-						return consume_until(';'), false; // Skip the rest of the statement in case of an error
+						// Skip the rest of the statement
+						consume_until(';');
+						parse_success = false;
+						return;
 					}
 				} while (!peek(';'));
 
-				if (!expect(';')) // Variable declarations are terminated with a semicolon
-					return false;
+				// Variable declarations are terminated with a semicolon
+				parse_success = expect(';');
 			}
 		}
-		else if (!accept(';')) // Ignore single semicolons in the source
+		else if (accept(';')) // Ignore single semicolons in the source
 		{
-			consume(); // Unexpected token in source stream, consume and report an error about it
-			error(_token.location, 3000, "syntax error: unexpected '" + token::id_to_name(_token.id) + '\'');
-			return false;
+			parse_success = true;
+		}
+		else
+		{
+			// Unexpected token in source stream, consume and report an error about it
+			consume();
+			// Only add another error message if succeeded parsing previously
+			// This is done to avoid walls of error messages because of consequential errors following a top-level syntax mistake 
+			if (parse_success)
+				error(_token.location, 3000, "syntax error: unexpected '" + token::id_to_name(_token.id) + '\'');
+			parse_success = false;
 		}
 	}
-
-	return true;
 }
 
 bool reshadefx::parser::parse_struct()
