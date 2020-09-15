@@ -35,10 +35,10 @@ void reshade::runtime::init_ui()
 	}
 
 	// Default shortcut: Home
-	_menu_key_data[0] = 0x24;
-	_menu_key_data[1] = false;
-	_menu_key_data[2] = false;
-	_menu_key_data[3] = false;
+	_overlay_key_data[0] = 0x24;
+	_overlay_key_data[1] = false;
+	_overlay_key_data[2] = false;
+	_overlay_key_data[3] = false;
 
 	_editor.set_readonly(true);
 	_viewer.set_readonly(true); // Viewer is always read-only
@@ -91,37 +91,37 @@ void reshade::runtime::init_ui()
 	_load_config_callables.push_back([this](const ini_file &config) {
 		bool save_imgui_window_state = false;
 
-		config.get("INPUT", "KeyMenu", _menu_key_data);
+		config.get("INPUT", "KeyOverlay", _overlay_key_data);
 		config.get("INPUT", "InputProcessing", _input_processing_mode);
 
-		config.get("GENERAL", "ShowClock", _show_clock);
-		config.get("GENERAL", "ShowFPS", _show_fps);
-		config.get("GENERAL", "ShowFrameTime", _show_frametime);
-		config.get("GENERAL", "ShowScreenshotMessage", _show_screenshot_message);
-		config.get("GENERAL", "FPSPosition", _fps_pos);
-		config.get("GENERAL", "ClockFormat", _clock_format);
-		config.get("GENERAL", "NoFontScaling", _no_font_scaling);
-		config.get("GENERAL", "SaveWindowState", save_imgui_window_state);
-		config.get("GENERAL", "TutorialProgress", _tutorial_index);
-		config.get("GENERAL", "NewVariableUI", _variable_editor_tabs);
-		config.get("GENERAL", "VariableUIHeight", _variable_editor_height);
+		config.get("OVERLAY", "ShowFPS", _show_fps);
+		config.get("OVERLAY", "ShowClock", _show_clock);
+		config.get("OVERLAY", "ShowFrameTime", _show_frametime);
+		config.get("OVERLAY", "ShowScreenshotMessage", _show_screenshot_message);
+		config.get("OVERLAY", "FPSPosition", _fps_pos);
+		config.get("OVERLAY", "ClockFormat", _clock_format);
+		config.get("OVERLAY", "NoFontScaling", _no_font_scaling);
+		config.get("OVERLAY", "SaveWindowState", save_imgui_window_state);
+		config.get("OVERLAY", "TutorialProgress", _tutorial_index);
+		config.get("OVERLAY", "VariableListHeight", _variable_editor_height);
+		config.get("OVERLAY", "VariableListUseTabs", _variable_editor_tabs);
 
-		config.get("STYLE", "Alpha", _imgui_context->Style.Alpha);
-		config.get("STYLE", "GrabRounding", _imgui_context->Style.GrabRounding);
-		config.get("STYLE", "FrameRounding", _imgui_context->Style.FrameRounding);
-		config.get("STYLE", "ChildRounding", _imgui_context->Style.ChildRounding);
-		config.get("STYLE", "PopupRounding", _imgui_context->Style.PopupRounding);
-		config.get("STYLE", "WindowRounding", _imgui_context->Style.WindowRounding);
-		config.get("STYLE", "ScrollbarRounding", _imgui_context->Style.ScrollbarRounding);
-		config.get("STYLE", "TabRounding", _imgui_context->Style.TabRounding);
-		config.get("STYLE", "FPSScale", _fps_scale);
-		config.get("STYLE", "ColFPSText", _fps_col);
-		config.get("STYLE", "Font", _font);
-		config.get("STYLE", "FontSize", _font_size);
-		config.get("STYLE", "EditorFont", _editor_font);
-		config.get("STYLE", "EditorFontSize", _editor_font_size);
-		config.get("STYLE", "StyleIndex", _style_index);
-		config.get("STYLE", "EditorStyleIndex", _editor_style_index);
+		config.get("OVERLAY_STYLE", "Alpha", _imgui_context->Style.Alpha);
+		config.get("OVERLAY_STYLE", "GrabRounding", _imgui_context->Style.GrabRounding);
+		config.get("OVERLAY_STYLE", "FrameRounding", _imgui_context->Style.FrameRounding);
+		config.get("OVERLAY_STYLE", "ChildRounding", _imgui_context->Style.ChildRounding);
+		config.get("OVERLAY_STYLE", "PopupRounding", _imgui_context->Style.PopupRounding);
+		config.get("OVERLAY_STYLE", "WindowRounding", _imgui_context->Style.WindowRounding);
+		config.get("OVERLAY_STYLE", "ScrollbarRounding", _imgui_context->Style.ScrollbarRounding);
+		config.get("OVERLAY_STYLE", "TabRounding", _imgui_context->Style.TabRounding);
+		config.get("OVERLAY_STYLE", "FPSScale", _fps_scale);
+		config.get("OVERLAY_STYLE", "ColFPSText", _fps_col);
+		config.get("OVERLAY_STYLE", "Font", _font);
+		config.get("OVERLAY_STYLE", "FontSize", _font_size);
+		config.get("OVERLAY_STYLE", "EditorFont", _editor_font);
+		config.get("OVERLAY_STYLE", "EditorFontSize", _editor_font_size);
+		config.get("OVERLAY_STYLE", "StyleIndex", _style_index);
+		config.get("OVERLAY_STYLE", "EditorStyleIndex", _editor_style_index);
 
 		_imgui_context->IO.IniFilename = save_imgui_window_state ? g_window_state_path.c_str() : nullptr;
 
@@ -289,7 +289,7 @@ void reshade::runtime::init_ui()
 			break;
 		default:
 			for (ImGuiCol i = 0; i < ImGuiCol_COUNT; i++)
-				config.get("STYLE", ImGui::GetStyleColorName(i), (float(&)[4])colors[i]);
+				config.get("OVERLAY_STYLE", ImGui::GetStyleColorName(i), (float(&)[4])colors[i]);
 			break;
 		}
 
@@ -323,7 +323,7 @@ void reshade::runtime::init_ui()
 		case 2:
 			ImVec4 value; // Note: This expects that all colors exist in the config
 			for (ImGuiCol i = 0; i < imgui_code_editor::color_palette_max; i++)
-				config.get("STYLE", imgui_code_editor::get_palette_color_name(i), (float(&)[4])value),
+				config.get("OVERLAY_STYLE", imgui_code_editor::get_palette_color_name(i), (float(&)[4])value),
 				_editor.get_palette_index(i) = ImGui::ColorConvertFloat4ToU32(value);
 			break;
 		}
@@ -331,42 +331,42 @@ void reshade::runtime::init_ui()
 		_viewer.set_palette(_editor.get_palette());
 	});
 	_save_config_callables.push_back([this](ini_file &config) {
-		config.set("INPUT", "KeyMenu", _menu_key_data);
+		config.set("INPUT", "KeyOverlay", _overlay_key_data);
 		config.set("INPUT", "InputProcessing", _input_processing_mode);
 
-		config.set("GENERAL", "ShowClock", _show_clock);
-		config.set("GENERAL", "ShowFPS", _show_fps);
-		config.set("GENERAL", "ShowFrameTime", _show_frametime);
-		config.set("GENERAL", "ShowScreenshotMessage", _show_screenshot_message);
-		config.set("GENERAL", "FPSPosition", _fps_pos);
-		config.set("GENERAL", "ClockFormat", _clock_format);
-		config.set("GENERAL", "NoFontScaling", _no_font_scaling);
-		config.set("GENERAL", "SaveWindowState", _imgui_context->IO.IniFilename != nullptr);
-		config.set("GENERAL", "TutorialProgress", _tutorial_index);
-		config.set("GENERAL", "NewVariableUI", _variable_editor_tabs);
-		config.set("GENERAL", "VariableUIHeight", _variable_editor_height);
+		config.set("OVERLAY", "ShowFPS", _show_fps);
+		config.set("OVERLAY", "ShowClock", _show_clock);
+		config.set("OVERLAY", "ShowFrameTime", _show_frametime);
+		config.set("OVERLAY", "ShowScreenshotMessage", _show_screenshot_message);
+		config.set("OVERLAY", "FPSPosition", _fps_pos);
+		config.set("OVERLAY", "ClockFormat", _clock_format);
+		config.set("OVERLAY", "NoFontScaling", _no_font_scaling);
+		config.set("OVERLAY", "SaveWindowState", _imgui_context->IO.IniFilename != nullptr);
+		config.set("OVERLAY", "TutorialProgress", _tutorial_index);
+		config.set("OVERLAY", "VariableListHeight", _variable_editor_height);
+		config.set("OVERLAY", "VariableListUseTabs", _variable_editor_tabs);
 
-		config.set("STYLE", "Alpha", _imgui_context->Style.Alpha);
-		config.set("STYLE", "GrabRounding", _imgui_context->Style.GrabRounding);
-		config.set("STYLE", "FrameRounding", _imgui_context->Style.FrameRounding);
-		config.set("STYLE", "ChildRounding", _imgui_context->Style.ChildRounding);
-		config.set("STYLE", "PopupRounding", _imgui_context->Style.PopupRounding);
-		config.set("STYLE", "WindowRounding", _imgui_context->Style.WindowRounding);
-		config.set("STYLE", "ScrollbarRounding", _imgui_context->Style.ScrollbarRounding);
-		config.set("STYLE", "TabRounding", _imgui_context->Style.TabRounding);
-		config.set("STYLE", "FPSScale", _fps_scale);
-		config.set("STYLE", "ColFPSText", _fps_col);
-		config.set("STYLE", "Font", _font);
-		config.set("STYLE", "FontSize", _font_size);
-		config.set("STYLE", "EditorFont", _editor_font);
-		config.set("STYLE", "EditorFontSize", _editor_font_size);
-		config.set("STYLE", "StyleIndex", _style_index);
-		config.set("STYLE", "EditorStyleIndex", _editor_style_index);
+		config.set("OVERLAY_STYLE", "Alpha", _imgui_context->Style.Alpha);
+		config.set("OVERLAY_STYLE", "GrabRounding", _imgui_context->Style.GrabRounding);
+		config.set("OVERLAY_STYLE", "FrameRounding", _imgui_context->Style.FrameRounding);
+		config.set("OVERLAY_STYLE", "ChildRounding", _imgui_context->Style.ChildRounding);
+		config.set("OVERLAY_STYLE", "PopupRounding", _imgui_context->Style.PopupRounding);
+		config.set("OVERLAY_STYLE", "WindowRounding", _imgui_context->Style.WindowRounding);
+		config.set("OVERLAY_STYLE", "ScrollbarRounding", _imgui_context->Style.ScrollbarRounding);
+		config.set("OVERLAY_STYLE", "TabRounding", _imgui_context->Style.TabRounding);
+		config.set("OVERLAY_STYLE", "FPSScale", _fps_scale);
+		config.set("OVERLAY_STYLE", "ColFPSText", _fps_col);
+		config.set("OVERLAY_STYLE", "Font", _font);
+		config.set("OVERLAY_STYLE", "FontSize", _font_size);
+		config.set("OVERLAY_STYLE", "EditorFont", _editor_font);
+		config.set("OVERLAY_STYLE", "EditorFontSize", _editor_font_size);
+		config.set("OVERLAY_STYLE", "StyleIndex", _style_index);
+		config.set("OVERLAY_STYLE", "EditorStyleIndex", _editor_style_index);
 
 		if (_style_index > 2)
 		{
 			for (ImGuiCol i = 0; i < ImGuiCol_COUNT; i++)
-				config.set("STYLE", ImGui::GetStyleColorName(i), (const float(&)[4])_imgui_context->Style.Colors[i]);
+				config.set("OVERLAY_STYLE", ImGui::GetStyleColorName(i), (const float(&)[4])_imgui_context->Style.Colors[i]);
 		}
 
 		if (_editor_style_index > 1)
@@ -374,7 +374,7 @@ void reshade::runtime::init_ui()
 			ImVec4 value;
 			for (ImGuiCol i = 0; i < imgui_code_editor::color_palette_max; i++)
 				value = ImGui::ColorConvertU32ToFloat4(_editor.get_palette_index(i)),
-				config.set("STYLE", imgui_code_editor::get_palette_color_name(i), (const float(&)[4])value);
+				config.set("OVERLAY_STYLE", imgui_code_editor::get_palette_color_name(i), (const float(&)[4])value);
 		}
 	});
 }
@@ -447,10 +447,10 @@ void reshade::runtime::draw_ui()
 	// Do not show this message in the same frame the screenshot is taken (so that it won't show up on the UI screenshot)
 	const bool show_screenshot_message = (_show_screenshot_message || !_screenshot_save_success) && !_should_save_screenshot && (_last_present_time - _last_screenshot_time) < std::chrono::seconds(_screenshot_save_success ? 3 : 5);
 
-	if (_show_menu && !_ignore_shortcuts && !_imgui_context->IO.NavVisible && _input->is_key_pressed(0x1B /* VK_ESCAPE */))
-		_show_menu = false; // Close when pressing the escape button and not currently navigating with the keyboard
-	else if (!_ignore_shortcuts && _input->is_key_pressed(_menu_key_data, _force_shortcut_modifiers) && _imgui_context->ActiveId == 0)
-		_show_menu = !_show_menu;
+	if (_show_overlay && !_ignore_shortcuts && !_imgui_context->IO.NavVisible && _input->is_key_pressed(0x1B /* VK_ESCAPE */))
+		_show_overlay = false; // Close when pressing the escape button and not currently navigating with the keyboard
+	else if (!_ignore_shortcuts && _input->is_key_pressed(_overlay_key_data, _force_shortcut_modifiers) && _imgui_context->ActiveId == 0)
+		_show_overlay = !_show_overlay;
 
 	_ignore_shortcuts = false;
 	_effects_expanded_state &= 2;
@@ -463,7 +463,7 @@ void reshade::runtime::draw_ui()
 	ImGui::SetCurrentContext(_imgui_context);
 	auto &imgui_io = _imgui_context->IO;
 	imgui_io.DeltaTime = _last_frame_duration.count() * 1e-9f;
-	imgui_io.MouseDrawCursor = _show_menu && (!_should_save_screenshot || !_screenshot_save_ui);
+	imgui_io.MouseDrawCursor = _show_overlay && (!_should_save_screenshot || !_screenshot_save_ui);
 	imgui_io.MousePos.x = static_cast<float>(_input->mouse_position_x());
 	imgui_io.MousePos.y = static_cast<float>(_input->mouse_position_y());
 	imgui_io.DisplaySize.x = static_cast<float>(_width);
@@ -496,7 +496,7 @@ void reshade::runtime::draw_ui()
 	ImVec2 viewport_offset = ImVec2(0, 0);
 
 	// Create ImGui widgets and windows
-	if (show_splash || show_screenshot_message || !_preset_save_success || (!_show_menu && _tutorial_index == 0))
+	if (show_splash || show_screenshot_message || !_preset_save_success || (!_show_overlay && _tutorial_index == 0))
 	{
 		ImGui::SetNextWindowPos(ImVec2(10, 10));
 		ImGui::SetNextWindowSize(ImVec2(imgui_io.DisplaySize.x - 20.0f, 0.0f));
@@ -564,7 +564,7 @@ void reshade::runtime::draw_ui()
 			{
 				ImGui::TextUnformatted("ReShade is now installed successfully! Press '");
 				ImGui::SameLine(0.0f, 0.0f);
-				ImGui::TextColored(ImVec4(1, 1, 1, 1), "%s", input::key_name(_menu_key_data).c_str());
+				ImGui::TextColored(ImVec4(1, 1, 1, 1), "%s", input::key_name(_overlay_key_data).c_str());
 				ImGui::SameLine(0.0f, 0.0f);
 				ImGui::TextUnformatted("' to start the tutorial.");
 			}
@@ -572,9 +572,9 @@ void reshade::runtime::draw_ui()
 			{
 				ImGui::TextUnformatted("Press '");
 				ImGui::SameLine(0.0f, 0.0f);
-				ImGui::TextColored(ImVec4(1, 1, 1, 1), "%s", input::key_name(_menu_key_data).c_str());
+				ImGui::TextColored(ImVec4(1, 1, 1, 1), "%s", input::key_name(_overlay_key_data).c_str());
 				ImGui::SameLine(0.0f, 0.0f);
-				ImGui::TextUnformatted("' to open the configuration menu.");
+				ImGui::TextUnformatted("' to open the configuration overlay.");
 			}
 
 			if (!_last_shader_reload_successful)
@@ -650,7 +650,7 @@ void reshade::runtime::draw_ui()
 		ImGui::PopStyleColor();
 	}
 
-	if (_show_menu)
+	if (_show_overlay)
 	{
 		// Change font size if user presses the control key and moves the mouse wheel
 		if (imgui_io.KeyCtrl && imgui_io.MouseWheel != 0 && !_no_font_scaling)
@@ -727,9 +727,9 @@ void reshade::runtime::draw_ui()
 
 	if (_preview_texture != nullptr && _effects_enabled)
 	{
-		if (!_show_menu)
+		if (!_show_overlay)
 		{
-			// Create a temporary viewport window to attach image to when menu is not open
+			// Create a temporary viewport window to attach image to when overlay is not open
 			ImGui::SetNextWindowPos(ImVec2(0, 0));
 			ImGui::SetNextWindowSize(ImVec2(imgui_io.DisplaySize.x, imgui_io.DisplaySize.y));
 			ImGui::Begin("Viewport", nullptr,
@@ -768,8 +768,8 @@ void reshade::runtime::draw_ui()
 	// Render ImGui widgets and windows
 	ImGui::Render();
 
-	_input->block_mouse_input(_input_processing_mode != 0 && _show_menu && (imgui_io.WantCaptureMouse || _input_processing_mode == 2));
-	_input->block_keyboard_input(_input_processing_mode != 0 && _show_menu && (imgui_io.WantCaptureKeyboard || _input_processing_mode == 2));
+	_input->block_mouse_input(_input_processing_mode != 0 && _show_overlay && (imgui_io.WantCaptureMouse || _input_processing_mode == 2));
+	_input->block_keyboard_input(_input_processing_mode != 0 && _show_overlay && (imgui_io.WantCaptureKeyboard || _input_processing_mode == 2));
 
 	if (ImDrawData *const draw_data = ImGui::GetDrawData();
 		draw_data != nullptr && draw_data->CmdListsCount != 0 && draw_data->TotalVtxCount != 0)
@@ -1067,23 +1067,29 @@ void reshade::runtime::draw_ui_settings()
 
 	if (ImGui::CollapsingHeader("General", ImGuiTreeNodeFlags_DefaultOpen))
 	{
-		modified |= imgui_key_input("Overlay Key", _menu_key_data, *_input);
+		modified |= imgui_key_input("Overlay key", _overlay_key_data, *_input);
 		_ignore_shortcuts |= ImGui::IsItemActive();
 
-		modified |= imgui_key_input("Effect Toggle Key", _effects_key_data, *_input);
+		modified |= imgui_key_input("Effect toggle key", _effects_key_data, *_input);
 		_ignore_shortcuts |= ImGui::IsItemActive();
-		modified |= imgui_key_input("Effect Reload Key", _reload_key_data, *_input);
-		_ignore_shortcuts |= ImGui::IsItemActive();
-
-		modified |= imgui_key_input("Performance Mode Toggle Key", _performance_mode_key_data, *_input);
+		modified |= imgui_key_input("Effect reload key", _reload_key_data, *_input);
 		_ignore_shortcuts |= ImGui::IsItemActive();
 
-		modified |= imgui_key_input("Previous Preset Key", _prev_preset_key_data, *_input);
-		_ignore_shortcuts |= ImGui::IsItemActive();
-		modified |= imgui_key_input("Next Preset Key", _next_preset_key_data, *_input);
+		modified |= imgui_key_input("Performance mode toggle key", _performance_mode_key_data, *_input);
 		_ignore_shortcuts |= ImGui::IsItemActive();
 
-		modified |= ImGui::SliderInt("Preset transition", reinterpret_cast<int *>(&_preset_transition_delay), 0, 10 * 1000);
+		const float inner_spacing = ImGui::GetStyle().ItemInnerSpacing.x;
+		ImGui::PushItemWidth((ImGui::CalcItemWidth() - inner_spacing) / 2);
+		modified |= imgui_key_input("##prev_preset_key", _prev_preset_key_data, *_input);
+		_ignore_shortcuts |= ImGui::IsItemActive();
+		ImGui::SameLine(0, inner_spacing);
+		modified |= imgui_key_input("##next_preset_key", _next_preset_key_data, *_input);
+		_ignore_shortcuts |= ImGui::IsItemActive();
+		ImGui::PopItemWidth();
+		ImGui::SameLine(0, inner_spacing);
+		ImGui::TextUnformatted("Preset switching keys");
+
+		modified |= ImGui::SliderInt("Preset transition delay", reinterpret_cast<int *>(&_preset_transition_delay), 0, 10 * 1000);
 		if (ImGui::IsItemHovered())
 			ImGui::SetTooltip("Makes a smooth transition, but only for floating point values.\nRecommended for multiple presets that contain the same shaders, otherwise set this to zero.\nValues are in milliseconds.");
 
@@ -1103,10 +1109,10 @@ void reshade::runtime::draw_ui_settings()
 
 	if (ImGui::CollapsingHeader("Screenshots", ImGuiTreeNodeFlags_DefaultOpen))
 	{
-		modified |= imgui_key_input("Screenshot Key", _screenshot_key_data, *_input);
+		modified |= imgui_key_input("Screenshot key", _screenshot_key_data, *_input);
 		_ignore_shortcuts |= ImGui::IsItemActive();
 
-		modified |= imgui_directory_input_box("Screenshot Path", _screenshot_path, _file_selection_path);
+		modified |= imgui_directory_input_box("Screenshot path", _screenshot_path, _file_selection_path);
 
 		const int hour = _date[3] / 3600;
 		const int minute = (_date[3] - hour * 3600) / 60;
@@ -1118,21 +1124,21 @@ void reshade::runtime::draw_ui_settings()
 		std::string screenshot_naming_items;
 		screenshot_naming_items += g_target_executable_path.stem().string() + timestamp + '\0';
 		screenshot_naming_items += g_target_executable_path.stem().string() + timestamp + ' ' + _current_preset_path.stem().string() + '\0';
-		modified |= ImGui::Combo("Screenshot Name", reinterpret_cast<int *>(&_screenshot_naming), screenshot_naming_items.c_str());
+		modified |= ImGui::Combo("Screenshot name", reinterpret_cast<int *>(&_screenshot_naming), screenshot_naming_items.c_str());
 
-		modified |= ImGui::Combo("Screenshot Format", reinterpret_cast<int *>(&_screenshot_format), "Bitmap (*.bmp)\0Portable Network Graphics (*.png)\0JPEG (*.jpeg)\0");
+		modified |= ImGui::Combo("Screenshot format", reinterpret_cast<int *>(&_screenshot_format), "Bitmap (*.bmp)\0Portable Network Graphics (*.png)\0JPEG (*.jpeg)\0");
 
 		if (_screenshot_format == 2)
-			modified |= ImGui::SliderInt("JPEG Quality", reinterpret_cast<int *>(&_screenshot_jpeg_quality), 1, 100);
+			modified |= ImGui::SliderInt("JPEG quality", reinterpret_cast<int *>(&_screenshot_jpeg_quality), 1, 100);
 		else
 			modified |= ImGui::Checkbox("Clear alpha channel", &_screenshot_clear_alpha);
 
-		modified |= ImGui::Checkbox("Include current preset", &_screenshot_include_preset);
+		modified |= ImGui::Checkbox("Save current preset file", &_screenshot_include_preset);
 		modified |= ImGui::Checkbox("Save before and after images", &_screenshot_save_before);
-		modified |= ImGui::Checkbox("Save separate user interface image", &_screenshot_save_ui);
+		modified |= ImGui::Checkbox("Save separate image with the overlay visible", &_screenshot_save_ui);
 	}
 
-	if (ImGui::CollapsingHeader("User Interface", ImGuiTreeNodeFlags_DefaultOpen))
+	if (ImGui::CollapsingHeader("Overlay & Styling", ImGuiTreeNodeFlags_DefaultOpen))
 	{
 		modified |= ImGui::Checkbox("Show screenshot message", &_show_screenshot_message);
 
@@ -1270,14 +1276,14 @@ void reshade::runtime::draw_ui_settings()
 			_rebuild_font_atlas = true;
 		}
 
-		if (float &alpha = _imgui_context->Style.Alpha; ImGui::SliderFloat("Global Alpha", &alpha, 0.1f, 1.0f, "%.2f"))
+		if (float &alpha = _imgui_context->Style.Alpha; ImGui::SliderFloat("Global alpha", &alpha, 0.1f, 1.0f, "%.2f"))
 		{
 			// Prevent user from setting alpha to zero
 			alpha = std::max(alpha, 0.1f);
 			modified = true;
 		}
 
-		if (float &rounding = _imgui_context->Style.FrameRounding; ImGui::SliderFloat("Frame Rounding", &rounding, 0.0f, 12.0f, "%.0f"))
+		if (float &rounding = _imgui_context->Style.FrameRounding; ImGui::SliderFloat("Frame rounding", &rounding, 0.0f, 12.0f, "%.0f"))
 		{
 			// Apply the same rounding to everything
 			_imgui_context->Style.GrabRounding = _imgui_context->Style.TabRounding = _imgui_context->Style.ScrollbarRounding = rounding;
@@ -1285,13 +1291,13 @@ void reshade::runtime::draw_ui_settings()
 			modified = true;
 		}
 
-		modified |= ImGui::Checkbox("Show Clock", &_show_clock);
+		modified |= ImGui::Checkbox("Show clock", &_show_clock);
 		ImGui::SameLine(0, 10); modified |= ImGui::Checkbox("Show FPS", &_show_fps);
-		ImGui::SameLine(0, 10); modified |= ImGui::Checkbox("Show Frame Time", &_show_frametime);
-		modified |= ImGui::Combo("Clock Format", &_clock_format, "HH:MM\0HH:MM:SS\0");
-		modified |= ImGui::SliderFloat("FPS Text Size", &_fps_scale, 0.2f, 2.5f, "%.1f");
-		modified |= ImGui::ColorEdit4("FPS Text Color", _fps_col, ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreview);
-		modified |= ImGui::Combo("Position on Screen", &_fps_pos, "Top Left\0Top Right\0Bottom Left\0Bottom Right\0");
+		ImGui::SameLine(0, 10); modified |= ImGui::Checkbox("Show frame time", &_show_frametime);
+		modified |= ImGui::Combo("Clock format", &_clock_format, "HH:MM\0HH:MM:SS\0");
+		modified |= ImGui::SliderFloat("FPS text size", &_fps_scale, 0.2f, 2.5f, "%.1f");
+		modified |= ImGui::ColorEdit4("FPS text color", _fps_col, ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreview);
+		modified |= ImGui::Combo("Position on screen", &_fps_pos, "Top Left\0Top Right\0Bottom Left\0Bottom Right\0");
 	}
 
 	if (modified)

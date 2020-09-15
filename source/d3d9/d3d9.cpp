@@ -39,20 +39,20 @@ void dump_and_modify_present_parameters(D3DPRESENT_PARAMETERS &pp, IDirect3D9 *d
 	{ const reshade::ini_file config(g_reshade_config_path);
 
 		if (bool force_vsync;
-			config.get("APP", "ForceVSync", force_vsync) && force_vsync)
+			config.get("D3D9", "ForceVSync", force_vsync) && force_vsync)
 		{
 			pp.PresentationInterval = D3DPRESENT_INTERVAL_ONE;
 		}
 
 		if (bool force_windowed;
-			config.get("APP", "ForceWindowed", force_windowed) && force_windowed)
+			config.get("D3D9", "ForceWindowed", force_windowed) && force_windowed)
 		{
 			pp.Windowed = TRUE;
 			pp.FullScreen_RefreshRateInHz = 0;
 		}
 
 		if (bool force_fullscreen;
-			config.get("APP", "ForceFullscreen", force_fullscreen) && force_fullscreen)
+			config.get("D3D9", "ForceFullscreen", force_fullscreen) && force_fullscreen)
 		{
 			D3DDISPLAYMODE current_mode = {};
 			d3d->GetAdapterDisplayMode(adapter_index, &current_mode);
@@ -65,14 +65,14 @@ void dump_and_modify_present_parameters(D3DPRESENT_PARAMETERS &pp, IDirect3D9 *d
 		}
 
 		if (unsigned int force_resolution[2];
-			config.get("APP", "ForceResolution", force_resolution) && force_resolution[0] != 0 && force_resolution[1] != 0)
+			config.get("D3D9", "ForceResolution", force_resolution) && force_resolution[0] != 0 && force_resolution[1] != 0)
 		{
 			pp.BackBufferWidth = force_resolution[0];
 			pp.BackBufferHeight = force_resolution[1];
 		}
 
 		if (bool force_10_bit_format;
-			config.get("APP", "Force10BitFormat", force_10_bit_format) && force_10_bit_format)
+			config.get("D3D9", "Force10BitFormat", force_10_bit_format) && force_10_bit_format)
 		{
 			pp.BackBufferFormat = D3DFMT_A2R10G10B10;
 		}

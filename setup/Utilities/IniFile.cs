@@ -119,6 +119,12 @@ namespace ReShade.Setup.Utilities
 		{
 			if (!sections.TryGetValue(section, out var sectionData))
 			{
+				if (value is null)
+				{
+					// Do not add null value if it does not exist yet
+					return;
+				}
+
 				sections[section] = sectionData = new SortedDictionary<string, string[]>();
 			}
 

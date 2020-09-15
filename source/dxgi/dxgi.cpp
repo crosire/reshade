@@ -62,26 +62,26 @@ static void dump_and_modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC &desc)
 	{ const reshade::ini_file config(g_reshade_config_path);
 
 		if (bool force_windowed;
-			config.get("APP", "ForceWindowed", force_windowed) && force_windowed)
+			config.get("D3D9", "ForceWindowed", force_windowed) && force_windowed)
 		{
 			desc.Windowed = TRUE;
 		}
 
 		if (bool force_fullscreen;
-			config.get("APP", "ForceFullscreen", force_fullscreen) && force_fullscreen)
+			config.get("D3D9", "ForceFullscreen", force_fullscreen) && force_fullscreen)
 		{
 			desc.Windowed = FALSE;
 		}
 
 		if (unsigned int force_resolution[2];
-			config.get("APP", "ForceResolution", force_resolution) && force_resolution[0] != 0 && force_resolution[1] != 0)
+			config.get("D3D9", "ForceResolution", force_resolution) && force_resolution[0] != 0 && force_resolution[1] != 0)
 		{
 			desc.BufferDesc.Width = force_resolution[0];
 			desc.BufferDesc.Height = force_resolution[1];
 		}
 
 		if (bool force_10_bit_format;
-			config.get("APP", "Force10BitFormat", force_10_bit_format) && force_10_bit_format)
+			config.get("D3D9", "Force10BitFormat", force_10_bit_format) && force_10_bit_format)
 		{
 			desc.BufferDesc.Format = DXGI_FORMAT_R10G10B10A2_UNORM;
 		}
@@ -112,26 +112,26 @@ static void dump_and_modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC1 &desc, DXGI_SWA
 	{ const reshade::ini_file config(g_reshade_config_path);
 
 		if (bool force_windowed;
-			config.get("APP", "ForceWindowed", force_windowed) && force_windowed)
+			config.get("DXGI", "ForceWindowed", force_windowed) && force_windowed)
 		{
 			fullscreen_desc.Windowed = TRUE;
 		}
 
 		if (bool force_fullscreen;
-			config.get("APP", "ForceFullscreen", force_fullscreen) && force_fullscreen)
+			config.get("DXGI", "ForceFullscreen", force_fullscreen) && force_fullscreen)
 		{
 			fullscreen_desc.Windowed = FALSE;
 		}
 
 		if (unsigned int force_resolution[2];
-			config.get("APP", "ForceResolution", force_resolution) && force_resolution[0] != 0 && force_resolution[1] != 0)
+			config.get("DXGI", "ForceResolution", force_resolution) && force_resolution[0] != 0 && force_resolution[1] != 0)
 		{
 			desc.Width = force_resolution[0];
 			desc.Height = force_resolution[1];
 		}
 
 		if (bool force_10_bit_format;
-			config.get("APP", "Force10BitFormat", force_10_bit_format) && force_10_bit_format)
+			config.get("DXGI", "Force10BitFormat", force_10_bit_format) && force_10_bit_format)
 		{
 			desc.Format = DXGI_FORMAT_R10G10B10A2_UNORM;
 		}
@@ -226,9 +226,9 @@ static void init_reshade_runtime_d3d(T *&swapchain, UINT direct3d_version, const
 	{
 		{ const reshade::ini_file config(g_reshade_config_path);
 
-			config.get("APP", "ForceVSync", swapchain_proxy->_force_vsync);
-			config.get("APP", "ForceResolution", swapchain_proxy->_force_resolution);
-			config.get("APP", "Force10BitFormat", swapchain_proxy->_force_10_bit_format);
+			config.get("DXGI", "ForceVSync", swapchain_proxy->_force_vsync);
+			config.get("DXGI", "ForceResolution", swapchain_proxy->_force_resolution);
+			config.get("DXGI", "Force10BitFormat", swapchain_proxy->_force_10_bit_format);
 		}
 
 #if RESHADE_VERBOSE_LOG

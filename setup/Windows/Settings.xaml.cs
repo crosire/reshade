@@ -25,17 +25,20 @@ namespace ReShade.Setup.Dialogs
 		{
 			var iniFile = new IniFile(configFilePath);
 
-			iniFile.SetValue("GENERAL", "CurrentPresetPath", Preset.Text);
+			iniFile.SetValue("GENERAL", "PresetPath", Preset.Text);
+			iniFile.SetValue("GENERAL", "PerformanceMode", CheckboxValue(PerformanceMode.IsChecked));
 			iniFile.SetValue("GENERAL", "EffectSearchPaths", EffectsPath.Text);
 			iniFile.SetValue("GENERAL", "TextureSearchPaths", TexturesPath.Text);
-			iniFile.SetValue("GENERAL", "ScreenshotPath", ScreenshotPath.Text);
 
-			iniFile.SetValue("GENERAL", "PerformanceMode", CheckboxValue(PerformanceMode.IsChecked));
-			iniFile.SetValue("GENERAL", "ShowFPS", CheckboxValue(ShowFps.IsChecked));
-			iniFile.SetValue("GENERAL", "ShowClock", CheckboxValue(ShowClock.IsChecked));
+			iniFile.SetValue("OVERLAY", "ShowFPS", CheckboxValue(ShowFps.IsChecked));
+			iniFile.SetValue("OVERLAY", "ShowClock", CheckboxValue(ShowClock.IsChecked));
 
 			var skipTut = SkipTut.IsChecked;
-			iniFile.SetValue("GENERAL", "TutorialProgress", skipTut.HasValue ? (skipTut.Value ? "4" : "0") : iniFile.GetString("GENERAL", "TutorialProgress", "0"));
+			iniFile.SetValue("OVERLAY", "TutorialProgress", skipTut.HasValue ?
+				(skipTut.Value ? "4" : "0") :
+				iniFile.GetString("OVERLAY", "TutorialProgress", "0"));
+
+			iniFile.SetValue("SCREENSHOTS", "SavePath", ScreenshotPath.Text);
 
 			iniFile.SaveFile();
 
@@ -54,16 +57,16 @@ namespace ReShade.Setup.Dialogs
 
 			var iniFile = new IniFile(configFilePath);
 
-			Preset.Text = iniFile.GetString("GENERAL", "CurrentPresetPath");
+			Preset.Text = iniFile.GetString("GENERAL", "PresetPath");
 			EffectsPath.Text = iniFile.GetString("GENERAL", "EffectSearchPaths");
 			TexturesPath.Text = iniFile.GetString("GENERAL", "TextureSearchPaths");
-			ScreenshotPath.Text = iniFile.GetString("GENERAL", "ScreenshotPath");
+			ScreenshotPath.Text = iniFile.GetString("SCREENSHOTS", "SavePath");
 
 			PerformanceMode.IsChecked = iniFile.GetString("GENERAL", "PerformanceMode") == "1";
-			ShowFps.IsChecked = iniFile.GetString("GENERAL", "ShowFPS") == "1";
-			ShowClock.IsChecked = iniFile.GetString("GENERAL", "ShowClock") == "1";
+			ShowFps.IsChecked = iniFile.GetString("OVERLAY", "ShowFPS") == "1";
+			ShowClock.IsChecked = iniFile.GetString("OVERLAY", "ShowClock") == "1";
 
-			string tutProgress = iniFile.GetString("GENERAL", "TutorialProgress", "0");
+			var tutProgress = iniFile.GetString("OVERLAY", "TutorialProgress", "0");
 			if (tutProgress == "0" || tutProgress == "4")
 			{
 				SkipTut.IsThreeState = false;

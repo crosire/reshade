@@ -81,8 +81,12 @@ reshade::opengl::runtime_gl::runtime_gl()
 		}
 	}
 
-#if RESHADE_GUI && RESHADE_DEPTH
-	subscribe_to_ui("OpenGL", [this]() { draw_depth_debug_menu(); });
+#if RESHADE_GUI
+	subscribe_to_ui("OpenGL", [this]() {
+#if RESHADE_DEPTH
+		draw_depth_debug_menu();
+#endif
+	});
 #endif
 	subscribe_to_load_config([this](const ini_file &config) {
 		// Reserve a fixed amount of texture names by default to work around issues in old OpenGL games

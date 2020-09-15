@@ -169,7 +169,7 @@ void reshade::runtime::on_present()
 	// Draw overlay
 	draw_ui();
 
-	if (_should_save_screenshot && _screenshot_save_ui && _show_menu)
+	if (_should_save_screenshot && _screenshot_save_ui && _show_overlay)
 		save_screenshot(L" ui");
 #endif
 
@@ -1062,7 +1062,7 @@ void reshade::runtime::update_and_render_effects()
 #if RESHADE_GUI
 				case special_uniform::overlay_open:
 				{
-					set_uniform_value(variable, _show_menu);
+					set_uniform_value(variable, _show_overlay);
 					break;
 				}
 #endif
@@ -1168,38 +1168,29 @@ void reshade::runtime::load_config()
 	config.get("INPUT", "KeyPerformanceMode", _performance_mode_key_data);
 	config.get("INPUT", "ForceShortcutModifiers", _force_shortcut_modifiers);
 
+	config.get("GENERAL", "NoDebugInfo", _no_debug_info);
+	config.get("GENERAL", "NoReloadOnInit", _no_reload_on_init);
+
 	config.get("GENERAL", "PerformanceMode", _performance_mode);
 	config.get("GENERAL", "EffectSearchPaths", _effect_search_paths);
 	config.get("GENERAL", "TextureSearchPaths", _texture_search_paths);
 	config.get("GENERAL", "PreprocessorDefinitions", _global_preprocessor_definitions);
+
+	config.get("GENERAL", "PresetPath", _current_preset_path);
 	config.get("GENERAL", "PresetTransitionDelay", _preset_transition_delay);
-	config.get("GENERAL", "ScreenshotPath", _screenshot_path);
-	config.get("GENERAL", "ScreenshotFormat", _screenshot_format);
-	config.get("GENERAL", "ScreenshotSaveUI", _screenshot_save_ui);
-	config.get("GENERAL", "ScreenshotSaveBefore", _screenshot_save_before);
-	config.get("GENERAL", "ScreenshotIncludePreset", _screenshot_include_preset);
-	config.get("GENERAL", "ScreenshotJPEGQuality", _screenshot_jpeg_quality);
-	config.get("GENERAL", "ScreenshotClearAlpha", _screenshot_clear_alpha);
-
-	config.get("GENERAL", "NoDebugInfo", _no_debug_info);
-	config.get("GENERAL", "NoReloadOnInit", _no_reload_on_init);
-
-	// Check if the preset uses the new preset path option
-	if (!config.get("GENERAL", "CurrentPresetPath", _current_preset_path))
-	{
-		// Otherwise convert legacy preset index to a single preset path
-		size_t preset_index = 0;
-		std::vector<std::filesystem::path> preset_files;
-		config.get("GENERAL", "PresetFiles", preset_files);
-		config.get("GENERAL", "CurrentPreset", preset_index);
-
-		if (preset_index < preset_files.size())
-			_current_preset_path = preset_files[preset_index];
-	}
 
 	// Use default if the preset file does not exist yet
 	if (!resolve_preset_path(_current_preset_path))
 		_current_preset_path = g_target_executable_path.parent_path() / L"DefaultPreset.ini";
+
+	config.get("SCREENSHOTS", "ClearAlpha", _screenshot_clear_alpha);
+	config.get("SCREENSHOTS", "FileFormat", _screenshot_format);
+	config.get("SCREENSHOTS", "FileNaming", _screenshot_naming);
+	config.get("SCREENSHOTS", "ImageQuality", _screenshot_jpeg_quality);
+	config.get("SCREENSHOTS", "SaveBeforeShot", _screenshot_save_before);
+	config.get("SCREENSHOTS", "SaveOverlayShot", _screenshot_save_ui);
+	config.get("SCREENSHOTS", "SavePath", _screenshot_path);
+	config.get("SCREENSHOTS", "SavePresetFile", _screenshot_include_preset);
 
 	for (const auto &callback : _load_config_callables)
 		callback(config);
@@ -1220,18 +1211,18 @@ void reshade::runtime::save_config() const
 	config.set("GENERAL", "EffectSearchPaths", _effect_search_paths);
 	config.set("GENERAL", "TextureSearchPaths", _texture_search_paths);
 	config.set("GENERAL", "PreprocessorDefinitions", _global_preprocessor_definitions);
-	config.set("GENERAL", "CurrentPresetPath", _current_preset_path);
-	config.set("GENERAL", "PresetTransitionDelay", _preset_transition_delay);
-	config.set("GENERAL", "ScreenshotPath", _screenshot_path);
-	config.set("GENERAL", "ScreenshotFormat", _screenshot_format);
-	config.set("GENERAL", "ScreenshotSaveUI", _screenshot_save_ui);
-	config.set("GENERAL", "ScreenshotSaveBefore", _screenshot_save_before);
-	config.set("GENERAL", "ScreenshotIncludePreset", _screenshot_include_preset);
-	config.set("GENERAL", "ScreenshotJPEGQuality", _screenshot_jpeg_quality);
-	config.set("GENERAL", "ScreenshotClearAlpha", _screenshot_clear_alpha);
 
-	config.set("GENERAL", "NoDebugInfo", _no_debug_info);
-	config.set("GENERAL", "NoReloadOnInit", _no_reload_on_init);
+	config.set("GENERAL", "PresetPath", _current_preset_path);
+	config.set("GENERAL", "PresetTransitionDelay", _preset_transition_delay);
+
+	config.set("SCREENSHOTS", "ClearAlpha", _screenshot_clear_alpha);
+	config.set("SCREENSHOTS", "FileFormat", _screenshot_format);
+	config.set("SCREENSHOTS", "FileNaming", _screenshot_naming);
+	config.set("SCREENSHOTS", "ImageQuality", _screenshot_jpeg_quality);
+	config.set("SCREENSHOTS", "SaveBeforeShot", _screenshot_save_before);
+	config.set("SCREENSHOTS", "SaveOverlayShot", _screenshot_save_ui);
+	config.set("SCREENSHOTS", "SavePath", _screenshot_path);
+	config.set("SCREENSHOTS", "SavePresetFile", _screenshot_include_preset);
 
 	for (const auto &callback : _save_config_callables)
 		callback(config);
