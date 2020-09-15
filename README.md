@@ -11,7 +11,8 @@ You'll need Visual Studio 2017 or higher to build ReShade and Python for the `gl
 
 1. Clone this repository including all Git submodules
 2. Open the Visual Studio solution
-3. Select either the "32-bit" or "64-bit" target platform and build the solution (this will build ReShade and all dependencies).
+3. Select either the `32-bit` or `64-bit` target platform and build the solution.\
+   This will build ReShade and all dependencies. To build the setup tool, first build the `Release` configuration for both `32-bit` and `64-bit` targets and only afterwards build the `Release Setup` configuration (does not matter which target is selected then).
 
 A quick overview of what some of the source code files contain:
 
