@@ -106,22 +106,22 @@ void reshade::runtime::init_ui()
 		config.get("OVERLAY", "VariableListHeight", _variable_editor_height);
 		config.get("OVERLAY", "VariableListUseTabs", _variable_editor_tabs);
 
-		config.get("OVERLAY_STYLE", "Alpha", _imgui_context->Style.Alpha);
-		config.get("OVERLAY_STYLE", "GrabRounding", _imgui_context->Style.GrabRounding);
-		config.get("OVERLAY_STYLE", "FrameRounding", _imgui_context->Style.FrameRounding);
-		config.get("OVERLAY_STYLE", "ChildRounding", _imgui_context->Style.ChildRounding);
-		config.get("OVERLAY_STYLE", "PopupRounding", _imgui_context->Style.PopupRounding);
-		config.get("OVERLAY_STYLE", "WindowRounding", _imgui_context->Style.WindowRounding);
-		config.get("OVERLAY_STYLE", "ScrollbarRounding", _imgui_context->Style.ScrollbarRounding);
-		config.get("OVERLAY_STYLE", "TabRounding", _imgui_context->Style.TabRounding);
-		config.get("OVERLAY_STYLE", "FPSScale", _fps_scale);
-		config.get("OVERLAY_STYLE", "ColFPSText", _fps_col);
-		config.get("OVERLAY_STYLE", "Font", _font);
-		config.get("OVERLAY_STYLE", "FontSize", _font_size);
-		config.get("OVERLAY_STYLE", "EditorFont", _editor_font);
-		config.get("OVERLAY_STYLE", "EditorFontSize", _editor_font_size);
-		config.get("OVERLAY_STYLE", "StyleIndex", _style_index);
-		config.get("OVERLAY_STYLE", "EditorStyleIndex", _editor_style_index);
+		config.get("STYLE", "Alpha", _imgui_context->Style.Alpha);
+		config.get("STYLE", "GrabRounding", _imgui_context->Style.GrabRounding);
+		config.get("STYLE", "FrameRounding", _imgui_context->Style.FrameRounding);
+		config.get("STYLE", "ChildRounding", _imgui_context->Style.ChildRounding);
+		config.get("STYLE", "PopupRounding", _imgui_context->Style.PopupRounding);
+		config.get("STYLE", "WindowRounding", _imgui_context->Style.WindowRounding);
+		config.get("STYLE", "ScrollbarRounding", _imgui_context->Style.ScrollbarRounding);
+		config.get("STYLE", "TabRounding", _imgui_context->Style.TabRounding);
+		config.get("STYLE", "FPSScale", _fps_scale);
+		config.get("STYLE", "ColFPSText", _fps_col);
+		config.get("STYLE", "Font", _font);
+		config.get("STYLE", "FontSize", _font_size);
+		config.get("STYLE", "EditorFont", _editor_font);
+		config.get("STYLE", "EditorFontSize", _editor_font_size);
+		config.get("STYLE", "StyleIndex", _style_index);
+		config.get("STYLE", "EditorStyleIndex", _editor_style_index);
 
 		_imgui_context->IO.IniFilename = save_imgui_window_state ? g_window_state_path.c_str() : nullptr;
 
@@ -289,7 +289,7 @@ void reshade::runtime::init_ui()
 			break;
 		default:
 			for (ImGuiCol i = 0; i < ImGuiCol_COUNT; i++)
-				config.get("OVERLAY_STYLE", ImGui::GetStyleColorName(i), (float(&)[4])colors[i]);
+				config.get("STYLE", ImGui::GetStyleColorName(i), (float(&)[4])colors[i]);
 			break;
 		}
 
@@ -323,7 +323,7 @@ void reshade::runtime::init_ui()
 		case 2:
 			ImVec4 value; // Note: This expects that all colors exist in the config
 			for (ImGuiCol i = 0; i < imgui_code_editor::color_palette_max; i++)
-				config.get("OVERLAY_STYLE", imgui_code_editor::get_palette_color_name(i), (float(&)[4])value),
+				config.get("STYLE", imgui_code_editor::get_palette_color_name(i), (float(&)[4])value),
 				_editor.get_palette_index(i) = ImGui::ColorConvertFloat4ToU32(value);
 			break;
 		}
@@ -346,27 +346,27 @@ void reshade::runtime::init_ui()
 		config.set("OVERLAY", "VariableListHeight", _variable_editor_height);
 		config.set("OVERLAY", "VariableListUseTabs", _variable_editor_tabs);
 
-		config.set("OVERLAY_STYLE", "Alpha", _imgui_context->Style.Alpha);
-		config.set("OVERLAY_STYLE", "GrabRounding", _imgui_context->Style.GrabRounding);
-		config.set("OVERLAY_STYLE", "FrameRounding", _imgui_context->Style.FrameRounding);
-		config.set("OVERLAY_STYLE", "ChildRounding", _imgui_context->Style.ChildRounding);
-		config.set("OVERLAY_STYLE", "PopupRounding", _imgui_context->Style.PopupRounding);
-		config.set("OVERLAY_STYLE", "WindowRounding", _imgui_context->Style.WindowRounding);
-		config.set("OVERLAY_STYLE", "ScrollbarRounding", _imgui_context->Style.ScrollbarRounding);
-		config.set("OVERLAY_STYLE", "TabRounding", _imgui_context->Style.TabRounding);
-		config.set("OVERLAY_STYLE", "FPSScale", _fps_scale);
-		config.set("OVERLAY_STYLE", "ColFPSText", _fps_col);
-		config.set("OVERLAY_STYLE", "Font", _font);
-		config.set("OVERLAY_STYLE", "FontSize", _font_size);
-		config.set("OVERLAY_STYLE", "EditorFont", _editor_font);
-		config.set("OVERLAY_STYLE", "EditorFontSize", _editor_font_size);
-		config.set("OVERLAY_STYLE", "StyleIndex", _style_index);
-		config.set("OVERLAY_STYLE", "EditorStyleIndex", _editor_style_index);
+		config.set("STYLE", "Alpha", _imgui_context->Style.Alpha);
+		config.set("STYLE", "GrabRounding", _imgui_context->Style.GrabRounding);
+		config.set("STYLE", "FrameRounding", _imgui_context->Style.FrameRounding);
+		config.set("STYLE", "ChildRounding", _imgui_context->Style.ChildRounding);
+		config.set("STYLE", "PopupRounding", _imgui_context->Style.PopupRounding);
+		config.set("STYLE", "WindowRounding", _imgui_context->Style.WindowRounding);
+		config.set("STYLE", "ScrollbarRounding", _imgui_context->Style.ScrollbarRounding);
+		config.set("STYLE", "TabRounding", _imgui_context->Style.TabRounding);
+		config.set("STYLE", "FPSScale", _fps_scale);
+		config.set("STYLE", "ColFPSText", _fps_col);
+		config.set("STYLE", "Font", _font);
+		config.set("STYLE", "FontSize", _font_size);
+		config.set("STYLE", "EditorFont", _editor_font);
+		config.set("STYLE", "EditorFontSize", _editor_font_size);
+		config.set("STYLE", "StyleIndex", _style_index);
+		config.set("STYLE", "EditorStyleIndex", _editor_style_index);
 
 		if (_style_index > 2)
 		{
 			for (ImGuiCol i = 0; i < ImGuiCol_COUNT; i++)
-				config.set("OVERLAY_STYLE", ImGui::GetStyleColorName(i), (const float(&)[4])_imgui_context->Style.Colors[i]);
+				config.set("STYLE", ImGui::GetStyleColorName(i), (const float(&)[4])_imgui_context->Style.Colors[i]);
 		}
 
 		if (_editor_style_index > 1)
@@ -374,7 +374,7 @@ void reshade::runtime::init_ui()
 			ImVec4 value;
 			for (ImGuiCol i = 0; i < imgui_code_editor::color_palette_max; i++)
 				value = ImGui::ColorConvertU32ToFloat4(_editor.get_palette_index(i)),
-				config.set("OVERLAY_STYLE", imgui_code_editor::get_palette_color_name(i), (const float(&)[4])value);
+				config.set("STYLE", imgui_code_editor::get_palette_color_name(i), (const float(&)[4])value);
 		}
 	});
 }

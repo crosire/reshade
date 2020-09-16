@@ -1185,8 +1185,8 @@ void reshade::runtime::load_config()
 
 	config.get("SCREENSHOTS", "ClearAlpha", _screenshot_clear_alpha);
 	config.get("SCREENSHOTS", "FileFormat", _screenshot_format);
-	config.get("SCREENSHOTS", "FileNaming", _screenshot_naming);
-	config.get("SCREENSHOTS", "ImageQuality", _screenshot_jpeg_quality);
+	config.get("SCREENSHOTS", "FileNamingFormat", _screenshot_naming);
+	config.get("SCREENSHOTS", "JPEGQuality", _screenshot_jpeg_quality);
 	config.get("SCREENSHOTS", "SaveBeforeShot", _screenshot_save_before);
 	config.get("SCREENSHOTS", "SaveOverlayShot", _screenshot_save_ui);
 	config.get("SCREENSHOTS", "SavePath", _screenshot_path);
@@ -1221,8 +1221,8 @@ void reshade::runtime::save_config() const
 
 	config.set("SCREENSHOTS", "ClearAlpha", _screenshot_clear_alpha);
 	config.set("SCREENSHOTS", "FileFormat", _screenshot_format);
-	config.set("SCREENSHOTS", "FileNaming", _screenshot_naming);
-	config.set("SCREENSHOTS", "ImageQuality", _screenshot_jpeg_quality);
+	config.set("SCREENSHOTS", "FileNamingFormat", _screenshot_naming);
+	config.set("SCREENSHOTS", "JPEGQuality", _screenshot_jpeg_quality);
 	config.set("SCREENSHOTS", "SaveBeforeShot", _screenshot_save_before);
 	config.set("SCREENSHOTS", "SaveOverlayShot", _screenshot_save_ui);
 	config.set("SCREENSHOTS", "SavePath", _screenshot_path);
