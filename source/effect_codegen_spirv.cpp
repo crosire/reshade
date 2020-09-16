@@ -1899,7 +1899,7 @@ private:
 
 		_current_block_data->instructions.push_back(merge_label);
 	}
-	void emit_switch(const location &loc, id, id selector_block, id default_label, const std::vector<id> &case_literal_and_labels, const std::vector<id> &case_blocks, unsigned int selection_control) override
+	void emit_switch(const location &loc, id, id selector_block, id default_label, id default_block, const std::vector<id> &case_literal_and_labels, const std::vector<id> &case_blocks, unsigned int selection_control) override
 	{
 		assert(case_blocks.size() == case_literal_and_labels.size() / 2);
 
@@ -1926,10 +1926,15 @@ private:
 
 		// Append all blocks belonging to the switch
 		_current_block_data->instructions.push_back(switch_inst);
-		for (const id case_block : case_blocks)
-			_current_block_data->append(_block_data[case_block]);
+
+		std::vector<id> blocks = case_blocks;
 		if (default_label != merge_label.result)
-			_current_block_data->append(_block_data[default_label]);
+			blocks.push_back(default_block);
+		// Eliminate duplicates (because of multiple case labels pointing to the same block)
+		std::sort(blocks.begin(), blocks.end());
+		blocks.erase(std::unique(blocks.begin(), blocks.end()), blocks.end());
+		for (const id case_block : blocks)
+			_current_block_data->append(_block_data[case_block]);
 
 		_current_block_data->instructions.push_back(merge_label);
 	}

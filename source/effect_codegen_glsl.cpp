@@ -1463,9 +1463,9 @@ private:
 		_blocks.erase(loop_block);
 		_blocks.erase(continue_block);
 	}
-	void emit_switch(const location &loc, id selector_value, id selector_block, id default_label, const std::vector<id> &case_literal_and_labels, const std::vector<id> &case_blocks, unsigned int) override
+	void emit_switch(const location &loc, id selector_value, id selector_block, id default_label, id default_block, const std::vector<id> &case_literal_and_labels, const std::vector<id> &case_blocks, unsigned int) override
 	{
-		assert(selector_value != 0 && selector_block != 0 && default_label != 0);
+		assert(selector_value != 0 && selector_block != 0 && default_label != 0 && default_block != 0);
 		assert(case_blocks.size() == case_literal_and_labels.size() / 2);
 
 		std::string &code = _blocks.at(_current_block);
@@ -1476,21 +1476,45 @@ private:
 
 		code += "\tswitch (" + id_to_name(selector_value) + ")\n\t{\n";
 
-		for (size_t i = 0; i < case_literal_and_labels.size(); i += 2)
+		std::vector<id> labels = case_literal_and_labels;
+		for (size_t i = 0; i < labels.size(); i += 2)
 		{
+			if (labels[i + 1] == 0)
+				continue; // Happens if a case was already handled, see below
+
+			code += "\tcase " + std::to_string(labels[i]) + ": ";
+
+			if (labels[i + 1] == default_label)
+			{
+				code += "default: ";
+				default_label = 0;
+			}
+			else
+			{
+				for (size_t k = i + 2; k < labels.size(); k += 2)
+				{
+					if (labels[k + 1] == 0 || labels[k + 1] != labels[i + 1])
+						continue;
+
+					code += "case " + std::to_string(labels[k]) + ": ";
+					labels[k + 1] = 0;
+				}
+			}
+
 			assert(case_blocks[i / 2] != 0);
 			std::string &case_data = _blocks.at(case_blocks[i / 2]);
 
 			increase_indentation_level(case_data);
 
-			code += "\tcase " + std::to_string(case_literal_and_labels[i]) + ": {\n";
+			code += "{\n";
 			code += case_data;
 			code += "\t}\n";
 		}
 
-		if (default_label != _current_block)
+
+		if (default_label != 0 && default_block != _current_block)
 		{
-			std::string &default_data = _blocks.at(default_label);
+			std::string &default_data = _blocks.at(default_block);
 
 			increase_indentation_level(default_data);
 
@@ -1498,7 +1522,7 @@ private:
 			code += default_data;
 			code += "\t}\n";
 
-			_blocks.erase(default_label);
+			_blocks.erase(default_block);
 		}
 
 		code += "\t}\n";

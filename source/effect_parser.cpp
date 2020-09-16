@@ -1657,7 +1657,8 @@ bool reshadefx::parser::parse_statement(bool scoped)
 			on_scope_exit _([this]() { _loop_break_target_stack.pop_back(); });
 
 			bool parse_success = true;
-			codegen::id default_label = merge_block; // The default case jumps to the end of the switch statement if not overwritten
+			// The default case jumps to the end of the switch statement if not overwritten
+			codegen::id default_label = merge_block, default_block = merge_block;
 			codegen::id current_label = _codegen->create_block();
 			std::vector<codegen::id> case_literal_and_labels, case_blocks;
 			size_t last_case_label_index = 0;
@@ -1688,8 +1689,9 @@ bool reshadefx::parser::parse_statement(bool scoped)
 							}
 						}
 
+						case_blocks.emplace_back(); // This is set to the actual block below
 						case_literal_and_labels.push_back(case_label.constant.as_uint[0]);
-						case_literal_and_labels.emplace_back(); // This is set to the actual block below
+						case_literal_and_labels.push_back(current_label);
 					}
 					else
 					{
@@ -1700,7 +1702,8 @@ bool reshadefx::parser::parse_statement(bool scoped)
 							error(_token.location, 3532, "duplicate default in switch statement");
 						}
 
-						default_label = 0; // This is set to the actual block below
+						default_label = current_label;
+						default_block = 0; // This is set to the actual block below
 					}
 
 					if (!expect(':'))
@@ -1726,19 +1729,11 @@ bool reshadefx::parser::parse_statement(bool scoped)
 					// This is different from 'current_label', since there may have been branching logic inside the case, which would have changed the active block
 					const codegen::id current_block = _codegen->leave_block_and_branch(next_label);
 
-					if (0 == default_label)
-					{
-						default_label = current_label;
-					}
-					else
-					{
-						for (size_t i = last_case_label_index; i < case_literal_and_labels.size(); i += 2)
-						{
-							case_literal_and_labels[i + 1] = current_label;
-							// Need to use the initial label for the switch table, but the current block to merge all the block data
-							case_blocks.push_back(current_block);
-						}
-					}
+					if (0 == default_block)
+						default_block = current_block;
+					for (size_t i = last_case_label_index; i < case_blocks.size(); ++i)
+						// Need to use the initial label for the switch table, but the current block to merge all the block data
+						case_blocks[i] = current_block;
 
 					current_label = next_label;
 					_codegen->enter_block(current_label);
@@ -1746,7 +1741,7 @@ bool reshadefx::parser::parse_statement(bool scoped)
 					if (end_of_switch) // We reached the end, nothing more to do
 						break;
 
-					last_case_label_index = case_literal_and_labels.size();
+					last_case_label_index = case_blocks.size();
 				}
 			}
 
@@ -1754,7 +1749,7 @@ bool reshadefx::parser::parse_statement(bool scoped)
 				warning(location, 5002, "switch statement contains no 'case' or 'default' labels");
 
 			// Emit structured control flow for a switch statement and connect all basic blocks
-			_codegen->emit_switch(location, selector_value, selector_block, default_label, case_literal_and_labels, case_blocks, selection_control);
+			_codegen->emit_switch(location, selector_value, selector_block, default_label, default_block, case_literal_and_labels, case_blocks, selection_control);
 
 			return expect('}') && parse_success;
 		}
