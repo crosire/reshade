@@ -266,6 +266,34 @@ private:
 		_names[id] = std::move(name);
 	}
 
+	uint32_t semantic_to_location(const std::string &semantic, uint32_t max_array_length = 1)
+	{
+		if (semantic.compare(0, 5, "COLOR") == 0)
+			return std::strtoul(semantic.c_str() + 5, nullptr, 10);
+		if (semantic.compare(0, 9, "SV_TARGET") == 0)
+			return std::strtoul(semantic.c_str() + 9, nullptr, 10);
+
+		if (const auto it = _semantic_to_location.find(semantic);
+			it != _semantic_to_location.end())
+			return it->second;
+
+		// Extract the semantic index from the semantic name (e.g. 2 for "TEXCOORD2")
+		size_t digit_index = semantic.size() - 1;
+		while (digit_index != 0 && semantic[digit_index] >= '0' && semantic[digit_index] <= '9')
+			digit_index--;
+		digit_index++;
+		const uint32_t base_index = std::strtoul(semantic.c_str() + digit_index, nullptr, 10);
+		const std::string base_semantic = semantic.substr(0, digit_index);
+
+		// Now create adjoining location indices for all possible semantic indices belonging to this semantic name
+		uint32_t location = static_cast<uint32_t>(_semantic_to_location.size());
+		max_array_length += base_index;
+		for (uint32_t a = 0; a < max_array_length; ++a)
+			_semantic_to_location.emplace(base_semantic + std::to_string(a), location + a);
+
+		return location + base_index;
+	}
+
 	static std::string escape_name(std::string name)
 	{
 		static const std::unordered_set<std::string> s_reserverd_names = {
@@ -592,19 +620,12 @@ private:
 			if (type.base == type::t_bool)
 				type.base  = type::t_float;
 
-			uint32_t location;
-			if (semantic.compare(0, 9, "SV_TARGET") == 0)
-				location = std::strtoul(semantic.c_str() + 9, nullptr, 10);
-			else if (semantic.compare(0, 5, "COLOR") == 0)
-				location = std::strtoul(semantic.c_str() + 5, nullptr, 10);
-			else if (const auto it = _semantic_to_location.find(semantic); it != _semantic_to_location.end())
-				location = it->second;
-			else
-				_semantic_to_location[semantic] = location = static_cast<uint32_t>(_semantic_to_location.size()); // TODO: This will return clashing locations when there are semantics on arrays
-
 			std::string &code = _blocks.at(_current_block);
 
-			for (int a = 0, array_length = std::max(1, type.array_length); a < array_length; ++a)
+			const int array_length = std::max(1, type.array_length);
+			const uint32_t location = semantic_to_location(semantic, array_length);
+
+			for (int a = 0; a < array_length; ++a)
 			{
 				code += "layout(location = " + std::to_string(location + a) + ") ";
 				write_type<false, false, true>(code, type);
@@ -652,6 +673,7 @@ private:
 					create_varying_variable(param_type, type::q_in, "_in_param" + std::to_string(i), func.parameter_list[i].semantic);
 				}
 			}
+
 			if (func.parameter_list[i].type.has(type::q_out))
 			{
 				if (param_type.is_struct())
