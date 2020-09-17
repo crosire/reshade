@@ -575,22 +575,24 @@ private:
 		entry_point.return_type = { type::t_void };
 
 		std::unordered_map<std::string, std::string> semantic_to_varying_variable;
-		const auto create_varying_variable = [this, stype, &semantic_to_varying_variable](type type, unsigned int quals, const std::string &name, const std::string &semantic) {
+		const auto create_varying_variable = [this, stype, &semantic_to_varying_variable](type type, unsigned int extra_qualifiers, const std::string &name, const std::string &semantic) {
 			// Skip built in variables
 			if (!semantic_to_builtin(std::string(), semantic, stype).empty())
 				return;
 
 			// Do not create multiple input/output variables for duplicate semantic usage (since every input/output location may only be defined once in GLSL)
-			if (!semantic_to_varying_variable.emplace(semantic, name).second)
+			if ((extra_qualifiers & type::q_in) != 0 &&
+				!semantic_to_varying_variable.emplace(semantic, name).second)
 				return;
 
-			type.qualifiers |= quals;
+			type.qualifiers |= extra_qualifiers;
+			assert((type.has(type::q_in) || type.has(type::q_out)) && !type.has(type::q_inout));
 
 			// OpenGL does not allow varying of type boolean
 			if (type.base == type::t_bool)
 				type.base  = type::t_float;
 
-			uint32_t location = 0;
+			uint32_t location;
 			if (semantic.compare(0, 9, "SV_TARGET") == 0)
 				location = std::strtoul(semantic.c_str() + 9, nullptr, 10);
 			else if (semantic.compare(0, 5, "COLOR") == 0)
@@ -616,23 +618,55 @@ private:
 
 		// Translate function parameters to input/output variables
 		if (func.return_type.is_struct())
-			for (struct_member_info &member : find_struct(func.return_type.definition).member_list)
-				create_varying_variable(member.type, type::q_out, "_return_" + member.name, member.semantic);
-		else if (!func.return_type.is_void())
-			create_varying_variable(func.return_type, type::q_out, "_return", func.return_semantic);
+		{
+			const struct_info &definition = find_struct(func.return_type.definition);
 
-		size_t num_params = func.parameter_list.size();
+			for (const struct_member_info &member : definition.member_list)
+				create_varying_variable(member.type, type::q_out, "_return_" + member.name, member.semantic);
+		}
+		else if (!func.return_type.is_void())
+		{
+			create_varying_variable(func.return_type, type::q_out, "_return", func.return_semantic);
+		}
+
+		const auto num_params = func.parameter_list.size();
 		for (size_t i = 0; i < num_params; ++i)
 		{
-			const type &param_type = func.parameter_list[i].type;
-			const std::string param_name = "_param" + std::to_string(i);
+			type param_type = func.parameter_list[i].type;
+			param_type.qualifiers &= ~type::q_inout;
 
-			// Flatten structure parameters
-			if (param_type.is_struct())
-				for (struct_member_info &member : find_struct(param_type.definition).member_list)
-					create_varying_variable(member.type, param_type.qualifiers, param_name + '_' + member.name, member.semantic);
-			else
-				create_varying_variable(param_type, param_type.qualifiers, param_name, func.parameter_list[i].semantic);
+			// Create separate input/output variables for "inout" parameters (since "inout" is not valid on those in GLSL)
+			if (func.parameter_list[i].type.has(type::q_in))
+			{
+				// Flatten structure parameters
+				if (param_type.is_struct())
+				{
+					const struct_info &definition = find_struct(param_type.definition);
+
+					for (int a = 0, array_length = std::max(1, param_type.array_length); a < array_length; a++)
+						for (const struct_member_info &member : definition.member_list)
+							create_varying_variable(member.type, param_type.qualifiers | type::q_in, "_in_param" + std::to_string(i) + '_' + std::to_string(a) + '_' + member.name, member.semantic);
+				}
+				else
+				{
+					create_varying_variable(param_type, type::q_in, "_in_param" + std::to_string(i), func.parameter_list[i].semantic);
+				}
+			}
+			if (func.parameter_list[i].type.has(type::q_out))
+			{
+				if (param_type.is_struct())
+				{
+					const struct_info &definition = find_struct(param_type.definition);
+
+					for (int a = 0, array_length = std::max(1, param_type.array_length); a < array_length; a++)
+						for (const struct_member_info &member : definition.member_list)
+							create_varying_variable(member.type, param_type.qualifiers | type::q_out, "_out_param" + std::to_string(i) + '_' + std::to_string(a) + '_' + member.name, member.semantic);
+				}
+				else
+				{
+					create_varying_variable(param_type, type::q_out, "_out_param" + std::to_string(i), func.parameter_list[i].semantic);
+				}
+			}
 		}
 
 		// Translate return value to output variable
@@ -645,84 +679,119 @@ private:
 		for (size_t i = 0; i < num_params; ++i)
 		{
 			const type &param_type = func.parameter_list[i].type;
-			const std::string param_name = "_param" + std::to_string(i);
 
-			// Create local array element variables
-			for (int a = 0, array_length = std::max(1, param_type.array_length); a < array_length; a++)
+			if (param_type.has(type::q_in))
 			{
-				if (param_type.is_struct())
+				// Create local array element variables
+				for (int a = 0, array_length = std::max(1, param_type.array_length); a < array_length; a++)
 				{
-					// Build struct from separate member input variables
-					code += '\t';
-					write_type<false, true>(code, param_type);
-					code += ' ';
-					code += escape_name(param_type.is_array() ?
-						param_name + '_' + std::to_string(a) :
-						param_name);
-					code += " = ";
-					write_type<false, false>(code, param_type);
-					code += '(';
-
-					const struct_info &definition = find_struct(param_type.definition);
-
-					for (const struct_member_info &member : definition.member_list)
+					if (param_type.is_struct())
 					{
-						std::string var_name = param_name + '_' + member.name;
-						if (const auto it = semantic_to_varying_variable.find(func.parameter_list[i].semantic);
-							it != semantic_to_varying_variable.end() && it->second != var_name)
-							var_name = it->second;
-						if (param_type.is_array())
-							var_name += '_' + std::to_string(a);
+						// Build struct from separate member input variables
+						code += '\t';
+						write_type<false, true>(code, param_type);
+						code += ' ';
+						code += escape_name(param_type.is_array() ?
+							"_in_param" + std::to_string(i) + '_' + std::to_string(a) :
+							"_in_param" + std::to_string(i));
+						code += " = ";
+						write_type<false, false>(code, param_type);
+						code += '(';
 
-						code += semantic_to_builtin(var_name, member.semantic, stype);
-						code += ", ";
+						const struct_info &definition = find_struct(param_type.definition);
+
+						for (const struct_member_info &member : definition.member_list)
+						{
+							std::string in_param_name = "_in_param" + std::to_string(i) + '_' + std::to_string(a) + '_' + member.name;
+							if (const auto it = semantic_to_varying_variable.find(member.semantic);
+								it != semantic_to_varying_variable.end() && it->second != in_param_name)
+								in_param_name = it->second;
+
+							if (member.type.is_array())
+							{
+								write_type<false, false>(code, member.type);
+								code += "[](";
+
+								for (int b = 0; b < member.type.array_length; b++)
+								{
+									code += escape_name(in_param_name + '_' + std::to_string(b));
+
+									if (b < member.type.array_length - 1)
+										code += ", ";
+								}
+
+								code += ')';
+							}
+							else
+							{
+								code += semantic_to_builtin(std::move(in_param_name), member.semantic, stype);
+							}
+
+							code += ", ";
+						}
+
+						// There can be no empty structs, so can assume that the last two characters are always ", "
+						code.pop_back();
+						code.pop_back();
+
+						code += ");\n";
+					}
+					else if (const auto it = semantic_to_varying_variable.find(func.parameter_list[i].semantic);
+						it != semantic_to_varying_variable.end() && it->second != "_in_param" + std::to_string(i))
+					{
+						// Create local variables for duplicated semantics (since no input/output variable is created for those, see 'create_varying_variable')
+						code += '\t';
+						write_type<false, true>(code, param_type);
+						code += ' ';
+						code += escape_name(param_type.is_array() ?
+							"_in_param" + std::to_string(i) + '_' + std::to_string(a) :
+							"_in_param" + std::to_string(i));
+						code += " = ";
+						code += escape_name(param_type.is_array() ?
+							it->second + '_' + std::to_string(a) :
+							it->second);
+						code += ";\n";
+					}
+				}
+			}
+
+			// Create local parameter variables which are used as arguments in the entry point function call below
+			code += '\t';
+			write_type<false, true>(code, param_type);
+			code += ' ';
+			code += escape_name("_param" + std::to_string(i));
+			if (param_type.is_array())
+				code += '[' + std::to_string(param_type.array_length) + ']';
+
+			// Initialize those local variables with the input value if existing
+			// Parameters with only an "out" qualifier are written to by the entry point function, so do not need to be initialized
+			if (param_type.has(type::q_in))
+			{
+				code += " = ";
+
+				// Build array from separate array element variables
+				if (param_type.is_array())
+				{
+					write_type<false, false>(code, param_type);
+					code += "[](";
+
+					for (int a = 0; a < param_type.array_length; ++a)
+					{
+						code += escape_name("_in_param" + std::to_string(i) + '_' + std::to_string(a));
+
+						if (a < param_type.array_length - 1)
+							code += ", ";
 					}
 
-					// There can be no empty structs, so can assume that the last two characters are always ", "
-					code.pop_back();
-					code.pop_back();
-
-					code += ");\n";
+					code += ')';
 				}
-				else if (const auto it = semantic_to_varying_variable.find(func.parameter_list[i].semantic);
-					it != semantic_to_varying_variable.end() && it->second != param_name)
+				else
 				{
-					// Create local variables for duplicated semantics (since no input/output variable is created for those)
-					code += '\t';
-					write_type<false, true>(code, param_type);
-					code += ' ';
-					code += escape_name(param_type.is_array() ?
-						param_name + '_' + std::to_string(a) :
-						param_name);
-					code += " = ";
-					code += escape_name(param_type.is_array() ?
-						it->second + '_' + std::to_string(a) :
-						it->second);
-					code += ";\n";
+					code += semantic_to_builtin("_in_param" + std::to_string(i), func.parameter_list[i].semantic, stype);
 				}
 			}
 
-			// Build array from separate array element variables
-			if (param_type.is_array())
-			{
-				code += '\t';
-				write_type<false, true>(code, param_type);
-				code += ' ';
-				code += escape_name(param_name);
-				code += "[] = ";
-				write_type<false, false>(code, param_type);
-				code += "[](";
-
-				for (int a = 0; a < param_type.array_length; ++a)
-				{
-					code += escape_name(param_name + '_' + std::to_string(a));
-
-					if (a < param_type.array_length - 1)
-						code += ", ";
-				}
-
-				code += ");\n";
-			}
+			code += ";\n";
 		}
 
 		code += '\t';
@@ -744,7 +813,7 @@ private:
 
 		for (size_t i = 0; i < num_params; ++i)
 		{
-			code += semantic_to_builtin("_param" + std::to_string(i), func.parameter_list[i].semantic, stype);
+			code += "_param" + std::to_string(i);
 
 			if (i < num_params - 1)
 				code += ", ";
@@ -758,39 +827,69 @@ private:
 			const type &param_type = func.parameter_list[i].type;
 			if (!param_type.has(type::q_out))
 				continue;
-			const std::string param_name = "_param" + std::to_string(i);
 
-			// Split up array output into individual array elements again
-			for (int a = 0; a < param_type.array_length; a++)
-			{
-				code += '\t';
-				code += escape_name(param_name + '_' + std::to_string(a));
-				code += " = ";
-				code += escape_name(param_name);
-				code += '[' + std::to_string(a) + "];\n";
-			}
-
-			// Write out array elements to output variables (only necessary for structs, since others where already written directly above)
 			if (param_type.is_struct())
 			{
 				const struct_info &definition = find_struct(param_type.definition);
 
-				for (int a = 0; a < std::max(1, param_type.array_length); a++)
+				// Split out struct fields into separate output variables again
+				for (int a = 0, array_length = std::max(1, param_type.array_length); a < array_length; a++)
 				{
 					for (const struct_member_info &member : definition.member_list)
 					{
+						if (member.type.is_array())
+						{
+							for (int b = 0; b < member.type.array_length; b++)
+							{
+								code += '\t';
+								code += escape_name("_out_param" + std::to_string(i) + '_' + std::to_string(a) + '_' + member.name + '_' + std::to_string(b));
+								code += " = ";
+								code += escape_name("_param" + std::to_string(i));
+								if (param_type.is_array())
+									code += '[' + std::to_string(a) + ']';
+								code += '.';
+								code += member.name;
+								code += '[' + std::to_string(b) + ']';
+								code += ";\n";
+							}
+						}
+						else
+						{
+							code += '\t';
+							code += semantic_to_builtin("_out_param" + std::to_string(i) + '_' + std::to_string(a) + '_' + member.name, member.semantic, stype);
+							code += " = ";
+							code += escape_name("_param" + std::to_string(i));
+							if (param_type.is_array())
+								code += '[' + std::to_string(a) + ']';
+							code += '.';
+							code += member.name;
+							code += ";\n";
+						}
+					}
+				}
+			}
+			else
+			{
+				if (param_type.is_array())
+				{
+					// Split up array output into individual array elements again
+					for (int a = 0; a < param_type.array_length; a++)
+					{
 						code += '\t';
-						code += escape_name(param_type.is_array() ?
-							param_name + '_' + member.name + '_' + std::to_string(a) :
-							param_name + '_' + member.name);
+						code += escape_name("_out_param" + std::to_string(i) + '_' + std::to_string(a));
 						code += " = ";
-						code += escape_name(param_name);
-						code += '.';
-						code += escape_name(member.name);
-						if (param_type.is_array())
-							code += '[' + std::to_string(a) + ']';
+						code += escape_name("_param" + std::to_string(i));
+						code += '[' + std::to_string(a) + ']';
 						code += ";\n";
 					}
+				}
+				else
+				{
+					code += '\t';
+					code += semantic_to_builtin("_out_param" + std::to_string(i), func.parameter_list[i].semantic, stype);
+					code += " = ";
+					code += escape_name("_param" + std::to_string(i));
+					code += ";\n";
 				}
 			}
 		}
