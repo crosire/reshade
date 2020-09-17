@@ -73,6 +73,8 @@ private:
 	{
 		if constexpr (is_decl)
 		{
+			if (type.has(type::q_static))
+				s += "static ";
 			if (type.has(type::q_precise))
 				s += "precise ";
 			if (type.has(type::q_groupshared))
