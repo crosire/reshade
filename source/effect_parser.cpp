@@ -545,7 +545,7 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 		// Special handling for the "++" and "--" operators
 		if (op == tokenid::plus_plus || op == tokenid::minus_minus)
 		{
-			if (exp.type.has(type::q_const) || exp.type.has(type::q_uniform) || !exp.is_lvalue)
+			if (exp.type.has(type::q_const) || !exp.is_lvalue)
 				return error(location, 3025, "l-value specifies const object"), false;
 
 			// Create a constant one in the type of the expression
@@ -883,7 +883,7 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 			{
 				const auto &param_type = symbol.function->parameter_list[i].type;
 
-				if (param_type.has(type::q_out) && (arguments[i].type.has(type::q_const) || arguments[i].type.has(type::q_uniform) || !arguments[i].is_lvalue))
+				if (param_type.has(type::q_out) && (arguments[i].type.has(type::q_const) || !arguments[i].is_lvalue))
 					return error(arguments[i].location, 3025, "l-value specifies const object for an 'out' parameter"), false;
 
 				if (arguments[i].type.components() > param_type.components())
@@ -991,7 +991,7 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 			// Unary operators are only valid on basic types
 			if (!exp.type.is_scalar() && !exp.type.is_vector() && !exp.type.is_matrix())
 				return error(exp.location, 3022, "scalar, vector, or matrix expected"), false;
-			if (exp.type.has(type::q_const) || exp.type.has(type::q_uniform) || !exp.is_lvalue)
+			if (exp.type.has(type::q_const) || !exp.is_lvalue)
 				return error(exp.location, 3025, "l-value specifies const object"), false;
 
 			// Create a constant one in the type of the expression
@@ -1075,8 +1075,8 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 				// Add swizzle to current access chain
 				exp.add_swizzle_access(offsets, static_cast<unsigned int>(length));
 
-				if (is_const || exp.type.has(type::q_uniform))
-					exp.type.qualifiers = (exp.type.qualifiers | type::q_const) & ~type::q_uniform;
+				if (is_const)
+					exp.type.qualifiers |= type::q_const;
 			}
 			else if (exp.type.is_matrix())
 			{
@@ -1119,8 +1119,8 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 				// Add swizzle to current access chain
 				exp.add_swizzle_access(offsets, static_cast<unsigned int>(length / (3 + set)));
 
-				if (is_const || exp.type.has(type::q_uniform))
-					exp.type.qualifiers = (exp.type.qualifiers | type::q_const) & ~type::q_uniform;
+				if (is_const)
+					exp.type.qualifiers |= type::q_const;
 			}
 			else if (exp.type.is_struct())
 			{
@@ -1139,9 +1139,6 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 
 				// Add field index to current access chain
 				exp.add_member_access(member_index, member_list[member_index].type);
-
-				if (exp.type.has(type::q_uniform)) // Member access to uniform structure is not modifiable
-					exp.type.qualifiers = (exp.type.qualifiers | type::q_const) & ~type::q_uniform;
 			}
 			else if (exp.type.is_scalar())
 			{
@@ -1159,8 +1156,8 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 
 				exp.add_cast_operation(target_type);
 
-				if (length > 1 || exp.type.has(type::q_uniform))
-					exp.type.qualifiers = (exp.type.qualifiers | type::q_const) & ~type::q_uniform;
+				if (length > 1)
+					exp.type.qualifiers |= type::q_const;
 			}
 			else
 			{
@@ -1465,7 +1462,7 @@ bool reshadefx::parser::parse_expression_assignment(expression &lhs)
 			return false;
 
 		// Check if the assignment is valid
-		if (lhs.type.has(type::q_const) || lhs.type.has(type::q_uniform) || !lhs.is_lvalue)
+		if (lhs.type.has(type::q_const) || !lhs.is_lvalue)
 			return error(lhs.location, 3025, "l-value specifies const object"), false;
 		if (!type::rank(lhs.type, rhs.type))
 			return error(rhs.location, 3020, "cannot convert these types (from " + rhs.type.description() + " to " + lhs.type.description() + ')'), false;
@@ -2568,7 +2565,7 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 			// Global variables that are 'static' cannot be of another storage class
 			if (type.has(type::q_uniform))
 				return error(location, 3007, '\'' + name + "': uniform global variables cannot be declared 'static'"), false;
-			// The 'volatile qualifier is only valid memory object declarations that are storage images or uniform blocks
+			// The 'volatile' qualifier is only valid memory object declarations that are storage images or uniform blocks
 			if (type.has(type::q_volatile))
 				return error(location, 3008, '\'' + name + "': global variables cannot be declared 'volatile'"), false;
 		}

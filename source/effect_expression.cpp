@@ -105,6 +105,10 @@ void reshadefx::expression::reset_to_lvalue(const reshadefx::location &loc, uint
 	is_constant = false;
 	chain.clear();
 
+	// Make sure uniform l-values cannot be assigned to by making them constant
+	if (in_type.has(type::q_uniform))
+		type.qualifiers |= type::q_const;
+
 	// Strip away global variable qualifiers
 	type.qualifiers &= ~(reshadefx::type::q_extern | reshadefx::type::q_static | reshadefx::type::q_uniform | reshadefx::type::q_groupshared);
 }
