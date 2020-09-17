@@ -517,6 +517,34 @@ private:
 		return builtin != spv::BuiltInMax;
 	}
 
+	uint32_t semantic_to_location(const std::string &semantic, uint32_t max_array_length = 1)
+	{
+		if (semantic.compare(0, 5, "COLOR") == 0)
+			return std::strtoul(semantic.c_str() + 5, nullptr, 10);
+		if (semantic.compare(0, 9, "SV_TARGET") == 0)
+			return std::strtoul(semantic.c_str() + 9, nullptr, 10);
+
+		if (const auto it = _semantic_to_location.find(semantic);
+			it != _semantic_to_location.end())
+			return it->second;
+
+		// Extract the semantic index from the semantic name (e.g. 2 for "TEXCOORD2")
+		size_t digit_index = semantic.size() - 1;
+		while (digit_index != 0 && semantic[digit_index] >= '0' && semantic[digit_index] <= '9')
+			digit_index--;
+		digit_index++;
+		const uint32_t base_index = std::strtoul(semantic.c_str() + digit_index, nullptr, 10);
+		const std::string base_semantic = semantic.substr(0, digit_index);
+
+		// Now create adjoining location indices for all possible semantic indices belonging to this semantic name
+		uint32_t location = static_cast<uint32_t>(_semantic_to_location.size());
+		max_array_length += base_index;
+		for (uint32_t a = 0; a < max_array_length; ++a)
+			_semantic_to_location.emplace(base_semantic + std::to_string(a), location + a);
+
+		return location + base_index;
+	}
+
 	inline void add_name(id id, const char *name)
 	{
 		if (!_debug_info)
@@ -888,13 +916,19 @@ private:
 
 		const auto create_varying_param = [this, &call_params](const struct_member_info &param) {
 			const spv::Id local_variable = define_variable({}, param.type, nullptr, spv::StorageClassFunction);
-			call_params.emplace_back().reset_to_lvalue({}, local_variable, param.type);
+
+			expression &call_param = call_params.emplace_back();
+			call_param.reset_to_lvalue({}, local_variable, param.type);
+
 			return local_variable;
 		};
-		const auto create_varying_variable = [this, &inputs_and_outputs, &position_variable, stype](const type &param_type, std::string semantic, spv::StorageClass storage) {
+		const auto create_varying_variable = [this, &inputs_and_outputs, &position_variable, stype](const type &param_type, std::string semantic, spv::StorageClass storage, int a = 0) {
 			const spv::Id attrib_variable = define_variable({}, param_type, nullptr, storage);
+
 			if (spv::BuiltIn builtin; semantic_to_builtin(semantic, builtin, stype))
 			{
+				assert(a == 0); // Built-in variables cannot be arrays
+
 				add_builtin(attrib_variable, builtin);
 
 				if (builtin == spv::BuiltInPosition && storage == spv::StorageClassOutput)
@@ -902,24 +936,11 @@ private:
 			}
 			else
 			{
-				assert(stype != shader_type::cs);
+				assert(stype != shader_type::cs); // Compute shaders cannot have custom inputs or outputs
 
-				// Always numerate semantics, so that e.g. TEXCOORD and TEXCOORD0 point to the same location
-				if (!semantic.empty())
-					if (const char c = semantic.back(); c < '0' || c > '9')
-						semantic += '0';
+				const uint32_t location = semantic_to_location(semantic, std::max(1, param_type.array_length));
 
-				uint32_t location = 0;
-				if (semantic.compare(0, 9, "SV_TARGET") == 0)
-					location = std::strtoul(semantic.c_str() + 9, nullptr, 10);
-				else if (semantic.compare(0, 5, "COLOR") == 0)
-					location = std::strtoul(semantic.c_str() + 5, nullptr, 10);
-				else if (const auto it = _semantic_to_location.find(semantic); it != _semantic_to_location.end())
-					location = it->second;
-				else
-					_semantic_to_location[semantic] = location = static_cast<uint32_t>(_semantic_to_location.size());
-
-				add_decoration(attrib_variable, spv::DecorationLocation, { location });
+				add_decoration(attrib_variable, spv::DecorationLocation, { location + a });
 			}
 
 			if (param_type.has(type::q_noperspective))
@@ -936,45 +957,51 @@ private:
 		// Translate function parameters to input/output variables
 		for (const struct_member_info &param : func.parameter_list)
 		{
-			if (param.type.has(type::q_out))
-			{
-				create_varying_param(param);
+			spv::Id param_var = create_varying_param(param), param_value = 0;
 
+			// Create separate input/output variables for "inout" parameters
+			if (param.type.has(type::q_in))
+			{
 				// Flatten structure parameters
 				if (param.type.is_struct())
 				{
-					for (const struct_member_info &member : find_struct(param.type.definition).member_list)
+					const struct_info &definition = find_struct(param.type.definition);
+
+					type struct_type = param.type;
+					const int array_length = std::max(1, param.type.array_length);
+					struct_type.array_length = 0;
+
+					// Struct arrays need to be flattened into individual elements as well
+					std::vector<spv::Id> array_elements;
+					array_elements.reserve(array_length);
+					for (int a = 0; a < array_length; a++)
 					{
-						create_varying_variable(member.type, member.semantic, spv::StorageClassOutput);
+						std::vector<spv::Id> struct_elements;
+						struct_elements.reserve(definition.member_list.size());
+						for (const struct_member_info &member : definition.member_list)
+						{
+							spv::Id input_var = create_varying_variable(member.type, member.semantic, spv::StorageClassInput, a);
+
+							param_value = add_instruction(spv::OpLoad, convert_type(member.type))
+								.add(input_var).result;
+							struct_elements.push_back(param_value);
+						}
+
+						param_value = add_instruction(spv::OpCompositeConstruct, convert_type(struct_type))
+							.add(struct_elements.begin(), struct_elements.end()).result;
+						array_elements.push_back(param_value);
+					}
+
+					if (param.type.is_array())
+					{
+						// Build the array from all constructed struct elements
+						param_value = add_instruction(spv::OpCompositeConstruct, convert_type(param.type))
+							.add(array_elements.begin(), array_elements.end()).result;
 					}
 				}
 				else
 				{
-					create_varying_variable(param.type, param.semantic, spv::StorageClassOutput);
-				}
-			}
-			else
-			{
-				spv::Id param_value, param_var = create_varying_param(param), input_var;
-
-				if (param.type.is_struct())
-				{
-					std::vector<spv::Id> elements;
-					for (const struct_member_info &member : find_struct(param.type.definition).member_list)
-					{
-						input_var = create_varying_variable(member.type, member.semantic, spv::StorageClassInput);
-
-						param_value = add_instruction(spv::OpLoad, convert_type(member.type))
-							.add(input_var).result;
-						elements.push_back(param_value);
-					}
-
-					param_value = add_instruction(spv::OpCompositeConstruct, convert_type(param.type))
-						.add(elements.begin(), elements.end()).result;
-				}
-				else
-				{
-					input_var = create_varying_variable(param.type, param.semantic, spv::StorageClassInput);
+					spv::Id input_var = create_varying_variable(param.type, param.semantic, spv::StorageClassInput);
 
 					param_value = add_instruction(spv::OpLoad, convert_type(param.type))
 						.add(input_var).result;
@@ -983,6 +1010,26 @@ private:
 				add_instruction_without_result(spv::OpStore)
 					.add(param_var)
 					.add(param_value);
+			}
+
+			if (param.type.has(type::q_out))
+			{
+				if (param.type.is_struct())
+				{
+					const struct_info &definition = find_struct(param.type.definition);
+
+					for (int a = 0, array_length = std::max(1, param.type.array_length); a < array_length; a++)
+					{
+						for (const struct_member_info &member : definition.member_list)
+						{
+							create_varying_variable(member.type, member.semantic, spv::StorageClassOutput, a);
+						}
+					}
+				}
+				else
+				{
+					create_varying_variable(param.type, param.semantic, spv::StorageClassOutput);
+				}
 			}
 		}
 
@@ -1001,21 +1048,46 @@ private:
 				{
 					const struct_info &definition = find_struct(param.type.definition);
 
-					for (uint32_t member_index = 0; member_index < definition.member_list.size(); ++member_index)
+					type struct_type = param.type;
+					const int array_length = std::max(1, param.type.array_length);
+					struct_type.array_length = 0;
+
+					// Skip input variables if this is an "inout" parameter
+					if (param.type.has(type::q_in))
+						inputs_and_outputs_index += definition.member_list.size() * array_length;
+
+					// Split up struct array into individual struct elements again
+					for (int a = 0; a < array_length; a++)
 					{
-						const struct_member_info &member = definition.member_list[member_index];
+						spv::Id element_value = value;
+						if (param.type.is_array())
+						{
+							element_value = add_instruction(spv::OpCompositeExtract, convert_type(struct_type))
+								.add(value)
+								.add(a).result;
+						}
 
-						const spv::Id member_value = add_instruction(spv::OpCompositeExtract, convert_type(member.type))
-							.add(value)
-							.add(member_index).result;
+						// Split out struct fields into separate output variables again
+						for (uint32_t member_index = 0; member_index < definition.member_list.size(); ++member_index)
+						{
+							const struct_member_info &member = definition.member_list[member_index];
 
-						add_instruction_without_result(spv::OpStore)
-							.add(inputs_and_outputs[inputs_and_outputs_index++])
-							.add(member_value);
+							const spv::Id member_value = add_instruction(spv::OpCompositeExtract, convert_type(member.type))
+								.add(element_value)
+								.add(member_index).result;
+
+							add_instruction_without_result(spv::OpStore)
+								.add(inputs_and_outputs[inputs_and_outputs_index++])
+								.add(member_value);
+						}
 					}
 				}
 				else
 				{
+					// Skip input variable if this is an "inout" parameter (see loop above)
+					if (param.type.has(type::q_in))
+						inputs_and_outputs_index += 1;
+
 					add_instruction_without_result(spv::OpStore)
 						.add(inputs_and_outputs[inputs_and_outputs_index++])
 						.add(value);
@@ -1023,10 +1095,11 @@ private:
 			}
 			else
 			{
+				// Input parameters do not need to store anything, but increase the input/output variable index
 				if (param.type.is_struct())
 				{
 					const struct_info &definition = find_struct(param.type.definition);
-					inputs_and_outputs_index += definition.member_list.size();
+					inputs_and_outputs_index += definition.member_list.size() * std::max(1, param.type.array_length);
 				}
 				else
 				{
