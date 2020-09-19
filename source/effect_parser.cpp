@@ -2203,7 +2203,7 @@ void reshadefx::parser::parse_top(bool &parse_success)
 		bool parse_success_namespace = true;
 
 		// Recursively parse top level statements until the namespace is closed again
-		while (!peek('}') && parse_success_namespace) // Empty namespaces are valid
+		while (!peek('}')) // Empty namespaces are valid
 			if (parse_top(current_success); !current_success)
 				parse_success_namespace = false;
 
@@ -2657,8 +2657,11 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 
 			if (type.has(type::q_groupshared))
 				return error(initializer.location, 3009, '\'' + name + "': variables declared 'groupshared' cannot have an initializer"), false;
-			if (global && !initializer.is_constant) // TODO: This could be resolved by initializing these at the beginning of the entry point
+			// TODO: This could be resolved by initializing these at the beginning of the entry point
+			if (global && !initializer.is_constant)
 				return error(initializer.location, 3011, '\'' + name + "': initial value must be a literal expression"), false;
+			if (type.has(type::q_static) && !initializer.is_constant)
+				return error(initializer.location, 3691, '\'' + name + "': static variable initial value must be a literal expression"), false;
 
 			// Check type compatibility
 			if ((type.array_length >= 0 && initializer.type.array_length != type.array_length) || !type::rank(initializer.type, type))
