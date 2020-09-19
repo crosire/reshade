@@ -1319,7 +1319,13 @@ void reshade::opengl::runtime_gl::draw_depth_debug_menu()
 	ImGui::Separator();
 	ImGui::Spacing();
 
+	// Sort object list so that added/removed items do not change the UI much
+	std::vector<std::pair<GLuint, buffer_detection::depthstencil_info>> sorted_buffers;
+	sorted_buffers.reserve(_buffer_detection.depth_buffer_counters().size());
 	for (const auto &[depth_source, snapshot] : _buffer_detection.depth_buffer_counters())
+		sorted_buffers.push_back({ depth_source, snapshot });
+	std::sort(sorted_buffers.begin(), sorted_buffers.end(), [](const auto &a, const auto &b) { return a.first < b.first; });
+	for (const auto &[depth_source, snapshot] : sorted_buffers)
 	{
 		if (snapshot.format == GL_NONE)
 			continue; // Skip invalid entries

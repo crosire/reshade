@@ -1195,10 +1195,16 @@ void reshade::d3d9::runtime_d3d9::draw_depth_debug_menu(buffer_detection &tracke
 	ImGui::Separator();
 	ImGui::Spacing();
 
+	// Sort pointer list so that added/removed items do not change the UI much
+	std::vector<std::pair<IDirect3DSurface9 *, buffer_detection::depthstencil_info>> sorted_buffers;
+	sorted_buffers.reserve(tracker.depth_buffer_counters().size());
 	for (const auto &[ds_surface, snapshot] : tracker.depth_buffer_counters())
+		sorted_buffers.push_back({ ds_surface.get(), snapshot });
+	std::sort(sorted_buffers.begin(), sorted_buffers.end(), [](const auto &a, const auto &b) { return a.first < b.first; });
+	for (const auto &[ds_surface, snapshot] : sorted_buffers)
 	{
 		char label[512] = "";
-		sprintf_s(label, "%s0x%p", (ds_surface == tracker.current_depth_surface() || ds_surface == _depth_surface ? "> " : "  "), ds_surface.get());
+		sprintf_s(label, "%s0x%p", (ds_surface == tracker.current_depth_surface() || ds_surface == _depth_surface ? "> " : "  "), ds_surface);
 
 		D3DSURFACE_DESC desc;
 		ds_surface->GetDesc(&desc);
@@ -1213,7 +1219,7 @@ void reshade::d3d9::runtime_d3d9::draw_depth_debug_menu(buffer_detection &tracke
 		if (bool value = (_depth_surface_override == ds_surface);
 			ImGui::Checkbox(label, &value))
 		{
-			_depth_surface_override = value ? ds_surface.get() : nullptr;
+			_depth_surface_override = value ? ds_surface : nullptr;
 			_reset_buffer_detection = true;
 		}
 
@@ -1236,7 +1242,7 @@ void reshade::d3d9::runtime_d3d9::draw_depth_debug_menu(buffer_detection &tracke
 
 				ImGui::SameLine();
 				ImGui::Text("%*s|           | %5u draw calls ==> %8u vertices |",
-					sizeof(ds_surface.get()) == 8 ? 8 : 0, "", // Add space to fill pointer length
+					sizeof(ds_surface) == 8 ? 8 : 0, "", // Add space to fill pointer length
 					snapshot.clears[clear_index - 1].drawcalls, snapshot.clears[clear_index - 1].vertices);
 			}
 		}

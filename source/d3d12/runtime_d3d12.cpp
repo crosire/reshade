@@ -1748,11 +1748,17 @@ void reshade::d3d12::runtime_d3d12::draw_depth_debug_menu(buffer_detection_conte
 	ImGui::Separator();
 	ImGui::Spacing();
 
+	// Sort pointer list so that added/removed items do not change the UI much
+	std::vector<std::pair<ID3D12Resource *, buffer_detection::depthstencil_info>> sorted_buffers;
+	sorted_buffers.reserve(tracker.depth_buffer_counters().size());
 	for (const auto &[dsv_texture, snapshot] : tracker.depth_buffer_counters())
+		sorted_buffers.push_back({ dsv_texture.get(), snapshot });
+	std::sort(sorted_buffers.begin(), sorted_buffers.end(), [](const auto &a, const auto &b) { return a.first < b.first; });
+	for (const auto &[dsv_texture, snapshot] : sorted_buffers)
 	{
 		// TODO: Display current resource when not preserving depth buffers
 		char label[512] = "";
-		sprintf_s(label, "%s0x%p", (dsv_texture == tracker.depthstencil_clear_index.first ? "> " : "  "), dsv_texture.get());
+		sprintf_s(label, "%s0x%p", (dsv_texture == tracker.depthstencil_clear_index.first ? "> " : "  "), dsv_texture);
 
 		const D3D12_RESOURCE_DESC desc = dsv_texture->GetDesc();
 
@@ -1765,7 +1771,7 @@ void reshade::d3d12::runtime_d3d12::draw_depth_debug_menu(buffer_detection_conte
 
 		if (bool value = (_depth_texture_override == dsv_texture);
 			ImGui::Checkbox(label, &value))
-			_depth_texture_override = value ? dsv_texture.get() : nullptr;
+			_depth_texture_override = value ? dsv_texture : nullptr;
 
 		ImGui::SameLine();
 		ImGui::Text("| %4ux%-4u | %5u draw calls ==> %8u vertices |%s",
@@ -1786,7 +1792,7 @@ void reshade::d3d12::runtime_d3d12::draw_depth_debug_menu(buffer_detection_conte
 
 				ImGui::SameLine();
 				ImGui::Text("%*s|           | %5u draw calls ==> %8u vertices |",
-					sizeof(dsv_texture.get()) == 8 ? 8 : 0, "", // Add space to fill pointer length
+					sizeof(dsv_texture) == 8 ? 8 : 0, "", // Add space to fill pointer length
 					snapshot.clears[clear_index - 1].drawcalls, snapshot.clears[clear_index - 1].vertices);
 			}
 		}

@@ -2462,7 +2462,13 @@ void reshade::vulkan::runtime_vk::draw_depth_debug_menu(buffer_detection_context
 	ImGui::Separator();
 	ImGui::Spacing();
 
+	// Sort pointer list so that added/removed items do not change the UI much
+	std::vector<std::pair<VkImage, buffer_detection::depthstencil_info>> sorted_buffers;
+	sorted_buffers.reserve(tracker.depth_buffer_counters().size());
 	for (const auto &[depth_image, snapshot] : tracker.depth_buffer_counters())
+		sorted_buffers.push_back({ depth_image, snapshot });
+	std::sort(sorted_buffers.begin(), sorted_buffers.end(), [](const auto &a, const auto &b) { return a.first < b.first; });
+	for (const auto &[depth_image, snapshot] : sorted_buffers)
 	{
 		char label[512] = "";
 		sprintf_s(label, "%s0x%016llx", (depth_image == _depth_image ? "> " : "  "), (uint64_t)depth_image);

@@ -5,8 +5,8 @@
 
 #pragma once
 
-#include <map>
 #include <vector>
+#include <unordered_map>
 #include <d3d9.h>
 #include "com_ptr.hpp"
 
@@ -69,8 +69,7 @@ namespace reshade::d3d9
 
 		com_ptr<IDirect3DSurface9> _depthstencil_original;
 		std::vector<com_ptr<IDirect3DSurface9>> _depthstencil_replacement;
-		// Use "std::map" instead of "std::unordered_map" so that the iteration order is guaranteed
-		std::map<com_ptr<IDirect3DSurface9>, depthstencil_info> _counters_per_used_depth_surface;
+		std::unordered_map<com_ptr<IDirect3DSurface9>, depthstencil_info> _counters_per_used_depth_surface;
 #endif
 	};
 }

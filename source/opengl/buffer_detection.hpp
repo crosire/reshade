@@ -5,8 +5,8 @@
 
 #pragma once
 
-#include <map>
 #include "opengl.hpp"
+#include <unordered_map>
 
 namespace reshade::opengl
 {
@@ -48,7 +48,7 @@ namespace reshade::opengl
 		GLuint _current_vertex_count = 0; // Used to calculate vertex count inside glBegin/glEnd pairs
 		draw_stats _stats;
 #if RESHADE_DEPTH
-		std::map<GLuint, depthstencil_info> _depth_source_table;
+		std::unordered_map<GLuint, depthstencil_info> _depth_source_table;
 #endif
 	};
 }

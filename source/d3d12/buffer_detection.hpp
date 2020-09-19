@@ -5,7 +5,6 @@
 
 #pragma once
 
-#include <map>
 #include <vector>
 #include <unordered_map>
 #include <d3d12.h>
@@ -49,8 +48,7 @@ namespace reshade::d3d12
 		com_ptr<ID3D12Resource> _current_depthstencil;
 		bool _first_empty_stats = false;
 		bool _has_indirect_drawcalls = false;
-		// Use "std::map" instead of "std::unordered_map" so that the iteration order is guaranteed
-		std::map<com_ptr<ID3D12Resource>, depthstencil_info> _counters_per_used_depth_texture;
+		std::unordered_map<com_ptr<ID3D12Resource>, depthstencil_info> _counters_per_used_depth_texture;
 #endif
 	};
 
