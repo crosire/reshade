@@ -15,6 +15,9 @@ EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ReShade FX", "ReShadeFX.vcxproj", "{D1C2099B-BEC7-4993-8947-01D4A1F7EAE2}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ReShade Setup", "setup\ReShade Setup.csproj", "{3B7009FA-0B09-4F27-8126-0885E66A5679}"
+	ProjectSection(ProjectDependencies) = postProject
+		{0401ADF5-D085-4A3D-95B2-D9B7896BB338} = {0401ADF5-D085-4A3D-95B2-D9B7896BB338}
+	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "deps", "deps", "{11B78243-91C3-4357-9FDD-4EAFBF4EE52B}"
 EndProject
@@ -29,6 +32,9 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tools", "tools", "{EDA44797-8501-4D24-BF3F-CCE904412ED7}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "FXC", "ReShadeFXC.vcxproj", "{65640687-0740-4681-B018-17DBF33E061C}"
+	ProjectSection(ProjectDependencies) = postProject
+		{0401ADF5-D085-4A3D-95B2-D9B7896BB338} = {0401ADF5-D085-4A3D-95B2-D9B7896BB338}
+	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Injector", "ReShadeInject.vcxproj", "{D388A856-4100-49AB-8FAF-62D63F8AC155}"
 EndProject
