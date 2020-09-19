@@ -1884,7 +1884,7 @@ void reshade::vulkan::runtime_vk::render_technique(technique &technique)
 #ifndef NDEBUG
 		if (insert_debug_markers)
 		{
-			const std::string pass_name = "Pass " + std::to_string(pass_index);
+			const std::string pass_name = pass_info.name.empty() ? "Pass " + std::to_string(pass_index) : pass_info.name;
 
 			VkDebugMarkerMarkerInfoEXT debug_info { VK_STRUCTURE_TYPE_DEBUG_MARKER_MARKER_INFO_EXT };
 			debug_info.pMarkerName = pass_name.c_str();
