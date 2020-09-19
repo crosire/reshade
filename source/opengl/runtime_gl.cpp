@@ -1049,7 +1049,7 @@ void reshade::opengl::runtime_gl::render_technique(technique &technique)
 
 		if (!pass_info.cs_entry_point.empty())
 		{
-			glDispatchCompute(pass_info.viewport_width, pass_info.viewport_height, 1);
+			glDispatchCompute(pass_info.viewport_width, pass_info.viewport_height, pass_info.viewport_dispatch_z);
 		}
 		else
 		{

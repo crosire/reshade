@@ -1127,7 +1127,7 @@ void reshade::d3d11::runtime_d3d11::render_technique(technique &technique)
 			_immediate_context->CSSetShaderResources(0, static_cast<UINT>(pass_data.srvs.size()), reinterpret_cast<ID3D11ShaderResourceView *const *>(pass_data.srvs.data()));
 			_immediate_context->CSSetUnorderedAccessViews(0, static_cast<UINT>(pass_data.uavs.size()), reinterpret_cast<ID3D11UnorderedAccessView *const *>(pass_data.uavs.data()), nullptr);
 
-			_immediate_context->Dispatch(pass_info.viewport_width, pass_info.viewport_height, 1);
+			_immediate_context->Dispatch(pass_info.viewport_width, pass_info.viewport_height, pass_info.viewport_dispatch_z);
 
 			// Reset shader resources
 			ID3D11ShaderResourceView *null_srv[D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT] = { nullptr };

@@ -1363,7 +1363,7 @@ void reshade::d3d12::runtime_d3d12::render_technique(technique &technique)
 
 		if (!pass_info.cs_entry_point.empty())
 		{
-			_cmd_list->Dispatch(pass_info.viewport_width, pass_info.viewport_height, 1);
+			_cmd_list->Dispatch(pass_info.viewport_width, pass_info.viewport_height, pass_info.viewport_dispatch_z);
 		}
 		else
 		{

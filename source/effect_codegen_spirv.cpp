@@ -932,11 +932,14 @@ private:
 		return info.definition;
 	}
 
-	void define_entry_point(function_info &func, shader_type stype, int num_threads[2]) override
+	void define_entry_point(function_info &func, shader_type stype, int num_threads[3]) override
 	{
 		// Modify entry point name so each thread configuration is made separate
 		if (stype == shader_type::cs)
-			func.unique_name = 'E' + func.unique_name + '_' + std::to_string(num_threads[0]) + '_' + std::to_string(num_threads[1]);
+			func.unique_name = 'E' + func.unique_name +
+				'_' + std::to_string(num_threads[0]) +
+				'_' + std::to_string(num_threads[1]) +
+				'_' + std::to_string(num_threads[2]);
 
 		if (const auto it = std::find_if(_module.entry_points.begin(), _module.entry_points.end(),
 			[&func](const auto &ep) { return ep.name == func.unique_name; }); it != _module.entry_points.end())
@@ -1211,7 +1214,7 @@ private:
 				.add(spv::ExecutionModeLocalSize)
 				.add(num_threads[0])
 				.add(num_threads[1])
-				.add(1u);
+				.add(num_threads[2]);
 			break;
 		default:
 			assert(false);

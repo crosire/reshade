@@ -635,11 +635,14 @@ private:
 		return info.definition;
 	}
 
-	void define_entry_point(function_info &func, shader_type stype, int num_threads[2]) override
+	void define_entry_point(function_info &func, shader_type stype, int num_threads[3]) override
 	{
 		// Modify entry point name so each thread configuration is made separate
 		if (stype == shader_type::cs)
-			func.unique_name = 'E' + func.unique_name + '_' + std::to_string(num_threads[0]) + '_' + std::to_string(num_threads[1]);
+			func.unique_name = 'E' + func.unique_name +
+				'_' + std::to_string(num_threads[0]) +
+				'_' + std::to_string(num_threads[1]) +
+				'_' + std::to_string(num_threads[2]);
 
 		if (const auto it = std::find_if(_module.entry_points.begin(), _module.entry_points.end(),
 			[&func](const auto &ep) { return ep.name == func.unique_name; }); it != _module.entry_points.end())
@@ -651,7 +654,10 @@ private:
 		if (stype == shader_type::ps)
 			_blocks.at(0) += "layout(origin_upper_left) in vec4 gl_FragCoord;\n";
 		if (stype == shader_type::cs)
-			_blocks.at(0) += "layout(local_size_x = " + std::to_string(num_threads[0]) + ", local_size_y = " + std::to_string(num_threads[1]) + ") in;\n";
+			_blocks.at(0) += "layout("
+				  "local_size_x = " + std::to_string(num_threads[0]) +
+				", local_size_y = " + std::to_string(num_threads[1]) +
+				", local_size_z = " + std::to_string(num_threads[2]) + ") in;\n";
 
 		function_info entry_point;
 		entry_point.return_type = { type::t_void };

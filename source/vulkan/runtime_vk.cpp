@@ -1903,7 +1903,7 @@ void reshade::vulkan::runtime_vk::render_technique(technique &technique)
 				transition_layout(vk, cmd_list, storage_resource->image, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL, { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 });
 
 			vk.CmdBindPipeline(cmd_list, VK_PIPELINE_BIND_POINT_COMPUTE, pass_data.pipeline);
-			vk.CmdDispatch(cmd_list, pass_info.viewport_width, pass_info.viewport_height, 1);
+			vk.CmdDispatch(cmd_list, pass_info.viewport_width, pass_info.viewport_height, pass_info.viewport_dispatch_z);
 
 			for (const vulkan_tex_data *storage_resource : pass_data.modified_resources)
 				transition_layout(vk, cmd_list, storage_resource->image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 });

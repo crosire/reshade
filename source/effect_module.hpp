@@ -288,6 +288,7 @@ namespace reshadefx
 		primitive_topology topology = primitive_topology::triangle_list;
 		uint32_t viewport_width = 0;
 		uint32_t viewport_height = 0;
+		uint32_t viewport_dispatch_z = 1;
 	};
 
 	/// <summary>

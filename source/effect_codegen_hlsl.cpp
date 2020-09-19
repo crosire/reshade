@@ -610,11 +610,14 @@ private:
 		return info.definition;
 	}
 
-	void define_entry_point(function_info &func, shader_type stype, int num_threads[2]) override
+	void define_entry_point(function_info &func, shader_type stype, int num_threads[3]) override
 	{
 		// Modify entry point name since a new function is created for it below
 		if (stype == shader_type::cs)
-			func.unique_name = 'E' + func.unique_name + '_' + std::to_string(num_threads[0]) + '_' + std::to_string(num_threads[1]);
+			func.unique_name = 'E' + func.unique_name +
+				'_' + std::to_string(num_threads[0]) +
+				'_' + std::to_string(num_threads[1]) +
+				'_' + std::to_string(num_threads[2]);
 		else if (_shader_model < 40)
 			func.unique_name = 'E' + func.unique_name;
 
@@ -688,7 +691,7 @@ private:
 			_blocks.at(_current_block) += "[numthreads(" +
 				std::to_string(num_threads[0]) + ", " +
 				std::to_string(num_threads[1]) + ", " +
-				"1)]\n";
+				std::to_string(num_threads[2]) + ")]\n";
 
 		define_function({}, entry_point);
 		enter_block(create_block());
