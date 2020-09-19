@@ -1130,7 +1130,7 @@ void reshade::opengl::runtime_gl::render_technique(technique &technique)
 				topology = GL_TRIANGLE_STRIP;
 				break;
 			}
-			glDrawArrays(GL_TRIANGLE_STRIP, 0, pass_info.num_vertices);
+			glDrawArrays(topology, 0, pass_info.num_vertices);
 
 			_vertices += pass_info.num_vertices;
 			_drawcalls += 1;
