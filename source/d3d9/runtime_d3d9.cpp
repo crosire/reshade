@@ -788,7 +788,8 @@ bool reshade::d3d9::runtime_d3d9::init_texture(texture &texture)
 	assert(SUCCEEDED(hr));
 
 	// Clear texture to zero since by default its contents are undefined
-	_device->ColorFill(impl->surface.get(), nullptr, D3DCOLOR_ARGB(0, 0, 0, 0));
+	if (usage & D3DUSAGE_RENDERTARGET)
+		_device->ColorFill(impl->surface.get(), nullptr, D3DCOLOR_ARGB(0, 0, 0, 0));
 
 	return true;
 }
