@@ -378,19 +378,21 @@ private:
 	{
 		if (semantic == "SV_POSITION")
 			return stype == shader_type::ps ? "gl_FragCoord" : "gl_Position";
-		else if (semantic == "SV_DEPTH")
+		if (semantic == "SV_POINTSIZE")
+			return "gl_PointSize";
+		if (semantic == "SV_DEPTH")
 			return "gl_FragDepth";
-		else if (semantic == "SV_VERTEXID")
+		if (semantic == "SV_VERTEXID")
 			return "gl_VertexID";
-		else if (semantic == "SV_ISFRONTFACE")
+		if (semantic == "SV_ISFRONTFACE")
 			return "gl_FrontFacing";
-		else if (semantic == "SV_GROUPID")
+		if (semantic == "SV_GROUPID")
 			return "gl_WorkGroupID";
-		else if (semantic == "SV_GROUPINDEX")
+		if (semantic == "SV_GROUPINDEX")
 			return "gl_LocalInvocationIndex";
-		else if (semantic == "SV_GROUPTHREADID")
+		if (semantic == "SV_GROUPTHREADID")
 			return "gl_LocalInvocationID";
-		else if (semantic == "SV_DISPATCHTHREADID")
+		if (semantic == "SV_DISPATCHTHREADID")
 			return "gl_GlobalInvocationID";
 		return escape_name(name);
 	}

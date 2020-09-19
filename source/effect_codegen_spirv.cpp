@@ -526,28 +526,6 @@ private:
 		return inst.result;
 	}
 
-	bool semantic_to_builtin(const std::string &semantic, spv::BuiltIn &builtin, shader_type stype)
-	{
-		builtin = spv::BuiltInMax;
-		if (semantic == "SV_POSITION")
-			builtin = stype == shader_type::ps ? spv::BuiltInFragCoord : spv::BuiltInPosition;
-		else if (semantic == "SV_DEPTH")
-			builtin = spv::BuiltInFragDepth;
-		else if (semantic == "SV_VERTEXID")
-			builtin = _vulkan_semantics ? spv::BuiltInVertexIndex : spv::BuiltInVertexId;
-		else if (semantic == "SV_ISFRONTFACE")
-			builtin = spv::BuiltInFrontFacing;
-		else if (semantic == "SV_GROUPID")
-			builtin = spv::BuiltInWorkgroupId;
-		else if (semantic == "SV_GROUPINDEX")
-			builtin = spv::BuiltInLocalInvocationIndex;
-		else if (semantic == "SV_GROUPTHREADID")
-			builtin = spv::BuiltInLocalInvocationId;
-		else if (semantic == "SV_DISPATCHTHREADID")
-			builtin = spv::BuiltInGlobalInvocationId;
-		return builtin != spv::BuiltInMax;
-	}
-
 	uint32_t semantic_to_location(const std::string &semantic, uint32_t max_array_length = 1)
 	{
 		if (semantic.compare(0, 5, "COLOR") == 0)
@@ -574,6 +552,29 @@ private:
 			_semantic_to_location.emplace(base_semantic + std::to_string(a), location + a);
 
 		return location + base_index;
+	}
+
+	const spv::BuiltIn semantic_to_builtin(const std::string &semantic, shader_type stype)
+	{
+		if (semantic == "SV_POSITION")
+			return stype == shader_type::ps ? spv::BuiltInFragCoord : spv::BuiltInPosition;
+		if (semantic == "SV_POINTSIZE")
+			return spv::BuiltInPointSize;
+		if (semantic == "SV_DEPTH")
+			return spv::BuiltInFragDepth;
+		if (semantic == "SV_VERTEXID")
+			return _vulkan_semantics ? spv::BuiltInVertexIndex : spv::BuiltInVertexId;
+		if (semantic == "SV_ISFRONTFACE")
+			return spv::BuiltInFrontFacing;
+		if (semantic == "SV_GROUPID")
+			return spv::BuiltInWorkgroupId;
+		if (semantic == "SV_GROUPINDEX")
+			return spv::BuiltInLocalInvocationIndex;
+		if (semantic == "SV_GROUPTHREADID")
+			return spv::BuiltInLocalInvocationId;
+		if (semantic == "SV_DISPATCHTHREADID")
+			return spv::BuiltInGlobalInvocationId;
+		return spv::BuiltInMax;
 	}
 
 	inline void add_name(id id, const char *name)
@@ -947,7 +948,7 @@ private:
 
 		_module.entry_points.push_back({ func.unique_name, stype });
 
-		spv::Id position_variable = 0;
+		spv::Id position_variable = 0, point_size_variable = 0;
 		std::vector<spv::Id> inputs_and_outputs;
 		std::vector<expression> call_params;
 
@@ -959,43 +960,46 @@ private:
 		enter_block(create_block());
 
 		const auto create_varying_param = [this, &call_params](const struct_member_info &param) {
-			const spv::Id local_variable = define_variable({}, param.type, nullptr, spv::StorageClassFunction);
+			const spv::Id variable = define_variable({}, param.type, nullptr, spv::StorageClassFunction);
 
 			expression &call_param = call_params.emplace_back();
-			call_param.reset_to_lvalue({}, local_variable, param.type);
+			call_param.reset_to_lvalue({}, variable, param.type);
 
-			return local_variable;
+			return variable;
 		};
-		const auto create_varying_variable = [this, &inputs_and_outputs, &position_variable, stype](const type &param_type, std::string semantic, spv::StorageClass storage, int a = 0) {
-			const spv::Id attrib_variable = define_variable({}, param_type, nullptr, storage);
 
-			if (spv::BuiltIn builtin; semantic_to_builtin(semantic, builtin, stype))
+		const auto create_varying_variable = [this, &inputs_and_outputs, &position_variable, &point_size_variable, stype](const type &param_type, const std::string &semantic, spv::StorageClass storage, int a = 0) {
+			const spv::Id variable = define_variable({}, param_type, nullptr, storage);
+
+			if (const spv::BuiltIn builtin = semantic_to_builtin(semantic, stype);
+				builtin != spv::BuiltInMax)
 			{
 				assert(a == 0); // Built-in variables cannot be arrays
 
-				add_builtin(attrib_variable, builtin);
+				add_builtin(variable, builtin);
 
 				if (builtin == spv::BuiltInPosition && storage == spv::StorageClassOutput)
-					position_variable = attrib_variable;
+					position_variable = variable;
+				if (builtin == spv::BuiltInPointSize && storage == spv::StorageClassOutput)
+					point_size_variable = variable;
 			}
 			else
 			{
 				assert(stype != shader_type::cs); // Compute shaders cannot have custom inputs or outputs
 
 				const uint32_t location = semantic_to_location(semantic, std::max(1, param_type.array_length));
-
-				add_decoration(attrib_variable, spv::DecorationLocation, { location + a });
+				add_decoration(variable, spv::DecorationLocation, { location + a });
 			}
 
 			if (param_type.has(type::q_noperspective))
-				add_decoration(attrib_variable, spv::DecorationNoPerspective);
+				add_decoration(variable, spv::DecorationNoPerspective);
 			if (param_type.has(type::q_centroid))
-				add_decoration(attrib_variable, spv::DecorationCentroid);
+				add_decoration(variable, spv::DecorationCentroid);
 			if (param_type.has(type::q_nointerpolation))
-				add_decoration(attrib_variable, spv::DecorationFlat);
+				add_decoration(variable, spv::DecorationFlat);
 
-			inputs_and_outputs.push_back(attrib_variable);
-			return attrib_variable;
+			inputs_and_outputs.push_back(variable);
+			return variable;
 		};
 
 		// Translate function parameters to input/output variables
@@ -1180,7 +1184,7 @@ private:
 		}
 
 		// Add code to flip the output vertically
-		if (_invert_y && position_variable && stype == shader_type::vs)
+		if (_invert_y && position_variable != 0 && stype == shader_type::vs)
 		{
 			expression position;
 			position.reset_to_lvalue({}, position_variable, { type::t_float, 4, 1 });
@@ -1190,6 +1194,18 @@ private:
 			emit_store(position,
 				emit_unary_op({}, tokenid::minus, { type::t_float, 1, 1 },
 					emit_load(position, false)));
+		}
+
+		// Add code that sets the point size to a default value (in case this vertex shader is used with point primitives)
+		if (point_size_variable == 0 && stype == shader_type::vs)
+		{
+			create_varying_variable({ type::t_float, 1, 1 }, "SV_POINTSIZE", spv::StorageClassOutput);
+
+			expression point_size;
+			point_size.reset_to_lvalue({}, point_size_variable, { type::t_float, 1, 1 });
+
+			// gl_PointSize = 1.0
+			emit_store(point_size, emit_constant({ type::t_float, 1, 1 }, 1));
 		}
 
 		leave_block_and_return(0);

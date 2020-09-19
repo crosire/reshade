@@ -272,6 +272,8 @@ private:
 		{
 			if (semantic == "SV_POSITION")
 				return "POSITION"; // For pixel shaders this has to be "VPOS", so need to redefine that in post
+			if (semantic == "SV_POINTSIZE")
+				return "PSIZE";
 			if (semantic.compare(0, 9, "SV_TARGET") == 0)
 				return "COLOR" + semantic.substr(9);
 			if (semantic == "SV_DEPTH")
