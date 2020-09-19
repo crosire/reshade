@@ -262,6 +262,14 @@ bool reshadefx::parser::accept_type_class(type &type)
 		type.rows = 2 + static_cast<unsigned int>(_token_next.id) - static_cast<unsigned int>(tokenid::int2x2);
 		type.cols = type.rows;
 		break;
+	case tokenid::min16int:
+	case tokenid::min16int2:
+	case tokenid::min16int3:
+	case tokenid::min16int4:
+		type.base = type::t_min16int;
+		type.rows = 1 + static_cast<unsigned int>(_token_next.id) - static_cast<unsigned int>(tokenid::min16int);
+		type.cols = 1;
+		break;
 	case tokenid::uint_:
 	case tokenid::uint2:
 	case tokenid::uint3:
@@ -277,6 +285,14 @@ bool reshadefx::parser::accept_type_class(type &type)
 		type.rows = 2 + static_cast<unsigned int>(_token_next.id) - static_cast<unsigned int>(tokenid::uint2x2);
 		type.cols = type.rows;
 		break;
+	case tokenid::min16uint:
+	case tokenid::min16uint2:
+	case tokenid::min16uint3:
+	case tokenid::min16uint4:
+		type.base = type::t_min16uint;
+		type.rows = 1 + static_cast<unsigned int>(_token_next.id) - static_cast<unsigned int>(tokenid::min16uint);
+		type.cols = 1;
+		break;
 	case tokenid::float_:
 	case tokenid::float2:
 	case tokenid::float3:
@@ -291,6 +307,14 @@ bool reshadefx::parser::accept_type_class(type &type)
 		type.base = type::t_float;
 		type.rows = 2 + static_cast<unsigned int>(_token_next.id) - static_cast<unsigned int>(tokenid::float2x2);
 		type.cols = type.rows;
+		break;
+	case tokenid::min16float:
+	case tokenid::min16float2:
+	case tokenid::min16float3:
+	case tokenid::min16float4:
+		type.base = type::t_min16float;
+		type.rows = 1 + static_cast<unsigned int>(_token_next.id) - static_cast<unsigned int>(tokenid::min16float);
+		type.cols = 1;
 		break;
 	case tokenid::string_:
 		type.base = type::t_string;
@@ -2039,7 +2063,7 @@ bool reshadefx::parser::parse_statement(bool scoped)
 
 				// Cannot return arrays from a function
 				if (expression.type.is_array() || !type::rank(expression.type, ret_type))
-					return error(location, 3017, "expression does not match function return type"), accept(';'), false;
+					return error(location, 3017, "expression (" + expression.type.description() + ") does not match function return type (" + ret_type.description() + ')'), accept(';'), false;
 
 				// Load return value and perform implicit cast to function return type
 				if (expression.type.components() > ret_type.components())

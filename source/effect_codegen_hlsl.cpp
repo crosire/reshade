@@ -108,12 +108,23 @@ private:
 		case type::t_bool:
 			s += "bool";
 			break;
+		case type::t_min16int:
+			// Minimum precision types are only supported in shader model 4 and up
+			// Real 16-bit types were added in shader model 6.2
+			s += _shader_model >= 62 ? "int16_t" : _shader_model >= 40 ? "min16int" : "int";
+			break;
 		case type::t_int:
 			s += "int";
+			break;
+		case type::t_min16uint:
+			s += _shader_model >= 62 ? "uint16_t" : _shader_model >= 40 ? "min16uint" : "int";
 			break;
 		case type::t_uint:
 			// In shader model 3, uints can only be used with known-positive values, so use ints instead
 			s += _shader_model >= 40 ? "uint" : "int";
+			break;
+		case type::t_min16float:
+			s += _shader_model >= 62 ? "float16_t" : _shader_model >= 40 ? "min16float" : "float";
 			break;
 		case type::t_float:
 			s += "float";
@@ -178,12 +189,15 @@ private:
 			case type::t_bool:
 				s += data.as_uint[i] ? "true" : "false";
 				break;
+			case type::t_min16int:
 			case type::t_int:
 				s += std::to_string(data.as_int[i]);
 				break;
+			case type::t_min16uint:
 			case type::t_uint:
 				s += std::to_string(data.as_uint[i]);
 				break;
+			case type::t_min16float:
 			case type::t_float:
 				if (std::isnan(data.as_float[i])) {
 					s += "-1.#IND";
@@ -197,6 +211,8 @@ private:
 				std::snprintf(temp, sizeof(temp), "%1.8e", data.as_float[i]);
 				s += temp;
 				break;
+			default:
+				assert(false);
 			}
 
 			if (i < components - 1)

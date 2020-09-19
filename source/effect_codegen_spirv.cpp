@@ -116,8 +116,8 @@ struct spirv_basic_block
 class codegen_spirv final : public codegen
 {
 public:
-	codegen_spirv(bool vulkan_semantics, bool debug_info, bool uniforms_to_spec_constants, bool invert_y)
-		: _invert_y(invert_y), _debug_info(debug_info), _vulkan_semantics(vulkan_semantics), _uniforms_to_spec_constants(uniforms_to_spec_constants)
+	codegen_spirv(bool vulkan_semantics, bool debug_info, bool uniforms_to_spec_constants, bool enable_16bit_types, bool invert_y)
+		: _invert_y(invert_y), _debug_info(debug_info), _vulkan_semantics(vulkan_semantics), _uniforms_to_spec_constants(uniforms_to_spec_constants), _enable_16bit_types(enable_16bit_types)
 	{
 		_glsl_ext = make_id();
 	}
@@ -179,6 +179,7 @@ private:
 	bool _debug_info = false;
 	bool _vulkan_semantics = false;
 	bool _uniforms_to_spec_constants = false;
+	bool _enable_16bit_types = false;
 	id _glsl_ext = 0;
 	id _global_ubo_type = 0;
 	id _global_ubo_variable = 0;
@@ -336,16 +337,20 @@ private:
 		}
 	}
 
-	spv::Id convert_type(const type &info, bool is_ptr = false, spv::StorageClass storage = spv::StorageClassFunction, uint32_t array_stride = 0)
+	spv::Id convert_type(type info, bool is_ptr = false, spv::StorageClass storage = spv::StorageClassFunction, uint32_t array_stride = 0)
 	{
 		assert(array_stride == 0 || info.is_array());
 
 		// The storage class is only relevant for pointers, so ignore it for other types during lookup
 		if (is_ptr == false)
 			storage = spv::StorageClassFunction;
-		// There cannot be function local sampler variables, so always assume uniform storage for them
+		// There cannot be sampler variables that are local to a function, so always assume uniform storage for them
 		if (info.is_texture() || info.is_sampler() || info.is_storage())
 			storage = spv::StorageClassUniformConstant;
+
+		// Fall back to 32-bit types and use relaxed precision decoration instead if 16-bit types are not enabled
+		if (!_enable_16bit_types && info.is_numeric() && info.precision() < 32)
+			info.base = static_cast<type::datatype>(info.base + 1); // min16int -> int, min16uint -> uint, min16float -> float
 
 		const type_lookup lookup = { info, is_ptr, array_stride, storage };
 		if (const auto it = std::find_if(_type_lookup.begin(), _type_lookup.end(),
@@ -420,17 +425,43 @@ private:
 				assert(info.rows == 1 && info.cols == 1);
 				add_instruction(spv::OpTypeBool, _types_and_constants, type);
 				break;
+			case type::t_min16int:
+				assert(_enable_16bit_types && info.rows == 1 && info.cols == 1);
+				add_capability(spv::CapabilityInt16);
+				if (storage == spv::StorageClassInput || storage == spv::StorageClassOutput)
+					add_capability(spv::CapabilityStorageInputOutput16);
+				add_instruction(spv::OpTypeInt, _types_and_constants, type)
+					.add(16) // Width
+					.add(1); // Signedness
+				break;
 			case type::t_int:
 				assert(info.rows == 1 && info.cols == 1);
 				add_instruction(spv::OpTypeInt, _types_and_constants, type)
 					.add(32) // Width
 					.add(1); // Signedness
 				break;
+			case type::t_min16uint:
+				assert(_enable_16bit_types && info.rows == 1 && info.cols == 1);
+				add_capability(spv::CapabilityInt16);
+				if (storage == spv::StorageClassInput || storage == spv::StorageClassOutput)
+					add_capability(spv::CapabilityStorageInputOutput16);
+				add_instruction(spv::OpTypeInt, _types_and_constants, type)
+					.add(16) // Width
+					.add(0); // Signedness
+				break;
 			case type::t_uint:
 				assert(info.rows == 1 && info.cols == 1);
 				add_instruction(spv::OpTypeInt, _types_and_constants, type)
 					.add(32) // Width
 					.add(0); // Signedness
+				break;
+			case type::t_min16float:
+				assert(_enable_16bit_types && info.rows == 1 && info.cols == 1);
+				add_capability(spv::CapabilityFloat16);
+				if (storage == spv::StorageClassInput || storage == spv::StorageClassOutput)
+					add_capability(spv::CapabilityStorageInputOutput16);
+				add_instruction(spv::OpTypeFloat, _types_and_constants, type)
+					.add(16); // Width
 				break;
 			case type::t_float:
 				assert(info.rows == 1 && info.cols == 1);
@@ -623,7 +654,14 @@ private:
 			add_name(info.definition, info.unique_name.c_str());
 
 		for (uint32_t index = 0; index < info.member_list.size(); ++index)
-			add_member_name(info.definition, index, info.member_list[index].name.c_str());
+		{
+			const struct_member_info &member = info.member_list[index];
+
+			add_member_name(info.definition, index, member.name.c_str());
+
+			if (!_enable_16bit_types && member.type.is_numeric() && member.type.precision() < 32)
+				add_member_decoration(info.definition, index, spv::DecorationRelaxedPrecision);
+		}
 
 		_structs.push_back(info);
 
@@ -851,6 +889,9 @@ private:
 
 		if (name != nullptr && *name != '\0')
 			add_name(res, name);
+
+		if (!_enable_16bit_types && type.is_numeric() && type.precision() < 32)
+			add_decoration(res, spv::DecorationRelaxedPrecision);
 
 		_storage_lookup[res] = storage;
 
@@ -1298,31 +1339,57 @@ private:
 						.add(false_constant)
 						.result;
 				}
-				else if (op.to.is_boolean())
-				{
-					result = add_instruction(op.from.is_floating_point() ? spv::OpFOrdNotEqual : spv::OpINotEqual, convert_type(op.to))
-						.add(result)
-						.add(emit_constant(op.from, 0))
-						.result;
-				}
 				else
 				{
 					spv::Op spv_op = spv::OpNop;
 					switch (op.to.base)
 					{
+					case type::t_bool:
+						if (op.from.is_floating_point())
+							spv_op = spv::OpFOrdNotEqual;
+						else
+							spv_op = spv::OpINotEqual;
+						// Add instruction to compare value against zero instead of casting
+						result = add_instruction(spv_op, convert_type(op.to))
+							.add(result)
+							.add(emit_constant(op.from, 0))
+							.result;
+						continue;
+					case type::t_min16int:
 					case type::t_int:
-						spv_op = op.from.is_floating_point() ? spv::OpConvertFToS : spv::OpBitcast;
+						if (op.from.is_floating_point())
+							spv_op = spv::OpConvertFToS;
+						else if (op.from.precision() == op.to.precision())
+							spv_op = spv::OpBitcast;
+						else if (_enable_16bit_types)
+							spv_op = spv::OpSConvert;
+						else
+							continue; // Do not have to add conversion instruction between min16int/int if 16-bit types are not enabled
 						break;
+					case type::t_min16uint:
 					case type::t_uint:
-						spv_op = op.from.is_floating_point() ? spv::OpConvertFToU : spv::OpBitcast;
+						if (op.from.is_floating_point())
+							spv_op = spv::OpConvertFToU;
+						else if (op.from.precision() == op.to.precision())
+							spv_op = spv::OpBitcast;
+						else if (_enable_16bit_types)
+							spv_op = spv::OpUConvert;
+						else
+							continue;
 						break;
+					case type::t_min16float:
 					case type::t_float:
-						assert(op.from.is_integral());
-						spv_op = op.from.is_signed() ? spv::OpConvertSToF : spv::OpConvertUToF;
+						if (op.from.is_floating_point() && !_enable_16bit_types)
+							continue; // Do not have to add conversion instruction between min16float/float if 16-bit types are not enabled
+						else if (op.from.is_floating_point())
+							spv_op = spv::OpFConvert;
+						else if (op.from.is_signed())
+							spv_op = spv::OpConvertSToF;
+						else
+							spv_op = spv::OpConvertUToF;
 						break;
 					default:
 						assert(false);
-						break;
 					}
 
 					result = add_instruction(spv_op, convert_type(op.to))
@@ -1331,16 +1398,11 @@ private:
 				}
 				break;
 			case expression::operation::op_dynamic_index:
-				if (op.from.is_vector())
-				{
-					assert(op.to.is_scalar());
-					result = add_instruction(spv::OpVectorExtractDynamic, convert_type(op.to))
-						.add(result) // Vector
-						.add(op.index) // Index
-						.result; // Result ID
-					break;
-				}
-				assert(false);
+				assert(op.from.is_vector() && op.to.is_scalar());
+				result = add_instruction(spv::OpVectorExtractDynamic, convert_type(op.to))
+					.add(result) // Vector
+					.add(op.index) // Index
+					.result;
 				break;
 			case expression::operation::op_member: // In case of struct return values, which are r-values
 			case expression::operation::op_constant_index:
@@ -1784,6 +1846,8 @@ private:
 
 		if (res_type.has(type::q_precise))
 			add_decoration(inst.result, spv::DecorationNoContraction);
+		if (!_enable_16bit_types && res_type.precision() < 32)
+			add_decoration(inst.result, spv::DecorationRelaxedPrecision);
 
 		return inst.result;
 	}
@@ -2121,7 +2185,7 @@ private:
 	}
 };
 
-codegen *reshadefx::create_codegen_spirv(bool vulkan_semantics, bool debug_info, bool uniforms_to_spec_constants, bool invert_y)
+codegen *reshadefx::create_codegen_spirv(bool vulkan_semantics, bool debug_info, bool uniforms_to_spec_constants, bool enable_16bit_types, bool invert_y)
 {
-	return new codegen_spirv(vulkan_semantics, debug_info, uniforms_to_spec_constants, invert_y);
+	return new codegen_spirv(vulkan_semantics, debug_info, uniforms_to_spec_constants, enable_16bit_types, invert_y);
 }

@@ -16,8 +16,8 @@ using namespace reshadefx;
 class codegen_glsl final : public codegen
 {
 public:
-	codegen_glsl(bool debug_info, bool uniforms_to_spec_constants)
-		: _debug_info(debug_info), _uniforms_to_spec_constants(uniforms_to_spec_constants)
+	codegen_glsl(bool debug_info, bool uniforms_to_spec_constants, bool enable_16bit_types)
+		: _debug_info(debug_info), _uniforms_to_spec_constants(uniforms_to_spec_constants), _enable_16bit_types(enable_16bit_types)
 	{
 		// Create default block and reserve a memory block to avoid frequent reallocations
 		std::string &block = _blocks.emplace(0, std::string()).first->second;
@@ -43,6 +43,7 @@ private:
 	std::unordered_map<id, std::string> _blocks;
 	bool _debug_info = false;
 	bool _uniforms_to_spec_constants = false;
+	bool _enable_16bit_types = false;
 	std::unordered_map<id, id> _remapped_sampler_variables;
 	std::unordered_map<std::string, uint32_t> _semantic_to_location;
 
@@ -56,6 +57,9 @@ private:
 	{
 		module = std::move(_module);
 
+		if (_enable_16bit_types)
+			// GL_NV_gpu_shader5, GL_AMD_gpu_shader_half_float or GL_EXT_shader_16bit_storage
+			module.hlsl += "#extension GL_NV_gpu_shader5 : require\n";
 		if (_uses_fmod)
 			module.hlsl += "float fmodHLSL(float x, float y) { return x - y * trunc(x / y); }\n"
 				"vec2 fmodHLSL(vec2 x, vec2 y) { return x - y * trunc(x / y); }\n"
@@ -133,6 +137,19 @@ private:
 			else
 				s += "bool";
 			break;
+		case type::t_min16int:
+			if (_enable_16bit_types)
+			{
+				assert(type.cols == 1);
+				if (type.rows > 1)
+					s += "i16vec" + std::to_string(type.rows);
+				else
+					s += "int16_t";
+				break;
+			}
+			else if constexpr (is_decl)
+				s += "mediump ";
+			// fall through
 		case type::t_int:
 			if (type.cols > 1)
 				s += "mat" + std::to_string(type.rows) + 'x' + std::to_string(type.cols);
@@ -141,6 +158,19 @@ private:
 			else
 				s += "int";
 			break;
+		case type::t_min16uint:
+			if (_enable_16bit_types)
+			{
+				assert(type.cols == 1);
+				if (type.rows > 1)
+					s += "u16vec" + std::to_string(type.rows);
+				else
+					s += "uint16_t";
+				break;
+			}
+			else if constexpr (is_decl)
+				s += "mediump ";
+			// fall through
 		case type::t_uint:
 			if (type.cols > 1)
 				s += "mat" + std::to_string(type.rows) + 'x' + std::to_string(type.cols);
@@ -149,6 +179,19 @@ private:
 			else
 				s += "uint";
 			break;
+		case type::t_min16float:
+			if (_enable_16bit_types)
+			{
+				assert(type.cols == 1);
+				if (type.rows > 1)
+					s += "f16vec" + std::to_string(type.rows);
+				else
+					s += "float16_t";
+				break;
+			}
+			else if constexpr (is_decl)
+				s += "mediump ";
+			// fall through
 		case type::t_float:
 			if (type.cols > 1)
 				s += "mat" + std::to_string(type.rows) + 'x' + std::to_string(type.cols);
@@ -205,12 +248,15 @@ private:
 			case type::t_bool:
 				s += data.as_uint[i] ? "true" : "false";
 				break;
+			case type::t_min16int:
 			case type::t_int:
 				s += std::to_string(data.as_int[i]);
 				break;
+			case type::t_min16uint:
 			case type::t_uint:
 				s += std::to_string(data.as_uint[i]) + 'u';
 				break;
+			case type::t_min16float:
 			case type::t_float:
 				if (std::isnan(data.as_float[i])) {
 					s += "0.0/0.0/*nan*/";
@@ -224,6 +270,8 @@ private:
 				std::snprintf(temp, sizeof(temp), "%1.8e", data.as_float[i]);
 				s += temp;
 				break;
+			default:
+				assert(false);
 			}
 
 			if (i < components - 1)
@@ -1756,7 +1804,7 @@ private:
 	}
 };
 
-codegen *reshadefx::create_codegen_glsl(bool debug_info, bool uniforms_to_spec_constants)
+codegen *reshadefx::create_codegen_glsl(bool debug_info, bool uniforms_to_spec_constants, bool enable_16bit_types)
 {
-	return new codegen_glsl(debug_info, uniforms_to_spec_constants);
+	return new codegen_glsl(debug_info, uniforms_to_spec_constants, enable_16bit_types);
 }

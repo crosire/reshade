@@ -332,7 +332,8 @@ namespace reshadefx
 	/// </summary>
 	/// <param name="debug_info">Whether to append debug information like line directives to the generated code.</param>
 	/// <param name="uniforms_to_spec_constants">Whether to convert uniform variables to specialization constants.</param>
-	codegen *create_codegen_glsl(bool debug_info, bool uniforms_to_spec_constants);
+	/// <param name="enable_16bit_types">Use real 16-bit types for the minimum precision types "min16int", "min16uint" and "min16float".</param>
+	codegen *create_codegen_glsl(bool debug_info, bool uniforms_to_spec_constants, bool enable_16bit_types = false);
 	/// <summary>
 	/// Create a back-end implementation for HLSL code generation.
 	/// </summary>
@@ -347,5 +348,6 @@ namespace reshadefx
 	/// <param name="debug_info">Whether to append debug information like line directives to the generated code.</param>
 	/// <param name="uniforms_to_spec_constants">Whether to convert uniform variables to specialization constants.</param>
 	/// <param name="invert_y">Insert code to invert the Y component of the output position in vertex shaders.</param>
-	codegen *create_codegen_spirv(bool vulkan_semantics, bool debug_info, bool uniforms_to_spec_constants, bool invert_y = false);
+	/// <param name="enable_16bit_types">Use real 16-bit types for the minimum precision types "min16int", "min16uint" and "min16float".</param>
+	codegen *create_codegen_spirv(bool vulkan_semantics, bool debug_info, bool uniforms_to_spec_constants, bool enable_16bit_types = false, bool invert_y = false);
 }

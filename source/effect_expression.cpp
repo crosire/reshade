@@ -54,11 +54,20 @@ std::string reshadefx::type::description() const
 	case reshadefx::type::t_bool:
 		result = "bool";
 		break;
+	case reshadefx::type::t_min16int:
+		result = "min16int";
+		break;
 	case reshadefx::type::t_int:
 		result = "int";
 		break;
+	case reshadefx::type::t_min16uint:
+		result = "min16uint";
+		break;
 	case reshadefx::type::t_uint:
 		result = "uint";
+		break;
+	case reshadefx::type::t_min16float:
+		result = "min16float";
 		break;
 	case reshadefx::type::t_float:
 		result = "float";
