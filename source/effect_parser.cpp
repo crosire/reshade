@@ -2945,8 +2945,9 @@ bool reshadefx::parser::parse_technique_pass(pass_info &info)
 
 	const auto pass_location = std::move(_token.location);
 
-	// Passes can have an optional name, so consume and ignore that if it exists
-	accept(tokenid::identifier);
+	// Passes can have an optional name
+	if (accept(tokenid::identifier))
+		info.name = std::move(_token.literal_as_string);
 
 	bool parse_success = true;
 	bool targets_support_srgb = true;

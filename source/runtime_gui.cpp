@@ -1492,16 +1492,21 @@ void reshade::runtime::draw_ui_statistics()
 
 				for (size_t pass_index = 0; pass_index < technique.passes.size(); ++pass_index)
 				{
-					for (const auto &target : technique.passes[pass_index].render_target_names)
+					const auto &pass_info = technique.passes[pass_index];
+
+					for (const auto &target : pass_info.render_target_names)
 					{
 						if (target == texture.unique_name)
 						{
 							if (target_info[0] != 'W') // Check if this texture was written by another pass already
-								target_info = "Written in " + technique.name + " pass ";
+								target_info = "Written in " + technique.name + " passes: ";
 							else
-								target_info += " and pass ";
+								target_info += ", ";
 
-							target_info += std::to_string(pass_index);
+							if (!pass_info.name.empty())
+								target_info += pass_info.name;
+							else
+								target_info += std::to_string(pass_index);
 						}
 					}
 				}

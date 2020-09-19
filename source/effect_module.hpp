@@ -261,6 +261,7 @@ namespace reshadefx
 	/// </summary>
 	struct pass_info
 	{
+		std::string name;
 		std::string render_target_names[8] = {};
 		std::string vs_entry_point;
 		std::string ps_entry_point;
