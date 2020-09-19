@@ -378,6 +378,9 @@
     <None Include="res\resource.rc2">
       <Filter>resources</Filter>
     </None>
+    <None Include="tools\verbuild.ps1">
+      <Filter>resources</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="res\shaders\copy_ps.hlsl">
