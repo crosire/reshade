@@ -6,7 +6,7 @@
 #pragma once
 
 #include <cassert>
-#include <vulkan.h>
+#include <vulkan/vulkan.h>
 
 // Windows SDK headers define these, which breaks the dispatch table
 #undef CreateEvent

@@ -5,8 +5,8 @@
 
 #pragma once
 
-#include <vulkan.h>
 #include <unordered_map>
+#include <vulkan/vulkan.h>
 
 namespace reshade::vulkan
 {
