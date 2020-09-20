@@ -11,7 +11,9 @@
 #include <filesystem>
 #include <unordered_map>
 
-extern std::filesystem::path g_reshade_config_path;
+extern std::filesystem::path g_reshade_dll_path;
+extern std::filesystem::path g_reshade_base_path;
+extern std::filesystem::path g_target_executable_path;
 
 inline void trim(std::string &str, const char *chars = " \t")
 {

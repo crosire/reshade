@@ -5,33 +5,103 @@
 
 #include "dll_log.hpp"
 #include "hook_manager.hpp"
+#include "runtime_config.hpp"
 #include "version.h"
 #include <cassert>
 #include <Psapi.h>
 #include <Windows.h>
 
 HMODULE g_module_handle = nullptr;
-
 std::filesystem::path g_reshade_dll_path;
-std::filesystem::path g_reshade_config_path;
+std::filesystem::path g_reshade_base_path;
 std::filesystem::path g_target_executable_path;
+
+static bool test_path(std::filesystem::path &path, const bool is_directory = true, const std::filesystem::path &base = g_reshade_dll_path.parent_path()) noexcept
+{
+	if (path.is_relative())
+		path = base / path;
+
+	WCHAR buf[4096];
+	if (!GetLongPathNameW(path.c_str(), buf, ARRAYSIZE(buf)))
+		return false;
+
+	path = buf;
+	path = path.lexically_normal();
+	if (!path.has_stem())
+		path = path.parent_path();
+
+	std::error_code ec;
+	return is_directory ? std::filesystem::is_directory(path, ec) : std::filesystem::exists(path, ec);
+}
+static bool resolve_env_path(std::filesystem::path &path, const bool is_directory = true, const std::filesystem::path &base = g_reshade_dll_path.parent_path()) noexcept
+{
+	WCHAR buf[4096];
+	if (!ExpandEnvironmentStringsW(path.c_str(), buf, ARRAYSIZE(buf)))
+		return false;
+	path = buf;
+	return test_path(path, is_directory, base);
+}
+
+static void load_global_config()
+{
+	if (std::filesystem::path config_path = g_reshade_dll_path.filename().replace_extension(L".ini");
+		test_path(config_path, false))
+	{
+		const reshade::ini_file &config = reshade::ini_file::load_cache(config_path);
+
+		if (std::filesystem::path base_path;
+			config.get("INSTALL", "BasePath", base_path) && resolve_env_path(base_path, true))
+			g_reshade_base_path = std::move(base_path);
+	}
+
+	if (g_reshade_base_path.empty())
+	{
+		WCHAR buf[4096] = L"";
+		if (std::filesystem::path env_path;
+			GetEnvironmentVariableW(L"RESHADE_BASE_PATH_OVERRIDE", buf, ARRAYSIZE(buf)) &&
+			resolve_env_path(env_path = buf, true, g_target_executable_path.parent_path()))
+		{
+			g_reshade_base_path = std::move(env_path);
+		}
+		else
+		{
+			// Use target executable directory by default, so that Vulkan games get an unique configuration
+			g_reshade_base_path = g_target_executable_path.parent_path();
+		}
+	}
+}
 
 std::filesystem::path get_system_path()
 {
 	static std::filesystem::path system_path;
+	if (!system_path.empty())
+		return system_path; // Return the cached system path
+
+	if (std::filesystem::path config_path = g_reshade_dll_path.filename().replace_extension(L".ini");
+		test_path(config_path, false))
+	{
+		const reshade::ini_file &config = reshade::ini_file::load_cache(config_path);
+
+		if (std::filesystem::path module_path;
+			config.get("INSTALL", "ModulePath", module_path) && resolve_env_path(module_path, true))
+			system_path = std::move(module_path);
+	}
+
 	if (system_path.empty())
 	{
-		WCHAR buf[4096];
-		if (0 == GetEnvironmentVariableW(L"RESHADE_MODULE_PATH_OVERRIDE", buf, ARRAYSIZE(buf)))
+		WCHAR buf[4096] = L"";
+		if (std::filesystem::path env_path;
+			GetEnvironmentVariableW(L"RESHADE_MODULE_PATH_OVERRIDE", buf, ARRAYSIZE(buf)) &&
+			resolve_env_path(env_path = buf, true, g_target_executable_path.parent_path()))
+		{
+			system_path = std::move(env_path);
+		}
+		else
+		{
 			// First try environment variable, use system directory if it does not exist or is empty
 			GetSystemDirectoryW(buf, ARRAYSIZE(buf));
-
-		if (system_path = buf; system_path.has_stem())
-			system_path += L'\\'; // Always convert to directory path (with a trailing slash)
-		if (system_path.is_relative())
-			system_path = g_target_executable_path.parent_path() / system_path;
-
-		system_path = system_path.lexically_normal();
+			system_path = buf;
+		}
 	}
 
 	return system_path;
@@ -66,11 +136,11 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 	using namespace reshade;
 
 	g_module_handle = hInstance;
-	g_reshade_dll_path = get_module_path(nullptr);
-	g_reshade_config_path = g_reshade_dll_path.parent_path() / L"ReShade.ini";
-	g_target_executable_path = get_module_path(nullptr);
+	g_reshade_dll_path = get_module_path(hInstance);
+	g_target_executable_path = get_module_path(hInstance);
 
-	log::open(std::filesystem::path(g_reshade_dll_path).replace_extension(L".log"));
+	load_global_config();
+	log::open(g_reshade_base_path / g_reshade_dll_path.filename().replace_extension(L".log"));
 
 	hooks::register_module("user32.dll");
 
@@ -755,25 +825,16 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 	case DLL_PROCESS_ATTACH:
 		g_module_handle = hModule;
 		g_reshade_dll_path = get_module_path(hModule);
-		g_reshade_config_path = g_reshade_dll_path;
-		g_reshade_config_path.replace_extension(L".ini");
 		g_target_executable_path = get_module_path(nullptr);
 
-		log::open(std::filesystem::path(g_reshade_dll_path).replace_extension(L".log"));
+		load_global_config();
+		log::open(g_reshade_base_path / g_reshade_dll_path.filename().replace_extension(L".log"));
 
 #  ifdef WIN64
 		LOG(INFO) << "Initializing crosire's ReShade version '" VERSION_STRING_FILE "' (64-bit) built on '" VERSION_DATE " " VERSION_TIME "' loaded from " << g_reshade_dll_path << " into " << g_target_executable_path << " ...";
 #  else
 		LOG(INFO) << "Initializing crosire's ReShade version '" VERSION_STRING_FILE "' (32-bit) built on '" VERSION_DATE " " VERSION_TIME "' loaded from " << g_reshade_dll_path << " into " << g_target_executable_path << " ...";
 #  endif
-
-		// First look for an API-named configuration file
-		if (std::error_code ec; !std::filesystem::exists(g_reshade_config_path, ec))
-			// On failure check for a "ReShade.ini" in the application directory
-			g_reshade_config_path = g_target_executable_path.parent_path() / L"ReShade.ini";
-		if (std::error_code ec; !std::filesystem::exists(g_reshade_config_path, ec))
-			// If neither exist create a "ReShade.ini" in the ReShade DLL directory
-			g_reshade_config_path = g_reshade_dll_path.parent_path() / L"ReShade.ini";
 
 #  ifndef NDEBUG
 		g_exception_handler_handle = AddVectoredExceptionHandler(1, [](PEXCEPTION_POINTERS ex) -> LONG {

@@ -20,8 +20,6 @@
 
 static std::string g_window_state_path;
 extern volatile long g_network_traffic;
-extern std::filesystem::path g_reshade_dll_path;
-extern std::filesystem::path g_target_executable_path;
 
 static const ImVec4 COLOR_RED = ImColor(240, 100, 100);
 static const ImVec4 COLOR_YELLOW = ImColor(204, 204, 0);
@@ -29,11 +27,7 @@ static const ImVec4 COLOR_YELLOW = ImColor(204, 204, 0);
 void reshade::runtime::init_ui()
 {
 	if (g_window_state_path.empty())
-	{
-		std::filesystem::path reshadegui_ini_path = g_reshade_config_path;
-		reshadegui_ini_path.replace_filename("ReShadeGUI.ini");
-		g_window_state_path = reshadegui_ini_path.u8string();
-	}
+		g_window_state_path = (g_reshade_base_path / L"ReShadeGUI.ini").u8string();
 
 	// Default shortcut: Home
 	_overlay_key_data[0] = 0x24;
@@ -1102,8 +1096,8 @@ void reshade::runtime::draw_ui_settings()
 
 		ImGui::Spacing();
 
-		modified |= imgui_path_list("Effect search paths", _effect_search_paths, _file_selection_path, g_reshade_dll_path.parent_path());
-		modified |= imgui_path_list("Texture search paths", _texture_search_paths, _file_selection_path, g_reshade_dll_path.parent_path());
+		modified |= imgui_path_list("Effect search paths", _effect_search_paths, _file_selection_path, g_reshade_base_path);
+		modified |= imgui_path_list("Texture search paths", _texture_search_paths, _file_selection_path, g_reshade_base_path);
 
 		if (ImGui::Button("Restart tutorial", ImVec2(ImGui::CalcItemWidth(), 0)))
 			_tutorial_index = 0;
@@ -1582,8 +1576,8 @@ void reshade::runtime::draw_ui_statistics()
 }
 void reshade::runtime::draw_ui_log()
 {
-	std::filesystem::path log_path = g_reshade_dll_path;
-	log_path.replace_extension(".log");
+	const std::filesystem::path log_path =
+		g_reshade_base_path / g_reshade_dll_path.filename().replace_extension(L".log");
 
 	if (ImGui::Button("Clear Log"))
 		// Close and open the stream again, which will clear the file too
