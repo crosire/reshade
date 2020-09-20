@@ -106,6 +106,7 @@ void reshade::runtime::init_ui()
 		config.get("OVERLAY", "TutorialProgress", _tutorial_index);
 		config.get("OVERLAY", "VariableListHeight", _variable_editor_height);
 		config.get("OVERLAY", "VariableListUseTabs", _variable_editor_tabs);
+		config.get("OVERLAY", "EffectLoadSkippingButton", _effect_load_skipping_ui);
 
 		config.get("STYLE", "Alpha", _imgui_context->Style.Alpha);
 		config.get("STYLE", "GrabRounding", _imgui_context->Style.GrabRounding);
@@ -346,6 +347,7 @@ void reshade::runtime::init_ui()
 		config.set("OVERLAY", "TutorialProgress", _tutorial_index);
 		config.set("OVERLAY", "VariableListHeight", _variable_editor_height);
 		config.set("OVERLAY", "VariableListUseTabs", _variable_editor_tabs);
+		config.set("OVERLAY", "EffectLoadSkippingButton", _effect_load_skipping_ui);
 
 		config.set("STYLE", "Alpha", _imgui_context->Style.Alpha);
 		config.set("STYLE", "GrabRounding", _imgui_context->Style.GrabRounding);
@@ -1104,15 +1106,10 @@ void reshade::runtime::draw_ui_settings()
 		modified |= imgui_path_list("Effect search paths", _effect_search_paths, _file_selection_path, g_reshade_dll_path.parent_path());
 		modified |= imgui_path_list("Texture search paths", _texture_search_paths, _file_selection_path, g_reshade_dll_path.parent_path());
 
+		modified |= ImGui::Checkbox("Load only enabled effects", &_effect_load_skipping);
+
 		if (ImGui::Button("Restart tutorial", ImVec2(ImGui::CalcItemWidth(), 0)))
 			_tutorial_index = 0;
-	}
-
-	if (ImGui::CollapsingHeader("Effects & Techniques", ImGuiTreeNodeFlags_DefaultOpen))
-	{
-		modified |= ImGui::Checkbox("Load only enabled effects", &_effect_load_skipping);
-		if (_effect_load_skipping)
-			modified |= ImGui::Checkbox("Show \"Force load all effects\" button", &_effect_load_skipping_ui);
 	}
 
 	if (ImGui::CollapsingHeader("Screenshots", ImGuiTreeNodeFlags_DefaultOpen))
@@ -1149,6 +1146,9 @@ void reshade::runtime::draw_ui_settings()
 	if (ImGui::CollapsingHeader("Overlay & Styling", ImGuiTreeNodeFlags_DefaultOpen))
 	{
 		modified |= ImGui::Checkbox("Show screenshot message", &_show_screenshot_message);
+
+		if (_effect_load_skipping)
+			modified |= ImGui::Checkbox("Show \"Force load all effects\" button", &_effect_load_skipping_ui);
 
 		bool save_imgui_window_state = _imgui_context->IO.IniFilename != nullptr;
 		if (ImGui::Checkbox("Save window state (ReShadeGUI.ini)", &save_imgui_window_state))
@@ -2541,7 +2541,8 @@ void reshade::runtime::draw_technique_editor()
 
 	if (_effect_load_skipping_ui)
 	{
-		if (size_t skipped_effects = std::count_if(_effects.begin(), _effects.end(), [](const effect &effect) { return effect.skipped; }); skipped_effects > 0)
+		if (size_t skipped_effects = std::count_if(_effects.begin(), _effects.end(),
+			[](const effect &effect) { return effect.skipped; }); skipped_effects > 0)
 		{
 			char buf[60];
 			ImFormatString(buf, ARRAYSIZE(buf), "Force load all effects (%lu remaining)", skipped_effects);

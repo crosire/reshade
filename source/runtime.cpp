@@ -243,31 +243,29 @@ void reshade::runtime::on_present()
 
 bool reshade::runtime::load_effect(const std::filesystem::path &path, size_t index)
 {
-	const std::string effect_name = path.filename().u8string();
-	const ini_file preset(_current_preset_path); // ini_file::load_cache is not thread-safe, so load from file here
-
 	effect &effect = _effects[index]; // Safe to access this multi-threaded, since this is the only call working on this effect
+	const std::string effect_name = path.filename().u8string();
 	effect = {};
-	effect.source_file = path;
 	effect.compiled = true;
+	effect.source_file = path;
 
-	if (_worker_threads.empty()) // Only skip during load_effects
-		effect.skipped = false;
-	else if (!_effect_load_skipping || _load_option_disable_skipping)
-		effect.skipped = false;
-	else if (std::vector<std::string> techniques; !preset.get({}, "Techniques", techniques))
-		effect.skipped = false;
-	else if (std::find_if(techniques.cbegin(), techniques.cend(), [&effect_name](const std::string &technique) {
-		const size_t at_pos = technique.find('@') + 1;
-		return at_pos == 0 || technique.find(effect_name, at_pos) == at_pos; }) != techniques.cend())
-		effect.skipped = false;
-	else
-		effect.skipped = true;
-
-	if (effect.skipped)
+	if (_effect_load_skipping && !_load_option_disable_skipping && !_worker_threads.empty() && !_current_preset_path.empty()) // Only skip during 'load_effects'
 	{
-		_reload_remaining_effects--;
-		return true;
+		const ini_file preset(_current_preset_path); // ini_file::load_cache is not thread-safe, so load from file here
+
+		if (std::vector<std::string> techniques;
+			preset.get({}, "Techniques", techniques))
+		{
+			effect.skipped = std::find_if(techniques.cbegin(), techniques.cend(), [&effect_name](const std::string &technique) {
+				const size_t at_pos = technique.find('@') + 1;
+				return at_pos == 0 || technique.find(effect_name, at_pos) == at_pos; }) == techniques.cend();
+
+			if (effect.skipped)
+			{
+				_reload_remaining_effects--;
+				return false;
+			}
+		}
 	}
 
 	{ // Load, pre-process and compile the source file
@@ -377,6 +375,8 @@ bool reshade::runtime::load_effect(const std::filesystem::path &path, size_t ind
 	// Fill all specialization constants with values from the current preset
 	if (_performance_mode && !_current_preset_path.empty() && effect.compiled)
 	{
+		const ini_file preset(_current_preset_path); // ini_file::load_cache is not thread-safe, so load from file here
+
 		for (reshadefx::uniform_info &constant : effect.module.spec_constants)
 		{
 			effect.preamble += "#define SPEC_CONSTANT_" + constant.name + ' ';
@@ -786,8 +786,7 @@ void reshade::runtime::update_and_render_effects()
 		_reload_remaining_effects = std::numeric_limits<size_t>::max();
 
 		// Reset all effect loading options
-		if (_load_option_disable_skipping)
-			_load_option_disable_skipping = false;
+		_load_option_disable_skipping = false;
 
 #if RESHADE_GUI
 		// Re-open last file in code editor after a reload
@@ -1199,12 +1198,10 @@ void reshade::runtime::load_config()
 	config.get("GENERAL", "EffectSearchPaths", _effect_search_paths);
 	config.get("GENERAL", "TextureSearchPaths", _texture_search_paths);
 	config.get("GENERAL", "PreprocessorDefinitions", _global_preprocessor_definitions);
+	config.get("GENERAL", "EffectLoadSkipping", _effect_load_skipping);
 
 	config.get("GENERAL", "PresetPath", _current_preset_path);
 	config.get("GENERAL", "PresetTransitionDelay", _preset_transition_delay);
-
-	config.get("GENERAL", "EffectLoadSkipping", _effect_load_skipping);
-	config.get("GENERAL", "EffectLoadSkippingUI", _effect_load_skipping_ui);
 
 	// Use default if the preset file does not exist yet
 	if (!resolve_preset_path(_current_preset_path))
@@ -1238,6 +1235,7 @@ void reshade::runtime::save_config() const
 	config.set("GENERAL", "EffectSearchPaths", _effect_search_paths);
 	config.set("GENERAL", "TextureSearchPaths", _texture_search_paths);
 	config.set("GENERAL", "PreprocessorDefinitions", _global_preprocessor_definitions);
+	config.set("GENERAL", "EffectLoadSkipping", _effect_load_skipping);
 
 	// Use ReShade DLL directory as base for relative preset paths (see 'resolve_preset_path')
 	std::filesystem::path relative_preset_path = _current_preset_path.lexically_proximate(g_reshade_dll_path.parent_path());
@@ -1245,9 +1243,6 @@ void reshade::runtime::save_config() const
 		relative_preset_path = _current_preset_path; // Do not use relative path if preset is in a parent directory
 	config.set("GENERAL", "PresetPath", relative_preset_path);
 	config.set("GENERAL", "PresetTransitionDelay", _preset_transition_delay);
-
-	config.set("GENERAL", "EffectLoadSkipping", _effect_load_skipping);
-	config.set("GENERAL", "EffectLoadSkippingUI", _effect_load_skipping_ui);
 
 	config.set("SCREENSHOTS", "ClearAlpha", _screenshot_clear_alpha);
 	config.set("SCREENSHOTS", "FileFormat", _screenshot_format);
@@ -1276,10 +1271,9 @@ void reshade::runtime::load_current_preset()
 	std::vector<std::string> preset_preprocessor_definitions;
 	preset.get({}, "PreprocessorDefinitions", preset_preprocessor_definitions);
 
-	// ... unless this is the 'load_current_preset' call in 'update_and_render_effects'
-	if (_reload_remaining_effects != 0)
+	// Recompile effects if preprocessor definitions have changed or running in performance mode (in which case all preset values are compile-time constants)
+	if (_reload_remaining_effects != 0) // ... unless this is the 'load_current_preset' call in 'update_and_render_effects'
 	{
-		// Recompile effects if preprocessor definitions have changed or running in performance mode (in which case all preset values are compile-time constants)
 		if (_performance_mode || preset_preprocessor_definitions != _preset_preprocessor_definitions)
 		{
 			_preset_preprocessor_definitions = std::move(preset_preprocessor_definitions);
@@ -1287,17 +1281,17 @@ void reshade::runtime::load_current_preset()
 			return; // Preset values are loaded in 'update_and_render_effects' during effect loading
 		}
 
-		if (std::find_if(technique_list.begin(), technique_list.end(), [this](const std::string &technique) noexcept {
+		if (std::find_if(technique_list.begin(), technique_list.end(), [this](const std::string &technique) {
 				if (const size_t at_pos = technique.find('@'); at_pos == std::string::npos)
 					return true;
 				else if (const auto it = std::find_if(_effects.begin(), _effects.end(),
-					[effect_name = static_cast<std::string_view>(technique).substr(at_pos + 1)](const effect &effect) noexcept { return effect_name == effect.source_file.filename().u8string(); }); it == _effects.end())
+					[effect_name = static_cast<std::string_view>(technique).substr(at_pos + 1)](const effect &effect) { return effect_name == effect.source_file.filename().u8string(); }); it == _effects.end())
 					return true;
 				else
 					return it->skipped; }) != technique_list.end())
 		{
 			load_effects();
-			return; // Preset values are loaded in 'update_and_render_effects' during effect loading
+			return;
 		}
 	}
 
@@ -1380,14 +1374,13 @@ void reshade::runtime::load_current_preset()
 
 	for (technique &technique : _techniques)
 	{
-		const std::string unique_name = technique.name + '@' + _effects[technique.effect_index].source_file.filename().u8string();
+		const std::string unique_name =
+			technique.name + '@' + _effects[technique.effect_index].source_file.filename().u8string();
 
 		// Ignore preset if "enabled" annotation is set
-		if (technique.annotation_as_int("enabled"))
-			enable_technique(technique);
-		else if (std::find(technique_list.begin(), technique_list.end(), unique_name) != technique_list.end())
-			enable_technique(technique);
-		else if (std::find(technique_list.begin(), technique_list.end(), technique.name) != technique_list.end())
+		if (technique.annotation_as_int("enabled") ||
+			std::find(technique_list.begin(), technique_list.end(), unique_name) != technique_list.end() ||
+			std::find(technique_list.begin(), technique_list.end(), technique.name) != technique_list.end())
 			enable_technique(technique);
 		else
 			disable_technique(technique);
@@ -1415,7 +1408,8 @@ void reshade::runtime::save_current_preset() const
 
 	for (const technique &technique : _techniques)
 	{
-		const std::string unique_name = technique.name + '@' + _effects[technique.effect_index].source_file.filename().u8string();
+		const std::string unique_name =
+			technique.name + '@' + _effects[technique.effect_index].source_file.filename().u8string();
 
 		if (technique.enabled)
 			technique_list.push_back(unique_name);

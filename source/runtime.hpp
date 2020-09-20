@@ -297,6 +297,7 @@ namespace reshade
 		// === Effect Loading ===
 		bool _no_debug_info = 0;
 		bool _no_reload_on_init = false;
+		bool _effect_load_skipping = false;
 		bool _load_option_disable_skipping = false;
 		bool _last_shader_reload_successful = true;
 		bool _last_texture_reload_successful = true;
@@ -401,7 +402,6 @@ namespace reshade
 		std::filesystem::path _file_selection_path;
 		float _fps_col[4] = { 1.0f, 1.0f, 0.784314f, 1.0f };
 		float _fps_scale = 1.0f;
-		bool _effect_load_skipping = true;
 		bool _effect_load_skipping_ui = true;
 
 		// === User Interface - Statistics ===
