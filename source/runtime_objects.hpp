@@ -186,7 +186,8 @@ namespace reshade
 	struct effect final
 	{
 		unsigned int rendering = 0;
-		bool compile_sucess = false;
+		bool compiled = false;
+		bool skipped = false;
 		std::string errors;
 		std::string preamble;
 		reshadefx::module module;
