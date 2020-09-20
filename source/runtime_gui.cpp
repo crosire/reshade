@@ -868,32 +868,34 @@ void reshade::runtime::draw_ui_home()
 
 	if (_tutorial_index > 1)
 	{
-		const bool show_clear_button = strcmp(_effect_filter, "Search") != 0 && _effect_filter[0] != '\0';
+		const bool show_clear_button = _effect_filter[0] != '\0';
 
-		ImGui::PushItemWidth((_variable_editor_tabs ? -10.0f : -20.0f) * _font_size - (show_clear_button ? ImGui::GetFrameHeight() + _imgui_context->Style.ItemSpacing.x : 0));
-		if (ImGui::InputText("##filter", _effect_filter, sizeof(_effect_filter), ImGuiInputTextFlags_AutoSelectAll))
+		if (ImGui::InputTextEx("##filter", "Search", _effect_filter, sizeof(_effect_filter),
+			ImVec2((_variable_editor_tabs ? -10.0f : -20.0f) * _font_size - (show_clear_button ? ImGui::GetFrameHeight() + _imgui_context->Style.ItemSpacing.x : 0), 0), ImGuiInputTextFlags_AutoSelectAll))
 		{
 			_effects_expanded_state = 3;
-
 			const std::string_view filter_view = _effect_filter;
+
 			for (technique &technique : _techniques)
+			{
+				std::string_view label = technique.annotation_as_string("ui_label");
+				if (label.empty())
+					label = technique.name;
+
 				technique.hidden = technique.annotation_as_int("hidden") != 0 || (
 					!filter_view.empty() && // Reset visibility state if filter is empty
-					std::search(technique.name.begin(), technique.name.end(), filter_view.begin(), filter_view.end(), [](auto c1, auto c2) { return tolower(c1) == tolower(c2); }) == technique.name.end() &&
-					_effects[technique.effect_index].source_file.filename().u8string().find(filter_view) == std::string::npos);
+					std::search(label.begin(), label.end(), filter_view.begin(), filter_view.end(), // Search case insensitive
+						[](const char c1, const char c2) { return (('a' <= c1 && c1 <= 'z') ? static_cast<char>(c1 - ' ') : c1) == (('a' <= c2 && c2 <= 'z') ? static_cast<char>(c2 - ' ') : c2); }) == label.end());
+			}
 		}
-		else if (!ImGui::IsItemActive() && _effect_filter[0] == '\0')
-		{
-			strcpy_s(_effect_filter, "Search");
-		}
-		ImGui::PopItemWidth();
 
 		ImGui::SameLine();
 
 		if (show_clear_button && ImGui::Button("X", ImVec2(ImGui::GetFrameHeight(), 0)))
 		{
-			strcpy_s(_effect_filter, "Search");
-			// Reset visibility state
+			_effect_filter[0] = '\0';
+
+			// Reset visibility state of all techniques since no filter is active anymore
 			for (technique &technique : _techniques)
 				technique.hidden = technique.annotation_as_int("hidden") != 0;
 		}
@@ -917,9 +919,8 @@ void reshade::runtime::draw_ui_home()
 				}
 			}
 
-			if (const auto it = std::find_if_not(_techniques.begin(), _techniques.end(), [](const reshade::technique &a) {
-					return a.enabled || a.toggle_key_data[0] != 0;
-				}); it != _techniques.end())
+			if (const auto it = std::find_if_not(_techniques.begin(), _techniques.end(),
+				[](const reshade::technique &a) { return a.enabled || a.toggle_key_data[0] != 0; }); it != _techniques.end())
 			{
 				std::stable_sort(it, _techniques.end(), [](const reshade::technique &lhs, const reshade::technique &rhs) {
 						std::string lhs_label(lhs.annotation_as_string("ui_label"));
