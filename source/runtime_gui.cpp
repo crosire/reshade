@@ -100,6 +100,7 @@ void reshade::runtime::init_ui()
 		config.get("OVERLAY", "TutorialProgress", _tutorial_index);
 		config.get("OVERLAY", "VariableListHeight", _variable_editor_height);
 		config.get("OVERLAY", "VariableListUseTabs", _variable_editor_tabs);
+		config.get("OVERLAY", "EffectLoadSkippingButton", _effect_load_skipping_ui);
 
 		config.get("STYLE", "Alpha", _imgui_context->Style.Alpha);
 		config.get("STYLE", "GrabRounding", _imgui_context->Style.GrabRounding);
@@ -340,6 +341,7 @@ void reshade::runtime::init_ui()
 		config.set("OVERLAY", "TutorialProgress", _tutorial_index);
 		config.set("OVERLAY", "VariableListHeight", _variable_editor_height);
 		config.set("OVERLAY", "VariableListUseTabs", _variable_editor_tabs);
+		config.set("OVERLAY", "EffectLoadSkippingButton", _effect_load_skipping_ui);
 
 		config.set("STYLE", "Alpha", _imgui_context->Style.Alpha);
 		config.set("STYLE", "GrabRounding", _imgui_context->Style.GrabRounding);
@@ -826,7 +828,7 @@ void reshade::runtime::draw_ui_home()
 	{
 		std::string shader_list;
 		for (const effect &effect : _effects)
-			if (!effect.compile_sucess)
+			if (!effect.compiled)
 				shader_list += ' ' + effect.source_file.filename().u8string() + ',';
 
 		// Make sure there are actually effects that failed to compile, since the last reload flag may not have been reset
@@ -1099,6 +1101,8 @@ void reshade::runtime::draw_ui_settings()
 		modified |= imgui_path_list("Effect search paths", _effect_search_paths, _file_selection_path, g_reshade_base_path);
 		modified |= imgui_path_list("Texture search paths", _texture_search_paths, _file_selection_path, g_reshade_base_path);
 
+		modified |= ImGui::Checkbox("Load only enabled effects", &_effect_load_skipping);
+
 		if (ImGui::Button("Restart tutorial", ImVec2(ImGui::CalcItemWidth(), 0)))
 			_tutorial_index = 0;
 	}
@@ -1137,6 +1141,9 @@ void reshade::runtime::draw_ui_settings()
 	if (ImGui::CollapsingHeader("Overlay & Styling", ImGuiTreeNodeFlags_DefaultOpen))
 	{
 		modified |= ImGui::Checkbox("Show screenshot message", &_show_screenshot_message);
+
+		if (_effect_load_skipping)
+			modified |= ImGui::Checkbox("Show \"Force load all effects\" button", &_effect_load_skipping_ui);
 
 		bool save_imgui_window_state = _imgui_context->IO.IniFilename != nullptr;
 		if (ImGui::Checkbox("Save window state (ReShadeGUI.ini)", &save_imgui_window_state))
@@ -1794,10 +1801,12 @@ void reshade::runtime::draw_preset_explorer()
 	}
 
 	if (ImGui::ButtonEx("<", ImVec2(button_size, 0), button_flags))
-		switch_to_next_preset(_current_browse_path, true);
+		if (switch_to_next_preset(_current_browse_path, true))
+			reload_preset = true;
 	ImGui::SameLine(0, button_spacing);
 	if (ImGui::ButtonEx(">", ImVec2(button_size, 0), button_flags))
-		switch_to_next_preset(_current_browse_path, false);
+		if (switch_to_next_preset(_current_browse_path, false))
+			reload_preset = true;
 
 	ImGui::SameLine(0, button_spacing);
 	const ImVec2 popup_pos = ImGui::GetCursorScreenPos() + ImVec2(-_imgui_context->Style.WindowPadding.x, ImGui::GetFrameHeightWithSpacing());
@@ -2134,7 +2143,7 @@ void reshade::runtime::draw_variable_editor()
 			// Skip showing this effect in the variable list if it doesn't have any uniform variables to show
 			(_effects[effect_index].uniforms.empty() && _effects[effect_index].definitions.empty()))
 			continue;
-		assert(_effects[effect_index].compile_sucess);
+		assert(_effects[effect_index].compiled);
 
 		bool reload_effect = false;
 		const bool is_focused = _focused_effect == effect_index;
@@ -2523,6 +2532,19 @@ void reshade::runtime::draw_variable_editor()
 }
 void reshade::runtime::draw_technique_editor()
 {
+	bool reload_required = false;
+
+	if (_effect_load_skipping_ui)
+	{
+		if (size_t skipped_effects = std::count_if(_effects.begin(), _effects.end(),
+			[](const effect &effect) { return effect.skipped; }); skipped_effects > 0)
+		{
+			char buf[60];
+			ImFormatString(buf, ARRAYSIZE(buf), "Force load all effects (%lu remaining)", skipped_effects);
+			reload_required = ImGui::ButtonEx(buf, ImVec2(ImGui::GetWindowContentRegionWidth(), 0));
+		}
+	}
+
 	size_t hovered_technique_index = std::numeric_limits<size_t>::max();
 
 	for (size_t index = 0; index < _techniques.size(); ++index)
@@ -2544,7 +2566,7 @@ void reshade::runtime::draw_technique_editor()
 			ImGui::Separator();
 
 		const bool clicked = _imgui_context->IO.MouseClicked[0];
-		const bool compile_success = effect.compile_sucess;
+		const bool compile_success = effect.compiled;
 		assert(compile_success || !technique.enabled);
 
 		// Prevent user from enabling the technique when the effect failed to compile
@@ -2717,11 +2739,18 @@ void reshade::runtime::draw_technique_editor()
 			std::swap(_techniques[hovered_technique_index], _techniques[_selected_technique]);
 			_selected_technique = hovered_technique_index;
 			save_current_preset();
+			return;
 		}
 	}
 	else
 	{
 		_selected_technique = std::numeric_limits<size_t>::max();
+	}
+
+	if (reload_required)
+	{
+		_load_option_disable_skipping = true;
+		load_effects();
 	}
 }
 
