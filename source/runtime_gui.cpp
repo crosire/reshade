@@ -1148,7 +1148,7 @@ void reshade::runtime::draw_ui_settings()
 		modified |= ImGui::Checkbox("Group effect files with tabs instead of a tree", &_variable_editor_tabs);
 
 		#pragma region Style
-		if (ImGui::Combo("Style", &_style_index, "Dark\0Light\0Default\0Custom Simple\0Custom Advanced\0Solarized Dark\0Solarized Light\0"))
+		if (ImGui::Combo("Global style", &_style_index, "Dark\0Light\0Default\0Custom Simple\0Custom Advanced\0Solarized Dark\0Solarized Light\0"))
 		{
 			modified = true;
 			reload_style = true;
@@ -1235,7 +1235,7 @@ void reshade::runtime::draw_ui_settings()
 		#pragma endregion
 
 		#pragma region Editor Style
-		if (ImGui::Combo("Editor Style", &_editor_style_index, "Dark\0Light\0Custom\0Solarized Dark\0Solarized Light\0"))
+		if (ImGui::Combo("Text editor style", &_editor_style_index, "Dark\0Light\0Custom\0Solarized Dark\0Solarized Light\0"))
 		{
 			modified = true;
 			reload_style = true;
@@ -1260,13 +1260,13 @@ void reshade::runtime::draw_ui_settings()
 		}
 		#pragma endregion
 
-		if (imgui_font_select("Font", _font, _font_size))
+		if (imgui_font_select("Global font", _font, _font_size))
 		{
 			modified = true;
 			_rebuild_font_atlas = true;
 		}
 
-		if (imgui_font_select("Editor Font", _editor_font, _editor_font_size))
+		if (imgui_font_select("Text editor font", _editor_font, _editor_font_size))
 		{
 			modified = true;
 			_rebuild_font_atlas = true;

@@ -83,6 +83,10 @@ reshade::opengl::runtime_gl::runtime_gl()
 
 #if RESHADE_GUI
 	subscribe_to_ui("OpenGL", [this]() {
+		// Add some information about the device and driver to the UI
+		ImGui::Text("OpenGL %s", glGetString(GL_VERSION));
+		ImGui::TextUnformatted(reinterpret_cast<const char *>(glGetString(GL_RENDERER)));
+
 #if RESHADE_DEPTH
 		draw_depth_debug_menu();
 #endif
