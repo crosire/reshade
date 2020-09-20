@@ -60,6 +60,9 @@
     <ClCompile Include="source\dll_resources.cpp">
       <Filter>core</Filter>
     </ClCompile>
+    <ClCompile Include="source\dll_settings.cpp">
+      <Filter>core</Filter>
+    </ClCompile>
     <ClCompile Include="source\hook.cpp">
       <Filter>core\hook</Filter>
     </ClCompile>
@@ -219,6 +222,9 @@
       <Filter>core</Filter>
     </ClInclude>
     <ClInclude Include="source\dll_resources.hpp">
+      <Filter>core</Filter>
+    </ClInclude>
+    <ClInclude Include="source\dll_settings.hpp">
       <Filter>core</Filter>
     </ClInclude>
     <ClInclude Include="source\hook.hpp">

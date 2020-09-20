@@ -22,7 +22,8 @@
 #include <stb_image_resize.h>
 
 extern volatile long g_network_traffic;
-extern std::filesystem::path g_reshade_dll_path;
+extern std::filesystem::path g_reshade_container_path;
+extern std::filesystem::path g_reshade_config_path;
 extern std::filesystem::path g_target_executable_path;
 
 bool resolve_path(std::filesystem::path &path)
@@ -30,7 +31,7 @@ bool resolve_path(std::filesystem::path &path)
 	std::error_code ec;
 	// First convert path to an absolute path
 	// Ignore the working directory and instead start relative paths at the DLL location
-	path = std::filesystem::absolute(g_reshade_dll_path.parent_path() / path, ec);
+	path = std::filesystem::absolute(g_reshade_container_path / path, ec);
 	// Finally try to canonicalize the path too
 	if (auto canonical_path = std::filesystem::canonical(path, ec); !ec)
 		path = std::move(canonical_path);
@@ -85,7 +86,7 @@ reshade::runtime::runtime() :
 	_prev_preset_key_data(),
 	_next_preset_key_data(),
 	_configuration_path(g_reshade_config_path),
-	_screenshot_path(g_target_executable_path.parent_path())
+	_screenshot_path(g_reshade_container_path)
 {
 	_needs_update = check_for_update(_latest_version);
 
@@ -1181,7 +1182,7 @@ void reshade::runtime::load_config()
 
 	// Use default if the preset file does not exist yet
 	if (!resolve_preset_path(_current_preset_path))
-		_current_preset_path = g_target_executable_path.parent_path() / L"DefaultPreset.ini";
+		_current_preset_path = g_reshade_container_path / L"DefaultPreset.ini";
 
 	config.get("SCREENSHOTS", "ClearAlpha", _screenshot_clear_alpha);
 	config.get("SCREENSHOTS", "FileFormat", _screenshot_format);
@@ -1213,7 +1214,7 @@ void reshade::runtime::save_config() const
 	config.set("GENERAL", "PreprocessorDefinitions", _global_preprocessor_definitions);
 
 	// Use ReShade DLL directory as base for relative preset paths (see 'resolve_preset_path')
-	std::filesystem::path relative_preset_path = _current_preset_path.lexically_proximate(g_reshade_dll_path.parent_path());
+	std::filesystem::path relative_preset_path = _current_preset_path.lexically_proximate(g_reshade_container_path);
 	if (relative_preset_path.wstring().rfind(L"..", 0) != std::wstring::npos)
 		relative_preset_path = _current_preset_path; // Do not use relative path if preset is in a parent directory
 	config.set("GENERAL", "PresetPath", relative_preset_path);
@@ -1492,7 +1493,7 @@ void reshade::runtime::save_screenshot(const std::wstring &postfix, const bool s
 	filename += postfix;
 	filename += _screenshot_format == 0 ? L".bmp" : _screenshot_format == 1 ? L".png" : L".jpg";
 
-	std::filesystem::path screenshot_path = g_target_executable_path.parent_path() / _screenshot_path / filename;
+	std::filesystem::path screenshot_path = g_reshade_container_path / _screenshot_path / filename;
 
 	LOG(INFO) << "Saving screenshot to " << screenshot_path << " ...";
 

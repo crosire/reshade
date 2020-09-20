@@ -21,6 +21,7 @@
 static std::string g_window_state_path;
 extern volatile long g_network_traffic;
 extern std::filesystem::path g_reshade_dll_path;
+extern std::filesystem::path g_reshade_container_path;
 extern std::filesystem::path g_target_executable_path;
 
 static const ImVec4 COLOR_RED = ImColor(240, 100, 100);
@@ -1101,8 +1102,8 @@ void reshade::runtime::draw_ui_settings()
 
 		ImGui::Spacing();
 
-		modified |= imgui_path_list("Effect search paths", _effect_search_paths, _file_selection_path, g_reshade_dll_path.parent_path());
-		modified |= imgui_path_list("Texture search paths", _texture_search_paths, _file_selection_path, g_reshade_dll_path.parent_path());
+		modified |= imgui_path_list("Effect search paths", _effect_search_paths, _file_selection_path, g_reshade_container_path);
+		modified |= imgui_path_list("Texture search paths", _texture_search_paths, _file_selection_path, g_reshade_container_path);
 
 		if (ImGui::Button("Restart tutorial", ImVec2(ImGui::CalcItemWidth(), 0)))
 			_tutorial_index = 0;
@@ -1581,8 +1582,7 @@ void reshade::runtime::draw_ui_statistics()
 }
 void reshade::runtime::draw_ui_log()
 {
-	std::filesystem::path log_path = g_reshade_dll_path;
-	log_path.replace_extension(".log");
+	std::filesystem::path log_path = (g_reshade_container_path / g_reshade_dll_path.filename()).replace_extension(L".log");
 
 	if (ImGui::Button("Clear Log"))
 		// Close and open the stream again, which will clear the file too
