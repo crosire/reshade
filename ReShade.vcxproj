@@ -397,7 +397,6 @@
     <ClCompile Include="source\dll_log.cpp" />
     <ClCompile Include="source\dll_main.cpp" />
     <ClCompile Include="source\dll_resources.cpp" />
-    <ClCompile Include="source\dll_settings.cpp" />
     <ClCompile Include="source\dxgi\dxgi.cpp" />
     <ClCompile Include="source\dxgi\dxgi_d3d10.cpp" />
     <ClCompile Include="source\dxgi\dxgi_device.cpp" />
@@ -452,7 +451,6 @@
     <ClInclude Include="source\d3d9\state_block.hpp" />
     <ClInclude Include="source\dll_log.hpp" />
     <ClInclude Include="source\dll_resources.hpp" />
-    <ClInclude Include="source\dll_settings.hpp" />
     <ClInclude Include="source\dxgi\dxgi_device.hpp" />
     <ClInclude Include="source\dxgi\dxgi_swapchain.hpp" />
     <ClInclude Include="source\dxgi\format_utils.hpp" />

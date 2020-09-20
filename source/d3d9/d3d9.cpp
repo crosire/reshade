@@ -36,7 +36,7 @@ void dump_and_modify_present_parameters(D3DPRESENT_PARAMETERS &pp, IDirect3D9 *d
 	LOG(INFO) << "  | PresentationInterval                    | " << std::setw(39) << std::hex << pp.PresentationInterval << std::dec << " |";
 	LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
 
-	{ const reshade::ini_file config(g_reshade_config_path);
+	{ const reshade::ini_file config(g_reshade_base_path / L"ReShade.ini");
 
 		if (bool force_vsync;
 			config.get("D3D9", "ForceVSync", force_vsync) && force_vsync)

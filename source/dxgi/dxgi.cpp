@@ -59,7 +59,7 @@ static void dump_and_modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC &desc)
 	LOG(INFO) << "  | Flags                                   | " << std::setw(39) << std::hex << desc.Flags << std::dec << " |";
 	LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
 
-	{ const reshade::ini_file config(g_reshade_config_path);
+	{ const reshade::ini_file config(g_reshade_base_path / L"ReShade.ini");
 
 		if (bool force_windowed;
 			config.get("D3D9", "ForceWindowed", force_windowed) && force_windowed)
@@ -109,7 +109,7 @@ static void dump_and_modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC1 &desc, DXGI_SWA
 	LOG(INFO) << "  | Flags                                   | " << std::setw(39) << std::hex << desc.Flags << std::dec << " |";
 	LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
 
-	{ const reshade::ini_file config(g_reshade_config_path);
+	{ const reshade::ini_file config(g_reshade_base_path / L"ReShade.ini");
 
 		if (bool force_windowed;
 			config.get("DXGI", "ForceWindowed", force_windowed) && force_windowed)
@@ -224,7 +224,7 @@ static void init_reshade_runtime_d3d(T *&swapchain, UINT direct3d_version, const
 
 	if (swapchain_proxy != nullptr)
 	{
-		{ const reshade::ini_file config(g_reshade_config_path);
+		{ const reshade::ini_file config(g_reshade_base_path / L"ReShade.ini");
 
 			config.get("DXGI", "ForceVSync", swapchain_proxy->_force_vsync);
 			config.get("DXGI", "ForceResolution", swapchain_proxy->_force_resolution);
