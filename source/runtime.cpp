@@ -251,7 +251,9 @@ bool reshade::runtime::load_effect(const std::filesystem::path &path, size_t ind
 	effect.source_file = path;
 	effect.compiled = true;
 
-	if (!_effect_load_skipping || _load_option_disable_skipping)
+	if (_worker_threads.empty()) // Only skip during load_effects
+		effect.skipped = false;
+	else if (!_effect_load_skipping || _load_option_disable_skipping)
 		effect.skipped = false;
 	else if (std::vector<std::string> techniques; !preset.get({}, "Techniques", techniques))
 		effect.skipped = false;
