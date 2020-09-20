@@ -17,7 +17,6 @@
 #include <fstream>
 #include <algorithm>
 #include <shellapi.h>
-#include "std_string_ext.hpp"
 
 static std::string g_window_state_path;
 extern volatile long g_network_traffic;
@@ -2541,8 +2540,14 @@ void reshade::runtime::draw_technique_editor()
 	bool reload_required = false;
 
 	if (_effect_load_skipping_ui)
+	{
 		if (size_t skipped_effects = std::count_if(_effects.begin(), _effects.end(), [](const effect &effect) { return effect.skipped; }); skipped_effects > 0)
-			reload_required = ImGui::ButtonEx(std::format("Force load all effects (%lu remaining)", skipped_effects).c_str(), ImVec2(ImGui::GetWindowContentRegionWidth(), 0));
+		{
+			char buf[60];
+			ImFormatString(buf, ARRAYSIZE(buf), "Force load all effects (%lu remaining)", skipped_effects);
+			reload_required = ImGui::ButtonEx(buf, ImVec2(ImGui::GetWindowContentRegionWidth(), 0));
+		}
+	}
 
 	size_t hovered_technique_index = std::numeric_limits<size_t>::max();
 
