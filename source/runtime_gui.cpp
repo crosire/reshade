@@ -1478,7 +1478,7 @@ void reshade::runtime::draw_ui_statistics()
 				memory_size_unit = "KiB";
 			}
 
-			ImGui::TextColored(ImVec4(1, 1, 1, 1), "%s%s", texture.unique_name.c_str(), texture.shared ? " (Shared)" : "");
+			ImGui::TextColored(ImVec4(1, 1, 1, 1), "%s%s", texture.unique_name.c_str(), texture.shared.size() >= 2 ? " (Shared)" : "");
 			ImGui::Text("%ux%u | %u mipmap(s) | %s | %ld.%03ld %s",
 				texture.width,
 				texture.height,
@@ -1486,35 +1486,61 @@ void reshade::runtime::draw_ui_statistics()
 				texture_formats[static_cast<unsigned int>(texture.format)],
 				memory_view.quot, memory_view.rem, memory_size_unit);
 
-			std::string target_info = "Read only texture";
+			if (const std::string_view source_path = texture.annotation_as_string("source"); !source_path.empty())
+				ImGui::TextUnformatted(source_path.data(), source_path.data() + source_path.size());
+
+			size_t passes = 0;
+			std::vector<std::tuple<size_t, std::string, std::vector<std::string>>> references;
 			for (const auto &technique : _techniques)
 			{
-				if (technique.effect_index != texture.effect_index)
+				if (texture.shared.find(technique.effect_index) == texture.shared.cend())
 					continue;
+
+				auto &reference = references.emplace_back();
+				std::get<0>(reference) = technique.effect_index;
+				std::get<1>(reference) = technique.name + '@' + _effects[technique.effect_index].source_file.filename().u8string();
 
 				for (size_t pass_index = 0; pass_index < technique.passes.size(); ++pass_index)
 				{
-					const auto &pass_info = technique.passes[pass_index];
-
-					for (const auto &target : pass_info.render_target_names)
+					for (const std::string &target : technique.passes[pass_index].render_target_names)
 					{
-						if (target == texture.unique_name)
-						{
-							if (target_info[0] != 'W') // Check if this texture was written by another pass already
-								target_info = "Written in " + technique.name + " passes: ";
-							else
-								target_info += ", ";
+						if (target != texture.unique_name)
+							continue;
 
-							if (!pass_info.name.empty())
-								target_info += pass_info.name;
-							else
-								target_info += std::to_string(pass_index);
-						}
+						passes++;
+						std::get<2>(reference).emplace_back((technique.passes[pass_index].name.empty() ? std::to_string(pass_index + 1) : technique.passes[pass_index].name) + '@' + technique.name);
 					}
 				}
 			}
 
-			ImGui::TextUnformatted(target_info.c_str());
+			ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2(0.0f, 0.5f));
+			if (ImGui::ButtonEx(("Referenced by " + std::to_string(texture.shared.size()) + " techniques " + std::to_string(passes) + " passes ...").c_str(), ImVec2(single_image_width, 0)))
+				ImGui::OpenPopup("##references");
+			ImGui::PopStyleVar();
+
+			if (ImGui::BeginPopup("##references"))
+			{
+				bool is_open = false;
+				size_t effect_index = std::numeric_limits<size_t>::max();
+				for (const auto &pair : references)
+				{
+					if (effect_index != std::get<0>(pair))
+					{
+						effect_index = std::get<0>(pair);
+						is_open = ImGui::TreeNodeEx(_effects[effect_index].source_file.filename().u8string().c_str(), ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_NoTreePushOnOpen);
+					}
+					if (is_open)
+					{
+						for (const auto &pass : std::get<2>(pair))
+						{
+							ImGui::Dummy(ImVec2(_imgui_context->Style.IndentSpacing, 0.0f));
+							ImGui::SameLine(0.0f, 0.0f);
+							ImGui::TextUnformatted(pass.c_str(), pass.c_str() + pass.size());
+						}
+					}
+				}
+				ImGui::EndPopup();
+			}
 
 			if (bool check = _preview_texture == texture.impl && _preview_size[0] == 0; ImGui::RadioButton("Preview scaled", check)) {
 				_preview_size[0] = 0;
