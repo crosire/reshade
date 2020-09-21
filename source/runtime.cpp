@@ -239,9 +239,9 @@ void reshade::runtime::on_present()
 	_drawcalls = _vertices = 0;
 }
 
-bool reshade::runtime::load_effect(const std::filesystem::path &path, size_t index)
+bool reshade::runtime::load_effect(const std::filesystem::path &path, size_t effect_index)
 {
-	effect &effect = _effects[index]; // Safe to access this multi-threaded, since this is the only call working on this effect
+	effect &effect = _effects[effect_index]; // Safe to access this multi-threaded, since this is the only call working on this effect
 	const std::string effect_name = path.filename().u8string();
 	effect = {};
 	effect.compiled = true;
@@ -428,7 +428,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &path, size_t ind
 
 	for (uniform var : effect.module.uniforms)
 	{
-		var.effect_index = index;
+		var.effect_index = effect_index;
 
 		// Copy initial data into uniform storage area
 		reset_uniform_value(var);
@@ -474,7 +474,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &path, size_t ind
 
 	for (texture texture : effect.module.textures)
 	{
-		texture.effect_index = index;
+		texture.effect_index = effect_index;
 
 		{	const std::lock_guard<std::mutex> lock(_reload_mutex); // Protect access to global texture list
 
@@ -511,7 +511,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &path, size_t ind
 					}
 				}
 
-				existing_texture->shared = true;
+				existing_texture->shared.emplace(effect_index);
 
 				// Always make shared textures render targets, since they may be used as such in a different effect
 				existing_texture->render_target = true;
@@ -539,7 +539,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &path, size_t ind
 						std::replace(std::begin(pass_info.render_target_names), std::end(pass_info.render_target_names),
 							texture.unique_name, existing_texture->unique_name);
 
-				existing_texture->shared = true;
+				existing_texture->shared.emplace(effect_index);
 				continue;
 			}
 		}
@@ -551,12 +551,13 @@ bool reshade::runtime::load_effect(const std::filesystem::path &path, size_t ind
 		else if (!texture.semantic.empty())
 			effect.errors += "warning: " + texture.unique_name + ": unknown semantic '" + texture.semantic + "'\n";
 
+		texture.shared.emplace(effect_index);
 		new_textures.push_back(std::move(texture));
 	}
 
 	for (technique technique : effect.module.techniques)
 	{
-		technique.effect_index = index;
+		technique.effect_index = effect_index;
 
 		technique.hidden = technique.annotation_as_int("hidden") != 0;
 
@@ -712,7 +713,7 @@ void reshade::runtime::unload_effect(size_t index)
 	// Destroy textures belonging to this effect
 	_textures.erase(std::remove_if(_textures.begin(), _textures.end(),
 		[this, index](texture &tex) {
-			if (tex.effect_index == index && !tex.shared) {
+			if (tex.shared.erase(index), tex.shared.empty()) {
 				destroy_texture(tex);
 				return true;
 			}
@@ -813,14 +814,14 @@ void reshade::runtime::update_and_render_effects()
 		for (texture &texture : _textures)
 		{
 			// Always create shared textures, since they may be in use by this effect already
-			if (texture.impl != nullptr || (texture.effect_index != effect_index && !texture.shared))
-				continue;
-
-			if (!init_texture(texture))
+			if (texture.impl == nullptr && (texture.effect_index == effect_index || texture.shared.size() >= 2))
 			{
-				success = false;
-				effect.errors += "Failed to create texture " + texture.unique_name;
-				break;
+				if (!init_texture(texture))
+				{
+					success = false;
+					effect.errors += "Failed to create texture " + texture.unique_name;
+					break;
+				}
 			}
 		}
 
@@ -851,7 +852,7 @@ void reshade::runtime::update_and_render_effects()
 		{
 			// Destroy all textures belonging to this effect
 			for (texture &tex : _textures)
-				if (tex.effect_index == effect_index && !tex.shared)
+				if (tex.effect_index == effect_index && tex.shared.size() <= 1)
 					destroy_texture(tex);
 			// Disable all techniques belonging to this effect
 			for (technique &tech : _techniques)

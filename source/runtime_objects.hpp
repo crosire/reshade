@@ -6,6 +6,7 @@
 #pragma once
 
 #include "effect_module.hpp"
+#include <unordered_set>
 
 namespace reshade
 {
@@ -102,7 +103,7 @@ namespace reshade
 		void *impl = nullptr;
 		size_t effect_index = std::numeric_limits<size_t>::max();
 		texture_reference impl_reference = texture_reference::none;
-		bool shared = false;
+		std::unordered_set<size_t> shared;
 		bool loaded = false;
 	};
 
