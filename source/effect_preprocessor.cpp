@@ -156,15 +156,16 @@ std::vector<std::filesystem::path> reshadefx::preprocessor::included_files() con
 		files.push_back(std::filesystem::u8path(it.first));
 	return files;
 }
-std::vector<std::pair<std::string, std::string>> reshadefx::preprocessor::used_macro_definitions() const
+std::vector<std::pair<std::string, reshadefx::preprocessor::macro_detection_info>> reshadefx::preprocessor::used_macro_definitions() const
 {
-	std::vector<std::pair<std::string, std::string>> defines;
+	std::vector<std::pair<std::string, macro_detection_info>> defines;
 	defines.reserve(_used_macros.size());
-	for (const std::string &name : _used_macros)
-		if (const auto it = _macros.find(name);
-			// Do not include function-like macros, since they are more likely to contain a complex replacement list
-			it != _macros.end() && !it->second.is_function_like)
-			defines.push_back({ name, it->second.replacement_list });
+	for (const auto &macro : _used_macros)
+		// Do not include function-like macros, since they are more likely to contain a complex replacement list
+		if (const auto it = _macros.find(macro.first); it == _macros.end())
+			defines.emplace_back(macro.first, macro_detection_info{ macro.second ,false });
+		else if (!it->second.is_function_like)
+			defines.emplace_back(macro.first, macro_detection_info{ macro.second, true, it->second.replacement_list });
 	return defines;
 }
 
@@ -513,7 +514,7 @@ void reshadefx::preprocessor::parse_ifdef()
 
 	_if_stack.push_back(std::move(level));
 	if (!parent_skipping) // Only add if this #ifdef is active
-		_used_macros.emplace(_token.literal_as_string);
+		_used_macros.try_emplace(_token.literal_as_string, _token.location);
 }
 void reshadefx::preprocessor::parse_ifndef()
 {
@@ -535,7 +536,7 @@ void reshadefx::preprocessor::parse_ifndef()
 
 	_if_stack.push_back(std::move(level));
 	if (!parent_skipping) // Only add if this #ifndef is active
-		_used_macros.emplace(_token.literal_as_string);
+		_used_macros.try_emplace(_token.literal_as_string, _token.location);
 }
 void reshadefx::preprocessor::parse_elif()
 {
@@ -873,6 +874,7 @@ bool reshadefx::preprocessor::evaluate_expression()
 					return false;
 
 				rpn[rpn_index++] = { _macros.find(macro_name) != _macros.end() ? 1 : 0, false };
+				_used_macros.try_emplace(macro_name, _token.location);
 				continue;
 			}
 

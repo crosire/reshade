@@ -193,8 +193,8 @@ namespace reshadefx
 		texture_address_mode address_u = texture_address_mode::clamp;
 		texture_address_mode address_v = texture_address_mode::clamp;
 		texture_address_mode address_w = texture_address_mode::clamp;
-		float min_lod = -3.402823466e+38f; // FLT_MAX
-		float max_lod = +3.402823466e+38f;
+		float min_lod = std::numeric_limits<float>::lowest();
+		float max_lod = std::numeric_limits<float>::max();
 		float lod_bias = 0.0f;
 		uint8_t srgb = false;
 	};

@@ -15,16 +15,15 @@ extern std::filesystem::path g_reshade_dll_path;
 extern std::filesystem::path g_reshade_base_path;
 extern std::filesystem::path g_target_executable_path;
 
-inline void trim(std::string &str, const char *chars = " \t")
+inline std::string_view trim(std::string_view str, const char chars[] = " \t") noexcept
 {
-	str.erase(0, str.find_first_not_of(chars));
-	str.erase(str.find_last_not_of(chars) + 1);
-}
-inline std::string trim(const std::string &str, const char *chars = " \t")
-{
-	std::string res(str);
-	trim(res, chars);
-	return res;
+	if (const size_t found = str.find_last_not_of(chars); found != std::string::npos)
+		str = str.substr(0, found + 1);
+	if (const size_t found = str.find_first_not_of(chars); found != std::string::npos)
+		str = str.substr(found);
+	else
+		str = str.substr(str.size());
+	return str;
 }
 
 namespace reshade
@@ -88,6 +87,26 @@ namespace reshade
 			for (size_t i = 0; i < it2->second.size(); ++i)
 				values[i] = convert<T>(it2->second, i);
 			return true;
+		}
+
+		void get(std::vector<std::string> &sections) const
+		{
+			sections.clear();
+			sections.reserve(_sections.size());
+
+			for (const auto &section : _sections)
+				sections.push_back(section.first);
+		}
+		void get(const std::string &section, std::vector<std::pair<std::string, std::vector<std::string>>> &pairs) const
+		{
+			pairs.clear();
+
+			const auto it1 = _sections.find(section);
+			if (it1 == _sections.end())
+				return;
+			pairs.reserve(it1->second.size());
+			for (const auto &it2 : it1->second)
+				pairs.push_back(std::make_pair(it2.first, it2.second));
 		}
 
 		template <typename T>
@@ -170,6 +189,15 @@ namespace reshade
 		static bool flush_cache();
 		static bool flush_cache(const std::filesystem::path &path);
 
+		/// <summary>
+		/// Describes a single value in an INI file.
+		/// </summary>
+		using value = std::vector<std::string>;
+		/// <summary>
+		/// Describes a section of multiple key/value pairs in an INI file.
+		/// </summary>
+		using section = std::unordered_map<std::string, value>;
+
 	private:
 		void load();
 		bool save();
@@ -231,15 +259,6 @@ namespace reshade
 		{
 			return i < values.size() ? std::filesystem::u8path(values[i]) : std::filesystem::path();
 		}
-
-		/// <summary>
-		/// Describes a single value in an INI file.
-		/// </summary>
-		using value = std::vector<std::string>;
-		/// <summary>
-		/// Describes a section of multiple key/value pairs in an INI file.
-		/// </summary>
-		using section = std::unordered_map<std::string, value>;
 
 		bool _modified = false;
 		std::filesystem::path _path;

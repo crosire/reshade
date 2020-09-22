@@ -16,6 +16,8 @@
 #include <thread>
 #include <cassert>
 #include <algorithm>
+#include <map>
+#include <set>
 #include <stb_image.h>
 #include <stb_image_dds.h>
 #include <stb_image_write.h>
@@ -240,88 +242,192 @@ void reshade::runtime::on_present()
 	_drawcalls = _vertices = 0;
 }
 
-bool reshade::runtime::load_effect(const std::filesystem::path &path, size_t index)
+size_t reshade::runtime::load_effect(reshade::ini_file &preset, std::filesystem::path source_file, bool preprocess_required)
 {
-	effect &effect = _effects[index]; // Safe to access this multi-threaded, since this is the only call working on this effect
-	const std::string effect_name = path.filename().u8string();
-	effect = {};
-	effect.compiled = true;
-	effect.source_file = path;
+	const std::filesystem::path effect_name = source_file.filename();
+	const std::string unique_name = source_file.filename().u8string();
 
-	if (_effect_load_skipping && !_load_option_disable_skipping && !_worker_threads.empty() && !_current_preset_path.empty()) // Only skip during 'load_effects'
+	std::error_code ec;
+
+	// Load, pre-process and compile the source file
+	std::set<std::filesystem::path> includes;
+	if (source_file.is_absolute())
+		includes.emplace(source_file.parent_path());
+
+	for (std::filesystem::path include_path : _effect_search_paths)
+		if (resolve_path(include_path))
+			includes.emplace(std::move(include_path));
+
+	std::map<std::string, std::string> macros;
+
+	macros.emplace("__RESHADE__", std::to_string(RESHADE_VERSION));
+	macros.emplace("__RESHADE_PERFORMANCE_MODE__", _performance_mode ? "1" : "0");
+	macros.emplace("__VENDOR__", std::to_string(_vendor_id));
+	macros.emplace("__DEVICE__", std::to_string(_device_id));
+	macros.emplace("__RENDERER__", std::to_string(_renderer_id));
+	macros.emplace("__APPLICATION__", std::to_string( // Truncate hash to 32-bit, since lexer currently only supports 32-bit numbers anyway
+		std::hash<std::string>()(g_target_executable_path.stem().u8string()) & 0xFFFFFFFF));
+	macros.emplace("BUFFER_WIDTH", std::to_string(_width));
+	macros.emplace("BUFFER_HEIGHT", std::to_string(_height));
+	macros.emplace("BUFFER_RCP_WIDTH", "(1.0 / BUFFER_WIDTH)");
+	macros.emplace("BUFFER_RCP_HEIGHT", "(1.0 / BUFFER_HEIGHT)");
+	macros.emplace("BUFFER_COLOR_DEPTH", std::to_string(_color_bit_depth));
+
+	std::vector<std::string> preprocessor_definitions;
+
+	for (const std::string &definition : _preset_preprocessor_definitions)
+		preprocessor_definitions.push_back(definition);
+
+	for (const std::string &definition : _global_preprocessor_definitions)
+		preprocessor_definitions.push_back(definition);
+
+	for (const auto &definition : preprocessor_definitions)
 	{
-		const ini_file preset(_current_preset_path); // ini_file::load_cache is not thread-safe, so load from file here
+		if (definition.empty() || definition == "=")
+			continue; // Skip invalid definitions
 
+		const size_t equals_index = definition.find('=');
+		if (equals_index != std::string::npos)
+			macros.try_emplace(std::string(definition, 0, equals_index), std::string(definition, equals_index + 1));
+		else
+			macros.try_emplace(definition, "1");
+	}
+
+	std::string attributes;
+
+	for (const auto &include : includes)
+	{
+		attributes.append(include.u8string());
+		for (const auto &entry : std::filesystem::directory_iterator(include, std::filesystem::directory_options::skip_permission_denied, ec))
+			if (const std::wstring_view filename(entry.path().c_str() + include.native().size() + 1, entry.path().native().size() - include.native().size() - 1);
+				filename == effect_name.native() || (filename.size() >= 4 && filename.compare(filename.size() - 4, 4, L".fxh") == 0))
+				attributes.append(1, ','), utf8::unchecked::utf16to8(filename.cbegin(), filename.cend(), std::back_inserter(attributes)),
+				attributes.append(1, '?').append(std::to_string(entry.last_write_time(ec).time_since_epoch().count()));
+		attributes.append(1, ';');
+	}
+
+	for (const auto &macro : macros)
+		attributes.append(macro.first).append(1, '=').append(macro.second).append(1, ';');
+
+	const size_t source_id = std::hash<std::string>()(attributes);
+
+	// Guard access to shared variables
+	_reload_mutex.lock();
+
+	size_t effect_index = std::numeric_limits<decltype(effect_index)>::max();
+
+	// For loading an effect or reprocess migrated effect
+	for (size_t i = 0; i < _effects.size() && effect_index == std::numeric_limits<decltype(effect_index)>::max(); ++i)
+		if (const effect &effect = _effects[i]; effect.unique_name == unique_name && effect.source_file == source_file)
+			effect_index = i;
+
+	// For loading all effects
+	for (size_t i = 0; i < _effects.size() && effect_index == std::numeric_limits<decltype(effect_index)>::max(); ++i)
+		if (_effects[i].source_id == 0)
+			effect_index = i;
+
+	if (effect_index == std::numeric_limits<decltype(effect_index)>::max())
+	{
+		assert(_reload_remaining_effects == 1);
+
+		effect_index = _effects.size();
+		_effects.resize(_effects.size() + 1);
+	}
+
+	decltype(effect::source_id) recent_id = 0;
+	for (size_t i = 0; i < _previous_effects.size() && recent_id == 0; ++i)
+		if (const effect &effect = _previous_effects[i]; effect.unique_name == unique_name)
+			recent_id = effect.source_id;
+
+	effect &effect = _effects[effect_index];
+
+	if (const auto it = recent_id == source_id ? std::as_const(_recent_effects).find(recent_id) : _recent_effects.cend();
+		it != _recent_effects.cend() && (!preprocess_required || it->second.preprocessed))
+		effect = it->second;
+
+	effect.source_file = source_file;
+	effect.source_id = source_id;
+	effect.unique_name = unique_name;
+
+	if (!_current_preset_path.empty() && !_worker_threads.empty() && // Only skip during 'load_effects'
+		!_load_option_disable_skipping && _effect_load_skipping &&
+		!effect.restored && !effect.compiled && !effect.preprocessed)
+	{
 		if (std::vector<std::string> techniques;
 			preset.get({}, "Techniques", techniques))
 		{
-			effect.skipped = std::find_if(techniques.cbegin(), techniques.cend(), [&effect_name](const std::string &technique) {
+			effect.skipped = std::find_if(techniques.cbegin(), techniques.cend(), [&unique_name](const std::string &technique) {
 				const size_t at_pos = technique.find('@') + 1;
-				return at_pos == 0 || technique.find(effect_name, at_pos) == at_pos; }) == techniques.cend();
+				return at_pos == 0 || technique.find(unique_name, at_pos) == at_pos; }) == techniques.cend();
+		}
+	}
 
-			if (effect.skipped)
+	_reload_mutex.unlock();
+
+	if (effect.skipped)
+		return _reload_remaining_effects--, effect_index;
+
+	std::string source, errors;
+	if (!effect.compiled || !effect.preprocessed)
+	{
+		effect.source_file = source_file;
+
+		if (effect.cached = load_source_cache(source_file, source_id, source); !effect.cached || preprocess_required)
+		{
+			reshadefx::preprocessor pp;
+
+			// Add some conversion macros for compatibility with older versions of ReShade
+			pp.append_string(
+				"#define tex2Dgather(s, t, c) tex2Dgather##c(s, t)\n"
+				"#define tex2Dgather0 tex2DgatherR\n"
+				"#define tex2Dgather1 tex2DgatherG\n"
+				"#define tex2Dgather2 tex2DgatherB\n"
+				"#define tex2Dgather3 tex2DgatherA\n"
+				"#define tex2Dgatheroffset(s, t, o, c) tex2Dgather##c##offset(s, t, o)\n"
+				"#define tex2Dgather0offset tex2DgatherRoffset\n"
+				"#define tex2Dgather1offset tex2DgatherGoffset\n"
+				"#define tex2Dgather2offset tex2DgatherBoffset\n"
+				"#define tex2Dgather3offset tex2DgatherAoffset\n");
+
+			for (const auto &include : includes)
+				pp.add_include_path(include);
+
+			for (const auto &macro : macros)
+				pp.add_macro_definition(macro.first, macro.second.empty() ? "1" : macro.second);
+
+			if (effect.preprocessed = pp.append_file(source_file); effect.preprocessed)
 			{
-				_reload_remaining_effects--;
-				return false;
+				source = std::move(pp.output());
+
+				if (!effect.cached)
+					effect.cached = save_source_cache(source_file, source_id, source);
+			}
+			else
+			{
+				errors += pp.errors();
+			}
+			if (effect.preprocessed)
+			{
+				// Keep track of used preprocessor definitions (so they can be displayed in the GUI)
+				effect.definitions.clear();
+
+				for (const auto &definition : pp.used_macro_definitions())
+				{
+					if (definition.first.size() <= 4 || definition.first[0] == '_' || !definition.first.compare(0, 8, "RESHADE_") || !definition.first.compare(0, 7, "BUFFER_"))
+						continue;
+
+					effect.definitions.push_back(std::make_pair(definition.first, reshadefx::preprocessor::macro_detection_info{ definition.second.location, definition.second.has_value, std::string(trim(std::string_view(definition.second.value))) }));
+				}
+
+				// Keep track of included files
+				effect.included_files = pp.included_files();
+				std::sort(effect.included_files.begin(), effect.included_files.end()); // Sort file names alphabetically
 			}
 		}
 	}
 
-	{ // Load, pre-process and compile the source file
-		reshadefx::preprocessor pp;
-		if (path.is_absolute())
-			pp.add_include_path(path.parent_path());
-
-		for (std::filesystem::path include_path : _effect_search_paths)
-			if (resolve_path(include_path))
-				pp.add_include_path(include_path);
-
-		pp.add_macro_definition("__RESHADE__", std::to_string(VERSION_MAJOR * 10000 + VERSION_MINOR * 100 + VERSION_REVISION));
-		pp.add_macro_definition("__RESHADE_PERFORMANCE_MODE__", _performance_mode ? "1" : "0");
-		pp.add_macro_definition("__VENDOR__", std::to_string(_vendor_id));
-		pp.add_macro_definition("__DEVICE__", std::to_string(_device_id));
-		pp.add_macro_definition("__RENDERER__", std::to_string(_renderer_id));
-		pp.add_macro_definition("__APPLICATION__", std::to_string( // Truncate hash to 32-bit, since lexer currently only supports 32-bit numbers anyway
-			std::hash<std::string>()(g_target_executable_path.stem().u8string()) & 0xFFFFFFFF));
-		pp.add_macro_definition("BUFFER_WIDTH", std::to_string(_width));
-		pp.add_macro_definition("BUFFER_HEIGHT", std::to_string(_height));
-		pp.add_macro_definition("BUFFER_RCP_WIDTH", "(1.0 / BUFFER_WIDTH)");
-		pp.add_macro_definition("BUFFER_RCP_HEIGHT", "(1.0 / BUFFER_HEIGHT)");
-		pp.add_macro_definition("BUFFER_COLOR_BIT_DEPTH", std::to_string(_color_bit_depth));
-
-		std::vector<std::string> preprocessor_definitions = _global_preprocessor_definitions;
-		preprocessor_definitions.insert(preprocessor_definitions.end(), _preset_preprocessor_definitions.begin(), _preset_preprocessor_definitions.end());
-
-		for (const auto &definition : preprocessor_definitions)
-		{
-			if (definition.empty())
-				continue; // Skip invalid definitions
-
-			const size_t equals_index = definition.find('=');
-			if (equals_index != std::string::npos)
-				pp.add_macro_definition(
-					definition.substr(0, equals_index),
-					definition.substr(equals_index + 1));
-			else
-				pp.add_macro_definition(definition);
-		}
-
-		// Add some conversion macros for compatibility with older versions of ReShade
-		pp.append_string(
-			"#define tex2Dgather(s, t, c) tex2Dgather##c(s, t)\n"
-			"#define tex2Dgather0 tex2DgatherR\n"
-			"#define tex2Dgather1 tex2DgatherG\n"
-			"#define tex2Dgather2 tex2DgatherB\n"
-			"#define tex2Dgather3 tex2DgatherA\n"
-			"#define tex2Dgatheroffset(s, t, o, c) tex2Dgather##c##offset(s, t, o)\n"
-			"#define tex2Dgather0offset tex2DgatherRoffset\n"
-			"#define tex2Dgather1offset tex2DgatherGoffset\n"
-			"#define tex2Dgather2offset tex2DgatherBoffset\n"
-			"#define tex2Dgather3offset tex2DgatherAoffset\n");
-
-		if (!pp.append_file(path))
-			effect.compiled = false;
-
+	if (!effect.compiled && !source.empty())
+	{
 		unsigned shader_model;
 		if (_renderer_id == 0x9000)
 			shader_model = 30; // D3D9
@@ -345,139 +451,103 @@ bool reshade::runtime::load_effect(const std::filesystem::path &path, size_t ind
 		reshadefx::parser parser;
 
 		// Compile the pre-processed source code (try the compile even if the preprocessor step failed to get additional error information)
-		if (!parser.parse(std::move(pp.output()), codegen.get()) || !effect.compiled)
-		{
-			LOG(ERROR) << "Failed to compile " << path << ":\n" << pp.errors() << parser.errors();
-			effect.compiled = false;
-		}
+		effect.compiled = parser.parse(source, codegen.get());
 
-		// Append preprocessor and parser errors to the error list
-		effect.errors = std::move(pp.errors()) + std::move(parser.errors());
-
-		// Keep track of used preprocessor definitions (so they can be displayed in the GUI)
-		for (const auto &definition : pp.used_macro_definitions())
-		{
-			if (definition.first.size() <= 10 || definition.first[0] == '_' || !definition.first.compare(0, 8, "RESHADE_") || !definition.first.compare(0, 7, "BUFFER_"))
-				continue;
-
-			effect.definitions.push_back({ definition.first, trim(definition.second) });
-		}
-
-		// Keep track of included files
-		effect.included_files = pp.included_files();
-		std::sort(effect.included_files.begin(), effect.included_files.end()); // Sort file names alphabetically
+		errors += parser.errors();
 
 		// Write result to effect module
 		codegen->write_result(effect.module);
-	}
 
-	// Fill all specialization constants with values from the current preset
-	if (_performance_mode && !_current_preset_path.empty() && effect.compiled)
-	{
-		const ini_file preset(_current_preset_path); // ini_file::load_cache is not thread-safe, so load from file here
-
-		for (reshadefx::uniform_info &constant : effect.module.spec_constants)
+		// Copy detected variables to effect
+		if (effect.compiled)
 		{
-			effect.preamble += "#define SPEC_CONSTANT_" + constant.name + ' ';
+			// Create space for all variables (aligned to 16 bytes)
+			effect.uniform_data_storage.resize((effect.module.total_uniform_size + 15) & ~15);
 
-			switch (constant.type.base)
+			assert(effect.uniforms.empty());
+
+			for (const reshadefx::uniform_info &info : effect.module.uniforms)
 			{
-			case reshadefx::type::t_int:
-				preset.get(effect_name, constant.name, constant.initializer_value.as_int);
-				break;
-			case reshadefx::type::t_bool:
-			case reshadefx::type::t_uint:
-				preset.get(effect_name, constant.name, constant.initializer_value.as_uint);
-				break;
-			case reshadefx::type::t_float:
-				preset.get(effect_name, constant.name, constant.initializer_value.as_float);
-				break;
+				uniform &var = effect.uniforms.emplace_back(info);
+				var.effect_index = effect_index;
+
+				if (info.offset == std::numeric_limits<decltype(info.offset)>::max())
+					continue;
+
+				// Copy initial data into uniform storage area
+				reset_uniform_value(var);
+
+				const std::string_view special = var.annotation_as_string("source");
+				if (special.empty()) /* Ignore if annotation is missing */;
+				else if (special == "frametime")
+					var.special = special_uniform::frame_time;
+				else if (special == "framecount")
+					var.special = special_uniform::frame_count;
+				else if (special == "random")
+					var.special = special_uniform::random;
+				else if (special == "pingpong")
+					var.special = special_uniform::ping_pong;
+				else if (special == "date")
+					var.special = special_uniform::date;
+				else if (special == "timer")
+					var.special = special_uniform::timer;
+				else if (special == "key")
+					var.special = special_uniform::key;
+				else if (special == "mousepoint")
+					var.special = special_uniform::mouse_point;
+				else if (special == "mousedelta")
+					var.special = special_uniform::mouse_delta;
+				else if (special == "mousebutton")
+					var.special = special_uniform::mouse_button;
+				else if (special == "mousewheel")
+					var.special = special_uniform::mouse_wheel;
+				else if (special == "freepie")
+					var.special = special_uniform::freepie;
+				else if (special == "bufready_depth")
+					var.special = special_uniform::bufready_depth;
+#if RESHADE_GUI
+				else if (special == "overlay_open")
+					var.special = special_uniform::overlay_open;
+#endif
 			}
-
-			// Check if this is a split specialization constant and move data accordingly
-			if (constant.type.is_scalar() && constant.offset != 0)
-				constant.initializer_value.as_uint[0] = constant.initializer_value.as_uint[constant.offset];
-
-			for (unsigned int i = 0; i < constant.type.components(); ++i)
-			{
-				switch (constant.type.base)
-				{
-				case reshadefx::type::t_bool:
-					effect.preamble += constant.initializer_value.as_uint[i] ? "true" : "false";
-					break;
-				case reshadefx::type::t_int:
-					effect.preamble += std::to_string(constant.initializer_value.as_int[i]);
-					break;
-				case reshadefx::type::t_uint:
-					effect.preamble += std::to_string(constant.initializer_value.as_uint[i]);
-					break;
-				case reshadefx::type::t_float:
-					effect.preamble += std::to_string(constant.initializer_value.as_float[i]);
-					break;
-				}
-
-				if (i + 1 < constant.type.components())
-					effect.preamble += ", ";
-			}
-
-			effect.preamble += '\n';
 		}
 	}
 
-	// Create space for all variables (aligned to 16 bytes)
-	effect.uniform_data_storage.resize((effect.module.total_uniform_size + 15) & ~15);
+	// Guard access to shared variables
+	_reload_mutex.lock();
 
-	for (uniform var : effect.module.uniforms)
+	// Save results to recent effects
+	if (effect.compiled)
 	{
-		var.effect_index = index;
-
-		// Copy initial data into uniform storage area
-		reset_uniform_value(var);
-
-		const std::string_view special = var.annotation_as_string("source");
-		if (special.empty()) /* Ignore if annotation is missing */;
-		else if (special == "frametime")
-			var.special = special_uniform::frame_time;
-		else if (special == "framecount")
-			var.special = special_uniform::frame_count;
-		else if (special == "random")
-			var.special = special_uniform::random;
-		else if (special == "pingpong")
-			var.special = special_uniform::ping_pong;
-		else if (special == "date")
-			var.special = special_uniform::date;
-		else if (special == "timer")
-			var.special = special_uniform::timer;
-		else if (special == "key")
-			var.special = special_uniform::key;
-		else if (special == "mousepoint")
-			var.special = special_uniform::mouse_point;
-		else if (special == "mousedelta")
-			var.special = special_uniform::mouse_delta;
-		else if (special == "mousebutton")
-			var.special = special_uniform::mouse_button;
-		else if (special == "mousewheel")
-			var.special = special_uniform::mouse_wheel;
-		else if (special == "freepie")
-			var.special = special_uniform::freepie;
-		else if (special == "overlay_open")
-			var.special = special_uniform::overlay_open;
-		else if (special == "bufready_depth")
-			var.special = special_uniform::bufready_depth;
-
-		effect.uniforms.push_back(std::move(var));
+		effect.restored = false;
+		_recent_effects[source_id] = effect;
+	}
+	else if (const auto it = recent_id == 0 ? _recent_effects.cend() : std::as_const(_recent_effects).find(recent_id);
+		it != _recent_effects.cend())
+	{
+		effect = it->second;
+		effect.restored = true;
+		effect.source_file = source_file;
+		effect.source_id = source_id;
+		effect.unique_name = unique_name;
+	}
+	else
+	{
+		effect = {};
 	}
 
-	std::vector<texture> new_textures;
-	new_textures.reserve(effect.module.textures.size());
-	std::vector<technique> new_techniques;
-	new_techniques.reserve(effect.module.techniques.size());
+	// Append preprocessor and parser errors to the error list
+	effect.errors = std::move(errors);
 
-	for (texture texture : effect.module.textures)
+	if (effect.compiled)
 	{
-		texture.effect_index = index;
+		// Refresh to current global state
+		for (uniform &variable : effect.uniforms)
+			variable.effect_index = effect_index;
 
-		{	const std::lock_guard<std::mutex> lock(_reload_mutex); // Protect access to global texture list
+		for (texture texture : effect.module.textures)
+		{
+			texture.effect_index = effect_index;
 
 			// Try to share textures with the same name across effects
 			if (const auto existing_texture = std::find_if(_textures.begin(), _textures.end(),
@@ -488,17 +558,26 @@ bool reshade::runtime::load_effect(const std::filesystem::path &path, size_t ind
 				if (texture.semantic.empty() != (existing_texture->impl_reference == texture_reference::none))
 				{
 					effect.errors += "error: " + texture.unique_name + ": another effect (";
-					effect.errors += _effects[existing_texture->effect_index].source_file.filename().u8string();
+					effect.errors += _effects[existing_texture->effect_index].unique_name;
 					effect.errors += ") already created a texture with the same name but different usage; rename the variable to fix this error\n";
 					effect.compiled = false;
-					break;
 				}
-				else if (texture.semantic.empty() && !existing_texture->matches_description(texture))
+				if (texture.semantic.empty() && !existing_texture->matches_description(texture))
 				{
 					effect.errors += "warning: " + texture.unique_name + ": another effect (";
-					effect.errors += _effects[existing_texture->effect_index].source_file.filename().u8string();
+					effect.errors += _effects[existing_texture->effect_index].unique_name;
 					effect.errors += ") already created a texture with the same name but different dimensions; textures are shared across all effects, so either rename the variable or adjust the dimensions so they match\n";
 				}
+				if (const std::string_view source_a = existing_texture->annotation_as_string("source"), source_b = texture.annotation_as_string("source");
+					texture.semantic.empty() && !(source_a.empty() || source_b.empty() || source_a == source_b))
+				{
+					effect.errors += "warning: " + texture.unique_name + ": another effect (";
+					effect.errors += _effects[existing_texture->effect_index].unique_name;
+					effect.errors += ") already created a texture with another image file; textures are shared across all effects, so either rename the variable or adjust the path so they match\n";
+				}
+
+				if (!effect.compiled)
+					break;
 
 				if (_color_bit_depth != 8)
 				{
@@ -507,7 +586,6 @@ bool reshade::runtime::load_effect(const std::filesystem::path &path, size_t ind
 						if (sampler_info.srgb && sampler_info.texture_name == texture.unique_name)
 						{
 							effect.errors += "error: " + sampler_info.unique_name + ": texture does not support sRGB sampling (back buffer format is not RGBA8)";
-							effect.compiled = false;
 						}
 					}
 				}
@@ -519,69 +597,72 @@ bool reshade::runtime::load_effect(const std::filesystem::path &path, size_t ind
 				existing_texture->storage_access = true;
 				continue;
 			}
-		}
 
-		if (texture.annotation_as_int("pooled"))
-		{
-			const std::lock_guard<std::mutex> lock(_reload_mutex);
-
-			// Try to find another pooled texture to share with
-			if (const auto existing_texture = std::find_if(_textures.begin(), _textures.end(),
-				[&texture](const auto &item) { return item.annotation_as_int("pooled") && item.matches_description(texture); });
-				existing_texture != _textures.end())
+			if (texture.annotation_as_int("pooled"))
 			{
-				// Overwrite referenced texture in samplers with the pooled one
-				for (auto &sampler_info : effect.module.samplers)
-					if (sampler_info.texture_name == texture.unique_name)
-						sampler_info.texture_name  = existing_texture->unique_name;
-				// Overwrite referenced texture in render targets with the pooled one
-				for (auto &technique_info : effect.module.techniques)
-					for (auto &pass_info : technique_info.passes)
-						std::replace(std::begin(pass_info.render_target_names), std::end(pass_info.render_target_names),
-							texture.unique_name, existing_texture->unique_name);
+				// Try to find another pooled texture to share with
+				if (const auto existing_texture = std::find_if(_textures.begin(), _textures.end(),
+					[&texture](const auto &item) { return item.annotation_as_int("pooled") && item.matches_description(texture); });
+					existing_texture != _textures.end())
+				{
+					// Overwrite referenced texture in samplers with the pooled one
+					for (auto &sampler_info : effect.module.samplers)
+						if (sampler_info.texture_name == texture.unique_name)
+							sampler_info.texture_name = existing_texture->unique_name;
+					// Overwrite referenced texture in render targets with the pooled one
+					for (auto &technique_info : effect.module.techniques)
+						for (auto &pass_info : technique_info.passes)
+							std::replace(std::begin(pass_info.render_target_names), std::end(pass_info.render_target_names),
+								texture.unique_name, existing_texture->unique_name);
 
-				existing_texture->shared = true;
-				continue;
+					existing_texture->shared = true;
+					continue;
+				}
 			}
+
+			if (texture.semantic == "COLOR")
+				texture.impl_reference = texture_reference::back_buffer;
+			else if (texture.semantic == "DEPTH")
+				texture.impl_reference = texture_reference::depth_buffer;
+			else if (!texture.semantic.empty())
+				effect.errors += "warning: " + texture.unique_name + ": unknown semantic '" + texture.semantic + "'\n";
+
+			_textures.emplace_back(std::move(texture));
 		}
 
-		if (texture.semantic == "COLOR")
-			texture.impl_reference = texture_reference::back_buffer;
-		else if (texture.semantic == "DEPTH")
-			texture.impl_reference = texture_reference::depth_buffer;
-		else if (!texture.semantic.empty())
-			effect.errors += "warning: " + texture.unique_name + ": unknown semantic '" + texture.semantic + "'\n";
+		for (reshadefx::technique_info &info : effect.module.techniques)
+		{
+			technique &technique = _techniques.emplace_back(info);
+			technique.effect_index = effect_index;
 
-		new_textures.push_back(std::move(texture));
+			technique.hidden = technique.annotation_as_int("hidden") != 0;
+			technique.time_left = technique.annotation_as_int("timeout");
+			technique.toggle_key_data[0] = technique.annotation_as_int("toggle");
+			technique.toggle_key_data[1] = technique.annotation_as_int("togglectrl");
+			technique.toggle_key_data[2] = technique.annotation_as_int("toggleshift");
+			technique.toggle_key_data[3] = technique.annotation_as_int("togglealt");
+
+			if (technique.annotation_as_int("enabled"))
+				enable_technique(technique);
+		}
 	}
 
-	for (technique technique : effect.module.techniques)
-	{
-		technique.effect_index = index;
+	_reload_mutex.unlock();
 
-		technique.hidden = technique.annotation_as_int("hidden") != 0;
-
-		if (technique.annotation_as_int("enabled"))
-			enable_technique(technique);
-
-		new_techniques.push_back(std::move(technique));
-	}
-
-	if (effect.compiled)
+	if (effect.restored || !effect.compiled)
 		if (effect.errors.empty())
-			LOG(INFO) << "Successfully loaded " << path << '.';
+			LOG(ERROR) << "Failed to load " << source_file << '.';
 		else
-			LOG(WARN) << "Successfully loaded " << path << " with warnings:\n" << effect.errors;
+			LOG(ERROR) << "Failed to load " << source_file << ":\n" << effect.errors;
+	else if (effect.errors.empty())
+		LOG(INFO) << "Successfully loaded " << source_file << '.';
+	else
+		LOG(WARN) << "Successfully loaded " << source_file << " with warnings:\n" << effect.errors;
 
-	{	const std::lock_guard<std::mutex> lock(_reload_mutex);
-		std::move(new_textures.begin(), new_textures.end(), std::back_inserter(_textures));
-		std::move(new_techniques.begin(), new_techniques.end(), std::back_inserter(_techniques));
+	_reload_remaining_effects--;
+	_last_shader_reload_successful &= !effect.restored && effect.compiled;
 
-		_last_shader_reload_successful &= effect.compiled;
-		_reload_remaining_effects--;
-	}
-
-	return effect.compiled;
+	return effect_index;
 }
 void reshade::runtime::load_effects()
 {
@@ -594,40 +675,51 @@ void reshade::runtime::load_effects()
 #endif
 	_last_shader_reload_successful = true;
 
+	// Copy is required because load_effect is runs asynchronously.
+	ini_file &preset = ini_file::load_cache(_current_preset_path);
+
 	// Reload preprocessor definitions from current preset before compiling
-	if (!_current_preset_path.empty())
-	{
+	if (!preset.get({}, "PreprocessorDefinitions", _preset_preprocessor_definitions))
 		_preset_preprocessor_definitions.clear();
 
-		const ini_file &preset = ini_file::load_cache(_current_preset_path);
-		preset.get({}, "PreprocessorDefinitions", _preset_preprocessor_definitions);
-	}
-
 	// Build a list of effect files by walking through the effect search paths
-	const std::vector<std::filesystem::path> effect_files =
-		find_files(_effect_search_paths, { L".fx" });
+	assert(_remaining_queued_effects.empty());
 
-	_reload_total_effects = effect_files.size();
-	_reload_remaining_effects = _reload_total_effects;
+	std::vector<std::string> sections;
+	preset.get(sections);
 
-	if (_reload_total_effects == 0)
+	for (std::filesystem::path &effect_file : find_files(_effect_search_paths, { L".fx" }))
+		_remaining_queued_effects.emplace(std::make_pair(effect_file, std::string()));
+
+	if (_reload_remaining_effects = _remaining_queued_effects.size(); _reload_remaining_effects == 0)
 		return; // No effect files found, so nothing more to do
 
 	// Allocate space for effects which are placed in this array during the 'load_effect' call
-	_effects.resize(_reload_total_effects);
+	// And to avoid reallocating effects while executing _load_effect()
+	_effects.resize(_remaining_queued_effects.size());
 
 	// Now that we have a list of files, load them in parallel
 	// Split workload into batches instead of launching a thread for every file to avoid launch overhead and stutters due to too many threads being in flight
-	const size_t num_splits = std::min<size_t>(effect_files.size(), std::max<size_t>(std::thread::hardware_concurrency(), 2u) - 1);
-
 	// Keep track of the spawned threads, so the runtime cannot be destroyed while they are still running
-	for (size_t n = 0; n < num_splits; ++n)
-		_worker_threads.emplace_back([this, effect_files, num_splits, n]() {
-			// Abort loading when initialization state changes (indicating that 'on_reset' was called in the meantime)
-			for (size_t i = 0; i < effect_files.size() && _is_initialized; ++i)
-				if (i * num_splits / effect_files.size() == n)
-					load_effect(effect_files[i], i);
-		});
+	for (size_t i = std::min<size_t>(_remaining_queued_effects.size(), std::max<size_t>(std::thread::hardware_concurrency(), 2u) - 1); i > 0; --i)
+	{
+		_worker_threads.emplace_back([this, &preset]() mutable {
+			for (;;)
+			{
+				if (_worker_mutex.lock(); _remaining_queued_effects.empty())
+				{
+					_worker_mutex.unlock();
+					return;
+				}
+				const std::filesystem::path source_file = std::move(_remaining_queued_effects.front().first);
+				const std::string tag = std::move(_remaining_queued_effects.front().second);
+				_remaining_queued_effects.pop();
+				_worker_mutex.unlock();
+				// Abort loading when initialization state changes (indicating that 'on_reset' was called in the meantime)
+				if (_is_initialized)
+					load_effect(preset, source_file);
+			}});
+	}
 }
 void reshade::runtime::load_textures()
 {
@@ -760,7 +852,32 @@ void reshade::runtime::unload_effects()
 	_techniques.clear();
 
 	// Reset the effect list after all resources have been destroyed
-	_effects.clear();
+	_previous_effects = std::move(_effects);
+}
+
+bool reshade::runtime::load_source_cache(const std::filesystem::path &source_file, const size_t hash, std::string &source) const
+{
+	std::filesystem::path path = g_reshade_base_path / _intermediate_cache_path;
+	path /= _renderer_name + '-' + source_file.stem().u8string() + '-' + std::to_string(hash) + ".fx";
+
+	if (const HANDLE file = CreateFileW(path.c_str(), FILE_GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_FLAG_SEQUENTIAL_SCAN, NULL); file == INVALID_HANDLE_VALUE)
+		return false;
+	else if (DWORD size = GetFileSize(file, NULL); source.resize(size), (void)ReadFile(file, source.data(), size, &size, NULL), CloseHandle(file) == FALSE)
+		return false;
+
+	return true;
+}
+bool reshade::runtime::save_source_cache(const std::filesystem::path &source_file, const size_t hash, const std::string &source) const
+{
+	std::filesystem::path path = g_reshade_base_path / _intermediate_cache_path;
+	path /= _renderer_name + '-' + source_file.stem().u8string() + '-' + std::to_string(hash) + ".fx";
+
+	if (const HANDLE file = CreateFileW(path.c_str(), FILE_GENERIC_WRITE, FILE_SHARE_READ, NULL, CREATE_NEW, FILE_ATTRIBUTE_ARCHIVE | FILE_FLAG_SEQUENTIAL_SCAN, NULL); file == INVALID_HANDLE_VALUE)
+		return false;
+	else if (DWORD _; WriteFile(file, source.data(), static_cast<DWORD>(source.size()), &_, NULL), CloseHandle(file) == FALSE)
+		return false;
+
+	return true;
 }
 
 bool reshade::runtime::load_shader_cache(const std::filesystem::path &effect, const std::string &entry_point, const size_t hash, std::vector<char> &cso) const

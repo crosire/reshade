@@ -79,8 +79,8 @@ void reshade::ini_file::load()
 
 		if (assign_index != std::string::npos)
 		{
-			const auto key = trim(line.substr(0, assign_index));
-			const auto value = trim(line.substr(assign_index + 1));
+			const std::string key(trim(line.substr(0, assign_index)));
+			const std::string value(trim(line.substr(assign_index + 1)));
 			std::vector<std::string> value_splitted;
 
 			for (size_t i = 0, len = value.size(), found; i < len; i = found + 1)
@@ -90,7 +90,7 @@ void reshade::ini_file::load()
 				if (found == std::string::npos)
 					found = len;
 
-				value_splitted.push_back(value.substr(i, found - i));
+				value_splitted.emplace_back(value, i, found - i);
 			}
 
 			_sections[section][key] = value_splitted;

@@ -6,6 +6,7 @@
 #pragma once
 
 #include "effect_module.hpp"
+#include "effect_preprocessor.hpp"
 
 namespace reshade
 {
@@ -24,8 +25,10 @@ namespace reshade
 		mouse_button,
 		mouse_wheel,
 		freepie,
-		overlay_open,
 		bufready_depth,
+#if RESHADE_GUI
+		overlay_open,
+#endif
 	};
 
 	enum class texture_reference
@@ -186,6 +189,10 @@ namespace reshade
 	struct effect final
 	{
 		unsigned int rendering = 0;
+		size_t source_id = 0;
+		bool cached = false;
+		bool preprocessed = false;
+		bool restored = false;
 		bool skipped = false;
 		bool compiled = false;
 		std::string errors;
@@ -193,9 +200,10 @@ namespace reshade
 		reshadefx::module module;
 		std::filesystem::path source_file;
 		std::vector<std::filesystem::path> included_files;
-		std::vector<std::pair<std::string, std::string>> definitions;
+		std::string unique_name;
 		std::unordered_map<std::string, std::string> assembly;
 		std::vector<uniform> uniforms;
 		std::vector<unsigned char> uniform_data_storage;
+		std::vector<std::pair<std::string, reshadefx::preprocessor::macro_detection_info>> definitions;
 	};
 }

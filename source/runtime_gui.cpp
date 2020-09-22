@@ -1746,6 +1746,8 @@ void reshade::runtime::draw_code_editor()
 
 		if (!is_loading() && _selected_effect < _effects.size())
 		{
+			const size_t selected_effect = _selected_effect;
+
 			// Hide splash bar when reloading a single effect file
 			_show_splash = false;
 
@@ -1753,8 +1755,8 @@ void reshade::runtime::draw_code_editor()
 			_reload_total_effects = 1;
 			_reload_remaining_effects = 1;
 			unload_effect(_selected_effect);
-			load_effect(_effects[_selected_effect].source_file, _selected_effect);
-			assert(_reload_remaining_effects == 0);
+			const size_t loaded_effect = load_effect(ini_file::load_cache(_current_preset_path), _effects[_selected_effect].source_file);
+			assert(_reload_remaining_effects == 0 && loaded_effect == selected_effect);
 
 			// Re-open current file so that errors are updated
 			open_file_in_code_editor(_selected_effect, _editor_file);
@@ -2151,7 +2153,7 @@ void reshade::runtime::draw_variable_editor()
 		// Hide variables that are not currently used in any of the active effects
 		if (!_effects[effect_index].rendering ||
 			// Skip showing this effect in the variable list if it doesn't have any uniform variables to show
-			(_effects[effect_index].uniforms.empty() && _effects[effect_index].definitions.empty()))
+			(_effects[effect_index].uniforms.empty() && _effects[effect_index].preprocessed && _effects[effect_index].definitions.empty()))
 			continue;
 		assert(_effects[effect_index].compiled);
 
@@ -2194,7 +2196,7 @@ void reshade::runtime::draw_variable_editor()
 					reset_uniform_value(variable_it);
 
 				// Reset all preprocessor definitions
-				for (const std::pair<std::string, std::string> &definition : _effects[effect_index].definitions)
+				for (const std::pair<std::string, reshadefx::preprocessor::macro_detection_info> &definition : _effects[effect_index].definitions)
 					if (const auto preset_it = find_definition_value(_preset_preprocessor_definitions, definition.first);
 						preset_it != _preset_preprocessor_definitions.end())
 						reload_effect = true, // Need to reload after changing preprocessor defines so to get accurate defaults again
@@ -2419,7 +2421,7 @@ void reshade::runtime::draw_variable_editor()
 		if (!_effects[effect_index].definitions.empty() &&
 			ImGui::TreeNodeEx(category_label.c_str(), ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_NoTreePushOnOpen))
 		{
-			for (const std::pair<std::string, std::string> &definition : _effects[effect_index].definitions)
+			for (const std::pair<std::string, reshadefx::preprocessor::macro_detection_info> &definition : _effects[effect_index].definitions)
 			{
 				char value[128] = "";
 				const auto global_it = find_definition_value(_global_preprocessor_definitions, definition.first, value);
@@ -2427,7 +2429,7 @@ void reshade::runtime::draw_variable_editor()
 
 				if (global_it == _global_preprocessor_definitions.end() &&
 					preset_it == _preset_preprocessor_definitions.end())
-					definition.second.copy(value, sizeof(value) - 1); // Fill with default value
+					definition.second.value.copy(value, sizeof(value) - 1); // Fill with default value
 
 				if (ImGui::InputText(definition.first.c_str(), value, sizeof(value),
 					global_it != _global_preprocessor_definitions.end() ? ImGuiInputTextFlags_ReadOnly : ImGuiInputTextFlags_AutoSelectAll | ImGuiInputTextFlags_EnterReturnsTrue))
@@ -2498,7 +2500,8 @@ void reshade::runtime::draw_variable_editor()
 			_reload_total_effects = 1;
 			_reload_remaining_effects = 1;
 			unload_effect(effect_index);
-			if (!load_effect(_effects[effect_index].source_file, effect_index) &&
+			if (load_effect(ini_file::load_cache(_current_preset_path), _effects[effect_index].source_file);
+				!_effects[effect_index].compiled &&
 				modified_definition != _preset_preprocessor_definitions.end())
 			{
 				// The preprocessor definition that was just modified caused the shader to not compile, so reset to default and try again
@@ -2507,7 +2510,8 @@ void reshade::runtime::draw_variable_editor()
 				_reload_total_effects = 1;
 				_reload_remaining_effects = 1;
 				unload_effect(effect_index);
-				if (load_effect(_effects[effect_index].source_file, effect_index))
+				if (load_effect(ini_file::load_cache(_current_preset_path), _effects[effect_index].source_file);
+					!_effects[effect_index].compiled)
 				{
 					_last_shader_reload_successful = reload_successful_before;
 					ImGui::OpenPopup("##pperror"); // Notify the user about this
