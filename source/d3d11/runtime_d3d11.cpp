@@ -446,7 +446,7 @@ bool reshade::d3d11::runtime_d3d11::init_effect(size_t index)
 			if (_renderer_id < D3D_FEATURE_LEVEL_11_0)
 			{
 				effect.errors += "Compute shaders are not supported in ";
-				effect.errors += "D3D11";
+				effect.errors += "D3D10";
 				effect.errors += '.';
 				return false;
 			}
