@@ -2736,7 +2736,13 @@ void reshade::runtime::draw_technique_editor()
 	{
 		if (hovered_technique_index < _techniques.size() && hovered_technique_index != _selected_technique)
 		{
-			std::swap(_techniques[hovered_technique_index], _techniques[_selected_technique]);
+			if (hovered_technique_index < _selected_technique) // Up
+				for (size_t i = _selected_technique; hovered_technique_index < i; --i)
+					std::swap(_techniques[i - 1], _techniques[i]);
+			else // Down
+				for (size_t i = _selected_technique; i < hovered_technique_index; i++)
+					std::swap(_techniques[i], _techniques[i + 1]);
+
 			_selected_technique = hovered_technique_index;
 			save_current_preset();
 			return;
