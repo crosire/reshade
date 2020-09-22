@@ -1811,11 +1811,11 @@ void reshade::runtime::draw_preset_explorer()
 	}
 
 	if (ImGui::ButtonEx("<", ImVec2(button_size, 0), button_flags))
-		if (switch_to_next_preset(_current_browse_path, true))
+		if (switch_to_next_preset(_current_preset_path.parent_path(), true))
 			reload_preset = true;
 	ImGui::SameLine(0, button_spacing);
 	if (ImGui::ButtonEx(">", ImVec2(button_size, 0), button_flags))
-		if (switch_to_next_preset(_current_browse_path, false))
+		if (switch_to_next_preset(_current_preset_path.parent_path(), false))
 			reload_preset = true;
 
 	ImGui::SameLine(0, button_spacing);
