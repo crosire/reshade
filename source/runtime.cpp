@@ -76,6 +76,7 @@ reshade::runtime::runtime() :
 	_last_frame_duration(std::chrono::milliseconds(1)),
 	_effect_search_paths({ L"reshade-shaders\\Shaders" }),
 	_texture_search_paths({ L"reshade-shaders\\Textures" }),
+	_intermediate_cache_path(L"reshade-shaders\\Intermediate"),
 	_reload_key_data(),
 	_performance_mode_key_data(),
 	_effects_key_data(),
@@ -762,6 +763,42 @@ void reshade::runtime::unload_effects()
 	_effects.clear();
 }
 
+bool reshade::runtime::load_shader_cache(const std::filesystem::path &effect, const std::string &entry_point, const size_t hash, std::vector<char> &cso) const
+{
+	std::filesystem::path path = g_reshade_base_path / _intermediate_cache_path;
+	path /= _renderer_name + '-' + effect.stem().u8string() + '-' + entry_point + '-' + std::to_string(hash) + ".cso";
+
+	if (const HANDLE file = CreateFileW(path.c_str(), FILE_GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_FLAG_SEQUENTIAL_SCAN, NULL); file == INVALID_HANDLE_VALUE)
+		return false;
+	else if (DWORD size = GetFileSize(file, NULL); cso.resize(size), ReadFile(file, cso.data(), size, &size, NULL), CloseHandle(file) == FALSE)
+		return false;
+
+	return true;
+}
+bool reshade::runtime::save_shader_cache(const std::filesystem::path &effect, const std::string &entry_point, const size_t hash, const std::string_view &hlsl, const std::vector<char> &cso, const std::string &dasm) const
+{
+	std::filesystem::path path = g_reshade_base_path / _intermediate_cache_path;
+	path /= _renderer_name + '-' + effect.stem().u8string() + '-' + entry_point + '-' + std::to_string(hash);
+
+	if (const HANDLE file = CreateFileW((path.native() + L".hlsl").c_str(), FILE_GENERIC_WRITE, FILE_SHARE_READ, NULL, CREATE_NEW, FILE_FLAG_SEQUENTIAL_SCAN, NULL); file == INVALID_HANDLE_VALUE)
+		return false;
+	else if (DWORD _; WriteFile(file, hlsl.data(), static_cast<DWORD>(hlsl.size()), &_, NULL), CloseHandle(file) == FALSE)
+		return false;
+
+	if (const HANDLE file = CreateFileW((path.native() + L".cso").c_str(), FILE_GENERIC_WRITE, FILE_SHARE_READ, NULL, CREATE_NEW, FILE_FLAG_SEQUENTIAL_SCAN, NULL); file == INVALID_HANDLE_VALUE)
+		return false;
+	else if (DWORD _; WriteFile(file, cso.data(), static_cast<DWORD>(cso.size()), &_, NULL), CloseHandle(file) == FALSE)
+		return false;
+
+	if (!dasm.empty())
+		if (const HANDLE file = CreateFileW((path.native() + L".asm").c_str(), FILE_GENERIC_WRITE, FILE_SHARE_READ, NULL, CREATE_NEW, FILE_ATTRIBUTE_ARCHIVE | FILE_FLAG_SEQUENTIAL_SCAN, NULL); file == INVALID_HANDLE_VALUE)
+			return false;
+		else if (DWORD _; WriteFile(file, dasm.c_str(), static_cast<DWORD>(dasm.size()), &_, NULL), CloseHandle(file) == FALSE)
+			return false;
+
+	return true;
+}
+
 void reshade::runtime::update_and_render_effects()
 {
 	// Delay first load to the first render call to avoid loading while the application is still initializing
@@ -1195,6 +1232,7 @@ void reshade::runtime::load_config()
 	config.get("GENERAL", "PerformanceMode", _performance_mode);
 	config.get("GENERAL", "EffectSearchPaths", _effect_search_paths);
 	config.get("GENERAL", "TextureSearchPaths", _texture_search_paths);
+	config.get("GENERAL", "IntermediateCachePath", _intermediate_cache_path);
 	config.get("GENERAL", "PreprocessorDefinitions", _global_preprocessor_definitions);
 	config.get("GENERAL", "EffectLoadSkipping", _effect_load_skipping);
 
@@ -1232,6 +1270,7 @@ void reshade::runtime::save_config() const
 	config.set("GENERAL", "PerformanceMode", _performance_mode);
 	config.set("GENERAL", "EffectSearchPaths", _effect_search_paths);
 	config.set("GENERAL", "TextureSearchPaths", _texture_search_paths);
+	config.set("GENERAL", "IntermediateCachePath", _intermediate_cache_path);
 	config.set("GENERAL", "PreprocessorDefinitions", _global_preprocessor_definitions);
 	config.set("GENERAL", "EffectLoadSkipping", _effect_load_skipping);
 

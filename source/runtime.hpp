@@ -54,6 +54,9 @@ namespace reshade
 		/// <param name="buffer">The 32bpp RGBA buffer to save the screenshot to.</param>
 		virtual bool capture_screenshot(uint8_t *buffer) const = 0;
 
+		bool load_shader_cache(const std::filesystem::path &effect, const std::string &entry_point, const size_t hash, std::vector<char> &cso) const;
+		bool save_shader_cache(const std::filesystem::path &effect, const std::string &entry_point, const size_t hash, const std::string_view &hlsl, const std::vector<char> &cso, const std::string &dasm) const;
+
 		/// <summary>
 		/// Save user configuration to disk.
 		/// </summary>
@@ -225,6 +228,9 @@ namespace reshade
 		std::vector<texture> _textures;
 		std::vector<technique> _techniques;
 
+		// === Runtime Description ===
+		std::string _renderer_name;
+
 	private:
 		/// <summary>
 		/// Compare current version against the latest published one.
@@ -313,6 +319,7 @@ namespace reshade
 		std::vector<std::string> _preset_preprocessor_definitions;
 		std::vector<std::filesystem::path> _effect_search_paths;
 		std::vector<std::filesystem::path> _texture_search_paths;
+		std::filesystem::path _intermediate_cache_path;
 		std::chrono::high_resolution_clock::time_point _last_reload_time;
 
 		// === Screenshots ===

@@ -55,6 +55,7 @@ reshade::d3d9::runtime_d3d9::runtime_d3d9(IDirect3DDevice9 *device, IDirect3DSwa
 	_device->GetCreationParameters(&creation_params);
 
 	_renderer_id = 0x9000;
+	_renderer_name = "D3D9";
 
 	if (D3DADAPTER_IDENTIFIER9 adapter_desc;
 		SUCCEEDED(_d3d->GetAdapterIdentifier(creation_params.AdapterOrdinal, 0, &adapter_desc)))
@@ -341,20 +342,19 @@ bool reshade::d3d9::runtime_d3d9::init_effect(size_t index)
 	// Compile the generated HLSL source code to DX byte code
 	for (const reshadefx::entry_point &entry_point : effect.module.entry_points)
 	{
-		size_t hlsl_size = 0;
-		const char *profile = nullptr, *hlsl = nullptr;
+		HRESULT hr = E_FAIL;
+
+		std::string_view hlsl, profile;
 		com_ptr<ID3DBlob> compiled, d3d_errors;
 
 		switch (entry_point.type)
 		{
 		case reshadefx::shader_type::vs:
-			hlsl = hlsl_vs.c_str();
-			hlsl_size = hlsl_vs.size();
+			hlsl = hlsl_vs;
 			profile = "vs_3_0";
 			break;
 		case reshadefx::shader_type::ps:
-			hlsl = hlsl_ps.c_str();
-			hlsl_size = hlsl_ps.size();
+			hlsl = hlsl_ps;
 			profile = "ps_3_0";
 			break;
 		case reshadefx::shader_type::cs:
@@ -364,32 +364,50 @@ bool reshade::d3d9::runtime_d3d9::init_effect(size_t index)
 			return false;
 		}
 
-		HRESULT hr = D3DCompile(
-			hlsl, hlsl_size,
-			nullptr, nullptr, nullptr,
-			entry_point.name.c_str(),
-			profile,
-			_performance_mode ? D3DCOMPILE_OPTIMIZATION_LEVEL3 : D3DCOMPILE_OPTIMIZATION_LEVEL1, 0,
-			&compiled, &d3d_errors);
+		std::string attributes;
+		attributes += "func=D3DCompile;";
+		attributes += "name=(null);defines=(null);include=(null);";
+		attributes += "entrypoint=" + entry_point.name + ';';
+		attributes += "profile=" + std::string(profile) + ';';
+		attributes += "compile=" + std::to_string(_performance_mode ? D3DCOMPILE_OPTIMIZATION_LEVEL3 : D3DCOMPILE_OPTIMIZATION_LEVEL1) + ';';
+		attributes += "effect=0;)";
 
-		if (d3d_errors != nullptr) // Append warnings to the output error string as well
-			effect.errors.append(static_cast<const char *>(d3d_errors->GetBufferPointer()), d3d_errors->GetBufferSize() - 1); // Subtracting one to not append the null-terminator as well
+		const size_t hash = std::hash<std::string_view>()(attributes) ^ std::hash<std::string_view>()(hlsl);
+		std::vector<char> cso;
+		if (!load_shader_cache(effect.source_file, entry_point.name, hash, cso))
+		{
+			hr = D3DCompile(
+				hlsl.data(), hlsl.size(),
+				nullptr, nullptr, nullptr,
+				entry_point.name.c_str(),
+				profile.data(),
+				_performance_mode ? D3DCOMPILE_OPTIMIZATION_LEVEL3 : D3DCOMPILE_OPTIMIZATION_LEVEL1, 0,
+				&compiled, &d3d_errors);
 
-		// No need to setup resources if any of the shaders failed to compile
-		if (FAILED(hr))
-			return false;
+			if (d3d_errors != nullptr) // Append warnings to the output error string as well
+				effect.errors.append(static_cast<const char *>(d3d_errors->GetBufferPointer()), d3d_errors->GetBufferSize() - 1); // Subtracting one to not append the null-terminator as well
 
-		if (com_ptr<ID3DBlob> d3d_disassembled; SUCCEEDED(D3DDisassemble(compiled->GetBufferPointer(), compiled->GetBufferSize(), 0, nullptr, &d3d_disassembled)))
-			effect.assembly[entry_point.name] = std::string(static_cast<const char *>(d3d_disassembled->GetBufferPointer()));
+			// No need to setup resources if any of the shaders failed to compile
+			if (FAILED(hr))
+				return false;
+
+			cso.resize(compiled->GetBufferSize());
+			std::memcpy(cso.data(), compiled->GetBufferPointer(), cso.size());
+		}
+
+		if (com_ptr<ID3DBlob> disassembled; SUCCEEDED(D3DDisassemble(cso.data(), cso.size(), 0, nullptr, &disassembled)))
+			effect.assembly[entry_point.name].assign(static_cast<const char *>(disassembled->GetBufferPointer()), disassembled->GetBufferSize() - 1);
+
+		save_shader_cache(effect.source_file, entry_point.name, hash, hlsl, cso, effect.assembly[entry_point.name]);
 
 		// Create runtime shader objects from the compiled DX byte code
 		switch (entry_point.type)
 		{
 		case reshadefx::shader_type::vs:
-			hr = _device->CreateVertexShader(static_cast<const DWORD *>(compiled->GetBufferPointer()), reinterpret_cast<IDirect3DVertexShader9 **>(&entry_points[entry_point.name]));
+			hr = _device->CreateVertexShader(reinterpret_cast<const DWORD *>(cso.data()), reinterpret_cast<IDirect3DVertexShader9 **>(&entry_points[entry_point.name]));
 			break;
 		case reshadefx::shader_type::ps:
-			hr = _device->CreatePixelShader(static_cast<const DWORD *>(compiled->GetBufferPointer()), reinterpret_cast<IDirect3DPixelShader9 **>(&entry_points[entry_point.name]));
+			hr = _device->CreatePixelShader(reinterpret_cast<const DWORD *>(cso.data()), reinterpret_cast<IDirect3DPixelShader9 **>(&entry_points[entry_point.name]));
 			break;
 		}
 

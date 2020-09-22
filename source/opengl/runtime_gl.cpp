@@ -64,6 +64,7 @@ reshade::opengl::runtime_gl::runtime_gl()
 	glGetIntegerv(GL_MAJOR_VERSION, &major);
 	glGetIntegerv(GL_MINOR_VERSION, &minor);
 	_renderer_id = 0x10000 | (major << 12) | (minor << 8);
+	_renderer_name = "OpenGL";
 
 	const GLubyte *const name = glGetString(GL_RENDERER);
 	const GLubyte *const version = glGetString(GL_VERSION);
