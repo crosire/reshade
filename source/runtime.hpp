@@ -344,6 +344,9 @@ namespace reshade
 		void deinit_ui();
 		void build_font_atlas();
 
+		void load_custom_style();
+		void save_custom_style();
+
 		void draw_ui();
 		void draw_ui_home();
 		void draw_ui_settings();
