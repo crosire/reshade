@@ -777,6 +777,9 @@ void reshade::runtime::draw_ui()
 		ImGui::FindWindowByName("Viewport")->DrawList->AddImage(_preview_texture, preview_min, preview_max, ImVec2(0, 0), ImVec2(1, 1), _preview_size[2]);
 	}
 
+	// Disable keyboard shortcuts while typing into input boxes
+	_ignore_shortcuts |= ImGui::IsAnyItemActive();
+
 	// Render ImGui widgets and windows
 	ImGui::Render();
 
@@ -1081,23 +1084,17 @@ void reshade::runtime::draw_ui_settings()
 	if (ImGui::CollapsingHeader("General", ImGuiTreeNodeFlags_DefaultOpen))
 	{
 		modified |= imgui_key_input("Overlay key", _overlay_key_data, *_input);
-		_ignore_shortcuts |= ImGui::IsItemActive();
 
 		modified |= imgui_key_input("Effect toggle key", _effects_key_data, *_input);
-		_ignore_shortcuts |= ImGui::IsItemActive();
 		modified |= imgui_key_input("Effect reload key", _reload_key_data, *_input);
-		_ignore_shortcuts |= ImGui::IsItemActive();
 
 		modified |= imgui_key_input("Performance mode toggle key", _performance_mode_key_data, *_input);
-		_ignore_shortcuts |= ImGui::IsItemActive();
 
 		const float inner_spacing = ImGui::GetStyle().ItemInnerSpacing.x;
 		ImGui::PushItemWidth((ImGui::CalcItemWidth() - inner_spacing) / 2);
 		modified |= imgui_key_input("##prev_preset_key", _prev_preset_key_data, *_input);
-		_ignore_shortcuts |= ImGui::IsItemActive();
 		ImGui::SameLine(0, inner_spacing);
 		modified |= imgui_key_input("##next_preset_key", _next_preset_key_data, *_input);
-		_ignore_shortcuts |= ImGui::IsItemActive();
 		ImGui::PopItemWidth();
 		ImGui::SameLine(0, inner_spacing);
 		ImGui::TextUnformatted("Preset switching keys");
@@ -1125,8 +1122,6 @@ void reshade::runtime::draw_ui_settings()
 	if (ImGui::CollapsingHeader("Screenshots", ImGuiTreeNodeFlags_DefaultOpen))
 	{
 		modified |= imgui_key_input("Screenshot key", _screenshot_key_data, *_input);
-		_ignore_shortcuts |= ImGui::IsItemActive();
-
 		modified |= imgui_directory_input_box("Screenshot path", _screenshot_path, _file_selection_path);
 
 		const int hour = _date[3] / 3600;
@@ -2633,7 +2628,6 @@ void reshade::runtime::draw_technique_editor()
 
 			if (imgui_key_input("##toggle_key", technique.toggle_key_data, *_input))
 				save_current_preset();
-			_ignore_shortcuts |= ImGui::IsItemActive();
 
 			const bool is_not_top = index > 0;
 			const bool is_not_bottom = index < _techniques.size() - 1;
