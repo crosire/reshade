@@ -1493,7 +1493,7 @@ void reshade::runtime::draw_ui_statistics()
 			std::vector<std::tuple<size_t, std::string, std::vector<std::string>>> references;
 			for (const auto &technique : _techniques)
 			{
-				if (texture.shared.find(technique.effect_index) == texture.shared.cend())
+				if (std::find(texture.shared.begin(), texture.shared.end(), technique.effect_index) == texture.shared.end())
 					continue;
 
 				auto &reference = references.emplace_back();
@@ -1762,6 +1762,9 @@ void reshade::runtime::draw_code_editor()
 
 		if (!is_loading() && _selected_effect < _effects.size())
 		{
+			// Remember effect members before unload_effect
+			const std::filesystem::path source_file = _effects[_selected_effect].source_file;
+
 			// Hide splash bar when reloading a single effect file
 			_show_splash = false;
 
@@ -1769,7 +1772,7 @@ void reshade::runtime::draw_code_editor()
 			_reload_total_effects = 1;
 			_reload_remaining_effects = 1;
 			unload_effect(_selected_effect);
-			load_effect(_effects[_selected_effect].source_file, _selected_effect);
+			load_effect(source_file, _selected_effect);
 			assert(_reload_remaining_effects == 0);
 
 			// Re-open current file so that errors are updated
@@ -2510,11 +2513,14 @@ void reshade::runtime::draw_variable_editor()
 
 			const bool reload_successful_before = _last_shader_reload_successful;
 
+			// Remember effect members before unload_effect
+			const std::filesystem::path source_file = _effects[_selected_effect].source_file;
+
 			// Reload current effect file
 			_reload_total_effects = 1;
 			_reload_remaining_effects = 1;
 			unload_effect(effect_index);
-			if (!load_effect(_effects[effect_index].source_file, effect_index) &&
+			if (!load_effect(source_file, effect_index) &&
 				modified_definition != _preset_preprocessor_definitions.end())
 			{
 				// The preprocessor definition that was just modified caused the shader to not compile, so reset to default and try again
@@ -2523,7 +2529,7 @@ void reshade::runtime::draw_variable_editor()
 				_reload_total_effects = 1;
 				_reload_remaining_effects = 1;
 				unload_effect(effect_index);
-				if (load_effect(_effects[effect_index].source_file, effect_index))
+				if (load_effect(source_file, effect_index))
 				{
 					_last_shader_reload_successful = reload_successful_before;
 					ImGui::OpenPopup("##pperror"); // Notify the user about this

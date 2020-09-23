@@ -511,7 +511,8 @@ bool reshade::runtime::load_effect(const std::filesystem::path &path, size_t eff
 					}
 				}
 
-				existing_texture->shared.emplace(effect_index);
+				if (std::find(existing_texture->shared.begin(), existing_texture->shared.end(), effect_index) == existing_texture->shared.end())
+					existing_texture->shared.emplace_back(effect_index);
 
 				// Always make shared textures render targets, since they may be used as such in a different effect
 				existing_texture->render_target = true;
@@ -539,7 +540,9 @@ bool reshade::runtime::load_effect(const std::filesystem::path &path, size_t eff
 						std::replace(std::begin(pass_info.render_target_names), std::end(pass_info.render_target_names),
 							texture.unique_name, existing_texture->unique_name);
 
-				existing_texture->shared.emplace(effect_index);
+				if (std::find(existing_texture->shared.begin(), existing_texture->shared.end(), effect_index) == existing_texture->shared.end())
+					existing_texture->shared.emplace_back(effect_index);
+
 				continue;
 			}
 		}
@@ -551,7 +554,9 @@ bool reshade::runtime::load_effect(const std::filesystem::path &path, size_t eff
 		else if (!texture.semantic.empty())
 			effect.errors += "warning: " + texture.unique_name + ": unknown semantic '" + texture.semantic + "'\n";
 
-		texture.shared.emplace(effect_index);
+		if (std::find(texture.shared.begin(), texture.shared.end(), effect_index) == texture.shared.end())
+			texture.shared.emplace_back(effect_index);
+
 		new_textures.push_back(std::move(texture));
 	}
 
@@ -713,7 +718,8 @@ void reshade::runtime::unload_effect(size_t index)
 	// Destroy textures belonging to this effect
 	_textures.erase(std::remove_if(_textures.begin(), _textures.end(),
 		[this, index](texture &tex) {
-			if (tex.shared.erase(index), tex.shared.empty()) {
+			if (tex.shared.erase(std::remove_if(tex.shared.begin(), tex.shared.end(), [index](size_t effect_index) { return index == effect_index;}), tex.shared.end());
+				tex.shared.empty()) {
 				destroy_texture(tex);
 				return true;
 			}
