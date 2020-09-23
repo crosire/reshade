@@ -2150,16 +2150,19 @@ void reshade::runtime::draw_variable_editor()
 
 	for (size_t effect_index = 0, id = 0; effect_index < _effects.size(); ++effect_index)
 	{
+		effect &effect = _effects[effect_index];
+
 		// Hide variables that are not currently used in any of the active effects
-		if (!_effects[effect_index].rendering ||
-			// Skip showing this effect in the variable list if it doesn't have any uniform variables to show
-			(_effects[effect_index].uniforms.empty() && _effects[effect_index].preprocessed && _effects[effect_index].definitions.empty()))
+		// Skip showing this effect in the variable list if it doesn't have any uniform variables to show
+		if ((!effect.rendering && !effect.restored) || (effect.compiled && effect.uniforms.empty() && effect.definitions.empty()))
 			continue;
-		assert(_effects[effect_index].compiled);
+
+		const std::string effect_name = effect.unique_name;
+		assert(effect.compiled);
 
 		bool reload_effect = false;
 		const bool is_focused = _focused_effect == effect_index;
-		const std::string source_file = _effects[effect_index].source_file.filename().u8string();
+		const std::string source_file = effect.source_file.filename().u8string();
 
 		// Create separate tab for every effect file
 		if (_variable_editor_tabs)
@@ -2192,11 +2195,11 @@ void reshade::runtime::draw_variable_editor()
 			if (ImGui::Button("Yes", ImVec2(ImGui::GetContentRegionAvail().x, 0)))
 			{
 				// Reset all uniform variables
-				for (uniform &variable_it : _effects[effect_index].uniforms)
+				for (uniform &variable_it : effect.uniforms)
 					reset_uniform_value(variable_it);
 
 				// Reset all preprocessor definitions
-				for (const std::pair<std::string, reshadefx::preprocessor::macro_detection_info> &definition : _effects[effect_index].definitions)
+				for (const std::pair<std::string, reshadefx::preprocessor::macro_detection_info> &definition : effect.definitions)
 					if (const auto preset_it = find_definition_value(_preset_preprocessor_definitions, definition.first);
 						preset_it != _preset_preprocessor_definitions.end())
 						reload_effect = true, // Need to reload after changing preprocessor defines so to get accurate defaults again
@@ -2215,7 +2218,7 @@ void reshade::runtime::draw_variable_editor()
 		std::string current_category;
 		auto modified_definition = _preset_preprocessor_definitions.end();
 
-		for (uniform &variable : _effects[effect_index].uniforms)
+		for (uniform &variable : effect.uniforms)
 		{
 			// Skip hidden and special variables
 			if (variable.annotation_as_int("hidden") || variable.special != special_uniform::none)
@@ -2246,7 +2249,7 @@ void reshade::runtime::draw_variable_editor()
 
 						if (ImGui::Button(reset_button_label.c_str(), ImVec2(ImGui::GetContentRegionAvail().x, 0)))
 						{
-							for (uniform &variable_it : _effects[effect_index].uniforms)
+							for (uniform &variable_it : effect.uniforms)
 								if (variable_it.annotation_as_string("ui_category") == category)
 									reset_uniform_value(variable_it);
 
@@ -2418,10 +2421,10 @@ void reshade::runtime::draw_variable_editor()
 			for (float x = 0, space_x = ImGui::CalcTextSize(" ").x, width = (ImGui::CalcItemWidth() - ImGui::CalcTextSize(category_label.data()).x - 45) / 2; x < width; x += space_x)
 				category_label.insert(0, " ");
 
-		if (!_effects[effect_index].definitions.empty() &&
+		if (!effect.definitions.empty() &&
 			ImGui::TreeNodeEx(category_label.c_str(), ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_NoTreePushOnOpen))
 		{
-			for (const std::pair<std::string, reshadefx::preprocessor::macro_detection_info> &definition : _effects[effect_index].definitions)
+			for (const std::pair<std::string, reshadefx::preprocessor::macro_detection_info> &definition : effect.definitions)
 			{
 				char value[128] = "";
 				const auto global_it = find_definition_value(_global_preprocessor_definitions, definition.first, value);
@@ -2500,8 +2503,8 @@ void reshade::runtime::draw_variable_editor()
 			_reload_total_effects = 1;
 			_reload_remaining_effects = 1;
 			unload_effect(effect_index);
-			if (load_effect(ini_file::load_cache(_current_preset_path), _effects[effect_index].source_file);
-				!_effects[effect_index].compiled &&
+			if (load_effect(ini_file::load_cache(_current_preset_path), effect.source_file);
+				!effect.compiled &&
 				modified_definition != _preset_preprocessor_definitions.end())
 			{
 				// The preprocessor definition that was just modified caused the shader to not compile, so reset to default and try again
@@ -2510,8 +2513,8 @@ void reshade::runtime::draw_variable_editor()
 				_reload_total_effects = 1;
 				_reload_remaining_effects = 1;
 				unload_effect(effect_index);
-				if (load_effect(ini_file::load_cache(_current_preset_path), _effects[effect_index].source_file);
-					!_effects[effect_index].compiled)
+				if (load_effect(ini_file::load_cache(_current_preset_path), effect.source_file);
+					!effect.compiled)
 				{
 					_last_shader_reload_successful = reload_successful_before;
 					ImGui::OpenPopup("##pperror"); // Notify the user about this

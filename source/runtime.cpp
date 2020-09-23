@@ -811,23 +811,18 @@ void reshade::runtime::unload_effect(size_t index)
 			}
 			return false;
 		}), _textures.end());
+
 	// Clean up techniques belonging to this effect
 	_techniques.erase(std::remove_if(_techniques.begin(), _techniques.end(),
 		[index](const technique &tech) {
 			return tech.effect_index == index;
 		}), _techniques.end());
 
-	// Do not clear source file, so that an 'unload_effect' immediately followed by a 'load_effect' which accesses that works
-	effect &effect = _effects[index];;
-	effect.rendering = false;
-	effect.compiled = false;
-	effect.errors.clear();
-	effect.preamble.clear();
-	effect.included_files.clear();
-	effect.definitions.clear();
-	effect.assembly.clear();
-	effect.uniforms.clear();
-	effect.uniform_data_storage.clear();
+	effect &effect = _effects[index];
+	if (_previous_effects.size() <= index)
+		_previous_effects.resize(index + 1);
+	_previous_effects[index] = std::move(effect);
+	effect = {};
 }
 void reshade::runtime::unload_effects()
 {
