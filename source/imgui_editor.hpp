@@ -165,6 +165,9 @@ private:
 	unsigned int _search_window_open = 0;
 	unsigned int _search_window_focus = 0;
 
+	std::string _last_copy_string;
+	bool _last_copy_from_empty_selection = false;
+
 	size_t _undo_index = 0;
 	std::vector<undo_record> _undo;
 	bool _in_undo_operation = false;

@@ -848,7 +848,13 @@ std::string imgui_code_editor::get_text() const
 }
 std::string imgui_code_editor::get_text(const text_pos &beg, const text_pos &end) const
 {
+	// Calculate length of text to pre-allocate memory before building the string
+	size_t length = 0;
+	for (auto it = beg; it < end; it.line++)
+		length += _lines[it.line].size() + 1;
+
 	std::string result;
+	result.reserve(length);
 
 	for (auto it = beg; it < end;)
 	{
@@ -1126,6 +1132,9 @@ void imgui_code_editor::delete_lines(size_t first_line, size_t last_line)
 
 void imgui_code_editor::clipboard_copy()
 {
+	_last_copy_string.clear();
+	_last_copy_from_empty_selection = false;
+
 	if (has_selection())
 	{
 		ImGui::SetClipboardText(get_selected_text().c_str());
@@ -1136,6 +1145,11 @@ void imgui_code_editor::clipboard_copy()
 		line_text.reserve(_lines[_cursor_pos.line].size());
 		for (const glyph &glyph : _lines[_cursor_pos.line])
 			line_text.push_back(glyph.c);
+		// Include new line character
+		line_text += '\n';
+
+		_last_copy_string = line_text;
+		_last_copy_from_empty_selection = true;
 
 		ImGui::SetClipboardText(line_text.c_str());
 	}
@@ -1162,6 +1176,8 @@ void imgui_code_editor::clipboard_paste()
 
 	_in_undo_operation = true;
 
+	bool reset_cursor_pos = false;
+	const size_t cursor_column = _cursor_pos.column;
 	if (has_selection())
 	{
 		u.removed = get_selected_text();
@@ -1170,17 +1186,27 @@ void imgui_code_editor::clipboard_paste()
 
 		delete_selection();
 	}
+	else if (_last_copy_from_empty_selection && _last_copy_string == text)
+	{
+		reset_cursor_pos = true;
+		// Paste line above current line if there is no selection and entire line was copied to clipboard without a selection too
+		_cursor_pos.column = 0;
+	}
 
 	u.added = text;
 	u.added_beg = _cursor_pos;
 
-	insert_text(text);
+	insert_text(u.added);
 
 	u.added_end = _cursor_pos;
 
 	_in_undo_operation = false;
 
 	record_undo(std::move(u));
+
+	// Reset cursor position after pasting entire line above
+	if (reset_cursor_pos)
+		_cursor_pos.column = cursor_column;
 }
 
 void imgui_code_editor::move_up(size_t amount, bool selection)
