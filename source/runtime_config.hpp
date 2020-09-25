@@ -189,15 +189,6 @@ namespace reshade
 		static bool flush_cache();
 		static bool flush_cache(const std::filesystem::path &path);
 
-		/// <summary>
-		/// Describes a single value in an INI file.
-		/// </summary>
-		using value = std::vector<std::string>;
-		/// <summary>
-		/// Describes a section of multiple key/value pairs in an INI file.
-		/// </summary>
-		using section = std::unordered_map<std::string, value>;
-
 	private:
 		void load();
 		bool save();
@@ -259,6 +250,15 @@ namespace reshade
 		{
 			return i < values.size() ? std::filesystem::u8path(values[i]) : std::filesystem::path();
 		}
+
+		/// <summary>
+		/// Describes a single value in an INI file.
+		/// </summary>
+		using value = std::vector<std::string>;
+		/// <summary>
+		/// Describes a section of multiple key/value pairs in an INI file.
+		/// </summary>
+		using section = std::unordered_map<std::string, value>;
 
 		bool _modified = false;
 		std::filesystem::path _path;
