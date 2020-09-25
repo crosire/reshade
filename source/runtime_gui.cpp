@@ -846,7 +846,7 @@ void reshade::runtime::draw_ui_home()
 	{
 		std::string shader_list;
 		for (const effect &effect : _effects)
-			if (!effect.compiled)
+			if (!effect.compiled || effect.restored)
 				shader_list += ' ' + effect.source_file.filename().u8string() + ',';
 
 		// Make sure there are actually effects that failed to compile, since the last reload flag may not have been reset
@@ -2440,7 +2440,7 @@ void reshade::runtime::draw_variable_editor()
 				_reload_remaining_effects = 1;
 				unload_effect(effect_index);
 				if (load_effect(ini_file::load_cache(_current_preset_path), source_file, true);
-					!effect.compiled &&
+					effect.restored &&
 					modified_definition != _preset_preprocessor_definitions.end())
 				{
 					// The preprocessor definition that was just modified caused the shader to not compile, so reset to default and try again
@@ -2450,7 +2450,7 @@ void reshade::runtime::draw_variable_editor()
 					_reload_remaining_effects = 1;
 					unload_effect(effect_index);
 					if (load_effect(ini_file::load_cache(_current_preset_path), source_file, true);
-						!effect.compiled)
+						effect.restored)
 					{
 						_last_shader_reload_successful = reload_successful_before;
 						ImGui::OpenPopup("##pperror"); // Notify the user about this
@@ -2554,7 +2554,7 @@ void reshade::runtime::draw_variable_editor()
 			_reload_remaining_effects = 1;
 			unload_effect(effect_index);
 			if (load_effect(ini_file::load_cache(_current_preset_path), source_file);
-				!effect.compiled &&
+				effect.restored &&
 				modified_definition != _preset_preprocessor_definitions.end())
 			{
 				// The preprocessor definition that was just modified caused the shader to not compile, so reset to default and try again
@@ -2564,7 +2564,7 @@ void reshade::runtime::draw_variable_editor()
 				_reload_remaining_effects = 1;
 				unload_effect(effect_index);
 				if (load_effect(ini_file::load_cache(_current_preset_path), source_file);
-					!effect.compiled)
+					effect.restored)
 				{
 					_last_shader_reload_successful = reload_successful_before;
 					ImGui::OpenPopup("##pperror"); // Notify the user about this
@@ -2633,19 +2633,19 @@ void reshade::runtime::draw_technique_editor()
 			ImGui::Separator();
 
 		const bool clicked = _imgui_context->IO.MouseClicked[0];
-		const bool compile_success = effect.compiled;
-		assert(compile_success || !technique.enabled);
+		const bool noerror = effect.compiled && !effect.restored;
+		assert(noerror || !technique.enabled);
 
 		// Prevent user from enabling the technique when the effect failed to compile
 		// Also prevent disabling it for when the technique is set to always be enabled via annotation
-		ImGui::PushItemFlag(ImGuiItemFlags_Disabled, !compile_success || technique.annotation_as_int("enabled"));
+		ImGui::PushItemFlag(ImGuiItemFlags_Disabled, !effect.compiled || technique.annotation_as_int("enabled"));
 		// Gray out disabled techniques and mark techniques which failed to compile red
-		ImGui::PushStyleColor(ImGuiCol_Text, compile_success ? _imgui_context->Style.Colors[technique.enabled ? ImGuiCol_Text : ImGuiCol_TextDisabled] : COLOR_RED);
+		ImGui::PushStyleColor(ImGuiCol_Text, noerror ? _imgui_context->Style.Colors[technique.enabled ? ImGuiCol_Text : ImGuiCol_TextDisabled] : COLOR_RED);
 
 		std::string_view ui_label = technique.annotation_as_string("ui_label");
-		if (ui_label.empty() || !compile_success) ui_label = technique.name;
+		if (ui_label.empty() || !noerror) ui_label = technique.name;
 		std::string label(ui_label.data(), ui_label.size());
-		label += " [" + effect.source_file.filename().u8string() + ']' + (!compile_success ? " failed to compile" : "");
+		label += " [" + effect.source_file.filename().u8string() + ']' + (!noerror ? " failed to compile" : "");
 
 		if (bool status = technique.enabled; ImGui::Checkbox(label.data(), &status))
 		{
@@ -2667,13 +2667,13 @@ void reshade::runtime::draw_technique_editor()
 			hovered_technique_index = index;
 
 		// Display tooltip
-		if (const std::string_view tooltip = compile_success ? technique.annotation_as_string("ui_tooltip") : effect.errors;
+		if (const std::string_view tooltip = noerror ? technique.annotation_as_string("ui_tooltip") : effect.errors;
 			!tooltip.empty() && ImGui::IsItemHovered())
 		{
 			ImGui::BeginTooltip();
-			if (!compile_success) ImGui::PushStyleColor(ImGuiCol_Text, COLOR_RED);
+			if (!noerror) ImGui::PushStyleColor(ImGuiCol_Text, COLOR_RED);
 			ImGui::TextUnformatted(tooltip.data());
-			if (!compile_success) ImGui::PopStyleColor();
+			if (!noerror) ImGui::PopStyleColor();
 			ImGui::EndTooltip();
 		}
 
@@ -2785,7 +2785,7 @@ void reshade::runtime::draw_technique_editor()
 			ImGui::EndPopup();
 		}
 
-		if (technique.toggle_key_data[0] != 0 && compile_success)
+		if (technique.toggle_key_data[0] != 0 && effect.compiled)
 		{
 			ImGui::SameLine(ImGui::GetWindowContentRegionWidth() - 120);
 			ImGui::TextDisabled("%s", reshade::input::key_name(technique.toggle_key_data).c_str());
