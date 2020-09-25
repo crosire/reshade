@@ -1478,7 +1478,7 @@ void reshade::runtime::draw_ui_statistics()
 				memory_size_unit = "KiB";
 			}
 
-			ImGui::TextColored(ImVec4(1, 1, 1, 1), "%s%s", texture.unique_name.c_str(), texture.shared.size() >= 2 ? " (Shared)" : "");
+			ImGui::TextColored(ImVec4(1, 1, 1, 1), "%s%s", texture.unique_name.c_str(), texture.shared.size() > 1 ? " (Shared)" : "");
 			ImGui::Text("%ux%u | %u mipmap(s) | %s | %ld.%03ld %s",
 				texture.width,
 				texture.height,
@@ -1486,19 +1486,15 @@ void reshade::runtime::draw_ui_statistics()
 				texture_formats[static_cast<unsigned int>(texture.format)],
 				memory_view.quot, memory_view.rem, memory_size_unit);
 
-			if (const std::string_view source_path = texture.annotation_as_string("source"); !source_path.empty())
-				ImGui::TextUnformatted(source_path.data(), source_path.data() + source_path.size());
-
-			size_t passes = 0;
-			std::vector<std::tuple<size_t, std::string, std::vector<std::string>>> references;
+			size_t num_target_passes = 0;
+			std::vector<std::pair<size_t, std::vector<std::string>>> references;
 			for (const auto &technique : _techniques)
 			{
 				if (std::find(texture.shared.begin(), texture.shared.end(), technique.effect_index) == texture.shared.end())
 					continue;
 
 				auto &reference = references.emplace_back();
-				std::get<0>(reference) = technique.effect_index;
-				std::get<1>(reference) = technique.name + '@' + _effects[technique.effect_index].source_file.filename().u8string();
+				reference.first = technique.effect_index;
 
 				for (size_t pass_index = 0; pass_index < technique.passes.size(); ++pass_index)
 				{
@@ -1507,14 +1503,18 @@ void reshade::runtime::draw_ui_statistics()
 						if (target != texture.unique_name)
 							continue;
 
-						passes++;
-						std::get<2>(reference).emplace_back((technique.passes[pass_index].name.empty() ? std::to_string(pass_index + 1) : technique.passes[pass_index].name) + '@' + technique.name);
+						num_target_passes++;
+						if (technique.passes[pass_index].name.empty())
+							reference.second.emplace_back(technique.name + " pass " + std::to_string(pass_index));
+						else
+							reference.second.emplace_back(technique.name + ' ' + technique.passes[pass_index].name);
 					}
 				}
 			}
 
 			ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2(0.0f, 0.5f));
-			if (ImGui::ButtonEx(("Referenced by " + std::to_string(texture.shared.size()) + " techniques " + std::to_string(passes) + " passes ...").c_str(), ImVec2(single_image_width, 0)))
+			if (const std::string label = "Referenced " + (num_target_passes != 0 ? "by " + std::to_string(num_target_passes) + " pass(es) " : "read-only ") + "in " + std::to_string(texture.shared.size()) + " effect(s) ...";
+				ImGui::ButtonEx(label.c_str(), ImVec2(single_image_width, 0)))
 				ImGui::OpenPopup("##references");
 			ImGui::PopStyleVar();
 
@@ -1522,16 +1522,17 @@ void reshade::runtime::draw_ui_statistics()
 			{
 				bool is_open = false;
 				size_t effect_index = std::numeric_limits<size_t>::max();
-				for (const auto &pair : references)
+				for (const auto &reference : references)
 				{
-					if (effect_index != std::get<0>(pair))
+					if (effect_index != reference.first)
 					{
-						effect_index = std::get<0>(pair);
+						effect_index  = reference.first;
 						is_open = ImGui::TreeNodeEx(_effects[effect_index].source_file.filename().u8string().c_str(), ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_NoTreePushOnOpen);
 					}
+
 					if (is_open)
 					{
-						for (const auto &pass : std::get<2>(pair))
+						for (const auto &pass : reference.second)
 						{
 							ImGui::Dummy(ImVec2(_imgui_context->Style.IndentSpacing, 0.0f));
 							ImGui::SameLine(0.0f, 0.0f);
@@ -1539,6 +1540,7 @@ void reshade::runtime::draw_ui_statistics()
 						}
 					}
 				}
+
 				ImGui::EndPopup();
 			}
 
@@ -1762,7 +1764,7 @@ void reshade::runtime::draw_code_editor()
 
 		if (!is_loading() && _selected_effect < _effects.size())
 		{
-			// Remember effect members before unload_effect
+			// Save effect members before unloading
 			const std::filesystem::path source_file = _effects[_selected_effect].source_file;
 
 			// Hide splash bar when reloading a single effect file
@@ -2176,12 +2178,12 @@ void reshade::runtime::draw_variable_editor()
 
 		bool reload_effect = false;
 		const bool is_focused = _focused_effect == effect_index;
-		const std::string source_file = _effects[effect_index].source_file.filename().u8string();
+		const std::string filename = _effects[effect_index].source_file.filename().u8string();
 
 		// Create separate tab for every effect file
 		if (_variable_editor_tabs)
 		{
-			if (!ImGui::BeginTabItem(source_file.c_str()))
+			if (!ImGui::BeginTabItem(filename.c_str()))
 				continue;
 			// Begin a new child here so scrolling through variables does not move the tab itself too
 			ImGui::BeginChild("##tab");
@@ -2191,7 +2193,7 @@ void reshade::runtime::draw_variable_editor()
 			if (is_focused || _effects_expanded_state & 1)
 				ImGui::SetNextItemOpen(is_focused || (_effects_expanded_state >> 1) != 0);
 
-			if (!ImGui::TreeNodeEx(source_file.c_str(), ImGuiTreeNodeFlags_DefaultOpen))
+			if (!ImGui::TreeNodeEx(filename.c_str(), ImGuiTreeNodeFlags_DefaultOpen))
 				continue; // Skip rendering invisible items
 		}
 
@@ -2204,7 +2206,7 @@ void reshade::runtime::draw_variable_editor()
 		ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(_imgui_context->Style.FramePadding.x, 0));
 		if (imgui_popup_button("Reset all to default", _variable_editor_tabs ? ImGui::GetContentRegionAvail().x : ImGui::CalcItemWidth()))
 		{
-			ImGui::Text("Do you really want to reset all values in '%s' to their defaults?", source_file.c_str());
+			ImGui::Text("Do you really want to reset all values in '%s' to their defaults?", filename.c_str());
 
 			if (ImGui::Button("Yes", ImVec2(ImGui::GetContentRegionAvail().x, 0)))
 			{
@@ -2513,7 +2515,7 @@ void reshade::runtime::draw_variable_editor()
 
 			const bool reload_successful_before = _last_shader_reload_successful;
 
-			// Remember effect members before unload_effect
+			// Save effect members before unloading
 			const std::filesystem::path source_file = _effects[_selected_effect].source_file;
 
 			// Reload current effect file

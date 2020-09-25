@@ -512,7 +512,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &path, size_t eff
 				}
 
 				if (std::find(existing_texture->shared.begin(), existing_texture->shared.end(), effect_index) == existing_texture->shared.end())
-					existing_texture->shared.emplace_back(effect_index);
+					existing_texture->shared.push_back(effect_index);
 
 				// Always make shared textures render targets, since they may be used as such in a different effect
 				existing_texture->render_target = true;
@@ -541,8 +541,10 @@ bool reshade::runtime::load_effect(const std::filesystem::path &path, size_t eff
 							texture.unique_name, existing_texture->unique_name);
 
 				if (std::find(existing_texture->shared.begin(), existing_texture->shared.end(), effect_index) == existing_texture->shared.end())
-					existing_texture->shared.emplace_back(effect_index);
+					existing_texture->shared.push_back(effect_index);
 
+				existing_texture->render_target = true;
+				existing_texture->storage_access = true;
 				continue;
 			}
 		}
@@ -554,8 +556,8 @@ bool reshade::runtime::load_effect(const std::filesystem::path &path, size_t eff
 		else if (!texture.semantic.empty())
 			effect.errors += "warning: " + texture.unique_name + ": unknown semantic '" + texture.semantic + "'\n";
 
-		if (std::find(texture.shared.begin(), texture.shared.end(), effect_index) == texture.shared.end())
-			texture.shared.emplace_back(effect_index);
+		// This is the first effect using this texture
+		texture.shared.push_back(effect_index);
 
 		new_textures.push_back(std::move(texture));
 	}
@@ -704,9 +706,9 @@ void reshade::runtime::load_textures()
 	_textures_loaded = true;
 }
 
-void reshade::runtime::unload_effect(size_t index)
+void reshade::runtime::unload_effect(size_t effect_index)
 {
-	assert(index < _effects.size());
+	assert(effect_index < _effects.size());
 
 #if RESHADE_GUI
 	_preview_texture = nullptr;
@@ -717,9 +719,9 @@ void reshade::runtime::unload_effect(size_t index)
 
 	// Destroy textures belonging to this effect
 	_textures.erase(std::remove_if(_textures.begin(), _textures.end(),
-		[this, index](texture &tex) {
-			if (tex.shared.erase(std::remove_if(tex.shared.begin(), tex.shared.end(), [index](size_t effect_index) { return index == effect_index;}), tex.shared.end());
-				tex.shared.empty()) {
+		[this, effect_index](texture &tex) {
+			tex.shared.erase(std::remove(tex.shared.begin(), tex.shared.end(), effect_index), tex.shared.end());
+			if (tex.shared.empty()) {
 				destroy_texture(tex);
 				return true;
 			}
@@ -727,12 +729,12 @@ void reshade::runtime::unload_effect(size_t index)
 		}), _textures.end());
 	// Clean up techniques belonging to this effect
 	_techniques.erase(std::remove_if(_techniques.begin(), _techniques.end(),
-		[index](const technique &tech) {
-			return tech.effect_index == index;
+		[effect_index](const technique &tech) {
+			return tech.effect_index == effect_index;
 		}), _techniques.end());
 
 	// Do not clear source file, so that an 'unload_effect' immediately followed by a 'load_effect' which accesses that works
-	effect &effect = _effects[index];;
+	effect &effect = _effects[effect_index];;
 	effect.rendering = false;
 	effect.compiled = false;
 	effect.errors.clear();
@@ -820,7 +822,7 @@ void reshade::runtime::update_and_render_effects()
 		for (texture &texture : _textures)
 		{
 			// Always create shared textures, since they may be in use by this effect already
-			if (texture.impl == nullptr && (texture.effect_index == effect_index || texture.shared.size() >= 2))
+			if (texture.impl == nullptr && (texture.effect_index == effect_index || texture.shared.size() > 1))
 			{
 				if (!init_texture(texture))
 				{
