@@ -79,21 +79,25 @@ void reshade::ini_file::load()
 
 		if (assign_index != std::string::npos)
 		{
-			const auto key = trim(line.substr(0, assign_index));
-			const auto value = trim(line.substr(assign_index + 1));
-			std::vector<std::string> value_splitted;
+			std::string key = trim(line.substr(0, assign_index));
+			std::string value = trim(line.substr(assign_index + 1));
 
-			for (size_t i = 0, len = value.size(), found; i < len; i = found + 1)
+			if (reshade::ini_file::value &elements = _sections[section][key]; elements.empty())
 			{
-				found = value.find_first_of(',', i);
-
-				if (found == std::string::npos)
-					found = len;
-
-				value_splitted.push_back(value.substr(i, found - i));
+				for (size_t offset = 0, found = 0; found = std::min(std::min(value.find_first_of(',', offset), value.size()), value.size()), !value.empty();)
+				{
+					if (offset = 0; found + 2 < value.size() && value[found + 1] == ',')
+					{
+						offset = found + 2;
+						continue;
+					}
+					std::string &element = elements.emplace_back(); element.reserve(found);
+					for (const char c : trim(value.substr(0, found)))
+						if (element.empty() || c != ',' || element.back() != ',')
+							element += c;
+					value = value.substr(std::min(found + 1, value.size()));
+				}
 			}
-
-			_sections[section][key] = value_splitted;
 		}
 		else
 		{
@@ -152,17 +156,21 @@ bool reshade::ini_file::save()
 
 		for (const std::string &key_name : key_names)
 		{
-			data << key_name << '=';
-
-			size_t i = 0;
-			for (const std::string &item : keys.at(key_name))
+			std::string value;
+			if (const auto &elements = keys.at(key_name); !elements.empty())
 			{
-				if (i++ != 0) // Separate multiple values with a comma
-					data << ',';
-				data << item;
+				for (const std::string &element : elements)
+				{
+					for (const char c : element)
+						value.append(c == ',' ? 2 : 1, c);
+					value += ','; // Separate multiple values with a comma
+				}
+				value.back() = '\n';
 			}
-
-			data << '\n';
+			if (data << key_name << '='; value.empty())
+				data << '\n';
+			else
+				data << value;
 		}
 
 		data << '\n';
