@@ -271,7 +271,7 @@ size_t reshade::runtime::load_effect(reshade::ini_file &preset, std::filesystem:
 	macros.emplace("BUFFER_HEIGHT", std::to_string(_height));
 	macros.emplace("BUFFER_RCP_WIDTH", "(1.0 / BUFFER_WIDTH)");
 	macros.emplace("BUFFER_RCP_HEIGHT", "(1.0 / BUFFER_HEIGHT)");
-	macros.emplace("BUFFER_COLOR_DEPTH", std::to_string(_color_bit_depth));
+	macros.emplace("BUFFER_COLOR_BIT_DEPTH", std::to_string(_color_bit_depth));
 
 	std::vector<std::string> preprocessor_definitions;
 
@@ -314,19 +314,14 @@ size_t reshade::runtime::load_effect(reshade::ini_file &preset, std::filesystem:
 	// Guard access to shared variables
 	_reload_mutex.lock();
 
-	size_t effect_index = std::numeric_limits<decltype(effect_index)>::max();
-
-	// For loading an effect or reprocess migrated effect
-	for (size_t i = 0; i < _effects.size() && effect_index == std::numeric_limits<decltype(effect_index)>::max(); ++i)
-		if (const effect &effect = _effects[i]; effect.unique_name == unique_name && effect.source_file == source_file)
-			effect_index = i;
+	size_t effect_index = std::numeric_limits<size_t>::max();
 
 	// For loading all effects
-	for (size_t i = 0; i < _effects.size() && effect_index == std::numeric_limits<decltype(effect_index)>::max(); ++i)
+	for (size_t i = 0; i < _effects.size() && effect_index == std::numeric_limits<size_t>::max(); ++i)
 		if (_effects[i].source_id == 0)
 			effect_index = i;
 
-	if (effect_index == std::numeric_limits<decltype(effect_index)>::max())
+	if (effect_index == std::numeric_limits<size_t>::max())
 	{
 		assert(_reload_remaining_effects == 1);
 
@@ -334,9 +329,9 @@ size_t reshade::runtime::load_effect(reshade::ini_file &preset, std::filesystem:
 		_effects.resize(_effects.size() + 1);
 	}
 
-	decltype(effect::source_id) recent_id = 0;
+	size_t recent_id = 0;
 	for (size_t i = 0; i < _previous_effects.size() && recent_id == 0; ++i)
-		if (const effect &effect = _previous_effects[i]; effect.unique_name == unique_name)
+		if (const effect &effect = _previous_effects[i]; effect.source_file.filename().u8string() == unique_name)
 			recent_id = effect.source_id;
 
 	effect &effect = _effects[effect_index];
@@ -347,7 +342,6 @@ size_t reshade::runtime::load_effect(reshade::ini_file &preset, std::filesystem:
 
 	effect.source_file = source_file;
 	effect.source_id = source_id;
-	effect.unique_name = unique_name;
 
 	if (!_current_preset_path.empty() && !_worker_threads.empty() && // Only skip during 'load_effects'
 		!_load_option_disable_skipping && _effect_load_skipping &&
@@ -471,7 +465,7 @@ size_t reshade::runtime::load_effect(reshade::ini_file &preset, std::filesystem:
 				uniform &var = effect.uniforms.emplace_back(info);
 				var.effect_index = effect_index;
 
-				if (info.offset == std::numeric_limits<decltype(info.offset)>::max())
+				if (info.offset == std::numeric_limits<uint32_t>::max())
 					continue;
 
 				// Copy initial data into uniform storage area
@@ -503,12 +497,10 @@ size_t reshade::runtime::load_effect(reshade::ini_file &preset, std::filesystem:
 					var.special = special_uniform::mouse_wheel;
 				else if (special == "freepie")
 					var.special = special_uniform::freepie;
-				else if (special == "bufready_depth")
-					var.special = special_uniform::bufready_depth;
-#if RESHADE_GUI
 				else if (special == "overlay_open")
 					var.special = special_uniform::overlay_open;
-#endif
+				else if (special == "bufready_depth")
+					var.special = special_uniform::bufready_depth;
 			}
 		}
 	}
@@ -529,7 +521,6 @@ size_t reshade::runtime::load_effect(reshade::ini_file &preset, std::filesystem:
 		effect.restored = true;
 		effect.source_file = source_file;
 		effect.source_id = source_id;
-		effect.unique_name = unique_name;
 	}
 	else
 	{
@@ -558,26 +549,23 @@ size_t reshade::runtime::load_effect(reshade::ini_file &preset, std::filesystem:
 				if (texture.semantic.empty() != (existing_texture->impl_reference == texture_reference::none))
 				{
 					effect.errors += "error: " + texture.unique_name + ": another effect (";
-					effect.errors += _effects[existing_texture->effect_index].unique_name;
+					effect.errors += _effects[existing_texture->effect_index].source_file.filename().u8string();
 					effect.errors += ") already created a texture with the same name but different usage; rename the variable to fix this error\n";
 					effect.compiled = false;
 				}
 				if (texture.semantic.empty() && !existing_texture->matches_description(texture))
 				{
 					effect.errors += "warning: " + texture.unique_name + ": another effect (";
-					effect.errors += _effects[existing_texture->effect_index].unique_name;
+					effect.errors += _effects[existing_texture->effect_index].source_file.filename().u8string();
 					effect.errors += ") already created a texture with the same name but different dimensions; textures are shared across all effects, so either rename the variable or adjust the dimensions so they match\n";
 				}
 				if (const std::string_view source_a = existing_texture->annotation_as_string("source"), source_b = texture.annotation_as_string("source");
 					texture.semantic.empty() && !(source_a.empty() || source_b.empty() || source_a == source_b))
 				{
 					effect.errors += "warning: " + texture.unique_name + ": another effect (";
-					effect.errors += _effects[existing_texture->effect_index].unique_name;
+					effect.errors += _effects[existing_texture->effect_index].source_file.filename().u8string();
 					effect.errors += ") already created a texture with another image file; textures are shared across all effects, so either rename the variable or adjust the path so they match\n";
 				}
-
-				if (!effect.compiled)
-					break;
 
 				if (_color_bit_depth != 8)
 				{
@@ -586,9 +574,13 @@ size_t reshade::runtime::load_effect(reshade::ini_file &preset, std::filesystem:
 						if (sampler_info.srgb && sampler_info.texture_name == texture.unique_name)
 						{
 							effect.errors += "error: " + sampler_info.unique_name + ": texture does not support sRGB sampling (back buffer format is not RGBA8)";
+							effect.compiled = false;
 						}
 					}
 				}
+
+				if (!effect.compiled)
+					break;
 
 				existing_texture->shared = true;
 

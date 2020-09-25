@@ -25,10 +25,8 @@ namespace reshade
 		mouse_button,
 		mouse_wheel,
 		freepie,
-		bufready_depth,
-#if RESHADE_GUI
 		overlay_open,
-#endif
+		bufready_depth,
 	};
 
 	enum class texture_reference
@@ -200,10 +198,9 @@ namespace reshade
 		reshadefx::module module;
 		std::filesystem::path source_file;
 		std::vector<std::filesystem::path> included_files;
-		std::string unique_name;
+		std::vector<std::pair<std::string, reshadefx::preprocessor::macro_detection_info>> definitions;
 		std::unordered_map<std::string, std::string> assembly;
 		std::vector<uniform> uniforms;
 		std::vector<unsigned char> uniform_data_storage;
-		std::vector<std::pair<std::string, reshadefx::preprocessor::macro_detection_info>> definitions;
 	};
 }

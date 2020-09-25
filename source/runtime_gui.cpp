@@ -2160,7 +2160,6 @@ void reshade::runtime::draw_variable_editor()
 		if ((!effect.rendering && !effect.restored) || (effect.compiled && effect.uniforms.empty() && effect.definitions.empty()))
 			continue;
 
-		const std::string effect_name = effect.unique_name;
 		assert(effect.compiled);
 
 		bool reload_effect = false;
