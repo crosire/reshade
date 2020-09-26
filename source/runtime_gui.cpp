@@ -1938,10 +1938,7 @@ void reshade::runtime::draw_code_editor()
 		}
 	}
 
-	// Select editor font
-	ImGui::PushFont(_imgui_context->IO.Fonts->Fonts[1]);
-	_editor.render("##editor");
-	ImGui::PopFont();
+	_editor.render("##editor", false, _imgui_context->IO.Fonts->Fonts[1]);
 
 	// Disable keyboard shortcuts when the window is focused so they don't get triggered while editing text
 	const bool is_focused = ImGui::IsWindowFocused(ImGuiFocusedFlags_ChildWindows);
@@ -1955,9 +1952,7 @@ void reshade::runtime::draw_code_editor()
 }
 void reshade::runtime::draw_code_viewer()
 {
-	ImGui::PushFont(_imgui_context->IO.Fonts->Fonts[1]);
-	_viewer.render("##viewer");
-	ImGui::PopFont();
+	_viewer.render("##viewer", false, _imgui_context->IO.Fonts->Fonts[1]);
 
 	const bool is_focused = ImGui::IsWindowFocused(ImGuiFocusedFlags_ChildWindows);
 	_ignore_shortcuts |= is_focused;

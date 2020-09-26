@@ -79,7 +79,7 @@ imgui_code_editor::imgui_code_editor()
 	_lines.emplace_back();
 }
 
-void imgui_code_editor::render(const char *title, bool border)
+void imgui_code_editor::render(const char *title, bool border, ImFont *font)
 {
 	assert(!_lines.empty());
 
@@ -88,6 +88,7 @@ void imgui_code_editor::render(const char *title, bool border)
 	const float bottom_height = ImGui::GetFrameHeightWithSpacing() + ImGui::GetStyle().ItemSpacing.y;
 	const float button_spacing = ImGui::GetStyle().ItemInnerSpacing.x;
 
+	ImGui::PushFont(font);
 	ImGui::PushStyleColor(ImGuiCol_ChildBg, ImGui::ColorConvertU32ToFloat4(_palette[color_background]));
 	ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0.0f, 0.0f));
 
@@ -468,6 +469,7 @@ void imgui_code_editor::render(const char *title, bool border)
 
 	ImGui::PopStyleVar();
 	ImGui::PopStyleColor();
+	ImGui::PopFont();
 
 	if (ctrl && !shift && !alt && (ImGui::IsKeyPressed('F') || ImGui::IsKeyPressed('H')))
 	{

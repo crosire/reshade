@@ -10,6 +10,8 @@
 #include <vector>
 #include <unordered_map>
 
+struct ImFont;
+
 class imgui_code_editor
 {
 public:
@@ -63,7 +65,7 @@ public:
 
 	imgui_code_editor();
 
-	void render(const char *title, bool border = false);
+	void render(const char *title, bool border = false, ImFont *font = nullptr);
 
 	void select(const text_pos &beg, const text_pos &end, selection_mode mode = selection_mode::normal);
 	void select_all();
