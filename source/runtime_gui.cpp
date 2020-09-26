@@ -818,7 +818,109 @@ void reshade::runtime::draw_ui_home()
 			ImGui::PushStyleColor(ImGuiCol_Button, COLOR_RED);
 		}
 
-		draw_preset_explorer();
+		const float button_size = ImGui::GetFrameHeight();
+		const float button_spacing = _imgui_context->Style.ItemInnerSpacing.x;
+		const float browse_button_width = ImGui::GetWindowContentRegionWidth() - (button_spacing + button_size) * 3;
+
+		bool reload_preset = false;
+
+		ImGuiButtonFlags button_flags = ImGuiButtonFlags_NoNavFocus;
+		if (is_loading())
+		{
+			button_flags |= ImGuiButtonFlags_Disabled;
+			ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
+		}
+
+		if (ImGui::ButtonEx("<", ImVec2(button_size, 0), button_flags))
+			if (switch_to_next_preset(_current_preset_path.parent_path(), true))
+				reload_preset = true;
+		ImGui::SameLine(0, button_spacing);
+		if (ImGui::ButtonEx(">", ImVec2(button_size, 0), button_flags))
+			if (switch_to_next_preset(_current_preset_path.parent_path(), false))
+				reload_preset = true;
+
+		ImGui::SameLine(0, button_spacing);
+		const ImVec2 popup_pos = ImGui::GetCursorScreenPos() + ImVec2(-_imgui_context->Style.WindowPadding.x, ImGui::GetFrameHeightWithSpacing());
+
+		ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2(0.0f, 0.5f));
+		if (ImGui::ButtonEx(_current_preset_path.stem().u8string().c_str(), ImVec2(browse_button_width, 0), button_flags))
+		{
+			_file_selection_path = _current_preset_path;
+			ImGui::OpenPopup("##browse");
+		}
+		ImGui::PopStyleVar();
+
+		ImGui::SameLine(0, button_spacing);
+		if (ImGui::ButtonEx("+", ImVec2(button_size, 0), button_flags | ImGuiButtonFlags_PressedOnClick))
+		{
+			_file_selection_path = _current_preset_path.parent_path();
+			ImGui::OpenPopup("##create");
+		}
+
+		if (is_loading())
+			ImGui::PopStyleColor();
+
+		ImGui::SetNextWindowPos(popup_pos);
+		if (imgui_file_dialog("##browse", _file_selection_path, browse_button_width, { L".ini", L".txt" }))
+		{
+			// Check that this is actually a valid preset file
+			if (ini_file::load_cache(_file_selection_path).has("", "Techniques"))
+			{
+				reload_preset = true;
+				_current_preset_path = _file_selection_path;
+			}
+		}
+
+		if (ImGui::BeginPopup("##create"))
+		{
+			ImGui::Checkbox("Duplicate current preset", &_duplicate_current_preset);
+
+			char preset_name[260] = "";
+			if (ImGui::InputText("Name", preset_name, sizeof(preset_name), ImGuiInputTextFlags_EnterReturnsTrue) && preset_name[0] != '\0')
+			{
+				std::filesystem::path new_preset_path = _file_selection_path / std::filesystem::u8path(preset_name);
+				if (new_preset_path.extension() != L".ini" && new_preset_path.extension() != L".txt")
+					new_preset_path += L".ini";
+
+				std::error_code ec;
+				const std::filesystem::file_type file_type = std::filesystem::status(new_preset_path, ec).type();
+				if (file_type != std::filesystem::file_type::directory)
+				{
+					reload_preset =
+						file_type == std::filesystem::file_type::not_found ||
+						ini_file::load_cache(new_preset_path).has("", "Techniques");
+
+					if (_duplicate_current_preset && file_type == std::filesystem::file_type::not_found)
+						CopyFileW(_current_preset_path.c_str(), new_preset_path.c_str(), TRUE);
+				}
+
+				if (reload_preset)
+				{
+					ImGui::CloseCurrentPopup();
+					_current_preset_path = new_preset_path;
+				}
+				else
+				{
+					ImGui::SetKeyboardFocusHere();
+				}
+			}
+
+			if (ImGui::IsWindowAppearing())
+				ImGui::SetKeyboardFocusHere();
+
+			if (preset_name[0] == '\0' && ImGui::IsKeyPressedMap(ImGuiKey_Backspace))
+				ImGui::CloseCurrentPopup();
+
+			ImGui::EndPopup();
+		}
+
+		if (reload_preset)
+		{
+			_show_splash = true;
+
+			save_config();
+			load_current_preset();
+		}
 
 		if (_tutorial_index == 1)
 			ImGui::PopStyleColor(2);
@@ -1823,199 +1925,6 @@ void reshade::runtime::draw_code_viewer()
 		_imgui_context->IO.ConfigFlags &= ~ImGuiConfigFlags_NavEnableKeyboard;
 	else
 		_imgui_context->IO.ConfigFlags |=  ImGuiConfigFlags_NavEnableKeyboard;
-}
-
-void reshade::runtime::draw_preset_explorer()
-{
-	const float button_size = ImGui::GetFrameHeight();
-	const float button_spacing = _imgui_context->Style.ItemInnerSpacing.x;
-	const float browse_button_width = ImGui::GetWindowContentRegionWidth() - (button_spacing + button_size) * 3;
-
-	std::error_code ec;
-	bool reload_preset = false;
-
-	ImGuiButtonFlags button_flags = ImGuiButtonFlags_NoNavFocus;
-	if (is_loading())
-	{
-		button_flags |= ImGuiButtonFlags_Disabled;
-		ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
-	}
-
-	if (ImGui::ButtonEx("<", ImVec2(button_size, 0), button_flags))
-		if (switch_to_next_preset(_current_preset_path.parent_path(), true))
-			reload_preset = true;
-	ImGui::SameLine(0, button_spacing);
-	if (ImGui::ButtonEx(">", ImVec2(button_size, 0), button_flags))
-		if (switch_to_next_preset(_current_preset_path.parent_path(), false))
-			reload_preset = true;
-
-	ImGui::SameLine(0, button_spacing);
-	const ImVec2 popup_pos = ImGui::GetCursorScreenPos() + ImVec2(-_imgui_context->Style.WindowPadding.x, ImGui::GetFrameHeightWithSpacing());
-
-	ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2(0.0f, 0.5f));
-	if (ImGui::ButtonEx(_current_preset_path.stem().u8string().c_str(), ImVec2(browse_button_width, 0), button_flags))
-		ImGui::OpenPopup("##explore");
-	ImGui::PopStyleVar();
-
-	ImGui::SameLine(0, button_spacing);
-	if (ImGui::ButtonEx("+", ImVec2(button_size, 0), button_flags | ImGuiButtonFlags_PressedOnClick))
-	{
-		ImGui::OpenPopup("##name");
-
-		// Reset base path for new preset
-		_current_browse_path = _current_preset_path.parent_path();
-	}
-
-	if (is_loading())
-		ImGui::PopStyleColor();
-
-	if (ImGui::BeginPopup("##explore"))
-	{
-		ImGui::SetWindowPos(popup_pos);
-
-		char buf[260] = "";
-		_current_browse_path.u8string().copy(buf, sizeof(buf) - 1);
-		if (ImGui::InputTextEx("##path", nullptr, buf, sizeof(buf), ImVec2(browse_button_width, 0), ImGuiInputTextFlags_None))
-			_current_browse_path = std::filesystem::u8path(buf);
-
-		if (ImGui::IsItemActivated())
-			_imgui_context->InputTextState.ClearSelection();
-		if (ImGui::IsWindowAppearing())
-			ImGui::SetKeyboardFocusHere();
-
-		// This sets the browse path the first time the popup is opened too
-		if (_current_browse_path.empty() || !_current_browse_path.is_absolute())
-			_current_browse_path = _current_preset_path.empty() ?
-				_configuration_path.parent_path() : _current_preset_path.parent_path();
-
-		if (ImGui::IsKeyPressedMap(ImGuiKey_Enter))
-		{
-			const std::filesystem::file_type file_type = std::filesystem::status(_current_browse_path, ec).type();
-			if (file_type != std::filesystem::file_type::directory &&
-				_current_browse_path.extension() == L".ini" || _current_browse_path.extension() == L".txt")
-			{
-				reload_preset =
-					file_type == std::filesystem::file_type::not_found ||
-					ini_file::load_cache(_current_browse_path).has("", "Techniques");
-			}
-
-			if (reload_preset)
-			{
-				ImGui::CloseCurrentPopup();
-				_current_preset_path = _current_browse_path;
-			}
-			else
-			{
-				ImGui::SetKeyboardFocusHere();
-			}
-		}
-
-		std::filesystem::path base_path = _current_browse_path;
-		std::wstring presets_filter_text;
-		if (!std::filesystem::is_directory(base_path, ec))
-		{
-			presets_filter_text = base_path.filename().wstring();
-			base_path = base_path.parent_path();
-		}
-
-		ImGui::BeginChild("##paths", ImVec2(browse_button_width, 300), true, ImGuiWindowFlags_NavFlattened);
-
-		if (_current_browse_path.has_parent_path() && ImGui::Selectable(".."))
-			_current_browse_path = _current_browse_path.parent_path();
-
-		std::vector<std::filesystem::path> preset_paths;
-		for (const auto &entry : std::filesystem::directory_iterator(base_path, std::filesystem::directory_options::skip_permission_denied, ec))
-		{
-			if (entry.is_directory(ec))
-			{
-				std::string label = entry.path().filename().u8string();
-				label = "<DIR> " + label;
-
-				if (ImGui::Selectable(label.c_str()))
-					_current_browse_path = entry.path();
-				continue;
-			}
-
-			if (entry.path().extension() == L".ini" || entry.path().extension() == L".txt")
-				preset_paths.push_back(entry);
-		}
-		for (const std::filesystem::path &preset_path : preset_paths)
-		{
-			const bool is_current_preset = std::filesystem::equivalent(preset_path, _current_preset_path, ec);
-
-			if (!presets_filter_text.empty() && !is_current_preset)
-			{
-				const std::wstring preset_name = preset_path.filename().wstring();
-				if (std::search(preset_name.begin(), preset_name.end(), presets_filter_text.begin(), presets_filter_text.end(),
-					[](const wchar_t c1, const wchar_t c2) { return towlower(c1) == towlower(c2); }) == preset_name.end())
-					continue;
-			}
-
-			if (ImGui::Selectable(preset_path.filename().u8string().c_str(), is_current_preset) &&
-				ini_file::load_cache(preset_path).has("", "Techniques"))
-			{
-				reload_preset = true;
-				_current_preset_path = preset_path;
-				ImGui::CloseCurrentPopup();
-			}
-
-			if (is_current_preset && ImGui::IsWindowAppearing())
-				ImGui::SetScrollHereY();
-		}
-
-		ImGui::EndChild();
-		ImGui::EndPopup();
-	}
-
-	if (ImGui::BeginPopup("##name"))
-	{
-		ImGui::Checkbox("Duplicate current preset", &_duplicate_current_preset);
-
-		char preset_name[260] = "";
-		if (ImGui::InputText("Name", preset_name, sizeof(preset_name), ImGuiInputTextFlags_EnterReturnsTrue) && preset_name[0] != '\0')
-		{
-			std::filesystem::path new_preset_path = _current_browse_path / std::filesystem::u8path(preset_name);
-			if (new_preset_path.extension() != L".ini" && new_preset_path.extension() != L".txt")
-				new_preset_path += L".ini";
-
-			const std::filesystem::file_type file_type = std::filesystem::status(new_preset_path, ec).type();
-			if (file_type != std::filesystem::file_type::directory)
-			{
-				reload_preset =
-					file_type == std::filesystem::file_type::not_found ||
-					ini_file::load_cache(new_preset_path).has("", "Techniques");
-
-				if (_duplicate_current_preset && file_type == std::filesystem::file_type::not_found)
-					CopyFileW(_current_preset_path.c_str(), new_preset_path.c_str(), TRUE);
-			}
-
-			if (reload_preset)
-			{
-				ImGui::CloseCurrentPopup();
-				_current_preset_path = new_preset_path;
-			}
-			else
-			{
-				ImGui::SetKeyboardFocusHere();
-			}
-		}
-
-		if (ImGui::IsWindowAppearing())
-			ImGui::SetKeyboardFocusHere();
-
-		if (preset_name[0] == '\0' && ImGui::IsKeyPressedMap(ImGuiKey_Backspace))
-			ImGui::CloseCurrentPopup();
-
-		ImGui::EndPopup();
-	}
-
-	if (reload_preset)
-	{
-		_show_splash = true;
-
-		save_config();
-		load_current_preset();
-	}
 }
 
 void reshade::runtime::draw_variable_editor()

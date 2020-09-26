@@ -81,7 +81,7 @@ bool imgui_font_select(const char *name, std::filesystem::path &path, std::files
 	return res;
 }
 
-bool imgui_file_dialog(const char *name, std::filesystem::path &path, const std::vector<std::wstring> &exts)
+bool imgui_file_dialog(const char *name, std::filesystem::path &path, float width, const std::vector<std::wstring> &exts)
 {
 	if (!ImGui::BeginPopup(name))
 		return false;
@@ -95,7 +95,7 @@ bool imgui_file_dialog(const char *name, std::filesystem::path &path, const std:
 		const size_t buf_len = parent_path.u8string().copy(buf, sizeof(buf) - 1);
 		buf[buf_len] = '\0';
 
-		ImGui::PushItemWidth(500);
+		ImGui::PushItemWidth(width);
 		if (ImGui::InputText("##path", buf, sizeof(buf)))
 		{
 			path = std::filesystem::u8path(buf);
@@ -110,7 +110,7 @@ bool imgui_file_dialog(const char *name, std::filesystem::path &path, const std:
 			ImGui::SetKeyboardFocusHere(1);
 	}
 
-	ImGui::BeginChild("##files", ImVec2(500, 200), false, ImGuiWindowFlags_NavFlattened);
+	ImGui::BeginChild("##files", ImVec2(width, 200), false, ImGuiWindowFlags_NavFlattened);
 
 	if (parent_path.has_parent_path())
 	{
@@ -175,7 +175,7 @@ bool imgui_file_dialog(const char *name, std::filesystem::path &path, const std:
 		const size_t buf_len = path_name.u8string().copy(buf, sizeof(buf) - 1);
 		buf[buf_len] = '\0';
 
-		ImGui::PushItemWidth(500 - (2 * (80 + ImGui::GetStyle().ItemSpacing.x)));
+		ImGui::PushItemWidth(width - (2 * (80 + ImGui::GetStyle().ItemSpacing.x)));
 		if (ImGui::InputText("##name", buf, sizeof(buf)))
 			path = path.parent_path() / buf;
 		ImGui::PopItemWidth();
@@ -236,7 +236,7 @@ bool imgui_file_input_box(const char *name, std::filesystem::path &path, std::fi
 
 	ImGui::EndGroup();
 
-	if (imgui_file_dialog("##select", dialog_path, exts))
+	if (imgui_file_dialog("##select", dialog_path, 500, exts))
 		path = dialog_path, res = true;
 
 	ImGui::PopID();
@@ -278,7 +278,7 @@ bool imgui_directory_input_box(const char *name, std::filesystem::path &path, st
 
 	ImGui::EndGroup();
 
-	if (imgui_file_dialog("##select", dialog_path, {}))
+	if (imgui_file_dialog("##select", dialog_path, 500, {}))
 		path = dialog_path, res = true;
 
 	ImGui::PopID();
@@ -346,7 +346,7 @@ bool imgui_path_list(const char *label, std::vector<std::filesystem::path> &path
 			}
 		}
 
-		if (imgui_file_dialog("##select", dialog_path, {}))
+		if (imgui_file_dialog("##select", dialog_path, 500, {}))
 		{
 			res = true;
 			paths.push_back(dialog_path);

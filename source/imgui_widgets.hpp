@@ -13,7 +13,7 @@ bool imgui_key_input(const char *name, unsigned int key_data[4], const reshade::
 
 bool imgui_font_select(const char *name, std::filesystem::path &path, std::filesystem::path &dialog_path, int &size);
 
-bool imgui_file_dialog(const char *name, std::filesystem::path &path, const std::vector<std::wstring> &exts);
+bool imgui_file_dialog(const char *name, std::filesystem::path &path, float width, const std::vector<std::wstring> &exts);
 bool imgui_file_input_box(const char *name, std::filesystem::path &path, std::filesystem::path &dialog_path, const std::vector<std::wstring> &exts);
 bool imgui_directory_input_box(const char *name, std::filesystem::path &path, std::filesystem::path &dialog_path);
 
