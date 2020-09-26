@@ -2289,8 +2289,8 @@ void reshade::runtime::draw_variable_editor()
 				int data[16];
 				get_uniform_value(variable, data, 16);
 
-				const auto ui_min_val = variable.annotation_as_int("ui_min");
-				const auto ui_max_val = variable.annotation_as_int("ui_max");
+				const auto ui_min_val = variable.annotation_as_int("ui_min", 0, std::numeric_limits<int>::lowest());
+				const auto ui_max_val = variable.annotation_as_int("ui_max", 0, std::numeric_limits<int>::max());
 				const auto ui_stp_val = std::max(1, variable.annotation_as_int("ui_step"));
 
 				if (ui_type == "slider")
@@ -2320,8 +2320,8 @@ void reshade::runtime::draw_variable_editor()
 				float data[16];
 				get_uniform_value(variable, data, 16);
 
-				const auto ui_min_val = variable.annotation_as_float("ui_min");
-				const auto ui_max_val = variable.annotation_as_float("ui_max");
+				const auto ui_min_val = variable.annotation_as_float("ui_min", 0, std::numeric_limits<float>::lowest());
+				const auto ui_max_val = variable.annotation_as_float("ui_max", 0, std::numeric_limits<float>::max());
 				const auto ui_stp_val = std::max(0.001f, variable.annotation_as_float("ui_step"));
 
 				// Calculate display precision based on step value

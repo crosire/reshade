@@ -959,15 +959,15 @@ void reshade::runtime::update_and_render_effects()
 				}
 				case special_uniform::random:
 				{
-					const int min = variable.annotation_as_int("min");
-					const int max = variable.annotation_as_int("max");
+					const int min = variable.annotation_as_int("min", 0, 0);
+					const int max = variable.annotation_as_int("max", 0, RAND_MAX);
 					set_uniform_value(variable, min + (std::rand() % (std::abs(max - min) + 1)));
 					break;
 				}
 				case special_uniform::ping_pong:
 				{
-					const float min = variable.annotation_as_float("min");
-					const float max = variable.annotation_as_float("max");
+					const float min = variable.annotation_as_float("min", 0, 0.0f);
+					const float max = variable.annotation_as_float("max", 0, 1.0f);
 					const float step_min = variable.annotation_as_float("step", 0);
 					const float step_max = variable.annotation_as_float("step", 1);
 					float increment = step_max == 0 ? step_min : (step_min + std::fmodf(static_cast<float>(std::rand()), step_max - step_min + 1));
