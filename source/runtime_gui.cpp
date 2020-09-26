@@ -2125,7 +2125,6 @@ void reshade::runtime::draw_variable_editor()
 	ImGui::BeginChild("##variables");
 	if (_variable_editor_tabs)
 		ImGui::BeginTabBar("##variables");
-	ImGui::PushItemWidth(ImGui::GetWindowWidth() * 0.5f);
 
 	for (size_t effect_index = 0, id = 0; effect_index < _effects.size(); ++effect_index)
 	{
@@ -2519,7 +2518,6 @@ void reshade::runtime::draw_variable_editor()
 		ImGui::EndPopup();
 	}
 
-	ImGui::PopItemWidth();
 	if (_variable_editor_tabs)
 		ImGui::EndTabBar();
 	ImGui::EndChild();
