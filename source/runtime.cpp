@@ -582,7 +582,8 @@ size_t reshade::runtime::load_effect(reshade::ini_file &preset, std::filesystem:
 				if (!effect.compiled)
 					break;
 
-				existing_texture->shared = true;
+				if (std::find(existing_texture->shared.begin(), existing_texture->shared.end(), effect_index) == existing_texture->shared.end())
+					existing_texture->shared.push_back(effect_index);
 
 				// Always make shared textures render targets, since they may be used as such in a different effect
 				existing_texture->render_target = true;
@@ -600,14 +601,18 @@ size_t reshade::runtime::load_effect(reshade::ini_file &preset, std::filesystem:
 					// Overwrite referenced texture in samplers with the pooled one
 					for (auto &sampler_info : effect.module.samplers)
 						if (sampler_info.texture_name == texture.unique_name)
-							sampler_info.texture_name = existing_texture->unique_name;
+							sampler_info.texture_name  = existing_texture->unique_name;
 					// Overwrite referenced texture in render targets with the pooled one
 					for (auto &technique_info : effect.module.techniques)
 						for (auto &pass_info : technique_info.passes)
 							std::replace(std::begin(pass_info.render_target_names), std::end(pass_info.render_target_names),
 								texture.unique_name, existing_texture->unique_name);
 
-					existing_texture->shared = true;
+					if (std::find(existing_texture->shared.begin(), existing_texture->shared.end(), effect_index) == existing_texture->shared.end())
+						existing_texture->shared.push_back(effect_index);
+
+					existing_texture->render_target = true;
+					existing_texture->storage_access = true;
 					continue;
 				}
 			}
@@ -783,9 +788,9 @@ void reshade::runtime::load_textures()
 	_textures_loaded = true;
 }
 
-void reshade::runtime::unload_effect(size_t index)
+void reshade::runtime::unload_effect(size_t effect_index)
 {
-	assert(index < _effects.size());
+	assert(effect_index < _effects.size());
 
 #if RESHADE_GUI
 	_preview_texture = nullptr;
@@ -796,8 +801,9 @@ void reshade::runtime::unload_effect(size_t index)
 
 	// Destroy textures belonging to this effect
 	_textures.erase(std::remove_if(_textures.begin(), _textures.end(),
-		[this, index](texture &tex) {
-			if (tex.effect_index == index && !tex.shared) {
+		[this, effect_index](texture &tex) {
+			tex.shared.erase(std::remove(tex.shared.begin(), tex.shared.end(), effect_index), tex.shared.end());
+			if (tex.shared.empty()) {
 				destroy_texture(tex);
 				return true;
 			}
@@ -806,14 +812,14 @@ void reshade::runtime::unload_effect(size_t index)
 
 	// Clean up techniques belonging to this effect
 	_techniques.erase(std::remove_if(_techniques.begin(), _techniques.end(),
-		[index](const technique &tech) {
-			return tech.effect_index == index;
+		[effect_index](const technique &tech) {
+			return tech.effect_index == effect_index;
 		}), _techniques.end());
 
-	effect &effect = _effects[index];
-	if (_previous_effects.size() <= index)
-		_previous_effects.resize(index + 1);
-	_previous_effects[index] = std::move(effect);
+	effect &effect = _effects[effect_index];
+	if (_previous_effects.size() <= effect_index)
+		_previous_effects.resize(effect_index + 1);
+	_previous_effects[effect_index] = std::move(effect);
 	effect = {};
 }
 void reshade::runtime::unload_effects()
@@ -954,14 +960,14 @@ void reshade::runtime::update_and_render_effects()
 		for (texture &texture : _textures)
 		{
 			// Always create shared textures, since they may be in use by this effect already
-			if (texture.impl != nullptr || (texture.effect_index != effect_index && !texture.shared))
-				continue;
-
-			if (!init_texture(texture))
+			if (texture.impl == nullptr && (texture.effect_index == effect_index || texture.shared.size() > 1))
 			{
-				success = false;
-				effect.errors += "Failed to create texture " + texture.unique_name;
-				break;
+				if (!init_texture(texture))
+				{
+					success = false;
+					effect.errors += "Failed to create texture " + texture.unique_name;
+					break;
+				}
 			}
 		}
 
@@ -992,7 +998,7 @@ void reshade::runtime::update_and_render_effects()
 		{
 			// Destroy all textures belonging to this effect
 			for (texture &tex : _textures)
-				if (tex.effect_index == effect_index && !tex.shared)
+				if (tex.effect_index == effect_index && tex.shared.size() <= 1)
 					destroy_texture(tex);
 			// Disable all techniques belonging to this effect
 			for (technique &tech : _techniques)
