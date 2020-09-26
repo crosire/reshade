@@ -229,18 +229,21 @@ bool reshade::input::handle_window_message(const void *message_data)
 		input->_keys_time[details.wParam] = details.time;
 		break;
 	case WM_LBUTTONDOWN:
+	case WM_LBUTTONDBLCLK: // Double clicking generates this sequence: WM_LBUTTONDOWN -> WM_LBUTTONUP -> WM_LBUTTONDBLCLK -> WM_LBUTTONUP, so handle it like a normal down
 		input->_keys[VK_LBUTTON] = 0x88;
 		break;
 	case WM_LBUTTONUP:
 		input->_keys[VK_LBUTTON] = 0x08;
 		break;
 	case WM_RBUTTONDOWN:
+	case WM_RBUTTONDBLCLK:
 		input->_keys[VK_RBUTTON] = 0x88;
 		break;
 	case WM_RBUTTONUP:
 		input->_keys[VK_RBUTTON] = 0x08;
 		break;
 	case WM_MBUTTONDOWN:
+	case WM_MBUTTONDBLCLK:
 		input->_keys[VK_MBUTTON] = 0x88;
 		break;
 	case WM_MBUTTONUP:
