@@ -79,25 +79,40 @@ void reshade::ini_file::load()
 
 		if (assign_index != std::string::npos)
 		{
-			const std::string key(trim(line.substr(0, assign_index)));
-			const std::string value(trim(line.substr(assign_index + 1)));
-			std::vector<std::string> value_splitted;
+			const std::string key = trim(line.substr(0, assign_index));
+			const std::string value = trim(line.substr(assign_index + 1));
 
-			for (size_t i = 0, len = value.size(), found; i < len; i = found + 1)
+			// Append to key if it already exists
+			reshade::ini_file::value &elements = _sections[section][key];
+			for (size_t offset = 0, base = 0, len = value.size(); offset <= len;)
 			{
-				found = value.find_first_of(',', i);
+				// Treat ",," as an escaped comma and only split on single ","
+				const size_t found = std::min(value.find_first_of(',', offset), len);
+				if (found + 1 < len && value[found + 1] == ',')
+				{
+					offset = found + 2;
+				}
+				else
+				{
+					std::string &element = elements.emplace_back();
+					element.reserve(found - base);
 
-				if (found == std::string::npos)
-					found = len;
+					while (base < found)
+					{
+						const char c = value[base++];
+						element += c;
 
-				value_splitted.emplace_back(value, i, found - i);
+						if (c == ',' && base < found && value[base] == ',')
+							base++; // Skip second comma in a ",," escape sequence
+					}
+
+					base = offset = found + 1;
+				}
 			}
-
-			_sections[section][key] = value_splitted;
 		}
 		else
 		{
-			_sections[section][line] = {};
+			_sections[section].insert({ line, {} });
 		}
 	}
 }
@@ -154,12 +169,21 @@ bool reshade::ini_file::save()
 		{
 			data << key_name << '=';
 
-			size_t i = 0;
-			for (const std::string &item : keys.at(key_name))
+			if (const reshade::ini_file::value &elements = keys.at(key_name); !elements.empty())
 			{
-				if (i++ != 0) // Separate multiple values with a comma
-					data << ',';
-				data << item;
+				std::string value;
+				for (const std::string &element : elements)
+				{
+					value.reserve(value.size() + element.size() + 1);
+					for (const char c : element)
+						value.append(c == ',' ? 2 : 1, c);
+					value += ','; // Separate multiple values with a comma
+				}
+
+				// Remove the last comma
+				value.pop_back();
+
+				data << value;
 			}
 
 			data << '\n';
