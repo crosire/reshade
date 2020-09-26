@@ -16,7 +16,7 @@ std::filesystem::path g_reshade_dll_path;
 std::filesystem::path g_reshade_base_path;
 std::filesystem::path g_target_executable_path;
 
-static bool test_path(std::filesystem::path &path, const bool is_directory = true, const std::filesystem::path &base = g_reshade_dll_path.parent_path()) noexcept
+static bool test_path(std::filesystem::path &path, const bool is_directory = true, const std::filesystem::path &base = g_reshade_dll_path.parent_path())
 {
 	if (path.is_relative())
 		path = base / path;
@@ -24,33 +24,32 @@ static bool test_path(std::filesystem::path &path, const bool is_directory = tru
 	WCHAR buf[4096];
 	if (!GetLongPathNameW(path.c_str(), buf, ARRAYSIZE(buf)))
 		return false;
-
 	path = buf;
 	path = path.lexically_normal();
-	if (!path.has_stem())
+	if (!path.has_stem()) // Remove trailing slash
 		path = path.parent_path();
 
 	std::error_code ec;
 	return is_directory ? std::filesystem::is_directory(path, ec) : std::filesystem::exists(path, ec);
 }
-static bool resolve_env_path(std::filesystem::path &path, const bool is_directory = true, const std::filesystem::path &base = g_reshade_dll_path.parent_path()) noexcept
+static bool resolve_env_path(std::filesystem::path &path)
 {
 	WCHAR buf[4096];
 	if (!ExpandEnvironmentStringsW(path.c_str(), buf, ARRAYSIZE(buf)))
 		return false;
 	path = buf;
-	return test_path(path, is_directory, base);
+	return test_path(path);
 }
 
 static void load_global_config()
 {
-	if (std::filesystem::path config_path = g_reshade_dll_path.filename().replace_extension(L".ini");
-		test_path(config_path, false))
+	std::filesystem::path config_path = g_reshade_dll_path.filename().replace_extension(L".ini");
+	if (test_path(config_path, false))
 	{
 		const reshade::ini_file &config = reshade::ini_file::load_cache(config_path);
 
 		if (std::filesystem::path base_path;
-			config.get("INSTALL", "BasePath", base_path) && resolve_env_path(base_path, true))
+			config.get("INSTALL", "BasePath", base_path) && resolve_env_path(base_path))
 			g_reshade_base_path = std::move(base_path);
 	}
 
@@ -58,15 +57,22 @@ static void load_global_config()
 	{
 		WCHAR buf[4096] = L"";
 		if (std::filesystem::path env_path;
-			GetEnvironmentVariableW(L"RESHADE_BASE_PATH_OVERRIDE", buf, ARRAYSIZE(buf)) &&
-			resolve_env_path(env_path = buf, true, g_target_executable_path.parent_path()))
+			GetEnvironmentVariableW(L"RESHADE_BASE_PATH_OVERRIDE", buf, ARRAYSIZE(buf)) && resolve_env_path(env_path = buf))
 		{
 			g_reshade_base_path = std::move(env_path);
 		}
 		else
 		{
-			// Use target executable directory by default, so that Vulkan games get an unique configuration
-			g_reshade_base_path = g_target_executable_path.parent_path();
+			std::error_code ec;
+			if (std::filesystem::exists(config_path, ec) || !std::filesystem::exists(g_target_executable_path.parent_path() / L"ReShade.ini", ec))
+			{
+				g_reshade_base_path = g_reshade_dll_path.parent_path();
+			}
+			else
+			{
+				// Use target executable directory when a unique configuration already exists
+				g_reshade_base_path = g_target_executable_path.parent_path();
+			}
 		}
 	}
 }
@@ -77,13 +83,13 @@ std::filesystem::path get_system_path()
 	if (!system_path.empty())
 		return system_path; // Return the cached system path
 
-	if (std::filesystem::path config_path = g_reshade_dll_path.filename().replace_extension(L".ini");
-		test_path(config_path, false))
+	std::filesystem::path config_path = g_reshade_dll_path.filename().replace_extension(L".ini");
+	if (test_path(config_path, false))
 	{
 		const reshade::ini_file &config = reshade::ini_file::load_cache(config_path);
 
 		if (std::filesystem::path module_path;
-			config.get("INSTALL", "ModulePath", module_path) && resolve_env_path(module_path, true))
+			config.get("INSTALL", "ModulePath", module_path) && resolve_env_path(module_path))
 			system_path = std::move(module_path);
 	}
 
@@ -91,8 +97,7 @@ std::filesystem::path get_system_path()
 	{
 		WCHAR buf[4096] = L"";
 		if (std::filesystem::path env_path;
-			GetEnvironmentVariableW(L"RESHADE_MODULE_PATH_OVERRIDE", buf, ARRAYSIZE(buf)) &&
-			resolve_env_path(env_path = buf, true, g_target_executable_path.parent_path()))
+			GetEnvironmentVariableW(L"RESHADE_MODULE_PATH_OVERRIDE", buf, ARRAYSIZE(buf)) && resolve_env_path(env_path = buf))
 		{
 			system_path = std::move(env_path);
 		}
