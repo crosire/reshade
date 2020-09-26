@@ -79,29 +79,40 @@ void reshade::ini_file::load()
 
 		if (assign_index != std::string::npos)
 		{
-			std::string key = trim(line.substr(0, assign_index));
-			std::string value = trim(line.substr(assign_index + 1));
+			const std::string key = trim(line.substr(0, assign_index));
+			const std::string value = trim(line.substr(assign_index + 1));
 
-			if (reshade::ini_file::value &elements = _sections[section][key]; elements.empty())
+			// Append to key if it already exists
+			reshade::ini_file::value &elements = _sections[section][key];
+			for (size_t offset = 0, base = 0, len = value.size(); offset <= len;)
 			{
-				for (size_t offset = 0, found = 0; found = std::min(std::min(value.find_first_of(',', offset), value.size()), value.size()), !value.empty();)
+				// Treat ",," as an escaped comma and only split on single ","
+				const size_t found = std::min(value.find_first_of(',', offset), len);
+				if (found + 1 < len && value[found + 1] == ',')
 				{
-					if (offset = 0; found + 2 < value.size() && value[found + 1] == ',')
+					offset = found + 2;
+				}
+				else
+				{
+					std::string &element = elements.emplace_back();
+					element.reserve(found - base);
+
+					while (base < found)
 					{
-						offset = found + 2;
-						continue;
+						const char c = value[base++];
+						element += c;
+
+						if (c == ',' && base < found && value[base] == ',')
+							base++; // Skip second comma in a ",," escape sequence
 					}
-					std::string &element = elements.emplace_back(); element.reserve(found);
-					for (const char c : trim(value.substr(0, found)))
-						if (element.empty() || c != ',' || element.back() != ',')
-							element += c;
-					value = value.substr(std::min(found + 1, value.size()));
+
+					base = offset = found + 1;
 				}
 			}
 		}
 		else
 		{
-			_sections[section][line] = {};
+			_sections[section].insert({ line, {} });
 		}
 	}
 }
@@ -156,21 +167,26 @@ bool reshade::ini_file::save()
 
 		for (const std::string &key_name : key_names)
 		{
-			std::string value;
-			if (const auto &elements = keys.at(key_name); !elements.empty())
+			data << key_name << '=';
+
+			if (const reshade::ini_file::value &elements = keys.at(key_name); !elements.empty())
 			{
+				std::string value;
 				for (const std::string &element : elements)
 				{
+					value.reserve(value.size() + element.size() + 1);
 					for (const char c : element)
 						value.append(c == ',' ? 2 : 1, c);
 					value += ','; // Separate multiple values with a comma
 				}
-				value.back() = '\n';
-			}
-			if (data << key_name << '='; value.empty())
-				data << '\n';
-			else
+
+				// Remove the last comma
+				value.pop_back();
+
 				data << value;
+			}
+
+			data << '\n';
 		}
 
 		data << '\n';
