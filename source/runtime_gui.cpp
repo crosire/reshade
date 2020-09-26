@@ -619,11 +619,7 @@ void reshade::runtime::draw_ui()
 
 		if (_show_clock)
 		{
-			const int hour = _date[3] / 3600;
-			const int minute = (_date[3] - hour * 3600) / 60;
-			const int seconds = _date[3] - hour * 3600 - minute * 60;
-
-			ImFormatString(temp, sizeof(temp), _clock_format != 0 ? "%02u:%02u:%02u" : "%02u:%02u", hour, minute, seconds);
+			ImFormatString(temp, sizeof(temp), _clock_format != 0 ? "%.2d:%.2d:%.2d" : "%.2d:%.2d", _date[4], _date[5], _date[6]);
 			if (_fps_pos % 2) // Align text to the right of the window
 				ImGui::SetCursorPosX(ImGui::GetWindowContentRegionWidth() - ImGui::CalcTextSize(temp).x);
 			ImGui::TextUnformatted(temp);
@@ -1114,12 +1110,8 @@ void reshade::runtime::draw_ui_settings()
 
 		modified |= imgui_directory_input_box("Screenshot path", _screenshot_path, _file_selection_path);
 
-		const int hour = _date[3] / 3600;
-		const int minute = (_date[3] - hour * 3600) / 60;
-		const int seconds = _date[3] - hour * 3600 - minute * 60;
-
 		char timestamp[21];
-		sprintf_s(timestamp, " %.4d-%.2d-%.2d %.2d-%.2d-%.2d", _date[0], _date[1], _date[2], hour, minute, seconds);
+		sprintf_s(timestamp, " %.4d-%.2d-%.2d %.2d-%.2d-%.2d", _date[0], _date[1], _date[2], _date[4], _date[5], _date[6]);
 
 		std::string screenshot_naming_items;
 		screenshot_naming_items += g_target_executable_path.stem().string() + timestamp + '\0';
@@ -1344,7 +1336,7 @@ void reshade::runtime::draw_ui_statistics()
 		ImGui::TextUnformatted("Application:");
 		ImGui::TextUnformatted("Time:");
 		ImGui::TextUnformatted("Network:");
-		ImGui::Text("Frame %llu:", _framecount + 1);
+		ImGui::TextUnformatted("Frame:");
 		ImGui::NewLine();
 		ImGui::TextUnformatted("Post-Processing:");
 
@@ -1357,7 +1349,7 @@ void reshade::runtime::draw_ui_statistics()
 		else
 			ImGui::TextUnformatted("Unknown");
 		ImGui::TextUnformatted(g_target_executable_path.filename().u8string().c_str());
-		ImGui::Text("%d-%d-%d %d", _date[0], _date[1], _date[2], _date[3]);
+		ImGui::Text("%.4d-%.2d-%.2d %.2d:%.2d:%.2d", _date[0], _date[1], _date[2], _date[4], _date[5], _date[6]);
 		ImGui::Text("%u B", g_network_traffic);
 		ImGui::Text("%.2f fps", _imgui_context->IO.Framerate);
 		ImGui::Text("%u draw calls", _drawcalls);
@@ -1372,7 +1364,7 @@ void reshade::runtime::draw_ui_statistics()
 		else
 			ImGui::TextUnformatted("Unknown");
 		ImGui::Text("0x%X", std::hash<std::string>()(g_target_executable_path.stem().u8string()) & 0xFFFFFFFF);
-		ImGui::Text("%.0f ms", std::chrono::duration_cast<std::chrono::nanoseconds>(_last_present_time - _start_time).count() * 1e-6f);
+		ImGui::Text("%lld s", std::chrono::duration_cast<std::chrono::nanoseconds>(_last_present_time - _start_time).count() / 1000000000ll);
 		ImGui::NewLine();
 		ImGui::Text("%*.3f ms", gpu_digits + 4, _last_frame_duration.count() * 1e-6f);
 		ImGui::Text("%u vertices", _vertices);
@@ -1392,9 +1384,9 @@ void reshade::runtime::draw_ui_statistics()
 				continue;
 
 			if (technique.passes.size() > 1)
-				ImGui::Text("%s (%zu passes)", technique.name.c_str(), technique.passes.size());
+				ImGui::Text("%*s (%zu passes)", technique.name.size(), technique.name.c_str(), technique.passes.size());
 			else
-				ImGui::TextUnformatted(technique.name.c_str());
+				ImGui::TextUnformatted(technique.name.c_str(), technique.name.c_str() + technique.name.size());
 		}
 
 		ImGui::EndGroup();

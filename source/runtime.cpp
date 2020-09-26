@@ -146,12 +146,16 @@ void reshade::runtime::on_reset()
 void reshade::runtime::on_present()
 {
 	// Get current time and date
-	const std::time_t t = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
-	tm tm; localtime_s(&tm, &t);
-	_date[0] = tm.tm_year + 1900;
-	_date[1] = tm.tm_mon + 1;
-	_date[2] = tm.tm_mday;
-	_date[3] = tm.tm_hour * 3600 + tm.tm_min * 60 + tm.tm_sec;
+	SYSTEMTIME time; GetLocalTime(&time);
+
+	_date[0] = time.wYear;
+	_date[1] = time.wMonth;
+	_date[2] = time.wDay;
+	_date[3] = time.wHour * 3600 + time.wMinute * 60 + time.wSecond;
+	_date[4] = time.wHour;
+	_date[5] = time.wMinute;
+	_date[6] = time.wSecond;
+	_date[7] = time.wMilliseconds;
 
 	_framecount++;
 	const auto current_time = std::chrono::high_resolution_clock::now();
@@ -1530,12 +1534,8 @@ bool reshade::runtime::switch_to_next_preset(std::filesystem::path filter_path, 
 
 void reshade::runtime::save_screenshot(const std::wstring &postfix, const bool should_save_preset)
 {
-	const int hour = _date[3] / 3600;
-	const int minute = (_date[3] - hour * 3600) / 60;
-	const int seconds = _date[3] - hour * 3600 - minute * 60;
-
 	char timestamp[21];
-	sprintf_s(timestamp, " %.4d-%.2d-%.2d %.2d-%.2d-%.2d", _date[0], _date[1], _date[2], hour, minute, seconds);
+	sprintf_s(timestamp, " %.4d-%.2d-%.2d %.2d-%.2d-%.2d", _date[0], _date[1], _date[2], _date[4], _date[5], _date[6]);
 
 	std::wstring filename = g_target_executable_path.stem().concat(timestamp);
 	if (_screenshot_naming == 1)
