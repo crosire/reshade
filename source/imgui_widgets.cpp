@@ -114,7 +114,7 @@ bool imgui_file_dialog(const char *name, std::filesystem::path &path, float widt
 
 	if (parent_path.has_parent_path())
 	{
-		if (ImGui::Selectable("<DIR> ..", false, ImGuiSelectableFlags_AllowDoubleClick) &&
+		if (ImGui::Selectable(ICON_FOLDER " ..", false, ImGuiSelectableFlags_AllowDoubleClick) &&
 			ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
 		{
 			path = parent_path.parent_path();
@@ -129,7 +129,7 @@ bool imgui_file_dialog(const char *name, std::filesystem::path &path, float widt
 		if (entry.is_directory())
 		{
 			const bool is_selected = entry == path;
-			const std::string label = "<DIR> " + entry.path().filename().u8string();
+			const std::string label = ICON_FOLDER " " + entry.path().filename().u8string();
 			if (ImGui::Selectable(label.c_str(), is_selected, ImGuiSelectableFlags_AllowDoubleClick))
 			{
 				path = entry;
@@ -153,7 +153,7 @@ bool imgui_file_dialog(const char *name, std::filesystem::path &path, float widt
 	for (std::filesystem::path &file_path : file_entries)
 	{
 		const bool is_selected = file_path == path;
-		const std::string label = file_path.filename().u8string();
+		const std::string label = ICON_FILE " " + file_path.filename().u8string();
 		if (ImGui::Selectable(label.c_str(), is_selected, ImGuiSelectableFlags_AllowDoubleClick))
 		{
 			path = std::move(file_path);
@@ -182,9 +182,9 @@ bool imgui_file_dialog(const char *name, std::filesystem::path &path, float widt
 	}
 
 	ImGui::SameLine();
-	const bool select = ImGui::Button("Select", ImVec2(80, 0));
+	const bool select = ImGui::Button(ICON_OK " Select", ImVec2(80, 0));
 	ImGui::SameLine();
-	const bool cancel = ImGui::Button("Cancel", ImVec2(80, 0));
+	const bool cancel = ImGui::Button(ICON_CANCEL " Cancel", ImVec2(80, 0));
 
 	// Navigate into directory when clicking select button
 	if (select && path.has_stem() && std::filesystem::is_directory(path, ec))
@@ -222,7 +222,7 @@ bool imgui_file_input_box(const char *name, std::filesystem::path &path, std::fi
 	ImGui::PopItemWidth();
 
 	ImGui::SameLine(0, button_spacing);
-	if (ImGui::Button("..", ImVec2(button_size, 0)))
+	if (ImGui::Button(ICON_FOLDER_OPEN, ImVec2(button_size, 0)))
 	{
 		dialog_path = path;
 		ImGui::OpenPopup("##select");
@@ -262,7 +262,7 @@ bool imgui_directory_input_box(const char *name, std::filesystem::path &path, st
 	ImGui::PopItemWidth();
 
 	ImGui::SameLine(0, button_spacing);
-	if (ImGui::Button("..", ImVec2(button_size, 0)))
+	if (ImGui::Button(ICON_FOLDER_OPEN, ImVec2(button_size, 0)))
 	{
 		dialog_path = path;
 		if (dialog_path.has_stem())
@@ -655,7 +655,7 @@ bool imgui_slider_with_buttons(const char *label, ImGuiDataType data_type, void 
 	}
 }
 
-bool imgui_slider_for_alpha(const char *label, float *v)
+bool imgui_slider_for_alpha_value(const char *label, float *v)
 {
 	const float button_size = ImGui::GetFrameHeight();
 	const float button_spacing = ImGui::GetStyle().ItemInnerSpacing.x;
