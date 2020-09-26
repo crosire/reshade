@@ -81,8 +81,10 @@ public:
 	void redo(unsigned int steps = 1);
 	bool can_redo() const { return _undo_index < _undo.size(); }
 
+	bool modified() const { return _modified; }
+
 	void add_error(size_t line, const std::string &message, bool warning = false) { _errors.insert({ line, { message, warning } }); }
-	void clear_errors() { _errors.clear(); }
+	void clear_errors() { _modified = false; _errors.clear(); }
 
 	void set_readonly(bool state) { _readonly = state; }
 	void set_tab_size(unsigned short size) { _tab_size = size; }
@@ -166,6 +168,7 @@ private:
 	unsigned int _search_window_focus = 0;
 
 	std::string _last_copy_string;
+	bool _modified = false;
 	bool _last_copy_from_empty_selection = false;
 
 	size_t _undo_index = 0;

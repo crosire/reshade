@@ -760,7 +760,7 @@ void reshade::runtime::draw_ui()
 		if (_show_code_editor)
 		{
 			const std::string title = "Editing " + _editor_file.filename().u8string() + " ###editor";
-			if (ImGui::Begin(title.c_str(), &_show_code_editor))
+			if (ImGui::Begin(title.c_str(), &_show_code_editor, _editor.modified() ? ImGuiWindowFlags_UnsavedDocument : 0))
 				draw_code_editor();
 			ImGui::End();
 		}

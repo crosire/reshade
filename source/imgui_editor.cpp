@@ -642,6 +642,8 @@ void imgui_code_editor::select_all()
 
 void imgui_code_editor::set_text(const std::string &text)
 {
+	_modified = false;
+
 	_undo.clear();
 	_undo_index = 0;
 
@@ -685,6 +687,7 @@ void imgui_code_editor::insert_character(char c, bool auto_indent)
 {
 	if (_readonly)
 		return;
+	_modified = true;
 
 	undo_record u;
 
