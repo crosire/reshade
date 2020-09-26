@@ -1277,13 +1277,13 @@ void reshade::runtime::draw_ui_settings()
 		}
 		#pragma endregion
 
-		if (imgui_font_select("Global font", _font, _font_size))
+		if (imgui_font_select("Global font", _font, _file_selection_path, _font_size))
 		{
 			modified = true;
 			_rebuild_font_atlas = true;
 		}
 
-		if (imgui_font_select("Text editor font", _editor_font, _editor_font_size))
+		if (imgui_font_select("Text editor font", _editor_font, _file_selection_path, _editor_font_size))
 		{
 			modified = true;
 			_rebuild_font_atlas = true;
