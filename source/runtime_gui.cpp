@@ -2452,49 +2452,7 @@ void reshade::runtime::draw_variable_editor()
 		if (ImGui::TreeNodeEx(category_label.c_str(), ImGuiTreeNodeFlags_NoTreePushOnOpen))
 		{
 			if (!effect.preprocessed)
-			{
-				save_current_preset();
-
-				const bool reload_successful_before = _last_shader_reload_successful;
-
-				// Remember effect members before unload_effect
-				const std::filesystem::path source_file = effect.source_file;
-
-				// Reload current effect file
-				_reload_total_effects = 1;
-				_reload_remaining_effects = 1;
-				unload_effect(effect_index);
-				if (load_effect(ini_file::load_cache(_current_preset_path), source_file, true);
-					effect.restored &&
-					modified_definition != _preset_preprocessor_definitions.end())
-				{
-					// The preprocessor definition that was just modified caused the shader to not compile, so reset to default and try again
-					_preset_preprocessor_definitions.erase(modified_definition);
-
-					_reload_total_effects = 1;
-					_reload_remaining_effects = 1;
-					unload_effect(effect_index);
-					if (load_effect(ini_file::load_cache(_current_preset_path), source_file, true);
-						effect.restored)
-					{
-						_last_shader_reload_successful = reload_successful_before;
-						ImGui::OpenPopup("##pperror"); // Notify the user about this
-
-						// Update preset again now, so that the removed preprocessor definition does not reappear on a reload
-						// The preset is actually loaded again next frame to update the technique status (see 'update_and_render_effects'), so cannot use 'save_current_preset' here
-						ini_file::load_cache(_current_preset_path).set({}, "PreprocessorDefinitions", _preset_preprocessor_definitions);
-					}
-
-					// Re-open file in editor so that errors are updated
-					if (_selected_effect == effect_index)
-						open_file_in_code_editor(_selected_effect, _editor_file);
-				}
-
-				assert(_reload_remaining_effects == 0);
-
-				// Reloading an effect file invalidates all textures, but the statistics window may already have drawn references to those, so need to reset it
-				ImGui::FindWindowByName("Statistics")->DrawList->CmdBuffer.clear();
-			}
+				reload_effect = true;
 
 			for (const std::pair<std::string, std::string> &definition : effect.definitions)
 			{
