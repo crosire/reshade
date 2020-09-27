@@ -84,7 +84,7 @@ reshade::d3d10::runtime_d3d10::runtime_d3d10(ID3D10Device1 *device, IDXGISwapCha
 #if RESHADE_DEPTH
 	subscribe_to_load_config([this](const ini_file &config) {
 		config.get("D3D10", "DepthCopyBeforeClears", _buffer_detection->preserve_depth_buffers);
-		config.get("D3D10", "DepthCopyBeforeClearsIndex", _buffer_detection->depthstencil_clear_index.second);
+		config.get("D3D10", "DepthCopyAtClearIndex", _buffer_detection->depthstencil_clear_index.second);
 		config.get("D3D10", "UseAspectRatioHeuristics", _filter_aspect_ratio);
 
 		if (_buffer_detection->depthstencil_clear_index.second == std::numeric_limits<UINT>::max())
@@ -92,7 +92,7 @@ reshade::d3d10::runtime_d3d10::runtime_d3d10(ID3D10Device1 *device, IDXGISwapCha
 	});
 	subscribe_to_save_config([this](ini_file &config) {
 		config.set("D3D10", "DepthCopyBeforeClears", _buffer_detection->preserve_depth_buffers);
-		config.set("D3D10", "DepthCopyBeforeClearsIndex", _buffer_detection->depthstencil_clear_index.second);
+		config.set("D3D10", "DepthCopyAtClearIndex", _buffer_detection->depthstencil_clear_index.second);
 		config.set("D3D10", "UseAspectRatioHeuristics", _filter_aspect_ratio);
 	});
 #endif

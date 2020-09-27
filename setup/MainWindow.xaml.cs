@@ -587,7 +587,9 @@ In that event here are some steps you can try to resolve this:
 				{
 					string renderApi = compatibilityIni.GetString(targetName, "RenderApi").ToUpper();
 					if (string.IsNullOrEmpty(renderApi) || renderApi == "DXGI")
+					{
 						renderApi = "D3D11"; // Default to D3D11
+					}
 
 					config.SetValue(renderApi, "DepthCopyBeforeClears", compatibilityIni.GetString(targetName, "DepthCopyBeforeClears", "0"));
 					config.SetValue(renderApi, "UseAspectRatioHeuristics", compatibilityIni.GetString(targetName, "UseAspectRatioHeuristics", "1"));
@@ -623,16 +625,16 @@ In that event here are some steps you can try to resolve this:
 
 				config.SetValue("D3D9", "DisableINTZ", config.GetString("DX9_BUFFER_DETECTION", "DisableINTZ"));
 				config.SetValue("D3D9", "DepthCopyBeforeClears", config.GetString("DX9_BUFFER_DETECTION", "PreserveDepthBuffer"));
-				config.SetValue("D3D9", "DepthCopyBeforeClearsIndex", config.GetString("DX9_BUFFER_DETECTION", "PreserveDepthBufferIndex"));
+				config.SetValue("D3D9", "DepthCopyAtClearIndex", config.GetString("DX9_BUFFER_DETECTION", "PreserveDepthBufferIndex"));
 				config.SetValue("D3D9", "UseAspectRatioHeuristics", config.GetString("DX9_BUFFER_DETECTION", "UseAspectRatioHeuristics"));
 				config.SetValue("D3D10", "DepthCopyBeforeClears", config.GetString("DX10_BUFFER_DETECTION", "DepthBufferRetrievalMode"));
-				config.SetValue("D3D10", "DepthCopyBeforeClearsIndex", config.GetString("DX10_BUFFER_DETECTION", "DepthBufferClearingNumber"));
+				config.SetValue("D3D10", "DepthCopyAtClearIndex", config.GetString("DX10_BUFFER_DETECTION", "DepthBufferClearingNumber"));
 				config.SetValue("D3D10", "UseAspectRatioHeuristics", config.GetString("DX10_BUFFER_DETECTION", "UseAspectRatioHeuristics"));
 				config.SetValue("D3D11", "DepthCopyBeforeClears", config.GetString("DX11_BUFFER_DETECTION", "DepthBufferRetrievalMode"));
-				config.SetValue("D3D11", "DepthCopyBeforeClearsIndex", config.GetString("DX11_BUFFER_DETECTION", "DepthBufferClearingNumber"));
+				config.SetValue("D3D11", "DepthCopyAtClearIndex", config.GetString("DX11_BUFFER_DETECTION", "DepthBufferClearingNumber"));
 				config.SetValue("D3D11", "UseAspectRatioHeuristics", config.GetString("DX11_BUFFER_DETECTION", "UseAspectRatioHeuristics"));
 				config.SetValue("D3D12", "DepthCopyBeforeClears", config.GetString("DX12_BUFFER_DETECTION", "DepthBufferRetrievalMode"));
-				config.SetValue("D3D12", "DepthCopyBeforeClearsIndex", config.GetString("DX12_BUFFER_DETECTION", "DepthBufferClearingNumber"));
+				config.SetValue("D3D12", "DepthCopyAtClearIndex", config.GetString("DX12_BUFFER_DETECTION", "DepthBufferClearingNumber"));
 				config.SetValue("D3D12", "UseAspectRatioHeuristics", config.GetString("DX12_BUFFER_DETECTION", "UseAspectRatioHeuristics"));
 				config.SetValue("VULKAN", "UseAspectRatioHeuristics", config.GetString("VULKAN_BUFFER_DETECTION", "UseAspectRatioHeuristics"));
 
