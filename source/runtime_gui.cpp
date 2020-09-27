@@ -2123,21 +2123,22 @@ void reshade::runtime::draw_variable_editor()
 
 	for (size_t effect_index = 0, id = 0; effect_index < _effects.size(); ++effect_index)
 	{
+		reshade::effect &effect = _effects[effect_index];
+
 		// Hide variables that are not currently used in any of the active effects
-		if (!_effects[effect_index].rendering ||
-			// Skip showing this effect in the variable list if it doesn't have any uniform variables to show
-			(_effects[effect_index].uniforms.empty() && _effects[effect_index].definitions.empty()))
+		// Also skip showing this effect in the variable list if it doesn't have any uniform variables to show
+		if (!effect.rendering || (effect.uniforms.empty() && effect.definitions.empty()))
 			continue;
-		assert(_effects[effect_index].compiled);
+		assert(effect.compiled);
 
 		bool reload_effect = false;
 		const bool is_focused = _focused_effect == effect_index;
-		const std::string filename = _effects[effect_index].source_file.filename().u8string();
+		const std::string effect_name = effect.source_file.filename().u8string();
 
 		// Create separate tab for every effect file
 		if (_variable_editor_tabs)
 		{
-			if (!ImGui::BeginTabItem(filename.c_str()))
+			if (!ImGui::BeginTabItem(effect_name.c_str()))
 				continue;
 			// Begin a new child here so scrolling through variables does not move the tab itself too
 			ImGui::BeginChild("##tab");
@@ -2147,7 +2148,7 @@ void reshade::runtime::draw_variable_editor()
 			if (is_focused || _effects_expanded_state & 1)
 				ImGui::SetNextItemOpen(is_focused || (_effects_expanded_state >> 1) != 0);
 
-			if (!ImGui::TreeNodeEx(filename.c_str(), ImGuiTreeNodeFlags_DefaultOpen))
+			if (!ImGui::TreeNodeEx(effect_name.c_str(), ImGuiTreeNodeFlags_DefaultOpen))
 				continue; // Skip rendering invisible items
 		}
 
@@ -2160,16 +2161,16 @@ void reshade::runtime::draw_variable_editor()
 		ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(_imgui_context->Style.FramePadding.x, 0));
 		if (imgui_popup_button(ICON_RESET " Reset all to default", _variable_editor_tabs ? ImGui::GetContentRegionAvail().x : ImGui::CalcItemWidth()))
 		{
-			ImGui::Text("Do you really want to reset all values in '%s' to their defaults?", filename.c_str());
+			ImGui::Text("Do you really want to reset all values in '%s' to their defaults?", effect_name.c_str());
 
 			if (ImGui::Button("Yes", ImVec2(ImGui::GetContentRegionAvail().x, 0)))
 			{
 				// Reset all uniform variables
-				for (uniform &variable_it : _effects[effect_index].uniforms)
+				for (uniform &variable_it : effect.uniforms)
 					reset_uniform_value(variable_it);
 
 				// Reset all preprocessor definitions
-				for (const std::pair<std::string, std::string> &definition : _effects[effect_index].definitions)
+				for (const std::pair<std::string, std::string> &definition : effect.definitions)
 					if (const auto preset_it = find_definition_value(_preset_preprocessor_definitions, definition.first);
 						preset_it != _preset_preprocessor_definitions.end())
 						reload_effect = true, // Need to reload after changing preprocessor defines so to get accurate defaults again
@@ -2188,7 +2189,7 @@ void reshade::runtime::draw_variable_editor()
 		std::string current_category;
 		auto modified_definition = _preset_preprocessor_definitions.end();
 
-		for (uniform &variable : _effects[effect_index].uniforms)
+		for (uniform &variable : effect.uniforms)
 		{
 			// Skip hidden and special variables
 			if (variable.annotation_as_int("hidden") || variable.special != special_uniform::none)
@@ -2219,7 +2220,7 @@ void reshade::runtime::draw_variable_editor()
 
 						if (ImGui::Button(reset_button_label.c_str(), ImVec2(ImGui::GetContentRegionAvail().x, 0)))
 						{
-							for (uniform &variable_it : _effects[effect_index].uniforms)
+							for (uniform &variable_it : effect.uniforms)
 								if (variable_it.annotation_as_string("ui_category") == category)
 									reset_uniform_value(variable_it);
 
@@ -2391,10 +2392,10 @@ void reshade::runtime::draw_variable_editor()
 			for (float x = 0, space_x = ImGui::CalcTextSize(" ").x, width = (ImGui::CalcItemWidth() - ImGui::CalcTextSize(category_label.data()).x - 45) / 2; x < width; x += space_x)
 				category_label.insert(0, " ");
 
-		if (!_effects[effect_index].definitions.empty() &&
+		if (!effect.definitions.empty() &&
 			ImGui::TreeNodeEx(category_label.c_str(), ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_NoTreePushOnOpen))
 		{
-			for (const std::pair<std::string, std::string> &definition : _effects[effect_index].definitions)
+			for (const std::pair<std::string, std::string> &definition : effect.definitions)
 			{
 				char value[128] = "";
 				const auto global_it = find_definition_value(_global_preprocessor_definitions, definition.first, value);
@@ -2470,7 +2471,7 @@ void reshade::runtime::draw_variable_editor()
 			const bool reload_successful_before = _last_shader_reload_successful;
 
 			// Save effect members before unloading
-			const std::filesystem::path source_file = _effects[_selected_effect].source_file;
+			const std::filesystem::path source_file = effect.source_file;
 
 			// Reload current effect file
 			_reload_total_effects = 1;
@@ -2545,7 +2546,7 @@ void reshade::runtime::draw_technique_editor()
 		ImGui::PushID(static_cast<int>(index));
 
 		// Look up effect that contains this technique
-		const effect &effect = _effects[technique.effect_index];
+		const reshade::effect &effect = _effects[technique.effect_index];
 
 		// Draw border around the item if it is selected
 		const bool draw_border = _selected_technique == index;
@@ -2553,19 +2554,18 @@ void reshade::runtime::draw_technique_editor()
 			ImGui::Separator();
 
 		const bool clicked = _imgui_context->IO.MouseClicked[0];
-		const bool compile_success = effect.compiled;
-		assert(compile_success || !technique.enabled);
+		assert(effect.compiled || !technique.enabled);
 
 		// Prevent user from enabling the technique when the effect failed to compile
 		// Also prevent disabling it for when the technique is set to always be enabled via annotation
-		ImGui::PushItemFlag(ImGuiItemFlags_Disabled, !compile_success || technique.annotation_as_int("enabled"));
+		ImGui::PushItemFlag(ImGuiItemFlags_Disabled, !effect.compiled || technique.annotation_as_int("enabled"));
 		// Gray out disabled techniques and mark techniques which failed to compile red
-		ImGui::PushStyleColor(ImGuiCol_Text, compile_success ? _imgui_context->Style.Colors[technique.enabled ? ImGuiCol_Text : ImGuiCol_TextDisabled] : COLOR_RED);
+		ImGui::PushStyleColor(ImGuiCol_Text, effect.compiled ? _imgui_context->Style.Colors[technique.enabled ? ImGuiCol_Text : ImGuiCol_TextDisabled] : COLOR_RED);
 
 		std::string_view ui_label = technique.annotation_as_string("ui_label");
-		if (ui_label.empty() || !compile_success) ui_label = technique.name;
+		if (ui_label.empty() || !effect.compiled) ui_label = technique.name;
 		std::string label(ui_label.data(), ui_label.size());
-		label += " [" + effect.source_file.filename().u8string() + ']' + (!compile_success ? " failed to compile" : "");
+		label += " [" + effect.source_file.filename().u8string() + ']' + (!effect.compiled ? " failed to compile" : "");
 
 		if (bool status = technique.enabled; ImGui::Checkbox(label.data(), &status))
 		{
@@ -2587,13 +2587,13 @@ void reshade::runtime::draw_technique_editor()
 			hovered_technique_index = index;
 
 		// Display tooltip
-		if (const std::string_view tooltip = compile_success ? technique.annotation_as_string("ui_tooltip") : effect.errors;
+		if (const std::string_view tooltip = effect.compiled ? technique.annotation_as_string("ui_tooltip") : effect.errors;
 			!tooltip.empty() && ImGui::IsItemHovered())
 		{
 			ImGui::BeginTooltip();
-			if (!compile_success) ImGui::PushStyleColor(ImGuiCol_Text, COLOR_RED);
+			if (!effect.compiled) ImGui::PushStyleColor(ImGuiCol_Text, COLOR_RED);
 			ImGui::TextUnformatted(tooltip.data());
-			if (!compile_success) ImGui::PopStyleColor();
+			if (!effect.compiled) ImGui::PopStyleColor();
 			ImGui::EndTooltip();
 		}
 
@@ -2705,7 +2705,7 @@ void reshade::runtime::draw_technique_editor()
 			ImGui::EndPopup();
 		}
 
-		if (technique.toggle_key_data[0] != 0 && compile_success)
+		if (technique.toggle_key_data[0] != 0 && effect.compiled)
 		{
 			ImGui::SameLine(ImGui::GetWindowContentRegionWidth() - 120);
 			ImGui::TextDisabled("%s", reshade::input::key_name(technique.toggle_key_data).c_str());
