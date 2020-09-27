@@ -2227,7 +2227,7 @@ void reshade::runtime::draw_variable_editor()
 					reset_uniform_value(variable_it);
 
 				// Reset all preprocessor definitions
-				for (const std::pair<std::string, reshadefx::preprocessor::macro_detection_info> &definition : effect.definitions)
+				for (const std::pair<std::string, std::string> &definition : effect.definitions)
 					if (const auto preset_it = find_definition_value(_preset_preprocessor_definitions, definition.first);
 						preset_it != _preset_preprocessor_definitions.end())
 						reload_effect = true, // Need to reload after changing preprocessor defines so to get accurate defaults again
@@ -2496,7 +2496,7 @@ void reshade::runtime::draw_variable_editor()
 				ImGui::FindWindowByName("Statistics")->DrawList->CmdBuffer.clear();
 			}
 
-			for (const std::pair<std::string, reshadefx::preprocessor::macro_detection_info> &definition : effect.definitions)
+			for (const std::pair<std::string, std::string> &definition : effect.definitions)
 			{
 				char value[128] = "";
 				const auto global_it = find_definition_value(_global_preprocessor_definitions, definition.first, value);
@@ -2504,7 +2504,7 @@ void reshade::runtime::draw_variable_editor()
 
 				if (global_it == _global_preprocessor_definitions.end() &&
 					preset_it == _preset_preprocessor_definitions.end())
-					definition.second.value.copy(value, sizeof(value) - 1); // Fill with default value
+					definition.second.copy(value, sizeof(value) - 1); // Fill with default value
 
 				if (ImGui::InputText(definition.first.c_str(), value, sizeof(value),
 					global_it != _global_preprocessor_definitions.end() ? ImGuiInputTextFlags_ReadOnly : ImGuiInputTextFlags_AutoSelectAll | ImGuiInputTextFlags_EnterReturnsTrue))

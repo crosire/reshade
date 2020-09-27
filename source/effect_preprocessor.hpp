@@ -8,7 +8,6 @@
 #include "effect_token.hpp"
 #include <memory> // std::unique_ptr
 #include <filesystem>
-#include <map>
 #include <unordered_set>
 #include <unordered_map>
 
@@ -26,12 +25,6 @@ namespace reshadefx
 			std::vector<std::string> parameters;
 			bool is_variadic = false;
 			bool is_function_like = false;
-		};
-		struct macro_detection_info
-		{
-			location location;
-			bool has_value;
-			std::string value;
 		};
 
 		// Define constructor explicitly because lexer class is not included here
@@ -92,7 +85,7 @@ namespace reshadefx
 		/// Get a list of all defines that were used in #ifdef and #ifndef lines
 		/// </summary>
 		/// <returns></returns>
-		std::vector<std::pair<std::string, macro_detection_info>> used_macro_definitions() const;
+		std::vector<std::pair<std::string, std::string>> used_macro_definitions() const;
 
 	private:
 		struct if_level
@@ -151,8 +144,8 @@ namespace reshadefx
 		size_t _current_input_index = 0;
 		unsigned short _recursion_count = 0;
 		location _output_location;
-		std::map<std::string, location> _used_macros;
-		std::map<std::string, macro> _macros;
+		std::unordered_set<std::string> _used_macros;
+		std::unordered_map<std::string, macro> _macros;
 		std::vector<std::filesystem::path> _include_paths;
 		std::unordered_map<std::string, std::string> _file_cache;
 	};

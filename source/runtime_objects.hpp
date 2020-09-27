@@ -6,7 +6,6 @@
 #pragma once
 
 #include "effect_module.hpp"
-#include "effect_preprocessor.hpp"
 
 namespace reshade
 {
@@ -198,7 +197,7 @@ namespace reshade
 		reshadefx::module module;
 		std::filesystem::path source_file;
 		std::vector<std::filesystem::path> included_files;
-		std::vector<std::pair<std::string, reshadefx::preprocessor::macro_detection_info>> definitions;
+		std::vector<std::pair<std::string, std::string>> definitions;
 		std::unordered_map<std::string, std::string> assembly;
 		std::vector<uniform> uniforms;
 		std::vector<unsigned char> uniform_data_storage;

@@ -407,11 +407,13 @@ size_t reshade::runtime::load_effect(reshade::ini_file &preset, std::filesystem:
 
 				for (const auto &definition : pp.used_macro_definitions())
 				{
-					if (definition.first.size() <= 4 || definition.first[0] == '_' || !definition.first.compare(0, 8, "RESHADE_") || !definition.first.compare(0, 7, "BUFFER_"))
+					if (definition.first.size() <= 10 || definition.first[0] == '_' || !definition.first.compare(0, 8, "RESHADE_") || !definition.first.compare(0, 7, "BUFFER_"))
 						continue;
 
-					effect.definitions.push_back(std::make_pair(definition.first, reshadefx::preprocessor::macro_detection_info{ definition.second.location, definition.second.has_value, std::string(trim(std::string_view(definition.second.value))) }));
+					effect.definitions.emplace_back(definition.first, trim(definition.second));
 				}
+
+				std::sort(effect.definitions.begin(), effect.definitions.end());
 
 				// Keep track of included files
 				effect.included_files = pp.included_files();
