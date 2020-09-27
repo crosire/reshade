@@ -672,7 +672,6 @@ void reshade::runtime::load_effects()
 #endif
 	_last_shader_reload_successful = true;
 
-	// Copy is required because load_effect is runs asynchronously.
 	ini_file &preset = ini_file::load_cache(_current_preset_path);
 
 	// Reload preprocessor definitions from current preset before compiling
