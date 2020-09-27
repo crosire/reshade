@@ -366,7 +366,6 @@ namespace reshade
 
 		void draw_code_editor();
 		void draw_code_viewer();
-		void draw_preset_explorer();
 		void draw_variable_editor();
 		void draw_technique_editor();
 
@@ -403,7 +402,6 @@ namespace reshade
 		unsigned int _tutorial_index = 0;
 		unsigned int _effects_expanded_state = 2;
 		float _variable_editor_height = 0.0f;
-		std::filesystem::path _current_browse_path;
 
 		// === User Interface - Settings ===
 		int _font_size = 13;

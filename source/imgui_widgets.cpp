@@ -49,7 +49,7 @@ bool imgui_key_input(const char *name, unsigned int key_data[4], const reshade::
 	return res;
 }
 
-bool imgui_font_select(const char *name, std::filesystem::path &path, int &size)
+bool imgui_font_select(const char *name, std::filesystem::path &path, std::filesystem::path &dialog_path, int &size)
 {
 	bool res = false;
 	const float spacing = ImGui::GetStyle().ItemInnerSpacing.x;
@@ -57,25 +57,13 @@ bool imgui_font_select(const char *name, std::filesystem::path &path, int &size)
 	ImGui::BeginGroup();
 	ImGui::PushID(name);
 
-	char buf[260] = "";
-	if (path.empty())
-		strcpy(buf, "ProggyClean.ttf");
-	else
-		path.u8string().copy(buf, sizeof(buf) - 1);
-
 	ImGui::PushItemWidth(ImGui::CalcItemWidth() - spacing - 80);
-	if (ImGui::InputText("##font", buf, sizeof(buf)))
-	{
-		std::error_code ec;
-		const std::filesystem::path new_path = std::filesystem::u8path(buf);
-
-		if ((new_path.empty() || new_path == "ProggyClean.ttf") || (std::filesystem::is_regular_file(new_path, ec) && new_path.extension() == ".ttf"))
-		{
-			res = true;
-			path = new_path;
-		}
-	}
+	if (imgui_file_input_box("##font", path, dialog_path, { L".ttf" }))
+		res = true;
 	ImGui::PopItemWidth();
+
+	if (path.empty())
+		path = L"ProggyClean.ttf";
 
 	ImGui::SameLine(0, spacing);
 	ImGui::PushItemWidth(80);
@@ -93,67 +81,168 @@ bool imgui_font_select(const char *name, std::filesystem::path &path, int &size)
 	return res;
 }
 
-bool imgui_directory_dialog(const char *name, std::filesystem::path &path)
+bool imgui_file_dialog(const char *name, std::filesystem::path &path, float width, const std::vector<std::wstring> &exts)
 {
-	bool ok = false, cancel = false;
-
 	if (!ImGui::BeginPopup(name))
 		return false;
 
-	char buf[260];
-	const size_t buf_len = path.u8string().copy(buf, sizeof(buf) - 1);
-	buf[buf_len] = '\0';
-
-	ImGui::PushItemWidth(400);
-	if (ImGui::InputText("##path", buf, sizeof(buf)))
-		path = std::filesystem::u8path(buf);
-	ImGui::PopItemWidth();
-
-	ImGui::SameLine();
-	if (ImGui::Button("Ok", ImVec2(80, 0)))
-		ok = true;
-	ImGui::SameLine();
-	if (ImGui::Button("Cancel", ImVec2(80, 0)))
-		cancel = true;
-
-	ImGui::BeginChild("##files", ImVec2(0, 300), true, ImGuiWindowFlags_NavFlattened);
-
 	std::error_code ec;
-
 	if (path.is_relative())
 		path = std::filesystem::absolute(path);
-	if (!std::filesystem::is_directory(path, ec))
-		path.remove_filename();
-	else if (!path.has_filename())
-		path = path.parent_path();
+	std::filesystem::path parent_path = path.parent_path();
 
-	if (ImGui::Selectable("."))
-		ok = true;
-	if (path.has_parent_path() && ImGui::Selectable(".."))
-		path = path.parent_path();
+	{	char buf[260];
+		const size_t buf_len = parent_path.u8string().copy(buf, sizeof(buf) - 1);
+		buf[buf_len] = '\0';
 
-	for (const auto &entry : std::filesystem::directory_iterator(path, std::filesystem::directory_options::skip_permission_denied, ec))
+		ImGui::PushItemWidth(width);
+		if (ImGui::InputText("##path", buf, sizeof(buf)))
+		{
+			path = std::filesystem::u8path(buf);
+			if (path.has_stem() && std::filesystem::is_directory(path, ec))
+				path += std::filesystem::path::preferred_separator;
+		}
+		ImGui::PopItemWidth();
+
+		if (ImGui::IsItemActivated())
+			ImGui::GetCurrentContext()->InputTextState.ClearSelection();
+		if (ImGui::IsWindowAppearing())
+			ImGui::SetKeyboardFocusHere(1);
+	}
+
+	ImGui::BeginChild("##files", ImVec2(width, 200), false, ImGuiWindowFlags_NavFlattened);
+
+	if (parent_path.has_parent_path())
 	{
-		if (!entry.is_directory(ec))
-			continue; // Only show directories
+		if (ImGui::Selectable(ICON_FOLDER " ..", false, ImGuiSelectableFlags_AllowDoubleClick) &&
+			ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
+		{
+			path = parent_path.parent_path();
+			if (path.has_stem())
+				path += std::filesystem::path::preferred_separator;
+		}
+	}
 
-		std::string label = entry.path().filename().u8string();
-		label = "<DIR> " + label;
+	std::vector<std::filesystem::path> file_entries;
+	for (const auto &entry : std::filesystem::directory_iterator(parent_path, std::filesystem::directory_options::skip_permission_denied, ec))
+	{
+		if (entry.is_directory())
+		{
+			const bool is_selected = entry == path;
+			const std::string label = ICON_FOLDER " " + entry.path().filename().u8string();
+			if (ImGui::Selectable(label.c_str(), is_selected, ImGuiSelectableFlags_AllowDoubleClick))
+			{
+				path = entry;
 
-		if (ImGui::Selectable(label.c_str(), entry.path() == path))
-			path = entry.path();
+				// Navigate into directory when double clicking one
+				if (ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
+					path += std::filesystem::path::preferred_separator;
+			}
+
+			if (is_selected && ImGui::IsWindowAppearing())
+				ImGui::SetScrollHereY();
+		}
+		else if (std::find(exts.begin(), exts.end(), entry.path().extension()) != exts.end())
+		{
+			file_entries.push_back(entry);
+		}
+	}
+
+	// Always show file entries after all directory entries
+	bool has_double_clicked_file = false;
+	for (std::filesystem::path &file_path : file_entries)
+	{
+		const bool is_selected = file_path == path;
+		const std::string label = ICON_FILE " " + file_path.filename().u8string();
+		if (ImGui::Selectable(label.c_str(), is_selected, ImGuiSelectableFlags_AllowDoubleClick))
+		{
+			path = std::move(file_path);
+
+			// Double clicking a file on the other hand acts as if pressing the ok button
+			if (ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
+				has_double_clicked_file = true;
+		}
+
+		if (is_selected && ImGui::IsWindowAppearing())
+			ImGui::SetScrollHereY();
 	}
 
 	ImGui::EndChild();
 
-	if (ok || cancel)
+	std::filesystem::path path_name = path.has_filename() || !exts.empty() ? path.filename() : path.parent_path().filename();
+
+	{	char buf[260];
+		const size_t buf_len = path_name.u8string().copy(buf, sizeof(buf) - 1);
+		buf[buf_len] = '\0';
+
+		ImGui::PushItemWidth(width - (2 * (80 + ImGui::GetStyle().ItemSpacing.x)));
+		if (ImGui::InputText("##name", buf, sizeof(buf)))
+			path = path.parent_path() / buf;
+		ImGui::PopItemWidth();
+	}
+
+	ImGui::SameLine();
+	const bool select = ImGui::Button(ICON_OK " Select", ImVec2(80, 0));
+	ImGui::SameLine();
+	const bool cancel = ImGui::Button(ICON_CANCEL " Cancel", ImVec2(80, 0));
+
+	// Navigate into directory when clicking select button
+	if (select && path.has_stem() && std::filesystem::is_directory(path, ec))
+		path += std::filesystem::path::preferred_separator;
+
+	const bool result = (select || ImGui::IsKeyPressedMap(ImGuiKey_Enter) || has_double_clicked_file) && (exts.empty() || std::find(exts.begin(), exts.end(), path.extension()) != exts.end());
+	if (result || cancel)
 		ImGui::CloseCurrentPopup();
 
 	ImGui::EndPopup();
 
-	return ok;
+	return result;
 }
+bool imgui_file_input_box(const char *name, std::filesystem::path &path, std::filesystem::path &dialog_path, const std::vector<std::wstring> &exts)
+{
+	bool res = false;
+	const float button_size = ImGui::GetFrameHeight();
+	const float button_spacing = ImGui::GetStyle().ItemInnerSpacing.x;
 
+	ImGui::PushID(name);
+	ImGui::BeginGroup();
+
+	char buf[260];
+	const size_t buf_len = path.u8string().copy(buf, sizeof(buf) - 1);
+	buf[buf_len] = '\0'; // Null-terminate string
+
+	ImGui::PushItemWidth(ImGui::CalcItemWidth() - (button_spacing + button_size));
+	if (ImGui::InputText("##path", buf, sizeof(buf), ImGuiInputTextFlags_EnterReturnsTrue))
+	{
+		dialog_path = std::filesystem::u8path(buf);
+		// Succeed only if extension matches
+		if (std::find(exts.begin(), exts.end(), dialog_path.extension()) != exts.end() || dialog_path.empty())
+			path = dialog_path, res = true;
+	}
+	ImGui::PopItemWidth();
+
+	ImGui::SameLine(0, button_spacing);
+	if (ImGui::Button(ICON_FOLDER_OPEN, ImVec2(button_size, 0)))
+	{
+		dialog_path = path;
+		ImGui::OpenPopup("##select");
+	}
+
+	if (name[0] != '#')
+	{
+		ImGui::SameLine(0, button_spacing);
+		ImGui::TextUnformatted(name);
+	}
+
+	ImGui::EndGroup();
+
+	if (imgui_file_dialog("##select", dialog_path, 500, exts))
+		path = dialog_path, res = true;
+
+	ImGui::PopID();
+
+	return res;
+}
 bool imgui_directory_input_box(const char *name, std::filesystem::path &path, std::filesystem::path &dialog_path)
 {
 	bool res = false;
@@ -165,7 +254,7 @@ bool imgui_directory_input_box(const char *name, std::filesystem::path &path, st
 
 	char buf[260];
 	const size_t buf_len = path.u8string().copy(buf, sizeof(buf) - 1);
-	buf[buf_len] = '\0';
+	buf[buf_len] = '\0'; // Null-terminate string
 
 	ImGui::PushItemWidth(ImGui::CalcItemWidth() - (button_spacing + button_size));
 	if (ImGui::InputText("##path", buf, sizeof(buf)))
@@ -173,14 +262,23 @@ bool imgui_directory_input_box(const char *name, std::filesystem::path &path, st
 	ImGui::PopItemWidth();
 
 	ImGui::SameLine(0, button_spacing);
-	if (ImGui::Button("..", ImVec2(button_size, 0)))
-		dialog_path = path, ImGui::OpenPopup("##select");
+	if (ImGui::Button(ICON_FOLDER_OPEN, ImVec2(button_size, 0)))
+	{
+		dialog_path = path;
+		if (dialog_path.has_stem())
+			dialog_path += std::filesystem::path::preferred_separator;
+		ImGui::OpenPopup("##select");
+	}
 
-	ImGui::SameLine(0, button_spacing);
-	ImGui::TextUnformatted(name);
+	if (name[0] != '#')
+	{
+		ImGui::SameLine(0, button_spacing);
+		ImGui::TextUnformatted(name);
+	}
+
 	ImGui::EndGroup();
 
-	if (imgui_directory_dialog("##select", dialog_path))
+	if (imgui_file_dialog("##select", dialog_path, 500, {}))
 		path = dialog_path, res = true;
 
 	ImGui::PopID();
@@ -242,11 +340,13 @@ bool imgui_path_list(const char *label, std::vector<std::filesystem::path> &path
 			else
 			{
 				dialog_path = default_path;
+				if (dialog_path.has_stem())
+					dialog_path += std::filesystem::path::preferred_separator;
 				ImGui::OpenPopup("##select");
 			}
 		}
 
-		if (imgui_directory_dialog("##select", dialog_path))
+		if (imgui_file_dialog("##select", dialog_path, 500, {}))
 		{
 			res = true;
 			paths.push_back(dialog_path);
@@ -555,7 +655,7 @@ bool imgui_slider_with_buttons(const char *label, ImGuiDataType data_type, void 
 	}
 }
 
-bool imgui_slider_for_alpha(const char *label, float *v)
+bool imgui_slider_for_alpha_value(const char *label, float *v)
 {
 	const float button_size = ImGui::GetFrameHeight();
 	const float button_spacing = ImGui::GetStyle().ItemInnerSpacing.x;
