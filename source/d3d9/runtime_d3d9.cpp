@@ -55,7 +55,6 @@ reshade::d3d9::runtime_d3d9::runtime_d3d9(IDirect3DDevice9 *device, IDirect3DSwa
 	_device->GetCreationParameters(&creation_params);
 
 	_renderer_id = 0x9000;
-	_renderer_name = "D3D9";
 
 	if (D3DADAPTER_IDENTIFIER9 adapter_desc;
 		SUCCEEDED(_d3d->GetAdapterIdentifier(creation_params.AdapterOrdinal, 0, &adapter_desc)))

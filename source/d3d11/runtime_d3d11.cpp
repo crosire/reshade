@@ -64,7 +64,6 @@ reshade::d3d11::runtime_d3d11::runtime_d3d11(ID3D11Device *device, IDXGISwapChai
 	_device->GetImmediateContext(&_immediate_context);
 
 	_renderer_id = device->GetFeatureLevel();
-	_renderer_name = "D3D11";
 
 	if (com_ptr<IDXGIDevice> dxgi_device;
 		SUCCEEDED(_device->QueryInterface(&dxgi_device)))

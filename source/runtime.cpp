@@ -850,7 +850,7 @@ void reshade::runtime::unload_effects()
 bool reshade::runtime::load_source_cache(const std::filesystem::path &source_file, const size_t hash, std::string &source) const
 {
 	std::filesystem::path path = g_reshade_base_path / _intermediate_cache_path;
-	path /= _renderer_name + '-' + source_file.stem().u8string() + '-' + std::to_string(hash) + ".fx";
+	path /= std::to_string(_renderer_id) + '-' + source_file.stem().u8string() + '-' + std::to_string(hash) + ".fx";
 
 	if (const HANDLE file = CreateFileW(path.c_str(), FILE_GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_FLAG_SEQUENTIAL_SCAN, NULL); file == INVALID_HANDLE_VALUE)
 		return false;
@@ -862,7 +862,7 @@ bool reshade::runtime::load_source_cache(const std::filesystem::path &source_fil
 bool reshade::runtime::save_source_cache(const std::filesystem::path &source_file, const size_t hash, const std::string &source) const
 {
 	std::filesystem::path path = g_reshade_base_path / _intermediate_cache_path;
-	path /= _renderer_name + '-' + source_file.stem().u8string() + '-' + std::to_string(hash) + ".fx";
+	path /= std::to_string(_renderer_id) + '-' + source_file.stem().u8string() + '-' + std::to_string(hash) + ".fx";
 
 	if (const HANDLE file = CreateFileW(path.c_str(), FILE_GENERIC_WRITE, FILE_SHARE_READ, NULL, CREATE_NEW, FILE_ATTRIBUTE_ARCHIVE | FILE_FLAG_SEQUENTIAL_SCAN, NULL); file == INVALID_HANDLE_VALUE)
 		return false;
@@ -875,7 +875,7 @@ bool reshade::runtime::save_source_cache(const std::filesystem::path &source_fil
 bool reshade::runtime::load_shader_cache(const std::filesystem::path &effect, const std::string &entry_point, const size_t hash, std::vector<char> &cso) const
 {
 	std::filesystem::path path = g_reshade_base_path / _intermediate_cache_path;
-	path /= _renderer_name + '-' + effect.stem().u8string() + '-' + entry_point + '-' + std::to_string(hash) + ".cso";
+	path /= std::to_string(_renderer_id) + '-' + effect.stem().u8string() + '-' + entry_point + '-' + std::to_string(hash) + ".cso";
 
 	if (const HANDLE file = CreateFileW(path.c_str(), FILE_GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_FLAG_SEQUENTIAL_SCAN, NULL); file == INVALID_HANDLE_VALUE)
 		return false;
@@ -887,7 +887,7 @@ bool reshade::runtime::load_shader_cache(const std::filesystem::path &effect, co
 bool reshade::runtime::save_shader_cache(const std::filesystem::path &effect, const std::string &entry_point, const size_t hash, const std::string_view &hlsl, const std::vector<char> &cso, const std::string &dasm) const
 {
 	std::filesystem::path path = g_reshade_base_path / _intermediate_cache_path;
-	path /= _renderer_name + '-' + effect.stem().u8string() + '-' + entry_point + '-' + std::to_string(hash);
+	path /= std::to_string(_renderer_id) + '-' + effect.stem().u8string() + '-' + entry_point + '-' + std::to_string(hash);
 
 	if (const HANDLE file = CreateFileW((path.native() + L".hlsl").c_str(), FILE_GENERIC_WRITE, FILE_SHARE_READ, NULL, CREATE_NEW, FILE_FLAG_SEQUENTIAL_SCAN, NULL); file == INVALID_HANDLE_VALUE)
 		return false;

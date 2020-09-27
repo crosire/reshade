@@ -230,9 +230,6 @@ namespace reshade
 		std::vector<texture> _textures;
 		std::vector<technique> _techniques;
 
-		// === Runtime Description ===
-		std::string _renderer_name;
-
 	private:
 		/// <summary>
 		/// Compare current version against the latest published one.

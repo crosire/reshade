@@ -81,7 +81,6 @@ reshade::d3d12::runtime_d3d12::runtime_d3d12(ID3D12Device *device, ID3D12Command
 	assert(device != nullptr);
 
 	_renderer_id = D3D_FEATURE_LEVEL_12_0;
-	_renderer_name = "D3D12";
 
 	if (com_ptr<IDXGIFactory4> factory;
 		swapchain != nullptr && SUCCEEDED(swapchain->GetParent(IID_PPV_ARGS(&factory))))

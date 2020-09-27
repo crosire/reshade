@@ -130,7 +130,6 @@ reshade::vulkan::runtime_vk::runtime_vk(VkDevice device, VkPhysicalDevice physic
 	_renderer_id = 0x20000 |
 		VK_VERSION_MAJOR(_device_props.apiVersion) << 12 |
 		VK_VERSION_MINOR(_device_props.apiVersion) <<  8;
-	_renderer_name = "Vulkan";
 
 	_vendor_id = _device_props.vendorID;
 	_device_id = _device_props.deviceID;

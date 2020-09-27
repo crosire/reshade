@@ -58,7 +58,6 @@ reshade::d3d10::runtime_d3d10::runtime_d3d10(ID3D10Device1 *device, IDXGISwapCha
 	assert(swapchain != nullptr);
 
 	_renderer_id = device->GetFeatureLevel();
-	_renderer_name = "D3D10";
 
 	if (com_ptr<IDXGIDevice> dxgi_device;
 		SUCCEEDED(_device->QueryInterface(&dxgi_device)))
