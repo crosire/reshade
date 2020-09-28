@@ -19,6 +19,8 @@ struct ImDrawData;
 struct ImGuiContext;
 #endif
 
+extern volatile long g_network_traffic;
+
 namespace reshade
 {
 	class ini_file; // Forward declarations to avoid excessive #include
@@ -299,8 +301,8 @@ namespace reshade
 		bool _no_reload_on_init = false;
 		bool _effect_load_skipping = false;
 		bool _load_option_disable_skipping = false;
-		bool _last_shader_reload_successful = true;
-		bool _last_texture_reload_successful = true;
+		bool _last_shader_reload_successfull = true;
+		bool _last_texture_reload_successfull = true;
 		bool _textures_loaded = false;
 		unsigned int _reload_key_data[4];
 		unsigned int _performance_mode_key_data[4];
@@ -340,19 +342,19 @@ namespace reshade
 		std::chrono::high_resolution_clock::time_point _last_preset_switching_time;
 
 #if RESHADE_GUI
-		void init_ui();
-		void deinit_ui();
+		void init_gui();
+		void deinit_gui();
 		void build_font_atlas();
 
 		void load_custom_style();
 		void save_custom_style();
 
-		void draw_ui();
-		void draw_ui_home();
-		void draw_ui_settings();
-		void draw_ui_statistics();
-		void draw_ui_log();
-		void draw_ui_about();
+		void draw_gui();
+		void draw_gui_home();
+		void draw_gui_settings();
+		void draw_gui_statistics();
+		void draw_gui_log();
+		void draw_gui_about();
 
 		void draw_code_editor();
 		void draw_code_viewer();
@@ -415,7 +417,7 @@ namespace reshade
 		std::vector<std::string> _log_lines;
 
 		// === User Interface - Code Editor ===
-		imgui_code_editor _editor, _viewer;
+		gui::code_editor _editor, _viewer;
 		std::filesystem::path _editor_file;
 		std::string _viewer_entry_point;
 #endif

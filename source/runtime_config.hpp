@@ -7,7 +7,6 @@
 
 #include <vector>
 #include <string>
-#include <cassert>
 #include <filesystem>
 #include <unordered_map>
 
@@ -15,12 +14,12 @@ extern std::filesystem::path g_reshade_dll_path;
 extern std::filesystem::path g_reshade_base_path;
 extern std::filesystem::path g_target_executable_path;
 
-inline void trim(std::string &str, const char *chars = " \t")
+inline void trim(std::string &str, const char chars[] = " \t")
 {
 	str.erase(0, str.find_first_not_of(chars));
 	str.erase(str.find_last_not_of(chars) + 1);
 }
-inline std::string trim(const std::string &str, const char *chars = " \t")
+inline std::string trim(const std::string &str, const char chars[] = " \t")
 {
 	std::string res(str);
 	trim(res, chars);
@@ -124,8 +123,6 @@ namespace reshade
 		template <typename T, size_t SIZE>
 		void set(const std::string &section, const std::string &key, const T(&values)[SIZE], const size_t size = SIZE)
 		{
-			assert(size <= SIZE);
-
 			auto &v = _sections[section][key];
 			v.resize(size);
 			for (size_t i = 0; i < size; ++i)

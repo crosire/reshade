@@ -25,7 +25,7 @@ struct freepie_io_shared_data
 };
 
 /// <summary>
-/// Read six degrees of freedom data from the FreePIE IO interface.
+/// Reads six degrees of freedom data from the FreePIE IO interface.
 /// </summary>
 /// <param name="index">The device index to read the data from.</param>
 /// <param name="output">A pointer to the object that will receive the data.</param>

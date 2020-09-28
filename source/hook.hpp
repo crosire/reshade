@@ -29,7 +29,7 @@ namespace reshade
 		};
 
 		/// <summary>
-		/// Actually enable or disable any queued hooks.
+		/// Actually enables or disables any queued up hooks.
 		/// </summary>
 		static bool apply_queued_actions();
 
@@ -47,16 +47,16 @@ namespace reshade
 		bool uninstalled() const { return trampoline == nullptr; }
 
 		/// <summary>
-		/// Enable or disable this hook. This queues the action for later execution in <see cref="apply_queued_actions"/>.
+		/// Enables or disables this hook. This queues the action for later execution in <see cref="apply_queued_actions"/>.
 		/// </summary>
 		/// <param name="enable">Boolean indicating if hook should be enabled or disabled.</param>
 		void enable(bool enable) const;
 		/// <summary>
-		/// Install this hook.
+		/// Installs this hook.
 		/// </summary>
 		hook::status install();
 		/// <summary>
-		/// Uninstall this hook.
+		/// Uninstalls this hook.
 		/// </summary>
 		hook::status uninstall();
 

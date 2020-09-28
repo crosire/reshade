@@ -3,8 +3,8 @@
  * License: https://github.com/crosire/reshade#license
  */
 
-#include "dll_log.hpp"
 #include "version.h"
+#include "dll_log.hpp"
 #include "runtime.hpp"
 #include "runtime_config.hpp"
 #include "runtime_objects.hpp"
@@ -20,8 +20,6 @@
 #include <stb_image_dds.h>
 #include <stb_image_write.h>
 #include <stb_image_resize.h>
-
-extern volatile long g_network_traffic;
 
 bool resolve_path(std::filesystem::path &path)
 {
@@ -91,7 +89,7 @@ reshade::runtime::runtime() :
 	_screenshot_key_data[0] = 0x2C;
 
 #if RESHADE_GUI
-	init_ui();
+	init_gui();
 #endif
 	load_config();
 }
@@ -101,7 +99,7 @@ reshade::runtime::~runtime()
 	assert(!_is_initialized && _techniques.empty());
 
 #if RESHADE_GUI
-	deinit_ui();
+	deinit_gui();
 #endif
 }
 
@@ -165,7 +163,7 @@ void reshade::runtime::on_present()
 
 #if RESHADE_GUI
 	// Draw overlay
-	draw_ui();
+	draw_gui();
 
 	if (_should_save_screenshot && _screenshot_save_ui && _show_overlay)
 		save_screenshot(L" ui");
@@ -582,7 +580,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &path, size_t eff
 		std::move(new_textures.begin(), new_textures.end(), std::back_inserter(_textures));
 		std::move(new_techniques.begin(), new_techniques.end(), std::back_inserter(_techniques));
 
-		_last_shader_reload_successful &= effect.compiled;
+		_last_shader_reload_successfull &= effect.compiled;
 		_reload_remaining_effects--;
 	}
 
@@ -597,7 +595,7 @@ void reshade::runtime::load_effects()
 	_show_splash = true; // Always show splash bar when reloading everything
 	_reload_count++;
 #endif
-	_last_shader_reload_successful = true;
+	_last_shader_reload_successfull = true;
 
 	// Reload preprocessor definitions from current preset before compiling
 	if (!_current_preset_path.empty())
@@ -636,7 +634,7 @@ void reshade::runtime::load_effects()
 }
 void reshade::runtime::load_textures()
 {
-	_last_texture_reload_successful = true;
+	_last_texture_reload_successfull = true;
 
 	LOG(INFO) << "Loading image files for textures ...";
 
@@ -655,7 +653,7 @@ void reshade::runtime::load_textures()
 		if (!find_file(_texture_search_paths, source_path))
 		{
 			LOG(ERROR) << "Source " << source_path << " for texture '" << texture.unique_name << "' could not be found in any of the texture search paths.";
-			_last_texture_reload_successful = false;
+			_last_texture_reload_successfull = false;
 			continue;
 		}
 
@@ -678,7 +676,7 @@ void reshade::runtime::load_textures()
 		if (filedata == nullptr)
 		{
 			LOG(ERROR) << "Source " << source_path << " for texture '" << texture.unique_name << "' could not be loaded! Make sure it is of a compatible file format.";
-			_last_texture_reload_successful = false;
+			_last_texture_reload_successfull = false;
 			continue;
 		}
 
@@ -866,7 +864,7 @@ void reshade::runtime::update_and_render_effects()
 					disable_technique(tech);
 
 			effect.compiled = false;
-			_last_shader_reload_successful = false;
+			_last_shader_reload_successfull = false;
 		}
 
 		// An effect has changed, need to reload textures

@@ -23,31 +23,31 @@
 #define ICON_SAVE u8"\uf0c7"
 #define ICON_SEARCH u8"\uf002"
 
-bool imgui_key_input(const char *name, unsigned int key_data[4], const reshade::input &input);
+namespace reshade::gui::widgets
+{
+	bool path_list(const char *label, std::vector<std::filesystem::path> &paths, std::filesystem::path &dialog_path, const std::filesystem::path &default_path = std::filesystem::path());
 
-bool imgui_font_select(const char *name, std::filesystem::path &path, std::filesystem::path &dialog_path, int &size);
+	bool file_dialog(const char *name, std::filesystem::path &path, float width, const std::vector<std::wstring> &exts);
 
-bool imgui_file_dialog(const char *name, std::filesystem::path &path, float width, const std::vector<std::wstring> &exts);
-bool imgui_file_input_box(const char *name, std::filesystem::path &path, std::filesystem::path &dialog_path, const std::vector<std::wstring> &exts);
-bool imgui_directory_input_box(const char *name, std::filesystem::path &path, std::filesystem::path &dialog_path);
+	bool font_input_box(const char *label, std::filesystem::path &path, std::filesystem::path &dialog_path, int &size);
+	bool file_input_box(const char *label, std::filesystem::path &path, std::filesystem::path &dialog_path, const std::vector<std::wstring> &exts);
+	bool directory_input_box(const char *label, std::filesystem::path &path, std::filesystem::path &dialog_path);
 
-bool imgui_path_list(const char *label, std::vector<std::filesystem::path> &paths, std::filesystem::path &dialog_path, const std::filesystem::path &default_path = std::filesystem::path());
+	bool radio_list(const char *label, const std::string_view ui_items, int &v);
 
-bool imgui_radio_list(const char *label, const std::string_view ui_items, int &v);
+	bool popup_button(const char *label, float width = 0.0f, ImGuiWindowFlags flags = 0);
 
-bool imgui_popup_button(const char *label, float width = 0.0f, ImGuiWindowFlags flags = 0);
+	bool toggle_button(const char *label, bool &toggle);
 
-bool imgui_toggle_button(const char *label, bool &toggle);
+	bool key_input_box(const char *label, unsigned int key_data[4], const reshade::input &input);
 
-bool imgui_list_with_buttons(const char *label, const std::string_view ui_items, int &v);
+	bool drag_with_buttons(const char *label, ImGuiDataType data_type, void *v, int components, const void *v_speed, const void *v_min, const void *v_max, const char *format = nullptr);
+	bool list_with_buttons(const char *label, const std::string_view ui_items, int &v);
+	bool combo_with_buttons(const char *label, bool &v);
+	bool combo_with_buttons(const char *label, const std::string_view ui_items, int &v);
+	bool slider_with_buttons(const char *label, ImGuiDataType data_type, void *v, int components, const void *v_speed, const void *v_min, const void *v_max, const char *format = nullptr);
 
-bool imgui_combo_with_buttons(const char *label, bool &v);
-bool imgui_combo_with_buttons(const char *label, const std::string_view ui_items, int &v);
+	bool slider_for_alpha_value(const char *label, float *v);
 
-bool imgui_drag_with_buttons(const char *label, ImGuiDataType data_type, void *v, int components, const void *v_speed, const void *v_min, const void *v_max, const char *format = nullptr);
-
-bool imgui_slider_with_buttons(const char *label, ImGuiDataType data_type, void *v, int components, const void *v_speed, const void *v_min, const void *v_max, const char *format = nullptr);
-
-bool imgui_slider_for_alpha_value(const char *label, float *v);
-
-void imgui_image_with_checkerboard_background(ImTextureID user_texture_id, const ImVec2 &size, ImU32 tint_col = 0xFFFFFFFF);
+	void image_with_checkerboard_background(ImTextureID user_texture_id, const ImVec2 &size, ImU32 tint_col = 0xFFFFFFFF);
+}
