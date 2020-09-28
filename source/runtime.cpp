@@ -307,16 +307,14 @@ bool reshade::runtime::load_effect(const std::filesystem::path &path, size_t eff
 
 		// Add some conversion macros for compatibility with older versions of ReShade
 		pp.append_string(
+			"#define tex2Doffset(s, coords, offset) tex2D(s, coords, offset)\n"
+			"#define tex2Dlodoffset(s, coords, offset) tex2Dlod(s, coords, offset)\n"
 			"#define tex2Dgather(s, t, c) tex2Dgather##c(s, t)\n"
+			"#define tex2Dgatheroffset(s, t, o, c) tex2Dgather##c(s, t, o)\n"
 			"#define tex2Dgather0 tex2DgatherR\n"
 			"#define tex2Dgather1 tex2DgatherG\n"
 			"#define tex2Dgather2 tex2DgatherB\n"
-			"#define tex2Dgather3 tex2DgatherA\n"
-			"#define tex2Dgatheroffset(s, t, o, c) tex2Dgather##c##offset(s, t, o)\n"
-			"#define tex2Dgather0offset tex2DgatherRoffset\n"
-			"#define tex2Dgather1offset tex2DgatherGoffset\n"
-			"#define tex2Dgather2offset tex2DgatherBoffset\n"
-			"#define tex2Dgather3offset tex2DgatherAoffset\n");
+			"#define tex2Dgather3 tex2DgatherA\n");
 
 		if (!pp.append_file(path))
 			effect.compiled = false;
