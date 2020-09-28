@@ -461,6 +461,10 @@ bool reshade::runtime::load_effect(const std::filesystem::path &path, size_t eff
 			var.special = special_uniform::overlay_open;
 		else if (special == "bufready_depth")
 			var.special = special_uniform::bufready_depth;
+		else if (special == "ui_active")
+			var.special = special_uniform::ui_active;
+		else if (special == "ui_hovering")
+			var.special = special_uniform::ui_hovering;
 
 		effect.uniforms.push_back(std::move(var));
 	}
@@ -1099,6 +1103,13 @@ void reshade::runtime::update_and_render_effects()
 					set_uniform_value(variable, _has_depth_texture);
 					break;
 				}
+#if RESHADE_GUI
+				case special_uniform::ui_active:
+				case special_uniform::ui_hovering:
+					if (!_show_overlay)
+						set_uniform_value(variable, 0);
+					break;
+#endif
 			}
 		}
 	}

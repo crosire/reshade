@@ -26,6 +26,8 @@ namespace reshade
 		freepie,
 		overlay_open,
 		bufready_depth,
+		ui_active,
+		ui_hovering,
 	};
 
 	enum class texture_reference
