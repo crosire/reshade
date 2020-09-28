@@ -463,8 +463,8 @@ bool reshade::runtime::load_effect(const std::filesystem::path &path, size_t eff
 			var.special = special_uniform::bufready_depth;
 		else if (special == "ui_active")
 			var.special = special_uniform::ui_active;
-		else if (special == "ui_hovering")
-			var.special = special_uniform::ui_hovering;
+		else if (special == "ui_hover")
+			var.special = special_uniform::ui_hover;
 
 		effect.uniforms.push_back(std::move(var));
 	}
@@ -1105,7 +1105,7 @@ void reshade::runtime::update_and_render_effects()
 				}
 #if RESHADE_GUI
 				case special_uniform::ui_active:
-				case special_uniform::ui_hovering:
+				case special_uniform::ui_hover:
 					if (!_show_overlay)
 						set_uniform_value(variable, 0);
 					break;

@@ -27,7 +27,7 @@ namespace reshade
 		overlay_open,
 		bufready_depth,
 		ui_active,
-		ui_hovering,
+		ui_hover,
 	};
 
 	enum class texture_reference
