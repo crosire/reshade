@@ -5,9 +5,9 @@
 
 #if RESHADE_GUI
 
+#include "version.h"
 #include "dll_log.hpp"
 #include "dll_resources.hpp"
-#include "version.h"
 #include "runtime.hpp"
 #include "runtime_config.hpp"
 #include "runtime_objects.hpp"
@@ -1604,7 +1604,7 @@ void reshade::runtime::draw_gui_statistics()
 
 		for (const auto &texture : _textures)
 		{
-			if (!_effects[texture.effect_index].rendering || texture.impl == nullptr || texture.impl_reference != texture_reference::none)
+			if (texture.impl == nullptr || texture.impl_reference != texture_reference::none || (texture.shared.size() <= 1 && !_effects[texture.effect_index].rendering))
 				continue;
 
 			ImGui::PushID(texture_index);
