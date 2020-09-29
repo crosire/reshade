@@ -61,30 +61,19 @@ static void dump_and_modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC &desc)
 
 	{ const reshade::ini_file config(g_reshade_base_path / L"ReShade.ini");
 
-		if (bool force_windowed;
-			config.get("D3D9", "ForceWindowed", force_windowed) && force_windowed)
-		{
+		if (config.get("DXGI", "ForceWindowed"))
 			desc.Windowed = TRUE;
-		}
-
-		if (bool force_fullscreen;
-			config.get("D3D9", "ForceFullscreen", force_fullscreen) && force_fullscreen)
-		{
+		if (config.get("DXGI", "ForceFullscreen"))
 			desc.Windowed = FALSE;
-		}
 
-		if (unsigned int force_resolution[2];
-			config.get("D3D9", "ForceResolution", force_resolution) && force_resolution[0] != 0 && force_resolution[1] != 0)
-		{
-			desc.BufferDesc.Width = force_resolution[0];
+		if (unsigned int force_resolution[2] = {};
+			config.get("DXGI", "ForceResolution", force_resolution) &&
+			force_resolution[0] != 0 && force_resolution[1] != 0)
+			desc.BufferDesc.Width = force_resolution[0],
 			desc.BufferDesc.Height = force_resolution[1];
-		}
 
-		if (bool force_10_bit_format;
-			config.get("D3D9", "Force10BitFormat", force_10_bit_format) && force_10_bit_format)
-		{
+		if (config.get("DXGI", "Force10BitFormat"))
 			desc.BufferDesc.Format = DXGI_FORMAT_R10G10B10A2_UNORM;
-		}
 	}
 }
 static void dump_and_modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC1 &desc, DXGI_SWAP_CHAIN_FULLSCREEN_DESC &fullscreen_desc)
@@ -111,30 +100,19 @@ static void dump_and_modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC1 &desc, DXGI_SWA
 
 	{ const reshade::ini_file config(g_reshade_base_path / L"ReShade.ini");
 
-		if (bool force_windowed;
-			config.get("DXGI", "ForceWindowed", force_windowed) && force_windowed)
-		{
+		if (config.get("DXGI", "ForceWindowed"))
 			fullscreen_desc.Windowed = TRUE;
-		}
-
-		if (bool force_fullscreen;
-			config.get("DXGI", "ForceFullscreen", force_fullscreen) && force_fullscreen)
-		{
+		if (config.get("DXGI", "ForceFullscreen"))
 			fullscreen_desc.Windowed = FALSE;
-		}
 
-		if (unsigned int force_resolution[2];
-			config.get("DXGI", "ForceResolution", force_resolution) && force_resolution[0] != 0 && force_resolution[1] != 0)
-		{
-			desc.Width = force_resolution[0];
+		if (unsigned int force_resolution[2] = {};
+			config.get("DXGI", "ForceResolution", force_resolution) &&
+			force_resolution[0] != 0 && force_resolution[1] != 0)
+			desc.Width = force_resolution[0],
 			desc.Height = force_resolution[1];
-		}
 
-		if (bool force_10_bit_format;
-			config.get("DXGI", "Force10BitFormat", force_10_bit_format) && force_10_bit_format)
-		{
+		if (config.get("DXGI", "Force10BitFormat"))
 			desc.Format = DXGI_FORMAT_R10G10B10A2_UNORM;
-		}
 	}
 }
 

@@ -13,19 +13,22 @@
 #include <vector>
 #include <Windows.h>
 
-enum class hook_method
+namespace
 {
-	export_hook,
-	function_hook,
-	vtable_hook
-};
+	enum class hook_method
+	{
+		export_hook,
+		function_hook,
+		vtable_hook
+	};
 
-struct module_export
-{
-	reshade::hook::address address;
-	const char *name;
-	unsigned short ordinal;
-};
+	struct module_export
+	{
+		reshade::hook::address address;
+		const char *name;
+		unsigned short ordinal;
+	};
+}
 
 extern HMODULE g_module_handle;
 static HMODULE s_export_module_handle = nullptr;
