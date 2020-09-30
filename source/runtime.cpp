@@ -1075,14 +1075,7 @@ void reshade::runtime::update_and_render_effects()
 				{
 					if (freepie_io_data data;
 						freepie_io_read(variable.annotation_as_int("index"), &data))
-					{
-						// Assign as float4 array, since float3 arrays are padded to float4 anyway
-						const float array_values[] = {
-							data.yaw, data.pitch, data.roll, 0.0f,
-							data.x, data.y, data.z, 0.0f
-						};
-						set_uniform_value(variable, array_values, 4 * 2);
-					}
+						set_uniform_value(variable, &data.yaw, 3 * 2);
 					break;
 				}
 #if RESHADE_GUI
