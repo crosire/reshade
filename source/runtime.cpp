@@ -607,30 +607,37 @@ void reshade::runtime::load_effects()
 	}
 
 	// Build a list of effect files by walking through the effect search paths
-	const std::vector<std::filesystem::path> effect_files =
-		find_files(_effect_search_paths, { L".fx" });
+	for (std::filesystem::path &effect_file : find_files(_effect_search_paths, { L".fx" }))
+		_remaining_queued_effects.emplace(std::move(effect_file));
 
-	_reload_total_effects = effect_files.size();
-	_reload_remaining_effects = _reload_total_effects;
-
-	if (_reload_total_effects == 0)
+	if (_reload_remaining_effects = _remaining_queued_effects.size(); _reload_remaining_effects == 0)
 		return; // No effect files found, so nothing more to do
 
 	// Allocate space for effects which are placed in this array during the 'load_effect' call
-	_effects.resize(_reload_total_effects);
+	_effects.resize(_remaining_queued_effects.size());
 
 	// Now that we have a list of files, load them in parallel
 	// Split workload into batches instead of launching a thread for every file to avoid launch overhead and stutters due to too many threads being in flight
-	const size_t num_splits = std::min<size_t>(effect_files.size(), std::max<size_t>(std::thread::hardware_concurrency(), 2u) - 1);
-
 	// Keep track of the spawned threads, so the runtime cannot be destroyed while they are still running
-	for (size_t n = 0; n < num_splits; ++n)
-		_worker_threads.emplace_back([this, effect_files, num_splits, n]() {
-			// Abort loading when initialization state changes (indicating that 'on_reset' was called in the meantime)
-			for (size_t i = 0; i < effect_files.size() && _is_initialized; ++i)
-				if (i * num_splits / effect_files.size() == n)
-					load_effect(effect_files[i], i);
-		});
+	for (size_t i = std::min<size_t>(_remaining_queued_effects.size(), std::max<size_t>(std::thread::hardware_concurrency(), 2u) - 1); i > 0; --i)
+	{
+		_worker_threads.emplace_back([this]() mutable {
+			for (;;)
+			{
+				if (_worker_mutex.lock(); _remaining_queued_effects.empty())
+				{
+					_worker_mutex.unlock();
+					return;
+				}
+				const std::filesystem::path source_file = std::move(_remaining_queued_effects.front());
+				const size_t i = _effects.size() - _remaining_queued_effects.size();
+				_remaining_queued_effects.pop();
+				_worker_mutex.unlock();
+				// Abort loading when initialization state changes (indicating that 'on_reset' was called in the meantime)
+				if (_is_initialized)
+					load_effect(source_file, i);
+			}});
+	}
 }
 void reshade::runtime::load_textures()
 {
@@ -785,7 +792,6 @@ void reshade::runtime::update_and_render_effects()
 		load_current_preset();
 
 		_last_reload_time = std::chrono::high_resolution_clock::now();
-		_reload_total_effects = 0;
 		_reload_remaining_effects = std::numeric_limits<size_t>::max();
 
 		// Reset all effect loading options
@@ -1148,7 +1154,6 @@ void reshade::runtime::enable_technique(technique &technique)
 	if (technique.impl == nullptr && // Avoid adding the same effect multiple times to the queue if it contains multiple techniques that were enabled simultaneously
 		std::find(_reload_compile_queue.begin(), _reload_compile_queue.end(), technique.effect_index) == _reload_compile_queue.end())
 	{
-		_reload_total_effects++;
 		_reload_compile_queue.push_back(technique.effect_index);
 	}
 

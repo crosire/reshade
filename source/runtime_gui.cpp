@@ -591,7 +591,7 @@ void reshade::runtime::draw_gui()
 
 			ImGui::Spacing();
 
-			ImGui::ProgressBar(1.0f - _reload_remaining_effects / float(_reload_total_effects), ImVec2(-1, 0), "");
+			ImGui::ProgressBar((_effects.size() - _reload_remaining_effects) / float(_effects.size()), ImVec2(-1, 0), "");
 			ImGui::SameLine(15);
 
 			if (_reload_remaining_effects != 0 && _reload_remaining_effects != std::numeric_limits<size_t>::max())
@@ -1925,7 +1925,6 @@ void reshade::runtime::draw_code_editor()
 			_show_splash = false;
 
 			// Reload effect file
-			_reload_total_effects = 1;
 			_reload_remaining_effects = 1;
 			unload_effect(_selected_effect);
 			load_effect(source_file, _selected_effect);
@@ -2475,7 +2474,6 @@ void reshade::runtime::draw_variable_editor()
 			const std::filesystem::path source_file = effect.source_file;
 
 			// Reload current effect file
-			_reload_total_effects = 1;
 			_reload_remaining_effects = 1;
 			unload_effect(effect_index);
 			if (!load_effect(source_file, effect_index) &&
@@ -2484,7 +2482,6 @@ void reshade::runtime::draw_variable_editor()
 				// The preprocessor definition that was just modified caused the shader to not compile, so reset to default and try again
 				_preset_preprocessor_definitions.erase(modified_definition);
 
-				_reload_total_effects = 1;
 				_reload_remaining_effects = 1;
 				unload_effect(effect_index);
 				if (load_effect(source_file, effect_index))

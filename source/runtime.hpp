@@ -5,6 +5,7 @@
 
 #pragma once
 
+#include <queue>
 #include <mutex>
 #include <memory>
 #include <atomic>
@@ -306,10 +307,10 @@ namespace reshade
 		bool _textures_loaded = false;
 		unsigned int _reload_key_data[4];
 		unsigned int _performance_mode_key_data[4];
-		size_t _reload_total_effects = 1;
 		std::vector<size_t> _reload_compile_queue;
 		std::atomic<size_t> _reload_remaining_effects = 0;
-		std::mutex _reload_mutex;
+		std::queue<std::filesystem::path> _remaining_queued_effects;
+		std::mutex _reload_mutex, _worker_mutex;
 		std::vector<std::thread> _worker_threads;
 		std::vector<std::string> _global_preprocessor_definitions;
 		std::vector<std::string> _preset_preprocessor_definitions;
