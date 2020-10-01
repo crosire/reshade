@@ -78,6 +78,7 @@ namespace reshade::opengl
 				NUM_RBO
 		};
 
+		bool _compatibility_context = false;
 		state_block _app_state;
 
 		GLuint _buf[NUM_BUF] = {};

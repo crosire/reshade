@@ -14,8 +14,8 @@ namespace reshade::opengl
 	public:
 		state_block();
 
-		void capture();
-		void apply() const;
+		void capture(bool compatibility);
+		void apply(bool compatibility) const;
 
 #ifndef NDEBUG
 		mutable bool has_state = false;
