@@ -999,6 +999,7 @@ void reshade::opengl::runtime_gl::render_technique(technique &technique)
 
 	// Set up global state
 	glDisable(GL_CULL_FACE);
+	glDisable(GL_ALPHA_TEST);
 	glDisable(GL_DEPTH_TEST);
 	glDisable(GL_SCISSOR_TEST);
 	glFrontFace(GL_CCW);
@@ -1226,6 +1227,7 @@ void reshade::opengl::runtime_gl::render_imgui_draw_data(ImDrawData *draw_data)
 	assert(_app_state.has_state);
 
 	glDisable(GL_CULL_FACE);
+	glDisable(GL_ALPHA_TEST);
 	glDisable(GL_DEPTH_TEST);
 	glFrontFace(GL_CCW);
 	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);

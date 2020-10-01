@@ -5,6 +5,9 @@
 
 #include <GL/gl3w.h>
 
+// OpenGL tokens for compatibility profile
+#define GL_ALPHA_TEST 0x0BC0
+
 #ifndef NDEBUG
 
 #include <cstdio>

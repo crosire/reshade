@@ -44,6 +44,7 @@ void reshade::opengl::state_block::capture()
 	glGetIntegerv(GL_BLEND_DST, &_blend_dest);
 	glGetIntegerv(GL_BLEND_EQUATION_RGB, &_blend_eq_color);
 	glGetIntegerv(GL_BLEND_EQUATION_ALPHA, &_blend_eq_alpha);
+	_alpha_test = glIsEnabled(GL_ALPHA_TEST);
 	_depth_test = glIsEnabled(GL_DEPTH_TEST);
 	glGetBooleanv(GL_DEPTH_WRITEMASK, &_depth_mask);
 	glGetIntegerv(GL_DEPTH_FUNC, &_depth_func);
@@ -105,6 +106,7 @@ void reshade::opengl::state_block::apply() const
 	glEnableb(GL_BLEND, _blend);
 	glBlendFunc(_blend_src, _blend_dest);
 	glBlendEquationSeparate(_blend_eq_color, _blend_eq_alpha);
+	glEnableb(GL_ALPHA_TEST, _alpha_test);
 	glEnableb(GL_DEPTH_TEST, _depth_test);
 	glDepthMask(_depth_mask);
 	glDepthFunc(_depth_func);
