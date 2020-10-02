@@ -1122,20 +1122,29 @@ bool reshadefx::preprocessor::evaluate_identifier_as_macro()
 
 void reshadefx::preprocessor::expand_macro(const std::string &name, const macro &macro, const std::vector<std::string> &arguments, std::string &out)
 {
-	for (auto it = macro.replacement_list.begin(); it != macro.replacement_list.end(); ++it)
+	for (size_t offset = 0; offset < macro.replacement_list.size(); ++offset)
 	{
-		if (*it != macro_replacement_start)
+		if (macro.replacement_list[offset] != macro_replacement_start)
 		{
-			out += *it;
+			out += macro.replacement_list[offset];
 			continue;
 		}
 
 		// This is a special replacement sequence
-		const auto type = *++it;
+		const auto type = macro.replacement_list[++offset];
 		if (type == macro_replacement_concat)
+		{
+			// Remove any whitespace preceeding or following the concatenation operator (so "a ## b" becomes "ab")
+			if (const size_t last = out.find_last_not_of(" \t");
+				last != std::string::npos && last + 1 < out.size())
+				out.erase(last + 1);
+			while (offset + 1 != macro.replacement_list.size() &&
+				(macro.replacement_list[offset + 1] == ' ' || macro.replacement_list[offset + 1] == '\t'))
+				++offset;
 			continue;
+		}
 
-		const auto index = *++it;
+		const auto index = macro.replacement_list[++offset];
 		if (static_cast<size_t>(index) >= arguments.size())
 		{
 			warning(_token.location, "not enough arguments for function-like macro invocation '" + name + "'");
