@@ -1078,15 +1078,14 @@ bool reshadefx::preprocessor::evaluate_identifier_as_macro()
 
 			while (true)
 			{
+				// Consume all tokens here, so spaces are added to the output too
 				consume();
-
+				if (_token == tokenid::comma && parentheses_level == 0)
+					break; // Comma marks end of an argument
 				if (_token == tokenid::parenthesis_open)
 					parentheses_level++;
-				else if (
-					(_token == tokenid::parenthesis_close && --parentheses_level < 0) ||
-					(_token == tokenid::comma && parentheses_level == 0))
+				if (_token == tokenid::parenthesis_close && --parentheses_level < 0)
 					break;
-
 				argument += _current_token_raw_data;
 			}
 
@@ -1147,9 +1146,12 @@ void reshadefx::preprocessor::expand_macro(const std::string &name, const macro 
 			break;
 		case macro_replacement_argument:
 			push(arguments[index] + static_cast<char>(macro_replacement_argument));
-			while (!accept(tokenid::unknown))
+			while (true)
 			{
+				// Consume all tokens here, so spaces are added to the output too
 				consume();
+				if (_token == tokenid::unknown) // 'macro_replacement_argument' is 'tokenid::unknown'
+					break;
 				if (_token == tokenid::identifier && evaluate_identifier_as_macro())
 					continue;
 				out += _current_token_raw_data;
