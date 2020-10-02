@@ -1086,7 +1086,12 @@ bool reshadefx::preprocessor::evaluate_identifier_as_macro()
 					parentheses_level++;
 				if (_token == tokenid::parenthesis_close && --parentheses_level < 0)
 					break;
-				argument += _current_token_raw_data;
+
+				// Collapse all whitespace down to a single space
+				if (_token == tokenid::space)
+					argument += ' ';
+				else
+					argument += _current_token_raw_data;
 			}
 
 			// Trim whitespace from argument
@@ -1154,8 +1159,15 @@ void reshadefx::preprocessor::expand_macro(const std::string &name, const macro 
 		switch (type)
 		{
 		case macro_replacement_stringize:
+			out.reserve(out.size() + 2 + arguments[index].size());
 			out += '"';
-			out += arguments[index];
+			for (const char c : arguments[index])
+			{
+				// Adds backslashes to escape quotes
+				if (c == '"')
+					out += '\\';
+				out += c;
+			}
 			out += '"';
 			break;
 		case macro_replacement_argument:
