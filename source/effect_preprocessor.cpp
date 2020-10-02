@@ -1090,11 +1090,16 @@ bool reshadefx::preprocessor::evaluate_identifier_as_macro()
 			}
 
 			// Trim whitespace from argument
-			if (!argument.empty() && argument.back() == ' ')
-				argument.pop_back();
-			if (!argument.empty() && argument.front() == ' ')
-				argument.erase(0, 1);
-
+			const size_t first = argument.find_first_not_of(" \t");
+			if (first == std::string::npos)
+			{
+				argument.clear();
+			}
+			else
+			{
+				const size_t last = argument.find_last_not_of(" \t");
+				argument = argument.substr(first, last - first + 1);
+			}
 			arguments.push_back(std::move(argument));
 
 			if (parentheses_level < 0)
@@ -1170,7 +1175,6 @@ void reshadefx::preprocessor::create_macro_replacement_list(macro &macro)
 	while (!peek(tokenid::end_of_file) && !peek(tokenid::end_of_line))
 	{
 		consume();
-
 		switch (_token)
 		{
 		case tokenid::hash:
