@@ -88,6 +88,12 @@ reshade::runtime::runtime() :
 	// Default shortcut PrtScrn
 	_screenshot_key_data[0] = 0x2C;
 
+	// Fall back to alternative configuration file name if it exists
+	std::error_code ec;
+	if (std::filesystem::path configuraton_path_alt = g_reshade_base_path / g_reshade_dll_path.filename().replace_extension(L".ini");
+		std::filesystem::exists(configuraton_path_alt, ec) && !std::filesystem::exists(_configuration_path, ec))
+		_configuration_path = std::move(configuraton_path_alt);
+
 #if RESHADE_GUI
 	init_gui();
 #endif

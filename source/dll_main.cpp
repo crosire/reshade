@@ -16,35 +16,41 @@ std::filesystem::path g_reshade_dll_path;
 std::filesystem::path g_reshade_base_path;
 std::filesystem::path g_target_executable_path;
 
-static bool test_path(std::filesystem::path &path, const bool is_directory = true, const std::filesystem::path &base = g_reshade_dll_path.parent_path())
-{
-	if (path.is_relative())
-		path = base / path;
-
-	WCHAR buf[4096];
-	if (!GetLongPathNameW(path.c_str(), buf, ARRAYSIZE(buf)))
-		return false;
-	path = buf;
-	path = path.lexically_normal();
-	if (!path.has_stem()) // Remove trailing slash
-		path = path.parent_path();
-
-	std::error_code ec;
-	return is_directory ? std::filesystem::is_directory(path, ec) : std::filesystem::exists(path, ec);
-}
-static bool resolve_env_path(std::filesystem::path &path)
+/// <summary>
+/// Expands any environment variables in the path (like "%userprofile%") and checks whether it points towards an existing directory.
+/// </summary>
+static bool resolve_env_path(std::filesystem::path &path, const std::filesystem::path &base = g_reshade_dll_path.parent_path())
 {
 	WCHAR buf[4096];
 	if (!ExpandEnvironmentStringsW(path.c_str(), buf, ARRAYSIZE(buf)))
 		return false;
 	path = buf;
-	return test_path(path);
+
+	if (path.is_relative())
+		path = base / path;
+
+	if (!GetLongPathNameW(path.c_str(), buf, ARRAYSIZE(buf)))
+		return false;
+	path = buf;
+
+	path = path.lexically_normal();
+	if (!path.has_stem()) // Remove trailing slash
+		path = path.parent_path();
+
+	std::error_code ec;
+	return std::filesystem::is_directory(path, ec);
 }
 
+/// <summary>
+/// Loads global configuration file and reads base path from it.
+/// </summary>
 static void load_global_config()
 {
-	std::filesystem::path config_path = g_reshade_dll_path.filename().replace_extension(L".ini");
-	if (test_path(config_path, false))
+	std::error_code ec;
+	std::filesystem::path config_path = g_reshade_dll_path;
+	config_path.replace_extension(L".ini");
+
+	if (std::filesystem::exists(config_path, ec))
 	{
 		const reshade::ini_file &config = reshade::ini_file::load_cache(config_path);
 
@@ -63,7 +69,6 @@ static void load_global_config()
 		}
 		else
 		{
-			std::error_code ec;
 			if (std::filesystem::exists(config_path, ec) || !std::filesystem::exists(g_target_executable_path.parent_path() / L"ReShade.ini", ec))
 			{
 				g_reshade_base_path = g_reshade_dll_path.parent_path();
@@ -77,14 +82,20 @@ static void load_global_config()
 	}
 }
 
+/// <summary>
+/// Returns the path to the "System32" directory or the module path from global configuration if it exists.
+/// </summary>
 std::filesystem::path get_system_path()
 {
 	static std::filesystem::path system_path;
 	if (!system_path.empty())
 		return system_path; // Return the cached system path
 
-	std::filesystem::path config_path = g_reshade_dll_path.filename().replace_extension(L".ini");
-	if (test_path(config_path, false))
+	std::error_code ec;
+	std::filesystem::path config_path = g_reshade_dll_path;
+	config_path.replace_extension(L".ini");
+
+	if (std::filesystem::exists(config_path, ec))
 	{
 		const reshade::ini_file &config = reshade::ini_file::load_cache(config_path);
 
@@ -112,6 +123,9 @@ std::filesystem::path get_system_path()
 	return system_path;
 }
 
+/// <summary>
+/// Returns the path to the module file identified by the specified <paramref name="module"/> handle.
+/// </summary>
 static inline std::filesystem::path get_module_path(HMODULE module)
 {
 	WCHAR buf[4096];
@@ -926,10 +940,6 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 
 		hooks::uninstall();
 
-#  ifndef NDEBUG
-		RemoveVectoredExceptionHandler(g_exception_handler_handle);
-#  endif
-
 		// Module is now invalid, so break out of any message loops that may still have it in the call stack (see 'HookGetMessage' implementation in input.cpp)
 		// This is necessary since a different thread may have called into the 'GetMessage' hook from ReShade, but not receive a message until after the module was unloaded
 		// At that point it would return to code that was already unloaded and crash
@@ -938,6 +948,10 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 		// This duration has to be slightly larger than the timeout in 'HookGetMessage' to ensure success
 		// It should also be large enough to cover any potential other calls to previous hooks that may still be in flight from other threads
 		Sleep(1050);
+
+#  ifndef NDEBUG
+		RemoveVectoredExceptionHandler(g_exception_handler_handle);
+#  endif
 
 		LOG(INFO) << "Finished exiting.";
 		break;
