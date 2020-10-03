@@ -25,9 +25,9 @@ namespace reshade
 		mouse_wheel,
 		freepie,
 		overlay_open,
+		overlay_active,
+		overlay_hovered,
 		bufready_depth,
-		ui_active,
-		ui_hover,
 	};
 
 	enum class texture_reference
