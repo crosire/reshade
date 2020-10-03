@@ -25,6 +25,8 @@ namespace reshade
 		mouse_wheel,
 		freepie,
 		overlay_open,
+		overlay_active,
+		overlay_hovered,
 		bufready_depth,
 	};
 

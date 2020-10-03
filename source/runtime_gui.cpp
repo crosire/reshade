@@ -2191,11 +2191,24 @@ void reshade::runtime::draw_variable_editor()
 		std::string current_category;
 		auto modified_definition = _preset_preprocessor_definitions.end();
 
-		for (uniform &variable : effect.uniforms)
+		size_t active_variable = 0;
+		size_t active_variable_index = std::numeric_limits<size_t>::max();
+		size_t hovered_variable = 0;
+		size_t hovered_variable_index = std::numeric_limits<size_t>::max();
+
+		for (size_t variable_index = 0; variable_index < effect.uniforms.size(); ++variable_index)
 		{
+			reshade::uniform &variable = effect.uniforms[variable_index];
+
 			// Skip hidden and special variables
 			if (variable.annotation_as_int("hidden") || variable.special != special_uniform::none)
+			{
+				if (variable.special == special_uniform::overlay_active)
+					active_variable_index = variable_index;
+				else if (variable.special == special_uniform::overlay_hovered)
+					hovered_variable_index = variable_index;
 				continue;
+			}
 
 			if (const std::string_view category = variable.annotation_as_string("ui_category");
 				category != current_category)
@@ -2351,6 +2364,11 @@ void reshade::runtime::draw_variable_editor()
 			}
 			}
 
+			if (ImGui::IsItemActive())
+				active_variable = variable_index + 1;
+			if (ImGui::IsItemHovered())
+				hovered_variable = variable_index + 1;
+
 			// Display tooltip
 			if (const std::string_view tooltip = variable.annotation_as_string("ui_tooltip");
 				!tooltip.empty() && ImGui::IsItemHovered())
@@ -2387,6 +2405,11 @@ void reshade::runtime::draw_variable_editor()
 			if (modified)
 				save_current_preset();
 		}
+
+		if (active_variable_index < effect.uniforms.size())
+			set_uniform_value(effect.uniforms[active_variable_index], static_cast<uint32_t>(active_variable));
+		if (hovered_variable_index < effect.uniforms.size())
+			set_uniform_value(effect.uniforms[hovered_variable_index], static_cast<uint32_t>(hovered_variable));
 
 		// Draw preprocessor definition list after all uniforms of an effect file
 		std::string category_label = "Preprocessor definitions";
