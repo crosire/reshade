@@ -14,9 +14,15 @@ struct ImFont;
 
 namespace reshade::gui
 {
+	/// <summary>
+	/// A text editor for ImGui with syntax highlighting.
+	/// </summary>
 	class code_editor
 	{
 	public:
+		/// <summary>
+		/// Position of a character in the text currently being edited.
+		/// </summary>
 		struct text_pos
 		{
 			size_t line, column;
@@ -26,9 +32,9 @@ namespace reshade::gui
 
 			bool operator==(const text_pos &o) const { return line == o.line && column == o.column; }
 			bool operator!=(const text_pos &o) const { return line != o.line || column != o.column; }
-			bool operator< (const text_pos &o) const { return line != o.line ? line < o.line : column < o.column; }
+			bool operator< (const text_pos &o) const { return line != o.line ? line < o.line : column <  o.column; }
 			bool operator<=(const text_pos &o) const { return line != o.line ? line < o.line : column <= o.column; }
-			bool operator> (const text_pos &o) const { return line != o.line ? line > o.line : column > o.column; }
+			bool operator> (const text_pos &o) const { return line != o.line ? line > o.line : column >  o.column; }
 			bool operator>=(const text_pos &o) const { return line != o.line ? line > o.line : column >= o.column; }
 		};
 
@@ -67,34 +73,118 @@ namespace reshade::gui
 
 		code_editor();
 
+		/// <summary>
+		/// Performs all input logic and renders this text editor to the current ImGui window.
+		/// </summary>
+		/// <param name="title">Name of the child window the editor is rendered into.</param>
+		/// <param name="border">Set to <c>true</c> to surround the child window with a border line.</param>
+		/// <param name="font">The font used for rendering the text (<c>nullptr</c> to use the default).</param>
 		void render(const char *title, bool border = false, ImFont *font = nullptr);
 
+		/// <summary>
+		/// Sets the selection to be between the specified <paramref name="beg"/>in and <paramref name="end"/> positions.
+		/// </summary>
+		/// <param name="beg">First character to be in the selection.</param>
+		/// <param name="end">Last character to be in the selection.</param>
+		/// <param name="mode">Changes selection behavior to snap to character, word or line boundaries.</param>
 		void select(const text_pos &beg, const text_pos &end, selection_mode mode = selection_mode::normal);
+		/// <summary>
+		/// Sets the selection to contain the entire text.
+		/// </summary>
 		void select_all();
+		/// <summary>
+		/// Returns whether a selection is currently active.
+		/// </summary>
 		bool has_selection() const { return _select_end > _select_beg; }
 
+		/// <summary>
+		/// Searches the text of this text editor for the specific search <paramref name="text"/>, starting at the cursor and scrolls to its position when found.
+		/// </summary>
+		/// <param name="text">The text to find.</param>
+		/// <param name="backwards">Set to <c>true</c> to search in reverse direction, otherwise searches forwards.</param>
+		/// <param name="with_selection">Set to <c>true</c> to start search at selection boundaries, rather than the cursor position.</param>
+		/// <returns><c>true</c> when the search <paramref name="text"/> was found, <c>false</c> otherwise.</returns>
 		bool find_and_scroll_to_text(const std::string &text, bool backwards = false, bool with_selection = false);
 
+		/// <summary>
+		/// Replaces the text of this text editor with the specified string.
+		/// </summary>
 		void set_text(const std::string &text);
+		/// <summary>
+		/// Clears the text of this text editor to an empty string.
+		/// </summary>
 		void clear_text();
+		/// <summary>
+		/// Inserts the specified <paramref name="text"/> at the cursor position.
+		/// </summary>
 		void insert_text(const std::string &text);
+		/// <summary>
+		/// Returns the entire text of this text editor as a string.
+		/// </summary>
 		std::string get_text() const;
+		/// <summary>
+		/// Returns the text between the specified <paramref name="beg"/>in and <paramref name="end"/> positions.
+		/// </summary>
+		/// <param name="beg">First character to be in the return string.</param>
+		/// <param name="end">Last character to be in the return string.</param>
 		std::string get_text(const text_pos &beg, const text_pos &end) const;
+		/// <summary>
+		/// Returns the text of the currently active selection if there is one and an empty string otherwise.
+		/// </summary>
 		std::string get_selected_text() const;
 
+		/// <summary>
+		/// Reverts the last action(s) performed on this text editor.
+		/// </summary>
+		/// <param name="steps">The number of actions to undo.</param>
 		void undo(unsigned int steps = 1);
+		/// <summary>
+		/// Returns whether any actions have been recorded which can be reverted.
+		/// </summary>
 		bool can_undo() const { return _undo_index > 0; }
+		/// <summary>
+		/// Applies any last action(s) again that were previously reverted.
+		/// </summary>
+		/// <param name="steps">The number of actions to redo.</param>
 		void redo(unsigned int steps = 1);
+		/// <summary>
+		/// Returns whether any actions have been recorded which can be applied again.
+		/// </summary>
 		bool can_redo() const { return _undo_index < _undo.size(); }
 
+		/// <summary>
+		/// Returns whether the user has modified the text since it was last set via <see cref="set_text"/>.
+		/// </summary>
 		bool is_modified() const { return _modified; }
 
-		void add_error(size_t line, const std::string &message, bool warning = false) { _errors.insert({ line, { message, warning } }); }
+		/// <summary>
+		/// Adds an error to be displayed at the specified <paramref name="line"/>.
+		/// </summary>
+		/// <param name="line">The line that should be highlighted and show an error message when hovered with the mouse.</param>
+		/// <param name="message">The error message that should be displayed.</param>
+		/// <param name="warning">Set to <c>true</c> to indicate that this is a warning instead of an error, which uses different color coding.</param>
+		void add_error(size_t line, const std::string &message, bool warning = false) { _errors.emplace(line, std::make_pair(message, warning)); }
+		/// <summary>
+		/// Removes all displayed errors that were previously added via <see cref="add_error"/>.
+		/// </summary>
 		void clear_errors() { _modified = false; _errors.clear(); }
 
+		/// <summary>
+		/// Changes the read-only state of this text editor.
+		/// Set to <c>true</c> to prevent user from being able to modify the text, <c>false</c> to behave like a normal editor.
+		/// </summary>
 		void set_readonly(bool state) { _readonly = state; }
+		/// <summary>
+		/// Changes the number of spaces that are inserted when the "Tabulator" key is pressed. Defaults to 4.
+		/// </summary>
 		void set_tab_size(unsigned short size) { _tab_size = size; }
+		/// <summary>
+		/// Changes the size of the margin (in pixels) between the left border of the text editor and the rendered text.
+		/// </summary>
 		void set_left_margin(float margin) { _left_margin = margin; }
+		/// <summary>
+		/// Changes the size of the empty space (in pixels) between lines of the rendered text.
+		/// </summary>
 		void set_line_spacing(float spacing) { _line_spacing = spacing; }
 
 		void set_palette(const std::array<uint32_t, color_palette_max> &palette) { _palette = palette; }
@@ -145,6 +235,7 @@ namespace reshade::gui
 
 		void colorize();
 
+		// Holds the entire text split up into individual character glyphs
 		std::vector<std::vector<glyph>> _lines;
 
 		bool _readonly = false;

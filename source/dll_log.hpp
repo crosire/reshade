@@ -11,6 +11,11 @@
 #include <utf8/unchecked.h>
 #include <combaseapi.h> // REFIID, HRESULT
 
+#undef INFO
+#undef ERROR // This is defined in the Windows SDK headers
+#undef WARN
+#undef DEBUG
+
 #define LOG(LEVEL) LOG_##LEVEL()
 #define LOG_INFO() reshade::log::message(reshade::log::level::info)
 #define LOG_ERROR() reshade::log::message(reshade::log::level::error)

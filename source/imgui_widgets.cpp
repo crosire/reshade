@@ -205,6 +205,46 @@ bool reshade::gui::widgets::file_dialog(const char *name, std::filesystem::path 
 	return result;
 }
 
+bool reshade::gui::widgets::key_input_box(const char *name, unsigned int key[4], const reshade::input &input)
+{
+	char buf[48] = "Click to set key shortcut";
+	if (key[0] || key[1] || key[2] || key[3])
+		buf[reshade::input::key_name(key).copy(buf, sizeof(buf) - 1)] = '\0';
+
+	ImGui::InputText(name, buf, sizeof(buf), ImGuiInputTextFlags_ReadOnly | ImGuiInputTextFlags_NoUndoRedo | ImGuiInputTextFlags_NoHorizontalScroll);
+
+	if (ImGui::IsItemActive())
+	{
+		const unsigned int last_key_pressed = input.last_key_pressed();
+
+		if (last_key_pressed != 0)
+		{
+			if (last_key_pressed == 0x08) // Backspace
+			{
+				key[0] = 0;
+				key[1] = 0;
+				key[2] = 0;
+				key[3] = 0;
+			}
+			else if (last_key_pressed < 0x10 || last_key_pressed > 0x12) // Exclude modifier keys
+			{
+				key[0] = last_key_pressed;
+				key[1] = input.is_key_down(0x11); // Ctrl
+				key[2] = input.is_key_down(0x10); // Shift
+				key[3] = input.is_key_down(0x12); // Alt
+			}
+
+			return true;
+		}
+	}
+	else if (ImGui::IsItemHovered())
+	{
+		ImGui::SetTooltip("Click in the field and press any key to change the shortcut to that key.");
+	}
+
+	return false;
+}
+
 bool reshade::gui::widgets::font_input_box(const char *name, std::filesystem::path &path, std::filesystem::path &dialog_path, int &size)
 {
 	bool res = false;
@@ -237,6 +277,7 @@ bool reshade::gui::widgets::font_input_box(const char *name, std::filesystem::pa
 
 	return res;
 }
+
 bool reshade::gui::widgets::file_input_box(const char *name, std::filesystem::path &path, std::filesystem::path &dialog_path, const std::vector<std::wstring> &exts)
 {
 	bool res = false;
@@ -354,64 +395,22 @@ bool reshade::gui::widgets::popup_button(const char *label, float width, ImGuiWi
 	return ImGui::BeginPopup(label, flags);
 }
 
-bool reshade::gui::widgets::toggle_button(const char *label, bool &toggle)
+bool reshade::gui::widgets::toggle_button(const char *label, bool &v)
 {
-	if (toggle)
+	if (v)
 		ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyle().Colors[ImGuiCol_ButtonActive]);
 	const bool modified = ImGui::SmallButton(label);
-	if (toggle)
+	if (v)
 		ImGui::PopStyleColor();
 
 	if (modified)
-		toggle = !toggle;
+		v = !v;
 
 	return modified;
 }
 
-bool reshade::gui::widgets::key_input_box(const char *name, unsigned int key_data[4], const reshade::input &input)
-{
-	char buf[48] = "Click to set key shortcut";
-	if (key_data[0] || key_data[1] || key_data[2] || key_data[3])
-		buf[reshade::input::key_name(key_data).copy(buf, sizeof(buf) - 1)] = '\0';
-
-	ImGui::InputText(name, buf, sizeof(buf), ImGuiInputTextFlags_ReadOnly | ImGuiInputTextFlags_NoUndoRedo | ImGuiInputTextFlags_NoHorizontalScroll);
-
-	if (ImGui::IsItemActive())
-	{
-		const unsigned int last_key_pressed = input.last_key_pressed();
-
-		if (last_key_pressed != 0)
-		{
-			if (last_key_pressed == 0x08) // Backspace
-			{
-				key_data[0] = 0;
-				key_data[1] = 0;
-				key_data[2] = 0;
-				key_data[3] = 0;
-			}
-			else if (last_key_pressed < 0x10 || last_key_pressed > 0x12) // Exclude modifier keys
-			{
-				key_data[0] = last_key_pressed;
-				key_data[1] = input.is_key_down(0x11);
-				key_data[2] = input.is_key_down(0x10);
-				key_data[3] = input.is_key_down(0x12);
-			}
-
-			return true;
-		}
-	}
-	else if (ImGui::IsItemHovered())
-	{
-		ImGui::SetTooltip("Click in the field and press any key to change the shortcut to that key.");
-	}
-
-	return false;
-}
-
 bool reshade::gui::widgets::list_with_buttons(const char *label, const std::string_view ui_items, int &v)
 {
-	const auto imgui_context = ImGui::GetCurrentContext();
-
 	bool modified = false;
 
 	std::vector<std::string_view> items;
@@ -423,7 +422,7 @@ bool reshade::gui::widgets::list_with_buttons(const char *label, const std::stri
 	ImGui::BeginGroup();
 
 	const float button_size = ImGui::GetFrameHeight();
-	const float button_spacing = imgui_context->Style.ItemInnerSpacing.x;
+	const float button_spacing = ImGui::GetStyle().ItemInnerSpacing.x;
 	const ImVec2 hover_pos = ImGui::GetCursorScreenPos() + ImVec2(0, button_size);
 
 	ImGui::PushItemWidth(ImGui::CalcItemWidth() - (button_spacing * 2 + button_size * 2));
@@ -467,9 +466,11 @@ bool reshade::gui::widgets::list_with_buttons(const char *label, const std::stri
 
 	if (is_hovered)
 	{
+		const ImGuiStyle &style = ImGui::GetStyle();
+
 		ImGui::SetNextWindowPos(hover_pos);
-		ImGui::SetNextWindowSizeConstraints(ImVec2(ImGui::CalcItemWidth(), 0.0f), ImVec2(FLT_MAX, (imgui_context->FontSize + imgui_context->Style.ItemSpacing.y) * 8 - imgui_context->Style.ItemSpacing.y + (imgui_context->Style.WindowPadding.y * 2))); // 8 by ImGuiComboFlags_HeightRegular
-		ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(imgui_context->Style.FramePadding.x, imgui_context->Style.WindowPadding.y));
+		ImGui::SetNextWindowSizeConstraints(ImVec2(ImGui::CalcItemWidth(), 0.0f), ImVec2(FLT_MAX, (ImGui::GetFontSize() + style.ItemSpacing.y) * 8 - style.ItemSpacing.y + (style.WindowPadding.y * 2))); // 8 by ImGuiComboFlags_HeightRegular
+		ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(style.FramePadding.x, style.WindowPadding.y));
 		ImGui::Begin("##spinner_items", NULL, ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoDocking);
 		ImGui::PopStyleVar();
 

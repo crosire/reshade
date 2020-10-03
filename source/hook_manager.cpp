@@ -139,7 +139,7 @@ static bool install_internal(HMODULE target_module, HMODULE replacement_module, 
 
 	if (target_exports.empty())
 	{
-		LOG(INFO) << "> Empty export table! Skipped.";
+		LOG(WARN) << "> Empty export table! Skipped.";
 		return false;
 	}
 

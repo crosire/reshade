@@ -84,7 +84,7 @@ void reshade::runtime::init_gui()
 	subscribe_to_ui("Log", [this]() { draw_gui_log(); });
 	subscribe_to_ui("About", [this]() { draw_gui_about(); });
 
-	_load_config_callables.push_back([this](const ini_file &config) {
+	_load_config_callables.push_back([this, &imgui_io, &imgui_style](const ini_file &config) {
 		config.get("INPUT", "KeyOverlay", _overlay_key_data);
 		config.get("INPUT", "InputProcessing", _input_processing_mode);
 
@@ -102,16 +102,16 @@ void reshade::runtime::init_gui()
 
 		bool save_imgui_window_state = false;
 		config.get("OVERLAY", "SaveWindowState", save_imgui_window_state);
-		_imgui_context->IO.IniFilename = save_imgui_window_state ? g_window_state_path.c_str() : nullptr;
+		imgui_io.IniFilename = save_imgui_window_state ? g_window_state_path.c_str() : nullptr;
 
-		config.get("STYLE", "Alpha", _imgui_context->Style.Alpha);
-		config.get("STYLE", "GrabRounding", _imgui_context->Style.GrabRounding);
-		config.get("STYLE", "FrameRounding", _imgui_context->Style.FrameRounding);
-		config.get("STYLE", "ChildRounding", _imgui_context->Style.ChildRounding);
-		config.get("STYLE", "PopupRounding", _imgui_context->Style.PopupRounding);
-		config.get("STYLE", "WindowRounding", _imgui_context->Style.WindowRounding);
-		config.get("STYLE", "ScrollbarRounding", _imgui_context->Style.ScrollbarRounding);
-		config.get("STYLE", "TabRounding", _imgui_context->Style.TabRounding);
+		config.get("STYLE", "Alpha", imgui_style.Alpha);
+		config.get("STYLE", "GrabRounding", imgui_style.GrabRounding);
+		config.get("STYLE", "FrameRounding", imgui_style.FrameRounding);
+		config.get("STYLE", "ChildRounding", imgui_style.ChildRounding);
+		config.get("STYLE", "PopupRounding", imgui_style.PopupRounding);
+		config.get("STYLE", "WindowRounding", imgui_style.WindowRounding);
+		config.get("STYLE", "ScrollbarRounding", imgui_style.ScrollbarRounding);
+		config.get("STYLE", "TabRounding", imgui_style.TabRounding);
 		config.get("STYLE", "FPSScale", _fps_scale);
 		config.get("STYLE", "ColFPSText", _fps_col);
 		config.get("STYLE", "Font", _font);
@@ -127,7 +127,7 @@ void reshade::runtime::init_gui()
 
 		load_custom_style();
 	});
-	_save_config_callables.push_back([this](ini_file &config) {
+	_save_config_callables.push_back([this, &imgui_io, &imgui_style](ini_file &config) {
 		config.set("INPUT", "KeyOverlay", _overlay_key_data);
 		config.set("INPUT", "InputProcessing", _input_processing_mode);
 
@@ -143,16 +143,17 @@ void reshade::runtime::init_gui()
 		config.set("OVERLAY", "VariableListUseTabs", _variable_editor_tabs);
 		config.set("OVERLAY", "EffectLoadSkippingButton", _effect_load_skipping_ui);
 
-		config.set("OVERLAY", "SaveWindowState", _imgui_context->IO.IniFilename != nullptr);
+		const bool save_imgui_window_state = imgui_io.IniFilename != nullptr;
+		config.set("OVERLAY", "SaveWindowState", save_imgui_window_state);
 
-		config.set("STYLE", "Alpha", _imgui_context->Style.Alpha);
-		config.set("STYLE", "GrabRounding", _imgui_context->Style.GrabRounding);
-		config.set("STYLE", "FrameRounding", _imgui_context->Style.FrameRounding);
-		config.set("STYLE", "ChildRounding", _imgui_context->Style.ChildRounding);
-		config.set("STYLE", "PopupRounding", _imgui_context->Style.PopupRounding);
-		config.set("STYLE", "WindowRounding", _imgui_context->Style.WindowRounding);
-		config.set("STYLE", "ScrollbarRounding", _imgui_context->Style.ScrollbarRounding);
-		config.set("STYLE", "TabRounding", _imgui_context->Style.TabRounding);
+		config.set("STYLE", "Alpha", imgui_style.Alpha);
+		config.set("STYLE", "GrabRounding", imgui_style.GrabRounding);
+		config.set("STYLE", "FrameRounding", imgui_style.FrameRounding);
+		config.set("STYLE", "ChildRounding", imgui_style.ChildRounding);
+		config.set("STYLE", "PopupRounding", imgui_style.PopupRounding);
+		config.set("STYLE", "WindowRounding", imgui_style.WindowRounding);
+		config.set("STYLE", "ScrollbarRounding", imgui_style.ScrollbarRounding);
+		config.set("STYLE", "TabRounding", imgui_style.TabRounding);
 		config.set("STYLE", "FPSScale", _fps_scale);
 		config.set("STYLE", "ColFPSText", _fps_col);
 		config.set("STYLE", "Font", _font);
