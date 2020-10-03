@@ -1243,6 +1243,8 @@ void reshade::runtime::save_config() const
 	std::filesystem::path relative_preset_path = _current_preset_path.lexically_proximate(g_reshade_base_path);
 	if (relative_preset_path.wstring().rfind(L"..", 0) != std::wstring::npos)
 		relative_preset_path = _current_preset_path; // Do not use relative path if preset is in a parent directory
+	if (relative_preset_path.is_relative()) // Prefix preset path with dot character to better indicate it being a relative path
+		relative_preset_path = L"." / relative_preset_path;
 	config.set("GENERAL", "PresetPath", relative_preset_path);
 	config.set("GENERAL", "PresetTransitionDelay", _preset_transition_delay);
 
