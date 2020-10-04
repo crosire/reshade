@@ -2585,14 +2585,20 @@ void reshade::runtime::draw_technique_editor()
 		// Also prevent disabling it for when the technique is set to always be enabled via annotation
 		ImGui::PushItemFlag(ImGuiItemFlags_Disabled, !effect.compiled || technique.annotation_as_int("enabled"));
 		// Gray out disabled techniques and mark techniques which failed to compile red
-		ImGui::PushStyleColor(ImGuiCol_Text, effect.compiled ? _imgui_context->Style.Colors[technique.enabled ? ImGuiCol_Text : ImGuiCol_TextDisabled] : COLOR_RED);
+		ImGui::PushStyleColor(ImGuiCol_Text,
+			effect.compiled ?
+				effect.errors.empty() || technique.enabled ?
+					_imgui_context->Style.Colors[technique.enabled ? ImGuiCol_Text : ImGuiCol_TextDisabled] :
+					COLOR_YELLOW :
+				COLOR_RED);
 
-		std::string_view ui_label = technique.annotation_as_string("ui_label");
-		if (ui_label.empty() || !effect.compiled) ui_label = technique.name;
-		std::string label(ui_label.data(), ui_label.size());
+		std::string label(technique.annotation_as_string("ui_label"));
+		if (label.empty() || !effect.compiled)
+			label = technique.name;
 		label += " [" + effect.source_file.filename().u8string() + ']' + (!effect.compiled ? " failed to compile" : "");
 
-		if (bool status = technique.enabled; ImGui::Checkbox(label.data(), &status))
+		if (bool status = technique.enabled;
+			ImGui::Checkbox(label.data(), &status))
 		{
 			if (status)
 				enable_technique(technique);
@@ -2612,13 +2618,20 @@ void reshade::runtime::draw_technique_editor()
 			hovered_technique_index = index;
 
 		// Display tooltip
-		if (const std::string_view tooltip = effect.compiled ? technique.annotation_as_string("ui_tooltip") : effect.errors;
-			!tooltip.empty() && ImGui::IsItemHovered())
+		if (const std::string_view tooltip = technique.annotation_as_string("ui_tooltip");
+			ImGui::IsItemHovered() && (!tooltip.empty() || !effect.errors.empty()))
 		{
 			ImGui::BeginTooltip();
-			if (!effect.compiled) ImGui::PushStyleColor(ImGuiCol_Text, COLOR_RED);
-			ImGui::TextUnformatted(tooltip.data());
-			if (!effect.compiled) ImGui::PopStyleColor();
+			if (!tooltip.empty())
+			{
+				ImGui::TextUnformatted(tooltip.data());
+			}
+			if (!effect.errors.empty())
+			{
+				ImGui::PushStyleColor(ImGuiCol_Text, effect.compiled ? COLOR_YELLOW : COLOR_RED);
+				ImGui::TextUnformatted(effect.errors.c_str());
+				ImGui::PopStyleColor();
+			}
 			ImGui::EndTooltip();
 		}
 
