@@ -316,6 +316,7 @@ namespace reshade
 		std::vector<std::filesystem::path> _effect_search_paths;
 		std::vector<std::filesystem::path> _texture_search_paths;
 		std::chrono::high_resolution_clock::time_point _last_reload_time;
+		std::chrono::high_resolution_clock::time_point _effects_auto_disabled;
 
 		// === Screenshots ===
 		bool _should_save_screenshot = false;

@@ -495,6 +495,7 @@ void reshade::runtime::draw_gui()
 	const bool show_splash = _show_splash && (is_loading() || !_reload_compile_queue.empty() || (_reload_count <= 1 && (_last_present_time - _last_reload_time) < std::chrono::seconds(5)));
 	// Do not show this message in the same frame the screenshot is taken (so that it won't show up on the UI screenshot)
 	const bool show_screenshot_message = (_show_screenshot_message || !_screenshot_save_success) && !_should_save_screenshot && (_last_present_time - _last_screenshot_time) < std::chrono::seconds(_screenshot_save_success ? 3 : 5);
+	const bool show_effects_auto_disabled_message = !_effects_enabled && (_last_present_time - _effects_auto_disabled) < std::chrono::seconds(8);
 
 	if (_show_overlay && !_ignore_shortcuts && !_imgui_context->IO.NavVisible && _input->is_key_pressed(0x1B /* VK_ESCAPE */))
 		_show_overlay = false; // Close when pressing the escape button and not currently navigating with the keyboard
@@ -545,7 +546,7 @@ void reshade::runtime::draw_gui()
 	ImVec2 viewport_offset = ImVec2(0, 0);
 
 	// Create ImGui widgets and windows
-	if (show_splash || show_screenshot_message || !_preset_save_success || (!_show_overlay && _tutorial_index == 0))
+	if (show_splash || show_screenshot_message || show_effects_auto_disabled_message || !_preset_save_success || (!_show_overlay && _tutorial_index == 0))
 	{
 		ImGui::SetNextWindowPos(ImVec2(10, 10));
 		ImGui::SetNextWindowSize(ImVec2(imgui_io.DisplaySize.x - 20.0f, 0.0f));
@@ -574,6 +575,12 @@ void reshade::runtime::draw_gui()
 					ImGui::TextColored(COLOR_RED, "Unable to save screenshot because path doesn't exist: %s.", _screenshot_path.u8string().c_str());
 			else
 				ImGui::Text("Screenshot successfully saved to %s", _last_screenshot_file.u8string().c_str());
+		}
+		else if (show_effects_auto_disabled_message)
+		{
+			ImGui::PushStyleColor(ImGuiCol_Text, COLOR_YELLOW);
+			ImGui::TextUnformatted("Effects are disabled now because rendering was too long.");
+			ImGui::PopStyleColor();
 		}
 		else
 		{

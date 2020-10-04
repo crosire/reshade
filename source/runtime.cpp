@@ -1140,6 +1140,23 @@ void reshade::runtime::update_and_render_effects()
 		}
 	}
 
+	uint64_t time_post_processing_duration = 0;
+
+	for (technique &technique : _techniques)
+		time_post_processing_duration += technique.average_cpu_duration,
+		time_post_processing_duration += technique.average_gpu_duration;
+
+	if (time_post_processing_duration > 166'666'666) // 6 fps
+	{
+		for (technique &technique : _techniques)
+			technique.average_cpu_duration.clear(),
+			technique.average_gpu_duration.clear();
+#if RESHADE_GUI
+		_effects_auto_disabled = _last_present_time;
+#endif
+		_effects_enabled = false;
+	}
+
 	if (_should_save_screenshot)
 		save_screenshot(std::wstring(), true);
 }
