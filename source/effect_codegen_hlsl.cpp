@@ -1321,9 +1321,9 @@ private:
 
 			code += "while (" + condition_name + ")\n\t{\n\t\t";
 
-			// Work around D3DCompiler bug (only in SM3) that causes it to forget to initialize the loop count register, so that loops are not executed at all
-			// Only applies to dynamic loops, where it generates a loop instruction like "rep i0", but never sets the "i0" register via "defi i0, ..."
-			// Moving the loop condition into the loop body fixes that, but therefore only necessary for loops which have a condition
+			// Work around D3DCompiler putting uniform variables that are used as the loop count register into integer registers (only in SM3)
+			// Only applies to dynamic loops with uniform variables in the condition, where it generates a loop instruction like "rep i0", but then expects the "i0" register to be set externally
+			// Moving the loop condition into the loop body forces it to move the uniform variable into a constant register instead and geneates a fixed number of loop iterations with "defi i0, 255, ..."
 			// Check 'condition_name' instead of 'condition_value' here to also catch cases where a constant boolean expression was passed in as loop condition
 			if (_shader_model < 40 && condition_name != "true")
 				code += "if (!" + condition_name + ") break;\n\t\t";

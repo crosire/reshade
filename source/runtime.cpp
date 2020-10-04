@@ -492,20 +492,20 @@ bool reshade::runtime::load_effect(const std::filesystem::path &path, size_t eff
 				// Cannot share texture if this is a normal one, but the existing one is a reference and vice versa
 				if (texture.semantic.empty() != (existing_texture->impl_reference == texture_reference::none))
 				{
-					effect.errors += "error: " + texture.unique_name + ": another effect (";
+					effect.errors += "error: " + texture.unique_name + ": another shader (";
 					effect.errors += _effects[existing_texture->effect_index].source_file.filename().u8string();
 					effect.errors += ") already created a texture with the same name but different usage; rename the variable to fix this error\n";
 					effect.compiled = false;
 					break;
 				}
-				else if (texture.semantic.empty() && !existing_texture->matches_description(texture))
+				if (texture.semantic.empty() && !existing_texture->matches_description(texture))
 				{
-					effect.errors += "warning: " + texture.unique_name + ": another effect (";
+					effect.errors += "warning: " + texture.unique_name + ": another shader (";
 					effect.errors += _effects[existing_texture->effect_index].source_file.filename().u8string();
 					effect.errors += ") already created a texture with the same name but different dimensions; textures are shared across all effects, so either rename the variable or adjust the dimensions so they match\n";
 				}
 
-				if (_color_bit_depth != 8)
+				if (existing_texture->impl_reference == texture_reference::back_buffer && _color_bit_depth != 8)
 				{
 					for (const auto &sampler_info : effect.module.samplers)
 					{
