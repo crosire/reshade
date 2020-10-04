@@ -1218,7 +1218,7 @@ void reshade::runtime::load_config()
 	config.get("GENERAL", "PresetTransitionDelay", _preset_transition_delay);
 	// Use default if the preset file does not exist yet
 	if (!resolve_preset_path(_current_preset_path))
-		_current_preset_path = g_reshade_base_path / L"DefaultPreset.ini";
+		_current_preset_path = g_reshade_base_path / L"ReShadePreset.ini";
 
 	config.get("SCREENSHOTS", "ClearAlpha", _screenshot_clear_alpha);
 	config.get("SCREENSHOTS", "FileFormat", _screenshot_format);
