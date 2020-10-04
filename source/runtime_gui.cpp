@@ -88,38 +88,38 @@ void reshade::runtime::init_gui()
 		config.get("INPUT", "KeyOverlay", _overlay_key_data);
 		config.get("INPUT", "InputProcessing", _input_processing_mode);
 
-		config.get("OVERLAY", "ShowFPS", _show_fps);
+		config.get("OVERLAY", "ClockFormat", _clock_format);
+		config.get("OVERLAY", "FPSPosition", _fps_pos);
+		config.get("OVERLAY", "NoFontScaling", _no_font_scaling);
 		config.get("OVERLAY", "ShowClock", _show_clock);
+		config.get("OVERLAY", "ShowForceLoadEffectsButton", _show_force_load_effects_button);
+		config.get("OVERLAY", "ShowFPS", _show_fps);
 		config.get("OVERLAY", "ShowFrameTime", _show_frametime);
 		config.get("OVERLAY", "ShowScreenshotMessage", _show_screenshot_message);
-		config.get("OVERLAY", "FPSPosition", _fps_pos);
-		config.get("OVERLAY", "ClockFormat", _clock_format);
-		config.get("OVERLAY", "NoFontScaling", _no_font_scaling);
 		config.get("OVERLAY", "TutorialProgress", _tutorial_index);
 		config.get("OVERLAY", "VariableListHeight", _variable_editor_height);
 		config.get("OVERLAY", "VariableListUseTabs", _variable_editor_tabs);
-		config.get("OVERLAY", "EffectLoadSkippingButton", _effect_load_skipping_ui);
 
 		bool save_imgui_window_state = false;
 		config.get("OVERLAY", "SaveWindowState", save_imgui_window_state);
 		imgui_io.IniFilename = save_imgui_window_state ? g_window_state_path.c_str() : nullptr;
 
 		config.get("STYLE", "Alpha", imgui_style.Alpha);
-		config.get("STYLE", "GrabRounding", imgui_style.GrabRounding);
-		config.get("STYLE", "FrameRounding", imgui_style.FrameRounding);
 		config.get("STYLE", "ChildRounding", imgui_style.ChildRounding);
-		config.get("STYLE", "PopupRounding", imgui_style.PopupRounding);
-		config.get("STYLE", "WindowRounding", imgui_style.WindowRounding);
-		config.get("STYLE", "ScrollbarRounding", imgui_style.ScrollbarRounding);
-		config.get("STYLE", "TabRounding", imgui_style.TabRounding);
-		config.get("STYLE", "FPSScale", _fps_scale);
 		config.get("STYLE", "ColFPSText", _fps_col);
-		config.get("STYLE", "Font", _font);
-		config.get("STYLE", "FontSize", _font_size);
 		config.get("STYLE", "EditorFont", _editor_font);
 		config.get("STYLE", "EditorFontSize", _editor_font_size);
-		config.get("STYLE", "StyleIndex", _style_index);
 		config.get("STYLE", "EditorStyleIndex", _editor_style_index);
+		config.get("STYLE", "Font", _font);
+		config.get("STYLE", "FontSize", _font_size);
+		config.get("STYLE", "FPSScale", _fps_scale);
+		config.get("STYLE", "FrameRounding", imgui_style.FrameRounding);
+		config.get("STYLE", "GrabRounding", imgui_style.GrabRounding);
+		config.get("STYLE", "PopupRounding", imgui_style.PopupRounding);
+		config.get("STYLE", "ScrollbarRounding", imgui_style.ScrollbarRounding);
+		config.get("STYLE", "StyleIndex", _style_index);
+		config.get("STYLE", "TabRounding", imgui_style.TabRounding);
+		config.get("STYLE", "WindowRounding", imgui_style.WindowRounding);
 
 		// For compatibility with older versions, set the alpha value if it is missing
 		if (_fps_col[3] == 0.0f)
@@ -131,37 +131,37 @@ void reshade::runtime::init_gui()
 		config.set("INPUT", "KeyOverlay", _overlay_key_data);
 		config.set("INPUT", "InputProcessing", _input_processing_mode);
 
-		config.set("OVERLAY", "ShowFPS", _show_fps);
+		config.set("OVERLAY", "ClockFormat", _clock_format);
+		config.set("OVERLAY", "FPSPosition", _fps_pos);
+		config.set("OVERLAY", "NoFontScaling", _no_font_scaling);
 		config.set("OVERLAY", "ShowClock", _show_clock);
+		config.set("OVERLAY", "ShowForceLoadEffectsButton", _show_force_load_effects_button);
+		config.set("OVERLAY", "ShowFPS", _show_fps);
 		config.set("OVERLAY", "ShowFrameTime", _show_frametime);
 		config.set("OVERLAY", "ShowScreenshotMessage", _show_screenshot_message);
-		config.set("OVERLAY", "FPSPosition", _fps_pos);
-		config.set("OVERLAY", "ClockFormat", _clock_format);
-		config.set("OVERLAY", "NoFontScaling", _no_font_scaling);
 		config.set("OVERLAY", "TutorialProgress", _tutorial_index);
 		config.set("OVERLAY", "VariableListHeight", _variable_editor_height);
 		config.set("OVERLAY", "VariableListUseTabs", _variable_editor_tabs);
-		config.set("OVERLAY", "EffectLoadSkippingButton", _effect_load_skipping_ui);
 
 		const bool save_imgui_window_state = imgui_io.IniFilename != nullptr;
 		config.set("OVERLAY", "SaveWindowState", save_imgui_window_state);
 
 		config.set("STYLE", "Alpha", imgui_style.Alpha);
-		config.set("STYLE", "GrabRounding", imgui_style.GrabRounding);
-		config.set("STYLE", "FrameRounding", imgui_style.FrameRounding);
 		config.set("STYLE", "ChildRounding", imgui_style.ChildRounding);
-		config.set("STYLE", "PopupRounding", imgui_style.PopupRounding);
-		config.set("STYLE", "WindowRounding", imgui_style.WindowRounding);
-		config.set("STYLE", "ScrollbarRounding", imgui_style.ScrollbarRounding);
-		config.set("STYLE", "TabRounding", imgui_style.TabRounding);
-		config.set("STYLE", "FPSScale", _fps_scale);
 		config.set("STYLE", "ColFPSText", _fps_col);
-		config.set("STYLE", "Font", _font);
-		config.set("STYLE", "FontSize", _font_size);
 		config.set("STYLE", "EditorFont", _editor_font);
 		config.set("STYLE", "EditorFontSize", _editor_font_size);
-		config.set("STYLE", "StyleIndex", _style_index);
 		config.set("STYLE", "EditorStyleIndex", _editor_style_index);
+		config.set("STYLE", "Font", _font);
+		config.set("STYLE", "FontSize", _font_size);
+		config.set("STYLE", "FPSScale", _fps_scale);
+		config.set("STYLE", "FrameRounding", imgui_style.FrameRounding);
+		config.set("STYLE", "GrabRounding", imgui_style.GrabRounding);
+		config.set("STYLE", "PopupRounding", imgui_style.PopupRounding);
+		config.set("STYLE", "ScrollbarRounding", imgui_style.ScrollbarRounding);
+		config.set("STYLE", "StyleIndex", _style_index);
+		config.set("STYLE", "TabRounding", imgui_style.TabRounding);
+		config.set("STYLE", "WindowRounding", imgui_style.WindowRounding);
 
 		// Do not save custom style colors by default, only when actually used and edited
 	});
@@ -1292,7 +1292,7 @@ void reshade::runtime::draw_gui_settings()
 		modified |= ImGui::Checkbox("Show screenshot message", &_show_screenshot_message);
 
 		if (_effect_load_skipping)
-			modified |= ImGui::Checkbox("Show \"Force load all effects\" button", &_effect_load_skipping_ui);
+			modified |= ImGui::Checkbox("Show \"Force load all effects\" button", &_show_force_load_effects_button);
 
 		bool save_imgui_window_state = _imgui_context->IO.IniFilename != nullptr;
 		if (ImGui::Checkbox("Save window state (ReShadeGUI.ini)", &save_imgui_window_state))
@@ -2547,7 +2547,7 @@ void reshade::runtime::draw_technique_editor()
 {
 	bool reload_required = false;
 
-	if (_effect_load_skipping_ui)
+	if (_effect_load_skipping && _show_force_load_effects_button)
 	{
 		if (size_t skipped_effects = std::count_if(_effects.begin(), _effects.end(),
 			[](const effect &effect) { return effect.skipped; }); skipped_effects > 0)
@@ -2562,7 +2562,7 @@ void reshade::runtime::draw_technique_editor()
 
 	for (size_t index = 0; index < _techniques.size(); ++index)
 	{
-		technique &technique = _techniques[index];
+		reshade::technique &technique = _techniques[index];
 
 		// Skip hidden techniques
 		if (technique.hidden)

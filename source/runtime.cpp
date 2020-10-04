@@ -1197,26 +1197,25 @@ void reshade::runtime::load_config()
 {
 	const ini_file &config = ini_file::load_cache(_configuration_path);
 
-	config.get("INPUT", "KeyReload", _reload_key_data);
+	config.get("INPUT", "ForceShortcutModifiers", _force_shortcut_modifiers);
 	config.get("INPUT", "KeyEffects", _effects_key_data);
-	config.get("INPUT", "KeyScreenshot", _screenshot_key_data);
-	config.get("INPUT", "KeyPreviousPreset", _prev_preset_key_data);
 	config.get("INPUT", "KeyNextPreset", _next_preset_key_data);
 	config.get("INPUT", "KeyPerformanceMode", _performance_mode_key_data);
-	config.get("INPUT", "ForceShortcutModifiers", _force_shortcut_modifiers);
+	config.get("INPUT", "KeyPreviousPreset", _prev_preset_key_data);
+	config.get("INPUT", "KeyReload", _reload_key_data);
+	config.get("INPUT", "KeyScreenshot", _screenshot_key_data);
 
 	config.get("GENERAL", "NoDebugInfo", _no_debug_info);
 	config.get("GENERAL", "NoReloadOnInit", _no_reload_on_init);
 
-	config.get("GENERAL", "PerformanceMode", _performance_mode);
 	config.get("GENERAL", "EffectSearchPaths", _effect_search_paths);
-	config.get("GENERAL", "TextureSearchPaths", _texture_search_paths);
+	config.get("GENERAL", "PerformanceMode", _performance_mode);
 	config.get("GENERAL", "PreprocessorDefinitions", _global_preprocessor_definitions);
-	config.get("GENERAL", "EffectLoadSkipping", _effect_load_skipping);
+	config.get("GENERAL", "SkipLoadingDisabledEffects", _effect_load_skipping);
+	config.get("GENERAL", "TextureSearchPaths", _texture_search_paths);
 
 	config.get("GENERAL", "PresetPath", _current_preset_path);
 	config.get("GENERAL", "PresetTransitionDelay", _preset_transition_delay);
-
 	// Use default if the preset file does not exist yet
 	if (!resolve_preset_path(_current_preset_path))
 		_current_preset_path = g_reshade_base_path / L"DefaultPreset.ini";
@@ -1237,19 +1236,19 @@ void reshade::runtime::save_config() const
 {
 	ini_file &config = ini_file::load_cache(_configuration_path);
 
-	config.set("INPUT", "KeyReload", _reload_key_data);
+	config.set("INPUT", "ForceShortcutModifiers", _force_shortcut_modifiers);
 	config.set("INPUT", "KeyEffects", _effects_key_data);
-	config.set("INPUT", "KeyScreenshot", _screenshot_key_data);
-	config.set("INPUT", "KeyPreviousPreset", _prev_preset_key_data);
 	config.set("INPUT", "KeyNextPreset", _next_preset_key_data);
 	config.set("INPUT", "KeyPerformanceMode", _performance_mode_key_data);
-	config.set("INPUT", "ForceShortcutModifiers", _force_shortcut_modifiers);
+	config.set("INPUT", "KeyPreviousPreset", _prev_preset_key_data);
+	config.set("INPUT", "KeyReload", _reload_key_data);
+	config.set("INPUT", "KeyScreenshot", _screenshot_key_data);
 
-	config.set("GENERAL", "PerformanceMode", _performance_mode);
 	config.set("GENERAL", "EffectSearchPaths", _effect_search_paths);
-	config.set("GENERAL", "TextureSearchPaths", _texture_search_paths);
+	config.set("GENERAL", "PerformanceMode", _performance_mode);
 	config.set("GENERAL", "PreprocessorDefinitions", _global_preprocessor_definitions);
-	config.set("GENERAL", "EffectLoadSkipping", _effect_load_skipping);
+	config.set("GENERAL", "SkipLoadingDisabledEffects", _effect_load_skipping);
+	config.set("GENERAL", "TextureSearchPaths", _texture_search_paths);
 
 	// Use ReShade DLL directory as base for relative preset paths (see 'resolve_preset_path')
 	std::filesystem::path relative_preset_path = _current_preset_path.lexically_proximate(g_reshade_base_path);
