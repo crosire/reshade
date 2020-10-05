@@ -142,7 +142,10 @@ bool reshadefx::preprocessor::append_string(const std::string &source_code)
 
 	_success = true; // Clear success flag before parsing a new string
 
-	push(source_code);
+	// Give this push a name, so that lexer location starts at a new line
+	// This is necessary in case this string starts with a preprocessor directive, since the lexer only reports those as such if they appear at the beginning of a new line
+	// But without a name, the lexer location is set to the last token location, which most likely will not be at the start of the line
+	push(source_code, "unknown");
 	parse();
 
 	return _success;
