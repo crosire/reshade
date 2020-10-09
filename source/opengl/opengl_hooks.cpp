@@ -365,8 +365,12 @@ HOOK_EXPORT void WINAPI glDepthRange(GLclampd zNear, GLclampd zFar)
 
 HOOK_EXPORT void WINAPI glDisable(GLenum cap)
 {
-	static const auto trampoline = reshade::hooks::call(glDisable);
-	trampoline(cap);
+	static const auto trampoline = reshade::hooks::call(&glDisable);
+
+	if (cap == GL_ALPHA_TEST)
+		trampoline(0x809E); // GL_SAMPLE_ALPHA_TO_COVERAGE
+	else
+		trampoline(cap);
 }
 HOOK_EXPORT void WINAPI glDisableClientState(GLenum array)
 {
@@ -522,8 +526,12 @@ HOOK_EXPORT void WINAPI glEdgeFlagv(const GLboolean *flag)
 
 HOOK_EXPORT void WINAPI glEnable(GLenum cap)
 {
-	static const auto trampoline = reshade::hooks::call(glEnable);
-	trampoline(cap);
+	static const auto trampoline = reshade::hooks::call(&glEnable);
+
+	if (cap == GL_ALPHA_TEST)
+		trampoline(0x809E); // GL_SAMPLE_ALPHA_TO_COVERAGE
+	else
+		trampoline(cap);
 }
 HOOK_EXPORT void WINAPI glEnableClientState(GLenum array)
 {
