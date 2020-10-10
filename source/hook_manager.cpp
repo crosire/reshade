@@ -321,7 +321,7 @@ HMODULE WINAPI HookLoadLibraryExA(LPCSTR lpFileName, HANDLE hFile, DWORD dwFlags
 	static const auto trampoline = call_unchecked(&HookLoadLibraryExA);
 
 	const HMODULE handle = trampoline(lpFileName, hFile, dwFlags);
-	if (dwFlags == 0 && handle != nullptr && handle != g_module_handle)
+	if (handle != nullptr && handle != g_module_handle && (dwFlags & (LOAD_LIBRARY_AS_DATAFILE | LOAD_LIBRARY_AS_DATAFILE_EXCLUSIVE | LOAD_LIBRARY_AS_IMAGE_RESOURCE)) == 0)
 		install_delayed_hooks(lpFileName);
 
 	return handle;
@@ -341,7 +341,7 @@ HMODULE WINAPI HookLoadLibraryExW(LPCWSTR lpFileName, HANDLE hFile, DWORD dwFlag
 	static const auto trampoline = call_unchecked(&HookLoadLibraryExW);
 
 	const HMODULE handle = trampoline(lpFileName, hFile, dwFlags);
-	if (dwFlags == 0 && handle != nullptr && handle != g_module_handle)
+	if (handle != nullptr && handle != g_module_handle && (dwFlags & (LOAD_LIBRARY_AS_DATAFILE | LOAD_LIBRARY_AS_DATAFILE_EXCLUSIVE | LOAD_LIBRARY_AS_IMAGE_RESOURCE)) == 0)
 		install_delayed_hooks(lpFileName);
 
 	return handle;
