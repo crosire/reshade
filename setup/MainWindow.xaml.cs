@@ -837,7 +837,7 @@ In that event here are some steps you can try to resolve this:
 			}
 			else
 			{
-				description = "You may now close this setup tool or click this button to edit additional settings.";
+				description = "You may now close this setup tool or click this button to edit additional settings.\nTo uninstall ReShade, launch this tool and select the game again. An option to uninstall will pop up then.";
 			}
 
 			UpdateStatusAndFinish(true, "Edit ReShade settings", description);
