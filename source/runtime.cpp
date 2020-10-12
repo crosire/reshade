@@ -741,8 +741,8 @@ void reshade::runtime::unload_effect(size_t effect_index)
 
 	// Do not clear source file, so that an 'unload_effect' immediately followed by a 'load_effect' which accesses that works
 	effect &effect = _effects[effect_index];;
-	effect.rendering = false;
 	effect.compiled = false;
+	effect.rendering = false;
 	effect.errors.clear();
 	effect.preamble.clear();
 	effect.included_files.clear();
@@ -817,53 +817,63 @@ void reshade::runtime::update_and_render_effects()
 	}
 	else if (!_reload_compile_queue.empty())
 	{
-		bool success = true;
-
 		// Pop an effect from the queue
 		const size_t effect_index = _reload_compile_queue.back();
 		_reload_compile_queue.pop_back();
 		effect &effect = _effects[effect_index];
 
 		// Create textures now, since they are referenced when building samplers in the 'init_effect' call below
-		for (texture &texture : _textures)
+		for (texture &tex : _textures)
 		{
-			// Always create shared textures, since they may be in use by this effect already
-			if (texture.impl == nullptr && (texture.effect_index == effect_index || texture.shared.size() > 1))
+			if (tex.impl != nullptr || (
+				// Always create shared textures, since they may be in use by this effect already
+				tex.effect_index != effect_index && tex.shared.size() <= 1))
+				continue;
+
+			if (!init_texture(tex))
 			{
-				if (!init_texture(texture))
-				{
-					success = false;
-					effect.errors += "Failed to create texture " + texture.unique_name;
-					break;
-				}
+				effect.errors += "Failed to create texture " + tex.unique_name;
+				effect.compiled = false;
+				break;
 			}
 		}
 
-		// Compile the effect with the back-end implementation
-		if (success && (success = init_effect(effect_index)) == false)
-		{
-			// De-duplicate error lines (D3DCompiler sometimes repeats the same error multiple times)
-			for (size_t cur_line_offset = 0, next_line_offset, end_offset;
-				(next_line_offset = effect.errors.find('\n', cur_line_offset)) != std::string::npos && (end_offset = effect.errors.find('\n', next_line_offset + 1)) != std::string::npos; cur_line_offset = next_line_offset + 1)
-			{
-				const std::string_view cur_line(effect.errors.c_str() + cur_line_offset, next_line_offset - cur_line_offset);
-				const std::string_view next_line(effect.errors.c_str() + next_line_offset + 1, end_offset - next_line_offset - 1);
+		// Compile the effect with the back-end implementation (unless texture creation failed)
+		if (effect.compiled)
+			effect.compiled = init_effect(effect_index);
 
+		// De-duplicate error lines (D3DCompiler sometimes repeats the same error multiple times)
+		for (size_t line_offset = 0, next_line_offset;
+			(next_line_offset = effect.errors.find('\n', line_offset)) != std::string::npos; line_offset = next_line_offset + 1)
+		{
+			const std::string_view cur_line(effect.errors.c_str() + line_offset, next_line_offset - line_offset);
+
+			if (const size_t end_offset = effect.errors.find('\n', next_line_offset + 1);
+				end_offset != std::string::npos)
+			{
+				const std::string_view next_line(effect.errors.c_str() + next_line_offset + 1, end_offset - next_line_offset - 1);
 				if (cur_line == next_line)
 				{
 					effect.errors.erase(next_line_offset, end_offset - next_line_offset);
-					next_line_offset = cur_line_offset - 1;
+					next_line_offset = line_offset - 1;
 				}
 			}
 
+			// Also remove D3DCompiler warnings about 'groupshared' specifier used in VS/PS modules
+			if (cur_line.find("X3579") != std::string_view::npos)
+			{
+				effect.errors.erase(line_offset, next_line_offset + 1 - line_offset);
+				next_line_offset = line_offset - 1;
+			}
+		}
+
+		if (!effect.compiled) // Something went wrong, do clean up
+		{
 			if (effect.errors.empty())
 				LOG(ERROR) << "Failed initializing " << effect.source_file << '.';
 			else
 				LOG(ERROR) << "Failed initializing " << effect.source_file << ":\n" << effect.errors;
-		}
 
-		if (success == false) // Something went wrong, do clean up
-		{
 			// Destroy all textures belonging to this effect
 			for (texture &tex : _textures)
 				if (tex.effect_index == effect_index && tex.shared.size() <= 1)
@@ -873,7 +883,6 @@ void reshade::runtime::update_and_render_effects()
 				if (tech.effect_index == effect_index)
 					disable_technique(tech);
 
-			effect.compiled = false;
 			_last_shader_reload_successfull = false;
 		}
 
@@ -882,7 +891,7 @@ void reshade::runtime::update_and_render_effects()
 
 #if RESHADE_GUI
 		// Update assembly in viewer after a reload
-		if (_show_code_viewer && !_viewer_entry_point.empty() && success)
+		if (_show_code_viewer && !_viewer_entry_point.empty() && effect.compiled)
 		{
 			if (const auto assembly_it = effect.assembly.find(_viewer_entry_point);
 				assembly_it != effect.assembly.end())
