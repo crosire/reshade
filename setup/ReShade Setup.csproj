@@ -119,11 +119,13 @@
   <ItemGroup>
     <Content Include="Properties\Icon.ico" />
   </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.WindowsSDK.props" />
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Common.props" />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
     <PreBuildEvent>echo Generating assembly version ...
-"$(VC_ExecutablePath_x86)\cl.exe" /nologo /EP /C /I "$(SolutionDir)res" "$(ProjectDir)Properties\AssemblyInfo.cs.in" &gt; "$(ProjectDir)Properties\AssemblyInfo.cs"
+set PATH=%PATH%;$(VC_ExecutablePath_x86)
+cl.exe /nologo /EP /C /I "$(SolutionDir)res" "$(ProjectDir)Properties\AssemblyInfo.cs.in" &gt; "$(ProjectDir)Properties\AssemblyInfo.cs"
 
 echo Compiling ReShade setup tool ...</PreBuildEvent>
     <PostBuildEvent>echo Compressing ReShade DLLs ...
@@ -133,7 +135,11 @@ echo Appending archive to setup executable ...
 copy /b "$(TargetPath)" + "$(TargetDir)ReShade Setup.zip" "$(TargetPath)"
 
 echo Cleaning up and deleting temporary archive ...
-del "$(TargetDir)ReShade Setup.zip"</PostBuildEvent>
+del "$(TargetDir)ReShade Setup.zip"
+
+echo Signing executable ...
+set PATH=%PATH%;$(WindowsSDK_ExecutablePath)
+if exist "$(SolutionDir)res\sign.pfx" signtool.exe sign /f "$(SolutionDir)res\sign.pfx" /t http://timestamp.verisign.com/scripts/timstamp.dll "$(TargetPath)"</PostBuildEvent>
     <RunPostBuildEvent>OnBuildSuccess</RunPostBuildEvent>
   </PropertyGroup>
 </Project>
